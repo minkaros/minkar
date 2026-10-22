@@ -14,3 +14,8 @@ build: ${.OBJDIR}/Makefile
 	cp -f ${.OBJDIR}/lib/.libs/libiconv.2.dylib \
 		${.OBJDIR}/lib/libcharset.1.dylib \
 		${.OBJDIR:H}/CoreText.framework/Resources/
+.for dir in ${SYSROOT_DIR}/usr/lib ${RAVYN_SDKROOT}/usr/lib
+	mkdir -p ${dir}
+	cp -f ${.OBJDIR}/lib/.libs/libiconv.2.dylib ${.OBJDIR}/lib/libcharset.1.dylib ${dir}/
+	ln -sf libiconv.2.dylib ${dir}/libiconv.dylib
+.endfor

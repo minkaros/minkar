@@ -586,7 +586,7 @@ LDFLAGS = -pthread -framework Foundation -framework CoreFoundation \
     -framework CoreGraphics -framework CoreText -framework CoreData \
     -framework QuartzCore -framework OpenGL -framework Onyx2D \
 	-lobjc -lSystem
-# fontconfig, CGL and CGS* are not built yet; resolve them at runtime
+# CGL and CGS* are not implemented yet; resolve them at runtime
 LDFLAGS += -Wl,-undefined,dynamic_lookup
 
 DIRS = \

@@ -1,51 +1,42 @@
-PATH=		${OBJTOP}/tmp/legacy/bin:/bin:/usr/bin:${MAKEOBJDIR}/../gperf/src
-.export PATH
+# fontconfig, built as a static library and linked into CoreText.
+# GNU gperf is not used: src/fcobjshash.h comes from our own BSD-2
+# generator, ../fcobjshash-gen.py.
 
-GMAKE=		${OBJTOP}/tmp/legacy/bin/gmake
-INSTALL=	${OBJTOP}/tmp/legacy/bin/install
+ONYX2D_OBJ = ${.OBJDIR:H:H}/Onyx2D
+SDK_FLAGS = --sysroot=${RAVYN_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN}
 
-CONFIGURE_ARGS+= --prefix=/ \
-		 --sysconfdir=/etc \
-		 --with-templatedir=/System/Library/Frameworks/CoreText.framework/Resources \
-		 --with-xmldir=/System/Library/Frameworks/CoreText.framework/Resources \
-		 --localstatedir=/var --host=x86_64-ravynos-freebsd\
-		 --enable-static=yes \
-		 --enable-shared=no \
-		 --enable-libxml2 \
-		 --disable-docs --disable-docbook \
-		 --with-pic --disable-cache-build \
-		 --with-sysroot=${OBJTOP}/tmp \
-		 --with-default-fonts=/System/Library/Fonts,/Library/Fonts
-FREETYPE_CFLAGS= -I${SRCTOP}/Frameworks/Onyx2D/freetype/include
-FREETYPE_LIBS=	 -L${OBJTOP}/Frameworks/Onyx2D/Onyx2D.framework -lOnyx2D \
-		 -Wl,-R/System/Library/Frameworks/Onyx2D.framework/Versions/A \
-		 -L${OBJTOP}/Frameworks/Foundation/Foundation.framework \
-		 -lFoundation -lobjc -lstdc++ \
-		 -Wl,-R/System/Library/Frameworks/Foundation.framework/Versions/A
-LIBXML2_CFLAGS=  -I${SRCTOP}/lib/libxml2/include \
-		 -I${OBJTOP}/lib/libxml2 \
-		 -I${OBJTOP}/tmp/usr/include/libxml2
-LIBXML2_LIBS=	 -L${OBJTOP}/lib/libxml2 -lxml2
-LDFLAGS+=	 ${FREETYPE_LIBS} ${LIBXML2_LIBS}
+FREETYPE_CFLAGS = -I${ONYX2D_OBJ}/freetype/include \
+	-I${ROOT_SOURCE_DIR}/Frameworks/Onyx2D/freetype/include
+# Use -L/-l: libtool would embed .a paths inside libfontconfig.a
+FREETYPE_LIBS = -L${ONYX2D_OBJ}/freetype -lfreetype \
+	-L${ONYX2D_OBJ}/png -lpng16 -lz
+LIBXML2_CFLAGS = -I${RAVYN_SDKROOT}/usr/include/libxml2 \
+	-I${.OBJDIR:H}/libiconv/include
+LIBXML2_LIBS = -lxml2 -L${.OBJDIR:H}/libiconv/lib/.libs -liconv \
+	-L${.OBJDIR:H}/xz/src/liblzma/.libs -llzma -lz
 
-LD_LIBRARY_PATH+= ${OBJTOP}/Frameworks/CFNetwork/CFNetwork.framework:${OBJTOP}/Frameworks/CoreFoundation/CoreFoundation.framework:${OBJTOP}/Frameworks/Foundation/Foundation.framework:${OBJTOP}/Frameworks/Onyx2D/Onyx2D.framework:${OBJTOP}/tmp/usr/lib:${OBJTOP}/tmp/lib:${OBJTOP}/tmp/usr/lib
-.export LD_LIBRARY_PATH FREETYPE_CFLAGS FREETYPE_LIBS
-.export LIBXML2_CFLAGS LIBXML2_LIBS
+all: ${.OBJDIR}/Makefile build
 
-all: build
-${MAKEOBJDIR}/Makefile:
-	mkdir -p ${MAKEOBJDIR}
-	cd ${MAKEOBJDIR}; LDFLAGS="${LDFLAGS:S/-L /-L/Wg}" \
-		PYTHON=${OBJTOP}/tmp/usr/bin/python3 \
-		${.CURDIR}/configure ${CONFIGURE_ARGS}
+${.OBJDIR}/Makefile: ${.CURDIR}/configure
+	CC=${CC} CXX=${CXX} LD=${CC} AR=${AR} RANLIB=${RANLIB} LIBTOOL=${LIBTOOL} \
+	LDFLAGS="-fuse-ld=${LD} ${SDK_FLAGS}" \
+	CFLAGS="${SDK_FLAGS}" \
+	FREETYPE_CFLAGS="${FREETYPE_CFLAGS}" FREETYPE_LIBS="${FREETYPE_LIBS}" \
+	LIBXML2_CFLAGS="${LIBXML2_CFLAGS}" LIBXML2_LIBS="${LIBXML2_LIBS}" \
+	GPERF="python3 -I ${.CURDIR:H}/fcobjshash-gen.py" \
+	${.CURDIR}/configure --prefix=/usr --sysconfdir=/etc \
+	--localstatedir=/var --host=${CpuArch}-apple-darwin \
+	--with-sysroot=${RAVYN_SDKROOT} \
+	--enable-static --disable-shared --with-pic \
+	--enable-libxml2 --disable-docs --disable-nls --disable-cache-build \
+	--with-templatedir=/System/Library/Frameworks/CoreText.framework/Resources \
+	--with-xmldir=/System/Library/Frameworks/CoreText.framework/Resources \
+	--with-default-fonts=/System/Library/Fonts,/Library/Fonts
 
-build: ${MAKEOBJDIR}/Makefile
-	PYTHON=${OBJTOP}/tmp/usr/bin/python3 ${GMAKE} -C ${MAKEOBJDIR}
-	mkdir -pv ${BUILDROOT}/etc/fonts/conf.d
-	cp -fv ${.CURDIR}/fonts.conf ${BUILDROOT}/etc/fonts/
-	rm -f ${MAKEOBJDIR}/src/fcarch ${MAKEOBJDIR}/src/fcarch.o
+build: ${.OBJDIR}/Makefile
+	MAKEFLAGS="" ${GMAKE} -C ${.OBJDIR}/src all
+	mkdir -p ${SYSROOT_DIR}/etc/fonts/conf.d
+	cp -f ${.CURDIR}/fonts.conf ${SYSROOT_DIR}/etc/fonts/
 
 clean:
-	rm -rf ${MAKEOBJDIR}
-
-install:
+	rm -rf ${.OBJDIR}/*

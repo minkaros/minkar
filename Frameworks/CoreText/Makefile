@@ -7,14 +7,15 @@ SRCS = CTFont.m KTFont.m
 HEADERS = CoreText.h CoreTextExport.h CTFont.h KTFont.h
 RESOURCES = Info.plist
 LDFLAGS = -framework Onyx2D -framework CoreGraphics -framework Foundation \
-	-framework CoreFoundation -L${.OBJDIR}/libxml2 -lxml2 -lintl -lobjc
+	-framework CoreFoundation -L${.OBJDIR}/libxml2 -lxml2 -lintl -lobjc \
+	-liconv -llzma -lz \
+	-Wl,-force_load,${.OBJDIR}/fontconfig/src/.libs/libfontconfig.a
 
-SUBDIR = xz libiconv libxml2 #gperf .WAIT fontconfig
-#LINK_SUBDIR = fontconfig/src
-#LINK_EXCLUDE.fontconfig/src = fcarch.o
+SUBDIR = xz libiconv libxml2 fontconfig
 
-${FRAMEWORK}: xz libiconv libxml2
+${FRAMEWORK}: xz libiconv libxml2 fontconfig
 libxml2: xz libiconv
+fontconfig: libxml2
 
 clean:
 	rm -f ${.OBJDIR}/*.o ${.OBJDIR}/*.pico
@@ -22,6 +23,7 @@ clean:
 CFLAGS = -I${.CURDIR:H}  -I${.CURDIR}/fontconfig/fontconfig
 
 fontresources:
+	mkdir -p ${FRAMEWORK_DIR}/Versions/A/Resources ${SYSROOT_DIR}/etc/fonts/conf.d
 	cp -fv ${.CURDIR}/fontconfig/conf.d/*.conf ${FRAMEWORK_DIR}/Versions/A/Resources/
 .for f in  \
 	10-hinting-medium.conf \
@@ -55,7 +57,7 @@ fontresources:
 
 installresources: std_install_hook fontresources
 
-fmwk-install-hook:
+fmwk-install-hook: fontresources
 .for dir in ${RAVYN_SDKROOT}/System/Library/Frameworks/ ${SYSROOT_DIR}/System/Library/Frameworks/
 	mkdir -p ${dir}
 	cp -Rf ${.OBJDIR}/${FRAMEWORK}.framework ${dir}

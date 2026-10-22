@@ -13,3 +13,8 @@ build: ${.OBJDIR}/Makefile
 	MAKEFLAGS="" ${GMAKE} -C ${.OBJDIR}
 	cp -f ${.OBJDIR}/src/liblzma/.libs/liblzma.5.dylib \
             ${.OBJDIR:H}/CoreText.framework/Resources/
+.for dir in ${SYSROOT_DIR}/usr/lib ${RAVYN_SDKROOT}/usr/lib
+	mkdir -p ${dir}
+	cp -f ${.OBJDIR}/src/liblzma/.libs/liblzma.5.dylib ${dir}/
+	ln -sf liblzma.5.dylib ${dir}/liblzma.dylib
+.endfor
