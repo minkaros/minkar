@@ -80,7 +80,7 @@
 }
 
 -(NSString *)description {
-   return [NSString stringWithFormat:@"<%@ %p temp=%d, ref=%@>",isa,self,_isTemporaryID,_referenceObject];
+   return [NSString stringWithFormat:@"<%@ %p temp=%d, ref=%@>",[self class],self,_isTemporaryID,_referenceObject];
 }
 
 @end

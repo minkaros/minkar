@@ -60,7 +60,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 -initWithCoder: (NSCoder *) coder {
    if(![coder allowsKeyedCoding])
-    [NSException raise:NSInvalidArgumentException format: @"%@ can not initWithCoder:%@", isa, [coder class]];
+    [NSException raise:NSInvalidArgumentException format: @"%@ can not initWithCoder:%@", [self class], [coder class]];
 
    _entities=[[coder decodeObjectForKey: @"NSEntities"] retain];
    for(NSEntityDescription *entity in [_entities allValues])

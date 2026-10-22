@@ -1,5 +1,7 @@
-FRAMEWORK=CoreData
-.include "../framework.common.mk"
+MK_WERROR = no
+FRAMEWORK = CoreData
+FMWK_VERSION = A
+SUBDIR =
 
 SRCS= \
 CoreDataErrors.m \
@@ -23,7 +25,7 @@ NSPropertyDescription.m \
 NSRelationshipDescription.m \
 NSXMLPersistentStore.m 
 
-INCS= \
+HEADERS= \
 CoreData.h \
 CoreDataErrors.h \
 CoreDataExports.h \
@@ -52,9 +54,16 @@ NSPropertyDescription.h \
 NSRelationshipDescription.h \
 NSXMLPersistentStore.h
 
-RESOURCES=Info.plist English.lproj
-CFLAGS+= ${FMWK_CFLAGS} -I${.CURDIR}/.. -I.. -I../libobjc2 -I../Foundation/Headers
+RESOURCES_FILES = Info.plist
+RESOURCES_DIRS = English.lproj
+
+CFLAGS = -I${.CURDIR:H} -fblocks
+LDFLAGS = -framework Foundation -framework CoreFoundation -lobjc
+
+fmwk-install-hook:
+.for dir in ${RAVYN_SDKROOT}/System/Library/Frameworks/ ${SYSROOT_DIR}/System/Library/Frameworks/
+	mkdir -p ${dir}
+	cp -Rf ${.OBJDIR}/${FRAMEWORK}.framework ${dir}
+.endfor
 
 .include <rvn.framework.mk>
-
-installresources: std_install_hook

@@ -76,7 +76,7 @@ static void appendMethodToList(Class class,NSString *selectorName,IMP imp,const 
 
 -initWithCoder:(NSCoder *)coder {
     if(![coder allowsKeyedCoding]) {
-        [NSException raise: NSInvalidArgumentException format: @"%@ can not initWithCoder:%@", isa, [coder class]];
+        [NSException raise: NSInvalidArgumentException format: @"%@ can not initWithCoder:%@", [self class], [coder class]];
         return nil;
     }
     

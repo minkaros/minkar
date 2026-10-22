@@ -74,7 +74,7 @@ static NSMutableDictionary *_storeTypes=nil;
     }
    }
    
-   Class          class=[[isa registeredStoreTypes] objectForKey:storeType];
+   Class          class=[[[self class] registeredStoreTypes] objectForKey:storeType];
    NSAtomicStore *store=[[[class alloc] initWithPersistentStoreCoordinator:self configurationName:configuration URL:storeURL options:options] autorelease];
 
    if(![store load:error])
@@ -179,7 +179,7 @@ static NSMutableDictionary *_storeTypes=nil;
    NSManagedObjectModel *model=[self managedObjectModel];
    
    if([_stores count]==0){
-    [NSException raise:NSInvalidArgumentException format:@"-[%@ %s] no persistent stores",isa,_cmd];
+    [NSException raise:NSInvalidArgumentException format:@"-[%@ %s] no persistent stores",[self class],_cmd];
     return nil;
    }
    

@@ -3,7 +3,7 @@
 #import <QuartzCore/CIFilter.h>
 #import <QuartzCore/CIColor.h>
 #import <QuartzCore/CIVector.h>
-#import <AppKit/NSRaise.h>
+#import <Foundation/NSRaise.h>
 #import <Foundation/NSNumber.h>
 
 @interface CIImage(private)

@@ -1,3 +1,4 @@
+#import "CAOpenGLCompat.h"
 #import <QuartzCore/CARenderer.h>
 #import <QuartzCore/CALayer.h>
 #import <QuartzCore/CAAnimation.h>

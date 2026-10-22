@@ -3,7 +3,8 @@
 
 MK_WERROR = no
 FRAMEWORK = AppKit
-SUBDIR = xkeyboard-config
+# TODO: port xkeyboard-config (old FreeBSD meson build)
+SUBDIR =
 
 SRCS = \
     CoreData_/NSPersistentDocument.m \
@@ -535,7 +536,8 @@ HEADERS = \
     O2Context_builtin_FT.h \
     O2Font_FT.h
 
-RESOURCES = Info.plist en.lproj de.lproj fr.lproj \
+RESOURCES_DIRS = en.lproj de.lproj fr.lproj
+RESOURCES_FILES = Info.plist \
 	NSToolbar.subproj/NSToolbarPrintItem.tiff \
 	NSToolbar.subproj/NSToolbarOverflowArrow.tiff \
 	NSToolbar.subproj/NSToolbarShowFontsItem.tiff \
@@ -584,6 +586,8 @@ LDFLAGS = -pthread -framework Foundation -framework CoreFoundation \
     -framework CoreGraphics -framework CoreText -framework CoreData \
     -framework QuartzCore -framework OpenGL -framework Onyx2D \
 	-lobjc -lSystem
+# fontconfig, CGL and CGS* are not built yet; resolve them at runtime
+LDFLAGS += -Wl,-undefined,dynamic_lookup
 
 DIRS = \
 	NSMenu.subproj \
@@ -625,19 +629,12 @@ clean-deps:
 	rm -f .depend.*
 
 
+# TODO: xkeyboard-config still uses the old FreeBSD build; not installed yet
 fmwk-install-hook:
-	cp -fv lib${FRAMEWORK} ${FRAMEWORK}.framework/Versions/Current/
-	mv ${FRAMEWORK}.framework/Resources/NSKeyboardBinding/StandardKeyBindings.keyBindings \
-		${FRAMEWORK}.framework/Resources/
-	rmdir ${FRAMEWORK}.framework/Resources/NSKeyboardBinding
 .for lproj in en.lproj fr.lproj de.lproj
-	cp -av ${.CURDIR}/NSSystemInfoPanel/${lproj}/NSSystemInfoPanel.nib \
-                ${FRAMEWORK}.framework/Versions/Current/Resources/${lproj}/
+	cp -Rf ${.CURDIR}/NSSystemInfoPanel/${lproj}/NSSystemInfoPanel.nib \
+		${RESOURCES_DIR}/${lproj}/
 .endfor
-	rm -rf ${BUILDROOT}/System/Library/Frameworks/${FRAMEWORK}.framework
-	cp -av ${FRAMEWORK}.framework ${BUILDROOT}/System/Library/Frameworks/
-	mkdir -pv ${BUILDROOT}/System/Library/KeyboardLayout
-	${MAKE} -C ${.CURDIR}/xkeyboard-config install DESTDIR=${DIR}
 .for dir in ${RAVYN_SDKROOT}/System/Library/Frameworks/ ${SYSROOT_DIR}/System/Library/Frameworks/
 	mkdir -p ${dir}
 	cp -Rf ${.OBJDIR}/${FRAMEWORK}.framework ${dir}

@@ -15,7 +15,7 @@
 #endif
    }
    else {
-    [NSException raise:NSInvalidArgumentException format:@"-[%@ %s] does not support non-keyed coding",isa,_cmd];
+    [NSException raise:NSInvalidArgumentException format:@"-[%@ %s] does not support non-keyed coding",[self class],_cmd];
    }
    return self;
 }

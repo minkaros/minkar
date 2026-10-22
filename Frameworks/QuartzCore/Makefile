@@ -1,5 +1,7 @@
-FRAMEWORK=QuartzCore
-.include "../framework.common.mk"
+MK_WERROR = no
+FRAMEWORK = QuartzCore
+FMWK_VERSION = A
+SUBDIR =
 
 SRCS= \
 	CAAnimation.m \
@@ -27,7 +29,7 @@ SRCS= \
 	CILinearGradient.m \
 	CIVector.m
 
-INCS= \
+HEADERS= \
 	CAAction.h \
 	CAAnimation.h \
 	CAAnimationGroup.h \
@@ -59,16 +61,19 @@ INCS= \
 	CoreVideo.h \
 	QuartzCore.h 
 
-RESOURCES=Info.plist English.lproj
-CFLAGS+= ${FMWK_CFLAGS} -I${SRCTOP}/Frameworks \
-	-I${OBJTOP}/Frameworks/Foundation/Headers \
-        -I${OBJTOP}/Frameworks/AppKit/Headers \
-	-F${OBJTOP}/Frameworks/OpenGL -framework OpenGL
-LDFLAGS+= ${FMWK_LDFLAGS} \
-	-L${OBJTOP}/Frameworks/OpenGL/OpenGL.framework \
-	-lOpenGL \
-        -Wl,-R/System/Library/Frameworks/OpenGL.framework/Versions/Current
+RESOURCES_FILES = Info.plist
+RESOURCES_DIRS = English.lproj
+
+CFLAGS = -I${.CURDIR:H} -fblocks
+# OpenGL.framework is still a stub; resolve GL symbols at runtime
+LDFLAGS = -framework OpenGL -framework Onyx2D -framework CoreGraphics \
+	-framework Foundation -framework CoreFoundation -lobjc \
+	-Wl,-undefined,dynamic_lookup
+
+fmwk-install-hook:
+.for dir in ${RAVYN_SDKROOT}/System/Library/Frameworks/ ${SYSROOT_DIR}/System/Library/Frameworks/
+	mkdir -p ${dir}
+	cp -Rf ${.OBJDIR}/${FRAMEWORK}.framework ${dir}
+.endfor
 
 .include <rvn.framework.mk>
-
-installresources: std_install_hook

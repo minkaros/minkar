@@ -1,5 +1,5 @@
 #import <QuartzCore/CIImage.h>
-#import <AppKit/NSRaise.h>
+#import <Foundation/NSRaise.h>
 
 @implementation CIImage
 
