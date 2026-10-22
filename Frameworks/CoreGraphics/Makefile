@@ -70,10 +70,7 @@ RESOURCES=Info.plist
 CFLAGS+= -I${.CURDIR:H}/OpenGL -I${.CURDIR:H} -I${.OBJDIR:H} -fblocks \
 	-I${.CURDIR}/Foundation/Headers -I${.OBJDIR} \
 	-I${ROOT_SOURCE_DIR}/CoreServices -Wno-implicit-function-declaration
-LDFLAGS+= -framework Onyx2D -framework CoreFoundation \
-	-Wl,-undefined,dynamic_lookup
-
-#-framework OpenGL
+LDFLAGS+= -framework Onyx2D -framework CoreFoundation -framework OpenGL
 
 all: copy-headers libCoreGraphics.a
 

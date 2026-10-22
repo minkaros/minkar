@@ -37,11 +37,11 @@
 #include <stddef.h>
 
 /*
- * The GLES2 gl.h that OpenGL.framework still ships (until the desktop GL
- * headers land) defines most of these itself; identical redefinitions are
- * valid C11 but we avoid them for older language modes.
+ * <OpenGL/gl.h> (Mesa) and <OpenGL/gl3.h> (Khronos glcorearb.h) define
+ * these types themselves. Skip ours when one of them came first; if this
+ * header comes first, their identical redefinitions are valid C11.
  */
-#ifndef __gles2_gl2_h_
+#if !defined(__gl_h_) && !defined(__gl_glcorearb_h_)
 typedef uint32_t        GLbitfield;
 typedef uint8_t         GLboolean;
 typedef int8_t          GLbyte;
@@ -62,15 +62,9 @@ typedef intptr_t        GLsizeiptr;
 typedef int64_t         GLint64;
 typedef uint64_t        GLuint64;
 typedef struct __GLsync *GLsync;
-#endif
-
 typedef double          GLdouble;
 typedef double          GLclampd;
 typedef uint16_t        GLhalf;
-typedef char            GLcharARB;
-typedef intptr_t        GLintptrARB;
-typedef intptr_t        GLsizeiptrARB;
-typedef int64_t         GLint64EXT;
-typedef uint64_t        GLuint64EXT;
+#endif
 
 #endif /* _OPENGL_GLTYPES_H_ */

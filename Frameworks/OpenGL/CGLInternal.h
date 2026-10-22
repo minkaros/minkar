@@ -51,6 +51,9 @@
 #define CGL_GL_FRONT_LEFT                   0x0400
 #define CGL_GL_AUX3                         0x040C
 
+/* An OpenGL entry point in a driver, as stored in a context's dispatch table. */
+typedef void (*CGLGLProc)(void);
+
 /* Renderer ID of the built-in null renderer (ravynOS private range). */
 #define kCGLRendererRavynNullID             0x00FF0100
 
@@ -88,6 +91,8 @@ struct _CGLContextObject {
     const CGLDriver        *driver;
     void                   *driverContext;
 
+    CGLGLProc              *glProcs;    /* indexed by GLDispatch.gen.h */
+
     GLint                   params[CGL_PARAM_SLOTS][CGL_PARAM_MAX_VALUES];
     uint32_t                enables;    /* bit per CGLContextEnable slot */
 
@@ -109,6 +114,9 @@ CGL_HIDDEN GLint cgl_driver_count(void);
 CGL_HIDDEN const CGLDriver *cgl_driver_at(GLint index);
 CGL_HIDDEN GLint cgl_driver_property(const CGLDriver *driver,
                                      CGLRendererProperty prop, GLint fallback);
+
+/* Driver function for GL entry point 'index' in the current context, or NULL. */
+CGL_HIDDEN CGLGLProc cgl_gl_proc(int index);
 
 /* Built-in drivers. */
 CGL_HIDDEN extern const CGLDriver cgl_null_driver;

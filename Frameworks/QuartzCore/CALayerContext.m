@@ -1,4 +1,5 @@
-#import "CAOpenGLCompat.h"
+#import <OpenGL/gl.h>
+#import <OpenGL/CGLPrivate.h>
 #import <QuartzCore/CALayerContext.h>
 #import <QuartzCore/CALayer.h>
 #import <QuartzCore/CARenderer.h>

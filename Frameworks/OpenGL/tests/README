@@ -22,5 +22,10 @@ AddressSanitizer and UndefinedBehaviorSanitizer and runs:
   test_null_driver  The built-in null renderer, with and without
                     CGL_ENABLE_NULL_RENDERER=1.
 
+  test_gl_dispatch  The exported gl* entry points: forwarding to the
+                    current context's driver (float/double arguments,
+                    return values), per-thread contexts, and no-ops
+                    without a context or driver function.
+
 Add a test here whenever CGL behavior changes or a new driver callback
 is added.

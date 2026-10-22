@@ -33,14 +33,7 @@
 #ifndef _OPENGL_H_
 #define _OPENGL_H_
 
-/*
- * TODO (OpenGL phase 2): macOS's OpenGL.h does not pull in the GL API.
- * Existing callers still rely on it until the desktop GL headers
- * (OpenGL/gl.h, OpenGL/gl3.h) replace the GLES2 ones.
- */
-#include <OpenGL/gl.h>
-#include <OpenGL/glext.h>
-
+/* Like macOS, the GL API itself comes from <OpenGL/gl.h> or <OpenGL/gl3.h>. */
 #include <OpenGL/CGLCurrent.h>
 #include <OpenGL/CGLDevice.h>
 #include <OpenGL/CGLRenderers.h>

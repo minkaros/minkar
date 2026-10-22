@@ -1,4 +1,5 @@
-#import "CAOpenGLCompat.h"
+#import <OpenGL/gl.h>
+#import <OpenGL/CGLPrivate.h>
 #import <QuartzCore/CAWindowOpenGLContext.h>
 #import <OpenGL/OpenGL.h>
 #import <Onyx2D/O2Surface.h>

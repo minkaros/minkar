@@ -12,7 +12,8 @@ SRCS = \
 	CGLGlobal.c \
 	CGLNullDriver.c \
 	CGLPBuffer.c \
-	CGLPixelFormat.c
+	CGLPixelFormat.c \
+	GLDispatch.gen.c
 
 HEADERS = \
 	include/CGLCurrent.h \
@@ -22,8 +23,11 @@ HEADERS = \
 	include/OpenGL.h \
 	include/gltypes.h \
 	include/gl.h \
+	include/gl3.h \
+	include/gl3ext.h \
+	include/glcorearb.h \
 	include/glext.h \
-	include/glplatform.h \
+	include/glmesa.h \
 	include/egl.h \
 	include/eglext.h \
 	include/eglextchromium.h \
@@ -46,6 +50,12 @@ INCLUDE_ROOT != mkdir -p ${.OBJDIR}/include-root && \
 	ln -sfn ${.CURDIR}/include ${.OBJDIR}/include-root/OpenGL && \
 	echo ${.OBJDIR}/include-root
 CFLAGS = -I${INCLUDE_ROOT} -I${.CURDIR} -std=gnu17 -fvisibility=hidden
+
+# GL entry points (GLDispatch.gen.[ch]) are generated from the vendored
+# headers and committed; regenerate after updating include/glmesa.h or
+# include/glext.h.
+regen-dispatch:
+	python3 -B ${.CURDIR}/tools/gen_gl_dispatch.py ${.CURDIR}/include ${.CURDIR}
 
 fmwk-install-hook:
 .for dir in ${RAVYN_SDKROOT}/System/Library/Frameworks/ ${SYSROOT_DIR}/System/Library/Frameworks/

@@ -65,10 +65,8 @@ RESOURCES_FILES = Info.plist
 RESOURCES_DIRS = English.lproj
 
 CFLAGS = -I${.CURDIR:H} -fblocks
-# OpenGL.framework is still a stub; resolve GL symbols at runtime
 LDFLAGS = -framework OpenGL -framework Onyx2D -framework CoreGraphics \
-	-framework Foundation -framework CoreFoundation -lobjc \
-	-Wl,-undefined,dynamic_lookup
+	-framework Foundation -framework CoreFoundation -lobjc
 
 fmwk-install-hook:
 .for dir in ${RAVYN_SDKROOT}/System/Library/Frameworks/ ${SYSROOT_DIR}/System/Library/Frameworks/

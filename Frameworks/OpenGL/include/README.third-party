@@ -1,0 +1,22 @@
+Third-party headers in this directory
+=====================================
+
+These files are vendored unmodified except for their #include paths
+(<GL/...> and <KHR/...> changed to <OpenGL/...>). All are MIT licensed;
+their license text is at the top of each file.
+
+  glmesa.h       Mesa's include/GL/gl.h (OpenGL 1.0 - 1.3 API)
+                 https://gitlab.freedesktop.org/mesa/mesa
+  glext.h        Khronos OpenGL-Registry api/GL/glext.h
+  glcorearb.h    Khronos OpenGL-Registry api/GL/glcorearb.h
+                 https://github.com/KhronosGroup/OpenGL-Registry
+  khrplatform.h  Khronos EGL-Registry api/KHR/khrplatform.h
+                 https://github.com/KhronosGroup/EGL-Registry
+  egl*.h         Khronos EGL headers (EGL is not part of the macOS API)
+
+The Khronos XML registry (gl.xml, Apache-2.0) is deliberately not used:
+tools/gen_gl_dispatch.py reads the function prototypes from glmesa.h and
+glext.h instead.
+
+To update: replace the files, re-apply the include path changes, then
+run `make regen-dispatch` in Frameworks/OpenGL and rebuild.

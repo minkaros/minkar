@@ -31,6 +31,7 @@
  */
 
 #include "CGLInternal.h"
+#include "GLDispatch.gen.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -149,6 +150,30 @@ CGLContextObj CGLGetCurrentContext(void)
     return current_get();
 }
 
+CGLGLProc cgl_gl_proc(int index)
+{
+    CGLContextObj ctx = current_get();
+
+    return ctx != NULL ? ctx->glProcs[index] : NULL;
+}
+
+/* Resolve every GL entry point through the driver, once per context. */
+static CGLGLProc *resolve_gl_procs(const CGLDriver *driver, void *driverContext)
+{
+    CGLGLProc *procs = calloc(CGL_GL_COUNT, sizeof(*procs));
+    int i;
+
+    if (procs == NULL || driver->getProcAddress == NULL)
+        return procs;
+    for (i = 0; i < CGL_GL_COUNT; i++) {
+        void *p = driver->getProcAddress(driverContext, cgl_gl_names[i]);
+
+        /* Function pointers travel as void * through getProcAddress. */
+        memcpy(&procs[i], &p, sizeof(procs[i]));
+    }
+    return procs;
+}
+
 CGLError CGLSetCurrentContext(CGLContextObj ctx)
 {
     CGLContextObj prev = current_get();
@@ -235,6 +260,14 @@ CGLError CGLCreateContext(CGLPixelFormatObj pix, CGLContextObj share,
         return err;
     }
 
+    ctx->glProcs = resolve_gl_procs(ctx->driver, ctx->driverContext);
+    if (ctx->glProcs == NULL) {
+        ctx->driver->destroyContext(ctx->driverContext);
+        share_group_release(ctx->shareGroup);
+        free(ctx);
+        return kCGLBadAlloc;
+    }
+
     pthread_mutexattr_init(&attr);
     pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE);
     pthread_mutex_init(&ctx->lock, &attr);
@@ -272,6 +305,7 @@ void CGLReleaseContext(CGLContextObj ctx)
     }
 
     ctx->driver->destroyContext(ctx->driverContext);
+    free(ctx->glProcs);
     CGLReleasePBuffer(ctx->pbuffer);
     CGLReleasePixelFormat(ctx->pixelFormat);
     share_group_release(ctx->shareGroup);
@@ -427,6 +461,9 @@ CGLError CGLGetParameter(CGLContextObj ctx, CGLContextParameter pname,
         break;
     case kCGLCPGPURestartStatus:
         params[0] = kCGLCPGPURestartStatusNone;
+        break;
+    case kCGLCPDispatchTableSize:
+        params[0] = CGL_GL_COUNT;
         break;
     default:
         memcpy(params, ctx->params[slot],

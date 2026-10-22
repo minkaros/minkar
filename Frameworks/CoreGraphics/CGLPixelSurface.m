@@ -2,8 +2,8 @@
 #import <CoreGraphics/CGLPixelSurface.h>
 #import <CoreGraphics/CGWindow.h>
 #import <Onyx2D/O2Image.h>
-//#import <GLES2/gl2.h>
-//#import <GLES2/gl2ext.h>
+#import <OpenGL/gl.h>
+#include <sys/param.h>   /* MIN */
 #import <Onyx2D/O2Surface.h>
 
 @implementation CGLPixelSurface
@@ -43,7 +43,7 @@
 
 // 0's are silently ignored per spec.
    if(_numberOfBuffers>0 && _bufferObjects!=NULL) // nVidia driver will crash if bufferObjects is NULL, does not conform to spec.
-    CGLDeleteBuffers(_numberOfBuffers,_bufferObjects);
+    glDeleteBuffers(_numberOfBuffers,_bufferObjects);
       
    if(_bufferObjects!=NULL)
     free(_bufferObjects);
@@ -70,7 +70,7 @@
     _staticPixels[i]=NULL;
    }
 
-  // CGLGenBuffers(_numberOfBuffers,_bufferObjects);
+  // glGenBuffers(_numberOfBuffers,_bufferObjects);
 
    int row=0,bytesPerRow=_width*4;
    
@@ -82,9 +82,9 @@
     }
     else {
      _readPixels[i]=NULL;
-     CGLBindBuffer(GL_ARRAY_BUFFER, _bufferObjects[i]);
-     CGLBufferData(GL_ARRAY_BUFFER, _width*_rowsPerBuffer*4, NULL,GL_STREAM_DRAW);
-     CGLBindBuffer(GL_ARRAY_BUFFER, 0);
+     glBindBuffer(GL_ARRAY_BUFFER, _bufferObjects[i]);
+     glBufferData(GL_ARRAY_BUFFER, _width*_rowsPerBuffer*4, NULL,GL_STREAM_DRAW);
+     glBindBuffer(GL_ARRAY_BUFFER, 0);
     }
     
     row+=_rowsPerBuffer;
@@ -168,7 +168,7 @@ static inline uint32_t premultiplyPixel(uint32_t value){
     if(_bufferObjects[i]==0)
      glReadPixels(0,row,_width,rowCount,PIXEL_FORMAT, GL_UNSIGNED_BYTE,_readPixels[i]);
     else {
-     CGLBindBuffer(GL_ARRAY_BUFFER,_bufferObjects[i]);
+     glBindBuffer(GL_ARRAY_BUFFER,_bufferObjects[i]);
      unbind=YES;
      
      glReadPixels(0,row,_width,rowCount,PIXEL_FORMAT, GL_UNSIGNED_BYTE, _readPixels[i]);
@@ -182,7 +182,7 @@ static inline uint32_t premultiplyPixel(uint32_t value){
    }
    
    if(unbind)
-    CGLBindBuffer(GL_ARRAY_BUFFER,0);          
+    glBindBuffer(GL_ARRAY_BUFFER,0);          
 
    row=0;
    unbind=NO;
@@ -196,8 +196,8 @@ static inline uint32_t premultiplyPixel(uint32_t value){
      inputRow=_readPixels[i];
     //else {
     // unbind=YES;
-    // CGLBindBuffer(GL_ARRAY_BUFFER,_bufferObjects[i]); 
-    // inputRow=(GLubyte*)CGLMapBuffer(GL_ARRAY_BUFFER,GL_READ_ONLY);
+    // glBindBuffer(GL_ARRAY_BUFFER,_bufferObjects[i]); 
+    // inputRow=(GLubyte*)glMapBuffer(GL_ARRAY_BUFFER,GL_READ_ONLY);
     //}
     
     if(_isOpaque){
@@ -234,20 +234,20 @@ static inline uint32_t premultiplyPixel(uint32_t value){
     }
     
     //if(_bufferObjects[i]!=0){
-    // CGLUnmapBuffer(GL_ARRAY_BUFFER);
+    // glUnmapBuffer(GL_ARRAY_BUFFER);
     //}
     
     row+=rowCount;
    }
    
    if(unbind)
-    CGLBindBuffer(GL_ARRAY_BUFFER,0);          
+    glBindBuffer(GL_ARRAY_BUFFER,0);          
       
 #if 0    
    if(_usePixelBuffer){
-    CGLBindBuffer(GL_ARRAY_BUFFER,0);
+    glBindBuffer(GL_ARRAY_BUFFER,0);
     if(inputBytes!=NULL){
-     CGLUnmapBuffer(GL_ARRAY_BUFFER);
+     glUnmapBuffer(GL_ARRAY_BUFFER);
 }
    }
 #endif
