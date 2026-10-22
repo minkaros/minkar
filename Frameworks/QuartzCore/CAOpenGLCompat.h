@@ -34,6 +34,7 @@
  * prototypes; symbols are resolved at runtime (-undefined dynamic_lookup).
  */
 #import <OpenGL/OpenGL.h>
+#import <OpenGL/CGLPrivate.h>
 
 #ifndef GL_MODELVIEW
 #define GL_ALPHA_TEST           0x0BC0
@@ -67,8 +68,6 @@ void glTranslatef(GLfloat x, GLfloat y, GLfloat z);
 void glVertexPointer(GLint size, GLenum type, GLsizei stride, const void *pointer);
 void glGenVertexArrays(GLsizei n, GLuint *arrays);
 void glDeleteVertexArrays(GLsizei n, const GLuint *arrays);
-
-void CGLUseShaders(CGLContextObj context);
 
 #ifdef __cplusplus
 }

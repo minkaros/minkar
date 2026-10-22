@@ -62,13 +62,13 @@ ${FRAMEWORK}: _copy_headers
 .endif
 
 .if defined(PRIVATE_HEADERS) && !empty(PRIVATE_HEADERS)
-${PRIVHEADER_DIR}: ${PRIVATE_HEADERS}
+_copy_private_headers: ${FRAMEWORK_DIR}
+	mkdir -p ${PRIVHDR_DIR}
 .for hdr in ${PRIVATE_HEADERS}
-	mkdir -p ${PRIVHEADER_DIR}/${hdr:R}
-	cp -f ${.CURDIR}/${hdr} ${PRIVHEADER_DIR}/${hdr:T}
+	cp -f ${.CURDIR}/${hdr} ${PRIVHDR_DIR}/${hdr:T}
 .endfor
 
-${FRAMEWORK}: ${PRIVHEADER_DIR}
+${FRAMEWORK}: _copy_private_headers
 .endif
 
 ${RESOURCES_DIR}:

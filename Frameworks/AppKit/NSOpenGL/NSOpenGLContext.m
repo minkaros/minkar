@@ -12,6 +12,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <AppKit/NSView.h>
 #import <AppKit/NSWindow-Private.h>
 #import <OpenGL/OpenGL.h>
+#import <OpenGL/CGLPrivate.h>
 #import <Foundation/NSThread-Private.h>
 
 @interface NSOpenGLContext(private)

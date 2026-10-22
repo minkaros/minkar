@@ -1,41 +1,146 @@
-#import <OpenGL/egl.h>
-#import <OpenGL/eglext.h>
-#import <OpenGL/gl.h>
-#import <OpenGL/glext.h>
-#import <OpenGL/glplatform.h>
+/*
+ * SPDX-License-Identifier: BSD-2-Clause
+ *
+ * Copyright (c) 2026 The ravynOS contributors
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ */
 
-#import <OpenGL/CGLCurrent.h>
-#import <OpenGL/CGLTypes.h>
+/*
+ * Core OpenGL (CGL): pixel formats, renderers, contexts, drawables and
+ * pixel buffers. Source compatible with the macOS CGL API.
+ */
 
+#ifndef _OPENGL_H_
+#define _OPENGL_H_
 
-CGL_EXPORT CGLError CGLCreateContext(CGLPixelFormatObj pixelFormat, CGLContextObj share, CGLContextObj *result);
+/*
+ * TODO (OpenGL phase 2): macOS's OpenGL.h does not pull in the GL API.
+ * Existing callers still rely on it until the desktop GL headers
+ * (OpenGL/gl.h, OpenGL/gl3.h) replace the GLES2 ones.
+ */
+#include <OpenGL/gl.h>
+#include <OpenGL/glext.h>
 
-CGL_EXPORT CGLContextObj CGLRetainContext(CGLContextObj context);
-CGL_EXPORT void CGLReleaseContext(CGLContextObj context);
-CGL_EXPORT GLuint CGLGetContextRetainCount(CGLContextObj context);
+#include <OpenGL/CGLCurrent.h>
+#include <OpenGL/CGLDevice.h>
+#include <OpenGL/CGLRenderers.h>
+#include <OpenGL/CGLTypes.h>
 
-CGL_EXPORT CGLError CGLDestroyContext(CGLContextObj context);
+#ifdef __cplusplus
+extern "C" {
+#endif
 
-CGL_EXPORT CGLError CGLLockContext(CGLContextObj context);
-CGL_EXPORT CGLError CGLUnlockContext(CGLContextObj context);
+#define CGL_VERSION_1_0  1
+#define CGL_VERSION_1_1  1
+#define CGL_VERSION_1_2  1
+#define CGL_VERSION_1_3  1
 
-CGL_EXPORT CGLError CGLSetParameter(CGLContextObj context, CGLContextParameter parameter, const GLint *value);
-CGL_EXPORT CGLError CGLGetParameter(CGLContextObj context, CGLContextParameter parameter, GLint *value);
-CGL_EXPORT CGLError CGLFlushDrawable(CGLContextObj context);
+/* Pixel formats */
+CGL_EXPORT CGLError CGLChoosePixelFormat(const CGLPixelFormatAttribute *attribs,
+    CGLPixelFormatObj *pix, GLint *npix);
+CGL_EXPORT CGLError CGLDestroyPixelFormat(CGLPixelFormatObj pix);
+CGL_EXPORT CGLError CGLDescribePixelFormat(CGLPixelFormatObj pix, GLint pix_num,
+    CGLPixelFormatAttribute attrib, GLint *value);
+CGL_EXPORT void CGLReleasePixelFormat(CGLPixelFormatObj pix);
+CGL_EXPORT CGLPixelFormatObj CGLRetainPixelFormat(CGLPixelFormatObj pix);
+CGL_EXPORT GLuint CGLGetPixelFormatRetainCount(CGLPixelFormatObj pix);
 
-CGL_EXPORT CGLError CGLChoosePixelFormat(const CGLPixelFormatAttribute *attributes, CGLPixelFormatObj *pixelFormatp, GLint *numberOfScreensp);
-CGL_EXPORT CGLPixelFormatObj CGLRetainPixelFormat(CGLPixelFormatObj pixelFormat);
-CGL_EXPORT void CGLReleasePixelFormat(CGLPixelFormatObj pixelFormat);
-CGL_EXPORT CGLError CGLDestroyPixelFormat(CGLPixelFormatObj pixelFormat);
-CGL_EXPORT GLuint CGLGetPixelFormatRetainCount(CGLPixelFormatObj pixelFormat);
-CGL_EXPORT CGLError CGLDescribePixelFormat(CGLPixelFormatObj pixelFormat, GLint screenNumber, CGLPixelFormatAttribute attribute, GLint *valuep);
+/* Renderer information */
+CGL_EXPORT CGLError CGLQueryRendererInfo(GLuint display_mask,
+    CGLRendererInfoObj *rend, GLint *nrend);
+CGL_EXPORT CGLError CGLDestroyRendererInfo(CGLRendererInfoObj rend);
+CGL_EXPORT CGLError CGLDescribeRenderer(CGLRendererInfoObj rend, GLint rend_num,
+    CGLRendererProperty prop, GLint *value);
 
-CGL_EXPORT CGLError CGLCreatePBuffer(GLsizei width, GLsizei height, GLenum target, GLenum internalFormat, GLint maxDetail, CGLPBufferObj *pbuffer);
-CGL_EXPORT CGLError CGLDescribePBuffer(CGLPBufferObj pbuffer, GLsizei *width, GLsizei *height, GLenum *target, GLenum *internalFormat, GLint *mipmap);
+/* Contexts */
+CGL_EXPORT CGLError CGLCreateContext(CGLPixelFormatObj pix, CGLContextObj share,
+    CGLContextObj *ctx);
+CGL_EXPORT CGLError CGLDestroyContext(CGLContextObj ctx);
+CGL_EXPORT CGLError CGLCopyContext(CGLContextObj src, CGLContextObj dst,
+    GLbitfield mask);
+CGL_EXPORT CGLContextObj CGLRetainContext(CGLContextObj ctx);
+CGL_EXPORT void CGLReleaseContext(CGLContextObj ctx);
+CGL_EXPORT GLuint CGLGetContextRetainCount(CGLContextObj ctx);
+CGL_EXPORT CGLPixelFormatObj CGLGetPixelFormat(CGLContextObj ctx);
+
+/* Pixel buffers */
+CGL_EXPORT CGLError CGLCreatePBuffer(GLsizei width, GLsizei height,
+    GLenum target, GLenum internalFormat, GLint max_level, CGLPBufferObj *pbuffer);
+CGL_EXPORT CGLError CGLDestroyPBuffer(CGLPBufferObj pbuffer);
+CGL_EXPORT CGLError CGLDescribePBuffer(CGLPBufferObj obj, GLsizei *width,
+    GLsizei *height, GLenum *target, GLenum *internalFormat, GLint *mipmap);
+CGL_EXPORT CGLError CGLTexImagePBuffer(CGLContextObj ctx, CGLPBufferObj pbuffer,
+    GLenum source);
 CGL_EXPORT CGLPBufferObj CGLRetainPBuffer(CGLPBufferObj pbuffer);
 CGL_EXPORT void CGLReleasePBuffer(CGLPBufferObj pbuffer);
 CGL_EXPORT GLuint CGLGetPBufferRetainCount(CGLPBufferObj pbuffer);
-CGL_EXPORT CGLError CGLDestroyPBuffer(CGLPBufferObj pbuffer);
-CGL_EXPORT CGLError CGLGetPBuffer(CGLContextObj context, CGLPBufferObj *pbuffer, GLenum *face, GLint *level, GLint *screen);
-CGL_EXPORT CGLError CGLSetPBuffer(CGLContextObj context, CGLPBufferObj pbuffer, GLenum face, GLint level, GLint screen);
-CGL_EXPORT CGLError CGLTexImagePBuffer(CGLContextObj context, CGLPBufferObj pbuffer, GLenum sourceBuffer);
+
+/* Drawables */
+CGL_EXPORT CGLError CGLSetOffScreen(CGLContextObj ctx, GLsizei width,
+    GLsizei height, GLint rowbytes, void *baseaddr);
+CGL_EXPORT CGLError CGLGetOffScreen(CGLContextObj ctx, GLsizei *width,
+    GLsizei *height, GLint *rowbytes, void **baseaddr);
+CGL_EXPORT CGLError CGLSetFullScreen(CGLContextObj ctx) CGL_DEPRECATED_ATTRIBUTE;
+CGL_EXPORT CGLError CGLSetFullScreenOnDisplay(CGLContextObj ctx,
+    GLuint display_mask) CGL_DEPRECATED_ATTRIBUTE;
+CGL_EXPORT CGLError CGLSetPBuffer(CGLContextObj ctx, CGLPBufferObj pbuffer,
+    GLenum face, GLint level, GLint screen);
+CGL_EXPORT CGLError CGLGetPBuffer(CGLContextObj ctx, CGLPBufferObj *pbuffer,
+    GLenum *face, GLint *level, GLint *screen);
+CGL_EXPORT CGLError CGLClearDrawable(CGLContextObj ctx);
+CGL_EXPORT CGLError CGLFlushDrawable(CGLContextObj ctx);
+
+/* Context options and parameters */
+CGL_EXPORT CGLError CGLEnable(CGLContextObj ctx, CGLContextEnable pname);
+CGL_EXPORT CGLError CGLDisable(CGLContextObj ctx, CGLContextEnable pname);
+CGL_EXPORT CGLError CGLIsEnabled(CGLContextObj ctx, CGLContextEnable pname,
+    GLint *enable);
+CGL_EXPORT CGLError CGLSetParameter(CGLContextObj ctx, CGLContextParameter pname,
+    const GLint *params);
+CGL_EXPORT CGLError CGLGetParameter(CGLContextObj ctx, CGLContextParameter pname,
+    GLint *params);
+
+/* Virtual screens */
+CGL_EXPORT CGLError CGLSetVirtualScreen(CGLContextObj ctx, GLint screen);
+CGL_EXPORT CGLError CGLGetVirtualScreen(CGLContextObj ctx, GLint *screen);
+CGL_EXPORT CGLError CGLUpdateContext(CGLContextObj ctx);
+
+/* Global library options */
+CGL_EXPORT CGLError CGLSetGlobalOption(CGLGlobalOption pname, const GLint *params);
+CGL_EXPORT CGLError CGLGetGlobalOption(CGLGlobalOption pname, GLint *params);
+CGL_EXPORT CGLError CGLSetOption(CGLGlobalOption pname, GLint param);
+CGL_EXPORT CGLError CGLGetOption(CGLGlobalOption pname, GLint *param);
+
+/* Locking */
+CGL_EXPORT CGLError CGLLockContext(CGLContextObj ctx);
+CGL_EXPORT CGLError CGLUnlockContext(CGLContextObj ctx);
+
+/* Version and errors */
+CGL_EXPORT void CGLGetVersion(GLint *majorvers, GLint *minorvers);
+CGL_EXPORT const char *CGLErrorString(CGLError error);
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif /* _OPENGL_H_ */

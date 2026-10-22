@@ -586,7 +586,7 @@ LDFLAGS = -pthread -framework Foundation -framework CoreFoundation \
     -framework CoreGraphics -framework CoreText -framework CoreData \
     -framework QuartzCore -framework OpenGL -framework Onyx2D \
 	-lobjc -lSystem
-# CGL and CGS* are not implemented yet; resolve them at runtime
+# CGS* (WindowServer) is not implemented yet; resolve it at runtime
 LDFLAGS += -Wl,-undefined,dynamic_lookup
 
 DIRS = \

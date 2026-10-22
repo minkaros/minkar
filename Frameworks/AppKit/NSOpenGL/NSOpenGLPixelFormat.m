@@ -14,7 +14,12 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 @implementation NSOpenGLPixelFormat
 
 -initWithAttributes:(NSOpenGLPixelFormatAttribute *)attributes {
-   CGLChoosePixelFormat(attributes,(CGLPixelFormatObj *)&_cglPixelFormat,&_numberOfVirtualScreens);
+   CGLChoosePixelFormat((const CGLPixelFormatAttribute *)attributes,(CGLPixelFormatObj *)&_cglPixelFormat,&_numberOfVirtualScreens);
+   // Like macOS: no renderer can satisfy the attributes, no pixel format.
+   if(_cglPixelFormat==NULL){
+    [self release];
+    return nil;
+   }
    return self;
 }
 

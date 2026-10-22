@@ -1,0 +1,26 @@
+Host-side tests for Core OpenGL (CGL)
+=====================================
+
+The CGL implementation in Frameworks/OpenGL is plain C plus pthreads and
+does not depend on a GPU, so it is tested on the build host:
+
+    make -C Frameworks/OpenGL/tests          (GNU make or bmake)
+
+clang is used by default, as in the ravynOS build; pass CC=... to
+override. Until the desktop GL headers replace the GLES2 ones, gcc
+rejects their #import directives under -Werror.
+
+This builds the CGL sources together with each test under
+AddressSanitizer and UndefinedBehaviorSanitizer and runs:
+
+  test_cgl          The CGL API against a recording test driver:
+                    argument validation, pixel formats, renderer info,
+                    contexts and share groups, parameters, enables, the
+                    per-thread current context, off-screen drawables,
+                    pixel buffers and global options.
+
+  test_null_driver  The built-in null renderer, with and without
+                    CGL_ENABLE_NULL_RENDERER=1.
+
+Add a test here whenever CGL behavior changes or a new driver callback
+is added.
