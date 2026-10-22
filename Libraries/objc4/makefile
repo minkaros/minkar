@@ -43,6 +43,7 @@ SRCS =	runtime/hashtable2.mm \
 	runtime/objc-zalloc.mm \
 	runtime/objc-cache-old.mm \
 	runtime/objc-sel-old.mm
+SRCS+=	macho.c
 	# ./runtime/objc-probes.d # FIXME: need to generate .h from this
 
 CFLAGS.objc-auto.o = -fexceptions

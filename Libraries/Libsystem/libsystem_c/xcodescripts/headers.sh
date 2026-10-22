@@ -198,7 +198,7 @@ LOCALHDRS=(
 	${SRCROOT}/gen/utmpx_thread.h
 	${SRCROOT}/nls/FreeBSD/msgcat.h
 	${SRCROOT}/gen/thread_stack_pcs.h
-	${SRCROOT}/libdarwin/h/dirstat.h
+	${SRCROOT}/../libsystem_darwin/h/dirstat.h
 )
 
 OS_LOCALHDRS=( ${SRCROOT}/os/assumes.h ${SRCROOT}/os/debug_private.h )

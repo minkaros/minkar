@@ -114,6 +114,7 @@ SUBDIR = dyld libdsc libslc_builder chroot_util #dyld_closure_util dyldinfo \
         #update_dyld_shared_cache_tool -- needs private Bom and dscsyms fmwks
         #dyld_usage -- needs private ktrace.framework
 
+SRCS+=	src/cc_stubs.c
 .include <bsd.subdir.mk>
 .include <bsd.lib.mk>
 

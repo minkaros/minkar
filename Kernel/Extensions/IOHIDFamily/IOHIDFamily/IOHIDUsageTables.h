@@ -75,7 +75,9 @@ enum
     /* Reserved 0x92 - 0xFEFF */
     /* VendorDefined 0xFF00 - 0xFFFF */
     kHIDPage_VendorDefinedStart     = 0xFF00,
+#ifndef _APPLEHIDUSAGETABLES_H
     kHIDPage_AppleVendor            = 0xFF00
+#endif
 };
 
 /* Undefined Usage for all usage pages */

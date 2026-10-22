@@ -28,7 +28,7 @@ lib${LIB}.a: ${.CURDIR}/Makefile
 .endif
 	mkdir -p ${.OBJDIR}/target
 	cd ${.OBJDIR}/target; ICU_CROSS_BUILD=1 SDKROOT=${RAVYN_SDKROOT} \
-	  CFLAGS="${CFLAGS}" CXXFLAGS="${CXXFLAGS}" LDFLAGS="${LDFLAGS}" \
+	  CFLAGS="${CFLAGS}" CXXFLAGS="${CXXFLAGS}" LDFLAGS="${LDFLAGS:N-licudata}" \
 	  CC=${CC} CXX=${CXX} LD=${LD} AR=${AR} STRIP=${STRIP} MAKEFLAGS="" \
 	  ${.CURDIR}/source/runConfigureICU MacOSX ${EXTRA_FLAGS}
 	MAKEFLAGS="" ${GMAKE} -C ${.OBJDIR}/target
@@ -40,7 +40,7 @@ libicucore.A.dylib: lib${LIB}.a
 	  -Wl,-install_name,/usr/lib/${.TARGET} \
 	  -Wl,-current_version,78.3 -Wl,-compatibility_version,1 \
 	  $$(find ${.OBJDIR}/target/common ${.OBJDIR}/target/i18n \
-	  ${.OBJDIR}/target/io -name '*.o') ${LDFLAGS}
+	  ${.OBJDIR}/target/io -name '*.o') -L${.OBJDIR}/target/lib ${LDFLAGS}
 .for dir in ${RAVYN_SDKROOT} ${SYSROOT_DIR}
 	mkdir -p ${dir}/usr/lib ${dir}/usr/include
 	cp -f ${.OBJDIR}/${.TARGET} ${dir}/usr/lib/

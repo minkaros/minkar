@@ -199,7 +199,7 @@ HEADERS = \
 RESOURCES = Info.plist English.lproj
 CFLAGS += -I${.CURDIR} -I${.CURDIR:H} -I${.CURDIR:H}/Foundation/Headers \
         -I${ROOT_SOURCE_DIR}/BSD/lib/libjpeg \
-        -I${ROOT_SOURCE_DIR}/BSD/lib/libpng \
+        -I${ROOT_SOURCE_DIR}/BSD/lib/libpng -I${.OBJDIR}/png \
         -I${ROOT_SOURCE_DIR}/BSD/lib/libtiff/libtiff \
         -I${ROOT_SOURCE_DIR}/Libraries/zlib \
 	-I${.OBJDIR}/jpeg -I${.OBJDIR}/tiff/libtiff \

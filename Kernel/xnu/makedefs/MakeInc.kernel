@@ -109,7 +109,7 @@ endif
 $(TARGET)/$(KERNEL_FILE_NAME).dSYM: $(TARGET)/$(KERNEL_FILE_NAME).unstripped
 	$(call makelog,$(ColorH)DSYMUTIL$(Color0)      $(ColorLF)$(@F)$(Color0))
 	$(_v)$(DSYMUTIL) $(DSYMUTIL_FLAGS) $< -o $@
-	$(_v)$(MV) $@/$(DSYMDWARFDIR)/$(KERNEL_FILE_NAME).unstripped $@/$(DSYMDWARFDIR)/$(KERNEL_FILE_NAME)
+	$(_v)test ! -e $@/$(DSYMDWARFDIR)/$(KERNEL_FILE_NAME).unstripped || $(MV) $@/$(DSYMDWARFDIR)/$(KERNEL_FILE_NAME).unstripped $@/$(DSYMDWARFDIR)/$(KERNEL_FILE_NAME)
 	$(_v)$(TOUCH) $@
 
 $(TARGET)/$(KERNEL_FILE_NAME).unstripped: $(addprefix $(TARGET)/,$(foreach component,$(COMPONENT_LIST),$(component)/$(CURRENT_KERNEL_CONFIG)/$(component).filelist)) lastkerneldataconst.o lastkernelconstructor.o nonlto.o $(SRCROOT)/config/version.c $(SRCROOT)/config/MasterVersion .LDFLAGS $(filter %/MakeInc.kernel,$(MAKEFILE_LIST))

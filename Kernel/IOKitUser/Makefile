@@ -280,7 +280,7 @@ LDFLAGS = --sysroot=${RAVYN_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
         -L${RAVYN_SDKROOT}/usr/local/lib/kernel -lcc_kext -lkxld -lkernel \
         -framework CoreFoundation -lobjc -lc++ -lz -lSystem
 
-all: copy_headers libkxld.a kext.subproj ${FRAMEWORK} to-sysroot
+all: copy_headers libkxld.a ${FRAMEWORK} to-sysroot
 
 to-sysroot:
 	cp -Rf ${.OBJDIR}/IOKit.framework ${RAVYN_SDKROOT}/System/Library/Frameworks/
@@ -435,7 +435,7 @@ libkxld.a:
 	${MAKE} -C${.CURDIR} -f Makefile.kxld all
 	cp -f ${.OBJDIR}/${.TARGET} ${RAVYN_SDKROOT}/usr/local/lib/kernel
 
-SUBDIR = kext.subproj
+SUBDIR =
 
 .include <rvn.framework.mk>
 .include <bsd.subdir.mk>

@@ -14,9 +14,11 @@
 #include <sys/stat.h>
 #include <sys/fcntl.h>
 
+#if 0 /* start lo aporta start_glue.o */
 void start(void)
 {
 }
+#endif
 
 /* FIXME: remove once we have CommonCrypto working */
 struct ccdigest_info;

@@ -1,3 +1,4 @@
+.NOTPARALLEL:
 #
 # Copyright (C) 1999-2016 Apple Inc. All rights reserved.
 #

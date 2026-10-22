@@ -52,7 +52,7 @@ copyheaders:
 	mkdir -p ${.OBJDIR}/include/corecrypto
 	cp -f ${.CURDIR}/cc_abort.h ${.OBJDIR}/include/corecrypto
 
-SUBDIR = user
+SUBDIR =
 
 .include <rvn.kext.mk>
 .include <bsd.subdir.mk>

@@ -878,7 +878,7 @@ STRIP_FLAGS = $($(addsuffix $(CURRENT_KERNEL_CONFIG),STRIP_FLAGS_))
 #
 # dsymutil flags
 #
-DSYMUTIL_FLAGS_GEN  = --minimize
+DSYMUTIL_FLAGS_GEN  = 
 
 DSYMUTIL_FLAGS_X86_64   = --arch=x86_64
 DSYMUTIL_FLAGS_X86_64H  = --arch=x86_64h

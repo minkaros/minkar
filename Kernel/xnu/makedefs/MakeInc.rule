@@ -62,7 +62,7 @@ ifeq ($(LOGCOLORS),y)
             export _MACHINE := $(subst Mac,,$(PLATFORM))
         endif
         export CMD_MC := $(shell __A="$(CURRENT_ARCH_CONFIG_LC)"; \
-                                         __As=$$((6-$${\#__A})); \
+                                         __As=$$((6-$${#__A})); \
                                          printf "\\033[1m%-.6s%*.*s %9.9s\\033[m" \
                                                 "$${__A}" \
                                                 $${__As} $${__As} " " \

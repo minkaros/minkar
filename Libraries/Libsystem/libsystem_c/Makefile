@@ -130,22 +130,23 @@ LDFLAGS = -mmacos-version-min=${MACOS_VERSION_MIN} \
 	-Wl,-upward-lsystem_blocks -Wl,-upward-lxpc -Wl,-upward-ldispatch \
 	-Wl,-upward-lsystem_asl -Wl,-upward-lsystem_info \
 	-Wl,-upward-lsystem_notify -Wl,-upward-lsystem_trace \
-	-Wl,-upward-lcorecrypto -Wl,-upward-lmacho \
+	-Wl,-upward-lmacho \
 	-Wl,-interposable_list,${.OBJDIR}/interposable.list \
 	-Wl,-unexported_symbols_list,${.OBJDIR}/unexport.list \
 	-Wl,-alias_list,${.CURDIR}/xcodescripts/alias.list \
 	-Wl,-order_file,${.CURDIR}/xcodescripts/Libc.order \
 	-lsystem_malloc -lsystem_platform -lsystem_pthread -lsystem_kernel \
-	-lcorecrypto -lmacho -ldyld -llaunch -lsystem_m -lCrashReporterClient
+	-lmacho -ldyld -llaunch -lsystem_m -lCrashReporterClient
 
 # FIXME: should also build `debug` variant
 
 lib${LIB}.dylib: lib${LIB}.a
-	${CC} -shared -dylib -fuse-ld=${LD} -o ${.TARGET} ${LDFLAGS}
+	${CC} -shared -dylib -fuse-ld=${LD} -o ${.TARGET} ${.OBJDIR}/ravyn_ccrng.o ${LDFLAGS}
 	mkdir -p ${SYSROOT_DIR}/usr/lib/system ${RAVYN_SDKROOT}/usr/lib/system
 	cp -f ${.TARGET} ${SYSROOT_DIR}/usr/lib/system/
 	cp -f ${.TARGET} ${RAVYN_SDKROOT}/usr/lib/system/
 
+SRCS+=	ravyn_ccrng.c
 .include <bsd.lib.mk>
 .include <bsd.subdir.mk>
 

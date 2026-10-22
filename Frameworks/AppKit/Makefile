@@ -269,7 +269,7 @@ HEADERS = \
     AppKitExport.h \
     CoreData_/NSPersistentDocument.h \
     CoreData_/_NSManagedProxy.h \
-    KTFont.h \
+    ../CoreText/KTFont.h \
     NSAccessibility.h \
     NSActionCell.h \
     NSAffineTransform.h \
@@ -421,7 +421,7 @@ HEADERS = \
     NSPrintPanel.h \
     NSPrintProgressPanelController.h \
     NSProgressIndicator.h \
-    NSRaise.h \
+    ../Foundation/Headers/Foundation/NSRaise.h \
     NSResponder.h \
     NSRuleEditor.h \
     NSRuleEditorButtonCell.h \
@@ -574,7 +574,7 @@ RESOURCES_FILES = Info.plist \
 	NSKeyboardBinding/StandardKeyBindings.keyBindings
 
 CFLAGS = --sysroot=${RAVYN_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
-    -I${.CURDIR:H} -I${.CURDIR}/Headers -I${.CURDIR:H}/Foundation/Headers \
+    -F${.OBJDIR} -I${.CURDIR:H} -I${.CURDIR}/Headers -I${.CURDIR:H}/Foundation/Headers \
     -I${.CURDIR:H}/Foundation/platform_posix \
     -I${.CURDIR} -I${.OBJDIR} -I${ROOT_SOURCE_DIR}/CoreServices \
 	-I${ROOT_SOURCE_DIR}/Frameworks/Onyx2D/freetype/include \
