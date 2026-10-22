@@ -14,6 +14,10 @@
 #   INFO_PLIST          Info.plist source (default Info.plist, if present)
 #   FRAMEWORKS          frameworks to link with, by name
 #   RESOURCES           files or directories copied into Contents/Resources
+#   ENTITLEMENTS        XML property list of entitlements for the signature
+#
+# The executable is ad-hoc signed like codesign -s -: the identifier is
+# CFBundleIdentifier and the signature seals Info.plist.
 
 APP_DIR = ${.OBJDIR}/${APP}.app
 APP_EXEC_DIR ?= ravynOS
@@ -42,6 +46,12 @@ CFLAGS += --sysroot=${RAVYN_SDKROOT}
 LDFLAGS += --sysroot=${RAVYN_SDKROOT}
 .endif
 
+# Run from the source tree so the toolchain need not be rebuilt first.
+CODESIGN ?= python3 -B ${ROOT_SOURCE_DIR}/Developer/Default.xctoolchain/codesign/codesign.py
+.if defined(ENTITLEMENTS) && !empty(ENTITLEMENTS)
+_CODESIGN_FLAGS = --entitlements ${.CURDIR}/${ENTITLEMENTS}
+.endif
+
 .for fmwk in ${FRAMEWORKS}
 LDFLAGS += -framework ${fmwk}
 .endfor
@@ -58,6 +68,8 @@ app-bundle: .PHONY
 .for rsc in ${RESOURCES}
 	cp -Rf ${rsc} ${APP_DIR}/Contents/Resources/
 .endfor
+	${CODESIGN} -f -s - ${_CODESIGN_FLAGS} \
+	    ${APP_DIR}/Contents/${APP_EXEC_DIR}/${APP}
 
 app-install-hook: .PHONY
 	mkdir -p ${SYSROOT_DIR}${APP_INSTALL_DIR}
