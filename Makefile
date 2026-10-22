@@ -40,7 +40,8 @@ MAKEOBJDIRPREFIX = ${ROOT_BINARY_DIR}
 #  Top level targets
 # ------------------------------------------------------------------------
 
-world: version Developer Kernel Libraries/libfirehose_kernel Libraries BSD
+world: version Developer Kernel Libraries/libfirehose_kernel Libraries Frameworks \
+	Kernel/Extensions BSD
 
 # ------------------------------------------------------------------------
 
@@ -107,7 +108,9 @@ SYSROOT_DIR = ${ROOT_BINARY_DIR}/sysroot
 
 TARGET_TRIPLE = ${CpuArch}-apple-darwin${DARWIN_MAJOR}
 
-SUBDIR ?= Developer .WAIT Kernel Libraries Frameworks BSD
+# Kernel/Extensions needs headers from Libraries (dispatch) and Frameworks
+# (CoreFoundation), so it is built after them rather than inside Kernel.
+SUBDIR ?= Developer .WAIT Kernel Libraries Frameworks Kernel/Extensions BSD
 
 .export ROOT_SOURCE_DIR ROOT_BINARY_DIR ARCH_CONFIGS KERNEL_CONFIGS \
 	PROD_VERSION PROD_FAMILY CFLAGS DEVEL DARWIN_VERSION \

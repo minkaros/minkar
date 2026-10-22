@@ -61,6 +61,8 @@ copyheaders:
 	mkdir -p ${RAVYN_SDKROOT}${SLF}/IOKit.framework/Headers/hidsystem
 	cp -fv ${.CURDIR}/IOHIDFamily/IOHIDUsageTables.h \
 	    ${RAVYN_SDKROOT}${SLF}/IOKit.framework/Headers/hidsystem
+	cp -fv ${.CURDIR}/IOHIDFamily/IOHIDUsageTables.h \
+	    ${RAVYN_SDKROOT}${SLF}/IOKit.framework/Headers/hid/
 
 SUBDIR = IOHIDSystem
 #SUBDIR += HID

@@ -88,6 +88,6 @@ xnu_all: installhdrs libfirehose_kernel compiler_rt
 # later in IOKitUser
 SUBDIR = xnu/libkern/kmod xnu/libkern/kxld
 SUBDIR += IOKitUser
-#SUBDIR += Extensions  # TEMP: después de Frameworks
+# Extensions is built from the top level, after Frameworks.
 
 .include <bsd.subdir.mk>

@@ -60,6 +60,7 @@ ${_KEXT_FOLDER}:
 	mkdir -p ${.TARGET}/Contents/MacOS
 
 ${_KEXT_FOLDER}/Contents/Info.plist: ${.CURDIR}/${INFO_PLIST}
+	mkdir -p ${.TARGET:H}
 	sed -e 's/@BUNDLE_IDENTIFIER@/${BUNDLE_IDENTIFIER}/' \
 	    -e 's/@BUNDLE_VERSION@/${BUNDLE_VERSION}/' \
 	    ${.CURDIR}/${INFO_PLIST} >${.TARGET}
