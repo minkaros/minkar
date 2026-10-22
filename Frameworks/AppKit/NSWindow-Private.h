@@ -13,6 +13,10 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 // style flag for private windows (that NSApp doesn't have to know about)
 #define NSAppKitPrivateWindow 0x8000000
 
+// Window numbers in a CGWindowListCopyWindowInfo result, front to back;
+// only this process's windows unless allApps is set.
+APPKIT_EXPORT NSArray *_NSWindowNumbersFromWindowInfo(CFArrayRef info,BOOL allApps);
+
 @interface NSWindow (NSWindow_private)
 - (CGWindow *)platformWindow;
 - (CGContextRef)cgContext;

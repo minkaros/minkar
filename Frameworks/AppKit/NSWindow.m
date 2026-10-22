@@ -30,6 +30,7 @@
 #include <sys/mman.h>
 
 #import <CoreGraphics/CGDirectDisplay.h>
+#import <CoreGraphics/CGWindow.h>
 #import <Onyx2D/O2Surface.h>
 #import <Onyx2D/O2GraphicsState.h>
 #import <AppKit/NSWindow.h>
@@ -188,9 +189,38 @@ const float WSWindowEdgePad = 2;
    return 0;
 }
 
+NSArray *_NSWindowNumbersFromWindowInfo(CFArrayRef info,BOOL allApps) {
+   NSMutableArray *result=[NSMutableArray array];
+   pid_t           pid=getpid();
+   CFIndex         i,count=CFArrayGetCount(info);
+
+   for(i=0;i<count;i++){
+    CFDictionaryRef entry=CFArrayGetValueAtIndex(info,i);
+    CFNumberRef     owner=CFDictionaryGetValue(entry,kCGWindowOwnerPID);
+    CFNumberRef     number=CFDictionaryGetValue(entry,kCGWindowNumber);
+    int32_t         ownerPID=0,windowNumber=0;
+
+    if(owner==NULL || number==NULL)
+     continue;
+    CFNumberGetValue(owner,kCFNumberSInt32Type,&ownerPID);
+    CFNumberGetValue(number,kCFNumberSInt32Type,&windowNumber);
+    if(allApps || ownerPID==pid)
+     [result addObject:[NSNumber numberWithInt:windowNumber]];
+   }
+   return result;
+}
+
 +(NSArray *)windowNumbersWithOptions:(NSWindowNumberListOptions)options {
-   NSUnimplementedMethod();
-   return nil;
+   // Visible windows only, as on macOS. ravynOS has a single space, so
+   // NSWindowNumberListAllSpaces changes nothing.
+   CFArrayRef info=CGWindowListCopyWindowInfo(kCGWindowListOptionOnScreenOnly,kCGNullWindowID);
+   NSArray   *result;
+
+   if(info==NULL)
+    return nil;
+   result=_NSWindowNumbersFromWindowInfo(info,(options&NSWindowNumberListAllApplications)!=0);
+   CFRelease(info);
+   return result;
 }
 
 +(void)removeFrameUsingName:(NSString *)name {

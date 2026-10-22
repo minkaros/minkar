@@ -15,6 +15,7 @@ SRCS= \
 	CGFont.m \
 	CGFunction.m \
 	CGGeometry.m \
+	CGGeometryDictionary.c \
 	CGGradient.m \
 	CGImage.m \
 	CGImageDestination.m \
@@ -27,7 +28,9 @@ SRCS= \
 	CGPDFPage.m \
 	CGPath.m \
 	CGPattern.m \
-	CGShading.m
+	CGShading.m \
+	CGWindowList.m \
+	CGWindowListFilter.c
 
 HEADERS= \
 	CGAffineTransform.h \

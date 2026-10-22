@@ -1118,7 +1118,7 @@ CFMachPortRef CGWindowServerCFMachPort(void) {
 
 // The values below were obtained by testing macOS Sonoma
 CGWindowLevel CGWindowLevelForKey(CGWindowLevelKey key) {
-    if(key < 0 || key > kCGNumberOfWindowLevelKeys)
+    if(key < 0 || key >= kCGNumberOfWindowLevelKeys)
         return -INT_MAX;
     const int32_t levels[kCGNumberOfWindowLevelKeys] = {
         -INT_MAX, -INT_MAX, -INT_MAX, -20, 0,

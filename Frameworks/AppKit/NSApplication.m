@@ -700,17 +700,25 @@ static NSMenuItem *itemWithTag(NSMenu *root, int tag) {
 }
 
 -(NSArray *)orderedWindows {
-  extern NSArray *CGSOrderedWindowNumbers();
-
   NSMutableArray *result=[NSMutableArray array];
-  NSArray *numbers=CGSOrderedWindowNumbers();
+  // Front-to-back order from WindowServer, including off-screen windows.
+  CFArrayRef info=CGWindowListCopyWindowInfo(kCGWindowListOptionAll,kCGNullWindowID);
 
-  for(NSNumber *number in numbers){
+  if(info==NULL){
+   // WindowServer unreachable: fall back to creation order.
+   for(NSWindow *window in [self windows])
+    if(![window isKindOfClass:[NSPanel class]])
+     [result addObject:window];
+   return result;
+  }
+
+  for(NSNumber *number in _NSWindowNumbersFromWindowInfo(info,NO)){
    NSWindow *window=[self windowWithWindowNumber:[number integerValue]];
 
    if(window!=nil && ![window isKindOfClass:[NSPanel class]])
     [result addObject:window];
   }
+  CFRelease(info);
 
   return result;
 }

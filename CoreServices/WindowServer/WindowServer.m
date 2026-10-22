@@ -1508,6 +1508,63 @@ static NSString *_pathForPID(pid_t pid) {
     [self sendInlineData:&reply length:sizeof(reply) withCode:MSG_ID_RPC toPort:msg->descriptor.name];
 }
 
+static void fillWindowListEntry(struct wsWindowListEntry *e, WSWindowRecord *win) {
+    NSRect g = win.geometry;
+
+    e->windowID = win.number;
+    e->ownerPID = [(WSAppRecord *)win.app pid];
+    e->levelKey = win.level;
+    e->flags = 0;
+    if(win.state != HIDDEN && win.state != MINIMIZED && win.state != CLOSED)
+        e->flags |= kWSWindowListOnScreen;
+    e->x = g.origin.x;
+    e->y = g.origin.y;
+    e->w = g.size.width;
+    e->h = g.size.height;
+}
+
+/*
+ * Every window, front-most first, matching the render loop: higher levels
+ * are drawn later, so they come first; within a level the last window is
+ * on top, and curWindow is drawn above all others of its level.
+ */
+-(void)rpcWindowList:(PortMessage *)msg {
+    const size_t max = (sizeof(((Message *)0)->data) - sizeof(struct wsRPCBase))
+        / sizeof(struct wsWindowListEntry);
+    size_t size = sizeof(struct wsRPCBase) + max * sizeof(struct wsWindowListEntry);
+    uint8_t *buf = malloc(size);
+    struct wsRPCBase *reply = (struct wsRPCBase *)buf;
+    struct wsWindowListEntry *entries;
+    size_t n = 0;
+
+    if(buf == NULL) {
+        struct wsRPCBase empty = { kWSWindowList, 0 };
+        [self sendInlineData:&empty length:sizeof(empty) withCode:MSG_ID_RPC toPort:msg->descriptor.name];
+        return;
+    }
+    entries = (struct wsWindowListEntry *)(buf + sizeof(struct wsRPCBase));
+
+    pthread_mutex_lock(&renderLock);
+    for(int level = kCGNumReservedWindowLevels - 1; level >= 0 && n < max; --level) {
+        NSArray *wins = _windows[level];
+
+        if(curWindow != nil && curWindow.level == level && [wins containsObject:curWindow])
+            fillWindowListEntry(&entries[n++], curWindow);
+        for(NSInteger i = (NSInteger)[wins count] - 1; i >= 0 && n < max; --i) {
+            WSWindowRecord *win = [wins objectAtIndex:i];
+            if(win != curWindow)
+                fillWindowListEntry(&entries[n++], win);
+        }
+    }
+    pthread_mutex_unlock(&renderLock);
+
+    reply->code = kWSWindowList;
+    reply->len = n * sizeof(struct wsWindowListEntry);
+    [self sendInlineData:buf length:sizeof(struct wsRPCBase) + reply->len
+                withCode:MSG_ID_RPC toPort:msg->descriptor.name];
+    free(buf);
+}
+
 -(void)rpcWindowModifyState:(PortMessage *)msg {
     struct wsRPCSimple reply = { {kWSWindowModifyState, 4}, kWSErrorFailure, 0, 0, 0 };
 
@@ -1674,6 +1731,7 @@ static NSString *_pathForPID(pid_t pid) {
                     case kWSWindowCreate: [self rpcWindowCreate:&msg.portMsg]; break;
                     case kWSWindowDestroy: [self rpcWindowDestroy:&msg.portMsg]; break;
                     case kWSWindowModifyState: [self rpcWindowModifyState:&msg.portMsg]; break;
+                    case kWSWindowList: [self rpcWindowList:&msg.portMsg]; break;
                     // App management (Dock)
                     case kWSApplicationActivate: [self rpcApplicationActivate:&msg.portMsg]; break;
                 }

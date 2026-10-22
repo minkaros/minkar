@@ -144,6 +144,15 @@ COREGRAPHICS_EXPORT CGRect CGRectUnion(CGRect a, CGRect b);
 COREGRAPHICS_EXPORT CGRect CGRectIntersection(CGRect a, CGRect b);
 COREGRAPHICS_EXPORT CGRect CGRectIntegral(CGRect rect);
 
+/* Dictionary representations (keys "X", "Y", "Width", "Height"). */
+#import <CoreFoundation/CFDictionary.h>
+COREGRAPHICS_EXPORT CFDictionaryRef CGPointCreateDictionaryRepresentation(CGPoint point);
+COREGRAPHICS_EXPORT bool CGPointMakeWithDictionaryRepresentation(CFDictionaryRef dict, CGPoint *point);
+COREGRAPHICS_EXPORT CFDictionaryRef CGSizeCreateDictionaryRepresentation(CGSize size);
+COREGRAPHICS_EXPORT bool CGSizeMakeWithDictionaryRepresentation(CFDictionaryRef dict, CGSize *size);
+COREGRAPHICS_EXPORT CFDictionaryRef CGRectCreateDictionaryRepresentation(CGRect rect);
+COREGRAPHICS_EXPORT bool CGRectMakeWithDictionaryRepresentation(CFDictionaryRef dict, CGRect *rect);
+
 static inline bool CGRectContainsRect(CGRect a, CGRect b) {
     return (CGRectGetMinX(b) >= CGRectGetMinX(a) &&
         CGRectGetMaxX(b) <= CGRectGetMaxX(a) &&

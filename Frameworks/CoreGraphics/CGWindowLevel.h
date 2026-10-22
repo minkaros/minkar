@@ -21,6 +21,8 @@
  * THE SOFTWARE.
  */
 
+#include <stdint.h>
+
 #define kCGNumReservedWindowLevels 16 // tested on Sonoma
 typedef int32_t CGWindowLevel;
 typedef enum CGWindowLevelKey : int32_t {

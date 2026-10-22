@@ -103,6 +103,7 @@ typedef enum WSRPC {
     kWSWindowCreate = 8000,
     kWSWindowDestroy,
     kWSWindowModifyState,
+    kWSWindowList,          // every window, front-most first (CGWindowList*)
     // App management
     kWSApplicationActivate = 8100,
 } WSRPC;
@@ -137,6 +138,22 @@ struct wsRPCWindow {
     uint32_t state;
     char title[128];
     uint32_t level;
+};
+
+/*
+ * kWSWindowList reply: a wsRPCBase whose len covers an array of these,
+ * ordered front-most first. Window IDs are chosen by each client, so they
+ * are only unique together with the owner PID.
+ */
+#define kWSWindowListOnScreen   (1 << 0)
+
+struct wsWindowListEntry {
+    uint32_t windowID;
+    uint32_t ownerPID;
+    int32_t  levelKey;      // CGWindowLevelKey
+    uint32_t flags;         // kWSWindowList*
+    double   x, y;          // WindowServer coordinates
+    double   w, h;
 };
 
 typedef enum WSDisplayFlags : uint32_t {
