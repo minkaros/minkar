@@ -3,8 +3,7 @@
 
 MK_WERROR = no
 FRAMEWORK = AppKit
-# TODO: port xkeyboard-config (old FreeBSD meson build)
-SUBDIR =
+SUBDIR = xkeyboard-config
 
 SRCS = \
     CoreData_/NSPersistentDocument.m \
@@ -627,7 +626,6 @@ clean-deps:
 	rm -f .depend.*
 
 
-# TODO: xkeyboard-config still uses the old FreeBSD build; not installed yet
 fmwk-install-hook:
 .for lproj in en.lproj fr.lproj de.lproj
 	cp -Rf ${.CURDIR}/NSSystemInfoPanel/${lproj}/NSSystemInfoPanel.nib \
