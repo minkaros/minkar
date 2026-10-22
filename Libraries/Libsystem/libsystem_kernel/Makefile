@@ -286,6 +286,7 @@ ${.OBJDIR}/lib${LIB}.dylib: ${.OBJDIR}/_libc_funcptr.o lib${LIB}.a
 	  -L${RAVYN_SDKROOT}/usr/lib/system -lsystem_c -ldyld
 	cp -f ${.TARGET} ${RAVYN_SDKROOT}/usr/lib/system/
 	cp -f ${.TARGET} ${SYSROOT_DIR}/usr/lib/system/
+	cp -f ${XNU}/libsyscall/wrappers/libproc/libproc.h ${RAVYN_SDKROOT}/usr/include/
 	cp -f ${.OBJDIR}/libkernel.a \
 	  ${RAVYN_SDKROOT}/usr/local/lib/kernel/libkernel.a
 

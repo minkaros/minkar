@@ -40,12 +40,10 @@
 #include <pthread.h>
 #include <pwd.h>
 #include <grp.h>
-#include <login_cap.h>
-#include <kvm.h>
 
 #import "message.h"
 #import "WSDisplay.h"
-#import "BSDFramebuffer.h"
+#import "IOFramebufferDisplay.h"
 #import "WSInput.h"
 #import "WSWindowRecord.h"
 #import "WSAppRecord.h"
@@ -65,7 +63,7 @@ extern pthread_mutex_t renderLock;
     unsigned int videoGID;
     unsigned int logLevel;
     enum ShellType curShell;
-    BSDFramebuffer *fb;
+    IOFramebufferDisplay *fb;
     NSRect _geometry;
     CGFontRef _titleFont;
 
@@ -80,7 +78,6 @@ extern pthread_mutex_t renderLock;
 
     mach_port_name_t _servicePort;
     int _kq;
-    kvm_t *kvm;
 }
 
 -init;
@@ -95,7 +92,6 @@ extern pthread_mutex_t renderLock;
 -(O2BitmapContext *)context;
 -(BOOL)setUpEnviron:(uid_t)uid;
 -(void)freeEnviron;
--(void)dispatchEvent:(struct libinput_event *)event;
 -(uint32_t)windowCreate:(struct wsRPCWindow*)data forApp:(WSAppRecord *)app;
 -(void)run;
 -(void)processKernelQueue;

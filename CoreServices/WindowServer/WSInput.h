@@ -20,31 +20,17 @@
  * THE SOFTWARE.
  */
 
+/*
+ * Input events for WindowServer. A device backend (IOKit HID) reports raw
+ * pointer and button changes here; WSInput keeps the pointer position
+ * and button state and turns them into mach_events for applications.
+ *
+ * FIXME: the IOKit HID backend and keyboard translation (xkbcommon) are
+ * not connected yet, so no events arrive.
+ */
+
 #import <Foundation/Foundation.h>
 #import <AppKit/NSEvent.h>
-#include <libudev.h>
-#include <libinput.h>
-#include <xkbcommon/xkbcommon.h>
-#include <xkbcommon/xkbcommon-keysyms.h>
-
-#undef direction
-#include <linux/input.h>
-
-static unichar translateKeySym(xkb_keysym_t keysym);
-
-static int open_restricted_cb(const char *path, int flags, void *data) {
-    int fd = open(path, flags);
-    return fd < 0 ? -errno : fd;
-}
-
-static void close_restricted_cb(int fd, void *data) {
-    close(fd);
-}
-
-const static struct libinput_interface interface = {
-    .open_restricted = open_restricted_cb,
-    .close_restricted = close_restricted_cb,
-};
 
 double clipTo(double val, double min, double max);
 
@@ -54,34 +40,32 @@ double clipTo(double val, double min, double max);
 -(void)switchApp;
 @end
 
+enum {
+    WSInputButtonLeft, WSInputButtonRight, WSInputButtonMiddle, WSInputButtonCount
+};
+
 @interface WSInput : NSObject {
     int logLevel;
-    struct udev *udev;
-    struct libinput *li;
-    struct xkb_context *xkbCtx;
-    struct xkb_keymap *xkb_keymap;
-    struct xkb_state *xkb_state;
-    struct xkb_state *xkb_state_unmodified;
-    uint32_t keyRepeatDelay;
+    unsigned int modifierFlags;
 
     NSRect geometry; // size of the active screen
     double pointerX;
     double pointerY;
-    BOOL buttonDown[3]; // L R M
+    BOOL buttonDown[WSInputButtonCount];
 }
 
 -init;
--(void)dealloc;
--(void)run:(NSObject *)target; /* target obj receives the events */
--(void)processEvent:(struct libinput_event *)event target:(NSObject *)target;
+-(void)run:(NSObject *)target; /* deliver pending events to target */
 -(void)setLogLevel:(int)level;
 -(void)setDebugLevel:(int)level;
--(void)setKeymap;
--(unsigned int)modifierFlagsForState:(struct xkb_state *)state;
 -(NSPoint)pointerPos;
 -(NSPoint)setPointerPos:(NSPoint)pos;
 -(void)setGeometry:(NSRect)geom;
--(int)fileDescriptor;
+-(int)fileDescriptor; /* readable when events are pending, or -1 */
+
+/* Called by the device backend. dy and y grow upwards. */
+-(void)pointerMovedByX:(double)dx y:(double)dy target:(NSObject *)target;
+-(void)pointerMovedToX:(double)x y:(double)y target:(NSObject *)target;
+-(void)button:(int)button pressed:(BOOL)pressed target:(NSObject *)target;
 
 @end
-

@@ -36,14 +36,11 @@
 #import "common.h"
 #import "WindowServer.h"
 
-#undef direction // defined in mach.h
-#include <linux/input.h>
-
 #include <poll.h>
-#include <kvm.h>
+#include <libproc.h>
+#include <servers/bootstrap.h>
 #include <sys/param.h>
 #include <sys/sysctl.h>
-#include <sys/user.h>
 #include <sys/shm.h>
 #include <sys/ipc.h>
 #include <signal.h>
@@ -51,14 +48,58 @@
 #include <sys/time.h>
 #include <sys/resource.h>
 
-#include <launch.h>
-
 #import "rpc.h"
 
 /* This lock prevents other threads from messing with the graphics context while we
  * are in the rendering loop
  */
 pthread_mutex_t renderLock;
+
+/* Owner of a client process, for handing it its window surfaces. */
+static BOOL ownerOfProcess(pid_t pid, uid_t *uid, gid_t *gid) {
+    struct proc_bsdinfo info;
+    if(proc_pidinfo(pid, PROC_PIDTBSDINFO, 0, &info, sizeof(info)) != sizeof(info))
+        return NO;
+    *uid = info.pbi_uid;
+    *gid = info.pbi_rgid;
+    return YES;
+}
+
+/*
+ * Create the shared memory backing a window surface and map it. XNU sizes
+ * a POSIX shared memory object only once, so a resize unlinks the old
+ * object and creates a new one under the same name; existing mappings
+ * stay valid until they are unmapped.
+ */
+static void *mapClientSurface(NSString *path, size_t size, pid_t client) {
+    const char *name = [path fileSystemRepresentation];
+    uid_t uid;
+    gid_t gid;
+
+    if(!ownerOfProcess(client, &uid, &gid)) {
+        NSLog(@"Cannot get client task info! pid %u", client);
+        return NULL;
+    }
+
+    shm_unlink(name);
+    int shmfd = shm_open(name, O_RDWR|O_CREAT|O_EXCL, 0600);
+    if(shmfd < 0) {
+        NSLog(@"Cannot open shm fd: %s", strerror(errno));
+        return NULL;
+    }
+    if(ftruncate(shmfd, size) < 0)
+        NSLog(@"shmfd ftruncate failed: %s", strerror(errno));
+    if(fchown(shmfd, uid, gid) < 0)
+        NSLog(@"shmfd fchown failed: %s", strerror(errno));
+
+    void *buf = mmap(NULL, size, PROT_WRITE|PROT_READ, MAP_SHARED, shmfd, 0);
+    close(shmfd);
+    if(buf == MAP_FAILED) {
+        NSLog(@"Cannot alloc surface memory! %s", strerror(errno));
+        return NULL;
+    }
+    return buf;
+}
 
 @implementation WindowServer
 
@@ -79,21 +120,14 @@ static void notifyAppExited(mach_port_t port, pid_t pid, const char *bundleID, c
 }
 
 static NSString *_pathForPID(pid_t pid) {
-    int mib[4];
-    char buf[PATH_MAX+1];
-    size_t len = PATH_MAX;
+    char buf[PROC_PIDPATHINFO_MAXSIZE];
 
-    mib[0] = CTL_KERN;
-    mib[1] = KERN_PROC;
-    mib[2] = KERN_PROC_PATHNAME;
-    mib[3] = pid;
-
-    if(sysctl(mib, 4, buf, &len, NULL, 0) < 0) {
-        NSLog(@"KERN_PROC_PATHNAME(%d): %s", pid, strerror(errno));
+    if(proc_pidpath(pid, buf, sizeof(buf)) <= 0) {
+        NSLog(@"proc_pidpath(%d): %s", pid, strerror(errno));
         return nil;
     }
 
-    return [NSString stringWithCString:buf];
+    return [NSString stringWithUTF8String:buf];
 }
 
 -init {
@@ -118,8 +152,6 @@ static NSString *_pathForPID(pid_t pid) {
         return nil;
     }
 
-    kvm = kvm_open(NULL, "/dev/null", NULL, O_RDONLY, "WindowServer(kvm): ");
-
     displays = [NSMutableArray new];
     apps = [NSMutableDictionary new];
 
@@ -129,12 +161,14 @@ static NSString *_pathForPID(pid_t pid) {
     input = [WSInput new];
     [input setLogLevel:logLevel];
 
-    // FIXME: try drm/kms first then fall back
-    fb = [BSDFramebuffer new];
-    if([fb openFramebuffer:"/dev/console"] < 0)
+    // FIXME: compose all displays; for now everything goes to the main one
+    [displays addObjectsFromArray:[IOFramebufferDisplay availableDisplays]];
+    if([displays count] == 0) {
+        NSLog(@"No usable IOFramebuffer found");
         return nil;
+    }
+    fb = [displays objectAtIndex:0];
     _geometry = [fb geometry];
-    [displays addObject:fb];
 
     [fb clear];
 
@@ -151,8 +185,6 @@ static NSString *_pathForPID(pid_t pid) {
     curShell = NONE;
     fb = nil;
     input = nil;
-    if(kvm)
-        kvm_close(kvm);
 }
 
 -(void)setLogLevel:(int)level {
@@ -220,8 +252,6 @@ static NSString *_pathForPID(pid_t pid) {
 }
 
 -(uint32_t)windowCreate:(struct wsRPCWindow *)data forApp:(WSAppRecord *)app {
-    struct kinfo_proc *kp;
-
     if(data->state < 0 || data->state >= WIN_STATE_MAX) {
         NSLog(@"windowCreate called with invalid state");
         data->state = NORMAL;
@@ -250,32 +280,9 @@ static NSString *_pathForPID(pid_t pid) {
     winrec.shmPath = [NSString stringWithFormat:@"/%@/%u/win/%u", [app bundleID],
         [app pid], winrec.number];
     winrec.bufSize = ([fb getDepth]/8) * data->w * data->h;
-
-    int shmfd = shm_open([winrec.shmPath cString], O_RDWR|O_CREAT, 0600);
-    if(shmfd < 0) {
-        NSLog(@"Cannot open shm fd: %s", strerror(errno));
-        return 0;
-    }
-
-    if(ftruncate(shmfd, winrec.bufSize) < 0)
-        NSLog(@"shmfd ftruncate failed: %s", strerror(errno));
-
-    int count = 0;
-    kp = kvm_getprocs(kvm, KERN_PROC_PID, [app pid], &count);
-    if(count != 1 || kp->ki_pid != [app pid]) {
-        NSLog(@"Cannot get client task info! pid %u", [app pid]);
-        return 0;
-    }
-
-    if(fchown(shmfd, kp->ki_uid, kp->ki_rgid) < 0)
-        NSLog(@"shmfd fchown failed: %s", strerror(errno));
-
-    winrec.surfaceBuf = mmap(NULL, winrec.bufSize, PROT_WRITE|PROT_READ, MAP_SHARED|MAP_NOCORE, shmfd, 0);
-    close(shmfd);
-
+    winrec.surfaceBuf = mapClientSurface(winrec.shmPath, winrec.bufSize, [app pid]);
     if(winrec.surfaceBuf == NULL) {
         winrec.bufSize = 0;
-        NSLog(@"Cannot alloc surface memory! %s", strerror(errno));
         return 0;
     }
 
@@ -309,37 +316,16 @@ static NSString *_pathForPID(pid_t pid) {
     if(!NSEqualRects(winrec.geometry, oldFrame)) {
         // it resized, so fix up our surface to match
         pthread_mutex_lock(&renderLock);
-        winrec.bufSize = ([fb getDepth]/8) * data->w * data->h;
-
-        int shmfd = shm_open([winrec.shmPath cString], O_RDWR|O_CREAT, 0600);
-        if(shmfd < 0) {
-            NSLog(@"Cannot open shm fd: %s", strerror(errno));
+        size_t size = ([fb getDepth]/8) * data->w * data->h;
+        void *buf = mapClientSurface(winrec.shmPath, size, [app pid]);
+        if(buf == NULL) {
+            pthread_mutex_unlock(&renderLock);
             return;
         }
-
-        if(ftruncate(shmfd, winrec.bufSize) < 0)
-            NSLog(@"shmfd ftruncate failed: %s", strerror(errno));
-
-        int count = 0;
-        struct kinfo_proc *kp;
-        kp = kvm_getprocs(kvm, KERN_PROC_PID, [app pid], &count);
-        if(count != 1 || kp->ki_pid != [app pid]) {
-            NSLog(@"Cannot get client task info! pid %u", [app pid]);
-            return;
-        }
-
-        if(fchown(shmfd, kp->ki_uid, kp->ki_rgid) < 0)
-            NSLog(@"shmfd fchown failed: %s", strerror(errno));
-
-        winrec.surfaceBuf = mmap(NULL, winrec.bufSize, PROT_WRITE|PROT_READ,
-                MAP_SHARED|MAP_NOCORE, shmfd, 0);
-        close(shmfd);
-
-        if(winrec.surfaceBuf == NULL) {
-            winrec.bufSize = 0;
-            NSLog(@"Cannot alloc surface memory! %s", strerror(errno));
-            return;
-        }
+        if(winrec.surfaceBuf != NULL)
+            munmap(winrec.surfaceBuf, winrec.bufSize);
+        winrec.surfaceBuf = buf;
+        winrec.bufSize = size;
 
         winrec.surface = [[O2Surface alloc] initWithBytes:winrec.surfaceBuf width:data->w
             height:data->h bitsPerComponent:8 bytesPerRow:4*(data->w)
@@ -533,13 +519,12 @@ static NSString *_pathForPID(pid_t pid) {
                     setlogin(pw->pw_name);
                     chdir(pw->pw_dir);
 
-                    login_cap_t *lc = login_getpwclass(pw);
-                    if (setusercontext(lc, pw, pw->pw_uid,
-                        LOGIN_SETALL & ~(LOGIN_SETLOGIN)) != 0) {
-                            perror("setusercontext");
+                    if(setgid(pw->pw_gid) != 0 ||
+                        initgroups(pw->pw_name, pw->pw_gid) != 0 ||
+                        setuid(pw->pw_uid) != 0) {
+                            perror("cannot switch to user");
                             exit(-1);
                     }
-                    login_close(lc);
 
                     NSString *path = [[NSBundle mainBundle] pathForResource:@"SystemUIServer" ofType:@"app"];
                     if(path)

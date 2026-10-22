@@ -1,69 +1,67 @@
-MAKEOBJDIR?= .
-APP_DIR=${MAKEOBJDIR}/${APP}.app
-NO_ROOT=yes
-PROG=${APP_DIR}/Contents/ravynOS/${APP}
-MAN=
+# Application bundles.
+#
+# Builds PROG=${APP} with bsd.prog.mk and lays out
+#   ${APP}.app/Contents/Info.plist
+#   ${APP}.app/Contents/${APP_EXEC_DIR}/${APP}
+#   ${APP}.app/Contents/Resources/...
+# then copies the bundle into ${SYSROOT_DIR}${APP_INSTALL_DIR}.
+#
+# Variables:
+#   APP                 bundle and executable name (required)
+#   APP_INSTALL_DIR     install location in the sysroot (default /Applications)
+#   APP_EXEC_DIR        executable directory (default ravynOS; Foundation
+#                       and CoreFoundation also accept MacOS)
+#   INFO_PLIST          Info.plist source (default Info.plist, if present)
+#   FRAMEWORKS          frameworks to link with, by name
+#   RESOURCES           files or directories copied into Contents/Resources
+
+APP_DIR = ${.OBJDIR}/${APP}.app
+APP_EXEC_DIR ?= ravynOS
+APP_INSTALL_DIR ?= /Applications
+INFO_PLIST ?= Info.plist
+PROG = ${APP}
+MAN =
+NO_ROOT = yes
+# Mach-O executables: no .pieo objects (no Objective-C rule for them) and
+# no ELF-style split debug files.
+MK_PIE = no
+MK_DEBUG_FILES = no
 
 UID != id -u
 .if defined(UID) && ${UID} != 0
 INSTALLFLAGS=-U
 .endif
 
-.if defined(FRAMEWORKS) && !empty(FRAMEWORKS)
-_LIBDIRS=
-_INCDIRS=
-_LIBS=
-_VERLIBDIR=
-_LIBPATTERN=echo 
-_FMWKDIRS=
-_FMWKFLAG=
+.if defined(MACOS_VERSION_MIN)
+CFLAGS += -mmacos-version-min=${MACOS_VERSION_MIN}
+LDFLAGS += -mmacos-version-min=${MACOS_VERSION_MIN}
+.endif
+
+.if defined(RAVYN_SDKROOT)
+CFLAGS += --sysroot=${RAVYN_SDKROOT}
+LDFLAGS += --sysroot=${RAVYN_SDKROOT}
+.endif
+
 .for fmwk in ${FRAMEWORKS}
-_LIBDIRS+= -L${fmwk:tW:S/^..\//${APP_DIR}\/Contents\/ravynOS\/..\//1}.framework/Versions/Current
-_LIBPATTERN+= ${fmwk:tW:S/^..\//${APP_DIR}\/Contents\/ravynOS\/..\//1}.framework/Versions/Current/*.so  
-_VERLIBDIR+= -Wl,--rpath=${fmwk:tW:S/$/.framework\/Versions\/${fmwk:tW:S/$/.framework\/Versions\/Current/:tA:T}/:S/..\//\$ORIGIN\/..\//1:Q}
-_FMWKDIRS+= -F${fmwk:H:u}
-_FMWKFLAG+= -framework ${fmwk:T:u}
+LDFLAGS += -framework ${fmwk}
 .endfor
 
-.for lib in ${_LIBPATTERN:sh}
-_LIBS+= -l${lib:C%.*lib%%:C%\.so$%%}
+all: ${PROG} .WAIT app-bundle .WAIT app-install-hook
+
+app-bundle: .PHONY
+	@${ECHO} building ${APP_DIR:T} bundle
+	mkdir -p ${APP_DIR}/Contents/${APP_EXEC_DIR} ${APP_DIR}/Contents/Resources
+	cp -f ${.OBJDIR}/${PROG} ${APP_DIR}/Contents/${APP_EXEC_DIR}/${APP}
+.if exists(${.CURDIR}/${INFO_PLIST})
+	cp -f ${.CURDIR}/${INFO_PLIST} ${APP_DIR}/Contents/Info.plist
+.endif
+.for rsc in ${RESOURCES}
+	cp -Rf ${rsc} ${APP_DIR}/Contents/Resources/
 .endfor
 
-LDFLAGS+= ${_LIBDIRS} ${_LIBS} -lobjc -L/usr/local/lib -lunwind ${_VERLIBDIR}
-FMWK_FLAG+= ${_FMWKDIRS} ${_FMWKFLAG}
-.endif
-
-.if defined(RESOURCES) && !empty(RESOURCES)
-RSCDIR=${APP_DIR}/Contents/Resources
-installresources: ${RESOURCES}
-	for name in ${RESOURCES}; do \
-		if [ -d $$name ]; then \
-			dest=${RSCDIR}/$$(basename $$name); \
-			mkdir -p $$dest; \
-			tar -C $$name -cf - . | tar -C $$dest -xvf -; \
-		else \
-			cp -fv $$name ${RSCDIR}/; \
-		fi; \
-	done
-.else
-installresources: .PHONY
-.endif
-
-.include <rvn.common.mk>
-
-all: ${APP_DIR} ${PROG} installresources ${APP_DIR}/${APP}
-
-${APP_DIR}/${APP}:
-	ln -s Contents/ravynOS/${APP} ${APP_DIR}/${APP}
-
-${APP_DIR}:
-	@${ECHO} building ${APP_DIR} bundle
-	mkdir -p "${APP_DIR}/Contents/ravynOS" \
-		"${APP_DIR}/Contents/Resources"
-	ln -s Contents/Resources "${APP_DIR}/Resources"
-	if [ -f ${.CURDIR}/Info.plist ]; then \
-		cp -fv ${.CURDIR}/Info.plist ${APP_DIR}/Contents; fi
-	if [ -f ${.CURDIR}/PkgInfo ]; then \
-		cp -fv ${.CURDIR}/PkgInfo ${APP_DIR}/Contents; fi
+app-install-hook: .PHONY
+	mkdir -p ${SYSROOT_DIR}${APP_INSTALL_DIR}
+	rm -rf ${SYSROOT_DIR}${APP_INSTALL_DIR}/${APP}.app
+	cp -Rf ${APP_DIR} ${SYSROOT_DIR}${APP_INSTALL_DIR}/
 
 .include <bsd.prog.mk>
