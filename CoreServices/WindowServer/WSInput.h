@@ -25,8 +25,10 @@
  * pointer and button changes here; WSInput keeps the pointer position
  * and button state and turns them into mach_events for applications.
  *
- * FIXME: the IOKit HID backend and keyboard translation (xkbcommon) are
- * not connected yet, so no events arrive.
+ * Keys arrive as macOS virtual key codes (kVK_*) and are translated with
+ * the keyboard layout through WSKeymap (libxkbcommon).
+ *
+ * FIXME: the IOKit HID backend is not connected yet, so no events arrive.
  */
 
 #import <Foundation/Foundation.h>
@@ -44,15 +46,7 @@ enum {
     WSInputButtonLeft, WSInputButtonRight, WSInputButtonMiddle, WSInputButtonCount
 };
 
-@interface WSInput : NSObject {
-    int logLevel;
-    unsigned int modifierFlags;
-
-    NSRect geometry; // size of the active screen
-    double pointerX;
-    double pointerY;
-    BOOL buttonDown[WSInputButtonCount];
-}
+@interface WSInput : NSObject
 
 -init;
 -(void)run:(NSObject *)target; /* deliver pending events to target */
@@ -67,5 +61,9 @@ enum {
 -(void)pointerMovedByX:(double)dx y:(double)dy target:(NSObject *)target;
 -(void)pointerMovedToX:(double)x y:(double)y target:(NSObject *)target;
 -(void)button:(int)button pressed:(BOOL)pressed target:(NSObject *)target;
+-(void)key:(uint16_t)keyCode pressed:(BOOL)pressed target:(NSObject *)target;
+
+/* Switch keyboard layout (xkeyboard-config names, e.g. "es", "latam"). */
+-(BOOL)setKeyboardLayout:(NSString *)layout variant:(NSString *)variant;
 
 @end

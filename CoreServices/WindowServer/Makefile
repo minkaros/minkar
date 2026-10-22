@@ -8,16 +8,19 @@
 APP = WindowServer
 SUBDIR =
 APP_INSTALL_DIR = /System/Library/CoreServices
+ENTITLEMENTS = WindowServer.entitlements
 MK_WERROR = no
 WARNS = 1
 
-# Display: IOKit IOFramebuffer. Input: IOKit HID (not connected yet).
+# Display: IOKit IOFramebuffer. Input: IOKit HID (not connected yet);
+# keyboard layouts through libxkbcommon and xkeyboard-config.
 # The old FreeBSD backends (libinput, libevdev, mtdev) are not built.
 SRCS = \
 	IOFramebufferDisplay.m \
 	WSAppRecord.m \
 	WSDisplay.m \
 	WSInput.m \
+	WSKeymap.c \
 	WSWindowRecord.m \
 	WindowServer.m \
 	main.m
@@ -42,7 +45,9 @@ FRAMEWORKS = AppKit Foundation CoreFoundation CoreGraphics Onyx2D IOKit
 # the source tree, like the frameworks do.
 CFLAGS += -fobjc-arc -g -pthread -D__WSRPC -std=gnu17 \
 	-Wno-incompatible-sysroot \
-	-I${.CURDIR} -I${ROOT_SOURCE_DIR}/Frameworks -I${ROOT_SOURCE_DIR}/CoreServices
-LDFLAGS += -pthread -lobjc
+	-I${.CURDIR} -I${ROOT_SOURCE_DIR}/Frameworks -I${ROOT_SOURCE_DIR}/CoreServices \
+	-I${.CURDIR}/libxkbcommon/include
+# libxkbcommon is built first by ../Makefile (static).
+LDFLAGS += -pthread -lobjc -L${.OBJDIR}/libxkbcommon -lxkbcommon
 
 .include <rvn.app.mk>

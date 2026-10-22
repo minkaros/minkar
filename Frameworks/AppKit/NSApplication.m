@@ -219,7 +219,8 @@ static NSMenuItem *itemWithTag(NSMenu *root, int tag) {
                             me.y -= [window frame].origin.y;
                             switch(me.code) {
                                 case NSKeyUp:
-                                case NSKeyDown: {
+                                case NSKeyDown:
+                                case NSFlagsChanged: {
                                     NSEvent *e = [NSEvent keyEventWithType:me.code
                                                   location:NSMakePoint(me.x, me.y)
                                              modifierFlags:me.mods
