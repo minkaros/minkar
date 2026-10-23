@@ -5520,7 +5520,12 @@ is_io_catalog_send_data(
 		return kIOReturnBadArgument;
 	}
 
-	if (!IOTaskHasEntitlement(current_task(), kOSKextManagementEntitlement)) {
+	/*
+	 * ravynOS: no code signing yet, so no task has the entitlement; root
+	 * (kextstart, at boot) stands in for kextd.
+	 */
+	if (!IOTaskHasEntitlement(current_task(), kOSKextManagementEntitlement) &&
+	    !kauth_cred_issuser(kauth_cred_get())) {
 		OSString * taskName = IOCopyLogNameForPID(proc_selfpid());
 		IOLog("IOCatalogueSendData(%s): Not entitled\n", taskName ? taskName->getCStringNoCopy() : "");
 		OSSafeReleaseNULL(taskName);
