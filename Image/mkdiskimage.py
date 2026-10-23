@@ -156,6 +156,28 @@ def install_init(root_dir, init):
     os.symlink(init, launchd)
 
 
+def set_root_password(root_dir, password):
+    """Give root a SHA-512-crypt password in /etc/master.passwd (dev images)."""
+    path = os.path.join(root_dir, 'private/etc/master.passwd')
+    hashed = subprocess.run(['openssl', 'passwd', '-6', '-stdin'], input=password,
+                            capture_output=True, text=True, check=True).stdout.strip()
+    if not hashed.startswith('$6$'):
+        raise SystemExit('openssl passwd -6 gave no SHA-512 hash')
+    with open(path) as f:
+        lines = f.readlines()
+    for i, line in enumerate(lines):
+        fields = line.split(':')
+        if fields[0] == 'root' and len(fields) == 10:
+            fields[1] = hashed
+            lines[i] = ':'.join(fields)
+            break
+    else:
+        raise SystemExit('%s: no root entry' % path)
+    with open(path, 'w') as f:
+        f.writelines(lines)
+    os.chmod(path, 0o600)
+
+
 def run(*cmd, **kwargs):
     print('+ ' + ' '.join(cmd), flush=True)
     return subprocess.run(cmd, check=True, **kwargs)
@@ -231,6 +253,8 @@ def build(args):
                 os.makedirs(path, mode=0o555)
         if args.init:
             install_init(root_dir, args.init)
+        if args.root_password:
+            set_root_password(root_dir, args.root_password)
         if args.launchd_debug:
             # launchd logs at debug level to the console when this exists.
             open(os.path.join(root_dir, 'private/var/db/.launchd_log_debug'), 'w').close()
@@ -257,6 +281,9 @@ def main(argv=None):
     p.add_argument('--volume-id', help='HFS+ volume identifier, 16 hex digits (default random)')
     p.add_argument('--init', help='program to start as PID 1 instead of launchd, '
                    'e.g. /sbin/ravyninit (installed as a %s link)' % LAUNCHD)
+    p.add_argument('--root-password', default=os.environ.get('ROOT_PASSWORD'),
+                   help='set root\'s password (default: $ROOT_PASSWORD; else root has none '
+                   'and cannot log in)')
     p.add_argument('--launchd-debug', action='store_true',
                    help='make launchd log at debug level to the console')
     p.add_argument('--boot-args', default='-v debug=0x14e serial=3 keepsyms=1',

@@ -1,0 +1,6 @@
+# User database: name:password:uid:gid:class:change:expire:gecos:home:shell
+# Accounts and IDs as on macOS. "*" means no password: nobody can log in
+# until one is set (for a development image, "bmake image ROOT_PASSWORD=...").
+root:*:0:0::0:0:System Administrator:/var/root:/bin/sh
+daemon:*:1:1::0:0:System Services:/var/root:/usr/bin/false
+nobody:*:-2:-2::0:0:Unprivileged User:/var/empty:/usr/bin/false

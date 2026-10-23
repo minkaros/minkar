@@ -1,25 +1,20 @@
-SYSLIB= /System/Library/LaunchDaemons
-LIBLIB= /Library/LaunchDaemons
+# System launchd jobs: /System/Library/LaunchDaemons (architecture plan,
+# Phase 2). launchctl reads these XML property lists at boot. The *.json
+# files are the FreeBSD-era jobs, to be converted as their programs are
+# ported.
 
-SYSDAEMONS=	com.apple.auditd.json \
-		com.apple.notifyd.json \
-		com.apple.syslogd.json \
-		org.freebsd.devd.json \
-		org.freebsd.tty1.json \
-		org.freebsd.tty2.json \
-		com.ravynos.WindowServer.json
-DAEMONS=
+SUBDIR =
 
-all: clean build
-build:
-	mkdir -pv ${BUILDROOT}${SYSLIB} ${BUILDROOT}${LIBLIB}
-.for daemon in ${SYSDAEMONS}
-	${INSTALL} -m 0644 ${daemon} ${BUILDROOT}${SYSLIB}
-.endfor
-.for daemon in ${DAEMONS}
-	${INSTALL} -m 0644 ${daemon} ${BUILDROOT}${LIBLIB}
+SYSDAEMONS =	com.ravynos.getty.console.plist
+DIR =		${SYSROOT_DIR}/System/Library/LaunchDaemons
+
+all: install-daemons
+
+install-daemons: .PHONY
+	mkdir -p ${DIR}
+.for d in ${SYSDAEMONS}
+	python3 -c 'import plistlib, sys; plistlib.load(open(sys.argv[1], "rb"))' ${.CURDIR}/${d}
+	install -o 0 -g 0 -m 0644 ${.CURDIR}/${d} ${DIR}/
 .endfor
 
-clean:
-	rm -rf ${BUILDROOT}${SYSLIB} ${BUILDROOT}${LIBLIB}
-
+.include <bsd.prog.mk>

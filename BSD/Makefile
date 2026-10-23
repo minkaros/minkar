@@ -1,4 +1,4 @@
-SUBDIR = lib
+SUBDIR = etc lib
 SUBDIR += bin
 SUBDIR += sbin
 SUBDIR += libexec

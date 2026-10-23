@@ -39,6 +39,17 @@ INIT ?=			/sbin/ravyninit
 .if !empty(INIT)
 INIT_ARGS =		--init ${INIT}
 .endif
+# ROOT_PASSWORD=...: root's password, for development images (passed to
+# mkdiskimage through the environment, not the command line). Without it
+# root has no password and nobody can log in on the console.
+.if defined(ROOT_PASSWORD)
+.export ROOT_PASSWORD
+BOOTTEST_PASSWORD ?=	${ROOT_PASSWORD}
+.endif
+# The password login gates type (GATE=M2-login), by default ROOT_PASSWORD.
+.if defined(BOOTTEST_PASSWORD)
+.export BOOTTEST_PASSWORD
+.endif
 # LAUNCHD_DEBUG=1: launchd logs at debug level to the console.
 .if !empty(LAUNCHD_DEBUG)
 INIT_ARGS +=		--launchd-debug

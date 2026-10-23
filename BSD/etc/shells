@@ -1,11 +1,2 @@
-# List of acceptable shells for chpass(1).
-# ftpd(8) will not allow users to connect who are not using
-# one of these shells.
-
+# Login shells: the ones a user may have (chsh, ftpd and sshd check here).
 /bin/sh
-/bin/csh
-/bin/tcsh
-/bin/zsh
-/bin/bash
-/usr/bin/zsh
-/usr/local/bin/bash

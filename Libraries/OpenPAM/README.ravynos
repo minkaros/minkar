@@ -1,0 +1,20 @@
+OpenPAM for ravynOS
+===================
+
+openpam/ is OpenPAM 20230627 ("Ximenia"), the PAM implementation macOS
+ships, unmodified except that the autotools files, tests and tools were
+left out. Licence: BSD-3-Clause (openpam/LICENSE).
+
+  Source:  https://download.sourceforge.net/openpam/openpam-20230627.tar.gz
+  SHA-256: 0d9ac8f5b55a6241f5073f13eff1e95461422c45ac1a30445d7e1068e91db4fd
+
+Our files: Makefile (bmake, in place of configure and automake) and
+config.h. What is installed, as on macOS:
+
+  /usr/lib/libpam.2.dylib, libpam.dylib     the library
+  /usr/include/security/*.h                 the API (pam_appl.h, openpam.h...)
+  /usr/lib/pam/pam_<name>.so.2              modules: unix, permit, deny, return
+
+Policies are read from /etc/pam.d/. To upgrade, replace openpam/ with the
+new release's lib, include, modules and doc/man and check the list of
+sources in Makefile against lib/libpam/Makefile.am.

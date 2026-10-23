@@ -36,6 +36,8 @@ Gates from the architecture plan:
   M0  the kernel prints its first message     (default markers)
   M1  the root volume mounts, PID 1 runs and starts a shell that answers
       a command typed on the console               (--gate M1)
+  M2-login  launchd brings up getty; root logs in on the console with a
+      password and the shell answers               (--gate M2-login)
 
 For M1 the kernel prints nothing once PID 1 starts, so PID 1 itself
 (launchd, or a temporary init) must print USERLAND_MARKER on the console,
@@ -66,13 +68,26 @@ class Send(str):
 # what the next marker matches: "ravynOS: 42" only appears in its output.
 SHELL_INPUT = [Send('echo "ravynOS: $((6 * 7))"'), 'ravynOS: 42']
 
+# Console login through launchd, getty, login and PAM (part of gate M2).
+# The image needs launchd as PID 1 (INIT=) and a root password
+# (ROOT_PASSWORD=), which the test types: --password or $BOOTTEST_PASSWORD.
+PASSWORD = Send('%PASSWORD%')
+
 GATES = {
     'M0': ['Darwin Kernel Version'],
     'M1': ['Darwin Kernel Version', 'BSD root:', 'hfs: mounted', USERLAND_MARKER,
            SHELL_MARKER] + SHELL_INPUT,
+    'M2-login': ['Darwin Kernel Version', 'BSD root:', 'hfs: mounted',
+                 'launchd[1] has started up', 'login:', Send('root'), 'Password:',
+                 PASSWORD, 'Welcome to ravynOS.'] + SHELL_INPUT,
+}
+GATE_FAIL = {
+    'M2-login': ['Login incorrect'],
 }
 # How long the shell gets to print its prompt before input is sent.
 SEND_DELAY = 3
+# The password typed, never echoed in the test's own output.
+SECRET = [None]
 DEFAULT_FAIL = ['panic(cpu', 'Kernel panic', 'Debugger called:',
                 'load_init_program: failed loading', 'Process 1 exec of']
 ANSI = re.compile(rb'\x1b\[[0-9;?]*[A-Za-z]|\x1b[()][A-Z0-9]|\r')
@@ -99,7 +114,8 @@ def send_pending(proc, pending, start):
     while pending and isinstance(pending[0], Send):
         time.sleep(SEND_DELAY)
         line = pending.pop(0)
-        print('boottest: [%6.1fs] sent: %s' % (time.monotonic() - start, line),
+        shown = '(password)' if line == SECRET[0] else line
+        print('boottest: [%6.1fs] sent: %s' % (time.monotonic() - start, shown),
               file=sys.stderr)
         # A serial terminal ends lines with a carriage return.
         proc.stdin.write(line.encode() + b'\r')
@@ -108,7 +124,13 @@ def send_pending(proc, pending, start):
 
 def run(args):
     expect = list(args.expect or GATES[args.gate])
-    fail = args.fail if args.fail is not None else DEFAULT_FAIL
+    if PASSWORD in expect:
+        if not args.password:
+            print('boottest: gate %s needs --password or $BOOTTEST_PASSWORD' % args.gate,
+                  file=sys.stderr)
+            return 1
+        expect = [Send(args.password) if m is PASSWORD else m for m in expect]
+    fail = args.fail if args.fail is not None else DEFAULT_FAIL + GATE_FAIL.get(args.gate, [])
     for path in (args.image, args.ovmf_code, args.ovmf_vars):
         if not os.path.exists(path):
             print('boottest: not found: %s' % path, file=sys.stderr)
@@ -192,6 +214,8 @@ def main(argv=None):
     p.add_argument('--expect', action='append',
                    help='marker that must appear, in order (repeatable; overrides --gate)')
     p.add_argument('--fail', action='append', help='marker that fails the test (repeatable)')
+    p.add_argument('--password', default=os.environ.get('BOOTTEST_PASSWORD'),
+                   help='root password for login gates (default: $BOOTTEST_PASSWORD)')
     p.add_argument('--timeout', type=int, default=900, help='seconds')
     p.add_argument('--log', help='write the whole console here')
     p.add_argument('--verbose', action='store_true', help='echo the console')
@@ -203,7 +227,9 @@ def main(argv=None):
     p.add_argument('--memory', type=int, default=4096, help='MiB')
     p.add_argument('--ovmf-code', default='/usr/share/OVMF/OVMF_CODE_4M.fd')
     p.add_argument('--ovmf-vars', default='/usr/share/OVMF/OVMF_VARS_4M.fd')
-    return run(p.parse_args(argv))
+    args = p.parse_args(argv)
+    SECRET[0] = args.password
+    return run(args)
 
 
 if __name__ == '__main__':

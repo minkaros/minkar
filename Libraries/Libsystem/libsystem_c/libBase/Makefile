@@ -117,6 +117,8 @@ CFLAGS += -DHAVE_STDINT_H -DPRIVATE \
 	${CFLAGS.${.TARGET:T}}
 
 CFLAGS.bcopy.o = -momit-leaf-frame-pointer
+# crypt() itself is ravyn_crypt/ravyn_crypt.c, which calls this for DES.
+CFLAGS.crypt.o = -Dcrypt=__crypt_des
 CFLAGS.xprintf_all_in_one.o = -I${.CURDIR:H}/stdio/FreeBSD
 CFLAGS.xprintf_comp.o = -I${.CURDIR:H}/stdio/FreeBSD
 CFLAGS.xprintf_domain.o = -I${.CURDIR:H}/stdio/FreeBSD

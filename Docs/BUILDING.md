@@ -67,6 +67,16 @@ Gates (see the architecture plan):
 * M0 - the kernel prints its first message.
 * M1 - the HFS+ root mounts, PID 1 runs and starts a shell, and the shell
   answers a command typed on the serial console.
+* M2-login - launchd as PID 1 starts getty on the console, root logs in
+  through login and PAM, and the shell answers. It needs launchd as PID 1
+  and a root password in the image:
+
+      sudo env SUBDIR= INIT= ROOT_PASSWORD=secret bmake -m /work/ravynos/BSD/share/mk image
+      sudo env SUBDIR= GATE=M2-login ROOT_PASSWORD=secret bmake -m /work/ravynos/BSD/share/mk boottest
+
+  Images have no root password unless ROOT_PASSWORD is given (hashed with
+  the host's `openssl passwd -6`). For launchd bring-up, LAUNCHD_DEBUG=1
+  makes launchd and launchctl log everything to the console.
 
 Until launchd runs, PID 1 is `ravyninit` (`BSD/sbin/ravyninit`), a small
 temporary init that the image installs as `/sbin/launchd`, the only path a
@@ -81,3 +91,5 @@ Portable parts of the system have host-side tests (clang, ASan/UBSan):
 * `make -C Frameworks/CoreGraphics/tests`
 * `make -C CoreServices/WindowServer/tests` (needs a built sysroot)
 * `python3 -B Developer/Default.xctoolchain/codesign/tests/test_codesign.py`
+* `make -C Libraries/Libsystem/libsystem_c/ravyn_crypt/tests` (crypt(3) SHA-crypt)
+* `cc -DTEST -I Libraries/Libsystem/libsystem_coreservices -o /tmp/sysdir_test Libraries/Libsystem/libsystem_coreservices/sysdir.c && /tmp/sysdir_test`

@@ -41,7 +41,7 @@ MAKEOBJDIRPREFIX = ${ROOT_BINARY_DIR}
 # ------------------------------------------------------------------------
 
 world: version BSD/hier Developer Kernel Libraries/libfirehose_kernel Libraries Frameworks \
-	Kernel/Extensions CoreServices BSD
+	Kernel/Extensions CoreServices BSD SystemLibrary
 
 # ------------------------------------------------------------------------
 
@@ -114,7 +114,7 @@ TARGET_TRIPLE = ${CpuArch}-apple-darwin${DARWIN_MAJOR}
 # (CoreFoundation), so it is built after them rather than inside Kernel.
 # CoreServices (WindowServer) links against the Frameworks.
 SUBDIR ?= BSD/hier .WAIT Developer .WAIT Kernel Libraries Frameworks Kernel/Extensions \
-	CoreServices BSD
+	CoreServices BSD SystemLibrary
 
 .export ROOT_SOURCE_DIR ROOT_BINARY_DIR ARCH_CONFIGS KERNEL_CONFIGS \
 	PROD_VERSION PROD_FAMILY CFLAGS DEVEL DARWIN_VERSION \
