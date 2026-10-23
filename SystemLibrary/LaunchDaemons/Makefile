@@ -5,7 +5,8 @@
 
 SUBDIR =
 
-SYSDAEMONS =	com.ravynos.getty.console.plist
+SYSDAEMONS =	com.ravynos.dhcpclient.plist \
+		com.ravynos.getty.console.plist
 DIR =		${SYSROOT_DIR}/System/Library/LaunchDaemons
 
 all: install-daemons

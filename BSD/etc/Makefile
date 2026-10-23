@@ -1,5 +1,6 @@
 # Base configuration in /etc (architecture plan, Phase 2): the user and
-# group databases, login shells and the PAM policies. (Makefile.freebsd is
+# group databases, login shells, the PAM policies and resolv.conf, a link to
+# the one dhcpclient writes, as on macOS. (Makefile.freebsd is
 # the FreeBSD-era file list, kept for reference while it is ported.)
 
 SUBDIR =
@@ -17,5 +18,6 @@ install-etc: .PHONY
 .for f in login other
 	install -o 0 -g 0 -m 0644 ${.CURDIR}/pam.d/${f} ${ETC}/pam.d/
 .endfor
+	ln -sfn ../var/run/resolv.conf ${ETC}/resolv.conf
 
 .include <bsd.prog.mk>

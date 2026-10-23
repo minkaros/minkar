@@ -1,3 +1,3 @@
-SUBDIR = getty
+SUBDIR = dhcpclient getty
 
 .include <bsd.subdir.mk>
