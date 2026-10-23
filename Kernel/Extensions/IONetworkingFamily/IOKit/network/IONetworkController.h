@@ -41,14 +41,20 @@
 #ifndef _IONETWORKCONTROLLER_H
 #define _IONETWORKCONTROLLER_H
 
+#ifdef KERNEL
 #include <IOKit/IOService.h>
 #include <IOKit/IOWorkLoop.h>
 #include <IOKit/IOCommandGate.h>
+#endif /* KERNEL */
 #include <IOKit/network/IONetworkMedium.h>
+#ifdef KERNEL
 #include <IOKit/network/IOOutputQueue.h>
 #include <sys/kpi_mbuf.h>
+#endif /* KERNEL */
 
+#ifdef KERNEL
 class IONetworkInterface;
+#endif /* KERNEL */
 
 /* Property keys. */
 #define kIONetworkControllerClass	"IONetworkController"
@@ -70,7 +76,9 @@ class IONetworkInterface;
 
 /* The packet filter group every controller has. */
 #define kIONetworkFilterGroup		"IONetworkFilterGroup"
+#ifdef KERNEL
 extern const OSSymbol *gIONetworkFilterGroup;
+#endif /* KERNEL */
 
 /* Filters in kIONetworkFilterGroup. */
 enum {
@@ -107,6 +115,7 @@ enum {
 	kChecksumTCPSum16		= 0x1000,
 };
 
+#ifdef KERNEL
 class IONetworkController : public IOService
 {
 	OSDeclareAbstractStructors(IONetworkController);
@@ -247,5 +256,6 @@ public:
 	OSMetaClassDeclareReservedUnused(IONetworkController, 6);
 	OSMetaClassDeclareReservedUnused(IONetworkController, 7);
 };
+#endif /* KERNEL */
 
 #endif /* !_IONETWORKCONTROLLER_H */

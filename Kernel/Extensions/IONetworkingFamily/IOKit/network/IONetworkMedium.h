@@ -36,10 +36,12 @@
 
 #include <IOKit/IOTypes.h>
 #include <IOKit/IOReturn.h>
+#include <net/if_media.h>
+#ifdef KERNEL
 #include <libkern/c++/OSObject.h>
 #include <libkern/c++/OSSymbol.h>
 #include <libkern/c++/OSDictionary.h>
-#include <net/if_media.h>
+#endif
 
 typedef UInt32 IOMediumType;
 
@@ -84,6 +86,8 @@ enum {
 #define kIOMediumFlags		"Flags"
 #define kIOMediumIndex		"Index"
 
+/* The class is the kernel's; user space sees the constants. */
+#ifdef KERNEL
 class IONetworkMedium : public OSObject
 {
 	OSDeclareDefaultStructors(IONetworkMedium);
@@ -132,5 +136,7 @@ public:
 	OSMetaClassDeclareReservedUnused(IONetworkMedium, 2);
 	OSMetaClassDeclareReservedUnused(IONetworkMedium, 3);
 };
+
+#endif /* KERNEL */
 
 #endif /* !_IONETWORKMEDIUM_H */

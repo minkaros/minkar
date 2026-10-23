@@ -35,7 +35,9 @@
 #ifndef _IONETWORKUSERCLIENT_H
 #define _IONETWORKUSERCLIENT_H
 
+#ifdef KERNEL
 #include <IOKit/IOUserClient.h>
+#endif
 
 #define kIONetworkUserClientTypeID	0xff000001
 #define kIONUCType			0xff000001

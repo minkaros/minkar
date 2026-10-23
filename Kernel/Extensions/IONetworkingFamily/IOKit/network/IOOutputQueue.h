@@ -41,12 +41,14 @@
 #ifndef _IOOUTPUTQUEUE_H
 #define _IOOUTPUTQUEUE_H
 
+#ifdef KERNEL
 #include <IOKit/IOService.h>
 #include <IOKit/IOWorkLoop.h>
 #include <IOKit/IOCommandGate.h>
 #include <IOKit/IOLocks.h>
 #include <sys/kpi_mbuf.h>
 #include <kern/thread_call.h>
+#endif /* KERNEL */
 
 /* outputPacket() results. */
 enum {
@@ -65,8 +67,11 @@ enum {
 };
 
 /* The controller's transmit function. */
+#ifdef KERNEL
 typedef UInt32 (OSObject::*IOOutputAction)(mbuf_t packet, void *param);
+#endif /* KERNEL */
 
+#ifdef KERNEL
 class IOOutputQueue : public OSObject
 {
 	OSDeclareAbstractStructors(IOOutputQueue);
@@ -92,7 +97,9 @@ public:
 	OSMetaClassDeclareReservedUnused(IOOutputQueue, 2);
 	OSMetaClassDeclareReservedUnused(IOOutputQueue, 3);
 };
+#endif /* KERNEL */
 
+#ifdef KERNEL
 class IOBasicOutputQueue : public IOOutputQueue
 {
 	OSDeclareDefaultStructors(IOBasicOutputQueue);
@@ -149,7 +156,9 @@ public:
 	OSMetaClassDeclareReservedUnused(IOBasicOutputQueue, 2);
 	OSMetaClassDeclareReservedUnused(IOBasicOutputQueue, 3);
 };
+#endif /* KERNEL */
 
+#ifdef KERNEL
 class IOGatedOutputQueue : public IOBasicOutputQueue
 {
 	OSDeclareDefaultStructors(IOGatedOutputQueue);
@@ -173,5 +182,6 @@ public:
 	OSMetaClassDeclareReservedUnused(IOGatedOutputQueue, 0);
 	OSMetaClassDeclareReservedUnused(IOGatedOutputQueue, 1);
 };
+#endif /* KERNEL */
 
 #endif /* !_IOOUTPUTQUEUE_H */

@@ -35,10 +35,12 @@
 #ifndef _IONETWORKDATA_H
 #define _IONETWORKDATA_H
 
-#include <libkern/c++/OSObject.h>
-#include <libkern/c++/OSSymbol.h>
 #include <IOKit/IOTypes.h>
 #include <IOKit/IOReturn.h>
+#ifdef KERNEL
+#include <libkern/c++/OSObject.h>
+#include <libkern/c++/OSSymbol.h>
+#endif
 
 /* Access types. */
 enum {
@@ -63,6 +65,8 @@ enum {
 #define kIONetworkDataAccessTypes	"Access Types"
 #define kIONetworkDataSize		"Size"
 
+/* The classes are the kernel's; user space sees the constants. */
+#ifdef KERNEL
 class IONetworkData : public OSObject
 {
 	OSDeclareDefaultStructors(IONetworkData);
@@ -125,5 +129,7 @@ public:
 	OSMetaClassDeclareReservedUnused(IONetworkData, 2);
 	OSMetaClassDeclareReservedUnused(IONetworkData, 3);
 };
+
+#endif /* KERNEL */
 
 #endif /* !_IONETWORKDATA_H */

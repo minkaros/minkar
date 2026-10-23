@@ -39,8 +39,11 @@
 
 #define kIOEthernetInterfaceClass	"IOEthernetInterface"
 
+#ifdef KERNEL
 class IOEthernetController;
+#endif /* KERNEL */
 
+#ifdef KERNEL
 class IOEthernetInterface : public IONetworkInterface
 {
 	OSDeclareDefaultStructors(IOEthernetInterface);
@@ -67,5 +70,6 @@ public:
 	OSMetaClassDeclareReservedUnused(IOEthernetInterface, 2);
 	OSMetaClassDeclareReservedUnused(IOEthernetInterface, 3);
 };
+#endif /* KERNEL */
 
 #endif /* !_IOETHERNETINTERFACE_H */

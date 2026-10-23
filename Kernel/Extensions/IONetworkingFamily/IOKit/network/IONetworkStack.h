@@ -39,8 +39,10 @@
 #ifndef _IONETWORKSTACK_H
 #define _IONETWORKSTACK_H
 
+#ifdef KERNEL
 #include <IOKit/IOService.h>
 #include <IOKit/IOUserClient.h>
+#endif
 
 #define kIONetworkStackUserCommandKey	"IONetworkStackUserCommand"
 #define kIONetworkStackUserCommand	kIONetworkStackUserCommandKey
@@ -52,6 +54,8 @@ enum {
 	kIONetworkStackRegisterInterfaceAll		= 2,
 };
 
+/* The classes are the kernel's; user space sees the constants. */
+#ifdef KERNEL
 class IONetworkInterface;
 
 class IONetworkStack : public IOService
@@ -102,5 +106,7 @@ public:
 	virtual IOReturn setProperties(OSObject *properties) APPLE_KEXT_OVERRIDE;
 	virtual IOService *getService() APPLE_KEXT_OVERRIDE;
 };
+
+#endif /* KERNEL */
 
 #endif /* !_IONETWORKSTACK_H */

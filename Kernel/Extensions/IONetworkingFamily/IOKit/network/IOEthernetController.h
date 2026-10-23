@@ -53,13 +53,18 @@ typedef struct {
 
 /* The Wake-on-LAN filter group and its filters. */
 #define kIOEthernetWakeOnLANFilterGroup	"IOEthernetWakeOnLANFilterGroup"
+#ifdef KERNEL
 extern const OSSymbol *gIOEthernetWakeOnLANFilterGroup;
+#endif /* KERNEL */
 enum {
 	kIOEthernetWakeOnMagicPacket	= 0x00000001,
 };
 
+#ifdef KERNEL
 class IOEthernetInterface;
+#endif /* KERNEL */
 
+#ifdef KERNEL
 class IOEthernetController : public IONetworkController
 {
 	OSDeclareAbstractStructors(IOEthernetController);
@@ -102,6 +107,7 @@ public:
 	OSMetaClassDeclareReservedUnused(IOEthernetController, 6);
 	OSMetaClassDeclareReservedUnused(IOEthernetController, 7);
 };
+#endif /* KERNEL */
 
 /*
  * A driver includes this header to subclass IOEthernetController; the

@@ -36,16 +36,20 @@
 #ifndef _IONETWORKINTERFACE_H
 #define _IONETWORKINTERFACE_H
 
+#ifdef KERNEL
 #include <IOKit/IOService.h>
 #include <IOKit/IOLocks.h>
 #include <sys/kpi_mbuf.h>
 #include <net/kpi_interface.h>
+#endif /* KERNEL */
 #include <IOKit/network/IONetworkStats.h>
 
+#ifdef KERNEL
 class IONetworkController;
 class IOOutputQueue;
 class IONetworkData;
 class IONetworkStack;
+#endif /* KERNEL */
 
 /* Property keys. */
 #define kIONetworkInterfaceClass	"IONetworkInterface"
@@ -74,6 +78,7 @@ enum {
 	kInputOptionQueuePacket	= 0x1,	/* queue until flushInputQueue() */
 };
 
+#ifdef KERNEL
 class IONetworkInterface : public IOService
 {
 	OSDeclareAbstractStructors(IONetworkInterface);
@@ -200,5 +205,6 @@ public:
 	OSMetaClassDeclareReservedUnused(IONetworkInterface, 6);
 	OSMetaClassDeclareReservedUnused(IONetworkInterface, 7);
 };
+#endif /* KERNEL */
 
 #endif /* !_IONETWORKINTERFACE_H */
