@@ -142,6 +142,13 @@ mDNSlocal void SockAddrTomDNSAddr(const struct sockaddr *const sa, mDNSAddr *ipA
 #endif
 
 // mDNS core calls this routine when it needs to send a packet.
+// ravynOS change: a question's UDP socket (see mDNSPlatformUDPSocket).
+struct UDPSocket_struct
+{
+    mDNSIPPort port;    // first: the core reads it (network byte order)
+    int        fd;
+};
+
 mDNSexport mStatus mDNSPlatformSendUDP(const mDNS *const m, const void *const msg, const mDNSu8 *const end,
                                        mDNSInterfaceID InterfaceID, UDPSocket *src, const mDNSAddr *dst,
                                        mDNSIPPort dstPort, mDNSBool useBackgroundTrafficClass)
@@ -151,7 +158,6 @@ mDNSexport mStatus mDNSPlatformSendUDP(const mDNS *const m, const void *const ms
     PosixNetworkInterface * thisIntf = (PosixNetworkInterface *)(InterfaceID);
     int sendingsocket = -1;
 
-    (void)src;  // Will need to use this parameter once we implement mDNSPlatformUDPSocket/mDNSPlatformUDPClose
     (void) useBackgroundTrafficClass;
 
     assert(m != NULL);
@@ -174,6 +180,7 @@ mDNSexport mStatus mDNSPlatformSendUDP(const mDNS *const m, const void *const ms
         sin->sin_port           = dstPort.NotAnInteger;
         sin->sin_addr.s_addr    = dst->ip.v4.NotAnInteger;
         sendingsocket           = thisIntf ? thisIntf->multicastSocket4 : m->p->unicastSocket4;
+        if (src != NULL) sendingsocket = src->fd;   // ravynOS change: the question's socket
     }
 
 #if HAVE_IPV6
@@ -281,7 +288,9 @@ mDNSlocal void tcpConnectCallback(int fd, void *context)
 }
 
 // This routine is called when the main loop detects that data is available on a socket.
-mDNSlocal void SocketDataReady(mDNS *const m, PosixNetworkInterface *intf, int skt)
+// ravynOS change: the destination port is a parameter (it was always 5353,
+// so unicast DNS answers on a question's socket never matched).
+mDNSlocal void SocketDataReadyOnPort(mDNS *const m, PosixNetworkInterface *intf, int skt, mDNSIPPort dstport)
 {
     mDNSAddr senderAddr, destAddr;
     mDNSIPPort senderPort;
@@ -377,7 +386,12 @@ mDNSlocal void SocketDataReady(mDNS *const m, PosixNetworkInterface *intf, int s
 
     if (packetLen >= 0)
         mDNSCoreReceive(m, &packet, (mDNSu8 *)&packet + packetLen,
-                        &senderAddr, senderPort, &destAddr, MulticastDNSPort, InterfaceID);
+                        &senderAddr, senderPort, &destAddr, dstport, InterfaceID);
+}
+
+mDNSlocal void SocketDataReady(mDNS *const m, PosixNetworkInterface *intf, int skt)
+{
+    SocketDataReadyOnPort(m, intf, skt, MulticastDNSPort);
 }
 
 mDNSexport TCPSocket *mDNSPlatformTCPSocket(TCPSocketFlags flags, mDNSAddr_Type addrType, mDNSIPPort * port,
@@ -690,15 +704,65 @@ mDNSexport long mDNSPlatformWriteTCP(TCPSocket *sock, const char *msg, unsigned 
     }
 }
 
+// ravynOS change: unicast DNS queries need a UDP socket of their own (the
+// core matches each answer to its question by the local port), so this is
+// implemented instead of returning NULL. IPv4 only, like the resolv.conf
+// servers ParseDNSServers() reads.
+mDNSlocal void SocketDataReadyOnPort(mDNS *const m, PosixNetworkInterface *intf, int skt, mDNSIPPort dstport);
+
+mDNSlocal void UDPSocketReady(int fd, void *context)
+{
+    extern mDNS mDNSStorage;
+    UDPSocket *sock = (UDPSocket *)context;
+
+    SocketDataReadyOnPort(&mDNSStorage, NULL, fd, sock->port);
+}
+
 mDNSexport UDPSocket *mDNSPlatformUDPSocket(mDNSIPPort port)
 {
-    (void)port;         // Unused
-    return NULL;
+    struct sockaddr_in sin;
+    socklen_t len = sizeof(sin);
+    UDPSocket *sock;
+    int fd;
+
+    if ((fd = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)) < 0)
+        return NULL;
+    mDNSPlatformMemZero(&sin, sizeof(sin));
+#ifndef NOT_HAVE_SA_LEN
+    sin.sin_len = sizeof(sin);
+#endif
+    sin.sin_family = AF_INET;
+    sin.sin_port = port.NotAnInteger;   // zero: the kernel picks one
+    if (bind(fd, (struct sockaddr *)&sin, sizeof(sin)) < 0 ||
+        getsockname(fd, (struct sockaddr *)&sin, &len) < 0 ||
+        fcntl(fd, F_SETFL, fcntl(fd, F_GETFL, 0) | O_NONBLOCK) < 0)
+    {
+        close(fd);
+        return NULL;
+    }
+    sock = (UDPSocket *)mDNSPlatformMemAllocateClear(sizeof(*sock));
+    if (sock == NULL)
+    {
+        close(fd);
+        return NULL;
+    }
+    sock->fd = fd;
+    sock->port.NotAnInteger = sin.sin_port;
+    if (mDNSPosixAddFDToEventLoop(fd, UDPSocketReady, sock) != mStatus_NoError)
+    {
+        close(fd);
+        mDNSPlatformMemFree(sock);
+        return NULL;
+    }
+    return sock;
 }
 
 mDNSexport void           mDNSPlatformUDPClose(UDPSocket *sock)
 {
-    (void)sock;         // Unused
+    if (sock == NULL) return;
+    mDNSPosixRemoveFDFromEventLoop(sock->fd);
+    close(sock->fd);
+    mDNSPlatformMemFree(sock);
 }
 
 mDNSexport void mDNSPlatformUpdateProxyList(const mDNSInterfaceID InterfaceID)
@@ -755,9 +819,15 @@ mDNSexport void FreeEtcHosts(mDNS *const m, AuthRecord *const rr, mStatus result
 mDNSexport mDNSBool mDNSPlatformSetDNSConfig(mDNSBool setservers, mDNSBool setsearch, domainname *const fqdn, DNameListElem **RegDomains,
     DNameListElem **BrowseDomains, mDNSBool ackConfig)
 {
-    (void) setservers;
     (void) setsearch;
     (void) ackConfig;
+
+    // ravynOS change: uDNS_SetupDNSConfig() marks every DNS server for
+    // deletion and keeps only those the platform reports again here, so
+    // report the servers of /etc/resolv.conf (otherwise they are dropped
+    // right after they are read and unicast queries never get an answer).
+    extern mDNS mDNSStorage;
+    if (setservers) ParseDNSServers(&mDNSStorage, uDNS_SERVERS_FILE);
 
     if (fqdn         ) fqdn->c[0]      = 0;
     if (RegDomains   ) *RegDomains     = NULL;
@@ -1986,9 +2056,8 @@ mDNSexport mStatus mDNSPlatformStoreOwnerOptRecord(char *ifname, DNSMessage *msg
 
 mDNSexport mDNSu16 mDNSPlatformGetUDPPort(UDPSocket *sock)
 {
-    (void) sock; // unused
-
-    return (mDNSu16)-1;
+    // ravynOS change: sockets exist now (see mDNSPlatformUDPSocket).
+    return sock ? mDNSVal16(sock->port) : (mDNSu16)-1;
 }
 
 mDNSexport mDNSBool mDNSPlatformInterfaceIsD2D(mDNSInterfaceID InterfaceID)

@@ -5,6 +5,6 @@ LDFLAGS = --sysroot=${RAVYN_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
         -fuse-ld=${LD}
 .export CFLAGS LDFLAGS MK_TESTS
 
-SUBDIR = ipconfig sysctl
+SUBDIR = ipconfig mDNSResponder/ravynos sysctl
 
 .include <bsd.subdir.mk>

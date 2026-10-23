@@ -47,6 +47,7 @@
 #include <sys/socket.h>
 #include <sys/sockio.h>
 #include <sys/stat.h>
+#include <sys/sysctl.h>
 #include <sys/time.h>
 #include <sys/wait.h>
 
@@ -375,6 +376,32 @@ default_route(int cmd, struct in_addr gateway)
 	return ret < 0 ? -1 : 0;
 }
 
+/*
+ * mDNSResponder reads the name servers from /etc/resolv.conf at startup
+ * and again on SIGHUP. (On macOS configd tells it; ravynOS has no configd
+ * DNS service yet.)
+ */
+static void
+notify_resolver(void)
+{
+	int mib[3] = { CTL_KERN, KERN_PROC, KERN_PROC_ALL };
+	struct kinfo_proc *procs;
+	size_t len = 0;
+
+	if (sysctl(mib, 3, NULL, &len, NULL, 0) < 0 || len == 0)
+		return;
+	len += len / 8;		/* processes may start meanwhile */
+	if ((procs = malloc(len)) == NULL)
+		return;
+	if (sysctl(mib, 3, procs, &len, NULL, 0) == 0) {
+		for (size_t i = 0; i < len / sizeof(*procs); i++) {
+			if (strcmp(procs[i].kp_proc.p_comm, "mDNSResponder") == 0)
+				kill(procs[i].kp_proc.p_pid, SIGHUP);
+		}
+	}
+	free(procs);
+}
+
 static void
 write_resolv_conf(const struct lease *l)
 {
@@ -393,6 +420,7 @@ write_resolv_conf(const struct lease *l)
 		fprintf(f, "nameserver %s\n", inet_ntoa(l->dns[i]));
 	fclose(f);
 	rename(RESOLV_CONF ".tmp", RESOLV_CONF);
+	notify_resolver();
 }
 
 /* /var/run/dhcpclient/<if>.lease: one "key=value" per line, for ipconfig. */
