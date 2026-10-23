@@ -120,7 +120,9 @@ extern SCDynamicStoreBundlePrimeFunction	prime_KernelEventMonitor;
 extern SCDynamicStoreBundleLoadFunction		load_LinkConfiguration;
 extern SCDynamicStoreBundleLoadFunction		load_PreferencesMonitor;
 extern SCDynamicStoreBundlePrimeFunction	prime_PreferencesMonitor;
+#if	!defined(__RAVYNOS__)	// QoSMarking needs NetworkExtension
 extern SCDynamicStoreBundleLoadFunction		load_QoSMarking;
+#endif	// !__RAVYNOS__
 #endif	// !TARGET_OS_SIMULATOR
 
 
@@ -170,6 +172,7 @@ static const builtin builtin_plugins[] = {
 		prime_PreferencesMonitor,
 		NULL
 	},
+#if	!defined(__RAVYNOS__)
 	{
 		CFSTR("com.apple.SystemConfiguration.QoSMarking"),
 		load_QoSMarking,
@@ -177,6 +180,7 @@ static const builtin builtin_plugins[] = {
 		NULL,
 		NULL
 	},
+#endif	// !__RAVYNOS__
 #endif	// !TARGET_OS_SIMULATOR
 };
 

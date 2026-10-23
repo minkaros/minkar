@@ -41,7 +41,9 @@
 #include "notify_ipcServer.h"
 #include "notify_internal.h"
 #include "notifyServer.h"
+#if	!defined(__RAVYNOS__)
 #include <sandbox.h>
+#endif	// !__RAVYNOS__
 
 static void
 port_arm_mach_notifications(mach_port_t port)
@@ -236,7 +238,7 @@ port_proc_cancel_client(client_t *c)
 	assert(n != NULL);
 	if ((n->refcount == 1) && (n->private != NULL))
 	{
-		service_close(n->private);
+		service_close_info(n->private);
 		n->private = NULL;
 	}
 
@@ -1323,10 +1325,12 @@ kern_return_t __notify_server_dump
 	// Things starting with "forbidden-" will be automatically denied for any
 	// sandboxed process, so if this returns non-zero, then that means the
 	// process is in a sandbox and thus can't use this api
+#if	!defined(__RAVYNOS__)	// no sandbox on ravynOS: nothing is sandboxed
 	if (sandbox_check_by_audit_token(audit, "forbidden-remote-device-admin", SANDBOX_FILTER_NONE)) {
 		mach_port_deallocate(mach_task_self(), fileport);
 		return KERN_SUCCESS;
 	}
+#endif	// !__RAVYNOS__
 
 	if (!has_entitlement(audit, NOTIFY_STATE_ENTITLEMENT)) {
 		mach_port_deallocate(mach_task_self(), fileport);

@@ -43,7 +43,8 @@ all: ${PLATFORM_DIR} ${TOOLS}/unifdef .EXEC
 		${objc_path}/runtime/objc-sync.h ${objc_path}/runtime/objc-exception.h \
 		${objc_path}/runtime/objc-auto.h ${objc_path}/runtime/objc-api.h \
 		${objc_path}/runtime/message.h ${objc_path}/runtime/NSObject.h \
-		${objc_path}/runtime/NSObjCRuntime.h ${objc_path}/runtime/Module \
+		${objc_path}/runtime/NSObjCRuntime.h ${objc_path}/runtime/objc-runtime.h \
+		${objc_path}/runtime/Module \
 		${RAVYN_SDKROOT}/usr/include/objc/
 	mkdir -p ${RAVYN_SDKROOT}/usr/local/include/objc
 	cp -f ${objc_path}/runtime/maptable.h ${objc_path}/runtime/NSObject-internal.h \

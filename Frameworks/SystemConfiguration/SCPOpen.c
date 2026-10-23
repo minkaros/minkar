@@ -47,10 +47,6 @@
 #include "SCHelper_client.h"
 #include "dy_framework.h"
 
-#if	defined(__RAVYNOS__) && !defined(MAX_STATEDUMP_SIZE)
-#define	MAX_STATEDUMP_SIZE	(32 * 1024)	// os_state's limit
-#endif	// __RAVYNOS__ && !MAX_STATEDUMP_SIZE
-
 
 const AuthorizationRef	kSCPreferencesUseEntitlementAuthorization	= (AuthorizationRef)CFSTR("UseEntitlement");
 

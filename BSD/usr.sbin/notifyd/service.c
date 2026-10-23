@@ -539,7 +539,20 @@ service_close(uint16_t service_index)
 {
 	if (service_index == 0) return;
 
-	svc_info_t *info = service_info_remove(service_index);
+	service_close_info(service_info_remove(service_index));
+}
+
+/*
+ * Closes a service by its info: a client's (service_close) or a name's
+ * public one (name_info_t's private). ravynOS: the name's was passed to
+ * service_close as if it were an index.
+ */
+void
+service_close_info(void *service_info)
+{
+	svc_info_t *info = (svc_info_t *)service_info;
+
+	if (info == NULL) return;
 
 	switch (info->type)
 	{

@@ -847,3 +847,48 @@ SCNetworkReachabilitySetDispatchQueue(SCNetworkReachabilityRef target, dispatch_
 	initialReport(targetPrivate, queue);
 	return TRUE;
 }
+
+#pragma mark SPI
+
+/*
+ * The addresses a name target resolves to, as CFData sockaddrs; NULL, with
+ * the getaddrinfo(3) error in *error_num, if it does not resolve (or is not
+ * a name target).
+ */
+CFArrayRef
+SCNetworkReachabilityCopyResolvedAddress(SCNetworkReachabilityRef target, int *error_num)
+{
+	SCNetworkReachabilityPrivateRef	targetPrivate	= (SCNetworkReachabilityPrivateRef)target;
+	struct addrinfo			hints, *res, *ai;
+	CFMutableArrayRef		list;
+	int				err;
+
+	if (error_num != NULL) {
+		*error_num = 0;
+	}
+	if (!isA_SCNetworkReachability(target) || targetPrivate->type != kReachName) {
+		_SCErrorSet(kSCStatusInvalidArgument);
+		return NULL;
+	}
+	memset(&hints, 0, sizeof(hints));
+	hints.ai_family = PF_UNSPEC;
+	hints.ai_socktype = SOCK_STREAM;
+	hints.ai_flags = AI_ADDRCONFIG;
+	err = getaddrinfo(targetPrivate->name, NULL, &hints, &res);
+	if (err != 0) {
+		if (error_num != NULL) {
+			*error_num = err;
+		}
+		return NULL;
+	}
+	list = CFArrayCreateMutable(NULL, 0, &kCFTypeArrayCallBacks);
+	for (ai = res; ai != NULL; ai = ai->ai_next) {
+		CFDataRef	data;
+
+		data = CFDataCreate(NULL, (const UInt8 *)ai->ai_addr, ai->ai_addrlen);
+		CFArrayAppendValue(list, data);
+		CFRelease(data);
+	}
+	freeaddrinfo(res);
+	return list;
+}

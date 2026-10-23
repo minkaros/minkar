@@ -60,7 +60,9 @@
 #include <notify.h>
 #include <sys/sysctl.h>
 #include <sys/kern_event.h>
+#if	!defined(__RAVYNOS__)	// no Network.framework
 #include <nw/private.h>
+#endif	// !__RAVYNOS__
 #include <netinet6/nd6.h>
 
 static dispatch_queue_t			S_kev_queue;
@@ -660,6 +662,14 @@ eventCallback(int so)
 __private_extern__ void
 config_new_interface(const char * ifname)
 {
+#if	defined(__RAVYNOS__)
+	/*
+	 * Network.framework applies the settings of a new interface on
+	 * macOS; ravynOS has none (LinkConfiguration sets MTU and media).
+	 */
+#pragma unused(ifname)
+	return;
+#else	// __RAVYNOS__
 	xpc_object_t if_list;
 
 	if (ifname == NULL) {
@@ -671,6 +681,7 @@ config_new_interface(const char * ifname)
 	network_config_check_interface_settings(if_list);
 	xpc_release(if_list);
 	return;
+#endif	// __RAVYNOS__
 }
 
 static void

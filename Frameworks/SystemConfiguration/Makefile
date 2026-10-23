@@ -58,6 +58,7 @@ PRIVATE_HEADERS = SCPrivate.h SCDPlugin.h SCValidation.h \
 	VPNPrivate.h config_types.h
 
 RESOURCES_DIRS = en.lproj
+RESOURCES_FILES = NetworkConfiguration.plist
 
 CFLAGS = --sysroot=${RAVYN_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
 	-fblocks -DPRIVATE -DTARGET_OS_BRIDGE=0 -Wno-nullability-completeness \

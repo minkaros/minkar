@@ -45,6 +45,7 @@ int service_open_path_private(const char *name, client_t *client, const char *pa
 int service_open_timer(const char *name, const char *args);
 int service_open_timer_private(const char *name, client_t *client, const char *args);
 void service_close(uint16_t service_index);
+void service_close_info(void *service_info);
 void *service_info_get(uint16_t index);
 
 #endif /* _NOTIFY_SERVICE_H_ */

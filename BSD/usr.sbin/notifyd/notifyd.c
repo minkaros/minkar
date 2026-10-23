@@ -1375,7 +1375,7 @@ main(int argc, const char *argv[])
 	mach_port_options_t opts = {
 		.flags = MPO_STRICT | MPO_CONTEXT_AS_GUARD,
 	};
-	kr = mach_port_construct(current_task(), &opts, &global, &global.mach_notify_port);
+	kr = mach_port_construct(current_task(), &opts, (mach_port_context_t)&global, &global.mach_notify_port);
 	if (kr != KERN_SUCCESS) {
 		NOTIFY_INTERNAL_CRASH(kr, "Unable to allocate Mach notification port");
 	}

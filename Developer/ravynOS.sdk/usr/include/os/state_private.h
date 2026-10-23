@@ -36,6 +36,11 @@
 #define OS_STATE_DATA_SIZE_NEEDED(payload_size) \
     (sizeof(os_state_data_header_t) + (payload_size))
 
+/* The largest state data a handler should return. */
+#ifndef MAX_STATEDUMP_SIZE
+#define MAX_STATEDUMP_SIZE (32 * 1024)
+#endif
+
 __BEGIN_DECLS
 
 typedef uint64_t os_state_handle_t;
@@ -55,6 +60,8 @@ typedef struct os_state_data_header_s {
 /* FIXME: Are these the right values? I just guessed. */
 enum : uint64_t {
 	OS_STATE_DATA_SERIALIZED_NSCF_OBJECT = 1,
+	OS_STATE_DATA_PROTOCOL_BUFFER = 2,
+	OS_STATE_DATA_CUSTOM = 3,	/* osd_decoder names the decoder */
 	OS_STATE_API_FAULT = 1,
 	OS_STATE_API_TYPE_FAULT = OS_STATE_API_FAULT,
 	OS_STATE_API_REQUEST = 2,
@@ -70,11 +77,18 @@ struct os_state_hints_s {
 };
 typedef struct os_state_hints_s *os_state_hints_t;
 
+/* The library and type that decode OS_STATE_DATA_CUSTOM data. */
+struct os_state_data_decoder_s {
+    char osdd_library[64];
+    char osdd_type[32];
+};
+
 struct os_state_data_s {
     uint32_t osd_version;
     uint32_t osd_type;
     uint64_t osd_size;
     char     osd_title[64];
+    struct os_state_data_decoder_s osd_decoder;
     uint64_t osd_data_size;
     uint8_t  osd_data[];
 };

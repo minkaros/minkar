@@ -5,8 +5,9 @@
 
 SUBDIR =
 
-SYSDAEMONS =	com.apple.mDNSResponder.plist com.openssh.sshd.plist \
-		com.ravynos.dhcpclient.plist \
+SYSDAEMONS =	com.apple.configd.plist com.apple.mDNSResponder.plist com.apple.notifyd.plist \
+		com.openssh.sshd.plist \
+		com.ravynos.dhcpclient.plist com.ravynos.kextstart.plist \
 		com.ravynos.getty.console.plist
 DIR =		${SYSROOT_DIR}/System/Library/LaunchDaemons
 

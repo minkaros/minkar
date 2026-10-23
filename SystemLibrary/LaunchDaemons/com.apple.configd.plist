@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>Label</key>
+	<string>com.apple.configd</string>
+	<key>ProgramArguments</key>
+	<array>
+		<string>/usr/libexec/configd</string>
+	</array>
+	<key>MachServices</key>
+	<dict>
+		<key>com.apple.SystemConfiguration.configd</key>
+		<true/>
+		<key>com.apple.SystemConfiguration.DNSConfiguration</key>
+		<true/>
+		<key>com.apple.SystemConfiguration.NetworkInformation</key>
+		<true/>
+		<key>com.apple.SystemConfiguration.IPMonitorControl</key>
+		<true/>
+	</dict>
+	<key>RunAtLoad</key>
+	<true/>
+	<key>KeepAlive</key>
+	<true/>
+	<key>Umask</key>
+	<integer>18</integer>
+	<key>StandardErrorPath</key>
+	<string>/var/log/configd.log</string>
+</dict>
+</plist>

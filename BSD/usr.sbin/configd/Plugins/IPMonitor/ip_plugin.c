@@ -86,7 +86,14 @@
 #include <netinet/icmp6.h>
 #include <netinet6/in6_var.h>
 #include <netinet6/nd6.h>
+#if	!defined(__RAVYNOS__)	// no Network.framework
 #include <nw/private.h>
+#else	// !__RAVYNOS__
+/* libsystem_info's RFC 6724 comparison (rules 6, 8 and 10), as libnetwork's is. */
+int	si_destination_compare_no_dependencies(const struct sockaddr *dst1,
+					       const struct sockaddr *dst2);
+#define	sa_dst_compare_no_dependencies	si_destination_compare_no_dependencies
+#endif	// !__RAVYNOS__
 #include <arpa/inet.h>
 #include <sys/sysctl.h>
 #include <limits.h>
