@@ -46,8 +46,15 @@ typedef enum : uint32_t {
     OS_LOG_SINK_TYPE_MACH // dest is a mach_port_t
 } _os_log_sink_type_t;
 
+/*
+ * An os_log object is an Objective-C object of class OS_os_log, as on
+ * macOS, so os_retain/os_release and ARC work on it (see log.c).
+ */
 struct os_log_s {
-    uint8_t pad[sizeof(CFRuntimeBase)];
+    union {
+        uint8_t pad[sizeof(CFRuntimeBase)];
+        const void *isa;
+    };
     uint32_t flags;
     void* subsystem;
     void* category;

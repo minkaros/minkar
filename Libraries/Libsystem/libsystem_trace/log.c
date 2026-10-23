@@ -52,9 +52,16 @@
 #include "init.h"
 
 
-struct os_log_s _os_log_default;
-struct os_log_s _os_log_disabled;
-struct os_log_s _os_log_null;
+/*
+ * os_log objects belong to OS_os_log, defined at the end of this file. The
+ * class is immortal (retain and release do nothing), like the static log
+ * objects, which carry its isa from the start.
+ */
+extern const char OS_os_log_class[] __asm__("_OBJC_CLASS_$_OS_os_log");
+
+struct os_log_s _os_log_default = { .isa = OS_os_log_class };
+struct os_log_s _os_log_disabled = { .isa = OS_os_log_class };
+struct os_log_s _os_log_null = { .isa = OS_os_log_class };
 
 __BEGIN_DECLS
 
@@ -65,20 +72,18 @@ os_log_create(const char* subsystem, const char* category)
     if (!log)
         return (os_log_t)NULL;
 
+    /* Without CoreFoundation (plain C programs) the names stay NULL. */
     if (_CFStringCreateWithCString) {
         log->subsystem = (void*)_CFStringCreateWithCString(NULL,
             subsystem, kCFStringEncodingUTF8);
         log->category = (void*)_CFStringCreateWithCString(NULL,
             category, kCFStringEncodingUTF8);
-    } else {
-        fprintf(stderr,
-            "Missing CFStringCreateWithCString!\n");
     }
 
+    log->isa = OS_os_log_class;
     log->sink_type = OS_LOG_SINK_TYPE_FD;
     log->sink_dest = STDOUT_FILENO;
 
-    os_retain(log);
     return log;
 }
 
@@ -517,3 +522,50 @@ bool _os_log_string_is_public(const char* str)
 {
     return true; // FIXME
 }
+
+/*
+ * The class of os_log objects. They live as long as the process (macOS
+ * also keeps them), so retain, release and autorelease do nothing; that
+ * also makes the static objects above safe to retain and release. +load
+ * makes the runtime realize the class when it loads this library.
+ */
+#import <objc/NSObject.h>
+
+@interface OS_os_log : NSObject
+@end
+
+@implementation OS_os_log
++ (void)load
+{
+}
+
+- (instancetype)retain
+{
+    return self;
+}
+
+- (oneway void)release
+{
+}
+
+- (instancetype)autorelease
+{
+    return self;
+}
+
+- (NSUInteger)retainCount
+{
+    return NSUIntegerMax;
+}
+
+- (BOOL)_tryRetain
+{
+    return YES;
+}
+
+- (BOOL)_isDeallocating
+{
+    return NO;
+}
+@end
+
