@@ -18,13 +18,13 @@ CFLAGS = --sysroot=${RAVYN_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
         '-DPROJ_VER="${PROJ_VER}"'
 LDFLAGS = --sysroot=${RAVYN_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
         -fuse-ld=${LD} -L${ROOT_BINARY_DIR}${LIBUTIL} -lutil \
-        -L${.OBJDIR}/dfalib -ldfa -framework CoreFoundation \
-        ${ROOT_BINARY_DIR}${ROOT_SOURCE_DIR}/Kernel/IOKitUser/libIOKit.a
+        -L${.OBJDIR}/dfalib -ldfa -framework CoreFoundation -framework IOKit
 
 SUBDIR = dfalib
 
 all: all_subdir_BSD/sbin/fsck_hfs/dfalib to-sysroot
-${PROG}: all_subdir_BSD/sbin/fsck_hfs/dfalib
+# The link happens in ${PROG}.full (debug files on), which needs libdfa.
+${PROG} ${PROG}.full: all_subdir_BSD/sbin/fsck_hfs/dfalib
 
 to-sysroot: ${PROG}
 	mkdir -p ${SYSROOT_DIR}/sbin

@@ -40,7 +40,7 @@ MAKEOBJDIRPREFIX = ${ROOT_BINARY_DIR}
 #  Top level targets
 # ------------------------------------------------------------------------
 
-world: version Developer Kernel Libraries/libfirehose_kernel Libraries Frameworks \
+world: version BSD/hier Developer Kernel Libraries/libfirehose_kernel Libraries Frameworks \
 	Kernel/Extensions CoreServices BSD
 
 # ------------------------------------------------------------------------
@@ -108,10 +108,12 @@ SYSROOT_DIR = ${ROOT_BINARY_DIR}/sysroot
 
 TARGET_TRIPLE = ${CpuArch}-apple-darwin${DARWIN_MAJOR}
 
+# BSD/hier lays out the sysroot (/private, /var, /Library...) before anything
+# installs into it.
 # Kernel/Extensions needs headers from Libraries (dispatch) and Frameworks
 # (CoreFoundation), so it is built after them rather than inside Kernel.
 # CoreServices (WindowServer) links against the Frameworks.
-SUBDIR ?= Developer .WAIT Kernel Libraries Frameworks Kernel/Extensions \
+SUBDIR ?= BSD/hier .WAIT Developer .WAIT Kernel Libraries Frameworks Kernel/Extensions \
 	CoreServices BSD
 
 .export ROOT_SOURCE_DIR ROOT_BINARY_DIR ARCH_CONFIGS KERNEL_CONFIGS \

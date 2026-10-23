@@ -1,3 +1,3 @@
-SUBDIR = launchd mount_hfs ravyninit
+SUBDIR = fsck fsck_hfs launchd mount mount_hfs ravyninit
 
 .include <bsd.subdir.mk>

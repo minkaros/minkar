@@ -29,6 +29,11 @@
  * SUCH DAMAGE.
  */
 
+#ifdef __APPLE__
+#define TTYDEFCHARS		/* ttydefchars[], for cfmakesane() below */
+#include <termios.h>		/* cc_t, NCCS: before <sys/ttydefaults.h> */
+#include <unistd.h>		/* _POSIX_VDISABLE */
+#endif
 #include <sys/param.h>
 #include <sys/ioctl.h>
 #include <sys/time.h>
@@ -41,7 +46,11 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <locale.h>
+#ifdef __APPLE__
+#include <util.h>		/* login_tty() */
+#else
 #include <libutil.h>
+#endif
 #include <setjmp.h>
 #include <signal.h>
 #include <stdio.h>
@@ -55,6 +64,20 @@
 #include "gettytab.h"
 #include "extern.h"
 #include "pathnames.h"
+
+#ifdef __APPLE__
+/* FreeBSD's cfmakesane(3), missing on Darwin: the <sys/ttydefaults.h> state. */
+static void
+cfmakesane(struct termios *t)
+{
+	t->c_iflag = TTYDEF_IFLAG;
+	t->c_oflag = TTYDEF_OFLAG;
+	t->c_lflag = TTYDEF_LFLAG;
+	t->c_cflag = TTYDEF_CFLAG;
+	memcpy(t->c_cc, ttydefchars, sizeof(t->c_cc));
+	cfsetspeed(t, TTYDEF_SPEED);
+}
+#endif
 
 extern char **environ;
 

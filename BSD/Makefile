@@ -1,6 +1,7 @@
 SUBDIR = lib
 SUBDIR += bin
 SUBDIR += sbin
+SUBDIR += libexec
 SUBDIR += usr.bin
 SUBDIR += usr.sbin
 
