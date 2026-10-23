@@ -7,7 +7,8 @@ SRCS =	dhcpclient.c
 MAN =
 
 CFLAGS = --sysroot=${RAVYN_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
-	-Wall -Wextra -Wno-nullability-completeness
+	-Wall -Wextra -Wno-nullability-completeness \
+	-I${RAVYN_SDKROOT}/System/Library/Frameworks/System.framework/PrivateHeaders
 LDFLAGS = --sysroot=${RAVYN_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
 	-fuse-ld=${LD}
 

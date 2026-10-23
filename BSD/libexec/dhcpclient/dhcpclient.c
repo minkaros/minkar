@@ -31,7 +31,9 @@
  *	dhcpclient [-d] [interface ...]
  *
  * Without operands it serves every Ethernet interface, one process each.
- * It brings the interface up, gets a lease through BPF (the interface has
+ * It brings the interface up and starts IPv6 on it (link-local address and
+ * stateless autoconfiguration from router advertisements, as macOS's
+ * IPConfiguration does), then gets a lease through BPF (the interface has
  * no address yet), then sets the address, the default route and
  * /var/run/resolv.conf, renews the lease at T1, rebinds at T2 and starts
  * over when the lease expires or the server refuses it. The lease is
@@ -58,6 +60,9 @@
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
 #include <netinet/udp.h>
+#include <netinet/icmp6.h>
+#include <netinet6/in6_var.h>
+#include <netinet6/nd6.h>
 #include <arpa/inet.h>
 
 #include <err.h>
@@ -206,6 +211,81 @@ interface_up(void)
 			logmsg(LOG_ERR, "cannot bring the interface up: %s", strerror(errno));
 	}
 	close(s);
+}
+
+/*
+ * Router solicitations (RFC 4861 6.3.7): the kernel processes the
+ * advertisements, but on macOS the configuration agent sends the
+ * solicitations. A child sends three, four seconds apart, so DHCP does not
+ * wait for them.
+ */
+static void
+solicit_routers(void)
+{
+	struct {
+		struct nd_router_solicit	rs;
+		struct nd_opt_hdr		opt;	/* source link-layer address */
+		uint8_t				lladdr[ETHER_ADDR_LEN];
+	} __attribute__((packed)) msg;
+	struct sockaddr_in6 to;
+	unsigned int index = if_nametoindex(ifname);
+	int s, hops = 255;
+	pid_t pid;
+
+	if (index == 0 || (pid = fork()) != 0)
+		return;		/* parent, or no interface */
+	if ((s = socket(AF_INET6, SOCK_RAW, IPPROTO_ICMPV6)) < 0) {
+		logmsg(LOG_ERR, "IPv6: ICMPv6 socket: %s", strerror(errno));
+		_exit(1);
+	}
+	setsockopt(s, IPPROTO_IPV6, IPV6_MULTICAST_IF, &index, sizeof(index));
+	setsockopt(s, IPPROTO_IPV6, IPV6_MULTICAST_HOPS, &hops, sizeof(hops));
+	memset(&msg, 0, sizeof(msg));
+	msg.rs.nd_rs_type = ND_ROUTER_SOLICIT;
+	msg.opt.nd_opt_type = ND_OPT_SOURCE_LINKADDR;
+	msg.opt.nd_opt_len = 1;		/* in units of 8 bytes */
+	memcpy(msg.lladdr, mac, ETHER_ADDR_LEN);
+	memset(&to, 0, sizeof(to));
+	to.sin6_len = sizeof(to);
+	to.sin6_family = AF_INET6;
+	inet_pton(AF_INET6, "ff02::2", &to.sin6_addr);	/* all routers */
+	to.sin6_scope_id = index;
+	for (int i = 0; i < 3; i++) {
+		sleep(i == 0 ? 1 : 4);	/* the link-local address first */
+		if (sendto(s, &msg, sizeof(msg), 0, (struct sockaddr *)&to, sizeof(to)) < 0)
+			logmsg(LOG_ERR, "IPv6: router solicitation: %s", strerror(errno));
+	}
+	_exit(0);
+}
+
+/*
+ * IPv6: attach the protocol, configure the link-local address and accept
+ * router advertisements (SLAAC). Failures are logged, IPv4 goes on.
+ */
+static void
+ipv6_start(void)
+{
+	struct in6_aliasreq ifra;
+	struct in6_ifreq ifr6;
+	int s = socket(AF_INET6, SOCK_DGRAM, 0);
+
+	if (s < 0) {
+		logmsg(LOG_ERR, "IPv6: socket: %s", strerror(errno));
+		return;
+	}
+	memset(&ifra, 0, sizeof(ifra));
+	strlcpy(ifra.ifra_name, ifname, sizeof(ifra.ifra_name));
+	if (ioctl(s, SIOCPROTOATTACH_IN6, &ifra) < 0 && errno != EEXIST)
+		logmsg(LOG_ERR, "IPv6: SIOCPROTOATTACH_IN6: %s", strerror(errno));
+	/* No address given: the kernel makes the link-local one. */
+	if (ioctl(s, SIOCLL_START, &ifra) < 0 && errno != EEXIST)
+		logmsg(LOG_ERR, "IPv6: SIOCLL_START: %s", strerror(errno));
+	memset(&ifr6, 0, sizeof(ifr6));
+	strlcpy(ifr6.ifr_name, ifname, sizeof(ifr6.ifr_name));
+	if (ioctl(s, SIOCAUTOCONF_START, &ifr6) < 0)
+		logmsg(LOG_ERR, "IPv6: SIOCAUTOCONF_START: %s", strerror(errno));
+	close(s);
+	solicit_routers();
 }
 
 static void
@@ -834,11 +914,13 @@ serve(const char *name)
 
 	strlcpy(ifname, name, sizeof(ifname));
 	openlog("dhcpclient", LOG_PID, LOG_DAEMON);
+	signal(SIGCHLD, SIG_IGN);	/* the router solicitation child */
 	if (get_mac(ifname, mac) < 0) {
 		logmsg(LOG_ERR, "not an Ethernet interface");
 		exit(1);
 	}
 	interface_up();
+	ipv6_start();
 	if (open_bpf() < 0)
 		exit(1);
 	for (;;) {
