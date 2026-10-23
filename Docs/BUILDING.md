@@ -81,8 +81,9 @@ Gates (see the architecture plan):
 * M2 - M2-login, then the network: the e1000e NIC (RavynE1000 on our
   IONetworkingFamily, with an MSI interrupt) comes up as en0, dhcpclient gets a lease from QEMU
   (10.0.2.15), and root logs in over ssh from the host with a key; the
-  remote shell answers and resolves the host's name with `dscacheutil`
-  (dhcpclient's resolv.conf, mDNSResponder, getaddrinfo). QEMU sends the
+  remote shell answers, `scutil --dns` shows the name server, and the
+  host's name resolves with `dscacheutil` (IPMonitor's resolv.conf,
+  mDNSResponder, getaddrinfo). QEMU sends the
   guest's DNS queries to the host's resolver, so the host must resolve its
   own name (systemd-resolved and /etc/hosts do); no Internet is needed. QEMU forwards host port 2222 (BOOTTEST_SSH_PORT)
   to the guest's port 22. `boottest-key` makes the key pair once:
@@ -102,11 +103,16 @@ Gates (see the architecture plan):
   which has no MSI: it uses its INTx line, routed through ACPI _PRT by
   ACPICA in IOACPIFamily.
 
-  IONetworkStack names the interfaces (en0, en1, ...). It waits for a
-  user-space namer (configd's InterfaceNamer, not ported yet) and names
-  them itself after IONetworkStackNamerTimeout, 30 s, so en0 appears about
-  30 s into boot. dhcpclient serves every Ethernet interface as it
-  appears; `ipconfig set en0 DHCP|BOOTP|NONE|MANUAL <addr> <mask>|INFORM <addr> <mask>`
+  configd (Apple's, with its plugins built in) names the interfaces: its
+  InterfaceNamer gives IONetworkStack the unit each one keeps across boots
+  (/Library/Preferences/SystemConfiguration/NetworkInterfaces.plist) once
+  IOKit is quiet; kextstart tells IOKit at boot that there is no kextd to
+  wait for. Without a namer, IONetworkStack names them itself after 30 s.
+  dhcpclient serves every Ethernet interface as it appears and publishes
+  what it configures to configd (State:/Network/Service/<id>), whose
+  IPMonitor sets the default route and resolv.conf and serves the DNS
+  configuration (`scutil --dns`, `scutil --nwi`); without configd it does
+  those itself. `ipconfig set en0 DHCP|BOOTP|NONE|MANUAL <addr> <mask>|INFORM <addr> <mask>`
   and `ipconfig set en0 AUTOMATIC-V6|LINKLOCAL-V6|NONE-V6|MANUAL-V6 <addr> <prefixlen>`
   change its method, `ipconfig getsummary en0` shows what it has.
 
