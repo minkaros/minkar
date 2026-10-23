@@ -32,6 +32,7 @@
 #include <IOKit/pci/IOPCIDevice.h>
 #include <IOKit/pci/IOPCIConfigurator.h>
 #include <IOKit/pci/IOPCIPrivate.h>
+#include <IOKit/rtc/IORTCController.h>
 #include <libkern/c++/OSContainers.h>
 #include <libkern/c++/OSUnserialize.h>
 #include <pexpert/i386/boot.h>
@@ -798,3 +799,43 @@ IOReturn ACPIPlatformExpert::handleInterrupt(void *refCon, IOService *nub, int s
     return ret;
 }
 
+
+/*
+ * The calendar comes from the RTC that published the "IORTC" resource
+ * (ACPIRTC); IOKitInitializeTime() waits for it before asking.
+ */
+static IORTC *
+copyRTC(void)
+{
+    OSObject *obj = IOService::getResourceService()->copyProperty("IORTC");
+    IORTC *rtc = OSDynamicCast(IORTC, obj);
+
+    if (rtc == NULL && obj != NULL) {
+        obj->release();
+    }
+    return rtc;
+}
+
+long
+ACPIPlatformExpert::getGMTTimeOfDay(void)
+{
+    IORTC *rtc = copyRTC();
+    long secs = 0;
+
+    if (rtc != NULL) {
+        secs = rtc->getGMTTimeOfDay();
+        rtc->release();
+    }
+    return secs;
+}
+
+void
+ACPIPlatformExpert::setGMTTimeOfDay(long secs)
+{
+    IORTC *rtc = copyRTC();
+
+    if (rtc != NULL) {
+        rtc->setGMTTimeOfDay(secs);
+        rtc->release();
+    }
+}
