@@ -27,6 +27,8 @@
 
 #include <IOKit/network/IOEthernetInterface.h>
 #include <IOKit/network/IOEthernetController.h>
+#include <IOKit/network/IOEthernetStats.h>
+#include <IOKit/network/IONetworkData.h>
 #include <IOKit/IOLib.h>
 #include <sys/errno.h>
 #include <sys/sockio.h>
@@ -68,6 +70,14 @@ IOEthernetInterface::init(IONetworkController *controller)
 	setMediaAddressLength(ETHER_ADDR_LEN);
 	setMediaHeaderLength(ETHER_HDR_LEN);
 	setFlags(IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST);
+
+	/* Ethernet statistics, which the driver fills in. */
+	IONetworkData *stats = IONetworkData::withInternalBuffer(kIOEthernetStatsKey,
+	    sizeof(IOEthernetStats));
+	if (stats != NULL) {
+		addNetworkData(stats);
+		stats->release();
+	}
 	return true;
 }
 

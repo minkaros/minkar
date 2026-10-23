@@ -27,6 +27,10 @@
 
 #include <IOKit/network/IONetworkInterface.h>
 #include <IOKit/network/IONetworkController.h>
+#include <IOKit/network/IONetworkStack.h>
+#include <IOKit/network/IONetworkData.h>
+#include <IOKit/network/IONetworkStats.h>
+#include <IOKit/network/IONetworkUserClient.h>
 #include <IOKit/IOLib.h>
 #include <IOKit/IOBSD.h>
 #include <libkern/OSAtomic.h>
@@ -53,43 +57,6 @@ OSMetaClassDefineReservedUnused(IONetworkInterface, 5);
 OSMetaClassDefineReservedUnused(IONetworkInterface, 6);
 OSMetaClassDefineReservedUnused(IONetworkInterface, 7);
 
-/*
- * Unit numbers, per name prefix, in the order interfaces register: the
- * first Ethernet interface is en0. (macOS keeps them across boots in the
- * IONetworkStack; that comes later.)
- */
-#define MAX_PREFIXES	8
-static struct {
-	char	prefix[IFNAMSIZ];
-	UInt32	next;
-} sUnits[MAX_PREFIXES];
-static IOLock *sUnitLock;
-
-static UInt32
-allocateUnit(const char *prefix)
-{
-	UInt32 unit = 0;
-	int i;
-
-	if (sUnitLock == NULL) {
-		IOLock *lock = IOLockAlloc();
-
-		if (!OSCompareAndSwapPtr(NULL, lock, (void * volatile *)&sUnitLock))
-			IOLockFree(lock);
-	}
-	IOLockLock(sUnitLock);
-	for (i = 0; i < MAX_PREFIXES; i++) {
-		if (sUnits[i].prefix[0] == '\0')
-			strlcpy(sUnits[i].prefix, prefix, sizeof(sUnits[i].prefix));
-		if (strncmp(sUnits[i].prefix, prefix, sizeof(sUnits[i].prefix)) == 0) {
-			unit = sUnits[i].next++;
-			break;
-		}
-	}
-	IOLockUnlock(sUnitLock);
-	return unit;
-}
-
 bool
 IONetworkInterface::init(IONetworkController *controller)
 {
@@ -99,8 +66,203 @@ IONetworkInterface::init(IONetworkController *controller)
 	_lock = IOLockAlloc();
 	_mtu = 1500;
 	_filters = kIOPacketFilterUnicast | kIOPacketFilterBroadcast;
+	_dataList = OSArray::withCapacity(4);
+	_dataDict = OSDictionary::withCapacity(4);
+	if (_lock == NULL || _dataList == NULL || _dataDict == NULL)
+		return false;
 	setProperty(kIOInterfaceState, (unsigned long long)0, 32);
-	return _lock != NULL;
+
+	/* Generic statistics, and the output queue's. */
+	IONetworkData *stats = IONetworkData::withInternalBuffer(kIONetworkStatsKey,
+	    sizeof(IONetworkStats));
+	if (stats == NULL || !addNetworkData(stats)) {
+		OSSafeReleaseNULL(stats);
+		return false;
+	}
+	_stats = (IONetworkStats *)stats->getBuffer();
+	stats->release();
+	IONetworkData *qstats = IONetworkData::withInternalBuffer(kIOOutputQueueStatsKey,
+	    sizeof(IOOutputQueueStats), kIONetworkDataBasicAccessTypes, this,
+	    outputQueueStatsAction);
+	if (qstats != NULL) {
+		addNetworkData(qstats);
+		qstats->release();
+	}
+	return true;
+}
+
+/* The output queue's counters, fetched when the data is read. */
+IOReturn
+IONetworkInterface::outputQueueStatsAction(void *target, void *, IONetworkData *data,
+    UInt32, void *, UInt32 *, UInt32)
+{
+	IONetworkInterface *netif = (IONetworkInterface *)target;
+	IOOutputQueueStats *q = (IOOutputQueueStats *)data->getBuffer();
+	IOOutputQueue *queue = netif->_outputQueue;
+
+	if (queue != NULL && q != NULL) {
+		q->capacity = queue->getCapacity();
+		q->size = queue->getSize();
+		if (q->size > q->peakSize)
+			q->peakSize = q->size;
+		q->dropCount = queue->getDropCount();
+		q->outputCount = queue->getOutputCount();
+		q->retryCount = queue->getRetryCount();
+		q->stallCount = queue->getStallCount();
+	}
+	return kIOReturnSuccess;
+}
+
+/* ---- Network data -------------------------------------------------------- */
+
+bool
+IONetworkInterface::addNetworkData(IONetworkData *data)
+{
+	bool ok;
+
+	if (data == NULL || data->getKey() == NULL)
+		return false;
+	IOLockLock(_lock);
+	ok = _dataDict->getObject(data->getKey()) == NULL &&
+	    _dataList->setObject(data) && _dataDict->setObject(data->getKey(), data);
+	IOLockUnlock(_lock);
+	if (ok)
+		setProperty("IONetworkData", _dataDict);
+	return ok;
+}
+
+bool
+IONetworkInterface::removeNetworkData(const OSSymbol *key)
+{
+	bool found = false;
+
+	IOLockLock(_lock);
+	for (unsigned i = 0; i < _dataList->getCount(); i++) {
+		IONetworkData *d = (IONetworkData *)_dataList->getObject(i);
+
+		if (d->getKey() == key) {
+			/* Handles are indexes: leave a hole rather than shift them. */
+			_dataList->replaceObject(i, kOSBooleanFalse);
+			_dataDict->removeObject(key);
+			found = true;
+			break;
+		}
+	}
+	IOLockUnlock(_lock);
+	if (found)
+		setProperty("IONetworkData", _dataDict);
+	return found;
+}
+
+IONetworkData *
+IONetworkInterface::getNetworkData(const OSSymbol *key) const
+{
+	return OSDynamicCast(IONetworkData, _dataDict->getObject(key));
+}
+
+IONetworkData *
+IONetworkInterface::getNetworkData(const char *key) const
+{
+	return OSDynamicCast(IONetworkData, _dataDict->getObject(key));
+}
+
+/* User clients name data by handle: its index in _dataList. */
+bool
+IONetworkInterface::getNetworkDataHandle(const char *key, UInt32 *handle) const
+{
+	IONetworkData *d = getNetworkData(key);
+
+	if (d == NULL)
+		return false;
+	for (unsigned i = 0; i < _dataList->getCount(); i++) {
+		if (_dataList->getObject(i) == d) {
+			*handle = i;
+			return true;
+		}
+	}
+	return false;
+}
+
+IONetworkData *
+IONetworkInterface::getNetworkDataForHandle(UInt32 handle) const
+{
+	return OSDynamicCast(IONetworkData, _dataList->getObject(handle));
+}
+
+IONetworkStats *
+IONetworkInterface::getNetworkStats() const
+{
+	return _stats;
+}
+
+/*
+ * The driver counts its errors in IONetworkStats; the deltas since the last
+ * call go to the ifnet's counters (netstat -i).
+ */
+void
+IONetworkInterface::syncErrorStats()
+{
+	struct ifnet_stat_increment_param inc;
+	UInt32 ie, oe, col;
+
+	if (_stats == NULL || _ifp == NULL)
+		return;
+	ie = _stats->inputErrors;
+	oe = _stats->outputErrors;
+	col = _stats->collisions;
+	if (ie == _lastInputErrors && oe == _lastOutputErrors && col == _lastCollisions)
+		return;
+	bzero(&inc, sizeof(inc));
+	inc.errors_in = ie - _lastInputErrors;
+	inc.errors_out = oe - _lastOutputErrors;
+	inc.collisions = col - _lastCollisions;
+	_lastInputErrors = ie;
+	_lastOutputErrors = oe;
+	_lastCollisions = col;
+	ifnet_stat_increment(_ifp, &inc);
+}
+
+IOReturn
+IONetworkInterface::newUserClient(task_t owningTask, void *securityID, UInt32 type,
+    IOUserClient **handler)
+{
+	IONetworkUserClient *client;
+
+	if (type != kIONUCType)
+		return kIOReturnBadArgument;
+	if ((client = IONetworkUserClient::withTask(owningTask, securityID)) == NULL)
+		return kIOReturnNoMemory;
+	if (!client->attach(this) || !client->start(this)) {
+		client->detach(this);
+		client->release();
+		return kIOReturnError;
+	}
+	*handler = client;
+	return kIOReturnSuccess;
+}
+
+/* IONetworkLib's IONetworkSetPacketFiltersMask: { IORequiredPacketFilters: { group: mask } }. */
+IOReturn
+IONetworkInterface::setProperties(OSObject *properties)
+{
+	OSDictionary *dict = OSDynamicCast(OSDictionary, properties);
+	OSDictionary *required;
+	OSNumber *mask;
+
+	if (dict == NULL)
+		return kIOReturnBadArgument;
+	required = OSDynamicCast(OSDictionary, dict->getObject("IORequiredPacketFilters"));
+	if (required == NULL)
+		return kIOReturnUnsupported;
+	if ((mask = OSDynamicCast(OSNumber, required->getObject(kIONetworkFilterGroup))) != NULL) {
+		UInt32 f = mask->unsigned32BitValue() | kIOPacketFilterUnicast |
+		    kIOPacketFilterBroadcast;
+		SInt32 err = setFilters(f);
+
+		if (err != 0)
+			return kIOReturnError;
+	}
+	return kIOReturnSuccess;
 }
 
 void
@@ -108,9 +270,12 @@ IONetworkInterface::free()
 {
 	clearInputQueue();
 	if (_ifp != NULL) {
+		IONetworkStack::releaseUnit(getNamePrefix(), _unit);
 		ifnet_release(_ifp);
 		_ifp = NULL;
 	}
+	OSSafeReleaseNULL(_dataList);
+	OSSafeReleaseNULL(_dataDict);
 	if (_lock != NULL) {
 		IOLockFree(_lock);
 		_lock = NULL;
@@ -220,7 +385,6 @@ IONetworkInterface::attachToDataLinkLayer(IOOptionBits, void *)
 
 	if (_attached)
 		return true;
-	_unit = allocateUnit(getNamePrefix());
 
 	bzero(&params, sizeof(params));
 	if (!initIfnetParams(&params))
@@ -247,13 +411,12 @@ IONetworkInterface::attachToDataLinkLayer(IOOptionBits, void *)
 	}
 	bpfattach(_ifp, getDataLinkType(), _headerLength);
 	_attached = true;
+	configureOffloads();
 
 	snprintf(bsdName, sizeof(bsdName), "%s%u", getNamePrefix(), _unit);
 	setProperty(kIOBSDNameKey, bsdName);
 	setProperty(kIOInterfaceUnit, _unit, 32);
-	setProperty(kIOInterfaceNamePrefix, getNamePrefix());
 	setProperty(kIOPrimaryInterface, _unit == 0);
-	setProperty(kIOBuiltin, true);
 	setProperty(kIOInterfaceState, kIONetworkInterfaceRegisteredState, 32);
 	IOLog("%s: attached as %s\n", _controller->getName(), bsdName);
 	return true;
@@ -277,12 +440,66 @@ IONetworkInterface::ifDetached(ifnet_t ifp)
 		netif->release();
 }
 
+/* Called by IONetworkStack once the interface has its unit. */
+bool
+IONetworkInterface::attachToDataLinkLayerWithUnit(UInt32 unit)
+{
+	if (_attached)
+		return _unit == unit;
+	_unit = unit;
+	return attachToDataLinkLayer(0, NULL);
+}
+
+/*
+ * Tells the stack what the controller does in hardware: checksums (from
+ * getChecksumSupport), TSO and VLAN tagging (from getFeatures).
+ */
+void
+IONetworkInterface::configureOffloads()
+{
+	UInt32 csum = 0, features = _controller->getFeatures();
+	ifnet_offload_t offload = 0;
+
+	if (_controller->getChecksumSupport(&csum, kChecksumFamilyTCPIP, true) != kIOReturnSuccess)
+		csum = 0;
+	if (csum & kChecksumIP)
+		offload |= IFNET_CSUM_IP;
+	if (csum & kChecksumTCP)
+		offload |= IFNET_CSUM_TCP;
+	if (csum & kChecksumUDP)
+		offload |= IFNET_CSUM_UDP;
+	if (csum & kChecksumTCPIPv6)
+		offload |= IFNET_CSUM_TCPIPV6;
+	if (csum & kChecksumUDPIPv6)
+		offload |= IFNET_CSUM_UDPIPV6;
+	if (features & kIONetworkFeatureHardwareVlan)
+		offload |= IFNET_VLAN_TAGGING;
+	if (features & (kIONetworkFeatureHardwareVlan | kIONetworkFeatureSoftwareVlan))
+		offload |= IFNET_VLAN_MTU;
+	if (features & kIONetworkFeatureTSOIPv4) {
+		offload |= IFNET_TSO_IPV4;
+		ifnet_set_tso_mtu(_ifp, AF_INET, 65535);
+	}
+	if (features & kIONetworkFeatureTSOIPv6) {
+		offload |= IFNET_TSO_IPV6;
+		ifnet_set_tso_mtu(_ifp, AF_INET6, 65535);
+	}
+	if (offload != 0)
+		ifnet_set_offload(_ifp, offload);
+}
+
+/*
+ * Publishes the interface; it gets its BSD interface (and unit) when the
+ * IONetworkStack names it.
+ */
 void
 IONetworkInterface::registerService(IOOptionBits options)
 {
-	if (!attachToDataLinkLayer(0, NULL))
-		IOLog("%s: no BSD interface\n", getName());
+	setProperty(kIOInterfaceNamePrefix, getNamePrefix());
+	setProperty(kIOBuiltin, true);
+	publishRequiredFilters();
 	super::registerService(options);
+	IONetworkStack::interfacePublished(this);
 }
 
 /* Packets from the stack, already framed. */
@@ -299,7 +516,10 @@ IONetworkInterface::ifOutput(ifnet_t ifp, mbuf_t m)
 	for (mbuf_t n = m; n != NULL; n = mbuf_nextpkt(n)) {
 		bpf_tap_out(ifp, netif->getDataLinkType(), n, NULL, 0);
 		ifnet_stat_increment_out(ifp, 1, (UInt32)mbuf_pkthdr_len(n), 0);
+		if (netif->_stats != NULL)
+			netif->_stats->outputPackets++;
 	}
+	netif->syncErrorStats();
 	if (netif->_outputQueue != NULL) {
 		netif->_outputQueue->enqueue(m, NULL);
 		return 0;
@@ -334,10 +554,13 @@ IONetworkInterface::inputPacket(mbuf_t m, UInt32 length, IOOptionBits options, v
 	}
 	len = (UInt32)mbuf_pkthdr_len(m);
 	if (len < _headerLength || mbuf_len(m) < _headerLength) {
-		ifnet_stat_increment_in(_ifp, 0, 0, 1);
+		if (_stats != NULL)
+			_stats->inputErrors++;
 		mbuf_freem(m);
 		return 0;
 	}
+	if (_stats != NULL)
+		_stats->inputPackets++;
 	mbuf_pkthdr_setrcvif(m, _ifp);
 
 	/* The stack wants the link-level header apart from the payload. */
@@ -382,6 +605,7 @@ IONetworkInterface::flushInputQueue()
 
 	if (head != NULL)
 		ifnet_input(_ifp, head, &stats);
+	syncErrorStats();
 	return count;
 }
 
@@ -490,6 +714,7 @@ IONetworkInterface::setFilters(UInt32 filters)
 		return 0;
 	_controller->executeCommand(this, gatedUpdateFilters, _controller, &ret, &filters);
 	_filters = filters;
+	publishRequiredFilters();
 	return errnoForIOReturn(ret);
 }
 
@@ -595,4 +820,28 @@ IONetworkInterface::ifIoctl(ifnet_t ifp, unsigned long cmd, void *data)
 	if (netif == NULL || netif->_controller == NULL)
 		return ENXIO;
 	return netif->performCommand(netif->_controller, cmd, ifp, data);
+}
+
+/* { IONetworkFilterGroup: the filters the interface wants } */
+OSDictionary *
+IONetworkInterface::_requiredFilters()
+{
+	OSDictionary *dict = OSDictionary::withCapacity(1);
+	OSNumber *num = OSNumber::withNumber(_filters, 32);
+
+	if (dict != NULL && num != NULL)
+		dict->setObject(kIONetworkFilterGroup, num);
+	OSSafeReleaseNULL(num);
+	return dict;		/* retained */
+}
+
+void
+IONetworkInterface::publishRequiredFilters()
+{
+	OSDictionary *dict = _requiredFilters();
+
+	if (dict != NULL) {
+		setProperty("IORequiredPacketFilters", dict);
+		dict->release();
+	}
 }

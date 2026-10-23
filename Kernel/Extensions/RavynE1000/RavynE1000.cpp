@@ -26,8 +26,11 @@
  */
 
 #include "RavynE1000.h"
+#include <IOKit/network/IONetworkData.h>
+#include <IOKit/network/IOEthernetStats.h>
 #include <IOKit/IOLib.h>
 #include <libkern/OSAtomic.h>
+#include <netinet/in.h>
 
 #define super IOEthernetController
 OSDefineMetaClassAndStructors(RavynE1000, IOEthernetController);
@@ -214,7 +217,8 @@ RavynE1000::initRx()
 		fRxRing[i].addr = fRxBufsPhys + (uint64_t)i * kBufferSize;
 	}
 	for (UInt32 i = 0; i < 128; i++)
-		writeReg(E1000_MTA + 4 * i, 0);
+		writeReg(E1000_MTA + 4 * i, fMTA[i]);
+	writeReg(E1000_RXCSUM, E1000_RXCSUM_IPOFL | E1000_RXCSUM_TUOFL);
 
 	writeReg(E1000_RDBAL, (uint32_t)ring);
 	writeReg(E1000_RDBAH, (uint32_t)(ring >> 32));
@@ -339,21 +343,47 @@ RavynE1000::receivePackets()
 	while (count < kRxRingSize) {
 		volatile struct e1000_rx_desc *desc = &fRxRing[fRxNext];
 		uint8_t status = desc->status;
+		uint8_t errors;
 		UInt32 len;
 
 		if ((status & E1000_RXD_STAT_DD) == 0)
 			break;
 		compilerBarrier();
 		len = desc->length;
-		if ((status & E1000_RXD_STAT_EOP) && desc->errors == 0 &&
+		errors = desc->errors;
+		if ((status & E1000_RXD_STAT_EOP) && !(errors & E1000_RXD_ERR_FRAME) &&
 		    len >= 14 && len <= kBufferSize) {
+			const uint8_t *frame = fRxBufs + fRxNext * kBufferSize;
 			mbuf_t m = allocatePacket(len);
 
-			if (m != NULL && mbuf_copyback(m, 0, len,
-			    fRxBufs + fRxNext * kBufferSize, MBUF_DONTWAIT) == 0)
+			if (m != NULL && mbuf_copyback(m, 0, len, frame, MBUF_DONTWAIT) == 0) {
+				/* Checksums the hardware verified (IPv4 only). */
+				if (!(status & E1000_RXD_STAT_IXSM) && frame[12] == 0x08 &&
+				    frame[13] == 0x00) {
+					UInt32 valid = 0, good = 0;
+
+					if (status & E1000_RXD_STAT_IPCS) {
+						valid |= kChecksumIP;
+						if (!(errors & E1000_RXD_ERR_IPE))
+							good |= kChecksumIP;
+					}
+					if (status & E1000_RXD_STAT_TCPCS) {
+						valid |= kChecksumTCP | kChecksumUDP;
+						if (!(errors & E1000_RXD_ERR_TCPE))
+							good |= kChecksumTCP | kChecksumUDP;
+					}
+					if (valid != 0)
+						setChecksumResult(m, kChecksumFamilyTCPIP, good, valid);
+				}
+				/* A VLAN tag the hardware took out. */
+				if (status & E1000_RXD_STAT_VP)
+					mbuf_set_vlan_tag(m, desc->special);
 				fNetif->inputPacket(m, 0, kInputOptionQueuePacket);
-			else if (m != NULL)
+			} else if (m != NULL) {
 				freePacket(m);
+			}
+		} else if (fNetStats != NULL) {
+			fNetStats->inputErrors++;
 		}
 		desc->status = 0;
 		desc->length = 0;
@@ -383,38 +413,200 @@ RavynE1000::reclaimTx()
 	}
 }
 
-/* Called by the output queue, inside the command gate. */
+/*
+ * The checksum and TSO context of an IPv4 packet: where the IP and TCP/UDP
+ * headers are. Returns false for packets the hardware cannot help with.
+ */
+bool
+RavynE1000::buildContext(mbuf_t m, size_t len, bool tso, u_int32_t mss,
+    volatile struct e1000_ctx_desc *ctx, size_t *tcpSumOffset, uint16_t *tcpLength)
+{
+	uint8_t hdr[128];
+	size_t l2 = 14, ihl, l4len = 0, hdrlen;
+	uint8_t proto;
+	uint32_t tucmd;
+
+	mbuf_copydata(m, 0, len < sizeof(hdr) ? len : sizeof(hdr), hdr);
+	if (hdr[12] == 0x81 && hdr[13] == 0x00)
+		l2 = 18;	/* a VLAN header in the frame (software tagging) */
+	if (hdr[l2 - 2] != 0x08 || hdr[l2 - 1] != 0x00 || len < l2 + 20)
+		return false;
+	ihl = (size_t)(hdr[l2] & 0x0f) * 4;
+	proto = hdr[l2 + 9];
+	if (ihl < 20 || l2 + ihl + 8 > sizeof(hdr))
+		return false;
+	tucmd = E1000_TXD_TUCMD_IP | (proto == IPPROTO_TCP ? E1000_TXD_TUCMD_TCP : 0);
+
+	ctx->ipcss = (uint8_t)l2;
+	ctx->ipcso = (uint8_t)(l2 + 10);
+	ctx->ipcse = (uint16_t)(l2 + ihl - 1);
+	ctx->tucss = (uint8_t)(l2 + ihl);
+	ctx->tucso = (uint8_t)(l2 + ihl + (proto == IPPROTO_TCP ? 16 : 6));
+	ctx->tucse = 0;
+	ctx->status = 0;
+	ctx->hdrlen = 0;
+	ctx->mss = 0;
+	if (tso) {
+		if (proto != IPPROTO_TCP || l2 + ihl + 13 > sizeof(hdr))
+			return false;
+		l4len = (size_t)(hdr[l2 + ihl + 12] >> 4) * 4;
+		hdrlen = l2 + ihl + l4len;
+		*tcpSumOffset = l2 + ihl + 16;
+		*tcpLength = (uint16_t)(len - l2 - ihl);
+		ctx->hdrlen = (uint8_t)hdrlen;
+		ctx->mss = (uint16_t)mss;
+		ctx->cmd_and_length = (uint32_t)(len - hdrlen) | E1000_TXD_DTYP_CTX | tucmd |
+		    E1000_TXD_CMD_TSE | E1000_TXD_DCMD_DEXT | E1000_TXD_DCMD_RS;
+	} else {
+		ctx->cmd_and_length = E1000_TXD_DTYP_CTX | tucmd | E1000_TXD_DCMD_DEXT |
+		    E1000_TXD_DCMD_RS;
+	}
+	return true;
+}
+
+/*
+ * Called by the output queue, inside the command gate. The packet is
+ * copied into 2 KB slots, one descriptor each. Checksum offload and TSO
+ * use a context descriptor and extended data descriptors; a VLAN tag goes
+ * in the descriptors' special field.
+ */
 UInt32
 RavynE1000::outputPacket(mbuf_t m, void *)
 {
-	size_t len = mbuf_pkthdr_len(m);
-	volatile struct e1000_tx_desc *desc;
+	size_t len = mbuf_pkthdr_len(m), off;
+	UInt32 demand = 0, slots, need;
+	u_int32_t tsoRequest = 0, mss = 0;
+	u_int16_t vtag = 0, tcpLength = 0;
+	size_t tcpSumOffset = 0;
+	bool vlan, tso, offload;
 
-	if (!fEnabled || len > kBufferSize) {
+	vlan = mbuf_get_vlan_tag(m, &vtag) == 0;
+	getChecksumDemand(m, kChecksumFamilyTCPIP, &demand);
+	tso = mbuf_get_tso_requested(m, &tsoRequest, &mss) == 0 &&
+	    (tsoRequest & MBUF_TSO_IPV4) && mss != 0;
+	offload = tso || (demand & (kChecksumIP | kChecksumTCP | kChecksumUDP));
+
+	if (!fEnabled || len == 0 || len > (tso ? kMaxTSOSize : kBufferSize)) {
 		freePacket(m);
+		if (fNetStats != NULL)
+			fNetStats->outputErrors++;
 		return kIOReturnOutputDropped;
 	}
+	slots = (UInt32)((len + kBufferSize - 1) / kBufferSize);
+	need = slots + (offload ? 1 : 0);
 	reclaimTx();
-	if (fTxInUse >= kTxRingSize - 1) {
+	if (fTxInUse + need > kTxRingSize - 1) {
 		fTxStalled = true;
 		return kIOReturnOutputStall;
 	}
-	mbuf_copydata(m, 0, len, fTxBufs + fTxNext * kBufferSize);
-	freePacket(m);
 
-	desc = &fTxRing[fTxNext];
-	desc->addr = fTxBufsPhys + (uint64_t)fTxNext * kBufferSize;
-	desc->length = (uint16_t)len;
-	desc->cso = 0;
-	desc->css = 0;
-	desc->special = 0;
-	desc->status = 0;
-	desc->cmd = E1000_TXD_CMD_EOP | E1000_TXD_CMD_IFCS | E1000_TXD_CMD_RS;
-	fTxNext = (fTxNext + 1) % kTxRingSize;
-	fTxInUse++;
+	if (offload) {
+		volatile struct e1000_ctx_desc *ctx =
+		    (volatile struct e1000_ctx_desc *)&fTxRing[fTxNext];
+
+		if (!buildContext(m, len, tso, mss, ctx, &tcpSumOffset, &tcpLength)) {
+			/* The stack asked for offload on a packet we cannot parse. */
+			freePacket(m);
+			if (fNetStats != NULL)
+				fNetStats->outputErrors++;
+			return kIOReturnOutputDropped;
+		}
+		fTxNext = (fTxNext + 1) % kTxRingSize;
+		fTxInUse++;
+	}
+
+	off = 0;
+	for (UInt32 i = 0; i < slots; i++) {
+		size_t chunk = len - off < kBufferSize ? len - off : kBufferSize;
+		bool last = i == slots - 1;
+		uint64_t phys = fTxBufsPhys + (uint64_t)fTxNext * kBufferSize;
+
+		mbuf_copydata(m, off, chunk, fTxBufs + fTxNext * kBufferSize);
+		if (tso && i == 0) {
+			/*
+			 * The stack's pseudo-header sum includes the TCP length;
+			 * the hardware adds each segment's own, so take it out
+			 * (one's complement subtraction).
+			 */
+			uint8_t *sum = fTxBufs + fTxNext * kBufferSize + tcpSumOffset;
+			uint32_t v = ((uint32_t)sum[0] << 8 | sum[1]) + (uint16_t)~tcpLength;
+
+			v = (v & 0xffff) + (v >> 16);
+			v = (v & 0xffff) + (v >> 16);
+			sum[0] = (uint8_t)(v >> 8);
+			sum[1] = (uint8_t)v;
+		}
+		if (offload) {
+			volatile struct e1000_data_desc *d =
+			    (volatile struct e1000_data_desc *)&fTxRing[fTxNext];
+
+			d->addr = phys;
+			d->cmd_and_length = (uint32_t)chunk | E1000_TXD_DTYP_DATA |
+			    E1000_TXD_DCMD_DEXT | E1000_TXD_DCMD_IFCS | E1000_TXD_DCMD_RS |
+			    (last ? E1000_TXD_DCMD_EOP : 0) | (tso ? E1000_TXD_CMD_TSE : 0) |
+			    (vlan ? E1000_TXD_DCMD_VLE : 0);
+			d->status = 0;
+			d->popts = (uint8_t)(((demand & kChecksumIP) || tso ? E1000_TXD_POPTS_IXSM : 0) |
+			    ((demand & (kChecksumTCP | kChecksumUDP)) || tso ? E1000_TXD_POPTS_TXSM : 0));
+			d->special = vlan ? vtag : 0;
+		} else {
+			volatile struct e1000_tx_desc *d = &fTxRing[fTxNext];
+
+			d->addr = phys;
+			d->length = (uint16_t)chunk;
+			d->cso = 0;
+			d->css = 0;
+			d->special = vlan ? vtag : 0;
+			d->status = 0;
+			d->cmd = E1000_TXD_CMD_IFCS | E1000_TXD_CMD_RS |
+			    (last ? E1000_TXD_CMD_EOP : 0) | (vlan ? E1000_TXD_CMD_VLE : 0);
+		}
+		fTxNext = (fTxNext + 1) % kTxRingSize;
+		fTxInUse++;
+		off += chunk;
+	}
+	freePacket(m);
 	compilerBarrier();
 	writeReg(E1000_TDT, fTxNext);
 	return kIOReturnOutputSuccess;
+}
+
+/* ---- Statistics -------------------------------------------------------- */
+
+/* The hardware counters (clear on read) added to the published statistics. */
+void
+RavynE1000::updateStats()
+{
+	uint32_t crc = readReg(E1000_CRCERRS), algn = readReg(E1000_ALGNERRC);
+	uint32_t rxerr = readReg(E1000_RXERRC), mpc = readReg(E1000_MPC);
+	uint32_t scc = readReg(E1000_SCC), ecol = readReg(E1000_ECOL);
+	uint32_t mcc = readReg(E1000_MCC), latecol = readReg(E1000_LATECOL);
+	uint32_t colc = readReg(E1000_COLC), dc = readReg(E1000_DC);
+	uint32_t tncrs = readReg(E1000_TNCRS), rnbc = readReg(E1000_RNBC);
+	uint32_t ruc = readReg(E1000_RUC), roc = readReg(E1000_ROC);
+
+	if (fEtherStats != NULL) {
+		IODot3StatsEntry *e = &fEtherStats->dot3StatsEntry;
+
+		e->fcsErrors += crc;
+		e->alignmentErrors += algn;
+		e->internalMacReceiveErrors += rxerr;
+		e->missedFrames += mpc;
+		e->singleCollisionFrames += scc;
+		e->multipleCollisionFrames += mcc;
+		e->excessiveCollisions += ecol;
+		e->lateCollisions += latecol;
+		e->deferredTransmissions += dc;
+		e->carrierSenseErrors += tncrs;
+		e->frameTooLongs += roc;
+		fEtherStats->dot3RxExtraEntry.frameTooShorts += ruc;
+		fEtherStats->dot3RxExtraEntry.resourceErrors += rnbc;
+	}
+	if (fNetStats != NULL) {
+		fNetStats->inputErrors += crc + algn + rxerr + ruc + roc;
+		fNetStats->collisions += colc;
+		fNetStats->outputErrors += ecol + latecol;
+	}
 }
 
 /* ---- Interrupts and polling -------------------------------------------- */
@@ -481,11 +673,14 @@ RavynE1000::timerFired(IOTimerEventSource *)
 		if (icr != 0)
 			writeReg(E1000_ICR, icr);
 		serviceInterrupt(icr);
+		if (++fPollCount % (kWatchdogMS / kPollMS) == 0)
+			updateStats();
 		fTimer->setTimeoutMS(kPollMS);
 		return;
 	}
 	reclaimTx();
 	checkLink();
+	updateStats();
 	fTimer->setTimeoutMS(kWatchdogMS);
 }
 
@@ -580,6 +775,9 @@ RavynE1000::start(IOService *provider)
 
 	if (!attachInterface((IONetworkInterface **)&fNetif, false))
 		return false;
+	fNetStats = fNetif->getNetworkStats();
+	if (IONetworkData *d = fNetif->getNetworkData(kIOEthernetStatsKey))
+		fEtherStats = (IOEthernetStats *)d->getBuffer();
 	fNetif->registerService();
 	return true;
 }
@@ -624,6 +822,8 @@ RavynE1000::enable(IONetworkInterface *)
 	if (fEnabled)
 		return kIOReturnSuccess;
 	resetChip();
+	/* VLAN tags: stripped on receive, inserted on transmit. */
+	writeReg(E1000_CTRL, readReg(E1000_CTRL) | E1000_CTRL_VME);
 	writeReg(E1000_RAL0, (uint32_t)fMAC.bytes[0] | ((uint32_t)fMAC.bytes[1] << 8) |
 	    ((uint32_t)fMAC.bytes[2] << 16) | ((uint32_t)fMAC.bytes[3] << 24));
 	writeReg(E1000_RAH0, (uint32_t)fMAC.bytes[4] | ((uint32_t)fMAC.bytes[5] << 8) |
@@ -693,13 +893,43 @@ RavynE1000::setMulticastMode(bool active)
 }
 
 /* No hash filter yet: any multicast group means all multicast. */
+/*
+ * The multicast table: bits 47:36 of each address (MO = 0) pick one of
+ * 4096 bits. More groups than that can sensibly hash: all multicast.
+ */
 IOReturn
-RavynE1000::setMulticastList(IOEthernetAddress *, UInt32 count)
+RavynE1000::setMulticastList(IOEthernetAddress *addrs, UInt32 count)
 {
-	fMulticast = count > 0;
-	if (fEnabled)
+	bzero(fMTA, sizeof(fMTA));
+	fMulticast = count > 256;
+	for (UInt32 i = 0; addrs != NULL && i < count && !fMulticast; i++) {
+		uint32_t hash = ((uint32_t)addrs[i].bytes[4] >> 4 |
+		    (uint32_t)addrs[i].bytes[5] << 4) & 0xFFF;
+
+		fMTA[hash >> 5] |= 1U << (hash & 31);
+	}
+	if (fEnabled) {
+		for (UInt32 i = 0; i < 128; i++)
+			writeReg(E1000_MTA + 4 * i, fMTA[i]);
 		updateRCTL();
+	}
 	return kIOReturnSuccess;
+}
+
+/* Receive: IP, TCP and UDP (IPv4). Transmit: the same, with a context descriptor. */
+IOReturn
+RavynE1000::getChecksumSupport(UInt32 *mask, UInt32 family, bool)
+{
+	if (mask == NULL || family != kChecksumFamilyTCPIP)
+		return kIOReturnUnsupported;
+	*mask = kChecksumIP | kChecksumTCP | kChecksumUDP;
+	return kIOReturnSuccess;
+}
+
+UInt32
+RavynE1000::getFeatures() const
+{
+	return kIONetworkFeatureHardwareVlan | kIONetworkFeatureTSOIPv4;
 }
 
 const OSString *

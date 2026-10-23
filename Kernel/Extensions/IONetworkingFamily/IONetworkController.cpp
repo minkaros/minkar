@@ -30,6 +30,8 @@
 #include <IOKit/IOLib.h>
 #include <libkern/OSAtomic.h>
 #include <libkern/c++/OSNumber.h>
+#include <IOKit/pwr_mgt/RootDomain.h>
+#include <IOKit/network/IOEthernetController.h>
 
 const OSSymbol *gIONetworkFilterGroup;
 
@@ -149,12 +151,151 @@ IONetworkController::start(IOService *provider)
 		setProperty(kIOMaxPacketSize, size, 32);
 	if (getMinPacketSize(&size) == kIOReturnSuccess)
 		setProperty(kIOMinPacketSize, size, 32);
+	publishSupportedFilters();
+
+	if (registerWithPolicyMaker(this) != kIOReturnSuccess)
+		startDefaultPowerManagement(provider);
 	return true;
+}
+
+/* kIOPacketFilters: { group: filters the controller supports }, for IONetworkLib. */
+void
+IONetworkController::publishSupportedFilters()
+{
+	OSDictionary *dict = OSDictionary::withCapacity(2);
+	const OSSymbol *groups[2] = { gIONetworkFilterGroup, gIOEthernetWakeOnLANFilterGroup };
+
+	if (dict == NULL)
+		return;
+	for (int i = 0; i < 2; i++) {
+		UInt32 filters = 0;
+
+		if (groups[i] != NULL && getPacketFilters(groups[i], &filters) == kIOReturnSuccess) {
+			OSNumber *num = OSNumber::withNumber(filters, 32);
+
+			if (num != NULL) {
+				dict->setObject(groups[i], num);
+				num->release();
+			}
+		}
+	}
+	setProperty(kIOPacketFilters, dict);
+	dict->release();
+}
+
+/* ---- Checksum offload ----------------------------------------------------- */
+
+/* The stack's MBUF_CSUM_REQ_* bits are the kChecksum* bits. */
+void
+IONetworkController::getChecksumDemand(const mbuf_t packet, UInt32 family, UInt32 *demand,
+    void *param0, void *param1)
+{
+	mbuf_csum_request_flags_t request = 0;
+	u_int32_t value = 0;
+
+	*demand = 0;
+	if (family != kChecksumFamilyTCPIP || packet == NULL)
+		return;
+	if (mbuf_get_csum_requested(packet, &request, &value) != 0)
+		return;
+	*demand = request & (kChecksumIP | kChecksumTCP | kChecksumUDP |
+	    kChecksumTCPIPv6 | kChecksumUDPIPv6 | kChecksumTCPSum16);
+	/* For a 16-bit sum: where it starts and where it goes. */
+	if ((*demand & kChecksumTCPSum16) && param0 != NULL && param1 != NULL) {
+		*(UInt16 *)param0 = (UInt16)(value & 0xffff);
+		*(UInt16 *)param1 = (UInt16)(value >> 16);
+	}
+}
+
+bool
+IONetworkController::setChecksumResult(mbuf_t packet, UInt32 family, UInt32 result,
+    UInt32 valid, UInt32 param0, UInt32)
+{
+	mbuf_csum_performed_flags_t performed = 0;
+	u_int32_t value = 0;
+
+	if (family != kChecksumFamilyTCPIP || packet == NULL)
+		return false;
+	if (valid & kChecksumIP) {
+		performed |= MBUF_CSUM_DID_IP;
+		if (result & kChecksumIP)
+			performed |= MBUF_CSUM_IP_GOOD;
+	}
+	if (valid & (kChecksumTCP | kChecksumUDP | kChecksumTCPIPv6 | kChecksumUDPIPv6)) {
+		/* 0xffff: the pseudo-header included, the sum checks. */
+		performed |= MBUF_CSUM_DID_DATA | MBUF_CSUM_PSEUDO_HDR;
+		value = (result & valid & (kChecksumTCP | kChecksumUDP | kChecksumTCPIPv6 |
+		    kChecksumUDPIPv6)) ? 0xffff : 0;
+	} else if (valid & kChecksumTCPSum16) {
+		/* A raw 16-bit sum of the data, for the stack to finish. */
+		performed |= MBUF_CSUM_DID_DATA;
+		value = param0 & 0xffff;
+	}
+	return mbuf_set_csum_performed(packet, performed, value) == 0;
+}
+
+/* ---- Power ------------------------------------------------------------- */
+
+static IOPMPowerState gPowerStates[2] = {
+	{ kIOPMPowerStateVersion1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
+	{ kIOPMPowerStateVersion1, kIOPMDeviceUsable, kIOPMPowerOn, kIOPMPowerOn,
+	  0, 0, 0, 0, 0, 0, 0, 0 },
+};
+
+IOReturn
+IONetworkController::registerWithPolicyMaker(IOService *)
+{
+	return kIOReturnUnsupported;
+}
+
+void
+IONetworkController::startDefaultPowerManagement(IOService *provider)
+{
+	PMinit();
+	provider->joinPMtree(this);
+	if (registerPowerDriver(this, gPowerStates, 2) == kIOReturnSuccess)
+		_defaultPM = true;
+}
+
+static void
+gatedPower(void *target, void *on, void *, void *, void *)
+{
+	IONetworkController *ctl = (IONetworkController *)target;
+
+	ctl->powerChange(on != NULL);
+}
+
+/* Off: disable an enabled controller; on: enable it again. */
+void
+IONetworkController::powerChange(bool on)
+{
+	if (_interface == NULL)
+		return;
+	if (!on) {
+		_enabledBeforeSleep = _interface->_enabled;
+		if (_enabledBeforeSleep)
+			disable(_interface);
+	} else if (_enabledBeforeSleep) {
+		enable(_interface);
+		_enabledBeforeSleep = false;
+	}
+}
+
+IOReturn
+IONetworkController::setPowerState(unsigned long state, IOService *)
+{
+	if (_defaultPM)
+		executeCommand(this, gatedPower, this, (void *)(uintptr_t)(state != 0));
+	return kIOPMAckImplied;
 }
 
 void
 IONetworkController::stop(IOService *provider)
 {
+	if (_defaultPM) {
+		PMstop();
+		_defaultPM = false;
+	}
 	if (_outputQueue != NULL) {
 		_outputQueue->stop();
 		_outputQueue->flush();
@@ -260,7 +401,6 @@ IONetworkController::updateFilters(UInt32 filters)
 		else
 			ret = r;
 	}
-	setProperty(kIOPacketFilters, _filters, 32);
 	return ret;
 }
 

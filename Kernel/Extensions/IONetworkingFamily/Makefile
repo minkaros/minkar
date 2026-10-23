@@ -9,7 +9,8 @@ BUNDLE_IDENTIFIER = com.apple.iokit.IONetworkingFamily
 BUNDLE_VERSION = 3.4.0
 
 SRCS = IONetworkMedium.cpp IOOutputQueue.cpp IONetworkController.cpp \
-	IONetworkInterface.cpp IOEthernetController.cpp IOEthernetInterface.cpp
+	IONetworkInterface.cpp IOEthernetController.cpp IOEthernetInterface.cpp \
+	IONetworkData.cpp IONetworkStack.cpp IONetworkUserClient.cpp
 
 CFLAGS = -Wno-implicit-int-conversion -Wno-sign-conversion \
 	-I${.CURDIR} \
@@ -21,7 +22,8 @@ CFLAGS = -Wno-implicit-int-conversion -Wno-sign-conversion \
 	-I${ROOT_BINARY_DIR}${ROOT_SOURCE_DIR}/Kernel/xnu/EXPORT_HDRS/bsd
 
 HEADERS = IOEthernetController.h IOEthernetInterface.h IONetworkController.h \
-	IONetworkInterface.h IONetworkMedium.h IOOutputQueue.h
+	IONetworkInterface.h IONetworkMedium.h IOOutputQueue.h IONetworkData.h \
+	IONetworkStats.h IOEthernetStats.h IONetworkStack.h IONetworkUserClient.h
 
 # The headers go in the SDK's Kernel.framework, like the other families'.
 KFW_HEADERS = ${RAVYN_SDKROOT}/System/Library/Frameworks/Kernel.framework/Headers/IOKit/network

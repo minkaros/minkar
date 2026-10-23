@@ -45,6 +45,7 @@
 #include <IOKit/IOFilterInterruptEventSource.h>
 #include <IOKit/IOTimerEventSource.h>
 #include "E1000Regs.h"
+#include <IOKit/network/IOEthernetStats.h>
 
 class RavynE1000 : public IOEthernetController
 {
@@ -56,6 +57,7 @@ class RavynE1000 : public IOEthernetController
 		kBufferSize	= 2048,
 		kPollMS		= 5,	/* polling period without interrupts */
 		kWatchdogMS	= 1000,
+		kMaxTSOSize	= 65535 + 14 + 4,	/* largest TSO packet */
 	};
 
 	IOPCIDevice *			fPCI;
@@ -118,6 +120,15 @@ class RavynE1000 : public IOEthernetController
 	void interruptHandler(IOInterruptEventSource *src, int count);
 	void timerFired(IOTimerEventSource *timer);
 
+	uint32_t			fMTA[128];	/* multicast hash table */
+	UInt32				fPollCount;
+	IONetworkStats *		fNetStats;
+	IOEthernetStats *		fEtherStats;
+
+	bool buildContext(mbuf_t m, size_t len, bool tso, u_int32_t mss,
+	    volatile struct e1000_ctx_desc *ctx, size_t *tcpSumOffset, uint16_t *tcpLength);
+	void updateStats();
+
 	bool fPromiscuous;
 	bool fAllMulticast;	/* IFF_ALLMULTI */
 	bool fMulticast;	/* multicast groups joined */
@@ -140,6 +151,8 @@ public:
 	virtual IOReturn setMulticastMode(bool active) APPLE_KEXT_OVERRIDE;
 	virtual IOReturn setMulticastList(IOEthernetAddress *addrs, UInt32 count) APPLE_KEXT_OVERRIDE;
 	virtual IOReturn selectMedium(const IONetworkMedium *medium) APPLE_KEXT_OVERRIDE;
+	virtual IOReturn getChecksumSupport(UInt32 *mask, UInt32 family, bool isOutput) APPLE_KEXT_OVERRIDE;
+	virtual UInt32 getFeatures() const APPLE_KEXT_OVERRIDE;
 	virtual const OSString *newVendorString() const APPLE_KEXT_OVERRIDE;
 	virtual const OSString *newModelString() const APPLE_KEXT_OVERRIDE;
 

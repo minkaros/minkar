@@ -102,6 +102,9 @@ enum {
 	kChecksumUDP			= 0x0004,
 	kChecksumTCPIPv6		= 0x0020,
 	kChecksumUDPIPv6		= 0x0040,
+	kChecksumTCPNoPseudoHeader	= 0x0100,
+	kChecksumUDPNoPseudoHeader	= 0x0200,
+	kChecksumTCPSum16		= 0x1000,
 };
 
 class IONetworkController : public IOService
@@ -123,6 +126,8 @@ protected:
 	UInt64			_linkSpeed;
 	UInt32			_filters;	/* enabled kIONetworkFilterGroup filters */
 	bool			_enabled;
+	bool			_defaultPM;	/* the family handles power */
+	bool			_enabledBeforeSleep;
 
 	virtual void free() APPLE_KEXT_OVERRIDE;
 
@@ -147,6 +152,14 @@ protected:
 
 	/* Called by the controller when its hardware address changes. */
 	virtual bool publishProperties();
+	void publishSupportedFilters();
+	void startDefaultPowerManagement(IOService *provider);
+
+public:
+	/* Power changes, inside the command gate (family power management). */
+	void powerChange(bool on);
+
+protected:
 
 public:
 	static void initialize();
@@ -204,6 +217,26 @@ public:
 
 	/* ravynOS: the interface's packet filters changed (IFF_PROMISC, multicast). */
 	virtual IOReturn updateFilters(UInt32 filters);
+
+	/*
+	 * Checksum offload, for drivers: what the stack asks to be computed on
+	 * a packet to send, and what the hardware verified on a received one.
+	 * Masks are kChecksum* bits.
+	 */
+	virtual void getChecksumDemand(const mbuf_t packet, UInt32 checksumFamily,
+	    UInt32 *demandMask, void *param0 = NULL, void *param1 = NULL);
+	virtual bool setChecksumResult(mbuf_t packet, UInt32 checksumFamily,
+	    UInt32 resultMask, UInt32 validMask, UInt32 param0 = 0, UInt32 param1 = 0);
+
+	/*
+	 * Power: a driver that manages its own power states returns
+	 * kIOReturnSuccess from registerWithPolicyMaker(); otherwise the family
+	 * registers two states and turns the controller off (disable()) and on
+	 * (enable()) around system sleep.
+	 */
+	virtual IOReturn registerWithPolicyMaker(IOService *policyMaker);
+	virtual IOReturn setPowerState(unsigned long powerStateOrdinal,
+	    IOService *policyMaker) APPLE_KEXT_OVERRIDE;
 
 	OSMetaClassDeclareReservedUnused(IONetworkController, 0);
 	OSMetaClassDeclareReservedUnused(IONetworkController, 1);
