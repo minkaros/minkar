@@ -3967,9 +3967,13 @@ ImageLoader* load(const char* path, const LoadContext& context, unsigned& cacheI
 			return NULL;
 		}
 		else {
-		        dyld::log("dyld: could not find image %s\n", path);
+			// Only with DYLD_PRINT_LIBRARIES: a dlopen() of an optional
+			// library that is absent (libnetwork, by getaddrinfo) must
+			// fail quietly, its error is for dlerror().
+			if ( gLinkContext.verboseLoading )
+				dyld::log("dyld: could not find image %s\n", path);
 			throw "image not found";
-                }
+		}
 	}
 	else {
 		const char* msgStart = "no suitable image found.  Did find:";
