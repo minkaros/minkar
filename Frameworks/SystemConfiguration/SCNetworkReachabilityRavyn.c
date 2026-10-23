@@ -477,10 +477,11 @@ lookupRoute(const struct sockaddr *sa, int *rtflags, char ifname[IFNAMSIZ])
 }
 
 static SCNetworkReachabilityFlags
-addressFlags(const struct sockaddr *sa, const char *requiredIf)
+addressFlagsIf(const struct sockaddr *sa, const char *requiredIf, char ifname[IFNAMSIZ])
 {
-	char	ifname[IFNAMSIZ];
 	int	rtflags	= 0;
+
+	ifname[0] = '\0';
 
 	if (isLocalAddress(sa, ifname)) {
 		if (requiredIf[0] != '\0' && strcmp(requiredIf, ifname) != 0) {
@@ -508,6 +509,14 @@ addressFlags(const struct sockaddr *sa, const char *requiredIf)
 	}
 	return kSCNetworkReachabilityFlagsReachable |
 	       ((rtflags & RTF_GATEWAY) ? 0 : kSCNetworkReachabilityFlagsIsDirect);
+}
+
+static SCNetworkReachabilityFlags
+addressFlags(const struct sockaddr *sa, const char *requiredIf)
+{
+	char	ifname[IFNAMSIZ];
+
+	return addressFlagsIf(sa, requiredIf, ifname);
 }
 
 static SCNetworkReachabilityFlags
@@ -891,4 +900,44 @@ SCNetworkReachabilityCopyResolvedAddress(SCNetworkReachabilityRef target, int *e
 	}
 	freeaddrinfo(res);
 	return list;
+}
+
+/* The index of the interface that reaches the target; -1 if it is not reachable. */
+int
+SCNetworkReachabilityGetInterfaceIndex(SCNetworkReachabilityRef target)
+{
+	SCNetworkReachabilityPrivateRef	targetPrivate	= (SCNetworkReachabilityPrivateRef)target;
+	char				ifname[IFNAMSIZ];
+	int				index		= -1;
+
+	if (!isA_SCNetworkReachability(target)) {
+		_SCErrorSet(kSCStatusInvalidArgument);
+		return -1;
+	}
+	if (targetPrivate->type == kReachName) {
+		struct addrinfo	hints, *res, *ai;
+
+		memset(&hints, 0, sizeof(hints));
+		hints.ai_socktype = SOCK_STREAM;
+		hints.ai_flags = AI_ADDRCONFIG;
+		if (getaddrinfo(targetPrivate->name, NULL, &hints, &res) != 0) {
+			return -1;
+		}
+		for (ai = res; ai != NULL && index < 0; ai = ai->ai_next) {
+			if ((addressFlagsIf(ai->ai_addr, targetPrivate->ifname, ifname) &
+			     kSCNetworkReachabilityFlagsReachable) && ifname[0] != '\0') {
+				index = (int)if_nametoindex(ifname);
+			}
+		}
+		freeaddrinfo(res);
+	} else {
+		const struct sockaddr_storage *ss = targetPrivate->remote.ss_len != 0 ?
+		    &targetPrivate->remote : &targetPrivate->local;
+
+		if ((addressFlagsIf((const struct sockaddr *)ss, targetPrivate->ifname, ifname) &
+		     kSCNetworkReachabilityFlagsReachable) && ifname[0] != '\0') {
+			index = (int)if_nametoindex(ifname);
+		}
+	}
+	return index;
 }

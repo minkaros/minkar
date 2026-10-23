@@ -38,7 +38,8 @@ Gates from the architecture plan:
       a command typed on the console               (--gate M1)
   M2-login  launchd brings up getty; root logs in on the console with a
       password and the shell answers               (--gate M2-login)
-  M2  M2-login, then the network: dhcpclient configures en0, root logs
+  M2  M2-login, then the network: dhcpclient configures en0 (and tells
+      configd, whose DNS configuration scutil shows), root logs
       in over ssh from the host with a key, and the guest resolves the
       host's name through DNS                      (--gate M2)
 
@@ -88,14 +89,17 @@ PASSWORD = Send('%PASSWORD%')
 # Network (rest of gate M2): QEMU's DHCP server gives en0 10.0.2.15 and
 # forwards the host's --ssh-port to the guest's port 22. The image needs
 # the public half of --ssh-key in root's authorized_keys
-# (ROOT_AUTHORIZED_KEYS=). Name resolution (dhcpclient's resolv.conf,
-# mDNSResponder, getaddrinfo) is checked with the host's own name: QEMU
-# forwards the guest's DNS queries to the host's resolver, which answers
-# for it without Internet access.
+# (ROOT_AUTHORIZED_KEYS=). configd must have the DNS configuration that
+# dhcpclient published (scutil --dns: IPMonitor's dnsinfo, over XPC).
+# Name resolution (IPMonitor's resolv.conf, mDNSResponder, getaddrinfo) is
+# checked with the host's own name: QEMU forwards the guest's DNS queries
+# to the host's resolver, which answers for it without Internet access.
 HOSTNAME = '%HOSTNAME%'
 SSH_INPUT = [SSH('echo "ravynOS ssh: $((6 * 7))"; ipconfig getifaddr en0; '
+                 'scutil --dns | grep "nameserver\\[0\\]" | head -1; '
                  'dscacheutil -q host -a name %HOSTNAME%'),
-             'ravynOS ssh: 42', '10.0.2.15', 'name: %HOSTNAME%', 'ip_address: ']
+             'ravynOS ssh: 42', '10.0.2.15', 'nameserver[0] : 10.0.2.3',
+             'name: %HOSTNAME%', 'ip_address: ']
 
 GATES = {
     'M0': ['Darwin Kernel Version'],

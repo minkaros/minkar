@@ -63,6 +63,30 @@ typedef struct {
 	char	bytes[kAuthorizationExternalFormLength];
 } AuthorizationExternalForm;
 
+typedef struct {
+	const char	*name;
+	size_t		valueLength;
+	void		*value;
+	UInt32		flags;
+} AuthorizationItem;
+typedef struct {
+	UInt32			count;
+	AuthorizationItem	*items;
+} AuthorizationItemSet;
+typedef AuthorizationItemSet AuthorizationRights;
+typedef AuthorizationItemSet AuthorizationEnvironment;
+#define kAuthorizationEmptyEnvironment	NULL
+enum {
+	kAuthorizationFlagInteractionAllowed	= (1 << 0),
+	kAuthorizationFlagExtendRights		= (1 << 1),
+	kAuthorizationFlagPartialRights		= (1 << 2),
+	kAuthorizationFlagDestroyRights		= (1 << 3),
+	kAuthorizationFlagPreAuthorize		= (1 << 4),
+};
+
+OSStatus AuthorizationCreate(const AuthorizationRights *rights,
+    const AuthorizationEnvironment *environment, AuthorizationFlags flags,
+    AuthorizationRef *authorization);
 OSStatus AuthorizationCreateFromExternalForm(const AuthorizationExternalForm *extForm,
     AuthorizationRef *authorization);
 OSStatus AuthorizationMakeExternalForm(AuthorizationRef authorization,
