@@ -134,6 +134,13 @@ xpc_unpack(void *buf, size_t size)
 void
 xpc_object_destroy(struct xpc_object *xo)
 {
+	/*
+	 * A connection stays: there is no xpc_connection_cancel() yet to
+	 * stop its sources, and its peers point to it.
+	 */
+	if (xo->xo_xpc_type == _XPC_TYPE_CONNECTION)
+		return;
+
 	if (xo->xo_xpc_type == _XPC_TYPE_DICTIONARY)
 		xpc_dictionary_destroy(xo);
 
@@ -413,6 +420,9 @@ xpc_pipe_receive(xpc_port_t local, xpc_port_t *remote, xpc_object_t *result,
 
 	if (*result == NULL)
 		return (-1);
+
+	/* A message from the wire: xpc_dictionary_create_reply() may answer it. */
+	((struct xpc_object *)*result)->xo_flags |= _XPC_FROM_WIRE;
 
 	free(buffer);
 	return (ret);

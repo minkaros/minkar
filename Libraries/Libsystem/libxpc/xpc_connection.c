@@ -53,6 +53,8 @@ xpc_connection_create(const char *name, dispatch_queue_t targetq)
 	}
 
 	memset(conn, 0, sizeof(struct xpc_connection));
+	conn->xc_xpc_type = _XPC_TYPE_CONNECTION;
+	conn->xc_refcnt = 1;
 	conn->xc_last_id = 1;
 	TAILQ_INIT(&conn->xc_peers);
 	TAILQ_INIT(&conn->xc_pending);
@@ -188,8 +190,11 @@ xpc_connection_send_message(xpc_connection_t xconn,
 	if (id == 0)
 		id = XPC_CONNECTION_NEXT_ID(conn);
 
+	/* The caller may release the message as soon as this returns. */
+	xpc_retain(message);
 	dispatch_async(conn->xc_send_queue, ^{
 		xpc_send(xconn, message, id);
+		xpc_release(message);
 	});
 }
 
@@ -203,12 +208,14 @@ xpc_connection_send_message_with_reply(xpc_connection_t xconn,
 	conn = (struct xpc_connection *)xconn;
 	call = malloc(sizeof(struct xpc_pending_call));
 	call->xp_id = XPC_CONNECTION_NEXT_ID(conn);
-	call->xp_handler = handler;
+	call->xp_handler = (xpc_handler_t)Block_copy(handler);
 	call->xp_queue = targetq;
 	TAILQ_INSERT_TAIL(&conn->xc_pending, call, xp_link);
 
+	xpc_retain(message);
 	dispatch_async(conn->xc_send_queue, ^{
 		xpc_send(xconn, message, call->xp_id);
+		xpc_release(message);
 	});
 
 }
@@ -220,7 +227,9 @@ xpc_connection_send_message_with_reply_sync(xpc_connection_t conn,
 	__block xpc_object_t result;
 	dispatch_semaphore_t sem = dispatch_semaphore_create(0);
 
-	xpc_connection_send_message_with_reply(conn, message, NULL,
+	/* Not the connection's queue: the caller may be blocking it. */
+	xpc_connection_send_message_with_reply(conn, message,
+	    dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0),
 	    ^(xpc_object_t o) {
 		result = o;
 		dispatch_semaphore_signal(sem);
@@ -450,10 +459,13 @@ xpc_connection_dispatch_callback(struct xpc_connection *conn,
 
 	TAILQ_FOREACH(call, &conn->xc_pending, xp_link) {
 		if (call->xp_id == id) {
-			dispatch_async(conn->xc_target_queue, ^{
+			/* The reply goes to the queue the caller gave, if any. */
+			dispatch_async(call->xp_queue != NULL ? call->xp_queue :
+			    conn->xc_target_queue, ^{
 			    call->xp_handler(result);
 			    TAILQ_REMOVE(&conn->xc_pending, call,
 				xp_link);
+			    Block_release(call->xp_handler);
 			    free(call);
 			});
 			return;

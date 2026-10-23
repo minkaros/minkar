@@ -206,6 +206,9 @@ xpc_int64_get_value(xpc_object_t xint)
 
 	if (xo->xo_xpc_type == _XPC_TYPE_INT64)
 		return (xo->xo_int);
+	/* MessagePack sends a non-negative int64 as an unsigned integer. */
+	if (xo->xo_xpc_type == _XPC_TYPE_UINT64)
+		return ((int64_t)xo->xo_uint);
 
 	return (0);	
 }
@@ -230,6 +233,9 @@ xpc_uint64_get_value(xpc_object_t xuint)
 
 	if (xo->xo_xpc_type == _XPC_TYPE_UINT64)
 		return (xo->xo_uint);
+	/* The other way round, for symmetry. */
+	if (xo->xo_xpc_type == _XPC_TYPE_INT64)
+		return ((uint64_t)xo->xo_int);
 
 	return (0);
 }

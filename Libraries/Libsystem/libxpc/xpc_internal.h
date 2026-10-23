@@ -153,6 +153,13 @@ struct xpc_credentials {
 };
 
 struct xpc_connection {
+	/*
+	 * The header of struct xpc_object, so that xpc_get_type() says
+	 * XPC_TYPE_CONNECTION and xpc_retain()/xpc_release() count.
+	 */
+	uint8_t			xc_xpc_type;
+	uint16_t		xc_xpc_flags;
+	volatile _Atomic(uint32_t) xc_refcnt;
 	const char *		xc_name;
 	xpc_port_t		xc_local_port;
     xpc_port_t		xc_remote_port;

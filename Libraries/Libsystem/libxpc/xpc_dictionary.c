@@ -31,10 +31,36 @@
 #include "xpc_internal.h"
 #include "mpack.h"
 
-static struct xpc_object *
-mpack2xpc_extension(int8_t type, const char *data)
-{
+/*
+ * MessagePack extension types for the XPC types it has no format for.
+ * (Integers: MessagePack sends a non-negative int64 as unsigned; the
+ * getters accept either.)
+ */
+#define	XPC_MPACK_EXT_UUID	1	/* 16 bytes */
+#define	XPC_MPACK_EXT_DATE	2	/* int64 nanoseconds, big-endian */
 
+static struct xpc_object *
+mpack2xpc_extension(int8_t type, const char *data, size_t length)
+{
+	switch (type) {
+	case XPC_MPACK_EXT_UUID:
+		if (length != sizeof(uuid_t))
+			return (NULL);
+		return (xpc_uuid_create((const unsigned char *)data));
+
+	case XPC_MPACK_EXT_DATE: {
+		uint64_t v = 0;
+
+		if (length != sizeof(v))
+			return (NULL);
+		for (size_t i = 0; i < sizeof(v); i++)
+			v = v << 8 | (uint8_t)data[i];
+		return (xpc_date_create((int64_t)v));
+	}
+
+	default:
+		return (NULL);
+	}
 }
 
 struct xpc_object *
@@ -75,6 +101,8 @@ mpack2xpc(const mpack_node_t node)
 		break;
 
 	case mpack_type_bin:
+		xotmp = xpc_data_create(mpack_node_data(node),
+		    mpack_node_data_len(node));
 		break;
 
 	case mpack_type_array:
@@ -82,7 +110,11 @@ mpack2xpc(const mpack_node_t node)
 		for (i = 0; i < mpack_node_array_length(node); i++) {
 			xpc_object_t item = mpack2xpc(
 			    mpack_node_array_at(node, i));
-			xpc_array_append_value(item, xotmp);
+
+			if (item == NULL)
+				continue;
+			xpc_array_append_value(xotmp, item);
+			xpc_release(item);	/* the array keeps it */
 		}
 		break;
 
@@ -93,13 +125,17 @@ mpack2xpc(const mpack_node_t node)
 			    mpack_node_map_key_at(node, i), 1024);
 			xpc_object_t value = mpack2xpc(
 			    mpack_node_map_value_at(node, i));
+
+			if (value == NULL)
+				continue;
 			xpc_dictionary_set_value(xotmp, key, value);
+			xpc_release(value);	/* the dictionary keeps it */
 		}
 		break;
 
 	case mpack_type_ext:
 		xotmp = mpack2xpc_extension(mpack_node_exttype(node),
-		    mpack_node_data(node));
+		    mpack_node_data(node), mpack_node_data_len(node));
 		break;
 
 	default:
@@ -132,7 +168,7 @@ xpc2mpack(mpack_writer_t *writer, xpc_object_t obj)
 		    xpc2mpack(writer, v);
 		    return ((bool)true);
 		});
-		mpack_finish_map(writer);
+		mpack_finish_array(writer);
 		break;
 
 	case _XPC_TYPE_NULL:
@@ -149,6 +185,7 @@ xpc2mpack(mpack_writer_t *writer, xpc_object_t obj)
 
 	case _XPC_TYPE_DOUBLE:
 		mpack_write_double(writer, xpc_double_get_value(obj));
+		break;
 
 	case _XPC_TYPE_UINT64:
 		mpack_write_u64(writer, xpc_uint64_get_value(obj));
@@ -158,7 +195,32 @@ xpc2mpack(mpack_writer_t *writer, xpc_object_t obj)
 		mpack_write_cstr(writer, xpc_string_get_string_ptr(obj));
 		break;
 
+	case _XPC_TYPE_DATA:
+		mpack_write_bin(writer, xpc_data_get_bytes_ptr(obj),
+		    (uint32_t)xpc_data_get_length(obj));
+		break;
+
 	case _XPC_TYPE_UUID:
+		mpack_write_ext(writer, XPC_MPACK_EXT_UUID,
+		    (const char *)xpc_uuid_get_bytes(obj), sizeof(uuid_t));
+		break;
+
+	case _XPC_TYPE_DATE: {
+		uint64_t v = (uint64_t)xpc_date_get_value(obj);
+		char be[sizeof(v)];
+
+		for (size_t i = 0; i < sizeof(v); i++)
+			be[i] = (char)(v >> (8 * (sizeof(v) - 1 - i)));
+		mpack_write_ext(writer, XPC_MPACK_EXT_DATE, be, sizeof(be));
+		break;
+	}
+
+	default:
+		/*
+		 * No wire format (file descriptors, endpoints, ...): nil,
+		 * so that the container's count still holds.
+		 */
+		mpack_write_nil(writer);
 		break;
 	}
 }
