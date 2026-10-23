@@ -34,10 +34,12 @@ Exit status: 0 pass, 1 failure marker or early exit, 2 timeout.
 
 Gates from the architecture plan:
   M0  the kernel prints its first message     (default markers)
-  M1  the root volume mounts and PID 1 runs    (--gate M1)
+  M1  the root volume mounts, PID 1 runs and starts a shell that answers
+      a command typed on the console               (--gate M1)
 
 For M1 the kernel prints nothing once PID 1 starts, so PID 1 itself
-(launchd, or a temporary init) must print USERLAND_MARKER on the console.
+(launchd, or a temporary init) must print USERLAND_MARKER on the console,
+and the shell it starts SHELL_MARKER.
 """
 
 import argparse
@@ -50,11 +52,27 @@ import sys
 import tempfile
 import time
 
+# Printed by PID 1 (BSD/sbin/ravyninit until launchd runs) and by the
+# shell it starts; keep in sync with ravyninit.c.
 USERLAND_MARKER = 'ravynOS: PID 1 running'
+SHELL_MARKER = 'ravynOS: shell running'
+
+
+class Send(str):
+    """A gate step that types a line on the console instead of waiting."""
+
+
+# The shell echoes what it is sent, so the answer, not the command, is
+# what the next marker matches: "ravynOS: 42" only appears in its output.
+SHELL_INPUT = [Send('echo "ravynOS: $((6 * 7))"'), 'ravynOS: 42']
+
 GATES = {
     'M0': ['Darwin Kernel Version'],
-    'M1': ['Darwin Kernel Version', 'BSD root:', 'hfs: mounted', USERLAND_MARKER],
+    'M1': ['Darwin Kernel Version', 'BSD root:', 'hfs: mounted', USERLAND_MARKER,
+           SHELL_MARKER] + SHELL_INPUT,
 }
+# How long the shell gets to print its prompt before input is sent.
+SEND_DELAY = 3
 DEFAULT_FAIL = ['panic(cpu', 'Kernel panic', 'Debugger called:',
                 'load_init_program: failed loading', 'Process 1 exec of']
 ANSI = re.compile(rb'\x1b\[[0-9;?]*[A-Za-z]|\x1b[()][A-Z0-9]|\r')
@@ -76,6 +94,18 @@ def qemu_command(args, vars_copy):
     ]
 
 
+def send_pending(proc, pending, start):
+    """Type the Send steps at the head of pending on the serial console."""
+    while pending and isinstance(pending[0], Send):
+        time.sleep(SEND_DELAY)
+        line = pending.pop(0)
+        print('boottest: [%6.1fs] sent: %s' % (time.monotonic() - start, line),
+              file=sys.stderr)
+        # A serial terminal ends lines with a carriage return.
+        proc.stdin.write(line.encode() + b'\r')
+        proc.stdin.flush()
+
+
 def run(args):
     expect = list(args.expect or GATES[args.gate])
     fail = args.fail if args.fail is not None else DEFAULT_FAIL
@@ -91,7 +121,7 @@ def run(args):
     print('boottest: ' + ' '.join(cmd), file=sys.stderr)
 
     log = open(args.log, 'wb') if args.log else None
-    proc = subprocess.Popen(cmd, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
+    proc = subprocess.Popen(cmd, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
                             stderr=subprocess.STDOUT)
     sel = selectors.DefaultSelector()
     sel.register(proc.stdout, selectors.EVENT_READ)
@@ -129,9 +159,11 @@ def run(args):
                     elapsed = time.monotonic() - start
                     print('boottest: [%6.1fs] %s' % (elapsed, pending.pop(0)),
                           file=sys.stderr)
+                    send_pending(proc, pending, start)
             if status == 1 or not pending:
                 if not pending:
-                    status, reason = 0, 'all %d markers seen' % len(expect)
+                    status, reason = 0, 'all %d markers seen' % sum(
+                        not isinstance(m, Send) for m in expect)
                 break
     finally:
         if proc.poll() is None:
@@ -147,7 +179,9 @@ def run(args):
     verdict = {0: 'PASS', 1: 'FAIL', 2: 'TIMEOUT'}[status]
     print('boottest: %s: %s' % (verdict, reason), file=sys.stderr)
     if pending and status != 0:
-        print('boottest: not seen: %s' % ', '.join(pending), file=sys.stderr)
+        print('boottest: not seen: %s' % ', '.join(p for p in pending
+                                                  if not isinstance(p, Send)),
+              file=sys.stderr)
     return status
 
 

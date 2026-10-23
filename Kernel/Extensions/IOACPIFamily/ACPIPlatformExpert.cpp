@@ -366,7 +366,8 @@ bool ACPIPlatformExpert::matchNubWithPropertyTable(IOService *nub, OSDictionary 
 }
 
 bool ACPIPlatformExpert::getMachineName(char *name, int maxLength) {
-       strncpy(name, "x86", maxLength);
+       // hw.machine and uname -m: "x86_64" on every Intel Mac.
+       strncpy(name, "x86_64", maxLength);
        return true;
 }
 

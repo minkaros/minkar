@@ -62,6 +62,17 @@ the serial console and passes when the gate's markers appear; the console is
 saved to `../build/boottest-<gate>.log`. Run the image yourself with the
 command `boottest` prints.
 
+Gates (see the architecture plan):
+
+* M0 - the kernel prints its first message.
+* M1 - the HFS+ root mounts, PID 1 runs and starts a shell, and the shell
+  answers a command typed on the serial console.
+
+Until launchd runs, PID 1 is `ravyninit` (`BSD/sbin/ravyninit`), a small
+temporary init that the image installs as `/sbin/launchd`, the only path a
+RELEASE kernel tries. Build the image with `INIT=` to boot the sysroot's own
+`/sbin/launchd` instead.
+
 ## Host tests
 
 Portable parts of the system have host-side tests (clang, ASan/UBSan):

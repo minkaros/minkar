@@ -63,6 +63,7 @@ HFS_VOLUME_ID = HFS_FINDER_INFO + 24  # finderInfo[24..31]: volume identifier
 HFS_SIGNATURES = (b'H+', b'HX')
 
 MOUNT_POINTS = ('dev',)
+LAUNCHD = '/sbin/launchd'
 
 GPT_TYPE_EFI = 'EF00'
 GPT_TYPE_HFS = 'AF00'             # 48465300-0000-11AA-AA11-00306543ECAC
@@ -141,6 +142,20 @@ def copy_tree(src, dst):
         raise SystemExit('copying %s failed' % src)
 
 
+def install_init(root_dir, init):
+    """Make /sbin/launchd a link to init: a RELEASE kernel tries no other path."""
+    if not os.path.isabs(init):
+        raise SystemExit('--init takes an absolute path in the image: %s' % init)
+    target = os.path.join(root_dir, init.lstrip('/'))
+    if not os.path.isfile(target):
+        raise SystemExit('--init: %s is not in the sysroot' % init)
+    launchd = os.path.join(root_dir, LAUNCHD.lstrip('/'))
+    if os.path.lexists(launchd):
+        print('warning: %s replaced by a link to %s' % (LAUNCHD, init))
+        os.unlink(launchd)
+    os.symlink(init, launchd)
+
+
 def run(*cmd, **kwargs):
     print('+ ' + ' '.join(cmd), flush=True)
     return subprocess.run(cmd, check=True, **kwargs)
@@ -214,6 +229,8 @@ def build(args):
             path = os.path.join(root_dir, mount_point)
             if not os.path.lexists(path):
                 os.makedirs(path, mode=0o555)
+        if args.init:
+            install_init(root_dir, args.init)
     finally:
         for mount in reversed(mounts):
             subprocess.run(['umount', mount])
@@ -235,6 +252,8 @@ def main(argv=None):
     p.add_argument('--esp-mb', type=int, default=200)
     p.add_argument('--volume-name', default='ravynOS')
     p.add_argument('--volume-id', help='HFS+ volume identifier, 16 hex digits (default random)')
+    p.add_argument('--init', help='program to start as PID 1 instead of launchd, '
+                   'e.g. /sbin/ravyninit (installed as a %s link)' % LAUNCHD)
     p.add_argument('--boot-args', default='-v debug=0x14e serial=3 keepsyms=1',
                    help='kernel command line')
     args = p.parse_args(argv)

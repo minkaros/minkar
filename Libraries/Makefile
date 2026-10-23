@@ -194,6 +194,10 @@ libcxx_dylib: libcxx
 	  ${RTOBJ} -L${RAVYN_SDKROOT}/usr/lib -lSystem #2>&1 | grep -v "addend too large"
 	cp -f ${.OBJDIR}/libc++.1.dylib ${CXXLIB}
 	ln -sf libc++.1.dylib ${RAVYN_SDKROOT}/usr/lib/libc++.dylib
+	# libSystem and libdyld link it: the root file system needs it too.
+	mkdir -p ${SYSROOT_DIR}/usr/lib
+	cp -f ${.OBJDIR}/libc++.1.dylib ${SYSROOT_DIR}/usr/lib/
+	ln -sf libc++.1.dylib ${SYSROOT_DIR}/usr/lib/libc++.dylib
 
 #add_dependencies(libdyld libsystem_malloc libsystem_c libsystem_pthread)
 #add_dependencies(libSystem

@@ -34,6 +34,8 @@ IMAGE ?=		${ROOT_BINARY_DIR}/ravynOS.img
 IMAGE_SIZE_MB ?=	2048
 KERNELCACHE ?=		${ROOT_BINARY_DIR}/kernelcache
 BOOT_ARGS ?=		-v debug=0x14e serial=3 keepsyms=1
+# PID 1 until launchd runs (gate M1); empty to boot /sbin/launchd itself.
+INIT ?=			/sbin/ravyninit
 GATE ?=			M0
 BOOTTEST_TIMEOUT ?=	900
 
@@ -81,7 +83,8 @@ ${LOADER}: ${EFILOADER_SRC} ${EFILOADER_PATCHES:S,^,${.CURDIR}/patches/,}
 image: ${LOADER}
 	${PYTHON} ${.CURDIR}/mkdiskimage.py --sysroot ${SYSROOT_DIR} \
 	    --kernelcache ${KERNELCACHE} --loader ${LOADER} --output ${IMAGE} \
-	    --size-mb ${IMAGE_SIZE_MB} --boot-args "${BOOT_ARGS}"
+	    --size-mb ${IMAGE_SIZE_MB} --boot-args "${BOOT_ARGS}" \
+	    ${INIT:S,^,--init ,}
 
 boottest:
 	${PYTHON} ${.CURDIR}/boottest.py --image ${IMAGE} --gate ${GATE} \
