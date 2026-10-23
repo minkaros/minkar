@@ -289,6 +289,7 @@ bool RavynAHCIPort::start(IOService *provider)
     fInterruptSource = NULL;
     fInterruptsEnabled = false;
     fWaitChannel = 0;
+    fCommandBusy = false;
 
     uint16_t vendor    = fProvider->configRead16(kIOPCIConfigVendorID);
     uint16_t device    = fProvider->configRead16(kIOPCIConfigDeviceID);
@@ -332,13 +333,26 @@ bool RavynAHCIPort::start(IOService *provider)
      * IOSleep(1) polling exactly as before - fInterruptsEnabled gates that. */
     fWorkLoop = IOWorkLoop::workLoop();
     if (fWorkLoop) {
+        /* The MSI source when the platform gave one (index 0 is the legacy
+         * INTx line, which the platform cannot route without ACPI _PRT). */
+        int intIndex = 0;
+        OSArray *controllers = OSDynamicCast(OSArray,
+            fProvider->getProperty(gIOInterruptControllersKey));
+        for (unsigned i = 0; controllers && i < controllers->getCount(); i++) {
+            int type;
+            if (fProvider->getInterruptType((int)i, &type) == kIOReturnSuccess &&
+                (type & kIOInterruptTypePCIMessaged)) {
+                intIndex = (int)i;
+                break;
+            }
+        }
         fInterruptSource = IOInterruptEventSource::interruptEventSource(
-            this, &RavynAHCIPort::interruptOccurredStatic, fProvider, 0);
+            this, &RavynAHCIPort::interruptOccurredStatic, fProvider, intIndex);
         if (fInterruptSource && fWorkLoop->addEventSource(fInterruptSource) == kIOReturnSuccess) {
             fInterruptSource->enable();
             hbaWrite32(AHCI_GHC, hbaRead32(AHCI_GHC) | AHCI_GHC_IE);
             fInterruptsEnabled = true;
-            AHCI_Debug("using MSI interrupt (source 0)");
+            AHCI_Log("using %s interrupt (source %d)", intIndex > 0 ? "MSI" : "legacy", intIndex);
         } else {
             if (fInterruptSource) { fInterruptSource->release(); fInterruptSource = NULL; }
             AHCI_Debug("MSI registration failed, falling back to polling");
@@ -751,8 +765,20 @@ RavynAHCIPort::issueCommand(PortState &portState,
 {
     if (!portState.memVirt || !buffer || byteCount == 0) return false;
 
+    /*
+     * fCommandLock is dropped while the command waits for its interrupt
+     * (IOLockSleepDeadline below), so it alone does not keep a second
+     * caller out of slot 0: fCommandBusy does. Without it a second command
+     * overwrote the command table and DMA buffer of one in flight, or
+     * "recovered" the port in the middle of it.
+     */
     IOLockLock(fCommandLock);
+    while (fCommandBusy)
+        IOLockSleep(fCommandLock, &fCommandBusy, THREAD_UNINT);
+    fCommandBusy = true;
     auto unlock = [&]() {
+        fCommandBusy = false;
+        IOLockWakeup(fCommandLock, &fCommandBusy, true);
         IOLockUnlock(fCommandLock);
     };
 

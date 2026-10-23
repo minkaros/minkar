@@ -86,6 +86,7 @@ private:
     IOInterruptEventSource * fInterruptSource;
     bool                  fInterruptsEnabled;  /* false => issueCommand falls back to pure polling */
     uint32_t              fWaitChannel;        /* IOLockSleep/Wakeup event address, no real content */
+    bool                  fCommandBusy;        /* a command owns slot 0 (under fCommandLock) */
     /* One nub per populated SATA port (indexed like fPorts) -- the storage
      * stack (GPT scheme + AppleFileSystemDriver's boot-uuid match) picks the
      * right one; we don't special-case a single "the disk" here. */
