@@ -36,7 +36,9 @@
 
 #include <netdb.h>
 #if	!TARGET_OS_SIMULATOR
+#if	!defined(__RAVYNOS__)
 #include <ne_session.h>
+#endif	// !__RAVYNOS__
 #endif	// !TARGET_OS_SIMULATOR
 
 CFStringRef
@@ -511,7 +513,7 @@ _SCNetworkProxiesCopyMatchingInternal(CFDictionaryRef	globalConfiguration,
 
 		scoped = CFDictionaryGetValue(globalConfiguration, kSCPropNetProxiesScoped);
 		if (scoped == NULL) {
-#if	!TARGET_OS_SIMULATOR
+#if	!TARGET_OS_SIMULATOR && !defined(__RAVYNOS__)	// no NetworkExtension (AOVPN)
 			if (CFDictionaryContainsKey(globalConfiguration, kSCPropNetProxiesBypassAllowed) &&
 			    ne_session_always_on_vpn_configs_present()) {
 				/*

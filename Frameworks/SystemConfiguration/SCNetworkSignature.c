@@ -49,7 +49,82 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <net/if.h>
+#if	!defined(__RAVYNOS__)
 #include <nw/private.h>
+#else	// !__RAVYNOS__
+#include <ifaddrs.h>
+#include <stdlib.h>
+
+/*
+ * ravynOS has no copyconninfo(2): a connected socket's local address
+ * comes from getsockname(2), its interface from the address.
+ */
+#define	SAE_CONNID_ANY	0
+#define	CIF_CONNECTED	0x2
+
+typedef struct {
+	uint32_t		ci_flags;
+	uint32_t		ci_ifindex;
+	struct sockaddr *	ci_src;
+	struct sockaddr_storage	ci_src_storage;
+} conninfo_t;
+
+static int
+copyconninfo(int fd, int connid, conninfo_t **out)
+{
+#pragma unused(connid)
+	conninfo_t *		info;
+	struct ifaddrs *	ifap;
+	struct ifaddrs *	ifa;
+	struct sockaddr_storage	peer;
+	socklen_t		len;
+
+	info = calloc(1, sizeof(*info));
+	if (info == NULL) {
+		return -1;
+	}
+	len = sizeof(info->ci_src_storage);
+	if (getsockname(fd, (struct sockaddr *)&info->ci_src_storage, &len) != 0) {
+		free(info);
+		return -1;
+	}
+	info->ci_src = (struct sockaddr *)&info->ci_src_storage;
+	len = sizeof(peer);
+	if (getpeername(fd, (struct sockaddr *)&peer, &len) == 0) {
+		info->ci_flags |= CIF_CONNECTED;
+	}
+	if (getifaddrs(&ifap) == 0) {
+		for (ifa = ifap; ifa != NULL; ifa = ifa->ifa_next) {
+			const struct sockaddr *	sa	= ifa->ifa_addr;
+			Boolean			match	= FALSE;
+
+			if (sa == NULL || sa->sa_family != info->ci_src->sa_family) {
+				continue;
+			}
+			if (sa->sa_family == AF_INET) {
+				match = (((const struct sockaddr_in *)(const void *)sa)->sin_addr.s_addr ==
+					 ((const struct sockaddr_in *)(void *)info->ci_src)->sin_addr.s_addr);
+			} else if (sa->sa_family == AF_INET6) {
+				match = IN6_ARE_ADDR_EQUAL(&((const struct sockaddr_in6 *)(const void *)sa)->sin6_addr,
+							   &((const struct sockaddr_in6 *)(void *)info->ci_src)->sin6_addr);
+			}
+			if (match) {
+				info->ci_ifindex = if_nametoindex(ifa->ifa_name);
+				break;
+			}
+		}
+		freeifaddrs(ifap);
+	}
+	*out = info;
+	return 0;
+}
+
+static void
+freeconninfo(conninfo_t *info)
+{
+	free(info);
+}
+#endif	// !__RAVYNOS__
 
 #pragma mark SCNetworkSignature Supporting APIs
 

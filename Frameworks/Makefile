@@ -4,6 +4,7 @@
 
 SUBDIR = CoreFoundation
 #SUBDIR += CFNetwork
+SUBDIR += SystemConfiguration
 SUBDIR += Foundation
 SUBDIR += CoreServices
 SUBDIR += Onyx2D
@@ -17,6 +18,7 @@ SUBDIR += AppKit
 all: ${SUBDIR}
 
 Foundation: CoreFoundation
+SystemConfiguration: CoreFoundation
 CoreData: Foundation
 QuartzCore: OpenGL
 AppKit: CoreData QuartzCore

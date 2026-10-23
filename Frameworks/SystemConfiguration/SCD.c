@@ -40,11 +40,15 @@
 
 #define OS_LOG_PACK_SPI
 #include <os/log.h>
-#include <os/log_private.h>
 
 #include "SCDynamicStoreInternal.h"
 #include "SCD.h"
 #include "config.h"		/* MiG generated file */
+
+#if	defined(__RAVYNOS__)
+/* libsystem_trace's, not in <os/log.h> */
+void	os_log_with_args	(os_log_t oslog, os_log_type_t type, const char *format, va_list args, void *ret_addr);
+#endif	// __RAVYNOS__
 
 #define INSTALL_ENVIRONMENT	"__OSINSTALL_ENVIRONMENT"
 
@@ -579,43 +583,72 @@ __SC_log_enabled(int level, os_log_t log, os_log_type_t type)
 }
 
 
-void
-__SC_log_send(int level, os_log_t log, os_log_type_t type, os_log_pack_t pack)
+/*
+ * An os_log(3) format as a CoreFoundation one: "%{public}@" is "%@".
+ */
+static char *
+__SC_log_cf_format(const char *format)
 {
+	char		*cf;
+	char		*p;
+
+	cf = malloc(strlen(format) + 1);
+	if (cf == NULL) {
+		return NULL;
+	}
+	for (p = cf; *format != '\0'; ) {
+		if (format[0] == '%' && format[1] == '{') {
+			const char	*close	= strchr(format + 2, '}');
+
+			if (close != NULL) {
+				*p++ = '%';
+				format = close + 1;
+				continue;
+			}
+		}
+		*p++ = *format++;
+	}
+	*p = '\0';
+	return cf;
+}
+
+void
+__SC_log_format(int level, os_log_t log, os_log_type_t type, const char *format, ...)
+{
+#pragma unused(log, type)
 	Boolean		addTime		= (_sc_log == kSCLogDestinationBoth);
-	char		buffer[256];
-	const char	*buffer_ptr	= buffer;
-	char		*composed	= NULL;
-	Boolean		do_print	= FALSE;
-	Boolean		do_syslog	= FALSE;
+	va_list		args;
+	char		*cf_format;
+	CFStringRef	format_CF;
+	CFStringRef	str;
+	char		*line;
+	Boolean		do_print	= (_sc_log != kSCLogDestinationDefault);
+	Boolean		do_syslog	= (_sc_log > kSCLogDestinationFile);
 
-	if (_sc_log > kSCLogDestinationFile) {
-		if (_SC_isInstallEnvironment()) {
-			/*
-			 * os_log(3) messages are not persisted in the
-			 * install environment.  So, we use syslog(3)
-			 * instead.
-			 */
-			do_syslog = TRUE;
-		}
-
-		if (_sc_log >= kSCLogDestinationBoth) {
-			do_print = TRUE;	// log AND print requested
-		}
-	} else {
-		do_print = TRUE;		// print requested
+	cf_format = __SC_log_cf_format(format);
+	if (cf_format == NULL) {
+		return;
+	}
+	format_CF = CFStringCreateWithCString(NULL, cf_format, kCFStringEncodingUTF8);
+	free(cf_format);
+	if (format_CF == NULL) {
+		return;
+	}
+	va_start(args, format);
+	str = CFStringCreateWithFormatAndArguments(NULL, NULL, format_CF, args);
+	va_end(args);
+	CFRelease(format_CF);
+	if (str == NULL) {
+		return;
+	}
+	line = _SC_cfstring_to_cstring(str, NULL, 0, kCFStringEncodingUTF8);
+	CFRelease(str);
+	if (line == NULL) {
+		return;
 	}
 
-	if (!do_print && !do_syslog) {
-		// if only os_log requested
-		os_log_pack_send(pack, log, type);
-	} else if (do_print && !do_syslog) {
-		// if os_log and print requested
-		composed = os_log_pack_send_and_compose(pack, log, type, buffer, sizeof(buffer));
-	} else {
-		// if print-only and/or syslog requested
-		mach_get_times(NULL, &pack->olp_continuous_time, &pack->olp_wall_time);
-		composed = os_log_pack_compose(pack, log, type, buffer, sizeof(buffer));
+	if (level < 0) {
+		level = ~level;		// multi-line
 	}
 
 	if (do_print &&
@@ -625,38 +658,26 @@ __SC_log_send(int level, os_log_t log, os_log_type_t type, os_log_pack_t pack)
 	     _sc_debug						// with _sc_debug, include LOG_DEBUG
 	    )
 	   ) {
-		// if printing
 		pthread_mutex_lock(&lock);
 		if (addTime) {
 			struct tm	tm_now;
 			struct timeval	tv_now;
 
-			tv_now.tv_sec = (time_t)&pack->olp_wall_time.tv_sec;
-			tv_now.tv_usec = (suseconds_t)((uint64_t)&pack->olp_wall_time.tv_nsec / NSEC_PER_USEC);
+			(void)gettimeofday(&tv_now, NULL);
 			(void)localtime_r(&tv_now.tv_sec, &tm_now);
 			(void)fprintf(stdout, "%2d:%02d:%02d.%03d ",
 				      tm_now.tm_hour, tm_now.tm_min, tm_now.tm_sec, tv_now.tv_usec / 1000);
 		}
-		(void)fprintf(stdout, "%s\n", composed);
+		(void)fprintf(stdout, "%s\n", line);
 		fflush (stdout);
 		pthread_mutex_unlock(&lock);
 	}
 
-	if (do_syslog &&
-	    (
-	     (level < LOG_INFO) ||
-	     ((level == LOG_INFO) && _SC_isAppleInternal()) ||
-	     _sc_debug
-	    )
-	   ) {
-		// if [install/upgrade] syslog'ing
-		syslog(level | LOG_INSTALL, "%s", composed);
+	if (do_syslog && ((level < LOG_INFO) || _sc_debug)) {
+		syslog(level, "%s", line);
 	}
 
-	if (composed != buffer_ptr) {
-		free(composed);
-	}
-
+	CFAllocatorDeallocate(NULL, line);
 	return;
 }
 

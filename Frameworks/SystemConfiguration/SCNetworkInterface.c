@@ -41,16 +41,16 @@
 #include "SCHelper_client.h"
 #include "plugin_shared.h"
 
-#if	!TARGET_OS_IPHONE
+#if	!TARGET_OS_IPHONE && !defined(__RAVYNOS__)
 #include <EAP8021X/EAPClientProperties.h>
-#else	// !TARGET_OS_IPHONE
+#else	// !TARGET_OS_IPHONE && !__RAVYNOS__ (no EAP8021X framework)
 #ifndef	kEAPClientPropUserName
 #define kEAPClientPropUserName CFSTR("UserName")
 #endif
 #ifndef	kEAPClientPropUserPasswordKeychainItemID
 #define kEAPClientPropUserPasswordKeychainItemID CFSTR("UserPasswordKeychainItemID")
 #endif
-#endif	// !TARGET_OS_IPHONE
+#endif	// !TARGET_OS_IPHONE && !__RAVYNOS__
 
 #include <IOKit/IOKitLib.h>
 #include <IOKit/IOCFBundle.h>

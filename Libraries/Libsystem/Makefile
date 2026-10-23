@@ -43,7 +43,7 @@ LDFLAGS = -mmacos-version-min=${MACOS_VERSION_MIN} \
 	-Wl,-reexport-lsystem_notify -Wl,-reexport-lsystem_info \
 	-Wl,-reexport-lcopyfile -Wl,-reexport-lmacho \
 	-Wl,-reexport-lremovefile -Wl,-reexport-lsystem_trace \
-	-Wl,-reexport-lsystem_dnssd \
+	-Wl,-reexport-lsystem_dnssd -Wl,-reexport-lsystem_configuration \
 	-lcompiler_rt -ldyld -lsystem_c -lc++ -lCrashReporterClient\
 	-lsystem_platform -lsystem_kernel -lsystem_blocks -lsystem_malloc \
 	-lsystem_info -lsystem_notify -lsystem_trace -lsystem_asl \
@@ -98,7 +98,7 @@ SUBDIR = libmacho copyfile removefile libdispatch libsystem_blocks libsystem_ker
 	libsystem_platform libsystem_malloc libsystem_pthread libsystem_notify \
 	libsystem_info libsystem_trace libsystem_c libsystem_asl \
 	libsystem_dnssd libxpc liblaunch libsystem_m libsystem_darwin \
-	libsystem_coreservices #CommonCrypto
+	libsystem_coreservices libsystem_configuration #CommonCrypto
 
 # Library versions within libsystem were taken from Monterey System.tbd
 # libcache.dylib 83

@@ -30,7 +30,6 @@
 #include <sys/syslog.h>
 #include <mach/message.h>
 #include <os/log.h>
-#include <os/log_private.h>
 #include <os/variant_private.h>
 #include <sys/sysctl.h>
 
@@ -494,22 +493,18 @@ void		SCLog				(Boolean		condition,
   #endif	// !SC_LOG_HANDLE
 
 
+  /*
+   * ravynOS: the message is formatted here (CoreFoundation, so %@ works,
+   * with os_log's %{...} annotations dropped) instead of through
+   * os_log_pack, and goes to syslog(3) and/or stdout.
+   */
   #define	SC_log(__level, __format, ...)							\
     do {											\
 	os_log_t	__handle	= SC_LOG_HANDLE();					\
 	os_log_type_t	__type  	= _SC_syslog_os_log_mapping(__level);			\
 												\
 	if (__SC_log_enabled(__level, __handle, __type)) {					\
-		size_t	__pack_size	= os_log_pack_size(__format, ##__VA_ARGS__);		\
-												\
-		_Pragma("clang diagnostic push")						\
-		_Pragma("clang diagnostic ignored \"-Wvla\"")					\
-		_Pragma("clang diagnostic ignored \"-Wgnu-statement-expression\"")		\
-		os_log_pack_decl(__pack, __pack_size);						\
-		os_log_pack_fill(__pack, __pack_size, errno, __format, ##__VA_ARGS__);		\
-		_Pragma("clang diagnostic pop")							\
-												\
-		__SC_log_send(__level, __handle, __type, __pack);				\
+		__SC_log_format(__level, __handle, __type, __format, ##__VA_ARGS__);		\
 	}											\
     } while (0)
 
@@ -525,19 +520,19 @@ Boolean		__SC_log_enabled		(int			level,
 						 os_log_type_t		type);
 
 /*!
-	@function __SC_log_send
-	@discussion Issue an os_log_pack message w/os_log(3), syslog(3), or printf(3).
-		The specified message will be written to the system message
-		logger.
+	@function __SC_log_format
+	@discussion Formats an SC_log() message and writes it to syslog(3)
+		and/or stdout, as _sc_log asks.
 	@param level A syslog(3) logging priority. If less than 0, log message is multi-line
 	@param log The os_log_t handle (for logging)
 	@param type The os_log_type_t type (for logging)
-	@param pack The os_log_pack_t message
+	@param format An os_log(3) format string
  */
-void		__SC_log_send			(int			level,
+void		__SC_log_format			(int			level,
 						 os_log_t		log,
 						 os_log_type_t		type,
-						 os_log_pack_t		pack);
+						 const char		*format,
+						 ...)	__printflike(4, 5);
 
 #endif	// !SC_log
 
