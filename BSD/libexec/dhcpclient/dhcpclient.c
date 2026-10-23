@@ -33,7 +33,7 @@
  * Without operands it serves every Ethernet interface, one process each.
  * It brings the interface up and starts IPv6 on it (link-local address and
  * stateless autoconfiguration from router advertisements, as macOS's
- * IPConfiguration does), then gets a lease through BPF (the interface has
+ * IPConfiguration does, with their RDNSS name servers), then gets a lease through BPF (the interface has
  * no address yet), then sets the address, the default route and
  * /var/run/resolv.conf, renews the lease at T1, rebinds at T2 and starts
  * over when the lease expires or the server refuses it. The lease is
@@ -41,6 +41,9 @@
  *
  * -d stays in the foreground and logs to stderr as well.
  */
+
+/* RFC 3542 socket options (IPV6_RECVPKTINFO) on Darwin. */
+#define __APPLE_USE_RFC_3542
 
 #include <sys/types.h>
 #include <sys/ioctl.h>
@@ -143,6 +146,13 @@ static uint32_t xid;
 static time_t started;		/* when this exchange began, for secs */
 static bool debug;
 static struct lease current;	/* the lease in use; addr 0 if none */
+
+/* IPv6 name servers from router advertisements (RDNSS, RFC 8106). */
+static int ra_sock = -1;
+static struct in6_addr rdnss[MAX_DNS];
+static int nrdnss;
+
+static void write_resolv_conf(const struct lease *l);
 
 /* ---- Logging ----------------------------------------------------------- */
 
@@ -259,6 +269,86 @@ solicit_routers(void)
 	_exit(0);
 }
 
+/* Router advertisements on this interface, for their RDNSS option. */
+static void
+open_ra_socket(void)
+{
+	struct icmp6_filter filter;
+	int on = 1;
+
+	if ((ra_sock = socket(AF_INET6, SOCK_RAW, IPPROTO_ICMPV6)) < 0) {
+		logmsg(LOG_ERR, "IPv6: ICMPv6 socket: %s", strerror(errno));
+		return;
+	}
+	ICMP6_FILTER_SETBLOCKALL(&filter);
+	ICMP6_FILTER_SETPASS(ND_ROUTER_ADVERT, &filter);
+	setsockopt(ra_sock, IPPROTO_ICMPV6, ICMP6_FILTER, &filter, sizeof(filter));
+	setsockopt(ra_sock, IPPROTO_IPV6, IPV6_RECVPKTINFO, &on, sizeof(on));
+}
+
+/*
+ * Reads one router advertisement; if it arrived on our interface, its
+ * RDNSS options replace the IPv6 name servers (lifetime 0 removes them),
+ * and resolv.conf is rewritten when they changed.
+ */
+static void
+read_ra(void)
+{
+	uint8_t buf[1500], cbuf[CMSG_SPACE(sizeof(struct in6_pktinfo))];
+	struct iovec iov = { buf, sizeof(buf) };
+	struct sockaddr_in6 from;
+	struct msghdr msg;
+	struct cmsghdr *cm;
+	struct in6_addr found[MAX_DNS];
+	unsigned int index = 0;
+	int nfound = 0;
+	bool seen = false;
+	ssize_t n;
+
+	memset(&msg, 0, sizeof(msg));
+	msg.msg_name = &from;
+	msg.msg_namelen = sizeof(from);
+	msg.msg_iov = &iov;
+	msg.msg_iovlen = 1;
+	msg.msg_control = cbuf;
+	msg.msg_controllen = sizeof(cbuf);
+	if ((n = recvmsg(ra_sock, &msg, 0)) < (ssize_t)sizeof(struct nd_router_advert))
+		return;
+	for (cm = CMSG_FIRSTHDR(&msg); cm != NULL; cm = CMSG_NXTHDR(&msg, cm)) {
+		if (cm->cmsg_level == IPPROTO_IPV6 && cm->cmsg_type == IPV6_PKTINFO) {
+			struct in6_pktinfo pi;
+
+			memcpy(&pi, CMSG_DATA(cm), sizeof(pi));
+			index = pi.ipi6_ifindex;
+		}
+	}
+	if (index != if_nametoindex(ifname) || buf[0] != ND_ROUTER_ADVERT)
+		return;
+
+	for (ssize_t off = sizeof(struct nd_router_advert); off + 8 <= n;) {
+		const uint8_t *opt = buf + off;
+		size_t len = (size_t)opt[1] * 8;
+
+		if (len == 0 || off + (ssize_t)len > n)
+			break;
+		if (opt[0] == 25 && len >= 24) {	/* RDNSS */
+			uint32_t lifetime = (uint32_t)opt[4] << 24 | (uint32_t)opt[5] << 16 |
+			    (uint32_t)opt[6] << 8 | opt[7];
+
+			seen = true;
+			for (size_t a = 8; a + 16 <= len && lifetime != 0 && nfound < MAX_DNS; a += 16)
+				memcpy(&found[nfound++], opt + a, 16);
+		}
+		off += (ssize_t)len;
+	}
+	if (!seen || (nfound == nrdnss && memcmp(found, rdnss, sizeof(found[0]) * nfound) == 0))
+		return;
+	memcpy(rdnss, found, sizeof(found[0]) * nfound);
+	nrdnss = nfound;
+	logmsg(LOG_NOTICE, "%d IPv6 name server(s) from router advertisements", nrdnss);
+	write_resolv_conf(&current);
+}
+
 /*
  * IPv6: attach the protocol, configure the link-local address and accept
  * router advertisements (SLAAC). Failures are logged, IPv4 goes on.
@@ -286,6 +376,7 @@ ipv6_start(void)
 	if (ioctl(s, SIOCAUTOCONF_START, &ifr6) < 0)
 		logmsg(LOG_ERR, "IPv6: SIOCAUTOCONF_START: %s", strerror(errno));
 	close(s);
+	open_ra_socket();
 	solicit_routers();
 }
 
@@ -407,7 +498,7 @@ write_resolv_conf(const struct lease *l)
 {
 	FILE *f;
 
-	if (l->ndns == 0)
+	if (l->ndns == 0 && nrdnss == 0)
 		return;
 	if ((f = fopen(RESOLV_CONF ".tmp", "w")) == NULL) {
 		logmsg(LOG_ERR, "%s: %s", RESOLV_CONF, strerror(errno));
@@ -418,6 +509,11 @@ write_resolv_conf(const struct lease *l)
 		fprintf(f, "domain %s\n", l->domain);
 	for (int i = 0; i < l->ndns; i++)
 		fprintf(f, "nameserver %s\n", inet_ntoa(l->dns[i]));
+	for (int i = 0; i < nrdnss; i++) {
+		char buf[INET6_ADDRSTRLEN];
+
+		fprintf(f, "nameserver %s\n", inet_ntop(AF_INET6, &rdnss[i], buf, sizeof(buf)));
+	}
 	fclose(f);
 	rename(RESOLV_CONF ".tmp", RESOLV_CONF);
 	notify_resolver();
@@ -799,15 +895,17 @@ static int
 wait_reply(time_t deadline, int want1, int want2, struct reply *r)
 {
 	for (;;) {
-		struct pollfd pfd = { bpf, POLLIN, 0 };
+		struct pollfd pfd[2] = { { bpf, POLLIN, 0 }, { ra_sock, POLLIN, 0 } };
 		time_t left = deadline - now();
 		ssize_t n;
 
 		if (left <= 0)
 			return 0;
-		if (poll(&pfd, 1, (int)(left > 60 ? 60000 : left * 1000)) <= 0)
+		if (poll(pfd, ra_sock >= 0 ? 2 : 1, (int)(left > 60 ? 60000 : left * 1000)) <= 0)
 			continue;
-		if ((n = read(bpf, bpfbuf, bpflen)) <= 0)
+		if (ra_sock >= 0 && (pfd[1].revents & POLLIN))
+			read_ra();
+		if (!(pfd[0].revents & POLLIN) || (n = read(bpf, bpfbuf, bpflen)) <= 0)
 			continue;
 		for (uint8_t *p = bpfbuf; p < bpfbuf + n;) {
 			const struct bpf_hdr *bh = (const struct bpf_hdr *)(void *)p;

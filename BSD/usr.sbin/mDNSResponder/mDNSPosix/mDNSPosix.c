@@ -146,7 +146,8 @@ mDNSlocal void SockAddrTomDNSAddr(const struct sockaddr *const sa, mDNSAddr *ipA
 struct UDPSocket_struct
 {
     mDNSIPPort port;    // first: the core reads it (network byte order)
-    int        fd;
+    int        fd;      // IPv4
+    int        fd6;     // IPv6, same port; -1 if IPv6 is not available
 };
 
 mDNSexport mStatus mDNSPlatformSendUDP(const mDNS *const m, const void *const msg, const mDNSu8 *const end,
@@ -195,6 +196,7 @@ mDNSexport mStatus mDNSPlatformSendUDP(const mDNS *const m, const void *const ms
         sin6->sin6_port           = dstPort.NotAnInteger;
         sin6->sin6_addr           = *(struct in6_addr*)&dst->ip.v6;
         sendingsocket             = thisIntf ? thisIntf->multicastSocket6 : m->p->unicastSocket6;
+        if (src != NULL && src->fd6 >= 0) sendingsocket = src->fd6;   // ravynOS change: the question's socket
     }
 #endif
 
@@ -706,8 +708,8 @@ mDNSexport long mDNSPlatformWriteTCP(TCPSocket *sock, const char *msg, unsigned 
 
 // ravynOS change: unicast DNS queries need a UDP socket of their own (the
 // core matches each answer to its question by the local port), so this is
-// implemented instead of returning NULL. IPv4 only, like the resolv.conf
-// servers ParseDNSServers() reads.
+// implemented instead of returning NULL. One IPv4 and one IPv6 socket on the
+// same port, for the IPv4 and IPv6 servers ParseDNSServers() reads.
 mDNSlocal void SocketDataReadyOnPort(mDNS *const m, PosixNetworkInterface *intf, int skt, mDNSIPPort dstport);
 
 mDNSlocal void UDPSocketReady(int fd, void *context)
@@ -747,6 +749,7 @@ mDNSexport UDPSocket *mDNSPlatformUDPSocket(mDNSIPPort port)
         return NULL;
     }
     sock->fd = fd;
+    sock->fd6 = -1;
     sock->port.NotAnInteger = sin.sin_port;
     if (mDNSPosixAddFDToEventLoop(fd, UDPSocketReady, sock) != mStatus_NoError)
     {
@@ -754,6 +757,31 @@ mDNSexport UDPSocket *mDNSPlatformUDPSocket(mDNSIPPort port)
         mDNSPlatformMemFree(sock);
         return NULL;
     }
+#if HAVE_IPV6
+    {
+        // The same port over IPv6, for IPv6 name servers.
+        struct sockaddr_in6 sin6;
+        int on = 1;
+        int fd6 = socket(AF_INET6, SOCK_DGRAM, IPPROTO_UDP);
+
+        if (fd6 >= 0)
+        {
+            mDNSPlatformMemZero(&sin6, sizeof(sin6));
+#ifndef NOT_HAVE_SA_LEN
+            sin6.sin6_len = sizeof(sin6);
+#endif
+            sin6.sin6_family = AF_INET6;
+            sin6.sin6_port = sock->port.NotAnInteger;
+            setsockopt(fd6, IPPROTO_IPV6, IPV6_V6ONLY, &on, sizeof(on));
+            if (bind(fd6, (struct sockaddr *)&sin6, sizeof(sin6)) == 0 &&
+                fcntl(fd6, F_SETFL, fcntl(fd6, F_GETFL, 0) | O_NONBLOCK) == 0 &&
+                mDNSPosixAddFDToEventLoop(fd6, UDPSocketReady, sock) == mStatus_NoError)
+                sock->fd6 = fd6;
+            else
+                close(fd6);
+        }
+    }
+#endif
     return sock;
 }
 
@@ -762,6 +790,11 @@ mDNSexport void           mDNSPlatformUDPClose(UDPSocket *sock)
     if (sock == NULL) return;
     mDNSPosixRemoveFDFromEventLoop(sock->fd);
     close(sock->fd);
+    if (sock->fd6 >= 0)
+    {
+        mDNSPosixRemoveFDFromEventLoop(sock->fd6);
+        close(sock->fd6);
+    }
     mDNSPlatformMemFree(sock);
 }
 
@@ -876,7 +909,7 @@ mDNSlocal void GetUserSpecifiedFriendlyComputerName(domainlabel *const namelabel
 mDNSexport int ParseDNSServers(mDNS *m, const char *filePath)
 {
     char line[256];
-    char nameserver[16];
+    char nameserver[46];    // ravynOS change: room for an IPv6 address
     char keyword[11];
     int numOfServers = 0;
     FILE *fp = fopen(filePath, "r");
@@ -884,14 +917,24 @@ mDNSexport int ParseDNSServers(mDNS *m, const char *filePath)
     while (fgets(line,sizeof(line),fp))
     {
         struct in_addr ina;
+        struct in6_addr in6a;
         line[255]='\0';     // just to be safe
-        if (sscanf(line,"%10s %15s", keyword, nameserver) != 2) continue;   // it will skip whitespaces
+        if (sscanf(line,"%10s %45s", keyword, nameserver) != 2) continue;   // it will skip whitespaces
         if (strncasecmp(keyword,"nameserver",10)) continue;
         if (inet_aton(nameserver, (struct in_addr *)&ina) != 0)
         {
             mDNSAddr DNSAddr;
             DNSAddr.type = mDNSAddrType_IPv4;
             DNSAddr.ip.v4.NotAnInteger = ina.s_addr;
+            mDNS_AddDNSServer(m, NULL, mDNSInterface_Any, 0, &DNSAddr, UnicastDNSPort, kScopeNone, 0, mDNSfalse, mDNSfalse, mDNSfalse, mDNSfalse, 0, mDNStrue, mDNStrue, mDNSfalse);
+            numOfServers++;
+        }
+        // ravynOS change: IPv6 name servers too (not scoped ones, fe80::x%if).
+        else if (strchr(nameserver, '%') == NULL && inet_pton(AF_INET6, nameserver, &in6a) == 1)
+        {
+            mDNSAddr DNSAddr;
+            DNSAddr.type = mDNSAddrType_IPv6;
+            mDNSPlatformMemCopy(&DNSAddr.ip.v6, &in6a, sizeof(DNSAddr.ip.v6));
             mDNS_AddDNSServer(m, NULL, mDNSInterface_Any, 0, &DNSAddr, UnicastDNSPort, kScopeNone, 0, mDNSfalse, mDNSfalse, mDNSfalse, mDNSfalse, 0, mDNStrue, mDNStrue, mDNSfalse);
             numOfServers++;
         }
