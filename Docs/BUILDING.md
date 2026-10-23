@@ -81,7 +81,10 @@ Gates (see the architecture plan):
 * M2 - M2-login, then the network: the e1000e NIC (RavynE1000 on our
   IONetworkingFamily, with an MSI interrupt) comes up as en0, dhcpclient gets a lease from QEMU
   (10.0.2.15), and root logs in over ssh from the host with a key; the
-  remote shell answers. QEMU forwards host port 2222 (BOOTTEST_SSH_PORT)
+  remote shell answers and resolves the host's name with `dscacheutil`
+  (dhcpclient's resolv.conf, mDNSResponder, getaddrinfo). QEMU sends the
+  guest's DNS queries to the host's resolver, so the host must resolve its
+  own name (systemd-resolved and /etc/hosts do); no Internet is needed. QEMU forwards host port 2222 (BOOTTEST_SSH_PORT)
   to the guest's port 22. `boottest-key` makes the key pair once:
 
       sudo env SUBDIR= bmake -m /work/ravynos/BSD/share/mk boottest-key

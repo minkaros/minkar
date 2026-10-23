@@ -38,8 +38,9 @@ Gates from the architecture plan:
       a command typed on the console               (--gate M1)
   M2-login  launchd brings up getty; root logs in on the console with a
       password and the shell answers               (--gate M2-login)
-  M2  M2-login, then the network: dhcpclient configures en0 and root logs
-      in over ssh from the host with a key         (--gate M2)
+  M2  M2-login, then the network: dhcpclient configures en0, root logs
+      in over ssh from the host with a key, and the guest resolves the
+      host's name through DNS                      (--gate M2)
 
 For M1 the kernel prints nothing once PID 1 starts, so PID 1 itself
 (launchd, or a temporary init) must print USERLAND_MARKER on the console,
@@ -51,6 +52,7 @@ import os
 import re
 import selectors
 import shutil
+import socket
 import subprocess
 import sys
 import tempfile
@@ -86,9 +88,14 @@ PASSWORD = Send('%PASSWORD%')
 # Network (rest of gate M2): QEMU's DHCP server gives en0 10.0.2.15 and
 # forwards the host's --ssh-port to the guest's port 22. The image needs
 # the public half of --ssh-key in root's authorized_keys
-# (ROOT_AUTHORIZED_KEYS=).
-SSH_INPUT = [SSH('echo "ravynOS ssh: $((6 * 7))"; ipconfig getifaddr en0'),
-             'ravynOS ssh: 42', '10.0.2.15']
+# (ROOT_AUTHORIZED_KEYS=). Name resolution (dhcpclient's resolv.conf,
+# mDNSResponder, getaddrinfo) is checked with the host's own name: QEMU
+# forwards the guest's DNS queries to the host's resolver, which answers
+# for it without Internet access.
+HOSTNAME = '%HOSTNAME%'
+SSH_INPUT = [SSH('echo "ravynOS ssh: $((6 * 7))"; ipconfig getifaddr en0; '
+                 'dscacheutil -q host -a name %HOSTNAME%'),
+             'ravynOS ssh: 42', '10.0.2.15', 'name: %HOSTNAME%', 'ip_address: ']
 
 GATES = {
     'M0': ['Darwin Kernel Version'],
@@ -165,6 +172,15 @@ def run(args):
         print('boottest: gate %s needs --ssh-key or $BOOTTEST_SSH_KEY' % args.gate,
               file=sys.stderr)
         return 1
+    if any(HOSTNAME in m for m in expect):
+        host = socket.gethostname().split('.')[0]
+        try:
+            socket.getaddrinfo(host, None)
+        except OSError as e:
+            print('boottest: gate %s resolves the host name %r in the guest, but the '
+                  'host cannot resolve it either: %s' % (args.gate, host, e), file=sys.stderr)
+            return 1
+        expect = [type(m)(m.replace(HOSTNAME, host)) for m in expect]
     fail = args.fail if args.fail is not None else DEFAULT_FAIL + GATE_FAIL.get(args.gate, [])
     for path in (args.image, args.ovmf_code, args.ovmf_vars):
         if not os.path.exists(path):

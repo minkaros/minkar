@@ -8,7 +8,7 @@ LDFLAGS = --sysroot=${RAVYN_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
 SUBDIR = apply basename chroot cut date dirname env false find getopt grep 
 SUBDIR += head kill killall login patch pfetch printf sed sw_vers 
 SUBDIR += tail tee time touch true uname users whereis which xargs yes
-SUBDIR += id
+SUBDIR += dscacheutil id
 #SUBDIR += fetch sort who
 
 .include <bsd.subdir.mk>
