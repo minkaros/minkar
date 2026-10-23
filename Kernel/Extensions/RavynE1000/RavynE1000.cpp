@@ -441,6 +441,12 @@ RavynE1000::interruptFilter(IOFilterInterruptEventSource *)
 	icr = readReg(E1000_ICR);
 	if (icr == 0)
 		return false;
+	/*
+	 * Reading ICR clears it only when INT_ASSERTED is set, which is the
+	 * case with INTx but not with MSI; writing the bits back clears them
+	 * in both modes, so the next cause raises a new message.
+	 */
+	writeReg(E1000_ICR, icr);
 	OSBitOrAtomic(icr, &fPendingICR);
 	return true;
 }
@@ -470,7 +476,11 @@ RavynE1000::timerFired(IOTimerEventSource *)
 		writeReg(E1000_IMC, 0xFFFFFFFF);
 	}
 	if (fPolling) {
-		serviceInterrupt(readReg(E1000_ICR));
+		uint32_t icr = readReg(E1000_ICR);
+
+		if (icr != 0)
+			writeReg(E1000_ICR, icr);
+		serviceInterrupt(icr);
 		fTimer->setTimeoutMS(kPollMS);
 		return;
 	}
@@ -525,11 +535,28 @@ RavynE1000::start(IOService *provider)
 	}
 	publishMedia();
 
+	/*
+	 * Prefer a message-signalled interrupt (82574L); else the first
+	 * source. Sources whose controller cannot serve them are skipped.
+	 */
+	int intIndex = 0;
+	OSArray *controllers = OSDynamicCast(OSArray,
+	    fPCI->getProperty(gIOInterruptControllersKey));
+	for (unsigned i = 0; controllers != NULL && i < controllers->getCount(); i++) {
+		int type;
+
+		if (fPCI->getInterruptType((int)i, &type) == kIOReturnSuccess &&
+		    (type & kIOInterruptTypePCIMessaged)) {
+			intIndex = (int)i;
+			fMSI = true;
+			break;
+		}
+	}
 	fIntSource = IOFilterInterruptEventSource::filterInterruptEventSource(this,
 	    OSMemberFunctionCast(IOInterruptEventSource::Action, this,
 	    &RavynE1000::interruptHandler),
 	    OSMemberFunctionCast(IOFilterInterruptEventSource::Filter, this,
-	    &RavynE1000::interruptFilter), fPCI, 0);
+	    &RavynE1000::interruptFilter), fPCI, intIndex);
 	if (fIntSource == NULL ||
 	    getWorkLoop()->addEventSource(fIntSource) != kIOReturnSuccess) {
 		LOG("no interrupt; polling every %d ms", kPollMS);
@@ -546,7 +573,8 @@ RavynE1000::start(IOService *provider)
 		return false;
 	}
 
-	LOG("Intel %04x, MAC %02x:%02x:%02x:%02x:%02x:%02x", fDeviceID,
+	LOG("Intel %04x, %s, MAC %02x:%02x:%02x:%02x:%02x:%02x", fDeviceID,
+	    fPolling ? "polling" : (fMSI ? "MSI" : "legacy interrupt"),
 	    fMAC.bytes[0], fMAC.bytes[1], fMAC.bytes[2], fMAC.bytes[3],
 	    fMAC.bytes[4], fMAC.bytes[5]);
 

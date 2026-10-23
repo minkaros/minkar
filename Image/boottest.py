@@ -310,7 +310,8 @@ def main(argv=None):
     p.add_argument('--memory', type=int, default=4096, help='MiB')
     p.add_argument('--ssh-key', default=os.environ.get('BOOTTEST_SSH_KEY'),
                    help='private key ssh steps log in with (default: $BOOTTEST_SSH_KEY)')
-    p.add_argument('--nic', default='e1000', help='QEMU network device (e1000, e1000e)')
+    p.add_argument('--nic', default='e1000e',
+                   help='QEMU network device: e1000e (82574L, MSI) or e1000 (82540EM, polled)')
     p.add_argument('--ssh-port', type=int,
                    default=int(os.environ.get('BOOTTEST_SSH_PORT', '2222')),
                    help='host port forwarded to the guest\'s port 22')

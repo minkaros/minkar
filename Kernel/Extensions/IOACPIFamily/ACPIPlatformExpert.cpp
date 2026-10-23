@@ -450,10 +450,59 @@ bool ACPIPlatformExpert::setNubInterruptVector(IOService *nub, UInt32 vector) {
     return setNubInterruptVectors(nub, &vector, 1);
 }
 
+/*
+ * MSI: one IOPCIMessagedInterruptController for the platform, for CPU
+ * vectors 0x70-0xFF minus those XNU uses (0x7F-0x82 for traps, 0xD0-0xFF
+ * for the local APIC). Messages go to the boot CPU's local APIC.
+ */
+enum {
+    kMSIBaseVector  = 0x70,
+    kMSIVectorCount = 0x100 - kMSIBaseVector,
+};
+
+extern "C" int cpu_to_lapic[];
+
+IOPCIMessagedInterruptController *ACPIPlatformExpert::messagedInterruptController() {
+    if (_msiController == NULL) {
+        IOPCIMessagedInterruptController *ic = new IOPCIMessagedInterruptController;
+        bool ok = ic != NULL && ic->init(kMSIVectorCount, kMSIBaseVector);
+
+        ok = ok && ic->reserveVectors(0x7F - kMSIBaseVector, 4);
+        ok = ok && ic->reserveVectors(0xD0 - kMSIBaseVector, 0x100 - 0xD0);
+        if (!ok) {
+            PE_Log("ACPIPlatformExpert: no MSI interrupt controller");
+            if (ic) ic->release();
+            return NULL;
+        }
+        _msiController = ic;
+    }
+    return _msiController;
+}
+
 IOReturn ACPIPlatformExpert::callPlatformFunction(const OSSymbol *functionName, bool waitForFunction, void *param1, void *param2, void *param3, void *param4) {
     bool ok;
 
-    if (functionName->isEqualTo("SetDeviceInterrupts")) {
+    if (functionName->isEqualTo("GetMessagedInterruptController")) {
+        /* param1: the PCI bridge's provider; param2: where the controller goes */
+        IOPCIMessagedInterruptController *ic = messagedInterruptController();
+
+        if (ic == NULL || param2 == NULL)
+            return kIOReturnUnsupported;
+        *(IOPCIMessagedInterruptController **)param2 = ic;
+        return kIOReturnSuccess;
+    } else if (functionName->isEqualTo("GetMessagedInterruptAddress")) {
+        /* param3: the CPU vector (bits 8+ = CPU number); param4: uint32_t[3] = address low, high, data */
+        uint32_t vector = (uint32_t)(uintptr_t)param3;
+        uint32_t *message = (uint32_t *)param4;
+
+        if (message == NULL)
+            return kIOReturnBadArgument;
+        /* Fixed delivery, physical destination, edge triggered. */
+        message[0] = 0xFEE00000U | ((uint32_t)cpu_to_lapic[vector >> 8] << 12);
+        message[1] = 0;
+        message[2] = vector & 0xFF;
+        return kIOReturnSuccess;
+    } else if (functionName->isEqualTo("SetDeviceInterrupts")) {
         IOService *nub = (IOService *)param1;
         UInt32 *vectors = (UInt32 *)param2;
         UInt32 vectorCount = (UInt32)((UInt64)param3);
@@ -674,6 +723,12 @@ void ACPIPlatformExpert::setupAPIC(IOService *nub) {
 }
 
 IOReturn ACPIPlatformExpert::handleInterrupt(void *refCon, IOService *nub, int source) {
+    /* MSI vectors go to the messaged interrupt controller. */
+    if (_msiController != NULL && (source & 0xFF) >= kMSIBaseVector) {
+        IOReturn ret = _msiController->handleInterrupt(refCon, nub, source);
+        lapic_end_of_interrupt();
+        return ret;
+    }
     if (!_apic) {
         //PE_Log("No interrupt controller registered! (%p %d)", nub, source);
         OSIterator *iter = getChildIterator(gIOServicePlane);

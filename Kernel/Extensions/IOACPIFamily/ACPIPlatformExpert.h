@@ -103,6 +103,8 @@ public:
     inline bool isValid() const;
 };
 
+class IOPCIMessagedInterruptController;
+
 class ACPIPlatformExpert : public IOPlatformExpert {
     OSDeclareDefaultStructors(ACPIPlatformExpert)
     friend class IOACPIPlatformDevice;
@@ -113,6 +115,9 @@ class ACPIPlatformExpert : public IOPlatformExpert {
     const OSSymbol *_interruptControllerName;
     OSArray * cpuArray = NULL;
     AppleAPIC * _apic = NULL;
+    /* PCI message-signalled interrupts (MSI, MSI-X), as macOS's ACPI platform does. */
+    IOPCIMessagedInterruptController * _msiController = NULL;
+    IOPCIMessagedInterruptController * messagedInterruptController();
 
     void PE_Log(const char *fmt, ...);
     bool parseACPI(IOService *provider);

@@ -78,8 +78,8 @@ Gates (see the architecture plan):
   Images have no root password unless ROOT_PASSWORD is given (hashed with
   the host's `openssl passwd -6`). For launchd bring-up, LAUNCHD_DEBUG=1
   makes launchd and launchctl log everything to the console.
-* M2 - M2-login, then the network: the e1000 NIC (RavynE1000 on our
-  IONetworkingFamily) comes up as en0, dhcpclient gets a lease from QEMU
+* M2 - M2-login, then the network: the e1000e NIC (RavynE1000 on our
+  IONetworkingFamily, with an MSI interrupt) comes up as en0, dhcpclient gets a lease from QEMU
   (10.0.2.15), and root logs in over ssh from the host with a key; the
   remote shell answers. QEMU forwards host port 2222 (BOOTTEST_SSH_PORT)
   to the guest's port 22. `boottest-key` makes the key pair once:
@@ -95,7 +95,9 @@ Gates (see the architecture plan):
   ROOT_AUTHORIZED_KEYS installs any public key file as root's
   authorized_keys. sshd keeps OpenSSH's default PermitRootLogin
   prohibit-password: root logs in over ssh with a key, other users with
-  their password (PAM). `boottest.py --nic e1000e` tests the 82574L.
+  their password (PAM). `boottest.py --nic e1000` tests the 82540EM,
+  which has no MSI: without ACPI _PRT routing its INTx line cannot be
+  used, so the driver polls it every 5 ms.
 
 Until launchd runs, PID 1 is `ravyninit` (`BSD/sbin/ravyninit`), a small
 temporary init that the image installs as `/sbin/launchd`, the only path a

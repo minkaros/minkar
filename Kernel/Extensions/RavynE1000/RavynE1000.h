@@ -31,8 +31,9 @@
  *
  * Packets are copied to and from fixed 2 KB DMA buffers, one per
  * descriptor; the transmit and receive rings and the interrupt handler run
- * on the controller's work loop. If the interrupt never arrives (no INTx
- * routing), a timer polls the controller instead.
+ * on the controller's work loop. The 82574L uses its MSI interrupt. The
+ * 8254x have only INTx, which the platform cannot route yet (no ACPI
+ * _PRT); when no interrupt arrives, a timer polls the controller instead.
  */
 
 #ifndef _RAVYNE1000_H
@@ -71,6 +72,7 @@ class RavynE1000 : public IOEthernetController
 	volatile UInt32			fPendingICR;	/* set by the filter */
 	UInt32				fInterrupts;	/* handler runs */
 	bool				fPolling;
+	bool				fMSI;		/* message-signalled interrupt */
 	bool				fEnabled;
 
 	IOEthernetAddress		fMAC;
