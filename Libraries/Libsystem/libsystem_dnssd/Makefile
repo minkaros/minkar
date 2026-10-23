@@ -39,6 +39,9 @@ ${.OBJDIR}/lib${LIB}.dylib: lib${LIB}.a
 	  -Wl,-force_load,${.OBJDIR}/lib${LIB}.a ${LDFLAGS}
 	cp -f ${.TARGET} ${RAVYN_SDKROOT}/usr/lib/system/
 	cp -f ${.TARGET} ${SYSROOT_DIR}/usr/lib/system/
+	# The public API header, as in the macOS SDK.
+	cp -f ${ROOT_SOURCE_DIR}/BSD/usr.sbin/mDNSResponder/mDNSShared/dns_sd.h \
+	  ${RAVYN_SDKROOT}/usr/include/
 
 #SUBDIR = libdns_services
 

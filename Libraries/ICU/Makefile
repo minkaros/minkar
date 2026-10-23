@@ -6,8 +6,10 @@ CFLAGS =--sysroot=${RAVYN_SDKROOT} -fuse-ld=${LD} \
 CXXFLAGS =-std=gnu++17 --sysroot=${RAVYN_SDKROOT} -fuse-ld=${LD} \
 	-mmacos-version-min=${MACOS_VERSION_MIN}
 LDFLAGS =--sysroot=${RAVYN_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
-	-fuse-ld=${LD} -licudata -lc++ \
-	${ROOT_BINARY_DIR}${ROOT_SOURCE_DIR}/Libraries/llvm_target/compiler-rt/lib/ravynos/libclang_rt.osx.a
+	-fuse-ld=${LD} -licudata -lc++
+# clang links the compiler-rt builtins itself (lib/darwin/libclang_rt.osx.a
+# in its resource directory); naming them here too duplicates them under
+# -all_load.
 
 EXTRA_FLAGS = --prefix=/usr --localstatedir=/var --sysconfdir=/etc
 

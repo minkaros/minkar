@@ -1416,6 +1416,10 @@ devfs_readdir(struct vnop_readdir_args *ap)
 		}
 		nodenumber++;
 	}
+	/* At the end once every entry, "." and ".." included, was returned. */
+	if (ap->a_eofflag) {
+		*ap->a_eofflag = (error == 0 && name_node == NULL && nodenumber >= 2);
+	}
 	DEVFS_UNLOCK();
 	uio->uio_offset = pos;
 

@@ -1,7 +1,7 @@
 SUBDIR =
 MK_WERROR = no
 LIB = system_coreservices
-SRCS = sysdir.c
+SRCS = sysdir.c NSSystemDirectories.c
 
 SLF = /System/Library/Frameworks
 CFLAGS = --sysroot=${RAVYN_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
@@ -12,7 +12,7 @@ LDFLAGS = --sysroot=${RAVYN_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
 	-umbrella System \
 	-Wl,-install_name,/usr/lib/system/libsystem_coreservices.dylib
 
-INCS = sysdir.h
+INCS = sysdir.h NSSystemDirectories.h
 INCSDIR = ${RAVYN_SDKROOT}/usr/include
 
 all: ${.OBJDIR}/lib${LIB}.dylib

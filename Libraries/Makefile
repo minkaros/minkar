@@ -159,6 +159,7 @@ libcxx: libunwind
 		${RAVYN_SDKROOT}/usr/lib/
 
 RTOBJ = ${.OBJDIR}/llvm_target/compiler-rt/lib/ravynos/libclang_rt.osx.a
+CLANG_RT_DIR = ${TOOLCHAIN}/usr/lib/clang/17/lib/darwin
 compiler_rt: runtime libunwind libcxx
 	@echo compiler_rt dependencies built
 	mkdir -p ${RTLIB:H} ${RTOBJ:H} ${RTLIB2:H}
@@ -175,6 +176,11 @@ compiler_rt: runtime libunwind libcxx
 	@echo after making dylib, copying to SDK
 	cp -f ${.OBJDIR}/libcompiler_rt.dylib ${RTLIB}
 	cp -f ${.OBJDIR}/libcompiler_rt.dylib ${RTLIB2}
+	# The builtins are hidden in the archive, so the dylib exports none.
+	# As on macOS, clang links the archive into every image instead: it
+	# does so whenever the file is in its resource directory.
+	mkdir -p ${CLANG_RT_DIR}
+	cp -f ${RTOBJ} ${CLANG_RT_DIR}/
 
 # We want a combined libc++ and libc++abi as our dylib. It needs libSystem
 # for _dlopen and _dlsym. We do not link directly to libdyld.

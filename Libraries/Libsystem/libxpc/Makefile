@@ -9,6 +9,7 @@ SRCS = mpack.c \
 	xpc_pipe.c \
 	xpc_type.c \
 	xpc_runtime.c \
+	xpc_init.c \
 	transports/mach.c
 
 SLF = /System/Library/Frameworks

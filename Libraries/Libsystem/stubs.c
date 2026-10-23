@@ -35,11 +35,6 @@ _libtrace_init(void)
 }
 
 void
-_libxpc_initializer(void)
-{
-}
-
-void
 cc_atfork_child(void)
 {
 }
@@ -51,21 +46,6 @@ cc_atfork_parent(void)
 
 void
 cc_atfork_prepare(void)
-{
-}
-
-void
-xpc_atfork_child(void)
-{
-}
-
-void
-xpc_atfork_parent(void)
-{
-}
-
-void
-xpc_atfork_prepare(void)
 {
 }
 

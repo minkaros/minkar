@@ -286,7 +286,16 @@ ${.OBJDIR}/lib${LIB}.dylib: ${.OBJDIR}/_libc_funcptr.o lib${LIB}.a
 	  -L${RAVYN_SDKROOT}/usr/lib/system -lsystem_c -ldyld
 	cp -f ${.TARGET} ${RAVYN_SDKROOT}/usr/lib/system/
 	cp -f ${.TARGET} ${SYSROOT_DIR}/usr/lib/system/
-	cp -f ${XNU}/libsyscall/wrappers/libproc/libproc.h ${RAVYN_SDKROOT}/usr/include/
+	# Headers laid out as in the macOS SDK: public ones without their
+	# PRIVATE parts in /usr/include, private ones in /usr/local/include.
+	# unifdef exits 1 when it removed something.
+	mkdir -p ${RAVYN_SDKROOT}/usr/local/include
+	${TOOLS}/unifdef -UPRIVATE -o ${RAVYN_SDKROOT}/usr/include/libproc.h \
+	  ${XNU}/libsyscall/wrappers/libproc/libproc.h || test $$? -eq 1
+	cp -f ${XNU}/libsyscall/wrappers/spawn/spawn.h ${RAVYN_SDKROOT}/usr/include/
+	cp -f ${XNU}/libsyscall/wrappers/libproc/libproc_internal.h \
+	  ${XNU}/libsyscall/wrappers/spawn/spawn_private.h \
+	  ${RAVYN_SDKROOT}/usr/local/include/
 	cp -f ${.OBJDIR}/libkernel.a \
 	  ${RAVYN_SDKROOT}/usr/local/lib/kernel/libkernel.a
 

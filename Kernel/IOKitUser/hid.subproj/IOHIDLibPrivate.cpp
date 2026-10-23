@@ -32,6 +32,10 @@
 #include <sys/syscall.h>
 
 #include "IOHIDLibPrivate.h"
+
+// ravynOS: declared in IOHIDLibPrivate.h but defined nowhere; HID debug
+// options (kIOHIDDebug*), all off.
+uint32_t gIOHIDDebugConfig = 0;
 #include "IOHIDBase.h"
 #include "IOHIDDebugTrace.h"
 #include "IOHIDEvent.h"

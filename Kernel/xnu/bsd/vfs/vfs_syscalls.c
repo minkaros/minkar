@@ -9433,7 +9433,7 @@ getdirentries(__unused struct proc *p, struct getdirentries_args *uap, int32_t *
 {
 	off_t offset;
 	ssize_t bytesread;
-	int error, eofflag;
+	int error, eofflag = 0;	/* not every file system sets it */
 
 	AUDIT_ARG(fd, uap->fd);
 	error = getdirentries_common(uap->fd, uap->buf, uap->count,
@@ -9457,7 +9457,7 @@ getdirentries64(__unused struct proc *p, struct getdirentries64_args *uap, user_
 {
 	off_t offset;
 	ssize_t bytesread;
-	int error, eofflag;
+	int error, eofflag = 0;	/* not every file system sets it */
 	user_size_t bufsize;
 
 	AUDIT_ARG(fd, uap->fd);
@@ -9635,7 +9635,7 @@ getdirentriesattr(proc_t p, struct getdirentriesattr_args *uap, int32_t *retval)
 	int spacetype = proc_is64bit(p) ? UIO_USERSPACE64 : UIO_USERSPACE32;
 	uint32_t count = 0, savecount = 0;
 	uint32_t newstate = 0;
-	int error, eofflag;
+	int error, eofflag = 0;	/* not every file system sets it */
 	uint32_t loff = 0;
 	struct attrlist attributelist;
 	vfs_context_t ctx = vfs_context_current();
