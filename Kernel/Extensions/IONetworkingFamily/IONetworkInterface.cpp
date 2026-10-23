@@ -748,29 +748,61 @@ IONetworkInterface::linkStatusChanged(UInt32 status, UInt64 speed)
 }
 
 /*
- * SIOCGIFMEDIA: the controller's selected and active media and the link
- * status. The list of media is not returned (ifm_count is 0).
+ * SIOCGIFMEDIA: the controller's selected and active media, the link
+ * status, and as many of its media types as the caller's list holds
+ * (ifm_count says how many there are).
  */
+/* The smallest MTU IPv4 allows. */
+static const int kMinMTU = 68;
+
 static SInt32
-getMedia(IONetworkController *ctl, void *data)
+getMedia(IONetworkController *ctl, unsigned long cmd, void *data)
 {
 	struct ifmediareq32 *ifmr = (struct ifmediareq32 *)data;
 	const IONetworkMedium *selected = ctl->getSelectedMedium();
+	const OSDictionary *media = ctl->getMediumDictionary();
 	UInt32 status = ctl->getLinkStatus();
 	OSString *activeName;
 	IONetworkMedium *active = NULL;
+	user_addr_t ulist;
+	int total = media != NULL ? (int)media->getCount() : 0;
 
 	activeName = OSDynamicCast(OSString, ctl->getProperty(kIOActiveMedium));
-	if (activeName != NULL && ctl->getMediumDictionary() != NULL)
-		active = OSDynamicCast(IONetworkMedium,
-		    ctl->getMediumDictionary()->getObject(activeName));
+	if (activeName != NULL && media != NULL)
+		active = OSDynamicCast(IONetworkMedium, media->getObject(activeName));
 
 	ifmr->ifm_current = selected != NULL ? (int)selected->getType() :
 	    (active != NULL ? (int)active->getType() : 0);
 	ifmr->ifm_mask = 0;
 	ifmr->ifm_status = (int)(status & (IFM_AVALID | IFM_ACTIVE));
 	ifmr->ifm_active = active != NULL ? (int)active->getType() : ifmr->ifm_current;
-	ifmr->ifm_count = 0;
+
+	/* The two layouts differ only in the pointer's size. */
+	ulist = cmd == SIOCGIFMEDIA64 ?
+	    (user_addr_t)((struct ifmediareq64 *)data)->ifmu_ulist :
+	    CAST_USER_ADDR_T(ifmr->ifmu_ulist);
+	if (ifmr->ifm_count > 0 && ulist != USER_ADDR_NULL && media != NULL) {
+		OSCollectionIterator *iter = OSCollectionIterator::withCollection(media);
+		const OSSymbol *key;
+		int n = 0;
+
+		while (iter != NULL && n < ifmr->ifm_count &&
+		    (key = OSDynamicCast(OSSymbol, iter->getNextObject())) != NULL) {
+			IONetworkMedium *m = OSDynamicCast(IONetworkMedium, media->getObject(key));
+			int word;
+
+			if (m == NULL)
+				continue;
+			word = (int)m->getType();
+			if (copyout(&word, ulist + (user_addr_t)n * sizeof(word), sizeof(word)) != 0) {
+				OSSafeReleaseNULL(iter);
+				return EFAULT;
+			}
+			n++;
+		}
+		OSSafeReleaseNULL(iter);
+	}
+	ifmr->ifm_count = total;
 	return 0;
 }
 
@@ -787,15 +819,25 @@ IONetworkInterface::performCommand(IONetworkController *ctl, unsigned long cmd,
 		return syncFlags();
 
 	case SIOCSIFMTU:
-		if (ctl->getMaxPacketSize(&max) == kIOReturnSuccess &&
-		    (UInt32)ifr->ifr_mtu + _headerLength + 4 > max)
+		if (ifr->ifr_mtu < kMinMTU ||
+		    (ctl->getMaxPacketSize(&max) == kIOReturnSuccess &&
+		    (UInt32)ifr->ifr_mtu + _headerLength + 4 > max))
 			return EINVAL;
 		setMaxTransferUnit((UInt32)ifr->ifr_mtu);
 		return 0;
 
+	case SIOCGIFDEVMTU:
+		/* The MTU range the controller's packet size allows (VLAN asks). */
+		ifr->ifr_devmtu.ifdm_current = (int)ifnet_mtu(_ifp);
+		ifr->ifr_devmtu.ifdm_min = kMinMTU;
+		ifr->ifr_devmtu.ifdm_max = ctl->getMaxPacketSize(&max) == kIOReturnSuccess &&
+		    max > _headerLength + 4 ? (int)(max - _headerLength - 4) :
+		    (int)ifnet_mtu(_ifp);
+		return 0;
+
 	case SIOCGIFMEDIA32:
 	case SIOCGIFMEDIA64:
-		return getMedia(ctl, data);
+		return getMedia(ctl, cmd, data);
 
 	case SIOCSIFMEDIA: {
 		IONetworkMedium *m = IONetworkMedium::getMediumWithType(

@@ -110,6 +110,8 @@ class RavynE1000 : public IOEthernetController
 	void initTx();
 	void updateRCTL();
 	void publishMedia();
+	bool writePHY(uint32_t reg, uint16_t value);
+	bool advertiseMedium(IOMediumType type);
 	void checkLink();
 
 	void receivePackets();

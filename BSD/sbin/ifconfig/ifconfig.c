@@ -28,13 +28,19 @@
 /*
  * ifconfig: show and configure network interfaces.
  *
- *	ifconfig [-a | -l | -u | -d]
- *	ifconfig interface [up | down]
+ *	ifconfig [-a | -l | -u | -d] [-m]
+ *	ifconfig [-m] interface
  *	ifconfig interface [inet] address[/prefix] [netmask mask]
  *	    [broadcast address] [alias | -alias | delete] [mtu n] [up | down]
+ *	ifconfig interface inet6 address[/prefixlen] [prefixlen n]
+ *	    [alias | -alias | delete]
+ *	ifconfig interface media type [mediaopt opts] [-mediaopt opts]
+ *	ifconfig vlanN create [vlan tag vlandev parent]
+ *	ifconfig vlanN vlan tag vlandev parent | -vlandev
+ *	ifconfig interface destroy
  *
  * The output follows macOS: flags, mtu, ether, inet and inet6 addresses,
- * media and link status.
+ * VLAN, media and link status; -m adds the supported media.
  */
 
 #include <sys/types.h>
@@ -47,6 +53,8 @@
 #include <net/if_media.h>
 #include <net/if_types.h>
 #include <netinet/in.h>
+#include <netinet6/in6_var.h>
+#include <netinet6/nd6.h>
 #include <arpa/inet.h>
 
 #include <err.h>
@@ -59,16 +67,30 @@
 #include <sysexits.h>
 #include <unistd.h>
 
-static int sock = -1;
+static int sock = -1, sock6 = -1;
+static bool show_media_list;
+
+/* SIOCSIFVLAN and SIOCGIFVLAN take this through ifr_data. */
+struct vlanreq {
+	char		vlr_parent[IFNAMSIZ];
+	u_short		vlr_tag;
+};
 
 static void __dead2
 usage(void)
 {
 	fprintf(stderr,
-	    "usage: ifconfig [-a | -l | -u | -d]\n"
+	    "usage: ifconfig [-a | -l | -u | -d] [-m]\n"
+	    "       ifconfig [-m] interface\n"
 	    "       ifconfig interface [inet] [address[/prefix]] [netmask mask]\n"
 	    "                [broadcast address] [alias | -alias | delete]\n"
-	    "                [mtu n] [up | down]\n");
+	    "                [mtu n] [up | down]\n"
+	    "       ifconfig interface inet6 address[/prefixlen] [prefixlen n]\n"
+	    "                [alias | -alias | delete]\n"
+	    "       ifconfig interface media type [mediaopt opts] [-mediaopt opts]\n"
+	    "       ifconfig interface create [vlan tag vlandev parent]\n"
+	    "       ifconfig interface vlan tag vlandev parent | -vlandev\n"
+	    "       ifconfig interface destroy\n");
 	exit(EX_USAGE);
 }
 
@@ -78,6 +100,14 @@ getsock(void)
 	if (sock < 0 && (sock = socket(AF_INET, SOCK_DGRAM, 0)) < 0)
 		err(EX_OSERR, "socket");
 	return sock;
+}
+
+static int
+getsock6(void)
+{
+	if (sock6 < 0 && (sock6 = socket(AF_INET6, SOCK_DGRAM, 0)) < 0)
+		err(EX_OSERR, "socket");
+	return sock6;
 }
 
 /* ---- Display ----------------------------------------------------------- */
@@ -121,54 +151,146 @@ prefixlen(const unsigned char *mask, size_t len)
 	return bits;
 }
 
+/* Ethernet media subtypes and options, by the names macOS uses. */
+static const struct {
+	int		word;
+	const char	*name;
+} subtypes[] = {
+	{ IFM_AUTO,	"autoselect" },
+	{ IFM_MANUAL,	"manual" },
+	{ IFM_NONE,	"none" },
+	{ IFM_10_T,	"10baseT/UTP" },
+	{ IFM_100_TX,	"100baseTX" },
+	{ IFM_1000_T,	"1000baseT" },
+	{ IFM_1000_SX,	"1000baseSX" },
+	{ IFM_10G_SR,	"10GbaseSR" },
+}, options[] = {
+	{ IFM_FDX,	"full-duplex" },
+	{ IFM_HDX,	"half-duplex" },
+	{ IFM_FLAG0,	"flag0" },
+	{ IFM_FLAG1,	"flag1" },
+	{ IFM_FLAG2,	"flag2" },
+	{ IFM_LOOP,	"hw-loopback" },
+};
+#define NELEM(a)	(sizeof(a) / sizeof((a)[0]))
+
 static const char *
 media_subtype(int word)
 {
 	if (IFM_TYPE(word) != IFM_ETHER)
 		return "unknown";
-	switch (IFM_SUBTYPE(word)) {
-	case IFM_AUTO:		return "autoselect";
-	case IFM_MANUAL:	return "manual";
-	case IFM_NONE:		return "none";
-	case IFM_10_T:		return "10baseT/UTP";
-	case IFM_100_TX:	return "100baseTX";
-	case IFM_1000_T:	return "1000baseT";
-	case IFM_1000_SX:	return "1000baseSX";
-	case IFM_10G_SR:	return "10GbaseSR";
-	default:		return "unknown";
-	}
+	for (size_t i = 0; i < NELEM(subtypes); i++)
+		if (IFM_SUBTYPE(word) == subtypes[i].word)
+			return subtypes[i].name;
+	return "unknown";
 }
 
+/* "1000baseT <full-duplex>", or with list, "1000baseT mediaopt full-duplex". */
 static void
-print_media_word(int word)
+print_media_word(int word, bool list)
 {
+	bool first = true;
+
 	printf("%s", media_subtype(word));
-	if (word & IFM_FDX)
-		printf(" <full-duplex>");
-	else if (word & IFM_HDX)
-		printf(" <half-duplex>");
+	for (size_t i = 0; i < NELEM(options); i++) {
+		if (!(word & options[i].word))
+			continue;
+		if (list)
+			printf("%s%s", first ? " mediaopt " : ",", options[i].name);
+		else
+			printf("%s%s", first ? " <" : ",", options[i].name);
+		first = false;
+	}
+	if (!list && !first)
+		printf(">");
+}
+
+/* A subtype name; -1 if unknown. */
+static int
+parse_subtype(const char *s)
+{
+	for (size_t i = 0; i < NELEM(subtypes); i++)
+		if (strcasecmp(s, subtypes[i].name) == 0 ||
+		    (subtypes[i].word == IFM_AUTO && strcasecmp(s, "auto") == 0))
+			return subtypes[i].word;
+	return -1;
+}
+
+/* Comma-separated option names. */
+static int
+parse_options(const char *s)
+{
+	char buf[128], *p, *opt;
+	int word = 0;
+
+	strlcpy(buf, s, sizeof(buf));
+	for (p = buf; (opt = strsep(&p, ",")) != NULL;) {
+		size_t i;
+
+		for (i = 0; i < NELEM(options); i++)
+			if (strcasecmp(opt, options[i].name) == 0)
+				break;
+		if (i == NELEM(options))
+			errx(EX_USAGE, "%s: unknown media option", opt);
+		word |= options[i].word;
+	}
+	return word;
 }
 
 static void
 print_media(const char *name)
 {
 	struct ifmediareq ifmr;
+	int *list = NULL;
 
 	memset(&ifmr, 0, sizeof(ifmr));
 	strlcpy(ifmr.ifm_name, name, sizeof(ifmr.ifm_name));
 	if (ioctl(getsock(), SIOCGIFMEDIA, &ifmr) < 0)
 		return;
+	if (show_media_list && ifmr.ifm_count > 0 &&
+	    (list = calloc((size_t)ifmr.ifm_count, sizeof(int))) != NULL) {
+		ifmr.ifm_ulist = list;
+		if (ioctl(getsock(), SIOCGIFMEDIA, &ifmr) < 0)
+			ifmr.ifm_count = 0;
+	}
 	printf("\tmedia: ");
-	print_media_word(ifmr.ifm_current);
+	print_media_word(ifmr.ifm_current, false);
 	if (ifmr.ifm_active != ifmr.ifm_current && ifmr.ifm_active != 0) {
 		printf(" (");
-		print_media_word(ifmr.ifm_active);
+		print_media_word(ifmr.ifm_active, false);
 		printf(")");
 	}
 	printf("\n");
 	if (ifmr.ifm_status & IFM_AVALID)
 		printf("\tstatus: %s\n",
 		    (ifmr.ifm_status & IFM_ACTIVE) ? "active" : "inactive");
+	if (list != NULL) {
+		printf("\tsupported media:\n");
+		for (int i = 0; i < ifmr.ifm_count; i++) {
+			printf("\t\tmedia ");
+			print_media_word(list[i], true);
+			printf("\n");
+		}
+		free(list);
+	}
+}
+
+static void
+print_vlan(const char *name)
+{
+	struct ifreq ifr;
+	struct vlanreq vlr;
+
+	memset(&ifr, 0, sizeof(ifr));
+	memset(&vlr, 0, sizeof(vlr));
+	strlcpy(ifr.ifr_name, name, sizeof(ifr.ifr_name));
+	ifr.ifr_data = (caddr_t)&vlr;
+	if (ioctl(getsock(), SIOCGIFVLAN, &ifr) < 0)
+		return;
+	if (vlr.vlr_parent[0] != '\0')
+		printf("\tvlan: %u parent interface: %s\n", vlr.vlr_tag, vlr.vlr_parent);
+	else
+		printf("\tvlan: <none> parent interface: <none>\n");
 }
 
 static void
@@ -264,6 +386,7 @@ print_interface(struct ifaddrs *list, const char *name)
 		if (strcmp(ifa->ifa_name, name) == 0 && ifa->ifa_addr != NULL &&
 		    ifa->ifa_addr->sa_family == AF_INET6)
 			print_addr(ifa);
+	print_vlan(name);
 	print_media(name);
 }
 
@@ -384,23 +507,173 @@ delete_first_inet(const char *name)
 		warn("%s: SIOCDIFADDR", name);
 }
 
+/* addr[/prefixlen] */
+static void
+parse_inet6(const char *s, struct sockaddr_in6 *sin6, int *plen)
+{
+	char buf[INET6_ADDRSTRLEN + 8], *slash, *end;
+
+	memset(sin6, 0, sizeof(*sin6));
+	sin6->sin6_len = sizeof(*sin6);
+	sin6->sin6_family = AF_INET6;
+	strlcpy(buf, s, sizeof(buf));
+	if ((slash = strchr(buf, '/')) != NULL) {
+		long v = strtol(slash + 1, &end, 10);
+
+		if (*end != '\0' || v < 0 || v > 128)
+			errx(EX_USAGE, "%s: bad prefix length", slash + 1);
+		*plen = (int)v;
+		*slash = '\0';
+	}
+	if (inet_pton(AF_INET6, buf, &sin6->sin6_addr) != 1)
+		errx(EX_USAGE, "%s: bad address", buf);
+}
+
+static void
+prefix_mask6(int plen, struct sockaddr_in6 *mask)
+{
+	memset(mask, 0, sizeof(*mask));
+	mask->sin6_len = sizeof(*mask);
+	mask->sin6_family = AF_INET6;
+	for (int i = 0; i < 16; i++, plen -= 8)
+		mask->sin6_addr.s6_addr[i] = plen >= 8 ? 0xff :
+		    (plen > 0 ? (uint8_t)(0xff << (8 - plen)) : 0);
+}
+
+/* A link-local address names its link in the second 16-bit word. */
+static void
+embed_scope(const char *name, struct sockaddr_in6 *sin6)
+{
+	if (IN6_IS_ADDR_LINKLOCAL(&sin6->sin6_addr)) {
+		unsigned int index = if_nametoindex(name);
+
+		sin6->sin6_addr.s6_addr[2] = (uint8_t)(index >> 8);
+		sin6->sin6_addr.s6_addr[3] = (uint8_t)index;
+	}
+}
+
+static void
+configure_inet6(const char *name, const struct sockaddr_in6 *addr, int plen, bool remove)
+{
+	if (remove) {
+		struct in6_ifreq ifr6;
+
+		memset(&ifr6, 0, sizeof(ifr6));
+		strlcpy(ifr6.ifr_name, name, sizeof(ifr6.ifr_name));
+		ifr6.ifr_addr = *addr;
+		embed_scope(name, &ifr6.ifr_addr);
+		if (ioctl(getsock6(), SIOCDIFADDR_IN6, &ifr6) < 0)
+			err(EX_OSERR, "%s: SIOCDIFADDR_IN6", name);
+	} else {
+		struct in6_aliasreq ifra6;
+
+		memset(&ifra6, 0, sizeof(ifra6));
+		strlcpy(ifra6.ifra_name, name, sizeof(ifra6.ifra_name));
+		ifra6.ifra_addr = *addr;
+		embed_scope(name, &ifra6.ifra_addr);
+		prefix_mask6(plen, &ifra6.ifra_prefixmask);
+		ifra6.ifra_lifetime.ia6t_vltime = ND6_INFINITE_LIFETIME;
+		ifra6.ifra_lifetime.ia6t_pltime = ND6_INFINITE_LIFETIME;
+		if (ioctl(getsock6(), SIOCAIFADDR_IN6, &ifra6) < 0)
+			err(EX_OSERR, "%s: SIOCAIFADDR_IN6", name);
+	}
+}
+
+/*
+ * media and mediaopt change the current media word: the subtype, then
+ * options added and removed.
+ */
+static void
+configure_media(const char *name, int subtype, int addopts, int delopts)
+{
+	struct ifmediareq ifmr;
+	struct ifreq ifr;
+	int word;
+
+	memset(&ifmr, 0, sizeof(ifmr));
+	strlcpy(ifmr.ifm_name, name, sizeof(ifmr.ifm_name));
+	if (ioctl(getsock(), SIOCGIFMEDIA, &ifmr) < 0)
+		err(EX_OSERR, "%s: SIOCGIFMEDIA", name);
+	word = ifmr.ifm_current;
+	if (subtype >= 0) {
+		/* A new subtype starts without the old one's options. */
+		word = IFM_TYPE(word) | subtype;
+		if (word == subtype)
+			word |= IFM_ETHER;
+	}
+	word = (word | addopts) & ~delopts;
+	memset(&ifr, 0, sizeof(ifr));
+	strlcpy(ifr.ifr_name, name, sizeof(ifr.ifr_name));
+	ifr.ifr_media = word;
+	if (ioctl(getsock(), SIOCSIFMEDIA, &ifr) < 0)
+		err(EX_OSERR, "%s: SIOCSIFMEDIA", name);
+}
+
+/* tag and parent; an empty parent detaches the VLAN. */
+static void
+configure_vlan(const char *name, int tag, const char *parent)
+{
+	struct ifreq ifr;
+	struct vlanreq vlr;
+
+	memset(&ifr, 0, sizeof(ifr));
+	memset(&vlr, 0, sizeof(vlr));
+	strlcpy(ifr.ifr_name, name, sizeof(ifr.ifr_name));
+	strlcpy(vlr.vlr_parent, parent, sizeof(vlr.vlr_parent));
+	vlr.vlr_tag = (u_short)tag;
+	ifr.ifr_data = (caddr_t)&vlr;
+	if (ioctl(getsock(), SIOCSIFVLAN, &ifr) < 0)
+		err(EX_OSERR, "%s: SIOCSIFVLAN", name);
+}
+
+/* Creates a cloned interface (vlan0); a name without a unit gets the next one. */
+static void
+create_interface(char *name, size_t size)
+{
+	struct ifreq ifr;
+
+	memset(&ifr, 0, sizeof(ifr));
+	strlcpy(ifr.ifr_name, name, sizeof(ifr.ifr_name));
+	if (ioctl(getsock(), SIOCIFCREATE, &ifr) < 0)
+		err(EX_OSERR, "%s: SIOCIFCREATE", name);
+	if (strcmp(name, ifr.ifr_name) != 0) {
+		strlcpy(name, ifr.ifr_name, size);
+		printf("%s\n", name);
+	}
+}
+
+static void
+destroy_interface(const char *name)
+{
+	struct ifreq ifr;
+
+	memset(&ifr, 0, sizeof(ifr));
+	strlcpy(ifr.ifr_name, name, sizeof(ifr.ifr_name));
+	if (ioctl(getsock(), SIOCIFDESTROY, &ifr) < 0)
+		err(EX_OSERR, "%s: SIOCIFDESTROY", name);
+}
+
 static int
 configure(const char *name, int argc, char *argv[])
 {
 	struct ifaliasreq ifra;
 	struct sockaddr_in addr, mask, bcast;
+	struct sockaddr_in6 addr6;
 	bool have_addr = false, have_mask = false, have_bcast = false;
-	bool alias = false, remove = false;
-	int up = 0;
+	bool alias = false, remove = false, inet6 = false;
+	bool have_vlan = false, have_vlandev = false, unset_vlandev = false;
+	int up = 0, plen = 64, vlan_tag = 0;
+	int subtype = -1, addopts = 0, delopts = 0;
+	const char *vlandev = "";
 
 	memset(&ifra, 0, sizeof(ifra));
 	for (int i = 0; i < argc; i++) {
 		const char *a = argv[i];
 
 		if (strcmp(a, "inet") == 0) {
-			continue;
+			inet6 = false;
 		} else if (strcmp(a, "inet6") == 0) {
-			errx(EX_UNAVAILABLE, "inet6: not supported yet");
+			inet6 = true;
 		} else if (strcmp(a, "up") == 0) {
 			up = 1;
 		} else if (strcmp(a, "down") == 0) {
@@ -415,6 +688,16 @@ configure(const char *name, int argc, char *argv[])
 				usage();
 			parse_mask(argv[i], &mask);
 			have_mask = true;
+		} else if (strcmp(a, "prefixlen") == 0) {
+			char *end;
+			long v;
+
+			if (++i == argc)
+				usage();
+			v = strtol(argv[i], &end, 10);
+			if (*end != '\0' || v < 0 || v > 128)
+				errx(EX_USAGE, "%s: bad prefix length", argv[i]);
+			plen = (int)v;
 		} else if (strcmp(a, "broadcast") == 0) {
 			if (++i == argc)
 				usage();
@@ -424,6 +707,43 @@ configure(const char *name, int argc, char *argv[])
 			if (++i == argc)
 				usage();
 			set_mtu(name, argv[i]);
+		} else if (strcmp(a, "media") == 0) {
+			if (++i == argc)
+				usage();
+			if ((subtype = parse_subtype(argv[i])) < 0)
+				errx(EX_USAGE, "%s: unknown media type", argv[i]);
+		} else if (strcmp(a, "mediaopt") == 0) {
+			if (++i == argc)
+				usage();
+			addopts |= parse_options(argv[i]);
+		} else if (strcmp(a, "-mediaopt") == 0) {
+			if (++i == argc)
+				usage();
+			delopts |= parse_options(argv[i]);
+		} else if (strcmp(a, "vlan") == 0) {
+			char *end;
+			long v;
+
+			if (++i == argc)
+				usage();
+			v = strtol(argv[i], &end, 10);
+			if (*end != '\0' || v < 1 || v > 4094)
+				errx(EX_USAGE, "%s: bad VLAN tag", argv[i]);
+			vlan_tag = (int)v;
+			have_vlan = true;
+		} else if (strcmp(a, "vlandev") == 0) {
+			if (++i == argc)
+				usage();
+			vlandev = argv[i];
+			have_vlandev = true;
+		} else if (strcmp(a, "-vlandev") == 0) {
+			unset_vlandev = true;
+		} else if (strcmp(a, "destroy") == 0) {
+			destroy_interface(name);
+			return 0;
+		} else if (!have_addr && inet6) {
+			parse_inet6(a, &addr6, &plen);
+			have_addr = true;
 		} else if (!have_addr) {
 			char buf[64], *slash;
 
@@ -440,7 +760,21 @@ configure(const char *name, int argc, char *argv[])
 		}
 	}
 
-	if (have_addr && remove) {
+	if (unset_vlandev) {
+		configure_vlan(name, 0, "");
+	} else if (have_vlan || have_vlandev) {
+		if (!have_vlan || !have_vlandev)
+			errx(EX_USAGE, "vlan and vlandev go together");
+		configure_vlan(name, vlan_tag, vlandev);
+	}
+	if (subtype >= 0 || addopts != 0 || delopts != 0)
+		configure_media(name, subtype, addopts, delopts);
+
+	if (have_addr && inet6) {
+		configure_inet6(name, &addr6, plen, remove);
+		if (!remove && up == 0)
+			up = 1;
+	} else if (have_addr && remove) {
 		struct ifreq ifr;
 
 		memset(&ifr, 0, sizeof(ifr));
@@ -482,7 +816,7 @@ main(int argc, char *argv[])
 	int ch, only_up = 0;
 	bool all = false, names = false;
 
-	while ((ch = getopt(argc, argv, "adlu")) != -1) {
+	while ((ch = getopt(argc, argv, "adlmu")) != -1) {
 		switch (ch) {
 		case 'a':
 			all = true;
@@ -492,6 +826,9 @@ main(int argc, char *argv[])
 			break;
 		case 'l':
 			names = true;
+			break;
+		case 'm':
+			show_media_list = true;
 			break;
 		case 'u':
 			only_up = 1;
@@ -507,6 +844,15 @@ main(int argc, char *argv[])
 		if (argc != 0)
 			usage();
 		return list_interfaces(names, only_up);
+	}
+	if (argc > 1 && strcmp(argv[1], "create") == 0) {
+		char name[IFNAMSIZ];
+
+		strlcpy(name, argv[0], sizeof(name));
+		create_interface(name, sizeof(name));
+		if (argc == 2)
+			return 0;
+		return configure(name, argc - 2, argv + 2);
 	}
 	if (if_nametoindex(argv[0]) == 0)
 		errx(EX_UNAVAILABLE, "interface %s does not exist", argv[0]);

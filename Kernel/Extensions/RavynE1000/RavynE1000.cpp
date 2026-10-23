@@ -323,12 +323,59 @@ RavynE1000::checkLink()
 	    (status & E1000_STATUS_FD) ? "full" : "half");
 }
 
+bool
+RavynE1000::writePHY(uint32_t reg, uint16_t value)
+{
+	writeReg(E1000_MDIC, value | reg << E1000_MDIC_REG_SHIFT |
+	    E1000_PHY_ADDR << E1000_MDIC_PHY_SHIFT | E1000_MDIC_OP_WRITE);
+	for (int i = 0; i < 640; i++) {
+		uint32_t mdic = readReg(E1000_MDIC);
+
+		if (mdic & E1000_MDIC_READY)
+			return (mdic & E1000_MDIC_ERROR) == 0;
+		IODelay(50);
+	}
+	return false;
+}
+
+/*
+ * A fixed medium is still negotiated, advertising only that speed and
+ * duplex (1000BASE-T needs autonegotiation); autoselect advertises all.
+ */
+bool
+RavynE1000::advertiseMedium(IOMediumType type)
+{
+	uint16_t anar = MII_ANAR_CSMA | MII_ANAR_PAUSE, gtcr = 0;
+	bool fdx = (type & kIOMediumOptionFullDuplex) != 0;
+
+	switch (type & ~(kIOMediumOptionFullDuplex | kIOMediumOptionHalfDuplex)) {
+	case kIOMediumEthernetAuto:
+		anar |= MII_ANAR_10_HD | MII_ANAR_10_FD | MII_ANAR_100_HD | MII_ANAR_100_FD;
+		gtcr = MII_GTCR_1000_FD;
+		break;
+	case kIOMediumEthernet10BaseT:
+		anar |= fdx ? MII_ANAR_10_FD : MII_ANAR_10_HD;
+		break;
+	case kIOMediumEthernet100BaseTX:
+		anar |= fdx ? MII_ANAR_100_FD : MII_ANAR_100_HD;
+		break;
+	case kIOMediumEthernet1000BaseT:
+		gtcr = MII_GTCR_1000_FD;
+		break;
+	default:
+		return false;
+	}
+	return writePHY(MII_ANAR, anar) && writePHY(MII_GTCR, gtcr) &&
+	    writePHY(MII_BMCR, MII_BMCR_AUTONEG | MII_BMCR_RESTART_AN);
+}
+
 IOReturn
 RavynE1000::selectMedium(const IONetworkMedium *medium)
 {
-	/* Autonegotiation only; the hardware picks the medium. */
-	if (medium == NULL || medium->getType() != kIOMediumEthernetAuto)
-		return kIOReturnUnsupported;
+	if (medium == NULL)
+		return kIOReturnBadArgument;
+	if (!advertiseMedium(medium->getType()))
+		return kIOReturnIOError;
 	setSelectedMedium(medium);
 	return kIOReturnSuccess;
 }

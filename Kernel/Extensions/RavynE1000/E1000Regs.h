@@ -43,6 +43,7 @@
 #define E1000_EECD	0x00010	/* EEPROM control */
 #define E1000_EERD	0x00014	/* EEPROM read */
 #define E1000_CTRL_EXT	0x00018	/* extended device control */
+#define E1000_MDIC	0x00020	/* MDI control: PHY registers */
 #define E1000_ICR	0x000C0	/* interrupt cause read (clears on read) */
 #define E1000_ITR	0x000C4	/* interrupt throttling */
 #define E1000_ICS	0x000C8	/* interrupt cause set */
@@ -97,6 +98,30 @@
 #define E1000_CTRL_RST		(1U << 26)	/* device reset */
 #define E1000_CTRL_VME		(1U << 30)	/* VLAN mode */
 #define E1000_CTRL_PHY_RST	(1U << 31)	/* PHY reset */
+
+/* MDIC: a PHY register read or write. */
+#define E1000_MDIC_REG_SHIFT	16
+#define E1000_MDIC_PHY_SHIFT	21
+#define E1000_MDIC_OP_WRITE	(1U << 26)
+#define E1000_MDIC_OP_READ	(2U << 26)
+#define E1000_MDIC_READY	(1U << 28)
+#define E1000_MDIC_ERROR	(1U << 30)
+#define E1000_PHY_ADDR		1	/* the internal PHY */
+
+/* PHY registers (IEEE 802.3 clause 22) and the bits used. */
+#define MII_BMCR		0	/* control */
+#define MII_BMCR_RESTART_AN	(1U << 9)
+#define MII_BMCR_AUTONEG	(1U << 12)
+#define MII_ANAR		4	/* autonegotiation advertisement */
+#define MII_ANAR_CSMA		0x0001
+#define MII_ANAR_10_HD		(1U << 5)
+#define MII_ANAR_10_FD		(1U << 6)
+#define MII_ANAR_100_HD		(1U << 7)
+#define MII_ANAR_100_FD		(1U << 8)
+#define MII_ANAR_PAUSE		(3U << 10)	/* symmetric and asymmetric */
+#define MII_GTCR		9	/* 1000BASE-T control */
+#define MII_GTCR_1000_HD	(1U << 8)
+#define MII_GTCR_1000_FD	(1U << 9)
 
 /* STATUS bits. */
 #define E1000_STATUS_FD		(1U << 0)
