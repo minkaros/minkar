@@ -1295,6 +1295,20 @@ void audit_token_to_au32(
 	pid_t		*pidp,
 	au_asid_t	*asidp,
 	au_tid_t	*tidp);
+
+/*
+ * audit_token_to_auid() ... audit_token_to_pidversion()
+ *
+ * @summary - One field of an audit_token_t each, as on macOS.
+ */
+uid_t		audit_token_to_auid(audit_token_t atoken);
+uid_t		audit_token_to_euid(audit_token_t atoken);
+gid_t		audit_token_to_egid(audit_token_t atoken);
+uid_t		audit_token_to_ruid(audit_token_t atoken);
+gid_t		audit_token_to_rgid(audit_token_t atoken);
+pid_t		audit_token_to_pid(audit_token_t atoken);
+au_asid_t	audit_token_to_asid(audit_token_t atoken);
+int		audit_token_to_pidversion(audit_token_t atoken);
 #endif /* !__APPLE__ */
 
 /*

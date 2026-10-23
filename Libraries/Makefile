@@ -9,7 +9,7 @@ RTLIB = ${RAVYN_SDKROOT}/usr/lib/system/libcompiler_rt.dylib
 RTLIB2 = ${SYSROOT_DIR}/usr/lib/system/libcompiler_rt.dylib
 
 SUBDIR = libfirehose_kernel CrashReporterClient MiscLibs objc4 dyld Libsystem \
-	Libsystem/libresolv \
+	Libsystem/libresolv openbsm/libbsm \
 	ICU zlib OpenPAM OpenSSH
 
 # Don't try to link Foundation or System

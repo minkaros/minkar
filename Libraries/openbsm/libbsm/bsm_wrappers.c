@@ -493,6 +493,67 @@ audit_token_to_au32(audit_token_t atoken, uid_t *auidp, uid_t *euidp,
 		tidp->port = (dev_t)atoken.val[7];
 	}
 }
+
+/*
+ * The fields of an audit token one at a time, as macOS's libbsm has them
+ * (ravynOS). XNU fills val[] with auid, euid, egid, ruid, rgid, pid, asid
+ * and the pid version.
+ */
+uid_t
+audit_token_to_auid(audit_token_t atoken)
+{
+
+	return ((uid_t)atoken.val[0]);
+}
+
+uid_t
+audit_token_to_euid(audit_token_t atoken)
+{
+
+	return ((uid_t)atoken.val[1]);
+}
+
+gid_t
+audit_token_to_egid(audit_token_t atoken)
+{
+
+	return ((gid_t)atoken.val[2]);
+}
+
+uid_t
+audit_token_to_ruid(audit_token_t atoken)
+{
+
+	return ((uid_t)atoken.val[3]);
+}
+
+gid_t
+audit_token_to_rgid(audit_token_t atoken)
+{
+
+	return ((gid_t)atoken.val[4]);
+}
+
+pid_t
+audit_token_to_pid(audit_token_t atoken)
+{
+
+	return ((pid_t)atoken.val[5]);
+}
+
+au_asid_t
+audit_token_to_asid(audit_token_t atoken)
+{
+
+	return ((au_asid_t)atoken.val[6]);
+}
+
+int
+audit_token_to_pidversion(audit_token_t atoken)
+{
+
+	return ((int)atoken.val[7]);
+}
 #endif /* !__APPLE__ */
 
 int
