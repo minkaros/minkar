@@ -31,8 +31,9 @@
  * them as interfaces appear); the worker (iface.c) runs an event loop for
  * its interface: DHCPv4/BOOTP/INFORM or a manual address (dhcp4.c, with an
  * ARP check of the address), IPv6 (ipv6.c: link-local, SLAAC, router
- * advertisements and their RDNSS servers; dhcp6.c: DHCPv6), resolv.conf,
- * and the control socket ipconfig(8) uses ("ipconfig set").
+ * advertisements and their RDNSS servers; dhcp6.c: DHCPv6), the state it
+ * publishes to configd (store.c) or, without configd, resolv.conf and the
+ * default route, and the control socket ipconfig(8) uses ("ipconfig set").
  */
 
 #ifndef _DHCPCLIENT_H
@@ -82,6 +83,7 @@ struct ifstate {
 
 	/* IPv4: what is configured, and the DHCP exchange in progress. */
 	struct lease	current;		/* addr 0: nothing configured */
+	struct in_addr	route;			/* the default route we added, 0 if none */
 	int		bpf;			/* DHCP replies */
 	int		state4;
 	time_t		next4;			/* monotonic deadline, 0: none */
@@ -96,6 +98,7 @@ struct ifstate {
 	/* IPv6: router advertisements and DHCPv6. */
 	int		ra_sock;
 	bool		ra_managed, ra_other;	/* the M and O flags last seen */
+	struct in6_addr	router6;		/* the last router that advertised, :: if none */
 	struct in6_addr	rdnss[MAX_DNS];
 	int		nrdnss;
 	int		sock6;
@@ -127,7 +130,7 @@ void serve(const char *name) __dead2;
 int set_address(const struct lease *l);
 void delete_address(struct in_addr addr);
 int default_route(int cmd, struct in_addr gateway);
-void write_resolv_conf(void);
+void publish_state(void);	/* to configd, or resolv.conf */
 void write_runtime_file(const char *suffix, const char *text);
 void apply_lease(const struct lease *l);
 void drop_lease(void);
@@ -147,6 +150,10 @@ void ipv6_stop(void);
 void ra_input(void);
 int set_address6(const struct in6_addr *addr, int prefixlen, uint32_t valid, uint32_t preferred);
 void delete_address6(const struct in6_addr *addr);
+
+/* store.c */
+bool store_active(void);
+bool store_publish(void);
 
 /* dhcp6.c */
 void dhcp6_update(void);	/* after an RA: start, change or stop DHCPv6 */

@@ -351,7 +351,7 @@ set_options(const struct reply6 *r)
 	ifs.ndns6 = r->ndns;
 	strlcpy(ifs.domain6, r->domain, sizeof(ifs.domain6));
 	if (changed)
-		write_resolv_conf();
+		publish_state();
 }
 
 static void
@@ -448,7 +448,7 @@ dhcp6_stop(void)
 	if (ifs.ndns6 != 0 || ifs.domain6[0] != '\0') {
 		ifs.ndns6 = 0;
 		ifs.domain6[0] = '\0';
-		write_resolv_conf();
+		publish_state();
 	}
 	write_runtime_file("dhcp6", NULL);
 	if (ifs.sock6 >= 0) {

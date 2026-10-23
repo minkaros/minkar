@@ -62,6 +62,8 @@
 
 #include "dhcpclient.h"
 
+#define STORE_RETRY	5	/* seconds between looks for our configd service */
+
 struct ifstate ifs;
 static int kev = -1;		/* kernel network events */
 
@@ -213,7 +215,7 @@ notify_resolver(void)
  * The name servers of DHCPv4 (or INFORM), DHCPv6 and the routers' RDNSS
  * options, with the first domain any of them gave.
  */
-void
+static void
 write_resolv_conf(void)
 {
 	char buf[INET6_ADDRSTRLEN];
@@ -245,6 +247,17 @@ write_resolv_conf(void)
 	fclose(f);
 	rename(RESOLV_CONF ".tmp", RESOLV_CONF);
 	notify_resolver();
+}
+
+/*
+ * What the worker configured: to configd when it has our service (store.c;
+ * IPMonitor writes resolv.conf), otherwise to resolv.conf directly.
+ */
+void
+publish_state(void)
+{
+	if (!store_publish())
+		write_resolv_conf();
 }
 
 /* RUN_DIR/<if>.<suffix>, replaced whole; text NULL removes it. */
@@ -315,11 +328,15 @@ apply_lease(const struct lease *l)
 		delete_address(ifs.current.addr);
 	if (!same && set_address(l) < 0)
 		return;
-	if (ifs.current.router.s_addr != 0 && (!same || route))
-		default_route(RTM_DELETE, ifs.current.router);
-	if (l->router.s_addr != 0 && (!same || route)) {
+	/* With configd, IPMonitor adds the default route of the primary service. */
+	if (ifs.route.s_addr != 0 && (!same || route || store_active())) {
+		default_route(RTM_DELETE, ifs.route);
+		ifs.route.s_addr = 0;
+	}
+	if (l->router.s_addr != 0 && (!same || route) && !store_active()) {
 		default_route(RTM_DELETE, l->router);	/* a stale one */
-		default_route(RTM_ADD, l->router);
+		if (default_route(RTM_ADD, l->router) == 0)
+			ifs.route = l->router;
 	}
 	if (!same || route) {
 		char a[INET_ADDRSTRLEN], r[INET_ADDRSTRLEN];
@@ -334,7 +351,7 @@ apply_lease(const struct lease *l)
 			    __builtin_popcount(ntohl(l->mask.s_addr)), r);
 	}
 	ifs.current = *l;
-	write_resolv_conf();
+	publish_state();
 	write_lease_file(l);
 }
 
@@ -344,12 +361,14 @@ drop_lease(void)
 	if (ifs.current.addr.s_addr == 0)
 		return;
 	logmsg(LOG_NOTICE, "%s removed", inet_ntoa(ifs.current.addr));
-	if (ifs.current.router.s_addr != 0)
-		default_route(RTM_DELETE, ifs.current.router);
+	if (ifs.route.s_addr != 0) {
+		default_route(RTM_DELETE, ifs.route);
+		ifs.route.s_addr = 0;
+	}
 	delete_address(ifs.current.addr);
 	write_runtime_file("lease", NULL);
 	memset(&ifs.current, 0, sizeof(ifs.current));
-	write_resolv_conf();
+	publish_state();
 }
 
 /* ---- The interface ----------------------------------------------------- */
@@ -398,11 +417,14 @@ interface_up(void)
 	close(s);
 }
 
-/* Kernel events of the data link layer: link up and down. */
+/*
+ * Kernel network events: link up and down, and IPv6 address changes (the
+ * kernel's SLAAC), which configd hears of from us.
+ */
 static void
 open_kev(void)
 {
-	struct kev_request req = { KEV_VENDOR_APPLE, KEV_NETWORK_CLASS, KEV_DL_SUBCLASS };
+	struct kev_request req = { KEV_VENDOR_APPLE, KEV_NETWORK_CLASS, KEV_ANY_SUBCLASS };
 
 	if ((kev = socket(PF_SYSTEM, SOCK_RAW, SYSPROTO_EVENT)) < 0)
 		return;
@@ -425,6 +447,14 @@ kev_input(void)
 		return;
 	snprintf(name, sizeof(name), "%s%u", nd->if_name, nd->if_unit);
 	if (strcmp(name, ifs.name) != 0)
+		return;
+	if (ev->kev_subclass == KEV_INET6_SUBCLASS) {
+		/* Every kev_in6_data starts with the net_event_data. */
+		if (store_active())
+			publish_state();
+		return;
+	}
+	if (ev->kev_subclass != KEV_DL_SUBCLASS)
 		return;
 	switch (ev->event_code) {
 	case KEV_DL_LINK_ON:
@@ -608,6 +638,9 @@ serve(const char *name)
 	ipv6_start();
 	dhcp4_start();
 
+	bool published = false;		/* configd has our service */
+	time_t store_check = 0;
+
 	for (;;) {
 		struct pollfd pfd[8];
 		int n = 0, timeout = 60000;
@@ -625,6 +658,8 @@ serve(const char *name)
 		if (ifs.next6 != 0)
 			timeout = ifs.next6 <= t ? 0 : (int)(ifs.next6 - t) * 1000 < timeout ?
 			    (int)(ifs.next6 - t) * 1000 : timeout;
+		if (!published && timeout > STORE_RETRY * 1000)
+			timeout = STORE_RETRY * 1000;
 
 		if (poll(pfd, (nfds_t)n, timeout) > 0) {
 			if (ready(pfd, n, ifs.bpf))
@@ -641,6 +676,21 @@ serve(const char *name)
 				kev_input();
 		}
 		t = now();
+		/*
+		 * configd may start (or create our service) after we have
+		 * configured: hand it the state, and the default route.
+		 */
+		if (!published && t >= store_check) {
+			store_check = t + STORE_RETRY;
+			if (store_active()) {
+				published = true;
+				if (ifs.route.s_addr != 0) {
+					default_route(RTM_DELETE, ifs.route);
+					ifs.route.s_addr = 0;
+				}
+				publish_state();
+			}
+		}
 		if (ifs.next4 != 0 && t >= ifs.next4)
 			dhcp4_timeout();
 		if (ifs.next6 != 0 && t >= ifs.next6)

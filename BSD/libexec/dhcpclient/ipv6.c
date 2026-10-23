@@ -222,7 +222,7 @@ ipv6_stop(void)
 	ifs.ra_managed = ifs.ra_other = false;
 	if (ifs.nrdnss != 0) {
 		ifs.nrdnss = 0;
-		write_resolv_conf();
+		publish_state();
 	}
 	if (ifs.method6 == M6_MANUAL)
 		delete_address6(&ifs.manual6);
@@ -297,7 +297,19 @@ ra_input(void)
 		memcpy(ifs.rdnss, found, sizeof(found[0]) * (size_t)nfound);
 		ifs.nrdnss = nfound;
 		logmsg(LOG_NOTICE, "%d IPv6 name server(s) from router advertisements", nfound);
-		write_resolv_conf();
+		publish_state();
+	}
+
+	/* The router, for configd's IPv6 state (the kernel adds its route). */
+	{
+		struct in6_addr router = ntohs(ra->nd_ra_router_lifetime) != 0 ?
+		    from.sin6_addr : in6addr_any;
+
+		if (memcmp(&router, &ifs.router6, sizeof(router)) != 0) {
+			ifs.router6 = router;
+			if (store_active())
+				publish_state();
+		}
 	}
 
 	managed = (ra->nd_ra_flags_reserved & ND_RA_FLAG_MANAGED) != 0;

@@ -3,7 +3,7 @@
 SUBDIR =
 
 PROG =	dhcpclient
-SRCS =	main.c iface.c dhcp4.c ipv6.c dhcp6.c
+SRCS =	main.c iface.c dhcp4.c ipv6.c dhcp6.c store.c
 MAN =
 
 CFLAGS = --sysroot=${RAVYN_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
@@ -11,6 +11,9 @@ CFLAGS = --sysroot=${RAVYN_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
 	-I${RAVYN_SDKROOT}/System/Library/Frameworks/System.framework/PrivateHeaders
 LDFLAGS = --sysroot=${RAVYN_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
 	-fuse-ld=${LD}
+# configd (store.c); the CoreFoundation headers warn under -Wsystem-headers.
+CFLAGS.store.c = -Wno-system-headers
+LDADD =	-framework SystemConfiguration -framework CoreFoundation
 
 all: to-sysroot
 

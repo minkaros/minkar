@@ -13,7 +13,10 @@
 #   mDNSPlatformSendUDP() sends from;
 # - received packets reach the core with their real destination port
 #   (always 5353 before, so no unicast answer matched its question).
-# dhcpclient sends SIGHUP when it rewrites resolv.conf.
+# Who rewrites resolv.conf tells it: configd's IPMonitor posts
+# com.apple.system.config.network_change.dns, which PosixDaemon.c registers
+# to receive as SIGHUP (ravynOS change); dhcpclient, without configd,
+# sends SIGHUP.
 
 SUBDIR =
 MK_WERROR = no
