@@ -878,10 +878,10 @@ launch_msg_internal(launch_data_t d)
 	mach_msg_type_number_t requestCnt;
 	mach_port_array_t request_fds;
 	mach_msg_type_number_t request_fdsCnt;
-	vm_offset_t reply ;
-	mach_msg_type_number_t replyCnt;
-	mach_port_array_t reply_fds;
-	mach_msg_type_number_t reply_fdsCnt;
+	vm_offset_t reply = 0;
+	mach_msg_type_number_t replyCnt = 0;
+	mach_port_array_t reply_fds = NULL;
+	mach_msg_type_number_t reply_fdsCnt = 0;
 	launch_data_t ldreply = 0;
 	size_t i;
 	size_t nfds = 0;
@@ -938,6 +938,9 @@ launch_msg_internal(launch_data_t d)
 		&reply_fdsCnt,
 		0);
 
+	/* request went out with "dealloc" (job.defs): the kernel has unmapped
+	 * it, and the reply may now live at the same address. */
+	request = 0;
 	if (kr != KERN_SUCCESS)
 		goto out_bad;
 
@@ -964,9 +967,15 @@ launch_msg_internal(launch_data_t d)
 		goto out_bad;
 	}
 
-	mig_deallocate(request, requestCnt);
+	/* The unpacked reply points into the reply buffer: copy it out, then
+	 * give the buffer and the descriptor ports' array back. */
+	launch_data_t result = launch_data_copy(ldreply);
+	mig_deallocate(reply, replyCnt);
+	if (reply_fds) {
+		mig_deallocate((vm_address_t)reply_fds, reply_fdsCnt);
+	}
 
-	return (ldreply);
+	return (result);
 
 out_bad:
 	for (i = 0; i < nfds; i++) {
@@ -981,8 +990,9 @@ out_bad:
 		mig_deallocate(request, requestCnt);
 	}
 
-	if (ldreply) {
-		launch_data_free(ldreply);
+	/* ldreply, if any, lives in the reply buffer. */
+	if (reply) {
+		mig_deallocate(reply, replyCnt);
 	}
 
 	return (NULL);

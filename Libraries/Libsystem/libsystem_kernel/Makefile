@@ -243,6 +243,14 @@ ${.OBJDIR}/libsyscalls.a: ${XNU}/bsd/kern/syscalls.master copy_defs
 	${XNU}/libsyscall/xcodescripts/compile-syscalls.pl \
 	  ${.OBJDIR}/sys/stubs.list ${.TARGET}
 
+# The MIG interfaces libsystem_kernel implements the client side of (the
+# MIGS list of libsyscall's mach_install_mig.sh, plus netname).
+MACH_USER_DEFS = clock.defs clock_priv.defs clock_reply.defs exc.defs \
+	host_priv.defs host_security.defs lock_set.defs mach_host.defs \
+	mach_port.defs mach_voucher.defs memory_entry.defs processor.defs \
+	processor_set.defs restartable.defs task.defs thread_act.defs \
+	vm_map.defs mach_vm.defs servers/netname.defs
+
 ${.OBJDIR}/libmach.a: ${MACH_DEFS}
 	mkdir -p ${.OBJDIR}/obj/mig_hdr/include/mach \
 	  ${.OBJDIR}/obj/mig_hdr/include/servers \
@@ -253,11 +261,20 @@ ${.OBJDIR}/libmach.a: ${MACH_DEFS}
 	BUILT_PRODUCTS_DIR=${.OBJDIR} \
 	DEVELOPER_DIR=${ROOT_BINARY_DIR}/Developer PATH=${TOOLS}:${PATH} \
 	CFLAGS="${CFLAGS}" ${XNU}/libsyscall/xcodescripts/mach_install_mig.sh
-	set -e; for f in ${.OBJDIR}/obj/*User.c; \
-	do \
-	    ${CC} ${CFLAGS} -o $$f.o -c $$f; \
+	# The script generates headers with "-arch i386", as Apple's does, and
+	# leaves i386 user stubs behind as a side effect. The library needs
+	# x86_64 ones: with __LP64__, libsyscall's vm_map.defs becomes the
+	# mach_vm interface, and pointer-sized types have the kernel's size.
+	rm -rf ${.OBJDIR}/obj64 && mkdir -p ${.OBJDIR}/obj64
+	set -e; cd ${.OBJDIR}/obj64; \
+	for d in ${MACH_USER_DEFS:S|^|${XNU}/libsyscall/mach/|}; do \
+	    ${MIG} ${MIG_FLAGS} -server /dev/null $$d; \
 	done
-	${AR} rcs ${.TARGET} ${.OBJDIR}/obj/*.o
+	set -e; for f in ${.OBJDIR}/obj64/*User.c; \
+	do \
+	    ${CC} -I${.OBJDIR}/obj64 ${CFLAGS} -o $$f.o -c $$f; \
+	done
+	${AR} rcs ${.TARGET} ${.OBJDIR}/obj64/*.o
 
 .for def in thread_act.defs mach_port.defs vm_map.defs mach_vm.defs
 ${.OBJDIR}/mach/${def:R}_internal.h: ${XNU}/libsyscall/mach/${def}

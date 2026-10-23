@@ -81,7 +81,11 @@ typedef char * SEL;
 #endif
 extern id objc_msgSend(id, SEL, ...);
 
-#define CFTYPE_IS_OBJC(obj) (obj && *(uintptr_t *)obj == \
+/* A CF object whose isa is 0 (no bridged class registered, e.g. without
+ * Foundation) is not an Objective-C object: check isa before the table,
+ * as CF_IS_OBJC does. */
+#define CFTYPE_IS_OBJC(obj) (obj && *(uintptr_t *)obj != 0 && \
+    *(uintptr_t *)obj == \
     __CFRuntimeObjCClassTable[(*((uintptr_t *)obj+1) & 0xff00) >> 8])
 #define CFTYPE_OBJC_FUNCDISPATCH0(rettype, obj, sel) \
     if (CFTYPE_IS_OBJC(obj)) \

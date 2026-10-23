@@ -7,14 +7,12 @@ SRCS = libnotify.c notify_client.c table.c
 SRCS += notify_ipcUser.c
 SLF = /System/Library/Frameworks
 
-# FIXME: zoe 2/10/26 - Should generate notify_probes.h from .d with dtrace
+# notify_probes.h stands in for the header dtrace -h would generate from
+# notify_probes.d: the probes are no-ops.
 
 CFLAGS = --sysroot=${RAVYN_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
 	-DPRIVATE -D__APPLE__ -fblocks -DDISPATCH_USE_DTRACE=0 \
-	-DTARGET_OS_BRIDGE=0 -DNOTIFY_POST=notify_post \
-	-DNOTIFY_CHECK=notify_check -DNOTIFY_DELIVER_END=deliver_end \
-	-DNOTIFY_DELIVER_START=deliver_start \
-	-DNOTIFY_REGISTER_MACH_PORT=notify_register_mach_port \
+	-DTARGET_OS_BRIDGE=0 \
 	-w -Wno-int-conversion -Wno-implicit-int \
 	-I${.CURDIR}/../liblaunch \
 	-I${.CURDIR}/../private \

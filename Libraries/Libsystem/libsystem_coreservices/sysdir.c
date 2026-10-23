@@ -3,6 +3,7 @@
  *    https://www.manpagez.com/man/3/sysdir/ and
  *    https://github.com/artichoke/sysdir-rs/blob/trunk/src/sys.rs
  * Copyright (C) 2026 Zoe Knox <zoe@pixin.net>
+ * Copyright (c) 2026 The ravynOS contributors (enumeration rewrite)
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -32,8 +33,6 @@
 #include <limits.h>
 #include <unistd.h>
 
-#define ITER_ALL_DOMAINS    0x80000000
-#define ITER_ALL_APPS       0x40000000
 
 static const char* _base_paths[__SYSDIR_DIRECTORY_MAX] = {
     "NULL",
@@ -81,28 +80,6 @@ sysdir_get_next_search_path_enumeration(
 
 
 
-static sysdir_search_path_domain_mask_t
-_next_domain(sysdir_search_path_domain_mask_t domain)
-{
-    int all_domains = domain & 0x8000;
-    sysdir_search_path_domain_mask_t next = 0;
-
-    if (!all_domains)
-        return 0; /* there is no next domain */
-
-    domain &= 0x000F;
-    switch (domain) {
-        case SYSDIR_DOMAIN_MASK_USER:
-            next = SYSDIR_DOMAIN_MASK_LOCAL | all_domains; break;
-        case SYSDIR_DOMAIN_MASK_LOCAL:
-            next = SYSDIR_DOMAIN_MASK_NETWORK | all_domains; break;
-        case SYSDIR_DOMAIN_MASK_NETWORK:
-            next = SYSDIR_DOMAIN_MASK_SYSTEM | all_domains; break;
-        default: break;
-    }
-    return next;
-}
-
 static char*
 _domain_path(sysdir_search_path_domain_mask_t mask)
 {
@@ -140,14 +117,88 @@ _prepend_next_root(char* path)
 }
     
 
+/*
+ * Enumeration state (ravynOS rewrite; same API as macOS):
+ *
+ *   bits  0-15  the directory asked for (never 0, so a state is never 0)
+ *   bits 16-19  the domains still to visit (SYSDIR_DOMAIN_MASK_*)
+ *   bits 20-23  for ALL_APPLICATIONS / ALL_LIBRARIES, the next directory
+ *               of the list within the current domain
+ *
+ * get_next fills path and returns a nonzero state while there is a result,
+ * and returns 0 (path left empty) once there are no more; callers loop on
+ * while ((state = sysdir_get_next_...(state, path)) != 0).
+ */
+#define STATE_DIR(s)		((s) & 0xFFFF)
+#define STATE_DOMAINS(s)	(((s) >> 16) & 0xF)
+#define STATE_INDEX(s)		(((s) >> 20) & 0xF)
+#define MAKE_STATE(dir, domains, index) \
+	((sysdir_search_path_enumeration_state)(dir) | ((domains) & 0xF) << 16 | \
+	 ((index) & 0xF) << 20)
+
+/* Domains in the order macOS visits them. */
+static const sysdir_search_path_domain_mask_t _domain_order[] = {
+    SYSDIR_DOMAIN_MASK_USER, SYSDIR_DOMAIN_MASK_LOCAL,
+    SYSDIR_DOMAIN_MASK_NETWORK, SYSDIR_DOMAIN_MASK_SYSTEM,
+};
+
+static const sysdir_search_path_directory_t _all_applications[] = {
+    SYSDIR_DIRECTORY_APPLICATION, SYSDIR_DIRECTORY_ADMIN_APPLICATION,
+    SYSDIR_DIRECTORY_DEVELOPER_APPLICATION, SYSDIR_DIRECTORY_DEMO_APPLICATION,
+};
+
+static const sysdir_search_path_directory_t _all_libraries[] = {
+    SYSDIR_DIRECTORY_LIBRARY, SYSDIR_DIRECTORY_DEVELOPER,
+};
+
+/* The directories a request covers: one, or the ALL_ list. */
+static size_t
+_directories(sysdir_search_path_directory_t dir,
+             const sysdir_search_path_directory_t **list)
+{
+    static sysdir_search_path_directory_t single;
+
+    if (dir == SYSDIR_DIRECTORY_ALL_APPLICATIONS) {
+        *list = _all_applications;
+        return sizeof(_all_applications) / sizeof(_all_applications[0]);
+    }
+    if (dir == SYSDIR_DIRECTORY_ALL_LIBRARIES) {
+        *list = _all_libraries;
+        return sizeof(_all_libraries) / sizeof(_all_libraries[0]);
+    }
+    single = dir;
+    *list = &single;
+    return 1;
+}
+
+/* Whether dir exists in domain (the user's own folders are only in ~). */
+static int
+_exists_in(sysdir_search_path_directory_t dir, sysdir_search_path_domain_mask_t domain)
+{
+    switch (dir) {
+        case SYSDIR_DIRECTORY_DOCUMENT:
+        case SYSDIR_DIRECTORY_DESKTOP:
+        case SYSDIR_DIRECTORY_AUTOSAVED_INFORMATION:
+        case SYSDIR_DIRECTORY_DOWNLOADS:
+        case SYSDIR_DIRECTORY_MOVIES:
+        case SYSDIR_DIRECTORY_MUSIC:
+        case SYSDIR_DIRECTORY_PICTURES:
+        case SYSDIR_DIRECTORY_SHARED_PUBLIC:
+            return domain == SYSDIR_DOMAIN_MASK_USER;
+        case SYSDIR_DIRECTORY_USER:
+            return domain == SYSDIR_DOMAIN_MASK_LOCAL || domain == SYSDIR_DOMAIN_MASK_NETWORK;
+        default:
+            return dir > 0 && dir < SYSDIR_DIRECTORY_ALL_APPLICATIONS &&
+                _base_paths[dir] != NULL;
+    }
+}
+
 sysdir_search_path_enumeration_state
 sysdir_start_search_path_enumeration(
         sysdir_search_path_directory_t dir,
         sysdir_search_path_domain_mask_t domain_mask)
 {
-    if (domain_mask == SYSDIR_DOMAIN_MASK_ALL)
-        return ITER_ALL_DOMAINS | (SYSDIR_DOMAIN_MASK_USER << 16) | dir;
-    return (domain_mask << 16) | dir;
+    return MAKE_STATE(dir, domain_mask & 0xF, 0);
 }
 
 sysdir_search_path_enumeration_state
@@ -155,139 +206,104 @@ sysdir_get_next_search_path_enumeration(
         sysdir_search_path_enumeration_state state,
         char* path)
 {
-    sysdir_search_path_enumeration_state next_state = 0; /* end of search */
-    sysdir_search_path_directory_t dir = (state & 0xFFFF);
-    sysdir_search_path_domain_mask_t domain_mask = (state & 0xFFFF0000) >> 16;
-    int has_entry = 1;
-    sysdir_search_path_enumeration_state state_flags = 0;
-    
+    sysdir_search_path_directory_t dir = STATE_DIR(state);
+    unsigned int domains = STATE_DOMAINS(state);
+    unsigned int index = STATE_INDEX(state);
+    const sysdir_search_path_directory_t *list;
+    size_t count = _directories(dir, &list);
+
     if (path)
         memset(path, 0, PATH_MAX);
 
-    if ((domain_mask == SYSDIR_DOMAIN_MASK_USER && dir == SYSDIR_DIRECTORY_USER)
-        || ((domain_mask & 0x000f) != SYSDIR_DOMAIN_MASK_USER
-         && (dir == SYSDIR_DIRECTORY_DOCUMENT ||
-             dir == SYSDIR_DIRECTORY_DESKTOP ||
-             dir == SYSDIR_DIRECTORY_AUTOSAVED_INFORMATION ||
-             dir == SYSDIR_DIRECTORY_DOWNLOADS ||
-             dir == SYSDIR_DIRECTORY_MOVIES ||
-             dir == SYSDIR_DIRECTORY_MUSIC ||
-             dir == SYSDIR_DIRECTORY_PICTURES ||
-             dir == SYSDIR_DIRECTORY_SHARED_PUBLIC))) {
-        has_entry = 0;
-    }
-    else if (dir == SYSDIR_DIRECTORY_ALL_APPLICATIONS) {
-        dir = SYSDIR_DIRECTORY_APPLICATION;
-        domain_mask = SYSDIR_DOMAIN_MASK_USER | ITER_ALL_DOMAINS >> 16
-            | ITER_ALL_APPS >> 16;
-        state_flags = ITER_ALL_APPS|ITER_ALL_DOMAINS;
-    }
-    else if (dir == SYSDIR_DIRECTORY_ALL_LIBRARIES) {
-        dir = SYSDIR_DIRECTORY_LIBRARY;
-        domain_mask = SYSDIR_DOMAIN_MASK_ALL;
-    } else {
-        state_flags = (state & 0xF0000000);
-    }
+    for (size_t d = 0; d < sizeof(_domain_order) / sizeof(_domain_order[0]); d++) {
+        sysdir_search_path_domain_mask_t domain = _domain_order[d];
 
-    if (path && has_entry) {
-        int path_len = _prepend_next_root(path);
-        char* p = _domain_path(domain_mask);
-        if (p) {
-            strncat(path, p, PATH_MAX - path_len - 1);
-            path_len += strlen(p);
+        if (!(domains & domain))
+            continue;
+        for (; index < count; index++) {
+            sysdir_search_path_directory_t sub = list[index];
+            if (!_exists_in(sub, domain))
+                continue;
+
+            if (path) {
+                unsigned int len = _prepend_next_root(path);
+                snprintf(path + len, PATH_MAX - len, "%s/%s", _domain_path(domain),
+                         _base_paths[sub]);
+            }
+            /* Next time: the following directory, or the next domain. */
+            if (index + 1 < count)
+                return MAKE_STATE(dir, domains, index + 1);
+            return MAKE_STATE(dir, domains & ~domain, 0);
         }
-        if (path_len + 1 < PATH_MAX - 1)
-            path[path_len++] = '/';
-        strncat(path, _base_paths[dir], PATH_MAX - path_len - 1);
+        domains &= ~domain;
+        index = 0;
     }
-
-    sysdir_search_path_domain_mask_t next_domain = _next_domain(domain_mask);
-    if (next_domain) {
-        next_state = next_domain << 16 | state_flags | dir;
-    }
-    else if (state_flags & ITER_ALL_APPS) {
-        switch (dir) {
-            case SYSDIR_DIRECTORY_APPLICATION:
-                next_state = ITER_ALL_DOMAINS | SYSDIR_DOMAIN_MASK_USER << 16
-                    | SYSDIR_DIRECTORY_DEMO_APPLICATION | ITER_ALL_APPS;
-                break;
-            case SYSDIR_DIRECTORY_DEMO_APPLICATION:
-                next_state = ITER_ALL_DOMAINS | SYSDIR_DOMAIN_MASK_USER << 16
-                    | SYSDIR_DIRECTORY_DEVELOPER_APPLICATION | ITER_ALL_APPS;
-                break;
-            case SYSDIR_DIRECTORY_DEVELOPER_APPLICATION:
-                next_state = ITER_ALL_DOMAINS | SYSDIR_DOMAIN_MASK_USER << 16
-                    | SYSDIR_DIRECTORY_ADMIN_APPLICATION | ITER_ALL_APPS;
-                break;
-            default: break;
-        }
-    }
-
-    return next_state;
+    return 0;
 }
-
 
 #if TEST
 #include <assert.h>
 
+/* Every result for dir in mask, space-separated, the way callers loop. */
+static const char *
+results(sysdir_search_path_directory_t dir, sysdir_search_path_domain_mask_t mask)
+{
+    static char all[4096];
+    char path[PATH_MAX];
+    sysdir_search_path_enumeration_state state;
+
+    all[0] = '\0';
+    state = sysdir_start_search_path_enumeration(dir, mask);
+    while ((state = sysdir_get_next_search_path_enumeration(state, path)) != 0) {
+        size_t n = strlen(all);
+        snprintf(all + n, sizeof(all) - n, "%s%s", n > 0 ? " " : "", path);
+    }
+    return all;
+}
+
+static int failures;
+
+static void
+expect(const char *what, const char *got, const char *want)
+{
+    if (strcmp(got, want) != 0) {
+        printf("FAIL %s\n  got  [%s]\n  want [%s]\n", what, got, want);
+        failures++;
+    }
+}
+
 int main(int argc, char** argv)
 {
-    char path[PATH_MAX];
-    sysdir_search_path_enumeration_state state = 0;
-    sysdir_search_path_directory_t dir = 0;
-    sysdir_search_path_domain_mask_t domain = 0;
+    (void)argc;
+    (void)argv;
+    unsetenv("NEXT_ROOT");
 
-    printf("T1: get applications directories - ");
-    state = sysdir_start_search_path_enumeration(SYSDIR_DIRECTORY_APPLICATION,
-                                                 SYSDIR_DOMAIN_MASK_ALL);
-    assert(state == 0x80010001);
-    
-    do {
-        state = sysdir_get_next_search_path_enumeration(state, path);
-        printf("%s ", path);
-        assert(state & ITER_ALL_DOMAINS || state == 0);
-    } while(state != 0);
-    printf("\n");
+    expect("system library", results(SYSDIR_DIRECTORY_LIBRARY, SYSDIR_DOMAIN_MASK_SYSTEM),
+        "/System/Library");
+    expect("local+system library", results(SYSDIR_DIRECTORY_LIBRARY,
+        SYSDIR_DOMAIN_MASK_LOCAL | SYSDIR_DOMAIN_MASK_SYSTEM), "/Library /System/Library");
+    expect("all libraries", results(SYSDIR_DIRECTORY_LIBRARY, SYSDIR_DOMAIN_MASK_ALL),
+        "~/Library /Library /Network/Library /System/Library");
+    expect("desktop", results(SYSDIR_DIRECTORY_DESKTOP, SYSDIR_DOMAIN_MASK_ALL), "~/Desktop");
+    expect("desktop, system", results(SYSDIR_DIRECTORY_DESKTOP, SYSDIR_DOMAIN_MASK_SYSTEM), "");
+    expect("users", results(SYSDIR_DIRECTORY_USER, SYSDIR_DOMAIN_MASK_ALL),
+        "/Users /Network/Users");
+    expect("user caches", results(SYSDIR_DIRECTORY_CACHES, SYSDIR_DOMAIN_MASK_USER),
+        "~/Library/Caches");
+    expect("all applications, local", results(SYSDIR_DIRECTORY_ALL_APPLICATIONS,
+        SYSDIR_DOMAIN_MASK_LOCAL), "/Applications /Applications/Utilities "
+        "/Library/Developer/Applications /Applications/Demos");
+    expect("all libraries, user+local", results(SYSDIR_DIRECTORY_ALL_LIBRARIES,
+        SYSDIR_DOMAIN_MASK_USER | SYSDIR_DOMAIN_MASK_LOCAL),
+        "~/Library ~/Library/Developer /Library /Library/Developer");
+    expect("no domains", results(SYSDIR_DIRECTORY_LIBRARY, 0), "");
 
+    setenv("NEXT_ROOT", "/Volumes/Other", 1);
+    expect("NEXT_ROOT", results(SYSDIR_DIRECTORY_LIBRARY, SYSDIR_DOMAIN_MASK_SYSTEM),
+        "/Volumes/Other//System/Library");
 
-    printf("T2: get desktop directories - ");
-    state = sysdir_start_search_path_enumeration(SYSDIR_DIRECTORY_DESKTOP,
-                                                 SYSDIR_DOMAIN_MASK_ALL);
-    assert(state == 0x8001000C);
-    
-    do {
-        state = sysdir_get_next_search_path_enumeration(state, path);
-        printf("%s ", path);
-        assert(state & ITER_ALL_DOMAINS || state == 0);
-    } while(state != 0);
-    printf("\n");
-
-
-    printf("T3: get system library directories - ");
-    state = sysdir_start_search_path_enumeration(SYSDIR_DIRECTORY_LIBRARY,
-                                                 SYSDIR_DOMAIN_MASK_SYSTEM);    
-    state = sysdir_get_next_search_path_enumeration(state, path);
-    printf("%s ", path);
-    assert(state == 0);
-    printf("\n");
-
-    printf("T4: get user cache directories - ");
-    state = sysdir_start_search_path_enumeration(SYSDIR_DIRECTORY_CACHES,
-                                                 SYSDIR_DOMAIN_MASK_USER);    
-    state = sysdir_get_next_search_path_enumeration(state, path);
-    printf("%s ", path);
-    assert(state == 0);
-    printf("\n");
-
-    printf("T5: get all application directories - ");
-    state = sysdir_start_search_path_enumeration(SYSDIR_DIRECTORY_ALL_APPLICATIONS,
-                                                 SYSDIR_DOMAIN_MASK_ALL);
-    do {
-        state = sysdir_get_next_search_path_enumeration(state, path);
-        printf("%s ", path);
-        assert(state & ITER_ALL_DOMAINS || state == 0);
-    } while(state != 0);
-    printf("\n");
+    printf("%s: %d failures\n", failures ? "FAIL" : "PASS", failures);
+    return failures != 0;
 }
 
 #endif
