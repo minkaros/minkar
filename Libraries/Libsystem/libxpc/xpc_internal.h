@@ -122,6 +122,9 @@ struct xpc_object {
 #ifdef __MACH__
 	audit_token_t *		xo_audit_token;
 #endif
+	/* A received message: the connection and id it came with (not retained). */
+	void *			xo_connection;
+	uint64_t		xo_seqid;
 	TAILQ_ENTRY(xpc_object) xo_link;
 };
 

@@ -133,7 +133,8 @@ _xpc_prim_create_flags(int type, xpc_u value, size_t size, uint16_t flags)
 {
 	struct xpc_object *xo;
 
-	if ((xo = malloc(sizeof(*xo))) == NULL)
+	/* Zeroed: the audit token, connection and id start empty. */
+	if ((xo = calloc(1, sizeof(*xo))) == NULL)
 		return (NULL);
 
 	xo->xo_size = size;

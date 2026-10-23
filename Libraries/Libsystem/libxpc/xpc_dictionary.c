@@ -184,11 +184,27 @@ xpc_dictionary_create_reply(xpc_object_t original)
 {
 	struct xpc_object *xo_orig;
 
+	struct xpc_object *reply;
+
 	xo_orig = original;
 	if ((xo_orig->xo_flags & _XPC_FROM_WIRE) == 0)
 		return (NULL);
 
-	return xpc_dictionary_create(NULL, NULL, 0);
+	reply = xpc_dictionary_create(NULL, NULL, 0);
+	if (reply != NULL) {
+		reply->xo_connection = xo_orig->xo_connection;
+		reply->xo_seqid = xo_orig->xo_seqid;
+	}
+	return (reply);
+}
+
+xpc_connection_t
+xpc_dictionary_get_remote_connection(xpc_object_t xdict)
+{
+	struct xpc_object *xo;
+
+	xo = xdict;
+	return ((xpc_connection_t)xo->xo_connection);
 }
 
 #ifdef MACH

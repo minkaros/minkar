@@ -180,7 +180,10 @@ xpc_connection_send_message(xpc_connection_t xconn,
 	uint64_t id;
 
 	conn = (struct xpc_connection *)xconn;
-	id = xpc_dictionary_get_uint64(message, XPC_SEQID);
+	/* A reply (xpc_dictionary_create_reply) carries its request's id. */
+	id = ((struct xpc_object *)message)->xo_seqid;
+	if (id == 0)
+		id = xpc_dictionary_get_uint64(message, XPC_SEQID);
 
 	if (id == 0)
 		id = XPC_CONNECTION_NEXT_ID(conn);
@@ -439,6 +442,12 @@ xpc_connection_dispatch_callback(struct xpc_connection *conn,
 {
 	struct xpc_pending_call *call;
 
+	/* A reply to this message goes back on this connection with this id. */
+	if (result != NULL && xpc_get_type(result) == XPC_TYPE_DICTIONARY) {
+		((struct xpc_object *)result)->xo_connection = conn;
+		((struct xpc_object *)result)->xo_seqid = id;
+	}
+
 	TAILQ_FOREACH(call, &conn->xc_pending, xp_link) {
 		if (call->xp_id == id) {
 			dispatch_async(conn->xc_target_queue, ^{
@@ -526,4 +535,11 @@ xpc_connection_recv_mach_message(void *context)
 		});
 	} else
 		xpc_connection_dispatch_callback(peer, result, id);
+}
+/* No entitlements on ravynOS (no code signing yet): every peer has none. */
+xpc_object_t
+xpc_connection_copy_entitlement_value(xpc_connection_t connection __unused,
+    const char *entitlement __unused)
+{
+	return (NULL);
 }

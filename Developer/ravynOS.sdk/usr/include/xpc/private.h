@@ -46,6 +46,20 @@ _xpc_runtime_is_app_sandboxed(void);
 
 
 /**
+ * @function xpc_connection_copy_entitlement_value
+ *
+ * @abstract
+ * Returns the value of the named entitlement of the connection's peer, or
+ * NULL if it has none. ravynOS has no code signing entitlements yet, so
+ * every peer is unentitled: this always returns NULL.
+ */
+XPC_EXPORT XPC_RETURNS_RETAINED
+xpc_object_t
+xpc_connection_copy_entitlement_value(xpc_connection_t connection,
+    const char *entitlement);
+
+
+/**
  * @function xpc_create_from_plist
  *
  * @abstract
