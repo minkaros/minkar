@@ -1,0 +1,46 @@
+OpenSSH for ravynOS
+===================
+
+openssh/ is OpenSSH portable 10.6p1, unmodified:
+
+  https://cdn.openbsd.org/pub/OpenBSD/OpenSSH/portable/openssh-10.6p1.tar.gz
+  sha256 a9dc9565dffe8640f64d863cd29a32bc4a3dbdec0566a7fc44c5d6ee767d5f39
+  (signature checked with the OpenSSH release key, 7168 B983 815A 5EEF
+  59A4 ADFD 2A3F 414E 7360 60BA)
+
+Its licences are BSD-style, ISC, MIT and public domain (see
+openssh/LICENCE); it contains no GPL code. It is built without OpenSSL:
+only the internal cryptography is used (Ed25519, Curve25519, ML-KEM,
+sntrup761, ChaCha20-Poly1305, AES-CTR, UMAC/HMAC), so host and user keys
+are Ed25519.
+
+Our files:
+
+* Makefile - builds libssh.a and the programs with bmake; the source lists
+  follow openssh/Makefile.in.
+* config.h - produced by openssh/configure, cross-compiling with the
+  ravynOS toolchain and SDK:
+
+    configure --host=x86_64-apple-darwin19 --prefix=/usr --sysconfdir=/etc/ssh \
+      --libexecdir=/usr/libexec --with-privsep-path=/var/empty \
+      --with-privsep-user=_sshd --with-pid-dir=/var/run --without-openssl \
+      --with-pam --with-zlib=no --with-sandbox=no --disable-strip \
+      --without-hardening --disable-security-key --disable-pkcs11
+
+  (CC is the toolchain's clang; CPPFLAGS, CFLAGS and LDFLAGS all carry
+  --sysroot=<SDK> -mmacos-version-min=10.15, or the header checks see the
+  host's headers.)
+  Run it again when updating OpenSSH.
+* include/ - the headers configure makes in openbsd-compat/include for
+  what the SDK lacks (sys/tree.h, sys/queue.h, glob.h, endian.h, netgroup.h).
+* ravyn-getrrsetbyname.c - replaces openbsd-compat/getrrsetbyname.c, which
+  needs libresolv (not built yet): DNS lookups of SSHFP records fail, so
+  VerifyHostKeyDNS does nothing.
+* sshd_config, pam.d/sshd - the server configuration and its PAM policy.
+* sshd-keygen-wrapper - creates missing host keys, then runs sshd; launchd
+  starts it (SystemLibrary/LaunchDaemons/com.openssh.sshd.plist).
+
+Installed: ssh, scp, sftp, ssh-keygen, ssh-add, ssh-agent and ssh-keyscan
+in /usr/bin; sshd in /usr/sbin; sshd-session, sshd-auth and sftp-server in
+/usr/libexec; the configuration in /etc/ssh. The privilege separation user
+is _sshd (uid 75), as on macOS.

@@ -1,0 +1,24 @@
+# sshd configuration for ravynOS; see sshd_config(5). Commented lines are
+# the defaults.
+
+#Port 22
+#ListenAddress 0.0.0.0
+#ListenAddress ::
+
+# Host keys: sshd-keygen-wrapper creates the missing ones at startup.
+#HostKey /etc/ssh/ssh_host_ed25519_key
+
+#PermitRootLogin prohibit-password
+#PubkeyAuthentication yes
+AuthorizedKeysFile	.ssh/authorized_keys
+
+# Passwords go through PAM (/etc/pam.d/sshd) as keyboard-interactive.
+#PasswordAuthentication yes
+KbdInteractiveAuthentication yes
+UsePAM yes
+
+#X11Forwarding no
+#PrintMotd yes
+#UseDNS no
+
+Subsystem	sftp	/usr/libexec/sftp-server

@@ -18,7 +18,8 @@ Tested on Ubuntu 22.04 (x86-64). Package names are Debian/Ubuntu ones.
 * System build: `bmake make csh bison flex`, and `byacc` (Berkeley yacc,
   public domain: libxkbcommon's parser is generated with it, not bison)
 * Bootable image and boot test: `nasm gdisk dosfstools hfsprogs`,
-  `qemu-system-x86 ovmf` (QEMU uses KVM when /dev/kvm exists, TCG otherwise)
+  `qemu-system-x86 ovmf` (QEMU uses KVM when /dev/kvm exists, TCG otherwise),
+  and `openssh-client` for gate M2
 
 Symlink `cc` and `c++` to clang to avoid accidental use of gcc.
 
@@ -77,6 +78,24 @@ Gates (see the architecture plan):
   Images have no root password unless ROOT_PASSWORD is given (hashed with
   the host's `openssl passwd -6`). For launchd bring-up, LAUNCHD_DEBUG=1
   makes launchd and launchctl log everything to the console.
+* M2 - M2-login, then the network: the e1000 NIC (RavynE1000 on our
+  IONetworkingFamily) comes up as en0, dhcpclient gets a lease from QEMU
+  (10.0.2.15), and root logs in over ssh from the host with a key; the
+  remote shell answers. QEMU forwards host port 2222 (BOOTTEST_SSH_PORT)
+  to the guest's port 22. `boottest-key` makes the key pair once:
+
+      sudo env SUBDIR= bmake -m /work/ravynos/BSD/share/mk boottest-key
+      sudo env SUBDIR= INIT= ROOT_PASSWORD=secret \
+          ROOT_AUTHORIZED_KEYS=../build/boottest-ssh/id_ed25519.pub \
+          bmake -m /work/ravynos/BSD/share/mk image
+      sudo env SUBDIR= GATE=M2 ROOT_PASSWORD=secret \
+          BOOTTEST_SSH_KEY=../build/boottest-ssh/id_ed25519 \
+          bmake -m /work/ravynos/BSD/share/mk boottest
+
+  ROOT_AUTHORIZED_KEYS installs any public key file as root's
+  authorized_keys. sshd keeps OpenSSH's default PermitRootLogin
+  prohibit-password: root logs in over ssh with a key, other users with
+  their password (PAM). `boottest.py --nic e1000e` tests the 82574L.
 
 Until launchd runs, PID 1 is `ravyninit` (`BSD/sbin/ravyninit`), a small
 temporary init that the image installs as `/sbin/launchd`, the only path a

@@ -38,6 +38,8 @@ Gates from the architecture plan:
       a command typed on the console               (--gate M1)
   M2-login  launchd brings up getty; root logs in on the console with a
       password and the shell answers               (--gate M2-login)
+  M2  M2-login, then the network: dhcpclient configures en0 and root logs
+      in over ssh from the host with a key         (--gate M2)
 
 For M1 the kernel prints nothing once PID 1 starts, so PID 1 itself
 (launchd, or a temporary init) must print USERLAND_MARKER on the console,
@@ -64,6 +66,14 @@ class Send(str):
     """A gate step that types a line on the console instead of waiting."""
 
 
+class SSH(str):
+    """A gate step that runs a command in the guest over ssh from the host.
+
+    It is retried until the connection works (sshd may still be starting);
+    its output is matched by the markers that follow, like the console's.
+    """
+
+
 # The shell echoes what it is sent, so the answer, not the command, is
 # what the next marker matches: "ravynOS: 42" only appears in its output.
 SHELL_INPUT = [Send('echo "ravynOS: $((6 * 7))"'), 'ravynOS: 42']
@@ -73,6 +83,13 @@ SHELL_INPUT = [Send('echo "ravynOS: $((6 * 7))"'), 'ravynOS: 42']
 # (ROOT_PASSWORD=), which the test types: --password or $BOOTTEST_PASSWORD.
 PASSWORD = Send('%PASSWORD%')
 
+# Network (rest of gate M2): QEMU's DHCP server gives en0 10.0.2.15 and
+# forwards the host's --ssh-port to the guest's port 22. The image needs
+# the public half of --ssh-key in root's authorized_keys
+# (ROOT_AUTHORIZED_KEYS=).
+SSH_INPUT = [SSH('echo "ravynOS ssh: $((6 * 7))"; ipconfig getifaddr en0'),
+             'ravynOS ssh: 42', '10.0.2.15']
+
 GATES = {
     'M0': ['Darwin Kernel Version'],
     'M1': ['Darwin Kernel Version', 'BSD root:', 'hfs: mounted', USERLAND_MARKER,
@@ -81,8 +98,10 @@ GATES = {
                  'launchd[1] has started up', 'login:', Send('root'), 'Password:',
                  PASSWORD, 'Welcome to ravynOS.'] + SHELL_INPUT,
 }
+GATES['M2'] = GATES['M2-login'] + SSH_INPUT
 GATE_FAIL = {
     'M2-login': ['Login incorrect'],
+    'M2': ['Login incorrect'],
 }
 # How long the shell gets to print its prompt before input is sent.
 SEND_DELAY = 3
@@ -104,6 +123,10 @@ def qemu_command(args, vars_copy):
         '-device', 'ahci,id=ahci', '-device', 'ide-hd,drive=disk,bus=ahci.0',
         # The loader needs EFI_RNG_PROTOCOL; without entropy the kernel panics.
         '-device', 'virtio-rng-pci',
+        # User-mode network (DHCP from QEMU at 10.0.2.2); the guest's ssh
+        # port is forwarded to the host's --ssh-port.
+        '-netdev', 'user,id=net0,hostfwd=tcp:127.0.0.1:%d-:22' % args.ssh_port,
+        '-device', '%s,netdev=net0' % args.nic,
         '-serial', 'stdio', '-monitor', 'none', '-display', 'none',
         '-no-reboot',
     ]
@@ -122,6 +145,13 @@ def send_pending(proc, pending, start):
         proc.stdin.flush()
 
 
+def ssh_command(args, command):
+    return ['ssh', '-i', args.ssh_key, '-p', str(args.ssh_port),
+            '-o', 'StrictHostKeyChecking=no', '-o', 'UserKnownHostsFile=/dev/null',
+            '-o', 'BatchMode=yes', '-o', 'ConnectTimeout=10', '-o', 'LogLevel=ERROR',
+            'root@127.0.0.1', command]
+
+
 def run(args):
     expect = list(args.expect or GATES[args.gate])
     if PASSWORD in expect:
@@ -130,6 +160,11 @@ def run(args):
                   file=sys.stderr)
             return 1
         expect = [Send(args.password) if m is PASSWORD else m for m in expect]
+    if any(isinstance(m, SSH) for m in expect) and not (
+            args.ssh_key and os.path.exists(args.ssh_key)):
+        print('boottest: gate %s needs --ssh-key or $BOOTTEST_SSH_KEY' % args.gate,
+              file=sys.stderr)
+        return 1
     fail = args.fail if args.fail is not None else DEFAULT_FAIL + GATE_FAIL.get(args.gate, [])
     for path in (args.image, args.ovmf_code, args.ovmf_vars):
         if not os.path.exists(path):
@@ -146,48 +181,96 @@ def run(args):
     proc = subprocess.Popen(cmd, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
                             stderr=subprocess.STDOUT)
     sel = selectors.DefaultSelector()
-    sel.register(proc.stdout, selectors.EVENT_READ)
+    sel.register(proc.stdout, selectors.EVENT_READ, 'console')
 
     start = time.monotonic()
     pending = list(expect)
-    line = b''
+    partial = {'console': b'', 'ssh': b''}
+    ssh = None              # the running ssh, if any
+    ssh_retry = 0.0         # when to start ssh again
     status, reason = 2, 'timed out after %ds' % args.timeout
+
+    def start_ssh():
+        print('boottest: [%6.1fs] ssh: %s' % (time.monotonic() - start, pending[0]),
+              file=sys.stderr)
+        p = subprocess.Popen(ssh_command(args, pending[0]), stdin=subprocess.DEVNULL,
+                             stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        sel.register(p.stdout, selectors.EVENT_READ, 'ssh')
+        return p
+
+    def match(text, complete):
+        """Checks a line against the failure and expected markers."""
+        nonlocal status, reason
+        if complete and any(f in text for f in fail):
+            status, reason = 1, 'failure marker: %s' % text.strip()
+            return
+        while pending and not isinstance(pending[0], SSH) and pending[0] in text:
+            elapsed = time.monotonic() - start
+            print('boottest: [%6.1fs] %s' % (elapsed, pending.pop(0)), file=sys.stderr)
+            send_pending(proc, pending, start)
+
     try:
         while time.monotonic() - start < args.timeout:
-            if not sel.select(timeout=1):
-                if proc.poll() is not None:
-                    status, reason = 1, 'QEMU exited (status %d)' % proc.returncode
-                    break
-                continue
-            chunk = os.read(proc.stdout.fileno(), 4096)
-            if not chunk:
-                status, reason = 1, 'QEMU exited (status %s)' % proc.wait()
+            if pending and isinstance(pending[0], SSH) and ssh is None and \
+                    time.monotonic() >= ssh_retry:
+                ssh = start_ssh()
+            events = sel.select(timeout=1)
+            if not events and proc.poll() is not None:
+                status, reason = 1, 'QEMU exited (status %d)' % proc.returncode
                 break
-            if log:
-                log.write(chunk)
-                log.flush()
-            if args.verbose:
-                sys.stdout.buffer.write(chunk)
-                sys.stdout.flush()
-            line += ANSI.sub(b'', chunk)
-            *lines, line = line.split(b'\n')
-            for text, complete in [(l, True) for l in lines] + [(line, False)]:
-                text = text.decode('utf-8', 'replace')
-                # Failure markers wait for the whole line, to report all of it.
-                if complete and any(f in text for f in fail):
-                    status, reason = 1, 'failure marker: %s' % text.strip()
+            for key, _ in events:
+                stream = key.data
+                chunk = os.read(key.fileobj.fileno(), 4096)
+                if not chunk:
+                    if stream == 'console':
+                        status, reason = 1, 'QEMU exited (status %s)' % proc.wait()
+                        break
+                    # ssh ended: if it worked, match its output; else retry.
+                    sel.unregister(key.fileobj)
+                    rc = ssh.wait()
+                    ssh = None
+                    out, partial['ssh'] = partial['ssh'], b''
+                    if log:
+                        log.write(b''.join(b'ssh| ' + l + b'\n' for l in out.splitlines()))
+                        log.flush()
+                    if rc != 0:
+                        print('boottest: [%6.1fs] ssh failed (%d): %s' % (
+                            time.monotonic() - start, rc,
+                            out.decode('utf-8', 'replace').strip()[-200:]),
+                            file=sys.stderr)
+                        ssh_retry = time.monotonic() + 5
+                        continue
+                    pending.pop(0)
+                    for text in ANSI.sub(b'', out).split(b'\n'):
+                        match(text.decode('utf-8', 'replace'), True)
+                    continue
+                if stream == 'ssh':
+                    partial['ssh'] += chunk     # matched when ssh exits
+                    continue
+                if log:
+                    log.write(chunk)
+                    log.flush()
+                if args.verbose:
+                    sys.stdout.buffer.write(chunk)
+                    sys.stdout.flush()
+                buf = partial[stream] + ANSI.sub(b'', chunk)
+                *lines, partial[stream] = buf.split(b'\n')
+                for text in lines:
+                    match(text.decode('utf-8', 'replace'), True)
+                    if status == 1:
+                        break
+                if status != 1:
+                    match(partial[stream].decode('utf-8', 'replace'), False)
+                if status == 1 or not pending:
                     break
-                while pending and pending[0] in text:
-                    elapsed = time.monotonic() - start
-                    print('boottest: [%6.1fs] %s' % (elapsed, pending.pop(0)),
-                          file=sys.stderr)
-                    send_pending(proc, pending, start)
             if status == 1 or not pending:
                 if not pending:
                     status, reason = 0, 'all %d markers seen' % sum(
-                        not isinstance(m, Send) for m in expect)
+                        not isinstance(m, (Send, SSH)) for m in expect)
                 break
     finally:
+        if ssh is not None and ssh.poll() is None:
+            ssh.kill()
         if proc.poll() is None:
             proc.terminate()
             try:
@@ -225,6 +308,12 @@ def main(argv=None):
     p.add_argument('--cpu', default='Westmere')
     p.add_argument('--smp', type=int, default=2)
     p.add_argument('--memory', type=int, default=4096, help='MiB')
+    p.add_argument('--ssh-key', default=os.environ.get('BOOTTEST_SSH_KEY'),
+                   help='private key ssh steps log in with (default: $BOOTTEST_SSH_KEY)')
+    p.add_argument('--nic', default='e1000', help='QEMU network device (e1000, e1000e)')
+    p.add_argument('--ssh-port', type=int,
+                   default=int(os.environ.get('BOOTTEST_SSH_PORT', '2222')),
+                   help='host port forwarded to the guest\'s port 22')
     p.add_argument('--ovmf-code', default='/usr/share/OVMF/OVMF_CODE_4M.fd')
     p.add_argument('--ovmf-vars', default='/usr/share/OVMF/OVMF_VARS_4M.fd')
     args = p.parse_args(argv)

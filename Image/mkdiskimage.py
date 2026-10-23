@@ -178,6 +178,21 @@ def set_root_password(root_dir, password):
     os.chmod(path, 0o600)
 
 
+def set_root_authorized_keys(root_dir, keys_file):
+    """Install public keys root can log in with over ssh (dev images)."""
+    with open(keys_file) as f:
+        keys = f.read()
+    ssh_dir = os.path.join(root_dir, 'private/var/root/.ssh')
+    os.makedirs(ssh_dir, mode=0o700, exist_ok=True)
+    os.chmod(ssh_dir, 0o700)
+    path = os.path.join(ssh_dir, 'authorized_keys')
+    with open(path, 'w') as f:
+        f.write(keys if keys.endswith('\n') else keys + '\n')
+    os.chmod(path, 0o600)
+    for p in (ssh_dir, path):
+        os.chown(p, 0, 0)
+
+
 def run(*cmd, **kwargs):
     print('+ ' + ' '.join(cmd), flush=True)
     return subprocess.run(cmd, check=True, **kwargs)
@@ -255,6 +270,8 @@ def build(args):
             install_init(root_dir, args.init)
         if args.root_password:
             set_root_password(root_dir, args.root_password)
+        if args.root_authorized_keys:
+            set_root_authorized_keys(root_dir, args.root_authorized_keys)
         if args.launchd_debug:
             # launchd logs at debug level to the console when this exists.
             open(os.path.join(root_dir, 'private/var/db/.launchd_log_debug'), 'w').close()
@@ -284,6 +301,9 @@ def main(argv=None):
     p.add_argument('--root-password', default=os.environ.get('ROOT_PASSWORD'),
                    help='set root\'s password (default: $ROOT_PASSWORD; else root has none '
                    'and cannot log in)')
+    p.add_argument('--root-authorized-keys', default=os.environ.get('ROOT_AUTHORIZED_KEYS'),
+                   help='file of public keys root can log in with over ssh '
+                   '(default: $ROOT_AUTHORIZED_KEYS)')
     p.add_argument('--launchd-debug', action='store_true',
                    help='make launchd log at debug level to the console')
     p.add_argument('--boot-args', default='-v debug=0x14e serial=3 keepsyms=1',

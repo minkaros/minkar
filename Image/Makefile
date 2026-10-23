@@ -50,6 +50,16 @@ BOOTTEST_PASSWORD ?=	${ROOT_PASSWORD}
 .if defined(BOOTTEST_PASSWORD)
 .export BOOTTEST_PASSWORD
 .endif
+# ROOT_AUTHORIZED_KEYS=file: public keys root can log in with over ssh.
+# BOOTTEST_SSH_KEY=file: the private key the M2 gate's ssh steps use.
+# "bmake boottest-key" makes a pair for the tests in ${BOOTTEST_KEY}.
+BOOTTEST_KEY =		${ROOT_BINARY_DIR}/boottest-ssh/id_ed25519
+.if defined(ROOT_AUTHORIZED_KEYS)
+.export ROOT_AUTHORIZED_KEYS
+.endif
+.if defined(BOOTTEST_SSH_KEY)
+.export BOOTTEST_SSH_KEY
+.endif
 # LAUNCHD_DEBUG=1: launchd logs at debug level to the console.
 .if !empty(LAUNCHD_DEBUG)
 INIT_ARGS +=		--launchd-debug
@@ -104,8 +114,14 @@ image: ${LOADER}
 	    --size-mb ${IMAGE_SIZE_MB} --boot-args "${BOOT_ARGS}" \
 	    ${INIT_ARGS}
 
+boottest-key:
+	test -f ${BOOTTEST_KEY} || { mkdir -p ${BOOTTEST_KEY:H} && \
+	    ssh-keygen -q -t ed25519 -N '' -C ravynos-boottest -f ${BOOTTEST_KEY}; }
+	@echo "image:    ROOT_AUTHORIZED_KEYS=${BOOTTEST_KEY}.pub"
+	@echo "boottest: BOOTTEST_SSH_KEY=${BOOTTEST_KEY}"
+
 boottest:
 	${PYTHON} ${.CURDIR}/boottest.py --image ${IMAGE} --gate ${GATE} \
 	    --timeout ${BOOTTEST_TIMEOUT} --log ${ROOT_BINARY_DIR}/boottest-${GATE}.log
 
-.PHONY: all efiloader image boottest
+.PHONY: all efiloader image boottest boottest-key

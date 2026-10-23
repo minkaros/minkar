@@ -5,7 +5,7 @@
 
 SUBDIR =
 
-SYSDAEMONS =	com.ravynos.dhcpclient.plist \
+SYSDAEMONS =	com.openssh.sshd.plist com.ravynos.dhcpclient.plist \
 		com.ravynos.getty.console.plist
 DIR =		${SYSROOT_DIR}/System/Library/LaunchDaemons
 
