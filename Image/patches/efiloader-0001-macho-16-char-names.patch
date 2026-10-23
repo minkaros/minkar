@@ -1,0 +1,61 @@
+diff --git a/MdeModulePkg/Application/Loader/macho.c b/MdeModulePkg/Application/Loader/macho.c
+index 82b3a65c..4c96919b 100644
+--- a/MdeModulePkg/Application/Loader/macho.c
++++ b/MdeModulePkg/Application/Loader/macho.c
+@@ -80,6 +80,16 @@ error:
+ # define SECTION_ATTR(x) ((UINT32)x & 0xffffff)
+ #endif
+ 
++/*
++ * Mach-O segment and section names are 16 bytes and not NUL-terminated
++ * when they use all 16 (e.g. __llvm_prf_names). Convert at most 16.
++ */
++STATIC VOID MachName(CONST CHAR8 *Name, CHAR16 Out[17])
++{
++    UINTN Length;
++    AsciiStrnToUnicodeStrS(Name, 16, Out, 17, &Length);
++}
++
+ int mapSegments(struct mach_header_64 *mh, UINTN *KernelEntry, EFI_FILE_HANDLE KernelFile)
+ {
+     UINT32 kernelTop = 0, kernelBase = 0;
+@@ -91,8 +101,8 @@ int mapSegments(struct mach_header_64 *mh, UINTN *KernelEntry, EFI_FILE_HANDLE K
+         switch(lc->cmd) {
+             case LC_SEGMENT_64: {
+                 const struct segment_command_64 *ls = (const struct segment_command_64 *)lc;
+-                CHAR16 segname[16], sectname[16];
+-                AsciiStrToUnicodeStrS(ls->segname, segname, sizeof(segname));
++                CHAR16 segname[17], sectname[17];
++                MachName(ls->segname, segname);
+ #ifdef DEBUG_LOADER
+                 Print(UEFI_STR("  %s at %lx (%d) sz %lx\n"),
+                     segname, ls->vmaddr, offset, ls->vmsize);
+@@ -106,7 +116,7 @@ int mapSegments(struct mach_header_64 *mh, UINTN *KernelEntry, EFI_FILE_HANDLE K
+                 struct section_64 *lsect = 
+                     (struct section_64 *)((UINT64)(((UINT64)ls) + sizeof(struct segment_command_64)));
+                 for(int x=0; x<ls->nsects; ++x) {
+-                    AsciiStrToUnicodeStrS(lsect->sectname, sectname, sizeof(sectname));
++                    MachName(lsect->sectname, sectname);
+ 
+ #ifdef DEBUG_LOADER
+                     Print(UEFI_STR("   %s at %lx (%d) sz %lx align %x, rel %d at %d, flags %x\n"),
+@@ -178,8 +188,8 @@ int mapDecompressedSegments(struct mach_header_64 *mh, UINTN *KernelEntry)
+         switch(lc->cmd) {
+             case LC_SEGMENT_64: {
+                 const struct segment_command_64 *ls = (const struct segment_command_64 *)lc;
+-                CHAR16 segname[16], sectname[16];
+-                AsciiStrToUnicodeStrS(ls->segname, segname, sizeof(segname));
++                CHAR16 segname[17], sectname[17];
++                MachName(ls->segname, segname);
+ 		SetMem((VOID *)(ls->vmaddr & 0xffffffff), 0, ls->vmsize);
+ #ifdef DEBUG_LOADER
+                 Print(UEFI_STR("  %s at %lx (%d) sz %lx\n"),
+@@ -194,7 +204,7 @@ int mapDecompressedSegments(struct mach_header_64 *mh, UINTN *KernelEntry)
+                 struct section_64 *lsect = 
+                     (struct section_64 *)((UINT64)(((UINT64)ls) + sizeof(struct segment_command_64)));
+                 for(int x=0; x<ls->nsects; ++x) {
+-                    AsciiStrToUnicodeStrS(lsect->sectname, sectname, sizeof(sectname));
++                    MachName(lsect->sectname, sectname);
+ 
+ #ifdef DEBUG_LOADER
+                     Print(UEFI_STR("   %s at %lx (%d) sz %lx align %x, rel %d at %d, flags %x\n"),

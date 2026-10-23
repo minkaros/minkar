@@ -128,4 +128,9 @@ SUBDIR ?= Developer .WAIT Kernel Libraries Frameworks Kernel/Extensions \
 version:
 	${MAKE} -C ${.CURDIR}/SystemLibrary SystemVersion.plist
 
+# Bootable disk image and QEMU boot test (Image/Makefile). Not part of
+# "world": they need root, network access for the EFI loader, and time.
+efiloader image boottest: .PHONY
+	${MAKE} -C ${.CURDIR}/Image ${.TARGET}
+
 .include "./BSD/share/mk/bsd.subdir.mk"
