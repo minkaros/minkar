@@ -1,8 +1,3 @@
-#include <Availability.h>
-#ifndef boolean_t
-typedef int boolean_t;
-#endif
-
 #include <dispatch/dispatch.h>
 #include <os/assumes.h>
 #include "job_reply.h"
@@ -20,8 +15,8 @@ typedef int boolean_t;
 
 os_redirect_assumes(_launchd_os_redirect);
 
-const char *launchd_username = "unknown";
-const char *launchd_label = "com.apple.launchd.unknown";
+char *launchd_username = "unknown";
+char *launchd_label = "com.apple.launchd.unknown";
 mach_port_t launchd_drain_reply_port;
 bool launchd_var_available = false;
 int64_t launchd_system_start;
@@ -224,6 +219,12 @@ launchd_vsyslog(struct launchd_syslog_attr *attr, const char *fmt, va_list args)
 	}
 
 	vsnprintf(message, sizeof(message), fmt, args);
+	/* ravynOS: with a verbose boot (-v) and debug logging on, every message
+	 * also goes to the console, the only place to read them during bring-up
+	 * (syslogd is not running and /var may be read-only). */
+	if (launchd_verbose_boot && launchd_log_debug && attr->priority <= LOG_DEBUG) {
+		echo2console = true;
+	}
 	if (echo2console && launchd_console) {
 		fprintf(launchd_console, "%-32s %-8u %-64s %-8u  %s\n", attr->from_name, attr->from_pid, attr->about_name, attr->about_pid, message);
 	}
@@ -236,7 +237,7 @@ launchd_vsyslog(struct launchd_syslog_attr *attr, const char *fmt, va_list args)
 			delta = runtime_get_wall_time() - launchd_system_start;
 		}
 
-		fprintf(log2here, "%-8zd %-32s %-8u %-24s %-8u  %s\n", delta, attr->from_name, attr->from_pid, attr->about_name, attr->about_pid, message);
+		fprintf(log2here, "%-8lld %-32s %-8u %-24s %-8u  %s\n", delta, attr->from_name, attr->from_pid, attr->about_name, attr->about_pid, message);
 	}
 
 	if ((LOG_MASK(attr->priority) & _launchd_log_up2)) {
@@ -248,7 +249,7 @@ static kern_return_t
 _launchd_log_pack(vm_offset_t *outval, mach_msg_type_number_t *outvalCnt)
 {
 	struct logmsg_s *lm;
-	uint8_t *offset;
+	void *offset;
 
 	*outvalCnt = _launchd_logq_sz;
 
@@ -258,7 +259,7 @@ _launchd_log_pack(vm_offset_t *outval, mach_msg_type_number_t *outvalCnt)
 		return 1;
 	}
 
-	offset = (uint8_t *)*outval;
+	offset = (void *)*outval;
 	while ((lm = STAILQ_FIRST(&_launchd_logq))) {
 		lm->from_name_offset = lm->from_name - (char *)lm;
 		lm->about_name_offset = lm->about_name - (char *)lm;
@@ -343,7 +344,7 @@ launchd_log_forward(uid_t forward_uid, gid_t forward_gid, vm_offset_t inval, mac
 		return 0;
 	}
 
-	for (lm_walk = (struct logmsg_s *)inval; (data_left > 0) && (lm_walk->obj_sz <= data_left); lm_walk = (struct logmsg_s *)((uint64_t *)lm_walk + lm_walk->obj_sz/8)) {
+	for (lm_walk = (struct logmsg_s *)inval; (data_left > 0) && (lm_walk->obj_sz <= data_left); lm_walk = ((void *)lm_walk + lm_walk->obj_sz)) {
 		/* malloc(3) returns non-NULL when you ask for zero bytes. If our object
 		 * is zero bytes, something is wrong.
 		 */
@@ -352,13 +353,8 @@ launchd_log_forward(uid_t forward_uid, gid_t forward_gid, vm_offset_t inval, mac
 			break;
 		}
 
-		if (lm_walk->obj_sz < sizeof(struct logmsg_s)) {
-			launchd_syslog(LOG_WARNING, "Received bytes %zu are less than expected bytes %lu.", lm_walk->obj_sz, sizeof(struct logmsg_s));
-			break;
-		}
-
 		if (!(lm = malloc(lm_walk->obj_sz))) {
-			launchd_syslog(LOG_WARNING, "Failed to allocate %zu bytes for log message with %u bytes left in forwarded data. Ignoring remaining messages.", lm_walk->obj_sz, data_left);
+			launchd_syslog(LOG_WARNING, "Failed to allocate %llu bytes for log message with %u bytes left in forwarded data. Ignoring remaining messages.", lm_walk->obj_sz, data_left);
 			break;
 		}
 

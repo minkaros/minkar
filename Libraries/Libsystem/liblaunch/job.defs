@@ -282,7 +282,7 @@ ipc_request(
 				request		: pointer_t, dealloc;
 				request_fds	: mach_port_move_send_array_t;
 out				reply		: pointer_t, dealloc;
-out				reply_fds	: mach_port_move_send_array_t;
+out				reply_fds	: mach_port_move_send_array_t, dealloc;
 				asport		: mach_port_t
 );
 

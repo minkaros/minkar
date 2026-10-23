@@ -1,38 +1,29 @@
 #ifndef _SHIM_H_
 #define _SHIM_H_
 
-/* random defines needed for core.c to compile */
-#include <sys/event.h>
-#include <mach/task_policy.h>
-#include <sys/mach/host_special_ports.h>
-#include <sys/proc_info.h>
-#include <sys/kern_event.h>
-#include <sys/fileport.h>
+/*
+ * The private interface between launchd and libxpc (event and process
+ * routines, service types, the domain MIG routines). On macOS these come
+ * from libxpc's private headers, which ravynOS's libxpc does not ship.
+ * Everything else launchd needs comes from the Darwin headers.
+ */
+#include <mach/mach_types.h>
 #include <spawn.h>
-#include <mach/mach_port.h>
-#include <mach/mach_vm.h>
-#include <mach/host_priv.h>
 
-#define RB_UPSDELAY (RB_PAUSE << 1)
-#define RB_SAFEBOOT (RB_PAUSE << 2)
-#define RB_UNIPROC (RB_PAUSE << 3)
-#define RB_ALTBOOT (RB_PAUSE << 4)
+/* From <bsm/audit_session.h>, which arrives with libbsm (not built yet). */
+#ifndef AU_SESSION_FLAG_IS_INITIAL
+#define AU_SESSION_FLAG_IS_INITIAL	0x0001
+#endif
 
 typedef unsigned int xpc_service_type_t;
 
 typedef int xpc_jetsam_band_t;
 
 typedef char event_name_t[64];
-#define vm_allocate mach_vm_allocate
-#define vm_deallocate mach_vm_deallocate
-
-#define     O_EVTONLY       0x8000          /* descriptor requested for event notifications only */
-
-#define        _CS_DARWIN_USER_TEMP_DIR                65537
-#define EBADARCH	86	/* Bad CPU type in executable */
 
 
-#define VQ_UPDATE VQ_FLAG0100
+
+
 
 
 #define XPC_EVENT_ROUTINE_KEY_STREAM "XPC key stream"
@@ -64,7 +55,9 @@ typedef char event_name_t[64];
 #define XPC_PROCESS_ROUTINE_KEY_NEW_INSTANCE_PORT "XPC process key new instance port"
 #define XPC_SERVICE_ENV_ATTACHED "XPC service env attached"
 
+#ifndef _POSIX_SPAWN_DISABLE_ASLR
 #define _POSIX_SPAWN_DISABLE_ASLR 0x8000
+#endif
 
 #define XPC_EVENT_FLAG_ENTITLEMENTS 0x000000000000
 
@@ -88,44 +81,30 @@ typedef enum {
 	XPC_PROCESS_SERVICE_KILL
 } xpc_jetsam_t;
 
-#define XPC_JETSAM_BAND_SUSPENDED 10
-#define XPC_JETSAM_BAND_LAST 20
+/*
+ * Jetsam bands, lowest priority first. Only launchd interprets them (it maps
+ * each to a kernel JETSAM_PRIORITY_* in _launchd_priority_map), so the
+ * values are ours; they only need to keep this order.
+ */
+#define XPC_JETSAM_BAND_SUSPENDED			10
+#define XPC_JETSAM_BAND_BACKGROUND_OPPORTUNISTIC	20
+#define XPC_JETSAM_BAND_BACKGROUND			30
+#define XPC_JETSAM_BAND_MAIL				40
+#define XPC_JETSAM_BAND_PHONE				50
+#define XPC_JETSAM_BAND_UI_SUPPORT			60
+#define XPC_JETSAM_BAND_FOREGROUND_SUPPORT		70
+#define XPC_JETSAM_BAND_FOREGROUND			80
+#define XPC_JETSAM_BAND_AUDIO				90
+#define XPC_JETSAM_BAND_ACCESSORY			100
+#define XPC_JETSAM_BAND_CRITICAL			110
+#define XPC_JETSAM_BAND_TELEPHONY			120
+#define XPC_JETSAM_BAND_LAST				130
 #define XPC_JETSAM_PRIORITY_RESERVED 1000
 
 #define XPC_SERVICE_TYPE_BUNDLED 0xBADDCAFE
 #define XPC_SERVICE_TYPE_LAUNCHD 0xBABECAFE
 #define XPC_SERVICE_TYPE_APP     0xDEADCAFE
 #define XPC_SERVICE_TYPE_ENTITLEMENT_ATTACH     0x00DEAD00
-
-/* I/O type */
-#define IOPOL_TYPE_DISK	0
-
-/* scope */
-#define IOPOL_SCOPE_PROCESS   0
-#define IOPOL_SCOPE_THREAD    1
-#define IOPOL_SCOPE_DARWIN_BG 2
-
-/* I/O Priority */
-#define IOPOL_DEFAULT		0
-#define IOPOL_IMPORTANT		1
-#define IOPOL_PASSIVE		2
-#define IOPOL_THROTTLE		3
-#define IOPOL_UTILITY		4
-#define IOPOL_STANDARD		5
-
-/* compatibility with older names */
-#define IOPOL_APPLICATION       IOPOL_STANDARD
-#define IOPOL_NORMAL            IOPOL_IMPORTANT
-
-int      setiopolicy_np(int, int, int);
-
-extern size_t sallocx(void *, int);
-static inline size_t
-malloc_size(void * ptr)
-{
-
-	return (sallocx(ptr, 0));
-}
 
 /* domain.defs */
 kern_return_t
@@ -144,24 +123,5 @@ kern_return_t
 xpc_domain_add_services(job_t j, vm_offset_t services_buff, mach_msg_type_number_t services_sz);
 #define XPC_LPI_VERSION 20141120
 
-
-__inline int
-posix_spawnattr_setprocesstype_np(posix_spawnattr_t * a __unused, const int b __unused)
-{
-	return 0;
-}
-
-__inline int
-posix_spawnattr_set_importancewatch_port_np(posix_spawnattr_t * __restrict attr __unused,
-											int count __unused, mach_port_t portarray[] __unused)
-{
-	return 0;
-}
-
-__inline int
-posix_spawnattr_setcpumonitor_default(posix_spawnattr_t * __restrict a __unused)
-{
-	return 0;
-}
 
 #endif

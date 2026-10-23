@@ -24,7 +24,13 @@
 #include <xpc/xpc.h>
 #include <mach/mach.h>
 #include <sys/types.h>
+#include <sys/event.h>
+#include "config.h"
+#if HAVE_LIBBSM
 #include <bsm/libbsm.h>
+#else
+#include <bsm/audit.h>
+#endif
 #include <stdbool.h>
 #include <stdint.h>
 #include <float.h>

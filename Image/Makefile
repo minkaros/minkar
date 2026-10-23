@@ -36,6 +36,13 @@ KERNELCACHE ?=		${ROOT_BINARY_DIR}/kernelcache
 BOOT_ARGS ?=		-v debug=0x14e serial=3 keepsyms=1
 # PID 1 until launchd runs (gate M1); empty to boot /sbin/launchd itself.
 INIT ?=			/sbin/ravyninit
+.if !empty(INIT)
+INIT_ARGS =		--init ${INIT}
+.endif
+# LAUNCHD_DEBUG=1: launchd logs at debug level to the console.
+.if !empty(LAUNCHD_DEBUG)
+INIT_ARGS +=		--launchd-debug
+.endif
 GATE ?=			M0
 BOOTTEST_TIMEOUT ?=	900
 
@@ -84,7 +91,7 @@ image: ${LOADER}
 	${PYTHON} ${.CURDIR}/mkdiskimage.py --sysroot ${SYSROOT_DIR} \
 	    --kernelcache ${KERNELCACHE} --loader ${LOADER} --output ${IMAGE} \
 	    --size-mb ${IMAGE_SIZE_MB} --boot-args "${BOOT_ARGS}" \
-	    ${INIT:S,^,--init ,}
+	    ${INIT_ARGS}
 
 boottest:
 	${PYTHON} ${.CURDIR}/boottest.py --image ${IMAGE} --gate ${GATE} \

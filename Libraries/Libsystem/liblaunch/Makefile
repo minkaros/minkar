@@ -9,7 +9,7 @@ COMMONFLAGS = --sysroot=${RAVYN_SDKROOT} -g -DPRIVATE \
 	-mmacos-version-min=${MACOS_VERSION_MIN} \
 	-Wno-implicit-function-declaration -Wno-int-conversion \
 	-I${ROOT_SOURCE_DIR}/Kernel/xnu/bsd -I${.CURDIR} \
-	-I${.CURDIR}/../../openbsm -I${.CURDIR:H}/libdispatch/config \
+	-I${.CURDIR:H}/libdispatch/config \
 	-I${.CURDIR:H}/libsystem_pthread \
 	-I${.CURDIR:H}/libsystem_c/fbsdcompat \
 	-I${ROOT_SOURCE_DIR}/BSD/sbin/launchd \

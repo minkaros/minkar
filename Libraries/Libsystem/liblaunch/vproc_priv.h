@@ -28,7 +28,7 @@
 #include <sys/time.h>
 #include <stdbool.h>
 #include <pthread/pthread.h>
-#include <sys/bsm/audit.h>
+#include <bsm/audit.h>
 #include <launch.h>
 #include <vproc.h>
 #include <uuid/uuid.h>

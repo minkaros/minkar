@@ -18,7 +18,6 @@
  * @APPLE_APACHE_LICENSE_HEADER_END@
  */
 
-#include <Availability.h>
 #include "config.h"
 #include "ipc.h"
 
@@ -30,11 +29,11 @@
 #include <sys/ucred.h>
 #include <sys/fcntl.h>
 #include <sys/un.h>
-#include <sys/resource.h>
 #include <sys/wait.h>
 #include <sys/sysctl.h>
 #include <sys/sockio.h>
 #include <sys/time.h>
+#include <sys/resource.h>
 #include <sys/ioctl.h>
 #include <unistd.h>
 #include <signal.h>
@@ -62,7 +61,6 @@ static launch_data_t adjust_rlimits(launch_data_t in);
 
 static void ipc_readmsg2(launch_data_t data, const char *cmd, void *context);
 static void ipc_readmsg(launch_data_t msg, void *context);
-static void ipc_process_command(launch_data_t data, const char *cmd, void *context);
 
 static void ipc_listen_callback(void *obj __attribute__((unused)), struct kevent *kev);
 
@@ -267,7 +265,6 @@ set_user_env(launch_data_t obj, const char *key, void *context __attribute__((un
 	}
 }
 
-
 void
 ipc_close_all_with_job(job_t j)
 {
@@ -359,33 +356,23 @@ ipc_readmsg(launch_data_t msg, void *context)
 	launch_data_free(rmc.resp);
 }
 
-void
-ipc_readmsg2(launch_data_t data, const char *cmd, void *context)
+/*
+ * One launch_msg() command, from the socket or from a Mach ipc_request.
+ * caller is the job that sent it, if any; privileged says whether it may
+ * run commands other than check-in.
+ */
+static launch_data_t
+ipc_command(job_t caller, bool privileged, launch_data_t data, const char *cmd)
 {
-	struct readmsg_context *rmc = context;
 	launch_data_t resp = NULL;
 	job_t j;
 
-	if (rmc->resp) {
-		return;
-	}
-
-	/* Do not allow commands other than check-in to come over the trusted socket
-	 * on the Desktop. On Embedded, allow all commands over the trusted socket
-	 * if the job has the God Mode key set.
-	 */
+	if (caller && strcmp(cmd, LAUNCH_KEY_CHECKIN) == 0) {
+		resp = job_export(caller);
+		job_checkin(caller);
+	} else if (privileged) {
 #if TARGET_OS_EMBEDDED
-	bool allow_privileged_ops = (!rmc->c->j || job_is_god(rmc->c->j));
-#else
-	bool allow_privileged_ops = !rmc->c->j;
-#endif
-
-	if (rmc->c->j && strcmp(cmd, LAUNCH_KEY_CHECKIN) == 0) {
-		resp = job_export(rmc->c->j);
-		job_checkin(rmc->c->j);
-	} else if (allow_privileged_ops) {
-#if TARGET_OS_EMBEDDED
-		launchd_embedded_handofgod = rmc->c->j && job_is_god(rmc->c->j);
+		launchd_embedded_handofgod = caller && job_is_god(caller);
 #endif
 		if (data == NULL) {
 			if (!strcmp(cmd, LAUNCH_KEY_SHUTDOWN)) {
@@ -438,10 +425,6 @@ ipc_readmsg2(launch_data_t data, const char *cmd, void *context)
 			} else if (!strcmp(cmd, LAUNCH_KEY_SETUSERENVIRONMENT)) {
 				launch_data_dict_iterate(data, set_user_env, NULL);
 				resp = launch_data_new_errno(0);
-			} else if (!strcmp(cmd, LAUNCH_KEY_GETUSERENVIRONMENT)) {
-				char *v = getenv(launch_data_get_string(data));
-				if(v)
-					resp = launch_data_new_string(v);
 			} else if (!strcmp(cmd, LAUNCH_KEY_SETRESOURCELIMITS)) {
 				resp = adjust_rlimits(data);
 			} else if (!strcmp(cmd, LAUNCH_KEY_GETJOB)) {
@@ -460,136 +443,65 @@ ipc_readmsg2(launch_data_t data, const char *cmd, void *context)
 		resp = launch_data_new_errno(EACCES);
 	}
 
-	rmc->resp = resp;
+	return resp;
 }
 
-struct ipc_process_msg_context
+void
+ipc_readmsg2(launch_data_t data, const char *cmd, void *context)
 {
-	job_t j;
-	launch_data_t resp;
-};
+	struct readmsg_context *rmc = context;
 
-launch_data_t
-ipc_process_msg(job_t j, launch_data_t msg)
-{
-	struct ipc_process_msg_context ctx = {j, NULL};
-	
-	if (LAUNCH_DATA_DICTIONARY == launch_data_get_type(msg)) {
-		launch_data_dict_iterate(msg, ipc_process_command, &ctx);
-	} else if (LAUNCH_DATA_STRING == launch_data_get_type(msg)) {
-		ipc_process_command(NULL, launch_data_get_string(msg), &ctx);
-	} else {
-		return (launch_data_new_errno(EINVAL));
+	if (rmc->resp) {
+		return;
 	}
-
-	if (ctx.resp == NULL) {
-		return (launch_data_new_errno(ENOSYS));
-	}
-
-	return (ctx.resp);
-}
-
-static void
-ipc_process_command(launch_data_t data, const char *cmd, void *context)
-{
-	struct ipc_process_msg_context *ctx = context;
-	launch_data_t resp = NULL;
-	job_t j;
 
 	/* Do not allow commands other than check-in to come over the trusted socket
 	 * on the Desktop. On Embedded, allow all commands over the trusted socket
 	 * if the job has the God Mode key set.
 	 */
 #if TARGET_OS_EMBEDDED
-	bool allow_privileged_ops = (!ctx->j || job_is_god(ctx->j));
+	bool allow_privileged_ops = (!rmc->c->j || job_is_god(rmc->c->j));
 #else
-	bool allow_privileged_ops = true;
+	bool allow_privileged_ops = !rmc->c->j;
 #endif
 
-	if (ctx->resp)
-		return;
+	rmc->resp = ipc_command(rmc->c->j, allow_privileged_ops, data, cmd);
+}
 
-	if (ctx->j && strcmp(cmd, LAUNCH_KEY_CHECKIN) == 0) {
-		resp = job_export(ctx->j);
-		job_checkin(ctx->j);
-	} else if (allow_privileged_ops) {
-#if TARGET_OS_EMBEDDED
-		launchd_embedded_handofgod = ctx->j && job_is_god(ctx->j);
-#endif
-		if (data == NULL) {
-			if (!strcmp(cmd, LAUNCH_KEY_SHUTDOWN)) {
-				launchd_shutdown();
-				resp = launch_data_new_errno(0);
-			} else if (!strcmp(cmd, LAUNCH_KEY_GETJOBS)) {
-				resp = job_export_all();
-				ipc_revoke_fds(resp);
-			} else if (!strcmp(cmd, LAUNCH_KEY_GETRESOURCELIMITS)) {
-				resp = adjust_rlimits(NULL);
-			} else if (!strcmp(cmd, LAUNCH_KEY_GETRUSAGESELF)) {
-				struct rusage rusage;
-				getrusage(RUSAGE_SELF, &rusage);
-				resp = launch_data_new_opaque(&rusage, sizeof(rusage));
-			} else if (!strcmp(cmd, LAUNCH_KEY_GETRUSAGECHILDREN)) {
-				struct rusage rusage;
-				getrusage(RUSAGE_CHILDREN, &rusage);
-				resp = launch_data_new_opaque(&rusage, sizeof(rusage));
-			}
-		} else {
-			if (!strcmp(cmd, LAUNCH_KEY_STARTJOB)) {
-				if ((j = job_find(NULL, launch_data_get_string(data))) != NULL) {
-					errno = job_dispatch(j, true) ? 0 : errno;
-				}
-				resp = launch_data_new_errno(errno);
-			} else if (!strcmp(cmd, LAUNCH_KEY_STOPJOB)) {
-				if ((j = job_find(NULL, launch_data_get_string(data))) != NULL) {
-					errno = 0;
-					job_stop(j);
-				}
-				resp = launch_data_new_errno(errno);
-			} else if (!strcmp(cmd, LAUNCH_KEY_REMOVEJOB)) {
-				if ((j = job_find(NULL, launch_data_get_string(data))) != NULL) {
-					errno = 0;
-					job_remove(j);
-				}
-				resp = launch_data_new_errno(errno);
-			} else if (!strcmp(cmd, LAUNCH_KEY_SUBMITJOB)) {
-				if (launch_data_get_type(data) == LAUNCH_DATA_ARRAY) {
-					resp = job_import_bulk(data);
-				} else {
-					if (job_import(data)) {
-						errno = 0;
-					}
-					resp = launch_data_new_errno(errno);
-				}
-			} else if (!strcmp(cmd, LAUNCH_KEY_UNSETUSERENVIRONMENT)) {
-				unsetenv(launch_data_get_string(data));
-				resp = launch_data_new_errno(0);
-			} else if (!strcmp(cmd, LAUNCH_KEY_SETUSERENVIRONMENT)) {
-				launch_data_dict_iterate(data, set_user_env, NULL);
-				resp = launch_data_new_errno(0);
-			} else if (!strcmp(cmd, LAUNCH_KEY_GETUSERENVIRONMENT)) {
-				char *v = getenv(launch_data_get_string(data));
-				if(v)
-					resp = launch_data_new_string(v);
-			} else if (!strcmp(cmd, LAUNCH_KEY_SETRESOURCELIMITS)) {
-				resp = adjust_rlimits(data);
-			} else if (!strcmp(cmd, LAUNCH_KEY_GETJOB)) {
-				if ((j = job_find(NULL, launch_data_get_string(data))) == NULL) {
-					resp = launch_data_new_errno(errno);
-				} else {
-					resp = job_export(ctx->j);
-					ipc_revoke_fds(resp);
-				}
-			}
-		}
-#if TARGET_OS_EMBEDDED
-		launchd_embedded_handofgod = false;
-#endif
+/*
+ * ravynOS: liblaunch sends every launch_msg() as a Mach ipc_request
+ * (job.defs), not over the socket.
+ */
+struct ipc_request_context {
+	job_t caller;
+	bool privileged;
+	launch_data_t resp;
+};
+
+static void
+ipc_request_command(launch_data_t data, const char *cmd, void *context)
+{
+	struct ipc_request_context *ctx = context;
+
+	if (!ctx->resp) {
+		ctx->resp = ipc_command(ctx->caller, ctx->privileged, data, cmd);
+	}
+}
+
+launch_data_t
+ipc_process_request(job_t caller, bool privileged, launch_data_t msg)
+{
+	struct ipc_request_context ctx = { caller, privileged, NULL };
+
+	if (LAUNCH_DATA_DICTIONARY == launch_data_get_type(msg)) {
+		launch_data_dict_iterate(msg, ipc_request_command, &ctx);
+	} else if (LAUNCH_DATA_STRING == launch_data_get_type(msg)) {
+		ipc_request_command(NULL, launch_data_get_string(msg), &ctx);
 	} else {
-		resp = launch_data_new_errno(EACCES);
+		return launch_data_new_errno(EINVAL);
 	}
 
-	ctx->resp = resp;
+	return ctx.resp ? ctx.resp : launch_data_new_errno(ENOSYS);
 }
 
 static int

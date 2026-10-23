@@ -231,6 +231,9 @@ def build(args):
                 os.makedirs(path, mode=0o555)
         if args.init:
             install_init(root_dir, args.init)
+        if args.launchd_debug:
+            # launchd logs at debug level to the console when this exists.
+            open(os.path.join(root_dir, 'private/var/db/.launchd_log_debug'), 'w').close()
     finally:
         for mount in reversed(mounts):
             subprocess.run(['umount', mount])
@@ -254,6 +257,8 @@ def main(argv=None):
     p.add_argument('--volume-id', help='HFS+ volume identifier, 16 hex digits (default random)')
     p.add_argument('--init', help='program to start as PID 1 instead of launchd, '
                    'e.g. /sbin/ravyninit (installed as a %s link)' % LAUNCHD)
+    p.add_argument('--launchd-debug', action='store_true',
+                   help='make launchd log at debug level to the console')
     p.add_argument('--boot-args', default='-v debug=0x14e serial=3 keepsyms=1',
                    help='kernel command line')
     args = p.parse_args(argv)
