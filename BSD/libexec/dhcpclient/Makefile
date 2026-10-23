@@ -3,7 +3,7 @@
 SUBDIR =
 
 PROG =	dhcpclient
-SRCS =	dhcpclient.c
+SRCS =	main.c iface.c dhcp4.c ipv6.c dhcp6.c
 MAN =
 
 CFLAGS = --sysroot=${RAVYN_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \

@@ -102,6 +102,14 @@ Gates (see the architecture plan):
   which has no MSI: it uses its INTx line, routed through ACPI _PRT by
   ACPICA in IOACPIFamily.
 
+  IONetworkStack names the interfaces (en0, en1, ...). It waits for a
+  user-space namer (configd's InterfaceNamer, not ported yet) and names
+  them itself after IONetworkStackNamerTimeout, 30 s, so en0 appears about
+  30 s into boot. dhcpclient serves every Ethernet interface as it
+  appears; `ipconfig set en0 DHCP|BOOTP|NONE|MANUAL <addr> <mask>|INFORM <addr> <mask>`
+  and `ipconfig set en0 AUTOMATIC-V6|LINKLOCAL-V6|NONE-V6|MANUAL-V6 <addr> <prefixlen>`
+  change its method, `ipconfig getsummary en0` shows what it has.
+
 Until launchd runs, PID 1 is `ravyninit` (`BSD/sbin/ravyninit`), a small
 temporary init that the image installs as `/sbin/launchd`, the only path a
 RELEASE kernel tries. Build the image with `INIT=` to boot the sysroot's own
