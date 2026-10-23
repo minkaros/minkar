@@ -75,6 +75,8 @@
 		<string>7.0</string>
 		<key>com.apple.kpi.libkern</key>
 		<string>8.0.0</string>
+		<key>com.apple.kpi.mach</key>
+		<string>8.0.0</string>
 		<key>com.apple.kpi.private</key>
 		<string>8.0.0</string>
 		<key>com.apple.kpi.unsupported</key>

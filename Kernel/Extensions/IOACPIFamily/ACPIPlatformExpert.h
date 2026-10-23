@@ -118,6 +118,7 @@ class ACPIPlatformExpert : public IOPlatformExpert {
     /* PCI message-signalled interrupts (MSI, MSI-X), as macOS's ACPI platform does. */
     IOPCIMessagedInterruptController * _msiController = NULL;
     IOPCIMessagedInterruptController * messagedInterruptController();
+    bool setNubDeviceInterrupt(IOService *nub, UInt32 gsi);
 
     void PE_Log(const char *fmt, ...);
     bool parseACPI(IOService *provider);

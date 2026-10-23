@@ -43,6 +43,7 @@ extern "C" {
 }
 
 #include "ACPIPlatformExpert.h"
+#include "ACPIOSLayer.h"
 
 const IORegistryPlane * gIOACPIPlane           = 0;
 const OSSymbol *        gIOACPIHardwareIDKey   = 0;
@@ -140,13 +141,20 @@ bool ACPIPlatformExpert::start(IOService *provider) {
     }
 
     // Disable the legacy PIC to avoid spurious interrupts
+    /* %al is clobbered: without saying so the compiler kept `this' there. */
     asm volatile (
-        "movb $0xff, %al;\n"
-        "outb %al, $0x21;\n"
-        "movb $0xff, %al;\n"
-        "outb %al, $0xa1;\n");
+        "movb $0xff, %%al;\n"
+        "outb %%al, $0x21;\n"
+        "movb $0xff, %%al;\n"
+        "outb %%al, $0xa1;\n"
+        : : : "rax");
 
     PE_halt_restart = handlePEHaltRestart;
+
+    /* The ACPI interpreter (ACPICA): PCI interrupt routing, the SCI. */
+    ACPIOSLayerSetInterruptController(_interruptControllerName);
+    ACPIInterpreterStart();
+
     registerService();
 
     /* Start all the cpus */
@@ -237,6 +245,7 @@ ACPIPlatformExpert::parseACPI(IOService *provider) {
     }
 
     uint64_t addr = *(uint64_t *)(data->getBytesNoCopy());
+    ACPIOSLayerSetRootPointer(addr);    /* for ACPICA */
     IOMemoryDescriptor *desc
         = IOMemoryDescriptor::withPhysicalAddress((IOPhysicalAddress)addr,
                                                   sizeof(struct RSDP),
@@ -446,6 +455,34 @@ done:
     return success;
 }
 
+/*
+ * A device's interrupt on the IOAPIC: the specifier AppleAPIC reads is the
+ * GSI and its trigger flags (PICShared.h). PCI INTx lines are level and
+ * active low unless _PRT's link device says otherwise.
+ */
+bool ACPIPlatformExpert::setNubDeviceInterrupt(IOService *nub, UInt32 gsi) {
+    uint32_t flags;
+    uint32_t spec[2];
+    OSArray *controller, *specifier;
+    OSData *data;
+
+    if (!ACPIInterpreterInterruptFlags(gsi, &flags))
+        flags = gsi >= 16 ? (kACPIInterruptLevel | kACPIInterruptActiveLow) : 0;
+    spec[0] = gsi;
+    spec[1] = flags;
+    data = OSData::withBytes(spec, sizeof(spec));
+    controller = OSArray::withObjects((const OSObject **)&_interruptControllerName, 1);
+    specifier = data ? OSArray::withObjects((const OSObject **)&data, 1) : NULL;
+    if (controller && specifier) {
+        nub->setProperty(gIOInterruptControllersKey, controller);
+        nub->setProperty(gIOInterruptSpecifiersKey, specifier);
+    }
+    OSSafeReleaseNULL(controller);
+    OSSafeReleaseNULL(specifier);
+    OSSafeReleaseNULL(data);
+    return nub->getProperty(gIOInterruptSpecifiersKey) != NULL;
+}
+
 bool ACPIPlatformExpert::setNubInterruptVector(IOService *nub, UInt32 vector) {
     return setNubInterruptVectors(nub, &vector, 1);
 }
@@ -502,15 +539,24 @@ IOReturn ACPIPlatformExpert::callPlatformFunction(const OSSymbol *functionName, 
         message[1] = 0;
         message[2] = vector & 0xFF;
         return kIOReturnSuccess;
+    } else if (functionName->isEqualTo("ResolvePCIInterrupt")) {
+        /* param1: the bridge's provider; param2: device; param3: pin (0 = INTA); param4: UInt32 *GSI */
+        uint32_t gsi, flags;
+
+        if (param4 == NULL ||
+            !ACPIInterpreterResolvePCIInterrupt((IOService *)param1, (uint32_t)(uintptr_t)param2,
+            (uint32_t)(uintptr_t)param3, &gsi, &flags))
+            return kIOReturnUnsupported;
+        *(UInt32 *)param4 = gsi;
+        return kIOReturnSuccess;
     } else if (functionName->isEqualTo("SetDeviceInterrupts")) {
         IOService *nub = (IOService *)param1;
         UInt32 *vectors = (UInt32 *)param2;
         UInt32 vectorCount = (UInt32)((UInt64)param3);
-        bool exclusive = (bool)param4;
 
         if (vectorCount != 1)
             return kIOReturnBadArgument;
-        ok = setNubInterruptVector(nub, vectors[0]);
+        ok = setNubDeviceInterrupt(nub, vectors[0]);
         return ok ? kIOReturnSuccess : kIOReturnNoMemory;
     } else if (functionName->isEqualTo("SetBusClockRateMHz")) {
         UInt32 rateMHz = (UInt32)((UInt64)param1);

@@ -99,8 +99,8 @@ Gates (see the architecture plan):
   authorized_keys. sshd keeps OpenSSH's default PermitRootLogin
   prohibit-password: root logs in over ssh with a key, other users with
   their password (PAM). `boottest.py --nic e1000` tests the 82540EM,
-  which has no MSI: without ACPI _PRT routing its INTx line cannot be
-  used, so the driver polls it every 5 ms.
+  which has no MSI: it uses its INTx line, routed through ACPI _PRT by
+  ACPICA in IOACPIFamily.
 
 Until launchd runs, PID 1 is `ravyninit` (`BSD/sbin/ravyninit`), a small
 temporary init that the image installs as `/sbin/launchd`, the only path a

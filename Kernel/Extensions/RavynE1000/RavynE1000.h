@@ -31,9 +31,9 @@
  *
  * Packets are copied to and from fixed 2 KB DMA buffers, one per
  * descriptor; the transmit and receive rings and the interrupt handler run
- * on the controller's work loop. The 82574L uses its MSI interrupt. The
- * 8254x have only INTx, which the platform cannot route yet (no ACPI
- * _PRT); when no interrupt arrives, a timer polls the controller instead.
+ * on the controller's work loop. The 82574L uses its MSI interrupt, the
+ * 8254x their INTx line (routed by the platform through ACPI _PRT). If no
+ * interrupt arrives, a timer polls the controller instead.
  */
 
 #ifndef _RAVYNE1000_H

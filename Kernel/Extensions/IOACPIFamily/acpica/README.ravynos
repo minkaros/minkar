@@ -1,0 +1,18 @@
+ACPICA in ravynOS
+=================
+
+contrib/dev/acpica is ACPICA 20250807 (Intel's ACPI Component
+Architecture), as it was in this repository before "The Great Migration"
+(commit 9d813c08ba^, sys/contrib/dev/acpica), used under the BSD-3 option
+of its dual licence (see the header of each file). Only the interpreter is
+kept: include/ and components/{dispatcher,events,executer,hardware,
+namespace,parser,resources,tables,utilities}; components/resources/
+rsdump.c (debugger support) is not built.
+
+The ACPICA files are unmodified. Our files (BSD-2):
+
+* include/platform/acmacosx.h - the environment for the Darwin kernel,
+  which ACPICA's acenv.h includes on __APPLE__.
+* ../ACPIOSLayer.cpp - the OS services ACPICA calls (AcpiOs*).
+* ../ACPIInterpreter.cpp - starting ACPICA and what IOACPIFamily asks of
+  it: PCI interrupt routing (_PRT, link devices), the SCI.
