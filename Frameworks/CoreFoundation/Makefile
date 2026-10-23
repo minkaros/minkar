@@ -91,6 +91,7 @@ SRCS = CFApplicationPreferences.c \
 	CFURL.c \
 	CFURLAccess.c \
 	CFURLEnumerator.c \
+	CFURLResources.c \
 	CFUUID.c \
 	CFUniChar.c \
 	CFUnicodeDecomposition.c \
