@@ -1,0 +1,31 @@
+IONetworkingFamily for ravynOS
+==============================
+
+Our own implementation (BSD-2-Clause) of the macOS network driver family:
+IONetworkController, IOEthernetController, IONetworkInterface,
+IOEthernetInterface, IONetworkMedium and the output queues
+(IOBasicOutputQueue, IOGatedOutputQueue). It follows the public API of
+macOS 10.15 so that drivers written for it build here; it is not binary
+compatible with Apple's kext, and contains no Apple code.
+
+The bundle identifier is com.apple.iokit.IONetworkingFamily, the name
+drivers list in OSBundleLibraries.
+
+How it works:
+
+* A driver calls attachInterface(); registering the interface creates and
+  attaches its ifnet with the XNU interface KPI (ifnet_allocate, legacy
+  output model), names it prefix + unit (en0, en1, ... in registration
+  order) and attaches BPF.
+* IFF_UP and IFF_DOWN call the controller's enable() and disable() inside
+  its command gate. Packets from the stack go to the controller's output
+  queue; kIOReturnOutputStall keeps the packet until service().
+* inputPacket() strips the link-level header the way the stack wants it
+  and hands packets to ifnet_input(), one at a time or in batches
+  (kInputOptionQueuePacket + flushInputQueue()).
+* setLinkStatus() posts KEV_DL_LINK_ON/OFF; SIOCGIFMEDIA reports the
+  active medium and link status (not the list of media).
+
+Not implemented yet: IONetworkStack (persistent unit numbers), IOKernelDebugger,
+IONetworkData statistics, checksum and TSO offload, VLANs, power management,
+the IONetworkUserClient.
