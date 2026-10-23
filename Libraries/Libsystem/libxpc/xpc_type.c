@@ -74,6 +74,9 @@ xs _xpc_error_connection_interrupted;
 xs _xpc_error_connection_invalid;
 xs _xpc_error_connection_imminent;
 
+/* The key of an error dictionary's description (XPC_ERROR_KEY_DESCRIPTION). */
+const char *const _xpc_error_key_description = "XPCErrorDescription";
+
 static size_t xpc_data_hash(const uint8_t *data, size_t length);
 
 static xpc_type_t xpc_typemap[] = {

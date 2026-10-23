@@ -396,6 +396,54 @@ xpc_dictionary_get_array(xpc_object_t xdict, const char *key)
     return xo;
 }
 
+void
+xpc_dictionary_set_data(xpc_object_t xdict, const char *key, const void *bytes,
+    size_t length)
+{
+	xpc_object_t xotmp;
+
+	xotmp = xpc_data_create(bytes, length);
+	xpc_dictionary_set_value(xdict, key, xotmp);
+	xpc_release(xotmp);
+}
+
+const void *
+xpc_dictionary_get_data(xpc_object_t xdict, const char *key, size_t *length)
+{
+	xpc_object_t xo;
+
+	xo = xpc_dictionary_get_value(xdict, key);
+	if (xo == NULL || xpc_get_type(xo) != XPC_TYPE_DATA) {
+		if (length != NULL)
+			*length = 0;
+		return (NULL);
+	}
+	if (length != NULL)
+		*length = xpc_data_get_length(xo);
+	return (xpc_data_get_bytes_ptr(xo));
+}
+
+void
+xpc_dictionary_set_uuid(xpc_object_t xdict, const char *key, const uuid_t uuid)
+{
+	xpc_object_t xotmp;
+
+	xotmp = xpc_uuid_create(uuid);
+	xpc_dictionary_set_value(xdict, key, xotmp);
+	xpc_release(xotmp);
+}
+
+const uint8_t *
+xpc_dictionary_get_uuid(xpc_object_t xdict, const char *key)
+{
+	xpc_object_t xo;
+
+	xo = xpc_dictionary_get_value(xdict, key);
+	if (xo == NULL || xpc_get_type(xo) != XPC_TYPE_UUID)
+		return (NULL);
+	return (xpc_uuid_get_bytes(xo));
+}
+
 bool
 xpc_dictionary_apply(xpc_object_t xdict, xpc_dictionary_applier_t applier)
 {
