@@ -29,7 +29,7 @@ LIBSSH =	authfd.c authfile.c canohost.c channels.c cipher.c cipher-aes.c \
 COMPAT_OPENBSD = arc4random.c arc4random_uniform.c base64.c basename.c \
 	bcrypt_pbkdf.c bindresvport.c blowfish.c daemon.c dirname.c \
 	explicit_bzero.c fmt_scaled.c freezero.c fnmatch.c getcwd.c \
-	getgrouplist.c getopt_long.c glob.c inet_aton.c \
+	getgrouplist.c getopt_long.c getrrsetbyname.c glob.c inet_aton.c \
 	inet_ntoa.c inet_ntop.c md5.c memmem.c mktemp.c pwcache.c \
 	readpassphrase.c reallocarray.c recallocarray.c rresvport.c setenv.c \
 	setproctitle.c sha1.c sha2.c sigact.c strcasestr.c strlcat.c strlcpy.c \
@@ -44,9 +44,8 @@ COMPAT_COMPAT = bsd-asprintf.c bsd-closefrom.c bsd-cygwin_util.c bsd-err.c \
 	libressl-api-compat.c xcrypt.c
 COMPAT_PORTS =	port-aix.c port-irix.c port-linux.c port-linux-selinux.c \
 	port-prngd.c port-solaris.c port-net.c port-uw.c
-# ravyn-getrrsetbyname.c replaces openbsd-compat's, which needs libresolv.
 SRCS =		${LIBOPENSSH} ${LIBSSH} ${COMPAT_OPENBSD} ${COMPAT_COMPAT} \
-		${COMPAT_PORTS} ravyn-getrrsetbyname.c
+		${COMPAT_PORTS}
 
 # The programs.
 SKOBJS =	ssh-sk-client.o
@@ -123,7 +122,7 @@ all: ${PROGS} install-sysroot
 .for p in ${PROGS}
 _OBJS.${p} = ${${p:tu:S/-/_/g}_OBJS}
 ${p}: ${_OBJS.${p}} lib${LIB}.a
-	${CC} ${LDFLAGS} -o ${.TARGET} ${_OBJS.${p}} lib${LIB}.a ${LDADD.${p}}
+	${CC} ${LDFLAGS} -o ${.TARGET} ${_OBJS.${p}} lib${LIB}.a ${LDADD.${p}} -lresolv
 CLEANFILES += ${p} ${_OBJS.${p}}
 .endfor
 

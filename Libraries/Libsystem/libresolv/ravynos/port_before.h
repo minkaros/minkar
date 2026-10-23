@@ -26,33 +26,6 @@
  */
 
 /*
- * getrrsetbyname() without a resolver library: ravynOS has no libresolv
- * yet, so DNS record lookups (ssh's VerifyHostKeyDNS, SSHFP records) fail
- * with ERRSET_FAIL, as if no server answered. This replaces
- * openbsd-compat/getrrsetbyname.c until libresolv is built.
+ * port_before.h: what BIND's portability layer defines before the system
+ * headers. Darwin needs nothing here; the sources include it.
  */
-
-#include "includes.h"
-
-#include <stdlib.h>
-
-#include "log.h"
-
-int
-getrrsetbyname(const char *hostname, unsigned int rdclass, unsigned int rdtype,
-    unsigned int flags, struct rrsetinfo **res)
-{
-	(void)rdclass;
-	(void)rdtype;
-	(void)flags;
-	*res = NULL;
-	debug("getrrsetbyname(%s): no DNS resolver library on ravynOS yet",
-	    hostname);
-	return ERRSET_FAIL;
-}
-
-void
-freerrset(struct rrsetinfo *rrset)
-{
-	free(rrset);
-}

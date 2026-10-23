@@ -33,9 +33,6 @@ Our files:
   Run it again when updating OpenSSH.
 * include/ - the headers configure makes in openbsd-compat/include for
   what the SDK lacks (sys/tree.h, sys/queue.h, glob.h, endian.h, netgroup.h).
-* ravyn-getrrsetbyname.c - replaces openbsd-compat/getrrsetbyname.c, which
-  needs libresolv (not built yet): DNS lookups of SSHFP records fail, so
-  VerifyHostKeyDNS does nothing.
 * sshd_config, pam.d/sshd - the server configuration and its PAM policy.
 * sshd-keygen-wrapper - creates missing host keys, then runs sshd; launchd
   starts it (SystemLibrary/LaunchDaemons/com.openssh.sshd.plist).
