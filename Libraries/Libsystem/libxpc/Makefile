@@ -13,7 +13,7 @@ SRCS = mpack.c \
 	transports/mach.c
 
 SLF = /System/Library/Frameworks
-CFLAGS = -DXPC_DEBUG -DMACH -D__APPLE__ -g -O0 -fblocks \
+CFLAGS = -DMACH -D__APPLE__ -g -O2 -fblocks \
 	--sysroot=${RAVYN_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
 	-isystem${RAVYN_SDKROOT}/usr/include/c++/v1 \
 	-I${.CURDIR} -I${.CURDIR:H}/liblaunch -I${.CURDIR}/../../MiscLibs \
