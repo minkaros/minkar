@@ -12,6 +12,6 @@ SUBDIR += dscacheutil id
 SUBDIR += cmp du stat tr uniq wc
 SUBDIR += awk less sort tar vi who
 SUBDIR += diff nc netstat
-SUBDIR += curl fetch
+SUBDIR += curl fetch file su top
 
 .include <bsd.subdir.mk>

@@ -16,7 +16,7 @@ install-etc: .PHONY
 .for f in passwd group shells motd services protocols
 	install -o 0 -g 0 -m 0644 ${.CURDIR}/${f} ${ETC}/
 .endfor
-.for f in login other
+.for f in login other su
 	install -o 0 -g 0 -m 0644 ${.CURDIR}/pam.d/${f} ${ETC}/pam.d/
 .endfor
 	ln -sfn ../var/run/resolv.conf ${ETC}/resolv.conf

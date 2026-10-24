@@ -28,6 +28,9 @@ SRCS = \
 	pam_verror.c pam_vinfo.c pam_vprompt.c
 
 MODULES =	pam_deny pam_permit pam_return pam_unix
+# FreeBSD's modules (BSD-3, from git history) for su: freebsd-modules/.
+FBSD_MODULES =	pam_group pam_rootok pam_self
+FBSD_DIR =	${.CURDIR}/freebsd-modules
 
 HEADERS =	openpam.h openpam_attr.h openpam_version.h pam_appl.h \
 		pam_constants.h pam_modules.h pam_types.h
@@ -42,7 +45,9 @@ LDFLAGS = --sysroot=${RAVYN_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
 PAMLIB =	${.OBJDIR}/libpam.2.dylib
 PAMDIR =	/usr/lib/pam
 
-all: ${PAMLIB} ${MODULES:S/$/.so.2/} install-sdk install-sysroot
+ALL_MODULES =	${MODULES} ${FBSD_MODULES}
+
+all: ${PAMLIB} ${ALL_MODULES:S/$/.so.2/} install-sdk install-sysroot
 
 ${PAMLIB}: lib${LIB}.a
 	${CC} ${LDFLAGS} -shared -dylib -o ${.TARGET} \
@@ -57,6 +62,12 @@ ${m}.so.2: ${OPENPAM}/modules/${m}/${m}.c ${PAMLIB}
 	  ${OPENPAM}/modules/${m}/${m}.c ${PAMLIB} \
 	  -Wl,-exported_symbol,_pam_sm_\*
 .endfor
+.for m in ${FBSD_MODULES}
+${m}.so.2: ${FBSD_DIR}/${m}.c ${PAMLIB}
+	${CC} ${CFLAGS} -I${FBSD_DIR} ${LDFLAGS} -bundle -o ${.TARGET} \
+	  ${FBSD_DIR}/${m}.c ${PAMLIB} \
+	  -Wl,-exported_symbol,_pam_sm_\*
+.endfor
 
 install-sdk: ${PAMLIB}
 	mkdir -p ${RAVYN_SDKROOT}/usr/lib ${RAVYN_SDKROOT}/usr/include/security
@@ -66,15 +77,15 @@ install-sdk: ${PAMLIB}
 	cp -f ${OPENPAM}/include/security/${h} ${RAVYN_SDKROOT}/usr/include/security/
 .endfor
 
-install-sysroot: ${PAMLIB} ${MODULES:S/$/.so.2/}
+install-sysroot: ${PAMLIB} ${ALL_MODULES:S/$/.so.2/}
 	mkdir -p ${SYSROOT_DIR}/usr/lib ${SYSROOT_DIR}${PAMDIR}
 	cp -f ${PAMLIB} ${SYSROOT_DIR}/usr/lib/
 	ln -sf libpam.2.dylib ${SYSROOT_DIR}/usr/lib/libpam.dylib
-.for m in ${MODULES}
+.for m in ${ALL_MODULES}
 	cp -f ${m}.so.2 ${SYSROOT_DIR}${PAMDIR}/
 .endfor
 
-CLEANFILES +=	${PAMLIB} ${MODULES:S/$/.so.2/}
+CLEANFILES +=	${PAMLIB} ${ALL_MODULES:S/$/.so.2/}
 
 .PHONY: install-sdk install-sysroot
 

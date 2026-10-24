@@ -14,6 +14,8 @@ config.h. What is installed, as on macOS:
   /usr/lib/libpam.2.dylib, libpam.dylib     the library
   /usr/include/security/*.h                 the API (pam_appl.h, openpam.h...)
   /usr/lib/pam/pam_<name>.so.2              modules: unix, permit, deny, return
+                                            and FreeBSD's group, rootok, self
+                                            (freebsd-modules/, BSD-3, for su)
 
 Policies are read from /etc/pam.d/. To upgrade, replace openpam/ with the
 new release's lib, include, modules and doc/man and check the list of
