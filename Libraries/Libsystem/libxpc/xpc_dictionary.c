@@ -130,6 +130,7 @@ mpack2xpc(const mpack_node_t node)
 				continue;
 			xpc_dictionary_set_value(xotmp, key, value);
 			xpc_release(value);	/* the dictionary keeps it */
+			free(key);		/* and copies the key */
 		}
 		break;
 
@@ -329,14 +330,34 @@ xpc_dictionary_set_value(xpc_object_t xdict, const char *key,
 
 	TAILQ_FOREACH(pair, head, xo_link) {
 		if (!strcmp(pair->key, key)) {
+			if (value == NULL) {
+				/* A NULL value removes the key, as on macOS. */
+				TAILQ_REMOVE(head, pair, xo_link);
+				xo->xo_size--;
+				xpc_release(pair->value);
+				free(pair->key);
+				free(pair);
+				return;
+			}
+			xpc_retain(value);
+			xpc_release(pair->value);
 			pair->value = value;
 			return;
 		}
 	}
+	if (value == NULL)
+		return;
 
-	xo->xo_size++;
+	/* The dictionary keeps its own copy of the key. */
+	/* (No strdup: <string.h> here is the kernel's, via usr/local/include/kernel.) */
+	size_t keylen = strlen(key) + 1;
 	pair = malloc(sizeof(struct xpc_dict_pair));
-	pair->key = key;
+	if (pair == NULL || (pair->key = malloc(keylen)) == NULL) {
+		free(pair);
+		return;
+	}
+	memcpy(pair->key, key, keylen);
+	xo->xo_size++;
 	pair->value = value;
 	TAILQ_INSERT_TAIL(&xo->xo_dict, pair, xo_link);
 	xpc_retain(value);

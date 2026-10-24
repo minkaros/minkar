@@ -129,7 +129,7 @@ struct xpc_object {
 };
 
 struct xpc_dict_pair {
-	const char *		key;
+	char *			key;	/* owned */
 	struct xpc_object *	value;
 	TAILQ_ENTRY(xpc_dict_pair) xo_link;
 };

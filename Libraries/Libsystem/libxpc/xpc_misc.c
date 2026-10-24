@@ -66,7 +66,8 @@ xpc_dictionary_destroy(struct xpc_object *dict)
 
 	TAILQ_FOREACH_SAFE(p, head, xo_link, ptmp) {
 		TAILQ_REMOVE(head, p, xo_link);
-		xpc_object_destroy(p->value);
+		xpc_release(p->value);	/* set_value retained it */
+		free(p->key);
 		free(p);
 	}
 }
@@ -81,7 +82,7 @@ xpc_array_destroy(struct xpc_object *dict)
 
 	TAILQ_FOREACH_SAFE(p, head, xo_link, ptmp) {
 		TAILQ_REMOVE(head, p, xo_link);
-		xpc_object_destroy(p);
+		xpc_release(p);		/* append_value retained it */
 	}
 }
 
