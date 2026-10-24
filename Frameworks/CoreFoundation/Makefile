@@ -104,7 +104,8 @@ SRCS = CFApplicationPreferences.c \
 	CFXMLNode.c \
 	CFXMLParser.c \
 	CFXMLPreferencesDomain.c \
-	CFXMLTree.c
+	CFXMLTree.c \
+	CFXPCBridge.c
 
 #add_executable(plconvert RESOURCES plconvert.c)
 #add_dependencies(plconvert CoreFoundation)

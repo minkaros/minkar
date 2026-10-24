@@ -73,6 +73,7 @@ enum {
     __CFRunLoopOptionsTakeAssertion = (1ULL << 0),
     __CFRunLoopOptionsDropAssertion = (1ULL << 1)
 };
+CF_EXPORT void __CFRunLoopSetOptionsReason(CFOptionFlags opts, CFStringRef reason);
 
 CF_EXPORT const CFStringRef kCFRunLoopDefaultMode;
 CF_EXPORT const CFStringRef kCFRunLoopCommonModes;

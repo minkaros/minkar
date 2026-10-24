@@ -24,6 +24,20 @@
 #ifndef __COREFOUNDATION_CFXPCBRIDGE__
 #define __COREFOUNDATION_CFXPCBRIDGE__
 
+#include <CoreFoundation/CFBase.h>
+#include <xpc/xpc.h>
 
+CF_EXTERN_C_BEGIN
+
+/* Property-list objects to and from XPC objects (CFXPCBridge.c). They
+ * return NULL for anything that is not a property list. */
+CF_EXPORT xpc_object_t _CFXPCCreateXPCObjectFromCFObject(CFTypeRef cf);
+CF_EXPORT CFTypeRef _CFXPCCreateCFObjectFromXPCObject(xpc_object_t xo);
+
+/* The same, wrapped in an XPC dictionary to send as a message. */
+CF_EXPORT xpc_object_t _CFXPCCreateXPCMessageWithCFObject(CFTypeRef cf);
+CF_EXPORT CFTypeRef _CFXPCCreateCFObjectFromXPCMessage(xpc_object_t msg);
+
+CF_EXTERN_C_END
 
 #endif // __COREFOUNDATION_CFXPCBRIDGE__
