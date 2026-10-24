@@ -30,7 +30,7 @@ LDFLAGS = -mmacos-version-min=${MACOS_VERSION_MIN} -umbrella System \
 	-Wl,-install_name,/usr/lib/system/libsystem_dnssd.dylib \
 	-Wl,-current_version,1096.100.3 -Wl,-compatibility_version,1 \
 	-ldispatch -lsystem_malloc -lsystem_platform -lsystem_asl \
-	-lsystem_c -lsystem_kernel -ldyld
+	-lsystem_c -lsystem_kernel -lsystem_blocks -ldyld
 
 all: ${.OBJDIR}/lib${LIB}.dylib
 

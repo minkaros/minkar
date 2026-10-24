@@ -3,7 +3,6 @@ SUBDIR =
 
 LIB = dyld
 SRCS = ./src/start_glue.s \
-	./src/glue.c \
 	./dyld3/Tracing.cpp \
 	./dyld3/Closure.cpp \
 	./src/dyldLock.cpp \
