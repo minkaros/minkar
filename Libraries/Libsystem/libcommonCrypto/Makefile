@@ -1,23 +1,30 @@
-# libcommonCrypto: CommonCrypto's digests (CC_MD5, CC_SHA1, CC_SHA224/256/
-# 384/512) and HMAC (CCHmac*), our own (BSD-2), in libSystem as on macOS.
-# The headers are the SDK's <CommonCrypto/CommonDigest.h> and
-# <CommonCrypto/CommonHMAC.h>. Apple's CommonCrypto (../CommonCrypto, on
-# corecrypto) is not built. Host tests: make -C tests.
+# libcommonCrypto, our own (BSD-2), in libSystem as on macOS:
+#   digests     CC_MD5, CC_SHA1, CC_SHA224/256/384/512    (digest.c)
+#   HMAC        CCHmac*                                   (hmac.c)
+#   ciphers     CCCryptor*, CCCrypt: AES in ECB, CBC, CTR, CFB, CFB8, OFB;
+#               RC4. DES, 3DES, CAST, RC2, Blowfish: kCCUnimplemented
+#                                                         (cryptor.c, aes.c)
+#   random      CCRandomGenerateBytes                     (keyderivation.c)
+#   PBKDF2      CCKeyDerivationPBKDF, CCCalibratePBKDF    (keyderivation.c)
+# The headers are the SDK's <CommonCrypto/...>. Apple's CommonCrypto
+# (../CommonCrypto, on corecrypto) is not built. Tables: gen_tables.py.
+# Host tests: make -C tests.
 
 SUBDIR =
 MK_WERROR = no
 LIB = commonCrypto
-SRCS = digest.c hmac.c
+SRCS = digest.c hmac.c aes.c cryptor.c keyderivation.c
 
 CFLAGS = --sysroot=${RAVYN_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
-	-I${.CURDIR} -Wno-deprecated-declarations
+	-I${.CURDIR} -Wno-deprecated-declarations -Wno-nullability-completeness
 
 LDFLAGS = -Wl,-syslibroot,${RAVYN_SDKROOT}/usr/lib -umbrella System \
 	-L${RAVYN_SDKROOT}/usr/lib/system \
 	-Wl,-current_version,60165 -Wl,-compatibility_version,1 \
 	-Wl,-install_name,/usr/lib/system/libcommonCrypto.dylib \
 	-mmacos-version-min=${MACOS_VERSION_MIN} \
-	-nodefaultlibs -lsystem_c
+	-nodefaultlibs -lsystem_c -lsystem_malloc -lsystem_kernel -ldyld \
+	-Wl,-unexported_symbol,__cc_*
 
 all: ${.OBJDIR}/lib${LIB}.dylib
 
