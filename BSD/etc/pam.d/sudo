@@ -1,0 +1,4 @@
+# sudo: the invoking user's own password.
+auth		required	pam_unix.so	no_warn try_first_pass
+account		required	pam_unix.so
+session		required	pam_permit.so

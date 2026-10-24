@@ -780,7 +780,19 @@ _getgrouplist_2_internal(const char *name, gid_t basegid, gid_t **groups)
 
 	item = si_grouplist(si_search(), name, INT_MAX);
 	LI_set_thread_item(CATEGORY_GROUPLIST, item);
-	if (item == NULL) return -1;
+	if (item == NULL) {
+		/*
+		 * ravynOS: the file module finds no list for a user who is
+		 * in no group besides the primary one (nobody, for one);
+		 * that user's list is the base group alone, as
+		 * getgrouplist() already answers.
+		 */
+		gids = calloc(1, sizeof(gid_t));
+		if (gids == NULL) return -1;
+		gids[0] = basegid;
+		(*groups) = gids;
+		return 1;
+	}
 
 	gl = (si_grouplist_t *) ((uintptr_t) item + sizeof(si_item_t));
 
