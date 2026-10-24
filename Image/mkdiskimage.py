@@ -124,7 +124,7 @@ def case_collisions(tree):
 
 
 def copy_tree(src, dst):
-    """Copy src into dst keeping owners, modes and links (needs root)."""
+    """Copy src into dst keeping owners, modes and symbolic links (needs root)."""
     drop, conflicts = case_collisions(src)
     if conflicts:
         raise SystemExit('names that differ only in case cannot share a volume:\n' +
@@ -134,7 +134,12 @@ def copy_tree(src, dst):
     excludes = []
     for path in drop:
         excludes += ['--exclude', './' + path]
-    pack = subprocess.Popen(['tar', '-C', src, '-cf', '-'] + excludes + ['.'],
+    # Hard links become separate files (about 6 MB more): Linux's hfsplus
+    # driver makes link records without the link-chain flag Darwin's HFS
+    # expects, so the kernel logged "hfs: set hardlink bit" on the console,
+    # synchronously, at every lookup of one.
+    pack = subprocess.Popen(['tar', '-C', src, '--hard-dereference', '-cf', '-'] +
+                            excludes + ['.'],
                             stdout=subprocess.PIPE)
     unpack = subprocess.run(['tar', '-C', dst, '-xpf', '-'], stdin=pack.stdout)
     pack.stdout.close()
