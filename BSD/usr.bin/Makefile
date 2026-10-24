@@ -10,6 +10,7 @@ SUBDIR += head kill killall login patch pfetch printf sed sw_vers
 SUBDIR += tail tee time touch true uname users whereis which xargs yes
 SUBDIR += dscacheutil id
 SUBDIR += cmp du stat tr uniq wc
-#SUBDIR += fetch sort who
+SUBDIR += awk less sort tar vi who
+#SUBDIR += fetch
 
 .include <bsd.subdir.mk>
