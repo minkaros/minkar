@@ -1,5 +1,6 @@
 # Base configuration in /etc (architecture plan, Phase 2): the user and
-# group databases, login shells, the PAM policies, services and protocols
+# group databases, login shells, the shell profile (profile, shrc:
+# environment, aliases, prompt), the PAM policies, services and protocols
 # (FreeBSD's, from IANA's registries), sudo's configuration, and
 # resolv.conf, a link to the one dhcpclient writes, as on macOS.
 # (Makefile.freebsd is the FreeBSD-era file list, kept for reference
@@ -7,6 +8,11 @@
 
 SUBDIR =
 
+# Run from the top of the tree (env SUBDIR=BSD/etc bmake ...): here alone,
+# SYSROOT_DIR is unset and /private/etc would be the build host's.
+.if empty(SYSROOT_DIR)
+.error SYSROOT_DIR is not set: build BSD/etc from the top of the tree
+.endif
 ETC =	${SYSROOT_DIR}/private/etc
 
 all: install-etc
@@ -14,7 +20,7 @@ all: install-etc
 install-etc: .PHONY
 	mkdir -p ${ETC}/pam.d
 	install -o 0 -g 0 -m 0600 ${.CURDIR}/master.passwd ${ETC}/
-.for f in passwd group shells motd services protocols
+.for f in passwd group shells motd services protocols profile shrc
 	install -o 0 -g 0 -m 0644 ${.CURDIR}/${f} ${ETC}/
 .endfor
 .for f in login other su sudo

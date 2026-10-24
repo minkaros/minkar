@@ -1,0 +1,36 @@
+# SPDX-License-Identifier: BSD-2-Clause
+# Copyright (c) 2026 ravynOS contributors
+#
+# /etc/profile: read by login shells (sh) before ~/.profile.
+# System-wide environment; per-user changes go in ~/.profile.
+
+PATH=/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin
+export PATH
+
+# The console reports no terminal type; xterm suits it and terminals
+# connecting through ssh set their own.
+case "${TERM:-unknown}" in
+unknown|dumb|network|"")
+	TERM=xterm
+	;;
+esac
+export TERM
+
+EDITOR=vi
+PAGER=less
+LESS=-R			# less passes colors through
+BLOCKSIZE=K
+CLICOLOR=1		# ls in color
+LSCOLORS=ExGxFxdxCxDxDxBxBxExEx
+export EDITOR PAGER LESS BLOCKSIZE CLICOLOR LSCOLORS
+
+# login starts in the home directory's real path (/private/var/root);
+# go there by its own name so the prompt shows ~.
+if [ -n "$HOME" ] && [ "$PWD" -ef "$HOME" ]; then
+	cd "$HOME"
+fi
+
+# Interactive shells read $ENV: aliases and the prompt (/etc/shrc,
+# which then reads ~/.shrc).
+ENV=/etc/shrc
+export ENV

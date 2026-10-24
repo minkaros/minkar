@@ -1,7 +1,9 @@
 SUBDIR =
 MK_WERROR = no
 PROG = sh
-.PATH: ${.OBJDIR}
+# test, printf and kill are built in, as on FreeBSD.
+.PATH: ${.OBJDIR} ${.CURDIR}/../kill ${.CURDIR}/../test \
+	${.CURDIR}/../../usr.bin/printf
 SRCS =  bltin/echo.c \
 	alias.c \
 	arith_yacc.c \
@@ -29,7 +31,10 @@ SRCS =  bltin/echo.c \
 	builtins.c \
 	nodes.c \
 	syntax.c \
-	shims.c
+	shims.c \
+	kill.c \
+	printf.c \
+	test.c
 
 CFLAGS = --sysroot=${RAVYN_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
 	-DSHELL -I${.CURDIR} -I${.OBJDIR} -I${.CURDIR}/../../lib/libedit/src \

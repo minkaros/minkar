@@ -4,6 +4,9 @@ SUBDIR =
 MK_WERROR = no
 PROG=	ls
 SRCS=	cmp.c ls.c print.c util.c
+# Colors (-G, CLICOLOR) through the terminal database in libncurses.
+CFLAGS+= -DCOLORLS
+LDADD+=	-lncurses
 
 HAS_TESTS=
 

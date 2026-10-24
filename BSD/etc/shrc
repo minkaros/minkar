@@ -1,0 +1,55 @@
+# SPDX-License-Identifier: BSD-2-Clause
+# Copyright (c) 2026 ravynOS contributors
+#
+# /etc/shrc: read by interactive sh through $ENV (set in /etc/profile).
+# Aliases, the prompt and line editing for everyone; put your own in
+# ~/.shrc, which is read at the end.
+
+case $- in
+*i*) ;;
+*) return 0 ;;
+esac
+
+set -o emacs		# line editing, history with the arrow keys
+HISTSIZE=1000
+
+# Listing
+alias ls='ls -G'
+alias l='ls -CF'
+alias la='ls -A'
+alias ll='ls -lh'
+alias lla='ls -lhA'
+
+# Moving around
+alias ..='cd ..'
+alias ...='cd ../..'
+
+# Asking before overwriting or removing
+alias cp='cp -i'
+alias mv='mv -i'
+alias rm='rm -i'
+
+# Everyday
+alias df='df -h'
+alias du='du -h'
+alias grep='grep --color=auto'
+alias h='fc -l'
+alias j='jobs -l'
+alias path='echo $PATH | tr : "\n"'
+
+# Prompt: user@host:directory, then # for root (in red) or $ (in green).
+# \[ \] enclose what takes no room on screen, so line editing counts
+# the prompt's width right. libedit ties each such sequence to the
+# character after it: two may not come one right after the other.
+if [ "$(id -u)" -eq 0 ]; then
+	_c='\[\e[1;31m\]'
+else
+	_c='\[\e[1;32m\]'
+fi
+PS1=$_c'\u@\h\[\e[0m\]:\[\e[1;34m\]\w'$_c'\$\[\e[0m\] '
+PS2='> '
+unset _c
+
+if [ -r "$HOME/.shrc" ]; then
+	. "$HOME/.shrc"
+fi
