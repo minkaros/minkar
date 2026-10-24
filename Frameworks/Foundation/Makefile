@@ -345,10 +345,19 @@ ACFLAGS = -mmacos-version-min=${MACOS_VERSION_MIN}
 
 # We need to link this manually to avoid chicken & egg issue with ld wanting
 # to link against Foundation and libobjc :)
+# Cocotron's NSNumber and NSStream define CoreFoundation's constants for
+# themselves (NSNumber objects for kCFBooleanTrue...). Foundation uses its
+# own inside, but must not export them: those names belong to
+# CoreFoundation.
+CF_CONSTANTS_KEPT_PRIVATE = _kCFBooleanTrue _kCFBooleanFalse _kCFNumberNaN \
+	_kCFNumberPositiveInfinity _kCFNumberNegativeInfinity \
+	_kCFStreamPropertySSLSettings
+
 LDFLAGS = --sysroot=${RAVYN_SDKROOT} -Wl,-current_version,1677.104.0 \
 	-Wl,-compatibility_version,300.0.0 -Xlinker -reexport-lobjc \
 	-F${RAVYN_SDKROOT}/System/Library/Frameworks -framework CoreFoundation \
-	-lSystem
+	-lSystem \
+	${CF_CONSTANTS_KEPT_PRIVATE:S/^/-Wl,-unexported_symbol,/}
 
 .for file in NSProcessInfo NSStringsFileParser NSData NSNumberFormatter
 CFLAGS.${file}.o = -I${.CURDIR}/NSString

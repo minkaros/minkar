@@ -188,7 +188,9 @@
 /* #undef HAVE_VFORK_H */
 
 /* Define to 1 if you have the 'vis' function. */
-#define HAVE_VIS 1
+/* ravynOS: libc's vis(3) is the older one, whose flag values differ from
+   src/vis.h; libedit builds its own (hidden, see the Makefile). */
+/* #undef HAVE_VIS */
 
 /* Define to 1 if you have the <wchar.h> header file. */
 #define HAVE_WCHAR_H 1

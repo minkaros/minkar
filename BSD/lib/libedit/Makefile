@@ -1,3 +1,7 @@
+# getline, strlcpy/strlcat and wcsdup (with its reallocarr) come from libc,
+# as upstream's configure would decide. vis/unvis do not: libc's are the
+# older ones (other flag values, no VIS_DQ, VIS_SHELL or VIS_NOLOCALE), so
+# libedit keeps its own, built hidden so that it does not export them.
 SUBDIR =
 MK_WERROR = no
 LIB = edit
@@ -10,7 +14,6 @@ SRCS =  chared.c \
         eln.c \
         emacs.c \
         filecomplete.c \
-        getline.c \
         hist.c \
         history.c \
         historyn.c \
@@ -21,12 +24,9 @@ SRCS =  chared.c \
         prompt.c \
         read.c \
         readline.c \
-        reallocarr.c \
         refresh.c \
         search.c \
         sig.c \
-        strlcat.c \
-        strlcpy.c \
         terminal.c \
         tokenizer.c \
         tokenizern.c \
@@ -34,7 +34,6 @@ SRCS =  chared.c \
         unvis.c \
         vi.c \
         vis.c \
-        wcsdup.c \
         vi.h \
         emacs.h \
         common.h \
@@ -46,6 +45,9 @@ CFLAGS = --sysroot=${RAVYN_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
 	-I${.CURDIR}/src -I${.CURDIR} -I${.OBJDIR}
 LDFLAGS = --sysroot=${RAVYN_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
         -fuse-ld=${LD}
+
+CFLAGS.vis.c =	-fvisibility=hidden
+CFLAGS.unvis.c =	-fvisibility=hidden
 
 AHDR = vi.h emacs.h common.h 
 ASRC = $(.CURDIR)/src/vi.c $(.CURDIR)/src/emacs.c $(.CURDIR)/src/common.c
