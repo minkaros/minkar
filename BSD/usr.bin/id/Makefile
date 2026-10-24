@@ -1,6 +1,6 @@
-# id, groups and whoami (FreeBSD's id with Apple's changes). The -A and -F
-# options' OpenDirectory code (open_directory.c) is not built: ravynOS has
-# no OpenDirectory yet.
+# id, groups and whoami (FreeBSD's id with Apple's changes). -A prints the
+# audit session (getaudit_addr); -F the full name from the passwd entry.
+# open_directory.c is not used by id.c.
 
 SUBDIR =
 PROG =	id
@@ -9,7 +9,7 @@ MAN =
 
 MK_WERROR = no
 CFLAGS = --sysroot=${RAVYN_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
-	-Wno-nullability-completeness
+	-DUSE_BSM_AUDIT -Wno-nullability-completeness
 LDFLAGS = --sysroot=${RAVYN_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
 	-fuse-ld=${LD}
 
