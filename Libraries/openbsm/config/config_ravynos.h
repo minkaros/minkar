@@ -45,5 +45,7 @@
 #define HAVE_VIS		1
 #define USE_COMPAT_ENDIAN_H	1
 #define USE_COMPAT_ENDIAN_ENC_H	1
+/* auditd and audit(8) talk over Mach: auditd_control.defs. */
+#define USE_MACH_IPC		1
 
 #endif /* !_OPENBSM_CONFIG_RAVYNOS_H */
