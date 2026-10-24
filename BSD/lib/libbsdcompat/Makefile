@@ -7,7 +7,8 @@
 
 SUBDIR =
 LIB = bsdcompat
-SRCS = strtonum.c expand_number.c copy_file_range.c mknodat.c acl.c
+SRCS = strtonum.c expand_number.c copy_file_range.c mknodat.c acl.c \
+	explicit_bzero.c
 CFLAGS = --sysroot=${RAVYN_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
 	-I${.CURDIR}/include -Wno-nullability-completeness
 

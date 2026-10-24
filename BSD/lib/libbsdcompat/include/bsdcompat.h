@@ -35,6 +35,7 @@
 #define _RAVYNOS_BSDCOMPAT_H
 
 #include <sys/cdefs.h>
+#include <stddef.h>
 #include <stdint.h>
 
 /*
@@ -68,11 +69,50 @@
 #define	_PC_ACL_NFS4		_PC_EXTENDED_SECURITY_NP
 #define	_PC_ACL_EXTENDED	(-1)
 #define	ACL_TYPE_NFS4		ACL_TYPE_EXTENDED
+/* <sys/mman.h>: no core dump, no sync hints on Darwin. */
+#ifndef MAP_NOCORE
+#define	MAP_NOCORE	0
+#endif
+#ifndef MAP_NOSYNC
+#define	MAP_NOSYNC	0
+#endif
+/* <sys/cdefs.h> and <sys/param.h> macros Darwin lacks. */
+#ifndef __min_size
+#define	__min_size(x)	static (x)	/* an array parameter of at least x elements */
+#endif
+#ifndef __packed
+#define	__packed	__attribute__((__packed__))
+#endif
+#ifndef __aligned
+#define	__aligned(x)	__attribute__((__aligned__(x)))
+#endif
+#ifndef __predict_true
+#define	__predict_true(e)	__builtin_expect(!!(e), 1)
+#define	__predict_false(e)	__builtin_expect(!!(e), 0)
+#endif
+#ifndef __DECONST
+#define	__DECONST(type, var)	((type)(uintptr_t)(const void *)(var))
+#endif
+#ifndef __DEQUALIFY
+#define	__DEQUALIFY(type, var)	((type)(uintptr_t)(const volatile void *)(var))
+#endif
+#ifndef nitems
+#define	nitems(x)	(sizeof((x)) / sizeof((x)[0]))
+#endif
+#ifndef __containerof
+#define	__containerof(x, s, m)	((s *)(void *)((char *)(x) - offsetof(s, m)))
+#endif
 /* <paths.h> */
 #define	_PATH_CP	"/bin/cp"
 #define	_PATH_RM	"/bin/rm"
 
 __BEGIN_DECLS
+
+/* FreeBSD declares getentropy in <unistd.h>, Darwin in <sys/random.h>. */
+int		getentropy(void *buf, size_t buflen);
+
+/* <strings.h>: zeroes memory the compiler may not optimize away. */
+void		explicit_bzero(void *buf, size_t len);
 
 /* <stdlib.h>: a number in [minval, maxval], or 0 and *errstr set. */
 long long	strtonum(const char *numstr, long long minval, long long maxval,
