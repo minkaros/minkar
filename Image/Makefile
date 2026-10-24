@@ -60,6 +60,17 @@ BOOTTEST_KEY =		${ROOT_BINARY_DIR}/boottest-ssh/id_ed25519
 .if defined(BOOTTEST_SSH_KEY)
 .export BOOTTEST_SSH_KEY
 .endif
+# TEST_USER=name TEST_USER_PASSWORD=...: a login account for testing (uid
+# 501, group staff, admin), for development images.
+.if defined(TEST_USER)
+.export TEST_USER TEST_USER_PASSWORD
+.endif
+# SSH_ROOT_LOGIN=yes: root may log in over ssh, also with its password. On
+# by default for development images until version 1.0; "no" turns it off.
+SSH_ROOT_LOGIN ?=	yes
+.if ${SSH_ROOT_LOGIN} == "yes"
+INIT_ARGS +=		--ssh-root-login
+.endif
 # LAUNCHD_DEBUG=1: launchd logs at debug level to the console.
 .if !empty(LAUNCHD_DEBUG)
 INIT_ARGS +=		--launchd-debug

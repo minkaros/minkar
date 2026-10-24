@@ -164,10 +164,7 @@ def install_init(root_dir, init):
 def set_root_password(root_dir, password):
     """Give root a SHA-512-crypt password in /etc/master.passwd (dev images)."""
     path = os.path.join(root_dir, 'private/etc/master.passwd')
-    hashed = subprocess.run(['openssl', 'passwd', '-6', '-stdin'], input=password,
-                            capture_output=True, text=True, check=True).stdout.strip()
-    if not hashed.startswith('$6$'):
-        raise SystemExit('openssl passwd -6 gave no SHA-512 hash')
+    hashed = sha512_crypt(password)
     with open(path) as f:
         lines = f.readlines()
     for i, line in enumerate(lines):
@@ -181,6 +178,60 @@ def set_root_password(root_dir, password):
     with open(path, 'w') as f:
         f.writelines(lines)
     os.chmod(path, 0o600)
+
+
+def sha512_crypt(password):
+    hashed = subprocess.run(['openssl', 'passwd', '-6', '-stdin'], input=password,
+                            capture_output=True, text=True, check=True).stdout.strip()
+    if not hashed.startswith('$6$'):
+        raise SystemExit('openssl passwd -6 gave no SHA-512 hash')
+    return hashed
+
+
+def add_test_user(root_dir, name, password, uid=501, gid=20):
+    """Add a login account for testing, like macOS's first user: uid 501,
+    group staff, member of admin, home in /Users (dev images)."""
+    etc = os.path.join(root_dir, 'private/etc')
+    gecos, home, shell = name, '/Users/' + name, '/bin/sh'
+    for fname, entry, mode in (
+            ('master.passwd', '%s:%s:%d:%d::0:0:%s:%s:%s\n' % (
+                name, sha512_crypt(password), uid, gid, gecos, home, shell), 0o600),
+            ('passwd', '%s:*:%d:%d:%s:%s:%s\n' % (name, uid, gid, gecos, home, shell),
+             0o644)):
+        path = os.path.join(etc, fname)
+        with open(path) as f:
+            lines = [l for l in f if not l.startswith(name + ':')]
+        lines.append(entry)
+        with open(path, 'w') as f:
+            f.writelines(lines)
+        os.chmod(path, mode)
+    path = os.path.join(etc, 'group')
+    with open(path) as f:
+        lines = f.readlines()
+    for i, line in enumerate(lines):
+        fields = line.rstrip('\n').split(':')
+        if len(fields) == 4 and fields[0] == 'admin':
+            members = [m for m in fields[3].split(',') if m]
+            if name not in members:
+                members.append(name)
+            fields[3] = ','.join(members)
+            lines[i] = ':'.join(fields) + '\n'
+    with open(path, 'w') as f:
+        f.writelines(lines)
+    home_dir = os.path.join(root_dir, home.lstrip('/'))
+    os.makedirs(home_dir, mode=0o755, exist_ok=True)
+    os.chown(home_dir, uid, gid)
+
+
+def permit_root_ssh(root_dir):
+    """Let root log in over ssh with a password too (dev images, until 1.0)."""
+    path = os.path.join(root_dir, 'private/etc/ssh/sshd_config')
+    with open(path) as f:
+        lines = [l for l in f if not l.startswith('PermitRootLogin ')]
+    lines.append('# Development image: root may log in over ssh (until 1.0).\n'
+                 'PermitRootLogin yes\n')
+    with open(path, 'w') as f:
+        f.writelines(lines)
 
 
 def set_root_authorized_keys(root_dir, keys_file):
@@ -277,6 +328,12 @@ def build(args):
             set_root_password(root_dir, args.root_password)
         if args.root_authorized_keys:
             set_root_authorized_keys(root_dir, args.root_authorized_keys)
+        if args.test_user:
+            if not args.test_user_password:
+                raise SystemExit('--test-user needs --test-user-password')
+            add_test_user(root_dir, args.test_user, args.test_user_password)
+        if args.ssh_root_login:
+            permit_root_ssh(root_dir)
         if args.launchd_debug:
             # launchd logs at debug level to the console when this exists.
             open(os.path.join(root_dir, 'private/var/db/.launchd_log_debug'), 'w').close()
@@ -309,6 +366,12 @@ def main(argv=None):
     p.add_argument('--root-authorized-keys', default=os.environ.get('ROOT_AUTHORIZED_KEYS'),
                    help='file of public keys root can log in with over ssh '
                    '(default: $ROOT_AUTHORIZED_KEYS)')
+    p.add_argument('--test-user', default=os.environ.get('TEST_USER'),
+                   help='add a login account for testing (uid 501, admin; default: $TEST_USER)')
+    p.add_argument('--test-user-password', default=os.environ.get('TEST_USER_PASSWORD'),
+                   help='its password (default: $TEST_USER_PASSWORD)')
+    p.add_argument('--ssh-root-login', action='store_true',
+                   help='PermitRootLogin yes in sshd_config (development images)')
     p.add_argument('--launchd-debug', action='store_true',
                    help='make launchd log at debug level to the console')
     p.add_argument('--boot-args', default='-v debug=0x14e serial=3 keepsyms=1',
