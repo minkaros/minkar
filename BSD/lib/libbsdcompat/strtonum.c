@@ -28,6 +28,7 @@
 #include <errno.h>
 #include <limits.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "bsdcompat.h"
 
@@ -63,4 +64,15 @@ strtonum(const char *numstr, long long minval, long long maxval, const char **er
 	*errstr = NULL;
 	errno = saved;
 	return (v);
+}
+
+int
+feature_present(const char *feature)
+{
+	static const char *const features[] = { "inet", "inet6", NULL };
+
+	for (int i = 0; features[i] != NULL; i++)
+		if (strcmp(feature, features[i]) == 0)
+			return (1);
+	return (0);
 }

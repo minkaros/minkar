@@ -32,6 +32,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
+#include <dirent.h>
 
 #include "bsdcompat.h"
 
@@ -87,4 +88,16 @@ chflagsat(int fd, const char *path, unsigned long flags, int atflag)
 	if (atflag & AT_SYMLINK_NOFOLLOW)
 		return (lchflags(full, (unsigned int)flags));
 	return (chflags(full, (unsigned int)flags));
+}
+
+int
+fdscandir(int dirfd, struct dirent ***namelist,
+    int (*select)(const struct dirent *),
+    int (*compar)(const struct dirent **, const struct dirent **))
+{
+	char dir[PATH_MAX];
+
+	if (fcntl(dirfd, F_GETPATH, dir) == -1)
+		return (-1);
+	return (scandir(dir, namelist, select, compar));
 }

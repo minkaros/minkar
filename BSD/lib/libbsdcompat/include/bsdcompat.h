@@ -102,9 +102,43 @@
 #ifndef __containerof
 #define	__containerof(x, s, m)	((s *)(void *)((char *)(x) - offsetof(s, m)))
 #endif
+/* <sys/time.h> timespec arithmetic. */
+#ifndef timespecclear
+#define	timespecclear(tvp)	((tvp)->tv_sec = (tvp)->tv_nsec = 0)
+#define	timespecisset(tvp)	((tvp)->tv_sec || (tvp)->tv_nsec)
+#define	timespeccmp(tvp, uvp, cmp)					\
+	(((tvp)->tv_sec == (uvp)->tv_sec) ?				\
+	    ((tvp)->tv_nsec cmp (uvp)->tv_nsec) :			\
+	    ((tvp)->tv_sec cmp (uvp)->tv_sec))
+#define	timespecadd(tsp, usp, vsp)					\
+	do {								\
+		(vsp)->tv_sec = (tsp)->tv_sec + (usp)->tv_sec;		\
+		(vsp)->tv_nsec = (tsp)->tv_nsec + (usp)->tv_nsec;	\
+		if ((vsp)->tv_nsec >= 1000000000L) {			\
+			(vsp)->tv_sec++;				\
+			(vsp)->tv_nsec -= 1000000000L;			\
+		}							\
+	} while (0)
+#define	timespecsub(tsp, usp, vsp)					\
+	do {								\
+		(vsp)->tv_sec = (tsp)->tv_sec - (usp)->tv_sec;		\
+		(vsp)->tv_nsec = (tsp)->tv_nsec - (usp)->tv_nsec;	\
+		if ((vsp)->tv_nsec < 0) {				\
+			(vsp)->tv_sec--;				\
+			(vsp)->tv_nsec += 1000000000L;			\
+		}							\
+	} while (0)
+#endif
+/* <arpa/nameser.h> */
+#ifndef MAXDNAME
+#define	MAXDNAME	1025
+#endif
 /* <paths.h> */
 #define	_PATH_CP	"/bin/cp"
 #define	_PATH_RM	"/bin/rm"
+
+/* FreeBSD's <sys/_types.h> name (<sys/tree.h> uses it). */
+typedef uintptr_t	__uintptr_t;
 
 __BEGIN_DECLS
 
@@ -113,6 +147,9 @@ int		getentropy(void *buf, size_t buflen);
 
 /* <strings.h>: zeroes memory the compiler may not optimize away. */
 void		explicit_bzero(void *buf, size_t len);
+
+/* <unistd.h>: whether the system has a feature ("inet", "inet6"). */
+int		feature_present(const char *feature);
 
 /* <stdlib.h>: a number in [minval, maxval], or 0 and *errstr set. */
 long long	strtonum(const char *numstr, long long minval, long long maxval,
@@ -132,6 +169,12 @@ int		acl_is_trivial_np(struct _acl *acl, int *trivial);
 
 /* <unistd.h>: file flags, relative to a directory descriptor. */
 int		chflagsat(int fd, const char *path, unsigned long flags, int atflag);
+
+/* <dirent.h>: scandir of a directory descriptor. */
+struct dirent;
+int		fdscandir(int dirfd, struct dirent ***namelist,
+		    int (*select)(const struct dirent *),
+		    int (*compar)(const struct dirent **, const struct dirent **));
 
 /* <sys/stat.h>: relative to a directory descriptor. */
 int		mkfifoat(int fd, const char *path, mode_t mode);
