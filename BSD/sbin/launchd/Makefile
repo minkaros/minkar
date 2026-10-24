@@ -37,6 +37,8 @@ MIG_HDRS =	job.h jobServer.h job_reply.h job_forward.h \
 		helper.h helperServer.h
 
 SRCS =	${MIG_SRCS} launchd.c core.c kill2.c ktrace.c ipc.c log.c runtime.c
+# OpenBSM, as on macOS: audit_token_to_au32() and audit_quick_stop().
+LDADD =	-lbsm -lauditd
 
 job.h jobServer.h jobServer.c: ${.CURDIR}/job.defs
 	${MIG} ${MIG_FLAGS} -user /dev/null -header job.h -sheader jobServer.h \

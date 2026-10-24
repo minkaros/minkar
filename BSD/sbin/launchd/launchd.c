@@ -68,7 +68,6 @@
 
 #if HAVE_LIBAUDITD
 #include <bsm/auditd_lib.h>
-#include <bsm/audit_session.h>
 #endif
 
 #include "bootstrap.h"

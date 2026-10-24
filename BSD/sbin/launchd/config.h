@@ -21,7 +21,7 @@
 #define HAVE_SANDBOX 0
 #endif
 
-/* libbsm and libauditd (OpenBSM) are not built yet: without them launchd
+/* libbsm and libauditd (OpenBSM, Libraries/openbsm). Without them launchd
  * uses only the audit system calls, declared in <bsm/audit.h>. */
 #if __has_include(<bsm/libbsm.h>)
 #define HAVE_LIBBSM 1
