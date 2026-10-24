@@ -50,5 +50,7 @@ ${.OBJDIR}/lib${LIB}.dylib: lib${LIB}.a
 	mkdir -p ${RAVYN_SDKROOT}/usr/lib/system ${SYSROOT_DIR}/usr/lib/system
 	cp -f ${.TARGET} ${RAVYN_SDKROOT}/usr/lib/system/
 	cp -f ${.TARGET} ${SYSROOT_DIR}/usr/lib/system/
+	# Public headers, as on macOS (<xpc/xpc.h> includes <launch.h>).
+	cp -f ${.CURDIR}/launch.h ${.CURDIR}/vproc.h ${RAVYN_SDKROOT}/usr/include/
 
 .include <bsd.lib.mk>
