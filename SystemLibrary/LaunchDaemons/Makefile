@@ -6,6 +6,7 @@
 SUBDIR =
 
 SYSDAEMONS =	com.apple.configd.plist com.apple.mDNSResponder.plist com.apple.notifyd.plist \
+		com.apple.syslogd.plist com.apple.aslmanager.plist \
 		com.openssh.sshd.plist \
 		com.ravynos.dhcpclient.plist com.ravynos.kextstart.plist \
 		com.ravynos.getty.console.plist

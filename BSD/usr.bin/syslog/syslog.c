@@ -1942,15 +1942,15 @@ sort_compare_key(asl_msg_t *a, asl_msg_t *b, const char *key)
 }
 
 int
-sort_compare(const void **ap, const void **bp)
+sort_compare(const void *ap, const void *bp)	/* ravynOS: qsort's own type */
 {
 	int cmp;
 	asl_msg_t *a, *b;
 
 	if (sort_key == NULL) return 0;
 
-	a = (asl_msg_t *)*ap;
-	b = (asl_msg_t *)*bp;
+	a = *(asl_msg_t * const *)ap;
+	b = *(asl_msg_t * const *)bp;
 
 	cmp = sort_compare_key(a, b, sort_key);
 	if ((cmp == 0) && (sort_key_2 != NULL)) cmp = sort_compare_key(a, b, sort_key_2);

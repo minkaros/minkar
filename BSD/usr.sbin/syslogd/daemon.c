@@ -41,7 +41,14 @@
 #include <libproc.h>
 #include <uuid/uuid.h>
 #include <asl_private.h>
+#ifdef __RAVYNOS__
+/* ravynOS: launchd keeps syslogd running; no idle-exit transactions. */
+typedef void *os_transaction_t;
+#define os_transaction_create(name)	((void)(name), (os_transaction_t)NULL)
+#define os_release(t)			((void)(t))
+#else
 #include <os/transaction_private.h>
+#endif
 #include "daemon.h"
 
 #define LIST_SIZE_DELTA 256

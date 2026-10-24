@@ -27,7 +27,14 @@
 #include <asl_store.h>
 #include <errno.h>
 #include <vproc_priv.h>
+#ifdef __RAVYNOS__
+/* ravynOS: launchd starts aslmanager when needed; no transactions. */
+typedef void *os_transaction_t;
+#define os_transaction_create(name)	((void)(name), (os_transaction_t)NULL)
+#define os_release(t)			((void)(t))
+#else
 #include <os/transaction_private.h>
+#endif
 
 #include "asl_common.h"
 #include "daemon.h"

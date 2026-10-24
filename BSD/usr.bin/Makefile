@@ -13,6 +13,6 @@ SUBDIR += cmp du stat tr uniq wc
 SUBDIR += awk less sort tar vi who
 SUBDIR += diff nc netstat
 SUBDIR += curl fetch file su top sudo
-SUBDIR += defaults plutil ditto
+SUBDIR += defaults plutil ditto syslog
 
 .include <bsd.subdir.mk>
