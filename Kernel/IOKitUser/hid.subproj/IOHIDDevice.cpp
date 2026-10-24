@@ -2074,7 +2074,7 @@ CFStringRef __IOHIDDeviceGetUUIDString(IOHIDDeviceRef device)
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 // __IOHIDDeviceGetUUIDKey
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-CFStringRef __IOHIDDeviceGetUUIDKey(IOHIDDeviceRef device)
+extern "C" CFStringRef __IOHIDDeviceGetUUIDKey(IOHIDDeviceRef device)
 {
     if (!device->UUIDKey) {
         CFStringRef manager = __IOHIDManagerGetRootKey();

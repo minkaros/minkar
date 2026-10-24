@@ -769,7 +769,7 @@ void __IOHIDElementSaveProperties(IOHIDElementRef element, __IOHIDPropertyContex
 }
 
 //------------------------------------------------------------------------------
-void __IOHIDElementLoadProperties(IOHIDElementRef element)
+extern "C" void __IOHIDElementLoadProperties(IOHIDElementRef element)
 {
     CFMutableDictionaryRef properties = __IOHIDPropertyLoadFromKeyWithSpecialKeys(__IOHIDElementGetRootKey(element), __KIOHIDElementSpecialKeys);
     

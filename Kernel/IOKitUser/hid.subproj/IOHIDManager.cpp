@@ -1408,7 +1408,7 @@ void IOHIDManagerSaveToPropertyDomain(IOHIDManagerRef                 manager,
 }
 
 //------------------------------------------------------------------------------
-CFStringRef __IOHIDManagerGetRootKey() 
+extern "C" CFStringRef __IOHIDManagerGetRootKey() 
 {
     return CFSTR(kIOHIDManagerKey);
 }
@@ -1570,7 +1570,7 @@ CFMutableDictionaryRef __IOHIDPropertyLoadDictionaryFromKey(CFStringRef key)
 }
 
 //------------------------------------------------------------------------------
-CFMutableDictionaryRef __IOHIDPropertyLoadFromKeyWithSpecialKeys(CFStringRef key, CFStringRef *specialKeys)
+extern "C" CFMutableDictionaryRef __IOHIDPropertyLoadFromKeyWithSpecialKeys(CFStringRef key, CFStringRef *specialKeys)
 {
     CFMutableDictionaryRef result = __IOHIDPropertyLoadDictionaryFromKey(key);
     

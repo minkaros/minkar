@@ -385,9 +385,9 @@ static CFMutableArrayRef _IOContentsOfDirectory(CFAllocatorRef alloc, char path[
     CFIndex extLen = (extension ? CFStringGetLength(extension) : 0);
     char extBuff[CFMaxPathSize];
 
-    int fd, numread;
-    long basep;
-    char dirge[8192];
+    int fd;
+    DIR *dir;		/* ravynOS change: readdir, not getdirentries */
+    struct dirent *dent;
 
     if (extLen > 0) {
 	// not sure what extension might contain ... currently unused
@@ -402,11 +402,18 @@ static CFMutableArrayRef _IOContentsOfDirectory(CFAllocatorRef alloc, char path[
         }
         return NULL;
     }
+    dir = fdopendir(fd);
+    if (dir == NULL) {
+        close(fd);
+        if (extension) {
+            CFRelease(extension);
+        }
+        return NULL;
+    }
     files = CFArrayCreateMutable(alloc, 0, &kCFTypeArrayCallBacks);
 
-    while ((numread = getdirentries(fd, dirge, sizeof(dirge), &basep)) > 0) {
-        struct dirent *dent;
-        for (dent = (struct dirent *)dirge; dent < (struct dirent *)(dirge + numread); dent = (struct dirent *)((char *)dent + dent->d_reclen)) {
+    {
+        while ((dent = readdir(dir)) != NULL) {
             CFURLRef fileURL;
             CFIndex nameLen;
 
@@ -448,17 +455,7 @@ static CFMutableArrayRef _IOContentsOfDirectory(CFAllocatorRef alloc, char path[
             CFRelease(fileURL);
         }
     }
-    close(fd);
-    if  (-1 == numread) {
-        CFRelease(files);
-        if (releaseBase) {
-            CFRelease(base);
-        }
-        if (extension) {
-            CFRelease(extension);
-        }
-        return NULL;
-    }
+    closedir(dir);	/* closes fd */
 
     if (extension) {
         CFRelease(extension);

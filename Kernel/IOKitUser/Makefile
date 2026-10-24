@@ -98,7 +98,7 @@ DEFS = -DAPPLE -DPRIVATE -D_ANSI_C_SOURCE -Dvolatile=__volatile \
 	-DIOKIT -DTYPE_LONGLONG -DTARGET_OS_IOSMAC=0 \
 	-DDISPATCH_MACH_SPI \
 	-DOS_CRASH_ENABLE_EXPERIMENTAL_LIBTRACE \
-	-DOS_OBJECT_USE_OBJC
+	-DOS_OBJECT_USE_OBJC -DHAVE_CFPLUGIN
 #HAVE_CFPLUGIN HAVE_CFURLACCESS
 
 SLF = /System/Library/Frameworks
@@ -279,9 +279,38 @@ iokitHdrs = ${RAVYN_SDKROOT}/System/Library/Frameworks/IOKit.framework/Versions/
 # bridges its objects to Foundation classes in every IOKit client.
 MK_OBJC_RUNTIME = no
 
+# The HID event system (IOHIDEvent, IOHIDEventSystemClient,
+# IOHIDServiceClient...): Apple never published it, and its files here are
+# empty. Ours comes with WindowServer's input (architecture plan, Phase 4).
+# Until then only these may stay undefined; any other undefined symbol
+# fails the link.
+HID_EVENT_SYSTEM_PENDING = \
+	_IOHIDEventAppendEvent \
+	_IOHIDEventConformsTo \
+	_IOHIDEventCopyDescription \
+	_IOHIDEventCreateVendorDefinedEvent \
+	_IOHIDEventGetChildren \
+	_IOHIDEventGetIntegerValue \
+	_IOHIDEventGetVendorDefinedData \
+	_IOHIDEventSystemClientCopyProperty \
+	_IOHIDEventSystemClientCopyServiceForRegistryID \
+	_IOHIDEventSystemClientCopyServices \
+	_IOHIDEventSystemClientCreateWithType \
+	_IOHIDEventSystemClientSetProperty \
+	_IOHIDEventSystemConnectionCopyDescription \
+	__IOHIDEventSystemConnectionReleasePrivate \
+	_IOHIDServiceClientConformsTo \
+	_IOHIDServiceClientCopyDescription \
+	_IOHIDServiceClientCopyProperty \
+	__IOHIDServiceClientReleasePrivate \
+	_IOHIDServiceClientSetProperty \
+	_IOHIDServiceCopyDescription \
+	__IOHIDServiceReleasePrivate \
+	__IOHIDSessionReleasePrivate
+
 LDFLAGS = --sysroot=${RAVYN_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
 	-Wl,-compatibility_version,1.0.0 -Wl,-current_version,275.0.0 \
-	-Wl,-flat_namespace -Wl,-undefined,warning \
+	${HID_EVENT_SYSTEM_PENDING:S/^/-Wl,-U,/} \
         -L${RAVYN_SDKROOT}/usr/local/lib/kernel -lcc_kext -lkxld \
         -framework CoreFoundation -lobjc -lc++ -lz -lSystem
 

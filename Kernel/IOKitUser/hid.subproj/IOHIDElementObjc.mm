@@ -8,6 +8,7 @@
 #import <Foundation/Foundation.h>
 #import <IOKit/hid/IOHIDElement.h>
 #import "HIDElementBase.h"
+#import "IOHIDElementPrivate.h"	// ravynOS: C linkage for _IOHIDElementCreatePrivate
 
 CFTypeID IOHIDElementGetTypeID(void)
 {
