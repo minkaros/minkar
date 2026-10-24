@@ -1,13 +1,9 @@
-CMAKE?= ${OBJTOP}/tmp/usr/bin/cmake
-MAKEOBJDIR= ${OBJTOP}/usr.bin/curl
+# curl 8.16.0 (curl license, MIT-like; COPYING) from FreeBSD's
+# contrib/curl in git history: libcurl (/usr/lib/libcurl.4.dylib, with
+# Mbed TLS for TLS) and the curl tool. Built with bmake from curl's own
+# file lists (Makefile.inc); lib/curl_config.h was generated once by
+# curl's CMake with the ravynOS toolchain.
 
-all: curl
-curl:
-	${CMAKE} -S${SRCTOP}/contrib/curl -B${OBJTOP}/usr.bin/curl \
-	-DUSE_APPLE_IDN=NO -DCMAKE_INSTALL_PREFIX=${PREFIX} \
-	-DCURL_DISABLE_LDAP=YES -DCURL_USE_LIBPSL=NO -GNinja
-	cd ${OBJTOP}/usr.bin/curl && ninja
-	${CMAKE} --install ${OBJTOP}/usr.bin/curl --prefix=${BUILDROOT}/usr
+SUBDIR = lib .WAIT src
 
-clean:
-	rm -rf ${OBJTOP}/usr.bin/curl
+.include <bsd.subdir.mk>

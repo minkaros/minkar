@@ -52,7 +52,9 @@ struct fetchconn {
 	size_t		 bufsize;	/* buffer size */
 	size_t		 buflen;	/* length of buffer contents */
 	int		 err;		/* last protocol reply code */
-#ifdef WITH_SSL
+#if defined(WITH_MBEDTLS)
+	struct fetch_tls *ssl;		/* TLS session (ravynOS: Mbed TLS) */
+#elif defined(WITH_SSL)
 	SSL		*ssl;		/* SSL handle */
 	SSL_CTX		*ssl_ctx;	/* SSL context */
 	X509		*ssl_cert;	/* server certificate */

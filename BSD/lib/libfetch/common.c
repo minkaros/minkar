@@ -56,6 +56,9 @@
 
 #include "fetch.h"
 #include "common.h"
+#ifdef WITH_MBEDTLS
+#include "fetch_tls.h"
+#endif
 
 
 /*** Local data **************************************************************/
@@ -1175,7 +1178,10 @@ fetch_ssl_cb_verify_crt(int verified, X509_STORE_CTX *ctx)
 int
 fetch_ssl(conn_t *conn, const struct url *URL, int verbose)
 {
-#ifdef WITH_SSL
+#if defined(WITH_MBEDTLS)
+	conn->ssl = fetch_tls_connect(conn->sd, URL, verbose);
+	return (conn->ssl != NULL ? 0 : -1);
+#elif defined(WITH_SSL)
 	int ret, ssl_err;
 	X509_NAME *name;
 	char *str;
@@ -1258,6 +1264,10 @@ fetch_ssl(conn_t *conn, const struct url *URL, int verbose)
 #define FETCH_READ_WAIT		-2
 #define FETCH_READ_ERROR	-1
 #define FETCH_READ_DONE		 0
+#ifdef WITH_MBEDTLS
+_Static_assert(FETCH_TLS_WAIT == FETCH_READ_WAIT && FETCH_TLS_ERROR == FETCH_READ_ERROR,
+    "fetch_tls.h and common.c disagree");
+#endif
 
 #ifdef WITH_SSL
 static ssize_t
@@ -1337,7 +1347,11 @@ fetch_read(conn_t *conn, char *buf, size_t len)
 		 * In the non-SSL case, it may improve performance (very
 		 * slightly) when reading small amounts of data.
 		 */
-#ifdef WITH_SSL
+#if defined(WITH_MBEDTLS)
+		if (conn->ssl != NULL)
+			rlen = fetch_tls_read(conn->ssl, buf, len);
+		else
+#elif defined(WITH_SSL)
 		if (conn->ssl != NULL)
 			rlen = fetch_ssl_read(conn->ssl, buf, len);
 		else
@@ -1480,7 +1494,12 @@ fetch_writev(conn_t *conn, struct iovec *iov, int iovcnt)
 			}
 		}
 		errno = 0;
-#ifdef WITH_SSL
+#if defined(WITH_MBEDTLS)
+		if (conn->ssl != NULL)
+			wlen = fetch_tls_write(conn->ssl,
+			    iov->iov_base, iov->iov_len);
+		else
+#elif defined(WITH_SSL)
 		if (conn->ssl != NULL)
 			wlen = SSL_write(conn->ssl,
 			    iov->iov_base, iov->iov_len);
@@ -1548,7 +1567,10 @@ fetch_close(conn_t *conn)
 
 	if (--conn->ref > 0)
 		return (0);
-#ifdef WITH_SSL
+#if defined(WITH_MBEDTLS)
+	fetch_tls_close(conn->ssl);
+	conn->ssl = NULL;
+#elif defined(WITH_SSL)
 	if (conn->ssl) {
 		SSL_shutdown(conn->ssl);
 		SSL_set_connect_state(conn->ssl);

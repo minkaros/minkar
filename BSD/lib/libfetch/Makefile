@@ -1,30 +1,24 @@
-.include <src.opts.mk>
+# libfetch (FreeBSD, BSD-3) from git history, for fetch(1): HTTP, HTTPS,
+# FTP and file URLs. TLS is our own fetch_tls.c (BSD-2) on Mbed TLS in
+# place of OpenSSL (WITH_MBEDTLS); digest auth uses libmd's MD5.
+# Static library: macOS has no libfetch.
 
-PACKAGE=	fetch
+SUBDIR =
+MK_WERROR = no
+LIB = fetch
+SRCS = fetch.c common.c ftp.c http.c file.c fetch_tls.c
+DPSRCS = ftperr.h httperr.h
+CLEANFILES = ftperr.h httperr.h
 
-LIB=		fetch
-CFLAGS+=	-I.
-SRCS=		fetch.c common.c ftp.c http.c file.c \
-		ftperr.h httperr.h
-INCS=		fetch.h
-MAN=		fetch.3
-CLEANFILES=	ftperr.h httperr.h
+CFLAGS = --sysroot=${RAVYN_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
+	-I. -I${.CURDIR} -I${RAVYN_SDKROOT}/usr/local/include \
+	-I${ROOT_SOURCE_DIR}/BSD/lib/libmd \
+	-I${ROOT_SOURCE_DIR}/BSD/lib/libbsdcompat/include -include bsdcompat.h \
+	-DINET6 -DWITH_MBEDTLS -DFTP_COMBINE_CWDS -Wno-nullability-completeness
 
-.if ${MK_INET6_SUPPORT} != "no"
-CFLAGS+=	-DINET6
-.endif
+all: lib${LIB}.a
 
-.if ${MK_OPENSSL} != "no"
-CFLAGS+=	-DWITH_SSL
-CFLAGS+=	-DOPENSSL_API_COMPAT=0x10100000L
-LIBADD+=	ssl crypto
-.else
-LIBADD+=	md
-.endif
-
-CFLAGS+=	-DFTP_COMBINE_CWDS
-
-SHLIB_MAJOR=    6
+${SRCS:M*.c:R:S/$/.o/}: ftperr.h httperr.h
 
 ftperr.h: ftp.errors ${.CURDIR}/Makefile
 	@echo "static struct fetcherr ftp_errlist[] = {" > ${.TARGET}
@@ -47,35 +41,5 @@ httperr.h: http.errors ${.CURDIR}/Makefile
 	  done >> ${.TARGET}
 	@echo "    { -1, FETCH_UNKNOWN, \"Unknown HTTP error\" }" >> ${.TARGET}
 	@echo "};" >> ${.TARGET}
-
-MLINKS+= fetch.3 fetchFreeURL.3
-MLINKS+= fetch.3 fetchGet.3
-MLINKS+= fetch.3 fetchGetFTP.3
-MLINKS+= fetch.3 fetchGetFile.3
-MLINKS+= fetch.3 fetchGetHTTP.3
-MLINKS+= fetch.3 fetchGetURL.3
-MLINKS+= fetch.3 fetchList.3
-MLINKS+= fetch.3 fetchListFTP.3
-MLINKS+= fetch.3 fetchListFile.3
-MLINKS+= fetch.3 fetchListHTTP.3
-MLINKS+= fetch.3 fetchListURL.3
-MLINKS+= fetch.3 fetchMakeURL.3
-MLINKS+= fetch.3 fetchParseURL.3
-MLINKS+= fetch.3 fetchPut.3
-MLINKS+= fetch.3 fetchPutFTP.3
-MLINKS+= fetch.3 fetchPutFile.3
-MLINKS+= fetch.3 fetchPutHTTP.3
-MLINKS+= fetch.3 fetchPutURL.3
-MLINKS+= fetch.3 fetchReqHTTP.3
-MLINKS+= fetch.3 fetchStat.3
-MLINKS+= fetch.3 fetchStatFTP.3
-MLINKS+= fetch.3 fetchStatFile.3
-MLINKS+= fetch.3 fetchStatHTTP.3
-MLINKS+= fetch.3 fetchStatURL.3
-MLINKS+= fetch.3 fetchXGet.3
-MLINKS+= fetch.3 fetchXGetFTP.3
-MLINKS+= fetch.3 fetchXGetFile.3
-MLINKS+= fetch.3 fetchXGetHTTP.3
-MLINKS+= fetch.3 fetchXGetURL.3
 
 .include <bsd.lib.mk>

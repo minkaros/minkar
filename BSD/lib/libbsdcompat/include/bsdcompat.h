@@ -129,6 +129,16 @@
 		}							\
 	} while (0)
 #endif
+/* <netinet/in.h>, <poll.h>, <sys/param.h> */
+#ifndef IPPORT_MAX
+#define	IPPORT_MAX	65535
+#endif
+#ifndef INFTIM
+#define	INFTIM		(-1)	/* poll() waits for ever */
+#endif
+#ifndef MAXHOSTNAMELEN
+#define	MAXHOSTNAMELEN	256	/* Darwin's value */
+#endif
 /* <arpa/nameser.h> */
 #ifndef MAXDNAME
 #define	MAXDNAME	1025
@@ -175,6 +185,15 @@ struct dirent;
 int		fdscandir(int dirfd, struct dirent ***namelist,
 		    int (*select)(const struct dirent *),
 		    int (*compar)(const struct dirent **, const struct dirent **));
+
+/* <string.h>: like strchr, but the end of s rather than NULL. */
+char		*strchrnul(const char *s, int c);
+
+/* <stdlib.h>: realloc of nmemb * size, failing on overflow. */
+void		*reallocarray(void *ptr, size_t nmemb, size_t size);
+
+/* <unistd.h>: the title ps shows; ravynOS keeps argv as it is. */
+void		setproctitle(const char *fmt, ...) __printflike(1, 2);
 
 /* <sys/stat.h>: relative to a directory descriptor. */
 int		mkfifoat(int fd, const char *path, mode_t mode);

@@ -1,4 +1,4 @@
-SUBDIR = bzip2 gzip ncurses libedit libutil libxo libbsdcompat libmd libarchive
+SUBDIR = bzip2 gzip ncurses libedit libutil libxo libbsdcompat libmd libarchive libfetch
 
 .include <bsd.subdir.mk>
 
