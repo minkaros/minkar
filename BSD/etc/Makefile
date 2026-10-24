@@ -1,7 +1,8 @@
 # Base configuration in /etc (architecture plan, Phase 2): the user and
 # group databases, login shells, the shell profile (profile, shrc:
 # environment, aliases, prompt), the PAM policies, services and protocols
-# (FreeBSD's, from IANA's registries), sudo's configuration, and
+# (FreeBSD's, from IANA's registries), the root CA certificates
+# (ssl/cert.pem, Mozilla's), sudo's configuration, and
 # resolv.conf, a link to the one dhcpclient writes, as on macOS.
 # (Makefile.freebsd is the FreeBSD-era file list, kept for reference
 # while it is ported.)
@@ -27,6 +28,9 @@ install-etc: .PHONY
 	install -o 0 -g 0 -m 0644 ${.CURDIR}/pam.d/${f} ${ETC}/pam.d/
 .endfor
 	ln -sfn ../var/run/resolv.conf ${ETC}/resolv.conf
+	# Root CA certificates (Mozilla's, MPL-2.0: ssl/README).
+	mkdir -p ${ETC}/ssl
+	install -o 0 -g 0 -m 0644 ${.CURDIR}/ssl/cert.pem ${ETC}/ssl/
 	# sudo: its configuration is for root's eyes only.
 	mkdir -p ${ETC}/sudoers.d
 	install -o 0 -g 0 -m 0644 ${.CURDIR}/sudo.conf ${ETC}/
