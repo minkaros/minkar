@@ -89,8 +89,7 @@ SRCS = \
 	string/strncat.c \
 	gen/sync_volume_np.c \
 	gen/dirfd.c \
-	os/assumes.c \
-	stubs.c
+	os/assumes.c
 
 SLF = /System/Library/Frameworks
 CFLAGS += -DHAVE_STDINT_H -DPRIVATE \

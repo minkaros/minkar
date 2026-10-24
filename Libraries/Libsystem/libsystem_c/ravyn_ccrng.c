@@ -55,3 +55,35 @@ struct ccrng_state *ccrng(int *error)
         *error = 0;
     return &ravyn_ccrng_state;
 }
+
+/*
+ * A value in [0, bound), without modulo bias: random 64-bit words, masked
+ * to the bit length of bound - 1, are drawn until one is below bound (at
+ * worst half are rejected). A bound of 0 is an error; 1 gives 0.
+ */
+int ccrng_uniform(struct ccrng_state *rng, unsigned long long bound,
+    unsigned long long *rand)
+{
+    unsigned long long mask, r;
+
+    if (rand == NULL || bound == 0)
+        return -1;
+    if (bound == 1) {
+        *rand = 0;
+        return 0;
+    }
+    mask = bound - 1;
+    mask |= mask >> 1;
+    mask |= mask >> 2;
+    mask |= mask >> 4;
+    mask |= mask >> 8;
+    mask |= mask >> 16;
+    mask |= mask >> 32;
+    do {
+        if (rng->generate(rng, sizeof(r), &r) != 0)
+            return -1;
+        r &= mask;
+    } while (r >= bound);
+    *rand = r;
+    return 0;
+}
