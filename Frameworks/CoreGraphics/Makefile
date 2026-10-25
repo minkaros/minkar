@@ -1,6 +1,7 @@
 SUBDIR =
 MK_WERROR = no
 FRAMEWORK=CoreGraphics
+FMWK_COMPAT_VERSION = 64.0.0
 
 SRCS= \
 	CGAffineTransform.m \

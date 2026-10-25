@@ -3,6 +3,8 @@
 
 MK_WERROR = no
 FRAMEWORK = AppKit
+FMWK_VERSION = C
+FMWK_COMPAT_VERSION = 45.0.0
 SUBDIR = xkeyboard-config
 
 SRCS = \

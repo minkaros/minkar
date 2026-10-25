@@ -23,12 +23,23 @@ LDFLAGS += --sysroot=${SDKROOT}
 .endif
 .endif
 
-.if defined(INSTALL_NAME_DIR) && !empty(INSTALL_NAME_DIR)
-LDFLAGS += -Wl,-install_name,${INSTALL_NAME_DIR}/${FRAMEWORK}
-.else
+# The install name is where the framework lives in the system, as on
+# macOS; without one, ld64 would record the object directory and nothing
+# linked against the framework could load it.
+FMWK_INSTALL_DIR ?= /System/Library/Frameworks
 .if defined(INSTALL_NAME) && !empty(INSTALL_NAME)
 LDFLAGS += -Wl,-install_name,${INSTALL_NAME}
+.else
+INSTALL_NAME_DIR ?= ${FMWK_INSTALL_DIR}/${FRAMEWORK}.framework/Versions/${FMWK_VERSION}
+LDFLAGS += -Wl,-install_name,${INSTALL_NAME_DIR}/${FRAMEWORK}
 .endif
+
+# dyld refuses a library older than the compatibility version a program
+# was linked with: use macOS's (otool -L of a macOS app shows them).
+.if defined(FMWK_COMPAT_VERSION) && !empty(FMWK_COMPAT_VERSION)
+FMWK_CURRENT_VERSION ?= ${FMWK_COMPAT_VERSION}
+LDFLAGS += -Wl,-compatibility_version,${FMWK_COMPAT_VERSION} \
+	   -Wl,-current_version,${FMWK_CURRENT_VERSION}
 .endif
 
 .if defined(SRCS) && !empty(SRCS)
