@@ -1,3 +1,4 @@
+SUBDIR =
 MAN =	a.out.5 arch.3 as.1 bitcode_strip.1 check_dylib.1 checksyms.1 \
 	cmpdylib.1 codesign_allocate.1 ctf_insert.1 dyld.1 dyld.3 \
 	dyld_debug.3 end.3 get_end.3 getsectbyname.3 \
