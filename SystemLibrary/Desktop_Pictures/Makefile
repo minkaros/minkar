@@ -1,11 +1,14 @@
-PICSDIR= /System/Library/Desktop Pictures
+# Minkar desktop pictures, installed in /System/Library/Desktop Pictures:
+# the four original designs (PNG) and their high-resolution versions.
+PICSDIR=	/System/Library/Desktop Pictures
 
-all: clean build
-build:
-	mkdir -pv "${BUILDROOT}${PICSDIR}"
-	for pic in *.jpg *.png Attribution.json; do \
-	    ${INSTALL} -m 0644 "$$pic" '${BUILDROOT}${PICSDIR}/'; done
+all: install-pictures
+install-pictures: .PHONY
+	mkdir -p "${SYSROOT_DIR}${PICSDIR}"
+	cd ${.CURDIR} && find . -type f \( -name '*.png' -o -name '*.jpg' \) | \
+	    while read -r pic; do \
+		mkdir -p "${SYSROOT_DIR}${PICSDIR}/$$(dirname "$$pic")"; \
+		install -m 0644 "$$pic" "${SYSROOT_DIR}${PICSDIR}/$$pic"; \
+	    done
 
-clean:
-	rm -rf "${BUILDROOT}${PICSDIR}"
-
+.include <bsd.prog.mk>
