@@ -1,0 +1,57 @@
+diff --git a/MdeModulePkg/Application/Loader/config.c b/MdeModulePkg/Application/Loader/config.c
+index 7c969197..227a0e31 100644
+--- a/MdeModulePkg/Application/Loader/config.c
++++ b/MdeModulePkg/Application/Loader/config.c
+@@ -33,7 +33,7 @@
+ /* Compiled-in defaults, used when the plist is missing or a key is absent. */
+ BOOT_CONFIG gBootConfig = {
+     .BootArgs        = "",
+-    .KernelPath      = "\\ravynOS\\kernelcache",
++    .KernelPath      = "\\Minkar\\kernelcache",
+     .PlatformUUID    = "",
+     .BootUUID        = "",
+     .CsrActiveConfig = CSR_ALLOW_UNTRUSTED_KEXTS | CSR_ALLOW_UNRESTRICTED_FS |
+@@ -147,7 +147,7 @@ VOID LoadBootConfig(VOID)
+     if(EFI_ERROR(Fs->OpenVolume(Fs, &Root)))
+         return;
+ 
+-    if(EFI_ERROR(Root->Open(Root, &cfgFile, UEFI_STR("\\ravynOS\\com.ravynos.boot.plist"), EFI_FILE_MODE_READ, 0))) {
++    if(EFI_ERROR(Root->Open(Root, &cfgFile, UEFI_STR("\\Minkar\\org.minkar.boot.plist"), EFI_FILE_MODE_READ, 0))) {
+         Root->Close(Root);
+         return;
+     }
+diff --git a/MdeModulePkg/Application/Loader/config.h b/MdeModulePkg/Application/Loader/config.h
+index 9e2a9fc1..374a9044 100644
+--- a/MdeModulePkg/Application/Loader/config.h
++++ b/MdeModulePkg/Application/Loader/config.h
+@@ -28,7 +28,7 @@
+ #include "loader.h"
+ 
+ /*
+- * Values the loader reads from \ravynOS\com.ravynos.boot.plist.  This is not a
++ * Values the loader reads from \Minkar\org.minkar.boot.plist.  This is not a
+  * generic plist dictionary; it is just the handful of settings the loader
+  * actually consumes.  To add a new setting, add a field here, a sane default in
+  * gBootConfig, and a key match in StoreConfigValue() (config.c).
+diff --git a/MdeModulePkg/Application/Loader/loader.c b/MdeModulePkg/Application/Loader/loader.c
+index 3d51aacc..7a4190a4 100644
+--- a/MdeModulePkg/Application/Loader/loader.c
++++ b/MdeModulePkg/Application/Loader/loader.c
+@@ -265,7 +265,7 @@ EFI_STATUS LoadDrivers(EFI_HANDLE ImageHandle)
+     if (EFI_ERROR(Status))
+         return Status;
+ 
+-    Status = Root->Open(Root, &ravynOS, UEFI_STR("\\EFI\\ravynOS"), EFI_FILE_MODE_READ, 0);
++    Status = Root->Open(Root, &ravynOS, UEFI_STR("\\EFI\\Minkar"), EFI_FILE_MODE_READ, 0);
+     if (EFI_ERROR(Status)) {
+         Root->Close(Root);
+         return Status;
+@@ -416,7 +416,7 @@ EFI_STATUS EFIAPI UefiMain(IN EFI_HANDLE ImageHandle, IN EFI_SYSTEM_TABLE *Syste
+     UINT8 *region = NULL;
+ 
+     gST->ConOut->ClearScreen(gST->ConOut);
+-    Print(UEFI_STR(":: ravynOS EFI Loader %s\n"), VERSION_STR);
++    Print(UEFI_STR(":: Minkar EFI Loader %s\n"), VERSION_STR);
+     LoadBootConfig();
+ 
+     Status = gBS->GetMemoryMap(&MemoryMapSize, MemoryMap, &MapKey, &DescriptorSize, &DescriptorVersion);

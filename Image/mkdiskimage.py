@@ -28,10 +28,10 @@
 
 Layout (GPT):
   1  EFI System Partition (FAT32)
-       /EFI/BOOT/BOOTX64.EFI            ravynOS EFI loader
-       /EFI/ravynOS/                    (looked up by the loader)
-       /ravynOS/kernelcache             prelinked kernel + kexts
-       /ravynOS/org.minkar.boot.plist   boot-args, boot-file, boot-uuid
+       /EFI/BOOT/BOOTX64.EFI            EFI loader (efiloader)
+       /EFI/Minkar/                     (looked up by the loader)
+       /Minkar/kernelcache              prelinked kernel + kexts
+       /Minkar/org.minkar.boot.plist    boot-args, boot-file, boot-uuid
   2  Apple HFS+ root volume, populated from the sysroot
 
 The root is found by the kernel through boot-uuid: AppleFileSystemDriver
@@ -257,7 +257,7 @@ def run(*cmd, **kwargs):
 def boot_plist(boot_args, volume_uuid):
     return plistlib.dumps({
         'boot-args': boot_args,
-        'boot-file': '\\ravynOS\\kernelcache',
+        'boot-file': '\\Minkar\\kernelcache',
         'boot-uuid': str(volume_uuid).upper(),
     }, fmt=plistlib.FMT_XML)
 
@@ -297,7 +297,7 @@ def build(args):
         run('mkfs.hfsplus', '-v', args.volume_name, root, stdout=subprocess.DEVNULL)
         set_hfs_volume_id(root, volume_id)
 
-        workdir = tempfile.mkdtemp(prefix='ravynos-image-')
+        workdir = tempfile.mkdtemp(prefix='minkar-image-')
         esp_dir = os.path.join(workdir, 'esp')
         root_dir = os.path.join(workdir, 'root')
         os.mkdir(esp_dir)
@@ -306,11 +306,11 @@ def build(args):
         run('mount', '-t', 'vfat', esp, esp_dir)
         mounts.append(esp_dir)
         os.makedirs(os.path.join(esp_dir, 'EFI', 'BOOT'))
-        os.makedirs(os.path.join(esp_dir, 'EFI', 'ravynOS'))
-        os.makedirs(os.path.join(esp_dir, 'ravynOS'))
+        os.makedirs(os.path.join(esp_dir, 'EFI', 'Minkar'))
+        os.makedirs(os.path.join(esp_dir, 'Minkar'))
         shutil.copyfile(args.loader, os.path.join(esp_dir, 'EFI', 'BOOT', 'BOOTX64.EFI'))
-        shutil.copyfile(args.kernelcache, os.path.join(esp_dir, 'ravynOS', 'kernelcache'))
-        with open(os.path.join(esp_dir, 'ravynOS', 'org.minkar.boot.plist'), 'wb') as f:
+        shutil.copyfile(args.kernelcache, os.path.join(esp_dir, 'Minkar', 'kernelcache'))
+        with open(os.path.join(esp_dir, 'Minkar', 'org.minkar.boot.plist'), 'wb') as f:
             f.write(boot_plist(args.boot_args, volume_uuid))
 
         run('mount', '-t', 'hfsplus', '-o', 'rw', root, root_dir)
@@ -356,7 +356,7 @@ def main(argv=None):
     p.add_argument('--output', required=True, help='raw disk image to write')
     p.add_argument('--size-mb', type=int, default=2048)
     p.add_argument('--esp-mb', type=int, default=200)
-    p.add_argument('--volume-name', default='ravynOS')
+    p.add_argument('--volume-name', default='Minkar')
     p.add_argument('--volume-id', help='HFS+ volume identifier, 16 hex digits (default random)')
     p.add_argument('--init', help='program to start as PID 1 instead of launchd, '
                    'e.g. /sbin/ravyninit (installed as a %s link)' % LAUNCHD)

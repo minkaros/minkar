@@ -191,7 +191,7 @@ def run(args):
             print('boottest: not found: %s' % path, file=sys.stderr)
             return 1
 
-    tmp = tempfile.mkdtemp(prefix='ravynos-boottest-')
+    tmp = tempfile.mkdtemp(prefix='minkar-boottest-')
     vars_copy = os.path.join(tmp, 'OVMF_VARS.fd')
     shutil.copyfile(args.ovmf_vars, vars_copy)
     cmd = qemu_command(args, vars_copy)
