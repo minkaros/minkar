@@ -65,6 +65,29 @@ Outputs, under `../build`:
 * `sysroot/` - the root file system
 * `kernelcache` - the prelinked kernel and extensions
 
+## Expected times
+
+Measured on 2026-10-25 on the reference host: Ubuntu 22.04, 10 CPUs
+(Xeon E5-2690 v2), 16 GB of RAM, `-j10`, clean build tree.
+
+| Stage | Wall time |
+| --- | --- |
+| `Developer` (toolchain, LLVM included) | 52 min the first time; seconds once built |
+| `Kernel` | 9-10 min |
+| `Libraries` | about 1 min |
+| `Frameworks` | 4 min |
+| `Kernel/Extensions` | 20 s |
+| `CoreServices` | a few seconds |
+| `BSD` | 2-2.5 min |
+| Everything after `Developer` | 16-19 min |
+| `image`, first time (fetches and builds the EFI loader) | 2 min |
+| `image`, after that | 6 s |
+| `boottest GATE=M1` | about 20 s |
+| `boottest GATE=M2` | about 75 s (QEMU under TCG) |
+
+A change to LLVM's sources rebuilds the toolchain (about 47 min).
+`ONLY_STAGE` (above) builds one stage without walking the ones before it.
+
 ## Bootable image and boot test
 
 After the build:
@@ -139,6 +162,66 @@ Until launchd runs, PID 1 is `minkarinit` (`BSD/sbin/minkarinit`), a small
 temporary init that the image installs as `/sbin/launchd`, the only path a
 RELEASE kernel tries. Build the image with `INIT=` to boot the sysroot's own
 `/sbin/launchd` instead.
+
+## Common errors
+
+* `Could not find bsd.mkopt.mk` (and `bsd.opts.mk`, `bsd.linker.mk`)\
+  bmake was run without `-m /work/minkar/BSD/share/mk`.
+* `cd: .../Frameworks/Frameworks: No such file or directory`\
+  `SUBDIR=` was given on the command line. Pass it through the
+  environment (`env SUBDIR=...`) or use `ONLY_STAGE`.
+* `SYSROOT_DIR is not set: build BSD/etc from the top of the tree`\
+  bmake was run inside a subdirectory. Always run it from the top of the
+  tree: a subdirectory alone does not know the sysroot and could install
+  into the build host.
+* `Permission denied` on `../build`\
+  The build runs as root (`sudo`); the object directories and the
+  sysroot are root owned.
+* `byacc (Berkeley yacc) is required on the build host`\
+  Install `byacc` (libxkbcommon's parser, in `CoreServices`).
+* Toolchain link errors: `cannot find -lacl`, `-lCoreFoundation`, `-ldispatch`, `-lLLVM` or `-lc++`\
+  Host packages are missing, or Open CF-lite is not in `/usr/local`
+  (see "Host requirements"). `tools/ci/host-setup.sh packages` installs
+  them.
+* Undefined symbols when linking a base library in a clean build, although an incremental build works\
+  A base library gained a symbol another one uses, and the bootstrap
+  stubs do not list it yet. Run `Libraries/bootstrap/regen-stubs.sh` and
+  commit the `.tbd` files it changes.
+* The whole of LLVM rebuilds although the toolchain is already built\
+  The toolchain's tools are older than their sources (a copied or
+  restored toolchain, or a fresh checkout): bmake rebuilds mig, and LLVM's
+  rule depends on it. `tools/ci/host-setup.sh touch-toolchain` marks a
+  restored toolchain up to date.
+* A kernel change does not show up in the image\
+  The kernelcache is made by `Kernel/Extensions`. After building
+  `Kernel`, build `Kernel/Extensions` too.
+* An edited AppKit header is not seen by AppKit itself\
+  AppKit includes `<AppKit/...-Private.h>` from the framework copy in its
+  object directory, refreshed only at link time. Copy the header there
+  (`AppKit.framework/Headers`) or relink.
+* Everything rebuilds after moving the source tree\
+  Object directories are named after the source path
+  (`../build/<source path>/...`). Keep the tree where it was built.
+* Odd missing files on macOS or on an HFS+ or APFS disk\
+  The file system is case-insensitive; some trees have names that differ
+  only in case. Use a case-sensitive volume.
+* `mount: unknown filesystem type 'hfsplus'` (image)\
+  The host kernel lacks the `hfsplus` module: install
+  `linux-modules-extra-$(uname -r)` and `modprobe hfsplus`.
+* `boottest: gate M2 needs --password or $BOOTTEST_PASSWORD`, `needs --ssh-key or $BOOTTEST_SSH_KEY`\
+  Build the image with `ROOT_PASSWORD` and `ROOT_AUTHORIZED_KEYS`, and
+  pass the same password and the private key to `boottest` (see above).
+* `boottest: ... the host cannot resolve it either`\
+  Gate M2 resolves the host's own name from the guest. Add it to
+  `/etc/hosts` (`127.0.1.1 <hostname>`).
+* The kernel panics right after the loader when QEMU is run by hand\
+  The loader needs `-device virtio-rng-pci` (EFI_RNG_PROTOCOL), and
+  under TCG use `-cpu Westmere`, not `max`. `Image/boottest.py` shows a
+  working command line.
+* Logs are hard to search\
+  They carry ANSI colors: `sed 's/\x1b\[[0-9;]*m//g' file.log`.
+  `tools/ci/build-stages.sh` keeps one log per stage and prints the first
+  error lines of a stage that fails.
 
 ## Host tests
 
