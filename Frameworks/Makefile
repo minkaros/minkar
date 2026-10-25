@@ -3,13 +3,16 @@
 # ------------------------------------------------------------------------
 
 SUBDIR = CoreFoundation
+# IOKit.framework: it links CoreFoundation, and SystemConfiguration links it.
+SUBDIR += ../Kernel/IOKitUser
 #SUBDIR += CFNetwork
 SUBDIR += SystemConfiguration
 SUBDIR += Foundation
 SUBDIR += CoreServices
 SUBDIR += Onyx2D
-SUBDIR += CoreGraphics
+# CoreGraphics links OpenGL.
 SUBDIR += OpenGL
+SUBDIR += CoreGraphics
 SUBDIR += CoreText
 SUBDIR += CoreData
 SUBDIR += QuartzCore

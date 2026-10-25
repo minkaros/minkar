@@ -89,7 +89,7 @@ xnu_all: installhdrs .WAIT compiler_rt .WAIT libfirehose_kernel
 # NOTE! This kxld build is for the host toolchain. The target kxld is built
 # later in IOKitUser
 SUBDIR = xnu/libkern/kmod xnu/libkern/kxld
-SUBDIR += IOKitUser
+# IOKitUser (IOKit.framework) links CoreFoundation: Frameworks builds it.
 # Extensions is built from the top level, after Frameworks.
 
 .include <bsd.subdir.mk>

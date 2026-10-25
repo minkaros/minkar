@@ -314,13 +314,17 @@ LDFLAGS = --sysroot=${RAVYN_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
         -L${RAVYN_SDKROOT}/usr/local/lib/kernel -lcc_kext -lkxld \
         -framework CoreFoundation -lobjc -lc++ -lz -lSystem
 
-all: copy_headers libkxld.a ${FRAMEWORK} to-sysroot
+# Headers first: the sources include them from the SDK, also with -j.
+all: copy_headers .WAIT libkxld.a ${FRAMEWORK} to-sysroot
 
 to-sysroot: ${FRAMEWORK}
 	cp -Rf ${.OBJDIR}/IOKit.framework ${RAVYN_SDKROOT}/System/Library/Frameworks/
 	cp -Rf ${.OBJDIR}/IOKit.framework ${SYSROOT_DIR}/System/Library/Frameworks/
 
 copy_headers: .PHONY
+	# IOKit/hid and hidobjc headers (IOHIDEvent.h...): IOHIDFamily's HID
+	# framework is not built yet, but its header list is the one in use.
+	${MAKE} -C ${ROOT_SOURCE_DIR}/Kernel/Extensions/IOHIDFamily/HID copy_headers
 	mkdir -p ${RAVYN_SDKROOT}/usr/local/include
 	cp -f ${.CURDIR}/kext.subproj/bootfiles.h ${RAVYN_SDKROOT}/usr/local/include/
 	mkdir -p ${iokitPrivateHdrs}/hidobjc
@@ -412,6 +416,18 @@ copy_headers: .PHONY
 		${.CURDIR}/network.subproj/IOUserEthernetController.h \
 		${.CURDIR}/network.subproj/IONetworkLib.h \
 		${iokitHdrs}/network/
+	# The family's headers, as in macOS (SystemConfiguration includes
+	# IONetworkInterface.h and IONetworkController.h).
+	cp -f ${.CURDIR:H}/Extensions/IONetworkingFamily/IOKit/network/*.h \
+		${iokitHdrs}/network/
+	# Also used by SystemConfiguration, configd and fsck_hfs.
+	cp -f ${.CURDIR}/IOCFBundle.h ${iokitHdrs}/
+	mkdir -p ${iokitHdrs}/storage ${iokitHdrs}/usb
+.for h in IOBlockStorageDevice.h IOMedia.h IOStorageDeviceCharacteristics.h
+	cp -f ${.CURDIR:H}/Extensions/IOStorageFamily/IOKit/storage/${h} \
+		${iokitHdrs}/storage/
+.endfor
+	cp -f ${ROOT_SOURCE_DIR}/Frameworks/IOKit/usb/*.h ${iokitHdrs}/usb/
 	mkdir -p ${iokitHdrs}/ps
 	cp -f \
 		${.CURDIR}/ps.subproj/IOPowerSourcesPrivate.h \
