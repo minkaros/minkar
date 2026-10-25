@@ -55,8 +55,11 @@ HOST_CC = ${CC}
 HOST_CXX = ${CXX}
 HOST_AR = ${AR}
 .else
-HOST_CC ?= /usr/bin/cc
-HOST_CXX ?= /usr/bin/c++
+# The host compiler must be clang: the toolchain's sources (cctools, the
+# Apple headers in Default.xctoolchain/include) reject gcc. On Linux,
+# /usr/bin/cc is often gcc.
+HOST_CC ?= clang
+HOST_CXX ?= clang++
 HOST_AR ?= /usr/bin/ar
 .endif
 
