@@ -80,9 +80,8 @@ Darwin 19.6.0; the API level and the look move on their own.
 
 ## Baseline
 
-Minkar is a fork of ravynOS (fork point `60aa4ff4b1`, 2026-09-06), which had
-already moved from FreeBSD/X11 to Darwin with its own boot loader and builds
-everything as Mach-O. The biggest gap is between the kernel and the desktop.
+Minkar runs on Darwin with its own EFI loader, and the whole system builds as
+Mach-O. The biggest gap is between the kernel and the desktop.
 
 | Component | State | What is missing | Phase |
 | --- | --- | --- | --- |
@@ -149,11 +148,11 @@ mounted.
   APIC, TSC/HPET timers, no SMC (boot log: `[ACPI PE]`,
   `AppleAPIC::start()`, ACPICA).
 - [ ] Minimal kexts, starting with what QEMU exposes:
-  - [x] Storage: AHCI with MSI (`[RavynAHCIPort] using MSI interrupt`,
-    `556c20aad1`).
+  - [x] Storage: AHCI with MSI (the AHCI driver logs that it uses an MSI
+    interrupt; `556c20aad1`).
   - [ ] Storage: virtio-blk; NVMe later.
   - [ ] Input: USB xHCI + HID (event source for WindowServer). *Partial:*
-    `ApplePS2Keyboard` and IOHIDSystem start; `RavynXHCIPort` and
+    `ApplePS2Keyboard` and IOHIDSystem start; the xHCI driver and
     `IOUSBFamily` are in the tree but commented out of
     `Kernel/Extensions/Makefile` and the kernelcache.
   - [x] Network: e1000 and e1000e (`MinkarE1000`), MSI on the e1000e
@@ -346,7 +345,7 @@ behind a stable interface.
 - **VMs:** a virtio-gpu 2D driver as an `IOFramebuffer` subclass, to change
   resolution without touching WindowServer.
 - **Input:** IOHIDFamily, with `ApplePS2Controller` in QEMU and xHCI
-  (`IOUSBFamily`, `RavynXHCIPort`) + HID on real hardware. libinput, libevdev
+  (`IOUSBFamily` and the xHCI driver) + HID on real hardware. libinput, libevdev
   and mtdev are no longer built (`CoreServices/WindowServer/Makefile`) and
   are to be removed from the tree.
 - **Keyboard:** libxkbcommon and xkeyboard-config as a stopgap for the
@@ -523,12 +522,3 @@ The highest-impact open items, in critical-path order:
 4. The symbol inventory script (Phase 0), which drives the libSystem and
    framework work.
 5. The Swift toolchain prototypes (Phase 3).
-
-## Sources
-
-- [ravynOS roadmap (archived wiki)](https://github.com/ravynsoft/wiki/blob/main/pages/roadmap.mdx)
-- [ravynOS CONTRIBUTING.md, `darwin` branch](https://github.com/ravynsoft/ravynos/blob/darwin/Docs/CONTRIBUTING.md)
-- [ravynsoft/ravynos](https://github.com/ravynsoft/ravynos)
-
-The architecture decisions, phases, gates and mitigations in this document
-are Minkar's plan, not the ravynOS project's.
