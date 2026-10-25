@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: BSD-2-Clause
+# Copyright (c) 2026 The Minkar contributors
+#
 # login: log into the system through PAM (architecture plan, Phase 2:
 # console login). Set-user-ID root, as on macOS.
 

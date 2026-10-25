@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: BSD-2-Clause
+# Copyright (c) 2026 The Minkar contributors
+#
 # defaults: our own (BSD-2) on CoreFoundation's CFPreferences.
 
 SUBDIR =

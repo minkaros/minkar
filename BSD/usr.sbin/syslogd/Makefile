@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: BSD-2-Clause
+# Copyright (c) 2026 The Minkar contributors
+#
 # syslogd, Apple's system log server (syslog project, APSL, in the tree;
 # approved for Minkar 2026-10-24): the ASL server on the Mach service
 # com.apple.system.logger (syslog(3), asl(3)), the BSD socket

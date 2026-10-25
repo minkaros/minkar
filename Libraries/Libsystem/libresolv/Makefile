@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: BSD-2-Clause
+# Copyright (c) 2026 The Minkar contributors
+#
 # libresolv.9.dylib: the DNS resolver library (BIND 9 API, res_9_* names),
 # a library of its own on macOS, outside libSystem. The sources are those
 # of libresolv.xcodeproj; minkar/ has our portability headers and the DNS

@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: BSD-2-Clause
+# Copyright (c) 2026 The Minkar contributors
+#
 # OpenSSH (portable 10.6p1) built without OpenSSL: sshd, ssh, scp, sftp,
 # ssh-keygen and friends (architecture plan, Phase 2, gate M2). See
 # README.minkar. The source lists follow openssh/Makefile.in;

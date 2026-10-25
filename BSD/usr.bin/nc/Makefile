@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: BSD-2-Clause
+# Copyright (c) 2026 The Minkar contributors
+#
 # nc: OpenBSD's netcat (BSD), from FreeBSD's contrib/netcat in git
 # history. No IPsec policies, no TCP statistics (FreeBSD's stats(3)).
 

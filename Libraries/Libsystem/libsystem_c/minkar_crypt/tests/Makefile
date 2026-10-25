@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: BSD-2-Clause
+# Copyright (c) 2026 The Minkar contributors
+#
 # Host test of crypt(3)'s SHA-crypt code: make -C <this directory>
 # (GNU or BSD make, with the host's clang).
 

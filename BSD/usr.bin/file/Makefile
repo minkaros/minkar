@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: BSD-2-Clause
+# Copyright (c) 2026 The Minkar contributors
+#
 # file(1) 5.46 (BSD-2) on libmagic; its database is
 # /usr/share/file/magic.mgc (BSD/lib/libmagic).
 

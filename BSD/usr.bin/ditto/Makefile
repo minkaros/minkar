@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: BSD-2-Clause
+# Copyright (c) 2026 The Minkar contributors
+#
 # ditto: our own (BSD-2): copies through copyfile(3), CPIO and PKZip
 # archives through libarchive (BSD/lib/libarchive).
 

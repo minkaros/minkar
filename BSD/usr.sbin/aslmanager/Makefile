@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: BSD-2-Clause
+# Copyright (c) 2026 The Minkar contributors
+#
 # aslmanager, Apple's ASL store manager (syslog project, APSL, in the
 # tree; approved 2026-10-24): rotates and expires /var/log/asl and the
 # files asl.conf names. launchd runs it (com.apple.aslmanager.plist).

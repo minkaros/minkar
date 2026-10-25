@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: BSD-2-Clause
+# Copyright (c) 2026 The Minkar contributors
+#
 # kextstart: ends IOKit's wait for kextd at boot (see kextstart.c).
 
 SUBDIR =

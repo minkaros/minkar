@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: BSD-2-Clause
+# Copyright (c) 2026 The Minkar contributors
+#
 # md5 and the SHA digests (original, BSD-2: md5.c), on our libmd; shasum
 # is the same program.
 

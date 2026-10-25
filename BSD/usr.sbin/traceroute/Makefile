@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: BSD-2-Clause
+# Copyright (c) 2026 The Minkar contributors
+#
 # traceroute: our own IPv4 traceroute (BSD-2). setuid root for the raw
 # ICMP socket; it drops root right after opening it.
 

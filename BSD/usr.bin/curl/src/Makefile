@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: BSD-2-Clause
+# Copyright (c) 2026 The Minkar contributors
+#
 # The curl tool, on /usr/lib/libcurl.4.dylib. No built-in manual.
 
 SUBDIR =

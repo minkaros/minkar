@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: BSD-2-Clause
+# Copyright (c) 2026 The Minkar contributors
+#
 # Link stubs for a clean build (see regen-stubs.sh).
 #
 # install-stubs (run first, by ../Makefile) puts a stub in the SDK for

@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: BSD-2-Clause
+# Copyright (c) 2026 The Minkar contributors
+#
 # Host-side tests for WindowServer's portable C code.
 #
 #   make -C CoreServices/WindowServer/tests          (GNU make or bmake)

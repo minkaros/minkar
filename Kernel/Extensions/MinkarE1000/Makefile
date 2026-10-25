@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: BSD-2-Clause
+# Copyright (c) 2026 The Minkar contributors
+#
 # MinkarE1000: driver for Intel 8254x and 82574L Ethernet (QEMU e1000 and
 # e1000e, VirtualBox, VMware), on our IONetworkingFamily.
 MK_WERROR = no

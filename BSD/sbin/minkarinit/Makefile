@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: BSD-2-Clause
+# Copyright (c) 2026 The Minkar contributors
+#
 # minkarinit: temporary PID 1 for bring-up (architecture plan, gate M1).
 # Image/Makefile installs it as /sbin/launchd until launchd runs.
 

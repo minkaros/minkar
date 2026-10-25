@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: BSD-2-Clause
+# Copyright (c) 2026 The Minkar contributors
+#
 # tar: bsdtar from libarchive (BSD-2), sources in BSD/lib/libarchive/src
 # (tar/ and libarchive_fe/), linked with that libarchive. tar is a link.
 

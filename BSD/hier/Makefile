@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: BSD-2-Clause
+# Copyright (c) 2026 The Minkar contributors
+#
 # Base file system hierarchy (architecture plan, Phase 2): hier.spec,
 # created in the sysroot before the rest of the build installs into it.
 

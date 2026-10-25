@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: BSD-2-Clause
+# Copyright (c) 2026 The Minkar contributors
+#
 # Ad-hoc code signing tool for the build host (BSD-2, see codesign.py).
 # Host tests: python3 -B tests/test_codesign.py
 

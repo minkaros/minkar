@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: BSD-2-Clause
+# Copyright (c) 2026 The Minkar contributors
+#
 # libsystem_configuration: the client side of configd's DNS configuration
 # (dnsinfo), network information (nwi) and configuration agents, as in
 # macOS's libSystem. The sources live with configd (Apple's, APSL).

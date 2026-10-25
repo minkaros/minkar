@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: BSD-2-Clause
+# Copyright (c) 2026 The Minkar contributors
+#
 # plutil: our own (BSD-2) on CoreFoundation's CFPropertyList, with JSON.
 
 SUBDIR =

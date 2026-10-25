@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: BSD-2-Clause
+# Copyright (c) 2026 The Minkar contributors
+#
 # su (FreeBSD, BSD-3) from git history: PAM (/etc/pam.d/su), BSM audit
 # records, and libbsdcompat's one-class login_cap. Set-user-ID root.
 

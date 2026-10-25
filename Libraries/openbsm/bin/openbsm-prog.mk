@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: BSD-2-Clause
+# Copyright (c) 2026 The Minkar contributors
+#
 # OpenBSM's tools (BSD), built for Minkar with OpenBSM's own sources.
 
 SUBDIR =

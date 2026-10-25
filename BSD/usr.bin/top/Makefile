@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: BSD-2-Clause
+# Copyright (c) 2026 The Minkar contributors
+#
 # top: our own (BSD-2) on libproc and the Mach host interface.
 
 SUBDIR =
