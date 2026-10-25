@@ -8,7 +8,8 @@
 # Ubuntu 22.04 runner. Run from the top of the source tree.
 #
 #   host-setup.sh free-disk           remove preinstalled SDKs we never use
-#   host-setup.sh packages [image]    build packages; "image" adds QEMU etc.
+#   host-setup.sh packages [image]    build packages and Open CF-lite;
+#                                     "image" adds QEMU etc.
 #   host-setup.sh touch-toolchain     mark the restored toolchain up to date
 #   host-setup.sh annotate-log FILE.. end of each log as an error annotation
 
@@ -18,7 +19,13 @@ set -eu
 # build-stages.sh.
 BUILD_PACKAGES="clang lld cmake ninja-build python3 git curl \
 libxml2-dev libpng-dev uuid-dev libssl-dev zlib1g-dev libbsd-dev \
+libacl1-dev libc++-dev libc++abi-dev llvm-14-dev libedit-dev libffi-dev \
+libdispatch-dev libblocksruntime-dev libkqueue-dev libpthread-workqueue-dev \
+libicu-dev autoconf automake libtool pkg-config \
 bmake make csh bison flex byacc time"
+# Open CF-lite (APSL, host only): plktool and xcbuild link it.
+OPENCFLITE_REPO=https://github.com/gerickson/opencflite.git
+OPENCFLITE_TAG=opencflite-635.21.8
 IMAGE_PACKAGES="nasm gdisk dosfstools hfsprogs qemu-system-x86 ovmf \
 openssh-client openssl"
 
@@ -48,8 +55,23 @@ packages() {
 		getent hosts "$host" >/dev/null ||
 		    echo "127.0.1.1 $host" | sudo tee -a /etc/hosts
 	fi
+	opencflite
 	clang --version | head -1
 	bmake -V MAKE_VERSION -f /dev/null 2>/dev/null || true
+}
+
+# Open CF-lite in /usr/local, unless it is already there.
+opencflite() {
+	if [ -e /usr/local/lib/libCoreFoundation.so ]; then
+		echo "opencflite: already in /usr/local"
+		return
+	fi
+	src=${RUNNER_TEMP:-/tmp}/opencflite
+	rm -rf "$src"
+	git clone -q --depth 1 --branch "$OPENCFLITE_TAG" "$OPENCFLITE_REPO" "$src"
+	(cd "$src" && ./configure -q --prefix=/usr/local &&
+	    make -s -j"$(nproc)" && sudo make -s install)
+	sudo ldconfig
 }
 
 touch_toolchain() {

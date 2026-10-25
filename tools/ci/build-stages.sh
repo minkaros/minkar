@@ -36,10 +36,19 @@ mkdir -p "$LOGDIR"
 TIMES=$LOGDIR/times.txt
 echo "stage wall_s user_s sys_s cpu% rc" > "$TIMES"
 
-# The end of a log as one GitHub annotation: no colors, newlines as %0A.
+# The lines that say what went wrong: in a parallel build they are rarely
+# at the end of the log.
+errors() {
+	sed -e 's/\x1b\[[0-9;]*m//g' -e 's/\r//g' "$1" |
+	    grep -n -i -E 'error[: ]|\*\*\* |not found|no such file|cannot |undefined|fatal' |
+	    grep -v -E -- '-W[a-z-]*error|-Werror|error\.[cho]|_error' | head -n 40
+}
+
+# One GitHub annotation: no colors, newlines as %0A.
 annotate() {
 	printf '::error title=%s failed::' "$1"
-	tail -n "$TAIL_LINES" "$2" | sed -e 's/\x1b\[[0-9;]*m//g' -e 's/\r//g' \
+	{ echo "First error lines:"; errors "$2"; echo "End of the log:"
+	  tail -n "$TAIL_LINES" "$2"; } | sed -e 's/\x1b\[[0-9;]*m//g' -e 's/\r//g' \
 	    -e 's/%/%25/g' | awk '{ printf "%s%%0A", $0 }'
 	echo
 }
@@ -57,7 +66,9 @@ run() {
 	[ -n "${GITHUB_ACTIONS:-}" ] && echo "::endgroup::"
 	if [ $rc -ne 0 ]; then
 		echo "FAILED at $name" >> "$TIMES"
-		echo "build-stages: $name failed; end of $log:"
+		echo "build-stages: $name failed; first error lines:"
+		errors "$log"
+		echo "build-stages: end of $log:"
 		tail -n "$TAIL_LINES" "$log" | sed 's/\x1b\[[0-9;]*m//g'
 		[ -n "${GITHUB_ACTIONS:-}" ] && annotate "$name" "$log"
 		exit $rc
