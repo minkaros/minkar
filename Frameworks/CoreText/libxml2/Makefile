@@ -37,14 +37,24 @@ all: libintl
 
 
 
+# gettext-tiny builds where its Makefile is (and leaves an a.out from a
+# compiler check): build a copy of its sources in the object directory,
+# so the source tree stays clean.
+GT_OBJDIR =	${.OBJDIR}/gettext-tiny
+
 libintl: ${.CURDIR:H}/gettext-tiny/Makefile
+	mkdir -p ${GT_OBJDIR}
+	cd ${.CURDIR:H}/gettext-tiny && cp -Rp Makefile install.sh data include \
+	    libintl m4 src ${GT_OBJDIR}/
+	rm -f ${GT_OBJDIR}/src/*.o ${GT_OBJDIR}/libintl/*.o
+	cd ${GT_OBJDIR} && \
 	CC=${CC} CXX=${CXX} LD=${CC} AR=${AR} RANLIB=${RANLIB} \
 	NM=${NM} LIBTOOL=${LIBTOOL} \
 	LDFLAGS="-fuse-ld=${LD} --sysroot=${RAVYN_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} -L${.OBJDIR:H}/libiconv/lib/.libs/" \
 	CFLAGS="--sysroot=${RAVYN_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} -I${.OBJDIR:H}/libiconv/include" \
-	MAKEFLAGS="" ${GMAKE} LIBINTL=1 -C ${.CURDIR:H}/gettext-tiny
-	cp -fv ${.CURDIR:H}/gettext-tiny/libintl.a ${RAVYN_SDKROOT}/usr/lib
-	cp -fv ${.CURDIR:H}/gettext-tiny/msgfmt ${.CURDIR:H}/gettext-tiny/msgmerge \
+	MAKEFLAGS="" ${GMAKE} LIBINTL=1 -C ${GT_OBJDIR}
+	cp -fv ${GT_OBJDIR}/libintl.a ${RAVYN_SDKROOT}/usr/lib
+	cp -fv ${GT_OBJDIR}/msgfmt ${GT_OBJDIR}/msgmerge \
 		${SYSROOT_DIR}/usr/bin/
 
 
