@@ -25,25 +25,35 @@
  * SUCH DAMAGE.
  */
 
-/* SHA-512 with libmd's interface, for crypt(3) (see crypt_internal.h). */
+/*
+ * Included first (-include) in every file of crypt(3)'s SHA-crypt support:
+ * the SHA-2 and SHA-crypt functions are libc internals, so they get libc
+ * private names (and the files are built with -fvisibility=hidden).
+ * Programs that bring their own SHA512_Init() (OpenSSL, libmd) never see
+ * these.
+ */
 
-#ifndef _RAVYN_SHA512_H_
-#define _RAVYN_SHA512_H_
+#ifndef _MINKAR_CRYPT_INTERNAL_H_
+#define _MINKAR_CRYPT_INTERNAL_H_
 
-#include <stddef.h>
-#include <stdint.h>
+#include <stdint.h>		/* misc.c expects it from <sys/types.h>, as on FreeBSD */
 
-#define SHA512_BLOCK_LENGTH		128
-#define SHA512_DIGEST_LENGTH		64
+#define SHA256_Init	__libc_SHA256_Init
+#define SHA256_Update	__libc_SHA256_Update
+#define SHA256_Final	__libc_SHA256_Final
+#define SHA512_Init	__libc_SHA512_Init
+#define SHA512_Update	__libc_SHA512_Update
+#define SHA512_Final	__libc_SHA512_Final
+#define crypt_sha256	__libc_crypt_sha256
+#define crypt_sha512	__libc_crypt_sha512
+#define _crypt_to64	__libc_crypt_to64
+#define b64_from_24bit	__libc_b64_from_24bit
 
-typedef struct {
-	uint64_t state[8];
-	uint64_t count;			/* bytes hashed so far */
-	unsigned char buf[SHA512_BLOCK_LENGTH];
-} SHA512_CTX;
+#ifdef __APPLE__
+/* FreeBSD's explicit_bzero(): on Darwin, C11's memset_s() never elided. */
+#define __STDC_WANT_LIB_EXT1__ 1
+#include <string.h>
+#define explicit_bzero(p, n)	((void)memset_s((p), (n), 0, (n)))
+#endif
 
-void SHA512_Init(SHA512_CTX *);
-void SHA512_Update(SHA512_CTX *, const void *, size_t);
-void SHA512_Final(unsigned char [SHA512_DIGEST_LENGTH], SHA512_CTX *);
-
-#endif /* _RAVYN_SHA512_H_ */
+#endif /* _MINKAR_CRYPT_INTERNAL_H_ */

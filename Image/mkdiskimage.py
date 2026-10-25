@@ -359,7 +359,7 @@ def main(argv=None):
     p.add_argument('--volume-name', default='Minkar')
     p.add_argument('--volume-id', help='HFS+ volume identifier, 16 hex digits (default random)')
     p.add_argument('--init', help='program to start as PID 1 instead of launchd, '
-                   'e.g. /sbin/ravyninit (installed as a %s link)' % LAUNCHD)
+                   'e.g. /sbin/minkarinit (installed as a %s link)' % LAUNCHD)
     p.add_argument('--root-password', default=os.environ.get('ROOT_PASSWORD'),
                    help='set root\'s password (default: $ROOT_PASSWORD; else root has none '
                    'and cannot log in)')

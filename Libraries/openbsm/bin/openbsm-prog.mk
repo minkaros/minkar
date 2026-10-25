@@ -18,7 +18,7 @@ LDADD ?= -lbsm
 
 MIGFLAGS = --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN}
 
-${.OBJDIR}/include/config/config.h: ${OPENBSM}/config/config_ravynos.h
+${.OBJDIR}/include/config/config.h: ${OPENBSM}/config/config_minkar.h
 	mkdir -p ${.TARGET:H}
 	cp -f ${.ALLSRC} ${.TARGET}
 

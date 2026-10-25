@@ -25,7 +25,7 @@
  * SUCH DAMAGE.
  */
 
-#include "RavynE1000.h"
+#include "MinkarE1000.h"
 #include <IOKit/network/IONetworkData.h>
 #include <IOKit/network/IOEthernetStats.h>
 #include <IOKit/IOLib.h>
@@ -33,9 +33,9 @@
 #include <netinet/in.h>
 
 #define super IOEthernetController
-OSDefineMetaClassAndStructors(RavynE1000, IOEthernetController);
+OSDefineMetaClassAndStructors(MinkarE1000, IOEthernetController);
 
-#define LOG(fmt, ...)	IOLog("RavynE1000: " fmt "\n", ##__VA_ARGS__)
+#define LOG(fmt, ...)	IOLog("MinkarE1000: " fmt "\n", ##__VA_ARGS__)
 
 static inline void
 compilerBarrier(void)
@@ -46,27 +46,27 @@ compilerBarrier(void)
 /* ---- Registers --------------------------------------------------------- */
 
 uint32_t
-RavynE1000::readReg(uint32_t reg) const
+MinkarE1000::readReg(uint32_t reg) const
 {
 	return *(volatile uint32_t *)(fRegs + reg);
 }
 
 void
-RavynE1000::writeReg(uint32_t reg, uint32_t value)
+MinkarE1000::writeReg(uint32_t reg, uint32_t value)
 {
 	*(volatile uint32_t *)(fRegs + reg) = value;
 }
 
 /* Posted writes reach the device before a read of STATUS returns. */
 void
-RavynE1000::flushWrites()
+MinkarE1000::flushWrites()
 {
 	(void)readReg(E1000_STATUS);
 }
 
 /* BAR 0 is the register window (128 KB, memory space). */
 bool
-RavynE1000::mapRegisters()
+MinkarE1000::mapRegisters()
 {
 	uint32_t bar, size;
 
@@ -93,7 +93,7 @@ RavynE1000::mapRegisters()
 }
 
 bool
-RavynE1000::readEEPROMWord(uint32_t addr, uint16_t *data)
+MinkarE1000::readEEPROMWord(uint32_t addr, uint16_t *data)
 {
 	uint32_t done = fEERDv2 ? E1000_EERD_DONE_V2 : E1000_EERD_DONE;
 	uint32_t shift = fEERDv2 ? E1000_EERD_ADDR_SHIFT_V2 : E1000_EERD_ADDR_SHIFT;
@@ -113,7 +113,7 @@ RavynE1000::readEEPROMWord(uint32_t addr, uint16_t *data)
 
 /* Receive address 0 holds the MAC once the EEPROM is loaded; else read it. */
 bool
-RavynE1000::readMACAddress()
+MinkarE1000::readMACAddress()
 {
 	uint32_t ral = readReg(E1000_RAL0), rah = readReg(E1000_RAH0);
 
@@ -150,7 +150,7 @@ allocDMA(IOByteCount size)
 }
 
 bool
-RavynE1000::allocateRings()
+MinkarE1000::allocateRings()
 {
 	fRxRingMem = allocDMA(kRxRingSize * sizeof(struct e1000_rx_desc));
 	fTxRingMem = allocDMA(kTxRingSize * sizeof(struct e1000_tx_desc));
@@ -169,7 +169,7 @@ RavynE1000::allocateRings()
 }
 
 void
-RavynE1000::freeRings()
+MinkarE1000::freeRings()
 {
 	OSSafeReleaseNULL(fRxRingMem);
 	OSSafeReleaseNULL(fTxRingMem);
@@ -182,7 +182,7 @@ RavynE1000::freeRings()
 /* ---- Chip setup -------------------------------------------------------- */
 
 void
-RavynE1000::resetChip()
+MinkarE1000::resetChip()
 {
 	uint32_t ctrl;
 
@@ -208,7 +208,7 @@ RavynE1000::resetChip()
 }
 
 void
-RavynE1000::initRx()
+MinkarE1000::initRx()
 {
 	uint64_t ring = fRxRingMem->getPhysicalAddress();
 
@@ -231,7 +231,7 @@ RavynE1000::initRx()
 }
 
 void
-RavynE1000::initTx()
+MinkarE1000::initTx()
 {
 	uint64_t ring = fTxRingMem->getPhysicalAddress();
 
@@ -251,7 +251,7 @@ RavynE1000::initTx()
 }
 
 void
-RavynE1000::updateRCTL()
+MinkarE1000::updateRCTL()
 {
 	uint32_t rctl = E1000_RCTL_BAM | E1000_RCTL_SECRC | E1000_RCTL_BSIZE_2048;
 
@@ -278,7 +278,7 @@ addMedium(OSDictionary *dict, IOMediumType type, UInt64 mbps)
 }
 
 void
-RavynE1000::publishMedia()
+MinkarE1000::publishMedia()
 {
 	fMedia = OSDictionary::withCapacity(6);
 	if (fMedia == NULL)
@@ -294,7 +294,7 @@ RavynE1000::publishMedia()
 }
 
 void
-RavynE1000::checkLink()
+MinkarE1000::checkLink()
 {
 	uint32_t status = readReg(E1000_STATUS);
 	IOMediumType type;
@@ -324,7 +324,7 @@ RavynE1000::checkLink()
 }
 
 bool
-RavynE1000::writePHY(uint32_t reg, uint16_t value)
+MinkarE1000::writePHY(uint32_t reg, uint16_t value)
 {
 	writeReg(E1000_MDIC, value | reg << E1000_MDIC_REG_SHIFT |
 	    E1000_PHY_ADDR << E1000_MDIC_PHY_SHIFT | E1000_MDIC_OP_WRITE);
@@ -343,7 +343,7 @@ RavynE1000::writePHY(uint32_t reg, uint16_t value)
  * duplex (1000BASE-T needs autonegotiation); autoselect advertises all.
  */
 bool
-RavynE1000::advertiseMedium(IOMediumType type)
+MinkarE1000::advertiseMedium(IOMediumType type)
 {
 	uint16_t anar = MII_ANAR_CSMA | MII_ANAR_PAUSE, gtcr = 0;
 	bool fdx = (type & kIOMediumOptionFullDuplex) != 0;
@@ -370,7 +370,7 @@ RavynE1000::advertiseMedium(IOMediumType type)
 }
 
 IOReturn
-RavynE1000::selectMedium(const IONetworkMedium *medium)
+MinkarE1000::selectMedium(const IONetworkMedium *medium)
 {
 	if (medium == NULL)
 		return kIOReturnBadArgument;
@@ -383,7 +383,7 @@ RavynE1000::selectMedium(const IONetworkMedium *medium)
 /* ---- Receive and transmit ---------------------------------------------- */
 
 void
-RavynE1000::receivePackets()
+MinkarE1000::receivePackets()
 {
 	UInt32 count = 0;
 
@@ -444,7 +444,7 @@ RavynE1000::receivePackets()
 }
 
 void
-RavynE1000::reclaimTx()
+MinkarE1000::reclaimTx()
 {
 	bool reclaimed = false;
 
@@ -465,7 +465,7 @@ RavynE1000::reclaimTx()
  * headers are. Returns false for packets the hardware cannot help with.
  */
 bool
-RavynE1000::buildContext(mbuf_t m, size_t len, bool tso, u_int32_t mss,
+MinkarE1000::buildContext(mbuf_t m, size_t len, bool tso, u_int32_t mss,
     volatile struct e1000_ctx_desc *ctx, size_t *tcpSumOffset, uint16_t *tcpLength)
 {
 	uint8_t hdr[128];
@@ -518,7 +518,7 @@ RavynE1000::buildContext(mbuf_t m, size_t len, bool tso, u_int32_t mss,
  * in the descriptors' special field.
  */
 UInt32
-RavynE1000::outputPacket(mbuf_t m, void *)
+MinkarE1000::outputPacket(mbuf_t m, void *)
 {
 	size_t len = mbuf_pkthdr_len(m), off;
 	UInt32 demand = 0, slots, need;
@@ -622,7 +622,7 @@ RavynE1000::outputPacket(mbuf_t m, void *)
 
 /* The hardware counters (clear on read) added to the published statistics. */
 void
-RavynE1000::updateStats()
+MinkarE1000::updateStats()
 {
 	uint32_t crc = readReg(E1000_CRCERRS), algn = readReg(E1000_ALGNERRC);
 	uint32_t rxerr = readReg(E1000_RXERRC), mpc = readReg(E1000_MPC);
@@ -659,7 +659,7 @@ RavynE1000::updateStats()
 /* ---- Interrupts and polling -------------------------------------------- */
 
 void
-RavynE1000::serviceInterrupt(UInt32 icr)
+MinkarE1000::serviceInterrupt(UInt32 icr)
 {
 	if (!fEnabled)
 		return;
@@ -671,7 +671,7 @@ RavynE1000::serviceInterrupt(UInt32 icr)
 
 /* Primary interrupt context: claim the interrupt if the device raised it. */
 bool
-RavynE1000::interruptFilter(IOFilterInterruptEventSource *)
+MinkarE1000::interruptFilter(IOFilterInterruptEventSource *)
 {
 	uint32_t icr;
 
@@ -691,7 +691,7 @@ RavynE1000::interruptFilter(IOFilterInterruptEventSource *)
 }
 
 void
-RavynE1000::interruptHandler(IOInterruptEventSource *, int)
+MinkarE1000::interruptHandler(IOInterruptEventSource *, int)
 {
 	UInt32 icr = OSBitAndAtomic(0, &fPendingICR);
 
@@ -705,7 +705,7 @@ RavynE1000::interruptHandler(IOInterruptEventSource *, int)
  * transmit ring.
  */
 void
-RavynE1000::timerFired(IOTimerEventSource *)
+MinkarE1000::timerFired(IOTimerEventSource *)
 {
 	if (!fEnabled)
 		return;
@@ -734,19 +734,19 @@ RavynE1000::timerFired(IOTimerEventSource *)
 /* ---- IONetworkController ----------------------------------------------- */
 
 IOOutputQueue *
-RavynE1000::createOutputQueue()
+MinkarE1000::createOutputQueue()
 {
 	return IOGatedOutputQueue::withTarget(this, getWorkLoop(), 256);
 }
 
 bool
-RavynE1000::configureInterface(IONetworkInterface *netif)
+MinkarE1000::configureInterface(IONetworkInterface *netif)
 {
 	return super::configureInterface(netif);
 }
 
 bool
-RavynE1000::start(IOService *provider)
+MinkarE1000::start(IOService *provider)
 {
 	fPCI = OSDynamicCast(IOPCIDevice, provider);
 	if (fPCI == NULL || !super::start(provider))
@@ -796,9 +796,9 @@ RavynE1000::start(IOService *provider)
 	}
 	fIntSource = IOFilterInterruptEventSource::filterInterruptEventSource(this,
 	    OSMemberFunctionCast(IOInterruptEventSource::Action, this,
-	    &RavynE1000::interruptHandler),
+	    &MinkarE1000::interruptHandler),
 	    OSMemberFunctionCast(IOFilterInterruptEventSource::Filter, this,
-	    &RavynE1000::interruptFilter), fPCI, intIndex);
+	    &MinkarE1000::interruptFilter), fPCI, intIndex);
 	if (fIntSource == NULL ||
 	    getWorkLoop()->addEventSource(fIntSource) != kIOReturnSuccess) {
 		LOG("no interrupt; polling every %d ms", kPollMS);
@@ -809,7 +809,7 @@ RavynE1000::start(IOService *provider)
 	}
 	fTimer = IOTimerEventSource::timerEventSource(this,
 	    OSMemberFunctionCast(IOTimerEventSource::Action, this,
-	    &RavynE1000::timerFired));
+	    &MinkarE1000::timerFired));
 	if (fTimer == NULL || getWorkLoop()->addEventSource(fTimer) != kIOReturnSuccess) {
 		LOG("no timer");
 		return false;
@@ -830,7 +830,7 @@ RavynE1000::start(IOService *provider)
 }
 
 void
-RavynE1000::stop(IOService *provider)
+MinkarE1000::stop(IOService *provider)
 {
 	if (fEnabled)
 		disable(fNetif);
@@ -848,7 +848,7 @@ RavynE1000::stop(IOService *provider)
 }
 
 void
-RavynE1000::free()
+MinkarE1000::free()
 {
 	if (fRegs != NULL)
 		writeReg(E1000_IMC, 0xFFFFFFFF);
@@ -864,7 +864,7 @@ RavynE1000::free()
 }
 
 IOReturn
-RavynE1000::enable(IONetworkInterface *)
+MinkarE1000::enable(IONetworkInterface *)
 {
 	if (fEnabled)
 		return kIOReturnSuccess;
@@ -896,7 +896,7 @@ RavynE1000::enable(IONetworkInterface *)
 }
 
 IOReturn
-RavynE1000::disable(IONetworkInterface *)
+MinkarE1000::disable(IONetworkInterface *)
 {
 	if (!fEnabled)
 		return kIOReturnSuccess;
@@ -913,7 +913,7 @@ RavynE1000::disable(IONetworkInterface *)
 }
 
 IOReturn
-RavynE1000::getHardwareAddress(IOEthernetAddress *addr)
+MinkarE1000::getHardwareAddress(IOEthernetAddress *addr)
 {
 	if (addr == NULL)
 		return kIOReturnBadArgument;
@@ -922,7 +922,7 @@ RavynE1000::getHardwareAddress(IOEthernetAddress *addr)
 }
 
 IOReturn
-RavynE1000::setPromiscuousMode(bool active)
+MinkarE1000::setPromiscuousMode(bool active)
 {
 	fPromiscuous = active;
 	if (fEnabled)
@@ -931,7 +931,7 @@ RavynE1000::setPromiscuousMode(bool active)
 }
 
 IOReturn
-RavynE1000::setMulticastMode(bool active)
+MinkarE1000::setMulticastMode(bool active)
 {
 	fAllMulticast = active;
 	if (fEnabled)
@@ -945,7 +945,7 @@ RavynE1000::setMulticastMode(bool active)
  * 4096 bits. More groups than that can sensibly hash: all multicast.
  */
 IOReturn
-RavynE1000::setMulticastList(IOEthernetAddress *addrs, UInt32 count)
+MinkarE1000::setMulticastList(IOEthernetAddress *addrs, UInt32 count)
 {
 	bzero(fMTA, sizeof(fMTA));
 	fMulticast = count > 256;
@@ -965,7 +965,7 @@ RavynE1000::setMulticastList(IOEthernetAddress *addrs, UInt32 count)
 
 /* Receive: IP, TCP and UDP (IPv4). Transmit: the same, with a context descriptor. */
 IOReturn
-RavynE1000::getChecksumSupport(UInt32 *mask, UInt32 family, bool)
+MinkarE1000::getChecksumSupport(UInt32 *mask, UInt32 family, bool)
 {
 	if (mask == NULL || family != kChecksumFamilyTCPIP)
 		return kIOReturnUnsupported;
@@ -974,19 +974,19 @@ RavynE1000::getChecksumSupport(UInt32 *mask, UInt32 family, bool)
 }
 
 UInt32
-RavynE1000::getFeatures() const
+MinkarE1000::getFeatures() const
 {
 	return kIONetworkFeatureHardwareVlan | kIONetworkFeatureTSOIPv4;
 }
 
 const OSString *
-RavynE1000::newVendorString() const
+MinkarE1000::newVendorString() const
 {
 	return OSString::withCString("Intel");
 }
 
 const OSString *
-RavynE1000::newModelString() const
+MinkarE1000::newModelString() const
 {
 	switch (fDeviceID) {
 	case 0x10D3: return OSString::withCString("82574L Gigabit Ethernet");

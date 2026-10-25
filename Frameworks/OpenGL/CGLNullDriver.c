@@ -165,7 +165,7 @@ static CGLError null_make_current(void *context)
 const CGLDriver cgl_null_driver = {
     .abiVersion         = CGL_DRIVER_ABI_VERSION,
     .name               = "Minkar Null Renderer",
-    .rendererID         = kCGLRendererRavynNullID,
+    .rendererID         = kCGLRendererMinkarNullID,
     .displayMask        = 0x1,
     .describeRenderer   = null_describe,
     .choosePixelFormat  = null_choose,

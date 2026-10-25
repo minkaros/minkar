@@ -1,10 +1,10 @@
-# ravyninit: temporary PID 1 for bring-up (architecture plan, gate M1).
+# minkarinit: temporary PID 1 for bring-up (architecture plan, gate M1).
 # Image/Makefile installs it as /sbin/launchd until launchd runs.
 
 SUBDIR =
 
-PROG =	ravyninit
-SRCS =	ravyninit.c
+PROG =	minkarinit
+SRCS =	minkarinit.c
 MAN =
 
 CFLAGS = --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \

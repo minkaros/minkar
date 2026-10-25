@@ -6,7 +6,7 @@ LIBCRYPT =	../../../../../BSD/lib/libcrypt
 CFLAGS =	-g -O1 -Wall -Wextra -fsanitize=address,undefined \
 		-include ../crypt_internal.h -I.. -I../sys/.. -I$(LIBCRYPT) \
 		-D'__FBSDID(x)='
-SRCS =		test_crypt.c ../sha2.c ../ravyn_crypt.c $(LIBCRYPT)/crypt-sha256.c \
+SRCS =		test_crypt.c ../sha2.c ../minkar_crypt.c $(LIBCRYPT)/crypt-sha256.c \
 		$(LIBCRYPT)/crypt-sha512.c $(LIBCRYPT)/misc.c
 
 test: test_crypt

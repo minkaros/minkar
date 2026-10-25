@@ -27,7 +27,7 @@
 
 /*
  * Registers and descriptors of the Intel 8254x (82540EM, 82545EM, ...) and
- * 82574L Gigabit Ethernet controllers used by RavynE1000, from Intel's
+ * 82574L Gigabit Ethernet controllers used by MinkarE1000, from Intel's
  * public software developer's manuals. Only the legacy descriptor formats
  * are used, which every member of the family supports.
  */

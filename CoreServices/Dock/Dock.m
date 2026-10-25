@@ -350,7 +350,7 @@ extern Dock *dock; // our singleton object in main.m
         // populate default apps
         [pa addObject:dockTileData(@"/System/Library/CoreServices/Filer.app")];
         [pa addObject:dockTileData(@"/Applications/Utilities/Terminal.app")];
-        //[pa addObject:dockTileData(@"/Applications/Utilities/Install ravynOS.app")];
+        //[pa addObject:dockTileData(@"/Applications/Utilities/Install Minkar.app")];
     }
 
     for(int i = 0; i < [pa count]; ++i) {

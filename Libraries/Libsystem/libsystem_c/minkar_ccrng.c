@@ -33,7 +33,7 @@ struct ccrng_state {
     int (*generate)(struct ccrng_state *rng, size_t outlen, void *out);
 };
 
-static int ravyn_ccrng_generate(struct ccrng_state *rng, size_t outlen, void *out)
+static int minkar_ccrng_generate(struct ccrng_state *rng, size_t outlen, void *out)
 {
     unsigned char *p = out;
     (void)rng;
@@ -47,13 +47,13 @@ static int ravyn_ccrng_generate(struct ccrng_state *rng, size_t outlen, void *ou
     return 0;
 }
 
-static struct ccrng_state ravyn_ccrng_state = { ravyn_ccrng_generate };
+static struct ccrng_state minkar_ccrng_state = { minkar_ccrng_generate };
 
 struct ccrng_state *ccrng(int *error)
 {
     if (error)
         *error = 0;
-    return &ravyn_ccrng_state;
+    return &minkar_ccrng_state;
 }
 
 /*

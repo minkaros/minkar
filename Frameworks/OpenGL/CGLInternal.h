@@ -55,7 +55,7 @@
 typedef void (*CGLGLProc)(void);
 
 /* Renderer ID of the built-in null renderer (Minkar private range). */
-#define kCGLRendererRavynNullID             0x00FF0100
+#define kCGLRendererMinkarNullID             0x00FF0100
 
 struct _CGLPixelFormatObject {
     atomic_uint             refcount;

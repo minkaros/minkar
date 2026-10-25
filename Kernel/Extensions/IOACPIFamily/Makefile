@@ -18,7 +18,7 @@ SRCS = ACPIRTC.cpp \
 
 # ACPICA (Intel, BSD-3 option; restored from this repository's history):
 # the AML interpreter, without its debugger and disassembler. See
-# acpica/README.ravynos.
+# acpica/README.minkar.
 ACPICA =	${.CURDIR}/acpica/contrib/dev/acpica
 .PATH: ${ACPICA}/components/dispatcher ${ACPICA}/components/events ${ACPICA}/components/executer ${ACPICA}/components/hardware ${ACPICA}/components/namespace ${ACPICA}/components/parser ${ACPICA}/components/resources ${ACPICA}/components/tables ${ACPICA}/components/utilities
 SRCS +=	dsargs.c dscontrol.c dsdebug.c dsfield.c dsinit.c dsmethod.c \

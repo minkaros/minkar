@@ -23,7 +23,7 @@ INCS = ${OPENBSM}/bsm/libbsm.h ${OPENBSM}/bsm/audit_uevents.h
 all: ${.OBJDIR}/libbsm.0.dylib
 
 # The sources include <config/config.h>: ours, not the FreeBSD one in config/.
-${.OBJDIR}/include/config/config.h: ${OPENBSM}/config/config_ravynos.h
+${.OBJDIR}/include/config/config.h: ${OPENBSM}/config/config_minkar.h
 	mkdir -p ${.TARGET:H}
 	cp -f ${.ALLSRC} ${.TARGET}
 

@@ -7,7 +7,7 @@ LDFLAGS = --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
 
 # Independent programs: built in parallel.
 SUBDIR_PARALLEL =
-SUBDIR = notifyd configd configd/scutil.tproj chown ipconfig mDNSResponder/ravynos sysctl traceroute \
+SUBDIR = notifyd configd configd/scutil.tproj chown ipconfig mDNSResponder/minkar sysctl traceroute \
 	syslogd aslmanager
 
 .include <bsd.subdir.mk>

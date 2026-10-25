@@ -26,7 +26,7 @@
  */
 
 /*
- * RavynE1000: driver for the Intel 8254x and 82574L Gigabit Ethernet
+ * MinkarE1000: driver for the Intel 8254x and 82574L Gigabit Ethernet
  * controllers that QEMU, VirtualBox and VMware emulate (e1000, e1000e).
  *
  * Packets are copied to and from fixed 2 KB DMA buffers, one per
@@ -36,8 +36,8 @@
  * interrupt arrives, a timer polls the controller instead.
  */
 
-#ifndef _RAVYNE1000_H
-#define _RAVYNE1000_H
+#ifndef _MINKARE1000_H
+#define _MINKARE1000_H
 
 #include <IOKit/network/IOEthernetController.h>
 #include <IOKit/pci/IOPCIDevice.h>
@@ -47,9 +47,9 @@
 #include "E1000Regs.h"
 #include <IOKit/network/IOEthernetStats.h>
 
-class RavynE1000 : public IOEthernetController
+class MinkarE1000 : public IOEthernetController
 {
-	OSDeclareDefaultStructors(RavynE1000);
+	OSDeclareDefaultStructors(MinkarE1000);
 
 	enum {
 		kRxRingSize	= 128,
@@ -161,4 +161,4 @@ public:
 	using IOEthernetController::getHardwareAddress;
 };
 
-#endif /* !_RAVYNE1000_H */
+#endif /* !_MINKARE1000_H */

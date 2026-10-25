@@ -6,7 +6,7 @@
 # network information: nwi, proxies). Each has an Info.plist bundle in
 # /System/Library/SystemConfiguration. Not built: QoSMarking, the
 # IPMonitor configuration agents, NAT64 and SMB (Plugins/IPMonitor/
-# ravynos_stubs.c), which need NetworkExtension, Network.framework or SMB.
+# minkar_stubs.c), which need NetworkExtension, Network.framework or SMB.
 # __MINKAR__ marks the changes made for ravynOS. (Apple's buildit
 # makefile was here.)
 
@@ -38,7 +38,7 @@ SRCS =	configd.m configd_server.c plugin_support.c session.c pattern.c \
 	configServer.c
 SRCS +=	ifnamer.c
 SRCS +=	ip_plugin.c dns-configuration.c proxy-configuration.c set-hostname.c \
-	ravynos_stubs.c IPMonitorControlServer.c
+	minkar_stubs.c IPMonitorControlServer.c
 SRCS +=	eventmon.c ev_dlil.c ev_ipv4.c ev_ipv6.c ev_extra.m
 SRCS +=	prefsmon.c linkconfig.c
 SRCS +=	InterfaceNamerControlPrefs.c IPMonitorControlPrefs.c

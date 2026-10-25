@@ -1,14 +1,14 @@
-# RavynE1000: driver for Intel 8254x and 82574L Ethernet (QEMU e1000 and
+# MinkarE1000: driver for Intel 8254x and 82574L Ethernet (QEMU e1000 and
 # e1000e, VirtualBox, VMware), on our IONetworkingFamily.
 MK_WERROR = no
 SUBDIR =
-KEXT = RavynE1000
+KEXT = MinkarE1000
 KERNEL_PRIVATE = yes
 INFO_PLIST = Info.plist
-BUNDLE_IDENTIFIER = org.minkar.driver.RavynE1000
+BUNDLE_IDENTIFIER = org.minkar.driver.MinkarE1000
 BUNDLE_VERSION = 1.0.0
 
-SRCS = RavynE1000.cpp
+SRCS = MinkarE1000.cpp
 
 CFLAGS = -Wno-implicit-int-conversion -Wno-sign-conversion \
 	-I${.CURDIR:H}/IONetworkingFamily \

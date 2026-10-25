@@ -26,7 +26,7 @@
  */
 
 /*
- * ravyninit: a temporary PID 1 for bring-up (architecture plan, gate M1).
+ * minkarinit: a temporary PID 1 for bring-up (architecture plan, gate M1).
  *
  * It stands in for launchd until launchd runs: it opens the console,
  * reports that userland is alive, checks that a second program can be
@@ -74,7 +74,7 @@ warnmsg(const char *fmt, ...)
 {
 	va_list ap;
 
-	fputs("ravyninit: ", stderr);
+	fputs("minkarinit: ", stderr);
 	va_start(ap, fmt);
 	vfprintf(stderr, fmt, ap);
 	va_end(ap);

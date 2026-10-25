@@ -15,7 +15,7 @@ build: buildInstaller grabscr
 	mkdir -p ${BUILDROOT}/Applications/Utilities/
 	mkdir -p ${BUILDROOT}/usr/bin
 	cp -av ${OBJTOP}/SysApps/grabscr ${BUILDROOT}/usr/bin
-	#cp -av ${MAKEOBJDIR}/Installer/"Install ravynOS.app" ${BUILDROOT}/Applications/Utilities/
+	#cp -av ${MAKEOBJDIR}/Installer/"Install Minkar.app" ${BUILDROOT}/Applications/Utilities/
 
 buildInstaller:
 	#${MAKE} -C ${.CURDIR}/Installer build

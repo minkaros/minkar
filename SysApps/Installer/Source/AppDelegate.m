@@ -48,7 +48,7 @@ void closeLog() {
     myBundle = [NSBundle mainBundle];
     _updateTimer = nil;
     
-    NSString *verLabel = [[_versionLabel stringValue] stringByReplacingOccurrencesOfString:@"X.X.X" withString:[NSString stringWithUTF8String:RAVYNOS_VERSION]];
+    NSString *verLabel = [[_versionLabel stringValue] stringByReplacingOccurrencesOfString:@"X.X.X" withString:[NSString stringWithUTF8String:MINKAR_VERSION]];
     [_versionLabel setStringValue:verLabel];
 
     [_scrollView setAutoresizesSubviews:YES];

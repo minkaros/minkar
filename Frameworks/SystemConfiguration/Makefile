@@ -2,7 +2,7 @@
 #
 # Left out: SCNetworkConnection (PPP and VPN, needs PPPController),
 # Apple's SCNetworkReachability (built on Network.framework's private
-# API; SCNetworkReachabilityRavyn.c is ours), VPN* and SNHelper
+# API; SCNetworkReachabilityMinkar.c is ours), VPN* and SNHelper
 # (NetworkExtension). compat/ has Minkar stand-ins: Security types,
 # the serial registry keys and SHA-256. SCSchemaDefinitions.[ch] are the
 # files genSCPreferences generated (Apple's makefile for that was here).
@@ -36,7 +36,7 @@ SRCS = \
 	SCPreferencesPathKey.c SCProxies.c SCSchemaDefinitions.c \
 	VLANConfiguration.c dy_framework.c scprefs_observer.c \
 	SCHelper_client.c configUser.c helperUser.c \
-	SCNetworkReachabilityRavyn.c IPMonitorControl.c sc_sha256.c
+	SCNetworkReachabilityMinkar.c IPMonitorControl.c sc_sha256.c
 
 HEADERS = SystemConfiguration.h SCDynamicStore.h SCDynamicStoreKey.h \
 	SCDynamicStoreCopySpecific.h SCDynamicStoreCopyDHCPInfo.h \

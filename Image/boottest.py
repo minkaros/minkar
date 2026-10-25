@@ -59,8 +59,8 @@ import sys
 import tempfile
 import time
 
-# Printed by PID 1 (BSD/sbin/ravyninit until launchd runs) and by the
-# shell it starts; keep in sync with ravyninit.c.
+# Printed by PID 1 (BSD/sbin/minkarinit until launchd runs) and by the
+# shell it starts; keep in sync with minkarinit.c.
 USERLAND_MARKER = 'Minkar: PID 1 running'
 SHELL_MARKER = 'Minkar: shell running'
 

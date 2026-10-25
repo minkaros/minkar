@@ -1,5 +1,5 @@
 ##----------------------------------------------------------------------------
-#                         RAVYNOS LIBSYSTEM_C BUILD
+#                         MINKAR LIBSYSTEM_C BUILD
 #
 # The C library (libsystem_c or libc - part of libSystem) has a very
 # complex build process. This make script has been puzzled out from the Xcode
@@ -142,34 +142,34 @@ LDFLAGS = -mmacos-version-min=${MACOS_VERSION_MIN} \
 
 # crypt(3): DES (gen/crypt.c, renamed __crypt_des in libBase) plus the
 # SHA-crypt hashes "$5$" and "$6$" from BSD/lib/libcrypt over our own SHA-2
-# (ravyn_crypt/). Everything but crypt() itself is hidden. Host test:
-# make -C ravyn_crypt/tests
+# (minkar_crypt/). Everything but crypt() itself is hidden. Host test:
+# make -C minkar_crypt/tests
 LIBCRYPT =	${ROOT_SOURCE_DIR}/BSD/lib/libcrypt
-CRYPT_CFLAGS =	-include ${.CURDIR}/ravyn_crypt/crypt_internal.h \
-		-I${.CURDIR}/ravyn_crypt -I${LIBCRYPT} -D'__FBSDID(x)=' ${CFLAGS}
+CRYPT_CFLAGS =	-include ${.CURDIR}/minkar_crypt/crypt_internal.h \
+		-I${.CURDIR}/minkar_crypt -I${LIBCRYPT} -D'__FBSDID(x)=' ${CFLAGS}
 CRYPT_HIDDEN =	sha2 crypt-sha256 crypt-sha512 misc
 CRYPT_OBJS =	${CRYPT_HIDDEN:S/^/${.OBJDIR}\/crypt_/:S/$/.o/} \
-		${.OBJDIR}/crypt_ravyn_crypt.o
-CRYPT_HDRS =	${.CURDIR}/ravyn_crypt/crypt_internal.h \
-		${.CURDIR}/ravyn_crypt/sha256.h ${.CURDIR}/ravyn_crypt/sha512.h
+		${.OBJDIR}/crypt_minkar_crypt.o
+CRYPT_HDRS =	${.CURDIR}/minkar_crypt/crypt_internal.h \
+		${.CURDIR}/minkar_crypt/sha256.h ${.CURDIR}/minkar_crypt/sha512.h
 
-${.OBJDIR}/crypt_sha2.o: ${.CURDIR}/ravyn_crypt/sha2.c ${CRYPT_HDRS}
-	${CC} ${CRYPT_CFLAGS} -fvisibility=hidden -c ${.CURDIR}/ravyn_crypt/sha2.c -o ${.TARGET}
+${.OBJDIR}/crypt_sha2.o: ${.CURDIR}/minkar_crypt/sha2.c ${CRYPT_HDRS}
+	${CC} ${CRYPT_CFLAGS} -fvisibility=hidden -c ${.CURDIR}/minkar_crypt/sha2.c -o ${.TARGET}
 .for s in crypt-sha256 crypt-sha512 misc
 ${.OBJDIR}/crypt_${s}.o: ${LIBCRYPT}/${s}.c ${CRYPT_HDRS}
 	${CC} ${CRYPT_CFLAGS} -fvisibility=hidden -c ${LIBCRYPT}/${s}.c -o ${.TARGET}
 .endfor
-${.OBJDIR}/crypt_ravyn_crypt.o: ${.CURDIR}/ravyn_crypt/ravyn_crypt.c ${CRYPT_HDRS}
-	${CC} ${CRYPT_CFLAGS} -c ${.CURDIR}/ravyn_crypt/ravyn_crypt.c -o ${.TARGET}
+${.OBJDIR}/crypt_minkar_crypt.o: ${.CURDIR}/minkar_crypt/minkar_crypt.c ${CRYPT_HDRS}
+	${CC} ${CRYPT_CFLAGS} -c ${.CURDIR}/minkar_crypt/minkar_crypt.c -o ${.TARGET}
 
 lib${LIB}.dylib: lib${LIB}.a ${CRYPT_OBJS}
-	${CC} -shared -dylib -fuse-ld=${LD} -o ${.TARGET} ${.OBJDIR}/ravyn_ccrng.o \
+	${CC} -shared -dylib -fuse-ld=${LD} -o ${.TARGET} ${.OBJDIR}/minkar_ccrng.o \
 	  ${CRYPT_OBJS} ${LDFLAGS} -Wl,-unexported_symbol,___crypt_des
 	mkdir -p ${SYSROOT_DIR}/usr/lib/system ${MINKAR_SDKROOT}/usr/lib/system
 	cp -f ${.TARGET} ${SYSROOT_DIR}/usr/lib/system/
 	cp -f ${.TARGET} ${MINKAR_SDKROOT}/usr/lib/system/
 
-SRCS+=	ravyn_ccrng.c
+SRCS+=	minkar_ccrng.c
 
 # Everything here includes <sys/cdefs.h>, which includes the generated
 # libc-features.h: make it first, also with -j. (The libBase... lines

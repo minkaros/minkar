@@ -1,6 +1,6 @@
 # libarchive (Tim Kientzle and others, BSD-2: COPYING), from FreeBSD's
 # contrib/libarchive in git history (src/), for bsdtar. Static library.
-# config_ravynos.h is FreeBSD's config adjusted for Darwin: no ACLs or
+# config_minkar.h is FreeBSD's config adjusted for Darwin: no ACLs or
 # extended attributes, no OpenSSL, xar or zstd; zlib, bzip2 and xz; digests
 # from our libmd.
 
@@ -43,7 +43,7 @@ SRCS =	archive_acl.c archive_blake2sp_ref.c archive_blake2s_ref.c archive_check_
 
 CFLAGS = --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
 	-Wno-nullability-completeness \
-	-DPLATFORM_CONFIG_H=\"${.CURDIR}/config_ravynos.h\" \
+	-DPLATFORM_CONFIG_H=\"${.CURDIR}/config_minkar.h\" \
 	-DHAVE_BZLIB_H=1 -DHAVE_LIBLZMA=1 -DHAVE_LZMA_H=1 -DHAVE_SYSCONF=1 \
 	-I${.CURDIR}/src/libarchive -I${ROOT_SOURCE_DIR}/BSD/lib/libmd \
 	-I${ROOT_SOURCE_DIR}/Libraries/zlib -I${ROOT_SOURCE_DIR}/BSD/lib/bzip2/src \

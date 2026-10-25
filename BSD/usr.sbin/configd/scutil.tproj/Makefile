@@ -1,6 +1,6 @@
 # scutil, configd's command line tool (configd-1061.141.1, APSL): the
 # dynamic store, the preferences, DNS, proxy and reachability reports,
-# the host names. --nc is not supported (nc_ravynos.c; nc.c needs
+# the host names. --nc is not supported (nc_minkar.c; nc.c needs
 # NetworkExtension).
 
 SUBDIR =
@@ -16,7 +16,7 @@ SLF =	/System/Library/Frameworks
 
 SRCS =	scutil.c cache.c commands.c dictionary.c net.c net_interface.c \
 	net_protocol.c net_service.c net_set.c notifications.c prefs.c \
-	session.c tests.c nc_ravynos.c
+	session.c tests.c nc_minkar.c
 # The shared preferences of the plugins, and SystemConfiguration's SHA-256.
 SRCS +=	InterfaceNamerControlPrefs.c IPMonitorControlPrefs.c sc_sha256.c
 .PATH: ${CONFIGD}/Plugins/common ${SC}/compat

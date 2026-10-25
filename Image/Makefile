@@ -37,7 +37,7 @@ IMAGE_SIZE_MB ?=	2048
 KERNELCACHE ?=		${ROOT_BINARY_DIR}/kernelcache
 BOOT_ARGS ?=		-v debug=0x14e serial=3 keepsyms=1
 # PID 1 until launchd runs (gate M1); empty to boot /sbin/launchd itself.
-INIT ?=			/sbin/ravyninit
+INIT ?=			/sbin/minkarinit
 .if !empty(INIT)
 INIT_ARGS =		--init ${INIT}
 .endif

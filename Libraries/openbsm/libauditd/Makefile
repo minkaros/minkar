@@ -18,7 +18,7 @@ LDFLAGS = --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
 
 all: ${.OBJDIR}/libauditd.0.dylib
 
-${.OBJDIR}/include/config/config.h: ${OPENBSM}/config/config_ravynos.h
+${.OBJDIR}/include/config/config.h: ${OPENBSM}/config/config_minkar.h
 	mkdir -p ${.TARGET:H}
 	cp -f ${.ALLSRC} ${.TARGET}
 

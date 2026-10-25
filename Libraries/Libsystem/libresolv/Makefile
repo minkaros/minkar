@@ -1,6 +1,6 @@
 # libresolv.9.dylib: the DNS resolver library (BIND 9 API, res_9_* names),
 # a library of its own on macOS, outside libSystem. The sources are those
-# of libresolv.xcodeproj; ravynos/ has our portability headers and the DNS
+# of libresolv.xcodeproj; minkar/ has our portability headers and the DNS
 # configuration fallback (/etc/resolv.conf while configd does not serve it).
 
 SUBDIR =
@@ -12,10 +12,10 @@ SRCS = base64.c dns_async.c dns.c dns_util.c dst_api.c dst_hmac_link.c \
 	ns_samedomain.c ns_sign.c ns_ttl.c ns_verify.c res_comp.c res_data.c \
 	res_debug.c res_findzonecut.c res_init.c res_mkquery.c res_mkupdate.c \
 	res_query.c res_send.c res_sendsigned.c res_update.c dnsinfo_none.c
-.PATH: ${.CURDIR}/ravynos
+.PATH: ${.CURDIR}/minkar
 
 CFLAGS = --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
-	-std=gnu99 -fno-common -I${.CURDIR}/ravynos -I${.CURDIR} \
+	-std=gnu99 -fno-common -I${.CURDIR}/minkar -I${.CURDIR} \
 	-I${ROOT_SOURCE_DIR}/BSD/usr.sbin/configd/dnsinfo \
 	-Wno-nullability-completeness
 LDFLAGS = --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \

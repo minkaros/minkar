@@ -18,7 +18,7 @@
                 <outlet property="BackButton" destination="2S1-mV-lEi" id="LxW-ZC-LGn"/>
                 <outlet property="CancelButton" destination="OFx-nr-vEW" id="FE9-MN-woZ"/>
                 <outlet property="NextButton" destination="cma-Gu-p3n" id="Qsh-ay-i4z"/>
-                <outlet property="ravynOSLabel" destination="F6G-vx-ikt" id="OEA-dC-n5U"/>
+                <outlet property="minkarLabel" destination="F6G-vx-ikt" id="OEA-dC-n5U"/>
                 <outlet property="confirmDisk" destination="wVK-KQ-TIz" id="YRD-UB-ll8"/>
                 <outlet property="confirmFullName" destination="62p-aD-KjP" id="0vp-6t-Avu"/>
                 <outlet property="confirmHostName" destination="F2B-k3-MbI" id="4I5-GG-XzX"/>

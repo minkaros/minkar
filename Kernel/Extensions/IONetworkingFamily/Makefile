@@ -1,5 +1,5 @@
 # IONetworkingFamily: our own implementation of the macOS network driver
-# family (BSD-2). See README.ravynos.
+# family (BSD-2). See README.minkar.
 MK_WERROR = no
 SUBDIR =
 KEXT = IONetworkingFamily

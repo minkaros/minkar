@@ -23,8 +23,8 @@
 #import <Cocoa/Cocoa.h>
 #include <pthread.h>
 
-#ifndef RAVYNOS_VERSION
-#define RAVYNOS_VERSION "0.1.2a"
+#ifndef MINKAR_VERSION
+#define MINKAR_VERSION "0.1.2a"
 #endif
 
 void appendLog(NSData *data);
@@ -51,7 +51,7 @@ void closeLog();
 @property (strong) IBOutlet NSButton *BackButton;
 @property (strong) IBOutlet NSButton *NextButton;
 @property (strong) IBOutlet NSButton *CancelButton;
-@property (strong) IBOutlet NSTextField *ravynOSLabel;
+@property (strong) IBOutlet NSTextField *minkarLabel;
 @property (strong) IBOutlet NSTextField *versionLabel;
 @property (strong) IBOutlet NSForm *userInfoView;
 @property (strong) IBOutlet NSView *infoConfirmationView;

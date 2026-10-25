@@ -1,13 +1,13 @@
-APP=Install_ravynOS
+APP=Install_Minkar
 SRCS=Source/main.m Source/AppDelegate.m Source/GSGeomDisk.m
 MK_DEBUG_FILES=no
 RESOURCES=${.CURDIR}/MarmosetLogo.tiff ${.CURDIR}/header.rtf ${.CURDIR}/terms.rtf \
         ${.CURDIR}/English.lproj ${.CURDIR}/Icon.png
-RAVYNOS_VERSION!= head -1 ${.CURDIR}/../../version.txt
+MINKAR_VERSION!= head -1 ${.CURDIR}/../../version.txt
 
 MK_WERROR= no
 WARNS= 1
-CFLAGS= -g -DRAVYNOS_VERSION=\"${RAVYNOS_VERSION}\" \
+CFLAGS= -g -DMINKAR_VERSION=\"${MINKAR_VERSION}\" \
 	--sysroot=${OBJTOP}/tmp -B${OBJTOP}/tmp/usr/bin \
 	-Wno-missing-method-return-type \
 	-I${OBJTOP}/CoreServices/WindowServer/SystemUIServer \

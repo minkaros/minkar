@@ -25,25 +25,27 @@
  * SUCH DAMAGE.
  */
 
-/* SHA-256 with libmd's interface, for crypt(3) (see crypt_internal.h). */
+/*
+ * OpenBSM's configure results for Minkar (Darwin), in place of the
+ * autoconf config.h (which is FreeBSD's).
+ */
 
-#ifndef _RAVYN_SHA256_H_
-#define _RAVYN_SHA256_H_
+#ifndef _OPENBSM_CONFIG_MINKAR_H
+#define _OPENBSM_CONFIG_MINKAR_H
 
-#include <stddef.h>
-#include <stdint.h>
+#include <stdint.h>	/* compat/endian.h uses the fixed-width types */
 
-#define SHA256_BLOCK_LENGTH		64
-#define SHA256_DIGEST_LENGTH		32
+#define HAVE_AUDIT_SYSCALLS	/**/
+#define HAVE_FULL_QUEUE_H	/**/
+#define HAVE_IPC_PERM__KEY	/**/
+#define HAVE_IPC_PERM__SEQ	/**/
+#define HAVE_PTHREAD_MUTEX_LOCK	1
+#define HAVE_STRLCAT		1
+#define HAVE_STRLCPY		1
+#define HAVE_VIS		1
+#define USE_COMPAT_ENDIAN_H	1
+#define USE_COMPAT_ENDIAN_ENC_H	1
+/* auditd and audit(8) talk over Mach: auditd_control.defs. */
+#define USE_MACH_IPC		1
 
-typedef struct {
-	uint32_t state[8];
-	uint64_t count;			/* bytes hashed so far */
-	unsigned char buf[SHA256_BLOCK_LENGTH];
-} SHA256_CTX;
-
-void SHA256_Init(SHA256_CTX *);
-void SHA256_Update(SHA256_CTX *, const void *, size_t);
-void SHA256_Final(unsigned char [SHA256_DIGEST_LENGTH], SHA256_CTX *);
-
-#endif /* _RAVYN_SHA256_H_ */
+#endif /* !_OPENBSM_CONFIG_MINKAR_H */

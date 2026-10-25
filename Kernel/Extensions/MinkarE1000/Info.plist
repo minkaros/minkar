@@ -5,7 +5,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>English</string>
 	<key>CFBundleExecutable</key>
-	<string>RavynE1000</string>
+	<string>MinkarE1000</string>
 	<key>CFBundleGetInfoString</key>
 	<string>@BUNDLE_VERSION@, Copyright (c) 2026 The ravynOS contributors</string>
 	<key>CFBundleIdentifier</key>
@@ -13,7 +13,7 @@
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundleName</key>
-	<string>RavynE1000</string>
+	<string>MinkarE1000</string>
 	<key>CFBundlePackageType</key>
 	<string>KEXT</string>
 	<key>CFBundleShortVersionString</key>
@@ -29,7 +29,7 @@
 			<key>CFBundleIdentifier</key>
 			<string>@BUNDLE_IDENTIFIER@</string>
 			<key>IOClass</key>
-			<string>RavynE1000</string>
+			<string>MinkarE1000</string>
 			<key>IOPCIMatch</key>
 			<string>0x100e8086 0x100f8086 0x10158086 0x10168086 0x10178086 0x101e8086 0x10d38086</string>
 			<key>IOProbeScore</key>

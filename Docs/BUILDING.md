@@ -78,7 +78,7 @@ Gates (see the architecture plan):
   Images have no root password unless ROOT_PASSWORD is given (hashed with
   the host's `openssl passwd -6`). For launchd bring-up, LAUNCHD_DEBUG=1
   makes launchd and launchctl log everything to the console.
-* M2 - M2-login, then the network: the e1000e NIC (RavynE1000 on our
+* M2 - M2-login, then the network: the e1000e NIC (MinkarE1000 on our
   IONetworkingFamily, with an MSI interrupt) comes up as en0, dhcpclient gets a lease from QEMU
   (10.0.2.15), and root logs in over ssh from the host with a key; the
   remote shell answers, `scutil --dns` shows the name server, and the
@@ -116,7 +116,7 @@ Gates (see the architecture plan):
   and `ipconfig set en0 AUTOMATIC-V6|LINKLOCAL-V6|NONE-V6|MANUAL-V6 <addr> <prefixlen>`
   change its method, `ipconfig getsummary en0` shows what it has.
 
-Until launchd runs, PID 1 is `ravyninit` (`BSD/sbin/ravyninit`), a small
+Until launchd runs, PID 1 is `minkarinit` (`BSD/sbin/minkarinit`), a small
 temporary init that the image installs as `/sbin/launchd`, the only path a
 RELEASE kernel tries. Build the image with `INIT=` to boot the sysroot's own
 `/sbin/launchd` instead.
@@ -129,5 +129,5 @@ Portable parts of the system have host-side tests (clang, ASan/UBSan):
 * `make -C Frameworks/CoreGraphics/tests`
 * `make -C CoreServices/WindowServer/tests` (needs a built sysroot)
 * `python3 -B Developer/Default.xctoolchain/codesign/tests/test_codesign.py`
-* `make -C Libraries/Libsystem/libsystem_c/ravyn_crypt/tests` (crypt(3) SHA-crypt)
+* `make -C Libraries/Libsystem/libsystem_c/minkar_crypt/tests` (crypt(3) SHA-crypt)
 * `cc -DTEST -I Libraries/Libsystem/libsystem_coreservices -o /tmp/sysdir_test Libraries/Libsystem/libsystem_coreservices/sysdir.c && /tmp/sysdir_test`

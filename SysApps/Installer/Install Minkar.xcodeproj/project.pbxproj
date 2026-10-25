@@ -24,7 +24,7 @@
 		C868FDCC271BA7B600F820A5 /* header.rtf */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.rtf; path = header.rtf; sourceTree = SOURCE_ROOT; };
 		C868FDCE271C76EA00F820A5 /* TanukiLogo.tiff */ = {isa = PBXFileReference; lastKnownFileType = image.tiff; path = TanukiLogo.tiff; sourceTree = SOURCE_ROOT; };
 		C87AD76D27838E7800AD32D2 /* MarmosetLogo.tiff */ = {isa = PBXFileReference; lastKnownFileType = image.tiff; path = MarmosetLogo.tiff; sourceTree = "<group>"; };
-		C88DF907270CAF97008EEA84 /* Install ravynOS.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Install ravynOS.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		C88DF907270CAF97008EEA84 /* Install Minkar.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Install Minkar.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		C88DF90A270CAF97008EEA84 /* AppDelegate.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = AppDelegate.h; sourceTree = "<group>"; };
 		C88DF90B270CAF97008EEA84 /* AppDelegate.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = AppDelegate.m; sourceTree = "<group>"; };
 		C88DF90D270CAF98008EEA84 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
@@ -56,7 +56,7 @@
 		C88DF908270CAF97008EEA84 /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				C88DF907270CAF97008EEA84 /* Install ravynOS.app */,
+				C88DF907270CAF97008EEA84 /* Install Minkar.app */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -83,9 +83,9 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		C88DF906270CAF97008EEA84 /* Install ravynOS */ = {
+		C88DF906270CAF97008EEA84 /* Install Minkar */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = C88DF917270CAF98008EEA84 /* Build configuration list for PBXNativeTarget "Install ravynOS" */;
+			buildConfigurationList = C88DF917270CAF98008EEA84 /* Build configuration list for PBXNativeTarget "Install Minkar" */;
 			buildPhases = (
 				C88DF903270CAF97008EEA84 /* Sources */,
 				C88DF904270CAF97008EEA84 /* Frameworks */,
@@ -95,9 +95,9 @@
 			);
 			dependencies = (
 			);
-			name = "Install ravynOS";
+			name = "Install Minkar";
 			productName = Installer;
-			productReference = C88DF907270CAF97008EEA84 /* Install ravynOS.app */;
+			productReference = C88DF907270CAF97008EEA84 /* Install Minkar.app */;
 			productType = "com.apple.product-type.application";
 		};
 /* End PBXNativeTarget section */
@@ -114,7 +114,7 @@
 					};
 				};
 			};
-			buildConfigurationList = C88DF902270CAF97008EEA84 /* Build configuration list for PBXProject "Install ravynOS" */;
+			buildConfigurationList = C88DF902270CAF97008EEA84 /* Build configuration list for PBXProject "Install Minkar" */;
 			compatibilityVersion = "Xcode 3.1";
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
@@ -127,7 +127,7 @@
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
-				C88DF906270CAF97008EEA84 /* Install ravynOS */,
+				C88DF906270CAF97008EEA84 /* Install Minkar */,
 			);
 		};
 /* End PBXProject section */
@@ -335,7 +335,7 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		C88DF902270CAF97008EEA84 /* Build configuration list for PBXProject "Install ravynOS" */ = {
+		C88DF902270CAF97008EEA84 /* Build configuration list for PBXProject "Install Minkar" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				C88DF915270CAF98008EEA84 /* Debug */,
@@ -344,7 +344,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		C88DF917270CAF98008EEA84 /* Build configuration list for PBXNativeTarget "Install ravynOS" */ = {
+		C88DF917270CAF98008EEA84 /* Build configuration list for PBXNativeTarget "Install Minkar" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				C88DF918270CAF98008EEA84 /* Debug */,

@@ -12,7 +12,7 @@ SRCS =	bsdtar.c cmdline.c creation_set.c read.c subst.c util.c write.c \
 
 CFLAGS += --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
 	-Wno-nullability-completeness \
-	-DPLATFORM_CONFIG_H=\"${LA}/config_ravynos.h\" \
+	-DPLATFORM_CONFIG_H=\"${LA}/config_minkar.h\" \
 	-DBSDTAR_VERSION_STRING=\"3.8.1\" \
 	-I${LA}/src/tar -I${LA}/src/libarchive -I${LA}/src/libarchive_fe \
 	-I${ROOT_SOURCE_DIR}/BSD/lib/libbsdcompat/include -include bsdcompat.h
