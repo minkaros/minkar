@@ -3,7 +3,7 @@
 <plist version="1.0">
 <dict>
 	<key>Label</key>
-	<string>com.ravynos.kextstart</string>
+	<string>org.minkar.kextstart</string>
 	<key>ProgramArguments</key>
 	<array>
 		<string>/usr/libexec/kextstart</string>

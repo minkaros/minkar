@@ -3,7 +3,7 @@ SUBDIR =
 KEXT = IOGOPFramebuffer
 KERNEL_PRIVATE = yes
 INFO_PLIST = Info-IOGOPFramebuffer.plist
-BUNDLE_IDENTIFIER = com.ravynos.iokit.IOGOPFramebuffer
+BUNDLE_IDENTIFIER = org.minkar.iokit.IOGOPFramebuffer
 BUNDLE_VERSION = 1.0.0
 MAIN_FUNCTION = IOGraphicsFamilyModuleStart
 

@@ -28,7 +28,7 @@
  * but it is manageable for now.
  */
 
-#define WINDOWSERVER_SVC_NAME "com.ravynos.WindowServer"
+#define WINDOWSERVER_SVC_NAME "org.minkar.WindowServer"
 
 /* Message structure type. PORT conveys a mach_port_t, and INLINE is
  * everything else

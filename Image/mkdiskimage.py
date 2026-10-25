@@ -31,7 +31,7 @@ Layout (GPT):
        /EFI/BOOT/BOOTX64.EFI            ravynOS EFI loader
        /EFI/ravynOS/                    (looked up by the loader)
        /ravynOS/kernelcache             prelinked kernel + kexts
-       /ravynOS/com.ravynos.boot.plist  boot-args, boot-file, boot-uuid
+       /ravynOS/org.minkar.boot.plist   boot-args, boot-file, boot-uuid
   2  Apple HFS+ root volume, populated from the sysroot
 
 The root is found by the kernel through boot-uuid: AppleFileSystemDriver
@@ -310,7 +310,7 @@ def build(args):
         os.makedirs(os.path.join(esp_dir, 'ravynOS'))
         shutil.copyfile(args.loader, os.path.join(esp_dir, 'EFI', 'BOOT', 'BOOTX64.EFI'))
         shutil.copyfile(args.kernelcache, os.path.join(esp_dir, 'ravynOS', 'kernelcache'))
-        with open(os.path.join(esp_dir, 'ravynOS', 'com.ravynos.boot.plist'), 'wb') as f:
+        with open(os.path.join(esp_dir, 'ravynOS', 'org.minkar.boot.plist'), 'wb') as f:
             f.write(boot_plist(args.boot_args, volume_uuid))
 
         run('mount', '-t', 'hfsplus', '-o', 'rw', root, root_dir)

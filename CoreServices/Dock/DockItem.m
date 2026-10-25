@@ -139,7 +139,7 @@
     [self addSubview:_icon];
 
     _flags = DIF_NORMAL;
-    if([_bundleID isEqualToString:@"com.ravynos.Filer"] || [_bundleID hasPrefix:@"com.ravynos.Dock"])
+    if([_bundleID isEqualToString:@"org.minkar.Filer"] || [_bundleID hasPrefix:@"org.minkar.Dock"])
         [self setLocked:YES];
 
     _windows = [NSMutableArray new];

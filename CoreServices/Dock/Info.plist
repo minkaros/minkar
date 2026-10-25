@@ -7,7 +7,7 @@
 	<key>CFBundleDisplayName</key>
 	<string>Dock</string>
 	<key>CFBundleIdentifier</key>
-	<string>com.ravynos.Dock</string>
+	<string>org.minkar.Dock</string>
 	<key>CFBundleVersion</key>
 	<string>1.0</string>
 	<key>CFBundlePackageType</key>

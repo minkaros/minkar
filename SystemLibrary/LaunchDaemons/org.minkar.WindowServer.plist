@@ -3,7 +3,7 @@
 <plist version="1.0">
 <dict>
 	<key>Label</key>
-	<string>com.ravynos.WindowServer</string>
+	<string>org.minkar.WindowServer</string>
 	<key>ProgramArguments</key>
 	<array>
 		<string>/System/Library/CoreServices/WindowServer.app/Contents/ravynOS/WindowServer</string>

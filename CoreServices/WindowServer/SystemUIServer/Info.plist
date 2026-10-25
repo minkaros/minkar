@@ -7,7 +7,7 @@
 	<key>CFBundleDisplayName</key>
 	<string>SystemUIServer</string>
 	<key>CFBundleIdentifier</key>
-	<string>com.ravynos.SystemUIServer</string>
+	<string>org.minkar.SystemUIServer</string>
 	<key>CFBundleVersion</key>
 	<string>1.0</string>
 	<key>CFBundlePackageType</key>

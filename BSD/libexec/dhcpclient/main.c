@@ -27,7 +27,7 @@
 
 /*
  * dhcpclient: configures the IP of the Ethernet interfaces, started by
- * launchd (com.ravynos.dhcpclient).
+ * launchd (org.minkar.dhcpclient).
  *
  *	dhcpclient [-d] [interface ...]
  *

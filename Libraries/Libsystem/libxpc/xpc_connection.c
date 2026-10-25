@@ -60,11 +60,11 @@ xpc_connection_create(const char *name, dispatch_queue_t targetq)
 	TAILQ_INIT(&conn->xc_pending);
 
 	/* Create send queue */
-	asprintf(&qname, "com.ravynos.xpc.connection.sendq.%p", conn);
+	asprintf(&qname, "org.minkar.xpc.connection.sendq.%p", conn);
 	conn->xc_send_queue = dispatch_queue_create(qname, NULL);
 
 	/* Create recv queue */
-	asprintf(&qname, "com.ravynos.xpc.connection.recvq.%p", conn);
+	asprintf(&qname, "org.minkar.xpc.connection.recvq.%p", conn);
 	conn->xc_recv_queue = dispatch_queue_create(qname, NULL);
 
 	/* Create target queue */

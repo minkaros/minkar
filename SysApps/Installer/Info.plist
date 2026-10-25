@@ -7,7 +7,7 @@
 	<key>CFBundleDisplayName</key>
 	<string>Install Minkar</string>
 	<key>CFBundleIdentifier</key>
-	<string>com.ravynos.app.Installer</string>
+	<string>org.minkar.app.Installer</string>
 	<key>CFBundleVersion</key>
 	<string>0.4.0</string>
 	<key>CFBundlePackageType</key>

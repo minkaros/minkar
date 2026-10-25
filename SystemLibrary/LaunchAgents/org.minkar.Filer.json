@@ -3,7 +3,7 @@
     "ASL_DISABLE": "1"
   },
   "MachServices": {
-    "com.ravynos.Filer": {
+    "org.minkar.Filer": {
       "HostSpecialPort": 11
     }
   },
@@ -14,5 +14,5 @@
   ],
   "RunAtLoad": false,
   "KeepAlive": true,
-  "Label": "com.ravynos.Filer"
+  "Label": "org.minkar.Filer"
 }

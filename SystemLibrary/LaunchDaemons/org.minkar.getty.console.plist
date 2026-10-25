@@ -3,7 +3,7 @@
 <plist version="1.0">
 <dict>
 	<key>Label</key>
-	<string>com.ravynos.getty.console</string>
+	<string>org.minkar.getty.console</string>
 	<key>ProgramArguments</key>
 	<array>
 		<string>/usr/libexec/getty</string>

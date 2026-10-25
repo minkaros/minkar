@@ -9,7 +9,7 @@
     <key>CFBundleGetInfoString</key>
     <string>1.0.0, Copyright (C) 2026 ravynOS Project. All rights reserved.</string>
     <key>CFBundleIdentifier</key>
-    <string>com.ravynos.driver.RavynAHCIPort</string>
+    <string>org.minkar.driver.RavynAHCIPort</string>
     <key>CFBundleInfoDictionaryVersion</key>
     <string>6.0</string>
     <key>CFBundleName</key>
@@ -27,7 +27,7 @@
         <key>Generic AHCI</key>
         <dict>
             <key>CFBundleIdentifier</key>
-            <string>com.ravynos.driver.RavynAHCIPort</string>
+            <string>org.minkar.driver.RavynAHCIPort</string>
             <key>IOClass</key>
             <string>RavynAHCIPort</string>
             <key>IOPCIClassMatch</key>

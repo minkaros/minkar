@@ -1,0 +1,26 @@
+diff --git a/MdeModulePkg/Application/Loader/config.c b/MdeModulePkg/Application/Loader/config.c
+index 7c969197..57abc719 100644
+--- a/MdeModulePkg/Application/Loader/config.c
++++ b/MdeModulePkg/Application/Loader/config.c
+@@ -147,7 +147,7 @@ VOID LoadBootConfig(VOID)
+     if(EFI_ERROR(Fs->OpenVolume(Fs, &Root)))
+         return;
+ 
+-    if(EFI_ERROR(Root->Open(Root, &cfgFile, UEFI_STR("\\ravynOS\\com.ravynos.boot.plist"), EFI_FILE_MODE_READ, 0))) {
++    if(EFI_ERROR(Root->Open(Root, &cfgFile, UEFI_STR("\\ravynOS\\org.minkar.boot.plist"), EFI_FILE_MODE_READ, 0))) {
+         Root->Close(Root);
+         return;
+     }
+diff --git a/MdeModulePkg/Application/Loader/config.h b/MdeModulePkg/Application/Loader/config.h
+index 9e2a9fc1..fdc1e6b0 100644
+--- a/MdeModulePkg/Application/Loader/config.h
++++ b/MdeModulePkg/Application/Loader/config.h
+@@ -28,7 +28,7 @@
+ #include "loader.h"
+ 
+ /*
+- * Values the loader reads from \ravynOS\com.ravynos.boot.plist.  This is not a
++ * Values the loader reads from \ravynOS\org.minkar.boot.plist.  This is not a
+  * generic plist dictionary; it is just the handful of settings the loader
+  * actually consumes.  To add a new setting, add a field here, a sane default in
+  * gBootConfig, and a key match in StoreConfigValue() (config.c).

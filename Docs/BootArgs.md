@@ -1,6 +1,6 @@
 # Kernel command line arguments reference
 
-These arguments can be specified in `com.ravynos.boot.plist` and on the booter
+These arguments can be specified in `org.minkar.boot.plist` and on the booter
 (`efiloader`) command line.
 
 | Flag             | Description                                                |

@@ -1,6 +1,6 @@
 # System launchd jobs: /System/Library/LaunchDaemons (architecture plan,
 # Phase 2). launchctl reads these XML property lists at boot.
-# com.ravynos.WindowServer.plist is not installed yet: WindowServer comes up
+# org.minkar.WindowServer.plist is not installed yet: WindowServer comes up
 # with Phase 4.
 
 SUBDIR =
@@ -8,8 +8,8 @@ SUBDIR =
 SYSDAEMONS =	com.apple.configd.plist com.apple.mDNSResponder.plist com.apple.notifyd.plist \
 		com.apple.syslogd.plist com.apple.aslmanager.plist com.apple.auditd.plist \
 		com.openssh.sshd.plist \
-		com.ravynos.dhcpclient.plist com.ravynos.kextstart.plist \
-		com.ravynos.getty.console.plist
+		org.minkar.dhcpclient.plist org.minkar.kextstart.plist \
+		org.minkar.getty.console.plist
 DIR =		${SYSROOT_DIR}/System/Library/LaunchDaemons
 
 all: install-daemons

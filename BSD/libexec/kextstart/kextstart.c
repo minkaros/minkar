@@ -55,7 +55,7 @@
 #include <string.h>
 #include <sysexits.h>
 
-#define CONSOLE_GETTY	"com.ravynos.getty.console"
+#define CONSOLE_GETTY	"org.minkar.getty.console"
 #define QUIET_TIMEOUT	30	/* seconds */
 #define NET_TIMEOUT	10	/* seconds, for the network interfaces */
 

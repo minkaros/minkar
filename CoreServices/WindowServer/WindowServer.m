@@ -268,7 +268,7 @@ static NSString *_pathForPID(pid_t pid) {
     winrec.state = data->state;
     winrec.styleMask = data->style;
     winrec.geometry = NSMakeRect(data->x, data->y, data->w, data->h); // FIXME: bounds check?
-    if([app.bundleID isEqualToString:@"com.ravynos.LoginWindow"])
+    if([app.bundleID isEqualToString:@"org.minkar.LoginWindow"])
         winrec.level = kCGOverlayWindowLevelKey;
     else if(data->level >= kCGMinimumWindowLevelKey && data->level <= kCGMaximumWindowLevelKey)
         winrec.level = data->level;
@@ -340,7 +340,7 @@ static NSString *_pathForPID(pid_t pid) {
     winrec.icon = nil;
     winrec.frame = winrec.geometry;
 
-    if(![app.bundleID isEqualToString:@"com.ravynos.LoginWindow"]) {
+    if(![app.bundleID isEqualToString:@"org.minkar.LoginWindow"]) {
         if(data->level >= kCGMinimumWindowLevelKey && data->level <= kCGMaximumWindowLevelKey
             && data->level != winrec.level) {
             [self removeWindowByLevel:winrec];
@@ -1734,8 +1734,8 @@ static void fillWindowListEntry(struct wsWindowListEntry *e, WSWindowRecord *win
                     rec = [WSAppRecord new];
                     rec.bundleID = bundleID;
                     rec.port = port;
-                    if([bundleID isEqualToString:@"com.ravynos.SystemUIServer"] ||
-                            [bundleID isEqualToString:@"com.ravynos.Dock"])
+                    if([bundleID isEqualToString:@"org.minkar.SystemUIServer"] ||
+                            [bundleID isEqualToString:@"org.minkar.Dock"])
                         [rec skipSwitcher:YES];
                 }
                 rec.pid = pid;
@@ -1746,7 +1746,7 @@ static void fillWindowListEntry(struct wsWindowListEntry *e, WSWindowRecord *win
                 [apps setObject:rec forKey:bundleID];
 
                 Message msg = {0};
-                WSAppRecord *dock = [apps objectForKey:@"com.ravynos.Dock"];
+                WSAppRecord *dock = [apps objectForKey:@"org.minkar.Dock"];
                 if(dock == nil) {
                     NSLog(@"Cannot notify for new app - is Dock running?");
                 } else {
@@ -1780,7 +1780,7 @@ static void fillWindowListEntry(struct wsWindowListEntry *e, WSWindowRecord *win
                     case CODE_MENU_FOR_APP:
                     {
                         Message menuMsg = {0};
-                        WSAppRecord *app = [apps objectForKey:@"com.ravynos.SystemUIServer"];
+                        WSAppRecord *app = [apps objectForKey:@"org.minkar.SystemUIServer"];
                         if(app == nil) {
                             NSLog(@"Cannot install menus for client - is SystemUIServer running?");
                             break;
@@ -1895,12 +1895,12 @@ static void fillWindowListEntry(struct wsWindowListEntry *e, WSWindowRecord *win
                         [self removeWindowFromAllLevels:[[app windows] objectAtIndex:x]];
                     [app removeAllWindows];
 
-                    WSAppRecord *sysui = [apps objectForKey:@"com.ravynos.SystemUIServer"];
+                    WSAppRecord *sysui = [apps objectForKey:@"org.minkar.SystemUIServer"];
                     if(sysui != nil)
                         notifyAppExited([sysui port], out[i].ident,
                                 [app.bundleID UTF8String], [app.path UTF8String]);
 
-                    WSAppRecord *dock = [apps objectForKey:@"com.ravynos.Dock"];
+                    WSAppRecord *dock = [apps objectForKey:@"org.minkar.Dock"];
                     if(dock != nil)
                         notifyAppExited([dock port], out[i].ident,
                                 [app.bundleID UTF8String], [app.path UTF8String]);
@@ -2089,7 +2089,7 @@ static void fillWindowListEntry(struct wsWindowListEntry *e, WSWindowRecord *win
 }
 
 - (BOOL)notifyDock:(void *)data length:(int)length withCode:(int)code forApp:(WSAppRecord *)app {
-    WSAppRecord *dock = [apps objectForKey:@"com.ravynos.Dock"];
+    WSAppRecord *dock = [apps objectForKey:@"org.minkar.Dock"];
     if(dock == nil) {
         if(logLevel >= WS_WARNING)
             NSLog(@"Cannot notify Dock - is it running?");
@@ -2165,7 +2165,7 @@ static void fillWindowListEntry(struct wsWindowListEntry *e, WSWindowRecord *win
 
     Message msg = {0};
     struct mach_activation_data data = {0};
-    WSAppRecord *sysui = [apps objectForKey:@"com.ravynos.SystemUIServer"];
+    WSAppRecord *sysui = [apps objectForKey:@"org.minkar.SystemUIServer"];
     if(sysui == nil) {
         NSLog(@"cannot notify for deactivated app - is SystemUIServer running?");
         return;
@@ -2190,7 +2190,7 @@ static void fillWindowListEntry(struct wsWindowListEntry *e, WSWindowRecord *win
 
     Message msg = {0};
     struct mach_activation_data data = {0, 1};
-    WSAppRecord *sysui = [apps objectForKey:@"com.ravynos.SystemUIServer"];
+    WSAppRecord *sysui = [apps objectForKey:@"org.minkar.SystemUIServer"];
     if(sysui == nil) {
         NSLog(@"cannot notify for activated app - is SystemUIServer running?");
         return;
@@ -2290,7 +2290,7 @@ static void fillWindowListEntry(struct wsWindowListEntry *e, WSWindowRecord *win
     [self performLogout:0];
     pid_t pid = fork();
     if(pid == 0)
-        execl("/bin/launchctl", "launchctl", "remove", "com.ravynos.WindowServer", NULL);
+        execl("/bin/launchctl", "launchctl", "remove", "org.minkar.WindowServer", NULL);
     else
         waitpid(pid, NULL, 0);
     ready = NO;

@@ -3,7 +3,7 @@
 <plist version="1.0">
 <dict>
 	<key>Label</key>
-	<string>com.ravynos.dhcpclient</string>
+	<string>org.minkar.dhcpclient</string>
 	<key>ProgramArguments</key>
 	<array>
 		<string>/usr/libexec/dhcpclient</string>

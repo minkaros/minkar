@@ -7,7 +7,7 @@
 	<key>CFBundleDisplayName</key>
 	<string>LoginWindow</string>
 	<key>CFBundleIdentifier</key>
-	<string>com.ravynos.LoginWindow</string>
+	<string>org.minkar.LoginWindow</string>
 	<key>CFBundleVersion</key>
 	<string>1.0</string>
 	<key>CFBundlePackageType</key>

@@ -11,7 +11,7 @@
 	<key>CFBundleIconFile</key>
 	<string></string>
 	<key>CFBundleIdentifier</key>
-	<string>com.ravynos.iokit.IOGOPFramebuffer</string>
+	<string>org.minkar.iokit.IOGOPFramebuffer</string>
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundleName</key>
@@ -29,7 +29,7 @@
 		<key>AppleBacklightDisplay</key>
 		<dict>
 			<key>CFBundleIdentifier</key>
-			<string>com.ravynos.iokit.IOGOPFramebuffer</string>
+			<string>org.minkar.iokit.IOGOPFramebuffer</string>
 			<key>IOClass</key>
 			<string>AppleBacklightDisplay</string>
 			<key>IOProbeScore</key>
@@ -40,7 +40,7 @@
 		<key>AppleDisplay</key>
 		<dict>
 			<key>CFBundleIdentifier</key>
-			<string>com.ravynos.iokit.IOGOPFramebuffer</string>
+			<string>org.minkar.iokit.IOGOPFramebuffer</string>
 			<key>IOClass</key>
 			<string>AppleDisplay</string>
 			<key>IOProbeScore</key>
@@ -51,7 +51,7 @@
 		<key>IODisplayWrangler</key>
 		<dict>
 			<key>CFBundleIdentifier</key>
-			<string>com.ravynos.iokit.IOGOPFramebuffer</string>
+			<string>org.minkar.iokit.IOGOPFramebuffer</string>
 			<key>IOClass</key>
 			<string>IODisplayWrangler</string>
 			<key>IOGraphicsPrefsParameters</key>
@@ -94,7 +94,7 @@
 		<key>GOP Display</key>
 		<dict>
 			<key>CFBundleIdentifier</key>
-			<string>com.ravynos.iokit.IOGOPFramebuffer</string>
+			<string>org.minkar.iokit.IOGOPFramebuffer</string>
 			<key>IOClass</key>
 			<string>IOGOPFramebuffer</string>
 			<key>IOProbeScore</key>

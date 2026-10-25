@@ -152,7 +152,7 @@ static void OSKextLogKextInfo(OSKext *aKext, uint64_t address, uint64_t size, fi
  * Strings and substrings used in dependency resolution.
  */
 #define APPLE_KEXT_PREFIX            "com.apple."
-#define RAVYNOS_KEXT_PREFIX          "com.ravynos."
+#define MINKAR_KEXT_PREFIX           "org.minkar."
 #define KERNEL_LIB                   "com.apple.kernel"
 
 #define PRIVATE_KPI                  "com.apple.kpi.private"
@@ -7763,7 +7763,7 @@ OSKext::resolveDependencies(
 
 		hasApplePrefix = STRING_HAS_PREFIX(getIdentifierCString(),
 		    APPLE_KEXT_PREFIX) || STRING_HAS_PREFIX(getIdentifierCString(),
-            RAVYNOS_KEXT_PREFIX);
+            MINKAR_KEXT_PREFIX);
 
 #ifdef __MINKAR__
         infoCopyrightIsValid = true;
@@ -7789,7 +7789,7 @@ OSKext::resolveDependencies(
 			    kOSKextLogErrorLevel |
 			    kOSKextLogDependenciesFlag,
 			    "Error - kext %s declares a dependency on %s. "
-			    "Only Apple and ravynOS kexts may declare a dependency on %s.",
+			    "Only Apple and Minkar kexts may declare a dependency on %s.",
 			    getIdentifierCString(), PRIVATE_KPI, PRIVATE_KPI);
 			goto finish;
 		}

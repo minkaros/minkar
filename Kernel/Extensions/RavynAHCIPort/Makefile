@@ -3,7 +3,7 @@ SUBDIR =
 KEXT = RavynAHCIPort
 KERNEL_PRIVATE = yes
 INFO_PLIST = Info.plist
-BUNDLE_IDENTIFIER = com.ravynos.driver.RavynAHCIPort
+BUNDLE_IDENTIFIER = org.minkar.driver.RavynAHCIPort
 BUNDLE_VERSION = 1.0.0
 
 SRCS = RavynAHCIPort.cpp RavynAHCIDisk.cpp

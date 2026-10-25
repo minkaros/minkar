@@ -23,8 +23,10 @@ EDK2_RAW ?=		https://raw.githubusercontent.com/tianocore/edk2
 EDK2_COMMIT ?=		e0184abff13fccd9df69bb44fa9edbd4062cc99e
 EDK2_BUILD_PY =		BuildReport.py __init__.py build.py buildoptions.py
 
-# Our fixes on top of the pinned commit (patches/, to be sent upstream).
-EFILOADER_PATCHES =	efiloader-0001-macho-16-char-names.patch
+# Our changes on top of the pinned commit (patches/): a fix to send
+# upstream, then Minkar's file names.
+EFILOADER_PATCHES =	efiloader-0001-macho-16-char-names.patch \
+			efiloader-0002-minkar-boot-plist.patch
 
 EFILOADER_SRC ?=	${ROOT_BINARY_DIR}/src/efiloader
 EFILOADER_TOOLS =	${ROOT_BINARY_DIR}/src/efiloader-tools

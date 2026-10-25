@@ -3,7 +3,7 @@ SUBDIR =
 KEXT = RavynXHCIPort
 KERNEL_PRIVATE = yes
 INFO_PLIST = Info.plist
-BUNDLE_IDENTIFIER = com.ravynos.driver.RavynXHCIPort
+BUNDLE_IDENTIFIER = org.minkar.driver.RavynXHCIPort
 BUNDLE_VERSION = 1.0.0
 
 SRCS = RavynXHCIPort.cpp RavynXHCIMassStorageDisk.cpp RavynXHCIUSBBus.cpp

@@ -139,10 +139,10 @@ extern Dock *dock; // our singleton object in main.m
     NSString *path = [dict objectForKey:@"Path"];
 
     // just to be safe
-    if([bundleID isEqualToString:@"com.ravynos.Dock"] ||
-        [bundleID isEqualToString:@"com.ravynos.WindowServer"] ||
-        [bundleID isEqualToString:@"com.ravynos.SystemUIServer"] ||
-        [bundleID isEqualToString:@"com.ravynOS.LoginWindow"])
+    if([bundleID isEqualToString:@"org.minkar.Dock"] ||
+        [bundleID isEqualToString:@"org.minkar.WindowServer"] ||
+        [bundleID isEqualToString:@"org.minkar.SystemUIServer"] ||
+        [bundleID isEqualToString:@"org.minkar.LoginWindow"])
             return;
 
     DockItem *item = [self dockItemForPath:path];
@@ -236,7 +236,7 @@ extern Dock *dock; // our singleton object in main.m
     NSMutableArray *a = [NSMutableArray new];
     for(int i = 0; i < [_items count]; ++i) {
         DockItem *di = [_items objectAtIndex:i];
-        if(![di isPersistent] || [[di bundleIdentifier] hasPrefix:@"com.ravynos.Dock"])
+        if(![di isPersistent] || [[di bundleIdentifier] hasPrefix:@"org.minkar.Dock"])
             continue;
         [a addObject:[di tileData]];
     }

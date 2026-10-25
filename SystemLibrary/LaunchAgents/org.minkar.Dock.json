@@ -3,7 +3,7 @@
     "ASL_DISABLE": "1"
   },
   "MachServices": {
-    "com.ravynos.Dock": {
+    "org.minkar.Dock": {
       "HostSpecialPort": 12
     }
   },
@@ -13,5 +13,5 @@
   ],
   "RunAtLoad": false,
   "KeepAlive": true,
-  "Label": "com.ravynos.Dock"
+  "Label": "org.minkar.Dock"
 }

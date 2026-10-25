@@ -5,7 +5,7 @@ SUBDIR =
 KEXT = RavynE1000
 KERNEL_PRIVATE = yes
 INFO_PLIST = Info.plist
-BUNDLE_IDENTIFIER = com.ravynos.driver.RavynE1000
+BUNDLE_IDENTIFIER = org.minkar.driver.RavynE1000
 BUNDLE_VERSION = 1.0.0
 
 SRCS = RavynE1000.cpp

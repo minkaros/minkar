@@ -178,7 +178,7 @@ static NSMenuItem *itemWithTag(NSMenu *root, int tag) {
                             struct wsRPCWindow *data = (struct wsRPCWindow *)msg.data;
                             int _id = data->windowID;
 
-                            if([bundleID isEqualToString:@"com.ravynos.Dock"]) {
+                            if([bundleID isEqualToString:@"org.minkar.Dock"]) {
                                 NSMutableDictionary *md = [NSMutableDictionary new];
                                 [md setObject:[NSNumber numberWithInt:msg.pid] forKey:@"ProcessID"];
                                 [md setObject:[NSString stringWithCString:msg.bundleID] forKey:@"BundleID"];
@@ -190,7 +190,7 @@ static NSMenuItem *itemWithTag(NSMenu *root, int tag) {
                                     userInfo:md];
 
                                 // We're done here if this message wasn't about Dock.
-                                if(strcmp(msg.bundleID, "com.ravynos.Dock"))
+                                if(strcmp(msg.bundleID, "org.minkar.Dock"))
                                     break;
                             }
 
@@ -325,7 +325,7 @@ static NSMenuItem *itemWithTag(NSMenu *root, int tag) {
             }
                         case CODE_MENU_FOR_APP:
                         {
-                            if([bundleID isEqualToString:@"com.ravynos.SystemUIServer"]) {
+                            if([bundleID isEqualToString:@"org.minkar.SystemUIServer"]) {
                                 NSMutableData *data = [NSMutableData new];
                                 [data appendBytes:msg.data length:msg.len];
 
@@ -364,8 +364,8 @@ static NSMenuItem *itemWithTag(NSMenu *root, int tag) {
                         }
                         case CODE_APP_EXITED:
                         {
-                            if([bundleID isEqualToString:@"com.ravynos.SystemUIServer"] ||
-                               [bundleID isEqualToString:@"com.ravynos.Dock"]) {
+                            if([bundleID isEqualToString:@"org.minkar.SystemUIServer"] ||
+                               [bundleID isEqualToString:@"org.minkar.Dock"]) {
                                 NSMutableDictionary *md = [NSMutableDictionary new];
                                 [md setObject:[NSNumber numberWithInt:msg.pid] forKey:@"ProcessID"];
                                 [md setObject:[NSString stringWithCString:msg.bundleID] forKey:@"BundleID"];
@@ -379,7 +379,7 @@ static NSMenuItem *itemWithTag(NSMenu *root, int tag) {
                         }
                         case CODE_APP_LAUNCHED:
                         {
-                            if([bundleID isEqualToString:@"com.ravynos.Dock"]) {
+                            if([bundleID isEqualToString:@"org.minkar.Dock"]) {
                                 NSMutableDictionary *md = [NSMutableDictionary new];
                                 [md setObject:[NSNumber numberWithInt:msg.pid] forKey:@"ProcessID"];
                                 [md setObject:[NSString stringWithCString:msg.bundleID] forKey:@"BundleID"];
@@ -430,7 +430,7 @@ static NSMenuItem *itemWithTag(NSMenu *root, int tag) {
                             _isActive = data.active;
                             [self _checkForAppActivation];
 
-                            if([bundleID isEqualToString:@"com.ravynos.SystemUIServer"]) {
+                            if([bundleID isEqualToString:@"org.minkar.SystemUIServer"]) {
                                 NSMutableDictionary *md = [NSMutableDictionary new];
                                 [md setObject:[NSNumber numberWithInt:msg.pid] forKey:@"ProcessID"];
                                 [md setObject:[NSString stringWithCString:msg.bundleID] forKey:@"BundleID"];
@@ -522,7 +522,7 @@ static NSMenuItem *itemWithTag(NSMenu *root, int tag) {
    bundleID = [mainBundle bundleIdentifier];
     if(bundleID == nil)
         bundleID = [NSString stringWithFormat:@"unix.%u", getpid()];
-   if(!([bundleID isEqualToString:@"com.ravynos.WindowServer"])) {
+   if(!([bundleID isEqualToString:@"org.minkar.WindowServer"])) {
         NSLog(@"Finding service %s (%u)", WINDOWSERVER_SVC_NAME, bootstrap_port);
         if(bootstrap_look_up(bootstrap_port, WINDOWSERVER_SVC_NAME, &_wsSvcPort) != KERN_SUCCESS) {
             NSLog(@"Failed to locate service");
