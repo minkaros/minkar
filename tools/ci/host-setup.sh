@@ -1,0 +1,84 @@
+#!/bin/sh
+# SPDX-License-Identifier: BSD-2-Clause
+#
+# Copyright (c) 2026 The Minkar contributors
+# Part of Minkar.
+#
+# Host preparation steps for the CI workflow (.github/workflows), on an
+# Ubuntu 22.04 runner. Run from the top of the source tree.
+#
+#   host-setup.sh free-disk           remove preinstalled SDKs we never use
+#   host-setup.sh packages [image]    build packages; "image" adds QEMU etc.
+#   host-setup.sh touch-toolchain     mark the restored toolchain up to date
+#   host-setup.sh annotate-log FILE.. end of each log as an error annotation
+
+set -eu
+
+# Docs/BUILDING.md, "Host requirements". "time" is /usr/bin/time, for
+# build-stages.sh.
+BUILD_PACKAGES="clang lld cmake ninja-build python3 git curl \
+libxml2-dev libpng-dev uuid-dev libssl-dev zlib1g-dev libbsd-dev \
+bmake make csh bison flex byacc time"
+IMAGE_PACKAGES="nasm gdisk dosfstools hfsprogs qemu-system-x86 ovmf \
+openssh-client openssl"
+
+free_disk() {
+	df -h /
+	sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc \
+	    /usr/local/.ghcup /opt/hostedtoolcache/CodeQL /usr/share/swift
+	df -h /
+}
+
+packages() {
+	pkgs=$BUILD_PACKAGES
+	[ "${1:-}" = image ] && pkgs="$pkgs $IMAGE_PACKAGES"
+	sudo apt-get update -q
+	# shellcheck disable=SC2086
+	sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -q --no-install-recommends $pkgs
+	if [ "${1:-}" = image ]; then
+		# mkdiskimage.py mounts the HFS+ root; the cloud kernel keeps
+		# hfsplus in the "extra" modules.
+		sudo modprobe hfsplus 2>/dev/null || {
+			sudo apt-get install -y -q "linux-modules-extra-$(uname -r)"
+			sudo modprobe hfsplus
+		}
+		# Gate M2 resolves the host's own name from the guest, through
+		# QEMU's DNS forwarding to the host's resolver.
+		host=$(hostname -s)
+		getent hosts "$host" >/dev/null ||
+		    echo "127.0.1.1 $host" | sudo tee -a /etc/hosts
+	fi
+	clang --version | head -1
+	bmake -V MAKE_VERSION -f /dev/null 2>/dev/null || true
+}
+
+touch_toolchain() {
+	eval "$(tools/ci/cache-paths.sh | grep -E '^(toolchain|objdir)=')"
+	now=$(date +%s)
+	# shellcheck disable=SC2154
+	for d in "$toolchain" "$objdir"; do
+		test -d "$d" || { echo "missing: $d" >&2; exit 1; }
+		find "$d" -exec touch -h -d "@$now" {} +
+	done
+}
+
+annotate_log() {
+	for f in "$@"; do
+		test -f "$f" || continue
+		printf '::error title=%s::' "$(basename "$f")"
+		tail -n 60 "$f" | sed -e 's/\x1b\[[0-9;?]*[A-Za-z]//g' -e 's/\r//g' \
+		    -e 's/%/%25/g' | awk '{ printf "%s%%0A", $0 }'
+		echo
+	done
+}
+
+cmd=${1:-}
+[ $# -gt 0 ] && shift
+case $cmd in
+free-disk)		free_disk ;;
+packages)		packages "$@" ;;
+touch-toolchain)	touch_toolchain ;;
+annotate-log)		annotate_log "$@" ;;
+*)	echo "usage: host-setup.sh free-disk|packages [image]|touch-toolchain|annotate-log file..." >&2
+	exit 1 ;;
+esac
