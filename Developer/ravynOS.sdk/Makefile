@@ -11,6 +11,14 @@ all: ${PLATFORM_DIR} ${TOOLS}/unifdef .EXEC
 	mkdir -p ${RAVYN_SDKROOT}/usr/local/lib
 	mkdir -p ${RAVYN_SDKROOT}/usr/local/bin
 	mkdir -p ${RAVYN_SDKROOT}/usr/include
+	# libdispatch's <os/object.h> and the os/ headers it pulls in, where
+	# <dispatch/dispatch.h> looks for them (their sources are with the
+	# kernel copies in usr/local/include/kernel/os).
+	mkdir -p ${RAVYN_SDKROOT}/usr/include/os
+.for h in object.h object_private.h voucher_private.h voucher_activity_private.h \
+	firehose_buffer_private.h firehose_server_private.h generic_unix_base.h
+	cp -f ${.CURDIR}/usr/local/include/kernel/os/${h} ${RAVYN_SDKROOT}/usr/include/os/
+.endfor
 	mkdir -p ${RAVYN_SDKROOT}/usr/lib
 	mkdir -p ${RAVYN_SDKROOT}/usr/bin
 	cp -f ${.CURDIR}/SDKSettings.plist ${.CURDIR}/SDKSettings.json \
