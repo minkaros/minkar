@@ -24,6 +24,10 @@ install-stubs: .PHONY
 		ln -sf libSystem.tbd ${RAVYN_SDKROOT}/usr/lib/lib${a}.tbd; \
 	fi
 .endfor
+	# libc++abi is inside libc++.1.dylib (the SDK also gets libc++abi.a).
+	@if [ ! -e ${RAVYN_SDKROOT}/usr/lib/libc++abi.a ]; then \
+		ln -sf libc++.tbd ${RAVYN_SDKROOT}/usr/lib/libc++abi.tbd; \
+	fi
 .for s in ${STUBS}
 	@if [ ! -e ${RAVYN_SDKROOT}/${s:${REAL}} ]; then \
 		mkdir -p ${RAVYN_SDKROOT}/${s:H}; \
@@ -38,6 +42,9 @@ all: .PHONY
 		rm -f ${RAVYN_SDKROOT}/usr/lib/lib${a}.tbd; \
 	fi
 .endfor
+	@if [ -e ${RAVYN_SDKROOT}/usr/lib/libc++.1.dylib ]; then \
+		rm -f ${RAVYN_SDKROOT}/usr/lib/libc++abi.tbd; \
+	fi
 .for s in ${STUBS}
 	@if [ -e ${RAVYN_SDKROOT}/${s:${REAL}} ]; then \
 		rm -f ${RAVYN_SDKROOT}/${s}; \
