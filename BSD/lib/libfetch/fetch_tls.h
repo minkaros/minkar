@@ -26,7 +26,7 @@
  */
 
 /*
- * libfetch's TLS on Mbed TLS (ravynOS), in place of OpenSSL. It reads the
+ * libfetch's TLS on Mbed TLS (Minkar), in place of OpenSSL. It reads the
  * same environment as FreeBSD's: SSL_NO_VERIFY_PEER, SSL_NO_VERIFY_HOSTNAME,
  * SSL_CA_CERT_FILE, SSL_CA_CERT_PATH, SSL_CRL_FILE, SSL_CLIENT_CERT_FILE,
  * SSL_CLIENT_KEY_FILE and SSL_NO_TLS1_2 (TLS 1.3 only). Mbed TLS has no

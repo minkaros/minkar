@@ -3,9 +3,9 @@
 <plist version="1.0">
 <dict>
 	<key>CFBundleName</key>
-	<string>Install ravynOS</string>
+	<string>Install Minkar</string>
 	<key>CFBundleDisplayName</key>
-	<string>Install ravynOS</string>
+	<string>Install Minkar</string>
 	<key>CFBundleIdentifier</key>
 	<string>com.ravynos.app.Installer</string>
 	<key>CFBundleVersion</key>
@@ -15,7 +15,7 @@
 	<key>CFBundleSignature</key>
 	<string>OBJC</string>
 	<key>CFBundleExecutable</key>
-	<string>Install ravynOS</string>
+	<string>Install Minkar</string>
 	<key>CFBundleShortVersionString</key>
 	<string>0.4.0</string>
 	<key>NSHumanReadableCopyright</key>

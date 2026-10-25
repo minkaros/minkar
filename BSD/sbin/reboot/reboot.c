@@ -31,7 +31,7 @@
 
 #ifdef __APPLE__
 /*
- * ravynOS: launchd (reboot2) stops the jobs and reboots; no boottrace,
+ * Minkar: launchd (reboot2) stops the jobs and reboots; no boottrace,
  * and no power off, power cycle or reroot in Darwin's reboot(2).
  */
 #define	BOOTTRACE(...)	do { } while (0)
@@ -255,7 +255,7 @@ main(int argc, char *argv[])
 	char *env = NULL, *v;
 
 	/*
-	 * ravynOS: on Darwin halting powers the machine off (there is no
+	 * Minkar: on Darwin halting powers the machine off (there is no
 	 * RB_POWEROFF), so poweroff is halt by another name.
 	 */
 	if (strstr(getprogname(), "halt") != NULL ||

@@ -1,5 +1,5 @@
 # ------------------------------------------------------------------------
-#  RAVYNOS BUILD SYSTEM - Bootable image and boot tests (plan, Phase 0)
+#  MINKAR BUILD SYSTEM - Bootable image and boot tests (plan, Phase 0)
 # ------------------------------------------------------------------------
 #
 #   bmake -m BSD/share/mk image       loader + disk image   (needs root)
@@ -11,7 +11,7 @@
 #
 # The EFI loader is ravynsoft/efiloader (MIT; EDK2 is BSD-2-Clause-Patent),
 # fetched at a pinned commit into the build directory and built with the
-# ravynOS toolchain's clang (EDK2 CLANGDWARF). Set EFILOADER_SRC to use an
+# Minkar toolchain's clang (EDK2 CLANGDWARF). Set EFILOADER_SRC to use an
 # existing checkout.
 
 EFILOADER_REPO ?=	https://github.com/ravynsoft/efiloader.git
@@ -30,7 +30,7 @@ EFILOADER_SRC ?=	${ROOT_BINARY_DIR}/src/efiloader
 EFILOADER_TOOLS =	${ROOT_BINARY_DIR}/src/efiloader-tools
 LOADER =		${EFILOADER_SRC}/Build/EmulatorX64/DEBUG_CLANGDWARF/X64/loader.efi
 
-IMAGE ?=		${ROOT_BINARY_DIR}/ravynOS.img
+IMAGE ?=		${ROOT_BINARY_DIR}/Minkar.img
 IMAGE_SIZE_MB ?=	2048
 KERNELCACHE ?=		${ROOT_BINARY_DIR}/kernelcache
 BOOT_ARGS ?=		-v debug=0x14e serial=3 keepsyms=1
@@ -127,7 +127,7 @@ image: ${LOADER}
 
 boottest-key:
 	test -f ${BOOTTEST_KEY} || { mkdir -p ${BOOTTEST_KEY:H} && \
-	    ssh-keygen -q -t ed25519 -N '' -C ravynos-boottest -f ${BOOTTEST_KEY}; }
+	    ssh-keygen -q -t ed25519 -N '' -C minkar-boottest -f ${BOOTTEST_KEY}; }
 	@echo "image:    ROOT_AUTHORIZED_KEYS=${BOOTTEST_KEY}.pub"
 	@echo "boottest: BOOTTEST_SSH_KEY=${BOOTTEST_KEY}"
 

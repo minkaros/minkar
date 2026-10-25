@@ -91,7 +91,7 @@
 
 #ifdef __APPLE__
 /*
- * ravynOS: Darwin's SO_TIMESTAMP is wall-clock time and ping measures with
+ * Minkar: Darwin's SO_TIMESTAMP is wall-clock time and ping measures with
  * the monotonic clock, so take the time on receipt instead; XNU has no
  * VLAN priority socket option (-C fails with ENOPROTOOPT).
  */

@@ -494,7 +494,7 @@ void		SCLog				(Boolean		condition,
 
 
   /*
-   * ravynOS: the message is formatted here (CoreFoundation, so %@ works,
+   * Minkar: the message is formatted here (CoreFoundation, so %@ works,
    * with os_log's %{...} annotations dropped) instead of through
    * os_log_pack, and goes to syslog(3) and/or stdout.
    */

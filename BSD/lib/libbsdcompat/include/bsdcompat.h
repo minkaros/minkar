@@ -26,7 +26,7 @@
  */
 
 /*
- * FreeBSD library functions that the FreeBSD commands built on ravynOS use
+ * FreeBSD library functions that the FreeBSD commands built on Minkar use
  * and Darwin lacks (libbsdcompat.a). Included first by those commands
  * (-include bsdcompat.h).
  */
@@ -192,7 +192,7 @@ char		*strchrnul(const char *s, int c);
 /* <stdlib.h>: realloc of nmemb * size, failing on overflow. */
 void		*reallocarray(void *ptr, size_t nmemb, size_t size);
 
-/* <unistd.h>: the title ps shows; ravynOS keeps argv as it is. */
+/* <unistd.h>: the title ps shows; Minkar keeps argv as it is. */
 void		setproctitle(const char *fmt, ...) __printflike(1, 2);
 
 /* <sys/stat.h>: relative to a directory descriptor. */

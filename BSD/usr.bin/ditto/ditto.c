@@ -500,7 +500,7 @@ main(int argc, char *argv[])
 		    strcmp(a, "--nopreserveHFSCompression") == 0 ||
 		    strcmp(a, "--persistRootless") == 0 ||
 		    strcmp(a, "--nopersistRootless") == 0)
-			;	/* nothing to do on ravynOS */
+			;	/* nothing to do on Minkar */
 		else if (a[1] == '-')
 			errx(EX_USAGE, "unknown option: %s", a);
 		else {

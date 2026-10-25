@@ -68,7 +68,7 @@ static const struct cgl_param_info {
     { kCGLCPContextPriorityRequest,             1, 0,
       { kCGLCPContextPriorityRequestNormal } },
 
-    /* ravynOS private (CGLPrivate.h) */
+    /* Minkar private (CGLPrivate.h) */
     { kCGLCPSurfaceFrame,                       4, 0, { 0 } },
     { kCGLCPSurfaceIsChildWindow,               1, 0, { 0 } },
     { kCGLCPWindowNumber,                       1, 0, { 0 } },

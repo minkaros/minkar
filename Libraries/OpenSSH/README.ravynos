@@ -1,4 +1,4 @@
-OpenSSH for ravynOS
+OpenSSH for Minkar
 ===================
 
 openssh/ is OpenSSH portable 10.6p1, unmodified:
@@ -19,7 +19,7 @@ Our files:
 * Makefile - builds libssh.a and the programs with bmake; the source lists
   follow openssh/Makefile.in.
 * config.h - produced by openssh/configure, cross-compiling with the
-  ravynOS toolchain and SDK:
+  Minkar toolchain and SDK:
 
     configure --host=x86_64-apple-darwin19 --prefix=/usr --sysconfdir=/etc/ssh \
       --libexecdir=/usr/libexec --with-privsep-path=/var/empty \

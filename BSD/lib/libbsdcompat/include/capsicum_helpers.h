@@ -26,7 +26,7 @@
  */
 
 /*
- * FreeBSD's capsicum_helpers.h for ravynOS: no capability mode (see
+ * FreeBSD's capsicum_helpers.h for Minkar: no capability mode (see
  * <sys/capsicum.h>), so the helpers only report success.
  */
 

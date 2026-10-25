@@ -54,7 +54,7 @@
 /* An OpenGL entry point in a driver, as stored in a context's dispatch table. */
 typedef void (*CGLGLProc)(void);
 
-/* Renderer ID of the built-in null renderer (ravynOS private range). */
+/* Renderer ID of the built-in null renderer (Minkar private range). */
 #define kCGLRendererRavynNullID             0x00FF0100
 
 struct _CGLPixelFormatObject {

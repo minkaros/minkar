@@ -1,6 +1,6 @@
 # Mbed TLS 3.6.7 (LTS), the TLS of curl and fetch. Apache-2.0 (LICENSE;
 # dual Apache-2.0 OR GPL-2.0-or-later upstream, taken as Apache-2.0;
-# approved for ravynOS 2026-10-24). Unmodified include/ and library/ of
+# approved for Minkar 2026-10-24). Unmodified include/ and library/ of
 # the release tarball (sha256 a7e8bcbe...12d11f6), without 3rdparty/
 # (Everest, p256-m: off in the default configuration).
 # One static library with crypto, X.509 and TLS, in the SDK's /usr/local:

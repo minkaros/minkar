@@ -1,7 +1,7 @@
 /* config.h.  Generated from config.h.in by configure.  */
 /* config.h.in.  Generated from configure.ac by autoheader.  */
 
-/* FreeBSD's, adjusted for ravynOS (Darwin): no <osreldate.h>, no
+/* FreeBSD's, adjusted for Minkar (Darwin): no <osreldate.h>, no
    <byteswap.h>, no pipe2 (marked ravynOS below). */
 
 /* Define if building universal (internal helper macro) */
@@ -23,7 +23,7 @@
 #define HAVE_ASPRINTF 1
 
 /* Define to 1 if you have the <byteswap.h> header file. */
-/* #undef HAVE_BYTESWAP_H */	/* ravynOS: not on Darwin */
+/* #undef HAVE_BYTESWAP_H */	/* Minkar: not on Darwin */
 
 /* Define to 1 if you have the <bzlib.h> header file. */
 /* #undef HAVE_BZLIB_H */
@@ -149,7 +149,7 @@
 
 /* Define to 1 if you have the 'pipe2' function. */
 #ifndef __APPLE__ /* Cross building tools on macOS */
-/* #undef HAVE_PIPE2 */	/* ravynOS: not on Darwin */
+/* #undef HAVE_PIPE2 */	/* Minkar: not on Darwin */
 #endif
 
 /* Define to 1 if you have the 'posix_spawnp' function. */

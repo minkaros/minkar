@@ -27,7 +27,7 @@
 
 /*
  * libsystem_m's names that FreeBSD's msun does not have: the ones
- * ravynOS's <math.h> declares as functions (fpclassify, isnan, isgreater,
+ * Minkar's <math.h> declares as functions (fpclassify, isnan, isgreater,
  * ...), ldexp, the __isinf FreeBSD's libc gives msun, and Darwin's
  * __exp10 and __sincos_stret.
  */

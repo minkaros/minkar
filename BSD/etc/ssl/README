@@ -1,7 +1,7 @@
 cert.pem: the root CA certificates Mozilla trusts for TLS servers, as
 extracted from Mozilla's certdata.txt by the curl project
 (https://curl.se/docs/caextract.html). Licence: MPL-2.0 (Mozilla's
-data; approved for ravynOS 2026-10-24). Installed as /etc/ssl/cert.pem,
+data; approved for Minkar 2026-10-24). Installed as /etc/ssl/cert.pem,
 where curl, fetch and Mbed TLS users look by default.
 
   Source:  https://curl.se/ca/cacert.pem (Mozilla data of 2026-10-20)

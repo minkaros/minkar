@@ -26,7 +26,7 @@
  */
 
 /*
- * libcasper for the FreeBSD commands built on ravynOS: there is no
+ * libcasper for the FreeBSD commands built on Minkar: there is no
  * capability mode, so no Casper services; the cap_* helpers (casper/)
  * do the plain operations.
  */

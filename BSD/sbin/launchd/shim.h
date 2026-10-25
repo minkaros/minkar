@@ -4,7 +4,7 @@
 /*
  * The private interface between launchd and libxpc (event and process
  * routines, service types, the domain MIG routines). On macOS these come
- * from libxpc's private headers, which ravynOS's libxpc does not ship.
+ * from libxpc's private headers, which Minkar's libxpc does not ship.
  * Everything else launchd needs comes from the Darwin headers.
  */
 #include <mach/mach_types.h>

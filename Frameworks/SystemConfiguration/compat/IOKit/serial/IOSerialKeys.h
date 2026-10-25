@@ -27,7 +27,7 @@
 
 /*
  * The registry keys of serial (TTY) devices that SystemConfiguration
- * looks for. ravynOS has no serial family yet, so no device has them.
+ * looks for. Minkar has no serial family yet, so no device has them.
  */
 
 #ifndef _RAVYNOS_COMPAT_IOSERIALKEYS_H

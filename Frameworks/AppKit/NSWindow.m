@@ -211,7 +211,7 @@ NSArray *_NSWindowNumbersFromWindowInfo(CFArrayRef info,BOOL allApps) {
 }
 
 +(NSArray *)windowNumbersWithOptions:(NSWindowNumberListOptions)options {
-   // Visible windows only, as on macOS. ravynOS has a single space, so
+   // Visible windows only, as on macOS. Minkar has a single space, so
    // NSWindowNumberListAllSpaces changes nothing.
    CFArrayRef info=CGWindowListCopyWindowInfo(kCGWindowListOptionOnScreenOnly,kCGNullWindowID);
    NSArray   *result;

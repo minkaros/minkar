@@ -5521,7 +5521,7 @@ is_io_catalog_send_data(
 	}
 
 	/*
-	 * ravynOS: no code signing yet, so no task has the entitlement; root
+	 * Minkar: no code signing yet, so no task has the entitlement; root
 	 * (kextstart, at boot) stands in for kextd.
 	 */
 	if (!IOTaskHasEntitlement(current_task(), kOSKextManagementEntitlement) &&

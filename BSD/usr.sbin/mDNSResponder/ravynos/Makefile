@@ -1,10 +1,10 @@
-# mDNSResponder for ravynOS: the POSIX daemon of this mDNSResponder release
+# mDNSResponder for Minkar: the POSIX daemon of this mDNSResponder release
 # (mDNSPosix/PosixDaemon.c and the shared core), unmodified, installed as
 # /usr/sbin/mDNSResponder. It serves the dns_sd API (libsystem_dnssd) on
 # /var/run/mDNSResponder, which libinfo's getaddrinfo() uses: unicast DNS
 # from /etc/resolv.conf and multicast DNS on the local network.
 # mDNSResponder is Apache-2.0 licensed (../LICENSE), approved for ravynOS.
-# Changed for ravynOS, in mDNSPosix/mDNSPosix.c (marked "ravynOS change"),
+# Changed for Minkar, in mDNSPosix/mDNSPosix.c (marked "Minkar change"),
 # so that unicast DNS works in the POSIX daemon:
 # - mDNSPlatformSetDNSConfig() reports the servers of /etc/resolv.conf,
 #   which uDNS_SetupDNSConfig() otherwise drops;
@@ -15,7 +15,7 @@
 #   (always 5353 before, so no unicast answer matched its question).
 # Who rewrites resolv.conf tells it: configd's IPMonitor posts
 # com.apple.system.config.network_change.dns, which PosixDaemon.c registers
-# to receive as SIGHUP (ravynOS change); dhcpclient, without configd,
+# to receive as SIGHUP (Minkar change); dhcpclient, without configd,
 # sends SIGHUP.
 
 SUBDIR =

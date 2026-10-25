@@ -37,7 +37,7 @@ const char *GEOM_CMD = "/sbin/geom";
 const char *GPART_CMD = "/sbin/gpart";
 const char *ZPOOL_CMD = "/sbin/zpool";
 const char *ZFS_CMD = "/sbin/zfs";
-const char *ZFS_POOL_NAME = "ravynOS";
+const char *ZFS_POOL_NAME = "Minkar";
 NSMutableArray *disks = nil;
 
 const long KB = 1024;
@@ -361,7 +361,7 @@ NSString *formatMediaSize(long bytes) {
 -(void)copyFilesystem {
 #ifdef __RAVYNOS__
     int fd = open("/tmp/excludes", O_CREAT|O_RDWR, 0644);
-    const char *str = "/dev\n/proc\n/tmp\n/Applications/Utilities/Install ravynOS.app\n";
+    const char *str = "/dev\n/proc\n/tmp\n/Applications/Utilities/Install Minkar.app\n";
     write(fd, str, strlen(str));
     close(fd);
     _runCommand("/usr/bin/cpdup","-uIof -X/tmp/excludes / /tmp/pool",_delegate);

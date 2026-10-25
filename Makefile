@@ -58,7 +58,7 @@ HOST_AR = ${AR}
 # The host compiler must be clang: the toolchain's sources (cctools, the
 # Apple headers in Default.xctoolchain/include) reject gcc. On Linux,
 # /usr/bin/cc is often gcc. Absolute paths: the kernel build puts the
-# ravynOS toolchain (whose clang targets Darwin) first in PATH.
+# Minkar toolchain (whose clang targets Darwin) first in PATH.
 HOST_CC ?= /usr/bin/clang
 HOST_CXX ?= /usr/bin/clang++
 HOST_AR ?= /usr/bin/ar

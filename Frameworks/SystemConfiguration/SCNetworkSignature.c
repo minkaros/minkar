@@ -56,7 +56,7 @@
 #include <stdlib.h>
 
 /*
- * ravynOS has no copyconninfo(2): a connected socket's local address
+ * Minkar has no copyconninfo(2): a connected socket's local address
  * comes from getsockname(2), its interface from the address.
  */
 #define	SAE_CONNID_ANY	0

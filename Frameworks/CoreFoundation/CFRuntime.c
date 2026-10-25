@@ -82,7 +82,7 @@ typedef char * SEL;
 extern id objc_msgSend(id, SEL, ...);
 
 #define CFTYPE_IS_OBJC(obj) ((void)(obj), 0)	/* as CF_IS_OBJC */
-/* ravynOS: the bridged classes (NSCFString, __NSCFBoolean) have CF's
+/* Minkar: the bridged classes (NSCFString, __NSCFBoolean) have CF's
  * layout, so CFGetTypeID, CFEqual and CFHash handle them natively: asking
  * Foundation gave strings a different hash from CFSTR constants (whose isa
  * is not the bridged class), and CFDictionary lookups missed. */
@@ -489,7 +489,7 @@ CF_INLINE CFTypeID __CFGenericTypeID_inline(const void *cf) {
     return typeID;
 }
 
-/* ravynOS: only bridged types (CFString, CFBoolean) are Objective-C
+/* Minkar: only bridged types (CFString, CFBoolean) are Objective-C
  * objects; the others keep their CFRuntimeClass (or 0) as isa and must not
  * be sent messages. True for such a plain CF instance. */
 CF_EXPORT Boolean _CFIsNativeCFObject(CFTypeRef cf) {

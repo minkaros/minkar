@@ -29,7 +29,7 @@
 struct pr {
 	int ostdout;
 	int kq;
-	pid_t pid;	/* ravynOS: pr's process (no process descriptors) */
+	pid_t pid;	/* Minkar: pr's process (no process descriptors) */
 	struct kevent *e;
 };
 

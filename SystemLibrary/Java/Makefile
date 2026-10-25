@@ -13,7 +13,7 @@ build: ${SRCDIR}
 	#cd ${SRCDIR} && git checkout ${TAG}
 	cd ${SRCDIR} && bash configure --with-boot-jdk=${INSTDIR}/Contents/Home \
 	  --with-toolchain-type=clang --enable-jvm-feature-dtrace=no \
-	  --with-version-opt="ravynos" --with-version-pre="" --with-version-build=8
+	  --with-version-opt="minkar" --with-version-pre="" --with-version-build=8
 	gmake -C ${SRCDIR}
 
 install:

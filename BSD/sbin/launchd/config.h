@@ -42,11 +42,11 @@
 #endif
 
 /* The xpc_domain MIG subsystem (Apple's libxpc talks to launchd through it);
- * ravynOS's libxpc does not use it and domain.defs is not available. */
+ * Minkar's libxpc does not use it and domain.defs is not available. */
 #define HAVE_XPC_DOMAIN 0
 
 /* XPC pipes: the XPC side of launchd's receive loop and the XPC event and
- * process routines. ravynOS's libxpc does not implement them yet. */
+ * process routines. Minkar's libxpc does not implement them yet. */
 #define HAVE_XPC_PIPE 0
 
 #endif /* __CONFIG_H__ */

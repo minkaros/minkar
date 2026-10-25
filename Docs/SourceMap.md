@@ -43,7 +43,7 @@ management.
 
 ### Developer
 
-`Developer` contains all of the tools and artifacts needed to create software for the platform. The ravynOS (MacOSX) SDK is here, as well as the Default.xctoolchain. `Developer` is unique in that some of it builds twice: once as `Bootstrap` for the host toolchain, then again using the host toolchain for the platform target.
+`Developer` contains all of the tools and artifacts needed to create software for the platform. The Minkar (MacOSX) SDK is here, as well as the Default.xctoolchain. `Developer` is unique in that some of it builds twice: once as `Bootstrap` for the host toolchain, then again using the host toolchain for the platform target.
 
 * Toolchains/Default.xctoolchain - project file to assemble the toolchain
 * Platforms/ravynOS.platform - platform definitions and SDKs
@@ -76,7 +76,7 @@ This folder contains the template for SystemVersion.plist which is set from `/De
 
 ### Frameworks
 
-The ravynOS implementation of Cocoa, Quartz, and Core APIs in various frameworks live in `Frameworks`. API compliance ranges from 10.7-ish to 11.0-ish and there are many stubs for the intrepid explorer to complete. Some of this source originated from Cocotron. Add new frameworks here if they belong in /S/L/F or /L/F.
+The Minkar implementation of Cocoa, Quartz, and Core APIs in various frameworks live in `Frameworks`. API compliance ranges from 10.7-ish to 11.0-ish and there are many stubs for the intrepid explorer to complete. Some of this source originated from Cocotron. Add new frameworks here if they belong in /S/L/F or /L/F.
 
 * Foundation
 * AppKit

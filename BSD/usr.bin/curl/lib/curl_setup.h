@@ -386,7 +386,7 @@
  */
 #if defined(__APPLE__) && !defined(USE_ARES)
 #  define USE_RESOLVE_ON_IPS 1
-/* ravynOS: its resolver needs no SCDynamicStoreCopyProxies() warm-up. */
+/* Minkar: its resolver needs no SCDynamicStoreCopyProxies() warm-up. */
 #  if TARGET_OS_MAC && !(defined(TARGET_OS_IPHONE) && TARGET_OS_IPHONE) && \
      defined(USE_IPV6) && !defined(__RAVYNOS__)
 #    define CURL_MACOS_CALL_COPYPROXIES 1

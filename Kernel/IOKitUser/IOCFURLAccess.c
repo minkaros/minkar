@@ -386,7 +386,7 @@ static CFMutableArrayRef _IOContentsOfDirectory(CFAllocatorRef alloc, char path[
     char extBuff[CFMaxPathSize];
 
     int fd;
-    DIR *dir;		/* ravynOS change: readdir, not getdirentries */
+    DIR *dir;		/* Minkar change: readdir, not getdirentries */
     struct dirent *dent;
 
     if (extLen > 0) {

@@ -1,4 +1,4 @@
-# configd for ravynOS, from Apple's configd-1061.141.1 (APSL), with the
+# configd for Minkar, from Apple's configd-1061.141.1 (APSL), with the
 # plugins built in, as Apple does: InterfaceNamer (interface names),
 # KernelEventMonitor (interface state from the kernel), PreferencesMonitor
 # (applies /Library/Preferences/SystemConfiguration), LinkConfiguration

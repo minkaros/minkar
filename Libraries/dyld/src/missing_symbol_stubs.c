@@ -189,7 +189,7 @@ int _Z11secure_openPKcij(const char *filename, int flags, uid_t euid)
 
 /* FIXME: get this from plist or makelist */
 double       dyldVersionNumber = 732.2;
-const char * dyldVersionString = "ravynOS dyld 732.2";
+const char * dyldVersionString = "Minkar dyld 732.2";
 
 /* Stub to provide NSRange ABI from Foundation */
 typedef struct {

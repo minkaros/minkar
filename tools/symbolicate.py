@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Symbolication Tool for ravynOS Crash Analysis
+Symbolication Tool for Minkar Crash Analysis
 
 This tool maps crash addresses to symbols in compiled binaries, helping identify
 the exact function and instruction where a crash occurred.
@@ -415,7 +415,7 @@ def normalize_code_address(raw_addr: int, slide: int) -> int:
 
 def main():
     parser = argparse.ArgumentParser(
-        description='Symbolicate crash addresses in ravynOS binaries',
+        description='Symbolicate crash addresses in Minkar binaries',
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog='''
 Examples:

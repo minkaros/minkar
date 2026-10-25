@@ -149,7 +149,7 @@ CF_PRIVATE char *__CFBundleMainID = __CFBundleMainID__;
 
 static CFTypeID __kCFBundleTypeID = _kCFRuntimeNotATypeID;
 
-/* ravynOS: recursive. Describing a CFError (as CFLog does while a bundle is
+/* Minkar: recursive. Describing a CFError (as CFLog does while a bundle is
  * being created under this lock) looks bundles up again. */
 static pthread_mutex_t CFBundleGlobalDataLock = PTHREAD_RECURSIVE_MUTEX_INITIALIZER;
 

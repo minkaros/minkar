@@ -60,7 +60,7 @@ start_pr(char *file1, char *file2)
 	if (pipe(pfd) == -1)
 		err(2, "pipe");
 #ifdef __APPLE__
-	/* ravynOS: no pdfork; stop_pr waits for the pid. */
+	/* Minkar: no pdfork; stop_pr waits for the pid. */
 	(void)pr_pd;
 	switch ((pid = fork())) {
 #else

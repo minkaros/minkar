@@ -1,4 +1,4 @@
-# OpenBSM's tools (BSD), built for ravynOS with OpenBSM's own sources.
+# OpenBSM's tools (BSD), built for Minkar with OpenBSM's own sources.
 
 SUBDIR =
 MK_WERROR = no

@@ -3,7 +3,7 @@
 # Left out: SCNetworkConnection (PPP and VPN, needs PPPController),
 # Apple's SCNetworkReachability (built on Network.framework's private
 # API; SCNetworkReachabilityRavyn.c is ours), VPN* and SNHelper
-# (NetworkExtension). compat/ has ravynOS stand-ins: Security types,
+# (NetworkExtension). compat/ has Minkar stand-ins: Security types,
 # the serial registry keys and SHA-256. SCSchemaDefinitions.[ch] are the
 # files genSCPreferences generated (Apple's makefile for that was here).
 # __RAVYNOS__ marks the changes made for ravynOS.

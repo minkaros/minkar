@@ -1,5 +1,5 @@
 /*
- * libarchive's configuration for ravynOS (Darwin), from config_freebsd.h:
+ * libarchive's configuration for Minkar (Darwin), from config_freebsd.h:
  * no FreeBSD ACLs or extended attributes (Darwin's are not in this copy of
  * libarchive), no OpenSSL, no expat (no xar), digests from our libmd
  * (no RIPEMD-160), no futimesat, no statfs f_namemax.
@@ -32,28 +32,28 @@
  */
 #define __LIBARCHIVE_CONFIG_H_INCLUDED 1
 
-/* ravynOS: no <osreldate.h>; the __FreeBSD__ blocks below do not apply. */
+/* Minkar: no <osreldate.h>; the __FreeBSD__ blocks below do not apply. */
 
 /* FreeBSD 5.0 and later has ACL and extattr support. */
 #if __FreeBSD__ > 4
-/* #undef ARCHIVE_ACL_FREEBSD */	/* ravynOS */
-/* #undef ARCHIVE_XATTR_FREEBSD */	/* ravynOS */
-/* #undef HAVE_ACL_GET_PERM_NP */	/* ravynOS */
+/* #undef ARCHIVE_ACL_FREEBSD */	/* Minkar */
+/* #undef ARCHIVE_XATTR_FREEBSD */	/* Minkar */
+/* #undef HAVE_ACL_GET_PERM_NP */	/* Minkar */
 #define HAVE_ARC4RANDOM_BUF 1
 #define HAVE_STRUCT_XVFSCONF 1
 #define HAVE_SYS_ACL_H 1
-/* #undef HAVE_SYS_EXTATTR_H */	/* ravynOS */
+/* #undef HAVE_SYS_EXTATTR_H */	/* Minkar */
 #if __FreeBSD__ > 7
 /* FreeBSD 8.0 and later has NFSv4 ACL support */
-/* #undef ARCHIVE_ACL_FREEBSD_NFS4 */	/* ravynOS */
-/* #undef HAVE_ACL_GET_LINK_NP */	/* ravynOS */
-/* #undef HAVE_ACL_IS_TRIVIAL_NP */	/* ravynOS */
-/* #undef HAVE_ACL_SET_LINK_NP */	/* ravynOS */
+/* #undef ARCHIVE_ACL_FREEBSD_NFS4 */	/* Minkar */
+/* #undef HAVE_ACL_GET_LINK_NP */	/* Minkar */
+/* #undef HAVE_ACL_IS_TRIVIAL_NP */	/* Minkar */
+/* #undef HAVE_ACL_SET_LINK_NP */	/* Minkar */
 #endif /* __FreeBSD__ > 7 */
 #endif /* __FreeBSD__ > 4 */
 
 #ifdef WITH_OPENSSL
-/* #undef HAVE_LIBCRYPTO */	/* ravynOS */
+/* #undef HAVE_LIBCRYPTO */	/* Minkar */
 #define HAVE_OPENSSL_EVP_H 1
 #define HAVE_OPENSSL_MD5_H 1
 #define HAVE_OPENSSL_RIPEMD_H 1
@@ -81,14 +81,14 @@
 #define HAVE_SHA512_INIT 1
 #endif
 
-/* #undef HAVE_BSDXML_H */	/* ravynOS */
+/* #undef HAVE_BSDXML_H */	/* Minkar */
 #define HAVE_BZLIB_H 1
 #define HAVE_CHFLAGS 1
 #define HAVE_CHOWN 1
 #define HAVE_CHROOT 1
 #define HAVE_CTIME_R 1
 #define HAVE_CTYPE_H 1
-/* #undef HAVE_DECL_EXTATTR_NAMESPACE_USER */	/* ravynOS */
+/* #undef HAVE_DECL_EXTATTR_NAMESPACE_USER */	/* Minkar */
 #define HAVE_DECL_INT32_MAX 1
 #define HAVE_DECL_INT32_MIN 1
 #define HAVE_DECL_INT64_MAX 1
@@ -127,7 +127,7 @@
 #define HAVE_FSTATVFS 1
 #define HAVE_FTRUNCATE 1
 #define HAVE_FUTIMES 1
-/* #undef HAVE_FUTIMESAT */	/* ravynOS */
+/* #undef HAVE_FUTIMESAT */	/* Minkar */
 #define HAVE_GETEUID 1
 #define HAVE_GETGRGID_R 1
 #define HAVE_GETGRNAM_R 1
@@ -198,7 +198,7 @@
 #define HAVE_STRING_H 1
 #define HAVE_STRNLEN 1
 #define HAVE_STRRCHR 1
-/* #undef HAVE_STRUCT_STATFS_F_NAMEMAX */	/* ravynOS */
+/* #undef HAVE_STRUCT_STATFS_F_NAMEMAX */	/* Minkar */
 #define HAVE_STRUCT_STAT_ST_BIRTHTIME 1
 #define HAVE_STRUCT_STAT_ST_BIRTHTIMESPEC_TV_NSEC 1
 #define HAVE_STRUCT_STAT_ST_BLKSIZE 1

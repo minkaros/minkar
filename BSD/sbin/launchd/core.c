@@ -11614,7 +11614,7 @@ job_mig_spawn2(job_t j, mach_port_t rp, vm_offset_t indata, mach_msg_type_number
 }
 
 /*
- * ravynOS: liblaunch sends every launch_msg() here (job.defs ipc_request),
+ * Minkar: liblaunch sends every launch_msg() here (job.defs ipc_request),
  * not only check-in. Commands other than check-in need the caller to be
  * root or this launchd's own user, the protection that the socket's
  * owner-only permissions give on macOS.

@@ -978,7 +978,7 @@ launchd_exc_runtime_once(mach_port_t port, mach_msg_size_t rcv_msg_size, mach_ms
 
 #if !HAVE_LIBBSM
 /*
- * ravynOS: stands in for libbsm's audit_token_to_au32() until libbsm is
+ * Minkar: stands in for libbsm's audit_token_to_au32() until libbsm is
  * built. The fields are in the order the kernel fills audit tokens
  * (set_security_token_task_internal in xnu's kern_prot.c).
  */
@@ -1102,7 +1102,7 @@ launchd_runtime2(mach_msg_size_t msg_size)
 }
 #else
 /*
- * ravynOS: libxpc does not talk to launchd over XPC pipes yet, so every
+ * Minkar: libxpc does not talk to launchd over XPC pipes yet, so every
  * message on the port set is a MIG request. mach_msg_server_once() is what
  * xpc_pipe_try_receive() does with those; the audit trailer carries the
  * caller's credentials to launchd_mig_demux().

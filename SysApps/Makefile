@@ -7,8 +7,8 @@ SHA!= cd ${.CURDIR} && git log -1|head -1|cut -c8-14|tr '[a-z]' '[A-Z]'
 
 all: clean build
 clean:
-	rm -rf ${BUILDROOT}/Applications/Utilities/"Install ravynOS.app"
-	rm -rf Installer/"Install ravynOS.app" ${MAKEOBJDIR}/Installer
+	rm -rf ${BUILDROOT}/Applications/Utilities/"Install Minkar.app"
+	rm -rf Installer/"Install Minkar.app" ${MAKEOBJDIR}/Installer
 	rm -f ${OBJTOP}/SysApps/grabscr ${BUILDROOT}/usr/bin/grabscr
 
 build: buildInstaller grabscr

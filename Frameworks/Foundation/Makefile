@@ -364,7 +364,7 @@ CFLAGS.${file}.o = -I${.CURDIR}/NSString
 CFLAGS.NSAutoreleasePool.o = -I${ROOT_SOURCE_DIR}/Libraries/objc4
 CFLAGS.forwarding.o = -I${ROOT_SOURCE_DIR}/Libraries/objc4 \
 	-I${RAVYN_SDKROOT}${SLF}/System.framework/Versions/B/PrivateHeaders \
-	-I/nest/ravynos/Libraries/Libsystem/private \
+	-I${ROOT_SOURCE_DIR}/Libraries/Libsystem/private \
         -include${.CURDIR:H}/CoreFoundation/ForFoundationOnly.h
 SUBDIR =
 

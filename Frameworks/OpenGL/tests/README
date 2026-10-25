@@ -6,7 +6,7 @@ does not depend on a GPU, so it is tested on the build host:
 
     make -C Frameworks/OpenGL/tests          (GNU make or bmake)
 
-clang is used by default, as in the ravynOS build; pass CC=... to
+clang is used by default, as in the Minkar build; pass CC=... to
 override. Until the desktop GL headers replace the GLES2 ones, gcc
 rejects their #import directives under -Werror.
 

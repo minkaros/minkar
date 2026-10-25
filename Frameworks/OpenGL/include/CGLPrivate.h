@@ -26,7 +26,7 @@
  */
 
 /*
- * ravynOS-private CGL additions used by AppKit and QuartzCore to bind a
+ * Minkar-private CGL additions used by AppKit and QuartzCore to bind a
  * context to a WindowServer surface. Not part of the macOS API.
  */
 

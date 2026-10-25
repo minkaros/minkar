@@ -219,7 +219,7 @@ launchd_vsyslog(struct launchd_syslog_attr *attr, const char *fmt, va_list args)
 	}
 
 	vsnprintf(message, sizeof(message), fmt, args);
-	/* ravynOS: with a verbose boot (-v) and debug logging on, every message
+	/* Minkar: with a verbose boot (-v) and debug logging on, every message
 	 * also goes to the console, the only place to read them during bring-up
 	 * (syslogd is not running and /var may be read-only). */
 	if (launchd_verbose_boot && launchd_log_debug && attr->priority <= LOG_DEBUG) {

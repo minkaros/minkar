@@ -30,13 +30,13 @@
 
 /* Define to 1 if you have the declaration of `__isthreaded', and to 0 if you
    don't. */
-#define HAVE_DECL___ISTHREADED 0	/* ravynOS: no __isthreaded */
+#define HAVE_DECL___ISTHREADED 0	/* Minkar: no __isthreaded */
 
 /* Define to 1 if you have the <dlfcn.h> header file. */
 #define HAVE_DLFCN_H 1
 
 /* Define to 1 if you have the `dlfunc' function. */
-/* #undef HAVE_DLFUNC */	/* ravynOS: Darwin has dlsym only */
+/* #undef HAVE_DLFUNC */	/* Minkar: Darwin has dlsym only */
 
 /* Define to 1 if you have the <errno.h> header file. */
 #define HAVE_ERRNO_H 1
@@ -164,7 +164,7 @@
 #define HAVE_SYS_TYPES_H 1
 
 /* Define to 1 if you have the <threads.h> header file. */
-/* #undef HAVE_THREADS_H */	/* ravynOS: no <threads.h> */
+/* #undef HAVE_THREADS_H */	/* Minkar: no <threads.h> */
 
 /* thread-local setting */
 #define HAVE_THREAD_LOCAL THREAD_LOCAL_before

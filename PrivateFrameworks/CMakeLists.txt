@@ -1,5 +1,5 @@
 # ------------------------------------------------------------------------
-#  RAVYNOS BUILD SYSTEM - Private Frameworks
+#  MINKAR BUILD SYSTEM - Private Frameworks
 # ------------------------------------------------------------------------
 
 cmake_minimum_required(VERSION 4.0.0)

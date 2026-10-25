@@ -35,7 +35,7 @@
 #include <sys/stat.h>
 
 #include <netdb.h>
-#ifndef __APPLE__	/* ravynOS: no NFS client, no md(4) */
+#ifndef __APPLE__	/* Minkar: no NFS client, no md(4) */
 #include <rpc/rpc.h>
 #include <rpcsvc/mount.h>
 #include <nfs/nfssvc.h>
@@ -51,7 +51,7 @@
 #include <unistd.h>
 
 #ifdef __APPLE__
-/* ravynOS: Darwin's names, and what it lacks. */
+/* Minkar: Darwin's names, and what it lacks. */
 #include <fstab.h>
 #define	xvfsconf	vfsconf
 #define	MNT_NONBUSY	0	/* -n: Darwin unmounts busy file systems only with -f */
@@ -349,7 +349,7 @@ checkname(char *mntname, char **typelist)
  * NFS stuff and unmount(2) call
  */
 #ifdef __APPLE__
-/* ravynOS: unmount(2) by path (Darwin has no MNT_BYFSID), no NFS RPCs. */
+/* Minkar: unmount(2) by path (Darwin has no MNT_BYFSID), no NFS RPCs. */
 int
 umountfs(struct statfs *sfs)
 {

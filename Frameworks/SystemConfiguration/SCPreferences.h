@@ -35,7 +35,7 @@
 #if	!defined(__RAVYNOS__) || __has_include(<Security/Security.h>)
 #include <Security/Security.h>
 #else	// !__RAVYNOS__ || Security
-/* ravynOS has no Security.framework yet: only the Authorization type. */
+/* Minkar has no Security.framework yet: only the Authorization type. */
 typedef const struct AuthorizationOpaqueRef *	AuthorizationRef;
 #endif	// !__RAVYNOS__ || Security
 #else	// !TARGET_OS_IPHONE

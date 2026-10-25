@@ -54,7 +54,7 @@ static void d_ortho(GLdouble l, GLdouble r, GLdouble b, GLdouble t, GLdouble n, 
 { ortho[0] = l; ortho[1] = r; ortho[2] = b; ortho[3] = t; ortho[4] = n; ortho[5] = f; }
 static void d_clear(GLbitfield m) { (void)m; clears++; }
 static const GLubyte *d_get_string(GLenum name)
-{ return name == GL_VENDOR ? (const GLubyte *)"ravynOS test" : NULL; }
+{ return name == GL_VENDOR ? (const GLubyte *)"Minkar test" : NULL; }
 static GLboolean d_is_enabled(GLenum cap) { return cap == GL_BLEND; }
 
 static void *t_proc(void *ctx, const char *name)
@@ -127,7 +127,7 @@ int main(void)
     glClear(GL_COLOR_BUFFER_BIT);
     CHECK(clears == 1);
     CHECK(glGetString(GL_VENDOR) != NULL &&
-          strcmp((const char *)glGetString(GL_VENDOR), "ravynOS test") == 0);
+          strcmp((const char *)glGetString(GL_VENDOR), "Minkar test") == 0);
     CHECK(glIsEnabled(GL_BLEND) == GL_TRUE && glIsEnabled(GL_DEPTH_TEST) == GL_FALSE);
     glFlush();                                  /* driver lacks it: no-op */
     CHECK(glGetError() == GL_NO_ERROR);

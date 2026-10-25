@@ -1942,7 +1942,7 @@ sort_compare_key(asl_msg_t *a, asl_msg_t *b, const char *key)
 }
 
 int
-sort_compare(const void *ap, const void *bp)	/* ravynOS: qsort's own type */
+sort_compare(const void *ap, const void *bp)	/* Minkar: qsort's own type */
 {
 	int cmp;
 	asl_msg_t *a, *b;

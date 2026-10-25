@@ -23,8 +23,8 @@
  ***************************************************************************/
 
 /*
- * ravynOS: generated once by curl's CMakeLists.txt (8.16.0) with the
- * ravynOS cross toolchain: mbedTLS, zlib, threaded resolver, IPv6,
+ * Minkar: generated once by curl's CMakeLists.txt (8.16.0) with the
+ * Minkar cross toolchain: mbedTLS, zlib, threaded resolver, IPv6,
  * no LDAP/SRP/IDN/PSL/SSH/HTTP2, CA bundle /etc/ssl/cert.pem.
  */
 

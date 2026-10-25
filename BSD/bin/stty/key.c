@@ -247,7 +247,7 @@ f_rows(struct info *ip)
 
 #ifdef __APPLE__
 #include <sys/ttydefaults.h>
-/* ravynOS: Darwin has no cfmakesane(); the defaults f_sane needs. */
+/* Minkar: Darwin has no cfmakesane(); the defaults f_sane needs. */
 static void
 cfmakesane(struct termios *t)
 {

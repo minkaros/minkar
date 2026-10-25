@@ -2,7 +2,7 @@
 #
 #   make -C Frameworks/CoreGraphics/tests          (GNU make or bmake)
 #
-# Not part of the ravynOS build; nothing here is installed.
+# Not part of the Minkar build; nothing here is installed.
 
 CC =		clang
 TOP =		../../..

@@ -310,7 +310,7 @@ _CFXPCCreateCFObjectFromXPCMessage(xpc_object_t msg)
 
 /*
  * Power management tells the run loop why the process holds or dropped a
- * power assertion. On macOS the reason only feeds diagnostics; ravynOS
+ * power assertion. On macOS the reason only feeds diagnostics; Minkar
  * keeps no run loop assertion state, so there is nothing to record.
  */
 void

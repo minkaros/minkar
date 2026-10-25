@@ -109,7 +109,7 @@ main(int argc, char *argv[])
 
 #ifdef __APPLE__
 	/*
-	 * ravynOS: XNU's kern.msgbuf is the buffer's size; proc_kmsgbuf()
+	 * Minkar: XNU's kern.msgbuf is the buffer's size; proc_kmsgbuf()
 	 * reads it (unwrapped). No crash dumps (-M, -N), no clearing (-c).
 	 */
 	if (memf != NULL || nlistf != NULL || clear)

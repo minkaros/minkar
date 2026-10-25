@@ -33,7 +33,7 @@
 #include <stdlib.h>
 #include <signal.h>
 #ifdef __APPLE__
-#include <notify.h>  // ravynOS change
+#include <notify.h>  // Minkar change
 #endif
 #include <errno.h>
 #include <fcntl.h>
@@ -151,7 +151,7 @@ mDNSlocal mStatus MainLoop(mDNS *m) // Loop until we quit.
     mDNSPosixListenForSignalInEventLoop(SIGPIPE);
     mDNSPosixListenForSignalInEventLoop(SIGHUP) ;
 #ifdef __APPLE__
-    // ravynOS change: configd's IPMonitor rewrites /etc/resolv.conf and then
+    // Minkar change: configd's IPMonitor rewrites /etc/resolv.conf and then
     // posts this notification; it arrives as SIGHUP, which reconfigures.
     {
         int token;

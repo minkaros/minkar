@@ -26,7 +26,7 @@
  */
 
 /*
- * OpenBSM's configure results for ravynOS (Darwin), in place of the
+ * OpenBSM's configure results for Minkar (Darwin), in place of the
  * autoconf config.h (which is FreeBSD's).
  */
 

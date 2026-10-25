@@ -1,4 +1,4 @@
-# sshd configuration for ravynOS; see sshd_config(5). Commented lines are
+# sshd configuration for Minkar; see sshd_config(5). Commented lines are
 # the defaults.
 
 #Port 22

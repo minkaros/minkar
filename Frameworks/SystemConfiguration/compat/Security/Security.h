@@ -27,7 +27,7 @@
 
 /*
  * The Security.framework types SystemConfiguration and configd name.
- * ravynOS has no Security.framework yet: SystemConfiguration reaches its
+ * Minkar has no Security.framework yet: SystemConfiguration reaches its
  * functions through dlopen (dy_framework.c), which fails cleanly, so only
  * the types and the few prototypes they use are declared here.
  */

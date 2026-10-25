@@ -47,7 +47,7 @@
 #if	!defined(__RAVYNOS__)
 #include "IPMonitorAWDReport.h"
 #else	// !__RAVYNOS__
-/* No Apple Wireless Diagnostics on ravynOS: the advisory flags, no reports. */
+/* No Apple Wireless Diagnostics on Minkar: the advisory flags, no reports. */
 typedef uint32_t	AWDIPMonitorInterfaceAdvisoryReport_Flags;
 #define	AWDIPMonitorInterfaceAdvisoryReport_Flags_LINK_LAYER_ISSUE	0x1
 #define	AWDIPMonitorInterfaceAdvisoryReport_Flags_UPLINK_ISSUE		0x2

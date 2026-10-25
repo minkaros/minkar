@@ -61,8 +61,7 @@ representative at an online or offline event.
 
 Instances of abusive, harassing, or otherwise unacceptable behavior may be
 reported to the community leaders responsible for enforcement by email to
-zoe(at)ravynsoft.com or private message to any Moderator or Admin on the project
-Discord server.
+minkaros(at)outlook.com.
 
 All complaints will be reviewed and investigated promptly and fairly.
 

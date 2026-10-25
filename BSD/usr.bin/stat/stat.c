@@ -69,7 +69,7 @@ __RCSID("$NetBSD: stat.c,v 1.33 2011/01/15 22:54:10 njoly Exp $"
 #include <unistd.h>
 
 #ifdef __APPLE__
-/* ravynOS: Darwin has devname_r but not fdevname_r; device names are short. */
+/* Minkar: Darwin has devname_r but not fdevname_r; device names are short. */
 #define	SPECNAMELEN	63
 
 static char *

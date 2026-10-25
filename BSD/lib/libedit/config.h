@@ -188,7 +188,7 @@
 /* #undef HAVE_VFORK_H */
 
 /* Define to 1 if you have the 'vis' function. */
-/* ravynOS: libc's vis(3) is the older one, whose flag values differ from
+/* Minkar: libc's vis(3) is the older one, whose flag values differ from
    src/vis.h; libedit builds its own (hidden, see the Makefile). */
 /* #undef HAVE_VIS */
 

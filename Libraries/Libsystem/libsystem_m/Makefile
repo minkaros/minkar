@@ -2,7 +2,7 @@
 # BSD-3, MIT and Sun's "freely granted" notice), with the amd64 assembly
 # and 80-bit long double sources, FreeBSD headers it needs (include/:
 # complex.h, ieeefp.h, fpmath.h, x86 fpu; from git history, BSD), and glue.c (original, BSD-2) for the
-# names ravynOS's <math.h> and Darwin have that msun does not. The
+# names Minkar's <math.h> and Darwin have that msun does not. The
 # previous implementation called itself for most functions.
 # msun_compat.h and include/machine/asm.h supply FreeBSD's cdefs and asm
 # macros; the assembly loses its ELF-only .note.GNU-stack section here.

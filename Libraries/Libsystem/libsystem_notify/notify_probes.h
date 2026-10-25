@@ -27,7 +27,7 @@
 
 /*
  * The DTrace probes of notify_probes.d, as "dtrace -h" would declare them
- * with no provider: they do nothing and are never enabled. (ravynOS has no
+ * with no provider: they do nothing and are never enabled. (Minkar has no
  * dtrace to generate the real header yet.)
  */
 

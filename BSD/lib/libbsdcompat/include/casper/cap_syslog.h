@@ -28,7 +28,7 @@
 #ifndef _RAVYNOS_COMPAT_CAP_SYSLOG_H
 #define _RAVYNOS_COMPAT_CAP_SYSLOG_H
 
-/* Casper's syslog service, straight to syslog(3): ravynOS has no Casper. */
+/* Casper's syslog service, straight to syslog(3): Minkar has no Casper. */
 
 #include <stdarg.h>
 #include <syslog.h>

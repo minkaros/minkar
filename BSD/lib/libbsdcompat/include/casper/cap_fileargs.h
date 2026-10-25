@@ -26,7 +26,7 @@
  */
 
 /*
- * Casper's fileargs for ravynOS: no capability mode, so the files named
+ * Casper's fileargs for Minkar: no capability mode, so the files named
  * on the command line are opened directly, with the flags and mode given
  * to fileargs_init.
  */

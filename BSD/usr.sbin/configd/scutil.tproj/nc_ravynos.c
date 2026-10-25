@@ -27,7 +27,7 @@
 
 /*
  * scutil --nc (network connections: VPN, PPP) needs NetworkExtension and
- * PPPController, which ravynOS does not have; nc.c is not built. This
+ * PPPController, which Minkar does not have; nc.c is not built. This
  * keeps the option and its credentials and says so.
  */
 

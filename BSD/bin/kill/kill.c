@@ -44,7 +44,7 @@
 #ifdef SHELL
 #define main killcmd
 #include "bltin/bltin.h"
-#include "shims.h"	/* ravynOS: sig2str, str2sig */
+#include "shims.h"	/* Minkar: sig2str, str2sig */
 #endif
 
 static void nosig(const char *);

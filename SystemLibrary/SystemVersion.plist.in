@@ -3,7 +3,7 @@
 <plist version="1.0">
     <dict>
         <key>ProductName</key>
-        <string>ravynOS</string>
+        <string>Minkar</string>
         <key>ProductFamily</key>
         <string>@PROD_FAMILY@</string>
         <key>ProductCopyright</key>

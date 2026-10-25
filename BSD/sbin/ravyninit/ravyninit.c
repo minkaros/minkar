@@ -34,7 +34,7 @@
  * orphaned processes. The disk image installs it as /sbin/launchd, the
  * only init path a RELEASE kernel tries.
  *
- * The console lines starting with "ravynOS:" are markers the boot test
+ * The console lines starting with "Minkar:" are markers the boot test
  * (Image/boottest.py) waits for; keep them in sync.
  */
 
@@ -54,8 +54,8 @@
 #define CONSOLE		"/dev/console"
 #define SHELL		"/bin/sh"
 
-#define MARKER_PID1	"ravynOS: PID 1 running"
-#define MARKER_SHELL	"ravynOS: shell running"
+#define MARKER_PID1	"Minkar: PID 1 running"
+#define MARKER_SHELL	"Minkar: shell running"
 
 /* execve() takes non-const strings, so these are arrays, not literals. */
 static char env_path[] = "PATH=/bin:/sbin:/usr/bin:/usr/sbin";

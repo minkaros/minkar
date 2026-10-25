@@ -1,4 +1,4 @@
-# Base file system hierarchy of ravynOS, after macOS (hier(7)).
+# Base file system hierarchy of Minkar, after macOS (hier(7)).
 # Installed into the sysroot before anything else is built.
 #
 #   d MODE PATH      directory, owned by root:wheel

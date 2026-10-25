@@ -1,8 +1,8 @@
 /*
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * ravynOS: the configuration for mkmagic, the magic compiler built for
- * the build host (Linux or macOS) to make magic.mgc: ravynOS's own
+ * Minkar: the configuration for mkmagic, the magic compiler built for
+ * the build host (Linux or macOS) to make magic.mgc: Minkar's own
  * config.h, less what the host's libc may lack.
  */
 #include "../config.h"

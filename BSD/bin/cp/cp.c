@@ -338,7 +338,7 @@ copy(char *argv[], enum op type, int fts_options, struct stat *root_stat)
 
 	level = FTS_ROOTLEVEL;
 #ifdef __APPLE__
-	/* ravynOS: Darwin's fts_open compares const FTSENT **. */
+	/* Minkar: Darwin's fts_open compares const FTSENT **. */
 	if ((ftsp = fts_open(argv, fts_options, Sflag ?
 	    (int (*)(const FTSENT **, const FTSENT **))ftscmp : NULL)) == NULL)
 #else

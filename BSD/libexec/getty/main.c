@@ -453,7 +453,7 @@ opentty(const char *tty, int flags)
 		sleep(60);
 	}
 	/*
-	 * ravynOS: launchd runs getty as a session leader. If the terminal
+	 * Minkar: launchd runs getty as a session leader. If the terminal
 	 * is still the controlling terminal of the session that just ended,
 	 * give the kernel a moment to let it go. Never daemon(): forking
 	 * away from launchd made it start a second getty, which revoked the

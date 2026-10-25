@@ -142,7 +142,7 @@ mDNSlocal void SockAddrTomDNSAddr(const struct sockaddr *const sa, mDNSAddr *ipA
 #endif
 
 // mDNS core calls this routine when it needs to send a packet.
-// ravynOS change: a question's UDP socket (see mDNSPlatformUDPSocket).
+// Minkar change: a question's UDP socket (see mDNSPlatformUDPSocket).
 struct UDPSocket_struct
 {
     mDNSIPPort port;    // first: the core reads it (network byte order)
@@ -181,7 +181,7 @@ mDNSexport mStatus mDNSPlatformSendUDP(const mDNS *const m, const void *const ms
         sin->sin_port           = dstPort.NotAnInteger;
         sin->sin_addr.s_addr    = dst->ip.v4.NotAnInteger;
         sendingsocket           = thisIntf ? thisIntf->multicastSocket4 : m->p->unicastSocket4;
-        if (src != NULL) sendingsocket = src->fd;   // ravynOS change: the question's socket
+        if (src != NULL) sendingsocket = src->fd;   // Minkar change: the question's socket
     }
 
 #if HAVE_IPV6
@@ -196,7 +196,7 @@ mDNSexport mStatus mDNSPlatformSendUDP(const mDNS *const m, const void *const ms
         sin6->sin6_port           = dstPort.NotAnInteger;
         sin6->sin6_addr           = *(struct in6_addr*)&dst->ip.v6;
         sendingsocket             = thisIntf ? thisIntf->multicastSocket6 : m->p->unicastSocket6;
-        if (src != NULL && src->fd6 >= 0) sendingsocket = src->fd6;   // ravynOS change: the question's socket
+        if (src != NULL && src->fd6 >= 0) sendingsocket = src->fd6;   // Minkar change: the question's socket
     }
 #endif
 
@@ -290,7 +290,7 @@ mDNSlocal void tcpConnectCallback(int fd, void *context)
 }
 
 // This routine is called when the main loop detects that data is available on a socket.
-// ravynOS change: the destination port is a parameter (it was always 5353,
+// Minkar change: the destination port is a parameter (it was always 5353,
 // so unicast DNS answers on a question's socket never matched).
 mDNSlocal void SocketDataReadyOnPort(mDNS *const m, PosixNetworkInterface *intf, int skt, mDNSIPPort dstport)
 {
@@ -706,7 +706,7 @@ mDNSexport long mDNSPlatformWriteTCP(TCPSocket *sock, const char *msg, unsigned 
     }
 }
 
-// ravynOS change: unicast DNS queries need a UDP socket of their own (the
+// Minkar change: unicast DNS queries need a UDP socket of their own (the
 // core matches each answer to its question by the local port), so this is
 // implemented instead of returning NULL. One IPv4 and one IPv6 socket on the
 // same port, for the IPv4 and IPv6 servers ParseDNSServers() reads.
@@ -855,7 +855,7 @@ mDNSexport mDNSBool mDNSPlatformSetDNSConfig(mDNSBool setservers, mDNSBool setse
     (void) setsearch;
     (void) ackConfig;
 
-    // ravynOS change: uDNS_SetupDNSConfig() marks every DNS server for
+    // Minkar change: uDNS_SetupDNSConfig() marks every DNS server for
     // deletion and keeps only those the platform reports again here, so
     // report the servers of /etc/resolv.conf (otherwise they are dropped
     // right after they are read and unicast queries never get an answer).
@@ -909,7 +909,7 @@ mDNSlocal void GetUserSpecifiedFriendlyComputerName(domainlabel *const namelabel
 mDNSexport int ParseDNSServers(mDNS *m, const char *filePath)
 {
     char line[256];
-    char nameserver[46];    // ravynOS change: room for an IPv6 address
+    char nameserver[46];    // Minkar change: room for an IPv6 address
     char keyword[11];
     int numOfServers = 0;
     FILE *fp = fopen(filePath, "r");
@@ -929,7 +929,7 @@ mDNSexport int ParseDNSServers(mDNS *m, const char *filePath)
             mDNS_AddDNSServer(m, NULL, mDNSInterface_Any, 0, &DNSAddr, UnicastDNSPort, kScopeNone, 0, mDNSfalse, mDNSfalse, mDNSfalse, mDNSfalse, 0, mDNStrue, mDNStrue, mDNSfalse);
             numOfServers++;
         }
-        // ravynOS change: IPv6 name servers too (not scoped ones, fe80::x%if).
+        // Minkar change: IPv6 name servers too (not scoped ones, fe80::x%if).
         else if (strchr(nameserver, '%') == NULL && inet_pton(AF_INET6, nameserver, &in6a) == 1)
         {
             mDNSAddr DNSAddr;
@@ -2099,7 +2099,7 @@ mDNSexport mStatus mDNSPlatformStoreOwnerOptRecord(char *ifname, DNSMessage *msg
 
 mDNSexport mDNSu16 mDNSPlatformGetUDPPort(UDPSocket *sock)
 {
-    // ravynOS change: sockets exist now (see mDNSPlatformUDPSocket).
+    // Minkar change: sockets exist now (see mDNSPlatformUDPSocket).
     return sock ? mDNSVal16(sock->port) : (mDNSu16)-1;
 }
 

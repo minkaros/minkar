@@ -224,7 +224,7 @@ public:
 	void freePacket(mbuf_t packet, IOOptionBits options = 0);
 	mbuf_t copyPacket(const mbuf_t packet, UInt32 size = 0);
 
-	/* ravynOS: the interface's packet filters changed (IFF_PROMISC, multicast). */
+	/* Minkar: the interface's packet filters changed (IFF_PROMISC, multicast). */
 	virtual IOReturn updateFilters(UInt32 filters);
 
 	/*

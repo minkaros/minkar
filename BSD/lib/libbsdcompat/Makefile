@@ -1,4 +1,4 @@
-# libbsdcompat: what the FreeBSD commands built on ravynOS need from
+# libbsdcompat: what the FreeBSD commands built on Minkar need from
 # FreeBSD that Darwin lacks: capsicum and casper stand-ins
 # (include/sys/capsicum.h, capsicum_helpers.h, libcasper.h, casper/: no
 # capability mode), strtonum, expand_number, copy_file_range, mkfifoat

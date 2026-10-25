@@ -1,5 +1,5 @@
 # ------------------------------------------------------------------------
-#  RAVYNOS BUILD SYSTEM - CoreServices
+#  MINKAR BUILD SYSTEM - CoreServices
 # ------------------------------------------------------------------------
 #
 # FIXME: Dock, Filer, DMIHelper and the WindowServer helper apps

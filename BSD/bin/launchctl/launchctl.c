@@ -428,7 +428,7 @@ demux_cmd(int argc, char *const argv[])
 }
 
 /*
- * ravynOS: the switch launchd uses for bring-up (a verbose boot and
+ * Minkar: the switch launchd uses for bring-up (a verbose boot and
  * /var/db/.launchd_log_debug) also sends a managed launchctl's messages to
  * the console, since nothing reads syslog that early in the boot.
  */

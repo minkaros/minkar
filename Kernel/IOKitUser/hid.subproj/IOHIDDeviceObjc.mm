@@ -7,7 +7,7 @@
 
 #import <IOKit/hid/IOHIDDevice.h>
 #import "HIDDeviceBase.h"
-#import "IOHIDDevicePrivate.h"	// ravynOS: C linkage for _IOHIDDeviceCreatePrivate
+#import "IOHIDDevicePrivate.h"	// Minkar: C linkage for _IOHIDDeviceCreatePrivate
 
 CFTypeID IOHIDDeviceGetTypeID(void)
 {

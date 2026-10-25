@@ -358,7 +358,7 @@ ttyopen(dev_t device, struct tty *tp)
  * Locks:	Assumes tty_lock() is held prior to calling.
  */
 /*
- * ravynOS: the controlling process of session sessp exited. Detach tp from
+ * Minkar: the controlling process of session sessp exited. Detach tp from
  * the session and its foreground process group, dropping the references
  * the tty holds on them, as the last close does. A tty kept open elsewhere
  * (the console: launchd, syslogd) never gets that last close, so it stayed
@@ -1477,7 +1477,7 @@ ttioctl_locked(struct tty *tp, u_long cmd, caddr_t data, int flag, proc_t p)
 		 * Deny if the terminal is already attached to another session or
 		 * the session already has a terminal vnode.
 		 *
-		 * ravynOS: a terminal whose session no longer claims it (the
+		 * Minkar: a terminal whose session no longer claims it (the
 		 * session's s_ttyp was cleared when its leader exited or it last
 		 * closed the terminal) is orphaned, not attached: it may be
 		 * taken, and the references on the old session and process

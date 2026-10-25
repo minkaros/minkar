@@ -1,7 +1,7 @@
 # libxo (Juniper Networks, BSD-2-Clause; LICENSE): the structured output
 # (text, XML, JSON, HTML) of FreeBSD's commands: df, du, wc, netstat, ...
 # Sources from FreeBSD's contrib/libxo 1.6.0 (git history); xo_config.h is
-# FreeBSD's, adjusted for Darwin (marked ravynOS). Installed as
+# FreeBSD's, adjusted for Darwin (marked Minkar). Installed as
 # /usr/lib/libxo.0.dylib, headers in <libxo/xo.h>. No encoders yet.
 
 SUBDIR =

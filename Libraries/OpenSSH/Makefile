@@ -1,7 +1,7 @@
 # OpenSSH (portable 10.6p1) built without OpenSSL: sshd, ssh, scp, sftp,
 # ssh-keygen and friends (architecture plan, Phase 2, gate M2). See
 # README.ravynos. The source lists follow openssh/Makefile.in;
-# config.h is what openssh/configure produced for ravynOS (see README).
+# config.h is what openssh/configure produced for Minkar (see README).
 
 SUBDIR =
 MK_WERROR = no

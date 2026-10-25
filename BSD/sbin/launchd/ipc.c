@@ -469,7 +469,7 @@ ipc_readmsg2(launch_data_t data, const char *cmd, void *context)
 }
 
 /*
- * ravynOS: liblaunch sends every launch_msg() as a Mach ipc_request
+ * Minkar: liblaunch sends every launch_msg() as a Mach ipc_request
  * (job.defs), not over the socket.
  */
 struct ipc_request_context {

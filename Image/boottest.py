@@ -24,7 +24,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 
-"""Boot a ravynOS disk image in QEMU and check the serial console.
+"""Boot a Minkar disk image in QEMU and check the serial console.
 
 The gate passes when every --expect marker shows up, in order, before the
 timeout; it fails on a --fail marker (a kernel panic by default) or when
@@ -61,8 +61,8 @@ import time
 
 # Printed by PID 1 (BSD/sbin/ravyninit until launchd runs) and by the
 # shell it starts; keep in sync with ravyninit.c.
-USERLAND_MARKER = 'ravynOS: PID 1 running'
-SHELL_MARKER = 'ravynOS: shell running'
+USERLAND_MARKER = 'Minkar: PID 1 running'
+SHELL_MARKER = 'Minkar: shell running'
 
 
 class Send(str):
@@ -78,8 +78,8 @@ class SSH(str):
 
 
 # The shell echoes what it is sent, so the answer, not the command, is
-# what the next marker matches: "ravynOS: 42" only appears in its output.
-SHELL_INPUT = [Send('echo "ravynOS: $((6 * 7))"'), 'ravynOS: 42']
+# what the next marker matches: "Minkar: 42" only appears in its output.
+SHELL_INPUT = [Send('echo "Minkar: $((6 * 7))"'), 'Minkar: 42']
 
 # Console login through launchd, getty, login and PAM (part of gate M2).
 # The image needs launchd as PID 1 (INIT=) and a root password
@@ -95,10 +95,10 @@ PASSWORD = Send('%PASSWORD%')
 # checked with the host's own name: QEMU forwards the guest's DNS queries
 # to the host's resolver, which answers for it without Internet access.
 HOSTNAME = '%HOSTNAME%'
-SSH_INPUT = [SSH('echo "ravynOS ssh: $((6 * 7))"; ipconfig getifaddr en0; '
+SSH_INPUT = [SSH('echo "Minkar ssh: $((6 * 7))"; ipconfig getifaddr en0; '
                  'scutil --dns | grep "nameserver\\[0\\]" | head -1; '
                  'dscacheutil -q host -a name %HOSTNAME%'),
-             'ravynOS ssh: 42', '10.0.2.15', 'nameserver[0] : 10.0.2.3',
+             'Minkar ssh: 42', '10.0.2.15', 'nameserver[0] : 10.0.2.3',
              'name: %HOSTNAME%', 'ip_address: ']
 
 GATES = {
@@ -107,7 +107,7 @@ GATES = {
            SHELL_MARKER] + SHELL_INPUT,
     'M2-login': ['Darwin Kernel Version', 'BSD root:', 'hfs: mounted',
                  'launchd[1] has started up', 'login:', Send('root'), 'Password:',
-                 PASSWORD, 'Welcome to ravynOS.'] + SHELL_INPUT,
+                 PASSWORD, 'Welcome to Minkar.'] + SHELL_INPUT,
 }
 GATES['M2'] = GATES['M2-login'] + SSH_INPUT
 GATE_FAIL = {

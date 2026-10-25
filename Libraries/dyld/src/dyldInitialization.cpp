@@ -140,7 +140,7 @@ uintptr_t start(const dyld3::MachOLoaded* appsMachHeader, int argc, const char* 
 	while(*apple != NULL) { ++apple; }
 	++apple;
 
-	// ravynOS: only a process started without standard descriptors (PID 1,
+	// Minkar: only a process started without standard descriptors (PID 1,
 	// from the kernel) needs them: fill the missing ones, never as a
 	// controlling terminal (O_NOCTTY). Opening /dev/console three times in
 	// every process made each session leader (every launchd job) grab the

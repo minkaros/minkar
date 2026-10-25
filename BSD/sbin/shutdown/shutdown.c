@@ -32,7 +32,7 @@
 #include <sys/param.h>
 #ifdef __APPLE__
 /*
- * ravynOS: launchd is not FreeBSD's init(8): shutdown runs reboot or halt
+ * Minkar: launchd is not FreeBSD's init(8): shutdown runs reboot or halt
  * (which ask launchd), as with -o. No boottrace.
  */
 #define	BOOTTRACE(...)	do { } while (0)

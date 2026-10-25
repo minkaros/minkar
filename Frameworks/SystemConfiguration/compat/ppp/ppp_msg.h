@@ -27,7 +27,7 @@
 
 /*
  * The PPP, IPSec and VPN connection states PPPController publishes, which
- * IPMonitor reads. ravynOS has no PPPController: no service has them, so
+ * IPMonitor reads. Minkar has no PPPController: no service has them, so
  * the values only need to be distinct.
  */
 

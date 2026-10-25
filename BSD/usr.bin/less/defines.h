@@ -334,7 +334,7 @@
 #define HAVE_STAT_INO 1
 
 /* Define to 1 if you have the <stdckdint.h> header file. */
-/* #undef HAVE_STDCKDINT_H */	/* ravynOS: Darwin has no <stdckdint.h> */
+/* #undef HAVE_STDCKDINT_H */	/* Minkar: Darwin has no <stdckdint.h> */
 
 /* Define to 1 if you have the <stdint.h> header file. */
 #define HAVE_STDINT_H 1

@@ -496,7 +496,7 @@ audit_token_to_au32(audit_token_t atoken, uid_t *auidp, uid_t *euidp,
 
 /*
  * The fields of an audit token one at a time, as macOS's libbsm has them
- * (ravynOS). XNU fills val[] with auid, euid, egid, ruid, rgid, pid, asid
+ * (Minkar). XNU fills val[] with auid, euid, egid, ruid, rgid, pid, asid
  * and the pid version.
  */
 uid_t

@@ -25,7 +25,7 @@
  * SUCH DAMAGE.
  */
 
-/* login classes for ravynOS: see include/login_cap.h. */
+/* login classes for Minkar: see include/login_cap.h. */
 
 #include <sys/types.h>
 #include <sys/stat.h>

@@ -544,7 +544,7 @@ service_close(uint16_t service_index)
 
 /*
  * Closes a service by its info: a client's (service_close) or a name's
- * public one (name_info_t's private). ravynOS: the name's was passed to
+ * public one (name_info_t's private). Minkar: the name's was passed to
  * service_close as if it were an index.
  */
 void

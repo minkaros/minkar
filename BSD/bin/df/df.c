@@ -50,7 +50,7 @@
 #include <libxo/xo.h>
 
 #if defined(__APPLE__) && !defined(MNT_IGNORE)
-/* ravynOS: Darwin marks the file systems to leave out of listings so. */
+/* Minkar: Darwin marks the file systems to leave out of listings so. */
 #define	MNT_IGNORE	MNT_DONTBROWSE
 #endif
 
@@ -641,7 +641,7 @@ makenetvfslist(void)
 {
 #ifdef __APPLE__
 	/*
-	 * ravynOS: Darwin has no vfs.conflist with VFCF_NETWORK; these are
+	 * Minkar: Darwin has no vfs.conflist with VFCF_NETWORK; these are
 	 * its network file systems (for -l, local only).
 	 */
 	return (strdup("nonfs,smbfs,afpfs,webdav,cifs,ftp"));

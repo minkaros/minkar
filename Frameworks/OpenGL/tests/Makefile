@@ -5,9 +5,9 @@
 #   make -C Frameworks/OpenGL/tests          (GNU make or bmake)
 #   make -C Frameworks/OpenGL/tests clean
 #
-# Not part of the ravynOS build; nothing here is installed.
+# Not part of the Minkar build; nothing here is installed.
 
-# clang, like the ravynOS build (override with CC=...)
+# clang, like the Minkar build (override with CC=...)
 CC =		clang
 SRCDIR =	..
 BUILDDIR =	build

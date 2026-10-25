@@ -26,8 +26,8 @@
  */
 
 /*
- * SCNetworkReachability for ravynOS. Apple's implementation is built on
- * Network.framework's private API, which ravynOS does not have; this one
+ * SCNetworkReachability for Minkar. Apple's implementation is built on
+ * Network.framework's private API, which Minkar does not have; this one
  * asks the kernel instead:
  *
  * - an address is reachable if the routing table has a route to it

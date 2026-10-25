@@ -37,7 +37,7 @@ HEADERS = \
 	include/eglplatform.h \
 	include/khrplatform.h
 
-# ravynOS-private: driver interface and AppKit/QuartzCore extensions.
+# Minkar-private: driver interface and AppKit/QuartzCore extensions.
 PRIVATE_HEADERS = \
 	include/CGLDriver.h \
 	include/CGLPrivate.h

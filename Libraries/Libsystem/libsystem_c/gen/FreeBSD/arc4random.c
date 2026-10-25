@@ -107,7 +107,7 @@ arc4random_stir(void)
 uint32_t
 arc4random_uniform(uint32_t upper_bound)
 {
-	uint64_t rand = 0;	/* ravynOS: 0 for an upper bound below 2 */
+	uint64_t rand = 0;	/* Minkar: 0 for an upper bound below 2 */
 
 	arc4_init();
 	ccrng_uniform(rng, upper_bound, &rand);

@@ -548,7 +548,7 @@ xpc_connection_recv_mach_message(void *context)
 	} else
 		xpc_connection_dispatch_callback(peer, result, id);
 }
-/* No entitlements on ravynOS (no code signing yet): every peer has none. */
+/* No entitlements on Minkar (no code signing yet): every peer has none. */
 xpc_object_t
 xpc_connection_copy_entitlement_value(xpc_connection_t connection __unused,
     const char *entitlement __unused)

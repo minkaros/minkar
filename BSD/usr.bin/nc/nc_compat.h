@@ -1,7 +1,7 @@
 /*
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * ravynOS: values nc needs that XNU's headers lack. FreeBSD-only socket
+ * Minkar: values nc needs that XNU's headers lack. FreeBSD-only socket
  * options are -1, so setsockopt() fails with an error when the option
  * that asks for them is used (-V, --lb, -M, -S) and nc reports it.
  * The DSCP code points are the standard ones (RFC 2474, RFC 2597,

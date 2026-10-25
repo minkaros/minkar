@@ -2,7 +2,7 @@
 # contrib/curl in git history: libcurl (/usr/lib/libcurl.4.dylib, with
 # Mbed TLS for TLS) and the curl tool. Built with bmake from curl's own
 # file lists (Makefile.inc); lib/curl_config.h was generated once by
-# curl's CMake with the ravynOS toolchain.
+# curl's CMake with the Minkar toolchain.
 
 SUBDIR = lib .WAIT src
 

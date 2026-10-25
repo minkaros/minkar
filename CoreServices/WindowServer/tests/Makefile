@@ -4,9 +4,9 @@
 #   make -C CoreServices/WindowServer/tests clean
 #
 # libxkbcommon is built for the build host from the vendored sources
-# (parser generated with byacc, as in the ravynOS build). The keymaps come
+# (parser generated with byacc, as in the Minkar build). The keymaps come
 # from a finished build's sysroot; set XKB_ROOT to use another copy.
-# Not part of the ravynOS build; nothing here is installed.
+# Not part of the Minkar build; nothing here is installed.
 
 CC =		clang
 SRCDIR =	..

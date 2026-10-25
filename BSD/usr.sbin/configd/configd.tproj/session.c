@@ -604,7 +604,7 @@ static CFTypeRef
 copyEntitlement(serverSessionRef session, CFStringRef entitlement)
 {
 #if	defined(__RAVYNOS__)
-	/* No code signing entitlements on ravynOS yet: no session has any. */
+	/* No code signing entitlements on Minkar yet: no session has any. */
 #pragma unused(session, entitlement)
 	return NULL;
 #else	// __RAVYNOS__

@@ -1,8 +1,8 @@
 # sudo 1.9.15p5 (ISC, LICENSE.md; approved for ravynOS 2026-10-24), built
-# with its own configure for the ravynOS target (cross build) in the
+# with its own configure for the Minkar target (cross build) in the
 # object directory, then GNU make. PAM (/etc/pam.d/sudo), BSM audit,
 # syslog, the sudoers plugin linked in; no LDAP, OpenSSL, zlib, NLS or
-# log server; no login classes (none on ravynOS, as on macOS).
+# log server; no login classes (none on Minkar, as on macOS).
 # Installs sudo (set-user-ID root) in /usr/bin and visudo in /usr/sbin;
 # /etc/sudo.conf, sudoers and sudoers.d come from BSD/etc.
 

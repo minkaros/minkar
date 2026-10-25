@@ -1,6 +1,6 @@
 # Symbolication and Crash Analysis Tools
 
-A comprehensive toolkit for analyzing and symbolicting crashes in ravynOS binaries.
+A comprehensive toolkit for analyzing and symbolicting crashes in Minkar binaries.
 
 ## Tools Overview
 
@@ -181,16 +181,16 @@ Given the crash at `0x1d9660` in the launchd stub which is the `syscall` instruc
 
 ```bash
 # First, symbolicate the address
-./symbolicate.py /nest/ravynos/BSD/sbin/launchd 0x1d9660
+./symbolicate.py /work/minkar/BSD/sbin/launchd 0x1d9660
 
 # Then analyze the crash with register state
 ./crash-analyzer.py \
-  --binary /nest/ravynos/BSD/sbin/launchd \
+  --binary /work/minkar/BSD/sbin/launchd \
   --rip 0x1d9660 \
   --rax 0x2000001  # SYS_exit
 
 # Get detailed launchd-specific analysis
-./analyze-launchd-crash.py /nest/ravynos/BSD/sbin/launchd 0x1d9660 --analyze-exit
+./analyze-launchd-crash.py /work/minkar/BSD/sbin/launchd 0x1d9660 --analyze-exit
 ```
 
 ### Example 2: Analyzing dyld crash with full register state
@@ -199,7 +199,7 @@ From CRASH_FIX_ANALYSIS.md:
 
 ```bash
 ./crash-analyzer.py \
-  --binary /nest/ravynos/Libraries/dyld/src/dyld \
+  --binary /work/minkar/Libraries/dyld/src/dyld \
   --rip 0x00000001154ad2eb \
   --rax 0x8010000000000007 \
   --rdi 0x000000010ffd0000 \
@@ -246,14 +246,14 @@ sudo apt-get install binutils
 # Test symbolicate on a system binary
 ./symbolicate.py /bin/ls 0x100001000
 
-# Test on ravynOS launchd
-./symbolicate.py /nest/ravynos/BSD/sbin/launchd 0x1d9660
+# Test on Minkar launchd
+./symbolicate.py /work/minkar/BSD/sbin/launchd 0x1d9660
 ```
 
 ## Integration with Crash Analysis Workflow
 
 1. **Capture crash** - Kernel or crash reporter provides RIP, RAX, and stack trace
-2. **Locate binary** - Find the binary that crashed (often in /nest/ravynos/BSD/sbin/launchd or /nest/ravynos/Libraries/dyld/src/dyld)
+2. **Locate binary** - Find the binary that crashed (often in /work/minkar/BSD/sbin/launchd or /work/minkar/Libraries/dyld/src/dyld)
 3. **Symbolicate** - Use `symbolicate.py` to map addresses to function names
 4. **Analyze** - Use `crash-analyzer.py` to classify the crash type
 5. **Investigate** - Use `analyze-launchd-crash.py` for launchd-specific patterns

@@ -26,7 +26,7 @@
  */
 
 /*
- * FreeBSD's <sys/endian.h> for ravynOS (Darwin has <machine/endian.h> and
+ * FreeBSD's <sys/endian.h> for Minkar (Darwin has <machine/endian.h> and
  * <libkern/OSByteOrder.h>): byte order conversions, and encoding and
  * decoding of integers in a byte stream.
  */

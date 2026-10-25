@@ -35,7 +35,7 @@
 
 #include <errno.h>
 #include <stdio.h>
-#ifndef __APPLE__	/* ravynOS: no stats(3), so no arb/qmath/sbuf */
+#ifndef __APPLE__	/* Minkar: no stats(3), so no arb/qmath/sbuf */
 #include <sys/arb.h>
 #include <sys/limits.h>
 #endif

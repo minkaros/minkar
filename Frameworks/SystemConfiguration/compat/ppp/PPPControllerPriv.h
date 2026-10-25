@@ -25,5 +25,5 @@
  * SUCH DAMAGE.
  */
 
-/* Nothing of PPPController (ravynOS has none); see ppp_msg.h. */
+/* Nothing of PPPController (Minkar has none); see ppp_msg.h. */
 #include <ppp/ppp_msg.h>

@@ -50,7 +50,7 @@ _xpc_runtime_is_app_sandboxed(void);
  *
  * @abstract
  * Returns the value of the named entitlement of the connection's peer, or
- * NULL if it has none. ravynOS has no code signing entitlements yet, so
+ * NULL if it has none. Minkar has no code signing entitlements yet, so
  * every peer is unentitled: this always returns NULL.
  */
 XPC_EXPORT XPC_RETURNS_RETAINED

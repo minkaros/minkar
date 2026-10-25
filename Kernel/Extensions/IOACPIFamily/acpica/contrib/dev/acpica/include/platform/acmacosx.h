@@ -26,7 +26,7 @@
  */
 
 /*
- * acmacosx.h: ACPICA's environment for the ravynOS (Darwin) kernel, where
+ * acmacosx.h: ACPICA's environment for the Minkar (Darwin) kernel, where
  * IOACPIFamily runs it. ACPICA's acenv.h includes this file on __APPLE__.
  * The OS services layer is ../../../../../ACPIOSLayer.cpp.
  */

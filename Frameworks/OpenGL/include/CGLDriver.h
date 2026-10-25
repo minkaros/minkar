@@ -26,7 +26,7 @@
  */
 
 /*
- * CGL renderer driver interface (ravynOS private).
+ * CGL renderer driver interface (Minkar private).
  *
  * CGL itself is hardware independent: it validates arguments and keeps
  * track of pixel formats, contexts, share groups, parameters and the
@@ -113,7 +113,7 @@ typedef struct CGLDriver {
                           GLboolean enabled);
     CGLError (*copyContext)(void *source, void *destination, GLbitfield mask);
 
-    /* ravynOS: default compositing shaders (optional). */
+    /* Minkar: default compositing shaders (optional). */
     CGLError (*useShaders)(void *context);
 
     /* GL entry point lookup for API dispatch (optional, used later). */

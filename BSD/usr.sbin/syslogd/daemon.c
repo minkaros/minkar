@@ -42,7 +42,7 @@
 #include <uuid/uuid.h>
 #include <asl_private.h>
 #ifdef __RAVYNOS__
-/* ravynOS: launchd keeps syslogd running; no idle-exit transactions. */
+/* Minkar: launchd keeps syslogd running; no idle-exit transactions. */
 typedef void *os_transaction_t;
 #define os_transaction_create(name)	((void)(name), (os_transaction_t)NULL)
 #define os_release(t)			((void)(t))

@@ -1,4 +1,4 @@
-# Notes on ravynOS PlatformExpert https://music.apple.com/ca/song/lebenslinien/1810750529
+# Notes on Minkar PlatformExpert https://music.apple.com/ca/song/lebenslinien/1810750529
 
 ### Device tree /defaults entries
 | Entry                     | Description                                                       |

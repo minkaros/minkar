@@ -1,5 +1,5 @@
 /*
- * OpenPAM configuration for ravynOS (Darwin), written by hand in place of
+ * OpenPAM configuration for Minkar (Darwin), written by hand in place of
  * the one configure generates (see README.ravynos).
  */
 

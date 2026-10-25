@@ -118,7 +118,7 @@ _prepend_next_root(char* path)
     
 
 /*
- * Enumeration state (ravynOS rewrite; same API as macOS):
+ * Enumeration state (Minkar rewrite; same API as macOS):
  *
  *   bits  0-15  the directory asked for (never 0, so a state is never 0)
  *   bits 16-19  the domains still to visit (SYSDIR_DOMAIN_MASK_*)

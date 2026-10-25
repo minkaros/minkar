@@ -24,7 +24,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 
-"""Build a bootable ravynOS disk image on a Linux host.
+"""Build a bootable Minkar disk image on a Linux host.
 
 Layout (GPT):
   1  EFI System Partition (FAT32)

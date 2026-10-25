@@ -416,7 +416,7 @@ int ACPIPlatformExpert::handlePEHaltRestart(unsigned int type) {
             break;
 
         case kPEHaltCPU:
-            // ravynOS: halting powers the machine off (ACPI S5).
+            // Minkar: halting powers the machine off (ACPI S5).
             ACPIInterpreterPowerOff();
             ret = -1;
             break;

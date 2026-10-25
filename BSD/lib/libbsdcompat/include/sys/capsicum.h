@@ -26,7 +26,7 @@
  */
 
 /*
- * Capsicum for the FreeBSD commands built on ravynOS: Darwin has no
+ * Capsicum for the FreeBSD commands built on Minkar: Darwin has no
  * capability mode, so entering it and limiting rights do nothing and
  * succeed (the command keeps the rights it already has).
  */

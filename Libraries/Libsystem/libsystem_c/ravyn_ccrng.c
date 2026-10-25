@@ -25,7 +25,7 @@
  * SUCH DAMAGE.
  */
 
-/* ccrng() mínimo para ravynOS: entropía vía getentropy(). */
+/* ccrng() mínimo para Minkar: entropía vía getentropy(). */
 #include <stddef.h>
 int getentropy(void *buffer, size_t size);  /* libsystem_kernel */
 

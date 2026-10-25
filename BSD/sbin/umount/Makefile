@@ -7,7 +7,7 @@ CFLAGS += --sysroot=${RAVYN_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} -W
 LDFLAGS += --sysroot=${RAVYN_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} -fuse-ld=${LD}
 LDADD += -L${ROOT_BINARY_DIR}${ROOT_SOURCE_DIR}/BSD/lib/libutil -lutil -L${ROOT_BINARY_DIR}${ROOT_SOURCE_DIR}/BSD/lib/libbsdcompat -lbsdcompat
 PROG=	umount
-# vfslist.c is FreeBSD sbin/mount's, copied here: ravynOS's mount is
+# vfslist.c is FreeBSD sbin/mount's, copied here: Minkar's mount is
 # its own. NFS (mounttab, RPCs) and md(4) are left out (__APPLE__).
 SRCS=	umount.c vfslist.c
 CFLAGS+= -I${.CURDIR}

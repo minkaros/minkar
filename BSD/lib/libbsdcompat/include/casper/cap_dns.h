@@ -25,7 +25,7 @@
  * SUCH DAMAGE.
  */
 
-/* Casper's DNS service for ravynOS: no capability mode, the resolver directly. */
+/* Casper's DNS service for Minkar: no capability mode, the resolver directly. */
 
 #ifndef _RAVYNOS_COMPAT_CAP_DNS_H
 #define _RAVYNOS_COMPAT_CAP_DNS_H

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Comprehensive Crash Analysis Toolkit for ravynOS
+Comprehensive Crash Analysis Toolkit for Minkar
 
 Provides integrated analysis of crash dumps, including symbolication,
 register state analysis, and pattern matching against known issues.
@@ -385,7 +385,7 @@ def print_analysis_report(analysis: CrashAnalysisResult, crash_context: CrashCon
 
 def main():
     parser = argparse.ArgumentParser(
-        description='Comprehensive crash analysis for ravynOS',
+        description='Comprehensive crash analysis for Minkar',
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog='''
 Examples:

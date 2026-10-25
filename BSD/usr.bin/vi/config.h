@@ -9,7 +9,7 @@
 /* #undef ICONV_TRADITIONAL */
 
 /* Define if you have <libutil.h> */
-/* #undef HAVE_LIBUTIL_H */	/* ravynOS: openpty is in Darwin's <util.h> */
+/* #undef HAVE_LIBUTIL_H */	/* Minkar: openpty is in Darwin's <util.h> */
 
 /* Define if you have <ncurses.h> */
 #define HAVE_NCURSES_H

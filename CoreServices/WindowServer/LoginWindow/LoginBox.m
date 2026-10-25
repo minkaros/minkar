@@ -58,7 +58,7 @@ extern int fd;
     NSDictionary *osVersionDictionary = [NSDictionary
         dictionaryWithContentsOfFile:@"/System/Library/CoreServices/SystemVersion.plist"];
 
-    NSAttributedString *osnameString = [[NSAttributedString alloc] initWithString:@"ravynOS" attributes:attr];
+    NSAttributedString *osnameString = [[NSAttributedString alloc] initWithString:@"Minkar" attributes:attr];
     osname = [[Label alloc] initWithText:osnameString
                                  atPoint:NSMakePoint(width/2 - [osnameString size].width / 2, height - 120)
                             withMaxWidth:width];
@@ -93,7 +93,7 @@ extern int fd;
     attr = [NSDictionary dictionaryWithObjects:
                 @[[NSFont systemFontOfSize:16], [NSColor grayColor]]
                 forKeys:@[NSFontAttributeName, NSForegroundColorAttributeName]];
-    NSString *versionString = [NSString stringWithFormat:@"ravynOS %@",
+    NSString *versionString = [NSString stringWithFormat:@"Minkar %@",
              [osVersionDictionary objectForKey:@"ProductUserVisibleVersion"]];
     NSAttributedString *v  = [[NSAttributedString alloc] initWithString:versionString attributes:attr];
     Label *versionLabel = [Label labelWithText:v

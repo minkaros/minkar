@@ -1,11 +1,11 @@
-# Building ravynOS From Source
+# Building Minkar From Source
 
-ravynOS is built with BSD make (bmake). The build first creates a host
+Minkar is built with BSD make (bmake). The build first creates a host
 toolchain (Default.xctoolchain: clang/LLVM, Apple cctools, ld64, xcbuild,
 mig, ...) and then uses it, together with the ravynOS.sdk it produces, to
 build the rest of the system for the same CPU architecture.
 
-The source tree is `/work/ravynos` and the build directory is `../build`
+The source tree is `/work/minkar` and the build directory is `../build`
 next to it (`ROOT_BINARY_DIR`); adjust the paths below to your checkout.
 Building LLVM the first time takes a __long__ time.
 
@@ -27,16 +27,16 @@ Symlink `cc` and `c++` to clang to avoid accidental use of gcc.
 
 The build runs as root (the object directories and sysroot are root owned):
 
-    cd /work/ravynos
-    sudo bmake -m /work/ravynos/BSD/share/mk -j$(nproc) > ../build/world.log 2>&1
+    cd /work/minkar
+    sudo bmake -m /work/minkar/BSD/share/mk -j$(nproc) > ../build/world.log 2>&1
 
 One layer at a time, in this order: `Developer Kernel Libraries Frameworks
 Kernel/Extensions CoreServices BSD`. Pass the layer through the environment,
 never on the command line (it would leak into every sub-make):
 
-    sudo env SUBDIR=Frameworks bmake -m /work/ravynos/BSD/share/mk -j$(nproc)
+    sudo env SUBDIR=Frameworks bmake -m /work/minkar/BSD/share/mk -j$(nproc)
 
-`-m /work/ravynos/BSD/share/mk` is required. Logs use ANSI colors; strip them
+`-m /work/minkar/BSD/share/mk` is required. Logs use ANSI colors; strip them
 before searching: `sed 's/\x1b\[[0-9;]*m//g' ../build/world.log`.
 
 Outputs, under `../build`:
@@ -50,13 +50,13 @@ Outputs, under `../build`:
 
 After the build:
 
-    sudo env SUBDIR= bmake -m /work/ravynos/BSD/share/mk image
-    sudo env SUBDIR= bmake -m /work/ravynos/BSD/share/mk boottest           # gate M0
-    sudo env SUBDIR= GATE=M1 bmake -m /work/ravynos/BSD/share/mk boottest   # gate M1
+    sudo env SUBDIR= bmake -m /work/minkar/BSD/share/mk image
+    sudo env SUBDIR= bmake -m /work/minkar/BSD/share/mk boottest           # gate M0
+    sudo env SUBDIR= GATE=M1 bmake -m /work/minkar/BSD/share/mk boottest   # gate M1
 
 `image` fetches the EFI loader (ravynsoft/efiloader, pinned in
 `Image/Makefile` and patched from `Image/patches/`), builds it with the
-toolchain's clang, and writes `../build/ravynOS.img`: a GPT disk with an EFI
+toolchain's clang, and writes `../build/Minkar.img`: a GPT disk with an EFI
 system partition (loader, kernelcache, boot plist) and an HFS+ root volume
 made from the sysroot. `boottest` boots the image in QEMU with OVMF, follows
 the serial console and passes when the gate's markers appear; the console is
@@ -72,8 +72,8 @@ Gates (see the architecture plan):
   through login and PAM, and the shell answers. It needs launchd as PID 1
   and a root password in the image:
 
-      sudo env SUBDIR= INIT= ROOT_PASSWORD=secret bmake -m /work/ravynos/BSD/share/mk image
-      sudo env SUBDIR= GATE=M2-login ROOT_PASSWORD=secret bmake -m /work/ravynos/BSD/share/mk boottest
+      sudo env SUBDIR= INIT= ROOT_PASSWORD=secret bmake -m /work/minkar/BSD/share/mk image
+      sudo env SUBDIR= GATE=M2-login ROOT_PASSWORD=secret bmake -m /work/minkar/BSD/share/mk boottest
 
   Images have no root password unless ROOT_PASSWORD is given (hashed with
   the host's `openssl passwd -6`). For launchd bring-up, LAUNCHD_DEBUG=1
@@ -88,13 +88,13 @@ Gates (see the architecture plan):
   own name (systemd-resolved and /etc/hosts do); no Internet is needed. QEMU forwards host port 2222 (BOOTTEST_SSH_PORT)
   to the guest's port 22. `boottest-key` makes the key pair once:
 
-      sudo env SUBDIR= bmake -m /work/ravynos/BSD/share/mk boottest-key
+      sudo env SUBDIR= bmake -m /work/minkar/BSD/share/mk boottest-key
       sudo env SUBDIR= INIT= ROOT_PASSWORD=secret \
           ROOT_AUTHORIZED_KEYS=../build/boottest-ssh/id_ed25519.pub \
-          bmake -m /work/ravynos/BSD/share/mk image
+          bmake -m /work/minkar/BSD/share/mk image
       sudo env SUBDIR= GATE=M2 ROOT_PASSWORD=secret \
           BOOTTEST_SSH_KEY=../build/boottest-ssh/id_ed25519 \
-          bmake -m /work/ravynos/BSD/share/mk boottest
+          bmake -m /work/minkar/BSD/share/mk boottest
 
   ROOT_AUTHORIZED_KEYS installs any public key file as root's
   authorized_keys. sshd keeps OpenSSH's default PermitRootLogin

@@ -214,7 +214,7 @@ main(int argc, char *const *argv)
 			launchd_syslog(LOG_NOTICE | LOG_CONSOLE, "*** Debug logging is enabled. ***");
 		}
 
-		/* ravynOS bring-up: with a verbose boot and debug logging, jobs
+		/* Minkar bring-up: with a verbose boot and debug logging, jobs
 		 * inherit the console as stdout and stderr, so the output of the
 		 * bootstrapper and early daemons can be read. */
 		if (launchd_verbose_boot && launchd_log_debug && launchd_console) {

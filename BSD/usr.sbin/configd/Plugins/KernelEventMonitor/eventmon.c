@@ -665,7 +665,7 @@ config_new_interface(const char * ifname)
 #if	defined(__RAVYNOS__)
 	/*
 	 * Network.framework applies the settings of a new interface on
-	 * macOS; ravynOS has none (LinkConfiguration sets MTU and media).
+	 * macOS; Minkar has none (LinkConfiguration sets MTU and media).
 	 */
 #pragma unused(ifname)
 	return;

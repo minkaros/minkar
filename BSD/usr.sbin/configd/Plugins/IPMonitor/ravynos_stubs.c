@@ -26,7 +26,7 @@
  */
 
 /*
- * IPMonitor's parts that ravynOS does not build, as no-ops:
+ * IPMonitor's parts that Minkar does not build, as no-ops:
  *
  * - the configuration agents (agent-monitor.m and friends), which publish
  *   DNS and proxy settings as NetworkExtension network agents;

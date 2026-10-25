@@ -31,7 +31,7 @@
  * XNU keeps the IOService root busy at boot until kextd sends
  * kIOCatalogKextdFinishedLaunching; until then IOKit never becomes quiet
  * (IOKitWaitQuiet, the busy state configd's InterfaceNamer waits on).
- * ravynOS has no kextd: every kext is in the kernelcache, so there is
+ * Minkar has no kextd: every kext is in the kernelcache, so there is
  * nothing to send but that message. launchd runs this once at boot.
  *
  * It then waits for IOKit to become quiet (drivers matched and started)

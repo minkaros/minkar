@@ -1,7 +1,7 @@
 # notifyd, Apple's notification server (libnotify-241, APSL, in the tree):
 # serves notify(3) (libsystem_notify) on the Mach service
 # com.apple.system.notification_center. __RAVYNOS__ marks the changes:
-# no sandbox checks (ravynOS has no sandbox), and a name's public service
+# no sandbox checks (Minkar has no sandbox), and a name's public service
 # closed by its info (service_close_info) instead of as an index.
 
 SUBDIR =

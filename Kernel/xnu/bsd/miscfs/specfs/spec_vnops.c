@@ -2704,7 +2704,7 @@ spec_close(struct vnop_close_args *ap)
 					 */
 					tty_lock(tp);
 					ttyclrpgrphup(tp);
-					ttyrelsession(tp, sessp);	/* ravynOS */
+					ttyrelsession(tp, sessp);	/* Minkar */
 					tty_unlock(tp);
 
 					ttyfree(tp);

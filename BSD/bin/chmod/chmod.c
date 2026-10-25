@@ -227,7 +227,7 @@ static int
 may_have_nfs4acl(const FTSENT *ent, int hflag)
 {
 #ifdef __APPLE__
-	/* ravynOS: Darwin has no NFSv4 ACLs (pathconf _PC_ACL_NFS4). */
+	/* Minkar: Darwin has no NFSv4 ACLs (pathconf _PC_ACL_NFS4). */
 	(void)ent;
 	(void)hflag;
 	return (0);

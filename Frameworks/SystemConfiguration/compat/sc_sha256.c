@@ -28,7 +28,7 @@
 /*
  * SHA-256 (FIPS 180-4) under CommonCrypto's names, for SystemConfiguration
  * only (hidden): SCNetworkService derives a service's ID from the
- * interface name with it, as on macOS. ravynOS builds no CommonCrypto yet.
+ * interface name with it, as on macOS. Minkar builds no CommonCrypto yet.
  */
 
 #include <CommonCrypto/CommonDigest.h>
