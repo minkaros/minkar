@@ -177,12 +177,14 @@ print(struct termios *tp, struct winsize *wp, int ldisc, enum FMT fmt)
 	put("-dsrflow", CDSR_OFLOW, 0);
 	put("-dtrflow", CDTR_IFLOW, 0);
 	put("-mdmbuf", MDMBUF, 0);	/* XXX mdmbuf ==  dtrflow */
+#ifdef CNO_RTSDTR	/* not on Darwin */
 	if (on(CNO_RTSDTR))
 		bput("-rtsdtr");
 	else {
 		if (fmt >= BSD)
 			bput("rtsdtr");
 	}
+#endif
 
 	/* special control characters */
 	cc = tp->c_cc;

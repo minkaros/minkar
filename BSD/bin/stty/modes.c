@@ -82,8 +82,10 @@ static const struct modes cmodes[] = {
 	{ "-rtsflow",	0, CRTS_IFLOW },
 	{ "mdmbuf",	MDMBUF, 0 },
 	{ "-mdmbuf",	0, MDMBUF },
+#ifdef CNO_RTSDTR	/* not on Darwin */
 	{ "rtsdtr",	0, CNO_RTSDTR },
 	{ "-rtsdtr",	CNO_RTSDTR, 0 },
+#endif
 	{ NULL,		0, 0 },
 };
 
@@ -120,8 +122,10 @@ static const struct modes imodes[] = {
 	{ "-decctlq",	IXANY, 0 },
 	{ "imaxbel",	IMAXBEL, 0 },
 	{ "-imaxbel",	0, IMAXBEL },
+#ifdef IUTF8
 	{ "iutf8",	IUTF8, 0 },
 	{ "-iutf8",	0, IUTF8 },
+#endif
 	{ NULL,		0, 0 },
 };
 

@@ -245,6 +245,21 @@ f_rows(struct info *ip)
 	ip->wset = 1;
 }
 
+#ifdef __APPLE__
+#include <sys/ttydefaults.h>
+/* ravynOS: Darwin has no cfmakesane(); the defaults f_sane needs. */
+static void
+cfmakesane(struct termios *t)
+{
+	memset(t, 0, sizeof(*t));
+	t->c_cflag = TTYDEF_CFLAG;
+	t->c_iflag = TTYDEF_IFLAG;
+	t->c_lflag = TTYDEF_LFLAG;
+	t->c_oflag = TTYDEF_OFLAG;
+	cfsetspeed(t, TTYDEF_SPEED);
+}
+#endif
+
 void
 f_sane(struct info *ip)
 {

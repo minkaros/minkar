@@ -6,6 +6,7 @@ LDFLAGS = --sysroot=${RAVYN_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
 .export CFLAGS LDFLAGS MK_TESTS
 
 SUBDIR = cat chmod cp df echo hostname launchctl ln ls mkdir mv ps pwd realpath \
+	stty \
 	rm rmdir sleep sh test
 
 .include <bsd.subdir.mk>
