@@ -282,6 +282,8 @@ ${.OBJDIR}/mach/${def:R}_internal.h: ${XNU}/libsyscall/mach/${def}
 	${MIG} ${MIG_FLAGS} -header ${.TARGET} ${.ALLSRC}
 
 ${.OBJDIR}/lib${LIB}.a: ${.OBJDIR}/mach/${def:R}_internal.h
+# These include them: also with -j.
+thread_act.o mach_port.o mach_vm.o: ${.OBJDIR}/mach/${def:R}_internal.h
 .endfor
 
 lib${LIB}.a: ${.OBJDIR}/libmach.a ${.OBJDIR}/libsyscalls.a

@@ -59,7 +59,8 @@ ${.OBJDIR}/config.${CpuArch}.normal.h:
 	${.CURDIR}/xcodescripts/linker_arguments.sh \
 	${CpuArch} normal ${.OBJDIR} ${RAVYN_SDKROOT} ${.CURDIR}
 
-${OBJS}: ${.OBJDIR}/config.${CpuArch}.normal.h ${SRCS}
+# (OBJS is only set later, by bsd.lib.mk.)
+${SRCS:R:S/$/.o/}: ${.OBJDIR}/config.${CpuArch}.normal.h
 
 libunwind.dylib: ${.OBJDIR}/../llvm_target/libunwind/lib/libunwind.a
 	mkdir -p ${RAVYN_SDKROOT}/usr/lib/system ${SYSROOT_DIR}/usr/lib/system
@@ -132,6 +133,11 @@ SUBDIR = libmacho copyfile removefile libdispatch libsystem_blocks libsystem_ker
 # libunwind.dylib 35.4
 # libxpc.dylib 1738.0.17
 # libSystem.B.dylib 1281
+
+# The sub-libraries are compiled with -include config.<arch>.normal.h
+# (CFLAGS): make it before the first of them, also with -j (they are
+# built one after the other).
+all_subdir_${DIRPRFX}${SUBDIR:[1]}: ${.OBJDIR}/config.${CpuArch}.normal.h
 
 .include <bsd.lib.mk>
 .include <bsd.subdir.mk>
