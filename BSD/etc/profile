@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: BSD-2-Clause
-# Copyright (c) 2026 ravynOS contributors
+# Copyright (c) 2026 The Minkar contributors
 #
 # /etc/profile: read by login shells (sh) before ~/.profile.
 # System-wide environment; per-user changes go in ~/.profile.

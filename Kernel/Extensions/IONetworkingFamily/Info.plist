@@ -7,7 +7,7 @@
 	<key>CFBundleExecutable</key>
 	<string>IONetworkingFamily</string>
 	<key>CFBundleGetInfoString</key>
-	<string>@BUNDLE_VERSION@, Copyright (c) 2026 The ravynOS contributors</string>
+	<string>@BUNDLE_VERSION@, Copyright (c) 2026 The Minkar contributors</string>
 	<key>CFBundleIdentifier</key>
 	<string>@BUNDLE_IDENTIFIER@</string>
 	<key>CFBundleInfoDictionaryVersion</key>

@@ -41,5 +41,7 @@ in [LICENSE-ravynOS](LICENSE-ravynOS). Minkar's contributors are listed in
 
 ## License
 
-Each file keeps the license it came with; see [NOTICE](NOTICE) for the
-third-party components and their licenses.
+Code written for Minkar is under the BSD 2-Clause license
+([LICENSE-minkar](LICENSE-minkar)). Each other file keeps the license it
+came with; see [NOTICE](NOTICE) for the third-party components and their
+licenses.

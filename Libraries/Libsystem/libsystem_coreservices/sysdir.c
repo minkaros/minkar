@@ -3,7 +3,7 @@
  *    https://www.manpagez.com/man/3/sysdir/ and
  *    https://github.com/artichoke/sysdir-rs/blob/trunk/src/sys.rs
  * Copyright (C) 2026 Zoe Knox <zoe@pixin.net>
- * Copyright (c) 2026 The ravynOS contributors (enumeration rewrite)
+ * Copyright (c) 2026 The Minkar contributors (enumeration rewrite)
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal

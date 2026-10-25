@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: BSD-2-Clause
-# Copyright (c) 2026 ravynOS contributors
+# Copyright (c) 2026 The Minkar contributors
 #
 # /etc/shrc: read by interactive sh through $ENV (set in /etc/profile).
 # Aliases, the prompt and line editing for everyone; put your own in

@@ -1,6 +1,6 @@
 #!/bin/sh
 # SPDX-License-Identifier: BSD-2-Clause
-# Copyright (c) 2026 The ravynOS contributors
+# Copyright (c) 2026 The Minkar contributors
 #
 # Boot a Minkar disk image (bmake image) in QEMU on a macOS host, with
 # QEMU from MacPorts (/opt/local), Homebrew or anywhere in PATH: the EDK2

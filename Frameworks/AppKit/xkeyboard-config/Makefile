@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: BSD-2-Clause
-# Copyright (c) 2026 The ravynOS contributors
+# Copyright (c) 2026 The Minkar contributors
 #
 # xkeyboard-config: keyboard description data (keycodes, symbols, rules)
 # for libxkbcommon. Data only, MIT/X11 licensed (see COPYING).

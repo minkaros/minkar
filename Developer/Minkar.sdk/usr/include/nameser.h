@@ -1,6 +1,6 @@
 /*
  * SPDX-License-Identifier: BSD-2-Clause
- * Copyright (c) 2026 The ravynOS contributors
+ * Copyright (c) 2026 The Minkar contributors
  *
  * <nameser.h>, which <resolv.h> includes as on macOS: the DNS definitions
  * are those of <arpa/nameser.h>.
