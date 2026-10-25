@@ -75,7 +75,9 @@ LDFLAGS+= -framework Onyx2D -framework CoreFoundation -framework OpenGL
 all: copy-headers libCoreGraphics.a
 
 copy-headers:
-	ln -sf ${.CURDIR:H}/OpenGL/include ${.OBJDIR}/OpenGL
+	# -n: replace the link; plain -sf follows it and drops a self-link in
+	# OpenGL/include.
+	ln -sfn ${.CURDIR:H}/OpenGL/include ${.OBJDIR}/OpenGL
 
 fmwk-install-hook:
 .for dir in ${RAVYN_SDKROOT}/System/Library/Frameworks/ ${SYSROOT_DIR}/System/Library/Frameworks/
