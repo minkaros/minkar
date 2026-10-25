@@ -315,6 +315,7 @@ void     ttwwakeup(struct tty *tp);
 void     ttyblock(struct tty *tp);
 int      ttycheckoutq(struct tty *tp, int wait);
 int      ttyclose(struct tty *tp);      /* LEGACY: avoid using */
+void     ttyrelsession(struct tty *tp, struct session *sessp);
 void     ttyflush(struct tty *tp, int rw);
 void     ttyinfo(struct tty *tp);
 void     ttyinfo_locked(struct tty *tp);

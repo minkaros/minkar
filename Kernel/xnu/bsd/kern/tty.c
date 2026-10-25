@@ -357,6 +357,44 @@ ttyopen(dev_t device, struct tty *tp)
  *
  * Locks:	Assumes tty_lock() is held prior to calling.
  */
+/*
+ * ravynOS: the controlling process of session sessp exited. Detach tp from
+ * the session and its foreground process group, dropping the references
+ * the tty holds on them, as the last close does. A tty kept open elsewhere
+ * (the console: launchd, syslogd) never gets that last close, so it stayed
+ * bound to the dead session and no later process (a getty restarted after
+ * a logout) could make it its controlling terminal (TIOCSCTTY: EPERM).
+ * Called with the tty locked; does nothing if tp has moved on.
+ */
+void
+ttyrelsession(struct tty *tp, struct session *sessp)
+{
+	struct pgrp *oldpg = PGRP_NULL;
+	struct session *oldsessp = SESSION_NULL;
+
+	TTY_LOCK_OWNED(tp);     /* debug assert */
+
+	proc_list_lock();
+	if (tp->t_session == sessp && sessp != SESSION_NULL) {
+		oldpg = tp->t_pgrp;
+		oldsessp = tp->t_session;
+		tp->t_pgrp = NULL;
+		tp->t_session = NULL;
+		oldsessp->s_ttypgrpid = NO_PID;
+	}
+	proc_list_unlock();
+	if (oldsessp == SESSION_NULL) {
+		return;
+	}
+	/* SAFE: All callers drop the lock on return */
+	tty_unlock(tp);
+	session_rele(oldsessp);
+	if (oldpg != PGRP_NULL) {
+		pg_rele(oldpg);
+	}
+	tty_lock(tp);
+}
+
 int
 ttyclose(struct tty *tp)
 {
@@ -1438,9 +1476,17 @@ ttioctl_locked(struct tty *tp, u_long cmd, caddr_t data, int flag, proc_t p)
 		/*
 		 * Deny if the terminal is already attached to another session or
 		 * the session already has a terminal vnode.
+		 *
+		 * ravynOS: a terminal whose session no longer claims it (the
+		 * session's s_ttyp was cleared when its leader exited or it last
+		 * closed the terminal) is orphaned, not attached: it may be
+		 * taken, and the references on the old session and process
+		 * group are dropped below. Otherwise a terminal kept open by
+		 * others (the console) stayed bound to a dead session forever.
 		 */
 		session_lock(sessp);
-		if (sessp->s_ttyvp || tp->t_session) {
+		if (sessp->s_ttyvp || (tp->t_session != SESSION_NULL &&
+		    tp->t_session->s_ttyp == tp)) {
 			session_unlock(sessp);
 			/* SAFE: All callers drop the lock on return */
 			tty_unlock(tp);

@@ -1314,6 +1314,7 @@ proc_exit(proc_t p)
 				 */
 				tty_lock(tp);
 				ttyclrpgrphup(tp);
+				ttyrelsession(tp, sessp);	/* ravynOS */
 				tty_unlock(tp);
 
 				ttyfree(tp);
@@ -2572,6 +2573,7 @@ vfork_exit_internal(proc_t p, int rv, int forceexit)
 				 */
 				tty_lock(tp);
 				ttyclrpgrphup(tp);
+				ttyrelsession(tp, sessp);	/* ravynOS */
 				tty_unlock(tp);
 
 				ttyfree(tp);
