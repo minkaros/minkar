@@ -32,8 +32,8 @@
  * resource limits, priority and MAC labels are left as they are.
  */
 
-#ifndef _RAVYNOS_LOGIN_CAP_H
-#define _RAVYNOS_LOGIN_CAP_H
+#ifndef _MINKAR_LOGIN_CAP_H
+#define _MINKAR_LOGIN_CAP_H
 
 #include <sys/cdefs.h>
 #include <sys/types.h>
@@ -69,4 +69,4 @@ int		 setusercontext(login_cap_t *lc, const struct passwd *pwd,
 		    uid_t uid, unsigned int flags);
 __END_DECLS
 
-#endif /* !_RAVYNOS_LOGIN_CAP_H */
+#endif /* !_MINKAR_LOGIN_CAP_H */

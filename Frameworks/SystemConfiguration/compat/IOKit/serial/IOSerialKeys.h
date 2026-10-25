@@ -30,8 +30,8 @@
  * looks for. Minkar has no serial family yet, so no device has them.
  */
 
-#ifndef _RAVYNOS_COMPAT_IOSERIALKEYS_H
-#define _RAVYNOS_COMPAT_IOSERIALKEYS_H
+#ifndef _MINKAR_COMPAT_IOSERIALKEYS_H
+#define _MINKAR_COMPAT_IOSERIALKEYS_H
 
 #define kIOSerialBSDServiceValue	"IOSerialBSDClient"
 #define kIOSerialBSDTypeKey		"IOSerialBSDClientType"
@@ -44,4 +44,4 @@
 #define kIOCalloutDeviceKey		"IOCalloutDevice"
 #define kIODialinDeviceKey		"IODialinDevice"
 
-#endif /* !_RAVYNOS_COMPAT_IOSERIALKEYS_H */
+#endif /* !_MINKAR_COMPAT_IOSERIALKEYS_H */

@@ -52,7 +52,7 @@
 #include <asl_private.h>
 
 #if !TARGET_OS_IPHONE
-#ifndef __MINKAR__	/* ravynOS: no quarantine (no sandbox) */
+#ifndef __MINKAR__	/* Minkar: no quarantine (no sandbox) */
 #include <quarantine.h>
 #endif
 #endif

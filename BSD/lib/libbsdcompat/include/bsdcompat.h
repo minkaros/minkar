@@ -31,8 +31,8 @@
  * (-include bsdcompat.h).
  */
 
-#ifndef _RAVYNOS_BSDCOMPAT_H
-#define _RAVYNOS_BSDCOMPAT_H
+#ifndef _MINKAR_BSDCOMPAT_H
+#define _MINKAR_BSDCOMPAT_H
 
 #include <sys/cdefs.h>
 #include <stddef.h>
@@ -201,4 +201,4 @@ int		mknodat(int fd, const char *path, mode_t mode, dev_t dev);
 
 __END_DECLS
 
-#endif /* !_RAVYNOS_BSDCOMPAT_H */
+#endif /* !_MINKAR_BSDCOMPAT_H */

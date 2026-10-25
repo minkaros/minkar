@@ -158,7 +158,7 @@ class CodesignTests(unittest.TestCase):
             codesign.sign(self.path)
 
     def test_bundle_identifier_and_sealed_info_plist(self):
-        exe_dir = os.path.join(self.dir, 'Tool.app', 'Contents', 'ravynOS')
+        exe_dir = os.path.join(self.dir, 'Tool.app', 'Contents', 'MacOS')
         os.makedirs(exe_dir)
         info = os.path.join(self.dir, 'Tool.app', 'Contents', 'Info.plist')
         with open(info, 'wb') as f:

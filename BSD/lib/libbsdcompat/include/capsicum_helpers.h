@@ -30,8 +30,8 @@
  * <sys/capsicum.h>), so the helpers only report success.
  */
 
-#ifndef _RAVYNOS_COMPAT_CAPSICUM_HELPERS_H
-#define _RAVYNOS_COMPAT_CAPSICUM_HELPERS_H
+#ifndef _MINKAR_COMPAT_CAPSICUM_HELPERS_H
+#define _MINKAR_COMPAT_CAPSICUM_HELPERS_H
 
 #include <sys/capsicum.h>
 #include <stdio.h>
@@ -54,4 +54,4 @@ static inline int caph_fcntls_limit(int fd, uint32_t f) { (void)fd; (void)f; ret
 static inline void caph_cache_tzdata(void) { }
 static inline void caph_cache_catpages(void) { }
 
-#endif /* !_RAVYNOS_COMPAT_CAPSICUM_HELPERS_H */
+#endif /* !_MINKAR_COMPAT_CAPSICUM_HELPERS_H */

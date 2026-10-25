@@ -27,8 +27,8 @@
 
 /* FreeBSD's <sys/limits.h> for msun: Darwin's <limits.h>, and its __ names. */
 
-#ifndef _RAVYNOS_MSUN_SYS_LIMITS_H
-#define _RAVYNOS_MSUN_SYS_LIMITS_H
+#ifndef _MINKAR_MSUN_SYS_LIMITS_H
+#define _MINKAR_MSUN_SYS_LIMITS_H
 
 #include <limits.h>
 
@@ -40,4 +40,4 @@
 #define	__LONG_MIN	LONG_MIN
 #define	__UINT_MAX	UINT_MAX
 
-#endif /* !_RAVYNOS_MSUN_SYS_LIMITS_H */
+#endif /* !_MINKAR_MSUN_SYS_LIMITS_H */

@@ -31,8 +31,8 @@
  * decoding of integers in a byte stream.
  */
 
-#ifndef _RAVYNOS_COMPAT_SYS_ENDIAN_H
-#define _RAVYNOS_COMPAT_SYS_ENDIAN_H
+#ifndef _MINKAR_COMPAT_SYS_ENDIAN_H
+#define _MINKAR_COMPAT_SYS_ENDIAN_H
 
 #include <sys/types.h>
 #include <stdint.h>
@@ -176,4 +176,4 @@ le64enc(void *pp, uint64_t u)
 	le32enc(p + 4, (uint32_t)(u >> 32));
 }
 
-#endif /* !_RAVYNOS_COMPAT_SYS_ENDIAN_H */
+#endif /* !_MINKAR_COMPAT_SYS_ENDIAN_H */

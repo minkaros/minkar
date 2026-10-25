@@ -2,7 +2,7 @@
 /* config.h.in.  Generated from configure.ac by autoheader.  */
 
 /* FreeBSD's, adjusted for Minkar (Darwin): no <osreldate.h>, no
-   <byteswap.h>, no pipe2 (marked ravynOS below). */
+   <byteswap.h>, no pipe2 (marked Minkar below). */
 
 /* Define if building universal (internal helper macro) */
 /* #undef AC_APPLE_UNIVERSAL_BUILD */

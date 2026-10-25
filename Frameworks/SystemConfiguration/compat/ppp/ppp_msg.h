@@ -31,8 +31,8 @@
  * the values only need to be distinct.
  */
 
-#ifndef _RAVYNOS_COMPAT_PPP_MSG_H
-#define _RAVYNOS_COMPAT_PPP_MSG_H
+#ifndef _MINKAR_COMPAT_PPP_MSG_H
+#define _MINKAR_COMPAT_PPP_MSG_H
 
 enum {
 	PPP_IDLE		= 0,
@@ -73,4 +73,4 @@ enum {
 	VPN_UNLOADING		= 6,
 };
 
-#endif /* !_RAVYNOS_COMPAT_PPP_MSG_H */
+#endif /* !_MINKAR_COMPAT_PPP_MSG_H */

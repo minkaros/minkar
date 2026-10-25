@@ -27,8 +27,8 @@
 
 /* FreeBSD's <machine/asm.h> entry macros for msun's amd64 assembly, Mach-O style. */
 
-#ifndef _RAVYNOS_MSUN_MACHINE_ASM_H
-#define _RAVYNOS_MSUN_MACHINE_ASM_H
+#ifndef _MINKAR_MSUN_MACHINE_ASM_H
+#define _MINKAR_MSUN_MACHINE_ASM_H
 
 #define	__ASM_CAT(a, b)	a ## b
 #define	CNAME(x)	__ASM_CAT(_, x)	/* expands x first: ENTRY(fn), fn defined */
@@ -36,4 +36,4 @@
 #define	END(x)
 #define	RCSID(x)
 
-#endif /* !_RAVYNOS_MSUN_MACHINE_ASM_H */
+#endif /* !_MINKAR_MSUN_MACHINE_ASM_H */

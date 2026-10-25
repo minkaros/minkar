@@ -236,7 +236,7 @@ _path_stat_check_access(const char *path, audit_token_t audit, bool client_is_no
 	}
 
 	/* Don't perform stat if sandbox won't allow it. (15907527) */
-#if	defined(__MINKAR__)	// no sandbox on ravynOS: nothing is sandboxed
+#if	defined(__MINKAR__)	// no sandbox on Minkar: nothing is sandboxed
 	if (0) {
 #else	// __MINKAR__
 	if (!client_is_notifyd && (sandbox_check_by_audit_token(audit, "file-read-metadata", SANDBOX_FILTER_PATH | SANDBOX_CHECK_NO_REPORT, path) != 0)) {

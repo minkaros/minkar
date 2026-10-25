@@ -40,7 +40,7 @@
  */
 int __libarchive_cryptor_build_hack(void);
 
-#if defined(__APPLE__) && !defined(__MINKAR__)	/* ravynOS: no CommonCrypto */
+#if defined(__APPLE__) && !defined(__MINKAR__)	/* Minkar: no CommonCrypto */
 # include <AvailabilityMacros.h>
 # if MAC_OS_X_VERSION_MAX_ALLOWED >= 1080
 #  define ARCHIVE_CRYPTOR_USE_Apple_CommonCrypto

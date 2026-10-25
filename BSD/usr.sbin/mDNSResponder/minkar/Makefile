@@ -3,7 +3,7 @@
 # /usr/sbin/mDNSResponder. It serves the dns_sd API (libsystem_dnssd) on
 # /var/run/mDNSResponder, which libinfo's getaddrinfo() uses: unicast DNS
 # from /etc/resolv.conf and multicast DNS on the local network.
-# mDNSResponder is Apache-2.0 licensed (../LICENSE), approved for ravynOS.
+# mDNSResponder is Apache-2.0 licensed (../LICENSE), approved for Minkar.
 # Changed for Minkar, in mDNSPosix/mDNSPosix.c (marked "Minkar change"),
 # so that unicast DNS works in the POSIX daemon:
 # - mDNSPlatformSetDNSConfig() reports the servers of /etc/resolv.conf,

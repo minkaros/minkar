@@ -27,8 +27,8 @@
 
 /* Casper's DNS service for Minkar: no capability mode, the resolver directly. */
 
-#ifndef _RAVYNOS_COMPAT_CAP_DNS_H
-#define _RAVYNOS_COMPAT_CAP_DNS_H
+#ifndef _MINKAR_COMPAT_CAP_DNS_H
+#define _MINKAR_COMPAT_CAP_DNS_H
 
 #include <sys/socket.h>
 #include <netdb.h>
@@ -86,4 +86,4 @@ cap_dns_family_limit(cap_channel_t *c, const int *families, size_t n)
 	return (0);
 }
 
-#endif /* !_RAVYNOS_COMPAT_CAP_DNS_H */
+#endif /* !_MINKAR_COMPAT_CAP_DNS_H */

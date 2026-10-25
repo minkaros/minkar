@@ -31,8 +31,8 @@
  * succeed (the command keeps the rights it already has).
  */
 
-#ifndef _RAVYNOS_COMPAT_SYS_CAPSICUM_H
-#define _RAVYNOS_COMPAT_SYS_CAPSICUM_H
+#ifndef _MINKAR_COMPAT_SYS_CAPSICUM_H
+#define _MINKAR_COMPAT_SYS_CAPSICUM_H
 
 #include <sys/types.h>
 #include <stdbool.h>
@@ -82,4 +82,4 @@ static inline int cap_rights_limit(int fd, const cap_rights_t *r) { (void)fd; (v
 static inline int cap_ioctls_limit(int fd, const cap_ioctl_t *c, size_t n) { (void)fd; (void)c; (void)n; return (0); }
 static inline int cap_fcntls_limit(int fd, uint32_t f) { (void)fd; (void)f; return (0); }
 
-#endif /* !_RAVYNOS_COMPAT_SYS_CAPSICUM_H */
+#endif /* !_MINKAR_COMPAT_SYS_CAPSICUM_H */

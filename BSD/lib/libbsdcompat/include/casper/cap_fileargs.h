@@ -31,8 +31,8 @@
  * to fileargs_init.
  */
 
-#ifndef _RAVYNOS_COMPAT_CAP_FILEARGS_H
-#define _RAVYNOS_COMPAT_CAP_FILEARGS_H
+#ifndef _MINKAR_COMPAT_CAP_FILEARGS_H
+#define _MINKAR_COMPAT_CAP_FILEARGS_H
 
 #include <sys/capsicum.h>
 #include <sys/stat.h>
@@ -104,4 +104,4 @@ fileargs_free(fileargs_t *fa)
 	free(fa);
 }
 
-#endif /* !_RAVYNOS_COMPAT_CAP_FILEARGS_H */
+#endif /* !_MINKAR_COMPAT_CAP_FILEARGS_H */

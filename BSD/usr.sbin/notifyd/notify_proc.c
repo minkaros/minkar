@@ -1326,7 +1326,7 @@ kern_return_t __notify_server_dump
 	// Things starting with "forbidden-" will be automatically denied for any
 	// sandboxed process, so if this returns non-zero, then that means the
 	// process is in a sandbox and thus can't use this api
-#if	!defined(__MINKAR__)	// no sandbox on ravynOS: nothing is sandboxed
+#if	!defined(__MINKAR__)	// no sandbox on Minkar: nothing is sandboxed
 	if (sandbox_check_by_audit_token(audit, "forbidden-remote-device-admin", SANDBOX_FILTER_NONE)) {
 		mach_port_deallocate(mach_task_self(), fileport);
 		return KERN_SUCCESS;

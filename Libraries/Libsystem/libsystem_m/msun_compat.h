@@ -30,8 +30,8 @@
  * Darwin lacks, force-included when building libsystem_m from msun.
  */
 
-#ifndef _RAVYNOS_MSUN_COMPAT_H
-#define _RAVYNOS_MSUN_COMPAT_H
+#ifndef _MINKAR_MSUN_COMPAT_H
+#define _MINKAR_MSUN_COMPAT_H
 
 #include <sys/cdefs.h>
 #include <sys/types.h>
@@ -82,4 +82,4 @@ typedef double	__double_t;
 #define	__strong_reference(sym, alias)	__msun_alias(sym, alias)
 #endif
 
-#endif /* !_RAVYNOS_MSUN_COMPAT_H */
+#endif /* !_MINKAR_MSUN_COMPAT_H */

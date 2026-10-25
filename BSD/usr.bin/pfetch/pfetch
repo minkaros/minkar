@@ -351,7 +351,7 @@ get_os() {
             # Use the ProductName to determine if we're running in iOS.
             case $mac_product in
                 (iP*) distro='iOS' ;;
-		(ravyn*) distro="Minkar $mac_family" ;;
+		(Minkar*) distro="Minkar $mac_family" ;;
             esac
 
             distro="$distro $mac_version"

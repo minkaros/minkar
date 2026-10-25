@@ -31,8 +31,8 @@
  * do the plain operations.
  */
 
-#ifndef _RAVYNOS_COMPAT_LIBCASPER_H
-#define _RAVYNOS_COMPAT_LIBCASPER_H
+#ifndef _MINKAR_COMPAT_LIBCASPER_H
+#define _MINKAR_COMPAT_LIBCASPER_H
 
 #include <sys/capsicum.h>
 #include <stddef.h>
@@ -44,4 +44,4 @@ static inline cap_channel_t *cap_service_open(cap_channel_t *c, const char *name
 static inline void cap_close(cap_channel_t *c) { (void)c; }
 static inline int cap_limit_set(cap_channel_t *c, void *limits) { (void)c; (void)limits; return (0); }
 
-#endif /* !_RAVYNOS_COMPAT_LIBCASPER_H */
+#endif /* !_MINKAR_COMPAT_LIBCASPER_H */

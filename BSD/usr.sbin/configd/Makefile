@@ -7,7 +7,7 @@
 # /System/Library/SystemConfiguration. Not built: QoSMarking, the
 # IPMonitor configuration agents, NAT64 and SMB (Plugins/IPMonitor/
 # minkar_stubs.c), which need NetworkExtension, Network.framework or SMB.
-# __MINKAR__ marks the changes made for ravynOS. (Apple's buildit
+# __MINKAR__ marks the changes made for Minkar. (Apple's buildit
 # makefile was here.)
 
 SUBDIR =

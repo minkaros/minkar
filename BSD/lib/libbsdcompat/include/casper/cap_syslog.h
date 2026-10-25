@@ -25,8 +25,8 @@
  * SUCH DAMAGE.
  */
 
-#ifndef _RAVYNOS_COMPAT_CAP_SYSLOG_H
-#define _RAVYNOS_COMPAT_CAP_SYSLOG_H
+#ifndef _MINKAR_COMPAT_CAP_SYSLOG_H
+#define _MINKAR_COMPAT_CAP_SYSLOG_H
 
 /* Casper's syslog service, straight to syslog(3): Minkar has no Casper. */
 
@@ -66,4 +66,4 @@ cap_syslog(cap_channel_t *c, int pri, const char *fmt, ...)
 	va_end(ap);
 }
 
-#endif /* !_RAVYNOS_COMPAT_CAP_SYSLOG_H */
+#endif /* !_MINKAR_COMPAT_CAP_SYSLOG_H */

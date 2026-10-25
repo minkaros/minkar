@@ -32,8 +32,8 @@
  * the types and the few prototypes they use are declared here.
  */
 
-#ifndef _RAVYNOS_COMPAT_SECURITY_H
-#define _RAVYNOS_COMPAT_SECURITY_H
+#ifndef _MINKAR_COMPAT_SECURITY_H
+#define _MINKAR_COMPAT_SECURITY_H
 
 #include <sys/types.h>
 #include <CoreFoundation/CoreFoundation.h>
@@ -188,4 +188,4 @@ SecCertificateRef SecCertificateCreateWithData(CFAllocatorRef allocator, CFDataR
 
 __END_DECLS
 
-#endif /* !_RAVYNOS_COMPAT_SECURITY_H */
+#endif /* !_MINKAR_COMPAT_SECURITY_H */
