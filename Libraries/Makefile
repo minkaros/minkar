@@ -76,6 +76,7 @@ runtime: bootstrap_stubs
 		${GMAKE} -C${.OBJDIR}/llvm_target/compiler-rt -j${.MAKE.JOBS}
 	cp -f ${.OBJDIR}/llvm_target/compiler-rt/lib/ravynos/libclang_rt.osx.a \
 	  ${RAVYN_SDKROOT}/usr/lib/
+	mkdir -p ${RAVYN_SDKROOT}/usr/local/lib/kernel
 	cp -f ${.OBJDIR}/llvm_target/compiler-rt/lib/ravynos/libclang_rt.cc_kext.a \
 	  ${RAVYN_SDKROOT}/usr/local/lib/kernel/libcc_kext.a
 
