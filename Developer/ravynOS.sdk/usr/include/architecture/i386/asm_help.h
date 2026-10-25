@@ -35,7 +35,7 @@
  *	for the Intel i386 family processors.
  *
  * HISTORY
- * 11-Jan-26  Zoe Knox (zoe@pixin.net)
+ * 11-01-26   Zoe Knox (zoe@pixin.net)
  *  Adapted to x86_64 and ravynOS
  * 10-Mar-92  Bruce Martin (bmartin@next.com)
  *	Adapted to i386
@@ -352,8 +352,11 @@ L##var##$non_lazy_ptr:	; \
 	jmpl	*%edx		; \
 	NON_LAZY_STUB(func)
 #elif defined(__x86_64__)
+/* A tail branch: callers such as the syscall stubs and __vfork.s rely on
+ * func returning straight to their own caller (and a call would leave the
+ * stack 8 bytes off 16-byte alignment in func). */
 #define BRANCH_EXTERN(func)	\
-	call	func
+	jmp	func
 #endif
 
 #if defined(__i386__)
@@ -386,7 +389,7 @@ L##var##$non_lazy_ptr:	; \
 
 #else // !__DYNAMIC__
 
-#define BRANCH_EXTERN(func)	callq	func
+#define BRANCH_EXTERN(func)	jmp	func
 #define PUSH_EXTERN(var)	pushq	var
 #define CALL_EXTERN(func)	callq	func
 #define CALL_EXTERN_AGAIN(func)	callq	func
