@@ -254,7 +254,12 @@ main(int argc, char *argv[])
 	const char *user, *kernel = NULL, *getopts = GETOPT_REBOOT;
 	char *env = NULL, *v;
 
-	if (strstr(getprogname(), "halt") != NULL) {
+	/*
+	 * ravynOS: on Darwin halting powers the machine off (there is no
+	 * RB_POWEROFF), so poweroff is halt by another name.
+	 */
+	if (strstr(getprogname(), "halt") != NULL ||
+	    strcmp(getprogname(), "poweroff") == 0) {
 		dohalt = true;
 		howto = RB_HALT;
 	} else if (strcmp(getprogname(), "nextboot") == 0) {
@@ -327,7 +332,8 @@ main(int argc, char *argv[])
 
 	if (Dflag && ((howto & ~RB_HALT) != 0  || kernel != NULL))
 		errx(1, "cannot delete existing nextboot config and do anything else");
-	if ((howto & (RB_DUMP | RB_HALT)) == (RB_DUMP | RB_HALT))
+	/* RB_DUMP is 0 on Darwin: the test would then refuse every halt. */
+	if (RB_DUMP != 0 && (howto & (RB_DUMP | RB_HALT)) == (RB_DUMP | RB_HALT))
 		errx(1, "cannot dump (-d) when halting; must reboot instead");
 	if (Nflag && (howto & RB_NOSYNC) != 0)
 		errx(1, "-N cannot be used with -n");
