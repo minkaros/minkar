@@ -1,5 +1,6 @@
 # SPDX-License-Identifier: BSD-2-Clause
 # Copyright (c) 2026 The Minkar contributors
+# Part of Minkar.
 #
 # notifyd, Apple's notification server (libnotify-241, APSL, in the tree):
 # serves notify(3) (libsystem_notify) on the Mach service

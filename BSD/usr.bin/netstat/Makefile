@@ -1,5 +1,6 @@
 # SPDX-License-Identifier: BSD-2-Clause
 # Copyright (c) 2026 The Minkar contributors
+# Part of Minkar.
 #
 # netstat: our own (BSD-2) on sysctl(3) and getifaddrs(3): sockets,
 # routing tables (-r) and interfaces (-i).

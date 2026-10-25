@@ -1,5 +1,6 @@
 # SPDX-License-Identifier: BSD-2-Clause
 # Copyright (c) 2026 The Minkar contributors
+# Part of Minkar.
 #
 # IONetworkingFamily: our own implementation of the macOS network driver
 # family (BSD-2). See README.minkar.

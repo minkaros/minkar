@@ -1,5 +1,6 @@
 # SPDX-License-Identifier: BSD-2-Clause
 # Copyright (c) 2026 The Minkar contributors
+# Part of Minkar.
 #
 # libcommonCrypto, our own (BSD-2), in libSystem as on macOS:
 #   digests     CC_MD5, CC_SHA1, CC_SHA224/256/384/512    (digest.c)

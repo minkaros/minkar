@@ -1,5 +1,6 @@
 # SPDX-License-Identifier: BSD-2-Clause
 # Copyright (c) 2026 The Minkar contributors
+# Part of Minkar.
 #
 # syslog(1), Apple's ASL command (syslog project, APSL, in the tree;
 # approved 2026-10-24): sends messages, searches and follows (-w) the

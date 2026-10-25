@@ -1,5 +1,6 @@
 # SPDX-License-Identifier: BSD-2-Clause
 # Copyright (c) 2026 The Minkar contributors
+# Part of Minkar.
 #
 # libcurl: /usr/lib/libcurl.4.dylib (as on macOS), Mbed TLS and zlib
 # linked in; only the curl_* API is exported.

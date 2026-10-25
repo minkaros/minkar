@@ -1,5 +1,6 @@
 # SPDX-License-Identifier: BSD-2-Clause
 # Copyright (c) 2026 The Minkar contributors
+# Part of Minkar.
 #
 # auditd(8): writes the kernel's audit trail to /var/audit. launchd starts
 # it on demand through the host's audit control port (com.apple.auditd).

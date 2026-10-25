@@ -1,5 +1,6 @@
 # SPDX-License-Identifier: BSD-2-Clause
 # Copyright (c) 2026 The Minkar contributors
+# Part of Minkar.
 #
 # gzip, gunzip, zcat and gzcat: FreeBSD's (NetBSD's) gzip (BSD-2), with
 # its scripts gzexe, zdiff, zforce, zmore and znew (ISC). It reads gzip,

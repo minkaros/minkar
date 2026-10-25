@@ -1,5 +1,6 @@
 # SPDX-License-Identifier: BSD-2-Clause
 # Copyright (c) 2026 The Minkar contributors
+# Part of Minkar.
 #
 # libbsdcompat: what the FreeBSD commands built on Minkar need from
 # FreeBSD that Darwin lacks: capsicum and casper stand-ins

@@ -1,5 +1,6 @@
 # SPDX-License-Identifier: BSD-2-Clause
 # Copyright (c) 2026 The Minkar contributors
+# Part of Minkar.
 #
 # libmagic and the magic database of file(1) 5.46 (Christos Zoulas et al.,
 # BSD-2; COPYING), from FreeBSD's contrib/file in git history: src/ (less

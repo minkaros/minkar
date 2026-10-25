@@ -2,6 +2,7 @@
 #
 # SPDX-License-Identifier: BSD-2-Clause
 # Copyright (c) 2026 The Minkar contributors
+# Part of Minkar.
 #
 # Started by launchd (com.openssh.sshd): creates the host keys sshd lacks,
 # then runs sshd with the arguments given.

@@ -1,5 +1,6 @@
 # SPDX-License-Identifier: BSD-2-Clause
 # Copyright (c) 2026 The Minkar contributors
+# Part of Minkar.
 #
 # route: FreeBSD's route(8), BSD-3, from git history. Routing sockets
 # only (no netlink), no jails, one FIB (XNU has no multiple FIBs).

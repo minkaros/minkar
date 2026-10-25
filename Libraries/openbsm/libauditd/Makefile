@@ -1,5 +1,6 @@
 # SPDX-License-Identifier: BSD-2-Clause
 # Copyright (c) 2026 The Minkar contributors
+# Part of Minkar.
 #
 # libauditd (OpenBSM, BSD): auditd's library, as macOS has it in /usr/lib.
 # launchd uses it to stop auditing at shutdown (audit_quick_stop).

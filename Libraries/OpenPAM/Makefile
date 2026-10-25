@@ -1,5 +1,6 @@
 # SPDX-License-Identifier: BSD-2-Clause
 # Copyright (c) 2026 The Minkar contributors
+# Part of Minkar.
 #
 # OpenPAM: libpam.2.dylib, the security/ headers and the PAM modules
 # (architecture plan, Phase 2: login, later sudo and sshd). See

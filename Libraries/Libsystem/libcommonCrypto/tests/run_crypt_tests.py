@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: BSD-2-Clause
 # Copyright (c) 2026 The Minkar contributors. See ../digest.c for the
-# full license text.
+# full license text. Part of Minkar.
 """Checks cccrypt (CCCryptor, CCCrypt, PBKDF2) against the Python
 cryptography package and hashlib."""
 

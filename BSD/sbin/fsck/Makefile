@@ -1,5 +1,6 @@
 # SPDX-License-Identifier: BSD-2-Clause
 # Copyright (c) 2026 The Minkar contributors
+# Part of Minkar.
 #
 # fsck: front end to the file-system-specific fsck_<type> programs
 # (architecture plan, Phase 2).

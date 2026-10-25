@@ -1,6 +1,7 @@
 /*
  * SPDX-License-Identifier: BSD-2-Clause
  * Copyright (c) 2026 The Minkar contributors
+ * Part of Minkar.
  */
 /*
  * OpenPAM configuration for Minkar (Darwin), written by hand in place of

@@ -1,5 +1,6 @@
 # SPDX-License-Identifier: BSD-2-Clause
 # Copyright (c) 2026 The Minkar contributors
+# Part of Minkar.
 #
 # logger (FreeBSD's, BSD-3); Casper calls go straight to syslog(3).
 
