@@ -28,7 +28,8 @@ See [Docs/BUILDING.md](Docs/BUILDING.md). The source map is in
 ## Contributing
 
 See [Docs/CONTRIBUTING.md](Docs/CONTRIBUTING.md) and the
-[Code of Conduct](Docs/CODE_OF_CONDUCT.md). Issues and discussion:
+[Code of Conduct](Docs/CODE_OF_CONDUCT.md). What is done and what comes
+next is in [Docs/ROADMAP.md](Docs/ROADMAP.md). Issues and discussion:
 https://github.com/minkaros/minkar
 
 ## Credits
