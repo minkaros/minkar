@@ -271,7 +271,7 @@
 /* #undef HAVE_BSD_LIBUTIL_H */
 
 /* Define to 1 if you have the <bsm/audit.h> header file. */
-/* #undef HAVE_BSM_AUDIT_H */
+#define HAVE_BSM_AUDIT_H 1 /* ravynOS: BSM audit, as --with-audit=bsm */
 
 /* Define to 1 if you have the <bstring.h> header file. */
 /* #undef HAVE_BSTRING_H */
@@ -681,10 +681,10 @@
 #define HAVE_GETADDRINFO 1
 
 /* Define to 1 if you have the `getaudit' function. */
-/* #undef HAVE_GETAUDIT */
+#define HAVE_GETAUDIT 1 /* ravynOS: BSM audit, as --with-audit=bsm */
 
 /* Define to 1 if you have the `getaudit_addr' function. */
-/* #undef HAVE_GETAUDIT_ADDR */
+#define HAVE_GETAUDIT_ADDR 1 /* ravynOS: BSM audit, as --with-audit=bsm */
 
 /* Define to 1 if you have the `getcwd' function. */
 #define HAVE_GETCWD 1
@@ -897,7 +897,7 @@
 /* #undef HAVE_LIBAUDIT_H */
 
 /* Define to 1 if you have the `bsm' library (-lbsm). */
-/* #undef HAVE_LIBBSM */
+#define HAVE_LIBBSM 1 /* ravynOS: BSM audit, as --with-audit=bsm */
 
 /* Define to 1 if you have the `dl' library (-ldl). */
 #define HAVE_LIBDL 1
@@ -1938,7 +1938,7 @@
 /* #undef SSHD_PAM_SERVICE */
 
 /* Use audit debugging module */
-/* #undef SSH_AUDIT_EVENTS */
+#define SSH_AUDIT_EVENTS 1 /* ravynOS: BSM audit, as --with-audit=bsm */
 
 /* Windows is sensitive to read buffer size */
 /* #undef SSH_IOBUFSZ */
@@ -1994,7 +1994,7 @@
 /* #undef USE_BRAINPOOLP256R1 */
 
 /* Use BSM audit module */
-/* #undef USE_BSM_AUDIT */
+#define USE_BSM_AUDIT 1 /* ravynOS: BSM audit, as --with-audit=bsm */
 
 /* Use btmp to log bad logins */
 /* #undef USE_BTMP */

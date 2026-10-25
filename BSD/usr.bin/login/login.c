@@ -63,6 +63,8 @@
 #include <security/pam_appl.h>
 #include <security/openpam.h>
 
+#include "login_audit.h"
+
 #define PAM_SERVICE	"login"
 #define MAX_TRIES	3
 #define LOGIN_TIMEOUT	300	/* seconds to log in */
@@ -264,6 +266,8 @@ main(int argc, char *argv[])
 			errx(EX_SOFTWARE, "pam_start: %s", pam_strerror(NULL, rc));
 		if (tty != NULL)
 			(void)pam_set_item(pamh, PAM_TTY, tty);
+		/* The same prompt as getty's, not OpenPAM's "Login:". */
+		(void)pam_set_item(pamh, PAM_USER_PROMPT, "login: ");
 		if (host != NULL)
 			(void)pam_set_item(pamh, PAM_RHOST, host);
 
@@ -275,6 +279,11 @@ main(int argc, char *argv[])
 
 		syslog(LOG_NOTICE, "login failure on %s%s%s", tty != NULL ? tty : "?",
 		    host != NULL ? " from " : "", host != NULL ? host : "");
+		{
+			const void *who = NULL;
+			(void)pam_get_item(pamh, PAM_USER, &who);
+			login_audit_failure((const char *)who, tty, host);
+		}
 		pam_end(pamh, rc);
 		pamh = NULL;
 		preauth = false;
@@ -320,6 +329,8 @@ main(int argc, char *argv[])
 	setup_environment(pw, shell, preserve);
 	syslog(LOG_INFO, "login on %s as %s%s%s", tty != NULL ? tty : "?", pw->pw_name,
 	    host != NULL ? " from " : "", host != NULL ? host : "");
+	/* The audit session, inherited by the shell. */
+	login_audit_success(pw, tty, host);
 
 	switch (pid = fork()) {
 	case -1:
@@ -341,6 +352,7 @@ main(int argc, char *argv[])
 	while (waitpid(pid, &status, 0) < 0 && errno == EINTR)
 		;
 	record(DEAD_PROCESS, NULL, tty, NULL, pid);
+	login_audit_logout(pw);
 
 	pam_close_session(pamh, 0);
 	pam_setcred(pamh, PAM_DELETE_CRED);

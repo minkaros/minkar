@@ -4,13 +4,13 @@
 SUBDIR =
 
 PROG =	login
-SRCS =	login.c
+SRCS =	login.c login_audit.c
 MAN =
 
 CFLAGS = --sysroot=${RAVYN_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
 	-Wall -Wextra -Wno-nullability-completeness
 LDFLAGS = --sysroot=${RAVYN_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
-	-fuse-ld=${LD} -lpam
+	-fuse-ld=${LD} -lpam -lbsm
 
 all: to-sysroot
 

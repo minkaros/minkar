@@ -19,7 +19,8 @@ CFLAGS = --sysroot=${RAVYN_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
 	-I${RAVYN_SDKROOT}/System/Library/Frameworks/System.framework/PrivateHeaders \
 	-I${RAVYN_SDKROOT}/usr/local/include
 LDFLAGS = --sysroot=${RAVYN_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
-	-fuse-ld=${LD} -framework CoreFoundation -framework IOKit -ledit
+	-fuse-ld=${LD} -framework CoreFoundation -framework IOKit -ledit \
+	-lbsm -lauditd	# audit_quick_start() at boot, as on macOS
 
 all: to-sysroot
 

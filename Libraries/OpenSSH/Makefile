@@ -113,9 +113,9 @@ CFLAGS = --sysroot=${RAVYN_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
 LDFLAGS = --sysroot=${RAVYN_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
 	-fuse-ld=${LD}
 
-# sshd-session and sshd-auth do the PAM conversation.
-LDADD.sshd-session =	-lpam
-LDADD.sshd-auth =	-lpam
+# sshd-session and sshd-auth do the PAM conversation and BSM audit.
+LDADD.sshd-session =	-lpam -lbsm
+LDADD.sshd-auth =	-lpam -lbsm
 
 all: ${PROGS} install-sysroot
 
