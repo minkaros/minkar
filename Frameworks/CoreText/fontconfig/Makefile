@@ -1,3 +1,8 @@
+# Use the generated files shipped in the tree: a git checkout leaves
+# Makefile.am & co. as new as Makefile.in, and make would try to run
+# automake/autoconf again.
+NO_AUTOTOOLS =	ACLOCAL=: AUTOCONF=: AUTOMAKE=: AUTOHEADER=:
+
 # fontconfig, built as a static library and linked into CoreText.
 # GNU gperf is not used: src/fcobjshash.h comes from our own BSD-2
 # generator, ../fcobjshash-gen.py.
@@ -34,7 +39,7 @@ ${.OBJDIR}/Makefile: ${.CURDIR}/configure
 	--with-default-fonts=/System/Library/Fonts,/Library/Fonts
 
 build: ${.OBJDIR}/Makefile
-	MAKEFLAGS="" ${GMAKE} -C ${.OBJDIR}/src all
+	MAKEFLAGS="" ${GMAKE} ${NO_AUTOTOOLS} -C ${.OBJDIR}/src all
 	mkdir -p ${SYSROOT_DIR}/etc/fonts/conf.d
 	cp -f ${.CURDIR}/fonts.conf ${SYSROOT_DIR}/etc/fonts/
 
