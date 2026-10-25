@@ -1,6 +1,7 @@
 # -*- mode: makefile;-*-
 #
 # Copyright (C) 1999-2016 Apple Inc. All rights reserved.
+# Modifications Copyright (c) 2026 The Minkar contributors
 #
 # MakeInc.rule defines the targets and rules for
 # leaf directories once MakeInc.dir has recursed

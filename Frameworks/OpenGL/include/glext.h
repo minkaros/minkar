@@ -7,6 +7,7 @@ extern "C" {
 
 /*
 ** Copyright 2013-2026 The Khronos Group Inc.
+** Modifications Copyright (c) 2026 The Minkar contributors
 ** SPDX-License-Identifier: MIT
 **
 ** This header is generated from the Khronos OpenGL / OpenGL ES XML

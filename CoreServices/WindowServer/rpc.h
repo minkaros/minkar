@@ -1,6 +1,7 @@
 /*
  * Quartz Display Services, Window Services RPCs
  * Copyright (C) 2024 Zoe Knox <zoe@ravynsoft.com>
+ * Modifications Copyright (c) 2026 The Minkar contributors
  * 
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal

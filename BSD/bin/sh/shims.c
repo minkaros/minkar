@@ -1,5 +1,6 @@
 /*
  * SPDX-License-Identifier: BSD-2-Clause
+ * Modifications Copyright (c) 2026 The Minkar contributors
  *
  * FreeBSD functions sh uses that Darwin lacks. (test, printf and kill
  * are real built-ins now: see builtins.def and the Makefile.)

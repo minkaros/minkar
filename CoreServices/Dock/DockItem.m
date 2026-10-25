@@ -2,6 +2,7 @@
  * ravynOS Application Launcher & Status Bar
  *
  * Copyright (C) 2021-2024 Zoe Knox <zoe@pixin.net>
+ * Modifications Copyright (c) 2026 The Minkar contributors
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal

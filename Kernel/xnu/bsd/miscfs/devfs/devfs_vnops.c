@@ -27,6 +27,7 @@
  */
 /*
  * Copyright 1997,1998 Julian Elischer.  All rights reserved.
+ * Modifications Copyright (c) 2026 The Minkar contributors
  * julian@freebsd.org
  *
  * Redistribution and use in source and binary forms, with or without

@@ -4,6 +4,7 @@
  *
  * Copyright (C) 2010 Henrik Rydberg <rydberg@euromail.se>
  * Copyright (C) 2010 Canonical Ltd.
+ * Modifications Copyright (c) 2026 The Minkar contributors
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),

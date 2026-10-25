@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2000, 2001, 2004, 2005, 2007-2010, 2015, 2018 Apple Inc. All rights reserved.
+ * Modifications Copyright (c) 2026 The Minkar contributors
  *
  * @APPLE_LICENSE_HEADER_START@
  *

@@ -3,6 +3,7 @@
  *
  * Copyright (c) 1988, 1993, 1994
  *	The Regents of the University of California.  All rights reserved.
+ * Modifications Copyright (c) 2026 The Minkar contributors
  *
  * This code is derived from software contributed to Berkeley by
  * David Hitz of Auspex Systems Inc.

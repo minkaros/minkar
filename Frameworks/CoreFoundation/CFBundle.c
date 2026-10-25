@@ -23,6 +23,7 @@
 
 /*      CFBundle.c
         Copyright (c) 1999-2014, Apple Inc.  All rights reserved.
+        Modifications Copyright (c) 2026 The Minkar contributors
         Responsibility: Tony Parker
 */
 

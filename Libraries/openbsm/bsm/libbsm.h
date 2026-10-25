@@ -1,6 +1,7 @@
 /*-
  * Copyright (c) 2004-2009 Apple Inc.
  * All rights reserved.
+ * Modifications Copyright (c) 2026 The Minkar contributors
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions

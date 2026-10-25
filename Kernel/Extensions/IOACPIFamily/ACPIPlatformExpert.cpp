@@ -2,6 +2,7 @@
  * Copyright (C) 2026 Zoe Knox. All rights reserved.
  * Portions Copyright (c) 1999-2003 Apple Computer, Inc. All Rights
  * Reserved.
+ * Modifications Copyright (c) 2026 The Minkar contributors
  *
  * This file contains Original Code and/or Modifications of Original Code
  * as defined in and that are subject to the Apple Public Source License

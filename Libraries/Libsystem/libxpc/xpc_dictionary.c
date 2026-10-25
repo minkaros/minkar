@@ -2,6 +2,7 @@
  * Copyright 2014-2015 iXsystems, Inc.
  * Copyright 2026 Zoe Knox
  * All rights reserved
+ * Modifications Copyright (c) 2026 The Minkar contributors
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted providing that the following conditions

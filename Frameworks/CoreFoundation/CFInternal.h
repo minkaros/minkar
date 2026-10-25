@@ -23,6 +23,7 @@
 
 /*	CFInternal.h
 	Copyright (c) 1998-2014, Apple Inc. All rights reserved.
+	Modifications Copyright (c) 2026 The Minkar contributors
 
     Modified for ravynOS by Zoe Knox, 2026
 */

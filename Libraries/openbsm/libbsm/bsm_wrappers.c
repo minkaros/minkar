@@ -2,6 +2,7 @@
  * Copyright (c) 2004-2009 Apple Inc.
  * Copyright (c) 2016 Robert N. M. Watson
  * All rights reserved.
+ * Modifications Copyright (c) 2026 The Minkar contributors
  *
  * Portions of this software were developed by BAE Systems, the University of
  * Cambridge Computer Laboratory, and Memorial University under DARPA/AFRL

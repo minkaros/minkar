@@ -1,6 +1,7 @@
 /* -*- mode: C++; c-basic-offset: 4; tab-width: 4 -*-
  *
  * Copyright (c) 2004-2010 Apple Inc. All rights reserved.
+ * Modifications Copyright (c) 2026 The Minkar contributors
  *
  * @APPLE_LICENSE_HEADER_START@
  * 

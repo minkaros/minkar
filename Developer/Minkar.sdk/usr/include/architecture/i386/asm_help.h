@@ -26,6 +26,7 @@
  * @APPLE_OSREFERENCE_LICENSE_HEADER_END@
  */
 /* Copyright (c) 1991 NeXT Computer, Inc.  All rights reserved.
+ * Modifications Copyright (c) 2026 The Minkar contributors
  *
  *	File:	architecture/i386/asm_help.h
  *	Author:	Mike DeMoney, NeXT Computer, Inc.

@@ -3,6 +3,7 @@
  * Author: Zoe Knox      Created: 2026-02-14
  *
  * Copyright (C) 2026 Zoe Knox. All rights reserved.
+ * Modifications Copyright (c) 2026 The Minkar contributors
  * SPDX: BSD-2-Clause
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy

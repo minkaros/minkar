@@ -14,6 +14,7 @@
  * limitations under the License.
  * 
  * @APPLE_APACHE_LICENSE_HEADER_END@
+ * Modifications Copyright (c) 2026 The Minkar contributors
  */
 
 #include "config.h"

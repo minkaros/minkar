@@ -1,6 +1,7 @@
 .NOTPARALLEL:
 #
 # Copyright (C) 1999-2016 Apple Inc. All rights reserved.
+# Modifications Copyright (c) 2026 The Minkar contributors
 #
 ifndef VERSDIR
 export VERSDIR := $(shell /bin/pwd)

@@ -3,6 +3,7 @@
  * Author: Zoe Knox      Created: 2026-02-15
  *
  * Copyright (C) 2026 Zoe Knox. All rights reserved.
+ * Modifications Copyright (c) 2026 The Minkar contributors
  * SPDX: BSD-2-Clause
  *
  * This is an original implementation of Apple's libsystem_trace.dylib based on
