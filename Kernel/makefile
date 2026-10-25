@@ -26,16 +26,18 @@ TARGETS = ${DKPATH}
 .endif
 TARGETS += xnu_all
 
-MAKEFLAGS=
-.MAKEFLAGS=
+# xnu's gmake must not see bmake's flags: they are cleared for it alone.
+# (Clearing them for the whole file also took the jobs from the sub-makes,
+# so all of Libraries, ICU included, was built one job at a time.)
 
 PLATFORM_DIR=${ROOT_BINARY_DIR}/Developer/Platforms/ravynOS.platform
 
-all: ${TARGETS}
+# The SUBDIRs (added to this list by bsd.subdir.mk) after xnu, as before.
+all: ${TARGETS} .WAIT
 installhdrs: .PHONY
 	touch ${ROOT_BINARY_DIR}${.CURDIR}/xnu/.mach_kernel.timestamp
 	touch ${ROOT_BINARY_DIR}${.CURDIR}/xnu/.symbolset.timestamp
-	PATH="${PATH}" ${GMAKE} -C ${.CURDIR}/xnu LOGCOLORS=y PLATFORM=MacOSX BUILD_LTO=0 \
+	MAKEFLAGS= PATH="${PATH}" ${GMAKE} -C ${.CURDIR}/xnu LOGCOLORS=y PLATFORM=MacOSX BUILD_LTO=0 \
 		BUILD_PROFILE=0 BUILD_WERROR=0 DO_CTFMERGE=0 \
 		SDKVERSION=${MACOS_VERSION_MIN} SRCROOT=${.CURDIR}/xnu \
 		OBJROOT=${.OBJDIR}/xnu DSTROOT=${RAVYN_SDKROOT} \
@@ -61,7 +63,7 @@ compiler_rt: .PHONY
 # In this order, also with -j: Libraries needs the kernel headers, and
 # libfirehose_kernel archives Libraries' libplatform, libkernel and libc++.
 xnu_all: installhdrs .WAIT compiler_rt .WAIT libfirehose_kernel
-	PATH="${PATH}" ${GMAKE} -C ${.CURDIR}/xnu LOGCOLORS=y \
+	MAKEFLAGS= PATH="${PATH}" ${GMAKE} -C ${.CURDIR}/xnu LOGCOLORS=y \
 		PLATFORM=MacOSX BUILD_LTO=0 BUILD_WERROR=0 DO_CTFMERGE=0 \
 		SDKVERSION=${MACOS_VERSION_MIN} SRCROOT=${.CURDIR}/xnu \
 		OBJROOT=${.OBJDIR}/xnu DSTROOT=${RAVYN_SDKROOT} \
