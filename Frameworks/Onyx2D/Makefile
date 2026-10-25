@@ -243,6 +243,8 @@ libpng.a:
 	    -S${ROOT_SOURCE_DIR}/BSD/lib/libpng -B${.OBJDIR}/png
 	cmake --build ${.OBJDIR}/png
 
+# The optional codecs are off: otherwise cmake picks up whatever it finds
+# (the build host's /usr/include/lzma.h, an SDK left by an earlier build).
 libtiff.a:
 	cmake -DCMAKE_C_COMPILER=${CC} -DCMAKE_CXX_COMPILER=${CXX} \
 	    -DCMAKE_C_COMPILER_LINKER=${LD} \
@@ -255,6 +257,8 @@ libtiff.a:
 	    -DCMAKE_SYSTEM_VERSION=${MACOS_VERSION_MIN} \
 	    -DCMAKE_SYSTEM_PROCESSOR=${CpuArch} \
 	    -DBUILD_SHARED_LIBS=OFF \
+	    -Dlzma=OFF -Dzstd=OFF -Dwebp=OFF -Djbig=OFF -Dlerc=OFF \
+	    -Dlibdeflate=OFF \
 	    -S${ROOT_SOURCE_DIR}/BSD/lib/libtiff -B${.OBJDIR}/tiff
 	cmake --build ${.OBJDIR}/tiff
 
