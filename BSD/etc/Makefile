@@ -3,8 +3,7 @@
 # environment, aliases, prompt), the PAM policies, services and protocols
 # (FreeBSD's, from IANA's registries), the root CA certificates
 # (ssl/cert.pem, Mozilla's), sudo's configuration, and
-# resolv.conf, a link to the one dhcpclient writes, as on macOS, and
-# sysctl.conf, with the default host name (minkar).
+# resolv.conf, a link to the one dhcpclient writes, as on macOS.
 
 SUBDIR =
 
@@ -20,7 +19,7 @@ all: install-etc
 install-etc: .PHONY
 	mkdir -p ${ETC}/pam.d
 	install -o 0 -g 0 -m 0600 ${.CURDIR}/master.passwd ${ETC}/
-.for f in passwd group shells motd services protocols profile shrc sysctl.conf
+.for f in passwd group shells motd services protocols profile shrc
 	install -o 0 -g 0 -m 0644 ${.CURDIR}/${f} ${ETC}/
 .endfor
 .for f in login other su sudo
