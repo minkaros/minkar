@@ -1,0 +1,56 @@
+ravynOS contributors (github.com/ravynsoft/ravynos) up to commit 60aa4ff4b16a54ef8cc1a9ea656b8a827b3419b7, 2026-09-06.
+
+Upstream squashed its earlier history into one commit on 2025-09-28
+(eb8fa00e7e, "Squash old history"), so contributors before that date are
+not listed here; see the ravynOS project for them. Commits per author:
+
+   451	Zoë Knox
+    56	Bojan Novković
+    30	Konstantin Belousov
+    23	Mark Johnston
+    17	Lexi Winter
+    16	John Baldwin
+    13	Dag-Erling Smørgrav
+    10	Bjoern A. Zeeb
+    10	Cy Schubert
+     8	Ed Maste
+     7	Brooks Davis
+     6	Andrew Turner
+     6	Kristof Provost
+     6	Kyle Evans
+     6	Toomas Soome
+     6	Zoe Knox
+     5	Michael Tuexen
+     5	Nick Banks
+     4	Christos Margiolis
+     4	Timo Völker
+     4	Zhenlei Huang
+     4	jqackkk
+     3	Mateusz Piotrowski
+     3	Olivier Certner
+     3	Peter Holm
+     3	Vali
+     3	Zoë
+     2	Chandrakanth Patil
+     2	Colin Percival
+     2	Ka Ho Ng
+     2	Kajetan Staszkiewicz
+     2	Kaleb Ascevich
+     2	Nathan Huff
+     2	Poul-Henning Kamp
+     2	Rene Ladan
+     2	Trond Endrestøl
+     2	Älven
+     1	Aktywny
+     1	Baptiste Daroussin
+     1	Damin Rido
+     1	Danielle
+     1	Isaac Freund
+     1	Jon Sterling
+     1	Kevin Bowling
+     1	Mark Shank
+     1	Olivier Cochard
+     1	Vali0004
+     1	Warner Losh
+     1	Yagya Parihar
+     1	icy17

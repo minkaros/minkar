@@ -1,0 +1,93 @@
+Minkar
+Copyright (c) 2026 The Minkar contributors.
+
+Minkar is a fork of ravynOS (https://github.com/ravynsoft/ravynos).
+See CREDITS-ravynOS.txt for the list of its contributors.
+
+Each file keeps the copyright and license notices it came with; where a
+file has its own notice, that notice applies. The license texts are in
+the files named below, next to the code they cover.
+
+This product includes third-party software:
+
+Project code
+- ravynOS - BSD-2-Clause, Copyright 2021-2022 ravynsoft, Inc.
+  (LICENSE-ravynOS); some files are under MIT, per their headers.
+
+Apple open source (Darwin) - Apple Public Source License 2.0 (APPLE_LICENSE)
+- XNU kernel (Kernel/xnu)
+- Kernel extensions: AppleAPIC, IOATAFamily, IOGraphics, IOPCIFamily,
+  IOStorageFamily, hfs, msdosfs (Kernel/Extensions)
+- IOKitUser, kext_tools (Kernel)
+- dyld, objc4, Libsystem, libsystem_c, libsystem_info, libsystem_notify,
+  libresolv, copyfile (Libraries)
+- CoreFoundation, CFNetwork, Security, OpenDirectory, DirectoryService
+  (Frameworks)
+- syslog, configd (BSD)
+- cctools and ld64 (Developer/Default.xctoolchain/cctools); some parts
+  of cctools (as) are under the GNU GPL (cctools/as/COPYING) and are
+  used only on the build host
+
+Apple open source - Apache License 2.0
+- libdispatch (Libraries/Libsystem/libdispatch/LICENSE)
+- libsystem_platform (Libraries/Libsystem/libsystem_platform/LICENSE)
+- launchd and launchctl (BSD/sbin/launchd, BSD/bin/launchctl), per file
+  headers
+- mDNSResponder (BSD/usr.sbin/mDNSResponder/LICENSE; some files are
+  BSD-3-Clause, per their headers)
+
+FreeBSD and BSD components - BSD-2-Clause and BSD-3-Clause, per file
+headers
+- FreeBSD userland and libraries (BSD/)
+- libedit (BSD/lib/libedit/COPYING)
+- libarchive (BSD/lib/libarchive/COPYING)
+- libmagic / file (BSD/lib/libmagic/COPYING)
+- libxo (BSD/lib/libxo/LICENSE)
+- less (BSD/usr.bin/less/LICENSE)
+- nvi (BSD/usr.bin/vi/LICENSE)
+- OpenBSM (Libraries/openbsm/LICENSE)
+- OpenPAM (Libraries/OpenPAM/openpam/LICENSE)
+- OpenSSH (Libraries/OpenSSH/openssh/LICENCE)
+- xcbuild (Developer/Default.xctoolchain/xcbuild/LICENSE)
+- ISO scripts (ISO/LICENSE)
+
+Cocotron - MIT (Frameworks/Foundation/LICENSE.txt,
+Frameworks/CoreServices/LICENSE.txt)
+- Foundation, AppKit, CoreGraphics, Onyx2D and related frameworks
+
+Other components
+- LLVM, clang, compiler-rt, libc++ - Apache-2.0 WITH LLVM-exception
+  (Developer/Default.xctoolchain/llvm/LICENSE.TXT)
+- ICU - Unicode License v3 (Libraries/ICU/LICENSE)
+- zlib - zlib License (Libraries/zlib/LICENSE)
+- Mbed TLS - Apache-2.0 OR GPL-2.0-or-later (Libraries/mbedtls/LICENSE)
+- ncurses - MIT-style (BSD/lib/ncurses/COPYING)
+- one-true-awk - Lucent License (BSD/usr.bin/awk/LICENSE)
+- curl - curl License (BSD/usr.bin/curl/COPYING)
+- sudo - ISC (BSD/usr.bin/sudo/LICENSE.md)
+- bzip2 - bzip2 License (BSD/lib/bzip2/src/LICENSE)
+- libffi - MIT (BSD/lib/libffi/LICENSE)
+- libjpeg-turbo - IJG, BSD-3-Clause and zlib (BSD/lib/libjpeg/LICENSE.md)
+- libpng - libpng License v2 (BSD/lib/libpng/LICENSE)
+- LibTIFF - libtiff License (BSD/lib/libtiff/LICENSE.md)
+- utf8proc - MIT (BSD/lib/libutf8/LICENSE.md)
+- pixman - MIT (BSD/lib/libpixman/COPYING)
+- FreeType - FreeType License (Frameworks/Onyx2D/freetype/LICENSE.TXT)
+- fontconfig - MIT-style (Frameworks/CoreText/fontconfig/COPYING)
+- gettext-tiny - MIT (Frameworks/CoreText/gettext-tiny/LICENSE)
+- GNU libiconv - LGPL-2.1 (Frameworks/CoreText/libiconv/COPYING.LIB),
+  shipped as a dynamic library
+- XZ Utils / liblzma - 0BSD; other parts under other licenses
+  (Frameworks/CoreText/xz/COPYING)
+- xkeyboard-config - MIT-style (Frameworks/AppKit/xkeyboard-config/COPYING)
+- libevdev, libinput, libxkbcommon, mtdev - MIT
+  (CoreServices/WindowServer/*/COPYING, LICENSE)
+- Mozilla CA certificate bundle - MPL-2.0 (BSD/etc/ssl/cert.pem)
+
+Present in the source tree but not built into the system image
+- GNU bash (GNU/bin/bash) - GPL-3.0
+- dmidecode (GNU/bin/dmidecode) - GPL-2.0
+- zsh (BSD/usr.bin/zsh/LICENCE) - MIT-style; some shell functions GPL
+- GNU gperf (Frameworks/CoreText/gperf) - GPL-3.0
+- GNU make (Developer/Default.xctoolchain/gmake) - GPL-3.0, a build
+  tool run on the build host
