@@ -33,7 +33,7 @@
 
 #include <mtdev-mapping.h>
 #include <mtdev-plumbing.h>
-#ifdef __RAVYNOS__
+#ifdef __MINKAR__
 #include <stdlib.h>
 #else
 #include <malloc.h>

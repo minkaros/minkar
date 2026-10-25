@@ -82,7 +82,7 @@ NSData *_runCommand(const char *tool, const char *args, id delegate) {
         NSFileHandle *reader = [[NSFileHandle alloc] initWithFileDescriptor:filedesc[0]];
         if(delegate == nil) {
             NSData *data = [reader readDataToEndOfFile];
-#ifdef __RAVYNOS__
+#ifdef __MINKAR__
             [data retain];
             [reader release];
 #endif
@@ -119,7 +119,7 @@ BOOL parserError(NSString *msg) {
 }
 
 BOOL discoverGEOMs(BOOL onlyUsable) {
-#ifdef __RAVYNOS__
+#ifdef __MINKAR__
     if(disks != nil)
         [disks release];
     disks = [[NSMutableArray arrayWithCapacity:4] retain];
@@ -227,7 +227,7 @@ NSString *formatMediaSize(long bytes) {
 }
 
 -(void)setName:(NSString *)name {
-#ifdef __RAVYNOS__
+#ifdef __MINKAR__
     _name = [name retain];
 #else
     _name = name;
@@ -246,7 +246,7 @@ NSString *formatMediaSize(long bytes) {
 }
 
 -(void)setMediaDescription:(NSString *)description {
-#ifdef __RAVYNOS__
+#ifdef __MINKAR__
     _description = [description retain];
 #else
     _description = description;
@@ -262,7 +262,7 @@ NSString *formatMediaSize(long bytes) {
 }
 
 -(void)deletePartitions {
-#ifdef __RAVYNOS__
+#ifdef __MINKAR__
   @autoreleasepool {
     NSString *cmd = [[NSString stringWithFormat:@"list %@", _name] autorelease];
     NSData *parts = runCommand(GPART_CMD, [cmd UTF8String]);
@@ -283,7 +283,7 @@ NSString *formatMediaSize(long bytes) {
 }
 
 -(void)createGPT {
-#ifdef __RAVYNOS__
+#ifdef __MINKAR__
     [self deletePartitions]; // just in case
 
   @autoreleasepool {
@@ -296,7 +296,7 @@ NSString *formatMediaSize(long bytes) {
 }
 
 -(void)createPartitions {
-#ifdef __RAVYNOS__
+#ifdef __MINKAR__
   @autoreleasepool {
     NSString *cmd = [[NSString stringWithFormat:@"add -t efi -s 1m -l efi %@", _name] autorelease];
     appendLog(runCommand(GPART_CMD, [cmd UTF8String]));
@@ -311,7 +311,7 @@ NSString *formatMediaSize(long bytes) {
 }
 
 -(void)createPools {
-#ifdef __RAVYNOS__
+#ifdef __MINKAR__
   @autoreleasepool {
     mkdir("/tmp/pool",0755);
     NSString *cmd = [[NSString stringWithFormat:@"create -f -R /tmp/pool -O mountpoint=/ -O atime=off -O canmount=off -O compression=on %s %@p3", ZFS_POOL_NAME, _name] autorelease];
@@ -340,7 +340,7 @@ NSString *formatMediaSize(long bytes) {
 }
 
 -(void)initializeEFI {
-#ifdef __RAVYNOS__
+#ifdef __MINKAR__
     mkdir("/tmp/efi",0755);
     runCommand("/sbin/mount_msdosfs", [[NSString stringWithFormat:@"/dev/%@p1 /tmp/efi", _name] UTF8String]);
     mkdir("/tmp/efi/efi",0755);
@@ -359,7 +359,7 @@ NSString *formatMediaSize(long bytes) {
 }
 
 -(void)copyFilesystem {
-#ifdef __RAVYNOS__
+#ifdef __MINKAR__
     int fd = open("/tmp/excludes", O_CREAT|O_RDWR, 0644);
     const char *str = "/dev\n/proc\n/tmp\n/Applications/Utilities/Install Minkar.app\n";
     write(fd, str, strlen(str));
@@ -370,7 +370,7 @@ NSString *formatMediaSize(long bytes) {
 }
 
 -(void)finalizeInstallation {
-#ifdef __RAVYNOS__
+#ifdef __MINKAR__
     setenv("BSDINSTALL_CHROOT", "/tmp/pool", 1);
     appendLog(runCommand("/usr/sbin/bsdinstall", "config"));
     appendLog(runCommand("/usr/sbin/bsdinstall", "entropy"));

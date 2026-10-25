@@ -25,6 +25,8 @@ void getDarwinDefines(MacroBuilder &Builder, const LangOptions &Opts,
                       VersionTuple &PlatformMinVersion) {
   Builder.defineMacro("__APPLE_CC__", "6000");
   Builder.defineMacro("__APPLE__");
+  Builder.defineMacro("__MINKAR__");
+  // The former name, for code that still tests it.
   Builder.defineMacro("__RAVYNOS__");
   Builder.defineMacro("__STDC_NO_THREADS__");
 

@@ -45,10 +45,10 @@
 #include "SCD.h"
 #include "config.h"		/* MiG generated file */
 
-#if	defined(__RAVYNOS__)
+#if	defined(__MINKAR__)
 /* libsystem_trace's, not in <os/log.h> */
 void	os_log_with_args	(os_log_t oslog, os_log_type_t type, const char *format, va_list args, void *ret_addr);
-#endif	// __RAVYNOS__
+#endif	// __MINKAR__
 
 #define INSTALL_ENVIRONMENT	"__OSINSTALL_ENVIRONMENT"
 

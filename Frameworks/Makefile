@@ -1,5 +1,5 @@
 # ------------------------------------------------------------------------
-#  RAVYNOS BUILD SYSTEM - Frameworks
+#  MINKAR BUILD SYSTEM - Frameworks
 # ------------------------------------------------------------------------
 
 SUBDIR = CoreFoundation

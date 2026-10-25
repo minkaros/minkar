@@ -21,7 +21,7 @@ MK_PIE=		no
 WARNS=	        1
 OBJCFLAGS= -fobjc-runtime=gnustep-2.0 -fobjc-nonfragile-abi -fPIC \
 	   -Wno-missing-method-return-type -Wno-macro-redefined
-CFLAGS+=	-g -fobjc-arc ${OBJCFLAGS} -D__RAVYNOS__ -D__MACH__ \
+CFLAGS+=	-g -fobjc-arc ${OBJCFLAGS} -D__MINKAR__ -D__MACH__ \
 		--sysroot=${OBJTOP}/tmp -B${OBJTOP}/tmp/usr/bin \
 		-B${OBJTOP}/tmp/legacy/bin -I${SRCTOP}/gnu/lib/libobjc2 \
 		-I${.CURDIR} -I${MAKEOBJDIR} -I${SRCTOP}/include \
@@ -54,7 +54,7 @@ ${MAKEOBJDIR}/OpenGL:
 	ln -sf ${SRCTOP}/Frameworks/OpenGL/include ${.TARGET}
 
 ${.CURDIR}/kickSession: kickSession.m
-	${CC} -D__RAVYNOS__ -D__MACH__ -o ${.TARGET} ${.ALLSRC} \
+	${CC} -D__MINKAR__ -D__MACH__ -o ${.TARGET} ${.ALLSRC} \
 		--sysroot=${OBJTOP}/tmp -B${OBJTOP}/tmp/usr/bin \
 		${OBJCFLAGS} -I${SRCTOP}/Frameworks -I${MAKEOBJDIR} \
 		-F${OBJTOP}/Frameworks/Foundation \

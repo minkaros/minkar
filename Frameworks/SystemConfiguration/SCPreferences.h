@@ -32,12 +32,12 @@
 #include <SystemConfiguration/SCDynamicStore.h>
 
 #if	!TARGET_OS_IPHONE
-#if	!defined(__RAVYNOS__) || __has_include(<Security/Security.h>)
+#if	!defined(__MINKAR__) || __has_include(<Security/Security.h>)
 #include <Security/Security.h>
-#else	// !__RAVYNOS__ || Security
+#else	// !__MINKAR__ || Security
 /* Minkar has no Security.framework yet: only the Authorization type. */
 typedef const struct AuthorizationOpaqueRef *	AuthorizationRef;
-#endif	// !__RAVYNOS__ || Security
+#endif	// !__MINKAR__ || Security
 #else	// !TARGET_OS_IPHONE
 typedef const struct AuthorizationOpaqueRef *	AuthorizationRef;
 #endif	// !TARGET_OS_IPHONE

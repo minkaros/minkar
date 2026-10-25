@@ -40,7 +40,7 @@
  */
 int __libarchive_hmac_build_hack(void);
 
-#if defined(__APPLE__) && !defined(__RAVYNOS__)	/* ravynOS: no CommonCrypto */
+#if defined(__APPLE__) && !defined(__MINKAR__)	/* ravynOS: no CommonCrypto */
 # include <AvailabilityMacros.h>
 # if MAC_OS_X_VERSION_MAX_ALLOWED >= 1060
 #  define ARCHIVE_HMAC_USE_Apple_CommonCrypto

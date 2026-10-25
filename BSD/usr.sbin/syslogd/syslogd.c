@@ -51,7 +51,7 @@
 #include <asl_private.h>
 
 #if !TARGET_OS_IPHONE
-#ifndef __RAVYNOS__	/* ravynOS: no quarantine (no sandbox) */
+#ifndef __MINKAR__	/* ravynOS: no quarantine (no sandbox) */
 #include <quarantine.h>
 #endif
 #endif
@@ -486,7 +486,7 @@ main(int argc, const char *argv[])
 	/* Set I/O policy */
 	setiopolicy_np(IOPOL_TYPE_DISK, IOPOL_SCOPE_PROCESS, IOPOL_PASSIVE);
 
-#if !TARGET_OS_IPHONE && !defined(__RAVYNOS__)
+#if !TARGET_OS_IPHONE && !defined(__MINKAR__)
 	/* Set Quarantine */
 	qtn_proc_t qp = qtn_proc_alloc();
 	qtn_proc_set_identifier(qp, "com.apple.syslogd");

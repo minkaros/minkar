@@ -49,9 +49,9 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <net/if.h>
-#if	!defined(__RAVYNOS__)
+#if	!defined(__MINKAR__)
 #include <nw/private.h>
-#else	// !__RAVYNOS__
+#else	// !__MINKAR__
 #include <ifaddrs.h>
 #include <stdlib.h>
 
@@ -124,7 +124,7 @@ freeconninfo(conninfo_t *info)
 {
 	free(info);
 }
-#endif	// !__RAVYNOS__
+#endif	// !__MINKAR__
 
 #pragma mark SCNetworkSignature Supporting APIs
 

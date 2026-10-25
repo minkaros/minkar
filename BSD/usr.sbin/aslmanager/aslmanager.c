@@ -27,7 +27,7 @@
 #include <asl_store.h>
 #include <errno.h>
 #include <vproc_priv.h>
-#ifdef __RAVYNOS__
+#ifdef __MINKAR__
 /* Minkar: launchd starts aslmanager when needed; no transactions. */
 typedef void *os_transaction_t;
 #define os_transaction_create(name)	((void)(name), (os_transaction_t)NULL)

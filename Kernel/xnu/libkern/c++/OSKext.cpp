@@ -7765,7 +7765,7 @@ OSKext::resolveDependencies(
 		    APPLE_KEXT_PREFIX) || STRING_HAS_PREFIX(getIdentifierCString(),
             RAVYNOS_KEXT_PREFIX);
 
-#ifdef __RAVYNOS__
+#ifdef __MINKAR__
         infoCopyrightIsValid = true;
         readableCopyrightIsValid = true;
 #else

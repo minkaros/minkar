@@ -73,9 +73,9 @@
 #include <fcntl.h>
 #include <assert.h>
 #include <tzfile.h>
-#if	!defined(__RAVYNOS__)
+#if	!defined(__MINKAR__)
 #include <sandbox.h>
-#endif	// !__RAVYNOS__
+#endif	// !__MINKAR__
 #include <bsm/libbsm.h>
 #include "pathwatch.h"
 #include "notifyd.h"
@@ -235,11 +235,11 @@ _path_stat_check_access(const char *path, audit_token_t audit, bool client_is_no
 	}
 
 	/* Don't perform stat if sandbox won't allow it. (15907527) */
-#if	defined(__RAVYNOS__)	// no sandbox on ravynOS: nothing is sandboxed
+#if	defined(__MINKAR__)	// no sandbox on ravynOS: nothing is sandboxed
 	if (0) {
-#else	// __RAVYNOS__
+#else	// __MINKAR__
 	if (!client_is_notifyd && (sandbox_check_by_audit_token(audit, "file-read-metadata", SANDBOX_FILTER_PATH | SANDBOX_CHECK_NO_REPORT, path) != 0)) {
-#endif	// __RAVYNOS__
+#endif	// __MINKAR__
 		return PATH_STAT_ACCESS;
 	}
 

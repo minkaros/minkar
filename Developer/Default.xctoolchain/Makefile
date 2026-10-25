@@ -1,5 +1,5 @@
 # ------------------------------------------------------------------------
-#  RAVYNOS BUILD SYSTEM - Developer Toolchain
+#  MINKAR BUILD SYSTEM - Developer Toolchain
 # ------------------------------------------------------------------------
 
 GNU_CONFIGURE_ARGS = --prefix=/usr --sysconfdir=/etc --bindir=/bin \

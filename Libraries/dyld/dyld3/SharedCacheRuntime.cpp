@@ -705,7 +705,7 @@ bool loadDyldCache(const SharedCacheOptions& options, SharedCacheLoadInfo* resul
 
 bool findInSharedCacheImage(const SharedCacheLoadInfo& loadInfo, const char* dylibPathToFind, SharedCacheFindDylibResults* results)
 {
-#ifndef __RAVYNOS__
+#ifndef __MINKAR__
     if ( loadInfo.loadAddress == nullptr )
 #endif
         return false;

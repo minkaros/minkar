@@ -6,7 +6,7 @@ MK_WERROR=	no
 MK_PIE=		no
 WARNS=		1
 CFLAGS+=	-g -O0 -fobjc-arc --sysroot=${OBJTOP}/tmp -D__MACH__ -fPIC \
-		-B${OBJTOP}/tmp/usr/bin -D__RAVYNOS__ \
+		-B${OBJTOP}/tmp/usr/bin -D__MINKAR__ \
 		-I${SRCTOP}/Frameworks -I${SRCTOP}/Frameworks/AppKit/Headers \
 		-I${OBJTOP}/Frameworks/Foundation/Headers
 

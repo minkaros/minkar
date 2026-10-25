@@ -38,9 +38,9 @@
 #include <net/if.h>
 #include <xpc/xpc.h>
 
-#if	!defined(__RAVYNOS__)	// no Network.framework
+#if	!defined(__MINKAR__)	// no Network.framework
 #include <nw/private.h>
-#endif	// !__RAVYNOS__
+#endif	// !__MINKAR__
 
 #pragma mark -
 #pragma mark SCNetworkReachability
@@ -72,7 +72,7 @@ typedef enum {
 #define isReachabilityTypeAddress(type)		(type < reachabilityTypeName)
 #define isReachabilityTypeName(type)		(type >= reachabilityTypeName)
 
-#if	!defined(__RAVYNOS__)	// Apple's implementation (Network.framework); ours keeps its own
+#if	!defined(__MINKAR__)	// Apple's implementation (Network.framework); ours keeps its own
 typedef struct {
 
 	/* base CFType information */
@@ -118,7 +118,7 @@ typedef struct {
 	uint				lastResolvedEndpointInterfaceIndex;
 
 } SCNetworkReachabilityPrivate, *SCNetworkReachabilityPrivateRef;
-#endif	// !__RAVYNOS__
+#endif	// !__MINKAR__
 
 
 // ------------------------------------------------------------

@@ -863,7 +863,7 @@ KLDBootstrap::loadKernelExternalComponents(void)
 
 	while ((bundleID = OSDynamicCast(OSString, keyIterator->getNextObject()))) {
 		const char * bundle_id = bundleID->getCStringNoCopy();
-#if !defined(__RAVYNOS__) /* FIXME: filter for ours too? */
+#if !defined(__MINKAR__) /* FIXME: filter for ours too? */
 		/* Skip extensions whose bundle IDs don't start with "com.apple.kec.".
 		 */
 		if (!bundle_id ||

@@ -40,9 +40,9 @@
 #include <unistd.h>
 #include <bsm/libbsm.h>
 #include <os/state_private.h>
-#if	!defined(__RAVYNOS__)	// no sandbox
+#if	!defined(__MINKAR__)	// no sandbox
 #include <sandbox.h>
-#endif	// !__RAVYNOS__
+#endif	// !__MINKAR__
 
 #if !TARGET_OS_SIMULATOR || (defined(IPHONE_SIMULATOR_HOST_MIN_VERSION_REQUIRED) && (IPHONE_SIMULATOR_HOST_MIN_VERSION_REQUIRED >= 1090))
 #define HAVE_MACHPORT_GUARDS
@@ -603,11 +603,11 @@ listSessions(FILE *f)
 static CFTypeRef
 copyEntitlement(serverSessionRef session, CFStringRef entitlement)
 {
-#if	defined(__RAVYNOS__)
+#if	defined(__MINKAR__)
 	/* No code signing entitlements on Minkar yet: no session has any. */
 #pragma unused(session, entitlement)
 	return NULL;
-#else	// __RAVYNOS__
+#else	// __MINKAR__
 	SecTaskRef	task;
 	CFTypeRef	value	= NULL;
 
@@ -640,7 +640,7 @@ copyEntitlement(serverSessionRef session, CFStringRef entitlement)
 	}
 
 	return value;
-#endif	// __RAVYNOS__
+#endif	// __MINKAR__
 }
 
 
@@ -833,7 +833,7 @@ hasPathAccess(serverSessionRef session, const char *path)
 			    NULL,		// asid
 			    NULL);		// tid
 #endif	// (__MAC_OS_X_VERSION_MIN_REQUIRED >= 1080) && !TARGET_OS_IPHONE
-#if	!defined(__RAVYNOS__)	// no sandbox: nothing is denied
+#if	!defined(__MINKAR__)	// no sandbox: nothing is denied
 	if (sandbox_check(pid,							// pid
 			  "file-write-data",					// operation
 			  SANDBOX_FILTER_PATH | SANDBOX_CHECK_NO_REPORT,	// sandbox_filter_type
@@ -841,7 +841,7 @@ hasPathAccess(serverSessionRef session, const char *path)
 		SC_log(LOG_INFO, "sandbox access denied: %s", strerror(errno));
 		return FALSE;
 	}
-#endif	// !__RAVYNOS__
+#endif	// !__MINKAR__
 
 	return TRUE;
 }

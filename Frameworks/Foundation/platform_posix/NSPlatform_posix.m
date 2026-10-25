@@ -234,7 +234,7 @@ NSUInteger NSPlatformThreadID() {
     return [NSString stringWithCString:remoteHost->h_name];
 }
 
-#ifndef __RAVYNOS__
+#ifndef __MINKAR__
 void NSPlatformLogString(NSString *string) {
     fprintf(stderr, "%s\n", [string UTF8String]);
 }

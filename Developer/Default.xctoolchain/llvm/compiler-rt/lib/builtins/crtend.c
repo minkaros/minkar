@@ -6,7 +6,7 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef __RAVYNOS__
+#ifndef __MINKAR__
 
 #include <stdint.h>
 
@@ -23,4 +23,4 @@ fp __DTOR_LIST_END__[]
     __attribute__((section(".dtors"), visibility("hidden"), used)) = {0};
 #endif
 
-#endif // __RAVYNOS__
+#endif // __MINKAR__

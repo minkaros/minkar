@@ -1,5 +1,5 @@
 # ------------------------------------------------------------------------
-#  RAVYNOS BUILD SYSTEM - Kernel and Extensions
+#  MINKAR BUILD SYSTEM - Kernel and Extensions
 # ------------------------------------------------------------------------
 
 AVAILABILITY_PL = ${MINKAR_SDKROOT}/usr/local/libexec/availability.pl

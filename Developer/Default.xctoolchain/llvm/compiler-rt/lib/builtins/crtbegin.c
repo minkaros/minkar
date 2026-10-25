@@ -6,7 +6,7 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef __RAVYNOS__
+#ifndef __MINKAR__
 
 #include <stddef.h>
 
@@ -136,4 +136,4 @@ __asm__(".pushsection .fini,\"ax\",@progbits\n\t"
 #error "crtbegin without .init_fini array unimplemented for this architecture"
 #endif  // CRT_HAS_INIT_FINI_ARRAY
 
-#endif // __RAVYNOS__
+#endif // __MINKAR__

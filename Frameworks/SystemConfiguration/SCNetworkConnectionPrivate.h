@@ -29,7 +29,7 @@
 #include <sys/cdefs.h>
 #if	!TARGET_OS_SIMULATOR
 typedef unsigned int ne_session_status_t; // FIXME: remove
-#if !__RAVYNOS__ // FIXME: add neon library and remove this
+#if !__MINKAR__ // FIXME: add neon library and remove this
 #include <ne_session.h>
 #endif // FIXME: remove this
 #endif	// !TARGET_OS_SIMULATOR

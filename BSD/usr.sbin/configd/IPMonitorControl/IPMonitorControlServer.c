@@ -44,14 +44,14 @@
 #include "IPMonitorControlServer.h"
 #include "symbol_scope.h"
 #include "IPMonitorControlPrivate.h"
-#if	!defined(__RAVYNOS__)
+#if	!defined(__MINKAR__)
 #include "IPMonitorAWDReport.h"
-#else	// !__RAVYNOS__
+#else	// !__MINKAR__
 /* No Apple Wireless Diagnostics on Minkar: the advisory flags, no reports. */
 typedef uint32_t	AWDIPMonitorInterfaceAdvisoryReport_Flags;
 #define	AWDIPMonitorInterfaceAdvisoryReport_Flags_LINK_LAYER_ISSUE	0x1
 #define	AWDIPMonitorInterfaceAdvisoryReport_Flags_UPLINK_ISSUE		0x2
-#endif	// !__RAVYNOS__
+#endif	// !__MINKAR__
 
 #ifdef TEST_IPMONITOR_CONTROL
 #define	my_log(__level, __format, ...)	SCPrint(TRUE, stdout, CFSTR(__format "\n"), ## __VA_ARGS__)
@@ -315,9 +315,9 @@ SubmitInterfaceAdvisoryMetric(CFStringRef ifname,
 			      AWDIPMonitorInterfaceAdvisoryReport_Flags flags,
 			      uint32_t count)
 {
-#if	defined(__RAVYNOS__)
+#if	defined(__MINKAR__)
     my_log(LOG_INFO, "%@: advisory flags 0x%x count %u", ifname, flags, count);
-#else	// __RAVYNOS__
+#else	// __MINKAR__
     InterfaceAdvisoryReportRef	report;
     AWDIPMonitorInterfaceType	type;
 
@@ -337,7 +337,7 @@ SubmitInterfaceAdvisoryMetric(CFStringRef ifname,
     InterfaceAdvisoryReportSubmit(report);
     my_log(LOG_NOTICE, "%@: submitted AWD report %@", ifname, report);
     CFRelease(report);
-#endif	// __RAVYNOS__
+#endif	// __MINKAR__
 }
 
 /**

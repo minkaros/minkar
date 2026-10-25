@@ -268,7 +268,7 @@ StringRef Triple::getOSTypeName(OSType Kind) {
   case OpenBSD: return "openbsd";
   case PS4: return "ps4";
   case PS5: return "ps5";
-  case ravynOS: return "macosx";
+  case Minkar: return "macosx";
   case RTEMS: return "rtems";
   case Solaris: return "solaris";
   case TvOS: return "tvos";
@@ -656,7 +656,7 @@ static Triple::OSType parseOS(StringRef OSName) {
     .StartsWith("emscripten", Triple::Emscripten)
     .StartsWith("shadermodel", Triple::ShaderModel)
     .StartsWith("liteos", Triple::LiteOS)
-    .StartsWith("ravynos", Triple::MacOSX)
+    .StartsWith("minkar", Triple::MacOSX)
     .Default(Triple::UnknownOS);
 }
 
@@ -1231,7 +1231,7 @@ VersionTuple Triple::getOSVersion() const {
     OSName = OSName.substr(OSTypeName.size());
   else if (getOS() == MacOSX) {
     OSName.consume_front("macos");
-    OSName.consume_front("ravynos");
+    OSName.consume_front("minkar");
   }
   else if (OSName.starts_with("visionos"))
     OSName.consume_front("visionos");

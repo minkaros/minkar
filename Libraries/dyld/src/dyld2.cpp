@@ -67,7 +67,7 @@
 
 extern "C" int inDenyList(const char * path);
 
-#if TARGET_OS_SIMULATOR || defined(__RAVYNOS__)
+#if TARGET_OS_SIMULATOR || defined(__MINKAR__)
 	enum {
 		AMFI_DYLD_INPUT_PROC_IN_SIMULATOR = (1 << 0),
 	};
@@ -3045,7 +3045,7 @@ static bool findInSharedCacheImage(const char* path, bool searchByPath, const st
 
 bool inSharedCache(const char* path)
 {
-#ifdef __RAVYNOS__
+#ifdef __MINKAR__
 	return false;
 #else
 	return dyld3::pathIsInSharedCacheImage(sSharedCacheLoadInfo, path);
@@ -3371,7 +3371,7 @@ static ImageLoader* loadPhase5load(const char* path, const char* orgPath, const 
 {
 	//dyld::log("%s(%s, %p)\n", __func__ , path, exceptions);
 
-#ifndef __RAVYNOS__
+#ifndef __MINKAR__
 	// <rdar://problem/47682983> don't allow file system relative paths in hardened programs
 	if ( (exceptions != NULL) &&  !gLinkContext.allowEnvVarsPath && isFileRelativePath(path) ) {
 		exceptions->push_back("file system relative paths not allowed in hardened programs");
@@ -5108,7 +5108,7 @@ static void configureProcessRestrictions(const macho_header* mainExecutableMH, c
 	uint64_t amfiInputFlags = 0;
 #if TARGET_OS_SIMULATOR
 	amfiInputFlags |= AMFI_DYLD_INPUT_PROC_IN_SIMULATOR;
-#elif __MAC_OS_X_VERSION_MIN_REQUIRED && !defined(__RAVYNOS__)
+#elif __MAC_OS_X_VERSION_MIN_REQUIRED && !defined(__MINKAR__)
 	if ( hasRestrictedSegment(mainExecutableMH) )
 		amfiInputFlags |= AMFI_DYLD_INPUT_PROC_HAS_RESTRICT_SEG;
 #elif __IPHONE_OS_VERSION_MIN_REQUIRED

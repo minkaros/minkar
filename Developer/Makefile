@@ -1,5 +1,5 @@
 # ------------------------------------------------------------------------
-#  RAVYNOS BUILD SYSTEM - Developer Toolchain
+#  MINKAR BUILD SYSTEM - Developer Toolchain
 # ------------------------------------------------------------------------
 
 # The host compiler must be clang: the toolchain's sources (cctools, the

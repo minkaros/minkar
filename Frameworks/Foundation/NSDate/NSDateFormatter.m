@@ -384,7 +384,7 @@ NSString *NSStringWithDateFormatLocale(NSTimeInterval interval,NSString *format,
         STATE_CONVERSION
     } state=STATE_SCANNING;
 
-#if defined(__RAVYNOS__) // our clock is UTC as is good and proper
+#if defined(__MINKAR__) // our clock is UTC as is good and proper
     interval=NSMoveIntervalFromGMTToTimeZone(interval,timeZone);
 #else
     interval=NSMoveIntervalFromTimeZoneToGMT(interval,timeZone);

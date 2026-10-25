@@ -1,5 +1,5 @@
 # ------------------------------------------------------------------------
-#  RAVYNOS BUILD SYSTEM - Darwin Base System
+#  MINKAR BUILD SYSTEM - Darwin Base System
 # ------------------------------------------------------------------------
 
 DERIVED_DATA_DIR = ${.OBJDIR}
@@ -66,7 +66,7 @@ runtime: bootstrap_stubs
 	-DCMAKE_INSTALL_PREFIX=${MINKAR_SDKROOT}/usr \
 	-DCOMPILER_RT_ENABLE_WERROR=OFF -DCOMPILER_RT_HAS_G_FLAG=ON \
 	-DCMAKE_BUILD_TYPE=Release -DLLVM_TARGETS_TO_BUILD=${BuildArch} \
-	-DCOMPILER_RT_DEFAULT_TARGET_ONLY=ON -DCOMPILER_RT_OS_DIR=ravynos \
+	-DCOMPILER_RT_DEFAULT_TARGET_ONLY=ON -DCOMPILER_RT_OS_DIR=minkar \
 	-DCOMPILER_RT_BUILD_BUILTINS=ON -DCOMPILER_RT_BUILD_SANITIZERS=OFF \
 	-DCOMPILER_RT_BUILD_PROFILE=ON -DCOMPILER_RT_BUILD_XRAY=OFF \
 	-DCOMPILER_RT_BUILD_LIBFUZZER=OFF -DCOMPILER_RT_BUILD_MEMPROF=OFF \
@@ -74,10 +74,10 @@ runtime: bootstrap_stubs
 	-DCOMPILER_RT_HAS_ATOMIC_KEYWORD=ON -DCOMPILER_RT_EXCLUDE_ATOMIC_BUILTIN=OFF 
 	env MAKEFLAGS="" .MAKEFLAGS="" \
 		${GMAKE} -C${.OBJDIR}/llvm_target/compiler-rt -j${.MAKE.JOBS}
-	cp -f ${.OBJDIR}/llvm_target/compiler-rt/lib/ravynos/libclang_rt.osx.a \
+	cp -f ${.OBJDIR}/llvm_target/compiler-rt/lib/minkar/libclang_rt.osx.a \
 	  ${MINKAR_SDKROOT}/usr/lib/
 	mkdir -p ${MINKAR_SDKROOT}/usr/local/lib/kernel
-	cp -f ${.OBJDIR}/llvm_target/compiler-rt/lib/ravynos/libclang_rt.cc_kext.a \
+	cp -f ${.OBJDIR}/llvm_target/compiler-rt/lib/minkar/libclang_rt.cc_kext.a \
 	  ${MINKAR_SDKROOT}/usr/local/lib/kernel/libcc_kext.a
 
 
@@ -177,7 +177,7 @@ libcxx: libunwind
 		${.OBJDIR}/llvm_target/libcxx/lib/libc++experimental.a \
 		${MINKAR_SDKROOT}/usr/lib/
 
-RTOBJ = ${.OBJDIR}/llvm_target/compiler-rt/lib/ravynos/libclang_rt.osx.a
+RTOBJ = ${.OBJDIR}/llvm_target/compiler-rt/lib/minkar/libclang_rt.osx.a
 CLANG_RT_DIR = ${TOOLCHAIN}/usr/lib/clang/17/lib/darwin
 compiler_rt: runtime libunwind libcxx
 	@echo compiler_rt dependencies built

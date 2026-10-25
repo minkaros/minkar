@@ -126,7 +126,7 @@ void closeLog() {
     [_scrollView setContentView:clip];
     [_scrollView setAutohidesScrollers:YES];
 
-#ifdef __RAVYNOS__
+#ifdef __MINKAR__
     [_NextButton setEnabled:NO];
 #endif
     
@@ -183,7 +183,7 @@ void closeLog() {
         [_timeZones selectItemWithTitle:@"UTC"];
     [_timeZones synchronizeTitleAndSelectedItem];
 
-#ifdef __RAVYNOS__
+#ifdef __MINKAR__
     [[_scrollView contentView] release];
 #endif
 
@@ -237,7 +237,7 @@ void closeLog() {
     [_confirmDisk setStringValue:[NSString stringWithFormat:@"%@ (%@, %@)", [disk name],
         formatMediaSize([disk mediaSize]), [disk mediaDescription]]];
 
-#ifdef __RAVYNOS__
+#ifdef __MINKAR__
     [[_scrollView contentView] release];
 #endif
     [_scrollView setAutohidesScrollers:YES];
@@ -377,7 +377,7 @@ void closeLog() {
     [_BackButton setEnabled:NO];
     [_CancelButton setEnabled:NO];
 
-#ifdef __RAVYNOS__
+#ifdef __MINKAR__
     [[[_scrollView contentView] documentView] release];
 #endif
 

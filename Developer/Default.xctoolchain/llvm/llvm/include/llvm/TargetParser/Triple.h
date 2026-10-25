@@ -228,7 +228,7 @@ public:
     WASI,       // Experimental WebAssembly OS
     Emscripten,
     ShaderModel, // DirectX ShaderModel
-    ravynOS,
+    Minkar,
     LiteOS,
     LastOSType = LiteOS
   };

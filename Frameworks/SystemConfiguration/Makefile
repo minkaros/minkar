@@ -6,7 +6,7 @@
 # (NetworkExtension). compat/ has Minkar stand-ins: Security types,
 # the serial registry keys and SHA-256. SCSchemaDefinitions.[ch] are the
 # files genSCPreferences generated (Apple's makefile for that was here).
-# __RAVYNOS__ marks the changes made for ravynOS.
+# __MINKAR__ marks the changes made for ravynOS.
 
 SUBDIR =
 MK_WERROR = no

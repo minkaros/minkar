@@ -2597,7 +2597,7 @@ void ImageLoaderMachO::mapSegments(int fd, uint64_t offsetInFat, uint64_t lenInF
 	specread.fsr_offset = offsetInFat;
 	specread.fsr_length = lenInFat;
 	specread.fsr_flags  = 0;
-#ifndef __RAVYNOS__
+#ifndef __MINKAR__
 	fcntl(fd, F_SPECULATIVE_READ, &specread);
 #endif
 	if ( context.verboseMapping )

@@ -2002,7 +2002,7 @@ private:
     switch (OS) {
     case llvm::Triple::Darwin:
     case llvm::Triple::MacOSX:
-    case llvm::Triple::ravynOS:
+    case llvm::Triple::Minkar:
       return DarwinPlatformKind::MacOS;
     case llvm::Triple::IOS:
       return DarwinPlatformKind::IPhoneOS;
@@ -2217,7 +2217,7 @@ std::string getOSVersion(llvm::Triple::OSType OS, const llvm::Triple &Triple,
   switch (OS) {
   case llvm::Triple::Darwin:
   case llvm::Triple::MacOSX:
-  case llvm::Triple::ravynOS:
+  case llvm::Triple::Minkar:
     // If there is no version specified on triple, and both host and target are
     // macos, use the host triple to infer OS version.
     if (Triple.isMacOSX() && SystemTriple.isMacOSX() &&
@@ -2332,7 +2332,7 @@ std::optional<DarwinPlatform> getDeploymentTargetFromMTargetOSArg(
   llvm::Triple TT(llvm::Twine("unknown-apple-") + A->getValue());
   switch (TT.getOS()) {
   case llvm::Triple::MacOSX:
-  case llvm::Triple::ravynOS:
+  case llvm::Triple::Minkar:
   case llvm::Triple::IOS:
   case llvm::Triple::TvOS:
   case llvm::Triple::WatchOS:
@@ -3393,7 +3393,7 @@ static const char *getPlatformName(Darwin::DarwinPlatformKind Platform,
                                    Darwin::DarwinEnvironmentKind Environment) {
   switch (Platform) {
   case Darwin::MacOS:
-  case Darwin::ravynOS:
+  case Darwin::Minkar:
     return "macos";
   case Darwin::IPhoneOS:
     if (Environment == Darwin::MacCatalyst)

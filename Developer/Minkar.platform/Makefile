@@ -1,5 +1,5 @@
 # ------------------------------------------------------------------------
-#  RAVYNOS BUILD SYSTEM - Developer Platform
+#  MINKAR BUILD SYSTEM - Developer Platform
 # ------------------------------------------------------------------------
 
 PLATFORM_DIR = ${ROOT_BINARY_DIR}/Developer/Platforms/Minkar.platform
