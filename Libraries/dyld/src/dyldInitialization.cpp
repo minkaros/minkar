@@ -28,6 +28,8 @@
 #include <string.h>
 #include <stdlib.h>
 #include <sys/mman.h>
+#include <fcntl.h>
+#include <unistd.h>
 #include <mach/mach.h>
 #include <System/sys/event.h>
 
@@ -138,9 +140,22 @@ uintptr_t start(const dyld3::MachOLoaded* appsMachHeader, int argc, const char* 
 	while(*apple != NULL) { ++apple; }
 	++apple;
 
-        open("/dev/console", O_RDONLY); // stdin
-        open("/dev/console", O_WRONLY); // stdout
-        open("/dev/console", O_WRONLY); // stderr
+	// ravynOS: only a process started without standard descriptors (PID 1,
+	// from the kernel) needs them: fill the missing ones, never as a
+	// controlling terminal (O_NOCTTY). Opening /dev/console three times in
+	// every process made each session leader (every launchd job) grab the
+	// console as its controlling terminal, so getty could not, and leaked
+	// three descriptors per process.
+	for (int fd = 0; fd <= 2; fd++) {
+		if (fcntl(fd, F_GETFD) != -1)
+			continue;
+		const char* path = (getpid() == 1) ? "/dev/console" : "/dev/null";
+		int nfd = open(path, (fd == 0 ? O_RDONLY : O_WRONLY) | O_NOCTTY);
+		if (nfd >= 0 && nfd != fd) {
+			dup2(nfd, fd);
+			close(nfd);
+		}
+	}
 
 	// set up random value for stack canary
 	__guard_setup(apple);
