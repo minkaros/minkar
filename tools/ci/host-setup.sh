@@ -69,8 +69,14 @@ opencflite() {
 	src=${RUNNER_TEMP:-/tmp}/opencflite
 	rm -rf "$src"
 	git clone -q --depth 1 --branch "$OPENCFLITE_TAG" "$OPENCFLITE_REPO" "$src"
-	(cd "$src" && ./configure -q --prefix=/usr/local &&
-	    make -s -j"$(nproc)" && sudo make -s install)
+	log=${RUNNER_TEMP:-/tmp}/opencflite.log
+	# Ubuntu has no tzcode tzfile.h; Open CF-lite carries one in include/.
+	if ! (cd "$src" && ./configure -q --prefix=/usr/local --with-tz-includes="$src" &&
+	    make -s -j"$(nproc)" && sudo make -s install) > "$log" 2>&1; then
+		tail -n 40 "$log"
+		[ -n "${GITHUB_ACTIONS:-}" ] && annotate_log "$log"
+		exit 1
+	fi
 	sudo ldconfig
 }
 

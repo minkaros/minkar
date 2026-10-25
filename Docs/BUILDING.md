@@ -25,7 +25,8 @@ GitHub's Ubuntu 22.04 runners. Package names are Debian/Ubuntu ones;
 * Open CF-lite 635.21.8 (gerickson/opencflite, APSL) in `/usr/local`:
   plktool and xcbuild link a host CoreFoundation. It is a build tool only
   and nothing of it goes into Minkar. `tools/ci/host-setup.sh packages`
-  builds it (`./configure && make && make install`).
+  builds it (`./configure --with-tz-includes=<its source>`, since Ubuntu
+  has no `tzfile.h`; then `make && make install`).
 * System build: `bmake make csh bison flex time`, and `byacc` (Berkeley
   yacc, public domain: libxkbcommon's parser is generated with it, not
   bison)
