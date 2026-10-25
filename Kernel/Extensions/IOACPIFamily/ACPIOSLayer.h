@@ -49,6 +49,7 @@ void ACPIOSLayerSetRootPointer(uint64_t rsdp);
 /* ACPIInterpreter.cpp */
 void ACPIOSLayerSetInterruptController(const OSSymbol *name);
 bool ACPIInterpreterStart(void);
+bool ACPIInterpreterPowerOff(void);
 bool ACPIInterpreterResolvePCIInterrupt(IOService *bridge, uint32_t device, uint32_t pin,
     uint32_t *gsi, uint32_t *flags);
 bool ACPIInterpreterInterruptFlags(uint32_t gsi, uint32_t *flags);

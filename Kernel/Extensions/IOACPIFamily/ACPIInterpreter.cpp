@@ -40,6 +40,9 @@
 #include <IOKit/pci/IOPCIDevice.h>
 #include <kern/thread.h>
 
+/* osfmk machine_routines.h does not build as C++ here. */
+extern "C" boolean_t ml_set_interrupts_enabled(boolean_t enable);
+
 extern "C" {
 #include <contrib/dev/acpica/include/acpi.h>
 }
@@ -154,6 +157,31 @@ waitStarted(void)
 	}
 	IOLockUnlock(gStartLock);
 	return gStarted;
+}
+
+/* ---- Power ------------------------------------------------------------- */
+
+/*
+ * Turns the machine off (ACPI S5), as halting does on macOS: _PTS, then
+ * SLP_TYP/SLP_EN with interrupts off. Returns only if that failed.
+ */
+bool
+ACPIInterpreterPowerOff(void)
+{
+	ACPI_STATUS st;
+	boolean_t istate;
+
+	if (!gStarted)
+		return false;
+	if (ACPI_FAILURE(st = AcpiEnterSleepStatePrep(ACPI_STATE_S5))) {
+		IOLog("ACPI: S5 prepare: %s\n", AcpiFormatException(st));
+		return false;
+	}
+	istate = ml_set_interrupts_enabled(FALSE);
+	st = AcpiEnterSleepState(ACPI_STATE_S5);
+	ml_set_interrupts_enabled(istate);
+	IOLog("ACPI: S5: %s\n", AcpiFormatException(st));
+	return false;
 }
 
 /* ---- PCI interrupt routing --------------------------------------------- */
