@@ -170,6 +170,15 @@ lib${LIB}.dylib: lib${LIB}.a ${CRYPT_OBJS}
 	cp -f ${.TARGET} ${RAVYN_SDKROOT}/usr/lib/system/
 
 SRCS+=	ravyn_ccrng.c
+
+# Everything here includes <sys/cdefs.h>, which includes the generated
+# libc-features.h: make it first, also with -j. (The libBase... lines
+# above name targets that the subdir walk does not use; the subdirs go
+# one after the other, so the first one waiting is enough.)
+_LIBC_FEATURES =	${ROOT_BINARY_DIR}/${CpuArch}/libc-features.h
+${SRCS:T:R:S/$/.o/} ${CRYPT_OBJS}: ${_LIBC_FEATURES}
+all_subdir_${DIRPRFX}${SUBDIR:[1]}: ${_LIBC_FEATURES}
+
 .include <bsd.lib.mk>
 .include <bsd.subdir.mk>
 

@@ -59,4 +59,8 @@ ${.OBJDIR}/lib${LIB}.dylib: asl_ipcUser.c lib${LIB}.a
 	cp -f ${.TARGET} ${RAVYN_SDKROOT}/usr/lib/system/
 	cp -f ${.TARGET} ${SYSROOT_DIR}/usr/lib/system/
 
+# The sources include the MIG headers: generate them first, also with -j
+# (OBJS is only set by bsd.lib.mk).
+${SRCS:T:R:S/$/.o/}: asl_ipc.h
+
 .include <bsd.lib.mk>

@@ -53,4 +53,8 @@ ${.OBJDIR}/lib${LIB}.dylib: lib${LIB}.a
 	# Public headers, as on macOS (<xpc/xpc.h> includes <launch.h>).
 	cp -f ${.CURDIR}/launch.h ${.CURDIR}/vproc.h ${RAVYN_SDKROOT}/usr/include/
 
+# The sources include the MIG headers: generate them first, also with -j
+# (OBJS is only set by bsd.lib.mk).
+${SRCS:T:R:S/$/.o/}: helper.h job.h
+
 .include <bsd.lib.mk>

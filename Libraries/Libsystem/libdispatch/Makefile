@@ -110,4 +110,8 @@ ${.OBJDIR}/lib${LIB}.dylib: migs ${LOBJS}
 	cp -f ${.TARGET} ${RAVYN_SDKROOT}/usr/lib/system/
 	cp -f ${.TARGET} ${SYSROOT_DIR}/usr/lib/system/
 
+# The sources include the MIG headers: generate them first, also with -j
+# (OBJS is only set by bsd.lib.mk).
+${SRCS:T:R:S/$/.o/}: protocolServer.h protocol.h firehoseServer.h firehose.h firehose_replyServer.h firehose_reply.h
+
 .include <bsd.lib.mk>
