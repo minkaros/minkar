@@ -58,7 +58,9 @@ libfirehose_kernel: .PHONY
 compiler_rt: .PHONY
 	${MAKE} -C ${ROOT_SOURCE_DIR}/Libraries all
 
-xnu_all: installhdrs libfirehose_kernel compiler_rt
+# In this order, also with -j: Libraries needs the kernel headers, and
+# libfirehose_kernel archives Libraries' libplatform, libkernel and libc++.
+xnu_all: installhdrs .WAIT compiler_rt .WAIT libfirehose_kernel
 	PATH="${PATH}" ${GMAKE} -C ${.CURDIR}/xnu LOGCOLORS=y \
 		PLATFORM=MacOSX BUILD_LTO=0 BUILD_WERROR=0 DO_CTFMERGE=0 \
 		SDKVERSION=${MACOS_VERSION_MIN} SRCROOT=${.CURDIR}/xnu \
