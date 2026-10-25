@@ -77,6 +77,10 @@ rv_${s}: ${MSUN}/amd64/${s}
 	    ${.ALLSRC} > ${.TARGET}
 .endfor
 
+# These two #include their generated lrint counterparts.
+rv_s_llrint.o: rv_s_lrint.S
+rv_s_llrintf.o: rv_s_lrintf.S
+
 all: ${.OBJDIR}/lib${LIB}.dylib
 
 ${.OBJDIR}/lib${LIB}.dylib: lib${LIB}.a
