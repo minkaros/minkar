@@ -1,0 +1,155 @@
+# SPDX-License-Identifier: BSD-2-Clause
+# Copyright (c) 2026 The Minkar contributors
+# Part of Minkar.
+#
+# Builds Minkar from scratch and boots it in QEMU up to gate M2 (launchd,
+# console login, DHCP, ssh, DNS). See Docs/BUILDING.md.
+#
+# The toolchain (LLVM, cctools, mig...) takes about two hours on a hosted
+# runner, so it is cached: the key is the git tree of
+# Developer/Default.xctoolchain, and the cache holds the installed
+# toolchain plus its object directories (not LLVM's build tree). Bump
+# CACHE_VERSION to throw it away.
+
+name: build and boottest
+
+on:
+  push:
+    branches: [main, 'ci/**']
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+env:
+  CACHE_VERSION: v1
+  # Same layout as a local build: sources here, build tree next to them.
+  BUILD_DIR: /home/runner/work/minkar/build
+
+jobs:
+  toolchain:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 330
+    outputs:
+      key: ${{ steps.key.outputs.key }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Cache key and paths
+        id: key
+        run: tools/ci/cache-paths.sh >> "$GITHUB_OUTPUT"
+
+      - name: Look for a cached toolchain
+        id: cache
+        uses: actions/cache/restore@v4
+        with:
+          key: ${{ steps.key.outputs.key }}
+          path: ${{ steps.key.outputs.paths }}
+          lookup-only: true
+
+      - name: Free disk space
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: tools/ci/host-setup.sh free-disk
+
+      - name: Install host packages
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: tools/ci/host-setup.sh packages
+
+      - name: Build the toolchain
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: |
+          sudo --preserve-env=GITHUB_ACTIONS,LOGDIR \
+            env STAGES="BSD/hier Developer" LOGDIR="$BUILD_DIR/logs" \
+            tools/ci/build-stages.sh
+          # The cache action runs as the runner user.
+          sudo chown -R "$(id -u):$(id -g)" "$BUILD_DIR"
+
+      - name: Save the toolchain
+        if: steps.cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          key: ${{ steps.key.outputs.key }}
+          path: ${{ steps.key.outputs.paths }}
+
+      - name: Upload logs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: toolchain-logs
+          path: ${{ env.BUILD_DIR }}/logs
+          if-no-files-found: ignore
+
+  build-boot:
+    needs: toolchain
+    runs-on: ubuntu-22.04
+    timeout-minutes: 150
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Free disk space
+        run: tools/ci/host-setup.sh free-disk
+
+      - name: Install host packages
+        run: tools/ci/host-setup.sh packages image
+
+      - name: Cache paths
+        id: key
+        run: tools/ci/cache-paths.sh >> "$GITHUB_OUTPUT"
+
+      - name: Restore the toolchain
+        uses: actions/cache/restore@v4
+        with:
+          key: ${{ needs.toolchain.outputs.key }}
+          path: ${{ steps.key.outputs.paths }}
+          fail-on-cache-miss: true
+
+      - name: Mark the toolchain up to date
+        # The checkout is newer than the cached files; without this bmake
+        # would rebuild mig, and with it LLVM.
+        run: tools/ci/host-setup.sh touch-toolchain
+
+      - name: Build the system
+        run: |
+          sudo --preserve-env=GITHUB_ACTIONS,LOGDIR \
+            env LOGDIR="$BUILD_DIR/logs" tools/ci/build-stages.sh
+
+      - name: Make the boot image
+        run: |
+          pw=$(openssl rand -hex 12)
+          echo "::add-mask::$pw"
+          echo "BOOTTEST_PASSWORD=$pw" >> "$GITHUB_ENV"
+          ssh-keygen -q -t ed25519 -N '' -C minkar-ci -f "$RUNNER_TEMP/id_ed25519"
+          sudo env SUBDIR= INIT= ROOT_PASSWORD="$pw" \
+            ROOT_AUTHORIZED_KEYS="$RUNNER_TEMP/id_ed25519.pub" \
+            bmake -m "$PWD/BSD/share/mk" image > "$BUILD_DIR/logs/image.log" 2>&1 || {
+              tail -n 60 "$BUILD_DIR/logs/image.log"; exit 1; }
+
+      - name: Boot test (gate M2)
+        run: |
+          sudo env SUBDIR= GATE=M2 BOOTTEST_PASSWORD="$BOOTTEST_PASSWORD" \
+            BOOTTEST_SSH_KEY="$RUNNER_TEMP/id_ed25519" \
+            bmake -m "$PWD/BSD/share/mk" boottest
+
+      - name: Show the end of the console log
+        if: failure()
+        run: tools/ci/host-setup.sh annotate-log "$BUILD_DIR/boottest-M2.log" "$BUILD_DIR/logs/image.log"
+
+      - name: Upload logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-boot-logs
+          path: |
+            ${{ env.BUILD_DIR }}/logs
+            ${{ env.BUILD_DIR }}/boottest-M2.log
+          if-no-files-found: ignore

@@ -18,7 +18,7 @@ Tested on Ubuntu 22.04 (x86-64). Package names are Debian/Ubuntu ones.
 * System build: `bmake make csh bison flex`, and `byacc` (Berkeley yacc,
   public domain: libxkbcommon's parser is generated with it, not bison)
 * Bootable image and boot test: `nasm gdisk dosfstools hfsprogs`,
-  `qemu-system-x86 ovmf` (QEMU uses KVM when /dev/kvm exists, TCG otherwise),
+  `qemu-system-x86 ovmf` (the boot test runs QEMU without KVM, under TCG),
   and `openssh-client` for gate M2
 
 Symlink `cc` and `c++` to clang to avoid accidental use of gcc.
@@ -131,3 +131,35 @@ Portable parts of the system have host-side tests (clang, ASan/UBSan):
 * `python3 -B Developer/Default.xctoolchain/codesign/tests/test_codesign.py`
 * `make -C Libraries/Libsystem/libsystem_c/minkar_crypt/tests` (crypt(3) SHA-crypt)
 * `cc -DTEST -I Libraries/Libsystem/libsystem_coreservices -o /tmp/sysdir_test Libraries/Libsystem/libsystem_coreservices/sysdir.c && /tmp/sysdir_test`
+
+## Timed builds
+
+`tools/ci/build-stages.sh` builds the stages one at a time, each with its
+own log and timing (`../build/logs/<stage>.log`, `../build/logs/times.txt`),
+and prints the end of the log of a stage that fails:
+
+    cd /work/minkar
+    sudo tools/ci/build-stages.sh
+    sudo env STAGES="Frameworks BSD" tools/ci/build-stages.sh
+
+## Continuous integration
+
+`.github/workflows/build-boottest.yml` runs on every pull request to
+`main`, on every push to `main` and `ci/**` branches, and by hand. On a
+GitHub-hosted Ubuntu 22.04 runner it:
+
+1. builds the toolchain (`Developer`), or takes it from the cache;
+2. builds the rest of the system with `tools/ci/build-stages.sh`;
+3. makes an image with launchd as PID 1, a random root password and a
+   fresh ssh key, and runs `boottest GATE=M2`.
+
+The toolchain takes about two hours on a hosted runner, so it is cached.
+The cache key is the git tree of `Developer/Default.xctoolchain`: any
+change there builds it again. The cache holds the installed toolchain and
+its object directories, but not LLVM's build tree; after restoring it,
+`tools/ci/host-setup.sh touch-toolchain` makes it newer than the checkout,
+or bmake would rebuild mig and, with it, LLVM. Bump `CACHE_VERSION` in the
+workflow to throw the cache away.
+
+When a stage or the boot test fails, the end of its log shows up as an
+error annotation on the run; the full logs are in the run's artifacts.
