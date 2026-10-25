@@ -31,7 +31,15 @@
 #include <IOKit/IOReturn.h>
 #if !(TARGET_OS_IPHONE && !TARGET_OS_SIMULATOR)
 #include <IOKit/usb/USB.h>
-#include <IOKit/firewire/IOFireWireLib.h>
+/* Only the error codes. Its user space side pulls in IOKitLib.h and
+ * CoreFoundation, which are built after libsystem_kernel. */
+#ifndef KERNEL
+#define KERNEL 1
+#include <IOKit/firewire/IOFireWireFamilyCommon.h>
+#undef KERNEL
+#else
+#include <IOKit/firewire/IOFireWireFamilyCommon.h>
+#endif
 #endif
 
 static const struct error_sparse_map err_codes_iokit_common_map[] = {
