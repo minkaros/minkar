@@ -1,0 +1,47 @@
+{
+  "main_library": {
+    "compatibility_versions": [
+      {
+        "version": "0"
+      }
+    ],
+    "exported_symbols": [
+      {
+        "text": {
+          "global": [
+            "__Z20CRSetCrashLogMessagePKc",
+            "__Z21CRSetCrashLogMessage2PKc",
+            "__Z20CRGetCrashLogMessagev",
+            "_CRGetCrashLogMessage",
+            "_CRSetCrashLogMessage2",
+            "_CRSetCrashLogMessage"
+          ]
+        }
+      }
+    ],
+    "flags": [
+      {
+        "attributes": [
+          "not_app_extension_safe"
+        ]
+      }
+    ],
+    "install_names": [
+      {
+        "name": "/usr/lib/system/libCrashReporterClient.dylib"
+      }
+    ],
+    "parent_umbrellas": [
+      {
+        "umbrella": "System"
+      }
+    ],
+    "target_info": [
+      {
+        "min_deployment": "10.15",
+        "target": "x86_64-macos"
+      }
+    ]
+  },
+  "tapi_tbd_version": 5
+}

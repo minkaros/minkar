@@ -1,0 +1,84 @@
+{
+  "main_library": {
+    "compatibility_versions": [
+      {
+        "version": "0"
+      }
+    ],
+    "current_versions": [
+      {
+        "version": "17.0.6"
+      }
+    ],
+    "flags": [
+      {
+        "attributes": [
+          "flat_namespace",
+          "not_app_extension_safe"
+        ]
+      }
+    ],
+    "install_names": [
+      {
+        "name": "/usr/lib/system/libcompiler_rt.dylib"
+      }
+    ],
+    "parent_umbrellas": [
+      {
+        "umbrella": "System"
+      }
+    ],
+    "target_info": [
+      {
+        "min_deployment": "10.15",
+        "target": "x86_64-macos"
+      }
+    ],
+    "undefined_symbols": [
+      {
+        "data": {
+          "global": [
+            "_rewind",
+            "_free",
+            "_fread",
+            "___stack_chk_fail",
+            "_sscanf",
+            "_malloc",
+            "_pthread_setspecific",
+            "__Unwind_SetGR",
+            "_OSSpinLockUnlock",
+            "_pthread_key_create",
+            "_fmaxl",
+            "dyld_stub_binder",
+            "___stack_chk_guard",
+            "_pthread_getspecific",
+            "_ftell",
+            "_memcpy",
+            "___bzero",
+            "_mprotect",
+            "_logbl",
+            "_pthread_mutex_lock",
+            "_fseek",
+            "__Unwind_GetRegionStart",
+            "__Unwind_GetIP",
+            "_pthread_once",
+            "_memcmp",
+            "_realloc",
+            "_pthread_mutex_unlock",
+            "_fclose",
+            "_dispatch_once_f",
+            "_fopen",
+            "___assert_rtn",
+            "_abort",
+            "_scalbnl",
+            "__Unwind_SetIP",
+            "_OSSpinLockLock",
+            "_dlsym",
+            "__Unwind_GetLanguageSpecificData"
+          ]
+        }
+      }
+    ]
+  },
+  "tapi_tbd_version": 5
+}

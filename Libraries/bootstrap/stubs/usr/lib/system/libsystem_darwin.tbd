@@ -1,0 +1,106 @@
+{
+  "main_library": {
+    "current_versions": [
+      {
+        "version": "10.15"
+      }
+    ],
+    "exported_symbols": [
+      {
+        "text": {
+          "global": [
+            "_os_mach_msg_copy_description",
+            "_os_variant_uses_ephemeral_storage",
+            "_os_mach_port_copy_description",
+            "_os_simple_hash",
+            "_os_variant_has_internal_diagnostics",
+            "_crfprintf_np",
+            "_os_variant_is_darwinos",
+            "_dirstatat_np",
+            "_os_assert_mach",
+            "_sysexit_np",
+            "_verr_np",
+            "_strexit_np",
+            "_vwfprintf_np",
+            "_wfprintf_np",
+            "_os_mach_msg_get_trailer",
+            "_os_variant_is_recovery",
+            "_getsectbynamefromheader_64",
+            "_os_localtime_file",
+            "_os_assert_mach_port_status",
+            "_close_drop_optional_np",
+            "_os_crash_get_reporter_port_array",
+            "_symexit_np",
+            "_sysctl_get_data_np",
+            "_os_subcommand_fprintf",
+            "_claimfd_np",
+            "_os_variant_allows_internal_security_policies",
+            "_os_flagset_copy_string",
+            "_dup_np",
+            "_getsectdatafromheader_64",
+            "_os_mach_msg_get_audit_trailer",
+            "_warn_np",
+            "___os_temporary_resource_shortage",
+            "_err_np",
+            "_os_crash_spawnattr_set_reporter_port",
+            "_os_simple_hash_with_seed",
+            "_os_variant_has_internal_content",
+            "_xferfd_np",
+            "_os_subcommand_vfprintf",
+            "_os_simple_hash_string_with_seed",
+            "_vcrfprintf_np",
+            "_fcheck_np",
+            "_close_drop_np",
+            "_os_crash_set_reporter_port",
+            "_os_subcommand_main",
+            "_os_variant_has_internal_ui",
+            "_os_parse_boot_arg_int",
+            "_strerror_np",
+            "_vwarn_np",
+            "_symerror_np",
+            "_dirstat_np",
+            "_errc_np",
+            "_os_variant_check",
+            "_os_simple_hash_string",
+            "_sysctlbyname_get_data_np",
+            "_realpath_np",
+            "_zsnprintf_np",
+            "_verrc_np",
+            "_memdup_np",
+            "_os_parse_boot_arg_string",
+            "_os_variant_has_factory_content",
+            "___libdarwin_init",
+            "_os_crash_port_array_deallocate",
+            "_os_mach_msg_trailer_copy_description",
+            "_memdup2_np",
+            "_os_mach_msg_get_context_trailer"
+          ]
+        }
+      }
+    ],
+    "flags": [
+      {
+        "attributes": [
+          "not_app_extension_safe"
+        ]
+      }
+    ],
+    "install_names": [
+      {
+        "name": "/usr/lib/system/libsystem_darwin.dylib"
+      }
+    ],
+    "parent_umbrellas": [
+      {
+        "umbrella": "System"
+      }
+    ],
+    "target_info": [
+      {
+        "min_deployment": "10.15",
+        "target": "x86_64-macos"
+      }
+    ]
+  },
+  "tapi_tbd_version": 5
+}

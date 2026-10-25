@@ -1,0 +1,52 @@
+{
+  "main_library": {
+    "current_versions": [
+      {
+        "version": "48"
+      }
+    ],
+    "exported_symbols": [
+      {
+        "text": {
+          "global": [
+            "_fcopyfile",
+            "_copyfile",
+            "_xattr_intent_with_flags",
+            "_copyfile_state_alloc",
+            "_xattr_preserve_for_intent",
+            "_copyfile_state_set",
+            "_copyfile_state_free",
+            "_xattr_name_with_flags",
+            "_copyfile_state_get",
+            "_xattr_name_without_flags",
+            "_xattr_flags_from_name"
+          ]
+        }
+      }
+    ],
+    "flags": [
+      {
+        "attributes": [
+          "not_app_extension_safe"
+        ]
+      }
+    ],
+    "install_names": [
+      {
+        "name": "/usr/lib/system/libcopyfile.dylib"
+      }
+    ],
+    "parent_umbrellas": [
+      {
+        "umbrella": "System"
+      }
+    ],
+    "target_info": [
+      {
+        "min_deployment": "10.15",
+        "target": "x86_64-macos"
+      }
+    ]
+  },
+  "tapi_tbd_version": 5
+}

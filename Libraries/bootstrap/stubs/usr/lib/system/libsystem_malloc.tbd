@@ -1,0 +1,143 @@
+{
+  "main_library": {
+    "current_versions": [
+      {
+        "version": "283"
+      }
+    ],
+    "exported_symbols": [
+      {
+        "data": {
+          "global": [
+            "_malloc_num_zones_allocated",
+            "_szone_check_modulo",
+            "_szone_check_start",
+            "___mach_stack_logging_shared_memory_address",
+            "_malloc_num_zones",
+            "__malloc_no_asl_log",
+            "_szone_check_counter",
+            "_malloc_logger",
+            "_malloc_check_start",
+            "_malloc_zones",
+            "_malloc_check_each",
+            "_malloc_check_counter",
+            "__os_cpu_number_override",
+            "_stack_logging_enable_logging"
+          ]
+        },
+        "text": {
+          "global": [
+            "_malloc_debug",
+            "_malloc_zone_log",
+            "_tiny_print_region_free_list",
+            "_scalable_zone_info",
+            "_malloc_singlethreaded",
+            "_malloc_zone_valloc",
+            "_malloc_zone_disable_discharge_checking",
+            "_malloc_claimed_address",
+            "__malloc_fork_prepare",
+            "___mach_stack_logging_set_file_path",
+            "_malloc_destroy_zone",
+            "_malloc_make_nonpurgeable",
+            "_malloc_create_legacy_default_zone",
+            "_malloc_zone_malloc",
+            "_calloc",
+            "___mach_stack_logging_uniquing_table_serialize",
+            "_malloc_zone_calloc",
+            "_turn_on_stack_logging",
+            "_malloc_zone_from_ptr",
+            "_malloc_zone_pressure_relief",
+            "___mach_stack_logging_uniquing_table_read_stack",
+            "___mach_stack_logging_stop_reading",
+            "___mach_stack_logging_stackid_for_vm_region",
+            "_malloc_get_all_zones",
+            "_malloc_zone_enumerate_discharged_pointers",
+            "_turn_off_stack_logging",
+            "_malloc_zone_free",
+            "_malloc_zone_batch_free",
+            "_zeroify_scalable_zone",
+            "_malloc_zone_unregister",
+            "___mach_stack_logging_get_frames_for_stackid",
+            "_malloc_zone_memalign",
+            "___stack_logging_early_finished",
+            "__malloc_fork_parent",
+            "_malloc_zone_check",
+            "_malloc_memory_event_handler",
+            "_malloc_zone_print_ptr_info",
+            "_malloc_zone_register",
+            "_malloc_zone_enable_discharge_checking",
+            "___mach_stack_logging_copy_uniquing_table",
+            "__malloc_fork_child",
+            "_malloc_error",
+            "___mach_stack_logging_uniquing_table_retain",
+            "_malloc_register_stack_logger",
+            "___mach_stack_logging_uniquing_table_copy_from_serialized",
+            "_free",
+            "___mach_stack_logging_enumerate_records",
+            "_malloc_set_zone_name",
+            "_scalable_zone_statistics",
+            "___mach_stack_logging_uniquing_table_sizeof",
+            "_mag_set_thread_index",
+            "_malloc_enter_process_memory_limit_warn_mode",
+            "_malloc_zone_statistics",
+            "_reallocarray$DARWIN_EXTSN",
+            "_malloc_zone_print",
+            "_malloc_zone_discharge",
+            "_malloc_default_purgeable_zone",
+            "_mstats",
+            "_malloc_default_zone",
+            "___malloc_init",
+            "_malloc_zone_realloc",
+            "___mach_stack_logging_get_frames",
+            "_malloc_engaged_nano",
+            "_malloc_zone_claimed_address",
+            "_valloc",
+            "_malloc",
+            "_malloc_make_purgeable",
+            "_malloc_get_zone_name",
+            "_malloc_create_zone",
+            "_vfree",
+            "___mach_stack_logging_uniquing_table_release",
+            "_malloc_jumpstart",
+            "_malloc_zone_batch_malloc",
+            "_posix_memalign",
+            "_aligned_alloc",
+            "_set_malloc_singlethreaded",
+            "_malloc_printf",
+            "___mach_stack_logging_start_reading",
+            "_malloc_freezedry",
+            "___mach_stack_logging_frames_for_uniqued_stack",
+            "_realloc",
+            "_malloc_size",
+            "_malloc_good_size",
+            "_reallocarrayf$DARWIN_EXTSN"
+          ]
+        }
+      }
+    ],
+    "flags": [
+      {
+        "attributes": [
+          "not_app_extension_safe"
+        ]
+      }
+    ],
+    "install_names": [
+      {
+        "name": "/usr/lib/system/libsystem_malloc.dylib"
+      }
+    ],
+    "parent_umbrellas": [
+      {
+        "umbrella": "System"
+      }
+    ],
+    "target_info": [
+      {
+        "min_deployment": "10.15",
+        "target": "x86_64-macos"
+      }
+    ]
+  },
+  "tapi_tbd_version": 5
+}

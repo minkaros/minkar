@@ -1,0 +1,77 @@
+{
+  "main_library": {
+    "current_versions": [
+      {
+        "version": "1061.0.2"
+      }
+    ],
+    "exported_symbols": [
+      {
+        "text": {
+          "global": [
+            "_config_agent_get_dns_nameservers",
+            "_nwi_ifstate_get_ifname",
+            "__libSC_info_fork_parent",
+            "_nwi_ifstate_get_next",
+            "_nwi_ifstate_get_reachability_flags",
+            "_config_agent_copy_proxy_information",
+            "_dns_configuration_copy",
+            "_config_agent_free_proxy_information",
+            "__nwi_state_force_refresh",
+            "_nwi_state_get_ifstate",
+            "_nwi_state_get_reachability_flags",
+            "_config_agent_free_dns_information",
+            "_nwi_state_get_interface_names",
+            "__libSC_info_fork_prepare",
+            "_config_agent_copy_dns_information",
+            "_dns_configuration_free",
+            "__libSC_info_fork_child",
+            "__nwi_config_agent_copy_data",
+            "__nwi_state_ack",
+            "_config_agent_get_dns_searchdomains",
+            "_dns_configuration_notify_key",
+            "_nwi_ifstate_get_generation",
+            "_is_config_agent_type_dns",
+            "_is_config_agent_type_proxy",
+            "_nwi_ifstate_get_vpn_server",
+            "_nwi_ifstate_get_dns_signature",
+            "_nwi_state_get_first_ifstate",
+            "_nwi_ifstate_get_signature",
+            "_nwi_state_copy",
+            "_config_agent_update_proxy_information",
+            "_nwi_state_get_notify_key",
+            "_nwi_ifstate_compare_rank",
+            "_nwi_ifstate_get_flags",
+            "__dns_configuration_ack",
+            "_nwi_state_release",
+            "_nwi_state_get_generation"
+          ]
+        }
+      }
+    ],
+    "flags": [
+      {
+        "attributes": [
+          "not_app_extension_safe"
+        ]
+      }
+    ],
+    "install_names": [
+      {
+        "name": "/usr/lib/system/libsystem_configuration.dylib"
+      }
+    ],
+    "parent_umbrellas": [
+      {
+        "umbrella": "System"
+      }
+    ],
+    "target_info": [
+      {
+        "min_deployment": "10.15",
+        "target": "x86_64-macos"
+      }
+    ]
+  },
+  "tapi_tbd_version": 5
+}

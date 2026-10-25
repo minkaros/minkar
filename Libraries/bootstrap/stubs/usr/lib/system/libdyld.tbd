@@ -1,0 +1,212 @@
+{
+  "main_library": {
+    "compatibility_versions": [
+      {
+        "version": "0"
+      }
+    ],
+    "current_versions": [
+      {
+        "version": "732.2"
+      }
+    ],
+    "exported_symbols": [
+      {
+        "data": {
+          "global": [
+            "_NXArgv",
+            "_NXArgc",
+            "_environ",
+            "___progname",
+            "__ZN5dyld318entryVectorForDyldE"
+          ],
+          "weak": [
+            "__ZTIN5dyld37closure10FileSystemE",
+            "__ZTSN5dyld37closure10FileSystemE"
+          ]
+        },
+        "text": {
+          "global": [
+            "_dlopen_preflight",
+            "_dyld_shared_cache_find_iterate_text",
+            "__dyld_all_twolevel_modules_prebound",
+            "_NSIsSymbolNameDefinedInImage",
+            "__dyld_atfork_prepare",
+            "__dyld_for_each_objc_class",
+            "__dyld_get_image_header_containing_address",
+            "__dyld_process_info_notify_retain",
+            "_cc_clear",
+            "__dyld_process_info_get_platform",
+            "_dlopen",
+            "__dyld_register_driverkit_main",
+            "__dyld_get_image_vmaddr_slide",
+            "_NSAddressOfSymbol",
+            "_ccdigest_update",
+            "__dyld_get_objc_selector",
+            "__dyld_get_shared_cache_uuid",
+            "_dyld_get_program_sdk_version",
+            "_dyld_program_minos_at_least",
+            "_NSNameOfSymbol",
+            "_NSSymbolReferenceNameInObjectFileImage",
+            "__dyld_process_info_notify_main",
+            "_NSModuleForSymbol",
+            "_dyld_dynamic_interpose",
+            "__dyld_fork_child",
+            "_NSLibraryNameForModule",
+            "__dyld_is_memory_immutable",
+            "_NSLookupAndBindSymbol",
+            "__dyld_register_func_for_remove_image",
+            "__dyld_lookup_and_bind_fully",
+            "_NSInstallLinkEditErrorHandlers",
+            "_dyld_get_sdk_version",
+            "__NSGetExecutablePath",
+            "dyld_stub_binder",
+            "_dlerror",
+            "__dyld_get_image_uuid",
+            "_dyld_sdk_at_least",
+            "__dyld_objc_notify_register",
+            "_NSLinkEditError",
+            "_NSSymbolDefinitionNameInObjectFileImage",
+            "_NSSymbolReferenceCountInObjectFileImage",
+            "_NSCreateObjectFileImageFromFile",
+            "__dyld_bind_fully_image_containing_address",
+            "_dladdr",
+            "__dyld_process_info_create",
+            "_ccdigest_init",
+            "__dyld_get_shared_cache_range",
+            "_NSLookupSymbolInModule",
+            "__dyld_initializer",
+            "_dyld_image_header_containing_address",
+            "_NSUnLinkModule",
+            "_dyld_get_min_os_version",
+            "__dyld_present",
+            "_NSLookupAndBindSymbolWithHint",
+            "__dyld_images_for_addresses",
+            "__dyld_register_func_for_add_image",
+            "_dyld_image_path_containing_address",
+            "_dlsym",
+            "_NSIsSymbolNameDefined",
+            "_NSAddLibrary",
+            "__tlv_exit",
+            "_NSIsSymbolNameDefinedWithHint",
+            "_NSGetSectionDataInObjectFileImage",
+            "_dyld_has_inserted_or_interposing_libraries",
+            "__dyld_lookup_and_bind",
+            "__dyld_get_image_name",
+            "_ccsha384_di",
+            "_NSVersionOfLinkTimeLibrary",
+            "_dyld_is_simulator_platform",
+            "_NSNameOfModule",
+            "__dyld_lookup_and_bind_with_hint",
+            "_dyld_minos_at_least",
+            "_dyld_shared_cache_file_path",
+            "_dyld_shared_cache_iterate_text",
+            "_NSVersionOfRunTimeLibrary",
+            "__dyld_process_info_notify",
+            "_ccsha1_di",
+            "__dyld_process_info_notify_release",
+            "__tlv_bootstrap",
+            "_dyld_get_active_platform",
+            "_NSLinkModule",
+            "__ZN5dyld316compatFuncLookupEPKcPPv",
+            "__dyld_find_unwind_sections",
+            "__dyld_process_info_retain",
+            "__dyld_for_each_objc_protocol",
+            "_dyld_process_is_restricted",
+            "_NSAddLibraryWithSearching",
+            "_NSCreateObjectFileImageFromMemory",
+            "__dyld_shared_cache_is_locally_built",
+            "_NSAddImage",
+            "_dyld_need_closure",
+            "_dlclose",
+            "__dyld_shared_cache_optimized",
+            "__dyld_image_count",
+            "_dyld_shared_cache_some_image_overridden",
+            "__dyld_missing_symbol_abort",
+            "__dyld_atfork_parent",
+            "_NSIsSymbolDefinedInObjectFileImage",
+            "__dyld_register_for_image_loads",
+            "__dyld_launched_prebound",
+            "__dyld_get_image_slide",
+            "__dyld_process_info_release",
+            "_dyld_get_image_versions",
+            "_dyld_program_sdk_at_least",
+            "_NSDestroyObjectFileImage",
+            "_ccsha256_di",
+            "_dyld_get_program_min_os_version",
+            "__dyld_get_image_header",
+            "__dyld_process_info_get_cache",
+            "__dyld_image_containing_address",
+            "__tlv_atexit",
+            "__dyld_process_info_for_each_image",
+            "__dyld_register_for_bulk_image_loads",
+            "__dyld_process_info_for_each_segment",
+            "_NSSymbolDefinitionCountInObjectFileImage",
+            "_NSLookupSymbolInImage",
+            "_dyld_get_base_platform",
+            "__dyld_process_info_get_state"
+          ],
+          "weak": [
+            "__ZNK8objc_opt18objc_classheader_t14duplicateCountEv",
+            "__ZN5dyld33MapIybNS_7closure10HashUInt64ENS1_11EqualUInt64EEixEy",
+            "__ZN5dyld324greaterThanAddOrOverflowImEEbyyT_",
+            "__ZN5dyld33MapIybNS_7closure10HashUInt64ENS1_11EqualUInt64EE3endEv",
+            "__ZNK8objc_opt17objc_stringhash_t8getIndexEPKc",
+            "__ZNK8objc_opt10objc_opt_t6seloptEv",
+            "__ZN5dyld33MapIybNS_7closure10HashUInt64ENS1_11EqualUInt64EE4findERKy",
+            "__ZNK8objc_opt17objc_stringhash_t10checkbytesEv",
+            "__ZNK8objc_opt13objc_clsopt_t17getClassAndHeaderEPKcRPvS4_",
+            "__ZNK8objc_opt13objc_clsopt_t16duplicateOffsetsEv",
+            "__ZNK8objc_opt13objc_selopt_t9usedCountEv",
+            "__ZNK8objc_opt13objc_clsopt_t22getClassHeaderAndIndexEPKcRPvS4_Rj",
+            "__ZN5dyld324greaterThanAddOrOverflowIjEEbjjT_",
+            "__ZNK8objc_opt13objc_selopt_t3getEPKc",
+            "__ZNK8objc_opt13objc_selopt_t16getEntryForIndexEj",
+            "__ZNK8objc_opt13objc_selopt_t14getIndexForKeyEPKc",
+            "__ZNK8objc_opt13objc_selopt_t16getSentinelIndexEv",
+            "__ZNK8objc_opt13objc_clsopt_t20getClassesAndHeadersEPKcPPvS4_",
+            "__ZN5dyld33MapIybNS_7closure10HashUInt64ENS1_11EqualUInt64EE6insertEONSt3__14pairIybEE",
+            "__ZNK8objc_opt10objc_opt_t12protocolopt2Ev",
+            "__ZNK8objc_opt13objc_clsopt_t12classOffsetsEv",
+            "__ZNK8objc_opt17objc_stringhash_t4hashEPKcm",
+            "__ZNK8objc_opt18objc_classheader_t14duplicateIndexEv",
+            "__ZNK8objc_opt13objc_clsopt_t16getClassForIndexEjj",
+            "__ZN5dyld37closure10HashUInt644hashERKy",
+            "__ZN5dyld37closure11EqualUInt645equalEyy",
+            "__ZNK8objc_opt17objc_stringhash_t7offsetsEv",
+            "__ZNK8objc_opt17objc_stringhash_t9checkbyteEPKcm",
+            "__ZNK8objc_opt18objc_classheader_t11isDuplicateEv",
+            "__ZNK8objc_opt10objc_opt_t6clsoptEv",
+            "__ZNK8objc_opt13objc_clsopt_t14duplicateCountEv",
+            "__ZNK8objc_opt13objc_clsopt_t20getClassNameForIndexEj",
+            "__ZN5dyld324greaterThanAddOrOverflowIyEEbyyT_"
+          ]
+        }
+      }
+    ],
+    "flags": [
+      {
+        "attributes": [
+          "not_app_extension_safe"
+        ]
+      }
+    ],
+    "install_names": [
+      {
+        "name": "/usr/lib/system/libdyld.dylib"
+      }
+    ],
+    "parent_umbrellas": [
+      {
+        "umbrella": "System"
+      }
+    ],
+    "target_info": [
+      {
+        "min_deployment": "10.15",
+        "target": "x86_64-macos"
+      }
+    ]
+  },
+  "tapi_tbd_version": 5
+}

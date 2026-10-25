@@ -1,0 +1,94 @@
+{
+  "main_library": {
+    "current_versions": [
+      {
+        "version": "1096.100.3"
+      }
+    ],
+    "exported_symbols": [
+      {
+        "data": {
+          "global": [
+            "_VersionString_SCCS_libdnssd"
+          ]
+        },
+        "text": {
+          "global": [
+            "_DNSServiceBrowserCreate",
+            "_put_uint32",
+            "_DNSServiceUpdateRecord",
+            "_TXTRecordGetValuePtr",
+            "_DNSServiceSetDefaultDomainForUser",
+            "_put_string",
+            "_ConvertHeaderBytes",
+            "_DNSServiceConstructFullName",
+            "_DNSServiceSetDispatchQueue",
+            "_put_uint16",
+            "_DNSServiceCreateConnection",
+            "_TXTRecordGetItemAtIndex",
+            "_DNSServiceCreateDelegateConnection",
+            "_DNSServiceResolverResolve",
+            "_get_rdata",
+            "_DNSServiceBrowse",
+            "_get_string",
+            "_get_uint16",
+            "_DNSServiceNATPortMappingCreate",
+            "_DNSServiceEnumerateDomains",
+            "_DNSServiceRefDeallocate",
+            "_DNSServiceDiscoveryMachPort",
+            "_DNSServiceRegisterRecord",
+            "_DNSServiceRegister",
+            "_DNSServiceGetAddrInfo",
+            "_DNSServiceQueryRecord",
+            "_DNSServiceRemoveRecord",
+            "_DNSServiceResolve",
+            "_TXTRecordSetValue",
+            "_DNSServiceGetPID",
+            "_get_uint32",
+            "_DNSServiceDiscovery_handleReply",
+            "_TXTRecordCreate",
+            "_DNSServiceReconfirmRecord",
+            "_DNSServiceDiscoveryDeallocate",
+            "_DNSServiceGetProperty",
+            "_DNSServiceSleepKeepalive_sockaddr",
+            "_DNSServiceProcessResult",
+            "_TXTRecordGetCount",
+            "_DNSServiceRefSockFD",
+            "_TXTRecordGetLength",
+            "_put_rdata",
+            "_DNSServiceAddRecord",
+            "_TXTRecordContainsKey",
+            "_TXTRecordRemoveValue",
+            "_TXTRecordGetBytesPtr",
+            "_TXTRecordDeallocate",
+            "_DNSServiceSleepKeepalive"
+          ]
+        }
+      }
+    ],
+    "flags": [
+      {
+        "attributes": [
+          "not_app_extension_safe"
+        ]
+      }
+    ],
+    "install_names": [
+      {
+        "name": "/usr/lib/system/libsystem_dnssd.dylib"
+      }
+    ],
+    "parent_umbrellas": [
+      {
+        "umbrella": "System"
+      }
+    ],
+    "target_info": [
+      {
+        "min_deployment": "10.15",
+        "target": "x86_64-macos"
+      }
+    ]
+  },
+  "tapi_tbd_version": 5
+}

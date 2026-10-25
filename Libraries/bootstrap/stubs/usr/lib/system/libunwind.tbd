@@ -1,0 +1,94 @@
+{
+  "main_library": {
+    "current_versions": [
+      {
+        "version": "35.4"
+      }
+    ],
+    "exported_symbols": [
+      {
+        "data": {
+          "global": [
+            "_unw_local_addr_space"
+          ]
+        },
+        "text": {
+          "global": [
+            "___register_frame_info",
+            "_unw_regname",
+            "_unw_is_fpreg",
+            "___unw_add_find_dynamic_unwind_sections",
+            "_unw_getcontext",
+            "___register_frame_info_table_bases",
+            "_unw_get_proc_info",
+            "__Unwind_DeleteException",
+            "__ZN9libunwind25findDynamicUnwindSectionsEPvP27unw_dynamic_unwind_sections",
+            "__Unwind_GetRegionStart",
+            "___unw_remove_dynamic_eh_frame_section",
+            "___unw_remove_find_dynamic_unwind_sections",
+            "_unw_step",
+            "_unw_get_fpreg",
+            "___register_frame",
+            "___deregister_frame_info",
+            "_unw_is_signal_frame",
+            "__Unwind_SetIP",
+            "_unw_resume",
+            "___deregister_frame_info_bases",
+            "__Unwind_GetCFA",
+            "___unw_add_dynamic_eh_frame_section",
+            "_unw_set_fpreg",
+            "__Unwind_RaiseException",
+            "_unw_get_reg",
+            "__Unwind_SetGR",
+            "__Unwind_GetGR",
+            "__Unwind_Resume_or_Rethrow",
+            "_unw_init_local",
+            "___deregister_frame",
+            "___register_frame_info_table",
+            "_unw_iterate_dwarf_unwind_cache",
+            "__Unwind_Resume",
+            "_unw_set_reg",
+            "__Unwind_Backtrace",
+            "__Unwind_FindEnclosingFunction",
+            "__Unwind_GetIP",
+            "__Unwind_ForcedUnwind",
+            "_unw_get_proc_name",
+            "__Unwind_GetTextRelBase",
+            "___unw_add_dynamic_fde",
+            "__Unwind_GetIPInfo",
+            "___unw_remove_dynamic_fde",
+            "__Unwind_Find_FDE",
+            "__Unwind_GetDataRelBase",
+            "___register_frame_info_bases",
+            "___register_frame_table",
+            "__Unwind_GetLanguageSpecificData"
+          ]
+        }
+      }
+    ],
+    "flags": [
+      {
+        "attributes": [
+          "not_app_extension_safe"
+        ]
+      }
+    ],
+    "install_names": [
+      {
+        "name": "/usr/lib/system/libunwind.dylib"
+      }
+    ],
+    "parent_umbrellas": [
+      {
+        "umbrella": "System"
+      }
+    ],
+    "target_info": [
+      {
+        "min_deployment": "10.15",
+        "target": "x86_64-macos"
+      }
+    ]
+  },
+  "tapi_tbd_version": 5
+}

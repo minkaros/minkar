@@ -8,10 +8,15 @@ CXXLIB = ${RAVYN_SDKROOT}/usr/lib/libc++.1.dylib
 RTLIB = ${RAVYN_SDKROOT}/usr/lib/system/libcompiler_rt.dylib
 RTLIB2 = ${SYSROOT_DIR}/usr/lib/system/libcompiler_rt.dylib
 
-SUBDIR = libfirehose_kernel CrashReporterClient MiscLibs objc4 dyld Libsystem \
+# The base libraries link against each other in cycles: on a clean build
+# they link against the stubs in bootstrap/ (installed before anything is
+# linked, removed by the last SUBDIR once the libraries exist).
+# dyld (static) and libfirehose_kernel archive Libsystem's libc.a,
+# libplatform.a, libpthread.a and libkernel.a.
+SUBDIR = CrashReporterClient MiscLibs objc4 Libsystem dyld libfirehose_kernel \
 	Libsystem/libresolv openbsm/libbsm openbsm/libauditd \
 	openbsm/bin/auditd openbsm/bin/audit openbsm/bin/praudit openbsm/bin/auditreduce \
-	ICU zlib OpenPAM OpenSSH mbedtls
+	ICU zlib OpenPAM OpenSSH mbedtls bootstrap
 
 # Don't try to link Foundation or System
 MK_OBJC_RUNTIME = no
@@ -31,7 +36,10 @@ RUNTIME_FLAGS = "--sysroot=${RAVYN_SDKROOT} -B${TOOLCHAIN}/usr/bin \
 	-Wno-unused-command-line-argument \
 	-mmacosx-version-min=10.13 -fuse-ld=${LD}"
 
-runtime:
+bootstrap_stubs: .PHONY
+	${MAKE} -C ${.CURDIR}/bootstrap install-stubs
+
+runtime: bootstrap_stubs
 	DEVELOPER_DIR=${ROOT_BINARY_DIR}/Developer \
 	PATH=${TOOLCHAIN}/usr/bin:${PATH} \
 	SDKROOT=${RAVYN_SDKROOT} CFLAGS=${RUNTIME_FLAGS} \

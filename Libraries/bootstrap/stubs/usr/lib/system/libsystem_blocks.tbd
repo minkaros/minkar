@@ -1,0 +1,65 @@
+{
+  "main_library": {
+    "current_versions": [
+      {
+        "version": "74"
+      }
+    ],
+    "exported_symbols": [
+      {
+        "data": {
+          "global": [
+            "__NSConcreteWeakBlockVariable",
+            "__NSConcreteAutoBlock",
+            "__NSConcreteFinalizingBlock",
+            "__NSConcreteStackBlock",
+            "__NSConcreteGlobalBlock",
+            "__NSConcreteMallocBlock"
+          ]
+        },
+        "text": {
+          "global": [
+            "__Block_use_stret",
+            "__Block_use_RR2",
+            "__Block_signature",
+            "__Block_object_dispose",
+            "__Block_copy",
+            "__Block_extended_layout",
+            "_Block_size",
+            "__Block_copy_collectable",
+            "__Block_has_signature",
+            "__Block_release",
+            "__Block_layout",
+            "__Block_tryRetain",
+            "__Block_isDeallocating",
+            "__Block_object_assign"
+          ]
+        }
+      }
+    ],
+    "flags": [
+      {
+        "attributes": [
+          "not_app_extension_safe"
+        ]
+      }
+    ],
+    "install_names": [
+      {
+        "name": "/usr/lib/system/libsystem_blocks.dylib"
+      }
+    ],
+    "parent_umbrellas": [
+      {
+        "umbrella": "System"
+      }
+    ],
+    "target_info": [
+      {
+        "min_deployment": "10.15",
+        "target": "x86_64-macos"
+      }
+    ]
+  },
+  "tapi_tbd_version": 5
+}

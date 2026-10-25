@@ -1,0 +1,198 @@
+{
+  "main_library": {
+    "current_versions": [
+      {
+        "version": "1738.0.17"
+      }
+    ],
+    "exported_symbols": [
+      {
+        "data": {
+          "global": [
+            "_helper_recv_launchd_helper_subsystem"
+          ]
+        },
+        "text": {
+          "global": [
+            "_launchd_helper_server",
+            "_bootstrap_strerror",
+            "_bootstrap_create_service",
+            "_bootstrap_status",
+            "_bootstrap_parent",
+            "_launch_data_new_bool",
+            "_vproc_transaction_begin",
+            "_launch_data_get_fd",
+            "__vproc_logv",
+            "_vproc_mig_swap_integer",
+            "__vproc_transaction_end",
+            "__vproc_transaction_set_clean_callback",
+            "_launch_data_dict_lookup",
+            "_vproc_retain",
+            "_launch_data_dict_get_count",
+            "_launch_data_pack",
+            "_mpm_wait",
+            "_launch_data_new_machport",
+            "_launchd_fdopen",
+            "_launch_data_alloc",
+            "_vproc_mig_get_listener_port_rights",
+            "_bootstrap_lookup_children",
+            "_launch_data_get_bool",
+            "_bootstrap_init",
+            "_bootstrap_register2",
+            "__vproc_transaction_count_for_pid",
+            "_launch_data_set_opaque",
+            "__vproc_log",
+            "_bootstrap_create_server",
+            "_launch_data_new_string",
+            "_vproc_mig_move_subset",
+            "_launch_data_get_machport",
+            "__launch_init_globals",
+            "_vproc_mig_kickstart",
+            "_vproc_swap_complex",
+            "_vproc_release",
+            "_vproc_mig_getsocket",
+            "__vproc_standby_timeout",
+            "_launch_data_new_fd",
+            "_launch_socket_service_check_in",
+            "_bootstrap_info",
+            "_bootstrap_look_up",
+            "_bootstrap_check_in3",
+            "__vproc_send_signal_by_label",
+            "_vprocmgr_lookup_vproc",
+            "_launchd_msg_send",
+            "_launch_data_free",
+            "_launchd_helper_server_routine",
+            "__vproc_pid_is_managed",
+            "_bootstrap_register",
+            "_launch_data_unpack",
+            "_launch_data_dict_iterate",
+            "_launch_data_new_opaque",
+            "_reboot2",
+            "_vproc_mig_create_server",
+            "_launch_data_get_string",
+            "_bootstrap_unprivileged",
+            "_launch_data_array_get_count",
+            "__vprocmgr_log_drain",
+            "_load_launchd_jobs_at_loginwindow_prompt",
+            "_launch_data_get_integer",
+            "_vproc_mig_post_fork_ping",
+            "__vproc_standby_begin",
+            "_vproc_mig_switch_to_session",
+            "_vproc_standby_begin",
+            "__vproc_transaction_end_flush",
+            "__vproc_set_global_on_demand",
+            "_vproc_mig_ipc_request",
+            "_vproc_mig_set_security_session",
+            "__vproc_transactions_enable_internal",
+            "_vproc_mig_log",
+            "_launch_data_copy",
+            "_vproc_mig_spawn2",
+            "_launchd_getfd",
+            "__vprocmgr_init",
+            "_launch_data_new_errno",
+            "_mpm_uncork_fork",
+            "_launch_data_get_opaque",
+            "__vproc_get_last_exit_status",
+            "__vproc_kickstart_by_label",
+            "__vproc_standby_count",
+            "_helper_recv_wait",
+            "_vproc_transaction_end",
+            "_launch_data_set_errno",
+            "__vproc_log_error",
+            "_launch_data_set_string",
+            "_vproc_mig_port_for_label",
+            "_launch_data_get_type",
+            "__vprocmgr_log_forward",
+            "_launch_get_fd",
+            "_vproc_mig_reboot2",
+            "_vproc_mig_log_forward",
+            "_vproc_mig_check_in2",
+            "_launch_data_get_errno",
+            "_launchd_msg_recv",
+            "_vproc_mig_take_subset",
+            "_launch_data_new_real",
+            "_vproc_mig_lookup_children",
+            "_launch_data_set_real",
+            "__vproc_standby_end",
+            "_launch_data_set_fd",
+            "_vproc_mig_get_root_bootstrap",
+            "__vproc_transaction_begin",
+            "_launch_data_set_bool",
+            "_vproc_mig_info",
+            "_launch_data_array_get_index",
+            "_vproc_mig_subset",
+            "__vprocmgr_move_subset_to_user",
+            "__vproc_grab_subset",
+            "_vproc_mig_log_drain",
+            "_bootstrap_look_up2",
+            "_vproc_mig_init_session",
+            "_bootstrap_subset",
+            "_launch_msg",
+            "_launch_data_dict_insert",
+            "__vproc_transaction_try_exit",
+            "_bootstrap_check_in2",
+            "__vprocmgr_detach_from_console",
+            "_bootstrap_get_root",
+            "_launch_wait",
+            "_launch_data_dict_remove",
+            "_vproc_mig_parent",
+            "_vproc_mig_look_up2",
+            "_launchd_close",
+            "_launch_data_get_real",
+            "_bootstrap_look_up_per_user",
+            "_launch_data_new_integer",
+            "_vproc_mig_swap_complex",
+            "_vproc_mig_register2",
+            "__spawn_via_launchd",
+            "_launch_data_set_integer",
+            "_launch_data_set_machport",
+            "_vproc_mig_register_gui_session",
+            "__vprocmgr_getsocket",
+            "_bootstrap_check_in",
+            "_vproc_mig_pid_is_managed",
+            "_helper_downcall_wait",
+            "_create_and_switch_to_per_session_launchd",
+            "_vproc_mig_lookup_per_user_context",
+            "_vproc_swap_integer",
+            "_bootstrap_look_up3",
+            "__vproc_transaction_count",
+            "_launch_data_get_opaque_size",
+            "_vproc_mig_send_signal",
+            "__vproc_transactions_enable",
+            "__vproc_transaction_end_internal",
+            "_launch_data_array_set_index",
+            "_vproc_standby_end",
+            "__vproc_post_fork_ping",
+            "__vprocmgr_switch_to_session",
+            "__vproc_transaction_begin_internal",
+            "_vproc_swap_string"
+          ]
+        }
+      }
+    ],
+    "flags": [
+      {
+        "attributes": [
+          "not_app_extension_safe"
+        ]
+      }
+    ],
+    "install_names": [
+      {
+        "name": "/usr/lib/system/liblaunch.dylib"
+      }
+    ],
+    "parent_umbrellas": [
+      {
+        "umbrella": "System"
+      }
+    ],
+    "target_info": [
+      {
+        "min_deployment": "10.15",
+        "target": "x86_64-macos"
+      }
+    ]
+  },
+  "tapi_tbd_version": 5
+}

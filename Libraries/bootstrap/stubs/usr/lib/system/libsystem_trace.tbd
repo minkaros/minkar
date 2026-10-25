@@ -1,0 +1,98 @@
+{
+  "main_library": {
+    "current_versions": [
+      {
+        "version": "1147.0.3"
+      }
+    ],
+    "exported_symbols": [
+      {
+        "data": {
+          "global": [
+            "__CFDataGetLength",
+            "__CFGetTypeID",
+            "__os_log_null",
+            "__CFDataGetBytePtr",
+            "__CFDataGetTypeID",
+            "__os_log_disabled",
+            "__os_log_default",
+            "__CFStringCreateWithCString"
+          ],
+          "objc_class": [
+            "OS_os_log"
+          ]
+        },
+        "text": {
+          "global": [
+            "___os_signpost_emit_with_name_impl",
+            "__os_trace_encode_and_send",
+            "_os_log_debug_enabled",
+            "__os_log_info",
+            "__libtrace_init",
+            "_os_log_pack_size",
+            "__os_log_preferences_refresh",
+            "_os_signpost_event_emit",
+            "___os_log_encode",
+            "__os_log_internal",
+            "__os_trace_error",
+            "__os_log_error",
+            "_os_signpost_id_make_with_pointer",
+            "_os_signpost_interval_end",
+            "_os_signpost_enabled",
+            "__os_log_debug",
+            "__os_log_internal_driverKit",
+            "___os_log_fault_impl",
+            "___os_signpost_emit_unreliably_impl",
+            "__NSCF2data",
+            "_os_log_pack_fill",
+            "__os_log_impl",
+            "__os_log_set_mode",
+            "__os_log_string_is_public",
+            "__os_log_simple_impl",
+            "__os_log_simple",
+            "_os_signpost_id_generate",
+            "_os_log_shim_enabled",
+            "_os_log_create",
+            "_os_log_pack_send",
+            "_os_log_with_args",
+            "__os_trace_encode",
+            "___os_signpost_emit_impl",
+            "__os_log_fault",
+            "_os_log_encode",
+            "__os_trace_debug",
+            "__os_log_pack_init",
+            "___os_log_error_impl",
+            "_os_log_type_enabled",
+            "_os_log_info_enabled",
+            "_os_signpost_interval_begin",
+            "__os_log_get_mode"
+          ]
+        }
+      }
+    ],
+    "flags": [
+      {
+        "attributes": [
+          "not_app_extension_safe"
+        ]
+      }
+    ],
+    "install_names": [
+      {
+        "name": "/usr/lib/system/libsystem_trace.dylib"
+      }
+    ],
+    "parent_umbrellas": [
+      {
+        "umbrella": "System"
+      }
+    ],
+    "target_info": [
+      {
+        "min_deployment": "10.15",
+        "target": "x86_64-macos"
+      }
+    ]
+  },
+  "tapi_tbd_version": 5
+}

@@ -1,0 +1,123 @@
+{
+  "main_library": {
+    "current_versions": [
+      {
+        "version": "241"
+      }
+    ],
+    "exported_symbols": [
+      {
+        "text": {
+          "global": [
+            "__notify_lib_cancel",
+            "__notify_server_monitor_file_2",
+            "__notify_server_check",
+            "_notify_set_state",
+            "__nc_table_delete_n",
+            "__notify_server_cancel_2",
+            "__nc_table_insert",
+            "__notify_lib_set_owner",
+            "__notify_server_set_state_2",
+            "_notify_register_dispatch",
+            "__notify_server_get_state_2",
+            "_notify_register_mach_port",
+            "_notify_register_file_descriptor",
+            "_notify_set_options",
+            "__nc_table_foreach",
+            "__notify_server_register_file_descriptor_2",
+            "_notify_get_event",
+            "__notify_lib_set_access",
+            "_notify_resume_pid",
+            "__nc_table_delete",
+            "__notify_server_checkin",
+            "__notify_lib_register_mach_port",
+            "__notify_server_register_check_2",
+            "__notify_server_get_state",
+            "_notify_suspend_pid",
+            "__notify_lib_register_plain",
+            "__notify_lib_register_signal",
+            "__nc_table_find",
+            "__nc_table_foreach_n",
+            "__notify_server_register_mach_port_2",
+            "__notify_server_suspend_pid",
+            "_make_client_id",
+            "_notify_register_signal",
+            "__notify_lib_check",
+            "__notify_lib_register_file_descriptor",
+            "_notify_simple_post",
+            "__notify_server_post_4",
+            "_notify_post",
+            "__notify_server_set_state_3",
+            "_notify_peek",
+            "__nc_table_foreach_64",
+            "__notify_fork_child",
+            "__nc_table_insert_n",
+            "_notify_check",
+            "__notify_server_register_signal_2",
+            "__nc_table_find_64",
+            "_notify_resume",
+            "__notify_lib_set_state",
+            "__notify_lib_resume_client",
+            "__nc_table_insert_64",
+            "__nc_table_find_n",
+            "_notify_dump_status",
+            "_notify_monitor_file",
+            "__notify_server_resume",
+            "_notify_register_plain",
+            "__nc_table_init_64",
+            "__notify_lib_get_state",
+            "__nc_table_delete_64",
+            "__notify_lib_post_client",
+            "__nc_table_init",
+            "__notify_server_regenerate",
+            "__notify_lib_suspend",
+            "__notify_server_resume_pid",
+            "_notify_cancel",
+            "__nc_table_init_n",
+            "__notify_lib_cancel_client",
+            "_notify_get_state",
+            "__notify_lib_check_controlled_access",
+            "_notify_register_check",
+            "__notify_lib_notify_state_init",
+            "__notify_lib_post",
+            "__notify_server_post_3",
+            "__notify_shm_id",
+            "__notify_server_dump",
+            "__notify_lib_post_nid",
+            "__notify_lib_resume",
+            "__notify_server_post_2",
+            "__notify_server_suspend",
+            "_notify_suspend",
+            "__notify_server_get_state_3",
+            "_notify_is_valid_token",
+            "__notify_server_register_plain_2"
+          ]
+        }
+      }
+    ],
+    "flags": [
+      {
+        "attributes": [
+          "not_app_extension_safe"
+        ]
+      }
+    ],
+    "install_names": [
+      {
+        "name": "/usr/lib/system/libsystem_notify.dylib"
+      }
+    ],
+    "parent_umbrellas": [
+      {
+        "umbrella": "System"
+      }
+    ],
+    "target_info": [
+      {
+        "min_deployment": "10.15",
+        "target": "x86_64-macos"
+      }
+    ]
+  },
+  "tapi_tbd_version": 5
+}
