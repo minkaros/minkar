@@ -4,8 +4,6 @@
 # (FreeBSD's, from IANA's registries), the root CA certificates
 # (ssl/cert.pem, Mozilla's), sudo's configuration, and
 # resolv.conf, a link to the one dhcpclient writes, as on macOS.
-# (Makefile.freebsd is the FreeBSD-era file list, kept for reference
-# while it is ported.)
 
 SUBDIR =
 

@@ -49,7 +49,6 @@ headers
 - OpenPAM (Libraries/OpenPAM/openpam/LICENSE)
 - OpenSSH (Libraries/OpenSSH/openssh/LICENCE)
 - xcbuild (Developer/Default.xctoolchain/xcbuild/LICENSE)
-- ISO scripts (ISO/LICENSE)
 
 Cocotron - MIT (Frameworks/Foundation/LICENSE.txt,
 Frameworks/CoreServices/LICENSE.txt)
