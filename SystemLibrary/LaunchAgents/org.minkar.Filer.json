@@ -9,7 +9,7 @@
   },
   "EnableTransactions": true,
   "ProgramArguments": [
-    "/System/Library/CoreServices/Filer.app/Contents/ravynOS/Filer",
+    "/System/Library/CoreServices/Filer.app/Contents/MacOS/Filer",
     "--desktop"
   ],
   "RunAtLoad": false,

@@ -74,7 +74,7 @@ void NSPlatformSleepThreadForTimeInterval(NSTimeInterval interval) {
     return [self hostName];
 }
 
-NSString * const NSPlatformExecutableDirectory=@"ravynOS";
+NSString * const NSPlatformExecutableDirectory=@"MacOS";
 NSString * const NSPlatformAlternateExecutableDirectory=@"MacOS";
 NSString * const NSPlatformResourceNameSuffix=@"";
 

@@ -9,7 +9,7 @@
   },
   "EnableTransactions": true,
   "ProgramArguments": [
-    "/System/Library/CoreServices/Dock.app/Contents/ravynOS/Dock"
+    "/System/Library/CoreServices/Dock.app/Contents/MacOS/Dock"
   ],
   "RunAtLoad": false,
   "KeepAlive": true,

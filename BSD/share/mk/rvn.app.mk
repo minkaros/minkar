@@ -9,8 +9,7 @@
 # Variables:
 #   APP                 bundle and executable name (required)
 #   APP_INSTALL_DIR     install location in the sysroot (default /Applications)
-#   APP_EXEC_DIR        executable directory (default ravynOS; Foundation
-#                       and CoreFoundation also accept MacOS)
+#   APP_EXEC_DIR        executable directory (default MacOS, as on macOS)
 #   INFO_PLIST          Info.plist source (default Info.plist, if present)
 #   FRAMEWORKS          frameworks to link with, by name
 #   RESOURCES           files or directories copied into Contents/Resources
@@ -20,7 +19,7 @@
 # CFBundleIdentifier and the signature seals Info.plist.
 
 APP_DIR = ${.OBJDIR}/${APP}.app
-APP_EXEC_DIR ?= ravynOS
+APP_EXEC_DIR ?= MacOS
 APP_INSTALL_DIR ?= /Applications
 INFO_PLIST ?= Info.plist
 PROG = ${APP}

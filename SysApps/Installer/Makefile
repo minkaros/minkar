@@ -32,8 +32,8 @@ makedirs:
 
 build: clean makedirs obj all
 	rm -f ${APP_DIR}/${APP}
-	ln -sf "Contents/ravynOS/${APP:S/_/ /}" "${APP_DIR}/${APP:S/_/ /}"
-	mv -f ${APP_DIR}/Contents/ravynOS/${APP} "${APP_DIR}/Contents/ravynOS/${APP:S/_/ /}"
+	ln -sf "Contents/MacOS/${APP:S/_/ /}" "${APP_DIR}/${APP:S/_/ /}"
+	mv -f ${APP_DIR}/Contents/MacOS/${APP} "${APP_DIR}/Contents/MacOS/${APP:S/_/ /}"
 	mv -f ${APP_DIR} "${APP_DIR:S/_/ /}"
 
 .include <rvn.app.mk>

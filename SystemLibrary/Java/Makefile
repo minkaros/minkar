@@ -24,8 +24,8 @@ install:
 	  ${BUNDLEDIR}/Contents/Home/
 	cd ${SRCDIR}/build/bsd-x86_64-server-release && \
 	  cp -a support ${BUNDLEDIR}/Contents/
-	mkdir -p ${BUNDLEDIR}/Contents/ravynOS
-	ln -sf ../Home/lib/libjli.so ${BUNDLEDIR}/Contents/ravynOS/libjli.so
+	mkdir -p ${BUNDLEDIR}/Contents/MacOS
+	ln -sf ../Home/lib/libjli.so ${BUNDLEDIR}/Contents/MacOS/libjli.so
 	find ${BUNDLEDIR} -name \*.debuginfo -exec rm {} \;
 	# create Info.plist in Contents
 
