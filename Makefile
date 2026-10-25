@@ -120,6 +120,12 @@ TARGET_TRIPLE = ${CpuArch}-apple-darwin${DARWIN_MAJOR}
 SUBDIR ?= BSD/hier .WAIT Developer .WAIT Kernel Libraries Frameworks Kernel/Extensions \
 	CoreServices BSD SystemLibrary
 
+# 'bmake ONLY_STAGE=Frameworks Frameworks' builds that stage alone, without
+# walking (and re-checking) the stages before it first.
+.if defined(ONLY_STAGE)
+SUBDIR :=	${ONLY_STAGE}
+.endif
+
 .export ROOT_SOURCE_DIR ROOT_BINARY_DIR ARCH_CONFIGS KERNEL_CONFIGS \
 	PROD_VERSION PROD_FAMILY CFLAGS DEVEL DARWIN_VERSION \
 	LLVM_VERSION_MAJOR LLVM_VERSION_MINOR LLVM_VERSION_PATCH \
