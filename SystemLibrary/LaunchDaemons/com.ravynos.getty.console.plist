@@ -7,12 +7,17 @@
 	<key>ProgramArguments</key>
 	<array>
 		<string>/usr/libexec/getty</string>
-		<string>std.9600</string>
+		<!-- 3wire: no modem lines (CLOCAL); with std.9600 the console
+		     looked carrier-less and getty's writes waited forever. -->
+		<string>3wire</string>
 		<string>console</string>
 	</array>
-	<key>RunAtLoad</key>
-	<true/>
+	<!-- Not at load: kextstart starts it once the drivers are attached, so
+	     no kernel message lands after the login prompt. Then kept alive. -->
 	<key>KeepAlive</key>
-	<true/>
+	<dict>
+		<key>AfterInitialDemand</key>
+		<true/>
+	</dict>
 </dict>
 </plist>

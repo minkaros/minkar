@@ -452,17 +452,20 @@ opentty(const char *tty, int flags)
 			return 0;
 		sleep(60);
 	}
-	if (login_tty(i) < 0) {
-		if (daemon(0,0) < 0) {
-			syslog(LOG_ERR,"daemon: %m");
-			close(i);
-			return 0;
-		}
-		if (login_tty(i) < 0) {
+	/*
+	 * ravynOS: launchd runs getty as a session leader. If the terminal
+	 * is still the controlling terminal of the session that just ended,
+	 * give the kernel a moment to let it go. Never daemon(): forking
+	 * away from launchd made it start a second getty, which revoked the
+	 * terminal under the first one's login.
+	 */
+	for (int tries = 0; login_tty(i) < 0; tries++) {
+		if (tries == 10) {
 			syslog(LOG_ERR, "login_tty %s: %m", tty);
 			close(i);
 			return 0;
 		}
+		sleep(1);
 	}
 	return 1;
 }
