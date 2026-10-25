@@ -5,6 +5,8 @@ LDFLAGS = --sysroot=${RAVYN_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
         -fuse-ld=${LD}
 .export CFLAGS LDFLAGS MK_TESTS
 
+# Independent programs: built in parallel.
+SUBDIR_PARALLEL =
 SUBDIR = cat chmod cp df echo hostname launchctl ln ls mkdir mv ps pwd realpath \
 	stty \
 	rm rmdir sleep sh test

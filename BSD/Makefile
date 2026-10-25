@@ -1,8 +1,6 @@
-SUBDIR = etc lib
-SUBDIR += bin
-SUBDIR += sbin
-SUBDIR += libexec
-SUBDIR += usr.bin
-SUBDIR += usr.sbin
+# The programs link BSD/lib's libraries, and only those (the rest comes
+# from earlier stages): lib first, then everything else at once.
+SUBDIR_PARALLEL =
+SUBDIR = etc lib .WAIT bin sbin libexec usr.bin usr.sbin
 
 .include <bsd.subdir.mk>

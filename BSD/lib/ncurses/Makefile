@@ -1,5 +1,9 @@
 
-all: ${.OBJDIR}/lib/libncurses.6.dylib
+all: ${.OBJDIR}/.installed
+
+# gmake gets as many jobs as this make (MAKEFLAGS is cleared: bmake's
+# flags mean nothing to it).
+NCURSES_JOBS =	-j${.MAKE.JOBS:U1}
 
 # The terminfo database is compiled on the build host. Use a tic built from
 # these sources without mixed-case names, so /usr/share/terminfo uses the
@@ -14,11 +18,12 @@ ${HOST_TIC}: ${.CURDIR}/Makefile
 	    --without-cxx --without-cxx-binding --without-manpages \
 	    --without-shared --with-normal --without-debug \
 	    --enable-ext-colors --disable-mixed-case
-	cd ${.OBJDIR}/host-tic && MAKEFLAGS="" ${TOOLS}/gmake -C include && \
-	    MAKEFLAGS="" ${TOOLS}/gmake -C ncurses && \
-	    MAKEFLAGS="" ${TOOLS}/gmake -C progs tic
+	cd ${.OBJDIR}/host-tic && MAKEFLAGS="" ${TOOLS}/gmake ${NCURSES_JOBS} -C include && \
+	    MAKEFLAGS="" ${TOOLS}/gmake ${NCURSES_JOBS} -C ncurses && \
+	    MAKEFLAGS="" ${TOOLS}/gmake ${NCURSES_JOBS} -C progs tic
 
-${.OBJDIR}/lib/libncurses.6.dylib: ${.CURDIR}/Makefile ${HOST_TIC}
+# The host tic is only needed to install: both builds run at the same time.
+${.OBJDIR}/lib/libncurses.6.dylib: ${.CURDIR}/Makefile
 	CC=${CC} CXX=${CXX} \
 	CFLAGS="--sysroot=${RAVYN_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN}" \
 	CXXFLAGS="--sysroot=${RAVYN_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN}" \
@@ -30,15 +35,20 @@ ${.OBJDIR}/lib/libncurses.6.dylib: ${.CURDIR}/Makefile ${HOST_TIC}
         --host=${CpuArch}-apple-darwin19 \
 	--with-strip-program=${TOOLS}/strip \
         --without-ada --without-tests --enable-pc-files \
-        --with-shared --with-normal --with-debug \
+        --with-shared --with-normal --without-debug \
         --enable-rpath --without-dlsym --disable-lib-suffixes \
         --enable-termcap --enable-symlinks --enable-ext-colors \
         --enable-rgb-color --with-pthread --enable-pthreads-eintr \
         --enable-reentrant \
         --disable-mixed-case
-	MAKEFLAGS="" ${TOOLS}/gmake
-	MAKEFLAGS="" tic_path=${HOST_TIC} ${TOOLS}/gmake install DESTDIR=${RAVYN_SDKROOT}
+	MAKEFLAGS="" ${TOOLS}/gmake ${NCURSES_JOBS}
+
+${.OBJDIR}/.installed: ${.OBJDIR}/lib/libncurses.6.dylib ${HOST_TIC}
+	# The SDK takes the libraries and headers; the full install (programs,
+	# terminfo database, compiled with tic) goes to the root only.
+	MAKEFLAGS="" ${TOOLS}/gmake install.libs install.includes DESTDIR=${RAVYN_SDKROOT}
 	MAKEFLAGS="" tic_path=${HOST_TIC} ${TOOLS}/gmake install DESTDIR=${SYSROOT_DIR}
 .for prog in clear infocmp tabs tic toe tput tset
 	ln -sf ${CpuArch}-apple-darwin19-${prog} ${SYSROOT_DIR}/usr/bin/${prog}
 .endfor
+	touch ${.TARGET}
