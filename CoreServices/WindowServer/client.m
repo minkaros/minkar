@@ -49,7 +49,7 @@
     [v addSubview:textfield];
     [textfield setEditable:YES];
     [textfield setNeedsDisplay:YES];
-    NSString *path = [[NSBundle mainBundle] pathForResource:@"SneakySnek" ofType:@"png"];
+    NSString *path = [[NSBundle mainBundle] pathForResource:@"Icon" ofType:@"png"];
     NSImage *img = [[NSImage alloc] initWithContentsOfFile:path];
     NSRect bounds = [[self contentView] bounds];
     bounds.origin.x = bounds.size.width - 190;

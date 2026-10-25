@@ -10,9 +10,10 @@ SRCS=           SystemUIServer.m \
 		SubmenuView.m \
                 Label.m \
                 AboutWindow.m
-RELEASE_LOGO=	hyena.png
-RESOURCES=	${.CURDIR}/../Icon.png ${.CURDIR}/ravynos-mark-64.png \
-		${SRCTOP}/Logo_Assets/${RELEASE_LOGO} \
+RELEASE_LOGO=	Minkar-256
+RESOURCES=	${.CURDIR}/../Icon.png \
+		${SRCTOP}/Logo_Assets/Minkar/MenuBar/MinkarMenu-Black-64.png \
+		${SRCTOP}/Logo_Assets/Minkar/PNG/${RELEASE_LOGO}.png \
 		${.CURDIR}/kickSession
 
 MK_WERROR=	no

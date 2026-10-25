@@ -36,7 +36,7 @@ NSTimer *timer;
 
 -(void)applicationWillFinishLaunching:(NSNotification *)note {
     backdrop = [[NSImageView alloc] initWithFrame:[self frame]];
-    NSString *path = [[NSBundle mainBundle] pathForResource:@"splash-1" ofType:@"png"];
+    NSString *path = [[NSBundle mainBundle] pathForResource:@"Minkar-BootScreen-Dark-000percent" ofType:@"png"];
     NSImage *splash = [[NSImage alloc] initWithContentsOfFile:path];
     [splash setScalesWhenResized:YES];
     [splash setSize:NSMakeSize([self frame].size.width, [self frame].size.height)];

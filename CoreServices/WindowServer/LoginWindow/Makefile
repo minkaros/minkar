@@ -3,9 +3,8 @@ SRCS=           LoginWindow.m \
                 DesktopWindow.m \
                 LoginBox.m \
                 Label.m 
-RELEASE_LOGO=	hyena.png
-RESOURCES=      ${SRCTOP}/Logo_Assets/ravynos-full.png \
-		${SRCTOP}/Logo_Assets/${RELEASE_LOGO}
+RELEASE_LOGO=	Minkar-256
+RESOURCES=      ${SRCTOP}/Logo_Assets/Minkar/PNG/${RELEASE_LOGO}.png
 
 MK_WERROR=	no
 MK_PIE=		no

@@ -1,6 +1,6 @@
 APP=	        LoadingWindow
 SRCS=           LoadingWindow.m
-RESOURCES=      ${SRCTOP}/Logo_Assets/splash-1.png
+RESOURCES=      ${SRCTOP}/Logo_Assets/Minkar/Boot/Minkar-BootScreen-Dark-000percent.png
 
 MK_WERROR=	no
 MK_PIE=		no

@@ -67,8 +67,8 @@ extern int exitCode;
     [[sysMenu addItemWithTitle:@"Lock Screen" action:NULL keyEquivalent:@""] setTarget:self];
     [[sysMenu addItemWithTitle:@"Log Out" action:@selector(performLogout:) keyEquivalent:@""] setTarget:self];
 
-    NSString *ravyn = [[NSBundle mainBundle] pathForResource:@"ravynos-mark-64" ofType:@"png"];
-    NSImage *logo = [[NSImage alloc] initWithContentsOfFile:ravyn];
+    NSString *markPath = [[NSBundle mainBundle] pathForResource:@"MinkarMenu-Black-64" ofType:@"png"];
+    NSImage *logo = [[NSImage alloc] initWithContentsOfFile:markPath];
     [logo setScalesWhenResized:YES];
     [logo setSize:NSMakeSize(16,16)];
     NSMenu *logoMenu = [NSMenu new];
