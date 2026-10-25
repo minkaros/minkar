@@ -81,19 +81,13 @@ typedef char * SEL;
 #endif
 extern id objc_msgSend(id, SEL, ...);
 
-/* A CF object whose isa is 0 (no bridged class registered, e.g. without
- * Foundation) is not an Objective-C object: check isa before the table,
- * as CF_IS_OBJC does. */
-#define CFTYPE_IS_OBJC(obj) (obj && *(uintptr_t *)obj != 0 && \
-    *(uintptr_t *)obj == \
-    __CFRuntimeObjCClassTable[(*((uintptr_t *)obj+1) & 0xff00) >> 8])
-#define CFTYPE_OBJC_FUNCDISPATCH0(rettype, obj, sel) \
-    if (CFTYPE_IS_OBJC(obj)) \
-        return (rettype)objc_msgSend(obj, @selector(sel))
-
-#define CFTYPE_OBJC_FUNCDISPATCH1(rettype, obj, sel, a1) \
-    if (CFTYPE_IS_OBJC(obj)) \
-        return (rettype)objc_msgSend(obj, @selector(sel), a1)
+#define CFTYPE_IS_OBJC(obj) ((void)(obj), 0)	/* as CF_IS_OBJC */
+/* ravynOS: the bridged classes (NSCFString, __NSCFBoolean) have CF's
+ * layout, so CFGetTypeID, CFEqual and CFHash handle them natively: asking
+ * Foundation gave strings a different hash from CFSTR constants (whose isa
+ * is not the bridged class), and CFDictionary lookups missed. */
+#define CFTYPE_OBJC_FUNCDISPATCH0(rettype, obj, sel) do { } while (0)
+#define CFTYPE_OBJC_FUNCDISPATCH1(rettype, obj, sel, a1) do { } while (0)
 
 
 bool __CFOASafe = false;
@@ -493,6 +487,22 @@ CF_INLINE CFTypeID __CFGenericTypeID_inline(const void *cf) {
     uint32_t *cfinfop = (uint32_t *)&(((CFRuntimeBase *)cf)->_cfinfo);
     CFTypeID typeID = (*cfinfop >> 8) & 0x03FF; // mask up to 0x0FFF
     return typeID;
+}
+
+/* ravynOS: only bridged types (CFString, CFBoolean) are Objective-C
+ * objects; the others keep their CFRuntimeClass (or 0) as isa and must not
+ * be sent messages. True for such a plain CF instance. */
+CF_EXPORT Boolean _CFIsNativeCFObject(CFTypeRef cf) {
+    CFTypeID t;
+    uintptr_t isa;
+
+    if (cf == NULL)
+        return false;
+    t = __CFGenericTypeID_inline(cf);
+    if (t >= __CFRuntimeClassTableSize || __CFRuntimeClassTable[t] == NULL)
+        return false;
+    isa = *(uintptr_t *)cf;
+    return isa == 0 || isa == (uintptr_t)__CFRuntimeClassTable[t];
 }
 
 CFTypeID __CFGenericTypeID(const void *cf) {

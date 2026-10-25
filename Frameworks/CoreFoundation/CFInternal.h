@@ -573,20 +573,18 @@ extern uintptr_t __CFRuntimeObjCClassTable[__CFRuntimeClassTableSize];
 
 #if INCLUDE_OBJC
 #include <Foundation/NSRange.h>
-
-#define CF_OBJC_FUNCDISPATCHV(typeID, rettype, obj, ...) \
-    do { \
-        if (CF_IS_OBJC(typeID, obj)) { \
-            [((id)obj) __VA_ARGS__]; \
-        } \
-    } while(0)
-#else
-#define CF_OBJC_FUNCDISPATCHV(typeID, rettype, obj, ...) do { } while(0)
 #endif
+/* ravynOS: no dispatch, as CF_IS_OBJC is false (see below): it sent a
+ * redundant message before the native code ran anyway, raising for
+ * selectors Foundation does not implement. */
+#define CF_OBJC_FUNCDISPATCHV(typeID, rettype, obj, ...) do { } while(0)
 #define CF_OBJC_CALLV(obj, ...) (0)
-#define CF_IS_OBJC(typeID, obj) (obj && (*(uintptr_t *)obj) \
-    && (typeID < __CFRuntimeClassTableSize) \
-    && (*(uintptr_t *)obj == __CFRuntimeObjCClassTable[typeID]))
+/* ravynOS: false. The only Objective-C classes CF knows (NSCFString,
+ * __NSCFBoolean) are its own objects with an Objective-C isa: they have
+ * CF's layout and CF handles them natively. Where this was true, CF took
+ * "Objective-C" paths through CF_OBJC_CALLV, which is (0): strings came
+ * out empty when Foundation was loaded. */
+#define CF_IS_OBJC(typeID, obj) ((void)(obj), 0)
 #define __CFISAForTypeID(t) (t < __CFRuntimeClassTableSize \
     ? __CFRuntimeObjCClassTable[t] \
         ? (uintptr_t)__CFRuntimeObjCClassTable[t] \

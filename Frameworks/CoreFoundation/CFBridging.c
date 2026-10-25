@@ -50,4 +50,14 @@ CF_EXPORT void CFSetupFoundationBridging(void)
 {
     TRACE("Setting up bridging\n");
     _CFRuntimeRegisterObjCClass(kNSCFTypeString, (uintptr_t)objc_lookUpClass("NSCFString"));
+
+    /* kCFBooleanTrue and kCFBooleanFalse are NSNumbers (__NSCFBoolean), as
+     * on macOS: they were set up before Foundation loaded, so give them the
+     * class now. */
+    uintptr_t boolClass = (uintptr_t)objc_lookUpClass("__NSCFBoolean");
+    if (boolClass != 0) {
+        _CFRuntimeRegisterObjCClass(CFBooleanGetTypeID(), boolClass);
+        ((CFRuntimeBase *)kCFBooleanTrue)->_cfisa = boolClass;
+        ((CFRuntimeBase *)kCFBooleanFalse)->_cfisa = boolClass;
+    }
 }

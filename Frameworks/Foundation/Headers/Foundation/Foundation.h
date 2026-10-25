@@ -58,7 +58,7 @@
 #endif
 
 #import <CoreFoundation/CoreFoundation.h>
-#import <CoreServices/CoreServices.h> // This is actually imported by NSURLError.h
+/* ravynOS: no CoreServices here, as on macOS; nothing in Foundation needs CFNetwork. */
 
 #define NS_ENUM(_type, _name) enum _name:_type _name; enum _name : _type
 #define NS_UNAVAILABLE __attribute__((unavailable))

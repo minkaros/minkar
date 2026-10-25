@@ -32,5 +32,7 @@
 
 CF_EXPORT int _CFRuntimeRegisterObjCClass(CFTypeID typeID, uintptr_t cls);
 CF_EXPORT void CFSetupFoundationBridging(void);
+/* True for a plain (unbridged) CF instance, which cannot receive messages. */
+CF_EXPORT Boolean _CFIsNativeCFObject(CFTypeRef cf);
 
 #endif /* __COREFOUNDATION_BRIDGING_H__ */

@@ -229,7 +229,6 @@ SRCS = 	NSFormatter.m \
 	NSNumber/NSNumber_char.m \
 	NSNumber/NSNumber_longLong.m \
 	NSNumber/NSNumber_int.m \
-	NSNumber/NSNumber_BOOL_const.m \
 	NSNumber/NSNumber_CF.m \
 	NSNumber/NSNumber.m \
 	NSNumber/NSNumber_float.m \
@@ -346,10 +345,10 @@ ACFLAGS = -mmacos-version-min=${MACOS_VERSION_MIN}
 # We need to link this manually to avoid chicken & egg issue with ld wanting
 # to link against Foundation and libobjc :)
 # Cocotron's NSNumber and NSStream define CoreFoundation's constants for
-# themselves (NSNumber objects for kCFBooleanTrue...). Foundation uses its
+# themselves (NSNumber objects for kCFNumberNaN...). Foundation uses its
 # own inside, but must not export them: those names belong to
-# CoreFoundation.
-CF_CONSTANTS_KEPT_PRIVATE = _kCFBooleanTrue _kCFBooleanFalse _kCFNumberNaN \
+# CoreFoundation. (The booleans are CF's own: __NSCFBoolean.)
+CF_CONSTANTS_KEPT_PRIVATE = _kCFNumberNaN \
 	_kCFNumberPositiveInfinity _kCFNumberNegativeInfinity \
 	_kCFStreamPropertySSLSettings
 

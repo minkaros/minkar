@@ -6,11 +6,17 @@ The above copyright notice and this permission notice shall be included in all c
 
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE. */
 
-#import "NSNumber_CF.h"
+#import <Foundation/NSZone.h>
+#import <Foundation/NSNumber.h>
 
-@interface NSNumber_BOOL : NSNumber_CF {
-    BOOL _value;
-}
+/*
+ * __NSCFBoolean: the class of CoreFoundation's kCFBooleanTrue and
+ * kCFBooleanFalse, as on macOS. Those two objects are its only instances
+ * (CFSetupFoundationBridging gives them this isa), so @YES is
+ * kCFBooleanTrue and CF and Foundation share one pair of booleans. It has
+ * no instance variables: behind the isa is CF's runtime header.
+ */
+@interface __NSCFBoolean : NSNumber
 @end
 
 NSNumber *NSNumber_BOOLNew(NSZone *zone, BOOL value);

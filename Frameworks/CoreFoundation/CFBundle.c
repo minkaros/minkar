@@ -149,7 +149,9 @@ CF_PRIVATE char *__CFBundleMainID = __CFBundleMainID__;
 
 static CFTypeID __kCFBundleTypeID = _kCFRuntimeNotATypeID;
 
-static pthread_mutex_t CFBundleGlobalDataLock = PTHREAD_MUTEX_INITIALIZER;
+/* ravynOS: recursive. Describing a CFError (as CFLog does while a bundle is
+ * being created under this lock) looks bundles up again. */
+static pthread_mutex_t CFBundleGlobalDataLock = PTHREAD_RECURSIVE_MUTEX_INITIALIZER;
 
 static CFMutableDictionaryRef _bundlesByIdentifier = NULL;
 #if AVOID_WEAK_COLLECTIONS

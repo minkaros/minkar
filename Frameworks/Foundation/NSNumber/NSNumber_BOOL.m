@@ -6,26 +6,28 @@ The above copyright notice and this permission notice shall be included in all c
 
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE. */
 #import "NSNumber_BOOL.h"
+#import <CoreFoundation/CFNumber.h>
+#import <CoreFoundation/CFBridging.h>
+#import <Foundation/NSException.h>
 #import <Foundation/NSStringFormatter.h>
+#include <limits.h>
 
-#if defined(__APPLE__)
-#import "NSNumber_BOOL_const.h"
-#else
-#import "NSNumber_BOOL_const_impl.h"
-#endif
+/* The value is the identity: kCFBooleanTrue or kCFBooleanFalse. */
+#define VALUE(self) ((CFBooleanRef)(self) == kCFBooleanTrue)
 
-@implementation NSNumber_BOOL
+@implementation __NSCFBoolean
 
-NSNumber *NSNumber_BOOLNew(NSZone *zone,BOOL value) {
-   return value?kNSNumberTrue:kNSNumberFalse;
+NSNumber *NSNumber_BOOLNew(NSZone *zone, BOOL value) {
+   (void)zone;
+   return (NSNumber *)(value ? kCFBooleanTrue : kCFBooleanFalse);
 }
 
-+ (id) allocWithZone:(NSZone *)zone {
-   [NSException raise:NSInternalInconsistencyException format:@"Private class NSNumber_BOOL is not intended to be alloced."];
++ (id)allocWithZone:(NSZone *)zone {
+   [NSException raise:NSInternalInconsistencyException format:@"Private class __NSCFBoolean is not intended to be alloced."];
    return nil;
 }
 
-// Being constant singletons (doubletons?), boolean numbers can't be released.
+// CF's constant booleans are never freed.
 -(void)dealloc {
    return;
    [super dealloc];  // Silence compiler warning
@@ -35,105 +37,62 @@ NSNumber *NSNumber_BOOLNew(NSZone *zone,BOOL value) {
    return self;
 }
 
-
 - (oneway void)release
 {
 }
-
 
 -(id)autorelease {
    return self;
 }
 
 -(NSUInteger)retainCount {
-   /* "For objects that never get released (that is, their release method
-      does nothing), this method should return UINT_MAX, as defined in
-      <limits.h>." -- NSObject Protocol Reference
-   */
    return UINT_MAX;
 }
 
+-(id)copyWithZone:(NSZone *)zone {
+   return self;
+}
+
 -(void)getValue:(void *)value {
-   *((BOOL *)value)=_value;
+   *((BOOL *)value)=VALUE(self);
 }
 
 -(const char *)objCType {
    return @encode(BOOL);
 }
 
--(char)charValue {
-   return _value;
-}
-
--(unsigned char)unsignedCharValue {
-   return _value;
-}
-
--(short)shortValue {
-   return _value;
-}
-
--(unsigned short)unsignedShortValue {
-   return _value;
-}
-
--(int)intValue {
-   return _value;
-}
-
--(unsigned int)unsignedIntValue {
-   return _value;
-}
-
--(long)longValue {
-   return _value;
-}
-
--(unsigned long)unsignedLongValue {
-   return _value;
-}
-
--(long long)longLongValue {
-   return _value;
-}
-
--(unsigned long long)unsignedLongLongValue {
-   return _value;
-}
-
--(float)floatValue {
-   return _value;
-}
-
--(double)doubleValue {
-   return _value;
-}
-
--(BOOL)boolValue {
-   return _value;
-}
-
--(NSInteger)integerValue {
-   return (NSInteger)_value;
-}
-
--(NSUInteger)unsignedIntegerValue {
-   return (NSUInteger)_value;
-}
+-(char)charValue { return VALUE(self); }
+-(unsigned char)unsignedCharValue { return VALUE(self); }
+-(short)shortValue { return VALUE(self); }
+-(unsigned short)unsignedShortValue { return VALUE(self); }
+-(int)intValue { return VALUE(self); }
+-(unsigned int)unsignedIntValue { return VALUE(self); }
+-(long)longValue { return VALUE(self); }
+-(unsigned long)unsignedLongValue { return VALUE(self); }
+-(long long)longLongValue { return VALUE(self); }
+-(unsigned long long)unsignedLongLongValue { return VALUE(self); }
+-(float)floatValue { return VALUE(self); }
+-(double)doubleValue { return VALUE(self); }
+-(BOOL)boolValue { return VALUE(self); }
+-(NSInteger)integerValue { return VALUE(self); }
+-(NSUInteger)unsignedIntegerValue { return VALUE(self); }
 
 -(NSString *)descriptionWithLocale:(NSDictionary *)locale {
-   return NSStringWithFormatAndLocale(@"%i",locale,_value);
+   return NSStringWithFormatAndLocale(@"%i",locale,(int)VALUE(self));
 }
 
-@end
+-(BOOL)isEqual:other {
+   if (other == self)
+      return YES;
+   /* A plain CF object (a CFNumber, say) cannot receive messages. */
+   if (other == nil || _CFIsNativeCFObject((CFTypeRef)other))
+      return NO;
+   return [super isEqual:other];
+}
 
-#import <Foundation/NSCFTypeID.h>
-
-@implementation NSNumber_BOOL (CFTypeID)
-
-- (unsigned) _cfTypeID
-{
-   return kNSCFTypeBoolean;
+/* CF asks for these (CFGetTypeID, CFEqual, CFHash) without calling back. */
+- (CFTypeID)_cfTypeID {
+   return CFBooleanGetTypeID();
 }
 
 @end
