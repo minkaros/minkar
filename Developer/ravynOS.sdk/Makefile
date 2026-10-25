@@ -32,6 +32,12 @@ all: ${PLATFORM_DIR} ${TOOLS}/unifdef .EXEC
 	mkdir -p ${RAVYN_SDKROOT}/System/Library/Frameworks/Kernel.framework/Versions/A
 	ln -sf Versions/A/Headers ${RAVYN_SDKROOT}/System/Library/Frameworks/Kernel.framework/Headers
 	ln -sf Versions/A/PrivateHeaders ${RAVYN_SDKROOT}/System/Library/Frameworks/Kernel.framework/PrivateHeaders
+	# xnu installs IOReturn.h & co. in IOKit.framework/Versions/A, and
+	# Libsystem includes them as <IOKit/...> before IOKitUser is built.
+	mkdir -p ${RAVYN_SDKROOT}/System/Library/Frameworks/IOKit.framework/Versions/A/Headers \
+		${RAVYN_SDKROOT}/System/Library/Frameworks/IOKit.framework/Versions/A/PrivateHeaders
+	ln -sfn Versions/A/Headers ${RAVYN_SDKROOT}/System/Library/Frameworks/IOKit.framework/Headers
+	ln -sfn Versions/A/PrivateHeaders ${RAVYN_SDKROOT}/System/Library/Frameworks/IOKit.framework/PrivateHeaders
 	# Compatibility symlinks
 	ln -sf ravynOS.platform ${ROOT_BINARY_DIR}/Developer/Platforms/MacOSX.platform
 	ln -sf ravynOS.sdk ${ROOT_BINARY_DIR}/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk
