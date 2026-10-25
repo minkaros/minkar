@@ -107,14 +107,14 @@ ${LOADER}: ${EFILOADER_SRC} ${EFILOADER_PATCHES:S,^,${.CURDIR}/patches/,}
 	# clang wrapper: the SDK, not the Linux host, provides system headers.
 	mkdir -p ${EFILOADER_TOOLS}
 	printf '#!/bin/sh\nexec %s/clang --sysroot=%s "$$@"\n' ${TOOLS} \
-	    ${RAVYN_SDKROOT} > ${EFILOADER_TOOLS}/clang
+	    ${MINKAR_SDKROOT} > ${EFILOADER_TOOLS}/clang
 	chmod 755 ${EFILOADER_TOOLS}/clang
 .for t in llvm-ar ld.lld lld llvm-objcopy
 	ln -sf ${TOOLS}/${t} ${EFILOADER_TOOLS}/${t}
 .endfor
 	cd ${EFILOADER_SRC} && env -u WORKSPACE -u EDK_TOOLS_PATH -u MAKEFLAGS \
 	    CLANG_BIN=${EFILOADER_TOOLS}/ \
-	    CPATH=${RAVYN_SDKROOT}/System/Library/Frameworks/Kernel.framework/Versions/A/Headers:${RAVYN_SDKROOT}/usr/include \
+	    CPATH=${MINKAR_SDKROOT}/System/Library/Frameworks/Kernel.framework/Versions/A/Headers:${MINKAR_SDKROOT}/usr/include \
 	    bash -c '. ./edksetup.sh >/dev/null && build -t CLANGDWARF -a X64 \
 	        -p EmulatorPkg/EmulatorPkg.dsc \
 	        -m MdeModulePkg/Application/Loader/Loader.inf'

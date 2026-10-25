@@ -129,13 +129,13 @@ HDRS = -I${.CURDIR} \
 	-I${ROOT_SOURCE_DIR}/BSD/usr.sbin/mDNSResponder/mDNSShared \
 	-I${ROOT_SOURCE_DIR}/BSD/usr.sbin/configd/dnsinfo \
 	-I${ROOT_SOURCE_DIR}/BSD/sbin/launchd \
-	-I${RAVYN_SDKROOT}/usr/include/arpa \
-	-I${RAVYN_SDKROOT}/usr/local/include/kernel \
+	-I${MINKAR_SDKROOT}/usr/include/arpa \
+	-I${MINKAR_SDKROOT}/usr/local/include/kernel \
 	-I${ROOT_SOURCE_DIR}/Kernel/xnu/libkern \
-	-I${RAVYN_SDKROOT}/System/Library/Frameworks/System.framework/Versions/B/PrivateHeaders
+	-I${MINKAR_SDKROOT}/System/Library/Frameworks/System.framework/Versions/B/PrivateHeaders
 
 # -DDS_AVAILABLE -- zoe 2/11/26 Put this back once we have DirectoryService
-CFLAGS = --sysroot=${RAVYN_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
+CFLAGS = --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
 	-DPRIVATE -D__APPLE__ -fblocks -fno-common -DDISPATCH_USE_DTRACE=0 \
 	-DINET6 -D__DARWIN_NON_CANCELABLE -DCONFIG_MAC -DSYNTH_ROOTFS \
 	-DTARGET_OS_BRIDGE=0 -Wno-int-conversion -Wno-implicit-int \
@@ -144,8 +144,8 @@ CFLAGS = --sysroot=${RAVYN_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
 
 MIG_FLAGS = -mmacos-version-min=${MACOS_VERSION_MIN} ${HDRS} -D__MigTypeCheck
 
-LDFLAGS = -Wl,-syslibroot,${RAVYN_SDKROOT}/usr/lib -umbrella System \
-    -L${RAVYN_SDKROOT}/usr/lib -L${RAVYN_SDKROOT}/usr/lib/system \
+LDFLAGS = -Wl,-syslibroot,${MINKAR_SDKROOT}/usr/lib -umbrella System \
+    -L${MINKAR_SDKROOT}/usr/lib -L${MINKAR_SDKROOT}/usr/lib/system \
     -Wl,-current_version,${PROD_VERSION} -Wl,-compatibility_version,1 \
     -Wl,-install_name,/usr/lib/system/libsystem_info.dylib -lsystem_c -lxpc \
     -lsystem_blocks -lsystem_malloc -lsystem_platform -lsystem_kernel \
@@ -160,7 +160,7 @@ notify_ipc.h notify_ipcUser.c notify_ipcServer.c: ${.CURDIR}/../libsystem_notify
 		${.CURDIR}/../libsystem_notify/notify_ipc.defs
 
 copyheaders:
-	cd ${.CURDIR}; DSTROOT=${RAVYN_SDKROOT} SRCROOT=${.CURDIR} \
+	cd ${.CURDIR}; DSTROOT=${MINKAR_SDKROOT} SRCROOT=${.CURDIR} \
 		bash ./xcodescripts/install_files.sh
 
 lib${LIB}.a: copyheaders
@@ -168,8 +168,8 @@ lib${LIB}.a: copyheaders
 ${.OBJDIR}/lib${LIB}.dylib: notify_ipcUser.c lib${LIB}.a
 	${CC} -fuse-ld=${LD} -shared -dylib -o ${.TARGET} \
 		-Wl,-force_load,${.OBJDIR}/lib${LIB}.a ${LDFLAGS}
-	mkdir -p ${RAVYN_SDKROOT}/usr/lib/system ${SYSROOT_DIR}/usr/lib/system
-	cp -f ${.TARGET} ${RAVYN_SDKROOT}/usr/lib/system/
+	mkdir -p ${MINKAR_SDKROOT}/usr/lib/system ${SYSROOT_DIR}/usr/lib/system
+	cp -f ${.TARGET} ${MINKAR_SDKROOT}/usr/lib/system/
 	cp -f ${.TARGET} ${SYSROOT_DIR}/usr/lib/system/
 
 .include <bsd.lib.mk>

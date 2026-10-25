@@ -15,11 +15,11 @@ MK_WERROR = no
 LIB = commonCrypto
 SRCS = digest.c hmac.c aes.c cryptor.c keyderivation.c
 
-CFLAGS = --sysroot=${RAVYN_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
+CFLAGS = --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
 	-I${.CURDIR} -Wno-deprecated-declarations -Wno-nullability-completeness
 
-LDFLAGS = -Wl,-syslibroot,${RAVYN_SDKROOT}/usr/lib -umbrella System \
-	-L${RAVYN_SDKROOT}/usr/lib/system \
+LDFLAGS = -Wl,-syslibroot,${MINKAR_SDKROOT}/usr/lib -umbrella System \
+	-L${MINKAR_SDKROOT}/usr/lib/system \
 	-Wl,-current_version,60165 -Wl,-compatibility_version,1 \
 	-Wl,-install_name,/usr/lib/system/libcommonCrypto.dylib \
 	-mmacos-version-min=${MACOS_VERSION_MIN} \
@@ -31,8 +31,8 @@ all: ${.OBJDIR}/lib${LIB}.dylib
 ${.OBJDIR}/lib${LIB}.dylib: lib${LIB}.a
 	${CC} -fuse-ld=${LD} -shared -dylib -o ${.TARGET} \
 		-Wl,-force_load,${.OBJDIR}/lib${LIB}.a ${LDFLAGS}
-	mkdir -p ${RAVYN_SDKROOT}/usr/lib/system ${SYSROOT_DIR}/usr/lib/system
-	cp -f ${.TARGET} ${RAVYN_SDKROOT}/usr/lib/system/
+	mkdir -p ${MINKAR_SDKROOT}/usr/lib/system ${SYSROOT_DIR}/usr/lib/system
+	cp -f ${.TARGET} ${MINKAR_SDKROOT}/usr/lib/system/
 	cp -f ${.TARGET} ${SYSROOT_DIR}/usr/lib/system/
 
 .include <bsd.lib.mk>

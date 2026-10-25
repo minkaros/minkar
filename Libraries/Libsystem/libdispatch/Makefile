@@ -49,11 +49,11 @@ CFLAGS = -fvisibility=hidden -DTARGET_OS_BRIDGE=0 -DHAVE_CONFIG_H -DHAVE_MACH \
 	-DUSE_MACH_SEM -DUSE_OBJC -DOS_FIREHOSE_SPI \
 	-DHAVE_PTHREAD_WORKQUEUE_QOS -DVOUCHER_USE_MACH_VOUCHER -D__BLOCKS__ \
 	-DPRIVATE -DDISPATCH_COCOA_COMPAT -DDISPATCH_USE_KEVENT_WORKLOOP \
-	--sysroot=${RAVYN_SDKROOT} -w -Wno-elaborated-enum-base \
+	--sysroot=${MINKAR_SDKROOT} -w -Wno-elaborated-enum-base \
 	-fno-exceptions -fblocks -fdollars-in-identifiers \
 	-momit-leaf-frame-pointer -mmacos-version-min=${MACOS_VERSION_MIN} \
-	-I${RAVYN_SDKROOT}/usr/local/include/kernel \
-	-I${RAVYN_SDKROOT}/System/Library/Frameworks/System.framework/Versions/B/PrivateHeaders \
+	-I${MINKAR_SDKROOT}/usr/local/include/kernel \
+	-I${MINKAR_SDKROOT}/System/Library/Frameworks/System.framework/Versions/B/PrivateHeaders \
 	-I${.CURDIR}/.. -I${.CURDIR} -I${.CURDIR}/private/dispatch \
 	-I${.CURDIR}/../../libsystem_blocks -I${.OBJDIR}/.. -I${.CURDIR}/src \
 	-I${.OBJDIR} -I${.CURDIR}/../../libsystem_pthread \
@@ -65,13 +65,13 @@ CFLAGS = -fvisibility=hidden -DTARGET_OS_BRIDGE=0 -DHAVE_CONFIG_H -DHAVE_MACH \
 	-I${ROOT_SOURCE_DIR}/Frameworks/Foundation/Headers \
 	-I${.CURDIR}/../../private -I${.CURDIR}/../private
 
-MIG_FLAGS = --sysroot=${RAVYN_SDKROOT} -g -DPRIVATE \
+MIG_FLAGS = --sysroot=${MINKAR_SDKROOT} -g -DPRIVATE \
 	-mmacos-version-min=${MACOS_VERSION_MIN} -D__MigTypeCheck
 MIGCC = ${CC}
 .export MIGCC
 
-LDFLAGS = --sysroot=${RAVYN_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
-	-L${RAVYN_SDKROOT}/usr/lib/system -L${RAVYN_SDKROOT}/usr/lib \
+LDFLAGS = --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
+	-L${MINKAR_SDKROOT}/usr/lib/system -L${MINKAR_SDKROOT}/usr/lib \
 	-Wl,-compatibility_version,1 \
 	-Wl,-current_version,1173.0.3 \
 	-Wl,-install_name,/usr/lib/system/libdispatch.dylib \
@@ -107,7 +107,7 @@ migs: protocolServer.h firehoseServer.h firehose_replyServer.h
 
 ${.OBJDIR}/lib${LIB}.dylib: migs ${LOBJS} 
 	${CC} -fuse-ld=${LD} -shared -dylib -o ${.TARGET} ${LOBJS} ${LDFLAGS}
-	cp -f ${.TARGET} ${RAVYN_SDKROOT}/usr/lib/system/
+	cp -f ${.TARGET} ${MINKAR_SDKROOT}/usr/lib/system/
 	cp -f ${.TARGET} ${SYSROOT_DIR}/usr/lib/system/
 
 # The sources include the MIG headers: generate them first, also with -j

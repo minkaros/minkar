@@ -64,7 +64,7 @@ CFLAGS = -Wno-implicit-int-conversion -Wno-sign-conversion \
 	-I${.CURDIR:H}/RavynAHCIPort \
 	-I${.CURDIR:H}/ApplePS2Controller
 
-LDFLAGS = -mmacos-version-min=${MACOS_VERSION_MIN} --sysroot=${RAVYN_SDKROOT} \
+LDFLAGS = -mmacos-version-min=${MACOS_VERSION_MIN} --sysroot=${MINKAR_SDKROOT} \
 	-fuse-ld=${LD}
 
 .include <rvn.kext.mk>

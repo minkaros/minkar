@@ -34,11 +34,11 @@ MAN =
 
 LIBUTIL = ${ROOT_SOURCE_DIR}/BSD/lib/libutil
 IOKIT_STORAGE = ${ROOT_SOURCE_DIR}/Kernel/Extensions/IOStorageFamily
-CFLAGS = --sysroot=${RAVYN_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
+CFLAGS = --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
         -DBSD -DDEBUG_BUILD \
         -I${.CURDIR} -I${.CURDIR}/include -I${.CURDIR:H}/../mount_hfs/include \
         -I${LIBUTIL} -I${IOKIT_STORAGE}
-LDFLAGS = --sysroot=${RAVYN_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
+LDFLAGS = --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
         -fuse-ld=${LD} -L${ROOT_BINARY_DIR}${LIBUTIL} -lutil
 
 .include <bsd.lib.mk>

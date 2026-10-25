@@ -50,7 +50,7 @@ CFLAGS.objc-auto.o = -fexceptions
 CFLAGS.objc-exception.o = -fexceptions
 CFLAGS.objc-lockdebug.o = -Os
 
-COMMONFLAGS = --sysroot=${RAVYN_SDKROOT} \
+COMMONFLAGS = --sysroot=${MINKAR_SDKROOT} \
 		-mmacos-version-min=${MACOS_VERSION_MIN} \
 		-momit-leaf-frame-pointer \
 		-fdollars-in-identifiers \
@@ -63,9 +63,9 @@ COMMONFLAGS = --sysroot=${RAVYN_SDKROOT} \
 		-I${.OBJDIR}/../Libsystem/libsystem_kernel/mig_hdr/include \
 		-I${.CURDIR}/../Libsystem/private \
 		-I${.CURDIR}/../Libsystem/libsystem_blocks \
-		-I${RAVYN_SDKROOT}/usr/local/include \
-		-I${RAVYN_SDKROOT}/usr/local/include/kernel \
-		-I${RAVYN_SDKROOT}/System/Library/Frameworks/System.framework/Versions/B/PrivateHeaders \
+		-I${MINKAR_SDKROOT}/usr/local/include \
+		-I${MINKAR_SDKROOT}/usr/local/include/kernel \
+		-I${MINKAR_SDKROOT}/System/Library/Frameworks/System.framework/Versions/B/PrivateHeaders \
 		-I${ROOT_BINARY_DIR}/${CpuArch} ${CFLAGS.${.TARGET:T}}
 
 # SUPPORT_PREOPT and __OBJC2__ add support for the dyld objc shared cache
@@ -82,7 +82,7 @@ OBJCXXFLAGS = ${COMMONFLAGS} -std=gnu++14 \
 CXXFLAGS = ${COMMONFLAGS} -std=gnu++14 -D_LIBCPP_VISIBLE=""
 ACFLAGS = ${COMMONFLAGS}
 
-LDFLAGS = --sysroot=${RAVYN_SDKROOT} -L${RAVYN_SDKROOT}/usr/lib \
+LDFLAGS = --sysroot=${MINKAR_SDKROOT} -L${MINKAR_SDKROOT}/usr/lib \
 	-mmacos-version-min=${MACOS_VERSION_MIN} \
 	-Wl,-install_name,/usr/lib/libobjc.dylib -Wl,-current_version,228 \
 	-Wl,-compatibility_version,1  \
@@ -97,22 +97,22 @@ all: ${.OBJDIR}/libobjc-trampolines.dylib ${.OBJDIR}/libobjc.A.dylib
 ${.OBJDIR}/libobjc-trampolines.dylib: ${.CURDIR}/runtime/objc-blocktramps-x86_64.s
 	${CC} --target=${CpuArch}-apple-darwin -x assembler-with-cpp \
 	  -mmacos-version-min=${MACOS_VERSION_MIN} \
-	  --sysroot=${RAVYN_SDKROOT} -fpic -shared -Wl,-dylib \
+	  --sysroot=${MINKAR_SDKROOT} -fpic -shared -Wl,-dylib \
 	  -fuse-ld=${LD} -o ${.OBJDIR}/libobjc-trampolines.dylib \
 	  -Wl,-install_name,/usr/lib/libobjc-trampolines.dylib \
 	  -Wl,-current_version,228 -lSystem \
 	  ${.ALLSRC}
-	mkdir -p ${SYSROOT_DIR}/usr/lib ${RAVYN_SDKROOT}/usr/lib
-	cp -f ${.OBJDIR}/libobjc-trampolines.dylib ${RAVYN_SDKROOT}/usr/lib/
+	mkdir -p ${SYSROOT_DIR}/usr/lib ${MINKAR_SDKROOT}/usr/lib
+	cp -f ${.OBJDIR}/libobjc-trampolines.dylib ${MINKAR_SDKROOT}/usr/lib/
 	cp -f ${.OBJDIR}/libobjc-trampolines.dylib ${SYSROOT_DIR}/usr/lib/
 
 ${.OBJDIR}/libobjc.A.dylib: lib${LIB}.a ${.OBJDIR}/libobjc-trampolines.dylib
 	${CC} -fuse-ld=${LD} -shared -o ${.TARGET} ${OBJS} ${LDFLAGS} \
-		-L${RAVYN_SDKROOT}/usr/lib -lobjc-trampolines
-	mkdir -p ${RAVYN_SDKROOT}/usr/lib ${SYSROOT_DIR}/usr/lib
-	cp -f ${.TARGET} ${RAVYN_SDKROOT}/usr/lib/
+		-L${MINKAR_SDKROOT}/usr/lib -lobjc-trampolines
+	mkdir -p ${MINKAR_SDKROOT}/usr/lib ${SYSROOT_DIR}/usr/lib
+	cp -f ${.TARGET} ${MINKAR_SDKROOT}/usr/lib/
 	cp -f ${.TARGET} ${SYSROOT_DIR}/usr/lib/
-	ln -sf libobjc.A.dylib ${RAVYN_SDKROOT}/usr/lib/libobjc.dylib
+	ln -sf libobjc.A.dylib ${MINKAR_SDKROOT}/usr/lib/libobjc.dylib
 	ln -sf libobjc.A.dylib ${SYSROOT_DIR}/usr/lib/libobjc.dylib
 
 #add_executable(objcdt STATIC

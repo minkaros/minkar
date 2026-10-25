@@ -3,13 +3,13 @@ MK_WERROR = no
 LIB = System.B
 SRCS = init.c CompatibilityHacks.c stubs.c
 
-CFLAGS = --sysroot=${RAVYN_SDKROOT} -w \
+CFLAGS = --sysroot=${MINKAR_SDKROOT} -w \
 	-mmacos-version-min=${MACOS_VERSION_MIN} \
 	-Wno-implicit-function-declaration \
 	-Wno-int-conversion -Wno-implicit-int -fno-common \
 	-I${.CURDIR}/libsystem_c/darwin \
 	-I${ROOT_SOURCE_DIR}/Kernel/xnu/EXTERNAL_HEADERS \
-	-I${RAVYN_SDKROOT}/usr/include/pthread -I${.CURDIR}/private \
+	-I${MINKAR_SDKROOT}/usr/include/pthread -I${.CURDIR}/private \
 	-I${ROOT_SOURCE_DIR}/Kernel/xnu/bsd \
 	-I${ROOT_SOURCE_DIR}/Kernel/xnu/libsyscall/mach \
 	-I${ROOT_SOURCE_DIR}/Kernel/xnu/libsyscall/wrappers \
@@ -17,17 +17,17 @@ CFLAGS = --sysroot=${RAVYN_SDKROOT} -w \
 	-I${ROOT_BINARY_DIR}/Kernel/xnu/bsd \
 	-I${ROOT_BINARY_DIR}/Kernel/xnu/EXPORT_HDRS/osfmk \
 	-I${ROOT_BINARY_DIR}/${CpuArch} \
-	-I${RAVYN_SDKROOT}/usr/include \
-	-I${RAVYN_SDKROOT}/usr/local/include \
+	-I${MINKAR_SDKROOT}/usr/include \
+	-I${MINKAR_SDKROOT}/usr/local/include \
 	-D__DARWIN_UNIX03 \
 	-include${.OBJDIR}/config.${CpuArch}.normal.h
 
 LDFLAGS = -mmacos-version-min=${MACOS_VERSION_MIN} \
-	--sysroot=${RAVYN_SDKROOT} \
-	-Wl,-syslibroot,${RAVYN_SDKROOT}/usr/lib \
-	-L${RAVYN_SDKROOT}/usr/lib/system \
-	-L${RAVYN_SDKROOT}/usr/local/lib/system \
-	-L${RAVYN_SDKROOT}/usr/lib -Wl,-no_warn_inits \
+	--sysroot=${MINKAR_SDKROOT} \
+	-Wl,-syslibroot,${MINKAR_SDKROOT}/usr/lib \
+	-L${MINKAR_SDKROOT}/usr/lib/system \
+	-L${MINKAR_SDKROOT}/usr/local/lib/system \
+	-L${MINKAR_SDKROOT}/usr/lib -Wl,-no_warn_inits \
 	-Wl,-install_name,/usr/lib/libSystem.B.dylib \
 	-Wl,-current_version,1254 \
 	-Wl,-compatibility_version,1.0.0 \
@@ -57,40 +57,40 @@ ${.OBJDIR}/config.${CpuArch}.normal.h:
 	RUNTIME_SPEC_PATH=${TOOLCHAIN}/Library/Xcode/Specifications \
 	PATH=${TOOLS}:${PATH} \
 	${.CURDIR}/xcodescripts/linker_arguments.sh \
-	${CpuArch} normal ${.OBJDIR} ${RAVYN_SDKROOT} ${.CURDIR}
+	${CpuArch} normal ${.OBJDIR} ${MINKAR_SDKROOT} ${.CURDIR}
 
 # (OBJS is only set later, by bsd.lib.mk.)
 ${SRCS:R:S/$/.o/}: ${.OBJDIR}/config.${CpuArch}.normal.h
 
 libunwind.dylib: ${.OBJDIR}/../llvm_target/libunwind/lib/libunwind.a
-	mkdir -p ${RAVYN_SDKROOT}/usr/lib/system ${SYSROOT_DIR}/usr/lib/system
+	mkdir -p ${MINKAR_SDKROOT}/usr/lib/system ${SYSROOT_DIR}/usr/lib/system
 	${CC} -umbrella System -Wl,-all_load -fuse-ld=${LD} -shared \
-	  -dylib -o ${RAVYN_SDKROOT}/usr/lib/system/libunwind.dylib \
+	  -dylib -o ${MINKAR_SDKROOT}/usr/lib/system/libunwind.dylib \
 	  -Wl,-install_name,/usr/lib/system/libunwind.dylib \
 	  -Wl,-compatibility_version,1.0.0 -Wl,-current_version,35.4 \
-	  -L${RAVYN_SDKROOT}/usr/lib -L${RAVYN_SDKROOT}/usr/lib/system \
+	  -L${MINKAR_SDKROOT}/usr/lib -L${MINKAR_SDKROOT}/usr/lib/system \
 	  -mmacosx-version-min=${MACOS_VERSION_MIN} ${.ALLSRC} \
 	  -lsystem_c -lsystem_pthread -lsystem_platform -lcompiler_rt \
 	  -lsystem_malloc -ldyld
-	cp -f ${RAVYN_SDKROOT}/usr/lib/system/libunwind.dylib \
+	cp -f ${MINKAR_SDKROOT}/usr/lib/system/libunwind.dylib \
 		${SYSROOT_DIR}/usr/lib/system/
 
 ${.OBJDIR}/lib${LIB}.dylib: ${.OBJDIR}/config.${CpuArch}.normal.h \
 lib${LIB}.a libunwind.dylib copyfile
 	${CC} -fuse-ld=${LD} -shared -dylib -o ${.TARGET} ${OBJS} ${LDFLAGS}
 	${.CURDIR}/xcodescripts/create_dylib_symlinks.sh \
-	  ${RAVYN_SDKROOT} install normal
+	  ${MINKAR_SDKROOT} install normal
 	${.CURDIR}/xcodescripts/create_dylib_symlinks.sh \
 	  ${SYSROOT_DIR} install normal
 	${.CURDIR}/xcodescripts/create_system_framework.sh \
 	  ${SYSROOT_DIR} - - - normal
-	cp -f ${.TARGET} ${RAVYN_SDKROOT}/usr/lib/
+	cp -f ${.TARGET} ${MINKAR_SDKROOT}/usr/lib/
 	cp -f ${.TARGET} ${SYSROOT_DIR}/usr/lib/
 	mkdir -p \
-	  ${RAVYN_SDKROOT}/System/Library/Frameworks/System.framework/Versions/B/Resources \
+	  ${MINKAR_SDKROOT}/System/Library/Frameworks/System.framework/Versions/B/Resources \
 	  ${SYSROOT_DIR}/System/Library/Frameworks/System.framework/Versions/B/Resources
 	cp -f ${.CURDIR}/Info.plist \
-	  ${RAVYN_SDKROOT}/System/Library/Frameworks/System.framework/Versions/B/Resources/
+	  ${MINKAR_SDKROOT}/System/Library/Frameworks/System.framework/Versions/B/Resources/
 	cp -f ${.CURDIR}/Info.plist \
 	  ${SYSROOT_DIR}/System/Library/Frameworks/System.framework/Versions/B/Resources/
 

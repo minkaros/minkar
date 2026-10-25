@@ -16,17 +16,17 @@ SRCS =  dyld3/shared-cache/dyld_closure_util.cpp \
 	dyld3/ClosurePrinter.cpp
 MAN =
 
-CFLAGS = --sysroot=${RAVYN_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
+CFLAGS = --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
         -DTARGET_OS_BRIDGE=0 -DWITHOUT_SANDBOX \
         -Wno-non-pod-varargs -Wno-nullability-completeness \
         -I${.CURDIR:H}/dyld3 \
-        -I${RAVYN_SDKROOT}/usr/include/Private \
+        -I${MINKAR_SDKROOT}/usr/include/Private \
         -I${.CURDIR:H}/dyld3/shared-cache \
         -I${.CURDIR:H}/../Libsystem/private \
         -I${.CURDIR:H}/../Libsystem/liblaunch \
         -I${ROOT_SOURCE_DIR}/Kernel/Extensions/corecrypto/include
 
-LDFLAGS = --sysroot=${RAVYN_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
+LDFLAGS = --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
         -fuse-ld=${LD} -lc++ -L${.OBJDIR:H}/libslc_builder -lslc_builder
 
 .include <bsd.prog.mk>

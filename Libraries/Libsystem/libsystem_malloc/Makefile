@@ -10,7 +10,7 @@ SRCS = \
 
 SLF = /System/Library/Frameworks
 SYSPRIVHDR = System.framework/Versions/B/PrivateHeaders
-CFLAGS = --sysroot=${RAVYN_SDKROOT} -w -momit-leaf-frame-pointer \
+CFLAGS = --sysroot=${MINKAR_SDKROOT} -w -momit-leaf-frame-pointer \
 	-mmacos-version-min=${MACOS_VERSION_MIN} -DPRIVATE \
 	-DDISPATCH_USE_DTRACE=0 -DOSATOMIC_DEPRECATED=0 \
 	-DOSATOMIC_USE_INLINED=0 -DOS_UNFAIR_LOCK_INLINE=0 \
@@ -21,16 +21,16 @@ CFLAGS = --sysroot=${RAVYN_SDKROOT} -w -momit-leaf-frame-pointer \
 	-I${ROOT_SOURCE_DIR}/Kernel/xnu/bsd \
 	-I${.CURDIR:H}/libsystem_kernel/mig_hdr/include \
 	-I${.CURDIR:H}/private -I${.CURDIR}/internal \
-	-I${.CURDIR}/resolver -I${RAVYN_SDKROOT}${SLF}/${SYSPRIVHDR} \
+	-I${.CURDIR}/resolver -I${MINKAR_SDKROOT}${SLF}/${SYSPRIVHDR} \
 	-I${ROOT_BINARY_DIR}/${CpuArch}
 
-ACFLAGS = --sysroot=${RAVYN_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN}
+ACFLAGS = --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN}
 
-LDFLAGS = --sysroot=${RAVYN_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
+LDFLAGS = --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
 	-shared -dylib -umbrella System \
 	-Wl,-install_name,/usr/lib/system/libsystem_malloc.dylib \
 	-Wl,-current_version,283 -Wl,-compatibility_version,1.0.0 \
-	-Wl,-search_paths_first -L${RAVYN_SDKROOT}/usr/lib/system  \
+	-Wl,-search_paths_first -L${MINKAR_SDKROOT}/usr/lib/system  \
 	-Wl,-force_load,${.OBJDIR}/lib${LIB}.a \
 	-lCrashReporterClient -lsystem_platform -Wl,-upward-lsystem_c \
 	-ldyld -lsystem_kernel \
@@ -41,9 +41,9 @@ lib${LIB}.dylib: ${.OBJDIR}/lib${LIB}.dylib
 
 ${.OBJDIR}/lib${LIB}.dylib: lib${LIB}.a
 	${CC} -fuse-ld=${LD} -o ${.TARGET} ${LDFLAGS}
-	mkdir -p ${RAVYN_SDKROOT}/usr/lib/system \
+	mkdir -p ${MINKAR_SDKROOT}/usr/lib/system \
 		${SYSROOT_DIR}/usr/lib/system
-	cp -f ${.TARGET} ${RAVYN_SDKROOT}/usr/lib/system/
+	cp -f ${.TARGET} ${MINKAR_SDKROOT}/usr/lib/system/
 	cp -f ${.TARGET} ${SYSROOT_DIR}/usr/lib/system/
 
 .include <bsd.lib.mk>

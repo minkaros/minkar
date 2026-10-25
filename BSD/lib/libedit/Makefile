@@ -41,9 +41,9 @@ SRCS =  chared.c \
         fcns.h \
         help.h
 
-CFLAGS = --sysroot=${RAVYN_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
+CFLAGS = --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
 	-I${.CURDIR}/src -I${.CURDIR} -I${.OBJDIR}
-LDFLAGS = --sysroot=${RAVYN_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
+LDFLAGS = --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
         -fuse-ld=${LD}
 
 CFLAGS.vis.c =	-fvisibility=hidden
@@ -73,17 +73,17 @@ lib${LIB}.dylib: lib${LIB}.a
 	  -Wl,-install_name,/usr/lib/libedit.dylib \
 	  -Wl,-current_version,3.1 -Wl,-compatibility_version,1.0 \
 	  -Wl,-force_load,${.OBJDIR}/lib${LIB}.a -lncurses
-	cp -f ${.OBJDIR}/lib${LIB}.dylib ${RAVYN_SDKROOT}/usr/lib/
+	cp -f ${.OBJDIR}/lib${LIB}.dylib ${MINKAR_SDKROOT}/usr/lib/
 	cp -f ${.OBJDIR}/lib${LIB}.dylib ${SYSROOT_DIR}/usr/lib/
 	# As on macOS: libedit is also the readline library.
-.for d in ${RAVYN_SDKROOT} ${SYSROOT_DIR}
+.for d in ${MINKAR_SDKROOT} ${SYSROOT_DIR}
 	ln -sf libedit.dylib ${d}/usr/lib/libreadline.dylib
 .endfor
-	mkdir -p ${RAVYN_SDKROOT}/usr/include/editline ${RAVYN_SDKROOT}/usr/include/readline
-	cp -f ${.CURDIR}/src/histedit.h ${RAVYN_SDKROOT}/usr/include/
-	cp -f ${.CURDIR}/src/editline/readline.h ${RAVYN_SDKROOT}/usr/include/editline/
-	ln -sf ../editline/readline.h ${RAVYN_SDKROOT}/usr/include/readline/readline.h
-	ln -sf ../editline/readline.h ${RAVYN_SDKROOT}/usr/include/readline/history.h
+	mkdir -p ${MINKAR_SDKROOT}/usr/include/editline ${MINKAR_SDKROOT}/usr/include/readline
+	cp -f ${.CURDIR}/src/histedit.h ${MINKAR_SDKROOT}/usr/include/
+	cp -f ${.CURDIR}/src/editline/readline.h ${MINKAR_SDKROOT}/usr/include/editline/
+	ln -sf ../editline/readline.h ${MINKAR_SDKROOT}/usr/include/readline/readline.h
+	ln -sf ../editline/readline.h ${MINKAR_SDKROOT}/usr/include/readline/history.h
 
 .include <bsd.lib.mk>
 

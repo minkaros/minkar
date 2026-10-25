@@ -24,12 +24,12 @@ SRCS +=	./src/x86_64/crc32vec.s
 MAJMIN = ${MAJOR}.${MINOR}
 VERSION = ${MAJOR}.${MINOR}.${PATCH}
 
-CFLAGS += --sysroot=${RAVYN_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
+CFLAGS += --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
         -I${.CURDIR}/src -Wno-nullability-completeness
-ACFLAGS += --sysroot=${RAVYN_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN}
-LDFLAGS += --sysroot=${RAVYN_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
+ACFLAGS += --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN}
+LDFLAGS += --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
         -Wl,-unexported_symbols_list,${.CURDIR}/unexports -fuse-ld=${LD}
-PROG_LDFLAGS = --sysroot=${RAVYN_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
+PROG_LDFLAGS = --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
         -fuse-ld=${LD} -L${.OBJDIR} -lbz2
 
 SUBDIR =

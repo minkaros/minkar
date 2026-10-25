@@ -10,8 +10,8 @@ SRCS = fetch.c common.c ftp.c http.c file.c fetch_tls.c
 DPSRCS = ftperr.h httperr.h
 CLEANFILES = ftperr.h httperr.h
 
-CFLAGS = --sysroot=${RAVYN_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
-	-I. -I${.CURDIR} -I${RAVYN_SDKROOT}/usr/local/include \
+CFLAGS = --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
+	-I. -I${.CURDIR} -I${MINKAR_SDKROOT}/usr/local/include \
 	-I${ROOT_SOURCE_DIR}/BSD/lib/libmd \
 	-I${ROOT_SOURCE_DIR}/BSD/lib/libbsdcompat/include -include bsdcompat.h \
 	-DINET6 -DWITH_MBEDTLS -DFTP_COMBINE_CWDS -Wno-nullability-completeness

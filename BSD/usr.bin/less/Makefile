@@ -13,9 +13,9 @@ SRCS =	main.c screen.c brac.c ch.c charset.c cmdbuf.c command.c cvt.c \
 	opttbl.c os.c output.c pattern.c position.c prompt.c search.c \
 	signal.c tags.c ttyin.c version.c xbuf.c
 
-CFLAGS += --sysroot=${RAVYN_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
+CFLAGS += --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
 	-Wno-nullability-completeness -I${.CURDIR}
-LDFLAGS += --sysroot=${RAVYN_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} -fuse-ld=${LD}
+LDFLAGS += --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} -fuse-ld=${LD}
 LDADD += -lncurses
 
 all: to-sysroot

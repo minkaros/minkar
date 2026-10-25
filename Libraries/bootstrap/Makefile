@@ -19,37 +19,37 @@ ALIASES =	c dbm dl info m poll proc pthread rpcsvc
 
 install-stubs: .PHONY
 .for a in ${ALIASES}
-	@if [ ! -e ${RAVYN_SDKROOT}/usr/lib/lib${a}.dylib ]; then \
-		mkdir -p ${RAVYN_SDKROOT}/usr/lib; \
-		ln -sf libSystem.tbd ${RAVYN_SDKROOT}/usr/lib/lib${a}.tbd; \
+	@if [ ! -e ${MINKAR_SDKROOT}/usr/lib/lib${a}.dylib ]; then \
+		mkdir -p ${MINKAR_SDKROOT}/usr/lib; \
+		ln -sf libSystem.tbd ${MINKAR_SDKROOT}/usr/lib/lib${a}.tbd; \
 	fi
 .endfor
 	# libc++abi is inside libc++.1.dylib (the SDK also gets libc++abi.a).
-	@if [ ! -e ${RAVYN_SDKROOT}/usr/lib/libc++abi.a ]; then \
-		ln -sf libc++.tbd ${RAVYN_SDKROOT}/usr/lib/libc++abi.tbd; \
+	@if [ ! -e ${MINKAR_SDKROOT}/usr/lib/libc++abi.a ]; then \
+		ln -sf libc++.tbd ${MINKAR_SDKROOT}/usr/lib/libc++abi.tbd; \
 	fi
 .for s in ${STUBS}
-	@if [ ! -e ${RAVYN_SDKROOT}/${s:${REAL}} ]; then \
-		mkdir -p ${RAVYN_SDKROOT}/${s:H}; \
+	@if [ ! -e ${MINKAR_SDKROOT}/${s:${REAL}} ]; then \
+		mkdir -p ${MINKAR_SDKROOT}/${s:H}; \
 		echo "bootstrap stub: ${s}"; \
-		cp -f ${.CURDIR}/stubs/${s} ${RAVYN_SDKROOT}/${s}; \
+		cp -f ${.CURDIR}/stubs/${s} ${MINKAR_SDKROOT}/${s}; \
 	fi
 .endfor
 
 all: .PHONY
 .for a in ${ALIASES}
-	@if [ -e ${RAVYN_SDKROOT}/usr/lib/libSystem.B.dylib ]; then \
-		rm -f ${RAVYN_SDKROOT}/usr/lib/lib${a}.tbd; \
+	@if [ -e ${MINKAR_SDKROOT}/usr/lib/libSystem.B.dylib ]; then \
+		rm -f ${MINKAR_SDKROOT}/usr/lib/lib${a}.tbd; \
 	fi
 .endfor
-	@if [ -e ${RAVYN_SDKROOT}/usr/lib/libc++.1.dylib ]; then \
-		rm -f ${RAVYN_SDKROOT}/usr/lib/libc++abi.tbd; \
+	@if [ -e ${MINKAR_SDKROOT}/usr/lib/libc++.1.dylib ]; then \
+		rm -f ${MINKAR_SDKROOT}/usr/lib/libc++abi.tbd; \
 	fi
 .for s in ${STUBS}
-	@if [ -e ${RAVYN_SDKROOT}/${s:${REAL}} ]; then \
-		rm -f ${RAVYN_SDKROOT}/${s}; \
+	@if [ -e ${MINKAR_SDKROOT}/${s:${REAL}} ]; then \
+		rm -f ${MINKAR_SDKROOT}/${s}; \
 	else \
-		[ ! -e ${RAVYN_SDKROOT}/${s} ] || \
+		[ ! -e ${MINKAR_SDKROOT}/${s} ] || \
 		    echo "warning: ${s:${REAL}} was not built, its stub stays"; \
 	fi
 .endfor

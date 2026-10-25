@@ -36,11 +36,11 @@ SRCS =  bltin/echo.c \
 	printf.c \
 	test.c
 
-CFLAGS = --sysroot=${RAVYN_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
+CFLAGS = --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
 	-DSHELL -I${.CURDIR} -I${.OBJDIR} -I${.CURDIR}/../../lib/libedit/src \
         -Wno-nullability-completeness
 
-LDFLAGS = --sysroot=${RAVYN_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
+LDFLAGS = --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
         -ledit
 
 all: mksyntax mknodes .WAIT syntax.h nodes.h token.h builtins.h to-sysroot

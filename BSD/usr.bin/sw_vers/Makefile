@@ -4,13 +4,13 @@ SRCS = sw_vers.c
 MAN =
 MK_WERROR = no
 
-CFLAGS = --sysroot=${RAVYN_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
+CFLAGS = --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
 	-Wno-nullability-completeness -I${ROOT_SOURCE_DIR}/Frameworks \
 	-I${ROOT_SOURCE_DIR}/Kernel/xnu/libkern
 
 LDFLAGS = -framework CoreFoundation -Wl,-platform_version -Wl,macos \
 	  -Wl,${MACOS_VERSION_MIN} -Wl,${MACOS_VERSION_MIN} \
-	  -Wl,-syslibroot,${RAVYN_SDKROOT}/usr/lib
+	  -Wl,-syslibroot,${MINKAR_SDKROOT}/usr/lib
 
 all: ${PROG} copyprog
 

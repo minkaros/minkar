@@ -21,24 +21,24 @@ SRCS =	scutil.c cache.c commands.c dictionary.c net.c net_interface.c \
 SRCS +=	InterfaceNamerControlPrefs.c IPMonitorControlPrefs.c sc_sha256.c
 .PATH: ${CONFIGD}/Plugins/common ${SC}/compat
 
-CFLAGS = --sysroot=${RAVYN_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
+CFLAGS = --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
 	-fblocks -DPRIVATE -DTARGET_OS_BRIDGE=0 -Wno-nullability-completeness \
 	-Wno-elaborated-enum-base -Wno-deprecated-declarations \
 	-I${.CURDIR} -I${CONFIGD}/Plugins/IPMonitor -I${CONFIGD}/dnsinfo \
 	-I${CONFIGD}/nwi -I${CONFIGD}/libSystemConfiguration \
 	-I${CONFIGD}/IPMonitorControl -I${CONFIGD}/config-agent-info \
 	-I${CONFIGD}/Plugins/common \
-	-I${RAVYN_SDKROOT}${SLF}/SystemConfiguration.framework/PrivateHeaders \
+	-I${MINKAR_SDKROOT}${SLF}/SystemConfiguration.framework/PrivateHeaders \
 	-I${SC} -I${SC}/compat -I${SC}/helper \
-	-I${RAVYN_SDKROOT}/usr/local/include \
+	-I${MINKAR_SDKROOT}/usr/local/include \
 	-I${ROOT_SOURCE_DIR}/Libraries/Libsystem/private \
 	-I${ROOT_SOURCE_DIR}/Libraries/Libsystem/libdispatch/private \
 	-I${ROOT_SOURCE_DIR}/Libraries/Libsystem/liblaunch \
 	-I${ROOT_SOURCE_DIR}/Libraries/Libsystem/libsystem_c \
 	-I${ROOT_SOURCE_DIR}/Libraries/Libsystem/libsystem_notify \
-	-I${RAVYN_SDKROOT}${SLF}/System.framework/PrivateHeaders \
-	-idirafter ${RAVYN_SDKROOT}${SLF}/Kernel.framework/Versions/A/Headers
-LDFLAGS = --sysroot=${RAVYN_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
+	-I${MINKAR_SDKROOT}${SLF}/System.framework/PrivateHeaders \
+	-idirafter ${MINKAR_SDKROOT}${SLF}/Kernel.framework/Versions/A/Headers
+LDFLAGS = --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
 	-fuse-ld=${LD}
 LDADD =	-framework SystemConfiguration -framework CoreFoundation -lbsm -ledit
 

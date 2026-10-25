@@ -58,7 +58,7 @@ regen-dispatch:
 	python3 -B ${.CURDIR}/tools/gen_gl_dispatch.py ${.CURDIR}/include ${.CURDIR}
 
 fmwk-install-hook:
-.for dir in ${RAVYN_SDKROOT}/System/Library/Frameworks/ ${SYSROOT_DIR}/System/Library/Frameworks/
+.for dir in ${MINKAR_SDKROOT}/System/Library/Frameworks/ ${SYSROOT_DIR}/System/Library/Frameworks/
 	mkdir -p ${dir}
 	cp -Rf ${.OBJDIR}/${FRAMEWORK}.framework ${dir}
 .endfor

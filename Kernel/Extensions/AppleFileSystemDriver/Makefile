@@ -19,7 +19,7 @@ CFLAGS = -Wno-implicit-int-conversion -Wno-sign-conversion \
 	-I${ROOT_SOURCE_DIR}/Kernel/xnu/EXTERNAL_HEADERS \
 	-I${.CURDIR:H}/IOStorageFamily \
 	-I${.OBJDIR} \
-	-I${RAVYN_SDKROOT}${SLF}/System.framework/PrivateHeaders
+	-I${MINKAR_SDKROOT}${SLF}/System.framework/PrivateHeaders
 
 all: copyheaders
 

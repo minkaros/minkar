@@ -136,8 +136,8 @@ CFLAGS.frune.o = -D__FBSDID=__RCSID
 CFLAGS.mbrune.o = -D__FBSDID=__RCSID
 CFLAGS.runedepreciated.o = -D__FBSDID=__RCSID
 CFLAGS.setinvalidrune.o = -D__FBSDID=__RCSID
-CFLAGS._libc_init.o = -I${RAVYN_SDKROOT}${SLF}/System.framework/Versions/B/PrivateHeaders
-CFLAGS.gettimeofday.o = -I${RAVYN_SDKROOT}${SLF}/System.framework/Versions/B/PrivateHeaders
-CFLAGS.assumes.o = -I${RAVYN_SDKROOT}${SLF}/System.framework/Versions/B/PrivateHeaders
+CFLAGS._libc_init.o = -I${MINKAR_SDKROOT}${SLF}/System.framework/Versions/B/PrivateHeaders
+CFLAGS.gettimeofday.o = -I${MINKAR_SDKROOT}${SLF}/System.framework/Versions/B/PrivateHeaders
+CFLAGS.assumes.o = -I${MINKAR_SDKROOT}${SLF}/System.framework/Versions/B/PrivateHeaders
 
 .include <bsd.lib.mk>

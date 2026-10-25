@@ -9,7 +9,7 @@ MK_WERROR = no
 LIB = md
 SRCS = md5c.c sha1c.c sha256c.c sha512c.c mdhl.c
 
-CFLAGS = --sysroot=${RAVYN_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
+CFLAGS = --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
 	-I${.CURDIR} -I${ROOT_SOURCE_DIR}/BSD/lib/libbsdcompat/include -include bsdcompat.h \
 	-Wno-nullability-completeness
 

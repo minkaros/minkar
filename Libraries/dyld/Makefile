@@ -31,7 +31,7 @@ SRCS = ./src/start_glue.s \
 
 COMMONFLAGS = -w --target=${CpuArch}-apple-darwin -dylib \
 	-mmacos-version-min=${MACOS_VERSION_MIN} \
-	--sysroot=${RAVYN_SDKROOT} -DPRIVATE  \
+	--sysroot=${MINKAR_SDKROOT} -DPRIVATE  \
 	-DBUILDING_LIBDYLD -DWITHOUT_SANDBOX -DBROKEN_VECTOR_BASE \
 	-D__USING_SJLJ_EXCEPTIONS__=0 -D_USE_EXTENDED_LOCALES_ \
 	-D__DARWIN_C_LEVEL=__DARWIN_C_FULL -DTARGET_OS_BRIDGE=0 \
@@ -50,7 +50,7 @@ COMMONFLAGS = -w --target=${CpuArch}-apple-darwin -dylib \
 	-I${.CURDIR}/../Libsystem/liblaunch -I${.CURDIR}/../openbsm \
 	-I${ROOT_SOURCE_DIR}/Kernel/xnu/libkern \
 	-I${ROOT_SOURCE_DIR}/Kernel/xnu/libsyscall/wrappers/libproc \
-	-I${RAVYN_SDKROOT}/System/Library/Frameworks/System.framework/Versions/B/PrivateHeaders \
+	-I${MINKAR_SDKROOT}/System/Library/Frameworks/System.framework/Versions/B/PrivateHeaders \
 	-I${ROOT_SOURCE_DIR}/Kernel/xnu/EXTERNAL_HEADERS
 
 C_INCS= \
@@ -78,8 +78,8 @@ CFLAGS.ImageLoaderMachOCompressed.o = -O3
 ACFLAGS = ${COMMONFLAGS}
 CFLAGS = ${COMMONFLAGS} ${CFLAGS.${.TARGET:T}}
 CXXFLAGS = ${COMMONFLAGS} -std=c++20 ${C_INCS} ${CFLAGS.${.TARGET:T}}
-LDFLAGS = --target=${CpuArch}-apple-darwin --sysroot=${RAVYN_SDKROOT} \
-	-L${RAVYN_SDKROOT}/usr/lib/system -L${RAVYN_SDKROOT}/usr/lib \
+LDFLAGS = --target=${CpuArch}-apple-darwin --sysroot=${MINKAR_SDKROOT} \
+	-L${MINKAR_SDKROOT}/usr/lib/system -L${MINKAR_SDKROOT}/usr/lib \
 	-Wl,-no_inits -Wl,-no_warn_unused_dylibs -fuse-ld=${LD} -shared \
 	-umbrella System "-Wl,-unexported_symbol,__ZNSt3*" \
 	-mmacos-version-min=${MACOS_VERSION_MIN} \
@@ -99,10 +99,10 @@ mkdirs: .PHONY
 
 lib${LIB}.dylib: mkdirs lib${LIB}.a
 	${CC} -o ${.TARGET} -Wl,-force_load,lib${LIB}.a ${LDFLAGS}
-	mkdir -p ${RAVYN_SDKROOT}/usr/lib/system
-	cp -f ${.TARGET} ${RAVYN_SDKROOT}/usr/lib/system/
+	mkdir -p ${MINKAR_SDKROOT}/usr/lib/system
+	cp -f ${.TARGET} ${MINKAR_SDKROOT}/usr/lib/system/
 	cp -f ${.TARGET} ${SYSROOT_DIR}/usr/lib/system/
-	cp -f ${.OBJDIR}/lib${LIB}.a ${RAVYN_SDKROOT}/usr/lib/system/
+	cp -f ${.OBJDIR}/lib${LIB}.a ${MINKAR_SDKROOT}/usr/lib/system/
 	cp -f ${.OBJDIR}/lib${LIB}.a ${SYSROOT_DIR}/usr/lib/system/
 
 libdyld: ${.OBJDIR}/lib${LIB}.dylib

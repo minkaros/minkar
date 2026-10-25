@@ -2,8 +2,8 @@
 #  RAVYNOS BUILD SYSTEM - Kernel and Extensions
 # ------------------------------------------------------------------------
 
-AVAILABILITY_PL = ${RAVYN_SDKROOT}/usr/local/libexec/availability.pl
-AVAILABILITY_PL_PATH = ${RAVYN_SDKROOT}/usr/local/libexec/availability.pl
+AVAILABILITY_PL = ${MINKAR_SDKROOT}/usr/local/libexec/availability.pl
+AVAILABILITY_PL_PATH = ${MINKAR_SDKROOT}/usr/local/libexec/availability.pl
 SEED_DEFINES = -DRC_ENABLE_XNU_PRODUCT_INFO_FILTER
 PATH := ${TOOLCHAIN}/usr/bin:${PATH}
 
@@ -51,12 +51,12 @@ installhdrs: .PHONY
 	MAKEFLAGS= PATH="${PATH}" ${GMAKE} -C ${.CURDIR}/xnu LOGCOLORS=y PLATFORM=MacOSX BUILD_LTO=0 \
 		BUILD_PROFILE=0 BUILD_WERROR=0 DO_CTFMERGE=0 \
 		SDKVERSION=${MACOS_VERSION_MIN} SRCROOT=${.CURDIR}/xnu \
-		OBJROOT=${.OBJDIR}/xnu DSTROOT=${RAVYN_SDKROOT} \
+		OBJROOT=${.OBJDIR}/xnu DSTROOT=${MINKAR_SDKROOT} \
 		MIGCOM=${MIGCOM} MIG=${MIG} IIG=${IIG} MIGCC=${CC} \
 		CC=${CC} CXX=${CXX} HOST_OS_VERSION=${MACOS_VERSION_MIN} \
 		UNIFDEF=${UNIFDEF} CTFCONVERT=${CTFCONVERT} \
 		CTFMERGE=${CTFMERGE} CTFINSERT=${CTFINSERT} \
-		HOST_SDKROOT=${RAVYN_SDKROOT} VERBOSE=yes \
+		HOST_SDKROOT=${MINKAR_SDKROOT} VERBOSE=yes \
 		AVAILABILITY_PL=${AVAILABILITY_PL} SDKROOT=macosx \
 		AVAILABILITY_PL_PATH=${AVAILABILITY_PL_PATH} XCRUN=${XCRUN} \
 		KERNEL_CONFIGS=${KERNEL_CONFIGS} ARCH_CONFIGS=${ARCH_CONFIGS} \
@@ -77,7 +77,7 @@ xnu_all: installhdrs .WAIT compiler_rt .WAIT libfirehose_kernel
 	MAKEFLAGS= PATH="${PATH}" ${GMAKE} -C ${.CURDIR}/xnu LOGCOLORS=y \
 		PLATFORM=MacOSX BUILD_LTO=0 BUILD_WERROR=0 DO_CTFMERGE=0 \
 		SDKVERSION=${MACOS_VERSION_MIN} SRCROOT=${.CURDIR}/xnu \
-		OBJROOT=${.OBJDIR}/xnu DSTROOT=${RAVYN_SDKROOT} \
+		OBJROOT=${.OBJDIR}/xnu DSTROOT=${MINKAR_SDKROOT} \
 		SYMROOT=${.OBJDIR}/xnu/sym BUILD_STATIC_LINK=1 \
 		MIGCOM=${MIGCOM} MIG=${MIG} IIG=${IIG} CC=${CC} CXX=${CXX} \
 		UNIFDEF=${UNIFDEF} CTFCONVERT=${CTFCONVERT} LD="${CC} --ld-path=${LD}" \
@@ -91,7 +91,7 @@ xnu_all: installhdrs .WAIT compiler_rt .WAIT libfirehose_kernel
 		LIBTOOL=${TOOLCHAIN}/usr/bin/libtool VERBOSE=yes \
 		KERNEL_CONFIGS=${KERNEL_CONFIGS} ARCH_CONFIGS=${ARCH_CONFIGS} \
 		HOST_CC=${HOST_CC} HOST_CXX=${HOST_CXX} HOST_LD=${HOST_LD} all install
-.for target_dir in ${RAVYN_SDKROOT}/System/Library/Kernels \
+.for target_dir in ${MINKAR_SDKROOT}/System/Library/Kernels \
   ${SYSROOT_DIR}/System/Library/Kernels
 	mkdir -p ${target_dir} ${target_dir:H}/Extensions
 	cp -Rf ${.OBJDIR}/xnu/sym/kernel${DEBUG}.dSYM ${target_dir}/

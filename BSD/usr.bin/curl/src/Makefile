@@ -10,10 +10,10 @@ PROG = curl
 SRCS = ${CURL_CFILES} ${CURLX_CFILES:T}
 CURLLIB = ${ROOT_BINARY_DIR}${ROOT_SOURCE_DIR}/BSD/usr.bin/curl/lib
 
-CFLAGS = --sysroot=${RAVYN_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
+CFLAGS = --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
 	-I${.CURDIR}/../include -I${.CURDIR}/../lib -I${.CURDIR} \
 	-DHAVE_CONFIG_H -O2 -Wno-nullability-completeness
-LDFLAGS = --sysroot=${RAVYN_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} -fuse-ld=${LD}
+LDFLAGS = --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} -fuse-ld=${LD}
 LDADD = ${CURLLIB}/libcurl.4.dylib
 
 all: to-sysroot

@@ -7,12 +7,12 @@ PROG = fetch
 FETCHLIB = ${ROOT_BINARY_DIR}${ROOT_SOURCE_DIR}/BSD/lib/libfetch
 MDLIB = ${ROOT_BINARY_DIR}${ROOT_SOURCE_DIR}/BSD/lib/libmd
 
-CFLAGS = --sysroot=${RAVYN_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
+CFLAGS = --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
 	-I${ROOT_SOURCE_DIR}/BSD/lib/libfetch \
 	-I${ROOT_SOURCE_DIR}/BSD/lib/libbsdcompat/include -include bsdcompat.h \
 	-include sys/ioctl.h -Wno-nullability-completeness
-LDFLAGS = --sysroot=${RAVYN_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} -fuse-ld=${LD}
-LDADD = ${FETCHLIB}/libfetch.a ${RAVYN_SDKROOT}/usr/local/lib/libmbedtls.a \
+LDFLAGS = --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} -fuse-ld=${LD}
+LDADD = ${FETCHLIB}/libfetch.a ${MINKAR_SDKROOT}/usr/local/lib/libmbedtls.a \
 	${MDLIB}/libmd.a \
 	-L${ROOT_BINARY_DIR}${ROOT_SOURCE_DIR}/BSD/lib/libbsdcompat -lbsdcompat
 

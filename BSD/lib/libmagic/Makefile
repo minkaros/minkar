@@ -16,7 +16,7 @@ SRCS = apprentice.c ascmagic.c buffer.c cdf.c cdf_time.c compress.c der.c \
 MAGICPATH = /usr/share/file
 CLEANFILES = magic.h magic magic.mgc mkmagic
 
-CFLAGS = --sysroot=${RAVYN_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
+CFLAGS = --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
 	-DHAVE_CONFIG_H -DMAGIC='"${MAGICPATH}/magic"' \
 	-I. -I${.CURDIR} -I${.CURDIR}/src -I${ROOT_SOURCE_DIR}/Libraries/zlib \
 	-Wno-nullability-completeness

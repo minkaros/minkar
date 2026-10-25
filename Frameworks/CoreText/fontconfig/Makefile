@@ -8,14 +8,14 @@ NO_AUTOTOOLS =	ACLOCAL=: AUTOCONF=: AUTOMAKE=: AUTOHEADER=:
 # generator, ../fcobjshash-gen.py.
 
 ONYX2D_OBJ = ${.OBJDIR:H:H}/Onyx2D
-SDK_FLAGS = --sysroot=${RAVYN_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN}
+SDK_FLAGS = --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN}
 
 FREETYPE_CFLAGS = -I${ONYX2D_OBJ}/freetype/include \
 	-I${ROOT_SOURCE_DIR}/Frameworks/Onyx2D/freetype/include
 # Use -L/-l: libtool would embed .a paths inside libfontconfig.a
 FREETYPE_LIBS = -L${ONYX2D_OBJ}/freetype -lfreetype \
 	-L${ONYX2D_OBJ}/png -lpng16 -lz
-LIBXML2_CFLAGS = -I${RAVYN_SDKROOT}/usr/include/libxml2 \
+LIBXML2_CFLAGS = -I${MINKAR_SDKROOT}/usr/include/libxml2 \
 	-I${.OBJDIR:H}/libiconv/include
 LIBXML2_LIBS = -lxml2 -L${.OBJDIR:H}/libiconv/lib/.libs -liconv \
 	-L${.OBJDIR:H}/xz/src/liblzma/.libs -llzma -lz
@@ -31,7 +31,7 @@ ${.OBJDIR}/Makefile: ${.CURDIR}/configure
 	GPERF="python3 -I ${.CURDIR:H}/fcobjshash-gen.py" \
 	${.CURDIR}/configure --prefix=/usr --sysconfdir=/etc \
 	--localstatedir=/var --host=${CpuArch}-apple-darwin \
-	--with-sysroot=${RAVYN_SDKROOT} \
+	--with-sysroot=${MINKAR_SDKROOT} \
 	--enable-static --disable-shared --with-pic \
 	--enable-libxml2 --disable-docs --disable-nls --disable-cache-build \
 	--with-templatedir=/System/Library/Frameworks/CoreText.framework/Resources \

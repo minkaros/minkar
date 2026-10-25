@@ -8,15 +8,15 @@ BINDIR ?= /usr/sbin
 
 .PATH: ${.OBJDIR}
 
-CFLAGS = --sysroot=${RAVYN_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
+CFLAGS = --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
 	-I${.OBJDIR} -I${.OBJDIR}/include -I${OPENBSM} \
 	-I${ROOT_SOURCE_DIR}/Libraries/Libsystem/liblaunch \
 	-Wno-cast-align -Wno-cast-qual -Wno-sign-compare -Wno-shadow
-LDFLAGS = --sysroot=${RAVYN_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
+LDFLAGS = --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
 	-fuse-ld=${LD}
 LDADD ?= -lbsm
 
-MIGFLAGS = --sysroot=${RAVYN_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN}
+MIGFLAGS = --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN}
 
 ${.OBJDIR}/include/config/config.h: ${OPENBSM}/config/config_ravynos.h
 	mkdir -p ${.TARGET:H}

@@ -33,7 +33,7 @@ CFLAGS = -Wno-implicit-int-conversion -Wno-sign-conversion \
         -DOMITPENDINGKEYCAPS \
 	-I${.CURDIR}/IOHIDSystem -I${.CURDIR} -I${.CURDIR}/IOHIDFamily \
 	-I${.CURDIR}/IOHIDSystem/IOKit/hidsystem \
-        -I${RAVYN_SDKROOT}/usr/local/include/kernel \
+        -I${MINKAR_SDKROOT}/usr/local/include/kernel \
 	-I${ROOT_BINARY_DIR}${ROOT_SOURCE_DIR}/Kernel/xnu/EXPORT_HDRS/iokit \
 	-I${ROOT_BINARY_DIR}${ROOT_SOURCE_DIR}/Kernel/xnu/EXPORT_HDRS/bsd \
 	-I${ROOT_BINARY_DIR}${ROOT_SOURCE_DIR}/Kernel/xnu/EXPORT_HDRS/libkern \
@@ -41,11 +41,11 @@ CFLAGS = -Wno-implicit-int-conversion -Wno-sign-conversion \
 	-I${ROOT_BINARY_DIR}${ROOT_SOURCE_DIR}/Kernel/xnu/EXPORT_HDRS/san \
 	-I${ROOT_BINARY_DIR}${ROOT_SOURCE_DIR}/Kernel/xnu/EXPORT_HDRS/security \
 	-I${ROOT_SOURCE_DIR}/Kernel/xnu/osfmk \
-	-include${RAVYN_SDKROOT}/usr/include/i386/endian.h \
-	-include${RAVYN_SDKROOT}/usr/local/include/kernel/os/object.h \
+	-include${MINKAR_SDKROOT}/usr/include/i386/endian.h \
+	-include${MINKAR_SDKROOT}/usr/local/include/kernel/os/object.h \
 	${CFLAGS.${.TARGET}}
 
-LDFLAGS = -mmacos-version-min=${MACOS_VERSION_MIN} --sysroot=${RAVYN_SDKROOT} \
+LDFLAGS = -mmacos-version-min=${MACOS_VERSION_MIN} --sysroot=${MINKAR_SDKROOT} \
 	-fuse-ld=${LD}
 
 CFLAGS.IOHIDSystem.o = -include${.CURDIR}/IOHIDFamily/IOHIDElement.h
@@ -55,14 +55,14 @@ all: copyheaders
 
 copyheaders:
 	cp -fv ${.CURDIR}/IOHIDFamily/IOHIDInterface.h \
-	    ${RAVYN_SDKROOT}${SLF}/IOKit.framework/Headers/hid/
-	mkdir -p ${RAVYN_SDKROOT}${SLF}/IOKit.framework/Headers/usb
-	touch ${RAVYN_SDKROOT}${SLF}/IOKit.framework/Headers/usb/IOUSBHostFamily.h
-	mkdir -p ${RAVYN_SDKROOT}${SLF}/IOKit.framework/Headers/hidsystem
+	    ${MINKAR_SDKROOT}${SLF}/IOKit.framework/Headers/hid/
+	mkdir -p ${MINKAR_SDKROOT}${SLF}/IOKit.framework/Headers/usb
+	touch ${MINKAR_SDKROOT}${SLF}/IOKit.framework/Headers/usb/IOUSBHostFamily.h
+	mkdir -p ${MINKAR_SDKROOT}${SLF}/IOKit.framework/Headers/hidsystem
 	cp -fv ${.CURDIR}/IOHIDFamily/IOHIDUsageTables.h \
-	    ${RAVYN_SDKROOT}${SLF}/IOKit.framework/Headers/hidsystem
+	    ${MINKAR_SDKROOT}${SLF}/IOKit.framework/Headers/hidsystem
 	cp -fv ${.CURDIR}/IOHIDFamily/IOHIDUsageTables.h \
-	    ${RAVYN_SDKROOT}${SLF}/IOKit.framework/Headers/hid/
+	    ${MINKAR_SDKROOT}${SLF}/IOKit.framework/Headers/hid/
 
 SUBDIR = IOHIDSystem
 #SUBDIR += HID

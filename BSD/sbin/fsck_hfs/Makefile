@@ -13,10 +13,10 @@ MAN = fsck_hfs.8
 
 PROJ_VER = @(\#)PROGRAM:fsck_hfs  PROJECT:hfs-556~41\n
 LIBUTIL = ${ROOT_SOURCE_DIR}/BSD/lib/libutil
-CFLAGS = --sysroot=${RAVYN_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
+CFLAGS = --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
         -I${.CURDIR} -I${.CURDIR:H}/mount_hfs/include -I${LIBUTIL} \
         '-DPROJ_VER="${PROJ_VER}"'
-LDFLAGS = --sysroot=${RAVYN_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
+LDFLAGS = --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
         -fuse-ld=${LD} -L${ROOT_BINARY_DIR}${LIBUTIL} -lutil \
         -L${.OBJDIR}/dfalib -ldfa -framework CoreFoundation -framework IOKit
 

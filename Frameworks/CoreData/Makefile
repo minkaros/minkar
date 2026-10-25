@@ -61,7 +61,7 @@ CFLAGS = -I${.CURDIR:H} -fblocks
 LDFLAGS = -framework Foundation -framework CoreFoundation -lobjc
 
 fmwk-install-hook:
-.for dir in ${RAVYN_SDKROOT}/System/Library/Frameworks/ ${SYSROOT_DIR}/System/Library/Frameworks/
+.for dir in ${MINKAR_SDKROOT}/System/Library/Frameworks/ ${SYSROOT_DIR}/System/Library/Frameworks/
 	mkdir -p ${dir}
 	cp -Rf ${.OBJDIR}/${FRAMEWORK}.framework ${dir}
 .endfor

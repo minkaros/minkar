@@ -19,7 +19,7 @@
 #         ${ROOT_SOURCE_DIR}/BSD/usr.sbin/mDNSResponder/mDNSMacOSX
 #         ${ROOT_SOURCE_DIR}/Libraries/openbsm
 #         ${ROOT_SOURCE_DIR}/Kernel/xnu/libkern
-#         ${RAVYN_SDKROOT}/System/Library/PrivateFrameworks/CoreUtils.framework/Versions/A/Headers)
+#         ${MINKAR_SDKROOT}/System/Library/PrivateFrameworks/CoreUtils.framework/Versions/A/Headers)
 # 
 #     target_link_options(dns_services PRIVATE
 #         -Wl,-install_name,/usr/lib/libdns_services.dylib
@@ -42,7 +42,7 @@
 #         ${ROOT_SOURCE_DIR}/Kernel/xnu/libkern
 #         ${ROOT_SOURCE_DIR}/Libraries/Libsystem/libdispatch
 #         ${ROOT_SOURCE_DIR}/BSD/usr.sbin/mDNSResponder/Clients/dnssdutil
-#         ${RAVYN_SDKROOT}/System/Library/Frameworks/System.framework/Versions/B/PrivateHeaders)
+#         ${MINKAR_SDKROOT}/System/Library/Frameworks/System.framework/Versions/B/PrivateHeaders)
 # 
 #     target_link_options(liblog_mdnsresponder PRIVATE
 #         -Wl,-install_name,/usr/lib/log/liblog_mdnsresponder.dylib

@@ -10,9 +10,9 @@ CFLAGS = -I${.CURDIR:H}
 SUBDIR =
 
 fmwk-install-hook:
-	mkdir -p ${RAVYN_SDKROOT}/System/Library/Frameworks \
+	mkdir -p ${MINKAR_SDKROOT}/System/Library/Frameworks \
 	  ${SYSROOT_DIR}/System/Library/Frameworks
-	cp -Rf ${.OBJDIR}/${FRAMEWORK}.framework ${RAVYN_SDKROOT}/System/Library/Frameworks
+	cp -Rf ${.OBJDIR}/${FRAMEWORK}.framework ${MINKAR_SDKROOT}/System/Library/Frameworks
 	cp -Rf ${.OBJDIR}/${FRAMEWORK}.framework ${SYSROOT_DIR}/System/Library/Frameworks
 
 #SUBDIR = LaunchServices

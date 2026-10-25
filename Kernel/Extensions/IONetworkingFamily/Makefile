@@ -26,7 +26,7 @@ HEADERS = IOEthernetController.h IOEthernetInterface.h IONetworkController.h \
 	IONetworkStats.h IOEthernetStats.h IONetworkStack.h IONetworkUserClient.h
 
 # The headers go in the SDK's Kernel.framework, like the other families'.
-KFW_HEADERS = ${RAVYN_SDKROOT}/System/Library/Frameworks/Kernel.framework/Headers/IOKit/network
+KFW_HEADERS = ${MINKAR_SDKROOT}/System/Library/Frameworks/Kernel.framework/Headers/IOKit/network
 
 all: install-headers
 install-headers:

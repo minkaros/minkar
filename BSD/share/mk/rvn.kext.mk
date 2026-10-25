@@ -6,8 +6,8 @@
 _KEXT_FOLDER = ${.OBJDIR}/${KEXT}.kext
 _KEXT_LIB = ${_KEXT_FOLDER}/Contents/MacOS/${KEXT}
 
-.if defined(RAVYN_SDKROOT)
-SDKROOT = ${RAVYN_SDKROOT}
+.if defined(MINKAR_SDKROOT)
+SDKROOT = ${MINKAR_SDKROOT}
 .endif
 
 .PATH: ${.OBJDIR}

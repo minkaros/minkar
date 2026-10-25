@@ -15,16 +15,16 @@ LIBLAUNCH =	${ROOT_SOURCE_DIR}/Libraries/Libsystem/liblaunch
 LIBSYSTEM =	${ROOT_SOURCE_DIR}/Libraries/Libsystem
 XNU =		${ROOT_SOURCE_DIR}/Kernel/xnu
 
-COMMONFLAGS = --sysroot=${RAVYN_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
+COMMONFLAGS = --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
 	-DPRIVATE -fblocks \
 	-I${.OBJDIR} -I${.CURDIR} -I${LIBLAUNCH} \
 	-I${LIBSYSTEM}/private \
-	-I${RAVYN_SDKROOT}/System/Library/Frameworks/System.framework/PrivateHeaders \
-	-I${RAVYN_SDKROOT}/usr/local/include
+	-I${MINKAR_SDKROOT}/System/Library/Frameworks/System.framework/PrivateHeaders \
+	-I${MINKAR_SDKROOT}/usr/local/include
 
 MIG_FLAGS =	${COMMONFLAGS} -D__MigTypeCheck
 CFLAGS =	${COMMONFLAGS} -Wno-nullability-completeness
-LDFLAGS =	--sysroot=${RAVYN_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
+LDFLAGS =	--sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
 	-fuse-ld=${LD}
 
 # Generated MIG interfaces, the sides Apple's launchd target builds.

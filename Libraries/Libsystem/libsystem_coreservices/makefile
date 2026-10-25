@@ -4,16 +4,16 @@ LIB = system_coreservices
 SRCS = sysdir.c NSSystemDirectories.c
 
 SLF = /System/Library/Frameworks
-CFLAGS = --sysroot=${RAVYN_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
+CFLAGS = --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
 	-Wno-nullability-completeness
 TEST_CFLAGS = -g -DTEST
-LDFLAGS = --sysroot=${RAVYN_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
+LDFLAGS = --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
 	-Wl,-current_version,114 -Wl,-compatibility_version,1 \
 	-umbrella System \
 	-Wl,-install_name,/usr/lib/system/libsystem_coreservices.dylib
 
 INCS = sysdir.h NSSystemDirectories.h
-INCSDIR = ${RAVYN_SDKROOT}/usr/include
+INCSDIR = ${MINKAR_SDKROOT}/usr/include
 
 all: ${.OBJDIR}/lib${LIB}.dylib
 
@@ -24,7 +24,7 @@ test: sysdir.c sysdir.h
 ${.OBJDIR}/lib${LIB}.dylib: lib${LIB}.a copyincs
 	${CC} -fuse-ld=${LD} -shared -dylib -o ${.TARGET} \
 	  -Wl,-force_load,${.OBJDIR}/lib${LIB}.a ${LDFLAGS}
-	cp -f ${.TARGET} ${RAVYN_SDKROOT}/usr/lib/system/
+	cp -f ${.TARGET} ${MINKAR_SDKROOT}/usr/lib/system/
 	cp -f ${.TARGET} ${SYSROOT_DIR}/usr/lib/system/
 
 copyincs: ${INCS}

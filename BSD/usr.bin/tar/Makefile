@@ -10,13 +10,13 @@ LA =	${ROOT_SOURCE_DIR}/BSD/lib/libarchive
 SRCS =	bsdtar.c cmdline.c creation_set.c read.c subst.c util.c write.c \
 	err.c line_reader.c passphrase.c
 
-CFLAGS += --sysroot=${RAVYN_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
+CFLAGS += --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
 	-Wno-nullability-completeness \
 	-DPLATFORM_CONFIG_H=\"${LA}/config_ravynos.h\" \
 	-DBSDTAR_VERSION_STRING=\"3.8.1\" \
 	-I${LA}/src/tar -I${LA}/src/libarchive -I${LA}/src/libarchive_fe \
 	-I${ROOT_SOURCE_DIR}/BSD/lib/libbsdcompat/include -include bsdcompat.h
-LDFLAGS += --sysroot=${RAVYN_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} -fuse-ld=${LD}
+LDFLAGS += --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} -fuse-ld=${LD}
 LDADD += -L${ROOT_BINARY_DIR}${LA} -larchive \
 	-L${ROOT_BINARY_DIR}${ROOT_SOURCE_DIR}/BSD/lib/libmd -lmd \
 	-L${ROOT_BINARY_DIR}${ROOT_SOURCE_DIR}/BSD/lib/libbsdcompat -lbsdcompat \

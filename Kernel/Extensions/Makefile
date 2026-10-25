@@ -4,7 +4,7 @@ SUBDIR = AppleAPIC IOACPIFamily IOPCIFamily IOStorageFamily IOATAFamily \
 	 AppleI386PCI IONetworkingFamily RavynE1000 #RavynXHCIPort IOUSBFamily
 
 all: kernelcache
-.for target_dir in ${RAVYN_SDKROOT}/System/Library/Extensions \
+.for target_dir in ${MINKAR_SDKROOT}/System/Library/Extensions \
   ${SYSROOT_DIR}/System/Library/Extensions
 	mkdir -p ${target_dir}
 .for kext in ${SUBDIR}

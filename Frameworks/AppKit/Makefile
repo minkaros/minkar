@@ -572,7 +572,7 @@ RESOURCES_FILES = Info.plist \
 	NSSwitch.tiff \
 	NSKeyboardBinding/StandardKeyBindings.keyBindings
 
-CFLAGS = --sysroot=${RAVYN_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
+CFLAGS = --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
     -F${.OBJDIR} -I${.CURDIR:H} -I${.CURDIR}/Headers -I${.CURDIR:H}/Foundation/Headers \
     -I${.CURDIR:H}/Foundation/platform_posix \
     -I${.CURDIR} -I${.OBJDIR} -I${ROOT_SOURCE_DIR}/CoreServices \
@@ -631,7 +631,7 @@ fmwk-install-hook:
 	cp -Rf ${.CURDIR}/NSSystemInfoPanel/${lproj}/NSSystemInfoPanel.nib \
 		${RESOURCES_DIR}/${lproj}/
 .endfor
-.for dir in ${RAVYN_SDKROOT}/System/Library/Frameworks/ ${SYSROOT_DIR}/System/Library/Frameworks/
+.for dir in ${MINKAR_SDKROOT}/System/Library/Frameworks/ ${SYSROOT_DIR}/System/Library/Frameworks/
 	mkdir -p ${dir}
 	cp -Rf ${.OBJDIR}/${FRAMEWORK}.framework ${dir}
 .endfor

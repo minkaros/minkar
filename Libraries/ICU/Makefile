@@ -1,11 +1,11 @@
 MK_WERROR = no
 LIB = icu
 
-CFLAGS =--sysroot=${RAVYN_SDKROOT} -fuse-ld=${LD} \
+CFLAGS =--sysroot=${MINKAR_SDKROOT} -fuse-ld=${LD} \
 	-mmacos-version-min=${MACOS_VERSION_MIN}
-CXXFLAGS =-std=gnu++17 --sysroot=${RAVYN_SDKROOT} -fuse-ld=${LD} \
+CXXFLAGS =-std=gnu++17 --sysroot=${MINKAR_SDKROOT} -fuse-ld=${LD} \
 	-mmacos-version-min=${MACOS_VERSION_MIN}
-LDFLAGS =--sysroot=${RAVYN_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
+LDFLAGS =--sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
 	-fuse-ld=${LD} -licudata -lc++
 # clang links the compiler-rt builtins itself (lib/darwin/libclang_rt.osx.a
 # in its resource directory); naming them here too duplicates them under
@@ -35,7 +35,7 @@ lib${LIB}.a: ${.CURDIR}/Makefile
 	  && MAKEFLAGS="" ${GMAKE} ${ICU_JOBS}
 .endif
 	mkdir -p ${.OBJDIR}/target
-	cd ${.OBJDIR}/target; ICU_CROSS_BUILD=1 SDKROOT=${RAVYN_SDKROOT} \
+	cd ${.OBJDIR}/target; ICU_CROSS_BUILD=1 SDKROOT=${MINKAR_SDKROOT} \
 	  CFLAGS="${CFLAGS}" CXXFLAGS="${CXXFLAGS}" LDFLAGS="${LDFLAGS:N-licudata}" \
 	  CC=${CC} CXX=${CXX} LD=${LD} AR=${AR} STRIP=${STRIP} MAKEFLAGS="" \
 	  ${.CURDIR}/source/runConfigureICU MacOSX ${EXTRA_FLAGS}
@@ -49,7 +49,7 @@ libicucore.A.dylib: lib${LIB}.a
 	  -Wl,-current_version,78.3 -Wl,-compatibility_version,1 \
 	  $$(find ${.OBJDIR}/target/common ${.OBJDIR}/target/i18n \
 	  ${.OBJDIR}/target/io -name '*.o') -L${.OBJDIR}/target/lib ${LDFLAGS}
-.for dir in ${RAVYN_SDKROOT} ${SYSROOT_DIR}
+.for dir in ${MINKAR_SDKROOT} ${SYSROOT_DIR}
 	mkdir -p ${dir}/usr/lib ${dir}/usr/include
 	cp -f ${.OBJDIR}/${.TARGET} ${dir}/usr/lib/
 	ln -sf ${.TARGET} ${dir}/usr/lib/libicucore.dylib

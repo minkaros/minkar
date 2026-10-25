@@ -59,12 +59,12 @@ install-data: generate
 	cp -f ${RULES_SRC}/base.extras.xml ${XKB_DEST}/rules/${r}.extras.xml
 .endfor
 	# pkg-config data file, as meson.build generates it
-	mkdir -p ${RAVYN_SDKROOT}/usr/share/pkgconfig
+	mkdir -p ${MINKAR_SDKROOT}/usr/share/pkgconfig
 	printf '%s\n' 'xkb_base=${XKB_BASE}' '' \
 	    'Name: XKeyboardConfig' \
 	    'Description: X Keyboard configuration data' \
 	    'Version: ${VERSION}' \
-	    > ${RAVYN_SDKROOT}/usr/share/pkgconfig/xkeyboard-config.pc
+	    > ${MINKAR_SDKROOT}/usr/share/pkgconfig/xkeyboard-config.pc
 
 clean:
 .for r in ${RULESETS}

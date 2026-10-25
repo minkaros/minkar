@@ -14,11 +14,11 @@ SRCS = base64.c dns_async.c dns.c dns_util.c dst_api.c dst_hmac_link.c \
 	res_query.c res_send.c res_sendsigned.c res_update.c dnsinfo_none.c
 .PATH: ${.CURDIR}/ravynos
 
-CFLAGS = --sysroot=${RAVYN_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
+CFLAGS = --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
 	-std=gnu99 -fno-common -I${.CURDIR}/ravynos -I${.CURDIR} \
 	-I${ROOT_SOURCE_DIR}/BSD/usr.sbin/configd/dnsinfo \
 	-Wno-nullability-completeness
-LDFLAGS = --sysroot=${RAVYN_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
+LDFLAGS = --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
 	-fuse-ld=${LD}
 
 RESOLVLIB =	${.OBJDIR}/libresolv.9.dylib
@@ -32,9 +32,9 @@ ${RESOLVLIB}: lib${LIB}.a
 	  -Wl,-force_load,${.OBJDIR}/lib${LIB}.a
 
 install-sdk: ${RESOLVLIB}
-	mkdir -p ${RAVYN_SDKROOT}/usr/lib
-	cp -f ${RESOLVLIB} ${RAVYN_SDKROOT}/usr/lib/
-	ln -sf libresolv.9.dylib ${RAVYN_SDKROOT}/usr/lib/libresolv.dylib
+	mkdir -p ${MINKAR_SDKROOT}/usr/lib
+	cp -f ${RESOLVLIB} ${MINKAR_SDKROOT}/usr/lib/
+	ln -sf libresolv.9.dylib ${MINKAR_SDKROOT}/usr/lib/libresolv.dylib
 
 install-sysroot: ${RESOLVLIB}
 	mkdir -p ${SYSROOT_DIR}/usr/lib

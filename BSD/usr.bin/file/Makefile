@@ -9,12 +9,12 @@ PROG = file
 SRCS = file.c
 MAGICLIB = ${ROOT_BINARY_DIR}${ROOT_SOURCE_DIR}/BSD/lib/libmagic
 
-CFLAGS = --sysroot=${RAVYN_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
+CFLAGS = --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
 	-DHAVE_CONFIG_H -DMAGIC='"/usr/share/file/magic"' \
 	-I${MAGICLIB} -I${ROOT_SOURCE_DIR}/BSD/lib/libmagic \
 	-I${ROOT_SOURCE_DIR}/BSD/lib/libmagic/src -Wno-nullability-completeness
-LDFLAGS = --sysroot=${RAVYN_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} -fuse-ld=${LD}
-LDADD = ${MAGICLIB}/libmagic.a ${RAVYN_SDKROOT}/usr/lib/libz.a
+LDFLAGS = --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} -fuse-ld=${LD}
+LDADD = ${MAGICLIB}/libmagic.a ${MINKAR_SDKROOT}/usr/lib/libz.a
 
 all: to-sysroot
 

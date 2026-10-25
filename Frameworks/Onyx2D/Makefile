@@ -206,7 +206,7 @@ CFLAGS += -I${.CURDIR} -I${.CURDIR:H} -I${.CURDIR:H}/Foundation/Headers \
         -Wno-missing-method-return-type -Wno-missing-prototypes \
 	-Wno-implicit-function-declaration
 CFLAGS += -I${.CURDIR}/freetype/include \
-	-include${RAVYN_SDKROOT}/usr/include/sys/param.h
+	-include${MINKAR_SDKROOT}/usr/include/sys/param.h
 LDFLAGS += ${.OBJDIR}/jpeg/libjpeg.a ${.OBJDIR}/png/libpng.a \
 	${.OBJDIR}/tiff/libtiff/libtiff.a \
 	-Wl,-force_load,${.OBJDIR}/freetype/libfreetype.a \
@@ -219,23 +219,23 @@ lib${FRAMEWORK}.a: libjpeg.a libpng.a libtiff.a .WAIT freetype
 all_subdir_${DIRPRFX}freetype: libpng.a
 
 libjpeg.a:
-	CFLAGS="-mmacos-version-min=${MACOS_VERSION_MIN} --sysroot=${RAVYN_SDKROOT}" \
+	CFLAGS="-mmacos-version-min=${MACOS_VERSION_MIN} --sysroot=${MINKAR_SDKROOT}" \
 	    LDFLAGS="-mmacos-version-min=${MACOS_VERSION_MIN} -fuse-ld=${LD}" \
 	    cmake -DCMAKE_C_COMPILER=${CC} \
 	    -DCMAKE_SYSTEM_NAME=Darwin \
-	    -DCMAKE_SYSROOT=${RAVYN_SDKROOT} \
+	    -DCMAKE_SYSROOT=${MINKAR_SDKROOT} \
 	    -DCMAKE_SYSTEM_VERSION=${MACOS_VERSION_MIN} \
 	    -DCMAKE_SYSTEM_PROCESSOR=${CpuArch} \
 	    -S${ROOT_SOURCE_DIR}/BSD/lib/libjpeg -B${.OBJDIR}/jpeg
 	cmake --build ${.OBJDIR}/jpeg
 
 libpng.a:
-	SDKROOT=${RAVYN_SDKROOT} cmake -DCMAKE_C_COMPILER=${CC} \
-	    -DCMAKE_C_FLAGS="-mmacos-version-min=${MACOS_VERSION_MIN} --sysroot=${RAVYN_SDKROOT} \
+	SDKROOT=${MINKAR_SDKROOT} cmake -DCMAKE_C_COMPILER=${CC} \
+	    -DCMAKE_C_FLAGS="-mmacos-version-min=${MACOS_VERSION_MIN} --sysroot=${MINKAR_SDKROOT} \
 		-I${ROOT_SOURCE_DIR}/Libraries/zlib -fuse-ld=${LD}" \
 	    -DCMAKE_EXE_LINKER_FLAGS="-mmacos-version-min=${MACOS_VERSION_MIN} -fuse-ld=${LD}" \
 	    -DCMAKE_SYSTEM_NAME=Darwin \
-	    -DCMAKE_SYSROOT=${RAVYN_SDKROOT} \
+	    -DCMAKE_SYSROOT=${MINKAR_SDKROOT} \
 	    -DCMAKE_SYSTEM_VERSION=${MACOS_VERSION_MIN} \
 	    -DCMAKE_SYSTEM_PROCESSOR=${CpuArch} \
 	    -DPNG_TOOLS=OFF -DPNG_SHARED=OFF -DPNG_TESTS=OFF \
@@ -248,12 +248,12 @@ libpng.a:
 libtiff.a:
 	cmake -DCMAKE_C_COMPILER=${CC} -DCMAKE_CXX_COMPILER=${CXX} \
 	    -DCMAKE_C_COMPILER_LINKER=${LD} \
-	    -DCMAKE_C_FLAGS="-mmacos-version-min=${MACOS_VERSION_MIN} --sysroot=${RAVYN_SDKROOT} \
+	    -DCMAKE_C_FLAGS="-mmacos-version-min=${MACOS_VERSION_MIN} --sysroot=${MINKAR_SDKROOT} \
 		-I${ROOT_SOURCE_DIR}/Libraries/zlib -I${ROOT_SOURCE_DIR}/BSD/lib/libtiff" \
-	    -DCMAKE_CXX_FLAGS="-mmacos-version-min=${MACOS_VERSION_MIN} --sysroot=${RAVYN_SDKROOT}" \
+	    -DCMAKE_CXX_FLAGS="-mmacos-version-min=${MACOS_VERSION_MIN} --sysroot=${MINKAR_SDKROOT}" \
 	    -DCMAKE_EXE_LINKER_FLAGS="-mmacos-version-min=${MACOS_VERSION_MIN} -fuse-ld=${LD}" \
 	    -DCMAKE_SYSTEM_NAME=Darwin \
-	    -DCMAKE_SYSROOT=${RAVYN_SDKROOT} \
+	    -DCMAKE_SYSROOT=${MINKAR_SDKROOT} \
 	    -DCMAKE_SYSTEM_VERSION=${MACOS_VERSION_MIN} \
 	    -DCMAKE_SYSTEM_PROCESSOR=${CpuArch} \
 	    -DBUILD_SHARED_LIBS=OFF \
@@ -263,7 +263,7 @@ libtiff.a:
 	cmake --build ${.OBJDIR}/tiff
 
 fmwk-install-hook:
-.for dir in ${RAVYN_SDKROOT}/System/Library/Frameworks/ ${SYSROOT_DIR}/System/Library/Frameworks/
+.for dir in ${MINKAR_SDKROOT}/System/Library/Frameworks/ ${SYSROOT_DIR}/System/Library/Frameworks/
 	mkdir -p ${dir}
 	cp -Rf ${.OBJDIR}/${FRAMEWORK}.framework ${dir}
 .endfor

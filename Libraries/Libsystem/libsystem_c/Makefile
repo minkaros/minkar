@@ -41,23 +41,23 @@ COMMON_DEFS = -D__LIBC__ -D_FORTIFY_SOURCE=0 -DPR_13085474_CHECK=0 \
 	-D__DARWIN_UNIX03 -D__DARWIN_64_BIT_INO_T -D__DARWIN_NON_CANCELABLE \
 	-D__DARWIN_VERS_1050
 
-CFLAGS = --target=${CpuArch}-apple-darwin --sysroot=${RAVYN_SDKROOT} \
+CFLAGS = --target=${CpuArch}-apple-darwin --sysroot=${MINKAR_SDKROOT} \
 	 ${COMMON_DEFS} -mmacos-version-min=${MACOS_VERSION_MIN} \
 	-std=gnu11 -fdollars-in-identifiers -fno-common -fverbose-asm -w \
 	-Wno-error=shorten-64-to-32 -Wno-int-conversion -Wno-implicit-int \
 	-Wno-error=incompatible-pointer-types-discards-qualifiers \
 	-Wno-nullability-completeness -Wno-implicit-function-declaration \
-	-isystem${RAVYN_SDKROOT}/usr/include/c++/v1 \
+	-isystem${MINKAR_SDKROOT}/usr/include/c++/v1 \
 	-isystem${ROOT_BINARY_DIR}/${CpuArch} \
-	-isystem${RAVYN_SDKROOT}/usr/local/include \
-	-isystem${RAVYN_SDKROOT}/usr/include \
+	-isystem${MINKAR_SDKROOT}/usr/local/include \
+	-isystem${MINKAR_SDKROOT}/usr/include \
 	-I${.CURDIR}/fbsdcompat -I${.CURDIR}/include -I${.CURDIR}/gen \
 	-I${.CURDIR}/locale -I${.CURDIR}/locale/FreeBSD \
 	-I${.CURDIR}/stdtime/FreeBSD -I${.CURDIR}/darwin \
 	-I${ROOT_SOURCE_DIR}/Kernel/xnu/libsyscall/wrappers/spawn
 .export CFLAGS
 
-ACFLAGS = --sysroot=${RAVYN_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN}
+ACFLAGS = --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN}
 
 SRCS = darwin/forceLibcToBuild.c darwin/compatibility_hacks.c
 
@@ -69,7 +69,7 @@ ${ROOT_BINARY_DIR}/${CpuArch}/libc-features.h:
 	DERIVED_FILES_DIR=${ROOT_BINARY_DIR} SRCROOT=${.CURDIR} \
 		perl ${.CURDIR}/xcodescripts/generate_features.pl
 	perl ${.CURDIR}/xcodescripts/patch_headers_variants.pl \
-		${RAVYN_SDKROOT}${SLF}/System.framework/Versions/B/PrivateHeaders \
+		${MINKAR_SDKROOT}${SLF}/System.framework/Versions/B/PrivateHeaders \
 		${ROOT_BINARY_DIR}/${CpuArch}/System.framework/Versions/B
 
 #-----------------------------------------------------------------------------
@@ -115,10 +115,10 @@ generateLinkLists:
 	bash ${.CURDIR}/xcodescripts/build_linklists.sh
 
 LDFLAGS = -mmacos-version-min=${MACOS_VERSION_MIN} \
-	-Wl,-syslibroot,${RAVYN_SDKROOT}/usr/lib \
+	-Wl,-syslibroot,${MINKAR_SDKROOT}/usr/lib \
 	-Wl,-current_version,1353.0.10 -Wl,-compatibility_version,1.0.0 \
 	-Wl,-install_name,/usr/lib/system/libsystem_c.dylib -umbrella System \
-	-L${RAVYN_SDKROOT}/usr/lib/system -L${RAVYN_SDKROOT}/usr/lib \
+	-L${MINKAR_SDKROOT}/usr/lib/system -L${MINKAR_SDKROOT}/usr/lib \
 	-Wl,-search_paths_first -Wl,-all_load \
 	${.OBJDIR}/libPlatform/libPlatform.a \
 	${.OBJDIR}/libBase/libBase.a ${.OBJDIR}/libNetBSD/libNetBSD.a \
@@ -165,9 +165,9 @@ ${.OBJDIR}/crypt_ravyn_crypt.o: ${.CURDIR}/ravyn_crypt/ravyn_crypt.c ${CRYPT_HDR
 lib${LIB}.dylib: lib${LIB}.a ${CRYPT_OBJS}
 	${CC} -shared -dylib -fuse-ld=${LD} -o ${.TARGET} ${.OBJDIR}/ravyn_ccrng.o \
 	  ${CRYPT_OBJS} ${LDFLAGS} -Wl,-unexported_symbol,___crypt_des
-	mkdir -p ${SYSROOT_DIR}/usr/lib/system ${RAVYN_SDKROOT}/usr/lib/system
+	mkdir -p ${SYSROOT_DIR}/usr/lib/system ${MINKAR_SDKROOT}/usr/lib/system
 	cp -f ${.TARGET} ${SYSROOT_DIR}/usr/lib/system/
-	cp -f ${.TARGET} ${RAVYN_SDKROOT}/usr/lib/system/
+	cp -f ${.TARGET} ${MINKAR_SDKROOT}/usr/lib/system/
 
 SRCS+=	ravyn_ccrng.c
 

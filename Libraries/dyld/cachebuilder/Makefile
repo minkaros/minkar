@@ -25,14 +25,14 @@ SRCS =  dyld3/Closure.cpp \
 MAN =
 
 CXXSTD = gnu++14
-CFLAGS = --sysroot=${RAVYN_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
+CFLAGS = --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
         -DTARGET_OS_BRIDGE=0 -DBUILDING_CACHE_BUILDER \
         -I${ROOT_SOURCE_DIR}/Kernel/Extensions/corecrypto/include \
         -I${.CURDIR:H}/dyld3/shared-cache -I${.CURDIR:H}/dyld3 \
         -I${.CURDIR:H}/../Libsystem/private \
-        -I${RAVYN_SDKROOT}/usr/include/Private
+        -I${MINKAR_SDKROOT}/usr/include/Private
 
-LDFLAGS = --sysroot=${RAVYN_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
+LDFLAGS = --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
         -fuse-ld=${LD}
 
 .include <bsd.prog.mk>

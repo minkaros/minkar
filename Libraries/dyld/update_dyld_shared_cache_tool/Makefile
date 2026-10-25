@@ -22,7 +22,7 @@ SRCS =  dyld3/PathOverrides.cpp \
 	dyld3/shared-cache/OptimizerLinkedit.cpp 
 MAN =
 
-CFLAGS = --sysroot=${RAVYN_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
+CFLAGS = --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
         -DTARGET_OS_BRIDGE=0 -DWITHOUT_SANDBOX -DDEBUG \
         -DBUILDING_CACHE_BUILDER -DBUILDING_UPDATE_DYLD_CACHE_BUILDER \
         -Wno-elaborated-enum-base \
@@ -30,9 +30,9 @@ CFLAGS = --sysroot=${RAVYN_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
         -I${.CURDIR:H}/dyld3/shared-cache -I${.CURDIR:H}/dyld3 \
         -I${ROOT_SOURCE_DIR}/Kernel/IOKitUser/stubs/sandbox \
         -I${.CURDIR:H}/../Libsystem/private -I${.CURDIR} \
-        -I${RAVYN_SDKROOT}/usr/include/Private
+        -I${MINKAR_SDKROOT}/usr/include/Private
 
-LDFLAGS = --sysroot=${RAVYN_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
+LDFLAGS = --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
         -fuse-ld=${LD}
 
 .include <bsd.prog.mk>

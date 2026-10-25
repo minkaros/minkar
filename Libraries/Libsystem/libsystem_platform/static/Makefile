@@ -5,9 +5,9 @@ LIB = system_platform
 
 all: libplatform.a
 libplatform.a: lib${LIB}.a
-	mkdir -p ${RAVYN_SDKROOT}/usr/local/lib/dyld
+	mkdir -p ${MINKAR_SDKROOT}/usr/local/lib/dyld
 	cp -f ${.OBJDIR}/lib${LIB}.a \
-	  ${RAVYN_SDKROOT}/usr/local/lib/dyld/${.TARGET}
+	  ${MINKAR_SDKROOT}/usr/local/lib/dyld/${.TARGET}
 
 .include "../common.mk"
 

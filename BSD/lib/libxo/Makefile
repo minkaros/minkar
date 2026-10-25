@@ -10,12 +10,12 @@ LIB = xo
 
 SRCS = libxo.c xo_encoder.c xo_syslog.c
 
-CFLAGS = --sysroot=${RAVYN_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
+CFLAGS = --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
 	-I${.CURDIR} -I${ROOT_SOURCE_DIR}/BSD/lib/libutil \
 	-DXO_ENCODERDIR=\"/usr/lib/libxo/encoder\" \
 	-Wno-nullability-completeness
 
-LDFLAGS = --sysroot=${RAVYN_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
+LDFLAGS = --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
 	-Wl,-install_name,/usr/lib/libxo.0.dylib \
 	-Wl,-current_version,1.6 -Wl,-compatibility_version,1.0 \
 	-L${ROOT_BINARY_DIR}${ROOT_SOURCE_DIR}/BSD/lib/libutil -lutil -lSystem
@@ -27,7 +27,7 @@ all: ${.OBJDIR}/libxo.0.dylib
 ${.OBJDIR}/libxo.0.dylib: lib${LIB}.a
 	${CC} -fuse-ld=${LD} -shared -dylib -o ${.TARGET} \
 		-Wl,-force_load,${.OBJDIR}/lib${LIB}.a ${LDFLAGS}
-.for d in ${RAVYN_SDKROOT} ${SYSROOT_DIR}
+.for d in ${MINKAR_SDKROOT} ${SYSROOT_DIR}
 	mkdir -p ${d}/usr/lib ${d}/usr/include/libxo
 	cp -f ${.TARGET} ${d}/usr/lib/
 	ln -sf libxo.0.dylib ${d}/usr/lib/libxo.dylib

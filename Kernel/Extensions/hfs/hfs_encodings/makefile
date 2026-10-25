@@ -24,7 +24,7 @@ CFLAGS = -DPRIVATE=1 -DKERNEL=1 \
 	-I${ROOT_BINARY_DIR}${ROOT_SOURCE_DIR}/Kernel/xnu/EXPORT_HDRS \
 	-I${ROOT_SOURCE_DIR}/Kernel/xnu/EXTERNAL_HEADERS \
 	-I${.CURDIR:H}/IOStorageFamily \
-	-I${RAVYN_SDKROOT}${SLF}/System.framework/PrivateHeaders \
+	-I${MINKAR_SDKROOT}${SLF}/System.framework/PrivateHeaders \
 	-include${ROOT_SOURCE_DIR}/Kernel/xnu/osfmk/libsa/i386/types.h \
 	-include${ROOT_SOURCE_DIR}/Kernel/xnu/bsd/sys/disk.h \
 	-include${ROOT_SOURCE_DIR}/Kernel/xnu/bsd/sys/fcntl.h \

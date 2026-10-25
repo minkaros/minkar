@@ -9,9 +9,9 @@ SRCS =	main.c init.c subr.c chat.c
 MAN =	gettytab.5 ttys.5 getty.8
 
 LIBUTIL = ${ROOT_SOURCE_DIR}/BSD/lib/libutil
-CFLAGS = --sysroot=${RAVYN_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
+CFLAGS = --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
 	-Wno-nullability-completeness -I${LIBUTIL}
-LDFLAGS = --sysroot=${RAVYN_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
+LDFLAGS = --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
 	-fuse-ld=${LD} -L${ROOT_BINARY_DIR}${LIBUTIL} -lutil
 
 all: to-sysroot

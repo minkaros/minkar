@@ -15,7 +15,7 @@ SLF =	/System/Library/Frameworks
 .PATH: ${.OBJDIR} ${ASLCOMMON}
 SRCS =	aslmanager.c daemon.c asl_common.c asl_ipcUser.c
 
-CFLAGS = --sysroot=${RAVYN_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
+CFLAGS = --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
 	-fblocks -DPRIVATE -DTARGET_OS_BRIDGE=0 -Wno-nullability-completeness \
 	-Wno-deprecated-declarations \
 	-I${.OBJDIR} -I${.CURDIR} -I${ASLCOMMON} -I${LIBASL} \
@@ -25,14 +25,14 @@ CFLAGS = --sysroot=${RAVYN_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
 	-I${ROOT_SOURCE_DIR}/Libraries/Libsystem/liblaunch \
 	-I${ROOT_SOURCE_DIR}/Libraries/Libsystem/libsystem_c \
 	-I${ROOT_SOURCE_DIR}/Libraries/Libsystem/libsystem_notify \
-	-I${RAVYN_SDKROOT}/usr/local/include \
-	-I${RAVYN_SDKROOT}${SLF}/System.framework/PrivateHeaders \
-	-idirafter ${RAVYN_SDKROOT}${SLF}/Kernel.framework/Versions/A/Headers
-LDFLAGS = --sysroot=${RAVYN_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
+	-I${MINKAR_SDKROOT}/usr/local/include \
+	-I${MINKAR_SDKROOT}${SLF}/System.framework/PrivateHeaders \
+	-idirafter ${MINKAR_SDKROOT}${SLF}/Kernel.framework/Versions/A/Headers
+LDFLAGS = --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
 	-fuse-ld=${LD}
-LDADD =	-lbsm ${RAVYN_SDKROOT}/usr/lib/libz.a
+LDADD =	-lbsm ${MINKAR_SDKROOT}/usr/lib/libz.a
 
-MIGFLAGS = -novouchers --sysroot=${RAVYN_SDKROOT} \
+MIGFLAGS = -novouchers --sysroot=${MINKAR_SDKROOT} \
 	-mmacos-version-min=${MACOS_VERSION_MIN} -DPRIVATE
 
 asl_ipcUser.c asl_ipc.h: ${ASLCOMMON}/asl_ipc.defs

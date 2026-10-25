@@ -13,9 +13,9 @@ CFLAGS += -mmacos-version-min=${MACOS_VERSION_MIN}
 LDFLAGS += -mmacos-version-min=${MACOS_VERSION_MIN}
 .endif
 
-.if defined(RAVYN_SDKROOT)
-CFLAGS += --sysroot=${RAVYN_SDKROOT}
-LDFLAGS += --sysroot=${RAVYN_SDKROOT}
+.if defined(MINKAR_SDKROOT)
+CFLAGS += --sysroot=${MINKAR_SDKROOT}
+LDFLAGS += --sysroot=${MINKAR_SDKROOT}
 .else
 .if defined(SDKROOT)
 CFLAGS += --sysroot=${SDKROOT}

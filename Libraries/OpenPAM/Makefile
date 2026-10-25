@@ -35,11 +35,11 @@ FBSD_DIR =	${.CURDIR}/freebsd-modules
 HEADERS =	openpam.h openpam_attr.h openpam_version.h pam_appl.h \
 		pam_constants.h pam_modules.h pam_types.h
 
-CFLAGS = --sysroot=${RAVYN_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
+CFLAGS = --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
 	-DHAVE_CONFIG_H -I${.CURDIR} -I${OPENPAM}/include -I${OPENPAM}/lib/libpam \
 	-Wno-nullability-completeness
 
-LDFLAGS = --sysroot=${RAVYN_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
+LDFLAGS = --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
 	-fuse-ld=${LD}
 
 PAMLIB =	${.OBJDIR}/libpam.2.dylib
@@ -70,11 +70,11 @@ ${m}.so.2: ${FBSD_DIR}/${m}.c ${PAMLIB}
 .endfor
 
 install-sdk: ${PAMLIB}
-	mkdir -p ${RAVYN_SDKROOT}/usr/lib ${RAVYN_SDKROOT}/usr/include/security
-	cp -f ${PAMLIB} ${RAVYN_SDKROOT}/usr/lib/
-	ln -sf libpam.2.dylib ${RAVYN_SDKROOT}/usr/lib/libpam.dylib
+	mkdir -p ${MINKAR_SDKROOT}/usr/lib ${MINKAR_SDKROOT}/usr/include/security
+	cp -f ${PAMLIB} ${MINKAR_SDKROOT}/usr/lib/
+	ln -sf libpam.2.dylib ${MINKAR_SDKROOT}/usr/lib/libpam.dylib
 .for h in ${HEADERS}
-	cp -f ${OPENPAM}/include/security/${h} ${RAVYN_SDKROOT}/usr/include/security/
+	cp -f ${OPENPAM}/include/security/${h} ${MINKAR_SDKROOT}/usr/include/security/
 .endfor
 
 install-sysroot: ${PAMLIB} ${ALL_MODULES:S/$/.so.2/}

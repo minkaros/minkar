@@ -47,32 +47,32 @@ SRCS +=	dnsinfo_create.c dnsinfo_server.c dnsinfo_flatfile.c \
 	libSystemConfiguration_server.c
 SRCS +=	sc_sha256.c	# SystemConfiguration's (hidden there), for dnsinfo and IPMonitor
 
-CFLAGS = --sysroot=${RAVYN_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
+CFLAGS = --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
 	-fblocks -DPRIVATE -DTARGET_OS_BRIDGE=0 -Wno-nullability-completeness \
 	-Wno-elaborated-enum-base -Wno-deprecated-declarations \
 	-I${.OBJDIR} -I${CONFIGD}/configd.tproj -I${CONFIGD}/Plugins/IPMonitor \
 	-I${CONFIGD}/Plugins/KernelEventMonitor -I${CONFIGD}/Plugins/common \
 	-I${CONFIGD}/dnsinfo -I${CONFIGD}/nwi -I${CONFIGD}/libSystemConfiguration \
 	-I${CONFIGD}/IPMonitorControl -I${CONFIGD}/config-agent-info \
-	-I${RAVYN_SDKROOT}${SLF}/SystemConfiguration.framework/PrivateHeaders \
+	-I${MINKAR_SDKROOT}${SLF}/SystemConfiguration.framework/PrivateHeaders \
 	-I${SC} -I${SC}/compat -I${SC}/helper \
-	-I${RAVYN_SDKROOT}/usr/local/include \
+	-I${MINKAR_SDKROOT}/usr/local/include \
 	-I${ROOT_SOURCE_DIR}/Libraries/Libsystem/private \
 	-I${ROOT_SOURCE_DIR}/Libraries/Libsystem/libdispatch/private \
 	-I${ROOT_SOURCE_DIR}/Libraries/Libsystem/liblaunch \
 	-I${ROOT_SOURCE_DIR}/Libraries/Libsystem/libsystem_c \
 	-I${ROOT_SOURCE_DIR}/Libraries/Libsystem/libsystem_notify \
 	-I${ROOT_SOURCE_DIR}/BSD/usr.sbin/mDNSResponder/mDNSShared \
-	-I${RAVYN_SDKROOT}${SLF}/System.framework/PrivateHeaders \
-	-idirafter ${RAVYN_SDKROOT}${SLF}/Kernel.framework/Versions/A/Headers \
+	-I${MINKAR_SDKROOT}${SLF}/System.framework/PrivateHeaders \
+	-idirafter ${MINKAR_SDKROOT}${SLF}/Kernel.framework/Versions/A/Headers \
 	-idirafter ${ROOT_SOURCE_DIR}/Kernel/Extensions/IOStorageFamily
 
-LDFLAGS = --sysroot=${RAVYN_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
+LDFLAGS = --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
 	-fuse-ld=${LD}
 LDADD =	-framework SystemConfiguration -framework CoreFoundation \
 	-framework IOKit -lbsm -lobjc
 
-MIGFLAGS = -novouchers --sysroot=${RAVYN_SDKROOT} \
+MIGFLAGS = -novouchers --sysroot=${MINKAR_SDKROOT} \
 	-mmacos-version-min=${MACOS_VERSION_MIN} -DPRIVATE -I${SC}
 
 configServer.c configServer.h config.h: ${SC}/config.defs

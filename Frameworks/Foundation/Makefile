@@ -332,9 +332,9 @@ SRCS = 	NSFormatter.m \
 CFLAGS = -DAPPLE_RUNTIME_4 -DDARWIN -DNULL=0 -DTARGET_OS_IOSMAC=0 \
 	-DPLATFORM_IS_POSIX -DPLATFORM_USES_BSD_SOCKETS -DNSBUILDINGFOUNDATION \
         -DTOLL_FREE_BRIDGING \
-	--sysroot=${RAVYN_SDKROOT} -Wno-implicit-function-declaration \
+	--sysroot=${MINKAR_SDKROOT} -Wno-implicit-function-declaration \
 	-Wno-nullability-completeness \
-	-I${RAVYN_SDKROOT}/usr/local/include/kernel -I${.CURDIR}/Headers \
+	-I${MINKAR_SDKROOT}/usr/local/include/kernel -I${.CURDIR}/Headers \
 	-I${.CURDIR:H} -I${ROOT_SOURCE_DIR}/Libraries/objc4 \
 	-I${ROOT_SOURCE_DIR}/Libraries/Libsystem/libsystem_info/lookup.subproj \
         -I${ROOT_SOURCE_DIR}/Libraries/Libsystem/liblaunch
@@ -352,9 +352,9 @@ CF_CONSTANTS_KEPT_PRIVATE = _kCFNumberNaN \
 	_kCFNumberPositiveInfinity _kCFNumberNegativeInfinity \
 	_kCFStreamPropertySSLSettings
 
-LDFLAGS = --sysroot=${RAVYN_SDKROOT} -Wl,-current_version,1677.104.0 \
+LDFLAGS = --sysroot=${MINKAR_SDKROOT} -Wl,-current_version,1677.104.0 \
 	-Wl,-compatibility_version,300.0.0 -Xlinker -reexport-lobjc \
-	-F${RAVYN_SDKROOT}/System/Library/Frameworks -framework CoreFoundation \
+	-F${MINKAR_SDKROOT}/System/Library/Frameworks -framework CoreFoundation \
 	-lSystem \
 	${CF_CONSTANTS_KEPT_PRIVATE:S/^/-Wl,-unexported_symbol,/}
 
@@ -363,13 +363,13 @@ CFLAGS.${file}.o = -I${.CURDIR}/NSString
 .endfor
 CFLAGS.NSAutoreleasePool.o = -I${ROOT_SOURCE_DIR}/Libraries/objc4
 CFLAGS.forwarding.o = -I${ROOT_SOURCE_DIR}/Libraries/objc4 \
-	-I${RAVYN_SDKROOT}${SLF}/System.framework/Versions/B/PrivateHeaders \
+	-I${MINKAR_SDKROOT}${SLF}/System.framework/Versions/B/PrivateHeaders \
 	-I${ROOT_SOURCE_DIR}/Libraries/Libsystem/private \
         -include${.CURDIR:H}/CoreFoundation/ForFoundationOnly.h
 SUBDIR =
 
 fmwk-install-hook:
-.for dir in ${RAVYN_SDKROOT}/System/Library/Frameworks/ ${SYSROOT_DIR}/System/Library/Frameworks/
+.for dir in ${MINKAR_SDKROOT}/System/Library/Frameworks/ ${SYSROOT_DIR}/System/Library/Frameworks/
 	mkdir -p ${dir}
 	cp -Rf ${.OBJDIR}/${FRAMEWORK}.framework ${dir}
 .endfor

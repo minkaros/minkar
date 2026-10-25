@@ -60,7 +60,7 @@ PRIVATE_HEADERS = SCPrivate.h SCDPlugin.h SCValidation.h \
 RESOURCES_DIRS = en.lproj
 RESOURCES_FILES = NetworkConfiguration.plist
 
-CFLAGS = --sysroot=${RAVYN_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
+CFLAGS = --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
 	-fblocks -DPRIVATE -DTARGET_OS_BRIDGE=0 -Wno-nullability-completeness \
 	-Wno-elaborated-enum-base -Wno-deprecated-declarations \
 	-I${.OBJDIR}/include -I${.OBJDIR} -I${.CURDIR} -I${.CURDIR}/helper \
@@ -68,20 +68,20 @@ CFLAGS = --sysroot=${RAVYN_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
 	-I${CONFIGD}/dnsinfo -I${CONFIGD}/nwi \
 	-I${CONFIGD}/libSystemConfiguration -I${CONFIGD}/IPMonitorControl \
 	-I${CONFIGD}/Plugins/common -I${CONFIGD}/Plugins/IPMonitor \
-	-I${RAVYN_SDKROOT}/usr/local/include \
+	-I${MINKAR_SDKROOT}/usr/local/include \
 	-I${ROOT_SOURCE_DIR}/Libraries/Libsystem/private \
 	-I${ROOT_SOURCE_DIR}/Libraries/Libsystem/libdispatch/private \
 	-I${ROOT_SOURCE_DIR}/Libraries/Libsystem/liblaunch \
 	-I${ROOT_SOURCE_DIR}/Libraries/Libsystem/libsystem_c \
-	-I${RAVYN_SDKROOT}${SLF}/System.framework/PrivateHeaders \
-	-idirafter ${RAVYN_SDKROOT}${SLF}/Kernel.framework/Versions/A/Headers \
+	-I${MINKAR_SDKROOT}${SLF}/System.framework/PrivateHeaders \
+	-idirafter ${MINKAR_SDKROOT}${SLF}/Kernel.framework/Versions/A/Headers \
 	-idirafter ${ROOT_SOURCE_DIR}/Kernel/Extensions/IOStorageFamily
 
-LDFLAGS = --sysroot=${RAVYN_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
+LDFLAGS = --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
 	-framework CoreFoundation -framework IOKit -lSystem \
 	-Wl,-current_version,1061.141.1 -Wl,-compatibility_version,1.0.0
 
-MIGFLAGS = -novouchers --sysroot=${RAVYN_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} -DPRIVATE -I${.CURDIR}
+MIGFLAGS = -novouchers --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} -DPRIVATE -I${.CURDIR}
 
 # <SystemConfiguration/...> includes find the sources.
 ${.OBJDIR}/include/SystemConfiguration:
@@ -99,8 +99,8 @@ helperUser.c helper.h: ${.CURDIR}/helper/helper.defs ${.OBJDIR}/include/SystemCo
 fmwk-install-hook:
 	sed -e 's/$$(PRODUCT_BUNDLE_IDENTIFIER)/com.apple.SystemConfiguration/' \
 		${.CURDIR}/Info.plist > ${RESOURCES_DIR}/Info.plist
-	mkdir -p ${RAVYN_SDKROOT}${SLF} ${SYSROOT_DIR}${SLF}
-	cp -Rf ${FRAMEWORK_DIR} ${RAVYN_SDKROOT}${SLF}/
+	mkdir -p ${MINKAR_SDKROOT}${SLF} ${SYSROOT_DIR}${SLF}
+	cp -Rf ${FRAMEWORK_DIR} ${MINKAR_SDKROOT}${SLF}/
 	cp -Rf ${FRAMEWORK_DIR} ${SYSROOT_DIR}${SLF}/
 
 .include <rvn.framework.mk>

@@ -23,7 +23,7 @@ CFLAGS.cpu_in_cksum_gen.o = -fno-builtin
 CFLAGS.os_channel_event.o = -fno-builtin
 
 CFLAGS = \
-	--sysroot=${RAVYN_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
+	--sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
 	-Wno-implicit-int -Wno-implicit-function-declaration \
 	-Wno-int-conversion -Wno-incompatible-sysroot \
 	-Wno-nullability-completeness -no-cpp-precomp -nostdlib \
@@ -43,9 +43,9 @@ CFLAGS = \
 	-I${XNU}/libsyscall \
 	-I${XNU}/libsyscall/mach \
 	-I${ROOT_BINARY_DIR}/${CpuArch} \
-	-I${RAVYN_SDKROOT}/usr/local/include \
-	-I${RAVYN_SDKROOT}/usr/local/include/kernel \
-	-I${RAVYN_SDKROOT}${SLF}/${SYSPRIVHDR} \
+	-I${MINKAR_SDKROOT}/usr/local/include \
+	-I${MINKAR_SDKROOT}/usr/local/include/kernel \
+	-I${MINKAR_SDKROOT}${SLF}/${SYSPRIVHDR} \
 	-I${.OBJDIR}/internal_hdr/include \
 	-I${.OBJDIR}/internal_hdr/include/mach \
 	-I${.OBJDIR}/${CpuArch} \
@@ -210,12 +210,12 @@ SRCS += \
 
 LDFLAGS = \
 	-umbrella System -mmacos-version-min=${MACOS_VERSION_MIN} \
-	-L${RAVYN_SDKROOT}/usr/lib/system \
+	-L${MINKAR_SDKROOT}/usr/lib/system \
 	-Wl,-install_name,/usr/lib/system/libsystem_kernel.dylib \
 	-Wl,-current_version,6153.0.168 -Wl,-compatibility_version,1.0.0
 
 MIG_FLAGS = -novouchers -arch ${CpuArch} -cc ${MIGCC} \
-	-I${RAVYN_SDKROOT}/usr/include -I${RAVYN_SDKROOT}/usr/local/include \
+	-I${MINKAR_SDKROOT}/usr/include -I${MINKAR_SDKROOT}/usr/local/include \
 	-mmacos-version-min=${MACOS_VERSION_MIN} -fno-stack-check \
 	-fno-stack-protector
 
@@ -223,20 +223,20 @@ all: lib${LIB}.dylib
 lib${LIB}.dylib: ${.OBJDIR}/lib${LIB}.dylib
 
 copy_defs: ${MACH_DEFS}
-	mkdir -p ${RAVYN_SDKROOT}${SLF}/${SYSPRIVHDR}/mach
-	cp -f ${MACH_DEFS} ${RAVYN_SDKROOT}${SLF}/${SYSPRIVHDR}/mach/
+	mkdir -p ${MINKAR_SDKROOT}${SLF}/${SYSPRIVHDR}/mach
+	cp -f ${MACH_DEFS} ${MINKAR_SDKROOT}${SLF}/${SYSPRIVHDR}/mach/
 
 # Generate syscall stubs - 24614EF311E7C98600E78584 libsyscalls.a
 ${.OBJDIR}/libsyscalls.a: ${XNU}/bsd/kern/syscalls.master copy_defs
 	mkdir -p ${.OBJDIR}/sys
-	env SDKROOT=${RAVYN_SDKROOT} BUILT_PRODUCTS_DIR=${.OBJDIR} \
+	env SDKROOT=${MINKAR_SDKROOT} BUILT_PRODUCTS_DIR=${.OBJDIR} \
 	DEVELOPER_DIR=${ROOT_BINARY_DIR}/Developer \
 	PATH=${TOOLS}:${PATH} ARCHS=${CpuArch} SRCROOT=${XNU}/libsyscall \
 	OBJROOT=${.OBJDIR} \
 	${XNU}/libsyscall/xcodescripts/create-syscalls.pl \
 	  ${XNU}/bsd/kern/syscalls.master ${XNU}/libsyscall/custom \
 	  ${XNU}/libsyscall/Platforms MacOSX ${.OBJDIR}/sys
-	env SDKROOT=${RAVYN_SDKROOT} SDK_INSTALL_HEADERS_ROOT=. \
+	env SDKROOT=${MINKAR_SDKROOT} SDK_INSTALL_HEADERS_ROOT=. \
 	BUILT_PRODUCTS_DIR=${.OBJDIR} \
 	DEVELOPER_DIR=${ROOT_BINARY_DIR}/Developer PATH=${TOOLS}:${PATH} \
 	ARCHS=${CpuArch} SRCROOT=${XNU}/libsyscall OBJROOT=${.OBJDIR} \
@@ -256,7 +256,7 @@ ${.OBJDIR}/libmach.a: ${MACH_DEFS}
 	  ${.OBJDIR}/obj/mig_hdr/include/servers \
 	  ${.OBJDIR}/obj/internal_hdr/include/mach \
 	  ${.OBJDIR}/${CpuArch}
-	SDKROOT=${RAVYN_SDKROOT} PLATFORM_NAME=MacOSX ARCHS=${CpuArch} \
+	SDKROOT=${MINKAR_SDKROOT} PLATFORM_NAME=MacOSX ARCHS=${CpuArch} \
 	SRCROOT=${XNU}/libsyscall OBJROOT=${.OBJDIR}/obj \
 	BUILT_PRODUCTS_DIR=${.OBJDIR} \
 	DEVELOPER_DIR=${ROOT_BINARY_DIR}/Developer PATH=${TOOLS}:${PATH} \
@@ -292,7 +292,7 @@ ${.OBJDIR}/_libc_funcptr.o: ${XNU}/libsyscall/wrappers/_libc_funcptr.c
 	${CC} -c ${.ALLSRC} -o ${.TARGET} ${CFLAGS}
 
 ${.OBJDIR}/lib${LIB}.dylib: ${.OBJDIR}/_libc_funcptr.o lib${LIB}.a
-	mkdir -p ${RAVYN_SDKROOT}/usr/local/lib/kernel
+	mkdir -p ${MINKAR_SDKROOT}/usr/local/lib/kernel
 	${TOOLS}/llvm-libtool-darwin -static -no_warning_for_no_symbols \
 	  -o ${.OBJDIR}/libkernel.a ${.OBJDIR}/lib${LIB}.a \
 		${.OBJDIR}/libmach.a ${.OBJDIR}/libsyscalls.a
@@ -302,20 +302,20 @@ ${.OBJDIR}/lib${LIB}.dylib: ${.OBJDIR}/_libc_funcptr.o lib${LIB}.a
 	  -Wl,-install_name,/usr/lib/system/libsystem_kernel.dylib \
 	  -Wl,-current_version,6153.0.168 \
 	  -Wl,-compatibility_version,1.0.0 \
-	  -L${RAVYN_SDKROOT}/usr/lib/system -lsystem_c -ldyld
-	cp -f ${.TARGET} ${RAVYN_SDKROOT}/usr/lib/system/
+	  -L${MINKAR_SDKROOT}/usr/lib/system -lsystem_c -ldyld
+	cp -f ${.TARGET} ${MINKAR_SDKROOT}/usr/lib/system/
 	cp -f ${.TARGET} ${SYSROOT_DIR}/usr/lib/system/
 	# Headers laid out as in the macOS SDK: public ones without their
 	# PRIVATE parts in /usr/include, private ones in /usr/local/include.
 	# unifdef exits 1 when it removed something.
-	mkdir -p ${RAVYN_SDKROOT}/usr/local/include
-	${TOOLS}/unifdef -UPRIVATE -o ${RAVYN_SDKROOT}/usr/include/libproc.h \
+	mkdir -p ${MINKAR_SDKROOT}/usr/local/include
+	${TOOLS}/unifdef -UPRIVATE -o ${MINKAR_SDKROOT}/usr/include/libproc.h \
 	  ${XNU}/libsyscall/wrappers/libproc/libproc.h || test $$? -eq 1
-	cp -f ${XNU}/libsyscall/wrappers/spawn/spawn.h ${RAVYN_SDKROOT}/usr/include/
+	cp -f ${XNU}/libsyscall/wrappers/spawn/spawn.h ${MINKAR_SDKROOT}/usr/include/
 	cp -f ${XNU}/libsyscall/wrappers/libproc/libproc_internal.h \
 	  ${XNU}/libsyscall/wrappers/spawn/spawn_private.h \
-	  ${RAVYN_SDKROOT}/usr/local/include/
+	  ${MINKAR_SDKROOT}/usr/local/include/
 	cp -f ${.OBJDIR}/libkernel.a \
-	  ${RAVYN_SDKROOT}/usr/local/lib/kernel/libkernel.a
+	  ${MINKAR_SDKROOT}/usr/local/lib/kernel/libkernel.a
 
 .include <bsd.lib.mk>

@@ -21,10 +21,10 @@ CFLAGS = -DXNU_KERNEL_PRIVATE -DMACH_KERNEL_PRIVATE \
 	-I${.CURDIR}/kern -I${.CURDIR} \
 	-I${ROOT_SOURCE_DIR}/Libraries/Libsystem \
 	-I${ROOT_SOURCE_DIR}/Libraries/Libsystem/private \
-	-I${RAVYN_SDKROOT}/usr/local/include \
-	-I${RAVYN_SDKROOT}/usr/local/include/kernel \
-	-I${RAVYN_SDKROOT}${SLF}/Kernel.framework/Versions/A/PrivateHeaders \
-	-I${RAVYN_SDKROOT}${SLF}/System.framework/Versions/B/PrivateHeaders \
+	-I${MINKAR_SDKROOT}/usr/local/include \
+	-I${MINKAR_SDKROOT}/usr/local/include/kernel \
+	-I${MINKAR_SDKROOT}${SLF}/Kernel.framework/Versions/A/PrivateHeaders \
+	-I${MINKAR_SDKROOT}${SLF}/System.framework/Versions/B/PrivateHeaders \
 	-I${ROOT_BINARY_DIR}/${CpuArch}
 
 .include <rvn.kext.mk>

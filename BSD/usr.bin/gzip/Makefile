@@ -10,12 +10,12 @@ MAN =
 BINDIR = /usr/bin
 SCRIPTS = gzexe zdiff zforce zmore znew
 
-CFLAGS += --sysroot=${RAVYN_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
+CFLAGS += --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
 	-Wno-nullability-completeness -DNO_ZSTD_SUPPORT \
 	-I${ROOT_SOURCE_DIR}/Libraries/zlib -I${ROOT_SOURCE_DIR}/BSD/lib/bzip2/src \
 	-I${ROOT_SOURCE_DIR}/Frameworks/CoreText/xz/src/liblzma/api \
 	-I${ROOT_SOURCE_DIR}/BSD/lib/libbsdcompat/include -include bsdcompat.h
-LDFLAGS += --sysroot=${RAVYN_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
+LDFLAGS += --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
 	-fuse-ld=${LD}
 LDADD += -L${ROOT_BINARY_DIR}${ROOT_SOURCE_DIR}/BSD/lib/libbsdcompat -lbsdcompat \
 	-lz -L${SYSROOT_DIR}/usr/lib -lbz2 -llzma

@@ -102,7 +102,7 @@ PATHS =	-DSSHDIR=\"/etc/ssh\" \
 	-D_PATH_SSH_PIDDIR=\"/var/run\" \
 	-D_PATH_PRIVSEP_CHROOT_DIR=\"/var/empty\"
 
-CFLAGS = --sysroot=${RAVYN_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
+CFLAGS = --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
 	-I${.CURDIR} -I${.CURDIR}/include -I${OPENSSH} \
 	-DHAVE_CONFIG_H ${PATHS} -fno-strict-aliasing -fno-builtin-memset \
 	-Wno-nullability-completeness -Wno-pointer-sign -Wno-unused-parameter \
@@ -110,7 +110,7 @@ CFLAGS = --sysroot=${RAVYN_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
 	-Wno-missing-prototypes -Wno-strict-prototypes -Wno-shadow \
 	-Wno-cast-align -Wno-unused-function -Wno-missing-variable-declarations \
 	-Wno-format-nonliteral -Wno-old-style-definition -Wno-unused-variable
-LDFLAGS = --sysroot=${RAVYN_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
+LDFLAGS = --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
 	-fuse-ld=${LD}
 
 # sshd-session and sshd-auth do the PAM conversation and BSM audit.

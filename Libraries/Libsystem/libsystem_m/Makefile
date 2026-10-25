@@ -59,14 +59,14 @@ SRCS =	b_tgamma.c b_tgammal.c catrig.c catrigf.c catrigl.c e_acos.c \
 	w_dremf.c \
 	${MSUN_ASM:S/^/rv_/} glue.c
 
-CFLAGS = -mmacos-version-min=${MACOS_VERSION_MIN} --sysroot=${RAVYN_SDKROOT} \
+CFLAGS = -mmacos-version-min=${MACOS_VERSION_MIN} --sysroot=${MINKAR_SDKROOT} \
 	-Wno-nullability-completeness -fno-math-errno -fno-builtin \
 	-I${.CURDIR}/include -I${MSUN}/src -I${MSUN}/x86 -I${MSUN}/ld80 \
 	-I${MSUN}/amd64 -I${ROOT_SOURCE_DIR}/BSD/lib/libbsdcompat/include \
 	-include ${.CURDIR}/msun_compat.h
-ACFLAGS = -mmacos-version-min=${MACOS_VERSION_MIN} --sysroot=${RAVYN_SDKROOT} \
+ACFLAGS = -mmacos-version-min=${MACOS_VERSION_MIN} --sysroot=${MINKAR_SDKROOT} \
 	-I${.CURDIR}/include
-LDFLAGS = -mmacos-version-min=${MACOS_VERSION_MIN} --sysroot=${RAVYN_SDKROOT} \
+LDFLAGS = -mmacos-version-min=${MACOS_VERSION_MIN} --sysroot=${MINKAR_SDKROOT} \
 	-Wl,-install_name,/usr/lib/system/libsystem_m.dylib \
 	-Wl,-current_version,3178 -Wl,-compatibility_version,1 \
 	-Wl,-all_load -umbrella System
@@ -86,7 +86,7 @@ all: ${.OBJDIR}/lib${LIB}.dylib
 ${.OBJDIR}/lib${LIB}.dylib: lib${LIB}.a
 	${CC} -fuse-ld=${LD} -shared -dylib -o ${.TARGET} \
 	  -Wl,-force_load,${.OBJDIR}/lib${LIB}.a ${LDFLAGS}
-	cp -f ${.TARGET} ${RAVYN_SDKROOT}/usr/lib/system/
+	cp -f ${.TARGET} ${MINKAR_SDKROOT}/usr/lib/system/
 	cp -f ${.TARGET} ${SYSROOT_DIR}/usr/lib/system/
 
 .include <bsd.lib.mk>

@@ -26,11 +26,11 @@ SRCS =	cl_funcs.c cl_main.c cl_read.c cl_screen.c cl_term.c conv.c cut.c delete.
 	vs_line.c vs_msg.c vs_refresh.c vs_relative.c vs_smap.c vs_split.c regcomp.c regerror.c \
 	regexec.c regfree.c
 
-CFLAGS += --sysroot=${RAVYN_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
+CFLAGS += --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
 	-Wno-nullability-completeness -D__REGEX_PRIVATE -D_XOPEN_SOURCE_EXTENDED=1 \
 	-I${.CURDIR} -I${NVI} -I${NVI}/regex -I${.CURDIR}/ex \
 	-I${ROOT_SOURCE_DIR}/BSD/lib/libbsdcompat/include -include bsdcompat.h
-LDFLAGS += --sysroot=${RAVYN_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} -fuse-ld=${LD}
+LDFLAGS += --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} -fuse-ld=${LD}
 LDADD += -lncurses -lresolv \
 	-L${ROOT_BINARY_DIR}${ROOT_SOURCE_DIR}/BSD/lib/libbsdcompat -lbsdcompat
 

@@ -36,7 +36,7 @@ CFLAGS += -UBUILDING_VARIANT -U__DARWIN_NON_CANCELABLE \
 	-I${.CURDIR:H}/../libsystem_info/lookup.subproj \
 	-I${ROOT_SOURCE_DIR}/Kernel/xnu/bsd \
 	-I${ROOT_SOURCE_DIR}/Kernel/xnu/libkern
-ACFLAGS = --sysroot=${RAVYN_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN}
+ACFLAGS = --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN}
 
 all: libc.a
 
@@ -48,9 +48,9 @@ libc.a: lib${LIB}.a
 	  ${.OBJDIR:H}/libFreeBSD/libFreeBSD.a ${.OBJDIR:H}/libTRE/libTRE.a \
 	  ${.OBJDIR:H}/vCancelable/libvCancelable.a \
 	  ${.OBJDIR:H}/vDarwinExtsn/libvDarwinExtsn.a
-	mkdir -p ${RAVYN_SDKROOT}/usr/local/lib/system \
-		${RAVYN_SDKROOT}/usr/local/lib/loaderd
-	cp -f ${.OBJDIR}/libc.a ${RAVYN_SDKROOT}/usr/local/lib/system/
-	ln -sf ../system/libc.a ${RAVYN_SDKROOT}/usr/local/lib/loaderd/libc.a
+	mkdir -p ${MINKAR_SDKROOT}/usr/local/lib/system \
+		${MINKAR_SDKROOT}/usr/local/lib/loaderd
+	cp -f ${.OBJDIR}/libc.a ${MINKAR_SDKROOT}/usr/local/lib/system/
+	ln -sf ../system/libc.a ${MINKAR_SDKROOT}/usr/local/lib/loaderd/libc.a
 
 .include <bsd.lib.mk>

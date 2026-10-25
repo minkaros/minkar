@@ -64,7 +64,7 @@ src/xkbcomp/parser.o src/xkbcomp/scanner.o src/xkbcomp/keywords.o: \
 	src/xkbcomp/parser.c
 
 # Settings meson writes to config.h.
-CFLAGS += --sysroot=${RAVYN_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
+CFLAGS += --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
 	-Wno-incompatible-sysroot -std=gnu11 -fvisibility=hidden \
 	-I${.OBJDIR} -I${.OBJDIR}/src/xkbcomp -I${.CURDIR}/include -I${.CURDIR}/src \
 	-I${.CURDIR}/src/xkbcomp \

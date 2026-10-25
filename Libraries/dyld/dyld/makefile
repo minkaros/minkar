@@ -43,7 +43,7 @@ MAN = ../doc/man/man1/dyld.1.gz \
 
 
 COMMONFLAGS = --target=${CpuArch}-apple-darwin \
-		--sysroot=${RAVYN_SDKROOT} \
+		--sysroot=${MINKAR_SDKROOT} \
 		-mmacos-version-min=${MACOS_VERSION_MIN} \
 		-DBUILDING_DYLD -DDYLD_VERSION=732.1 -DWITHOUT_SANDBOX \
 		-D__USING_SJLJ_EXCEPTIONS__=0 -DPRIVATE \
@@ -56,7 +56,7 @@ COMMONFLAGS = --target=${CpuArch}-apple-darwin \
 		-D_LIBCPP_END_NAMESPACE_STD="" \
 		-Wno-nullability-completeness -Wno-incompatible-sysroot \
 		-Wno-availability -fno-stack-check \
-		-isystem${RAVYN_SDKROOT}/usr/include/c++/v1 \
+		-isystem${MINKAR_SDKROOT}/usr/include/c++/v1 \
 		-isystem${TOOLS}/../lib/clang/17 \
 		-I${.OBJDIR}/.. \
 		-I${ROOT_BINARY_DIR}/${CpuArch} \
@@ -68,9 +68,9 @@ COMMONFLAGS = --target=${CpuArch}-apple-darwin \
 		-I${.CURDIR}/.. \
 		-I${ROOT_SOURCE_DIR}/Kernel/xnu/libsyscall/wrappers/libproc \
 		-I${ROOT_SOURCE_DIR}/Kernel/Extensions/corecrypto/include \
-		-I${RAVYN_SDKROOT}/usr/local/include/kernel \
-		-isystem${RAVYN_SDKROOT}/usr/include \
-		-iframework${RAVYN_SDKROOT}/System/Library/Frameworks
+		-I${MINKAR_SDKROOT}/usr/local/include/kernel \
+		-isystem${MINKAR_SDKROOT}/usr/include \
+		-iframework${MINKAR_SDKROOT}/System/Library/Frameworks
 
 CXXFLAGS = ${COMMONFLAGS} -std=c++17 -fno-threadsafe-statics \
 		${CFLAGS.${.TARGET:T}}
@@ -105,10 +105,10 @@ LDFLAGS = -Wl,-static -Wl,-dylinker -Wl,-fixup_chains -Wl,-data_const \
 	-Wl,-exported_symbols_list,${.CURDIR}/../src/dyld.exp \
 	-Wl,-section_order,__DATA,__all_image_info:__nl_symbol_ptr:__got:__auth_ptr:__const:__crash_info:__data:__bss:__common \
 	-mmacos-version-min=${MACOS_VERSION_MIN} \
-	-L${RAVYN_SDKROOT}/usr/local/lib/dyld -lc -lpthread -lplatform \
-	-L${RAVYN_SDKROOT}/usr/lib/system -lCrashReporterClient \
-	-L${RAVYN_SDKROOT}/usr/lib -lunwind -lc++ -lc++abi \
-	-L${RAVYN_SDKROOT}/usr/local/lib/kernel -lkernel
+	-L${MINKAR_SDKROOT}/usr/local/lib/dyld -lc -lpthread -lplatform \
+	-L${MINKAR_SDKROOT}/usr/lib/system -lCrashReporterClient \
+	-L${MINKAR_SDKROOT}/usr/lib -lunwind -lc++ -lc++abi \
+	-L${MINKAR_SDKROOT}/usr/local/lib/kernel -lkernel
 
 .for file in ${SRCS}
 basefile = ${file:S/.cpp$/.o/:S/.c/.o/:S/.s/.o/}
@@ -130,12 +130,12 @@ ${LIB}: ${.OBJDIR}/${LIB}
 
 ${.OBJDIR}/${LIB}: ${OBJS}
 	${CC} -fuse-ld=${LD} -o ${.TARGET} ${OBJS:O:u} ${LDFLAGS}
-	mkdir -p ${RAVYN_SDKROOT}/usr/lib ${ROOT_BINARY_DIR}/sysroot/usr/lib
-	cp -f ${.TARGET} ${RAVYN_SDKROOT}/usr/lib/
+	mkdir -p ${MINKAR_SDKROOT}/usr/lib ${ROOT_BINARY_DIR}/sysroot/usr/lib
+	cp -f ${.TARGET} ${MINKAR_SDKROOT}/usr/lib/
 	cp -f ${.TARGET} ${SYSROOT_DIR}/usr/lib/
-	mkdir -p ${RAVYN_SDKROOT}${MANDIR}/man1 ${SYSROOT_DIR}${MANDIR}/man1
+	mkdir -p ${MINKAR_SDKROOT}${MANDIR}/man1 ${SYSROOT_DIR}${MANDIR}/man1
 .for man in ${MAN}
-	cp -f ${.CURDIR}/${man} ${RAVYN_SDKROOT}${MANDIR}/man1/
+	cp -f ${.CURDIR}/${man} ${MINKAR_SDKROOT}${MANDIR}/man1/
 	cp -f ${.CURDIR}/${man} ${SYSROOT_DIR}${MANDIR}/man1/
 .endfor
 

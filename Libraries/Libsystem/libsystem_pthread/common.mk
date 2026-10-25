@@ -10,7 +10,7 @@ SRCS = \
 SLF = /System/Library/Frameworks
 SYSPRIVHDR = System.framework/Versions/B/PrivateHeaders
 LIBSYSBIN = ${ROOT_BINARY_DIR}/Libraries/Libsystem
-CFLAGS = --sysroot=${RAVYN_SDKROOT} -momit-leaf-frame-pointer \
+CFLAGS = --sysroot=${MINKAR_SDKROOT} -momit-leaf-frame-pointer \
         -mmacos-version-min=${MACOS_VERSION_MIN} \
 	-fno-stack-protector -fno-stack-check -fno-builtin \
 	-Wno-implicit-function-declaration -Wno-nullability-completeness \
@@ -25,7 +25,7 @@ CFLAGS = --sysroot=${RAVYN_SDKROOT} -momit-leaf-frame-pointer \
 	-I${LIBSYSBIN}/libsystem_kernel/mig_hdr/local/include \
 	-I${.CURDIR} -I${.CURDIR}/private -I${.CURDIR}/../private \
 	-I${.CURDIR}/resolver -I${.CURDIR}/../libsystem_c/darwin \
-	-I${RAVYN_SDKROOT}/usr/local/include/pthread \
-	-I${ROOT_BINARY_DIR}/${CpuArch} -I${RAVYN_SDKROOT}${SLF}/${SYSPRIVHDR} \
+	-I${MINKAR_SDKROOT}/usr/local/include/pthread \
+	-I${ROOT_BINARY_DIR}/${CpuArch} -I${MINKAR_SDKROOT}${SLF}/${SYSPRIVHDR} \
 	-I${ROOT_SOURCE_DIR}/Kernel/Extensions/pthread \
 	-I${ROOT_SOURCE_DIR}/Kernel/xnu/libsyscall/wrappers/spawn

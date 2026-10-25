@@ -45,7 +45,7 @@ target_sources(CFNetwork PRIVATE
     ./URL/_CFURLAccess.c
 )
 target_compile_definitions(CFNetwork PRIVATE )
-target_compile_options(CFNetwork PRIVATE -isysroot${RAVYN_SDKROOT} -Wno-implicit-function-declaration
+target_compile_options(CFNetwork PRIVATE -isysroot${MINKAR_SDKROOT} -Wno-implicit-function-declaration
 OTHER_CFLAGS += -F/System/Library/PrivateFrameworks -F/usr/local/SecurityPieces/Frameworks
 OTHER_CPPFLAGS += -F/usr/local/SecurityPieces/Frameworks
 OTHER_LFLAGS += -framework CoreFoundation -framework Security -framework SystemConfiguration -F/usr/local/SecurityPieces/Frameworks -framework security_cdsa_utils
@@ -73,5 +73,5 @@ endif
 
 target_include_directories(CFNetwork PRIVATE Headers)
 
-target_link_options(CFNetwork PRIVATE -F${RAVYN_SDKROOT}/System/Library/Frameworks)
+target_link_options(CFNetwork PRIVATE -F${MINKAR_SDKROOT}/System/Library/Frameworks)
 #set_source_files_properties(NSProcessInfo.m NSStringsFileFormat/NSStringsFileParser.m NSData/NSData.m NSNumberFormatter.m TARGET_DIRECTORY Foundation PROPERTIES COMPILE_OPTIONS "-I${CMAKE_CURRENT_SOURCE_DIR}/NSString")

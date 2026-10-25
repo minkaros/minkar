@@ -6,13 +6,13 @@ SUBDIR =
 
 all: libintl
 	CC=${CC} CXX=${CXX} LD=${CC} AR=${AR} RANLIB=${RANLIB} LIBTOOL=${LIBTOOL} \
-	LDFLAGS="-fuse-ld=${LD} --sysroot=${RAVYN_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN}" \
+	LDFLAGS="-fuse-ld=${LD} --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN}" \
 	cmake -G "Unix Makefiles" \
 		-DCMAKE_C_COMPILER="${CC}" \
 		-DCMAKE_CXX_COMPILER="${CXX}" \
 		-DCMAKE_AR="${AR}" \
 		-DCMAKE_RANLIB="${RANLIB}" \
-		-DCMAKE_C_FLAGS="--sysroot=${RAVYN_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN}" \
+		-DCMAKE_C_FLAGS="--sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN}" \
 		-DCMAKE_SYSTEM_NAME="Darwin" \
 		-DCMAKE_SHARED_LIBRARY_VERSION_SCRIPT_FLAG="" \
 		-DCMAKE_SHARED_LIBRARY_SONAME_FLAG="" \
@@ -33,7 +33,7 @@ all: libintl
 		-S ${.CURDIR} -B ${.OBJDIR}
 	${MAKE} -C ${.OBJDIR}
 	${MAKE} install DESTDIR=${SYSROOT_DIR}
-	${MAKE} install DESTDIR=${RAVYN_SDKROOT}
+	${MAKE} install DESTDIR=${MINKAR_SDKROOT}
 
 
 
@@ -50,10 +50,10 @@ libintl: ${.CURDIR:H}/gettext-tiny/Makefile
 	cd ${GT_OBJDIR} && \
 	CC=${CC} CXX=${CXX} LD=${CC} AR=${AR} RANLIB=${RANLIB} \
 	NM=${NM} LIBTOOL=${LIBTOOL} \
-	LDFLAGS="-fuse-ld=${LD} --sysroot=${RAVYN_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} -L${.OBJDIR:H}/libiconv/lib/.libs/" \
-	CFLAGS="--sysroot=${RAVYN_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} -I${.OBJDIR:H}/libiconv/include" \
+	LDFLAGS="-fuse-ld=${LD} --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} -L${.OBJDIR:H}/libiconv/lib/.libs/" \
+	CFLAGS="--sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} -I${.OBJDIR:H}/libiconv/include" \
 	MAKEFLAGS="" ${GMAKE} LIBINTL=1 -C ${GT_OBJDIR}
-	cp -fv ${GT_OBJDIR}/libintl.a ${RAVYN_SDKROOT}/usr/lib
+	cp -fv ${GT_OBJDIR}/libintl.a ${MINKAR_SDKROOT}/usr/lib
 	cp -fv ${GT_OBJDIR}/msgfmt ${GT_OBJDIR}/msgmerge \
 		${SYSROOT_DIR}/usr/bin/
 

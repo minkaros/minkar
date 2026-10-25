@@ -3,7 +3,7 @@ CC := ${HOST_CC}
 FLAGS += -D__DARWIN_UNIX03 -D_DARWIN_C_SOURCE -Wno-\#warnings \
 	 -D__APPLE_CC__ -Dio_master_t=mach_port_t -U_GLIBCXX_USE_CXX11_ABI \
 	 -D_GLIBCXX_USE_CXX11_ABI=0 -Wno-deprecated -Wno-macro-redefined -fblocks \
-	 -F${RAVYN_SDKROOT}/System/Library/Frameworks \
+	 -F${MINKAR_SDKROOT}/System/Library/Frameworks \
 	 -I${.CURDIR} -I${.CURDIR}/..  -I${.CURDIR}/../..  \
 	 -I${.CURDIR}/abstraction -I${.CURDIR}/ld/parsers \
 	 -I${.CURDIR}/ld/passes -I${.CURDIR}/ld -I${.CURDIR}/llvm \

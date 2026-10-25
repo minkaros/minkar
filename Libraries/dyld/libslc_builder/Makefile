@@ -22,16 +22,16 @@ SRCS =  dyld3/shared-cache/DyldSharedCache.cpp \
 	dyld3/shared-cache/OptimizerBranches.cpp
 
 CXXSTD = none
-CFLAGS = --sysroot=${RAVYN_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
+CFLAGS = --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
         -DBUILDING_CACHE_BUILDER -DTARGET_OS_BRIDGE=0 \
-        -I${.CURDIR:H}/dyld3 -I${RAVYN_SDKROOT}/usr/include/Private \
+        -I${.CURDIR:H}/dyld3 -I${MINKAR_SDKROOT}/usr/include/Private \
         -I${.CURDIR:H}/dyld3/shared-cache -I${.CURDIR:H}/../Libsystem/private \
         -I${ROOT_SOURCE_DIR}/Kernel/Extensions/corecrypto/include \
         ${CFLAGS.${.TARGET:T}}
 
 CFLAGS.OptimizerObjC.o = -std=c++14
 
-LDFLAGS = --sysroot=${RAVYN_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
+LDFLAGS = --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
         -fuse-ld=${LD}
 
 .include <bsd.lib.mk>

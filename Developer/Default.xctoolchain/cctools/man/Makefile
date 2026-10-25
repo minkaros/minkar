@@ -9,6 +9,6 @@ MAN =	a.out.5 arch.3 as.1 bitcode_strip.1 check_dylib.1 checksyms.1 \
 	otool-classic.1 otool.1 pagestuff.1 ranlib.1 ranlib.5 \
 	redo_prebinding.1 redo_prebinding.3 seg_addr_table.1 segedit.1 \
 	size-classic.1 size.1 stab.5 strings.1 strip.1
-MANDIR = ${RAVYN_SDKROOT}/usr/share/man
+MANDIR = ${MINKAR_SDKROOT}/usr/share/man
 
 .include <bsd.prog.mk>

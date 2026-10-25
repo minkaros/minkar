@@ -134,7 +134,7 @@ CFLAGS = -ObjC -DCF_BUILDING_CF -DU_SHOW_CPLUSPLUS_API -DU_SHOW_DRAFT_API \
 	-I${ROOT_SOURCE_DIR}/Libraries/Libsystem/removefile \
 	-I${ROOT_SOURCE_DIR}/Libraries/Libsystem/private \
 	-I${ROOT_SOURCE_DIR}/Libraries/Libsystem/libsystem_blocks \
-	-I${RAVYN_SDKROOT}/usr/local/include/kernel ${CFLAGS.${.TARGET:T}} \
+	-I${MINKAR_SDKROOT}/usr/local/include/kernel ${CFLAGS.${.TARGET:T}} \
 	-I${ROOT_BINARY_DIR}${ROOT_SOURCE_DIR}/Kernel/xnu/EXPORT_HDRS/osfmk \
         -I${.CURDIR:H}/Foundation/Headers \
 	-include${ROOT_SOURCE_DIR}/Kernel/xnu/osfmk/mach/error.h \
@@ -148,7 +148,7 @@ LDFLAGS = -Wl,-dylib -fexceptions -Wl,-init,___CFInitialize \
 	-Wl,-sectcreate,__UNICODE,__properties,${.CURDIR}/CFUniCharPropertyDatabase.data \
 	-Wl,-sectcreate,__UNICODE,__data,${.CURDIR}/${unicode_data_file_name} \
 	-Wl,-segprot,__UNICODE,r,r \
-	-lSystem -L${RAVYN_SDKROOT}/usr/lib -licucore -lobjc
+	-lSystem -L${MINKAR_SDKROOT}/usr/lib -licucore -lobjc
 SUBDIR =
 
 ${.OBJDIR}/mach-o/arch.h:
@@ -160,12 +160,12 @@ ${FRAMEWORK}: ${.OBJDIR}/mach-o/arch.h
 FRAMEWORK_LIB = ${.OBJDIR}/${FRAMEWORK}.framework/Versions/${FMWK_VERSION}/${FRAMEWORK}
 ${FRAMEWORK}.framework.dSYM: ${FRAMEWORK}
 	${DSYMUTIL} ${FRAMEWORK_LIB} -o ${.TARGET}
-	cp -Rf ${.OBJDIR}/${.TARGET} ${RAVYN_SDKROOT}/System/Library/Frameworks/
+	cp -Rf ${.OBJDIR}/${.TARGET} ${MINKAR_SDKROOT}/System/Library/Frameworks/
 
 fmwk-install-hook:
-	mkdir -p ${RAVYN_SDKROOT}/System/Library/Frameworks \
+	mkdir -p ${MINKAR_SDKROOT}/System/Library/Frameworks \
 	  ${SYSROOT_DIR}/System/Library/Frameworks
-	cp -Rf ${.OBJDIR}/${FRAMEWORK}.framework ${RAVYN_SDKROOT}/System/Library/Frameworks
+	cp -Rf ${.OBJDIR}/${FRAMEWORK}.framework ${MINKAR_SDKROOT}/System/Library/Frameworks
 	cp -Rf ${.OBJDIR}/${FRAMEWORK}.framework ${SYSROOT_DIR}/System/Library/Frameworks
 
 .include <rvn.framework.mk>

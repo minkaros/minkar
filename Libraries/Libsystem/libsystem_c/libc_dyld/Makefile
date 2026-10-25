@@ -46,8 +46,8 @@ CFLAGS += -DPRIVATE -U__DARWIN_NON_CANCELABLE -D__DARWIN_NON_CANCELABLE=0 \
 	${CFLAGS.${.TARGET:T}}
 
 SLF = /System/Library/Frameworks
-CFLAGS.arc4random.o = -include${RAVYN_SDKROOT}/usr/include/os/availability.h \
-	-I${RAVYN_SDKROOT}${SLF}/System.framework/Versions/B/PrivateHeaders
+CFLAGS.arc4random.o = -include${MINKAR_SDKROOT}/usr/include/os/availability.h \
+	-I${MINKAR_SDKROOT}${SLF}/System.framework/Versions/B/PrivateHeaders
 
 CFLAGS.closedir.o = -DLIBC_ALIAS_CLOSEDIR \
 		-include${.CURDIR:H}/gen/__dirent.h
@@ -61,14 +61,14 @@ CFLAGS.telldir.o = -DLIBC_ALIAS__SEEKDIR -DLIBC_ALIAS_TELLDIR \
 CFLAGS.usleep.o = -DLIBC_ALIAS_USLEEP
 CFLAGS.nanosleep.o = -DLIBC_ALIAS_NANOSLEEP
 CFLAGS.realpath.o = -DLIBC_ALIAS_REALPATH
-CFLAGS.gettimeofday.o = -I${RAVYN_SDKROOT}${SLF}/System.framework/Versions/B/PrivateHeaders
-CFLAGS._libc_init.o = -I${RAVYN_SDKROOT}${SLF}/System.framework/Versions/B/PrivateHeaders
+CFLAGS.gettimeofday.o = -I${MINKAR_SDKROOT}${SLF}/System.framework/Versions/B/PrivateHeaders
+CFLAGS._libc_init.o = -I${MINKAR_SDKROOT}${SLF}/System.framework/Versions/B/PrivateHeaders
 
 all: lib${LIB}.a copylib
 
 copylib: lib${LIB}.a
-	mkdir -p ${RAVYN_SDKROOT}/usr/local/lib/dyld
-	cp -f ${.OBJDIR}/libc_dyld.a ${RAVYN_SDKROOT}/usr/local/lib/dyld/libc.a
+	mkdir -p ${MINKAR_SDKROOT}/usr/local/lib/dyld
+	cp -f ${.OBJDIR}/libc_dyld.a ${MINKAR_SDKROOT}/usr/local/lib/dyld/libc.a
 
 .include <bsd.lib.mk>
 

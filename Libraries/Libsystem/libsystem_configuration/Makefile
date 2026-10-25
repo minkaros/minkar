@@ -13,7 +13,7 @@ SLF = /System/Library/Frameworks
 SRCS = dnsinfo_copy.c network_information.c libSystemConfiguration_client.c \
 	config_agent_info.c
 
-CFLAGS = --sysroot=${RAVYN_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
+CFLAGS = --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
 	-I${.CURDIR}/include \
 	-DPRIVATE -fblocks -Wno-nullability-completeness \
 	-I${CONFIGD}/dnsinfo -I${CONFIGD}/nwi -I${CONFIGD}/libSystemConfiguration \
@@ -21,12 +21,12 @@ CFLAGS = --sysroot=${RAVYN_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
 	-I${ROOT_SOURCE_DIR}/Frameworks/SystemConfiguration/compat \
 	-I${.CURDIR}/../private -I${.CURDIR}/../libsystem_c \
 	-I${.CURDIR}/../libdispatch/private -I${.CURDIR}/../liblaunch \
-	-I${RAVYN_SDKROOT}${SLF}/System.framework/PrivateHeaders \
-	-I${RAVYN_SDKROOT}/usr/local/include \
-	-idirafter ${RAVYN_SDKROOT}${SLF}/Kernel.framework/Versions/A/Headers
+	-I${MINKAR_SDKROOT}${SLF}/System.framework/PrivateHeaders \
+	-I${MINKAR_SDKROOT}/usr/local/include \
+	-idirafter ${MINKAR_SDKROOT}${SLF}/Kernel.framework/Versions/A/Headers
 
-LDFLAGS = -Wl,-syslibroot,${RAVYN_SDKROOT}/usr/lib -umbrella System \
-	-L${RAVYN_SDKROOT}/usr/lib -L${RAVYN_SDKROOT}/usr/lib/system \
+LDFLAGS = -Wl,-syslibroot,${MINKAR_SDKROOT}/usr/lib -umbrella System \
+	-L${MINKAR_SDKROOT}/usr/lib -L${MINKAR_SDKROOT}/usr/lib/system \
 	-Wl,-current_version,1061.0.2 -Wl,-compatibility_version,1 \
 	-Wl,-install_name,/usr/lib/system/libsystem_configuration.dylib \
 	-mmacos-version-min=${MACOS_VERSION_MIN} -lxpc -lsystem_blocks \
@@ -42,10 +42,10 @@ all: ${.OBJDIR}/lib${LIB}.dylib
 ${.OBJDIR}/lib${LIB}.dylib: lib${LIB}.a
 	${CC} -fuse-ld=${LD} -shared -dylib -o ${.TARGET} \
 		-Wl,-force_load,${.OBJDIR}/lib${LIB}.a ${LDFLAGS}
-	mkdir -p ${RAVYN_SDKROOT}/usr/lib/system ${SYSROOT_DIR}/usr/lib/system \
-		${RAVYN_SDKROOT}/usr/local/include
-	cp -f ${.TARGET} ${RAVYN_SDKROOT}/usr/lib/system/
+	mkdir -p ${MINKAR_SDKROOT}/usr/lib/system ${SYSROOT_DIR}/usr/lib/system \
+		${MINKAR_SDKROOT}/usr/local/include
+	cp -f ${.TARGET} ${MINKAR_SDKROOT}/usr/lib/system/
 	cp -f ${.TARGET} ${SYSROOT_DIR}/usr/lib/system/
-	cp -f ${INCS} ${RAVYN_SDKROOT}/usr/local/include/
+	cp -f ${INCS} ${MINKAR_SDKROOT}/usr/local/include/
 
 .include <bsd.lib.mk>

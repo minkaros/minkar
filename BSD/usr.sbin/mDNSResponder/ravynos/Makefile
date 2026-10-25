@@ -31,14 +31,14 @@ SRCS =	PosixDaemon.c mDNSPosix.c mDNSUNP.c posix_utilities.c \
 	uds_daemon.c mDNSDebug.c dnssd_ipc.c GenLinkedList.c PlatformCommon.c \
 	ClientRequests.c dso.c dso-transport.c
 
-CFLAGS = --sysroot=${RAVYN_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
+CFLAGS = --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
 	-I${MDNS}/mDNSCore -I${MDNS}/mDNSShared -I${MDNS}/DSO \
 	-I${MDNS}/ServiceRegistration -I${MDNS}/mDNSPosix -fwrapv \
 	-DMDNS_UDS_SERVERPATH=\"/var/run/mDNSResponder\" \
 	-DHAVE_IPV6=1 -DHAVE_STRLCPY=1 -D__APPLE_USE_RFC_3542 \
 	-DMDNS_DEBUGMSGS=0 -D__OPEN_SOURCE__ -DPOSIX_BUILD \
 	-Wno-nullability-completeness
-LDFLAGS = --sysroot=${RAVYN_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
+LDFLAGS = --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
 	-fuse-ld=${LD}
 
 all: to-sysroot

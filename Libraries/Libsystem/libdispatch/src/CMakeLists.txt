@@ -37,8 +37,8 @@ set_target_properties(dispatch PROPERTIES
     NO_SONAME true PREFIX "lib" SUFFIX ".dylib" OUTPUT_NAME "dispatch")
 
 target_include_directories(dispatch PRIVATE
-    ${RAVYN_SDKROOT}/usr/local/include/kernel
-    ${RAVYN_SDKROOT}/System/Library/Frameworks/System.framework/Versions/B/PrivateHeaders
+    ${MINKAR_SDKROOT}/usr/local/include/kernel
+    ${MINKAR_SDKROOT}/System/Library/Frameworks/System.framework/Versions/B/PrivateHeaders
     .. . ../private/dispatch ../../libsystem_blocks
     ${CMAKE_CURRENT_BINARY_DIR}/..
     ${CMAKE_CURRENT_BINARY_DIR}
@@ -51,7 +51,7 @@ target_include_directories(dispatch PRIVATE
     ../../private
 )
 
-set(MIG_FLAGS --sysroot=${RAVYN_SDKROOT} -g -DPRIVATE -mmacos-version-min=10.15 -D__MigTypeCheck)
+set(MIG_FLAGS --sysroot=${MINKAR_SDKROOT} -g -DPRIVATE -mmacos-version-min=10.15 -D__MigTypeCheck)
 add_custom_command(
     DEPENDS protocol.defs
     OUTPUT
@@ -96,7 +96,7 @@ target_compile_definitions(dispatch PRIVATE
     OS_FIREHOSE_SPI DISPATCH_DEBUG)
 
 target_compile_options(dispatch PRIVATE
-   --sysroot=${RAVYN_SDKROOT} -DPRIVATE
+   --sysroot=${MINKAR_SDKROOT} -DPRIVATE
    -fno-exceptions -fblocks -fdollars-in-identifiers
    -momit-leaf-frame-pointer -mmacos-version-min=10.15)
 
@@ -104,7 +104,7 @@ target_link_libraries(dispatch PRIVATE
     system_pthread system_blocks objc)
 
 target_link_options(dispatch PRIVATE
-    -L${RAVYN_SDKROOT}/usr/lib/system -L${RAVYN_SDKROOT}/usr/lib
+    -L${MINKAR_SDKROOT}/usr/lib/system -L${MINKAR_SDKROOT}/usr/lib
     -Wl,-compatibility_version,1 -Wl,-flat_namespace -Wl,-undefined,warning
     -Wl,-current_version,1173.0.3
     -Wl,-install_name,/usr/lib/system/libdispatch.dylib
@@ -115,8 +115,8 @@ target_link_options(dispatch PRIVATE
     -mmacos-version-min=10.15 -umbrella System)
 
 add_custom_command(TARGET dispatch POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E make_directory ${RAVYN_SDKROOT}/usr/lib/system ${SYSROOT_DIR}/usr/lib/system
-    COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:dispatch> ${RAVYN_SDKROOT}/usr/lib/system/
+    COMMAND ${CMAKE_COMMAND} -E make_directory ${MINKAR_SDKROOT}/usr/lib/system ${SYSROOT_DIR}/usr/lib/system
+    COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:dispatch> ${MINKAR_SDKROOT}/usr/lib/system/
     COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:dispatch> ${SYSROOT_DIR}/usr/lib/system/
 )
 

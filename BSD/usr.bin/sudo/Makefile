@@ -9,9 +9,9 @@
 SUBDIR =
 MK_WERROR = no
 
-SUDO_CFLAGS = --sysroot=${RAVYN_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
+SUDO_CFLAGS = --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
 	-Wno-nullability-completeness -O2
-SUDO_LDFLAGS = --sysroot=${RAVYN_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
+SUDO_LDFLAGS = --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
 	-fuse-ld=${LD}
 
 CONFIGURE_ARGS = --host=x86_64-apple-darwin --build=x86_64-pc-linux-gnu \

@@ -41,7 +41,7 @@ SRCS =	archive_acl.c archive_blake2sp_ref.c archive_blake2s_ref.c archive_check_
 	archive_write_set_format_warc.c archive_write_set_format_xar.c archive_write_set_format_zip.c archive_write_set_passphrase.c \
 	archive_write_set_options.c filter_fork_posix.c
 
-CFLAGS = --sysroot=${RAVYN_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
+CFLAGS = --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
 	-Wno-nullability-completeness \
 	-DPLATFORM_CONFIG_H=\"${.CURDIR}/config_ravynos.h\" \
 	-DHAVE_BZLIB_H=1 -DHAVE_LIBLZMA=1 -DHAVE_LZMA_H=1 -DHAVE_SYSCONF=1 \

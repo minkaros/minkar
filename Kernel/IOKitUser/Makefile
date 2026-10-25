@@ -107,7 +107,7 @@ SLF = /System/Library/Frameworks
 CSTD = none
 CXXSTD = none
 
-CFLAGS = ${DEFS} -fblocks --sysroot=${RAVYN_SDKROOT} \
+CFLAGS = ${DEFS} -fblocks --sysroot=${MINKAR_SDKROOT} \
 	-mmacos-version-min=${MACOS_VERSION_MIN} \
 	-Wno-nullability-completeness \
 	-Wno-implicit-function-declaration \
@@ -118,141 +118,141 @@ CFLAGS += \
 	-I${.CURDIR}/../xnu/osfmk \
 	-I${.CURDIR}/../xnu/libkern -I${.CURDIR}/../xnu/iokit \
 	-I${.OBJDIR} \
-	-I${RAVYN_SDKROOT}/usr/local/include \
+	-I${MINKAR_SDKROOT}/usr/local/include \
 	-I${ROOT_SOURCE_DIR}/Libraries/Libsystem/private \
 	-I${ROOT_SOURCE_DIR}/Libraries/Libsystem/libdispatch/private \
 	-I${ROOT_SOURCE_DIR}/Libraries/Libsystem/liblaunch \
 	-I${ROOT_BINARY_DIR}${ROOT_SOURCE_DIR}/Kernel/xnu/EXPORT_HDRS/osfmk \
 	-I${ROOT_BINARY_DIR}${ROOT_SOURCE_DIR}/Kernel/xnu/EXPORT_HDRS/san \
-	-I${RAVYN_SDKROOT}${SLF}/System.framework/PrivateHeaders \
-	-I${RAVYN_SDKROOT}${SLF}/Kernel.framework/Headers \
+	-I${MINKAR_SDKROOT}${SLF}/System.framework/PrivateHeaders \
+	-I${MINKAR_SDKROOT}${SLF}/Kernel.framework/Headers \
 	${CFLAGS.${.TARGET:T}} \
-	-include${RAVYN_SDKROOT}/usr/include/i386/endian.h \
+	-include${MINKAR_SDKROOT}/usr/include/i386/endian.h \
 	-include${.CURDIR:H}/xnu/libkern/libkern/OSTypes.h \
-	-include${RAVYN_SDKROOT}/usr/include/MacTypes.h \
+	-include${MINKAR_SDKROOT}/usr/include/MacTypes.h \
 	-I${ROOT_SOURCE_DIR}/Frameworks/Security/header_symlinks \
 	-I${ROOT_SOURCE_DIR}/Frameworks/Security/header_symlinks/macOS \
 	-I${ROOT_SOURCE_DIR}/Frameworks \
 	-I${ROOT_SOURCE_DIR}/Frameworks/Foundation/Headers
 
-ACFLAGS = --sysroot=${RAVYN_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN}
+ACFLAGS = --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN}
 
-CXXFLAGS = --sysroot=${RAVYN_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
+CXXFLAGS = --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
 	-fcolor-diagnostics ${DEFS} ${CFLAGS.${.TARGET:T}} \
 	-I${ROOT_SOURCE_DIR}/Frameworks	\
 	-I${ROOT_SOURCE_DIR}/Frameworks/Foundation/Headers \
-	-I${RAVYN_SDKROOT}${SLF}/System.framework/PrivateHeaders \
+	-I${MINKAR_SDKROOT}${SLF}/System.framework/PrivateHeaders \
 	-I${ROOT_SOURCE_DIR}/Libraries/Libsystem/private
 
 CFLAGS.msgtracer_client.o = -I${.CURDIR}
-CFLAGS.IOMIGMachPort.o = -include${RAVYN_SDKROOT}/usr/include/mach/error.h
+CFLAGS.IOMIGMachPort.o = -include${MINKAR_SDKROOT}/usr/include/mach/error.h
 CFLAGS.IOHIDElementObjc.o = -ObjC++ -Wno-missing-method-return-type
 CFLAGS.IOHIDDeviceObjc.o = -ObjC++ -Wno-missing-method-return-type
-CFLAGS.IOHIDEventObjc.o = -include${RAVYN_SDKROOT}/usr/local/include/kernel/os/object.h
-CFLAGS.IOHIDServiceObjc.o = -include${RAVYN_SDKROOT}/usr/local/include/kernel/os/object.h
-CFLAGS.IOHIDServiceClientObjc.o = -include${RAVYN_SDKROOT}/usr/local/include/kernel/os/object.h
-CFLAGS.IOHIDSessionObjc.o = -include${RAVYN_SDKROOT}/usr/local/include/kernel/os/object.h
-CFLAGS.IOHIDConnectionObjc.o = -include${RAVYN_SDKROOT}/usr/local/include/kernel/os/object.h
-CFLAGS.HIDEventBase.o = -include${RAVYN_SDKROOT}/usr/include/i386/endian.h \
-	-include${RAVYN_SDKROOT}/usr/local/include/kernel/os/object.h \
-	-include${RAVYN_SDKROOT}${SLF}/IOKit.framework/PrivateHeaders/hidobjc/hidobjcbase.h \
+CFLAGS.IOHIDEventObjc.o = -include${MINKAR_SDKROOT}/usr/local/include/kernel/os/object.h
+CFLAGS.IOHIDServiceObjc.o = -include${MINKAR_SDKROOT}/usr/local/include/kernel/os/object.h
+CFLAGS.IOHIDServiceClientObjc.o = -include${MINKAR_SDKROOT}/usr/local/include/kernel/os/object.h
+CFLAGS.IOHIDSessionObjc.o = -include${MINKAR_SDKROOT}/usr/local/include/kernel/os/object.h
+CFLAGS.IOHIDConnectionObjc.o = -include${MINKAR_SDKROOT}/usr/local/include/kernel/os/object.h
+CFLAGS.HIDEventBase.o = -include${MINKAR_SDKROOT}/usr/include/i386/endian.h \
+	-include${MINKAR_SDKROOT}/usr/local/include/kernel/os/object.h \
+	-include${MINKAR_SDKROOT}${SLF}/IOKit.framework/PrivateHeaders/hidobjc/hidobjcbase.h \
 	-Ddouble_t=double -I${ROOT_SOURCE_DIR}/Kernel/xnu/libkern
-CFLAGS.HIDServiceBase.o = -include${RAVYN_SDKROOT}/usr/include/i386/endian.h \
-	-include${RAVYN_SDKROOT}/usr/local/include/kernel/os/object.h \
-	-include${RAVYN_SDKROOT}${SLF}/IOKit.framework/PrivateHeaders/hidobjc/hidobjcbase.h
-CFLAGS.HIDSessionBase.o = -include${RAVYN_SDKROOT}/usr/include/i386/endian.h \
-	-include${RAVYN_SDKROOT}/usr/local/include/kernel/os/object.h \
-	-include${RAVYN_SDKROOT}${SLF}/IOKit.framework/PrivateHeaders/hidobjc/hidobjcbase.h
-CFLAGS.HIDConnectionBase.o = -include${RAVYN_SDKROOT}/usr/include/i386/endian.h \
-	-include${RAVYN_SDKROOT}/usr/local/include/kernel/os/object.h \
-	-include${RAVYN_SDKROOT}${SLF}/IOKit.framework/PrivateHeaders/hidobjc/hidobjcbase.h
-CFLAGS.HIDServiceClientBase.o = -include${RAVYN_SDKROOT}/usr/include/i386/endian.h \
-	-include${RAVYN_SDKROOT}/usr/local/include/kernel/os/object.h \
-	-include${RAVYN_SDKROOT}${SLF}/IOKit.framework/PrivateHeaders/hidobjc/hidobjcbase.h
-CFLAGS.HIDDeviceBase.o = -include${RAVYN_SDKROOT}/usr/include/i386/endian.h \
-	-include${RAVYN_SDKROOT}/usr/local/include/kernel/os/object.h \
-	-include${RAVYN_SDKROOT}${SLF}/IOKit.framework/PrivateHeaders/hidobjc/hidobjcbase.h \
+CFLAGS.HIDServiceBase.o = -include${MINKAR_SDKROOT}/usr/include/i386/endian.h \
+	-include${MINKAR_SDKROOT}/usr/local/include/kernel/os/object.h \
+	-include${MINKAR_SDKROOT}${SLF}/IOKit.framework/PrivateHeaders/hidobjc/hidobjcbase.h
+CFLAGS.HIDSessionBase.o = -include${MINKAR_SDKROOT}/usr/include/i386/endian.h \
+	-include${MINKAR_SDKROOT}/usr/local/include/kernel/os/object.h \
+	-include${MINKAR_SDKROOT}${SLF}/IOKit.framework/PrivateHeaders/hidobjc/hidobjcbase.h
+CFLAGS.HIDConnectionBase.o = -include${MINKAR_SDKROOT}/usr/include/i386/endian.h \
+	-include${MINKAR_SDKROOT}/usr/local/include/kernel/os/object.h \
+	-include${MINKAR_SDKROOT}${SLF}/IOKit.framework/PrivateHeaders/hidobjc/hidobjcbase.h
+CFLAGS.HIDServiceClientBase.o = -include${MINKAR_SDKROOT}/usr/include/i386/endian.h \
+	-include${MINKAR_SDKROOT}/usr/local/include/kernel/os/object.h \
+	-include${MINKAR_SDKROOT}${SLF}/IOKit.framework/PrivateHeaders/hidobjc/hidobjcbase.h
+CFLAGS.HIDDeviceBase.o = -include${MINKAR_SDKROOT}/usr/include/i386/endian.h \
+	-include${MINKAR_SDKROOT}/usr/local/include/kernel/os/object.h \
+	-include${MINKAR_SDKROOT}${SLF}/IOKit.framework/PrivateHeaders/hidobjc/hidobjcbase.h \
 	-Ddouble_t=double -I${ROOT_SOURCE_DIR}/Kernel/xnu/libkern
 CFLAGS.IOPMLib.o = -I${.CURDIR}
 CFLAGS.IOPMAutoWake.o = -I${.CURDIR} \
-	-I${RAVYN_SDKROOT}${SLF}/IOKit.framework/Headers/pwr_mgt
+	-I${MINKAR_SDKROOT}${SLF}/IOKit.framework/Headers/pwr_mgt
 CFLAGS.IOPMEnergyPrefs.o = -I${.CURDIR} \
-	-I${RAVYN_SDKROOT}${SLF}/IOKit.framework/Headers/pwr_mgt
+	-I${MINKAR_SDKROOT}${SLF}/IOKit.framework/Headers/pwr_mgt
 CFLAGS.IOPMRepeatingPower.o = -I${.CURDIR} \
-	-I${RAVYN_SDKROOT}${SLF}/IOKit.framework/Headers/pwr_mgt
+	-I${MINKAR_SDKROOT}${SLF}/IOKit.framework/Headers/pwr_mgt
 CFLAGS.IOPMUPSPrefs.o = -I${.CURDIR}
 CFLAGS.IOGraphicsLib.o = -I${.CURDIR}
 CFLAGS.IOEventStatusAPI.o = -std=gnu++11 -I${.CURDIR} -I${.CURDIR}/hid.subproj \
 	-Wno-elaborated-enum-base -I${.CURDIR:H}/xnu/libkern \
-	-include${RAVYN_SDKROOT}/usr/include/i386/endian.h \
-	-include${RAVYN_SDKROOT}/usr/include/math.h \
-	-include${RAVYN_SDKROOT}/usr/local/include/kernel/os/object.h \
-	-include${RAVYN_SDKROOT}${SLF}/IOKit.framework/PrivateHeaders/hidobjc/hidobjcbase.h \
-	-include${RAVYN_SDKROOT}${SLF}/IOKit.framework/Headers/hid/IOHIDEventSystemClientPrivate.h
+	-include${MINKAR_SDKROOT}/usr/include/i386/endian.h \
+	-include${MINKAR_SDKROOT}/usr/include/math.h \
+	-include${MINKAR_SDKROOT}/usr/local/include/kernel/os/object.h \
+	-include${MINKAR_SDKROOT}${SLF}/IOKit.framework/PrivateHeaders/hidobjc/hidobjcbase.h \
+	-include${MINKAR_SDKROOT}${SLF}/IOKit.framework/Headers/hid/IOHIDEventSystemClientPrivate.h
 CFLAGS.AdjustForNewSegmentLocation.o = -Wno-elaborated-enum-base
 CFLAGS.IOHIDLib.o = -Ddouble_t=double -Wno-elaborated-enum-base \
 	-std=gnu++03 -I${.CURDIR:H}/xnu/libkern -I${.OBJDIR} \
 	-I${ROOT_SOURCE_DIR}/Libraries/Libsystem/liblaunch \
 	-I${.CURDIR}/hidsystem.subproj -I${.CURDIR}/hid.subproj \
 	-I${.CURDIR} \
-	-I${RAVYN_SDKROOT}${SLF}/IOKit.framework/Headers/pwr_mgt \
-	-include${RAVYN_SDKROOT}${SLF}/IOKit.framework/PrivateHeaders/hidobjc/hidobjcbase.h \
+	-I${MINKAR_SDKROOT}${SLF}/IOKit.framework/Headers/pwr_mgt \
+	-include${MINKAR_SDKROOT}${SLF}/IOKit.framework/PrivateHeaders/hidobjc/hidobjcbase.h \
 	-include${ROOT_SOURCE_DIR}/Libraries/Libsystem/private/_simple.h \
-	-include${RAVYN_SDKROOT}${SLF}/IOKit.framework/Headers/hid/IOHIDProperties.h \
-	-include${RAVYN_SDKROOT}${SLF}/IOKit.framework/Headers/hid/IOHIDEventSystemClientPrivate.h
+	-include${MINKAR_SDKROOT}${SLF}/IOKit.framework/Headers/hid/IOHIDProperties.h \
+	-include${MINKAR_SDKROOT}${SLF}/IOKit.framework/Headers/hid/IOHIDEventSystemClientPrivate.h
 CFLAGS.KextManager.o = -I${.OBJDIR}
 CFLAGS.IOPowerSources.o = -I${.CURDIR}
 CFLAGS.IOPowerSourcesPrivate.o = -I${.CURDIR}
 CFLAGS.IOPMLibPrivate.o = -I${.CURDIR}
 CFLAGS.IOHIDValue.o = -Wno-elaborated-enum-base -I${.CURDIR:H}/xnu/libkern \
-	-include${RAVYN_SDKROOT}/usr/include/i386/endian.h \
-	-include${RAVYN_SDKROOT}/usr/include/math.h \
-	-include${RAVYN_SDKROOT}/usr/local/include/kernel/os/object.h \
-	-include${RAVYN_SDKROOT}${SLF}/IOKit.framework/PrivateHeaders/hidobjc/hidobjcbase.h
+	-include${MINKAR_SDKROOT}/usr/include/i386/endian.h \
+	-include${MINKAR_SDKROOT}/usr/include/math.h \
+	-include${MINKAR_SDKROOT}/usr/local/include/kernel/os/object.h \
+	-include${MINKAR_SDKROOT}${SLF}/IOKit.framework/PrivateHeaders/hidobjc/hidobjcbase.h
 CFLAGS.IOHIDElement.o = -Wno-elaborated-enum-base -I${.CURDIR:H}/xnu/libkern \
-	-include${RAVYN_SDKROOT}/usr/include/i386/endian.h \
-	-include${RAVYN_SDKROOT}/usr/include/math.h \
-	-include${RAVYN_SDKROOT}/usr/local/include/kernel/os/object.h \
-	-include${RAVYN_SDKROOT}${SLF}/IOKit.framework/PrivateHeaders/hidobjc/hidobjcbase.h \
+	-include${MINKAR_SDKROOT}/usr/include/i386/endian.h \
+	-include${MINKAR_SDKROOT}/usr/include/math.h \
+	-include${MINKAR_SDKROOT}/usr/local/include/kernel/os/object.h \
+	-include${MINKAR_SDKROOT}${SLF}/IOKit.framework/PrivateHeaders/hidobjc/hidobjcbase.h \
 	-include${.CURDIR}/CFIOKitShim.h
 CFLAGS.IOHIDEvent.o = -ObjC++ -Wno-elaborated-enum-base -I${.CURDIR:H}/xnu/libkern \
-	-include${RAVYN_SDKROOT}/usr/include/i386/endian.h \
-	-include${RAVYN_SDKROOT}/usr/include/math.h \
-	-include${RAVYN_SDKROOT}/usr/local/include/kernel/os/object.h \
-	-include${RAVYN_SDKROOT}${SLF}/IOKit.framework/PrivateHeaders/hidobjc/hidobjcbase.h
+	-include${MINKAR_SDKROOT}/usr/include/i386/endian.h \
+	-include${MINKAR_SDKROOT}/usr/include/math.h \
+	-include${MINKAR_SDKROOT}/usr/local/include/kernel/os/object.h \
+	-include${MINKAR_SDKROOT}${SLF}/IOKit.framework/PrivateHeaders/hidobjc/hidobjcbase.h
 CFLAGS.IOHIDDevice.o = -Wno-elaborated-enum-base -I${.CURDIR:H}/xnu/libkern \
 	-I${ROOT_SOURCE_DIR}/Libraries/Libsystem/private \
 	-I${ROOT_SOURCE_DIR}/Libraries/Libsystem/libdispatch/private \
-	-include${RAVYN_SDKROOT}/usr/include/i386/endian.h \
-	-include${RAVYN_SDKROOT}/usr/include/math.h \
+	-include${MINKAR_SDKROOT}/usr/include/i386/endian.h \
+	-include${MINKAR_SDKROOT}/usr/include/math.h \
 	-include${.CURDIR}/CFIOKitShim.h
 CFLAGS.IOHIDLibPrivate.o = -ObjC++ -Wno-elaborated-enum-base -I${.CURDIR:H}/xnu/libkern \
 	-I${.CURDIR:H}/xnu/libkern/libkern \
 	-I${.CURDIR}/hid.subproj \
 	-I${.CURDIR:H}/Extensions/IOHIDFamily/IOHIDFamily \
-	-include${RAVYN_SDKROOT}/usr/include/math.h \
-	-include${RAVYN_SDKROOT}/usr/local/include/kernel/os/object.h \
-	-include${RAVYN_SDKROOT}${SLF}/IOKit.framework/PrivateHeaders/hidobjc/hidobjcbase.h \
+	-include${MINKAR_SDKROOT}/usr/include/math.h \
+	-include${MINKAR_SDKROOT}/usr/local/include/kernel/os/object.h \
+	-include${MINKAR_SDKROOT}${SLF}/IOKit.framework/PrivateHeaders/hidobjc/hidobjcbase.h \
 	-include${.CURDIR:H}/Extensions/IOHIDFamily/IOHIDFamily/IOHIDEventTypes.h \
 	-include${.CURDIR:H}/Extensions/IOHIDFamily/IOHIDFamily/AppleHIDUsageTables.h
 CFLAGS.IOHIDManager.o = -ObjC++ -Wno-elaborated-enum-base -I${.CURDIR:H}/xnu/libkern \
 	-I${.CURDIR:H}/xnu/libkern/libkern \
 	-I${.CURDIR}/hid.subproj \
 	-I${.CURDIR:H}/Extensions/IOHIDFamily/IOHIDFamily \
-	-include${RAVYN_SDKROOT}/usr/include/math.h \
-	-include${RAVYN_SDKROOT}/usr/local/include/kernel/os/object.h \
-	-include${RAVYN_SDKROOT}${SLF}/IOKit.framework/PrivateHeaders/hidobjc/hidobjcbase.h \
+	-include${MINKAR_SDKROOT}/usr/include/math.h \
+	-include${MINKAR_SDKROOT}/usr/local/include/kernel/os/object.h \
+	-include${MINKAR_SDKROOT}${SLF}/IOKit.framework/PrivateHeaders/hidobjc/hidobjcbase.h \
 	-include${.CURDIR}/CFIOKitShim.h
 CFLAGS.IOHIDQueue.o = -ObjC++ -Wno-elaborated-enum-base -I${.CURDIR:H}/xnu/libkern \
 	-I${ROOT_SOURCE_DIR}/Libraries/Libsystem/libdispatch/private \
-	-include${RAVYN_SDKROOT}/usr/include/math.h \
-	-include${RAVYN_SDKROOT}/usr/local/include/kernel/os/object.h \
-	-include${RAVYN_SDKROOT}${SLF}/IOKit.framework/PrivateHeaders/hidobjc/hidobjcbase.h
+	-include${MINKAR_SDKROOT}/usr/include/math.h \
+	-include${MINKAR_SDKROOT}/usr/local/include/kernel/os/object.h \
+	-include${MINKAR_SDKROOT}${SLF}/IOKit.framework/PrivateHeaders/hidobjc/hidobjcbase.h
 CFLAGS.IOHIDTransaction.o = -ObjC++ -Wno-elaborated-enum-base -I${.CURDIR:H}/xnu/libkern \
 	-I${ROOT_SOURCE_DIR}/Libraries/Libsystem/libdispatch/private \
-	-include${RAVYN_SDKROOT}/usr/include/math.h \
-	-include${RAVYN_SDKROOT}/usr/local/include/kernel/os/object.h \
-	-include${RAVYN_SDKROOT}${SLF}/IOKit.framework/PrivateHeaders/hidobjc/hidobjcbase.h
+	-include${MINKAR_SDKROOT}/usr/include/math.h \
+	-include${MINKAR_SDKROOT}/usr/local/include/kernel/os/object.h \
+	-include${MINKAR_SDKROOT}${SLF}/IOKit.framework/PrivateHeaders/hidobjc/hidobjcbase.h
 CFLAGS.IOPMPowerNotifications.o = -I${ROOT_SOURCE_DIR}/Libraries/Libsystem/libsystem_c \
         -I${.CURDIR}
 CFLAGS.OSKext.o = -I${.CURDIR}/kext.subproj -I${.CURDIR}/stubs \
@@ -262,17 +262,17 @@ CFLAGS.IOHIDUserDevice.o = -ObjC++ -Wno-elaborated-enum-base \
         -Wno-c++11-narrowing -I${.CURDIR:H}/xnu/libkern \
 	-I${ROOT_SOURCE_DIR}/Libraries/Libsystem/libdispatch/private \
         -I${.CURDIR}/hid.subproj \
-	-include${RAVYN_SDKROOT}/usr/include/math.h \
-	-include${RAVYN_SDKROOT}/usr/local/include/kernel/os/object.h \
-	-include${RAVYN_SDKROOT}${SLF}/IOKit.framework/PrivateHeaders/hidobjc/hidobjcbase.h
+	-include${MINKAR_SDKROOT}/usr/include/math.h \
+	-include${MINKAR_SDKROOT}/usr/local/include/kernel/os/object.h \
+	-include${MINKAR_SDKROOT}${SLF}/IOKit.framework/PrivateHeaders/hidobjc/hidobjcbase.h
 
 MIG_DEFS = -DIOKIT -DPRIVATE -DNO_SECURITY_FRAMEWORK
 MIGFLAGS = -cc ${CC} -novouchers -server /dev/null ${MIG_DEFS} \
 	-I${ROOT_SOURCE_DIR}/Kernel/xnu/osfmk \
 	-mmacos-version-min=${MACOS_VERSION_MIN}
 
-iokitPrivateHdrs = ${RAVYN_SDKROOT}/System/Library/Frameworks/IOKit.framework/Versions/A/PrivateHeaders
-iokitHdrs = ${RAVYN_SDKROOT}/System/Library/Frameworks/IOKit.framework/Versions/A/Headers
+iokitPrivateHdrs = ${MINKAR_SDKROOT}/System/Library/Frameworks/IOKit.framework/Versions/A/PrivateHeaders
+iokitHdrs = ${MINKAR_SDKROOT}/System/Library/Frameworks/IOKit.framework/Versions/A/Headers
 
 # IOKit's Objective-C (the HID classes) needs only libobjc. As on macOS it
 # must not pull in Foundation: with Foundation loaded, CoreFoundation
@@ -308,25 +308,25 @@ HID_EVENT_SYSTEM_PENDING = \
 	__IOHIDServiceReleasePrivate \
 	__IOHIDSessionReleasePrivate
 
-LDFLAGS = --sysroot=${RAVYN_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
+LDFLAGS = --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
 	-Wl,-compatibility_version,1.0.0 -Wl,-current_version,275.0.0 \
 	${HID_EVENT_SYSTEM_PENDING:S/^/-Wl,-U,/} \
-        -L${RAVYN_SDKROOT}/usr/local/lib/kernel -lcc_kext -lkxld \
+        -L${MINKAR_SDKROOT}/usr/local/lib/kernel -lcc_kext -lkxld \
         -framework CoreFoundation -lobjc -lc++ -lz -lSystem
 
 # Headers first: the sources include them from the SDK, also with -j.
 all: copy_headers .WAIT libkxld.a ${FRAMEWORK} to-sysroot
 
 to-sysroot: ${FRAMEWORK}
-	cp -Rf ${.OBJDIR}/IOKit.framework ${RAVYN_SDKROOT}/System/Library/Frameworks/
+	cp -Rf ${.OBJDIR}/IOKit.framework ${MINKAR_SDKROOT}/System/Library/Frameworks/
 	cp -Rf ${.OBJDIR}/IOKit.framework ${SYSROOT_DIR}/System/Library/Frameworks/
 
 copy_headers: .PHONY
 	# IOKit/hid and hidobjc headers (IOHIDEvent.h...): IOHIDFamily's HID
 	# framework is not built yet, but its header list is the one in use.
 	${MAKE} -C ${ROOT_SOURCE_DIR}/Kernel/Extensions/IOHIDFamily/HID copy_headers
-	mkdir -p ${RAVYN_SDKROOT}/usr/local/include
-	cp -f ${.CURDIR}/kext.subproj/bootfiles.h ${RAVYN_SDKROOT}/usr/local/include/
+	mkdir -p ${MINKAR_SDKROOT}/usr/local/include
+	cp -f ${.CURDIR}/kext.subproj/bootfiles.h ${MINKAR_SDKROOT}/usr/local/include/
 	mkdir -p ${iokitPrivateHdrs}/hidobjc
 	cp -f \
 		${.CURDIR}/hid.subproj/HIDDeviceBase.h \
@@ -353,7 +353,7 @@ copy_headers: .PHONY
 	mkdir -p ${iokitHdrs}/i2c
 	cp -Rf ${.CURDIR:H}/Extensions/IOGraphics/IOGraphicsFamily/IOKit/i2c/* \
 		${iokitHdrs}/i2c
-	mkdir -p ${RAVYN_SDKROOT}/usr/local/include/IOKit/kext
+	mkdir -p ${MINKAR_SDKROOT}/usr/local/include/IOKit/kext
 	cp -f \
 		${.CURDIR}/kext.subproj/OSKext.h \
 		${.CURDIR}/kext.subproj/OSKextPrivate.h \
@@ -364,7 +364,7 @@ copy_headers: .PHONY
 		${.CURDIR}/kext.subproj/KextManagerPriv.h \
 		${.CURDIR}/kext.subproj/kextmanager_types.h \
 		${.CURDIR}/kext.subproj/kextmanager_mig.defs \
-		${RAVYN_SDKROOT}/usr/local/include/IOKit/kext/
+		${MINKAR_SDKROOT}/usr/local/include/IOKit/kext/
 	mkdir -p ${iokitHdrs}/audio
 	cp -f ${.CURDIR}/audio.subproj/IOAudioLib.h ${iokitHdrs}/audio/
 	mkdir -p ${iokitHdrs}/hidsystem
@@ -455,19 +455,19 @@ copy_headers: .PHONY
 	mkdir -p ${iokitHdrs}/platform
 	cp -f ${.CURDIR}/platform.subproj/IOPlatformSupportPrivate.h \
 		${iokitHdrs}/platform/
-	rm -f ${RAVYN_SDKROOT}${SLF}/IOKit.framework/Headers
-	rm -f ${RAVYN_SDKROOT}${SLF}/IOKit.framework/PrivateHeaders
-	ln -sf Versions/A/Headers ${RAVYN_SDKROOT}${SLF}/IOKit.framework/Headers
+	rm -f ${MINKAR_SDKROOT}${SLF}/IOKit.framework/Headers
+	rm -f ${MINKAR_SDKROOT}${SLF}/IOKit.framework/PrivateHeaders
+	ln -sf Versions/A/Headers ${MINKAR_SDKROOT}${SLF}/IOKit.framework/Headers
 	ln -sf Versions/A/PrivateHeaders \
-	  ${RAVYN_SDKROOT}${SLF}/IOKit.framework/PrivateHeaders
-	mkdir -p ${RAVYN_SDKROOT}${SLF}/DriverKit.framework/Versions/A/Headers
+	  ${MINKAR_SDKROOT}${SLF}/IOKit.framework/PrivateHeaders
+	mkdir -p ${MINKAR_SDKROOT}${SLF}/DriverKit.framework/Versions/A/Headers
 	cp -f ${ROOT_SOURCE_DIR}/Kernel/xnu/libkern/libkern/c++/OSMetaClass.h \
-		${RAVYN_SDKROOT}${SLF}/DriverKit.framework/Versions/A/Headers
-	rm -f ${RAVYN_SDKROOT}${SLF}/DriverKit.framework/Headers \
-		${RAVYN_SDKROOT}${SLF}/DriverKit.framework/PrivateHeaders
-	ln -sf Versions/A/Headers ${RAVYN_SDKROOT}${SLF}/DriverKit.framework/Headers
+		${MINKAR_SDKROOT}${SLF}/DriverKit.framework/Versions/A/Headers
+	rm -f ${MINKAR_SDKROOT}${SLF}/DriverKit.framework/Headers \
+		${MINKAR_SDKROOT}${SLF}/DriverKit.framework/PrivateHeaders
+	ln -sf Versions/A/Headers ${MINKAR_SDKROOT}${SLF}/DriverKit.framework/Headers
 	ln -sf Versions/A/PrivateHeaders \
-		${RAVYN_SDKROOT}${SLF}/DriverKit.framework/PrivateHeaders
+		${MINKAR_SDKROOT}${SLF}/DriverKit.framework/PrivateHeaders
 
 kextmanager_mig.c kextmanager_mig.h: ${.CURDIR}/kext.subproj/kextmanager_mig.defs
 	${MIG} ${MIGFLAGS} -header kextmanager_mig.h -user kextmanager_mig.c \
@@ -483,7 +483,7 @@ iokitmig64.h iokitmig64.c: ${.CURDIR}/iokitmig.defs
 
 libkxld.a:
 	${MAKE} -C${.CURDIR} -f Makefile.kxld all
-	cp -f ${.OBJDIR}/${.TARGET} ${RAVYN_SDKROOT}/usr/local/lib/kernel
+	cp -f ${.OBJDIR}/${.TARGET} ${MINKAR_SDKROOT}/usr/local/lib/kernel
 
 SUBDIR =
 

@@ -25,9 +25,9 @@ ${HOST_TIC}: ${.CURDIR}/Makefile
 # The host tic is only needed to install: both builds run at the same time.
 ${.OBJDIR}/lib/libncurses.6.dylib: ${.CURDIR}/Makefile
 	CC=${CC} CXX=${CXX} \
-	CFLAGS="--sysroot=${RAVYN_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN}" \
-	CXXFLAGS="--sysroot=${RAVYN_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN}" \
-	LDFLAGS="--sysroot=${RAVYN_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} -fuse-ld=${LD}" \
+	CFLAGS="--sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN}" \
+	CXXFLAGS="--sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN}" \
+	LDFLAGS="--sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} -fuse-ld=${LD}" \
 	${.CURDIR}/configure --prefix=/usr \
         --sysconfdir=/private/etc \
         --localstatedir=/private/var \
@@ -46,7 +46,7 @@ ${.OBJDIR}/lib/libncurses.6.dylib: ${.CURDIR}/Makefile
 ${.OBJDIR}/.installed: ${.OBJDIR}/lib/libncurses.6.dylib ${HOST_TIC}
 	# The SDK takes the libraries and headers; the full install (programs,
 	# terminfo database, compiled with tic) goes to the root only.
-	MAKEFLAGS="" ${TOOLS}/gmake install.libs install.includes DESTDIR=${RAVYN_SDKROOT}
+	MAKEFLAGS="" ${TOOLS}/gmake install.libs install.includes DESTDIR=${MINKAR_SDKROOT}
 	MAKEFLAGS="" tic_path=${HOST_TIC} ${TOOLS}/gmake install DESTDIR=${SYSROOT_DIR}
 .for prog in clear infocmp tabs tic toe tput tset
 	ln -sf ${CpuArch}-apple-darwin19-${prog} ${SYSROOT_DIR}/usr/bin/${prog}

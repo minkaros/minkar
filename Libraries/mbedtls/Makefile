@@ -35,14 +35,14 @@ SRCS = \
 	version_features.c x509.c x509_create.c x509_crl.c x509_crt.c  \
 	x509_csr.c x509write.c x509write_crt.c x509write_csr.c  
 
-CFLAGS = --sysroot=${RAVYN_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
+CFLAGS = --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
 	-I${.CURDIR}/include -I${.CURDIR}/library -fPIC -O2 \
 	-Wno-nullability-completeness
 
 all: lib${LIB}.a
-	mkdir -p ${RAVYN_SDKROOT}/usr/local/lib ${RAVYN_SDKROOT}/usr/local/include
-	cp -f ${.OBJDIR}/lib${LIB}.a ${RAVYN_SDKROOT}/usr/local/lib/
-	rm -rf ${RAVYN_SDKROOT}/usr/local/include/mbedtls ${RAVYN_SDKROOT}/usr/local/include/psa
-	cp -R ${.CURDIR}/include/mbedtls ${.CURDIR}/include/psa ${RAVYN_SDKROOT}/usr/local/include/
+	mkdir -p ${MINKAR_SDKROOT}/usr/local/lib ${MINKAR_SDKROOT}/usr/local/include
+	cp -f ${.OBJDIR}/lib${LIB}.a ${MINKAR_SDKROOT}/usr/local/lib/
+	rm -rf ${MINKAR_SDKROOT}/usr/local/include/mbedtls ${MINKAR_SDKROOT}/usr/local/include/psa
+	cp -R ${.CURDIR}/include/mbedtls ${.CURDIR}/include/psa ${MINKAR_SDKROOT}/usr/local/include/
 
 .include <bsd.lib.mk>

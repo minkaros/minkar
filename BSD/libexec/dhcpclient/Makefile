@@ -6,10 +6,10 @@ PROG =	dhcpclient
 SRCS =	main.c iface.c dhcp4.c ipv6.c dhcp6.c store.c
 MAN =
 
-CFLAGS = --sysroot=${RAVYN_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
+CFLAGS = --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
 	-Wall -Wextra -Wno-nullability-completeness \
-	-I${RAVYN_SDKROOT}/System/Library/Frameworks/System.framework/PrivateHeaders
-LDFLAGS = --sysroot=${RAVYN_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
+	-I${MINKAR_SDKROOT}/System/Library/Frameworks/System.framework/PrivateHeaders
+LDFLAGS = --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
 	-fuse-ld=${LD}
 # configd (store.c); the CoreFoundation headers warn under -Wsystem-headers.
 CFLAGS.store.c = -Wno-system-headers

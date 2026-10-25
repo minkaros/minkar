@@ -8,10 +8,10 @@ MAN =
 PROG =	awk
 SRCS =	awkgram.c b.c lex.c lib.c main.c parse.c proctab.c run.c tran.c
 
-CFLAGS += --sysroot=${RAVYN_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
+CFLAGS += --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
 	-Wno-nullability-completeness -I${.OBJDIR} -I${.CURDIR} \
 	-DHAS_ISBLANK -DFOPEN_MAX=64
-LDFLAGS += --sysroot=${RAVYN_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} -fuse-ld=${LD}
+LDFLAGS += --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} -fuse-ld=${LD}
 LDADD += -lm
 
 HOST_CC ?= cc

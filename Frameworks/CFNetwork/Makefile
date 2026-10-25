@@ -43,11 +43,11 @@ INCLUDES = -I${.CURDIR:H} -I${ROOT_SOURCE_DIR}/Libraries/Libsystem/liblaunch \
 	-I${.CURDIR} -I${ROOT_SOURCE_DIR}/Kernel/kext_tools/FILES/3rd
 DEFS = -DCF_ASSUME_NONNULL_BEGIN="" -DCF_ASSUME_NONNULL_END=""
 
-CFLAGS += -F${RAVYN_SDKROOT}${SLF}/CoreServices.framework/Frameworks \
+CFLAGS += -F${MINKAR_SDKROOT}${SLF}/CoreServices.framework/Frameworks \
 	-Wmissing-prototypes -Wpointer-arith -Wcast-align \
 	-Wno-unknown-pragmas -Wmissing-declarations -Wbad-function-cast \
 	-Wno-incompatible-function-pointer-types ${DEFS} ${INCLUDES}
-CPPFLAGS += -F${RAVYN_SDKROOT}${SLF}/CoreServices.framework/Frameworks \
+CPPFLAGS += -F${MINKAR_SDKROOT}${SLF}/CoreServices.framework/Frameworks \
 	-Wmissing-prototypes -Wpointer-arith -Wcast-align -Wno-unknown-pragmas \
 	-Wno-incompatible-function-pointer-types ${DEFS} ${INCLUDES}
 

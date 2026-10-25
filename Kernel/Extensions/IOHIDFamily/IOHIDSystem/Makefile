@@ -114,17 +114,17 @@ CFLAGS = -DOMITPENDINGKEYCAPS \
 	-DAVAILABLE_MAC_OS_X_VERSION_10_13_AND_LATER="" \
 	-I${.CURDIR} -I${.CURDIR:H} -I${.CURDIR:H}/IOHIDFamily \
 	-I${.CURDIR}/IOKit/hidsystem \
-        -I${RAVYN_SDKROOT}/usr/local/include/kernel \
+        -I${MINKAR_SDKROOT}/usr/local/include/kernel \
 	-I${ROOT_BINARY_DIR}${ROOT_SOURCE_DIR}/Kernel/xnu/EXPORT_HDRS/iokit \
 	-I${ROOT_BINARY_DIR}${ROOT_SOURCE_DIR}/Kernel/xnu/EXPORT_HDRS/bsd \
 	-I${ROOT_BINARY_DIR}${ROOT_SOURCE_DIR}/Kernel/xnu/EXPORT_HDRS/libkern \
 	-I${ROOT_BINARY_DIR}${ROOT_SOURCE_DIR}/Kernel/xnu/EXPORT_HDRS/osfmk \
 	-I${ROOT_BINARY_DIR}${ROOT_SOURCE_DIR}/Kernel/xnu/EXPORT_HDRS/san \
-	-include${RAVYN_SDKROOT}/usr/include/i386/endian.h \
-	-include${RAVYN_SDKROOT}/usr/local/include/kernel/os/object.h \
+	-include${MINKAR_SDKROOT}/usr/include/i386/endian.h \
+	-include${MINKAR_SDKROOT}/usr/local/include/kernel/os/object.h \
 	${CFLAGS.${.TARGET}}
 
-LDFLAGS = -mmacos-version-min=${MACOS_VERSION_MIN} --sysroot=${RAVYN_SDKROOT} \
+LDFLAGS = -mmacos-version-min=${MACOS_VERSION_MIN} --sysroot=${MINKAR_SDKROOT} \
 	-fuse-ld=${LD}
 
 

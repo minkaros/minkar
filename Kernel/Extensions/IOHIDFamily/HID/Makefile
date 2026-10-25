@@ -18,19 +18,19 @@ SRCS = 	HIDEventService.m \
 	NSError+IOReturn.m
 
 SLF = /System/Library/Frameworks
-CFLAGS = --sysroot=${RAVYN_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
+CFLAGS = --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
 	-fblocks -fobjc-arc -framework Foundation -framework CoreFoundation \
 	-I${ROOT_SOURCE_DIR}/Frameworks -I${.CURDIR:H} \
 	-I${.CURDIR:H}/IOHIDFamily \
 	-I${ROOT_SOURCE_DIR}/Frameworks/Foundation/Headers \
 	-Wno-implicit-function-declaration -Wno-cast-qual \
 	-Wno-missing-method-return-type -Wno-nullability-completeness
-LDFLAGS = --sysroot=${RAVYN_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN}
+LDFLAGS = --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN}
 
-IOKIT_HDRS = ${RAVYN_SDKROOT}${SLF}/IOKit.framework/Versions/A/Headers
-IOKIT_PRIVHDRS = ${RAVYN_SDKROOT}${SLF}/IOKit.framework/Versions/A/PrivateHeaders
-KERNEL_HDRS = ${RAVYN_SDKROOT}${SLF}/Kernel.framework/Versions/A/Headers
-KERNEL_PRIVHDRS = ${RAVYN_SDKROOT}${SLF}/Kernel.framework/Versions/A/PrivateHeaders
+IOKIT_HDRS = ${MINKAR_SDKROOT}${SLF}/IOKit.framework/Versions/A/Headers
+IOKIT_PRIVHDRS = ${MINKAR_SDKROOT}${SLF}/IOKit.framework/Versions/A/PrivateHeaders
+KERNEL_HDRS = ${MINKAR_SDKROOT}${SLF}/Kernel.framework/Versions/A/Headers
+KERNEL_PRIVHDRS = ${MINKAR_SDKROOT}${SLF}/Kernel.framework/Versions/A/PrivateHeaders
 
 HID_DK = HIDDriverKit/IOHIDDeviceTypes.h
 HID_DK_DST = ${KERNEL_HDRS}/HIDDriverKit
@@ -151,9 +151,9 @@ HID_OBJC_DST = ${IOKIT_HDRS}/hidobjc
 ${FRAMEWORK}: copy_headers
 
 copy_headers: .PHONY
-	mkdir -p ${RAVYN_SDKROOT}/usr/local/share/misc
+	mkdir -p ${MINKAR_SDKROOT}/usr/local/share/misc
 	cp -f ${.CURDIR:H}/tools/hid.codes \
-	  ${RAVYN_SDKROOT}/usr/local/share/misc/
+	  ${MINKAR_SDKROOT}/usr/local/share/misc/
 .for dir in ${HID_OBJC_DST} ${HID_KERNSYS_DST} ${HIDEVENT_KERN_DST} \
   ${HID_KERNPRIVSYS_DST} ${HID_IOKITPRIVSYS_DST} ${HID_IOKITSYS_DST} \
   ${HID_IOKITPRIV_DST} ${HID_IOKIT_DST} ${HID_KERN_DST} ${HID_KERNPRIV_DST} \

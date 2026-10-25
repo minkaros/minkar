@@ -17,21 +17,21 @@ SLF =	/System/Library/Frameworks
 SRCS =	notifyd.c notify_proc.c pathwatch.c service.c timer.c \
 	notify_ipcServer.c notifyServer.c
 
-CFLAGS = --sysroot=${RAVYN_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
+CFLAGS = --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
 	-fblocks -DPRIVATE -DTARGET_OS_BRIDGE=0 -Wno-nullability-completeness \
 	-I${.OBJDIR} -I${.CURDIR} -I${LIBNOTIFY} \
 	-I${ROOT_SOURCE_DIR}/Libraries/Libsystem/private \
 	-I${ROOT_SOURCE_DIR}/Libraries/Libsystem/libdispatch/private \
 	-I${ROOT_SOURCE_DIR}/Libraries/Libsystem/liblaunch \
 	-I${ROOT_SOURCE_DIR}/Libraries/Libsystem/libsystem_c \
-	-I${RAVYN_SDKROOT}/usr/local/include \
-	-I${RAVYN_SDKROOT}${SLF}/System.framework/PrivateHeaders \
-	-idirafter ${RAVYN_SDKROOT}${SLF}/Kernel.framework/Versions/A/Headers
-LDFLAGS = --sysroot=${RAVYN_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
+	-I${MINKAR_SDKROOT}/usr/local/include \
+	-I${MINKAR_SDKROOT}${SLF}/System.framework/PrivateHeaders \
+	-idirafter ${MINKAR_SDKROOT}${SLF}/Kernel.framework/Versions/A/Headers
+LDFLAGS = --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
 	-fuse-ld=${LD}
 LDADD =	-lbsm
 
-MIGFLAGS = -novouchers --sysroot=${RAVYN_SDKROOT} \
+MIGFLAGS = -novouchers --sysroot=${MINKAR_SDKROOT} \
 	-mmacos-version-min=${MACOS_VERSION_MIN} -DPRIVATE
 
 notify_ipcServer.c notify_ipcServer.h notify_ipc.h: ${LIBNOTIFY}/notify_ipc.defs
@@ -40,10 +40,10 @@ notify_ipcServer.c notify_ipcServer.h notify_ipc.h: ${LIBNOTIFY}/notify_ipc.defs
 		${LIBNOTIFY}/notify_ipc.defs
 
 # Port death notifications.
-notifyServer.c notifyServer.h: ${RAVYN_SDKROOT}/usr/include/mach/notify.defs
+notifyServer.c notifyServer.h: ${MINKAR_SDKROOT}/usr/include/mach/notify.defs
 	${MIG} ${MIGFLAGS} -user /dev/null -header /dev/null \
 		-server notifyServer.c -sheader notifyServer.h \
-		${RAVYN_SDKROOT}/usr/include/mach/notify.defs
+		${MINKAR_SDKROOT}/usr/include/mach/notify.defs
 
 all: to-sysroot
 

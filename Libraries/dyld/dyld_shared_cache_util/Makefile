@@ -11,10 +11,10 @@ SRCS =  dyld3/ClosureFileSystemPhysical.cpp \
 	launch-cache/dyld_shared_cache_util.cpp
 
 
-CFLAGS = --sysroot=${RAVYN_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
+CFLAGS = --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
         -DBUILDING_SHARED_CACHE_UTIL -I${.CURDIR:H}/Libsystem/private
 
-LDFLAGS = --sysroot=${RAVYN_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
+LDFLAGS = --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
         -fuse-ld=${LD}
 
 .include <bsd.prog.mk>

@@ -46,7 +46,7 @@ SRCS = \
         atomics/init.c \
         introspection/introspection.c
 
-CFLAGS = --sysroot=${RAVYN_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
+CFLAGS = --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
         -w -Wno-implicit-function-declaration -Wno-int-conversion \
         -Wno-implicit-int -fno-stack-protector -fdollars-in-identifiers \
         -fno-common -fverbose-asm -momit-leaf-frame-pointer -DPRIVATE \
@@ -55,6 +55,6 @@ CFLAGS = --sysroot=${RAVYN_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
         -DOSSPINLOCK_USE_INLINED=0 -I${ROOT_SOURCE_DIR}/Kernel/xnu/bsd \
         -I${.CURDIR}/../private -I${.CURDIR}/internal -I${.CURDIR}/os/resolver \
         -I${ROOT_SOURCE_DIR}/Kernel/xnu/libsyscall/wrappers \
-        -I${RAVYN_SDKROOT}/System/Library/Frameworks/System.framework/Versions/B/PrivateHeaders \
+        -I${MINKAR_SDKROOT}/System/Library/Frameworks/System.framework/Versions/B/PrivateHeaders \
         ${CFLAGS.${.TARGET:T}}
 

@@ -20,11 +20,11 @@ SRCS =  dyld3/PathOverrides.cpp \
 	dyld3/shared-cache/OptimizerBranches.cpp \
 	dyld3/shared-cache/OptimizerLinkedit.cpp
 
-CFLAGS = --sysroot=${RAVYN_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
+CFLAGS = --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
         -DBUILDING_CACHE_BUILDER -DBUILDING_UPDATE_DYLD_CACHE_BUILDER=1 \
         -DBUILDING_UPDATE_OTHER_DYLD_CACHE_BUILDER -DDEBUG=1
 
-LDFLAGS = --sysroot=${RAVYN_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
+LDFLAGS = --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
         -fuse-ld=${LD}
 
 .include <bsd.prog.mk>

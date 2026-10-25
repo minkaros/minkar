@@ -13,7 +13,7 @@
 .PATH: ${SRCROOT}
 
 # Where the zlib library and include files are located
-ZLIBLIB=${RAVYN_SDKROOT}/usr/lib
+ZLIBLIB=${MINKAR_SDKROOT}/usr/lib
 ZLIBINC=${ROOT_SOURCE_DIR}/Libraries/zlib
 
 # Library name:

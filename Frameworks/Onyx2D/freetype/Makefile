@@ -2,7 +2,7 @@
 
 SUBDIR =
 MK_WERROR=no
-CFLAGS+= -mmacos-version-min=${MACOS_VERSION_MIN} --sysroot=${RAVYN_SDKROOT} \
+CFLAGS+= -mmacos-version-min=${MACOS_VERSION_MIN} --sysroot=${MINKAR_SDKROOT} \
 	-B${TOOLS} -fuse-ld=${LD} -I${ROOT_SOURCE_DIR}/Libraries/zlib \
 	-I${ROOT_SOURCE_DIR}/BSD/lib/libpng
 
@@ -13,7 +13,7 @@ libfreetype.a:
 		-DCMAKE_C_COMPILER=${CC} \
 		-DCMAKE_CXX_COMPILER=${CXX} \
 		-DCMAKE_SYSTEM_NAME=Darwin \
-		-DCMAKE_SYSROOT=${RAVYN_SDKROOT} \
+		-DCMAKE_SYSROOT=${MINKAR_SDKROOT} \
 		-DCMAKE_BUILD_TYPE=Release \
 		-DCMAKE_INSTALL_PREFIX=/usr \
 		-DBUILD_SHARED_LIBS=OFF \

@@ -543,13 +543,13 @@ CFLAGS.xprintf_str.o = -I${.CURDIR:H}/stdio
 CFLAGS.xprintf_time.o = -I${.CURDIR:H}/stdio
 CFLAGS.xprintf_vis.o = -I${.CURDIR:H}/stdio
 CFLAGS.xprintf.o = -I${.CURDIR:H}/stdio
-CFLAGS.arc4random.o = -I${RAVYN_SDKROOT}${SLF}/System.framework/Versions/B/PrivateHeaders
-CFLAGS.vfprintf.o = -I${RAVYN_SDKROOT}${SLF}/System.framework/Versions/B/PrivateHeaders
-CFLAGS.psort.o = -I${RAVYN_SDKROOT}${SLF}/System.framework/Versions/B/PrivateHeaders
+CFLAGS.arc4random.o = -I${MINKAR_SDKROOT}${SLF}/System.framework/Versions/B/PrivateHeaders
+CFLAGS.vfprintf.o = -I${MINKAR_SDKROOT}${SLF}/System.framework/Versions/B/PrivateHeaders
+CFLAGS.psort.o = -I${MINKAR_SDKROOT}${SLF}/System.framework/Versions/B/PrivateHeaders
 CFLAGS.psort_b.o = -DI_AM_PSORT_B \
-	-I${RAVYN_SDKROOT}${SLF}/System.framework/Versions/B/PrivateHeaders
+	-I${MINKAR_SDKROOT}${SLF}/System.framework/Versions/B/PrivateHeaders
 CFLAGS.psort_r.o = -DI_AM_PSORT_R \
-	-I${RAVYN_SDKROOT}${SLF}/System.framework/Versions/B/PrivateHeaders
+	-I${MINKAR_SDKROOT}${SLF}/System.framework/Versions/B/PrivateHeaders
 
 .include <bsd.lib.mk>
 
