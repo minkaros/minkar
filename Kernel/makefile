@@ -19,9 +19,20 @@ IIG = /bin/true
 HOST_LD ?= /usr/bin/ld
 DKPATH = ${.OBJDIR}/xnu/${KERNEL_CONFIGS}_${ARCH_CONFIGS}/iokit/DriverKit
 
+# The DriverKit implementations (iig output, shipped in the tree since iig
+# does not run here) too: xnu copies them while compiling them, a race
+# with its own jobs. xnu's build starts after this (installhdrs needs it).
+DKIMPL = ${.OBJDIR}/xnu/${KERNEL_CONFIGS}_${ARCH_CONFIGS}/iokit/${KERNEL_CONFIGS}/DriverKit
+
 ${DKPATH}: .NOTMAIN
 	mkdir -p ${DKPATH}
 	cp -Rf ${.CURDIR}/xnu/iokit/DriverKit/*.h ${DKPATH}/
+
+# Every time (a directory target would not run again once it exists).
+dkimpl: .PHONY .NOTMAIN
+	mkdir -p ${DKIMPL}
+	cp -f ${.CURDIR}/xnu/iokit/DriverKit/*.iig.cpp ${DKIMPL}/
+installhdrs: ${DKPATH} dkimpl
 TARGETS = ${DKPATH}
 .endif
 TARGETS += xnu_all
