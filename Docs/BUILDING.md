@@ -11,17 +11,36 @@ Building LLVM the first time takes a __long__ time.
 
 ## Host requirements
 
-Tested on Ubuntu 22.04 (x86-64). Package names are Debian/Ubuntu ones.
+Tested on Ubuntu 22.04 (x86-64) with 10 CPUs and 16 GB of RAM; the CI uses
+GitHub's Ubuntu 22.04 runners. Package names are Debian/Ubuntu ones;
+`tools/ci/host-setup.sh packages image` installs all of them.
 
 * Toolchain build: `clang lld cmake ninja-build python3 git curl`,
-  `libxml2-dev libpng-dev uuid-dev libssl-dev zlib1g-dev libbsd-dev`
-* System build: `bmake make csh bison flex`, and `byacc` (Berkeley yacc,
-  public domain: libxkbcommon's parser is generated with it, not bison)
+  `libxml2-dev libpng-dev uuid-dev libssl-dev zlib1g-dev libbsd-dev`,
+  `libacl1-dev` (xar), `libc++-dev libc++abi-dev` (plktool),
+  `llvm-14-dev libedit-dev libffi-dev libdispatch-dev libblocksruntime-dev
+  libkqueue-dev libpthread-workqueue-dev` (the CTF tools link the host's
+  LLVM 14 and libdispatch), and `libicu-dev autoconf automake libtool
+  pkg-config` for Open CF-lite.
+* Open CF-lite 635.21.8 (gerickson/opencflite, APSL) in `/usr/local`:
+  plktool and xcbuild link a host CoreFoundation. It is a build tool only
+  and nothing of it goes into Minkar. `tools/ci/host-setup.sh packages`
+  builds it (`./configure && make && make install`).
+* System build: `bmake make csh bison flex time`, and `byacc` (Berkeley
+  yacc, public domain: libxkbcommon's parser is generated with it, not
+  bison)
 * Bootable image and boot test: `nasm gdisk dosfstools hfsprogs`,
   `qemu-system-x86 ovmf` (the boot test runs QEMU without KVM, under TCG),
-  and `openssh-client` for gate M2
+  `openssh-client openssl` for gate M2, and the kernel's `hfsplus` module
+  (in `linux-modules-extra-*` on cloud kernels).
 
-Symlink `cc` and `c++` to clang to avoid accidental use of gcc.
+The build calls `/usr/bin/clang` itself (`HOST_CC`, `HOST_CXX`), so `cc`
+may stay gcc.
+
+The source tree must be on a case-sensitive file system (ext4, not a
+default HFS+ or APFS volume): some trees have names that differ only in
+case. Disk space: about 7 GB of sources with their git history, 8 GB of
+build tree (2 GB of it LLVM's build directory) and a 2 GB image.
 
 ## Building
 
