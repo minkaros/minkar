@@ -22,18 +22,24 @@ EXTRA_FLAGS += --with-cross-build=${.OBJDIR}/native \
 
 all: libicucore.A.dylib
 
+# gmake gets as many jobs as this make (MAKEFLAGS is cleared: bmake's
+# flags mean nothing to it).
+ICU_JOBS =	-j${.MAKE.JOBS:U1}
+
 lib${LIB}.a: ${.CURDIR}/Makefile
 .if "${.MAKE.OS}" != "Darwin"
 	mkdir -p ${.OBJDIR}/native
+	# Only the build tools are used from the host build.
 	cd ${.OBJDIR}/native; ${.CURDIR}/source/configure \
-	  && MAKEFLAGS="" ${GMAKE}
+	  --disable-samples --disable-tests --disable-extras \
+	  && MAKEFLAGS="" ${GMAKE} ${ICU_JOBS}
 .endif
 	mkdir -p ${.OBJDIR}/target
 	cd ${.OBJDIR}/target; ICU_CROSS_BUILD=1 SDKROOT=${RAVYN_SDKROOT} \
 	  CFLAGS="${CFLAGS}" CXXFLAGS="${CXXFLAGS}" LDFLAGS="${LDFLAGS:N-licudata}" \
 	  CC=${CC} CXX=${CXX} LD=${LD} AR=${AR} STRIP=${STRIP} MAKEFLAGS="" \
 	  ${.CURDIR}/source/runConfigureICU MacOSX ${EXTRA_FLAGS}
-	MAKEFLAGS="" ${GMAKE} -C ${.OBJDIR}/target
+	MAKEFLAGS="" ${GMAKE} ${ICU_JOBS} -C ${.OBJDIR}/target
 
 libicucore.A.dylib: lib${LIB}.a
 	${TOOLS}/install_name_tool -id /usr/lib/libicudata.dylib \

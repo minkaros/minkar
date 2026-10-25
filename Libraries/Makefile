@@ -13,10 +13,18 @@ RTLIB2 = ${SYSROOT_DIR}/usr/lib/system/libcompiler_rt.dylib
 # linked, removed by the last SUBDIR once the libraries exist).
 # dyld (static) and libfirehose_kernel archive Libsystem's libc.a,
 # libplatform.a, libpthread.a and libkernel.a.
-SUBDIR = CrashReporterClient MiscLibs objc4 Libsystem dyld libfirehose_kernel \
-	Libsystem/libresolv openbsm/libbsm openbsm/libauditd \
+# The base goes one at a time; after it, the rest in parallel.
+SUBDIR_PARALLEL =
+SUBDIR = CrashReporterClient .WAIT MiscLibs .WAIT objc4 .WAIT Libsystem .WAIT \
+	dyld libfirehose_kernel Libsystem/libresolv .WAIT \
+	openbsm/libbsm openbsm/libauditd \
 	openbsm/bin/auditd openbsm/bin/audit openbsm/bin/praudit openbsm/bin/auditreduce \
-	ICU zlib OpenPAM OpenSSH mbedtls bootstrap
+	ICU zlib OpenPAM OpenSSH mbedtls .WAIT bootstrap
+SUBDIR_DEPEND_openbsm/libauditd =	openbsm/libbsm
+.for p in auditd audit praudit auditreduce
+SUBDIR_DEPEND_openbsm/bin/${p} =	openbsm/libbsm openbsm/libauditd
+.endfor
+SUBDIR_DEPEND_OpenSSH =	openbsm/libbsm OpenPAM
 
 # Don't try to link Foundation or System
 MK_OBJC_RUNTIME = no
