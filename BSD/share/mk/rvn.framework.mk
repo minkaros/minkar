@@ -59,6 +59,7 @@ _copy_headers: ${HEADER_DIR}
 .endfor
 
 ${FRAMEWORK}: _copy_headers
+_fmwk_headers += _copy_headers
 .endif
 
 .if defined(PRIVATE_HEADERS) && !empty(PRIVATE_HEADERS)
@@ -69,6 +70,13 @@ _copy_private_headers: ${FRAMEWORK_DIR}
 .endfor
 
 ${FRAMEWORK}: _copy_private_headers
+_fmwk_headers += _copy_private_headers
+.endif
+
+.if defined(SRCS) && !empty(SRCS) && !empty(_fmwk_headers)
+# The sources include the framework's own headers from the bundle: copy
+# them first, also with -j (bsd.lib.mk adds the objects after the .WAIT).
+lib${LIB}.a: ${_fmwk_headers} .WAIT
 .endif
 
 ${RESOURCES_DIR}:

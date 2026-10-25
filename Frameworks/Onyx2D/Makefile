@@ -212,7 +212,11 @@ LDFLAGS += ${.OBJDIR}/jpeg/libjpeg.a ${.OBJDIR}/png/libpng.a \
 	-Wl,-force_load,${.OBJDIR}/freetype/libfreetype.a \
 	-framework CoreFoundation -framework Foundation -lz
 
-lib${FRAMEWORK}.a: libjpeg.a libpng.a libtiff.a freetype
+# The jpeg, png and tiff builds generate headers (jconfig.h, pnglibconf.h,
+# tiffconf.h) that the sources and freetype include: they go first, also
+# with -j (the objects are added to this list after the .WAIT).
+lib${FRAMEWORK}.a: libjpeg.a libpng.a libtiff.a .WAIT freetype
+all_subdir_${DIRPRFX}freetype: libpng.a
 
 libjpeg.a:
 	CFLAGS="-mmacos-version-min=${MACOS_VERSION_MIN} --sysroot=${RAVYN_SDKROOT}" \
