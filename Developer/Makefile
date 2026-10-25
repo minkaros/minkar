@@ -11,6 +11,6 @@ HOST_CXX ?= /usr/bin/clang++
 HOST_AR ?= /usr/bin/ar
 .export HOST_CC HOST_AR HOST_CXX
 
-SUBDIR = ravynOS.platform Default.xctoolchain ravynOS.sdk
+SUBDIR = Minkar.platform Default.xctoolchain Minkar.sdk
 
 .include <bsd.subdir.mk>

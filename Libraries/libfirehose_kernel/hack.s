@@ -1,5 +1,5 @@
 /*
- * Cross building xnu from Linux using my ravynOS.sdk and toolchain works
+ * Cross building xnu from Linux using my Minkar.sdk and toolchain works
  * up to the final link, which has a few unresolved symbols that seem to be
  * artifacts of the hybrid build environment. For now, we try to resolve them
  * with aliases and stubs, and hope it works.

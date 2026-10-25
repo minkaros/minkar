@@ -12,8 +12,8 @@ set -e
 HERE=$(cd "$(dirname "$0")" && pwd)
 SRC=$(cd "$HERE/../.." && pwd)
 BUILD=${1:-$SRC/../build}
-DEV=$BUILD/Developer/Platforms/ravynOS.platform/Developer
-SDK=$DEV/SDKs/ravynOS.sdk
+DEV=$BUILD/Developer/Platforms/Minkar.platform/Developer
+SDK=$DEV/SDKs/Minkar.sdk
 TAPI=$DEV/Toolchains/Default.xctoolchain/usr/bin/tapi
 
 [ -x "$TAPI" ] || { echo "no tapi in $TAPI" >&2; exit 1; }

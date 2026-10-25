@@ -17,7 +17,7 @@ ifeq ($(OPSYS),Darwin)
 endif
 ifeq ($(OPSYS),Linux)
 	CFLAGS += \
-	  -I$(SRCROOT)/../../Developer/Platforms/ravynOS.platform/Developer/SDKs/ravynOS.sdk/copyfile \
+	  -I$(SRCROOT)/../../Developer/Platforms/Minkar.platform/Developer/SDKs/Minkar.sdk/copyfile \
 	  -I$(SRCROOT)/../../Developer/cctools/include/foreign
 	LDFLAGS += -lbsd
 endif

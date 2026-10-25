@@ -2,7 +2,7 @@
 
 CC ?= cc
 CFLAGS = -O1 -g -Wall -Wextra -fsanitize=address,undefined \
-	-Ishim -I.. -idirafter ../../../../Developer/ravynOS.sdk/usr/include
+	-Ishim -I.. -idirafter ../../../../Developer/Minkar.sdk/usr/include
 
 all: test
 

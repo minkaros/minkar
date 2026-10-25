@@ -41,7 +41,7 @@ TARGETS += xnu_all
 # (Clearing them for the whole file also took the jobs from the sub-makes,
 # so all of Libraries, ICU included, was built one job at a time.)
 
-PLATFORM_DIR=${ROOT_BINARY_DIR}/Developer/Platforms/ravynOS.platform
+PLATFORM_DIR=${ROOT_BINARY_DIR}/Developer/Platforms/Minkar.platform
 
 # The SUBDIRs (added to this list by bsd.subdir.mk) after xnu, as before.
 all: ${TARGETS} .WAIT

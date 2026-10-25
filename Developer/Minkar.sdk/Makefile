@@ -1,6 +1,6 @@
 .include <bsd.own.mk>
 
-PLATFORM_DIR = ${ROOT_BINARY_DIR}/Developer/Platforms/ravynOS.platform
+PLATFORM_DIR = ${ROOT_BINARY_DIR}/Developer/Platforms/Minkar.platform
 FPATH = /System/Library/Frameworks/System.framework
 libc_path = ${ROOT_SOURCE_DIR}/Libraries/Libsystem/libsystem_c
 objc_path = ${ROOT_SOURCE_DIR}/Libraries/objc4
@@ -39,8 +39,8 @@ all: ${PLATFORM_DIR} ${TOOLS}/unifdef .EXEC
 	ln -sfn Versions/A/Headers ${MINKAR_SDKROOT}/System/Library/Frameworks/IOKit.framework/Headers
 	ln -sfn Versions/A/PrivateHeaders ${MINKAR_SDKROOT}/System/Library/Frameworks/IOKit.framework/PrivateHeaders
 	# Compatibility symlinks
-	ln -sf ravynOS.platform ${ROOT_BINARY_DIR}/Developer/Platforms/MacOSX.platform
-	ln -sf ravynOS.sdk ${ROOT_BINARY_DIR}/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk
+	ln -sfn Minkar.platform ${ROOT_BINARY_DIR}/Developer/Platforms/MacOSX.platform
+	ln -sfn Minkar.sdk ${ROOT_BINARY_DIR}/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk
 	cp -Rf ${.CURDIR}/usr ${.CURDIR}/System ${MINKAR_SDKROOT}/
 	cp -f ${ROOT_SOURCE_DIR}/Libraries/Libsystem/private/pthread/tsd_private.h \
 		${MINKAR_SDKROOT}/usr/local/include/pthread/

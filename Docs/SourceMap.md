@@ -46,8 +46,8 @@ management.
 `Developer` contains all of the tools and artifacts needed to create software for the platform. The Minkar (MacOSX) SDK is here, as well as the Default.xctoolchain. `Developer` is unique in that some of it builds twice: once as `Bootstrap` for the host toolchain, then again using the host toolchain for the platform target.
 
 * Toolchains/Default.xctoolchain - project file to assemble the toolchain
-* Platforms/ravynOS.platform - platform definitions and SDKs
-  * Developer/SDKs/ravynOS.sdk - project file and some sources for the SDK
+* Platforms/Minkar.platform - platform definitions and SDKs
+  * Developer/SDKs/Minkar.sdk - project file and some sources for the SDK
 * cctools - lipo, ld64 linker, otool, etc
 * dtrace_ctf - ctf utilities
 * llvm-project - Apple fork of LLVM and Apple TAPI project

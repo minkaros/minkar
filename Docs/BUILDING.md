@@ -2,7 +2,7 @@
 
 Minkar is built with BSD make (bmake). The build first creates a host
 toolchain (Default.xctoolchain: clang/LLVM, Apple cctools, ld64, xcbuild,
-mig, ...) and then uses it, together with the ravynOS.sdk it produces, to
+mig, ...) and then uses it, together with the Minkar.sdk it produces, to
 build the rest of the system for the same CPU architecture.
 
 The source tree is `/work/minkar` and the build directory is `../build`
@@ -41,8 +41,8 @@ before searching: `sed 's/\x1b\[[0-9;]*m//g' ../build/world.log`.
 
 Outputs, under `../build`:
 
-* `Developer/Platforms/ravynOS.platform/Developer/Toolchains/Default.xctoolchain`
-* `Developer/Platforms/ravynOS.platform/Developer/SDKs/ravynOS.sdk`
+* `Developer/Platforms/Minkar.platform/Developer/Toolchains/Default.xctoolchain`
+* `Developer/Platforms/Minkar.platform/Developer/SDKs/Minkar.sdk`
 * `sysroot/` - the root file system
 * `kernelcache` - the prelinked kernel and extensions
 

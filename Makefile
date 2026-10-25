@@ -45,7 +45,7 @@ world: version BSD/hier Developer Kernel Libraries/libfirehose_kernel Libraries 
 
 # ------------------------------------------------------------------------
 
-# Don't warn about ravynOS.sdk vs MacOSX.sdk naming
+# Don't warn about Minkar.sdk vs MacOSX.sdk naming
 CFLAGS = -Wno-incompatible-sysroot
 
 # If we are building from a different OS, we want to use the host's tools
@@ -73,7 +73,7 @@ MK_TOOLCHAIN ?= yes
 .endif
 
 .if ${MK_TOOLCHAIN} == "yes"
-TOOLCHAIN = ${ROOT_BINARY_DIR}/Developer/Platforms/ravynOS.platform/Developer/Toolchains/Default.xctoolchain
+TOOLCHAIN = ${ROOT_BINARY_DIR}/Developer/Platforms/Minkar.platform/Developer/Toolchains/Default.xctoolchain
 .endif
 TOOLS = ${TOOLCHAIN}/usr/bin
 DEVEL = ${ROOT_SOURCE_DIR}/Developer
@@ -104,9 +104,9 @@ RUNTIME_SPEC_PATH = ${ROOT_SOURCE_DIR}/Developer/xcbuild/Specifications
 
 XNU_SOURCE_DIR = ${ROOT_SOURCE_DIR}/Kernel/xnu
 KEXT_SOURCE_DIR = ${ROOT_SOURCE_DIR}/Kernel/Extensions
-SDK_SOURCE_DIR = ${ROOT_SOURCE_DIR}/Developer/ravynOS.sdk
-PLATFORM_SOURCE_DIR = ${ROOT_SOURCE_DIR}/Developer/ravynOS.platform
-MINKAR_SDKROOT = ${ROOT_BINARY_DIR}/Developer/Platforms/ravynOS.platform/Developer/SDKs/ravynOS.sdk
+SDK_SOURCE_DIR = ${ROOT_SOURCE_DIR}/Developer/Minkar.sdk
+PLATFORM_SOURCE_DIR = ${ROOT_SOURCE_DIR}/Developer/Minkar.platform
+MINKAR_SDKROOT = ${ROOT_BINARY_DIR}/Developer/Platforms/Minkar.platform/Developer/SDKs/Minkar.sdk
 MINKAR_SDKROOT_MACOSX = ${ROOT_BINARY_DIR}/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk
 SYSROOT_DIR = ${ROOT_BINARY_DIR}/sysroot
 
