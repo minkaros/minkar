@@ -1,6 +1,6 @@
 # Minkar Roadmap
 
-Last verified against the tree: 2026-10-25 (`main`, gate M2 passing).
+Last verified against the tree: 2026-10-26 (`devel`, gate M2 passing).
 
 ## Summary
 
@@ -122,19 +122,29 @@ and every PR is tested by booting it in QEMU.
   install; CFNetwork is commented out, and Security, OpenDirectory and
   DirectoryService are not built.
 - [ ] CI per PR: full build + boot in QEMU (q35 + OVMF) on the serial
-  console, waiting for boot markers. *Partial:* `Image/boottest.py` does the
-  boot part, run locally only; there is no CI.
+  console, waiting for boot markers. *Partial:*
+  `.github/workflows/build-boottest.yml` runs on every push and pull
+  request to `main` and `devel`: toolchain (cached), system build
+  (`tools/ci/build-stages.sh`), image and `boottest GATE=M2`. Closes with
+  its first green run.
 - [ ] Symbol inventory: a script that lists each dylib's exports
   (`nm -gU`), matches them against the reference apps' imports and publishes
-  a per-framework coverage report.
+  a per-framework coverage report. *Partial:* `tools/symbols/` (tested):
+  the inventory follows re-exports and flags install names dyld would not
+  find; the reference apps are four Objective-C apps for macOS 10.12-10.13
+  (`reference-apps.tsv`), 67.2% of whose system imports Minkar has. The CI
+  publishes the report (run summary and `symbol-coverage` artifact) from
+  its first green run.
 - [ ] Build documentation (supported host, dependencies, expected times,
-  common errors). *Partial:* [BUILDING.md](BUILDING.md) covers the host,
-  packages and gates; expected times and common errors are missing.
+  common errors). *Partial:* [BUILDING.md](BUILDING.md) has the host and
+  every package (Open CF-lite included), measured stage times and 17 common
+  errors. The package list is proven complete by the CI's first green run
+  on a clean Ubuntu.
 
 - [ ] **Exit gate (M0):** clean build from scratch in CI, and the image
   reaches the kernel's first message in QEMU. *Met locally:* clean local
-  build, and `boottest` sees `Darwin Kernel Version` after 8.3 s. CI is
-  missing.
+  build, and `boottest` sees `Darwin Kernel Version` after 8.3 s. The CI
+  workflow exists; it closes with its first green run.
 
 ## Phase 1 — Darwin boot
 
@@ -181,8 +191,9 @@ the services Magma and the apps will need.
 **libSystem and dyld**
 
 - [ ] Complete libc, libm, pthread, libdispatch, libxpc, notify and os_log,
-  guided by the Phase 0 coverage report. *Partial:* enough for M2; no
-  coverage report.
+  guided by the Phase 0 coverage report. *Partial:* enough for M2; the
+  coverage report exists (`tools/symbols`): the reference apps find 98.1%
+  of their libSystem imports.
 - [ ] Turn silent stubs into noisy stubs (log on first call).
 - [ ] Real dyld: optional shared cache at first; `@rpath`, `@loader_path`
   and re-exports right from day one. *Partial:* `Libraries/dyld` is Apple's
@@ -290,7 +301,13 @@ constrains the Swift runtime.
    on every change.
 2. Audit Foundation against 10.15, starting with what the reference apps
    import (`NSFileManager`, `NSRunLoop`, `NSURLSession`,
-   `NSJSONSerialization`, KVO, `NSUserDefaults`).
+   `NSJSONSerialization`, KVO, `NSUserDefaults`). The symbol report lists
+   what they miss, most used first: `NSURLSession` and `NSUUID` (all
+   four apps), `NSRegularExpression` (two), the `NSHashTable` class,
+   `NSJSONSerialization` and `NSProgress` (one each). Done:
+   `NSException` (2026-10-25): raising no longer crashes a program that
+   catches the exception, and uncaught exceptions are reported as on
+   macOS.
 3. Security (Apple open source) for certificates and a basic keychain,
    needed for TLS in `NSURLSession`.
 4. LaunchServices: bundle database and UTI types; `open` and Filer depend on
@@ -456,7 +473,11 @@ decisions must be made now so it stays possible.
 **Decisions that protect this phase today**
 
 - Install names of dylibs and frameworks identical to macOS
-  (`/System/Library/Frameworks/...`).
+  (`/System/Library/Frameworks/...`). *Done 2026-10-25* for every
+  framework (AppKit in `Versions/C`), `libobjc.A.dylib` and
+  `libbz2.1.0.dylib`, with macOS's compatibility versions; checked in the
+  image with dyld. libicucore exports ICU's plain names (`u_strlen`), as
+  macOS programs import them.
 - Each dylib's compatibility and current versions follow the closed API
   stage (10.15 → 11 → 12).
 - No changes to the layout of public ivars or the size of structs exposed in
@@ -480,7 +501,7 @@ recompiling; the arm64 image boots to M2 in QEMU.
 
 | Gate | Phase | State |
 | --- | --- | --- |
-| M0 | Build, toolchain, CI | Met locally; CI missing |
+| M0 | Build, toolchain, CI | Met locally; CI written, first green run pending |
 | M1 | Darwin boot | Met in QEMU; reference PC missing |
 | M2 | Base userland | Met (`boottest GATE=M2`) |
 | M3 | Base frameworks and Swift | Not started |
@@ -514,11 +535,12 @@ work in progress.
 
 The highest-impact open items, in critical-path order:
 
-1. CI that runs the build and `boottest GATE=M2` on every PR (closes M0).
+1. A first green CI run (closes M0, the CI, the symbol report and the
+   build documentation).
 2. IOHIDSystem event delivery in the kernel, the `ApplePS2Mouse` driver and
    the WindowServer input reader (Phase 4).
 3. Install WindowServer's launchd job and get a first boot that draws on
    `IOGOPFramebuffer` (Phase 4).
-4. The symbol inventory script (Phase 0), which drives the libSystem and
-   framework work.
+4. The Foundation classes the reference apps miss most, from the symbol
+   report (Phase 3).
 5. The Swift toolchain prototypes (Phase 3).
