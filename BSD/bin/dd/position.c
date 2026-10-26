@@ -3,6 +3,7 @@
  *
  * Copyright (c) 1991, 1993, 1994
  *	The Regents of the University of California.  All rights reserved.
+ * Modifications Copyright (c) 2026 The Minkar contributors
  *
  * This code is derived from software contributed to Berkeley by
  * Keith Muller of the University of California, San Diego and Lance
@@ -34,7 +35,9 @@
  */
 
 #include <sys/types.h>
+#ifndef __APPLE__
 #include <sys/mtio.h>
+#endif
 
 #include <err.h>
 #include <errno.h>
@@ -150,7 +153,9 @@ pos_in(void)
 void
 pos_out(void)
 {
+#ifndef __APPLE__
 	struct mtop t_op;
+#endif
 	off_t cnt;
 	ssize_t n;
 
@@ -171,6 +176,11 @@ pos_out(void)
 	if (out.offset < 0)
 		errx(1, "%s: illegal offset", "oseek/seek");
 
+#ifdef __APPLE__
+	/* Darwin has no tape ioctls: only reading can move forward. */
+	if (out.flags & NOREAD)
+		errx(1, "%s: cannot seek without read access", out.name);
+#else
 	/* If no read access, try using mtio. */
 	if (out.flags & NOREAD) {
 		t_op.mt_op = MTFSR;
@@ -180,6 +190,7 @@ pos_out(void)
 			err(1, "%s", out.name);
 		return;
 	}
+#endif
 
 	/* Read it. */
 	for (cnt = 0; cnt < out.offset; ++cnt) {
@@ -196,10 +207,14 @@ pos_out(void)
 		 * the EOF mark.  Note, cnt has not yet been incremented, so
 		 * the EOF read does not count as a seek'd block.
 		 */
+#ifdef __APPLE__
+		errx(1, "%s: cannot seek past the end", out.name);
+#else
 		t_op.mt_op = MTBSR;
 		t_op.mt_count = 1;
 		if (ioctl(out.fd, MTIOCTOP, &t_op) == -1)
 			err(1, "%s", out.name);
+#endif
 
 		while (cnt++ < out.offset) {
 			before_io();
