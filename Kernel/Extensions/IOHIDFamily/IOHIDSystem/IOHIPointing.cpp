@@ -2,6 +2,7 @@
  * @APPLE_LICENSE_HEADER_START@
  *
  * Copyright (c) 1999-2009 Apple Computer, Inc.  All Rights Reserved.
+ * Modifications Copyright (c) 2026 The Minkar contributors
  *
  * This file contains Original Code and/or Modifications of Original Code
  * as defined in and that are subject to the Apple Public Source License
@@ -470,7 +471,12 @@ IOReturn IOHIPointing::message( UInt32 type, IOService * provider,
     switch(type)
     {
         case kIOHIDSystemDeviceSeizeRequestMessage:
+            /* Minkar: IOHIDDevice is not built (as in IOHIKeyboard.cpp). */
+#ifdef NEW_HID
             if (OSDynamicCast(IOHIDDevice, provider))
+#else
+            if (0)
+#endif
             {
                 _isSeized = (bool)argument;
             }
