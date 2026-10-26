@@ -5,6 +5,7 @@
  *
  * Copyright (c) 2002 The NetBSD Foundation, Inc.
  * Copyright (c) 2005 Pawel Jakub Dawidek <pjd@FreeBSD.org>
+ * Modifications Copyright (c) 2026 The Minkar contributors
  * All rights reserved.
  *
  * This code is derived from software contributed to The NetBSD Foundation
@@ -39,7 +40,9 @@
 #include <sys/queue.h>
 #include <sys/stat.h>
 #include <sys/time.h>
+#ifndef __APPLE__
 #include <sys/user.h>
+#endif
 
 #include <assert.h>
 #include <stdbool.h>
@@ -53,13 +56,19 @@
 #include <regex.h>
 #include <ctype.h>
 #include <fcntl.h>
+#ifndef __APPLE__
 #include <kvm.h>
+#endif
 #include <err.h>
 #include <pwd.h>
 #include <grp.h>
 #include <errno.h>
 #include <locale.h>
+#ifdef __APPLE__
+#include "kvm_darwin.h"
+#else
 #include <jail.h>
+#endif
 
 #define	STATUS_MATCH	0
 #define	STATUS_NOMATCH	1

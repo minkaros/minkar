@@ -1,24 +1,16 @@
-#	$NetBSD: Makefile,v 1.1 2002/03/01 11:21:58 ad Exp $
-
-.include <src.opts.mk>
-
-PACKAGE=runtime
+SUBDIR =
 PROG=	pkill
+MAN =
+MK_WERROR = no
+CFLAGS += -I${ROOT_SOURCE_DIR}/BSD/lib/libbsdcompat/include -include bsdcompat.h
+LDADD += -L${ROOT_BINARY_DIR}${ROOT_SOURCE_DIR}/BSD/lib/libbsdcompat -lbsdcompat
 
-LIBADD=	kvm jail
+all: to-sysroot
 
-LINKS=	${BINDIR}/pkill ${BINDIR}/pgrep
-MLINKS=	pkill.1 pgrep.1
-
-#
-# If considering retirement of these compatibility symlinks,
-# keep in mind that pkill is installed to /usr/bin in other
-# OS types, e.g., NetBSD, OpenBSD, Solaris, and Linux.
-#
-SYMLINKS=	../..${BINDIR}/pkill /usr/bin/pkill
-SYMLINKS+=	../..${BINDIR}/pgrep /usr/bin/pgrep
-
-HAS_TESTS=
-SUBDIR.${MK_TESTS}+= tests
+# macOS has both in /usr/bin.
+to-sysroot: ${PROG}
+	mkdir -p ${SYSROOT_DIR}/usr/bin
+	install -m 0555 ${PROG} ${SYSROOT_DIR}/usr/bin/pkill
+	ln -f ${SYSROOT_DIR}/usr/bin/pkill ${SYSROOT_DIR}/usr/bin/pgrep
 
 .include <bsd.prog.mk>
