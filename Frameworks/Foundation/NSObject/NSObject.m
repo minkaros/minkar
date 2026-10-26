@@ -1,5 +1,6 @@
 /* Copyright (c) 2006-2007 Christopher J. W. Lloyd
    Copyright (c) 2024-2026 Zoe Knox
+   Modifications Copyright (c) 2026 The Minkar contributors
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -79,8 +80,11 @@ BOOL NSObjectIsKindOfClass(id object,Class kindOf) {
    return NSAllocateObject(self, 0, zone);
 }
 
+// As on macOS, +alloc goes through +allocWithZone:, which class clusters
+// (NSData, NSString, NSDictionary, NSSet...) override to pick their
+// concrete subclass; allocating directly gave the abstract class.
 +(id)alloc {
-    return NSAllocateObject(self, 0, NULL);
+    return [self allocWithZone:NULL];
 }
 
 + (NSMethodSignature *) methodSignatureForSelector:(SEL) sel

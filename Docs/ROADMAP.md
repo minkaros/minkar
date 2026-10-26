@@ -309,9 +309,11 @@ constrains the Swift runtime.
    catches the exception, and uncaught exceptions are reported as on
    macOS. `NSUUID` and the `NSSecureCoding` protocol (2026-10-26).
    Found while testing them: `NSDictionary` has no subscripting
-   (`-objectForKeyedSubscript:`), and `NSKeyedArchiver` aborts because
-   `[NSMutableData new]` returns the abstract class (`+new` does not go
-   through `+allocWithZone:`).
+   (`-objectForKeyedSubscript:`); `+alloc` did not go through
+   `+allocWithZone:`, so `alloc`/`new` gave the abstract class of every
+   class cluster (`NSData`, `NSString`, `NSDictionary`, `NSSet`), fixed
+   2026-10-26; `NSKeyedUnarchiver` cannot read the XML property list
+   `NSKeyedArchiver` writes.
 3. Security (Apple open source) for certificates and a basic keychain,
    needed for TLS in `NSURLSession`.
 4. LaunchServices: bundle database and UTI types; `open` and Filer depend on
