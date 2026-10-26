@@ -450,6 +450,10 @@ extern unichar *NSBytesToUnicode(const char *, NSUInteger, NSStringEncoding,
    return [self retain];
 }
 
++(BOOL)supportsSecureCoding {
+   return YES;
+}
+
 -copyWithZone:(NSZone *)zone {
    return [self retain];
 }
