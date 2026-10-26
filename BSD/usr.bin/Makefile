@@ -16,6 +16,6 @@ SUBDIR += awk less sort tar vi who
 SUBDIR += diff nc netstat
 SUBDIR += curl fetch file su top sudo
 SUBDIR += defaults plutil ditto syslog
-SUBDIR += printenv hexdump
+SUBDIR += printenv hexdump paste nohup
 
 .include <bsd.subdir.mk>
