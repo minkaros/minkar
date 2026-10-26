@@ -78,6 +78,7 @@ SRCS = 	NSFormatter.m \
 	NSSubscripting.m \
 	NSCollectionBlocks.m \
 	NSRegularExpression.m \
+	NSEmptyCollections.m \
 	NSBlock.m \
 	NSDirectoryEnumerator.m \
 	NSProcessInfo.m \
