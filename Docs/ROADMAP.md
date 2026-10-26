@@ -224,11 +224,20 @@ the services Magma and the apps will need.
   Tested in the image 2026-10-26. `cp -p` failed on every file without an
   ACL, and `mv` between volumes warned: Darwin reports "no ACL" as
   `ENOENT`.
+- [ ] Everyday tools missing from the image. *Partial:* built and tested
+  2026-10-26: `dd`, `expr`, `printenv`, `od`/`hexdump`, `paste`, `nohup`,
+  `install`, `pgrep`/`pkill` (FreeBSD's, reading processes through
+  `sysctl`), `ed`, `pax`, and the second names `readlink`, `link`,
+  `unlink`, `egrep`, `fgrep`, `zgrep`. New tools come from FreeBSD `main`
+  (the tree's `BSD/usr.bin` also holds older tools from Apple's
+  `shell_cmds`). Missing: `m4`, `bc`/`dc`, `cpio`, `lsof`, `man`.
 - [ ] Power user: `zsh`, `tar`, `ssh`, `curl`, `make`, `git`. *Partial:*
   `tar`, `ssh` and `curl` installed; `zsh`, `make` and `git` missing.
 - [ ] Apple tools: `open`, `plutil`, `defaults`, `sw_vers`, `ditto`
   (`hdiutil` comes with Phase 6). *Partial:* `plutil`, `defaults`, `sw_vers`
-  and `ditto` installed, untested; `open` missing.
+  and `ditto` tested in the image 2026-10-26 (`sw_vers` printed spaces
+  instead of macOS's tabs and a trailing blank line); `open` missing, and
+  `chmod` lacks macOS's ACL syntax (`+a`).
 
 **Support daemons** (needed by Phases 5 and 6)
 
@@ -579,8 +588,8 @@ work in progress.
 
 The highest-impact open items, in critical-path order:
 
-1. BSD userland batches (Phase 2): the missing tools (`od`/`hexdump`,
-   `pgrep`/`pkill`, `ed`, `pax`, `zsh`, `make`, `git`, `open`).
+1. BSD userland batches (Phase 2): `zsh`, `make`, `git`, `open`, `m4`,
+   `bc` and `chmod +a`.
 2. IOHIDSystem event delivery in the kernel, the `ApplePS2Mouse` driver and
    the WindowServer input reader (Phase 4).
 3. Install WindowServer's launchd job and get a first boot that draws on
