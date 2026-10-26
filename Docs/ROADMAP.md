@@ -173,9 +173,13 @@ mounted.
     log only, not visually).
 - [x] Root file system: HFS+ (`hfs: mounted Minkar`). APFS and ZFS later.
 - [x] Serial console for the `boottest` gates.
-- [ ] Readable panic logs for debugging in CI. *Partial:*
-  `tools/symbolicate.py`, `tools/crash-analyzer.py`, `keepsyms=1`, and
-  `boottest` fails on a panic; a symbolicated panic has not been tested.
+- [x] Readable panic logs for debugging in CI. The kernel in the image
+  has no symbol table, so even with `keepsyms=1` a panic backtrace is only
+  addresses; `tools/panic-report.py` names every frame from the build's
+  unstripped kernel (and kexts), checking the kernel UUID and the slide.
+  `boottest` reads the console on to the end of the panic report and
+  prints it with function names, so a panic in CI shows where it happened.
+  Tested with a real panic (`reboot_np(RB_PANIC)` as root) in QEMU.
 - [ ] Reference hardware list: one QEMU VM and two documented physical PCs.
 
 - [ ] **Exit gate (M1):** in QEMU and on a reference PC, the kernel mounts
@@ -308,12 +312,23 @@ constrains the Swift runtime.
    `NSException` (2026-10-25): raising no longer crashes a program that
    catches the exception, and uncaught exceptions are reported as on
    macOS. `NSUUID` and the `NSSecureCoding` protocol (2026-10-26).
-   Found while testing them: `NSDictionary` has no subscripting
-   (`-objectForKeyedSubscript:`); `+alloc` did not go through
-   `+allocWithZone:`, so `alloc`/`new` gave the abstract class of every
-   class cluster (`NSData`, `NSString`, `NSDictionary`, `NSSet`), fixed
-   2026-10-26; `NSKeyedUnarchiver` cannot read the XML property list
-   `NSKeyedArchiver` writes.
+   Also done 2026-10-26: `NSRegularExpression`, `NSJSONSerialization`
+   (with JSON5), `NSCache`, subscripting, the collections' block API and
+   lightweight generics, `NSBlock`, `@[]` and `@{}` (they did not link),
+   `NSString`'s protocols, its UTF-8 (surrogate pairs, malformed input)
+   and UTF-16/UTF-32 conversions, `NSNumber`'s shared doubles (1.0, 0.0,
+   the infinities and NaN read back as garbage) and file streams (they
+   could not read or write). Found while testing them: `+alloc` did not
+   go through `+allocWithZone:`, so `alloc`/`new` gave the abstract class
+   of every class cluster (fixed 2026-10-26); `NSKeyedUnarchiver` cannot
+   read the XML property list `NSKeyedArchiver` writes; 17 `NSString`
+   methods are still unimplemented (`stringByPaddingToLength:...`,
+   `commonPrefixWithString:options:`, the normalization forms,
+   `localizedCompare:`, `rangeOfComposedCharacterSequenceAtIndex:`,
+   `fastestEncoding`...) and calling one crashes instead of raising;
+   `CFArray` and `CFDictionary` are not bridged to `NSArray` and
+   `NSDictionary` yet. Left from the symbol report: `NSURLSession`, the
+   `NSHashTable` class and `NSProgress`.
 3. Security (Apple open source) for certificates and a basic keychain,
    needed for TLS in `NSURLSession`.
 4. LaunchServices: bundle database and UTI types; `open` and Filer depend on
