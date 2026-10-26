@@ -1,4 +1,5 @@
 /* Copyright (c) 2006-2007 Christopher J. W. Lloyd
+   Modifications Copyright (c) 2026 The Minkar contributors
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
 
@@ -163,9 +164,16 @@ NSNumber *NSNumber_doubleNew(NSZone *zone,double value) {
 NS_DECLARE_CLASS_SYMBOL(NSNumber_double_const);
 
 
+// The layout of an NSNumber_double: NSObject's isa, cfinfo and rc (the
+// CF-compatible header, 16 bytes), then NSNumber_CF's _type and the value.
+// Minkar: without cfinfo and rc, _value sat 8 bytes before where
+// -doubleValue reads it, so 0.0, -0.0, 1.0, -1.0, the infinities and NaN
+// read back as garbage.
 typedef struct
 {
     const Class * const isa;
+    uint32_t _cfinfo;
+    uint32_t _rc;
     CFNumberType _type;
     double _value;
 } NSNumber_double_Def;
@@ -174,6 +182,7 @@ typedef struct
 static const NSNumber_double_Def kPositiveInfinityDef =
 {
     &NS_CLASS_SYMBOL(NSNumber_double_const),
+    0, 0,
     kCFNumberDoubleType,
     INFINITY
 };
@@ -182,6 +191,7 @@ static const NSNumber_double_Def kPositiveInfinityDef =
 static const NSNumber_double_Def kNegativeInfinityDef =
 {
     &NS_CLASS_SYMBOL(NSNumber_double_const),
+    0, 0,
     kCFNumberDoubleType,
     -INFINITY
 };
@@ -190,6 +200,7 @@ static const NSNumber_double_Def kNegativeInfinityDef =
 static const NSNumber_double_Def kNaNDef =
 {
     &NS_CLASS_SYMBOL(NSNumber_double_const),
+    0, 0,
     kCFNumberDoubleType,
     NAN
 };
@@ -198,6 +209,7 @@ static const NSNumber_double_Def kNaNDef =
 static const NSNumber_double_Def kPositiveZeroDef =
 {
     &NS_CLASS_SYMBOL(NSNumber_double_const),
+    0, 0,
     kCFNumberDoubleType,
     0.0
 };
@@ -206,6 +218,7 @@ static const NSNumber_double_Def kPositiveZeroDef =
 static const NSNumber_double_Def kNegativeZeroDef =
 {
     &NS_CLASS_SYMBOL(NSNumber_double_const),
+    0, 0,
     kCFNumberDoubleType,
     -0.0
 };
@@ -214,6 +227,7 @@ static const NSNumber_double_Def kNegativeZeroDef =
 static const NSNumber_double_Def kPositiveOneDef =
 {
     &NS_CLASS_SYMBOL(NSNumber_double_const),
+    0, 0,
     kCFNumberDoubleType,
     1.0
 };
@@ -222,6 +236,7 @@ static const NSNumber_double_Def kPositiveOneDef =
 static const NSNumber_double_Def kNegativeOneDef =
 {
     &NS_CLASS_SYMBOL(NSNumber_double_const),
+    0, 0,
     kCFNumberDoubleType,
     -1.0
 };
