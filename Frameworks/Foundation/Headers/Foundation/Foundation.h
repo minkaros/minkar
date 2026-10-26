@@ -168,6 +168,7 @@
 #import <Foundation/NSCache.h>
 #import <Foundation/NSPointerFunctions.h>
 #import <Foundation/NSPointerArray.h>
+#import <Foundation/NSProgress.h>
 #import <Foundation/NSMutableURLRequest.h>
 #import <Foundation/NSURLConnection.h>
 #import <Foundation/NSURLDownload.h>

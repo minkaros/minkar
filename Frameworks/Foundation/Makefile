@@ -82,6 +82,7 @@ SRCS = 	NSFormatter.m \
 	NSCache.m \
 	NSEmptyCollections.m \
 	NSSecureCodingSupport.m \
+	NSProgress.m \
 	NSBlock.m \
 	NSDirectoryEnumerator.m \
 	NSProcessInfo.m \
@@ -380,6 +381,7 @@ CFLAGS.NSSubscripting.m = -fobjc-arc
 CFLAGS.NSCollectionBlocks.m = -fobjc-arc
 CFLAGS.NSJSONSerialization.m = -fobjc-arc
 CFLAGS.NSCache.m = -fobjc-arc
+CFLAGS.NSProgress.m = -fobjc-arc
 CFLAGS.NSStringModern.m = -fobjc-arc -DU_DISABLE_RENAMING=1 \
 	-I${ROOT_SOURCE_DIR}/Libraries/ICU/source/common \
 	-I${ROOT_SOURCE_DIR}/Libraries/ICU/source/i18n
