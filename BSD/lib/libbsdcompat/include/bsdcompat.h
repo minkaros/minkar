@@ -174,6 +174,16 @@ int		expand_number(const char *buf, uint64_t *num);
 ssize_t		copy_file_range(int infd, off_t *inoffp, int outfd, off_t *outoffp,
 		    size_t len, unsigned int flags);
 
+/* <pwd.h>, <grp.h>: pwcache(3) name lookups, and switching their source. */
+struct passwd;
+struct group;
+int		uid_from_user(const char *name, uid_t *uid);
+int		gid_from_group(const char *name, gid_t *gid);
+int		pwcache_userdb(int (*)(int), void (*)(void),
+		    struct passwd *(*)(const char *), struct passwd *(*)(uid_t));
+int		pwcache_groupdb(int (*)(int), void (*)(void),
+		    struct group *(*)(const char *), struct group *(*)(gid_t));
+
 /* <unistd.h>: FreeBSD's per-utility compat switch; Darwin has none. */
 #define	check_utility_compat(utility)	0
 
