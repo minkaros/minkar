@@ -236,10 +236,15 @@ int __CFConstantStringClassReference[12] = {0};
 #endif
 #endif
 
+/* Minkar: the class of constant strings. Foundation builds it here, in
+ * place, as a subclass of NSCFString (__NSInitializeProcess), so it must
+ * have room for a whole class: objc_initializeClassPair wants
+ * OBJC_MAX_CLASS_SIZE (32 pointers). It used to be a byte copy of
+ * NSCFString, whose method cache pointer went stale. */
 #if __LP64__
-int __CFConstantStringClassReference[24] = {0};
+int __CFConstantStringClassReference[64] = {0};
 #else
-int __CFConstantStringClassReference[12] = {0};
+int __CFConstantStringClassReference[32] = {0};
 #endif
 
 void *__CFConstantStringClassReferencePtr = NULL;

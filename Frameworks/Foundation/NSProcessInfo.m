@@ -1,4 +1,5 @@
 /* Copyright (c) 2006-2007 Christopher J. W. Lloyd
+   Modifications Copyright (c) 2026 The Minkar contributors
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
 
@@ -202,6 +203,10 @@ const char * const *NSProcessInfoArgv=NULL;
 
 int __NSConstantStringClassReference[24];
 
+// objc4's in-place class construction (objc-internal.h).
+OBJC_EXPORT Class objc_initializeClassPair(Class superclass, const char *name,
+                                          Class cls, Class metacls);
+
 FOUNDATION_EXPORT void __NSInitializeProcess(int argc,const char *argv[]) {
    NSProcessInfoArgc=argc;
    NSProcessInfoArgv=argv;
@@ -213,13 +218,22 @@ FOUNDATION_EXPORT void __NSInitializeProcess(int argc,const char *argv[]) {
     memcpy(&__NSConstantStringClassReference, cls, sizeof(__NSConstantStringClassReference));
 
 #if __LP64__
-    extern int __CFConstantStringClassReference[24];
+    extern int __CFConstantStringClassReference[64];
 #else
-    extern int __CFConstantStringClassReference[12];
+    extern int __CFConstantStringClassReference[32];
 #endif
 
-    cls = objc_getClass("NSCFString");
-    memcpy(&__CFConstantStringClassReference, cls, sizeof(__CFConstantStringClassReference));
+    // The class of constant strings (@"...", CFSTR): a real subclass of
+    // NSCFString, built in place where the compiler's strings point.
+    // Minkar: this was a byte copy of NSCFString, which shared its method
+    // cache: once the runtime grew and freed that cache, a message to a
+    // constant string (ARC's retain, for one) jumped to freed memory.
+    static uintptr_t constantStringMetaclass[32];   // OBJC_MAX_CLASS_SIZE
+    Class constantString = (Class)(void *)__CFConstantStringClassReference;
+    if (objc_lookUpClass("__NSCFConstantString") == Nil &&
+        objc_initializeClassPair(objc_getClass("NSCFString"), "__NSCFConstantString",
+                                 constantString, (Class)(void *)constantStringMetaclass) != Nil)
+        objc_registerClassPair(constantString);
     
     // Override the compiler version of the class
     //objc_addClass(&_NSConstantStringClassReference);
