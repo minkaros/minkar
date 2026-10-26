@@ -31,6 +31,7 @@ typedef enum {
     NSShiftJISStringEncoding = 8,
     NSISOLatin2StringEncoding = 9,
     NSUnicodeStringEncoding = 10,
+    NSUTF16StringEncoding = NSUnicodeStringEncoding,
     NSWindowsCP1251StringEncoding = 11,
     NSWindowsCP1252StringEncoding = 12,
     NSWindowsCP1253StringEncoding = 13,
@@ -52,6 +53,10 @@ enum {
     NSBackwardsSearch = 0x04,
     NSAnchoredSearch = 0x08,
     NSNumericSearch = 0x40,
+    NSDiacriticInsensitiveSearch = 0x80,
+    NSWidthInsensitiveSearch = 0x100,
+    NSForcedOrderingSearch = 0x200,
+    NSRegularExpressionSearch = 0x400,
 };
 
 enum {
