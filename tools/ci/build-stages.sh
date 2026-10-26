@@ -37,19 +37,24 @@ TIMES=$LOGDIR/times.txt
 echo "stage wall_s user_s sys_s cpu% rc" > "$TIMES"
 
 # The lines that say what went wrong: in a parallel build they are rarely
-# at the end of the log.
+# at the end of the log. Compiler and linker errors and make's "***"
+# lines; not configure's "checking..." chatter or source code that a tool
+# echoes.
 errors() {
 	sed -e 's/\x1b\[[0-9;]*m//g' -e 's/\r//g' "$1" |
-	    grep -n -i -E 'error[: ]|\*\*\* |not found|no such file|cannot |undefined|fatal' |
-	    grep -v -E -- '-W[a-z-]*error|-Werror|error\.[cho]|_error' | head -n 40
+	    grep -n -E ': (fatal )?error:|^ld: |\*\*\* \[|\*\*\* Error|Error [0-9]+$|undefined reference|Undefined symbols|referenced from:|cannot find -l|command not found|No rule to make target|CMake Error' |
+	    grep -v -E -- '-W[a-z-]*error|warning:' | head -n "${ERROR_LINES:-10}"
 }
 
-# One GitHub annotation: no colors, newlines as %0A.
+# One GitHub annotation, which GitHub cuts at 4096 characters: the error
+# lines and the end of the log, each line cut to fit. No colors, newlines
+# as %0A.
 annotate() {
 	printf '::error title=%s failed::' "$1"
-	{ echo "First error lines:"; errors "$2"; echo "End of the log:"
-	  tail -n "$TAIL_LINES" "$2"; } | sed -e 's/\x1b\[[0-9;]*m//g' -e 's/\r//g' \
-	    -e 's/%/%25/g' | awk '{ printf "%s%%0A", $0 }'
+	{ echo "Error lines:"; errors "$2" | cut -c1-220
+	  echo "End of the log:"; tail -n 15 "$2" | cut -c1-140; } |
+	    sed -e 's/\x1b\[[0-9;]*m//g' -e 's/\r//g' -e 's/%/%25/g' |
+	    awk '{ printf "%s%%0A", $0 }' | cut -c1-4000
 	echo
 }
 
@@ -66,7 +71,7 @@ run() {
 	[ -n "${GITHUB_ACTIONS:-}" ] && echo "::endgroup::"
 	if [ $rc -ne 0 ]; then
 		echo "FAILED at $name" >> "$TIMES"
-		echo "build-stages: $name failed; first error lines:"
+		echo "build-stages: $name failed; error lines:"
 		errors "$log"
 		echo "build-stages: end of $log:"
 		tail -n "$TAIL_LINES" "$log" | sed 's/\x1b\[[0-9;]*m//g'
