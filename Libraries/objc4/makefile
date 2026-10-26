@@ -84,7 +84,7 @@ ACFLAGS = ${COMMONFLAGS}
 
 LDFLAGS = --sysroot=${MINKAR_SDKROOT} -L${MINKAR_SDKROOT}/usr/lib \
 	-mmacos-version-min=${MACOS_VERSION_MIN} \
-	-Wl,-install_name,/usr/lib/libobjc.dylib -Wl,-current_version,228 \
+	-Wl,-install_name,/usr/lib/libobjc.A.dylib -Wl,-current_version,228 \
 	-Wl,-compatibility_version,1  \
 	-Wl,-order_file,${.CURDIR}/libobjc.order \
 	-Wl,-interposable_list,${.CURDIR}/interposable.txt \

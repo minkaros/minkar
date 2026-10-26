@@ -1855,7 +1855,7 @@
     ],
     "install_names": [
       {
-        "name": "/usr/lib/libobjc.dylib"
+        "name": "/usr/lib/libobjc.A.dylib"
       }
     ],
     "target_info": [
