@@ -1,4 +1,5 @@
 /* Copyright (c) 2007 Christopher J. W. Lloyd
+   Modifications Copyright (c) 2026 The Minkar contributors
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
 
@@ -9,9 +10,11 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <Foundation/NSPropertyList.h>
 #import <Foundation/NSMapTable.h>
 
-@class NSMutableArray, NSMutableData, NSMutableDictionary;
+@class NSData, NSError, NSMutableArray, NSMutableData, NSMutableDictionary;
 
 FOUNDATION_EXPORT NSString *const NSInvalidArchiveOperationException;
+// The key archivedDataWithRootObject: and the secure-coding methods use.
+FOUNDATION_EXPORT NSString *const NSKeyedArchiveRootObjectKey;
 
 @interface NSKeyedArchiver : NSCoder {
     NSMutableData *_data;
@@ -23,7 +26,17 @@ FOUNDATION_EXPORT NSString *const NSInvalidArchiveOperationException;
     NSMapTable *_nameToClass;
     NSUInteger _pass;
     NSMapTable *_objectToUid;
+    BOOL _requiresSecureCoding;
+    BOOL _finished;
 }
+
+// macOS 10.12 and 10.13: writes binary property lists; with secure coding,
+// every archived class must adopt NSSecureCoding.
+- (instancetype)initRequiringSecureCoding:(BOOL)requiresSecureCoding;
++ (NSData *)archivedDataWithRootObject:(id)object requiringSecureCoding:(BOOL)requiresSecureCoding
+                                 error:(NSError **)error;
+@property (readonly, strong) NSData *encodedData;
+@property (readwrite) BOOL requiresSecureCoding;
 
 + (NSData *)archivedDataWithRootObject:rootObject;
 + (BOOL)archiveRootObject:rootObject toFile:(NSString *)path;

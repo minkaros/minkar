@@ -28,4 +28,11 @@ enum {
     NSPropertyListWriteInvalidError = 3852,
     NSPropertyListErrorMinimum = 3840,
     NSPropertyListErrorMaximum = 4095,
+
+    // Keyed archives (NSKeyedArchiver, NSKeyedUnarchiver).
+    NSCoderReadCorruptError = 4864,
+    NSCoderValueNotFoundError = 4865,
+    NSCoderInvalidValueError = 4866,
+    NSCoderErrorMinimum = 4864,
+    NSCoderErrorMaximum = 4991,
 };
