@@ -51,6 +51,30 @@ Maps crash addresses to symbols in compiled binaries.
      0x1d9680 exit_trampoline
 ```
 
+### Kernel panics: `panic-report.py`
+
+The kernel in the boot image has no symbol table, so a panic backtrace on
+the console is only addresses, even with `keepsyms=1`. `panic-report.py`
+finds the last panic in a console log and names every frame from the
+build's unstripped kernel (and, for frames in a kext, from that kext):
+
+```bash
+tools/panic-report.py \
+  --kernel /work/build/work/minkar/Kernel/xnu/RELEASE_X86_64/kernel.unstripped \
+  --kexts /work/build/sysroot/System/Library/Extensions \
+  /work/build/boottest-M2.log
+```
+
+It warns when the panic's kernel UUID is not the given kernel's, and takes
+the slide from `Kernel slide:` or the `__HIB` text base. With
+`llvm-symbolizer` on `PATH` and the kernel's dSYM, frames also get their
+file and line.
+
+`boottest` does this by itself (`bmake boottest` passes the build's
+kernel and kexts): after a panic it reads the console to the end of the
+report and prints the named backtrace, so a panic in CI shows where it
+happened.
+
 ### 2. `crash-analyzer.py` - Comprehensive Crash Analysis
 
 Analyzes crash dumps and classifies crash types with recommendations.

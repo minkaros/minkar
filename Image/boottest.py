@@ -119,8 +119,14 @@ GATE_FAIL = {
 SEND_DELAY = 3
 # The password typed, never echoed in the test's own output.
 SECRET = [None]
-DEFAULT_FAIL = ['panic(cpu', 'Kernel panic', 'Debugger called:',
-                'load_init_program: failed loading', 'Process 1 exec of']
+PANIC_MARKERS = ['panic(cpu', 'Kernel panic', 'Debugger called:']
+DEFAULT_FAIL = PANIC_MARKERS + ['load_init_program: failed loading', 'Process 1 exec of']
+# After a panic the console is read on for the rest of the report (its
+# backtrace comes after the marker), up to this many seconds.
+PANIC_DRAIN = 30
+PANIC_REPORT_END = (b'panic.apple.com', b'Attempting to commit panic log')
+PANIC_REPORT = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'tools',
+                            'panic-report.py')
 ANSI = re.compile(rb'\x1b\[[0-9;?]*[A-Za-z]|\x1b[()][A-Z0-9]|\r')
 
 
@@ -164,6 +170,45 @@ def ssh_command(args, command):
             'root@127.0.0.1', command]
 
 
+def drain_panic(proc, sel, console, log, verbose):
+    """Reads the console on until the panic report ends (or PANIC_DRAIN)."""
+    end = time.monotonic() + PANIC_DRAIN
+    while time.monotonic() < end and proc.poll() is None:
+        for key, _ in sel.select(timeout=1):
+            if key.data != 'console':
+                continue
+            chunk = os.read(key.fileobj.fileno(), 4096)
+            if not chunk:
+                return
+            console += chunk
+            if log:
+                log.write(chunk)
+                log.flush()
+            if verbose:
+                sys.stdout.buffer.write(chunk)
+                sys.stdout.flush()
+            if any(m in console[-8192:] for m in PANIC_REPORT_END):
+                # The rest is a line or two: take them too.
+                end = min(end, time.monotonic() + 2)
+
+
+def print_panic_report(args, console):
+    """The panic's backtrace with function names (tools/panic-report.py)."""
+    if not args.kernel:
+        print('boottest: no --kernel: the panic backtrace is not symbolicated', file=sys.stderr)
+        return
+    with tempfile.NamedTemporaryFile(prefix='minkar-panic-', suffix='.log') as f:
+        f.write(bytes(console))
+        f.flush()
+        cmd = [sys.executable, PANIC_REPORT, '--kernel', args.kernel]
+        if args.kexts:
+            cmd += ['--kexts', args.kexts]
+        r = subprocess.run(cmd + [f.name], capture_output=True, text=True)
+    print('boottest: panic report:', file=sys.stderr)
+    for line in (r.stdout + r.stderr).splitlines():
+        print('boottest: | ' + line, file=sys.stderr)
+
+
 def run(args):
     expect = list(args.expect or GATES[args.gate])
     if PASSWORD in expect:
@@ -199,6 +244,7 @@ def run(args):
     print('boottest: ' + ' '.join(cmd), file=sys.stderr)
 
     log = open(args.log, 'wb') if args.log else None
+    console = bytearray()   # the whole console, for a panic report
     proc = subprocess.Popen(cmd, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
                             stderr=subprocess.STDOUT)
     sel = selectors.DefaultSelector()
@@ -268,6 +314,7 @@ def run(args):
                 if stream == 'ssh':
                     partial['ssh'] += chunk     # matched when ssh exits
                     continue
+                console += chunk
                 if log:
                     log.write(chunk)
                     log.flush()
@@ -289,6 +336,8 @@ def run(args):
                     status, reason = 0, 'all %d markers seen' % sum(
                         not isinstance(m, (Send, SSH)) for m in expect)
                 break
+        if status == 1 and any(m in reason for m in PANIC_MARKERS):
+            drain_panic(proc, sel, console, log, args.verbose)
     finally:
         if ssh is not None and ssh.poll() is None:
             ssh.kill()
@@ -304,6 +353,8 @@ def run(args):
 
     verdict = {0: 'PASS', 1: 'FAIL', 2: 'TIMEOUT'}[status]
     print('boottest: %s: %s' % (verdict, reason), file=sys.stderr)
+    if status == 1 and any(m in reason for m in PANIC_MARKERS):
+        print_panic_report(args, console)
     if pending and status != 0:
         print('boottest: not seen: %s' % ', '.join(p for p in pending
                                                   if not isinstance(p, Send)),
@@ -322,6 +373,11 @@ def main(argv=None):
                    help='root password for login gates (default: $BOOTTEST_PASSWORD)')
     p.add_argument('--timeout', type=int, default=900, help='seconds')
     p.add_argument('--log', help='write the whole console here')
+    p.add_argument('--kernel', default=os.environ.get('BOOTTEST_KERNEL'),
+                   help='the unstripped kernel of the image: a panic is then printed with '
+                        'function names (or $BOOTTEST_KERNEL)')
+    p.add_argument('--kexts', default=os.environ.get('BOOTTEST_KEXTS'),
+                   help="a directory with the image's kexts, for frames in kexts")
     p.add_argument('--verbose', action='store_true', help='echo the console')
     p.add_argument('--qemu', default='qemu-system-x86_64')
     # Not "max": under TCG it reports an AMD family the kernel panics on.

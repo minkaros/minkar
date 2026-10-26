@@ -137,8 +137,14 @@ boottest-key:
 	@echo "image:    ROOT_AUTHORIZED_KEYS=${BOOTTEST_KEY}.pub"
 	@echo "boottest: BOOTTEST_SSH_KEY=${BOOTTEST_KEY}"
 
+# A panic is printed with function names from the unstripped kernel and
+# the kexts of this build (tools/panic-report.py).
+BOOTTEST_KERNEL ?=	${ROOT_BINARY_DIR}${ROOT_SOURCE_DIR}/Kernel/xnu/${KERNEL_CONFIGS}_${ARCH_CONFIGS}/kernel.unstripped
+BOOTTEST_KEXTS ?=	${SYSROOT_DIR}/System/Library/Extensions
+
 boottest:
 	${PYTHON} ${.CURDIR}/boottest.py --image ${IMAGE} --gate ${GATE} \
-	    --timeout ${BOOTTEST_TIMEOUT} --log ${ROOT_BINARY_DIR}/boottest-${GATE}.log
+	    --timeout ${BOOTTEST_TIMEOUT} --log ${ROOT_BINARY_DIR}/boottest-${GATE}.log \
+	    --kernel ${BOOTTEST_KERNEL} --kexts ${BOOTTEST_KEXTS}
 
 .PHONY: all efiloader image boottest boottest-key
