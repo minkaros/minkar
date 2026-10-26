@@ -27,10 +27,11 @@ What it compares, and what not:
 - Only imports from system libraries (`/System/Library/...`, `/usr/lib/...`)
   count. Frameworks and dylibs an app carries in its bundle are its own, but
   their imports from the system count.
-- An import matches a Minkar library with the same install name. When only
-  the short name matches (`libobjc.A.dylib` against `libobjc.dylib`), it is
-  counted, and the table shows Minkar's install name: dyld would not load
-  it under the name the app asks for.
+- An import matches the Minkar library with the same install name, or the
+  one dyld would load from that path in the sysroot (symlinks followed).
+  When only the short name matches, it is counted, and the table shows
+  Minkar's install name: dyld would not load it under the name the app
+  asks for.
 - Objective-C classes are symbols (`_OBJC_CLASS_$_NSUUID`); methods are
   looked up at run time and are not covered.
 - A symbol that exists but is a stub counts as present. Noisy stubs (plan,

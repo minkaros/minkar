@@ -202,30 +202,50 @@ def scan_sysroot(tools, sysroot):
     return libs
 
 
-def install_exists(sysroot, install):
-    """Whether dyld would find install in the sysroot: the absolute path
-    exists there, symlinks resolved inside the sysroot."""
+def resolve_in_sysroot(sysroot, install):
+    """The file dyld would load for install, relative to the sysroot, with
+    symlinks resolved inside it; None if there is none."""
     if not install.startswith('/'):
-        return False       # @rpath, @loader_path...
+        return None        # @rpath, @loader_path...
     path, seen = install, 0
     while seen < 40:
         full = os.path.join(sysroot, path.lstrip('/'))
         if not os.path.islink(full):
-            return os.path.exists(full)
+            return path.lstrip('/') if os.path.isfile(full) else None
         target = os.readlink(full)
         path = target if target.startswith('/') else \
             os.path.normpath(os.path.join(os.path.dirname(path), target))
         seen += 1
-    return False
+    return None
 
 
-def match_library(install, exported, by_short):
-    """The Minkar library an import resolves to: the same install name, or
-    else the same short name (reported, since dyld would not find it)."""
-    if install in exported:
-        return install, False
-    cand = by_short.get(short_name(install))
-    return (cand, True) if cand else (None, False)
+def install_exists(sysroot, install):
+    return resolve_in_sysroot(sysroot, install) is not None
+
+
+class Matcher:
+    """Finds the Minkar library an import resolves to: the one with that
+    install name; else the file at that path in the sysroot, as dyld would
+    load it; else one with the same short name, which dyld would not find
+    (reported)."""
+
+    def __init__(self, sysroot, libs):
+        self.sysroot = sysroot
+        self.by_file = {os.path.normpath(l['file']): n for n, l in libs.items()}
+        self.by_short = {}
+        for n in libs:
+            self.by_short.setdefault(short_name(n), n)
+        self.libs = libs
+
+    def __call__(self, install):
+        """(Minkar install name or None, found only by short name)."""
+        if install in self.libs:
+            return install, False
+        f = resolve_in_sysroot(self.sysroot, install)
+        if f and os.path.normpath(f) in self.by_file:
+            return self.by_file[os.path.normpath(f)], False
+        cand = self.by_short.get(short_name(install))
+        return (cand, True) if cand else (None, False)
 
 
 def resolve_exports(libs):
@@ -294,7 +314,7 @@ def write_tsv(path, header, rows):
             f.write('\t'.join(str(x) for x in r) + '\n')
 
 
-def report(libs, exported, imports, minos, out, top):
+def report(sysroot, libs, exported, imports, minos, out, top):
     # library -> symbol -> set of apps
     used = collections.defaultdict(lambda: collections.defaultdict(set))
     weak_only = collections.defaultdict(lambda: collections.defaultdict(lambda: True))
@@ -303,13 +323,11 @@ def report(libs, exported, imports, minos, out, top):
         weak_only[lib][sym] &= weak
     apps = sorted({r[0] for r in imports})
 
-    by_short = {}
-    for name in exported:
-        by_short.setdefault(short_name(name), name)
+    match = Matcher(sysroot, libs)
     summary, missing_rows = [], []
     for lib in sorted(used, key=lambda l: (-len(used[l]), l)):
         syms = used[lib]
-        minkar_lib, renamed = match_library(lib, exported, by_short)
+        minkar_lib, renamed = match(lib)
         have = exported.get(minkar_lib) if minkar_lib else None
         present = [s for s in syms if have is not None and s in have]
         missing = sorted((s for s in syms if have is None or s not in have),
@@ -334,7 +352,7 @@ def report(libs, exported, imports, minos, out, top):
         uniq = {(lib, sym) for app, _, lib, sym, _ in imports if app == a}
         ok = 0
         for lib, sym in uniq:
-            m, _ = match_library(lib, exported, by_short)
+            m, _ = match(lib)
             ok += bool(m and sym in exported[m])
         per_app.append({'app': a, 'minos': minos.get(a), 'imported': len(uniq),
                         'present': ok,
@@ -435,7 +453,7 @@ def main(argv=None):
               ('app', 'binary', 'library', 'symbol', 'weak'),
               ((a, b, l, s, 'weak' if w else '') for a, b, l, s, w in imports))
 
-    data = report(libs, exported, imports, minos, args.out, args.top)
+    data = report(args.sysroot, libs, exported, imports, minos, args.out, args.top)
     print('symbol-inventory: %d libraries, %d exports' %
           (data['minkar_libraries'], data['minkar_exports']))
     if imports:

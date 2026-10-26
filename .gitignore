@@ -4,3 +4,4 @@ Minkar.xcodeproj
 /build
 .DS_Store
 /.vscode
+__pycache__/
