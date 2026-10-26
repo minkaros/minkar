@@ -1,4 +1,5 @@
 /* Copyright (c) 2006-2007 Christopher J. W. Lloyd <cjwl@objc.net>
+   Modifications Copyright (c) 2026 The Minkar contributors
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
 
@@ -548,9 +549,20 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 @end
 
-void objc_enumerationMutation(id collection)
+// A collection mutated during a for-in loop raises NSGenericException, as
+// on macOS. Minkar: Foundation defined its own objc_enumerationMutation,
+// which libobjc also exports, so which one a program reached depended on
+// link order (libobjc's aborts); the handler is now installed in libobjc.
+OBJC_EXPORT void objc_setEnumerationMutationHandler(void (*handler)(id));
+
+static void NSEnumerationMutationHandler(id collection)
 {
-	[NSException raise:NSInternalInconsistencyException format:@"Collection %p of class %@ was mutated during enumeration. Break on objc_enumerationMutation to debug.", collection, [collection className]];
+	[NSException raise:NSGenericException format:@"*** Collection <%@: %p> was mutated while being enumerated.", [collection class], collection];
+}
+
+__attribute__((constructor)) static void NSInstallEnumerationMutationHandler(void)
+{
+	objc_setEnumerationMutationHandler(NSEnumerationMutationHandler);
 }
 
 #import <Foundation/NSCFTypeID.h>

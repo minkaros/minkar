@@ -1,4 +1,5 @@
 /* Copyright (c) 2006-2007 Christopher J. W. Lloyd
+   Modifications Copyright (c) 2026 The Minkar contributors
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
 
@@ -148,6 +149,7 @@ NSArray *NSMutableArray_concreteNewWithCapacity(NSZone *zone,NSUInteger capacity
 
    [object retain];
 
+   _mutations++;
    _count++;
    if(_count>_capacity){
     _capacity=_count*2;
@@ -167,6 +169,7 @@ NSArray *NSMutableArray_concreteNewWithCapacity(NSZone *zone,NSUInteger capacity
     return;
    }
 
+   _mutations++;
    [object retain];
    [_objects[index] release];
    _objects[index]=object;
@@ -192,6 +195,7 @@ NSArray *NSMutableArray_concreteNewWithCapacity(NSZone *zone,NSUInteger capacity
     return;
    }
 
+   _mutations++;
    _count++;
    if(_count>_capacity){
     _capacity=_count*2;
@@ -211,6 +215,7 @@ static void removeObjectAtIndex(NSMutableArray_concrete *self,NSUInteger index) 
    id object;
 
    object=self->_objects[index];
+   self->_mutations++;
    self->_count--;
    for(i=index;i<self->_count;i++)
     self->_objects[i]=self->_objects[i+1];
@@ -246,6 +251,7 @@ static void removeObjectAtIndex(NSMutableArray_concrete *self,NSUInteger index) 
    for(i=0;i<_count;i++)
     [_objects[i] release];
 
+   _mutations++;
    _count=0;
    if(self->_capacity>8){
     self->_capacity=8;
@@ -321,7 +327,8 @@ static inline NSUInteger indexOfObject(NSMutableArray_concrete *self,id object){
 // iterative bottom up mergesort based on http://en.wikipedia.org/wiki/Merge_sort
 -(void)sortUsingFunction:(NSInteger (*)(id, id, void *))compare context:(void *)context {
   NSInteger n = _count;
-    
+
+  _mutations++;
   /* array A[] has the items to sort; array B[] is a work array */
   id *A = _objects;
   id *B = NSZoneMalloc(NULL,(n+1)* sizeof(id));
@@ -354,7 +361,9 @@ static inline NSUInteger indexOfObject(NSMutableArray_concrete *self,id object){
    state->itemsPtr=_objects;
    state->state=_count;
 
-   state->mutationsPtr=(unsigned long*)self;
+   // Minkar: a mutation during the loop raises (this pointed at the
+   // object's class, which never changes).
+   state->mutationsPtr=&_mutations;
 
    return _count;
 }

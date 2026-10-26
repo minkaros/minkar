@@ -1,4 +1,5 @@
 /* Copyright (c) 2006-2007 Christopher J. W. Lloyd
+   Modifications Copyright (c) 2026 The Minkar contributors
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
 
@@ -12,6 +13,8 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <Foundation/NSAutoreleasePool-private.h>
 #import <Foundation/NSString.h>
 #import <Foundation/NSException.h>
+#import <Foundation/NSData.h>
+#import <Foundation/NSArray.h>
 #import <Foundation/NSRaise.h>
 #import <Foundation/NSRaiseException.h>
 
@@ -200,6 +203,7 @@ static void NSDictInsert(NSMutableDictionary_CF *self,const void *key,const void
 }
 
 static inline void setValueForKey(NSMutableDictionary_CF *self,const void *value,const void *key){
+   self->_mutations++;
    NSDictInsert(self,key,value);
 }
 
@@ -234,6 +238,7 @@ static void NSDictRemove(NSMutableDictionary_CF *self,const void *key){
      self->_valueCallBacks.release(NULL,j->value);
      NSZoneFree(NSZoneFromPointer(j),j);
      self->_count--;
+     self->_mutations++;
      return;
     }
     prev=j;
@@ -350,6 +355,26 @@ static NSDictionary *copyWithClassAndZone(NSMutableDictionary_CF *self,Class cls
 
 -mutableCopyWithZone:(NSZone *)zone {
    return copyWithClassAndZone(self,[NSMutableDictionary_CF class],NULL);
+}
+
+// Minkar: enumerates a snapshot of the keys, and a mutation of the collection
+// during the loop raises (mutationsPtr pointed at the object's class, which
+// never changes, so a loop that mutated never stopped).
+-(NSUInteger)countByEnumeratingWithState:(NSFastEnumerationState *)state objects:(id *)stackbuf count:(NSUInteger)length {
+   NSArray       *items;
+   NSUInteger     n;
+   NSMutableData *storage;
+
+   if(state->state!=0)
+    return 0;
+   items=[self allKeys];          // autoreleased: keeps the items alive for the loop
+   n=[items count];
+   storage=[NSMutableData dataWithLength:(n+1)*sizeof(id)];
+   [items getObjects:(id *)[storage mutableBytes] range:NSMakeRange(0,n)];
+   state->itemsPtr=(id *)[storage mutableBytes];
+   state->mutationsPtr=&_mutations;
+   state->state=1;
+   return n;
 }
 
 @end
