@@ -9,7 +9,7 @@ BUNDLE_VERSION = 1.0.0
 .PATH: ${.CURDIR}/src
 
 SRCS = IOUSBBus.cpp IOUSBNub.cpp IOUSBController.cpp IOUSBControllerV2.cpp \
-	IOUSBDevice.cpp IOUSBInterface.cpp IOUSBPipe.cpp
+	IOUSBDevice.cpp IOUSBInterface.cpp IOUSBPipe.cpp IOUSBMinkar.cpp
 
 SLF = /System/Library/Frameworks
 CFLAGS = -Wno-implicit-int-conversion -Wno-inconsistent-missing-override \
