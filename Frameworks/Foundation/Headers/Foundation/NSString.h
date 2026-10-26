@@ -69,6 +69,35 @@ typedef NSUInteger NSStringEncodingConversionOptions;
 
 FOUNDATION_EXPORT const NSUInteger NSMaximumStringLength;
 
+typedef NS_OPTIONS(NSUInteger, NSStringEnumerationOptions) {
+    NSStringEnumerationByLines = 0,
+    NSStringEnumerationByParagraphs = 1,
+    NSStringEnumerationByComposedCharacterSequences = 2,
+    NSStringEnumerationByWords = 3,
+    NSStringEnumerationBySentences = 4,
+    NSStringEnumerationReverse = 1UL << 8,
+    NSStringEnumerationSubstringNotRequired = 1UL << 9,
+    NSStringEnumerationLocalized = 1UL << 10,
+};
+
+typedef NSString *NSStringTransform;
+FOUNDATION_EXPORT NSStringTransform const NSStringTransformLatinToKatakana;
+FOUNDATION_EXPORT NSStringTransform const NSStringTransformLatinToHiragana;
+FOUNDATION_EXPORT NSStringTransform const NSStringTransformLatinToHangul;
+FOUNDATION_EXPORT NSStringTransform const NSStringTransformLatinToArabic;
+FOUNDATION_EXPORT NSStringTransform const NSStringTransformLatinToHebrew;
+FOUNDATION_EXPORT NSStringTransform const NSStringTransformLatinToThai;
+FOUNDATION_EXPORT NSStringTransform const NSStringTransformLatinToCyrillic;
+FOUNDATION_EXPORT NSStringTransform const NSStringTransformLatinToGreek;
+FOUNDATION_EXPORT NSStringTransform const NSStringTransformToLatin;
+FOUNDATION_EXPORT NSStringTransform const NSStringTransformMandarinToLatin;
+FOUNDATION_EXPORT NSStringTransform const NSStringTransformHiraganaToKatakana;
+FOUNDATION_EXPORT NSStringTransform const NSStringTransformFullwidthToHalfwidth;
+FOUNDATION_EXPORT NSStringTransform const NSStringTransformToXMLHex;
+FOUNDATION_EXPORT NSStringTransform const NSStringTransformToUnicodeName;
+FOUNDATION_EXPORT NSStringTransform const NSStringTransformStripCombiningMarks;
+FOUNDATION_EXPORT NSStringTransform const NSStringTransformStripDiacritics;
+
 @interface NSString : NSObject <NSCopying, NSMutableCopying, NSSecureCoding>
 
 + (const NSStringEncoding *)availableStringEncodings;
@@ -249,5 +278,36 @@ FOUNDATION_EXPORT const NSUInteger NSMaximumStringLength;
 
 @interface NSConstantString_tiny : NSString
 @end
+
+@class NSCharacterSet, NSLocale;
+
+// Methods of macOS 10.6 to 10.11 (NSStringModern.m).
+@interface NSString (NSStringModern)
+
+- (BOOL)containsString:(NSString *)str;
+- (BOOL)localizedCaseInsensitiveContainsString:(NSString *)str;
+- (BOOL)localizedStandardContainsString:(NSString *)str;
+- (NSRange)localizedStandardRangeOfString:(NSString *)str;
+- (NSComparisonResult)localizedStandardCompare:(NSString *)string;
+
+- (void)enumerateLinesUsingBlock:(void (^)(NSString *line, BOOL *stop))block;
+- (void)enumerateSubstringsInRange:(NSRange)range options:(NSStringEnumerationOptions)opts
+                        usingBlock:(void (^)(NSString *substring, NSRange substringRange,
+                                             NSRange enclosingRange, BOOL *stop))block;
+
+- (NSString *)stringByAddingPercentEncodingWithAllowedCharacters:(NSCharacterSet *)allowedCharacters;
+- (NSString *)stringByRemovingPercentEncoding;
+
+- (NSString *)uppercaseStringWithLocale:(NSLocale *)locale;
+- (NSString *)lowercaseStringWithLocale:(NSLocale *)locale;
+- (NSString *)capitalizedStringWithLocale:(NSLocale *)locale;
+@property (readonly, copy) NSString *localizedUppercaseString;
+@property (readonly, copy) NSString *localizedLowercaseString;
+@property (readonly, copy) NSString *localizedCapitalizedString;
+
+- (NSString *)stringByApplyingTransform:(NSStringTransform)transform reverse:(BOOL)reverse;
+
+@end
+
 
 #import <Foundation/NSMutableString.h>

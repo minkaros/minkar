@@ -33,6 +33,15 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 + whitespaceAndNewlineCharacterSet;
 + whitespaceCharacterSet;
 
+// The characters a URL component may hold unescaped (RFC 3986), for
+// -[NSString stringByAddingPercentEncodingWithAllowedCharacters:].
+@property (class, readonly, copy) NSCharacterSet *URLUserAllowedCharacterSet;
+@property (class, readonly, copy) NSCharacterSet *URLPasswordAllowedCharacterSet;
+@property (class, readonly, copy) NSCharacterSet *URLHostAllowedCharacterSet;
+@property (class, readonly, copy) NSCharacterSet *URLPathAllowedCharacterSet;
+@property (class, readonly, copy) NSCharacterSet *URLQueryAllowedCharacterSet;
+@property (class, readonly, copy) NSCharacterSet *URLFragmentAllowedCharacterSet;
+
 - (BOOL)characterIsMember:(unichar)character;
 - (BOOL)longCharacterIsMember:(UTF32Char)character;
 - (NSCharacterSet *)invertedSet;

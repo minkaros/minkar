@@ -170,6 +170,25 @@ static NSCharacterSet *sharedSetWithName(Class cls,NSString *name){
     return set;
 }
 
+// The URL component sets (Minkar): the unreserved characters
+// (A-Z a-z 0-9 - . _ ~), the sub-delimiters (! $ & ' ( ) * + , ; =) and
+// what each component allows besides.
+static NSCharacterSet *urlSet(NSString *extra) {
+    NSString *base = @"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~!$&'()*+,;=";
+    return [NSCharacterSet characterSetWithCharactersInString:[base stringByAppendingString:extra]];
+}
+
++(NSCharacterSet *)URLUserAllowedCharacterSet { return urlSet(@""); }
++(NSCharacterSet *)URLPasswordAllowedCharacterSet { return urlSet(@""); }
++(NSCharacterSet *)URLHostAllowedCharacterSet { return urlSet(@":[]"); }
++(NSCharacterSet *)URLPathAllowedCharacterSet {
+    // No ';' in paths (it once separated path parameters).
+    return [NSCharacterSet characterSetWithCharactersInString:
+        @"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~!$&'()*+,=:@/"];
+}
++(NSCharacterSet *)URLQueryAllowedCharacterSet { return urlSet(@":@/?"); }
++(NSCharacterSet *)URLFragmentAllowedCharacterSet { return urlSet(@":@/?"); }
+
 +whitespaceCharacterSet {
     static NSString *setName = @"whitespaceCharacterSet";
     id set;
