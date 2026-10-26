@@ -121,9 +121,11 @@ static struct passwd *pwent = NULL;
     NSMutableArray *result=[NSMutableArray array];
     int             i;
 
-printf("posix arguments - %d args\n", NSProcessInfoArgc);
+    // Arguments are UTF-8; one that is not keeps its bytes as Latin 1.
     for(i=0;i<NSProcessInfoArgc;i++) {
-        NSString *s = [NSString stringWithCString:NSProcessInfoArgv[i]]; 
+        NSString *s = [NSString stringWithUTF8String:NSProcessInfoArgv[i]];
+        if(s==nil)
+            s=[NSString stringWithCString:NSProcessInfoArgv[i] encoding:NSISOLatin1StringEncoding];
         [result addObject:s];
     }
 

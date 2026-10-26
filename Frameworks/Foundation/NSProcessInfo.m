@@ -178,10 +178,11 @@ const char * const *NSProcessInfoArgv=NULL;
    return NSPlatformProcessID();
 }
 
+// Minkar: this sent -arguments to the NSPlatform_posix class, which has
+// no such class method: arguments, processName and so NSLog crashed.
 -(NSArray *)arguments {
-   Class cls = objc_lookUpClass("NSPlatform_posix");
    if(_arguments==nil){
-    _arguments=[[cls arguments] retain];
+    _arguments=[[[NSPlatform currentPlatform] arguments] retain];
    }
 
    return _arguments;
