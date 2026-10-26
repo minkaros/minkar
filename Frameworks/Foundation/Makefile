@@ -79,6 +79,7 @@ SRCS = 	NSFormatter.m \
 	NSCollectionBlocks.m \
 	NSRegularExpression.m \
 	NSJSONSerialization.m \
+	NSCache.m \
 	NSEmptyCollections.m \
 	NSBlock.m \
 	NSDirectoryEnumerator.m \
@@ -375,6 +376,7 @@ CFLAGS.NSUUID.m = -fobjc-arc
 CFLAGS.NSSubscripting.m = -fobjc-arc
 CFLAGS.NSCollectionBlocks.m = -fobjc-arc
 CFLAGS.NSJSONSerialization.m = -fobjc-arc
+CFLAGS.NSCache.m = -fobjc-arc
 # ICU's regular expressions, by their plain names as libicucore exports them.
 CFLAGS.NSRegularExpression.m = -fobjc-arc -DU_DISABLE_RENAMING=1 \
 	-I${ROOT_SOURCE_DIR}/Libraries/ICU/source/common \

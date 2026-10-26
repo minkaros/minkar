@@ -82,6 +82,17 @@ typedef NS_OPTIONS(NSUInteger, NSSortOptions) {
 @property (class, readonly) BOOL supportsSecureCoding;
 @end
 
+// Objects whose content can be thrown away when it is not in use (NSCache
+// drops them once their content is discarded). Access is counted: content
+// may only be discarded while no one is accessing it.
+@protocol NSDiscardableContent
+@required
+- (BOOL)beginContentAccess;
+- (void)endContentAccess;
+- (void)discardContentIfPossible;
+- (BOOL)isContentDiscarded;
+@end
+
 void NSLog(NSString *format,...);
 void NSLogv(NSString *format,va_list arguments);
 
