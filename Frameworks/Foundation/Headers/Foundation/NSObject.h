@@ -41,6 +41,21 @@ typedef enum NSComparisonResult {
 #include <Foundation/NSObjCRuntime.h>
 #include <objc/NSObject.h>
 
+/* Blocks and options of the collections' block methods. */
+#if __BLOCKS__
+typedef NSComparisonResult (^NSComparator)(id obj1, id obj2);
+#endif
+
+typedef NS_OPTIONS(NSUInteger, NSEnumerationOptions) {
+    NSEnumerationConcurrent = (1UL << 0),
+    NSEnumerationReverse = (1UL << 1),
+};
+
+typedef NS_OPTIONS(NSUInteger, NSSortOptions) {
+    NSSortConcurrent = (1UL << 0),
+    NSSortStable = (1UL << 4),
+};
+
 @interface NSObject (Foundation)
 +(NSInteger)version;
 +(void)setVersion:(NSInteger)version;

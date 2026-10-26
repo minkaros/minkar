@@ -56,6 +56,20 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 - (NSString *)descriptionWithLocale:locale indent:(NSUInteger)indent;
 @end
 
+#if __BLOCKS__
+@class NSSet;
+@interface NSDictionary (NSBlocks)
+- (void)enumerateKeysAndObjectsUsingBlock:(void (NS_NOESCAPE ^)(id key, id obj, BOOL *stop))block;
+- (void)enumerateKeysAndObjectsWithOptions:(NSEnumerationOptions)opts
+                                usingBlock:(void (NS_NOESCAPE ^)(id key, id obj, BOOL *stop))block;
+- (NSSet *)keysOfEntriesPassingTest:(BOOL (NS_NOESCAPE ^)(id key, id obj, BOOL *stop))predicate;
+- (NSSet *)keysOfEntriesWithOptions:(NSEnumerationOptions)opts
+                        passingTest:(BOOL (NS_NOESCAPE ^)(id key, id obj, BOOL *stop))predicate;
+- (NSArray *)keysSortedByValueUsingComparator:(NSComparator NS_NOESCAPE)cmptr;
+- (NSArray *)keysSortedByValueWithOptions:(NSSortOptions)opts usingComparator:(NSComparator NS_NOESCAPE)cmptr;
+@end
+#endif
+
 @interface NSDictionary (NSSubscripting)
 // Subscripting: dictionary[key] (macOS 10.8).
 - (id)objectForKeyedSubscript:(id)key;

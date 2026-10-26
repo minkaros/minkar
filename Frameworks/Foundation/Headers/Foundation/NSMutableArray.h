@@ -46,6 +46,13 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 - (void)filterUsingPredicate:(NSPredicate *)predicate;
 @end
 
+#if __BLOCKS__
+@interface NSMutableArray (NSBlocks)
+- (void)sortUsingComparator:(NSComparator NS_NOESCAPE)cmptr;
+- (void)sortWithOptions:(NSSortOptions)opts usingComparator:(NSComparator NS_NOESCAPE)cmptr;
+@end
+#endif
+
 @interface NSMutableArray (NSSubscripting)
 // Subscripting: array[index] = object; at index == count it appends
 // (macOS 10.8).
