@@ -10,6 +10,7 @@
 #   host-setup.sh free-disk           remove preinstalled SDKs we never use
 #   host-setup.sh packages [image]    build packages and Open CF-lite;
 #                                     "image" adds QEMU etc.
+#   host-setup.sh opencflite          build Open CF-lite (OPENCFLITE_PREFIX)
 #   host-setup.sh touch-toolchain     mark the restored toolchain up to date
 #   host-setup.sh annotate-log FILE.. end of each log as an error annotation
 
@@ -60,21 +61,35 @@ packages() {
 	bmake -V MAKE_VERSION -f /dev/null 2>/dev/null || true
 }
 
-# Open CF-lite in /usr/local, unless it is already there.
+# Open CF-lite in OPENCFLITE_PREFIX (default /usr/local), unless it is
+# already there.
 opencflite() {
-	if [ -e /usr/local/lib/libCoreFoundation.so ]; then
-		echo "opencflite: already in /usr/local"
+	prefix=${OPENCFLITE_PREFIX:-/usr/local}
+	if [ -e "$prefix/lib/libCoreFoundation.so" ]; then
+		echo "opencflite: already in $prefix"
 		return
 	fi
-	src=${RUNNER_TEMP:-/tmp}/opencflite
+	tmp=${RUNNER_TEMP:-${TMPDIR:-/tmp}}
+	src=$tmp/opencflite
 	rm -rf "$src"
 	git clone -q --depth 1 --branch "$OPENCFLITE_TAG" "$OPENCFLITE_REPO" "$src"
-	log=${RUNNER_TEMP:-/tmp}/opencflite.log
+	log=$tmp/opencflite.log
 	# Ubuntu has no tzcode tzfile.h; Open CF-lite carries one in include/.
-	if ! (cd "$src" && ./configure -q --prefix=/usr/local --with-tz-includes="$src" &&
+	# Ubuntu's ICU has no "icu" pkg-config package, and without it
+	# configure links no ICU at all: name the directories, or programs
+	# that link CoreFoundation (plktool, xcbuild) miss its ICU symbols.
+	icu_libs=/usr/lib/$(gcc -print-multiarch 2>/dev/null || echo x86_64-linux-gnu)
+	if ! (cd "$src" && ./configure -q --prefix="$prefix" --with-tz-includes="$src" \
+	    --with-icu-includes=/usr/include --with-icu-libs="$icu_libs" &&
 	    make -s -j"$(nproc)" && sudo make -s install) > "$log" 2>&1; then
 		tail -n 40 "$log"
 		[ -n "${GITHUB_ACTIONS:-}" ] && annotate_log "$log"
+		exit 1
+	fi
+	if ! readelf -d "$prefix/lib/libCoreFoundation.so" | grep -q 'NEEDED.*libicuuc'; then
+		echo "opencflite: libCoreFoundation.so does not link ICU"
+		[ -n "${GITHUB_ACTIONS:-}" ] &&
+		    echo "::error title=Open CF-lite::libCoreFoundation.so does not link ICU"
 		exit 1
 	fi
 	sudo ldconfig
@@ -106,7 +121,8 @@ case $cmd in
 free-disk)		free_disk ;;
 packages)		packages "$@" ;;
 touch-toolchain)	touch_toolchain ;;
+opencflite)		opencflite ;;
 annotate-log)		annotate_log "$@" ;;
-*)	echo "usage: host-setup.sh free-disk|packages [image]|touch-toolchain|annotate-log file..." >&2
+*)	echo "usage: host-setup.sh free-disk|packages [image]|opencflite|touch-toolchain|annotate-log file..." >&2
 	exit 1 ;;
 esac
