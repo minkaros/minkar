@@ -1,13 +1,16 @@
-.include <src.opts.mk>
-
+SUBDIR =
 PROG=	hexdump
 SRCS=	conv.c display.c hexdump.c hexsyntax.c odsyntax.c parse.c
-MAN=	hexdump.1 od.1
-MLINKS=	hexdump.1 hd.1
-LINKS=	${BINDIR}/hexdump ${BINDIR}/od
-LINKS+=	${BINDIR}/hexdump ${BINDIR}/hd
+MAN =
+MK_WERROR = no
+CFLAGS += -I${ROOT_SOURCE_DIR}/BSD/lib/libbsdcompat/include -include bsdcompat.h 
+LDADD += -L${ROOT_BINARY_DIR}${ROOT_SOURCE_DIR}/BSD/lib/libbsdcompat -lbsdcompat 
 
-HAS_TESTS=
-SUBDIR.${MK_TESTS}+= tests
+all: to-sysroot
+
+to-sysroot: ${PROG}
+	mkdir -p ${SYSROOT_DIR}/usr/bin
+	install -m 0555 ${PROG} ${SYSROOT_DIR}/usr/bin/hexdump
+	ln -f ${SYSROOT_DIR}/usr/bin/hexdump ${SYSROOT_DIR}/usr/bin/od
 
 .include <bsd.prog.mk>
