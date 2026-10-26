@@ -142,6 +142,8 @@ jobs:
           echo "::add-mask::$pw"
           echo "BOOTTEST_PASSWORD=$pw" >> "$GITHUB_ENV"
           ssh-keygen -q -t ed25519 -N '' -C minkar-ci -f "$RUNNER_TEMP/id_ed25519"
+          # The build ran as root and made the log directory root's.
+          sudo chown "$(id -u):$(id -g)" "$BUILD_DIR/logs"
           sudo env SUBDIR= INIT= ROOT_PASSWORD="$pw" \
             ROOT_AUTHORIZED_KEYS="$RUNNER_TEMP/id_ed25519.pub" \
             bmake -m "$PWD/BSD/share/mk" image > "$BUILD_DIR/logs/image.log" 2>&1 || {
