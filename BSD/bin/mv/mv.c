@@ -3,6 +3,7 @@
  *
  * Copyright (c) 1989, 1993, 1994
  *	The Regents of the University of California.  All rights reserved.
+ * Modifications Copyright (c) 2026 The Minkar contributors
  *
  * This code is derived from software contributed to Berkeley by
  * Ken Smith of The State University of New York at Buffalo.
@@ -465,7 +466,9 @@ preserve_fd_acls(int source_fd, int dest_fd, const char *source_path,
 
 	acl = acl_get_fd_np(source_fd, acl_type);
 	if (acl == NULL) {
-		warn("failed to get acl entries for %s", source_path);
+		/* Darwin reports a file without an ACL as ENOENT. */
+		if (errno != ENOENT)
+			warn("failed to get acl entries for %s", source_path);
 		return;
 	}
 	if (acl_is_trivial_np(acl, &trivial)) {

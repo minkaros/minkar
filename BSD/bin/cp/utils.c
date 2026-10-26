@@ -3,6 +3,7 @@
  *
  * Copyright (c) 1991, 1993, 1994
  *	The Regents of the University of California.  All rights reserved.
+ * Modifications Copyright (c) 2026 The Minkar contributors
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -429,6 +430,9 @@ preserve_fd_acls(int source_fd, int dest_fd)
 
 	acl = acl_get_fd_np(source_fd, acl_type);
 	if (acl == NULL) {
+		/* Darwin reports a file without an ACL as ENOENT. */
+		if (errno == ENOENT)
+			return (0);
 		warn("failed to get acl entries while setting %s%s",
 		    to.base, to.path);
 		return (-1);
