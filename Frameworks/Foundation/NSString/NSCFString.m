@@ -219,8 +219,13 @@ static inline BOOL isCFString(id self)
     }
 }
 
+// CF's own string hash. Minkar: this was CFStringHashNSString, which asks
+// for the characters through CF_OBJC_CALLV; that is (0) in this
+// CoreFoundation, so every NSCFString hashed to 0.
 -(NSUInteger)hash {
-    return CFStringHashNSString(self);
+    if (!isCFString(self))
+        return [super hash];    // a subclass with its own storage: NSString's
+    return CFHash((CFTypeRef)self);
 }
 
 @end

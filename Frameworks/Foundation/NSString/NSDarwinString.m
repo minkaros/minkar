@@ -246,7 +246,8 @@ NSUInteger NSGetDarwinCStringWithMaxLength(const unichar *characters, NSUInteger
 }
 
 -(NSUInteger)hash {
-    return NSStringHashASCII([self _fastCStringContents:NO], MIN([self length], NSHashStringLength));
+   // NSString's hash: the same for equal strings of any class (Minkar).
+   return [super hash];
 }
 
 @end

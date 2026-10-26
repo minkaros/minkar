@@ -1,4 +1,5 @@
 /* Copyright (c) 2006-2007 Christopher J. W. Lloyd <cjwl@objc.net>
+   Modifications Copyright (c) 2026 The Minkar contributors
    Copyright (c) 2021 Zoe Knox <zoe@pixin.net>
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
@@ -101,12 +102,8 @@ static inline char characterAt(NSConstantString_tiny *self, NSUInteger location)
 }
 
 -(NSUInteger)hash {
-   NSUInteger length=extractLength(self);
-
-   char buffer[9];
-   for(int i=0; i<length; i++)
-    buffer[i] = characterAt(self, i);
-   return NSStringHashASCII(buffer,MIN(length,NSHashStringLength));
+   // NSString's hash: the same for equal strings of any class (Minkar).
+   return [super hash];
 }
 
 @end

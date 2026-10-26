@@ -706,16 +706,23 @@ static NSString *NSStringFromCF(CFStringRef string) {
                  locale:[NSLocale currentLocale]];
 }
 
+// The same hash as CoreFoundation gives a CFString with these characters,
+// so equal strings hash alike whatever their class. Minkar: this used
+// another function than NSCFString, so @"a" and an NSMutableString "a"
+// were equal but hashed differently.
+extern CFHashCode CFStringHashCharacters(const UniChar *characters, CFIndex len);
+
 -(NSUInteger)hash {
-   NSRange  range={0,[self length]};
-   unichar  unicode[NSHashStringLength];
+   NSUInteger length=[self length];
+   unichar    small[128];
+   unichar   *unicode=(length<=128)?small:NSZoneMalloc(NULL,length*sizeof(unichar));
+   NSUInteger result;
 
-   if(range.length>NSHashStringLength)
-    range.length=NSHashStringLength;
-
-   [self getCharacters:unicode range:range];
-
-   return NSStringHashUnicode(unicode,range.length);
+   [self getCharacters:unicode range:NSMakeRange(0,length)];
+   result=CFStringHashCharacters(unicode,(CFIndex)length);
+   if(unicode!=small)
+    NSZoneFree(NULL,unicode);
+   return result;
 }
 
 static inline BOOL isEqualString(NSString *str1,NSString *str2){

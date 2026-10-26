@@ -1,4 +1,5 @@
 /* Copyright (c) 2006-2007 Christopher J. W. Lloyd <cjwl@objc.net>
+   Modifications Copyright (c) 2026 The Minkar contributors
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
 
@@ -138,13 +139,8 @@ static inline NSUInteger lengthInUnicode(NSConstantString *self){
 }
 
 -(NSUInteger)hash {
-   NSUInteger length=lengthInUnicode(self);
-
-   if(storageIsASCII(self))
-    return NSStringHashASCII(_bytes,MIN(length,NSHashStringLength));
-   else {
-    return NSStringHashUnicode(_bytes,MIN(length,NSHashStringLength));
-   }
+   // NSString's hash: the same for equal strings of any class (Minkar).
+   return [super hash];
 }
 
 @end
