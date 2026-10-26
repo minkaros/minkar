@@ -86,7 +86,7 @@ Mach-O. The biggest gap is between the kernel and the desktop.
 | Component | State | What is missing | Phase |
 | --- | --- | --- | --- |
 | EFI loader + Darwin kernel | Boots in QEMU (gates M0, M1) | Reference PC, virtio drivers | 1 |
-| System build (bmake, `/usr/share/mk`, frameworks) | Full `world` builds | CI, per-layer targets, symbol inventory | 0 |
+| System build (bmake, `/usr/share/mk`, frameworks) | Full `world` builds; CI builds and boots it | Per-layer targets, toolchain manifest | 0 |
 | libSystem | Partial | Many functions missing or link-only stubs | 2 |
 | launchd / launchctl | launchd-842 as PID 1 (gate M2) | `launchctl kickstart` | 2 |
 | BSD userland + `open`, `plutil`, `defaults` | Mostly built | `zsh`, `make`, `git`, `open` | 2 |
@@ -121,30 +121,28 @@ and every PR is tested by booting it in QEMU.
   `.framework` with `rvn.framework.mk`. *Partial:* 13 frameworks build and
   install; CFNetwork is commented out, and Security, OpenDirectory and
   DirectoryService are not built.
-- [ ] CI per PR: full build + boot in QEMU (q35 + OVMF) on the serial
-  console, waiting for boot markers. *Partial:*
+- [x] CI per PR: full build + boot in QEMU (q35 + OVMF) on the serial
+  console, waiting for boot markers.
   `.github/workflows/build-boottest.yml` runs on every push and pull
   request to `main` and `devel`: toolchain (cached), system build
-  (`tools/ci/build-stages.sh`), image and `boottest GATE=M2`. Closes with
-  its first green run.
-- [ ] Symbol inventory: a script that lists each dylib's exports
+  (`tools/ci/build-stages.sh`), image and `boottest GATE=M2`. First green
+  run on `devel`: `05fa75cb65` (2026-10-26).
+- [x] Symbol inventory: a script that lists each dylib's exports
   (`nm -gU`), matches them against the reference apps' imports and publishes
   a per-framework coverage report. *Partial:* `tools/symbols/` (tested):
   the inventory follows re-exports and flags install names dyld would not
   find; the reference apps are four Objective-C apps for macOS 10.12-10.13
-  (`reference-apps.tsv`), 67.2% of whose system imports Minkar has. The CI
-  publishes the report (run summary and `symbol-coverage` artifact) from
-  its first green run.
-- [ ] Build documentation (supported host, dependencies, expected times,
-  common errors). *Partial:* [BUILDING.md](BUILDING.md) has the host and
-  every package (Open CF-lite included), measured stage times and 17 common
-  errors. The package list is proven complete by the CI's first green run
-  on a clean Ubuntu.
+  (`reference-apps.tsv`), 67.3% of whose system imports Minkar has. The CI
+  publishes the report (run summary and `symbol-coverage` artifact).
+- [x] Build documentation (supported host, dependencies, expected times,
+  common errors). [BUILDING.md](BUILDING.md) has the host and every package
+  (Open CF-lite included), measured stage times and 17 common errors; the
+  CI's green runs on a clean Ubuntu prove the package list complete.
 
-- [ ] **Exit gate (M0):** clean build from scratch in CI, and the image
-  reaches the kernel's first message in QEMU. *Met locally:* clean local
-  build, and `boottest` sees `Darwin Kernel Version` after 8.3 s. The CI
-  workflow exists; it closes with its first green run.
+- [x] **Exit gate (M0):** clean build from scratch in CI, and the image
+  reaches the kernel's first message in QEMU. Met in CI (`05fa75cb65`: the
+  system builds on a clean runner and the image passes gate M2, which
+  includes M0's marker).
 
 ## Phase 1 — Darwin boot
 
@@ -157,17 +155,19 @@ mounted.
 - [x] XNU platform for non-Apple hardware: generic ACPI platform expert,
   APIC, TSC/HPET timers, no SMC (boot log: `[ACPI PE]`,
   `AppleAPIC::start()`, ACPICA).
-- [ ] Minimal kexts, starting with what QEMU exposes:
+- [x] Minimal kexts, starting with what QEMU exposes:
   - [x] Storage: AHCI with MSI (the AHCI driver logs that it uses an MSI
     interrupt; `556c20aad1`).
-  - [ ] Storage: virtio-blk; NVMe later.
-  - [ ] Input: USB xHCI + HID (event source for WindowServer). *Partial:*
-    `ApplePS2Keyboard` and IOHIDSystem start; the xHCI driver and
-    `IOUSBFamily` are in the tree but commented out of
-    `Kernel/Extensions/Makefile` and the kernelcache.
+  - [x] Storage: virtio-blk (`MinkarVirtio`, `43c4efe09d`: every sector
+    read and writes reaching the disk, tested in QEMU). NVMe later.
+  - [x] Input: USB xHCI + HID (`RavynXHCIPort`, `IOUSBFamily`, `MinkarUSB`,
+    `863a628989`): a USB keyboard's keys reach the console login and a
+    tablet's positions and buttons are exact, tested in QEMU. Delivering
+    events to WindowServer is Phase 4's IOHIDSystem work.
   - [x] Network: e1000 and e1000e (`MinkarE1000`), MSI on the e1000e
     (`MinkarE1000: Intel 10d3, MSI`).
-  - [ ] Network: virtio-net.
+  - [x] Network: virtio-net (`MinkarVirtio`: ping, ssh and 1 MB round
+    trips through it in QEMU).
   - [x] Display: GOP framebuffer as console device
     (`IOGOPFramebuffer: Kernel graphics console initialized`; checked in the
     log only, not visually).
@@ -393,15 +393,17 @@ behind a stable interface.
   notification, like the display with `kIOFBServerConnectType`. Test: in
   QEMU, a key press and a mouse move reach an app as `NSEvent`s.
   - [ ] PS/2 keyboard. *Partial:* `ApplePS2Keyboard` is an `IOHIKeyboard`
-    and starts at boot, but no key reaches user space yet: IOHIDSystem
-    delivers no events (its dispatch loop is under an undefined `NEW_HID`,
-    and the event queues are not created).
+    and its keys reach the console (`IOBSDConsole`: typing at the login
+    prompt works in QEMU), but IOHIDSystem delivers no events to user space
+    clients (its dispatch loop is under an undefined `NEW_HID`, and the
+    event queues are not created).
   - [ ] `ApplePS2Mouse` driver (an `IOHIPointing` subclass) on the
-    `ApplePS2MouseDevice` nub; only the nub exists today.
+    `ApplePS2MouseDevice` nub; only the nub exists today. `IOHIPointing` is
+    built since `90c96e8862`.
   - [x] `IOKit/hidsystem` headers (`IOHIDShared.h`, `IOLLEvent.h`) in the
     SDK, installed by `IOHIDFamily/HID/Makefile`.
-  - [ ] Then: xHCI + HID for real hardware and a USB tablet in QEMU (both
-    commented out of the build today).
+  - [x] Then: xHCI + HID for real hardware and a USB tablet in QEMU
+    (`MinkarUSB`; see Phase 1). Untested on real hardware.
 - [ ] Remove `libinput`, `libevdev` and `mtdev` from the tree.
 - [ ] virtio-gpu 2D driver as an `IOFramebuffer` subclass.
 - [ ] Multiple displays and resolution changes, only after M4.
