@@ -103,6 +103,10 @@ SRCS += \
 SRCS += \
 	custom/errno.c
 
+# Public names for system calls generated only with two underscores
+SRCS += \
+	sigaltstack.c
+
 # These Skywalk sources are all empty in the public xnu
 SRCS += \
 	skywalk/os_packet.c \
