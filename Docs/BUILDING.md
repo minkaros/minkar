@@ -247,8 +247,8 @@ and prints the end of the log of a stage that fails:
 
 ## Continuous integration
 
-`.github/workflows/build-boottest.yml` runs on every pull request to
-`main`, on every push to `main` and `ci/**` branches, and by hand. On a
+`.github/workflows/build-boottest.yml` runs on every push and pull
+request to `main` and `devel`, and by hand. Changes go to `devel` first. On a
 GitHub-hosted Ubuntu 22.04 runner it:
 
 1. builds the toolchain (`Developer`), or takes it from the cache;

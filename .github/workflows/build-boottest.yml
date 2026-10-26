@@ -15,9 +15,9 @@ name: build and boottest
 
 on:
   push:
-    branches: [main, 'ci/**']
+    branches: [main, devel]
   pull_request:
-    branches: [main]
+    branches: [main, devel]
   workflow_dispatch:
 
 concurrency:
