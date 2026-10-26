@@ -181,6 +181,10 @@ mounted.
   prints it with function names, so a panic in CI shows where it happened.
   Tested with a real panic (`reboot_np(RB_PANIC)` as root) in QEMU.
 - [ ] Reference hardware list: one QEMU VM and two documented physical PCs.
+  *In progress:* PC 1 is a Gigabyte H270N-WIFI (Intel H270, i7-7700): its
+  SATA (AHCI), xHCI and GOP display match the current drivers; its Intel
+  I219-V network card does not (the e1000 driver lacks the PCH family),
+  and NVMe has no driver yet, so the image goes on a SATA disk.
 
 - [ ] **Exit gate (M1):** in QEMU and on a reference PC, the kernel mounts
   the HFS+ root and runs `/sbin/launchd` (or a temporary init) with a shell
@@ -321,14 +325,17 @@ constrains the Swift runtime.
    could not read or write). Found while testing them: `+alloc` did not
    go through `+allocWithZone:`, so `alloc`/`new` gave the abstract class
    of every class cluster (fixed 2026-10-26); `NSKeyedUnarchiver` cannot
-   read the XML property list `NSKeyedArchiver` writes; 17 `NSString`
-   methods are still unimplemented (`stringByPaddingToLength:...`,
-   `commonPrefixWithString:options:`, the normalization forms,
-   `localizedCompare:`, `rangeOfComposedCharacterSequenceAtIndex:`,
-   `fastestEncoding`...) and calling one crashes instead of raising;
-   `CFArray` and `CFDictionary` are not bridged to `NSArray` and
-   `NSDictionary` yet. Left from the symbol report: `NSURLSession`, the
-   `NSHashTable` class and `NSProgress`.
+   read the XML property list `NSKeyedArchiver` writes; `CFArray` and
+   `CFDictionary` are not bridged to `NSArray` and `NSDictionary` yet.
+   Second batch (2026-10-26): `NSLog` crashed every program; 17
+   unimplemented `NSString` methods and the search options;
+   `NSInvocation` could call nothing and forwarding lost arguments and
+   return values (now the System V calling convention, in both
+   directions); string hashes were 0 and differed between string classes;
+   mutating a collection during for-in looped forever; `NSHashTable` is a
+   class with weak memory, `NSMapTable`'s weak keys and values are zeroing
+   (they dangled), and `NSPointerFunctions` and `NSPointerArray` exist.
+   Left from the symbol report: `NSURLSession` and `NSProgress`.
 3. Security (Apple open source) for certificates and a basic keychain,
    needed for TLS in `NSURLSession`.
 4. LaunchServices: bundle database and UTI types; `open` and Filer depend on
