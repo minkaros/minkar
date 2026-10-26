@@ -75,6 +75,7 @@ SRCS = 	NSFormatter.m \
 	NSNumberFormatter.m \
 	NSHashTable.m \
 	NSUUID.m \
+	NSBlock.m \
 	NSDirectoryEnumerator.m \
 	NSProcessInfo.m \
 	NSData/NSData.m \
