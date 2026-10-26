@@ -13,7 +13,7 @@ SLF = /System/Library/Frameworks
 INSTALL_NAME_DIR = ${SLF}/${FRAMEWORK}.framework/Versions/${FMWK_VERSION}
 
 SRCS = 	NSFormatter.m \
-	NSObject/msgSendv-Darwin_x86_64.s \
+	NSObject/NSInvocationCall-x86_64.s \
 	NSDictionary/NSEnumerator_dictionaryObjects.m \
 	NSDictionary/NSMutableDictionary.m \
 	NSDictionary/NSEnumerator_dictionaryKeys.m \

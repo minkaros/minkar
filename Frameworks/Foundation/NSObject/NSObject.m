@@ -87,20 +87,25 @@ BOOL NSObjectIsKindOfClass(id object,Class kindOf) {
     return [self allocWithZone:NULL];
 }
 
+// Minkar: +methodSignatureForSelector: looked up instance methods (a class
+// answers for its class methods) and raised for an unknown selector (nil
+// on macOS); +instanceMethodSignatureForSelector: did not exist, so
+// NSInvocation could not be made from a class.
 + (NSMethodSignature *) methodSignatureForSelector:(SEL) sel
 {
-	Method m;
-	m = class_getInstanceMethod(self, sel);
-	if (m) {
-		/* A real Objective-C method */
-                char *p = method_getTypeEncoding(m);
-		return [NSMethodSignature 
-		    signatureWithObjCTypes:method_getTypeEncoding(m)];
-	}
+	Method m = class_getClassMethod(self, sel);
 
-	[NSException raise:NSInvalidArgumentException 
-		format:@"Class %s: no such selector: %s", 
-		class_getName(self), sel_getName(sel)];
+	if (m)
+		return [NSMethodSignature signatureWithObjCTypes:method_getTypeEncoding(m)];
+	return nil;
+}
+
++ (NSMethodSignature *) instanceMethodSignatureForSelector:(SEL) sel
+{
+	Method m = class_getInstanceMethod(self, sel);
+
+	if (m)
+		return [NSMethodSignature signatureWithObjCTypes:method_getTypeEncoding(m)];
 	return nil;
 }
 
@@ -115,10 +120,8 @@ BOOL NSObjectIsKindOfClass(id object,Class kindOf) {
 		return [NSMethodSignature 
 		    signatureWithObjCTypes:method_getTypeEncoding(m)];
 	}
-
-	[NSException raise:NSInvalidArgumentException 
-		format:@"Class %s: no such selector: %s", 
-		class_getName(cls), sel_getName(sel)];
+	/* Minkar: nil, as on macOS (it raised): a subclass's override calls
+	 * super first, and forwarding reports an unknown selector itself. */
 	return nil;
 }
 
@@ -134,11 +137,13 @@ BOOL NSObjectIsKindOfClass(id object,Class kindOf) {
 +(void)setVersion:(NSInteger)version {
    class_setVersion(self,version);
 }
-extern id NSObjCForward(id self, SEL _cmd, ...);
-extern id NSObjCForward_stret(id self, SEL _cmd, ...);
+// NSInvocationCall-x86_64.s: they make an NSInvocation of a message the
+// receiver does not implement and call -forwardInvocation:.
+extern void NSInvocationForward(void);
+extern void NSInvocationForward_stret(void);
 
 +(void)initialize {
-    objc_setForwardHandler(NSObjCForward, NSObjCForward_stret);
+    objc_setForwardHandler((void *)NSInvocationForward, (void *)NSInvocationForward_stret);
 }
 
 
