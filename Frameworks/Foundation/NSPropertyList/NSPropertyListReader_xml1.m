@@ -1,4 +1,5 @@
 /* Copyright (c) 2006-2007 Christopher J. W. Lloyd
+   Modifications Copyright (c) 2026 The Minkar contributors
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
 
@@ -20,31 +21,29 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 #import <Foundation/NSCalendarDate.h>
 #import <Foundation/NSScanner.h>
+#import <Foundation/NSCharacterSet.h>
 
+#include <errno.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <time.h>
+#include <xlocale.h>
+
+// "YYYY-MM-DDTHH:MM:SSZ", in UTC. Minkar: this read the time as local
+// time and a day early.
 NSDate* NSDateFromPlistString(NSString* string)
 {
-	NSScanner* sc=[NSScanner scannerWithString:string];
-	int y;
-	int mo;
-	int d;
-	int h;
-	int mi;
-	int s;
-	NSString* str;
-	[sc scanInt:&y];
-	[sc scanCharactersFromSet:[NSCharacterSet characterSetWithCharactersInString:@"-"] intoString:&str];
-	[sc scanInt:&mo];
-	[sc scanCharactersFromSet:[NSCharacterSet characterSetWithCharactersInString:@"-"] intoString:&str];
-	[sc scanInt:&d];
-	[sc scanCharactersFromSet:[NSCharacterSet characterSetWithCharactersInString:@"T "] intoString:&str];
-	[sc scanInt:&h];
-	[sc scanCharactersFromSet:[NSCharacterSet characterSetWithCharactersInString:@":"] intoString:&str];
-	[sc scanInt:&mi];
-	[sc scanCharactersFromSet:[NSCharacterSet characterSetWithCharactersInString:@":"] intoString:&str];
-	[sc scanInt:&s];
+	struct tm tm;
+	const char *text=[string UTF8String];
 
-	NSCalendarDate* date= [NSCalendarDate dateWithYear:y month:mo day:d-1 hour:h minute:mi second:s timeZone: [NSTimeZone localTimeZone]];
-	return date;
+	memset(&tm,0,sizeof(tm));
+	if(text==NULL || sscanf(text,"%d-%d-%dT%d:%d:%d",&tm.tm_year,&tm.tm_mon,&tm.tm_mday,
+	                         &tm.tm_hour,&tm.tm_min,&tm.tm_sec)<3)
+		return nil;
+	tm.tm_year-=1900;
+	tm.tm_mon-=1;
+	return [NSDate dateWithTimeIntervalSince1970:(NSTimeInterval)timegm(&tm)];
 }
 
 
@@ -166,6 +165,30 @@ NSDate* NSDateFromPlistString(NSString* string)
    return result;
 }
 
+// 64-bit integers, and unsigned ones above INT64_MAX. Minkar: integers
+// were read as int and reals as float.
+static NSNumber *integerFromString(NSString *string) {
+   const char *text=[[string stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]] UTF8String];
+   long long  value;
+
+   errno=0;
+   value=strtoll(text,NULL,10);
+   if(errno==ERANGE && text[0]!='-'){
+    errno=0;
+    return [NSNumber numberWithUnsignedLongLong:strtoull(text,NULL,10)];
+   }
+   return [NSNumber numberWithLongLong:value];
+}
+
+static NSNumber *realFromString(NSString *string) {
+   static locale_t cLocale;
+   const char *text=[[string stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]] UTF8String];
+
+   if(cLocale==NULL)
+    cLocale=newlocale(LC_ALL_MASK,"C",NULL);
+   return [NSNumber numberWithDouble:strtod_l(text,NULL,cLocale)];
+}
+
 +(NSDate *) dateFromElement:(NSOldXMLElement*) element {
    NSString* string=[element stringValue];
 	return NSDateFromPlistString(string);
@@ -182,9 +205,9 @@ NSDate* NSDateFromPlistString(NSString* string)
    else if([name isEqualToString:@"string"])
     result=[element stringValue];
    else if([name isEqualToString:@"integer"])
-    result=[NSNumber numberWithInt:[element intValue]];
+    result=integerFromString([element stringValue]);
    else if([name isEqualToString:@"real"])
-    result=[NSNumber numberWithFloat:[element floatValue]];
+    result=realFromString([element stringValue]);
    else if([name isEqualToString:@"true"])
     result=[NSNumber numberWithBool:YES];
    else if([name isEqualToString:@"false"])

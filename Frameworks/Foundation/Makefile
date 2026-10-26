@@ -286,6 +286,7 @@ SRCS = 	NSFormatter.m \
 	NSPropertyList/NSOldXMLReader.m \
 	NSPropertyList/CFUID.m \
 	NSPropertyList/NSPropertyListWriter_xml1.m \
+	NSPropertyList/NSPropertyListWriter_binary1.m \
 	NSPropertyList/NSPropertyList.m \
 	NSPropertyList/NSPropertyListWriter_vintage.m \
 	NSPropertyList/NSOldXMLDocument.m \
