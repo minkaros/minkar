@@ -678,16 +678,26 @@ MinkarE1000::interruptFilter(IOFilterInterruptEventSource *)
 
 	if (fRegs == NULL || fPolling)
 		return false;
+	UInt32 all = 0;
+	int rounds = 0;
+
 	icr = readReg(E1000_ICR);
 	if (icr == 0)
 		return false;
 	/*
 	 * Reading ICR clears it only when INT_ASSERTED is set, which is the
 	 * case with INTx but not with MSI; writing the bits back clears them
-	 * in both modes, so the next cause raises a new message.
+	 * in both modes. A cause that arrives between the read and the write
+	 * stays set, and with MSI a new message is sent only when ICR goes
+	 * from empty to not empty: left there, it stopped the interrupts (and
+	 * the network) for minutes. So clear until ICR reads empty.
 	 */
-	writeReg(E1000_ICR, icr);
-	OSBitOrAtomic(icr, &fPendingICR);
+	do {
+		writeReg(E1000_ICR, icr);
+		all |= icr;
+		icr = readReg(E1000_ICR);
+	} while (icr != 0 && ++rounds < 16);
+	OSBitOrAtomic(all, &fPendingICR);
 	return true;
 }
 
@@ -726,6 +736,15 @@ MinkarE1000::timerFired(IOTimerEventSource *)
 		fTimer->setTimeoutMS(kPollMS);
 		return;
 	}
+	/*
+	 * A safety net for a lost interrupt: what arrived is received, and a
+	 * cause still set in ICR is cleared so the next one interrupts again.
+	 */
+	uint32_t icr = readReg(E1000_ICR);
+
+	if (icr != 0)
+		writeReg(E1000_ICR, icr);
+	receivePackets();
 	reclaimTx();
 	checkLink();
 	updateStats();
