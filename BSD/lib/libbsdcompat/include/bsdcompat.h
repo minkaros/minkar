@@ -174,6 +174,9 @@ int		expand_number(const char *buf, uint64_t *num);
 ssize_t		copy_file_range(int infd, off_t *inoffp, int outfd, off_t *outoffp,
 		    size_t len, unsigned int flags);
 
+/* <unistd.h>: FreeBSD's per-utility compat switch; Darwin has none. */
+#define	check_utility_compat(utility)	0
+
 /* <sys/acl.h>: an ACL without entries is trivial (the mode says it all). */
 struct _acl;
 int		acl_is_trivial_np(struct _acl *acl, int *trivial);

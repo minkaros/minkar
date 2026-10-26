@@ -16,5 +16,6 @@ SUBDIR += awk less sort tar vi who
 SUBDIR += diff nc netstat
 SUBDIR += curl fetch file su top sudo
 SUBDIR += defaults plutil ditto syslog
+SUBDIR += printenv
 
 .include <bsd.subdir.mk>
