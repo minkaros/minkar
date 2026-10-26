@@ -119,8 +119,8 @@ and every PR is tested by booting it in QEMU.
   stage alone; no per-layer targets or `check`.
 - [ ] Bring third-party sources into the tree and package them as
   `.framework` with `rvn.framework.mk`. *Partial:* 13 frameworks build and
-  install; CFNetwork is commented out, and Security, OpenDirectory and
-  DirectoryService are not built.
+  install; CFNetwork is commented out, and Security and OpenDirectory are
+  not built.
 - [x] CI per PR: full build + boot in QEMU (q35 + OVMF) on the serial
   console, waiting for boot markers.
   `.github/workflows/build-boottest.yml` runs on every push and pull
@@ -280,8 +280,8 @@ phase can start in parallel with the end of Phase 2.
   (`CFBridging.c`, `CFRuntime.c`) and CF ↔ XPC bridge. It is not replaced by
   Swift's CF. Public CF-Lite predates macOS 10.12, so the CF APIs from 10.12
   to 12 are added by hand, using swift-corelibs CF (Apache 2.0) as a
-  reference. `Frameworks/CoreFoundation.old` is archived once nothing
-  references it.
+  reference. The old Cocotron-based
+  `Frameworks/CoreFoundation.old` was removed (2026-10-26).
 - [x] **Foundation for Swift: Objective-C Foundation plus the
   `libswiftFoundation` overlay (decided 2026-10-25).** The macOS 12 model.
   Base: the last open Darwin overlay (Apache 2.0) in `swiftlang/swift`'s

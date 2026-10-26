@@ -53,7 +53,6 @@ management.
 * llvm-project - Apple fork of LLVM and Apple TAPI project
 * unifdef
 * xcbuild - Xcode project builder from Meta, `xcrun`, `xcodebuild`, `xcode-select`
-* cmake - configure Version.cmake with the product and kernel versions
 * gmake - GNU make, the default on macOS
 * mig - Mach interface generator
 * xar - archiver tool used in the build
@@ -65,13 +64,12 @@ The `BSD` folder holds system utilities and services for the BSD subsystem: UNIX
 
 * syslog
 * launchd - the newer one we used in FreeBSD (to be ported)
-* old_launchd - archive of the really old one for cross reference
 
 ## These folders have not yet been converted to CMake or Darwin
 
 ### SystemLibrary
 
-This folder contains the template for SystemVersion.plist which is set from `/Developer/cmake/Version.cmake`. It also has most things meant for /System/Library or /Library on the built system that are not built elsewhere, like `Desktop Pictures` and `LaunchDaemons`.
+This folder contains the template for SystemVersion.plist which is filled in from the versions in the top-level `Makefile`. It also has most things meant for /System/Library or /Library on the built system that are not built elsewhere, like `Desktop Pictures` and `LaunchDaemons`.
 
 
 ### Frameworks
