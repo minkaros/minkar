@@ -12,6 +12,7 @@ all: to-sysroot
 to-sysroot: ${PROG}
 	mkdir -p ${SYSROOT_DIR}/bin
 	cp -f ${PROG} ${SYSROOT_DIR}/bin/
+	ln -f ${SYSROOT_DIR}/bin/rm ${SYSROOT_DIR}/bin/unlink
 
 
 .include <bsd.prog.mk>
