@@ -5,7 +5,7 @@
 # libbsdcompat: what the FreeBSD commands built on Minkar need from
 # FreeBSD that Darwin lacks: capsicum and casper stand-ins
 # (include/sys/capsicum.h, capsicum_helpers.h, libcasper.h, casper/: no
-# capability mode), strtonum,
+# capability mode), sys/mtio.h (no tape drives), strtonum,
 # expand_number, copy_file_range, mkfifoat and mknodat, strchrnul,
 # reallocarray, setproctitle (a no-op), the pwcache(3) name lookups, a
 # one-class login_cap (include/login_cap.h), and some
