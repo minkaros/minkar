@@ -61,7 +61,9 @@
 #import <CoreFoundation/CoreFoundation.h>
 /* Minkar: no CoreServices here, as on macOS; nothing in Foundation needs CFNetwork. */
 
+#ifndef NS_ENUM
 #define NS_ENUM(_type, _name) enum _name:_type _name; enum _name : _type
+#endif
 #define NS_UNAVAILABLE __attribute__((unavailable))
 
 #ifndef NS_SWIFT_NAME
@@ -161,6 +163,7 @@
 #import <Foundation/NSUndoManager.h>
 #import <Foundation/NSURL.h>
 #import <Foundation/NSUUID.h>
+#import <Foundation/NSRegularExpression.h>
 #import <Foundation/NSMutableURLRequest.h>
 #import <Foundation/NSURLConnection.h>
 #import <Foundation/NSURLDownload.h>

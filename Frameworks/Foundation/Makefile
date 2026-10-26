@@ -76,6 +76,7 @@ SRCS = 	NSFormatter.m \
 	NSHashTable.m \
 	NSUUID.m \
 	NSSubscripting.m \
+	NSRegularExpression.m \
 	NSBlock.m \
 	NSDirectoryEnumerator.m \
 	NSProcessInfo.m \
@@ -358,7 +359,7 @@ CF_CONSTANTS_KEPT_PRIVATE = _kCFNumberNaN \
 LDFLAGS = --sysroot=${MINKAR_SDKROOT} -Wl,-current_version,1677.104.0 \
 	-Wl,-compatibility_version,300.0.0 -Xlinker -reexport-lobjc \
 	-F${MINKAR_SDKROOT}/System/Library/Frameworks -framework CoreFoundation \
-	-lSystem \
+	-lSystem -licucore \
 	${CF_CONSTANTS_KEPT_PRIVATE:S/^/-Wl,-unexported_symbol,/}
 
 .for file in NSProcessInfo NSStringsFileParser NSData NSNumberFormatter
@@ -368,6 +369,10 @@ CFLAGS.NSAutoreleasePool.o = -I${ROOT_SOURCE_DIR}/Libraries/objc4
 # New classes are written with ARC; the rest of Foundation is not.
 CFLAGS.NSUUID.m = -fobjc-arc
 CFLAGS.NSSubscripting.m = -fobjc-arc
+# ICU's regular expressions, by their plain names as libicucore exports them.
+CFLAGS.NSRegularExpression.m = -fobjc-arc -DU_DISABLE_RENAMING=1 \
+	-I${ROOT_SOURCE_DIR}/Libraries/ICU/source/common \
+	-I${ROOT_SOURCE_DIR}/Libraries/ICU/source/i18n
 CFLAGS.forwarding.o = -I${ROOT_SOURCE_DIR}/Libraries/objc4 \
 	-I${MINKAR_SDKROOT}${SLF}/System.framework/Versions/B/PrivateHeaders \
 	-I${ROOT_SOURCE_DIR}/Libraries/Libsystem/private \

@@ -1,4 +1,5 @@
 /* Copyright (c) 2009 Christopher J. W. Lloyd
+   Modifications Copyright (c) 2026 The Minkar contributors
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
 
@@ -12,4 +13,10 @@ enum {
     NSFileReadNoSuchFileError = 260,
 
     NSFileWriteUnknownError = 512,
+
+    // A string that could not be parsed or formatted (an invalid regular
+    // expression, for one).
+    NSFormattingError = 2048,
+    NSFormattingErrorMinimum = 2048,
+    NSFormattingErrorMaximum = 2559,
 };
