@@ -10,42 +10,42 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <Foundation/NSObject.h>
 #import <Foundation/NSEnumerator.h>
 
-@class NSArray, NSURL;
+@class NSArray<ObjectType>, NSURL;
 
-@interface NSDictionary : NSObject <NSCoding, NSCopying, NSMutableCopying, NSFastEnumeration>
+@interface NSDictionary<__covariant KeyType, __covariant ObjectType> : NSObject <NSCoding, NSCopying, NSMutableCopying, NSFastEnumeration>
 
 - initWithObjects:(id *)objects forKeys:(id *)keys count:(NSUInteger)count;
-- initWithObjects:(NSArray *)objects forKeys:(NSArray *)keys;
-- initWithDictionary:(NSDictionary *)dictionary;
-- initWithDictionary:(NSDictionary *)dictionary copyItems:(BOOL)copyItems;
+- initWithObjects:(NSArray<ObjectType> *)objects forKeys:(NSArray<KeyType> *)keys;
+- initWithDictionary:(NSDictionary<KeyType, ObjectType> *)dictionary;
+- initWithDictionary:(NSDictionary<KeyType, ObjectType> *)dictionary copyItems:(BOOL)copyItems;
 - initWithObjectsAndKeys:object, ...;
 - initWithContentsOfFile:(NSString *)path;
 - initWithContentsOfURL:(NSURL *)url;
 
 + dictionary;
 + dictionaryWithObjects:(id *)objects forKeys:(id *)keys count:(NSUInteger)count;
-+ dictionaryWithObjects:(NSArray *)objects forKeys:(NSArray *)keys;
-+ dictionaryWithDictionary:(NSDictionary *)other;
++ dictionaryWithObjects:(NSArray<ObjectType> *)objects forKeys:(NSArray<KeyType> *)keys;
++ dictionaryWithDictionary:(NSDictionary<KeyType, ObjectType> *)other;
 + dictionaryWithObjectsAndKeys:first, ...;
-+ dictionaryWithObject:object forKey:key;
++ dictionaryWithObject:(ObjectType)object forKey:(KeyType)key;
 + dictionaryWithContentsOfFile:(NSString *)path;
 + dictionaryWithContentsOfURL:(NSURL *)url;
 
-- objectForKey:key;
+- (ObjectType)objectForKey:(KeyType)key;
 - (NSUInteger)count;
-- (NSEnumerator *)keyEnumerator;
-- (NSEnumerator *)objectEnumerator;
+- (NSEnumerator<KeyType> *)keyEnumerator;
+- (NSEnumerator<ObjectType> *)objectEnumerator;
 
 - (void)getObjects:(id *)objects andKeys:(id *)keys;
 
-- (BOOL)isEqualToDictionary:(NSDictionary *)dictionary;
+- (BOOL)isEqualToDictionary:(NSDictionary<KeyType, ObjectType> *)dictionary;
 
-- (NSArray *)allKeys;
-- (NSArray *)allKeysForObject:object;
-- (NSArray *)keysSortedByValueUsingSelector:(SEL)selector;
+- (NSArray<KeyType> *)allKeys;
+- (NSArray<KeyType> *)allKeysForObject:(ObjectType)object;
+- (NSArray<KeyType> *)keysSortedByValueUsingSelector:(SEL)selector;
 
-- (NSArray *)allValues;
-- (NSArray *)objectsForKeys:(NSArray *)keys notFoundMarker:marker;
+- (NSArray<ObjectType> *)allValues;
+- (NSArray<ObjectType> *)objectsForKeys:(NSArray<KeyType> *)keys notFoundMarker:(ObjectType)marker;
 
 - (BOOL)writeToFile:(NSString *)path atomically:(BOOL)atomically;
 - (BOOL)writeToURL:(NSURL *)url atomically:(BOOL)atomically;
@@ -57,22 +57,22 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 @end
 
 #if __BLOCKS__
-@class NSSet;
-@interface NSDictionary (NSBlocks)
-- (void)enumerateKeysAndObjectsUsingBlock:(void (NS_NOESCAPE ^)(id key, id obj, BOOL *stop))block;
+@class NSSet<ObjectType>;
+@interface NSDictionary<KeyType, ObjectType> (NSBlocks)
+- (void)enumerateKeysAndObjectsUsingBlock:(void (NS_NOESCAPE ^)(KeyType key, ObjectType obj, BOOL *stop))block;
 - (void)enumerateKeysAndObjectsWithOptions:(NSEnumerationOptions)opts
-                                usingBlock:(void (NS_NOESCAPE ^)(id key, id obj, BOOL *stop))block;
-- (NSSet *)keysOfEntriesPassingTest:(BOOL (NS_NOESCAPE ^)(id key, id obj, BOOL *stop))predicate;
-- (NSSet *)keysOfEntriesWithOptions:(NSEnumerationOptions)opts
-                        passingTest:(BOOL (NS_NOESCAPE ^)(id key, id obj, BOOL *stop))predicate;
-- (NSArray *)keysSortedByValueUsingComparator:(NSComparator NS_NOESCAPE)cmptr;
-- (NSArray *)keysSortedByValueWithOptions:(NSSortOptions)opts usingComparator:(NSComparator NS_NOESCAPE)cmptr;
+                                usingBlock:(void (NS_NOESCAPE ^)(KeyType key, ObjectType obj, BOOL *stop))block;
+- (NSSet<KeyType> *)keysOfEntriesPassingTest:(BOOL (NS_NOESCAPE ^)(KeyType key, ObjectType obj, BOOL *stop))predicate;
+- (NSSet<KeyType> *)keysOfEntriesWithOptions:(NSEnumerationOptions)opts
+                        passingTest:(BOOL (NS_NOESCAPE ^)(KeyType key, ObjectType obj, BOOL *stop))predicate;
+- (NSArray<KeyType> *)keysSortedByValueUsingComparator:(NSComparator NS_NOESCAPE)cmptr;
+- (NSArray<KeyType> *)keysSortedByValueWithOptions:(NSSortOptions)opts usingComparator:(NSComparator NS_NOESCAPE)cmptr;
 @end
 #endif
 
-@interface NSDictionary (NSSubscripting)
+@interface NSDictionary<KeyType, ObjectType> (NSSubscripting)
 // Subscripting: dictionary[key] (macOS 10.8).
-- (id)objectForKeyedSubscript:(id)key;
+- (ObjectType)objectForKeyedSubscript:(KeyType)key;
 @end
 
 #import <Foundation/NSMutableDictionary.h>
