@@ -36,3 +36,23 @@ What it compares, and what not:
   looked up at run time and are not covered.
 - A symbol that exists but is a stub counts as present. Noisy stubs (plan,
   Phase 2) will let the report tell them apart.
+
+## Reference apps
+
+`reference-apps.tsv` lists the reference apps of the macOS 10.15 stage
+(plan, principle 6): open source Objective-C apps built for macOS 10.15
+or earlier, with the URL and sha256 of each download. Swift apps join when
+Minkar has a Swift runtime (plan, Phase 3).
+
+    python3 -B tools/symbols/fetch-reference-apps.py --dest ../build/reference-apps
+    python3 -B tools/symbols/symbol-inventory.py --sysroot ../build/sysroot \
+        --apps ../build/reference-apps/apps --out ../build/symbols
+
+`fetch-reference-apps.py` checks each download's sha256 and unpacks it
+without trusting it (no absolute paths, no "..", no links out of the
+app). A new version of an app is a new line with its sha256.
+
+The CI makes this report after every build (`tools/ci/symbol-report.sh`):
+the per-app table is in the run's summary and the whole report in its
+`symbol-coverage` artifact.
+

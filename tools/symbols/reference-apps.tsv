@@ -1,0 +1,10 @@
+# Reference apps for the macOS 10.15 API stage (plan, principle 6): open
+# source Objective-C apps whose system imports drive the framework work.
+# Only parsed by symbol-inventory.py, never run. A new version is a new
+# line here with its sha256 (sha256sum of the download).
+#
+# name	version	minimum macOS	url	sha256
+TextMate	2.0.23	10.12	https://github.com/textmate/textmate/releases/download/v2.0.23/TextMate_2.0.23.tbz	f8dba933209bd01070028892474bf0b72f36c673f7bcb8da5973f93ddc387420
+Platypus	5.5.0	10.13	https://github.com/sveinbjornt/Platypus/releases/download/v5.5.0/platypus5.5.0.zip	2fad132e717e6543b41e5e7aeb357e8846baf8c9f3b3cb2919dc0f5eec3de415
+KeepingYouAwake	1.6.8	10.13	https://github.com/newmarcel/KeepingYouAwake/releases/download/1.6.8/KeepingYouAwake-1.6.8.zip	8001a149b4490c008fdac19898bce9902d516c4aa6412a7eb0f9a37443b15c6b
+Sloth	3.6	10.13	https://github.com/sveinbjornt/Sloth/releases/download/3.6/sloth-3.6.zip	d3997c364c0b5f58e8676d336b78943cfcbc54e6c78cab348bd1580c29332da6

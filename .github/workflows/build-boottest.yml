@@ -123,6 +123,19 @@ jobs:
           sudo --preserve-env=GITHUB_ACTIONS,LOGDIR \
             env LOGDIR="$BUILD_DIR/logs" tools/ci/build-stages.sh
 
+      - name: Symbol coverage of the reference apps
+        # A report, not a gate: a download that fails does not fail the run.
+        continue-on-error: true
+        run: tools/ci/symbol-report.sh
+
+      - name: Upload the symbol coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: symbol-coverage
+          path: ${{ env.BUILD_DIR }}/symbols
+          if-no-files-found: ignore
+
       - name: Make the boot image
         run: |
           pw=$(openssl rand -hex 12)
