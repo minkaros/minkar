@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2026 Zoe Knox.
+ * Modifications Copyright (c) 2026 The Minkar contributors
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -23,6 +24,7 @@
 #include "NSCFString.h"
 #include <stdio.h>
 #include <sys/param.h>
+#include <objc/runtime.h>
 
 #import <Foundation/NSException.h>
 #import <Foundation/NSStringHashing.h>
@@ -35,30 +37,42 @@ extern char *NSUnicodeToUTF8(const unichar *,NSUInteger,BOOL,NSUInteger *,NSZone
 
 @implementation NSCFString
 
+// NSCFString objects are CoreFoundation strings (CFBridging.c registers
+// this class for CFString), so they are made and read by CoreFoundation,
+// which knows their layout. CF never calls back into Objective-C here
+// (CF_IS_OBJC is false), so there is no recursion.
+// Minkar: these replace code that built and read CFString's layout by
+// hand; it counted UTF-8 bytes as characters, read a length byte as a
+// character and cut lengths to 8 bits.
+
+extern CFIndex _CFStringGetLength2(CFStringRef str);
+extern int _CFStringCheckAndGetCharacterAtIndex(CFStringRef str, CFIndex idx, UniChar *ch);
+extern int _CFStringCheckAndGetCharacters(CFStringRef str, CFRange range, UniChar *buffer);
+
 NSString *NSCFStringNewWithCharacters(NSZone *zone, const unichar *characters,
-        NSUInteger length, BOOL lossy)
+        NSUInteger length, BOOL freeWhenDone)
 {
-    NSUInteger reslen;
-    char *bytes = NSUnicodeToUTF8(characters, length, YES, &reslen, NULL, YES);
-    NSString *string = NSCFStringNewWithBytes(zone, (const char *)bytes, reslen);
-    return string;
+    (void)zone;
+    CFStringRef string = CFStringCreateWithCharacters(NULL, (const UniChar *)characters,
+                                                      (CFIndex)length);
+    if (freeWhenDone && characters != NULL)
+        NSZoneFree(NULL, (void *)characters);
+    return (NSString *)string;
 }
 
 NSString *NSCFStringNewWithBytes(NSZone *zone, const char *bytes,
-         NSUInteger length)
+         NSUInteger length, NSStringEncoding encoding)
 {
-    NSCFString *self = NSAllocateObject([NSCFString class], 
-            length * sizeof(char), zone);
-    if (self) {
-        self->variants.notInlineImmutable1.length = length;
-        self->variants.notInlineImmutable1.bytes = self->bytes;
-        for (int i = 0; i < length; i++)
-            self->bytes[i] = ((unsigned char *)bytes)[i];
-        // cfinfo immutable, not inline, don't free, 8bit, no length byte, no NULL byte
-        self->cfinfo[CF_INFO_BITS] = kNSCFDoNotFree;
-        self->cfinfo[CF_RC_BITS] = 1;
-    }
-    return self;
+    (void)zone;
+    CFStringEncoding cfEncoding = CFStringConvertNSStringEncodingToEncoding(encoding);
+    CFStringRef string = NULL;
+    if (cfEncoding != kCFStringEncodingInvalidId)
+        string = CFStringCreateWithBytes(NULL, (const UInt8 *)bytes, (CFIndex)length,
+                                         cfEncoding, false);
+    if (string == NULL)     // never fail: every byte is a Latin 1 character
+        string = CFStringCreateWithBytes(NULL, (const UInt8 *)bytes, (CFIndex)length,
+                                         kCFStringEncodingISOLatin1, false);
+    return (NSString *)string;
 }
 
 NSUInteger NSGetCFStringWithMaxLength(const unichar *characters, 
@@ -92,29 +106,62 @@ NSUInteger NSGetCFStringWithMaxLength(const unichar *characters,
     return result;
 }
 
+// Memory of CF's strings is CoreFoundation's: retain and release are
+// CFRetain and CFRelease, and CF frees the string when its count reaches
+// zero. Minkar: these were empty, so no string made from Objective-C was
+// ever freed, and copies were not retained.
+//
+// Only instances of NSCFString itself (and constant strings) are CF
+// strings. The older string classes that inherit from it (NSString_unicode,
+// NSString_isoLatin1, NSDarwinString...) are plain Objective-C objects:
+// they keep NSObject's memory management. CFRelease would send them
+// -release again, without end.
+extern int __CFConstantStringClassReference[];
+
+static inline BOOL isCFString(id self)
+{
+    Class cls = object_getClass(self);
+    return cls == [NSCFString self] ||
+           (void *)cls == (void *)__CFConstantStringClassReference;
+}
+
 -copy {
-    return self;
+    return [self copyWithZone:NULL];
 }
 
 -copyWithZone:(NSZone *)zone {
-    return self;
+    if (isCFString(self))
+        return (id)CFStringCreateCopy(NULL, (CFStringRef)self);
+    // An immutable string: a copy is the string itself.
+    return [self retain];
 }
 
 -retain {
+    if (!isCFString(self))
+        return [super retain];
+    CFRetain((CFTypeRef)self);
     return self;
 }
 
 - (oneway void)release
 {
+    if (!isCFString(self)) {
+        [super release];
+        return;
+    }
+    CFRelease((CFTypeRef)self);
 }
 
-
--autorelease {
-    return self;
+-(NSUInteger)retainCount {
+    if (!isCFString(self))
+        return [super retainCount];
+    return (NSUInteger)CFGetRetainCount((CFTypeRef)self);
 }
 
+// Never sent to a CF string: CoreFoundation frees it itself.
 -(void)dealloc {
-    return;
+    if (isCFString(self))
+        return;
     [super dealloc];
 }
 
@@ -125,79 +172,36 @@ NSUInteger NSGetCFStringWithMaxLength(const unichar *characters,
 }
 
 -(NSUInteger)length {
-    uint8_t infobits = self->cfinfo[CF_INFO_BITS];
-
-    if (infobits & kNSCFHasLength) {
-        return (self->variants.inline1.length & 0xff);
-    } else if (infobits & kNSCFHasNull) {
-        if (infobits & kNSCFUnichar) {
-            uint16_t *ch = self->variants.notInlineImmutable1.bytes;
-            NSUInteger len = 0;
-            while (*ch++)
-                len++;
-            return len;
-        } else {
-            uint8_t *ch = self->variants.notInlineImmutable1.bytes;
-            NSUInteger len = 0;
-            while (*ch++)
-                len++;
-            return len;
-        }
-    }
-    return (self->variants.notInlineImmutable1.length & 0xff);
+    return (NSUInteger)_CFStringGetLength2((CFStringRef)self);
 }
 
 -(unichar)characterAtIndex:(NSUInteger)location {
-    if (location >= [self length]) {
-        NSRaiseException(NSRangeException, self, _cmd, 
-            @"index %d beyond length %d", location,[self length]);
+    UniChar c = 0;
+    if (_CFStringCheckAndGetCharacterAtIndex((CFStringRef)self, (CFIndex)location, &c) != 0) {
+        NSRaiseException(NSRangeException, self, _cmd,
+            @"index %lu beyond length %lu", (unsigned long)location, (unsigned long)[self length]);
     }
-    unichar buffer[1];
-    [self getCharacters:buffer range:NSMakeRange(location, 1)];
-    return buffer[0];
+    return c;
 }
 
 -(NSStringEncoding)fastestEncoding {
-    return NSUTF8StringEncoding;
+    return CFStringConvertEncodingToNSStringEncoding(
+        CFStringGetFastestEncoding((CFStringRef)self));
 }
 
+// The 8-bit contents, when CF keeps them so; NULL otherwise.
 -(const char *)_fastCStringContents:(BOOL)getContents {
-    uint8_t infobits = self->cfinfo[CF_INFO_BITS];
-    const char *p;
-    NSUInteger reslen;
-
-    if (infobits & kNSCFHasLength)
-        p = (const char *)(&self->variants.notInlineImmutable1.bytes);
-    else
-        p = (const char *)(self->variants.notInlineImmutable1.bytes);
-
-    if (infobits & kNSCFUnichar)
-        return NSUnicodeToUTF8(p, [self length], YES, &reslen, NULL, YES);
-    else
-        return p;
+    (void)getContents;
+    return CFStringGetCStringPtr((CFStringRef)self, kCFStringEncodingASCII);
 }
 
+// The UTF-16 contents, when CF keeps them so; NULL otherwise.
 -(unichar *)_fastCharacterContents {
-    uint8_t infobits = self->cfinfo[CF_INFO_BITS];
-    const char *p;
-    NSUInteger reslen;
-
-    if (infobits & kNSCFHasLength)
-        p = (const char *)(&self->variants.notInlineImmutable1.bytes);
-    else
-        p = (const char *)(self->variants.notInlineImmutable1.bytes);
-
-    if (infobits & kNSCFUnichar)
-        return (unichar *)p;
-    else
-        return NSUTF8ToUnicode(p, [self length], &reslen, NULL);
+    return (unichar *)CFStringGetCharactersPtr((CFStringRef)self);
 }
 
 -(BOOL)_encodingCantBeStoredInEightBitCFString {
-    uint8_t infobits = self->cfinfo[CF_INFO_BITS];
-    if (infobits & kNSCFUnichar)
-        return YES;
-    return NO;
+    return CFStringGetCharactersPtr((CFStringRef)self) != NULL;
 }
 
 
@@ -206,41 +210,12 @@ NSUInteger NSGetCFStringWithMaxLength(const unichar *characters,
 }
 
 -(void)getCharacters:(unichar *)buffer range:(NSRange)range {
-    NSInteger i = 0, loc = range.location, len = range.length;
-    unichar *uch = 0;
-    unsigned char *ch = 0;
-
-    if (!buffer)
+    if (buffer == NULL)
         return;
-
-    if (NSMaxRange(range) > [self length]) {
+    CFRange r = CFRangeMake((CFIndex)range.location, (CFIndex)range.length);
+    if (_CFStringCheckAndGetCharacters((CFStringRef)self, r, (UniChar *)buffer) != 0) {
         NSRaiseException(NSRangeException, self, _cmd,
-            @"range %@ beyond length %d",
-            NSStringFromRange(range), [self length]);
-    }
-
-    uint8_t infobits = self->cfinfo[CF_INFO_BITS];
-    if (infobits & kNSCFHasLength)
-        loc++;
-
-    memset(buffer, 0, len * sizeof(unichar));
-
-    switch (infobits & ED_MASK) {
-        case 0x00: {
-            ch = (unsigned char *)&(self->variants.notInlineImmutable1.bytes);
-            break;
-        }
-        default: {
-            ch = (unsigned char *)self->variants.notInlineImmutable1.bytes;
-        }
-    }
-
-    if (infobits & kNSCFUnichar) { // unicode 16-bit chars
-        for (i = 0; i < len; i++)
-            buffer[i] = ((unichar *)ch)[i + loc];
-    } else { // 8-bit UTF8 or ASCII
-        for (i = 0; i < len; i++) 
-            buffer[i] = ch[i + loc];
+            @"range %@ beyond length %lu", NSStringFromRange(range), (unsigned long)[self length]);
     }
 }
 

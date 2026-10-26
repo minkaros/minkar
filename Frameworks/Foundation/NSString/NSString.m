@@ -1,5 +1,6 @@
 /* Copyright (c) 2006-2007 Christopher J. W. Lloyd <cjwl@objc.net>
                  2009 Markus Hitter <mah@jump-ing.de>
+   Modifications Copyright (c) 2026 The Minkar contributors
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
 
@@ -68,7 +69,7 @@ NSString * const NSCharacterConversionException = @"NSCharacterConversionExcepti
 extern int *__CFConstantStringClassReference;
 extern int *__NSConstantStringClassReference;
 extern NSString *NSCFStringNewWithBytes(NSZone *zone, const char *bytes,
-        NSUInteger length);
+        NSUInteger length, NSStringEncoding encoding);
 extern unichar *NSBytesToUnicode(const char *, NSUInteger, NSStringEncoding,
         NSUInteger *, NSZone *);
 
@@ -207,7 +208,7 @@ extern unichar *NSBytesToUnicode(const char *, NSUInteger, NSStringEncoding,
     NSDeallocateObject(self);
 
     if (encoding == defaultEncoding()) {
-        return (NSString_placeholder *)NSCFStringNewWithBytes(NULL, bytes, length);
+        return (NSString_placeholder *)NSCFStringNewWithBytes(NULL, bytes, length, encoding);
     }
 
     switch(encoding) {
@@ -219,15 +220,15 @@ extern unichar *NSBytesToUnicode(const char *, NSUInteger, NSStringEncoding,
             return (NSString_placeholder *)NSCFStringNewWithCharacters(NULL, characters, resultLength, YES);
 
         case NSNEXTSTEPStringEncoding:
-            return (NSString_placeholder *)NSCFStringNewWithBytes(NULL, bytes, length);
+            return (NSString_placeholder *)NSCFStringNewWithBytes(NULL, bytes, length, encoding);
 
 // FIX, not nextstep
         case NSASCIIStringEncoding:
         case NSNonLossyASCIIStringEncoding:
-            return (NSString_placeholder *)NSCFStringNewWithBytes(NULL, bytes, length);
+            return (NSString_placeholder *)NSCFStringNewWithBytes(NULL, bytes, length, encoding);
 
         case NSISOLatin1StringEncoding:
-            return (NSString_placeholder *)NSCFStringNewWithBytes(NULL, bytes, length);
+            return (NSString_placeholder *)NSCFStringNewWithBytes(NULL, bytes, length, encoding);
 
         case NSSymbolStringEncoding:
             characters = NSSymbolToUnicode(bytes, length, &resultLength, NULL);
@@ -238,10 +239,10 @@ extern unichar *NSBytesToUnicode(const char *, NSUInteger, NSStringEncoding,
             return (NSString_placeholder *)NSCFStringNewWithCharacters(NULL, characters, resultLength, YES);
 
         case NSWindowsCP1252StringEncoding:
-            return (NSString_placeholder *)NSCFStringNewWithBytes(NULL, bytes, length);
+            return (NSString_placeholder *)NSCFStringNewWithBytes(NULL, bytes, length, encoding);
 
         case NSMacOSRomanStringEncoding:
-            return (NSString_placeholder *)NSCFStringNewWithBytes(NULL, bytes, length);
+            return (NSString_placeholder *)NSCFStringNewWithBytes(NULL, bytes, length, encoding);
 
         case NSUTF16LittleEndianStringEncoding:
             characters = NSUnicodeFromBytesUTF16LittleEndian(bytes, length, &resultLength);
