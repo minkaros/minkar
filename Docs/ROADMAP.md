@@ -220,8 +220,10 @@ the services Magma and the apps will need.
 
 **BSD userland, in batches**
 
-- [ ] Boot: `sh`, `ls`, `cp`, `mv`, `rm`, `mount`, `ifconfig`, `ps`, `kill`.
-  *Partial:* all installed; the gates exercise only `sh`.
+- [x] Boot: `sh`, `ls`, `cp`, `mv`, `rm`, `mount`, `ifconfig`, `ps`, `kill`.
+  Tested in the image 2026-10-26. `cp -p` failed on every file without an
+  ACL, and `mv` between volumes warned: Darwin reports "no ACL" as
+  `ENOENT`.
 - [ ] Power user: `zsh`, `tar`, `ssh`, `curl`, `make`, `git`. *Partial:*
   `tar`, `ssh` and `curl` installed; `zsh`, `make` and `git` missing.
 - [ ] Apple tools: `open`, `plutil`, `defaults`, `sw_vers`, `ditto`
@@ -335,7 +337,19 @@ constrains the Swift runtime.
    mutating a collection during for-in looped forever; `NSHashTable` is a
    class with weak memory, `NSMapTable`'s weak keys and values are zeroing
    (they dangled), and `NSPointerFunctions` and `NSPointerArray` exist.
-   Left from the symbol report: `NSURLSession` and `NSProgress`.
+   Third batch (2026-10-26): `stringWithFormat:` printed garbage for
+   `INT64_MIN` and `%e`/`%g` were wrong (`%a` was missing); `NSNumber`
+   described doubles with too few digits; binary property lists can be
+   written (byte for byte as on macOS) and the XML ones keep 64-bit
+   integers, exact doubles and dates; the property list and keyed
+   archiving APIs with `NSError` and secure coding (`NSKeyedArchiver`
+   writes binary by default); `NSNull` vanished from archives; the modern
+   `NSString` API (`containsString:`, enumeration by lines, words and
+   sentences, percent encoding, transforms, the URL character sets);
+   `NSUserDefaults` changed the whole process's locale; `NSProgress`
+   exists. The image has no locale data (`/usr/share/locale`), so
+   locale-dependent behaviour is not tested yet.
+   Left from the symbol report: `NSURLSession`.
 3. Security (Apple open source) for certificates and a basic keychain,
    needed for TLS in `NSURLSession`.
 4. LaunchServices: bundle database and UTI types; `open` and Filer depend on
@@ -565,8 +579,8 @@ work in progress.
 
 The highest-impact open items, in critical-path order:
 
-1. A first green CI run (closes M0, the CI, the symbol report and the
-   build documentation).
+1. BSD userland batches (Phase 2): the missing tools (`od`/`hexdump`,
+   `pgrep`/`pkill`, `ed`, `pax`, `zsh`, `make`, `git`, `open`).
 2. IOHIDSystem event delivery in the kernel, the `ApplePS2Mouse` driver and
    the WindowServer input reader (Phase 4).
 3. Install WindowServer's launchd job and get a first boot that draws on
