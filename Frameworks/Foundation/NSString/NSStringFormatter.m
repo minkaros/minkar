@@ -1,4 +1,5 @@
 /* Copyright (c) 2006-2007 Christopher J. W. Lloyd <cjwl@objc.net>
+   Modifications Copyright (c) 2026 The Minkar contributors
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
 
@@ -10,6 +11,10 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #include <string.h>
 #include <math.h>
 
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <xlocale.h>
 #import <Foundation/NSLocale.h>
 #import <Foundation/NSStringFormatter.h>
 #import <Foundation/NSAutoreleasePool-private.h>
@@ -106,13 +111,14 @@ static inline void appendDecimal(NSStringBuffer *buffer,long long value,unichar 
 
     [groupingSeparator getCharacters:groupingBuffer];
     
-    if(value<0)
-     value=-value;
+    // Minkar: the magnitude, unsigned; negating LLONG_MIN overflowed and
+    // printed garbage.
+    unsigned long long magnitude=(value<0)?0ULL-(unsigned long long)value:(unsigned long long)value;
 
-    while(value){
+    while(magnitude){
      numberOfIntegralDigits++;
-     characters[length++]=(value%10)+'0';
-     value/=10;
+     characters[length++]=(unichar)(magnitude%10)+'0';
+     magnitude/=10;
      
      if(groupingSize){
       if((numberOfIntegralDigits%groupingSize)==0){
@@ -233,119 +239,81 @@ double roundDouble(double value) {
    return value;
 }
 
+// Minkar: floating point goes through the C library (snprintf_l in the C
+// locale), then takes the locale's decimal separator and grouping. The
+// hand-written conversion had no exponent form (%e printed as %f, %g of
+// 1e300 printed 300 made-up digits) and no %a.
+static locale_t NSFormatterCLocale(void){
+   static locale_t locale;
+
+   if(locale==NULL){
+    locale_t made=newlocale(LC_ALL_MASK,"C",NULL);
+    if(!__sync_bool_compare_and_swap(&locale,NULL,made))
+     freelocale(made);
+   }
+   return locale;
+}
+
 static inline void appendFloat(NSStringBuffer *buffer,double value,
   unichar fillChar,BOOL leftAdj,BOOL plusSign,BOOL spaceSign,
-  int fieldWidth,int precision,BOOL gFormat,BOOL altForm,NSDictionary *locale,NSString *groupingSeparator,NSUInteger groupingSize){
-   int valueType=fpclassify(value);
-  
-   if(valueType==FP_INFINITE)
-    appendCString(buffer,(value>0.0)?"inf":"-inf",' ',leftAdj,fieldWidth);
-   else if(valueType==FP_NAN)
-    appendCString(buffer,"nan",' ',leftAdj,fieldWidth);
-   else{
-    double   integral,fractional,power;
-    unsigned i,j,length=0,numberOfIntegralDigits=0;
-    unichar  characters[100];
-    // copysign will give the correct result for negatve zero
-    unichar  sign=(copysign(1.0,value)<0)?'-':plusSign?'+':spaceSign?' ':'\0';
-    NSUInteger groupingLength=[groupingSeparator length];
-    unichar    groupingBuffer[groupingLength];
+  int fieldWidth,int precision,char conversion,BOOL altForm,NSDictionary *locale,NSString *groupingSeparator,NSUInteger groupingSize){
+   char       format[32],*f=format,small[128],*text=small;
+   int        length;
+   NSString  *separatorString;
+   unichar    decimalSeparator;
+   NSUInteger groupingLength=[groupingSeparator length];
+
+   *f++='%';
+   if(leftAdj) *f++='-';
+   if(plusSign) *f++='+';
+   if(spaceSign) *f++=' ';
+   if(altForm) *f++='#';
+   if(fillChar=='0' && !leftAdj) *f++='0';
+   f+=snprintf(f,format+sizeof(format)-f,"*.*%c",conversion);
+
+   length=snprintf_l(small,sizeof(small),NSFormatterCLocale(),format,fieldWidth,precision,value);
+   if(length<0)
+    return;
+   if((size_t)length>=sizeof(small)){
+    text=malloc((size_t)length+1);
+    snprintf_l(text,(size_t)length+1,NSFormatterCLocale(),format,fieldWidth,precision,value);
+   }
+
+   if(locale)
+    separatorString=[locale objectForKey:NSLocaleDecimalSeparator];
+   else
+    separatorString=[[NSLocale systemLocale] objectForKey:NSLocaleDecimalSeparator];
+   decimalSeparator=([separatorString length]>0)?[separatorString characterAtIndex:0]:'.';
+
+   {
+    unichar    characters[length*2+groupingLength*(length/(groupingSize?groupingSize:1)+1)+1];
+    unichar    groupingBuffer[groupingLength+1];
+    NSUInteger out=0,i=0,digitsStart,digitsEnd;
 
     [groupingSeparator getCharacters:groupingBuffer];
-
-   if (value != 0.0)
-    {
-       value=fabs(value);
-       if (!gFormat)
-         power=pow(10.0,precision);
-       else 
-         power=pow(10.0,precision-1-floor(log10(value)));
-
-		// Using modf to get the integral part is giving us some precision problems for the fractional part 
-		// leading to 1.2 being printed as 1.1999999..
-		// So let's do it our own way
-		integral = trunc(value);
-		fractional = roundDouble(power * (value - integral)) / power;;
-		// Add some epsilon smaller than the precision to fix rounding problems
-		fractional+= pow(10., -precision-2);
-		if (fractional >= 1.) {
-			// Rounding to next integral
-			integral++;
-			fractional = 0;
-		}
-	} else {
-		integral = fractional = 0.;
-	}
-	   
-	   BOOL intZero=integral<1.0; 
-
-    while(integral>=1.0){
-     numberOfIntegralDigits++;
-     characters[length++]=(unichar)fmod(integral,10.0)+'0';
-     integral/=10.0;
-
-     if(groupingSize){
-      if((numberOfIntegralDigits%groupingSize)==0){
-       NSInteger count=groupingLength; // we append backwards because the string gets reversed
-       
-       while(--count>=0)
-        characters[length++]=groupingBuffer[count];
+    // Copy up to the integral digits; group them if asked (not in
+    // exponent or hexadecimal forms).
+    while(i<(NSUInteger)length && !(text[i]>='0' && text[i]<='9'))
+     characters[out++]=text[i++];
+    digitsStart=i;
+    while(i<(NSUInteger)length && text[i]>='0' && text[i]<='9')
+     i++;
+    digitsEnd=i;
+    BOOL group=groupingSize>0 && groupingLength>0 && conversion!='a' && conversion!='A' &&
+        strchr(text,'e')==NULL && strchr(text,'E')==NULL;
+    for(NSUInteger k=digitsStart;k<digitsEnd;k++){
+     characters[out++]=text[k];
+     NSUInteger left=digitsEnd-k-1;
+     if(group && left>0 && left%groupingSize==0)
+      for(NSUInteger g=0;g<groupingLength;g++)
+       characters[out++]=groupingBuffer[g];
     }
-     }
-    }
-
-    if(gFormat)
-      precision -= numberOfIntegralDigits;
-
-    if(length==0)
-     characters[length++]='0';
-    if(sign)
-     characters[length++]=sign;
-
-    reverseCharacters(characters,length);
-
-    if(precision>0){
-     NSString *seperatorString;
-     unichar   decimalSeperator;
-     
-     if(locale)
-      seperatorString = [locale objectForKey:NSLocaleDecimalSeparator];
-     else
-      seperatorString = [[NSLocale systemLocale] objectForKey:NSLocaleDecimalSeparator];
-      
-     decimalSeperator=([seperatorString length]>0)?[seperatorString characterAtIndex:0]:'.';
-     
-     unsigned start=length;
-     BOOL     fractZero=YES;
-     characters[length++]=decimalSeperator;
-     for(i=0,j=0;i<precision;i++,j++,length++){
-      fractional*=10.0;
-	  if((characters[length]=(unichar)fmod(fractional,10.0)+'0')!='0')
-       fractZero=NO;
-      else if (gFormat && intZero && fractZero && (j - i) < 5)
-         i--;
-     }
-
-     if (gFormat)
-     {
-         if (intZero && fractZero)
-            if(altForm)
-               length=start + precision;
-            else
-               length=start;
-       
-         else if(!altForm)
-         {
-            while (characters[length-1] == '0')
-               length--;
-            if (characters[length-1] == decimalSeperator)
-               length--;
-         }
-      }
-    }
-
-    appendCharacters(buffer,characters,length,fillChar,leftAdj,fieldWidth);
+    for(;i<(NSUInteger)length;i++)
+     characters[out++]=(text[i]=='.')?decimalSeparator:(unichar)text[i];
+    appendCharacters(buffer,characters,out,' ',leftAdj,0);
    }
+   if(text!=small)
+    free(text);
 }
 
 static inline void appendObject(NSStringBuffer *buffer,id object,
@@ -381,7 +349,7 @@ unichar *NSCharactersNewWithFormatAndGrouping(NSString *format,NSDictionary *loc
 
    unichar fillChar=' ',dwModify=' ';
    BOOL    altForm=NO,leftAdj=NO,plusSign=NO,spaceSign=NO;
-   int     fieldWidth=0,precision=6;
+   int     fieldWidth=0,precision=-1;   // -1: not given (printf then uses its default)
 
    enum {
     STATE_SCANNING,
@@ -408,7 +376,7 @@ unichar *NSCharactersNewWithFormatAndGrouping(NSString *format,NSDictionary *loc
        fillChar=dwModify=' ';
        altForm=leftAdj=plusSign=spaceSign=NO;
        fieldWidth=0;
-       precision=6;
+       precision=-1;
        state=STATE_PERCENT;
       }
       break;
@@ -603,7 +571,7 @@ unichar *NSCharactersNewWithFormatAndGrouping(NSString *format,NSDictionary *loc
         appendUnicodeString(&result,va_arg(arguments,unichar *),fillChar,leftAdj,fieldWidth);
         break;
 
-       case 'f':{
+       case 'f': case 'F':{
          double value;
 
          if(dwModify=='l')
@@ -611,7 +579,7 @@ unichar *NSCharactersNewWithFormatAndGrouping(NSString *format,NSDictionary *loc
          else
           value=va_arg(arguments,double);
 
-         appendFloat(&result,value,fillChar,leftAdj,plusSign,spaceSign,fieldWidth,precision,NO,NO,locale,groupingSeparator,groupingSize);
+         appendFloat(&result,value,fillChar,leftAdj,plusSign,spaceSign,fieldWidth,precision,(char)unicode,altForm,locale,groupingSeparator,groupingSize);
         }
         break;
 
@@ -623,7 +591,14 @@ unichar *NSCharactersNewWithFormatAndGrouping(NSString *format,NSDictionary *loc
          else
           value=va_arg(arguments,double);
 
-         appendFloat(&result,value,fillChar,leftAdj,plusSign,spaceSign,fieldWidth,precision,NO,NO,locale,groupingSeparator,groupingSize);
+         appendFloat(&result,value,fillChar,leftAdj,plusSign,spaceSign,fieldWidth,precision,(char)unicode,altForm,locale,groupingSeparator,groupingSize);
+        }
+        break;
+
+       case 'a': case 'A':{
+         double value=va_arg(arguments,double);
+
+         appendFloat(&result,value,fillChar,leftAdj,plusSign,spaceSign,fieldWidth,precision,(char)unicode,altForm,locale,groupingSeparator,groupingSize);
         }
         break;
 
@@ -635,7 +610,7 @@ unichar *NSCharactersNewWithFormatAndGrouping(NSString *format,NSDictionary *loc
          else
           value=va_arg(arguments,double);
 
-         appendFloat(&result,value,fillChar,leftAdj,plusSign,spaceSign,fieldWidth,precision,YES,altForm,locale,groupingSeparator,groupingSize);
+         appendFloat(&result,value,fillChar,leftAdj,plusSign,spaceSign,fieldWidth,precision,(char)unicode,altForm,locale,groupingSeparator,groupingSize);
         }
         break;
 

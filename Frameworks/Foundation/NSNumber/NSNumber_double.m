@@ -7,6 +7,9 @@ The above copyright notice and this permission notice shall be included in all c
 
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE. */
 
+#include <stdio.h>
+#include <stdlib.h>
+#include <xlocale.h>
 #import "NSNumber_double.h"
 #import <Foundation/NSStringFormatter.h>
 
@@ -114,8 +117,22 @@ NSNumber *NSNumber_doubleNew(NSZone *zone,double value) {
    return (NSUInteger)_value;
 }
 
+// The shortest text that reads back as the same value, as on macOS
+// (Minkar: a fixed %0.15g lost digits: 1.0/3 printed 15 of its 16).
 -(NSString *)descriptionWithLocale:(NSDictionary *)locale {
-   return NSStringWithFormatAndLocale(@"%0.15g",locale,_value);
+   static locale_t cLocale;
+   char text[48];
+
+   if(cLocale==NULL)
+    cLocale=newlocale(LC_ALL_MASK,"C",NULL);
+   for(int precision=1;precision<=17;precision++){
+    snprintf_l(text,sizeof(text),cLocale,"%.*g",precision,(double)_value);
+    if((double)strtod_l(text,NULL,cLocale)==_value)
+     break;
+   }
+   if(locale==nil)
+    return [NSString stringWithUTF8String:text];
+   return NSStringWithFormatAndLocale(@"%s",locale,text);
 }
 
 @end
