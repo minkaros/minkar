@@ -74,6 +74,7 @@ SRCS = 	NSFormatter.m \
 	NSByteOrder.m \
 	NSNumberFormatter.m \
 	NSHashTable.m \
+	NSUUID.m \
 	NSDirectoryEnumerator.m \
 	NSProcessInfo.m \
 	NSData/NSData.m \
@@ -362,6 +363,8 @@ LDFLAGS = --sysroot=${MINKAR_SDKROOT} -Wl,-current_version,1677.104.0 \
 CFLAGS.${file}.o = -I${.CURDIR}/NSString
 .endfor
 CFLAGS.NSAutoreleasePool.o = -I${ROOT_SOURCE_DIR}/Libraries/objc4
+# New classes are written with ARC; the rest of Foundation is not.
+CFLAGS.NSUUID.m = -fobjc-arc
 CFLAGS.forwarding.o = -I${ROOT_SOURCE_DIR}/Libraries/objc4 \
 	-I${MINKAR_SDKROOT}${SLF}/System.framework/Versions/B/PrivateHeaders \
 	-I${ROOT_SOURCE_DIR}/Libraries/Libsystem/private \

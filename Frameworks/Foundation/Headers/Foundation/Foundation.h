@@ -160,6 +160,7 @@
 #import <Foundation/NSUnarchiver.h>
 #import <Foundation/NSUndoManager.h>
 #import <Foundation/NSURL.h>
+#import <Foundation/NSUUID.h>
 #import <Foundation/NSMutableURLRequest.h>
 #import <Foundation/NSURLConnection.h>
 #import <Foundation/NSURLDownload.h>

@@ -307,7 +307,11 @@ constrains the Swift runtime.
    `NSJSONSerialization` and `NSProgress` (one each). Done:
    `NSException` (2026-10-25): raising no longer crashes a program that
    catches the exception, and uncaught exceptions are reported as on
-   macOS.
+   macOS. `NSUUID` and the `NSSecureCoding` protocol (2026-10-26).
+   Found while testing them: `NSDictionary` has no subscripting
+   (`-objectForKeyedSubscript:`), and `NSKeyedArchiver` aborts because
+   `[NSMutableData new]` returns the abstract class (`+new` does not go
+   through `+allocWithZone:`).
 3. Security (Apple open source) for certificates and a basic keychain,
    needed for TLS in `NSURLSession`.
 4. LaunchServices: bundle database and UTI types; `open` and Filer depend on

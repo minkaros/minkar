@@ -1,6 +1,7 @@
 /*
  * Foundation/NSObject.h
  * Copyright (c) 2026 Zoe Knox. All rights reserved.
+ * Modifications Copyright (c) 2026 The Minkar contributors
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -58,6 +59,12 @@ typedef enum NSComparisonResult {
 @protocol NSCoding
 - initWithCoder:(NSCoder *)coder;
 - (void)encodeWithCoder:(NSCoder *)coder;
+@end
+
+// Classes whose instances can be decoded without trusting the archive:
+// they check the class of what they decode (macOS 10.8).
+@protocol NSSecureCoding <NSCoding>
+@property (class, readonly) BOOL supportsSecureCoding;
 @end
 
 void NSLog(NSString *format,...);
