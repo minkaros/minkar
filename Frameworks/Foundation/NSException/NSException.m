@@ -1,4 +1,5 @@
 /* Copyright (c) 2006-2007 Christopher J. W. Lloyd
+   Modifications Copyright (c) 2026 The Minkar contributors
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
 
@@ -20,6 +21,8 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #include <objc/runtime.h>
 #include <objc/objc-exception.h>
 #include <stdio.h>
+#include <execinfo.h>
+#include <stdlib.h>
 
 NSString * const NSGenericException=@"NSGenericException";
 NSString * const NSInvalidArgumentException=@"NSInvalidArgumentException";
@@ -96,7 +99,45 @@ id _NSRaiseException(id exception) {
 }
 
 
+// The runtime calls this for an exception nobody caught, then aborts. As
+// on macOS: the application's NSSetUncaughtExceptionHandler handler runs,
+// then the exception and the stack it was raised from are reported.
+static void NSExceptionUncaught(id exception) {
+    NSUncaughtExceptionHandler *proc = NSGetUncaughtExceptionHandler();
+    if (proc)
+        proc(exception);
+
+    if (![exception isKindOfClass:[NSException class]]) {
+        fprintf(stderr, "*** Terminating app due to uncaught exception of class '%s'\n",
+                object_getClassName(exception));
+        return;
+    }
+    NSException *e = exception;
+    fprintf(stderr, "*** Terminating app due to uncaught exception '%s', reason: '%s'\n",
+            [[e name] UTF8String], [[e reason] UTF8String]);
+
+    NSArray *stack = [e callStackReturnAddresses];
+    NSUInteger count = [stack count];
+    if (count == 0)
+        return;
+    void **addresses = malloc(count * sizeof(void *));
+    if (addresses == NULL)
+        return;
+    for (NSUInteger i = 0; i < count; i++)
+        addresses[i] = [[stack objectAtIndex:i] pointerValue];
+    char **symbols = backtrace_symbols(addresses, (int)count);
+    fprintf(stderr, "*** First throw call stack:\n");
+    for (NSUInteger i = 0; symbols != NULL && i < count; i++)
+        fprintf(stderr, "%s\n", symbols[i]);
+    free(symbols);
+    free(addresses);
+}
+
 @implementation NSException
+
++(void)load {
+   objc_setUncaughtExceptionHandler(NSExceptionUncaught);
+}
 
 +(void)raise:(NSString *)name format:(NSString *)format,... {
    va_list  arguments;
@@ -152,20 +193,13 @@ id _NSRaiseException(id exception) {
    NSUnimplementedMethod();
 }
 
+// As on macOS, raising prints nothing: an exception that is caught is no
+// error. One that nobody catches is reported by NSExceptionUncaught.
 -(void)raise {
-   if(NSDebugEnabled){
+   if(NSDebugEnabled)
     NSCLog("RAISE %s",[[self description] UTF8String]);
-    return;
-   }
    [_callStack release];
    _callStack=[[NSThread callStackReturnAddresses] retain];
-   NSArray *stackTrace = [NSThread callStackSymbols];
-   NSCLog("%s: %s\n", [_name UTF8String], [_reason UTF8String]);
-   for(int i = 0; i < [stackTrace count]; ++i)
-    NSCLog("  %u. %s", i, [[stackTrace objectAtIndex:i] UTF8String]);
-   NSCLog("");
-   [stackTrace release];
-   //NSRaiseException(_name, self, nil, _reason);
    objc_exception_throw(self);
 }
 
