@@ -278,7 +278,9 @@ NSString *const NSKeyedArchiveRootObjectKey=@"root";
     else if ([archClass isEqualToString:@"NSDictionary"] && flag) {
         [_objects addObject:object];
     }
-    else if (object == nil || [object isKindOfClass:[NSNull class]]) {
+    else if (object == nil) {
+        // "$null" is nil. Minkar: NSNull was written as nil too, so it
+        // vanished from arrays and dictionaries; it is an object now.
         [_objects addObject:@"$null"];
     }
     else {
