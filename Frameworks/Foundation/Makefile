@@ -146,6 +146,7 @@ SRCS = 	NSFormatter.m \
 	NSString/NSString_cString.m \
 	NSString/NSStringFileIO.m \
 	NSString/NSStringEncoder.m \
+	NSString/NSStringUnicodeEncodings.m \
 	NSString/NSString_isoLatin2.m \
 	NSSpellEngine.m \
 	NSConnection/NSConnection.m \

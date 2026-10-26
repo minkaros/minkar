@@ -24,6 +24,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 #include <math.h>
 
+#import "NSStringUnicodeEncodings.h"
 #import <Foundation/NSString.h>
 #import <Foundation/NSCoder.h>
 #import <Foundation/NSStringSymbol.h>
@@ -206,6 +207,23 @@ extern unichar *NSBytesToUnicode(const char *, NSUInteger, NSStringEncoding,
 
 -initWithBytes:(const void *)bytes length:(NSUInteger)length encoding:(NSStringEncoding)encoding {
     NSDeallocateObject(self);
+
+    // UTF-16 and UTF-32 in a stated byte order (NSStringUnicodeEncodings).
+    if (NSStringIsUTF16Or32(encoding)) {
+        NSUInteger decodedLength;
+        unichar *decoded = NSStringDecodeUTF16Or32(bytes, length, encoding, &decodedLength);
+        NSString *string;
+
+        if (decoded == NULL)
+            return nil;
+        string = NSCFStringNewWithCharacters(NULL, decoded, decodedLength, NO);
+        free(decoded);
+        return (id)string;
+    }
+    // Malformed UTF-8 makes no string, as on macOS (the CF path below would
+    // read it as Latin 1).
+    if (encoding == NSUTF8StringEncoding && !NSUTF8IsValid(bytes, length))
+        return nil;
 
     if (encoding == defaultEncoding()) {
         return (NSString_placeholder *)NSCFStringNewWithBytes(NULL, bytes, length, encoding);
@@ -1599,6 +1617,17 @@ static inline void reverseString(unichar *buf, NSUInteger len) {
    char    *bytes=NULL;
 
    [self getCharacters:unicode];
+    if(NSStringIsUTF16Or32(encoding))
+    {
+        NSData *result = nil;
+        uint8_t *encoded = NSStringEncodeUTF16Or32(unicode, length, encoding, lossy, &byteLength);
+        if (encoded != NULL) {
+            result = [NSData dataWithBytes:encoded length:byteLength];
+            free(encoded);
+        }
+        NSZoneFree(NULL, buffer);
+        return result;
+    }
     if(encoding == NSUnicodeStringEncoding)
     {
         buffer[0]=0xFEFF;

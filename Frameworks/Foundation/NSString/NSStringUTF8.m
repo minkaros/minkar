@@ -1,4 +1,5 @@
 /* Copyright (c) 2006-2007 Christopher J. W. Lloyd
+   Modifications Copyright (c) 2026 The Minkar contributors
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
 
@@ -9,60 +10,82 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <Foundation/NSStringSymbol.h>
 #import <Foundation/NSRaise.h>
 
+// Minkar: the UTF-16 <-> UTF-8 conversions below replace ones that wrote
+// each half of a surrogate pair as its own 3-byte sequence (CESU-8, not
+// UTF-8), read 4-byte sequences as one 16-bit unit, and accepted any
+// bytes.
+
+// The code point at characters[i] and how many units it takes: a
+// surrogate pair is one code point; an unpaired surrogate is U+FFFD.
+static uint32_t NSUTF16CodePointAt(const unichar *characters,NSUInteger length,NSUInteger i,NSUInteger *units){
+    uint32_t c=characters[i];
+
+    *units=1;
+    if(c>=0xD800 && c<=0xDBFF && i+1<length && characters[i+1]>=0xDC00 && characters[i+1]<=0xDFFF){
+        *units=2;
+        return 0x10000+((c-0xD800)<<10)+(characters[i+1]-0xDC00);
+    }
+    if(c>=0xD800 && c<=0xDFFF)
+        return 0xFFFD;
+    return c;
+}
+
+// Writes the UTF-8 for c into out (4 bytes at most); returns its length.
+static int NSUTF8EncodeCodePoint(uint32_t c,uint8_t *out){
+    if(c<0x80){
+        out[0]=(uint8_t)c;
+        return 1;
+    }
+    if(c<0x800){
+        out[0]=(uint8_t)(0xC0|(c>>6));
+        out[1]=(uint8_t)(0x80|(c&0x3F));
+        return 2;
+    }
+    if(c<0x10000){
+        out[0]=(uint8_t)(0xE0|(c>>12));
+        out[1]=(uint8_t)(0x80|((c>>6)&0x3F));
+        out[2]=(uint8_t)(0x80|(c&0x3F));
+        return 3;
+    }
+    out[0]=(uint8_t)(0xF0|(c>>18));
+    out[1]=(uint8_t)(0x80|((c>>12)&0x3F));
+    out[2]=(uint8_t)(0x80|((c>>6)&0x3F));
+    out[3]=(uint8_t)(0x80|(c&0x3F));
+    return 4;
+}
+
 NSUInteger _NSGetUTF8CStringWithMaxLength(const unichar *characters,NSUInteger length,NSUInteger *location,char *cString,NSUInteger maxLength, BOOL zeroTerminate){
     NSUInteger utf8Length=0;
-    NSUInteger i;
-    
-    for(i=0;i<length;i++){
-        uint32_t      code32=characters[i];
-        uint8_t       tmp[4];
-        int           tmpLength=0;
-        
-        if(code32<0x80)
-            tmp[tmpLength++]=code32;
-        else if(code32<0x800){
-            tmp[tmpLength++]=0x80|(code32&0x3F);
-            tmp[tmpLength++]=0xC0|(code32>>6);
-        }
-        else if(code32<0x10000) {
-            tmp[tmpLength++]=0x80|(code32&0x3F);
-            tmp[tmpLength++]=0x80|((code32>>6) & 0x3F);
-            tmp[tmpLength++]=0xE0|((code32>>12) & 0x0F);
-        }
-        else {
-            tmp[tmpLength++]=0x80|(code32&0x3F);
-            tmp[tmpLength++]=0x80|((code32>>6) & 0x3F);
-            tmp[tmpLength++]=0x80|((code32>>12) & 0x3F);
-            tmp[tmpLength++]=0xF0|((code32>>18) & 0x07);
-        }
-        
-        if(cString==NULL)
-            utf8Length+=tmpLength;
-        else{
-            if (tmpLength + utf8Length <= maxLength){
-                while(--tmpLength>=0)   {
-                    cString[utf8Length++]=tmp[tmpLength];
-                }
-            }
-            else {
+    NSUInteger i=0;
+
+    while(i<length){
+        NSUInteger units;
+        uint8_t    tmp[4];
+        int        tmpLength=NSUTF8EncodeCodePoint(NSUTF16CodePointAt(characters,length,i,&units),tmp);
+
+        if(cString!=NULL){
+            if(utf8Length+tmpLength>maxLength){
                 cString[0]='\0';
-                //buffer too small
-                return NSNotFound;
+                return NSNotFound;     // buffer too small
             }
+            for(int k=0;k<tmpLength;k++)
+                cString[utf8Length+k]=(char)tmp[k];
         }
+        utf8Length+=tmpLength;
+        i+=units;
     }
-    
+
     if (location != NULL) {
         *location=i;
     }
-    
+
     if (zeroTerminate && cString) {
         //check if zero termination has space
         if (maxLength <= utf8Length) {
             cString[0]='\0';
             return NSNotFound;
         }
-        
+
         cString[utf8Length]='\0';
     }
 
@@ -70,44 +93,24 @@ NSUInteger _NSGetUTF8CStringWithMaxLength(const unichar *characters,NSUInteger l
 }
 
 NSUInteger NSConvertUTF16toUTF8(const unichar *utf16,NSUInteger utf16Length,uint8_t *utf8){
-   NSUInteger utf8Length=0;
-   NSUInteger i;
-   
-   for(i=0;i<utf16Length;i++){
-    uint32_t      code32=utf16[i];
-    uint8_t       tmp[4];
-	int           tmpLength=0;
-	
-	if(code32<0x80)
-	 tmp[tmpLength++]=code32;
-	else if(code32<0x800){
-	 tmp[tmpLength++]=0x80|(code32&0x3F);
-	 tmp[tmpLength++]=0xC0|(code32>>6);
-	}
-	else if(code32<0x10000) {
-	 tmp[tmpLength++]=0x80|(code32&0x3F);
-	 tmp[tmpLength++]=0x80|((code32>>6) & 0x3F);
-	 tmp[tmpLength++]=0xE0|((code32>>12) & 0x0F);
-	}
-	else {
-	 tmp[tmpLength++]=0x80|(code32&0x3F);
-	 tmp[tmpLength++]=0x80|((code32>>6) & 0x3F);
-	 tmp[tmpLength++]=0x80|((code32>>12) & 0x3F);
-	 tmp[tmpLength++]=0xF0|((code32>>18) & 0x07);
-	}
-	
-	if(utf8==NULL)
-	 utf8Length+=tmpLength;
-	else{
-	 while(--tmpLength>=0)	 
-	  utf8[utf8Length++]=tmp[tmpLength];
-	}
-   }
-   
-   return utf8Length;
+    NSUInteger utf8Length=0;
+    NSUInteger i=0;
+
+    while(i<utf16Length){
+        NSUInteger units;
+        uint8_t    tmp[4];
+        int        tmpLength=NSUTF8EncodeCodePoint(NSUTF16CodePointAt(utf16,utf16Length,i,&units),tmp);
+
+        if(utf8!=NULL)
+            for(int k=0;k<tmpLength;k++)
+                utf8[utf8Length+k]=tmp[k];
+        utf8Length+=tmpLength;
+        i+=units;
+    }
+    return utf8Length;
 }
 
-NSUInteger NSGetUTF8CStringWithMaxLength(const unichar *characters,NSUInteger length,NSUInteger *location,char *cString,NSUInteger maxLength){    
+NSUInteger NSGetUTF8CStringWithMaxLength(const unichar *characters,NSUInteger length,NSUInteger *location,char *cString,NSUInteger maxLength){
     return _NSGetUTF8CStringWithMaxLength(characters, length, location, cString, maxLength, YES);
 }
 
@@ -121,68 +124,96 @@ char    *NSUnicodeToUTF8(const unichar *characters,NSUInteger length,
   if(zeroTerminate){
    (*resultLength)++;
   }
-  
+
   return utf8;
 }
 
+// The code point of the well-formed UTF-8 sequence at utf8[i] (Unicode
+// 15, table 3-7) and its length, or 0 when it is not well formed.
+static int NSUTF8DecodeAt(const unsigned char *utf8,NSUInteger length,NSUInteger i,uint32_t *code){
+    unsigned char b0=utf8[i];
+    NSUInteger    left=length-i;
 
+    if(b0<0x80){
+        *code=b0;
+        return 1;
+    }
+    if(b0>=0xC2 && b0<=0xDF && left>=2 && (utf8[i+1]&0xC0)==0x80){
+        *code=((uint32_t)(b0&0x1F)<<6)|(utf8[i+1]&0x3F);
+        return 2;
+    }
+    if(b0>=0xE0 && b0<=0xEF && left>=3){
+        unsigned char b1=utf8[i+1], b2=utf8[i+2];
+        unsigned char lo=(b0==0xE0)?0xA0:0x80, hi=(b0==0xED)?0x9F:0xBF;
+
+        if(b1>=lo && b1<=hi && (b2&0xC0)==0x80){
+            *code=((uint32_t)(b0&0x0F)<<12)|((uint32_t)(b1&0x3F)<<6)|(b2&0x3F);
+            return 3;
+        }
+    }
+    if(b0>=0xF0 && b0<=0xF4 && left>=4){
+        unsigned char b1=utf8[i+1], b2=utf8[i+2], b3=utf8[i+3];
+        unsigned char lo=(b0==0xF0)?0x90:0x80, hi=(b0==0xF4)?0x8F:0xBF;
+
+        if(b1>=lo && b1<=hi && (b2&0xC0)==0x80 && (b3&0xC0)==0x80){
+            *code=((uint32_t)(b0&0x07)<<18)|((uint32_t)(b1&0x3F)<<12)|((uint32_t)(b2&0x3F)<<6)|(b3&0x3F);
+            return 4;
+        }
+    }
+    return 0;
+}
+
+BOOL NSUTF8IsValid(const unsigned char *utf8,NSUInteger length){
+    NSUInteger i=0;
+
+    while(i<length){
+        uint32_t code;
+        int      n=NSUTF8DecodeAt(utf8,length,i,&code);
+
+        if(n==0)
+            return NO;
+        i+=n;
+    }
+    return YES;
+}
+
+// Code points above U+FFFF become surrogate pairs; each byte that does
+// not start a well-formed sequence becomes U+FFFD.
 NSUInteger NSConvertUTF8toUTF16(const unsigned char *utf8,NSUInteger utf8Length,unichar *utf16){
-   NSUInteger i,utf16Length=0;
-   uint32_t code32=0;
-   enum {
-    stateThreeLeft,
-	stateTwoLeft,
-	stateOneLeft,
-    stateFirstByte,
-   } state=stateFirstByte;
-   
-   for(i=0;i<utf8Length;i++){
-    unsigned char code8=utf8[i];
-	
-	switch(state){
+    NSUInteger i=0,utf16Length=0;
 
-	 case stateThreeLeft:
-	 case stateTwoLeft:
-	 case stateOneLeft:
-	  code32<<=6;
-	  code32|=code8&0x7F;
-	  state++;
-	  break;
-	
-	 case stateFirstByte:
-	  if(code8<0x80)
-	   code32=code8;
-      else if((code8&0xF0)==0xF0){
-	   code32=code8&0x0F;
-	   state=stateThreeLeft;
-	  }
-	  else if((code8&0xE0)==0xE0){
-	   code32=code8&0x1F;
-	   state=stateTwoLeft;
-	  }
-	  else if((code8&0xC0)==0xC0){
-	   code32=code8&0x3F;
-	   state=stateOneLeft;
-	  }
-      break;
-	  	  
-	}
-	if(state==stateFirstByte){
-	 if(utf16!=NULL)
-	  utf16[utf16Length]=code32;
-	 utf16Length++;
-	}
-   }
-   
-   return utf16Length;
+    while(i<utf8Length){
+        uint32_t code;
+        int      n=NSUTF8DecodeAt(utf8,utf8Length,i,&code);
+
+        if(n==0){
+            code=0xFFFD;
+            n=1;
+        }
+        if(code>=0x10000){
+            if(utf16!=NULL){
+                utf16[utf16Length]=(unichar)(0xD800+((code-0x10000)>>10));
+                utf16[utf16Length+1]=(unichar)(0xDC00+((code-0x10000)&0x3FF));
+            }
+            utf16Length+=2;
+        }
+        else {
+            if(utf16!=NULL)
+                utf16[utf16Length]=(unichar)code;
+            utf16Length++;
+        }
+        i+=n;
+    }
+
+    return utf16Length;
 }
 
 unichar *NSUTF8ToUnicode(const char *utf8,NSUInteger length,
   NSUInteger *resultLength,NSZone *zone) {
-   NSUInteger utf16Length=NSConvertUTF8toUTF16((unsigned char *)utf8,length,NULL);
-   unichar *utf16=NSZoneMalloc(NULL,utf16Length*sizeof(unichar));
+   NSUInteger utf16Length=NSConvertUTF8toUTF16((const unsigned char *)utf8,length,NULL);
+   unichar *utf16=NSZoneMalloc(NULL,(utf16Length+1)*sizeof(unichar));
 
-   *resultLength=NSConvertUTF8toUTF16((unsigned char *)utf8,length,utf16);
+   *resultLength=NSConvertUTF8toUTF16((const unsigned char *)utf8,length,utf16);
 
    return utf16;
 }

@@ -8,6 +8,7 @@ The above copyright notice and this permission notice shall be included in all c
 
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE. */
 
+#import "NSStringUnicodeEncodings.h"
 #import <Foundation/NSUnicodeCaseMapping.h>
 #import <Foundation/NSStringFormatter.h>
 #import <Foundation/NSStringFileIO.h>
@@ -53,6 +54,23 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 - initWithBytes:(const void *)bytes length:(NSUInteger)length encoding:(NSStringEncoding)encoding
 {
     NSDeallocateObject(self);
+
+    // UTF-16 and UTF-32 in a stated byte order (NSStringUnicodeEncodings).
+    if (NSStringIsUTF16Or32(encoding)) {
+        NSUInteger decodedLength;
+        unichar *decoded = NSStringDecodeUTF16Or32(bytes, length, encoding, &decodedLength);
+        NSString *string;
+
+        if (decoded == NULL)
+            return nil;
+        string = NSCFStringNewWithCharacters(NULL, decoded, decodedLength, NO);
+        free(decoded);
+        return (id)string;
+    }
+    // Malformed UTF-8 makes no string, as on macOS (the CF path below would
+    // read it as Latin 1).
+    if (encoding == NSUTF8StringEncoding && !NSUTF8IsValid(bytes, length))
+        return nil;
 
     if (encoding == defaultEncoding()) {
         return (NSString_placeholder *)NSCFStringNewWithBytes(NULL, bytes, length, encoding);
