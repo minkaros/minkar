@@ -19,4 +19,13 @@ enum {
     NSFormattingError = 2048,
     NSFormattingErrorMinimum = 2048,
     NSFormattingErrorMaximum = 2559,
+
+    // Property lists, and JSON (NSJSONSerialization).
+    NSPropertyListReadCorruptError = 3840,
+    NSPropertyListReadUnknownVersionError = 3841,
+    NSPropertyListReadStreamError = 3842,
+    NSPropertyListWriteStreamError = 3851,
+    NSPropertyListWriteInvalidError = 3852,
+    NSPropertyListErrorMinimum = 3840,
+    NSPropertyListErrorMaximum = 4095,
 };

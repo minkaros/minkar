@@ -164,6 +164,7 @@
 #import <Foundation/NSURL.h>
 #import <Foundation/NSUUID.h>
 #import <Foundation/NSRegularExpression.h>
+#import <Foundation/NSJSONSerialization.h>
 #import <Foundation/NSMutableURLRequest.h>
 #import <Foundation/NSURLConnection.h>
 #import <Foundation/NSURLDownload.h>
