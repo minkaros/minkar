@@ -1,4 +1,5 @@
-
+# rvn.framework.mk: builds a framework bundle (from ravynOS).
+# Modifications Copyright (c) 2026 The Minkar contributors
 FRAMEWORK_DIR = ${.OBJDIR}/${FRAMEWORK}.framework
 FMWK_VERSION ?= A
 NO_ROOT=yes
@@ -112,6 +113,50 @@ _resource_files: ${RESOURCES_DIR}
 .endfor
 .endif
 
+# Every framework has an Info.plist, as on macOS: CFBundle reads its
+# identifier and version there. INFO_PLIST (by default the Info.plist
+# next to the framework's Makefile; empty for none) with Xcode's
+# variables and template identifiers filled in, or a minimal one. One
+# copied by RESOURCES_FILES is filled in too; one an install hook
+# writes replaces it.
+INFO_PLIST ?=	Info.plist
+FMWK_BUNDLE_ID ?= org.minkar.${FRAMEWORK}
+${FRAMEWORK}: _info_plist
+.ORDER: _resource_files _info_plist
+
+_info_plist: .PHONY ${FRAMEWORK_DIR}
+.if !empty(INFO_PLIST) && exists(${.CURDIR}/${INFO_PLIST})
+	sed -e 's/[$$][({]EXECUTABLE_NAME[)}]/${FRAMEWORK}/g' \
+	    -e 's/[$$][({]PRODUCT_NAME[^)}]*[)}]/${FRAMEWORK}/g' \
+	    -e 's/[$$][({]PRODUCT_BUNDLE_IDENTIFIER[)}]/${FMWK_BUNDLE_ID}/g' \
+	    -e 's/[$$][({]CURRENT_PROJECT_VERSION[)}]/${PROD_VERSION:U1}/g' \
+	    -e 's/com[.]yourcompany[.][A-Za-z0-9_.-]*/${FMWK_BUNDLE_ID}/g' \
+	    ${.CURDIR}/${INFO_PLIST} > ${RESOURCES_DIR}/Info.plist
+.else
+	(echo '<?xml version="1.0" encoding="UTF-8"?>'; \
+	 echo '<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">'; \
+	 echo '<plist version="1.0">'; \
+	 echo '<dict>'; \
+	 echo '	<key>CFBundleDevelopmentRegion</key>'; \
+	 echo '	<string>English</string>'; \
+	 echo '	<key>CFBundleExecutable</key>'; \
+	 echo '	<string>${FRAMEWORK}</string>'; \
+	 echo '	<key>CFBundleIdentifier</key>'; \
+	 echo '	<string>${FMWK_BUNDLE_ID}</string>'; \
+	 echo '	<key>CFBundleInfoDictionaryVersion</key>'; \
+	 echo '	<string>6.0</string>'; \
+	 echo '	<key>CFBundleName</key>'; \
+	 echo '	<string>${FRAMEWORK}</string>'; \
+	 echo '	<key>CFBundlePackageType</key>'; \
+	 echo '	<string>FMWK</string>'; \
+	 echo '	<key>CFBundleShortVersionString</key>'; \
+	 echo '	<string>${PROD_VERSION:U1}</string>'; \
+	 echo '	<key>CFBundleVersion</key>'; \
+	 echo '	<string>${PROD_VERSION:U1}</string>'; \
+	 echo '</dict>'; \
+	 echo '</plist>') > ${RESOURCES_DIR}/Info.plist
+.endif
+
 all: ${FRAMEWORK} .WAIT fmwk-install-hook
 
 .if !target(fmwk-install-hook)
@@ -164,7 +209,6 @@ ${FRAMEWORK_DIR}:
 		ln -sf Versions/${FMWK_VERSION}/${FRAMEWORK} ${FRAMEWORK})
 .endif
 	(cd "${FRAMEWORK_DIR}/Versions"; ln -sf ${FMWK_VERSION} Current)
-	touch "${FRAMEWORK_DIR}/Versions/${FMWK_VERSION}/Resources/Info.plist"
 
 .include <bsd.subdir.mk>
 .include <bsd.lib.mk>

@@ -1,7 +1,11 @@
+# IOKit.framework (IOKitUser), from ravynOS.
+# Modifications Copyright (c) 2026 The Minkar contributors
 MK_WERROR = no
 FRAMEWORK = IOKit
 FMWK_VERSION = A
-INFO_PLIST = Info.plist
+# Info.plist here is OSSystemResources' bundle, not the framework's: the
+# framework gets a generated one (rvn.framework.mk).
+INFO_PLIST =
 INSTALL_NAME_DIR = /System/Library/Frameworks/IOKit.framework/Versions/A
 
 .PATH: ${.OBJDIR}
