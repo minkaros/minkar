@@ -185,6 +185,15 @@ mounted.
   SATA (AHCI), xHCI and GOP display match the current drivers; its Intel
   I219-V network card does not (the e1000 driver lacks the PCH family),
   and NVMe has no driver yet, so the image goes on a SATA disk.
+  First boots (2026-10-26), from the SATA disk: the loader read the
+  kernel from another disk's EFI partition, then overwrote firmware
+  memory (the kernel was copied to 1 MB while boot services ran; QEMU's
+  firmware happens to leave that range alone), then the kernel reset the
+  machine on its first no-execute page (the AMI firmware leaves
+  `EFER.NXE` off; OVMF turns it on). With the loader fixed, the kernel
+  boots through `bsd_init`, the APIC, the eight CPUs and the root UUID,
+  and stops in PCI configuration, where the console is off.
+  `LOADER_PAUSE=10` keeps the loader's output on screen for photos.
 
 - [ ] **Exit gate (M1):** in QEMU and on a reference PC, the kernel mounts
   the HFS+ root and runs `/sbin/launchd` (or a temporary init) with a shell
@@ -237,6 +246,14 @@ notifyd, syslogd, the HFS tools, mDNSResponder) stay as they are.
   Tested in the image 2026-10-26. `cp -p` failed on every file without an
   ACL, and `mv` between volumes warned: Darwin reports "no ACL" as
   `ENOENT`.
+- [ ] Replace the commands from Apple's command sets with FreeBSD main's
+  and the macOS layer. *Partial:* done 2026-10-26 for `uname` (`-p` prints
+  `i386`), `date` (now in `/bin`; macOS's `mmddHHMM[yy]` order), `rm`,
+  `xargs`, `cat`, `env`, `tail`, `test`, `find` (`-xattr`, `-xattrname`),
+  `ls` (macOS's `-@`, `-e`, `-O`, `-o` and the `@` marker), `id` (`-F`),
+  `who`, `time` and `grep` (now in `/usr/bin`; `zgrep` is FreeBSD's
+  script). Still from Apple: `kill`, `killall`, `ps`, `top`, `login`,
+  `sysctl`, `su`. Missing in `grep`: macOS's `-Z`/`-J` (decompress).
 - [ ] Everyday tools missing from the image. *Partial:* built and tested
   2026-10-26: `dd`, `expr`, `printenv`, `od`/`hexdump`, `paste`, `nohup`,
   `install`, `pgrep`/`pkill` (FreeBSD's, reading processes through
@@ -247,6 +264,10 @@ notifyd, syslogd, the HFS tools, mDNSResponder) stay as they are.
   from) and the text tools `rev`, `column`, `comm`, `join`, `fold`, `fmt`,
   `split`, `csplit`, `tsort`, `nl`, `expand`, `unexpand`. Named pipes
   (`mkfifo`) failed on HFS+: the hfs kext was built without FIFO support.
+  Then `jot`, `lam`, `rs`, `col`, `colrm`, `look`, `logname`, `mkfifo`,
+  `renice`, `nice`, `lockf`, `cksum`/`sum`, `what`, `vis`/`unvis`,
+  `uuencode`/`uudecode`/`base64` (macOS's `base64` options) and `xattr`
+  (written for Minkar, macOS's options; no manual page yet).
   Missing: `cal`, `lsof`, `man`, `units`, `getconf`, `iconv`, `locate`,
   `nslookup`/`dig`.
 - [ ] Power user: `zsh`, `tar`, `ssh`, `curl`, `make`, `git`. *Partial:*
@@ -610,12 +631,14 @@ work in progress.
 
 The highest-impact open items, in critical-path order:
 
-1. BSD userland batches (Phase 2): replace the commands that came from
+1. Reference PC 1 (Phase 1, gate M1): the kernel stops in PCI
+   configuration on the H270N; then its network card (I219-V).
+2. BSD userland batches (Phase 2): replace the commands that came from
    Apple with FreeBSD's plus the macOS layer; `make`, `git`, `open`.
-2. IOHIDSystem event delivery in the kernel, the `ApplePS2Mouse` driver and
+3. IOHIDSystem event delivery in the kernel, the `ApplePS2Mouse` driver and
    the WindowServer input reader (Phase 4).
-3. Install WindowServer's launchd job and get a first boot that draws on
+4. Install WindowServer's launchd job and get a first boot that draws on
    `IOGOPFramebuffer` (Phase 4).
-4. The Foundation classes the reference apps miss most, from the symbol
+5. The Foundation classes the reference apps miss most, from the symbol
    report (Phase 3).
-5. The Swift toolchain prototypes (Phase 3).
+6. The Swift toolchain prototypes (Phase 3).
