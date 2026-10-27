@@ -32,7 +32,8 @@ Layout (GPT):
        /EFI/BOOT/BOOTX64.EFI            EFI loader (efiloader)
        /EFI/Minkar/                     (looked up by the loader)
        /Minkar/kernelcache              prelinked kernel + kexts
-       /Minkar/org.minkar.boot.plist    boot-args, boot-file, boot-uuid
+       /Minkar/org.minkar.boot.plist    boot-args, boot-file, boot-uuid,
+                                        loader-pause (when asked for)
   2  Apple HFS+ root volume, populated from the sysroot
 
 The root is found by the kernel through boot-uuid: AppleFileSystemDriver
@@ -255,12 +256,16 @@ def run(*cmd, **kwargs):
     return subprocess.run(cmd, check=True, **kwargs)
 
 
-def boot_plist(boot_args, volume_uuid):
-    return plistlib.dumps({
+def boot_plist(boot_args, volume_uuid, loader_pause=0):
+    config = {
         'boot-args': boot_args,
         'boot-file': '\\Minkar\\kernelcache',
         'boot-uuid': str(volume_uuid).upper(),
-    }, fmt=plistlib.FMT_XML)
+    }
+    if loader_pause:
+        # Seconds the loader leaves its output up before the kernel starts.
+        config['loader-pause'] = loader_pause
+    return plistlib.dumps(config, fmt=plistlib.FMT_XML)
 
 
 def build(args):
@@ -312,7 +317,7 @@ def build(args):
         shutil.copyfile(args.loader, os.path.join(esp_dir, 'EFI', 'BOOT', 'BOOTX64.EFI'))
         shutil.copyfile(args.kernelcache, os.path.join(esp_dir, 'Minkar', 'kernelcache'))
         with open(os.path.join(esp_dir, 'Minkar', 'org.minkar.boot.plist'), 'wb') as f:
-            f.write(boot_plist(args.boot_args, volume_uuid))
+            f.write(boot_plist(args.boot_args, volume_uuid, args.loader_pause))
 
         run('mount', '-t', 'hfsplus', '-o', 'rw', root, root_dir)
         mounts.append(root_dir)
@@ -377,6 +382,9 @@ def main(argv=None):
                    help='make launchd log at debug level to the console')
     p.add_argument('--boot-args', default='-v debug=0x14e serial=3 keepsyms=1',
                    help='kernel command line')
+    p.add_argument('--loader-pause', type=int, default=0, metavar='SECONDS',
+                   help='keep the loader output on screen before the kernel '
+                        'starts (hardware tests)')
     args = p.parse_args(argv)
     build(args)
 

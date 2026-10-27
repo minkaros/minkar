@@ -28,9 +28,13 @@ EDK2_COMMIT ?=		e0184abff13fccd9df69bb44fa9edbd4062cc99e
 EDK2_BUILD_PY =		BuildReport.py __init__.py build.py buildoptions.py
 
 # Our changes on top of the pinned commit (patches/): a fix to send
-# upstream, then Minkar's boot paths and loader banner.
+# upstream, then Minkar's boot paths and loader banner, the volume the
+# loader reads from (its own, not the first one the firmware found), and
+# memory reserved from the firmware before the loader writes to it.
 EFILOADER_PATCHES =	efiloader-0001-macho-16-char-names.patch \
-			efiloader-0002-minkar-boot-paths.patch
+			efiloader-0002-minkar-boot-paths.patch \
+			efiloader-0003-boot-volume.patch \
+			efiloader-0004-kernel-memory.patch
 
 EFILOADER_SRC ?=	${ROOT_BINARY_DIR}/src/efiloader
 EFILOADER_TOOLS =	${ROOT_BINARY_DIR}/src/efiloader-tools
@@ -80,6 +84,11 @@ INIT_ARGS +=		--ssh-root-login
 # LAUNCHD_DEBUG=1: launchd logs at debug level to the console.
 .if !empty(LAUNCHD_DEBUG)
 INIT_ARGS +=		--launchd-debug
+.endif
+# LOADER_PAUSE=<seconds>: the loader keeps its output on the screen that
+# long before the kernel starts, for photos of a hardware test.
+.if !empty(LOADER_PAUSE)
+INIT_ARGS +=		--loader-pause ${LOADER_PAUSE}
 .endif
 GATE ?=			M0
 BOOTTEST_TIMEOUT ?=	900

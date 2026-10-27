@@ -1,0 +1,205 @@
+Minkar: open the volume the loader was started from; RDRAND entropy
+
+SPDX-License-Identifier: BSD-2-Clause
+Copyright (c) 2026 The Minkar contributors
+Part of Minkar.
+
+The loader found its configuration, the kernel and its drivers with
+LocateProtocol(SimpleFileSystem), which returns the first file system the
+firmware knows. Under QEMU that is the boot disk; on a PC with several
+disks it is often another disk's EFI partition, so the kernel was not
+found and the loader returned to the firmware's boot menu without a word.
+They now come from the loaded image's own device. When the kernel cannot
+be loaded, the error stays on the screen for 15 seconds.
+
+Firmware without EFI_RNG_PROTOCOL (QEMU has one through virtio-rng; many
+PCs do not) left the kernel's random-seed uninitialized; the CPU's RDRAND
+now fills it when the CPU has the instruction.
+
+diff --git a/MdeModulePkg/Application/Loader/Loader.inf b/MdeModulePkg/Application/Loader/Loader.inf
+index 1b897b1..da60adf 100644
+--- a/MdeModulePkg/Application/Loader/Loader.inf
++++ b/MdeModulePkg/Application/Loader/Loader.inf
+@@ -34,6 +34,10 @@
+   UefiLib
+   FileHandleLib
+ 
++[Protocols]
++  gEfiLoadedImageProtocolGuid                   ## CONSUMES
++  gEfiSimpleFileSystemProtocolGuid              ## CONSUMES
++
+ [FeaturePcd]
+   gEfiMdeModulePkgTokenSpaceGuid.PcdHelloWorldPrintEnable   ## CONSUMES
+ 
+diff --git a/MdeModulePkg/Application/Loader/config.c b/MdeModulePkg/Application/Loader/config.c
+index 227a0e3..a7d4036 100644
+--- a/MdeModulePkg/Application/Loader/config.c
++++ b/MdeModulePkg/Application/Loader/config.c
+@@ -138,13 +138,9 @@ STATIC VOID ParseBootConfig(CHAR8 *xml)
+ VOID LoadBootConfig(VOID)
+ {
+     CHAR8 rawConfig[EFI_PAGE_SIZE];
+-    EFI_SIMPLE_FILE_SYSTEM_PROTOCOL *Fs;
+     EFI_FILE_HANDLE Root, cfgFile;
+ 
+-    if(EFI_ERROR(gBS->LocateProtocol(&gEfiSimpleFileSystemProtocolGuid, NULL, (VOID**)&Fs)))
+-        return;
+-
+-    if(EFI_ERROR(Fs->OpenVolume(Fs, &Root)))
++    if(EFI_ERROR(OpenBootVolume(&Root)))
+         return;
+ 
+     if(EFI_ERROR(Root->Open(Root, &cfgFile, UEFI_STR("\\Minkar\\org.minkar.boot.plist"), EFI_FILE_MODE_READ, 0))) {
+diff --git a/MdeModulePkg/Application/Loader/loader.c b/MdeModulePkg/Application/Loader/loader.c
+index 7a4190a..d7c4879 100644
+--- a/MdeModulePkg/Application/Loader/loader.c
++++ b/MdeModulePkg/Application/Loader/loader.c
+@@ -76,18 +76,35 @@ EFI_STATUS GetVideoInfo(VIDEO_INFO *v1, VIDEO_BOOT *v)
+     return EFI_SUCCESS;
+ }
+ 
+-EFI_STATUS LoadKernel(VOID **KernelBuffer, UINTN *KernelEntry, UINTN *KernelSize)
++/*
++ * Minkar: the root of the volume the loader itself was started from.
++ * LocateProtocol(SimpleFileSystem) gives the first file system the
++ * firmware found, which on a PC with several disks is another disk's EFI
++ * partition: the kernel was not found there and the firmware went back
++ * to its boot menu.
++ */
++EFI_STATUS OpenBootVolume(EFI_FILE_HANDLE *Root)
+ {
+     EFI_STATUS Status;
++    EFI_LOADED_IMAGE_PROTOCOL *Image;
+     EFI_SIMPLE_FILE_SYSTEM_PROTOCOL *Fs;
+-    EFI_FILE_HANDLE Root, KernelFile;
+-    struct mach_header_64 *MachHeader = (VOID *)MH_ADDR;
+ 
+-    Status = gBS->LocateProtocol(&gEfiSimpleFileSystemProtocolGuid, NULL, (VOID**)&Fs);
++    Status = gBS->HandleProtocol(gImageHandle, &gEfiLoadedImageProtocolGuid, (VOID**)&Image);
++    if (EFI_ERROR(Status))
++        return Status;
++    Status = gBS->HandleProtocol(Image->DeviceHandle, &gEfiSimpleFileSystemProtocolGuid, (VOID**)&Fs);
+     if (EFI_ERROR(Status))
+         return Status;
++    return Fs->OpenVolume(Fs, Root);
++}
+ 
+-    Status = Fs->OpenVolume(Fs, &Root);
++EFI_STATUS LoadKernel(VOID **KernelBuffer, UINTN *KernelEntry, UINTN *KernelSize)
++{
++    EFI_STATUS Status;
++    EFI_FILE_HANDLE Root, KernelFile;
++    struct mach_header_64 *MachHeader = (VOID *)MH_ADDR;
++
++    Status = OpenBootVolume(&Root);
+     if (EFI_ERROR(Status))
+         return Status;
+ 
+@@ -253,15 +270,10 @@ EFI_STATUS LoadKernel(VOID **KernelBuffer, UINTN *KernelEntry, UINTN *KernelSize
+ EFI_STATUS LoadDrivers(EFI_HANDLE ImageHandle)
+ {
+     EFI_STATUS Status;
+-    EFI_SIMPLE_FILE_SYSTEM_PROTOCOL *Fs;
+     EFI_FILE_HANDLE Root, ravynOS /*, driverHandle*/ ;
+     /* EFI_DEVICE_PATH devicePath; */
+ 
+-    Status = gBS->LocateProtocol(&gEfiSimpleFileSystemProtocolGuid, NULL, (VOID**)&Fs);
+-    if (EFI_ERROR(Status))
+-        return Status;
+-
+-    Status = Fs->OpenVolume(Fs, &Root);
++    Status = OpenBootVolume(&Root);
+     if (EFI_ERROR(Status))
+         return Status;
+ 
+@@ -294,6 +306,33 @@ INT32 CompareGUIDs(EFI_GUID guid1, EFI_GUID guid2)
+     return 0;
+ }
+ 
++/*
++ * Minkar: entropy from the CPU's RDRAND instruction, for firmware without
++ * EFI_RNG_PROTOCOL. FALSE when the CPU has no RDRAND or it keeps failing.
++ */
++static BOOLEAN CpuEntropy(UINT8 *buf, UINTN len)
++{
++    UINT32 eax, ebx, ecx, edx;
++    UINT64 v;
++    UINTN i, n;
++    UINT8 ok;
++    int tries;
++
++    __asm__ volatile("cpuid" : "=a"(eax), "=b"(ebx), "=c"(ecx), "=d"(edx) : "a"(1), "c"(0));
++    if(!(ecx & (1U << 30)))
++        return FALSE;
++    for(i = 0; i < len; i += sizeof(v)) {
++        ok = 0;
++        for(tries = 0; tries < 10 && !ok; ++tries)
++            __asm__ volatile("rdrand %0; setc %1" : "=r"(v), "=qm"(ok));
++        if(!ok)
++            return FALSE;
++        n = len - i < sizeof(v) ? len - i : sizeof(v);
++        CopyMem(buf + i, &v, n);
++    }
++    return TRUE;
++}
++
+ #define SET_BUFFER(x) CopyMem(buffer, x, AsciiStrSize(x))
+ FdtNode *InitDTB(EFI_SYSTEM_TABLE *SystemTable, UINTN addr, VOID *ACPI)
+ {
+@@ -309,10 +348,15 @@ FdtNode *InitDTB(EFI_SYSTEM_TABLE *SystemTable, UINTN addr, VOID *ACPI)
+         return NULL;
+ 
+     Status = gBS->LocateProtocol(&gEfiRngProtocolGuid, NULL, (VOID**)&RNG);
+-    if(EFI_ERROR(Status))
+-        Print(UEFI_STR("!! Failed to find entropy source: %r\n"), Status); // kernel will panic
+-    else
+-        RNG->GetRNG(RNG, NULL, ENTROPY_SIZE, entropy);
++    if(!EFI_ERROR(Status))
++        Status = RNG->GetRNG(RNG, NULL, ENTROPY_SIZE, entropy);
++    if(EFI_ERROR(Status)) {
++        /* Minkar: many PC firmwares have no RNG protocol; the CPU may. */
++        if(CpuEntropy(entropy, ENTROPY_SIZE))
++            Print(UEFI_STR("[] Entropy from RDRAND\n"));
++        else
++            Print(UEFI_STR("!! Failed to find entropy source: %r\n"), Status); // kernel will panic
++    }
+ 
+     FdtSetStringProperty(DTB, "/", "compatible", "ACPI");
+     FdtCreateNode(DTB, "/", "ACPI");
+@@ -443,8 +487,13 @@ EFI_STATUS EFIAPI UefiMain(IN EFI_HANDLE ImageHandle, IN EFI_SYSTEM_TABLE *Syste
+ 
+     LoadDrivers(ImageHandle);
+     Status = LoadKernel(&KernelBuffer, &KernelEntry, &KernelSize);
+-    if (EFI_ERROR(Status))
++    if (EFI_ERROR(Status)) {
++        /* Leave the reason on the screen before the firmware takes over. */
++        Print(UEFI_STR("!! Error: cannot load the kernel %a: %r\n"),
++            gBootConfig.KernelPath, Status);
++        gBS->Stall(15 * 1000 * 1000);
+         return Status;
++    }
+ 
+     Print(UEFI_STR("\n[] Memory: %u MB usable\n"), physPages * EFI_PAGE_SIZE / MB);
+ 
+diff --git a/MdeModulePkg/Application/Loader/loader.h b/MdeModulePkg/Application/Loader/loader.h
+index f0ff738..2ca35c5 100644
+--- a/MdeModulePkg/Application/Loader/loader.h
++++ b/MdeModulePkg/Application/Loader/loader.h
+@@ -41,6 +41,7 @@
+ #include <Library/FileHandleLib.h>
+ #include <Library/PrintLib.h>
+ #include <Protocol/SimpleFileSystem.h>
++#include <Protocol/LoadedImage.h>
+ #include <Protocol/Rng.h>
+ #include <Protocol/Cpu.h>
+ #include <Guid/MemoryAttributesTable.h>
+@@ -58,6 +59,9 @@ extern EFI_GUID gEfiRngProtocolGuid;
+ extern EFI_GUID gEfiCpuArchProtocolGuid;
+ extern UINT64 bootStackTop;
+ 
++/* The root of the volume this loader was started from. */
++EFI_STATUS OpenBootVolume(EFI_FILE_HANDLE *Root);
++
+ #define UEFI_STR(s) ((CHAR16 *)u##s)
+ #define GB (1024*1024*1024)
+ #define MB (1024*1024)

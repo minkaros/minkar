@@ -1,0 +1,838 @@
+Minkar: stage the kernel and move it after ExitBootServices
+
+SPDX-License-Identifier: BSD-2-Clause
+Copyright (c) 2026 The Minkar contributors
+Part of Minkar.
+
+On a PC (Gigabyte H270N-WIFI) the loader found the kernel, printed its
+header and the machine reset. The loader wrote to physical memory it had
+never asked the firmware for: the kernelcache was read to a fixed 80 MB
+address, the kernel's segments were copied from 1 MB up while boot
+services were running, and the memory map was kept at 0x10000. The
+kernel's range is not free under QEMU either (ACPI NVS at 8 MB,
+BootServicesData from 9 MB); there it happened not to matter.
+
+- The kernel is linked to run at 1 MB. Its segments, the device tree, the
+  boot args and the EFI tables are laid out in a staging buffer allocated
+  from the firmware, and moved to 1 MB after ExitBootServices(), when
+  boot-services memory is free, as GRUB's relocator does for xnu.
+- Before that, the loader checks the range: memory the firmware keeps
+  (runtime services, ACPI tables, reserved, MMIO) stops the boot with the
+  entries listed; ACPI NVS is reported and overwritten, as before. The
+  range's free pages are taken so later allocations stay out of it, and
+  the loader, its stack, the GDT and the page tables must lie outside it.
+- The staging buffers are allocated from the firmware. The memory map is
+  taken after the last allocation, right before ExitBootServices(), whose
+  result is now checked; on a stale key the map is taken again. It goes
+  after the EFI tables, in low memory, where the kernel can read it before
+  it maps the rest of memory.
+- The kernel's copy of the map has no EFI_MEMORY_RUNTIME attributes. With
+  VirtualStart 0 (no SetVirtualAddressMap() call) efi_init() mapped every
+  runtime region over the kernel's boot code. The old map at 0x10000 had
+  been reused by the kernel before efi_init() read it, so nothing was ever
+  mapped; that stays the behavior. The runtime services are still called
+  at their physical addresses.
+- After ExitBootServices() the loader runs on its own page tables (1:1,
+  writable, executable, 2 MB pages), since a PC firmware's may keep its
+  former memory read-only or no-execute, and sets EFER.NXE and CR0.WP
+  before the jump: xnu's 32-bit entry set them, the 64-bit entry relied on
+  the firmware. OVMF sets NXE; without it the kernel's first no-execute
+  page table entry faults before it has a handler, and the machine resets.
+- With loader-pause set, the loader prints the CPU state the firmware left
+  (EFER, CR0, CR4), and after ExitBootServices() paints a white band at the
+  top of the screen for each step it passes.
+- The device tree has 16 pages (a PC has more configuration tables than
+  QEMU), and its size is checked.
+- "loader-pause" (integer, seconds) in org.minkar.boot.plist keeps the
+  loader's output on the screen before the kernel starts.
+
+--- a/MdeModulePkg/Application/Loader/config.c
++++ b/MdeModulePkg/Application/Loader/config.c
+@@ -79,6 +79,14 @@
+         CopyValue(gBootConfig.BootUUID, sizeof(gBootConfig.BootUUID), val, valLen);
+     } else if(isString && KeyMatch(key, keyLen, "platform-uuid")) {
+         CopyValue(gBootConfig.PlatformUUID, sizeof(gBootConfig.PlatformUUID), val, valLen);
++    } else if(!isString && KeyMatch(key, keyLen, "loader-pause")) {
++        CHAR8 buf[16];
++        UINTN n = valLen < sizeof(buf) - 1 ? valLen : sizeof(buf) - 1;
++        CopyMem(buf, val, n);
++        buf[n] = '\0';
++        gBootConfig.LoaderPause = (UINT32)AsciiStrDecimalToUintn(buf);
++        if(gBootConfig.LoaderPause > 120)
++            gBootConfig.LoaderPause = 120;
+     } else if(!isString && KeyMatch(key, keyLen, "csr-active-config")) {
+         CHAR8 buf[32];
+         UINTN n = valLen < sizeof(buf) - 1 ? valLen : sizeof(buf) - 1;
+--- a/MdeModulePkg/Application/Loader/config.h
++++ b/MdeModulePkg/Application/Loader/config.h
+@@ -39,6 +39,7 @@
+     CHAR8   PlatformUUID[40];   // "platform-uuid" -> UUID of the machine
+     CHAR8   BootUUID[40];       // "boot-uuid" -> boot file system UUID
+     UINT32  CsrActiveConfig;    // "csr-active-config"  -> BOOT_ARGS.csrActiveConfig
++    UINT32  LoaderPause;        // "loader-pause" -> seconds to show the loader's output
+ } BOOT_CONFIG;
+ 
+ extern BOOT_CONFIG gBootConfig;
+--- a/MdeModulePkg/Application/Loader/loader.c
++++ b/MdeModulePkg/Application/Loader/loader.c
+@@ -28,8 +28,17 @@
+ #include <mach-o/fat.h>
+ 
+ #define VERSION_STR UEFI_STR("v0.8 IN DEVELOPMENT")
+-#define KERNEL_LOAD_ADDRESS 0x100000 // 1 MB
+-#define DTB_PAGES 4 /* max size of temporary DTB in pages */
++/*
++ * Minkar: room reserved after the kernel for the device tree, the boot
++ * arguments and the copied EFI tables (see the layout in loader.h).
++ */
++#define MMAP_PAGES 32 /* the final memory map: 128 KB, ~2700 descriptors */
++#define KERNEL_TAIL_BYTES (EFI_PAGES_TO_SIZE(DTB_PAGES) + \
++    EFI_PAGES_TO_SIZE(EFI_SIZE_TO_PAGES(sizeof(BOOT_ARGS))) + EFI_PAGES_TO_SIZE(2) + \
++    EFI_PAGES_TO_SIZE(MMAP_PAGES))
++#define HEADER_PAGES 16 /* staging buffer for the headers, 64 KB */
++
++STATIC UINT64 gKernelReservedEnd;
+ 
+ EFI_GUID gEfiDtbTableGuid = {0xb1b621d5, 0xf19c, 0x41a5, \
+         {0x83, 0x0b, 0xd9, 0x15, 0x2c, 0x69, 0xaa, 0xe0}};
+@@ -40,6 +49,10 @@
+ 
+ extern UINT32 DTBLength;
+ 
++/* Minkar: the framebuffer, for Stripe() after ExitBootServices(). */
++STATIC UINT64 gFbBase, gFbSize;
++STATIC UINT32 gFbStride, gFbWidth, gFbHeight;
++
+ EFI_STATUS GetVideoInfo(VIDEO_INFO *v1, VIDEO_BOOT *v)
+ {
+     EFI_STATUS Status;
+@@ -51,9 +64,14 @@
+ 
+     EFI_GRAPHICS_OUTPUT_PROTOCOL_MODE *mode = GOP->Mode;
+     EFI_GRAPHICS_OUTPUT_MODE_INFORMATION *info = mode->Info;
+-    Print(UEFI_STR("[] Framebuffer: %dx%dx32 %d MB at 0x%lx\n"),
+-        info->HorizontalResolution, info->VerticalResolution,
+-        mode->FrameBufferSize / MB, mode->FrameBufferBase);
++    Print(UEFI_STR("[] Framebuffer at 0x%lx: %dx%dx32, %d MB\n"),
++        mode->FrameBufferBase, info->HorizontalResolution,
++        info->VerticalResolution, mode->FrameBufferSize / MB);
++    gFbBase = mode->FrameBufferBase;
++    gFbSize = mode->FrameBufferSize;
++    gFbStride = info->PixelsPerScanLine;
++    gFbWidth = info->HorizontalResolution;
++    gFbHeight = info->VerticalResolution;
+ 
+     /* We want to enter the kernel in text mode. When the graphics console
+      * inits, it wants to switch rather than start in graphics mode
+@@ -102,7 +120,8 @@
+ {
+     EFI_STATUS Status;
+     EFI_FILE_HANDLE Root, KernelFile;
+-    struct mach_header_64 *MachHeader = (VOID *)MH_ADDR;
++    EFI_PHYSICAL_ADDRESS Staging;
++    struct mach_header_64 *MachHeader;
+ 
+     Status = OpenBootVolume(&Root);
+     if (EFI_ERROR(Status))
+@@ -116,6 +135,16 @@
+         return Status;
+     }
+ 
++    /* Minkar: staging memory comes from the firmware, not a fixed address. */
++    Status = gBS->AllocatePages(AllocateAnyPages, EfiLoaderData, HEADER_PAGES, &Staging);
++    if(EFI_ERROR(Status)) {
++        Print(UEFI_STR("!! Error: no memory for the kernel headers: %r\n"), Status);
++        KernelFile->Close(KernelFile);
++        Root->Close(Root);
++        return Status;
++    }
++    MachHeader = (struct mach_header_64 *)(UINTN)Staging;
++
+     UINT64 size = 1*KB;
+     Status = KernelFile->Read(KernelFile, &size, (EFI_PHYSICAL_ADDRESS *)MachHeader);
+     if(EFI_ERROR(Status)) {
+@@ -197,6 +226,15 @@
+ 		version, compsize, scheme[3], scheme[2],
+ 		scheme[1], scheme[0], crc);
+ 
++	  EFI_PHYSICAL_ADDRESS image;
++	  Status = gBS->AllocatePages(AllocateAnyPages, EfiLoaderData,
++				      EFI_SIZE_TO_PAGES(compsize), &image);
++	  if(EFI_ERROR(Status)) {
++	    Print(UEFI_STR("!! Error: no memory to read the kernel image: %r\n"), Status);
++	    return Status;
++	  }
++	  MachHeader = (struct mach_header_64 *)(UINTN)image;
++
+ 	  size = foundX86 + sizeof(PrelinkedKernelHeader);
+ 	  Status = KernelFile->SetPosition(KernelFile, (UINTN)size);
+ 	  size = compsize;
+@@ -252,11 +290,20 @@
+     *KernelBuffer = (VOID *)KERNEL_LOAD_ADDRESS;
+ 
+     if(isFat) { /* we've already read and decompressed a fat binary */
+-      *KernelSize = mapDecompressedSegments(MachHeader, KernelEntry);
++      Status = PrepareKernelRange(MachHeader, KERNEL_TAIL_BYTES, &gKernelReservedEnd);
++      if(!EFI_ERROR(Status))
++        *KernelSize = mapDecompressedSegments(MachHeader, KernelEntry);
+     } else { /* bare kernel image */
+       size += MachHeader->sizeofcmds;
+-      KernelFile->SetPosition(KernelFile, 0);
+-      Status = KernelFile->Read(KernelFile, &size, (EFI_PHYSICAL_ADDRESS *)MachHeader);
++      if(size > EFI_PAGES_TO_SIZE(HEADER_PAGES)) {
++        Print(UEFI_STR("!! Error: kernel load commands too large (%lu bytes)\n"), size);
++        Status = EFI_UNSUPPORTED;
++      } else {
++        KernelFile->SetPosition(KernelFile, 0);
++        Status = KernelFile->Read(KernelFile, &size, (EFI_PHYSICAL_ADDRESS *)MachHeader);
++      }
++      if(!EFI_ERROR(Status))
++        Status = PrepareKernelRange(MachHeader, KERNEL_TAIL_BYTES, &gKernelReservedEnd);
+       if(!EFI_ERROR(Status))
+         *KernelSize = mapSegments(MachHeader, KernelEntry, KernelFile);
+     }
+@@ -343,7 +390,7 @@
+     UINT32 val;
+     EFI_RNG_PROTOCOL *RNG = 0;
+ 
+-    FdtNode *DTB = FdtCreateEmpty(addr);
++    FdtNode *DTB = FdtCreateEmpty((UINTN)STAGED(addr));
+     if(!DTB)
+         return NULL;
+ 
+@@ -445,6 +492,231 @@
+     return DTB;
+ }
+ 
++/* Minkar: leave the reason on the screen before the firmware takes over. */
++STATIC EFI_STATUS LoaderFail(CONST CHAR16 *What, EFI_STATUS Status)
++{
++    Print(UEFI_STR("!! Error: %s: %r\n"), What, Status);
++    gBS->Stall(15 * 1000 * 1000);
++    return Status;
++}
++
++/*
++ * Minkar: what the loader still uses after ExitBootServices() must not be in
++ * the kernel's final range, which is overwritten then: the loader itself,
++ * its stack, the page tables the CPU walks, and the GDT.
++ */
++STATIC EFI_STATUS CheckMoveIsSafe(EFI_HANDLE ImageHandle)
++{
++    EFI_LOADED_IMAGE_PROTOCOL *Image;
++    BOOLEAN Safe = TRUE;
++    UINT64 Rsp, Cr3;
++    struct { UINT16 Limit; UINT64 Base; } __attribute__((packed)) Gdt;
++
++    if (!EFI_ERROR(gBS->HandleProtocol(ImageHandle, &gEfiLoadedImageProtocolGuid, (VOID **)&Image)) &&
++        InKernelRange((UINTN)Image->ImageBase, Image->ImageSize)) {
++        Print(UEFI_STR("!! The loader is at 0x%p\n"), Image->ImageBase);
++        Safe = FALSE;
++    }
++    asm volatile("movq %%rsp, %0" : "=r"(Rsp));
++    if (InKernelRange(Rsp - SIZE_64KB, SIZE_64KB + SIZE_4KB)) {
++        Print(UEFI_STR("!! The stack is at 0x%lx\n"), Rsp);
++        Safe = FALSE;
++    }
++    asm volatile("sgdt %0" : "=m"(Gdt));
++    if (InKernelRange(Gdt.Base, (UINT64)Gdt.Limit + 1)) {
++        Print(UEFI_STR("!! The GDT is at 0x%lx\n"), Gdt.Base);
++        Safe = FALSE;
++    }
++
++    /* The page tables: every table page reachable from CR3 (4-level paging). */
++    asm volatile("movq %%cr3, %0" : "=r"(Cr3));
++    CONST UINT64 Addr = 0x000FFFFFFFFFF000ULL, Present = 1, Large = 1 << 7;
++    UINT64 *Pml4 = (UINT64 *)(UINTN)(Cr3 & Addr);
++    UINTN Hits = 0;
++    Hits += InKernelRange((UINTN)Pml4, SIZE_4KB);
++    for (UINTN i = 0; i < 512; ++i) {
++        if (!(Pml4[i] & Present))
++            continue;
++        UINT64 *Pdpt = (UINT64 *)(UINTN)(Pml4[i] & Addr);
++        Hits += InKernelRange((UINTN)Pdpt, SIZE_4KB);
++        for (UINTN j = 0; j < 512; ++j) {
++            if (!(Pdpt[j] & Present) || (Pdpt[j] & Large))
++                continue;
++            UINT64 *Pd = (UINT64 *)(UINTN)(Pdpt[j] & Addr);
++            Hits += InKernelRange((UINTN)Pd, SIZE_4KB);
++            for (UINTN k = 0; k < 512; ++k)
++                if ((Pd[k] & Present) && !(Pd[k] & Large))
++                    Hits += InKernelRange(Pd[k] & Addr, SIZE_4KB);
++        }
++    }
++    if (Hits != 0) {
++        Print(UEFI_STR("!! %u page-table pages are in the kernel's range\n"), Hits);
++        Safe = FALSE;
++    }
++    return Safe ? EFI_SUCCESS : EFI_ACCESS_DENIED;
++}
++
++/*
++ * Minkar: after ExitBootServices() nothing can print, so with loader-pause
++ * set (a hardware test) the loader paints white band N, 20 pixels high, at
++ * the top of the screen as it passes each step: the number of bands on a
++ * photo of a machine that reset says how far it got.
++ */
++STATIC VOID Stripe(UINTN N)
++{
++    if (gFbBase == 0 || gBootConfig.LoaderPause == 0)
++        return;
++    UINT32 *Fb = (UINT32 *)(UINTN)gFbBase;
++    for (UINTN y = N * 24; y < N * 24 + 20 && y < gFbHeight; ++y)
++        for (UINTN x = 0; x < gFbWidth; ++x)
++            Fb[y * gFbStride + x] = 0x00FFFFFF;
++}
++
++/*
++ * Minkar: page tables mapping physical memory 1:1, writable and executable,
++ * with 2 MB pages, for the move after ExitBootServices(). A PC firmware's
++ * own tables may keep its former memory read-only or no-execute; these do
++ * not. They cover the memory map and the framebuffer, up to 512 GB.
++ */
++STATIC EFI_STATUS BuildIdentityMap(UINT64 *Cr3)
++{
++    UINTN Size = 0, Key, DescSize;
++    UINT32 DescVersion;
++    EFI_MEMORY_DESCRIPTOR *Map = NULL;
++    UINT64 Top = SIZE_4GB;
++    EFI_STATUS Status;
++
++    Status = gBS->GetMemoryMap(&Size, NULL, &Key, &DescSize, &DescVersion);
++    if (Status != EFI_BUFFER_TOO_SMALL)
++        return EFI_ERROR(Status) ? Status : EFI_LOAD_ERROR;
++    Size += 8 * DescSize;
++    Status = gBS->AllocatePool(EfiLoaderData, Size, (VOID **)&Map);
++    if (EFI_ERROR(Status))
++        return Status;
++    Status = gBS->GetMemoryMap(&Size, Map, &Key, &DescSize, &DescVersion);
++    for (UINT8 *p = (UINT8 *)Map; !EFI_ERROR(Status) && p < (UINT8 *)Map + Size; p += DescSize) {
++        EFI_MEMORY_DESCRIPTOR *d = (EFI_MEMORY_DESCRIPTOR *)p;
++        UINT64 End = d->PhysicalStart + EFI_PAGES_TO_SIZE(d->NumberOfPages);
++        if (End > Top)
++            Top = End;
++    }
++    gBS->FreePool(Map);
++    if (EFI_ERROR(Status))
++        return Status;
++    if (gFbBase + gFbSize > Top)
++        Top = gFbBase + gFbSize;
++    Top = (Top + SIZE_1GB - 1) & ~(UINT64)(SIZE_1GB - 1);
++    if (Top > SIZE_512GB)
++        Top = SIZE_512GB;
++
++    UINTN Gigs = (UINTN)(Top / SIZE_1GB);
++    EFI_PHYSICAL_ADDRESS Tables = 0xFFFFFFFF;
++    Status = gBS->AllocatePages(AllocateMaxAddress, EfiLoaderData, 2 + Gigs, &Tables);
++    if (EFI_ERROR(Status))
++        return Status;
++    SetMem((VOID *)(UINTN)Tables, EFI_PAGES_TO_SIZE(2 + Gigs), 0);
++
++    UINT64 *Pml4 = (UINT64 *)(UINTN)Tables;
++    UINT64 *Pdpt = Pml4 + 512;
++    UINT64 *Pd = Pdpt + 512;
++    CONST UINT64 Present = 1, Write = 2, Large = 0x80;
++    Pml4[0] = (UINT64)(UINTN)Pdpt | Present | Write;
++    for (UINTN g = 0; g < Gigs; ++g) {
++        Pdpt[g] = (UINT64)(UINTN)(Pd + g * 512) | Present | Write;
++        for (UINTN i = 0; i < 512; ++i)
++            Pd[g * 512 + i] = ((UINT64)g * SIZE_1GB + (UINT64)i * SIZE_2MB) | Present | Write | Large;
++    }
++    *Cr3 = Tables;
++    return EFI_SUCCESS;
++}
++
++/*
++ * Minkar: what the kernel's start code expects of the CPU. xnu's 32-bit
++ * entry set EFER.NXE and CR0.WP itself; the 64-bit entry from this loader
++ * takes the CPU as the firmware left it. OVMF sets NXE; a PC firmware may
++ * not, and the kernel's first page table with a no-execute bit then faults
++ * before the kernel has any handler: the machine resets.
++ */
++STATIC VOID PrepareCpuForKernel(VOID)
++{
++    UINT32 a, b, c, d;
++    UINT64 Cr0;
++
++    asm volatile("cpuid" : "=a"(a), "=b"(b), "=c"(c), "=d"(d) : "a"(0x80000000), "c"(0));
++    if (a >= 0x80000001) {
++        asm volatile("cpuid" : "=a"(a), "=b"(b), "=c"(c), "=d"(d) : "a"(0x80000001), "c"(0));
++        if (d & (1U << 20)) {   /* NX */
++            UINT32 Lo, Hi;
++            asm volatile("rdmsr" : "=a"(Lo), "=d"(Hi) : "c"(0xC0000080));
++            Lo |= 1U << 11;     /* EFER.NXE */
++            asm volatile("wrmsr" : : "a"(Lo), "d"(Hi), "c"(0xC0000080));
++        }
++    }
++    asm volatile("movq %%cr0, %0" : "=r"(Cr0));
++    Cr0 |= 1ULL << 16;          /* CR0.WP */
++    asm volatile("movq %0, %%cr0" : : "r"(Cr0));
++}
++
++/* Minkar: the CPU state the firmware leaves, for a photo of a failing PC. */
++STATIC VOID PrintCpuState(VOID)
++{
++    UINT32 Lo, Hi;
++    UINT64 Cr0, Cr4;
++
++    asm volatile("rdmsr" : "=a"(Lo), "=d"(Hi) : "c"(0xC0000080));
++    asm volatile("movq %%cr0, %0" : "=r"(Cr0));
++    asm volatile("movq %%cr4, %0" : "=r"(Cr4));
++    Print(UEFI_STR("[] CPU: EFER 0x%x CR0 0x%lx CR4 0x%lx\n"), Lo, Cr0, Cr4);
++}
++
++/*
++ * Minkar: take the final memory map and leave boot services. The map has to
++ * be taken after the loader's last allocation, or ExitBootServices() rejects
++ * its key and the kernel starts with the firmware still running; the
++ * firmware may also change the map during the call, and then the map is
++ * taken again (UEFI 2.10, section 7.4). It is written to the staging
++ * buffer and reaches MapFinal with the kernel.
++ */
++STATIC EFI_STATUS ExitFirmware(EFI_HANDLE ImageHandle, BOOT_ARGS *BootArgs, VOID *MapFinal)
++{
++    UINTN Size = 0, Key, DescSize;
++    UINT32 DescVersion;
++    EFI_STATUS Status = EFI_LOAD_ERROR;
++
++    for (int Try = 0; Try < 8; ++Try) {
++        Size = EFI_PAGES_TO_SIZE(MMAP_PAGES);
++        Status = gBS->GetMemoryMap(&Size, (EFI_MEMORY_DESCRIPTOR *)STAGED(MapFinal),
++                                   &Key, &DescSize, &DescVersion);
++        if (EFI_ERROR(Status))
++            return Status;
++        Status = gBS->ExitBootServices(ImageHandle, Key);
++        if (!EFI_ERROR(Status))
++            break;
++    }
++    if (EFI_ERROR(Status))
++        return Status;
++
++    /*
++     * The kernel's efi_init() maps each runtime region at its VirtualStart
++     * (or'ed with the kernel's base), and panics where it has no page
++     * tables yet. The loader does not call SetVirtualAddressMap(), the
++     * firmware reports VirtualStart 0, and every region then landed on the
++     * kernel's own boot code. The map used to be at 0x10000, which the
++     * kernel had reused by then, so efi_init() never mapped anything; the
++     * kernel's copy now says so explicitly. The regions stay out of the
++     * kernel's free memory by their type, and the runtime services are
++     * still called at their physical addresses (EFINVRAM).
++     */
++    for (UINT8 *d = STAGED(MapFinal); d < (UINT8 *)STAGED(MapFinal) + Size; d += DescSize)
++        ((EFI_MEMORY_DESCRIPTOR *)d)->Attribute &= ~EFI_MEMORY_RUNTIME;
++
++    BootArgs->MemoryMap = PHYSADDR(MapFinal);
++    BootArgs->MemoryMapSize = (UINT32)Size;
++    BootArgs->MemoryMapDescriptorSize = (UINT32)DescSize;
++    BootArgs->MemoryMapDescriptorVersion = DescVersion;
++    return EFI_SUCCESS;
++}
++
+ EFI_STATUS EFIAPI UefiMain(IN EFI_HANDLE ImageHandle, IN EFI_SYSTEM_TABLE *SystemTable)
+ {
+     EFI_STATUS Status;
+@@ -465,8 +737,11 @@
+ 
+     Status = gBS->GetMemoryMap(&MemoryMapSize, MemoryMap, &MapKey, &DescriptorSize, &DescriptorVersion);
+     if (Status == EFI_BUFFER_TOO_SMALL) {
+-        MemoryMap = (EFI_MEMORY_DESCRIPTOR *)MMAP_ADDR;
+-        Status = gBS->GetMemoryMap(&MemoryMapSize, MemoryMap, &MapKey, &DescriptorSize, &DescriptorVersion);
++        /* Minkar: this map only counts memory; the kernel gets the final one. */
++        MemoryMapSize += 8 * DescriptorSize;
++        Status = gBS->AllocatePool(EfiLoaderData, MemoryMapSize, (VOID **)&MemoryMap);
++        if (!EFI_ERROR(Status))
++            Status = gBS->GetMemoryMap(&MemoryMapSize, MemoryMap, &MapKey, &DescriptorSize, &DescriptorVersion);
+     }
+     if (EFI_ERROR(Status)) {
+         Print(UEFI_STR("!! Error: failed to retrieve memory map [%r]\n"), Status);
+@@ -484,6 +759,7 @@
+                 break;
+         }
+     }
++    gBS->FreePool(MemoryMap);
+ 
+     LoadDrivers(ImageHandle);
+     Status = LoadKernel(&KernelBuffer, &KernelEntry, &KernelSize);
+@@ -531,28 +807,41 @@
+         }
+     }
+     
+-    Print(UEFI_STR("[] Created device tree at 0x%p (%d bytes)\n"), DTB, DTBLength);
++    Print(UEFI_STR("[] Created device tree at 0x%lx (%d bytes)\n"), (UINTN)DTB - gStageDelta, DTBLength);
++    if (DTBLength > EFI_PAGES_TO_SIZE(DTB_PAGES))
++        return LoaderFail(UEFI_STR("the device tree does not fit in its pages"), EFI_BUFFER_TOO_SMALL);
+ 
+     /* Pad the DTB up to its maximum size. Boot args follow the DTB. */
+     UINT32 ps = EFI_PAGE_SIZE - 1;
+     KernelSize += DTB_PAGES * EFI_PAGE_SIZE;
+     
+-    BOOT_ARGS *BootArgs = (BOOT_ARGS *)(KernelBuffer + KernelSize);
++    BOOT_ARGS *BootArgsFinal = (BOOT_ARGS *)(KernelBuffer + KernelSize);
++    BOOT_ARGS *BootArgs = STAGED(BootArgsFinal);
+     SetMem(BootArgs, sizeof(BOOT_ARGS), 0);
+     KernelSize += (sizeof(BOOT_ARGS) + ps) & ~ps; // pad and align
+ 
+     // Relocate the efi tables to the end of boot args
+     VOID *p = KernelBuffer + KernelSize;
+-    CopyMem(p, SystemTable, SystemTable->Hdr.HeaderSize);
+-    CopyMem(p + SystemTable->Hdr.HeaderSize, SystemTable->RuntimeServices, SystemTable->RuntimeServices->Hdr.HeaderSize);
++    CopyMem(STAGED(p), SystemTable, SystemTable->Hdr.HeaderSize);
++    CopyMem(STAGED(p + SystemTable->Hdr.HeaderSize), SystemTable->RuntimeServices, SystemTable->RuntimeServices->Hdr.HeaderSize);
+ 
+-    EFI_SYSTEM_TABLE *st = ((EFI_SYSTEM_TABLE *)p);
++    EFI_SYSTEM_TABLE *st = STAGED(p);
+     st->RuntimeServices = (EFI_RUNTIME_SERVICES *)VMADDR(p + SystemTable->Hdr.HeaderSize);
+     st->Hdr.CRC32 = 0;
+     gBS->CalculateCrc32(&st->Hdr, st->Hdr.HeaderSize, &st->Hdr.CRC32);
+-    BootArgs->efiSystemTable = PHYSADDR(st);
++    BootArgs->efiSystemTable = PHYSADDR(p);
+     KernelSize += SystemTable->Hdr.HeaderSize + SystemTable->RuntimeServices->Hdr.HeaderSize;
+ 
++    /*
++     * Minkar: the memory map follows, in low memory with the rest of the
++     * boot data: the kernel reads it before it maps memory beyond its own.
++     */
++    KernelSize = (KernelSize + ps) & ~ps;
++    VOID *MapFinal = KernelBuffer + KernelSize;
++    KernelSize += EFI_PAGES_TO_SIZE(MMAP_PAGES);
++    if (KERNEL_LOAD_ADDRESS + KernelSize > gKernelReservedEnd)
++        return LoaderFail(UEFI_STR("the boot data overruns the reserved memory"), EFI_BUFFER_TOO_SMALL);
++
+     VIDEO_INFO videoV1 = {0};
+     VIDEO_BOOT video = {0};
+     GetVideoInfo(&videoV1, &video);
+@@ -568,7 +857,7 @@
+                     | kBootArgsFlagBlackBg;
+     AsciiStrCpyS(BootArgs->CommandLine, 1024, gBootConfig.BootArgs);
+     BootArgs->VideoV1 = videoV1;
+-    BootArgs->DeviceTree = VMADDR(DTB);
++    BootArgs->DeviceTree = VMADDR((UINTN)DTB - gStageDelta);
+     BootArgs->DeviceTreeLength = DTBLength;
+     BootArgs->kaddr = KERNEL_LOAD_ADDRESS;
+     BootArgs->ksize = KernelSize;
+@@ -584,23 +873,51 @@
+     BootArgs->csrActiveConfig = gBootConfig.CsrActiveConfig;
+     BootArgs->csrCapabilities = CSR_CAPABILITY_UNLIMITED | CSR_CAPABILITY_CONFIG |
+                                 CSR_CAPABILITY_APPLE_INTERNAL;
+-    BootArgs->MemoryMap = PHYSADDR(MemoryMap);
+-    BootArgs->MemoryMapSize = MemoryMapSize;
+-    BootArgs->MemoryMapDescriptorSize = DescriptorSize;
+-    BootArgs->MemoryMapDescriptorVersion = DescriptorVersion;
+     BootArgs->physMemSize = physPages * EFI_PAGE_SIZE; // convert to bytes
+ 
++    PrintCpuState();
++    UINT64 Cr3;
++    Status = BuildIdentityMap(&Cr3);
++    if (EFI_ERROR(Status))
++        return LoaderFail(UEFI_STR("no memory for the loader's page tables"), Status);
++
+     Print(UEFI_STR("\nStarting kernel at 0x%lx\n\n"), KernelEntry);
+-    gST->ConOut->ClearScreen(gST->ConOut);
+-    gBS->ExitBootServices(ImageHandle, MapKey);
+-    
++    if (gBootConfig.LoaderPause != 0) {
++        /* Minkar: keep the loader's output up long enough to read it. */
++        Print(UEFI_STR("[] Pausing %u seconds (loader-pause)\n"), gBootConfig.LoaderPause);
++        gBS->Stall((UINTN)gBootConfig.LoaderPause * 1000 * 1000);
++    } else {
++        gST->ConOut->ClearScreen(gST->ConOut);
++    }
++
++    Status = CheckMoveIsSafe(ImageHandle);
++    if (EFI_ERROR(Status))
++        return LoaderFail(UEFI_STR("the kernel cannot be moved to its place"), Status);
++
++    Status = ExitFirmware(ImageHandle, BootArgs, MapFinal);
++    if (EFI_ERROR(Status))
++        return LoaderFail(UEFI_STR("could not leave the firmware's boot services"), Status);
++
++    /*
++     * Minkar: boot services are gone. On the loader's own page tables,
++     * move the staged kernel to its place and set up the CPU for it.
++     */
++    asm volatile("cli");
++    Stripe(0);
++    asm volatile("movq %0, %%cr3" : : "r"(Cr3) : "memory");
++    Stripe(1);
++    CopyMem((VOID *)(UINTN)gKernelTarget, STAGED(gKernelTarget), gKernelTargetSize);
++    Stripe(2);
++    PrepareCpuForKernel();
++    Stripe(3);
++
+     /* jump to kernel _start with bootargs in eax */
+     asm(
+         "movq %0, %%rax\n"
+         "movq %1, %%rdi\n"
+         "movq %2, %%rbp\n"
+         "jmpq *%%rdi\n"
+-        : : "mr"(BootArgs), "r"(KernelEntry), "r"(bootStackTop) : "rax", "rdi"
++        : : "mr"(BootArgsFinal), "r"(KernelEntry), "r"(bootStackTop) : "rax", "rdi"
+     );
+ 
+     return EFI_SUCCESS;
+--- a/MdeModulePkg/Application/Loader/loader.h
++++ b/MdeModulePkg/Application/Loader/loader.h
+@@ -87,13 +87,15 @@
+ #define PHYSADDR(x) ((UINT32)((UINTN)x & 0xffffffff))
+ #define VMADDR(x) ((UINT64)(((UINTN)x) | KERNEL_VMA_BASE))
+ 
+-#define MH_ADDR     0x5000000   // 80 MB - where we stash mach_header while loading
+-#define ARGS_ADDR   0x44000     // where we stash boot args for initial load
+-#define DTB_ADDR    0x14000     // where we stash FDT during construction
+-#define MMAP_ADDR   0x10000     // location of EFI memory map
++/*
++ * Minkar: the kernel is linked to run at 1 MB physical. The loader builds
++ * the layout below in a staging buffer and moves it there after
++ * ExitBootServices() (see PrepareKernelRange() in macho.c).
++ */
++#define KERNEL_LOAD_ADDRESS 0x100000 // 1 MB
++#define DTB_PAGES 16 /* max size of the device tree in pages */
+ 
+ /*  Memory layout of our boot data heading into kernel entry
+- *  Data is loaded as above then remapped.
+  *   +---------------+ + EFI tables size
+  *   |   EFI tables  |
+  *   +---------------+ + boot args size
+@@ -102,9 +104,7 @@
+  *   |  device tree  |
+  *   +---------------+ + kernel size
+  *   |    kernel     |
+- *   +---------------+ 0x191000
+- *   |    mem map    |
+- *   +---------------+  0x10000
++ *   +---------------+ KERNEL_LOAD_ADDRESS
+  */
+ 
+ typedef struct {
+@@ -241,6 +241,13 @@
+ INT64 readSLEB128(const UINT8 **p, const UINT8 *end);
+ int mapSegments(struct mach_header_64 *mh, UINTN *entry, EFI_FILE_HANDLE KernelFile);
+ int mapDecompressedSegments(struct mach_header_64 *mh, UINTN *KernelEntry);
++EFI_STATUS PrepareKernelRange(struct mach_header_64 *mh, UINTN TailBytes, UINT64 *ReservedEnd);
++BOOLEAN InKernelRange(UINT64 Start, UINT64 Length);
++
++/* Minkar: the kernel is staged elsewhere and moved after ExitBootServices(). */
++extern INTN gStageDelta;
++extern UINT64 gKernelTarget, gKernelTargetSize;
++#define STAGED(x) ((VOID *)((UINTN)(x) + gStageDelta))
+ 
+ VOID GetPCIConfigSpace(ACPI_RSDP *rsdp, BOOT_ARGS *boot, void *DTB);
+ 
+--- a/MdeModulePkg/Application/Loader/macho.c
++++ b/MdeModulePkg/Application/Loader/macho.c
+@@ -90,6 +90,158 @@
+     AsciiStrnToUnicodeStrS(Name, 16, Out, 17, &Length);
+ }
+ 
++/* Minkar */
++STATIC CONST CHAR16 *MemoryTypeName(UINT32 Type)
++{
++    STATIC CONST CHAR16 *Names[] = {
++        UEFI_STR("Reserved"), UEFI_STR("LoaderCode"), UEFI_STR("LoaderData"),
++        UEFI_STR("BootServicesCode"), UEFI_STR("BootServicesData"),
++        UEFI_STR("RuntimeServicesCode"), UEFI_STR("RuntimeServicesData"),
++        UEFI_STR("Conventional"), UEFI_STR("Unusable"), UEFI_STR("ACPIReclaim"),
++        UEFI_STR("ACPINVS"), UEFI_STR("MMIO"), UEFI_STR("MMIOPort"),
++        UEFI_STR("PalCode"), UEFI_STR("Persistent"),
++    };
++    return Type < ARRAY_SIZE(Names) ? Names[Type] : UEFI_STR("Other");
++}
++
++/*
++ * Minkar: where the kernel goes. It is linked to run at 1 MB physical, and
++ * firmware keeps its own code and data there while boot services run (QEMU:
++ * BootServicesData from 9 MB, ACPI NVS at 8 MB; the H270N reset when the
++ * loader wrote over it). The kernel, the device tree, the boot args and
++ * the EFI tables are therefore laid out in a staging buffer allocated from
++ * the firmware, and moved to their place after ExitBootServices(), when
++ * boot-services memory is free (as GRUB's relocator does for xnu).
++ *
++ * gStageDelta is the staging buffer's address minus the final address:
++ * STAGED(x) is where the loader writes what the kernel will find at x.
++ */
++INTN gStageDelta;
++UINT64 gKernelTarget, gKernelTargetSize;
++
++/*
++ * Firmware memory the kernel may take once boot services are gone. ACPI NVS
++ * is kept by the firmware across sleep states and is reported, but QEMU's
++ * firmware has some at 8 MB and the kernel has always been loaded over it.
++ */
++STATIC BOOLEAN FreeAfterExit(UINT32 Type)
++{
++    return Type == EfiConventionalMemory || Type == EfiLoaderCode ||
++           Type == EfiLoaderData || Type == EfiBootServicesCode ||
++           Type == EfiBootServicesData;
++}
++
++EFI_STATUS PrepareKernelRange(struct mach_header_64 *mh, UINTN TailBytes, UINT64 *ReservedEnd)
++{
++    UINT64 lo = KERNEL_LOAD_ADDRESS, hi = 0;
++    UINT32 offset = sizeof(struct mach_header_64);
++
++    for(UINT32 i = 0; i < mh->ncmds; ++i) {
++        const struct load_command *lc = (const struct load_command *)((UINT64)mh + offset);
++        if(lc->cmd == LC_SEGMENT_64) {
++            const struct segment_command_64 *ls = (const struct segment_command_64 *)lc;
++            if(ls->vmsize != 0) {
++                UINT64 start = PHYSADDR(ls->vmaddr);
++                if(start < lo)
++                    lo = start;
++                if(start + ls->vmsize > hi)
++                    hi = start + ls->vmsize;
++            }
++        }
++        offset += lc->cmdsize;
++    }
++    if(lo != KERNEL_LOAD_ADDRESS || hi <= lo) {
++        Print(UEFI_STR("!! Error: kernel segments at 0x%lx-0x%lx, not from 0x%x\n"),
++            lo, hi, KERNEL_LOAD_ADDRESS);
++        return EFI_LOAD_ERROR;
++    }
++    hi = ((hi + EFI_PAGE_MASK) & ~(UINT64)EFI_PAGE_MASK) + TailBytes;
++
++    /* Look at what the firmware has in the range now. */
++    UINTN Size = 0, Key, DescSize;
++    UINT32 DescVersion;
++    EFI_MEMORY_DESCRIPTOR *Map = NULL;
++    EFI_STATUS Status = gBS->GetMemoryMap(&Size, NULL, &Key, &DescSize, &DescVersion);
++    if(Status != EFI_BUFFER_TOO_SMALL)
++        return EFI_ERROR(Status) ? Status : EFI_LOAD_ERROR;
++    Size += 8 * DescSize;
++    Status = gBS->AllocatePool(EfiLoaderData, Size, (VOID **)&Map);
++    if(EFI_ERROR(Status))
++        return Status;
++    Status = gBS->GetMemoryMap(&Size, Map, &Key, &DescSize, &DescVersion);
++    if(EFI_ERROR(Status)) {
++        gBS->FreePool(Map);
++        return Status;
++    }
++
++    UINT64 covered = 0;
++    BOOLEAN blocked = FALSE;
++    for(UINT8 *p = (UINT8 *)Map; p < (UINT8 *)Map + Size; p += DescSize) {
++        EFI_MEMORY_DESCRIPTOR *d = (EFI_MEMORY_DESCRIPTOR *)p;
++        UINT64 dStart = d->PhysicalStart;
++        UINT64 dEnd = dStart + EFI_PAGES_TO_SIZE(d->NumberOfPages);
++        if(dEnd <= lo || dStart >= hi)
++            continue;
++        UINT64 s = dStart > lo ? dStart : lo, e = dEnd < hi ? dEnd : hi;
++        covered += e - s;
++        if(FreeAfterExit(d->Type))
++            continue;
++        Print(UEFI_STR("   0x%08lx-0x%08lx %s%a\n"), s, e, MemoryTypeName(d->Type),
++            d->Type == EfiACPIMemoryNVS ? " (overwritten)" : "");
++        if(d->Type != EfiACPIMemoryNVS)
++            blocked = TRUE;
++    }
++    gBS->FreePool(Map);
++    if(blocked || covered != hi - lo) {
++        Print(UEFI_STR("!! Error: the firmware keeps memory the kernel needs (0x%lx-0x%lx)\n"), lo, hi);
++        return EFI_ACCESS_DENIED;
++    }
++
++    /*
++     * Take the free pages of the range, so that nothing the loader allocates
++     * from here on (the staging buffer, the memory map) lands in it.
++     */
++    Status = gBS->GetMemoryMap(&Size, NULL, &Key, &DescSize, &DescVersion);
++    Size += 16 * DescSize;
++    if(EFI_ERROR(gBS->AllocatePool(EfiLoaderData, Size, (VOID **)&Map)))
++        return EFI_OUT_OF_RESOURCES;
++    Status = gBS->GetMemoryMap(&Size, Map, &Key, &DescSize, &DescVersion);
++    for(UINT8 *p = (UINT8 *)Map; !EFI_ERROR(Status) && p < (UINT8 *)Map + Size; p += DescSize) {
++        EFI_MEMORY_DESCRIPTOR *d = (EFI_MEMORY_DESCRIPTOR *)p;
++        UINT64 dEnd = d->PhysicalStart + EFI_PAGES_TO_SIZE(d->NumberOfPages);
++        if(d->Type != EfiConventionalMemory || dEnd <= lo || d->PhysicalStart >= hi)
++            continue;
++        EFI_PHYSICAL_ADDRESS s = d->PhysicalStart > lo ? d->PhysicalStart : lo;
++        UINT64 e = dEnd < hi ? dEnd : hi;
++        gBS->AllocatePages(AllocateAddress, EfiLoaderData, EFI_SIZE_TO_PAGES(e - s), &s);
++    }
++    gBS->FreePool(Map);
++
++    EFI_PHYSICAL_ADDRESS staging;
++    Status = gBS->AllocatePages(AllocateAnyPages, EfiLoaderData, EFI_SIZE_TO_PAGES(hi - lo), &staging);
++    if(EFI_ERROR(Status)) {
++        Print(UEFI_STR("!! Error: no memory to stage the kernel: %r\n"), Status);
++        return Status;
++    }
++    SetMem((VOID *)(UINTN)staging, hi - lo, 0);
++    gStageDelta = (INTN)(staging - lo);
++    gKernelTarget = lo;
++    gKernelTargetSize = hi - lo;
++    *ReservedEnd = hi;
++    Print(UEFI_STR("    Kernel 0x%lx-0x%lx, staged at 0x%lx\n"), lo, hi, staging);
++    return EFI_SUCCESS;
++}
++
++/*
++ * TRUE if [Start, Start+Length) meets the kernel's final range. Used to make
++ * sure what is still needed after ExitBootServices() (the loader, its stack,
++ * the page tables, the GDT, the memory map) is not overwritten by the move.
++ */
++BOOLEAN InKernelRange(UINT64 Start, UINT64 Length)
++{
++    return Start < gKernelTarget + gKernelTargetSize && Start + Length > gKernelTarget;
++}
++
+ int mapSegments(struct mach_header_64 *mh, UINTN *KernelEntry, EFI_FILE_HANDLE KernelFile)
+ {
+     UINT32 kernelTop = 0, kernelBase = 0;
+@@ -135,17 +287,9 @@
+ 
+                     EFI_STATUS Status = EFI_SUCCESS;
+                     if(lsect->size) {
+-                        VOID *physaddr = (VOID *)((UINTN)PHYSADDR(lsect->addr));
+-                        UINTN align = 1;
+-                        for(int x = 0; x < lsect->align; ++x) align *= 2;
+-                        --align;
+-                        UINTN size = (lsect->size + align) & ~align;
+-                        Status = gBS->AllocatePages(AllocateAnyPages, EfiLoaderData, EFI_SIZE_TO_PAGES(size), physaddr);
+-                        SetMem(physaddr, size, 0);
+-                        if(EFI_ERROR(Status))
+-                            Print(UEFI_STR("!! ERROR %r\n"), Status);
+-                        if((UINTN)physaddr != PHYSADDR(lsect->addr))
+-                            Print(UEFI_STR("!! ERROR physaddr != lsect->addr\n"));
++                        /* Minkar: written to the staging buffer (PrepareKernelRange). */
++                        VOID *physaddr = STAGED(PHYSADDR(lsect->addr));
++                        UINTN size;
+ 
+                         Status = KernelFile->SetPosition(KernelFile, lsect->offset);
+                         size = lsect->size;
+@@ -165,7 +309,7 @@
+     }
+ 
+     /* Put the kernel header where it belongs */
+-    CopyMem(mh_exec_hdr, mh, mh->sizeofcmds);
++    CopyMem(STAGED(mh_exec_hdr), mh, sizeof(*mh) + mh->sizeofcmds);
+ 
+     return kernelTop - kernelBase;
+ }
+@@ -190,7 +334,6 @@
+                 const struct segment_command_64 *ls = (const struct segment_command_64 *)lc;
+                 CHAR16 segname[17], sectname[17];
+                 MachName(ls->segname, segname);
+-		SetMem((VOID *)(ls->vmaddr & 0xffffffff), 0, ls->vmsize);
+ #ifdef DEBUG_LOADER
+                 Print(UEFI_STR("  %s at %lx (%d) sz %lx\n"),
+                     segname, ls->vmaddr, offset, ls->vmsize);
+@@ -226,7 +369,7 @@
+                         VOID *physaddr = (VOID *)((UINTN)PHYSADDR(lsect->addr));
+                         UINTN align = (1 << lsect->align) - 1;
+                         UINTN size = (lsect->size + align) & ~align;
+-                        CopyMem(physaddr, (VOID *)mh + lsect->offset, size);
++                        CopyMem(STAGED(physaddr), (VOID *)mh + lsect->offset, size);
+                         if(EFI_ERROR(Status))
+                             Print(UEFI_STR("!! ERROR %r\n"), Status);
+                         if((UINTN)physaddr != PHYSADDR(lsect->addr))
+@@ -244,7 +387,7 @@
+     }
+ 
+     /* Put the kernel header where it belongs */
+-    CopyMem(mh_exec_hdr, mh, mh->sizeofcmds);
++    CopyMem(STAGED(mh_exec_hdr), mh, sizeof(*mh) + mh->sizeofcmds);
+ 
+     Print(UEFI_STR("    Base Address 0x%p, Top 0x%p, Size %d bytes\n"), kernelBase, kernelTop, kernelTop - kernelBase);
+     return kernelTop - kernelBase;
