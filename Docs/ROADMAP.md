@@ -108,19 +108,26 @@ Mach-O. The biggest gap is between the kernel and the desktop.
 Goal: any contributor gets a bootable image from scratch with one command,
 and every PR is tested by booting it in QEMU.
 
-- [ ] Pin the toolchain (`Default.xctoolchain`): clang, Mach-O linker and
+- [x] Pin the toolchain (`Default.xctoolchain`): clang, Mach-O linker and
   cctools versions in a manifest; reproducible toolchain build before the
-  sysroot. *Partial:* `Developer/Default.xctoolchain/_PROVENANCE` records
-  where each source comes from (llvm `swift-6.0-RELEASE`, ld64 609, tapi
-  1600.0.11.8…); no version manifest, no reproducibility check.
-- [ ] Per-layer bmake targets: `toolchain`, `kernel`, `libsystem`,
-  `userland`, `frameworks`, `sysapps`, `iso`, each incremental with its own
-  `make check`. *Partial:* `bmake ONLY_STAGE=<stage> <stage>` builds one
-  stage alone; no per-layer targets or `check`.
-- [ ] Bring third-party sources into the tree and package them as
-  `.framework` with `minkar.framework.mk`. *Partial:* 13 frameworks build and
-  install; CFNetwork is commented out, and Security and OpenDirectory are
-  not built.
+  sysroot. Done 2026-10-27: `tools/toolchain/MANIFEST` pins each
+  component's upstream version (clang 17.0.6 from `swift-6.0-RELEASE`,
+  ld64-609, GNU make 4.4.1...), the git tree of its sources and the
+  version line its tool prints; `tools/toolchain/manifest.sh check`
+  verifies them and that one input compiles, links and archives to the
+  same bytes twice, in CI after every build. The build exports
+  `SOURCE_DATE_EPOCH`: ld64 carried the time it was built.
+- [x] Per-layer bmake targets: `toolchain`, `kernel`, `libsystem`,
+  `userland`, `frameworks`, `sysapps`, each incremental with its own
+  check. Done 2026-10-27: `bmake <layer>` builds the layer's stages,
+  `bmake <layer>-check` checks what it installed without booting
+  (`tools/check/sysroot-check.py`: every library a binary loads is in
+  the sysroot, the property lists parse, kexts and the kernelcache are
+  well formed), `layers-check` runs them all and `image-check` boots the
+  image (a disk image, `image`, instead of an ISO) to gate M2. The first
+  run found every framework's `Info.plist` empty but four (fixed).
+  Third-party frameworks (CFNetwork, Security, OpenDirectory) moved to
+  Phase 3.
 - [x] CI per PR: full build + boot in QEMU (q35 + OVMF) on the serial
   console, waiting for boot markers.
   `.github/workflows/build-boottest.yml` runs on every push and pull
@@ -264,8 +271,12 @@ notifyd, syslogd, the HFS tools, mDNSResponder) stay as they are.
   script); 2026-10-27 `killall` (now in `/usr/bin`; macOS matches whole
   names, past `p_comm`'s 16 characters), `kill` (in `/bin`, `sh`'s
   built-in's source) and `w` (it had Apple's portions and was not built;
-  macOS's heading). Still from Apple: `ps`, `top`, `login`, `sysctl`,
-  `su`. Missing in `grep`: macOS's `-Z`/`-J` (decompress).
+  macOS's heading), `ps` (macOS's displays, options and keywords; its
+  process records come from libbsdcompat's `kvm_getprocs()` over sysctl
+  and libproc). `top` is our own, with macOS's options, keys and summary
+  since 2026-10-27, and `btop` 1.4.7 (Apache-2.0) sits next to it. Still
+  from Apple: `login`, `sysctl`, `su`. Missing in `grep`: macOS's
+  `-Z`/`-J` (decompress).
 - [ ] Everyday tools missing from the image. *Partial:* built and tested
   2026-10-26: `dd`, `expr`, `printenv`, `od`/`hexdump`, `paste`, `nohup`,
   `install`, `pgrep`/`pkill` (FreeBSD's, reading processes through
@@ -281,13 +292,17 @@ notifyd, syslogd, the HFS tools, mDNSResponder) stay as they are.
   `uuencode`/`uudecode`/`base64` (macOS's `base64` options) and `xattr`
   (written for Minkar, macOS's options; no manual page yet), and
   `chflags`. Kernel bug found by its test: a file's owner can unlink it
-  while it is `uchg`.
+  while it is `uchg`. Then (2026-10-27) `tty`.
   Missing: `cal`, `lsof`, `man`, `units`, `getconf`, `iconv`, `locate`,
-  `nslookup`/`dig`.
+  `nslookup`/`dig`, and the locales (`/usr/share/locale` is empty: no
+  UTF-8 locale; `btop` warns). The console's terminal has no node in
+  `/dev` (the serial device behind it), so `ps` shows `??` for getty.
 - [ ] Power user: `zsh`, `tar`, `ssh`, `curl`, `make`, `git`. *Partial:*
   `tar`, `ssh` and `curl` installed; `zsh` 5.9 built and tested
   2026-10-26 (modules linked in, the function library, in `/etc/shells`);
-  `make` and `git` missing (both GPL: to be decided).
+  `make` is BSD make (bmake 20260704, with its mk files in
+  `/usr/share/mk`) since 2026-10-27, decided over GNU make; `git` (GPL-2.0,
+  approved 2026-10-27) missing.
 - [ ] Apple tools: `open`, `plutil`, `defaults`, `sw_vers`, `ditto`
   (`hdiutil` comes with Phase 6). *Partial:* `plutil`, `defaults`, `sw_vers`
   and `ditto` tested in the image 2026-10-26 (`sw_vers` printed spaces
@@ -372,6 +387,10 @@ constrains the Swift runtime.
 
 **Work**
 
+0. Bring the remaining third-party frameworks into the tree and package
+   them with `minkar.framework.mk` (moved from Phase 0, 2026-10-27):
+   13 frameworks build and install; CFNetwork is commented out, and
+   Security and OpenDirectory are not built.
 1. Complete CF-Lite up to the macOS 12 APIs, with `CFString` ↔ `NSString`,
    `CFArray` ↔ `NSArray` and `CFDictionary` ↔ `NSDictionary` bridging tests
    on every change.
@@ -648,8 +667,8 @@ The highest-impact open items, in critical-path order:
 1. Reference PC 1 (Phase 1, gate M1): the kernel waits for its root
    device on the H270N (the SATA disk is not found); then its USB hub
    and its network card (I219-V).
-2. BSD userland batches (Phase 2): replace the commands that came from
-   Apple with FreeBSD's plus the macOS layer; `make`, `git`, `open`.
+2. BSD userland batches (Phase 2): `login`, `sysctl` and `su` from
+   FreeBSD with the macOS layer; the missing tools and the locales; `git`.
 3. IOHIDSystem event delivery in the kernel, the `ApplePS2Mouse` driver and
    the WindowServer input reader (Phase 4).
 4. Install WindowServer's launchd job and get a first boot that draws on
