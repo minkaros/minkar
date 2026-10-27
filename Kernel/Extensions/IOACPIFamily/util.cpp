@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2026 Zoe Knox. All rights reserved.
+ * Modifications Copyright (c) 2026 The Minkar contributors
  * 
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -65,6 +66,8 @@ ACPIPlatformExpert::PE_Log(const char * fmt, ...)
 void
 ACPIPlatformExpert::parseAPIC(void * table, IOService * nub)
 {
+    unsigned ioapicIndex = 0;   /* Minkar: I/O APICs in MADT order */
+
     struct LAPIC_RECORD {
         uint8_t  type;
         uint8_t  length;
@@ -208,7 +211,17 @@ ACPIPlatformExpert::parseAPIC(void * table, IOService * nub)
                 dict->setObject("Physical Address",
                                 OSNumber::withNumber(apic->address, 32));
 
-                sprintf(buf, "io-apic@%d", apic->io_apic_id);
+                /*
+                 * Minkar: named by its place in the MADT, not its APIC ID.
+                 * The platform expert gives every device "io-apic@0" and
+                 * looks for that name when it dispatches; QEMU's I/O APIC
+                 * has ID 0, a PC's often 2 (the reference H270N), and there
+                 * every driver that registered an interrupt waited forever
+                 * for a controller that never appeared.
+                 */
+                sprintf(buf, "io-apic@%u", ioapicIndex++);
+                dict->setObject("IOAPIC ID",
+                                OSNumber::withNumber(apic->io_apic_id, 32));
                 dict->setObject("InterruptControllerName", OSSymbol::withCString(buf));
                 dict->setObject("name", OSString::withCString(buf));
                 dict->setObject("compatible", OSString::withCString("io-apic"));

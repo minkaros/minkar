@@ -339,6 +339,13 @@ bool RavynAHCIPort::start(IOService *provider)
         int intIndex = 0;
         OSArray *controllers = OSDynamicCast(OSArray,
             fProvider->getProperty(gIOInterruptControllersKey));
+        /* Minkar: registering an interrupt waits for the controller named
+         * here to appear; say which, for a machine that stops at this point. */
+        for (unsigned i = 0; controllers && i < controllers->getCount(); i++) {
+            OSSymbol *name = OSDynamicCast(OSSymbol, controllers->getObject(i));
+            AHCI_Debug("interrupt %u controller %s", i,
+                name ? name->getCStringNoCopy() : "?");
+        }
         for (unsigned i = 0; controllers && i < controllers->getCount(); i++) {
             int type;
             if (fProvider->getInterruptType((int)i, &type) == kIOReturnSuccess &&
