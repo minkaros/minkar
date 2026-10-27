@@ -1,4 +1,5 @@
 /* Copyright (c) 2006-2007 Christopher J. W. Lloyd
+   Modifications Copyright (c) 2026 The Minkar contributors
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
 
@@ -6,6 +7,7 @@ The above copyright notice and this permission notice shall be included in all c
 
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE. */
 
+#include <xlocale.h>
 #import <Foundation/NSUserDefaults.h>
 #import <Foundation/NSArray.h>
 #import <Foundation/NSBundle.h>
@@ -121,81 +123,87 @@ NSString * const NSUserDefaultsDidChangeNotification=@"NSUserDefaultsDidChangeNo
    [self registerProcessNameDefaults];
 
     NSMutableDictionary *dict = [NSMutableDictionary new];
-    [dict addEntriesWithDictionary:[_domains objectForKey:NSGlobalDomain]];
+    // Minkar: was addEntriesWithDictionary:, which does not exist.
+    [dict addEntriesFromDictionary:[_domains objectForKey:NSGlobalDomain]];
     [_domains setObject:dict forKey:NSGlobalDomain];
     
+    // Minkar: the names come from the user's locale through nl_langinfo_l,
+    // without touching the process's locale. This switched it with
+    // setlocale(LC_ALL) and "restored" it from setlocale's own buffer,
+    // which the switch had overwritten: the process kept the new locale.
     const char *lstr = [[[[NSLocale currentLocale] localeIdentifier]
         stringByAppendingString:@".UTF-8"] UTF8String];
-    char *current = setlocale(LC_ALL, NULL);
-    setlocale(LC_ALL, lstr);
+    locale_t names = newlocale(LC_ALL_MASK, lstr, NULL);
+    if (names == NULL)
+        names = newlocale(LC_ALL_MASK, "C", NULL);
     
     // long day names
     NSMutableArray *arr = [NSMutableArray arrayWithCapacity:7];
-    [arr addObject:[NSString stringWithUTF8String:nl_langinfo(DAY_1)]];
-    [arr addObject:[NSString stringWithUTF8String:nl_langinfo(DAY_2)]];
-    [arr addObject:[NSString stringWithUTF8String:nl_langinfo(DAY_3)]];
-    [arr addObject:[NSString stringWithUTF8String:nl_langinfo(DAY_4)]];
-    [arr addObject:[NSString stringWithUTF8String:nl_langinfo(DAY_5)]];
-    [arr addObject:[NSString stringWithUTF8String:nl_langinfo(DAY_6)]];
-    [arr addObject:[NSString stringWithUTF8String:nl_langinfo(DAY_7)]];
+    [arr addObject:[NSString stringWithUTF8String:nl_langinfo_l(DAY_1, names)]];
+    [arr addObject:[NSString stringWithUTF8String:nl_langinfo_l(DAY_2, names)]];
+    [arr addObject:[NSString stringWithUTF8String:nl_langinfo_l(DAY_3, names)]];
+    [arr addObject:[NSString stringWithUTF8String:nl_langinfo_l(DAY_4, names)]];
+    [arr addObject:[NSString stringWithUTF8String:nl_langinfo_l(DAY_5, names)]];
+    [arr addObject:[NSString stringWithUTF8String:nl_langinfo_l(DAY_6, names)]];
+    [arr addObject:[NSString stringWithUTF8String:nl_langinfo_l(DAY_7, names)]];
     [dict setObject:arr forKey:NSWeekDayNameArray];
 
     // short day names
     arr = [NSMutableArray arrayWithCapacity:7];
-    [arr addObject:[NSString stringWithUTF8String:nl_langinfo(ABDAY_1)]];
-    [arr addObject:[NSString stringWithUTF8String:nl_langinfo(ABDAY_2)]];
-    [arr addObject:[NSString stringWithUTF8String:nl_langinfo(ABDAY_3)]];
-    [arr addObject:[NSString stringWithUTF8String:nl_langinfo(ABDAY_4)]];
-    [arr addObject:[NSString stringWithUTF8String:nl_langinfo(ABDAY_5)]];
-    [arr addObject:[NSString stringWithUTF8String:nl_langinfo(ABDAY_6)]];
-    [arr addObject:[NSString stringWithUTF8String:nl_langinfo(ABDAY_7)]];
+    [arr addObject:[NSString stringWithUTF8String:nl_langinfo_l(ABDAY_1, names)]];
+    [arr addObject:[NSString stringWithUTF8String:nl_langinfo_l(ABDAY_2, names)]];
+    [arr addObject:[NSString stringWithUTF8String:nl_langinfo_l(ABDAY_3, names)]];
+    [arr addObject:[NSString stringWithUTF8String:nl_langinfo_l(ABDAY_4, names)]];
+    [arr addObject:[NSString stringWithUTF8String:nl_langinfo_l(ABDAY_5, names)]];
+    [arr addObject:[NSString stringWithUTF8String:nl_langinfo_l(ABDAY_6, names)]];
+    [arr addObject:[NSString stringWithUTF8String:nl_langinfo_l(ABDAY_7, names)]];
     [dict setObject:arr forKey:NSShortWeekDayNameArray];
 
     // long month names
     arr = [NSMutableArray arrayWithCapacity:12];
-    [arr addObject:[NSString stringWithUTF8String:nl_langinfo(MON_1)]];
-    [arr addObject:[NSString stringWithUTF8String:nl_langinfo(MON_2)]];
-    [arr addObject:[NSString stringWithUTF8String:nl_langinfo(MON_3)]];
-    [arr addObject:[NSString stringWithUTF8String:nl_langinfo(MON_4)]];
-    [arr addObject:[NSString stringWithUTF8String:nl_langinfo(MON_5)]];
-    [arr addObject:[NSString stringWithUTF8String:nl_langinfo(MON_6)]];
-    [arr addObject:[NSString stringWithUTF8String:nl_langinfo(MON_7)]];
-    [arr addObject:[NSString stringWithUTF8String:nl_langinfo(MON_8)]];
-    [arr addObject:[NSString stringWithUTF8String:nl_langinfo(MON_9)]];
-    [arr addObject:[NSString stringWithUTF8String:nl_langinfo(MON_10)]];
-    [arr addObject:[NSString stringWithUTF8String:nl_langinfo(MON_11)]];
-    [arr addObject:[NSString stringWithUTF8String:nl_langinfo(MON_12)]];
+    [arr addObject:[NSString stringWithUTF8String:nl_langinfo_l(MON_1, names)]];
+    [arr addObject:[NSString stringWithUTF8String:nl_langinfo_l(MON_2, names)]];
+    [arr addObject:[NSString stringWithUTF8String:nl_langinfo_l(MON_3, names)]];
+    [arr addObject:[NSString stringWithUTF8String:nl_langinfo_l(MON_4, names)]];
+    [arr addObject:[NSString stringWithUTF8String:nl_langinfo_l(MON_5, names)]];
+    [arr addObject:[NSString stringWithUTF8String:nl_langinfo_l(MON_6, names)]];
+    [arr addObject:[NSString stringWithUTF8String:nl_langinfo_l(MON_7, names)]];
+    [arr addObject:[NSString stringWithUTF8String:nl_langinfo_l(MON_8, names)]];
+    [arr addObject:[NSString stringWithUTF8String:nl_langinfo_l(MON_9, names)]];
+    [arr addObject:[NSString stringWithUTF8String:nl_langinfo_l(MON_10, names)]];
+    [arr addObject:[NSString stringWithUTF8String:nl_langinfo_l(MON_11, names)]];
+    [arr addObject:[NSString stringWithUTF8String:nl_langinfo_l(MON_12, names)]];
     [dict setObject:arr forKey:NSMonthNameArray];
 
     // short month names
     arr = [NSMutableArray arrayWithCapacity:12];
-    [arr addObject:[NSString stringWithUTF8String:nl_langinfo(ABMON_1)]];
-    [arr addObject:[NSString stringWithUTF8String:nl_langinfo(ABMON_2)]];
-    [arr addObject:[NSString stringWithUTF8String:nl_langinfo(ABMON_3)]];
-    [arr addObject:[NSString stringWithUTF8String:nl_langinfo(ABMON_4)]];
-    [arr addObject:[NSString stringWithUTF8String:nl_langinfo(ABMON_5)]];
-    [arr addObject:[NSString stringWithUTF8String:nl_langinfo(ABMON_6)]];
-    [arr addObject:[NSString stringWithUTF8String:nl_langinfo(ABMON_7)]];
-    [arr addObject:[NSString stringWithUTF8String:nl_langinfo(ABMON_8)]];
-    [arr addObject:[NSString stringWithUTF8String:nl_langinfo(ABMON_9)]];
-    [arr addObject:[NSString stringWithUTF8String:nl_langinfo(ABMON_10)]];
-    [arr addObject:[NSString stringWithUTF8String:nl_langinfo(ABMON_11)]];
-    [arr addObject:[NSString stringWithUTF8String:nl_langinfo(ABMON_12)]];
+    [arr addObject:[NSString stringWithUTF8String:nl_langinfo_l(ABMON_1, names)]];
+    [arr addObject:[NSString stringWithUTF8String:nl_langinfo_l(ABMON_2, names)]];
+    [arr addObject:[NSString stringWithUTF8String:nl_langinfo_l(ABMON_3, names)]];
+    [arr addObject:[NSString stringWithUTF8String:nl_langinfo_l(ABMON_4, names)]];
+    [arr addObject:[NSString stringWithUTF8String:nl_langinfo_l(ABMON_5, names)]];
+    [arr addObject:[NSString stringWithUTF8String:nl_langinfo_l(ABMON_6, names)]];
+    [arr addObject:[NSString stringWithUTF8String:nl_langinfo_l(ABMON_7, names)]];
+    [arr addObject:[NSString stringWithUTF8String:nl_langinfo_l(ABMON_8, names)]];
+    [arr addObject:[NSString stringWithUTF8String:nl_langinfo_l(ABMON_9, names)]];
+    [arr addObject:[NSString stringWithUTF8String:nl_langinfo_l(ABMON_10, names)]];
+    [arr addObject:[NSString stringWithUTF8String:nl_langinfo_l(ABMON_11, names)]];
+    [arr addObject:[NSString stringWithUTF8String:nl_langinfo_l(ABMON_12, names)]];
     [dict setObject:arr forKey:NSShortMonthNameArray];
 
-    [dict setObject:[NSString stringWithUTF8String:nl_langinfo(T_FMT)]
+    [dict setObject:[NSString stringWithUTF8String:nl_langinfo_l(T_FMT, names)]
         forKey:NSTimeFormatString];
-    [dict setObject:[NSString stringWithUTF8String:nl_langinfo(D_FMT)]
+    [dict setObject:[NSString stringWithUTF8String:nl_langinfo_l(D_FMT, names)]
         forKey:NSDateFormatString];
-    [dict setObject:[NSString stringWithUTF8String:nl_langinfo(D_T_FMT)]
+    [dict setObject:[NSString stringWithUTF8String:nl_langinfo_l(D_T_FMT, names)]
         forKey:NSTimeDateFormatString];
 
     arr = [NSMutableArray arrayWithCapacity:2];
-    [arr addObject:[NSString stringWithUTF8String:nl_langinfo(AM_STR)]];
-    [arr addObject:[NSString stringWithUTF8String:nl_langinfo(PM_STR)]];
+    [arr addObject:[NSString stringWithUTF8String:nl_langinfo_l(AM_STR, names)]];
+    [arr addObject:[NSString stringWithUTF8String:nl_langinfo_l(PM_STR, names)]];
     [dict setObject:arr forKey:NSAMPMDesignation];
 
-    setlocale(LC_ALL, current);
+    freelocale(names);
 
    [_domains setObject:[NSMutableDictionary dictionary]
                 forKey:NSRegistrationDomain];

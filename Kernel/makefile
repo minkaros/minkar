@@ -38,6 +38,11 @@ TARGETS = ${DKPATH}
 TARGETS += xnu_all
 
 # xnu's gmake must not see bmake's flags: they are cleared for it alone.
+# It runs its commands with bash, as on macOS: its makefiles use bash
+# (MakeInc.def computes the kernel's link addresses with $[ ]), and /bin/sh
+# is dash on Debian and Ubuntu. With dash the addresses came out as 0 and
+# the kernel did not link on the CI.
+XNU_SHELL ?= /bin/bash
 # (Clearing them for the whole file also took the jobs from the sub-makes,
 # so all of Libraries, ICU included, was built one job at a time.)
 
@@ -48,7 +53,7 @@ all: ${TARGETS} .WAIT
 installhdrs: .PHONY
 	touch ${ROOT_BINARY_DIR}${.CURDIR}/xnu/.mach_kernel.timestamp
 	touch ${ROOT_BINARY_DIR}${.CURDIR}/xnu/.symbolset.timestamp
-	MAKEFLAGS= PATH="${PATH}" ${GMAKE} -C ${.CURDIR}/xnu LOGCOLORS=y PLATFORM=MacOSX BUILD_LTO=0 \
+	MAKEFLAGS= PATH="${PATH}" ${GMAKE} -C ${.CURDIR}/xnu SHELL=${XNU_SHELL} LOGCOLORS=y PLATFORM=MacOSX BUILD_LTO=0 \
 		BUILD_PROFILE=0 BUILD_WERROR=0 DO_CTFMERGE=0 \
 		SDKVERSION=${MACOS_VERSION_MIN} SRCROOT=${.CURDIR}/xnu \
 		OBJROOT=${.OBJDIR}/xnu DSTROOT=${MINKAR_SDKROOT} \
@@ -74,7 +79,7 @@ compiler_rt: .PHONY
 # In this order, also with -j: Libraries needs the kernel headers, and
 # libfirehose_kernel archives Libraries' libplatform, libkernel and libc++.
 xnu_all: installhdrs .WAIT compiler_rt .WAIT libfirehose_kernel
-	MAKEFLAGS= PATH="${PATH}" ${GMAKE} -C ${.CURDIR}/xnu LOGCOLORS=y \
+	MAKEFLAGS= PATH="${PATH}" ${GMAKE} -C ${.CURDIR}/xnu SHELL=${XNU_SHELL} LOGCOLORS=y \
 		PLATFORM=MacOSX BUILD_LTO=0 BUILD_WERROR=0 DO_CTFMERGE=0 \
 		SDKVERSION=${MACOS_VERSION_MIN} SRCROOT=${.CURDIR}/xnu \
 		OBJROOT=${.OBJDIR}/xnu DSTROOT=${MINKAR_SDKROOT} \

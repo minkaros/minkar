@@ -1,4 +1,5 @@
 /* Copyright (c) 2007 Michael Ash
+   Modifications Copyright (c) 2026 The Minkar contributors
    Copyright (c) 2007 Jens Ayton (uid decoding)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
@@ -206,6 +207,15 @@ static id _readObjectAtOffset(NSPropertyListReader_binary1 *self,NSUInteger *off
     uint8_t botNibble = marker & 0x0F;
 
     if (topNibble == 0x1) {
+        // Minkar: a 16-byte integer is how values above INT64_MAX are
+        // written (the high half zero); they read back as -1 and the like.
+        if (botNibble == 4) {
+            uint64_t high = _readIntOfSize(self, 8, offset);
+            uint64_t low = _readIntOfSize(self, 8, offset);
+            if (high == 0)
+                return [[NSNumber alloc] initWithUnsignedLongLong:low];
+            return [[NSNumber alloc] initWithLongLong:(long long)low];
+        }
         return [[NSNumber alloc] initWithLongLong: _readIntOfSize(self, 1 << botNibble, offset)];
     }
     if (topNibble == 0x2) {

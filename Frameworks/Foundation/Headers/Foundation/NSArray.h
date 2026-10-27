@@ -1,4 +1,5 @@
 /* Copyright (c) 2006-2007 Christopher J. W. Lloyd
+   Modifications Copyright (c) 2026 The Minkar contributors
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
 
@@ -10,73 +11,109 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <Foundation/NSRange.h>
 #import <Foundation/NSEnumerator.h>
 
-@class NSString, NSDictionary, NSPredicate, NSIndexSet, NSURL, HIDEvent;
+@class NSString, NSPredicate, NSIndexSet, NSURL;
+@class NSDictionary<KeyType, ObjectType>;
 
-@interface NSArray <HIDEvent> : NSObject <NSCopying, NSMutableCopying, NSCoding, NSFastEnumeration>
+@interface NSArray<__covariant ObjectType> : NSObject <NSCopying, NSMutableCopying, NSCoding, NSFastEnumeration>
 
-- initWithArray:(NSArray *)array;
-- initWithArray:(NSArray *)array copyItems:(BOOL)copyItems;
+- initWithArray:(NSArray<ObjectType> *)array;
+- initWithArray:(NSArray<ObjectType> *)array copyItems:(BOOL)copyItems;
 - initWithContentsOfFile:(NSString *)path;
 - initWithContentsOfURL:(NSURL *)url;
 - initWithObjects:(id *)objects count:(NSUInteger)count;
-- initWithObjects:object, ...;
+- initWithObjects:(ObjectType)object, ...;
 
 + array;
 + arrayWithContentsOfFile:(NSString *)path;
 + arrayWithContentsOfURL:(NSURL *)url;
-+ arrayWithObject:object;
-+ arrayWithObjects:object, ...;
++ arrayWithObject:(ObjectType)object;
++ arrayWithObjects:(ObjectType)object, ...;
 
-+ arrayWithArray:(NSArray *)array;
++ arrayWithArray:(NSArray<ObjectType> *)array;
 + arrayWithObjects:(id *)objects count:(NSUInteger)count;
 
 - (NSUInteger)count;
-- objectAtIndex:(NSUInteger)index;
+- (ObjectType)objectAtIndex:(NSUInteger)index;
 
 - (void)getObjects:(id *)objects;
 - (void)getObjects:(id *)objects range:(NSRange)range;
 
-- (NSArray *)objectsAtIndexes:(NSIndexSet *)indexes;
+- (NSArray<ObjectType> *)objectsAtIndexes:(NSIndexSet *)indexes;
 
-- (NSArray *)subarrayWithRange:(NSRange)range;
+- (NSArray<ObjectType> *)subarrayWithRange:(NSRange)range;
 
-- (BOOL)isEqualToArray:(NSArray *)array;
+- (BOOL)isEqualToArray:(NSArray<ObjectType> *)array;
 
-- (NSUInteger)indexOfObject:object;
-- (NSUInteger)indexOfObject:object inRange:(NSRange)range;
+- (NSUInteger)indexOfObject:(ObjectType)object;
+- (NSUInteger)indexOfObject:(ObjectType)object inRange:(NSRange)range;
 
-- (NSUInteger)indexOfObjectIdenticalTo:object;
-- (NSUInteger)indexOfObjectIdenticalTo:object inRange:(NSRange)range;
+- (NSUInteger)indexOfObjectIdenticalTo:(ObjectType)object;
+- (NSUInteger)indexOfObjectIdenticalTo:(ObjectType)object inRange:(NSRange)range;
 
-- (NSEnumerator *)objectEnumerator;
-- (NSEnumerator *)reverseObjectEnumerator;
+- (NSEnumerator<ObjectType> *)objectEnumerator;
+- (NSEnumerator<ObjectType> *)reverseObjectEnumerator;
 
-- (NSArray *)arrayByAddingObject:object;
-- (NSArray *)arrayByAddingObjectsFromArray:(NSArray *)array;
+- (NSArray<ObjectType> *)arrayByAddingObject:(ObjectType)object;
+- (NSArray<ObjectType> *)arrayByAddingObjectsFromArray:(NSArray<ObjectType> *)array;
 - (NSString *)componentsJoinedByString:(NSString *)string;
 
-- (BOOL)containsObject:object;
+- (BOOL)containsObject:(ObjectType)object;
 
-- firstObjectCommonWithArray:(NSArray *)array;
+- (ObjectType)firstObjectCommonWithArray:(NSArray<ObjectType> *)array;
 
-- firstObject;
-- lastObject;
+- (ObjectType)firstObject;
+- (ObjectType)lastObject;
 
-- (NSArray *)sortedArrayUsingSelector:(SEL)selector;
-- (NSArray *)sortedArrayUsingFunction:(NSInteger (*)(id, id, void *))function
+- (NSArray<ObjectType> *)sortedArrayUsingSelector:(SEL)selector;
+- (NSArray<ObjectType> *)sortedArrayUsingFunction:(NSInteger (*)(ObjectType, ObjectType, void *))function
                               context:(void *)context;
 
 - (BOOL)writeToFile:(NSString *)path atomically:(BOOL)atomically;
 - (BOOL)writeToURL:(NSURL *)aURL atomically:(BOOL)atomically;
 
 - (void)makeObjectsPerformSelector:(SEL)selector;
-- (void)makeObjectsPerformSelector:(SEL)selector withObject:object;
+- (void)makeObjectsPerformSelector:(SEL)selector withObject:(id)object;
 
 - (NSString *)descriptionWithLocale:(NSDictionary *)locale;
 - (NSString *)descriptionWithLocale:(NSDictionary *)locale indent:(NSUInteger)indent;
 
-- (NSArray *)sortedArrayUsingDescriptors:(NSArray *)descriptors;
-- (NSArray *)filteredArrayUsingPredicate:(NSPredicate *)predicate;
+- (NSArray<ObjectType> *)sortedArrayUsingDescriptors:(NSArray *)descriptors;
+- (NSArray<ObjectType> *)filteredArrayUsingPredicate:(NSPredicate *)predicate;
+@end
+
+typedef NS_OPTIONS(NSUInteger, NSBinarySearchingOptions) {
+    NSBinarySearchingFirstEqual = (1UL << 8),
+    NSBinarySearchingLastEqual = (1UL << 9),
+    NSBinarySearchingInsertionIndex = (1UL << 10),
+};
+
+#if __BLOCKS__
+@interface NSArray<ObjectType> (NSBlocks)
+- (void)enumerateObjectsUsingBlock:(void (NS_NOESCAPE ^)(ObjectType obj, NSUInteger idx, BOOL *stop))block;
+- (void)enumerateObjectsWithOptions:(NSEnumerationOptions)opts
+                         usingBlock:(void (NS_NOESCAPE ^)(ObjectType obj, NSUInteger idx, BOOL *stop))block;
+- (void)enumerateObjectsAtIndexes:(NSIndexSet *)indexes options:(NSEnumerationOptions)opts
+                       usingBlock:(void (NS_NOESCAPE ^)(ObjectType obj, NSUInteger idx, BOOL *stop))block;
+- (NSUInteger)indexOfObjectPassingTest:(BOOL (NS_NOESCAPE ^)(ObjectType obj, NSUInteger idx, BOOL *stop))predicate;
+- (NSUInteger)indexOfObjectWithOptions:(NSEnumerationOptions)opts
+                           passingTest:(BOOL (NS_NOESCAPE ^)(ObjectType obj, NSUInteger idx, BOOL *stop))predicate;
+- (NSUInteger)indexOfObjectAtIndexes:(NSIndexSet *)indexes options:(NSEnumerationOptions)opts
+                         passingTest:(BOOL (NS_NOESCAPE ^)(ObjectType obj, NSUInteger idx, BOOL *stop))predicate;
+- (NSIndexSet *)indexesOfObjectsPassingTest:(BOOL (NS_NOESCAPE ^)(ObjectType obj, NSUInteger idx, BOOL *stop))predicate;
+- (NSIndexSet *)indexesOfObjectsWithOptions:(NSEnumerationOptions)opts
+                                passingTest:(BOOL (NS_NOESCAPE ^)(ObjectType obj, NSUInteger idx, BOOL *stop))predicate;
+- (NSIndexSet *)indexesOfObjectsAtIndexes:(NSIndexSet *)indexes options:(NSEnumerationOptions)opts
+                              passingTest:(BOOL (NS_NOESCAPE ^)(ObjectType obj, NSUInteger idx, BOOL *stop))predicate;
+- (NSArray<ObjectType> *)sortedArrayUsingComparator:(NSComparator NS_NOESCAPE)cmptr;
+- (NSArray<ObjectType> *)sortedArrayWithOptions:(NSSortOptions)opts usingComparator:(NSComparator NS_NOESCAPE)cmptr;
+- (NSUInteger)indexOfObject:(ObjectType)obj inSortedRange:(NSRange)r options:(NSBinarySearchingOptions)opts
+            usingComparator:(NSComparator NS_NOESCAPE)cmp;
+@end
+#endif
+
+@interface NSArray<ObjectType> (NSSubscripting)
+// Subscripting: array[index] (macOS 10.8).
+- (ObjectType)objectAtIndexedSubscript:(NSUInteger)index;
 @end
 
 #import <Foundation/NSMutableArray.h>

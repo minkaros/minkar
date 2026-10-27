@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2026 Zoe Knox.
+ * Modifications Copyright (c) 2026 The Minkar contributors
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -73,10 +74,13 @@ enum {
 };
 #define ED_MASK 0x60
 
+// New CoreFoundation strings. With freeWhenDone, the characters are the
+// caller's to give away: they are freed once copied.
 NSString *NSCFStringNewWithCharacters(NSZone *zone, const unichar *characters,
-        NSUInteger length, BOOL lossy);
+        NSUInteger length, BOOL freeWhenDone);
+// Bytes in an 8-bit encoding (ISO Latin 1 when the encoding cannot say).
 NSString *NSCFStringNewWithBytes(NSZone *zone, const char *bytes,
-        NSUInteger length);
+        NSUInteger length, NSStringEncoding encoding);
 NSUInteger NSGetCFStringWithMaxLength(const unichar *characters, 
         NSUInteger length, NSUInteger *location, char *cString, 
         NSUInteger maxLength, BOOL lossy);

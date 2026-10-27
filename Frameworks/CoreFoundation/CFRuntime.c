@@ -236,10 +236,15 @@ int __CFConstantStringClassReference[12] = {0};
 #endif
 #endif
 
+/* Minkar: the class of constant strings. Foundation builds it here, in
+ * place, as a subclass of NSCFString (__NSInitializeProcess), so it must
+ * have room for a whole class: objc_initializeClassPair wants
+ * OBJC_MAX_CLASS_SIZE (32 pointers). It used to be a byte copy of
+ * NSCFString, whose method cache pointer went stale. */
 #if __LP64__
-int __CFConstantStringClassReference[24] = {0};
+int __CFConstantStringClassReference[64] = {0};
 #else
-int __CFConstantStringClassReference[12] = {0};
+int __CFConstantStringClassReference[32] = {0};
 #endif
 
 void *__CFConstantStringClassReferencePtr = NULL;
@@ -419,6 +424,13 @@ void _CFRuntimeSetInstanceTypeID(CFTypeRef cf, CFTypeID newTypeID) {
     // transferred and there will probably be a crash later when the
     // object is freed too early.
     *cfinfop = (*cfinfop & 0xFFF000FFU) | ((uint32_t)newTypeID << 8);
+    /* Minkar: the isa follows the type, so that the class always matches
+     * the type ID (__CFIsForeignObjC relies on it). Only CF's own isa is
+     * replaced: 0 (static instances) stays 0. */
+    uintptr_t *isap = &((CFRuntimeBase *)cf)->_cfisa;
+    if (*isap != 0 && currTypeID < __CFRuntimeClassTableSize &&
+        (*isap == (uintptr_t)currcfClass || *isap == __CFRuntimeObjCClassTable[currTypeID]))
+        *isap = __CFISAForTypeID(newTypeID);
 }
 
 CF_PRIVATE void _CFRuntimeSetInstanceTypeIDAndIsa(CFTypeRef cf, CFTypeID newTypeID) {
@@ -506,6 +518,41 @@ CF_EXPORT Boolean _CFIsNativeCFObject(CFTypeRef cf) {
     return isa == 0 || isa == (uintptr_t)__CFRuntimeClassTable[t];
 }
 
+/* Minkar: true for an Objective-C object that is not a CF object at all
+ * (an NSNumber of Foundation's, an NSUUID, a block...), as opposed to CF
+ * instances, whose isa is their CFRuntimeClass (or 0), the Objective-C
+ * class registered for their type (NSCFString, __NSCFBoolean) or the
+ * constant string class. The generic functions below (CFRetain,
+ * CFRelease, CFGetRetainCount, CFEqual, CFHash, CFCopyDescription) send
+ * such objects the matching message, as on macOS; reading them as CF
+ * objects corrupted them (Foundation's collections keep values with
+ * CFRetain/CFRelease). Constant time: the type ID in the object's header
+ * names the only classes a CF instance can have. */
+extern int __CFConstantStringClassReference[];
+extern SEL sel_registerName(const char *);
+
+static inline Boolean __CFIsForeignObjC(CFTypeRef cf) {
+    uintptr_t isa = *(const uintptr_t *)cf;
+    if (isa == 0 || isa == (uintptr_t)__CFConstantStringClassReference)
+        return false;
+    CFTypeID t = __CFGenericTypeID_inline(cf);
+    if (t < __CFRuntimeClassTableSize &&
+        (isa == (uintptr_t)__CFRuntimeClassTable[t] || isa == __CFRuntimeObjCClassTable[t]))
+        return false;
+    return true;
+}
+
+static SEL __CFSel(SEL *cache, const char *name) {
+    if (*cache == NULL)
+        *cache = sel_registerName(name);
+    return *cache;
+}
+
+#define __CFObjCSend0(rettype, obj, name) ({ static SEL _s; \
+    ((rettype (*)(id, SEL))objc_msgSend)((id)(obj), __CFSel(&_s, name)); })
+#define __CFObjCSend1(rettype, obj, name, a1) ({ static SEL _s; \
+    ((rettype (*)(id, SEL, id))objc_msgSend)((id)(obj), __CFSel(&_s, name), (id)(a1)); })
+
 CFTypeID __CFGenericTypeID(const void *cf) {
     return __CFGenericTypeID_inline(cf);
 }
@@ -543,6 +590,7 @@ static CFTypeRef _CFRetain(CFTypeRef cf, Boolean tryR);
 
 CFTypeRef CFRetain(CFTypeRef cf) {
     if (NULL == cf) { CRSetCrashLogMessage("*** CFRetain() called with NULL ***"); HALT; }
+    if (__CFIsForeignObjC(cf)) return (CFTypeRef)__CFObjCSend0(id, cf, "retain");
     if (cf) __CFGenericAssertIsCF(cf);
     return _CFRetain(cf, false);
 }
@@ -556,6 +604,7 @@ static void _CFRelease(CFTypeRef cf);
 
 void CFRelease(CFTypeRef cf) {
     if (NULL == cf) { CRSetCrashLogMessage("*** CFRelease() called with NULL ***"); HALT; }
+    if (__CFIsForeignObjC(cf)) { __CFObjCSend0(void, cf, "release"); return; }
 #if 0
     void **addrs[2] = {&&start, &&end};
     start:;
@@ -682,6 +731,7 @@ static uint64_t __CFGetFullRetainCount(CFTypeRef cf) {
 
 CFIndex CFGetRetainCount(CFTypeRef cf) {
     if (NULL == cf) { CRSetCrashLogMessage("*** CFGetRetainCount() called with NULL ***"); HALT; }
+    if (__CFIsForeignObjC(cf)) return (CFIndex)__CFObjCSend0(uintptr_t, cf, "retainCount");
     uint32_t cfinfo = *(uint32_t *)&(((CFRuntimeBase *)cf)->_cfinfo);
     if (cfinfo & 0x800000) { // custom ref counting for object
         CFTypeID typeID = (cfinfo >> 8) & 0x03FF; // mask up to 0x0FFF
@@ -723,6 +773,8 @@ Boolean CFEqual(CFTypeRef cf1, CFTypeRef cf2) {
     if (NULL == cf1) { CRSetCrashLogMessage("*** CFEqual() called with NULL first argument ***"); HALT; }
     if (NULL == cf2) { CRSetCrashLogMessage("*** CFEqual() called with NULL second argument ***"); HALT; }
     if (cf1 == cf2) return true;
+    if (__CFIsForeignObjC(cf1)) return __CFObjCSend1(signed char, cf1, "isEqual:", cf2) != 0;
+    if (__CFIsForeignObjC(cf2)) return __CFObjCSend1(signed char, cf2, "isEqual:", cf1) != 0;
     CFTYPE_OBJC_FUNCDISPATCH1(Boolean, cf1, isEqual:, cf2);
     CFTYPE_OBJC_FUNCDISPATCH1(Boolean, cf2, isEqual:, cf1);
     __CFGenericAssertIsCF(cf1);
@@ -736,6 +788,7 @@ Boolean CFEqual(CFTypeRef cf1, CFTypeRef cf2) {
 
 CFHashCode CFHash(CFTypeRef cf) {
     if (NULL == cf) { CRSetCrashLogMessage("*** CFHash() called with NULL ***"); HALT; }
+    if (__CFIsForeignObjC(cf)) return (CFHashCode)__CFObjCSend0(uintptr_t, cf, "hash");
     CFTYPE_OBJC_FUNCDISPATCH0(CFHashCode, cf, hash);
     __CFGenericAssertIsCF(cf);
     CFHashCode (*hash)(CFTypeRef cf) = __CFRuntimeClassTable[__CFGenericTypeID_inline(cf)]->hash; 
@@ -749,6 +802,10 @@ CFHashCode CFHash(CFTypeRef cf) {
 // definition: produces a normally non-NULL debugging description of the object
 CFStringRef CFCopyDescription(CFTypeRef cf) {
     if (NULL == cf) return NULL;
+    if (__CFIsForeignObjC(cf)) {
+        id description = __CFObjCSend0(id, cf, "description");
+        return description ? (CFStringRef)__CFObjCSend0(id, description, "copy") : NULL;
+    }
     // CFTYPE_OBJC_FUNCDISPATCH0(CFStringRef, cf, _copyDescription);  // XXX returns 0 refcounted item under GC
     __CFGenericAssertIsCF(cf);
     if (NULL != __CFRuntimeClassTable[__CFGenericTypeID_inline(cf)]->copyDebugDesc) {

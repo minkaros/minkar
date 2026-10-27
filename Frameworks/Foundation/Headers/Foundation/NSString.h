@@ -1,4 +1,5 @@
 /* Copyright (c) 2006-2007 Christopher J. W. Lloyd
+   Modifications Copyright (c) 2026 The Minkar contributors
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
 
@@ -30,6 +31,7 @@ typedef enum {
     NSShiftJISStringEncoding = 8,
     NSISOLatin2StringEncoding = 9,
     NSUnicodeStringEncoding = 10,
+    NSUTF16StringEncoding = NSUnicodeStringEncoding,
     NSWindowsCP1251StringEncoding = 11,
     NSWindowsCP1252StringEncoding = 12,
     NSWindowsCP1253StringEncoding = 13,
@@ -51,6 +53,10 @@ enum {
     NSBackwardsSearch = 0x04,
     NSAnchoredSearch = 0x08,
     NSNumericSearch = 0x40,
+    NSDiacriticInsensitiveSearch = 0x80,
+    NSWidthInsensitiveSearch = 0x100,
+    NSForcedOrderingSearch = 0x200,
+    NSRegularExpressionSearch = 0x400,
 };
 
 enum {
@@ -63,7 +69,36 @@ typedef NSUInteger NSStringEncodingConversionOptions;
 
 FOUNDATION_EXPORT const NSUInteger NSMaximumStringLength;
 
-@interface NSString : NSObject
+typedef NS_OPTIONS(NSUInteger, NSStringEnumerationOptions) {
+    NSStringEnumerationByLines = 0,
+    NSStringEnumerationByParagraphs = 1,
+    NSStringEnumerationByComposedCharacterSequences = 2,
+    NSStringEnumerationByWords = 3,
+    NSStringEnumerationBySentences = 4,
+    NSStringEnumerationReverse = 1UL << 8,
+    NSStringEnumerationSubstringNotRequired = 1UL << 9,
+    NSStringEnumerationLocalized = 1UL << 10,
+};
+
+typedef NSString *NSStringTransform;
+FOUNDATION_EXPORT NSStringTransform const NSStringTransformLatinToKatakana;
+FOUNDATION_EXPORT NSStringTransform const NSStringTransformLatinToHiragana;
+FOUNDATION_EXPORT NSStringTransform const NSStringTransformLatinToHangul;
+FOUNDATION_EXPORT NSStringTransform const NSStringTransformLatinToArabic;
+FOUNDATION_EXPORT NSStringTransform const NSStringTransformLatinToHebrew;
+FOUNDATION_EXPORT NSStringTransform const NSStringTransformLatinToThai;
+FOUNDATION_EXPORT NSStringTransform const NSStringTransformLatinToCyrillic;
+FOUNDATION_EXPORT NSStringTransform const NSStringTransformLatinToGreek;
+FOUNDATION_EXPORT NSStringTransform const NSStringTransformToLatin;
+FOUNDATION_EXPORT NSStringTransform const NSStringTransformMandarinToLatin;
+FOUNDATION_EXPORT NSStringTransform const NSStringTransformHiraganaToKatakana;
+FOUNDATION_EXPORT NSStringTransform const NSStringTransformFullwidthToHalfwidth;
+FOUNDATION_EXPORT NSStringTransform const NSStringTransformToXMLHex;
+FOUNDATION_EXPORT NSStringTransform const NSStringTransformToUnicodeName;
+FOUNDATION_EXPORT NSStringTransform const NSStringTransformStripCombiningMarks;
+FOUNDATION_EXPORT NSStringTransform const NSStringTransformStripDiacritics;
+
+@interface NSString : NSObject <NSCopying, NSMutableCopying, NSSecureCoding>
 
 + (const NSStringEncoding *)availableStringEncodings;
 + (NSString *)localizedNameOfStringEncoding:(NSStringEncoding)encoding;
@@ -243,5 +278,36 @@ FOUNDATION_EXPORT const NSUInteger NSMaximumStringLength;
 
 @interface NSConstantString_tiny : NSString
 @end
+
+@class NSCharacterSet, NSLocale;
+
+// Methods of macOS 10.6 to 10.11 (NSStringModern.m).
+@interface NSString (NSStringModern)
+
+- (BOOL)containsString:(NSString *)str;
+- (BOOL)localizedCaseInsensitiveContainsString:(NSString *)str;
+- (BOOL)localizedStandardContainsString:(NSString *)str;
+- (NSRange)localizedStandardRangeOfString:(NSString *)str;
+- (NSComparisonResult)localizedStandardCompare:(NSString *)string;
+
+- (void)enumerateLinesUsingBlock:(void (^)(NSString *line, BOOL *stop))block;
+- (void)enumerateSubstringsInRange:(NSRange)range options:(NSStringEnumerationOptions)opts
+                        usingBlock:(void (^)(NSString *substring, NSRange substringRange,
+                                             NSRange enclosingRange, BOOL *stop))block;
+
+- (NSString *)stringByAddingPercentEncodingWithAllowedCharacters:(NSCharacterSet *)allowedCharacters;
+- (NSString *)stringByRemovingPercentEncoding;
+
+- (NSString *)uppercaseStringWithLocale:(NSLocale *)locale;
+- (NSString *)lowercaseStringWithLocale:(NSLocale *)locale;
+- (NSString *)capitalizedStringWithLocale:(NSLocale *)locale;
+@property (readonly, copy) NSString *localizedUppercaseString;
+@property (readonly, copy) NSString *localizedLowercaseString;
+@property (readonly, copy) NSString *localizedCapitalizedString;
+
+- (NSString *)stringByApplyingTransform:(NSStringTransform)transform reverse:(BOOL)reverse;
+
+@end
+
 
 #import <Foundation/NSMutableString.h>

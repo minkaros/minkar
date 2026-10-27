@@ -1,4 +1,5 @@
 /* Copyright (c) 2006-2007 Christopher J. W. Lloyd
+   Modifications Copyright (c) 2026 The Minkar contributors
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
 
@@ -8,18 +9,23 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 #import <Foundation/NSDictionary.h>
 
-@interface NSMutableDictionary : NSDictionary
+@interface NSMutableDictionary<KeyType, ObjectType> : NSDictionary<KeyType, ObjectType>
 
 - initWithCapacity:(NSUInteger)capacity;
 
 + dictionaryWithCapacity:(NSUInteger)capacity;
 
-- (void)setObject:object forKey:key;
-- (void)addEntriesFromDictionary:(NSDictionary *)dictionary;
-- (void)setDictionary:(NSDictionary *)dictionary;
+- (void)setObject:(ObjectType)object forKey:(KeyType)key;
+- (void)addEntriesFromDictionary:(NSDictionary<KeyType, ObjectType> *)dictionary;
+- (void)setDictionary:(NSDictionary<KeyType, ObjectType> *)dictionary;
 
-- (void)removeObjectForKey:key;
+- (void)removeObjectForKey:(KeyType)key;
 - (void)removeAllObjects;
-- (void)removeObjectsForKeys:(NSArray *)keys;
+- (void)removeObjectsForKeys:(NSArray<KeyType> *)keys;
+@end
 
+@interface NSMutableDictionary<KeyType, ObjectType> (NSSubscripting)
+// Subscripting: dictionary[key] = object; a nil object removes the key
+// (macOS 10.8).
+- (void)setObject:(ObjectType)object forKeyedSubscript:(KeyType <NSCopying>)key;
 @end

@@ -129,6 +129,7 @@ CFLAGS = -ObjC -DCF_BUILDING_CF -DU_SHOW_CPLUSPLUS_API -DU_SHOW_DRAFT_API \
 	-I${ROOT_SOURCE_DIR}/Libraries/Libsystem/liblaunch \
 	-I${ROOT_SOURCE_DIR}/Libraries/Libsystem/libdispatch/private \
 	-I${ROOT_SOURCE_DIR}/Libraries/openbsm \
+	-DU_DISABLE_RENAMING=1 \
 	-I${ROOT_SOURCE_DIR}/Libraries/ICU/source/i18n \
 	-I${ROOT_SOURCE_DIR}/Libraries/ICU/source/common \
 	-I${ROOT_SOURCE_DIR}/Libraries/Libsystem/removefile \

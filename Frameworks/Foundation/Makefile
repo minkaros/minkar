@@ -13,7 +13,7 @@ SLF = /System/Library/Frameworks
 INSTALL_NAME_DIR = ${SLF}/${FRAMEWORK}.framework/Versions/${FMWK_VERSION}
 
 SRCS = 	NSFormatter.m \
-	NSObject/msgSendv-Darwin_x86_64.s \
+	NSObject/NSInvocationCall-x86_64.s \
 	NSDictionary/NSEnumerator_dictionaryObjects.m \
 	NSDictionary/NSMutableDictionary.m \
 	NSDictionary/NSEnumerator_dictionaryKeys.m \
@@ -74,6 +74,16 @@ SRCS = 	NSFormatter.m \
 	NSByteOrder.m \
 	NSNumberFormatter.m \
 	NSHashTable.m \
+	NSUUID.m \
+	NSSubscripting.m \
+	NSCollectionBlocks.m \
+	NSRegularExpression.m \
+	NSJSONSerialization.m \
+	NSCache.m \
+	NSEmptyCollections.m \
+	NSSecureCodingSupport.m \
+	NSProgress.m \
+	NSBlock.m \
 	NSDirectoryEnumerator.m \
 	NSProcessInfo.m \
 	NSData/NSData.m \
@@ -141,6 +151,8 @@ SRCS = 	NSFormatter.m \
 	NSString/NSString_cString.m \
 	NSString/NSStringFileIO.m \
 	NSString/NSStringEncoder.m \
+	NSString/NSStringUnicodeEncodings.m \
+	NSString/NSStringModern.m \
 	NSString/NSString_isoLatin2.m \
 	NSSpellEngine.m \
 	NSConnection/NSConnection.m \
@@ -277,6 +289,7 @@ SRCS = 	NSFormatter.m \
 	NSPropertyList/NSOldXMLReader.m \
 	NSPropertyList/CFUID.m \
 	NSPropertyList/NSPropertyListWriter_xml1.m \
+	NSPropertyList/NSPropertyListWriter_binary1.m \
 	NSPropertyList/NSPropertyList.m \
 	NSPropertyList/NSPropertyListWriter_vintage.m \
 	NSPropertyList/NSOldXMLDocument.m \
@@ -355,13 +368,27 @@ CF_CONSTANTS_KEPT_PRIVATE = _kCFNumberNaN \
 LDFLAGS = --sysroot=${MINKAR_SDKROOT} -Wl,-current_version,1677.104.0 \
 	-Wl,-compatibility_version,300.0.0 -Xlinker -reexport-lobjc \
 	-F${MINKAR_SDKROOT}/System/Library/Frameworks -framework CoreFoundation \
-	-lSystem \
+	-lSystem -licucore \
 	${CF_CONSTANTS_KEPT_PRIVATE:S/^/-Wl,-unexported_symbol,/}
 
 .for file in NSProcessInfo NSStringsFileParser NSData NSNumberFormatter
 CFLAGS.${file}.o = -I${.CURDIR}/NSString
 .endfor
 CFLAGS.NSAutoreleasePool.o = -I${ROOT_SOURCE_DIR}/Libraries/objc4
+# New classes are written with ARC; the rest of Foundation is not.
+CFLAGS.NSUUID.m = -fobjc-arc
+CFLAGS.NSSubscripting.m = -fobjc-arc
+CFLAGS.NSCollectionBlocks.m = -fobjc-arc
+CFLAGS.NSJSONSerialization.m = -fobjc-arc
+CFLAGS.NSCache.m = -fobjc-arc
+CFLAGS.NSProgress.m = -fobjc-arc
+CFLAGS.NSStringModern.m = -fobjc-arc -DU_DISABLE_RENAMING=1 \
+	-I${ROOT_SOURCE_DIR}/Libraries/ICU/source/common \
+	-I${ROOT_SOURCE_DIR}/Libraries/ICU/source/i18n
+# ICU's regular expressions, by their plain names as libicucore exports them.
+CFLAGS.NSRegularExpression.m = -fobjc-arc -DU_DISABLE_RENAMING=1 \
+	-I${ROOT_SOURCE_DIR}/Libraries/ICU/source/common \
+	-I${ROOT_SOURCE_DIR}/Libraries/ICU/source/i18n
 CFLAGS.forwarding.o = -I${ROOT_SOURCE_DIR}/Libraries/objc4 \
 	-I${MINKAR_SDKROOT}${SLF}/System.framework/Versions/B/PrivateHeaders \
 	-I${ROOT_SOURCE_DIR}/Libraries/Libsystem/private \

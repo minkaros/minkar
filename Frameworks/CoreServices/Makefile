@@ -1,6 +1,7 @@
 MK_WERROR = no
 FRAMEWORK = CoreServices
 FMWK_VERSION = A
+FMWK_COMPAT_VERSION = 1.0.0
 SRCS = CoreServices.c
 HEADERS = CoreServices.h 
 

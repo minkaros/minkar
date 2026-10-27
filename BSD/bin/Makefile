@@ -8,7 +8,7 @@ LDFLAGS = --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
 # Independent programs: built in parallel.
 SUBDIR_PARALLEL =
 SUBDIR = cat chmod cp df echo hostname launchctl ln ls mkdir mv ps pwd realpath \
-	stty \
+	stty dd ed expr pax pkill \
 	rm rmdir sleep sh test
 
 .include <bsd.subdir.mk>

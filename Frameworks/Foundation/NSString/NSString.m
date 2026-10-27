@@ -1,5 +1,6 @@
 /* Copyright (c) 2006-2007 Christopher J. W. Lloyd <cjwl@objc.net>
                  2009 Markus Hitter <mah@jump-ing.de>
+   Modifications Copyright (c) 2026 The Minkar contributors
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
 
@@ -23,6 +24,9 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 #include <math.h>
 
+#import "NSStringUnicodeEncodings.h"
+#import <CoreFoundation/CoreFoundation.h>
+#import <Foundation/NSRegularExpression.h>
 #import <Foundation/NSString.h>
 #import <Foundation/NSCoder.h>
 #import <Foundation/NSStringSymbol.h>
@@ -68,7 +72,7 @@ NSString * const NSCharacterConversionException = @"NSCharacterConversionExcepti
 extern int *__CFConstantStringClassReference;
 extern int *__NSConstantStringClassReference;
 extern NSString *NSCFStringNewWithBytes(NSZone *zone, const char *bytes,
-        NSUInteger length);
+        NSUInteger length, NSStringEncoding encoding);
 extern unichar *NSBytesToUnicode(const char *, NSUInteger, NSStringEncoding,
         NSUInteger *, NSZone *);
 
@@ -206,8 +210,25 @@ extern unichar *NSBytesToUnicode(const char *, NSUInteger, NSStringEncoding,
 -initWithBytes:(const void *)bytes length:(NSUInteger)length encoding:(NSStringEncoding)encoding {
     NSDeallocateObject(self);
 
+    // UTF-16 and UTF-32 in a stated byte order (NSStringUnicodeEncodings).
+    if (NSStringIsUTF16Or32(encoding)) {
+        NSUInteger decodedLength;
+        unichar *decoded = NSStringDecodeUTF16Or32(bytes, length, encoding, &decodedLength);
+        NSString *string;
+
+        if (decoded == NULL)
+            return nil;
+        string = NSCFStringNewWithCharacters(NULL, decoded, decodedLength, NO);
+        free(decoded);
+        return (id)string;
+    }
+    // Malformed UTF-8 makes no string, as on macOS (the CF path below would
+    // read it as Latin 1).
+    if (encoding == NSUTF8StringEncoding && !NSUTF8IsValid(bytes, length))
+        return nil;
+
     if (encoding == defaultEncoding()) {
-        return (NSString_placeholder *)NSCFStringNewWithBytes(NULL, bytes, length);
+        return (NSString_placeholder *)NSCFStringNewWithBytes(NULL, bytes, length, encoding);
     }
 
     switch(encoding) {
@@ -219,15 +240,15 @@ extern unichar *NSBytesToUnicode(const char *, NSUInteger, NSStringEncoding,
             return (NSString_placeholder *)NSCFStringNewWithCharacters(NULL, characters, resultLength, YES);
 
         case NSNEXTSTEPStringEncoding:
-            return (NSString_placeholder *)NSCFStringNewWithBytes(NULL, bytes, length);
+            return (NSString_placeholder *)NSCFStringNewWithBytes(NULL, bytes, length, encoding);
 
 // FIX, not nextstep
         case NSASCIIStringEncoding:
         case NSNonLossyASCIIStringEncoding:
-            return (NSString_placeholder *)NSCFStringNewWithBytes(NULL, bytes, length);
+            return (NSString_placeholder *)NSCFStringNewWithBytes(NULL, bytes, length, encoding);
 
         case NSISOLatin1StringEncoding:
-            return (NSString_placeholder *)NSCFStringNewWithBytes(NULL, bytes, length);
+            return (NSString_placeholder *)NSCFStringNewWithBytes(NULL, bytes, length, encoding);
 
         case NSSymbolStringEncoding:
             characters = NSSymbolToUnicode(bytes, length, &resultLength, NULL);
@@ -238,10 +259,10 @@ extern unichar *NSBytesToUnicode(const char *, NSUInteger, NSStringEncoding,
             return (NSString_placeholder *)NSCFStringNewWithCharacters(NULL, characters, resultLength, YES);
 
         case NSWindowsCP1252StringEncoding:
-            return (NSString_placeholder *)NSCFStringNewWithBytes(NULL, bytes, length);
+            return (NSString_placeholder *)NSCFStringNewWithBytes(NULL, bytes, length, encoding);
 
         case NSMacOSRomanStringEncoding:
-            return (NSString_placeholder *)NSCFStringNewWithBytes(NULL, bytes, length);
+            return (NSString_placeholder *)NSCFStringNewWithBytes(NULL, bytes, length, encoding);
 
         case NSUTF16LittleEndianStringEncoding:
             characters = NSUnicodeFromBytesUTF16LittleEndian(bytes, length, &resultLength);
@@ -449,6 +470,10 @@ extern unichar *NSBytesToUnicode(const char *, NSUInteger, NSStringEncoding,
    return [self retain];
 }
 
++(BOOL)supportsSecureCoding {
+   return YES;
+}
+
 -copyWithZone:(NSZone *)zone {
    return [self retain];
 }
@@ -602,9 +627,57 @@ static NSComparisonResult compareWithOptions(NSString *self,NSString *other,NSSt
    return (i<otherLength)?NSOrderedAscending:NSOrderedDescending;
 }
 
+// Several methods below are CoreFoundation's string functions on a copy of
+// self's characters (self may be any NSString subclass). Minkar: they
+// were unimplemented before.
+static CFStringRef NSStringCopyCF(NSString *self) {
+   NSUInteger length=[self length];
+   unichar   *buffer=NSZoneMalloc(NULL,(length+1)*sizeof(unichar));
+   CFStringRef result;
+
+   [self getCharacters:buffer];
+   result=CFStringCreateWithCharacters(NULL,buffer,length);
+   NSZoneFree(NULL,buffer);
+   return result;
+}
+
+// NSStringCompareOptions as CFStringCompareFlags: the same bits, except
+// that CF searches literally unless told kCFCompareNonliteral, and
+// Foundation the other way round.
+static CFStringCompareFlags NSStringCFCompareFlags(NSStringCompareOptions options) {
+   CFStringCompareFlags flags=options&(NSCaseInsensitiveSearch|NSBackwardsSearch|NSAnchoredSearch|
+      NSNumericSearch|NSDiacriticInsensitiveSearch|NSWidthInsensitiveSearch|NSForcedOrderingSearch);
+
+   if(!(options&NSLiteralSearch))
+    flags|=kCFCompareNonliteral;
+   return flags;
+}
+
+static CFLocaleRef NSStringCopyCFLocale(NSLocale *locale) {
+   if(locale==nil)
+    return NULL;
+   return CFLocaleCreate(NULL,(CFStringRef)[locale localeIdentifier]);
+}
+
+static NSString *NSStringFromCF(CFStringRef string) {
+   return [(NSString *)string autorelease];
+}
+
 -(NSComparisonResult)compare:(NSString *)other options:(NSStringCompareOptions)options range:(NSRange)range locale:(NSLocale *)locale {
-   NSUnimplementedMethod();
-   return 0;
+   if(locale==nil)
+    return compareWithOptions(self,other,options,range);
+
+   CFStringRef  me=NSStringCopyCF(self),them=NSStringCopyCF(other);
+   CFLocaleRef  cfLocale=NSStringCopyCFLocale(locale);
+   CFComparisonResult result=CFStringCompareWithOptionsAndLocale(me,them,
+      CFRangeMake(range.location,range.length),
+      NSStringCFCompareFlags(options)|kCFCompareLocalized,cfLocale);
+
+   CFRelease(me);
+   CFRelease(them);
+   if(cfLocale!=NULL)
+    CFRelease(cfLocale);
+   return (NSComparisonResult)result;
 }
 
 -(NSComparisonResult)compare:(NSString *)other options:(NSStringCompareOptions)options range:(NSRange)range {
@@ -625,24 +698,31 @@ static NSComparisonResult compareWithOptions(NSString *self,NSString *other,NSSt
 }
 
 -(NSComparisonResult)localizedCompare:(NSString *)other {
-   NSUnimplementedMethod();
-   return 0;
+   return [self compare:other options:0 range:NSMakeRange(0,[self length])
+                 locale:[NSLocale currentLocale]];
 }
 -(NSComparisonResult)localizedCaseInsensitiveCompare:(NSString *)other {
-   NSUnimplementedMethod();
-   return 0;
+   return [self compare:other options:NSCaseInsensitiveSearch range:NSMakeRange(0,[self length])
+                 locale:[NSLocale currentLocale]];
 }
 
+// The same hash as CoreFoundation gives a CFString with these characters,
+// so equal strings hash alike whatever their class. Minkar: this used
+// another function than NSCFString, so @"a" and an NSMutableString "a"
+// were equal but hashed differently.
+extern CFHashCode CFStringHashCharacters(const UniChar *characters, CFIndex len);
+
 -(NSUInteger)hash {
-   NSRange  range={0,[self length]};
-   unichar  unicode[NSHashStringLength];
+   NSUInteger length=[self length];
+   unichar    small[128];
+   unichar   *unicode=(length<=128)?small:NSZoneMalloc(NULL,length*sizeof(unichar));
+   NSUInteger result;
 
-   if(range.length>NSHashStringLength)
-    range.length=NSHashStringLength;
-
-   [self getCharacters:unicode range:range];
-
-   return NSStringHashUnicode(unicode,range.length);
+   [self getCharacters:unicode range:NSMakeRange(0,length)];
+   result=CFStringHashCharacters(unicode,(CFIndex)length);
+   if(unicode!=small)
+    NSZoneFree(NULL,unicode);
+   return result;
 }
 
 static inline BOOL isEqualString(NSString *str1,NSString *str2){
@@ -808,11 +888,46 @@ static inline void reverseString(unichar *buf, NSUInteger len) {
 }
 
 -(NSRange)rangeOfString:(NSString *)string options:(NSStringCompareOptions)options range:(NSRange)range locale:(NSLocale *)locale {
-   NSUnimplementedMethod();
-   return NSMakeRange(0,0);
+   NSRange result=NSMakeRange(NSNotFound,0);
+
+   if(range.location>[self length] || range.length>[self length]-range.location)
+    [NSException raise:NSRangeException format:@"-[%@ %s] range {%lu, %lu} out of bounds; string length %lu",
+       [self class],sel_getName(_cmd),(unsigned long)range.location,(unsigned long)range.length,
+       (unsigned long)[self length]];
+   if([string length]==0)
+    return result;
+
+   if(options&NSRegularExpressionSearch){
+    NSRegularExpressionOptions reOptions=(options&NSCaseInsensitiveSearch)?NSRegularExpressionCaseInsensitive:0;
+    NSRegularExpression *re=[NSRegularExpression regularExpressionWithPattern:string options:reOptions error:NULL];
+    NSMatchingOptions matching=(options&NSAnchoredSearch)?NSMatchingAnchored:0;
+
+    if(re==nil)
+     return result;
+    return [re rangeOfFirstMatchInString:self options:matching range:range];
+   }
+
+   CFStringRef me=NSStringCopyCF(self),them=NSStringCopyCF(string);
+   CFLocaleRef cfLocale=NSStringCopyCFLocale(locale);
+   CFRange     found;
+
+   if(CFStringFindWithOptionsAndLocale(me,them,CFRangeMake(range.location,range.length),
+        NSStringCFCompareFlags(options)|(locale!=nil?kCFCompareLocalized:0),cfLocale,&found))
+    result=NSMakeRange(found.location,found.length);
+   CFRelease(me);
+   CFRelease(them);
+   if(cfLocale!=NULL)
+    CFRelease(cfLocale);
+   return result;
 }
 
 -(NSRange)rangeOfString:(NSString *)pattern options:(NSStringCompareOptions)options range:(NSRange)range {
+    // This search knows literal, case-insensitive and backwards matching;
+    // CF does the rest. Minkar: the other options were ignored, and an
+    // anchored search matched only at index 0, not at the range's start.
+    if(options&~(NSStringCompareOptions)(NSLiteralSearch|NSCaseInsensitiveSearch|NSBackwardsSearch))
+     return [self rangeOfString:pattern options:options range:range locale:nil];
+
     NSUInteger length=[self length];
     NSUInteger patlength=[pattern length];
     NSInteger      next[patlength+1];
@@ -874,57 +989,45 @@ static inline void reverseString(unichar *buf, NSUInteger len) {
 
 -(NSRange)rangeOfCharacterFromSet:(NSCharacterSet *)set
                           options:(NSStringCompareOptions)options range:(NSRange)range {
-    NSRange  result=NSMakeRange(NSNotFound,0);
-    
-    if (range.length < 1)
-        return result;
-    
-    unichar  *buffer = NSZoneMalloc(NULL, sizeof(unichar) * range.length);
-    
-    NSUInteger i;
-    
-    //unused
-    //const BOOL isLiteral = (options & NSLiteralSearch) ? YES : NO;
-    const BOOL isBackwards = (options & NSBackwardsSearch) ? YES : NO;
-    options &= ~((unsigned)NSLiteralSearch);
-    options &= ~((unsigned)NSBackwardsSearch);
-    
-    if(options != 0)
-        NSUnimplementedMethod();
-    
-    [self getCharacters:buffer range:range];
-    
-    // Cocoa documentation suggests that the returned range's length is always expected to be 1?
-    // The backwards search uses this assumption.
-    
-    if (isBackwards) {
-        for(i = range.length; i > 0; i--) {
-            if([set characterIsMember:buffer[i-1]]) {
-                NSZoneFree(NULL, buffer);
-                return NSMakeRange(range.location + (i-1), 1);
-            }
-        }
+   // One character (two units for a surrogate pair), as on macOS. Minkar:
+   // a forward search returned the whole run of matching characters, and
+   // NSAnchoredSearch was unimplemented.
+   const BOOL backwards=(options&NSBackwardsSearch)?YES:NO;
+   const BOOL anchored=(options&NSAnchoredSearch)?YES:NO;
+   unichar   *buffer;
+   NSUInteger i;
+   NSRange    result=NSMakeRange(NSNotFound,0);
+
+   if(range.length<1)
+    return result;
+   buffer=NSZoneMalloc(NULL,sizeof(unichar)*range.length);
+   [self getCharacters:buffer range:range];
+
+   for(i=0;i<range.length;i++){
+    NSUInteger at=backwards?range.length-1-i:i,start=at,units=1;
+    UTF32Char  c=buffer[at];
+
+    // A surrogate pair is one character, whichever end is reached first.
+    if(c>=0xD800 && c<=0xDBFF && at+1<range.length && buffer[at+1]>=0xDC00 && buffer[at+1]<=0xDFFF){
+     c=0x10000+((c-0xD800)<<10)+(buffer[at+1]-0xDC00);
+     units=2;
     }
-    else {
-        for(i=0;i<range.length;i++){
-            if([set characterIsMember:buffer[i]]){
-                result.location=i;
-                
-                for(;i<range.length;i++)
-                    if(![set characterIsMember:buffer[i]])
-                        break;
-                
-                result.length=i-result.location;
-                result.location+=range.location;
-                NSZoneFree(NULL, buffer);
-                
-                return result;
-            }
-        }
+    else if(c>=0xDC00 && c<=0xDFFF && at>0 && buffer[at-1]>=0xD800 && buffer[at-1]<=0xDBFF){
+     c=0x10000+((buffer[at-1]-0xD800)<<10)+(c-0xDC00);
+     start=at-1;
+     units=2;
     }
-    
-    NSZoneFree(NULL, buffer);
-    return NSMakeRange(NSNotFound,0);
+    if(units==2 ? [set longCharacterIsMember:c] : [set characterIsMember:(unichar)c]){
+     result=NSMakeRange(range.location+start,units);
+     break;
+    }
+    if(anchored)
+     break;
+    if(units==2)
+     i++;           // both units of the pair are done
+   }
+   NSZoneFree(NULL,buffer);
+   return result;
 }
 
 // FIX
@@ -1461,13 +1564,41 @@ static inline void reverseString(unichar *buf, NSUInteger len) {
 }
 
 -(NSString *)commonPrefixWithString:(NSString *)other options:(NSStringCompareOptions)options {
-   NSUnimplementedMethod();
-   return 0;
+   // Whole composed characters at a time, compared with the options.
+   NSUInteger mine=0,theirs=0,length=[self length],otherLength=[other length];
+
+   while(mine<length && theirs<otherLength){
+    NSRange a=[self rangeOfComposedCharacterSequenceAtIndex:mine];
+    NSRange b=[other rangeOfComposedCharacterSequenceAtIndex:theirs];
+
+    if([[self substringWithRange:a] compare:[other substringWithRange:b] options:options&~NSAnchoredSearch]!=NSOrderedSame)
+     break;
+    mine=NSMaxRange(a);
+    theirs=NSMaxRange(b);
+   }
+   return [self substringToIndex:mine];
 }
 
 -(NSString *)stringByPaddingToLength:(NSUInteger)length withString:(NSString *)padding startingAtIndex:(NSUInteger)index {
-   NSUnimplementedMethod();
-   return 0;
+   NSUInteger       mine=[self length],padLength=[padding length];
+   NSMutableString *result;
+
+   if(length<=mine)
+    return [self substringToIndex:length];
+   if(index>=padLength)
+    [NSException raise:NSRangeException format:@"-[%@ %s] index %lu out of bounds; padding length %lu",
+       [self class],sel_getName(_cmd),(unsigned long)index,(unsigned long)padLength];
+
+   result=[NSMutableString stringWithCapacity:length];
+   [result appendString:self];
+   while(mine<length){
+    NSUInteger take=(padLength-index<length-mine)?padLength-index:length-mine;
+
+    [result appendString:[padding substringWithRange:NSMakeRange(index,take)]];
+    mine+=take;
+    index=0;
+   }
+   return [[result copy] autorelease];
 }
 
 -(NSString *)stringByReplacingCharactersInRange:(NSRange)range withString:(NSString *)substitute {
@@ -1496,38 +1627,78 @@ static inline void reverseString(unichar *buf, NSUInteger len) {
 }
 
 -(NSString *)stringByFoldingWithOptions:(NSStringCompareOptions)options locale:(NSLocale *)locale {
-   NSUnimplementedMethod();
-   return 0;
+   CFStringRef        me=NSStringCopyCF(self);
+   CFMutableStringRef folded=CFStringCreateMutableCopy(NULL,0,me);
+   CFLocaleRef        cfLocale=NSStringCopyCFLocale(locale);
+
+   CFStringFold(folded,options&(NSCaseInsensitiveSearch|NSDiacriticInsensitiveSearch|NSWidthInsensitiveSearch),cfLocale);
+   CFRelease(me);
+   if(cfLocale!=NULL)
+    CFRelease(cfLocale);
+   return NSStringFromCF(folded);
 }
 
 -(NSRange)rangeOfComposedCharacterSequenceAtIndex:(NSUInteger)index {
-   NSUnimplementedMethod();
-   return NSMakeRange(0,0);
+   CFStringRef me;
+   CFRange     r;
+
+   if(index>=[self length])
+    [NSException raise:NSRangeException format:@"-[%@ %s] index %lu beyond length %lu",
+       [self class],sel_getName(_cmd),(unsigned long)index,(unsigned long)[self length]];
+   me=NSStringCopyCF(self);
+   r=CFStringGetRangeOfComposedCharactersAtIndex(me,index);
+   CFRelease(me);
+   return NSMakeRange(r.location,r.length);
 }
 
 -(NSRange)rangeOfComposedCharacterSequencesForRange:(NSRange)range {
-   NSUnimplementedMethod();
-   return NSMakeRange(0,0);
+   NSRange first,last;
+
+   if(range.length==0){
+    if(range.location>=[self length])
+     return range;
+    first=[self rangeOfComposedCharacterSequenceAtIndex:range.location];
+    return NSMakeRange(first.location,0);
+   }
+   first=[self rangeOfComposedCharacterSequenceAtIndex:range.location];
+   last=[self rangeOfComposedCharacterSequenceAtIndex:NSMaxRange(range)-1];
+   return NSMakeRange(first.location,NSMaxRange(last)-first.location);
 }
 
 -(NSString *)precomposedStringWithCanonicalMapping {
-   NSUnimplementedMethod();
-   return 0;
+   CFStringRef        me=NSStringCopyCF(self);
+   CFMutableStringRef normal=CFStringCreateMutableCopy(NULL,0,me);
+
+   CFStringNormalize(normal,kCFStringNormalizationFormC);
+   CFRelease(me);
+   return NSStringFromCF(normal);
 }
 
 -(NSString *)decomposedStringWithCanonicalMapping {
-   NSUnimplementedMethod();
-   return 0;
+   CFStringRef        me=NSStringCopyCF(self);
+   CFMutableStringRef normal=CFStringCreateMutableCopy(NULL,0,me);
+
+   CFStringNormalize(normal,kCFStringNormalizationFormD);
+   CFRelease(me);
+   return NSStringFromCF(normal);
 }
 
 -(NSString *)precomposedStringWithCompatibilityMapping {
-   NSUnimplementedMethod();
-   return 0;
+   CFStringRef        me=NSStringCopyCF(self);
+   CFMutableStringRef normal=CFStringCreateMutableCopy(NULL,0,me);
+
+   CFStringNormalize(normal,kCFStringNormalizationFormKC);
+   CFRelease(me);
+   return NSStringFromCF(normal);
 }
 
 -(NSString *)decomposedStringWithCompatibilityMapping {
-   NSUnimplementedMethod();
-   return 0;
+   CFStringRef        me=NSStringCopyCF(self);
+   CFMutableStringRef normal=CFStringCreateMutableCopy(NULL,0,me);
+
+   CFStringNormalize(normal,kCFStringNormalizationFormKD);
+   CFRelease(me);
+   return NSStringFromCF(normal);
 }
 
 -(NSString *)description {
@@ -1562,13 +1733,19 @@ static inline void reverseString(unichar *buf, NSUInteger len) {
 }
 
 -(NSStringEncoding)fastestEncoding {
-   NSUnimplementedMethod();
-   return 0;
+   CFStringRef      me=NSStringCopyCF(self);
+   CFStringEncoding e=CFStringGetFastestEncoding(me);
+
+   CFRelease(me);
+   return CFStringConvertEncodingToNSStringEncoding(e);
 }
 
 -(NSStringEncoding)smallestEncoding {
-   NSUnimplementedMethod();
-   return 0;
+   CFStringRef      me=NSStringCopyCF(self);
+   CFStringEncoding e=CFStringGetSmallestEncoding(me);
+
+   CFRelease(me);
+   return CFStringConvertEncodingToNSStringEncoding(e);
 }
 
 -(BOOL)canBeConvertedToEncoding:(NSStringEncoding)encoding {
@@ -1580,8 +1757,13 @@ static inline void reverseString(unichar *buf, NSUInteger len) {
 }
 
 -(NSUInteger)maximumLengthOfBytesUsingEncoding:(NSStringEncoding)encoding {
-   NSUnimplementedMethod();
-   return 0;
+   CFStringEncoding e=CFStringConvertNSStringEncodingToEncoding(encoding);
+   CFIndex          max;
+
+   if(e==kCFStringEncodingInvalidId)
+    return 0;
+   max=CFStringGetMaximumSizeForEncoding((CFIndex)[self length],e);
+   return max==kCFNotFound?0:(NSUInteger)max;
 }
 
 // FIX, not complete
@@ -1594,6 +1776,17 @@ static inline void reverseString(unichar *buf, NSUInteger len) {
    char    *bytes=NULL;
 
    [self getCharacters:unicode];
+    if(NSStringIsUTF16Or32(encoding))
+    {
+        NSData *result = nil;
+        uint8_t *encoded = NSStringEncodeUTF16Or32(unicode, length, encoding, lossy, &byteLength);
+        if (encoded != NULL) {
+            result = [NSData dataWithBytes:encoded length:byteLength];
+            free(encoded);
+        }
+        NSZoneFree(NULL, buffer);
+        return result;
+    }
     if(encoding == NSUnicodeStringEncoding)
     {
         buffer[0]=0xFEFF;

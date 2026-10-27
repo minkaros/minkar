@@ -1,6 +1,7 @@
 /*
  * Foundation.framework Objective-C SPI
  * Copyright (C) 2026 Zoe Knox <zoe@pixin.net>
+ * Modifications Copyright (c) 2026 The Minkar contributors
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -44,6 +45,22 @@
 
 #define NS_INLINE static inline
 #define NS_ROOT_CLASS __attribute__((objc_root_class))
+#ifndef NS_ASSUME_NONNULL_BEGIN
+#define NS_ASSUME_NONNULL_BEGIN _Pragma("clang assume_nonnull begin")
+#define NS_ASSUME_NONNULL_END _Pragma("clang assume_nonnull end")
+#endif
+#ifndef NS_ENUM
+#define NS_ENUM(_type, _name) enum _name : _type _name; enum _name : _type
+#endif
+#ifndef NS_OPTIONS
+#define NS_OPTIONS(_type, _name) enum _name : _type _name; enum _name : _type
+#endif
+#ifndef NS_NOESCAPE
+#define NS_NOESCAPE __attribute__((noescape))
+#endif
+#ifndef NS_DESIGNATED_INITIALIZER
+#define NS_DESIGNATED_INITIALIZER __attribute__((objc_designated_initializer))
+#endif
 #define NS_RETURNS_RETAINED __attribute__((ns_returns_retained))
 #define NS_RETURNS_NOT_RETAINED __attribute__((ns_returns_not_retained))
 

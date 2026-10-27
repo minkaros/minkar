@@ -1,10 +1,16 @@
 MK_WERROR = no
 LIB = icu
 
+# As on macOS, libicucore exports the plain names (u_strlen, not
+# u_strlen_78): macOS programs import them so. Whatever includes ICU's
+# headers must define U_DISABLE_RENAMING=1 too (CoreFoundation does). Only
+# the target build: the host tools in native/ keep their renamed symbols,
+# away from the host's own ICU.
+ICU_DEFS = -DU_DISABLE_RENAMING=1
 CFLAGS =--sysroot=${MINKAR_SDKROOT} -fuse-ld=${LD} \
-	-mmacos-version-min=${MACOS_VERSION_MIN}
+	-mmacos-version-min=${MACOS_VERSION_MIN} ${ICU_DEFS}
 CXXFLAGS =-std=gnu++17 --sysroot=${MINKAR_SDKROOT} -fuse-ld=${LD} \
-	-mmacos-version-min=${MACOS_VERSION_MIN}
+	-mmacos-version-min=${MACOS_VERSION_MIN} ${ICU_DEFS}
 LDFLAGS =--sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
 	-fuse-ld=${LD} -licudata -lc++
 # clang links the compiler-rt builtins itself (lib/darwin/libclang_rt.osx.a

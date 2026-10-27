@@ -1,5 +1,6 @@
 /*
  * Copyright � 1998-2013 Apple Inc.  All rights reserved.
+ * Modifications Copyright (c) 2026 The Minkar contributors
  * 
  * @APPLE_LICENSE_HEADER_START@
  * 
@@ -298,7 +299,7 @@ IOUSBPipe::free()
 IOReturn 
 IOUSBPipe::Abort(void)
 {
-	IOUSBPipeV2		*pipev2 = OSDynamicCast(IOUSBPipeV2, this);
+	IOUSBPipeV2		*pipev2 = NULL;	// Minkar: no IOUSBPipeV2 (streams) pipes exist
 	
 	if ( pipev2 )
 	{
@@ -658,7 +659,7 @@ IOUSBPipe::Read(IOMemoryDescriptor *buffer, UInt32 noDataTimeout, UInt32 complet
 IOReturn 
 IOUSBPipe::Read(IOMemoryDescriptor *buffer, UInt32 noDataTimeout, UInt32 completionTimeout, IOByteCount reqCount, IOUSBCompletion *completion, IOByteCount *bytesRead)
 {
-	IOUSBPipeV2		*pipev2 = OSDynamicCast(IOUSBPipeV2, this);
+	IOUSBPipeV2		*pipev2 = NULL;	// Minkar: no IOUSBPipeV2 (streams) pipes exist
 	
 	if ( pipev2 )
 	{
@@ -862,7 +863,7 @@ IOUSBPipe::Write(IOMemoryDescriptor *buffer, UInt32 noDataTimeout, UInt32 comple
 IOReturn 
 IOUSBPipe::Write(IOMemoryDescriptor *buffer, UInt32 noDataTimeout, UInt32 completionTimeout, IOByteCount reqCount, IOUSBCompletion *completion)
 {
-	IOUSBPipeV2		*pipev2 = OSDynamicCast(IOUSBPipeV2, this);
+	IOUSBPipeV2		*pipev2 = NULL;	// Minkar: no IOUSBPipeV2 (streams) pipes exist
 	
 	if ( pipev2 )
 	{

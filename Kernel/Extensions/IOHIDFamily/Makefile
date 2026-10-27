@@ -10,6 +10,7 @@ SRCS = \
         IOHIDSystem/IOHIDevice.cpp \
         IOHIDSystem/IOHIKeyboard.cpp \
         IOHIDSystem/IOHIKeyboardMapper.cpp \
+        IOHIDSystem/IOHIPointing.cpp \
         IOHIDSystem/IOBSDConsole.cpp \
         IOHIDSystem/IOFixed64.cpp \
         IOHIDSystem/IOFixedPoint64.cpp \

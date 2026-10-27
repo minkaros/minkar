@@ -1,4 +1,5 @@
 /* Copyright (c) 2007 Christopher J. W. Lloyd
+   Modifications Copyright (c) 2026 The Minkar contributors
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
 
@@ -12,6 +13,9 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <Foundation/NSNull.h>
 #import <Foundation/NSNumber.h>
 #import <Foundation/NSPropertyList.h>
+#import <Foundation/NSError.h>
+#import <Foundation/FoundationErrors.h>
+#import <Foundation/NSException.h>
 #import <Foundation/NSString.h>
 
 
@@ -25,11 +29,14 @@ static NSMapTable *_globalNameToClass=NULL;
    }
 }
 
+NSString *const NSInvalidArchiveOperationException=@"NSInvalidArchiveOperationException";
+NSString *const NSKeyedArchiveRootObjectKey=@"root";
+
 +(NSData *)archivedDataWithRootObject:rootObject {
     NSMutableData *data = [NSMutableData data];
     NSKeyedArchiver *archiver = [[[self class] alloc] initForWritingWithMutableData:data];
     
-    [archiver encodeObject:rootObject forKey:@"root"];
+    [archiver encodeObject:rootObject forKey:NSKeyedArchiveRootObjectKey];
     [archiver finishEncoding];
     [archiver release];
     return data;
@@ -68,13 +75,50 @@ static NSMapTable *_globalNameToClass=NULL;
    
    _objectToUid=NSCreateMapTable(objectToUidKeyCb,NSObjectMapValueCallBacks,0);
 
-   // FIXME: should be binary format per Apple's docs but we don't support writing that yet
-   _outputFormat=NSPropertyListXMLFormat_v1_0;
+   // Minkar: binary, as on macOS (it could not be written before).
+   _outputFormat=NSPropertyListBinaryFormat_v1_0;
    return self;
 }
 
 -init {
    return [self initForWritingWithMutableData:[NSMutableData data]];
+}
+
+-(instancetype)initRequiringSecureCoding:(BOOL)requiresSecureCoding {
+   if((self=[self initForWritingWithMutableData:[NSMutableData data]])!=nil)
+    _requiresSecureCoding=requiresSecureCoding;
+   return self;
+}
+
++(NSData *)archivedDataWithRootObject:(id)object requiringSecureCoding:(BOOL)requiresSecureCoding
+                                error:(NSError **)error {
+   NSKeyedArchiver *archiver=[[[self alloc] initRequiringSecureCoding:requiresSecureCoding] autorelease];
+
+   @try {
+    [archiver encodeObject:object forKey:NSKeyedArchiveRootObjectKey];
+    return [archiver encodedData];
+   }
+   @catch(NSException *exception){
+    if(error!=NULL)
+     *error=[NSError errorWithDomain:NSCocoaErrorDomain code:NSCoderInvalidValueError
+       userInfo:[NSDictionary dictionaryWithObject:[exception reason] ? [exception reason] : @"The object could not be archived"
+                                            forKey:NSDebugDescriptionErrorKey]];
+    return nil;
+   }
+}
+
+-(BOOL)requiresSecureCoding {
+   return _requiresSecureCoding;
+}
+
+-(void)setRequiresSecureCoding:(BOOL)flag {
+   _requiresSecureCoding=flag;
+}
+
+-(NSData *)encodedData {
+   if(!_finished)
+    [self finishEncoding];
+   return [[_data copy] autorelease];
 }
 
 -(void)dealloc {
@@ -234,10 +278,18 @@ static NSMapTable *_globalNameToClass=NULL;
     else if ([archClass isEqualToString:@"NSDictionary"] && flag) {
         [_objects addObject:object];
     }
-    else if (object == nil || [object isKindOfClass:[NSNull class]]) {
+    else if (object == nil) {
+        // "$null" is nil. Minkar: NSNull was written as nil too, so it
+        // vanished from arrays and dictionaries; it is an object now.
         [_objects addObject:@"$null"];
     }
     else {
+        Class archClassObject = [object classForKeyedArchiver];
+        if (_requiresSecureCoding && !([archClassObject respondsToSelector:@selector(supportsSecureCoding)] &&
+                                       [archClassObject supportsSecureCoding]))
+            [NSException raise:NSInvalidArchiveOperationException
+                        format:@"This coder requires that archived objects adopt NSSecureCoding; class %@ does not",
+                               archClass];
         [_objects addObject:[NSMutableDictionary dictionary]];
         [_plistStack addObject:[_objects lastObject]];
         
@@ -311,6 +363,9 @@ static NSMapTable *_globalNameToClass=NULL;
 
 
 -(void)finishEncoding {   
+   if(_finished)
+    return;
+   _finished=YES;
    NSData *newData = [NSPropertyListSerialization dataFromPropertyList:[_plistStack lastObject]
                                                   format:_outputFormat
                                                   errorDescription:NULL];

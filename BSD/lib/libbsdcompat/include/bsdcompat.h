@@ -97,6 +97,15 @@
 #ifndef __DEQUALIFY
 #define	__DEQUALIFY(type, var)	((type)(uintptr_t)(const volatile void *)(var))
 #endif
+/* <paths.h>: where local software lives. */
+#ifndef _PATH_LOCALBASE
+#define	_PATH_LOCALBASE	"/usr/local"
+#endif
+
+/* <sys/cdefs.h>: a char array that need not end in NUL (a warning hint). */
+#ifndef __nonstring
+#define	__nonstring
+#endif
 #ifndef nitems
 #define	nitems(x)	(sizeof((x)) / sizeof((x)[0]))
 #endif
@@ -173,6 +182,19 @@ int		expand_number(const char *buf, uint64_t *num);
 #include <sys/types.h>
 ssize_t		copy_file_range(int infd, off_t *inoffp, int outfd, off_t *outoffp,
 		    size_t len, unsigned int flags);
+
+/* <pwd.h>, <grp.h>: pwcache(3) name lookups, and switching their source. */
+struct passwd;
+struct group;
+int		uid_from_user(const char *name, uid_t *uid);
+int		gid_from_group(const char *name, gid_t *gid);
+int		pwcache_userdb(int (*)(int), void (*)(void),
+		    struct passwd *(*)(const char *), struct passwd *(*)(uid_t));
+int		pwcache_groupdb(int (*)(int), void (*)(void),
+		    struct group *(*)(const char *), struct group *(*)(gid_t));
+
+/* <unistd.h>: FreeBSD's per-utility compat switch; Darwin has none. */
+#define	check_utility_compat(utility)	0
 
 /* <sys/acl.h>: an ACL without entries is trivial (the mode says it all). */
 struct _acl;

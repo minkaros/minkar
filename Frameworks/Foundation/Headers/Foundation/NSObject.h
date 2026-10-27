@@ -1,6 +1,7 @@
 /*
  * Foundation/NSObject.h
  * Copyright (c) 2026 Zoe Knox. All rights reserved.
+ * Modifications Copyright (c) 2026 The Minkar contributors
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -40,6 +41,21 @@ typedef enum NSComparisonResult {
 #include <Foundation/NSObjCRuntime.h>
 #include <objc/NSObject.h>
 
+/* Blocks and options of the collections' block methods. */
+#if __BLOCKS__
+typedef NSComparisonResult (^NSComparator)(id obj1, id obj2);
+#endif
+
+typedef NS_OPTIONS(NSUInteger, NSEnumerationOptions) {
+    NSEnumerationConcurrent = (1UL << 0),
+    NSEnumerationReverse = (1UL << 1),
+};
+
+typedef NS_OPTIONS(NSUInteger, NSSortOptions) {
+    NSSortConcurrent = (1UL << 0),
+    NSSortStable = (1UL << 4),
+};
+
 @interface NSObject (Foundation)
 +(NSInteger)version;
 +(void)setVersion:(NSInteger)version;
@@ -58,6 +74,23 @@ typedef enum NSComparisonResult {
 @protocol NSCoding
 - initWithCoder:(NSCoder *)coder;
 - (void)encodeWithCoder:(NSCoder *)coder;
+@end
+
+// Classes whose instances can be decoded without trusting the archive:
+// they check the class of what they decode (macOS 10.8).
+@protocol NSSecureCoding <NSCoding>
+@property (class, readonly) BOOL supportsSecureCoding;
+@end
+
+// Objects whose content can be thrown away when it is not in use (NSCache
+// drops them once their content is discarded). Access is counted: content
+// may only be discarded while no one is accessing it.
+@protocol NSDiscardableContent
+@required
+- (BOOL)beginContentAccess;
+- (void)endContentAccess;
+- (void)discardContentIfPossible;
+- (BOOL)isContentDiscarded;
 @end
 
 void NSLog(NSString *format,...);

@@ -15,5 +15,6 @@ all: to-sysroot
 to-sysroot: ${PROG}
 	mkdir -p ${SYSROOT_DIR}/bin
 	install -m 0555 ${PROG} ${SYSROOT_DIR}/bin/
+	ln -f ${SYSROOT_DIR}/bin/ln ${SYSROOT_DIR}/bin/link
 
 .include <bsd.prog.mk>

@@ -1,4 +1,5 @@
 /* Copyright (c) 2006-2007 Christopher J. W. Lloyd
+   Modifications Copyright (c) 2026 The Minkar contributors
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
 
@@ -9,8 +10,10 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <Foundation/NSObject.h>
 #import <Foundation/NSEnumerator.h>
 #import <Foundation/NSZone.h>
+#import <Foundation/NSPointerFunctions.h>
 
 @class NSArray, NSMapTable;
+@class NSDictionary<KeyType, ObjectType>;
 
 typedef struct {
     NSMapTable *table;
@@ -33,30 +36,60 @@ typedef struct {
     NSString *(*describe)(NSMapTable *table, const void *);
 } NSMapTableValueCallBacks;
 
-@interface NSMapTable : NSObject {
+// Minkar: weak keys and values are zeroing weak references, as on macOS
+// (they were only unretained, so a freed object left a dangling pointer);
+// an entry goes away with its weak key or value.
+enum {
+    NSMapTableStrongMemory = NSPointerFunctionsStrongMemory,
+    NSMapTableZeroingWeakMemory = NSPointerFunctionsZeroingWeakMemory,
+    NSMapTableCopyIn = NSPointerFunctionsCopyIn,
+    NSMapTableObjectPointerPersonality = NSPointerFunctionsObjectPointerPersonality,
+    NSMapTableWeakMemory = NSPointerFunctionsWeakMemory,
+};
+typedef NSUInteger NSMapTableOptions;
+
+@interface NSMapTable<KeyType, ObjectType> : NSObject <NSCopying, NSFastEnumeration> {
     NSMapTableKeyCallBacks *keyCallBacks;
     NSMapTableValueCallBacks *valueCallBacks;
     NSUInteger count;
     NSUInteger nBuckets;
     struct _NSMapNode **buckets;
+    NSPointerFunctionsOptions keyOptions;
+    NSPointerFunctionsOptions valueOptions;
+    BOOL weakKeys;
+    BOOL weakValues;
+    unsigned long mutations;
 }
 
-+ mapTableWithStrongToStrongObjects;
-+ mapTableWithStrongToWeakObjects;
-+ mapTableWithWeakToStrongObjects;
-+ mapTableWithWeakToWeakObjects;
+- (instancetype)initWithKeyOptions:(NSPointerFunctionsOptions)keyOptions
+                      valueOptions:(NSPointerFunctionsOptions)valueOptions
+                          capacity:(NSUInteger)initialCapacity;
++ (NSMapTable<KeyType, ObjectType> *)mapTableWithKeyOptions:(NSPointerFunctionsOptions)keyOptions
+                                               valueOptions:(NSPointerFunctionsOptions)valueOptions;
 
-+ strongToStrongObjectsMapTable;
-+ strongToWeakObjectsMapTable;
-+ weakToStrongObjectsMapTable;
-+ weakToWeakObjectsMapTable;
++ (id)mapTableWithStrongToStrongObjects;
++ (id)mapTableWithStrongToWeakObjects;
++ (id)mapTableWithWeakToStrongObjects;
++ (id)mapTableWithWeakToWeakObjects;
 
-- objectForKey:key;
-- (void)removeObjectForKey:key;
-- (void)setObject:object forKey:key;
++ (NSMapTable<KeyType, ObjectType> *)strongToStrongObjectsMapTable;
++ (NSMapTable<KeyType, ObjectType> *)strongToWeakObjectsMapTable;
++ (NSMapTable<KeyType, ObjectType> *)weakToStrongObjectsMapTable;
++ (NSMapTable<KeyType, ObjectType> *)weakToWeakObjectsMapTable;
 
+@property (readonly, copy) NSPointerFunctions *keyPointerFunctions;
+@property (readonly, copy) NSPointerFunctions *valuePointerFunctions;
+
+- (ObjectType)objectForKey:(KeyType)key;
+- (void)removeObjectForKey:(KeyType)key;
+- (void)setObject:(ObjectType)object forKey:(KeyType)key;
+
+@property (readonly) NSUInteger count;
+
+- (NSEnumerator<KeyType> *)keyEnumerator;
+- (NSEnumerator<ObjectType> *)objectEnumerator;
 - (void)removeAllObjects;
-- (NSEnumerator *)keyEnumerator;
+- (NSDictionary<KeyType, ObjectType> *)dictionaryRepresentation;
 
 @end
 
@@ -93,6 +126,7 @@ FOUNDATION_EXPORT void *NSMapGet(NSMapTable *table, const void *key);
 FOUNDATION_EXPORT NSMapEnumerator NSEnumerateMapTable(NSMapTable *table);
 FOUNDATION_EXPORT BOOL NSNextMapEnumeratorPair(NSMapEnumerator *enumerator, void **key,
     void **value);
+FOUNDATION_EXPORT void NSEndMapTableEnumeration(NSMapEnumerator *enumerator);
 FOUNDATION_EXPORT NSArray *NSAllMapTableKeys(NSMapTable *table);
 FOUNDATION_EXPORT NSArray *NSAllMapTableValues(NSMapTable *table);
 FOUNDATION_EXPORT void NSMapInsert(NSMapTable *table, const void *key, const void *value);

@@ -1,6 +1,7 @@
 /*
  * Copyright (c) 2008 Johannes Fortmann
  * Copyright (c) 2026 Zoe Knox.
+ * Modifications Copyright (c) 2026 The Minkar contributors
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -36,9 +37,9 @@
 #import <Foundation/NSRaiseException.h>
 
 #if __LP64__
-extern int __CFConstantStringClassReference[24];
+extern int __CFConstantStringClassReference[64];
 #else
-extern int __CFConstantStringClassReference[12];
+extern int __CFConstantStringClassReference[32];
 #endif
 
 @implementation __builtin_NSString
@@ -245,7 +246,8 @@ NSUInteger NSGetDarwinCStringWithMaxLength(const unichar *characters, NSUInteger
 }
 
 -(NSUInteger)hash {
-    return NSStringHashASCII([self _fastCStringContents:NO], MIN([self length], NSHashStringLength));
+   // NSString's hash: the same for equal strings of any class (Minkar).
+   return [super hash];
 }
 
 @end

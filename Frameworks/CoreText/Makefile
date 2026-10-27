@@ -2,6 +2,7 @@ WARNS = 1
 MK_WERROR = no
 
 FRAMEWORK = CoreText
+FMWK_COMPAT_VERSION = 1.0.0
 
 SRCS = CTFont.m KTFont.m
 HEADERS = CoreText.h CoreTextExport.h CTFont.h KTFont.h

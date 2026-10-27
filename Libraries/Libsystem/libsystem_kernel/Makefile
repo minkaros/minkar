@@ -103,6 +103,10 @@ SRCS += \
 SRCS += \
 	custom/errno.c
 
+# Public names for system calls generated only with two underscores
+SRCS += \
+	sigaltstack.c
+
 # These Skywalk sources are all empty in the public xnu
 SRCS += \
 	skywalk/os_packet.c \
@@ -251,6 +255,8 @@ MACH_USER_DEFS = clock.defs clock_priv.defs clock_reply.defs exc.defs \
 	processor_set.defs restartable.defs task.defs thread_act.defs \
 	vm_map.defs mach_vm.defs servers/netname.defs
 
+# bash runs the script: it uses [[ ]], and /bin/sh is dash on Debian and
+# Ubuntu (the CI runners).
 ${.OBJDIR}/libmach.a: ${MACH_DEFS}
 	mkdir -p ${.OBJDIR}/obj/mig_hdr/include/mach \
 	  ${.OBJDIR}/obj/mig_hdr/include/servers \
@@ -260,7 +266,7 @@ ${.OBJDIR}/libmach.a: ${MACH_DEFS}
 	SRCROOT=${XNU}/libsyscall OBJROOT=${.OBJDIR}/obj \
 	BUILT_PRODUCTS_DIR=${.OBJDIR} \
 	DEVELOPER_DIR=${ROOT_BINARY_DIR}/Developer PATH=${TOOLS}:${PATH} \
-	CFLAGS="${CFLAGS}" ${XNU}/libsyscall/xcodescripts/mach_install_mig.sh
+	CFLAGS="${CFLAGS}" bash -xe ${XNU}/libsyscall/xcodescripts/mach_install_mig.sh
 	# The script generates headers with "-arch i386", as Apple's does, and
 	# leaves i386 user stubs behind as a side effect. The library needs
 	# x86_64 ones: with __LP64__, libsyscall's vm_map.defs becomes the

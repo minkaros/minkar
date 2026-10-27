@@ -1,4 +1,5 @@
 FRAMEWORK=Onyx2D
+FMWK_COMPAT_VERSION = 1.0.0
 
 SUBDIR = freetype
 LINK_SUBDIR += freetype/CMakeFiles/freetype.dir/src

@@ -1,6 +1,6 @@
 # Minkar Roadmap
 
-Last verified against the tree: 2026-10-25 (`main`, gate M2 passing).
+Last verified against the tree: 2026-10-26 (`devel`, gate M2 passing).
 
 ## Summary
 
@@ -86,7 +86,7 @@ Mach-O. The biggest gap is between the kernel and the desktop.
 | Component | State | What is missing | Phase |
 | --- | --- | --- | --- |
 | EFI loader + Darwin kernel | Boots in QEMU (gates M0, M1) | Reference PC, virtio drivers | 1 |
-| System build (bmake, `/usr/share/mk`, frameworks) | Full `world` builds | CI, per-layer targets, symbol inventory | 0 |
+| System build (bmake, `/usr/share/mk`, frameworks) | Full `world` builds; CI builds and boots it | Per-layer targets, toolchain manifest | 0 |
 | libSystem | Partial | Many functions missing or link-only stubs | 2 |
 | launchd / launchctl | launchd-842 as PID 1 (gate M2) | `launchctl kickstart` | 2 |
 | BSD userland + `open`, `plutil`, `defaults` | Mostly built | `zsh`, `make`, `git`, `open` | 2 |
@@ -119,22 +119,30 @@ and every PR is tested by booting it in QEMU.
   stage alone; no per-layer targets or `check`.
 - [ ] Bring third-party sources into the tree and package them as
   `.framework` with `rvn.framework.mk`. *Partial:* 13 frameworks build and
-  install; CFNetwork is commented out, and Security, OpenDirectory and
-  DirectoryService are not built.
-- [ ] CI per PR: full build + boot in QEMU (q35 + OVMF) on the serial
-  console, waiting for boot markers. *Partial:* `Image/boottest.py` does the
-  boot part, run locally only; there is no CI.
-- [ ] Symbol inventory: a script that lists each dylib's exports
+  install; CFNetwork is commented out, and Security and OpenDirectory are
+  not built.
+- [x] CI per PR: full build + boot in QEMU (q35 + OVMF) on the serial
+  console, waiting for boot markers.
+  `.github/workflows/build-boottest.yml` runs on every push and pull
+  request to `main` and `devel`: toolchain (cached), system build
+  (`tools/ci/build-stages.sh`), image and `boottest GATE=M2`. First green
+  run on `devel`: `05fa75cb65` (2026-10-26).
+- [x] Symbol inventory: a script that lists each dylib's exports
   (`nm -gU`), matches them against the reference apps' imports and publishes
-  a per-framework coverage report.
-- [ ] Build documentation (supported host, dependencies, expected times,
-  common errors). *Partial:* [BUILDING.md](BUILDING.md) covers the host,
-  packages and gates; expected times and common errors are missing.
+  a per-framework coverage report. *Partial:* `tools/symbols/` (tested):
+  the inventory follows re-exports and flags install names dyld would not
+  find; the reference apps are four Objective-C apps for macOS 10.12-10.13
+  (`reference-apps.tsv`), 67.3% of whose system imports Minkar has. The CI
+  publishes the report (run summary and `symbol-coverage` artifact).
+- [x] Build documentation (supported host, dependencies, expected times,
+  common errors). [BUILDING.md](BUILDING.md) has the host and every package
+  (Open CF-lite included), measured stage times and 17 common errors; the
+  CI's green runs on a clean Ubuntu prove the package list complete.
 
-- [ ] **Exit gate (M0):** clean build from scratch in CI, and the image
-  reaches the kernel's first message in QEMU. *Met locally:* clean local
-  build, and `boottest` sees `Darwin Kernel Version` after 8.3 s. CI is
-  missing.
+- [x] **Exit gate (M0):** clean build from scratch in CI, and the image
+  reaches the kernel's first message in QEMU. Met in CI (`05fa75cb65`: the
+  system builds on a clean runner and the image passes gate M2, which
+  includes M0's marker).
 
 ## Phase 1 — Darwin boot
 
@@ -147,26 +155,36 @@ mounted.
 - [x] XNU platform for non-Apple hardware: generic ACPI platform expert,
   APIC, TSC/HPET timers, no SMC (boot log: `[ACPI PE]`,
   `AppleAPIC::start()`, ACPICA).
-- [ ] Minimal kexts, starting with what QEMU exposes:
+- [x] Minimal kexts, starting with what QEMU exposes:
   - [x] Storage: AHCI with MSI (the AHCI driver logs that it uses an MSI
     interrupt; `556c20aad1`).
-  - [ ] Storage: virtio-blk; NVMe later.
-  - [ ] Input: USB xHCI + HID (event source for WindowServer). *Partial:*
-    `ApplePS2Keyboard` and IOHIDSystem start; the xHCI driver and
-    `IOUSBFamily` are in the tree but commented out of
-    `Kernel/Extensions/Makefile` and the kernelcache.
+  - [x] Storage: virtio-blk (`MinkarVirtio`, `43c4efe09d`: every sector
+    read and writes reaching the disk, tested in QEMU). NVMe later.
+  - [x] Input: USB xHCI + HID (`RavynXHCIPort`, `IOUSBFamily`, `MinkarUSB`,
+    `863a628989`): a USB keyboard's keys reach the console login and a
+    tablet's positions and buttons are exact, tested in QEMU. Delivering
+    events to WindowServer is Phase 4's IOHIDSystem work.
   - [x] Network: e1000 and e1000e (`MinkarE1000`), MSI on the e1000e
     (`MinkarE1000: Intel 10d3, MSI`).
-  - [ ] Network: virtio-net.
+  - [x] Network: virtio-net (`MinkarVirtio`: ping, ssh and 1 MB round
+    trips through it in QEMU).
   - [x] Display: GOP framebuffer as console device
     (`IOGOPFramebuffer: Kernel graphics console initialized`; checked in the
     log only, not visually).
 - [x] Root file system: HFS+ (`hfs: mounted Minkar`). APFS and ZFS later.
 - [x] Serial console for the `boottest` gates.
-- [ ] Readable panic logs for debugging in CI. *Partial:*
-  `tools/symbolicate.py`, `tools/crash-analyzer.py`, `keepsyms=1`, and
-  `boottest` fails on a panic; a symbolicated panic has not been tested.
+- [x] Readable panic logs for debugging in CI. The kernel in the image
+  has no symbol table, so even with `keepsyms=1` a panic backtrace is only
+  addresses; `tools/panic-report.py` names every frame from the build's
+  unstripped kernel (and kexts), checking the kernel UUID and the slide.
+  `boottest` reads the console on to the end of the panic report and
+  prints it with function names, so a panic in CI shows where it happened.
+  Tested with a real panic (`reboot_np(RB_PANIC)` as root) in QEMU.
 - [ ] Reference hardware list: one QEMU VM and two documented physical PCs.
+  *In progress:* PC 1 is a Gigabyte H270N-WIFI (Intel H270, i7-7700): its
+  SATA (AHCI), xHCI and GOP display match the current drivers; its Intel
+  I219-V network card does not (the e1000 driver lacks the PCH family),
+  and NVMe has no driver yet, so the image goes on a SATA disk.
 
 - [ ] **Exit gate (M1):** in QEMU and on a reference PC, the kernel mounts
   the HFS+ root and runs `/sbin/launchd` (or a temporary init) with a shell
@@ -181,8 +199,14 @@ the services Magma and the apps will need.
 **libSystem and dyld**
 
 - [ ] Complete libc, libm, pthread, libdispatch, libxpc, notify and os_log,
-  guided by the Phase 0 coverage report. *Partial:* enough for M2; no
-  coverage report.
+  guided by the Phase 0 coverage report. *Partial:* enough for M2; the
+  coverage report exists (`tools/symbols`): the reference apps find 98.1%
+  of their libSystem imports. The SDK's `math.h` was a stand-in (isnan
+  and the other classification macros as double-only functions, its own
+  `bool`, half the C99 functions undeclared); since 2026-10-26 it is
+  macOS-compatible and declares everything `libsystem_m` exports.
+  `vis(3)` in libc predates `VIS_SHELL`, `VIS_META` and the other newer
+  flags.
 - [ ] Turn silent stubs into noisy stubs (log on first call).
 - [ ] Real dyld: optional shared cache at first; `@rpath`, `@loader_path`
   and re-exports right from day one. *Partial:* `Libraries/dyld` is Apple's
@@ -201,13 +225,41 @@ the services Magma and the apps will need.
 
 **BSD userland, in batches**
 
-- [ ] Boot: `sh`, `ls`, `cp`, `mv`, `rm`, `mount`, `ifconfig`, `ps`, `kill`.
-  *Partial:* all installed; the gates exercise only `sh`.
+Decision (2026-10-26): the generic Unix commands all come from FreeBSD
+`main`; where macOS's command behaves differently (options, output), our
+own code under `__APPLE__` follows macOS's manual page, each difference
+with a test. Commands that came from Apple's `shell_cmds` and `adv_cmds`
+through ravynOS (`date`, `kill`, `killall`, `uname`, `xargs`, `who` and
+others) are to be replaced. Darwin's own components (launchd, configd,
+notifyd, syslogd, the HFS tools, mDNSResponder) stay as they are.
+
+- [x] Boot: `sh`, `ls`, `cp`, `mv`, `rm`, `mount`, `ifconfig`, `ps`, `kill`.
+  Tested in the image 2026-10-26. `cp -p` failed on every file without an
+  ACL, and `mv` between volumes warned: Darwin reports "no ACL" as
+  `ENOENT`.
+- [ ] Everyday tools missing from the image. *Partial:* built and tested
+  2026-10-26: `dd`, `expr`, `printenv`, `od`/`hexdump`, `paste`, `nohup`,
+  `install`, `pgrep`/`pkill` (FreeBSD's, reading processes through
+  `sysctl`), `ed`, `pax`, and the second names `readlink`, `link`,
+  `unlink`, `egrep`, `fgrep`, `zgrep`. Then `m4`, `bc`/`dc`, `cpio`
+  (libarchive's), `cron` and `crontab` (with a launchd job; jobs never ran:
+  cron cleared `environ` to NULL, which Darwin's `setenv` cannot start
+  from) and the text tools `rev`, `column`, `comm`, `join`, `fold`, `fmt`,
+  `split`, `csplit`, `tsort`, `nl`, `expand`, `unexpand`. Named pipes
+  (`mkfifo`) failed on HFS+: the hfs kext was built without FIFO support.
+  Missing: `cal`, `lsof`, `man`, `units`, `getconf`, `iconv`, `locate`,
+  `nslookup`/`dig`.
 - [ ] Power user: `zsh`, `tar`, `ssh`, `curl`, `make`, `git`. *Partial:*
-  `tar`, `ssh` and `curl` installed; `zsh`, `make` and `git` missing.
+  `tar`, `ssh` and `curl` installed; `zsh` 5.9 built and tested
+  2026-10-26 (modules linked in, the function library, in `/etc/shells`);
+  `make` and `git` missing (both GPL: to be decided).
 - [ ] Apple tools: `open`, `plutil`, `defaults`, `sw_vers`, `ditto`
   (`hdiutil` comes with Phase 6). *Partial:* `plutil`, `defaults`, `sw_vers`
-  and `ditto` installed, untested; `open` missing.
+  and `ditto` tested in the image 2026-10-26 (`sw_vers` printed spaces
+  instead of macOS's tabs and a trailing blank line); `chmod` has macOS's
+  ACL syntax (`+a`, `-a`, `=a#`, `-E`, `-C`, `-N`, `-i`, `-I`) since
+  2026-10-26, and the kernel enforces the entries; `open` missing (needs
+  LaunchServices).
 
 **Support daemons** (needed by Phases 5 and 6)
 
@@ -261,8 +313,8 @@ phase can start in parallel with the end of Phase 2.
   (`CFBridging.c`, `CFRuntime.c`) and CF ↔ XPC bridge. It is not replaced by
   Swift's CF. Public CF-Lite predates macOS 10.12, so the CF APIs from 10.12
   to 12 are added by hand, using swift-corelibs CF (Apache 2.0) as a
-  reference. `Frameworks/CoreFoundation.old` is archived once nothing
-  references it.
+  reference. The old Cocotron-based
+  `Frameworks/CoreFoundation.old` was removed (2026-10-26).
 - [x] **Foundation for Swift: Objective-C Foundation plus the
   `libswiftFoundation` overlay (decided 2026-10-25).** The macOS 12 model.
   Base: the last open Darwin overlay (Apache 2.0) in `swiftlang/swift`'s
@@ -290,7 +342,45 @@ constrains the Swift runtime.
    on every change.
 2. Audit Foundation against 10.15, starting with what the reference apps
    import (`NSFileManager`, `NSRunLoop`, `NSURLSession`,
-   `NSJSONSerialization`, KVO, `NSUserDefaults`).
+   `NSJSONSerialization`, KVO, `NSUserDefaults`). The symbol report lists
+   what they miss, most used first: `NSURLSession` and `NSUUID` (all
+   four apps), `NSRegularExpression` (two), the `NSHashTable` class,
+   `NSJSONSerialization` and `NSProgress` (one each). Done:
+   `NSException` (2026-10-25): raising no longer crashes a program that
+   catches the exception, and uncaught exceptions are reported as on
+   macOS. `NSUUID` and the `NSSecureCoding` protocol (2026-10-26).
+   Also done 2026-10-26: `NSRegularExpression`, `NSJSONSerialization`
+   (with JSON5), `NSCache`, subscripting, the collections' block API and
+   lightweight generics, `NSBlock`, `@[]` and `@{}` (they did not link),
+   `NSString`'s protocols, its UTF-8 (surrogate pairs, malformed input)
+   and UTF-16/UTF-32 conversions, `NSNumber`'s shared doubles (1.0, 0.0,
+   the infinities and NaN read back as garbage) and file streams (they
+   could not read or write). Found while testing them: `+alloc` did not
+   go through `+allocWithZone:`, so `alloc`/`new` gave the abstract class
+   of every class cluster (fixed 2026-10-26); `NSKeyedUnarchiver` cannot
+   read the XML property list `NSKeyedArchiver` writes; `CFArray` and
+   `CFDictionary` are not bridged to `NSArray` and `NSDictionary` yet.
+   Second batch (2026-10-26): `NSLog` crashed every program; 17
+   unimplemented `NSString` methods and the search options;
+   `NSInvocation` could call nothing and forwarding lost arguments and
+   return values (now the System V calling convention, in both
+   directions); string hashes were 0 and differed between string classes;
+   mutating a collection during for-in looped forever; `NSHashTable` is a
+   class with weak memory, `NSMapTable`'s weak keys and values are zeroing
+   (they dangled), and `NSPointerFunctions` and `NSPointerArray` exist.
+   Third batch (2026-10-26): `stringWithFormat:` printed garbage for
+   `INT64_MIN` and `%e`/`%g` were wrong (`%a` was missing); `NSNumber`
+   described doubles with too few digits; binary property lists can be
+   written (byte for byte as on macOS) and the XML ones keep 64-bit
+   integers, exact doubles and dates; the property list and keyed
+   archiving APIs with `NSError` and secure coding (`NSKeyedArchiver`
+   writes binary by default); `NSNull` vanished from archives; the modern
+   `NSString` API (`containsString:`, enumeration by lines, words and
+   sentences, percent encoding, transforms, the URL character sets);
+   `NSUserDefaults` changed the whole process's locale; `NSProgress`
+   exists. The image has no locale data (`/usr/share/locale`), so
+   locale-dependent behaviour is not tested yet.
+   Left from the symbol report: `NSURLSession`.
 3. Security (Apple open source) for certificates and a basic keychain,
    needed for TLS in `NSURLSession`.
 4. LaunchServices: bundle database and UTI types; `open` and Filer depend on
@@ -370,15 +460,17 @@ behind a stable interface.
   notification, like the display with `kIOFBServerConnectType`. Test: in
   QEMU, a key press and a mouse move reach an app as `NSEvent`s.
   - [ ] PS/2 keyboard. *Partial:* `ApplePS2Keyboard` is an `IOHIKeyboard`
-    and starts at boot, but no key reaches user space yet: IOHIDSystem
-    delivers no events (its dispatch loop is under an undefined `NEW_HID`,
-    and the event queues are not created).
+    and its keys reach the console (`IOBSDConsole`: typing at the login
+    prompt works in QEMU), but IOHIDSystem delivers no events to user space
+    clients (its dispatch loop is under an undefined `NEW_HID`, and the
+    event queues are not created).
   - [ ] `ApplePS2Mouse` driver (an `IOHIPointing` subclass) on the
-    `ApplePS2MouseDevice` nub; only the nub exists today.
+    `ApplePS2MouseDevice` nub; only the nub exists today. `IOHIPointing` is
+    built since `90c96e8862`.
   - [x] `IOKit/hidsystem` headers (`IOHIDShared.h`, `IOLLEvent.h`) in the
     SDK, installed by `IOHIDFamily/HID/Makefile`.
-  - [ ] Then: xHCI + HID for real hardware and a USB tablet in QEMU (both
-    commented out of the build today).
+  - [x] Then: xHCI + HID for real hardware and a USB tablet in QEMU
+    (`MinkarUSB`; see Phase 1). Untested on real hardware.
 - [ ] Remove `libinput`, `libevdev` and `mtdev` from the tree.
 - [ ] virtio-gpu 2D driver as an `IOFramebuffer` subclass.
 - [ ] Multiple displays and resolution changes, only after M4.
@@ -456,7 +548,11 @@ decisions must be made now so it stays possible.
 **Decisions that protect this phase today**
 
 - Install names of dylibs and frameworks identical to macOS
-  (`/System/Library/Frameworks/...`).
+  (`/System/Library/Frameworks/...`). *Done 2026-10-25* for every
+  framework (AppKit in `Versions/C`), `libobjc.A.dylib` and
+  `libbz2.1.0.dylib`, with macOS's compatibility versions; checked in the
+  image with dyld. libicucore exports ICU's plain names (`u_strlen`), as
+  macOS programs import them.
 - Each dylib's compatibility and current versions follow the closed API
   stage (10.15 → 11 → 12).
 - No changes to the layout of public ivars or the size of structs exposed in
@@ -480,7 +576,7 @@ recompiling; the arm64 image boots to M2 in QEMU.
 
 | Gate | Phase | State |
 | --- | --- | --- |
-| M0 | Build, toolchain, CI | Met locally; CI missing |
+| M0 | Build, toolchain, CI | Met locally; CI written, first green run pending |
 | M1 | Darwin boot | Met in QEMU; reference PC missing |
 | M2 | Base userland | Met (`boottest GATE=M2`) |
 | M3 | Base frameworks and Swift | Not started |
@@ -514,11 +610,12 @@ work in progress.
 
 The highest-impact open items, in critical-path order:
 
-1. CI that runs the build and `boottest GATE=M2` on every PR (closes M0).
+1. BSD userland batches (Phase 2): replace the commands that came from
+   Apple with FreeBSD's plus the macOS layer; `make`, `git`, `open`.
 2. IOHIDSystem event delivery in the kernel, the `ApplePS2Mouse` driver and
    the WindowServer input reader (Phase 4).
 3. Install WindowServer's launchd job and get a first boot that draws on
    `IOGOPFramebuffer` (Phase 4).
-4. The symbol inventory script (Phase 0), which drives the libSystem and
-   framework work.
+4. The Foundation classes the reference apps miss most, from the symbol
+   report (Phase 3).
 5. The Swift toolchain prototypes (Phase 3).

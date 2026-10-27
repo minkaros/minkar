@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2000-2019 Apple Inc. All rights reserved.
+ * Modifications Copyright (c) 2026 The Minkar contributors
  *
  * @APPLE_OSREFERENCE_LICENSE_HEADER_START@
  *
@@ -2126,11 +2127,21 @@ task_deliver_crash_notification(
                 printf("  CS:%08x DS:%08x ES:%08x FS:%08x GS:%08x\n",
                         ss->isf.cs, ss->ds, ss->es, ss->fs, ss->gs);
 
+                /*
+                 * Minkar: the user stack is read with copyin(), which fails
+                 * cleanly; it was dereferenced directly, so a crashed
+                 * program with a bad frame pointer panicked the kernel.
+                 */
                 printf("Stack:\n");
-                uint64_t* frame = (uint64_t *)(ss->rbp);
-                for (int i = 0; frame && i < 8; ++i) {
-                        printf("%016llx\n", *(frame + 1)); // ret addr
-                        frame = (uint64_t *)(*frame);
+                user_addr_t frame = (user_addr_t)ss->rbp;
+                for (int i = 0; frame != 0 && i < 8; ++i) {
+                        uint64_t pair[2];       /* saved rbp, return address */
+
+                        if (copyin(frame, pair, sizeof(pair)) != 0) {
+                                break;
+                        }
+                        printf("%016llx\n", pair[1]);
+                        frame = (user_addr_t)pair[0];
                 }
         }
         task_unlock(task);

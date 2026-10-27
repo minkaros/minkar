@@ -3,7 +3,7 @@ LIB = bz2
 
 MAJOR = 1
 MINOR = 0
-PATCH = 5
+PATCH = 6
 
 SRCS = ./src/blocksort.c \
 	./src/bzlib.c \
@@ -62,11 +62,15 @@ bzip2recover: ${.CURDIR}/src/bzip2recover.c lib${LIB}.dylib
 	${CC} ${PROG_LDFLAGS} -o ${SYSROOT_DIR}/usr/bin/${.TARGET} \
 	    ${.CURDIR}/src/bzip2recover.c
 
+# As on macOS: the library is libbz2.1.0.dylib, which programs record;
+# libbz2.dylib is a link to it for -lbz2.
 lib${LIB}.dylib: lib${LIB}.a
 	${CC} ${LDFLAGS} -o ${.TARGET} -shared -Wl,-force_load,lib${LIB}.a \
-          -Wl,-current_version,${VERSION} -Wl,-install_name,/usr/lib/${.TARGET}
-	cp -f ${.TARGET} ${SYSROOT_DIR}${LIBDIR}
-	ln -fs libbz2.dylib ${SYSROOT_DIR}/usr/lib/libbz2.${MAJMIN}.dylib
-	ln -fs libbz2.dylib ${SYSROOT_DIR}/usr/lib/libbz2.${VERSION}.dylib
+          -Wl,-compatibility_version,${MAJMIN}.0 -Wl,-current_version,${VERSION} \
+          -Wl,-install_name,/usr/lib/libbz2.${MAJMIN}.dylib
+	rm -f ${SYSROOT_DIR}/usr/lib/libbz2.${MAJMIN}.dylib
+	cp -f ${.TARGET} ${SYSROOT_DIR}/usr/lib/libbz2.${MAJMIN}.dylib
+	ln -fs libbz2.${MAJMIN}.dylib ${SYSROOT_DIR}/usr/lib/libbz2.dylib
+	ln -fs libbz2.${MAJMIN}.dylib ${SYSROOT_DIR}/usr/lib/libbz2.${VERSION}.dylib
 
 .include <bsd.lib.mk>

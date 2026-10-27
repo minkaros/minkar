@@ -62,7 +62,7 @@ int main(int argc, char* argv[])
 
 	map = mmap(0, stbuf.st_size, PROT_READ, MAP_PRIVATE, fd, 0);
 	close(fd);
-	if (map == NULL) {
+	if (map == MAP_FAILED) {
 		perror("mmap");
 		return rc;
 	}
@@ -92,21 +92,21 @@ int main(int argc, char* argv[])
 	prodVer = getValue(plist, CFSTR("ProductVersion"));
 	prodBuild = getValue(plist, CFSTR("ProductBuildVersion"));
 
-	if (argc > 1) {
-		if (!strcmp(argv[1], "-productName")) {
-			printf("%s\n", prodName);
-		}
-		else if (!strncmp(argv[1], "-productVersion", 15)) {
-			printf("%s\n", prodVer);
-		}
-		else if (!strcmp(argv[1], "-buildVersion")) {
-			printf("%s\n", prodBuild);
-		}
+	if (argc > 2 || (argc == 2 && strcmp(argv[1], "-productName") &&
+	    strcmp(argv[1], "-productVersion") && strcmp(argv[1], "-buildVersion"))) {
+		fprintf(stderr, "Usage: sw_vers [-productName|-productVersion|-buildVersion]\n");
+		goto out;
 	}
-	else {
-
-		/* no options: print all */
-		printf("ProductName: %s\nProductVersion: %s\nBuildVersion: %s\n\n",
+	if (argc == 2) {
+		if (!strcmp(argv[1], "-productName"))
+			printf("%s\n", prodName);
+		else if (!strcmp(argv[1], "-productVersion"))
+			printf("%s\n", prodVer);
+		else
+			printf("%s\n", prodBuild);
+	} else {
+		/* No options: all three, a tab after each label, as on macOS. */
+		printf("ProductName:\t%s\nProductVersion:\t%s\nBuildVersion:\t%s\n",
 			prodName, prodVer, prodBuild);
 	}
 

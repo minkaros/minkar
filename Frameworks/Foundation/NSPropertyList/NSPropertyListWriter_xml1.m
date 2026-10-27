@@ -1,4 +1,5 @@
 /* Copyright (c) 2008 Pauli Olavi Ojala
+   Modifications Copyright (c) 2026 The Minkar contributors
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
 
@@ -12,6 +13,15 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <Foundation/NSArray.h>
 #import <Foundation/NSDictionary.h>
 #import <Foundation/NSNumber.h>
+#import <Foundation/NSDate.h>
+#import <CoreFoundation/CFNumber.h>
+
+#include <math.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <time.h>
+#include <xlocale.h>
 #include <string.h>
 
 @implementation NSPropertyListWriter_xml1
@@ -75,66 +85,82 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
     [_data appendBytes:"</key>\n" length:7];
 }
 
-- (void)encodeInteger:(NSInteger)integer
+// Minkar: 64-bit integers (they were cut to int), booleans by identity
+// (any char 0 or 1 was a boolean), the shortest exact text for reals
+// (%.16f wrote hundreds of digits, read back as inf), and dates.
+- (void)encodeLongLong:(long long)value
 {
     [_data appendBytes:"<integer>" length:9];
-    [self _encodeString:[NSString stringWithFormat:@"%li", integer]];
+    [self _encodeString:[NSString stringWithFormat:@"%lld", value]];
     [_data appendBytes:"</integer>\n" length:11];
 }
 
-- (void)encodeUnsignedInteger:(NSUInteger)uinteger
+- (void)encodeUnsignedLongLong:(unsigned long long)value
 {
     [_data appendBytes:"<integer>" length:9];
-    [self _encodeString:[NSString stringWithFormat:@"%lu", uinteger]];
+    [self _encodeString:[NSString stringWithFormat:@"%llu", value]];
     [_data appendBytes:"</integer>\n" length:11];
 }
 
 - (void)encodeReal:(NSNumber *)number
 {
-    [_data appendBytes:"<real>" length:6];
-    [self _encodeString:[NSString stringWithFormat:@"%.16f", [number doubleValue]]];
-    [_data appendBytes:"</real>\n" length:8];
-}
+    static locale_t cLocale;
+    double d = [number doubleValue];
+    char   text[40];
 
-- (void)encodeChar:(char)ch
-{
-    // all chars of value 0 or 1 are interpreted as BOOL.
-    // not sure if this is a good idea, but BOOL doesn't have a type encoding of its own, so I don't know what else to do
-    if (ch == NO) {
-        [_data appendBytes:"<false/>\n" length:9];
-    } else if (ch == YES) {
-        [_data appendBytes:"<true/>\n" length:8];
-    } else {
-        [self encodeInteger:ch];
+    if (cLocale == NULL)
+        cLocale = newlocale(LC_ALL_MASK, "C", NULL);
+    for (int precision = 1; precision <= 17; precision++) {
+        snprintf_l(text, sizeof(text), cLocale, "%.*g", precision, d);
+        if (strtod_l(text, NULL, cLocale) == d)
+            break;
     }
+    [_data appendBytes:"<real>" length:6];
+    [_data appendBytes:text length:strlen(text)];
+    [_data appendBytes:"</real>\n" length:8];
 }
 
 - (void)encodeNumber:(NSNumber *)number indent:(NSInteger)indent
 {
-    [self _encodeIndent:indent];
-    
     const char *type = [number objCType];
-    
-    // TODO: should possibly handle other integer type encodings such as long long?
+
+    [self _encodeIndent:indent];
+    if ((CFBooleanRef)number == kCFBooleanTrue) {
+        [_data appendBytes:"<true/>\n" length:8];
+        return;
+    }
+    if ((CFBooleanRef)number == kCFBooleanFalse) {
+        [_data appendBytes:"<false/>\n" length:9];
+        return;
+    }
     switch (*type) {
-        case 'i':
-        case 'l':
-        case 'q':
-            [self encodeInteger:[number intValue]];  break;
-            
-        case 'I':
-        case 'L':
-        case 'Q':
-            [self encodeUnsignedInteger:[number unsignedIntValue]];  break;
-            
-        case 'c':  // this is the encoding for BOOL
-            [self encodeChar:[number charValue]];  break;
-            
         case 'f':
         case 'd':
+            [self encodeReal:number];
+            break;
+        case 'Q':
+        case 'L':
+            [self encodeUnsignedLongLong:[number unsignedLongLongValue]];
+            break;
         default:
-            [self encodeReal:number];  break;
-    }    
+            [self encodeLongLong:[number longLongValue]];
+            break;
+    }
+}
+
+// "YYYY-MM-DDTHH:MM:SSZ", in UTC, whole seconds, as macOS writes it.
+- (void)encodeDate:(NSDate *)date indent:(NSInteger)indent
+{
+    time_t    t = (time_t)floor([date timeIntervalSince1970]);
+    struct tm tm;
+    char      text[32];
+
+    gmtime_r(&t, &tm);
+    strftime(text, sizeof(text), "%Y-%m-%dT%H:%M:%SZ", &tm);
+    [self _encodeIndent:indent];
+    [_data appendBytes:"<date>" length:6];
+    [_data appendBytes:text length:strlen(text)];
+    [_data appendBytes:"</date>\n" length:8];
 }
 
 - (void)encodeArray:(NSArray *)array indent:(NSInteger)indent
@@ -241,10 +267,10 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
         [self encodeNumber:plist indent:indent];
     else if ([plist isKindOfClass:objc_lookUpClass("NSData")])
         [self encodeData:plist indent:indent];
+    else if ([plist isKindOfClass:objc_lookUpClass("NSDate")])
+        [self encodeDate:plist indent:indent];
     else
         [self encodeString:[plist description] indent:indent];
-        
-    // TODO: NSDate needs special encoding as well
 }
 
 

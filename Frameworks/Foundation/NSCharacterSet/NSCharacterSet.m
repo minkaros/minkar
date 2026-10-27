@@ -1,4 +1,5 @@
 /* Copyright (c) 2006-2007 Christopher J. W. Lloyd <cjwl@objc.net>
+   Modifications Copyright (c) 2026 The Minkar contributors
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
 
@@ -19,6 +20,14 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import "bitmapRepresentation.h"
 
 @implementation NSCharacterSet
+
+// Characters outside the BMP: the sets here hold BMP characters only, so
+// none of those is a member yet.
+-(BOOL)longCharacterIsMember:(UTF32Char)character {
+   if(character<0x10000)
+    return [self characterIsMember:(unichar)character];
+   return NO;
+}
 
 static NSMapTable *nameToSet=NULL;
 
@@ -160,6 +169,25 @@ static NSCharacterSet *sharedSetWithName(Class cls,NSString *name){
     }
     return set;
 }
+
+// The URL component sets (Minkar): the unreserved characters
+// (A-Z a-z 0-9 - . _ ~), the sub-delimiters (! $ & ' ( ) * + , ; =) and
+// what each component allows besides.
+static NSCharacterSet *urlSet(NSString *extra) {
+    NSString *base = @"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~!$&'()*+,;=";
+    return [NSCharacterSet characterSetWithCharactersInString:[base stringByAppendingString:extra]];
+}
+
++(NSCharacterSet *)URLUserAllowedCharacterSet { return urlSet(@""); }
++(NSCharacterSet *)URLPasswordAllowedCharacterSet { return urlSet(@""); }
++(NSCharacterSet *)URLHostAllowedCharacterSet { return urlSet(@":[]"); }
++(NSCharacterSet *)URLPathAllowedCharacterSet {
+    // No ';' in paths (it once separated path parameters).
+    return [NSCharacterSet characterSetWithCharactersInString:
+        @"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~!$&'()*+,=:@/"];
+}
++(NSCharacterSet *)URLQueryAllowedCharacterSet { return urlSet(@":@/?"); }
++(NSCharacterSet *)URLFragmentAllowedCharacterSet { return urlSet(@":@/?"); }
 
 +whitespaceCharacterSet {
     static NSString *setName = @"whitespaceCharacterSet";

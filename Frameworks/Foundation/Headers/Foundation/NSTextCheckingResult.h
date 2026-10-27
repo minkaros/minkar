@@ -2,6 +2,7 @@
 #import <Foundation/NSRange.h>
 #import <Foundation/NSDate.h>
 
+@class NSRegularExpression;
 @class NSDictionary, NSURL, NSOrthography;
 
 FOUNDATION_EXPORT NSString *const NSTextCheckingNameKey;
@@ -25,6 +26,7 @@ enum {
     NSTextCheckingTypeDash = 1ULL << 7,
     NSTextCheckingTypeReplacement = 1ULL << 8,
     NSTextCheckingTypeCorrection = 1ULL << 9,
+    NSTextCheckingTypeRegularExpression = 1ULL << 10,   // Minkar
 };
 typedef uint64_t NSTextCheckingType;
 
@@ -64,4 +66,17 @@ typedef uint64_t NSTextCheckingTypes;
 @property(readonly) NSTimeZone *timeZone;
 @property(readonly) NSURL *URL;
 
+@end
+
+// Regular expression results (macOS 10.7), added by Minkar
+// (NSRegularExpression.m): range 0 is the whole match, the others are the
+// capture groups, {NSNotFound, 0} for a group that took no part.
+@interface NSTextCheckingResult (NSRegularExpression)
++ (NSTextCheckingResult *)regularExpressionCheckingResultWithRanges:(NSRangePointer)ranges
+                                                              count:(NSUInteger)count
+                                                  regularExpression:(NSRegularExpression *)regularExpression;
+@property(readonly) NSUInteger numberOfRanges;
+- (NSRange)rangeAtIndex:(NSUInteger)index;
+@property(readonly) NSRegularExpression *regularExpression;
+- (NSTextCheckingResult *)resultByAdjustingRangesWithOffset:(NSInteger)offset;
 @end

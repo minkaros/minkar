@@ -5,6 +5,7 @@
 *
 *   Copyright (C) 2009-2015, International Business Machines
 *   Corporation and others.  All Rights Reserved.
+*   Modifications Copyright (c) 2026 The Minkar contributors
 *
 *******************************************************************************
 *   file name:  udatpg.cpp
@@ -39,7 +40,10 @@
 #define CAP_M             ((UChar)0x004D)
 #define FALSE             0
 #define TRUE              1
+// Renamed like the rest of the library: plain when U_DISABLE_RENAMING.
+#if !U_DISABLE_RENAMING
 #define u_isWhitespace U_ICU_ENTRY_POINT_RENAME(u_isWhitespace)
+#endif
 
 U_STABLE UBool U_EXPORT2
 u_isWhitespace(UChar32 c);

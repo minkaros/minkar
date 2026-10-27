@@ -1,4 +1,5 @@
 /* Copyright (c) 2006-2007 Christopher J. W. Lloyd
+   Modifications Copyright (c) 2026 The Minkar contributors
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
 
@@ -9,7 +10,12 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <Foundation/NSCoder.h>
 #import <Foundation/NSMapTable.h>
 
-@class NSDictionary, NSMutableArray, NSMutableDictionary;
+@class NSData, NSDictionary, NSError, NSMutableArray, NSMutableDictionary, NSSet;
+
+typedef NS_ENUM(NSInteger, NSDecodingFailurePolicy) {
+    NSDecodingFailurePolicyRaiseException = 0,
+    NSDecodingFailurePolicySetErrorAndReturn = 1,
+};
 
 FOUNDATION_EXPORT NSString *NSInvalidUnarchiveOperationException;
 
@@ -24,7 +30,27 @@ FOUNDATION_EXPORT NSString *NSInvalidUnarchiveOperationException;
     NSMapTable *_classVersions;
 
     int _unnamedKeyIndex;
+    NSSet *_allowedClasses;
+    BOOL _requiresSecureCoding;
+    NSInteger _decodingFailurePolicy;
+    NSError *_error;
 }
+
+// macOS 10.11 to 10.13: secure decoding. With requiresSecureCoding, every
+// decoded object's class must be one of the allowed classes (or a
+// subclass) and adopt NSSecureCoding.
+- (instancetype)initForReadingFromData:(NSData *)data error:(NSError **)error;
++ (id)unarchivedObjectOfClass:(Class)cls fromData:(NSData *)data error:(NSError **)error;
++ (id)unarchivedObjectOfClasses:(NSSet *)classes fromData:(NSData *)data error:(NSError **)error;
++ (id)unarchiveTopLevelObjectWithData:(NSData *)data error:(NSError **)error;
+- (id)decodeObjectOfClass:(Class)cls forKey:(NSString *)key;
+- (id)decodeObjectOfClasses:(NSSet *)classes forKey:(NSString *)key;
+- (id)decodeTopLevelObjectForKey:(NSString *)key error:(NSError **)error;
+- (id)decodeTopLevelObjectOfClass:(Class)cls forKey:(NSString *)key error:(NSError **)error;
+@property (readwrite) BOOL requiresSecureCoding;
+@property (readwrite) NSDecodingFailurePolicy decodingFailurePolicy;
+@property (readonly, copy) NSError *error;
+@property (readonly, copy) NSSet *allowedClasses;
 
 - initForReadingWithData:(NSData *)data;
 

@@ -1,10 +1,14 @@
 /* Copyright (c) 2006-2007 Christopher J. W. Lloyd
+   Modifications Copyright (c) 2026 The Minkar contributors
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
 
 The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
 
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE. */
+#include <stdio.h>
+#include <stdlib.h>
+#include <xlocale.h>
 #import "NSNumber_float.h"
 #import "NSNumber_double.h"
 #import <Foundation/NSStringFormatter.h>
@@ -93,8 +97,22 @@ NSNumber *NSNumber_floatNew(NSZone *zone,float value) {
    return (NSUInteger)_value;
 }
 
+// The shortest text that reads back as the same value, as on macOS
+// (Minkar: a fixed %0.7g lost digits: 1.0/3 printed 15 of its 16).
 -(NSString *)descriptionWithLocale:(NSDictionary *)locale {
-   return NSStringWithFormatAndLocale(@"%0.7g",locale,_value);
+   static locale_t cLocale;
+   char text[48];
+
+   if(cLocale==NULL)
+    cLocale=newlocale(LC_ALL_MASK,"C",NULL);
+   for(int precision=1;precision<=9;precision++){
+    snprintf_l(text,sizeof(text),cLocale,"%.*g",precision,(double)_value);
+    if((float)strtof_l(text,NULL,cLocale)==_value)
+     break;
+   }
+   if(locale==nil)
+    return [NSString stringWithUTF8String:text];
+   return NSStringWithFormatAndLocale(@"%s",locale,text);
 }
 
 @end

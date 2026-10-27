@@ -3,6 +3,7 @@
  *
  * Copyright (c) 1991, 1993, 1994
  *	The Regents of the University of California.  All rights reserved.
+ * Modifications Copyright (c) 2026 The Minkar contributors
  *
  * This code is derived from software contributed to Berkeley by
  * Keith Muller of the University of California, San Diego and Lance
@@ -37,9 +38,13 @@
 #include <sys/stat.h>
 #include <sys/capsicum.h>
 #include <sys/conf.h>
+#ifndef __APPLE__
 #include <sys/disklabel.h>
+#endif
 #include <sys/filio.h>
+#ifndef __APPLE__
 #include <sys/mtio.h>
+#endif
 #include <sys/time.h>
 
 #include <assert.h>
@@ -56,6 +61,17 @@
 #include <string.h>
 #include <time.h>
 #include <unistd.h>
+
+#ifdef __APPLE__
+/*
+ * Darwin: no O_DIRECT (F_NOCACHE does the same after open), no tape
+ * ioctls, and fdatasync is in libSystem without a prototype.
+ */
+#include <sys/ioctl.h>
+
+#define	O_DIRECT	0
+int	fdatasync(int);
+#endif
 
 #include "dd.h"
 #include "extern.h"
@@ -134,7 +150,11 @@ setup(void)
 	u_int cnt;
 	int iflags, oflags;
 	cap_rights_t rights;
+#ifdef __APPLE__
+	cap_ioctl_t cmds[] = { FIODTYPE };
+#else
 	unsigned long cmds[] = { FIODTYPE, MTIOCTOP };
+#endif
 
 	if (in.name == NULL) {
 		in.name = "stdin";
@@ -148,6 +168,10 @@ setup(void)
 		after_io();
 		if (in.fd == -1)
 			err(1, "%s", in.name);
+#ifdef __APPLE__
+		if ((ddflags & C_IDIRECT) && fcntl(in.fd, F_NOCACHE, 1) == -1)
+			err(1, "%s", in.name);
+#endif
 	}
 
 	getfdtype(&in);
@@ -199,6 +223,10 @@ setup(void)
 		}
 		if (out.fd == -1)
 			err(1, "%s", out.name);
+#ifdef __APPLE__
+		if ((ddflags & C_ODIRECT) && fcntl(out.fd, F_NOCACHE, 1) == -1)
+			err(1, "%s", out.name);
+#endif
 	}
 
 	getfdtype(&out);
@@ -321,12 +349,27 @@ getfdtype(IO *io)
 		if (ioctl(io->fd, FIODTYPE, &type) == -1) {
 			err(1, "%s", io->name);
 		} else {
+#ifdef __APPLE__
+			/*
+			 * Darwin's d_type is a value (D_TAPE, D_DISK, D_TTY or
+			 * 0), not FreeBSD's flags. Devices like null and zero
+			 * (FreeBSD's D_MEM) are 0 and accept lseek.
+			 */
+			if (type == D_TAPE)
+				io->flags |= ISTAPE;
+			else if (type == D_DISK || (type != D_TTY &&
+			    lseek(io->fd, (off_t)0, SEEK_CUR) != -1))
+				io->flags |= ISSEEK;
+			if (S_ISCHR(sb.st_mode) && type != D_TAPE)
+				io->flags |= ISCHR;
+#else
 			if (type & D_TAPE)
 				io->flags |= ISTAPE;
 			else if (type & (D_DISK | D_MEM))
 				io->flags |= ISSEEK;
 			if (S_ISCHR(sb.st_mode) && (type & D_TAPE) == 0)
 				io->flags |= ISCHR;
+#endif
 		}
 		return;
 	}

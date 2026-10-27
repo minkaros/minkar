@@ -1,4 +1,5 @@
 /* Copyright (c) 2006-2007 Christopher J. W. Lloyd
+   Modifications Copyright (c) 2026 The Minkar contributors
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
 
@@ -18,6 +19,9 @@ float powf(float, float);
 #import <Foundation/NSData.h>
 #import <Foundation/NSException.h>
 #import <Foundation/CFUID.h>
+#import <Foundation/NSSet.h>
+#import <Foundation/FoundationErrors.h>
+#import <Foundation/NSError.h>
 #import <Foundation/NSCFTypeID.h>
 #import <Foundation/NSRaise.h>
 
@@ -51,6 +55,8 @@ NSString* NSInvalidUnarchiveOperationException=@"NSInvalidUnarchiveOperationExce
 
 -(void)dealloc {
    [_nameToReplacementClass release];
+   [_allowedClasses release];
+   [_error release];
    [_propertyList release];
    [_objects release];
    [_plistStack release];
@@ -107,6 +113,7 @@ static inline int integerFromCFUID(id object){
      if([plist isEqualToString:@"$null"])
       result=nil;
      else {
+      [self _checkSecureClass:[NSString class]];
       result=plist;
       NSMapInsert(_uidToObject,(void *)uidIntValue,result);
       NSMapInsert(_objectToUid,result,(void *)uidIntValue);
@@ -115,6 +122,7 @@ static inline int integerFromCFUID(id object){
     else if(typeID==kNSCFTypeDictionary){
      Class class=[self decodeClassFromDictionary:plist];
 
+     [self _checkSecureClass:class];
      [_plistStack addObject:plist];
      result=[class allocWithKeyedUnarchiver:self];
      NSMapInsert(_uidToObject,(void *)uidIntValue,result);
@@ -131,11 +139,13 @@ static inline int integerFromCFUID(id object){
      [_plistStack removeLastObject];
     }
     else if(typeID==kNSCFTypeNumber || typeID==kNSCFTypeBoolean){
+     [self _checkSecureClass:[NSNumber class]];
      result=plist;
      NSMapInsert(_uidToObject,(void *)uidIntValue,result);
      NSMapInsert(_objectToUid,result,(void *)uidIntValue);
     }
     else if (typeID==kNSCFTypeData) {
+     [self _checkSecureClass:[NSData class]];
      result=plist;
      NSMapInsert(_uidToObject,(void *)uidIntValue,result);
      NSMapInsert(_objectToUid,result,(void *)uidIntValue);
@@ -160,6 +170,147 @@ static inline int integerFromCFUID(id object){
 
     return [self decodeObjectForUID:integerFromCFUID(object)];
    }
+}
+
+/* ---- Secure decoding (Minkar: macOS 10.11 to 10.13) ---------------------- */
+
+// Raises when secure decoding is on and cls is not allowed.
+-(void)_checkSecureClass:(Class)cls {
+   BOOL allowed=NO;
+
+   if(!_requiresSecureCoding || _allowedClasses==nil)
+    return;
+   for(Class c in _allowedClasses)
+    if([cls isSubclassOfClass:c]){
+     allowed=YES;
+     break;
+    }
+   if(!allowed)
+    [NSException raise:NSInvalidUnarchiveOperationException
+                format:@"value of class %@ was not among the allowed classes %@", cls, _allowedClasses];
+   if(!([cls respondsToSelector:@selector(supportsSecureCoding)] && [cls supportsSecureCoding]))
+    [NSException raise:NSInvalidUnarchiveOperationException
+                format:@"class %@ does not adopt NSSecureCoding", cls];
+}
+
+-(instancetype)initForReadingFromData:(NSData *)data error:(NSError **)error {
+   id plist=nil;
+
+   @try {
+    plist=[NSPropertyListReader propertyListFromData:data];
+   } @catch(NSException *e) {
+    plist=nil;
+   }
+   if(![plist isKindOfClass:[NSDictionary class]] || [plist objectForKey:@"$objects"]==nil){
+    if(error!=NULL)
+     *error=[NSError errorWithDomain:NSCocoaErrorDomain code:NSCoderReadCorruptError
+       userInfo:[NSDictionary dictionaryWithObject:@"The data is not a keyed archive" forKey:NSDebugDescriptionErrorKey]];
+    [self release];
+    return nil;
+   }
+   if((self=[self initForReadingWithData:data])!=nil){
+    _requiresSecureCoding=YES;
+    _decodingFailurePolicy=NSDecodingFailurePolicySetErrorAndReturn;
+   }
+   return self;
+}
+
+-(BOOL)requiresSecureCoding { return _requiresSecureCoding; }
+-(void)setRequiresSecureCoding:(BOOL)flag { _requiresSecureCoding=flag; }
+-(NSDecodingFailurePolicy)decodingFailurePolicy { return _decodingFailurePolicy; }
+-(void)setDecodingFailurePolicy:(NSDecodingFailurePolicy)policy { _decodingFailurePolicy=policy; }
+-(NSError *)error { return [[_error retain] autorelease]; }
+-(NSSet *)allowedClasses { return [[_allowedClasses retain] autorelease]; }
+
+-(void)_failWith:(NSException *)exception code:(NSInteger)code {
+   [_error release];
+   _error=[[NSError errorWithDomain:NSCocoaErrorDomain code:code
+     userInfo:[NSDictionary dictionaryWithObject:[exception reason] ? [exception reason] : @"The archive could not be read"
+                                          forKey:NSDebugDescriptionErrorKey]] retain];
+}
+
+// Decodes with these classes allowed (for this object and what it holds).
+-(id)decodeObjectOfClasses:(NSSet *)classes forKey:(NSString *)key {
+   NSSet *saved=_allowedClasses;
+   id     result=nil;
+
+   _allowedClasses=[classes retain];
+   @try {
+    result=[self decodeObjectForKey:key];
+    if(result!=nil)
+     [self _checkSecureClass:[result class]];
+   } @catch(NSException *exception) {
+    [_allowedClasses release];
+    _allowedClasses=saved;
+    if(_decodingFailurePolicy==NSDecodingFailurePolicyRaiseException)
+     @throw;
+    [self _failWith:exception code:NSCoderReadCorruptError];
+    return nil;
+   }
+   [_allowedClasses release];
+   _allowedClasses=saved;
+   return result;
+}
+
+-(id)decodeObjectOfClass:(Class)cls forKey:(NSString *)key {
+   return [self decodeObjectOfClasses:[NSSet setWithObject:cls] forKey:key];
+}
+
+-(id)decodeTopLevelObjectOfClass:(Class)cls forKey:(NSString *)key error:(NSError **)error {
+   NSDecodingFailurePolicy saved=_decodingFailurePolicy;
+   id result;
+
+   _decodingFailurePolicy=NSDecodingFailurePolicySetErrorAndReturn;
+   [_error release];
+   _error=nil;
+   result=(cls!=Nil)?[self decodeObjectOfClass:cls forKey:key]:nil;
+   if(cls==Nil){
+    @try {
+     result=[self decodeObjectForKey:key];
+    } @catch(NSException *exception) {
+     [self _failWith:exception code:NSCoderReadCorruptError];
+     result=nil;
+    }
+   }
+   _decodingFailurePolicy=saved;
+   if(result==nil && _error==nil)
+    _error=[[NSError errorWithDomain:NSCocoaErrorDomain code:NSCoderValueNotFoundError
+      userInfo:[NSDictionary dictionaryWithObject:[NSString stringWithFormat:@"No value for key %@", key]
+                                           forKey:NSDebugDescriptionErrorKey]] retain];
+   if(result==nil && error!=NULL)
+    *error=[[_error retain] autorelease];
+   return result;
+}
+
+-(id)decodeTopLevelObjectForKey:(NSString *)key error:(NSError **)error {
+   return [self decodeTopLevelObjectOfClass:Nil forKey:key error:error];
+}
+
++(id)unarchivedObjectOfClasses:(NSSet *)classes fromData:(NSData *)data error:(NSError **)error {
+   NSKeyedUnarchiver *unarchiver=[[[self alloc] initForReadingFromData:data error:error] autorelease];
+   id                 result;
+
+   if(unarchiver==nil)
+    return nil;
+   result=[unarchiver decodeObjectOfClasses:classes forKey:@"root"];
+   if(result==nil && error!=NULL)
+    *error=[unarchiver error] ? [unarchiver error]
+      : [NSError errorWithDomain:NSCocoaErrorDomain code:NSCoderValueNotFoundError userInfo:nil];
+   [unarchiver finishDecoding];
+   return result;
+}
+
++(id)unarchivedObjectOfClass:(Class)cls fromData:(NSData *)data error:(NSError **)error {
+   return [self unarchivedObjectOfClasses:[NSSet setWithObject:cls] fromData:data error:error];
+}
+
++(id)unarchiveTopLevelObjectWithData:(NSData *)data error:(NSError **)error {
+   NSKeyedUnarchiver *unarchiver=[[[self alloc] initForReadingFromData:data error:error] autorelease];
+
+   if(unarchiver==nil)
+    return nil;
+   [unarchiver setRequiresSecureCoding:NO];
+   return [unarchiver decodeTopLevelObjectForKey:@"root" error:error];
 }
 
 +unarchiveObjectWithData:(NSData *)data {

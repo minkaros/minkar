@@ -11,17 +11,37 @@ Building LLVM the first time takes a __long__ time.
 
 ## Host requirements
 
-Tested on Ubuntu 22.04 (x86-64). Package names are Debian/Ubuntu ones.
+Tested on Ubuntu 22.04 (x86-64) with 10 CPUs and 16 GB of RAM; the CI uses
+GitHub's Ubuntu 22.04 runners. Package names are Debian/Ubuntu ones;
+`tools/ci/host-setup.sh packages image` installs all of them.
 
 * Toolchain build: `clang lld cmake ninja-build python3 git curl`,
-  `libxml2-dev libpng-dev uuid-dev libssl-dev zlib1g-dev libbsd-dev`
-* System build: `bmake make csh bison flex`, and `byacc` (Berkeley yacc,
-  public domain: libxkbcommon's parser is generated with it, not bison)
+  `libxml2-dev libpng-dev uuid-dev libssl-dev zlib1g-dev libbsd-dev`,
+  `libacl1-dev` (xar), `libc++-dev libc++abi-dev` (plktool),
+  `llvm-14-dev libedit-dev libffi-dev libdispatch-dev libblocksruntime-dev
+  libkqueue-dev libpthread-workqueue-dev` (the CTF tools link the host's
+  LLVM 14 and libdispatch), and `libicu-dev autoconf automake libtool
+  pkg-config` for Open CF-lite.
+* Open CF-lite 635.21.8 (gerickson/opencflite, APSL) in `/usr/local`:
+  plktool and xcbuild link a host CoreFoundation. It is a build tool only
+  and nothing of it goes into Minkar. `tools/ci/host-setup.sh packages`
+  builds it (`./configure --with-tz-includes=<its source>`, since Ubuntu
+  has no `tzfile.h`; then `make && make install`).
+* System build: `bmake make csh bison flex time`, and `byacc` (Berkeley
+  yacc, public domain: libxkbcommon's parser is generated with it, not
+  bison)
 * Bootable image and boot test: `nasm gdisk dosfstools hfsprogs`,
-  `qemu-system-x86 ovmf` (QEMU uses KVM when /dev/kvm exists, TCG otherwise),
-  and `openssh-client` for gate M2
+  `qemu-system-x86 ovmf` (the boot test runs QEMU without KVM, under TCG),
+  `openssh-client openssl` for gate M2, and the kernel's `hfsplus` module
+  (in `linux-modules-extra-*` on cloud kernels).
 
-Symlink `cc` and `c++` to clang to avoid accidental use of gcc.
+The build calls `/usr/bin/clang` itself (`HOST_CC`, `HOST_CXX`), so `cc`
+may stay gcc.
+
+The source tree must be on a case-sensitive file system (ext4, not a
+default HFS+ or APFS volume): some trees have names that differ only in
+case. Disk space: about 7 GB of sources with their git history, 8 GB of
+build tree (2 GB of it LLVM's build directory) and a 2 GB image.
 
 ## Building
 
@@ -45,6 +65,29 @@ Outputs, under `../build`:
 * `Developer/Platforms/Minkar.platform/Developer/SDKs/Minkar.sdk`
 * `sysroot/` - the root file system
 * `kernelcache` - the prelinked kernel and extensions
+
+## Expected times
+
+Measured on 2026-10-25 on the reference host: Ubuntu 22.04, 10 CPUs
+(Xeon E5-2690 v2), 16 GB of RAM, `-j10`, clean build tree.
+
+| Stage | Wall time |
+| --- | --- |
+| `Developer` (toolchain, LLVM included) | 52 min the first time; seconds once built |
+| `Kernel` | 9-10 min |
+| `Libraries` | about 1 min |
+| `Frameworks` | 4 min |
+| `Kernel/Extensions` | 20 s |
+| `CoreServices` | a few seconds |
+| `BSD` | 2-2.5 min |
+| Everything after `Developer` | 16-19 min |
+| `image`, first time (fetches and builds the EFI loader) | 2 min |
+| `image`, after that | 6 s |
+| `boottest GATE=M1` | about 20 s |
+| `boottest GATE=M2` | about 75 s (QEMU under TCG) |
+
+A change to LLVM's sources rebuilds the toolchain (about 47 min).
+`ONLY_STAGE` (above) builds one stage without walking the ones before it.
 
 ## Bootable image and boot test
 
@@ -121,6 +164,66 @@ temporary init that the image installs as `/sbin/launchd`, the only path a
 RELEASE kernel tries. Build the image with `INIT=` to boot the sysroot's own
 `/sbin/launchd` instead.
 
+## Common errors
+
+* `Could not find bsd.mkopt.mk` (and `bsd.opts.mk`, `bsd.linker.mk`)\
+  bmake was run without `-m /work/minkar/BSD/share/mk`.
+* `cd: .../Frameworks/Frameworks: No such file or directory`\
+  `SUBDIR=` was given on the command line. Pass it through the
+  environment (`env SUBDIR=...`) or use `ONLY_STAGE`.
+* `SYSROOT_DIR is not set: build BSD/etc from the top of the tree`\
+  bmake was run inside a subdirectory. Always run it from the top of the
+  tree: a subdirectory alone does not know the sysroot and could install
+  into the build host.
+* `Permission denied` on `../build`\
+  The build runs as root (`sudo`); the object directories and the
+  sysroot are root owned.
+* `byacc (Berkeley yacc) is required on the build host`\
+  Install `byacc` (libxkbcommon's parser, in `CoreServices`).
+* Toolchain link errors: `cannot find -lacl`, `-lCoreFoundation`, `-ldispatch`, `-lLLVM` or `-lc++`\
+  Host packages are missing, or Open CF-lite is not in `/usr/local`
+  (see "Host requirements"). `tools/ci/host-setup.sh packages` installs
+  them.
+* Undefined symbols when linking a base library in a clean build, although an incremental build works\
+  A base library gained a symbol another one uses, and the bootstrap
+  stubs do not list it yet. Run `Libraries/bootstrap/regen-stubs.sh` and
+  commit the `.tbd` files it changes.
+* The whole of LLVM rebuilds although the toolchain is already built\
+  The toolchain's tools are older than their sources (a copied or
+  restored toolchain, or a fresh checkout): bmake rebuilds mig, and LLVM's
+  rule depends on it. `tools/ci/host-setup.sh touch-toolchain` marks a
+  restored toolchain up to date.
+* A kernel change does not show up in the image\
+  The kernelcache is made by `Kernel/Extensions`. After building
+  `Kernel`, build `Kernel/Extensions` too.
+* An edited AppKit header is not seen by AppKit itself\
+  AppKit includes `<AppKit/...-Private.h>` from the framework copy in its
+  object directory, refreshed only at link time. Copy the header there
+  (`AppKit.framework/Headers`) or relink.
+* Everything rebuilds after moving the source tree\
+  Object directories are named after the source path
+  (`../build/<source path>/...`). Keep the tree where it was built.
+* Odd missing files on macOS or on an HFS+ or APFS disk\
+  The file system is case-insensitive; some trees have names that differ
+  only in case. Use a case-sensitive volume.
+* `mount: unknown filesystem type 'hfsplus'` (image)\
+  The host kernel lacks the `hfsplus` module: install
+  `linux-modules-extra-$(uname -r)` and `modprobe hfsplus`.
+* `boottest: gate M2 needs --password or $BOOTTEST_PASSWORD`, `needs --ssh-key or $BOOTTEST_SSH_KEY`\
+  Build the image with `ROOT_PASSWORD` and `ROOT_AUTHORIZED_KEYS`, and
+  pass the same password and the private key to `boottest` (see above).
+* `boottest: ... the host cannot resolve it either`\
+  Gate M2 resolves the host's own name from the guest. Add it to
+  `/etc/hosts` (`127.0.1.1 <hostname>`).
+* The kernel panics right after the loader when QEMU is run by hand\
+  The loader needs `-device virtio-rng-pci` (EFI_RNG_PROTOCOL), and
+  under TCG use `-cpu Westmere`, not `max`. `Image/boottest.py` shows a
+  working command line.
+* Logs are hard to search\
+  They carry ANSI colors: `sed 's/\x1b\[[0-9;]*m//g' file.log`.
+  `tools/ci/build-stages.sh` keeps one log per stage and prints the first
+  error lines of a stage that fails.
+
 ## Host tests
 
 Portable parts of the system have host-side tests (clang, ASan/UBSan):
@@ -131,3 +234,35 @@ Portable parts of the system have host-side tests (clang, ASan/UBSan):
 * `python3 -B Developer/Default.xctoolchain/codesign/tests/test_codesign.py`
 * `make -C Libraries/Libsystem/libsystem_c/minkar_crypt/tests` (crypt(3) SHA-crypt)
 * `cc -DTEST -I Libraries/Libsystem/libsystem_coreservices -o /tmp/sysdir_test Libraries/Libsystem/libsystem_coreservices/sysdir.c && /tmp/sysdir_test`
+
+## Timed builds
+
+`tools/ci/build-stages.sh` builds the stages one at a time, each with its
+own log and timing (`../build/logs/<stage>.log`, `../build/logs/times.txt`),
+and prints the end of the log of a stage that fails:
+
+    cd /work/minkar
+    sudo tools/ci/build-stages.sh
+    sudo env STAGES="Frameworks BSD" tools/ci/build-stages.sh
+
+## Continuous integration
+
+`.github/workflows/build-boottest.yml` runs on every push and pull
+request to `main` and `devel`, and by hand. Changes go to `devel` first. On a
+GitHub-hosted Ubuntu 22.04 runner it:
+
+1. builds the toolchain (`Developer`), or takes it from the cache;
+2. builds the rest of the system with `tools/ci/build-stages.sh`;
+3. makes an image with launchd as PID 1, a random root password and a
+   fresh ssh key, and runs `boottest GATE=M2`.
+
+The toolchain takes about two hours on a hosted runner, so it is cached.
+The cache key is the git tree of `Developer/Default.xctoolchain`: any
+change there builds it again. The cache holds the installed toolchain and
+its object directories, but not LLVM's build tree; after restoring it,
+`tools/ci/host-setup.sh touch-toolchain` makes it newer than the checkout,
+or bmake would rebuild mig and, with it, LLVM. Bump `CACHE_VERSION` in the
+workflow to throw the cache away.
+
+When a stage or the boot test fails, the end of its log shows up as an
+error annotation on the run; the full logs are in the run's artifacts.
