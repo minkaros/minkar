@@ -98,6 +98,14 @@ DARWIN_MINOR != echo ${DARWIN_VERSION} | sed 's/^[0-9]+\.([0-9]+)\./\\1/'
 DARWIN_PATCH != echo ${DARWIN_VERSION} | sed 's/([0-9]+)$$/\\1/'
 
 MACOSX_DEPLOYMENT_TARGET = 10.15
+
+# Reproducible builds: __DATE__, __TIME__ and the tools that honour
+# SOURCE_DATE_EPOCH use the last commit's date, not the build's
+# (tools/toolchain/MANIFEST). root's git needs safe.directory here.
+SOURCE_DATE_EPOCH != git -c safe.directory='*' -C ${ROOT_SOURCE_DIR} log -1 --format=%ct 2>/dev/null || true
+.if empty(SOURCE_DATE_EPOCH)
+SOURCE_DATE_EPOCH = 0
+.endif
 MACOS_VERSION_MIN = 10.15
 
 RUNTIME_SPEC_PATH = ${ROOT_SOURCE_DIR}/Developer/xcbuild/Specifications
@@ -135,7 +143,7 @@ SUBDIR :=	${ONLY_STAGE}
 	KEXT_SOURCE_DIR SDK_SOURCE_DIR PLATFORM_SOURCE_DIR MINKAR_SDKROOT \
 	MINKAR_SDKROOT_MACOSX SYSROOT_DIR TARGET_TRIPLE MAKEOBJDIRPREFIX \
 	TOOLCHAIN TOOLS SRCTOP OBJTOP SRCROOT OBJROOT MK_AUTO_OBJ MK_UNIFIED_OBJDIR \
-	HOST_CC HOST_CXX HOST_AR
+	HOST_CC HOST_CXX HOST_AR SOURCE_DATE_EPOCH
 
 version:
 	${MAKE} -C ${.CURDIR}/SystemLibrary SystemVersion.plist

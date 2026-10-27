@@ -87,6 +87,15 @@ Measured on 2026-10-25 on the reference host: Ubuntu 22.04, 10 CPUs
 | `boottest GATE=M2` | about 75 s (QEMU under TCG) |
 
 A change to LLVM's sources rebuilds the toolchain (about 47 min).
+
+The toolchain is pinned by `tools/toolchain/MANIFEST`: each component's
+upstream version, the git tree of its sources and the version line its
+tool prints. `tools/toolchain/manifest.sh check <toolchain>` verifies
+them and that the same input compiles, links and archives to the same
+bytes twice; after changing a component, `tools/toolchain/manifest.sh
+update` rewrites the trees. The build exports `SOURCE_DATE_EPOCH` (the
+last commit's date), so `__DATE__` and `__TIME__` do not make two builds
+differ.
 `ONLY_STAGE` (above) builds one stage without walking the ones before it.
 
 ## Bootable image and boot test
@@ -252,7 +261,8 @@ request to `main` and `devel`, and by hand. Changes go to `devel` first. On a
 GitHub-hosted Ubuntu 22.04 runner it:
 
 1. builds the toolchain (`Developer`), or takes it from the cache;
-2. builds the rest of the system with `tools/ci/build-stages.sh`;
+2. builds the rest of the system with `tools/ci/build-stages.sh`, and
+   checks the toolchain against `tools/toolchain/MANIFEST`;
 3. makes an image with launchd as PID 1, a random root password and a
    fresh ssh key, and runs `boottest GATE=M2`.
 

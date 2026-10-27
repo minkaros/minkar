@@ -1,0 +1,35 @@
+# SPDX-License-Identifier: BSD-2-Clause
+# Copyright (c) 2026 The Minkar contributors
+# Part of Minkar.
+#
+# What Default.xctoolchain is built from (where each source comes from:
+# _PROVENANCE). Fields, separated by " | ": component | directory |
+# upstream version | git tree of the directory | a tool and the version
+# line it prints ("-": none to check).
+#
+# Kept outside Developer/Default.xctoolchain: CI caches the toolchain by
+# that directory's tree, which this file would change.
+#
+# tools/toolchain/manifest.sh check [toolchain] verifies the trees and,
+# given a built toolchain, the tools' versions and that the same input
+# compiles, links and archives to the same bytes twice. After changing
+# anything here, run tools/toolchain/manifest.sh update.
+#
+# The host builds it with clang (not gcc), cmake and ninja: see
+# Docs/BUILDING.md. The build exports SOURCE_DATE_EPOCH (the last
+# commit's date), so __DATE__ and __TIME__ in the tools do not change
+# their bytes.
+llvm | llvm | swift-6.0-RELEASE (LLVM 17.0.6), tapi-1600.0.11.8 | 1715a1292aff0526a90ca046afcd92706aedaf78 | clang --version: Apple clang version 17.0.6
+cctools | cctools | PureDarwin cctools, ld64-609 | c1fb0d0045aa9aa643aec420f20a66dad551a741 | ld64 -v: PROJECT:pdcctools
+mig | mig | PureDarwin mig | 3953ed91ca8f662ac5728fde9b584f3305f1e133 | -
+xar | xar | PureDarwin xar | 778e860acbf15e96b615735caf87c99bf6a3ed5a | -
+gmake | gmake | GNU make 4.4.1 | 2d1f9546a24250b10dc3f8956f5d2023b7d18360 | gmake --version: GNU Make 4.4.1
+unifdef | unifdef | unifdef 2.5.6 | 16a54abbef230dcbbf102b72afbb2c2d6d6861e2 | unifdef -V: Version: unifdef-2.5.6
+dtrace_ctf | dtrace_ctf | PureDarwin dtrace (CTF tools) | da0190455459aec4e5d31408aec165894cf43e44 | -
+rpcgen | rpcgen | Minkar | 6fb404d1adf353540cacbab517924ef2a72a28da | -
+plktool | plktool | Minkar | 76802f1b50ab912027048674e40cd344e191f0ee | -
+xcbuild | xcbuild | darlinghq xcbuild (main) | 9aa9e6a038a8b3209fbad37a3c4647cfaa6460e2 | -
+lzvndecode | lzvndecode | Minkar | 8f6f6c0248a3f1f127fafb47fa1fa6540c91e4df | -
+iig | iig | Minkar | e465e01363a6df55babb7a72afa9d3e51bc1bd5c | -
+codesign | codesign | Minkar | c02fa098354acea3f83af95519494f440d7372f4 | -
+include | include | Apple's open-source headers | 3d689da0efd973b548961f5dd8ca27c6915d8f13 | -
