@@ -439,10 +439,7 @@ void MinkarXHCIPort::free()
     }
     for (int slot = 0; slot < 64; slot++) {
         for (int ep = 0; ep < 16; ep++) {
-            if (fIntrIn[slot][ep].reportMem) {
-                fIntrIn[slot][ep].reportMem->release();
-                fIntrIn[slot][ep].reportMem = NULL;
-            }
+            releaseInterruptEndpoint(fIntrIn[slot][ep]);
         }
     }
     if (fWorkLoop && fInterruptSource)
@@ -1006,14 +1003,7 @@ void MinkarXHCIPort::handleRootPortDisconnect(UInt32 port0based, UInt32 portsc)
         for (int ep = 1; ep < 16; ep++) {
             if (fIntrIn[slot][ep].valid && fIntrIn[slot][ep].rootPort == port0based) {
                 slotOnPort = true;
-                fIntrIn[slot][ep].valid = false;
-                fIntrIn[slot][ep].tdOutstanding = false;
-                if (fIntrIn[slot][ep].reportMem) {
-                    fIntrIn[slot][ep].reportMem->release();
-                    fIntrIn[slot][ep].reportMem = NULL;
-                    fIntrIn[slot][ep].reportVirt = NULL;
-                    fIntrIn[slot][ep].reportPhys = 0;
-                }
+                releaseInterruptEndpoint(fIntrIn[slot][ep]);
             }
         }
         if (slotOnPort) {
@@ -1443,6 +1433,15 @@ bool MinkarXHCIPort::configureBulkEndpoints(UInt32 slotId, UInt8 inEp, UInt16 in
     return true;
 }
 
+void MinkarXHCIPort::releaseInterruptEndpoint(InterruptInEndpoint &intr)
+{
+    if (intr.reportMem)
+        intr.reportMem->release();
+    if (intr.ringMem)
+        intr.ringMem->release();
+    bzero(&intr, sizeof(intr));
+}
+
 bool MinkarXHCIPort::configureInterruptInEndpoint(UInt32 slotId, UInt8 epNum,
                                                  UInt16 maxPkt, UInt8 interval)
 {
@@ -1455,15 +1454,20 @@ bool MinkarXHCIPort::configureInterruptInEndpoint(UInt32 slotId, UInt8 epNum,
 
     XHCIDeviceContext *dc = (XHCIDeviceContext *)sr.deviceCtxMem->getBytesNoCopy();
     ic->slot = dc->slot;
+    /* Context Entries is the highest DCI in use: never lower it below an
+     * endpoint of another interface already configured on this slot. */
+    UInt32 entries = (ic->slot.dword0 >> SLOT_CTX_ENTRIES_SHIFT) & 0x1F;
+    if (inDCI > entries)
+        entries = inDCI;
     ic->slot.dword0 = (ic->slot.dword0 & ~((UInt32)0x1F << SLOT_CTX_ENTRIES_SHIFT)) |
-                      (inDCI << SLOT_CTX_ENTRIES_SHIFT);
+                      (entries << SLOT_CTX_ENTRIES_SHIFT);
 
-    /* A keyboard slot has no bulk endpoints, so reuse the bulk-IN ring fields
-     * (same convention markSlotAsHub uses for a hub's status-change EP). */
-    if (!allocRing(&sr.bulkInRingMem, &sr.bulkInRing, kRingTRBs)) return false;
-    sr.bulkInEnqueue = 0; sr.bulkInCycle = 1;
-    sr.bulkInRing[kRingTRBs - 1].param = sr.bulkInRingMem->getPhysicalAddress();
-    sr.bulkInRing[kRingTRBs - 1].control = TRB_SET_TYPE(TRB_TYPE_LINK) | TRB_TC | TRB_CYCLE;
+    /* The endpoint's own ring (see InterruptInEndpoint). */
+    IOBufferMemoryDescriptor *ringMem = NULL;
+    volatile XHCITRB *ring = NULL;
+    if (!allocRing(&ringMem, &ring, kRingTRBs)) return false;
+    ring[kRingTRBs - 1].param = ringMem->getPhysicalAddress();
+    ring[kRingTRBs - 1].control = TRB_SET_TYPE(TRB_TYPE_LINK) | TRB_TC | TRB_CYCLE;
 
     /* EP Context dword0 bits 23:16 = Interval. For now pass through the
      * endpoint descriptor value used by the existing path, but do provide
@@ -1472,7 +1476,7 @@ bool MinkarXHCIPort::configureInterruptInEndpoint(UInt32 slotId, UInt8 epNum,
     ic->ep[inDCI - 1].dword0 = ((UInt32)interval << 16);
     ic->ep[inDCI - 1].dword1 = EP_CTX_CERR(3) | (EP_TYPE_INTERRUPT_IN << EP_CTX_TYPE_SHIFT) |
                                ((UInt32)maxPkt << EP_CTX_MAXPKT_SHIFT);
-    ic->ep[inDCI - 1].trDequeuePtr = sr.bulkInRingMem->getPhysicalAddress() | 1;
+    ic->ep[inDCI - 1].trDequeuePtr = ringMem->getPhysicalAddress() | 1;
     ic->ep[inDCI - 1].avgTrbLen_maxEsitLo = ((UInt32)maxPkt << 16) | maxPkt;
 
     UInt8 cc = 0; UInt32 slotOut = 0;
@@ -1480,16 +1484,17 @@ bool MinkarXHCIPort::configureInterruptInEndpoint(UInt32 slotId, UInt8 epNum,
                         TRB_SET_TYPE(TRB_TYPE_CONFIGURE_EP) | TRB_SET_SLOT(slotId),
                         &cc, &slotOut, 1000);
     if (!ok || cc != TRB_CC_SUCCESS) {
-        XHCI_Log("Configure interrupt EP failed slot=%u cc=%u", slotId, cc);
+        XHCI_Log("Configure interrupt EP failed slot=%u ep=%u cc=%u", slotId, epNum, cc);
+        ringMem->release();
         return false;
     }
 
     InterruptInEndpoint &intr = fIntrIn[slotId][epNum & 0x0fU];
-    if (intr.reportMem) {
-        intr.reportMem->release();
-        intr.reportMem = NULL;
-    }
-    bzero(&intr, sizeof(intr));
+    releaseInterruptEndpoint(intr);
+    intr.ringMem = ringMem;
+    intr.ring = ring;
+    intr.enqueue = 0;
+    intr.cycle = 1;
     UInt32 reportLen = maxPkt ? maxPkt : 8;
     if (reportLen < 8) reportLen = 8;
     if (reportLen > 64) reportLen = 64;
@@ -1517,9 +1522,8 @@ IOReturn MinkarXHCIPort::interruptTransfer(UInt32 slotId, UInt8 epNum,
         return kIOReturnBadArgument;
 
     InterruptInEndpoint &intr = fIntrIn[slotId][epNum];
-    if (!intr.valid || !intr.reportMem)
+    if (!intr.valid || !intr.reportMem || !intr.ring)
         return kIOReturnNotReady;
-    SlotResources &sr = fSlots[slotId];
     UInt32 dci = epNum * 2 + 1;
     UInt32 reportLen = intr.intrMaxPkt ? intr.intrMaxPkt : 8;
     if (len && reportLen > len)
@@ -1527,7 +1531,7 @@ IOReturn MinkarXHCIPort::interruptTransfer(UInt32 slotId, UInt8 epNum,
 
     if (!intr.tdOutstanding) {
         bzero((void *)intr.reportVirt, intr.intrMaxPkt);
-        pushTRB(sr.bulkInRing, sr.bulkInEnqueue, sr.bulkInCycle, kRingTRBs,
+        pushTRB(intr.ring, intr.enqueue, intr.cycle, kRingTRBs,
                 intr.reportPhys, intr.intrMaxPkt, TRB_SET_TYPE(TRB_TYPE_NORMAL) | TRB_IOC);
         ringDoorbell(slotId, dci);
         intr.tdOutstanding = true;

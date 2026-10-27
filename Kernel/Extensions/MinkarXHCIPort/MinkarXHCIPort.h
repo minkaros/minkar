@@ -92,6 +92,13 @@ private:
         IOBufferMemoryDescriptor * reportMem;
         volatile UInt8           * reportVirt;
         UInt64                     reportPhys;
+        /* Each interrupt-IN endpoint has its own transfer ring: a composite
+         * device (a keyboard and a mouse in one, as KVM switches present
+         * themselves) has several on one slot. */
+        IOBufferMemoryDescriptor * ringMem;
+        volatile XHCITRB         * ring;
+        UInt32                     enqueue;
+        UInt8                      cycle;
     };
 
     IOPCIDevice        * fProvider;
@@ -293,6 +300,7 @@ private:
 
     /* Configure a single interrupt IN endpoint, reusing the slot's bulk-IN
      * ring fields for the current reconstructed IOUSBController path. */
+    void releaseInterruptEndpoint(InterruptInEndpoint &intr);
     bool configureInterruptInEndpoint(UInt32 slotId, UInt8 epNum, UInt16 maxPkt, UInt8 interval);
     IOReturn interruptTransfer(UInt32 slotId, UInt8 epNum, IOMemoryDescriptor *buffer,
                                UInt32 len, UInt32 timeoutMs);
