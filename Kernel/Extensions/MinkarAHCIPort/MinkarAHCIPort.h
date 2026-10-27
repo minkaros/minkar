@@ -108,6 +108,8 @@ private:
     bool stopPortEngine(uint32_t port);
     bool startPortEngine(uint32_t port);
     bool resetPort(uint32_t port);
+    bool enableFISReceive(uint32_t port);
+    bool resetAndWaitReady(uint32_t port);
     void recoverWedgedPort(uint32_t port);
     bool rebasePort(PortState &portState);
     bool waitWhileBusy(uint32_t port, uint32_t timeoutMs);

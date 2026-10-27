@@ -218,6 +218,7 @@ enum {
 
 #define AHCI_TIMEOUT_MS       5000  /* 5-second command timeout */
 #define AHCI_RESET_TIMEOUT_MS 1000
+#define AHCI_SPINUP_TIMEOUT_MS 10000 /* first D2H FIS after COMRESET */
 
 #endif /* _AHCI_H */
 

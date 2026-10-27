@@ -605,17 +605,66 @@ MinkarAHCIPort::stopPortEngine(uint32_t port)
 }
 
 bool
-MinkarAHCIPort::startPortEngine(uint32_t port)
+MinkarAHCIPort::enableFISReceive(uint32_t port)
 {
     uint32_t cmd = portRead32(port, PORT_CMD);
-    cmd |= PORT_CMD_FRE;
-    portWrite32(port, PORT_CMD, cmd);
+    portWrite32(port, PORT_CMD, cmd | PORT_CMD_FRE);
 
-    cmd = portRead32(port, PORT_CMD);
+    for (uint32_t i = 0; i < 500; i++) {
+        if (portRead32(port, PORT_CMD) & PORT_CMD_FR)
+            return true;
+        IOSleep(1);
+    }
+
+    AHCI_Log("FIS receive did not start cmd=%08x on port %u",
+             portRead32(port, PORT_CMD), port);
+    return false;
+}
+
+bool
+MinkarAHCIPort::startPortEngine(uint32_t port)
+{
+    enableFISReceive(port);
+
+    uint32_t cmd = portRead32(port, PORT_CMD);
     cmd |= PORT_CMD_ST;
     portWrite32(port, PORT_CMD, cmd);
 
     return true;
+}
+
+/*
+ * COMRESET the link and wait for the device's first D2H FIS, in the order
+ * the AHCI specification (10.4.2) asks for: with the command engine
+ * stopped (PxSCTL.DET may only be written while PxCMD.ST is 0), with FIS
+ * receive on (the D2H FIS that clears BSY lands in the received-FIS area),
+ * and with PxSERR cleared after the reset: until PxSERR.DIAG.X is cleared
+ * Intel HBAs do not copy that FIS into PxTFD, so BSY stays set forever
+ * (TFD=00000080). QEMU's AHCI updates PxTFD regardless, which is why the
+ * old order (reset with the engine running) only failed on real hardware.
+ * The caller starts the engine afterwards.
+ */
+bool
+MinkarAHCIPort::resetAndWaitReady(uint32_t port)
+{
+    stopPortEngine(port);
+    enableFISReceive(port);
+
+    bool linked = resetPort(port);
+    if (!linked)
+        // Not fatal on all HBAs; some devices are already link-up and ready.
+        AHCI_Log("warning: port %u reset did not complete, continuing", port);
+
+    portWrite32(port, PORT_SERR, 0xFFFFFFFFU);
+    portWrite32(port, PORT_IS,   0xFFFFFFFFU);
+
+    /* A spinning disk may take seconds to post its first FIS. */
+    bool ready = waitWhileBusy(port, AHCI_SPINUP_TIMEOUT_MS);
+    AHCI_Debug("port %u after COMRESET: SSTS=%08x SERR=%08x TFD=%08x SIG=%08x",
+               port, portRead32(port, PORT_SSTS), portRead32(port, PORT_SERR),
+               portRead32(port, PORT_TFD), portRead32(port, PORT_SIG));
+    portWrite32(port, PORT_SERR, 0xFFFFFFFFU);
+    return ready;
 }
 
 bool
@@ -704,10 +753,8 @@ MinkarAHCIPort::rebasePort(PortState &portState)
 
     bzero((void *)portState.memVirt, kPortMemBytes);
 
-    if (!waitWhileBusy(portState.port, 1000))
-        return false;
-
-    return startPortEngine(portState.port);
+    /* The engine starts once the device is ready: identifyDevice(). */
+    return enableFISReceive(portState.port);
 }
 
 void
@@ -753,12 +800,9 @@ MinkarAHCIPort::interruptOccurred(IOInterruptEventSource *sender, int count)
 void
 MinkarAHCIPort::recoverWedgedPort(uint32_t port)
 {
-    stopPortEngine(port);
-    if (!resetPort(port))
-        AHCI_Log("warning: recovery reset did not complete on port %u", port);
+    if (!resetAndWaitReady(port))
+        AHCI_Log("warning: port %u still busy after recovery", port);
     startPortEngine(port);
-    portWrite32(port, PORT_SERR, 0xFFFFFFFFU);
-    portWrite32(port, PORT_IS,   0xFFFFFFFFU);
 }
 
 bool
@@ -913,11 +957,10 @@ MinkarAHCIPort::identifyDevice(PortState &portState, uint16_t *identifyWords512)
     if (!rebasePort(portState))
         return false;
 
-    if (!resetPort(portState.port))
-        // Not fatal on all HBAs; some devices are already link-up and ready.
-        AHCI_Log("warning: port %u reset did not complete, continuing", portState.port);
+    if (!resetAndWaitReady(portState.port))
+        return false;
 
-    if (!waitWhileBusy(portState.port, 1000))
+    if (!startPortEngine(portState.port))
         return false;
 
     if (!issueCommand(portState,
