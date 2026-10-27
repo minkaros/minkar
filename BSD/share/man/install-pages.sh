@@ -13,7 +13,9 @@
 # page NAME.N yet. A command's own directory comes first. Pages that still
 # carry build-time @VARIABLES@ are left out.
 # Then the other names of a command (a link to it, hard or symbolic, such
-# as egrep for grep) get a link to its page, as FreeBSD's MLINKS do.
+# as egrep for grep) get a link to its page, as FreeBSD's MLINKS do, and
+# so does a command a page names in its NAME section (.Nm basename ,
+# dirname: dirname(1) is basename(1)).
 
 set -eu
 src=$1
@@ -84,3 +86,27 @@ for d in bin sbin usr/bin usr/sbin; do
 		echo "  ${page%/*}/$name$ext -> $file" | sed "s|$root/usr/share/man/||"
 	done
 done | tee /dev/stderr | wc -l | awk '{ print "install-pages: " $1 " links" }'
+
+# The names a page gives in its NAME section (mdoc .Nm lines before .Nd).
+page_names() {
+	awk '/^\.Sh NAME/ { on = 1; next }
+	    on && /^\.(Nd|Sh)/ { exit }
+	    on && /^\.Nm/ { for (i = 2; i <= NF; i++) if ($i != ",") {
+		sub(/,$/, "", $i); print $i } }' "$1"
+}
+
+for d in bin sbin usr/bin usr/sbin; do
+	[ -d "$root/$d" ] || continue
+	for cmd in "$root/$d"/*; do
+		name=${cmd##*/}
+		page_of "$name" >/dev/null && continue
+		for page in "$root"/usr/share/man/man1/*.1 "$root"/usr/share/man/man8/*.8; do
+			[ -f "$page" ] || continue
+			page_names "$page" | grep -qxF -- "$name" || continue
+			file=${page##*/}
+			ln -f "$page" "${page%/*}/$name.${file##*.}"
+			echo "  ${page%/*}/$name.${file##*.} -> $file" | sed "s|$root/usr/share/man/||"
+			break
+		done
+	done
+done | tee /dev/stderr | wc -l | awk '{ print "install-pages: " $1 " named in a page" }'
