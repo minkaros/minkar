@@ -40,6 +40,14 @@ Its contributors up to the fork are listed in
 in [LICENSE-ravynOS](LICENSE-ravynOS). Minkar's contributors are listed in
 [AUTHORS](AUTHORS).
 
+## Trademarks
+
+Apple, Mac, macOS and Darwin are trademarks of Apple Inc. Minkar is an
+independent project, not affiliated with, sponsored by or endorsed by
+Apple, the ravynOS project or The FreeBSD Foundation; their names appear
+only to credit the code that comes from them and where compatibility
+needs them. See [NOTICE](NOTICE).
+
 ## License
 
 Code written for Minkar is under the BSD 2-Clause license
