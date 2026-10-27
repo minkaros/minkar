@@ -1,8 +1,10 @@
-/*	$NetBSD: uname.c,v 1.10 1998/11/09 13:24:05 kleink Exp $	*/
-
-/*
- * Copyright (c) 1994 Winning Strategies, Inc.
- * All rights reserved.
+/*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
+ * Copyright (c) 2002 Juli Mallett.
+ * Copyright (c) 1993
+ *	The Regents of the University of California.  All rights reserved.
+ * Modifications Copyright (c) 2026 The Minkar contributors
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -14,193 +16,315 @@
  *    documentation and/or other materials provided with the distribution.
  * 3. All advertising materials mentioning features or use of this software
  *    must display the following acknowledgement:
- *      This product includes software developed by Winning Strategies, Inc.
- * 4. The name of Winning Strategies, Inc. may not be used to endorse or 
- *    promote products derived from this software without specific prior
- *    written permission.
+ *	This product includes software developed by the University of
+ *	California, Berkeley and its contributors.
+ * 4. Neither the name of the University nor the names of its contributors
+ *    may be used to endorse or promote products derived from this software
+ *    without specific prior written permission.
  *
- * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
- * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
- * OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
- * IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
- * NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
- * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
- * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
- * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
-#ifndef lint
-__RCSID("$NetBSD: uname.c,v 1.10 1998/11/09 13:24:05 kleink Exp $");
-#endif /* not lint */
-
 #include <sys/param.h>
-#include <limits.h>
-#include <locale.h>
+#include <sys/sysctl.h>
+
+#include <err.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
-#include <err.h>
-#ifdef __APPLE__
-#include <string.h>
-#endif /* __APPLE__ */
 
-#include <sys/sysctl.h>
-#include <sys/utsname.h>
+#ifndef __APPLE__
+#include <osreldate.h>
+#endif
 
-#ifdef __APPLE__
-#include <get_compat.h>
-#else  /* !__APPLE__ */
-#define COMPAT_MODE(a,b) (1)
-#endif /* __APPLE__ */
+#define	MFLAG	0x01
+#define	NFLAG	0x02
+#define	PFLAG	0x04
+#define	RFLAG	0x08
+#define	SFLAG	0x10
+#define	VFLAG	0x20
+#define	IFLAG	0x40
+#define	UFLAG	0x80
+#define	KFLAG	0x100
+#define	BFLAG	0x200
 
-int	main __P((int, char **));
-static void usage __P((void));
+typedef void (*get_t)(void);
+static get_t get_buildid, get_ident, get_platform, get_hostname, get_arch,
+    get_release, get_sysname, get_kernvers, get_uservers, get_version;
 
-/* Note that PRINT_MACHINE_ARCH is excluded from PRINT_ALL! */
-#define	PRINT_SYSNAME		0x01
-#define	PRINT_NODENAME		0x02
-#define	PRINT_RELEASE		0x04
-#define	PRINT_VERSION		0x08
-#define	PRINT_MACHINE		0x10
-#define	PRINT_MACHINE_ARCH	0x20
-#define	PRINT_ALL		\
-    (PRINT_SYSNAME|PRINT_NODENAME|PRINT_RELEASE|PRINT_VERSION|PRINT_MACHINE)
+static void native_ident(void);
+static void native_platform(void);
+static void native_hostname(void);
+static void native_arch(void);
+static void native_release(void);
+static void native_sysname(void);
+static void native_version(void);
+static void native_kernvers(void);
+static void native_uservers(void);
+static void native_buildid(void);
+static void print_uname(u_int);
+static void setup_get(void);
+static void usage(void) __dead2;
+
+static char *buildid, *ident, *platform, *hostname, *arch, *release, *sysname,
+    *version, *kernvers, *uservers;
+static int space;
 
 int
-main(int argc, char **argv) 
+main(int argc, char *argv[])
 {
-	struct utsname u;
-#ifndef __APPLE__
-	char machine_arch[SYS_NMLN];
-#endif /* !__APPLE__ */
-	int c;
-	int space = 0;
-	int print_mask = 0;
+	u_int flags;
+	int ch;
 
-	(void)setlocale(LC_ALL, "");
+	setup_get();
+	flags = 0;
 
-	while ((c = getopt(argc,argv,"amnprsv")) != -1) {
-		switch (c) {
-		case 'a':
-			print_mask |= PRINT_ALL;
 #ifdef __APPLE__
-			if (!COMPAT_MODE("bin/uname", "Unix2003")) {
-				print_mask |= PRINT_MACHINE_ARCH;
-			}
-#endif /* __APPLE__ */
+	/* macOS's options: -b, -i, -K and -U are FreeBSD's own. */
+	while ((ch = getopt(argc, argv, "amnoprsv")) != -1)
+#else
+	while ((ch = getopt(argc, argv, "abiKmnoprsUv")) != -1)
+#endif
+		switch(ch) {
+		case 'a':
+			flags |= (MFLAG | NFLAG | RFLAG | SFLAG | VFLAG);
+			break;
+		case 'b':
+			flags |= BFLAG;
+			break;
+		case 'i':
+			flags |= IFLAG;
+			break;
+		case 'K':
+			flags |= KFLAG;
 			break;
 		case 'm':
-			print_mask |= PRINT_MACHINE;
+			flags |= MFLAG;
 			break;
 		case 'n':
-			print_mask |= PRINT_NODENAME;
+			flags |= NFLAG;
 			break;
 		case 'p':
-			print_mask |= PRINT_MACHINE_ARCH;
+			flags |= PFLAG;
 			break;
-		case 'r': 
-			print_mask |= PRINT_RELEASE;
+		case 'r':
+			flags |= RFLAG;
 			break;
-		case 's': 
-			print_mask |= PRINT_SYSNAME;
+		case 's':
+		case 'o':
+			flags |= SFLAG;
+			break;
+		case 'U':
+			flags |= UFLAG;
 			break;
 		case 'v':
-			print_mask |= PRINT_VERSION;
+			flags |= VFLAG;
 			break;
+		case '?':
 		default:
 			usage();
-			/* NOTREACHED */
 		}
-	}
-	
-	if (optind != argc) {
+
+	argc -= optind;
+	argv += optind;
+
+	if (argc)
 		usage();
-		/* NOTREACHED */
+
+	if (!flags)
+		flags |= SFLAG;
+
+	print_uname(flags);
+	exit(0);
+}
+
+#define	CHECK_ENV(opt,var)				\
+do {							\
+	if ((var = getenv("UNAME_" opt)) == NULL) {	\
+		get_##var = native_##var;		\
+	} else {					\
+		get_##var = (get_t)NULL;		\
+	}						\
+} while (0)
+
+static void
+setup_get(void)
+{
+	CHECK_ENV("s", sysname);
+	CHECK_ENV("n", hostname);
+	CHECK_ENV("r", release);
+	CHECK_ENV("v", version);
+	CHECK_ENV("m", platform);
+	CHECK_ENV("p", arch);
+	CHECK_ENV("i", ident);
+	CHECK_ENV("K", kernvers);
+	CHECK_ENV("U", uservers);
+	CHECK_ENV("b", buildid);
+}
+
+#define	PRINT_FLAG(flags,flag,var)		\
+	if ((flags & flag) == flag) {		\
+		if (space)			\
+			printf(" ");		\
+		else				\
+			space++;		\
+		if (get_##var != NULL)		\
+			(*get_##var)();		\
+		printf("%s", var);		\
 	}
 
-	if (!print_mask) {
-		print_mask = PRINT_SYSNAME;
-	}
+static void
+print_uname(u_int flags)
+{
+	PRINT_FLAG(flags, SFLAG, sysname);
+	PRINT_FLAG(flags, NFLAG, hostname);
+	PRINT_FLAG(flags, RFLAG, release);
+	PRINT_FLAG(flags, VFLAG, version);
+	PRINT_FLAG(flags, MFLAG, platform);
+	PRINT_FLAG(flags, PFLAG, arch);
+	PRINT_FLAG(flags, IFLAG, ident);
+	PRINT_FLAG(flags, KFLAG, kernvers);
+	PRINT_FLAG(flags, UFLAG, uservers);
+	PRINT_FLAG(flags, BFLAG, buildid);
+	printf("\n");
+}
 
-	if (uname(&u) != 0) {
-		err(EXIT_FAILURE, "uname");
-		/* NOTREACHED */
-	}
-#ifndef __APPLE__
-	if (print_mask & PRINT_MACHINE_ARCH) {
-		int mib[2] = { CTL_HW, HW_MACHINE_ARCH };
-		size_t len = sizeof (machine_arch);
+#define	NATIVE_SYSCTL2_GET(var,mib0,mib1)	\
+static void					\
+native_##var(void)				\
+{						\
+	int mib[] = { (mib0), (mib1) };		\
+	size_t len;				\
+	static char buf[1024];			\
+	char **varp = &(var);			\
+						\
+	len = sizeof buf;			\
+	if (sysctl(mib, sizeof mib / sizeof mib[0],	\
+	   &buf, &len, NULL, 0) == -1)		\
+		err(1, "sysctl");
 
-		if (sysctl(mib, sizeof (mib) / sizeof (mib[0]), machine_arch,
-		    &len, NULL, 0) < 0)
-			err(EXIT_FAILURE, "sysctl");
-	}
-#endif /* !__APPLE__ */
+#define	NATIVE_SYSCTLNAME_GET(var,name)		\
+static void					\
+native_##var(void)				\
+{						\
+	size_t len;				\
+	static char buf[1024];			\
+	char **varp = &(var);			\
+						\
+	len = sizeof buf;			\
+	if (sysctlbyname(name, &buf, &len, NULL,\
+	    0) == -1)				\
+		err(1, "sysctlbyname");
+
+#define	NATIVE_SET				\
+	*varp = buf;				\
+	return;					\
+}	struct __hack
+
+#define	NATIVE_BUFFER	(buf)
+#define	NATIVE_LENGTH	(len)
+
+NATIVE_SYSCTL2_GET(sysname, CTL_KERN, KERN_OSTYPE) {
+} NATIVE_SET;
+
+NATIVE_SYSCTL2_GET(hostname, CTL_KERN, KERN_HOSTNAME) {
+} NATIVE_SET;
+
+NATIVE_SYSCTL2_GET(release, CTL_KERN, KERN_OSRELEASE) {
+} NATIVE_SET;
+
+NATIVE_SYSCTL2_GET(version, CTL_KERN, KERN_VERSION) {
+	size_t n;
+	char *p;
+
+	p = NATIVE_BUFFER;
+	n = NATIVE_LENGTH;
+	for (; n--; ++p)
+		if (*p == '\n' || *p == '\t') {
+			if (n > 1)
+				*p = ' ';
+			else
+				*p = '\0';
+		}
+} NATIVE_SET;
+
+NATIVE_SYSCTL2_GET(platform, CTL_HW, HW_MACHINE) {
+} NATIVE_SET;
 
 #ifdef __APPLE__
-	/*
-	 * Let's allow the user to override the output of uname via the shell environment.
-	 * This is a useful feature for cross-compiling (eg. during an OS bringup).
-	 * Otherwise, you have to hack your kernel with the desired strings.
-	 */
-	{
-		char *s;
-		s = getenv ("UNAME_SYSNAME");  if (s) strncpy (u.sysname,  s, sizeof (u.sysname));
-		s = getenv ("UNAME_NODENAME"); if (s) strncpy (u.nodename, s, sizeof (u.nodename));
-		s = getenv ("UNAME_RELEASE");  if (s) strncpy (u.release,  s, sizeof (u.release));
-		s = getenv ("UNAME_VERSION");  if (s) strncpy (u.version,  s, sizeof (u.version));
-		s = getenv ("UNAME_MACHINE");  if (s) strncpy (u.machine,  s, sizeof (u.machine));
-	}
-#endif /* __APPLE__ */
-
-	if (print_mask & PRINT_SYSNAME) {
-		space++;
-		fputs(u.sysname, stdout);
-	}
-	if (print_mask & PRINT_NODENAME) {
-		if (space++) putchar(' ');
-		fputs(u.nodename, stdout);
-	}
-	if (print_mask & PRINT_RELEASE) {
-		if (space++) putchar(' ');
-		fputs(u.release, stdout);
-	}
-	if (print_mask & PRINT_VERSION) {
-		if (space++) putchar(' ');
-		fputs(u.version, stdout);
-	}
-	if (print_mask & PRINT_MACHINE) {
-		if (space++) putchar(' ');
-		fputs(u.machine, stdout);
-	}
-	if (print_mask & PRINT_MACHINE_ARCH) {
-		if (space++) putchar(' ');
-#ifndef __APPLE__
-		fputs(machine_arch, stdout);
+/* As on macOS, -p names the processor family: i386 for Intel, arm. */
+static void
+native_arch(void)
+{
+#if defined(__i386__) || defined(__x86_64__)
+	arch = "i386";
+#elif defined(__arm__) || defined(__arm64__) || defined(__aarch64__)
+	arch = "arm";
 #else
-#if defined(__ppc__) || defined(__ppc64__)
-		fputs("powerpc", stdout);
-#elif defined(__i386__) || defined(__x86_64__)
-		fputs("i386", stdout);
-#elif defined(__arm__) || defined(__arm64__)
-		fputs("arm", stdout);
-#else
-		fputs("unknown", stdout);
+	arch = "unknown";
 #endif
-#endif /* __APPLE__ */
-	}
-	putchar('\n');
-
-	exit(EXIT_SUCCESS);
-	/* NOTREACHED */
 }
+#else
+NATIVE_SYSCTL2_GET(arch, CTL_HW, HW_MACHINE_ARCH) {
+} NATIVE_SET;
+#endif
+
+NATIVE_SYSCTLNAME_GET(ident, "kern.ident") {
+} NATIVE_SET;
+
+NATIVE_SYSCTLNAME_GET(buildid, "kern.build_id") {
+} NATIVE_SET;
+
+#ifdef __APPLE__
+/* No FreeBSD version numbers on Darwin; -K and -U are not offered. */
+static void
+native_uservers(void)
+{
+	uservers = "";
+}
+
+static void
+native_kernvers(void)
+{
+	kernvers = "";
+}
+#else
+static void
+native_uservers(void)
+{
+	static char buf[128];
+
+	snprintf(buf, sizeof(buf), "%d", __FreeBSD_version);
+	uservers = buf;
+}
+
+static void
+native_kernvers(void)
+{
+	static char buf[128];
+
+	snprintf(buf, sizeof(buf), "%d", getosreldate());
+	kernvers = buf;
+}
+#endif
 
 static void
 usage(void)
 {
-	fprintf(stderr, "usage: uname [-amnprsv]\n");
-	exit(EXIT_FAILURE);
+#ifdef __APPLE__
+	fprintf(stderr, "usage: uname [-amnoprsv]\n");
+#else
+	fprintf(stderr, "usage: uname [-abiKmnoprsUv]\n");
+#endif
+	exit(1);
 }
