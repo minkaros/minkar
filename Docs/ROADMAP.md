@@ -201,7 +201,12 @@ the services Magma and the apps will need.
 - [ ] Complete libc, libm, pthread, libdispatch, libxpc, notify and os_log,
   guided by the Phase 0 coverage report. *Partial:* enough for M2; the
   coverage report exists (`tools/symbols`): the reference apps find 98.1%
-  of their libSystem imports.
+  of their libSystem imports. The SDK's `math.h` was a stand-in (isnan
+  and the other classification macros as double-only functions, its own
+  `bool`, half the C99 functions undeclared); since 2026-10-26 it is
+  macOS-compatible and declares everything `libsystem_m` exports.
+  `vis(3)` in libc predates `VIS_SHELL`, `VIS_META` and the other newer
+  flags.
 - [ ] Turn silent stubs into noisy stubs (log on first call).
 - [ ] Real dyld: optional shared cache at first; `@rpath`, `@loader_path`
   and re-exports right from day one. *Partial:* `Libraries/dyld` is Apple's
@@ -220,6 +225,14 @@ the services Magma and the apps will need.
 
 **BSD userland, in batches**
 
+Decision (2026-10-26): the generic Unix commands all come from FreeBSD
+`main`; where macOS's command behaves differently (options, output), our
+own code under `__APPLE__` follows macOS's manual page, each difference
+with a test. Commands that came from Apple's `shell_cmds` and `adv_cmds`
+through ravynOS (`date`, `kill`, `killall`, `uname`, `xargs`, `who` and
+others) are to be replaced. Darwin's own components (launchd, configd,
+notifyd, syslogd, the HFS tools, mDNSResponder) stay as they are.
+
 - [x] Boot: `sh`, `ls`, `cp`, `mv`, `rm`, `mount`, `ifconfig`, `ps`, `kill`.
   Tested in the image 2026-10-26. `cp -p` failed on every file without an
   ACL, and `mv` between volumes warned: Darwin reports "no ACL" as
@@ -228,16 +241,25 @@ the services Magma and the apps will need.
   2026-10-26: `dd`, `expr`, `printenv`, `od`/`hexdump`, `paste`, `nohup`,
   `install`, `pgrep`/`pkill` (FreeBSD's, reading processes through
   `sysctl`), `ed`, `pax`, and the second names `readlink`, `link`,
-  `unlink`, `egrep`, `fgrep`, `zgrep`. New tools come from FreeBSD `main`
-  (the tree's `BSD/usr.bin` also holds older tools from Apple's
-  `shell_cmds`). Missing: `m4`, `bc`/`dc`, `cpio`, `lsof`, `man`.
+  `unlink`, `egrep`, `fgrep`, `zgrep`. Then `m4`, `bc`/`dc`, `cpio`
+  (libarchive's), `cron` and `crontab` (with a launchd job; jobs never ran:
+  cron cleared `environ` to NULL, which Darwin's `setenv` cannot start
+  from) and the text tools `rev`, `column`, `comm`, `join`, `fold`, `fmt`,
+  `split`, `csplit`, `tsort`, `nl`, `expand`, `unexpand`. Named pipes
+  (`mkfifo`) failed on HFS+: the hfs kext was built without FIFO support.
+  Missing: `cal`, `lsof`, `man`, `units`, `getconf`, `iconv`, `locate`,
+  `nslookup`/`dig`.
 - [ ] Power user: `zsh`, `tar`, `ssh`, `curl`, `make`, `git`. *Partial:*
-  `tar`, `ssh` and `curl` installed; `zsh`, `make` and `git` missing.
+  `tar`, `ssh` and `curl` installed; `zsh` 5.9 built and tested
+  2026-10-26 (modules linked in, the function library, in `/etc/shells`);
+  `make` and `git` missing (both GPL: to be decided).
 - [ ] Apple tools: `open`, `plutil`, `defaults`, `sw_vers`, `ditto`
   (`hdiutil` comes with Phase 6). *Partial:* `plutil`, `defaults`, `sw_vers`
   and `ditto` tested in the image 2026-10-26 (`sw_vers` printed spaces
-  instead of macOS's tabs and a trailing blank line); `open` missing, and
-  `chmod` lacks macOS's ACL syntax (`+a`).
+  instead of macOS's tabs and a trailing blank line); `chmod` has macOS's
+  ACL syntax (`+a`, `-a`, `=a#`, `-E`, `-C`, `-N`, `-i`, `-I`) since
+  2026-10-26, and the kernel enforces the entries; `open` missing (needs
+  LaunchServices).
 
 **Support daemons** (needed by Phases 5 and 6)
 
@@ -588,8 +610,8 @@ work in progress.
 
 The highest-impact open items, in critical-path order:
 
-1. BSD userland batches (Phase 2): `zsh`, `make`, `git`, `open`, `m4`,
-   `bc` and `chmod +a`.
+1. BSD userland batches (Phase 2): replace the commands that came from
+   Apple with FreeBSD's plus the macOS layer; `make`, `git`, `open`.
 2. IOHIDSystem event delivery in the kernel, the `ApplePS2Mouse` driver and
    the WindowServer input reader (Phase 4).
 3. Install WindowServer's launchd job and get a first boot that draws on
