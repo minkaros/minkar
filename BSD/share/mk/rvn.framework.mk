@@ -129,13 +129,23 @@ copy_modulemap: ${.CURDIR}/${MODULEMAP} ${FRAMEWORK_DIR}
 .else
 all: create_modulemap
 
+# The bundle directory may already exist (made by another rule), and then
+# ${FRAMEWORK_DIR}'s recipe does not run: make Modules here. A parallel
+# build hit "Directory nonexistent" (CI, CoreGraphics).
 create_modulemap: ${FRAMEWORK_DIR}
+	mkdir -p ${FRAMEWORK_DIR}/Versions/${FMWK_VERSION}/Modules
+	test -e ${FRAMEWORK_DIR}/Modules || \
+	    ln -sf Versions/${FMWK_VERSION}/Modules ${FRAMEWORK_DIR}/Modules
 	(echo 'framework module ${FRAMEWORK} {'; \
 	 echo '    umbrella header "${FRAMEWORK}.h"'; \
 	 echo '    export *'; \
 	 echo '    module * { export * }'; \
-	 echo '}') > ${FRAMEWORK_DIR}/Modules/module.modulemap
+	 echo '}') > ${FRAMEWORK_DIR}/Versions/${FMWK_VERSION}/Modules/module.modulemap
 .endif
+
+# The install hook copies the bundle: after its module map is in place.
+.ORDER: copy_modulemap fmwk-install-hook
+.ORDER: create_modulemap fmwk-install-hook
 
 ${FRAMEWORK_DIR}:
 	@${ECHO} building ${FRAMEWORK_DIR:T} bundle
