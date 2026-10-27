@@ -1,11 +1,15 @@
-PROG = killall
-MAN = killall.1
 SUBDIR =
+PROG=	killall
+MAN =
+MK_WERROR = no
+CFLAGS += -I${ROOT_SOURCE_DIR}/BSD/lib/libbsdcompat/include -include bsdcompat.h
+LDADD += -L${ROOT_BINARY_DIR}${ROOT_SOURCE_DIR}/BSD/lib/libbsdcompat -lbsdcompat
 
 all: to-sysroot
 
+# /usr/bin, as on macOS.
 to-sysroot: ${PROG}
-	mkdir -p ${SYSROOT_DIR}/bin
-	cp -f ${PROG} ${SYSROOT_DIR}/bin/
+	mkdir -p ${SYSROOT_DIR}/usr/bin
+	install -m 0555 ${PROG} ${SYSROOT_DIR}/usr/bin/killall
 
 .include <bsd.prog.mk>

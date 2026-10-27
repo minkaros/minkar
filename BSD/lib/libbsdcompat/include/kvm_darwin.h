@@ -27,7 +27,8 @@
  */
 
 /*
- * The part of FreeBSD's libkvm and libjail that pkill(1) uses, on Darwin.
+ * The part of FreeBSD's libkvm and libjail that pkill(1) and killall(1)
+ * use, on Darwin.
  * Processes come from sysctl(KERN_PROC_ALL) and arguments from
  * KERN_PROCARGS2; each Darwin kinfo_proc becomes a FreeBSD-shaped record
  * with the ki_* fields pkill reads. Darwin has no jails (every process is
@@ -47,6 +48,10 @@
 #include <string.h>
 #include <unistd.h>
 
+/* Each command uses part of this file. */
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wunused-function"
+
 #define	KERN_PROC_PROC	KERN_PROC_ALL
 #define	P_KPROC		P_SYSTEM
 
@@ -60,6 +65,7 @@ struct minkar_kinfo {
 	gid_t		ki_rgid;
 	dev_t		ki_tdev;
 	int		ki_flag;
+	char		ki_stat;	/* SIDL, SRUN, ..., SZOMB */
 	int		ki_jid;
 	struct timeval	ki_start;
 	char		ki_comm[MAXCOMLEN + 1];
@@ -107,6 +113,7 @@ minkar_kinfo_fill(struct minkar_kinfo *ki, const struct kinfo_proc *kp)
 	ki->ki_rgid = kp->kp_eproc.e_pcred.p_rgid;
 	ki->ki_tdev = kp->kp_eproc.e_tdev;
 	ki->ki_flag = kp->kp_proc.p_flag;
+	ki->ki_stat = kp->kp_proc.p_stat;
 	/* The kernel (pid 0) is the process pgrep -S is about. */
 	if (ki->ki_pid == 0)
 		ki->ki_flag |= P_SYSTEM;
@@ -204,6 +211,40 @@ kvm_getargv(kvm_t *kd, const struct minkar_kinfo *ki, int nchr)
 	return (kd->argv);
 }
 
+/*
+ * The name a process was started under: the last component of its
+ * executable's path (KERN_PROCARGS2). p_comm keeps only MAXCOMLEN (16)
+ * characters, and macOS's killall matches whole names. When the
+ * arguments cannot be read (another user's process), ki_comm.
+ */
+static const char *
+kvm_getcomm(kvm_t *kd, const struct minkar_kinfo *ki, char *buf, size_t len)
+{
+	int mib[3] = { CTL_KERN, KERN_PROCARGS2, ki->ki_pid };
+	size_t size;
+	int argmax;
+	char *path, *base;
+
+	strlcpy(buf, ki->ki_comm, len);
+	size = sizeof(argmax);
+	if (sysctlbyname("kern.argmax", &argmax, &size, NULL, 0) == -1)
+		return (buf);
+	free(kd->argbuf);
+	if ((kd->argbuf = malloc(argmax)) == NULL)
+		return (buf);
+	size = argmax;
+	if (sysctl(mib, 3, kd->argbuf, &size, NULL, 0) == -1 ||
+	    size <= sizeof(int))
+		return (buf);
+	path = kd->argbuf + sizeof(int);
+	if (strnlen(path, size - sizeof(int)) == size - sizeof(int) ||
+	    *path == '\0')
+		return (buf);
+	base = strrchr(path, '/');
+	strlcpy(buf, base != NULL ? base + 1 : path, len);
+	return (buf);
+}
+
 static int
 jail_getid(const char *name)
 {
@@ -217,6 +258,8 @@ jail_getid(const char *name)
 	errno = ENOENT;
 	return (-1);
 }
+
+#pragma clang diagnostic pop
 
 #define	kinfo_proc	minkar_kinfo
 

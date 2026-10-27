@@ -1,7 +1,10 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause
+ *
  * Copyright (c) 2000 Peter Wemm <peter@FreeBSD.org>
  * Copyright (c) 2000 Paul Saab <ps@FreeBSD.org>
  * All rights reserved.
+ * Modifications Copyright (c) 2026 The Minkar contributors
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -25,18 +28,25 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD: src/usr.bin/killall/killall.c,v 1.31 2004/07/29 18:36:35 maxim Exp $");
-
 #include <sys/param.h>
 #ifndef __APPLE__
 #include <sys/jail.h>
-#endif /* !__APPLE__ */
+#endif
 #include <sys/stat.h>
+#include <sys/uio.h>
+#ifndef __APPLE__
 #include <sys/user.h>
+#endif
 #include <sys/sysctl.h>
 #include <fcntl.h>
 #include <dirent.h>
+#ifdef __APPLE__
+/* Processes through sysctl(3), shaped as FreeBSD's kinfo_proc; no jails. */
+#include <kvm_darwin.h>
+#else
+#include <jail.h>
+#endif
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -49,41 +59,19 @@ __FBSDID("$FreeBSD: src/usr.bin/killall/killall.c,v 1.31 2004/07/29 18:36:35 max
 #include <unistd.h>
 #include <locale.h>
 
-#include <getopt.h>
-#define OPTIONS ("c:dej:lmst:u:vz")
-
-#ifdef __APPLE__
-#include <TargetConditionals.h>
-#endif
-
-void kludge_signal_args(int *argc, char **argv, int *sig);
-
 static void __dead2
 usage(void)
 {
 
 #ifdef __APPLE__
-	fprintf(stderr, "usage: killall [-delmsvz] [-help]\n");
-#else /* !__APPLE__ */
-	fprintf(stderr, "usage: killall [-delmsvz] [-help] [-j jid]\n");
-#endif /* __APPLE__ */
+	fprintf(stderr, "usage: killall [-delmsqvz] [-help] [-I]\n");
+#else
+	fprintf(stderr, "usage: killall [-delmsqvz] [-help] [-I] [-j jail]\n");
+#endif
 	fprintf(stderr,
 	    "               [-u user] [-t tty] [-c cmd] [-SIGNAL] [cmd]...\n");
 	fprintf(stderr, "At least one option or argument to specify processes must be given.\n");
 	exit(1);
-}
-
-static char *
-upper(const char *str)
-{
-	static char buf[80];
-	char *s;
-
-	strncpy(buf, str, sizeof(buf));
-	buf[sizeof(buf) - 1] = '\0';
-	for (s = buf; *s; s++)
-		*s = toupper((unsigned char)*s);
-	return buf;
 }
 
 
@@ -95,7 +83,7 @@ printsig(FILE *fp)
 	int		offset = 0;
 
 	for (cnt = NSIG, p = sys_signame + 1; --cnt; ++p) {
-		offset += fprintf(fp, "%s ", upper(*p));
+		offset += fprintf(fp, "%s ", *p);
 		if (offset >= 75 && cnt > 1) {
 			offset = 0;
 			fprintf(fp, "\n");
@@ -113,176 +101,179 @@ nosig(char *name)
 	exit(1);
 }
 
-/*
- * kludge_signal_args - remove any signal option (-SIGXXX, -##) from the argv array.
- */
-void
-kludge_signal_args(int *argc, char **argv, int *sig)
-{
-	int i;
-	int shift = 0;
-	int kludge = 1;
-	char *ptr;
-	const char *const *p;
-	char		*ep;
-
-	/* i = 1, skip program name */
-	for (i = 1; i < *argc; i++) {
-		/* Stop kludging if we encounter -- */
-		if (strcmp(argv[i], "--") == 0)
-			kludge = 0;
-		ptr = argv[i] + 1;
-		/* Only process arguments that start with - and do not look like an existing option. */
-		if (kludge && *argv[i] == '-' && *ptr && strchr(OPTIONS, *ptr) == NULL) {
-			if (isalpha(*ptr)) {
-				if (strcmp(ptr, "help") == 0)
-					usage();
-				if (strncasecmp(ptr, "sig", 3) == 0)
-					ptr += 3;
-				for (*sig = NSIG, p = sys_signame + 1; --*sig; ++p)
-					if (strcasecmp(*p, ptr) == 0) {
-						*sig = p - sys_signame;
-						break;
-					}
-				if (!*sig)
-					nosig(ptr);
-			} else if (isdigit(*ptr)) {
-				*sig = strtol(ptr, &ep, 10);
-				if (*ep)
-					errx(1, "illegal signal number: %s", ptr);
-				if (*sig < 0 || *sig >= NSIG)
-					nosig(ptr);
-			} else
-				nosig(ptr);
-
-			shift++;
-			continue;
-		}
-
-		argv[i - shift] = argv[i];
-	}
-
-	for (i = *argc - shift; i < *argc; i++) {
-		argv[i] = NULL;
-	}
-
-	*argc -= shift;
-}
-
 int
 main(int ac, char **av)
 {
-	struct kinfo_proc *procs = NULL, *newprocs;
+	char		**saved_av;
+	struct kinfo_proc *procs, *newprocs;
 	struct stat	sb;
 	struct passwd	*pw;
 	regex_t		rgx;
 	regmatch_t	pmatch;
-	int		i, j;
+	int		i, j, ch;
 	char		buf[256];
+	char		first;
 	char		*user = NULL;
 	char		*tty = NULL;
 	char		*cmd = NULL;
+	int		qflag = 0;
 	int		vflag = 0;
 	int		sflag = 0;
 	int		dflag = 0;
 	int		eflag = 0;
-#ifndef __APPLE__
+	int		Iflag = 0;
 	int		jflag = 0;
-#endif /* !__APPLE__*/
 	int		mflag = 0;
 	int		zflag = 0;
 	uid_t		uid = 0;
 	dev_t		tdev = 0;
 	pid_t		mypid;
 #ifdef __APPLE__
-	char		*thiscmd;
-#else /* !__APPLE__ */
+	char		thiscmd[MAXPATHLEN];
+#else
 	char		thiscmd[MAXCOMLEN + 1];
-#endif /* __APPLE__ */
+#endif
 	pid_t		thispid;
-#ifndef __APPLE__
 	uid_t		thisuid;
-#endif /* !__APPLE__ */
 	dev_t		thistdev;
 	int		sig = SIGTERM;
+	const char *const *p;
 	char		*ep;
 	int		errors = 0;
-#ifndef __APPLE__
 	int		jid;
-#endif /* !__APPLE__ */
 	int		mib[4];
 	size_t		miblen;
 	int		st, nprocs;
 	size_t		size;
 	int		matched;
 	int		killed = 0;
-	int		ch;
 
 	setlocale(LC_ALL, "");
 
-	kludge_signal_args(&ac, av, &sig);
+	av++;
+	ac--;
 
-	while ((ch = getopt(ac, av, OPTIONS)) != -1) {
-		switch (ch) {
-		case 'c':
-			cmd = optarg;
-			break;
-		case 'd':
-			dflag++;
-			break;
-		case 'e':
-			eflag++;
-			break;
-#ifndef __APPLE__
-		case 'j':
-			jflag++;
-			jid = strtol(optarg, &ep, 10);
-			if (*ep)
-				errx(1, "illegal jid: %s", optarg);
-			if (jail_attach(jid) == -1)
-				err(1, "jail_attach(): %d", jid);
-			break;
-#endif /* __APPLE__ */
-		case 'l':
+	while (ac > 0) {
+		if (strcmp(*av, "-l") == 0) {
 			printsig(stdout);
 			exit(0);
-		case 'm':
-			mflag++;
-			break;
-		case 's':
-			sflag++;
-			break;
-		case 't':
-			tty = optarg;
-			break;
-		case 'u':
-			user = optarg;
-			break;
-		case 'v':
-			vflag++;
-			break;
-		case 'z':
-			zflag++;
-			break;
-		default:
+		}
+		if (strcmp(*av, "-help") == 0)
 			usage();
+		if (**av == '-') {
+			++*av;
+			switch (**av) {
+#ifndef __APPLE__
+			case 'j':
+				++*av;
+				if (**av == '\0') {
+					++av;
+					--ac;
+				}
+				jflag++;
+				if (*av == NULL)
+				    	errx(1, "must specify jail");
+				jid = jail_getid(*av);
+				if (jid < 0)
+					errx(1, "%s", jail_errmsg);
+				if (jail_attach(jid) == -1)
+					err(1, "jail_attach(%d)", jid);
+				break;
+#endif
+			case 'u':
+				++*av;
+				if (**av == '\0') {
+					++av;
+					--ac;
+				}
+				if (*av == NULL)
+				    	errx(1, "must specify user");
+				user = *av;
+				break;
+			case 't':
+				++*av;
+				if (**av == '\0') {
+					++av;
+					--ac;
+				}
+				if (*av == NULL)
+				    	errx(1, "must specify tty");
+				tty = *av;
+				break;
+			case 'c':
+				++*av;
+				if (**av == '\0') {
+					++av;
+					--ac;
+				}
+				if (*av == NULL)
+				    	errx(1, "must specify procname");
+				cmd = *av;
+				break;
+			case 'q':
+				qflag++;
+				break;
+			case 'v':
+				vflag++;
+				break;
+			case 's':
+				sflag++;
+				break;
+			case 'd':
+				dflag++;
+				break;
+			case 'e':
+				eflag++;
+				break;
+			case 'm':
+				mflag++;
+				break;
+			case 'z':
+				zflag++;
+				break;
+			default:
+				saved_av = av;
+				if (isalpha((unsigned char)**av)) {
+					if (strncasecmp(*av, "SIG", 3) == 0)
+						*av += 3;
+					for (sig = NSIG, p = sys_signame + 1;
+					     --sig; ++p)
+						if (strcasecmp(*p, *av) == 0) {
+							sig = p - sys_signame;
+							break;
+						}
+					if (!sig) {
+						if (**saved_av == 'I') {
+							av = saved_av;
+							Iflag = 1;
+							break;
+						} else
+							nosig(*av);
+					}
+				} else if (isdigit((unsigned char)**av)) {
+					sig = strtol(*av, &ep, 10);
+					if (!*av || *ep)
+						errx(1, "illegal signal number: %s", *av);
+					if (sig < 0 || sig >= NSIG)
+						nosig(*av);
+				} else
+					nosig(*av);
+			}
+			++av;
+			--ac;
+		} else {
+			break;
 		}
 	}
 
-	ac -= optind;
-	av += optind;
-
-#ifdef __APPLE__
-	if (user == NULL && tty == NULL && cmd == NULL && ac == 0)
-#else /* !__APPLE__*/
 	if (user == NULL && tty == NULL && cmd == NULL && !jflag && ac == 0)
-#endif /* __APPLE__ */
 		usage();
 
 	if (tty) {
 		if (strncmp(tty, "/dev/", 5) == 0)
 			snprintf(buf, sizeof(buf), "%s", tty);
-		else if (strncmp(tty, "tty", 3) == 0)
+		else if (strncmp(tty, "tty", 3) == 0 ||
+		    strncmp(tty, "pts/", 4) == 0)
 			snprintf(buf, sizeof(buf), "/dev/%s", tty);
 		else
 			snprintf(buf, sizeof(buf), "/dev/tty%s", tty);
@@ -292,7 +283,7 @@ main(int ac, char **av)
 			errx(1, "%s: not a character device", buf);
 		tdev = sb.st_rdev;
 		if (dflag)
-			printf("ttydev:0x%x\n", tdev);
+			printf("ttydev:0x%jx\n", (uintmax_t)tdev);
 	}
 	if (user) {
 		uid = strtol(user, &ep, 10);
@@ -317,13 +308,6 @@ main(int ac, char **av)
 	size = 0;
 	mib[0] = CTL_KERN;
 	mib[1] = KERN_PROC;
-#ifdef __APPLE__
-	mib[2] = KERN_PROC_ALL;
-#else /* !__APPLE__ */
-	mib[2] = KERN_PROC_PROC;
-#endif /* __APPLE__ */
-	mib[3] = 0;
-	miblen = 3;
 
 	if (user) {
 		mib[2] = eflag ? KERN_PROC_UID : KERN_PROC_RUID;
@@ -333,20 +317,31 @@ main(int ac, char **av)
 		mib[2] = KERN_PROC_TTY;
 		mib[3] = tdev;
 		miblen = 4;
+	} else {
+		mib[2] = KERN_PROC_PROC;
+		mib[3] = 0;
+		miblen = 3;
 	}
 
+#ifdef __APPLE__
+	kvm_t *kd = kvm_openfiles(NULL, NULL, NULL, 0, NULL);
+	if (kd == NULL)
+		err(1, "could not allocate memory");
+	procs = kvm_getprocs(kd, miblen == 3 ? KERN_PROC_ALL : mib[2], mib[3],
+	    &nprocs);
+	if (procs == NULL)
+		errx(1, "could not sysctl(KERN_PROC): %s", kvm_geterr(kd));
+	(void)st;
+	(void)newprocs;
+#else
+	procs = NULL;
+	st = sysctl(mib, miblen, NULL, &size, NULL, 0);
 	do {
-		st = sysctl(mib, miblen, NULL, &size, NULL, 0);
-		if (st == -1)
-			err(1, "could not sysctl(KERN_PROC)");
-		if (!size)
-			errx(1, "could not get size from sysctl(KERN_PROC)");
 		size += size / 10;
 		newprocs = realloc(procs, size);
-		if (newprocs == 0) {
-			if (procs)
-				free(procs);
-			errx(1, "could not reallocate memory");
+		if (newprocs == NULL) {
+			free(procs);
+			err(1, "could not reallocate memory");
 		}
 		procs = newprocs;
 		st = sysctl(mib, miblen, procs, &size, NULL, 0);
@@ -356,103 +351,38 @@ main(int ac, char **av)
 	if (size % sizeof(struct kinfo_proc) != 0) {
 		fprintf(stderr, "proc size mismatch (%zu total, %zu chunks)\n",
 			size, sizeof(struct kinfo_proc));
-		fprintf(stderr, "userland out of sync with kernel, recompile libkvm etc\n");
+		fprintf(stderr, "userland out of sync with kernel\n");
 		exit(1);
 	}
 	nprocs = size / sizeof(struct kinfo_proc);
+#endif
 	if (dflag)
 		printf("nprocs %d\n", nprocs);
 	mypid = getpid();
 
 	for (i = 0; i < nprocs; i++) {
-#ifdef __APPLE__
-		if (procs[i].kp_proc.p_stat == SZOMB && !zflag)
-			continue;
-		thispid = procs[i].kp_proc.p_pid;
-
-		int _mib[3], argmax;
-		size_t syssize;
-		char *procargs, *cp;
-
-		_mib[0] = CTL_KERN;
-		_mib[1] = KERN_ARGMAX;
-
-		syssize = sizeof(argmax);
-		if (sysctl(_mib, 2, &argmax, &syssize, NULL, 0) == -1)
-			continue;
-
-		procargs = malloc(argmax);
-		if (procargs == NULL)
-			continue;
-
-		_mib[0] = CTL_KERN;
-		_mib[1] = KERN_PROCARGS2;
-		_mib[2] = thispid;
-
-		syssize = (size_t)argmax;
-		if (sysctl(_mib, 3, procargs, &syssize, NULL, 0) == -1) {
-			free(procargs);
-			continue;
-		}
-
-		for (cp = procargs; cp < &procargs[syssize]; cp++) {
-			if (*cp == '\0') {
-				break;
-			}
-		}
-
-		if (cp == &procargs[syssize]) {
-			free(procargs);
-			continue;
-		}
-
-		for (; cp < &procargs[syssize]; cp++) {
-			if (*cp != '\0') {
-				break;
-			}
-		}
-
-		if (cp == &procargs[syssize]) {
-			free(procargs);
-			continue;
-		}
-
-		/* Strip off any path that was specified */
-		for (thiscmd = cp; (cp < &procargs[syssize]) && (*cp != '\0'); cp++) {
-			if (*cp == '/') {
-				thiscmd = cp + 1;
-			}
-		}
-
-		thistdev = procs[i].kp_eproc.e_tdev;
-#else /* !__APPLE__ */
 		if (procs[i].ki_stat == SZOMB && !zflag)
 			continue;
 		thispid = procs[i].ki_pid;
-		strncpy(thiscmd, procs[i].ki_comm, MAXCOMLEN);
-		thiscmd[MAXCOMLEN] = '\0';
+#ifdef __APPLE__
+		/* The whole name, as macOS's killall matches: p_comm is cut at 16. */
+		kvm_getcomm(kd, &procs[i], thiscmd, sizeof(thiscmd));
+#else
+		strlcpy(thiscmd, procs[i].ki_comm, sizeof(thiscmd));
+#endif
 		thistdev = procs[i].ki_tdev;
-#endif /* __APPLE__ */
-#ifndef __APPLE__
 		if (eflag)
 			thisuid = procs[i].ki_uid;	/* effective uid */
 		else
 			thisuid = procs[i].ki_ruid;	/* real uid */
-#endif /* !__APPLE__ */
 
-		if (thispid == mypid) {
-#ifdef __APPLE__
-			free(procargs);
-#endif /* __APPLE__ */
+		if (thispid == mypid)
 			continue;
-		}
 		matched = 1;
-#ifndef __APPLE__
 		if (user) {
 			if (thisuid != uid)
 				matched = 0;
 		}
-#endif /* !__APPLE__ */
 		if (tty) {
 			if (thistdev != tdev)
 				matched = 0;
@@ -473,20 +403,18 @@ main(int ac, char **av)
 					matched = 0;
 				regfree(&rgx);
 			} else {
+#ifdef __APPLE__
+				if (strcmp(thiscmd, cmd) != 0)
+#else
 				if (strncmp(thiscmd, cmd, MAXCOMLEN) != 0)
+#endif
 					matched = 0;
 			}
 		}
-#ifndef __APPLE__
 		if (jflag && thispid == getpid())
 			matched = 0;
-#endif /* !__APPLE__ */
-		if (matched == 0) {
-#ifdef __APPLE__
-			free(procargs);
-#endif /* !__APPLE__ */
+		if (matched == 0)
 			continue;
-		}
 		if (ac > 0)
 			matched = 0;
 		for (j = 0; j < ac; j++) {
@@ -511,40 +439,39 @@ main(int ac, char **av)
 			if (matched)
 				break;
 		}
-		if (matched == 0) {
-#ifdef __APPLE__
-			free(procargs);
-#endif /* __APPLE__ */
-			continue;
+		if (matched != 0 && Iflag) {
+			printf("Send signal %d to %s (pid %d uid %d)? ",
+				sig, thiscmd, thispid, thisuid);
+			fflush(stdout);
+			first = ch = getchar();
+			while (ch != '\n' && ch != EOF)
+				ch = getchar();
+			if (first != 'y' && first != 'Y')
+				matched = 0;
 		}
+		if (matched == 0)
+			continue;
 		if (dflag)
-#ifdef __APPLE__
-			printf("sig:%d, cmd:%s, pid:%d, dev:0x%x\n", sig,
-			    thiscmd, thispid, thistdev);
-#else /* !__APPLE__ */
-			printf("sig:%d, cmd:%s, pid:%d, dev:0x%x uid:%d\n", sig,
-			    thiscmd, thispid, thistdev, thisuid);
-#endif /* __APPLE__ */
+			printf("sig:%d, cmd:%s, pid:%d, dev:0x%jx uid:%d\n",
+			    sig, thiscmd, thispid, (uintmax_t)thistdev,
+			    thisuid);
 
 		if (vflag || sflag)
-			printf("kill -%s %d\n", upper(sys_signame[sig]),
-			    thispid);
+			printf("kill -%s %d\n", sys_signame[sig], thispid);
 
 		killed++;
 		if (!dflag && !sflag) {
 			if (kill(thispid, sig) < 0 /* && errno != ESRCH */ ) {
 				warn("warning: kill -%s %d",
-				    upper(sys_signame[sig]), thispid);
+				    sys_signame[sig], thispid);
 				errors = 1;
 			}
 		}
-#ifdef __APPLE__
-		free(procargs);
-#endif /* __APPLE__ */
 	}
 	if (killed == 0) {
-		fprintf(stderr, "No matching processes %swere found\n",
-		    getuid() != 0 ? "belonging to you " : "");
+		if (!qflag)
+			fprintf(stderr, "No matching processes %swere found\n",
+			    getuid() != 0 ? "belonging to you " : "");
 		errors = 1;
 	}
 	exit(errors);
