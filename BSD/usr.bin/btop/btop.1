@@ -1,0 +1,87 @@
+.\" SPDX-License-Identifier: Apache-2.0
+.\"
+.\" btop's manual page, from upstream's dist/manpage.md (btop 1.4.7,
+.\" Copyright Jakob P. Liljenberg, Apache License 2.0: dist/LICENSE),
+.\" written in mdoc for Minkar (2026): the FILES section was added.
+.\"
+.Dd October 27, 2026
+.Dt BTOP 1
+.Os
+.Sh NAME
+.Nm btop
+.Nd resource monitor that shows usage and stats for processor, memory, disks, network, and processes
+.Sh SYNOPSIS
+.Nm
+.Op Fl c Ar file
+.Op Fl d
+.Op Fl f Ar filter
+.Op Fl l
+.Op Fl p Ar id
+.Op Fl t
+.Op Fl u Ar ms
+.Op Fl -force-utf
+.Op Fl -themes-dir Ar dir
+.Nm
+.Op Fl -default-config | Fl h | Fl V
+.Sh DESCRIPTION
+.Nm
+is a program that shows usage and stats for processor, memory, disks,
+network, and processes.
+.Pp
+The program follows the usual GNU command line syntax, with long options
+starting with two dashes.
+The options are as follows:
+.Bl -tag -width indent
+.It Fl c , Fl -config Ar file
+Path to a config file.
+.It Fl d , Fl -debug
+Start in debug mode with additional logs and metrics.
+.It Fl f , Fl -filter Ar filter
+Set an initial process filter.
+.It Fl -force-utf
+Force start even if no UTF-8 locale was detected.
+.It Fl l , Fl -low-color
+Disable true color, 256 colors only.
+.It Fl p , Fl -preset Ar id
+Start with a preset (0-9).
+.It Fl t , Fl -tty
+Force tty mode with ANSI graph symbols and 16 colors only.
+.It Fl -no-tty
+Force disable tty mode.
+.It Fl -themes-dir Ar dir
+Path to a custom themes directory.
+When specified, this directory takes priority over the default theme
+search paths.
+.It Fl u , Fl -update Ar ms
+Set an initial update rate in milliseconds.
+.It Fl -default-config
+Print default config to standard output.
+.It Fl h , Fl -help
+Show summary of options.
+.It Fl V , Fl -version
+Show version of program.
+.El
+.Sh FILES
+.Bl -tag -width indent -compact
+.It Pa ~/.config/btop/btop.conf
+the configuration
+.It Pa ~/.config/btop/themes
+the user's themes
+.It Pa /usr/share/btop/themes
+the themes that come with
+.Nm
+.El
+.Sh SEE ALSO
+.Xr ps 1 ,
+.Xr top 1
+.Sh AUTHORS
+.Nm
+was written by
+.An Jakob P. Liljenberg
+a.k.a.\& "Aristocratos".
+.Sh BUGS
+The upstream bug tracker can be found at
+.Lk https://github.com/aristocratos/btop/issues .
+On Minkar,
+.Nm
+has no GPU panel, and its sensors are those of Intel Macs (SMC).
