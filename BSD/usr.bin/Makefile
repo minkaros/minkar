@@ -8,7 +8,7 @@ LDFLAGS = --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
 # Independent programs: built in parallel.
 SUBDIR_PARALLEL =
 SUBDIR = apply basename chroot cut dirname env false find getopt grep 
-SUBDIR += head kill killall login patch pfetch printf sed sw_vers 
+SUBDIR += head killall login patch pfetch printf sed sw_vers 
 SUBDIR += tail tee time touch true uname users whereis which xargs yes
 SUBDIR += dscacheutil id
 SUBDIR += cmp du gzip logger mktemp seq stat tr uniq uptime wc
