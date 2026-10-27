@@ -1,0 +1,237 @@
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.\" Copyright (c) 2026 The Minkar contributors
+.\" Part of Minkar.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd October 27, 2026
+.Dt TOP 1
+.Os
+.Sh NAME
+.Nm top
+.Nd display sorted information about processes
+.Sh SYNOPSIS
+.Nm
+.Op Fl a | Fl d | Fl e | Fl c Ar mode
+.Op Fl F | Fl f
+.Op Fl h
+.Op Fl i Ar interval
+.Op Fl l Ar samples
+.Op Fl ncols Ar columns
+.Op Fl o Ar key | Fl O Ar skey
+.Op Fl R | Fl r
+.Op Fl S
+.Op Fl s Ar delay-secs
+.Op Fl n Ar nprocs
+.Op Fl stats Ar keys
+.Op Fl pid Ar processid
+.Op Fl user Ar username
+.Op Fl U Ar username
+.Op Fl u
+.Sh DESCRIPTION
+The
+.Nm
+utility periodically displays a summary of the system and a sorted list
+of processes.
+The summary gives the number of processes and threads, the load
+averages, the CPU usage since the previous sample, the physical memory
+in use, the virtual memory, the swap (with
+.Fl S )
+and the packets and bytes the network interfaces moved.
+.Pp
+Interactively,
+.Nm
+redraws the screen every
+.Ar delay-secs
+seconds and shows as many processes and columns as fit.
+When its output is not a terminal, or with
+.Fl l ,
+it prints its samples one after another instead.
+The first sample in that logging mode has no CPU percentages, as there
+is nothing yet to compare with.
+.Pp
+The options are as follows:
+.Bl -tag -width "-c mode"
+.It Fl a
+Count the event columns since
+.Nm
+started
+.Pq Fl c Cm a .
+.It Fl c Ar mode
+Set how the event columns
+.Pq Cm faults , cow , msgsent , msgrecv , sysbsd , sysmach , csw , pageins
+are counted:
+.Cm a
+since
+.Nm
+started,
+.Cm d
+since the previous sample,
+.Cm e
+or
+.Cm n
+(the default) since each process started.
+.It Fl d
+Count the event columns since the previous sample
+.Pq Fl c Cm d .
+.It Fl e
+Count the event columns since each process started
+.Pq Fl c Cm e .
+.It Fl F , Fl f
+Accepted for compatibility; shared library information is not shown.
+.It Fl h
+Print the usage and exit.
+.It Fl i Ar interval
+Accepted for compatibility.
+.It Fl l Ar samples
+Logging mode: print
+.Ar samples
+samples, or with 0, until interrupted.
+.It Fl n Ar nprocs
+Show at most
+.Ar nprocs
+processes.
+.It Fl ncols Ar columns
+In logging mode, show only the first
+.Ar columns
+columns.
+.It Fl O Ar skey
+Sort by
+.Ar skey
+when the primary key ties.
+.It Fl o Ar key
+Sort by
+.Ar key
+.Pq default Cm cpu .
+A
+.Ql +
+or
+.Ql -
+before the key sorts in ascending or descending order; without one,
+text keys sort ascending and numbers descending.
+.It Fl pid Ar processid
+Show only this process; may be given more than once.
+.It Fl R , Fl r
+Accepted for compatibility; the memory object map is not traversed.
+.It Fl S
+Show the swap usage in the summary.
+.It Fl s Ar delay-secs
+Wait
+.Ar delay-secs
+seconds between samples (default 1).
+.It Fl stats Ar keys
+Show the columns of these keys, in this order, separated by commas.
+.It Fl U Ar username , Fl user Ar username
+Show only the processes of this user (a name or a user ID).
+.It Fl u
+Sort by CPU usage, then by time
+.Pq Fl o Cm cpu Fl O Cm time .
+.El
+.Sh KEYS
+.Bl -tag -width "msgrecv" -compact
+.It Cm pid
+process ID
+.It Cm command
+command name
+.It Cm cpu
+CPU usage since the previous sample, in percent
+.It Cm time
+CPU time, user and system
+.It Cm threads
+number of threads
+.Pq alias Cm th
+.It Cm wq
+number of workqueue threads
+.It Cm mem
+resident memory
+.It Cm vsize
+virtual size
+.It Cm pgrp
+process group
+.It Cm ppid
+parent process ID
+.It Cm state
+running, sleeping, stopped or zombie
+.It Cm uid
+user ID
+.It Cm user
+user name
+.It Cm faults
+page faults
+.It Cm cow
+copy-on-write faults
+.It Cm msgsent
+Mach messages sent
+.It Cm msgrecv
+Mach messages received
+.It Cm sysbsd
+BSD system calls
+.It Cm sysmach
+Mach system calls
+.It Cm csw
+context switches
+.It Cm pageins
+pageins
+.El
+.Pp
+These keys are not available yet and are an error:
+.Cm boosts , cmprs , cpu_me , cpu_others , cycles , idlew , instrs ,
+.Cm kprvt , kshrd , mregion , ports , power , purg , rprvt , vprvt .
+.Sh INTERACTION
+While
+.Nm
+redraws the screen, these keys are read:
+.Bl -tag -width indent -compact
+.It Ic \&?
+show a help screen
+.It Ic q
+quit
+.It Ic o
+set the primary sort key
+.It Ic O
+set the secondary sort key
+.It Ic s
+set the delay between samples
+.It Ic n
+set the number of processes shown
+.It Ic U
+show only one user's processes (an empty answer shows all)
+.El
+.Sh EXIT STATUS
+.Ex -std
+Usage errors exit with 64.
+.Sh EXAMPLES
+Print two samples of the five processes using the most CPU:
+.Pp
+.Dl $ top -l 2 -n 5 -stats pid,command,cpu,mem
+.Pp
+Watch one process's context switches, per sample:
+.Pp
+.Dl $ top -pid 1 -c d -stats pid,command,csw
+.Sh SEE ALSO
+.Xr ps 1 ,
+.Xr uptime 1
+.Sh BUGS
+Another user's processes show no CPU time, memory or counters unless
+.Nm
+runs as the super-user.
