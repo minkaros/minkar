@@ -1,154 +1,50 @@
+# SPDX-License-Identifier: BSD-2-Clause
+# Copyright (c) 2026 The Minkar contributors
+# Part of Minkar.
 #
-# HOW TO UPDATE THE ZONEINFO DATA
-#
-# Import the new sources to the vendor branch:
-#
-# $ cd ~/freebsd/src
-# $ git worktree add ../tzdata vendor/tzdata
-# $ pushd ../tzdata
-# $ tar -xvf ../tzdata-latest.tar.gz
-#   (check with "git status" and "git diff" if it all makes sense)
-# $ git add -A
-# $ git commit -m "Import tzdata 20XXX"
-# $ git tag -a -m "Tag import of tzdata 20XXX" vendor/tzdata/tzdata20XXX
-# $ git push --follow-tags freebsd vendor/tzdata
-# $ popd
-#
-# Merge-from-vendor
-#
-# $ git subtree merge -P contrib/tzdata vendor/tzdata
-#   (write a meaningful commit message)
-# $ git push freebsd HEAD:main
-#
-# MFC
-#
-# $ git checkout -b freebsd/stable/12 stable-12
-# $ git cherry-pick -x [hash of merge commit to main] -m 1 --edit
-#   (write a meaningful commit message)
-# $ git push freebsd HEAD:stable/12
-#
-#
-# If there are changes to zone1970.tab, update the baseline file by running
-# `make baseline` in usr.sbin/tzsetup to check if tzsetup is able to parse new
-# contents (if not, report/fix tzsetup).  Check that update does not
-# introduce breaking/unexpected changes to continents/countries/zones,
-# and commit the updated baseline file.
+# zoneinfo: the time zones, from the IANA time zone
+# database (public domain):
+#   tzdata/     the zone and rule sources, zone.tab, zone1970.tab and
+#               iso3166.tab (tzdata 2026e)
+#   tzcode/     zic, built for the build host to compile them (tzcode 2026e)
+# The files are "fat" (every transition written out, as older readers
+# expect). They are laid out as on macOS since 10.13, where libc reads
+# /var/db/timezone/zoneinfo:
+#   /usr/share/zoneinfo.default     the files
+#   /var/db/timezone/zoneinfo   ->  /usr/share/zoneinfo.default
+#   /usr/share/zoneinfo         ->  /var/db/timezone/zoneinfo
+#   /etc/localtime              ->  /var/db/timezone/zoneinfo/UTC, until the
+#                                   system's zone is set
 
-.include <src.opts.mk>
+SUBDIR =
+HOST_CC ?= cc
+TZVERSION != cat ${.CURDIR}/tzdata/version
+ZONES =	africa antarctica asia australasia europe northamerica southamerica \
+	etcetera backward factory
+TABLES = zone.tab zone1970.tab iso3166.tab
 
-PACKAGE=	zoneinfo
-CLEANDIRS+=	builddir
-CONTRIBDIR=	${SRCTOP}/contrib/tzdata/
-.PATH:		${CONTRIBDIR}
+all: to-sysroot
 
-.if defined(LEAPSECONDS)
-.warning Using backwards compatibility variable for LEAPSECONDS; please use WITH_ZONEINFO_LEAPSECONDS_SUPPORT instead
-MK_ZONEINFO_LEAPSECONDS_SUPPORT= yes
-.endif
+zic: ${.CURDIR}/tzcode/zic.c ${.CURDIR}/tzcode/private.h ${.CURDIR}/tzcode/tzfile.h
+	printf '%s\n' 'static char const PKGVERSION[] = "(tzcode) ";' \
+	    'static char const TZVERSION[] = "${TZVERSION}";' \
+	    'static char const REPORT_BUGS_TO[] = "tz@iana.org";' > version.h
+	printf '%s\n' '#define TZDEFAULT "/etc/localtime"' \
+	    '#define TZDIR "/usr/share/zoneinfo"' > tzdir.h
+	${HOST_CC} -O2 -I${.OBJDIR} -I${.CURDIR}/tzcode -o ${.TARGET} \
+	    ${.CURDIR}/tzcode/zic.c
 
-.if ${MK_ZONEINFO_LEAPSECONDS_SUPPORT} != "no"
-LEAPFILE=	-L ${CONTRIBDIR}leapseconds
-.else
-LEAPFILE=
-.endif
-
-TZFILES=	africa antarctica asia australasia etcetera europe \
-		factory northamerica southamerica
-TZFILES+=	backward
-
-TZFILES:=	${TZFILES:S/^/${CONTRIBDIR}/}
-
-TZBUILDDIR=	${.OBJDIR}/builddir
-TZBUILDSUBDIRS=	\
-		Africa \
-		America/Argentina \
-		America/Indiana \
-		America/Kentucky \
-		America/North_Dakota \
-		Antarctica \
-		Arctic \
-		Asia \
-		Atlantic \
-		Australia \
-		Etc \
-		Europe \
-		Indian \
-		Pacific
-TZBUILDSUBDIRS+= US Mexico Chile Canada Brazil
-
-.if !defined(_SKIP_BUILD)
-all: zonefiles
-.endif
-META_TARGETS+=	zonefiles install-zoneinfo
-
-#
-# Produce “fat” zoneinfo files for backward compatibility.
-#
-ZICFLAGS?=	-b fat
-
-.if ${MK_DIRDEPS_BUILD} == "yes"
-ZIC= ${STAGE_HOST_OBJTOP}/usr/sbin/zic
-# we do everything in a single visit
-install-zoneinfo: zonefiles
-.endif
-
-zonefiles: ${TDATA}
-	mkdir -p ${TZBUILDDIR}
-	(cd ${TZBUILDDIR}; mkdir -p ${TZBUILDSUBDIRS})
-	(umask 022; cd ${.CURDIR}; \
-	${ZIC:Uzic} -D -d ${TZBUILDDIR} ${ZICFLAGS} -m ${NOBINMODE} \
-	    ${LEAPFILE} ${TZFILES})
-	(umask 022; cd ${TZBUILDDIR}; \
-	read -r version <${CONTRIBDIR}version && \
-	LC_ALL=C awk \
-	    -v DATAFORM='main' \
-	    -v PACKRATDATA='' \
-	    -v PACKRATLIST='' \
-	    -f ${CONTRIBDIR}ziguard.awk ${TZFILES} >${TZBUILDDIR}/main.zi; \
-	LC_ALL=C awk \
-	    -v dataform='main' \
-	    -v deps='zishrink.awk' \
-	    -v redo='posix_only' \
-	    -v version="$$version" \
-	    -f ${CONTRIBDIR}zishrink.awk \
-	main.zi >tzdata.zi; rm main.zi)
-	(cd ${TZBUILDDIR} && find * -type f | LC_ALL=C sort) > ${.TARGET}
-
-beforeinstall: install-zoneinfo
-install-zoneinfo:
-	mkdir -p ${DESTDIR}/usr/share/zoneinfo
-	(cd ${DESTDIR}/usr/share/zoneinfo;  mkdir -p ${TZBUILDSUBDIRS})
-	for f in `cat zonefiles`; do \
-		${INSTALL} ${TAG_ARGS} \
-		    -o ${BINOWN} -g ${BINGRP} -m ${NOBINMODE} \
-		    ${TZBUILDDIR}/$${f} ${DESTDIR}/usr/share/zoneinfo/$${f}; \
-	done
-	${INSTALL} ${TAG_ARGS} -o ${BINOWN} -g ${BINGRP} -m ${NOBINMODE} \
-	    ${CONTRIBDIR}/zone.tab ${DESTDIR}/usr/share/zoneinfo/
-	${INSTALL} ${TAG_ARGS} -o ${BINOWN} -g ${BINGRP} -m ${NOBINMODE} \
-	    ${CONTRIBDIR}/zone1970.tab ${DESTDIR}/usr/share/zoneinfo/
-
-afterinstall:
-#
-# If the file /var/db/zoneinfo exists, and it is owned by root:wheel,
-# and the contents of it exists in /usr/share/zoneinfo, then reinstall
-# it.
-#
-	@if [ -f ${DESTDIR}/var/db/zoneinfo -a -O ${DESTDIR}/var/db/zoneinfo \
-	    -a -G ${DESTDIR}/var/db/zoneinfo ]; then \
-		zf=$$(cat ${DESTDIR}/var/db/zoneinfo); \
-		if [ -f ${DESTDIR}/usr/share/zoneinfo/$${zf} ]; then \
-			if [ ! -z "${DESTDIR}" ]; then \
-				optC="-C ${DESTDIR}"; \
-			fi; \
-			echo "Updating /etc/localtime"; \
-			tzsetup $${optC} -r; \
-		fi; \
-	else \
-		echo "Run tzsetup(8) manually to update /etc/localtime."; \
-	fi
-
-HAS_TESTS=
-SUBDIR.${MK_TESTS}+= tests
-
-.include <bsd.prog.mk>
+to-sysroot: zic .PHONY
+	rm -rf ${.OBJDIR}/out
+	cd ${.CURDIR}/tzdata && ${.OBJDIR}/zic -b fat -d ${.OBJDIR}/out ${ZONES}
+	cd ${.CURDIR}/tzdata && cp ${TABLES} ${.OBJDIR}/out/
+	echo ${TZVERSION} > ${.OBJDIR}/out/+VERSION
+	rm -rf ${SYSROOT_DIR}/usr/share/zoneinfo ${SYSROOT_DIR}/usr/share/zoneinfo.default
+	mkdir -p ${SYSROOT_DIR}/usr/share/zoneinfo.default \
+	    ${SYSROOT_DIR}/private/var/db/timezone ${SYSROOT_DIR}/private/etc
+	cd ${.OBJDIR}/out && cp -R . ${SYSROOT_DIR}/usr/share/zoneinfo.default/
+	ln -sfn /usr/share/zoneinfo.default \
+	    ${SYSROOT_DIR}/private/var/db/timezone/zoneinfo
+	ln -sfn /var/db/timezone/zoneinfo ${SYSROOT_DIR}/usr/share/zoneinfo
+	[ -L ${SYSROOT_DIR}/private/etc/localtime ] || \
+	    ln -sf /var/db/timezone/zoneinfo/UTC ${SYSROOT_DIR}/private/etc/localtime

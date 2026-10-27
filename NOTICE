@@ -92,6 +92,8 @@ Other components
 - btop - Apache-2.0 (BSD/usr.bin/btop/dist/LICENSE), with {fmt} - MIT
   (BSD/usr.bin/btop/dist/include/fmt/LICENSE.rst) and widecharwidth -
   CC0-1.0 (BSD/usr.bin/btop/dist/include/widechar_width.hpp)
+- IANA time zone database (tzdata and tzcode's zic, 2026e) - public domain
+  (BSD/share/zoneinfo/tzdata/LICENSE), for /usr/share/zoneinfo
 
 Present in the source tree but not built into the system image
 - GNU bash (GNU/bin/bash) - GPL-3.0
