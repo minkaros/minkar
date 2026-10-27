@@ -125,6 +125,10 @@
 	}								\
 } while (0)
 #endif
+/* FreeBSD's <sys/sbuf.h>: a buffer that grows (libbsdcompat's sbuf.c). */
+#ifndef sbuf_new_auto
+#define	sbuf_new_auto()	sbuf_new(NULL, NULL, 0, SBUF_AUTOEXTEND)
+#endif
 #ifndef __containerof
 #define	__containerof(x, s, m)	((s *)(void *)((char *)(x) - offsetof(s, m)))
 #endif
