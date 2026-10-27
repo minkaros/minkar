@@ -1,6 +1,9 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1992, 1993, 1994
  *	The Regents of the University of California.  All rights reserved.
+ * Modifications Copyright (c) 2026 The Minkar contributors
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -10,7 +13,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -27,16 +30,10 @@
  * SUCH DAMAGE.
  */
 
-#if 0
-#ifndef lint
-static char sccsid[] = "@(#)fmt.c	8.4 (Berkeley) 4/15/94";
-#endif
-#endif
-
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD: src/bin/ps/fmt.c,v 1.34 2004/06/22 02:18:29 gad Exp $");
-
 #include <sys/types.h>
+#ifdef __APPLE__
+#include <sys/param.h>
+#endif
 #include <sys/time.h>
 #include <sys/resource.h>
 
@@ -104,8 +101,30 @@ cmdpart(char *arg0)
 	return ((cp = strrchr(arg0, '/')) != NULL ? cp + 1 : arg0);
 }
 
+#ifdef __APPLE__
+/*
+ * Whether argv[0] agrees with the accounting name. Darwin keeps only
+ * MAXCOMLEN characters of that name, and a login shell's argv[0] starts
+ * with '-'.
+ */
+static int
+agrees(char *arg0, const char *cmd, size_t maxlen)
+{
+	const char *name = cmdpart(arg0);
+
+	/* The environment has no name to agree with. */
+	if (cmd == NULL || maxlen == 0)
+		return (1);
+	if (*name == '-')
+		name++;
+	if (strlen(cmd) >= MAXCOMLEN)
+		return (strncmp(name, cmd, strlen(cmd)) == 0);
+	return (strncmp(name, cmd, maxlen) == 0);
+}
+#endif
+
 const char *
-fmt_argv(char **argv, char *cmd, size_t maxlen)
+fmt_argv(char **argv, char *cmd, char *thread, size_t maxlen)
 {
 	size_t len;
 	char *ap, *cp;
@@ -122,9 +141,18 @@ fmt_argv(char **argv, char *cmd, size_t maxlen)
 	cp = malloc(len);
 	if (cp == NULL)
 		errx(1, "malloc failed");
-	if (ap == NULL)
-		sprintf(cp, "[%.*s]", (int)maxlen, cmd);
-	else if (strncmp(cmdpart(argv[0]), cmd, maxlen) != 0)
+	if (ap == NULL) {
+		if (thread != NULL) {
+			asprintf(&ap, "%s/%s", cmd, thread);
+			sprintf(cp, "[%.*s]", (int)maxlen, ap);
+			free(ap);
+		} else
+			sprintf(cp, "[%.*s]", (int)maxlen, cmd);
+#ifdef __APPLE__
+	} else if (!agrees(argv[0], cmd, maxlen))
+#else
+	} else if (strncmp(cmdpart(argv[0]), cmd, maxlen) != 0)
+#endif
 		sprintf(cp, "%s (%.*s)", ap, (int)maxlen, cmd);
 	else
 		strcpy(cp, ap);

@@ -1,6 +1,9 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1990, 1993, 1994
  *	The Regents of the University of California.  All rights reserved.
+ * Modifications Copyright (c) 2026 The Minkar contributors
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -10,11 +13,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -31,50 +30,56 @@
  * SUCH DAMAGE.
  */
 
-#ifndef lint
-#if 0
-static char sccsid[] = "@(#)print.c	8.6 (Berkeley) 4/16/94";
-#endif
-static const char rcsid[] =
-	"$FreeBSD: print.c,v 1.33 1998/11/25 09:34:00 dfr Exp $";
-#endif /* not lint */
-
 #include <sys/param.h>
 #include <sys/time.h>
 #include <sys/resource.h>
-#include <sys/ucred.h>
 #include <sys/proc.h>
 #include <sys/stat.h>
 
-#include <sys/ucred.h>
+#ifdef __APPLE__
+#include <sys/sysctl.h>
+#include <kvm_darwin.h>
+#else
+#include <sys/mac.h>
 #include <sys/user.h>
 #include <sys/sysctl.h>
-#include <sys/cdefs.h>
+#include <sys/vmmeter.h>
+#endif
 
-#if FIXME
-#include <vm/vm.h>
-#endif /* FIXME */
-#include <err.h>
+#include <grp.h>
+#ifndef __APPLE__
+#include <jail.h>
+#endif
 #include <langinfo.h>
-#include <libproc.h>
+#include <locale.h>
 #include <math.h>
 #include <nlist.h>
+#include <pwd.h>
 #include <stddef.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <unistd.h>
 #include <string.h>
+#include <unistd.h>
 #include <vis.h>
-#include <pwd.h>
+#include <libxo/xo.h>
 
 #include "ps.h"
 
-extern int mflg, print_all_thread, print_thread_num;
+#ifdef __APPLE__
+#ifndef MAXSLP
+#define	MAXSLP		20	/* seconds: asleep (S), then idle (I) */
+#endif
+#endif
+#define	COMMAND_WIDTH	16
+#define	ARGUMENTS_WIDTH	16
+
+#define	ps_pgtok(a)	(((a) * getpagesize()) / 1024)
 
 void
 printheader(void)
 {
-	VAR *v;
+	const VAR *v;
 	struct varent *vent;
 
 	STAILQ_FOREACH(vent, &varlist, next_ve)
@@ -87,374 +92,272 @@ printheader(void)
 		v = vent->var;
 		if (v->flag & LJUST) {
 			if (STAILQ_NEXT(vent, next_ve) == NULL)	/* last one */
-				(void)printf("%s", vent->header);
+				xo_emit("{T:/%hs}", vent->header);
 			else
-				(void)printf("%-*s", v->width, vent->header);
+				xo_emit("{T:/%-*hs}", vent->width, vent->header);
 		} else
-			(void)printf("%*s", v->width, vent->header);
+			xo_emit("{T:/%*hs}", vent->width, vent->header);
 		if (STAILQ_NEXT(vent, next_ve) != NULL)
-			(void)putchar(' ');
+			xo_emit("{P: }");
 	}
-	(void)putchar('\n');
+	xo_emit("\n");
 }
 
-/*
- * Get command and arguments.
- *
- * If the global variable eflg is non-zero and the user has permission to view
- * the process's environment, the environment is included.
- *
- * on return argvlen is the length of the extracted string, argv0len is
- * the length of the command (same as argvlen if show_args is true)
- */
-static void
-getproclline(KINFO *k, char **command_name, int *argvlen, int *argv0len,
-  int show_args)
-{
-	int		mib[3], argmax, nargs, c = 0;
-	size_t		size;
-	char		*procargs, *sp, *np, *cp;
-	extern int	eflg;
-
-	/* Get the maximum process arguments size. */
-	mib[0] = CTL_KERN;
-	mib[1] = KERN_ARGMAX;
-
-	size = sizeof(argmax);
-	if (sysctl(mib, 2, &argmax, &size, NULL, 0) == -1) {
-		goto ERROR_A;
-	}
-
-	/* Allocate space for the arguments. */
-	procargs = (char *)malloc(argmax);
-	if (procargs == NULL) {
-		goto ERROR_A;
-	}
-
-	/*
-	 * Make a sysctl() call to get the raw argument space of the process.
-	 * The layout is documented in start.s, which is part of the Csu
-	 * project.  In summary, it looks like:
-	 *
-	 * /---------------\ 0x00000000
-	 * :               :
-	 * :               :
-	 * |---------------|
-	 * | argc          |
-	 * |---------------|
-	 * | arg[0]        |
-	 * |---------------|
-	 * :               :
-	 * :               :
-	 * |---------------|
-	 * | arg[argc - 1] |
-	 * |---------------|
-	 * | 0             |
-	 * |---------------|
-	 * | env[0]        |
-	 * |---------------|
-	 * :               :
-	 * :               :
-	 * |---------------|
-	 * | env[n]        |
-	 * |---------------|
-	 * | 0             |
-	 * |---------------| <-- Beginning of data returned by sysctl() is here.
-	 * | argc          |
-	 * |---------------|
-	 * | exec_path     |
-	 * |:::::::::::::::|
-	 * |               |
-	 * | String area.  |
-	 * |               |
-	 * |---------------| <-- Top of stack.
-	 * :               :
-	 * :               :
-	 * \---------------/ 0xffffffff
-	 */
-	mib[0] = CTL_KERN;
-	mib[1] = KERN_PROCARGS2;
-	mib[2] = KI_PROC(k)->p_pid;
-
-	size = (size_t)argmax;
-	if (sysctl(mib, 3, procargs, &size, NULL, 0) == -1) {
-		goto ERROR_B;
-	}
-
-	memcpy(&nargs, procargs, sizeof(nargs));
-	cp = procargs + sizeof(nargs);
-
-	/* Skip the saved exec_path. */
-	for (; cp < &procargs[size]; cp++) {
-		if (*cp == '\0') {
-			/* End of exec_path reached. */
-			break;
-		}
-	}
-	if (cp == &procargs[size]) {
-		goto ERROR_B;
-	}
-
-	/* Skip trailing '\0' characters. */
-	for (; cp < &procargs[size]; cp++) {
-		if (*cp != '\0') {
-			/* Beginning of first argument reached. */
-			break;
-		}
-	}
-	if (cp == &procargs[size]) {
-		goto ERROR_B;
-	}
-	/* Save where the argv[0] string starts. */
-	sp = cp;
-
-	/*
-	 * Iterate through the '\0'-terminated strings and convert '\0' to ' '
-	 * until a string is found that has a '=' character in it (or there are
-	 * no more strings in procargs).  There is no way to deterministically
-	 * know where the command arguments end and the environment strings
-	 * start, which is why the '=' character is searched for as a heuristic.
-	 */
-	for (np = NULL; c < nargs && cp < &procargs[size]; cp++) {
-		if (*cp == '\0') {
-			c++;
-			if (np != NULL) {
-			    /* Convert previous '\0'. */
-			    *np = ' ';
-			} else {
-			    *argv0len = cp - sp;
-			}
-			/* Note location of current '\0'. */
-			np = cp;
-
-			if (!show_args) {
-			    /*
-			     * Don't convert '\0' characters to ' '.
-			     * However, we needed to know that the
-			     * command name was terminated, which we
-			     * now know.
-			     */
-			    break;
-			}
-		}
-	}
-
-	/*
-	 * If eflg is non-zero, continue converting '\0' characters to ' '
-	 * characters until no more strings that look like environment settings
-	 * follow.
-	 */
-	if ( show_args && (eflg != 0) && ( (getuid() == 0) || (KI_EPROC(k)->e_pcred.p_ruid == getuid()) ) ) {
-		for (; cp < &procargs[size]; cp++) {
-			if (*cp == '\0') {
-				if (np != NULL) {
-					if (&np[1] == cp) {
-						/*
-						 * Two '\0' characters in a row.
-						 * This should normally only
-						 * happen after all the strings
-						 * have been seen, but in any
-						 * case, stop parsing.
-						 */
-						break;
-					}
-					/* Convert previous '\0'. */
-					*np = ' ';
-				}
-				/* Note location of current '\0'. */
-				np = cp;
-			}
-		}
-	}
-
-	/*
-	 * sp points to the beginning of the arguments/environment string, and
-	 * np should point to the '\0' terminator for the string.
-	 */
-	if (np == NULL || np == sp) {
-		/* Empty or unterminated string. */
-		goto ERROR_B;
-	}
-
-	/* Make a copy of the string. */
-	*argvlen = asprintf(command_name, "%s", sp);
-
-	/* Clean up. */
-	free(procargs);
-	return;
-
-	ERROR_B:
-	free(procargs);
-	ERROR_A:
-	*argv0len = *argvlen 
-	  = asprintf(command_name, "(%s)", KI_PROC(k)->p_comm);
-}
-
-/* Return value is malloc'ed, please free it */
 char *
-get_command_and_or_args(KINFO *k, int show_cmd, int show_args)
+arguments(KINFO *k, VARENT *ve)
 {
 	char *vis_args;
 
-	char *rawcmd, *cmd;
-	int cmdlen, argv0len = 0;
+	if ((vis_args = malloc(strlen(k->ki_args) * 4 + 1)) == NULL)
+		xo_errx(1, "malloc failed");
+	strvis(vis_args, k->ki_args, VIS_TAB | VIS_NL | VIS_NOSLASH);
 
+	if (STAILQ_NEXT(ve, next_ve) != NULL && strlen(vis_args) > ARGUMENTS_WIDTH)
+		vis_args[ARGUMENTS_WIDTH] = '\0';
 
-	if(!mflg || (print_all_thread && (print_thread_num== 0))) {
-		getproclline(k, &rawcmd, &cmdlen, &argv0len, show_args);
+	return (vis_args);
+}
 
-		if (cflag) {
-			/* Ignore the path in cmd, if any. */
-			for (cmd = &rawcmd[cmdlen - 1]; cmd > rawcmd; cmd--) {
-				if (*cmd == '/') {
-					cmd++;
-					break;
-				}
-			}
-		} else {
-			cmd = rawcmd;
-		}
+char *
+command(KINFO *k, VARENT *ve)
+{
+	char *vis_args, *vis_env, *str;
 
-		if (!show_cmd) {
-		    cmd += argv0len;
-			if (*cmd) {
-				cmd++;
-			}
-		}
+	if (cflag) {
+#ifdef __APPLE__
+		/* macOS: the executable's whole name, not p_comm's 16. */
+		const char *comm = k->ki_execname != NULL ?
+		    k->ki_execname : k->ki_p->ki_comm;
+#else
+		const char *comm = k->ki_p->ki_comm;
+#endif
+		/* If it is the last field, then don't pad */
+		if (STAILQ_NEXT(ve, next_ve) == NULL) {
+			asprintf(&str, "%s%s%s%s%s",
+			    k->ki_d.prefix ? k->ki_d.prefix : "",
+			    comm,
+			    (showthreads && k->ki_p->ki_numthreads > 1) ? "/" : "",
+			    (showthreads && k->ki_p->ki_numthreads > 1) ? k->ki_p->ki_tdname : "",
+			    (showthreads && k->ki_p->ki_numthreads > 1) ? k->ki_p->ki_moretdname : "");
+		} else
+			str = strdup(comm);
 
-		if ((vis_args = malloc(strlen(cmd) * 4 + 1)) == NULL)
-			err(1, NULL);
-		strvis(vis_args, cmd, VIS_TAB | VIS_NL | VIS_NOSLASH);
-		free(rawcmd);
-		return vis_args;
-	} else {
-		return strdup("");
+		return (str);
 	}
-}
-
-int
-s_command_and_or_args(KINFO *k, int show_cmd, int show_args)
-{
-	char *s = get_command_and_or_args(k, show_cmd, show_args);
-	int sz = strlen(s);
-	free(s);
-
-	return sz;
-}
-
-void
-p_command_and_or_args(KINFO *k, VARENT *ve, int show_cmd, int show_args,
-  int no_trunc)
-{
-	VAR *v = ve->var;
-	char *s = get_command_and_or_args(k, show_cmd, show_args);
+	if ((vis_args = malloc(strlen(k->ki_args) * 4 + 1)) == NULL)
+		xo_errx(1, "malloc failed");
+	strvis(vis_args, k->ki_args, VIS_TAB | VIS_NL | VIS_NOSLASH);
 
 	if (STAILQ_NEXT(ve, next_ve) == NULL) {
 		/* last field */
-		if (termwidth == UNLIMITED) {
-			fputs(s, stdout);
-		} else {
-			int left;
-			char *cp;
 
-			left = termwidth - (totwidth - v->width);
-			if (left < 1 || no_trunc) {
-				/* already wrapped, just use std * width */
-				left = v->width;
-			}
-			for(cp = s; --left >= 0 && *cp;) {
-				(void)putchar(*cp++);
-			}
-		}
+		if (k->ki_env) {
+			if ((vis_env = malloc(strlen(k->ki_env) * 4 + 1))
+			    == NULL)
+				xo_errx(1, "malloc failed");
+			strvis(vis_env, k->ki_env,
+			    VIS_TAB | VIS_NL | VIS_NOSLASH);
+		} else
+			vis_env = NULL;
+
+		asprintf(&str, "%s%s%s%s",
+		    k->ki_d.prefix ? k->ki_d.prefix : "",
+		    vis_env ? vis_env : "",
+		    vis_env ? " " : "",
+		    vis_args);
+
+		if (vis_env != NULL)
+			free(vis_env);
+		free(vis_args);
 	} else {
-		/* XXX env? */
-		(void)printf("%-*.*s", v->width, v->width, s);
+		/* ki_d.prefix & ki_env aren't shown for interim fields */
+		str = vis_args;
+
+		if (strlen(str) > COMMAND_WIDTH)
+			str[COMMAND_WIDTH] = '\0';
 	}
 
-	free(s);
+	return (str);
 }
 
-int s_command(KINFO *k) {
-    return s_command_and_or_args(k, 1, !cflag);
-}
-
-int s_args(KINFO *k) {
-    return s_command_and_or_args(k, 1, 1);
-}
-
-int s_just_command(KINFO *k) {
-    return s_command_and_or_args(k, 1, 0);
-}
-
-void command(KINFO *k, VARENT *ve) {
-    p_command_and_or_args(k, ve, 1, !cflag, 0);
-}
-
-void args(KINFO *k, VARENT *ve) {
-    p_command_and_or_args(k, ve, 1, 1, 1);
-}
-
-void just_command(KINFO *k, VARENT *ve) {
-    p_command_and_or_args(k, ve, 1, 0, 0);
-}
-
-void
-ucomm(k, ve)
-	KINFO *k;
-	VARENT *ve;
+char *
+ucomm(KINFO *k, VARENT *ve)
 {
-	VAR *v;
+	char *str;
 
-	v = ve->var;
-	(void)printf("%-*s", v->width, KI_PROC(k)->p_comm);
-}
-
-char *getname(uid)
-	uid_t	uid;
-{
-	register struct passwd *pw;
-	struct passwd *getpwuid();
-
-	pw = getpwuid((short)uid);
-	if (pw == NULL) {
-		return( "UNKNOWN" );
+	if (STAILQ_NEXT(ve, next_ve) == NULL) {	/* last field, don't pad */
+		asprintf(&str, "%s%s%s%s%s",
+		    k->ki_d.prefix ? k->ki_d.prefix : "",
+		    k->ki_p->ki_comm,
+		    (showthreads && k->ki_p->ki_numthreads > 1) ? "/" : "",
+		    (showthreads && k->ki_p->ki_numthreads > 1) ? k->ki_p->ki_tdname : "",
+		    (showthreads && k->ki_p->ki_numthreads > 1) ? k->ki_p->ki_moretdname : "");
+	} else {
+		if (showthreads && k->ki_p->ki_numthreads > 1)
+			asprintf(&str, "%s/%s%s", k->ki_p->ki_comm,
+			    k->ki_p->ki_tdname, k->ki_p->ki_moretdname);
+		else
+			str = strdup(k->ki_p->ki_comm);
 	}
-	return( pw->pw_name );
+	return (str);
 }
 
-void
-logname(KINFO *k, VARENT *ve)
+char *
+tdnam(KINFO *k, VARENT *ve __unused)
 {
-	VAR *v;
-	char *s;
+	char *str;
 
-	v = ve->var;
-	(void)printf("%-*s", v->width, (s = getname(KI_EPROC(k)->e_ucred.cr_uid), *s) ? s : "-");
+	if (showthreads && k->ki_p->ki_numthreads > 1)
+		asprintf(&str, "%s%s", k->ki_p->ki_tdname,
+		    k->ki_p->ki_moretdname);
+	else
+		str = strdup("      ");
+
+	return (str);
 }
 
-extern int mach_state_order();
-void
-state(k, ve)
-	KINFO *k;
-	VARENT *ve;
+char *
+logname(KINFO *k, VARENT *ve __unused)
 {
-	struct extern_proc *p;
-	int flag,j;
-	char *cp;
-	VAR *v;
-	char buf[16];
-	extern char mach_state_table[];
 
-	v = ve->var;
-	p = KI_PROC(k);
-	flag = p->p_flag;
+	if (*k->ki_p->ki_login == '\0')
+		return (NULL);
+	return (strdup(k->ki_p->ki_login));
+}
+
+#ifdef __APPLE__
+/* macOS's comm: the command as it was started (argv[0]). */
+char *
+arg0(KINFO *k, VARENT *ve __unused)
+{
+	const char *s;
+	char *str;
+
+	s = k->ki_arg0 != NULL ? k->ki_arg0 : k->ki_p->ki_comm;
+	if ((str = malloc(strlen(s) * 4 + 1)) == NULL)
+		xo_errx(1, "malloc failed");
+	strvis(str, s, VIS_TAB | VIS_NL | VIS_NOSLASH);
+	return (str);
+}
+
+/* wql: C, the constrained thread limit; T, the total thread limit. */
+char *
+wqlimit(KINFO *k, VARENT *ve __unused)
+{
+	char buf[3], *cp = buf;
+
+	if (k->ki_p->ki_wq_state & 0x1)		/* constrained */
+		*cp++ = 'C';
+	if (k->ki_p->ki_wq_state & 0x2)		/* total */
+		*cp++ = 'T';
+	*cp = '\0';
+	return (cp == buf ? NULL : strdup(buf));
+}
+
+/*
+ * macOS's states: I idle (asleep for more than about 20 seconds), R
+ * runnable, S asleep for less, T stopped, U uninterruptible wait, Z
+ * zombie; then < or N for a raised or lowered priority, X traced, E
+ * exiting, V suspended in vfork, s session leader, + in the
+ * foreground process group of its terminal.
+ */
+char *
+state(KINFO *k, VARENT *ve __unused)
+{
+	const struct kinfo_proc *p = k->ki_p;
+	char *cp, *buf;
+
+	if ((buf = malloc(16)) == NULL)
+		xo_errx(1, "malloc failed");
+	cp = buf;
+	if (p->ki_stat == SZOMB)
+		*cp++ = 'Z';
+	else if (p->ki_stat == SSTOP)
+		*cp++ = 'T';
+	else if (p->ki_runstate != 0)
+		*cp++ = p->ki_runstate;
+	else if (p->ki_stat == SRUN || p->ki_stat == SIDL)
+		*cp++ = 'R';
+	else if (p->ki_stat == SSLEEP)
+		*cp++ = p->ki_slptime > MAXSLP ? 'I' : 'S';
+	else
+		*cp++ = '?';
+	/* Darwin's nice runs from -20 to 20 around 0. */
+	if (p->ki_nice < 0)
+		*cp++ = '<';
+	else if (p->ki_nice > 0)
+		*cp++ = 'N';
+	if (p->ki_flag & P_TRACED)
+		*cp++ = 'X';
+	if ((p->ki_flag & P_WEXIT) && p->ki_stat != SZOMB)
+		*cp++ = 'E';
+	if (p->ki_flag & P_PPWAIT)
+		*cp++ = 'V';
+	if (p->ki_kiflag & KI_SLEADER)
+		*cp++ = 's';
+	if ((p->ki_flag & P_CONTROLT) && p->ki_pgid == p->ki_tpgid)
+		*cp++ = '+';
+	*cp = '\0';
+	return (buf);
+}
+
+/* macOS prints Darwin's priority (0-127) as it is. */
+char *
+pri(KINFO *k, VARENT *ve __unused)
+{
+	char *str;
+
+	asprintf(&str, "%d", k->ki_p->ki_pri.pri_level);
+	return (str);
+}
+
+char *
+upr(KINFO *k, VARENT *ve __unused)
+{
+	char *str;
+
+	asprintf(&str, "%d", k->ki_p->ki_pri.pri_user);
+	return (str);
+}
+#else
+char *
+state(KINFO *k, VARENT *ve __unused)
+{
+	long flag, tdflags;
+	char *cp, *buf;
+
+	buf = malloc(16);
+	if (buf == NULL)
+		xo_errx(1, "malloc failed");
+
+	flag = k->ki_p->ki_flag;
+	tdflags = k->ki_p->ki_tdflags;	/* XXXKSE */
 	cp = buf;
 
-	if(!mflg ) {
-	switch (p->p_stat) {
+	switch (k->ki_p->ki_stat) {
 
 	case SSTOP:
 		*cp = 'T';
+		break;
+
+	case SSLEEP:
+		if (tdflags & TDF_SINTR)	/* interruptible (long) */
+			*cp = k->ki_p->ki_slptime >= MAXSLP ? 'I' : 'S';
+		else
+			*cp = 'D';
+		break;
+
+	case SRUN:
+	case SIDL:
+		*cp = 'R';
+		break;
+
+	case SWAIT:
+		*cp = 'W';
+		break;
+
+	case SLOCK:
+		*cp = 'L';
 		break;
 
 	case SZOMB:
@@ -462,508 +365,443 @@ state(k, ve)
 		break;
 
 	default:
-		*cp = mach_state_table[k->state];
+		*cp = '?';
 	}
 	cp++;
-	if (p->p_nice < 0)
+	if (k->ki_p->ki_nice < NZERO || k->ki_p->ki_pri.pri_class == PRI_REALTIME)
 		*cp++ = '<';
-	else if (p->p_nice > 0)
+	else if (k->ki_p->ki_nice > NZERO || k->ki_p->ki_pri.pri_class == PRI_IDLE)
 		*cp++ = 'N';
 	if (flag & P_TRACED)
 		*cp++ = 'X';
-	if (flag & P_WEXIT && p->p_stat != SZOMB)
+	if (flag & P_WEXIT && k->ki_p->ki_stat != SZOMB)
 		*cp++ = 'E';
 	if (flag & P_PPWAIT)
 		*cp++ = 'V';
-	if (flag & (P_SYSTEM | P_NOSWAP | P_PHYSIO))
+	if ((flag & P_SYSTEM) || k->ki_p->ki_lock > 0)
 		*cp++ = 'L';
-	if (KI_EPROC(k)->e_flag & EPROC_SLEADER)
+	if ((k->ki_p->ki_cr_flags & KI_CRF_CAPABILITY_MODE) != 0)
+		*cp++ = 'C';
+	if (k->ki_p->ki_kiflag & KI_SLEADER)
 		*cp++ = 's';
-	if ((flag & P_CONTROLT) && KI_EPROC(k)->e_pgid == KI_EPROC(k)->e_tpgid)
+	if ((flag & P_CONTROLT) && k->ki_p->ki_pgid == k->ki_p->ki_tpgid)
 		*cp++ = '+';
+	if (flag & P_JAILED)
+		*cp++ = 'J';
 	*cp = '\0';
-	(void)printf("%-*s", v->width, buf);
-	} else if (print_all_thread) {
-		j =  mach_state_order(k->thval[print_thread_num].tb.run_state,
-			k->thval[print_thread_num].tb.sleep_time);
-		*cp++ = mach_state_table[j];
-		*cp++='\0'; 
-		(void)printf("%-*s", v->width, buf);
-	} else {
-		(void)printf("%-*s", v->width, " ");
-	}
-	
+	return (buf);
 }
 
-void
-pri(k, ve)
-	KINFO *k;
-	VARENT *ve;
-{
-	VAR *v;
-	int j=0;
-	char c = '?';
+#define	scalepri(x)	((x) - PUSER)
 
-	v = ve->var;
-	if (!mflg ) {
-		(void)printf("%*d", v->width, k->curpri);
-	} else if (print_all_thread) {
-		switch(k->thval[print_thread_num].tb.policy) {
-			case POLICY_TIMESHARE : 
-		j = k->thval[print_thread_num].schedinfo.tshare.cur_priority;
-		c = 'T';
-			break;
-			case POLICY_FIFO : 
-		j = k->thval[print_thread_num].schedinfo.fifo.base_priority;
-		c = 'F';
-			break;
-			case POLICY_RR : 
-		j = k->thval[print_thread_num].schedinfo.rr.base_priority;
-		c = 'R';
-			break;
-			default :
-				j = 0;		
-		}
-		(void)printf("%*d%c", v->width - 1, j, c);
-	}else {
-		j=0;
-		(void)printf("%*d", v->width, j);
-		
-	}
+char *
+pri(KINFO *k, VARENT *ve __unused)
+{
+	char *str;
+
+	asprintf(&str, "%d", scalepri(k->ki_p->ki_pri.pri_level));
+	return (str);
 }
 
-void
-uname(k, ve)
-	KINFO *k;
-	VARENT *ve;
+char *
+upr(KINFO *k, VARENT *ve __unused)
 {
-	VAR *v;
+	char *str;
 
-	v = ve->var;
-	if(!mflg || (print_all_thread && (print_thread_num== 0)))
-		(void)printf("%-*s",
-	  	  (int)v->width, 
-			user_from_uid(KI_EPROC(k)->e_ucred.cr_uid, 0));
-	else 
-		(void)printf("%-*s", (int)v->width, " ");
+	asprintf(&str, "%d", scalepri(k->ki_p->ki_pri.pri_user));
+	return (str);
+}
+#undef scalepri
+#endif /* !__APPLE__ */
+
+char *
+username(KINFO *k, VARENT *ve __unused)
+{
+
+	return (strdup(user_from_uid(k->ki_p->ki_uid, 0)));
 }
 
-int
-s_uname(KINFO *k)
+char *
+egroupname(KINFO *k, VARENT *ve __unused)
 {
-	    return (strlen(user_from_uid(KI_EPROC(k)->e_ucred.cr_uid, 0)));
+
+	return (strdup(group_from_gid(k->ki_p->ki_groups[0], 0)));
 }
 
-void
-runame(k, ve)
-	KINFO *k;
-	VARENT *ve;
+char *
+rgroupname(KINFO *k, VARENT *ve __unused)
 {
-	VAR *v;
 
-	v = ve->var;
-	(void)printf("%-*s",
-	    (int)v->width, user_from_uid(KI_EPROC(k)->e_pcred.p_ruid, 0));
+	return (strdup(group_from_gid(k->ki_p->ki_rgid, 0)));
 }
 
-int
-s_runame(KINFO *k)
+char *
+runame(KINFO *k, VARENT *ve __unused)
 {
-	    return (strlen(user_from_uid(KI_EPROC(k)->e_pcred.p_ruid, 0)));
+
+	return (strdup(user_from_uid(k->ki_p->ki_ruid, 0)));
 }
 
-void
-tdev(k, ve)
-	KINFO *k;
-	VARENT *ve;
+char *
+tdev(KINFO *k, VARENT *ve __unused)
 {
-	VAR *v;
 	dev_t dev;
-	char buff[16];
+	char *str;
 
-	v = ve->var;
-	dev = KI_EPROC(k)->e_tdev;
+	dev = k->ki_p->ki_tdev;
 	if (dev == NODEV)
-		(void)printf("%*s", v->width, "??");
-	else {
-		(void)snprintf(buff, sizeof(buff),
-		    "%d/%d", major(dev), minor(dev));
-		(void)printf("%*s", v->width, buff);
-	}
+		str = strdup("-");
+	else
+		asprintf(&str, "%#jx", (uintmax_t)dev);
+
+	return (str);
 }
 
-void
-tname(k, ve)
-	KINFO *k;
-	VARENT *ve;
+char *
+tname(KINFO *k, VARENT *ve __unused)
 {
-	VAR *v;
 	dev_t dev;
-	char *ttname;
+	char *ttname, *str;
 
-	v = ve->var;
-
-	if(!mflg || (print_all_thread && (print_thread_num== 0))) {
-	dev = KI_EPROC(k)->e_tdev;
+	dev = k->ki_p->ki_tdev;
+#ifdef __APPLE__
 	if (dev == NODEV || (ttname = devname(dev, S_IFCHR)) == NULL)
-		(void)printf("%*s ", v->width-1, "??");
+		return (strdup("??"));
+	if (strncmp(ttname, "tty", 3) == 0)
+		ttname += 3;
+	return (strdup(ttname));
+#endif
+	if (dev == NODEV || (ttname = devname(dev, S_IFCHR)) == NULL)
+		str = strdup("- ");
 	else {
 		if (strncmp(ttname, "tty", 3) == 0 ||
 		    strncmp(ttname, "cua", 3) == 0)
 			ttname += 3;
-		(void)printf("%*.*s%c", v->width-1, v->width-1, ttname,
-			KI_EPROC(k)->e_flag & EPROC_CTTY ? ' ' : '-');
+		if (strncmp(ttname, "pts/", 4) == 0)
+			ttname += 4;
+		asprintf(&str, "%s%c", ttname,
+		    k->ki_p->ki_kiflag & KI_CTTY ? ' ' : '-');
 	}
-	}
-	else {
-		(void)printf("%*s ", v->width-1, " ");
-	}
+
+	return (str);
 }
 
-void
-longtname(k, ve)
-	KINFO *k;
-	VARENT *ve;
+char *
+longtname(KINFO *k, VARENT *ve __unused)
 {
-	VAR *v;
 	dev_t dev;
-	char *ttname;
+	const char *ttname;
 
-	v = ve->var;
-	dev = KI_EPROC(k)->e_tdev;
+	dev = k->ki_p->ki_tdev;
 	if (dev == NODEV || (ttname = devname(dev, S_IFCHR)) == NULL)
-		(void)printf("%-*s", v->width, "??");
-	else
-		(void)printf("%-*s", v->width, ttname);
+#ifdef __APPLE__
+		ttname = "??";
+#else
+		ttname = "-";
+#endif
+
+	return (strdup(ttname));
 }
 
-void
-started(KINFO *k, VARENT *ve)
+char *
+started(KINFO *k, VARENT *ve __unused)
 {
-	VAR *v;
 	time_t then;
 	struct tm *tp;
-	static int use_ampm = -1;
-	char buf[100];
+	size_t buflen = 100;
+	char *buf;
 
-	v = ve->var;
-	if (use_ampm < 0)
-		use_ampm = (*nl_langinfo(T_FMT_AMPM) != '\0');
-	then = KI_PROC(k)->p_starttime.tv_sec;
+	if (!k->ki_valid)
+		return (NULL);
+
+	buf = malloc(buflen);
+	if (buf == NULL)
+		xo_errx(1, "malloc failed");
+
+	then = k->ki_p->ki_start.tv_sec;
 	tp = localtime(&then);
-	if (now - KI_PROC(k)->p_starttime.tv_sec < 24 * 3600) {
-		(void)strftime(buf, sizeof(buf),
-		    use_ampm ? "%l:%M%p" : "%k:%M  ", tp);
-	} else if (now - KI_PROC(k)->p_starttime.tv_sec < 7 * 86400) {
-		(void)strftime(buf, sizeof(buf),
-		    use_ampm ? "%a%I%p" : "%a%H  ", tp);
+#ifdef __APPLE__
+	/* macOS: 9:41AM today, Mon09AM this week, 13Oct26 before. */
+	if (now - k->ki_p->ki_start.tv_sec < 24 * 3600) {
+		(void)strftime(buf, buflen, "%l:%M%p", tp);
+	} else if (now - k->ki_p->ki_start.tv_sec < 7 * 86400) {
+		(void)strftime(buf, buflen, "%a%I%p", tp);
 	} else
-		(void)strftime(buf, sizeof(buf), "%e%b%y", tp);
-	(void)printf("%-*s", v->width, buf);
+#else
+	if (now - k->ki_p->ki_start.tv_sec < 24 * 3600) {
+		(void)strftime(buf, buflen, "%H:%M  ", tp);
+	} else if (now - k->ki_p->ki_start.tv_sec < 7 * 86400) {
+		(void)strftime(buf, buflen, "%a%H  ", tp);
+	} else
+#endif
+		(void)strftime(buf, buflen, "%e%b%y", tp);
+	return (buf);
 }
 
-void
-lstarted(k, ve)
-	KINFO *k;
-	VARENT *ve;
+char *
+lstarted(KINFO *k, VARENT *ve __unused)
 {
-	VAR *v;
 	time_t then;
-	char buf[100];
+	char *buf;
+	size_t buflen = 100;
 
-	v = ve->var;
-	then = KI_PROC(k)->p_starttime.tv_sec;
-	(void)strftime(buf, sizeof(buf) -1, "%c", localtime(&then));
-	(void)printf("%-*s", v->width, buf);
+	if (!k->ki_valid)
+		return (NULL);
+
+	buf = malloc(buflen);
+	if (buf == NULL)
+		xo_errx(1, "malloc failed");
+
+	then = k->ki_p->ki_start.tv_sec;
+	(void)strftime(buf, buflen, "%c", localtime(&then));
+	return (buf);
 }
 
-char *get_etime(KINFO *k) {
-	struct timeval tv;
-	gettimeofday(&tv, NULL);
-	long e = tv.tv_sec - KI_PROC(k)->p_starttime.tv_sec;
-	
-	char *ret;
-
-	if (e > 100*60*60*24) {
-		asprintf(&ret, "%ld-%02ld:%02ld:%02ld",
-		  e / (60*60*24),
-		  (e / (60*60)) % 24,
-		  (e / 60) % 60,
-		  e % 60);
-	} else if (e > 60*60*24) {
-		asprintf(&ret, "%02ld-%02ld:%02ld:%02ld",
-		  e / (60*60*24),
-		  (e / (60*60)) % 24,
-		  (e / 60) % 60,
-		  e % 60);
-	} else if (e > 60*60) {
-		asprintf(&ret, "%02ld:%02ld:%02ld",
-		  (e / (60*60)),
-		  (e / 60) % 60,
-		  e % 60);
-	} else {
-		asprintf(&ret, "%02ld:%02ld",
-		  (e / 60),
-		  e % 60);
-	}
-
-	return ret;
-}
-
-void p_etime(KINFO *k, VARENT *ve) {
-	char *str = get_etime(k);
-	printf("%*s", ve->var->width, str);
-	free(str);
-}
-
-int s_etime(KINFO *k) {
-	char *str = get_etime(k);
-	int sz = strlen(str);
-	free(str);
-	return sz;
-}
-
-void
-wchan(k, ve)
-	KINFO *k;
-	VARENT *ve;
+#ifndef __APPLE__
+char *
+lockname(KINFO *k, VARENT *ve __unused)
 {
-	VAR *v;
+	char *str;
 
-	v = ve->var;
-	if (KI_PROC(k)->p_wchan) {
-		if (KI_PROC(k)->p_wmesg)
-			(void)printf("%-*.*s", v->width, v->width,
-				      KI_EPROC(k)->e_wmesg);
+	if (k->ki_p->ki_kiflag & KI_LOCKBLOCK) {
+		if (k->ki_p->ki_lockname[0] != 0)
+			str = strdup(k->ki_p->ki_lockname);
 		else
-#if FIXME
-			(void)printf("%-*lx", v->width,
-			    (long)KI_PROC(k)->p_wchan &~ KERNBASE);
-#else /* FIXME */
-			(void)printf("%-*lx", v->width,
-			    (long)KI_PROC(k)->p_wchan);
-#endif /* FIXME */
+			str = strdup("???");
 	} else
-		(void)printf("%-*s", v->width, "-");
+		str = NULL;
+
+	return (str);
 }
 
-#define pgtok(a)        (((a)*getpagesize())/1024)
+#endif /* !__APPLE__ */
 
-void
-vsize(k, ve)
-	KINFO *k;
-	VARENT *ve;
+char *
+wchan(KINFO *k, VARENT *ve __unused)
 {
-	VAR *v;
+	char *str;
 
-	v = ve->var;
-#if FIXME
-	(void)printf("%*d", v->width,
-	    (KI_EPROC(k)->e_vm.vm_map.size/1024));
-#else /* FIXME */
-	(void)printf("%*lu", v->width,
-	    (u_long)((k)->tasks_info.virtual_size)/1024);
-#endif /* FIXME */
+#ifdef __APPLE__
+	/* Darwin may give the reason without the address. */
+	if (k->ki_p->ki_wmesg[0] != '\0')
+		return (strdup(k->ki_p->ki_wmesg));
+#endif
+
+	if (k->ki_p->ki_wchan) {
+		if (k->ki_p->ki_wmesg[0] != 0)
+			str = strdup(k->ki_p->ki_wmesg);
+		else
+			asprintf(&str, "%lx", (long)k->ki_p->ki_wchan);
+	} else
+		str = NULL;
+
+	return (str);
 }
 
-void
-p_rssize(k, ve)		/* doesn't account for text */
-	KINFO *k;
-	VARENT *ve;
+char *
+nwchan(KINFO *k, VARENT *ve __unused)
 {
-	VAR *v;
-/* FIXME LATER */
-	v = ve->var;
-	/* (void)printf("%*ld", v->width, "-"); */
-	(void)printf("%*lu", v->width,
-	    (u_long)((k)->tasks_info.resident_size)/1024);
+	char *str;
+
+	if (k->ki_p->ki_wchan)
+		asprintf(&str, "%0lx", (long)k->ki_p->ki_wchan);
+	else
+		str = NULL;
+
+	return (str);
 }
 
-void
-cputime(k, ve)
-	KINFO *k;
-	VARENT *ve;
+#ifndef __APPLE__
+char *
+mwchan(KINFO *k, VARENT *ve __unused)
 {
-	VAR *v;
-	long secs;
-	long psecs;	/* "parts" of a second. first micro, then centi */
-	char obuff[128];
-	time_value_t total_time, system_time;
-	v = ve->var;
-#if FIXME
-	if (KI_PROC(k)->p_stat == SZOMB || !k->ki_u.u_valid) {
+	char *str;
+
+	if (k->ki_p->ki_wchan) {
+		if (k->ki_p->ki_wmesg[0] != 0)
+			str = strdup(k->ki_p->ki_wmesg);
+		else
+                        asprintf(&str, "%lx", (long)k->ki_p->ki_wchan);
+	} else if (k->ki_p->ki_kiflag & KI_LOCKBLOCK) {
+		if (k->ki_p->ki_lockname[0]) {
+			str = strdup(k->ki_p->ki_lockname);
+		} else
+			str = strdup("???");
+	} else
+		str = NULL;
+
+	return (str);
+}
+
+#endif /* !__APPLE__ */
+
+char *
+vsize(KINFO *k, VARENT *ve __unused)
+{
+	char *str;
+
+	asprintf(&str, "%lu", (u_long)(k->ki_p->ki_size / 1024));
+	return (str);
+}
+
+static char *
+printtime(KINFO *k, VARENT *ve __unused, long secs, long psecs)
+/* psecs is "parts" of a second. first micro, then centi */
+{
+	static char decimal_point;
+	char *str;
+
+	if (decimal_point == '\0')
+		decimal_point = localeconv()->decimal_point[0];
+	if (!k->ki_valid) {
 		secs = 0;
 		psecs = 0;
 	} else {
-		/*
-		 * This counts time spent handling interrupts.  We could
-		 * fix this, but it is not 100% trivial (and interrupt
-		 * time fractions only work on the sparc anyway).	XXX
-		 */
-#if FIXME
-		secs = KI_PROC(k)->p_runtime / 1000000;
-		psecs = KI_PROC(k)->p_runtime % 1000000;
-#endif /* FIXME */
-		if (sumrusage) {
-			secs += k->ki_u.u_cru.ru_utime.tv_sec +
-				k->ki_u.u_cru.ru_stime.tv_sec;
-			psecs += k->ki_u.u_cru.ru_utime.tv_usec +
-				k->ki_u.u_cru.ru_stime.tv_usec;
-		}
-		/*
-		 * round and scale to 100's
-		 */
+		/* round and scale to 100's */
 		psecs = (psecs + 5000) / 10000;
 		secs += psecs / 100;
 		psecs = psecs % 100;
 	}
-#else /* FIXME */
-	total_time = k->tasks_info.user_time;
-	system_time = k->tasks_info.system_time;
-
-	time_value_add(&total_time, &k->times.user_time);
-	time_value_add(&system_time, &k->times.system_time);
-	time_value_add(&total_time, &system_time);
-
-	secs = total_time.seconds;
-	psecs = total_time.microseconds;
-		/*
-		 * round and scale to 100's
-		 */
-		psecs = (psecs + 5000) / 10000;
-		secs += psecs / 100;
-		psecs = psecs % 100;
-#endif /* FIXME */
-	(void)snprintf(obuff, sizeof(obuff),
-	    "%3ld:%02ld.%02ld", secs/60, secs%60, psecs);
-	(void)printf("%*s", v->width, obuff);
+	asprintf(&str, "%ld:%02ld%c%02ld",
+	    secs / 60, secs % 60, decimal_point, psecs);
+	return (str);
 }
 
-void
-putime(k, ve)
-	KINFO *k;
-	VARENT *ve;
+char *
+cputime(KINFO *k, VARENT *ve)
 {
-	VAR *v;
-	long secs;
-	long psecs;	/* "parts" of a second. first micro, then centi */
-	char obuff[128];
-	time_value_t user_time;
+	long secs, psecs;
 
+	/*
+	 * This counts time spent handling interrupts.  We could
+	 * fix this, but it is not 100% trivial (and interrupt
+	 * time fractions only work on the sparc anyway).	XXX
+	 */
+	secs = k->ki_p->ki_runtime / 1000000;
+	psecs = k->ki_p->ki_runtime % 1000000;
+	if (sumrusage) {
+		secs += k->ki_p->ki_childtime.tv_sec;
+		psecs += k->ki_p->ki_childtime.tv_usec;
+	}
+	return (printtime(k, ve, secs, psecs));
+}
 
-	v = ve->var;
-	if (!mflg) {
-		user_time = k->tasks_info.user_time;
-		time_value_add(&user_time, &k->times.user_time);
-	} else if (print_all_thread) {
-		user_time = k->thval[print_thread_num].tb.user_time;
+char *
+cpunum(KINFO *k, VARENT *ve __unused)
+{
+	char *cpu;
+
+	if (k->ki_p->ki_stat == SRUN && k->ki_p->ki_oncpu != NOCPU) {
+		asprintf(&cpu, "%d", k->ki_p->ki_oncpu);
 	} else {
-		user_time.seconds =0;
-		user_time.microseconds =0;
+		asprintf(&cpu, "%d", k->ki_p->ki_lastcpu);
 	}
-
-	secs = user_time.seconds;
-	psecs = user_time.microseconds;
-		/*
-		 * round and scale to 100's
-		 */
-		psecs = (psecs + 5000) / 10000;
-		secs += psecs / 100;
-		psecs = psecs % 100;
-
-	(void)snprintf(obuff, sizeof(obuff),
-	    "%3ld:%02ld.%02ld", secs/60, secs%60, psecs);
-	(void)printf("%*s", v->width, obuff);
+	return (cpu);
 }
 
-void
-pstime(k, ve)
-	KINFO *k;
-	VARENT *ve;
+char *
+systime(KINFO *k, VARENT *ve)
 {
-	VAR *v;
-	long secs;
-	long psecs;	/* "parts" of a second. first micro, then centi */
-	char obuff[128];
-	time_value_t system_time;
+	long secs, psecs;
 
-	v = ve->var;
-	if (!mflg) {
-		system_time = k->tasks_info.system_time;
-		time_value_add(&system_time, &k->times.system_time);
-	} else if (print_all_thread) {
-		system_time = k->thval[print_thread_num].tb.system_time;
-	} else {
-		system_time.seconds =0;
-		system_time.microseconds =0;
+	secs = k->ki_p->ki_rusage.ru_stime.tv_sec;
+	psecs = k->ki_p->ki_rusage.ru_stime.tv_usec;
+	if (sumrusage) {
+		secs += k->ki_p->ki_childstime.tv_sec;
+		psecs += k->ki_p->ki_childstime.tv_usec;
 	}
-	secs = system_time.seconds;
-	psecs = system_time.microseconds;
-		/*
-		 * round and scale to 100's
-		 */
-		psecs = (psecs + 5000) / 10000;
-		secs += psecs / 100;
-		psecs = psecs % 100;
-
-	(void)snprintf(obuff, sizeof(obuff),
-	    "%3ld:%02ld.%02ld", secs/60, secs%60, psecs);
-	(void)printf("%*s", v->width, obuff);
-
+	return (printtime(k, ve, secs, psecs));
 }
 
-int
-getpcpu(k)
-	KINFO *k;
+char *
+usertime(KINFO *k, VARENT *ve)
 {
-#if FIXME
-	struct proc *p;
+	long secs, psecs;
+
+	secs = k->ki_p->ki_rusage.ru_utime.tv_sec;
+	psecs = k->ki_p->ki_rusage.ru_utime.tv_usec;
+	if (sumrusage) {
+		secs += k->ki_p->ki_childutime.tv_sec;
+		psecs += k->ki_p->ki_childutime.tv_usec;
+	}
+	return (printtime(k, ve, secs, psecs));
+}
+
+char *
+elapsed(KINFO *k, VARENT *ve __unused)
+{
+	time_t val;
+	int days, hours, mins, secs;
+	char *str;
+
+	if (!k->ki_valid)
+		return (NULL);
+	val = now - k->ki_p->ki_start.tv_sec;
+	days = val / (24 * 60 * 60);
+	val %= 24 * 60 * 60;
+	hours = val / (60 * 60);
+	val %= 60 * 60;
+	mins = val / 60;
+	secs = val % 60;
+	if (days != 0)
+		asprintf(&str, "%3d-%02d:%02d:%02d", days, hours, mins, secs);
+	else if (hours != 0)
+		asprintf(&str, "%02d:%02d:%02d", hours, mins, secs);
+	else
+		asprintf(&str, "%02d:%02d", mins, secs);
+
+	return (str);
+}
+
+char *
+elapseds(KINFO *k, VARENT *ve __unused)
+{
+	time_t val;
+	char *str;
+
+	if (!k->ki_valid)
+		return (NULL);
+	val = now - k->ki_p->ki_start.tv_sec;
+	asprintf(&str, "%jd", (intmax_t)val);
+	return (str);
+}
+
+double
+getpcpu(const KINFO *k)
+{
 	static int failure;
 
 	if (!nlistread)
 		failure = donlist();
 	if (failure)
 		return (0.0);
-	p = KI_PROC(k);
+
 #define	fxtofl(fixpt)	((double)(fixpt) / fscale)
 
+#ifdef __APPLE__
+	/* The threads' recent usage, summed by kvm_getprocs(). */
+	return (100.0 * fxtofl(k->ki_p->ki_pctcpu));
+#endif
 	/* XXX - I don't like this */
-	if (p->p_swtime == 0 || (p->p_flag & P_INMEM) == 0)
+	if (k->ki_p->ki_swtime == 0)
 		return (0.0);
 	if (rawcpu)
-		return (100.0 * fxtofl(p->p_pctcpu));
-	return (100.0 * fxtofl(p->p_pctcpu) /
-		(1.0 - exp(p->p_swtime * log(fxtofl(ccpu)))));
-#else
-	return (k->cpu_usage);
-#endif /* FIXME */
+		return (100.0 * fxtofl(k->ki_p->ki_pctcpu));
+	return (100.0 * fxtofl(k->ki_p->ki_pctcpu) /
+		(1.0 - exp(k->ki_p->ki_swtime * log(fxtofl(ccpu)))));
 }
 
-#ifndef TH_USAGE_SCALE
-#define TH_USAGE_SCALE 1000
-#endif /* !TH_USAGE_SCALE */
-
-void
-pcpu(KINFO *k, VARENT *ve)
+char *
+pcpu(KINFO *k, VARENT *ve __unused)
 {
-	VAR *v;
-	int cp;
+	char *str;
 
-	if (!mflg) {
-		cp = getpcpu(k);
-	} else if (print_all_thread) {
-		cp = k->thval[print_thread_num].tb.cpu_usage;
-	} else {
-		cp = 0;
-	}
-
-	v = ve->var;
-	(void)printf("%*.1f", v->width, ((double)cp) * 100.0 / ((double)TH_USAGE_SCALE));
+	asprintf(&str, "%.1f", getpcpu(k));
+	return (str);
 }
 
-double
-getpmem(k)
-	KINFO *k;
+static double
+getpmem(KINFO *k)
 {
 	static int failure;
 	double fracmem;
@@ -972,254 +810,218 @@ getpmem(k)
 		failure = donlist();
 	if (failure)
 		return (0.0);
-#if FIXME
-	p = KI_PROC(k);
-	e = KI_EPROC(k);
-	if ((p->p_flag & P_INMEM) == 0)
-		return (0.0);
+
 	/* XXX want pmap ptpages, segtab, etc. (per architecture) */
-	szptudot = UPAGES;
 	/* XXX don't have info about shared */
-	fracmem = ((float)e->e_vm.vm_rssize + szptudot)/mempages;
+	fracmem = ((double)k->ki_p->ki_rssize) / mempages;
 	return (100.0 * fracmem);
-#else /* FIXME */
-	fracmem = ((float)k->tasks_info.resident_size)/(double)mempages;
-	return (100.0 * fracmem);
-#endif /* FIXME */
 }
 
-void
-pmem(k, ve)
-	KINFO *k;
-	VARENT *ve;
+char *
+pmem(KINFO *k, VARENT *ve __unused)
 {
-	VAR *v;
+	char *str;
 
-	v = ve->var;
-	(void)printf("%*.1f", v->width, getpmem(k));
+	asprintf(&str, "%.1f", getpmem(k));
+	return (str);
 }
 
-void
-pagein(k, ve)
-	KINFO *k;
-	VARENT *ve;
+char *
+pagein(KINFO *k, VARENT *ve __unused)
 {
-	VAR *v;
+	char *str;
 
-	v = ve->var;
-	(void)printf("%*ld", v->width,
-	    k->ki_u.u_valid ? k->ki_u.u_ru.ru_majflt : 0);
+	asprintf(&str, "%ld", k->ki_valid ? k->ki_p->ki_rusage.ru_majflt : 0);
+	return (str);
 }
 
-void
-maxrss(k, ve)
-	KINFO *k;
-	VARENT *ve;
+/* ARGSUSED */
+char *
+maxrss(KINFO *k __unused, VARENT *ve __unused)
 {
-	VAR *v;
 
-	v = ve->var;
 	/* XXX not yet */
-	(void)printf("%*s", v->width, "-");
+	return (NULL);
 }
 
-void
-tsize(k, ve)
-	KINFO *k;
-	VARENT *ve;
+#ifndef __APPLE__
+char *
+priorityr(KINFO *k, VARENT *ve __unused)
 {
-	VAR *v;
-	int dummy=0;
+	struct priority *lpri;
+	char *str;
+	unsigned class, level;
 
-	v = ve->var;
-#if 0
-	(void)printf("%*ld", v->width, (long)pgtok(KI_EPROC(k)->e_vm.vm_tsize));
-#else
-	(void)printf("%*ld", v->width, (long)dummy);
-#endif
-}
-
-void
-rtprior(k, ve)
-	KINFO *k;
-	VARENT *ve;
-{
-#if FIXME
-
-	VAR *v;
-	struct rtprio *prtp;
-	char str[8];
-	unsigned prio, type;
- 
-	v = ve->var;
-	prtp = (struct rtprio *) ((char *)KI_PROC(k) + v->off);
-	prio = prtp->prio;
-	type = prtp->type;
-	switch (type) {
+	lpri = &k->ki_p->ki_pri;
+	class = lpri->pri_class;
+	level = lpri->pri_level;
+	switch (class) {
 	case RTP_PRIO_REALTIME:
-		snprintf(str, sizeof(str), "real:%u", prio);
+	/* alias for PRI_REALTIME */
+		asprintf(&str, "real:%u", level - PRI_MIN_REALTIME);
 		break;
 	case RTP_PRIO_NORMAL:
-		strncpy(str, "normal", sizeof(str));
+	/* alias for PRI_TIMESHARE */
+		if (level >= PRI_MIN_TIMESHARE)
+			asprintf(&str, "normal:%u", level - PRI_MIN_TIMESHARE);
+		else
+			asprintf(&str, "kernel:%u", level - PRI_MIN_KERN);
 		break;
 	case RTP_PRIO_IDLE:
-		snprintf(str, sizeof(str), "idle:%u", prio);
+	/* alias for PRI_IDLE */
+		asprintf(&str, "idle:%u", level - PRI_MIN_IDLE);
+		break;
+	case RTP_PRIO_ITHD:
+	/* alias for PRI_ITHD */
+		asprintf(&str, "intr:%u", level - PRI_MIN_ITHD);
 		break;
 	default:
-		snprintf(str, sizeof(str), "%u:%u", type, prio);
+		asprintf(&str, "%u:%u", class, level);
 		break;
 	}
-	str[sizeof(str) - 1] = '\0';
-	(void)printf("%*s", v->width, str);
-#endif /* FIXME */
+	return (str);
 }
+
+#endif /* !__APPLE__ */
 
 /*
  * Generic output routines.  Print fields from various prototype
  * structures.
  */
-static void
-printval(void *bp, VAR *v)
+static char *
+printval(void *bp, const VAR *v)
 {
 	static char ofmt[32] = "%";
 	const char *fcp;
-	char *cp;
+	char *cp, *str;
 
 	cp = ofmt + 1;
 	fcp = v->fmt;
-	if (v->flag & LJUST)
-		*cp++ = '-';
-	*cp++ = '*';
 	while ((*cp++ = *fcp++));
 
+#define	CHKINF127(n)	(((n) > 127) && (v->flag & INF127) ? 127 : (n))
+
 	switch (v->type) {
+	case UNSPEC:
+		xo_errx(1, "cannot print value of unspecified type "
+		    "(internal error)");
+		break;
 	case CHAR:
-		(void)printf(ofmt, v->width, *(char *)bp);
+		(void)asprintf(&str, ofmt, *(char *)bp);
+		break;
+	case SCHAR:
+		(void)asprintf(&str, ofmt, *(signed char *)bp);
 		break;
 	case UCHAR:
-		(void)printf(ofmt, v->width, *(u_char *)bp);
+		(void)asprintf(&str, ofmt, *(u_char *)bp);
 		break;
 	case SHORT:
-		(void)printf(ofmt, v->width, *(short *)bp);
+		(void)asprintf(&str, ofmt, *(short *)bp);
 		break;
 	case USHORT:
-		(void)printf(ofmt, v->width, *(u_short *)bp);
+		(void)asprintf(&str, ofmt, *(u_short *)bp);
 		break;
 	case INT:
-		(void)printf(ofmt, v->width, *(int *)bp);
+		(void)asprintf(&str, ofmt, *(int *)bp);
 		break;
 	case UINT:
-		(void)printf(ofmt, v->width, *(u_int *)bp);
+		(void)asprintf(&str, ofmt, CHKINF127(*(u_int *)bp));
 		break;
 	case LONG:
-		(void)printf(ofmt, v->width, *(long *)bp);
+		(void)asprintf(&str, ofmt, *(long *)bp);
 		break;
 	case ULONG:
-		(void)printf(ofmt, v->width, *(u_long *)bp);
+		(void)asprintf(&str, ofmt, *(u_long *)bp);
 		break;
 	case KPTR:
-#if FIXME
-		(void)printf(ofmt, v->width, *(u_long *)bp &~ KERNBASE);
-#else /* FIXME */
-		(void)printf(ofmt, v->width, *(u_long *)bp);
-#endif /* FIXME */
+		(void)asprintf(&str, ofmt, *(u_long *)bp);
+		break;
+	case PGTOK:
+		(void)asprintf(&str, ofmt, ps_pgtok(*(u_long *)bp));
 		break;
 	default:
-		errx(1, "unknown type %d", v->type);
+		xo_errx(1, "unknown type (internal error)");
+		break;
 	}
+
+	return (str);
 }
 
-void
-pvar(k, ve)
-	KINFO *k;
-	VARENT *ve;
+char *
+kvar(KINFO *k, VARENT *ve)
 {
-	VAR *v;
+	const VAR *v;
 
 	v = ve->var;
-	printval((char *)((char *)KI_PROC(k) + v->off), v);
+	return (printval((char *)((char *)k->ki_p + v->off), v));
 }
 
-void
-evar(k, ve)
-	KINFO *k;
-	VARENT *ve;
+char *
+rvar(KINFO *k, VARENT *ve)
 {
-	VAR *v;
+	const VAR *v;
 
 	v = ve->var;
-	printval((char *)((char *)KI_EPROC(k) + v->off), v);
+	if (!k->ki_valid)
+		return (NULL);
+	return (printval((char *)((char *)(&k->ki_p->ki_rusage) + v->off), v));
 }
 
-void
-uvar(k, ve)
-	KINFO *k;
-	VARENT *ve;
+#ifndef __APPLE__
+char *
+emulname(KINFO *k, VARENT *ve __unused)
 {
-	VAR *v;
 
-	v = ve->var;
-	if (k->ki_u.u_valid)
-		printval((char *)((char *)&k->ki_u + v->off), v);
-	else
-		(void)printf("%*s", v->width, "-");
+	return (strdup(k->ki_p->ki_emul));
 }
 
-void
-rvar(k, ve)
-	KINFO *k;
-	VARENT *ve;
+char *
+label(KINFO *k, VARENT *ve __unused)
 {
-	VAR *v;
+	char *string;
+	mac_t proclabel;
+	int error;
 
-	v = ve->var;
-	if (k->ki_u.u_valid)
-		printval((char *)((char *)(&k->ki_u.u_ru) + v->off), v);
-	else
-		(void)printf("%*s", v->width, "-");
+	string = NULL;
+	if (mac_prepare_process_label(&proclabel) == -1) {
+		xo_warn("mac_prepare_process_label");
+		goto out;
+	}
+	error = mac_get_pid(k->ki_p->ki_pid, proclabel);
+	if (error == 0) {
+		if (mac_to_text(proclabel, &string) == -1)
+			string = NULL;
+	}
+	mac_free(proclabel);
+out:
+	return (string);
 }
 
-void
-wq(KINFO *k, VARENT *ve)
+char *
+loginclass(KINFO *k, VARENT *ve __unused)
 {
-	VAR *v;
-	struct proc_workqueueinfo wqinfo;
-	int len;
-	int ret;
-	uint32_t nthreads;
 
-	len = sizeof(wqinfo);
-	ret = proc_pidinfo(KI_PROC(k)->p_pid, PROC_PIDWORKQUEUEINFO, 0, &wqinfo, len);
-
-	v = ve->var;
-
-	if (len == ret && len == PROC_PIDWORKQUEUEINFO_SIZE) {
-		if (strcmp(v->name, "wql") == 0) {
-			char *s;
-			switch (wqinfo.pwq_state & (WQ_EXCEEDED_CONSTRAINED_THREAD_LIMIT | WQ_EXCEEDED_TOTAL_THREAD_LIMIT)) {
-			case 0:
-				s = "-";
-				break;
-			case WQ_EXCEEDED_CONSTRAINED_THREAD_LIMIT:
-				s = "C";
-				break;
-			case WQ_EXCEEDED_TOTAL_THREAD_LIMIT:
-				s = "T";
-				break;
-			default:
-				s = "CT";
-				break;
-			}
-			printf("%*s", v->width, s);
-			return;
-		}
-		if (strcmp(v->name, "wqr") == 0)
-			nthreads = wqinfo.pwq_runthreads;
-		else if (strcmp(v->name, "wqb") == 0)
-			nthreads = wqinfo.pwq_blockedthreads;
-		else
-			nthreads = wqinfo.pwq_nthreads;
-		printf("%*d", v->width, nthreads);
-	} else
-		printf("%*s", v->width, "-");
+	/*
+	 * Don't display login class for system processes;
+	 * login classes are used for resource limits,
+	 * and limits don't apply to system processes.
+	 */
+	if (k->ki_p->ki_flag & P_SYSTEM) {
+		return (strdup("-"));
+	}
+	return (strdup(k->ki_p->ki_loginclass));
 }
+
+char *
+jailname(KINFO *k, VARENT *ve __unused)
+{
+	char *name;
+
+	if (k->ki_p->ki_jid == 0)
+		return (strdup("-"));
+	name = jail_getname(k->ki_p->ki_jid);
+	if (name == NULL)
+		return (strdup("-"));
+	return (name);
+}
+#endif /* !__APPLE__ */

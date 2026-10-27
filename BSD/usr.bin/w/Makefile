@@ -2,14 +2,15 @@
 # Copyright (c) 2026 The Minkar contributors
 # Part of Minkar.
 #
-# w: FreeBSD main's usr.bin/w, with fmt.c from its bin/ps; the macOS
-# changes are under __APPLE__. uptime(1) is its own command here, so no
-# uptime link.
+# w: FreeBSD main's usr.bin/w, with fmt.c from bin/ps (as FreeBSD builds
+# it); the macOS changes are under __APPLE__. uptime(1) is its own
+# command here, so no uptime link.
 
 SUBDIR =
 MK_WERROR = no
 PROG =	w
 SRCS =	fmt.c pr_time.c proc_compare.c w.c
+.PATH: ${.CURDIR}/../../bin/ps
 MAN =
 CFLAGS += --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
 	-Wno-nullability-completeness \
