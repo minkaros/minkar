@@ -151,6 +151,18 @@ install-sysroot: ${PROGS}
 	install -m 0644 ${OPENSSH}/moduli ${ETCSSH}/moduli
 	mkdir -p ${SYSROOT_DIR}/private/etc/pam.d
 	install -m 0644 ${.CURDIR}/pam.d/sshd ${SYSROOT_DIR}/private/etc/pam.d/sshd
+	# The manual: the programs' pages and those of their files.
+	mkdir -p ${SYSROOT_DIR}/usr/share/man/man1 ${SYSROOT_DIR}/usr/share/man/man5 \
+	    ${SYSROOT_DIR}/usr/share/man/man8
+.for p in ${BINPROGS}
+	install -m 0444 ${OPENSSH}/${p}.1 ${SYSROOT_DIR}/usr/share/man/man1/
+.endfor
+.for p in sshd sftp-server
+	install -m 0444 ${OPENSSH}/${p}.8 ${SYSROOT_DIR}/usr/share/man/man8/
+.endfor
+.for p in ssh_config sshd_config moduli
+	install -m 0444 ${OPENSSH}/${p}.5 ${SYSROOT_DIR}/usr/share/man/man5/
+.endfor
 
 .PHONY: install-sysroot
 
