@@ -1,27 +1,41 @@
-.include <bsd.prog.mk>
+# SPDX-License-Identifier: BSD-2-Clause
+# Copyright (c) 2026 The Minkar contributors
+# Part of Minkar.
+#
+# zsh 5.9, the default shell on macOS since 10.15, built with its own
+# configure (cross-compiling for Darwin) and GNU make, like ncurses. The
+# modules are linked into the binary: every one that builds on Darwin is
+# made static (link=static in config.modules) instead of left out, so
+# zmodload finds zsh/mathfunc, zsh/files, zsh/stat and the rest as on
+# macOS. Installs /bin/zsh and the function library in /usr/share/zsh.
 
-PROG=                   zsh
-CONFIGURE_ARGS+=        --bindir=/bin
-CONFIGURE_ARGS+=        --enable-stack-allocation
-CONFIGURE_ARGS+=        --enable-etcdir=${SYSCONFDIR}
-CONFIGURE_ARGS+=        --enable-function-subdirs
-CONFIGURE_ARGS+=        --enable-maildir-support
-CONFIGURE_ARGS+=        --enable-multibyte
-CONFIGURE_ARGS+=        --with-tcsetpgrp
-CONFIGURE_ARGS+=        ${MACHINE_ARCH} ravynsoft
+all: ${.OBJDIR}/.installed
 
-PERL5LIB=	${OBJTOP}/tmp/obj-tools/lib/perl5
-LD_LIBRARY_PATH=	${OBJTOP}/tmp/obj-tools/lib
-.export LD_LIBRARY_PATH PERL5LIB
+# gmake gets as many jobs as this make (MAKEFLAGS is cleared: bmake's
+# flags mean nothing to it).
+ZSH_JOBS =	-j${.MAKE.JOBS:U1}
 
-all: zsh
-zsh:
-	${.CURDIR}/configure --prefix=${PREFIX} --sysconfdir=/etc ${CONFIGURE_ARGS}
-	cp -fv ${.CURDIR}/Doc/*.1 ${MAKEOBJDIR}
-	${MAKE}
-	${MAKE} install DESTDIR=${DESTDIR} INSTALL="${OBJTOP}/tmp/legacy/bin/install"
+# Linux-only modules, and those needing libraries Minkar lacks.
+ZSH_NO_MODULES = attr|cap|db/gdbm|pcre|example
 
-install:
-	${MAKE} install DESTDIR=${DESTDIR} INSTALL="${OBJTOP}/tmp/legacy/bin/install"
+${.OBJDIR}/Src/zsh: ${.CURDIR}/Makefile
+	CC=${CC} \
+	CFLAGS="--sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} -O2 -Wno-nullability-completeness" \
+	LDFLAGS="--sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} -fuse-ld=${LD}" \
+	${.CURDIR}/configure --prefix=/usr --bindir=/bin \
+	    --sysconfdir=/private/etc --enable-etcdir=/private/etc \
+	    --host=${CpuArch}-apple-darwin19 \
+	    --disable-dynamic --disable-gdbm --disable-pcre \
+	    --enable-multibyte --enable-function-subdirs \
+	    --enable-maildir-support --with-tcsetpgrp
+	sed -i.orig -E '\#name=zsh/(${ZSH_NO_MODULES}) #! s/ link=no / link=static /' \
+	    ${.OBJDIR}/config.modules
+	MAKEFLAGS="" ${TOOLS}/gmake prep
+	MAKEFLAGS="" ${TOOLS}/gmake ${ZSH_JOBS}
 
-includes:
+${.OBJDIR}/.installed: ${.OBJDIR}/Src/zsh
+	MAKEFLAGS="" ${TOOLS}/gmake install.bin install.fns DESTDIR=${SYSROOT_DIR}
+	# macOS has /bin/zsh only, not the versioned name next to it.
+	rm -f ${SYSROOT_DIR}/bin/zsh-5.9
+	touch ${.TARGET}
+

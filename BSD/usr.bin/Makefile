@@ -17,6 +17,6 @@ SUBDIR += diff nc netstat
 SUBDIR += curl fetch file su top sudo
 SUBDIR += defaults plutil ditto syslog
 SUBDIR += printenv hexdump paste nohup xinstall
-SUBDIR += m4 cpio bc
+SUBDIR += m4 cpio bc zsh
 
 .include <bsd.subdir.mk>
