@@ -27,12 +27,13 @@
  */
 
 /*
- * The part of FreeBSD's libkvm and libjail that pkill(1) and killall(1)
- * use, on Darwin.
+ * The part of FreeBSD's libkvm and libjail that pkill(1), killall(1)
+ * and w(1) use, on Darwin.
  * Processes come from sysctl(KERN_PROC_ALL) and arguments from
  * KERN_PROCARGS2; each Darwin kinfo_proc becomes a FreeBSD-shaped record
- * with the ki_* fields pkill reads. Darwin has no jails (every process is
- * in jail 0) and one login class.
+ * with the ki_* fields those commands read. Darwin has no jails (every
+ * process is in jail 0) and one login class, and does not say whether a
+ * sleep can be interrupted (ki_tdflags is always 0).
  */
 
 #ifndef _MINKAR_KVM_DARWIN_H_
@@ -54,22 +55,28 @@
 
 #define	KERN_PROC_PROC	KERN_PROC_ALL
 #define	P_KPROC		P_SYSTEM
+#define	TDF_SINTR	0x00000008
 
 struct minkar_kinfo {
 	pid_t		ki_pid;
 	pid_t		ki_ppid;
 	pid_t		ki_pgid;
 	pid_t		ki_sid;
+	pid_t		ki_tpgid;	/* the terminal's foreground group */
 	uid_t		ki_uid;		/* effective */
 	uid_t		ki_ruid;
 	gid_t		ki_rgid;
 	dev_t		ki_tdev;
 	int		ki_flag;
+	int		ki_tdflags;
+	u_int		ki_estcpu;
+	u_int		ki_slptime;
 	char		ki_stat;	/* SIDL, SRUN, ..., SZOMB */
 	int		ki_jid;
 	struct timeval	ki_start;
 	char		ki_comm[MAXCOMLEN + 1];
 	char		ki_loginclass[16];
+	void		*ki_udata;	/* for the command's own use */
 };
 
 typedef struct {
@@ -94,6 +101,16 @@ kvm_openfiles(const char *execf, const char *corefile, const char *swapf,
 	return (kd);
 }
 
+static int
+kvm_close(kvm_t *kd)
+{
+	free(kd->procs);
+	free(kd->argv);
+	free(kd->argbuf);
+	free(kd);
+	return (0);
+}
+
 static char *
 kvm_geterr(kvm_t *kd)
 {
@@ -108,12 +125,15 @@ minkar_kinfo_fill(struct minkar_kinfo *ki, const struct kinfo_proc *kp)
 	ki->ki_ppid = kp->kp_eproc.e_ppid;
 	ki->ki_pgid = kp->kp_eproc.e_pgid;
 	ki->ki_sid = getsid(ki->ki_pid);
+	ki->ki_tpgid = kp->kp_eproc.e_tpgid;
 	ki->ki_uid = kp->kp_eproc.e_ucred.cr_uid;
 	ki->ki_ruid = kp->kp_eproc.e_pcred.p_ruid;
 	ki->ki_rgid = kp->kp_eproc.e_pcred.p_rgid;
 	ki->ki_tdev = kp->kp_eproc.e_tdev;
 	ki->ki_flag = kp->kp_proc.p_flag;
 	ki->ki_stat = kp->kp_proc.p_stat;
+	ki->ki_estcpu = kp->kp_proc.p_estcpu;
+	ki->ki_slptime = kp->kp_proc.p_slptime;
 	/* The kernel (pid 0) is the process pgrep -S is about. */
 	if (ki->ki_pid == 0)
 		ki->ki_flag |= P_SYSTEM;
