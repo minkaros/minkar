@@ -17,7 +17,7 @@ LDFLAGS+=	-L${OBJTOP}/Frameworks/Foundation/Foundation.framework \
 		-lFoundation -lLaunchServices -lobjc
 
 
-.include <rvn.app.mk>
+.include <minkar.app.mk>
 
 all:
 	cp -fv ${.CURDIR}/Info.plist ${APP_DIR}/Contents/

@@ -203,7 +203,7 @@ copy_headers: .PHONY
 	  ${HID_OBJC_DST}
 .endfor
 
-.include <rvn.framework.mk>
+.include <minkar.framework.mk>
 
 # D868E2CD1BD5D9C600CC07F9 /* IOHIDNXEventRouter.plugin in CopyFiles */,
 # 848E575C0CC55C7800D5BE22 /* IOHIDSystem.kext in CopyFiles */,

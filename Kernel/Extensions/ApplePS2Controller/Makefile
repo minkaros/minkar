@@ -20,4 +20,4 @@ CFLAGS += -I${.CURDIR}/../../xnu/iokit -I${.CURDIR}/../../xnu/osfmk \
 CXXFLAGS += -std=c++11 ${CFLAGS}
 LDFLAGS += -fuse-ld=${LD} -mmacos-version-min=${MACOS_VERSION_MIN}
 
-.include <rvn.kext.mk>
+.include <minkar.kext.mk>

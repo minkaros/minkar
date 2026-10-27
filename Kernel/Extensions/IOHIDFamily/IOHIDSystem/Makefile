@@ -128,4 +128,4 @@ LDFLAGS = -mmacos-version-min=${MACOS_VERSION_MIN} --sysroot=${MINKAR_SDKROOT} \
 	-fuse-ld=${LD}
 
 
-.include <rvn.kext.mk>
+.include <minkar.kext.mk>

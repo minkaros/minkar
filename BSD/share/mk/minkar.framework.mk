@@ -1,4 +1,4 @@
-# rvn.framework.mk: builds a framework bundle (from ravynOS).
+# minkar.framework.mk: builds a framework bundle (from ravynOS).
 # Modifications Copyright (c) 2026 The Minkar contributors
 FRAMEWORK_DIR = ${.OBJDIR}/${FRAMEWORK}.framework
 FMWK_VERSION ?= A

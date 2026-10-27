@@ -52,4 +52,4 @@ CPPFLAGS += -F${MINKAR_SDKROOT}${SLF}/CoreServices.framework/Frameworks \
 	-Wno-incompatible-function-pointer-types ${DEFS} ${INCLUDES}
 
 
-.include <rvn.framework.mk>
+.include <minkar.framework.mk>

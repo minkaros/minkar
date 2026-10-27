@@ -103,7 +103,7 @@ fmwk-install-hook:
 	cp -Rf ${FRAMEWORK_DIR} ${MINKAR_SDKROOT}${SLF}/
 	cp -Rf ${FRAMEWORK_DIR} ${SYSROOT_DIR}${SLF}/
 
-.include <rvn.framework.mk>
+.include <minkar.framework.mk>
 
 # The MIG headers come before any object.
 ${OBJS} ${POBJS} ${SOBJS}: config.h helper.h ${.OBJDIR}/include/SystemConfiguration

@@ -44,4 +44,4 @@ ${.OBJDIR}/IOATARegI386.h: ${.CURDIR}/IOKit/ata/IOATARegI386.h
 
 all: ${.OBJDIR}/IOATARegI386.h
 
-.include <rvn.kext.mk>
+.include <minkar.kext.mk>

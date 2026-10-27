@@ -69,6 +69,6 @@ SUBDIR = IOHIDSystem
 #SUBDIR += HID
 
 .include <bsd.subdir.mk>
-.include <rvn.kext.mk>
+.include <minkar.kext.mk>
 
 

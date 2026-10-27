@@ -4,7 +4,7 @@ MK_WERROR = no
 FRAMEWORK = IOKit
 FMWK_VERSION = A
 # Info.plist here is OSSystemResources' bundle, not the framework's: the
-# framework gets a generated one (rvn.framework.mk).
+# framework gets a generated one (minkar.framework.mk).
 INFO_PLIST =
 INSTALL_NAME_DIR = /System/Library/Frameworks/IOKit.framework/Versions/A
 
@@ -491,5 +491,5 @@ libkxld.a:
 
 SUBDIR =
 
-.include <rvn.framework.mk>
+.include <minkar.framework.mk>
 .include <bsd.subdir.mk>

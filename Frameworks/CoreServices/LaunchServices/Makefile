@@ -11,5 +11,5 @@ LDFLAGS = -lsqlite3 -llaunch
 
 fmwk-install-hook:
 
-.include <rvn.framework.mk>
+.include <minkar.framework.mk>
 

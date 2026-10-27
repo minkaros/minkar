@@ -9,6 +9,6 @@ CFLAGS+= ${FMWK_CFLAGS:N-D__WSRPC} -fobjc-arc -I${OBJTOP}/Frameworks/Foundation/
 	 -I${SRCTOP}/Frameworks/AppKit/Headers/
 LDFLAGS+= -L${OBJTOP}/tmp/usr/lib 
 
-.include <rvn.framework.mk>
+.include <minkar.framework.mk>
 
 installresources: std_install_hook

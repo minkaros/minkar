@@ -169,4 +169,4 @@ fmwk-install-hook:
 	cp -Rf ${.OBJDIR}/${FRAMEWORK}.framework ${MINKAR_SDKROOT}/System/Library/Frameworks
 	cp -Rf ${.OBJDIR}/${FRAMEWORK}.framework ${SYSROOT_DIR}/System/Library/Frameworks
 
-.include <rvn.framework.mk>
+.include <minkar.framework.mk>

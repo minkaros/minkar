@@ -118,7 +118,7 @@ and every PR is tested by booting it in QEMU.
   `make check`. *Partial:* `bmake ONLY_STAGE=<stage> <stage>` builds one
   stage alone; no per-layer targets or `check`.
 - [ ] Bring third-party sources into the tree and package them as
-  `.framework` with `rvn.framework.mk`. *Partial:* 13 frameworks build and
+  `.framework` with `minkar.framework.mk`. *Partial:* 13 frameworks build and
   install; CFNetwork is commented out, and Security and OpenDirectory are
   not built.
 - [x] CI per PR: full build + boot in QEMU (q35 + OVMF) on the serial

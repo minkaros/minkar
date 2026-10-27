@@ -27,4 +27,4 @@ CFLAGS = -DXNU_KERNEL_PRIVATE -DMACH_KERNEL_PRIVATE \
 	-I${MINKAR_SDKROOT}${SLF}/System.framework/Versions/B/PrivateHeaders \
 	-I${ROOT_BINARY_DIR}/${CpuArch}
 
-.include <rvn.kext.mk>
+.include <minkar.kext.mk>

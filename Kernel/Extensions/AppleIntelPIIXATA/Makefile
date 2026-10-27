@@ -38,4 +38,4 @@ copyheaders:
 	cp -f ${.CURDIR:H}/IOATAFamily/IOATAFamilyPriv.h \
 	  ${.OBJDIR}/IOKit/storage/ata/
 
-.include <rvn.kext.mk>
+.include <minkar.kext.mk>

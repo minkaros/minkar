@@ -22,5 +22,5 @@ LDFLAGS+=	-Wl,-R'$$ORIGIN/../Resources' -L${OBJTOP}/tmp/usr/lib \
 		-Wl,-R/System/Library/Frameworks/CoreGraphics.framework/Versions/A \
                 -lAppKit -lFoundation -lCoreGraphics -lobjc -lSystem
 
-.include <rvn.app.mk>
+.include <minkar.app.mk>
 ${OBJS}: obj

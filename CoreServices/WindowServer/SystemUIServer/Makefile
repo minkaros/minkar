@@ -66,6 +66,6 @@ ${.CURDIR}/kickSession: kickSession.m
 		-Wl,-R/System/Library/Frameworks/Foundation.framework/Versions/A \
 		-lAppKit -lFoundation -lSystem -lobjc
 
-.include <rvn.app.mk>
+.include <minkar.app.mk>
 
 ${OBJS}: ${MAKEOBJDIR}/OpenGL

@@ -16,4 +16,4 @@ CFLAGS += -I${.CURDIR}/../../xnu/iokit -I${.CURDIR}/../../xnu/osfmk \
 
 LDFLAGS += -fuse-ld=${LD} -mmacos-version-min=${MACOS_VERSION_MIN}
 
-.include <rvn.kext.mk>
+.include <minkar.kext.mk>

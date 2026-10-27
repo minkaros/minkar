@@ -58,5 +58,5 @@ libintl: ${.CURDIR:H}/gettext-tiny/Makefile
 		${SYSROOT_DIR}/usr/bin/
 
 
-.include <rvn.framework.mk>
+.include <minkar.framework.mk>
 .include <bsd.subdir.mk>

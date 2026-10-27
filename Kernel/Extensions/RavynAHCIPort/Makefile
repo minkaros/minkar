@@ -18,4 +18,4 @@ CFLAGS = -Wno-implicit-int-conversion -Wno-sign-conversion \
 	-I${.CURDIR:H}/IOPCIFamily \
 	-I${ROOT_BINARY_DIR}${ROOT_SOURCE_DIR}/Kernel/xnu/EXPORT_HDRS/osfmk
 
-.include <rvn.kext.mk>
+.include <minkar.kext.mk>

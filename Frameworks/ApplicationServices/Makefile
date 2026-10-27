@@ -6,6 +6,6 @@ INCS=ApplicationServices.h
 
 RESOURCES=Info.plist
 
-.include <rvn.framework.mk>
+.include <minkar.framework.mk>
 
 installresources: alt_install_hook
