@@ -109,6 +109,22 @@
 #ifndef nitems
 #define	nitems(x)	(sizeof((x)) / sizeof((x)[0]))
 #endif
+#ifndef COMMLEN
+#define	COMMLEN		MAXCOMLEN	/* FreeBSD's command name length */
+#endif
+/* FreeBSD's <sys/queue.h>: moves the elements after elm to rest. */
+#ifndef STAILQ_SPLIT_AFTER
+#define	STAILQ_SPLIT_AFTER(head, elm, rest, field) do {			\
+	if (STAILQ_NEXT((elm), field) == NULL)				\
+		STAILQ_INIT((rest));					\
+	else {								\
+		STAILQ_FIRST((rest)) = STAILQ_NEXT((elm), field);	\
+		(rest)->stqh_last = (head)->stqh_last;			\
+		STAILQ_NEXT((elm), field) = NULL;			\
+		(head)->stqh_last = &STAILQ_NEXT((elm), field);		\
+	}								\
+} while (0)
+#endif
 #ifndef __containerof
 #define	__containerof(x, s, m)	((s *)(void *)((char *)(x) - offsetof(s, m)))
 #endif

@@ -27,260 +27,135 @@
  */
 
 /*
- * The part of FreeBSD's libkvm and libjail that pkill(1), killall(1)
- * and w(1) use, on Darwin.
- * Processes come from sysctl(KERN_PROC_ALL) and arguments from
- * KERN_PROCARGS2; each Darwin kinfo_proc becomes a FreeBSD-shaped record
- * with the ki_* fields those commands read. Darwin has no jails (every
- * process is in jail 0) and one login class, and does not say whether a
- * sleep can be interrupted (ki_tdflags is always 0).
+ * The part of FreeBSD's libkvm and libjail that pkill(1), killall(1),
+ * w(1) and ps(1) use, on Darwin (kvm_darwin.c, in libbsdcompat).
+ * Processes come from sysctl(KERN_PROC_*), arguments and environment
+ * from KERN_PROCARGS2, and sizes, times, threads and run states from
+ * libproc; each becomes a FreeBSD-shaped record with the ki_* fields
+ * those commands read. What Darwin does not keep is zero. Darwin has no
+ * jails (every process is in jail 0) and one login class.
  */
 
 #ifndef _MINKAR_KVM_DARWIN_H_
 #define	_MINKAR_KVM_DARWIN_H_
 
 #include <sys/types.h>
+#include <sys/param.h>
+#include <sys/resource.h>
 #include <sys/sysctl.h>
 #include <sys/proc.h>
 #include <sys/time.h>
-#include <errno.h>
-#include <limits.h>
-#include <stdlib.h>
-#include <string.h>
-#include <unistd.h>
 
-/* Each command uses part of this file. */
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wunused-function"
+#define	KERN_PROC_PROC		KERN_PROC_ALL
+/* Asks kvm_getprocs() for one record per thread (ps -M). */
+#define	KERN_PROC_INC_THREAD	0x10
+#define	P_KPROC			P_SYSTEM
+#define	TDF_SINTR		0x00000008
+#define	NOCPU			(-1)
+#define	KI_NGROUPS		16
 
-#define	KERN_PROC_PROC	KERN_PROC_ALL
-#define	P_KPROC		P_SYSTEM
-#define	TDF_SINTR	0x00000008
+/* ki_kiflag */
+#define	KI_CTTY			0x00000001	/* has a controlling terminal */
+#define	KI_SLEADER		0x00000002	/* session leader */
+#define	KI_LOCKBLOCK		0x00000004	/* never: Darwin does not say */
+
+struct minkar_priority {
+	u_char		pri_class;
+	u_char		pri_level;	/* Darwin's priority, 0-127 */
+	u_char		pri_native;
+	u_char		pri_user;
+};
 
 struct minkar_kinfo {
 	pid_t		ki_pid;
 	pid_t		ki_ppid;
 	pid_t		ki_pgid;
-	pid_t		ki_sid;
 	pid_t		ki_tpgid;	/* the terminal's foreground group */
+	pid_t		ki_sid;
+	pid_t		ki_tsid;	/* the terminal's session */
+	short		ki_jobc;
+	dev_t		ki_tdev;
 	uid_t		ki_uid;		/* effective */
 	uid_t		ki_ruid;
+	uid_t		ki_svuid;
 	gid_t		ki_rgid;
-	dev_t		ki_tdev;
-	int		ki_flag;
-	int		ki_tdflags;
+	gid_t		ki_svgid;
+	short		ki_ngroups;
+	gid_t		ki_groups[KI_NGROUPS];	/* [0] is the effective gid */
+	vm_size_t	ki_size;	/* virtual size, bytes */
+	/* long, as FreeBSD's 64-bit segsz_t: ps reads them so. */
+	long		ki_rssize;	/* resident pages */
+	long		ki_tsize;	/* text pages */
+	u_short		ki_xstat;
+	u_short		ki_acflag;
+	fixpt_t		ki_pctcpu;	/* FSCALE units */
 	u_int		ki_estcpu;
-	u_int		ki_slptime;
-	char		ki_stat;	/* SIDL, SRUN, ..., SZOMB */
-	int		ki_jid;
+	u_int		ki_slptime;	/* seconds since a thread last ran */
+	u_int		ki_swtime;
+	uint64_t	ki_runtime;	/* user + system, microseconds */
 	struct timeval	ki_start;
+	struct timeval	ki_childtime;
+	struct timeval	ki_childutime;
+	struct timeval	ki_childstime;
+	long		ki_flag;	/* Darwin's P_* */
+	long		ki_kiflag;	/* KI_* */
+	int		ki_traceflag;
+	char		ki_stat;	/* SIDL, SRUN, ..., SZOMB */
+	char		ki_runstate;	/* from the threads: R U S I T, or 0 */
+	signed char	ki_nice;
+	char		ki_lock;
+	int		ki_oncpu;
+	int		ki_lastcpu;
+	int		ki_tdflags;
+	struct minkar_priority ki_pri;
+	struct rusage	ki_rusage;
+	int		ki_numthreads;
+	int		ki_tid;		/* the thread's index with -M, else 0 */
+	int		ki_jid;
+	sigset_t	ki_siglist;
+	sigset_t	ki_sigmask;
+	sigset_t	ki_sigignore;
+	sigset_t	ki_sigcatch;
+	void		*ki_wchan;
+	void		*ki_paddr;
+	void		*ki_tracep;
+	void		*ki_ru;
+	void		*ki_sess;
+	void		*ki_tsess;
+	/* Workqueue threads (macOS ps's wq, wqb, wqr, wql). */
+	u_int		ki_wq_threads;
+	u_int		ki_wq_running;
+	u_int		ki_wq_blocked;
+	u_int		ki_wq_state;
 	char		ki_comm[MAXCOMLEN + 1];
+	char		ki_tdname[MAXCOMLEN + 1];
+	char		ki_moretdname[1];
+	char		ki_wmesg[8];
+	char		ki_login[MAXLOGNAME];
 	char		ki_loginclass[16];
 	void		*ki_udata;	/* for the command's own use */
 };
 
-typedef struct {
-	struct minkar_kinfo	*procs;
-	char			**argv;
-	char			*argbuf;
-	char			err[128];
-} kvm_t;
+typedef struct minkar_kvm kvm_t;
 
-static kvm_t *
-kvm_openfiles(const char *execf, const char *corefile, const char *swapf,
-    int flags, char *errbuf)
-{
-	kvm_t *kd;
-
-	(void)execf;
-	(void)corefile;
-	(void)swapf;
-	(void)flags;
-	if ((kd = calloc(1, sizeof(*kd))) == NULL && errbuf != NULL)
-		strlcpy(errbuf, strerror(errno), _POSIX2_LINE_MAX);
-	return (kd);
-}
-
-static int
-kvm_close(kvm_t *kd)
-{
-	free(kd->procs);
-	free(kd->argv);
-	free(kd->argbuf);
-	free(kd);
-	return (0);
-}
-
-static char *
-kvm_geterr(kvm_t *kd)
-{
-	return (kd->err);
-}
-
-static void
-minkar_kinfo_fill(struct minkar_kinfo *ki, const struct kinfo_proc *kp)
-{
-	memset(ki, 0, sizeof(*ki));
-	ki->ki_pid = kp->kp_proc.p_pid;
-	ki->ki_ppid = kp->kp_eproc.e_ppid;
-	ki->ki_pgid = kp->kp_eproc.e_pgid;
-	ki->ki_sid = getsid(ki->ki_pid);
-	ki->ki_tpgid = kp->kp_eproc.e_tpgid;
-	ki->ki_uid = kp->kp_eproc.e_ucred.cr_uid;
-	ki->ki_ruid = kp->kp_eproc.e_pcred.p_ruid;
-	ki->ki_rgid = kp->kp_eproc.e_pcred.p_rgid;
-	ki->ki_tdev = kp->kp_eproc.e_tdev;
-	ki->ki_flag = kp->kp_proc.p_flag;
-	ki->ki_stat = kp->kp_proc.p_stat;
-	ki->ki_estcpu = kp->kp_proc.p_estcpu;
-	ki->ki_slptime = kp->kp_proc.p_slptime;
-	/* The kernel (pid 0) is the process pgrep -S is about. */
-	if (ki->ki_pid == 0)
-		ki->ki_flag |= P_SYSTEM;
-	ki->ki_start = kp->kp_proc.p_starttime;
-	strlcpy(ki->ki_comm, kp->kp_proc.p_comm, sizeof(ki->ki_comm));
-	strlcpy(ki->ki_loginclass, "default", sizeof(ki->ki_loginclass));
-}
-
-static struct minkar_kinfo *
-kvm_getprocs(kvm_t *kd, int op, int arg, int *cnt)
-{
-	int mib[4] = { CTL_KERN, KERN_PROC, op, arg };
-	struct kinfo_proc *kp = NULL;
-	size_t len = 0;
-	int i, n, tries;
-
-	*cnt = 0;
-	free(kd->procs);
-	kd->procs = NULL;
-	/* The table can grow between the size query and the read. */
-	for (tries = 0; tries < 8; tries++) {
-		if (sysctl(mib, op == KERN_PROC_ALL ? 3 : 4, NULL, &len,
-		    NULL, 0) == -1)
-			goto fail;
-		len += len / 8 + sizeof(*kp);
-		free(kp);
-		if ((kp = malloc(len)) == NULL)
-			goto fail;
-		if (sysctl(mib, op == KERN_PROC_ALL ? 3 : 4, kp, &len,
-		    NULL, 0) == 0)
-			break;
-		if (errno != ENOMEM)
-			goto fail;
-	}
-	if (tries == 8)
-		goto fail;
-	n = (int)(len / sizeof(*kp));
-	if ((kd->procs = calloc(n > 0 ? n : 1, sizeof(*kd->procs))) == NULL)
-		goto fail;
-	for (i = 0; i < n; i++)
-		minkar_kinfo_fill(&kd->procs[i], &kp[i]);
-	free(kp);
-	*cnt = n;
-	return (kd->procs);
-fail:
-	strlcpy(kd->err, strerror(errno), sizeof(kd->err));
-	free(kp);
-	return (NULL);
-}
-
-/*
- * KERN_PROCARGS2 gives argc, the executable path, NUL padding, then argc
- * NUL-terminated arguments (and the environment, which is not wanted).
- */
-static char **
-kvm_getargv(kvm_t *kd, const struct minkar_kinfo *ki, int nchr)
-{
-	int mib[3] = { CTL_KERN, KERN_PROCARGS2, ki->ki_pid };
-	size_t len;
-	int argmax, argc, i;
-	char *p, *end;
-
-	(void)nchr;
-	free(kd->argv);
-	kd->argv = NULL;
-	len = sizeof(argmax);
-	if (sysctlbyname("kern.argmax", &argmax, &len, NULL, 0) == -1)
-		return (NULL);
-	free(kd->argbuf);
-	if ((kd->argbuf = malloc(argmax)) == NULL)
-		return (NULL);
-	len = argmax;
-	if (sysctl(mib, 3, kd->argbuf, &len, NULL, 0) == -1 ||
-	    len < sizeof(int))
-		return (NULL);
-	memcpy(&argc, kd->argbuf, sizeof(argc));
-	p = kd->argbuf + sizeof(int);
-	end = kd->argbuf + len;
-	while (p < end && *p != '\0')		/* executable path */
-		p++;
-	while (p < end && *p == '\0')		/* padding */
-		p++;
-	if (argc <= 0 || (kd->argv = calloc(argc + 1, sizeof(char *))) == NULL)
-		return (NULL);
-	for (i = 0; i < argc && p < end; i++) {
-		kd->argv[i] = p;
-		while (p < end && *p != '\0')
-			p++;
-		p++;
-	}
-	if (i == 0 || p > end) {
-		free(kd->argv);
-		kd->argv = NULL;
-	}
-	return (kd->argv);
-}
-
+__BEGIN_DECLS
+kvm_t	*kvm_openfiles(const char *, const char *, const char *, int, char *);
+int	 kvm_close(kvm_t *);
+char	*kvm_geterr(kvm_t *);
+struct minkar_kinfo *kvm_getprocs(kvm_t *, int, int, int *);
+char	**kvm_getargv(kvm_t *, const struct minkar_kinfo *, int);
+char	**kvm_getenvv(kvm_t *, const struct minkar_kinfo *, int);
 /*
  * The name a process was started under: the last component of its
- * executable's path (KERN_PROCARGS2). p_comm keeps only MAXCOMLEN (16)
- * characters, and macOS's killall matches whole names. When the
- * arguments cannot be read (another user's process), ki_comm.
+ * executable's path. p_comm keeps only MAXCOMLEN (16) characters; when
+ * the arguments cannot be read (another user's process), ki_comm.
  */
-static const char *
-kvm_getcomm(kvm_t *kd, const struct minkar_kinfo *ki, char *buf, size_t len)
-{
-	int mib[3] = { CTL_KERN, KERN_PROCARGS2, ki->ki_pid };
-	size_t size;
-	int argmax;
-	char *path, *base;
+const char *kvm_getcomm(kvm_t *, const struct minkar_kinfo *, char *, size_t);
+int	 jail_getid(const char *);
+__END_DECLS
 
-	strlcpy(buf, ki->ki_comm, len);
-	size = sizeof(argmax);
-	if (sysctlbyname("kern.argmax", &argmax, &size, NULL, 0) == -1)
-		return (buf);
-	free(kd->argbuf);
-	if ((kd->argbuf = malloc(argmax)) == NULL)
-		return (buf);
-	size = argmax;
-	if (sysctl(mib, 3, kd->argbuf, &size, NULL, 0) == -1 ||
-	    size <= sizeof(int))
-		return (buf);
-	path = kd->argbuf + sizeof(int);
-	if (strnlen(path, size - sizeof(int)) == size - sizeof(int) ||
-	    *path == '\0')
-		return (buf);
-	base = strrchr(path, '/');
-	strlcpy(buf, base != NULL ? base + 1 : path, len);
-	return (buf);
-}
-
-static int
-jail_getid(const char *name)
-{
-	char *end;
-	long jid;
-
-	/* Only jail 0, the host, exists. */
-	jid = strtol(name, &end, 10);
-	if (*name != '\0' && *end == '\0' && jid == 0)
-		return (0);
-	errno = ENOENT;
-	return (-1);
-}
-
-#pragma clang diagnostic pop
-
+#ifndef _MINKAR_KVM_IMPL
 #define	kinfo_proc	minkar_kinfo
+#endif
 
 #endif /* !_MINKAR_KVM_DARWIN_H_ */
