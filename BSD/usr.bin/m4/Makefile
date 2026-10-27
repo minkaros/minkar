@@ -1,33 +1,25 @@
-#	$OpenBSD: Makefile,v 1.13 2014/05/12 19:11:19 espie Exp $
-
-# -DEXTENDED 
-# 	if you want the paste & spaste macros.
-
-.include <src.opts.mk>
-
+SUBDIR =
 PROG=	m4
-CFLAGS+=-DEXTENDED -I${.CURDIR} -I${SRCTOP}/lib/libopenbsd
-LIBADD=	m openbsd
-
+SRCS=	eval.c expr.c look.c main.c misc.c gnum4.c trace.c parser.y \
+	tokenizer.l ohash.c
+MAN =
+MK_WERROR = no
 NO_WMISSING_VARIABLE_DECLARATIONS=
+.PATH:	${.CURDIR}/ohash
+CFLAGS += -I${ROOT_SOURCE_DIR}/BSD/lib/libbsdcompat/include -include bsdcompat.h \
+	-DEXTENDED -I${.CURDIR} -I${.CURDIR}/ohash -I${.OBJDIR}
+LDADD += -L${ROOT_BINARY_DIR}${ROOT_SOURCE_DIR}/BSD/lib/libbsdcompat -lbsdcompat -lm
 
-SRCS=	eval.c expr.c look.c main.c misc.c gnum4.c trace.c parser.y
-.if target(bootstrap_m4_tokenizer)
-# When crossbuilding on non-FreeBSD we need to first build m4 with pre-generated
-# tokenizer files and the build the real m4 once we have lex+yacc.
-SRCS+=	tokenizer.c
-.else
-SRCS+=	tokenizer.l
-.endif
-
-GENFILES=	tokenizer.c parser.c parser.h
-WARNS?=	3
+# The parser uses exit() without <stdlib.h>, which byacc's skeleton
+# includes and bison's does not.
+CFLAGS.parser.c = -include stdlib.h
 
 tokenizer.o: parser.h
 
-CLEANFILES+=	parser.c parser.h tokenizer.o tokenizer.c
+all: to-sysroot
 
-HAS_TESTS=
-SUBDIR.${MK_TESTS}+= tests
+to-sysroot: ${PROG}
+	mkdir -p ${SYSROOT_DIR}/usr/bin
+	install -m 0555 ${PROG} ${SYSROOT_DIR}/usr/bin/
 
 .include <bsd.prog.mk>

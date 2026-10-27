@@ -97,6 +97,10 @@
 #ifndef __DEQUALIFY
 #define	__DEQUALIFY(type, var)	((type)(uintptr_t)(const volatile void *)(var))
 #endif
+/* <sys/cdefs.h>: a char array that need not end in NUL (a warning hint). */
+#ifndef __nonstring
+#define	__nonstring
+#endif
 #ifndef nitems
 #define	nitems(x)	(sizeof((x)) / sizeof((x)[0]))
 #endif
