@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1991, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -13,11 +15,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -34,13 +32,7 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 
-__FBSDID("$FreeBSD$");
-
-#ifndef lint
-static const char sccsid[] = "@(#)read.c	8.1 (Berkeley) 6/6/93";
-#endif
 
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -52,6 +44,9 @@ static const char sccsid[] = "@(#)read.c	8.1 (Berkeley) 6/6/93";
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+
+#include <libcasper.h>
+#include <casper/cap_fileargs.h>
 
 #include "extern.h"
 
@@ -66,7 +61,7 @@ static const char sccsid[] = "@(#)read.c	8.1 (Berkeley) 6/6/93";
  * the end.
  */
 int
-bytes(FILE *fp, off_t off)
+bytes(FILE *fp, const char *fn, off_t off)
 {
 	int ch, len, tlen;
 	char *ep, *p, *t;
@@ -74,7 +69,7 @@ bytes(FILE *fp, off_t off)
 	char *sp;
 
 	if ((sp = p = malloc(off)) == NULL)
-		err(1, "malloc");
+		err(1, "failed to allocate memory");
 
 	for (wrap = 0, ep = p + off; (ch = getc(fp)) != EOF;) {
 		*p = ch;
@@ -84,7 +79,7 @@ bytes(FILE *fp, off_t off)
 		}
 	}
 	if (ferror(fp)) {
-		ierr();
+		ierr(fn);
 		free(sp);
 		return 1;
 	}
@@ -136,7 +131,7 @@ bytes(FILE *fp, off_t off)
  * the end.
  */
 int
-lines(FILE *fp, off_t off)
+lines(FILE *fp, const char *fn, off_t off)
 {
 	struct {
 		int blen;
@@ -147,17 +142,16 @@ lines(FILE *fp, off_t off)
 	char *p, *sp;
 	int blen, cnt, recno, wrap;
 
-	if ((llines = malloc(off * sizeof(*llines))) == NULL)
-		err(1, "malloc");
-	bzero(llines, off * sizeof(*llines));
-	sp = NULL;
+	if ((llines = calloc(off, sizeof(*llines))) == NULL)
+		err(1, "failed to allocate memory");
+	p = sp = NULL;
 	blen = cnt = recno = wrap = 0;
 	rc = 0;
 
 	while ((ch = getc(fp)) != EOF) {
 		if (++cnt > blen) {
 			if ((sp = realloc(sp, blen += 1024)) == NULL)
-				err(1, "realloc");
+				err(1, "failed to allocate memory");
 			p = sp + cnt - 1;
 		}
 		*p++ = ch;
@@ -166,7 +160,7 @@ lines(FILE *fp, off_t off)
 				llines[recno].blen = cnt + 256;
 				if ((llines[recno].l = realloc(llines[recno].l,
 				    llines[recno].blen)) == NULL)
-					err(1, "realloc");
+					err(1, "failed to allocate memory");
 			}
 			bcopy(sp, llines[recno].l, llines[recno].len = cnt);
 			cnt = 0;
@@ -178,7 +172,7 @@ lines(FILE *fp, off_t off)
 		}
 	}
 	if (ferror(fp)) {
-		ierr();
+		ierr(fn);
 		rc = 1;
 		goto done;
 	}
