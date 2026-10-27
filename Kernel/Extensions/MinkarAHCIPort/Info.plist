@@ -5,15 +5,15 @@
     <key>CFBundleDevelopmentRegion</key>
     <string>English</string>
     <key>CFBundleExecutable</key>
-    <string>RavynAHCIPort</string>
+    <string>MinkarAHCIPort</string>
     <key>CFBundleGetInfoString</key>
     <string>1.0.0, Copyright (C) 2026 ravynOS Project. All rights reserved.</string>
     <key>CFBundleIdentifier</key>
-    <string>org.minkar.driver.RavynAHCIPort</string>
+    <string>org.minkar.driver.MinkarAHCIPort</string>
     <key>CFBundleInfoDictionaryVersion</key>
     <string>6.0</string>
     <key>CFBundleName</key>
-    <string>RavynAHCIPort</string>
+    <string>MinkarAHCIPort</string>
     <key>CFBundlePackageType</key>
     <string>KEXT</string>
     <key>CFBundleShortVersionString</key>
@@ -27,9 +27,9 @@
         <key>Generic AHCI</key>
         <dict>
             <key>CFBundleIdentifier</key>
-            <string>org.minkar.driver.RavynAHCIPort</string>
+            <string>org.minkar.driver.MinkarAHCIPort</string>
             <key>IOClass</key>
-            <string>RavynAHCIPort</string>
+            <string>MinkarAHCIPort</string>
             <key>IOPCIClassMatch</key>
             <string>0x01060100&amp;0xffffff00</string>
             <key>IOProbeScore</key>

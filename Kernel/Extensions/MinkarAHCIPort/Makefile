@@ -1,12 +1,12 @@
 MK_WERROR = no
 SUBDIR =
-KEXT = RavynXHCIPort
+KEXT = MinkarAHCIPort
 KERNEL_PRIVATE = yes
 INFO_PLIST = Info.plist
-BUNDLE_IDENTIFIER = org.minkar.driver.RavynXHCIPort
+BUNDLE_IDENTIFIER = org.minkar.driver.MinkarAHCIPort
 BUNDLE_VERSION = 1.0.0
 
-SRCS = RavynXHCIPort.cpp RavynXHCIMassStorageDisk.cpp RavynXHCIUSBBus.cpp
+SRCS = MinkarAHCIPort.cpp MinkarAHCIDisk.cpp
 
 SLF = /System/Library/Frameworks
 CFLAGS = -Wno-implicit-int-conversion -Wno-sign-conversion \
@@ -16,8 +16,6 @@ CFLAGS = -Wno-implicit-int-conversion -Wno-sign-conversion \
 	-I${ROOT_SOURCE_DIR}/Kernel/xnu/libkern \
 	-I${.CURDIR:H}/IOStorageFamily \
 	-I${.CURDIR:H}/IOPCIFamily \
-	-I${.CURDIR:H}/IOUSBFamily/include \
-	-I${.CURDIR:H}/IOUSBFamily/include/IOKit/usb \
 	-I${ROOT_BINARY_DIR}${ROOT_SOURCE_DIR}/Kernel/xnu/EXPORT_HDRS/osfmk
 
 .include <minkar.kext.mk>

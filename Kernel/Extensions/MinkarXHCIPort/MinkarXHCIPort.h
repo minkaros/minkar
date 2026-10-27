@@ -1,9 +1,10 @@
 /*
- * RavynXHCIPort: minimal xHCI host controller driver + USB Mass Storage
+ * MinkarXHCIPort: minimal xHCI host controller driver + USB Mass Storage
  * (bulk-only transport) enumeration, for booting off a USB stick where no
  * AHCI/SATA disk is present. One host controller covers USB 1.1/2.0/3.x.
  *
  * Copyright (C) 2026 ravynOS Project. All rights reserved.
+ * Modifications Copyright (c) 2026 The Minkar contributors
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -24,8 +25,8 @@
  * THE SOFTWARE.
  */
 
-#ifndef _RAVYN_XHCI_PORT_H
-#define _RAVYN_XHCI_PORT_H
+#ifndef _MINKAR_XHCI_PORT_H
+#define _MINKAR_XHCI_PORT_H
 
 #include <IOKit/IOService.h>
 #include <IOKit/IOBufferMemoryDescriptor.h>
@@ -38,14 +39,14 @@
 
 extern void XHCI_Log(const char *fmt, ...);
 
-class RavynXHCIMassStorageDisk;
-class RavynXHCIUSBBus;
+class MinkarXHCIMassStorageDisk;
+class MinkarXHCIUSBBus;
 
-class RavynXHCIPort : public IOService
+class MinkarXHCIPort : public IOService
 {
-    OSDeclareDefaultStructors(RavynXHCIPort);
-    friend class RavynXHCIMassStorageDisk;
-    friend class RavynXHCIUSBBus;
+    OSDeclareDefaultStructors(MinkarXHCIPort);
+    friend class MinkarXHCIMassStorageDisk;
+    friend class MinkarXHCIUSBBus;
 
 public:
     IOService *probe(IOService *provider, SInt32 *score) override;
@@ -53,7 +54,7 @@ public:
     void stop(IOService *provider) override;
     void free() override;
 
-    /* Called by RavynXHCIMassStorageDisk to move data via bulk-only transport. */
+    /* Called by MinkarXHCIMassStorageDisk to move data via bulk-only transport. */
     IOReturn botTransfer(UInt32 slotId,
                          const void *cbwCB, UInt8 cbwLen,
                          UInt32 dataLen, bool dataIn,
@@ -119,8 +120,8 @@ private:
 
     /* IOUSBController-shaped view of this port, backing IOUSBDevice/
      * IOUSBInterface for any slot enumerateSlotDevice() doesn't already
-     * special-case as hub/mass-storage - see RavynXHCIUSBBus. */
-    RavynXHCIUSBBus      * fUSBBus;
+     * special-case as hub/mass-storage - see MinkarXHCIUSBBus. */
+    MinkarXHCIUSBBus      * fUSBBus;
 
     /* USB2/USB3 root hub port pairing, from the xHCI Extended Capabilities'
      * Supported Protocol structures (index by 0-based port number). A
@@ -213,7 +214,7 @@ private:
     UInt8 fSlotRootPort[64];  /* 0-based root hub port for each slot */
 
     MSCDevice fMSC[16];
-    RavynXHCIMassStorageDisk * fDiskNubs[16];
+    MinkarXHCIMassStorageDisk * fDiskNubs[16];
 
     InterruptInEndpoint fIntrIn[64][16]; /* [slotId][endpoint number] */
 
@@ -342,4 +343,4 @@ private:
     bool tryEnumerateMassStorage(UInt32 port0based, UInt32 speed);
 };
 
-#endif /* _RAVYN_XHCI_PORT_H */
+#endif /* _MINKAR_XHCI_PORT_H */

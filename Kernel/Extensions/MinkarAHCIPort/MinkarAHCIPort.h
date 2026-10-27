@@ -1,5 +1,5 @@
 /*
- * RavynAHCIPort: minimal driver for AHCI SATA controllers
+ * MinkarAHCIPort: minimal driver for AHCI SATA controllers
  *
  * Copyright (C) 2026 Zoe Knox. All rights reserved.
  * Modifications Copyright (c) 2026 The Minkar contributors
@@ -23,8 +23,8 @@
  * THE SOFTWARE.
  */
 
-#ifndef _RAVYN_AHCI_PORT_H
-#define _RAVYN_AHCI_PORT_H
+#ifndef _MINKAR_AHCI_PORT_H
+#define _MINKAR_AHCI_PORT_H
 
 #include <IOKit/IOService.h>
 #include <IOKit/IOBufferMemoryDescriptor.h>
@@ -38,12 +38,12 @@
 #define kAssignedAddrKey "assigned-addresses"
 extern void AHCI_Log(const char *fmt, ...);
 
-class RavynAHCIDisk;
+class MinkarAHCIDisk;
 
-class RavynAHCIPort : public IOService
+class MinkarAHCIPort : public IOService
 {
-    OSDeclareDefaultStructors(RavynAHCIPort);
-    friend class RavynAHCIDisk;
+    OSDeclareDefaultStructors(MinkarAHCIPort);
+    friend class MinkarAHCIDisk;
 
 public:
     IOService *probe(IOService *provider, SInt32 *score) override;
@@ -51,7 +51,7 @@ public:
     void stop(IOService *provider) override;
     void free() override;
 
-    /* Public block I/O interface (called by RavynAHCIDisk) */
+    /* Public block I/O interface (called by MinkarAHCIDisk) */
     IOReturn doRead (uint32_t portIndex, uint64_t lba, uint32_t sectors,
                      IOMemoryDescriptor *buffer, uint64_t bufOff);
     IOReturn doWrite(uint32_t portIndex, uint64_t lba, uint32_t sectors,
@@ -91,7 +91,7 @@ private:
     /* One nub per populated SATA port (indexed like fPorts) -- the storage
      * stack (GPT scheme + AppleFileSystemDriver's boot-uuid match) picks the
      * right one; we don't special-case a single "the disk" here. */
-    RavynAHCIDisk       * fDiskNubs[32];
+    MinkarAHCIDisk       * fDiskNubs[32];
     PortState             fPorts[32];
 
     inline uint32_t hbaRead32(uint32_t offset) const
@@ -156,5 +156,5 @@ private:
                               size_t           wordCount);
 };
 
-#endif /* _RAVYN_AHCI_PORT_H */
+#endif /* _MINKAR_AHCI_PORT_H */
 

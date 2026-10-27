@@ -1,5 +1,5 @@
 /*
- * RavynAHCIPort: minimal driver for AHCI SATA controllers
+ * MinkarAHCIPort: minimal driver for AHCI SATA controllers
  *
  * Copyright (C) 2026 Zoe Knox. All rights reserved.
  * Modifications Copyright (c) 2026 The Minkar contributors
@@ -26,11 +26,11 @@
 #include <IOKit/IOLib.h>
 #include <IOKit/storage/IOMedia.h>
 #include <pexpert/pexpert.h>
-#include "RavynAHCIPort.h"
-#include "RavynAHCIDisk.h"
+#include "MinkarAHCIPort.h"
+#include "MinkarAHCIDisk.h"
 
 #define super IOService
-OSDefineMetaClassAndStructors(RavynAHCIPort, IOService);
+OSDefineMetaClassAndStructors(MinkarAHCIPort, IOService);
 
 static bool gAHCIDebug = false;
 
@@ -45,7 +45,7 @@ AHCI_Debug(const char *fmt, ...)
     va_start(args, fmt);
     vsnprintf(buf, sizeof(buf) - 1, fmt, args);
     va_end(args);
-    kprintf("[RavynAHCIPort] %s\n", buf);
+    kprintf("[MinkarAHCIPort] %s\n", buf);
 }
 
 static bool
@@ -250,11 +250,11 @@ void AHCI_Log(const char *fmt, ...)
     va_list args;
     va_start(args, fmt);
     vsnprintf(buf, sizeof(buf) - 1, fmt, args);
-    kprintf("[RavynAHCIPort] %s\n", buf);
+    kprintf("[MinkarAHCIPort] %s\n", buf);
 }
 
 IOService *
-RavynAHCIPort::probe(IOService *provider, SInt32 *score)
+MinkarAHCIPort::probe(IOService *provider, SInt32 *score)
 {
     IOPCIDevice *pci = OSDynamicCast(IOPCIDevice, provider);
     AHCI_Debug("probe provider=%p pci=%p", provider, pci);
@@ -270,7 +270,7 @@ RavynAHCIPort::probe(IOService *provider, SInt32 *score)
     return result;
 }
 
-bool RavynAHCIPort::start(IOService *provider)
+bool MinkarAHCIPort::start(IOService *provider)
 {
     PE_parse_boot_argn("ahci_debug", &gAHCIDebug, sizeof(gAHCIDebug));
     AHCI_Debug("start provider=%p", provider);
@@ -355,7 +355,7 @@ bool RavynAHCIPort::start(IOService *provider)
             }
         }
         fInterruptSource = IOInterruptEventSource::interruptEventSource(
-            this, &RavynAHCIPort::interruptOccurredStatic, fProvider, intIndex);
+            this, &MinkarAHCIPort::interruptOccurredStatic, fProvider, intIndex);
         if (fInterruptSource && fWorkLoop->addEventSource(fInterruptSource) == kIOReturnSuccess) {
             fInterruptSource->enable();
             hbaWrite32(AHCI_GHC, hbaRead32(AHCI_GHC) | AHCI_GHC_IE);
@@ -436,7 +436,7 @@ bool RavynAHCIPort::start(IOService *provider)
             AHCI_Debug("Port %d LBA1 signature='%.8s'", p, gptSig);
         }
 
-        RavynAHCIDisk *diskNub = new RavynAHCIDisk();
+        MinkarAHCIDisk *diskNub = new MinkarAHCIDisk();
         if (!diskNub) {
             AHCI_Log("Failed to allocate disk nub for port %d", p);
             continue;
@@ -476,11 +476,11 @@ bool RavynAHCIPort::start(IOService *provider)
 }
 
 void
-RavynAHCIPort::stop(IOService *provider)
+MinkarAHCIPort::stop(IOService *provider)
 {
     AHCI_Debug("stop provider=%p", provider);
     for (int p = 0; p < 32; p++) {
-        RavynAHCIDisk *diskNub = fDiskNubs[p];
+        MinkarAHCIDisk *diskNub = fDiskNubs[p];
         if (!diskNub) continue;
         diskNub->stop(this);
         diskNub->detach(this);
@@ -524,7 +524,7 @@ RavynAHCIPort::stop(IOService *provider)
 }
 
 void
-RavynAHCIPort::free()
+MinkarAHCIPort::free()
 {
     if (fCommandLock) {
         IOLockFree(fCommandLock);
@@ -539,7 +539,7 @@ RavynAHCIPort::free()
 }
 
 bool
-RavynAHCIPort::allocPortMemory(PortState &portState)
+MinkarAHCIPort::allocPortMemory(PortState &portState)
 {
     if (portState.mem) return true;
 
@@ -566,7 +566,7 @@ RavynAHCIPort::allocPortMemory(PortState &portState)
 }
 
 void
-RavynAHCIPort::freePortMemory(PortState &portState)
+MinkarAHCIPort::freePortMemory(PortState &portState)
 {
     if (portState.mem) {
         portState.mem->release();
@@ -577,7 +577,7 @@ RavynAHCIPort::freePortMemory(PortState &portState)
 }
 
 bool
-RavynAHCIPort::stopPortEngine(uint32_t port)
+MinkarAHCIPort::stopPortEngine(uint32_t port)
 {
     uint32_t cmd = portRead32(port, PORT_CMD);
     cmd &= ~PORT_CMD_ST;
@@ -605,7 +605,7 @@ RavynAHCIPort::stopPortEngine(uint32_t port)
 }
 
 bool
-RavynAHCIPort::startPortEngine(uint32_t port)
+MinkarAHCIPort::startPortEngine(uint32_t port)
 {
     uint32_t cmd = portRead32(port, PORT_CMD);
     cmd |= PORT_CMD_FRE;
@@ -619,7 +619,7 @@ RavynAHCIPort::startPortEngine(uint32_t port)
 }
 
 bool
-RavynAHCIPort::resetPort(uint32_t port)
+MinkarAHCIPort::resetPort(uint32_t port)
 {
     uint32_t sctl = portRead32(port, PORT_SCTL);
     sctl &= ~PORT_SCTL_DET_MASK;
@@ -646,7 +646,7 @@ RavynAHCIPort::resetPort(uint32_t port)
 }
 
 bool
-RavynAHCIPort::waitWhileBusy(uint32_t port, uint32_t timeoutMs)
+MinkarAHCIPort::waitWhileBusy(uint32_t port, uint32_t timeoutMs)
 {
     for (uint32_t i = 0; i < timeoutMs; i++) {
         uint32_t tfd = portRead32(port, PORT_TFD);
@@ -661,7 +661,7 @@ RavynAHCIPort::waitWhileBusy(uint32_t port, uint32_t timeoutMs)
 }
 
 bool
-RavynAHCIPort::rebasePort(PortState &portState)
+MinkarAHCIPort::rebasePort(PortState &portState)
 {
     if (!allocPortMemory(portState)) return false;
 
@@ -711,16 +711,16 @@ RavynAHCIPort::rebasePort(PortState &portState)
 }
 
 void
-RavynAHCIPort::interruptOccurredStatic(OSObject *owner, IOInterruptEventSource *sender, int count)
+MinkarAHCIPort::interruptOccurredStatic(OSObject *owner, IOInterruptEventSource *sender, int count)
 {
-    RavynAHCIPort *self = OSDynamicCast(RavynAHCIPort, owner);
+    MinkarAHCIPort *self = OSDynamicCast(MinkarAHCIPort, owner);
     if (!self)
         return;
     self->interruptOccurred(sender, count);
 }
 
 void
-RavynAHCIPort::interruptOccurred(IOInterruptEventSource *sender, int count)
+MinkarAHCIPort::interruptOccurred(IOInterruptEventSource *sender, int count)
 {
     uint32_t is = hbaRead32(AHCI_IS);
     if (!is)
@@ -751,7 +751,7 @@ RavynAHCIPort::interruptOccurred(IOInterruptEventSource *sender, int count)
  * triggered this.
  */
 void
-RavynAHCIPort::recoverWedgedPort(uint32_t port)
+MinkarAHCIPort::recoverWedgedPort(uint32_t port)
 {
     stopPortEngine(port);
     if (!resetPort(port))
@@ -762,7 +762,7 @@ RavynAHCIPort::recoverWedgedPort(uint32_t port)
 }
 
 bool
-RavynAHCIPort::issueCommand(PortState &portState,
+MinkarAHCIPort::issueCommand(PortState &portState,
                             uint8_t      ataCommand,
                             uint64_t     lba,
                             uint16_t     sectorCount,
@@ -903,7 +903,7 @@ RavynAHCIPort::issueCommand(PortState &portState,
 }
 
 bool
-RavynAHCIPort::identifyDevice(PortState &portState, uint16_t *identifyWords512)
+MinkarAHCIPort::identifyDevice(PortState &portState, uint16_t *identifyWords512)
 {
     if (!identifyWords512)
         return false;
@@ -934,7 +934,7 @@ RavynAHCIPort::identifyDevice(PortState &portState, uint16_t *identifyWords512)
 }
 
 bool
-RavynAHCIPort::readDMAExt(PortState &portState,
+MinkarAHCIPort::readDMAExt(PortState &portState,
                           uint64_t     lba,
                           uint32_t     sectorCount,
                           void     * buffer,
@@ -976,7 +976,7 @@ RavynAHCIPort::readDMAExt(PortState &portState,
 }
 
 bool
-RavynAHCIPort::writeDMAExt(PortState &portState,
+MinkarAHCIPort::writeDMAExt(PortState &portState,
                            uint64_t     lba,
                            uint32_t     sectorCount,
                            void     * buffer,
@@ -1014,7 +1014,7 @@ RavynAHCIPort::writeDMAExt(PortState &portState,
 }
 
 bool
-RavynAHCIPort::flushCache(PortState &portState)
+MinkarAHCIPort::flushCache(PortState &portState)
 {
     if (!portState.lba48) return true;   /* no cache on very old devices */
     /* FLUSH CACHE EXT takes no LBA / count fields */
@@ -1027,7 +1027,7 @@ RavynAHCIPort::flushCache(PortState &portState)
  * commands through a heap bounce buffer (IOMemoryDescriptor may not be
  * physically contiguous, so we can't hand its pages to the HBA directly). */
 IOReturn
-RavynAHCIPort::doRead(uint32_t               portIndex,
+MinkarAHCIPort::doRead(uint32_t               portIndex,
                       uint64_t               lba,
                       uint32_t               sectors,
                       IOMemoryDescriptor * buffer,
@@ -1080,7 +1080,7 @@ RavynAHCIPort::doRead(uint32_t               portIndex,
 }
 
 IOReturn
-RavynAHCIPort::doWrite(uint32_t               portIndex,
+MinkarAHCIPort::doWrite(uint32_t               portIndex,
                        uint64_t               lba,
                        uint32_t               sectors,
                        IOMemoryDescriptor * buffer,
@@ -1133,7 +1133,7 @@ RavynAHCIPort::doWrite(uint32_t               portIndex,
 }
 
 IOReturn
-RavynAHCIPort::doFlush(uint32_t portIndex)
+MinkarAHCIPort::doFlush(uint32_t portIndex)
 {
     if (portIndex >= 32 || !fPorts[portIndex].valid)
         return kIOReturnNoDevice;
@@ -1141,35 +1141,35 @@ RavynAHCIPort::doFlush(uint32_t portIndex)
 }
 
 uint64_t
-RavynAHCIPort::sectorCount(uint32_t portIndex) const
+MinkarAHCIPort::sectorCount(uint32_t portIndex) const
 {
     if (portIndex >= 32 || !fPorts[portIndex].valid) return 0;
     return fPorts[portIndex].sectorCount;
 }
 
 const char *
-RavynAHCIPort::modelString(uint32_t portIndex) const
+MinkarAHCIPort::modelString(uint32_t portIndex) const
 {
     if (portIndex >= 32 || !fPorts[portIndex].valid) return "";
     return fPorts[portIndex].model;
 }
 
 const char *
-RavynAHCIPort::serialString(uint32_t portIndex) const
+MinkarAHCIPort::serialString(uint32_t portIndex) const
 {
     if (portIndex >= 32 || !fPorts[portIndex].valid) return "";
     return fPorts[portIndex].serial;
 }
 
 const char *
-RavynAHCIPort::firmwareString(uint32_t portIndex) const
+MinkarAHCIPort::firmwareString(uint32_t portIndex) const
 {
     if (portIndex >= 32 || !fPorts[portIndex].valid) return "";
     return fPorts[portIndex].firmware;
 }
 
 void
-RavynAHCIPort::ataSwapString(char         * dst,
+MinkarAHCIPort::ataSwapString(char         * dst,
                              size_t         dstLen,
                              const uint16_t * srcWords,
                              size_t         wordCount)
@@ -1193,7 +1193,7 @@ RavynAHCIPort::ataSwapString(char         * dst,
 }
 
 void
-RavynAHCIPort::parseIdentifyData(PortState &portState, const uint16_t *id)
+MinkarAHCIPort::parseIdentifyData(PortState &portState, const uint16_t *id)
 {
     ataSwapString(portState.serial,
                   sizeof(portState.serial),

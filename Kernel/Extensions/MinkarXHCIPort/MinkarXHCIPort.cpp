@@ -1,5 +1,5 @@
 /*
- * RavynXHCIPort: minimal xHCI host controller driver + USB Mass Storage
+ * MinkarXHCIPort: minimal xHCI host controller driver + USB Mass Storage
  * (bulk-only transport) enumeration.
  *
  * Copyright (C) 2026 ravynOS Project. All rights reserved.
@@ -27,13 +27,13 @@
 #include <IOKit/IOLib.h>
 #include <IOKit/storage/IOMedia.h>
 #include <kern/thread.h>
-#include "RavynXHCIPort.h"
-#include "RavynXHCIMassStorageDisk.h"
-#include "RavynXHCIUSBBus.h"
+#include "MinkarXHCIPort.h"
+#include "MinkarXHCIMassStorageDisk.h"
+#include "MinkarXHCIUSBBus.h"
 #include <IOKit/usb/IOUSBDevice.h>
 
 #define super IOService
-OSDefineMetaClassAndStructors(RavynXHCIPort, IOService);
+OSDefineMetaClassAndStructors(MinkarXHCIPort, IOService);
 
 #define kAssignedAddrKey "assigned-addresses"
 #define kRingTRBs   256   /* TRBs per ring segment, last one reserved for LINK */
@@ -82,7 +82,7 @@ void XHCI_Log(const char *fmt, ...)
     va_list args;
     va_start(args, fmt);
     vsnprintf(buf, sizeof(buf) - 1, fmt, args);
-    kprintf("[RavynXHCIPort] %s\n", buf);
+    kprintf("[MinkarXHCIPort] %s\n", buf);
 }
 
 static IOMemoryMap *
@@ -264,7 +264,7 @@ mapBARFromConfig(IOPCIDevice         * provider,
 }
 
 IOService *
-RavynXHCIPort::probe(IOService *provider, SInt32 *score)
+MinkarXHCIPort::probe(IOService *provider, SInt32 *score)
 {
     IOPCIDevice *pci = OSDynamicCast(IOPCIDevice, provider);
     if (!pci) return NULL;
@@ -272,7 +272,7 @@ RavynXHCIPort::probe(IOService *provider, SInt32 *score)
     return super::probe(provider, score);
 }
 
-bool RavynXHCIPort::start(IOService *provider)
+bool MinkarXHCIPort::start(IOService *provider)
 {
     fProvider = OSDynamicCast(IOPCIDevice, provider);
     if (!fProvider || !super::start(provider)) return false;
@@ -366,14 +366,14 @@ bool RavynXHCIPort::start(IOService *provider)
     /* Try MSI: IOPCIFamily's resolveMSIInterrupts() already ran at nub
      * publish and, if allocation succeeded, wired an interrupt source at
      * index 0. doCommand()/waitTransferEvent() poll serviceEventRing()
-     * regardless (see RavynXHCIPort.h), so this only shortens their wait -
+     * regardless (see MinkarXHCIPort.h), so this only shortens their wait -
      * a failed registration here just leaves fInterruptsEnabled false and
      * everything behaves exactly as before. */
     fEventWaitLock = IOLockAlloc();
     fWorkLoop = fEventWaitLock ? IOWorkLoop::workLoop() : NULL;
     if (fWorkLoop) {
         fInterruptSource = IOInterruptEventSource::interruptEventSource(
-            this, &RavynXHCIPort::interruptOccurredStatic, fProvider, 0);
+            this, &MinkarXHCIPort::interruptOccurredStatic, fProvider, 0);
         if (fInterruptSource && fWorkLoop->addEventSource(fInterruptSource) == kIOReturnSuccess) {
             fInterruptSource->enable();
             opWrite32(XHCI_USBCMD, opRead32(XHCI_USBCMD) | XHCI_USBCMD_INTE);
@@ -402,13 +402,13 @@ bool RavynXHCIPort::start(IOService *provider)
     bzero(fSlotRootPort, sizeof(fSlotRootPort));
     bzero(fPortOccupied, sizeof(fPortOccupied));
 
-    fUSBBus = OSTypeAlloc(RavynXHCIUSBBus);
+    fUSBBus = OSTypeAlloc(MinkarXHCIUSBBus);
     if (fUSBBus && !fUSBBus->initWithPort(this)) {
         fUSBBus->release();
         fUSBBus = NULL;
     }
     if (!fUSBBus)
-        XHCI_Log("failed to create RavynXHCIUSBBus - generic USB devices (composite etc) won't be published");
+        XHCI_Log("failed to create MinkarXHCIUSBBus - generic USB devices (composite etc) won't be published");
 
     scanPorts();
 
@@ -417,7 +417,7 @@ bool RavynXHCIPort::start(IOService *provider)
 
     fHotplugRunning = true;
     thread_t hpThread = THREAD_NULL;
-    if (kernel_thread_start((thread_continue_t)&RavynXHCIPort::hotplugThread, this, &hpThread) == KERN_SUCCESS) {
+    if (kernel_thread_start((thread_continue_t)&MinkarXHCIPort::hotplugThread, this, &hpThread) == KERN_SUCCESS) {
         thread_deallocate(hpThread);
     } else {
         XHCI_Log("failed to start hotplug poll thread");
@@ -426,13 +426,13 @@ bool RavynXHCIPort::start(IOService *provider)
     return true;
 }
 
-void RavynXHCIPort::stop(IOService *provider)
+void MinkarXHCIPort::stop(IOService *provider)
 {
     fHotplugRunning = false;
     super::stop(provider);
 }
 
-void RavynXHCIPort::free()
+void MinkarXHCIPort::free()
 {
     for (int i = 0; i < 16; i++) {
         if (fDiskNubs[i]) { fDiskNubs[i]->release(); fDiskNubs[i] = NULL; }
@@ -460,7 +460,7 @@ void RavynXHCIPort::free()
     super::free();
 }
 
-bool RavynXHCIPort::resetController()
+bool MinkarXHCIPort::resetController()
 {
     /* Stop if running. */
     if (!(opRead32(XHCI_USBSTS) & XHCI_USBSTS_HCH)) {
@@ -480,7 +480,7 @@ bool RavynXHCIPort::resetController()
     return false;
 }
 
-void RavynXHCIPort::claimBIOSOwnership()
+void MinkarXHCIPort::claimBIOSOwnership()
 {
     UInt32 hccp1 = capRead32(XHCI_HCCPARAMS1);
     UInt32 off = XHCI_HCCP1_XECP(hccp1) * 4;
@@ -517,7 +517,7 @@ void RavynXHCIPort::claimBIOSOwnership()
     }
 }
 
-void RavynXHCIPort::parseExtendedCapabilities()
+void MinkarXHCIPort::parseExtendedCapabilities()
 {
     for (UInt32 i = 0; i < 64; i++) { fPortMajorRev[i] = 0; fPairedPort[i] = 0xFF; }
 
@@ -578,7 +578,7 @@ void RavynXHCIPort::parseExtendedCapabilities()
     }
 }
 
-bool RavynXHCIPort::setupDCBAA()
+bool MinkarXHCIPort::setupDCBAA()
 {
     UInt64 mask = 0xFFFFFFFFFFFFFFFFULL;
     fDCBAAMem = IOBufferMemoryDescriptor::inTaskWithPhysicalMask(
@@ -641,7 +641,7 @@ bool RavynXHCIPort::setupDCBAA()
     return true;
 }
 
-bool RavynXHCIPort::allocRing(IOBufferMemoryDescriptor **outMem, volatile XHCITRB **outVirt, UInt32 trbCount)
+bool MinkarXHCIPort::allocRing(IOBufferMemoryDescriptor **outMem, volatile XHCITRB **outVirt, UInt32 trbCount)
 {
     UInt64 mask = 0xFFFFFFFFFFFFFFFFULL;
     IOBufferMemoryDescriptor *mem = IOBufferMemoryDescriptor::inTaskWithPhysicalMask(
@@ -655,7 +655,7 @@ bool RavynXHCIPort::allocRing(IOBufferMemoryDescriptor **outMem, volatile XHCITR
     return true;
 }
 
-bool RavynXHCIPort::setupCommandRing()
+bool MinkarXHCIPort::setupCommandRing()
 {
     if (!allocRing(&fCmdRingMem, &fCmdRing, kRingTRBs)) return false;
     XHCI_DMA_LOG("cmdRing", fCmdRingMem);
@@ -677,7 +677,7 @@ bool RavynXHCIPort::setupCommandRing()
     return true;
 }
 
-bool RavynXHCIPort::setupEventRing()
+bool MinkarXHCIPort::setupEventRing()
 {
     if (!allocRing(&fEventRingMem, &fEventRing, kRingTRBs)) return false;
     XHCI_DMA_LOG("eventRing", fEventRingMem);
@@ -714,7 +714,7 @@ bool RavynXHCIPort::setupEventRing()
     return true;
 }
 
-void RavynXHCIPort::pushTRB(volatile XHCITRB *ring, UInt32 &enqueue, UInt8 &cycle, UInt32 ringSizeTRBs,
+void MinkarXHCIPort::pushTRB(volatile XHCITRB *ring, UInt32 &enqueue, UInt8 &cycle, UInt32 ringSizeTRBs,
                             UInt64 param, UInt32 status, UInt32 control)
 {
     ring[enqueue].param = param;
@@ -729,15 +729,15 @@ void RavynXHCIPort::pushTRB(volatile XHCITRB *ring, UInt32 &enqueue, UInt8 &cycl
     }
 }
 
-void RavynXHCIPort::interruptOccurredStatic(OSObject *owner, IOInterruptEventSource *sender, int count)
+void MinkarXHCIPort::interruptOccurredStatic(OSObject *owner, IOInterruptEventSource *sender, int count)
 {
-    RavynXHCIPort *self = OSDynamicCast(RavynXHCIPort, owner);
+    MinkarXHCIPort *self = OSDynamicCast(MinkarXHCIPort, owner);
     if (!self)
         return;
     self->interruptOccurred(sender, count);
 }
 
-void RavynXHCIPort::interruptOccurred(IOInterruptEventSource *sender, int count)
+void MinkarXHCIPort::interruptOccurred(IOInterruptEventSource *sender, int count)
 {
     /* IMAN.IP (Interrupt Pending) is write-1-to-clear; ack it so the
      * controller can post the next interrupt. */
@@ -749,7 +749,7 @@ void RavynXHCIPort::interruptOccurred(IOInterruptEventSource *sender, int count)
     IOLockWakeup(fEventWaitLock, &fEventWaitChannel, true);
 }
 
-void RavynXHCIPort::serviceEventRing()
+void MinkarXHCIPort::serviceEventRing()
 {
     /* Sole consumer of the event ring. Drains every currently-available
      * event and files each completion into the per-(slot,DCI) transfer table
@@ -792,7 +792,7 @@ void RavynXHCIPort::serviceEventRing()
     IOLockUnlock(fEventLock);
 }
 
-bool RavynXHCIPort::doCommand(UInt64 param, UInt32 status, UInt32 controlNoCycle,
+bool MinkarXHCIPort::doCommand(UInt64 param, UInt32 status, UInt32 controlNoCycle,
                               UInt8 *outCC, UInt32 *outSlotId, UInt64 timeoutMs)
 {
     IOLockLock(fCmdLock);
@@ -856,7 +856,7 @@ bool RavynXHCIPort::doCommand(UInt64 param, UInt32 status, UInt32 controlNoCycle
     return ok;
 }
 
-bool RavynXHCIPort::waitTransferEvent(UInt32 slotId, UInt32 epDCI, UInt8 *outCC, UInt32 timeoutMs)
+bool MinkarXHCIPort::waitTransferEvent(UInt32 slotId, UInt32 epDCI, UInt8 *outCC, UInt32 timeoutMs)
 {
     if (slotId >= 64 || epDCI >= 32) return false;
     for (UInt32 waited = 0; waited < timeoutMs; waited++) {
@@ -887,7 +887,7 @@ bool RavynXHCIPort::waitTransferEvent(UInt32 slotId, UInt32 epDCI, UInt8 *outCC,
     return false;
 }
 
-void RavynXHCIPort::scanPorts()
+void MinkarXHCIPort::scanPorts()
 {
     /* Explicitly power every port on. Ports come up powered after HCRST on
      * most real controllers, but not guaranteed, and PP is a normal
@@ -966,14 +966,14 @@ void RavynXHCIPort::scanPorts()
  * enumeration path on any port that's newly connected and not
  * already occupied. It does not handle removal (tearing down a nub whose
  * device was unplugged) - only new connects/replugs. */
-void RavynXHCIPort::hotplugThread(void *arg, wait_result_t)
+void MinkarXHCIPort::hotplugThread(void *arg, wait_result_t)
 {
-    RavynXHCIPort *self = (RavynXHCIPort *)arg;
+    MinkarXHCIPort *self = (MinkarXHCIPort *)arg;
     self->hotplugLoop();
     thread_terminate(current_thread());
 }
 
-void RavynXHCIPort::hotplugLoop()
+void MinkarXHCIPort::hotplugLoop()
 {
     while (fHotplugRunning) {
         for (UInt32 p = 0; p < fMaxPorts && p < 64; p++) {
@@ -997,7 +997,7 @@ void RavynXHCIPort::hotplugLoop()
     }
 }
 
-void RavynXHCIPort::handleRootPortDisconnect(UInt32 port0based, UInt32 portsc)
+void MinkarXHCIPort::handleRootPortDisconnect(UInt32 port0based, UInt32 portsc)
 {
     XHCI_Log("hotplug: Port %u disconnected, portsc=%08x", port0based, portsc);
 
@@ -1025,7 +1025,7 @@ void RavynXHCIPort::handleRootPortDisconnect(UInt32 port0based, UInt32 portsc)
     }
 }
 
-bool RavynXHCIPort::resetAndEnumeratePort(UInt32 port0based)
+bool MinkarXHCIPort::resetAndEnumeratePort(UInt32 port0based)
 {
     UInt32 portsc = portRead32(port0based, XHCI_PORTSC);
     UInt32 preservedSpeed = 0;
@@ -1155,7 +1155,7 @@ enumerate:
     return tryEnumerateMassStorage(port0based, speed);
 }
 
-bool RavynXHCIPort::enableSlot(UInt32 *outSlotId)
+bool MinkarXHCIPort::enableSlot(UInt32 *outSlotId)
 {
     UInt8 cc = 0;
     UInt32 slot = 0;
@@ -1168,7 +1168,7 @@ bool RavynXHCIPort::enableSlot(UInt32 *outSlotId)
     return true;
 }
 
-void RavynXHCIPort::disableSlot(UInt32 slotId)
+void MinkarXHCIPort::disableSlot(UInt32 slotId)
 {
     UInt8 cc = 0;
 
@@ -1187,7 +1187,7 @@ void RavynXHCIPort::disableSlot(UInt32 slotId)
     fDCBAA[slotId] = 0;
 }
 
-void RavynXHCIPort::freeSlotResources(UInt32 slotId)
+void MinkarXHCIPort::freeSlotResources(UInt32 slotId)
 {
     if (slotId == 0 || slotId >= 64) return;
 
@@ -1214,7 +1214,7 @@ void RavynXHCIPort::freeSlotResources(UInt32 slotId)
  * every EP0 transfer in that pre-address state. Use the speed-derived EP0
  * max packet size directly; for the boot devices we care about this is
  * deterministic for HS/SS, and full-speed starts safely at 8 bytes. */
-bool RavynXHCIPort::addressDevice(UInt32 slotId, UInt32 port0based, UInt32 routeString,
+bool MinkarXHCIPort::addressDevice(UInt32 slotId, UInt32 port0based, UInt32 routeString,
                                   UInt32 speed, UInt16 &maxPacket0,
                                   UInt32 parentHubSlot, UInt32 parentPortNum)
 {
@@ -1272,7 +1272,7 @@ bool RavynXHCIPort::addressDevice(UInt32 slotId, UInt32 port0based, UInt32 route
     return true;
 }
 
-bool RavynXHCIPort::sendAddressDeviceCommand(UInt32 slotId, UInt32 port0based, UInt32 routeString,
+bool MinkarXHCIPort::sendAddressDeviceCommand(UInt32 slotId, UInt32 port0based, UInt32 routeString,
                                              UInt32 speed, UInt16 maxPkt, bool bsr,
                                              UInt32 parentHubSlot, UInt32 parentPortNum)
 {
@@ -1321,7 +1321,7 @@ bool RavynXHCIPort::sendAddressDeviceCommand(UInt32 slotId, UInt32 port0based, U
     return true;
 }
 
-bool RavynXHCIPort::controlTransfer(UInt32 slotId, const USBSetupPacket &setup,
+bool MinkarXHCIPort::controlTransfer(UInt32 slotId, const USBSetupPacket &setup,
                                     void *buf, UInt16 len, bool in)
 {
     SlotResources &sr = fSlots[slotId];
@@ -1391,7 +1391,7 @@ bool RavynXHCIPort::controlTransfer(UInt32 slotId, const USBSetupPacket &setup,
     return true;
 }
 
-bool RavynXHCIPort::configureBulkEndpoints(UInt32 slotId, UInt8 inEp, UInt16 inMaxPkt,
+bool MinkarXHCIPort::configureBulkEndpoints(UInt32 slotId, UInt8 inEp, UInt16 inMaxPkt,
                                            UInt8 outEp, UInt16 outMaxPkt)
 {
     SlotResources &sr = fSlots[slotId];
@@ -1443,7 +1443,7 @@ bool RavynXHCIPort::configureBulkEndpoints(UInt32 slotId, UInt8 inEp, UInt16 inM
     return true;
 }
 
-bool RavynXHCIPort::configureInterruptInEndpoint(UInt32 slotId, UInt8 epNum,
+bool MinkarXHCIPort::configureInterruptInEndpoint(UInt32 slotId, UInt8 epNum,
                                                  UInt16 maxPkt, UInt8 interval)
 {
     SlotResources &sr = fSlots[slotId];
@@ -1509,7 +1509,7 @@ bool RavynXHCIPort::configureInterruptInEndpoint(UInt32 slotId, UInt8 epNum,
     return true;
 }
 
-IOReturn RavynXHCIPort::interruptTransfer(UInt32 slotId, UInt8 epNum,
+IOReturn MinkarXHCIPort::interruptTransfer(UInt32 slotId, UInt8 epNum,
                                           IOMemoryDescriptor *buffer,
                                           UInt32 len, UInt32 timeoutMs)
 {
@@ -1567,7 +1567,7 @@ IOReturn RavynXHCIPort::interruptTransfer(UInt32 slotId, UInt8 epNum,
  * unrelated memory - and a kernel panic soon after). */
 #define kMaxTRBTransferBytes 0x10000U
 
-bool RavynXHCIPort::bulkTransfer(UInt32 slotId, UInt8 epNum, bool in,
+bool MinkarXHCIPort::bulkTransfer(UInt32 slotId, UInt8 epNum, bool in,
                                  IOBufferMemoryDescriptor *xferMem, UInt32 len, UInt32 timeoutMs)
 {
     SlotResources &sr = fSlots[slotId];
@@ -1618,7 +1618,7 @@ bool RavynXHCIPort::bulkTransfer(UInt32 slotId, UInt8 epNum, bool in,
     return true;
 }
 
-bool RavynXHCIPort::markSlotAsHub(UInt32 slotId, UInt8 numPorts, bool multiTT,
+bool MinkarXHCIPort::markSlotAsHub(UInt32 slotId, UInt8 numPorts, bool multiTT,
                                   UInt8 intrEp, UInt16 intrMaxPkt, UInt8 intrInterval)
 {
     SlotResources &sr = fSlots[slotId];
@@ -1674,7 +1674,7 @@ bool RavynXHCIPort::markSlotAsHub(UInt32 slotId, UInt8 numPorts, bool multiTT,
     return true;
 }
 
-bool RavynXHCIPort::hubGetDescriptor(UInt32 slotId, bool superSpeed, void *buf, UInt16 len)
+bool MinkarXHCIPort::hubGetDescriptor(UInt32 slotId, bool superSpeed, void *buf, UInt16 len)
 {
     USBSetupPacket setup = { USB_HUB_REQTYPE_GET_HUB_DESC, USB_REQ_GET_DESCRIPTOR,
         (UInt16)((superSpeed ? USB_DESC_HUB_SS : USB_DESC_HUB) << 8), 0, len };
@@ -1686,28 +1686,28 @@ bool RavynXHCIPort::hubGetDescriptor(UInt32 slotId, bool superSpeed, void *buf, 
  * refuse to route any traffic - including Address Device for a downstream
  * device - to its ports until this is sent, even at depth 0 (root-attached).
  * Must run after SET_CONFIGURATION and before powering/enumerating ports. */
-bool RavynXHCIPort::hubSetDepth(UInt32 slotId, UInt16 depth)
+bool MinkarXHCIPort::hubSetDepth(UInt32 slotId, UInt16 depth)
 {
     USBSetupPacket setup = { USB_HUB_REQTYPE_SET_HUB_DEPTH, USB_REQ_SET_HUB_DEPTH,
         depth, 0, 0 };
     return controlTransfer(slotId, setup, NULL, 0, false);
 }
 
-bool RavynXHCIPort::hubSetPortFeature(UInt32 slotId, UInt8 port1based, UInt16 feature)
+bool MinkarXHCIPort::hubSetPortFeature(UInt32 slotId, UInt8 port1based, UInt16 feature)
 {
     USBSetupPacket setup = { USB_HUB_REQTYPE_SET_PORT_FEAT, 3 /* SET_FEATURE */,
         feature, port1based, 0 };
     return controlTransfer(slotId, setup, NULL, 0, false);
 }
 
-bool RavynXHCIPort::hubClearPortFeature(UInt32 slotId, UInt8 port1based, UInt16 feature)
+bool MinkarXHCIPort::hubClearPortFeature(UInt32 slotId, UInt8 port1based, UInt16 feature)
 {
     USBSetupPacket setup = { USB_HUB_REQTYPE_CLEAR_PORT_FEAT, 1 /* CLEAR_FEATURE */,
         feature, port1based, 0 };
     return controlTransfer(slotId, setup, NULL, 0, false);
 }
 
-bool RavynXHCIPort::hubGetPortStatus(UInt32 slotId, UInt8 port1based, UInt32 *outStatus)
+bool MinkarXHCIPort::hubGetPortStatus(UInt32 slotId, UInt8 port1based, UInt32 *outStatus)
 {
     USBSetupPacket setup = { USB_HUB_REQTYPE_GET_PORT_STATUS, 0 /* GET_STATUS */,
         0, port1based, 4 };
@@ -1717,7 +1717,7 @@ bool RavynXHCIPort::hubGetPortStatus(UInt32 slotId, UInt8 port1based, UInt32 *ou
     return true;
 }
 
-bool RavynXHCIPort::enumerateHubPort(UInt32 hubSlotId, UInt32 rootPort0based, UInt32 hubRouteString,
+bool MinkarXHCIPort::enumerateHubPort(UInt32 hubSlotId, UInt32 rootPort0based, UInt32 hubRouteString,
                                      UInt8 port1based, bool superSpeedHub, int depth)
 {
     if (depth >= 2) {
@@ -1826,7 +1826,7 @@ bool RavynXHCIPort::enumerateHubPort(UInt32 hubSlotId, UInt32 rootPort0based, UI
 /* Given an addressed slot, decide whether it's a hub (recurse into its
  * downstream ports) or a candidate mass storage device (search for a
  * bulk-only MSC interface and, if found, publish a disk nub). */
-bool RavynXHCIPort::enumerateSlotDevice(UInt32 slotId, UInt32 rootPort0based, UInt32 routeString,
+bool MinkarXHCIPort::enumerateSlotDevice(UInt32 slotId, UInt32 rootPort0based, UInt32 routeString,
                                         UInt32 speed, int depth)
 {
     USBDeviceDescriptor devDesc;
@@ -2020,7 +2020,7 @@ bool RavynXHCIPort::enumerateSlotDevice(UInt32 slotId, UInt32 rootPort0based, UI
     if (!configureBulkEndpoints(slotId, bulkInEp, bulkInMaxPkt, bulkOutEp, bulkOutMaxPkt))
         return false;
 
-    /* Record + publish nub; RavynXHCIMassStorageDisk fills capacity via SCSI INQUIRY/READ CAPACITY. */
+    /* Record + publish nub; MinkarXHCIMassStorageDisk fills capacity via SCSI INQUIRY/READ CAPACITY. */
     int idx = -1;
     for (int i = 0; i < 16; i++) if (!fMSC[i].valid) { idx = i; break; }
     if (idx < 0) return false;
@@ -2034,7 +2034,7 @@ bool RavynXHCIPort::enumerateSlotDevice(UInt32 slotId, UInt32 rootPort0based, UI
     m.bulkOutEp = bulkOutEp;
     m.bulkMaxPacket = bulkInMaxPkt;
 
-    RavynXHCIMassStorageDisk *disk = new RavynXHCIMassStorageDisk;
+    MinkarXHCIMassStorageDisk *disk = new MinkarXHCIMassStorageDisk;
     if (!disk) return false;
     if (!disk->initWithPort(this, idx) || !disk->attach(this)) {
         disk->release();
@@ -2053,7 +2053,7 @@ bool RavynXHCIPort::enumerateSlotDevice(UInt32 slotId, UInt32 rootPort0based, UI
 }
 
 /* Full enumeration: Enable Slot -> Address -> GET_DESCRIPTOR -> hub or MSC */
-bool RavynXHCIPort::tryEnumerateMassStorage(UInt32 port0based, UInt32 speed)
+bool MinkarXHCIPort::tryEnumerateMassStorage(UInt32 port0based, UInt32 speed)
 {
     if (speed == 0) {
         speed = XHCI_PORTSC_SPEED(portRead32(port0based, XHCI_PORTSC));
@@ -2078,7 +2078,7 @@ bool RavynXHCIPort::tryEnumerateMassStorage(UInt32 port0based, UInt32 speed)
     return true;
 }
 
-IOReturn RavynXHCIPort::botTransfer(UInt32 slotId,
+IOReturn MinkarXHCIPort::botTransfer(UInt32 slotId,
                                     const void *cbwCB, UInt8 cbwLen,
                                     UInt32 dataLen, bool dataIn,
                                     IOMemoryDescriptor *buffer, UInt64 bufOff)

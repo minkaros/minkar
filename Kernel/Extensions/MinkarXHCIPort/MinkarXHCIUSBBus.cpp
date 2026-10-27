@@ -1,13 +1,13 @@
-#include "RavynXHCIUSBBus.h"
-#include "RavynXHCIPort.h"
+#include "MinkarXHCIUSBBus.h"
+#include "MinkarXHCIPort.h"
 #include <IOKit/IOBufferMemoryDescriptor.h>
 #include <IOKit/IOLib.h>
 
 #define super IOUSBController
 
-OSDefineMetaClassAndStructors(RavynXHCIUSBBus, IOUSBController)
+OSDefineMetaClassAndStructors(MinkarXHCIUSBBus, IOUSBController)
 
-bool RavynXHCIUSBBus::initWithPort(RavynXHCIPort *port)
+bool MinkarXHCIUSBBus::initWithPort(MinkarXHCIPort *port)
 {
     if (!port || !init(NULL)) return false;
     fPort = port;
@@ -16,7 +16,7 @@ bool RavynXHCIUSBBus::initWithPort(RavynXHCIPort *port)
     return true;
 }
 
-IOReturn RavynXHCIUSBBus::UIMOpenPipe(USBDeviceAddress address, UInt8 speed, Endpoint *endpoint)
+IOReturn MinkarXHCIUSBBus::UIMOpenPipe(USBDeviceAddress address, UInt8 speed, Endpoint *endpoint)
 {
     UInt32 slotId = address;
     if (slotId >= 64 || !endpoint || !fPort) return kIOReturnBadArgument;
@@ -61,25 +61,25 @@ IOReturn RavynXHCIUSBBus::UIMOpenPipe(USBDeviceAddress address, UInt8 speed, End
     }
 }
 
-IOReturn RavynXHCIUSBBus::UIMClosePipe(USBDeviceAddress address, Endpoint *endpoint)
+IOReturn MinkarXHCIUSBBus::UIMClosePipe(USBDeviceAddress address, Endpoint *endpoint)
 {
-    /* No per-endpoint teardown primitive in RavynXHCIPort short of tearing
+    /* No per-endpoint teardown primitive in MinkarXHCIPort short of tearing
      * down the whole slot - treat as a no-op rather than disturb sibling
      * endpoints sharing the slot's single bulk/interrupt ring pair. */
     return kIOReturnSuccess;
 }
 
-IOReturn RavynXHCIUSBBus::UIMAbortPipe(USBDeviceAddress address, Endpoint *endpoint)
+IOReturn MinkarXHCIUSBBus::UIMAbortPipe(USBDeviceAddress address, Endpoint *endpoint)
 {
     return kIOReturnSuccess;
 }
 
-IOReturn RavynXHCIUSBBus::UIMClearPipeStall(USBDeviceAddress address, Endpoint *endpoint)
+IOReturn MinkarXHCIUSBBus::UIMClearPipeStall(USBDeviceAddress address, Endpoint *endpoint)
 {
     return kIOReturnSuccess;
 }
 
-IOReturn RavynXHCIUSBBus::UIMDeviceRequest(IOUSBDevRequest *request, USBDeviceAddress address)
+IOReturn MinkarXHCIUSBBus::UIMDeviceRequest(IOUSBDevRequest *request, USBDeviceAddress address)
 {
     UInt32 slotId = address;
     if (slotId >= 64 || !request || !fPort) return kIOReturnBadArgument;
@@ -97,7 +97,7 @@ IOReturn RavynXHCIUSBBus::UIMDeviceRequest(IOUSBDevRequest *request, USBDeviceAd
     return ok ? kIOReturnSuccess : kIOReturnError;
 }
 
-IOReturn RavynXHCIUSBBus::UIMReadWrite(IOMemoryDescriptor *buffer, USBDeviceAddress address,
+IOReturn MinkarXHCIUSBBus::UIMReadWrite(IOMemoryDescriptor *buffer, USBDeviceAddress address,
                                        Endpoint *endpoint, bool isWrite)
 {
     UInt32 slotId = address;

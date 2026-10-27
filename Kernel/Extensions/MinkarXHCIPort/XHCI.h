@@ -2,6 +2,7 @@
  * XHCI register/TRB/context definitions, from Intel xHCI spec rev 1.2.
  *
  * Copyright (C) 2026 ravynOS Project. All rights reserved.
+ * Modifications Copyright (c) 2026 The Minkar contributors
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal

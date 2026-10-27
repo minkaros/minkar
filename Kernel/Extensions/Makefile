@@ -1,8 +1,8 @@
 SUBDIR = AppleAPIC IOACPIFamily IOPCIFamily IOStorageFamily IOATAFamily \
-	 AppleIntelPIIXATA msdosfs hfs AppleFileSystemDriver RavynAHCIPort \
+	 AppleIntelPIIXATA msdosfs hfs AppleFileSystemDriver MinkarAHCIPort \
 	 IOGraphics corecrypto pthread IOHIDFamily ApplePS2Controller \
 	 AppleI386PCI IONetworkingFamily MinkarE1000 MinkarVirtio \
-	 IOUSBFamily RavynXHCIPort MinkarUSB
+	 IOUSBFamily MinkarXHCIPort MinkarUSB
 
 all: kernelcache
 .for target_dir in ${MINKAR_SDKROOT}/System/Library/Extensions \
@@ -29,7 +29,7 @@ kernelcache: ${SUBDIR}
 	${EXTENSIONS}/AppleI386PCI/AppleI386PCI.kext \
 	${EXTENSIONS}/corecrypto/corecrypto.kext \
 	${EXTENSIONS}/pthread/pthread.kext \
-	${EXTENSIONS}/RavynAHCIPort/RavynAHCIPort.kext \
+	${EXTENSIONS}/MinkarAHCIPort/MinkarAHCIPort.kext \
 	${EXTENSIONS}/IOATAFamily/IOATAFamily.kext \
 	${EXTENSIONS}/IOStorageFamily/IOStorageFamily.kext \
 	${EXTENSIONS}/AppleFileSystemDriver/AppleFileSystemDriver.kext \
@@ -41,7 +41,7 @@ kernelcache: ${SUBDIR}
 	${EXTENSIONS}/MinkarE1000/MinkarE1000.kext \
 	${EXTENSIONS}/MinkarVirtio/MinkarVirtio.kext \
 	${EXTENSIONS}/IOUSBFamily/IOUSBFamily.kext \
-	${EXTENSIONS}/RavynXHCIPort/RavynXHCIPort.kext \
+	${EXTENSIONS}/MinkarXHCIPort/MinkarXHCIPort.kext \
 	${EXTENSIONS}/MinkarUSB/MinkarUSB.kext
 	chmod 0644 ${.TARGET}.tmp
 	${LIPO} -create -output ${.OBJDIR}/${.TARGET} \
@@ -49,6 +49,6 @@ kernelcache: ${SUBDIR}
 	cp -f ${.OBJDIR}/${.TARGET} ${ROOT_BINARY_DIR}
 
 #	${EXTENSIONS}/IOUSBFamily/IOUSBFamily.kext \
-	${EXTENSIONS}/RavynXHCIPort/RavynXHCIPort.kext \
+	${EXTENSIONS}/MinkarXHCIPort/MinkarXHCIPort.kext \
 
 .include <bsd.subdir.mk>

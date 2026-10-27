@@ -1,13 +1,13 @@
 /*
- * RavynXHCIUSBBus: concrete IOUSBController backed directly by
- * RavynXHCIPort's existing, already-working per-slot transfer primitives
+ * MinkarXHCIUSBBus: concrete IOUSBController backed directly by
+ * MinkarXHCIPort's existing, already-working per-slot transfer primitives
  * (controlTransfer/bulkTransfer/configureBulkEndpoints/
  * configureInterruptInEndpoint). Lets IOUSBFamily's IOUSBDevice/
  * IOUSBInterface/IOUSBPipe - and anything that matches on them, like
- * IOUSBCompositeDriver - work against xHCI devices RavynXHCIPort doesn't
+ * IOUSBCompositeDriver - work against xHCI devices MinkarXHCIPort doesn't
  * already special-case as hub/mass-storage/keyboard.
  *
- * Scope limit inherited from RavynXHCIPort: configureBulkEndpoints()
+ * Scope limit inherited from MinkarXHCIPort: configureBulkEndpoints()
  * configures a single bulk-in/out ring pair per slot (not indexed by
  * endpoint number), and configureInterruptInEndpoint() a single
  * interrupt-in ring. So this bus supports at most one bulk IN + one bulk
@@ -16,19 +16,19 @@
  * separate bus-address abstraction - we own both ends).
  */
 
-#ifndef _RAVYN_XHCI_USB_BUS_H
-#define _RAVYN_XHCI_USB_BUS_H
+#ifndef _MINKAR_XHCI_USB_BUS_H
+#define _MINKAR_XHCI_USB_BUS_H
 
 #include <IOKit/usb/IOUSBController.h>
 
-class RavynXHCIPort;
+class MinkarXHCIPort;
 
-class RavynXHCIUSBBus : public IOUSBController
+class MinkarXHCIUSBBus : public IOUSBController
 {
-    OSDeclareDefaultStructors(RavynXHCIUSBBus)
+    OSDeclareDefaultStructors(MinkarXHCIUSBBus)
 
 public:
-    bool initWithPort(RavynXHCIPort *port);
+    bool initWithPort(MinkarXHCIPort *port);
 
     virtual IOReturn UIMOpenPipe(USBDeviceAddress address, UInt8 speed, Endpoint *endpoint) APPLE_KEXT_OVERRIDE;
     virtual IOReturn UIMClosePipe(USBDeviceAddress address, Endpoint *endpoint) APPLE_KEXT_OVERRIDE;
@@ -41,9 +41,9 @@ public:
                                    Endpoint *endpoint, bool isWrite) APPLE_KEXT_OVERRIDE;
 
 private:
-    RavynXHCIPort *fPort;
+    MinkarXHCIPort *fPort;
     bool fBulkConfigured[64];
     bool fIntrConfigured[64];
 };
 
-#endif /* !_RAVYN_XHCI_USB_BUS_H */
+#endif /* !_MINKAR_XHCI_USB_BUS_H */

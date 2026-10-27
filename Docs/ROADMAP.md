@@ -167,7 +167,7 @@ mounted.
     interrupt; `556c20aad1`).
   - [x] Storage: virtio-blk (`MinkarVirtio`, `43c4efe09d`: every sector
     read and writes reaching the disk, tested in QEMU). NVMe later.
-  - [x] Input: USB xHCI + HID (`RavynXHCIPort`, `IOUSBFamily`, `MinkarUSB`,
+  - [x] Input: USB xHCI + HID (`MinkarXHCIPort`, `IOUSBFamily`, `MinkarUSB`,
     `863a628989`): a USB keyboard's keys reach the console login and a
     tablet's positions and buttons are exact, tested in QEMU. Delivering
     events to WindowServer is Phase 4's IOHIDSystem work.

@@ -1,7 +1,8 @@
 /*
- * RavynAHCIDisk: IOBlockStorageDevice nub for AHCI SATA disks
+ * MinkarAHCIDisk: IOBlockStorageDevice nub for AHCI SATA disks
  *
  * Copyright (C) 2026 Zoe Knox. All rights reserved.
+ * Modifications Copyright (c) 2026 The Minkar contributors
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -22,18 +23,18 @@
  * THE SOFTWARE.
  */
 
-#ifndef _RAVYN_AHCI_DISK_H
-#define _RAVYN_AHCI_DISK_H
+#ifndef _MINKAR_AHCI_DISK_H
+#define _MINKAR_AHCI_DISK_H
 
 #include <IOKit/storage/IOBlockStorageDevice.h>
-#include "RavynAHCIPort.h"
+#include "MinkarAHCIPort.h"
 
-class RavynAHCIDisk: public IOBlockStorageDevice
+class MinkarAHCIDisk: public IOBlockStorageDevice
 {
-    OSDeclareDefaultStructors(RavynAHCIDisk);
+    OSDeclareDefaultStructors(MinkarAHCIDisk);
 
 public:
-    bool initWithPort(RavynAHCIPort * parent, UInt32 portIndex);
+    bool initWithPort(MinkarAHCIPort * parent, UInt32 portIndex);
 
     /* IOService overrides */
     bool start(IOService * provider) override;
@@ -73,7 +74,7 @@ public:
     IOReturn reportWriteProtection(bool * isWriteProtected) override;
 
 private:
-    RavynAHCIPort * fParent;    /* weak ref:  parent outlives us */
+    MinkarAHCIPort * fParent;    /* weak ref:  parent outlives us */
     UInt32          fPortIndex;
 
     /* Filled from IDENTIFY data */
@@ -82,5 +83,5 @@ private:
     char    fRevisionStr[9];
 };
 
-#endif /* _RAVYN_AHCI_DISK_H */
+#endif /* _MINKAR_AHCI_DISK_H */
 

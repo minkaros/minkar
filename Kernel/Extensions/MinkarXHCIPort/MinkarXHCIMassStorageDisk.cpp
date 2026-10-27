@@ -1,8 +1,9 @@
 /*
- * RavynXHCIMassStorageDisk: IOBlockStorageDevice nub for USB Mass Storage
- * (bulk-only transport / SCSI) devices behind RavynXHCIPort.
+ * MinkarXHCIMassStorageDisk: IOBlockStorageDevice nub for USB Mass Storage
+ * (bulk-only transport / SCSI) devices behind MinkarXHCIPort.
  *
  * Copyright (C) 2026 ravynOS Project. All rights reserved.
+ * Modifications Copyright (c) 2026 The Minkar contributors
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -26,10 +27,10 @@
 #include <IOKit/IOLib.h>
 #include <IOKit/storage/IOStorage.h>
 #include <IOKit/IOBufferMemoryDescriptor.h>
-#include "RavynXHCIMassStorageDisk.h"
+#include "MinkarXHCIMassStorageDisk.h"
 
 #define super IOBlockStorageDevice
-OSDefineMetaClassAndStructors(RavynXHCIMassStorageDisk, IOBlockStorageDevice);
+OSDefineMetaClassAndStructors(MinkarXHCIMassStorageDisk, IOBlockStorageDevice);
 
 /* SCSI opcodes we need */
 #define SCSI_INQUIRY          0x12
@@ -38,7 +39,7 @@ OSDefineMetaClassAndStructors(RavynXHCIMassStorageDisk, IOBlockStorageDevice);
 #define SCSI_WRITE10          0x2A
 
 bool
-RavynXHCIMassStorageDisk::initWithPort(RavynXHCIPort *parent, UInt32 mscIndex)
+MinkarXHCIMassStorageDisk::initWithPort(MinkarXHCIPort *parent, UInt32 mscIndex)
 {
     if (!parent) return false;
     if (!init(NULL)) return false;
@@ -70,26 +71,26 @@ RavynXHCIMassStorageDisk::initWithPort(RavynXHCIPort *parent, UInt32 mscIndex)
 }
 
 bool
-RavynXHCIMassStorageDisk::start(IOService *provider)
+MinkarXHCIMassStorageDisk::start(IOService *provider)
 {
     return super::start(provider);
 }
 
 void
-RavynXHCIMassStorageDisk::stop(IOService *provider)
+MinkarXHCIMassStorageDisk::stop(IOService *provider)
 {
     super::stop(provider);
 }
 
 void
-RavynXHCIMassStorageDisk::free()
+MinkarXHCIMassStorageDisk::free()
 {
     fParent = NULL;
     super::free();
 }
 
 bool
-RavynXHCIMassStorageDisk::scsiInquiry()
+MinkarXHCIMassStorageDisk::scsiInquiry()
 {
     UInt8 cdb[6] = { SCSI_INQUIRY, 0, 0, 0, 36, 0 };
     IOBufferMemoryDescriptor *buf = IOBufferMemoryDescriptor::inTaskWithOptions(
@@ -114,7 +115,7 @@ RavynXHCIMassStorageDisk::scsiInquiry()
 }
 
 bool
-RavynXHCIMassStorageDisk::scsiReadCapacity10()
+MinkarXHCIMassStorageDisk::scsiReadCapacity10()
 {
     UInt8 cdb[10];
     bzero(cdb, sizeof(cdb));
@@ -138,7 +139,7 @@ RavynXHCIMassStorageDisk::scsiReadCapacity10()
 }
 
 bool
-RavynXHCIMassStorageDisk::scsiReadWrite10(UInt64 block, UInt32 nblks,
+MinkarXHCIMassStorageDisk::scsiReadWrite10(UInt64 block, UInt32 nblks,
                                           IOMemoryDescriptor *buffer, UInt64 bufOff, bool write)
 {
     if (!fParent) return false;
@@ -168,7 +169,7 @@ RavynXHCIMassStorageDisk::scsiReadWrite10(UInt64 block, UInt32 nblks,
 }
 
 IOReturn
-RavynXHCIMassStorageDisk::doAsyncReadWrite(IOMemoryDescriptor  * buffer,
+MinkarXHCIMassStorageDisk::doAsyncReadWrite(IOMemoryDescriptor  * buffer,
                                            UInt64                block,
                                            UInt64                nblks,
                                            IOStorageAttributes * attributes,
@@ -213,7 +214,7 @@ RavynXHCIMassStorageDisk::doAsyncReadWrite(IOMemoryDescriptor  * buffer,
 }
 
 IOReturn
-RavynXHCIMassStorageDisk::doSynchronize(UInt64 block, UInt64 nblks,
+MinkarXHCIMassStorageDisk::doSynchronize(UInt64 block, UInt64 nblks,
                                         IOStorageSynchronizeOptions options)
 {
     /* No SYNCHRONIZE CACHE support yet - bulk-only writes complete before
@@ -222,47 +223,47 @@ RavynXHCIMassStorageDisk::doSynchronize(UInt64 block, UInt64 nblks,
 }
 
 IOReturn
-RavynXHCIMassStorageDisk::doEjectMedia(void) { return kIOReturnUnsupported; }
+MinkarXHCIMassStorageDisk::doEjectMedia(void) { return kIOReturnUnsupported; }
 
 IOReturn
-RavynXHCIMassStorageDisk::doFormatMedia(UInt64 byteCapacity) { return kIOReturnUnsupported; }
+MinkarXHCIMassStorageDisk::doFormatMedia(UInt64 byteCapacity) { return kIOReturnUnsupported; }
 
 UInt32
-RavynXHCIMassStorageDisk::doGetFormatCapacities(UInt64 *capacities, UInt32 capacitiesMaxCount) const
+MinkarXHCIMassStorageDisk::doGetFormatCapacities(UInt64 *capacities, UInt32 capacitiesMaxCount) const
 {
     if (capacities && capacitiesMaxCount >= 1)
         capacities[0] = fCapacityBlocks * (UInt64)fBlockSize;
     return 1;
 }
 
-char *RavynXHCIMassStorageDisk::getVendorString(void)               { return fVendorStr; }
-char *RavynXHCIMassStorageDisk::getProductString(void)              { return fProductStr; }
-char *RavynXHCIMassStorageDisk::getRevisionString(void)             { return fRevisionStr; }
-char *RavynXHCIMassStorageDisk::getAdditionalDeviceInfoString(void) { return (char *)""; }
+char *MinkarXHCIMassStorageDisk::getVendorString(void)               { return fVendorStr; }
+char *MinkarXHCIMassStorageDisk::getProductString(void)              { return fProductStr; }
+char *MinkarXHCIMassStorageDisk::getRevisionString(void)             { return fRevisionStr; }
+char *MinkarXHCIMassStorageDisk::getAdditionalDeviceInfoString(void) { return (char *)""; }
 
 IOReturn
-RavynXHCIMassStorageDisk::reportBlockSize(UInt64 *blockSize)
+MinkarXHCIMassStorageDisk::reportBlockSize(UInt64 *blockSize)
 {
     *blockSize = fBlockSize;
     return kIOReturnSuccess;
 }
 
 IOReturn
-RavynXHCIMassStorageDisk::reportEjectability(bool *isEjectable)
+MinkarXHCIMassStorageDisk::reportEjectability(bool *isEjectable)
 {
     *isEjectable = false;
     return kIOReturnSuccess;
 }
 
 IOReturn
-RavynXHCIMassStorageDisk::reportMaxValidBlock(UInt64 *maxBlock)
+MinkarXHCIMassStorageDisk::reportMaxValidBlock(UInt64 *maxBlock)
 {
     *maxBlock = fCapacityBlocks > 0 ? fCapacityBlocks - 1 : 0;
     return kIOReturnSuccess;
 }
 
 IOReturn
-RavynXHCIMassStorageDisk::reportMediaState(bool *mediaPresent, bool *changedState)
+MinkarXHCIMassStorageDisk::reportMediaState(bool *mediaPresent, bool *changedState)
 {
     if (mediaPresent) *mediaPresent = (fParent != NULL && fCapacityBlocks > 0);
     if (changedState) *changedState = false;
@@ -270,14 +271,14 @@ RavynXHCIMassStorageDisk::reportMediaState(bool *mediaPresent, bool *changedStat
 }
 
 IOReturn
-RavynXHCIMassStorageDisk::reportRemovability(bool *isRemovable)
+MinkarXHCIMassStorageDisk::reportRemovability(bool *isRemovable)
 {
     *isRemovable = true;
     return kIOReturnSuccess;
 }
 
 IOReturn
-RavynXHCIMassStorageDisk::reportWriteProtection(bool *isWriteProtected)
+MinkarXHCIMassStorageDisk::reportWriteProtection(bool *isWriteProtected)
 {
     *isWriteProtected = false;
     return kIOReturnSuccess;

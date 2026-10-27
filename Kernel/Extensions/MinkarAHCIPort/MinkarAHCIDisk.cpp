@@ -1,7 +1,8 @@
 /*
- * RavynAHCIDisk: minimal driver for AHCI SATA disks
+ * MinkarAHCIDisk: minimal driver for AHCI SATA disks
  *
  * Copyright (C) 2026 Zoe Knox. All rights reserved.
+ * Modifications Copyright (c) 2026 The Minkar contributors
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -24,14 +25,14 @@
 
 #include <IOKit/IOLib.h>
 #include <IOKit/storage/IOStorage.h>
-#include "RavynAHCIDisk.h"
+#include "MinkarAHCIDisk.h"
 
 #define super IOBlockStorageDevice
-OSDefineMetaClassAndStructors(RavynAHCIDisk, IOBlockStorageDevice);
+OSDefineMetaClassAndStructors(MinkarAHCIDisk, IOBlockStorageDevice);
 
 
 bool
-RavynAHCIDisk::initWithPort(RavynAHCIPort *parent, UInt32 portIndex)
+MinkarAHCIDisk::initWithPort(MinkarAHCIPort *parent, UInt32 portIndex)
 {
     char buf[32];
 
@@ -54,19 +55,19 @@ RavynAHCIDisk::initWithPort(RavynAHCIPort *parent, UInt32 portIndex)
 }
 
 bool
-RavynAHCIDisk::start(IOService *provider)
+MinkarAHCIDisk::start(IOService *provider)
 {
     return super::start(provider);
 }
 
 void
-RavynAHCIDisk::stop(IOService *provider)
+MinkarAHCIDisk::stop(IOService *provider)
 {
     super::stop(provider);
 }
 
 void
-RavynAHCIDisk::free()
+MinkarAHCIDisk::free()
 {
     fParent = NULL;
     super::free();
@@ -74,7 +75,7 @@ RavynAHCIDisk::free()
 
 
 IOReturn
-RavynAHCIDisk::doAsyncReadWrite(IOMemoryDescriptor  * buffer,
+MinkarAHCIDisk::doAsyncReadWrite(IOMemoryDescriptor  * buffer,
                                 UInt64                block,
                                 UInt64                nblks,
                                 IOStorageAttributes * attributes,
@@ -127,7 +128,7 @@ RavynAHCIDisk::doAsyncReadWrite(IOMemoryDescriptor  * buffer,
 }
 
 IOReturn
-RavynAHCIDisk::doSynchronize(UInt64 block,
+MinkarAHCIDisk::doSynchronize(UInt64 block,
                              UInt64 nblks,
                              IOStorageSynchronizeOptions options)
 {
@@ -136,19 +137,19 @@ RavynAHCIDisk::doSynchronize(UInt64 block,
 }
 
 IOReturn
-RavynAHCIDisk::doEjectMedia(void)
+MinkarAHCIDisk::doEjectMedia(void)
 {
     return kIOReturnUnsupported;
 }
 
 IOReturn
-RavynAHCIDisk::doFormatMedia(UInt64 byteCapacity)
+MinkarAHCIDisk::doFormatMedia(UInt64 byteCapacity)
 {
     return kIOReturnUnsupported;
 }
 
 UInt32
-RavynAHCIDisk::doGetFormatCapacities(UInt64 *capacities,
+MinkarAHCIDisk::doGetFormatCapacities(UInt64 *capacities,
                                      UInt32  capacitiesMaxCount) const
 {
     /* FIXME: should calculate this based on real sector sizes */
@@ -157,28 +158,28 @@ RavynAHCIDisk::doGetFormatCapacities(UInt64 *capacities,
     return 1;
 }
 
-char *RavynAHCIDisk::getVendorString(void)              { return fVendorStr; }
-char *RavynAHCIDisk::getProductString(void)             { return fProductStr; }
-char *RavynAHCIDisk::getRevisionString(void)            { return fRevisionStr; }
-char *RavynAHCIDisk::getAdditionalDeviceInfoString(void){ return (char *)""; }
+char *MinkarAHCIDisk::getVendorString(void)              { return fVendorStr; }
+char *MinkarAHCIDisk::getProductString(void)             { return fProductStr; }
+char *MinkarAHCIDisk::getRevisionString(void)            { return fRevisionStr; }
+char *MinkarAHCIDisk::getAdditionalDeviceInfoString(void){ return (char *)""; }
 
 
 IOReturn
-RavynAHCIDisk::reportBlockSize(UInt64 *blockSize)
+MinkarAHCIDisk::reportBlockSize(UInt64 *blockSize)
 {
     *blockSize = 512;
     return kIOReturnSuccess;
 }
 
 IOReturn
-RavynAHCIDisk::reportEjectability(bool *isEjectable)
+MinkarAHCIDisk::reportEjectability(bool *isEjectable)
 {
     *isEjectable = false;
     return kIOReturnSuccess;
 }
 
 IOReturn
-RavynAHCIDisk::reportMaxValidBlock(UInt64 *maxBlock)
+MinkarAHCIDisk::reportMaxValidBlock(UInt64 *maxBlock)
 {
     UInt64 sectors = fParent ? fParent->sectorCount(fPortIndex) : 0;
     *maxBlock = sectors > 0 ? sectors - 1 : 0;
@@ -186,7 +187,7 @@ RavynAHCIDisk::reportMaxValidBlock(UInt64 *maxBlock)
 }
 
 IOReturn
-RavynAHCIDisk::reportMediaState(bool *mediaPresent, bool *changedState)
+MinkarAHCIDisk::reportMediaState(bool *mediaPresent, bool *changedState)
 {
     if (mediaPresent) *mediaPresent = (fParent != NULL);
     if (changedState) *changedState = false;
@@ -194,14 +195,14 @@ RavynAHCIDisk::reportMediaState(bool *mediaPresent, bool *changedState)
 }
 
 IOReturn
-RavynAHCIDisk::reportRemovability(bool *isRemovable)
+MinkarAHCIDisk::reportRemovability(bool *isRemovable)
 {
     *isRemovable = false;
     return kIOReturnSuccess;
 }
 
 IOReturn
-RavynAHCIDisk::reportWriteProtection(bool *isWriteProtected)
+MinkarAHCIDisk::reportWriteProtection(bool *isWriteProtected)
 {
     *isWriteProtected = false;
     return kIOReturnSuccess;

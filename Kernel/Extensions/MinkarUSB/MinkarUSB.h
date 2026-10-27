@@ -37,7 +37,7 @@
  *    report layout comes from the report descriptor (HIDReport.c), with the
  *    boot mouse format as the fallback.
  *
- * The UIM below (RavynXHCIPort) is synchronous: each driver reads its
+ * The UIM below (MinkarXHCIPort) is synchronous: each driver reads its
  * interrupt-IN pipe on a kernel thread of its own (MinkarUSBHIDReader).
  * The pointer publishes what it last dispatched (MinkarEvents, MinkarX,
  * MinkarY, MinkarButtons) and the keyboard its count and last key code,

@@ -1,8 +1,9 @@
 /*
- * RavynXHCIMassStorageDisk: IOBlockStorageDevice nub for USB Mass Storage
- * (bulk-only transport / SCSI) devices behind RavynXHCIPort.
+ * MinkarXHCIMassStorageDisk: IOBlockStorageDevice nub for USB Mass Storage
+ * (bulk-only transport / SCSI) devices behind MinkarXHCIPort.
  *
  * Copyright (C) 2026 ravynOS Project. All rights reserved.
+ * Modifications Copyright (c) 2026 The Minkar contributors
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -23,18 +24,18 @@
  * THE SOFTWARE.
  */
 
-#ifndef _RAVYN_XHCI_MASS_STORAGE_DISK_H
-#define _RAVYN_XHCI_MASS_STORAGE_DISK_H
+#ifndef _MINKAR_XHCI_MASS_STORAGE_DISK_H
+#define _MINKAR_XHCI_MASS_STORAGE_DISK_H
 
 #include <IOKit/storage/IOBlockStorageDevice.h>
-#include "RavynXHCIPort.h"
+#include "MinkarXHCIPort.h"
 
-class RavynXHCIMassStorageDisk: public IOBlockStorageDevice
+class MinkarXHCIMassStorageDisk: public IOBlockStorageDevice
 {
-    OSDeclareDefaultStructors(RavynXHCIMassStorageDisk);
+    OSDeclareDefaultStructors(MinkarXHCIMassStorageDisk);
 
 public:
-    bool initWithPort(RavynXHCIPort * parent, UInt32 mscIndex);
+    bool initWithPort(MinkarXHCIPort * parent, UInt32 mscIndex);
 
     bool start(IOService * provider) override;
     void stop(IOService * provider) override;
@@ -72,7 +73,7 @@ public:
     IOReturn reportWriteProtection(bool * isWriteProtected) override;
 
 private:
-    RavynXHCIPort * fParent;   /* weak ref: parent outlives us */
+    MinkarXHCIPort * fParent;   /* weak ref: parent outlives us */
     UInt32          fMscIndex; /* index into fParent's fMSC[]/slot table */
     UInt32          fSlotId;
 
@@ -89,4 +90,4 @@ private:
                          UInt64 bufOff, bool write);
 };
 
-#endif /* _RAVYN_XHCI_MASS_STORAGE_DISK_H */
+#endif /* _MINKAR_XHCI_MASS_STORAGE_DISK_H */

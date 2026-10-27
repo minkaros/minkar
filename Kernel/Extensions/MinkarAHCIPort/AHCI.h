@@ -1,7 +1,8 @@
 /*
- * AHCI register definitions for ravynOS from SATA AHCI 1.3.1 specification.
+ * AHCI register definitions from the SATA AHCI 1.3.1 specification.
  *
  * Copyright (C) 2026 Zoe Knox. All rights reserved.
+ * Modifications Copyright (c) 2026 The Minkar contributors
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
