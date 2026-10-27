@@ -210,6 +210,12 @@ mounted.
   The kernel now gets through PCI, the GOP display and the xHCI start,
   and waits for the root device: the SATA disk (port 2) is not found yet
   (`ahci_debug=1` prints why), and the USB hub's control transfers fail.
+  An intermittent panic in QEMU (2026-10-27) came from IOPCIFamily
+  reading MSI-X's pending-bit array for a plain MSI device while a
+  driver disabled its last vector; plain MSI now calls its first vector
+  instead (six boots of the USB tests without a panic). The AHCI and
+  xHCI drivers are now named `MinkarAHCIPort` and `MinkarXHCIPort`
+  (`org.minkar.driver.*`), keeping their authors' copyright.
 
 - [ ] **Exit gate (M1):** in QEMU and on a reference PC, the kernel mounts
   the HFS+ root and runs `/sbin/launchd` (or a temporary init) with a shell
@@ -274,9 +280,13 @@ notifyd, syslogd, the HFS tools, mDNSResponder) stay as they are.
   macOS's heading), `ps` (macOS's displays, options and keywords; its
   process records come from libbsdcompat's `kvm_getprocs()` over sysctl
   and libproc). `top` is our own, with macOS's options, keys and summary
-  since 2026-10-27, and `btop` 1.4.7 (Apache-2.0) sits next to it. Still
-  from Apple: `login`, `sysctl`, `su`. Missing in `grep`: macOS's
-  `-Z`/`-J` (decompress).
+  since 2026-10-27, and `btop` 1.4.7 (Apache-2.0) sits next to it. Then
+  `sysctl` (2026-10-27: it was Apple's; the macOS layer maps Darwin's
+  OID formats to FreeBSD's types, skips the nodes with no format and
+  prints `vm.swapusage`), `cal`/`ncal`, `getconf` (macOS's
+  `DARWIN_USER_*` names) and `locale`. `login` is our own (BSD-2-Clause)
+  and `su` is FreeBSD main's: no command from Apple's command sets is
+  left. Missing in `grep`: macOS's `-Z`/`-J` (decompress).
 - [ ] Everyday tools missing from the image. *Partial:* built and tested
   2026-10-26: `dd`, `expr`, `printenv`, `od`/`hexdump`, `paste`, `nohup`,
   `install`, `pgrep`/`pkill` (FreeBSD's, reading processes through
@@ -293,10 +303,18 @@ notifyd, syslogd, the HFS tools, mDNSResponder) stay as they are.
   (written for Minkar, macOS's options; no manual page yet), and
   `chflags`. Kernel bug found by its test: a file's owner can unlink it
   while it is `uchg`. Then (2026-10-27) `tty`.
-  Missing: `cal`, `lsof`, `man`, `units`, `getconf`, `iconv`, `locate`,
-  `nslookup`/`dig`, and the locales (`/usr/share/locale` is empty: no
-  UTF-8 locale; `btop` warns). The console's terminal has no node in
-  `/dev` (the serial device behind it), so `ps` shows `??` for getty.
+  Locales (2026-10-27): 56 UTF-8 locales in `/usr/share/locale`, made by
+  `tools/locale/mklocales.py` in the formats Darwin's libc reads
+  (character classes, case maps and widths from Unicode 16; time, money,
+  numbers and messages from FreeBSD's CLDR definitions; collation by
+  code point). Time zones (2026-10-27): IANA tzdata 2026e compiled by
+  tzcode's `zic`, laid out as on macOS (`/var/db/timezone/zoneinfo`);
+  until then every zone was UTC.
+  Missing: `lsof`, `man`, `units`, `iconv`, `locate`, `zic`/`zdump` in
+  the image, `nslookup`/`dig`; `getconf DARWIN_USER_DIR` and
+  `DARWIN_USER_CACHE_DIR` fail with EIO (no per-user directory service).
+  The console's terminal has no node in `/dev` (the serial device behind
+  it), so `ps` shows `??` for getty.
 - [ ] Power user: `zsh`, `tar`, `ssh`, `curl`, `make`, `git`. *Partial:*
   `tar`, `ssh` and `curl` installed; `zsh` 5.9 built and tested
   2026-10-26 (modules linked in, the function library, in `/etc/shells`);
@@ -432,7 +450,7 @@ constrains the Swift runtime.
    `NSString` API (`containsString:`, enumeration by lines, words and
    sentences, percent encoding, transforms, the URL character sets);
    `NSUserDefaults` changed the whole process's locale; `NSProgress`
-   exists. The image has no locale data (`/usr/share/locale`), so
+   exists. The image has UTF-8 locale data since 2026-10-27; Foundation's
    locale-dependent behaviour is not tested yet.
    Left from the symbol report: `NSURLSession`.
 3. Security (Apple open source) for certificates and a basic keychain,
@@ -667,8 +685,8 @@ The highest-impact open items, in critical-path order:
 1. Reference PC 1 (Phase 1, gate M1): the kernel waits for its root
    device on the H270N (the SATA disk is not found); then its USB hub
    and its network card (I219-V).
-2. BSD userland batches (Phase 2): `login`, `sysctl` and `su` from
-   FreeBSD with the macOS layer; the missing tools and the locales; `git`.
+2. BSD userland batches (Phase 2): the missing tools (`man`, `lsof`,
+   `iconv`, `units`, `locate`); `git`.
 3. IOHIDSystem event delivery in the kernel, the `ApplePS2Mouse` driver and
    the WindowServer input reader (Phase 4).
 4. Install WindowServer's launchd job and get a first boot that draws on
