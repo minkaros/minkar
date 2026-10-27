@@ -3,6 +3,7 @@
  *
  * Copyright (c) 1989, 1993, 1994
  *	The Regents of the University of California.  All rights reserved.
+ * Modifications Copyright (c) 2026 The Minkar contributors
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -43,6 +44,10 @@
 #include <string.h>
 #include <unistd.h>
 
+#ifdef __APPLE__
+#include "chmod_acl.h"
+#endif
+
 static volatile sig_atomic_t siginfo;
 
 static void usage(void) __dead2;
@@ -65,10 +70,19 @@ main(int argc, char *argv[])
 	int vflag;
 	char *mode;
 	mode_t newmode;
+#ifdef __APPLE__
+	/* macOS's ACL operations (chmod_acl.c). */
+	struct chmod_acl_req aclreq;
+	enum chmod_acl_op aclop = CHMOD_ACL_NONE;
+	int aclword = 0;
+#define	CHMOD_OPTS	"CEHILNPRXafghiorstuvwx"
+#else
+#define	CHMOD_OPTS	"HLPRXfghorstuvwx"
+#endif
 
 	set = NULL;
 	Hflag = Lflag = Rflag = fflag = hflag = vflag = 0;
-	while ((ch = getopt(argc, argv, "HLPRXfghorstuvwx")) != -1)
+	while ((ch = getopt(argc, argv, CHMOD_OPTS)) != -1)
 		switch (ch) {
 		case 'H':
 			Hflag = 1;
@@ -113,6 +127,32 @@ main(int argc, char *argv[])
 		case 'v':
 			vflag++;
 			break;
+#ifdef __APPLE__
+		case 'C':
+			aclop = CHMOD_ACL_CHECK;
+			break;
+		case 'E':
+			aclop = CHMOD_ACL_SET;
+			break;
+		case 'I':
+			aclop = CHMOD_ACL_DROP_INHERITED;
+			break;
+		case 'N':
+			aclop = CHMOD_ACL_CLEAR;
+			break;
+		case 'i':
+			aclop = CHMOD_ACL_UNINHERIT;
+			break;
+		case 'a':
+			/*
+			 * "-a" and "-a#" name an ACL operation, not options.
+			 * getopt has moved past a whole "-a" but not "-a#".
+			 */
+			if (strcmp(argv[optind - 1], "-a") == 0)
+				--optind;
+			aclword = 1;
+			goto done;
+#endif
 		case '?':
 		default:
 			usage();
@@ -120,6 +160,19 @@ main(int argc, char *argv[])
 done:	argv += optind;
 	argc -= optind;
 
+#ifdef __APPLE__
+	if (argc > 0 && (aclword || aclop == CHMOD_ACL_NONE))
+		aclop = chmod_acl_op_of(*argv) != CHMOD_ACL_NONE ?
+		    chmod_acl_op_of(*argv) : aclop;
+	if (aclword && aclop == CHMOD_ACL_NONE)
+		usage();
+	if (aclop != CHMOD_ACL_NONE) {
+		chmod_acl_prepare(&aclreq, aclop, &argc, &argv,
+		    chmod_acl_op_of(argc > 0 ? *argv : "") != CHMOD_ACL_NONE);
+		if (argc < 1)
+			usage();
+	} else
+#endif
 	if (argc < 2)
 		usage();
 
@@ -144,11 +197,16 @@ done:	argv += optind;
 		fts_options = FTS_LOGICAL;
 	}
 
-	mode = *argv;
-	if ((set = setmode(mode)) == NULL)
-		errx(1, "invalid file mode: %s", mode);
+#ifdef __APPLE__
+	if (aclop == CHMOD_ACL_NONE)
+#endif
+	{
+		mode = *argv++;
+		if ((set = setmode(mode)) == NULL)
+			errx(1, "invalid file mode: %s", mode);
+	}
 
-	if ((ftsp = fts_open(++argv, fts_options, 0)) == NULL)
+	if ((ftsp = fts_open(argv, fts_options, 0)) == NULL)
 		err(1, "fts_open");
 	for (rval = 0; errno = 0, (p = fts_read(ftsp)) != NULL;) {
 		int atflag;
@@ -179,6 +237,17 @@ done:	argv += optind;
 		default:
 			break;
 		}
+#ifdef __APPLE__
+		if (aclop != CHMOD_ACL_NONE) {
+			if (chmod_acl_apply(&aclreq, p->fts_accpath,
+			    p->fts_path, atflag == 0) != 0) {
+				if (!fflag || aclop == CHMOD_ACL_CHECK)
+					rval = 1;
+			} else if (vflag)
+				(void)printf("%s\n", p->fts_path);
+			continue;
+		}
+#endif
 		newmode = getmode(set, p->fts_statp->st_mode);
 		/*
 		 * With NFSv4 ACLs, it is possible that applying a mode
@@ -218,8 +287,16 @@ done:	argv += optind;
 static void
 usage(void)
 {
+#ifdef __APPLE__
+	(void)fprintf(stderr, "%s\n%s\n%s\n%s\n",
+	    "usage: chmod [-fhv] [-R [-H | -L | -P]] mode file ...",
+	    "       chmod [-fhv] [-R [-H | -L | -P]] [-a | +a | =a] ACE file ...",
+	    "       chmod [-fhv] [-R [-H | -L | -P]] [-a# | +a# | =a#] n [ACE] file ...",
+	    "       chmod [-fhv] [-R [-H | -L | -P]] [-C | -E | -I | -N | -i] file ...");
+#else
 	(void)fprintf(stderr,
 	    "usage: chmod [-fhv] [-R [-H | -L | -P]] mode file ...\n");
+#endif
 	exit(1);
 }
 
