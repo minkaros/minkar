@@ -153,4 +153,69 @@ version:
 efiloader image boottest boottest-key: .PHONY
 	${MAKE} -C ${.CURDIR}/Image ${.TARGET}
 
+# ------------------------------------------------------------------------
+#  Per-layer targets
+# ------------------------------------------------------------------------
+# 'bmake <layer>' builds a layer's stages alone, in order (as ONLY_STAGE
+# does), on the layers below it already built ('world' builds them all).
+# 'bmake <layer>-check' checks what the layer installed, without booting;
+# 'layers-check' runs them all, and 'image-check' boots the image to gate
+# M2 (after 'image').
+#
+#   layer       stages                       <layer>-check
+#   toolchain   BSD/hier Developer           the toolchain manifest
+#   kernel      Kernel Kernel/Extensions     the kernel is a Mach-O and the
+#                                            kernelcache well formed; every
+#                                            kext a kext bundle
+#   libsystem   Libraries                    what /usr/lib loads is there
+#   frameworks  Frameworks                   what the frameworks load is
+#                                            there; their plists parse
+#   userland    BSD                          what the commands load is there
+#   sysapps     CoreServices SystemLibrary   what CoreServices loads is
+#                                            there; the system's plists parse
+LAYERS =		toolchain kernel libsystem frameworks userland sysapps
+LAYER_toolchain =	BSD/hier Developer
+LAYER_kernel =		Kernel Kernel/Extensions
+LAYER_libsystem =	Libraries
+LAYER_frameworks =	Frameworks
+LAYER_userland =	BSD
+LAYER_sysapps =		CoreServices SystemLibrary
+SYSROOT_CHECK =		python3 -B ${ROOT_SOURCE_DIR}/tools/check/sysroot-check.py \
+			--sysroot ${SYSROOT_DIR} --tools ${TOOLS}
+
+.for l in ${LAYERS}
+${l}: .PHONY
+.for s in ${LAYER_${l}}
+	${MAKE} -m ${ROOT_SOURCE_DIR}/BSD/share/mk ONLY_STAGE=${s} ${s}
+.endfor
+.endfor
+
+toolchain-check: .PHONY
+	sh ${ROOT_SOURCE_DIR}/tools/toolchain/manifest.sh check ${TOOLCHAIN}
+
+kernel-check: .PHONY
+	${SYSROOT_CHECK} macho /System/Library/Kernels/kernel
+	${SYSROOT_CHECK} kernelcache ${ROOT_BINARY_DIR}/kernelcache
+	${SYSROOT_CHECK} kexts /System/Library/Extensions
+
+libsystem-check: .PHONY
+	${SYSROOT_CHECK} links /usr/lib
+
+frameworks-check: .PHONY
+	${SYSROOT_CHECK} links /System/Library/Frameworks
+	${SYSROOT_CHECK} plists /System/Library/Frameworks
+
+userland-check: .PHONY
+	${SYSROOT_CHECK} links /bin /sbin /usr/bin /usr/sbin /usr/libexec
+
+sysapps-check: .PHONY
+	${SYSROOT_CHECK} links /System/Library/CoreServices
+	${SYSROOT_CHECK} plists /System/Library/LaunchDaemons \
+	    /System/Library/CoreServices /Library /etc
+
+layers-check: .PHONY ${LAYERS:S/$/-check/}
+
+image-check: .PHONY
+	${MAKE} -C ${.CURDIR}/Image boottest GATE=M2
+
 .include "./BSD/share/mk/bsd.subdir.mk"

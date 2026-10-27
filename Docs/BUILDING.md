@@ -88,6 +88,23 @@ Measured on 2026-10-25 on the reference host: Ubuntu 22.04, 10 CPUs
 
 A change to LLVM's sources rebuilds the toolchain (about 47 min).
 
+Per-layer targets build one layer's stages alone, in order, on the layers
+below it already built, and `<layer>-check` checks what it installed
+without booting (`layers-check` runs them all; `image-check` boots the
+image to gate M2):
+
+| Layer | Stages | `<layer>-check` |
+| --- | --- | --- |
+| `toolchain` | `BSD/hier`, `Developer` | the toolchain manifest (below) |
+| `kernel` | `Kernel`, `Kernel/Extensions` | the kernel is a Mach-O, the kernelcache well formed, every kext a kext bundle |
+| `libsystem` | `Libraries` | every library `/usr/lib` loads is in the sysroot |
+| `frameworks` | `Frameworks` | the same for the frameworks; their plists parse |
+| `userland` | `BSD` | the same for the commands |
+| `sysapps` | `CoreServices`, `SystemLibrary` | the same for CoreServices; the system's plists parse |
+
+The checks are `tools/check/sysroot-check.py` (links, plists, kexts,
+macho, kernelcache).
+
 The toolchain is pinned by `tools/toolchain/MANIFEST`: each component's
 upstream version, the git tree of its sources and the version line its
 tool prints. `tools/toolchain/manifest.sh check <toolchain>` verifies
