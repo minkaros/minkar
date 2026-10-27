@@ -1,6 +1,9 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1991, 1993, 1994
  *	The Regents of the University of California.  All rights reserved.
+ * Modifications Copyright (c) 2026 The Minkar contributors
  *
  * This code is derived from software contributed to Berkeley by
  * Cimarron D. Taylor of the University of California, Berkeley.
@@ -13,7 +16,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -30,16 +33,6 @@
  * SUCH DAMAGE.
  */
 
-#ifndef lint
-#if 0
-static char sccsid[] = "@(#)find.c	8.5 (Berkeley) 8/5/94";
-#else
-#endif
-#endif /* not lint */
-
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD: src/usr.bin/find/find.c,v 1.23 2010/12/11 08:32:16 joel Exp $");
-
 #include <sys/types.h>
 #include <sys/stat.h>
 
@@ -51,20 +44,9 @@ __FBSDID("$FreeBSD: src/usr.bin/find/find.c,v 1.23 2010/12/11 08:32:16 joel Exp 
 #include <stdlib.h>
 #include <string.h>
 
-#ifdef __APPLE__
-#include <get_compat.h>
-#include <unistd.h>
-#else
-#define COMPAT_MODE(func, mode) 1
-#endif
-
 #include "find.h"
 
-#ifdef __APPLE__
-static int find_compare(const FTSENT **s1, const FTSENT **s2);
-#else /* !__APPLE__ */
 static int find_compare(const FTSENT * const *s1, const FTSENT * const *s2);
-#endif /* __APPLE__ */
 
 /*
  * find_compare --
@@ -73,11 +55,7 @@ static int find_compare(const FTSENT * const *s1, const FTSENT * const *s2);
  *	order within each directory.
  */
 static int
-#ifdef __APPLE__
-find_compare(const FTSENT **s1, const FTSENT **s2)
-#else /* !__APPLE__ */
 find_compare(const FTSENT * const *s1, const FTSENT * const *s2)
-#endif /* __APPLE__ */
 {
 
 	return (strcoll((*s1)->fts_name, (*s2)->fts_name));
@@ -178,30 +156,6 @@ find_formplan(char *argv[])
 	return (plan);
 }
 
-/* addPath - helper function used to build a list of paths that were
- * specified on the command line that we are allowed to search.
- */
-static char **addPath(char **array, char *newPath)
-{
-	static int pathCounter = 0;
-	
-	if (newPath == NULL) {	/* initialize array */
-		if ((array = malloc(sizeof(char *))) == NULL)
-			err(2, "out of memory");
-		array[0] = NULL;
-	}
-	else {
-		array = realloc(array, (++pathCounter + 1) * sizeof(char *));
-		if (array == NULL)
-			err(2, "out of memory");
-		else {
-			array[pathCounter - 1] = newPath;
-			array[pathCounter] = NULL;	/* ensure array is null terminated */
-		}
-	}
-	return (array);
-}
-
 FTS *tree;			/* pointer to top of FTS hierarchy */
 
 /*
@@ -214,58 +168,21 @@ find_execute(PLAN *plan, char *paths[])
 {
 	FTSENT *entry;
 	PLAN *p;
-	int rval;
-	char **myPaths;
-	int nonSearchableDirFound = 0;
-	int pathIndex;
-	struct stat statInfo;
+	size_t counter = 0;
+	int e;
 
-	/* special-case directories specified on command line - explicitly examine
-	 * mode bits, to ensure failure if the directory cannot be searched
-	 * (whether or not it's empty). UNIX conformance... <sigh>
-	 */
-		
-	int strict_symlinks = (ftsoptions & (FTS_COMFOLLOW|FTS_LOGICAL))
-	  && COMPAT_MODE("bin/find", "unix2003");
-
-	myPaths = addPath(NULL, NULL);
-	for (pathIndex = 0; paths[pathIndex] != NULL; ++pathIndex) {
-		int stat_ret = stat(paths[pathIndex], &statInfo);
-		int stat_errno = errno;
-		if (strict_symlinks && stat_ret < 0) {
-		    if (stat_errno == ELOOP) {
-			errx(1, "Symlink loop resolving %s", paths[pathIndex]);
-		    }
-		}
-
-		/* retrieve mode bits, and examine "searchable" bit of 
-		  directories, exempt root from POSIX conformance */
-		if (COMPAT_MODE("bin/find", "unix2003") && getuid() 
-		  && stat_ret == 0 
-		  && ((statInfo.st_mode & S_IFMT) == S_IFDIR)) {
-			if (access(paths[pathIndex], X_OK) == 0) {
-				myPaths = addPath(myPaths, paths[pathIndex]);
-			} else {
-				if (stat_errno != ENAMETOOLONG) {	/* if name is too long, just let existing logic handle it */
-					warnx("%s: Permission denied", paths[pathIndex]);
-					nonSearchableDirFound = 1;
-				}
-			}
-		} else {
-			/* not a directory, so add path to array */
-			myPaths = addPath(myPaths, paths[pathIndex]);
-		}
-	}
-	if (myPaths[0] == NULL) {	/* were any directories searchable? */
-		free(myPaths);
-		return(nonSearchableDirFound);	/* no... */
-	}
-
-	tree = fts_open(myPaths, ftsoptions, (issort ? find_compare : NULL));
+#ifdef __APPLE__
+	/* Darwin's fts_open takes the comparison without the inner const. */
+	tree = fts_open(paths, ftsoptions, (issort ?
+	    (int (*)(const FTSENT **, const FTSENT **))find_compare : NULL));
+#else
+	tree = fts_open(paths, ftsoptions, (issort ? find_compare : NULL));
+#endif
 	if (tree == NULL)
 		err(1, "ftsopen");
 
-	for (rval = nonSearchableDirFound; (entry = fts_read(tree)) != NULL;) {
+	exitstatus = 0;
+	while (errno = 0, (entry = fts_read(tree)) != NULL) {
 		if (maxdepth != -1 && entry->fts_level >= maxdepth) {
 			if (fts_set(tree, entry, FTS_SKIP))
 				err(1, "%s", entry->fts_path);
@@ -281,23 +198,37 @@ find_execute(PLAN *plan, char *paths[])
 				continue;
 			break;
 		case FTS_DNR:
-		case FTS_ERR:
 		case FTS_NS:
+			if (ignore_readdir_race &&
+			    entry->fts_errno == ENOENT && entry->fts_level > 0)
+				continue;
+			/* FALLTHROUGH */
+		case FTS_ERR:
 			(void)fflush(stdout);
 			warnx("%s: %s",
 			    entry->fts_path, strerror(entry->fts_errno));
-			rval = 1;
+			exitstatus = 1;
 			continue;
-#ifdef FTS_W
+#if defined(FTS_W) && defined(FTS_WHITEOUT)
 		case FTS_W:
+			if (ftsoptions & FTS_WHITEOUT)
+				break;
 			continue;
 #endif /* FTS_W */
 		}
+
+		if (showinfo) {
+			fprintf(stderr, "Scanning: %s\n", entry->fts_path);
+			fprintf(stderr, "Scanned: %zu\n\n", counter);
+			showinfo = 0;
+		}
+		++counter;
+
 #define	BADCH	" \t\n\\'\""
 		if (isxargs && strpbrk(entry->fts_path, BADCH)) {
 			(void)fflush(stdout);
 			warnx("%s: illegal path", entry->fts_path);
-			rval = 1;
+			exitstatus = 1;
 			continue;
 		}
 
@@ -311,13 +242,9 @@ find_execute(PLAN *plan, char *paths[])
 		 */
 		for (p = plan; p && (p->execute)(p, entry); p = p->next);
 	}
-	free (myPaths);
+	e = errno;
 	finish_execplus();
-	if (execplus_error) {
-		exit(execplus_error);
-	}
-	if (errno)
-		err(1, "fts_read");
-	fts_close(tree);
-	return (rval);
+	if (e && (!ignore_readdir_race || e != ENOENT))
+		errc(1, e, "fts_read");
+	return (exitstatus);
 }

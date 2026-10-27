@@ -17,7 +17,6 @@
 #include <string.h>
 #include <time.h>
 #include <unistd.h>
-#include <sys/stat.h>
 
 #include "find.h"
 
@@ -166,16 +165,12 @@ do_printf(PLAN *plan, FTSENT *entry, FILE *fout)
 	char *all, *fmt;
 	ssize_t ret;
 	int c;
-	bool flush, warned = 0;
+	bool flush, warned;
 
-#ifdef F_HAS_WARNED
 	warned = (plan->flags & F_HAS_WARNED) != 0;
-#endif
 	all = fmt = escape(plan->c_data, &flush, &warned);
-#ifdef F_HAS_WARNED
 	if (warned)
 		plan->flags |= F_HAS_WARNED;
-#endif
 	for (c = *fmt++; c; c = *fmt++) {
 		sp = entry->fts_statp;
 		if (c != '%') {
