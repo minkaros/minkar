@@ -176,7 +176,7 @@ long long	strtonum(const char *numstr, long long minval, long long maxval,
 		    const char **errstr);
 
 /* <libutil.h>: "10k", "4M", ... (powers of 1024) to a number. */
-int		expand_number(const char *buf, uint64_t *num);
+int		expand_number(const char *buf, int64_t *num);
 
 /* <unistd.h>: copies len bytes; with an offset pointer, at that offset. */
 #include <sys/types.h>
@@ -192,6 +192,24 @@ int		pwcache_userdb(int (*)(int), void (*)(void),
 		    struct passwd *(*)(const char *), struct passwd *(*)(uid_t));
 int		pwcache_groupdb(int (*)(int), void (*)(void),
 		    struct group *(*)(const char *), struct group *(*)(gid_t));
+
+/* <sys/queue.h>: the TAILQ walk from an entry on, safe against removal. */
+#include <sys/queue.h>
+#ifndef TAILQ_FOREACH_FROM_SAFE
+#define	TAILQ_FOREACH_FROM_SAFE(var, head, field, tvar)			\
+	for ((var) = ((var) ? (var) : TAILQ_FIRST((head)));		\
+	    (var) && ((tvar) = TAILQ_NEXT((var), field), 1);		\
+	    (var) = (tvar))
+#endif
+
+/* <unistd.h>: access(2) with the effective ids. */
+int		eaccess(const char *path, int mode);
+
+/* <string.h>: compare as versions (a9 < a10). */
+int		strverscmp(const char *s1, const char *s2);
+
+/* <unistd.h>: pathconf of a symbolic link itself. */
+long		lpathconf(const char *path, int name);
 
 /* <unistd.h>: FreeBSD's per-utility compat switch; Darwin has none. */
 #define	check_utility_compat(utility)	0
