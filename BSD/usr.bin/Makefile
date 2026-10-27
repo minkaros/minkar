@@ -18,5 +18,6 @@ SUBDIR += curl fetch file su top sudo
 SUBDIR += defaults plutil ditto syslog
 SUBDIR += printenv hexdump paste nohup xinstall
 SUBDIR += m4 cpio bc zsh
+SUBDIR += rev column comm join fold fmt split csplit tsort nl expand unexpand
 
 .include <bsd.subdir.mk>
