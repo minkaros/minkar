@@ -46,7 +46,7 @@ SRCS = core/hfs_resize.c \
 	core/hfs_iokit.cpp
 
 SLF = /System/Library/Frameworks
-CFLAGS = -DPRIVATE=1 -DKERNEL=1 -D__APPLE_API_PRIVATE=1 \
+CFLAGS = -DPRIVATE=1 -DKERNEL=1 -D__APPLE_API_PRIVATE=1 -DFIFO=1 \
 	-Wno-implicit-int-conversion -Wno-sign-conversion \
 	-I${.CURDIR}/core \
 	-I${ROOT_SOURCE_DIR}/Kernel \
