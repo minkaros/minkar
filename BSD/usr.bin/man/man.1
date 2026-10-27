@@ -3,6 +3,7 @@
 .\"
 .\"  Copyright (c) 2010 Gordon Tetlow
 .\"  All rights reserved.
+.\"  Modifications Copyright (c) 2026 The Minkar contributors.
 .\"
 .\"  Redistribution and use in source and binary forms, with or without
 .\"  modification, are permitted provided that the following conditions
@@ -190,8 +191,6 @@ Valid preprocessors arguments:
 .Xr refer 1 Pq Pa ports/textproc/groff
 .It Cm t
 .Xr tbl 1 Pq Pa ports/textproc/groff
-.It Cm v
-.Xr vgrind 1
 .El
 .Pp
 Overrides the
@@ -225,6 +224,8 @@ will search for locale specific manual pages using the following logic:
 .It
 .Va lang . Ns Va charset
 .It
+.Va lang
+.It
 .Li en . Ns Va charset
 .El
 .Pp
@@ -241,6 +242,8 @@ will search the following paths when considering section 1 manual pages in
 .Pa /usr/share/man/ja_JP.eucJP/man1
 .It
 .Pa /usr/share/man/ja.eucJP/man1
+.It
+.Pa /usr/share/man/ja/man1
 .It
 .Pa /usr/share/man/en.eucJP/man1
 .It
@@ -305,10 +308,8 @@ option.
 .It Ev MACHINE_ARCH , Ev MACHINE
 Used to find platform specific manual pages.
 If unset, the output of
-.Ql sysctl Va hw.machine_arch
-and
-.Ql sysctl Va hw.machine
-is used respectively.
+.Ql uname -m
+is used for both.
 See
 .Sx IMPLEMENTATION NOTES
 for details.

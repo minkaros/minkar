@@ -4,6 +4,7 @@
 #
 #  Copyright (c) 2010 Gordon Tetlow
 #  All rights reserved.
+#  Modifications Copyright (c) 2026 The Minkar contributors.
 #
 #  Redistribution and use in source and binary forms, with or without
 #  modification, are permitted provided that the following conditions
@@ -399,8 +400,6 @@ man_display_page() {
 			man_display_page_groff
 		else
 			echo "This manpage needs groff(1) to be rendered" >&2
-			echo "First install groff(1): " >&2
-			echo "pkg install groff " >&2
 			ret=1
 		fi
 		return
@@ -418,7 +417,7 @@ man_display_page() {
 # Usage: man_display_page_groff
 # Display the manpage using groff
 man_display_page_groff() {
-	local EQN NROFF PIC TBL TROFF REFER VGRIND
+	local EQN NROFF PIC TBL TROFF REFER
 	local IFS l nroff_dev pipeline preproc_arg tool
 
 	# So, we really do need to parse the manpage. First, figure out the
@@ -456,7 +455,7 @@ man_display_page_groff() {
 		# Allow language specific calls to override the default
 		# set of utilities.
 		l=$(echo $man_lang | tr [:lower:] [:upper:])
-		for tool in EQN NROFF PIC TBL TROFF REFER VGRIND; do
+		for tool in EQN NROFF PIC TBL TROFF REFER; do
 			eval "$tool=\${${tool}_$l:-\$$tool}"
 		done
 		;;
@@ -483,7 +482,6 @@ man_display_page_groff() {
 			p)	pipeline="$pipeline | $PIC" ;;
 			r)	pipeline="$pipeline | $REFER" ;;
 			t)	pipeline="$pipeline | $TBL" ;;
-			v)	pipeline="$pipeline | $VGRIND" ;;
 			*)	usage ;;
 			esac
 		done
@@ -673,11 +671,13 @@ man_setup() {
 		MACHINE_ARCH=${mflag%%:*}
 		MACHINE=${mflag##*:}
 	fi
+	# Minkar: Darwin has no hw.machine_arch; as on macOS, uname -m
+	# names both.
 	if [ -z "$MACHINE_ARCH" ]; then
-		MACHINE_ARCH=$($SYSCTL -n hw.machine_arch)
+		MACHINE_ARCH=$($UNAME -m)
 	fi
 	if [ -z "$MACHINE" ]; then
-		MACHINE=$($SYSCTL -n hw.machine)
+		MACHINE=$($UNAME -m)
 	fi
 	decho "Using architecture: $MACHINE_ARCH:$MACHINE"
 
@@ -748,7 +748,7 @@ man_setup_locale() {
 				man_country="${lang_cc#*_}"
 				man_charset="${locstr#*.}"
 				locpaths="$locstr"
-				locpaths="$locpaths:$man_lang.$man_charset"
+				locpaths="$locpaths:$man_lang.$man_charset:$man_lang"
 				if [ "$man_lang" != "en" ]; then
 					locpaths="$locpaths:en.$man_charset"
 				fi
@@ -1129,15 +1129,14 @@ PIC=pic
 REFER=refer
 TBL=tbl
 TROFF='groff -S -mandoc'
-VGRIND=vgrind
 
 LOCALE=/usr/bin/locale
 STTY=/bin/stty
-SYSCTL=/sbin/sysctl
+UNAME=/usr/bin/uname
 
 debug=0
 man_default_sections='1:8:2:3:3lua:n:4:5:6:7:9:l'
-man_default_path='/usr/share/man:/usr/share/openssl/man:/usr/local/share/man:/usr/local/man'
+man_default_path='/usr/share/man:/usr/local/share/man:/usr/local/man'
 cattool='/usr/bin/zcat -f'
 
 config_global='/etc/man.conf'
