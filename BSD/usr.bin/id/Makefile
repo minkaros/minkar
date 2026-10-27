@@ -1,24 +1,16 @@
-# id, groups and whoami (FreeBSD's id with Apple's changes). -A prints the
-# audit session (getaudit_addr); -F the full name from the passwd entry.
-# open_directory.c is not used by id.c.
-
 SUBDIR =
-PROG =	id
-SRCS =	id.c
+PROG=	id
 MAN =
-
 MK_WERROR = no
-CFLAGS = --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
-	-DUSE_BSM_AUDIT -Wno-nullability-completeness
-LDFLAGS = --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
-	-fuse-ld=${LD}
+CFLAGS += -DUSE_BSM_AUDIT -I${ROOT_SOURCE_DIR}/BSD/lib/libbsdcompat/include -include bsdcompat.h
+LDADD += -L${ROOT_BINARY_DIR}${ROOT_SOURCE_DIR}/BSD/lib/libbsdcompat -lbsdcompat -lbsm
 
 all: to-sysroot
 
 to-sysroot: ${PROG}
 	mkdir -p ${SYSROOT_DIR}/usr/bin
-	cp -f ${PROG} ${SYSROOT_DIR}/usr/bin/
-	ln -sf id ${SYSROOT_DIR}/usr/bin/groups
-	ln -sf id ${SYSROOT_DIR}/usr/bin/whoami
+	install -m 0555 ${PROG} ${SYSROOT_DIR}/usr/bin/id
+	ln -f ${SYSROOT_DIR}/usr/bin/id ${SYSROOT_DIR}/usr/bin/groups
+	ln -f ${SYSROOT_DIR}/usr/bin/id ${SYSROOT_DIR}/usr/bin/whoami
 
 .include <bsd.prog.mk>
