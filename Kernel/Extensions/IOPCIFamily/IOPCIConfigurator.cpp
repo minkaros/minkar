@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2004-2005 Apple Computer, Inc. All rights reserved.
+ * Modifications Copyright (c) 2026 The Minkar contributors
  *
  * @APPLE_LICENSE_HEADER_START@
  * 
@@ -2706,7 +2707,15 @@ void CLASS::configure(uint32_t options)
                 consoleInfo.v_width, consoleInfo.v_height, fPFMConsole);
         }
         fConsoleRange = NULL;
-        getPlatform()->setConsoleInfo(0, kPEDisableScreen);
+        /*
+         * Minkar: pci_keep_console=1 leaves the console on while PCI is
+         * configured, to see on a PC's screen where configuration stops.
+         * Only for hardware tests: the console must not move.
+         */
+        uint32_t keepConsole = 0;
+        if (!PE_parse_boot_argn("pci_keep_console", &keepConsole, sizeof(keepConsole)) ||
+            !keepConsole)
+            getPlatform()->setConsoleInfo(0, kPEDisableScreen);
     }
 #endif
 
