@@ -176,6 +176,14 @@ MinkarUSBHIDReader::threadMain(void *arg, wait_result_t)
 		if (err == kIOReturnSuccess) {
 			errors = 0;
 			self->fHandler(self->fOwner, bytes, self->fMaxPacket);
+		} else if (err == kIOReturnNotReady) {
+			/*
+			 * The host controller never set this endpoint up: no read
+			 * will ever succeed, and retrying only floods the console.
+			 */
+			LOG("interface %u: endpoint not configured; not reading it",
+			    self->fInterface->GetInterfaceNumber());
+			break;
 		} else if (err != (IOReturn)kIOUSBTransactionTimeout) {
 			/* A stalled or failed transfer: clear it and keep going, slower. */
 			if (++errors == 1)
