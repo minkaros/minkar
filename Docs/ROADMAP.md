@@ -194,6 +194,15 @@ mounted.
   boots through `bsd_init`, the APIC, the eight CPUs and the root UUID,
   and stops in PCI configuration, where the console is off.
   `LOADER_PAUSE=10` keeps the loader's output on screen for photos.
+  Then (2026-10-26, boot-args `kprintf_console=1 pci_keep_console=1` to
+  watch it): PCI configuration froze rewriting the x16 bridge's memory
+  window; IOPCIFamily now keeps the firmware's windows at boot when they
+  hold what was allocated. AHCI and xHCI then waited forever for their
+  interrupt: the I/O APIC was named after its APIC ID (2) while every
+  device asks for `io-apic@0`; it is now named by its place in the MADT.
+  The kernel now gets through PCI, the GOP display and the xHCI start,
+  and waits for the root device: the SATA disk (port 2) is not found yet
+  (`ahci_debug=1` prints why), and the USB hub's control transfers fail.
 
 - [ ] **Exit gate (M1):** in QEMU and on a reference PC, the kernel mounts
   the HFS+ root and runs `/sbin/launchd` (or a temporary init) with a shell
@@ -252,8 +261,11 @@ notifyd, syslogd, the HFS tools, mDNSResponder) stay as they are.
   `xargs`, `cat`, `env`, `tail`, `test`, `find` (`-xattr`, `-xattrname`),
   `ls` (macOS's `-@`, `-e`, `-O`, `-o` and the `@` marker), `id` (`-F`),
   `who`, `time` and `grep` (now in `/usr/bin`; `zgrep` is FreeBSD's
-  script). Still from Apple: `kill`, `killall`, `ps`, `top`, `login`,
-  `sysctl`, `su`. Missing in `grep`: macOS's `-Z`/`-J` (decompress).
+  script); 2026-10-27 `killall` (now in `/usr/bin`; macOS matches whole
+  names, past `p_comm`'s 16 characters), `kill` (in `/bin`, `sh`'s
+  built-in's source) and `w` (it had Apple's portions and was not built;
+  macOS's heading). Still from Apple: `ps`, `top`, `login`, `sysctl`,
+  `su`. Missing in `grep`: macOS's `-Z`/`-J` (decompress).
 - [ ] Everyday tools missing from the image. *Partial:* built and tested
   2026-10-26: `dd`, `expr`, `printenv`, `od`/`hexdump`, `paste`, `nohup`,
   `install`, `pgrep`/`pkill` (FreeBSD's, reading processes through
@@ -267,7 +279,9 @@ notifyd, syslogd, the HFS tools, mDNSResponder) stay as they are.
   Then `jot`, `lam`, `rs`, `col`, `colrm`, `look`, `logname`, `mkfifo`,
   `renice`, `nice`, `lockf`, `cksum`/`sum`, `what`, `vis`/`unvis`,
   `uuencode`/`uudecode`/`base64` (macOS's `base64` options) and `xattr`
-  (written for Minkar, macOS's options; no manual page yet).
+  (written for Minkar, macOS's options; no manual page yet), and
+  `chflags`. Kernel bug found by its test: a file's owner can unlink it
+  while it is `uchg`.
   Missing: `cal`, `lsof`, `man`, `units`, `getconf`, `iconv`, `locate`,
   `nslookup`/`dig`.
 - [ ] Power user: `zsh`, `tar`, `ssh`, `curl`, `make`, `git`. *Partial:*
@@ -631,8 +645,9 @@ work in progress.
 
 The highest-impact open items, in critical-path order:
 
-1. Reference PC 1 (Phase 1, gate M1): the kernel stops in PCI
-   configuration on the H270N; then its network card (I219-V).
+1. Reference PC 1 (Phase 1, gate M1): the kernel waits for its root
+   device on the H270N (the SATA disk is not found); then its USB hub
+   and its network card (I219-V).
 2. BSD userland batches (Phase 2): replace the commands that came from
    Apple with FreeBSD's plus the macOS layer; `make`, `git`, `open`.
 3. IOHIDSystem event delivery in the kernel, the `ApplePS2Mouse` driver and
