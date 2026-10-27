@@ -24,6 +24,9 @@ ${HOST_TIC}: ${.CURDIR}/Makefile
 
 # The host tic is only needed to install: both builds run at the same time.
 ${.OBJDIR}/lib/libncurses.6.dylib: ${.CURDIR}/Makefile
+	# edit_man.sh writes man_alias.sed (the programs' names in the pages)
+	# only when it is missing: an earlier configure's would stay.
+	rm -f ${.OBJDIR}/man_alias.sed
 	CC=${CC} CXX=${CXX} \
 	CFLAGS="--sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN}" \
 	CXXFLAGS="--sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN}" \
@@ -33,6 +36,7 @@ ${.OBJDIR}/lib/libncurses.6.dylib: ${.CURDIR}/Makefile
         --localstatedir=/private/var \
         --target=${CpuArch}-apple-darwin19 \
         --host=${CpuArch}-apple-darwin19 \
+        --program-prefix= \
 	--with-strip-program=${TOOLS}/strip \
         --without-ada --without-tests --enable-pc-files \
         --with-shared --with-normal --without-debug \
@@ -47,8 +51,10 @@ ${.OBJDIR}/.installed: ${.OBJDIR}/lib/libncurses.6.dylib ${HOST_TIC}
 	# The SDK takes the libraries and headers; the full install (programs,
 	# terminfo database, compiled with tic) goes to the root only.
 	MAKEFLAGS="" ${TOOLS}/gmake install.libs install.includes DESTDIR=${MINKAR_SDKROOT}
+	# The programs and their pages keep their own names (tput, clear,
+	# reset...), not the cross-compiler's prefix configure would add;
+	# earlier builds left prefixed ones behind.
+	rm -f ${SYSROOT_DIR}/usr/bin/${CpuArch}-apple-darwin19-* \
+	    ${SYSROOT_DIR}/usr/share/man/man1/${CpuArch}-apple-darwin19-*
 	MAKEFLAGS="" tic_path=${HOST_TIC} ${TOOLS}/gmake install DESTDIR=${SYSROOT_DIR}
-.for prog in clear infocmp tabs tic toe tput tset
-	ln -sf ${CpuArch}-apple-darwin19-${prog} ${SYSROOT_DIR}/usr/bin/${prog}
-.endfor
 	touch ${.TARGET}
