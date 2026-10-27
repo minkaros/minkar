@@ -468,10 +468,9 @@ bool RavynAHCIPort::start(IOService *provider)
 
     /* We return true past here regardless -- driver is attached even if no
        (or only some) disks came up; upper layers see whichever nubs matched. */
-    if (disksPublished == 0)
-        AHCI_Debug("No usable SATA disk found on any port");
-    else
-        AHCI_Debug("Published %d disk nub(s)", disksPublished);
+    /* Minkar: one line always, so a machine without its root disk says why. */
+    AHCI_Log("CAP=%08x PI=%08x VS=%08x: %d disk(s) published",
+        cap, pi, vs, disksPublished);
 
     return true;
 }

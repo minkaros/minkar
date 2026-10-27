@@ -3,6 +3,7 @@
  * (bulk-only transport) enumeration.
  *
  * Copyright (C) 2026 ravynOS Project. All rights reserved.
+ * Modifications Copyright (c) 2026 The Minkar contributors
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -67,6 +68,16 @@ OSDefineMetaClassAndStructors(RavynXHCIPort, IOService);
 
 void XHCI_Log(const char *fmt, ...)
 {
+    /* Minkar: xhci_quiet=1 silences this driver's trace, so that on a PC's
+     * screen what other drivers say does not scroll away. */
+    static int quiet = -1;
+    if (quiet < 0) {
+        uint32_t q = 0;
+        quiet = (PE_parse_boot_argn("xhci_quiet", &q, sizeof(q)) && q) ? 1 : 0;
+    }
+    if (quiet)
+        return;
+
     char buf[1024];
     va_list args;
     va_start(args, fmt);
