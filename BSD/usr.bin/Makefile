@@ -20,6 +20,8 @@ SUBDIR += printenv hexdump paste nohup xinstall
 SUBDIR += m4 cpio bc zsh
 SUBDIR += rev column comm join fold fmt split csplit tsort nl expand unexpand tty ncal getconf locale
 SUBDIR += mandoc man
-SUBDIR += jot lam rs col colrm look logname mkfifo renice nice lockf cksum bintrans what vis unvis xattr chflags units locate iconv git
+SUBDIR += jot lam rs col colrm look logname mkfifo renice nice lockf cksum bintrans what vis unvis xattr chflags units locate iconv git \
+	calendar pr sdiff diff3 script whois ul mesg wall write banner compress \
+	gencat cap_mkdb last indent ctags timeout
 
 .include <bsd.subdir.mk>
