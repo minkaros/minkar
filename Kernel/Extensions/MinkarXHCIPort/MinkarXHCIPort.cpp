@@ -743,7 +743,30 @@ void MinkarXHCIPort::interruptOccurred(IOInterruptEventSource *sender, int count
 
     serviceEventRing();
 
-    IOLockWakeup(fEventWaitLock, &fEventWaitChannel, true);
+    /* Under the lock: a waiter checks for its completion holding it, so
+     * the wakeup cannot fall between its check and its sleep. */
+    IOLockLock(fEventWaitLock);
+    IOLockWakeup(fEventWaitLock, &fEventWaitChannel, false);
+    IOLockUnlock(fEventWaitLock);
+}
+
+/*
+ * Sleep until the interrupt handler files an event (it wakes every waiter)
+ * or ms go by, unless *done is already set. With interrupts off, the
+ * caller polls: a plain 1 ms sleep.
+ */
+void MinkarXHCIPort::waitForEvent(UInt32 ms, volatile bool *done)
+{
+    if (!fInterruptsEnabled) {
+        IOSleep(1);
+        return;
+    }
+    AbsoluteTime deadline;
+    clock_interval_to_deadline(ms, kMillisecondScale, &deadline);
+    IOLockLock(fEventWaitLock);
+    if (!*done)
+        IOLockSleepDeadline(fEventWaitLock, &fEventWaitChannel, deadline, THREAD_UNINT);
+    IOLockUnlock(fEventWaitLock);
 }
 
 void MinkarXHCIPort::serviceEventRing()
@@ -809,7 +832,9 @@ bool MinkarXHCIPort::doCommand(UInt64 param, UInt32 status, UInt32 controlNoCycl
     ringDoorbell(0, 0);
 
     bool ok = false;
-    for (UInt64 waited = 0; waited < timeoutMs; waited++) {
+    UInt64 end;
+    clock_interval_to_deadline((UInt32)timeoutMs, kMillisecondScale, &end);
+    for (;;) {
         serviceEventRing();
         if (fCmdDonePending && fCmdDoneParam == cmdTRBPhys) {
             if (outCC) *outCC = fCmdDoneCC;
@@ -818,15 +843,10 @@ bool MinkarXHCIPort::doCommand(UInt64 param, UInt32 status, UInt32 controlNoCycl
             ok = true;
             break;
         }
-        if (fInterruptsEnabled) {
-            AbsoluteTime deadline;
-            clock_interval_to_deadline(1, kMillisecondScale, &deadline);
-            IOLockLock(fEventWaitLock);
-            IOLockSleepDeadline(fEventWaitLock, &fEventWaitChannel, deadline, THREAD_UNINT);
-            IOLockUnlock(fEventWaitLock);
-        } else {
-            IOSleep(1);
-        }
+        if (mach_absolute_time() >= end)
+            break;
+        /* Woken by the interrupt; 10 ms at most, in case it was not ours. */
+        waitForEvent(10, &fCmdDonePending);
     }
     IOLockUnlock(fCmdLock);
     if (!ok) {
@@ -856,32 +876,39 @@ bool MinkarXHCIPort::doCommand(UInt64 param, UInt32 status, UInt32 controlNoCycl
 bool MinkarXHCIPort::waitTransferEvent(UInt32 slotId, UInt32 epDCI, UInt8 *outCC, UInt32 timeoutMs)
 {
     if (slotId >= 64 || epDCI >= 32) return false;
-    for (UInt32 waited = 0; waited < timeoutMs; waited++) {
+    /*
+     * With interrupts, sleep until one comes (or 50 ms, for the doorbell
+     * below), rather than waking every millisecond: HID readers wait here
+     * all the time, and under a hypervisor each wakeup and register read
+     * is costly (with KVM the test VMs barely booted).
+     */
+    UInt64 start = mach_absolute_time(), end, nextRing;
+    clock_interval_to_deadline(timeoutMs, kMillisecondScale, &end);
+    nanoseconds_to_absolutetime(50 * NSEC_PER_MSEC, &nextRing);
+    nextRing += start;
+    for (UInt32 waited = 0; ; waited++) {
         serviceEventRing();
         if (fXferDone[slotId][epDCI].pending) {
             if (outCC) *outCC = fXferDone[slotId][epDCI].cc;
             fXferDone[slotId][epDCI].pending = false;
             return true;
         }
+        UInt64 now = mach_absolute_time();
+        if (now >= end)
+            return false;
         /* Defend against a lost doorbell: real hardware intermittently
          * strands a Running endpoint whose queued TD never gets sampled (the
          * single doorbell we rang at submit time raced the TRB store, so the
          * controller saw an empty ring and went idle). Periodically re-ring
          * the doorbell for this endpoint so the controller re-examines the
          * ring. Harmless if the transfer is already progressing. */
-        if (waited && (waited % 50) == 0)
+        if (fInterruptsEnabled ? now >= nextRing : (waited && (waited % 50) == 0)) {
             ringDoorbell(slotId, epDCI);
-        if (fInterruptsEnabled) {
-            AbsoluteTime deadline;
-            clock_interval_to_deadline(1, kMillisecondScale, &deadline);
-            IOLockLock(fEventWaitLock);
-            IOLockSleepDeadline(fEventWaitLock, &fEventWaitChannel, deadline, THREAD_UNINT);
-            IOLockUnlock(fEventWaitLock);
-        } else {
-            IOSleep(1);
+            nanoseconds_to_absolutetime(50 * NSEC_PER_MSEC, &nextRing);
+            nextRing += now;
         }
+        waitForEvent(50, &fXferDone[slotId][epDCI].pending);
     }
-    return false;
 }
 
 void MinkarXHCIPort::scanPorts()

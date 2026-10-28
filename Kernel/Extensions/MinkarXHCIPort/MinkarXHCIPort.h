@@ -301,6 +301,7 @@ private:
     /* Configure a single interrupt IN endpoint, reusing the slot's bulk-IN
      * ring fields for the current reconstructed IOUSBController path. */
     void releaseInterruptEndpoint(InterruptInEndpoint &intr);
+    void waitForEvent(UInt32 ms, volatile bool *done);
     bool configureInterruptInEndpoint(UInt32 slotId, UInt8 epNum, UInt16 maxPkt, UInt8 interval);
     bool interruptInEndpointConfigured(UInt32 slotId, UInt8 epNum) const
         { return slotId < 64 && epNum < 16 && fIntrIn[slotId][epNum].valid; }
