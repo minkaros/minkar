@@ -1,0 +1,16 @@
+# SPDX-License-Identifier: BSD-2-Clause
+# Copyright (c) 2026 The Minkar contributors
+# Part of Minkar.
+#
+# newsyslog.conf: the flat log files Minkar's daemons write themselves.
+# system.log and the ASL store are rotated by syslogd and aslmanager
+# (/etc/asl.conf), as on macOS. Files of other packages go in
+# /etc/newsyslog.d/. See newsyslog.conf(5).
+#
+# logfilename			[owner:group]	mode count size when  flags [/pid_file] [sig_num]
+/var/log/configd.log				644  5	   1000	*     JN
+/var/log/dhcpclient.log				644  5	   1000	*     JN
+/var/log/fsck_hfs.log				644  5	   1000	*     JN
+/var/log/mDNSResponder.log			644  5	   1000	*     JN
+/var/log/sshd.log				644  5	   1000	*     JN
+<include> /etc/newsyslog.d/[!.]*.conf

@@ -9,7 +9,8 @@ SYSDAEMONS =	com.apple.configd.plist com.apple.mDNSResponder.plist com.apple.not
 		com.apple.syslogd.plist com.apple.aslmanager.plist com.apple.auditd.plist \
 		com.openssh.sshd.plist \
 		org.minkar.dhcpclient.plist org.minkar.kextstart.plist \
-		org.minkar.getty.console.plist com.vix.cron.plist
+		org.minkar.getty.console.plist com.vix.cron.plist org.minkar.atrun.plist \
+		org.minkar.newsyslog.plist
 DIR =		${SYSROOT_DIR}/System/Library/LaunchDaemons
 
 all: install-daemons
