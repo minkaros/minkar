@@ -21,3 +21,10 @@ Imported from GitHub: Mbed-TLS/mbedtls release mbedtls-3.6.7.tar.bz2
 (sha256 a7e8bcbec0e6f761b4af24f25677626b35f762f68eef79c08677a363212d11f6)
 - mbedtls: include/ and library/ only (SPDX:Apache-2.0, chosen from
   Apache-2.0 OR GPL-2.0-or-later)
+
+Imported from GitHub: freebsd/freebsd-src.git, branch main,
+commit f2d4370fbbe6a24b663a4151e3a462e8e2c306c6 (2026-10-27)
+- libiconv: lib/libc/iconv (Citrus core and iconv(3)), lib/libiconv_modules,
+  share/i18n (conversion tables), usr.bin/mkcsmapper and usr.bin/mkesdb
+  (SPDX:BSD-2-Clause). Minkar's own: Makefile, citrus_module_static.c,
+  libiconv_aliases.c, compat/, tools/build-i18n.sh, tools/hostcompat.c.
