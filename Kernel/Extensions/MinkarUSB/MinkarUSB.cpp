@@ -207,6 +207,7 @@ MinkarUSBHIDInterface::start(IOService *provider)
 	}
 	LOG("interface %u: report protocol,%s%s", number,
 	    fKeyboard ? " keyboard" : "", fPointer ? " pointer" : "");
+	registerService();
 	return true;
 }
 

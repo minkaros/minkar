@@ -44,7 +44,8 @@
  * The UIM below (MinkarXHCIPort) is synchronous: each driver reads its
  * interrupt-IN pipe on a kernel thread of its own (MinkarUSBHIDReader).
  * The pointer publishes what it last dispatched (MinkarEvents, MinkarX,
- * MinkarY, MinkarButtons) and the keyboard its count and last key code,
+ * MinkarY, MinkarButtons; MinkarAbsolutePointer on a tablet) and the
+ * keyboard its count and last key code,
  * for tests and diagnosis.
  */
 

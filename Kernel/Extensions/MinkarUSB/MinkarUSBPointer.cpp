@@ -63,6 +63,8 @@ MinkarUSBPointer::start(IOService *provider)
 		if (!super::start(provider))
 			return false;
 		setProperty("MinkarEvents", 0ULL, 32);
+		if (!fLayout.x.relative)
+			setProperty("MinkarAbsolutePointer", 1ULL, 32);
 		LOG("started (report %u, %s, %u buttons%s)", fLayout.reportID,
 		    fLayout.x.relative ? "relative" : "absolute", (unsigned)buttonCount(),
 		    fLayout.wheel.present ? ", wheel" : "");
@@ -92,6 +94,8 @@ MinkarUSBPointer::start(IOService *provider)
 		return false;
 	}
 	setProperty("MinkarEvents", 0ULL, 32);
+	if (!fBootMouse && !fLayout.x.relative)
+		setProperty("MinkarAbsolutePointer", 1ULL, 32);
 	if (!fReader->startReading()) {
 		LOG("cannot start the report thread");
 		return false;
