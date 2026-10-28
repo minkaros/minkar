@@ -22,6 +22,7 @@ SUBDIR += rev column comm join fold fmt split csplit tsort nl expand unexpand tt
 SUBDIR += mandoc man
 SUBDIR += jot lam rs col colrm look logname mkfifo renice nice lockf cksum bintrans what vis unvis xattr chflags units locate iconv git \
 	calendar pr sdiff diff3 script whois ul mesg wall write banner compress \
-	gencat cap_mkdb last indent ctags timeout passwd
+	gencat cap_mkdb last indent ctags timeout passwd \
+	uuidgen asa c99 finger newgrp pagesize
 
 .include <bsd.subdir.mk>
