@@ -40,6 +40,7 @@
 #include <pwd.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <syslog.h>
 #include <unistd.h>
 
@@ -52,13 +53,20 @@ static struct pam_conv pamc = {
 	NULL
 };
 
+#ifndef __APPLE__
 static char	*yp_domain;
 static char	*yp_host;
+#endif
 
 static void
 usage(void)
 {
+#ifdef __APPLE__	/* Minkar (2026): macOS's options */
+	fprintf(stderr, "usage: passwd [-i infosystem [-l location]] "
+	    "[-u authname] [user]\n");
+#else
 	fprintf(stderr, "usage: passwd [-ly] [-d domain] [-h host] [user]\n");
+#endif
 	exit(1);
 }
 
@@ -70,6 +78,28 @@ main(int argc, char *argv[])
 	int o, pam_err;
 	uid_t uid;
 
+#ifdef __APPLE__	/* Minkar (2026) */
+	/*
+	 * macOS's options: -i names the information system, of which Minkar
+	 * has the local files only ("file"; macOS's default, "opendirectory",
+	 * is taken as the same); -l its location and -u the name to
+	 * authenticate as are accepted and not needed for local files.
+	 */
+	while ((o = getopt(argc, argv, "i:l:u:")) != -1)
+		switch (o) {
+		case 'i':
+			if (strcmp(optarg, "file") != 0 &&
+			    strcmp(optarg, "opendirectory") != 0)
+				errx(1, "%s: unsupported information system",
+				    optarg);
+			break;
+		case 'l':
+		case 'u':
+			break;
+		default:
+			usage();
+		}
+#else
 	while ((o = getopt(argc, argv, "d:h:loy")) != -1)
 		switch (o) {
 		case 'd':
@@ -86,6 +116,7 @@ main(int argc, char *argv[])
 		default:
 			usage();
 		}
+#endif
 
 	argc -= optind;
 	argv += optind;
@@ -108,6 +139,9 @@ main(int argc, char *argv[])
 	if (uid != 0 && uid != pwd->pw_uid)
 		errx(1, "permission denied");
 
+#ifdef __APPLE__	/* Minkar (2026): local accounts only, macOS's wording */
+	fprintf(stderr, "Changing password for %s.\n", pwd->pw_name);
+#else
 	/* check where the user's from */
 	switch (pwd->pw_fields & _PWF_SOURCE) {
 	case _PWF_FILES:
@@ -123,6 +157,7 @@ main(int argc, char *argv[])
 		errx(1, 
 	  "Sorry, `passwd' can only change passwords for local or NIS users.");
 	}
+#endif
 
 #define pam_check(func) do { \
 	if (pam_err != PAM_SUCCESS) { \
@@ -147,11 +182,13 @@ main(int argc, char *argv[])
 	pam_err = pam_set_item(pamh, PAM_RUSER, getlogin());
 	pam_check("pam_set_item");
 
+#ifndef __APPLE__
 	/* set YP domain and host */
 	pam_err = pam_set_data(pamh, "yp_domain", yp_domain, NULL);
 	pam_check("pam_set_data");
 	pam_err = pam_set_data(pamh, "yp_server", yp_host, NULL);
 	pam_check("pam_set_data");
+#endif
 
 	/* set new password */
 	pam_err = pam_chauthtok(pamh, 0);
