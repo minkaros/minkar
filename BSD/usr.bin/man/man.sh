@@ -1019,8 +1019,9 @@ whatis_usage() {
 
 # Supported commands
 do_apropos() {
+	# MANPATH (from -M) is not exported: pass it on as -M.
 	[ $(stat -f %i /usr/bin/man) -ne $(stat -f %i /usr/bin/apropos) ] && \
-		exec apropos "$@"
+		exec apropos ${MANPATH:+-M "$MANPATH"} "$@"
 	search_whatis apropos "$@"
 }
 
@@ -1118,7 +1119,7 @@ do_manpath() {
 
 do_whatis() {
 	[ $(stat -f %i /usr/bin/man) -ne $(stat -f %i /usr/bin/whatis) ] && \
-		exec whatis "$@"
+		exec whatis ${MANPATH:+-M "$MANPATH"} "$@"
 	search_whatis whatis "$@"
 }
 
