@@ -88,6 +88,7 @@ No command from Apple's command sets is left.
 | 2026-10-28 | `unzip` | libarchive 3.8.1's bsdunzip (macOS's is Info-ZIP's; `zip` and `zipinfo` are still missing) |
 | 2026-10-28 | `at`, `atq`, `atrm`, `batch` | Set-user-ID root; jobs in `/var/at`. `atrun` runs them under launchd every 30 seconds, disabled as on macOS until `launchctl load -w /System/Library/LaunchDaemons/org.minkar.atrun.plist`; launchd leaves its jobs running (`AbandonProcessGroup`) |
 | 2026-10-28 | `newsyslog` | Our `/etc/newsyslog.conf` for the daemons' own log files and `/etc/newsyslog.d/`; `system.log` and the ASL store stay syslogd's and aslmanager's, as on macOS. launchd runs it at half past each hour |
+| 2026-10-28 | `ipcs`, `ipcrm` | Read XNU's System V IPC tables entry by entry through the `kern.sysv.ipcs.*` sysctls (Darwin has no `kvm(3)`, so `-C`, `-N` and `-y` are refused); `ipcs -S` shows the semaphore limits of `kern.sysv.*`, as the kernel reports what is in use |
 
 `btop` switches to its TTY mode on the kernel's console when it cannot
 draw its UTF-8 boxes.
@@ -98,8 +99,6 @@ draw its UTF-8 boxes.
 - `getconf DARWIN_USER_DIR` and `DARWIN_USER_CACHE_DIR` fail with EIO (no
   per-user directory service).
 - `mtree`: NetBSD's, which FreeBSD builds with its `pack_dev` and libnetbsd.
-- `ipcs` and `ipcrm`: FreeBSD's read System V IPC through its own sysctls;
-  Darwin's differ (`kern.sysv`), so they need a port of their own.
 - `sshd` records a login but not its logout: `last` shows ssh sessions as
   still logged in.
 - Until 2026-10-28 an ACL's allow entries never applied (the kernel had no
