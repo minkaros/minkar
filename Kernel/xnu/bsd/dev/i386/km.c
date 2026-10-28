@@ -348,7 +348,7 @@ static int
 kmoutput(struct tty *tp)
 {
 	unsigned char   buf[80];        /* buffer; limits output per call */
-	unsigned char   *cp;
+	unsigned char   *cp __unused;
 	int             cc = -1;
 
 
@@ -365,10 +365,12 @@ kmoutput(struct tty *tp)
 		cc = min(cc, sizeof(buf));
 		/* copy the output queue contents to the buffer */
 		(void) q_to_b(&tp->t_outq, buf, cc);
-		for (cp = buf; cp < &buf[cc]; cp++) {
-			/* output the buffer one charatcer at a time */
-			*cp = *cp & 0x7f;
-		}
+		/*
+		 * Minkar (2026): the bytes go out whole. They were cut to 7
+		 * bits here, which turned UTF-8 text into ASCII garbage (btop's
+		 * box lines came out as b's); the graphics console decodes
+		 * UTF-8 now.
+		 */
 
 		if (cc > 1) {
 			cnputsusr((char *)buf, cc);

@@ -264,6 +264,13 @@ static int8_t vc_rotate_matr[4][2][2] = {
 };
 
 static int gc_wrap_mode = 1, gc_relative_origin = 0;
+/*
+ * Minkar (2026): the last character painted (for REP, CSI b) and the UTF-8
+ * sequence being decoded (gc_utf8_need bytes still to come).
+ */
+static unsigned char gc_last_char = ' ';
+static uint32_t gc_utf8_cp;
+static int gc_utf8_need;
 static int gc_charset_select = 0, gc_save_charset_s = 0;
 static int gc_charset[2] = { 0, 0 };
 static int gc_charset_save[2] = { 0, 0 };
@@ -547,11 +554,98 @@ gc_paint_char(unsigned int xx, unsigned int yy, unsigned char ch, int attrs)
 	gc_ops.paint_char(xx, yy, ch, attrs, 0, 0);
 }
 
+/*
+ * Minkar (2026): the console's font has the 256 characters of ISO 8859-1.
+ * A Unicode character past them is drawn as the nearest ASCII one: box
+ * lines as - | +, blocks as #, Braille dots (graphs) by how many are set,
+ * arrows as ^ v < >; anything else as ?.
+ */
+static unsigned char
+gc_unicode_glyph(uint32_t cp)
+{
+	unsigned int dots;
+
+	if (cp < 0x100)
+		return (unsigned char)cp;
+	if (cp >= 0x2500 && cp <= 0x257F) {		/* box drawing */
+		switch (cp) {
+		case 0x2500: case 0x2501: case 0x2504: case 0x2505:
+		case 0x2508: case 0x2509: case 0x254C: case 0x254D:
+		case 0x2550: case 0x2574: case 0x2576: case 0x2578:
+		case 0x257A: case 0x257C: case 0x257E:
+			return '-';
+		case 0x2502: case 0x2503: case 0x2506: case 0x2507:
+		case 0x250A: case 0x250B: case 0x254E: case 0x254F:
+		case 0x2551: case 0x2575: case 0x2577: case 0x2579:
+		case 0x257B: case 0x257D: case 0x257F:
+			return '|';
+		case 0x2571: return '/';
+		case 0x2572: return '\\';
+		case 0x2573: return 'X';
+		default:
+			return '+';
+		}
+	}
+	if (cp >= 0x2580 && cp <= 0x259F)		/* blocks */
+		return (cp >= 0x2581 && cp <= 0x2583) ? '_' : '#';
+	if (cp >= 0x25A0 && cp <= 0x25FF)		/* geometric shapes */
+		return (cp == 0x25CB || cp == 0x25CF || cp == 0x25E6) ? 'o' : '#';
+	if (cp >= 0x2800 && cp <= 0x28FF) {		/* Braille */
+		for (dots = 0, cp -= 0x2800; cp != 0; cp &= cp - 1)
+			dots++;
+		return dots == 0 ? ' ' : dots <= 2 ? '.' : dots <= 5 ? ':' : '#';
+	}
+	switch (cp) {
+	case 0x2190: return '<';
+	case 0x2191: return '^';
+	case 0x2192: return '>';
+	case 0x2193: return 'v';
+	case 0x2010: case 0x2011: case 0x2012: case 0x2013: case 0x2014:
+	case 0x2212:
+		return '-';
+	case 0x2018: case 0x2019: return '\'';
+	case 0x201C: case 0x201D: return '"';
+	case 0x2022: case 0x2219: return 0xB7;	/* middle dot */
+	case 0x2026: return '.';
+	case 0x20AC: return 'E';
+	default:
+		return '?';
+	}
+}
+
 static void
 gc_putchar(char ch)
 {
+	unsigned char c = (unsigned char)ch;
+
 	if (!ch) {
 		return;	/* ignore null characters */
+	}
+	/*
+	 * Minkar (2026): text is UTF-8. A sequence is decoded here and its
+	 * character drawn with gc_unicode_glyph; a malformed one is drawn
+	 * as ?. Escape sequences are ASCII and stay as they were.
+	 */
+	if (gc_vt100state == ESnormal) {
+		if (gc_utf8_need > 0) {
+			if ((c & 0xC0) == 0x80) {
+				gc_utf8_cp = (gc_utf8_cp << 6) | (c & 0x3F);
+				if (--gc_utf8_need == 0 && gc_utf8_cp >= 0xA0)
+					gc_putc_normal(gc_unicode_glyph(gc_utf8_cp));
+				return;
+			}
+			gc_utf8_need = 0;
+			gc_putc_normal('?');
+		}
+		if (c >= 0xC2 && c <= 0xF4) {
+			gc_utf8_need = c >= 0xF0 ? 3 : c >= 0xE0 ? 2 : 1;
+			gc_utf8_cp = c & (c >= 0xF0 ? 0x07 : c >= 0xE0 ? 0x0F : 0x1F);
+			return;
+		}
+		if (c >= 0x80) {
+			gc_putc_normal('?');
+			return;
+		}
 	}
 	switch (gc_vt100state) {
 		default:gc_vt100state = ESnormal;	/* FALLTHROUGH */
@@ -601,23 +695,52 @@ gc_putchar(char ch)
 static void
 gc_putc_askcmd(unsigned char ch)
 {
+	unsigned int i;
+
 	if (ch >= '0' && ch <= '9') {
 		gc_par[gc_numpars] = (10*gc_par[gc_numpars]) + (ch-'0');
 		return;
 	}
+	/* Minkar (2026): ESC [ ? n ; m h takes several modes. */
+	if (ch == ';') {
+		if (gc_numpars < MAXPARS - 1)
+			gc_numpars++;
+		return;
+	}
 	gc_vt100state = ESnormal;
+	if (ch != 'h' && ch != 'l')
+		return;
 
-	switch (gc_par[0]) {
+	for (i = 0; i <= gc_numpars; i++) {
+		switch (gc_par[i]) {
 		case 6:
 			gc_relative_origin = ch == 'h';
 			break;
 		case 7:	/* wrap around mode h=1, l=0*/
 			gc_wrap_mode = ch == 'h';
 			break;
+		case 47:
+		case 1047:
+		case 1049:
+			/*
+			 * Minkar (2026): the alternate screen (full-screen
+			 * programs). There is one screen: entering and leaving
+			 * clear it, and 1049 keeps the cursor.
+			 */
+			if (gc_par[i] == 1049 && ch == 'h') {
+				gc_savex = gc_x;
+				gc_savey = gc_y;
+			}
+			gc_clear_screen(gc_x, gc_y, 0, vinfo.v_rows, 2);
+			if (gc_par[i] == 1049 && ch == 'l') {
+				gc_x = gc_savex;
+				gc_y = gc_savey;
+			}
+			break;
 		default:
 			break;
+		}
 	}
-
 }
 
 static void
@@ -761,6 +884,88 @@ gc_putc_getpars(unsigned char ch)
 		}
 }
 
+/*
+ * Minkar (2026): copies the cell at column from to column to on row yy,
+ * on the screen and in the buffer, with its colors.
+ */
+static void
+gc_copy_cell(unsigned int to, unsigned int from, unsigned int yy)
+{
+	uint32_t src, dst;
+
+	if (!gc_buffer_size || yy >= gc_buffer_rows ||
+	    to >= gc_buffer_columns || from >= gc_buffer_columns)
+		return;
+	src = yy * gc_buffer_columns + from;
+	dst = yy * gc_buffer_columns + to;
+	if (gc_color_code != gc_buffer_colorcodes[src]) {
+		gc_update_color(COLOR_CODE_GET(gc_buffer_colorcodes[src], TRUE), TRUE);
+		gc_update_color(COLOR_CODE_GET(gc_buffer_colorcodes[src], FALSE), FALSE);
+	}
+	gc_ops.paint_char(to, yy, gc_buffer_characters[src],
+	    gc_buffer_attributes[src], 0, 0);
+	gc_buffer_attributes[dst] = gc_buffer_attributes[src];
+	gc_buffer_characters[dst] = gc_buffer_characters[src];
+	gc_buffer_colorcodes[dst] = gc_buffer_colorcodes[src];
+}
+
+/*
+ * Minkar (2026): inserts (n > 0) or deletes (n < 0) |n| characters at the
+ * cursor; the rest of the line moves right or left and blanks fill in.
+ */
+static void
+gc_shift_line(int n)
+{
+	unsigned char colorcodesave = gc_color_code;
+	unsigned int cols = vinfo.v_columns, i, count;
+
+	if (gc_x >= cols)
+		return;
+	count = (unsigned int)(n < 0 ? -n : n);
+	if (count > cols - gc_x)
+		count = cols - gc_x;
+	if (n > 0) {
+		for (i = cols - 1; i >= gc_x + count; i--)
+			gc_copy_cell(i, i - count, gc_y);
+	} else {
+		for (i = gc_x; i + count < cols; i++)
+			gc_copy_cell(i, i + count, gc_y);
+	}
+	if (colorcodesave != gc_color_code) {
+		gc_update_color(COLOR_CODE_GET(colorcodesave, TRUE), TRUE);
+		gc_update_color(COLOR_CODE_GET(colorcodesave, FALSE), FALSE);
+	}
+	for (i = 0; i < count; i++)
+		gc_paint_char(n > 0 ? gc_x + i : cols - 1 - i, gc_y, ' ', ATTR_NONE);
+}
+
+/*
+ * Minkar (2026): one of the console's 8 colors for a color of the 256-color
+ * palette (38;5;n) or for r, g, b (38;2;r;g;b): each channel is on at half
+ * its range or more.
+ */
+static int
+gc_rgb_to_color(unsigned int r, unsigned int g, unsigned int b)
+{
+	return (r >= 128 ? 1 : 0) | (g >= 128 ? 2 : 0) | (b >= 128 ? 4 : 0);
+}
+
+static int
+gc_256_to_color(unsigned int n)
+{
+	static const unsigned char cube[6] = { 0, 95, 135, 175, 215, 255 };
+
+	if (n < 8)
+		return (int)n;
+	if (n < 16)
+		return (int)(n - 8);
+	if (n < 232) {
+		n -= 16;
+		return gc_rgb_to_color(cube[n / 36], cube[(n / 6) % 6], cube[n % 6]);
+	}
+	return n >= 244 ? 7 : 0;	/* the grays */
+}
+
 static void 
 gc_putc_gotpars(unsigned char ch)
 {
@@ -797,6 +1002,78 @@ gc_putc_gotpars(unsigned char ch)
 			gc_x -= gc_par[0];
 		else if (gc_x)
 			--gc_x;
+		break;
+	/*
+	 * Minkar (2026): what xterm's terminfo entry uses and the console
+	 * lacked. Line editors (sh's libedit, zsh) move with CHA after a
+	 * carriage return: without it they redrew at column 0.
+	 */
+	case 'G':		/* Cursor to column (CHA) */
+	case '`':		/* (HPA)		 */
+		gc_x = gc_par[0] ? gc_par[0] - 1 : 0;
+		gc_hanging_cursor = 0;
+		break;
+	case 'd':		/* Cursor to row (VPA)	 */
+		gc_y = gc_par[0] ? gc_par[0] - 1 : 0;
+		if (gc_relative_origin)
+			gc_y += gc_scrreg_top;
+		gc_hanging_cursor = 0;
+		break;
+	case 'a':		/* Right (HPR)		 */
+		gc_x += gc_par[0] ? gc_par[0] : 1;
+		break;
+	case 'e':		/* Down (VPR)		 */
+		gc_y += gc_par[0] ? gc_par[0] : 1;
+		if (gc_y >= gc_scrreg_bottom)
+			gc_y = gc_scrreg_bottom - 1;
+		break;
+	case 'E':		/* Down, column 1 (CNL)	 */
+	case 'F':		/* Up, column 1 (CPL)	 */
+		i = gc_par[0] ? gc_par[0] : 1;
+		if (ch == 'E')
+			gc_y = (gc_y + i >= gc_scrreg_bottom) ? gc_scrreg_bottom - 1 : gc_y + i;
+		else
+			gc_y = (gc_y < gc_scrreg_top + i) ? gc_scrreg_top : gc_y - i;
+		gc_x = 0;
+		gc_hanging_cursor = 0;
+		break;
+	case '@':		/* Insert characters (ICH) */
+		gc_shift_line((int)(gc_par[0] ? gc_par[0] : 1));
+		break;
+	case 'P':		/* Delete characters (DCH) */
+		gc_shift_line(-(int)(gc_par[0] ? gc_par[0] : 1));
+		break;
+	case 'L':		/* Insert lines (IL)	 */
+	case 'M':		/* Delete lines (DL)	 */
+		if (gc_y >= gc_scrreg_top && gc_y < gc_scrreg_bottom) {
+			i = gc_par[0] ? gc_par[0] : 1;
+			if (i > gc_scrreg_bottom - gc_y)
+				i = gc_scrreg_bottom - gc_y;
+			if (ch == 'L')
+				gc_scroll_down(i, gc_y, gc_scrreg_bottom);
+			else
+				gc_scroll_up(i, gc_y, gc_scrreg_bottom);
+			gc_x = 0;
+		}
+		break;
+	case 'S':		/* Scroll up (SU)	 */
+		gc_scroll_up(gc_par[0] ? gc_par[0] : 1, gc_scrreg_top, gc_scrreg_bottom);
+		break;
+	case 'T':		/* Scroll down (SD)	 */
+		gc_scroll_down(gc_par[0] ? gc_par[0] : 1, gc_scrreg_top, gc_scrreg_bottom);
+		break;
+	case 'b':		/* Repeat the last character (REP) */
+		for (i = gc_par[0] ? gc_par[0] : 1; i > 0; i--)
+			gc_putc_normal(gc_last_char);
+		break;
+	case 's':		/* Save cursor		 */
+		gc_savex = gc_x;
+		gc_savey = gc_y;
+		break;
+	case 'u':		/* Restore cursor	 */
+		gc_x = gc_savex;
+		gc_y = gc_savey;
+		gc_hanging_cursor = 0;
 		break;
 	case 'H':		/* Set cursor position	 */
 	case 'f':
@@ -864,11 +1141,38 @@ gc_putc_gotpars(unsigned char ch)
 			case 5:
 			case 25:	/* blink/no blink */
 				break;
+			/*
+			 * Minkar (2026): default colors, bright colors, and
+			 * 256-color and RGB ones, as the nearest of the 8.
+			 */
+			case 39:
+				gc_update_color(COLOR_FOREGROUND, TRUE);
+				break;
+			case 49:
+				gc_update_color(COLOR_BACKGROUND, FALSE);
+				break;
+			case 38:
+			case 48:
+				if (i + 2 < gc_numpars && gc_par[i + 1] == 5) {
+					gc_update_color(gc_256_to_color(gc_par[i + 2]),
+					    gc_par[i] == 38);
+					i += 2;
+				} else if (i + 4 < gc_numpars && gc_par[i + 1] == 2) {
+					gc_update_color(gc_rgb_to_color(gc_par[i + 2],
+					    gc_par[i + 3], gc_par[i + 4]), gc_par[i] == 38);
+					i += 4;
+				} else
+					i = gc_numpars;
+				break;
 			default:
 				if (gc_par[i] >= 30 && gc_par[i] <= 37)
 					gc_update_color(gc_par[i] - 30, TRUE);
 				if (gc_par[i] >= 40 && gc_par[i] <= 47)
 					gc_update_color(gc_par[i] - 40, FALSE);
+				if (gc_par[i] >= 90 && gc_par[i] <= 97)
+					gc_update_color(gc_par[i] - 90, TRUE);
+				if (gc_par[i] >= 100 && gc_par[i] <= 107)
+					gc_update_color(gc_par[i] - 100, FALSE);
 				break;
 			}
 		}
@@ -958,6 +1262,7 @@ gc_putc_normal(unsigned char ch)
 			}
 			gc_paint_char(gc_x, gc_y, (ch >= 0x60 && ch <= 0x7f) ? ch + gc_charset[gc_charset_select]
 								: ch, gc_attr);
+			gc_last_char = ch;	/* Minkar (2026): for REP */
 			if (gc_x == vinfo.v_columns - 1) {
 				gc_hanging_cursor = gc_wrap_mode;
 			} else {
