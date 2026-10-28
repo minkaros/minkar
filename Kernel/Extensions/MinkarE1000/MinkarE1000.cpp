@@ -34,6 +34,8 @@
 #include <netinet/in.h>
 #include <pexpert/pexpert.h>
 
+extern "C" int minkar_e1000_debug;	/* E1000Shared.cpp */
+
 #define super IOEthernetController
 OSDefineMetaClassAndStructors(MinkarE1000, IOEthernetController);
 
@@ -815,6 +817,9 @@ MinkarE1000::start(IOService *provider)
 	 * test it in QEMU). The rest keep the driver's own setup.
 	 */
 	fFamily = kE1000FamilyOther;
+	/* e1000_debug=1: the shared code's own messages, for a chip that
+	 * does not come up. */
+	(void)PE_parse_boot_argn("e1000_debug", &minkar_e1000_debug, sizeof(minkar_e1000_debug));
 	fShared = E1000SharedCreate(fPCI, fRegs);
 	if (fShared != NULL) {
 		uint32_t force = 0;
