@@ -391,7 +391,7 @@ def main(argv=None):
                    help='keep the loader output on screen before the kernel '
                         'starts (hardware tests)')
     p.add_argument('--graphics-mode', metavar='WxH|max',
-                   help='display mode the loader sets: WIDTHxHEIGHT (or the '
+                   help='display mode the loader sets: native (the display\'s own, from its EDID), WIDTHxHEIGHT (or the '
                         'largest that fits) or max; default: the firmware\'s')
     args = p.parse_args(argv)
     build(args)

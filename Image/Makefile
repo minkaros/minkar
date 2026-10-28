@@ -91,8 +91,9 @@ INIT_ARGS +=		--launchd-debug
 .if !empty(LOADER_PAUSE)
 INIT_ARGS +=		--loader-pause ${LOADER_PAUSE}
 .endif
-# GRAPHICS_MODE=WIDTHxHEIGHT or max: the display mode the loader sets
-# for the kernel (the largest that fits, or the display's largest);
+# GRAPHICS_MODE=native, WIDTHxHEIGHT or max: the display mode the loader sets
+# for the kernel (the display's own from its EDID, the largest that fits,
+# or the largest);
 # without it the firmware's mode stays.
 .if !empty(GRAPHICS_MODE)
 INIT_ARGS +=		--graphics-mode ${GRAPHICS_MODE}
