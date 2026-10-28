@@ -17,6 +17,13 @@ config.h. What is installed, as on macOS:
                                             and FreeBSD's group, rootok, self
                                             (freebsd-modules/, BSD-3, for su)
 
+OpenPAM's pam_unix cannot change passwords (its pam_sm_chauthtok only
+fails). Ours, minkar/pam_unix_passwd.c (BSD-2-Clause), is built into the
+same module, with OpenPAM's renamed out of the way by the Makefile: it
+checks the old password (not root's), hashes the new one with SHA-512 and
+rewrites the user's line of /etc/master.passwd, which libinfo reads
+directly. passwd(1) uses it.
+
 Policies are read from /etc/pam.d/. To upgrade, replace openpam/ with the
 new release's lib, include, modules and doc/man and check the list of
 sources in Makefile against lib/libpam/Makefile.am.
