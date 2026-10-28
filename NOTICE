@@ -94,6 +94,8 @@ Other components
 - btop - Apache-2.0 (BSD/usr.bin/btop/dist/LICENSE), with {fmt} - MIT
   (BSD/usr.bin/btop/dist/include/fmt/LICENSE.rst) and widecharwidth -
   CC0-1.0 (BSD/usr.bin/btop/dist/include/widechar_width.hpp)
+- lsof 4.99.7 (lsof-org; Victor A. Abell and Purdue University) - Purdue
+  licence (BSD/usr.sbin/lsof/dist/COPYING); its darwin dialect
 - mandoc 1.14 (man, mandoc, apropos, whatis, makewhatis) - ISC
   (BSD/usr.bin/mandoc/LICENSE)
 - IANA time zone database (tzdata and tzcode's zic, 2026e) - public domain
