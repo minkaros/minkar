@@ -172,12 +172,17 @@ ACPIInterpreterPowerOff(void)
 	ACPI_STATUS st;
 	boolean_t istate;
 
-	if (!gStarted)
+	if (!gStarted) {
+		IOLog("ACPI: no interpreter, cannot power off\n");
 		return false;
+	}
+	/* Each step is shown, to see on a PC where powering off stops. */
+	IOLog("ACPI: S5: _PTS\n");
 	if (ACPI_FAILURE(st = AcpiEnterSleepStatePrep(ACPI_STATE_S5))) {
 		IOLog("ACPI: S5 prepare: %s\n", AcpiFormatException(st));
 		return false;
 	}
+	IOLog("ACPI: S5: SLP_TYP, SLP_EN\n");
 	istate = ml_set_interrupts_enabled(FALSE);
 	st = AcpiEnterSleepState(ACPI_STATE_S5);
 	ml_set_interrupts_enabled(istate);
