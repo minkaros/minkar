@@ -8,7 +8,9 @@
 # FreeBSD loads each encoding module from /usr/lib/i18n with dlopen; here
 # the modules are linked in and citrus_module_static.c finds them in a
 # table. GNU libiconv's names (libiconv_open, libiconv...) are exported
-# too. The conversion tables are built by i18n/ (share/i18n in FreeBSD).
+# too. UTF-8-MAC (utf8mac.c, our own) is added, as macOS has it; its tables
+# come from tools/gen-utf8mac.py. The conversion tables are built by i18n/
+# (share/i18n in FreeBSD).
 
 SUBDIR =
 MK_WERROR = no
@@ -25,12 +27,12 @@ SRCS = citrus_bcs.c citrus_bcs_strtol.c citrus_bcs_strtoul.c \
 	__iconv.c __iconv_free_list.c __iconv_get_list.c iconv.c \
 	iconv_canonicalize.c iconv_close.c iconv_open.c iconv_open_into.c \
 	iconv_set_relocation_prefix.c iconvctl.c iconvlist.c \
-	citrus_module_static.c libiconv_aliases.c
+	citrus_module_static.c libiconv_aliases.c utf8mac.c
 SRCS += citrus_big5.c citrus_dechanyu.c citrus_euc.c citrus_euctw.c citrus_gbk2k.c citrus_hz.c citrus_iconv_none.c citrus_iconv_std.c citrus_iso2022.c citrus_johab.c citrus_mapper_646.c citrus_mapper_none.c citrus_mapper_serial.c citrus_mapper_std.c citrus_mapper_zone.c citrus_mskanji.c citrus_ues.c citrus_utf1632.c citrus_utf7.c citrus_utf8.c citrus_viqr.c citrus_zw.c 
 
 CFLAGS = --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
 	-Wno-nullability-completeness -Wno-pointer-sign \
-	-I${.CURDIR}/compat -I${.CURDIR}/include -I${.CURDIR}/citrus \
+	-I${.CURDIR} -I${.CURDIR}/compat -I${.CURDIR}/include -I${.CURDIR}/citrus \
 	${MODULES:S,^,-I${.CURDIR}/modules/,} \
 	-include minkar_iconv.h -Dbool=_Bool
 LDFLAGS = --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
