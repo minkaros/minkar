@@ -618,9 +618,10 @@ work in progress.
 The highest-impact open items, in critical-path order:
 
 1. Reference PC 1 (Phase 1): its console is usable at the native
-   resolution and its I219-V is on the network; next, the I211 and NVMe,
-   the boot without `pci_keep_console`; then a second, different PC (gate
-   M1).
+   resolution and both network cards are on the LAN; next, powering off
+   (ACPI S5), the other CPUs (SMP, also missing in QEMU), NVMe and the
+   boot without `pci_keep_console`; then a second, different PC (gate M1;
+   a Mac Pro 6,1 is the candidate). See [Hardware.md](Hardware.md).
 2. BSD userland batches (Phase 2): `nslookup`/`dig`,
    then the rest of `Docs/Commands.md`'s missing BSD tools.
 3. IOHIDSystem event delivery in the kernel, the `ApplePS2Mouse` driver and

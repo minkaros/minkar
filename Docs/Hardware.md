@@ -37,13 +37,13 @@ QEMU fails on an MSR the kernel reads).
 | Part | Device | State |
 |---|---|---|
 | Board | Gigabyte H270N-WIFI (Intel H270), AMI UEFI firmware | Boots |
-| CPU | Intel Core i7-7700 (4 cores, 8 threads) | All eight CPUs start |
+| CPU | Intel Core i7-7700 (4 cores, 8 threads) | ACPI lists all eight; only the boot CPU runs (no SMP yet, as in QEMU) |
 | Disk | SATA through AHCI (`MinkarAHCIPort`) | Root file system, fsck |
 | Disk | NVMe (M.2) | No driver yet |
 | USB | xHCI (`MinkarXHCIPort`), USB 2 hub of a KVM switch | Keyboard and mouse, directly and through the switch |
 | Display | GOP framebuffer, Xiaomi 34" ultrawide | Native 3440x1440 text console |
 | Network | Intel I219-V (PCH LAN) | ping on the LAN (`MinkarE1000`) |
-| Network | Intel I211 | Not tested yet |
+| Network | Intel I211 | DHCP and ping on the LAN (`MinkarE1000`) |
 | Wi-Fi | Intel (M.2) | No driver |
 
 Images for it are built with `GRAPHICS_MODE=native` and the boot arguments
@@ -53,7 +53,15 @@ loader's output on screen for photos.
 
 ### Still open
 
-- The I211 network card and NVMe.
+- NVMe.
+- Powering off: `shutdown -h` stops after the drivers' power-off handlers,
+  before the machine turns off (ACPI S5). The kernel now prints each step
+  of S5 to see where.
+- IOKit does not get quiet within 30 seconds, so some drivers (the
+  display's) start after the login prompt; `kextstart` now names the
+  services still busy.
+- Only the boot CPU runs (the other CPUs are found but not started; also
+  in QEMU).
 - Booting without `pci_keep_console=1` (see the QEMU known bug).
 
 ### How it got there
@@ -114,3 +122,18 @@ xterm's terminfo asks (CHA, insert and delete characters and lines,
 scrolling, the alternate screen, 256 colors as its 8) and decodes UTF-8;
 line editing and the history redraw in place, and btop draws its boxes in
 ASCII (`km.c` had cut every byte to 7 bits).
+
+**After the login** (2026-10-28, hw-test28). The display's driver started
+after the login prompt and set the console up again: the cursor went back
+to the top and the prompt was drawn over the boot messages. The console now
+keeps its text and cursor when a driver hands it the mode it already has,
+and once the login is up the kernel's messages stay off the screen
+(`kern.console_quiet`, set by `kextstart`; they still reach `dmesg` and the
+log, and a panic or a shutdown shows them again). The console's getty
+clears the screen for every login but the first.
+
+**Two network cards** (2026-10-28). Moving the cable from the I219-V to the
+I211 gave the I211 an address, but ping went out through the I219-V, which
+kept its address and routes with no link. As on macOS, `dhcpclient` now
+gives up an interface's addresses (IPv4 and IPv6) and routes when its link
+goes down, and asks for it again when the link comes back.

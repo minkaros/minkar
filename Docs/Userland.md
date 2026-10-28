@@ -107,6 +107,15 @@ draw its UTF-8 boxes.
 - The console's terminal has no node in `/dev` (the serial device behind
   it), so `ps` shows `??` for getty.
 - The rest of the BSD tools listed in [Commands.md](Commands.md).
+- Queued (the kernel already has what they need): FAT's `newfs_msdos` and
+  `fsck_msdos` (FreeBSD's) and our own `mount_msdos`, as `msdosfs` is in
+  the kernelcache; the quota tools (FreeBSD's, for XNU's quota file
+  format); `pfctl` (one that speaks XNU's pf ioctls); `mount_nfs` and
+  `nfsd` (XNU has the NFS client and server).
+- Left out, with no driver under a usable license: exFAT
+  (`fsck_exfat`; the free tools are GPL), SMB (`mount_smbfs`; Samba is
+  GPL and FreeBSD's smbfs is gone) and APFS (`fsck_apfs`, `mount_apfs`,
+  `newfs_apfs`; no open implementation). Minkar's file system is HFS+.
 
 ## Power user
 
