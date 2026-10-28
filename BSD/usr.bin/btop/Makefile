@@ -5,8 +5,9 @@
 # btop 1.4.7 (Apache-2.0, dist/LICENSE; github.com/aristocratos/btop), the
 # full-screen resource monitor, on its macOS backend (dist/src/osx: libproc,
 # the Mach host interface, sysctl, IOKit and CoreFoundation). dist/ holds
-# upstream's files that Minkar builds, unchanged but for one line marked
-# "Minkar" in btop_config.cpp. C++23 with fmt header-only, as upstream's
+# upstream's files that Minkar builds, unchanged but for the lines marked
+# "Minkar" in btop_config.cpp and btop.cpp (TTY mode on the console).
+# C++23 with fmt header-only, as upstream's
 # CMake builds it; no GPU support (Apple's needs Metal). Installs
 # /usr/bin/btop, its manual page and its themes in /usr/share/btop/themes
 # (btop looks in ../share/btop next to its binary).
