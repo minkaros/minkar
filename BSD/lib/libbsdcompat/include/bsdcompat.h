@@ -289,4 +289,15 @@ __END_DECLS
 #define	__assert_unreachable()	__builtin_unreachable()
 #endif
 
+/*
+ * <net/route.h>: the room a sockaddr takes in a routing message. XNU pads
+ * each to a multiple of sizeof(uint32_t) (FreeBSD: of sizeof(long)); a
+ * zero length still takes one slot.
+ */
+#ifndef SA_SIZE
+#define	SA_SIZE(sa)							\
+	(((struct sockaddr *)(sa))->sa_len == 0 ? sizeof(uint32_t) :	\
+	 (1 + ((((struct sockaddr *)(sa))->sa_len - 1) | (sizeof(uint32_t) - 1))))
+#endif
+
 #endif /* !_MINKAR_BSDCOMPAT_H */
