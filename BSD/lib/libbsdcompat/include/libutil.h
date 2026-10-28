@@ -31,7 +31,8 @@
  * elsewhere. The pty functions (openpty, forkpty, login_tty) are in
  * Darwin's <util.h>; expand_number is libbsdcompat's (bsdcompat.h); the
  * login classes are <login_cap.h>'s. macOS's own <libutil.h> (pidfile,
- * humanize_number...) is BSD/lib/libutil's, which is not in the SDK yet.
+ * humanize_number...) is BSD/lib/libutil's, which is not in the SDK yet:
+ * a program that has it on its include path after this one gets it too.
  */
 
 #ifndef _MINKAR_LIBUTIL_H
@@ -42,5 +43,9 @@
 
 #include "bsdcompat.h"
 #include "login_cap.h"
+
+#if __has_include_next(<libutil.h>)
+#include_next <libutil.h>
+#endif
 
 #endif /* !_MINKAR_LIBUTIL_H */
