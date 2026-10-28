@@ -80,6 +80,10 @@ No command from Apple's command sets is left.
 | 2026-10-28 | `last` | Reads Darwin's wtmpx log |
 | 2026-10-28 | `timeout` | A process group, for want of a reaper |
 | 2026-10-28 | `passwd` | macOS's `-i`, `-l`, `-u` and wording; set-user-ID root. pam_unix changes the password with our own code (OpenPAM's could not): a SHA-512 hash in `/etc/master.passwd`, which libinfo reads directly, so FreeBSD's `pw_*` functions and `pwd_mkdb` are not needed |
+| 2026-10-28 | `sync`, `mknod`, `nologin`, `asa`, `c99`, `newgrp`, `pagesize` | FreeBSD main's, in macOS's places (`/bin`, `/sbin`, `/usr/bin`) |
+| 2026-10-28 | `finger` | The last login from Darwin's lastlog records (`getlastlogxbyname`) |
+| 2026-10-28 | `ac` | Reads Darwin's wtmpx log, as `last` does |
+| 2026-10-28 | `uuidgen` | Written for Minkar, as on macOS: an upper-case random UUID, `-hdr` for a Core Foundation header line (FreeBSD's is built on the DCE UUID API) |
 
 `btop` switches to its TTY mode on the kernel's console when it cannot
 draw its UTF-8 boxes.
@@ -89,6 +93,13 @@ draw its UTF-8 boxes.
 - `nslookup`, `dig`.
 - `getconf DARWIN_USER_DIR` and `DARWIN_USER_CACHE_DIR` fail with EIO (no
   per-user directory service).
+- `ipcs` and `ipcrm`: FreeBSD's read System V IPC through its own sysctls;
+  Darwin's differ (`kern.sysv`), so they need a port of their own.
+- `sshd` records a login but not its logout: `last` shows ssh sessions as
+  still logged in.
+- Until 2026-10-28 an ACL's allow entries never applied (the kernel had no
+  GUID for a process without a resolver daemon), so only root could read
+  the login records: `last` and `finger` showed nothing to other users.
 - The console's terminal has no node in `/dev` (the serial device behind
   it), so `ps` shows `??` for getty.
 - The rest of the BSD tools listed in [Commands.md](Commands.md).

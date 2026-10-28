@@ -246,7 +246,7 @@ The generic Unix commands come from FreeBSD `main`, with our own macOS
 layer where macOS behaves differently; Darwin's own components stay. Each
 command, where it comes from and what was fixed while porting it, is in
 [Userland.md](Userland.md); [Commands.md](Commands.md) counts them against
-macOS's (226 of 354 on 2026-10-28).
+macOS's (236 of 354 on 2026-10-28).
 
 - [x] Boot: `sh`, `ls`, `cp`, `mv`, `rm`, `mount`, `ifconfig`, `ps`, `kill`.
 - [x] Replace the commands from Apple's command sets with FreeBSD main's
@@ -261,7 +261,8 @@ macOS's (226 of 354 on 2026-10-28).
   Python and Tcl commands.
 - [ ] Apple tools: `open`, `plutil`, `defaults`, `sw_vers`, `ditto`
   (`hdiutil` comes with Phase 6). *Partial:* all but `open`, which needs
-  LaunchServices; `chmod` has macOS's ACL syntax.
+  LaunchServices; `chmod` has macOS's ACL syntax, and the kernel applies
+  allow entries as well as deny ones since 2026-10-28.
 
 **Support daemons** (needed by Phases 5 and 6)
 
