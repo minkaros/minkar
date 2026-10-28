@@ -78,6 +78,8 @@ Other components
 - gettext-tiny - MIT (Frameworks/CoreText/gettext-tiny/LICENSE)
 - Citrus iconv (FreeBSD main's lib/libc/iconv, lib/libiconv_modules and
   share/i18n) - BSD-2-Clause (Libraries/libiconv)
+- Intel's shared e1000 code (FreeBSD main's sys/dev/e1000) - BSD-3-Clause
+  (Kernel/Extensions/MinkarE1000/e1000/LICENSE)
 - XZ Utils / liblzma - 0BSD; other parts under other licenses
   (Frameworks/CoreText/xz/COPYING)
 - xkeyboard-config - MIT-style (Frameworks/AppKit/xkeyboard-config/COPYING)

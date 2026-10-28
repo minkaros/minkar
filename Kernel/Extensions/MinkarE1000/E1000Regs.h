@@ -59,6 +59,14 @@
 #define E1000_RDH	0x02810	/* receive head */
 #define E1000_RDT	0x02818	/* receive tail */
 #define E1000_RDTR	0x02820	/* receive delay timer */
+/* Queue 0 of the I210/I211 (82575 and later): split receive control and
+ * the receive/transmit descriptor control, whose queue enable bit must be
+ * set (Intel's I210 datasheet, sections 8.10 and 8.12). */
+#define E1000_RXDCTL0	0x02828
+#define E1000_TXDCTL0	0x03828
+#define E1000_SRRCTL0	0x0C00C
+#define E1000_SRRCTL_BSIZEPKT_SHIFT	0	/* buffer size in KB; DESCTYPE 0: legacy */
+#define E1000_XDCTL_QUEUE_ENABLE	(1U << 25)
 #define E1000_TDBAL	0x03800	/* transmit descriptor base, low */
 #define E1000_TDBAH	0x03804	/* transmit descriptor base, high */
 #define E1000_TDLEN	0x03808	/* transmit ring length in bytes */
