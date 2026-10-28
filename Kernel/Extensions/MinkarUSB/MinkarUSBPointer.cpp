@@ -34,47 +34,19 @@
 #define LOG(fmt, ...) IOLog("MinkarUSBPointer: " fmt "\n", ##__VA_ARGS__)
 
 #define BOOT_MOUSE_PROTOCOL	2
-#define MAX_REPORT_DESC		1024
 
 OSDefineMetaClassAndStructors(MinkarUSBPointer, IOHIPointing);
 
-/*
- * The report layout from the HID report descriptor, read with
- * GET_DESCRIPTOR from the interface; its length is in the HID descriptor
- * that follows the interface descriptor.
- */
+/* The report layout from the HID report descriptor. */
 bool
 MinkarUSBPointer::readLayout()
 {
-	const IOUSBDescriptorHeader *h = fInterface->FindNextAssociatedDescriptor(NULL, kUSBHIDDesc);
-	const uint8_t *hid = (const uint8_t *)h;
-	uint16_t len = 0;
+	uint8_t *desc;
+	uint16_t len;
 
-	if (hid == NULL || hid[0] < 9)
+	if (!MinkarUSBReadReportDescriptor(fInterface, &desc, &len))
 		return false;
-	/* bNumDescriptors entries of (bDescriptorType, wDescriptorLength). */
-	for (unsigned i = 0; i < hid[5] && 6 + 3 * i + 2 < hid[0]; i++) {
-		if (hid[6 + 3 * i] == kUSBReportDesc) {
-			len = (uint16_t)(hid[7 + 3 * i] | (hid[8 + 3 * i] << 8));
-			break;
-		}
-	}
-	if (len == 0 || len > MAX_REPORT_DESC)
-		return false;
-
-	uint8_t *desc = (uint8_t *)IOMalloc(len);
-	if (desc == NULL)
-		return false;
-	IOUSBDevRequest req;
-	req.bmRequestType = USBmakebmRequestType(kUSBIn, kUSBStandard, kUSBInterface);
-	req.bRequest = kUSBRqGetDescriptor;
-	req.wValue = (UInt16)(kUSBReportDesc << 8);
-	req.wIndex = fInterface->GetInterfaceNumber();
-	req.wLength = len;
-	req.pData = desc;
-	req.wLenDone = 0;
-	bool ok = fInterface->DeviceRequest(&req, NULL) == kIOReturnSuccess &&
-	    HIDParsePointer(desc, len, &fLayout);
+	bool ok = HIDParsePointer(desc, len, &fLayout);
 	IOFree(desc, len);
 	return ok;
 }
@@ -82,6 +54,21 @@ MinkarUSBPointer::readLayout()
 bool
 MinkarUSBPointer::start(IOService *provider)
 {
+	/* Under MinkarUSBHIDInterface, which reads the pipe and passes reports on. */
+	MinkarUSBHIDInterface *hid = OSDynamicCast(MinkarUSBHIDInterface, provider);
+	if (hid != NULL) {
+		fInterface = NULL;
+		fReader = NULL;
+		fLayout = hid->pointerLayout();
+		if (!super::start(provider))
+			return false;
+		setProperty("MinkarEvents", 0ULL, 32);
+		LOG("started (report %u, %s, %u buttons%s)", fLayout.reportID,
+		    fLayout.x.relative ? "relative" : "absolute", (unsigned)buttonCount(),
+		    fLayout.wheel.present ? ", wheel" : "");
+		return true;
+	}
+
 	fInterface = OSDynamicCast(IOUSBInterface, provider);
 	if (fInterface == NULL || !fInterface->open(this))
 		return false;
@@ -131,6 +118,12 @@ void
 MinkarUSBPointer::handleReport(OSObject *owner, const uint8_t *report, uint32_t len)
 {
 	((MinkarUSBPointer *)owner)->processReport(report, len);
+}
+
+void
+MinkarUSBPointer::feedReport(const uint8_t *report, uint32_t len)
+{
+	processReport(report, len);
 }
 
 void

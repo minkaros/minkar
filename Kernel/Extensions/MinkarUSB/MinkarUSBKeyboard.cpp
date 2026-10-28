@@ -95,6 +95,23 @@ usageToADB(uint8_t usage)
 bool
 MinkarUSBKeyboard::start(IOService *provider)
 {
+	/* Under MinkarUSBHIDInterface, which reads the pipe and passes reports on. */
+	MinkarUSBHIDInterface *hid = OSDynamicCast(MinkarUSBHIDInterface, provider);
+	if (hid != NULL) {
+		fReportMode = true;
+		fReader = NULL;
+		fInterface = hid->interface();	/* for the LEDs; the parent has it open */
+		fLayout = hid->keyboardLayout();
+		if (!super::start(provider))
+			return false;
+		setProperty("MinkarKeyEvents", 0ULL, 32);
+		LOG("started (report %u, %s%s)", fLayout.reportID,
+		    fLayout.hasArray ? "key array" : "key bitmap",
+		    fLayout.hasModifiers ? ", modifiers" : "");
+		return true;
+	}
+
+	fReportMode = false;
 	fInterface = OSDynamicCast(IOUSBInterface, provider);
 	if (fInterface == NULL || !fInterface->open(this))
 		return false;
@@ -126,9 +143,19 @@ MinkarUSBKeyboard::stop(IOService *provider)
 		fReader->stopReading();
 		OSSafeReleaseNULL(fReader);
 	}
-	if (fInterface != NULL && fInterface->isOpen(this))
+	if (!fReportMode && fInterface != NULL && fInterface->isOpen(this))
 		fInterface->close(this);
 	super::stop(provider);
+}
+
+/* A report-protocol report, as the boot report processReport takes. */
+void
+MinkarUSBKeyboard::feedReport(const uint8_t *report, uint32_t len)
+{
+	uint8_t boot[8];
+
+	if (HIDKeyboardToBoot(&fLayout, report, len, boot))
+		processReport(boot, sizeof(boot));
 }
 
 void
@@ -202,10 +229,14 @@ void
 MinkarUSBKeyboard::setAlphaLockFeedback(bool locked)
 {
 	uint8_t leds = locked ? 0x02 : 0x00;
+	/* With report IDs, the output report starts with the keyboard's. */
+	uint8_t withID[2] = { fLayout.reportID, leds };
+	bool id = fReportMode && fLayout.reportID != 0;
 
 	if (fInterface != NULL)
 		(void)MinkarUSBHIDRequest(fInterface, false, kHIDRqSetReport,
-		    (UInt16)((kHIDRtOutputReport << 8) | 0), &leds, 1);
+		    (UInt16)((kHIDRtOutputReport << 8) | (id ? fLayout.reportID : 0)),
+		    id ? withID : &leds, id ? 2 : 1);
 }
 
 const unsigned char *
