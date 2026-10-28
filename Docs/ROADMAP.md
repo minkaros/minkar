@@ -239,12 +239,24 @@ mounted.
   STALL and its control endpoint stayed halted; it now sends that only to
   SuperSpeed hubs and resets a halted control endpoint after any STALL
   (keyboard and mouse through the switch work). A device with one bulk
-  direction no longer panics the kernel. Still open on PC 1: the network
-  cards, NVMe. The loader sets the display mode from `graphics-mode` in
-  the boot plist (`GRAPHICS_MODE=`): `native` reads the display's EDID;
-  PC 1's 34" ultrawide runs at its 3440x1440 (3456 pixels per line), and
-  a scaled mode came out scrambled; a short settle after the switch is in
-  testing.
+  direction no longer panics the kernel. The loader sets the display mode
+  from `graphics-mode` in the boot plist (`GRAPHICS_MODE=`): `native`
+  reads the display's EDID; PC 1's 34" ultrawide runs at its 3440x1440
+  (3456 pixels per line). The text was scrambled because the loader
+  cleared the screen through the firmware's console after reading the
+  mode, and PC 1's firmware put its own mode back; now it clears the
+  framebuffer itself and reads the mode last (2026-10-28). PC 1's I219-V
+  answers ping on its LAN since MinkarE1000 runs Intel's shared e1000
+  code (FreeBSD's, BSD-3) for the PCH LAN and the I210/I211. The console
+  terminal does what xterm's terminfo asks (CHA, insert and delete
+  characters and lines, scrolling, the alternate screen, 256 colors as its
+  8) and decodes UTF-8: line editing and the history redraw in place, and
+  btop draws its boxes in ASCII (km.c had cut every byte to 7 bits). A
+  console test (`run.sh console`) boots an image with a PC's boot
+  arguments, types on a USB keyboard through QMP and reads the screen back
+  through the console's font. Still open on PC 1: the I211, NVMe. Known
+  bug: without `pci_keep_console=1` the boot stops in QEMU when PCI
+  configuration turns the console back on.
 
 - [ ] **Exit gate (M1):** in QEMU and on a reference PC, the kernel mounts
   the HFS+ root and runs `/sbin/launchd` (or a temporary init) with a shell
@@ -351,9 +363,20 @@ notifyd, syslogd, the HFS tools, mDNSResponder) stay as they are.
   with its 23 encoding modules linked in and 687 conversion tables in
   `/usr/share/i18n`; CoreText's libxml2 and fontconfig use it, and
   `iconv(1)` is FreeBSD main's. `btop` switches to its TTY mode on the
-  kernel's console, which cannot draw its UTF-8 boxes.
-  Missing: `lsof`, `zic`/`zdump` in
-  the image, `nslookup`/`dig`; `getconf DARWIN_USER_DIR` and
+  kernel's console, which cannot draw its UTF-8 boxes. `lsof` (lsof-org
+  4.99.7, Purdue licence, its darwin dialect on libproc) is in `/usr/sbin`
+  since 2026-10-28: files, sockets, pipes, `-t`, `-F`, `-J`, `+D`; a user
+  sees only their own processes, as on macOS. libiconv gained UTF-8-MAC
+  (ours, from the Unicode data): the decomposed names HFS Plus stores,
+  composed again for git. `zic` and `zdump` (tzcode) are in
+  `/usr/sbin`. Then 18 more from FreeBSD main: `calendar`, `pr`, `sdiff`,
+  `diff3`, `script`, `whois`, `ul`, `mesg`, `wall`, `write`, `banner`,
+  `compress`/`uncompress`, `gencat`, `cap_mkdb`, `last` (Darwin's wtmpx
+  log), `indent`, `ctags` and `timeout` (a process group for want of a
+  reaper). `Docs/Commands.md` counts the image's commands against 354 of
+  macOS's (225 there, 129 missing on 2026-10-28), from
+  `tools/check/commands-report.py`. Missing: `passwd` (FreeBSD's pam_unix
+  and libutil's pw_* first), `nslookup`/`dig`; `getconf DARWIN_USER_DIR` and
   `DARWIN_USER_CACHE_DIR` fail with EIO (no per-user directory service).
   The console's terminal has no node in `/dev` (the serial device behind
   it), so `ps` shows `??` for getty.
@@ -361,8 +384,12 @@ notifyd, syslogd, the HFS tools, mDNSResponder) stay as they are.
   `tar`, `ssh` and `curl` installed; `zsh` 5.9 built and tested
   2026-10-26 (modules linked in, the function library, in `/etc/shells`);
   `make` is BSD make (bmake 20260704, with its mk files in
-  `/usr/share/mk`) since 2026-10-27, decided over GNU make; `git` (GPL-2.0,
-  approved 2026-10-27) missing.
+  `/usr/share/mk`) since 2026-10-27, decided over GNU make; `git` 2.56.0
+  (GPL-2.0, approved 2026-10-27) since 2026-10-28, built by its own
+  Makefile with its Darwin settings: HTTPS through libcurl, `git daemon`,
+  accented file names on HFS Plus (core.precomposeunicode), the manuals and
+  completion; no Perl, Python or Tcl commands (`git svn`, `send-email`,
+  `gitk`, `git gui`).
 - [ ] Apple tools: `open`, `plutil`, `defaults`, `sw_vers`, `ditto`
   (`hdiutil` comes with Phase 6). *Partial:* `plutil`, `defaults`, `sw_vers`
   and `ditto` tested in the image 2026-10-26 (`sw_vers` printed spaces
@@ -724,10 +751,12 @@ work in progress.
 
 The highest-impact open items, in critical-path order:
 
-1. Reference PC 1 (Phase 1): it boots to a console login, typed through
-   its KVM switch; next, its network cards (I219-V, I211) and the native
-   display mode; then a second, different PC (gate M1).
-2. BSD userland batches (Phase 2): `lsof`; `git`.
+1. Reference PC 1 (Phase 1): its console is usable at the native
+   resolution and its I219-V is on the network; next, the I211 and NVMe,
+   the boot without `pci_keep_console`; then a second, different PC (gate
+   M1).
+2. BSD userland batches (Phase 2): `passwd` (pam_unix), `nslookup`/`dig`,
+   then the rest of `Docs/Commands.md`'s missing BSD tools.
 3. IOHIDSystem event delivery in the kernel, the `ApplePS2Mouse` driver and
    the WindowServer input reader (Phase 4).
 4. Install WindowServer's launchd job and get a first boot that draws on
