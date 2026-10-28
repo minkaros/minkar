@@ -16,7 +16,7 @@
 
 SUBDIR =
 LIB = bsdcompat
-SRCS = strtonum.c expand_number.c copy_file_range.c mknodat.c acl.c \
+SRCS = strtonum.c pipe2.c getlocalbase.c str2sig.c expand_number.c copy_file_range.c mknodat.c acl.c \
 	explicit_bzero.c strings.c login_cap.c pwcache.c strverscmp.c sbuf.c \
 	kvm_darwin.c
 CFLAGS = --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \

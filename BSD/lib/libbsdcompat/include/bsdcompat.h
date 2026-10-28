@@ -260,6 +260,33 @@ void		setproctitle(const char *fmt, ...) __printflike(1, 2);
 int		mkfifoat(int fd, const char *path, mode_t mode);
 int		mknodat(int fd, const char *path, mode_t mode, dev_t dev);
 
+/* <libutil.h>: where local software lives (LOCALBASE, else /usr/local). */
+const char	*getlocalbase(void);
+
+/* <signal.h>: a signal from its name ("TERM", "SIGTERM") or number. */
+int		str2sig(const char *str, int *signum);
+
+/* <unistd.h>: a pipe with O_CLOEXEC and O_NONBLOCK. */
+int		pipe2(int fds[2], int flags);
+
 __END_DECLS
+
+/*
+ * <fcntl.h>: Darwin has no O_PATH; a FreeBSD program that opens a directory
+ * with it to keep a descriptor for openat gets a read-only one instead.
+ */
+#ifndef O_PATH
+#define	O_PATH		0
+#endif
+
+/* <signal.h>: how many entries sys_signame and sys_siglist have. */
+#ifndef sys_nsig
+#define	sys_nsig	NSIG
+#endif
+
+/* <sys/cdefs.h>: a place the program cannot reach. */
+#ifndef __assert_unreachable
+#define	__assert_unreachable()	__builtin_unreachable()
+#endif
 
 #endif /* !_MINKAR_BSDCOMPAT_H */
