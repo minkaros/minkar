@@ -1,0 +1,761 @@
+'\" t
+.\"     Title: git-submodule
+.\"    Author: [FIXME: author] [see http://www.docbook.org/tdg5/en/html/author]
+.\" Generator: DocBook XSL Stylesheets v1.79.2 <http://docbook.sf.net/>
+.\"      Date: 2026-09-27
+.\"    Manual: Git Manual
+.\"    Source: Git 2.56.0
+.\"  Language: English
+.\"
+.TH "GIT\-SUBMODULE" "1" "2026-09-27" "Git 2\&.56\&.0" "Git Manual"
+.\" -----------------------------------------------------------------
+.\" * Define some portability stuff
+.\" -----------------------------------------------------------------
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.\" http://bugs.debian.org/507673
+.\" http://lists.gnu.org/archive/html/groff/2009-02/msg00013.html
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.\" -----------------------------------------------------------------
+.\" * set default formatting
+.\" -----------------------------------------------------------------
+.\" disable hyphenation
+.nh
+.\" disable justification (adjust text to left margin only)
+.ad l
+.\" -----------------------------------------------------------------
+.\" * MAIN CONTENT STARTS HERE *
+.\" -----------------------------------------------------------------
+.SH "NAME"
+git-submodule \- Initialize, update or inspect submodules
+.SH "SYNOPSIS"
+.sp
+.nf
+\fBgit\fR \fBsubmodule\fR [\fB\-\-quiet\fR] [\fB\-\-cached\fR]
+\fBgit\fR \fBsubmodule\fR [\fB\-\-quiet\fR] \fBadd\fR [\fI<options>\fR] [\fB\-\-\fR] \fI<repository>\fR [\fI<path>\fR]
+\fBgit\fR \fBsubmodule\fR [\fB\-\-quiet\fR] \fBstatus\fR [\fB\-\-cached\fR] [\fB\-\-recursive\fR] [\fB\-\-\fR] [\fI<path>\fR\&...\:]
+\fBgit\fR \fBsubmodule\fR [\fB\-\-quiet\fR] \fBinit\fR [\fB\-\-\fR] [\fI<path>\fR\&...\:]
+\fBgit\fR \fBsubmodule\fR [\fB\-\-quiet\fR] \fBdeinit\fR [\fB\-f\fR|\fB\-\-force\fR] (\fB\-\-all\fR|[\fB\-\-\fR] \fI<path>\fR\fB\&.\&.\&.\fR)
+\fBgit\fR \fBsubmodule\fR [\fB\-\-quiet\fR] \fBupdate\fR [\fI<options>\fR] [\fB\-\-\fR] [\fI<path>\fR\&...\:]
+\fBgit\fR \fBsubmodule\fR [\fB\-\-quiet\fR] \fBset\-branch\fR [\fI<options>\fR] [\fB\-\-\fR] \fI<path>\fR
+\fBgit\fR \fBsubmodule\fR [\fB\-\-quiet\fR] \fBset\-url\fR [\fB\-\-\fR] \fI<path>\fR \fI<newurl>\fR
+\fBgit\fR \fBsubmodule\fR [\fB\-\-quiet\fR] \fBsummary\fR [\fI<options>\fR] [\fB\-\-\fR] [\fI<path>\fR\&...\:]
+\fBgit\fR \fBsubmodule\fR [\fB\-\-quiet\fR] \fBforeach\fR [\fB\-\-recursive\fR] \fI<command>\fR
+\fBgit\fR \fBsubmodule\fR [\fB\-\-quiet\fR] \fBsync\fR [\fB\-\-recursive\fR] [\fB\-\-\fR] [\fI<path>\fR\&...\:]
+\fBgit\fR \fBsubmodule\fR [\fB\-\-quiet\fR] \fBabsorbgitdirs\fR [\fB\-\-\fR] [\fI<path>\fR\&...\:]
+.fi
+.SH "DESCRIPTION"
+.sp
+Inspects, updates and manages submodules\&.
+.sp
+For more information about submodules, see \fBgitsubmodules\fR(7)\&.
+.SH "COMMANDS"
+.sp
+With no arguments, shows the status of existing submodules\&. Several subcommands are available to perform operations on the submodules\&.
+.PP
+\fBadd\fR [\fB\-b\fR \fI<branch>\fR] [\fB\-f\fR | \fB\-\-force\fR] [\fB\-\-name\fR \fI<name>\fR] [\fB\-\-reference\fR \fI<repository>\fR] [\fB\-\-ref\-format\fR \fI<format>\fR] [\fB\-\-depth\fR \fI<depth>\fR] [\fB\-\-\fR] \fI<repository>\fR [\fI<path>\fR]
+.RS 4
+Add the given repository as a submodule at the given path to the changeset to be committed next to the current project: the current project is termed the "superproject"\&.
+.sp
+\fI<repository>\fR
+is the URL of the new submodule\(cqs
+\fBorigin\fR
+repository\&. This may be either an absolute URL, or (if it begins with \&.\fB/\fR
+or
+\fB\&.\&.\fR\fB/\fR), the location relative to the superproject\(cqs default remote repository (Please note that to specify a repository
+\fBfoo\&.git\fR
+which is located right next to a superproject
+\fBbar\&.git\fR, you\(cqll have to use
+\fB\&.\&.\fR\fB/foo\&.git\fR
+instead of \&.\fB/foo\&.git\fR
+\- as one might expect when following the rules for relative URLs \- because the evaluation of relative URLs in Git is identical to that of relative directories)\&.
+.sp
+The default remote is the remote of the remote\-tracking branch of the current branch\&. If no such remote\-tracking branch exists or the
+\fBHEAD\fR
+is detached,
+\fBorigin\fR
+is assumed to be the default remote\&. If the superproject doesn\(cqt have a default remote configured the superproject is its own authoritative upstream and the current working directory is used instead\&.
+.sp
+The optional argument
+\fI<path>\fR
+is the relative location for the cloned submodule to exist in the superproject\&. If
+\fI<path>\fR
+is not given, the canonical part of the source repository is used (\fBrepo\fR
+for
+\fB/path/to/repo\&.git\fR
+and
+\fBfoo\fR
+for
+\fBhost\&.xz:foo/\&.git\fR)\&. If
+\fI<path>\fR
+exists and is already a valid Git repository, then it is staged for commit without cloning\&. The
+\fI<path>\fR
+is also used as the submodule\(cqs logical name in its configuration entries unless
+\fB\-\-name\fR
+\fI<name>\fR
+is used to specify a logical name\&.
+.sp
+The given URL is recorded into \&.\fBgitmodules\fR
+for use by subsequent users cloning the superproject\&. If the URL is given relative to the superproject\(cqs repository, the presumption is the superproject and submodule repositories will be kept together in the same relative location, and only the superproject\(cqs URL needs to be provided\&. git\-submodule will correctly locate the submodule using the relative URL in \&.\fBgitmodules\fR\&.
+.sp
+If
+\fB\-\-ref\-format\fR
+\fI<format>\fR
+is specified, the ref storage format of newly cloned submodules will be set accordingly\&.
+.RE
+.PP
+\fBstatus\fR [\fB\-\-cached\fR] [\fB\-\-recursive\fR] [\fB\-\-\fR] [\fI<path>\fR\&.\&.\&.]
+.RS 4
+Show the status of the submodules\&. This will print the SHA\-1 of the currently checked out commit for each submodule, along with the submodule path and the output of
+\fBgit-describe\fR(1)
+for the SHA\-1\&. Each SHA\-1 will possibly be prefixed with
+\fB\-\fR
+if the submodule is not initialized,
+\fB+\fR
+if the currently checked out submodule commit does not match the SHA\-1 found in the index of the containing repository and
+\fBU\fR
+if the submodule has merge conflicts\&.
+.sp
+If
+\fB\-\-cached\fR
+is specified, this command will instead print the SHA\-1 recorded in the superproject for each submodule\&.
+.sp
+If
+\fB\-\-recursive\fR
+is specified, this command will recurse into nested submodules, and show their status as well\&.
+.sp
+If you are only interested in changes of the currently initialized submodules with respect to the commit recorded in the index or the
+\fBHEAD\fR,
+\fBgit-status\fR(1)
+and
+\fBgit-diff\fR(1)
+will provide that information too (and can also report changes to a submodule\(cqs work tree)\&.
+.RE
+.PP
+\fBinit\fR [\fB\-\-\fR] [\fI<path>\fR\&.\&.\&.]
+.RS 4
+Initialize the submodules recorded in the index (which were added and committed elsewhere) by setting
+\fBsubmodule\&.$name\&.url\fR
+in \&.\fBgit/config\fR, using the same setting from \&.\fBgitmodules\fR
+as a template\&. If the URL is relative, it will be resolved using the default remote\&. If there is no default remote, the current repository will be assumed to be upstream\&.
+.sp
+Optional
+\fI<path>\fR
+arguments limit which submodules will be initialized\&. If no path is specified and submodule\&.active has been configured, submodules configured to be active will be initialized, otherwise all submodules are initialized\&.
+.sp
+It will also copy the value of
+\fBsubmodule\&.$name\&.update\fR, if present in the \&.\fBgitmodules\fR
+file, to \&.\fBgit/config\fR, but (1) this command does not alter existing information in \&.\fBgit/config\fR, and (2)
+\fBsubmodule\&.$name\&.update\fR
+that is set to a custom command is
+\fBnot\fR
+copied for security reasons\&.
+.sp
+You can then customize the submodule clone URLs in \&.\fBgit/config\fR
+for your local setup and proceed to
+\fBgit\fR
+\fBsubmodule\fR
+\fBupdate\fR; you can also just use
+\fBgit\fR
+\fBsubmodule\fR
+\fBupdate\fR
+\fB\-\-init\fR
+without the explicit
+\fBinit\fR
+step if you do not intend to customize any submodule locations\&.
+.sp
+See the add subcommand for the definition of default remote\&.
+.RE
+.PP
+\fBdeinit\fR [\fB\-f\fR | \fB\-\-force\fR] (\fB\-\-all\fR|[\fB\-\-\fR] \fI<path>\fR\fB\&.\&.\&.\fR)
+.RS 4
+Unregister the given submodules, i\&.e\&. remove the whole
+\fBsubmodule\&.$name\fR
+section from \&.git/config together with their work tree\&. Further calls to
+\fBgit\fR
+\fBsubmodule\fR
+\fBupdate\fR,
+\fBgit\fR
+\fBsubmodule\fR
+\fBforeach\fR
+and
+\fBgit\fR
+\fBsubmodule\fR
+\fBsync\fR
+will skip any unregistered submodules until they are initialized again, so use this command if you don\(cqt want to have a local checkout of the submodule in your working tree anymore\&.
+.sp
+When the command is run without pathspec, it errors out, instead of deinit\-ing everything, to prevent mistakes\&.
+.sp
+If
+\fB\-\-force\fR
+is specified, the submodule\(cqs working tree will be removed even if it contains local modifications\&.
+.sp
+If you really want to remove a submodule from the repository and commit that use
+\fBgit-rm\fR(1)
+instead\&. See
+\fBgitsubmodules\fR(7)
+for removal options\&.
+.RE
+.PP
+\fBupdate\fR [\fB\-\-init\fR] [\fB\-\-remote\fR] [\fB\-N\fR | \fB\-\-no\-fetch\fR] [\fB\-\-\fR[\fBno\-\fR]\fBrecommend\-shallow\fR] [\fB\-f\fR | \fB\-\-force\fR] [\fB\-\-checkout\fR | \fB\-\-rebase\fR | \fB\-\-merge\fR] [\fB\-\-reference=\fR\fI<repository>\fR] [\fB\-\-ref\-format=\fR\fI<format>\fR] [\fB\-\-depth=\fR\fI<depth>\fR] [\fB\-\-recursive\fR] [\fB\-\-jobs\fR \fI<n>\fR] [\fB\-\-\fR[\fBno\-\fR]\fBsingle\-branch\fR] [\fB\-\-filter=\fR\fI<filter\-spec>\fR] [\fB\-\-\fR] [\fI<path>\fR\&.\&.\&.]
+.RS 4
+Update the registered submodules to match what the superproject expects by cloning missing submodules, fetching missing commits in submodules and updating the working tree of the submodules\&. The "updating" can be done in several ways depending on command line options and the value of
+\fBsubmodule\&.\fR\fI<name>\fR\fB\&.update\fR
+configuration variable\&. The command line option takes precedence over the configuration variable\&. If neither is given, a
+\fBcheckout\fR
+is performed\&. (note: what is in \&.\fBgitmodules\fR
+file is irrelevant at this point; see
+\fBgit\fR
+\fBsubmodule\fR
+\fBinit\fR
+above for how \&.\fBgitmodules\fR
+is used)\&. The
+\fBupdate\fR
+procedures supported both from the command line as well as through the
+\fBsubmodule\&.\fR\fI<name>\fR\fB\&.update\fR
+configuration are:
+.PP
+\fBcheckout\fR
+.RS 4
+the commit recorded in the superproject will be checked out in the submodule on a detached
+\fBHEAD\fR\&.
+.sp
+If
+\fB\-\-force\fR
+is specified, the submodule will be checked out (using
+\fBgit\fR
+\fBcheckout\fR
+\fB\-\-force\fR), even if the commit specified in the index of the containing repository already matches the commit checked out in the submodule\&.
+.RE
+.PP
+\fBrebase\fR
+.RS 4
+the current branch of the submodule will be rebased onto the commit recorded in the superproject\&.
+.RE
+.PP
+\fBmerge\fR
+.RS 4
+the commit recorded in the superproject will be merged into the current branch in the submodule\&.
+.RE
+.sp
+The following update procedures have additional limitations:
+.PP
+!\fI<custom\-command>\fR
+.RS 4
+mechanism for running arbitrary commands with the commit ID as an argument\&. Specifically, if the
+\fBsubmodule\&.\fR\fI<name>\fR\fB\&.update\fR
+configuration variable is set to !\fI<custom\-command>\fR, the object name of the commit recorded in the superproject for the submodule is appended to the
+\fI<custom\-command>\fR
+string and executed\&. Note that this mechanism is not supported in the \&.\fBgitmodules\fR
+file or on the command line\&.
+.RE
+.PP
+\fBnone\fR
+.RS 4
+the submodule is not updated\&. This update procedure is not allowed on the command line\&.
+.RE
+.sp
+If the submodule is not yet initialized, and you just want to use the setting as stored in \&.\fBgitmodules\fR, you can automatically initialize the submodule with the
+\fB\-\-init\fR
+option\&.
+.sp
+If
+\fB\-\-recursive\fR
+is specified, this command will recurse into the registered submodules, and update any nested submodules within\&.
+.sp
+If
+\fB\-\-ref\-format\fR
+\fI<format>\fR
+is specified, the ref storage format of newly cloned submodules will be set accordingly\&.
+.sp
+If
+\fB\-\-filter\fR
+\fI<filter\-spec>\fR
+is specified, the given partial clone filter will be applied to the submodule\&. See
+\fBgit-rev-list\fR(1)
+for details on filter specifications\&.
+.RE
+.PP
+\fBset\-branch\fR (\fB\-b\fR|\fB\-\-branch\fR) \fI<branch>\fR [\fB\-\-\fR] \fI<path>\fR, \fBset\-branch\fR (\fB\-d\fR|\fB\-\-default\fR) [\fB\-\-\fR] \fI<path>\fR
+.RS 4
+Set the default remote tracking branch for the submodule\&. The
+\fB\-\-branch\fR
+option allows the remote branch to be specified\&. The
+\fB\-\-default\fR
+option removes the
+\fBsubmodule\&.\fR\fI<name>\fR\fB\&.branch\fR
+configuration key, which causes the tracking branch to default to the remote
+\fBHEAD\fR\&.
+.RE
+.PP
+\fBset\-url\fR [\fB\-\-\fR] \fI<path>\fR \fI<newurl>\fR
+.RS 4
+Set the URL of the specified submodule to
+\fI<newurl>\fR\&. Then, it will automatically synchronize the submodule\(cqs new remote URL configuration\&.
+.RE
+.PP
+\fBsummary\fR [\fB\-\-cached\fR | \fB\-\-files\fR] [(\fB\-n\fR|\fB\-\-summary\-limit\fR) \fI<n>\fR] [\fBcommit\fR] [\fB\-\-\fR] [\fI<path>\fR\&.\&.\&.]
+.RS 4
+Show commit summary between the given commit (defaults to
+\fBHEAD\fR) and working tree/index\&. For a submodule in question, a series of commits in the submodule between the given super project commit and the index or working tree (switched by
+\fB\-\-cached\fR) are shown\&. If the option
+\fB\-\-files\fR
+is given, show the series of commits in the submodule between the index of the super project and the working tree of the submodule (this option doesn\(cqt allow to use the
+\fB\-\-cached\fR
+option or to provide an explicit commit)\&.
+.sp
+Using the
+\fB\-\-submodule=log\fR
+option with
+\fBgit-diff\fR(1)
+will provide that information too\&.
+.RE
+.PP
+\fBforeach\fR [\fB\-\-recursive\fR] \fI<command>\fR
+.RS 4
+Evaluate an arbitrary shell
+\fI<command>\fR
+in each checked out submodule\&. The command has access to the variables
+\fB$name\fR,
+\fB$sm_path\fR,
+\fB$displaypath\fR,
+\fB$sha1\fR
+and
+\fB$toplevel\fR:
+.PP
+\fB$name\fR
+.RS 4
+the name of the relevant submodule section in \&.\fBgitmodules\fR
+.RE
+.PP
+\fB$sm_path\fR
+.RS 4
+the path of the submodule as recorded in the immediate superproject
+.RE
+.PP
+\fB$displaypath\fR
+.RS 4
+the relative path from the current working directory to the submodules root directory
+.RE
+.PP
+\fB$sha1\fR
+.RS 4
+the commit as recorded in the immediate superproject
+.RE
+.PP
+\fB$toplevel\fR
+.RS 4
+the absolute path to the top\-level of the immediate superproject\&.
+.RE
+.sp
+Note that to avoid conflicts with
+\fB$PATH\fR
+on Windows, the
+\fB$path\fR
+variable is now a deprecated synonym of
+\fB$sm_path\fR
+variable\&. Any submodules defined in the superproject but not checked out are ignored by this command\&. Unless given
+\fB\-\-quiet\fR, foreach prints the name of each submodule before evaluating the command\&. If
+\fB\-\-recursive\fR
+is given, submodules are traversed recursively (i\&.e\&. the given shell command is evaluated in nested submodules as well)\&. A non\-zero return from the command in any submodule causes the processing to terminate\&. This can be overridden by adding ||\fB:\fR
+to the end of the command\&.
+.sp
+As an example, the command below will show the path and currently checked out commit for each submodule:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+git submodule foreach \*(Aqecho $sm_path `git rev\-parse HEAD`\*(Aq
+.fi
+.if n \{\
+.RE
+.\}
+.RE
+.PP
+\fBsync\fR [\fB\-\-recursive\fR] [\fB\-\-\fR] [\fI<path>\fR\&.\&.\&.]
+.RS 4
+Synchronize submodules\*(Aq remote URL configuration setting to the value specified in \&.\fBgitmodules\fR\&. It will only affect those submodules which already have a URL entry in \&.\fBgit/config\fR
+(that is the case when they are initialized or freshly added)\&. This is useful when submodule URLs change upstream and you need to update your local repositories accordingly\&.
+.sp
+\fBgit\fR
+\fBsubmodule\fR
+\fBsync\fR
+synchronizes all submodules while
+\fBgit\fR
+\fBsubmodule\fR
+\fBsync\fR
+\fB\-\-\fR
+\fBA\fR
+synchronizes submodule
+\fBA\fR
+only\&.
+.sp
+If
+\fB\-\-recursive\fR
+is specified, this command will recurse into the registered submodules, and sync any nested submodules within\&.
+.RE
+.PP
+\fBabsorbgitdirs\fR
+.RS 4
+If a git directory of a submodule is inside the submodule, move the git directory of the submodule into its superproject\(cqs
+\fB$GIT_DIR/modules\fR
+path and then connect the git directory and its working directory by setting the
+\fBcore\&.worktree\fR
+and adding a \&.\fBgit\fR
+file pointing to the git directory embedded in the superprojects git directory\&.
+.sp
+A repository that was cloned independently and later added as a submodule or old setups have the submodules git directory inside the submodule instead of embedded into the superprojects git directory\&.
+.sp
+This command is recursive by default\&.
+.RE
+.SH "OPTIONS"
+.PP
+\fB\-q\fR, \fB\-\-quiet\fR
+.RS 4
+Only print error messages\&.
+.RE
+.PP
+\fB\-\-progress\fR
+.RS 4
+Report progress status on the standard error stream by default when it is attached to a terminal, unless
+\fB\-q\fR
+is specified\&. This flag forces progress status even if the standard error stream is not directed to a terminal\&. It is only valid for
+\fBadd\fR
+and
+\fBupdate\fR
+commands\&.
+.RE
+.PP
+\fB\-\-all\fR
+.RS 4
+Unregister all submodules in the working tree\&. This option is only valid for the
+\fBdeinit\fR
+command\&.
+.RE
+.PP
+\fB\-b\fR\fI<branch>\fR, \fB\-\-branch=\fR\fI<branch>\fR
+.RS 4
+Branch of repository to add as submodule\&. The name of the branch is recorded as
+\fBsubmodule\&.\fR\fI<name>\fR\fB\&.branch\fR
+in \&.\fBgitmodules\fR
+for
+\fBupdate\fR
+\fB\-\-remote\fR\&. A special value of \&. is used to indicate that the name of the branch in the submodule should be the same name as the current branch in the current repository\&. If the option is not specified, it defaults to the remote
+\fBHEAD\fR\&.
+.RE
+.PP
+\fB\-f\fR, \fB\-\-force\fR
+.RS 4
+Force the command to proceed, even if it would otherwise fail\&. This option is only valid for
+\fBadd\fR,
+\fBdeinit\fR
+and
+\fBupdate\fR
+commands\&.
+.PP
+\fBadd\fR
+.RS 4
+allow adding an otherwise ignored submodule path\&. This option is also used to bypass a check that the submodule\(cqs name is not already in use\&. By default,
+\fBgit\fR
+\fBsubmodule\fR
+\fBadd\fR
+will fail if the proposed name (which is derived from the path) is already registered for another submodule in the repository\&. Using
+\fB\-\-force\fR
+allows the command to proceed by automatically generating a unique name by appending a number to the conflicting name (e\&.g\&., if a submodule named
+\fIchild\fR
+exists, it will try
+\fIchild1\fR, and so on)\&.
+.RE
+.PP
+\fBdeinit\fR
+.RS 4
+the submodule working trees will be removed even if they contain local changes\&.
+.RE
+.PP
+\fBupdate\fR
+.RS 4
+(only effective with the checkout procedure), throw away local changes in submodules when switching to a different commit; and always run a checkout operation in the submodule, even if the commit listed in the index of the containing repository matches the commit checked out in the submodule\&.
+.RE
+.RE
+.PP
+\fB\-\-cached\fR
+.RS 4
+Use the index to determine the commit instead of the
+\fBHEAD\fR\&. This option is only valid for
+\fBstatus\fR
+and
+\fBsummary\fR
+commands\&.
+.RE
+.PP
+\fB\-\-files\fR
+.RS 4
+Make the
+\fBsummary\fR
+command compare the commit in the index with that in the submodule
+\fBHEAD\fR\&.
+.RE
+.PP
+\fB\-n\fR\fI<n>\fR, \fB\-\-summary\-limit=\fR\fI<n>\fR
+.RS 4
+Limit the
+\fBsummary\fR
+size (number of commits shown in total) to
+\fI<n>\fR\&. Giving 0 will disable the summary; a negative number means unlimited (the default)\&. This limit only applies to modified submodules\&. The size is always limited to 1 for added/deleted/typechanged submodules\&.
+.RE
+.PP
+\fB\-\-remote\fR
+.RS 4
+Instead of using the superproject\(cqs recorded SHA\-1 to update the submodule, use the status of the submodule\(cqs remote\-tracking branch\&. This option is only valid for the
+\fBupdate\fR
+command\&. The remote used is branch\(cqs remote (\fBbranch\&.\fR\fI<name>\fR\fB\&.remote\fR), defaulting to
+\fBorigin\fR\&. The remote branch used defaults to the remote
+\fBHEAD\fR, but the branch name may be overridden by setting the
+\fBsubmodule\&.\fR\fI<name>\fR\fB\&.branch\fR
+option in either \&.\fBgitmodules\fR
+or \&.\fBgit/config\fR
+(with \&.\fBgit/config\fR
+taking precedence)\&.
+.sp
+This works for any of the supported update procedures (\fB\-\-checkout\fR,
+\fB\-\-rebase\fR, etc\&.)\&. The only change is the source of the target SHA\-1\&. For example,
+\fBsubmodule\fR
+\fBupdate\fR
+\fB\-\-remote\fR
+\fB\-\-merge\fR
+will merge upstream submodule changes into the submodules, while
+\fBsubmodule\fR
+\fBupdate\fR
+\fB\-\-merge\fR
+will merge superproject gitlink changes into the submodules\&.
+.sp
+In order to ensure a current tracking branch state,
+\fBupdate\fR
+\fB\-\-remote\fR
+fetches the submodule\(cqs remote repository before calculating the SHA\-1\&. If you don\(cqt want to fetch, you should use
+\fBsubmodule\fR
+\fBupdate\fR
+\fB\-\-remote\fR
+\fB\-\-no\-fetch\fR\&.
+.sp
+Use this option to integrate changes from the upstream subproject with your submodule\(cqs current
+\fBHEAD\fR\&. Alternatively, you can run
+\fBgit\fR
+\fBpull\fR
+from the submodule, which is equivalent except for the remote branch name:
+\fBupdate\fR
+\fB\-\-remote\fR
+uses the default upstream repository and
+\fBsubmodule\&.\fR\fI<name>\fR\fB\&.branch\fR, while
+\fBgit\fR
+\fBpull\fR
+uses the submodule\(cqs
+\fBbranch\&.\fR\fI<name>\fR\fB\&.merge\fR\&. Prefer
+\fBsubmodule\&.\fR\fI<name>\fR\fB\&.branch\fR
+if you want to distribute the default upstream branch with the superproject and
+\fBbranch\&.\fR\fI<name>\fR\fB\&.merge\fR
+if you want a more native feel while working in the submodule itself\&.
+.RE
+.PP
+\fB\-N\fR, \fB\-\-no\-fetch\fR
+.RS 4
+Don\(cqt fetch new objects from the remote site\&. This option is only valid for the
+\fBupdate\fR
+command\&.
+.RE
+.PP
+\fB\-\-checkout\fR
+.RS 4
+Checkout the commit recorded in the superproject on a detached
+\fBHEAD\fR
+in the submodule\&. This option is only valid for the
+\fBupdate\fR
+command\&. This is the default behavior, the main use of this option is to override
+\fBsubmodule\&.\fR\fI<name>\fR\fB\&.update\fR
+when set to a value other than
+\fBcheckout\fR\&. If the key
+\fBsubmodule\&.\fR\fI<name>\fR\fB\&.update\fR
+is either not explicitly set or set to
+\fBcheckout\fR, this option is implicit\&.
+.RE
+.PP
+\fB\-\-merge\fR
+.RS 4
+Merge the commit recorded in the superproject into the current branch of the submodule\&. This option is only valid for the
+\fBupdate\fR
+command\&. If this option is given, the submodule\(cqs
+\fBHEAD\fR
+will not be detached\&. If a merge failure prevents this process, you will have to resolve the resulting conflicts within the submodule with the usual conflict resolution tools\&. If the key
+\fBsubmodule\&.\fR\fI<name>\fR\fB\&.update\fR
+is set to
+\fBmerge\fR, this option is implicit\&.
+.RE
+.PP
+\fB\-\-rebase\fR
+.RS 4
+Rebase the current branch onto the commit recorded in the superproject\&. This option is only valid for the
+\fBupdate\fR
+command\&. The submodule\(cqs
+\fBHEAD\fR
+will not be detached\&. If a merge failure prevents this process, you will have to resolve these failures with
+\fBgit-rebase\fR(1)\&. If the key
+\fBsubmodule\&.\fR\fI<name>\fR\fB\&.update\fR
+is set to
+\fBrebase\fR, this option is implicit\&.
+.RE
+.PP
+\fB\-\-init\fR
+.RS 4
+Initialize all submodules for which
+\fBgit\fR
+\fBsubmodule\fR
+\fBinit\fR
+has not been called so far before updating\&. This option is only valid for the
+\fBupdate\fR
+command\&.
+.RE
+.PP
+\fB\-\-name=\fR\fI<name>\fR
+.RS 4
+Set the submodule\(cqs name to the given string instead of defaulting to its path\&.
+\fI<name>\fR
+must be valid as a directory name and may not end with a
+\fB/\fR\&.
+.RE
+.PP
+\fB\-\-reference=\fR\fI<repository>\fR
+.RS 4
+Pass the local
+\fI<repository>\fR
+as a reference when cloning the submodule\&. This option is only valid for
+\fBadd\fR
+and
+\fBupdate\fR
+commands\&. These commands sometimes need to clone a remote repository\&. In this case, this option will be passed to the
+\fBgit-clone\fR(1)
+command\&.
+.if n \{\
+.sp
+.\}
+.RS 4
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.ps +1
+\fBNote\fR
+.ps -1
+.br
+Do
+\fBnot\fR
+use this option unless you have read the note for
+\fBgit-clone\fR(1)\*(Aqs
+\fB\-\-reference\fR,
+\fB\-\-shared\fR, and
+\fB\-\-dissociate\fR
+options carefully\&.
+.sp .5v
+.RE
+.RE
+.PP
+\fB\-\-dissociate\fR
+.RS 4
+After using a reference repository to clone from, do not rely on it anymore\&. This option is only valid for
+\fBadd\fR
+and
+\fBupdate\fR
+commands\&. These commands sometimes need to clone a remote repository\&. In this case, this option will be passed to the
+\fBgit-clone\fR(1)
+command\&.
+.if n \{\
+.sp
+.\}
+.RS 4
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.ps +1
+\fBNote\fR
+.ps -1
+.br
+See the NOTE above for the
+\fB\-\-reference\fR
+option\&.
+.sp .5v
+.RE
+.RE
+.PP
+\fB\-\-recursive\fR
+.RS 4
+Traverse submodules recursively\&. This option is only valid for
+\fBforeach\fR,
+\fBupdate\fR,
+\fBstatus\fR
+and
+\fBsync\fR
+commands\&. The operation is performed not only in the submodules of the current repo, but also in any nested submodules inside those submodules (and so on)\&.
+.RE
+.PP
+\fB\-\-depth=\fR\fI<depth>\fR
+.RS 4
+Create a
+\fIshallow\fR
+clone with a history truncated to the
+\fI<depth>\fR
+revisions\&. This option is valid for
+\fBadd\fR
+and
+\fBupdate\fR
+commands\&. See
+\fBgit-clone\fR(1)
+.RE
+.PP
+\fB\-\-recommend\-shallow\fR, \fB\-\-no\-recommend\-shallow\fR
+.RS 4
+Recommend or not shallow cloning of submodules\&. This option is only valid for the
+\fBupdate\fR
+command\&. The initial clone of a submodule will use the recommended
+\fBsubmodule\&.\fR\fI<name>\fR\fB\&.shallow\fR
+as provided by the \&.\fBgitmodules\fR
+file by default\&. To ignore the suggestions use
+\fB\-\-no\-recommend\-shallow\fR\&.
+.RE
+.PP
+\fB\-j\fR\fI<n>\fR, \fB\-\-jobs=\fR\fI<n>\fR
+.RS 4
+Clone new submodules in parallel with
+\fI<n>\fR
+jobs\&. This option is only valid for the
+\fBupdate\fR
+command\&. Defaults to the
+\fBsubmodule\&.fetchJobs\fR
+option\&.
+.RE
+.PP
+\fB\-\-single\-branch\fR, \fB\-\-no\-single\-branch\fR
+.RS 4
+Clone only one branch during update:
+\fBHEAD\fR
+or one specified by
+\fB\-\-branch\fR\&. This option is only valid for the
+\fBupdate\fR
+command\&.
+.RE
+.PP
+\fI<path>\fR\&.\&.\&.
+.RS 4
+Paths to submodule(s)\&. When specified this will restrict the command to only operate on the submodules found at the specified paths\&. (This argument is required with
+\fBadd\fR)\&.
+.RE
+.SH "FILES"
+.sp
+When initializing submodules, a \&.\fBgitmodules\fR file in the top\-level directory of the containing repository is used to find the URL of each submodule\&. This file should be formatted in the same way as \fB$GIT_DIR/config\fR\&. The key to each submodule URL is \fBsubmodule\&.\fR\fI<name>\fR\fB\&.url\fR\&. See \fBgitmodules\fR(5) for details\&.
+.SH "SEE ALSO"
+.sp
+\fBgitsubmodules\fR(7), \fBgitmodules\fR(5)\&.
+.SH "GIT"
+.sp
+Part of the \fBgit\fR(1) suite

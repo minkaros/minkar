@@ -78,6 +78,8 @@ Other components
 - gettext-tiny - MIT (Frameworks/CoreText/gettext-tiny/LICENSE)
 - Citrus iconv (FreeBSD main's lib/libc/iconv, lib/libiconv_modules and
   share/i18n) - BSD-2-Clause (Libraries/libiconv)
+  UTF-8-MAC's tables come from the Unicode Character Database 17.0.0 in
+  ICU - Unicode License v3 (Libraries/ICU/LICENSE)
 - Intel's shared e1000 code (FreeBSD main's sys/dev/e1000) - BSD-3-Clause
   (Kernel/Extensions/MinkarE1000/e1000/LICENSE)
 - XZ Utils / liblzma - 0BSD; other parts under other licenses
@@ -96,6 +98,8 @@ Other components
   CC0-1.0 (BSD/usr.bin/btop/dist/include/widechar_width.hpp)
 - lsof 4.99.7 (lsof-org; Victor A. Abell and Purdue University) - Purdue
   licence (BSD/usr.sbin/lsof/dist/COPYING); its darwin dialect
+- git 2.56.0 - GPL-2.0 (BSD/usr.bin/git/dist/COPYING; xdiff and parts of
+  compat LGPL-2.1, sha1dc MIT, reftable BSD-3: see the files)
 - mandoc 1.14 (man, mandoc, apropos, whatis, makewhatis) - ISC
   (BSD/usr.bin/mandoc/LICENSE)
 - IANA time zone database (tzdata and tzcode's zic, 2026e) - public domain
