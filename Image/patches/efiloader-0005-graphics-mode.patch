@@ -41,7 +41,7 @@
  #include "config.h"
  #include "lzvn_decode.h"
  #include <mach-o/fat.h>
-@@ -53,20 +55,145 @@
+@@ -53,20 +55,152 @@
  STATIC UINT64 gFbBase, gFbSize;
  STATIC UINT32 gFbStride, gFbWidth, gFbHeight;
  
@@ -165,6 +165,13 @@
 +        gBS->Stall((UINTN)gBootConfig.LoaderPause * 1000 * 1000);
 +    if (EFI_ERROR(GOP->SetMode(GOP, best)))
 +        Print(UEFI_STR("[] Could not set graphics mode %u\n"), best);
++    /*
++     * Let the new mode settle before anything draws in it for good: on PC 1
++     * (a Radeon, through a KVM switch) the kernel's console came out
++     * scrambled when it started right after the switch, and was right when
++     * the loader paused after it. Then read the mode back.
++     */
++    gBS->Stall(3 * 1000 * 1000);
 +    Print(UEFI_STR("[] Graphics mode %u: %ux%u, %u pixels per line\n"), GOP->Mode->Mode,
 +        GOP->Mode->Info->HorizontalResolution, GOP->Mode->Info->VerticalResolution,
 +        GOP->Mode->Info->PixelsPerScanLine);
@@ -190,7 +197,7 @@
      gFbBase = mode->FrameBufferBase;
      gFbSize = mode->FrameBufferSize;
      gFbStride = info->PixelsPerScanLine;
-@@ -734,6 +861,7 @@
+@@ -734,6 +868,7 @@
      gST->ConOut->ClearScreen(gST->ConOut);
      Print(UEFI_STR(":: Minkar EFI Loader %s\n"), VERSION_STR);
      LoadBootConfig();
