@@ -195,68 +195,12 @@ mounted.
   the full suite takes about 9 minutes instead of 32. *Partial:* on the
   CI runners the kernel does not boot under KVM yet, so `boottest` uses
   TCG unless KVM is asked for.
-- [ ] Reference hardware list: one QEMU VM and two documented physical PCs.
-  *In progress:* PC 1 is a Gigabyte H270N-WIFI (Intel H270, i7-7700): its
-  SATA (AHCI), xHCI and GOP display match the current drivers; its Intel
-  I219-V network card does not (the e1000 driver lacks the PCH family),
-  and NVMe has no driver yet, so the image goes on a SATA disk.
-  First boots (2026-10-26), from the SATA disk: the loader read the
-  kernel from another disk's EFI partition, then overwrote firmware
-  memory (the kernel was copied to 1 MB while boot services ran; QEMU's
-  firmware happens to leave that range alone), then the kernel reset the
-  machine on its first no-execute page (the AMI firmware leaves
-  `EFER.NXE` off; OVMF turns it on). With the loader fixed, the kernel
-  boots through `bsd_init`, the APIC, the eight CPUs and the root UUID,
-  and stops in PCI configuration, where the console is off.
-  `LOADER_PAUSE=10` keeps the loader's output on screen for photos.
-  Then (2026-10-26, boot-args `kprintf_console=1 pci_keep_console=1` to
-  watch it): PCI configuration froze rewriting the x16 bridge's memory
-  window; IOPCIFamily now keeps the firmware's windows at boot when they
-  hold what was allocated. AHCI and xHCI then waited forever for their
-  interrupt: the I/O APIC was named after its APIC ID (2) while every
-  device asks for `io-apic@0`; it is now named by its place in the MADT.
-  The kernel now gets through PCI, the GOP display and the xHCI start,
-  and waits for the root device: the SATA disk (port 2) is not found yet
-  (`ahci_debug=1` prints why), and the USB hub's control transfers fail.
-  An intermittent panic in QEMU (2026-10-27) came from IOPCIFamily
-  reading MSI-X's pending-bit array for a plain MSI device while a
-  driver disabled its last vector; plain MSI now calls its first vector
-  instead (six boots of the USB tests without a panic). The AHCI and
-  xHCI drivers are now named `MinkarAHCIPort` and `MinkarXHCIPort`
-  (`org.minkar.driver.*`), keeping their authors' copyright.
-  Then (2026-10-27) **PC 1 boots to the `login:` prompt and is usable**:
-  root on the SATA disk, launchd, fsck, sshd and a shell, typed on a USB
-  keyboard. The disks were found but IDENTIFY never ran: the port was
-  reset while its command engine ran and `PxSERR` was not cleared after,
-  so Intel's HBA kept BSY set; the port now follows the AHCI
-  specification's order. USB: each interrupt-IN endpoint has its own ring
-  and every one of a device is configured (the keyboard's media keys,
-  the mouse's extra interfaces); keyboards in report protocol and
-  interfaces with a keyboard and a mouse are driven
-  (`MinkarUSBHIDInterface`); a device that cannot be read no longer floods
-  the console. Then the keyboard behind PC 1's KVM switch (a USB 2 hub):
-  the driver cleared a SuperSpeed-only port feature, the hub answered
-  STALL and its control endpoint stayed halted; it now sends that only to
-  SuperSpeed hubs and resets a halted control endpoint after any STALL
-  (keyboard and mouse through the switch work). A device with one bulk
-  direction no longer panics the kernel. The loader sets the display mode
-  from `graphics-mode` in the boot plist (`GRAPHICS_MODE=`): `native`
-  reads the display's EDID; PC 1's 34" ultrawide runs at its 3440x1440
-  (3456 pixels per line). The text was scrambled because the loader
-  cleared the screen through the firmware's console after reading the
-  mode, and PC 1's firmware put its own mode back; now it clears the
-  framebuffer itself and reads the mode last (2026-10-28). PC 1's I219-V
-  answers ping on its LAN since MinkarE1000 runs Intel's shared e1000
-  code (FreeBSD's, BSD-3) for the PCH LAN and the I210/I211. The console
-  terminal does what xterm's terminfo asks (CHA, insert and delete
-  characters and lines, scrolling, the alternate screen, 256 colors as its
-  8) and decodes UTF-8: line editing and the history redraw in place, and
-  btop draws its boxes in ASCII (km.c had cut every byte to 7 bits). A
-  console test (`run.sh console`) boots an image with a PC's boot
-  arguments, types on a USB keyboard through QMP and reads the screen back
-  through the console's font. Still open on PC 1: the I211, NVMe. Known
-  bug: without `pci_keep_console=1` the boot stops in QEMU when PCI
-  configuration turns the console back on.
+- [ ] Reference hardware list: one QEMU VM and two documented physical PCs,
+  each with what works, what does not yet and how it was fixed, in
+  [Hardware.md](Hardware.md). *In progress:* PC 1 (Gigabyte H270N-WIFI,
+  i7-7700) boots to login from SATA with its native display, USB keyboard
+  through a KVM switch, the I219-V network and a usable console terminal;
+  still open there: the I211, NVMe. PC 2 is not chosen yet.
 
 - [ ] **Exit gate (M1):** in QEMU and on a reference PC, the kernel mounts
   the HFS+ root and runs `/sbin/launchd` (or a temporary init) with a shell

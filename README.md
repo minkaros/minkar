@@ -30,7 +30,9 @@ See [Docs/BUILDING.md](Docs/BUILDING.md). The source map is in
 See [Docs/CONTRIBUTING.md](Docs/CONTRIBUTING.md) and the
 [Code of Conduct](Docs/CODE_OF_CONDUCT.md). What is done and what comes
 next is in [Docs/ROADMAP.md](Docs/ROADMAP.md); how many of macOS's
-command-line tools Minkar has, in [Docs/Commands.md](Docs/Commands.md). Issues and discussion:
+command-line tools Minkar has, in [Docs/Commands.md](Docs/Commands.md); the
+machines it is tested on, in [Docs/Hardware.md](Docs/Hardware.md). Issues and
+discussion:
 https://github.com/minkaros/minkar
 
 ## Credits
