@@ -9,7 +9,7 @@
 		<string>/usr/libexec/getty</string>
 		<!-- 3wire: no modem lines (CLOCAL); with std.9600 the console
 		     looked carrier-less and getty's writes waited forever. -->
-		<string>3wire</string>
+		<string>3wire.console</string>
 		<string>console</string>
 	</array>
 	<!-- Not at load: kextstart starts it once the drivers are attached, so

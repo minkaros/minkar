@@ -222,6 +222,10 @@ al.Pc:\
 #
 3wire:\
 	:np:nc:sp#0:
+#
+# Minkar: the console's login; clears the screen after a logout.
+3wire.console|console:\
+	:cl=\E[H\E[2J:tc=3wire:
 3wire.9600|9600-3wire:\
 	:np:nc:sp#9600:
 3wire.19200|19200-3wire:\
