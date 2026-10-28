@@ -42,7 +42,6 @@ public:
 
 private:
     MinkarXHCIPort *fPort;
-    bool fBulkConfigured[64];
 };
 
 #endif /* !_MINKAR_XHCI_USB_BUS_H */

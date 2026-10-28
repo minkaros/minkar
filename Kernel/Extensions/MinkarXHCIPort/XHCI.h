@@ -170,6 +170,7 @@ enum {
     TRB_TYPE_CONFIGURE_EP     = 12,
     TRB_TYPE_EVALUATE_CONTEXT = 13,
     TRB_TYPE_RESET_EP         = 14,
+    TRB_TYPE_SET_TR_DEQUEUE   = 16,
     TRB_TYPE_NOOP_CMD         = 23,
     TRB_TYPE_TRANSFER_EVENT   = 32,
     TRB_TYPE_CMD_COMPLETION   = 33,
@@ -179,6 +180,7 @@ enum {
 /* Completion codes (event TRB status[31:24]) */
 #define TRB_CC(status)       (((status) >> 24) & 0xFF)
 #define TRB_CC_SUCCESS        1
+#define TRB_CC_STALL          6
 #define TRB_CC_SHORT_PACKET   13
 
 /* Setup stage TRT (transfer type) field, control[17:16] */

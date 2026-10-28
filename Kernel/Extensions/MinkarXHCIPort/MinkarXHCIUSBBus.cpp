@@ -11,7 +11,6 @@ bool MinkarXHCIUSBBus::initWithPort(MinkarXHCIPort *port)
 {
     if (!port || !init(NULL)) return false;
     fPort = port;
-    bzero(fBulkConfigured, sizeof(fBulkConfigured));
     return true;
 }
 
@@ -27,21 +26,17 @@ IOReturn MinkarXHCIUSBBus::UIMOpenPipe(USBDeviceAddress address, UInt8 speed, En
             return kIOReturnSuccess;
 
         case kUSBBulk:
-            if (fBulkConfigured[slotId])
-                return kIOReturnSuccess; /* single ring pair per slot, see header note */
-            {
-                UInt8 inEp  = (endpoint->direction == kUSBIn)  ? endpoint->number : 0;
-                UInt8 outEp = (endpoint->direction == kUSBOut) ? endpoint->number : 0;
-                /* We only ever see one direction per OpenPipe call, but
-                 * configureBulkEndpoints() wants both at once - the other
-                 * side just won't be usable until/unless it's also opened.
-                 * Real composite devices with only one bulk direction are
-                 * the common case this covers. */
-                if (!fPort->configureBulkEndpoints(slotId, inEp, endpoint->maxPacketSize,
-                                                    outEp, endpoint->maxPacketSize))
-                    return kIOReturnError;
-                fBulkConfigured[slotId] = true;
-            }
+            /* One bulk ring per direction per slot (see the header); each
+             * direction is configured when its pipe is opened, and asked
+             * of the port, which forgets them when the device goes. */
+            if (endpoint->number == 0 || endpoint->number > 15)
+                return kIOReturnBadArgument;
+            if (fPort->bulkEndpointConfigured(slotId, endpoint->direction == kUSBIn))
+                return kIOReturnSuccess;
+            if (endpoint->direction == kUSBIn ?
+                !fPort->configureBulkEndpoints(slotId, endpoint->number, endpoint->maxPacketSize, 0, 0) :
+                !fPort->configureBulkEndpoints(slotId, 0, 0, endpoint->number, endpoint->maxPacketSize))
+                return kIOReturnError;
             return kIOReturnSuccess;
 
         case kUSBInterrupt:

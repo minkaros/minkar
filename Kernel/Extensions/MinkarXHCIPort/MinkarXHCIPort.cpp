@@ -1341,6 +1341,32 @@ bool MinkarXHCIPort::sendAddressDeviceCommand(UInt32 slotId, UInt32 port0based, 
     return true;
 }
 
+/*
+ * A STALL (an unsupported request, or one the device refuses) halts the
+ * endpoint; xHCI section 4.6.8: Reset Endpoint, then Set TR Dequeue
+ * Pointer to where the next request will go, skipping what is left of
+ * the stalled one.
+ */
+void MinkarXHCIPort::resetHaltedControlEndpoint(UInt32 slotId)
+{
+    SlotResources &sr = fSlots[slotId];
+    UInt8 cc = 0;
+
+    if (!doCommand(0, 0, TRB_SET_TYPE(TRB_TYPE_RESET_EP) | TRB_SET_SLOT(slotId) | TRB_SET_EP(1),
+                   &cc, NULL, 1000) || cc != TRB_CC_SUCCESS) {
+        XHCI_Log("slot %u: Reset Endpoint (EP0) failed cc=%u", slotId, cc);
+        return;
+    }
+    UInt64 deq = sr.ep0RingMem->getPhysicalAddress() + (UInt64)sr.ep0Enqueue * sizeof(XHCITRB);
+    if (!doCommand(deq | (sr.ep0Cycle ? 1 : 0), 0,
+                   TRB_SET_TYPE(TRB_TYPE_SET_TR_DEQUEUE) | TRB_SET_SLOT(slotId) | TRB_SET_EP(1),
+                   &cc, NULL, 1000) || cc != TRB_CC_SUCCESS) {
+        XHCI_Log("slot %u: Set TR Dequeue (EP0) failed cc=%u", slotId, cc);
+        return;
+    }
+    XHCI_Log("slot %u: control endpoint reset after a STALL", slotId);
+}
+
 bool MinkarXHCIPort::controlTransfer(UInt32 slotId, const USBSetupPacket &setup,
                                     void *buf, UInt16 len, bool in)
 {
@@ -1395,6 +1421,10 @@ bool MinkarXHCIPort::controlTransfer(UInt32 slotId, const USBSetupPacket &setup,
 
     if (!ok || (cc != TRB_CC_SUCCESS && cc != TRB_CC_SHORT_PACKET)) {
         XferCompletion done = fXferDone[slotId][1];
+        /* A STALL halts the control endpoint: without a reset every later
+         * request to the device fails (a hub then loses all its ports). */
+        if (ok && cc == TRB_CC_STALL)
+            resetHaltedControlEndpoint(slotId);
         XHCI_Log("control transfer failed slot=%u req=%u type=%02x value=%04x index=%04x "
                 "len=%u in=%d cc=%u ok=%d ep0Enq=%u cycle=%u "
                 "ev[param=%016llx status=%08x control=%08x] "
@@ -1418,38 +1448,52 @@ bool MinkarXHCIPort::configureBulkEndpoints(UInt32 slotId, UInt8 inEp, UInt16 in
     XHCIInputContext *ic = (XHCIInputContext *)sr.inputCtxMem->getBytesNoCopy();
     bzero(ic, sizeof(*ic));
 
-    /* DCI = endpoint number * 2 + (dir_in ? 1 : 0); index into ep[] is DCI - 1. */
-    UInt32 inDCI = inEp * 2 + 1;
-    UInt32 outDCI = outEp * 2;
-    UInt32 maxDCI = (inDCI > outDCI) ? inDCI : outDCI;
+    /*
+     * Either direction may be absent (endpoint number 0): IOUSBFamily opens
+     * one pipe at a time, and a device may have a bulk endpoint in only one
+     * direction. DCI = endpoint number * 2 + (IN ? 1 : 0); ep[] is DCI - 1.
+     */
+    if ((inEp == 0 && outEp == 0) || inEp > 15 || outEp > 15)
+        return false;
+    UInt32 inDCI = inEp ? inEp * 2 + 1 : 0;
+    UInt32 outDCI = outEp ? outEp * 2 : 0;
 
-    ic->control.addFlags = (1U << 0) /* slot */ | (1U << inDCI) | (1U << outDCI);
+    ic->control.addFlags = (1U << 0) /* slot */;
+    if (inDCI) ic->control.addFlags |= 1U << inDCI;
+    if (outDCI) ic->control.addFlags |= 1U << outDCI;
 
-    /* Copy current slot context forward, bump context entries. */
+    /* Copy the slot context forward; Context Entries never goes down
+     * below an endpoint already configured. */
     XHCIDeviceContext *dc = (XHCIDeviceContext *)sr.deviceCtxMem->getBytesNoCopy();
     ic->slot = dc->slot;
+    UInt32 entries = (ic->slot.dword0 >> SLOT_CTX_ENTRIES_SHIFT) & 0x1F;
+    if (inDCI > entries) entries = inDCI;
+    if (outDCI > entries) entries = outDCI;
     ic->slot.dword0 = (ic->slot.dword0 & ~((UInt32)0x1F << SLOT_CTX_ENTRIES_SHIFT)) |
-                      (maxDCI << SLOT_CTX_ENTRIES_SHIFT);
+                      (entries << SLOT_CTX_ENTRIES_SHIFT);
 
-    if (!allocRing(&sr.bulkInRingMem, &sr.bulkInRing, kRingTRBs)) return false;
-    sr.bulkInEnqueue = 0; sr.bulkInCycle = 1;
-    sr.bulkInRing[kRingTRBs - 1].param = sr.bulkInRingMem->getPhysicalAddress();
-    sr.bulkInRing[kRingTRBs - 1].control = TRB_SET_TYPE(TRB_TYPE_LINK) | TRB_TC | TRB_CYCLE;
-
-    if (!allocRing(&sr.bulkOutRingMem, &sr.bulkOutRing, kRingTRBs)) return false;
-    sr.bulkOutEnqueue = 0; sr.bulkOutCycle = 1;
-    sr.bulkOutRing[kRingTRBs - 1].param = sr.bulkOutRingMem->getPhysicalAddress();
-    sr.bulkOutRing[kRingTRBs - 1].control = TRB_SET_TYPE(TRB_TYPE_LINK) | TRB_TC | TRB_CYCLE;
-
-    ic->ep[inDCI - 1].dword1 = EP_CTX_CERR(3) | (EP_TYPE_BULK_IN << EP_CTX_TYPE_SHIFT) |
-                               ((UInt32)inMaxPkt << EP_CTX_MAXPKT_SHIFT);
-    ic->ep[inDCI - 1].trDequeuePtr = sr.bulkInRingMem->getPhysicalAddress() | 1;
-    ic->ep[inDCI - 1].avgTrbLen_maxEsitLo = inMaxPkt;
-
-    ic->ep[outDCI - 1].dword1 = EP_CTX_CERR(3) | (EP_TYPE_BULK_OUT << EP_CTX_TYPE_SHIFT) |
-                                ((UInt32)outMaxPkt << EP_CTX_MAXPKT_SHIFT);
-    ic->ep[outDCI - 1].trDequeuePtr = sr.bulkOutRingMem->getPhysicalAddress() | 1;
-    ic->ep[outDCI - 1].avgTrbLen_maxEsitLo = outMaxPkt;
+    if (inDCI) {
+        if (sr.bulkInRingMem) { sr.bulkInRingMem->release(); sr.bulkInRingMem = NULL; sr.bulkInRing = NULL; }
+        if (!allocRing(&sr.bulkInRingMem, &sr.bulkInRing, kRingTRBs)) return false;
+        sr.bulkInEnqueue = 0; sr.bulkInCycle = 1;
+        sr.bulkInRing[kRingTRBs - 1].param = sr.bulkInRingMem->getPhysicalAddress();
+        sr.bulkInRing[kRingTRBs - 1].control = TRB_SET_TYPE(TRB_TYPE_LINK) | TRB_TC | TRB_CYCLE;
+        ic->ep[inDCI - 1].dword1 = EP_CTX_CERR(3) | (EP_TYPE_BULK_IN << EP_CTX_TYPE_SHIFT) |
+                                   ((UInt32)inMaxPkt << EP_CTX_MAXPKT_SHIFT);
+        ic->ep[inDCI - 1].trDequeuePtr = sr.bulkInRingMem->getPhysicalAddress() | 1;
+        ic->ep[inDCI - 1].avgTrbLen_maxEsitLo = inMaxPkt;
+    }
+    if (outDCI) {
+        if (sr.bulkOutRingMem) { sr.bulkOutRingMem->release(); sr.bulkOutRingMem = NULL; sr.bulkOutRing = NULL; }
+        if (!allocRing(&sr.bulkOutRingMem, &sr.bulkOutRing, kRingTRBs)) return false;
+        sr.bulkOutEnqueue = 0; sr.bulkOutCycle = 1;
+        sr.bulkOutRing[kRingTRBs - 1].param = sr.bulkOutRingMem->getPhysicalAddress();
+        sr.bulkOutRing[kRingTRBs - 1].control = TRB_SET_TYPE(TRB_TYPE_LINK) | TRB_TC | TRB_CYCLE;
+        ic->ep[outDCI - 1].dword1 = EP_CTX_CERR(3) | (EP_TYPE_BULK_OUT << EP_CTX_TYPE_SHIFT) |
+                                    ((UInt32)outMaxPkt << EP_CTX_MAXPKT_SHIFT);
+        ic->ep[outDCI - 1].trDequeuePtr = sr.bulkOutRingMem->getPhysicalAddress() | 1;
+        ic->ep[outDCI - 1].avgTrbLen_maxEsitLo = outMaxPkt;
+    }
 
     UInt8 cc = 0;
     UInt32 slotOut = 0;
@@ -1794,7 +1838,9 @@ bool MinkarXHCIPort::enumerateHubPort(UInt32 hubSlotId, UInt32 rootPort0based, U
         IOSleep(10);
     }
     hubClearPortFeature(hubSlotId, port1based, USB_HUB_FEAT_C_PORT_RESET);
-    hubClearPortFeature(hubSlotId, port1based, USB_HUB_FEAT_C_BH_PORT_RESET);
+    /* C_BH_PORT_RESET is a SuperSpeed hub's: a USB 2 hub STALLs it. */
+    if (superSpeedHub)
+        hubClearPortFeature(hubSlotId, port1based, USB_HUB_FEAT_C_BH_PORT_RESET);
     if (!resetDone || !(status & USB_PORTSTATUS_CONNECTION)) {
         XHCI_Log("Hub slot=%u port=%u: reset never completed, status=%08x", hubSlotId, port1based, status);
         return false;
