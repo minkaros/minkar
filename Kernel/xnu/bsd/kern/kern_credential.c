@@ -2129,12 +2129,15 @@ kauth_cred_getsvgid(kauth_cred_t cred)
 
 static int      kauth_cred_cache_lookup(int from, int to, void *src, void *dst);
 
-#if CONFIG_EXT_RESOLVER == 0
 /*
  * If there's no resolver, only support a subset of the kauth_cred_x2y() lookups.
+ *
+ * Minkar (2026): also used with CONFIG_EXT_RESOLVER until a resolver
+ * daemon checks in (Minkar has none yet): without it a credential had no
+ * GUID, so an ACL's allow entries never applied (its deny entries did).
  */
-static __inline int
-kauth_cred_cache_lookup(int from, int to, void *src, void *dst)
+static int
+kauth_cred_compat_lookup(int from, int to, void *src, void *dst)
 {
 	/* NB: These must match the definitions used by Libinfo's mbr_identifier_translate(). */
 	static const uuid_t _user_compat_prefix = {0xff, 0xff, 0xee, 0xee, 0xdd, 0xdd, 0xcc, 0xcc, 0xbb, 0xbb, 0xaa, 0xaa, 0x00, 0x00, 0x00, 0x00};
@@ -2191,6 +2194,13 @@ kauth_cred_cache_lookup(int from, int to, void *src, void *dst)
 		break;
 	}
 	return ENOENT;
+}
+
+#if CONFIG_EXT_RESOLVER == 0
+static __inline int
+kauth_cred_cache_lookup(int from, int to, void *src, void *dst)
+{
+	return kauth_cred_compat_lookup(from, to, src, dst);
 }
 #endif
 
@@ -2652,6 +2662,12 @@ kauth_cred_cache_lookup(int from, int to, void *src, void *dst)
 	char *namebuf = NULL;
 
 	KAUTH_DEBUG("CACHE - translate %d to %d", from, to);
+
+	/* Minkar (2026): no resolver daemon yet; see kauth_cred_compat_lookup */
+	if (!kauth_resolver_registered &&
+	    kauth_cred_compat_lookup(from, to, src, dst) == 0) {
+		return 0;
+	}
 
 	/*
 	 * Look for an existing cache entry for this association.
