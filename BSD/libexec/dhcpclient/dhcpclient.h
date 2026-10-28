@@ -143,6 +143,7 @@ void dhcp4_stop(void);
 void dhcp4_input(void);
 void dhcp4_timeout(void);
 void dhcp4_link_up(void);
+void dhcp4_link_down(void);
 void arp_input(void);
 
 /* ipv6.c */
