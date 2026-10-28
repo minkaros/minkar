@@ -84,6 +84,10 @@ No command from Apple's command sets is left.
 | 2026-10-28 | `finger` | The last login from Darwin's lastlog records (`getlastlogxbyname`) |
 | 2026-10-28 | `ac` | Reads Darwin's wtmpx log, as `last` does |
 | 2026-10-28 | `uuidgen` | Written for Minkar, as on macOS: an upper-case random UUID, `-hdr` for a Core Foundation header line (FreeBSD's is built on the DCE UUID API) |
+| 2026-10-28 | `arp`, `ndp`, `traceroute6` | Through the routing socket (FreeBSD's path without netlink). XNU pads sockaddrs to 4 bytes and gives `arp` its expiry in calendar time; `ndp -i` sets flags with Darwin's `SIOCSIFINFO_FLAGS`; `traceroute6 -S` (SCTP) with our own packet headers, as Darwin has none |
+| 2026-10-28 | `unzip` | libarchive 3.8.1's bsdunzip (macOS's is Info-ZIP's; `zip` and `zipinfo` are still missing) |
+| 2026-10-28 | `at`, `atq`, `atrm`, `batch` | Set-user-ID root; jobs in `/var/at`. `atrun` runs them under launchd every 30 seconds, disabled as on macOS until `launchctl load -w /System/Library/LaunchDaemons/org.minkar.atrun.plist`; launchd leaves its jobs running (`AbandonProcessGroup`) |
+| 2026-10-28 | `newsyslog` | Our `/etc/newsyslog.conf` for the daemons' own log files and `/etc/newsyslog.d/`; `system.log` and the ASL store stay syslogd's and aslmanager's, as on macOS. launchd runs it at half past each hour |
 
 `btop` switches to its TTY mode on the kernel's console when it cannot
 draw its UTF-8 boxes.
@@ -93,6 +97,7 @@ draw its UTF-8 boxes.
 - `nslookup`, `dig`.
 - `getconf DARWIN_USER_DIR` and `DARWIN_USER_CACHE_DIR` fail with EIO (no
   per-user directory service).
+- `mtree`: NetBSD's, which FreeBSD builds with its `pack_dev` and libnetbsd.
 - `ipcs` and `ipcrm`: FreeBSD's read System V IPC through its own sysctls;
   Darwin's differ (`kern.sysv`), so they need a port of their own.
 - `sshd` records a login but not its logout: `last` shows ssh sessions as
