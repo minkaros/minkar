@@ -39,6 +39,21 @@
 #include <console/serial_protos.h>
 #include <libkern/section_keywords.h>
 
+/*
+ * Minkar: once the console login is up (kern.console_quiet=1, set by
+ * kextstart), printf() and IOLog() stop writing to the console screen;
+ * they still go to the log (dmesg, syslog). Panics clear it.
+ */
+int console_quiet = 0;
+
+static void
+console_printbuf_write(char *str, int size)
+{
+	if (!console_quiet) {
+		console_write(str, size);
+	}
+}
+
 extern void cons_cinput(char ch);               /* The BSD routine that gets characters */
 
 SECURITY_READ_ONLY_LATE(unsigned int) serialmode;                               /* Serial mode keyboard and console control */
@@ -166,7 +181,7 @@ console_printbuf_putc(int ch, void * arg)
 		 */
 		if (serialmode & SERIALMODE_SYNCDRAIN) {
 			info->str[info->pos] = '\0';
-			console_write(info->str, info->pos);
+			console_printbuf_write(info->str, info->pos);
 			info->pos            = 0;
 			info->str[info->pos] = ch;
 			info->pos += 1;
@@ -176,7 +191,7 @@ console_printbuf_putc(int ch, void * arg)
 	info->str[info->pos] = '\0';
 	/* if newline, then try output to console */
 	if (ch == '\n' && info->flags & CONS_PB_WRITE_NEWLINE) {
-		console_write(info->str, info->pos);
+		console_printbuf_write(info->str, info->pos);
 		info->pos            = 0;
 		info->str[info->pos] = '\0';
 	}
@@ -186,7 +201,7 @@ void
 console_printbuf_clear(struct console_printbuf_state * info)
 {
 	if (info->pos != 0) {
-		console_write(info->str, info->pos);
+		console_printbuf_write(info->str, info->pos);
 	}
 	info->pos = 0;
 	info->str[info->pos] = '\0';

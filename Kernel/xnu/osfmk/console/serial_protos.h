@@ -90,6 +90,7 @@ struct console_printbuf_state {
 extern int console_printbuf_drain_initialized;
 void console_printbuf_state_init(struct console_printbuf_state * data, int write_on_newline, int can_block);
 void console_printbuf_putc(int ch, void *arg);
+extern int console_quiet;
 void console_printbuf_clear(struct console_printbuf_state * info);
 int console_write_try(char * str, int size);
 

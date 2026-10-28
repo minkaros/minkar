@@ -807,6 +807,9 @@ panic_trap_to_debugger(const char *panic_format_str, va_list *panic_args, unsign
 {
 #pragma clang diagnostic pop
 
+	/* Minkar: a panic is shown on the screen even after the login. */
+	console_quiet = 0;
+
 #if defined(__x86_64__) && (DEVELOPMENT || DEBUG)
 	/* Turn off I/O tracing once we've panicked */
 	mmiotrace_enabled = 0;

@@ -107,6 +107,8 @@ PE_init_kprintf(boolean_t vm_initialized)
 	}
 }
 
+extern int console_quiet;
+
 #if CONFIG_NO_KPRINTF_STRINGS
 /* Prevent CPP from breaking the definition below */
 #undef kprintf
@@ -184,7 +186,10 @@ kprintf(const char *fmt, ...)
 
 		va_start(listp, fmt);
 		va_copy(listp2, listp);
-		_doprnt(fmt, &listp, PE_kputc, 16);
+		/* Minkar: kprintf_console=1 stays off the screen after login. */
+		if (!(PE_kputc == cnputc && console_quiet)) {
+			_doprnt(fmt, &listp, PE_kputc, 16);
+		}
 		va_end(listp);
 
 		if (kprintf_lock_grabbed) {

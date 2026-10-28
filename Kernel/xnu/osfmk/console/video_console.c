@@ -3105,6 +3105,17 @@ initialize_screen(PE_Video * boot_vinfo, unsigned int op)
 	{
 		struct vc_info new_vinfo = vinfo;
 		boolean_t makeMapping = FALSE;
+		/*
+		 * Minkar: a driver that hands the console the mode it already
+		 * has (the GOP framebuffer) must not start it over: the cursor
+		 * would go back to the top and the next lines would be drawn
+		 * over the old ones.
+		 */
+		boolean_t sameMode = gc_initialized &&
+		    vinfo.v_width == (unsigned int)boot_vinfo->v_width &&
+		    vinfo.v_height == (unsigned int)boot_vinfo->v_height &&
+		    vinfo.v_depth == (unsigned int)boot_vinfo->v_depth &&
+		    vinfo.v_rowbytes == (unsigned int)boot_vinfo->v_rowBytes;
 
 		/* 
 		 *	Copy parameters
@@ -3227,7 +3238,9 @@ initialize_screen(PE_Video * boot_vinfo, unsigned int op)
 			gc_ops.hide_cursor  = vc_reverse_cursor;
 			gc_ops.show_cursor  = vc_reverse_cursor;
 			gc_ops.update_color = vc_update_color;
-            gc_initialize(&vinfo);
+			if (!sameMode) {
+				gc_initialize(&vinfo);
+			}
 		}
 	}
 
