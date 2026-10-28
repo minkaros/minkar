@@ -21,7 +21,7 @@ Licences other than BSD and MIT need the project's approval first.
 |---|---|
 | [Boot commands](#boot-commands) | Done |
 | [Apple's command sets replaced](#apples-command-sets-replaced) | Done; small gaps in `grep` |
-| [Everyday tools](#everyday-tools) | In progress: `passwd`, `nslookup`/`dig` and others missing |
+| [Everyday tools](#everyday-tools) | In progress: `nslookup`/`dig` and others missing |
 | [Power user](#power-user) | `zsh`, `tar`, `ssh`, `curl`, `make` and `git` in the image |
 | [Apple tools](#apple-tools) | `open` missing (needs LaunchServices) |
 | [System data](#system-data) | Locales, time zones, manual pages, iconv tables |
@@ -79,13 +79,13 @@ No command from Apple's command sets is left.
 | 2026-10-28 | `calendar`, `pr`, `sdiff`, `diff3`, `script`, `whois`, `ul`, `mesg`, `wall`, `write`, `banner`, `compress`/`uncompress`, `gencat`, `cap_mkdb`, `indent`, `ctags` | FreeBSD main's |
 | 2026-10-28 | `last` | Reads Darwin's wtmpx log |
 | 2026-10-28 | `timeout` | A process group, for want of a reaper |
+| 2026-10-28 | `passwd` | macOS's `-i`, `-l`, `-u` and wording; set-user-ID root. pam_unix changes the password with our own code (OpenPAM's could not): a SHA-512 hash in `/etc/master.passwd`, which libinfo reads directly, so FreeBSD's `pw_*` functions and `pwd_mkdb` are not needed |
 
 `btop` switches to its TTY mode on the kernel's console when it cannot
 draw its UTF-8 boxes.
 
 ### Missing and known problems
 
-- `passwd`: needs FreeBSD's pam_unix and libutil's `pw_*` functions first.
 - `nslookup`, `dig`.
 - `getconf DARWIN_USER_DIR` and `DARWIN_USER_CACHE_DIR` fail with EIO (no
   per-user directory service).

@@ -246,7 +246,7 @@ The generic Unix commands come from FreeBSD `main`, with our own macOS
 layer where macOS behaves differently; Darwin's own components stay. Each
 command, where it comes from and what was fixed while porting it, is in
 [Userland.md](Userland.md); [Commands.md](Commands.md) counts them against
-macOS's (225 of 354 on 2026-10-28).
+macOS's (226 of 354 on 2026-10-28).
 
 - [x] Boot: `sh`, `ls`, `cp`, `mv`, `rm`, `mount`, `ifconfig`, `ps`, `kill`.
 - [x] Replace the commands from Apple's command sets with FreeBSD main's
@@ -254,7 +254,7 @@ macOS's (225 of 354 on 2026-10-28).
   macOS's `-Z`/`-J`.
 - [ ] Everyday tools missing from the image. *Partial:* ported in batches
   since 2026-10-26, with locales, time zones, manual pages and libiconv.
-  Missing: `passwd` (pam_unix first), `nslookup`/`dig` and the rest of
+  `passwd` since 2026-10-28. Missing: `nslookup`/`dig` and the rest of
   Commands.md's BSD tools.
 - [ ] Power user: `zsh`, `tar`, `ssh`, `curl`, `make`, `git`. *Partial:* all
   six in the image (`git` 2.56.0 since 2026-10-28), without git's Perl,
@@ -620,7 +620,7 @@ The highest-impact open items, in critical-path order:
    resolution and its I219-V is on the network; next, the I211 and NVMe,
    the boot without `pci_keep_console`; then a second, different PC (gate
    M1).
-2. BSD userland batches (Phase 2): `passwd` (pam_unix), `nslookup`/`dig`,
+2. BSD userland batches (Phase 2): `nslookup`/`dig`,
    then the rest of `Docs/Commands.md`'s missing BSD tools.
 3. IOHIDSystem event delivery in the kernel, the `ApplePS2Mouse` driver and
    the WindowServer input reader (Phase 4).
