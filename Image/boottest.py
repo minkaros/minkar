@@ -403,10 +403,13 @@ def main(argv=None):
     # Not "max": under TCG it reports an AMD family the kernel panics on.
     # Westmere is fully emulated by TCG (SSE4.2, POPCNT, no AVX).
     p.add_argument('--cpu', default='Westmere')
-    p.add_argument('--accel', default=os.environ.get('BOOTTEST_ACCEL', 'auto'),
+    # TCG by default: on CI runners /dev/kvm opens too, and the kernel
+    # does not boot under their KVM yet (it does under KVM nested in
+    # VMware); ask for kvm or auto where it is known to work.
+    p.add_argument('--accel', default=os.environ.get('BOOTTEST_ACCEL', 'tcg'),
                    choices=['auto', 'kvm', 'tcg'],
                    help='kvm, tcg, or auto: kvm when /dev/kvm can be opened '
-                        '(default: $BOOTTEST_ACCEL or auto)')
+                        '(default: $BOOTTEST_ACCEL or tcg)')
     p.add_argument('--extra-disk', action='append',
                    help='raw disk attached before the image (repeatable)')
     p.add_argument('--no-rng', action='store_true',
