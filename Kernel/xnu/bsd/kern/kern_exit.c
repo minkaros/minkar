@@ -2194,6 +2194,12 @@ loop1:
 			if (WIFSIGNALED(p->p_xstat)) {
 				siginfo.si_code = WCOREDUMP(p->p_xstat) ?
 				    CLD_DUMPED : CLD_KILLED;
+				/*
+				 * Minkar (2026): for a child a signal ended,
+				 * si_status is the signal (POSIX), not the
+				 * exit status, which is 0 then.
+				 */
+				siginfo.si_status = WTERMSIG(p->p_xstat);
 			} else {
 				siginfo.si_code = CLD_EXITED;
 			}
