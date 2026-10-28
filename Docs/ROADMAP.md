@@ -187,6 +187,12 @@ mounted.
   `boottest` reads the console on to the end of the panic report and
   prints it with function names, so a panic in CI shows where it happened.
   Tested with a real panic (`reboot_np(RB_PANIC)` as root) in QEMU.
+- [x] Boots under QEMU with KVM as well as TCG (2026-10-27): the kernel
+  read two MSRs KVM does not have (core/thread count, flex ratio) before
+  it could handle a fault; under a hypervisor it now uses CPUID and the
+  PIT. `boottest` picks KVM when `/dev/kvm` opens. *Partial:* the test
+  suite's VMs (virtio, two network cards, USB) do not finish booting
+  under KVM yet, so the suite still runs on TCG.
 - [ ] Reference hardware list: one QEMU VM and two documented physical PCs.
   *In progress:* PC 1 is a Gigabyte H270N-WIFI (Intel H270, i7-7700): its
   SATA (AHCI), xHCI and GOP display match the current drivers; its Intel
@@ -216,11 +222,27 @@ mounted.
   instead (six boots of the USB tests without a panic). The AHCI and
   xHCI drivers are now named `MinkarAHCIPort` and `MinkarXHCIPort`
   (`org.minkar.driver.*`), keeping their authors' copyright.
+  Then (2026-10-27) **PC 1 boots to the `login:` prompt and is usable**:
+  root on the SATA disk, launchd, fsck, sshd and a shell, typed on a USB
+  keyboard. The disks were found but IDENTIFY never ran: the port was
+  reset while its command engine ran and `PxSERR` was not cleared after,
+  so Intel's HBA kept BSY set; the port now follows the AHCI
+  specification's order. USB: each interrupt-IN endpoint has its own ring
+  and every one of a device is configured (the keyboard's media keys,
+  the mouse's extra interfaces); keyboards in report protocol and
+  interfaces with a keyboard and a mouse are driven
+  (`MinkarUSBHIDInterface`); a device that cannot be read no longer floods
+  the console. Still open on PC 1: devices behind a USB hub (the KVM
+  switch's keyboard is not found), the network cards, NVMe. The loader
+  sets the display mode from `graphics-mode` in the boot plist
+  (`GRAPHICS_MODE=` when making the image); on PC 1's Radeon the first
+  try drew with the old mode's line length (in testing).
 
 - [ ] **Exit gate (M1):** in QEMU and on a reference PC, the kernel mounts
   the HFS+ root and runs `/sbin/launchd` (or a temporary init) with a shell
   on the console. *Met in QEMU:* `boottest GATE=M1` with the temporary init
-  `BSD/sbin/minkarinit` (BSD-2-Clause); no reference PC yet.
+  `BSD/sbin/minkarinit` (BSD-2-Clause). *Met on PC 1* (2026-10-27): it
+  boots from SATA with launchd to a console login. A second PC remains.
 
 ## Phase 2 — Base userland
 
@@ -310,7 +332,15 @@ notifyd, syslogd, the HFS tools, mDNSResponder) stay as they are.
   code point). Time zones (2026-10-27): IANA tzdata 2026e compiled by
   tzcode's `zic`, laid out as on macOS (`/var/db/timezone/zoneinfo`);
   until then every zone was UTC.
-  Missing: `lsof`, `man`, `units`, `iconv`, `locate`, `zic`/`zdump` in
+  Then (2026-10-27) `man` (FreeBSD main's `man.sh`, as on macOS) with
+  `mandoc` 1.14 as `apropos`, `whatis` and `makewhatis`, and the pages the
+  commands' sources carry (every command has one, or is listed as still
+  without); `units` (`/usr/share/misc/units.lib` is macOS's name for its
+  file) and `locate` (`locate.updatedb` indexes the local hfs, ufs and apfs
+  volumes: Darwin has no `lsvfs`). `iconv` is under way: libiconv becomes
+  FreeBSD's Citrus, as on macOS 14 (the image's is GNU's, and exports only
+  `libiconv_open`, not `iconv_open`).
+  Missing: `lsof`, `iconv`, `zic`/`zdump` in
   the image, `nslookup`/`dig`; `getconf DARWIN_USER_DIR` and
   `DARWIN_USER_CACHE_DIR` fail with EIO (no per-user directory service).
   The console's terminal has no node in `/dev` (the serial device behind
@@ -649,7 +679,7 @@ recompiling; the arm64 image boots to M2 in QEMU.
 | Gate | Phase | State |
 | --- | --- | --- |
 | M0 | Build, toolchain, CI | Met locally; CI written, first green run pending |
-| M1 | Darwin boot | Met in QEMU; reference PC missing |
+| M1 | Darwin boot | Met in QEMU and on PC 1; a second PC missing |
 | M2 | Base userland | Met (`boottest GATE=M2`) |
 | M3 | Base frameworks and Swift | Not started |
 | M4 | Graphics and WindowServer | In progress |
@@ -682,11 +712,11 @@ work in progress.
 
 The highest-impact open items, in critical-path order:
 
-1. Reference PC 1 (Phase 1, gate M1): the kernel waits for its root
-   device on the H270N (the SATA disk is not found); then its USB hub
-   and its network card (I219-V).
-2. BSD userland batches (Phase 2): the missing tools (`man`, `lsof`,
-   `iconv`, `units`, `locate`); `git`.
+1. Reference PC 1 (Phase 1): it boots to a console login; next, devices
+   behind a USB hub, its network cards (I219-V, I211) and the display
+   mode on its Radeon; then a second, different PC (gate M1).
+2. BSD userland batches (Phase 2): libiconv from Citrus and `iconv`;
+   `lsof`; `git`.
 3. IOHIDSystem event delivery in the kernel, the `ApplePS2Mouse` driver and
    the WindowServer input reader (Phase 4).
 4. Install WindowServer's launchd job and get a first boot that draws on
