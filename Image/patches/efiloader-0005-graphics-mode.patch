@@ -1,0 +1,96 @@
+--- a/MdeModulePkg/Application/Loader/config.c
++++ b/MdeModulePkg/Application/Loader/config.c
+@@ -77,6 +77,8 @@
+         CopyValue(gBootConfig.KernelPath, sizeof(gBootConfig.KernelPath), val, valLen);
+     } else if(isString && KeyMatch(key, keyLen, "boot-uuid")) {
+         CopyValue(gBootConfig.BootUUID, sizeof(gBootConfig.BootUUID), val, valLen);
++    } else if(isString && KeyMatch(key, keyLen, "graphics-mode")) {
++        CopyValue(gBootConfig.GraphicsMode, sizeof(gBootConfig.GraphicsMode), val, valLen);
+     } else if(isString && KeyMatch(key, keyLen, "platform-uuid")) {
+         CopyValue(gBootConfig.PlatformUUID, sizeof(gBootConfig.PlatformUUID), val, valLen);
+     } else if(!isString && KeyMatch(key, keyLen, "loader-pause")) {
+--- a/MdeModulePkg/Application/Loader/config.h
++++ b/MdeModulePkg/Application/Loader/config.h
+@@ -40,6 +40,7 @@
+     CHAR8   BootUUID[40];       // "boot-uuid" -> boot file system UUID
+     UINT32  CsrActiveConfig;    // "csr-active-config"  -> BOOT_ARGS.csrActiveConfig
+     UINT32  LoaderPause;        // "loader-pause" -> seconds to show the loader's output
++    CHAR8   GraphicsMode[16];   // "graphics-mode" -> "WIDTHxHEIGHT" or "max"; empty: the firmware's
+ } BOOT_CONFIG;
+ 
+ extern BOOT_CONFIG gBootConfig;
+--- a/MdeModulePkg/Application/Loader/loader.c
++++ b/MdeModulePkg/Application/Loader/loader.c
+@@ -53,6 +53,64 @@
+ STATIC UINT64 gFbBase, gFbSize;
+ STATIC UINT32 gFbStride, gFbWidth, gFbHeight;
+ 
++/*
++ * Minkar: the graphics mode the kernel gets, from "graphics-mode" in the
++ * boot plist: "WIDTHxHEIGHT" for that mode (or the largest one that fits
++ * in it), "max" for the largest the display offers. Without it the mode
++ * the firmware set stays. The kernel takes over whatever mode is set here.
++ */
++STATIC VOID SetGraphicsMode(VOID)
++{
++    EFI_GRAPHICS_OUTPUT_PROTOCOL *GOP;
++    CONST CHAR8 *want = gBootConfig.GraphicsMode;
++    UINTN wantW = 0, wantH = 0;
++    BOOLEAN max = FALSE;
++
++    if (want[0] == '\0')
++        return;
++    if (EFI_ERROR(gBS->LocateProtocol(&gEfiGraphicsOutputProtocolGuid, NULL, (VOID **)&GOP)))
++        return;
++    if (AsciiStrCmp(want, "max") == 0) {
++        max = TRUE;
++    } else {
++        CONST CHAR8 *x = want;
++        while (*x != '\0' && *x != 'x' && *x != 'X')
++            x++;
++        if (*x == '\0')
++            return;
++        wantW = AsciiStrDecimalToUintn(want);
++        wantH = AsciiStrDecimalToUintn(x + 1);
++    }
++
++    UINT32 best = GOP->Mode->Mode;
++    UINTN bestPixels = 0;
++    Print(UEFI_STR("[] Graphics modes:"));
++    for (UINT32 m = 0; m < GOP->Mode->MaxMode; m++) {
++        EFI_GRAPHICS_OUTPUT_MODE_INFORMATION *mi;
++        UINTN size;
++
++        if (EFI_ERROR(GOP->QueryMode(GOP, m, &size, &mi)))
++            continue;
++        UINTN w = mi->HorizontalResolution, h = mi->VerticalResolution;
++        BOOLEAN usable = mi->PixelFormat != PixelBltOnly;
++        gBS->FreePool(mi);
++        if (!usable)
++            continue;
++        Print(UEFI_STR(" %ux%u"), (UINT32)w, (UINT32)h);
++        if (!max && (w > wantW || h > wantH))
++            continue;
++        if (w * h > bestPixels) {
++            bestPixels = w * h;
++            best = m;
++        }
++    }
++    Print(UEFI_STR("\n"));
++    if (bestPixels == 0 || best == GOP->Mode->Mode)
++        return;
++    if (EFI_ERROR(GOP->SetMode(GOP, best)))
++        Print(UEFI_STR("[] Could not set graphics mode %u\n"), best);
++}
++
+ EFI_STATUS GetVideoInfo(VIDEO_INFO *v1, VIDEO_BOOT *v)
+ {
+     EFI_STATUS Status;
+@@ -734,6 +792,7 @@
+     gST->ConOut->ClearScreen(gST->ConOut);
+     Print(UEFI_STR(":: Minkar EFI Loader %s\n"), VERSION_STR);
+     LoadBootConfig();
++    SetGraphicsMode();
+ 
+     Status = gBS->GetMemoryMap(&MemoryMapSize, MemoryMap, &MapKey, &DescriptorSize, &DescriptorVersion);
+     if (Status == EFI_BUFFER_TOO_SMALL) {

@@ -34,7 +34,8 @@ EDK2_BUILD_PY =		BuildReport.py __init__.py build.py buildoptions.py
 EFILOADER_PATCHES =	efiloader-0001-macho-16-char-names.patch \
 			efiloader-0002-minkar-boot-paths.patch \
 			efiloader-0003-boot-volume.patch \
-			efiloader-0004-kernel-memory.patch
+			efiloader-0004-kernel-memory.patch \
+			efiloader-0005-graphics-mode.patch
 
 EFILOADER_SRC ?=	${ROOT_BINARY_DIR}/src/efiloader
 EFILOADER_TOOLS =	${ROOT_BINARY_DIR}/src/efiloader-tools
@@ -90,6 +91,12 @@ INIT_ARGS +=		--launchd-debug
 .if !empty(LOADER_PAUSE)
 INIT_ARGS +=		--loader-pause ${LOADER_PAUSE}
 .endif
+# GRAPHICS_MODE=WIDTHxHEIGHT or max: the display mode the loader sets
+# for the kernel (the largest that fits, or the display's largest);
+# without it the firmware's mode stays.
+.if !empty(GRAPHICS_MODE)
+INIT_ARGS +=		--graphics-mode ${GRAPHICS_MODE}
+.endif
 GATE ?=			M0
 BOOTTEST_TIMEOUT ?=	900
 
@@ -106,10 +113,17 @@ ${EFILOADER_SRC}:
 ${LOADER}: ${EFILOADER_SRC} ${EFILOADER_PATCHES:S,^,${.CURDIR}/patches/,}
 	@test "$$(git -C ${EFILOADER_SRC} rev-parse HEAD)" = "${EFILOADER_COMMIT}" || \
 	    { echo "${EFILOADER_SRC} is not at ${EFILOADER_COMMIT}"; exit 1; }
-.for p in ${EFILOADER_PATCHES}
-	git -C ${EFILOADER_SRC} apply --reverse --check ${.CURDIR}/patches/${p} 2>/dev/null || \
-	    git -C ${EFILOADER_SRC} apply ${.CURDIR}/patches/${p}
-.endfor
+	# The patches as a set: when it changes, the tree goes back to the
+	# pinned commit and they are applied again, in order (several touch
+	# the same files, so one cannot be checked on its own).
+	cat ${EFILOADER_PATCHES:S,^,${.CURDIR}/patches/,} | cksum > ${EFILOADER_SRC}/.minkar-patches.new
+	if ! cmp -s ${EFILOADER_SRC}/.minkar-patches.new ${EFILOADER_SRC}/.minkar-patches; then \
+	    git -C ${EFILOADER_SRC} checkout -q -- . && \
+	    for p in ${EFILOADER_PATCHES}; do \
+	        git -C ${EFILOADER_SRC} apply ${.CURDIR}/patches/$$p || exit 1; \
+	    done; \
+	fi
+	mv ${EFILOADER_SRC}/.minkar-patches.new ${EFILOADER_SRC}/.minkar-patches
 	mkdir -p ${EFILOADER_SRC}/BaseTools/Source/Python/build
 .for f in ${EDK2_BUILD_PY}
 	test -s ${EFILOADER_SRC}/BaseTools/Source/Python/build/${f} || \

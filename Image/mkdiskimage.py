@@ -33,7 +33,8 @@ Layout (GPT):
        /EFI/Minkar/                     (looked up by the loader)
        /Minkar/kernelcache              prelinked kernel + kexts
        /Minkar/org.minkar.boot.plist    boot-args, boot-file, boot-uuid,
-                                        loader-pause (when asked for)
+                                        loader-pause, graphics-mode (when
+                                        asked for)
   2  Apple HFS+ root volume, populated from the sysroot
 
 The root is found by the kernel through boot-uuid: AppleFileSystemDriver
@@ -256,7 +257,7 @@ def run(*cmd, **kwargs):
     return subprocess.run(cmd, check=True, **kwargs)
 
 
-def boot_plist(boot_args, volume_uuid, loader_pause=0):
+def boot_plist(boot_args, volume_uuid, loader_pause=0, graphics_mode=None):
     config = {
         'boot-args': boot_args,
         'boot-file': '\\Minkar\\kernelcache',
@@ -265,6 +266,9 @@ def boot_plist(boot_args, volume_uuid, loader_pause=0):
     if loader_pause:
         # Seconds the loader leaves its output up before the kernel starts.
         config['loader-pause'] = loader_pause
+    if graphics_mode:
+        # "WIDTHxHEIGHT" or "max": the display mode the loader sets.
+        config['graphics-mode'] = graphics_mode
     return plistlib.dumps(config, fmt=plistlib.FMT_XML)
 
 
@@ -317,7 +321,8 @@ def build(args):
         shutil.copyfile(args.loader, os.path.join(esp_dir, 'EFI', 'BOOT', 'BOOTX64.EFI'))
         shutil.copyfile(args.kernelcache, os.path.join(esp_dir, 'Minkar', 'kernelcache'))
         with open(os.path.join(esp_dir, 'Minkar', 'org.minkar.boot.plist'), 'wb') as f:
-            f.write(boot_plist(args.boot_args, volume_uuid, args.loader_pause))
+            f.write(boot_plist(args.boot_args, volume_uuid, args.loader_pause,
+                               args.graphics_mode))
 
         run('mount', '-t', 'hfsplus', '-o', 'rw', root, root_dir)
         mounts.append(root_dir)
@@ -385,6 +390,9 @@ def main(argv=None):
     p.add_argument('--loader-pause', type=int, default=0, metavar='SECONDS',
                    help='keep the loader output on screen before the kernel '
                         'starts (hardware tests)')
+    p.add_argument('--graphics-mode', metavar='WxH|max',
+                   help='display mode the loader sets: WIDTHxHEIGHT (or the '
+                        'largest that fits) or max; default: the firmware\'s')
     args = p.parse_args(argv)
     build(args)
 
