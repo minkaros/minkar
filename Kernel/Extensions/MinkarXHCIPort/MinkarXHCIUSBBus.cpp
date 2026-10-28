@@ -12,7 +12,6 @@ bool MinkarXHCIUSBBus::initWithPort(MinkarXHCIPort *port)
     if (!port || !init(NULL)) return false;
     fPort = port;
     bzero(fBulkConfigured, sizeof(fBulkConfigured));
-    bzero(fIntrConfigured, sizeof(fIntrConfigured));
     return true;
 }
 
@@ -48,12 +47,16 @@ IOReturn MinkarXHCIUSBBus::UIMOpenPipe(USBDeviceAddress address, UInt8 speed, En
         case kUSBInterrupt:
             if (endpoint->direction != kUSBIn)
                 return kIOReturnUnsupported; /* no interrupt-OUT support in the UIM */
-            if (fIntrConfigured[slotId])
+            if (endpoint->number == 0 || endpoint->number > 15)
+                return kIOReturnBadArgument;
+            /* Asked of the port, endpoint by endpoint: a device with several
+             * HID interfaces has an interrupt-IN endpoint for each, and the
+             * port forgets them when the device is unplugged. */
+            if (fPort->interruptInEndpointConfigured(slotId, endpoint->number))
                 return kIOReturnSuccess;
             if (!fPort->configureInterruptInEndpoint(slotId, endpoint->number,
                                                        endpoint->maxPacketSize, endpoint->interval))
                 return kIOReturnError;
-            fIntrConfigured[slotId] = true;
             return kIOReturnSuccess;
 
         default:

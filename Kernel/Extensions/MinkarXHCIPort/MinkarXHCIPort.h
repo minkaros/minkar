@@ -302,6 +302,8 @@ private:
      * ring fields for the current reconstructed IOUSBController path. */
     void releaseInterruptEndpoint(InterruptInEndpoint &intr);
     bool configureInterruptInEndpoint(UInt32 slotId, UInt8 epNum, UInt16 maxPkt, UInt8 interval);
+    bool interruptInEndpointConfigured(UInt32 slotId, UInt8 epNum) const
+        { return slotId < 64 && epNum < 16 && fIntrIn[slotId][epNum].valid; }
     IOReturn interruptTransfer(UInt32 slotId, UInt8 epNum, IOMemoryDescriptor *buffer,
                                UInt32 len, UInt32 timeoutMs);
 

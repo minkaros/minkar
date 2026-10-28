@@ -1195,6 +1195,9 @@ void MinkarXHCIPort::freeSlotResources(UInt32 slotId)
         sr.bulkOutRingMem = NULL;
         sr.bulkOutRing = NULL;
     }
+    /* A new device may get this slot ID: none of its endpoints is ours. */
+    for (int ep = 0; ep < 16; ep++)
+        releaseInterruptEndpoint(fIntrIn[slotId][ep]);
     fDCBAA[slotId] = 0;
 }
 
