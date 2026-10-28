@@ -190,9 +190,11 @@ mounted.
 - [x] Boots under QEMU with KVM as well as TCG (2026-10-27): the kernel
   read two MSRs KVM does not have (core/thread count, flex ratio) before
   it could handle a fault; under a hypervisor it now uses CPUID and the
-  PIT. `boottest` picks KVM when `/dev/kvm` opens. *Partial:* the test
-  suite's VMs (virtio, two network cards, USB) do not finish booting
-  under KVM yet, so the suite still runs on TCG.
+  PIT. The test suite's three VMs run under KVM here (the xHCI driver
+  now sleeps until its interrupt instead of polling every millisecond):
+  the full suite takes about 9 minutes instead of 32. *Partial:* on the
+  CI runners the kernel does not boot under KVM yet, so `boottest` uses
+  TCG unless KVM is asked for.
 - [ ] Reference hardware list: one QEMU VM and two documented physical PCs.
   *In progress:* PC 1 is a Gigabyte H270N-WIFI (Intel H270, i7-7700): its
   SATA (AHCI), xHCI and GOP display match the current drivers; its Intel
@@ -232,11 +234,17 @@ mounted.
   the mouse's extra interfaces); keyboards in report protocol and
   interfaces with a keyboard and a mouse are driven
   (`MinkarUSBHIDInterface`); a device that cannot be read no longer floods
-  the console. Still open on PC 1: devices behind a USB hub (the KVM
-  switch's keyboard is not found), the network cards, NVMe. The loader
-  sets the display mode from `graphics-mode` in the boot plist
-  (`GRAPHICS_MODE=` when making the image); on PC 1's Radeon the first
-  try drew with the old mode's line length (in testing).
+  the console. Then the keyboard behind PC 1's KVM switch (a USB 2 hub):
+  the driver cleared a SuperSpeed-only port feature, the hub answered
+  STALL and its control endpoint stayed halted; it now sends that only to
+  SuperSpeed hubs and resets a halted control endpoint after any STALL
+  (keyboard and mouse through the switch work). A device with one bulk
+  direction no longer panics the kernel. Still open on PC 1: the network
+  cards, NVMe. The loader sets the display mode from `graphics-mode` in
+  the boot plist (`GRAPHICS_MODE=`): `native` reads the display's EDID;
+  PC 1's 34" ultrawide runs at its 3440x1440 (3456 pixels per line), and
+  a scaled mode came out scrambled; a short settle after the switch is in
+  testing.
 
 - [ ] **Exit gate (M1):** in QEMU and on a reference PC, the kernel mounts
   the HFS+ root and runs `/sbin/launchd` (or a temporary init) with a shell
@@ -337,10 +345,14 @@ notifyd, syslogd, the HFS tools, mDNSResponder) stay as they are.
   commands' sources carry (every command has one, or is listed as still
   without); `units` (`/usr/share/misc/units.lib` is macOS's name for its
   file) and `locate` (`locate.updatedb` indexes the local hfs, ufs and apfs
-  volumes: Darwin has no `lsvfs`). `iconv` is under way: libiconv becomes
-  FreeBSD's Citrus, as on macOS 14 (the image's is GNU's, and exports only
-  `libiconv_open`, not `iconv_open`).
-  Missing: `lsof`, `iconv`, `zic`/`zdump` in
+  volumes: Darwin has no `lsvfs`). Then libiconv is FreeBSD's Citrus, as
+  on macOS 14 (the GNU one before exported only `libiconv_open`, not
+  `iconv_open`, and the SDK had no `<iconv.h>`): `/usr/lib/libiconv.2.dylib`
+  with its 23 encoding modules linked in and 687 conversion tables in
+  `/usr/share/i18n`; CoreText's libxml2 and fontconfig use it, and
+  `iconv(1)` is FreeBSD main's. `btop` switches to its TTY mode on the
+  kernel's console, which cannot draw its UTF-8 boxes.
+  Missing: `lsof`, `zic`/`zdump` in
   the image, `nslookup`/`dig`; `getconf DARWIN_USER_DIR` and
   `DARWIN_USER_CACHE_DIR` fail with EIO (no per-user directory service).
   The console's terminal has no node in `/dev` (the serial device behind
@@ -712,11 +724,10 @@ work in progress.
 
 The highest-impact open items, in critical-path order:
 
-1. Reference PC 1 (Phase 1): it boots to a console login; next, devices
-   behind a USB hub, its network cards (I219-V, I211) and the display
-   mode on its Radeon; then a second, different PC (gate M1).
-2. BSD userland batches (Phase 2): libiconv from Citrus and `iconv`;
-   `lsof`; `git`.
+1. Reference PC 1 (Phase 1): it boots to a console login, typed through
+   its KVM switch; next, its network cards (I219-V, I211) and the native
+   display mode; then a second, different PC (gate M1).
+2. BSD userland batches (Phase 2): `lsof`; `git`.
 3. IOHIDSystem event delivery in the kernel, the `ApplePS2Mouse` driver and
    the WindowServer input reader (Phase 4).
 4. Install WindowServer's launchd job and get a first boot that draws on
