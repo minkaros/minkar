@@ -76,8 +76,8 @@ Other components
 - FreeType - FreeType License (Frameworks/Onyx2D/freetype/LICENSE.TXT)
 - fontconfig - MIT-style (Frameworks/CoreText/fontconfig/COPYING)
 - gettext-tiny - MIT (Frameworks/CoreText/gettext-tiny/LICENSE)
-- GNU libiconv - LGPL-2.1 (Frameworks/CoreText/libiconv/COPYING.LIB),
-  shipped as a dynamic library
+- Citrus iconv (FreeBSD main's lib/libc/iconv, lib/libiconv_modules and
+  share/i18n) - BSD-2-Clause (Libraries/libiconv)
 - XZ Utils / liblzma - 0BSD; other parts under other licenses
   (Frameworks/CoreText/xz/COPYING)
 - xkeyboard-config - MIT-style (Frameworks/AppKit/xkeyboard-config/COPYING)

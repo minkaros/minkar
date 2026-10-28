@@ -15,9 +15,8 @@ FREETYPE_CFLAGS = -I${ONYX2D_OBJ}/freetype/include \
 # Use -L/-l: libtool would embed .a paths inside libfontconfig.a
 FREETYPE_LIBS = -L${ONYX2D_OBJ}/freetype -lfreetype \
 	-L${ONYX2D_OBJ}/png -lpng16 -lz
-LIBXML2_CFLAGS = -I${MINKAR_SDKROOT}/usr/include/libxml2 \
-	-I${.OBJDIR:H}/libiconv/include
-LIBXML2_LIBS = -lxml2 -L${.OBJDIR:H}/libiconv/lib/.libs -liconv \
+LIBXML2_CFLAGS = -I${MINKAR_SDKROOT}/usr/include/libxml2
+LIBXML2_LIBS = -lxml2 -liconv \
 	-L${.OBJDIR:H}/xz/src/liblzma/.libs -llzma -lz
 
 all: ${.OBJDIR}/Makefile build
