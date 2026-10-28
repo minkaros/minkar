@@ -23,4 +23,4 @@ CFLAGS = -Wno-implicit-int-conversion -Wno-inconsistent-missing-override \
 	-I${ROOT_BINARY_DIR}${ROOT_SOURCE_DIR}/Kernel/xnu/EXPORT_HDRS/osfmk
 CXXFLAGS = ${CFLAGS} -std=c++11
 
-.include <rvn.kext.mk>
+.include <minkar.kext.mk>

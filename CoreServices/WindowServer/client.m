@@ -93,7 +93,7 @@
 
 @end
 
-#ifdef __RAVYN__
+#ifdef __MINKAR__
 @interface NSMenu(client)
 -(NSMenu *)initApplicationMenu:(NSString *)name;
 @end
@@ -102,7 +102,7 @@ void __NSInitializeProcess(int argc, char *argv[]);
 #endif
 
 int main(int argc, const char *argv[]) {
-#ifdef __RAVYN__
+#ifdef __MINKAR__
     __NSInitializeProcess(argc, argv);
 #endif
 
@@ -117,7 +117,7 @@ int main(int argc, const char *argv[]) {
         [[menu addItemWithTitle:@"Edit" action:@selector(editMenu:) keyEquivalent:@""] setTarget:del];
 
         NSMenu *appMenu = [[NSMenu alloc]
-#ifdef __RAVYN__
+#ifdef __MINKAR__
         // Hack up an application menu since we don't load a nib
         initApplicationMenu:@"Client Demo"];
 #else

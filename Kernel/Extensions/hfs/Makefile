@@ -68,5 +68,5 @@ CXXFLAGS = ${CFLAGS}
 
 SUBDIR = hfs_encodings
 
-.include <rvn.kext.mk>
+.include <minkar.kext.mk>
 .include <bsd.subdir.mk>

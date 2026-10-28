@@ -22,8 +22,8 @@ all: libintl
 		-DCMAKE_INSTALL_PREFIX=/usr \
 		-DLIBXML2_WITH_SAX1=ON \
 		-DLIBXML2_WITH_PYTHON=OFF \
-		-DIconv_LIBRARY=${.OBJDIR:H}/libiconv/lib/.libs/libiconv.2.dylib \
-		-DIconv_INCLUDE_DIR=${.OBJDIR:H}/libiconv/include \
+		-DIconv_LIBRARY=${MINKAR_SDKROOT}/usr/lib/libiconv.2.dylib \
+		-DIconv_INCLUDE_DIR=${MINKAR_SDKROOT}/usr/include \
 		-DLIBLZMA_LIBRARY=${.OBJDIR:H}/xz/src/liblzma/.libs/liblzma.5.dylib \
 		-DLIBLZMA_INCLUDE_DIR=${.CURDIR:H}/xz/src/liblzma/api \
 		-DLIBLZMA_HAS_AUTO_DECODER=ON -DLIBLZMA_HAS_EASY_ENCODER=ON \
@@ -50,13 +50,13 @@ libintl: ${.CURDIR:H}/gettext-tiny/Makefile
 	cd ${GT_OBJDIR} && \
 	CC=${CC} CXX=${CXX} LD=${CC} AR=${AR} RANLIB=${RANLIB} \
 	NM=${NM} LIBTOOL=${LIBTOOL} \
-	LDFLAGS="-fuse-ld=${LD} --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} -L${.OBJDIR:H}/libiconv/lib/.libs/" \
-	CFLAGS="--sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} -I${.OBJDIR:H}/libiconv/include" \
+	LDFLAGS="-fuse-ld=${LD} --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN}" \
+	CFLAGS="--sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN}" \
 	MAKEFLAGS="" ${GMAKE} LIBINTL=1 -C ${GT_OBJDIR}
 	cp -fv ${GT_OBJDIR}/libintl.a ${MINKAR_SDKROOT}/usr/lib
 	cp -fv ${GT_OBJDIR}/msgfmt ${GT_OBJDIR}/msgmerge \
 		${SYSROOT_DIR}/usr/bin/
 
 
-.include <rvn.framework.mk>
+.include <minkar.framework.mk>
 .include <bsd.subdir.mk>

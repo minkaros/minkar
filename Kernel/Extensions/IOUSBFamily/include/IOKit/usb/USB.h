@@ -8,7 +8,7 @@
  * feature detection wired up the way a normal app build has it) - the
  * whole header compiled down to nothing. Rather than chase that, this is a
  * small self-contained header with exactly the standard-USB-spec structs
- * and constants IOUSBFamily/RavynXHCIPort actually use. Field layouts are
+ * and constants IOUSBFamily/MinkarXHCIPort actually use. Field layouts are
  * the literal USB spec wire format, not something Apple-specific, so
  * there's no fidelity loss versus the real header for what we use.
  */
@@ -236,7 +236,7 @@ typedef struct {
 
 /* Device speed (bDeviceProtocol-independent "logical speed" used throughout
  * IOUSBFamily/IOUSBCompositeDriver) - values match the real USB spec
- * encoding used everywhere else in this tree (RavynXHCIPort's
+ * encoding used everywhere else in this tree (MinkarXHCIPort's
  * XHCI_PORTSC_SPEED, etc): 1=low/full-is-implicit-elsewhere, 2=high, 3=super. */
 enum {
     kUSBDeviceSpeedLow  = 0,
@@ -294,7 +294,7 @@ enum {
  * wrappers take &IOUSBSyncCompletion's own ADDRESS as a completion.action
  * sentinel (the real UIM below is expected to recognize that address and
  * block/signal internally rather than call it as a real async callback).
- * None of our UIMs (RavynXHCIUSBBus) implement real async transfers, so we
+ * None of our UIMs (MinkarXHCIUSBBus) implement real async transfers, so we
  * never dereference/call it - it just needs to exist as a distinct address.
  * Defined (empty body) in IOUSBController.cpp. */
 void IOUSBSyncCompletion(void *target, void *parameter, IOReturn status, UInt32 bufferSizeRemaining);

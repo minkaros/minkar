@@ -29,31 +29,39 @@
 #include <ctype.h>
 #include <errno.h>
 #include <inttypes.h>
+#include <stdint.h>
 #include <stdlib.h>
 
 #include "bsdcompat.h"
 
+/*
+ * expand_number(3) as FreeBSD 14 has it: a signed 64-bit result, an
+ * optional sign, and a binary unit suffix (k, m, g, t, p, e; "kb" and
+ * "kib" mean the same). tail(1) passes "-2" for "the last two"; du(1),
+ * cmp(1) and head(1) check the sign themselves.
+ */
 int
-expand_number(const char *buf, uint64_t *num)
+expand_number(const char *buf, int64_t *num)
 {
 	char *end;
 	uintmax_t n;
 	unsigned shift;
+	int negative = 0;
 
 	errno = 0;
 	while (isspace((unsigned char)*buf))
 		buf++;
-	if (*buf == '-') {
+	if (*buf == '-' || *buf == '+') {
+		negative = (*buf == '-');
+		buf++;
+	}
+	if (!isdigit((unsigned char)*buf)) {
 		errno = EINVAL;
 		return (-1);
 	}
 	n = strtoumax(buf, &end, 0);
 	if (errno != 0)
 		return (-1);
-	if (end == buf) {
-		errno = EINVAL;
-		return (-1);
-	}
 	switch (tolower((unsigned char)*end)) {
 	case '\0':			shift = 0; break;
 	case 'b':			shift = 0; break;
@@ -79,10 +87,13 @@ expand_number(const char *buf, uint64_t *num)
 			return (-1);
 		}
 	}
-	if (shift != 0 && (n >> (64 - shift)) != 0) {
+	/* The magnitude must fit: up to INT64_MAX, or -INT64_MIN when negative. */
+	uintmax_t limit = negative ? (uintmax_t)INT64_MAX + 1 : (uintmax_t)INT64_MAX;
+	if (n > (limit >> shift)) {
 		errno = ERANGE;
 		return (-1);
 	}
-	*num = (uint64_t)n << shift;
+	n <<= shift;
+	*num = negative ? (int64_t)(0 - n) : (int64_t)n;
 	return (0);
 }

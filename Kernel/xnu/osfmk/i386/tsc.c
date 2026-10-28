@@ -458,7 +458,14 @@ tsc_init(void)
 			if (tscGranularity == 0) {
 				tscGranularity = 1;
 			}
-		} else if (cpuid_vmm_family() == CPUID_VMM_FAMILY_QEMU_TCG) {
+		} else if (cpuid_vmm_family() == CPUID_VMM_FAMILY_QEMU_TCG ||
+		    (cpuid_vmm_present() &&
+		    cpuid_vmm_family() == CPUID_VMM_FAMILY_UNKNOWN)) {
+			/*
+			 * QEMU's TCG, and hypervisors this tree does not name (KVM):
+			 * the ratio MSRs below may not exist there (#GP this early
+			 * stops the boot), so measure the TSC against the PIT.
+			 */
 			uint64_t measured = pit_measure_tsc_freq();
 			if (measured != 0) {
 				busFreq = measured;

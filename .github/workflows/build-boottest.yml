@@ -123,6 +123,14 @@ jobs:
           sudo --preserve-env=GITHUB_ACTIONS,LOGDIR \
             env LOGDIR="$BUILD_DIR/logs" tools/ci/build-stages.sh
 
+      - name: Check the toolchain against its manifest
+        # tools/toolchain/MANIFEST: the sources' trees, the tools' versions,
+        # and the same input compiled, linked and archived twice to the
+        # same bytes.
+        run: |
+          tools/toolchain/manifest.sh check \
+            "$BUILD_DIR/Developer/Platforms/Minkar.platform/Developer/Toolchains/Default.xctoolchain"
+
       - name: Symbol coverage of the reference apps
         # A report, not a gate: a download that fails does not fail the run.
         continue-on-error: true

@@ -47,5 +47,5 @@ CFLAGS += -include${.CURDIR}/shims.h
 
 #SUBDIR = IOGraphicsFamily IONDRVSupport
 
-.include <rvn.kext.mk>
+.include <minkar.kext.mk>
 .include <bsd.subdir.mk>

@@ -12,10 +12,10 @@ LDFLAGS = -framework Onyx2D -framework CoreGraphics -framework Foundation \
 	-liconv -llzma -lz \
 	-Wl,-force_load,${.OBJDIR}/fontconfig/src/.libs/libfontconfig.a
 
-SUBDIR = xz libiconv libxml2 fontconfig
+SUBDIR = xz libxml2 fontconfig
 
-${FRAMEWORK}: xz libiconv libxml2 fontconfig
-libxml2: xz libiconv
+${FRAMEWORK}: xz libxml2 fontconfig
+libxml2: xz
 fontconfig: libxml2
 
 clean:
@@ -64,4 +64,4 @@ fmwk-install-hook: fontresources
 	cp -Rf ${.OBJDIR}/${FRAMEWORK}.framework ${dir}
 .endfor
 
-.include <rvn.framework.mk>
+.include <minkar.framework.mk>

@@ -7,7 +7,8 @@
 # modules are linked into the binary: every one that builds on Darwin is
 # made static (link=static in config.modules) instead of left out, so
 # zmodload finds zsh/mathfunc, zsh/files, zsh/stat and the rest as on
-# macOS. Installs /bin/zsh and the function library in /usr/share/zsh.
+# macOS. Installs /bin/zsh, the function library in /usr/share/zsh and
+# the manual (zsh(1), zshall(1), zshbuiltins(1)...).
 
 all: ${.OBJDIR}/.installed
 
@@ -34,8 +35,10 @@ ${.OBJDIR}/Src/zsh: ${.CURDIR}/Makefile
 	MAKEFLAGS="" ${TOOLS}/gmake ${ZSH_JOBS}
 
 ${.OBJDIR}/.installed: ${.OBJDIR}/Src/zsh
-	MAKEFLAGS="" ${TOOLS}/gmake install.bin install.fns DESTDIR=${SYSROOT_DIR}
-	# macOS has /bin/zsh only, not the versioned name next to it.
-	rm -f ${SYSROOT_DIR}/bin/zsh-5.9
+	MAKEFLAGS="" ${TOOLS}/gmake install.bin install.fns install.man \
+	    DESTDIR=${SYSROOT_DIR}
+	# macOS has /bin/zsh only, not the versioned name next to it, nor the
+	# zsh.old a reinstall keeps.
+	rm -f ${SYSROOT_DIR}/bin/zsh-5.9 ${SYSROOT_DIR}/bin/zsh.old
 	touch ${.TARGET}
 

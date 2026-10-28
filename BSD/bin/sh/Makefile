@@ -40,8 +40,12 @@ CFLAGS = --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
 	-DSHELL -I${.CURDIR} -I${.OBJDIR} -I${.CURDIR}/../../lib/libedit/src \
         -Wno-nullability-completeness
 
+# The test builtin is FreeBSD main's test.c: it needs libbsdcompat's names
+# (st_mtim, __nonstring, eaccess).
+CFLAGS.test.c = -I${ROOT_SOURCE_DIR}/BSD/lib/libbsdcompat/include -include bsdcompat.h
+
 LDFLAGS = --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
-        -ledit
+        -ledit -L${ROOT_BINARY_DIR}${ROOT_SOURCE_DIR}/BSD/lib/libbsdcompat -lbsdcompat
 
 all: mksyntax mknodes .WAIT syntax.h nodes.h token.h builtins.h to-sysroot
 

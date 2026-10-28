@@ -59,7 +59,32 @@ struct HIDPointerLayout {
 };
 
 /* False when the descriptor has no input report with X and Y. */
+/*
+ * A keyboard in report protocol. Its keys come as an array of usages (the
+ * boot keyboard's six bytes), as a bitmap with one bit per usage (N-key
+ * rollover keyboards), or both; the modifiers as eight bits for usages
+ * 0xE0..0xE7. HIDKeyboardToBoot turns a report into the boot keyboard's
+ * eight bytes, which the keyboard driver handles either way.
+ */
+struct HIDKeyboardLayout {
+	bool		valid;
+	uint8_t		reportID;	/* 0: the device uses no report IDs */
+	bool		hasModifiers;
+	uint32_t	modBitOffset;	/* usage 0xE0; 0xE1..0xE7 follow */
+	bool		hasArray;
+	uint32_t	arrayBitOffset;
+	uint32_t	arrayBitSize;
+	uint32_t	arrayCount;
+	bool		hasBitmap;
+	uint32_t	bitmapBitOffset;
+	uint32_t	bitmapFirstUsage;
+	uint32_t	bitmapCount;
+};
+
 bool HIDParsePointer(const uint8_t *desc, uint32_t len, struct HIDPointerLayout *out);
+bool HIDParseKeyboard(const uint8_t *desc, uint32_t len, struct HIDKeyboardLayout *out);
+bool HIDKeyboardToBoot(const struct HIDKeyboardLayout *layout, const uint8_t *report,
+    uint32_t len, uint8_t boot[8]);
 
 /* The field's value in a report (the report ID byte, if any, included). */
 int32_t HIDFieldValue(const struct HIDPointerLayout *layout, const struct HIDField *f,

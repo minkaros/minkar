@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2004-2005 Apple Computer, Inc. All rights reserved.
+ * Modifications Copyright (c) 2026 The Minkar contributors
  *
  * @APPLE_LICENSE_HEADER_START@
  * 
@@ -2706,7 +2707,15 @@ void CLASS::configure(uint32_t options)
                 consoleInfo.v_width, consoleInfo.v_height, fPFMConsole);
         }
         fConsoleRange = NULL;
-        getPlatform()->setConsoleInfo(0, kPEDisableScreen);
+        /*
+         * Minkar: pci_keep_console=1 leaves the console on while PCI is
+         * configured, to see on a PC's screen where configuration stops.
+         * Only for hardware tests: the console must not move.
+         */
+        uint32_t keepConsole = 0;
+        if (!PE_parse_boot_argn("pci_keep_console", &keepConsole, sizeof(keepConsole)) ||
+            !keepConsole)
+            getPlatform()->setConsoleInfo(0, kPEDisableScreen);
     }
 #endif
 
@@ -3450,6 +3459,10 @@ void CLASS::applyConfiguration(IOPCIConfigEntry * device, uint32_t typeMask, boo
     {
         if (device->rangeBaseChanges || device->rangeSizeChanges) 
         {
+            /* Minkar: say which device is being written to, so that a PC
+             * that stops here shows where. */
+            DLOG("apply " D() " (bm 0x%x, sm 0x%x)\n", DEVICE_IDENT(device),
+                device->rangeBaseChanges, device->rangeSizeChanges);
             switch (device->headerType)
             {
                 case kPCIHeaderType0:
@@ -3460,6 +3473,7 @@ void CLASS::applyConfiguration(IOPCIConfigEntry * device, uint32_t typeMask, boo
                     bridgeApplyConfiguration(device, typeMask, dolog);
                     break;
             }
+            DLOG("applied " D() "\n", DEVICE_IDENT(device));
             device->deviceState &= ~kPCIDeviceStatePropertiesDone;
 
 			IOPCIDevice *
@@ -3479,6 +3493,40 @@ void CLASS::applyConfiguration(IOPCIConfigEntry * device, uint32_t typeMask, boo
     device->deviceState |= kPCIDeviceStateConfigurationDone;
 }
 
+/*
+ * Minkar: true when every BAR to be written for this device already holds
+ * the address allocated to it (the flag bits aside), so writing would
+ * change nothing.
+ */
+bool CLASS::deviceBarsUnchanged(IOPCIConfigEntry * device, uint32_t typeMask)
+{
+    for (int rangeIndex = kIOPCIRangeBAR0; rangeIndex <= kIOPCIRangeExpansionROM; rangeIndex++)
+    {
+        IOPCIRange * range = device->ranges[rangeIndex];
+        if (!range || !((1 << range->type) & typeMask))
+            continue;
+        if (!((1 << rangeIndex) & device->rangeBaseChanges))
+            continue;
+        if (!range->start)
+            continue;
+        uint32_t bar = (rangeIndex <= kIOPCIRangeBAR5)
+            ? kIOPCIConfigBaseAddress0 + (rangeIndex * 4)
+            : kIOPCIConfigExpansionROMBase;
+        uint32_t lo = configRead32(device, bar);
+        uint32_t mask = (kIOPCIConfigExpansionROMBase == bar) ? ~0x7FFU
+            : (kIOPCIResourceTypeIO == range->type) ? ~0x3U : ~0xFU;
+        if ((lo & mask) != (uint32_t) (range->start & 0xFFFFFFFF))
+            return false;
+        if ((kIOPCIConfigExpansionROMBase != bar) && (kIOPCIRangeFlagBar64 & range->flags))
+        {
+            if (configRead32(device, bar + 4) != (uint32_t) (range->start >> 32))
+                return false;
+            rangeIndex++;
+        }
+    }
+    return true;
+}
+
 void CLASS::deviceApplyConfiguration(IOPCIConfigEntry * device, uint32_t typeMask, bool dolog)
 {
     IOPCIScalar start;
@@ -3488,6 +3536,28 @@ void CLASS::deviceApplyConfiguration(IOPCIConfigEntry * device, uint32_t typeMas
     DLOGI("Applying config (bm 0x%x, sm 0x%x) for device " D() "\n",
             device->rangeBaseChanges, device->rangeSizeChanges,
             DEVICE_IDENT(device));
+
+    /*
+     * Minkar: leave a device alone when its BARs already hold what was
+     * allocated, as at boot when the firmware's assignment is kept. Turning
+     * off its decoding to write the same values is not harmless: on a PC
+     * the firmware may still be using the device (USB keyboard emulation
+     * through SMIs on the xHCI controller), and the machine stopped there.
+     */
+    if (deviceBarsUnchanged(device, typeMask))
+    {
+        for (int rangeIndex = kIOPCIRangeBAR0; rangeIndex <= kIOPCIRangeExpansionROM; rangeIndex++)
+        {
+            range = device->ranges[rangeIndex];
+            if (range && ((1 << range->type) & typeMask))
+            {
+                device->rangeBaseChanges &= ~(1 << rangeIndex);
+                device->rangeSizeChanges &= ~(1 << rangeIndex);
+            }
+        }
+        DLOG("  " D() ": BARs unchanged\n", DEVICE_IDENT(device));
+        return;
+    }
 
     reg16 = disableAccess(device, true);
 
@@ -3538,6 +3608,28 @@ void CLASS::deviceApplyConfiguration(IOPCIConfigEntry * device, uint32_t typeMas
 
     DLOGI("  Device Command = 0x%08x\n", (uint32_t) 
          configRead32(device, kIOPCIConfigCommand));
+}
+
+/*
+ * Minkar: whether to leave a bridge window as the firmware set it. At boot,
+ * when the firmware's window is open and holds the one allocated (or none
+ * is allocated), narrowing or closing it gains nothing and can cut off what
+ * is behind it: on a PC the display's memory sat behind the x16 port, and
+ * the screen went dark there. Each window is logged before it is written.
+ */
+bool CLASS::keepFirmwareWindow(IOPCIConfigEntry * bridge, const char * name,
+                               uint64_t hwBase, uint64_t hwLimit,
+                               uint64_t start, uint64_t end)
+{
+    bool hwOpen  = (hwBase <= hwLimit);
+    bool newOpen = (start || end) && (start <= end);
+    bool keep    = (kIOPCIConfiguratorBoot & fFlags) && hwOpen
+                   && (!newOpen || ((start >= hwBase) && (end <= hwLimit)));
+
+    DLOG("  %s " B() ": firmware 0x%llx-0x%llx, allocated 0x%llx-0x%llx%s\n",
+         name, BRIDGE_IDENT(bridge), hwBase, hwOpen ? hwLimit : 0,
+         newOpen ? start : 0, newOpen ? end : 0, keep ? ", kept" : "");
+    return (keep);
 }
 
 void CLASS::bridgeApplyConfiguration(IOPCIConfigEntry * bridge, uint32_t typeMask, bool dolog)
@@ -3675,6 +3767,8 @@ void CLASS::bridgeApplyConfiguration(IOPCIConfigEntry * bridge, uint32_t typeMas
     
             baselim16 = 0x00f0; // closed range
             range = bridge->ranges[kIOPCIRangeBridgeIO];
+            start = 0;
+            end = 0;
             if (range && range->start && range->size)
             {
                 assert((range->size  & (4096-1)) == 0);
@@ -3685,8 +3779,13 @@ void CLASS::bridgeApplyConfiguration(IOPCIConfigEntry * bridge, uint32_t typeMas
                 end = start + range->size - 1;
                 baselim16 = ((start >> 8) & 0xf0) | (end & 0xf000);        
             }
-            configWrite16(bridge, kPCI2PCIIORange, baselim16);
-            configWrite32(bridge, kPCI2PCIUpperIORange, 0);
+            uint16_t hw16 = configRead16(bridge, kPCI2PCIIORange);
+            if (!keepFirmwareWindow(bridge, "I/O", ((uint64_t)(hw16 & 0xf0)) << 8,
+                    (hw16 & 0xf000) | 0xfff, start, end))
+            {
+                configWrite16(bridge, kPCI2PCIIORange, baselim16);
+                configWrite32(bridge, kPCI2PCIUpperIORange, 0);
+            }
 
             DLOGI("  I/O: base/limit   = 0x%04x\n",
                  configRead16(bridge, kPCI2PCIIORange));
@@ -3704,6 +3803,8 @@ void CLASS::bridgeApplyConfiguration(IOPCIConfigEntry * bridge, uint32_t typeMas
 
             baselim32 = 0x0000FFF0; // closed range
             range = bridge->ranges[kIOPCIRangeBridgeMemory];
+            start = 0;
+            end = 0;
             if (range && range->start && range->size && !(kPCIDeviceStateNoLink & bridge->deviceState))
             {
                 assert((range->size  & (0x100000-1)) == 0);
@@ -3713,7 +3814,10 @@ void CLASS::bridgeApplyConfiguration(IOPCIConfigEntry * bridge, uint32_t typeMas
                 end   = range->start + range->size - 1;
                 baselim32 = ((start >> 16) & 0xFFF0) | (end & 0xFFF00000);
             }
-            configWrite32(bridge, kPCI2PCIMemoryRange, baselim32);
+            uint32_t hw32 = configRead32(bridge, kPCI2PCIMemoryRange);
+            if (!keepFirmwareWindow(bridge, "MEM", ((uint64_t)(hw32 & 0xFFF0)) << 16,
+                    (hw32 & 0xFFF00000) | 0xFFFFF, start, end))
+                configWrite32(bridge, kPCI2PCIMemoryRange, baselim32);
 
             DLOGI("  MEM: base/limit   = 0x%08x\n", (uint32_t) 
                  configRead32(bridge, kPCI2PCIMemoryRange));
@@ -3733,14 +3837,27 @@ void CLASS::bridgeApplyConfiguration(IOPCIConfigEntry * bridge, uint32_t typeMas
             start     = 0xFFFFFFFFFFFFFFFF;
             end       = 0;
 
+            range = bridge->ranges[kIOPCIRangeBridgePFMemory];
+            bool pfmOpen = (range && range->start && range->size && !(kPCIDeviceStateNoLink & bridge->deviceState));
+            uint32_t hwLo = configRead32(bridge, kPCI2PCIPrefetchMemoryRange);
+            uint64_t hwBase = ((uint64_t)(hwLo & 0xFFF0)) << 16;
+            uint64_t hwLimit = (hwLo & 0xFFF00000) | 0xFFFFF;
+            if (1 == (hwLo & 0xF))  // 64-bit window
+            {
+                hwBase  |= ((uint64_t) configRead32(bridge, kPCI2PCIPrefetchUpperBase)) << 32;
+                hwLimit |= ((uint64_t) configRead32(bridge, kPCI2PCIPrefetchUpperLimit)) << 32;
+            }
+            if (!keepFirmwareWindow(bridge, "PFM", hwBase, hwLimit,
+                    pfmOpen ? range->start : 0,
+                    pfmOpen ? range->start + range->size - 1 : 0))
+            {
             if ((1 << kIOPCIRangeBridgePFMemory) & bridge->rangeBaseChanges)
 			{
 				configWrite32(bridge, kPCI2PCIPrefetchUpperBase,  -1U);
 				configWrite32(bridge, kPCI2PCIPrefetchUpperLimit,  0);
 				configWrite32(bridge, kPCI2PCIPrefetchMemoryRange, baselim32);
 			}
-            range = bridge->ranges[kIOPCIRangeBridgePFMemory];
-            if (range && range->start && range->size && !(kPCIDeviceStateNoLink & bridge->deviceState))
+            if (pfmOpen)
             {
                 assert((range->size  & (0x100000-1)) == 0);
                 assert((range->start & (0x100000-1)) == 0);
@@ -3752,6 +3869,7 @@ void CLASS::bridgeApplyConfiguration(IOPCIConfigEntry * bridge, uint32_t typeMas
             configWrite32(bridge, kPCI2PCIPrefetchMemoryRange, baselim32);
             configWrite32(bridge, kPCI2PCIPrefetchUpperLimit, (end   >> 32));
             configWrite32(bridge, kPCI2PCIPrefetchUpperBase,  (start >> 32));
+            }
 
             DLOGI("  PFM: base/limit   = 0x%08x, 0x%08x, 0x%08x\n",  
                  (uint32_t)configRead32(bridge, kPCI2PCIPrefetchMemoryRange),

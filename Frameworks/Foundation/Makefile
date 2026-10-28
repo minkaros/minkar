@@ -401,4 +401,4 @@ fmwk-install-hook:
 	cp -Rf ${.OBJDIR}/${FRAMEWORK}.framework ${dir}
 .endfor
 
-.include <rvn.framework.mk>
+.include <minkar.framework.mk>

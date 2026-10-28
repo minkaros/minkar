@@ -71,12 +71,12 @@
 			<key>IOProbeScore</key>
 			<integer>1000</integer>
 		</dict>
-		<key>HID pointer (report protocol)</key>
+		<key>HID interface (report protocol)</key>
 		<dict>
 			<key>CFBundleIdentifier</key>
 			<string>@BUNDLE_IDENTIFIER@</string>
 			<key>IOClass</key>
-			<string>MinkarUSBPointer</string>
+			<string>MinkarUSBHIDInterface</string>
 			<key>IOProviderClass</key>
 			<string>IOUSBInterface</string>
 			<key>bInterfaceClass</key>

@@ -1,6 +1,7 @@
 /*
  * Copyright (c) 1998-2006 Apple Computer, Inc. All rights reserved.
  * Copyright (c) 2007-2021 Apple Inc. All rights reserved.
+ * Modifications Copyright (c) 2026 The Minkar contributors (2026-10).
  *
  * @APPLE_LICENSE_HEADER_START@
  * 
@@ -774,6 +775,15 @@ IOPCIMessagedInterruptController::handleInterrupt( void *      state,
 		for (source = 0; source < count; source++)
 		{
             if (device->reserved->msiEnable == 1) vector = &subVectors[0];
+            else if (!(kMSIX & device->reserved->msiMode) || !device->reserved->msiPBA)
+            {
+                // Minkar: only MSI-X has a pending-bit array. Plain MSI
+                // (or an MSI-X table that was not mapped) can still
+                // interrupt while no vector is enabled, as a driver
+                // disables its last one: read no array, call vector 0 once.
+                vector = &subVectors[0];
+                source = count;
+            }
             else
             {
                 bit = (source & 63);

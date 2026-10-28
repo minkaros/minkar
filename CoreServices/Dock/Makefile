@@ -39,7 +39,7 @@ Downloads.app::
 	${MAKE} -C ${.CURDIR}/Downloads
 	mv Downloads/Downloads.app .
 
-.include <rvn.app.mk>
+.include <minkar.app.mk>
 
 all: Trash.app Downloads.app
 	cp -fv ${.CURDIR}/Info.plist ${APP_DIR}/Contents/

@@ -106,8 +106,39 @@ setField(struct HIDField *f, const struct globals *g, uint32_t offset, bool rela
 	f->relative = relative;
 }
 
-bool
-HIDParsePointer(const uint8_t *desc, uint32_t len, struct HIDPointerLayout *out)
+/* One Input main item, with the local items that came before it. */
+struct inputItem {
+	const struct globals *g;
+	uint32_t	flags;
+	uint32_t	bitOffset;	/* in its report, after the report ID */
+	const uint32_t	*usages;	/* page << 16 | id */
+	unsigned	nUsages;
+	bool		haveRange;
+	uint32_t	usageMin, usageMax;	/* ids, on the current page */
+};
+
+typedef void (*inputVisitor)(void *ctx, const struct inputItem *item);
+
+/* The usage of the n-th field of an item, 0 when it has none. */
+static uint32_t
+itemUsage(const struct inputItem *it, uint32_t n)
+{
+	if (n < it->nUsages)
+		return it->usages[n];
+	if (it->haveRange && it->usageMin + n <= it->usageMax)
+		return (it->g->usagePage << 16) | (it->usageMin + n);
+	if (it->nUsages > 0)
+		return it->usages[it->nUsages - 1];
+	return 0;
+}
+
+/*
+ * Walks the descriptor's short items, keeping the global state, the
+ * pending local items and each report's bit offset (by report ID), and
+ * calls visit for every Input item.
+ */
+static void
+walkInputs(const uint8_t *desc, uint32_t len, inputVisitor visit, void *ctx)
 {
 	struct globals g = { 0 }, stack[STACK_DEPTH];
 	unsigned depth = 0;
@@ -115,17 +146,10 @@ HIDParsePointer(const uint8_t *desc, uint32_t len, struct HIDPointerLayout *out)
 	unsigned nUsages = 0;
 	uint32_t usageMin = 0, usageMax = 0;
 	bool haveRange = false;
-	/* Bit offset reached in each report, by report ID. */
 	uint8_t ids[MAX_REPORT_IDS];
 	uint32_t offsets[MAX_REPORT_IDS];
 	unsigned nIds = 0;
-	struct HIDPointerLayout cur;
 	unsigned i = 0;
-
-	for (unsigned k = 0; k < sizeof(*out); k++)
-		((uint8_t *)out)[k] = 0;
-	for (unsigned k = 0; k < sizeof(cur); k++)
-		((uint8_t *)&cur)[k] = 0;
 
 	while (i < len) {
 		uint8_t prefix = desc[i];
@@ -196,42 +220,12 @@ HIDParsePointer(const uint8_t *desc, uint32_t len, struct HIDPointerLayout *out)
 				ids[nIds] = g.reportID;
 				offsets[nIds++] = 0;
 			}
-			uint32_t flags = itemUnsigned(data, size);
 			uint32_t offset = r < nIds ? offsets[r] : 0;
 
-			if (tag == MAIN_INPUT && !(flags & INPUT_CONSTANT) && (flags & INPUT_VARIABLE) &&
-			    (!cur.valid || cur.reportID == g.reportID)) {
-				for (uint32_t n = 0; n < g.reportCount; n++) {
-					uint32_t usage;
-
-					if (n < nUsages)
-						usage = usages[n];
-					else if (haveRange && usageMin + n <= usageMax)
-						usage = (g.usagePage << 16) | (usageMin + n);
-					else if (nUsages > 0)
-						usage = usages[nUsages - 1];
-					else
-						continue;
-					uint32_t at = offset + n * g.reportSize;
-					bool rel = (flags & INPUT_RELATIVE) != 0;
-					uint32_t page = usage >> 16, id = usage & 0xFFFF;
-
-					if (page == PAGE_GENERIC_DESKTOP && id == GD_X)
-						setField(&cur.x, &g, at, rel);
-					else if (page == PAGE_GENERIC_DESKTOP && id == GD_Y)
-						setField(&cur.y, &g, at, rel);
-					else if (page == PAGE_GENERIC_DESKTOP && id == GD_WHEEL)
-						setField(&cur.wheel, &g, at, rel);
-					else if (page == PAGE_BUTTON && id >= 1 && id <= HID_MAX_BUTTONS) {
-						setField(&cur.buttons[id - 1], &g, at, rel);
-						if (id > cur.buttonCount)
-							cur.buttonCount = id;
-					}
-				}
-				if (cur.x.present && cur.y.present) {
-					cur.valid = true;
-					cur.reportID = g.reportID;
-				}
+			if (tag == MAIN_INPUT) {
+				struct inputItem it = { &g, itemUnsigned(data, size), offset,
+				    usages, nUsages, haveRange, usageMin, usageMax };
+				visit(ctx, &it);
 			}
 			if (r < nIds)
 				offsets[r] += g.reportSize * g.reportCount;
@@ -241,9 +235,198 @@ HIDParsePointer(const uint8_t *desc, uint32_t len, struct HIDPointerLayout *out)
 		haveRange = false;
 		usageMin = usageMax = 0;
 	}
+}
+
+static void
+zero(void *p, unsigned n)
+{
+	for (unsigned k = 0; k < n; k++)
+		((uint8_t *)p)[k] = 0;
+}
+
+static void
+visitPointer(void *ctx, const struct inputItem *it)
+{
+	struct HIDPointerLayout *cur = (struct HIDPointerLayout *)ctx;
+	const struct globals *g = it->g;
+
+	if ((it->flags & INPUT_CONSTANT) || !(it->flags & INPUT_VARIABLE) ||
+	    (cur->valid && cur->reportID != g->reportID))
+		return;
+	for (uint32_t n = 0; n < g->reportCount; n++) {
+		uint32_t usage = itemUsage(it, n);
+
+		if (usage == 0)
+			continue;
+		uint32_t at = it->bitOffset + n * g->reportSize;
+		bool rel = (it->flags & INPUT_RELATIVE) != 0;
+		uint32_t page = usage >> 16, id = usage & 0xFFFF;
+
+		if (page == PAGE_GENERIC_DESKTOP && id == GD_X)
+			setField(&cur->x, g, at, rel);
+		else if (page == PAGE_GENERIC_DESKTOP && id == GD_Y)
+			setField(&cur->y, g, at, rel);
+		else if (page == PAGE_GENERIC_DESKTOP && id == GD_WHEEL)
+			setField(&cur->wheel, g, at, rel);
+		else if (page == PAGE_BUTTON && id >= 1 && id <= HID_MAX_BUTTONS) {
+			setField(&cur->buttons[id - 1], g, at, rel);
+			if (id > cur->buttonCount)
+				cur->buttonCount = id;
+		}
+	}
+	if (cur->x.present && cur->y.present) {
+		cur->valid = true;
+		cur->reportID = g->reportID;
+	}
+}
+
+bool
+HIDParsePointer(const uint8_t *desc, uint32_t len, struct HIDPointerLayout *out)
+{
+	struct HIDPointerLayout cur;
+
+	zero(out, sizeof(*out));
+	zero(&cur, sizeof(cur));
+	walkInputs(desc, len, visitPointer, &cur);
 	if (cur.valid)
 		*out = cur;
 	return cur.valid;
+}
+
+#define PAGE_KEYBOARD		0x07
+#define KEY_FIRST_MODIFIER	0xE0
+#define KEY_LAST_MODIFIER	0xE7
+#define KEY_ERROR_ROLLOVER	0x01
+
+static void
+visitKeyboard(void *ctx, const struct inputItem *it)
+{
+	struct HIDKeyboardLayout *kb = (struct HIDKeyboardLayout *)ctx;
+	const struct globals *g = it->g;
+
+	if (it->flags & INPUT_CONSTANT)
+		return;
+	/* The keyboard's fields: those of the first report that has some. */
+	if (kb->valid && kb->reportID != g->reportID)
+		return;
+
+	if (!(it->flags & INPUT_VARIABLE)) {
+		/* An array of key usages on the keyboard page. */
+		if (g->usagePage != PAGE_KEYBOARD || kb->hasArray ||
+		    g->reportSize < 8 || g->reportSize > 16 || g->reportCount == 0)
+			return;
+		kb->hasArray = true;
+		kb->arrayBitOffset = it->bitOffset;
+		kb->arrayBitSize = g->reportSize;
+		kb->arrayCount = g->reportCount;
+	} else {
+		if (g->reportSize != 1)
+			return;
+		for (uint32_t n = 0; n < g->reportCount; n++) {
+			uint32_t usage = itemUsage(it, n);
+
+			if ((usage >> 16) != PAGE_KEYBOARD)
+				return;
+			uint32_t id = usage & 0xFFFF;
+			if (id == KEY_FIRST_MODIFIER && !kb->hasModifiers &&
+			    n + 8 <= g->reportCount) {
+				kb->hasModifiers = true;
+				kb->modBitOffset = it->bitOffset + n;
+				n += 7;
+			} else if (id < KEY_FIRST_MODIFIER && !kb->hasBitmap) {
+				/* A bitmap: one bit per usage, from this one on. */
+				uint32_t count = 0;
+				while (n + count < g->reportCount &&
+				    (itemUsage(it, n + count) & 0xFFFF) == id + count &&
+				    id + count < KEY_FIRST_MODIFIER)
+					count++;
+				kb->hasBitmap = true;
+				kb->bitmapBitOffset = it->bitOffset + n;
+				kb->bitmapFirstUsage = id;
+				kb->bitmapCount = count;
+				n += count - 1;
+			}
+		}
+	}
+	if (kb->hasArray || kb->hasBitmap) {
+		kb->valid = true;
+		kb->reportID = g->reportID;
+	}
+}
+
+bool
+HIDParseKeyboard(const uint8_t *desc, uint32_t len, struct HIDKeyboardLayout *out)
+{
+	struct HIDKeyboardLayout kb;
+
+	zero(out, sizeof(*out));
+	zero(&kb, sizeof(kb));
+	walkInputs(desc, len, visitKeyboard, &kb);
+	if (kb.valid)
+		*out = kb;
+	return kb.valid;
+}
+
+static uint32_t
+reportBits(const uint8_t *report, uint32_t len, uint32_t start, uint32_t size)
+{
+	uint32_t v = 0;
+
+	if (size == 0 || size > 32 || start + size > len * 8)
+		return 0;
+	for (uint32_t b = 0; b < size; b++) {
+		uint32_t bit = start + b;
+
+		if (report[bit / 8] & (1U << (bit % 8)))
+			v |= 1U << b;
+	}
+	return v;
+}
+
+bool
+HIDKeyboardToBoot(const struct HIDKeyboardLayout *kb, const uint8_t *report,
+    uint32_t len, uint8_t boot[8])
+{
+	uint32_t base = 0;
+	unsigned n = 2;
+
+	zero(boot, 8);
+	if (!kb->valid)
+		return false;
+	if (kb->reportID != 0) {
+		if (len < 1 || report[0] != kb->reportID)
+			return false;
+		base = 8;
+	}
+	if (kb->hasModifiers)
+		boot[0] = (uint8_t)reportBits(report, len, base + kb->modBitOffset, 8);
+	if (kb->hasArray) {
+		for (uint32_t k = 0; k < kb->arrayCount && n < 8; k++) {
+			uint32_t u = reportBits(report, len,
+			    base + kb->arrayBitOffset + k * kb->arrayBitSize, kb->arrayBitSize);
+
+			if (u >= KEY_FIRST_MODIFIER && u <= KEY_LAST_MODIFIER)
+				continue;	/* some keyboards repeat modifiers here */
+			if (u != 0 && u < 0x100)
+				boot[n++] = (uint8_t)u;
+		}
+	}
+	if (kb->hasBitmap) {
+		for (uint32_t k = 0; k < kb->bitmapCount; k++) {
+			uint32_t u = kb->bitmapFirstUsage + k;
+
+			if (u < 0x04 || !reportBits(report, len, base + kb->bitmapBitOffset + k, 1))
+				continue;
+			if (n == 8) {
+				/* More keys than the boot report holds: rollover. */
+				for (n = 2; n < 8; n++)
+					boot[n] = KEY_ERROR_ROLLOVER;
+				break;
+			}
+			boot[n++] = (uint8_t)u;
+		}
+	}
+	return true;
 }
 
 int32_t

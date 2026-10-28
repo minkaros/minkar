@@ -13,9 +13,9 @@ UPDATE_DEPENDFILE= no
 PACKAGE= bmake
 FILES=	\
 	auto.obj.mk \
-	rvn.app.mk \
-	rvn.common.mk \
-	rvn.framework.mk \
+	minkar.app.mk \
+	minkar.framework.mk \
+	minkar.kext.mk \
 	bsd.README \
 	bsd.arch.inc.mk \
 	bsd.clang-analyze.mk \

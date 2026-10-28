@@ -12,7 +12,7 @@
 #include <IOKit/IOLib.h>
 
 #ifndef IOUSBFAMILY_LOG_LEVEL
-#define IOUSBFAMILY_LOG_LEVEL 3
+#define IOUSBFAMILY_LOG_LEVEL 1
 #endif
 
 #define USBLog(LEVEL, FORMAT, ARGS...) \

@@ -1,7 +1,7 @@
 /*
  * IOUSBController.cpp - PureDarwin reconstruction (see IOUSBController.h).
  * Thin synchronous dispatch onto the UIM* virtuals a concrete controller
- * (e.g. RavynXHCIUSBBus) implements directly against its own ring/slot
+ * (e.g. MinkarXHCIUSBBus) implements directly against its own ring/slot
  * logic. No command gates, no DMA-command machinery - functionality over
  * ABI fidelity to Apple's original (which never shipped its source anyway).
  */

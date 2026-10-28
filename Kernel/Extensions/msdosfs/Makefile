@@ -28,4 +28,4 @@ CFLAGS = -DPRIVATE -DDEBUG=0 -DKERNEL=1 \
 	-I${.CURDIR:H}/IOStorageFamily \
 	-include${ROOT_SOURCE_DIR}/Kernel/xnu/bsd/i386/endian.h
 
-.include <rvn.kext.mk>
+.include <minkar.kext.mk>

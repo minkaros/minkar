@@ -36,6 +36,10 @@
 #define _MINKAR_COMPAT_SYS_CAPSICUM_H
 
 #include <sys/types.h>
+/* FreeBSD's <sys/capsicum.h> brings <sys/param.h>; commands count on it
+ * for the limits (INT_MAX and the like). */
+#include <sys/param.h>
+#include <limits.h>
 #include <stdbool.h>
 #include <stdint.h>
 

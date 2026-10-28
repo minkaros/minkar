@@ -70,4 +70,4 @@ IOSTORAGE_HEADERS = IOAppleLabelScheme.h \
 #    target_sources(IOStorageFamilyUserHeaders PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/user_include/IOKit/storage/${file})
 #endforeach()
 
-.include <rvn.kext.mk>
+.include <minkar.kext.mk>

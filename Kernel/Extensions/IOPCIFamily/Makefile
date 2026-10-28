@@ -46,4 +46,4 @@ CFLAGS.IOPCIDevice.o = -include${.CURDIR}/iig_shims.h
 #	./PCIDriverKit/IOPCIDevice.iig
 #)
 
-.include <rvn.kext.mk>
+.include <minkar.kext.mk>

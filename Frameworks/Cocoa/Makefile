@@ -16,6 +16,6 @@ LDFLAGS+= -L${OBJTOP}/Frameworks/AppKit/AppKit.framework \
         -Wl,-R/System/Library/Frameworks/Foundation.framework/Versions/A \
         -Wl,-R/System/Library/Frameworks/CoreFoundation.framework/Versions/A 
 
-.include <rvn.framework.mk>
+.include <minkar.framework.mk>
 
 installresources: std_install_hook

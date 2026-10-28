@@ -28,4 +28,4 @@ copyheaders:
 	cp -f ${.CURDIR:H}/hfs/core/hfs_format.h \
 	  ${.CURDIR:H}/hfs/core/hfs_unistr.h ${.OBJDIR}/hfs/
 
-.include <rvn.kext.mk>
+.include <minkar.kext.mk>

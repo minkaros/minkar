@@ -1145,6 +1145,20 @@ cpuid_set_info(void)
 		info_p->core_count = 1;
 		info_p->thread_count = 1;
 		cpuid_set_cache_info(info_p);
+	} else if (0 != (info_p->cpuid_features & CPUID_FEATURE_VMM)) {
+		/*
+		 * Minkar: under a hypervisor, the counts CPUID reports. Not every
+		 * hypervisor has MSR_CORE_THREAD_COUNT (KVM nested in VMware
+		 * raises #GP), and this early the kernel's only trap handler
+		 * halts, so reading it would stop the boot without a word.
+		 */
+		cpuid_set_cache_info(info_p);
+		info_p->core_count   = info_p->cpuid_cores_per_package;
+		info_p->thread_count = info_p->cpuid_logical_per_package;
+		if (info_p->core_count == 0)
+			info_p->core_count = 1;
+		if (info_p->thread_count < info_p->core_count)
+			info_p->thread_count = info_p->core_count;
 	} else {
 		switch (info_p->cpuid_cpufamily) {
 		case CPUFAMILY_INTEL_PENRYN:

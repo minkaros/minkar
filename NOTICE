@@ -50,6 +50,7 @@ headers
 - OpenPAM (Libraries/OpenPAM/openpam/LICENSE)
 - OpenSSH (Libraries/OpenSSH/openssh/LICENCE)
 - xcbuild (Developer/Default.xctoolchain/xcbuild/LICENSE)
+- bmake, the system's make (BSD/usr.bin/make/dist/LICENSE)
 
 Cocotron - MIT (Frameworks/Foundation/LICENSE.txt,
 Frameworks/CoreServices/LICENSE.txt)
@@ -75,14 +76,26 @@ Other components
 - FreeType - FreeType License (Frameworks/Onyx2D/freetype/LICENSE.TXT)
 - fontconfig - MIT-style (Frameworks/CoreText/fontconfig/COPYING)
 - gettext-tiny - MIT (Frameworks/CoreText/gettext-tiny/LICENSE)
-- GNU libiconv - LGPL-2.1 (Frameworks/CoreText/libiconv/COPYING.LIB),
-  shipped as a dynamic library
+- Citrus iconv (FreeBSD main's lib/libc/iconv, lib/libiconv_modules and
+  share/i18n) - BSD-2-Clause (Libraries/libiconv)
 - XZ Utils / liblzma - 0BSD; other parts under other licenses
   (Frameworks/CoreText/xz/COPYING)
 - xkeyboard-config - MIT-style (Frameworks/AppKit/xkeyboard-config/COPYING)
 - libevdev, libinput, libxkbcommon, mtdev - MIT
   (CoreServices/WindowServer/*/COPYING, LICENSE)
 - Mozilla CA certificate bundle - MPL-2.0 (BSD/etc/ssl/cert.pem)
+- Unicode Character Database 16.0.0 - Unicode License v3
+  (BSD/share/locale/data/unicode/LICENSE), for the locales' LC_CTYPE
+- FreeBSD's locale definitions, from Unicode CLDR - Unicode License v3
+  (BSD/share/locale/data/*def), for LC_TIME, LC_MONETARY, LC_NUMERIC
+  and LC_MESSAGES
+- btop - Apache-2.0 (BSD/usr.bin/btop/dist/LICENSE), with {fmt} - MIT
+  (BSD/usr.bin/btop/dist/include/fmt/LICENSE.rst) and widecharwidth -
+  CC0-1.0 (BSD/usr.bin/btop/dist/include/widechar_width.hpp)
+- mandoc 1.14 (man, mandoc, apropos, whatis, makewhatis) - ISC
+  (BSD/usr.bin/mandoc/LICENSE)
+- IANA time zone database (tzdata and tzcode's zic, 2026e) - public domain
+  (BSD/share/zoneinfo/tzdata/LICENSE), for /usr/share/zoneinfo
 
 Present in the source tree but not built into the system image
 - GNU bash (GNU/bin/bash) - GPL-3.0
@@ -91,3 +104,17 @@ Present in the source tree but not built into the system image
 - GNU gperf (Frameworks/CoreText/gperf) - GPL-3.0
 - GNU make (Developer/Default.xctoolchain/gmake) - GPL-3.0, a build
   tool run on the build host
+
+Trademarks
+
+Apple, Mac, macOS and Darwin are trademarks of Apple Inc., registered in
+the U.S. and other countries. FreeBSD is a registered trademark of The
+FreeBSD Foundation. ravynOS is the name of the ravynOS project. Other
+names belong to their owners.
+
+Minkar is an independent project. It is not affiliated with, sponsored
+by or endorsed by Apple Inc., the ravynOS project or The FreeBSD
+Foundation. Their names appear in Minkar only to credit the code that
+comes from them, and where software looks them up for compatibility:
+the names of Apple's open source components (such as AppleAPIC or
+IOPCIFamily) and identifiers such as com.apple.* bundle identifiers.

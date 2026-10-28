@@ -65,7 +65,7 @@
 #include <errno.h>
 #include <locale.h>
 #ifdef __APPLE__
-#include "kvm_darwin.h"
+#include <kvm_darwin.h>
 #else
 #include <jail.h>
 #endif

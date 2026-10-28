@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1990, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -13,11 +15,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -36,30 +34,20 @@
  * $xMach: xargs.c,v 1.6 2002/02/23 05:27:47 tim Exp $
  */
 
-#if 0
-#ifndef lint
-static const char copyright[] =
-"@(#) Copyright (c) 1990, 1993\n\
-	The Regents of the University of California.  All rights reserved.\n";
-#endif /* not lint */
-
-#ifndef lint
-static char sccsid[] = "@(#)xargs.c	8.1 (Berkeley) 6/6/93";
-#endif /* not lint */
-#endif
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD: src/usr.bin/xargs/xargs.c,v 1.57 2005/02/27 02:01:31 gad Exp $");
-
-#include <sys/param.h>
+#include <sys/types.h>
 #include <sys/wait.h>
-
+#include <sys/time.h>
+#include <sys/limits.h>
+#include <sys/resource.h>
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <getopt.h>
 #include <langinfo.h>
 #include <locale.h>
 #include <paths.h>
 #include <regex.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -67,48 +55,67 @@ __FBSDID("$FreeBSD: src/usr.bin/xargs/xargs.c,v 1.57 2005/02/27 02:01:31 gad Exp
 
 #include "pathnames.h"
 
-#ifdef __APPLE__
-#include <get_compat.h>
-#else
-#define COMPAT_MODE(a,b) (1)
-#endif /* __APPLE__ */
-
 static void	parse_input(int, char *[]);
 static void	prerun(int, char *[]);
 static int	prompt(void);
 static void	run(char **);
 static void	usage(void);
-void		strnsubst(char **, const char *, const char *, size_t);
+bool		strnsubst(char **, const char *, const char *, size_t);
+static pid_t	xwait(int block, int *status);
+static void	xexit(const char *, const int);
 static void	waitchildren(const char *, int);
-
-static int last_was_newline = 1;
-static int last_was_blank = 0;
+static void	pids_init(void);
+static int	pids_empty(void);
+static int	pids_full(void);
+static void	pids_add(pid_t pid);
+static int	pids_remove(pid_t pid);
+static int	findslot(pid_t pid);
+static int	findfreeslot(void);
+static void	clearslot(int slot);
 
 static char echo[] = _PATH_ECHO;
 static char **av, **bxp, **ep, **endxp, **xp;
 static char *argp, *bbp, *ebp, *inpline, *p, *replstr;
 static const char *eofstr;
+static long eoflen;
 static int count, insingle, indouble, oflag, pflag, tflag, Rflag, rval, zflag;
-static int cnt, Iflag, jfound, Lflag, wasquoted, xflag;
+static int cnt, Iflag, jfound, Lflag, Sflag, wasquoted, xflag;
 static int curprocs, maxprocs;
-static size_t pad9314053;
+static pid_t *childpids;
 
 static volatile int childerr;
 
 extern char **environ;
 
+static const char *optstr = "+0E:I:J:L:n:oP:pR:S:s:rtx";
+
+static const struct option long_options[] =
+{
+	{"exit",		no_argument,		NULL,	'x'},
+	{"interactive",		no_argument,		NULL,	'p'},
+	{"max-args",		required_argument,	NULL,	'n'},
+	{"max-chars",		required_argument,	NULL,	's'},
+	{"max-procs",		required_argument,	NULL,	'P'},
+	{"no-run-if-empty",	no_argument,		NULL,	'r'},
+	{"null",		no_argument,		NULL,	'0'},
+	{"verbose",		no_argument,		NULL,	't'},
+
+	{NULL,			no_argument,		NULL,	0},
+};
+
 int
 main(int argc, char *argv[])
 {
 	long arg_max;
-	int ch, Jflag, nflag, nline;
-	size_t nargs;
+	int ch, Jflag, nargs, nflag, nline;
 	size_t linelen;
-	char *endptr;
+	struct rlimit rl;
+	const char *errstr;
 
 	inpline = replstr = NULL;
 	ep = environ;
 	eofstr = "";
+	eoflen = 0;
 	Jflag = nflag = 0;
 
 	(void)setlocale(LC_ALL, "");
@@ -129,18 +136,17 @@ main(int argc, char *argv[])
 	nargs = 5000;
 	if ((arg_max = sysconf(_SC_ARG_MAX)) == -1)
 		errx(1, "sysconf(_SC_ARG_MAX) failed");
-	nline = arg_max - MAXPATHLEN; /* for argv[0] from execvp() */
-	pad9314053 = sizeof(char *); /* reserve for string area rounding */
+	nline = arg_max - 4 * 1024;
 	while (*ep != NULL) {
 		/* 1 byte for each '\0' */
 		nline -= strlen(*ep++) + 1 + sizeof(*ep);
 	}
-	nline -= pad9314053;
 	maxprocs = 1;
-	while ((ch = getopt(argc, argv, "0E:I:J:L:n:oP:pR:s:tx")) != -1)
-		switch(ch) {
+	while ((ch = getopt_long(argc, argv, optstr, long_options, NULL)) != -1)
+		switch (ch) {
 		case 'E':
 			eofstr = optarg;
+			eoflen = strlen(eofstr);
 			break;
 		case 'I':
 			Jflag = 0;
@@ -154,38 +160,50 @@ main(int argc, char *argv[])
 			replstr = optarg;
 			break;
 		case 'L':
-			Lflag = atoi(optarg);
-			if (COMPAT_MODE("bin/xargs", "Unix2003")) {
-				nflag = 0; /* Override */
-				nargs = 5000;
-			}
+			Lflag = (int)strtonum(optarg, 1, INT_MAX, &errstr);
+			if (errstr)
+				errx(1, "-%c %s: %s", ch, optarg, errstr);
 			break;
 		case 'n':
 			nflag = 1;
-			if ((nargs = strtol(optarg, NULL, 10)) <= 0)
-				errx(1, "illegal argument count");
-			if (COMPAT_MODE("bin/xargs", "Unix2003")) {
-				Lflag = 0; /* Override */
-			}
+			nargs = (int)strtonum(optarg, 1, arg_max, &errstr);
+			if (errstr)
+				errx(1, "-%c %s: %s", ch, optarg, errstr);
 			break;
 		case 'o':
 			oflag = 1;
 			break;
 		case 'P':
-			if ((maxprocs = atoi(optarg)) <= 0)
-				errx(1, "max. processes must be >0");
+			maxprocs = (int)strtonum(optarg, 0, INT_MAX, &errstr);
+			if (errstr)
+				errx(1, "-%c %s: %s", ch, optarg, errstr);
+			if (getrlimit(RLIMIT_NPROC, &rl) != 0)
+				errx(1, "getrlimit failed");
+			if (maxprocs == 0 || maxprocs > rl.rlim_cur)
+				maxprocs = rl.rlim_cur;
 			break;
 		case 'p':
 			pflag = 1;
 			break;
 		case 'R':
-			Rflag = strtol(optarg, &endptr, 10);
-			if (*endptr != '\0')
-				errx(1, "replacements must be a number");
+			Rflag = (int)strtonum(optarg, INT_MIN, INT_MAX, &errstr);
+			if (errstr)
+				errx(1, "-%c %s: %s", ch, optarg, errstr);
+			if (!Rflag)
+				errx(1, "-%c %s: %s", ch, optarg, "must be non-zero");
+			break;
+		case 'r':
+			/* GNU compatibility */
+			break;
+		case 'S':
+			Sflag = (int)strtonum(optarg, 0, INT_MAX, &errstr);
+			if (errstr)
+				errx(1, "-%c %s: %s", ch, optarg, errstr);
 			break;
 		case 's':
-			nline = atoi(optarg);
-			pad9314053 = 0; /* assume the -s value is valid */
+			nline = (int)strtonum(optarg, 0, INT_MAX, &errstr);
+			if (errstr)
+				errx(1, "-%c %s: %s", ch, optarg, errstr);
 			break;
 		case 't':
 			tflag = 1;
@@ -205,8 +223,12 @@ main(int argc, char *argv[])
 
 	if (!Iflag && Rflag)
 		usage();
+	if (!Iflag && Sflag)
+		usage();
 	if (Iflag && !Rflag)
 		Rflag = 5;
+	if (Iflag && !Sflag)
+		Sflag = 255;
 	if (xflag && !nflag)
 		usage();
 	if (Iflag || Lflag)
@@ -214,13 +236,15 @@ main(int argc, char *argv[])
 	if (replstr != NULL && *replstr == '\0')
 		errx(1, "replstr may not be empty");
 
+	pids_init();
+
 	/*
 	 * Allocate pointers for the utility name, the utility arguments,
 	 * the maximum arguments to be read from stdin and the trailing
 	 * NULL.
 	 */
-	linelen = 1 + argc + nargs + 1;
-	if ((av = bxp = malloc(linelen * sizeof(char **))) == NULL)
+	linelen = 1 + argc + (size_t)nargs + 1;
+	if ((av = bxp = malloc(linelen * sizeof(char *))) == NULL)
 		errx(1, "malloc failed");
 
 	/*
@@ -229,7 +253,7 @@ main(int argc, char *argv[])
 	 * arguments.
 	 */
 	if (*argv == NULL)
-		cnt = strlen(*bxp++ = echo) + pad9314053;
+		cnt = strlen(*bxp++ = echo);
 	else {
 		do {
 			if (Jflag && strcmp(*argv, replstr) == 0) {
@@ -237,10 +261,10 @@ main(int argc, char *argv[])
 				jfound = 1;
 				argv++;
 				for (avj = argv; *avj; avj++)
-					cnt += strlen(*avj) + 1 + pad9314053;
+					cnt += strlen(*avj) + 1;
 				break;
 			}
-			cnt += strlen(*bxp++ = *argv) + 1 + pad9314053;
+			cnt += strlen(*bxp++ = *argv) + 1;
 		} while (*++argv != NULL);
 	}
 
@@ -275,20 +299,18 @@ parse_input(int argc, char *argv[])
 {
 	int ch, foundeof;
 	char **avj;
-	int last_was_backslashed = 0;
 
 	foundeof = 0;
 
-	switch(ch = getchar()) {
+	switch (ch = getchar()) {
 	case EOF:
 		/* No arguments since last exec. */
 		if (p == bbp) {
-			waitchildren(*argv, 1);
+			waitchildren(*av, 1);
 			exit(rval);
 		}
 		goto arg1;
 	case ' ':
-		last_was_blank = 1;
 	case '\t':
 		/* Quotes escape tabs and spaces. */
 		if (insingle || indouble || zflag)
@@ -308,39 +330,16 @@ parse_input(int argc, char *argv[])
 	case '\n':
 		if (zflag)
 			goto addch;
-		if (COMPAT_MODE("bin/xargs", "Unix2003")) {
-			if (last_was_newline) {
-				/* don't count empty line */
-				break;
-			}
-			if (!last_was_blank ) {
-				/* only count if NOT continuation line */
-				count++;
-			} 
-		} else {
-			count++;
-		}
-		last_was_newline = 1;
+		count++;	    /* Indicate end-of-line (used by -L) */
 
 		/* Quotes do not escape newlines. */
-arg1:		if (insingle || indouble)
-			errx(1, "unterminated quote");
-arg2:
-		foundeof = *eofstr != '\0' &&
-		    strcmp(argp, eofstr) == 0;
-
-#ifdef __APPLE__
-		/* 6591323: -I specifies that it processes the entire line,
-		 * so only recognize eofstr at the end of a line. */
-		if (Iflag && !last_was_newline)
-			foundeof = 0;
-
-		/* 6591323: Essentially the same as the EOF handling above. */
-		if (foundeof && (p - strlen(eofstr) == bbp)) {
-			waitchildren(*argv, 1);
-			exit(rval);
+arg1:		if (insingle || indouble) {
+			warnx("unterminated quote");
+			xexit(*av, 1);
 		}
-#endif
+arg2:
+		foundeof = eoflen != 0 && p - argp == eoflen &&
+		    strncmp(argp, eofstr, eoflen) == 0;
 
 		/* Do not make empty args unless they are quoted */
 		if ((argp != p || wasquoted) && !foundeof) {
@@ -370,8 +369,10 @@ arg2:
 				 */
 				inpline = realloc(inpline, curlen + 2 +
 				    strlen(argp));
-				if (inpline == NULL)
-					errx(1, "realloc failed");
+				if (inpline == NULL) {
+					warnx("realloc failed");
+					xexit(*av, 1);
+				}
 				if (curlen == 1)
 					strcpy(inpline, argp);
 				else
@@ -386,17 +387,19 @@ arg2:
 		 * of input lines, as specified by -L is the same as
 		 * maxing out on arguments.
 		 */
-		if (xp == endxp || p + (count * pad9314053) > ebp || ch == EOF ||
+		if (xp == endxp || p > ebp || ch == EOF ||
 		    (Lflag <= count && xflag) || foundeof) {
-			if (xflag && xp != endxp && p + (count * pad9314053) > ebp)
-				errx(1, "insufficient space for arguments");
+			if (xflag && xp != endxp && p > ebp) {
+				warnx("insufficient space for arguments");
+				xexit(*av, 1);
+			}
 			if (jfound) {
 				for (avj = argv; *avj; avj++)
 					*xp++ = *avj;
 			}
 			prerun(argc, av);
 			if (ch == EOF || foundeof) {
-				waitchildren(*argv, 1);
+				waitchildren(*av, 1);
 				exit(rval);
 			}
 			p = bbp;
@@ -419,12 +422,13 @@ arg2:
 		wasquoted = 1;
 		break;
 	case '\\':
-		last_was_backslashed = 1;
 		if (zflag)
 			goto addch;
 		/* Backslash escapes anything, is escaped by quotes. */
-		if (!insingle && !indouble && (ch = getchar()) == EOF)
-			errx(1, "backslash at EOF");
+		if (!insingle && !indouble && (ch = getchar()) == EOF) {
+			warnx("backslash at EOF");
+			xexit(*av, 1);
+		}
 		/* FALLTHROUGH */
 	default:
 addch:		if (p < ebp) {
@@ -433,11 +437,15 @@ addch:		if (p < ebp) {
 		}
 
 		/* If only one argument, not enough buffer space. */
-		if (bxp == xp)
-			errx(1, "insufficient space for argument");
+		if (bxp == xp) {
+			warnx("insufficient space for argument");
+			xexit(*av, 1);
+		}
 		/* Didn't hit argument limit, so if xflag object. */
-		if (xflag)
-			errx(1, "insufficient space for arguments");
+		if (xflag) {
+			warnx("insufficient space for arguments");
+			xexit(*av, 1);
+		}
 
 		if (jfound) {
 			for (avj = argv; *avj; avj++)
@@ -451,10 +459,6 @@ addch:		if (p < ebp) {
 		*p++ = ch;
 		break;
 	}
-	if (ch != ' ')
-		last_was_blank = 0;
-	if (ch != '\n' || last_was_backslashed)
-		last_was_newline = 0;
 }
 
 /*
@@ -481,17 +485,21 @@ prerun(int argc, char *argv[])
 	 * Allocate memory to hold the argument list, and
 	 * a NULL at the tail.
 	 */
-	tmp = malloc((argc + 1) * sizeof(char**));
-	if (tmp == NULL)
-		errx(1, "malloc failed");
+	tmp = malloc((argc + 1) * sizeof(char *));
+	if (tmp == NULL) {
+		warnx("malloc failed");
+		xexit(*argv, 1);
+	}
 	tmp2 = tmp;
 
 	/*
 	 * Save the first argument and iterate over it, we
 	 * cannot do strnsubst() to it.
 	 */
-	if ((*tmp++ = strdup(*avj++)) == NULL)
-		errx(1, "strdup failed");
+	if ((*tmp++ = strdup(*avj++)) == NULL) {
+		warnx("strdup failed");
+		xexit(*argv, 1);
+	}
 
 	/*
 	 * For each argument to utility, if we have not used up
@@ -504,12 +512,17 @@ prerun(int argc, char *argv[])
 	while (--argc) {
 		*tmp = *avj++;
 		if (repls && strstr(*tmp, replstr) != NULL) {
-			strnsubst(tmp++, replstr, inpline, (size_t)255);
+			if (strnsubst(tmp++, replstr, inpline, (size_t)Sflag)) {
+				warnx("command line cannot be assembled, too long");
+				xexit(*argv, 1);
+			}
 			if (repls > 0)
 				repls--;
 		} else {
-			if ((*tmp = strdup(*tmp)) == NULL)
-				errx(1, "strdup failed");
+			if ((*tmp = strdup(*tmp)) == NULL) {
+				warnx("strdup failed");
+				xexit(*argv, 1);
+			}
 			tmp++;
 		}
 	}
@@ -578,9 +591,10 @@ run(char **argv)
 	}
 exec:
 	childerr = 0;
-	switch(pid = vfork()) {
+	switch (pid = vfork()) {
 	case -1:
-		err(1, "vfork");
+		warn("vfork");
+		xexit(*argv, 1);
 	case 0:
 		if (oflag) {
 			if ((fd = open(_PATH_TTY, O_RDONLY)) == -1)
@@ -597,8 +611,38 @@ exec:
 		childerr = errno;
 		_exit(1);
 	}
-	curprocs++;
+	pids_add(pid);
 	waitchildren(*argv, 0);
+}
+
+/*
+ * Wait for a tracked child to exit and return its pid and exit status.
+ *
+ * Ignores (discards) all untracked child processes.
+ * Returns -1 and sets errno to ECHILD if no tracked children exist.
+ * If block is set, waits indefinitely for a child process to exit.
+ * If block is not set and no children have exited, returns 0 immediately.
+ */
+static pid_t
+xwait(int block, int *status) {
+	pid_t pid;
+
+	if (pids_empty()) {
+		errno = ECHILD;
+		return (-1);
+	}
+
+	while ((pid = waitpid(-1, status, block ? 0 : WNOHANG)) > 0)
+		if (pids_remove(pid))
+			break;
+
+	return (pid);
+}
+
+static void
+xexit(const char *name, const int exit_code) {
+	waitchildren(name, 1);
+	exit(exit_code);
 }
 
 static void
@@ -606,26 +650,117 @@ waitchildren(const char *name, int waitall)
 {
 	pid_t pid;
 	int status;
+	int cause_exit = 0;
 
-	while ((pid = waitpid(-1, &status, !waitall && curprocs < maxprocs ?
-	    WNOHANG : 0)) > 0) {
-		curprocs--;
-		/* If we couldn't invoke the utility, exit. */
-		if (childerr != 0) {
-			errno = childerr;
-			err(errno == ENOENT ? 127 : 126, "%s", name);
-		}
+	while ((pid = xwait(waitall || pids_full(), &status)) > 0) {
 		/*
-		 * If utility signaled or exited with a value of 255,
-		 * exit 1-125.
+		 * If we couldn't invoke the utility or if utility exited
+		 * because of a signal or with a value of 255, warn (per
+		 * POSIX), and then wait until all other children have
+		 * exited before exiting 1-125. POSIX requires us to stop
+		 * reading if child exits because of a signal or with 255,
+		 * but it does not require us to exit immediately; waiting
+		 * is preferable to orphaning.
 		 */
-		if (WIFSIGNALED(status) || WEXITSTATUS(status) == 255)
-			exit(1);
-		if (WEXITSTATUS(status))
-			rval = 1;
+		if (childerr != 0 && cause_exit == 0) {
+			errno = childerr;
+			waitall = 1;
+			cause_exit = errno == ENOENT ? 127 : 126;
+			warn("%s", name);
+		} else if (WIFSIGNALED(status)) {
+			waitall = cause_exit = 1;
+			warnx("%s: terminated with signal %d; aborting",
+			    name, WTERMSIG(status));
+		} else if (WEXITSTATUS(status) == 255) {
+			waitall = cause_exit = 1;
+			warnx("%s: exited with status 255; aborting", name);
+		} else if (WEXITSTATUS(status))
+ 			rval = 1;
 	}
+
+ 	if (cause_exit)
+		exit(cause_exit);
 	if (pid == -1 && errno != ECHILD)
-		err(1, "wait3");
+		err(1, "waitpid");
+}
+
+#define	NOPID	(0)
+
+static void
+pids_init(void)
+{
+	int i;
+
+	if ((childpids = malloc(maxprocs * sizeof(*childpids))) == NULL)
+		errx(1, "malloc failed");
+
+	for (i = 0; i < maxprocs; i++)
+		clearslot(i);
+}
+
+static int
+pids_empty(void)
+{
+
+	return (curprocs == 0);
+}
+
+static int
+pids_full(void)
+{
+
+	return (curprocs >= maxprocs);
+}
+
+static void
+pids_add(pid_t pid)
+{
+	int slot;
+
+	slot = findfreeslot();
+	childpids[slot] = pid;
+	curprocs++;
+}
+
+static int
+pids_remove(pid_t pid)
+{
+	int slot;
+
+	if ((slot = findslot(pid)) < 0)
+		return (0);
+
+	clearslot(slot);
+	curprocs--;
+	return (1);
+}
+
+static int
+findfreeslot(void)
+{
+	int slot;
+
+	if ((slot = findslot(NOPID)) < 0)
+		errx(1, "internal error: no free pid slot");
+	return (slot);
+}
+
+static int
+findslot(pid_t pid)
+{
+	int slot;
+
+	for (slot = 0; slot < maxprocs; slot++)
+		if (childpids[slot] == pid)
+			return (slot);
+	return (-1);
+}
+
+static void
+clearslot(int slot)
+{
+
+	childpids[slot] = NOPID;
 }
 
 /*
@@ -635,21 +770,22 @@ static int
 prompt(void)
 {
 	regex_t cre;
-	size_t rsize;
+	size_t rsize = 0;
 	int match;
-	char *response;
+	char *response = NULL;
 	FILE *ttyfp;
 
 	if ((ttyfp = fopen(_PATH_TTY, "r")) == NULL)
 		return (2);	/* Indicate that the TTY failed to open. */
 	(void)fprintf(stderr, "?...");
 	(void)fflush(stderr);
-	if ((response = fgetln(ttyfp, &rsize)) == NULL ||
-	    regcomp(&cre, nl_langinfo(YESEXPR), REG_BASIC) != 0) {
+	if (getline(&response, &rsize, ttyfp) < 0 ||
+	    regcomp(&cre, nl_langinfo(YESEXPR), REG_EXTENDED) != 0) {
 		(void)fclose(ttyfp);
 		return (0);
 	}
 	match = regexec(&cre, response, 0, NULL, 0);
+	free(response);
 	(void)fclose(ttyfp);
 	regfree(&cre);
 	return (match == 0);
@@ -658,9 +794,10 @@ prompt(void)
 static void
 usage(void)
 {
+
 	fprintf(stderr,
-"usage: xargs [-0opt] [-E eofstr] [-I replstr [-R replacements]] [-J replstr]\n"
-"             [-L number] [-n number [-x]] [-P maxprocs] [-s size]\n"
-"             [utility [argument ...]]\n");
+"usage: xargs [-0opt] [-E eofstr] [-I replstr [-R replacements] [-S replsize]]\n"
+"             [-J replstr] [-L number] [-n number [-x]] [-P maxprocs]\n"
+"             [-s size] [utility [argument ...]]\n");
 	exit(1);
 }

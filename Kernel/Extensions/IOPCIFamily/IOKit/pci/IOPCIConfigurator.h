@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2004-2005 Apple Computer, Inc. All rights reserved.
+ * Modifications Copyright (c) 2026 The Minkar contributors
  *
  * @APPLE_LICENSE_HEADER_START@
  * 
@@ -391,7 +392,11 @@ protected:
 
     void    applyConfiguration(IOPCIConfigEntry * device, uint32_t typeMask, bool dolog);
     void    deviceApplyConfiguration(IOPCIConfigEntry * device, uint32_t typeMask, bool dolog);
+    bool    deviceBarsUnchanged(IOPCIConfigEntry * device, uint32_t typeMask);
     void    bridgeApplyConfiguration(IOPCIConfigEntry * bridge, uint32_t typeMask, bool dolog);
+    bool    keepFirmwareWindow(IOPCIConfigEntry * bridge, const char * name,
+                               uint64_t hwBase, uint64_t hwLimit,
+                               uint64_t start, uint64_t end);
     uint16_t disableAccess(IOPCIConfigEntry * device, bool disable);
     void    restoreAccess(IOPCIConfigEntry * device, UInt16 command);
     void    bridgeAddChild(IOPCIConfigEntry * bridge, IOPCIConfigEntry * child);

@@ -96,7 +96,7 @@ public:
      * here to get at IOUSBDevice's protected fields. */
     IOUSBDevice *CreateAndConfigureDevice(USBDeviceAddress address, UInt8 speed, UInt8 maxPacketSize0);
 
-    /* UIM interface: the concrete controller (RavynXHCIUSBBus, etc)
+    /* UIM interface: the concrete controller (MinkarXHCIUSBBus, etc)
      * implements these against whatever ring/slot logic it already has.
      * Named UIM* to match Apple's naming convention, but the signatures
      * here are ours - synchronous, no DMA-command/command-gate plumbing. */

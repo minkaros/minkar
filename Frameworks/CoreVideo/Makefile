@@ -6,5 +6,5 @@ RESOURCES=Info.plist
 CFLAGS+= ${FMWK_CFLAGS} -F../OpenGL -framework OpenGL -I${.CURDIR}/.. \
 	-I../libobjc2 -I../Foundation/Headers
 
-.include <rvn.framework.mk>
+.include <minkar.framework.mk>
 

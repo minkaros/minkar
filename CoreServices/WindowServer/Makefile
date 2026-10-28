@@ -50,4 +50,4 @@ CFLAGS += -fobjc-arc -g -pthread -D__WSRPC -std=gnu17 \
 # libxkbcommon is built first by ../Makefile (static).
 LDFLAGS += -pthread -lobjc -L${.OBJDIR}/libxkbcommon -lxkbcommon
 
-.include <rvn.app.mk>
+.include <minkar.app.mk>

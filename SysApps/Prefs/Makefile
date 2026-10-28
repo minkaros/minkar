@@ -30,4 +30,4 @@ build: clean makedirs obj all
 	mv -f ${APP_DIR}/Contents/MacOS/${APP} "${APP_DIR}/Contents/MacOS/${APP:S/_/ /}"
 	mv -f ${APP_DIR} "${APP_DIR:S/_/ /}"
 
-.include <rvn.app.mk>
+.include <minkar.app.mk>

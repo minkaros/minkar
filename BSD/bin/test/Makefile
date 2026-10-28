@@ -1,12 +1,10 @@
-# test and [ (FreeBSD, BSD-3). sh has them built in; these are for exec.
-
 SUBDIR =
-MK_WERROR = no
+PROG=	test
+
 MAN =
-PROG =	test
-CFLAGS = --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
-	-Wno-nullability-completeness
-LDFLAGS = --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} -fuse-ld=${LD}
+MK_WERROR = no
+CFLAGS += -I${ROOT_SOURCE_DIR}/BSD/lib/libbsdcompat/include -include bsdcompat.h 
+LDADD += -L${ROOT_BINARY_DIR}${ROOT_SOURCE_DIR}/BSD/lib/libbsdcompat -lbsdcompat 
 
 all: to-sysroot
 

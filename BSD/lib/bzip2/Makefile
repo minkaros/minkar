@@ -33,12 +33,23 @@ PROG_LDFLAGS = --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_M
         -fuse-ld=${LD} -L${.OBJDIR} -lbz2
 
 SUBDIR =
-MAN = src/bzip2.1
-MLINKS = src/bzip2.1 bunzip2.1 bzcat.1 bzip2recover.1
-MLINKS += src/bzdiff.1 bzcmp.1
-MLINKS += src/bzmore.1 bzless.1
+MAN =
 
-all: lib${LIB}.dylib bzip2 bzip2recover bzdiff bzmore
+all: lib${LIB}.dylib bzip2 bzip2recover bzdiff bzmore man-pages
+
+# bzip2(1) is also bunzip2, bzcat and bzip2recover; bzdiff(1) bzcmp;
+# bzmore(1) bzless. (bzgrep is zgrep, with zgrep(1).)
+MAN1DIR = ${SYSROOT_DIR}/usr/share/man/man1
+man-pages: .PHONY
+	mkdir -p ${MAN1DIR}
+.for p in bzip2 bzdiff bzmore
+	install -m 0444 ${.CURDIR}/src/${p}.1 ${MAN1DIR}/
+.endfor
+.for l in bunzip2 bzcat bzip2recover
+	ln -f ${MAN1DIR}/bzip2.1 ${MAN1DIR}/${l}.1
+.endfor
+	ln -f ${MAN1DIR}/bzdiff.1 ${MAN1DIR}/bzcmp.1
+	ln -f ${MAN1DIR}/bzmore.1 ${MAN1DIR}/bzless.1
 
 bzip2: ${.CURDIR}/src/bzip2.c lib${LIB}.dylib
 	mkdir -p ${SYSROOT_DIR}/usr/bin

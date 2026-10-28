@@ -54,5 +54,5 @@ copyheaders:
 
 SUBDIR =
 
-.include <rvn.kext.mk>
+.include <minkar.kext.mk>
 .include <bsd.subdir.mk>

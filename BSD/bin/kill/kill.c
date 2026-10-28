@@ -45,8 +45,8 @@
 #ifdef SHELL
 #define main killcmd
 #include "bltin/bltin.h"
-#include "shims.h"	/* Minkar: sig2str, str2sig */
 #endif
+#include "shims.h"	/* Minkar: sig2str, str2sig, also for /bin/kill */
 
 static void nosig(const char *);
 static void printsignals(FILE *);

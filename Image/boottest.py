@@ -130,17 +130,37 @@ PANIC_REPORT = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 't
 ANSI = re.compile(rb'\x1b\[[0-9;?]*[A-Za-z]|\x1b[()][A-Z0-9]|\r')
 
 
+def accel(args):
+    # KVM when the host has it and we may open it, else TCG (as in CI).
+    if args.accel != 'auto':
+        return args.accel
+    return 'kvm' if os.access('/dev/kvm', os.R_OK | os.W_OK) else 'tcg'
+
+
 def qemu_command(args, vars_copy):
+    # Disks before the image (--extra-disk) take the first AHCI ports, as
+    # other operating systems' disks do on a PC: the firmware finds their
+    # EFI partitions first.
+    disks = []
+    for i, extra in enumerate(args.extra_disk or []):
+        disks += ['-drive', 'if=none,id=extra%d,format=raw,snapshot=on,file=%s' % (i, extra),
+                  '-device', 'ide-hd,drive=extra%d,bus=ahci.%d' % (i, i)]
+    port = len(args.extra_disk or [])
     return [
-        args.qemu, '-machine', 'q35', '-cpu', args.cpu,
+        args.qemu, '-machine', 'q35', '-accel', accel(args), '-cpu', args.cpu,
         '-smp', str(args.smp), '-m', str(args.memory),
         '-drive', 'if=pflash,format=raw,readonly=on,file=%s' % args.ovmf_code,
         '-drive', 'if=pflash,format=raw,file=%s' % vars_copy,
+        '-device', 'ahci,id=ahci',
+    ] + disks + [
         # The image is never written: tests start from the same state.
         '-drive', 'if=none,id=disk,format=raw,snapshot=on,file=%s' % args.image,
-        '-device', 'ahci,id=ahci', '-device', 'ide-hd,drive=disk,bus=ahci.0',
-        # The loader needs EFI_RNG_PROTOCOL; without entropy the kernel panics.
+        '-device', 'ide-hd,drive=disk,bus=ahci.%d' % port,
+    ] + ([] if args.no_rng else [
+        # Firmware RNG for the loader; --no-rng leaves it out, as on PCs
+        # whose firmware has none (the loader then uses RDRAND).
         '-device', 'virtio-rng-pci',
+    ]) + [
         # User-mode network (DHCP from QEMU at 10.0.2.2); the guest's ssh
         # port is forwarded to the host's --ssh-port.
         '-netdev', 'user,id=net0,hostfwd=tcp:127.0.0.1:%d-:22' % args.ssh_port,
@@ -383,6 +403,17 @@ def main(argv=None):
     # Not "max": under TCG it reports an AMD family the kernel panics on.
     # Westmere is fully emulated by TCG (SSE4.2, POPCNT, no AVX).
     p.add_argument('--cpu', default='Westmere')
+    # TCG by default: on CI runners /dev/kvm opens too, and the kernel
+    # does not boot under their KVM yet (it does under KVM nested in
+    # VMware); ask for kvm or auto where it is known to work.
+    p.add_argument('--accel', default=os.environ.get('BOOTTEST_ACCEL', 'tcg'),
+                   choices=['auto', 'kvm', 'tcg'],
+                   help='kvm, tcg, or auto: kvm when /dev/kvm can be opened '
+                        '(default: $BOOTTEST_ACCEL or tcg)')
+    p.add_argument('--extra-disk', action='append',
+                   help='raw disk attached before the image (repeatable)')
+    p.add_argument('--no-rng', action='store_true',
+                   help='no virtio-rng: firmware without EFI_RNG_PROTOCOL')
     p.add_argument('--smp', type=int, default=2)
     p.add_argument('--memory', type=int, default=4096, help='MiB')
     p.add_argument('--ssh-key', default=os.environ.get('BOOTTEST_SSH_KEY'),

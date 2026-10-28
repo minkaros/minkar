@@ -18,5 +18,5 @@ fmwk-install-hook:
 
 #SUBDIR = LaunchServices
 
-.include <rvn.framework.mk>
+.include <minkar.framework.mk>
 .include <bsd.subdir.mk>

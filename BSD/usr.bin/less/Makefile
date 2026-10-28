@@ -24,5 +24,8 @@ to-sysroot: ${PROG}
 	mkdir -p ${SYSROOT_DIR}/usr/bin
 	install -m 0555 ${PROG} ${SYSROOT_DIR}/usr/bin/
 	ln -f ${SYSROOT_DIR}/usr/bin/less ${SYSROOT_DIR}/usr/bin/more
+	mkdir -p ${SYSROOT_DIR}/usr/share/man/man1
+	install -m 0444 ${.CURDIR}/less.nro ${SYSROOT_DIR}/usr/share/man/man1/less.1
+	ln -f ${SYSROOT_DIR}/usr/share/man/man1/less.1 ${SYSROOT_DIR}/usr/share/man/man1/more.1
 
 .include <bsd.prog.mk>

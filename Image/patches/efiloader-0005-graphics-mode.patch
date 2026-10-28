@@ -1,0 +1,207 @@
+--- a/MdeModulePkg/Application/Loader/Loader.inf
++++ b/MdeModulePkg/Application/Loader/Loader.inf
+@@ -37,6 +37,8 @@
+ [Protocols]
+   gEfiLoadedImageProtocolGuid                   ## CONSUMES
+   gEfiSimpleFileSystemProtocolGuid              ## CONSUMES
++  gEfiEdidActiveProtocolGuid                    ## SOMETIMES_CONSUMES
++  gEfiEdidDiscoveredProtocolGuid                ## SOMETIMES_CONSUMES
+ 
+ [FeaturePcd]
+   gEfiMdeModulePkgTokenSpaceGuid.PcdHelloWorldPrintEnable   ## CONSUMES
+--- a/MdeModulePkg/Application/Loader/config.c
++++ b/MdeModulePkg/Application/Loader/config.c
+@@ -77,6 +77,8 @@
+         CopyValue(gBootConfig.KernelPath, sizeof(gBootConfig.KernelPath), val, valLen);
+     } else if(isString && KeyMatch(key, keyLen, "boot-uuid")) {
+         CopyValue(gBootConfig.BootUUID, sizeof(gBootConfig.BootUUID), val, valLen);
++    } else if(isString && KeyMatch(key, keyLen, "graphics-mode")) {
++        CopyValue(gBootConfig.GraphicsMode, sizeof(gBootConfig.GraphicsMode), val, valLen);
+     } else if(isString && KeyMatch(key, keyLen, "platform-uuid")) {
+         CopyValue(gBootConfig.PlatformUUID, sizeof(gBootConfig.PlatformUUID), val, valLen);
+     } else if(!isString && KeyMatch(key, keyLen, "loader-pause")) {
+--- a/MdeModulePkg/Application/Loader/config.h
++++ b/MdeModulePkg/Application/Loader/config.h
+@@ -40,6 +40,7 @@
+     CHAR8   BootUUID[40];       // "boot-uuid" -> boot file system UUID
+     UINT32  CsrActiveConfig;    // "csr-active-config"  -> BOOT_ARGS.csrActiveConfig
+     UINT32  LoaderPause;        // "loader-pause" -> seconds to show the loader's output
++    CHAR8   GraphicsMode[16];   // "graphics-mode" -> "WIDTHxHEIGHT" or "max"; empty: the firmware's
+ } BOOT_CONFIG;
+ 
+ extern BOOT_CONFIG gBootConfig;
+--- a/MdeModulePkg/Application/Loader/loader.c
++++ b/MdeModulePkg/Application/Loader/loader.c
+@@ -23,6 +23,8 @@
+  */
+ 
+ #include "loader.h"
++#include <Protocol/EdidActive.h>
++#include <Protocol/EdidDiscovered.h>
+ #include "config.h"
+ #include "lzvn_decode.h"
+ #include <mach-o/fat.h>
+@@ -53,20 +55,152 @@
+ STATIC UINT64 gFbBase, gFbSize;
+ STATIC UINT32 gFbStride, gFbWidth, gFbHeight;
+ 
++/*
++ * Minkar: the graphics mode the kernel gets, from "graphics-mode" in the
++ * boot plist: "native" for the display's own resolution (its EDID's
++ * preferred timing), "WIDTHxHEIGHT" for that mode (or the largest one that
++ * fits in it), "max" for the native mode or else the largest the card
++ * offers. Without it the mode the firmware set stays. The kernel takes
++ * over whatever mode is set here.
++ */
++/*
++ * Minkar: the GOP of the console the firmware draws on. A PC may have more
++ * than one (the card's, and the console splitter's that forwards to it):
++ * the mode is set, and later read back for the kernel, on this one.
++ */
++STATIC EFI_STATUS LocateGOP(EFI_GRAPHICS_OUTPUT_PROTOCOL **GOP)
++{
++    if (gST->ConsoleOutHandle != NULL &&
++        !EFI_ERROR(gBS->HandleProtocol(gST->ConsoleOutHandle,
++                                       &gEfiGraphicsOutputProtocolGuid, (VOID **)GOP)))
++        return EFI_SUCCESS;
++    return gBS->LocateProtocol(&gEfiGraphicsOutputProtocolGuid, NULL, (VOID **)GOP);
++}
++
++/* The display's preferred resolution: the EDID's first detailed timing. */
++STATIC BOOLEAN NativeResolution(UINTN *w, UINTN *h)
++{
++    EFI_EDID_ACTIVE_PROTOCOL *edid = NULL;
++    UINT8 *e;
++
++    if (EFI_ERROR(gBS->LocateProtocol(&gEfiEdidActiveProtocolGuid, NULL, (VOID **)&edid)) &&
++        EFI_ERROR(gBS->LocateProtocol(&gEfiEdidDiscoveredProtocolGuid, NULL, (VOID **)&edid)))
++        return FALSE;
++    if (edid == NULL || edid->SizeOfEdid < 128 || edid->Edid == NULL)
++        return FALSE;
++    e = edid->Edid + 54;
++    *w = e[2] | ((UINTN)(e[4] & 0xF0) << 4);
++    *h = e[5] | ((UINTN)(e[7] & 0xF0) << 4);
++    return *w != 0 && *h != 0;
++}
++
++STATIC VOID SetGraphicsMode(VOID)
++{
++    EFI_GRAPHICS_OUTPUT_PROTOCOL *GOP;
++    CONST CHAR8 *want = gBootConfig.GraphicsMode;
++    UINTN wantW = 0, wantH = 0;
++    BOOLEAN max = FALSE;
++
++    if (want[0] == '\0')
++        return;
++    if (EFI_ERROR(LocateGOP(&GOP)))
++        return;
++    UINTN nativeW = 0, nativeH = 0;
++    BOOLEAN haveNative = NativeResolution(&nativeW, &nativeH);
++    if (haveNative)
++        Print(UEFI_STR("[] Display (EDID): %ux%u\n"), (UINT32)nativeW, (UINT32)nativeH);
++    else
++        Print(UEFI_STR("[] Display (EDID): unknown\n"));
++    if (AsciiStrCmp(want, "native") == 0) {
++        if (!haveNative)
++            return;		/* keep the firmware's mode */
++        wantW = nativeW;
++        wantH = nativeH;
++    } else if (AsciiStrCmp(want, "max") == 0) {
++        max = TRUE;
++    } else {
++        CONST CHAR8 *x = want;
++        while (*x != '\0' && *x != 'x' && *x != 'X')
++            x++;
++        if (*x == '\0')
++            return;
++        wantW = AsciiStrDecimalToUintn(want);
++        wantH = AsciiStrDecimalToUintn(x + 1);
++    }
++
++    UINT32 best = GOP->Mode->Mode, nativeMode = (UINT32)-1;
++    UINTN bestPixels = 0;
++    Print(UEFI_STR("[] Graphics modes:"));
++    for (UINT32 m = 0; m < GOP->Mode->MaxMode; m++) {
++        EFI_GRAPHICS_OUTPUT_MODE_INFORMATION *mi;
++        UINTN size;
++
++        if (EFI_ERROR(GOP->QueryMode(GOP, m, &size, &mi)))
++            continue;
++        UINTN w = mi->HorizontalResolution, h = mi->VerticalResolution;
++        BOOLEAN usable = mi->PixelFormat != PixelBltOnly;
++        gBS->FreePool(mi);
++        if (!usable)
++            continue;
++        Print(UEFI_STR(" %ux%u"), (UINT32)w, (UINT32)h);
++        if (haveNative && w == nativeW && h == nativeH)
++            nativeMode = m;
++        if (!max && (w > wantW || h > wantH))
++            continue;
++        if (w * h > bestPixels) {
++            bestPixels = w * h;
++            best = m;
++        }
++    }
++    Print(UEFI_STR("\n"));
++    /* The display's own mode first: a scaled one may come out wrong. */
++    if (max && nativeMode != (UINT32)-1)
++        best = nativeMode;
++    if (bestPixels == 0 || best == GOP->Mode->Mode) {
++        Print(UEFI_STR("[] Keeping graphics mode %u (%ux%u)\n"), GOP->Mode->Mode,
++            GOP->Mode->Info->HorizontalResolution, GOP->Mode->Info->VerticalResolution);
++        return;
++    }
++    {
++        EFI_GRAPHICS_OUTPUT_MODE_INFORMATION *mi;
++        UINTN size;
++        if (!EFI_ERROR(GOP->QueryMode(GOP, best, &size, &mi))) {
++            Print(UEFI_STR("[] Switching to graphics mode %u: %ux%u, %u pixels per line\n"), best,
++                mi->HorizontalResolution, mi->VerticalResolution, mi->PixelsPerScanLine);
++            gBS->FreePool(mi);
++        }
++    }
++    /* With loader-pause, the list stays readable before the switch. */
++    if (gBootConfig.LoaderPause != 0)
++        gBS->Stall((UINTN)gBootConfig.LoaderPause * 1000 * 1000);
++    if (EFI_ERROR(GOP->SetMode(GOP, best)))
++        Print(UEFI_STR("[] Could not set graphics mode %u\n"), best);
++    /*
++     * Let the new mode settle before anything draws in it for good: on PC 1
++     * (a Radeon, through a KVM switch) the kernel's console came out
++     * scrambled when it started right after the switch, and was right when
++     * the loader paused after it. Then read the mode back.
++     */
++    gBS->Stall(3 * 1000 * 1000);
++    Print(UEFI_STR("[] Graphics mode %u: %ux%u, %u pixels per line\n"), GOP->Mode->Mode,
++        GOP->Mode->Info->HorizontalResolution, GOP->Mode->Info->VerticalResolution,
++        GOP->Mode->Info->PixelsPerScanLine);
++}
++
+ EFI_STATUS GetVideoInfo(VIDEO_INFO *v1, VIDEO_BOOT *v)
+ {
+     EFI_STATUS Status;
+     EFI_GRAPHICS_OUTPUT_PROTOCOL *GOP;
+ 
+-    Status = gBS->LocateProtocol(&gEfiGraphicsOutputProtocolGuid, NULL, (VOID**)&GOP);
++    Status = LocateGOP(&GOP);
+     if (EFI_ERROR(Status))
+         return Status;
+ 
+     EFI_GRAPHICS_OUTPUT_PROTOCOL_MODE *mode = GOP->Mode;
+     EFI_GRAPHICS_OUTPUT_MODE_INFORMATION *info = mode->Info;
+-    Print(UEFI_STR("[] Framebuffer at 0x%lx: %dx%dx32, %d MB\n"),
++    Print(UEFI_STR("[] Framebuffer at 0x%lx: %dx%dx32, %d pixels per line, %d MB\n"),
+         mode->FrameBufferBase, info->HorizontalResolution,
+-        info->VerticalResolution, mode->FrameBufferSize / MB);
++        info->VerticalResolution, info->PixelsPerScanLine, mode->FrameBufferSize / MB);
+     gFbBase = mode->FrameBufferBase;
+     gFbSize = mode->FrameBufferSize;
+     gFbStride = info->PixelsPerScanLine;
+@@ -734,6 +868,7 @@
+     gST->ConOut->ClearScreen(gST->ConOut);
+     Print(UEFI_STR(":: Minkar EFI Loader %s\n"), VERSION_STR);
+     LoadBootConfig();
++    SetGraphicsMode();
+ 
+     Status = gBS->GetMemoryMap(&MemoryMapSize, MemoryMap, &MapKey, &DescriptorSize, &DescriptorVersion);
+     if (Status == EFI_BUFFER_TOO_SMALL) {

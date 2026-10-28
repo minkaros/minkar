@@ -1,19 +1,17 @@
-.include <src.opts.mk>
-
 SUBDIR =
-MK_WERROR = no
 PROG=	ls
 SRCS=	cmp.c ls.c print.c util.c
-# Colors (-G, CLICOLOR) through the terminal database in libncurses.
-CFLAGS+= -DCOLORLS
-LDADD+=	-lncurses
-
-HAS_TESTS=
+MAN =
+MK_WERROR = no
+CFLAGS += -DCOLORLS -I${ROOT_SOURCE_DIR}/BSD/lib/libbsdcompat/include -include bsdcompat.h \
+	-I${ROOT_SOURCE_DIR}/BSD/lib/libutil
+LDADD += -L${ROOT_BINARY_DIR}${ROOT_SOURCE_DIR}/BSD/lib/libutil -lutil \
+	-L${ROOT_BINARY_DIR}${ROOT_SOURCE_DIR}/BSD/lib/libbsdcompat -lbsdcompat -lncurses
 
 all: to-sysroot
 
 to-sysroot: ${PROG}
 	mkdir -p ${SYSROOT_DIR}/bin
-	cp -f ${PROG} ${SYSROOT_DIR}/bin/
+	install -m 0555 ${PROG} ${SYSROOT_DIR}/bin/ls
 
 .include <bsd.prog.mk>

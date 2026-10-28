@@ -20,6 +20,6 @@ LDFLAGS+=	-L${OBJTOP}/Frameworks/Foundation/Foundation.framework \
 		-Wl,-R/System/Library/Frameworks/CoreGraphics.framework/Versions/A \
 		-lAppKit -lCoreGraphics -lLaunchServices -lFoundation -lobjc -lSystem
 
-.include <rvn.app.mk>
+.include <minkar.app.mk>
 
 all: obj

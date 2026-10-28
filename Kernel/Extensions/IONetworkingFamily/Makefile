@@ -40,4 +40,4 @@ install-headers:
 .endfor
 .PHONY: install-headers
 
-.include <rvn.kext.mk>
+.include <minkar.kext.mk>

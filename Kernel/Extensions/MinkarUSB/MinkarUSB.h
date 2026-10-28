@@ -36,11 +36,16 @@
  *  - MinkarUSBPointer: a HID mouse or tablet as an IOHIPointing; the
  *    report layout comes from the report descriptor (HIDReport.c), with the
  *    boot mouse format as the fallback.
+ *  - MinkarUSBHIDInterface: a HID interface without the boot subclass.
+ *    From its report descriptor it makes a MinkarUSBKeyboard, a
+ *    MinkarUSBPointer or both (a KVM switch's keyboard and mouse share
+ *    one interface), and feeds them its reports.
  *
- * The UIM below (RavynXHCIPort) is synchronous: each driver reads its
+ * The UIM below (MinkarXHCIPort) is synchronous: each driver reads its
  * interrupt-IN pipe on a kernel thread of its own (MinkarUSBHIDReader).
  * The pointer publishes what it last dispatched (MinkarEvents, MinkarX,
- * MinkarY, MinkarButtons) and the keyboard its count and last key code,
+ * MinkarY, MinkarButtons; MinkarAbsolutePointer on a tablet) and the
+ * keyboard its count and last key code,
  * for tests and diagnosis.
  */
 
@@ -103,6 +108,35 @@ private:
 IOReturn MinkarUSBHIDRequest(IOUSBInterface *intf, bool in, UInt8 request,
     UInt16 value, void *data, UInt16 length);
 
+/* The interface's report descriptor; free it with IOFree(desc, len). */
+bool MinkarUSBReadReportDescriptor(IOUSBInterface *intf, uint8_t **desc, uint16_t *len);
+
+class MinkarUSBKeyboard;
+class MinkarUSBPointer;
+
+/* A HID interface in report protocol: a keyboard, a pointer, or both. */
+class MinkarUSBHIDInterface : public IOService
+{
+	OSDeclareDefaultStructors(MinkarUSBHIDInterface);
+
+	IOUSBInterface *		fInterface;
+	MinkarUSBHIDReader *		fReader;
+	MinkarUSBKeyboard *		fKeyboard;
+	MinkarUSBPointer *		fPointer;
+	struct HIDKeyboardLayout	fKeyboardLayout;
+	struct HIDPointerLayout		fPointerLayout;
+
+	static void handleReport(OSObject *owner, const uint8_t *report, uint32_t len);
+
+public:
+	virtual bool start(IOService *provider) APPLE_KEXT_OVERRIDE;
+	virtual void stop(IOService *provider) APPLE_KEXT_OVERRIDE;
+
+	IOUSBInterface *interface() const { return fInterface; }
+	const struct HIDKeyboardLayout &keyboardLayout() const { return fKeyboardLayout; }
+	const struct HIDPointerLayout &pointerLayout() const { return fPointerLayout; }
+};
+
 class MinkarUSBKeyboard : public IOHIKeyboard
 {
 	OSDeclareDefaultStructors(MinkarUSBKeyboard);
@@ -111,6 +145,8 @@ class MinkarUSBKeyboard : public IOHIKeyboard
 	MinkarUSBHIDReader *	fReader;
 	uint8_t			fLastReport[8];
 	uint32_t		fEvents;
+	bool			fReportMode;	/* fed by MinkarUSBHIDInterface */
+	struct HIDKeyboardLayout fLayout;
 
 	static void handleReport(OSObject *owner, const uint8_t *report, uint32_t len);
 	void processReport(const uint8_t *report, uint32_t len);
@@ -126,6 +162,7 @@ public:
 	virtual void stop(IOService *provider) APPLE_KEXT_OVERRIDE;
 	virtual UInt32 deviceType() APPLE_KEXT_OVERRIDE;
 	virtual UInt32 interfaceID() APPLE_KEXT_OVERRIDE;
+	void feedReport(const uint8_t *report, uint32_t len);
 };
 
 class MinkarUSBPointer : public IOHIPointing
@@ -142,6 +179,9 @@ class MinkarUSBPointer : public IOHIPointing
 	void processReport(const uint8_t *report, uint32_t len);
 	bool readLayout();
 	void publish(int32_t x, int32_t y, uint32_t buttons, bool absolute);
+
+public:
+	void feedReport(const uint8_t *report, uint32_t len);
 
 protected:
 	virtual IOItemCount buttonCount() APPLE_KEXT_OVERRIDE;

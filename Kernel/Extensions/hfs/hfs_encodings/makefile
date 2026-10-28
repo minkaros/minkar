@@ -30,4 +30,4 @@ CFLAGS = -DPRIVATE=1 -DKERNEL=1 \
 	-include${ROOT_SOURCE_DIR}/Kernel/xnu/bsd/sys/fcntl.h \
 	-include${ROOT_SOURCE_DIR}/Kernel/xnu/bsd/sys/attr.h
 
-.include <rvn.kext.mk>
+.include <minkar.kext.mk>

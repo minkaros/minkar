@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2000-2019 Apple Inc. All rights reserved.
+ * Modifications Copyright (c) 2026 The Minkar contributors
  *
  * @APPLE_OSREFERENCE_LICENSE_HEADER_START@
  *
@@ -88,6 +89,18 @@ PE_init_kprintf(boolean_t vm_initialized)
 			PE_kputc = pal_serial_putc;
 		} else {
 			PE_kputc = cnputc;
+		}
+
+		/*
+		 * Minkar: kprintf_console=1 sends kprintf() to the screen even
+		 * when a serial port is there, for a PC whose COM1 nobody
+		 * listens to (hardware tests).
+		 */
+		unsigned int kprintf_console = 0;
+		if (PE_parse_boot_argn("kprintf_console", &kprintf_console, sizeof(kprintf_console)) &&
+		    kprintf_console != 0) {
+			PE_kputc = cnputc;
+			new_disable_serial_output = FALSE;
 		}
 
 		disable_serial_output = new_disable_serial_output;
