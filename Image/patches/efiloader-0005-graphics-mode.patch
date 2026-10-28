@@ -21,7 +21,7 @@
  extern BOOT_CONFIG gBootConfig;
 --- a/MdeModulePkg/Application/Loader/loader.c
 +++ b/MdeModulePkg/Application/Loader/loader.c
-@@ -53,6 +53,64 @@
+@@ -53,20 +53,95 @@
  STATIC UINT64 gFbBase, gFbSize;
  STATIC UINT32 gFbStride, gFbWidth, gFbHeight;
  
@@ -31,6 +31,20 @@
 + * in it), "max" for the largest the display offers. Without it the mode
 + * the firmware set stays. The kernel takes over whatever mode is set here.
 + */
++/*
++ * Minkar: the GOP of the console the firmware draws on. A PC may have more
++ * than one (the card's, and the console splitter's that forwards to it):
++ * the mode is set, and later read back for the kernel, on this one.
++ */
++STATIC EFI_STATUS LocateGOP(EFI_GRAPHICS_OUTPUT_PROTOCOL **GOP)
++{
++    if (gST->ConsoleOutHandle != NULL &&
++        !EFI_ERROR(gBS->HandleProtocol(gST->ConsoleOutHandle,
++                                       &gEfiGraphicsOutputProtocolGuid, (VOID **)GOP)))
++        return EFI_SUCCESS;
++    return gBS->LocateProtocol(&gEfiGraphicsOutputProtocolGuid, NULL, (VOID **)GOP);
++}
++
 +STATIC VOID SetGraphicsMode(VOID)
 +{
 +    EFI_GRAPHICS_OUTPUT_PROTOCOL *GOP;
@@ -40,7 +54,7 @@
 +
 +    if (want[0] == '\0')
 +        return;
-+    if (EFI_ERROR(gBS->LocateProtocol(&gEfiGraphicsOutputProtocolGuid, NULL, (VOID **)&GOP)))
++    if (EFI_ERROR(LocateGOP(&GOP)))
 +        return;
 +    if (AsciiStrCmp(want, "max") == 0) {
 +        max = TRUE;
@@ -81,12 +95,32 @@
 +        return;
 +    if (EFI_ERROR(GOP->SetMode(GOP, best)))
 +        Print(UEFI_STR("[] Could not set graphics mode %u\n"), best);
++    Print(UEFI_STR("[] Graphics mode %u: %ux%u, %u pixels per line\n"), GOP->Mode->Mode,
++        GOP->Mode->Info->HorizontalResolution, GOP->Mode->Info->VerticalResolution,
++        GOP->Mode->Info->PixelsPerScanLine);
 +}
 +
  EFI_STATUS GetVideoInfo(VIDEO_INFO *v1, VIDEO_BOOT *v)
  {
      EFI_STATUS Status;
-@@ -734,6 +792,7 @@
+     EFI_GRAPHICS_OUTPUT_PROTOCOL *GOP;
+ 
+-    Status = gBS->LocateProtocol(&gEfiGraphicsOutputProtocolGuid, NULL, (VOID**)&GOP);
++    Status = LocateGOP(&GOP);
+     if (EFI_ERROR(Status))
+         return Status;
+ 
+     EFI_GRAPHICS_OUTPUT_PROTOCOL_MODE *mode = GOP->Mode;
+     EFI_GRAPHICS_OUTPUT_MODE_INFORMATION *info = mode->Info;
+-    Print(UEFI_STR("[] Framebuffer at 0x%lx: %dx%dx32, %d MB\n"),
++    Print(UEFI_STR("[] Framebuffer at 0x%lx: %dx%dx32, %d pixels per line, %d MB\n"),
+         mode->FrameBufferBase, info->HorizontalResolution,
+-        info->VerticalResolution, mode->FrameBufferSize / MB);
++        info->VerticalResolution, info->PixelsPerScanLine, mode->FrameBufferSize / MB);
+     gFbBase = mode->FrameBufferBase;
+     gFbSize = mode->FrameBufferSize;
+     gFbStride = info->PixelsPerScanLine;
+@@ -734,6 +809,7 @@
      gST->ConOut->ClearScreen(gST->ConOut);
      Print(UEFI_STR(":: Minkar EFI Loader %s\n"), VERSION_STR);
      LoadBootConfig();
