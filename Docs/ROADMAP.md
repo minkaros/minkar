@@ -130,8 +130,9 @@ and every PR is tested by booting it in QEMU.
   Phase 3.
 - [x] CI per PR: full build + boot in QEMU (q35 + OVMF) on the serial
   console, waiting for boot markers.
-  `.github/workflows/build-boottest.yml` runs on every push and pull
-  request to `main` and `devel`: toolchain (cached), system build
+  `.github/workflows/build-boottest.yml` runs on pushes and pull
+  requests to `main` and by hand (since 2026-10-29: Actions minutes of a
+  free account): toolchain (cached), system build
   (`tools/ci/build-stages.sh`), image and `boottest GATE=M2`. First green
   run on `devel`: `05fa75cb65` (2026-10-26).
 - [x] Symbol inventory: a script that lists each dylib's exports
