@@ -681,6 +681,18 @@ void CLASS::constructAddressingProperties(IOPCIConfigEntry * device, OSDictionar
                 assignedData.physHi.s.reloc = 1;
                 assignedData.physMid = (range->start >> 32ULL);
                 assignedData.physLo  = range->start;
+                /*
+                 * Minkar: a BAR the firmware placed outside the host bridge
+                 * windows known here (a 64-bit BAR above 4 GB) keeps its
+                 * address but is not allocated, so its size is 0. The device
+                 * still decodes it: give its requested size, or neither its
+                 * driver nor the MSI-X table behind it can map it.
+                 */
+                if (!range->size && range->proposedSize)
+                {
+                    assignedData.lengthHi = (range->proposedSize >> 32ULL);
+                    assignedData.lengthLo = range->proposedSize;
+                }
                 assignedProp->appendBytes(&assignedData, sizeof(assignedData));
             }
 			// reg gets requested length
