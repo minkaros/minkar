@@ -251,7 +251,7 @@ The generic Unix commands come from FreeBSD `main`, with our own macOS
 layer where macOS behaves differently; Darwin's own components stay. Each
 command, where it comes from and what was fixed while porting it, is in
 [Userland.md](Userland.md); [Commands.md](Commands.md) counts them against
-macOS's (308 of 354 on 2026-10-29).
+macOS's (309 of 354 on 2026-10-29).
 
 - [x] Boot: `sh`, `ls`, `cp`, `mv`, `rm`, `mount`, `ifconfig`, `ps`, `kill`.
 - [x] Replace the commands from Apple's command sets with FreeBSD main's
@@ -259,8 +259,9 @@ macOS's (308 of 354 on 2026-10-29).
   macOS's `-Z`/`-J`.
 - [ ] Everyday tools missing from the image. *Partial:* ported in batches
   since 2026-10-26, with locales, time zones, manual pages and libiconv.
-  `passwd` since 2026-10-28; `dig`, `nslookup` and Kerberos since
-  2026-10-29. Missing: `pfctl`.
+  `passwd` since 2026-10-28; `dig`, `nslookup`, Kerberos and `pfctl`
+  since 2026-10-29: every BSD tool of Commands.md. Left: macOS's own
+  tools, Darwin components and file systems (see Commands.md).
 - [ ] Power user: `zsh`, `tar`, `ssh`, `curl`, `make`, `git`. *Partial:* all
   six in the image (`git` 2.56.0 since 2026-10-28), without git's Perl,
   Python and Tcl commands.
@@ -627,8 +628,8 @@ The highest-impact open items, in critical-path order:
    with the new driver, powering off (ACPI S5), the other CPUs (SMP, also
    missing in QEMU) and the boot without `pci_keep_console`; then a second, different PC (gate M1;
    a Mac Pro 6,1 is the candidate). See [Hardware.md](Hardware.md).
-2. BSD userland (Phase 2): `pfctl`, the last of `Docs/Commands.md`'s
-   missing BSD tools.
+2. Userland (Phase 2): the macOS tools of `Docs/Commands.md` that need
+   no later phase (FAT, NFS and `dtrace` first).
 3. IOHIDSystem event delivery in the kernel, the `ApplePS2Mouse` driver and
    the WindowServer input reader (Phase 4).
 4. Install WindowServer's launchd job and get a first boot that draws on

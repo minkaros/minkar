@@ -21,7 +21,7 @@ Licences other than BSD and MIT need the project's approval first.
 |---|---|
 | [Boot commands](#boot-commands) | Done |
 | [Apple's command sets replaced](#apples-command-sets-replaced) | Done; small gaps in `grep` |
-| [Everyday tools](#everyday-tools) | In progress: `pfctl` missing |
+| [Everyday tools](#everyday-tools) | Done: every BSD tool of [Commands.md](Commands.md) |
 | [Power user](#power-user) | `zsh`, `tar`, `ssh`, `curl`, `make` and `git` in the image |
 | [Apple tools](#apple-tools) | `open` missing (needs LaunchServices) |
 | [System data](#system-data) | Locales, time zones, manual pages, iconv tables |
@@ -120,6 +120,7 @@ No command from Apple's command sets is left.
 | 2026-10-29 | `rtsol` | FreeBSD main's rtsold as `/sbin/rtsol`, without casper; Darwin accepts router advertisements by `net.inet6.ip6.accept_rtadv`, so it only solicits them |
 | 2026-10-29 | `talk` | FreeBSD main's talk and talkd (as `/usr/libexec/ntalkd`), started by launchd for UDP port 518 through `org.minkar.ntalkd` (off, as on macOS) and launchproxy, launchd's inetd helper, now built |
 | 2026-10-29 | `kinit`, `klist`, `kdestroy` | Heimdal 7.8.0, the Kerberos macOS uses, built static; credentials go to a file cache (`/tmp/krb5cc_<uid>`), since the API cache Heimdal defaults to on Apple systems needs a service Minkar lacks |
+| 2026-10-29 | `pfctl` | OpenBSD 4.3's, the release whose pf Darwin's kernel carries, on the kernel's private `net/pfvar.h`: Darwin's port and address fields, no interface groups, one routing table, no ALTQ (as on macOS); `/etc/pf.os` from the same release, `/etc/pf.conf` ours (no rules; pf is off at boot) |
 | 2026-10-29 | `localedef` | FreeBSD main's (Nexenta's, BSD-2), writing what Darwin's libc reads: LC_CTYPE as `RuneMagA` and `LC_MESSAGES/LC_MESSAGES` (our `darwin_out.c`); LC_COLLATE in code point order, as all of Minkar's locales (Darwin's collation tables are not publicly documented); our own manual (upstream's is CDDL) |
 
 `btop` and `htop` draw their UTF-8 boxes and graphs on the kernel's console
@@ -136,7 +137,6 @@ too: it has line characters, blocks and Braille dots.
   the login records: `last` and `finger` showed nothing to other users.
 - The console's terminal has no node in `/dev` (the serial device behind
   it), so `ps` shows `??` for getty.
-- `pfctl`, the last BSD tool listed in [Commands.md](Commands.md).
 - Queued (the kernel already has what they need): FAT's `newfs_msdos` and
   `fsck_msdos` (FreeBSD's) and our own `mount_msdos`, as `msdosfs` is in
   the kernelcache; the quota tools (FreeBSD's, for XNU's quota file
