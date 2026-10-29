@@ -1,0 +1,72 @@
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\" Copyright (c) 2026 The Minkar contributors
+.\" Part of Minkar.
+.Dd October 29, 2026
+.Dt EDQUOTA 8
+.Os
+.Sh NAME
+.Nm edquota
+.Nd edit disk quotas
+.Sh SYNOPSIS
+.Nm
+.Op Fl u
+.Op Fl p Ar proto-user
+.Ar user ...
+.Nm
+.Fl g
+.Op Fl p Ar proto-group
+.Ar group ...
+.Nm
+.Op Fl u | g
+.Fl t
+.Sh DESCRIPTION
+.Nm
+writes the quotas of each
+.Ar user
+.Pq or group with Fl g
+on every volume with quotas to a temporary file, runs the editor named
+by
+.Ev EDITOR
+.Pq or Xr vi 1
+on it, and stores the limits it reads back.
+Each volume has two lines:
+.Bd -literal -offset indent
+/: 1K blocks in use: 12, limits (soft = 1000, hard = 2000)
+	inodes in use: 5, limits (soft = 0, hard = 0)
+.Ed
+.Pp
+Only the limits are read back; 0 means no limit.
+A soft limit may be passed for the volume's grace period, a hard one
+not at all.
+The limits go to the kernel when quotas are on, and to the quota file.
+.Bl -tag -width Ds
+.It Fl g
+Groups.
+.It Fl u
+Users (the default).
+.It Fl p Ar proto
+Give each one the limits of
+.Ar proto ,
+without an editor.
+.It Fl t
+Edit the grace periods of the volumes instead:
+.Bd -literal -offset indent
+/: block grace period: 7 days, file grace period: 7 days
+.Ed
+.Pp
+in days, hours, minutes or seconds.
+They are read when quotas are turned on.
+.El
+.Pp
+Only the super-user may run it; the super-user has no quotas.
+.Sh EXIT STATUS
+.Ex -std
+.Sh SEE ALSO
+.Xr quota 1 ,
+.Xr quotacheck 8 ,
+.Xr quotaon 8 ,
+.Xr repquota 8
+.Sh HISTORY
+Minkar's
+.Nm
+is its own.

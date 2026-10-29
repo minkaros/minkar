@@ -1,0 +1,78 @@
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\" Copyright (c) 2026 The Minkar contributors
+.\" Part of Minkar.
+.Dd October 29, 2026
+.Dt QUOTAON 8
+.Os
+.Sh NAME
+.Nm quotaon ,
+.Nm quotaoff
+.Nd turn file system quotas on and off
+.Sh SYNOPSIS
+.Nm
+.Op Fl g
+.Op Fl u
+.Op Fl v
+.Fl a | Ar filesystem ...
+.Nm quotaoff
+.Op Fl g
+.Op Fl u
+.Op Fl v
+.Fl a | Ar filesystem ...
+.Sh DESCRIPTION
+.Nm
+tells the kernel to enforce the user or group limits of a volume, read
+from
+.Pa .quota.user
+or
+.Pa .quota.group
+at its root, which
+.Xr quotacheck 8
+makes.
+.Nm quotaoff
+stops it.
+A volume wants quotas when
+.Pa .quota.ops.user
+or
+.Pa .quota.ops.group
+is at its root.
+.Bl -tag -width Ds
+.It Fl a
+Every mounted local volume, for the types it wants.
+.It Fl g
+Group quotas only.
+.It Fl u
+User quotas only.
+.It Fl v
+Say what was done.
+.El
+.Pp
+Without
+.Fl g
+or
+.Fl u ,
+the types the volume wants; with them, those types, even if it does not.
+A
+.Ar filesystem
+is any path on the volume.
+.Sh FILES
+.Bl -tag -width .quota.ops.group -compact
+.It Pa .quota.user
+.It Pa .quota.group
+the quota files, at the volume's root
+.It Pa .quota.ops.user
+.It Pa .quota.ops.group
+the volume wants that type of quota
+.El
+.Sh EXIT STATUS
+.Ex -std
+.Sh SEE ALSO
+.Xr quota 1 ,
+.Xr quotactl 2 ,
+.Xr edquota 8 ,
+.Xr quotacheck 8 ,
+.Xr repquota 8
+.Sh HISTORY
+Minkar's
+.Nm
+is its own.

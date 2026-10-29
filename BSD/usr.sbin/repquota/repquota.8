@@ -1,0 +1,43 @@
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\" Copyright (c) 2026 The Minkar contributors
+.\" Part of Minkar.
+.Dd October 29, 2026
+.Dt REPQUOTA 8
+.Os
+.Sh NAME
+.Nm repquota
+.Nd summarize the quotas of volumes
+.Sh SYNOPSIS
+.Nm
+.Op Fl g
+.Op Fl u
+.Op Fl v
+.Fl a | Ar filesystem ...
+.Sh DESCRIPTION
+.Nm
+prints a table of the users or groups in a volume's quota file: the
+space used in 1K blocks and the files, each with its soft and hard limit
+and, past the soft limit, the grace time left.
+The two signs after a name are
+.Ql +
+when space or files are at or over the soft limit.
+While quotas are on, the figures are the kernel's.
+.Bl -tag -width Ds
+.It Fl a
+Every mounted local volume with quotas.
+.It Fl g
+Group quotas only.
+.It Fl u
+User quotas only.
+.It Fl v
+Also those that use nothing and have no limits.
+.El
+.Sh SEE ALSO
+.Xr quota 1 ,
+.Xr edquota 8 ,
+.Xr quotacheck 8 ,
+.Xr quotaon 8
+.Sh HISTORY
+Minkar's
+.Nm
+is its own.
