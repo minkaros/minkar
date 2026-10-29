@@ -114,6 +114,7 @@ No command from Apple's command sets is left.
 | 2026-10-29 | `ftp` | tnftp as FreeBSD main builds it, with libedit and IPv6; it fetches `ftp://` and `http://` URLs too. `closefrom`, which Darwin lacks, is now in libbsdcompat (from `/dev/fd`) |
 | 2026-10-29 | `rlogin` | NetBSD's (FreeBSD no longer has one), setuid root for rcmd(3)'s reserved port |
 | 2026-10-29 | `tcpdump` | tcpdump 4.99.7 with libpcap 1.11.0 (static, private to it) over Darwin's BPF |
+| 2026-10-29 | `fdisk` | FreeBSD main's MBR editor over Darwin's disk ioctls (our small `<libgeom.h>`; no GEOM), without FreeBSD's deprecation notice; with no `/boot/mbr` (Minkar starts by EFI) a new MBR has no boot code |
 
 `btop` and `htop` draw their UTF-8 boxes and graphs on the kernel's console
 too: it has line characters, blocks and Braille dots.

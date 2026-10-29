@@ -94,6 +94,10 @@
 #ifndef __DECONST
 #define	__DECONST(type, var)	((type)(uintptr_t)(const void *)(var))
 #endif
+#ifndef rounddown
+/* <sys/param.h>: x rounded down to a multiple of y. */
+#define	rounddown(x, y)	(((x) / (y)) * (y))
+#endif
 #ifndef __DEQUALIFY
 #define	__DEQUALIFY(type, var)	((type)(uintptr_t)(const volatile void *)(var))
 #endif
