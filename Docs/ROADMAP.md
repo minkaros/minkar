@@ -206,7 +206,8 @@ mounted.
   [Hardware.md](Hardware.md). *In progress:* PC 1 (Gigabyte H270N-WIFI,
   i7-7700) boots to login from SATA with its native display, USB keyboard
   through a KVM switch, the I219-V network and a usable console terminal;
-  still open there: NVMe (driver ready, to test). PC 2 is not chosen yet.
+  and since 2026-10-29 it boots from its NVMe SSD (`MinkarNVMe`). PC 2
+  is not chosen yet.
 
 - [ ] **Exit gate (M1):** in QEMU and on a reference PC, the kernel mounts
   the HFS+ root and runs `/sbin/launchd` (or a temporary init) with a shell
@@ -625,8 +626,8 @@ work in progress.
 The highest-impact open items, in critical-path order:
 
 1. Reference PC 1 (Phase 1): its console is usable at the native
-   resolution and both network cards are on the LAN; next, its NVMe SSD
-   with the new driver, powering off (ACPI S5), the other CPUs (SMP, also
+   resolution, both network cards are on the LAN and it boots from its
+   NVMe SSD; next, powering off (ACPI S5), the other CPUs (SMP, also
    missing in QEMU) and the boot without `pci_keep_console`; then a second, different PC (gate M1;
    a Mac Pro 6,1 is the candidate). See [Hardware.md](Hardware.md).
 2. Userland (Phase 2): the macOS tools of `Docs/Commands.md` that need

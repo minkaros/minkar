@@ -39,7 +39,7 @@ QEMU fails on an MSR the kernel reads).
 | Board | Gigabyte H270N-WIFI (Intel H270), AMI UEFI firmware | Boots |
 | CPU | Intel Core i7-7700 (4 cores, 8 threads) | ACPI lists all eight; only the boot CPU runs (no SMP yet, as in QEMU) |
 | Disk | SATA through AHCI (`MinkarAHCIPort`) | Root file system, fsck |
-| Disk | NVMe (M.2) | Driver `MinkarNVMe` (2026-10-29), tested in QEMU; on PC 1 to test |
+| Disk | NVMe (M.2), "SK 256GB" (Silicon Motion, PCI 126f:2263) | Root file system: boots from it (`MinkarNVMe`, 2026-10-29), completions by interrupt |
 | USB | xHCI (`MinkarXHCIPort`), USB 2 hub of a KVM switch | Keyboard and mouse, directly and through the switch |
 | Display | GOP framebuffer, Xiaomi 34" ultrawide | Native 3440x1440 text console |
 | Network | Intel I219-V (PCH LAN) | ping on the LAN (`MinkarE1000`) |
@@ -53,11 +53,6 @@ loader's output on screen for photos.
 
 ### Still open
 
-- NVMe: `MinkarNVMe` boots QEMU from an NVMe disk; on PC 1 it is to be
-  tested. Its line in the boot log names the model, the size and the
-  interrupt it uses (MSI, pin interrupt or polling); `ioreg -r -c
-  MinkarNVMe -l` counts the completions that came by interrupt and by the
-  timer.
 - IOKit does not get quiet within 30 seconds, so some drivers (the
   display's) start after the login prompt; `kextstart` now names the
   services still busy.
@@ -66,6 +61,12 @@ loader's output on screen for photos.
 - Booting without `pci_keep_console=1` (see the QEMU known bug).
 
 ### How it got there
+
+**NVMe** (2026-10-29). `MinkarNVMe`, written from the NVM Express
+specification, found the SSD (a Silicon Motion 126f:2263 "SK 256GB"), the
+image written to it booted with its root file system there, and of 958
+completions 19 came by the timer that stands in for a late interrupt
+(`ioreg -r -c MinkarNVMe -l`). The SATA and the Intel SSD stay visible.
 
 **Loader** (2026-10-26). From the SATA disk, the loader read the kernel
 from another disk's EFI partition, then overwrote firmware memory: the
