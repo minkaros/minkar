@@ -174,10 +174,11 @@ watchThread(void *, wait_result_t)
 			return;
 		char method[64];
 		currentMethod(method, sizeof(method));
-		IOLog("ACPI: still starting after %ds: %s, method %s, last %s 0x%llx = 0x%llx (%llu)\n",
+		IOLog("ACPI: still starting after %ds: %s, method %s, last %s 0x%llx = 0x%llx (%llu), %llu SCIs\n",
 		    secs, gStage, method,
 		    gACPIOSLast.what != NULL ? gACPIOSLast.what : "none",
-		    gACPIOSLast.address, gACPIOSLast.value, gACPIOSLast.count);
+		    gACPIOSLast.address, gACPIOSLast.value, gACPIOSLast.count,
+		    gACPIOSSCICount);
 	}
 }
 

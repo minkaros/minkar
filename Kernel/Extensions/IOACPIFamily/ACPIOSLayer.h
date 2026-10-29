@@ -54,6 +54,7 @@ struct ACPIOSActivity {
 	uint64_t	count;		/* calls so far */
 };
 extern volatile struct ACPIOSActivity gACPIOSLast;
+extern volatile uint64_t gACPIOSSCICount;	/* SCIs received */
 
 /* ACPIInterpreter.cpp */
 void ACPIOSLayerSetInterruptController(const OSSymbol *name);
