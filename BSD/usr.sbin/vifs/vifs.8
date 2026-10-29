@@ -1,0 +1,52 @@
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\" Copyright (c) 2026 The Minkar contributors
+.\" Part of Minkar.
+.Dd October 29, 2026
+.Dt VIFS 8
+.Os
+.Sh NAME
+.Nm vifs
+.Nd edit the file system table safely
+.Sh SYNOPSIS
+.Nm
+.Sh DESCRIPTION
+.Nm
+edits
+.Pa /etc/fstab .
+It locks the file, so that two
+.Nm
+cannot edit it at once, and opens a copy of it in the editor named by
+.Ev EDITOR ,
+or
+.Xr vi 1 .
+When the editor ends, the copy replaces
+.Pa /etc/fstab
+in one step, and only if it was changed; if the editor fails, the file is
+left as it was.
+.Pp
+.Pa /etc/fstab
+is created if it does not exist.
+.Sh ENVIRONMENT
+.Bl -tag -width EDITOR
+.It Ev EDITOR
+The editor to run, through
+.Xr sh 1 ,
+with the copy's name after it.
+.El
+.Sh FILES
+.Bl -tag -width /etc/fstab -compact
+.It Pa /etc/fstab
+the file system table
+.It Pa /etc/vifs.XXXXXX
+the copy being edited
+.El
+.Sh EXIT STATUS
+.Ex -std
+.Sh SEE ALSO
+.Xr fstab 5 ,
+.Xr mount 8 ,
+.Xr vipw 8
+.Sh HISTORY
+Minkar's
+.Nm
+is its own.

@@ -9,6 +9,6 @@ LDFLAGS = --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
 SUBDIR_PARALLEL =
 SUBDIR = notifyd configd configd/scutil.tproj chown ipconfig mDNSResponder/minkar sysctl traceroute \
 	syslogd aslmanager cron/cron cron/crontab lsof zic zdump ac arp ndp traceroute6 newsyslog \
-	mtree vipw pwd_mkdb accton sa
+	mtree vipw pwd_mkdb accton sa fstyp vifs
 
 .include <bsd.subdir.mk>
