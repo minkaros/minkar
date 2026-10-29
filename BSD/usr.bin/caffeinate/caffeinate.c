@@ -173,7 +173,16 @@ main(int argc, char *argv[])
 			release();
 			errc(1, error, "%s", argv[0]);
 		}
-		EV_SET(&ev[n++], child, EVFILT_PROC, EV_ADD, NOTE_EXIT, 0, NULL);
+		EV_SET(&ev[0], child, EVFILT_PROC, EV_ADD, NOTE_EXIT, 0, NULL);
+		if (kevent(kq, ev, 1, NULL, 0, NULL) == -1) {
+			if (errno != ESRCH)
+				err(1, "kevent");
+			/* It ended before we could watch it. */
+			(void)waitpid(child, &status, 0);
+			release();
+			return (WIFEXITED(status) ? WEXITSTATUS(status) :
+			    128 + WTERMSIG(status));
+		}
 	}
 	if (waitpid_ != 0) {
 		EV_SET(&ev[n++], waitpid_, EVFILT_PROC, EV_ADD, NOTE_EXIT, 0,
