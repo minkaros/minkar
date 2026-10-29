@@ -89,9 +89,10 @@ No command from Apple's command sets is left.
 | 2026-10-28 | `at`, `atq`, `atrm`, `batch` | Set-user-ID root; jobs in `/var/at`. `atrun` runs them under launchd every 30 seconds, disabled as on macOS until `launchctl load -w /System/Library/LaunchDaemons/org.minkar.atrun.plist`; launchd leaves its jobs running (`AbandonProcessGroup`) |
 | 2026-10-28 | `newsyslog` | Our `/etc/newsyslog.conf` for the daemons' own log files and `/etc/newsyslog.d/`; `system.log` and the ASL store stay syslogd's and aslmanager's, as on macOS. launchd runs it at half past each hour |
 | 2026-10-28 | `ipcs`, `ipcrm` | Read XNU's System V IPC tables entry by entry through the `kern.sysv.ipcs.*` sysctls (Darwin has no `kvm(3)`, so `-C`, `-N` and `-y` are refused); `ipcs -S` shows the semaphore limits of `kern.sysv.*`, as the kernel reports what is in use |
+| 2026-10-28 | `htop` | htop 3.4.1 (GPL-2.0) on its Darwin backend (libproc, Mach and IOKit), next to `top` and `btop`; not in macOS |
 
-`btop` switches to its TTY mode on the kernel's console when it cannot
-draw its UTF-8 boxes.
+`btop` and `htop` draw their UTF-8 boxes and graphs on the kernel's console
+too: it has line characters, blocks and Braille dots.
 
 ### Missing and known problems
 

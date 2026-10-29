@@ -10,9 +10,9 @@ Each command comes from FreeBSD main where FreeBSD has it, and behaves as on mac
 |---|---:|
 | `/bin` | 36 |
 | `/sbin` | 29 |
-| `/usr/bin` | 225 |
+| `/usr/bin` | 226 |
 | `/usr/sbin` | 24 |
-| **Total** | **314** |
+| **Total** | **315** |
 
 ## In the source tree
 
@@ -22,9 +22,9 @@ Command directories under `BSD/`, at commit `60aa4ff4b1` (where Minkar started f
 |---|---:|---:|
 | `BSD/bin` | 30 | 33 |
 | `BSD/sbin` | 4 | 17 |
-| `BSD/usr.bin` | 55 | 150 |
+| `BSD/usr.bin` | 55 | 152 |
 | `BSD/usr.sbin` | 7 | 19 |
-| **Total** | **96** | **219** |
+| **Total** | **96** | **221** |
 
 ## Against macOS
 
