@@ -46,7 +46,7 @@ ${.OBJDIR}/ksh: ${.CURDIR}/Makefile
 	printf 'darwin.i386-64\t127.0.0.1\troot\t/tmp\t%s\t%s\n' \
 	    ${.CURDIR}/kx-sh ${.CURDIR}/kx-cp > ${.OBJDIR}/home/.crossexec
 	# This machine's tools, then the Darwin build that uses them.
-	cd ${B} && env -u MAKEFLAGS DEFPATH=/bin:/usr/bin bin/package make CC=cc
+	cd ${B} && env -u MAKEFLAGS -u CFLAGS -u LDFLAGS -u CXXFLAGS DEFPATH=/bin:/usr/bin bin/package make CC=cc
 	cp ${B}/bin/package ${B}/arch/linux.i386-64/bin/package
 	# The Darwin build's Mamfiles (see above).
 	cd ${B}/src && for m in lib/libast lib/libdll lib/libsum lib/libcmd cmd/ksh93; do \
@@ -54,7 +54,7 @@ ${.OBJDIR}/ksh: ${.CURDIR}/Makefile
 		-e 's|^setv AR %{mam_cc_AR}|setv AR ${X}/ar-minkar|' $$m/Mamfile; done
 	sed -i 's|exec - lcgen lc.h lctab.c|exec - ${B}/arch/linux.i386-64/src/lib/libast/lcgen lc.h lctab.c|' \
 	    ${B}/src/lib/libast/Mamfile
-	cd ${B} && env -u MAKEFLAGS ${KSH_ENV} bin/package make \
+	cd ${B} && env -u MAKEFLAGS -u CFLAGS -u LDFLAGS -u CXXFLAGS ${KSH_ENV} bin/package make \
 	    HOSTTYPE=darwin.i386-64 CC=${X}/cc-minkar "IFFEFLAGS=-x darwin.i386-64" || true
 	@if [ -s ${.OBJDIR}/kx/missing ]; then \
 	    echo "ksh: probes with no recorded result (make record with the dev VM up):"; \

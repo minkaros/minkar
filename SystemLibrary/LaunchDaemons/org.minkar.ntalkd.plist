@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+ SPDX-License-Identifier: BSD-2-Clause
+ Copyright (c) 2026 The Minkar contributors
+ Part of Minkar.
+
+ ntalkd, the server talk(1) asks, started for requests on UDP port 518
+ (ntalk) with the socket as its standard input. Disabled, as on macOS:
+ "launchctl load -w /System/Library/LaunchDaemons/org.minkar.ntalkd.plist"
+ turns it on.
+-->
+<plist version="1.0">
+<dict>
+	<key>Label</key>
+	<string>org.minkar.ntalkd</string>
+	<key>ProgramArguments</key>
+	<array>
+		<string>/usr/libexec/ntalkd</string>
+	</array>
+	<key>Sockets</key>
+	<dict>
+		<key>Listeners</key>
+		<dict>
+			<key>SockServiceName</key>
+			<string>ntalk</string>
+			<key>SockType</key>
+			<string>dgram</string>
+			<key>SockFamily</key>
+			<string>IPv4</string>
+		</dict>
+	</dict>
+	<key>inetdCompatibility</key>
+	<dict>
+		<key>Wait</key>
+		<true/>
+	</dict>
+	<key>Disabled</key>
+	<true/>
+</dict>
+</plist>

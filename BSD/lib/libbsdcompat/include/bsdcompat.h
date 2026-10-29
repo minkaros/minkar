@@ -98,6 +98,10 @@
 /* <sys/param.h>: x rounded down to a multiple of y. */
 #define	rounddown(x, y)	(((x) / (y)) * (y))
 #endif
+#ifndef CLOCK_MONOTONIC_FAST
+/* <time.h>: FreeBSD's cheaper monotonic clock; Darwin's plain one. */
+#define	CLOCK_MONOTONIC_FAST	CLOCK_MONOTONIC
+#endif
 #ifndef __DEQUALIFY
 #define	__DEQUALIFY(type, var)	((type)(uintptr_t)(const volatile void *)(var))
 #endif

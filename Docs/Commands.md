@@ -10,9 +10,9 @@ Each command comes from FreeBSD main where FreeBSD has it, and behaves as on mac
 |---|---:|
 | `/bin` | 42 |
 | `/sbin` | 31 |
-| `/usr/bin` | 275 |
+| `/usr/bin` | 276 |
 | `/usr/sbin` | 42 |
-| **Total** | **390** |
+| **Total** | **391** |
 
 ## In the source tree
 
@@ -21,18 +21,18 @@ Command directories under `BSD/`, at commit `60aa4ff4b1` (where Minkar started f
 | Directory | Then | Now |
 |---|---:|---:|
 | `BSD/bin` | 30 | 35 |
-| `BSD/sbin` | 4 | 18 |
+| `BSD/sbin` | 4 | 19 |
 | `BSD/usr.bin` | 55 | 175 |
 | `BSD/usr.sbin` | 7 | 36 |
-| **Total** | **96** | **264** |
+| **Total** | **96** | **265** |
 
 ## Against macOS
 
-303 of the 354 reference commands are in the image; 51 are missing.
+304 of the 354 reference commands are in the image; 50 are missing.
 
 | Kind | In the image | Missing | What it takes |
 |---|---:|---:|---|
-| BSD and other portable tools | 267 | 6 | Ported from FreeBSD main (or their own upstream), as the ones before. |
+| BSD and other portable tools | 268 | 5 | Ported from FreeBSD main (or their own upstream), as the ones before. |
 | macOS's own tools | 17 | 29 | Written for Minkar; many need the graphical system or frameworks of later phases. |
 | Darwin's own components | 9 | 6 | Kept from Apple's open source (launchd, configd, syslogd...). |
 | File system tools | 0 | 10 | Need the file system (APFS, exFAT, FAT, NFS, SMB) in the kernel first. |
@@ -41,7 +41,7 @@ Command directories under `BSD/`, at commit `60aa4ff4b1` (where Minkar started f
 
 ### Missing
 
-- **BSD and other portable tools** (6): `kdestroy`, `kinit`, `klist`, `localedef`, `pfctl`, `talk`
+- **BSD and other portable tools** (5): `kdestroy`, `kinit`, `klist`, `localedef`, `pfctl`
 - **macOS's own tools** (29): `autodiskmount`, `bless`, `csrutil`, `disklabel`, `diskutil`, `emond`, `fdesctl`, `fs_usage`, `hdiutil`, `leaks`, `lsappinfo`, `mdfind`, `mdls`, `mdutil`, `networksetup`, `open`, `opendiff`, `osascript`, `pbcopy`, `pbpaste`, `pkgutil`, `pmset`, `say`, `screencapture`, `sysadminctl`, `system_profiler`, `systemsetup`, `tmutil`, `vsdbutil`
 - **Darwin's own components** (6): `dtrace`, `dynamic_pager`, `kextload`, `kextstat`, `kextunload`, `newfs_hfs`
 - **File system tools** (10): `fsck_apfs`, `fsck_exfat`, `fsck_msdos`, `mount_apfs`, `mount_msdos`, `mount_nfs`, `mount_smbfs`, `newfs_apfs`, `newfs_msdos`, `nfsd`

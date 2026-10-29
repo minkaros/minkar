@@ -118,6 +118,7 @@ No command from Apple's command sets is left.
 | 2026-10-29 | `arch`, `vm_stat`, `wait4path`, `tzlink`, `purge`, `caffeinate`, `dot_clean`, `ioreg`, `nvram` | macOS's own tools that need nothing else, written for Minkar: `purge` through the kernel's vfs_purge; `caffeinate` holds IOKit power assertions (no power manager answers yet, and nothing sleeps); `dot_clean` through copyfile(3); `ioreg` and `nvram` through IOKit.framework (`nvram` reads; setting needs a firmware NVRAM driver Minkar lacks) |
 | 2026-10-29 | `lsbom` | Ours, reading the BOM format as publicly described; checked against a real bill of materials made by Apple's tools (GitHub CLI's macOS package: its 247 paths, sizes and `cksum` checksums) |
 | 2026-10-29 | `rtsol` | FreeBSD main's rtsold as `/sbin/rtsol`, without casper; Darwin accepts router advertisements by `net.inet6.ip6.accept_rtadv`, so it only solicits them |
+| 2026-10-29 | `talk` | FreeBSD main's talk and talkd (as `/usr/libexec/ntalkd`), started by launchd for UDP port 518 through `org.minkar.ntalkd` (off, as on macOS) and launchproxy, launchd's inetd helper, now built |
 
 `btop` and `htop` draw their UTF-8 boxes and graphs on the kernel's console
 too: it has line characters, blocks and Braille dots.
