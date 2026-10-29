@@ -35,6 +35,7 @@
 #include <sys/types.h>
 #include <sys/file.h>
 #include <sys/stat.h>
+#include <sys/time.h>
 #include <sys/wait.h>
 
 #include <err.h>
@@ -141,8 +142,21 @@ main(int argc, char *argv[])
 	if ((tfd = mkstemp(tmpname)) == -1)
 		err(1, "mkstemp");
 	atexit(cleanup);
-	if (fchmod(tfd, st.st_mode & 07777) == -1 ||
-	    copy(fd, tfd) == -1 || fstat(tfd, &before) == -1)
+	if (fchmod(tfd, st.st_mode & 07777) == -1 || copy(fd, tfd) == -1)
+		err(1, "%s", tmpname);
+	/*
+	 * HFS+ keeps times to the second: the copy is dated two seconds
+	 * back, so that an edit within the second still shows.
+	 */
+	{
+		struct timeval back[2];
+
+		gettimeofday(&back[0], NULL);
+		back[0].tv_sec -= 2;
+		back[1] = back[0];
+		(void)futimes(tfd, back);
+	}
+	if (fstat(tfd, &before) == -1)
 		err(1, "%s", tmpname);
 	close(tfd);
 

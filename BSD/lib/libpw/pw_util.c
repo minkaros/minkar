@@ -295,6 +295,19 @@ pw_edit(int notsetuid)
 
 	if ((editor = getenv("EDITOR")) == NULL)
 		editor = _PATH_VI;
+	/*
+	 * Minkar: HFS+ keeps times to the second, so an edit within the
+	 * second would look like none; the copy is dated two seconds back
+	 * first, and any write then changes its time.
+	 */
+	{
+		struct timeval back[2];
+
+		gettimeofday(&back[0], NULL);
+		back[0].tv_sec -= 2;
+		back[1] = back[0];
+		(void)utimes(tempname, back);	/* Minkar */
+	}
 	if (stat(tempname, &st1) == -1)
 		return (-1);
 	sa.sa_handler = SIG_IGN;
