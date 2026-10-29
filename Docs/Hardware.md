@@ -54,9 +54,8 @@ loader's output on screen for photos.
 ### Still open
 
 - NVMe.
-- Powering off: `shutdown -h` stops after the drivers' power-off handlers,
-  before the machine turns off (ACPI S5). The kernel now prints each step
-  of S5 to see where.
+- The ACPI interpreter (ACPICA) does not finish starting; the kernel now
+  says every 10 seconds which step and AML method it is in.
 - IOKit does not get quiet within 30 seconds, so some drivers (the
   display's) start after the login prompt; `kextstart` now names the
   services still busy.
@@ -137,3 +136,13 @@ I211 gave the I211 an address, but ping went out through the I219-V, which
 kept its address and routes with no link. As on macOS, `dhcpclient` now
 gives up an interface's addresses (IPv4 and IPv6) and routes when its link
 goes down, and asks for it again when the link comes back.
+
+**Powering off** (2026-10-28, hw-test30). `shutdown -h` stopped with the
+machine on: the ACPI interpreter had never finished starting. With no
+interpreter the kernel now takes SLP_TYP from the DSDT's `_S5_` and writes
+SLP_EN itself, and PC 1 turns off. `arp -a` answers at once there; it was
+slow only while the network was misconfigured.
+
+**Full-screen programs** (2026-10-28). The console draws box lines, block
+elements and Braille dots, so btop shows its boxes and graphs as on a
+terminal emulator instead of `+ - | #`.
