@@ -30,7 +30,7 @@ bin ed bsd
 bin expr bsd
 bin hostname bsd
 bin kill bsd
-bin ksh licence
+bin ksh bsd
 bin launchctl darwin
 bin link bsd
 bin ln bsd
@@ -333,7 +333,7 @@ usr/sbin chroot bsd
 usr/sbin cron bsd
 usr/sbin diskutil apple
 usr/sbin dot_clean apple
-usr/sbin dtrace licence
+usr/sbin dtrace darwin
 usr/sbin edquota bsd
 usr/sbin fdisk bsd
 usr/sbin ioreg apple
