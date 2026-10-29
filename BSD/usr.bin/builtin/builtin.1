@@ -1,0 +1,88 @@
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\" Copyright (c) 2026 The Minkar contributors
+.\" Part of Minkar.
+.Dd October 28, 2026
+.Dt BUILTIN 1
+.Os
+.Sh NAME
+.Nm builtin ,
+.Nm alias ,
+.Nm bg ,
+.Nm cd ,
+.Nm command ,
+.Nm fc ,
+.Nm fg ,
+.Nm getopts ,
+.Nm hash ,
+.Nm jobs ,
+.Nm read ,
+.Nm type ,
+.Nm ulimit ,
+.Nm umask ,
+.Nm unalias ,
+.Nm wait
+.Nd shell built-in commands
+.Sh SYNOPSIS
+.Nm builtin
+.Ar name
+.Op Ar argument ...
+.Sh DESCRIPTION
+These commands are built into the shell, which documents them:
+.Xr sh 1 ,
+.Xr zsh 1 .
+.Pp
+.Nm builtin
+runs the shell's built-in
+.Ar name
+even when a function or a file of that name comes first.
+.Pp
+POSIX also asks for
+.Nm alias ,
+.Nm bg ,
+.Nm cd ,
+.Nm command ,
+.Nm fc ,
+.Nm fg ,
+.Nm getopts ,
+.Nm hash ,
+.Nm jobs ,
+.Nm read ,
+.Nm type ,
+.Nm ulimit ,
+.Nm umask ,
+.Nm unalias
+and
+.Nm wait
+to be found as files, so that programs which start commands without a
+shell, such as
+.Xr env 1 ,
+.Xr find 1
+.Fl exec
+and
+.Xr xargs 1 ,
+can run them.
+Each file in
+.Pa /usr/bin
+runs
+.Xr sh 1
+with its built-in of the same name.
+.Pp
+Those which change the shell's own state
+.Pq Nm cd , Nm umask , Nm alias , Nm read
+have no lasting effect when run as a file: they act in a shell that ends
+when they do.
+They still report, through their exit status, whether they would succeed;
+.Ql find . -type d ! -exec cd {} \e; -print
+lists the directories that cannot be entered.
+.Sh FILES
+.Bl -tag -width /usr/bin/alias -compact
+.It Pa /usr/bin/alias
+the script behind each name
+.El
+.Sh SEE ALSO
+.Xr sh 1 ,
+.Xr zsh 1
+.Sh STANDARDS
+The files follow
+.St -p1003.1-2008 ,
+which lists these utilities as regular built-ins.

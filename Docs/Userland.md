@@ -90,6 +90,8 @@ No command from Apple's command sets is left.
 | 2026-10-28 | `newsyslog` | Our `/etc/newsyslog.conf` for the daemons' own log files and `/etc/newsyslog.d/`; `system.log` and the ASL store stay syslogd's and aslmanager's, as on macOS. launchd runs it at half past each hour |
 | 2026-10-28 | `ipcs`, `ipcrm` | Read XNU's System V IPC tables entry by entry through the `kern.sysv.ipcs.*` sysctls (Darwin has no `kvm(3)`, so `-C`, `-N` and `-y` are refused); `ipcs -S` shows the semaphore limits of `kern.sysv.*`, as the kernel reports what is in use |
 | 2026-10-28 | `htop` | htop 3.4.1 (GPL-2.0) on its Darwin backend (libproc, Mach and IOKit), next to `top` and `btop`; not in macOS |
+| 2026-10-28 | `xxd` | Our own (BSD-2-Clause), written to behave as macOS's (Vim's): same columns, options, `-i` C source and `-r`, which patches a file in place |
+| 2026-10-28 | `alias`, `bg`, `cd`, `command`, `fc`, `fg`, `getopts`, `hash`, `jobs`, `read`, `type`, `ulimit`, `umask`, `unalias`, `wait` | As files in `/usr/bin`, as on macOS: one script of our own that runs `sh`'s built-in, so `env`, `find -exec` and `xargs` can start them; `builtin(1)` |
 
 `btop` and `htop` draw their UTF-8 boxes and graphs on the kernel's console
 too: it has line characters, blocks and Braille dots.
