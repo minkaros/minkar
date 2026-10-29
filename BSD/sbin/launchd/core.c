@@ -11660,6 +11660,12 @@ job_mig_ipc_request(job_t j, vm_offset_t request,
 		if (in_fds[i] == -1) {
 			job_log(j, LOG_ERR, "Bad descriptor passed in legacy IPC request at index: %lu", i);
 		}
+		/*
+		 * Minkar: the fileport's send right was moved to us; once it is a
+		 * descriptor, drop it, or the fileport keeps the file (a job's
+		 * socket) open after the descriptor is closed, as at unload.
+		 */
+		(void)launchd_mport_deallocate(request_fds[i]);
 	}
 
 	// DON'T goto outbad before this point.
