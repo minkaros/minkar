@@ -246,7 +246,7 @@ The generic Unix commands come from FreeBSD `main`, with our own macOS
 layer where macOS behaves differently; Darwin's own components stay. Each
 command, where it comes from and what was fixed while porting it, is in
 [Userland.md](Userland.md); [Commands.md](Commands.md) counts them against
-macOS's (257 of 354 on 2026-10-28).
+macOS's (264 of 354 on 2026-10-29).
 
 - [x] Boot: `sh`, `ls`, `cp`, `mv`, `rm`, `mount`, `ifconfig`, `ps`, `kill`.
 - [x] Replace the commands from Apple's command sets with FreeBSD main's
