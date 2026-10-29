@@ -23,7 +23,7 @@ SUBDIR += mandoc man
 SUBDIR += jot lam rs col colrm look logname mkfifo renice nice lockf cksum bintrans what vis unvis xattr chflags units locate iconv git \
 	calendar pr sdiff diff3 script whois ul mesg wall write banner compress \
 	gencat cap_mkdb last indent ctags timeout passwd \
-	uuidgen asa c99 finger newgrp pagesize unzip bsdunzip zip at \
+	uuidgen asa c99 finger newgrp pagesize unzip zip at \
 	ipcs ipcrm htop builtin xxd nano bash rsync vim ksh llvm-tools chpass shlock mail lex telnet quota openssl
 
 .include <bsd.subdir.mk>
