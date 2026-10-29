@@ -121,6 +121,7 @@ No command from Apple's command sets is left.
 | 2026-10-29 | `talk` | FreeBSD main's talk and talkd (as `/usr/libexec/ntalkd`), started by launchd for UDP port 518 through `org.minkar.ntalkd` (off, as on macOS) and launchproxy, launchd's inetd helper, now built |
 | 2026-10-29 | `kinit`, `klist`, `kdestroy` | Heimdal 7.8.0, the Kerberos macOS uses, built static; credentials go to a file cache (`/tmp/krb5cc_<uid>`), since the API cache Heimdal defaults to on Apple systems needs a service Minkar lacks |
 | 2026-10-29 | `pfctl` | OpenBSD 4.3's, the release whose pf Darwin's kernel carries, on the kernel's private `net/pfvar.h`: Darwin's port and address fields, no interface groups, one routing table, no ALTQ (as on macOS); `/etc/pf.os` from the same release, `/etc/pf.conf` ours (no rules; pf is off at boot) |
+| 2026-10-29 | `newfs_msdos`, `fsck_msdos`, `mount_msdos` | FAT12/16/32: FreeBSD main's newfs_msdos and fsck_msdosfs (as `fsck_msdos`), with the disk size from Darwin's ioctls and macOS's `-v` for the label; `mount_msdos` ours, for Apple's msdosfs kext, which now loads at boot (it had no start function and nothing loaded it) |
 | 2026-10-29 | `localedef` | FreeBSD main's (Nexenta's, BSD-2), writing what Darwin's libc reads: LC_CTYPE as `RuneMagA` and `LC_MESSAGES/LC_MESSAGES` (our `darwin_out.c`); LC_COLLATE in code point order, as all of Minkar's locales (Darwin's collation tables are not publicly documented); our own manual (upstream's is CDDL) |
 
 `btop` and `htop` draw their UTF-8 boxes and graphs on the kernel's console
