@@ -188,6 +188,9 @@ int		getentropy(void *buf, size_t buflen);
 /* <strings.h>: zeroes memory the compiler may not optimize away. */
 void		explicit_bzero(void *buf, size_t len);
 
+/* <unistd.h>: closes every open descriptor from lowfd up. */
+void		closefrom(int lowfd);
+
 /* <unistd.h>: whether the system has a feature ("inet", "inet6"). */
 int		feature_present(const char *feature);
 

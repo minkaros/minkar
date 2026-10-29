@@ -111,6 +111,7 @@ No command from Apple's command sets is left.
 | 2026-10-29 | `quota`, `quotacheck`, `quotaon`, `quotaoff`, `edquota`, `repquota` | Our own, over Darwin's quota hash files (`<sys/quota.h>`) through `BSD/lib/libdqfile`, and the HFS+ quotas of the kernel, now built into the hfs kext (`-DQUOTA`). A volume wants quotas when `.quota.ops.user` or `.quota.ops.group` is at its root; the files are big-endian, as the kernel writes them |
 | 2026-10-29 | `openssl` | OpenSSL 3.5.9 (LTS, Apache-2.0) with `libcrypto.3.dylib`, `libssl.3.dylib` and the legacy provider; `/etc/ssl` is its directory (`cert.pem`, `openssl.cnf`). macOS ships LibreSSL as `openssl`; its SSLeay licence keeps it out of Minkar |
 | 2026-10-29 | `dig`, `host`, `nslookup` | BIND 9.20.30 (MPL-2.0), as on macOS, over libuv 1.53.0 (`BSD/lib/libuv`, static), liburcu 0.15.7 (`BSD/lib/liburcu`, LGPL-2.1, shared in `/usr/lib`) and OpenSSL; BIND's own libraries (it refuses static linking) in `/usr/lib/bind9`; no `named`. Its configure insists on a pkg-config: `tools/build/pkg-config-none.sh` knows no packages, so nothing comes from the build machine |
+| 2026-10-29 | `ftp` | tnftp as FreeBSD main builds it, with libedit and IPv6; it fetches `ftp://` and `http://` URLs too. `closefrom`, which Darwin lacks, is now in libbsdcompat (from `/dev/fd`) |
 
 `btop` and `htop` draw their UTF-8 boxes and graphs on the kernel's console
 too: it has line characters, blocks and Braille dots.
