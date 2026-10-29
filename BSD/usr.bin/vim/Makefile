@@ -30,7 +30,7 @@ VIM_DARWIN = vim_cv_toupper_broken=no vim_cv_terminfo=yes \
 ${.OBJDIR}/src/vim: ${.CURDIR}/Makefile
 	rm -rf ${.OBJDIR}/build && cp -R ${.CURDIR}/dist ${.OBJDIR}/build
 	cd ${.OBJDIR}/build/src && \
-	CC=${CC} AR=${AR} RANLIB=${RANLIB} ${VIM_DARWIN} \
+	CC=${CC} AR=${AR} RANLIB=${RANLIB} PKG_CONFIG=false ${VIM_DARWIN} \
 	CFLAGS="--sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} -O2 -Wno-nullability-completeness" \
 	LDFLAGS="--sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} -fuse-ld=${LD}" \
 	./configure --prefix=/usr --host=${CpuArch}-apple-darwin19 \

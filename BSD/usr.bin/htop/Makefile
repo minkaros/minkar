@@ -17,7 +17,7 @@ HTOP_JOBS =	-j${.MAKE.JOBS:U1}
 
 ${.OBJDIR}/htop: ${.CURDIR}/Makefile
 	sh ${ROOT_SOURCE_DIR}/tools/build/autotools-times.sh ${.CURDIR}/dist
-	CC=${CC} \
+	CC=${CC} PKG_CONFIG=false \
 	CFLAGS="--sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} -O2 -Wno-nullability-completeness" \
 	LDFLAGS="--sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} -fuse-ld=${LD}" \
 	${.CURDIR}/dist/configure --prefix=/usr \
