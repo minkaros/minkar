@@ -21,7 +21,7 @@ Licences other than BSD and MIT need the project's approval first.
 |---|---|
 | [Boot commands](#boot-commands) | Done |
 | [Apple's command sets replaced](#apples-command-sets-replaced) | Done; small gaps in `grep` |
-| [Everyday tools](#everyday-tools) | In progress: `nslookup`/`dig` and others missing |
+| [Everyday tools](#everyday-tools) | In progress: `pfctl` missing |
 | [Power user](#power-user) | `zsh`, `tar`, `ssh`, `curl`, `make` and `git` in the image |
 | [Apple tools](#apple-tools) | `open` missing (needs LaunchServices) |
 | [System data](#system-data) | Locales, time zones, manual pages, iconv tables |
@@ -96,7 +96,7 @@ No command from Apple's command sets is left.
 | 2026-10-28 | `bash` | bash 5.3 with patches 001-020 (GPL-3.0) as `/bin/bash`, in `/etc/shells`; macOS ships 3.2, the last under GPL-2, and its scripts run on 5.3 |
 | 2026-10-28 | `rsync` | rsync 3.5.1 (GPL-3.0); Darwin's ACLs (`-A`) and extended attributes (`-X`); MD5 and zlib only until Minkar has OpenSSL, xxhash, zstd and lz4. macOS 15 ships openrsync, earlier releases rsync 2.6.9 |
 | 2026-10-28 | `vim`, `vi`, `ex`, `view`, `vimdiff`, `rvim`, `rview`, `vimtutor` | Vim 9.2.1252 (Vim licence), the huge feature set without GUI, as macOS's; runtime in `/usr/share/vim/vim92`. `vi`, `ex` and `view` are Vim, as on macOS: nvi is gone |
-| 2026-10-29 | `ksh` | ksh 93u+m/1.0.10 (EPL-2.0) as `/bin/ksh`, as on macOS. Its build runs configuration probes on the target: they ran once on Minkar and `BSD/usr.bin/ksh/iffe-results` gives their answers back, so it cross-builds with no Minkar machine (`make record` redoes them) |
+| 2026-10-29 | `ksh` | ksh 93u+m/1.0.10 (EPL-2.0) as `/bin/ksh`, as on macOS. Its build runs configuration probes on the target: they ran once on Minkar and `BSD/usr.bin/ksh/iffe-results` gives their answers back, so it cross-builds with no Minkar machine (`make record` redoes them); the build machine's `getconf` is not asked, so every machine builds the same probes |
 | 2026-10-29 | `tcsh`, `csh` | tcsh 6.24.16 (BSD-3) as `/bin/tcsh` and `/bin/csh`, as on macOS, with UTF-8 and the system start files in `/etc`; it replaces the FreeBSD build files that were in `BSD/bin/csh` and never built |
 | 2026-10-29 | `dash` | dash 0.5.13.5 (BSD-3) as `/bin/dash`, with libedit; its signal table is ours, from Darwin's `<signal.h>` (upstream's generator is GPL-2 and would give Linux's numbers) |
 | 2026-10-29 | `mtree` | FreeBSD main's (NetBSD's mtree) as `/usr/sbin/mtree`, with MD5, SHA-1 and SHA-2 digests from our libmd (no RIPEMD-160) |
@@ -119,6 +119,7 @@ No command from Apple's command sets is left.
 | 2026-10-29 | `lsbom` | Ours, reading the BOM format as publicly described; checked against a real bill of materials made by Apple's tools (GitHub CLI's macOS package: its 247 paths, sizes and `cksum` checksums) |
 | 2026-10-29 | `rtsol` | FreeBSD main's rtsold as `/sbin/rtsol`, without casper; Darwin accepts router advertisements by `net.inet6.ip6.accept_rtadv`, so it only solicits them |
 | 2026-10-29 | `talk` | FreeBSD main's talk and talkd (as `/usr/libexec/ntalkd`), started by launchd for UDP port 518 through `org.minkar.ntalkd` (off, as on macOS) and launchproxy, launchd's inetd helper, now built |
+| 2026-10-29 | `kinit`, `klist`, `kdestroy` | Heimdal 7.8.0, the Kerberos macOS uses, built static; credentials go to a file cache (`/tmp/krb5cc_<uid>`), since the API cache Heimdal defaults to on Apple systems needs a service Minkar lacks |
 | 2026-10-29 | `localedef` | FreeBSD main's (Nexenta's, BSD-2), writing what Darwin's libc reads: LC_CTYPE as `RuneMagA` and `LC_MESSAGES/LC_MESSAGES` (our `darwin_out.c`); LC_COLLATE in code point order, as all of Minkar's locales (Darwin's collation tables are not publicly documented); our own manual (upstream's is CDDL) |
 
 `btop` and `htop` draw their UTF-8 boxes and graphs on the kernel's console
@@ -126,10 +127,8 @@ too: it has line characters, blocks and Braille dots.
 
 ### Missing and known problems
 
-- `nslookup`, `dig`.
 - `getconf DARWIN_USER_DIR` and `DARWIN_USER_CACHE_DIR` fail with EIO (no
   per-user directory service).
-- `mtree`: NetBSD's, which FreeBSD builds with its `pack_dev` and libnetbsd.
 - `sshd` records a login but not its logout: `last` shows ssh sessions as
   still logged in.
 - Until 2026-10-28 an ACL's allow entries never applied (the kernel had no
@@ -137,7 +136,7 @@ too: it has line characters, blocks and Braille dots.
   the login records: `last` and `finger` showed nothing to other users.
 - The console's terminal has no node in `/dev` (the serial device behind
   it), so `ps` shows `??` for getty.
-- The rest of the BSD tools listed in [Commands.md](Commands.md).
+- `pfctl`, the last BSD tool listed in [Commands.md](Commands.md).
 - Queued (the kernel already has what they need): FAT's `newfs_msdos` and
   `fsck_msdos` (FreeBSD's) and our own `mount_msdos`, as `msdosfs` is in
   the kernelcache; the quota tools (FreeBSD's, for XNU's quota file
