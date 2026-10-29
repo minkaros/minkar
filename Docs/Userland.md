@@ -103,6 +103,7 @@ No command from Apple's command sets is left.
 | 2026-10-29 | `zip`, `unzip`, `zipinfo`, `zipgrep` | Info-ZIP's Zip 3.0 and UnZip 6.0, as on macOS, with Debian's fixes (upstream has not released since 2008-2009) and marked as altered for Minkar, as their licence asks; libarchive's unzip stays as `bsdunzip` |
 | 2026-10-29 | `ar`, `ranlib`, `size`, `strings` | LLVM 17's llvm-ar, llvm-size and llvm-strings, from the llvm-project our compiler is built from, cross-built with CMake; `ar` writes Darwin's archive format with its symbol index, which ld64 links against; our own manual pages |
 | 2026-10-29 | `vipw`, `pwd_mkdb`, `chpass`, `chfn`, `chsh` | FreeBSD main's, sharing `BSD/lib/libpw` (FreeBSD's pw_util and pw_scan, with our `pw_compat.h`: Darwin's `struct passwd` has no `pw_fields`, so those bits are kept beside it). Ids above INT_MAX are read and written negative, as Darwin's `nobody` (-2); the first change by `chpass` builds `pwd.db` and `spwd.db` whole, since a fresh system has none |
+| 2026-10-29 | `accton`, `sa`, `shlock` | `accton` and `sa` are FreeBSD main's; `sa` reads Darwin's acct(2) records (the old fixed-size `struct acct` with `comp_t` times) through our own `readrec.c`, and `/var/account` is in the hierarchy, as on macOS. `shlock` is NetBSD's (FreeBSD has none) |
 
 `btop` and `htop` draw their UTF-8 boxes and graphs on the kernel's console
 too: it has line characters, blocks and Braille dots.
