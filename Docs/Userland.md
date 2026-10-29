@@ -109,6 +109,7 @@ No command from Apple's command sets is left.
 | 2026-10-29 | `lex`, `flex`, `flex++` | flex 2.6.4 as FreeBSD main builds it, from its pre-made scanner, parser and skeleton; run on Minkar over flex's own `scan.l` it gives FreeBSD's `initscan.c` again |
 | 2026-10-29 | `telnet` | FreeBSD main's, plain: linemode, termios, IPv6 and the environment option, without encryption, Kerberos, OPIE or IPsec policy (libraries Minkar does not have) |
 | 2026-10-29 | `quota`, `quotacheck`, `quotaon`, `quotaoff`, `edquota`, `repquota` | Our own, over Darwin's quota hash files (`<sys/quota.h>`) through `BSD/lib/libdqfile`, and the HFS+ quotas of the kernel, now built into the hfs kext (`-DQUOTA`). A volume wants quotas when `.quota.ops.user` or `.quota.ops.group` is at its root; the files are big-endian, as the kernel writes them |
+| 2026-10-29 | `openssl` | OpenSSL 3.5.9 (LTS, Apache-2.0) with `libcrypto.3.dylib`, `libssl.3.dylib` and the legacy provider; `/etc/ssl` is its directory (`cert.pem`, `openssl.cnf`). macOS ships LibreSSL as `openssl`; its SSLeay licence keeps it out of Minkar |
 
 `btop` and `htop` draw their UTF-8 boxes and graphs on the kernel's console
 too: it has line characters, blocks and Braille dots.
