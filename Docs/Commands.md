@@ -10,9 +10,9 @@ Each command comes from FreeBSD main where FreeBSD has it, and behaves as on mac
 |---|---:|
 | `/bin` | 41 |
 | `/sbin` | 29 |
-| `/usr/bin` | 248 |
+| `/usr/bin` | 251 |
 | `/usr/sbin` | 25 |
-| **Total** | **343** |
+| **Total** | **346** |
 
 ## In the source tree
 
@@ -23,16 +23,16 @@ Command directories under `BSD/`, at commit `60aa4ff4b1` (where Minkar started f
 | `BSD/bin` | 30 | 34 |
 | `BSD/sbin` | 4 | 17 |
 | `BSD/usr.bin` | 55 | 159 |
-| `BSD/usr.sbin` | 7 | 19 |
-| **Total** | **96** | **229** |
+| `BSD/usr.sbin` | 7 | 20 |
+| **Total** | **96** | **230** |
 
 ## Against macOS
 
-262 of the 354 reference commands are in the image; 92 are missing.
+264 of the 354 reference commands are in the image; 90 are missing.
 
 | Kind | In the image | Missing | What it takes |
 |---|---:|---:|---|
-| BSD and other portable tools | 238 | 35 | Ported from FreeBSD main (or their own upstream), as the ones before. |
+| BSD and other portable tools | 240 | 33 | Ported from FreeBSD main (or their own upstream), as the ones before. |
 | macOS's own tools | 5 | 41 | Written for Minkar; many need the graphical system or frameworks of later phases. |
 | Darwin's own components | 9 | 6 | Kept from Apple's open source (launchd, configd, syslogd...). |
 | File system tools | 0 | 10 | Need the file system (APFS, exFAT, FAT, NFS, SMB) in the kernel first. |
@@ -41,7 +41,7 @@ Command directories under `BSD/`, at commit `60aa4ff4b1` (where Minkar started f
 
 ### Missing
 
-- **BSD and other portable tools** (35): `accton`, `ar`, `dig`, `edquota`, `fdisk`, `fstyp`, `ftp`, `host`, `kdestroy`, `kinit`, `klist`, `lex`, `localedef`, `mail`, `nslookup`, `openssl`, `pfctl`, `pwd_mkdb`, `quota`, `quotacheck`, `quotaon`, `repquota`, `rlogin`, `rtsol`, `sa`, `shlock`, `size`, `strings`, `talk`, `tcpdump`, `telnet`, `vifs`, `vipw`, `zip`, `zipinfo`
+- **BSD and other portable tools** (33): `accton`, `ar`, `dig`, `edquota`, `fdisk`, `fstyp`, `ftp`, `host`, `kdestroy`, `kinit`, `klist`, `lex`, `localedef`, `mail`, `nslookup`, `openssl`, `pfctl`, `pwd_mkdb`, `quota`, `quotacheck`, `quotaon`, `repquota`, `rlogin`, `rtsol`, `sa`, `shlock`, `size`, `strings`, `talk`, `tcpdump`, `telnet`, `vifs`, `vipw`
 - **macOS's own tools** (41): `arch`, `autodiskmount`, `bless`, `caffeinate`, `chpass`, `chsh`, `csrutil`, `disklabel`, `diskutil`, `dot_clean`, `emond`, `fdesctl`, `fs_usage`, `hdiutil`, `ioreg`, `leaks`, `lsappinfo`, `lsbom`, `mdfind`, `mdls`, `mdutil`, `networksetup`, `nvram`, `open`, `opendiff`, `osascript`, `pbcopy`, `pbpaste`, `pkgutil`, `pmset`, `purge`, `say`, `screencapture`, `sysadminctl`, `system_profiler`, `systemsetup`, `tmutil`, `tzlink`, `vm_stat`, `vsdbutil`, `wait4path`
 - **Darwin's own components** (6): `dtrace`, `dynamic_pager`, `kextload`, `kextstat`, `kextunload`, `newfs_hfs`
 - **File system tools** (10): `fsck_apfs`, `fsck_exfat`, `fsck_msdos`, `mount_apfs`, `mount_msdos`, `mount_nfs`, `mount_smbfs`, `newfs_apfs`, `newfs_msdos`, `nfsd`

@@ -1,0 +1,11 @@
+--- a/revision.h	2008-07-05 12:24:56.000000000 -0500
++++ b/revision.h	2026-10-29 05:04:30.816022044 -0500
+@@ -58,7 +58,7 @@
+ };
+ 
+ ZCONST char * far versinfolines[] = {
+-"This is %s %s (%s), by Info-ZIP.",
++"This is %s %s (%s), altered for Minkar. Original by Info-ZIP.",
+ "Currently maintained by E. Gordon.  Please send bug reports to",
+ "the authors using the web page at www.info-zip.org; see README for details.",
+ "",

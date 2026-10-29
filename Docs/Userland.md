@@ -85,7 +85,7 @@ No command from Apple's command sets is left.
 | 2026-10-28 | `ac` | Reads Darwin's wtmpx log, as `last` does |
 | 2026-10-28 | `uuidgen` | Written for Minkar, as on macOS: an upper-case random UUID, `-hdr` for a Core Foundation header line (FreeBSD's is built on the DCE UUID API) |
 | 2026-10-28 | `arp`, `ndp`, `traceroute6` | Through the routing socket (FreeBSD's path without netlink). XNU pads sockaddrs to 4 bytes and gives `arp` its expiry in calendar time; `ndp -i` sets flags with Darwin's `SIOCSIFINFO_FLAGS`; `traceroute6 -S` (SCTP) with our own packet headers, as Darwin has none |
-| 2026-10-28 | `unzip` | libarchive 3.8.1's bsdunzip (macOS's is Info-ZIP's; `zip` and `zipinfo` are still missing) |
+| 2026-10-28 | `unzip` | libarchive 3.8.1's bsdunzip; since 2026-10-29 it is `bsdunzip`, and `unzip` is Info-ZIP's, as on macOS |
 | 2026-10-28 | `at`, `atq`, `atrm`, `batch` | Set-user-ID root; jobs in `/var/at`. `atrun` runs them under launchd every 30 seconds, disabled as on macOS until `launchctl load -w /System/Library/LaunchDaemons/org.minkar.atrun.plist`; launchd leaves its jobs running (`AbandonProcessGroup`) |
 | 2026-10-28 | `newsyslog` | Our `/etc/newsyslog.conf` for the daemons' own log files and `/etc/newsyslog.d/`; `system.log` and the ASL store stay syslogd's and aslmanager's, as on macOS. launchd runs it at half past each hour |
 | 2026-10-28 | `ipcs`, `ipcrm` | Read XNU's System V IPC tables entry by entry through the `kern.sysv.ipcs.*` sysctls (Darwin has no `kvm(3)`, so `-C`, `-N` and `-y` are refused); `ipcs -S` shows the semaphore limits of `kern.sysv.*`, as the kernel reports what is in use |
@@ -100,6 +100,7 @@ No command from Apple's command sets is left.
 | 2026-10-29 | `tcsh`, `csh` | tcsh 6.24.16 (BSD-3) as `/bin/tcsh` and `/bin/csh`, as on macOS, with UTF-8 and the system start files in `/etc`; it replaces the FreeBSD build files that were in `BSD/bin/csh` and never built |
 | 2026-10-29 | `dash` | dash 0.5.13.5 (BSD-3) as `/bin/dash`, with libedit; its signal table is ours, from Darwin's `<signal.h>` (upstream's generator is GPL-2 and would give Linux's numbers) |
 | 2026-10-29 | `mtree` | FreeBSD main's (NetBSD's mtree) as `/usr/sbin/mtree`, with MD5, SHA-1 and SHA-2 digests from our libmd (no RIPEMD-160) |
+| 2026-10-29 | `zip`, `unzip`, `zipinfo`, `zipgrep` | Info-ZIP's Zip 3.0 and UnZip 6.0, as on macOS, with Debian's fixes (upstream has not released since 2008-2009) and marked as altered for Minkar, as their licence asks; libarchive's unzip stays as `bsdunzip` |
 
 `btop` and `htop` draw their UTF-8 boxes and graphs on the kernel's console
 too: it has line characters, blocks and Braille dots.
