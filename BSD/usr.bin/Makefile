@@ -24,6 +24,6 @@ SUBDIR += jot lam rs col colrm look logname mkfifo renice nice lockf cksum bintr
 	calendar pr sdiff diff3 script whois ul mesg wall write banner compress \
 	gencat cap_mkdb last indent ctags timeout passwd \
 	uuidgen asa c99 finger newgrp pagesize unzip at \
-	ipcs ipcrm htop builtin xxd nano bash
+	ipcs ipcrm htop builtin xxd nano bash rsync
 
 .include <bsd.subdir.mk>

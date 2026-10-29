@@ -94,6 +94,7 @@ No command from Apple's command sets is left.
 | 2026-10-28 | `alias`, `bg`, `cd`, `command`, `fc`, `fg`, `getopts`, `hash`, `jobs`, `read`, `type`, `ulimit`, `umask`, `unalias`, `wait` | As files in `/usr/bin`, as on macOS: one script of our own that runs `sh`'s built-in, so `env`, `find -exec` and `xargs` can start them; `builtin(1)` |
 | 2026-10-28 | `nano`, `rnano`, `pico` | nano 9.3 (GPL-3.0), upstream's release; `pico` is nano, as on macOS; `/etc/nanorc` colours the syntax of the files it knows |
 | 2026-10-28 | `bash` | bash 5.3 with patches 001-020 (GPL-3.0) as `/bin/bash`, in `/etc/shells`; macOS ships 3.2, the last under GPL-2, and its scripts run on 5.3 |
+| 2026-10-28 | `rsync` | rsync 3.5.1 (GPL-3.0); Darwin's ACLs (`-A`) and extended attributes (`-X`); MD5 and zlib only until Minkar has OpenSSL, xxhash, zstd and lz4. macOS 15 ships openrsync, earlier releases rsync 2.6.9 |
 
 `btop` and `htop` draw their UTF-8 boxes and graphs on the kernel's console
 too: it has line characters, blocks and Braille dots.
