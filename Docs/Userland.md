@@ -105,6 +105,7 @@ No command from Apple's command sets is left.
 | 2026-10-29 | `vipw`, `pwd_mkdb`, `chpass`, `chfn`, `chsh` | FreeBSD main's, sharing `BSD/lib/libpw` (FreeBSD's pw_util and pw_scan, with our `pw_compat.h`: Darwin's `struct passwd` has no `pw_fields`, so those bits are kept beside it). Ids above INT_MAX are read and written negative, as Darwin's `nobody` (-2); the first change by `chpass` builds `pwd.db` and `spwd.db` whole, since a fresh system has none |
 | 2026-10-29 | `accton`, `sa`, `shlock` | `accton` and `sa` are FreeBSD main's; `sa` reads Darwin's acct(2) records (the old fixed-size `struct acct` with `comp_t` times) through our own `readrec.c`, and `/var/account` is in the hierarchy, as on macOS. `shlock` is NetBSD's (FreeBSD has none) |
 | 2026-10-29 | `fstyp`, `vifs` | `fstyp` is FreeBSD main's with macOS's names (`hfs`, `msdos`), Darwin's disk ioctls, and without the types that need FreeBSD's or DragonFly's libraries (geli, ufs, zfs, HAMMER); its HFS+ check read the big-endian version natively and never matched on x86 (fixed here). `vifs` is ours: it edits `/etc/fstab` under a lock, through a copy that replaces it only when changed |
+| 2026-10-29 | `mail`, `mailx` | FreeBSD main's, with `/var/mail` (group mail) and `/etc/mail.rc`; it sends through `/usr/sbin/sendmail` when there is one (Minkar has no mail transfer agent yet) |
 
 `btop` and `htop` draw their UTF-8 boxes and graphs on the kernel's console
 too: it has line characters, blocks and Braille dots.
