@@ -1,0 +1,57 @@
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\" Copyright (c) 2026 The Minkar contributors
+.\" Part of Minkar.
+.Dd October 29, 2026
+.Dt CAFFEINATE 1
+.Os
+.Sh NAME
+.Nm caffeinate
+.Nd keep the machine from sleeping
+.Sh SYNOPSIS
+.Nm
+.Op Fl dimsu
+.Op Fl t Ar timeout
+.Op Fl w Ar pid
+.Op Ar utility Op Ar argument ...
+.Sh DESCRIPTION
+.Nm
+holds power assertions that keep the machine, or its display, from going
+to sleep: while
+.Ar utility
+runs (its exit status is
+.Nm Ns 's),
+until process
+.Ar pid
+exits, for
+.Ar timeout
+seconds, or else until it is interrupted.
+.Bl -tag -width Ds
+.It Fl d
+Keep the display from sleeping when idle.
+.It Fl i
+Keep the system from sleeping when idle (the default).
+.It Fl m
+Keep the disks from sleeping when idle.
+.It Fl s
+Keep the system from sleeping at all, on AC power.
+.It Fl u
+Declare that the user is active (for 5 seconds unless
+.Fl t
+says otherwise), which wakes the display.
+.It Fl t Ar timeout
+Hold them this many seconds.
+.It Fl w Ar pid
+Hold them until process
+.Ar pid
+exits.
+.El
+.Pp
+Where no power manager is running there is no sleep to prevent, and
+.Nm
+only waits.
+.Sh SEE ALSO
+.Xr pmset 1
+.Sh HISTORY
+Minkar's
+.Nm
+is its own.

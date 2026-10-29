@@ -1,0 +1,60 @@
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\" Copyright (c) 2026 The Minkar contributors
+.\" Part of Minkar.
+.Dd October 29, 2026
+.Dt ARCH 1
+.Os
+.Sh NAME
+.Nm arch
+.Nd print the architecture, or run a program for one
+.Sh SYNOPSIS
+.Nm
+.Nm
+.Oo Fl Ns Ar arch_name | Fl arch Ar arch_name Oc ...
+.Op Fl c
+.Op Fl d Ar envname
+.Op Fl e Ar envname Ns = Ns Ar value
+.Op Fl h
+.Ar prog
+.Op Ar args ...
+.Sh DESCRIPTION
+With no arguments,
+.Nm
+prints the machine's architecture family:
+.Ql i386
+on Intel machines, whether 32- or 64-bit.
+.Pp
+With a program,
+.Nm
+runs it, choosing from a universal binary the first of the architectures
+given that it holds:
+.Cm i386 ,
+.Cm x86_64 ,
+.Cm x86_64h ,
+.Cm arm64
+or
+.Cm arm64e .
+The program must be able to run on this machine.
+.Bl -tag -width Ds
+.It Fl c
+Run it with an empty environment.
+.It Fl d Ar envname
+Remove
+.Ar envname
+from its environment.
+.It Fl e Ar envname Ns = Ns Ar value
+Set
+.Ar envname
+in its environment.
+.It Fl h
+Print a summary of the options.
+.El
+.Sh EXIT STATUS
+With a program, its exit status; otherwise 0, or 1 on an error.
+.Sh SEE ALSO
+.Xr uname 1 ,
+.Xr posix_spawnattr_setbinpref_np 3
+.Sh HISTORY
+Minkar's
+.Nm
+is its own.
