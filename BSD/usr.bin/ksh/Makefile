@@ -20,7 +20,10 @@
 #
 # In the copy, the Mamfiles call the toolchain's ar (Darwin format) and
 # ranlib (the host's corrupts Mach-O archives), and lcgen, which writes
-# platform-independent tables, is the host's.
+# platform-independent tables, is the host's. libast's conf.sh does not
+# ask a getconf for limits: the build machine's would put its own values
+# (Linux's, and CHILD_MAX from its process limit) in the Darwin build,
+# making it differ from machine to machine.
 
 all: ${.OBJDIR}/.installed
 
@@ -52,6 +55,7 @@ ${.OBJDIR}/ksh: ${.CURDIR}/Makefile
 	cd ${B}/src && for m in lib/libast lib/libdll lib/libsum lib/libcmd cmd/ksh93; do \
 	    sed -i -e 's|exec - ranlib %{@}|exec - ${TC}/llvm-ranlib %{@}|' \
 		-e 's|^setv AR %{mam_cc_AR}|setv AR ${X}/ar-minkar|' $$m/Mamfile; done
+	sed -i 's|if	test -x "$$d/getconf"|if	false|' ${B}/src/lib/libast/comp/conf.sh
 	sed -i 's|exec - lcgen lc.h lctab.c|exec - ${B}/arch/linux.i386-64/src/lib/libast/lcgen lc.h lctab.c|' \
 	    ${B}/src/lib/libast/Mamfile
 	cd ${B} && env -u MAKEFLAGS -u CFLAGS -u LDFLAGS -u CXXFLAGS ${KSH_ENV} bin/package make \
