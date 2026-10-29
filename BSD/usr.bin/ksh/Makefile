@@ -23,7 +23,10 @@
 # platform-independent tables, is the host's. libast's conf.sh does not
 # ask a getconf for limits: the build machine's would put its own values
 # (Linux's, and CHILD_MAX from its process limit) in the Darwin build,
-# making it differ from machine to machine.
+# making it differ from machine to machine. cc-minkar names its target
+# (x86_64-apple-darwin19.6.0, as clang on macOS 10.15 does): the
+# toolchain's default triple carries the build machine's kernel release,
+# and libast keeps it (HOSTTYPE).
 
 all: ${.OBJDIR}/.installed
 
@@ -42,7 +45,7 @@ ${.OBJDIR}/ksh: ${.CURDIR}/Makefile
 	rm -rf ${B} ${X} ${.OBJDIR}/home ${.OBJDIR}/kx
 	cp -R ${.CURDIR}/dist ${B}
 	mkdir -p ${X} ${.OBJDIR}/home ${.OBJDIR}/kx
-	printf '#!/bin/sh\nexec %s --sysroot=%s -mmacos-version-min=%s -arch x86_64 --ld-path=%s -Wno-nullability-completeness "$$@"\n' \
+	printf '#!/bin/sh\nexec %s -target x86_64-apple-darwin19.6.0 --sysroot=%s -mmacos-version-min=%s -arch x86_64 --ld-path=%s -Wno-nullability-completeness "$$@"\n' \
 	    ${CC} ${MINKAR_SDKROOT} ${MACOS_VERSION_MIN} ${LD} > ${X}/cc-minkar
 	printf '#!/bin/sh\nexec %s/llvm-ar --format=darwin "$$@"\n' ${TC} > ${X}/ar-minkar
 	chmod +x ${X}/cc-minkar ${X}/ar-minkar
