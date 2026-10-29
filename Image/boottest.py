@@ -155,8 +155,8 @@ def qemu_command(args, vars_copy):
     ] + disks + [
         # The image is never written: tests start from the same state.
         '-drive', 'if=none,id=disk,format=raw,snapshot=on,file=%s' % args.image,
-        '-device', 'ide-hd,drive=disk,bus=ahci.%d' % port,
-    ] + ([] if args.no_rng else [
+    ] + (['-device', 'nvme,serial=MINKAR0001,drive=disk'] if args.disk == 'nvme' else
+         ['-device', 'ide-hd,drive=disk,bus=ahci.%d' % port]) + ([] if args.no_rng else [
         # Firmware RNG for the loader; --no-rng leaves it out, as on PCs
         # whose firmware has none (the loader then uses RDRAND).
         '-device', 'virtio-rng-pci',
@@ -412,6 +412,10 @@ def main(argv=None):
                         '(default: $BOOTTEST_ACCEL or tcg)')
     p.add_argument('--extra-disk', action='append',
                    help='raw disk attached before the image (repeatable)')
+    p.add_argument('--disk', choices=['ahci', 'nvme'],
+                   default=os.environ.get('BOOTTEST_DISK', 'ahci'),
+                   help='how the image is attached: a SATA disk on AHCI, or an '
+                        'NVMe SSD (default: $BOOTTEST_DISK or ahci)')
     p.add_argument('--no-rng', action='store_true',
                    help='no virtio-rng: firmware without EFI_RNG_PROTOCOL')
     p.add_argument('--smp', type=int, default=2)
