@@ -23,12 +23,30 @@
 	<key>CFBundleVersion</key>
 	<string>1.10</string>
 	<key>IOKitPersonalities</key>
-	<dict/>
+	<dict>
+		<!-- Minkar: loads the kext once BSD is up, as hfs does: with no
+		     kextd to load it on a mount, "msdos" must be there already. -->
+		<key>Load at boot</key>
+		<dict>
+			<key>CFBundleIdentifier</key>
+			<string>com.apple.filesystems.msdosfs</string>
+			<key>IOClass</key>
+			<string>org_minkar_filesystems_msdosfs</string>
+			<key>IOMatchCategory</key>
+			<string>org_minkar_filesystems_msdosfs</string>
+			<key>IOProviderClass</key>
+			<string>IOResources</string>
+			<key>IOResourceMatch</key>
+			<string>IOBSD</string>
+		</dict>
+	</dict>
 	<key>OSBundleAllowUserLoad</key>
 	<true/>
 	<key>OSBundleLibraries</key>
 	<dict>
 		<key>com.apple.kpi.bsd</key>
+		<string>8.0.0</string>
+		<key>com.apple.kpi.iokit</key>
 		<string>8.0.0</string>
 		<key>com.apple.kpi.libkern</key>
 		<string>9.0.0</string>

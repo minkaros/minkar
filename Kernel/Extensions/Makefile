@@ -35,6 +35,7 @@ kernelcache: ${SUBDIR}
 	${EXTENSIONS}/AppleFileSystemDriver/AppleFileSystemDriver.kext \
 	${EXTENSIONS}/hfs/hfs_encodings/hfs_encodings.kext \
 	${EXTENSIONS}/hfs/hfs.kext \
+	${EXTENSIONS}/msdosfs/msdosfs.kext \
 	${EXTENSIONS}/IOGraphics/IOGOPFramebuffer.kext \
 	${EXTENSIONS}/IOHIDFamily/IOHIDFamily.kext \
 	${EXTENSIONS}/IONetworkingFamily/IONetworkingFamily.kext \
