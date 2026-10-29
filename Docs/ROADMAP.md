@@ -589,7 +589,7 @@ recompiling; the arm64 image boots to M2 in QEMU.
 
 | Gate | Phase | State |
 | --- | --- | --- |
-| M0 | Build, toolchain, CI | Met locally; CI written, first green run pending |
+| M0 | Build, toolchain, CI | Met (CI green since `05fa75cb65`; again with ksh, `9191fe8458`, 2026-10-29) |
 | M1 | Darwin boot | Met in QEMU and on PC 1; a second PC missing |
 | M2 | Base userland | Met (`boottest GATE=M2`) |
 | M3 | Base frameworks and Swift | Not started |
