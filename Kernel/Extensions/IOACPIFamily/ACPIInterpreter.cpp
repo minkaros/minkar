@@ -40,12 +40,15 @@
 #include <IOKit/IOInterrupts.h>
 #include <IOKit/pci/IOPCIDevice.h>
 #include <kern/thread.h>
+#include <mach/mach_time.h>
+#include <pexpert/pexpert.h>
 
 /* osfmk machine_routines.h does not build as C++ here. */
 extern "C" boolean_t ml_set_interrupts_enabled(boolean_t enable);
 
 extern "C" {
 #include <contrib/dev/acpica/include/acpi.h>
+#include <contrib/dev/acpica/include/accommon.h>
 }
 
 #include "ACPIOSLayer.h"
@@ -55,6 +58,8 @@ static IOLock *gStartLock;
 static volatile bool gStartDone;
 static bool gStarted;
 static ACPI_HANDLE gRootBridge;
+static uint64_t gStartDeadline;		/* how long anyone waits for the start */
+static const char * volatile gStage = "not started";
 
 /* What _PRT and the link devices said about each GSI. */
 #define MAX_GSI 256
@@ -89,18 +94,25 @@ startThread(void *, wait_result_t)
 		IOService::getPlatform()->lookUpInterruptController(
 		    (OSSymbol *)gInterruptController);
 
-	if (ACPI_FAILURE(st = AcpiInitializeSubsystem()))
+	/* gStage names each step, for the watchdog's report if one hangs. */
+	if ((gStage = "AcpiInitializeSubsystem",
+	    ACPI_FAILURE(st = AcpiInitializeSubsystem())))
 		IOLog("ACPI: AcpiInitializeSubsystem: %s\n", AcpiFormatException(st));
-	else if (ACPI_FAILURE(st = AcpiInitializeTables(NULL, 16, FALSE)))
+	else if ((gStage = "AcpiInitializeTables",
+	    ACPI_FAILURE(st = AcpiInitializeTables(NULL, 16, FALSE))))
 		IOLog("ACPI: AcpiInitializeTables: %s\n", AcpiFormatException(st));
-	else if (ACPI_FAILURE(st = AcpiLoadTables()))
+	else if ((gStage = "AcpiLoadTables (the DSDT and SSDTs)",
+	    ACPI_FAILURE(st = AcpiLoadTables())))
 		IOLog("ACPI: AcpiLoadTables: %s\n", AcpiFormatException(st));
-	else if (ACPI_FAILURE(st = AcpiEnableSubsystem(ACPI_FULL_INITIALIZATION)))
+	else if ((gStage = "AcpiEnableSubsystem (ACPI mode, SCI)",
+	    ACPI_FAILURE(st = AcpiEnableSubsystem(ACPI_FULL_INITIALIZATION))))
 		IOLog("ACPI: AcpiEnableSubsystem: %s\n", AcpiFormatException(st));
-	else if (ACPI_FAILURE(st = AcpiInitializeObjects(ACPI_FULL_INITIALIZATION)))
+	else if ((gStage = "AcpiInitializeObjects (_STA, _INI)",
+	    ACPI_FAILURE(st = AcpiInitializeObjects(ACPI_FULL_INITIALIZATION))))
 		IOLog("ACPI: AcpiInitializeObjects: %s\n", AcpiFormatException(st));
 	else
 		ok = true;
+	gStage = ok ? "running" : "failed";
 
 	if (ok) {
 		/* APIC mode: _PRT then names the IOAPIC routing. */
@@ -124,6 +136,51 @@ startThread(void *, wait_result_t)
 	IOLockUnlock(gStartLock);
 }
 
+/* The AML method the interpreter runs now, as \_SB_.PCI0._INI. */
+static void
+currentMethod(char *buf, size_t len)
+{
+	ACPI_THREAD_STATE *t = AcpiGbl_CurrentWalkList;
+	ACPI_WALK_STATE *w = t != NULL ? t->WalkStateList : NULL;
+	ACPI_NAMESPACE_NODE *n = w != NULL ? w->MethodNode : NULL;
+	char names[8][5];
+	int depth = 0;
+
+	for (; n != NULL && n->Parent != NULL && depth < 8; n = n->Parent) {
+		memcpy(names[depth], n->Name.Ascii, 4);
+		names[depth++][4] = 0;
+	}
+	buf[0] = 0;
+	if (depth == 0) {
+		strlcpy(buf, "none", len);
+		return;
+	}
+	while (depth-- > 0) {
+		strlcat(buf, "\\", len);
+		strlcat(buf, names[depth], len);
+	}
+}
+
+/*
+ * If the start hangs (seen on a PC), says every 10 seconds where: the
+ * step, the AML method and the interpreter's last access to the hardware.
+ */
+static void
+watchThread(void *, wait_result_t)
+{
+	for (int secs = 10; secs <= 60; secs += 10) {
+		IOSleep(10000);
+		if (gStartDone)
+			return;
+		char method[64];
+		currentMethod(method, sizeof(method));
+		IOLog("ACPI: still starting after %ds: %s, method %s, last %s 0x%llx = 0x%llx (%llu)\n",
+		    secs, gStage, method,
+		    gACPIOSLast.what != NULL ? gACPIOSLast.what : "none",
+		    gACPIOSLast.address, gACPIOSLast.value, gACPIOSLast.count);
+	}
+}
+
 bool
 ACPIInterpreterStart(void)
 {
@@ -133,11 +190,14 @@ ACPIInterpreterStart(void)
 		return true;
 	if ((gStartLock = IOLockAlloc()) == NULL)
 		return false;
+	clock_interval_to_deadline(30, kSecondScale, &gStartDeadline);
 	if (kernel_thread_start(startThread, NULL, &thread) != KERN_SUCCESS) {
 		gStartDone = true;
 		return false;
 	}
 	thread_deallocate(thread);
+	if (kernel_thread_start(watchThread, NULL, &thread) == KERN_SUCCESS)
+		thread_deallocate(thread);
 	return true;
 }
 
@@ -145,14 +205,13 @@ ACPIInterpreterStart(void)
 static bool
 waitStarted(void)
 {
-	uint64_t deadline;
-
 	if (gStartLock == NULL)
 		return false;
-	clock_interval_to_deadline(30, kSecondScale, &deadline);
+	/* One deadline for every caller: a start that hangs costs 30 seconds
+	 * once, not once per PCI device. */
 	IOLockLock(gStartLock);
-	while (!gStartDone) {
-		if (IOLockSleepDeadline(gStartLock, (event_t)&gStartDone, deadline,
+	while (!gStartDone && mach_absolute_time() < gStartDeadline) {
+		if (IOLockSleepDeadline(gStartLock, (event_t)&gStartDone, gStartDeadline,
 		    THREAD_UNINT) == THREAD_TIMED_OUT)
 			break;
 	}
@@ -166,15 +225,104 @@ waitStarted(void)
  * Turns the machine off (ACPI S5), as halting does on macOS: _PTS, then
  * SLP_TYP/SLP_EN with interrupts off. Returns only if that failed.
  */
+/*
+ * The value a Name(_S5_, Package() {a, b, ...}) gives SLP_TYPa and SLP_TYPb,
+ * found in the DSDT's bytes, for when the interpreter is not running.
+ */
+static bool
+findS5(const uint8_t *aml, size_t len, uint8_t *typa, uint8_t *typb)
+{
+	for (size_t i = 0; i + 8 < len; i++) {
+		if (memcmp(aml + i, "_S5_", 4) != 0 || aml[i + 4] != 0x12)	/* PackageOp */
+			continue;
+		size_t p = i + 5;
+		p += 1 + (aml[p] >> 6);		/* PkgLength: lead byte and its extra bytes */
+		p++;				/* NumElements */
+		uint8_t v[2];
+		for (int k = 0; k < 2 && p < len; k++) {
+			if (aml[p] == 0x0A && p + 1 < len) {	/* BytePrefix */
+				v[k] = aml[p + 1];
+				p += 2;
+			} else if (aml[p] <= 0x01 || aml[p] == 0xFF) {	/* Zero, One, Ones */
+				v[k] = aml[p] == 0xFF ? 0x7 : aml[p];
+				p++;
+			} else {
+				return false;
+			}
+		}
+		*typa = v[0];
+		*typb = v[1];
+		return true;
+	}
+	return false;
+}
+
+static inline uint16_t inw16(uint16_t port)
+{
+	uint16_t v;
+	__asm__ __volatile__("inw %w1, %w0" : "=a"(v) : "Nd"(port));
+	return v;
+}
+
+static inline void outw16(uint16_t port, uint16_t v)
+{
+	__asm__ __volatile__("outw %w0, %w1" : : "a"(v), "Nd"(port));
+}
+
+/*
+ * S5 without the interpreter: SLP_TYP from the DSDT's _S5_ and SLP_EN
+ * written to the FADT's PM1 control registers (no _PTS).
+ */
+static bool
+powerOffDirect(void)
+{
+	ACPI_TABLE_HEADER *t, *dsdt;
+	ACPI_TABLE_FADT *fadt;
+	uint8_t typa, typb;
+
+	if (ACPI_FAILURE(AcpiGetTable((char *)ACPI_SIG_FADT, 1, &t)) ||
+	    ACPI_FAILURE(AcpiGetTable((char *)ACPI_SIG_DSDT, 1, &dsdt))) {
+		IOLog("ACPI: no FADT or DSDT, cannot power off\n");
+		return false;
+	}
+	fadt = (ACPI_TABLE_FADT *)t;
+	if (!findS5((const uint8_t *)dsdt + sizeof(*dsdt),
+	    dsdt->Length - sizeof(*dsdt), &typa, &typb)) {
+		IOLog("ACPI: no _S5_ in the DSDT, cannot power off\n");
+		return false;
+	}
+	uint16_t a = (uint16_t)fadt->Pm1aControlBlock;
+	uint16_t b = (uint16_t)fadt->Pm1bControlBlock;
+	uint16_t evt = (uint16_t)fadt->Pm1aEventBlock;
+	IOLog("ACPI: S5 without the interpreter: SLP_TYP %u/%u, PM1a_CNT 0x%x\n",
+	    typa, typb, a);
+	if (a == 0)
+		return false;
+	(void)ml_set_interrupts_enabled(FALSE);
+	if (evt != 0)
+		outw16(evt, 0xFFFF);		/* clear the wake status bits */
+	outw16(a, (uint16_t)((inw16(a) & ~(0x7 << 10)) | (typa << 10)));
+	if (b != 0)
+		outw16(b, (uint16_t)((inw16(b) & ~(0x7 << 10)) | (typb << 10)));
+	outw16(a, (uint16_t)(inw16(a) | (1 << 13)));		/* SLP_EN */
+	if (b != 0)
+		outw16(b, (uint16_t)(inw16(b) | (1 << 13)));
+	IODelay(100000);
+	return false;
+}
+
 bool
 ACPIInterpreterPowerOff(void)
 {
 	ACPI_STATUS st;
 	boolean_t istate;
 
-	if (!gStarted) {
-		IOLog("ACPI: no interpreter, cannot power off\n");
-		return false;
+	/* acpi_direct_s5=1 takes the path without the interpreter (tests). */
+	uint32_t direct = 0;
+	(void)PE_parse_boot_argn("acpi_direct_s5", &direct, sizeof(direct));
+	if (!gStarted || direct) {
+		IOLog("ACPI: interpreter not running (%s)\n", direct ? "acpi_direct_s5" : gStage);
+		return powerOffDirect();
 	}
 	/* Each step is shown, to see on a PC where powering off stops. */
 	IOLog("ACPI: S5: _PTS\n");
