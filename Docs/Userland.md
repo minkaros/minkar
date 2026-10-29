@@ -116,6 +116,7 @@ No command from Apple's command sets is left.
 | 2026-10-29 | `tcpdump` | tcpdump 4.99.7 with libpcap 1.11.0 (static, private to it) over Darwin's BPF |
 | 2026-10-29 | `fdisk` | FreeBSD main's MBR editor over Darwin's disk ioctls (our small `<libgeom.h>`; no GEOM), without FreeBSD's deprecation notice; with no `/boot/mbr` (Minkar starts by EFI) a new MBR has no boot code |
 | 2026-10-29 | `arch`, `vm_stat`, `wait4path`, `tzlink`, `purge`, `caffeinate`, `dot_clean`, `ioreg`, `nvram` | macOS's own tools that need nothing else, written for Minkar: `purge` through the kernel's vfs_purge; `caffeinate` holds IOKit power assertions (no power manager answers yet, and nothing sleeps); `dot_clean` through copyfile(3); `ioreg` and `nvram` through IOKit.framework (`nvram` reads; setting needs a firmware NVRAM driver Minkar lacks) |
+| 2026-10-29 | `lsbom` | Ours, reading the BOM format as publicly described; checked against a real bill of materials made by Apple's tools (GitHub CLI's macOS package: its 247 paths, sizes and `cksum` checksums) |
 
 `btop` and `htop` draw their UTF-8 boxes and graphs on the kernel's console
 too: it has line characters, blocks and Braille dots.
