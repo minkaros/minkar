@@ -1991,6 +1991,15 @@ SYSCTL_INT(_kern, KERN_SAVED_IDS, saved_ids,
     CTLFLAG_RD | CTLFLAG_KERN | CTLFLAG_LOCKED,
     NULL, 0, "");
 #endif
+/*
+ * Minkar: 1 once the console login is up; the kernel's messages then stay
+ * off the console screen (they still reach the log).
+ */
+extern int console_quiet;
+SYSCTL_INT(_kern, OID_AUTO, console_quiet,
+    CTLFLAG_RW | CTLFLAG_LOCKED,
+    &console_quiet, 0, "kernel messages kept off the console screen");
+
 SYSCTL_INT(_kern, OID_AUTO, num_files,
     CTLFLAG_RD | CTLFLAG_LOCKED,
     &nfiles, 0, "");

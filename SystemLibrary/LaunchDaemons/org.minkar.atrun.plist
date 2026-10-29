@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+ SPDX-License-Identifier: BSD-2-Clause
+ Copyright (c) 2026 The Minkar contributors
+ Part of Minkar.
+
+ atrun, which runs at's jobs, every 30 seconds. Disabled, as on macOS:
+ "launchctl load -w /System/Library/LaunchDaemons/org.minkar.atrun.plist"
+ turns it on. Its jobs outlive it: launchd leaves its process group alone.
+-->
+<plist version="1.0">
+<dict>
+	<key>Label</key>
+	<string>org.minkar.atrun</string>
+	<key>ProgramArguments</key>
+	<array>
+		<string>/usr/libexec/atrun</string>
+	</array>
+	<key>AbandonProcessGroup</key>
+	<true/>
+	<key>StartInterval</key>
+	<integer>30</integer>
+	<key>Disabled</key>
+	<true/>
+</dict>
+</plist>

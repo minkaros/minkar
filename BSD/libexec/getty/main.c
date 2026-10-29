@@ -40,6 +40,7 @@
 #include <sys/time.h>
 #include <sys/resource.h>
 #include <sys/stat.h>
+#include <sys/sysctl.h>
 #include <sys/ttydefaults.h>
 #include <sys/utsname.h>
 
@@ -187,6 +188,35 @@ timeoverrun(int signo __unused)
 	exit(1);
 }
 
+/*
+ * Minkar: whether getty has shown a login on this terminal since boot.
+ * The screen is cleared for every login but the first, which keeps the
+ * boot messages above it; a logout leaves a clean screen.
+ */
+static int
+cleared_before(void)
+{
+	char path[64];
+	const char *t = strrchr(ttyn, '/');
+	int fd;
+
+	struct timeval boot;
+	struct stat sb;
+	size_t len = sizeof(boot);
+	int mib[2] = { CTL_KERN, KERN_BOOTTIME };
+
+	snprintf(path, sizeof(path), "/var/run/getty.%s.seen",
+	    t != NULL ? t + 1 : ttyn);
+	/* A mark from before this boot does not count. */
+	if (stat(path, &sb) == 0 && sysctl(mib, 2, &boot, &len, NULL, 0) == 0 &&
+	    sb.st_mtime >= boot.tv_sec)
+		return (1);
+	(void)unlink(path);
+	if ((fd = open(path, O_WRONLY | O_CREAT | O_EXCL, 0644)) >= 0)
+		close(fd);
+	return (0);
+}
+
 int
 main(int argc, char *argv[])
 {
@@ -319,7 +349,7 @@ main(int argc, char *argv[])
 			dogettytab();
 			continue;
 		}
-		if (CL && *CL)
+		if (CL && *CL && cleared_before())
 			putpad(CL);
 		edithost(HE);
 

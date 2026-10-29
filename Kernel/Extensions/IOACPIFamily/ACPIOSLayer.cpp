@@ -139,6 +139,18 @@ struct Mapping {
 };
 static struct Mapping *gMappings;
 
+volatile struct ACPIOSActivity gACPIOSLast;
+volatile uint64_t gACPIOSSCICount;
+
+static inline void
+note(const char *what, uint64_t address, uint64_t value)
+{
+	gACPIOSLast.what = what;
+	gACPIOSLast.address = address;
+	gACPIOSLast.value = value;
+	gACPIOSLast.count++;
+}
+
 void *
 AcpiOsMapMemory(ACPI_PHYSICAL_ADDRESS Where, ACPI_SIZE Length)
 {
@@ -204,6 +216,7 @@ AcpiOsReadMemory(ACPI_PHYSICAL_ADDRESS Address, UINT64 *Value, UINT32 Width)
 	default: AcpiOsUnmapMemory(p, Width / 8); return AE_BAD_PARAMETER;
 	}
 	AcpiOsUnmapMemory(p, Width / 8);
+	note("read memory", Address, *Value);
 	return AE_OK;
 }
 
@@ -222,6 +235,7 @@ AcpiOsWriteMemory(ACPI_PHYSICAL_ADDRESS Address, UINT64 Value, UINT32 Width)
 	default: AcpiOsUnmapMemory(p, Width / 8); return AE_BAD_PARAMETER;
 	}
 	AcpiOsUnmapMemory(p, Width / 8);
+	note("write memory", Address, Value);
 	return AE_OK;
 }
 
@@ -304,6 +318,24 @@ AcpiOsWaitSemaphore(ACPI_SEMAPHORE Handle, UINT32 Units, UINT16 Timeout)
 
 	if (s == NULL || Units == 0)
 		return AE_BAD_PARAMETER;
+	/*
+	 * Minkar: ACPICA waits for the firmware to release the Global Lock on
+	 * this semaphore, which only the SCI signals, and tries the lock again
+	 * each time it returns. Woken every 10 ms as well, the wait ends even
+	 * when the SCI does not come (PC 1 hung in \_SB.PCI0._INI there).
+	 */
+	if (Handle == AcpiGbl_GlobalLockSemaphore && Timeout == ACPI_WAIT_FOREVER) {
+		note("wait global lock", (uint64_t)(uintptr_t)Handle, Timeout);
+		clock_interval_to_deadline(10, kMillisecondScale, &deadline);
+		IOLockLock(s->lock);
+		if (s->units < Units)
+			(void)IOLockSleepDeadline(s->lock, s, deadline, THREAD_UNINT);
+		if (s->units >= Units)
+			s->units -= Units;
+		IOLockUnlock(s->lock);
+		return AE_OK;
+	}
+	note("wait semaphore", (uint64_t)(uintptr_t)Handle, Timeout);
 	if (Timeout != ACPI_WAIT_FOREVER && Timeout != 0)
 		clock_interval_to_deadline(Timeout, kMillisecondScale, &deadline);
 	IOLockLock(s->lock);
@@ -402,6 +434,7 @@ AcpiOsWaitEventsComplete(void)
 void
 AcpiOsSleep(UINT64 Milliseconds)
 {
+	note("sleep ms", 0, Milliseconds);
 	IOSleep((unsigned)Milliseconds);
 }
 
@@ -450,6 +483,7 @@ AcpiOsReadPort(ACPI_IO_ADDRESS Address, UINT32 *Value, UINT32 Width)
 	default:
 		return AE_BAD_PARAMETER;
 	}
+	note("read port", Address, *Value);
 	return AE_OK;
 }
 
@@ -464,6 +498,7 @@ AcpiOsWritePort(ACPI_IO_ADDRESS Address, UINT32 Value, UINT32 Width)
 	case 32: __asm__ __volatile__("outl %0, %w1" : : "a"(Value), "Nd"(port)); break;
 	default: return AE_BAD_PARAMETER;
 	}
+	note("write port", Address, Value);
 	return AE_OK;
 }
 
@@ -562,6 +597,7 @@ static struct SCIHandler gSCI;
 static void
 sciInterrupt(OSObject *, void *, IOService *, int)
 {
+	gACPIOSSCICount++;
 	if (gSCI.handler != NULL)
 		gSCI.handler(gSCI.context);
 }

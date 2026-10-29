@@ -127,11 +127,18 @@ static boolean_t gc_enabled     = FALSE;
 static boolean_t gc_initialized = FALSE;
 static boolean_t vm_initialized = FALSE;
 
+/*
+ * Minkar (2026): what a console cell holds. Below 0x100, a character of
+ * the ISO 8859-1 font; above, a Unicode character drawn by code (box
+ * lines, blocks, Braille), see gc_glyph_bitmap.
+ */
+typedef uint16_t gc_glyph_t;
+
 static struct {
 	void (*initialize)(struct vc_info * info);
 	void (*enable)(boolean_t enable);
-	void (*paint_char)(unsigned int xx, unsigned int yy, unsigned char ch,
-			   int attrs, unsigned char ch_previous,
+	void (*paint_char)(unsigned int xx, unsigned int yy, gc_glyph_t ch,
+			   int attrs, gc_glyph_t ch_previous,
 			   int attrs_previous);
 	void (*clear_screen)(unsigned int xx, unsigned int yy, unsigned int top,
 			     unsigned int bottom, int which);
@@ -143,7 +150,7 @@ static struct {
 } gc_ops;
 
 static unsigned char *gc_buffer_attributes;
-static unsigned char *gc_buffer_characters;
+static gc_glyph_t *gc_buffer_characters;
 static unsigned char *gc_buffer_colorcodes;
 static unsigned char *gc_buffer_tab_stops;
 static uint32_t gc_buffer_columns;
@@ -264,6 +271,13 @@ static int8_t vc_rotate_matr[4][2][2] = {
 };
 
 static int gc_wrap_mode = 1, gc_relative_origin = 0;
+/*
+ * Minkar (2026): the last character painted (for REP, CSI b) and the UTF-8
+ * sequence being decoded (gc_utf8_need bytes still to come).
+ */
+static gc_glyph_t gc_last_char = ' ';
+static uint32_t gc_utf8_cp;
+static int gc_utf8_need;
 static int gc_charset_select = 0, gc_save_charset_s = 0;
 static int gc_charset[2] = { 0, 0 };
 static int gc_charset_save[2] = { 0, 0 };
@@ -275,7 +289,7 @@ static void gc_enable(boolean_t enable);
 static void gc_hide_cursor(unsigned int xx, unsigned int yy);
 static void gc_initialize(struct vc_info * info);
 static boolean_t gc_is_tab_stop(unsigned int column);
-static void gc_paint_char(unsigned int xx, unsigned int yy, unsigned char ch,
+static void gc_paint_char(unsigned int xx, unsigned int yy, gc_glyph_t ch,
 		int attrs);
 static void gc_putchar(char ch);
 static void gc_putc_askcmd(unsigned char ch);
@@ -284,7 +298,7 @@ static void gc_putc_charsizecmd(unsigned char ch);
 static void gc_putc_esc(unsigned char ch);
 static void gc_putc_getpars(unsigned char ch);
 static void gc_putc_gotpars(unsigned char ch);
-static void gc_putc_normal(unsigned char ch);
+static void gc_putc_normal(gc_glyph_t ch);
 static void gc_putc_square(unsigned char ch);
 static void gc_reset_screen(void);
 static void gc_reset_tabs(void);
@@ -359,7 +373,9 @@ gc_clear_screen(unsigned int xx, unsigned int yy, int top, unsigned int bottom,
 		}
 
 		memset(gc_buffer_attributes + start, ATTR_NONE, end - start + 1);
-		memset(gc_buffer_characters + start, ' ', end - start + 1);
+		for (uint32_t i = start; i <= end; i++) {
+			gc_buffer_characters[i] = ' ';
+		}
 		memset(gc_buffer_colorcodes + start, gc_color_code, end - start + 1);
 	}
 
@@ -370,7 +386,7 @@ static void
 gc_enable( boolean_t enable )
 {
 	unsigned char *buffer_attributes = NULL;
-	unsigned char *buffer_characters = NULL;
+	gc_glyph_t *buffer_characters = NULL;
 	unsigned char *buffer_colorcodes = NULL;
 	unsigned char *buffer_tab_stops  = NULL;
 	uint32_t buffer_columns = 0;
@@ -412,7 +428,7 @@ gc_enable( boolean_t enable )
 		splx( s );
 
 		kfree( buffer_attributes, buffer_size );
-		kfree( buffer_characters, buffer_size );
+		kfree( buffer_characters, buffer_size * sizeof(gc_glyph_t) );
 		kfree( buffer_colorcodes, buffer_size );
 		kfree( buffer_tab_stops,  buffer_columns );
 	}
@@ -433,7 +449,7 @@ gc_enable( boolean_t enable )
 			if ( buffer_size )
 			{
 				buffer_attributes = (unsigned char *) kalloc( buffer_size );
-				buffer_characters = (unsigned char *) kalloc( buffer_size );
+				buffer_characters = (gc_glyph_t *) kalloc( buffer_size * sizeof(gc_glyph_t) );
 				buffer_colorcodes = (unsigned char *) kalloc( buffer_size );
 				buffer_tab_stops  = (unsigned char *) kalloc( buffer_columns );
 
@@ -443,7 +459,7 @@ gc_enable( boolean_t enable )
 				     buffer_tab_stops  == NULL )
 				{
 					if ( buffer_attributes ) kfree( buffer_attributes, buffer_size );
-					if ( buffer_characters ) kfree( buffer_characters, buffer_size );
+					if ( buffer_characters ) kfree( buffer_characters, buffer_size * sizeof(gc_glyph_t) );
 					if ( buffer_colorcodes ) kfree( buffer_colorcodes, buffer_size );
 					if ( buffer_tab_stops  ) kfree( buffer_tab_stops,  buffer_columns );
 
@@ -458,7 +474,9 @@ gc_enable( boolean_t enable )
 				else
 				{
 					memset( buffer_attributes, ATTR_NONE, buffer_size );
-					memset( buffer_characters, ' ', buffer_size );
+					for (uint32_t i = 0; i < buffer_size; i++) {
+						buffer_characters[i] = ' ';
+					}
 					memset( buffer_colorcodes, COLOR_CODE_SET( 0, COLOR_FOREGROUND, TRUE ), buffer_size );
 					memset( buffer_tab_stops, 0, buffer_columns );
 				}
@@ -497,7 +515,7 @@ gc_hide_cursor(unsigned int xx, unsigned int yy)
 	{
 		uint32_t index = (yy * gc_buffer_columns) + xx;
 		unsigned char attribute = gc_buffer_attributes[index];
-		unsigned char character = gc_buffer_characters[index];
+		gc_glyph_t character = gc_buffer_characters[index];
 		unsigned char colorcode = gc_buffer_colorcodes[index];
 		unsigned char colorcodesave = gc_color_code;
 
@@ -533,7 +551,7 @@ gc_initialize(struct vc_info * info)
 }
 
 static void
-gc_paint_char(unsigned int xx, unsigned int yy, unsigned char ch, int attrs)
+gc_paint_char(unsigned int xx, unsigned int yy, gc_glyph_t ch, int attrs)
 {
 	if ( xx < gc_buffer_columns && yy < gc_buffer_rows )
 	{
@@ -547,11 +565,76 @@ gc_paint_char(unsigned int xx, unsigned int yy, unsigned char ch, int attrs)
 	gc_ops.paint_char(xx, yy, ch, attrs, 0, 0);
 }
 
+/*
+ * Minkar (2026): the console's font has the 256 characters of ISO 8859-1.
+ * Box lines, blocks and Braille dots (graphs) are drawn by code
+ * (gc_glyph_bitmap); other characters past the font are drawn as the
+ * nearest ASCII one (arrows as ^ v < >, shapes as # or o), or as ?.
+ */
+static gc_glyph_t
+gc_unicode_glyph(uint32_t cp)
+{
+	if (cp < 0x100)
+		return (unsigned char)cp;
+	/* Drawn by code: box lines, blocks, Braille, a few shapes and arrows. */
+	if ((cp >= 0x2500 && cp <= 0x259F) || (cp >= 0x2800 && cp <= 0x28FF))
+		return (gc_glyph_t)cp;
+	switch (cp) {
+	case 0x25A0: case 0x25AA: case 0x25B2: case 0x25BC: case 0x25CB:
+	case 0x25CF: case 0x2191: case 0x2193:
+		return (gc_glyph_t)cp;
+	}
+	if (cp >= 0x25A0 && cp <= 0x25FF)		/* geometric shapes */
+		return cp == 0x25E6 ? 'o' : '#';
+	switch (cp) {
+	case 0x2190: return '<';
+	case 0x2192: return '>';
+	case 0x2010: case 0x2011: case 0x2012: case 0x2013: case 0x2014:
+	case 0x2212:
+		return '-';
+	case 0x2018: case 0x2019: return '\'';
+	case 0x201C: case 0x201D: return '"';
+	case 0x2022: case 0x2219: return 0xB7;	/* middle dot */
+	case 0x2026: return '.';
+	case 0x20AC: return 'E';
+	default:
+		return '?';
+	}
+}
+
 static void
 gc_putchar(char ch)
 {
+	unsigned char c = (unsigned char)ch;
+
 	if (!ch) {
 		return;	/* ignore null characters */
+	}
+	/*
+	 * Minkar (2026): text is UTF-8. A sequence is decoded here and its
+	 * character drawn with gc_unicode_glyph; a malformed one is drawn
+	 * as ?. Escape sequences are ASCII and stay as they were.
+	 */
+	if (gc_vt100state == ESnormal) {
+		if (gc_utf8_need > 0) {
+			if ((c & 0xC0) == 0x80) {
+				gc_utf8_cp = (gc_utf8_cp << 6) | (c & 0x3F);
+				if (--gc_utf8_need == 0 && gc_utf8_cp >= 0xA0)
+					gc_putc_normal(gc_unicode_glyph(gc_utf8_cp));
+				return;
+			}
+			gc_utf8_need = 0;
+			gc_putc_normal('?');
+		}
+		if (c >= 0xC2 && c <= 0xF4) {
+			gc_utf8_need = c >= 0xF0 ? 3 : c >= 0xE0 ? 2 : 1;
+			gc_utf8_cp = c & (c >= 0xF0 ? 0x07 : c >= 0xE0 ? 0x0F : 0x1F);
+			return;
+		}
+		if (c >= 0x80) {
+			gc_putc_normal('?');
+			return;
+		}
 	}
 	switch (gc_vt100state) {
 		default:gc_vt100state = ESnormal;	/* FALLTHROUGH */
@@ -601,23 +684,52 @@ gc_putchar(char ch)
 static void
 gc_putc_askcmd(unsigned char ch)
 {
+	unsigned int i;
+
 	if (ch >= '0' && ch <= '9') {
 		gc_par[gc_numpars] = (10*gc_par[gc_numpars]) + (ch-'0');
 		return;
 	}
+	/* Minkar (2026): ESC [ ? n ; m h takes several modes. */
+	if (ch == ';') {
+		if (gc_numpars < MAXPARS - 1)
+			gc_numpars++;
+		return;
+	}
 	gc_vt100state = ESnormal;
+	if (ch != 'h' && ch != 'l')
+		return;
 
-	switch (gc_par[0]) {
+	for (i = 0; i <= gc_numpars; i++) {
+		switch (gc_par[i]) {
 		case 6:
 			gc_relative_origin = ch == 'h';
 			break;
 		case 7:	/* wrap around mode h=1, l=0*/
 			gc_wrap_mode = ch == 'h';
 			break;
+		case 47:
+		case 1047:
+		case 1049:
+			/*
+			 * Minkar (2026): the alternate screen (full-screen
+			 * programs). There is one screen: entering and leaving
+			 * clear it, and 1049 keeps the cursor.
+			 */
+			if (gc_par[i] == 1049 && ch == 'h') {
+				gc_savex = gc_x;
+				gc_savey = gc_y;
+			}
+			gc_clear_screen(gc_x, gc_y, 0, vinfo.v_rows, 2);
+			if (gc_par[i] == 1049 && ch == 'l') {
+				gc_x = gc_savex;
+				gc_y = gc_savey;
+			}
+			break;
 		default:
 			break;
+		}
 	}
-
 }
 
 static void
@@ -761,6 +873,100 @@ gc_putc_getpars(unsigned char ch)
 		}
 }
 
+/*
+ * Minkar (2026): copies the cell at column from to column to on row yy,
+ * on the screen and in the buffer, with its colors.
+ */
+static void
+gc_copy_cell(unsigned int to, unsigned int from, unsigned int yy)
+{
+	uint32_t src, dst;
+
+	if (!gc_buffer_size || yy >= gc_buffer_rows ||
+	    to >= gc_buffer_columns || from >= gc_buffer_columns)
+		return;
+	src = yy * gc_buffer_columns + from;
+	dst = yy * gc_buffer_columns + to;
+	if (gc_color_code != gc_buffer_colorcodes[src]) {
+		gc_update_color(COLOR_CODE_GET(gc_buffer_colorcodes[src], TRUE), TRUE);
+		gc_update_color(COLOR_CODE_GET(gc_buffer_colorcodes[src], FALSE), FALSE);
+	}
+	gc_ops.paint_char(to, yy, gc_buffer_characters[src],
+	    gc_buffer_attributes[src], 0, 0);
+	gc_buffer_attributes[dst] = gc_buffer_attributes[src];
+	gc_buffer_characters[dst] = gc_buffer_characters[src];
+	gc_buffer_colorcodes[dst] = gc_buffer_colorcodes[src];
+}
+
+/*
+ * Minkar (2026): inserts (n > 0) or deletes (n < 0) |n| characters at the
+ * cursor; the rest of the line moves right or left and blanks fill in.
+ */
+static void
+gc_shift_line(int n)
+{
+	unsigned char colorcodesave = gc_color_code;
+	unsigned int cols = vinfo.v_columns, i, count;
+
+	if (gc_x >= cols)
+		return;
+	count = (unsigned int)(n < 0 ? -n : n);
+	if (count > cols - gc_x)
+		count = cols - gc_x;
+	if (n > 0) {
+		for (i = cols - 1; i >= gc_x + count; i--)
+			gc_copy_cell(i, i - count, gc_y);
+	} else {
+		for (i = gc_x; i + count < cols; i++)
+			gc_copy_cell(i, i + count, gc_y);
+	}
+	if (colorcodesave != gc_color_code) {
+		gc_update_color(COLOR_CODE_GET(colorcodesave, TRUE), TRUE);
+		gc_update_color(COLOR_CODE_GET(colorcodesave, FALSE), FALSE);
+	}
+	for (i = 0; i < count; i++)
+		gc_paint_char(n > 0 ? gc_x + i : cols - 1 - i, gc_y, ' ', ATTR_NONE);
+}
+
+/*
+ * Minkar (2026): one of the console's 8 colors for a color of the 256-color
+ * palette (38;5;n) or for r, g, b (38;2;r;g;b). A background channel is on
+ * at half its range or more, so dark backgrounds stay black. A foreground
+ * goes by its hue instead: a channel is on at half the brightest one, and
+ * only a color close to black is black, so that dim text and lines (a
+ * theme's gray box lines) stay visible.
+ */
+static int
+gc_rgb_to_color(unsigned int r, unsigned int g, unsigned int b, boolean_t fore)
+{
+	unsigned int half = 128;
+
+	if (fore) {
+		unsigned int max = r > g ? (r > b ? r : b) : (g > b ? g : b);
+		if (max < 40)
+			return 0;
+		half = (max + 1) / 2;
+	}
+	return (r >= half ? 1 : 0) | (g >= half ? 2 : 0) | (b >= half ? 4 : 0);
+}
+
+static int
+gc_256_to_color(unsigned int n, boolean_t fore)
+{
+	static const unsigned char cube[6] = { 0, 95, 135, 175, 215, 255 };
+
+	if (n < 8)
+		return (int)n;
+	if (n < 16)
+		return (int)(n - 8);
+	if (n < 232) {
+		n -= 16;
+		return gc_rgb_to_color(cube[n / 36], cube[(n / 6) % 6], cube[n % 6], fore);
+	}
+	/* the grays, 8 to 238 */
+	return gc_rgb_to_color(8 + 10 * (n - 232), 8 + 10 * (n - 232), 8 + 10 * (n - 232), fore);
+}
+
 static void 
 gc_putc_gotpars(unsigned char ch)
 {
@@ -797,6 +1003,78 @@ gc_putc_gotpars(unsigned char ch)
 			gc_x -= gc_par[0];
 		else if (gc_x)
 			--gc_x;
+		break;
+	/*
+	 * Minkar (2026): what xterm's terminfo entry uses and the console
+	 * lacked. Line editors (sh's libedit, zsh) move with CHA after a
+	 * carriage return: without it they redrew at column 0.
+	 */
+	case 'G':		/* Cursor to column (CHA) */
+	case '`':		/* (HPA)		 */
+		gc_x = gc_par[0] ? gc_par[0] - 1 : 0;
+		gc_hanging_cursor = 0;
+		break;
+	case 'd':		/* Cursor to row (VPA)	 */
+		gc_y = gc_par[0] ? gc_par[0] - 1 : 0;
+		if (gc_relative_origin)
+			gc_y += gc_scrreg_top;
+		gc_hanging_cursor = 0;
+		break;
+	case 'a':		/* Right (HPR)		 */
+		gc_x += gc_par[0] ? gc_par[0] : 1;
+		break;
+	case 'e':		/* Down (VPR)		 */
+		gc_y += gc_par[0] ? gc_par[0] : 1;
+		if (gc_y >= gc_scrreg_bottom)
+			gc_y = gc_scrreg_bottom - 1;
+		break;
+	case 'E':		/* Down, column 1 (CNL)	 */
+	case 'F':		/* Up, column 1 (CPL)	 */
+		i = gc_par[0] ? gc_par[0] : 1;
+		if (ch == 'E')
+			gc_y = (gc_y + i >= gc_scrreg_bottom) ? gc_scrreg_bottom - 1 : gc_y + i;
+		else
+			gc_y = (gc_y < gc_scrreg_top + i) ? gc_scrreg_top : gc_y - i;
+		gc_x = 0;
+		gc_hanging_cursor = 0;
+		break;
+	case '@':		/* Insert characters (ICH) */
+		gc_shift_line((int)(gc_par[0] ? gc_par[0] : 1));
+		break;
+	case 'P':		/* Delete characters (DCH) */
+		gc_shift_line(-(int)(gc_par[0] ? gc_par[0] : 1));
+		break;
+	case 'L':		/* Insert lines (IL)	 */
+	case 'M':		/* Delete lines (DL)	 */
+		if (gc_y >= gc_scrreg_top && gc_y < gc_scrreg_bottom) {
+			i = gc_par[0] ? gc_par[0] : 1;
+			if (i > gc_scrreg_bottom - gc_y)
+				i = gc_scrreg_bottom - gc_y;
+			if (ch == 'L')
+				gc_scroll_down(i, gc_y, gc_scrreg_bottom);
+			else
+				gc_scroll_up(i, gc_y, gc_scrreg_bottom);
+			gc_x = 0;
+		}
+		break;
+	case 'S':		/* Scroll up (SU)	 */
+		gc_scroll_up(gc_par[0] ? gc_par[0] : 1, gc_scrreg_top, gc_scrreg_bottom);
+		break;
+	case 'T':		/* Scroll down (SD)	 */
+		gc_scroll_down(gc_par[0] ? gc_par[0] : 1, gc_scrreg_top, gc_scrreg_bottom);
+		break;
+	case 'b':		/* Repeat the last character (REP) */
+		for (i = gc_par[0] ? gc_par[0] : 1; i > 0; i--)
+			gc_putc_normal(gc_last_char);
+		break;
+	case 's':		/* Save cursor		 */
+		gc_savex = gc_x;
+		gc_savey = gc_y;
+		break;
+	case 'u':		/* Restore cursor	 */
+		gc_x = gc_savex;
+		gc_y = gc_savey;
+		gc_hanging_cursor = 0;
 		break;
 	case 'H':		/* Set cursor position	 */
 	case 'f':
@@ -864,11 +1142,39 @@ gc_putc_gotpars(unsigned char ch)
 			case 5:
 			case 25:	/* blink/no blink */
 				break;
+			/*
+			 * Minkar (2026): default colors, bright colors, and
+			 * 256-color and RGB ones, as the nearest of the 8.
+			 */
+			case 39:
+				gc_update_color(COLOR_FOREGROUND, TRUE);
+				break;
+			case 49:
+				gc_update_color(COLOR_BACKGROUND, FALSE);
+				break;
+			case 38:
+			case 48:
+				if (i + 2 < gc_numpars && gc_par[i + 1] == 5) {
+					gc_update_color(gc_256_to_color(gc_par[i + 2],
+					    gc_par[i] == 38), gc_par[i] == 38);
+					i += 2;
+				} else if (i + 4 < gc_numpars && gc_par[i + 1] == 2) {
+					gc_update_color(gc_rgb_to_color(gc_par[i + 2],
+					    gc_par[i + 3], gc_par[i + 4], gc_par[i] == 38),
+					    gc_par[i] == 38);
+					i += 4;
+				} else
+					i = gc_numpars;
+				break;
 			default:
 				if (gc_par[i] >= 30 && gc_par[i] <= 37)
 					gc_update_color(gc_par[i] - 30, TRUE);
 				if (gc_par[i] >= 40 && gc_par[i] <= 47)
 					gc_update_color(gc_par[i] - 40, FALSE);
+				if (gc_par[i] >= 90 && gc_par[i] <= 97)
+					gc_update_color(gc_par[i] - 90, TRUE);
+				if (gc_par[i] >= 100 && gc_par[i] <= 107)
+					gc_update_color(gc_par[i] - 100, FALSE);
 				break;
 			}
 		}
@@ -896,7 +1202,7 @@ gc_putc_gotpars(unsigned char ch)
 }
 
 static void 
-gc_putc_normal(unsigned char ch)
+gc_putc_normal(gc_glyph_t ch)
 {
 	switch (ch) {
 	case '\a':		/* Beep			 */
@@ -958,6 +1264,7 @@ gc_putc_normal(unsigned char ch)
 			}
 			gc_paint_char(gc_x, gc_y, (ch >= 0x60 && ch <= 0x7f) ? ch + gc_charset[gc_charset_select]
 								: ch, gc_attr);
+			gc_last_char = ch;	/* Minkar (2026): for REP */
 			if (gc_x == vinfo.v_columns - 1) {
 				gc_hanging_cursor = gc_wrap_mode;
 			} else {
@@ -1263,7 +1570,7 @@ gc_show_cursor(unsigned int xx, unsigned int yy)
 	{
 		uint32_t index = (yy * gc_buffer_columns) + xx;
 		unsigned char attribute = gc_buffer_attributes[index];
-		unsigned char character = gc_buffer_characters[index];
+		gc_glyph_t character = gc_buffer_characters[index];
 		unsigned char colorcode = gc_buffer_colorcodes[index];
 		unsigned char colorcodesave = gc_color_code;
 
@@ -1437,19 +1744,168 @@ vc_clear_screen(unsigned int xx, unsigned int yy, unsigned int scrreg_top,
 	}
 }
 
+/*
+ * Minkar (2026): characters drawn by code, so that full-screen programs
+ * (btop, htop, dialog boxes) show real lines, blocks and graphs. The cell
+ * is 8x16; bit x of a row is pixel x, as in iso_font.
+ *
+ * Box drawing (U+2500-U+257F): each character is its four arms, up, down,
+ * left and right, 2 bits each: 0 none, 1 light, 2 heavy, 3 double.
+ */
+static const uint8_t gc_box_arms[128] = {
+	0x05, 0x0a, 0x50, 0xa0, 0x05, 0x0a, 0x50, 0xa0,	/* U+2500 */
+	0x05, 0x0a, 0x50, 0xa0, 0x11, 0x12, 0x21, 0x22,	/* U+2508 */
+	0x14, 0x18, 0x24, 0x28, 0x41, 0x42, 0x81, 0x82,	/* U+2510 */
+	0x44, 0x48, 0x84, 0x88, 0x51, 0x52, 0x91, 0x61,	/* U+2518 */
+	0xa1, 0x92, 0x62, 0xa2, 0x54, 0x58, 0x94, 0x64,	/* U+2520 */
+	0xa4, 0x98, 0x68, 0xa8, 0x15, 0x19, 0x16, 0x1a,	/* U+2528 */
+	0x25, 0x29, 0x26, 0x2a, 0x45, 0x49, 0x46, 0x4a,	/* U+2530 */
+	0x85, 0x89, 0x86, 0x8a, 0x55, 0x59, 0x56, 0x5a,	/* U+2538 */
+	0x95, 0x65, 0xa5, 0x99, 0x96, 0x69, 0x66, 0x9a,	/* U+2540 */
+	0x6a, 0xa9, 0xa6, 0xaa, 0x05, 0x0a, 0x50, 0xa0,	/* U+2548 */
+	0x0f, 0xf0, 0x13, 0x31, 0x33, 0x1c, 0x34, 0x3c,	/* U+2550 */
+	0x43, 0xc1, 0xc3, 0x4c, 0xc4, 0xcc, 0x53, 0xf1,	/* U+2558 */
+	0xf3, 0x5c, 0xf4, 0xfc, 0x1f, 0x35, 0x3f, 0x4f,	/* U+2560 */
+	0xc5, 0xcf, 0x5f, 0xf5, 0xff, 0x11, 0x14, 0x44,	/* U+2568 */
+	0x41, 0x00, 0x00, 0x00, 0x04, 0x40, 0x01, 0x10,	/* U+2570 */
+	0x08, 0x80, 0x02, 0x20, 0x06, 0x60, 0x09, 0x90,	/* U+2578 */
+};
+
 static void
-vc_render_char(unsigned char ch, unsigned char *renderptr, short newdepth)
+gc_fill(unsigned char bits[ISO_CHAR_HEIGHT], int x0, int x1, int y0, int y1)
+{
+	for (int y = y0; y <= y1; y++) {
+		for (int x = x0; x <= x1; x++) {
+			bits[y] |= (unsigned char)(1 << x);
+		}
+	}
+}
+
+/* One arm: from the cell's edge to just past its middle. */
+static void
+gc_box_arm(unsigned char bits[ISO_CHAR_HEIGHT], int arm, int weight)
+{
+	/* The vertical line's columns, the horizontal line's rows. */
+	static const int vx[4][2] = { {0, 0}, {3, 3}, {3, 4}, {2, 5} };
+	static const int hy[4][2] = { {0, 0}, {7, 7}, {7, 8}, {5, 9} };
+	int lines = weight == 3 ? 2 : 1;
+
+	for (int k = 0; k < lines; k++) {
+		int x0 = vx[weight][k], x1 = weight == 3 ? x0 : vx[weight][1];
+		int y0 = hy[weight][k], y1 = weight == 3 ? y0 : hy[weight][1];
+		switch (arm) {
+		case 0: gc_fill(bits, x0, x1, 0, 9); break;		/* up */
+		case 1: gc_fill(bits, x0, x1, 5, ISO_CHAR_HEIGHT - 1); break;	/* down */
+		case 2: gc_fill(bits, 0, 5, y0, y1); break;		/* left */
+		case 3: gc_fill(bits, 2, ISO_CHAR_WIDTH - 1, y0, y1); break;	/* right */
+		}
+	}
+}
+
+static void
+gc_glyph_bitmap(gc_glyph_t ch, unsigned char bits[ISO_CHAR_HEIGHT])
+{
+	memset(bits, 0, ISO_CHAR_HEIGHT);
+	if (ch >= 0x2571 && ch <= 0x2573) {		/* diagonals */
+		for (int y = 0; y < ISO_CHAR_HEIGHT; y++) {
+			if (ch != 0x2572) {
+				bits[y] |= (unsigned char)(1 << (7 - y / 2));	/* / */
+			}
+			if (ch != 0x2571) {
+				bits[y] |= (unsigned char)(1 << (y / 2));	/* backslash */
+			}
+		}
+	} else if (ch >= 0x2500 && ch <= 0x257F) {
+		uint8_t arms = gc_box_arms[ch - 0x2500];
+		for (int arm = 0; arm < 4; arm++) {
+			int weight = (arms >> (6 - 2 * arm)) & 3;
+			if (weight != 0) {
+				gc_box_arm(bits, arm, weight);
+			}
+		}
+	} else if (ch == 0x2580) {			/* upper half */
+		gc_fill(bits, 0, 7, 0, 7);
+	} else if (ch >= 0x2581 && ch <= 0x2588) {	/* lower eighths, full */
+		gc_fill(bits, 0, 7, ISO_CHAR_HEIGHT - 2 * (ch - 0x2580), ISO_CHAR_HEIGHT - 1);
+	} else if (ch >= 0x2589 && ch <= 0x258F) {	/* left eighths */
+		gc_fill(bits, 0, 0x2590 - ch - 1, 0, ISO_CHAR_HEIGHT - 1);
+	} else if (ch == 0x2590) {			/* right half */
+		gc_fill(bits, 4, 7, 0, ISO_CHAR_HEIGHT - 1);
+	} else if (ch >= 0x2591 && ch <= 0x2593) {	/* shades */
+		for (int y = 0; y < ISO_CHAR_HEIGHT; y++) {
+			unsigned char light = (y % 2) ? 0x22 : 0x88;
+			bits[y] = ch == 0x2591 ? light : ch == 0x2592 ?
+			    ((y % 2) ? 0x55 : 0xAA) : (unsigned char)~light;
+		}
+	} else if (ch == 0x2594) {			/* upper eighth */
+		gc_fill(bits, 0, 7, 0, 1);
+	} else if (ch == 0x2595) {			/* right eighth */
+		gc_fill(bits, 7, 7, 0, ISO_CHAR_HEIGHT - 1);
+	} else if (ch >= 0x2596 && ch <= 0x259F) {	/* quadrants */
+		/* upper left, upper right, lower left, lower right */
+		static const uint8_t quads[10] = {
+			0x4, 0x8, 0x1, 0xD, 0x9, 0x7, 0xB, 0x2, 0x6, 0xE,
+		};
+		uint8_t q = quads[ch - 0x2596];
+		if (q & 1) gc_fill(bits, 0, 3, 0, 7);
+		if (q & 2) gc_fill(bits, 4, 7, 0, 7);
+		if (q & 4) gc_fill(bits, 0, 3, 8, 15);
+		if (q & 8) gc_fill(bits, 4, 7, 8, 15);
+	} else if (ch >= 0x2800 && ch <= 0x28FF) {	/* Braille: 2 by 4 dots */
+		static const uint8_t col[8] = { 0, 0, 0, 1, 1, 1, 0, 1 };
+		static const uint8_t row[8] = { 0, 1, 2, 0, 1, 2, 3, 3 };
+		for (int dot = 0; dot < 8; dot++) {
+			if ((ch - 0x2800) & (1 << dot)) {
+				gc_fill(bits, col[dot] * 4, col[dot] * 4 + 2,
+				    row[dot] * 4, row[dot] * 4 + 2);
+			}
+		}
+	} else if (ch == 0x25A0) {			/* black square */
+		gc_fill(bits, 1, 6, 4, 11);
+	} else if (ch == 0x25AA) {			/* small black square */
+		gc_fill(bits, 2, 5, 6, 9);
+	} else if (ch == 0x25B2 || ch == 0x25BC) {	/* triangles up, down */
+		for (int i = 0; i < 4; i++) {
+			int y = ch == 0x25B2 ? 5 + i * 2 : 10 - i * 2;
+			gc_fill(bits, 3 - i, 4 + i, y, y + 1);
+		}
+	} else if (ch == 0x25CF || ch == 0x25CB) {	/* circles, filled and not */
+		static const uint8_t disc[8] = { 0x3C, 0x7E, 0xFF, 0xFF, 0xFF, 0xFF, 0x7E, 0x3C };
+		static const uint8_t ring[8] = { 0x3C, 0x42, 0x81, 0x81, 0x81, 0x81, 0x42, 0x3C };
+		for (int i = 0; i < 8; i++) {
+			bits[4 + i] = ch == 0x25CF ? disc[i] : ring[i];
+		}
+	} else if (ch == 0x2191 || ch == 0x2193) {	/* arrows up, down */
+		gc_fill(bits, 3, 4, 3, 12);
+		for (int i = 1; i <= 3; i++) {
+			int y = ch == 0x2191 ? 3 + i : 12 - i;
+			gc_fill(bits, 3 - i, 4 + i, y, y);
+		}
+	} else {
+		/* Not one of the characters drawn here. */
+		gc_fill(bits, 2, 5, 6, 9);
+	}
+}
+
+static void
+vc_render_char(gc_glyph_t ch, unsigned char *renderptr, short newdepth)
 {
 	union {
 		unsigned char  *charptr;
 		unsigned short *shortptr;
 		uint32_t  *longptr;
 	} current; 	/* current place in rendered font, multiple types. */
-	unsigned char *theChar;	/* current char in iso_font */
+	const unsigned char *theChar;	/* current char in iso_font */
+	unsigned char drawn[ISO_CHAR_HEIGHT];
 	int line;
 
 	current.charptr = renderptr;
-	theChar = iso_font + (ch * ISO_CHAR_HEIGHT);
+	if (ch < 0x100) {
+		theChar = iso_font + (ch * ISO_CHAR_HEIGHT);
+	} else {
+		gc_glyph_bitmap(ch, drawn);
+		theChar = drawn;
+	}
 
 	for (line = 0; line < ISO_CHAR_HEIGHT; line++) {
 		unsigned char mask = 1;
@@ -1474,14 +1930,14 @@ vc_render_char(unsigned char ch, unsigned char *renderptr, short newdepth)
 }
 
 static void
-vc_paint_char_8(unsigned int xx, unsigned int yy, unsigned char ch, int attrs,
-		__unused unsigned char ch_previous, __unused int attrs_previous)
+vc_paint_char_8(unsigned int xx, unsigned int yy, gc_glyph_t ch, int attrs,
+		__unused gc_glyph_t ch_previous, __unused int attrs_previous)
 {
 	uint32_t *theChar;
 	uint32_t *where;
 	int i;
 	
-	if (vc_rendered_font) {
+	if (vc_rendered_font && ch < 0x100) {
 		theChar = (uint32_t*)(vc_rendered_font + (ch * vc_rendered_char_size));
 	} else {
 		vc_render_char(ch, vc_rendered_char, 8);
@@ -1530,15 +1986,15 @@ vc_paint_char_8(unsigned int xx, unsigned int yy, unsigned char ch, int attrs,
 }
 
 static void
-vc_paint_char_16(unsigned int xx, unsigned int yy, unsigned char ch, int attrs,
-		 __unused unsigned char ch_previous,
+vc_paint_char_16(unsigned int xx, unsigned int yy, gc_glyph_t ch, int attrs,
+		 __unused gc_glyph_t ch_previous,
 		 __unused int attrs_previous) 
 {
 	uint32_t *theChar;
 	uint32_t *where;
 	int i;
 	
-	if (vc_rendered_font) {
+	if (vc_rendered_font && ch < 0x100) {
 		theChar = (uint32_t*)(vc_rendered_font + (ch * vc_rendered_char_size));
 	} else {
 		vc_render_char(ch, vc_rendered_char, 16);
@@ -1583,17 +2039,20 @@ vc_paint_char_16(unsigned int xx, unsigned int yy, unsigned char ch, int attrs,
 }
 
 static void
-vc_paint_char_32(unsigned int xx, unsigned int yy, unsigned char ch, int attrs,
-		 unsigned char ch_previous, int attrs_previous) 
+vc_paint_char_32(unsigned int xx, unsigned int yy, gc_glyph_t ch, int attrs,
+		 gc_glyph_t ch_previous, int attrs_previous) 
 {
 	uint32_t *theChar;
 	uint32_t *theCharPrevious;
 	uint32_t *where;
 	int i;
 	
-	if (vc_rendered_font) {
+	if (vc_rendered_font && ch < 0x100 && ch_previous < 0x100) {
 		theChar = (uint32_t*)(vc_rendered_font + (ch * vc_rendered_char_size));
 		theCharPrevious = (uint32_t*)(vc_rendered_font + (ch_previous * vc_rendered_char_size));
+	} else if (vc_rendered_font && ch < 0x100) {
+		theChar = (uint32_t*)(vc_rendered_font + (ch * vc_rendered_char_size));
+		theCharPrevious = NULL;
 	} else {
 		vc_render_char(ch, vc_rendered_char, 32);
 		theChar = (uint32_t*)(vc_rendered_char);
@@ -1646,8 +2105,8 @@ vc_paint_char_32(unsigned int xx, unsigned int yy, unsigned char ch, int attrs,
 }
 
 static void
-vc_paint_char(unsigned int xx, unsigned int yy, unsigned char ch, int attrs,
-	      unsigned char ch_previous, int attrs_previous)
+vc_paint_char(unsigned int xx, unsigned int yy, gc_glyph_t ch, int attrs,
+	      gc_glyph_t ch_previous, int attrs_previous)
 {
 	if(!vinfo.v_depth)
 		return;
@@ -2800,6 +3259,17 @@ initialize_screen(PE_Video * boot_vinfo, unsigned int op)
 	{
 		struct vc_info new_vinfo = vinfo;
 		boolean_t makeMapping = FALSE;
+		/*
+		 * Minkar: a driver that hands the console the mode it already
+		 * has (the GOP framebuffer) must not start it over: the cursor
+		 * would go back to the top and the next lines would be drawn
+		 * over the old ones.
+		 */
+		boolean_t sameMode = gc_initialized &&
+		    vinfo.v_width == (unsigned int)boot_vinfo->v_width &&
+		    vinfo.v_height == (unsigned int)boot_vinfo->v_height &&
+		    vinfo.v_depth == (unsigned int)boot_vinfo->v_depth &&
+		    vinfo.v_rowbytes == (unsigned int)boot_vinfo->v_rowBytes;
 
 		/* 
 		 *	Copy parameters
@@ -2922,7 +3392,9 @@ initialize_screen(PE_Video * boot_vinfo, unsigned int op)
 			gc_ops.hide_cursor  = vc_reverse_cursor;
 			gc_ops.show_cursor  = vc_reverse_cursor;
 			gc_ops.update_color = vc_update_color;
-            gc_initialize(&vinfo);
+			if (!sameMode) {
+				gc_initialize(&vinfo);
+			}
 		}
 	}
 

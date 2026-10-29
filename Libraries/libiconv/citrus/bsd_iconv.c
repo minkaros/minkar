@@ -48,12 +48,22 @@
 #include "citrus_iconv.h"
 
 #include "iconv-internal.h"
+#include "utf8mac.h"	/* Minkar (2026): UTF-8-MAC */
 
 #define ISBADF(_h_)	(!(_h_) || (_h_) == (iconv_t)-1)
 
 static iconv_t
 __bsd___iconv_open(const char *out, const char *in, struct _citrus_iconv *handle)
 {
+	/* Minkar (2026): UTF-8-MAC is utf8mac.c's. */
+	if (_u8m_match(out) || _u8m_match(in)) {
+		if (handle != NULL) {
+			errno = EINVAL;
+			return ((iconv_t)-1);
+		}
+		return (_u8m_open(out, in));
+	}
+
 	int ret;
 
 	/*
@@ -98,6 +108,8 @@ __bsd_iconv_close(iconv_t handle)
 		return (-1);
 	}
 
+	if (_u8m_is(handle))	/* Minkar (2026) */
+		return (_u8m_close(handle));
 	_citrus_iconv_close((struct _citrus_iconv *)(void *)handle);
 
 	return (0);
@@ -113,6 +125,8 @@ __bsd_iconv(iconv_t handle, char **in, size_t *szin, char **out, size_t *szout)
 		errno = EBADF;
 		return ((size_t)-1);
 	}
+	if (_u8m_is(handle))	/* Minkar (2026) */
+		return (_u8m_iconv(handle, in, szin, out, szout));
 
 	err = _citrus_iconv_convert((struct _citrus_iconv *)(void *)handle,
 	    in, szin, out, szout, 0, &ret);
@@ -134,6 +148,11 @@ __bsd___iconv(iconv_t handle, char **in, size_t *szin, char **out,
 	if (ISBADF(handle)) {
 		errno = EBADF;
 		return ((size_t)-1);
+	}
+	if (_u8m_is(handle)) {	/* Minkar (2026) */
+		if (invalids != NULL)
+			*invalids = 0;
+		return (_u8m_iconv(handle, in, szin, out, szout));
 	}
 
 	err = _citrus_iconv_convert((struct _citrus_iconv *)(void *)handle,
@@ -228,6 +247,12 @@ __bsd_iconvlist(int (*do_one) (unsigned int, const char * const *,
 		names = NULL;
 	}
 
+	/* Minkar (2026): UTF-8-MAC, from utf8mac.c. */
+	{
+		static const char * const mac[] = { "UTF-8-MAC", "UTF8-MAC" };
+
+		do_one(2, mac, data);
+	}
 out:
 	if (names != NULL) {
 		for (n = 0; n < j; n++)
@@ -262,6 +287,8 @@ __bsd_iconvctl(iconv_t cd, int request, void *argument)
 		errno = EBADF;
 		return (-1);
 	}
+	if (_u8m_is(cd))	/* Minkar (2026) */
+		return (_u8m_iconvctl(cd, request, argument));
 
 	switch (request) {
 	case ICONV_TRIVIALP:

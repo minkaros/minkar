@@ -260,6 +260,44 @@ void		setproctitle(const char *fmt, ...) __printflike(1, 2);
 int		mkfifoat(int fd, const char *path, mode_t mode);
 int		mknodat(int fd, const char *path, mode_t mode, dev_t dev);
 
+/* <libutil.h>: where local software lives (LOCALBASE, else /usr/local). */
+const char	*getlocalbase(void);
+
+/* <signal.h>: a signal from its name ("TERM", "SIGTERM") or number. */
+int		str2sig(const char *str, int *signum);
+
+/* <unistd.h>: a pipe with O_CLOEXEC and O_NONBLOCK. */
+int		pipe2(int fds[2], int flags);
+
 __END_DECLS
+
+/*
+ * <fcntl.h>: Darwin has no O_PATH; a FreeBSD program that opens a directory
+ * with it to keep a descriptor for openat gets a read-only one instead.
+ */
+#ifndef O_PATH
+#define	O_PATH		0
+#endif
+
+/* <signal.h>: how many entries sys_signame and sys_siglist have. */
+#ifndef sys_nsig
+#define	sys_nsig	NSIG
+#endif
+
+/* <sys/cdefs.h>: a place the program cannot reach. */
+#ifndef __assert_unreachable
+#define	__assert_unreachable()	__builtin_unreachable()
+#endif
+
+/*
+ * <net/route.h>: the room a sockaddr takes in a routing message. XNU pads
+ * each to a multiple of sizeof(uint32_t) (FreeBSD: of sizeof(long)); a
+ * zero length still takes one slot.
+ */
+#ifndef SA_SIZE
+#define	SA_SIZE(sa)							\
+	(((struct sockaddr *)(sa))->sa_len == 0 ? sizeof(uint32_t) :	\
+	 (1 + ((((struct sockaddr *)(sa))->sa_len - 1) | (sizeof(uint32_t) - 1))))
+#endif
 
 #endif /* !_MINKAR_BSDCOMPAT_H */

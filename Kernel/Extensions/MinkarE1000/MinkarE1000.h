@@ -46,6 +46,7 @@
 #include <IOKit/IOFilterInterruptEventSource.h>
 #include <IOKit/IOTimerEventSource.h>
 #include "E1000Regs.h"
+#include "E1000Shared.h"
 #include <IOKit/network/IOEthernetStats.h>
 
 class MinkarE1000 : public IOEthernetController
@@ -66,6 +67,10 @@ class MinkarE1000 : public IOEthernetController
 	IOMemoryDescriptor *		fRegsDesc;
 	volatile uint8_t *		fRegs;
 	uint16_t			fDeviceID;
+	/* PCH LAN and I210/I211: set up by Intel's shared code (e1000/). */
+	E1000SharedChip *		fShared;
+	E1000Family			fFamily;
+	IOMemoryMap *			fFlashMap;	/* BAR 1, older PCH LAN */
 	bool				fEERDv2;	/* 82541/82547/82574 EERD layout */
 
 	IOEthernetInterface *		fNetif;

@@ -1,0 +1,30 @@
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\" Copyright (c) 2026 The Minkar contributors
+.\" Part of Minkar.
+.Dd October 28, 2026
+.Dt UUIDGEN 1
+.Os
+.Sh NAME
+.Nm uuidgen
+.Nd generate a Universally Unique Identifier
+.Sh SYNOPSIS
+.Nm
+.Op Fl hdr
+.Sh DESCRIPTION
+.Nm
+prints a new random (version 4) UUID in upper case, as
+.Dq 5C1BE7F0-2B6E-4F8A-9D3C-0A8E1F2B3C4D .
+.Pp
+The option is:
+.Bl -tag -width "-hdr"
+.It Fl hdr
+Print the UUID as a comment and a
+.Ql #define
+of a
+.Fn CFUUIDGetConstantUUIDWithBytes
+call, for a C header.
+.El
+.Sh EXIT STATUS
+.Ex -std
+.Sh SEE ALSO
+.Xr uuid 3

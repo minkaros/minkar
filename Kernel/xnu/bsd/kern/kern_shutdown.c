@@ -177,6 +177,12 @@ reboot_kernel(int howto, char *message)
 		return EBUSY;
 	}
 
+	/* Minkar: the shutdown's messages are shown, as the boot's were. */
+	{
+		extern int console_quiet;
+		console_quiet = 0;
+	}
+
 	lck_mtx_lock(&vm_swap_data_lock);
 
 	/* Turn OFF future swapfile reclaimation / compaction etc.*/

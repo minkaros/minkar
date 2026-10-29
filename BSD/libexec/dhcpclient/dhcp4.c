@@ -713,22 +713,54 @@ dhcp4_stop(void)
 	ifs.next4 = 0;
 }
 
+/* The address given up when the link went down, to ask for again. */
+static struct in_addr link_down_addr;
+
+/*
+ * The link went down: as on macOS, the interface gives up its address and
+ * default route, so that traffic goes out through an interface that is
+ * still connected. The address is asked for again when the link returns.
+ */
+void
+dhcp4_link_down(void)
+{
+	if (ifs.method4 != M4_DHCP)
+		return;
+	if (ifs.current.addr.s_addr != 0) {
+		link_down_addr = ifs.current.addr;
+		drop_lease();
+	}
+	if (ifs.arp >= 0) {
+		close(ifs.arp);
+		ifs.arp = -1;
+	}
+	ifs.state4 = S4_IDLE;
+	ifs.next4 = 0;
+}
+
 /* The link came back: check that the lease still holds (INIT-REBOOT). */
 void
 dhcp4_link_up(void)
 {
 	if (ifs.method4 != M4_DHCP)
 		return;
-	if (ifs.current.addr.s_addr != 0) {
+	if (ifs.current.addr.s_addr == 0 && link_down_addr.s_addr != 0) {
+		ifs.offer.addr = link_down_addr;
+		link_down_addr.s_addr = 0;
+		ifs.xid = arc4random();
+		ifs.started4 = now();
+		ifs.tries4 = 0;
+		ifs.state4 = S4_INIT_REBOOT;
+		ifs.next4 = now();
+	} else if (ifs.current.addr.s_addr != 0) {
 		ifs.offer.addr = ifs.current.addr;
 		ifs.xid = arc4random();
 		ifs.started4 = now();
 		ifs.tries4 = 0;
 		ifs.state4 = S4_INIT_REBOOT;
 		ifs.next4 = now();
-	} else if (ifs.state4 == S4_INIT) {
-		ifs.tries4 = 0;
-		ifs.next4 = now();
+	} else if (ifs.state4 == S4_INIT || ifs.state4 == S4_IDLE) {
+		enter_init(0);
 	}
 }
 

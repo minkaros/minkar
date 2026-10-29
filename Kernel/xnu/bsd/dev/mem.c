@@ -145,7 +145,13 @@ mmioctl(dev_t dev, u_long cmd, __unused caddr_t data,
 		/* OK to do nothing: we always return immediately */
 		break;
 	default:
-		return ENODEV;
+		/*
+		 * Minkar (2026): /dev/null and /dev/zero are not terminals:
+		 * ENOTTY, as POSIX has it for an ioctl a device does not
+		 * know, so that tcgetattr on them says so (script(1) took
+		 * ENODEV for a failure).
+		 */
+		return ENOTTY;
 	}
 
 	return 0;

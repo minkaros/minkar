@@ -1,0 +1,1194 @@
+'\" t
+.\"     Title: git-status
+.\"    Author: [FIXME: author] [see http://www.docbook.org/tdg5/en/html/author]
+.\" Generator: DocBook XSL Stylesheets v1.79.2 <http://docbook.sf.net/>
+.\"      Date: 2026-09-27
+.\"    Manual: Git Manual
+.\"    Source: Git 2.56.0
+.\"  Language: English
+.\"
+.TH "GIT\-STATUS" "1" "2026-09-27" "Git 2\&.56\&.0" "Git Manual"
+.\" -----------------------------------------------------------------
+.\" * Define some portability stuff
+.\" -----------------------------------------------------------------
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.\" http://bugs.debian.org/507673
+.\" http://lists.gnu.org/archive/html/groff/2009-02/msg00013.html
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.\" -----------------------------------------------------------------
+.\" * set default formatting
+.\" -----------------------------------------------------------------
+.\" disable hyphenation
+.nh
+.\" disable justification (adjust text to left margin only)
+.ad l
+.\" -----------------------------------------------------------------
+.\" * MAIN CONTENT STARTS HERE *
+.\" -----------------------------------------------------------------
+.SH "NAME"
+git-status \- Show the working tree status
+.SH "SYNOPSIS"
+.sp
+.nf
+\fBgit\fR \fBstatus\fR [\fI<options>\fR] [\fB\-\-\fR] [\fI<pathspec>\fR\&...\:]
+.fi
+.SH "DESCRIPTION"
+.sp
+Displays paths that have differences between the index file and the current HEAD commit, paths that have differences between the working tree and the index file, and paths in the working tree that are not tracked by Git (and are not ignored by \fBgitignore\fR(5))\&. The first are what you \fIwould\fR commit by running \fBgit\fR \fBcommit\fR; the second and third are what you \fIcould\fR commit by running \fBgit\fR \fBadd\fR before running \fBgit\fR \fBcommit\fR\&.
+.SH "OPTIONS"
+.PP
+\fB\-s\fR, \fB\-\-short\fR
+.RS 4
+Give the output in the short\-format\&.
+.RE
+.PP
+\fB\-b\fR, \fB\-\-branch\fR
+.RS 4
+Show the branch and tracking info even in short\-format\&.
+.RE
+.PP
+\fB\-\-show\-stash\fR
+.RS 4
+Show the number of entries currently stashed away\&.
+.RE
+.PP
+\fB\-\-porcelain\fR[\fB=\fR\fI<version>\fR]
+.RS 4
+Give the output in an easy\-to\-parse format for scripts\&. This is similar to the short output, but will remain stable across Git versions and regardless of user configuration\&. See below for details\&.
+.sp
+The
+\fI<version>\fR
+parameter is used to specify the format version\&. This is optional and defaults to the original version
+\fBv1\fR
+format\&.
+.RE
+.PP
+\fB\-\-long\fR
+.RS 4
+Give the output in the long\-format\&. This is the default\&.
+.RE
+.PP
+\fB\-v\fR, \fB\-\-verbose\fR
+.RS 4
+In addition to the names of files that have been changed, also show the textual changes that are staged to be committed (i\&.e\&., like the output of
+\fBgit\fR
+\fBdiff\fR
+\fB\-\-cached\fR)\&. If
+\fB\-v\fR
+is specified twice, then also show the changes in the working tree that have not yet been staged (i\&.e\&., like the output of
+\fBgit\fR
+\fBdiff\fR)\&.
+.RE
+.PP
+\fB\-u\fR[\fI<mode>\fR], \fB\-\-untracked\-files\fR[\fB=\fR\fI<mode>\fR]
+.RS 4
+Show untracked files\&.
+.sp
+The mode parameter is used to specify the handling of untracked files\&. It is optional: it defaults to
+\fBall\fR, and if specified, it must be stuck to the option (e\&.g\&.
+\fB\-uno\fR, but not
+\fB\-u\fR
+\fBno\fR)\&.
+.sp
+The possible options are:
+.PP
+\fBno\fR
+.RS 4
+Show no untracked files\&.
+.RE
+.PP
+\fBnormal\fR
+.RS 4
+Show untracked files and directories\&.
+.RE
+.PP
+\fBall\fR
+.RS 4
+Also show individual files in untracked directories\&.
+.RE
+.sp
+When
+\fB\-u\fR
+option is not used, untracked files and directories are shown (i\&.e\&. the same as specifying
+\fBnormal\fR), to help you avoid forgetting to add newly created files\&. Because it takes extra work to find untracked files in the filesystem, this mode may take some time in a large working tree\&. Consider enabling untracked cache and split index if supported (see
+\fBgit\fR
+\fBupdate\-index\fR
+\fB\-\-untracked\-cache\fR
+and
+\fBgit\fR
+\fBupdate\-index\fR
+\fB\-\-split\-index\fR), Otherwise you can use
+\fBno\fR
+to have
+\fBgit\fR
+\fBstatus\fR
+return more quickly without showing untracked files\&. All usual spellings for Boolean value
+\fBtrue\fR
+are taken as
+\fBnormal\fR
+and
+\fBfalse\fR
+as
+\fBno\fR\&.
+.sp
+The default can be changed using the
+\fBstatus\&.showUntrackedFiles\fR
+configuration variable documented in
+\fBgit-config\fR(1)\&.
+.RE
+.PP
+\fB\-\-ignore\-submodules\fR[\fB=\fR\fI<when>\fR]
+.RS 4
+Ignore changes to submodules when looking for changes\&.
+\fI<when>\fR
+can be either
+\fBnone\fR,
+\fBuntracked\fR,
+\fBdirty\fR
+or
+\fBall\fR, which is the default\&.
+.PP
+\fBnone\fR
+.RS 4
+will consider the submodule modified when it either contains untracked or modified files or its HEAD differs from the commit recorded in the superproject and can be used to override any settings of the
+\fBignore\fR
+option in
+\fBgit-config\fR(1)
+or
+\fBgitmodules\fR(5)\&.
+.RE
+.PP
+\fBuntracked\fR
+.RS 4
+submodules are not considered dirty when they only contain untracked content (but they are still scanned for modified content)\&.
+.RE
+.PP
+\fBdirty\fR
+.RS 4
+ignore all changes to the work tree of submodules, only changes to the commits stored in the superproject are shown (this was the behavior before 1\&.7\&.0)\&.
+.RE
+.PP
+\fBall\fR
+.RS 4
+hide all changes to submodules (and suppresses the output of submodule summaries when the config option
+\fBstatus\&.submoduleSummary\fR
+is set)\&.
+.RE
+.RE
+.PP
+\fB\-\-ignored\fR[\fB=\fR\fI<mode>\fR]
+.RS 4
+Show ignored files as well\&.
+.sp
+The mode parameter is used to specify the handling of ignored files\&. It is optional: it defaults to
+\fBtraditional\fR\&.
+.sp
+The possible options are:
+.PP
+\fBtraditional\fR
+.RS 4
+Show ignored files and directories, unless
+\fB\-\-untracked\-files=all\fR
+is specified, in which case individual files in ignored directories are displayed\&.
+.RE
+.PP
+\fBno\fR
+.RS 4
+Show no ignored files\&.
+.RE
+.PP
+\fBmatching\fR
+.RS 4
+Show ignored files and directories matching an ignore pattern\&.
+.sp
+Paths that explicitly match an ignored pattern are shown\&. If a directory matches an ignore pattern, then it is shown, but not paths contained in the ignored directory\&. If a directory does not match an ignore pattern, but all contents are ignored, then the directory is not shown, but all contents are shown\&.
+.RE
+.RE
+.PP
+\fB\-z\fR
+.RS 4
+Terminate entries with
+\fINUL\fR, instead of
+\fILF\fR\&. This implies the
+\fB\-\-porcelain=v1\fR
+output format if no other format is given\&.
+.RE
+.PP
+\fB\-\-column\fR[\fB=\fR\fI<options>\fR], \fB\-\-no\-column\fR
+.RS 4
+Display untracked files in columns\&. See configuration variable
+\fBcolumn\&.status\fR
+for option syntax\&.
+\fB\-\-column\fR
+and
+\fB\-\-no\-column\fR
+without options are equivalent to
+\fBalways\fR
+and
+\fBnever\fR
+respectively\&.
+.RE
+.PP
+\fB\-\-ahead\-behind\fR, \fB\-\-no\-ahead\-behind\fR
+.RS 4
+Display or do not display detailed ahead/behind counts for the branch relative to its upstream branch\&. Defaults to
+\fBtrue\fR\&.
+.RE
+.PP
+\fB\-\-renames\fR, \fB\-\-no\-renames\fR
+.RS 4
+Turn on/off rename detection regardless of user configuration\&. See also
+\fBgit-diff\fR(1)
+\fB\-\-no\-renames\fR\&.
+.RE
+.PP
+\fB\-\-find\-renames\fR[\fB=\fR\fI<n>\fR]
+.RS 4
+Turn on rename detection, optionally setting the similarity threshold\&. See also
+\fBgit-diff\fR(1)
+\fB\-\-find\-renames\fR\&.
+.RE
+.PP
+\fI<pathspec>\fR\&.\&.\&.
+.RS 4
+See the
+\fIpathspec\fR
+entry in
+\fBgitglossary\fR(7)\&.
+.RE
+.SH "OUTPUT"
+.sp
+The output from this command is designed to be used as a commit template comment\&. The default, long format, is designed to be human readable, verbose and descriptive\&. Its contents and format are subject to change at any time\&.
+.sp
+The paths mentioned in the output, unlike many other Git commands, are made relative to the current directory if you are working in a subdirectory (this is on purpose, to help cutting and pasting)\&. See the status\&.relativePaths config option below\&.
+.SS "Short Format"
+.sp
+In the short\-format, the status of each path is shown as one of these forms
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+<xy> <path>
+<xy> <orig\-path> \-> <path>
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+where \fI<orig\-path>\fR is where the renamed/copied contents came from\&. \fI<orig\-path>\fR is only shown when the entry is renamed or copied\&. The \fI<xy>\fR is a two\-letter status code \fBXY\fR\&.
+.sp
+The fields (including the \fB\-\fR>) are separated from each other by a single space\&. If a filename contains whitespace or other nonprintable characters, that field will be quoted in the manner of a C string literal: surrounded by ASCII double quote (34) characters, and with interior special characters backslash\-escaped\&.
+.sp
+There are three different types of states that are shown using this format, and each one uses the \fI<xy>\fR syntax differently:
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+When a merge is occurring and the merge was successful, or outside of a merge situation,
+\fBX\fR
+shows the status of the index and
+\fBY\fR
+shows the status of the working tree\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+When a merge conflict has occurred and has not yet been resolved,
+\fBX\fR
+and
+\fBY\fR
+show the state introduced by each head of the merge, relative to the common ancestor\&. These paths are said to be
+\fIunmerged\fR\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+When a path is untracked,
+\fBX\fR
+and
+\fBY\fR
+are always the same, since they are unknown to the index\&. ?? is used for untracked paths\&. Ignored files are not listed unless
+\fB\-\-ignored\fR
+is used; if it is, ignored files are indicated by !!\&.
+.RE
+.sp
+Note that the term \fImerge\fR here also includes rebases using the default \fB\-\-merge\fR strategy, cherry\-picks, and anything else using the merge machinery\&.
+.sp
+In the following table, these three classes are shown in separate sections, and these characters are used for \fBX\fR and \fBY\fR fields for the first two sections that show tracked paths:
+.PP
+\*(Aq \*(Aq
+.RS 4
+unmodified
+.RE
+.PP
+\fBM\fR
+.RS 4
+modified
+.RE
+.PP
+\fBT\fR
+.RS 4
+file type changed (regular file, symbolic link or submodule)
+.RE
+.PP
+\fBA\fR
+.RS 4
+added
+.RE
+.PP
+\fBD\fR
+.RS 4
+deleted
+.RE
+.PP
+\fBR\fR
+.RS 4
+renamed
+.RE
+.PP
+\fBC\fR
+.RS 4
+copied (if config option status\&.renames is set to "copies")
+.RE
+.PP
+\fBU\fR
+.RS 4
+updated but unmerged
+.RE
+.TS
+allbox tab(:);
+ctB ctB ltB.
+T{
+X
+T}:T{
+Y
+T}:T{
+Meaning
+T}
+.T&
+ct ct lt
+ct ct lt
+ct ct lt
+ct ct lt
+ct ct lt
+ct ct lt
+ct ct lt
+ct ct lt
+ct ct lt
+ct ct lt
+ct ct lt
+ct ct lt
+ct ct lt
+ct ct lt
+ct ct lt
+ct ct lt
+ct ct lt
+ct ct lt
+ct ct lt
+ct ct lt
+ct ct lt
+ct ct lt.
+T{
+\ \&
+T}:T{
+.sp
+[\fBAMD\fR]
+T}:T{
+.sp
+not updated
+T}
+T{
+.sp
+\fBM\fR
+T}:T{
+.sp
+[ \fBMTD\fR]
+T}:T{
+.sp
+updated in index
+T}
+T{
+.sp
+\fBT\fR
+T}:T{
+.sp
+[ \fBMTD\fR]
+T}:T{
+.sp
+type changed in index
+T}
+T{
+.sp
+\fBA\fR
+T}:T{
+.sp
+[ \fBMTD\fR]
+T}:T{
+.sp
+added to index
+T}
+T{
+.sp
+\fBD\fR
+T}:T{
+\ \&
+T}:T{
+.sp
+deleted from index
+T}
+T{
+.sp
+\fBR\fR
+T}:T{
+.sp
+[ \fBMTD\fR]
+T}:T{
+.sp
+renamed in index
+T}
+T{
+.sp
+\fBC\fR
+T}:T{
+.sp
+[ \fBMTD\fR]
+T}:T{
+.sp
+copied in index
+T}
+T{
+.sp
+[\fBMTARC\fR]
+T}:T{
+\ \&
+T}:T{
+.sp
+index and work tree matches
+T}
+T{
+.sp
+[ \fBMTARC\fR]
+T}:T{
+.sp
+\fBM\fR
+T}:T{
+.sp
+work tree changed since index
+T}
+T{
+.sp
+[ \fBMTARC\fR]
+T}:T{
+.sp
+\fBT\fR
+T}:T{
+.sp
+type changed in work tree since index
+T}
+T{
+.sp
+[ \fBMTARC\fR]
+T}:T{
+.sp
+\fBD\fR
+T}:T{
+.sp
+deleted in work tree
+T}
+T{
+\ \&
+T}:T{
+.sp
+\fBR\fR
+T}:T{
+.sp
+renamed in work tree
+T}
+T{
+\ \&
+T}:T{
+.sp
+\fBC\fR
+T}:T{
+.sp
+copied in work tree
+T}
+T{
+.sp
+\fBD\fR
+T}:T{
+.sp
+\fBD\fR
+T}:T{
+.sp
+unmerged, both deleted
+T}
+T{
+.sp
+\fBA\fR
+T}:T{
+.sp
+\fBU\fR
+T}:T{
+.sp
+unmerged, added by us
+T}
+T{
+.sp
+\fBU\fR
+T}:T{
+.sp
+\fBD\fR
+T}:T{
+.sp
+unmerged, deleted by them
+T}
+T{
+.sp
+\fBU\fR
+T}:T{
+.sp
+\fBA\fR
+T}:T{
+.sp
+unmerged, added by them
+T}
+T{
+.sp
+\fBD\fR
+T}:T{
+.sp
+\fBU\fR
+T}:T{
+.sp
+unmerged, deleted by us
+T}
+T{
+.sp
+\fBA\fR
+T}:T{
+.sp
+\fBA\fR
+T}:T{
+.sp
+unmerged, both added
+T}
+T{
+.sp
+\fBU\fR
+T}:T{
+.sp
+\fBU\fR
+T}:T{
+.sp
+unmerged, both modified
+T}
+T{
+.sp
+?
+T}:T{
+.sp
+?
+T}:T{
+.sp
+untracked
+T}
+T{
+.sp
+!
+T}:T{
+.sp
+!
+T}:T{
+.sp
+ignored
+T}
+.TE
+.sp 1
+.sp
+Submodules have more state and instead report
+.PP
+\fBM\fR
+.RS 4
+the submodule has a different HEAD than recorded in the index
+.RE
+.PP
+\fBm\fR
+.RS 4
+the submodule has modified content
+.RE
+.PP
+?
+.RS 4
+the submodule has untracked files
+.RE
+.sp
+This is since modified content or untracked files in a submodule cannot be added via \fBgit\fR \fBadd\fR in the superproject to prepare a commit\&.
+.sp
+\fBm\fR and ? are applied recursively\&. For example if a nested submodule in a submodule contains an untracked file, this is reported as ? as well\&.
+.sp
+If \fB\-b\fR is used the short\-format status is preceded by a line
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+## \fI<branchname>\fR \fI<tracking\-info>\fR
+.fi
+.if n \{\
+.RE
+.\}
+.SS "Porcelain Format Version 1"
+.sp
+Version 1 porcelain format is similar to the short format, but is guaranteed not to change in a backwards\-incompatible way between Git versions or based on user configuration\&. This makes it ideal for parsing by scripts\&. The description of the short format above also describes the porcelain format, with a few exceptions:
+.sp
+.RS 4
+.ie n \{\
+\h'-04' 1.\h'+01'\c
+.\}
+.el \{\
+.sp -1
+.IP "  1." 4.2
+.\}
+The user\(cqs
+\fBcolor\&.status\fR
+configuration is not respected; color will always be off\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04' 2.\h'+01'\c
+.\}
+.el \{\
+.sp -1
+.IP "  2." 4.2
+.\}
+The user\(cqs
+\fBstatus\&.relativePaths\fR
+configuration is not respected; paths shown will always be relative to the repository root\&.
+.RE
+.sp
+There is also an alternate \fB\-z\fR format recommended for machine parsing\&. In that format, the status field is the same, but some other things change\&. First, the \fB\-\fR> is omitted from rename entries and the field order is reversed (e\&.g \fBfrom\fR \fB\-\fR> \fBto\fR becomes \fBto\fR \fBfrom\fR)\&. Second, a \fINUL\fR (ASCII 0) follows each filename, replacing space as a field separator and the terminating newline (but a space still separates the status field from the first filename)\&. Third, filenames containing special characters are not specially formatted; no quoting or backslash\-escaping is performed\&.
+.sp
+Any submodule changes are reported as modified \fBM\fR instead of \fBm\fR or single ?\&.
+.SS "Porcelain Format Version 2"
+.sp
+Version 2 format adds more detailed information about the state of the worktree and changed items\&. Version 2 also defines an extensible set of easy to parse optional headers\&.
+.sp
+Header lines start with # and are added in response to specific command line arguments\&. Parsers should ignore headers they don\(cqt recognize\&.
+.sp
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.ps +1
+\fBBranch Headers\fR
+.RS 4
+.sp
+If \fB\-\-branch\fR is given, a series of header lines are printed with information about the current branch\&.
+.TS
+allbox tab(:);
+ltB ltB.
+T{
+Line
+T}:T{
+Notes
+T}
+.T&
+lt lt
+lt lt
+lt lt
+lt lt.
+T{
+.sp
+# \fBbranch\&.oid\fR \fI<commit>\fR | (\fBinitial\fR)
+T}:T{
+.sp
+Current commit\&.
+T}
+T{
+.sp
+# \fBbranch\&.head\fR \fI<branch>\fR | (\fBdetached\fR)
+T}:T{
+.sp
+Current branch\&.
+T}
+T{
+.sp
+# \fBbranch\&.upstream\fR \fI<upstream\-branch>\fR
+T}:T{
+.sp
+If upstream is set\&.
+T}
+T{
+.sp
+# \fBbranch\&.ab\fR \fB+\fR\fI<ahead>\fR \fB\-\fR\fI<behind>\fR
+T}:T{
+.sp
+If upstream is set and the commit is present\&.
+T}
+.TE
+.sp 1
+.RE
+.sp
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.ps +1
+\fBStash Information\fR
+.RS 4
+.sp
+If \fB\-\-show\-stash\fR is given, one line is printed showing the number of stash entries if non\-zero:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+# stash <N>
+.fi
+.if n \{\
+.RE
+.\}
+.RE
+.sp
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.ps +1
+\fBChanged Tracked Entries\fR
+.RS 4
+.sp
+Following the headers, a series of lines are printed for tracked entries\&. One of three different line formats may be used to describe an entry depending on the type of change\&. Tracked entries are printed in an undefined order; parsers should allow for a mixture of the 3 line types in any order\&.
+.sp
+Ordinary changed entries have the following format:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+\fB1\fR \fI<XY>\fR \fI<sub>\fR \fI<mH>\fR \fI<mI>\fR \fI<mW>\fR \fI<hH>\fR \fI<hI>\fR \fI<path>\fR
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+Renamed or copied entries have the following format:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+\fB2\fR \fI<XY>\fR \fI<sub>\fR \fI<mH>\fR \fI<mI>\fR \fI<mW>\fR \fI<hH>\fR \fI<hI>\fR \fI<X>\fR\fI<score>\fR \fI<path>\fR\fI<sep>\fR\fI<origPath>\fR
+.fi
+.if n \{\
+.RE
+.\}
+.TS
+allbox tab(:);
+ltB ltB.
+T{
+Field
+T}:T{
+Meaning
+T}
+.T&
+lt lt
+lt lt
+lt lt
+lt lt
+lt lt
+lt lt
+lt lt
+lt lt
+lt lt
+lt lt
+lt lt.
+T{
+.sp
+\fI<XY>\fR
+T}:T{
+.sp
+A 2 character field containing the staged and unstaged XY values described in the short format, with unchanged indicated by a "\&." rather than a space\&.
+T}
+T{
+.sp
+\fI<sub>\fR
+T}:T{
+.sp
+A 4 character field describing the submodule state\&. "N\&...\:" when the entry is not a submodule\&. \fBS\fR\fI<c>\fR\fI<m>\fR\fI<u>\fR when the entry is a submodule\&.
+
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fI<c>\fR
+is "C" if the commit changed; otherwise "\&."\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fI<m>\fR
+is "M" if it has tracked changes; otherwise "\&."\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fI<u>\fR
+is "U" if there are untracked changes; otherwise "\&."\&.
+.RE
+T}
+T{
+.sp
+\fI<mH>\fR
+T}:T{
+.sp
+The octal file mode in HEAD\&.
+T}
+T{
+.sp
+\fI<mI>\fR
+T}:T{
+.sp
+The octal file mode in the index\&.
+T}
+T{
+.sp
+\fI<mW>\fR
+T}:T{
+.sp
+The octal file mode in the worktree\&.
+T}
+T{
+.sp
+\fI<hH>\fR
+T}:T{
+.sp
+The object name in HEAD\&.
+T}
+T{
+.sp
+\fI<hI>\fR
+T}:T{
+.sp
+The object name in the index\&.
+T}
+T{
+.sp
+\fI<X><score>\fR
+T}:T{
+.sp
+The rename or copy score (denoting the percentage of similarity between the source and target of the move or copy)\&. For example "R100" or "C75"\&.
+T}
+T{
+.sp
+\fI<path>\fR
+T}:T{
+.sp
+The pathname\&. In a renamed/copied entry, this is the target path\&.
+T}
+T{
+.sp
+\fI<sep>\fR
+T}:T{
+.sp
+When the \fB\-z\fR option is used, the 2 pathnames are separated with a \fINUL\fR (ASCII 0x00) byte; otherwise, a \fITAB\fR (ASCII 0x09) byte separates them\&.
+T}
+T{
+.sp
+\fI<origPath>\fR
+T}:T{
+.sp
+The pathname in the commit at HEAD or in the index\&. This is only present in a renamed/copied entry, and tells where the renamed/copied contents came from\&.
+T}
+.TE
+.sp 1
+.sp
+Unmerged entries have the following format; the first character is a "u" to distinguish from ordinary changed entries\&.
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+\fBu\fR \fI<XY>\fR \fI<sub>\fR \fI<m1>\fR \fI<m2>\fR \fI<m3>\fR \fI<mW>\fR \fI<h1>\fR \fI<h2>\fR \fI<h3>\fR \fI<path>\fR
+.fi
+.if n \{\
+.RE
+.\}
+.TS
+allbox tab(:);
+ltB ltB.
+T{
+Field
+T}:T{
+Meaning
+T}
+.T&
+lt lt
+lt lt
+lt lt
+lt lt
+lt lt
+lt lt
+lt lt
+lt lt
+lt lt
+lt lt.
+T{
+.sp
+\fI<XY>\fR
+T}:T{
+.sp
+A 2 character field describing the conflict type as described in the short format\&.
+T}
+T{
+.sp
+\fI<sub>\fR
+T}:T{
+.sp
+A 4 character field describing the submodule state as described above\&.
+T}
+T{
+.sp
+\fI<m1>\fR
+T}:T{
+.sp
+The octal file mode in stage 1\&.
+T}
+T{
+.sp
+\fI<m2>\fR
+T}:T{
+.sp
+The octal file mode in stage 2\&.
+T}
+T{
+.sp
+\fI<m3>\fR
+T}:T{
+.sp
+The octal file mode in stage 3\&.
+T}
+T{
+.sp
+\fI<mW>\fR
+T}:T{
+.sp
+The octal file mode in the worktree\&.
+T}
+T{
+.sp
+\fI<h1>\fR
+T}:T{
+.sp
+The object name in stage 1\&.
+T}
+T{
+.sp
+\fI<h2>\fR
+T}:T{
+.sp
+The object name in stage 2\&.
+T}
+T{
+.sp
+\fI<h3>\fR
+T}:T{
+.sp
+The object name in stage 3\&.
+T}
+T{
+.sp
+\fI<path>\fR
+T}:T{
+.sp
+The pathname\&.
+T}
+.TE
+.sp 1
+.RE
+.sp
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.ps +1
+\fBOther Items\fR
+.RS 4
+.sp
+Following the tracked entries (and if requested), a series of lines will be printed for untracked and then ignored items found in the worktree\&.
+.sp
+Untracked items have the following format:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+? <path>
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+Ignored items have the following format:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+! <path>
+.fi
+.if n \{\
+.RE
+.\}
+.RE
+.sp
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.ps +1
+\fBPathname Format Notes and -z\fR
+.RS 4
+.sp
+When the \fB\-z\fR option is given, pathnames are printed as is and without any quoting and lines are terminated with a \fINUL\fR (ASCII 0x00) byte\&.
+.sp
+Without the \fB\-z\fR option, pathnames with "unusual" characters are quoted as explained for the configuration variable \fBcore\&.quotePath\fR (see \fBgit-config\fR(1))\&.
+.RE
+.SH "CONFIGURATION"
+.sp
+The command honors \fBcolor\&.status\fR (or \fBstatus\&.color\fR \(em they mean the same thing and the latter is kept for backward compatibility) and \fBcolor\&.status\&.\fR\fI<slot>\fR configuration variables to colorize its output\&.
+.sp
+If the config variable \fBstatus\&.relativePaths\fR is set to false, then all paths shown are relative to the repository root, not to the current directory\&.
+.sp
+If \fBstatus\&.submoduleSummary\fR is set to a non zero number or true (identical to \-1 or an unlimited number), the submodule summary will be enabled for the long format and a summary of commits for modified submodules will be shown (see \fB\-\-summary\-limit\fR option of \fBgit-submodule\fR(1))\&. Please note that the summary output from the status command will be suppressed for all submodules when \fBdiff\&.ignoreSubmodules\fR is set to \fBall\fR or only for those submodules where \fBsubmodule\&.\fR\fI<name>\fR\fB\&.ignore=all\fR\&. To also view the summary for ignored submodules you can either use the \fB\-\-ignore\-submodules=dirty\fR command line option or the \fIgit submodule summary\fR command, which shows a similar output but does not honor these settings\&.
+.SH "BACKGROUND REFRESH"
+.sp
+By default, \fBgit\fR \fBstatus\fR will automatically refresh the index, updating the cached stat information from the working tree and writing out the result\&. Writing out the updated index is an optimization that isn\(cqt strictly necessary (\fBstatus\fR computes the values for itself, but writing them out is just to save subsequent programs from repeating our computation)\&. When \fBstatus\fR is run in the background, the lock held during the write may conflict with other simultaneous processes, causing them to fail\&. Scripts running \fBstatus\fR in the background should consider using \fBgit\fR \fB\-\-no\-optional\-locks\fR \fBstatus\fR (see \fBgit\fR(1) for details)\&.
+.SH "UNTRACKED FILES AND PERFORMANCE"
+.sp
+\fBgit\fR \fBstatus\fR can be very slow in large worktrees if/when it needs to search for untracked files and directories\&. There are many configuration options available to speed this up by either avoiding the work or making use of cached results from previous Git commands\&. There is no single optimum set of settings right for everyone\&. We\(cqll list a summary of the relevant options to help you, but before going into the list, you may want to run \fBgit\fR \fBstatus\fR again, because your configuration may already be caching \fBgit\fR \fBstatus\fR results, so it could be faster on subsequent runs\&.
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+The
+\fB\-\-untracked\-files=no\fR
+flag or the
+\fBstatus\&.showUntrackedFiles=no\fR
+config (see above for both): indicate that
+\fBgit\fR
+\fBstatus\fR
+should not report untracked files\&. This is the fastest option\&.
+\fBgit\fR
+\fBstatus\fR
+will not list the untracked files, so you need to be careful to remember if you create any new files and manually
+\fBgit\fR
+\fBadd\fR
+them\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fBadvice\&.statusUoption=false\fR
+(see
+\fBgit-config\fR(1)): setting this variable to
+\fBfalse\fR
+disables the warning message given when enumerating untracked files takes more than 2 seconds\&. In a large project, it may take longer and the user may have already accepted the trade off (e\&.g\&. using
+\fB\-uno\fR
+may not be an acceptable option for the user), in which case, there is no point issuing the warning message, and in such a case, disabling the warning may be the best\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fBcore\&.untrackedCache=true\fR
+(see
+\fBgit-update-index\fR(1)): enable the untracked cache feature and only search directories that have been modified since the previous
+\fBgit\fR
+\fBstatus\fR
+command\&. Git remembers the set of untracked files within each directory and assumes that if a directory has not been modified, then the set of untracked files within has not changed\&. This is much faster than enumerating the contents of every directory, but still not without cost, because Git still has to search for the set of modified directories\&. The untracked cache is stored in the \&.\fBgit/index\fR
+file\&. The reduced cost of searching for untracked files is offset slightly by the increased size of the index and the cost of keeping it up\-to\-date\&. That reduced search time is usually worth the additional size\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fBcore\&.untrackedCache=true\fR
+and
+\fBcore\&.fsmonitor=true\fR
+or
+\fBcore\&.fsmonitor=\fR\fI<hook\-command\-pathname>\fR
+(see
+\fBgit-update-index\fR(1)): enable both the untracked cache and FSMonitor features and only search directories that have been modified since the previous
+\fBgit\fR
+\fBstatus\fR
+command\&. This is faster than using just the untracked cache alone because Git can also avoid searching for modified directories\&. Git only has to enumerate the exact set of directories that have changed recently\&. While the FSMonitor feature can be enabled without the untracked cache, the benefits are greatly reduced in that case\&.
+.RE
+.sp
+Note that after you turn on the untracked cache and/or FSMonitor features it may take a few \fBgit\fR \fBstatus\fR commands for the various caches to warm up before you see improved command times\&. This is normal\&.
+.SH "SEE ALSO"
+.sp
+\fBgitignore\fR(5)
+.SH "GIT"
+.sp
+Part of the \fBgit\fR(1) suite

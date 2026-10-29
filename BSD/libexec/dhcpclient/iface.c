@@ -43,6 +43,7 @@
 
 #include <net/if.h>
 #include <net/if_dl.h>
+#include <net/if_media.h>
 #include <net/if_types.h>
 #include <net/net_kev.h>
 #include <net/route.h>
@@ -400,6 +401,24 @@ get_link(const char *name)
 	return ret;
 }
 
+/* Whether the cable is in (true when the driver does not say). */
+static bool
+link_active(void)
+{
+	struct ifmediareq ifmr;
+	int s = socket(AF_INET, SOCK_DGRAM, 0);
+	bool active = true;
+
+	if (s < 0)
+		return true;
+	memset(&ifmr, 0, sizeof(ifmr));
+	strlcpy(ifmr.ifm_name, ifs.name, sizeof(ifmr.ifm_name));
+	if (ioctl(s, SIOCGIFMEDIA, &ifmr) == 0 && (ifmr.ifm_status & IFM_AVALID))
+		active = (ifmr.ifm_status & IFM_ACTIVE) != 0;
+	close(s);
+	return active;
+}
+
 static void
 interface_up(void)
 {
@@ -461,8 +480,13 @@ kev_input(void)
 	case KEV_DL_LINK_ON:
 		logmsg(LOG_INFO, "link up");
 		dhcp4_link_up();
-		if (ifs.method6 == M6_AUTOMATIC)
-			ipv6_start();	/* solicit routers again */
+		ipv6_start();	/* addresses back, and solicit routers again */
+		break;
+	case KEV_DL_LINK_OFF:
+		/* As on macOS, an inactive interface keeps no address. */
+		logmsg(LOG_INFO, "link down");
+		dhcp4_link_down();
+		ipv6_stop();
 		break;
 	case KEV_DL_IF_DETACHING:
 	case KEV_DL_IF_DETACHED:
@@ -636,7 +660,10 @@ serve(const char *name)
 	interface_up();
 	open_kev();
 	ifs.ctl = open_control();
-	ipv6_start();
+	/* With no cable, IPv6 waits for the link (no addresses on an
+	 * inactive interface, as on macOS). */
+	if (link_active())
+		ipv6_start();
 	dhcp4_start();
 
 	bool published = false;		/* configd has our service */

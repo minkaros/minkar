@@ -86,7 +86,10 @@ int AcpiOsReleaseGlobalLock(void *FacsGlobalLock);
 #ifdef __cplusplus
 }
 #endif
-#define ACPI_ACQUIRE_GLOBAL_LOCK(GLptr, Acq)	((Acq) = AcpiOsAcquireGlobalLock(GLptr))
-#define ACPI_RELEASE_GLOBAL_LOCK(GLptr, Pnd)	((Pnd) = AcpiOsReleaseGlobalLock(GLptr))
+/* ACPICA passes the FACS itself: the lock is its GlobalLock field. */
+#define ACPI_ACQUIRE_GLOBAL_LOCK(FacsPtr, Acq) \
+	((Acq) = AcpiOsAcquireGlobalLock(&(FacsPtr)->GlobalLock))
+#define ACPI_RELEASE_GLOBAL_LOCK(FacsPtr, Pnd) \
+	((Pnd) = AcpiOsReleaseGlobalLock(&(FacsPtr)->GlobalLock))
 
 #endif /* __ACMACOSX_H__ */

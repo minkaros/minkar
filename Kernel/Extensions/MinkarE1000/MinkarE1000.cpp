@@ -32,6 +32,9 @@
 #include <IOKit/IOLib.h>
 #include <libkern/OSAtomic.h>
 #include <netinet/in.h>
+#include <pexpert/pexpert.h>
+
+extern "C" int minkar_e1000_debug;	/* E1000Shared.cpp */
 
 #define super IOEthernetController
 OSDefineMetaClassAndStructors(MinkarE1000, IOEthernetController);
@@ -227,6 +230,14 @@ MinkarE1000::initRx()
 	writeReg(E1000_RDH, 0);
 	writeReg(E1000_RDT, kRxRingSize - 1);
 	writeReg(E1000_RDTR, 0);
+	if (fFamily == kE1000FamilyIGB) {
+		/* Legacy descriptors, 2 KB buffers; then queue 0 on. */
+		writeReg(E1000_SRRCTL0, 2U << E1000_SRRCTL_BSIZEPKT_SHIFT);
+		writeReg(E1000_RXDCTL0, readReg(E1000_RXDCTL0) | E1000_XDCTL_QUEUE_ENABLE);
+		for (int i = 0; i < 10 && !(readReg(E1000_RXDCTL0) & E1000_XDCTL_QUEUE_ENABLE); i++)
+			IOSleep(1);
+		writeReg(E1000_RDT, kRxRingSize - 1);
+	}
 	fRxNext = 0;
 	updateRCTL();
 }
@@ -243,6 +254,11 @@ MinkarE1000::initTx()
 	writeReg(E1000_TDH, 0);
 	writeReg(E1000_TDT, 0);
 	writeReg(E1000_TIDV, 0);
+	if (fFamily == kE1000FamilyIGB) {
+		writeReg(E1000_TXDCTL0, readReg(E1000_TXDCTL0) | E1000_XDCTL_QUEUE_ENABLE);
+		for (int i = 0; i < 10 && !(readReg(E1000_TXDCTL0) & E1000_XDCTL_QUEUE_ENABLE); i++)
+			IOSleep(1);
+	}
 	writeReg(E1000_TIPG, E1000_TIPG_COPPER);
 	writeReg(E1000_TCTL, E1000_TCTL_EN | E1000_TCTL_PSP |
 	    (0x0FU << E1000_TCTL_CT_SHIFT) | (0x40U << E1000_TCTL_COLD_SHIFT) |
@@ -301,6 +317,15 @@ MinkarE1000::checkLink()
 	IOMediumType type;
 	UInt64 mbps;
 
+	if (fShared != NULL) {
+		/* The shared code reads the PHY (and does the PCH's link work). */
+		bool up, full;
+		uint32_t m;
+
+		E1000SharedLink(fShared, &up, &m, &full);
+		status = (up ? E1000_STATUS_LU : 0) | (full ? E1000_STATUS_FD : 0) |
+		    ((m == 1000 ? 2U : m == 100 ? 1U : 0U) << E1000_STATUS_SPEED_SHIFT);
+	}
 	if ((status & E1000_STATUS_LU) == 0) {
 		if (getLinkStatus() != kIONetworkLinkValid) {
 			setLinkStatus(kIONetworkLinkValid);
@@ -786,10 +811,46 @@ MinkarE1000::start(IOService *provider)
 		LOG("cannot map the registers");
 		return false;
 	}
-	resetChip();
-	if (!readMACAddress()) {
-		LOG("cannot read the MAC address");
-		return false;
+	/*
+	 * Intel's shared code sets up the PCH LAN (I217-I219) and the
+	 * I210/I211; e1000_shared=1 makes it set up the other chips too (to
+	 * test it in QEMU). The rest keep the driver's own setup.
+	 */
+	fFamily = kE1000FamilyOther;
+	/* e1000_debug=1: the shared code's own messages, for a chip that
+	 * does not come up. */
+	(void)PE_parse_boot_argn("e1000_debug", &minkar_e1000_debug, sizeof(minkar_e1000_debug));
+	fShared = E1000SharedCreate(fPCI, fRegs);
+	if (fShared != NULL) {
+		uint32_t force = 0;
+
+		fFamily = E1000SharedFamily(fShared);
+		if (fFamily == kE1000FamilyOther &&
+		    !(PE_parse_boot_argn("e1000_shared", &force, sizeof(force)) && force)) {
+			E1000SharedFree(fShared);
+			fShared = NULL;
+		}
+	}
+	if (fShared != NULL) {
+		if (E1000SharedNeedsFlashBAR(fShared)) {
+			fFlashMap = fPCI->mapDeviceMemoryWithRegister(kIOPCIConfigBaseAddress1,
+			    kIOMapInhibitCache);
+			if (fFlashMap == NULL) {
+				LOG("cannot map the NVM flash (BAR 1)");
+				return false;
+			}
+			E1000SharedSetFlash(fShared, (volatile uint8_t *)fFlashMap->getVirtualAddress());
+		}
+		if (!E1000SharedInit(fShared, fMAC.bytes)) {
+			LOG("the %s did not come up", E1000SharedName(fShared));
+			return false;
+		}
+	} else {
+		resetChip();
+		if (!readMACAddress()) {
+			LOG("cannot read the MAC address");
+			return false;
+		}
 	}
 	if (!allocateRings()) {
 		LOG("cannot allocate the DMA rings");
@@ -835,7 +896,8 @@ MinkarE1000::start(IOService *provider)
 		return false;
 	}
 
-	LOG("Intel %04x, %s, MAC %02x:%02x:%02x:%02x:%02x:%02x", fDeviceID,
+	LOG("Intel %04x%s%s, %s, MAC %02x:%02x:%02x:%02x:%02x:%02x", fDeviceID,
+	    fShared != NULL ? " " : "", fShared != NULL ? E1000SharedName(fShared) : "",
 	    fPolling ? "polling" : (fMSI ? "MSI" : "legacy interrupt"),
 	    fMAC.bytes[0], fMAC.bytes[1], fMAC.bytes[2], fMAC.bytes[3],
 	    fMAC.bytes[4], fMAC.bytes[5]);
@@ -877,6 +939,9 @@ MinkarE1000::free()
 	OSSafeReleaseNULL(fIntSource);
 	OSSafeReleaseNULL(fMedia);
 	freeRings();
+	E1000SharedFree(fShared);
+	fShared = NULL;
+	OSSafeReleaseNULL(fFlashMap);
 	OSSafeReleaseNULL(fRegsMap);
 	OSSafeReleaseNULL(fRegsDesc);
 	OSSafeReleaseNULL(fPCI);
@@ -888,7 +953,17 @@ MinkarE1000::enable(IONetworkInterface *)
 {
 	if (fEnabled)
 		return kIOReturnSuccess;
-	resetChip();
+	if (fShared != NULL) {
+		/* Reset and init again (PHY, link), keeping the MAC address. */
+		uint8_t mac[6];
+
+		if (!E1000SharedInit(fShared, mac))
+			return kIOReturnIOError;
+		writeReg(E1000_IMC, 0xFFFFFFFF);
+		(void)readReg(E1000_ICR);
+	} else {
+		resetChip();
+	}
 	/* VLAN tags: stripped on receive, inserted on transmit. */
 	writeReg(E1000_CTRL, readReg(E1000_CTRL) | E1000_CTRL_VME);
 	writeReg(E1000_RAL0, (uint32_t)fMAC.bytes[0] | ((uint32_t)fMAC.bytes[1] << 8) |
@@ -989,6 +1064,9 @@ MinkarE1000::getChecksumSupport(UInt32 *mask, UInt32 family, bool)
 {
 	if (mask == NULL || family != kChecksumFamilyTCPIP)
 		return kIOReturnUnsupported;
+	/* The I210/I211 offload through advanced descriptors, not used here. */
+	if (fFamily == kE1000FamilyIGB)
+		return kIOReturnUnsupported;
 	*mask = kChecksumIP | kChecksumTCP | kChecksumUDP;
 	return kIOReturnSuccess;
 }
@@ -996,6 +1074,8 @@ MinkarE1000::getChecksumSupport(UInt32 *mask, UInt32 family, bool)
 UInt32
 MinkarE1000::getFeatures() const
 {
+	if (fFamily == kE1000FamilyIGB)
+		return kIONetworkFeatureHardwareVlan;
 	return kIONetworkFeatureHardwareVlan | kIONetworkFeatureTSOIPv4;
 }
 
@@ -1008,6 +1088,12 @@ MinkarE1000::newVendorString() const
 const OSString *
 MinkarE1000::newModelString() const
 {
+	if (fShared != NULL && fFamily != kE1000FamilyOther) {
+		char name[64];
+
+		snprintf(name, sizeof(name), "%s Gigabit Ethernet", E1000SharedName(fShared));
+		return OSString::withCString(name);
+	}
 	switch (fDeviceID) {
 	case 0x10D3: return OSString::withCString("82574L Gigabit Ethernet");
 	case 0x100F: return OSString::withCString("82545EM Gigabit Ethernet");

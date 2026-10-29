@@ -195,56 +195,12 @@ mounted.
   the full suite takes about 9 minutes instead of 32. *Partial:* on the
   CI runners the kernel does not boot under KVM yet, so `boottest` uses
   TCG unless KVM is asked for.
-- [ ] Reference hardware list: one QEMU VM and two documented physical PCs.
-  *In progress:* PC 1 is a Gigabyte H270N-WIFI (Intel H270, i7-7700): its
-  SATA (AHCI), xHCI and GOP display match the current drivers; its Intel
-  I219-V network card does not (the e1000 driver lacks the PCH family),
-  and NVMe has no driver yet, so the image goes on a SATA disk.
-  First boots (2026-10-26), from the SATA disk: the loader read the
-  kernel from another disk's EFI partition, then overwrote firmware
-  memory (the kernel was copied to 1 MB while boot services ran; QEMU's
-  firmware happens to leave that range alone), then the kernel reset the
-  machine on its first no-execute page (the AMI firmware leaves
-  `EFER.NXE` off; OVMF turns it on). With the loader fixed, the kernel
-  boots through `bsd_init`, the APIC, the eight CPUs and the root UUID,
-  and stops in PCI configuration, where the console is off.
-  `LOADER_PAUSE=10` keeps the loader's output on screen for photos.
-  Then (2026-10-26, boot-args `kprintf_console=1 pci_keep_console=1` to
-  watch it): PCI configuration froze rewriting the x16 bridge's memory
-  window; IOPCIFamily now keeps the firmware's windows at boot when they
-  hold what was allocated. AHCI and xHCI then waited forever for their
-  interrupt: the I/O APIC was named after its APIC ID (2) while every
-  device asks for `io-apic@0`; it is now named by its place in the MADT.
-  The kernel now gets through PCI, the GOP display and the xHCI start,
-  and waits for the root device: the SATA disk (port 2) is not found yet
-  (`ahci_debug=1` prints why), and the USB hub's control transfers fail.
-  An intermittent panic in QEMU (2026-10-27) came from IOPCIFamily
-  reading MSI-X's pending-bit array for a plain MSI device while a
-  driver disabled its last vector; plain MSI now calls its first vector
-  instead (six boots of the USB tests without a panic). The AHCI and
-  xHCI drivers are now named `MinkarAHCIPort` and `MinkarXHCIPort`
-  (`org.minkar.driver.*`), keeping their authors' copyright.
-  Then (2026-10-27) **PC 1 boots to the `login:` prompt and is usable**:
-  root on the SATA disk, launchd, fsck, sshd and a shell, typed on a USB
-  keyboard. The disks were found but IDENTIFY never ran: the port was
-  reset while its command engine ran and `PxSERR` was not cleared after,
-  so Intel's HBA kept BSY set; the port now follows the AHCI
-  specification's order. USB: each interrupt-IN endpoint has its own ring
-  and every one of a device is configured (the keyboard's media keys,
-  the mouse's extra interfaces); keyboards in report protocol and
-  interfaces with a keyboard and a mouse are driven
-  (`MinkarUSBHIDInterface`); a device that cannot be read no longer floods
-  the console. Then the keyboard behind PC 1's KVM switch (a USB 2 hub):
-  the driver cleared a SuperSpeed-only port feature, the hub answered
-  STALL and its control endpoint stayed halted; it now sends that only to
-  SuperSpeed hubs and resets a halted control endpoint after any STALL
-  (keyboard and mouse through the switch work). A device with one bulk
-  direction no longer panics the kernel. Still open on PC 1: the network
-  cards, NVMe. The loader sets the display mode from `graphics-mode` in
-  the boot plist (`GRAPHICS_MODE=`): `native` reads the display's EDID;
-  PC 1's 34" ultrawide runs at its 3440x1440 (3456 pixels per line), and
-  a scaled mode came out scrambled; a short settle after the switch is in
-  testing.
+- [ ] Reference hardware list: one QEMU VM and two documented physical PCs,
+  each with what works, what does not yet and how it was fixed, in
+  [Hardware.md](Hardware.md). *In progress:* PC 1 (Gigabyte H270N-WIFI,
+  i7-7700) boots to login from SATA with its native display, USB keyboard
+  through a KVM switch, the I219-V network and a usable console terminal;
+  still open there: the I211, NVMe. PC 2 is not chosen yet.
 
 - [ ] **Exit gate (M1):** in QEMU and on a reference PC, the kernel mounts
   the HFS+ root and runs `/sbin/launchd` (or a temporary init) with a shell
@@ -286,90 +242,27 @@ the services Magma and the apps will need.
 
 **BSD userland, in batches**
 
-Decision (2026-10-26): the generic Unix commands all come from FreeBSD
-`main`; where macOS's command behaves differently (options, output), our
-own code under `__APPLE__` follows macOS's manual page, each difference
-with a test. Commands that came from Apple's `shell_cmds` and `adv_cmds`
-through ravynOS (`date`, `kill`, `killall`, `uname`, `xargs`, `who` and
-others) are to be replaced. Darwin's own components (launchd, configd,
-notifyd, syslogd, the HFS tools, mDNSResponder) stay as they are.
+The generic Unix commands come from FreeBSD `main`, with our own macOS
+layer where macOS behaves differently; Darwin's own components stay. Each
+command, where it comes from and what was fixed while porting it, is in
+[Userland.md](Userland.md); [Commands.md](Commands.md) counts them against
+macOS's (257 of 354 on 2026-10-28).
 
 - [x] Boot: `sh`, `ls`, `cp`, `mv`, `rm`, `mount`, `ifconfig`, `ps`, `kill`.
-  Tested in the image 2026-10-26. `cp -p` failed on every file without an
-  ACL, and `mv` between volumes warned: Darwin reports "no ACL" as
-  `ENOENT`.
-- [ ] Replace the commands from Apple's command sets with FreeBSD main's
-  and the macOS layer. *Partial:* done 2026-10-26 for `uname` (`-p` prints
-  `i386`), `date` (now in `/bin`; macOS's `mmddHHMM[yy]` order), `rm`,
-  `xargs`, `cat`, `env`, `tail`, `test`, `find` (`-xattr`, `-xattrname`),
-  `ls` (macOS's `-@`, `-e`, `-O`, `-o` and the `@` marker), `id` (`-F`),
-  `who`, `time` and `grep` (now in `/usr/bin`; `zgrep` is FreeBSD's
-  script); 2026-10-27 `killall` (now in `/usr/bin`; macOS matches whole
-  names, past `p_comm`'s 16 characters), `kill` (in `/bin`, `sh`'s
-  built-in's source) and `w` (it had Apple's portions and was not built;
-  macOS's heading), `ps` (macOS's displays, options and keywords; its
-  process records come from libbsdcompat's `kvm_getprocs()` over sysctl
-  and libproc). `top` is our own, with macOS's options, keys and summary
-  since 2026-10-27, and `btop` 1.4.7 (Apache-2.0) sits next to it. Then
-  `sysctl` (2026-10-27: it was Apple's; the macOS layer maps Darwin's
-  OID formats to FreeBSD's types, skips the nodes with no format and
-  prints `vm.swapusage`), `cal`/`ncal`, `getconf` (macOS's
-  `DARWIN_USER_*` names) and `locale`. `login` is our own (BSD-2-Clause)
-  and `su` is FreeBSD main's: no command from Apple's command sets is
-  left. Missing in `grep`: macOS's `-Z`/`-J` (decompress).
-- [ ] Everyday tools missing from the image. *Partial:* built and tested
-  2026-10-26: `dd`, `expr`, `printenv`, `od`/`hexdump`, `paste`, `nohup`,
-  `install`, `pgrep`/`pkill` (FreeBSD's, reading processes through
-  `sysctl`), `ed`, `pax`, and the second names `readlink`, `link`,
-  `unlink`, `egrep`, `fgrep`, `zgrep`. Then `m4`, `bc`/`dc`, `cpio`
-  (libarchive's), `cron` and `crontab` (with a launchd job; jobs never ran:
-  cron cleared `environ` to NULL, which Darwin's `setenv` cannot start
-  from) and the text tools `rev`, `column`, `comm`, `join`, `fold`, `fmt`,
-  `split`, `csplit`, `tsort`, `nl`, `expand`, `unexpand`. Named pipes
-  (`mkfifo`) failed on HFS+: the hfs kext was built without FIFO support.
-  Then `jot`, `lam`, `rs`, `col`, `colrm`, `look`, `logname`, `mkfifo`,
-  `renice`, `nice`, `lockf`, `cksum`/`sum`, `what`, `vis`/`unvis`,
-  `uuencode`/`uudecode`/`base64` (macOS's `base64` options) and `xattr`
-  (written for Minkar, macOS's options; no manual page yet), and
-  `chflags`. Kernel bug found by its test: a file's owner can unlink it
-  while it is `uchg`. Then (2026-10-27) `tty`.
-  Locales (2026-10-27): 56 UTF-8 locales in `/usr/share/locale`, made by
-  `tools/locale/mklocales.py` in the formats Darwin's libc reads
-  (character classes, case maps and widths from Unicode 16; time, money,
-  numbers and messages from FreeBSD's CLDR definitions; collation by
-  code point). Time zones (2026-10-27): IANA tzdata 2026e compiled by
-  tzcode's `zic`, laid out as on macOS (`/var/db/timezone/zoneinfo`);
-  until then every zone was UTC.
-  Then (2026-10-27) `man` (FreeBSD main's `man.sh`, as on macOS) with
-  `mandoc` 1.14 as `apropos`, `whatis` and `makewhatis`, and the pages the
-  commands' sources carry (every command has one, or is listed as still
-  without); `units` (`/usr/share/misc/units.lib` is macOS's name for its
-  file) and `locate` (`locate.updatedb` indexes the local hfs, ufs and apfs
-  volumes: Darwin has no `lsvfs`). Then libiconv is FreeBSD's Citrus, as
-  on macOS 14 (the GNU one before exported only `libiconv_open`, not
-  `iconv_open`, and the SDK had no `<iconv.h>`): `/usr/lib/libiconv.2.dylib`
-  with its 23 encoding modules linked in and 687 conversion tables in
-  `/usr/share/i18n`; CoreText's libxml2 and fontconfig use it, and
-  `iconv(1)` is FreeBSD main's. `btop` switches to its TTY mode on the
-  kernel's console, which cannot draw its UTF-8 boxes.
-  Missing: `lsof`, `zic`/`zdump` in
-  the image, `nslookup`/`dig`; `getconf DARWIN_USER_DIR` and
-  `DARWIN_USER_CACHE_DIR` fail with EIO (no per-user directory service).
-  The console's terminal has no node in `/dev` (the serial device behind
-  it), so `ps` shows `??` for getty.
-- [ ] Power user: `zsh`, `tar`, `ssh`, `curl`, `make`, `git`. *Partial:*
-  `tar`, `ssh` and `curl` installed; `zsh` 5.9 built and tested
-  2026-10-26 (modules linked in, the function library, in `/etc/shells`);
-  `make` is BSD make (bmake 20260704, with its mk files in
-  `/usr/share/mk`) since 2026-10-27, decided over GNU make; `git` (GPL-2.0,
-  approved 2026-10-27) missing.
+- [x] Replace the commands from Apple's command sets with FreeBSD main's
+  and the macOS layer: none is left (2026-10-27). Missing in `grep`:
+  macOS's `-Z`/`-J`.
+- [ ] Everyday tools missing from the image. *Partial:* ported in batches
+  since 2026-10-26, with locales, time zones, manual pages and libiconv.
+  `passwd` since 2026-10-28. Missing: `nslookup`/`dig` and the rest of
+  Commands.md's BSD tools.
+- [ ] Power user: `zsh`, `tar`, `ssh`, `curl`, `make`, `git`. *Partial:* all
+  six in the image (`git` 2.56.0 since 2026-10-28), without git's Perl,
+  Python and Tcl commands.
 - [ ] Apple tools: `open`, `plutil`, `defaults`, `sw_vers`, `ditto`
-  (`hdiutil` comes with Phase 6). *Partial:* `plutil`, `defaults`, `sw_vers`
-  and `ditto` tested in the image 2026-10-26 (`sw_vers` printed spaces
-  instead of macOS's tabs and a trailing blank line); `chmod` has macOS's
-  ACL syntax (`+a`, `-a`, `=a#`, `-E`, `-C`, `-N`, `-i`, `-I`) since
-  2026-10-26, and the kernel enforces the entries; `open` missing (needs
-  LaunchServices).
+  (`hdiutil` comes with Phase 6). *Partial:* all but `open`, which needs
+  LaunchServices; `chmod` has macOS's ACL syntax, and the kernel applies
+  allow entries as well as deny ones since 2026-10-28.
 
 **Support daemons** (needed by Phases 5 and 6)
 
@@ -724,10 +617,13 @@ work in progress.
 
 The highest-impact open items, in critical-path order:
 
-1. Reference PC 1 (Phase 1): it boots to a console login, typed through
-   its KVM switch; next, its network cards (I219-V, I211) and the native
-   display mode; then a second, different PC (gate M1).
-2. BSD userland batches (Phase 2): `lsof`; `git`.
+1. Reference PC 1 (Phase 1): its console is usable at the native
+   resolution and both network cards are on the LAN; next, powering off
+   (ACPI S5), the other CPUs (SMP, also missing in QEMU), NVMe and the
+   boot without `pci_keep_console`; then a second, different PC (gate M1;
+   a Mac Pro 6,1 is the candidate). See [Hardware.md](Hardware.md).
+2. BSD userland batches (Phase 2): `nslookup`/`dig`,
+   then the rest of `Docs/Commands.md`'s missing BSD tools.
 3. IOHIDSystem event delivery in the kernel, the `ApplePS2Mouse` driver and
    the WindowServer input reader (Phase 4).
 4. Install WindowServer's launchd job and get a first boot that draws on

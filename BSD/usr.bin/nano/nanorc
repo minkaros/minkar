@@ -1,0 +1,5 @@
+## /etc/nanorc: nano's settings for every user; ~/.nanorc adds to them.
+## The options are in nanorc(5).
+
+## Colour the syntax of the files nano knows.
+include "/usr/share/nano/*.nanorc"

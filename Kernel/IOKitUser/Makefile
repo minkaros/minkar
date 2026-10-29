@@ -427,10 +427,10 @@ copy_headers: .PHONY
 	# Also used by SystemConfiguration, configd and fsck_hfs.
 	cp -f ${.CURDIR}/IOCFBundle.h ${iokitHdrs}/
 	mkdir -p ${iokitHdrs}/storage ${iokitHdrs}/usb
-.for h in IOBlockStorageDevice.h IOMedia.h IOStorageDeviceCharacteristics.h
-	cp -f ${.CURDIR:H}/Extensions/IOStorageFamily/IOKit/storage/${h} \
+	# The storage family's public headers, as in macOS (htop includes
+	# IOBlockStorageDriver.h for the disks' statistics).
+	cp -f ${.CURDIR:H}/Extensions/IOStorageFamily/IOKit/storage/*.h \
 		${iokitHdrs}/storage/
-.endfor
 	cp -f ${ROOT_SOURCE_DIR}/Frameworks/IOKit/usb/*.h ${iokitHdrs}/usb/
 	mkdir -p ${iokitHdrs}/ps
 	cp -f \

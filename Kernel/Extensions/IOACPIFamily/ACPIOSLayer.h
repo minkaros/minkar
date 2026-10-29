@@ -46,6 +46,15 @@ enum {
 
 /* ACPIOSLayer.cpp */
 void ACPIOSLayerSetRootPointer(uint64_t rsdp);
+/* The interpreter's last access to the hardware, for a start that hangs. */
+struct ACPIOSActivity {
+	const char	*what;		/* "inb", "read32", "sleep"... */
+	uint64_t	address;
+	uint64_t	value;
+	uint64_t	count;		/* calls so far */
+};
+extern volatile struct ACPIOSActivity gACPIOSLast;
+extern volatile uint64_t gACPIOSSCICount;	/* SCIs received */
 
 /* ACPIInterpreter.cpp */
 void ACPIOSLayerSetInterruptController(const OSSymbol *name);

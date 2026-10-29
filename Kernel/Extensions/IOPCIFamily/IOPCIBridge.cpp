@@ -155,7 +155,12 @@ uint32_t gIOPCIFlags = 0
 //           | kIOPCIConfiguratorDeepIdle
 //           | kIOPCIConfiguratorNoSplay
 //			 | kIOPCIConfiguratorNoTB
-           | kIOPCIConfiguratorIOLog | kIOPCIConfiguratorKPrintf
+           /*
+            * Minkar: the configuration log to kprintf only (the serial
+            * port, or the screen with kprintf_console=1). With IOLog too,
+            * every line reached the screen twice; pci=1 adds the log.
+            */
+           | kIOPCIConfiguratorKPrintf
 ;
 
 

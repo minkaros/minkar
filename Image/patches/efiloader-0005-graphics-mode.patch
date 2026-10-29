@@ -41,8 +41,12 @@
  #include "config.h"
  #include "lzvn_decode.h"
  #include <mach-o/fat.h>
-@@ -53,20 +55,152 @@
+@@ -51,22 +53,158 @@
+ 
+ /* Minkar: the framebuffer, for Stripe() after ExitBootServices(). */
  STATIC UINT64 gFbBase, gFbSize;
++/* Minkar: the graphics mode the loader set, or (UINT32)-1 if it kept the firmware's. */
++STATIC UINT32 gGraphicsMode = (UINT32)-1;
  STATIC UINT32 gFbStride, gFbWidth, gFbHeight;
  
 +/*
@@ -165,6 +169,8 @@
 +        gBS->Stall((UINTN)gBootConfig.LoaderPause * 1000 * 1000);
 +    if (EFI_ERROR(GOP->SetMode(GOP, best)))
 +        Print(UEFI_STR("[] Could not set graphics mode %u\n"), best);
++    else
++        gGraphicsMode = best;
 +    /*
 +     * Let the new mode settle before anything draws in it for good: on PC 1
 +     * (a Radeon, through a KVM switch) the kernel's console came out
@@ -197,7 +203,7 @@
      gFbBase = mode->FrameBufferBase;
      gFbSize = mode->FrameBufferSize;
      gFbStride = info->PixelsPerScanLine;
-@@ -734,6 +868,7 @@
+@@ -734,6 +872,7 @@
      gST->ConOut->ClearScreen(gST->ConOut);
      Print(UEFI_STR(":: Minkar EFI Loader %s\n"), VERSION_STR);
      LoadBootConfig();
@@ -205,3 +211,34 @@
  
      Status = gBS->GetMemoryMap(&MemoryMapSize, MemoryMap, &MapKey, &DescriptorSize, &DescriptorVersion);
      if (Status == EFI_BUFFER_TOO_SMALL) {
+@@ -886,8 +1025,29 @@
+         /* Minkar: keep the loader's output up long enough to read it. */
+         Print(UEFI_STR("[] Pausing %u seconds (loader-pause)\n"), gBootConfig.LoaderPause);
+         gBS->Stall((UINTN)gBootConfig.LoaderPause * 1000 * 1000);
+-    } else {
++    } else if (gGraphicsMode == (UINT32)-1) {
+         gST->ConOut->ClearScreen(gST->ConOut);
++    } else {
++        /*
++         * Minkar: after a mode switch the firmware's text console may put
++         * its own mode back when it clears the screen (PC 1's did: the
++         * kernel then drew 3440x1440 lines on another mode, scrambled).
++         * Clear the framebuffer itself instead.
++         */
++        SetMem((VOID *)(UINTN)gFbBase, gFbSize, 0);
++    }
++    if (gGraphicsMode != (UINT32)-1) {
++        /* Minkar: the kernel gets the mode the screen is in now. */
++        EFI_GRAPHICS_OUTPUT_PROTOCOL *GOP;
++        if (!EFI_ERROR(LocateGOP(&GOP)) && GOP->Mode->Mode != gGraphicsMode) {
++            Print(UEFI_STR("[] The firmware left graphics mode %u: setting it again\n"),
++                gGraphicsMode);
++            GOP->SetMode(GOP, gGraphicsMode);
++        }
++        if (!EFI_ERROR(GetVideoInfo(&videoV1, &video))) {
++            BootArgs->VideoV1 = videoV1;
++            BootArgs->Video = video;
++        }
+     }
+ 
+     Status = CheckMoveIsSafe(ImageHandle);

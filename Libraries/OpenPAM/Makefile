@@ -60,12 +60,24 @@ ${PAMLIB}: lib${LIB}.a
 	  -Wl,-force_load,${.OBJDIR}/lib${LIB}.a
 
 # Modules are bundles that export only their pam_sm_* entry points.
-.for m in ${MODULES}
+.for m in ${MODULES:Npam_unix}
 ${m}.so.2: ${OPENPAM}/modules/${m}/${m}.c ${PAMLIB}
 	${CC} ${CFLAGS} ${LDFLAGS} -bundle -o ${.TARGET} \
 	  ${OPENPAM}/modules/${m}/${m}.c ${PAMLIB} \
 	  -Wl,-exported_symbol,_pam_sm_\*
 .endfor
+# pam_unix changes passwords with our minkar/pam_unix_passwd.c: OpenPAM's
+# own pam_sm_chauthtok (which only fails) is renamed out of the way.
+pam_unix.so.2: ${OPENPAM}/modules/pam_unix/pam_unix.c \
+    ${.CURDIR}/minkar/pam_unix_passwd.c ${PAMLIB}
+	${CC} ${CFLAGS} -c -o pam_unix.mod.o \
+	  -Dpam_sm_chauthtok=openpam_unix_chauthtok \
+	  ${OPENPAM}/modules/pam_unix/pam_unix.c
+	${CC} ${CFLAGS} -c -o pam_unix_passwd.mod.o \
+	  ${.CURDIR}/minkar/pam_unix_passwd.c
+	${CC} ${CFLAGS} ${LDFLAGS} -bundle -o ${.TARGET} \
+	  pam_unix.mod.o pam_unix_passwd.mod.o ${PAMLIB} \
+	  -Wl,-exported_symbol,_pam_sm_\*
 .for m in ${FBSD_MODULES}
 ${m}.so.2: ${FBSD_DIR}/${m}.c ${PAMLIB}
 	${CC} ${CFLAGS} -I${FBSD_DIR} ${LDFLAGS} -bundle -o ${.TARGET} \
@@ -89,7 +101,7 @@ install-sysroot: ${PAMLIB} ${ALL_MODULES:S/$/.so.2/}
 	cp -f ${m}.so.2 ${SYSROOT_DIR}${PAMDIR}/
 .endfor
 
-CLEANFILES +=	${PAMLIB} ${ALL_MODULES:S/$/.so.2/}
+CLEANFILES +=	${PAMLIB} ${ALL_MODULES:S/$/.so.2/} pam_unix.mod.o pam_unix_passwd.mod.o
 
 .PHONY: install-sdk install-sysroot
 

@@ -835,12 +835,6 @@ static auto configure_tty_mode(std::optional<bool> force_tty) {
 		Logger::debug("Auto detect real TTY");
 	}
 #endif
-	// Minkar (2026): the kernel's text console cannot draw the UTF-8 box
-	// and braille characters; there, as on a Linux virtual terminal.
-	else if (Term::current_tty == "/dev/console") {
-		Config::set("tty_mode", true);
-		Logger::debug("Auto detect the console");
-	}
 
 	Logger::debug("TTY mode enabled: {}", Config::getB("tty_mode"));
 }

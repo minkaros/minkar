@@ -869,7 +869,7 @@ void
 conslog_putc(
 	char c)
 {
-	if (!disableConsoleOutput) {
+	if (!disableConsoleOutput && !console_quiet) {
 		cnputc(c);
 	}
 
@@ -884,7 +884,7 @@ void
 cons_putc_locked(
 	char c)
 {
-	if (!disableConsoleOutput) {
+	if (!disableConsoleOutput && !console_quiet) {
 		cnputc(c);
 	}
 }
