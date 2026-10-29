@@ -1,0 +1,44 @@
+#!/bin/sh
+# SPDX-License-Identifier: BSD-2-Clause
+# Copyright (c) 2026 The Minkar contributors
+# Part of Minkar.
+#
+# The remote shell crossexec runs (ssh's place in $HOME/.crossexec). iffe's
+# probes are Mach-O programs the build machine cannot run: when recording
+# (KX_RECORD set, a Minkar VM on KX_PORT) each runs there and its output
+# and exit status are kept in $KX_DB, keyed by the program's SHA-256 and
+# arguments; otherwise the kept answer is given back, so the build needs no
+# Minkar machine. A probe with no kept answer is written to $KX_STATE/missing
+# and fails. Arguments: [-l USER] HOST "cd DIR; LD_LIBRARY_PATH=: ./PROG ARGS
+# </dev/null 2>/dev/null; ...".
+while [ $# -gt 1 ]; do
+	case $1 in -l) shift 2 ;; *) host=$1; shift ;; esac
+done
+line=$1
+run=${line#*LD_LIBRARY_PATH=: ./}
+run=${run%% </dev/null*}
+prog=${run%% *}
+args=
+[ "$run" = "$prog" ] || args=${run#* }
+sha=$(cat "$KX_STATE/$prog.sha" 2>/dev/null) || { echo "kx-sh: $prog: not copied" >&2; exit 1; }
+key="$sha $(printf '%s' "$args" | sha256sum | cut -c1-16)"
+if [ -n "$KX_RECORD" ]; then
+	out=$KX_STATE/$prog.out
+	ssh -p "$KX_PORT" -i "$KX_KEY" -o StrictHostKeyChecking=no \
+	    -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR -o BatchMode=yes \
+	    root@"$host" "$line" > "$out" 2> "$out.err"
+	code=$(sed -n 's/^crossexec: exit \([0-9][0-9]*\)$/\1/p' "$out.err")
+	[ -n "$code" ] || { echo "kx-sh: $prog: no exit status from $host" >&2; exit 1; }
+	printf '%s\t%s\t%s\n' "$key" "$code" "$(base64 -w0 < "$out")" >> "$KX_DB"
+	cat "$out"
+else
+	entry=$(grep -m1 "^$key	" "$KX_DB" 2>/dev/null)
+	if [ -z "$entry" ]; then
+		echo "$prog $args" >> "$KX_STATE/missing"
+		echo "crossexec: exit 125" >&2
+		exit 0
+	fi
+	code=$(printf '%s\n' "$entry" | cut -f2)
+	printf '%s\n' "$entry" | cut -f3 | base64 -d
+fi
+echo "crossexec: exit $code" >&2

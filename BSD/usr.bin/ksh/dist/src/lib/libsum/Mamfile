@@ -1,0 +1,101 @@
+note *
+note * This build script is in an extended Make Abstract Machine (MAM)
+note * language. Documentation is at: src/cmd/INIT/README-mamake.md
+note *
+
+setv MAMAKE_STRICT 4
+setv INSTALLROOT ../../..
+setv CC cc
+setv AR %{mam_cc_AR} %{mam_cc_AR_ARFLAGS}
+setv mam_cc_FLAGS %{mam_cc_TARGET} %{mam_cc_DLL} %{mam_cc_PIC} %{-debug-symbols?1?%{mam_cc_DEBUG} -D_BLD_DEBUG?%{mam_cc_OPTIMIZE}?}
+setv CCFLAGS
+setv IFFEFLAGS
+setv LDFLAGS
+
+make install virtual
+	note *
+	note * Library dependencies
+	note *
+
+	bind -last
+	make sum.req
+		makp %{INSTALLROOT}/bin/mkreq
+		exec - mkreq %{CC} %{mam_cc_FLAGS} %{CCFLAGS} %{mam_cc_NOSTRICTALIASING} : %{LDFLAGS} : sum md ast
+	done
+
+	note *
+	note * Build the library
+	note *
+
+	make libsum.a
+		make sumlib.o
+			make sumlib.c
+				make sum-sha2.c
+					prev %{INCLUDE_AST}/endian.h
+				done
+				makp sum-sha1.c
+				makp sum-md5.c
+				makp sum-lmd.c
+				make sum-prng.c
+					prev %{INCLUDE_AST}/fnv.h
+				done
+				makp sum-bsd.c
+				makp sum-ast4.c
+				make FEATURE/sum
+					makp features/sum
+					exec - iffe %{IFFEFLAGS} -v -c \
+					exec -  '%{CC} %{mam_cc_FLAGS} %{CCFLAGS} %{mam_cc_NOSTRICTALIASING} %{LDFLAGS}' \
+					exec -	ref -I%{INCLUDE_AST} -I%{INSTALLROOT}/include %{mam_libast} : run %{<}
+				done
+				prev %{INCLUDE_AST}/hashpart.h
+				prev %{INCLUDE_AST}/swap.h
+				prev %{INCLUDE_AST}/endian.h
+				make sum.h
+					prev %{INCLUDE_AST}/ast.h
+				done
+				make sum-att.c
+					prev %{INCLUDE_AST}/ast.h
+				done
+				make sum-crc.c
+					prev %{INCLUDE_AST}/ast.h
+				done
+			done
+			exec - %{CC} %{mam_cc_FLAGS} %{CCFLAGS} %{mam_cc_NOSTRICTALIASING} -I. -I%{INCLUDE_AST} -c %{<}
+		done sumlib.o
+		exec - %{AR} rc %{@} %{<} || exit
+		exec - ranlib %{@} >/dev/null 2>&1 || true
+	done libsum.a
+
+	note *
+	note * pre-install
+	note *
+
+	loop DIR %{INSTALLROOT}/lib/lib %{INCLUDE_AST}
+		make %{DIR}
+			exec - mkdir -p %{@}
+		done
+	done
+	make %{INSTALLROOT}/lib/libsum.a
+		prev libsum.a
+		exec - cp -f %{<} %{@} || exit
+		exec - ranlib %{@} >/dev/null 2>&1 || true
+	done
+	make %{INSTALLROOT}/lib/lib/sum
+		prev sum.req
+		exec - cp -f %{<} %{@}
+	done
+	note * public headers
+	make %{INSTALLROOT}/lib/mam/sum
+		make %{INCLUDE_AST}/sum.h
+			prev sum.h
+			exec - cp -f %{<} %{@}
+		done
+		note * generate header dependency rules
+		exec - mkdeps -lsum -last %{^} > %{@}
+		makp %{INSTALLROOT}/bin/mkdeps
+		prev sum.req
+	done %{INSTALLROOT}/lib/mam/sum
+done install
+
+make test dontcare virtual
+done test

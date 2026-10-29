@@ -1,0 +1,46 @@
+########################################################################
+#                                                                      #
+#               This software is part of the ast package               #
+#          Copyright (c) 1982-2012 AT&T Intellectual Property          #
+#          Copyright (c) 2020-2023 Contributors to ksh 93u+m           #
+#                      and is licensed under the                       #
+#                 Eclipse Public License, Version 2.0                  #
+#                                                                      #
+#                A copy of the License is available at                 #
+#      https://www.eclipse.org/org/documents/epl-2.0/EPL-2.0.html      #
+#         (with md5 checksum 84283fa8859daf213bdda5a9f8d1be1d)         #
+#                                                                      #
+#                  David Korn <dgk@research.att.com>                   #
+#                  Martijn Dekker <martijn@inlv.org>                   #
+#               K. Eugene Carlson <kvngncrlsn@gmail.com>               #
+#                                                                      #
+########################################################################
+#
+# dirs: Display directory stack, with $HOME displayed as ~.
+# For use in conjunction with 'cd', 'mcd', 'pushd', 'popd'.
+
+# Use cd wrapper from .../fun/cd
+autoload cd
+
+typeset -a _push_stack
+
+function dirs
+{
+	typeset dir=${PWD#"$HOME/"} PS3=''
+	# change $HOME to ~
+	case $dir in
+	"$HOME")dir=\~ ;;
+	/*)	;;
+	*) 	dir=\~/$dir ;;
+	esac
+	# Display numbered directory list using a dummy 'select' loop;
+	# redirecting standard input to /dev/null prevents user input
+	# and setting PS3 to empty (above) prevents showing a prompt.
+	# The numbers shown are usable with 'mcd' and the 'cd' wrapper.
+	select i in "$dir" "${_push_stack[@]}"
+	do	:
+	done < /dev/null
+	# The select loop will exit with status 1 as there is no input
+	# to read, but 'dirs' should not pass down that exit status.
+	return 0
+}

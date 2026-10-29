@@ -96,6 +96,7 @@ No command from Apple's command sets is left.
 | 2026-10-28 | `bash` | bash 5.3 with patches 001-020 (GPL-3.0) as `/bin/bash`, in `/etc/shells`; macOS ships 3.2, the last under GPL-2, and its scripts run on 5.3 |
 | 2026-10-28 | `rsync` | rsync 3.5.1 (GPL-3.0); Darwin's ACLs (`-A`) and extended attributes (`-X`); MD5 and zlib only until Minkar has OpenSSL, xxhash, zstd and lz4. macOS 15 ships openrsync, earlier releases rsync 2.6.9 |
 | 2026-10-28 | `vim`, `vi`, `ex`, `view`, `vimdiff`, `rvim`, `rview`, `vimtutor` | Vim 9.2.1252 (Vim licence), the huge feature set without GUI, as macOS's; runtime in `/usr/share/vim/vim92`. `vi`, `ex` and `view` are Vim, as on macOS: nvi is gone |
+| 2026-10-29 | `ksh` | ksh 93u+m/1.0.10 (EPL-2.0) as `/bin/ksh`, as on macOS. Its build runs configuration probes on the target: they ran once on Minkar and `BSD/usr.bin/ksh/iffe-results` gives their answers back, so it cross-builds with no Minkar machine (`make record` redoes them) |
 
 `btop` and `htop` draw their UTF-8 boxes and graphs on the kernel's console
 too: it has line characters, blocks and Braille dots.

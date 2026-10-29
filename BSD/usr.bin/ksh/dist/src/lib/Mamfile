@@ -1,0 +1,14 @@
+note *
+note * This build script is in an extended Make Abstract Machine (MAM)
+note * language. Documentation is at: src/cmd/INIT/README-mamake.md
+note *
+
+setv MAMAKE_STRICT 4
+
+make test virtual
+	make install virtual
+		make all virtual
+			exec - %{MAMAKE} -r '*' %{MAMAKEARGS}
+		done
+	done
+done
