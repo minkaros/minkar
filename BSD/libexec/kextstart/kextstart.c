@@ -85,33 +85,27 @@ number_property(io_registry_entry_t e, const char *key, uint32_t *value)
 	return ok;
 }
 
-/* True if the controller has an attached interface with a BSD name and
+/* True if the interface has a BSD name and its controller (its parent)
  * reports a known link state. */
 static bool
-controller_ready(io_service_t controller)
+interface_ready(io_service_t netif)
 {
-	io_iterator_t children;
-	io_registry_entry_t child;
+	io_registry_entry_t controller;
 	uint32_t link = 0;
-	bool named = false;
+	bool ready;
+	CFTypeRef name = IORegistryEntryCreateCFProperty(netif,
+	    CFSTR(kIOBSDNameKey), NULL, 0);
 
-	if (IORegistryEntryGetChildIterator(controller, kIOServicePlane,
-	    &children) != KERN_SUCCESS)
+	if (name == NULL)
 		return false;
-	while ((child = IOIteratorNext(children)) != 0) {
-		if (IOObjectConformsTo(child, "IONetworkInterface")) {
-			CFTypeRef name = IORegistryEntryCreateCFProperty(child,
-			    CFSTR(kIOBSDNameKey), NULL, 0);
-			if (name != NULL) {
-				named = true;
-				CFRelease(name);
-			}
-		}
-		IOObjectRelease(child);
-	}
-	IOObjectRelease(children);
-	return named && number_property(controller, LINK_STATUS_KEY, &link) &&
+	CFRelease(name);
+	if (IORegistryEntryGetParentEntry(netif, kIOServicePlane,
+	    &controller) != KERN_SUCCESS)
+		return false;
+	ready = number_property(controller, LINK_STATUS_KEY, &link) &&
 	    (link & LINK_VALID) != 0;
+	IOObjectRelease(controller);
+	return ready;
 }
 
 /* Whether a network controller driver is attached to the PCI device. */
@@ -205,8 +199,9 @@ pci_network_devices(mach_port_t master)
 	return n;
 }
 
-/* Network controllers with an attached, named interface and a known link
- * state. */
+/* Network interfaces with a BSD name whose link state is known. The
+ * drivers register their interfaces, not their controllers, so the
+ * interfaces are what matching finds. */
 static int
 network_ready(mach_port_t master)
 {
@@ -215,10 +210,10 @@ network_ready(mach_port_t master)
 	int n = 0;
 
 	if (IOServiceGetMatchingServices(master,
-	    IOServiceMatching("IONetworkController"), &it) != KERN_SUCCESS)
+	    IOServiceMatching("IONetworkInterface"), &it) != KERN_SUCCESS)
 		return 0;
 	while ((svc = IOIteratorNext(it)) != 0) {
-		if (controller_ready(svc))
+		if (interface_ready(svc))
 			n++;
 		IOObjectRelease(svc);
 	}
