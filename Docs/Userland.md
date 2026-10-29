@@ -119,6 +119,7 @@ No command from Apple's command sets is left.
 | 2026-10-29 | `lsbom` | Ours, reading the BOM format as publicly described; checked against a real bill of materials made by Apple's tools (GitHub CLI's macOS package: its 247 paths, sizes and `cksum` checksums) |
 | 2026-10-29 | `rtsol` | FreeBSD main's rtsold as `/sbin/rtsol`, without casper; Darwin accepts router advertisements by `net.inet6.ip6.accept_rtadv`, so it only solicits them |
 | 2026-10-29 | `talk` | FreeBSD main's talk and talkd (as `/usr/libexec/ntalkd`), started by launchd for UDP port 518 through `org.minkar.ntalkd` (off, as on macOS) and launchproxy, launchd's inetd helper, now built |
+| 2026-10-29 | `localedef` | FreeBSD main's (Nexenta's, BSD-2), writing what Darwin's libc reads: LC_CTYPE as `RuneMagA` and `LC_MESSAGES/LC_MESSAGES` (our `darwin_out.c`); LC_COLLATE in code point order, as all of Minkar's locales (Darwin's collation tables are not publicly documented); our own manual (upstream's is CDDL) |
 
 `btop` and `htop` draw their UTF-8 boxes and graphs on the kernel's console
 too: it has line characters, blocks and Braille dots.
