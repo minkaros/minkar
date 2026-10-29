@@ -22,6 +22,7 @@ TCSH_DARWIN =	ac_cv_func_getpgrp_void=yes ac_cv_func_mbrtowc=yes \
 	ac_cv_func_strcoll_works=yes
 
 ${.OBJDIR}/tcsh: ${.CURDIR}/Makefile
+	sh ${ROOT_SOURCE_DIR}/tools/build/autotools-times.sh ${.CURDIR}/dist
 	env -u CFLAGS -u LDFLAGS \
 	CC=${CC} AR=${AR} RANLIB=${RANLIB} ${TCSH_DARWIN} \
 	CFLAGS="--sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} -O2 -Wno-nullability-completeness" \

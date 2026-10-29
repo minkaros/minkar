@@ -18,6 +18,7 @@ all: ${.OBJDIR}/.installed
 NANO_JOBS =	-j${.MAKE.JOBS:U1}
 
 ${.OBJDIR}/src/nano: ${.CURDIR}/Makefile
+	sh ${ROOT_SOURCE_DIR}/tools/build/autotools-times.sh ${.CURDIR}/dist
 	CC=${CC} AR=${AR} RANLIB=${RANLIB} PKG_CONFIG=false \
 	NCURSESW_CFLAGS="-D_XOPEN_SOURCE_EXTENDED" NCURSESW_LIBS="-lncurses" \
 	ac_cv_lib_ncursesw_use_default_colors=yes ac_cv_lib_ncursesw_set_escdelay=yes \

@@ -18,6 +18,7 @@ all: ${.OBJDIR}/.installed
 DASH_JOBS =	-j${.MAKE.JOBS:U1}
 
 ${.OBJDIR}/src/dash: ${.CURDIR}/Makefile ${.CURDIR}/signames.c
+	sh ${ROOT_SOURCE_DIR}/tools/build/autotools-times.sh ${.CURDIR}/dist
 	env -u CFLAGS -u LDFLAGS \
 	CC=${CC} AR=${AR} RANLIB=${RANLIB} CC_FOR_BUILD=cc \
 	CFLAGS="--sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} -O2 -Wno-nullability-completeness" \
