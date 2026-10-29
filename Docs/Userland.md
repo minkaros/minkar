@@ -113,6 +113,7 @@ No command from Apple's command sets is left.
 | 2026-10-29 | `dig`, `host`, `nslookup` | BIND 9.20.30 (MPL-2.0), as on macOS, over libuv 1.53.0 (`BSD/lib/libuv`, static), liburcu 0.15.7 (`BSD/lib/liburcu`, LGPL-2.1, shared in `/usr/lib`) and OpenSSL; BIND's own libraries (it refuses static linking) in `/usr/lib/bind9`; no `named`. Its configure insists on a pkg-config: `tools/build/pkg-config-none.sh` knows no packages, so nothing comes from the build machine |
 | 2026-10-29 | `ftp` | tnftp as FreeBSD main builds it, with libedit and IPv6; it fetches `ftp://` and `http://` URLs too. `closefrom`, which Darwin lacks, is now in libbsdcompat (from `/dev/fd`) |
 | 2026-10-29 | `rlogin` | NetBSD's (FreeBSD no longer has one), setuid root for rcmd(3)'s reserved port |
+| 2026-10-29 | `tcpdump` | tcpdump 4.99.7 with libpcap 1.11.0 (static, private to it) over Darwin's BPF |
 
 `btop` and `htop` draw their UTF-8 boxes and graphs on the kernel's console
 too: it has line characters, blocks and Braille dots.
