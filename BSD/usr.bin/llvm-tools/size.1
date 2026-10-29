@@ -1,0 +1,55 @@
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\" Copyright (c) 2026 The Minkar contributors
+.\" Part of Minkar.
+.Dd October 29, 2026
+.Dt SIZE 1
+.Os
+.Sh NAME
+.Nm size
+.Nd show the sizes of the sections of object files
+.Sh SYNOPSIS
+.Nm
+.Op Fl A | B | m
+.Op Fl d | o | x
+.Op Fl t
+.Op Fl l
+.Op Fl -arch Ns = Ns Ar arch
+.Op Ar file ...
+.Sh DESCRIPTION
+.Nm
+shows the size of the text, data and other sections of each object
+file, archive member or executable, or of
+.Pa a.out
+when no
+.Ar file
+is given.
+.Bl -tag -width Ds
+.It Fl A , Fl -format Ns = Ns Cm sysv
+One line per section, with its size and address.
+.It Fl B , Fl -format Ns = Ns Cm berkeley
+One line per file: text, data, bss, total in decimal and in hexadecimal
+(the default).
+.It Fl m , Fl -format Ns = Ns Cm darwin
+Mach-O segments and their sections.
+.It Fl l
+With
+.Fl m ,
+show the addresses and offsets too.
+.It Fl d , o , x
+Show the sizes in decimal, octal or hexadecimal.
+.It Fl t
+Add a line with the totals (Berkeley format).
+.It Fl -arch Ns = Ns Ar arch
+Only the
+.Ar arch
+part of a universal file.
+.El
+.Sh EXIT STATUS
+.Ex -std
+.Sh SEE ALSO
+.Xr ar 1 ,
+.Xr strings 1
+.Sh HISTORY
+Minkar's
+.Nm
+is LLVM's llvm-size.

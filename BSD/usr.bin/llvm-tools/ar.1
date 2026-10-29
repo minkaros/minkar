@@ -1,0 +1,137 @@
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\" Copyright (c) 2026 The Minkar contributors
+.\" Part of Minkar.
+.Dd October 29, 2026
+.Dt AR 1
+.Os
+.Sh NAME
+.Nm ar
+.Nd create and change archives of object files
+.Sh SYNOPSIS
+.Nm
+.Oo Fl Oc Ns Ar operation Ns Op Ar modifiers
+.Op Ar relpos
+.Op Ar count
+.Ar archive
+.Op Ar file ...
+.Sh DESCRIPTION
+.Nm
+keeps a set of files in one archive, usually object files for the
+linker.
+When the archive has object files, it also writes an index of the symbols
+they define, so the linker finds them; for Mach-O objects the archive is
+in Darwin's format.
+.Pp
+The operation is one of these letters:
+.Bl -tag -width Ds
+.It Cm d
+Delete the
+.Ar file Ns s
+from the archive.
+.It Cm m
+Move the
+.Ar file Ns s
+to the end, or next to
+.Ar relpos
+with
+.Cm a ,
+.Cm b
+or
+.Cm i .
+.It Cm p
+Write the contents of the
+.Ar file Ns s ,
+or of every member, to the standard output.
+.It Cm q
+Append the
+.Ar file Ns s
+without looking for members of the same name.
+.It Cm r
+Replace the members named like the
+.Ar file Ns s ,
+or add them.
+.It Cm s
+Only write the symbol index, as
+.Xr ranlib 1 .
+.It Cm t
+List the members.
+.It Cm x
+Extract the
+.Ar file Ns s ,
+or every member.
+.El
+.Pp
+The modifiers are:
+.Bl -tag -width Ds
+.It Cm a , b , i
+Put the files after
+.Pq Cm a
+or before
+.Pq Cm b , i
+the member
+.Ar relpos .
+.It Cm c
+Do not say so when the archive has to be created.
+.It Cm D
+Write zero for dates, user and group (the default), so that the same
+input gives the same archive.
+.It Cm N
+With several members of the same name, use the
+.Ar count Ns th.
+.It Cm o
+When extracting, keep the members' dates.
+.It Cm O
+With
+.Cm t ,
+show each member's offset.
+.It Cm P
+Match members by their full path.
+.It Cm s
+Write the symbol index too.
+.It Cm S
+Do not write a symbol index.
+.It Cm u
+With
+.Cm r ,
+only replace members older than the files.
+.It Cm U
+Write the real dates, user and group.
+.It Cm v
+Say what is done; with
+.Cm t ,
+list modes, sizes and dates as well.
+.El
+.Pp
+Other options:
+.Bl -tag -width Ds
+.It Fl -format Ns = Ns Ar format
+Write the archive in
+.Ar format :
+.Cm darwin ,
+.Cm bsd ,
+.Cm gnu
+or
+.Cm default ,
+chosen from the members.
+.It Fl -output Ns = Ns Ar dir
+Extract into
+.Ar dir .
+.It Fl -thin
+Make a thin archive, which only names the files.
+.It Fl -version
+Print the version.
+.El
+.Sh EXIT STATUS
+.Ex -std
+.Sh EXAMPLES
+Make a static library and list it:
+.Dl ar rcs libdemo.a a.o b.o
+.Dl ar tv libdemo.a
+.Sh SEE ALSO
+.Xr ranlib 1 ,
+.Xr size 1 ,
+.Xr strings 1
+.Sh HISTORY
+Minkar's
+.Nm
+is LLVM's llvm-ar.

@@ -101,6 +101,7 @@ No command from Apple's command sets is left.
 | 2026-10-29 | `dash` | dash 0.5.13.5 (BSD-3) as `/bin/dash`, with libedit; its signal table is ours, from Darwin's `<signal.h>` (upstream's generator is GPL-2 and would give Linux's numbers) |
 | 2026-10-29 | `mtree` | FreeBSD main's (NetBSD's mtree) as `/usr/sbin/mtree`, with MD5, SHA-1 and SHA-2 digests from our libmd (no RIPEMD-160) |
 | 2026-10-29 | `zip`, `unzip`, `zipinfo`, `zipgrep` | Info-ZIP's Zip 3.0 and UnZip 6.0, as on macOS, with Debian's fixes (upstream has not released since 2008-2009) and marked as altered for Minkar, as their licence asks; libarchive's unzip stays as `bsdunzip` |
+| 2026-10-29 | `ar`, `ranlib`, `size`, `strings` | LLVM 17's llvm-ar, llvm-size and llvm-strings, from the llvm-project our compiler is built from, cross-built with CMake; `ar` writes Darwin's archive format with its symbol index, which ld64 links against; our own manual pages |
 
 `btop` and `htop` draw their UTF-8 boxes and graphs on the kernel's console
 too: it has line characters, blocks and Braille dots.
