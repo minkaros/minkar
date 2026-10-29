@@ -1,0 +1,15 @@
+{% include "_common/controls.conf.j2" %}
+
+options {
+	{% include_indented "_common/options.conf.j2" %}
+	allow-transfer { any; };
+	recursion no;
+	dnssec-validation no;
+};
+
+zone "example" {
+	type primary;
+	file "example.db";
+	also-notify { 10.53.0.2 port @PORT@; };
+	ixfr-from-differences yes;
+};

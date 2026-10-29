@@ -1,0 +1,28 @@
+/*
+ * Copyright (C) Internet Systems Consortium, Inc. ("ISC")
+ *
+ * SPDX-License-Identifier: MPL-2.0
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0.  If a copy of the MPL was not distributed with this
+ * file, you can obtain one at https://mozilla.org/MPL/2.0/.
+ *
+ * See the COPYRIGHT file distributed with this work for additional
+ * information regarding copyright ownership.
+ */
+
+{% include "_common/controls.conf.j2" %}
+
+options {
+	{% include_indented "_common/options.conf.j2" %}
+	dnssec-validation no;
+	cookie-algorithm siphash24;
+	cookie-secret "569d36a6cc27d6bf55502183302ba352";
+	cookie-secret "6b300e27a0db46d4b046e4189790fa7d";
+	require-server-cookie yes;
+};
+
+zone "." {
+	type hint;
+	file "root.hint";
+};

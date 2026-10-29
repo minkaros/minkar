@@ -1,0 +1,15 @@
+options {
+	{% include_indented "_common/options.conf.j2" %}
+	dnssec-validation no;
+};
+
+server 10.53.0.2 {
+	// Avoid truncation of the additional section without TC, because some
+	// mandatory glues would already be in the additional section, thus the
+	// resolver wouldn't try again using TCP by itself.
+	tcp-only yes;
+};
+
+{% include "_common/root.hint.conf" %}
+
+{% include "_common/controls.conf.j2" %}

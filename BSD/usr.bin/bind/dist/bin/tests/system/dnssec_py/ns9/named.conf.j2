@@ -1,0 +1,18 @@
+// NS 9
+
+{% set max_validations_per_fetch = max_validations_per_fetch | default(16) %}
+
+options {
+	{% include_indented "_common/options.conf.j2" %}
+
+
+	dnssec-validation yes;
+
+	max-validations-per-fetch @max_validations_per_fetch@;
+};
+
+{% include "_common/controls.conf.j2" %}
+{% include "_common/trusted.conf.j2" %}
+{% include "_common/root.hint.conf" %}
+
+{% include "_common/zones.conf.j2" %}

@@ -1,0 +1,19 @@
+// NS1
+
+options {
+	{% include_indented "_common/options.conf.j2" %}
+	recursion no;
+	dnssec-validation no;
+};
+
+{% include "_common/controls.conf.j2" %}
+
+zone "." {
+	type primary;
+	file "root.db";
+};
+
+zone "hack" {
+	type primary;
+	file "hack.db";
+};

@@ -1,0 +1,15 @@
+// NS2 - signed authoritative server for "example"
+
+{% include "_common/controls.conf.j2" %}
+
+options {
+	{% include_indented "_common/options.conf.j2" %}
+	recursion no;
+	dnssec-validation no;
+};
+
+zone "example" {
+	type primary;
+	file "example.db.signed";
+	allow-transfer { any; };
+};

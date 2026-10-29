@@ -1,0 +1,27 @@
+// validating resolver
+
+options {
+	{% include_indented "_common/options.conf.j2" %}
+	dnssec-validation yes;
+	minimal-responses no;
+	qname-minimization off;
+};
+
+{% include "_common/controls.conf.j2" %}
+
+{% include "_common/root.hint.conf" %}
+
+zone "f025.test" {
+	type static-stub;
+	server-addresses { 10.53.0.1; };
+};
+
+zone "f055.test" {
+	type static-stub;
+	server-addresses { 10.53.0.1; };
+};
+
+trust-anchors {
+	f025.test. static-key 257 3 13 "@ZONE_DNSKEY@";
+	f055.test. static-key 257 3 13 "@ZONE_DNSKEY@";
+};

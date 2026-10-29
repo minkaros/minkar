@@ -1,0 +1,28 @@
+options {
+	{% include_indented "_common/options.conf.j2" %}
+};
+
+{% include "_common/controls.conf.j2" %}
+
+view default {
+	match-clients { any; };
+	recursion no;
+	dnssec-validation no;
+	zone "1.0.0.127.in-addr.arpa." {
+		type primary;
+		file "localhost.db";
+		update-policy {
+			grant * tcp-self . ANY;
+		};
+	};
+};
+
+view chaos ch {
+	match-clients { any; };
+	recursion no;
+	zone example {
+		type primary;
+		file "example.db";
+		allow-update { any; };
+	};
+};

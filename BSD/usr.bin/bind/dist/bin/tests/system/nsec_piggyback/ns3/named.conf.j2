@@ -1,0 +1,20 @@
+// validating resolver
+
+options {
+	{% include_indented "_common/options.conf.j2" %}
+	dnssec-validation yes;
+	synth-from-dnssec yes;
+};
+
+{% include "_common/controls.conf.j2" %}
+
+{% include "_common/root.hint.conf" %}
+
+zone "p22.hack" {
+	type static-stub;
+	server-addresses { 10.53.0.1; };
+};
+
+trust-anchors {
+	p22.hack. static-key 257 3 13 "@PARENT_DNSKEY@";
+};
