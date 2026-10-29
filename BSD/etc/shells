@@ -1,3 +1,4 @@
 # Login shells: the ones a user may have (chsh, ftpd and sshd check here).
+/bin/bash
 /bin/sh
 /bin/zsh

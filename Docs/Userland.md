@@ -93,6 +93,7 @@ No command from Apple's command sets is left.
 | 2026-10-28 | `xxd` | Our own (BSD-2-Clause), written to behave as macOS's (Vim's): same columns, options, `-i` C source and `-r`, which patches a file in place |
 | 2026-10-28 | `alias`, `bg`, `cd`, `command`, `fc`, `fg`, `getopts`, `hash`, `jobs`, `read`, `type`, `ulimit`, `umask`, `unalias`, `wait` | As files in `/usr/bin`, as on macOS: one script of our own that runs `sh`'s built-in, so `env`, `find -exec` and `xargs` can start them; `builtin(1)` |
 | 2026-10-28 | `nano`, `rnano`, `pico` | nano 9.3 (GPL-3.0), upstream's release; `pico` is nano, as on macOS; `/etc/nanorc` colours the syntax of the files it knows |
+| 2026-10-28 | `bash` | bash 5.3 with patches 001-020 (GPL-3.0) as `/bin/bash`, in `/etc/shells`; macOS ships 3.2, the last under GPL-2, and its scripts run on 5.3 |
 
 `btop` and `htop` draw their UTF-8 boxes and graphs on the kernel's console
 too: it has line characters, blocks and Braille dots.
