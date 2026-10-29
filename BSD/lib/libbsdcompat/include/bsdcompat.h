@@ -98,6 +98,10 @@
 /* <sys/param.h>: x rounded down to a multiple of y. */
 #define	rounddown(x, y)	(((x) / (y)) * (y))
 #endif
+#ifndef roundup2
+/* <sys/param.h>: x rounded up to a multiple of y, a power of 2. */
+#define	roundup2(x, y)	(((x) + ((y) - 1)) & (~((__typeof(x))(y) - 1)))
+#endif
 #ifndef CLOCK_MONOTONIC_FAST
 /* <time.h>: FreeBSD's cheaper monotonic clock; Darwin's plain one. */
 #define	CLOCK_MONOTONIC_FAST	CLOCK_MONOTONIC
