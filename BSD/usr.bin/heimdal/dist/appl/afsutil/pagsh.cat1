@@ -1,0 +1,46 @@
+PAGSH(1)                  BSD General Commands Manual                 PAGSH(1)
+
+[1mNAME[0m
+     [1mpagsh [22m-- creates a new credential cache sandbox
+
+[1mSYNOPSIS[0m
+     [1mpagsh [22m[[1m-c [4m[22mcommand-string[24m] [[1m-h [22m| [1m--help[22m] [[1m--version[22m] [[1m--cache-type=[4m[22mstring[24m]
+           [4mcommand[24m [4m[args...][0m
+
+[1mDESCRIPTION[0m
+     Supported options:
+
+     [1m-c [4m[22mcommand-string[24m Executes command(s) contained in [4mcommand-string[24m.
+
+     [1m--cache-type=[4m[22mstring[0m
+
+     [1m-h[22m, [1m--help[0m
+
+     [1m--version[0m
+
+     [1mpagsh [22mcreates a new credential cache sandbox for the user to live in.  If
+     AFS is installed on the computer, the user is put in a newly created
+     Process Authentication Group (PAG).
+
+     For Kerberos 5, the credential cache type that is used is the same as the
+     credential cache type that was used at the time of [1mpagsh [22minvocation.  The
+     credential cache type can be controlled by the option [1m--cache-type[22m.
+
+[1mEXAMPLES[0m
+     Create a new sandbox where new credentials can be used, while the old
+     credentials can be used by other processes.
+
+           $ klist
+           Credentials cache: FILE:/tmp/krb5cc_913
+                   Principal: lha@E.KTH.SE
+
+             Issued           Expires          Principal
+           Feb 12 10:08:31  Feb 12 20:06:36  krbtgt/E.KTH.SE@E.KTH.SE
+           $ pagsh
+           $ klist
+           klist: No ticket file: /tmp/krb5cc_03014a
+
+[1mSEE ALSO[0m
+     afslog(1), kinit(1)
+
+BSD                            February 12, 2005                           BSD

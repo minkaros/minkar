@@ -1,0 +1,145 @@
+KRB5_DIGEST(3)           BSD Library Functions Manual           KRB5_DIGEST(3)
+
+[1mNAME[0m
+     [1mkrb5_digest[22m, [1mkrb5_digest_alloc[22m, [1mkrb5_digest_free[22m,
+     [1mkrb5_digest_set_server_cb[22m, [1mkrb5_digest_set_type[22m,
+     [1mkrb5_digest_set_hostname[22m, [1mkrb5_digest_get_server_nonce[22m,
+     [1mkrb5_digest_set_server_nonce[22m, [1mkrb5_digest_get_opaque[22m,
+     [1mkrb5_digest_set_opaque[22m, [1mkrb5_digest_get_identifier[22m,
+     [1mkrb5_digest_set_identifier[22m, [1mkrb5_digest_init_request[22m,
+     [1mkrb5_digest_set_client_nonce[22m, [1mkrb5_digest_set_digest[22m,
+     [1mkrb5_digest_set_username[22m, [1mkrb5_digest_set_authid[22m,
+     [1mkrb5_digest_set_authentication_user[22m, [1mkrb5_digest_set_realm[22m,
+     [1mkrb5_digest_set_method[22m, [1mkrb5_digest_set_uri[22m, [1mkrb5_digest_set_nonceCount[22m,
+     [1mkrb5_digest_set_qop[22m, [1mkrb5_digest_request[22m, [1mkrb5_digest_get_responseData[22m,
+     [1mkrb5_digest_get_rsp[22m, [1mkrb5_digest_get_tickets[22m,
+     [1mkrb5_digest_get_client_binding[22m, [1mkrb5_digest_get_a1_hash [22m-- remote digest
+     (HTTP-DIGEST, SASL, CHAP) support
+
+[1mLIBRARY[0m
+     Kerberos 5 Library (libkrb5, -lkrb5)
+
+[1mSYNOPSIS[0m
+     [1m#include <krb5.h>[0m
+
+     typedef struct krb5_digest *krb5_digest;
+
+     [4mkrb5_error_code[0m
+     [1mkrb5_digest_alloc[22m([4mkrb5_context[24m [4mcontext[24m, [4mkrb5_digest[24m [4m*digest[24m);
+
+     [4mvoid[0m
+     [1mkrb5_digest_free[22m([4mkrb5_digest[24m [4mdigest[24m);
+
+     [4mkrb5_error_code[0m
+     [1mkrb5_digest_set_type[22m([4mkrb5_context[24m [4mcontext[24m, [4mkrb5_digest[24m [4mdigest[24m,
+         [4mconst[24m [4mchar[24m [4m*type[24m);
+
+     [4mkrb5_error_code[0m
+     [1mkrb5_digest_set_server_cb[22m([4mkrb5_context[24m [4mcontext[24m, [4mkrb5_digest[24m [4mdigest[24m,
+         [4mconst[24m [4mchar[24m [4m*type[24m, [4mconst[24m [4mchar[24m [4m*binding[24m);
+
+     [4mkrb5_error_code[0m
+     [1mkrb5_digest_set_hostname[22m([4mkrb5_context[24m [4mcontext[24m, [4mkrb5_digest[24m [4mdigest[24m,
+         [4mconst[24m [4mchar[24m [4m*hostname[24m);
+
+     [4mconst[24m [4mchar[24m [4m*[0m
+     [1mkrb5_digest_get_server_nonce[22m([4mkrb5_context[24m [4mcontext[24m, [4mkrb5_digest[24m [4mdigest[24m);
+
+     [4mkrb5_error_code[0m
+     [1mkrb5_digest_set_server_nonce[22m([4mkrb5_context[24m [4mcontext[24m, [4mkrb5_digest[24m [4mdigest[24m,
+         [4mconst[24m [4mchar[24m [4m*nonce[24m);
+
+     [4mconst[24m [4mchar[24m [4m*[0m
+     [1mkrb5_digest_get_opaque[22m([4mkrb5_context[24m [4mcontext[24m, [4mkrb5_digest[24m [4mdigest[24m);
+
+     [4mkrb5_error_code[0m
+     [1mkrb5_digest_set_opaque[22m([4mkrb5_context[24m [4mcontext[24m, [4mkrb5_digest[24m [4mdigest[24m,
+         [4mconst[24m [4mchar[24m [4m*opaque[24m);
+
+     [4mconst[24m [4mchar[24m [4m*[0m
+     [1mkrb5_digest_get_identifier[22m([4mkrb5_context[24m [4mcontext[24m, [4mkrb5_digest[24m [4mdigest[24m);
+
+     [4mkrb5_error_code[0m
+     [1mkrb5_digest_set_identifier[22m([4mkrb5_context[24m [4mcontext[24m, [4mkrb5_digest[24m [4mdigest[24m,
+         [4mconst[24m [4mchar[24m [4m*id[24m);
+
+     [4mkrb5_error_code[0m
+     [1mkrb5_digest_init_request[22m([4mkrb5_context[24m [4mcontext[24m, [4mkrb5_digest[24m [4mdigest[24m,
+         [4mkrb5_realm[24m [4mrealm[24m, [4mkrb5_ccache[24m [4mccache[24m);
+
+     [4mkrb5_error_code[0m
+     [1mkrb5_digest_set_client_nonce[22m([4mkrb5_context[24m [4mcontext[24m, [4mkrb5_digest[24m [4mdigest[24m,
+         [4mconst[24m [4mchar[24m [4m*nonce[24m);
+
+     [4mkrb5_error_code[0m
+     [1mkrb5_digest_set_digest[22m([4mkrb5_context[24m [4mcontext[24m, [4mkrb5_digest[24m [4mdigest[24m,
+         [4mconst[24m [4mchar[24m [4m*dgst[24m);
+
+     [4mkrb5_error_code[0m
+     [1mkrb5_digest_set_username[22m([4mkrb5_context[24m [4mcontext[24m, [4mkrb5_digest[24m [4mdigest[24m,
+         [4mconst[24m [4mchar[24m [4m*username[24m);
+
+     [4mkrb5_error_code[0m
+     [1mkrb5_digest_set_authid[22m([4mkrb5_context[24m [4mcontext[24m, [4mkrb5_digest[24m [4mdigest[24m,
+         [4mconst[24m [4mchar[24m [4m*authid[24m);
+
+     [4mkrb5_error_code[0m
+     [1mkrb5_digest_set_authentication_user[22m([4mkrb5_context[24m [4mcontext[24m,
+         [4mkrb5_digest[24m [4mdigest[24m, [4mkrb5_principal[24m [4mauthentication_user[24m);
+
+     [4mkrb5_error_code[0m
+     [1mkrb5_digest_set_realm[22m([4mkrb5_context[24m [4mcontext[24m, [4mkrb5_digest[24m [4mdigest[24m,
+         [4mconst[24m [4mchar[24m [4m*realm[24m);
+
+     [4mkrb5_error_code[0m
+     [1mkrb5_digest_set_method[22m([4mkrb5_context[24m [4mcontext[24m, [4mkrb5_digest[24m [4mdigest[24m,
+         [4mconst[24m [4mchar[24m [4m*method[24m);
+
+     [4mkrb5_error_code[0m
+     [1mkrb5_digest_set_uri[22m([4mkrb5_context[24m [4mcontext[24m, [4mkrb5_digest[24m [4mdigest[24m,
+         [4mconst[24m [4mchar[24m [4m*uri[24m);
+
+     [4mkrb5_error_code[0m
+     [1mkrb5_digest_set_nonceCount[22m([4mkrb5_context[24m [4mcontext[24m, [4mkrb5_digest[24m [4mdigest[24m,
+         [4mconst[24m [4mchar[24m [4m*nonce_count[24m);
+
+     [4mkrb5_error_code[0m
+     [1mkrb5_digest_set_qop[22m([4mkrb5_context[24m [4mcontext[24m, [4mkrb5_digest[24m [4mdigest[24m,
+         [4mconst[24m [4mchar[24m [4m*qop[24m);
+
+     [4mkrb5_error_code[0m
+     [1mkrb5_digest_request[22m([4mkrb5_context[24m [4mcontext[24m, [4mkrb5_digest[24m [4mdigest[24m,
+         [4mkrb5_realm[24m [4mrealm[24m, [4mkrb5_ccache[24m [4mccache[24m);
+
+     [4mconst[24m [4mchar[24m [4m*[0m
+     [1mkrb5_digest_get_responseData[22m([4mkrb5_context[24m [4mcontext[24m, [4mkrb5_digest[24m [4mdigest[24m);
+
+     [4mconst[24m [4mchar[24m [4m*[0m
+     [1mkrb5_digest_get_rsp[22m([4mkrb5_context[24m [4mcontext[24m, [4mkrb5_digest[24m [4mdigest[24m);
+
+     [4mkrb5_error_code[0m
+     [1mkrb5_digest_get_tickets[22m([4mkrb5_context[24m [4mcontext[24m, [4mkrb5_digest[24m [4mdigest[24m,
+         [4mTicket[24m [4m**tickets[24m);
+
+     [4mkrb5_error_code[0m
+     [1mkrb5_digest_get_client_binding[22m([4mkrb5_context[24m [4mcontext[24m, [4mkrb5_digest[24m [4mdigest[24m,
+         [4mchar[24m [4m**type[24m, [4mchar[24m [4m**binding[24m);
+
+     [4mkrb5_error_code[0m
+     [1mkrb5_digest_get_a1_hash[22m([4mkrb5_context[24m [4mcontext[24m, [4mkrb5_digest[24m [4mdigest[24m,
+         [4mkrb5_data[24m [4m*data[24m);
+
+[1mDESCRIPTION[0m
+     The [1mkrb5_digest_alloc[22m() function allocatates the [4mdigest[24m structure.  The
+     structure should be freed with [1mkrb5_digest_free[22m() when it is no longer
+     being used.
+
+     [1mkrb5_digest_alloc[22m() returns 0 to indicate success.  Otherwise an kerberos
+     code is returned and the pointer that [4mdigest[24m points to is set to NULL.
+
+     [1mkrb5_digest_free[22m() free the structure [4mdigest[24m.
+
+[1mSEE ALSO[0m
+     krb5(3), kerberos(8)
+
+HEIMDAL                        February 18, 2007                       HEIMDAL

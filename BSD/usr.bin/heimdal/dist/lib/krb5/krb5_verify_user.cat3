@@ -1,0 +1,140 @@
+KRB5_VERIFY_USER(3)      BSD Library Functions Manual      KRB5_VERIFY_USER(3)
+
+[1mNAME[0m
+     [1mkrb5_verify_user[22m, [1mkrb5_verify_user_lrealm[22m, [1mkrb5_verify_user_opt[22m,
+     [1mkrb5_verify_opt_init[22m, [1mkrb5_verify_opt_alloc[22m, [1mkrb5_verify_opt_free[22m,
+     [1mkrb5_verify_opt_set_ccache[22m, [1mkrb5_verify_opt_set_flags[22m,
+     [1mkrb5_verify_opt_set_service[22m, [1mkrb5_verify_opt_set_secure[22m,
+     [1mkrb5_verify_opt_set_keytab [22m-- Heimdal password verifying functions
+
+[1mLIBRARY[0m
+     Kerberos 5 Library (libkrb5, -lkrb5)
+
+[1mSYNOPSIS[0m
+     [1m#include <krb5.h>[0m
+
+     [4mkrb5_error_code[0m
+     [1mkrb5_verify_user[22m([4mkrb5_context[24m [4mcontext[24m, [4mkrb5_principal[24m [4mprincipal[24m,
+         [4mkrb5_ccache[24m [4mccache[24m, [4mconst[24m [4mchar[24m [4m*password[24m, [4mkrb5_boolean[24m [4msecure[24m,
+         [4mconst[24m [4mchar[24m [4m*service[24m);
+
+     [4mkrb5_error_code[0m
+     [1mkrb5_verify_user_lrealm[22m([4mkrb5_context[24m [4mcontext[24m, [4mkrb5_principal[24m [4mprincipal[24m,
+         [4mkrb5_ccache[24m [4mccache[24m, [4mconst[24m [4mchar[24m [4m*password[24m, [4mkrb5_boolean[24m [4msecure[24m,
+         [4mconst[24m [4mchar[24m [4m*service[24m);
+
+     [4mvoid[0m
+     [1mkrb5_verify_opt_init[22m([4mkrb5_verify_opt[24m [4m*opt[24m);
+
+     [4mvoid[0m
+     [1mkrb5_verify_opt_alloc[22m([4mkrb5_verify_opt[24m [4m**opt[24m);
+
+     [4mvoid[0m
+     [1mkrb5_verify_opt_free[22m([4mkrb5_verify_opt[24m [4m*opt[24m);
+
+     [4mvoid[0m
+     [1mkrb5_verify_opt_set_ccache[22m([4mkrb5_verify_opt[24m [4m*opt[24m, [4mkrb5_ccache[24m [4mccache[24m);
+
+     [4mvoid[0m
+     [1mkrb5_verify_opt_set_keytab[22m([4mkrb5_verify_opt[24m [4m*opt[24m, [4mkrb5_keytab[24m [4mkeytab[24m);
+
+     [4mvoid[0m
+     [1mkrb5_verify_opt_set_secure[22m([4mkrb5_verify_opt[24m [4m*opt[24m, [4mkrb5_boolean[24m [4msecure[24m);
+
+     [4mvoid[0m
+     [1mkrb5_verify_opt_set_service[22m([4mkrb5_verify_opt[24m [4m*opt[24m, [4mconst[24m [4mchar[24m [4m*service[24m);
+
+     [4mvoid[0m
+     [1mkrb5_verify_opt_set_flags[22m([4mkrb5_verify_opt[24m [4m*opt[24m, [4munsigned[24m [4mint[24m [4mflags[24m);
+
+     [4mkrb5_error_code[0m
+     [1mkrb5_verify_user_opt[22m([4mkrb5_context[24m [4mcontext[24m, [4mkrb5_principal[24m [4mprincipal[24m,
+         [4mconst[24m [4mchar[24m [4m*password[24m, [4mkrb5_verify_opt[24m [4m*opt[24m);
+
+[1mDESCRIPTION[0m
+     The [1mkrb5_verify_user [22mfunction verifies the password supplied by a user.
+     The principal whose password will be verified is specified in [4mprincipal[24m.
+     New tickets will be obtained as a side-effect and stored in [4mccache[24m (if
+     NULL, the default ccache is used).  [1mkrb5_verify_user[22m() will call
+     [1mkrb5_cc_initialize[22m() on the given [4mccache[24m, so [4mccache[24m must only initialized
+     with [1mkrb5_cc_resolve[22m() or [1mkrb5_cc_gen_new[22m().  If the password is not sup-
+     plied in [4mpassword[24m (and is given as NULL) the user will be prompted for
+     it.  If [4msecure[24m the ticket will be verified against the locally stored
+     service key [4mservice[24m (by default `host' if given as NULL ).
+
+     The [1mkrb5_verify_user_lrealm[22m() function does the same, except that it ig-
+     nores the realm in [4mprincipal[24m and tries all the local realms (see
+     krb5.conf(5)).  After a successful return, the principal is set to the
+     authenticated realm. If the call fails, the principal will not be mean-
+     ingful, and should only be freed with krb5_free_principal(3).
+
+     [1mkrb5_verify_opt_alloc[22m() and [1mkrb5_verify_opt_free[22m() allocates and frees a
+     krb5_verify_opt.  You should use the the alloc and free function instead
+     of allocation the structure yourself, this is because in a future release
+     the structure wont be exported.
+
+     [1mkrb5_verify_opt_init[22m() resets all opt to default values.
+
+     None of the krb5_verify_opt_set function makes a copy of the data struc-
+     ture that they are called with. It's up the caller to free them after the
+     [1mkrb5_verify_user_opt[22m() is called.
+
+     [1mkrb5_verify_opt_set_ccache[22m() sets the [4mccache[24m that user of [4mopt[24m will use.
+     If not set, the default credential cache will be used.
+
+     [1mkrb5_verify_opt_set_keytab[22m() sets the [4mkeytab[24m that user of [4mopt[24m will use.
+     If not set, the default keytab will be used.
+
+     [1mkrb5_verify_opt_set_secure[22m() if [4msecure[24m if true, the password verification
+     will require that the ticket will be verified against the locally stored
+     service key. If not set, default value is true.
+
+     [1mkrb5_verify_opt_set_service[22m() sets the [4mservice[24m principal that user of [4mopt[0m
+     will use. If not set, the `host' service will be used.
+
+     [1mkrb5_verify_opt_set_flags[22m() sets [4mflags[24m that user of [4mopt[24m will use.  If the
+     flag KRB5_VERIFY_LREALMS is used, the [4mprincipal[24m will be modified like
+     [1mkrb5_verify_user_lrealm[22m() modifies it.
+
+     [1mkrb5_verify_user_opt[22m() function verifies the [4mpassword[24m supplied by a user.
+     The principal whose password will be verified is specified in [4mprincipal[24m.
+     Options the to the verification process is pass in in [4mopt[24m.
+
+[1mEXAMPLES[0m
+     Here is a example program that verifies a password. it uses the
+     `host/`hostname`' service principal in [4mkrb5.keytab[24m.
+
+     #include <krb5.h>
+
+     int
+     main(int argc, char **argv)
+     {
+         char *user;
+         krb5_error_code error;
+         krb5_principal princ;
+         krb5_context context;
+
+         if (argc != 2)
+             errx(1, "usage: verify_passwd <principal-name>");
+
+         user = argv[1];
+
+         if (krb5_init_context(&context) < 0)
+             errx(1, "krb5_init_context");
+
+         if ((error = krb5_parse_name(context, user, &princ)) != 0)
+             krb5_err(context, 1, error, "krb5_parse_name");
+
+         error = krb5_verify_user(context, princ, NULL, NULL, TRUE, NULL);
+         if (error)
+             krb5_err(context, 1, error, "krb5_verify_user");
+
+         return 0;
+     }
+
+[1mSEE ALSO[0m
+     krb5_cc_gen_new(3), krb5_cc_initialize(3), krb5_cc_resolve(3),
+     krb5_err(3), krb5_free_principal(3), krb5_init_context(3),
+     krb5_kt_default(3), krb5.conf(5)
+
+HEIMDAL                           May 1, 2006                          HEIMDAL

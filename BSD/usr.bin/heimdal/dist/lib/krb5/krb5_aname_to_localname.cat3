@@ -1,0 +1,38 @@
+KRB5_ANAME_TO_LOCALNA... BSD Library Functions Manual KRB5_ANAME_TO_LOCALNA...
+
+[1mNAME[0m
+     [1mkrb5_aname_to_localname [22m-- converts a principal to a system local name
+
+[1mLIBRARY[0m
+     Kerberos 5 Library (libkrb5, -lkrb5)
+
+[1mSYNOPSIS[0m
+     [1m#include <krb5.h>[0m
+
+     [4mkrb5_boolean[0m
+     [1mkrb5_aname_to_localname[22m([4mkrb5_context[24m [4mcontext[24m, [4mkrb5_const_principal[24m [4mname[24m,
+         [4msize_t[24m [4mlnsize[24m, [4mchar[24m [4m*lname[24m);
+
+[1mDESCRIPTION[0m
+     This function takes a principal [4mname[24m, verifies that it is in the local
+     realm (using [1mkrb5_get_default_realms[22m()) and then returns the local name
+     of the principal.
+
+     If [4mname[24m isn't in one of the local realms an error is returned.
+
+     If the size ([4mlnsize[24m) of the local name ([4mlname[24m) is too small, an error is
+     returned.
+
+     [1mkrb5_aname_to_localname[22m() should only be use by an application that im-
+     plements protocols that don't transport the login name and thus needs to
+     convert a principal to a local name.
+
+     Protocols should be designed so that they authenticate using Kerberos,
+     send over the login name and then verify the principal that is authenti-
+     cated is allowed to login and the login name.  A way to check if a user
+     is allowed to login is using the function [1mkrb5_kuserok[22m().
+
+[1mSEE ALSO[0m
+     krb5_get_default_realms(3), krb5_kuserok(3)
+
+HEIMDAL                        February 18, 2006                       HEIMDAL

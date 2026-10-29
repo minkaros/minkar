@@ -1,0 +1,259 @@
+KRB5_PRINCIPAL(3)        BSD Library Functions Manual        KRB5_PRINCIPAL(3)
+
+[1mNAME[0m
+     [1mkrb5_get_default_principal[22m, [1mkrb5_principal[22m, [1mkrb5_build_principal[22m,
+     [1mkrb5_build_principal_ext[22m, [1mkrb5_build_principal_va[22m,
+     [1mkrb5_build_principal_va_ext[22m, [1mkrb5_copy_principal[22m, [1mkrb5_free_principal[22m,
+     [1mkrb5_make_principal[22m, [1mkrb5_parse_name[22m, [1mkrb5_parse_name_flags[22m,
+     [1mkrb5_parse_nametype[22m, [1mkrb5_princ_set_realm[22m, [1mkrb5_principal_compare[22m,
+     [1mkrb5_principal_compare_any_realm[22m, [1mkrb5_principal_get_comp_string[22m,
+     [1mkrb5_principal_get_realm[22m, [1mkrb5_principal_get_type[22m, [1mkrb5_principal_match[22m,
+     [1mkrb5_principal_set_type[22m, [1mkrb5_realm_compare[22m, [1mkrb5_sname_to_principal[22m,
+     [1mkrb5_sock_to_principal[22m, [1mkrb5_unparse_name[22m, [1mkrb5_unparse_name_flags[22m,
+     [1mkrb5_unparse_name_fixed[22m, [1mkrb5_unparse_name_fixed_flags[22m,
+     [1mkrb5_unparse_name_fixed_short[22m, [1mkrb5_unparse_name_short [22m-- Kerberos 5
+     principal handling functions
+
+[1mLIBRARY[0m
+     Kerberos 5 Library (libkrb5, -lkrb5)
+
+[1mSYNOPSIS[0m
+     [1m#include <krb5.h>[0m
+
+     krb5_principal;
+
+     [4mvoid[0m
+     [1mkrb5_free_principal[22m([4mkrb5_context[24m [4mcontext[24m, [4mkrb5_principal[24m [4mprincipal[24m);
+
+     [4mkrb5_error_code[0m
+     [1mkrb5_parse_name[22m([4mkrb5_context[24m [4mcontext[24m, [4mconst[24m [4mchar[24m [4m*name[24m,
+         [4mkrb5_principal[24m [4m*principal[24m);
+
+     [4mkrb5_error_code[0m
+     [1mkrb5_parse_name_flags[22m([4mkrb5_context[24m [4mcontext[24m, [4mconst[24m [4mchar[24m [4m*name[24m, [4mint[24m [4mflags[24m,
+         [4mkrb5_principal[24m [4m*principal[24m);
+
+     [4mkrb5_error_code[0m
+     [1mkrb5_unparse_name[22m([4mkrb5_context[24m [4mcontext[24m, [4mkrb5_const_principal[24m [4mprincipal[24m,
+         [4mchar[24m [4m**name[24m);
+
+     [4mkrb5_error_code[0m
+     [1mkrb5_unparse_name_flags[22m([4mkrb5_context[24m [4mcontext[24m,
+         [4mkrb5_const_principal[24m [4mprincipal[24m, [4mint[24m [4mflags[24m, [4mchar[24m [4m**name[24m);
+
+     [4mkrb5_error_code[0m
+     [1mkrb5_unparse_name_fixed[22m([4mkrb5_context[24m [4mcontext[24m,
+         [4mkrb5_const_principal[24m [4mprincipal[24m, [4mchar[24m [4m*name[24m, [4msize_t[24m [4mlen[24m);
+
+     [4mkrb5_error_code[0m
+     [1mkrb5_unparse_name_fixed_flags[22m([4mkrb5_context[24m [4mcontext[24m,
+         [4mkrb5_const_principal[24m [4mprincipal[24m, [4mint[24m [4mflags[24m, [4mchar[24m [4m*name[24m, [4msize_t[24m [4mlen[24m);
+
+     [4mkrb5_error_code[0m
+     [1mkrb5_unparse_name_short[22m([4mkrb5_context[24m [4mcontext[24m,
+         [4mkrb5_const_principal[24m [4mprincipal[24m, [4mchar[24m [4m**name[24m);
+
+     [4mkrb5_error_code[0m
+     [1mkrb5_unparse_name_fixed_short[22m([4mkrb5_context[24m [4mcontext[24m,
+         [4mkrb5_const_principal[24m [4mprincipal[24m, [4mchar[24m [4m*name[24m, [4msize_t[24m [4mlen[24m);
+
+     [4mvoid[0m
+     [1mkrb5_princ_set_realm[22m([4mkrb5_context[24m [4mcontext[24m, [4mkrb5_principal[24m [4mprincipal[24m,
+         [4mkrb5_realm[24m [4m*realm[24m);
+
+     [4mkrb5_error_code[0m
+     [1mkrb5_build_principal[22m([4mkrb5_context[24m [4mcontext[24m, [4mkrb5_principal[24m [4m*principal[24m,
+         [4mint[24m [4mrlen[24m, [4mkrb5_const_realm[24m [4mrealm[24m, [4m...[24m);
+
+     [4mkrb5_error_code[0m
+     [1mkrb5_build_principal_va[22m([4mkrb5_context[24m [4mcontext[24m, [4mkrb5_principal[24m [4m*principal[24m,
+         [4mint[24m [4mrlen[24m, [4mkrb5_const_realm[24m [4mrealm[24m, [4mva_list[24m [4map[24m);
+
+     [4mkrb5_error_code[0m
+     [1mkrb5_build_principal_ext[22m([4mkrb5_context[24m [4mcontext[24m, [4mkrb5_principal[24m [4m*principal[24m,
+         [4mint[24m [4mrlen[24m, [4mkrb5_const_realm[24m [4mrealm[24m, [4m...[24m);
+
+     [4mkrb5_error_code[0m
+     [1mkrb5_build_principal_va_ext[22m([4mkrb5_context[24m [4mcontext[24m,
+         [4mkrb5_principal[24m [4m*principal[24m, [4mint[24m [4mrlen[24m, [4mkrb5_const_realm[24m [4mrealm[24m,
+         [4mva_list[24m [4map[24m);
+
+     [4mkrb5_error_code[0m
+     [1mkrb5_make_principal[22m([4mkrb5_context[24m [4mcontext[24m, [4mkrb5_principal[24m [4m*principal[24m,
+         [4mkrb5_const_realm[24m [4mrealm[24m, [4m...[24m);
+
+     [4mkrb5_error_code[0m
+     [1mkrb5_copy_principal[22m([4mkrb5_context[24m [4mcontext[24m, [4mkrb5_const_principal[24m [4minprinc[24m,
+         [4mkrb5_principal[24m [4m*outprinc[24m);
+
+     [4mkrb5_boolean[0m
+     [1mkrb5_principal_compare[22m([4mkrb5_context[24m [4mcontext[24m, [4mkrb5_const_principal[24m [4mprinc1[24m,
+         [4mkrb5_const_principal[24m [4mprinc2[24m);
+
+     [4mkrb5_boolean[0m
+     [1mkrb5_principal_compare_any_realm[22m([4mkrb5_context[24m [4mcontext[24m,
+         [4mkrb5_const_principal[24m [4mprinc1[24m, [4mkrb5_const_principal[24m [4mprinc2[24m);
+
+     [4mconst[24m [4mchar[24m [4m*[0m
+     [1mkrb5_principal_get_comp_string[22m([4mkrb5_context[24m [4mcontext[24m,
+         [4mkrb5_const_principal[24m [4mprincipal[24m, [4munsigned[24m [4mint[24m [4mcomponent[24m);
+
+     [4mconst[24m [4mchar[24m [4m*[0m
+     [1mkrb5_principal_get_realm[22m([4mkrb5_context[24m [4mcontext[24m,
+         [4mkrb5_const_principal[24m [4mprincipal[24m);
+
+     [4mint[0m
+     [1mkrb5_principal_get_type[22m([4mkrb5_context[24m [4mcontext[24m,
+         [4mkrb5_const_principal[24m [4mprincipal[24m);
+
+     [4mkrb5_boolean[0m
+     [1mkrb5_principal_match[22m([4mkrb5_context[24m [4mcontext[24m,
+         [4mkrb5_const_principal[24m [4mprincipal[24m, [4mkrb5_const_principal[24m [4mpattern[24m);
+
+     [4mvoid[0m
+     [1mkrb5_principal_set_type[22m([4mkrb5_context[24m [4mcontext[24m, [4mkrb5_principal[24m [4mprincipal[24m,
+         [4mint[24m [4mtype[24m);
+
+     [4mkrb5_boolean[0m
+     [1mkrb5_realm_compare[22m([4mkrb5_context[24m [4mcontext[24m, [4mkrb5_const_principal[24m [4mprinc1[24m,
+         [4mkrb5_const_principal[24m [4mprinc2[24m);
+
+     [4mkrb5_error_code[0m
+     [1mkrb5_sname_to_principal[22m([4mkrb5_context[24m [4mcontext[24m, [4mconst[24m [4mchar[24m [4m*hostname[24m,
+         [4mconst[24m [4mchar[24m [4m*sname[24m, [4mint32_t[24m [4mtype[24m, [4mkrb5_principal[24m [4m*ret_princ[24m);
+
+     [4mkrb5_error_code[0m
+     [1mkrb5_sock_to_principal[22m([4mkrb5_context[24m [4mcontext[24m, [4mint[24m [4msocket[24m,
+         [4mconst[24m [4mchar[24m [4m*sname[24m, [4mint32_t[24m [4mtype[24m, [4mkrb5_principal[24m [4m*principal[24m);
+
+     [4mkrb5_error_code[0m
+     [1mkrb5_get_default_principal[22m([4mkrb5_context[24m [4mcontext[24m, [4mkrb5_principal[24m [4m*princ[24m);
+
+     [4mkrb5_error_code[0m
+     [1mkrb5_parse_nametype[22m([4mkrb5_context[24m [4mcontext[24m, [4mconst[24m [4mchar[24m [4m*str[24m,
+         [4mint32_t[24m [4m*type[24m);
+
+[1mDESCRIPTION[0m
+     krb5_principal holds the name of a user or service in Kerberos.
+
+     A principal has two parts, a PrincipalName and a realm.  The Principal-
+     Name consists of one or more components. In printed form, the components
+     are separated by /.  The PrincipalName also has a name-type.
+
+     Examples of a principal are nisse/root@EXAMPLE.COM and
+     host/datan.kth.se@KTH.SE.  [1mkrb5_parse_name[22m() and [1mkrb5_parse_name_flags[22m()
+     passes a principal name in [4mname[24m to the kerberos principal structure.
+     [1mkrb5_parse_name_flags[22m() takes an extra [4mflags[24m argument the following flags
+     can be passed in
+
+     KRB5_PRINCIPAL_PARSE_NO_REALM
+             requires the input string to be without a realm, and no realm is
+             stored in the [4mprincipal[24m return argument.
+
+     KRB5_PRINCIPAL_PARSE_REQUIRE_REALM
+             requires the input string to with a realm.
+
+     [1mkrb5_unparse_name[22m() and [1mkrb5_unparse_name_flags[22m() prints the principal
+     [4mprinc[24m to the string [4mname[24m.  [4mname[24m should be freed with free(3).  To the
+     [4mflags[24m argument the following flags can be passed in
+
+     KRB5_PRINCIPAL_UNPARSE_SHORT
+             no realm if the realm is one of the local realms.
+
+     KRB5_PRINCIPAL_UNPARSE_NO_REALM
+             never include any realm in the principal name.
+
+     KRB5_PRINCIPAL_UNPARSE_DISPLAY
+             don't quote
+     On failure [4mname[24m is set to NULL.  [1mkrb5_unparse_name_fixed[22m() and
+     [1mkrb5_unparse_name_fixed_flags[22m() behaves just like [1mkrb5_unparse[22m(), but in-
+     stead unparses the principal into a fixed size buffer.
+
+     [1mkrb5_unparse_name_short[22m() just returns the principal without the realm if
+     the principal is in the default realm. If the principal isn't, the full
+     name is returned.  [1mkrb5_unparse_name_fixed_short[22m() works just like
+     [1mkrb5_unparse_name_short[22m() but on a fixed size buffer.
+
+     [1mkrb5_build_principal[22m() builds a principal from the realm [4mrealm[24m that has
+     the length [4mrlen[24m.  The following arguments form the components of the
+     principal.  The list of components is terminated with NULL.
+
+     [1mkrb5_build_principal_va[22m() works like [1mkrb5_build_principal[22m() using vargs.
+
+     [1mkrb5_build_principal_ext[22m() and [1mkrb5_build_principal_va_ext[22m() take a list
+     of length-value pairs, the list is terminated with a zero length.
+
+     [1mkrb5_make_principal[22m() works the same way as [1mkrb5_build_principal[22m(), ex-
+     cept it figures out the length of the realm itself.
+
+     [1mkrb5_copy_principal[22m() makes a copy of a principal.  The copy needs to be
+     freed with [1mkrb5_free_principal[22m().
+
+     [1mkrb5_principal_compare[22m() compares the two principals, including realm of
+     the principals and returns TRUE if they are the same and FALSE if not.
+
+     [1mkrb5_principal_compare_any_realm[22m() works the same way as
+     [1mkrb5_principal_compare[22m() but doesn't compare the realm component of the
+     principal.
+
+     [1mkrb5_realm_compare[22m() compares the realms of the two principals and re-
+     turns TRUE is they are the same, and FALSE if not.
+
+     [1mkrb5_principal_match[22m() matches a [4mprincipal[24m against a [4mpattern[24m.  The pat-
+     tern is a globbing expression, where each component (separated by /) is
+     matched against the corresponding component of the principal.
+
+     The [1mkrb5_principal_get_realm[22m() and [1mkrb5_principal_get_comp_string[22m() func-
+     tions return parts of the [4mprincipal[24m, either the realm or a specific com-
+     ponent.  Both functions return string pointers to data inside the princi-
+     pal, so they are valid only as long as the principal exists.
+
+     The [4mcomponent[24m argument to [1mkrb5_principal_get_comp_string[22m() is the index
+     of the component to return, from zero to the total number of components
+     minus one. If the index is out of range NULL is returned.
+
+     [1mkrb5_principal_get_realm[22m() and [1mkrb5_principal_get_comp_string[22m() are re-
+     placements for [1mkrb5_princ_component[22m() and related macros, described as
+     internal in the MIT API specification.  Unlike the macros, these func-
+     tions return strings, not krb5_data.  A reason to return krb5_data was
+     that it was believed that principal components could contain binary data,
+     but this belief was unfounded, and it has been decided that principal
+     components are infact UTF8, so it's safe to use zero terminated strings.
+
+     It's generally not necessary to look at the components of a principal.
+
+     [1mkrb5_principal_get_type[22m() and [1mkrb5_principal_set_type[22m() get and sets the
+     name type for a principal.  Name type handling is tricky and not often
+     needed, don't use this unless you know what you do.
+
+     [1mkrb5_sname_to_principal[22m() and [1mkrb5_sock_to_principal[22m() are for easy cre-
+     ation of "service" principals that can, for instance, be used to lookup a
+     key in a keytab.  For both functions the [4msname[24m parameter will be used for
+     the first component of the created principal.  If [4msname[24m is NULL, "host"
+     will be used instead.
+
+     [1mkrb5_sname_to_principal[22m() will use the passed [4mhostname[24m for the second
+     component.  If [4mtype[24m is KRB5_NT_SRV_HST this name will be looked up with
+     [1mgethostbyname[22m().  If [4mhostname[24m is NULL, the local hostname will be used.
+
+     [1mkrb5_sock_to_principal[22m() will use the "sockname" of the passed [4msocket[24m,
+     which should be a bound AF_INET or AF_INET6 socket.  There must be a map-
+     ping between the address and "sockname".  The function may try to resolve
+     the name in DNS.
+
+     [1mkrb5_get_default_principal[22m() tries to find out what's a reasonable de-
+     fault principal by looking at the environment it is running in.
+
+     [1mkrb5_parse_nametype[22m() parses and returns the name type integer value in
+     [4mtype[24m.  On failure the function returns an error code and set the error
+     string.
+
+[1mSEE ALSO[0m
+     krb5_config(3), krb5.conf(5)
+
+[1mBUGS[0m
+     You can not have a NUL in a component in some of the variable argument
+     functions above.  Until someone can give a good example of where it would
+     be a good idea to have NUL's in a component, this will not be fixed.
+
+HEIMDAL                           May 1, 2006                          HEIMDAL

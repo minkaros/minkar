@@ -1,0 +1,93 @@
+KIMPERSONATE(8)           BSD System Manager's Manual          KIMPERSONATE(8)
+
+[1mNAME[0m
+     [1mkimpersonate [22m-- impersonate a user when there exist a keyfile or KeyFile
+
+[1mSYNOPSIS[0m
+     [1mkimpersonate [22m[[1m-s [4m[22mstring[24m | [1m--ccache=[4m[22mstring[24m] [[1m-s [4m[22mstring[24m | [1m--server=[4m[22mstring[24m]
+                  [[1m-c [4m[22mstring[24m | [1m--client=[4m[22mstring[24m] [[1m-k [4m[22mstring[24m | [1m--keytab=[4m[22mstring[24m]
+                  [[1m-5 [22m| [1m--krb5[22m] [[1m-A [22m| [1m--add[22m] [[1m-R [22m| [1m--referral[22m]
+                  [[1m-e [4m[22minteger[24m | [1m--expire-time=[4m[22minteger[24m]
+                  [[1m-a [4m[22mstring[24m | [1m--client-address=[4m[22mstring[24m]
+                  [[1m-t [4m[22mstring[24m | [1m--enc-type=[4m[22mstring[24m] [[1m--session-enc-type=[4m[22mstring[24m]
+                  [[1m-f [4m[22mstring[24m | [1m--ticket-flags=[4m[22mstring[24m] [[1m--verbose[22m] [[1m--version[22m]
+                  [[1m--help[22m]
+
+[1mDESCRIPTION[0m
+     The [1mkimpersonate [22mprogram creates a "fake" ticket using the service-key of
+     the service and stores it in the given (or default) ccache.  This is use-
+     ful for testing.  The service key can be read from a Kerberos 5 keytab or
+     AFS KeyFile.  Supported options:
+
+     [1m--ccache=[4m[22mstring[0m
+             ccache into which to store the ticket
+
+     [1m-s [4m[22mstring[24m, [1m--server=[4m[22mstring[0m
+             name of server principal
+
+     [1m-c [4m[22mstring[24m, [1m--client=[4m[22mstring[0m
+             name of client principal
+
+     [1m-k [4m[22mstring[24m, [1m--keytab=[4m[22mstring[0m
+             name of keytab file
+
+     [1m-5[22m, [1m--krb5[0m
+             create a Kerberos 5 ticket
+
+     [1m-A[22m, [1m--add[0m
+             don't re-initialize the ccache, instead add the ticket to an ex-
+             isting ccache.
+
+     [1m-R[22m, [1m--referral[0m
+             simulate a referrals-based KDC client by storing two entries, one
+             with the empty realm for the service principal name.
+
+     [1m-e [4m[22minteger[24m, [1m--expire-time=[4m[22minteger[0m
+             lifetime of ticket in seconds
+
+     [1m-a [4m[22mstring[24m, [1m--client-address=[4m[22mstring[0m
+             address of client
+
+     [1m-t [4m[22mstring[24m, [1m--enc-type=[4m[22mstring[0m
+             encryption type (defaults to "aes256-cts-hmac-sha1-96")
+
+     [1m--session-enc-type=[4m[22mstring[0m
+             session encryption type (defaults to enc-type or "des-cbc-crc"
+             for afs service tickets)
+
+     [1m-f [4m[22mstring[24m, [1m--ticket-flags=[4m[22mstring[0m
+             ticket flags for krb5 ticket
+
+     [1m--verbose[0m
+             Verbose output
+
+     [1m--version[0m
+             Print version
+
+     [1m--help[0m
+
+[1mFILES[0m
+     Uses [4m/etc/krb5.keytab,[24m and [4m/usr/afs/etc/KeyFile[24m when available and the [1m-k[0m
+     option is used with an appropriate prefix.
+
+[1mEXAMPLES[0m
+     [1mkimpersonate [22mcan be used in [1msamba [22mroot preexec option or for debugging.
+     [1mkimpersonate [22m-s host/hummel.e.kth.se@E.KTH.SE -c lha@E.KTH.SE -5 will
+     create a Kerberos 5 ticket for lha@E.KTH.SE for the host hummel.e.kth.se
+     if there exists a keytab entry for it in [4m/etc/krb5.keytab[24m.
+
+     In combination with the [1mktutil [22mcommand, this is useful for testing.  For
+     example,
+
+     [1mktutil [22m-k tkt add -p host/foo.test@TEST -V2 -e aes256-cts-hmac-sha1-96 -r
+
+     [1mkimpersonate [22m--cache=tcc -s host/foo.test@TEST -c jdoe@TEST -k tkt --re-
+     ferral
+
+[1mSEE ALSO[0m
+     kinit(1), klist(1)
+
+[1mAUTHORS[0m
+     Love Hornquist Astrand <lha@kth.se>
+
+BSD                           September 18, 2006                           BSD

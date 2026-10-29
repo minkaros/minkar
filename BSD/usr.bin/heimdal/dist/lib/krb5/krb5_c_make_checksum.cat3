@@ -1,0 +1,141 @@
+KRB5_C_MAKE_CHECKSUM(3)  BSD Library Functions Manual  KRB5_C_MAKE_CHECKSUM(3)
+
+[1mNAME[0m
+     [1mkrb5_c_block_size[22m, [1mkrb5_c_decrypt[22m, [1mkrb5_c_encrypt[22m, [1mkrb5_c_encrypt_length[22m,
+     [1mkrb5_c_enctype_compare[22m, [1mkrb5_c_get_checksum[22m, [1mkrb5_c_is_coll_proof_cksum[22m,
+     [1mkrb5_c_is_keyed_cksum[22m, [1mkrb5_c_keylength[22m, [1mkrb5_c_make_checksum[22m,
+     [1mkrb5_c_make_random_key[22m, [1mkrb5_c_set_checksum[22m, [1mkrb5_c_valid_cksumtype[22m,
+     [1mkrb5_c_valid_enctype[22m, [1mkrb5_c_verify_checksum[22m, [1mkrb5_c_checksum_length [22m--
+     Kerberos 5 crypto API
+
+[1mLIBRARY[0m
+     Kerberos 5 Library (libkrb5, -lkrb5)
+
+[1mSYNOPSIS[0m
+     [1m#include <krb5.h>[0m
+
+     [4mkrb5_error_code[0m
+     [1mkrb5_c_block_size[22m([4mkrb5_context[24m [4mcontext[24m, [4mkrb5_enctype[24m [4menctype[24m,
+         [4msize_t[24m [4m*blocksize[24m);
+
+     [4mkrb5_error_code[0m
+     [1mkrb5_c_decrypt[22m([4mkrb5_context[24m [4mcontext[24m, [4mconst[24m [4mkrb5_keyblock[24m [4mkey[24m,
+         [4mkrb5_keyusage[24m [4musage[24m, [4mconst[24m [4mkrb5_data[24m [4m*ivec[24m, [4mkrb5_enc_data[24m [4m*input[24m,
+         [4mkrb5_data[24m [4m*output[24m);
+
+     [4mkrb5_error_code[0m
+     [1mkrb5_c_encrypt[22m([4mkrb5_context[24m [4mcontext[24m, [4mconst[24m [4mkrb5_keyblock[24m [4m*key[24m,
+         [4mkrb5_keyusage[24m [4musage[24m, [4mconst[24m [4mkrb5_data[24m [4m*ivec[24m, [4mconst[24m [4mkrb5_data[24m [4m*input[24m,
+         [4mkrb5_enc_data[24m [4m*output[24m);
+
+     [4mkrb5_error_code[0m
+     [1mkrb5_c_encrypt_length[22m([4mkrb5_context[24m [4mcontext[24m, [4mkrb5_enctype[24m [4menctype[24m,
+         [4msize_t[24m [4minputlen[24m, [4msize_t[24m [4m*length[24m);
+
+     [4mkrb5_error_code[0m
+     [1mkrb5_c_enctype_compare[22m([4mkrb5_context[24m [4mcontext[24m, [4mkrb5_enctype[24m [4me1[24m,
+         [4mkrb5_enctype[24m [4me2[24m, [4mkrb5_boolean[24m [4m*similar[24m);
+
+     [4mkrb5_error_code[0m
+     [1mkrb5_c_make_random_key[22m([4mkrb5_context[24m [4mcontext[24m, [4mkrb5_enctype[24m [4menctype[24m,
+         [4mkrb5_keyblock[24m [4m*random_key[24m);
+
+     [4mkrb5_error_code[0m
+     [1mkrb5_c_make_checksum[22m([4mkrb5_context[24m [4mcontext[24m, [4mkrb5_cksumtype[24m [4mcksumtype[24m,
+         [4mconst[24m [4mkrb5_keyblock[24m [4m*key[24m, [4mkrb5_keyusage[24m [4musage[24m,
+         [4mconst[24m [4mkrb5_data[24m [4m*input[24m, [4mkrb5_checksum[24m [4m*cksum[24m);
+
+     [4mkrb5_error_code[0m
+     [1mkrb5_c_verify_checksum[22m([4mkrb5_context[24m [4mcontext[24m, [4mconst[24m [4mkrb5_keyblock[24m [4m*key[24m,
+         [4mkrb5_keyusage[24m [4musage[24m, [4mconst[24m [4mkrb5_data[24m [4m*data[24m,
+         [4mconst[24m [4mkrb5_checksum[24m [4m*cksum[24m, [4mkrb5_boolean[24m [4m*valid[24m);
+
+     [4mkrb5_error_code[0m
+     [1mkrb5_c_checksum_length[22m([4mkrb5_context[24m [4mcontext[24m, [4mkrb5_cksumtype[24m [4mcksumtype[24m,
+         [4msize_t[24m [4m*length[24m);
+
+     [4mkrb5_error_code[0m
+     [1mkrb5_c_get_checksum[22m([4mkrb5_context[24m [4mcontext[24m, [4mconst[24m [4mkrb5_checksum[24m [4m*cksum[24m,
+         [4mkrb5_cksumtype[24m [4m*type[24m, [4mkrb5_data[24m [4m**data[24m);
+
+     [4mkrb5_error_code[0m
+     [1mkrb5_c_set_checksum[22m([4mkrb5_context[24m [4mcontext[24m, [4mkrb5_checksum[24m [4m*cksum[24m,
+         [4mkrb5_cksumtype[24m [4mtype[24m, [4mconst[24m [4mkrb5_data[24m [4m*data[24m);
+
+     [4mkrb5_boolean[0m
+     [1mkrb5_c_valid_enctype[22m([4mkrb5_enctype[24m, [4metype"[24m);
+
+     [4mkrb5_boolean[0m
+     [1mkrb5_c_valid_cksumtype[22m([4mkrb5_cksumtype[24m [4mctype[24m);
+
+     [4mkrb5_boolean[0m
+     [1mkrb5_c_is_coll_proof_cksum[22m([4mkrb5_cksumtype[24m [4mctype[24m);
+
+     [4mkrb5_boolean[0m
+     [1mkrb5_c_is_keyed_cksum[22m([4mkrb5_cksumtype[24m [4mctype[24m);
+
+     [4mkrb5_error_code[0m
+     [1mkrb5_c_keylengths[22m([4mkrb5_context[24m [4mcontext[24m, [4mkrb5_enctype[24m [4menctype[24m,
+         [4msize_t[24m [4m*inlength[24m, [4msize_t[24m [4m*keylength[24m);
+
+[1mDESCRIPTION[0m
+     The functions starting with krb5_c are compat functions with MIT ker-
+     beros.
+
+     The krb5_enc_data structure holds and encrypted data.  There are two pub-
+     lic accessible members of krb5_enc_data.  enctype that holds the encryp-
+     tion type of the data encrypted and ciphertext that is a [4mkrb5_data[24m that
+     might contain the encrypted data.
+
+     [1mkrb5_c_block_size[22m() returns the blocksize of the encryption type.
+
+     [1mkrb5_c_decrypt[22m() decrypts [4minput[24m and store the data in [4moutput.[24m If [4mivec[24m is
+     NULL the default initialization vector for that encryption type will be
+     used.
+
+     [1mkrb5_c_encrypt[22m() encrypts the plaintext in [4minput[24m and store the ciphertext
+     in [4moutput[24m.
+
+     [1mkrb5_c_encrypt_length[22m() returns the length the encrypted data given the
+     plaintext length.
+
+     [1mkrb5_c_enctype_compare[22m() compares to encryption types and returns if they
+     use compatible encryption key types.
+
+     [1mkrb5_c_make_checksum[22m() creates a checksum [4mcksum[24m with the checksum type
+     [4mcksumtype[24m of the data in [4mdata[24m.  [4mkey[24m and [4musage[24m are used if the checksum is
+     a keyed checksum type.  Returns 0 or an error code.
+
+     [1mkrb5_c_verify_checksum[22m() verifies the checksum of [4mdata[24m in [4mcksum[24m that was
+     created with [4mkey[24m using the key usage [4musage[24m.  [4mverify[24m is set to non-zero if
+     the checksum verifies correctly and zero if not.  Returns 0 or an error
+     code.
+
+     [1mkrb5_c_checksum_length[22m() returns the length of the checksum.
+
+     [1mkrb5_c_set_checksum[22m() sets the krb5_checksum structure given [4mtype[24m and
+     [4mdata[24m.  The content of [4mcksum[24m should be freeed with
+     [1mkrb5_c_free_checksum_contents[22m().
+
+     [1mkrb5_c_get_checksum[22m() retrieves the components of the krb5_checksum.
+     structure.  [4mdata[24m should be free with [1mkrb5_free_data[22m().  If some either of
+     [4mdata[24m or [4mchecksum[24m is not needed for the application, NULL can be passed
+     in.
+
+     [1mkrb5_c_valid_enctype[22m() returns true if [4metype[24m is a valid encryption type.
+
+     [1mkrb5_c_valid_cksumtype[22m() returns true if [4mctype[24m is a valid checksum type.
+
+     [1mkrb5_c_is_keyed_cksum[22m() return true if [4mctype[24m is a keyed checksum type.
+
+     [1mkrb5_c_is_coll_proof_cksum[22m() returns true if [4mctype[24m is a collision proof
+     checksum type.
+
+     [1mkrb5_c_keylengths[22m() return the minimum length ([4minlength[24m) bytes needed to
+     create a key and the length ([4mkeylength[24m) of the resulting key for the
+     [4menctype[24m.
+
+[1mSEE ALSO[0m
+     krb5(3), krb5_create_checksum(3), krb5_free_data(3), kerberos(8)
+
+HEIMDAL                          Nov 17, 2006                          HEIMDAL

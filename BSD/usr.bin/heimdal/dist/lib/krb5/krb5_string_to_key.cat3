@@ -1,0 +1,73 @@
+KRB5_STRING_TO_KEY(3)    BSD Library Functions Manual    KRB5_STRING_TO_KEY(3)
+
+[1mNAME[0m
+     [1mkrb5_string_to_key[22m, [1mkrb5_string_to_key_data[22m,
+     [1mkrb5_string_to_key_data_salt[22m, [1mkrb5_string_to_key_data_salt_opaque[22m,
+     [1mkrb5_string_to_key_salt[22m, [1mkrb5_string_to_key_salt_opaque[22m,
+     [1mkrb5_get_pw_salt[22m, [1mkrb5_free_salt [22m-- turns a string to a Kerberos key
+
+[1mLIBRARY[0m
+     Kerberos 5 Library (libkrb5, -lkrb5)
+
+[1mSYNOPSIS[0m
+     [1m#include <krb5.h>[0m
+
+     [4mkrb5_error_code[0m
+     [1mkrb5_string_to_key[22m([4mkrb5_context[24m [4mcontext[24m, [4mkrb5_enctype[24m [4menctype[24m,
+         [4mconst[24m [4mchar[24m [4m*password[24m, [4mkrb5_principal[24m [4mprincipal[24m, [4mkrb5_keyblock[24m [4m*key[24m);
+
+     [4mkrb5_error_code[0m
+     [1mkrb5_string_to_key_data[22m([4mkrb5_context[24m [4mcontext[24m, [4mkrb5_enctype[24m [4menctype[24m,
+         [4mkrb5_data[24m [4mpassword[24m, [4mkrb5_principal[24m [4mprincipal[24m, [4mkrb5_keyblock[24m [4m*key[24m);
+
+     [4mkrb5_error_code[0m
+     [1mkrb5_string_to_key_data_salt[22m([4mkrb5_context[24m [4mcontext[24m, [4mkrb5_enctype[24m [4menctype[24m,
+         [4mkrb5_data[24m [4mpassword[24m, [4mkrb5_salt[24m [4msalt[24m, [4mkrb5_keyblock[24m [4m*key[24m);
+
+     [4mkrb5_error_code[0m
+     [1mkrb5_string_to_key_data_salt_opaque[22m([4mkrb5_context[24m [4mcontext[24m,
+         [4mkrb5_enctype[24m [4menctype[24m, [4mkrb5_data[24m [4mpassword[24m, [4mkrb5_salt[24m [4msalt[24m,
+         [4mkrb5_data[24m [4mopaque[24m, [4mkrb5_keyblock[24m [4m*key[24m);
+
+     [4mkrb5_error_code[0m
+     [1mkrb5_string_to_key_salt[22m([4mkrb5_context[24m [4mcontext[24m, [4mkrb5_enctype[24m [4menctype[24m,
+         [4mconst[24m [4mchar[24m [4m*password[24m, [4mkrb5_salt[24m [4msalt[24m, [4mkrb5_keyblock[24m [4m*key[24m);
+
+     [4mkrb5_error_code[0m
+     [1mkrb5_string_to_key_salt_opaque[22m([4mkrb5_context[24m [4mcontext[24m,
+         [4mkrb5_enctype[24m [4menctype[24m, [4mconst[24m [4mchar[24m [4m*password[24m, [4mkrb5_salt[24m [4msalt[24m,
+         [4mkrb5_data[24m [4mopaque[24m, [4mkrb5_keyblock[24m [4m*key[24m);
+
+     [4mkrb5_error_code[0m
+     [1mkrb5_get_pw_salt[22m([4mkrb5_context[24m [4mcontext[24m, [4mkrb5_const_principal[24m [4mprincipal[24m,
+         [4mkrb5_salt[24m [4m*salt[24m);
+
+     [4mkrb5_error_code[0m
+     [1mkrb5_free_salt[22m([4mkrb5_context[24m [4mcontext[24m, [4mkrb5_salt[24m [4msalt[24m);
+
+[1mDESCRIPTION[0m
+     The string to key functions convert a string to a kerberos key.
+
+     [1mkrb5_string_to_key_data_salt_opaque[22m() is the function that does all the
+     work, the rest of the functions are just wrappers around
+     [1mkrb5_string_to_key_data_salt_opaque[22m() that calls it with default values.
+
+     [1mkrb5_string_to_key_data_salt_opaque[22m() transforms the [4mpassword[24m with the
+     given salt-string [4msalt[24m and the opaque, encryption type specific parameter
+     [4mopaque[24m to a encryption key [4mkey[24m according to the string to key function
+     associated with [4menctype[24m.
+
+     The [4mkey[24m should be freed with [1mkrb5_free_keyblock_contents[22m().
+
+     If one of the functions that doesn't take a krb5_salt as it argument
+     [1mkrb5_get_pw_salt[22m() is used to get the salt value.
+
+     [1mkrb5_get_pw_salt[22m() get the default password salt for a principal, use
+     [1mkrb5_free_salt[22m() to free the salt when done.
+
+     [1mkrb5_free_salt[22m() frees the content of [4msalt[24m.
+
+[1mSEE ALSO[0m
+     krb5(3), krb5_data(3), krb5_keyblock(3), kerberos(8)
+
+HEIMDAL                          July 10, 2006                         HEIMDAL

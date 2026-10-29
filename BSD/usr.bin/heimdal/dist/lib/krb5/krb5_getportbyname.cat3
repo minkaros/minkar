@@ -1,0 +1,28 @@
+NAME(3)                  BSD Library Functions Manual                  NAME(3)
+
+[1mNAME[0m
+     [1mkrb5_getportbyname [22m-- get port number by name
+
+[1mLIBRARY[0m
+     Kerberos 5 Library (libkrb5, -lkrb5)
+
+[1mSYNOPSIS[0m
+     [1m#include <krb5.h>[0m
+
+     [4mint[0m
+     [1mkrb5_getportbyname[22m([4mkrb5_context[24m [4mcontext[24m, [4mconst[24m [4mchar[24m [4m*service[24m,
+         [4mconst[24m [4mchar[24m [4m*proto[24m, [4mint[24m [4mdefault_port[24m);
+
+[1mDESCRIPTION[0m
+     [1mkrb5_getportbyname[22m() gets the port number for [4mservice[24m [4m/[24m [4mproto[24m pair from
+     the global service table for and returns it in network order.  If it
+     isn't found in the global table, the [4mdefault_port[24m (given in host order)
+     is returned.
+
+[1mEXAMPLE[0m
+     int port = krb5_getportbyname(context, "kerberos", "tcp", 88);
+
+[1mSEE ALSO[0m
+     krb5(3)
+
+HEIMDAL                         August 15, 2004                        HEIMDAL

@@ -1,0 +1,48 @@
+KRB5_CHECK_TRANSITED(3)  BSD Library Functions Manual  KRB5_CHECK_TRANSITED(3)
+
+[1mNAME[0m
+     [1mkrb5_check_transited[22m, [1mkrb5_check_transited_realms[22m,
+     [1mkrb5_domain_x500_decode[22m, [1mkrb5_domain_x500_encode [22m-- realm transit verifi-
+     cation and encoding/decoding functions
+
+[1mLIBRARY[0m
+     Kerberos 5 Library (libkrb5, -lkrb5)
+
+[1mSYNOPSIS[0m
+     [1m#include <krb5.h>[0m
+
+     [4mkrb5_error_code[0m
+     [1mkrb5_check_transited[22m([4mkrb5_context[24m [4mcontext[24m, [4mkrb5_const_realm[24m [4mclient_realm[24m,
+         [4mkrb5_const_realm[24m [4mserver_realm[24m, [4mkrb5_realm[24m [4m*realms[24m, [4mint[24m [4mnum_realms[24m,
+         [4mint[24m [4m*bad_realm[24m);
+
+     [4mkrb5_error_code[0m
+     [1mkrb5_check_transited_realms[22m([4mkrb5_context[24m [4mcontext[24m,
+         [4mconst[24m [4mchar[24m [4m*const[24m [4m*realms[24m, [4mint[24m [4mnum_realms[24m, [4mint[24m [4m*bad_realm[24m);
+
+     [4mkrb5_error_code[0m
+     [1mkrb5_domain_x500_decode[22m([4mkrb5_context[24m [4mcontext[24m, [4mkrb5_data[24m [4mtr[24m,
+         [4mchar[24m [4m***realms[24m, [4mint[24m [4m*num_realms[24m, [4mconst[24m [4mchar[24m [4m*client_realm[24m,
+         [4mconst[24m [4mchar[24m [4m*server_realm[24m);
+
+     [4mkrb5_error_code[0m
+     [1mkrb5_domain_x500_encode[22m([4mchar[24m [4m**realms[24m, [4mint[24m [4mnum_realms[24m,
+         [4mkrb5_data[24m [4m*encoding[24m);
+
+[1mDESCRIPTION[0m
+     [1mkrb5_check_transited[22m() checks the path from [4mclient_realm[24m to [4mserver_realm[0m
+     where [4mrealms[24m and [4mnum_realms[24m is the realms between them.  If the function
+     returns an error value, [4mbad_realm[24m will be set to the realm in the list
+     causing the error.  [1mkrb5_check_transited[22m() is used internally by the KDC
+     and libkrb5 and should not be called by client applications.
+
+     [1mkrb5_check_transited_realms[22m() is deprecated.
+
+     [1mkrb5_domain_x500_encode[22m() and [1mkrb5_domain_x500_decode[22m() encodes and de-
+     codes the realm names in the X500 format that Kerberos uses to describe
+     the transited realms in krbtgts.
+
+[1mSEE ALSO[0m
+     krb5(3), krb5.conf(5)
+
+HEIMDAL                           May 1, 2006                          HEIMDAL

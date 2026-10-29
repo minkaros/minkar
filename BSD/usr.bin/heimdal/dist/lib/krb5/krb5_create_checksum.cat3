@@ -1,0 +1,112 @@
+NAME(3)                  BSD Library Functions Manual                  NAME(3)
+
+[1mNAME[0m
+     [1mkrb5_checksum[22m, [1mkrb5_checksum_disable[22m, [1mkrb5_checksum_is_collision_proof[22m,
+     [1mkrb5_checksum_is_keyed[22m, [1mkrb5_checksumsize[22m, [1mkrb5_cksumtype_valid[22m,
+     [1mkrb5_copy_checksum[22m, [1mkrb5_create_checksum[22m, [1mkrb5_crypto_get_checksum_type[0m
+     [1mkrb5_free_checksum[22m, [1mkrb5_free_checksum_contents[22m, [1mkrb5_hmac[22m,
+     [1mkrb5_verify_checksum [22m-- creates, handles and verifies checksums
+
+[1mLIBRARY[0m
+     Kerberos 5 Library (libkrb5, -lkrb5)
+
+[1mSYNOPSIS[0m
+     [1m#include <krb5.h>[0m
+
+     typedef Checksum krb5_checksum;
+
+     [4mvoid[0m
+     [1mkrb5_checksum_disable[22m([4mkrb5_context[24m [4mcontext[24m, [4mkrb5_cksumtype[24m [4mtype[24m);
+
+     [4mkrb5_boolean[0m
+     [1mkrb5_checksum_is_collision_proof[22m([4mkrb5_context[24m [4mcontext[24m,
+         [4mkrb5_cksumtype[24m [4mtype[24m);
+
+     [4mkrb5_boolean[0m
+     [1mkrb5_checksum_is_keyed[22m([4mkrb5_context[24m [4mcontext[24m, [4mkrb5_cksumtype[24m [4mtype[24m);
+
+     [4mkrb5_error_code[0m
+     [1mkrb5_cksumtype_valid[22m([4mkrb5_context[24m [4mcontext[24m, [4mkrb5_cksumtype[24m [4mctype[24m);
+
+     [4mkrb5_error_code[0m
+     [1mkrb5_checksumsize[22m([4mkrb5_context[24m [4mcontext[24m, [4mkrb5_cksumtype[24m [4mtype[24m,
+         [4msize_t[24m [4m*size[24m);
+
+     [4mkrb5_error_code[0m
+     [1mkrb5_create_checksum[22m([4mkrb5_context[24m [4mcontext[24m, [4mkrb5_crypto[24m [4mcrypto[24m,
+         [4mkrb5_key_usage[24m [4musage[24m, [4mint[24m [4mtype[24m, [4mvoid[24m [4m*data[24m, [4msize_t[24m [4mlen[24m,
+         [4mChecksum[24m [4m*result[24m);
+
+     [4mkrb5_error_code[0m
+     [1mkrb5_verify_checksum[22m([4mkrb5_context[24m [4mcontext[24m, [4mkrb5_crypto[24m [4mcrypto[24m,
+         [4mkrb5_key_usage[24m [4musage[24m, [4mvoid[24m [4m*data[24m, [4msize_t[24m [4mlen[24m, [4mChecksum[24m [4m*cksum[24m);
+
+     [4mkrb5_error_code[0m
+     [1mkrb5_crypto_get_checksum_type[22m([4mkrb5_context[24m [4mcontext[24m, [4mkrb5_crypto[24m [4mcrypto[24m,
+         [4mkrb5_cksumtype[24m [4m*type[24m);
+
+     [4mvoid[0m
+     [1mkrb5_free_checksum[22m([4mkrb5_context[24m [4mcontext[24m, [4mkrb5_checksum[24m [4m*cksum[24m);
+
+     [4mvoid[0m
+     [1mkrb5_free_checksum_contents[22m([4mkrb5_context[24m [4mcontext[24m, [4mkrb5_checksum[24m [4m*cksum[24m);
+
+     [4mkrb5_error_code[0m
+     [1mkrb5_hmac[22m([4mkrb5_context[24m [4mcontext[24m, [4mkrb5_cksumtype[24m [4mcktype[24m, [4mconst[24m [4mvoid[24m [4m*data[24m,
+         [4msize_t[24m [4mlen[24m, [4munsigned[24m [4musage[24m, [4mkrb5_keyblock[24m [4m*key[24m, [4mChecksum[24m [4m*result[24m);
+
+     [4mkrb5_error_code[0m
+     [1mkrb5_copy_checksum[22m([4mkrb5_context[24m [4mcontext[24m, [4mconst[24m [4mkrb5_checksum[24m [4m*old[24m,
+         [4mkrb5_checksum[24m [4m**new[24m);
+
+[1mDESCRIPTION[0m
+     The krb5_checksum structure holds a Kerberos checksum.  There is no com-
+     ponent inside krb5_checksum that is directly referable.
+
+     The functions are used to create and verify checksums.
+     [1mkrb5_create_checksum[22m() creates a checksum of the specified data, and puts
+     it in [4mresult[24m.  If [4mcrypto[24m is NULL, [4musage_or_type[24m specifies the checksum
+     type to use; it must not be keyed. Otherwise [4mcrypto[24m is an encryption con-
+     text created by [1mkrb5_crypto_init[22m(), and [4musage_or_type[24m specifies a key-us-
+     age.
+
+     [1mkrb5_verify_checksum[22m() verifies the [4mchecksum[24m against the provided data.
+
+     [1mkrb5_checksum_is_collision_proof[22m() returns true is the specified checksum
+     is collision proof (that it's very unlikely that two strings has the same
+     hash value, and that it's hard to find two strings that has the same
+     hash). Examples of collision proof checksums are MD5, and SHA1, while
+     CRC32 is not.
+
+     [1mkrb5_checksum_is_keyed[22m() returns true if the specified checksum type is
+     keyed (that the hash value is a function of both the data, and a separate
+     key). Examples of keyed hash algorithms are HMAC-SHA1-DES3, and RSA-
+     MD5-DES. The "plain" hash functions MD5, and SHA1 are not keyed.
+
+     [1mkrb5_crypto_get_checksum_type[22m() returns the checksum type that will be
+     used when creating a checksum for the given [4mcrypto[24m context.  This func-
+     tion is useful in combination with [1mkrb5_checksumsize[22m() when you want to
+     know the size a checksum will use when you create it.
+
+     [1mkrb5_cksumtype_valid[22m() returns 0 or an error if the checksumtype is im-
+     plemented and not currently disabled in this kerberos library.
+
+     [1mkrb5_checksumsize[22m() returns the size of the outdata of checksum function.
+
+     [1mkrb5_copy_checksum[22m() returns a copy of the checksum [1mkrb5_free_checksum[22m()
+     should use used to free the [4mnew[24m checksum.
+
+     [1mkrb5_free_checksum[22m() free the checksum and the content of the checksum.
+
+     [1mkrb5_free_checksum_contents[22m() frees the content of checksum in [4mcksum[24m.
+
+     [1mkrb5_hmac[22m() calculates the HMAC over [4mdata[24m (with length [4mlen[24m) using the
+     keyusage [4musage[24m and keyblock [4mkey[24m.  Note that keyusage is not always used
+     in checksums.
+
+     [1mkrb5_checksum_disable [22mglobally disables the checksum type.
+
+[1mSEE ALSO[0m
+     krb5_crypto_init(3), krb5_c_encrypt(3), krb5_encrypt(3)
+
+HEIMDAL                         August 12, 2005                        HEIMDAL

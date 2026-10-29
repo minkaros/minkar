@@ -1,0 +1,91 @@
+KCM(8)                    BSD System Manager's Manual                   KCM(8)
+
+[1mNAME[0m
+     [1mkcm [22m-- process-based credential cache for Kerberos tickets.
+
+[1mSYNOPSIS[0m
+     [1mkcm [22m[[1m--cache-name=[4m[22mcachename[24m] [[1m-c [4m[22mfile[24m | [1m--config-file=[4m[22mfile[24m] [[1m-g [4m[22mgroup[24m |
+         [1m--group=[4m[22mgroup[24m] [[1m--max-request=[4m[22msize[24m] [[1m--disallow-getting-krbtgt[22m]
+         [[1m--detach[22m] [[1m-h [22m| [1m--help[22m] [[1m-k [4m[22mprincipal[24m |
+         [1m--system-principal=[4m[22mprincipal[24m] [[1m-l [4m[22mtime[24m | [1m--lifetime=[4m[22mtime[24m] [[1m-m [4m[22mmode[24m |
+         [1m--mode=[4m[22mmode[24m] [[1m-n [22m| [1m--no-name-constraints[22m] [[1m-r [4m[22mtime[24m |
+         [1m--renewable-life=[4m[22mtime[24m] [[1m-s [4m[22mpath[24m | [1m--socket-path=[4m[22mpath[24m]
+         [[1m--door-path=[4m[22mpath[24m] [[1m-S [4m[22mprincipal[24m | [1m--server=[4m[22mprincipal[24m] [[1m-t [4m[22mkeytab[24m |
+         [1m--keytab=[4m[22mkeytab[24m] [[1m-u [4m[22muser[24m | [1m--user=[4m[22muser[24m] [[1m-v [22m| [1m--version[22m]
+
+[1mDESCRIPTION[0m
+     [1mkcm [22mis a process based credential cache.  To use it, set the KRB5CCNAME
+     environment variable to `KCM:[4muid[24m' or add the stanza
+
+
+     [libdefaults]
+             default_cc_name = KCM:%{uid}
+
+     to the [4m/etc/krb5.conf[24m configuration file and make sure [1mkcm [22mis started in
+     the system startup files.
+
+     The [1mkcm [22mdaemon can hold the credentials for all users in the system.  Ac-
+     cess control is done with Unix-like permissions.  The daemon checks the
+     access on all operations based on the uid and gid of the user.  The tick-
+     ets are renewed as long as is permitted by the KDC's policy.
+
+     The [1mkcm [22mdaemon can also keep a SYSTEM credential that server processes
+     can use to access services.  One example of usage might be an nss_ldap
+     module that quickly needs to get credentials and doesn't want to renew
+     the ticket itself.
+
+     Supported options:
+
+     [1m--cache-name=[4m[22mcachename[0m
+             system cache name
+
+     [1m-c [4m[22mfile[24m, [1m--config-file=[4m[22mfile[0m
+             location of config file
+
+     [1m-g [4m[22mgroup[24m, [1m--group=[4m[22mgroup[0m
+             system cache group
+
+     [1m--max-request=[4m[22msize[0m
+             max size for a kcm-request
+
+     [1m--disallow-getting-krbtgt[0m
+             disallow extracting any krbtgt from the [1mkcm [22mdaemon.
+
+     [1m--detach[0m
+             detach from console
+
+     [1m-h[22m, [1m--help[0m
+
+     [1m-k [4m[22mprincipal[24m, [1m--system-principal=[4m[22mprincipal[0m
+             system principal name
+
+     [1m-l [4m[22mtime[24m, [1m--lifetime=[4m[22mtime[0m
+             lifetime of system tickets
+
+     [1m-m [4m[22mmode[24m, [1m--mode=[4m[22mmode[0m
+             octal mode of system cache
+
+     [1m-n[22m, [1m--no-name-constraints[0m
+             disable credentials cache name constraints
+
+     [1m-r [4m[22mtime[24m, [1m--renewable-life=[4m[22mtime[0m
+             renewable lifetime of system tickets
+
+     [1m-s [4m[22mpath[24m, [1m--socket-path=[4m[22mpath[0m
+             path to kcm domain socket
+
+     [1m--door-path=[4m[22mpath[0m
+             path to kcm door socket
+
+     [1m-S [4m[22mprincipal[24m, [1m--server=[4m[22mprincipal[0m
+             server to get system ticket for
+
+     [1m-t [4m[22mkeytab[24m, [1m--keytab=[4m[22mkeytab[0m
+             system keytab name
+
+     [1m-u [4m[22muser[24m, [1m--user=[4m[22muser[0m
+             system cache owner
+
+     [1m-v[22m, [1m--version[0m
+
+BSD                              May 29, 2005                              BSD

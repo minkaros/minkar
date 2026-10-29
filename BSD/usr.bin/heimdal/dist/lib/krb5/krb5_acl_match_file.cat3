@@ -1,0 +1,60 @@
+KRB5_ACL_MATCH_FILE(3)   BSD Library Functions Manual   KRB5_ACL_MATCH_FILE(3)
+
+[1mNAME[0m
+     [1mkrb5_acl_match_file[22m, [1mkrb5_acl_match_string [22m-- ACL matching functions
+
+[1mLIBRARY[0m
+     Kerberos 5 Library (libkrb5, -lkrb5)
+
+[1mSYNOPSIS[0m
+     [4mkrb5_error_code[0m
+     [1mkrb5_acl_match_file[22m([4mkrb5_context[24m [4mcontext[24m, [4mconst[24m [4mchar[24m [4m*file[24m,
+         [4mconst[24m [4mchar[24m [4m*format[24m, [4m...[24m);
+
+     [4mkrb5_error_code[0m
+     [1mkrb5_acl_match_string[22m([4mkrb5_context[24m [4mcontext[24m, [4mconst[24m [4mchar[24m [4m*string[24m,
+         [4mconst[24m [4mchar[24m [4m*format[24m, [4m...[24m);
+
+[1mDESCRIPTION[0m
+     [1mkrb5_acl_match_file [22mmatches ACL format against each line in a file.
+     Lines starting with # are treated like comments and ignored.
+
+     [1mkrb5_acl_match_string [22mmatches ACL format against a string.
+
+     The ACL format has three format specifiers: s, f, and r.  Each specifier
+     will retrieve one argument from the variable arguments for either match-
+     ing or storing data.  The input string is split up using " " and "\t" as
+     a delimiter; multiple " " and "\t" in a row are considered to be the
+     same.
+
+           s    Matches a string using strcmp(3) (case sensitive).
+
+           f    Matches the string with fnmatch(3).  The [4mflags[24m argument (the
+                last argument) passed to the fnmatch function is 0.
+
+           r    Returns a copy of the string in the char ** passed in; the
+                copy must be freed with free(3).  There is no need to free(3)
+                the string on error: the function will clean up and set the
+                pointer to NULL.
+
+     All unknown format specifiers cause an error.
+
+[1mEXAMPLES[0m
+           char *s;
+
+           ret = krb5_acl_match_string(context, "foo", "s", "foo");
+           if (ret)
+               krb5_errx(context, 1, "acl didn't match");
+           ret = krb5_acl_match_string(context, "foo foo baz/kaka",
+               "ss", "foo", &s, "foo/*");
+           if (ret) {
+               /* no need to free(s) on error */
+               assert(s == NULL);
+               krb5_errx(context, 1, "acl didn't match");
+           }
+           free(s);
+
+[1mSEE ALSO[0m
+     krb5(3)
+
+HEIMDAL                          May 12, 2006                          HEIMDAL

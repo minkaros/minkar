@@ -1,0 +1,106 @@
+KGETCRED(1)               BSD General Commands Manual              KGETCRED(1)
+
+[1mNAME[0m
+     [1mkgetcred [22m-- get a ticket for a particular service
+
+[1mSYNOPSIS[0m
+     [1mkgetcred [22m[[1m--canonicalize[22m] [[1m--canonical[22m] [[1m-c -cache [22m| [1m--cache=[4m[22mcache[24m] [[1m-e[0m
+              [4menctype[24m | [1m--enctype=[4m[22menctype[24m] [[1m--debug[22m] [[1m-H [22m| [1m--hostbased[22m]
+              [[1m--name-type=[4m[22mname-type[24m] [[1m--no-transit-check[22m] [[1m--no-store[22m]
+              [[1m--cached-only[22m] [[1m-n [22m| [1m--anonymous[22m] [[1m--version[22m] [[1m--help[22m]
+              [4mprincipal[0m
+     [1mkgetcred [22m[options] [1m--hostbased [4m[22mprincipal[0m
+     [1mkgetcred [22m[options] [1m--hostbased [4m[22mservice[24m [4mhostname[24m [4m[extra-components][0m
+
+[1mDESCRIPTION[0m
+     [1mkgetcred [22mobtains a ticket for the given service principal.  Usually tick-
+     ets for services are obtained automatically when needed but sometimes for
+     some odd reason you want to obtain a particular ticket or of a special
+     type.
+
+     If [1m--hostbased [22mis given then the given service principal name will be
+     canonicalized (see below).
+
+     The third form constructs a host-based principal from the given service
+     name and hostname.  The service name "host" is used if the given [4mservice[0m
+     name in the third usage is the empty string.
+
+     For host-based names, the local host's hostname is used if the given
+     [4mhostname[24m is the empty string or if the [4mprincipal[24m has a single component.
+
+     Any additional components will be included, even for host-based service
+     principal names, but there are no defaults nor local canonicalization
+     rules for additional components.
+
+     Local name canonicalization rules are applied unless the [1m--canonical [22mop-
+     tion is given.  Currently local name canonicalization rules are supported
+     only for host-based principal names' hostname component.
+
+     The principal's realm name may be canonicalized by following Kerberos re-
+     ferrals from the client principal's home realm if the [1m--canonicalize [22mop-
+     tion is given or if the local name canonicalization rules are configured
+     to use referrals.
+
+     Supported options:
+
+     [1m--canonicalize[0m
+             requests that the KDC canonicalize the principal.  Currently this
+             only canonicalizes the realm by chasing referrals from the user's
+             start realm, but in the future this may also enable the KDC to
+             canonicalize the complete principal name.
+
+     [1m--canonical[0m
+             turns off local canonicalization of the principal name.
+
+     [1m--name-type=[4m[22mname-type[0m
+             the name-type to use when parsing the principal name.
+
+     [1m--hostbased[0m
+             is short for [1m--name-type=srv_hst[22m.
+
+     [1m-c [4m[22mcache[24m, [1m--cache=[4m[22mcache[0m
+             the credential cache to use.
+
+     [1m--delegation-credential-cache=[4m[22mcache[0m
+             the credential cache to use for delegation.
+
+     [1m-e [4m[22menctype[24m, [1m--enctype=[4m[22menctype[0m
+             encryption type to use.
+
+     [1m--no-transit-check[0m
+             requests that the KDC doesn't do transit checking.
+
+     [1m--no-store[0m
+             do not store tickets in the ccache.
+
+     [1m--cached-only[0m
+             do not talk the TGS, search only the ccache.
+
+     [1m--anonymous[0m
+             obtain an anonymous service ticket.
+
+     [1m--forwardable[0m
+
+     [1m--debug[0m
+             enables debug output to stderr.
+
+     [1m--version[0m
+
+     [1m--help[0m
+
+     If the [1m--canonical [22moption is used, then no further canonicalization
+     should be done locally by the client (for example, DNS), but if
+     [1m--canonicalize [22mis used, then the client will ask that the KDC canonical-
+     ize the name.
+
+     If the [1m--canonicalize [22moption is used with [1m--hostbased [22ma host-based name-
+     type, and [1m--canonical [22mis not used, then the hostname will be canonical-
+     ized according to the name canonicalization rules in [4mkrb5.conf[24m.
+
+     GSS-API initiator applications with host-based services will get the same
+     behavior as using the [1m--canonicalize --hostbased [22moptions here.
+
+[1mSEE ALSO[0m
+     kinit(1), klist(1), krb5.conf(5), krb5_openlog(3)
+
+HEIMDAL                         March 12, 2004                         HEIMDAL

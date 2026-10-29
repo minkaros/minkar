@@ -1,0 +1,58 @@
+KPASSWDD(8)               BSD System Manager's Manual              KPASSWDD(8)
+
+[1mNAME[0m
+     [1mkpasswdd [22m-- Kerberos 5 password changing server
+
+[1mSYNOPSIS[0m
+     [1mkpasswdd [22m[[1m--addresses=[4m[22maddress[24m] [[1m--check-library=[4m[22mlibrary[24m]
+              [[1m--check-function=[4m[22mfunction[24m] [[1m-k [4m[22mkspec[24m | [1m--keytab=[4m[22mkspec[24m] [[1m-r[0m
+              [4mrealm[24m | [1m--realm=[4m[22mrealm[24m] [[1m-p [4m[22mstring[24m | [1m--port=[4m[22mstring[24m] [[1m--version[22m]
+              [[1m--help[22m]
+
+[1mDESCRIPTION[0m
+     [1mkpasswdd [22mserves request for password changes. It listens on UDP port 464
+     (service kpasswd) and processes requests when they arrive. It changes the
+     database directly and should thus only run on the master KDC.
+
+     Supported options:
+
+     [1m--addresses=[4m[22maddress[0m
+             For each till the argument is given, add the address to what
+             kpasswdd should listen too.
+
+     [1m--check-library=[4m[22mlibrary[0m
+             If your system has support for dynamic loading of shared li-
+             braries, you can use an external function to check password qual-
+             ity. This option specifies which library to load.
+
+     [1m--check-function=[4m[22mfunction[0m
+             This is the function to call in the loaded library. The function
+             should look like this:
+
+             [4mconst[24m [4mchar[24m [4m*[24m [1mpasswd_check[22m([4mkrb5_context[24m [4mcontext[24m, [4mkrb5_principal[0m
+             [4mprincipal[24m, [4mkrb5_data[24m [4m*password[24m)
+
+             [4mcontext[24m is an initialized context; [4mprincipal[24m is the one who tries
+             to change passwords, and [4mpassword[24m is the new password. Note that
+             the password (in [4mpassword->data[24m) is not zero terminated.
+
+     [1m-k [4m[22mkspec[24m, [1m--keytab=[4m[22mkspec[0m
+             Keytab to get authentication key from.
+
+     [1m-r [4m[22mrealm[24m, [1m--realm=[4m[22mrealm[0m
+             Default realm.
+
+     [1m-p [4m[22mstring[24m, [1m--port=[4m[22mstring[0m
+             Port to listen on (default service kpasswd - 464).
+
+[1mDIAGNOSTICS[0m
+     If an error occurs, the error message is returned to the user and/or
+     logged to syslog.
+
+[1mBUGS[0m
+     The default password quality checks are too basic.
+
+[1mSEE ALSO[0m
+     kpasswd(1), kdc(8)
+
+HEIMDAL                         April 19, 1999                         HEIMDAL

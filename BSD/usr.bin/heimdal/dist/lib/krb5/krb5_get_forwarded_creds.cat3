@@ -1,0 +1,32 @@
+KRB5_GET_FORWARDED_CR... BSD Library Functions Manual KRB5_GET_FORWARDED_CR...
+
+[1mNAME[0m
+     [1mkrb5_get_forwarded_creds[22m, [1mkrb5_fwd_tgt_creds [22m-- get forwarded credentials
+     from the KDC
+
+[1mLIBRARY[0m
+     Kerberos 5 Library (libkrb5, -lkrb5)
+
+[1mSYNOPSIS[0m
+     [1m#include <krb5.h>[0m
+
+     [4mkrb5_error_code[0m
+     [1mkrb5_get_forwarded_creds[22m([4mkrb5_context[24m [4mcontext[24m,
+         [4mkrb5_auth_context[24m [4mauth_context[24m, [4mkrb5_ccache[24m [4mccache[24m, [4mkrb5_flags[24m [4mflags[24m,
+         [4mconst[24m [4mchar[24m [4m*hostname[24m, [4mkrb5_creds[24m [4m*in_creds[24m, [4mkrb5_data[24m [4m*out_data[24m);
+
+     [4mkrb5_error_code[0m
+     [1mkrb5_fwd_tgt_creds[22m([4mkrb5_context[24m [4mcontext[24m, [4mkrb5_auth_context[24m [4mauth_context[24m,
+         [4mconst[24m [4mchar[24m [4m*hostname[24m, [4mkrb5_principal[24m [4mclient[24m, [4mkrb5_principal[24m [4mserver[24m,
+         [4mkrb5_ccache[24m [4mccache[24m, [4mint[24m [4mforwardable[24m, [4mkrb5_data[24m [4m*out_data[24m);
+
+[1mDESCRIPTION[0m
+     [1mkrb5_get_forwarded_creds[22m() and [1mkrb5_fwd_tgt_creds[22m() get tickets forwarded
+     to [4mhostname.[24m If the tickets that are forwarded are address-less, the for-
+     warded tickets will also be address-less, otherwise [4mhostname[24m will be used
+     for figure out the address to forward the ticket too.
+
+[1mSEE ALSO[0m
+     krb5(3), krb5_get_credentials(3), krb5.conf(5)
+
+HEIMDAL                          July 26, 2004                         HEIMDAL

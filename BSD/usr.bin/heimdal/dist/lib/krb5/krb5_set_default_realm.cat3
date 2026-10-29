@@ -1,0 +1,69 @@
+KRB5_SET_DEFAULT_REAL... BSD Library Functions Manual KRB5_SET_DEFAULT_REAL...
+
+[1mNAME[0m
+     [1mkrb5_copy_host_realm[22m, [1mkrb5_free_host_realm[22m, [1mkrb5_get_default_realm[22m,
+     [1mkrb5_get_default_realms[22m, [1mkrb5_get_host_realm[22m, [1mkrb5_set_default_realm [22m--
+     default and host realm read and manipulation routines
+
+[1mLIBRARY[0m
+     Kerberos 5 Library (libkrb5, -lkrb5)
+
+[1mSYNOPSIS[0m
+     [1m#include <krb5.h>[0m
+
+     [4mkrb5_error_code[0m
+     [1mkrb5_copy_host_realm[22m([4mkrb5_context[24m [4mcontext[24m, [4mconst[24m [4mkrb5_realm[24m [4m*from[24m,
+         [4mkrb5_realm[24m [4m**to[24m);
+
+     [4mkrb5_error_code[0m
+     [1mkrb5_free_host_realm[22m([4mkrb5_context[24m [4mcontext[24m, [4mkrb5_realm[24m [4m*realmlist[24m);
+
+     [4mkrb5_error_code[0m
+     [1mkrb5_get_default_realm[22m([4mkrb5_context[24m [4mcontext[24m, [4mkrb5_realm[24m [4m*realm[24m);
+
+     [4mkrb5_error_code[0m
+     [1mkrb5_get_default_realms[22m([4mkrb5_context[24m [4mcontext[24m, [4mkrb5_realm[24m [4m**realm[24m);
+
+     [4mkrb5_error_code[0m
+     [1mkrb5_get_host_realm[22m([4mkrb5_context[24m [4mcontext[24m, [4mconst[24m [4mchar[24m [4m*host[24m,
+         [4mkrb5_realm[24m [4m**realms[24m);
+
+     [4mkrb5_error_code[0m
+     [1mkrb5_set_default_realm[22m([4mkrb5_context[24m [4mcontext[24m, [4mconst[24m [4mchar[24m [4m*realm[24m);
+
+[1mDESCRIPTION[0m
+     [1mkrb5_copy_host_realm[22m() copies the list of realms from [4mfrom[24m to [4mto[24m.  [4mto[0m
+     should be freed by the caller using [4mkrb5_free_host_realm[24m.
+
+     [1mkrb5_free_host_realm[22m() frees all memory allocated by [4mrealmlist[24m.
+
+     [1mkrb5_get_default_realm[22m() returns the first default realm for this host.
+     The realm returned should be freed with [1mkrb5_xfree[22m().
+
+     [1mkrb5_get_default_realms[22m() returns a NULL terminated list of default
+     realms for this context.  Realms returned by [1mkrb5_get_default_realms[22m()
+     should be freed with [1mkrb5_free_host_realm[22m().
+
+     [1mkrb5_get_host_realm[22m() returns a NULL terminated list of realms for [4mhost[0m
+     by looking up the information in the [domain_realm] in [4mkrb5.conf[24m or in
+     DNS.  If the mapping in [domain_realm] results in the string dns_locate,
+     DNS is used to lookup the realm.
+
+     When using DNS to a resolve the domain for the host a.b.c,
+     [1mkrb5_get_host_realm[22m() looks for a TXT resource record named
+     _kerberos.a.b.c, and if not found, it strips off the first component and
+     tries a again (_kerberos.b.c) until it reaches the root.
+
+     If there is no configuration or DNS information found,
+     [1mkrb5_get_host_realm[22m() assumes it can use the domain part of the [4mhost[24m to
+     form a realm.  Caller must free [4mrealmlist[24m with [1mkrb5_free_host_realm[22m().
+
+     [1mkrb5_set_default_realm[22m() sets the default realm for the [4mcontext[24m.  If NULL
+     is used as a [4mrealm[24m, the [libdefaults]default_realm stanza in [4mkrb5.conf[24m is
+     used.  If there is no such stanza in the configuration file, the
+     [1mkrb5_get_host_realm[22m() function is used to form a default realm.
+
+[1mSEE ALSO[0m
+     free(3), krb5.conf(5)
+
+HEIMDAL                         April 24, 2005                         HEIMDAL

@@ -1,0 +1,87 @@
+KADMIND(8)                BSD System Manager's Manual               KADMIND(8)
+
+[1mNAME[0m
+     [1mkadmind [22m-- server for administrative access to Kerberos database
+
+[1mSYNOPSIS[0m
+     [1mkadmind [22m[[1m-c [4m[22mfile[24m | [1m--config-file=[4m[22mfile[24m] [[1m-k [4m[22mfile[24m | [1m--key-file=[4m[22mfile[24m]
+             [[1m--keytab=[4m[22mkeytab[24m] [[1m-r [4m[22mrealm[24m | [1m--realm=[4m[22mrealm[24m] [[1m-d [22m| [1m--debug[22m] [[1m-p[0m
+             [4mport[24m | [1m--ports=[4m[22mport[24m]
+
+[1mDESCRIPTION[0m
+     [1mkadmind [22mlistens for requests for changes to the Kerberos database and
+     performs these, subject to permissions.  When starting, if stdin is a
+     socket it assumes that it has been started by inetd(8), otherwise it be-
+     haves as a daemon, forking processes for each new connection. The [1m--debug[0m
+     option causes [1mkadmind [22mto accept exactly one connection, which is useful
+     for debugging.
+
+     The kpasswdd(8) daemon is responsible for the Kerberos 5 password chang-
+     ing protocol (used by kpasswd(1)).
+
+     This daemon should only be run on the master server, and not on any
+     slaves.
+
+     Principals are always allowed to change their own password and list their
+     own principal.  Apart from that, doing any operation requires permission
+     explicitly added in the ACL file [4m/var/heimdal/kadmind.acl[24m.  The format of
+     this file is:
+
+     [4mprincipal[24m [4mrights[24m [[4mprincipal-pattern[24m]
+
+     Where rights is any (comma separated) combination of:
+     [1m+o   [22mchange-password or cpw
+     [1m+o   [22mlist
+     [1m+o   [22mdelete
+     [1m+o   [22mmodify
+     [1m+o   [22madd
+     [1m+o   [22mget
+     [1m+o   [22mget-keys
+     [1m+o   [22mall (everything except get-keys)
+
+     And the optional [4mprincipal-pattern[24m restricts the rights to operations on
+     principals that match the glob-style pattern.
+
+     Supported options:
+
+     [1m-c [4m[22mfile[24m, [1m--config-file=[4m[22mfile[0m
+             location of config file
+
+     [1m-k [4m[22mfile[24m, [1m--key-file=[4m[22mfile[0m
+             location of master key file
+
+     [1m--keytab=[4m[22mkeytab[0m
+             what keytab to use
+
+     [1m-r [4m[22mrealm[24m, [1m--realm=[4m[22mrealm[0m
+             realm to use
+
+     [1m-d[22m, [1m--debug[0m
+             enable debugging
+
+     [1m-p [4m[22mport[24m, [1m--ports=[4m[22mport[0m
+             ports to listen to. By default, if run as a daemon, it listens to
+             port 749, but you can add any number of ports with this option.
+             The port string is a whitespace separated list of port specifica-
+             tions, with the special string "+" representing the default port.
+
+[1mFILES[0m
+     [4m/var/heimdal/kadmind.acl[0m
+
+[1mEXAMPLES[0m
+     This will cause [1mkadmind [22mto listen to port 4711 in addition to any com-
+     piled in defaults:
+
+           [1mkadmind --ports[22m="+ 4711" &
+
+     This acl file will grant Joe all rights, and allow Mallory to view and
+     add host principals, as well as extract host principal keys (e.g., into
+     keytabs).
+
+           joe/admin@EXAMPLE.COM      all
+           mallory/admin@EXAMPLE.COM  add,get-keys  host/*@EXAMPLE.COM
+
+[1mSEE ALSO[0m
+     kpasswd(1), kadmin(1), kdc(8), kpasswdd(8)
+
+HEIMDAL                        December 8, 2004                        HEIMDAL

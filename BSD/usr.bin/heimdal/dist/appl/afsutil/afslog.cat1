@@ -1,0 +1,65 @@
+AFSLOG(1)                 BSD General Commands Manual                AFSLOG(1)
+
+[1mNAME[0m
+     [1mafslog [22m-- obtain AFS tokens
+
+[1mSYNOPSIS[0m
+     [1mafslog [22m[[1m-h [22m| [1m--help[22m] [[1m--no-v5[22m] [[1m-u [22m| [1m--unlog[22m] [[1m-v [22m| [1m--verbose[22m]
+            [[1m--version[22m] [[1m-c [4m[22mcell[24m | [1m--cell=[4m[22mcell[24m] [[1m-k [4m[22mrealm[24m | [1m--realm=[4m[22mrealm[24m] [[1m-P[0m
+            [4mprincipal[24m | [1m--principal=[4m[22mprincipal[24m] [[1m-p [4m[22mpath[24m | [1m--file=[4m[22mpath[24m]
+            [[4mcell[24m | [4mpath[24m [4m...[24m]
+
+[1mDESCRIPTION[0m
+     [1mafslog [22mobtains AFS tokens for a number of cells. What cells to get tokens
+     for can either be specified as an explicit list, as file paths to get to-
+     kens for, or be left unspecified, in which case [1mafslog [22mwill use whatever
+     magic krb_afslog(3) decides upon.
+
+     Supported options:
+
+     [1m--no-v5[0m
+             This makes [1mafslog [22mnot try using Kerberos 5.
+
+     [1m-P [4m[22mprincipal[24m, [1m--principal [4m[22mprincipal[0m
+             select what Kerberos 5 principal to use.
+
+     [1m--cache [4m[22mcache[0m
+             select what Kerberos 5 credential cache to use.  [1m--principal[0m
+             overrides this option.
+
+     [1m-u[22m, [1m--unlog[0m
+             Destroy tokens instead of obtaining new. If this is specified,
+             all other options are ignored (except for [1m--help [22mand [1m--version[22m).
+
+     [1m-v[22m, [1m--verbose[0m
+             Adds more verbosity for what is actually going on.
+
+     [1m-c [4m[22mcell,[24m [1m--cell=[4m[22mcell[0m
+             This specified one or more cell names to get tokens for.
+
+     [1m-k [4m[22mrealm[24m, [1m--realm=[4m[22mrealm[0m
+             This is the Kerberos realm the AFS servers live in, this should
+             normally not be specified.
+
+     [1m-p [4m[22mpath[24m, [1m--file=[4m[22mpath[0m
+             This specified one or more file paths for which tokens should be
+             obtained.
+
+     Instead of using [1m-c [22mand [1m-p[22m, you may also pass a list of cells and file
+     paths after any other options. These arguments are considered files if
+     they are either the strings "."  or ".." or they contain a slash, or if
+     there exists a file by that name.
+
+[1mEXAMPLES[0m
+     Assuming that there is no file called "openafs.org" in the current direc-
+     tory, and that [4m/afs/openafs.org[24m points to that cell, the follwing should
+     be identical:
+
+           $ afslog -c openafs.org
+           $ afslog openafs.org
+           $ afslog /afs/openafs.org/some/file
+
+[1mSEE ALSO[0m
+     krb_afslog(3)
+
+HEIMDAL                        November 26, 2002                       HEIMDAL

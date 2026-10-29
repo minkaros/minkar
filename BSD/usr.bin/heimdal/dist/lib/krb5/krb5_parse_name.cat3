@@ -1,0 +1,30 @@
+KRB5_PARSE_NAME(3)       BSD Library Functions Manual       KRB5_PARSE_NAME(3)
+
+[1mNAME[0m
+     [1mkrb5_parse_name [22m-- string to principal conversion
+
+[1mLIBRARY[0m
+     Kerberos 5 Library (libkrb5, -lkrb5)
+
+[1mSYNOPSIS[0m
+     [1m#include <krb5.h>[0m
+
+     [4mkrb5_error_code[0m
+     [1mkrb5_parse_name[22m([4mkrb5_context[24m [4mcontext[24m, [4mconst[24m [4mchar[24m [4m*name[24m,
+         [4mkrb5_principal[24m [4m*principal[24m);
+
+[1mDESCRIPTION[0m
+     [1mkrb5_parse_name[22m() converts a string representation of a principal name to
+     [1mkrb5_principal[22m.  The [4mprincipal[24m will point to allocated data that should
+     be freed with [1mkrb5_free_principal[22m().
+
+     The string should consist of one or more name components separated with
+     slashes ("/"), optionally followed with an "@" and a realm name. A slash
+     or @ may be contained in a name component by quoting it with a backslash
+     ("\").  A realm should not contain slashes or colons.
+
+[1mSEE ALSO[0m
+     krb5_build_principal(3), krb5_free_principal(3),
+     krb5_sname_to_principal(3), krb5_unparse_name(3)
+
+HEIMDAL                           May 1, 2006                          HEIMDAL

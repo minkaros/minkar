@@ -1,0 +1,171 @@
+KDC(8)                    BSD System Manager's Manual                   KDC(8)
+
+[1mNAME[0m
+     [1mkdc [22m-- Kerberos 5 server
+
+[1mSYNOPSIS[0m
+     [1mkdc [22m[[1m-c [4m[22mfile[24m | [1m--config-file=[4m[22mfile[24m] [[1m-p [22m| [1m--no-require-preauth[22m]
+         [[1m--max-request=[4m[22msize[24m] [[1m-H [22m| [1m--enable-http[22m] [[1m-r [4m[22mstring[24m |
+         [1m--v4-realm=[4m[22mstring[24m] [[1m-P [4m[22mportspec[24m | [1m--ports=[4m[22mportspec[24m] [[1m--detach[22m]
+         [[1m--disable-des[22m] [[1m--addresses=[4m[22mlist[24m [4mof[24m [4maddresses[24m]
+
+[1mDESCRIPTION[0m
+     [1mkdc [22mserves requests for tickets.  When it starts, it first checks the
+     flags passed, any options that are not specified with a command line flag
+     are taken from a config file, or from a default compiled-in value.
+
+     Options supported:
+
+     [1m-c [4m[22mfile[24m, [1m--config-file=[4m[22mfile[0m
+             Specifies the location of the config file, the default is
+             [4m/var/heimdal/kdc.conf[24m.  This is the only value that can't be
+             specified in the config file.
+
+     [1m-p[22m, [1m--no-require-preauth[0m
+             Turn off the requirement for pre-autentication in the initial AS-
+             REQ for all principals.  The use of pre-authentication makes it
+             more difficult to do offline password attacks.  You might want to
+             turn it off if you have clients that don't support pre-authenti-
+             cation.  Since the version 4 protocol doesn't support any pre-au-
+             thentication, serving version 4 clients is just about the same as
+             not requiring pre-athentication.  The default is to require pre-
+             authentication.  Adding the require-preauth per principal is a
+             more flexible way of handling this.
+
+     [1m--max-request=[4m[22msize[0m
+             Gives an upper limit on the size of the requests that the kdc is
+             willing to handle.
+
+     [1m-H[22m, [1m--enable-http[0m
+             Makes the kdc listen on port 80 and handle requests encapsulated
+             in HTTP.
+
+     [1m-r [4m[22mstring[24m, [1m--v4-realm=[4m[22mstring[0m
+             What realm this server should act as when dealing with version 4
+             requests.  The database can contain any number of realms, but
+             since the version 4 protocol doesn't contain a realm for the
+             server, it must be explicitly specified.  The default is whatever
+             is returned by [1mkrb_get_lrealm[22m().  This option is only available
+             if the KDC has been compiled with version 4 support.
+
+     [1m-P [4m[22mportspec[24m, [1m--ports=[4m[22mportspec[0m
+             Specifies the set of ports the KDC should listen on.  It is given
+             as a white-space separated list of services or port numbers.
+
+     [1m--addresses=[4m[22mlist[24m [4mof[24m [4maddresses[0m
+             The list of addresses to listen for requests on.  By default, the
+             kdc will listen on all the locally configured addresses.  If only
+             a subset is desired, or the automatic detection fails, this op-
+             tion might be used.
+
+     [1m--detach[0m
+             detach from pty and run as a daemon.
+
+     [1m--disable-des[0m
+             disable all des encryption types, makes the kdc not use them.
+
+     All activities are logged to one or more destinations, see krb5.conf(5),
+     and krb5_openlog(3).  The entity used for logging is [1mkdc[22m.
+
+[1mCONFIGURATION FILE[0m
+     The configuration file has the same syntax as krb5.conf(5), but will be
+     read before [4m/etc/krb5.conf[24m, so it may override settings found there.  Op-
+     tions specific to the KDC only are found in the "[kdc]" section.  All the
+     command-line options can preferably be added in the configuration file.
+     The only difference is the pre-authentication flag, which has to be spec-
+     ified as:
+
+           require-preauth = no
+
+     (in fact you can specify the option as [1m--require-preauth=no[22m).
+
+     And there are some configuration options which do not have command-line
+     equivalents:
+
+           enable-digest = [4mboolean[0m
+                turn on support for digest processing in the KDC.  The default
+                is FALSE.
+
+           check-ticket-addresses = [4mboolean[0m
+                Check the addresses in the ticket when processing TGS re-
+                quests.  The default is TRUE.
+
+           allow-null-ticket-addresses = [4mboolean[0m
+                Permit tickets with no addresses.  This option is only rele-
+                vant when check-ticket-addresses is TRUE.
+
+           allow-anonymous = [4mboolean[0m
+                Permit anonymous tickets with no addresses.
+
+           historical_anon_realm = [4mboolean[0m
+                Enables pre-7.0 non-RFC-comformant KDC behavior.  With this
+                option set to true the client realm in anonymous pkinit AS
+                replies will be the requested realm, rather than the RFC-con-
+                formant WELLKNOWN:ANONYMOUS realm.  This can have a security
+                impact on servers that expect to grant access to anonymous-
+                but-authenticated to the KDC users of the realm in question:
+                they would also grant access to unauthenticated anonymous
+                users.  As such, it is not recommend to set this option to
+                true.
+
+           max-kdc-datagram-reply-length = [4mnumber[0m
+                Maximum packet size the UDP rely that the KDC will transmit,
+                instead the KDC sends back a reply telling the client to use
+                TCP instead.
+
+           transited-policy = always-check | allow-per-principal |
+                always-honour-request
+                This controls how KDC requests with the
+                disable-transited-check flag are handled. It can be one of:
+
+                      always-check
+                           Always check transited encoding, this is the de-
+                           fault.
+
+                      allow-per-principal
+                           Currently this is identical to always-check.  In a
+                           future release, it will be possible to mark a prin-
+                           cipal as able to handle unchecked requests.
+
+                      always-honour-request
+                           Always do what the client asked.  In a future re-
+                           lease, it will be possible to force a check per
+                           principal.
+
+           encode_as_rep_as_tgs_rep = [4mboolean[0m
+                Encode AS-Rep as TGS-Rep to be bug-compatible with old DCE
+                code.  The Heimdal clients allow both.
+
+           kdc_warn_pwexpire = [4mtime[0m
+                How long before password/principal expiration the KDC should
+                start sending out warning messages.
+
+     The configuration file is only read when the [1mkdc [22mis started.  If changes
+     made to the configuration file are to take effect, the [1mkdc [22mneeds to be
+     restarted.
+
+     An example of a config file:
+
+           [kdc]
+                   require-preauth = no
+                   v4-realm = FOO.SE
+
+[1mBUGS[0m
+     If the machine running the KDC has new addresses added to it, the KDC
+     will have to be restarted to listen to them.  The reason it doesn't just
+     listen to wildcarded (like INADDR_ANY) addresses, is that the replies has
+     to come from the same address they were sent to, and most OS:es doesn't
+     pass this information to the application.  If your normal mode of opera-
+     tion require that you add and remove addresses, the best option is proba-
+     bly to listen to a wildcarded TCP socket, and make sure your clients use
+     TCP to connect.  For instance, this will listen to IPv4 TCP port 88 only:
+
+           kdc --addresses=0.0.0.0 --ports="88/tcp"
+
+     There should be a way to specify protocol, port, and address triplets,
+     not just addresses and protocol, port tuples.
+
+[1mSEE ALSO[0m
+     kinit(1), krb5.conf(5)
+
+HEIMDAL                         August 24, 2006                        HEIMDAL

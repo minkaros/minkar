@@ -1,0 +1,158 @@
+KRB5_OPENLOG(3)          BSD Library Functions Manual          KRB5_OPENLOG(3)
+
+[1mNAME[0m
+     [1mkrb5_initlog[22m, [1mkrb5_openlog[22m, [1mkrb5_closelog[22m, [1mkrb5_addlog_dest[22m,
+     [1mkrb5_addlog_func[22m, [1mkrb5_log[22m, [1mkrb5_vlog[22m, [1mkrb5_log_msg[22m, [1mkrb5_vlog_msg [22m--
+     Heimdal logging functions
+
+[1mLIBRARY[0m
+     Kerberos 5 Library (libkrb5, -lkrb5)
+
+[1mSYNOPSIS[0m
+     [1m#include <krb5.h>[0m
+
+     [4mtypedef[24m [4mvoid[0m
+     ([1m*krb5_log_log_func_t[22m)([4mconst[24m [4mchar[24m [4m*time[24m, [4mconst[24m [4mchar[24m [4m*message[24m,
+         [4mvoid[24m [4m*data[24m);
+
+     [4mtypedef[24m [4mvoid[0m
+     ([1m*krb5_log_close_func_t[22m)([4mvoid[24m [4m*data[24m);
+
+     [4mkrb5_error_code[0m
+     [1mkrb5_addlog_dest[22m([4mkrb5_context[24m [4mcontext[24m, [4mkrb5_log_facility[24m [4m*facility[24m,
+         [4mconst[24m [4mchar[24m [4m*destination[24m);
+
+     [4mkrb5_error_code[0m
+     [1mkrb5_addlog_func[22m([4mkrb5_context[24m [4mcontext[24m, [4mkrb5_log_facility[24m [4m*facility[24m,
+         [4mint[24m [4mmin[24m, [4mint[24m [4mmax[24m, [4mkrb5_log_log_func_t[24m [4mlog[24m,
+         [4mkrb5_log_close_func_t[24m [4mclose[24m, [4mvoid[24m [4m*data[24m);
+
+     [4mkrb5_error_code[0m
+     [1mkrb5_closelog[22m([4mkrb5_context[24m [4mcontext[24m, [4mkrb5_log_facility[24m [4m*facility[24m);
+
+     [4mkrb5_error_code[0m
+     [1mkrb5_initlog[22m([4mkrb5_context[24m [4mcontext[24m, [4mconst[24m [4mchar[24m [4m*program[24m,
+         [4mkrb5_log_facility[24m [4m**facility[24m);
+
+     [4mkrb5_error_code[0m
+     [1mkrb5_log[22m([4mkrb5_context[24m [4mcontext[24m, [4mkrb5_log_facility[24m [4m*facility[24m, [4mint[24m [4mlevel[24m,
+         [4mconst[24m [4mchar[24m [4m*format[24m, [4m...[24m);
+
+     [4mkrb5_error_code[0m
+     [1mkrb5_log_msg[22m([4mkrb5_context[24m [4mcontext[24m, [4mkrb5_log_facility[24m [4m*facility[24m,
+         [4mchar[24m [4m**reply[24m, [4mint[24m [4mlevel[24m, [4mconst[24m [4mchar[24m [4m*format[24m, [4m...[24m);
+
+     [4mkrb5_error_code[0m
+     [1mkrb5_openlog[22m([4mkrb5_context[24m [4mcontext[24m, [4mconst[24m [4mchar[24m [4m*program[24m,
+         [4mkrb5_log_facility[24m [4m**facility[24m);
+
+     [4mkrb5_error_code[0m
+     [1mkrb5_vlog[22m([4mkrb5_context[24m [4mcontext[24m, [4mkrb5_log_facility[24m [4m*facility[24m, [4mint[24m [4mlevel[24m,
+         [4mconst[24m [4mchar[24m [4m*format[24m, [4mva_list[24m [4marglist[24m);
+
+     [4mkrb5_error_code[0m
+     [1mkrb5_vlog_msg[22m([4mkrb5_context[24m [4mcontext[24m, [4mkrb5_log_facility[24m [4m*facility[24m,
+         [4mchar[24m [4m**reply[24m, [4mint[24m [4mlevel[24m, [4mconst[24m [4mchar[24m [4m*format[24m, [4mva_list[24m [4marglist[24m);
+
+[1mDESCRIPTION[0m
+     These functions logs messages to one or more destinations.
+
+     The [1mkrb5_openlog[22m() function creates a logging [4mfacility[24m, that is used to
+     log messages. A facility consists of one or more destinations (which can
+     be files or syslog or some other device). The [4mprogram[24m parameter should be
+     the generic name of the program that is doing the logging. This name is
+     used to lookup which destinations to use. This information is contained
+     in the logging section of the [4mkrb5.conf[24m configuration file.  If no entry
+     is found for [4mprogram[24m, the entry for default is used, or if that is miss-
+     ing too, SYSLOG will be used as destination.
+
+     To close a logging facility, use the [1mkrb5_closelog[22m() function.
+
+     To log a message to a facility use one of the functions [1mkrb5_log[22m(),
+     [1mkrb5_log_msg[22m(), [1mkrb5_vlog[22m(), or [1mkrb5_vlog_msg[22m().  The functions ending in
+     _msg return in [4mreply[24m a pointer to the message that just got logged. This
+     string is allocated, and should be freed with [1mfree[22m().  The [4mformat[24m is a
+     standard [1mprintf[22m() style format string (but see the BUGS section).
+
+     If you want better control of where things gets logged, you can instead
+     of using [1mkrb5_openlog[22m() call [1mkrb5_initlog[22m(), which just initializes a fa-
+     cility, but doesn't define any actual logging destinations. You can then
+     add destinations with the [1mkrb5_addlog_dest[22m() and [1mkrb5_addlog_func[22m() func-
+     tions.  The first of these takes a string specifying a logging destina-
+     tion, and adds this to the facility. If you want to do some non-standard
+     logging you can use the [1mkrb5_addlog_func[22m() function, which takes a func-
+     tion to use when logging.  The [4mlog[24m function is called for each message
+     with [4mtime[24m being a string specifying the current time, and [4mmessage[24m the
+     message to log.  [4mclose[24m is called when the facility is closed. You can
+     pass application specific data in the [4mdata[24m parameter. The [4mmin[24m and [4mmax[24m pa-
+     rameter are the same as in a destination (defined below). To specify a
+     max of infinity, pass -1.
+
+     [1mkrb5_openlog[22m() calls [1mkrb5_initlog[22m() and then calls [1mkrb5_addlog_dest[22m() for
+     each destination found.
+
+   [1mDestinations[0m
+     The defined destinations (as specified in [4mkrb5.conf[24m) follows:
+
+           STDERR
+                This logs to the program's stderr.
+
+           FILE:[4m/file[0m
+
+           FILE=[4m/file[0m
+                Log to the specified file. The form using a colon appends to
+                the file, the form with an equal truncates the file. The trun-
+                cating form keeps the file open, while the appending form
+                closes it after each log message (which makes it possible to
+                rotate logs). The truncating form is mainly for compatibility
+                with the MIT libkrb5.
+
+           DEVICE=[4m/device[0m
+                This logs to the specified device, at present this is the same
+                as FILE:/device.
+
+           CONSOLE
+                Log to the console, this is the same as DEVICE=/dev/console.
+
+           SYSLOG[:priority[:facility]]
+                Send messages to the syslog system, using priority, and facil-
+                ity. To get the name for one of these, you take the name of
+                the macro passed to syslog(3), and remove the leading LOG_
+                (LOG_NOTICE becomes NOTICE).  The default values (as well as
+                the values used for unrecognised values), are ERR, and AUTH,
+                respectively.  See syslog(3) for a list of priorities and fa-
+                cilities.
+
+     Each destination may optionally be prepended with a range of logging lev-
+     els, specified as min-max/.  If the [4mlevel[24m parameter to [1mkrb5_log[22m() is
+     within this range (inclusive) the message gets logged to this destina-
+     tion, otherwise not. Either of the min and max valued may be omitted, in
+     this case min is assumed to be zero, and max is assumed to be infinity.
+     If you don't include a dash, both min and max gets set to the specified
+     value. If no range is specified, all messages gets logged.
+
+[1mEXAMPLES[0m
+           [logging]
+                   kdc = 0/FILE:/var/log/kdc.log
+                   kdc = 1-/SYSLOG:INFO:USER
+                   default = STDERR
+
+     This will log all messages from the [1mkdc [22mprogram with level 0 to
+     [4m/var/log/kdc.log[24m, other messages will be logged to syslog with priority
+     LOG_INFO, and facility LOG_USER.  All other programs will log all mes-
+     sages to their stderr.
+
+[1mSEE ALSO[0m
+     syslog(3), krb5.conf(5)
+
+[1mBUGS[0m
+     These functions use [1masprintf[22m() to format the message. If your operating
+     system does not have a working [1masprintf[22m(), a replacement will be used. At
+     present this replacement does not handle some correct conversion specifi-
+     cations (like floating point numbers). Until this is fixed, the use of
+     these conversions should be avoided.
+
+     If logging is done to the syslog facility, these functions might not be
+     thread-safe, depending on the implementation of [1mopenlog[22m(), and [1msyslog[22m().
+
+HEIMDAL                         August 6, 1997                         HEIMDAL

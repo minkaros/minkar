@@ -1,0 +1,132 @@
+KDIGEST(8)                BSD System Manager's Manual               KDIGEST(8)
+
+[1mNAME[0m
+     [1mkdigest [22m-- userland tool to access digest interface in the KDC
+
+[1mSYNOPSIS[0m
+     [1mkdigest [22m[[1m--ccache=[4m[22mstring[24m] [[1m--version[22m] [[1m--help[22m] command [arguments]
+
+[1mDESCRIPTION[0m
+     Supported options:
+
+     [1m--ccache=[4m[22mstring[0m
+             credential cache
+
+     [1m--version[0m
+             print version
+
+     [1m--help[0m
+
+     Available commands are:
+
+     digest-probe [[1m--realm=[4m[22mstring[24m] [[1m-h [22m| [1m--help[22m]
+
+             [1m--realm=[4m[22mstring[0m
+                     Kerberos realm to communicate with
+
+     digest-server-init [[1m--type=[4m[22mstring[24m] [[1m--kerberos-realm=[4m[22mrealm[24m]
+             [[1m--digest=[4m[22mdigest-type[24m] [[1m--cb-type=[4m[22mtype[24m] [[1m--cb-value=[4m[22mvalue[24m]
+             [[1m--hostname=[4m[22mhostname[24m] [[1m--realm=[4m[22mstring[24m]
+
+             [1m--type=[4m[22mstring[0m
+                     digest type
+
+             [1m--kerberos-realm=[4m[22mrealm[0m
+
+             [1m--digest=[4m[22mdigest-type[0m
+                     digest type to use in the algorithm
+
+             [1m--cb-type=[4m[22mtype[0m
+                     type of channel bindings
+
+             [1m--cb-value=[4m[22mvalue[0m
+                     value of channel bindings
+
+             [1m--hostname=[4m[22mhostname[0m
+                     hostname of the server
+
+             [1m--realm=[4m[22mstring[0m
+                     Kerberos realm to communicate with
+
+     digest-server-request [[1m--type=[4m[22mstring[24m] [[1m--kerberos-realm=[4m[22mrealm[24m]
+             [[1m--username=[4m[22mname[24m] [[1m--server-nonce=[4m[22mnonce[24m]
+             [[1m--server-identifier=[4m[22mnonce[24m] [[1m--client-nonce=[4m[22mnonce[24m]
+             [[1m--client-response=[4m[22mresponse[24m] [[1m--opaque=[4m[22mstring[24m]
+             [[1m--authentication-name=[4m[22mname[24m] [[1m--realm=[4m[22mrealm[24m] [[1m--method=[4m[22mmethod[24m]
+             [[1m--uri=[4m[22muri[24m] [[1m--nounce-count=[4m[22mcount[24m] [[1m--qop=[4m[22mqop[24m] [[1m--ccache=[4m[22mccache[24m]
+
+             [1m--type=[4m[22mstring[0m
+                     digest type
+
+             [1m--kerberos-realm=[4m[22mrealm[0m
+
+             [1m--username=[4m[22mname[0m
+                     digest type
+
+             [1m--server-nonce=[4m[22mnonce[0m
+
+             [1m--server-identifier=[4m[22mnonce[0m
+
+             [1m--client-nonce=[4m[22mnonce[0m
+
+             [1m--client-response=[4m[22mresponse[0m
+
+             [1m--opaque=[4m[22mstring[0m
+
+             [1m--authentication-name=[4m[22mname[0m
+
+             [1m--realm=[4m[22mrealm[0m
+
+             [1m--method=[4m[22mmethod[0m
+
+             [1m--uri=[4m[22muri[0m
+
+             [1m--nounce-count=[4m[22mcount[0m
+
+             [1m--qop=[4m[22mqop[0m
+
+             [1m--ccache=[4m[22mccache[0m
+                     Where the the credential cache is created when the KDC
+                     returns tickets
+
+     digest-client-request [[1m--type=[4m[22mstring[24m] [[1m--username=[4m[22mname[24m]
+             [[1m--password=[4m[22mpassword[24m] [[1m--server-nonce=[4m[22mnonce[24m]
+             [[1m--server-identifier=[4m[22mnonce[24m] [[1m--client-nonce=[4m[22mnonce[24m]
+             [[1m--opaque=[4m[22mstring[24m] [[1m--realm=[4m[22mrealm[24m] [[1m--method=[4m[22mmethod[24m] [[1m--uri=[4m[22muri[24m]
+             [[1m--nounce-count=[4m[22mcount[24m] [[1m--qop=[4m[22mqop[24m]
+
+             [1m--type=[4m[22mstring[0m
+                     digest type
+
+             [1m--username=[4m[22mname[0m
+                     digest type
+
+             [1m--password=[4m[22mpassword[0m
+
+             [1m--server-nonce=[4m[22mnonce[0m
+
+             [1m--server-identifier=[4m[22mnonce[0m
+
+             [1m--client-nonce=[4m[22mnonce[0m
+
+             [1m--opaque=[4m[22mstring[0m
+
+             [1m--realm=[4m[22mrealm[0m
+
+             [1m--method=[4m[22mmethod[0m
+
+             [1m--uri=[4m[22muri[0m
+
+             [1m--nounce-count=[4m[22mcount[0m
+
+             [1m--qop=[4m[22mqop[0m
+
+     ntlm-server-init [[1m--version=[4m[22minteger[24m] [[1m--kerberos-realm=[4m[22mstring[24m]
+
+             [1m--version=[4m[22minteger[0m
+                     ntlm version
+
+             [1m--kerberos-realm=[4m[22mstring[0m
+                     Kerberos realm to communicate with
+
+HEIMDAL                       September 25, 2008                       HEIMDAL

@@ -1,0 +1,840 @@
+KRB5.CONF(5)                BSD File Formats Manual               KRB5.CONF(5)
+
+[1mNAME[0m
+     [1mkrb5.conf [22m-- configuration file for Kerberos 5
+
+[1mSYNOPSIS[0m
+     [1m#include <krb5.h>[0m
+
+[1mDESCRIPTION[0m
+     The [1mkrb5.conf [22mfile specifies several configuration parameters for the
+     Kerberos 5 library, as well as for some programs.
+
+     The file consists of one or more sections, containing a number of bind-
+     ings.  The value of each binding can be either a string or a list of
+     other bindings.  The grammar looks like:
+
+           file:
+                   /* empty */
+                   sections
+
+           sections:
+                   section sections
+                   section
+
+           section:
+                   '[' section_name ']' bindings
+
+           section_name:
+                   STRING
+
+           bindings:
+                   binding bindings
+                   binding
+
+           binding:
+                   name '=' STRING
+                   name '=' '{' bindings '}'
+
+           name:
+                   STRING
+
+     STRINGs consists of one or more non-whitespace characters.
+
+     STRINGs that are specified later in this man-page uses the following no-
+     tation.
+
+           boolean
+                values can be either yes/true or no/false.
+
+           time
+                values can be a list of year, month, day, hour, min, second.
+                Example: 1 month 2 days 30 min.  If no unit is given, seconds
+                is assumed.
+
+           etypes
+                valid encryption types are: des-cbc-crc, des-cbc-md4, des-cbc-
+                md5, des3-cbc-sha1, arcfour-hmac-md5, aes128-cts-hmac-sha1-96,
+                and aes256-cts-hmac-sha1-96 .
+
+           address
+                an address can be either a IPv4 or a IPv6 address.
+
+     Currently recognised sections and bindings are:
+
+           [appdefaults]
+                Specifies the default values to be used for Kerberos applica-
+                tions.  You can specify defaults per application, realm, or a
+                combination of these.  The preference order is:
+                1.   [4mapplication[24m [4mrealm[24m [4moption[0m
+                2.   [4mapplication[24m [4moption[0m
+                3.   [4mrealm[24m [4moption[0m
+                4.   [4moption[0m
+
+                The supported options are:
+
+                      forwardable = [4mboolean[0m
+                           When obtaining initial credentials, make the cre-
+                           dentials forwardable.
+
+                      proxiable = [4mboolean[0m
+                           When obtaining initial credentials, make the cre-
+                           dentials proxiable.
+
+                      no-addresses = [4mboolean[0m
+                           When obtaining initial credentials, request them
+                           for an empty set of addresses, making the tickets
+                           valid from any address.
+
+                      ticket_lifetime = [4mtime[0m
+                           Default ticket lifetime.
+
+                      renew_lifetime = [4mtime[0m
+                           Default renewable ticket lifetime.
+
+                      encrypt = [4mboolean[0m
+                           Use encryption, when available.
+
+                      forward = [4mboolean[0m
+                           Forward credentials to remote host (for rsh(1),
+                           telnet(1), etc).
+
+                      historical_anon_pkinit = [4mboolean[0m
+                           Enable legacy anonymous pkinit command-line syntax.
+                           With this option set to true, the kinit(1)
+                           [1m--anonymous [22mcommand with no principal argument
+                           specified will request an anonymous pkinit ticket
+                           from the default realm.  If a principal argument is
+                           specified, it is used as an explicit realm name for
+                           anonymous pkinit even without an @ prefix.
+
+           [libdefaults]
+
+                      default_realm = [4mREALM[0m
+                           Default realm to use, this is also known as your
+                           "local realm".  The default is the result of
+                           [1mkrb5_get_host_realm[22m([4mlocal[24m [4mhostname[24m).
+
+                      allow_weak_crypto = [4mboolean[0m
+                           are weak crypto algorithms allowed to be used,
+                           among others, DES is considered weak.
+
+                      clockskew = [4mtime[0m
+                           Maximum time differential (in seconds) allowed when
+                           comparing times.  Default is 300 seconds (five min-
+                           utes).
+
+                      kdc_timeout = [4mtime[0m
+                           Maximum time to wait for a reply from the kdc, de-
+                           fault is 3 seconds.
+
+                      capath = {
+
+                                 [4mdestination-realm[24m = [4mnext-hop-realm[0m
+
+                                 ...
+
+                                 }
+                           This is deprecated, see the capaths section below.
+
+                      default_cc_type = [4mcctype[0m
+                           sets the default credentials type.
+
+                      default_cc_name = [4mccname[0m
+                           the default credentials cache name.  If you want to
+                           change the type only use default_cc_type.  The
+                           string can contain variables that are expanded on
+                           runtime.  The Only supported variable currently is
+                           %{uid} which expands to the current user id.
+
+                      default_etypes = [4metypes[24m [4m...[0m
+                           A list of default encryption types to use. (De-
+                           fault: all enctypes if allow_weak_crypto = TRUE,
+                           else all enctypes except single DES enctypes.)
+
+                      default_as_etypes = [4metypes[24m [4m...[0m
+                           A list of default encryption types to use in AS re-
+                           quests.  (Default: the value of default_etypes.)
+
+                      default_tgs_etypes = [4metypes[24m [4m...[0m
+                           A list of default encryption types to use in TGS
+                           requests.  (Default: the value of default_etypes.)
+
+                      default_etypes_des = [4metypes[24m [4m...[0m
+                           A list of default encryption types to use when re-
+                           questing a DES credential.
+
+                      default_keytab_name = [4mkeytab[0m
+                           The keytab to use if no other is specified, default
+                           is "FILE:/etc/krb5.keytab".
+
+                      dns_lookup_kdc = [4mboolean[0m
+                           Use DNS SRV records to lookup KDC services loca-
+                           tion.
+
+                      dns_lookup_realm = [4mboolean[0m
+                           Use DNS TXT records to lookup domain to realm map-
+                           pings.
+
+                      kdc_timesync = [4mboolean[0m
+                           Try to keep track of the time differential between
+                           the local machine and the KDC, and then compensate
+                           for that when issuing requests.
+
+                      max_retries = [4mnumber[0m
+                           The max number of times to try to contact each KDC.
+
+                      large_msg_size = [4mnumber[0m
+                           The threshold where protocols with tiny maximum
+                           message sizes are not considered usable to send
+                           messages to the KDC.
+
+                      ticket_lifetime = [4mtime[0m
+                           Default ticket lifetime.
+
+                      renew_lifetime = [4mtime[0m
+                           Default renewable ticket lifetime.
+
+                      forwardable = [4mboolean[0m
+                           When obtaining initial credentials, make the cre-
+                           dentials forwardable.  This option is also valid in
+                           the [realms] section.
+
+                      proxiable = [4mboolean[0m
+                           When obtaining initial credentials, make the cre-
+                           dentials proxiable.  This option is also valid in
+                           the [realms] section.
+
+                      verify_ap_req_nofail = [4mboolean[0m
+                           If enabled, failure to verify credentials against a
+                           local key is a fatal error.  The application has to
+                           be able to read the corresponding service key for
+                           this to work.  Some applications, like su(1), en-
+                           able this option unconditionally.
+
+                      warn_pwexpire = [4mtime[0m
+                           How soon to warn for expiring password.  Default is
+                           seven days.
+
+                      http_proxy = [4mproxy-spec[0m
+                           A HTTP-proxy to use when talking to the KDC via
+                           HTTP.
+
+                      dns_proxy = [4mproxy-spec[0m
+                           Enable using DNS via HTTP.
+
+                      extra_addresses = [4maddress[24m [4m...[0m
+                           A list of addresses to get tickets for along with
+                           all local addresses.
+
+                      time_format = [4mstring[0m
+                           How to print time strings in logs, this string is
+                           passed to strftime(3).
+
+                      date_format = [4mstring[0m
+                           How to print date strings in logs, this string is
+                           passed to strftime(3).
+
+                      log_utc = [4mboolean[0m
+                           Write log-entries using UTC instead of your local
+                           time zone.
+
+                      scan_interfaces = [4mboolean[0m
+                           Scan all network interfaces for addresses, as op-
+                           posed to simply using the address associated with
+                           the system's host name.
+
+                      fcache_version = [4mint[0m
+                           Use file credential cache format version specified.
+
+                      fcc-mit-ticketflags = [4mboolean[0m
+                           Use MIT compatible format for file credential
+                           cache.  It's the field ticketflags that is stored
+                           in reverse bit order for older than Heimdal 0.7.
+                           Setting this flag to TRUE makes it store the MIT
+                           way, this is default for Heimdal 0.7.
+
+                      check-rd-req-server
+                           If set to "ignore", the framework will ignore any
+                           of the server input to krb5_rd_req(3), this is very
+                           useful when the GSS-API server input the wrong
+                           server name into the gss_accept_sec_context call.
+
+                      k5login_directory = [4mdirectory[0m
+                           Alternative location for user .k5login files. This
+                           option is provided for compatibility with MIT krb5
+                           configuration files.
+
+                      k5login_authoritative = [4mboolean[0m
+                           If true then if a principal is not found in k5login
+                           files then krb5_userok(3) will not fallback on
+                           principal to username mapping. This option is pro-
+                           vided for compatibility with MIT krb5 configuration
+                           files.
+
+                      kuserok = [4mrule[24m [4m...[0m
+                           Specifies krb5_userok(3) behavior.  If multiple
+                           values are given, then krb5_userok(3) will evaluate
+                           them in order until one succeeds or all fail.
+                           Rules are implemented by plugins, with three built-
+                           in plugins described below. Default: USER-K5LOGIN
+                           SIMPLE DENY.
+
+                      kuserok = [4mDENY[0m
+                           If set and evaluated then krb5_userok(3) will deny
+                           access to the given username no matter what the
+                           principal name might be.
+
+                      kuserok = [4mSIMPLE[0m
+                           If set and evaluated then krb5_userok(3) will use
+                           principal to username mapping (see auth_to_local
+                           below).  If the principal maps to the requested
+                           username then access is allowed.
+
+                      kuserok = [4mSYSTEM-K5LOGIN[:directory][0m
+                           If set and evaluated then krb5_userok(3) will use
+                           k5login files named after the [4mluser[24m argument to
+                           krb5_userok(3) in the given directory or in
+                           [4m/etc/k5login.d/[24m.  K5login files are text files,
+                           with each line containing just a principal name;
+                           principals apearing in a user's k5login file are
+                           permitted access to the user's account. Note: this
+                           rule performs no ownership nor permissions checks
+                           on k5login files; proper ownership and permis-
+                           sions/ACLs are expected due to the k5login location
+                           being a system location.
+
+                      kuserok = [4mUSER-K5LOGIN[0m
+                           If set and evaluated then krb5_userok(3) will use
+                           [4m~luser/.k5login[24m and [4m~luser/.k5login.d/*[24m.  User
+                           k5login files and directories must be owned by the
+                           user and must not have world nor group write per-
+                           missions.
+
+                      aname2lname-text-db = [4mfilename[0m
+                           The named file must be a sorted (in increasing or-
+                           der) text file where every line consists of an un-
+                           parsed principal name optionally followed by white-
+                           space and a username.  The aname2lname function
+                           will do a binary search on this file, if config-
+                           ured, looking for lines that match the given prin-
+                           cipal name, and if found the given username will be
+                           used, or, if the username is missing, an error will
+                           be returned.  If the file doesn't exist, or if no
+                           matching line is found then other plugins will be
+                           allowed to run.
+
+                      fcache_strict_checking
+                           strict checking in FILE credential caches that
+                           owner, no symlink and permissions is correct.
+
+                      name_canon_rules = [4mrules[0m
+                           One or more service principal name canonicalization
+                           rules.  Each rule consists of one or more tokens
+                           separated by colon (':').  Currently these rules
+                           are used only for hostname canonicalization (usu-
+                           ally when getting a service ticket, from a ccache
+                           or a TGS, but also when acquiring GSS initiator
+                           credentials from a keytab).  These rules can be
+                           used to implement DNS resolver-like search lists
+                           without having to use DNS.
+
+                           NOTE: Name canonicalization rules are an experimen-
+                           tal feature.
+
+                           The first token is a rule type, one of: [4mas-is,[0m
+                           [4mqualify,[24m [4mor[24m [4mnss.[0m
+
+                           Any remaining tokens must be options tokens:
+                           [4muse_fast[24m (use FAST to protect TGS exchanges; cur-
+                           rently not supported), [4muse_dnssec[24m (use DNSSEC to
+                           protect hostname lookups; currently not supported),
+                           [4mccache_only[24m , [4muse_referrals,[24m [4mno_referrals,[0m
+                           [4mlookup_realm,[24m [4mmindots=N,[24m [4mmaxdots=N,[24m [4morder=N,[24m do-
+                           main= [4mdomain,[24m realm= [4mrealm,[24m match_domain= [4mdomain,[0m
+                           and match_realm= [4mrealm.[0m
+
+                           When trying to obtain a service ticket for a host-
+                           based service principal name, name canonicalization
+                           rules are applied to that name in the order given,
+                           one by one, until one succeds (a service ticket is
+                           obtained), or all fail.  Similarly when acquiring
+                           GSS initiator credentials from a keytab, and when
+                           comparing a non-canonical GSS name to a canonical
+                           one.
+
+                           For each rule the system checks that the hostname
+                           has at least [4mmindots[24m periods (if given) in it, at
+                           most [4mmaxdots[24m periods (if given), that the hostname
+                           ends in the given [4mmatch_domain[24m (if given), and that
+                           the realm of the principal matches the [4mmatch_realm[0m
+                           (if given).
+
+                           [4mAs-is[24m rules leave the hostname unmodified but may
+                           set a realm.  [4mQualify[24m rules qualify the hostname
+                           with the given [4mdomain[24m and also may set the realm.
+                           The [4mnss[24m rule uses the system resolver to lookup the
+                           host's canonical name and is usually not secure.
+                           Note that using the [4mnss[24m rule type implies having to
+                           have principal aliases in the HDB (though not nec-
+                           essarily in keytabs).
+
+                           The empty realm denotes "ask the client's realm's
+                           TGS".  The empty realm may be set as well as
+                           matched.
+
+                           The order in which rules are applied is as follows:
+                           first all the rules with explicit [4morder[24m then all
+                           other rules in the order in which they appear.  If
+                           any two rules have the same explicit [4morder[24m, their
+                           order of appearance in krb5.conf breaks the tie.
+                           Explicitly specifying order can be useful where
+                           tools read and write the configuration file without
+                           preserving parameter order.
+
+                           Malformed rules are ignored.
+
+                      allow_hierarchical_capaths = [4mboolean[0m
+                           When validating cross-realm transit paths, absent
+                           any explicit capath from the client realm to the
+                           server realm, allow a hierarchical transit path via
+                           the common ancestor domain of the two realms.  De-
+                           faults to true.  Note, absent an explicit setting,
+                           hierarchical capaths are always used by the KDC
+                           when generating a referral to a destination with
+                           which is no direct trust.
+
+           [domain_realm]
+                This is a list of mappings from DNS domain to Kerberos realm.
+                Each binding in this section looks like:
+
+                      domain = realm
+
+                The domain can be either a full name of a host or a trailing
+                component, in the latter case the domain-string should start
+                with a period.  The trailing component only matches hosts that
+                are in the same domain, ie ".example.com" matches
+                "foo.example.com", but not "foo.test.example.com".
+
+                The realm may be the token `dns_locate', in which case the ac-
+                tual realm will be determined using DNS (independently of the
+                setting of the `dns_lookup_realm' option).
+
+           [realms]
+
+                      [4mREALM[24m = {
+
+                                 kdc = [4m[service/]host[:port][0m
+                                      Specifies a list of kdcs for this realm.
+                                      If the optional [4mport[24m is absent, the de-
+                                      fault value for the "kerberos/udp"
+                                      "kerberos/tcp", and "http/tcp" port (de-
+                                      pending on service) will be used.  The
+                                      kdcs will be used in the order that they
+                                      are specified.
+
+                                      The optional [4mservice[24m specifies over what
+                                      medium the kdc should be contacted.
+                                      Possible services are "udp", "tcp", and
+                                      "http".  Http can also be written as
+                                      "http://".  Default service is "udp" and
+                                      "tcp".
+
+                                 admin_server = [4mhost[:port][0m
+                                      Specifies the admin server for this
+                                      realm, where all the modifications to
+                                      the database are performed.
+
+                                 kpasswd_server = [4mhost[:port][0m
+                                      Points to the server where all the pass-
+                                      word changes are performed.  If there is
+                                      no such entry, the kpasswd port on the
+                                      admin_server host will be tried.
+
+                                 tgs_require_subkey
+                                      a boolan variable that defaults to
+                                      false.  Old DCE secd (pre 1.1) might
+                                      need this to be true.
+
+                                 auth_to_local_names = {
+
+                                            [4mprincipal_name[24m [4m=[24m [4musername[0m
+                                                 The given [4mprincipal_name[24m will
+                                                 be mapped to the given
+                                                 [4musername[24m if the [4mREALM[24m is a
+                                                 default realm.
+
+                                 }
+
+                                 auth_to_local = HEIMDAL_DEFAULT
+                                      Use the Heimdal default principal to
+                                      username mapping.  Applies to principals
+                                      from the [4mREALM[24m if and only if [4mREALM[24m is a
+                                      default realm.
+
+                                 auth_to_local = DEFAULT
+                                      Use the MIT default principal to user-
+                                      name mapping.  Applies to principals
+                                      from the [4mREALM[24m if and only if [4mREALM[24m is a
+                                      default realm.
+
+                                 auth_to_local = DB:/path/to/db.txt
+                                      Use a binary search of the given DB.
+                                      The DB must be a flat-text file sortedf
+                                      in the "C" locale, with each record be-
+                                      ing a line (separated by either LF or
+                                      CRLF) consisting of a principal name
+                                      followed by whitespace followed by a
+                                      username.  Applies to principals from
+                                      the [4mREALM[24m if and only if [4mREALM[24m is a de-
+                                      fault realm.
+
+                                 auth_to_local = DB:/path/to/db
+                                      Use the given DB, if there's a plugin
+                                      for it.  Applies to principals from the
+                                      [4mREALM[24m if and only if [4mREALM[24m is a default
+                                      realm.
+
+                                 auth_to_local = RULE:...
+                                      Use the given rule, if there's a plugin
+                                      for it.  Applies to principals from the
+                                      [4mREALM[24m if and only if [4mREALM[24m is a default
+                                      realm.
+
+                                 auth_to_local = NONE
+                                      No additional principal to username map-
+                                      ping is done. Note that
+                                      [4mauth_to_local_names[24m and any preceding
+                                      [4mauth_to_local[24m rules have precedence.
+
+                      }
+
+           [capaths]
+
+                      [4mclient-realm[24m = {
+
+                                 [4mserver-realm[24m = [4mhop-realm[24m [4m...[0m
+                                      This serves two purposes. First the
+                                      first listed [4mhop-realm[24m tells a client
+                                      which realm it should contact in order
+                                      to ultimately obtain credentials for a
+                                      service in the [4mserver-realm[24m.  Secondly,
+                                      it tells the KDC (and other servers)
+                                      which realms are allowed in a multi-hop
+                                      traversal from [4mclient-realm[24m to
+                                      [4mserver-realm[24m.  Except for the client
+                                      case, the order of the realms are not
+                                      important.
+
+                      [4m}[0m
+
+           [logging]
+
+                      [4mentity[24m = [4mdestination[0m
+                           Specifies that [4mentity[24m should use the specified
+                           destination for logging.  See the krb5_openlog(3)
+                           manual page for a list of defined destinations.
+
+           [kdc]
+
+                      database = {
+
+                                 dbname = [4m[DATBASETYPE:]DATABASENAME[0m
+                                      Use this database for this realm.  The
+                                      [4mDATABASETYPE[24m should be one of 'lmdb',
+                                      'db3', 'db1', 'db', 'sqlite', or 'ldap'.
+                                      See the info documetation how to config-
+                                      ure different database backends.
+
+                                 realm = [4mREALM[0m
+                                      Specifies the realm that will be stored
+                                      in this database.  It realm isn't set,
+                                      it will used as the default database,
+                                      there can only be one entry that doesn't
+                                      have a realm stanza.
+
+                                 mkey_file = [4mFILENAME[0m
+                                      Use this keytab file for the master key
+                                      of this database.  If not specified
+                                      [4mDATABASENAME[24m.mkey will be used.
+
+                                 acl_file = PA FILENAME
+                                      Use this file for the ACL list of this
+                                      database.
+
+                                 log_file = [4mFILENAME[0m
+                                      Use this file as the log of changes per-
+                                      formed to the database.  This file is
+                                      used by [1mipropd-master [22mfor propagating
+                                      changes to slaves.  It is also used by
+                                      [1mkadmind [22mand [1mkadmin [22m(when used with the
+                                      -l option), and by all applications us-
+                                      ing [1mlibkadm5 [22mwith the local backend, for
+                                      two-phase commit functionality.  Slaves
+                                      also use this.  Setting this to
+                                      [1m/dev/null [22mdisables two-phase commit and
+                                      incremental propagation.  Use [1miprop-log[0m
+                                      to show the contents of this log file.
+
+                                 log-max-size = [4mnumber[0m
+                                      When the log reaches this size (in
+                                      bytes), the log will be truncated, sav-
+                                      ing some entries, and keeping the latest
+                                      version number so as to not disrupt in-
+                                      cremental propagation.  If set to a neg-
+                                      ative value then automatic log trunca-
+                                      tion will be disabled.  Defaults to
+                                      52428800 (50MB).
+
+                      }
+
+                      max-request = [4mSIZE[0m
+                           Maximum size of a kdc request.
+
+                      require-preauth = [4mBOOL[0m
+                           If set pre-authentication is required.
+
+                      ports = [4mlist[24m [4mof[24m [4mports[0m
+                           List of ports the kdc should listen to.
+
+                      addresses = [4mlist[24m [4mof[24m [4minterfaces[0m
+                           List of addresses the kdc should bind to.
+
+                      enable-http = [4mBOOL[0m
+                           Should the kdc answer kdc-requests over http.
+
+                      tgt-use-strongest-session-key = [4mBOOL[0m
+                           If this is TRUE then the KDC will prefer the
+                           strongest key from the client's AS-REQ or TGS-REQ
+                           enctype list for the ticket session key that is
+                           supported by the KDC and the target principal when
+                           the target principal is a krbtgt principal.  Else
+                           it will prefer the first key from the client's AS-
+                           REQ enctype list that is also supported by the KDC
+                           and the target principal.  Defaults to FALSE.
+
+                      svc-use-strongest-session-key = [4mBOOL[0m
+                           Like tgt-use-strongest-session-key, but applies to
+                           the session key enctype of tickets for services
+                           other than krbtgt principals. Defaults to FALSE.
+
+                      preauth-use-strongest-session-key = [4mBOOL[0m
+                           If TRUE then select the strongest possible enctype
+                           from the client's AS-REQ for PA-ETYPE-INFO2 (i.e.,
+                           for password-based pre-authentication).  Else pick
+                           the first supported enctype from the client's AS-
+                           REQ.  Defaults to FALSE.
+
+                      use-strongest-server-key = [4mBOOL[0m
+                           If TRUE then the KDC picks, for the ticket en-
+                           crypted part's key, the first supported enctype
+                           from the target service principal's hdb entry's
+                           current keyset. Else the KDC picks the first sup-
+                           ported enctype from the target service principal's
+                           hdb entry's current keyset.  Defaults to TRUE.
+
+                      check-ticket-addresses = [4mBOOL[0m
+                           Verify the addresses in the tickets used in tgs re-
+                           quests.
+
+                      allow-null-ticket-addresses = [4mBOOL[0m
+                           Allow address-less tickets.
+
+                      allow-anonymous = [4mBOOL[0m
+                           If the kdc is allowed to hand out anonymous tick-
+                           ets.
+
+                      historical_anon_realm = [4mboolean[0m
+                           Enables pre-7.0 non-RFC-comformant KDC behavior.
+                           With this option set to true the client realm in
+                           anonymous pkinit AS replies will be the requested
+                           realm, rather than the RFC-conformant
+                           WELLKNOWN:ANONYMOUS realm.  This can have a secu-
+                           rity impact on servers that expect to grant access
+                           to anonymous-but-authenticated to the KDC users of
+                           the realm in question: they would also grant access
+                           to unauthenticated anonymous users.  As such, it is
+                           not recommend to set this option to true.
+
+                      encode_as_rep_as_tgs_rep = [4mBOOL[0m
+                           Encode as-rep as tgs-rep to be compatible with mis-
+                           takes older DCE secd did.
+
+                      kdc_warn_pwexpire = [4mTIME[0m
+                           The time before expiration that the user should be
+                           warned that her password is about to expire.
+
+                      logging = [4mLogging[0m
+                           What type of logging the kdc should use, see also
+                           [logging]/kdc.
+
+                      hdb-ldap-structural-object [4mstructural[24m [4mobject[0m
+                           If the LDAP backend is used for storing principals,
+                           this is the structural object that will be used
+                           when creating and when reading objects.  The de-
+                           fault value is account .
+
+                      hdb-ldap-create-base [4mcreation[24m [4mdn[0m
+                           is the dn that will be appended to the principal
+                           when creating entries.  Default value is the search
+                           dn.
+
+                      enable-digest = [4mBOOL[0m
+                           Should the kdc answer digest requests. The default
+                           is FALSE.
+
+                      digests_allowed = [4mlist[24m [4mof[24m [4mdigests[0m
+                           Specifies the digests the kdc will reply to. The
+                           default is ntlm-v2.
+
+                      kx509_ca = [4mfile[0m
+                           Specifies the PEM credentials for the kx509 certi-
+                           fication authority.
+
+                      require_initial_kca_tickets = [4mboolean[0m
+                           Specified whether to require that tickets for the
+                           kca_service service principal be INITIAL.  This may
+                           be set on a per-realm basis as well as globally.
+                           Defaults to true for the global setting.
+
+                      kx509_include_pkinit_san = [4mboolean[0m
+                           If true then the kx509 client principal's name and
+                           realm will be included in an id-pkinit-san certifi-
+                           cate extension.  This can be set on a per-realm ba-
+                           sis as well as globally.  Defaults to true for the
+                           global setting.
+
+                      kx509_template = [4mfile[0m
+                           Specifies the PEM file with a template for the cer-
+                           tificates to be issued.  The following variables
+                           can be interpolated in the subject name using
+                           ${variable} syntax:
+
+                                 principal-name
+                                      The full name of the kx509 client prin-
+                                      cipal.
+
+                                 principal-name-without-realm
+                                      The full name of the kx509 client prin-
+                                      cipal, excluding the realm name.
+
+                                 principal-name-realm
+                                      The name of the client principal's
+                                      realm.
+                The kx509, kx509_template, kx509_include_pkinit_san, and
+                require_initial_kca_tickets parameters may be set on a per-
+                realm basis as well.
+
+           [kadmin]
+
+                      password_lifetime = [4mtime[0m
+                           If a principal already have its password set for
+                           expiration, this is the time it will be valid for
+                           after a change.
+
+                      default_keys = [4mkeytypes...[0m
+                           For each entry in [4mdefault_keys[24m try to parse it as a
+                           sequence of [4metype:salttype:salt[24m syntax of this if
+                           something like:
+
+                           [(des|des3|etype):](pw-salt|afs3-salt)[:string]
+
+                           If [4metype[24m is omitted it means everything, and if
+                           string is omitted it means the default salt string
+                           (for that principal and encryption type).  Addi-
+                           tional special values of keytypes are:
+
+                                 v5   The Kerberos 5 salt [4mpw-salt[0m
+
+                      default_key_rules = [4m{[0m
+
+                                 [4mglobing-rule[24m = [4mkeytypes...[0m
+                                      a globbing rule to matching a principal,
+                                      and when true, use the keytypes as spec-
+                                      ified the same format as [kadmin]de-
+                                      fault_keys .
+
+                      }
+
+                      prune-key-history = [4mBOOL[0m
+                           When adding keys to the key history, drop keys that
+                           are too old to match unexpired tickets (based on
+                           the principal's maximum ticket lifetime).  If the
+                           KDC keystore is later compromised traffic protected
+                           with the discarded older keys may remain protected.
+                           This also keeps the HDB records for principals with
+                           key history from growing without bound.  The de-
+                           fault (backwards compatible) value is "false".
+
+                      use_v4_salt = [4mBOOL[0m
+                           When true, this is the same as
+
+                           [4mdefault_keys[24m [4m=[24m [4mdes3:pw-salt[24m [4mv4[0m
+
+                           and is only left for backwards compatibility.
+
+                      [password_quality]
+                           Check the Password quality assurance in the info
+                           documentation for more information.
+
+                                 check_library = [4mlibrary-name[0m
+                                      Library name that contains the password
+                                      check_function
+
+                                 check_function = [4mfunction-name[0m
+                                      Function name for checking passwords in
+                                      check_library
+
+                                 policy_libraries = [4mlibrary1[24m [4m...[24m [4mlibraryN[0m
+                                      List of libraries that can do password
+                                      policy checks
+
+                                 policies = [4mpolicy1[24m [4m...[24m [4mpolicyN[0m
+                                      List of policy names to apply to the
+                                      password. Builtin policies are among
+                                      other minimum-length, character-class,
+                                      external-check.
+
+[1mENVIRONMENT[0m
+     KRB5_CONFIG points to the configuration file to read.
+
+[1mFILES[0m
+     /etc/krb5.conf  configuration file for Kerberos 5.
+
+[1mEXAMPLES[0m
+           [libdefaults]
+                   default_realm = FOO.SE
+                   name_canon_rules = as-is:realm=FOO.SE
+                   name_canon_rules = qualify:domain=foo.se:realm=FOO.SE
+                   name_canon_rules = qualify:domain=bar.se:realm=FOO.SE
+                   name_canon_rules = nss
+           [domain_realm]
+                   .foo.se = FOO.SE
+                   .bar.se = FOO.SE
+           [realms]
+                   FOO.SE = {
+                           kdc = kerberos.foo.se
+                           default_domain = foo.se
+                   }
+           [logging]
+                   kdc = FILE:/var/heimdal/kdc.log
+                   kdc = SYSLOG:INFO
+                   default = SYSLOG:INFO:USER
+           [kadmin]
+                   default_key_rules = {
+                           */ppp@* = arcfour-hmac-md5:pw-salt
+                   }
+
+[1mDIAGNOSTICS[0m
+     Since [1mkrb5.conf [22mis read and parsed by the krb5 library, there is not a
+     lot of opportunities for programs to report parsing errors in any useful
+     format.  To help overcome this problem, there is a program
+     [1mverify_krb5_conf [22mthat reads [1mkrb5.conf [22mand tries to emit useful diagnos-
+     tics from parsing errors.  Note that this program does not have any way
+     of knowing what options are actually used and thus cannot warn about un-
+     known or misspelled ones.
+
+[1mSEE ALSO[0m
+     kinit(1), krb5_openlog(3), strftime(3), verify_krb5_conf(8)
+
+HEIMDAL                           May 4, 2005                          HEIMDAL

@@ -1,0 +1,89 @@
+KLIST(1)                  BSD General Commands Manual                 KLIST(1)
+
+[1mNAME[0m
+     [1mklist [22m-- list Kerberos credentials
+
+[1mSYNOPSIS[0m
+     [1mklist [22m[[1m-c [4m[22mcache[24m | [1m--cache=[4m[22mcache[24m] [[1m-s [22m| [1m-t [22m| [1m--test[22m] [[1m-T [22m| [1m--tokens[22m]
+           [[1m-5 [22m| [1m--v5[22m] [[1m-v [22m| [1m--verbose[22m] [[1m-l [22m| [1m--list-caches[22m] [[1m-f[22m] [[1m--version[22m]
+           [[1m--help[22m]
+
+[1mDESCRIPTION[0m
+     [1mklist [22mreads and displays the current tickets in the credential cache
+     (also known as the ticket file).
+
+     Options supported:
+
+     [1m-c [4m[22mcache[24m, [1m--cache=[4m[22mcache[0m
+             credential cache to list
+
+     [1m-s[22m, [1m-t[22m, [1m--test[0m
+             Test for there being an active and valid TGT for the local realm
+             of the user in the credential cache.
+
+     [1m-T[22m, [1m--tokens[0m
+             display AFS tokens
+
+     [1m-5[22m, [1m--v5[0m
+             display v5 cred cache (this is the default)
+
+     [1m-f      [22mInclude ticket flags in short form, each character stands for a
+             specific flag, as follows:
+                   F    forwardable
+                   f    forwarded
+                   P    proxiable
+                   p    proxied
+                   D    postdate-able
+                   d    postdated
+                   R    renewable
+                   I    initial
+                   i    invalid
+                   A    pre-authenticated
+                   H    hardware authenticated
+
+             This information is also output with the [1m--verbose [22moption, but in
+             a more verbose way.
+
+     [1m-v[22m, [1m--verbose[0m
+             Verbose output. Include all possible information:
+
+                   Server
+                         the principal the ticket is for
+
+                   Ticket etype
+                         the encryption type used in the ticket, followed by
+                         the key version of the ticket, if it is available
+
+                   Session key
+                         the encryption type of the session key, if it's dif-
+                         ferent from the encryption type of the ticket
+
+                   Auth time
+                         the time the authentication exchange took place
+
+                   Start time
+                         the time that this ticket is valid from (only printed
+                         if it's different from the auth time)
+
+                   End time
+                         when the ticket expires, if it has already expired
+                         this is also noted
+
+                   Renew till
+                         the maximum possible end time of any ticket derived
+                         from this one
+
+                   Ticket flags
+                         the flags set on the ticket
+
+                   Addresses
+                         the set of addresses from which this ticket is valid
+
+     [1m-l[22m, [1m--list-caches[0m
+             List the credential caches for the current users, not all cache
+             types supports listing multiple caches.
+
+[1mSEE ALSO[0m
+     kdestroy(1), kinit(1)
+
+HEIMDAL                         October 6, 2005                        HEIMDAL

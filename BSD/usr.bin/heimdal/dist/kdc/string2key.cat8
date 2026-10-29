@@ -1,0 +1,42 @@
+STRING2KEY(8)             BSD System Manager's Manual            STRING2KEY(8)
+
+[1mNAME[0m
+     [1mstring2key [22m-- map a password into a key
+
+[1mSYNOPSIS[0m
+     [1mstring2key [22m[[1m-5 [22m| [1m--version5[22m] [[1m-4 [22m| [1m--version4[22m] [[1m-a [22m| [1m--afs[22m] [[1m-c [4m[22mcell[24m |
+                [1m--cell=[4m[22mcell[24m] [[1m-w [4m[22mpassword[24m | [1m--password=[4m[22mpassword[24m] [[1m-p [4m[22mprincipal[0m
+                | [1m--principal=[4m[22mprincipal[24m] [[1m-k [4m[22mstring[24m | [1m--keytype=[4m[22mstring[24m]
+                [4mpassword[0m
+
+[1mDESCRIPTION[0m
+     [1mstring2key [22mperforms the string-to-key function.  This is useful when you
+     want to handle the raw key instead of the password.  Supported options:
+
+     [1m-5[22m, [1m--version5[0m
+             Output Kerberos v5 string-to-key
+
+     [1m-4[22m, [1m--version4[0m
+             Output Kerberos v4 string-to-key
+
+     [1m-a[22m, [1m--afs[0m
+             Output AFS string-to-key
+
+     [1m-c [4m[22mcell[24m, [1m--cell=[4m[22mcell[0m
+             AFS cell to use
+
+     [1m-w [4m[22mpassword[24m, [1m--password=[4m[22mpassword[0m
+             Password to use
+
+     [1m-p [4m[22mprincipal[24m, [1m--principal=[4m[22mprincipal[0m
+             Kerberos v5 principal to use
+
+     [1m-k [4m[22mstring[24m, [1m--keytype=[4m[22mstring[0m
+             Keytype
+
+     [1m--version[0m
+             print version
+
+     [1m--help[0m
+
+HEIMDAL                          March 4, 2000                         HEIMDAL

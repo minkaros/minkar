@@ -1,0 +1,56 @@
+VERIFY_KRB5_CONF(8)       BSD System Manager's Manual      VERIFY_KRB5_CONF(8)
+
+[1mNAME[0m
+     [1mverify_krb5_conf [22m-- checks krb5.conf for obvious errors
+
+[1mSYNOPSIS[0m
+     [1mverify_krb5_conf [4m[22m[config-file][0m
+
+[1mDESCRIPTION[0m
+     [1mverify_krb5_conf [22mreads the configuration file [4mkrb5.conf[24m, or the file
+     given on the command line, parses it, checking verifying that the syntax
+     is not correctly wrong.
+
+     If the file is syntactically correct, [1mverify_krb5_conf [22mtries to verify
+     that the contents of the file is of relevant nature.
+
+[1mENVIRONMENT[0m
+     KRB5_CONFIG points to the configuration file to read.
+
+[1mFILES[0m
+     /etc/krb5.conf  Kerberos 5 configuration file
+
+[1mDIAGNOSTICS[0m
+     Possible output from [1mverify_krb5_conf [22minclude:
+
+     <path>: failed to parse <something> as size/time/number/boolean
+             Usually means that <something> is misspelled, or that it contains
+             weird characters. The parsing done by [1mverify_krb5_conf [22mis more
+             strict than the one performed by libkrb5, so strings that work in
+             real life might be reported as bad.
+
+     <path>: host not found (<hostname>)
+             Means that <path> is supposed to point to a host, but it can't be
+             recognised as one.
+
+     <path>: unknown or wrong type
+             Means that <path> is either a string when it should be a list,
+             vice versa, or just that [1mverify_krb5_conf [22mis confused.
+
+     <path>: unknown entry
+             Means that <string> is not known by [1mverify_krb5_conf[22m.
+
+[1mSEE ALSO[0m
+     krb5.conf(5)
+
+[1mBUGS[0m
+     Since each application can put almost anything in the config file, it's
+     hard to come up with a watertight verification process. Most of the de-
+     fault settings are sanity checked, but this does not mean that every
+     problem is discovered, or that everything that is reported as a possible
+     problem actually is one. This tool should thus be used with some care.
+
+     It should warn about obsolete data, or bad practice, but currently
+     doesn't.
+
+HEIMDAL                        December 8, 2004                        HEIMDAL

@@ -1,0 +1,38 @@
+KRB5_GET_ADDRS(3)        BSD Library Functions Manual        KRB5_GET_ADDRS(3)
+
+[1mNAME[0m
+     [1mkrb5_get_all_client_addrs[22m, [1mkrb5_get_all_server_addrs [22m-- return local ad-
+     dresses
+
+[1mLIBRARY[0m
+     Kerberos 5 Library (libkrb5, -lkrb5)
+
+[1mSYNOPSIS[0m
+     [1m#include <krb5.h>[0m
+
+     [4mkrb5_error_code[0m
+     [1mkrb5_get_all_client_addrs[22m([4mkrb5_context[24m [4mcontext[24m, [4mkrb5_addresses[24m [4m*addrs[24m);
+
+     [4mkrb5_error_code[0m
+     [1mkrb5_get_all_server_addrs[22m([4mkrb5_context[24m [4mcontext[24m, [4mkrb5_addresses[24m [4m*addrs[24m);
+
+[1mDESCRIPTION[0m
+     These functions return in [4maddrs[24m a list of addresses associated with the
+     local host.
+
+     The server variant returns all configured interface addresses (if possi-
+     ble), including loop-back addresses. This is useful if you want to create
+     sockets to listen to.
+
+     The client version will also scan local interfaces (can be turned off by
+     setting libdefaults/scan_interfaces to false in [4mkrb5.conf[24m), but will not
+     include loop-back addresses, unless there are no other addresses found.
+     It will remove all addresses included in libdefaults/ignore_addresses but
+     will unconditionally include addresses in libdefaults/extra_addresses.
+
+     The returned addresses should be freed by calling [1mkrb5_free_addresses[22m().
+
+[1mSEE ALSO[0m
+     krb5_free_addresses(3)
+
+HEIMDAL                          July 1, 2001                          HEIMDAL

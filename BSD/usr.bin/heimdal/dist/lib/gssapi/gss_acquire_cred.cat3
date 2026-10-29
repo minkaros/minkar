@@ -1,0 +1,405 @@
+GSS_ACQUIRE_CRED(3)      BSD Library Functions Manual      GSS_ACQUIRE_CRED(3)
+
+[1mNAME[0m
+     [1mgss_accept_sec_context[22m, [1mgss_acquire_cred[22m, [1mgss_add_cred[22m,
+     [1mgss_add_oid_set_member[22m, [1mgss_canonicalize_name[22m, [1mgss_compare_name[22m,
+     [1mgss_context_time[22m, [1mgss_create_empty_oid_set[22m, [1mgss_delete_sec_context[22m,
+     [1mgss_display_name[22m, [1mgss_display_status[22m, [1mgss_duplicate_name[22m,
+     [1mgss_export_name[22m, [1mgss_export_sec_context[22m, [1mgss_get_mic[22m, [1mgss_import_name[22m,
+     [1mgss_import_sec_context[22m, [1mgss_indicate_mechs[22m, [1mgss_init_sec_context[22m,
+     [1mgss_inquire_context[22m, [1mgss_inquire_cred[22m, [1mgss_inquire_cred_by_mech[22m,
+     [1mgss_inquire_mechs_for_name[22m, [1mgss_inquire_names_for_mech[22m,
+     [1mgss_krb5_ccache_name[22m, [1mgss_krb5_compat_des3_mic[22m, [1mgss_krb5_copy_ccache[22m,
+     [1mgss_krb5_import_cred gsskrb5_extract_authz_data_from_sec_context[22m,
+     [1mgsskrb5_register_acceptor_identity[22m, [1mgss_krb5_import_ccache[22m,
+     [1mgss_krb5_get_tkt_flags[22m, [1mgss_process_context_token[22m, [1mgss_release_buffer[22m,
+     [1mgss_release_cred[22m, [1mgss_release_name[22m, [1mgss_release_oid_set[22m, [1mgss_seal[22m,
+     [1mgss_sign[22m, [1mgss_test_oid_set_member[22m, [1mgss_unseal[22m, [1mgss_unwrap[22m, [1mgss_verify[22m,
+     [1mgss_verify_mic[22m, [1mgss_wrap[22m, [1mgss_wrap_size_limit [22m-- Generic Security Service
+     Application Program Interface library
+
+[1mLIBRARY[0m
+     GSS-API library (libgssapi, -lgssapi)
+
+[1mSYNOPSIS[0m
+     [1m#include <gssapi.h>[0m
+
+     [4mOM_uint32[0m
+     [1mgss_accept_sec_context[22m([4mOM_uint32[24m [4m*[24m [4mminor_status[24m,
+         [4mgss_ctx_id_t[24m [4m*[24m [4mcontext_handle[24m,
+         [4mgss_const_cred_id_t[24m [4macceptor_cred_handle[24m,
+         [4mconst[24m [4mgss_buffer_t[24m [4minput_token_buffer[24m,
+         [4mconst[24m [4mgss_channel_bindings_t[24m [4minput_chan_bindings[24m,
+         [4mgss_name_t[24m [4m*[24m [4msrc_name[24m, [4mgss_OID[24m [4m*[24m [4mmech_type[24m,
+         [4mgss_buffer_t[24m [4moutput_token[24m, [4mOM_uint32[24m [4m*[24m [4mret_flags[24m,
+         [4mOM_uint32[24m [4m*[24m [4mtime_rec[24m, [4mgss_cred_id_t[24m [4m*[24m [4mdelegated_cred_handle[24m);
+
+     [4mOM_uint32[0m
+     [1mgss_acquire_cred[22m([4mOM_uint32[24m [4m*[24m [4mminor_status[24m, [4mgss_const_name_t[24m [4mdesired_name[24m,
+         [4mOM_uint32[24m [4mtime_req[24m, [4mconst[24m [4mgss_OID_set[24m [4mdesired_mechs[24m,
+         [4mgss_cred_usage_t[24m [4mcred_usage[24m, [4mgss_cred_id_t[24m [4m*[24m [4moutput_cred_handle[24m,
+         [4mgss_OID_set[24m [4m*[24m [4mactual_mechs[24m, [4mOM_uint32[24m [4m*[24m [4mtime_rec[24m);
+
+     [4mOM_uint32[0m
+     [1mgss_add_cred[22m([4mOM_uint32[24m [4m*minor_status[24m,
+         [4mgss_const_cred_id_t[24m [4minput_cred_handle[24m, [4mgss_const_name_t[24m [4mdesired_name[24m,
+         [4mconst[24m [4mgss_OID[24m [4mdesired_mech[24m, [4mgss_cred_usage_t[24m [4mcred_usage[24m,
+         [4mOM_uint32[24m [4minitiator_time_req[24m, [4mOM_uint32[24m [4macceptor_time_req[24m,
+         [4mgss_cred_id_t[24m [4m*output_cred_handle[24m, [4mgss_OID_set[24m [4m*actual_mechs[24m,
+         [4mOM_uint32[24m [4m*initiator_time_rec[24m, [4mOM_uint32[24m [4m*acceptor_time_rec[24m);
+
+     [4mOM_uint32[0m
+     [1mgss_add_oid_set_member[22m([4mOM_uint32[24m [4m*[24m [4mminor_status[24m,
+         [4mconst[24m [4mgss_OID[24m [4mmember_oid[24m, [4mgss_OID_set[24m [4m*[24m [4moid_set[24m);
+
+     [4mOM_uint32[0m
+     [1mgss_canonicalize_name[22m([4mOM_uint32[24m [4m*[24m [4mminor_status[24m,
+         [4mgss_const_name_t[24m [4minput_name[24m, [4mconst[24m [4mgss_OID[24m [4mmech_type[24m,
+         [4mgss_name_t[24m [4m*[24m [4moutput_name[24m);
+
+     [4mOM_uint32[0m
+     [1mgss_compare_name[22m([4mOM_uint32[24m [4m*[24m [4mminor_status[24m, [4mgss_const_name_t[24m [4mname1[24m,
+         [4mgss_const_name_t[24m [4mname2[24m, [4mint[24m [4m*[24m [4mname_equal[24m);
+
+     [4mOM_uint32[0m
+     [1mgss_context_time[22m([4mOM_uint32[24m [4m*[24m [4mminor_status[24m,
+         [4mgss_const_ctx_id_t[24m [4mcontext_handle[24m, [4mOM_uint32[24m [4m*[24m [4mtime_rec[24m);
+
+     [4mOM_uint32[0m
+     [1mgss_create_empty_oid_set[22m([4mOM_uint32[24m [4m*[24m [4mminor_status[24m,
+         [4mgss_OID_set[24m [4m*[24m [4moid_set[24m);
+
+     [4mOM_uint32[0m
+     [1mgss_delete_sec_context[22m([4mOM_uint32[24m [4m*[24m [4mminor_status[24m,
+         [4mgss_ctx_id_t[24m [4m*[24m [4mcontext_handle[24m, [4mgss_buffer_t[24m [4moutput_token[24m);
+
+     [4mOM_uint32[0m
+     [1mgss_display_name[22m([4mOM_uint32[24m [4m*[24m [4mminor_status[24m, [4mgss_const_name_t[24m [4minput_name[24m,
+         [4mgss_buffer_t[24m [4moutput_name_buffer[24m, [4mgss_OID[24m [4m*[24m [4moutput_name_type[24m);
+
+     [4mOM_uint32[0m
+     [1mgss_display_status[22m([4mOM_uint32[24m [4m*minor_status[24m, [4mOM_uint32[24m [4mstatus_value[24m,
+         [4mint[24m [4mstatus_type[24m, [4mconst[24m [4mgss_OID[24m [4mmech_type[24m, [4mOM_uint32[24m [4m*message_context[24m,
+         [4mgss_buffer_t[24m [4mstatus_string[24m);
+
+     [4mOM_uint32[0m
+     [1mgss_duplicate_name[22m([4mOM_uint32[24m [4m*[24m [4mminor_status[24m, [4mgss_const_name_t[24m [4msrc_name[24m,
+         [4mgss_name_t[24m [4m*[24m [4mdest_name[24m);
+
+     [4mOM_uint32[0m
+     [1mgss_export_name[22m([4mOM_uint32[24m [4m*[24m [4mminor_status[24m, [4mgss_const_name_t[24m [4minput_name[24m,
+         [4mgss_buffer_t[24m [4mexported_name[24m);
+
+     [4mOM_uint32[0m
+     [1mgss_export_sec_context[22m([4mOM_uint32[24m [4m*[24m [4mminor_status[24m,
+         [4mgss_ctx_id_t[24m [4m*[24m [4mcontext_handle[24m, [4mgss_buffer_t[24m [4minterprocess_token[24m);
+
+     [4mOM_uint32[0m
+     [1mgss_get_mic[22m([4mOM_uint32[24m [4m*[24m [4mminor_status[24m, [4mgss_const_ctx_id_t[24m [4mcontext_handle[24m,
+         [4mgss_qop_t[24m [4mqop_req[24m, [4mconst[24m [4mgss_buffer_t[24m [4mmessage_buffer[24m,
+         [4mgss_buffer_t[24m [4mmessage_token[24m);
+
+     [4mOM_uint32[0m
+     [1mgss_import_name[22m([4mOM_uint32[24m [4m*[24m [4mminor_status[24m,
+         [4mconst[24m [4mgss_buffer_t[24m [4minput_name_buffer[24m, [4mconst[24m [4mgss_OID[24m [4minput_name_type[24m,
+         [4mgss_name_t[24m [4m*[24m [4moutput_name[24m);
+
+     [4mOM_uint32[0m
+     [1mgss_import_sec_context[22m([4mOM_uint32[24m [4m*[24m [4mminor_status[24m,
+         [4mconst[24m [4mgss_buffer_t[24m [4minterprocess_token[24m,
+         [4mgss_ctx_id_t[24m [4m*[24m [4mcontext_handle[24m);
+
+     [4mOM_uint32[0m
+     [1mgss_indicate_mechs[22m([4mOM_uint32[24m [4m*[24m [4mminor_status[24m, [4mgss_OID_set[24m [4m*[24m [4mmech_set[24m);
+
+     [4mOM_uint32[0m
+     [1mgss_init_sec_context[22m([4mOM_uint32[24m [4m*[24m [4mminor_status[24m,
+         [4mgss_const_cred_id_t[24m [4minitiator_cred_handle[24m,
+         [4mgss_ctx_id_t[24m [4m*[24m [4mcontext_handle[24m, [4mgss_const_name_t[24m [4mtarget_name[24m,
+         [4mconst[24m [4mgss_OID[24m [4mmech_type[24m, [4mOM_uint32[24m [4mreq_flags[24m, [4mOM_uint32[24m [4mtime_req[24m,
+         [4mconst[24m [4mgss_channel_bindings_t[24m [4minput_chan_bindings[24m,
+         [4mconst[24m [4mgss_buffer_t[24m [4minput_token[24m, [4mgss_OID[24m [4m*[24m [4mactual_mech_type[24m,
+         [4mgss_buffer_t[24m [4moutput_token[24m, [4mOM_uint32[24m [4m*[24m [4mret_flags[24m,
+         [4mOM_uint32[24m [4m*[24m [4mtime_rec[24m);
+
+     [4mOM_uint32[0m
+     [1mgss_inquire_context[22m([4mOM_uint32[24m [4m*[24m [4mminor_status[24m,
+         [4mgss_const_ctx_id_t[24m [4mcontext_handle[24m, [4mgss_name_t[24m [4m*[24m [4msrc_name[24m,
+         [4mgss_name_t[24m [4m*[24m [4mtarg_name[24m, [4mOM_uint32[24m [4m*[24m [4mlifetime_rec[24m,
+         [4mgss_OID[24m [4m*[24m [4mmech_type[24m, [4mOM_uint32[24m [4m*[24m [4mctx_flags[24m, [4mint[24m [4m*[24m [4mlocally_initiated[24m,
+         [4mint[24m [4m*[24m [4mopen_context[24m);
+
+     [4mOM_uint32[0m
+     [1mgss_inquire_cred[22m([4mOM_uint32[24m [4m*[24m [4mminor_status[24m,
+         [4mgss_const_cred_id_t[24m [4mcred_handle[24m, [4mgss_name_t[24m [4m*[24m [4mname[24m,
+         [4mOM_uint32[24m [4m*[24m [4mlifetime[24m, [4mgss_cred_usage_t[24m [4m*[24m [4mcred_usage[24m,
+         [4mgss_OID_set[24m [4m*[24m [4mmechanisms[24m);
+
+     [4mOM_uint32[0m
+     [1mgss_inquire_cred_by_mech[22m([4mOM_uint32[24m [4m*[24m [4mminor_status[24m,
+         [4mgss_const_cred_id_t[24m [4mcred_handle[24m, [4mconst[24m [4mgss_OID[24m [4mmech_type[24m,
+         [4mgss_name_t[24m [4m*[24m [4mname[24m, [4mOM_uint32[24m [4m*[24m [4minitiator_lifetime[24m,
+         [4mOM_uint32[24m [4m*[24m [4macceptor_lifetime[24m, [4mgss_cred_usage_t[24m [4m*[24m [4mcred_usage[24m);
+
+     [4mOM_uint32[0m
+     [1mgss_inquire_mechs_for_name[22m([4mOM_uint32[24m [4m*[24m [4mminor_status[24m,
+         [4mgss_const_name_t[24m [4minput_name[24m, [4mgss_OID_set[24m [4m*[24m [4mmech_types[24m);
+
+     [4mOM_uint32[0m
+     [1mgss_inquire_names_for_mech[22m([4mOM_uint32[24m [4m*[24m [4mminor_status[24m,
+         [4mconst[24m [4mgss_OID[24m [4mmechanism[24m, [4mgss_OID_set[24m [4m*[24m [4mname_types[24m);
+
+     [4mOM_uint32[0m
+     [1mgss_krb5_ccache_name[22m([4mOM_uint32[24m [4m*minor[24m, [4mconst[24m [4mchar[24m [4m*name[24m,
+         [4mconst[24m [4mchar[24m [4m**old_name[24m);
+
+     [4mOM_uint32[0m
+     [1mgss_krb5_copy_ccache[22m([4mOM_uint32[24m [4m*minor[24m, [4mgss_cred_id_t[24m [4mcred[24m,
+         [4mkrb5_ccache[24m [4mout[24m);
+
+     [4mOM_uint32[0m
+     [1mgss_krb5_import_cred[22m([4mOM_uint32[24m [4m*minor_status[24m, [4mkrb5_ccache[24m [4mid[24m,
+         [4mkrb5_principal[24m [4mkeytab_principal[24m, [4mkrb5_keytab[24m [4mkeytab[24m,
+         [4mgss_cred_id_t[24m [4m*cred[24m);
+
+     [4mOM_uint32[0m
+     [1mgss_krb5_compat_des3_mic[22m([4mOM_uint32[24m [4m*[24m [4mminor_status[24m,
+         [4mgss_ctx_id_t[24m [4mcontext_handle[24m, [4mint[24m [4monoff[24m);
+
+     [4mOM_uint32[0m
+     [1mgsskrb5_extract_authz_data_from_sec_context[22m([4mOM_uint32[24m [4m*minor_status[24m,
+         [4mgss_ctx_id_t[24m [4mcontext_handle[24m, [4mint[24m [4mad_type[24m, [4mgss_buffer_t[24m [4mad_data[24m);
+
+     [4mOM_uint32[0m
+     [1mgsskrb5_register_acceptor_identity[22m([4mconst[24m [4mchar[24m [4m*identity[24m);
+
+     [4mOM_uint32[0m
+     [1mgss_krb5_import_cache[22m([4mOM_uint32[24m [4m*minor[24m, [4mkrb5_ccache[24m [4mid[24m,
+         [4mkrb5_keytab[24m [4mkeytab[24m, [4mgss_cred_id_t[24m [4m*cred[24m);
+
+     [4mOM_uint32[0m
+     [1mgss_krb5_get_tkt_flags[22m([4mOM_uint32[24m [4m*minor_status[24m,
+         [4mgss_ctx_id_t[24m [4mcontext_handle[24m, [4mOM_uint32[24m [4m*tkt_flags[24m);
+
+     [4mOM_uint32[0m
+     [1mgss_process_context_token[22m([4mOM_uint32[24m [4m*[24m [4mminor_status[24m,
+         [4mgss_const_ctx_id_t[24m [4mcontext_handle[24m, [4mconst[24m [4mgss_buffer_t[24m [4mtoken_buffer[24m);
+
+     [4mOM_uint32[0m
+     [1mgss_release_buffer[22m([4mOM_uint32[24m [4m*[24m [4mminor_status[24m, [4mgss_buffer_t[24m [4mbuffer[24m);
+
+     [4mOM_uint32[0m
+     [1mgss_release_cred[22m([4mOM_uint32[24m [4m*[24m [4mminor_status[24m, [4mgss_cred_id_t[24m [4m*[24m [4mcred_handle[24m);
+
+     [4mOM_uint32[0m
+     [1mgss_release_name[22m([4mOM_uint32[24m [4m*[24m [4mminor_status[24m, [4mgss_name_t[24m [4m*[24m [4minput_name[24m);
+
+     [4mOM_uint32[0m
+     [1mgss_release_oid_set[22m([4mOM_uint32[24m [4m*[24m [4mminor_status[24m, [4mgss_OID_set[24m [4m*[24m [4mset[24m);
+
+     [4mOM_uint32[0m
+     [1mgss_seal[22m([4mOM_uint32[24m [4m*[24m [4mminor_status[24m, [4mgss_ctx_id_t[24m [4mcontext_handle[24m,
+         [4mint[24m [4mconf_req_flag[24m, [4mint[24m [4mqop_req[24m, [4mgss_buffer_t[24m [4minput_message_buffer[24m,
+         [4mint[24m [4m*[24m [4mconf_state[24m, [4mgss_buffer_t[24m [4moutput_message_buffer[24m);
+
+     [4mOM_uint32[0m
+     [1mgss_sign[22m([4mOM_uint32[24m [4m*[24m [4mminor_status[24m, [4mgss_ctx_id_t[24m [4mcontext_handle[24m,
+         [4mint[24m [4mqop_req[24m, [4mgss_buffer_t[24m [4mmessage_buffer[24m,
+         [4mgss_buffer_t[24m [4mmessage_token[24m);
+
+     [4mOM_uint32[0m
+     [1mgss_test_oid_set_member[22m([4mOM_uint32[24m [4m*[24m [4mminor_status[24m, [4mconst[24m [4mgss_OID[24m [4mmember[24m,
+         [4mconst[24m [4mgss_OID_set[24m [4mset[24m, [4mint[24m [4m*[24m [4mpresent[24m);
+
+     [4mOM_uint32[0m
+     [1mgss_unseal[22m([4mOM_uint32[24m [4m*[24m [4mminor_status[24m, [4mgss_ctx_id_t[24m [4mcontext_handle[24m,
+         [4mgss_buffer_t[24m [4minput_message_buffer[24m,
+         [4mgss_buffer_t[24m [4moutput_message_buffer[24m, [4mint[24m [4m*[24m [4mconf_state[24m,
+         [4mint[24m [4m*[24m [4mqop_state[24m);
+
+     [4mOM_uint32[0m
+     [1mgss_unwrap[22m([4mOM_uint32[24m [4m*[24m [4mminor_status[24m, [4mgss_const_ctx_id_t[24m [4mcontext_handle[24m,
+         [4mconst[24m [4mgss_buffer_t[24m [4minput_message_buffer[24m,
+         [4mgss_buffer_t[24m [4moutput_message_buffer[24m, [4mint[24m [4m*[24m [4mconf_state[24m,
+         [4mgss_qop_t[24m [4m*[24m [4mqop_state[24m);
+
+     [4mOM_uint32[0m
+     [1mgss_verify[22m([4mOM_uint32[24m [4m*[24m [4mminor_status[24m, [4mgss_ctx_id_t[24m [4mcontext_handle[24m,
+         [4mgss_buffer_t[24m [4mmessage_buffer[24m, [4mgss_buffer_t[24m [4mtoken_buffer[24m,
+         [4mint[24m [4m*[24m [4mqop_state[24m);
+
+     [4mOM_uint32[0m
+     [1mgss_verify_mic[22m([4mOM_uint32[24m [4m*[24m [4mminor_status[24m,
+         [4mgss_const_ctx_id_t[24m [4mcontext_handle[24m, [4mconst[24m [4mgss_buffer_t[24m [4mmessage_buffer[24m,
+         [4mconst[24m [4mgss_buffer_t[24m [4mtoken_buffer[24m, [4mgss_qop_t[24m [4m*[24m [4mqop_state[24m);
+
+     [4mOM_uint32[0m
+     [1mgss_wrap[22m([4mOM_uint32[24m [4m*[24m [4mminor_status[24m, [4mgss_const_ctx_id_t[24m [4mcontext_handle[24m,
+         [4mint[24m [4mconf_req_flag[24m, [4mgss_qop_t[24m [4mqop_req[24m,
+         [4mconst[24m [4mgss_buffer_t[24m [4minput_message_buffer[24m, [4mint[24m [4m*[24m [4mconf_state[24m,
+         [4mgss_buffer_t[24m [4moutput_message_buffer[24m);
+
+     [4mOM_uint32[0m
+     [1mgss_wrap_size_limit[22m([4mOM_uint32[24m [4m*[24m [4mminor_status[24m,
+         [4mgss_const_ctx_id_t[24m [4mcontext_handle[24m, [4mint[24m [4mconf_req_flag[24m,
+         [4mgss_qop_t[24m [4mqop_req[24m, [4mOM_uint32[24m [4mreq_output_size[24m,
+         [4mOM_uint32[24m [4m*[24m [4mmax_input_size[24m);
+
+[1mDESCRIPTION[0m
+     Generic Security Service API (GSS-API) version 2, and its C binding, is
+     described in RFC2743 and RFC2744.  Version 1 (deprecated) of the C bind-
+     ing is described in RFC1509.
+
+     Heimdals GSS-API implementation supports the following mechanisms
+
+     [1m+o   [22mGSS_KRB5_MECHANISM
+
+     [1m+o   [22mGSS_SPNEGO_MECHANISM
+
+     GSS-API have generic name types that all mechanism are supposed to imple-
+     ment (if possible):
+
+     [1m+o   [22mGSS_C_NT_USER_NAME
+
+     [1m+o   [22mGSS_C_NT_MACHINE_UID_NAME
+
+     [1m+o   [22mGSS_C_NT_STRING_UID_NAME
+
+     [1m+o   [22mGSS_C_NT_HOSTBASED_SERVICE
+
+     [1m+o   [22mGSS_C_NT_ANONYMOUS
+
+     [1m+o   [22mGSS_C_NT_EXPORT_NAME
+
+     GSS-API implementations that supports Kerberos 5 have some additional
+     name types:
+
+     [1m+o   [22mGSS_KRB5_NT_PRINCIPAL_NAME
+
+     [1m+o   [22mGSS_KRB5_NT_USER_NAME
+
+     [1m+o   [22mGSS_KRB5_NT_MACHINE_UID_NAME
+
+     [1m+o   [22mGSS_KRB5_NT_STRING_UID_NAME
+
+     In GSS-API, names have two forms, internal names and contiguous string
+     names.
+
+     [1m+o   [22mInternal name and mechanism name
+
+         Internal names are implementation specific representation of a GSS-
+         API name.  Mechanism names special form of internal names corresponds
+         to one and only one mechanism.
+
+         In GSS-API an internal name is stored in a gss_name_t.
+
+     [1m+o   [22mContiguous string name and exported name
+
+         Contiguous string names are gssapi names stored in a OCTET STRING
+         that together with a name type identifier (OID) uniquely specifies a
+         gss-name.  A special form of the contiguous string name is the ex-
+         ported name that have a OID embedded in the string to make it unique.
+         Exported name have the nametype GSS_C_NT_EXPORT_NAME.
+
+         In GSS-API an contiguous string name is stored in a gss_buffer_t.
+
+         Exported names also have the property that they are specified by the
+         mechanism itself and compatible between different GSS-API implementa-
+         tions.
+
+[1mACCESS CONTROL[0m
+     There are two ways of comparing GSS-API names, either comparing two in-
+     ternal names with each other or two contiguous string names with either
+     other.
+
+     To compare two internal names with each other, import (if needed) the
+     names with [1mgss_import_name[22m() into the GSS-API implementation and the com-
+     pare the imported name with [1mgss_compare_name[22m().
+
+     Importing names can be slow, so when its possible to store exported names
+     in the access control list, comparing contiguous string name might be
+     better.
+
+     when comparing contiguous string name, first export them into a
+     GSS_C_NT_EXPORT_NAME name with [1mgss_export_name[22m() and then compare with
+     memcmp(3).
+
+     Note that there are might be a difference between the two methods of com-
+     paring names.  The first (using [1mgss_compare_name[22m()) will compare to
+     (unauthenticated) names are the same.  The second will compare if a mech-
+     anism will authenticate them as the same principal.
+
+     For example, if [1mgss_import_name[22m() name was used with GSS_C_NO_OID the de-
+     fault syntax is used for all mechanism the GSS-API implementation sup-
+     ports.  When compare the imported name of GSS_C_NO_OID it may match sev-
+     eral mechanism names (MN).
+
+     The resulting name from [1mgss_display_name[22m() must not be used for acccess
+     control.
+
+[1mFUNCTIONS[0m
+     [1mgss_display_name[22m() takes the gss name in [4minput_name[24m and puts a printable
+     form in [4moutput_name_buffer[24m.  [4moutput_name_buffer[24m should be freed when done
+     using [1mgss_release_buffer[22m().  [4moutput_name_type[24m can either be NULL or a
+     pointer to a gss_OID and will in the latter case contain the OID type of
+     the name.  The name must only be used for printing.  If access control is
+     needed, see section [4mACCESS[24m [4mCONTROL[24m.
+
+     [1mgss_inquire_context[22m() returns information about the context.  Information
+     is available even after the context have expired.  [4mlifetime_rec[24m argument
+     is set to GSS_C_INDEFINITE (don't expire) or the number of seconds that
+     the context is still valid.  A value of 0 means that the context is ex-
+     pired.  [4mmech_type[24m argument should be considered readonly and must not be
+     released.  [4msrc_name[24m and [1mdest_name[22m() are both mechanims names and must be
+     released with [1mgss_release_name[22m() when no longer used.
+
+     [1mgss_context_time [22mwill return the amount of time (in seconds) of the con-
+     text is still valid.  If its expired [4mtime_rec[24m will be set to 0 and
+     GSS_S_CONTEXT_EXPIRED returned.
+
+     [1mgss_sign[22m(), [1mgss_verify[22m(), [1mgss_seal[22m(), and [1mgss_unseal[22m() are part of the
+     GSS-API V1 interface and are obsolete.  The functions should not be used
+     for new applications.  They are provided so that version 1 applications
+     can link against the library.
+
+[1mEXTENSIONS[0m
+     [1mgss_krb5_ccache_name[22m() sets the internal kerberos 5 credential cache name
+     to [4mname[24m.  The old name is returned in [4mold_name[24m, and must not be freed.
+     The data allocated for [4mold_name[24m is free upon next call to
+     [1mgss_krb5_ccache_name[22m().  This function is not threadsafe if [4mold_name[24m ar-
+     gument is used.
+
+     [1mgss_krb5_copy_ccache[22m() will extract the krb5 credentials that are trans-
+     ferred from the initiator to the acceptor when using token delegation in
+     the Kerberos mechanism.  The acceptor receives the delegated token in the
+     last argument to [1mgss_accept_sec_context[22m().
+
+     [1mgss_krb5_import_cred[22m() will import the krb5 credentials (both keytab
+     and/or credential cache) into gss credential so it can be used withing
+     GSS-API.  The [4mccache[24m is copied by reference and thus shared, so if the
+     credential is destroyed with [4mkrb5_cc_destroy[24m, all users of thep
+     [4mgss_cred_id_t[24m returned by [1mgss_krb5_import_ccache[22m() will fail.
+
+     [1mgsskrb5_register_acceptor_identity[22m() sets the Kerberos 5 filebased keytab
+     that the acceptor will use.  The [4midentifier[24m is the file name.
+
+     [1mgsskrb5_extract_authz_data_from_sec_context[22m() extracts the Kerberos au-
+     thorizationdata that may be stored within the context.  Tha caller must
+     free the returned buffer [4mad_data[24m with [1mgss_release_buffer[22m() upon success.
+
+     [1mgss_krb5_get_tkt_flags[22m() return the ticket flags for the kerberos ticket
+     receive when authenticating the initiator.  Only valid on the acceptor
+     context.
+
+     [1mgss_krb5_compat_des3_mic[22m() turns on or off the compatibility with older
+     version of Heimdal using des3 get and verify mic, this is way to program-
+     matically set the [gssapi]broken_des3_mic and [gssapi]correct_des3_mic
+     flags (see COMPATIBILITY section in gssapi(3)).  If the CPP symbol
+     GSS_C_KRB5_COMPAT_DES3_MIC is present, [1mgss_krb5_compat_des3_mic[22m() exists.
+     [1mgss_krb5_compat_des3_mic[22m() will be removed in a later version of the GSS-
+     API library.
+
+[1mSEE ALSO[0m
+     gssapi(3), krb5(3), krb5_ccache(3), kerberos(8)
+
+HEIMDAL                        October 26, 2005                        HEIMDAL

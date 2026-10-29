@@ -1,0 +1,61 @@
+MECH(5)                     BSD File Formats Manual                    MECH(5)
+
+[1mNAME[0m
+     [1mmech[22m, [1mqop [22m-- GSS-API Mechanism and QOP files
+
+[1mSYNOPSIS[0m
+     [4m/etc/gss/mech[24m [4m/etc/gss/qop[0m
+
+[1mDESCRIPTION[0m
+     The [4m/etc/gss/mech[24m file contains a list of installed GSS-API security
+     mechanisms.  Each line of the file either contains a comment if the first
+     character is '#' or it contains five fields with the following meanings:
+
+     Name    The name of this GSS-API mechanism.
+
+     Object identifier
+             The OID for this mechanism.
+
+     Library
+             A shared library containing the implementation of this mechanism.
+
+     Kernel module (optional)
+             A kernel module containing the implementation of this mechanism
+             (not yet supported in FreeBSD).
+
+     Library options (optional)
+             Optionsal parameters interpreted by the mechanism. Library op-
+             tions must be enclosed in brackets ([ ]) to differentiate them
+             from the optional kernel module entry.
+
+     The [4m/etc/gss/qop[24m file contains a list of Quality of Protection values for
+     use with GSS-API.  Each line of the file either contains a comment if the
+     first character is '#' or it contains three fields with the following
+     meanings:
+
+     QOP string
+             The name of this Quality of Protection algorithm.
+
+     QOP value
+             The numeric value used to select this algorithm for use with GSS-
+             API functions such as gss_get_mic(3).
+
+     Mechanism name
+             The GSS-API mechanism name that corresponds to this algorithm.
+
+[1mEXAMPLES[0m
+     This is a typical entry from [4m/etc/gss/mech[24m:
+
+     kerberosv5      1.2.840.113554.1.2.2    /usr/lib/libgssapi_krb5.so.8    -
+
+     This is a typical entry from [4m/etc/gss/qop[24m:
+
+     GSS_KRB5_CONF_C_QOP_DES         0x0100  kerberosv5
+
+[1mHISTORY[0m
+     The [1mmech [22mmanual page example first appeared in FreeBSD 7.0.
+
+[1mAUTHORS[0m
+     This manual page was written by Doug Rabson <[4mdfr@FreeBSD.org[24m>.
+
+BSD                            November 14, 2005                           BSD

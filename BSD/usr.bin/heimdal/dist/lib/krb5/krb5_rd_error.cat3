@@ -1,0 +1,51 @@
+KRB5_RD_ERROR(3)         BSD Library Functions Manual         KRB5_RD_ERROR(3)
+
+[1mNAME[0m
+     [1mkrb5_rd_error[22m, [1mkrb5_free_error[22m, [1mkrb5_free_error_contents[22m,
+     [1mkrb5_error_from_rd_error [22m-- parse, free and read error from KRB-ERROR
+     message
+
+[1mLIBRARY[0m
+     Kerberos 5 Library (libkrb5, -lkrb5)
+
+[1mSYNOPSIS[0m
+     [1m#include <krb5.h>[0m
+
+     [4mkrb5_error_code[0m
+     [1mkrb5_rd_error[22m([4mkrb5_context[24m [4mcontext[24m, [4mconst[24m [4mkrb5_data[24m [4m*msg[24m,
+         [4mKRB_ERROR[24m [4m*result[24m);
+
+     [4mvoid[0m
+     [1mkrb5_free_error[22m([4mkrb5_context[24m [4mcontext[24m, [4mkrb5_error[24m [4m*error[24m);
+
+     [4mvoid[0m
+     [1mkrb5_free_error_contents[22m([4mkrb5_context[24m [4mcontext[24m, [4mkrb5_error[24m [4m*error[24m);
+
+     [4mkrb5_error_code[0m
+     [1mkrb5_error_from_rd_error[22m([4mkrb5_context[24m [4mcontext[24m, [4mconst[24m [4mkrb5_error[24m [4m*error[24m,
+         [4mconst[24m [4mkrb5_creds[24m [4m*creds[24m);
+
+[1mDESCRIPTION[0m
+     Usually applications never needs to parse and understand Kerberos error
+     messages since higher level functions will parse and push up the error in
+     the krb5_context.  These functions are described for completeness.
+
+     [1mkrb5_rd_error[22m() parses and returns the kerboeros error message, the
+     structure should be freed with [1mkrb5_free_error_contents[22m() when the caller
+     is done with the structure.
+
+     [1mkrb5_free_error[22m() frees the content and the memory region holding the
+     structure iself.
+
+     [1mkrb5_free_error_contents[22m() free the content of the KRB-ERROR message.
+
+     [1mkrb5_error_from_rd_error[22m() will parse the error message and set the error
+     buffer in krb5_context to the error string passed back or the matching
+     error code in the KRB-ERROR message.  Caller should pick up the message
+     with [1mkrb5_get_error_string[22m([4m3[24m) (don't forget to free the returned string
+     with [1mkrb5_free_error_string[22m()).
+
+[1mSEE ALSO[0m
+     krb5(3), krb5_set_error_string(3), krb5_get_error_string(3), krb5.conf(5)
+
+HEIMDAL                          July 26, 2004                         HEIMDAL
