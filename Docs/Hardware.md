@@ -54,10 +54,6 @@ loader's output on screen for photos.
 ### Still open
 
 - NVMe.
-- The ACPI interpreter (ACPICA) does not finish starting: hw-test31 showed
-  it waiting for the Global Lock in `\_SB.PCI0._INI`, with no SCI. We read
-  the FACS's signature as the lock (it looked always taken); hw-test32
-  reads the lock field. To confirm on PC 1.
 - IOKit does not get quiet within 30 seconds, so some drivers (the
   display's) start after the login prompt; `kextstart` now names the
   services still busy.
@@ -138,6 +134,13 @@ I211 gave the I211 an address, but ping went out through the I219-V, which
 kept its address and routes with no link. As on macOS, `dhcpclient` now
 gives up an interface's addresses (IPv4 and IPv6) and routes when its link
 goes down, and asks for it again when the link comes back.
+
+**The ACPI interpreter** (2026-10-28, hw-test32). ACPICA never finished
+starting: it waited in `\_SB.PCI0._INI` for the Global Lock, which PC 1's
+DSDT takes and QEMU's does not. We read the FACS's signature ("FACS",
+whose owned bit is set) as the lock, so it never came free. Reading the
+lock field, the interpreter starts and the start-up messages are gone;
+`shutdown -h` still powers off.
 
 **Powering off** (2026-10-28, hw-test30). `shutdown -h` stopped with the
 machine on: the ACPI interpreter had never finished starting. With no
