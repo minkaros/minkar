@@ -56,6 +56,13 @@ cap_setlogmask(cap_channel_t *c, int maskpri)
 	return (setlogmask(maskpri));
 }
 
+static inline void
+cap_vsyslog(cap_channel_t *c, int pri, const char *fmt, va_list ap)
+{
+	(void)c;
+	vsyslog(pri, fmt, ap);
+}
+
 static inline void __printflike(3, 4)
 cap_syslog(cap_channel_t *c, int pri, const char *fmt, ...)
 {
