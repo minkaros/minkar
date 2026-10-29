@@ -98,6 +98,7 @@ No command from Apple's command sets is left.
 | 2026-10-28 | `vim`, `vi`, `ex`, `view`, `vimdiff`, `rvim`, `rview`, `vimtutor` | Vim 9.2.1252 (Vim licence), the huge feature set without GUI, as macOS's; runtime in `/usr/share/vim/vim92`. `vi`, `ex` and `view` are Vim, as on macOS: nvi is gone |
 | 2026-10-29 | `ksh` | ksh 93u+m/1.0.10 (EPL-2.0) as `/bin/ksh`, as on macOS. Its build runs configuration probes on the target: they ran once on Minkar and `BSD/usr.bin/ksh/iffe-results` gives their answers back, so it cross-builds with no Minkar machine (`make record` redoes them) |
 | 2026-10-29 | `tcsh`, `csh` | tcsh 6.24.16 (BSD-3) as `/bin/tcsh` and `/bin/csh`, as on macOS, with UTF-8 and the system start files in `/etc`; it replaces the FreeBSD build files that were in `BSD/bin/csh` and never built |
+| 2026-10-29 | `dash` | dash 0.5.13.5 (BSD-3) as `/bin/dash`, with libedit; its signal table is ours, from Darwin's `<signal.h>` (upstream's generator is GPL-2 and would give Linux's numbers) |
 
 `btop` and `htop` draw their UTF-8 boxes and graphs on the kernel's console
 too: it has line characters, blocks and Braille dots.
