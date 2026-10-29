@@ -10,9 +10,9 @@ Each command comes from FreeBSD main where FreeBSD has it, and behaves as on mac
 |---|---:|
 | `/bin` | 37 |
 | `/sbin` | 29 |
-| `/usr/bin` | 251 |
+| `/usr/bin` | 248 |
 | `/usr/sbin` | 24 |
-| **Total** | **341** |
+| **Total** | **338** |
 
 ## In the source tree
 

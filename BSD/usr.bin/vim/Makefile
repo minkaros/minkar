@@ -44,8 +44,7 @@ ${.OBJDIR}/src/vim: ${.CURDIR}/Makefile
 	mkdir -p ${.OBJDIR}/src && cp ${.OBJDIR}/build/src/vim ${.TARGET}
 
 ${.OBJDIR}/.installed: ${.OBJDIR}/src/vim
-	# Installed into a staging tree first: only vim's own names go to the
-	# image, so nvi's vi, ex and view and our xxd stay as they are.
+	# Installed into a staging tree first, so that our xxd stays.
 	rm -rf ${.OBJDIR}/stage
 	cd ${.OBJDIR}/build/src && MAKEFLAGS="" ${TOOLS}/gmake installvim \
 	    DESTDIR=${.OBJDIR}/stage STRIP=true
@@ -53,7 +52,7 @@ ${.OBJDIR}/.installed: ${.OBJDIR}/src/vim
 	    ${SYSROOT_DIR}/usr/share/vim
 	install -m 0555 -o 0 -g 0 ${.OBJDIR}/stage/usr/bin/vim ${SYSROOT_DIR}/usr/bin/vim
 	install -m 0555 ${.OBJDIR}/stage/usr/bin/vimtutor ${SYSROOT_DIR}/usr/bin/vimtutor
-.for l in vimdiff rvim rview
+.for l in vi ex view vimdiff rvim rview
 	ln -sf vim ${SYSROOT_DIR}/usr/bin/${l}
 .endfor
 	rm -rf ${SYSROOT_DIR}/usr/share/vim/vim92
@@ -61,7 +60,7 @@ ${.OBJDIR}/.installed: ${.OBJDIR}/src/vim
 .for m in vim.1 vimdiff.1 vimtutor.1
 	install -m 0444 ${.OBJDIR}/stage/usr/share/man/man1/${m} ${SYSROOT_DIR}/usr/share/man/man1/
 .endfor
-.for l in rvim rview
+.for l in vi ex view rvim rview
 	ln -sf vim.1 ${SYSROOT_DIR}/usr/share/man/man1/${l}.1
 .endfor
 	touch ${.TARGET}
