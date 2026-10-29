@@ -54,8 +54,10 @@ loader's output on screen for photos.
 ### Still open
 
 - NVMe.
-- The ACPI interpreter (ACPICA) does not finish starting; the kernel now
-  says every 10 seconds which step and AML method it is in.
+- The ACPI interpreter (ACPICA) does not finish starting: hw-test31 showed
+  it waiting for the Global Lock in `\_SB.PCI0._INI`, with no SCI. We read
+  the FACS's signature as the lock (it looked always taken); hw-test32
+  reads the lock field. To confirm on PC 1.
 - IOKit does not get quiet within 30 seconds, so some drivers (the
   display's) start after the login prompt; `kextstart` now names the
   services still busy.
