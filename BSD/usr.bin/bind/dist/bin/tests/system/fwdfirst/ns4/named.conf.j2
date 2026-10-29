@@ -1,0 +1,17 @@
+options {
+	{% include_indented "_common/options.conf.j2" %}
+	allow-query { any; };
+	allow-recursion { any; };
+	dnssec-validation no;
+	qname-minimization off;
+};
+
+{% include "_common/controls.conf.j2" %}
+
+{% include "_common/root.hint.conf" %}
+
+zone "fwd.hack" {
+	type forward;
+	forward first;
+	forwarders { 10.53.0.2 port @PORT@; };
+};

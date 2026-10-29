@@ -1,0 +1,17 @@
+typo-it-is-transferring-not-transfering.patch
+typo-it-is-privileges-not-priviliges.patch
+manpages-in-section-1-not-in-section-1l.patch
+do-not-set-unwanted-cflags.patch
+typo-it-is-preceding-not-preceeding.patch
+stack-markings-to-avoid-executable-stack.patch
+fclose-in-file-not-fclose-x.patch
+hardening-build-fix-1.patch
+hardening-build-fix-2.patch
+remove-build-date.patch
+typo-it-is-ambiguities-not-amgibuities.patch
+fix-build-with-gcc-14.patch
+typo-it-is-os-2-not-risc-os-2.patch
+buffer-overflow-unicode-filename.patch
+buffer-overflow-cve-2018-13410.patch
+fix-symlink-update-detection.patch
+fix-command-injection.patch

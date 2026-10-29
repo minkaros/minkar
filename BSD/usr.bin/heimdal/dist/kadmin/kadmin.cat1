@@ -1,0 +1,192 @@
+KADMIN(1)                 BSD General Commands Manual                KADMIN(1)
+
+[1mNAME[0m
+     [1mkadmin [22m-- Kerberos administration utility
+
+[1mSYNOPSIS[0m
+     [1mkadmin [22m[[1m-p [4m[22mstring[24m | [1m--principal=[4m[22mstring[24m] [[1m-K [4m[22mstring[24m | [1m--keytab=[4m[22mstring[24m]
+            [[1m-c [4m[22mfile[24m | [1m--config-file=[4m[22mfile[24m] [[1m-k [4m[22mfile[24m | [1m--key-file=[4m[22mfile[24m]
+            [[1m-r [4m[22mrealm[24m | [1m--realm=[4m[22mrealm[24m] [[1m-a [4m[22mhost[24m | [1m--admin-server=[4m[22mhost[24m]
+            [[1m-s [4m[22mport[24m [4mnumber[24m | [1m--server-port=[4m[22mport[24m [4mnumber[24m] [[1m-l [22m| [1m--local[22m]
+            [[1m-h [22m| [1m--help[22m] [[1m-v [22m| [1m--version[22m] [[4mcommand[24m]
+
+[1mDESCRIPTION[0m
+     The [1mkadmin [22mprogram is used to make modifications to the Kerberos data-
+     base, either remotely via the kadmind(8) daemon, or locally (with the [1m-l[0m
+     option).
+
+     Supported options:
+
+     [1m-p [4m[22mstring[24m, [1m--principal=[4m[22mstring[0m
+             principal to authenticate as
+
+     [1m-K [4m[22mstring[24m, [1m--keytab=[4m[22mstring[0m
+             keytab for authentication principal
+
+     [1m-c [4m[22mfile[24m, [1m--config-file=[4m[22mfile[0m
+             location of config file
+
+     [1m-k [4m[22mfile[24m, [1m--key-file=[4m[22mfile[0m
+             location of master key file
+
+     [1m-r [4m[22mrealm[24m, [1m--realm=[4m[22mrealm[0m
+             realm to use
+
+     [1m-a [4m[22mhost[24m, [1m--admin-server=[4m[22mhost[0m
+             server to contact
+
+     [1m-s [4m[22mport[24m [4mnumber[24m, [1m--server-port=[4m[22mport[24m [4mnumber[0m
+             port to use
+
+     [1m-l[22m, [1m--local[0m
+             local admin mode
+
+     If no [4mcommand[24m is given on the command line, [1mkadmin [22mwill prompt for com-
+     mands to process. Some of the commands that take one or more principals
+     as argument ([1mdelete[22m, [1mext_keytab[22m, [1mget[22m, [1mmodify[22m, and [1mpasswd[22m) will accept a
+     glob style wildcard, and perform the operation on all matching princi-
+     pals.
+
+     Commands include:
+
+     [1madd [22m[[1m-r [22m| [1m--random-key[22m] [[1m--random-password[22m] [[1m-p [4m[22mstring[24m |
+     [1m--password=[4m[22mstring[24m] [[1m--key=[4m[22mstring[24m] [[1m--max-ticket-life=[4m[22mlifetime[24m]
+     [[1m--max-renewable-life=[4m[22mlifetime[24m] [[1m--attributes=[4m[22mattributes[24m]
+     [[1m--expiration-time=[4m[22mtime[24m] [[1m--pw-expiration-time=[4m[22mtime[24m]
+     [[1m--policy=[4m[22mpolicy-name[24m] [4mprincipal...[0m
+
+           Adds a new principal to the database. The options not passed on the
+           command line will be promped for.  The only policy supported by
+           Heimdal servers is `default'.
+
+     [1madd_enctype [22m[[1m-r [22m| [1m--random-key[22m] [4mprincipal[24m [4menctypes...[0m
+
+           Adds a new encryption type to the principal, only random key are
+           supported.
+
+     [1mdelete [4m[22mprincipal...[0m
+
+           Removes a principal.
+
+     [1mdel_enctype [4m[22mprincipal[24m [4menctypes...[0m
+
+           Removes some enctypes from a principal; this can be useful if the
+           service belonging to the principal is known to not handle certain
+           enctypes.
+
+     [1mext_keytab [22m[[1m-k [4m[22mstring[24m | [1m--keytab=[4m[22mstring[24m] [4mprincipal...[0m
+
+           Creates a keytab with the keys of the specified principals.  Re-
+           quires get-keys rights, otherwise the principal's keys are changed
+           and saved in the keytab.
+
+     [1mget [22m[[1m-l [22m| [1m--long[22m] [[1m-s [22m| [1m--short[22m] [[1m-t [22m| [1m--terse[22m] [[1m-o [4m[22mstring[24m |
+     [1m--column-info=[4m[22mstring[24m] [4mprincipal...[0m
+
+           Lists the matching principals, short prints the result as a table,
+           while long format produces a more verbose output. Which columns to
+           print can be selected with the [1m-o [22moption. The argument is a comma
+           separated list of column names optionally appended with an equal
+           sign (`=') and a column header. Which columns are printed by de-
+           fault differ slightly between short and long output.
+
+           The default terse output format is similar to [1m-s -o [4m[22mprincipal=[24m,
+           just printing the names of matched principals.
+
+           Possible column names include: principal, princ_expire_time,
+           pw_expiration, last_pwd_change, max_life, max_rlife, mod_time,
+           mod_name, attributes, kvno, mkvno, last_success, last_failed,
+           fail_auth_count, policy, and keytypes.
+
+     [1mmodify [22m[[1m-a [4m[22mattributes[24m | [1m--attributes=[4m[22mattributes[24m]
+     [[1m--max-ticket-life=[4m[22mlifetime[24m] [[1m--max-renewable-life=[4m[22mlifetime[24m]
+     [[1m--expiration-time=[4m[22mtime[24m] [[1m--pw-expiration-time=[4m[22mtime[24m] [[1m--kvno=[4m[22mnumber[24m]
+     [[1m--policy=[4m[22mpolicy-name[24m] [4mprincipal...[0m
+
+           Modifies certain attributes of a principal. If run without command
+           line options, you will be prompted. With command line options, it
+           will only change the ones specified.
+
+           Only policy supported by Heimdal is `default'.
+
+           Possible attributes are: new-princ, support-desmd5,
+           pwchange-service, disallow-svr, requires-pw-change,
+           requires-hw-auth, requires-pre-auth, disallow-all-tix,
+           disallow-dup-skey, disallow-proxiable, disallow-renewable,
+           disallow-tgt-based, disallow-forwardable, disallow-postdated
+
+           Attributes may be negated with a "-", e.g.,
+
+           kadmin -l modify -a -disallow-proxiable user
+
+     [1mpasswd [22m[[1m--keepold[22m] [[1m-r [22m| [1m--random-key[22m] [[1m--random-password[22m] [[1m-p [4m[22mstring[24m |
+     [1m--password=[4m[22mstring[24m] [[1m--key=[4m[22mstring[24m] [4mprincipal...[0m
+
+           Changes the password of an existing principal.
+
+     [1mverify-password-quality [4m[22mprincipal[24m [4mpassword[0m
+
+           Run the password quality check function locally.  You can run this
+           on the host that is configured to run the kadmind process to verify
+           that your configuration file is correct.  The verification is done
+           locally, if kadmin is run in remote mode, no rpc call is done to
+           the server. NOTE: if the environment has verify-password-quality
+           configured to use a back-end that stores password history (such as
+           heimdal-history), running verify-quality-password will cause an up-
+           date to the password database meaning that merely verifying the
+           quality of the password using verify-quality-password invalidates
+           the use of that principal/password in the future.
+
+     [1mprivileges[0m
+
+           Lists the operations you are allowed to perform. These include add,
+           add_enctype, change-password, delete, del_enctype, get, get-keys,
+           list, and modify.
+
+     [1mrename [4m[22mfrom[24m [4mto[0m
+
+           Renames a principal. This is normally transparent, but since keys
+           are salted with the principal name, they will have a non-standard
+           salt, and clients which are unable to cope with this will fail.
+           Kerberos 4 suffers from this.
+
+     [1mcheck [22m[[4mrealm[24m]
+
+           Check database for strange configurations on important principals.
+           If no realm is given, the default realm is used.
+
+     When running in local mode, the following commands can also be used:
+
+     [1mdump [22m[[1m-d [22m| [1m--decrypt[22m] [[1m-f[4m[22mformat[24m | [1m--format=[4m[22mformat[24m] [[4mdump-file[24m]
+
+           Writes the database in "machine readable text" form to the speci-
+           fied file, or standard out. If the database is encrypted, the dump
+           will also have encrypted keys, unless [1m--decrypt [22mis used.  If
+           [1m--format=MIT [22mis used then the dump will be in MIT format.  Other-
+           wise it will be in Heimdal format.
+
+     [1minit [22m[[1m--realm-max-ticket-life=[4m[22mstring[24m] [[1m--realm-max-renewable-life=[4m[22mstring[24m]
+     [4mrealm[0m
+
+           Initializes the Kerberos database with entries for a new realm.
+           It's possible to have more than one realm served by one server.
+
+     [1mload [4m[22mfile[0m
+
+           Reads a previously dumped database, and re-creates that database
+           from scratch.
+
+     [1mmerge [4m[22mfile[0m
+
+           Similar to [1mload [22mbut just modifies the database with the entries in
+           the dump file.
+
+     [1mstash [22m[[1m-e [4m[22menctype[24m | [1m--enctype=[4m[22menctype[24m] [[1m-k [4m[22mkeyfile[24m | [1m--key-file=[4m[22mkeyfile[24m]
+     [[1m--convert-file[22m] [[1m--master-key-fd=[4m[22mfd[24m]
+
+           Writes the Kerberos master key to a file used by the KDC.
+
+[1mSEE ALSO[0m
+     kadmind(8), kdc(8)
+
+HEIMDAL                          Feb 22, 2007                          HEIMDAL

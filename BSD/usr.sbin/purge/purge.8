@@ -1,0 +1,27 @@
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\" Copyright (c) 2026 The Minkar contributors
+.\" Part of Minkar.
+.Dd October 29, 2026
+.Dt PURGE 8
+.Os
+.Sh NAME
+.Nm purge
+.Nd empty the disk cache
+.Sh SYNOPSIS
+.Nm
+.Sh DESCRIPTION
+.Nm
+writes out the data waiting to be written, then empties the disk cache:
+the file data the system keeps in memory for every mounted volume.
+It is for seeing how a program behaves when nothing is cached, as after
+a restart.
+Only the super-user may run it.
+.Sh EXIT STATUS
+.Ex -std
+.Sh SEE ALSO
+.Xr vm_stat 1 ,
+.Xr sync 2
+.Sh HISTORY
+Minkar's
+.Nm
+is its own.

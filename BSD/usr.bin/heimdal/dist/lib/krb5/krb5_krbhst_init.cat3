@@ -1,0 +1,117 @@
+KRB5_KRBHST_INIT(3)      BSD Library Functions Manual      KRB5_KRBHST_INIT(3)
+
+[1mNAME[0m
+     [1mkrb5_krbhst_init[22m, [1mkrb5_krbhst_init_flags[22m, [1mkrb5_krbhst_next[22m,
+     [1mkrb5_krbhst_next_as_string[22m, [1mkrb5_krbhst_reset[22m, [1mkrb5_krbhst_free[22m,
+     [1mkrb5_krbhst_format_string[22m, [1mkrb5_krbhst_get_addrinfo [22m-- lookup Kerberos
+     KDC hosts
+
+[1mLIBRARY[0m
+     Kerberos 5 Library (libkrb5, -lkrb5)
+
+[1mSYNOPSIS[0m
+     [1m#include <krb5.h>[0m
+
+     [4mkrb5_error_code[0m
+     [1mkrb5_krbhst_init[22m([4mkrb5_context[24m [4mcontext[24m, [4mconst[24m [4mchar[24m [4m*realm[24m,
+         [4munsigned[24m [4mint[24m [4mtype[24m, [4mkrb5_krbhst_handle[24m [4m*handle[24m);
+
+     [4mkrb5_error_code[0m
+     [1mkrb5_krbhst_init_flags[22m([4mkrb5_context[24m [4mcontext[24m, [4mconst[24m [4mchar[24m [4m*realm[24m,
+         [4munsigned[24m [4mint[24m [4mtype[24m, [4mint[24m [4mflags[24m, [4mkrb5_krbhst_handle[24m [4m*handle[24m);
+
+     [4mkrb5_error_code[0m
+     [1mkrb5_krbhst_next[22m([4mkrb5_context[24m [4mcontext[24m, [4mkrb5_krbhst_handle[24m [4mhandle[24m,
+         [4mkrb5_krbhst_info[24m [4m**host[24m);
+
+     [4mkrb5_error_code[0m
+     [1mkrb5_krbhst_next_as_string[22m([4mkrb5_context[24m [4mcontext[24m,
+         [4mkrb5_krbhst_handle[24m [4mhandle[24m, [4mchar[24m [4m*hostname[24m, [4msize_t[24m [4mhostlen[24m);
+
+     [4mvoid[0m
+     [1mkrb5_krbhst_reset[22m([4mkrb5_context[24m [4mcontext[24m, [4mkrb5_krbhst_handle[24m [4mhandle[24m);
+
+     [4mvoid[0m
+     [1mkrb5_krbhst_free[22m([4mkrb5_context[24m [4mcontext[24m, [4mkrb5_krbhst_handle[24m [4mhandle[24m);
+
+     [4mkrb5_error_code[0m
+     [1mkrb5_krbhst_format_string[22m([4mkrb5_context[24m [4mcontext[24m,
+         [4mconst[24m [4mkrb5_krbhst_info[24m [4m*host[24m, [4mchar[24m [4m*hostname[24m, [4msize_t[24m [4mhostlen[24m);
+
+     [4mkrb5_error_code[0m
+     [1mkrb5_krbhst_get_addrinfo[22m([4mkrb5_context[24m [4mcontext[24m, [4mkrb5_krbhst_info[24m [4m*host[24m,
+         [4mstruct[24m [4maddrinfo[24m [4m**ai[24m);
+
+[1mDESCRIPTION[0m
+     These functions are used to sequence through all Kerberos hosts of a par-
+     ticular realm and service. The service type can be the KDCs, the adminis-
+     trative servers, the password changing servers, or the servers for Ker-
+     beros 4 ticket conversion.
+
+     First a handle to a particular service is obtained by calling
+     [1mkrb5_krbhst_init[22m() (or [1mkrb5_krbhst_init_flags[22m()) with the [4mrealm[24m of inter-
+     est and the type of service to lookup. The [4mtype[24m can be one of:
+
+           KRB5_KRBHST_KDC
+           KRB5_KRBHST_ADMIN
+           KRB5_KRBHST_CHANGEPW
+           KRB5_KRBHST_KRB524
+
+     The [4mhandle[24m is returned to the caller, and should be passed to the other
+     functions.
+
+     The [4mflag[24m argument to [1mkrb5_krbhst_init_flags [22mis the same flags as
+     [1mkrb5_send_to_kdc_flags[22m() uses.  Possible values are:
+
+           KRB5_KRBHST_FLAGS_MASTER     only talk to master (readwrite) KDC
+           KRB5_KRBHST_FLAGS_LARGE_MSG  this is a large message, so use trans-
+                                        port that can handle that.
+
+     For each call to [1mkrb5_krbhst_next[22m() information on a new host is re-
+     turned. The former function returns in [4mhost[24m a pointer to a structure con-
+     taining information about the host, such as protocol, hostname, and port:
+
+           typedef struct krb5_krbhst_info {
+               enum { KRB5_KRBHST_UDP,
+                      KRB5_KRBHST_TCP,
+                      KRB5_KRBHST_HTTP } proto;
+               unsigned short port;
+               struct addrinfo *ai;
+               struct krb5_krbhst_info *next;
+               char hostname[1];
+           } krb5_krbhst_info;
+
+     The related function, [1mkrb5_krbhst_next_as_string[22m(), return the same in-
+     formation as a URL-like string.
+
+     When there are no more hosts, these functions return KRB5_KDC_UNREACH.
+
+     To re-iterate over all hosts, call [1mkrb5_krbhst_reset[22m() and the next call
+     to [1mkrb5_krbhst_next[22m() will return the first host.
+
+     When done with the handle, [1mkrb5_krbhst_free[22m() should be called.
+
+     To use a [4mkrb5_krbhst_info[24m, there are two functions:
+     [1mkrb5_krbhst_format_string[22m() that will return a printable representation
+     of that struct and [1mkrb5_krbhst_get_addrinfo[22m() that will return a [4mstruct[0m
+     [4maddrinfo[24m that can then be used for communicating with the server men-
+     tioned.
+
+[1mEXAMPLES[0m
+     The following code will print the KDCs of the realm "MY.REALM":
+
+           krb5_krbhst_handle handle;
+           char host[MAXHOSTNAMELEN];
+           krb5_krbhst_init(context, "MY.REALM", KRB5_KRBHST_KDC, &handle);
+           while(krb5_krbhst_next_as_string(context, handle,
+                                            host, sizeof(host)) == 0)
+               printf("%s\n", host);
+           krb5_krbhst_free(context, handle);
+
+[1mSEE ALSO[0m
+     getaddrinfo(3), krb5_get_krbhst(3), krb5_send_to_kdc_flags(3)
+
+[1mHISTORY[0m
+     These functions first appeared in Heimdal 0.3g.
+
+HEIMDAL                          May 10, 2005                          HEIMDAL

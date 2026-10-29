@@ -1,0 +1,44 @@
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\" Copyright (c) 2026 The Minkar contributors
+.\" Part of Minkar.
+.Dd October 29, 2026
+.Dt STRINGS 1
+.Os
+.Sh NAME
+.Nm strings
+.Nd find the printable strings in a file
+.Sh SYNOPSIS
+.Nm
+.Op Fl a
+.Op Fl f
+.Op Fl n Ar length
+.Op Fl t Cm d | o | x
+.Op Ar file ...
+.Sh DESCRIPTION
+.Nm
+writes each run of at least four printable characters it finds in each
+.Ar file ,
+or in the standard input, one to a line.
+.Bl -tag -width Ds
+.It Fl a
+Look through the whole file (it always does; accepted for
+compatibility).
+.It Fl f
+Put the file name before each string.
+.It Fl n Ar length , Fl Ar length
+Only strings of at least
+.Ar length
+characters.
+.It Fl t Cm d | o | x
+Put each string's offset in the file before it, in decimal, octal or
+hexadecimal.
+.El
+.Sh EXIT STATUS
+.Ex -std
+.Sh SEE ALSO
+.Xr hexdump 1 ,
+.Xr size 1
+.Sh HISTORY
+Minkar's
+.Nm
+is LLVM's llvm-strings.

@@ -1,0 +1,32 @@
+KRB5_FIND_PADATA(3)      BSD Library Functions Manual      KRB5_FIND_PADATA(3)
+
+[1mNAME[0m
+     [1mkrb5_find_padata[22m, [1mkrb5_padata_add [22m-- Kerberos 5 pre-authentication data
+     handling functions
+
+[1mLIBRARY[0m
+     Kerberos 5 Library (libkrb5, -lkrb5)
+
+[1mSYNOPSIS[0m
+     [1m#include <krb5.h>[0m
+
+     [4mPA_DATA[24m [4m*[0m
+     [1mkrb5_find_padata[22m([4mPA_DATA[24m [4m*val[24m, [4munsigned[24m [4mlen[24m, [4mint[24m [4mtype[24m, [4mint[24m [4m*index[24m);
+
+     [4mint[0m
+     [1mkrb5_padata_add[22m([4mkrb5_context[24m [4mcontext[24m, [4mMETHOD_DATA[24m [4m*md[24m, [4mint[24m [4mtype[24m,
+         [4mvoid[24m [4m*buf[24m, [4msize_t[24m [4mlen[24m);
+
+[1mDESCRIPTION[0m
+     [1mkrb5_find_padata[22m() tries to find the pre-authentication data entry of
+     type [4mtype[24m in the array [4mval[24m of length [4mlen[24m.  The search is started at entry
+     pointed out by [4m*index[24m (zero based indexing).  If the type isn't found,
+     NULL is returned.
+
+     [1mkrb5_padata_add[22m() adds a pre-authentication data entry of type [4mtype[0m
+     pointed out by [4mbuf[24m and [4mlen[24m to [4mmd[24m.
+
+[1mSEE ALSO[0m
+     krb5(3), kerberos(8)
+
+HEIMDAL                         March 21, 2004                         HEIMDAL

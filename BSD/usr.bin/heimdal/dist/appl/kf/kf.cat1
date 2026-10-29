@@ -1,0 +1,45 @@
+KF(1)                     BSD General Commands Manual                    KF(1)
+
+[1mNAME[0m
+     [1mkf [22m-- securely forward tickets
+
+[1mSYNOPSIS[0m
+     [1mkf [22m[[1m-p [4m[22mport[24m | [1m--port[22m=[4mport[24m] [[1m-l [4m[22mlogin[24m | [1m--login[22m=[4mlogin[24m] [[1m-c [4m[22mccache[24m |
+        [1m--ccache[22m=[4mccache[24m] [[1m-F [22m| [1m--forwardable[22m] [[1m-G [22m| [1m--no-forwardable[22m]
+        [[1m-h [22m| [1m--help[22m] [[1m--version[22m] [4mhost[24m [4m...[0m
+
+[1mDESCRIPTION[0m
+     The [1mkf [22mprogram forwards tickets to a remote host through an authenticated
+     and encrypted stream.  Options supported are:
+
+     [1m-p [4m[22mport[24m, [1m--port[22m=[4mport[0m
+             port to connect to
+
+     [1m-l [4m[22mlogin[24m, [1m--login[22m=[4mlogin[0m
+             remote login name
+
+     [1m-c [4m[22mccache[24m, [1m--ccache[22m=[4mccache[0m
+             remote cred cache
+
+     [1m-F[22m, [1m--forwardable[0m
+             forward forwardable credentials
+
+     [1m-G[22m, [1m--no-forwardable[0m
+             do not forward forwardable credentials
+
+     [1m-h[22m, [1m--help[0m
+
+     [1m--version[0m
+
+     [1mkf [22mis useful when you do not want to enter your password on a remote host
+     but want to have your tickets one for example AFS.
+
+     In order for [1mkf [22mto work you will need to acquire your initial ticket with
+     forwardable flag, i.e.  [1mkinit --forwardable[22m.
+
+     [1mtelnet [22mis able to forward tickets by itself.
+
+[1mSEE ALSO[0m
+     kinit(1), telnet(1), kfd(8)
+
+BSD                              July 2, 2000                              BSD

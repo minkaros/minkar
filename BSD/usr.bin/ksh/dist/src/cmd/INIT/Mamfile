@@ -1,0 +1,191 @@
+note *
+note * This build script is in an extended Make Abstract Machine (MAM)
+note * language. Documentation is at: src/cmd/INIT/README-mamake.md
+note *
+
+setv MAMAKE_STRICT 4
+setv INSTALLROOT ../../..
+setv CC cc
+
+note *
+note * initialization for the build system
+note *
+
+make install virtual
+	loop DIR bin include/ast lib/lib lib/probe/C/make lib/probe/C/pp lib/probe/C/mam
+		make %{INSTALLROOT}/%{DIR}
+			exec - mkdir -p %{@}
+		done
+	done
+
+	note *
+	note * install helper scripts
+	note *
+
+	make %{INSTALLROOT}/bin/probe
+		make probe
+			make probe.sh
+				makp C+probe
+				makp make.probe
+				exec - cat %{^} > %{@}
+			done
+			exec - cp %{<} %{@} && chmod u+w,+x %{@}
+		done
+		exec - cp -f %{<} %{@}
+	done
+	loop SCRIPT iffe mktest regress crossexec mkreq mkreq-maplib mprobe proto dylink mkdeps
+		make %{INSTALLROOT}/bin/%{SCRIPT}
+			make %{SCRIPT}
+				makp %{@}.sh
+				exec - cp %{<} %{@} && chmod u+w,+x %{@}
+			done
+			exec - cp -f %{<} %{@}
+		done
+	done
+	make %{INSTALLROOT}/bin/mamprobe
+		note * the probe.sh dependency is needed for mamake to redo the probe when C+probe or make.probe is edited
+		prev probe.sh
+		makp mamprobe.sh
+		exec - cp %{<} %{@} && chmod u+w,+x %{@}
+	done
+
+	note *
+	note * probe initialization
+	note *
+
+	make %{INSTALLROOT}/lib/probe/C/probe
+		prev C+probe
+		exec - cp -f %{<} %{@}
+	done
+	make %{INSTALLROOT}/lib/probe/C/mam/probe
+		prev mprobe
+		exec - cp -f %{<} %{@}
+	done
+	make %{INSTALLROOT}/lib/probe/C/mam/mprobe
+		prev mprobe
+		exec - cp -f %{<} %{@}
+	done
+	make %{INSTALLROOT}/lib/probe/C/make/probe
+		prev probe
+		exec - cp -f %{<} %{@}
+	done
+	note *
+	note * check if -ldl is required
+	note *
+	note * NOTE: this works around the sgi botch:
+	note *	 (1) irix 5.* made -ldl optional but warned
+	note *	 (2) irix 6.* has no -ldl
+	note *	 (3) dynamic progs built on irix 5.* and using -ldl fail
+	note *           at runtime on irix 6.* because -ldl is not there
+	note *
+	make %{INSTALLROOT}/lib/lib/dl
+		make dl.req
+			makp dl.c
+			exec - mkreq-maplib %{CC} : dl : %{^} : dl
+			prev mkreq-maplib
+		done
+		exec - cp -f %{<} %{@}
+	done
+	note *
+	note * requiring these is a botch
+	note *
+	make %{INSTALLROOT}/lib/lib/iconv
+		make iconv.req
+			makp iconv.c
+			exec - mkreq-maplib %{CC} : iconv : %{^} : iconv
+			prev mkreq-maplib
+		done
+		exec - cp -f %{<} %{@}
+	done
+	make %{INSTALLROOT}/lib/lib/w
+		make w.req
+			makp w.c
+			makp w2.c
+			exec - mkreq-maplib %{CC} : w : %{^} : w
+			prev mkreq-maplib
+		done
+		exec - cp -f %{<} %{@}
+	done
+	note *
+	note * miscellaneous -l* checks
+	note *
+	make %{INSTALLROOT}/lib/lib/intl
+		make intl.req
+			makp intl.c
+			exec - mkreq-maplib %{CC} : intl : %{^} : intl
+			prev mkreq-maplib
+		done
+		exec - cp -f %{<} %{@}
+	done
+	make %{INSTALLROOT}/lib/lib/m
+		make m.req
+			makp m.c
+			makp m2.c
+			makp m3.c
+			makp m4.c
+			makp m5.c
+			makp m6.c
+			exec - mkreq-maplib %{CC} : m : %{^} : m
+			prev mkreq-maplib
+		done
+		exec - cp -f %{<} %{@}
+	done
+	make %{INSTALLROOT}/lib/lib/nsl
+		make nsl.req
+			makp nsl.c
+			exec - mkreq-maplib %{CC} : nsl : %{^} : nsl
+			prev mkreq-maplib
+		done
+		exec - cp -f %{<} %{@}
+	done
+	note *
+	note * what was sco smoking
+	note * almost all of gethost* are in -lnsl except gethostbyname which
+	note * is in -lsocket which isn't needed to resolve socket() but seems
+	note * to do the -lnsl job
+	note *
+	make %{INSTALLROOT}/lib/lib/socket
+		make socket.req
+			makp socket.c
+			prev nsl.c
+			exec - mkreq-maplib %{CC} : socket : %{^} : socket
+			prev mkreq-maplib
+		done
+		exec - cp -f %{<} %{@}
+	done
+	note *
+	note * more substance abuse
+	note * gdbm's ndbm "compatibility" doesn't supply <ndbm.h>, instead supplies
+	note * <gdbm/ndbm.h> which provides K&R prototypes *and* it requires -lgdbm
+	note * some <ndbm.h> implementations use -lndbm, others -ldbm, still others -lc
+	note * this is why unix is starting to look like windows
+	note * this map allows makefiles to use -ldbm on all systems
+	note *
+	note * and this just in: sometimes its <gdbm-ndbm.h> and possibly -lgdbm_compat
+	note *
+	note * at least the -l* buck stops here
+	note *
+	make %{INSTALLROOT}/lib/lib/dbm
+		make dbm.req
+			makp db.c
+			makp gdbm.c
+			makp gdbm1.c
+			makp gdbm2.c
+			exec - mkreq-maplib %{CC} : dbm : %{^} : db gdbm_compat gdbm ndbm dbm
+			prev mkreq-maplib
+		done
+		exec - cp -f %{<} %{@}
+	done
+done install
+
+make test dontcare virtual
+	make test.iffe virtual
+		makp iffe.tst
+		exec - regress iffe.tst iffe
+	done
+	make test.mamake virtual
+		makp mamake.tst
+		exec - : testing non-libast mamake at $PWD/mamake :
+		exec - regress mamake.tst mamake
+	done
+done test

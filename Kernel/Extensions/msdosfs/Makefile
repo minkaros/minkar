@@ -5,6 +5,10 @@ KERNEL_PRIVATE = yes
 INFO_PLIST = Info-msdosfs_kext.plist
 BUNDLE_IDENTIFIER = com.apple.filesystems.msdosfs
 BUNDLE_VERSION = 1.10.0
+# Minkar: the kext's start and stop register and remove the "msdos" file
+# system; without them it loads and does nothing.
+MAIN_FUNCTION = msdosfs_module_start
+ANTIMAIN_FUNCTION = msdosfs_module_stop
 
 .PATH: ${.CURDIR}/msdosfs.kextproj/msdosfs.kmodproj
 SRCS = 	msdosfs_conv.c \
@@ -12,7 +16,8 @@ SRCS = 	msdosfs_conv.c \
 	msdosfs_fat.c \
 	msdosfs_lookup.c \
 	msdosfs_vfsops.c \
-	msdosfs_vnops.c
+	msdosfs_vnops.c \
+	msdosfs_loader.cpp
 
 CFLAGS = -DPRIVATE -DDEBUG=0 -DKERNEL=1 \
 	-Wno-implicit-int-conversion -Wno-sign-conversion \

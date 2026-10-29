@@ -1,0 +1,43 @@
+HPROPD(8)                 BSD System Manager's Manual                HPROPD(8)
+
+[1mNAME[0m
+     [1mhpropd [22m-- receive a propagated database
+
+[1mSYNOPSIS[0m
+     [1mhpropd [22m[[1m-d [4m[22mfile[24m | [1m--database=[4m[22mfile[24m] [[1m-n [22m| [1m--stdin[22m] [[1m--print[22m]
+            [[1m-i [22m| [1m--no-inetd[22m] [[1m-k [4m[22mkeytab[24m | [1m--keytab=[4m[22mkeytab[24m] [[1m-4 [22m| [1m--v4dump[22m]
+
+[1mDESCRIPTION[0m
+     [1mhpropd [22mreceives a database sent by [1mhprop[22m.  and writes it as a local data-
+     base.
+
+     By default, [1mhpropd [22mexpects to be started from [1minetd [22mif stdin is a socket
+     and expects to receive the dumped database over stdin otherwise.  If the
+     database is sent over the network, it is authenticated and encrypted.
+     Only connections authenticated with the principal [1mkadmin[22m/[1mhprop [22mare ac-
+     cepted.
+
+     Options supported:
+
+     [1m-d [4m[22mfile[24m, [1m--database=[4m[22mfile[0m
+             database
+
+     [1m-n[22m, [1m--stdin[0m
+             read from stdin
+
+     [1m--print[0m
+             print dump to stdout
+
+     [1m-i[22m, [1m--no-inetd[0m
+             not started from inetd
+
+     [1m-k [4m[22mkeytab[24m, [1m--keytab=[4m[22mkeytab[0m
+             keytab to use for authentication
+
+     [1m-4[22m, [1m--v4dump[0m
+             create v4 type DB
+
+[1mSEE ALSO[0m
+     hprop(8)
+
+HEIMDAL                         August 27, 1997                        HEIMDAL

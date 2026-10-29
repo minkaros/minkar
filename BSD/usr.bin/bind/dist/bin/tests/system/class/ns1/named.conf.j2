@@ -1,0 +1,18 @@
+options {
+	{% include_indented "_common/options.conf.j2" %}
+};
+
+{% include "_common/controls.conf.j2" %}
+
+view chaos ch {
+	match-clients { any; };
+	recursion yes;
+	zone "." {
+		type hint;
+		file "chaos.db";
+	};
+	zone "version.bind" {
+		type primary;
+		database "_builtin version";
+	};
+};

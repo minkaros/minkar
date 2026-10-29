@@ -1,0 +1,61 @@
+hdr	termios fail{
+	echo "$0: POSIX termios.h is required" >&2
+	exit 1
+}end
+lib	tcgetattr termios.h fail{
+	echo "$0: POSIX tcgetattr(3) is required" >&2
+	exit 1
+}end
+lib	tcgetpgrp unistd.h fail{
+	echo "$0: POSIX tcgetpgrp(3) is required" >&2
+	exit 1
+}end
+mac	_POSIX_VDISABLE termios.h
+mem	termios.c_line termios.h
+
+cat{
+
+#if _mac__POSIX_VDISABLE
+#   undef _POSIX_VDISABLE
+#endif
+#include <termios.h>
+#include <ast_lib.h>
+
+#undef tcgetattr
+#undef tcsetattr
+#undef tcgetpgrp
+#undef tcsetpgrp
+#undef cfgetospeed
+#ifndef TCSANOW
+#   define TCSANOW	TCSETS
+#   define TCSADRAIN	TCSETSW
+#   define TCSAFLUSH	TCSETSF
+#endif /* TCSANOW */
+/* The following corrects bugs in some implementations */
+#if defined(TCSADFLUSH) && !defined(TCSAFLUSH)
+#   define TCSAFLUSH	TCSADFLUSH
+#endif /* TCSADFLUSH */
+#undef TIOCGETC
+
+#if _sys_ioctl
+#   include <sys/ioctl.h>
+#endif
+
+/* set ECHOCTL if driver can echo control characters as ^c */
+#ifdef LCTLECH
+#   ifndef ECHOCTL
+#	define ECHOCTL	LCTLECH
+#   endif /* !ECHOCTL */
+#endif /* LCTLECH */
+#ifdef LNEW_CTLECH
+#   ifndef ECHOCTL
+#	define ECHOCTL  LNEW_CTLECH
+#   endif /* !ECHOCTL */
+#endif /* LNEW_CTLECH */
+#ifdef LNEW_PENDIN
+#   ifndef PENDIN
+#	define PENDIN LNEW_PENDIN
+#  endif /* !PENDIN */
+#endif /* LNEW_PENDIN */
+
+}end

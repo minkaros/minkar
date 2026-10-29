@@ -1,0 +1,55 @@
+KRB5_GET_KRBHST(3)       BSD Library Functions Manual       KRB5_GET_KRBHST(3)
+
+[1mNAME[0m
+     [1mkrb5_get_krbhst[22m, [1mkrb5_get_krb_admin_hst[22m, [1mkrb5_get_krb_changepw_hst[22m,
+     [1mkrb5_get_krb524hst[22m, [1mkrb5_free_krbhst [22m-- lookup Kerberos KDC hosts
+
+[1mLIBRARY[0m
+     Kerberos 5 Library (libkrb5, -lkrb5)
+
+[1mSYNOPSIS[0m
+     [1m#include <krb5.h>[0m
+
+     [4mkrb5_error_code[0m
+     [1mkrb5_get_krbhst[22m([4mkrb5_context[24m [4mcontext[24m, [4mconst[24m [4mkrb5_realm[24m [4m*realm[24m,
+         [4mchar[24m [4m***hostlist[24m);
+
+     [4mkrb5_error_code[0m
+     [1mkrb5_get_krb_admin_hst[22m([4mkrb5_context[24m [4mcontext[24m, [4mconst[24m [4mkrb5_realm[24m [4m*realm[24m,
+         [4mchar[24m [4m***hostlist[24m);
+
+     [4mkrb5_error_code[0m
+     [1mkrb5_get_krb_changepw_hst[22m([4mkrb5_context[24m [4mcontext[24m, [4mconst[24m [4mkrb5_realm[24m [4m*realm[24m,
+         [4mchar[24m [4m***hostlist[24m);
+
+     [4mkrb5_error_code[0m
+     [1mkrb5_get_krb524hst[22m([4mkrb5_context[24m [4mcontext[24m, [4mconst[24m [4mkrb5_realm[24m [4m*realm[24m,
+         [4mchar[24m [4m***hostlist[24m);
+
+     [4mkrb5_error_code[0m
+     [1mkrb5_free_krbhst[22m([4mkrb5_context[24m [4mcontext[24m, [4mchar[24m [4m**hostlist[24m);
+
+[1mDESCRIPTION[0m
+     These functions implement the old API to get a list of Kerberos hosts,
+     and are thus similar to the [1mkrb5_krbhst_init[22m() functions. However, since
+     these functions returns [4mall[24m hosts in one go, they potentially have to do
+     more lookups than necessary. These functions remain for compatibility
+     reasons.
+
+     After a call to one of these functions, [4mhostlist[24m is a NULL terminated
+     list of strings, pointing to the requested Kerberos hosts. These should
+     be freed with [1mkrb5_free_krbhst[22m() when done with.
+
+[1mEXAMPLES[0m
+     The following code will print the KDCs of the realm "MY.REALM".
+
+           char **hosts, **p;
+           krb5_get_krbhst(context, "MY.REALM", &hosts);
+           for(p = hosts; *p; p++)
+               printf("%s\n", *p);
+           krb5_free_krbhst(context, hosts);
+
+[1mSEE ALSO[0m
+     krb5_krbhst_init(3)
+
+HEIMDAL                         April 24, 2005                         HEIMDAL

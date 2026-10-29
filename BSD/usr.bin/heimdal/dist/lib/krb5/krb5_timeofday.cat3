@@ -1,0 +1,54 @@
+KRB5_TIMEOFDAY(3)        BSD Library Functions Manual        KRB5_TIMEOFDAY(3)
+
+[1mNAME[0m
+     [1mkrb5_timeofday[22m, [1mkrb5_set_real_time[22m, [1mkrb5_us_timeofday[22m, [1mkrb5_format_time[22m,
+     [1mkrb5_string_to_deltat [22m-- Kerberos 5 time handling functions
+
+[1mLIBRARY[0m
+     Kerberos 5 Library (libkrb5, -lkrb5)
+
+[1mSYNOPSIS[0m
+     [1m#include <krb5.h>[0m
+
+     krb5_timestamp;
+
+     krb5_deltat;
+
+     [4mkrb5_error_code[0m
+     [1mkrb5_set_real_time[22m([4mkrb5_context[24m [4mcontext[24m, [4mkrb5_timestamp[24m [4msec[24m,
+         [4mint32_t[24m [4musec[24m);
+
+     [4mkrb5_error_code[0m
+     [1mkrb5_timeofday[22m([4mkrb5_context[24m [4mcontext[24m, [4mkrb5_timestamp[24m [4m*timeret[24m);
+
+     [4mkrb5_error_code[0m
+     [1mkrb5_us_timeofday[22m([4mkrb5_context[24m [4mcontext[24m, [4mkrb5_timestamp[24m [4m*sec[24m,
+         [4mint32_t[24m [4m*usec[24m);
+
+     [4mkrb5_error_code[0m
+     [1mkrb5_format_time[22m([4mkrb5_context[24m [4mcontext[24m, [4mtime_t[24m [4mt[24m, [4mchar[24m [4m*s[24m, [4msize_t[24m [4mlen[24m,
+         [4mkrb5_boolean[24m [4minclude_time[24m);
+
+     [4mkrb5_error_code[0m
+     [1mkrb5_string_to_deltat[22m([4mconst[24m [4mchar[24m [4m*string[24m, [4mkrb5_deltat[24m [4m*deltat[24m);
+
+[1mDESCRIPTION[0m
+     [1mkrb5_set_real_time [22msets the absolute time that the caller knows the KDC
+     has.  With this the Kerberos library can calculate the relative differ-
+     ence between the KDC time and the local system time and store it in the
+     [4mcontext[24m.  With this information the Kerberos library can adjust all time
+     stamps in Kerberos packages.
+
+     [1mkrb5_timeofday[22m() returns the current time, but adjusted with the time
+     difference between the local host and the KDC.  [1mkrb5_us_timeofday[22m() also
+     returns microseconds.
+
+     [1mkrb5_format_time [22mformats the time [4mt[24m into the string [4ms[24m of length [4mlen[24m.  If
+     [4minclude_time[24m is set, the time is set include_time.
+
+     [1mkrb5_string_to_deltat [22mparses delta time [4mstring[24m into [4mdeltat[24m.
+
+[1mSEE ALSO[0m
+     gettimeofday(2), krb5(3)
+
+HEIMDAL                       September 16, 2006                       HEIMDAL

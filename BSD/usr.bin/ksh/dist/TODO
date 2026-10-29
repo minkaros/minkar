@@ -1,0 +1,59 @@
+The following bugs and issues are known for ksh 93u+m 1.0.10:
+
+Memory leak when initialising associative array in subshell
+https://github.com/ksh93/ksh/issues/94
+
+command substitution botches output of non-waited-for child processes
+https://github.com/ksh93/ksh/issues/124
+
+Segfault with very large extended glob patterns
+https://github.com/ksh93/ksh/issues/207
+
+process substitution cannot be part of a larger argument
+https://github.com/ksh93/ksh/issues/215
+
+Builtins don't handle I/O errors
+https://github.com/ksh93/ksh/issues/313
+
+Associative arrays of various types fail to be unset
+https://github.com/ksh93/ksh/issues/345
+
+Variable with discipline function in subshell causes memory leak
+https://github.com/ksh93/ksh/issues/404
+
+Memory leak(s) when modifying PATH in various contexts
+https://github.com/ksh93/ksh/issues/405
+
+Discipline function .unset only called once for array subscripts
+https://github.com/ksh93/ksh/issues/419
+
+Function autoload apparently broken on DragonFly BSD
+https://github.com/ksh93/ksh/issues/432
+
+nameref fails with nested associative arrays
+https://github.com/ksh93/ksh/issues/594
+
+globstar fails to resolve symlink
+https://github.com/ksh93/ksh/issues/629
+
+Race condition in job notification
+https://github.com/ksh93/ksh/issues/655
+
+ksh remains in "noecho" mode forever
+https://github.com/ksh93/ksh/issues/672
+
+bogus typeset -p output for compounds with disciplines
+https://github.com/ksh93/ksh/issues/729
+
+test a = a b: undetected error
+https://github.com/ksh93/ksh/issues/739
+
+Occasional "write error" when writing to pipe
+https://github.com/ksh93/ksh/issues/741
+
+sleep 10 | read hangs interactive shell after ^Z
+https://github.com/ksh93/ksh/issues/750
+
+Shell arithmetic is broken for integer values beyond the system's maximum
+float precision
+https://github.com/ksh93/ksh/issues/771

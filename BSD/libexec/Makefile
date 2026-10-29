@@ -4,6 +4,6 @@
 #
 # Independent programs: built in parallel.
 SUBDIR_PARALLEL =
-SUBDIR = dhcpclient getty kextstart atrun
+SUBDIR = dhcpclient getty kextstart atrun launchproxy ntalkd
 
 .include <bsd.subdir.mk>

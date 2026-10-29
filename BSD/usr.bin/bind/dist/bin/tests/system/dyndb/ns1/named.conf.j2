@@ -1,0 +1,27 @@
+/*
+ * Copyright (C) Internet Systems Consortium, Inc. ("ISC")
+ *
+ * SPDX-License-Identifier: MPL-2.0
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0.  If a copy of the MPL was not distributed with this
+ * file, you can obtain one at https://mozilla.org/MPL/2.0/.
+ *
+ * See the COPYRIGHT file distributed with this work for additional
+ * information regarding copyright ownership.
+ */
+
+options {
+	{% include_indented "_common/options/sources.conf.j2" %}
+	{% include_indented "_common/options/server.conf.j2" %}
+	session-keyfile "session.key";
+	listen-on { @ns.ip@; 127.0.0.1; };
+	listen-on-v6 { none; };
+	recursion no;
+	dnssec-validation no;
+};
+
+{% include "_common/controls.conf.j2" %}
+
+dyndb sample "../driver/.libs/sample.so" { ipv4.example.nil. in-addr.arpa. };
+dyndb sample2 "../driver/.libs/sample.so" { ipv6.example.nil. 8.b.d.0.1.0.0.2.ip6.arpa. };

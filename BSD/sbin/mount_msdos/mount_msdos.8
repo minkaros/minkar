@@ -1,0 +1,61 @@
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\" Copyright (c) 2026 The Minkar contributors
+.\" Part of Minkar.
+.Dd October 29, 2026
+.Dt MOUNT_MSDOS 8
+.Os Minkar
+.Sh NAME
+.Nm mount_msdos
+.Nd mount a FAT file system
+.Sh SYNOPSIS
+.Nm
+.Op Fl o Ar options
+.Op Fl u Ar user
+.Op Fl g Ar group
+.Op Fl m Ar mask
+.Ar special
+.Ar node
+.Sh DESCRIPTION
+.Nm
+mounts the FAT12, FAT16 or FAT32 file system on the device
+.Ar special
+at the directory
+.Ar node .
+It is usually run by
+.Xr mount 8
+as
+.Ql mount -t msdos .
+.Pp
+FAT keeps no owner or permissions for its files. All of them take the
+owner, group and permissions given by these options, or by default those of
+.Ar node :
+.Bl -tag -width indent
+.It Fl o Ar options
+Options as in
+.Xr mount 8 ,
+such as
+.Cm rdonly
+or
+.Cm noexec .
+.It Fl u Ar user
+The owner of the files, a name or a number.
+.It Fl g Ar group
+The group of the files, a name or a number.
+.It Fl m Ar mask
+The permissions of the files, in octal.
+.El
+.Pp
+Times are stored in local time on FAT; the kernel converts them with the
+time zone in effect when the file system is mounted.
+.Sh EXIT STATUS
+.Ex -std
+.Sh EXAMPLES
+Mount the first partition of a USB disk, owned by user
+.Ql minkar :
+.Pp
+.Dl mount_msdos -u minkar /dev/disk2s1 /Volumes/USB
+.Sh SEE ALSO
+.Xr mount 2 ,
+.Xr fsck_msdos 8 ,
+.Xr mount 8 ,
+.Xr newfs_msdos 8

@@ -1,0 +1,61 @@
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\" Copyright (c) 2026 The Minkar contributors
+.\" Part of Minkar.
+.Dd October 29, 2026
+.Dt DOT_CLEAN 8
+.Os
+.Sh NAME
+.Nm dot_clean
+.Nd merge AppleDouble files back into their files
+.Sh SYNOPSIS
+.Nm
+.Op Fl fmnsv
+.Op Fl -keep Ns = Ns Cm mostrecent | dotbar | native
+.Ar dir ...
+.Sh DESCRIPTION
+Volumes that cannot keep extended attributes, resource forks or Finder
+information store them for
+.Ar name
+in a separate AppleDouble file,
+.Pa ._ Ns Ar name .
+.Nm
+walks each
+.Ar dir ,
+puts what each such file holds back on the file it belongs to, and
+removes it.
+When both have an attribute,
+.Fl -keep
+says which one stays:
+.Bl -tag -width mostrecent
+.It Cm mostrecent
+the newer of the two files (the default)
+.It Cm dotbar
+the AppleDouble file's
+.It Cm native
+the file's own
+.El
+.Pp
+The other options:
+.Bl -tag -width Ds
+.It Fl f
+Only the files directly in
+.Ar dir ,
+not those below.
+.It Fl m
+Remove the AppleDouble files even when merging failed.
+.It Fl n
+Remove AppleDouble files whose file does not exist.
+.It Fl s
+Follow symbolic links.
+.It Fl v
+Say what is merged.
+.El
+.Sh EXIT STATUS
+.Ex -std
+.Sh SEE ALSO
+.Xr xattr 1 ,
+.Xr copyfile 3
+.Sh HISTORY
+Minkar's
+.Nm
+is its own.

@@ -20,6 +20,7 @@ all: ${.OBJDIR}/.installed
 RSYNC_JOBS =	-j${.MAKE.JOBS:U1}
 
 ${.OBJDIR}/rsync: ${.CURDIR}/Makefile
+	sh ${ROOT_SOURCE_DIR}/tools/build/autotools-times.sh ${.CURDIR}/dist
 	CC=${CC} AR=${AR} RANLIB=${RANLIB} \
 	rsync_cv_HAVE_SOCKETPAIR=yes rsync_cv_HAVE_C99_VSNPRINTF=yes \
 	rsync_cv_HAVE_SECURE_MKSTEMP=yes rsync_cv_HAVE_BROKEN_READDIR=no \

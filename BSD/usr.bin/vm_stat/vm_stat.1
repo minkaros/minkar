@@ -1,0 +1,39 @@
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\" Copyright (c) 2026 The Minkar contributors
+.\" Part of Minkar.
+.Dd October 29, 2026
+.Dt VM_STAT 1
+.Os
+.Sh NAME
+.Nm vm_stat
+.Nd show virtual memory statistics
+.Sh SYNOPSIS
+.Nm
+.Op Oo Fl c Ar count Oc Ar interval
+.Sh DESCRIPTION
+.Nm
+shows the kernel's virtual memory statistics, in pages of the size its
+first line gives: free, active, inactive, speculative, throttled, wired
+and purgeable pages; page faults, copy-on-write and zero-filled pages,
+reactivated and purged pages; file-backed and anonymous pages; the pages
+stored in and taken by the compressor, decompressions and compressions;
+page-ins, page-outs, swap-ins and swap-outs.
+.Pp
+With an
+.Ar interval
+in seconds, it prints them as a table every
+.Ar interval
+seconds: the first row has the totals, the next ones what changed since
+the row before (the page counts are always as they are now).
+.Bl -tag -width Ds
+.It Fl c Ar count
+Stop after
+.Ar count
+rows.
+.El
+.Sh SEE ALSO
+.Xr top 1
+.Sh HISTORY
+Minkar's
+.Nm
+is its own.

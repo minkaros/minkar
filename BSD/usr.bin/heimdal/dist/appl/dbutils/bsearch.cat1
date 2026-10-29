@@ -1,0 +1,66 @@
+BSEARCH(1)                BSD General Commands Manual               BSEARCH(1)
+
+[1mNAME[0m
+     [1mbsearch [22m-- manages one-time passwords
+
+[1mSYNOPSIS[0m
+     [1mbsearch [22m[[1m-KVvh[22m] [[1m-b [4m[22mblock-size[24m] [[1m-m [4m[22mmax-cache-size[24m] [4mfile[24m [4m[key[24m [4m...][0m
+
+[1mDESCRIPTION[0m
+     The [1mbsearch [22mprogram performs binary searches of [4mfile[24m which must be a
+     sorted flat text file.
+
+     Each line is a record.  Each record starts with a key that is optionally
+     followed by whitespace and a value.  Whitespace may be quoted with a
+     backslash, but newline and carriage-return characters must be quoted in
+     some other manner (e.g., as backslash-n and backslash-r).  Escapes are
+     not interpreted nor removed.
+
+     If no key arguments are given on the comman-line, then keys will be read
+     from standard input.
+
+     By default only values are printed to standard output.  Use the -K option
+     to also print keys.  The exit status will be non-zero if any key lookups
+     fail.
+
+     Options are:
+
+     [1m-K      [22mPrint keys.
+
+     [1m-V      [22mDon't print values.
+
+     [1m-h      [22mPrint usage and exit.
+
+     [1m-v      [22mPrint statistic and debug information to standard error.  [4mfile[24m A
+             sorted flat text file.  NOTE: use the "C" locale for sorting this
+             file, as in "LC_ALL=C sort -u -o file file".
+
+     [1m-h      [22mFor getting a help message.
+
+     [1m-m      [22mSet [4mmax-cache-size[24m as the maximum cache size.  If the [4mfile[24m is
+             smaller than this size then the whole file will be read into mem-
+             ory, else the program will read blocks.  Defaults to 1MB.
+
+     [1m-b      [22mSet [4mblock-size[24m as the block size for block-wise I/O.  This must
+             be a power of 2, must be no smaller than 512 and no larger than
+             1MB.  Defaults to the [4mfile's[24m filesystem's preferred blocksize.
+
+[1mEXAMPLES[0m
+           $ env LC_ALL=C sort -o /tmp/words /usr/share/dict/words
+           $ bsearch -Kv /tmp/words day
+           Using whole-file method
+           Key day found at offset 327695 in 12 loops and 0 reads
+           day
+           $
+
+[1mNOTES[0m
+     Records must not be longer than one block's size.
+
+     Flat text files must be sorted in the "C" locale.  In some systems the
+     default locale may result in case-insensitive sorting by the sort com-
+     mand.
+
+[1mSEE ALSO[0m
+     sort(1)
+
+KTH-KRB                        November 30, 2011                       KTH-KRB

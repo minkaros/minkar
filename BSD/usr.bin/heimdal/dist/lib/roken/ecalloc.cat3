@@ -1,0 +1,46 @@
+ECALLOC(3)               BSD Library Functions Manual               ECALLOC(3)
+
+[1mNAME[0m
+     [1mecalloc[22m, [1memalloc[22m, [1meread[22m, [1merealloc[22m, [1mesetenv[22m, [1mestrdup[22m, [1mewrite [22m-- exit-on-
+     failure wrapper functions
+
+[1mLIBRARY[0m
+     The roken library (libroken, -lroken)
+
+[1mSYNOPSIS[0m
+     [1m#include <roken.h>[0m
+
+     [4mvoid[24m [4m*[0m
+     [1mecalloc[22m([4msize_t[24m [4mnumber[24m, [4msize_t[24m [4msize[24m);
+
+     [4mvoid[24m [4m*[0m
+     [1memalloc[22m([4msize_t[24m [4msz[24m);
+
+     [4mssize_t[0m
+     [1meread[22m([4mint[24m [4mfd[24m, [4mvoid[24m [4m*buf[24m, [4msize_t[24m [4mnbytes[24m);
+
+     [4mvoid[24m [4m*[0m
+     [1merealloc[22m([4mvoid[24m [4m*ptr[24m, [4msize_t[24m [4msz[24m);
+
+     [4mvoid[0m
+     [1mesetenv[22m([4mconst[24m [4mchar[24m [4m*var[24m, [4mconst[24m [4mchar[24m [4m*val[24m, [4mint[24m [4mrewrite[24m);
+
+     [4mchar[24m [4m*[0m
+     [1mestrdup[22m([4mconst[24m [4mchar[24m [4m*str[24m);
+
+     [4mssize_t[0m
+     [1mewrite[22m([4mint[24m [4mfd[24m, [4mconst[24m [4mvoid[24m [4m*buf[24m, [4msize_t[24m [4mnbytes[24m);
+
+[1mDESCRIPTION[0m
+     These functions do the same as the ones without the "e" prefix, but if
+     there is an error they will print a message with errx(3), and exit. For
+     [1meread [22mand [1mewrite [22mthis is also true for partial data.
+
+     This is useful in applications when there is no need for a more advanced
+     failure mode.
+
+[1mSEE ALSO[0m
+     read(2), write(2), calloc(3), errx(3), malloc(3), realloc(3), setenv(3),
+     strdup(3)
+
+HEIMDAL                         August 14, 2003                        HEIMDAL

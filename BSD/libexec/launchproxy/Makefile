@@ -1,17 +1,27 @@
-.include <bsd.own.mk>
+# SPDX-License-Identifier: BSD-2-Clause
+# Copyright (c) 2026 The Minkar contributors
+# Part of Minkar.
+#
+# launchproxy: launchd's helper (launchproxy.c, Apache-2.0, from Apple's
+# launchd like BSD/sbin/launchd), which launchd runs for jobs with
+# inetdCompatibility: it accepts the connection, or hands over the
+# datagram socket, and starts the job's program on it, as inetd did.
+# Installed as /usr/libexec/launchproxy, where launchd looks for it.
 
-PROG= launchproxy
-MAN=
+SUBDIR =
+MK_WERROR = no
+WARNS ?= 1
+PROG =	launchproxy
+MAN =
+CFLAGS += --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
+	-Wno-nullability-completeness
+LDFLAGS += --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
+	-fuse-ld=${LD}
 
-BASE_INCLUDE= -I${.CURDIR}/../../apsl/include
-BASE_INCLUDE+=  -I${.CURDIR}/../../include -I${.CURDIR}/../../sys -I${.CURDIR}
+all: to-sysroot
 
-DEBUG_FLAGS=-g -O0
-
-CFLAGS+= ${BASE_INCLUDE}
-CFLAGS+= -I${.CURDIR}/../../lib/liblaunch
-CFLAGS+= -I${.CURDIR}/../../include/mach
-LDFLAGS+= -pthread -llaunch -lmach -ldispatch -losxsupport -lBlocksRuntime
-SRCS= launchproxy.c
+to-sysroot: ${PROG}
+	mkdir -p ${SYSROOT_DIR}/usr/libexec
+	install -m 0555 -o 0 -g 0 ${PROG} ${SYSROOT_DIR}/usr/libexec/launchproxy
 
 .include <bsd.prog.mk>

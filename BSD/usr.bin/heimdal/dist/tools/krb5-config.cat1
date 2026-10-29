@@ -1,0 +1,53 @@
+KRB5-CONFIG(1)            BSD General Commands Manual           KRB5-CONFIG(1)
+
+[1mNAME[0m
+     [1mkrb5-config [22m-- give information on how to link code against Heimdal li-
+     braries
+
+[1mSYNOPSIS[0m
+     [1mkrb5-config [22m[[1m--prefix[22m[=[4mdir[24m]] [[1m--exec-prefix[22m[=[4mdir[24m]] [[1m--libs[22m] [[1m--cflags[22m]
+                 [[4mlibraries[24m]
+
+[1mDESCRIPTION[0m
+     [1mkrb5-config [22mtells the application programmer what special flags to use to
+     compile and link programs against the libraries installed by Heimdal.
+
+     Options supported:
+
+     [1m--prefix[22m[=[4mdir[24m]
+             Print the prefix if no [4mdir[24m is specified, otherwise set prefix to
+             [4mdir[24m.
+
+     [1m--exec-prefix[22m[=[4mdir[24m]
+             Print the exec-prefix if no [4mdir[24m is specified, otherwise set exec-
+             prefix to [4mdir[24m.
+
+     [1m--libs  [22mOutput the set of libraries that should be linked against.  This
+             also includes rpath flags with the expectation that the C com-
+             piler is used for final link-edits.
+
+     [1m--cflags[0m
+             Output the set of flags to give to the C compiler when using the
+             Heimdal libraries.
+
+     By default [1mkrb5-config [22mwill output the set of flags and libraries to be
+     used by a normal program using the krb5 API.  The user can also supply a
+     library to be used, the supported ones are:
+
+     krb5    (the default)
+
+     gssapi  use the krb5 gssapi mechanism
+
+     kadm-client
+             use the client-side kadmin libraries
+
+     kadm-server
+             use the server-side kadmin libraries
+
+[1mSEE ALSO[0m
+     cc(1)
+
+[1mHISTORY[0m
+     [1mkrb5-config [22mappeared in Heimdal 0.3d.
+
+HEIMDAL                        November 30, 2000                       HEIMDAL

@@ -1,0 +1,42 @@
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\" Copyright (c) 2026 The Minkar contributors
+.\" Part of Minkar.
+.Dd October 29, 2026
+.Dt TZLINK 8
+.Os
+.Sh NAME
+.Nm tzlink
+.Nd set the system's time zone
+.Sh SYNOPSIS
+.Nm
+.Ar zone
+.Sh DESCRIPTION
+.Nm
+makes
+.Pa /etc/localtime
+a link to
+.Ar zone Ns 's
+file in
+.Pa /var/db/timezone/zoneinfo ,
+such as
+.Ql America/Lima ,
+replacing the old link in one step, and tells running programs that the
+time zone changed.
+Only the super-user may run it.
+.Sh FILES
+.Bl -tag -width /var/db/timezone/zoneinfo -compact
+.It Pa /etc/localtime
+the system's time zone
+.It Pa /var/db/timezone/zoneinfo
+the time zones
+.El
+.Sh EXIT STATUS
+.Ex -std
+.Sh SEE ALSO
+.Xr date 1 ,
+.Xr tzfile 5 ,
+.Xr zic 8
+.Sh HISTORY
+Minkar's
+.Nm
+is its own.

@@ -1,0 +1,136 @@
+KINIT(1)                  BSD General Commands Manual                 KINIT(1)
+
+[1mNAME[0m
+     [1mkinit [22m-- acquire initial tickets
+
+[1mSYNOPSIS[0m
+     [1mkinit [22m[[1m--afslog[22m] [[1m-c [4m[22mcachename[24m | [1m--cache=[4m[22mcachename[24m] [[1m-f [22m| [1m--forwardable[22m]
+           [[1m-F [22m| [1m--no-forwardable[22m] [[1m-t [4m[22mkeytabname[24m | [1m--keytab=[4m[22mkeytabname[24m] [[1m-l[0m
+           [4mtime[24m | [1m--lifetime=[4m[22mtime[24m] [[1m-p [22m| [1m--proxiable[22m] [[1m-R [22m| [1m--renew[22m]
+           [[1m--renewable[22m] [[1m-r [4m[22mtime[24m | [1m--renewable-life=[4m[22mtime[24m] [[1m-S [4m[22mprincipal[24m |
+           [1m--server=[4m[22mprincipal[24m] [[1m-s [4m[22mtime[24m | [1m--start-time=[4m[22mtime[24m]
+           [[1m-k [22m| [1m--use-keytab[22m] [[1m-v [22m| [1m--validate[22m] [[1m-e [4m[22menctypes[24m |
+           [1m--enctypes=[4m[22menctypes[24m] [[1m-a [4m[22maddresses[24m | [1m--extra-addresses=[4m[22maddresses[24m]
+           [[1m--password-file=[4m[22mfilename[24m] [[1m--fcache-version=[4m[22mversion-number[24m]
+           [[1m-A [22m| [1m--no-addresses[22m] [[1m-n [22m| [1m--anonymous[22m] [[1m--enterprise[22m] [[1m--version[22m]
+           [[1m--help[22m] [[4mprincipal[24m [[4mcommand[24m]]
+
+[1mDESCRIPTION[0m
+     [1mkinit [22mis used to authenticate to the Kerberos server as [4mprincipal[24m, or if
+     none is given, a system generated default (typically your login name at
+     the default realm), and acquire a ticket granting ticket that can later
+     be used to obtain tickets for other services.
+
+     Supported options:
+
+     [1m-c [4m[22mcachename[24m [1m--cache=[4m[22mcachename[0m
+             The credentials cache to put the acquired ticket in, if other
+             than default.
+
+     [1m-f --forwardable[0m
+             Obtain a ticket than can be forwarded to another host.
+
+     [1m-F --no-forwardable[0m
+             Do not obtain a forwardable ticket.
+
+     [1m-t [4m[22mkeytabname[24m, [1m--keytab=[4m[22mkeytabname[0m
+             Don't ask for a password, but instead get the key from the speci-
+             fied keytab.
+
+     [1m-l [4m[22mtime[24m, [1m--lifetime=[4m[22mtime[0m
+             Specifies the lifetime of the ticket.  The argument can either be
+             in seconds, or a more human readable string like `1h'.
+
+     [1m-p[22m, [1m--proxiable[0m
+             Request tickets with the proxiable flag set.
+
+     [1m-R[22m, [1m--renew[0m
+             Try to renew ticket.  The ticket must have the `renewable' flag
+             set, and must not be expired.
+
+     [1m--renewable[0m
+             The same as [1m--renewable-life[22m, with an infinite time.
+
+     [1m-r [4m[22mtime[24m, [1m--renewable-life=[4m[22mtime[0m
+             The max renewable ticket life.
+
+     [1m-S [4m[22mprincipal[24m, [1m--server=[4m[22mprincipal[0m
+             Get a ticket for a service other than krbtgt/LOCAL.REALM.
+
+     [1m-s [4m[22mtime[24m, [1m--start-time=[4m[22mtime[0m
+             Obtain a ticket that starts to be valid [4mtime[24m (which can really be
+             a generic time specification, like `1h') seconds into the future.
+
+     [1m-k[22m, [1m--use-keytab[0m
+             The same as [1m--keytab[22m, but with the default keytab name (normally
+             [4mFILE:/etc/krb5.keytab[24m).
+
+     [1m-v[22m, [1m--validate[0m
+             Try to validate an invalid ticket.
+
+     [1m-e[22m, [1m--enctypes=[4m[22menctypes[0m
+             Request tickets with this particular enctype.
+
+     [1m--password-file=[4m[22mfilename[0m
+             read the password from the first line of [4mfilename[24m.  If the
+             [4mfilename[24m is [4mSTDIN[24m, the password will be read from the standard
+             input.
+
+     [1m--fcache-version=[4m[22mversion-number[0m
+             Create a credentials cache of version [4mversion-number[24m.
+
+     [1m-a[22m, [1m--extra-addresses=[4m[22menctypes[0m
+             Adds a set of addresses that will, in addition to the systems lo-
+             cal addresses, be put in the ticket.  This can be useful if all
+             addresses a client can use can't be automatically figured out.
+             One such example is if the client is behind a firewall.  Also
+             settable via libdefaults/extra_addresses in krb5.conf(5).
+
+     [1m-A[22m, [1m--no-addresses[0m
+             Request a ticket with no addresses.
+
+     [1m-n[22m, [1m--anonymous[0m
+             Request an anonymous ticket.  With the default (false) setting of
+             the [4mhistorical_anon_pkinit[24m configuration parameter, if the prin-
+             cipal is specified as @REALM, then anonymous PKINIT will be used
+             to acquire an unauthenticated anonymous ticket and both the
+             client name and (with fully RFC-comformant KDCs) realm in the re-
+             turned ticket will be anonymized.  Otherwise, authentication pro-
+             ceeds as normal and the anonymous ticket will have only the
+             client name anonymized.  With [4mhistorical_anon_pkinit[24m set to true,
+             the principal is interpreted as a realm even without an at-sign
+             prefix, and it is not possible to obtain authenticated anonymized
+             tickets.
+
+     [1m--enterprise[0m
+             Parse principal as a enterprise (KRB5-NT-ENTERPRISE) name. Enter-
+             prise names are email like principals that are stored in the name
+             part of the principal, and since there are two @ characters the
+             parser needs to know that the first is not a realm.  An example
+             of an enterprise name is "lha@e.kth.se@KTH.SE", and this option
+             is usually used with canonicalize so that the principal returned
+             from the KDC will typically be the real principal name.
+
+     [1m--afslog[0m
+             Gets AFS tickets, converts them to version 4 format, and stores
+             them in the kernel.  Only useful if you have AFS.
+
+     The [4mforwardable[24m, [4mproxiable[24m, [4mticket_life[24m, and [4mrenewable_life[24m options can
+     be set to a default value from the appdefaults section in krb5.conf, see
+     krb5_appdefault(3).
+
+     If  a [4mcommand[24m is given, [1mkinit [22mwill set up new credentials caches, and AFS
+     PAG, and then run the given command.  When it finishes the credentials
+     will be removed.
+
+[1mENVIRONMENT[0m
+     KRB5CCNAME
+             Specifies the default credentials cache.
+
+     KRB5_CONFIG
+             The file name of [4mkrb5.conf[24m, the default being [4m/etc/krb5.conf[24m.
+
+[1mSEE ALSO[0m
+     kdestroy(1), klist(1), krb5_appdefault(3), krb5.conf(5)
+
+HEIMDAL                         April 25, 2006                         HEIMDAL

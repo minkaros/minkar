@@ -1,0 +1,44 @@
+/*
+ * Copyright (C) Internet Systems Consortium, Inc. ("ISC")
+ *
+ * SPDX-License-Identifier: MPL-2.0
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0.  If a copy of the MPL was not distributed with this
+ * file, you can obtain one at https://mozilla.org/MPL/2.0/.
+ *
+ * See the COPYRIGHT file distributed with this work for additional
+ * information regarding copyright ownership.
+ */
+
+{% include "_common/controls.conf.j2" %}
+
+tls self-signed {
+	cert-file "../self-signed-cert.pem";
+	key-file "../self-signed-key.pem";
+};
+
+options {
+	{% include_indented "_common/options/sources.conf.j2" %}
+	{% include_indented "_common/options/server.conf.j2" %}
+	##
+	# generic
+	listen-on { @ns.ip@; };
+	# test TLS
+	listen-on port @EXTRAPORT1@ proxy plain tls self-signed http default { @ns.ip@; };
+	listen-on-v6 port @EXTRAPORT1@ proxy plain tls self-signed http default { @ns.ip6@; };
+	##
+	recursion no;
+	notify explicit;
+	statistics-file "named.stats";
+	dnssec-validation no;
+	tcp-initial-timeout 1200;
+	allow-proxy { any; };
+	allow-proxy-on { @ns.ip@; @ns.ip6@; };
+};
+
+zone "example" {
+	type primary;
+	file "example.db";
+	allow-transfer { any; };
+};

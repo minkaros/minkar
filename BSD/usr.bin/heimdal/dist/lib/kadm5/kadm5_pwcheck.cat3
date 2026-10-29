@@ -1,0 +1,87 @@
+KADM5_PWCHECK(3)         BSD Library Functions Manual         KADM5_PWCHECK(3)
+
+[1mNAME[0m
+     [1mkrb5_pwcheck[22m, [1mkadm5_setup_passwd_quality_check[22m,
+     [1mkadm5_add_passwd_quality_verifier[22m, [1mkadm5_check_password_quality [22m-- Heim-
+     dal warning and error functions
+
+[1mLIBRARY[0m
+     Kerberos 5 Library (libkadm5srv, -lkadm5srv)
+
+[1mSYNOPSIS[0m
+     [1m#include <kadm5-protos.h>[0m
+     [1m#include <kadm5-pwcheck.h>[0m
+
+     [4mvoid[0m
+     [1mkadm5_setup_passwd_quality_check[22m([4mkrb5_context[24m [4mcontext[24m,
+         [4mconst[24m [4mchar[24m [4m*check_library[24m, [4mconst[24m [4mchar[24m [4m*check_function[24m);
+
+     [4mkrb5_error_code[0m
+     [1mkadm5_add_passwd_quality_verifier[22m([4mkrb5_context[24m [4mcontext[24m,
+         [4mconst[24m [4mchar[24m [4m*check_library[24m);
+
+     [4mconst[24m [4mchar[24m [4m*[0m
+     [1mkadm5_check_password_quality[22m([4mkrb5_context[24m [4mcontext[24m,
+         [4mkrb5_principal[24m [4mprincipal[24m, [4mkrb5_data[24m [4m*pwd_data[24m);
+
+     [4mint[0m
+     [1m(*kadm5_passwd_quality_check_func)[22m([4mkrb5_context[24m [4mcontext[24m,
+         [4mkrb5_principal[24m [4mprincipal[24m, [4mkrb5_data[24m [4m*password[24m, [4mconst[24m [4mchar[24m [4m*tuning[24m,
+         [4mchar[24m [4m*message[24m, [4msize_t[24m [4mlength[24m);
+
+[1mDESCRIPTION[0m
+     These functions perform the quality check for the heimdal database li-
+     brary.
+
+     There are two versions of the shared object API; the old version (0) is
+     deprecated, but still supported.  The new version (1) supports multiple
+     password quality checking policies in the same shared object.  See below
+     for details.
+
+     The password quality checker will run all policies that are configured by
+     the user.  If any policy rejects the password, the password will be re-
+     jected.
+
+     Policy names are of the form `module-name:policy-name' or, if the the
+     policy name is unique enough, just `policy-name'.
+
+[1mIMPLEMENTING A PASSWORD QUALITY CHECKING SHARED OBJECT[0m
+     (This refers to the version 1 API only.)
+
+     Module shared objects may conveniently be compiled and linked with
+     libtool(1).  An object needs to export a symbol called
+     `kadm5_password_verifier' of the type [4mstruct[24m [4mkadm5_pw_policy_verifier[24m.
+
+     Its [4mname[24m and [4mvendor[24m fields should contain the obvious information.  [4mname[0m
+     must match the `module-name' portion of the policy name (the part before
+     the colon), if the policy name contains a colon, or the policy will not
+     be run.  [4mversion[24m should be KADM5_PASSWD_VERSION_V1.
+
+     [4mfuncs[24m contains an array of [4mstruct[24m [4mkadm5_pw_policy_check_func[24m structures
+     that is terminated with an entry whose [4mname[24m component is NULL.  The [4mname[0m
+     field of the array must match the `policy-name' portion of a policy name
+     (the part after the colon, or the complete policy name if there is no
+     colon) specified by the user or the policy will not be run.  The [4mfunc[0m
+     fields of the array elements are functions that are exported by the mod-
+     ule to be called to check the password.  They get the following argu-
+     ments:  the Kerberos context, principal, password, a tuning parameter,
+     and a pointer to a message buffer and its length.  The tuning parameter
+     for the quality check function is currently always NULL.  If the password
+     is acceptable, the function returns zero.  Otherwise it returns non-zero
+     and fills in the message buffer with an appropriate explanation.
+
+[1mRUNNING THE CHECKS[0m
+     [1mkadm5_setup_passwd_quality_check [22msets up type 0 checks.  It sets up all
+     type 0 checks defined in krb5.conf(5) if called with the last two argu-
+     ments null.
+
+     [1mkadm5_add_passwd_quality_verifier [22msets up type 1 checks.  It sets up all
+     type 1 tests defined in krb5.conf(5) if called with a null second argu-
+     ment.  [1mkadm5_check_password_quality [22mruns the checks in the order in which
+     they are defined in krb5.conf(5) and the order in which they occur in a
+     module's [4mfuncs[24m array until one returns non-zero.
+
+[1mSEE ALSO[0m
+     libtool(1), krb5(3), krb5.conf(5)
+
+HEIMDAL                        February 29, 2004                       HEIMDAL

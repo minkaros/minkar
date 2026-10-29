@@ -1,0 +1,16 @@
+// NS2
+
+options {
+	{% include_indented "_common/options.conf.j2" %}
+	allow-transfer { any; };
+	minimal-any no;
+	minimal-responses no;
+	recursion no;
+};
+
+{% include "_common/controls.conf.j2" %}
+
+zone "c.p22.hack" {
+	type primary;
+	file "c.p22.hack.db";
+};

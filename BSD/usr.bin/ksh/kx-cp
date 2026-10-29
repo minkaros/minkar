@@ -1,0 +1,16 @@
+#!/bin/sh
+# SPDX-License-Identifier: BSD-2-Clause
+# Copyright (c) 2026 The Minkar contributors
+# Part of Minkar.
+#
+# The copy command crossexec runs (scp's place in $HOME/.crossexec): it
+# notes the probe's SHA-256 for kx-sh, and when recording also copies it to
+# the Minkar machine that runs it. Arguments: [options] FILE HOST:DIR.
+for last; do :; done
+file=
+for a; do [ "$a" = "$last" ] || file=$a; done
+mkdir -p "$KX_STATE"
+sha256sum "$file" | cut -d' ' -f1 > "$KX_STATE/${file##*/}.sha" || exit 1
+[ -n "$KX_RECORD" ] || exit 0
+exec scp -q -P "$KX_PORT" -i "$KX_KEY" -o StrictHostKeyChecking=no \
+    -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR -o BatchMode=yes "$file" "$last"

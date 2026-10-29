@@ -166,7 +166,12 @@ mounted.
   - [x] Storage: AHCI with MSI (the AHCI driver logs that it uses an MSI
     interrupt; `556c20aad1`).
   - [x] Storage: virtio-blk (`MinkarVirtio`, `43c4efe09d`: every sector
-    read and writes reaching the disk, tested in QEMU). NVMe later.
+    read and writes reaching the disk, tested in QEMU).
+  - [x] Storage: NVMe (`MinkarNVMe`, 2026-10-29): QEMU boots from an NVMe
+    disk (`boottest GATE=M2` with `BOOTTEST_DISK=nvme`); 512- and
+    4096-byte blocks, reads and writes reaching the disk. A test read at
+    start picks MSI or the pin interrupt; QEMU's MSI-X-only NVMe gets
+    the pin interrupt, as MSI-X interrupts do not reach drivers yet.
   - [x] Input: USB xHCI + HID (`MinkarXHCIPort`, `IOUSBFamily`, `MinkarUSB`,
     `863a628989`): a USB keyboard's keys reach the console login and a
     tablet's positions and buttons are exact, tested in QEMU. Delivering
@@ -200,7 +205,7 @@ mounted.
   [Hardware.md](Hardware.md). *In progress:* PC 1 (Gigabyte H270N-WIFI,
   i7-7700) boots to login from SATA with its native display, USB keyboard
   through a KVM switch, the I219-V network and a usable console terminal;
-  still open there: the I211, NVMe. PC 2 is not chosen yet.
+  still open there: NVMe (driver ready, to test). PC 2 is not chosen yet.
 
 - [ ] **Exit gate (M1):** in QEMU and on a reference PC, the kernel mounts
   the HFS+ root and runs `/sbin/launchd` (or a temporary init) with a shell
@@ -246,7 +251,7 @@ The generic Unix commands come from FreeBSD `main`, with our own macOS
 layer where macOS behaves differently; Darwin's own components stay. Each
 command, where it comes from and what was fixed while porting it, is in
 [Userland.md](Userland.md); [Commands.md](Commands.md) counts them against
-macOS's (257 of 354 on 2026-10-28).
+macOS's (314 of 354 on 2026-10-29).
 
 - [x] Boot: `sh`, `ls`, `cp`, `mv`, `rm`, `mount`, `ifconfig`, `ps`, `kill`.
 - [x] Replace the commands from Apple's command sets with FreeBSD main's
@@ -254,8 +259,9 @@ macOS's (257 of 354 on 2026-10-28).
   macOS's `-Z`/`-J`.
 - [ ] Everyday tools missing from the image. *Partial:* ported in batches
   since 2026-10-26, with locales, time zones, manual pages and libiconv.
-  `passwd` since 2026-10-28. Missing: `nslookup`/`dig` and the rest of
-  Commands.md's BSD tools.
+  `passwd` since 2026-10-28; `dig`, `nslookup`, Kerberos and `pfctl`
+  since 2026-10-29: every BSD tool of Commands.md. Left: macOS's own
+  tools, Darwin components and file systems (see Commands.md).
 - [ ] Power user: `zsh`, `tar`, `ssh`, `curl`, `make`, `git`. *Partial:* all
   six in the image (`git` 2.56.0 since 2026-10-28), without git's Perl,
   Python and Tcl commands.
@@ -583,7 +589,7 @@ recompiling; the arm64 image boots to M2 in QEMU.
 
 | Gate | Phase | State |
 | --- | --- | --- |
-| M0 | Build, toolchain, CI | Met locally; CI written, first green run pending |
+| M0 | Build, toolchain, CI | Met (CI green since `05fa75cb65`; again with ksh, `9191fe8458`, 2026-10-29) |
 | M1 | Darwin boot | Met in QEMU and on PC 1; a second PC missing |
 | M2 | Base userland | Met (`boottest GATE=M2`) |
 | M3 | Base frameworks and Swift | Not started |
@@ -618,12 +624,13 @@ work in progress.
 The highest-impact open items, in critical-path order:
 
 1. Reference PC 1 (Phase 1): its console is usable at the native
-   resolution and both network cards are on the LAN; next, powering off
-   (ACPI S5), the other CPUs (SMP, also missing in QEMU), NVMe and the
-   boot without `pci_keep_console`; then a second, different PC (gate M1;
+   resolution and both network cards are on the LAN; next, its NVMe SSD
+   with the new driver, powering off (ACPI S5), the other CPUs (SMP, also
+   missing in QEMU) and the boot without `pci_keep_console`; then a second, different PC (gate M1;
    a Mac Pro 6,1 is the candidate). See [Hardware.md](Hardware.md).
-2. BSD userland batches (Phase 2): `nslookup`/`dig`,
-   then the rest of `Docs/Commands.md`'s missing BSD tools.
+2. Userland (Phase 2): the macOS tools of `Docs/Commands.md` that need
+   no later phase (FAT done; `dtrace` in part: kernel CTF and our own
+   CoreSymbolication next; NFS).
 3. IOHIDSystem event delivery in the kernel, the `ApplePS2Mouse` driver and
    the WindowServer input reader (Phase 4).
 4. Install WindowServer's launchd job and get a first boot that draws on

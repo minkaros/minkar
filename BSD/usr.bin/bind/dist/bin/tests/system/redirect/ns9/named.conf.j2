@@ -1,0 +1,20 @@
+// NS9 — signed-root upstream for ns8 (advisor cached path) and ns10
+// (synth-from-dnssec path)
+
+options {
+	{% include_indented "_common/options.conf.j2" %}
+	dnssec-validation no;
+	recursion no;
+};
+
+{% include "_common/controls.conf.j2" %}
+
+zone "." {
+	type primary;
+	file "root.db.signed";
+};
+
+zone "redirect" {
+	type primary;
+	file "redirect.db";
+};

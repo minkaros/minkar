@@ -1,0 +1,184 @@
+KRB5_CONTEXT(3)          BSD Library Functions Manual          KRB5_CONTEXT(3)
+
+[1mNAME[0m
+     [1mkrb5_add_et_list[22m, [1mkrb5_add_extra_addresses[22m, [1mkrb5_add_ignore_addresses[22m,
+     [1mkrb5_context[22m, [1mkrb5_free_config_files[22m, [1mkrb5_free_context[22m,
+     [1mkrb5_get_default_config_files[22m, [1mkrb5_get_dns_canonize_hostname[22m,
+     [1mkrb5_get_extra_addresses[22m, [1mkrb5_get_fcache_version[22m,
+     [1mkrb5_get_ignore_addresses[22m, [1mkrb5_get_kdc_sec_offset[22m,
+     [1mkrb5_get_max_time_skew[22m, [1mkrb5_get_use_admin_kdc krb5_init_context[22m,
+     [1mkrb5_init_ets[22m, [1mkrb5_prepend_config_files[22m,
+     [1mkrb5_prepend_config_files_default[22m, [1mkrb5_set_config_files[22m,
+     [1mkrb5_set_dns_canonize_hostname[22m, [1mkrb5_set_extra_addresses[22m,
+     [1mkrb5_set_fcache_version[22m, [1mkrb5_set_ignore_addresses[22m,
+     [1mkrb5_set_max_time_skew[22m, [1mkrb5_set_use_admin_kdc[22m, -- create, modify and
+     delete krb5_context structures
+
+[1mLIBRARY[0m
+     Kerberos 5 Library (libkrb5, -lkrb5)
+
+[1mSYNOPSIS[0m
+     [1m#include <krb5.h>[0m
+
+     struct krb5_context;
+
+     [4mkrb5_error_code[0m
+     [1mkrb5_init_context[22m([4mkrb5_context[24m [4m*context[24m);
+
+     [4mvoid[0m
+     [1mkrb5_free_context[22m([4mkrb5_context[24m [4mcontext[24m);
+
+     [4mvoid[0m
+     [1mkrb5_init_ets[22m([4mkrb5_context[24m [4mcontext[24m);
+
+     [4mkrb5_error_code[0m
+     [1mkrb5_add_et_list[22m([4mkrb5_context[24m [4mcontext[24m, [4mvoid[24m [4m(*func)(struct[24m [4met_list[24m [4m**)[24m);
+
+     [4mkrb5_error_code[0m
+     [1mkrb5_add_extra_addresses[22m([4mkrb5_context[24m [4mcontext[24m,
+         [4mkrb5_addresses[24m [4m*addresses[24m);
+
+     [4mkrb5_error_code[0m
+     [1mkrb5_set_extra_addresses[22m([4mkrb5_context[24m [4mcontext[24m,
+         [4mconst[24m [4mkrb5_addresses[24m [4m*addresses[24m);
+
+     [4mkrb5_error_code[0m
+     [1mkrb5_get_extra_addresses[22m([4mkrb5_context[24m [4mcontext[24m,
+         [4mkrb5_addresses[24m [4m*addresses[24m);
+
+     [4mkrb5_error_code[0m
+     [1mkrb5_add_ignore_addresses[22m([4mkrb5_context[24m [4mcontext[24m,
+         [4mkrb5_addresses[24m [4m*addresses[24m);
+
+     [4mkrb5_error_code[0m
+     [1mkrb5_set_ignore_addresses[22m([4mkrb5_context[24m [4mcontext[24m,
+         [4mconst[24m [4mkrb5_addresses[24m [4m*addresses[24m);
+
+     [4mkrb5_error_code[0m
+     [1mkrb5_get_ignore_addresses[22m([4mkrb5_context[24m [4mcontext[24m,
+         [4mkrb5_addresses[24m [4m*addresses[24m);
+
+     [4mkrb5_error_code[0m
+     [1mkrb5_set_fcache_version[22m([4mkrb5_context[24m [4mcontext[24m, [4mint[24m [4mversion[24m);
+
+     [4mkrb5_error_code[0m
+     [1mkrb5_get_fcache_version[22m([4mkrb5_context[24m [4mcontext[24m, [4mint[24m [4m*version[24m);
+
+     [4mvoid[0m
+     [1mkrb5_set_dns_canonize_hostname[22m([4mkrb5_context[24m [4mcontext[24m, [4mkrb5_boolean[24m [4mflag[24m);
+
+     [4mkrb5_boolean[0m
+     [1mkrb5_get_dns_canonize_hostname[22m([4mkrb5_context[24m [4mcontext[24m);
+
+     [4mkrb5_error_code[0m
+     [1mkrb5_get_kdc_sec_offset[22m([4mkrb5_context[24m [4mcontext[24m, [4mint32_t[24m [4m*sec[24m,
+         [4mint32_t[24m [4m*usec[24m);
+
+     [4mkrb5_error_code[0m
+     [1mkrb5_set_config_files[22m([4mkrb5_context[24m [4mcontext[24m, [4mchar[24m [4m**filenames[24m);
+
+     [4mkrb5_error_code[0m
+     [1mkrb5_prepend_config_files[22m([4mconst[24m [4mchar[24m [4m*filelist[24m, [4mchar[24m [4m**pq[24m,
+         [4mchar[24m [4m***ret_pp[24m);
+
+     [4mkrb5_error_code[0m
+     [1mkrb5_prepend_config_files_default[22m([4mconst[24m [4mchar[24m [4m*filelist[24m,
+         [4mchar[24m [4m***pfilenames[24m);
+
+     [4mkrb5_error_code[0m
+     [1mkrb5_get_default_config_files[22m([4mchar[24m [4m***pfilenames[24m);
+
+     [4mvoid[0m
+     [1mkrb5_free_config_files[22m([4mchar[24m [4m**filenames[24m);
+
+     [4mvoid[0m
+     [1mkrb5_set_use_admin_kdc[22m([4mkrb5_context[24m [4mcontext[24m, [4mkrb5_boolean[24m [4mflag[24m);
+
+     [4mkrb5_boolean[0m
+     [1mkrb5_get_use_admin_kdc[22m([4mkrb5_context[24m [4mcontext[24m);
+
+     [4mtime_t[0m
+     [1mkrb5_get_max_time_skew[22m([4mkrb5_context[24m [4mcontext[24m);
+
+     [4mkrb5_error_code[0m
+     [1mkrb5_set_max_time_skew[22m([4mkrb5_context[24m [4mcontext[24m, [4mtime_t[24m [4mtime[24m);
+
+[1mDESCRIPTION[0m
+     The [1mkrb5_init_context[22m() function initializes the [4mcontext[24m structure and
+     reads the configuration file [4m/etc/krb5.conf[24m.
+
+     The structure should be freed by calling [1mkrb5_free_context[22m() when it is
+     no longer being used.
+
+     [1mkrb5_init_context[22m() returns 0 to indicate success.  Otherwise an errno
+     code is returned.  Failure means either that something bad happened dur-
+     ing initialization (typically [ENOMEM]) or that Kerberos should not be
+     used [ENXIO].
+
+     [1mkrb5_init_ets[22m() adds all com_err(3) libs to [4mcontext[24m.  This is done by
+     [1mkrb5_init_context[22m().
+
+     [1mkrb5_add_et_list[22m() adds a com_err(3) error-code handler [4mfunc[24m to the spec-
+     ified [4mcontext[24m.  The error handler must generated by the the re-rentrant
+     version of the compile_et(1) program.  [1mkrb5_add_extra_addresses[22m() add a
+     list of addresses that should be added when requesting tickets.
+
+     [1mkrb5_add_ignore_addresses[22m() add a list of addresses that should be ig-
+     nored when requesting tickets.
+
+     [1mkrb5_get_extra_addresses[22m() get the list of addresses that should be added
+     when requesting tickets.
+
+     [1mkrb5_get_ignore_addresses[22m() get the list of addresses that should be ig-
+     nored when requesting tickets.
+
+     [1mkrb5_set_ignore_addresses[22m() set the list of addresses that should be ig-
+     nored when requesting tickets.
+
+     [1mkrb5_set_extra_addresses[22m() set the list of addresses that should be added
+     when requesting tickets.
+
+     [1mkrb5_set_fcache_version[22m() sets the version of file credentials caches
+     that should be used.
+
+     [1mkrb5_get_fcache_version[22m() gets the version of file credentials caches
+     that should be used.
+
+     [1mkrb5_set_dns_canonize_hostname[22m() sets if the context is configured to
+     canonicalize hostnames using DNS.
+
+     [1mkrb5_get_dns_canonize_hostname[22m() returns if the context is configured to
+     canonicalize hostnames using DNS.
+
+     [1mkrb5_get_kdc_sec_offset[22m() returns the offset between the localtime and
+     the KDC's time.  [4msec[24m and [4musec[24m are both optional argument and NULL can be
+     passed in.
+
+     [1mkrb5_set_config_files[22m() set the list of configuration files to use and
+     re-initialize the configuration from the files.
+
+     [1mkrb5_prepend_config_files[22m() parse the [4mfilelist[24m and prepend the result to
+     the already existing list [4mpq[24m The result is returned in [4mret_pp[24m and should
+     be freed with [1mkrb5_free_config_files[22m().
+
+     [1mkrb5_prepend_config_files_default[22m() parse the [4mfilelist[24m and append that to
+     the default list of configuration files.
+
+     [1mkrb5_get_default_config_files[22m() get a list of default configuration
+     files.
+
+     [1mkrb5_free_config_files[22m() free a list of configuration files returned by
+     [1mkrb5_get_default_config_files[22m(), [1mkrb5_prepend_config_files_default[22m(), or
+     [1mkrb5_prepend_config_files[22m().
+
+     [1mkrb5_set_use_admin_kdc[22m() sets if all KDC requests should go admin KDC.
+
+     [1mkrb5_get_use_admin_kdc[22m() gets if all KDC requests should go admin KDC.
+
+     [1mkrb5_get_max_time_skew[22m() and [1mkrb5_set_max_time_skew[22m() get and sets the
+     maximum allowed time skew between client and server.
+
+[1mSEE ALSO[0m
+     errno(2), krb5(3), krb5_config(3), krb5_context(3), kerberos(8)
+
+HEIMDAL                        December 8, 2004                        HEIMDAL

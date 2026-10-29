@@ -1,0 +1,42 @@
+KSTASH(8)                 BSD System Manager's Manual                KSTASH(8)
+
+[1mNAME[0m
+     [1mkstash [22m-- store the KDC master password in a file
+
+[1mSYNOPSIS[0m
+     [1mkstash [22m[[1m-e [4m[22mstring[24m | [1m--enctype=[4m[22mstring[24m] [[1m-k [4m[22mfile[24m | [1m--key-file=[4m[22mfile[24m]
+            [[1m--convert-file[22m] [[1m--random-key[22m] [[1m--master-key-fd=[4m[22mfd[24m]
+            [[1m--random-key[22m] [[1m-h [22m| [1m--help[22m] [[1m--version[22m]
+
+[1mDESCRIPTION[0m
+     [1mkstash [22mreads the Kerberos master key and stores it in a file that will be
+     used by the KDC.
+
+     Supported options:
+
+     [1m-e [4m[22mstring[24m, [1m--enctype=[4m[22mstring[0m
+             the encryption type to use, defaults to DES3-CBC-SHA1.
+
+     [1m-k [4m[22mfile[24m, [1m--key-file=[4m[22mfile[0m
+             the name of the master key file.
+
+     [1m--convert-file[0m
+             don't ask for a new master key, just read an old master key file,
+             and write it back in the new keyfile format.
+
+     [1m--random-key[0m
+             generate a random master key.
+
+     [1m--master-key-fd=[4m[22mfd[0m
+             filedescriptor to read passphrase from, if not specified the
+             passphrase will be read from the terminal.
+
+[1mFILES[0m
+     [4m/var/heimdal/m-key[24m is the default keyfile if no other keyfile is speci-
+     fied.  The format of a Heimdal master key is the same as a keytab, so
+     [1mktutil [22mlist can be used to list the content of the file.
+
+[1mSEE ALSO[0m
+     kdc(8)
+
+HEIMDAL                         April 10, 2007                         HEIMDAL

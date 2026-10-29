@@ -1,0 +1,30 @@
+options {
+	{% include_indented "_common/options.conf.j2" %}
+	allow-transfer { any; };
+	dnssec-validation yes;
+	qname-minimization off;
+};
+
+{% include "_common/controls.conf.j2" %}
+
+zone "example." {
+	type static-stub;
+	server-addresses { 10.53.0.2; };
+};
+
+zone "secure." {
+	type static-stub;
+	server-addresses { 10.53.0.2; };
+};
+
+zone "parent." {
+	type static-stub;
+	server-addresses { 10.53.0.2; };
+};
+
+zone "stuffed." {
+	type static-stub;
+	server-addresses { 10.53.0.2; };
+};
+
+include "trusted.conf";

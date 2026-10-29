@@ -37,7 +37,7 @@
 
 #if !TARGET_OS_EMBEDDED
 #include <bsm/audit.h>
-#include <bsm/audit_session.h>
+/* Minkar: audit_session.h is not in the SDK, and nothing of it is used */
 #endif // !TARGET_OS_EMBEDDED
 
 #include "launch.h"

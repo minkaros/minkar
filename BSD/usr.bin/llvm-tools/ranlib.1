@@ -1,0 +1,35 @@
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\" Copyright (c) 2026 The Minkar contributors
+.\" Part of Minkar.
+.Dd October 29, 2026
+.Dt RANLIB 1
+.Os
+.Sh NAME
+.Nm ranlib
+.Nd write the symbol index of an archive
+.Sh SYNOPSIS
+.Nm
+.Op Fl D | U
+.Ar archive ...
+.Sh DESCRIPTION
+.Nm
+writes, in each
+.Ar archive ,
+the index of the symbols its object files define, which the linker
+reads to find them.
+It is the same as
+.Ql ar s .
+.Bl -tag -width Ds
+.It Fl D
+Write zero for dates, user and group (the default).
+.It Fl U
+Write the real ones.
+.El
+.Sh EXIT STATUS
+.Ex -std
+.Sh SEE ALSO
+.Xr ar 1
+.Sh HISTORY
+Minkar's
+.Nm
+is LLVM's llvm-ar under that name.

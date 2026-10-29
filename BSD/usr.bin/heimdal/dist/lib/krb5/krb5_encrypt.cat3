@@ -1,0 +1,137 @@
+KRB5_ENCRYPT(3)          BSD Library Functions Manual          KRB5_ENCRYPT(3)
+
+[1mNAME[0m
+     [1mkrb5_crypto_getblocksize[22m, [1mkrb5_crypto_getconfoundersize[0m
+     [1mkrb5_crypto_getenctype[22m, [1mkrb5_crypto_getpadsize[22m, [1mkrb5_crypto_overhead[22m,
+     [1mkrb5_decrypt[22m, [1mkrb5_decrypt_EncryptedData[22m, [1mkrb5_decrypt_ivec[22m,
+     [1mkrb5_decrypt_ticket[22m, [1mkrb5_encrypt[22m, [1mkrb5_encrypt_EncryptedData[22m,
+     [1mkrb5_encrypt_ivec[22m, [1mkrb5_enctype_disable[22m, [1mkrb5_enctype_keysize[22m,
+     [1mkrb5_enctype_to_string[22m, [1mkrb5_enctype_valid[22m, [1mkrb5_get_wrapped_length[22m,
+     [1mkrb5_string_to_enctype [22m-- encrypt and decrypt data, set and get encryp-
+     tion type parameters
+
+[1mLIBRARY[0m
+     Kerberos 5 Library (libkrb5, -lkrb5)
+
+[1mSYNOPSIS[0m
+     [1m#include <krb5.h>[0m
+
+     [4mkrb5_error_code[0m
+     [1mkrb5_encrypt[22m([4mkrb5_context[24m [4mcontext[24m, [4mkrb5_crypto[24m [4mcrypto[24m, [4munsigned[24m [4musage[24m,
+         [4mvoid[24m [4m*data[24m, [4msize_t[24m [4mlen[24m, [4mkrb5_data[24m [4m*result[24m);
+
+     [4mkrb5_error_code[0m
+     [1mkrb5_encrypt_EncryptedData[22m([4mkrb5_context[24m [4mcontext[24m, [4mkrb5_crypto[24m [4mcrypto[24m,
+         [4munsigned[24m [4musage[24m, [4mvoid[24m [4m*data[24m, [4msize_t[24m [4mlen[24m, [4mint[24m [4mkvno[24m,
+         [4mEncryptedData[24m [4m*result[24m);
+
+     [4mkrb5_error_code[0m
+     [1mkrb5_encrypt_ivec[22m([4mkrb5_context[24m [4mcontext[24m, [4mkrb5_crypto[24m [4mcrypto[24m,
+         [4munsigned[24m [4musage[24m, [4mvoid[24m [4m*data[24m, [4msize_t[24m [4mlen[24m, [4mkrb5_data[24m [4m*result[24m,
+         [4mvoid[24m [4m*ivec[24m);
+
+     [4mkrb5_error_code[0m
+     [1mkrb5_decrypt[22m([4mkrb5_context[24m [4mcontext[24m, [4mkrb5_crypto[24m [4mcrypto[24m, [4munsigned[24m [4musage[24m,
+         [4mvoid[24m [4m*data[24m, [4msize_t[24m [4mlen[24m, [4mkrb5_data[24m [4m*result[24m);
+
+     [4mkrb5_error_code[0m
+     [1mkrb5_decrypt_EncryptedData[22m([4mkrb5_context[24m [4mcontext[24m, [4mkrb5_crypto[24m [4mcrypto[24m,
+         [4munsigned[24m [4musage[24m, [4mEncryptedData[24m [4m*e[24m, [4mkrb5_data[24m [4m*result[24m);
+
+     [4mkrb5_error_code[0m
+     [1mkrb5_decrypt_ivec[22m([4mkrb5_context[24m [4mcontext[24m, [4mkrb5_crypto[24m [4mcrypto[24m,
+         [4munsigned[24m [4musage[24m, [4mvoid[24m [4m*data[24m, [4msize_t[24m [4mlen[24m, [4mkrb5_data[24m [4m*result[24m,
+         [4mvoid[24m [4m*ivec[24m);
+
+     [4mkrb5_error_code[0m
+     [1mkrb5_decrypt_ticket[22m([4mkrb5_context[24m [4mcontext[24m, [4mTicket[24m [4m*ticket[24m,
+         [4mkrb5_keyblock[24m [4m*key[24m, [4mEncTicketPart[24m [4m*out[24m, [4mkrb5_flags[24m [4mflags[24m);
+
+     [4mkrb5_error_code[0m
+     [1mkrb5_crypto_getblocksize[22m([4mkrb5_context[24m [4mcontext[24m, [4msize_t[24m [4m*blocksize[24m);
+
+     [4mkrb5_error_code[0m
+     [1mkrb5_crypto_getenctype[22m([4mkrb5_context[24m [4mcontext[24m, [4mkrb5_crypto[24m [4mcrypto[24m,
+         [4mkrb5_enctype[24m [4m*enctype[24m);
+
+     [4mkrb5_error_code[0m
+     [1mkrb5_crypto_getpadsize[22m([4mkrb5_context[24m [4mcontext[24m, [4msize_t[24m, [4m*padsize"[24m);
+
+     [4mkrb5_error_code[0m
+     [1mkrb5_crypto_getconfoundersize[22m([4mkrb5_context[24m [4mcontext[24m, [4mkrb5_crypto[24m [4mcrypto[24m,
+         [4msize_t[24m, [4m*confoundersize"[24m);
+
+     [4mkrb5_error_code[0m
+     [1mkrb5_enctype_keysize[22m([4mkrb5_context[24m [4mcontext[24m, [4mkrb5_enctype[24m [4mtype[24m,
+         [4msize_t[24m [4m*keysize[24m);
+
+     [4mkrb5_error_code[0m
+     [1mkrb5_crypto_overhead[22m([4mkrb5_context[24m [4mcontext[24m, [4msize_t[24m, [4m*padsize"[24m);
+
+     [4mkrb5_error_code[0m
+     [1mkrb5_string_to_enctype[22m([4mkrb5_context[24m [4mcontext[24m, [4mconst[24m [4mchar[24m [4m*string[24m,
+         [4mkrb5_enctype[24m [4m*etype[24m);
+
+     [4mkrb5_error_code[0m
+     [1mkrb5_enctype_to_string[22m([4mkrb5_context[24m [4mcontext[24m, [4mkrb5_enctype[24m [4metype[24m,
+         [4mchar[24m [4m**string[24m);
+
+     [4mkrb5_error_code[0m
+     [1mkrb5_enctype_valid[22m([4mkrb5_context[24m [4mcontext[24m, [4mkrb5_enctype[24m [4metype[24m);
+
+     [4mvoid[0m
+     [1mkrb5_enctype_disable[22m([4mkrb5_context[24m [4mcontext[24m, [4mkrb5_enctype[24m [4metype[24m);
+
+     [4msize_t[0m
+     [1mkrb5_get_wrapped_length[22m([4mkrb5_context[24m [4mcontext[24m, [4mkrb5_crypto[24m [4mcrypto[24m,
+         [4msize_t[24m [4mdata_len[24m);
+
+[1mDESCRIPTION[0m
+     These functions are used to encrypt and decrypt data.
+
+     [1mkrb5_encrypt_ivec[22m() puts the encrypted version of [4mdata[24m (of size [4mlen[24m) in
+     [4mresult[24m.  If the encryption type supports using derived keys, [4musage[24m should
+     be the appropriate key-usage.  [4mivec[24m is a pointer to a initial IV, it is
+     modified to the end IV at the end of the round.  Ivec should be the size
+     of If NULL is passed in, the default IV is used.  [1mkrb5_encrypt[22m() does the
+     same as [1mkrb5_encrypt_ivec[22m() but with [4mivec[24m being NULL.
+     [1mkrb5_encrypt_EncryptedData[22m() does the same as [1mkrb5_encrypt[22m(), but it puts
+     the encrypted data in a [4mEncryptedData[24m structure instead. If [4mkvno[24m is not
+     zero, it will be put in the (optional) [4mkvno[24m field in the [4mEncryptedData[24m.
+
+     [1mkrb5_decrypt_ivec[22m(), [1mkrb5_decrypt[22m(), and [1mkrb5_decrypt_EncryptedData[22m()
+     works similarly.
+
+     [1mkrb5_decrypt_ticket[22m() decrypts the encrypted part of [4mticket[24m with [4mkey[24m.
+     [1mkrb5_decrypt_ticket[22m() also verifies the timestamp in the ticket, invalid
+     flag and if the KDC haven't verified the transited path, the transit
+     path.
+
+     [1mkrb5_enctype_keysize[22m(), [1mkrb5_crypto_getconfoundersize[22m(),
+     [1mkrb5_crypto_getblocksize[22m(), [1mkrb5_crypto_getenctype[22m(),
+     [1mkrb5_crypto_getpadsize[22m(), [1mkrb5_crypto_overhead[22m() all returns various
+     (sometimes) useful information from a crypto context.
+     [1mkrb5_crypto_overhead[22m() is the combination of krb5_crypto_getconfounder-
+     size, krb5_crypto_getblocksize and krb5_crypto_getpadsize and return the
+     maximum overhead size.
+
+     [1mkrb5_enctype_to_string[22m() converts a encryption type number to a string
+     that can be printable and stored. The strings returned should be freed
+     with free(3).
+
+     [1mkrb5_string_to_enctype[22m() converts a encryption type strings to a encryp-
+     tion type number that can use used for other Kerberos crypto functions.
+
+     [1mkrb5_enctype_valid[22m() returns 0 if the encrypt is supported and not dis-
+     abled, otherwise and error code is returned.
+
+     [1mkrb5_enctype_disable[22m() (globally, for all contextes) disables the
+     [4menctype[24m.
+
+     [1mkrb5_get_wrapped_length[22m() returns the size of an encrypted packet by
+     [4mcrypto[24m of length [4mdata_len[24m.
+
+[1mSEE ALSO[0m
+     krb5_create_checksum(3), krb5_crypto_init(3)
+
+HEIMDAL                         March 20, 2004                         HEIMDAL

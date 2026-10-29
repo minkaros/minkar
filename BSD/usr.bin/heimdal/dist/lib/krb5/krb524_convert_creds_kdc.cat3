@@ -1,0 +1,42 @@
+KRB524_CONVERT_CREDS_... BSD Library Functions Manual KRB524_CONVERT_CREDS_...
+
+[1mNAME[0m
+     [1mkrb524_convert_creds_kdc[22m, [1mkrb524_convert_creds_kdc_ccache [22m-- converts
+     Kerberos 5 credentials to Kerberos 4 credentials
+
+[1mLIBRARY[0m
+     Kerberos 5 Library (libkrb5, -lkrb5)
+
+[1mSYNOPSIS[0m
+     [1m#include <krb5.h>[0m
+
+     [4mkrb5_error_code[0m
+     [1mkrb524_convert_creds_kdc[22m([4mkrb5_context[24m [4mcontext[24m, [4mkrb5_creds[24m [4m*in_cred[24m,
+         [4mstruct[24m [4mcredentials[24m [4m*v4creds[24m);
+
+     [4mkrb5_error_code[0m
+     [1mkrb524_convert_creds_kdc_ccache[22m([4mkrb5_context[24m [4mcontext[24m, [4mkrb5_ccache[24m [4mccache[24m,
+         [4mkrb5_creds[24m [4m*in_cred[24m, [4mstruct[24m [4mcredentials[24m [4m*v4creds[24m);
+
+[1mDESCRIPTION[0m
+     Convert the Kerberos 5 credential to Kerberos 4 credential.  This is done
+     by sending them to the 524 service in the KDC.
+
+     [1mkrb524_convert_creds_kdc[22m() converts the Kerberos 5 credential in [4min_cred[0m
+     to Kerberos 4 credential that is stored in [4mcredentials[24m.
+
+     [1mkrb524_convert_creds_kdc_ccache[22m() is different from
+     [1mkrb524_convert_creds_kdc[22m() in that way that if [4min_cred[24m doesn't contain a
+     DES session key, then a new one is fetched from the KDC and stored in the
+     cred cache [4mccache[24m, and then the KDC is queried to convert the credential.
+
+     This interfaces are used to make the migration to Kerberos 5 from Ker-
+     beros 4 easier.  There are few services that still need Kerberos 4, and
+     this is mainly for compatibility for those services.  Some services, like
+     AFS, really have Kerberos 5 supports, but still uses the 524 interface to
+     make the migration easier.
+
+[1mSEE ALSO[0m
+     krb5(3), krb5.conf(5)
+
+HEIMDAL                         March 20, 2004                         HEIMDAL

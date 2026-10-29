@@ -1,0 +1,35 @@
+OTP(1)                    BSD General Commands Manual                   OTP(1)
+
+[1mNAME[0m
+     [1motpprint [22m-- print lists of one-time passwords
+
+[1mSYNOPSIS[0m
+     [1motp [22m[[1m-n [4m[22mcount[24m] [[1m-e[22m] [[1m-h[22m] [[1m-f [4m[22malgorithm[24m] [4msequence-number[24m [4mseed[0m
+
+[1mDESCRIPTION[0m
+     The [1motpprint [22mprogram prints lists of OTPs.
+
+     Use this to print out a series of one-time passwords.  You will have to
+     supply the [4msequence[24m [4mnumber[24m and the [4mseed[24m as arguments and then the program
+     will prompt you for your pass-phrase.
+
+     There are several different print formats.  The default is to print each
+     password with six short english words.
+
+     Options are:
+
+     [1m-e      [22mPrint the passwords in ``extended'' format.  In this format a
+             prefix that says ``hex:'' or ``word:'' is included.
+
+     [1m-f      [22mTo choose a different [4malgorithm[24m from the default md5.  Pick any
+             of: md4, md5, and sha.
+
+     [1m-h      [22mPrint the passwords in hex.
+
+     [1m-n      [22mPrint [4mcount[24m one-time passwords, starting at [4msequence-number[24m and
+             going backwards. The default is 10.
+
+[1mSEE ALSO[0m
+     otp(1)
+
+KTH-KRB                        November 17, 1996                       KTH-KRB

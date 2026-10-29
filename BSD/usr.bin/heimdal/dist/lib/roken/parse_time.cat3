@@ -1,0 +1,111 @@
+PARSE_TIME(3)            BSD Library Functions Manual            PARSE_TIME(3)
+
+[1mNAME[0m
+     [1mparse_time[22m, [1mprint_time_table[22m, [1munparse_time[22m, [1munparse_time_approx[22m, -- parse
+     and unparse time intervals
+
+[1mLIBRARY[0m
+     The roken library (libroken, -lroken)
+
+[1mSYNOPSIS[0m
+     [1m#include <parse_time.h>[0m
+
+     [4mint[0m
+     [1mparse_time[22m([4mconst[24m [4mchar[24m [4m*timespec[24m, [4mconst[24m [4mchar[24m [4m*def_unit[24m);
+
+     [4mvoid[0m
+     [1mprint_time_table[22m([4mFILE[24m [4m*f[24m);
+
+     [4msize_t[0m
+     [1munparse_time[22m([4mint[24m [4mseconds[24m, [4mchar[24m [4m*buf[24m, [4msize_t[24m [4mlen[24m);
+
+     [4msize_t[0m
+     [1munparse_time_approx[22m([4mint[24m [4mseconds[24m, [4mchar[24m [4m*buf[24m, [4msize_t[24m [4mlen[24m);
+
+[1mDESCRIPTION[0m
+     The [1mparse_time[22m() function converts the period of time specified into a
+     number of seconds.  The [4mtimespec[24m can be any number of <number unit> pairs
+     separated by comma and whitespace. The number can be negative. Numbers
+     without explicit units are taken as being [4mdef_unit[24m.
+
+     The [1munparse_time[22m() and [1munparse_time_approx[22m() do the opposite of
+     [1mparse_time[22m(), that is they take a number of seconds and express that as
+     human readable strings.  [4munparse_time[24m produces an exact time, while
+     [4munparse_time_approx[24m restricts the result to include only one unit.
+
+     [1mprint_time_table[22m() prints a descriptive list of available units on the
+     passed file descriptor.
+
+     The possible units include:
+           second, s
+           minute, m
+           hour, h
+           day
+           week   seven days
+           month  30 days
+           year   365 days
+
+     Units names can be arbitrarily abbreviated (as long as they are unique).
+
+[1mRETURN VALUES[0m
+     [1mparse_time[22m() returns the number of seconds that represents the expression
+     in [4mtimespec[24m or -1 on error.  [1munparse_time[22m() and [1munparse_time_approx[22m() re-
+     turn the number of characters written to [4mbuf[24m.  if the return value is
+     greater than or equal to the [4mlen[24m argument, the string was too short and
+     some of the printed characters were discarded.
+
+[1mEXAMPLES[0m
+     #include <stdio.h>
+     #include <parse_time.h>
+
+     int
+     main(int argc, char **argv)
+     {
+         int i;
+         int result;
+         char buf[128];
+         print_time_table(stdout);
+         for (i = 1; i < argc; i++) {
+             result = parse_time(argv[i], "second");
+             if(result == -1) {
+                 fprintf(stderr, "%s: parse error\n", argv[i]);
+                 continue;
+             }
+             printf("--\n");
+             printf("parse_time = %d\n", result);
+             unparse_time(result, buf, sizeof(buf));
+             printf("unparse_time = %s\n", buf);
+             unparse_time_approx(result, buf, sizeof(buf));
+             printf("unparse_time_approx = %s\n", buf);
+         }
+         return 0;
+     }
+
+     $ ./a.out "1 minute 30 seconds" "90 s" "1 y -1 s"
+     1   year = 365 days
+     1  month = 30 days
+     1   week = 7 days
+     1    day = 24 hours
+     1   hour = 60 minutes
+     1 minute = 60 seconds
+     1 second
+     --
+     parse_time = 90
+     unparse_time = 1 minute 30 seconds
+     unparse_time_approx = 1 minute
+     --
+     parse_time = 90
+     unparse_time = 1 minute 30 seconds
+     unparse_time_approx = 1 minute
+     --
+     parse_time = 31535999
+     unparse_time = 12 months 4 days 23 hours 59 minutes 59 seconds
+     unparse_time_approx = 12 months
+
+[1mBUGS[0m
+     Since [1mparse_time[22m() returns -1 on error there is no way to parse "minus
+     one second".  Currently "s" at the end of units is ignored. This is a
+     hack for English plural forms. If these functions are ever localised,
+     this scheme will have to change.
+
+HEIMDAL                        November 17, 2013                       HEIMDAL

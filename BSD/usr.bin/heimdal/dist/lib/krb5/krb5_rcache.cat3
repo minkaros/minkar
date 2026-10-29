@@ -1,0 +1,83 @@
+KRB5_RCACHE(3)           BSD Library Functions Manual           KRB5_RCACHE(3)
+
+[1mNAME[0m
+     [1mkrb5_rcache[22m, [1mkrb5_rc_close[22m, [1mkrb5_rc_default[22m, [1mkrb5_rc_default_name[22m,
+     [1mkrb5_rc_default_type[22m, [1mkrb5_rc_destroy[22m, [1mkrb5_rc_expunge[22m,
+     [1mkrb5_rc_get_lifespan[22m, [1mkrb5_rc_get_name[22m, [1mkrb5_rc_get_type[22m,
+     [1mkrb5_rc_initialize[22m, [1mkrb5_rc_recover[22m, [1mkrb5_rc_resolve[22m,
+     [1mkrb5_rc_resolve_full[22m, [1mkrb5_rc_resolve_type[22m, [1mkrb5_rc_store[22m,
+     [1mkrb5_get_server_rcache [22m-- Kerberos 5 replay cache
+
+[1mLIBRARY[0m
+     Kerberos 5 Library (libkrb5, -lkrb5)
+
+[1mSYNOPSIS[0m
+     [1m#include <krb5.h>[0m
+
+     struct krb5_rcache;
+
+     [4mkrb5_error_code[0m
+     [1mkrb5_rc_close[22m([4mkrb5_context[24m [4mcontext[24m, [4mkrb5_rcache[24m [4mid[24m);
+
+     [4mkrb5_error_code[0m
+     [1mkrb5_rc_default[22m([4mkrb5_context[24m [4mcontext[24m, [4mkrb5_rcache[24m [4m*id[24m);
+
+     [4mconst[24m [4mchar[24m [4m*[0m
+     [1mkrb5_rc_default_name[22m([4mkrb5_context[24m [4mcontext[24m);
+
+     [4mconst[24m [4mchar[24m [4m*[0m
+     [1mkrb5_rc_default_type[22m([4mkrb5_context[24m [4mcontext[24m);
+
+     [4mkrb5_error_code[0m
+     [1mkrb5_rc_destroy[22m([4mkrb5_context[24m [4mcontext[24m, [4mkrb5_rcache[24m [4mid[24m);
+
+     [4mkrb5_error_code[0m
+     [1mkrb5_rc_expunge[22m([4mkrb5_context[24m [4mcontext[24m, [4mkrb5_rcache[24m [4mid[24m);
+
+     [4mkrb5_error_code[0m
+     [1mkrb5_rc_get_lifespan[22m([4mkrb5_context[24m [4mcontext[24m, [4mkrb5_rcache[24m [4mid[24m,
+         [4mkrb5_deltat[24m [4m*auth_lifespan[24m);
+
+     [4mconst[24m [4mchar*[0m
+     [1mkrb5_rc_get_name[22m([4mkrb5_context[24m [4mcontext[24m, [4mkrb5_rcache[24m [4mid[24m);
+
+     [4mconst[24m [4mchar*[0m
+     [1mkrb5_rc_get_type[22m([4mkrb5_context[24m [4mcontext[24m, [4mkrb5_rcache[24m [4mid[24m);
+
+     [4mkrb5_error_code[0m
+     [1mkrb5_rc_initialize[22m([4mkrb5_context[24m [4mcontext[24m, [4mkrb5_rcache[24m [4mid[24m,
+         [4mkrb5_deltat[24m [4mauth_lifespan[24m);
+
+     [4mkrb5_error_code[0m
+     [1mkrb5_rc_recover[22m([4mkrb5_context[24m [4mcontext[24m, [4mkrb5_rcache[24m [4mid[24m);
+
+     [4mkrb5_error_code[0m
+     [1mkrb5_rc_resolve[22m([4mkrb5_context[24m [4mcontext[24m, [4mkrb5_rcache[24m [4mid[24m, [4mconst[24m [4mchar[24m [4m*name[24m);
+
+     [4mkrb5_error_code[0m
+     [1mkrb5_rc_resolve_full[22m([4mkrb5_context[24m [4mcontext[24m, [4mkrb5_rcache[24m [4m*id[24m,
+         [4mconst[24m [4mchar[24m [4m*string_name[24m);
+
+     [4mkrb5_error_code[0m
+     [1mkrb5_rc_resolve_type[22m([4mkrb5_context[24m [4mcontext[24m, [4mkrb5_rcache[24m [4m*id[24m,
+         [4mconst[24m [4mchar[24m [4m*type[24m);
+
+     [4mkrb5_error_code[0m
+     [1mkrb5_rc_store[22m([4mkrb5_context[24m [4mcontext[24m, [4mkrb5_rcache[24m [4mid[24m,
+         [4mkrb5_donot_replay[24m [4m*rep[24m);
+
+     [4mkrb5_error_code[0m
+     [1mkrb5_get_server_rcache[22m([4mkrb5_context[24m [4mcontext[24m, [4mconst[24m [4mkrb5_data[24m [4m*piece[24m,
+         [4mkrb5_rcache[24m [4m*id[24m);
+
+[1mDESCRIPTION[0m
+     The krb5_rcache structure holds a storage element that is used for data
+     manipulation.  The structure contains no public accessible elements.
+
+     [1mkrb5_rc_initialize[22m() Creates the reply cache [4mid[24m and sets it lifespan to
+     [4mauth_lifespan[24m.  If the cache already exists, the content is destroyed.
+
+[1mSEE ALSO[0m
+     krb5(3), krb5_data(3), kerberos(8)
+
+HEIMDAL                           May 1, 2006                          HEIMDAL

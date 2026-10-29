@@ -1,0 +1,21 @@
+options {
+	{% include_indented "_common/options.conf.j2" %}
+	recursion no;
+	dnssec-validation no;
+	notify no;
+};
+
+{% include "_common/controls.conf.j2" %}
+
+{% include "_common/root.hint.conf" %}
+
+zone "f007.test" {
+	type primary;
+	file "f007.test.db.signed";
+};
+
+zone "!.f007.test" {
+	type primary;
+	file "child.f007.test.db.signed";
+};
+

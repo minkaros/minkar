@@ -1,0 +1,56 @@
+KRB5_APPDEFAULT(3)       BSD Library Functions Manual       KRB5_APPDEFAULT(3)
+
+[1mNAME[0m
+     [1mkrb5_appdefault_boolean[22m, [1mkrb5_appdefault_string[22m, [1mkrb5_appdefault_time [22m--
+     get application configuration value
+
+[1mLIBRARY[0m
+     Kerberos 5 Library (libkrb5, -lkrb5)
+
+[1mSYNOPSIS[0m
+     [1m#include <krb5.h>[0m
+
+     [4mvoid[0m
+     [1mkrb5_appdefault_boolean[22m([4mkrb5_context[24m [4mcontext[24m, [4mconst[24m [4mchar[24m [4m*appname[24m,
+         [4mkrb5_realm[24m [4mrealm[24m, [4mconst[24m [4mchar[24m [4m*option[24m, [4mkrb5_boolean[24m [4mdef_val[24m,
+         [4mkrb5_boolean[24m [4m*ret_val[24m);
+
+     [4mvoid[0m
+     [1mkrb5_appdefault_string[22m([4mkrb5_context[24m [4mcontext[24m, [4mconst[24m [4mchar[24m [4m*appname[24m,
+         [4mkrb5_realm[24m [4mrealm[24m, [4mconst[24m [4mchar[24m [4m*option[24m, [4mconst[24m [4mchar[24m [4m*def_val[24m,
+         [4mchar[24m [4m**ret_val[24m);
+
+     [4mvoid[0m
+     [1mkrb5_appdefault_time[22m([4mkrb5_context[24m [4mcontext[24m, [4mconst[24m [4mchar[24m [4m*appname[24m,
+         [4mkrb5_realm[24m [4mrealm[24m, [4mconst[24m [4mchar[24m [4m*option[24m, [4mtime_t[24m [4mdef_val[24m,
+         [4mtime_t[24m [4m*ret_val[24m);
+
+[1mDESCRIPTION[0m
+     These functions get application defaults from the appdefaults section of
+     the krb5.conf(5) configuration file. These defaults can be specified per
+     application, and/or per realm.
+
+     These values will be looked for in krb5.conf(5), in order of descending
+     importance.
+
+           [appdefaults]
+                   appname = {
+                           realm = {
+                                   option = value
+                           }
+                   }
+                   appname = {
+                           option = value
+                   }
+                   realm = {
+                           option = value
+                   }
+                   option = value
+     [4mappname[24m is the name of the application, and [4mrealm[24m is the realm name. If
+     the realm is omitted it will not be used for resolving values.  [4mdef_val[0m
+     is the value to return if no value is found in krb5.conf(5).
+
+[1mSEE ALSO[0m
+     krb5_config(3), krb5.conf(5)
+
+HEIMDAL                          July 25, 2000                         HEIMDAL

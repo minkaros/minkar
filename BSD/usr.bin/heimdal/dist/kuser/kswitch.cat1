@@ -1,0 +1,31 @@
+KSWITCH(1)                BSD General Commands Manual               KSWITCH(1)
+
+[1mNAME[0m
+     [1mkswitch [22m-- switch between default credential caches
+
+[1mSYNOPSIS[0m
+     [1mkswitch [22m[[1m-t [4m[22mtype[24m | [1m--type=[4m[22mtype[24m] [[1m-c [4m[22mcache[24m | [1m--cache=[4m[22mcache[24m] [[1m-p [4m[22mprincipal[0m
+             | [1m--principal=[4m[22mprincipal[24m] [[1m-i [22m| [1m--interactive[22m] [[1m--version[22m]
+             [[1m--help[22m]
+
+[1mDESCRIPTION[0m
+     Supported options:
+
+     [1m-t [4m[22mtype[24m, [1m--type=[4m[22mtype[0m
+             type of credential cache
+
+     [1m-c [4m[22mcache[24m, [1m--cache=[4m[22mcache[0m
+             name of credential cache to switch to
+
+     [1m-p [4m[22mprincipal[24m, [1m--principal=[4m[22mprincipal[0m
+             name of principal to switch to
+
+     [1m-i[22m, [1m--interactive[0m
+             interactive switching between credentials.
+
+     [1m--version[0m
+             print version
+
+     [1m--help[0m
+
+HEIMDAL                         August 25, 2009                        HEIMDAL

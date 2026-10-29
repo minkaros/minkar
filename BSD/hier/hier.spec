@@ -15,6 +15,7 @@ l private/etc etc
 l private/var var
 l private/tmp tmp
 
+d 0755 private/var/account
 d 0755 private/var/at
 d 0755 private/var/db
 d 0755 private/var/db/launchd

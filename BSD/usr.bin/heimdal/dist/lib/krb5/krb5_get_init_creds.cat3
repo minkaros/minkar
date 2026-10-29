@@ -1,0 +1,248 @@
+KRB5_GET_INIT_CREDS(3)   BSD Library Functions Manual   KRB5_GET_INIT_CREDS(3)
+
+[1mNAME[0m
+     [1mkrb5_get_init_creds[22m, [1mkrb5_get_init_creds_keytab[22m, [1mkrb5_get_init_creds_opt[22m,
+     [1mkrb5_get_init_creds_opt_alloc[22m, [1mkrb5_get_init_creds_opt_free[22m,
+     [1mkrb5_get_init_creds_opt_init[22m, [1mkrb5_get_init_creds_opt_set_address_list[22m,
+     [1mkrb5_get_init_creds_opt_set_addressless[22m,
+     [1mkrb5_get_init_creds_opt_set_anonymous[22m,
+     [1mkrb5_get_init_creds_opt_set_default_flags[22m,
+     [1mkrb5_get_init_creds_opt_set_etype_list[22m,
+     [1mkrb5_get_init_creds_opt_set_forwardable[22m,
+     [1mkrb5_get_init_creds_opt_set_pa_password[22m,
+     [1mkrb5_get_init_creds_opt_set_paq_request[22m,
+     [1mkrb5_get_init_creds_opt_set_preauth_list[22m,
+     [1mkrb5_get_init_creds_opt_set_proxiable[22m,
+     [1mkrb5_get_init_creds_opt_set_renew_life[22m, [1mkrb5_get_init_creds_opt_set_salt[22m,
+     [1mkrb5_get_init_creds_opt_set_tkt_life[22m,
+     [1mkrb5_get_init_creds_opt_set_canonicalize[22m,
+     [1mkrb5_get_init_creds_opt_set_win2k[22m, [1mkrb5_get_init_creds_password[22m,
+     [1mkrb5_prompt[22m, [1mkrb5_prompter_posix [22m-- Kerberos 5 initial authentication
+     functions
+
+[1mLIBRARY[0m
+     Kerberos 5 Library (libkrb5, -lkrb5)
+
+[1mSYNOPSIS[0m
+     [1m#include <krb5.h>[0m
+
+     [4mkrb5_get_init_creds_opt;[0m
+
+     [4mkrb5_error_code[0m
+     [1mkrb5_get_init_creds_opt_alloc[22m([4mkrb5_context[24m [4mcontext[24m,
+         [4mkrb5_get_init_creds_opt[24m [4m**opt[24m);
+
+     [4mvoid[0m
+     [1mkrb5_get_init_creds_opt_free[22m([4mkrb5_context[24m [4mcontext[24m,
+         [4mkrb5_get_init_creds_opt[24m [4m*opt[24m);
+
+     [4mvoid[0m
+     [1mkrb5_get_init_creds_opt_init[22m([4mkrb5_get_init_creds_opt[24m [4m*opt[24m);
+
+     [4mvoid[0m
+     [1mkrb5_get_init_creds_opt_set_address_list[22m([4mkrb5_get_init_creds_opt[24m [4m*opt[24m,
+         [4mkrb5_addresses[24m [4m*addresses[24m);
+
+     [4mvoid[0m
+     [1mkrb5_get_init_creds_opt_set_addressless[22m([4mkrb5_get_init_creds_opt[24m [4m*opt[24m,
+         [4mkrb5_boolean[24m [4maddressless[24m);
+
+     [4mvoid[0m
+     [1mkrb5_get_init_creds_opt_set_anonymous[22m([4mkrb5_get_init_creds_opt[24m [4m*opt[24m,
+         [4mint[24m [4manonymous[24m);
+
+     [4mvoid[0m
+     [1mkrb5_get_init_creds_opt_set_change_password_prompt[22m([4mkrb5_get_init_creds_opt[24m [4m*opt[24m,
+         [4mint[24m [4mchange_password_prompt[24m);
+
+     [4mvoid[0m
+     [1mkrb5_get_init_creds_opt_set_default_flags[22m([4mkrb5_context[24m [4mcontext[24m,
+         [4mconst[24m [4mchar[24m [4m*appname[24m, [4mkrb5_const_realm[24m [4mrealm[24m,
+         [4mkrb5_get_init_creds_opt[24m [4m*opt[24m);
+
+     [4mvoid[0m
+     [1mkrb5_get_init_creds_opt_set_etype_list[22m([4mkrb5_get_init_creds_opt[24m [4m*opt[24m,
+         [4mkrb5_enctype[24m [4m*etype_list[24m, [4mint[24m [4metype_list_length[24m);
+
+     [4mvoid[0m
+     [1mkrb5_get_init_creds_opt_set_forwardable[22m([4mkrb5_get_init_creds_opt[24m [4m*opt[24m,
+         [4mint[24m [4mforwardable[24m);
+
+     [4mkrb5_error_code[0m
+     [1mkrb5_get_init_creds_opt_set_pa_password[22m([4mkrb5_context[24m [4mcontext[24m,
+         [4mkrb5_get_init_creds_opt[24m [4m*opt[24m, [4mconst[24m [4mchar[24m [4m*password[24m,
+         [4mkrb5_s2k_proc[24m [4mkey_proc[24m);
+
+     [4mkrb5_error_code[0m
+     [1mkrb5_get_init_creds_opt_set_paq_request[22m([4mkrb5_context[24m [4mcontext[24m,
+         [4mkrb5_get_init_creds_opt[24m [4m*opt[24m, [4mkrb5_boolean[24m [4mreq_pac[24m);
+
+     [4mkrb5_error_code[0m
+     [1mkrb5_get_init_creds_opt_set_pkinit[22m([4mkrb5_context[24m [4mcontext[24m,
+         [4mkrb5_get_init_creds_opt[24m [4m*opt[24m, [4mconst[24m [4mchar[24m [4m*cert_file[24m,
+         [4mconst[24m [4mchar[24m [4m*key_file[24m, [4mconst[24m [4mchar[24m [4m*x509_anchors[24m, [4mint[24m [4mflags[24m,
+         [4mchar[24m [4m*password[24m);
+
+     [4mvoid[0m
+     [1mkrb5_get_init_creds_opt_set_preauth_list[22m([4mkrb5_get_init_creds_opt[24m [4m*opt[24m,
+         [4mkrb5_preauthtype[24m [4m*preauth_list[24m, [4mint[24m [4mpreauth_list_length[24m);
+
+     [4mvoid[0m
+     [1mkrb5_get_init_creds_opt_set_proxiable[22m([4mkrb5_get_init_creds_opt[24m [4m*opt[24m,
+         [4mint[24m [4mproxiable[24m);
+
+     [4mvoid[0m
+     [1mkrb5_get_init_creds_opt_set_renew_life[22m([4mkrb5_get_init_creds_opt[24m [4m*opt[24m,
+         [4mkrb5_deltat[24m [4mrenew_life[24m);
+
+     [4mvoid[0m
+     [1mkrb5_get_init_creds_opt_set_salt[22m([4mkrb5_get_init_creds_opt[24m [4m*opt[24m,
+         [4mkrb5_data[24m [4m*salt[24m);
+
+     [4mvoid[0m
+     [1mkrb5_get_init_creds_opt_set_tkt_life[22m([4mkrb5_get_init_creds_opt[24m [4m*opt[24m,
+         [4mkrb5_deltat[24m [4mtkt_life[24m);
+
+     [4mkrb5_error_code[0m
+     [1mkrb5_get_init_creds_opt_set_canonicalize[22m([4mkrb5_context[24m [4mcontext[24m,
+         [4mkrb5_get_init_creds_opt[24m [4m*opt[24m, [4mkrb5_boolean[24m [4mreq[24m);
+
+     [4mkrb5_error_code[0m
+     [1mkrb5_get_init_creds_opt_set_win2k[22m([4mkrb5_context[24m [4mcontext[24m,
+         [4mkrb5_get_init_creds_opt[24m [4m*opt[24m, [4mkrb5_boolean[24m [4mreq[24m);
+
+     [4mkrb5_error_code[0m
+     [1mkrb5_get_init_creds[22m([4mkrb5_context[24m [4mcontext[24m, [4mkrb5_creds[24m [4m*creds[24m,
+         [4mkrb5_principal[24m [4mclient[24m, [4mkrb5_prompter_fct[24m [4mprompter[24m,
+         [4mvoid[24m [4m*prompter_data[24m, [4mkrb5_deltat[24m [4mstart_time[24m,
+         [4mconst[24m [4mchar[24m [4m*in_tkt_service[24m, [4mkrb5_get_init_creds_opt[24m [4m*options[24m);
+
+     [4mkrb5_error_code[0m
+     [1mkrb5_get_init_creds_password[22m([4mkrb5_context[24m [4mcontext[24m, [4mkrb5_creds[24m [4m*creds[24m,
+         [4mkrb5_principal[24m [4mclient[24m, [4mconst[24m [4mchar[24m [4m*password[24m,
+         [4mkrb5_prompter_fct[24m [4mprompter[24m, [4mvoid[24m [4m*prompter_data[24m,
+         [4mkrb5_deltat[24m [4mstart_time[24m, [4mconst[24m [4mchar[24m [4m*in_tkt_service[24m,
+         [4mkrb5_get_init_creds_opt[24m [4m*in_options[24m);
+
+     [4mkrb5_error_code[0m
+     [1mkrb5_get_init_creds_keytab[22m([4mkrb5_context[24m [4mcontext[24m, [4mkrb5_creds[24m [4m*creds[24m,
+         [4mkrb5_principal[24m [4mclient[24m, [4mkrb5_keytab[24m [4mkeytab[24m, [4mkrb5_deltat[24m [4mstart_time[24m,
+         [4mconst[24m [4mchar[24m [4m*in_tkt_service[24m, [4mkrb5_get_init_creds_opt[24m [4m*options[24m);
+
+     [4mint[0m
+     [1mkrb5_prompter_posix[22m([4mkrb5_context[24m [4mcontext[24m, [4mvoid[24m [4m*data[24m, [4mconst[24m [4mchar[24m [4m*name[24m,
+         [4mconst[24m [4mchar[24m [4m*banner[24m, [4mint[24m [4mnum_prompts[24m, [4mkrb5_prompt[24m [4mprompts[][24m);
+
+[1mDESCRIPTION[0m
+     Getting initial credential ticket for a principal.  That may include
+     changing an expired password, and doing preauthentication.  This inter-
+     face that replaces the deprecated [4mkrb5_in_tkt[24m and [4mkrb5_in_cred[24m functions.
+
+     If you only want to verify a username and password, consider using
+     krb5_verify_user(3) instead, since it also verifies that initial creden-
+     tials with using a keytab to make sure the response was from the KDC.
+
+     First a krb5_get_init_creds_opt structure is initialized with
+     [1mkrb5_get_init_creds_opt_alloc[22m() or [1mkrb5_get_init_creds_opt_init[22m().
+     [1mkrb5_get_init_creds_opt_alloc[22m() allocates a extendible structures that
+     needs to be freed with [1mkrb5_get_init_creds_opt_free[22m().  The structure may
+     be modified by any of the [1mkrb5_get_init_creds_opt_set[22m() functions to
+     change request parameters and authentication information.
+
+     If the caller want to use the default options, NULL can be passed in-
+     stead.
+
+     The the actual request to the KDC is done by any of the
+     [1mkrb5_get_init_creds[22m(), [1mkrb5_get_init_creds_password[22m(), or
+     [1mkrb5_get_init_creds_keytab[22m() functions.  [1mkrb5_get_init_creds[22m() is the
+     least specialized function and can, with the right in data, behave like
+     the latter two.  The latter two are there for compatibility with older
+     releases and they are slightly easier to use.
+
+     krb5_prompt is a structure containing the following elements:
+
+     typedef struct {
+         const char *prompt;
+         int hidden;
+         krb5_data *reply;
+         krb5_prompt_type type
+     } krb5_prompt;
+
+     [4mprompt[24m is the prompt that should shown to the user If [4mhidden[24m is set, the
+     prompter function shouldn't echo the output to the display device.  [4mreply[0m
+     must be preallocated; it will not be allocated by the prompter function.
+     Possible values for the [4mtype[24m element are:
+
+           KRB5_PROMPT_TYPE_PASSWORD
+           KRB5_PROMPT_TYPE_NEW_PASSWORD
+           KRB5_PROMPT_TYPE_NEW_PASSWORD_AGAIN
+           KRB5_PROMPT_TYPE_PREAUTH
+           KRB5_PROMPT_TYPE_INFO
+
+     [1mkrb5_prompter_posix[22m() is the default prompter function in a POSIX envi-
+     ronment.  It matches the [4mkrb5_prompter_fct[24m and can be used in the
+     [4mkrb5_get_init_creds[24m functions.  [1mkrb5_prompter_posix[22m() doesn't require
+     [4mprompter_data.[0m
+
+     If the [4mstart_time[24m is zero, then the requested ticket will be valid begin-
+     ning immediately.  Otherwise, the [4mstart_time[24m indicates how far in the fu-
+     ture the ticket should be postdated.
+
+     If the [4min_tkt_service[24m name is non-NULL, that principal name will be used
+     as the server name for the initial ticket request.  The realm of the name
+     specified will be ignored and will be set to the realm of the client
+     name.  If no in_tkt_service name is specified, krbtgt/CLIENT-
+     REALM@CLIENT-REALM will be used.
+
+     For the rest of arguments, a configuration or library default will be
+     used if no value is specified in the options structure.
+
+     [1mkrb5_get_init_creds_opt_set_address_list[22m() sets the list of [4maddresses[0m
+     that is should be stored in the ticket.
+
+     [1mkrb5_get_init_creds_opt_set_addressless[22m() controls if the ticket is re-
+     quested with addresses or not, [1mkrb5_get_init_creds_opt_set_address_list[22m()
+     overrides this option.
+
+     [1mkrb5_get_init_creds_opt_set_anonymous[22m() make the request anonymous if the
+     [4manonymous[24m parameter is non-zero.
+
+     [1mkrb5_get_init_creds_opt_set_default_flags[22m() sets the default flags using
+     the configuration file.
+
+     [1mkrb5_get_init_creds_opt_set_etype_list[22m() set a list of enctypes that the
+     client is willing to support in the request.
+
+     [1mkrb5_get_init_creds_opt_set_forwardable[22m() request a forwardable ticket.
+
+     [1mkrb5_get_init_creds_opt_set_pa_password[22m() set the [4mpassword[24m and [4mkey_proc[0m
+     that is going to be used to get a new ticket.  [4mpassword[24m or [4mkey_proc[24m can
+     be NULL if the caller wants to use the default values.  If the [4mpassword[0m
+     is unset and needed, the user will be prompted for it.
+
+     [1mkrb5_get_init_creds_opt_set_paq_request[22m() sets the password that is going
+     to be used to get a new ticket.
+
+     [1mkrb5_get_init_creds_opt_set_preauth_list[22m() sets the list of client-sup-
+     ported preauth types.
+
+     [1mkrb5_get_init_creds_opt_set_proxiable[22m() makes the request proxiable.
+
+     [1mkrb5_get_init_creds_opt_set_renew_life[22m() sets the requested renewable
+     lifetime.
+
+     [1mkrb5_get_init_creds_opt_set_salt[22m() sets the salt that is going to be used
+     in the request.
+
+     [1mkrb5_get_init_creds_opt_set_tkt_life[22m() sets requested ticket lifetime.
+
+     [1mkrb5_get_init_creds_opt_set_canonicalize[22m() requests that the KDC canoni-
+     calize the client principal if possible.
+
+     [1mkrb5_get_init_creds_opt_set_win2k[22m() turns on compatibility with Windows
+     2000.
+
+[1mSEE ALSO[0m
+     krb5(3), krb5_creds(3), krb5_verify_user(3), krb5.conf(5), kerberos(8)
+
+HEIMDAL                          Sep 16, 2006                          HEIMDAL

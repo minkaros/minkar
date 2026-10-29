@@ -1,0 +1,60 @@
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\" Copyright (c) 2026 The Minkar contributors
+.\" Part of Minkar.
+.Dd October 29, 2026
+.Dt NVRAM 8
+.Os
+.Sh NAME
+.Nm nvram
+.Nd read and set firmware variables
+.Sh SYNOPSIS
+.Nm
+.Op Fl x
+.Op Fl p
+.Op Fl f Ar filename
+.Op Fl d Ar name
+.Op Fl c
+.Ar name Ns Op = Ns Ar value ...
+.Sh DESCRIPTION
+.Nm
+reads and sets the firmware's variables, through the
+.Ql options
+entry of the I/O Kit device tree.
+Values print with each byte that does not print as
+.Ql % Ns Ar xx ,
+and may be given the same way.
+.Bl -tag -width Ds
+.It Fl c
+Delete every variable.
+.It Fl d Ar name
+Delete
+.Ar name .
+.It Fl f Ar filename
+Set the variables in
+.Ar filename ,
+one
+.Ar name Ns = Ns Ar value
+per line.
+.It Fl p
+Print every variable.
+.It Fl x
+Print them as an XML property list.
+.It Ar name
+Print
+.Ar name .
+.It Ar name Ns = Ns Ar value
+Set
+.Ar name .
+.El
+.Pp
+Setting and deleting need a firmware NVRAM driver; without one, as
+Minkar is now, they fail with
+.Dq unsupported function .
+.Sh EXIT STATUS
+.Ex -std
+.Sh SEE ALSO
+.Xr ioreg 8
+.Sh HISTORY
+Minkar's
+.Nm
+is its own.

@@ -1,0 +1,56 @@
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\" Copyright (c) 2026 The Minkar contributors
+.\" Part of Minkar.
+.Dd October 29, 2026
+.Dt QUOTA 1
+.Os
+.Sh NAME
+.Nm quota
+.Nd show disk usage and limits
+.Sh SYNOPSIS
+.Nm
+.Op Fl guqv
+.Nm
+.Op Fl qv
+.Fl u Ar user ...
+.Nm
+.Op Fl qv
+.Fl g Ar group ...
+.Sh DESCRIPTION
+.Nm
+shows, for each volume with quotas, how much a user or group uses and
+the limits set for it
+.Pq see Xr edquota 8 :
+space in 1K blocks, then files, each with its soft limit
+.Pq Dq quota ,
+hard limit and, past the soft limit, the time left to get back under it
+.Pq Dq grace .
+A
+.Ql *
+marks usage over a limit.
+Volumes without limits for that user or group are left out.
+.Pp
+With no name, it shows the user running it; only the super-user may ask
+about others.
+.Bl -tag -width Ds
+.It Fl g
+Groups: with no name, those of the user running it.
+.It Fl u
+Users (the default).
+.It Fl q
+Only say where usage is over a limit.
+.It Fl v
+Show the volumes without limits too.
+.El
+.Sh EXIT STATUS
+1 when some usage is over a limit, or on an error; 0 otherwise.
+.Sh SEE ALSO
+.Xr quotactl 2 ,
+.Xr edquota 8 ,
+.Xr quotacheck 8 ,
+.Xr quotaon 8 ,
+.Xr repquota 8
+.Sh HISTORY
+Minkar's
+.Nm
+is its own.

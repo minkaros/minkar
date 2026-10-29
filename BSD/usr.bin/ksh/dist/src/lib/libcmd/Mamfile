@@ -1,0 +1,380 @@
+note *
+note * This build script is in an extended Make Abstract Machine (MAM)
+note * language. Documentation is at: src/cmd/INIT/README-mamake.md
+note *
+
+setv MAMAKE_STRICT 4
+setv INSTALLROOT ../../..
+setv CC cc
+setv AR %{mam_cc_AR} %{mam_cc_AR_ARFLAGS}
+setv mam_cc_FLAGS %{mam_cc_TARGET} %{mam_cc_DLL} %{-debug-symbols?1?%{mam_cc_DEBUG} -D_BLD_DEBUG?%{mam_cc_OPTIMIZE}?} %{mam_cc_NOSTRICTALIASING} -DERROR_CATALOG=\""libcmd"\" -DHOSTTYPE=\""%{mam_cc_HOSTTYPE}"\" -D_BLD_cmd
+setv CCFLAGS
+setv IFFEFLAGS
+setv LDFLAGS
+setv CCLDFLAGS
+setv DYLIB_PRE %{mam_cc_SUFFIX_DYNAMIC?*?%{mam_cc_PREFIX_DYNAMIC}?%{mam_cc_PREFIX_SHARED}?}
+setv DYLIB_SUF %{mam_cc_SUFFIX_DYNAMIC-%{mam_cc_SUFFIX_SHARED}}
+setv DYLIB_VERSION 2.0
+
+make install virtual
+	note *
+	note * Library dependencies
+	note *
+
+	bind -lutil
+	bind -last
+	bind -ldll
+	bind -lsum
+	make cmd.req
+		makp %{INSTALLROOT}/bin/mkreq
+		exec - mkreq %{CC} %{mam_cc_FLAGS} %{CCFLAGS} %{mam_cc_NOSTRICTALIASING} : %{LDFLAGS} : cmd fsg md util ast
+	done
+
+	note *
+	note * Header dependencies and feature tests
+	note *
+
+	setv run_iffe iffe %{IFFEFLAGS} -v -c "%{CC} %{mam_cc_FLAGS} %{CCFLAGS} %{mam_cc_NOSTRICTALIASING} %{LDFLAGS}" ref -I%{INCLUDE_AST} -I%{INSTALLROOT}/include %{mam_libutil} %{mam_libast} : run
+
+	make c_sources virtual
+		make cmdinit.c
+			prev %{INCLUDE_AST}/shcmd.h
+			make cmd.h
+				prev %{INCLUDE_AST}/shcmd.h
+				prev %{INCLUDE_AST}/stk.h
+				prev %{INCLUDE_AST}/error.h
+				prev %{INCLUDE_AST}/ast.h
+			done cmd.h
+		done cmdinit.c
+		make basename.c
+			prev cmd.h
+		done
+		make cat.c
+			prev %{INCLUDE_AST}/endian.h
+			prev cmd.h
+		done
+		make chgrp.c
+			make FEATURE/symlink
+				makp features/symlink
+				exec - %{run_iffe} %{<}
+			done
+			prev %{INCLUDE_AST}/fts.h
+			prev %{INCLUDE_AST}/endian.h
+			prev %{INCLUDE_AST}/ls.h
+			prev %{INCLUDE_AST}/cdt.h
+			prev cmd.h
+		done
+		make chmod.c
+			prev FEATURE/symlink
+			prev %{INCLUDE_AST}/fts.h
+			prev %{INCLUDE_AST}/ls.h
+			prev cmd.h
+		done
+		make chown.c
+			prev cmd.h
+		done
+		make cksum.c
+			prev %{INCLUDE_AST}/error.h
+			prev %{INCLUDE_AST}/fts.h
+			prev %{INCLUDE_AST}/modex.h
+			prev %{INCLUDE_AST}/ls.h
+			prev %{INCLUDE_AST}/sum.h
+			prev cmd.h
+		done
+		make cmp.c
+			prev %{INCLUDE_AST}/ccode.h
+			prev %{INCLUDE_AST}/ls.h
+			prev cmd.h
+		done
+		make comm.c
+			prev cmd.h
+		done
+		make cp.c
+			prev %{INCLUDE_AST}/tmx.h
+			prev %{INCLUDE_AST}/stk.h
+			prev %{INCLUDE_AST}/hashkey.h
+			prev %{INCLUDE_AST}/fts.h
+			prev %{INCLUDE_AST}/times.h
+			prev %{INCLUDE_AST}/ls.h
+			prev cmd.h
+		done
+		make cut.c
+			prev cmd.h
+		done
+		make dirname.c
+			prev cmd.h
+		done
+		make date.c
+			prev %{INCLUDE_AST}/times.h
+			prev %{INCLUDE_AST}/tmx.h
+			prev %{INCLUDE_AST}/proc.h
+			prev %{INCLUDE_AST}/ls.h
+			prev cmd.h
+		done
+		make expr.c
+			prev %{INCLUDE_AST}/regex.h
+			prev cmd.h
+		done
+		make fds.c
+			prev %{INCLUDE_AST}/endian.h
+			make FEATURE/sockets
+				makp features/sockets
+				exec - %{run_iffe} %{<}
+			done
+			prev %{INCLUDE_AST}/ls.h
+			prev cmd.h
+		done
+		make fmt.c
+			prev cmd.h
+		done
+		make fold.c
+			prev cmd.h
+		done
+		make getconf.c
+			prev %{INCLUDE_AST}/ls.h
+			prev %{INCLUDE_AST}/proc.h
+			prev cmd.h
+		done
+		make head.c
+			prev cmd.h
+		done
+		make id.c
+			prev %{INCLUDE_AST}/stdio.h
+			make FEATURE/ids
+				makp features/ids
+				exec - %{run_iffe} %{<}
+			done
+			prev cmd.h
+		done
+		make join.c
+			prev %{INCLUDE_AST}/wctype.h
+			prev %{INCLUDE_AST}/wchar.h
+			prev %{INCLUDE_AST}/sfdisc.h
+			prev cmd.h
+		done
+		make ln.c
+			prev cmd.h
+		done
+		make logname.c
+			prev cmd.h
+		done
+		make md5sum.c
+			prev cmd.h
+		done
+		make mkdir.c
+			prev %{INCLUDE_AST}/ls.h
+			prev cmd.h
+		done
+		make mkfifo.c
+			prev %{INCLUDE_AST}/ls.h
+			prev cmd.h
+		done
+		make mktemp.c
+			prev %{INCLUDE_AST}/ls.h
+			prev cmd.h
+		done
+		make mv.c
+			prev cmd.h
+		done
+		make paste.c
+			prev cmd.h
+		done
+		make pathchk.c
+			prev %{INCLUDE_AST}/ls.h
+			prev cmd.h
+		done
+		make pids.c
+			prev %{INCLUDE_AST}/sfdisc.h
+			prev %{INCLUDE_AST}/ast_tty.h
+			prev cmd.h
+		done
+		make rev.c
+			makp rev.h
+			prev cmd.h
+		done
+		make rm.c
+			prev %{INCLUDE_AST}/fts.h
+			prev %{INCLUDE_AST}/ls.h
+			prev cmd.h
+		done
+		make rmdir.c
+			prev cmd.h
+		done
+		make stty.c
+			prev %{INCLUDE_AST}/ast_tty.h
+			prev %{INCLUDE_AST}/ccode.h
+			prev cmd.h
+		done
+		make sum.c
+			prev cmd.h
+		done
+		make sync.c
+			prev %{INCLUDE_AST}/ls.h
+			prev cmd.h
+		done
+		make tail.c
+			prev rev.h
+			prev %{INCLUDE_AST}/tv.h
+			prev %{INCLUDE_AST}/ls.h
+			prev cmd.h
+		done
+		make tee.c
+			prev %{INCLUDE_AST}/sig.h
+			prev %{INCLUDE_AST}/ls.h
+			prev cmd.h
+		done
+		make tty.c
+			prev cmd.h
+		done
+		make uname.c
+			make FEATURE/utsname
+				makp features/utsname
+				exec - %{run_iffe} %{<}
+			done
+			prev %{INCLUDE_AST}/proc.h
+			prev cmd.h
+		done
+		make uniq.c
+			prev cmd.h
+		done
+		make wc.c
+			prev %{INCLUDE_AST}/ls.h
+			make wc.h
+				prev %{INCLUDE_AST}/ast.h
+			done
+			prev cmd.h
+		done
+		make revlib.c
+			prev rev.h
+			prev cmd.h
+		done
+		make wclib.c
+			prev %{INCLUDE_AST}/lc.h
+			prev %{INCLUDE_AST}/wctype.h
+			prev %{INCLUDE_AST}/wchar.h
+			prev wc.h
+			prev cmd.h
+		done
+		make lib.c
+			prev cmd.h
+		done
+		setv _c_source_files_ %{^}
+	done c_sources
+
+	make cmdext.h
+		prev c_sources
+		prev %{INCLUDE_AST}/shcmd.h
+		exec - {
+		exec - cat <<!
+		exec - /*
+		exec -  * -lcmd extern function prototypes
+		exec -  */
+		exec -
+		exec - #include <shcmd.h>
+		exec -
+		exec - !
+		exec - sed \
+		exec -	-e '/^b_[a-z_][a-z_0-9]*(/!d' \
+		exec -	-e 's/^b_//' \
+		exec -	-e 's/(.*//' \
+		exec -	-e 's/.*/extern int	b_&(int, char**, Shbltin_t*);/' \
+		exec -	%{_c_source_files_} |
+		exec -	sort -u
+		exec - } > %{@}
+	done
+
+	note *
+	note * Build the library
+	note *
+
+	make libcmd.a
+		loop OBJ cmdinit basename cat chgrp chmod chown cksum cmp comm cp cut dirname date expr fds fmt fold getconf head id join ln logname md5sum mkdir mkfifo mktemp mv paste pathchk pids rev rm rmdir stty sum sync tail tee tty uname uniq wc revlib wclib lib
+			make %{OBJ}.o
+				prev %{OBJ}.c
+				exec - %{CC} %{mam_cc_FLAGS} %{CCFLAGS} %{mam_cc_NOSTRICTALIASING} -I. -I%{INCLUDE_AST} -DERROR_CATALOG=\""libcmd"\" -DHOSTTYPE=\""%{mam_cc_HOSTTYPE}"\" -D_BLD_cmd -c %{<}
+			done
+		done
+		make sumlib.o
+			bind -lsum
+			exec - set -- %{mam_libsum}
+			exec - %{AR} x "$1" sumlib.o
+		done
+		exec - if	test -f %{@}
+		exec - then	%{AR} rc %{@} %{?}  # add changed *.o
+		exec - else	%{AR} rc %{@} %{^}  # add all *.o
+		exec - fi || exit
+		exec - ranlib %{@} >/dev/null 2>&1 || true
+
+		note * save for dylink
+		setv _libcmd_object_files_ %{^}
+	done libcmd.a
+
+	note *
+	note * Dynamically linked version, if supported
+	note *
+
+	make %{INSTALLROOT}/dyn/lib/%{DYLIB_PRE}cmd%{DYLIB_SUF} dontcare
+		prev libcmd.a
+		prev cmd.req
+		exec - export LDFLAGS='%{LDFLAGS} %{CCLDFLAGS} %{mam_cc_LD_NOASNEEDED}'
+		exec - dylink -m cmd -v %{DYLIB_VERSION} -p '%{DYLIB_PRE}' -s '%{DYLIB_SUF}' $(sed 1d %{<}) %{_libcmd_object_files_}
+	done
+
+	note *
+	note * pre-install
+	note *
+
+	loop DIR include/ast lib/lib lib/mam
+		make %{INSTALLROOT}/%{DIR}
+			exec - mkdir -p %{@}
+		done
+	done
+	make %{INSTALLROOT}/lib/libcmd.a
+		prev libcmd.a
+		exec - cp -f %{<} %{@} || exit
+		exec - ranlib %{@} >/dev/null 2>&1 || true
+	done
+	make %{INSTALLROOT}/lib/lib/cmd
+		prev cmd.req
+		exec - cp -f %{<} %{@}
+	done
+	note * public headers
+	make %{INSTALLROOT}/lib/mam/cmd
+		make %{INCLUDE_AST}/cmd.h
+			prev cmd.h
+			exec - cp -f %{<} %{@}
+		done
+		make %{INCLUDE_AST}/cmdext.h
+			prev cmdext.h
+			exec - cp -f %{<} %{@}
+		done
+		make %{INCLUDE_AST}/cmdlist.h
+			make cmdlist.h
+				prev c_sources
+				exec - {
+				exec - cat <<!
+				exec - /*
+				exec -  * -lcmd function list -- define your own CMDLIST()
+				exec -  */
+				exec -
+				exec - !
+				exec - sed \
+				exec -	-e '/^b_[a-z_][a-z_0-9]*(/!d' \
+				exec -	-e 's/^b_//' \
+				exec -	-e 's/(.*//' \
+				exec -	-e 's/.*/CMDLIST(&)/' \
+				exec -	%{_c_source_files_} |
+				exec -	sort -u
+				exec - } > %{@}
+			done cmdlist.h
+			exec - cp -f %{<} %{@}
+		done %{INCLUDE_AST}/cmdlist.h
+		note * generate header dependency rules
+		exec - mkdeps -lcmd -last -ldll %{^} > %{@}
+		makp %{INSTALLROOT}/bin/mkdeps
+		prev cmd.req
+	done %{INSTALLROOT}/lib/mam/cmd
+done install
+
+make test dontcare virtual
+done test

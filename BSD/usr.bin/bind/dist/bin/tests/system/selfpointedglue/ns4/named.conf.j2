@@ -1,0 +1,43 @@
+/*
+ * Copyright (C) Internet Systems Consortium, Inc. ("ISC")
+ *
+ * SPDX-License-Identifier: MPL-2.0
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0.  If a copy of the MPL was not distributed with this
+ * file, you can obtain one at https://mozilla.org/MPL/2.0/.
+ *
+ * See the COPYRIGHT file distributed with this work for additional
+ * information regarding copyright ownership.
+ */
+{% set maxdelegationservers = maxdelegationservers | default(None) %}
+
+options {
+	{% include_indented "_common/options.conf.j2" %}
+	dnssec-validation no;
+	dnstap { resolver query; };
+	dnstap-output file "dnstap.out";
+	{% if maxdelegationservers %}
+	@maxdelegationservers@
+	{% endif %}
+};
+
+/*
+ * Forcing TCP ensures that ADDITIONAL won't be truncated (responses won't have
+ * the TC flag, hence the resolver won't retry using TCP by itself, see
+ * https://datatracker.ietf.org/doc/html/rfc2181#section-9)
+ */
+server 10.53.0.3 { tcp-only true; };
+server 10.53.0.5 { tcp-only true; };
+server 10.53.0.6 { tcp-only true; };
+server 10.53.0.7 { tcp-only true; };
+server 10.53.0.8 { tcp-only true; };
+server 10.53.0.9 { tcp-only true; };
+server 10.53.0.10 { tcp-only true; };
+server 10.53.1.1 { tcp-only true; };
+server 10.53.1.2 { tcp-only true; };
+server 10.53.2.1 { tcp-only true; };
+
+{% include "_common/root.hint.conf" %}
+
+{% include "_common/controls.conf.j2" %}

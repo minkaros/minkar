@@ -1,0 +1,43 @@
+SU(1)                     BSD General Commands Manual                    SU(1)
+
+[1mNAME[0m
+     [1msu [22m-- substitute user identity
+
+[1mSYNOPSIS[0m
+     [1msu [22m[[1m-K [22m| [1m--no-kerberos[22m] [[1m-f[22m] [[1m-l [22m| [1m--full[22m] [[1m-m[22m] [[1m-i [4m[22minstance[24m |
+        [1m--instance=[4m[22minstance[24m] [[1m-c [4m[22mcommand[24m | [1m--command=[4m[22mcommand[24m] [[4mlogin[24m [[4mshell[0m
+        [4marguments[24m]]
+
+[1mDESCRIPTION[0m
+     [1msu [22mwill use Kerberos authentication provided that an instance for the
+     user wanting to change effective UID is present in a file named [4m.k5login[0m
+     in the target user id's home directory
+
+     A special case exists where `root's' [4m~/.k5login[24m needs to contain an entry
+     for: `user/<instance>@REALM' for [1msu [22mto succed (where <instance> is `root'
+     unless changed with [1m-i[22m).
+
+     In the absence of either an entry for current user in said file or other
+     problems like missing `host/hostname@REALM' keys in the system's keytab,
+     or user typing the wrong password, [1msu [22mwill fall back to traditional
+     [4m/etc/passwd[24m authentication.
+
+     When using [4m/etc/passwd[24m authentication, [1msu [22mallows `root' access only to
+     members of the group `wheel', or to any user (with knowledge of the
+     `root' password) if that group does not exist, or has no members.
+
+     The options are as follows:
+
+     [1m-K[22m, [1m--no-kerberos [22mdon't use Kerberos.
+
+     [1m-f [22mdon't read .cshrc.
+
+     [1m-l[22m, [1m--full [22msimulate full login.
+
+     [1m-m [22mleave environment unmodified.
+
+     [1m-i [4m[22minstance[24m, [1m--instance=[4m[22minstance[24m root instance to use.
+
+     [1m-c [4m[22mcommand[24m, [1m--command=[4m[22mcommand[24m command to execute.
+
+HEIMDAL                        January 12, 2006                        HEIMDAL

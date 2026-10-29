@@ -1,0 +1,85 @@
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\" Copyright (c) 2026 The Minkar contributors
+.\" Part of Minkar.
+.Dd October 29, 2026
+.Dt IOREG 8
+.Os
+.Sh NAME
+.Nm ioreg
+.Nd show the I/O Kit registry
+.Sh SYNOPSIS
+.Nm
+.Op Fl ailrx
+.Op Fl c Ar class
+.Op Fl d Ar depth
+.Op Fl k Ar key
+.Op Fl n Ar name
+.Op Fl p Ar plane
+.Op Fl w Ar width
+.Sh DESCRIPTION
+.Nm
+prints the I/O Kit registry as a tree: each object's name and location,
+then its class, registry id, busy count (in the IOService plane) and
+retain count.
+.Bl -tag -width Ds
+.It Fl a
+Print the registry as an XML property list instead: each object's
+properties, with
+.Ql IORegistryEntryName ,
+.Ql IOObjectClass
+and its children in
+.Ql IORegistryEntryChildren .
+.It Fl c Ar class
+Only objects of
+.Ar class ,
+or of a class derived from it.
+.It Fl d Ar depth
+Only that many levels.
+.It Fl i
+Show each object's class inheritance.
+.It Fl k Ar key
+Only objects with the property
+.Ar key
+(and, with
+.Fl l ,
+only that property).
+.It Fl l
+Show the objects' properties.
+.It Fl n Ar name
+Only objects named
+.Ar name
+(or
+.Ar name Ns @ Ns Ar location ) .
+.It Fl p Ar plane
+The registry plane to show: IOService (the default), IODeviceTree,
+IOPower, IOACPIPlane...
+.It Fl r
+With
+.Fl c ,
+.Fl k
+or
+.Fl n ,
+the subtrees under the objects found too.
+.It Fl w Ar width
+Cut lines to
+.Ar width
+characters; 0 does not cut them.
+The terminal's width by default, or no limit when the output is not a
+terminal.
+.It Fl x
+Numbers in hexadecimal.
+.El
+.Sh EXIT STATUS
+1 when
+.Fl c ,
+.Fl k
+or
+.Fl n
+found nothing; 0 otherwise.
+.Sh SEE ALSO
+.Xr nvram 8 ,
+.Xr system_profiler 8
+.Sh HISTORY
+Minkar's
+.Nm
+is its own.

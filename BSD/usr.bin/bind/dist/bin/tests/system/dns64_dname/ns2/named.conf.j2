@@ -1,0 +1,14 @@
+// NS2
+
+options {
+	{% include_indented "_common/options.conf.j2" %}
+	allow-recursion { any; };
+	dnssec-validation no;
+	qname-minimization off;
+
+	dns64 64:ff9b::/96 { };
+};
+
+{% include "_common/controls.conf.j2" %}
+
+{% include "_common/root.hint.conf" %}

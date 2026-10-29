@@ -1,0 +1,13 @@
+{% include "_common/controls.conf.j2" %}
+
+options {
+	{% include_indented "_common/options.conf.j2" %}
+	recursion no;
+	dnssec-validation no;
+};
+
+zone "example" {
+	type secondary;
+	primaries { 10.53.0.1 port @PORT@; };
+	file "example.db";
+};

@@ -39,7 +39,7 @@ QEMU fails on an MSR the kernel reads).
 | Board | Gigabyte H270N-WIFI (Intel H270), AMI UEFI firmware | Boots |
 | CPU | Intel Core i7-7700 (4 cores, 8 threads) | ACPI lists all eight; only the boot CPU runs (no SMP yet, as in QEMU) |
 | Disk | SATA through AHCI (`MinkarAHCIPort`) | Root file system, fsck |
-| Disk | NVMe (M.2) | No driver yet |
+| Disk | NVMe (M.2) | Driver `MinkarNVMe` (2026-10-29), tested in QEMU; on PC 1 to test |
 | USB | xHCI (`MinkarXHCIPort`), USB 2 hub of a KVM switch | Keyboard and mouse, directly and through the switch |
 | Display | GOP framebuffer, Xiaomi 34" ultrawide | Native 3440x1440 text console |
 | Network | Intel I219-V (PCH LAN) | ping on the LAN (`MinkarE1000`) |
@@ -53,7 +53,11 @@ loader's output on screen for photos.
 
 ### Still open
 
-- NVMe.
+- NVMe: `MinkarNVMe` boots QEMU from an NVMe disk; on PC 1 it is to be
+  tested. Its line in the boot log names the model, the size and the
+  interrupt it uses (MSI, pin interrupt or polling); `ioreg -r -c
+  MinkarNVMe -l` counts the completions that came by interrupt and by the
+  timer.
 - IOKit does not get quiet within 30 seconds, so some drivers (the
   display's) start after the login prompt; `kextstart` now names the
   services still busy.

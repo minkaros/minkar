@@ -1,0 +1,89 @@
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\" Copyright (c) 2026 The Minkar contributors
+.\" Part of Minkar.
+.Dd October 29, 2026
+.Dt LOCALEDEF 1
+.Os
+.Sh NAME
+.Nm localedef
+.Nd make a locale from its definition
+.Sh SYNOPSIS
+.Nm
+.Op Fl c
+.Op Fl v
+.Op Fl U
+.Op Fl f Ar charmap
+.Op Fl w Ar widthfile
+.Op Fl i Ar sourcefile
+.Op Fl u Ar codeset
+.Ar localename
+.Sh DESCRIPTION
+.Nm
+reads a locale's definition, in the POSIX
+.Xr locale 5
+source format (from
+.Ar sourcefile ,
+or the standard input), and writes the files the C library reads for
+it into the directory
+.Ar localename :
+.Pa LC_CTYPE ,
+.Pa LC_COLLATE ,
+.Pa LC_MONETARY ,
+.Pa LC_NUMERIC ,
+.Pa LC_TIME
+and
+.Pa LC_MESSAGES/LC_MESSAGES ,
+one for each category the definition has.
+Installed in
+.Pa /usr/share/locale ,
+the locale can then be named in
+.Ev LANG
+or the
+.Ev LC_*
+variables.
+.Pp
+Characters are written by their symbolic names, as
+.Ql <U00E9> ,
+which
+.Ar charmap
+gives the bytes of.
+.Bl -tag -width Ds
+.It Fl c
+Write the files even when there were warnings.
+.It Fl f Ar charmap
+The character set description.
+.It Fl i Ar sourcefile
+Read the definition from
+.Ar sourcefile .
+.It Fl U
+Ignore characters the charmap does not define.
+.It Fl u Ar codeset
+The codeset, when there is no charmap.
+.It Fl v
+Say what is written.
+.It Fl w Ar widthfile
+The display widths of the characters.
+.El
+.Pp
+The system collates by code point: the order an
+.Ql LC_COLLATE
+definition gives is not kept (
+.Nm
+says so), and the
+.Pa LC_COLLATE
+written sorts by code point, as every locale of the system does.
+.Sh EXIT STATUS
+0 on success; 1 when there were warnings (and no
+.Fl c ) ,
+4 or more on an error.
+.Sh EXAMPLES
+.Dl localedef -f UTF-8.cm -i es_PE.src /usr/share/locale/es_PE.UTF-8
+.Sh SEE ALSO
+.Xr locale 1 ,
+.Xr setlocale 3 ,
+.Xr locale 5
+.Sh HISTORY
+Minkar's
+.Nm
+is FreeBSD's, which Garrett D'Amore wrote for illumos at Nexenta; this
+manual is Minkar's.

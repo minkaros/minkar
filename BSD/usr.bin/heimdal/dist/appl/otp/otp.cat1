@@ -1,0 +1,42 @@
+OTP(1)                    BSD General Commands Manual                   OTP(1)
+
+[1mNAME[0m
+     [1motp [22m-- manages one-time passwords
+
+[1mSYNOPSIS[0m
+     [1motp [22m[[1m-dhlor[22m] [[1m-f [4m[22malgorithm[24m] [[1m-u [4m[22muser[24m] [4msequence-number[24m [4mseed[0m
+
+[1mDESCRIPTION[0m
+     The [1motp [22mprogram initializes and updates your current series of one-time
+     passwords (OTPs).
+
+     Use this to set a new series of one-time passwords.  Only perform this on
+     the console or over an encrypted link as you will have to supply your
+     pass-phrase.  The other two parameters are [4msequence-number[24m and [4mseed[24m.
+
+     Options are:
+
+     [1m-d      [22mTo delete a one-time password.
+
+     [1m-f      [22mChoose a different [4malgorithm[24m from the default md5.  Pick any of:
+             md4, md5, and sha.
+
+     [1m-h      [22mFor getting a help message.
+
+     [1m-l      [22mList the current table of one-time passwords.
+
+     [1m-o      [22mTo open (unlock) the otp-entry for a user.
+
+     [1m-r      [22mTo renew a one-time password series.  This operation can be per-
+             formed over an potentially eavesdropped link because you do not
+             supply the pass-phrase.  First you need to supply the current
+             one-time password and then the new one corresponding to the sup-
+             plied [4msequence-number[24m and [4mseed[24m.
+
+     [1m-u      [22mTo choose a different [4muser[24m to set one-time passwords for.  This
+             only works when running [1motp [22mas root.
+
+[1mSEE ALSO[0m
+     otpprint(1)
+
+KTH-KRB                        November 17, 1996                       KTH-KRB

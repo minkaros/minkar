@@ -1,0 +1,54 @@
+/*
+ * Copyright (C) Internet Systems Consortium, Inc. ("ISC")
+ *
+ * SPDX-License-Identifier: MPL-2.0
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0.  If a copy of the MPL was not distributed with this
+ * file, you can obtain one at https://mozilla.org/MPL/2.0/.
+ *
+ * See the COPYRIGHT file distributed with this work for additional
+ * information regarding copyright ownership.
+ */
+
+options {
+	{% include_indented "_common/options.conf.j2" %}
+	session-keyfile "session.key";
+	statistics-file	"named.stats";
+	notify no;
+	dnssec-validation no;
+	max-udp-size 4096;
+
+	rate-limit {
+		responses-per-second 2;
+		all-per-second 50;
+		slip 3;
+		exempt-clients { 10.53.0.7; };
+		log-only yes;
+
+		// small enough to force a table expansion
+		min-table-size 75;
+	};
+};
+
+{% include "_common/controls.conf.j2" %}
+
+/*
+ * These log settings have no effect unless "-g" is removed from ../../start.pl
+ */
+logging {
+	channel debug {
+		file "log-debug";
+		print-category yes; print-severity yes; severity debug 10;
+	};
+	channel queries {
+		file "log-queries";
+		print-category yes; print-severity yes; severity info;
+	};
+	category rate-limit { debug; queries; };
+	category queries { debug; queries; };
+};
+
+zone "." { type hint; file "hints"; };
+
+zone "tld4."{ type primary; file "tld4.db"; };

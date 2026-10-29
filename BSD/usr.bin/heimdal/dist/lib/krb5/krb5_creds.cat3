@@ -1,0 +1,57 @@
+KRB5_CREDS(3)            BSD Library Functions Manual            KRB5_CREDS(3)
+
+[1mNAME[0m
+     [1mkrb5_creds[22m, [1mkrb5_copy_creds[22m, [1mkrb5_copy_creds_contents[22m, [1mkrb5_free_creds[22m,
+     [1mkrb5_free_cred_contents [22m-- Kerberos 5 credential handling functions
+
+[1mLIBRARY[0m
+     Kerberos 5 Library (libkrb5, -lkrb5)
+
+[1mSYNOPSIS[0m
+     [1m#include <krb5.h>[0m
+
+     [4mkrb5_error_code[0m
+     [1mkrb5_copy_creds[22m([4mkrb5_context[24m [4mcontext[24m, [4mconst[24m [4mkrb5_creds[24m [4m*incred[24m,
+         [4mkrb5_creds[24m [4m**outcred[24m);
+
+     [4mkrb5_error_code[0m
+     [1mkrb5_copy_creds_contents[22m([4mkrb5_context[24m [4mcontext[24m, [4mconst[24m [4mkrb5_creds[24m [4m*incred[24m,
+         [4mkrb5_creds[24m [4m*outcred[24m);
+
+     [4mkrb5_error_code[0m
+     [1mkrb5_free_creds[22m([4mkrb5_context[24m [4mcontext[24m, [4mkrb5_creds[24m [4m*outcred[24m);
+
+     [4mkrb5_error_code[0m
+     [1mkrb5_free_cred_contents[22m([4mkrb5_context[24m [4mcontext[24m, [4mkrb5_creds[24m [4m*cred[24m);
+
+[1mDESCRIPTION[0m
+     [4mkrb5_creds[24m holds Kerberos credentials:
+
+     typedef struct krb5_creds {
+         krb5_principal      client;
+         krb5_principal      server;
+         krb5_keyblock       session;
+         krb5_times          times;
+         krb5_data           ticket;
+         krb5_data           second_ticket;
+         krb5_authdata       authdata;
+         krb5_addresses      addresses;
+         krb5_ticket_flags   flags;
+     } krb5_creds;
+
+     [1mkrb5_copy_creds[22m() makes a copy of [4mincred[24m to [4moutcred[24m.  [4moutcred[24m should be
+     freed with [1mkrb5_free_creds[22m() by the caller.
+
+     [1mkrb5_copy_creds_contents[22m() makes a copy of the content of [4mincred[24m to
+     [4moutcreds[24m.  [4moutcreds[24m should be freed by the called with
+     [1mkrb5_free_creds_contents[22m().
+
+     [1mkrb5_free_creds[22m() frees the content of the [4mcred[24m structure and the struc-
+     ture itself.
+
+     [1mkrb5_free_cred_contents[22m() frees the content of the [4mcred[24m structure.
+
+[1mSEE ALSO[0m
+     krb5(3), krb5_compare_creds(3), krb5_get_init_creds(3), kerberos(8)
+
+HEIMDAL                           May 1, 2006                          HEIMDAL

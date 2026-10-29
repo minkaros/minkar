@@ -1,0 +1,37 @@
+/*
+ * Copyright (C) Internet Systems Consortium, Inc. ("ISC")
+ *
+ * SPDX-License-Identifier: MPL-2.0
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0.  If a copy of the MPL was not distributed with this
+ * file, you can obtain one at https://mozilla.org/MPL/2.0/.
+ *
+ * See the COPYRIGHT file distributed with this work for additional
+ * information regarding copyright ownership.
+ */
+
+/*
+ * Test disable of stale-answer-client-timeout.
+ */
+
+{% include "_common/controls.conf.j2" %}
+
+options {
+	{% include_indented "_common/options.conf.j2" %}
+	dnssec-validation no;
+	stale-answer-enable yes;
+	stale-cache-enable yes;
+	stale-answer-ttl 3;
+	stale-refresh-time 0;
+	max-stale-ttl 3600;
+	# Client-timeout defaults to 'off', so the stale shortttl.cname.example
+	# checks block on this timeout when the auth is down; keep it short.
+	resolver-query-timeout 2000; # 2 seconds
+	prefetch 0;
+};
+
+zone "." {
+	type hint;
+	file "root.db";
+};

@@ -1,0 +1,27 @@
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\" Copyright (c) 2026 The Minkar contributors
+.\" Part of Minkar.
+.Dd October 29, 2026
+.Dt WAIT4PATH 1
+.Os
+.Sh NAME
+.Nm wait4path
+.Nd wait for a path to exist
+.Sh SYNOPSIS
+.Nm
+.Ar path
+.Sh DESCRIPTION
+.Nm
+returns when
+.Ar path
+exists, waiting until then: for a volume being mounted, say.
+It looks again each time a file system is mounted, and at least once a
+second.
+.Sh EXIT STATUS
+0 once the path exists; 1 on a usage error.
+.Sh SEE ALSO
+.Xr mount 8
+.Sh HISTORY
+Minkar's
+.Nm
+is its own.

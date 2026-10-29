@@ -1,0 +1,29 @@
+<!--
+Copyright (C) Internet Systems Consortium, Inc. ("ISC")
+
+SPDX-License-Identifier: MPL-2.0
+
+This Source Code Form is subject to the terms of the Mozilla Public
+License, v. 2.0.  If a copy of the MPL was not distributed with this
+file, you can obtain one at https://mozilla.org/MPL/2.0/.
+
+See the COPYRIGHT file distributed with this work for additional
+information regarding copyright ownership.
+-->
+
+DoH queries can be sent with curl for testing, passing the DNS message
+in the "dns" query parameter, base64url-encoded with the trailing '='
+padding removed (RFC 8484).  The message is easiest to build with
+dnspython; message id 0 keeps the URL stable and cache-friendly, as
+RFC 8484 recommends for GET requests.
+
+For example:
+
+$ python3 -c 'import base64, dns.message
+query = dns.message.make_query("example.", "SOA", id=0)
+print(base64.urlsafe_b64encode(query.to_wire()).rstrip(b"=").decode())'
+AAABAAABAAAAAAAAB2V4YW1wbGUAAAYAAQ
+
+This string can then be passed to curl:
+
+curl "https://<server>/dns-query?dns=AAABAAABAAAAAAAAB2V4YW1wbGUAAAYAAQ"

@@ -1,0 +1,220 @@
+KRB5_AUTH_CONTEXT(3)     BSD Library Functions Manual     KRB5_AUTH_CONTEXT(3)
+
+[1mNAME[0m
+     [1mkrb5_auth_con_addflags[22m, [1mkrb5_auth_con_free[22m, [1mkrb5_auth_con_genaddrs[22m,
+     [1mkrb5_auth_con_generatelocalsubkey[22m, [1mkrb5_auth_con_getaddrs[22m,
+     [1mkrb5_auth_con_getauthenticator[22m, [1mkrb5_auth_con_getflags[22m,
+     [1mkrb5_auth_con_getkey[22m, [1mkrb5_auth_con_getlocalsubkey[22m,
+     [1mkrb5_auth_con_getrcache[22m, [1mkrb5_auth_con_getremotesubkey[22m,
+     [1mkrb5_auth_con_getuserkey[22m, [1mkrb5_auth_con_init[22m, [1mkrb5_auth_con_initivector[22m,
+     [1mkrb5_auth_con_removeflags[22m, [1mkrb5_auth_con_setaddrs[22m,
+     [1mkrb5_auth_con_setaddrs_from_fd[22m, [1mkrb5_auth_con_setflags[22m,
+     [1mkrb5_auth_con_setivector[22m, [1mkrb5_auth_con_setkey[22m,
+     [1mkrb5_auth_con_setlocalsubkey[22m, [1mkrb5_auth_con_setrcache[22m,
+     [1mkrb5_auth_con_setremotesubkey[22m, [1mkrb5_auth_con_setuserkey[22m,
+     [1mkrb5_auth_context[22m, [1mkrb5_auth_getcksumtype[22m, [1mkrb5_auth_getkeytype[22m,
+     [1mkrb5_auth_getlocalseqnumber[22m, [1mkrb5_auth_getremoteseqnumber[22m,
+     [1mkrb5_auth_setcksumtype[22m, [1mkrb5_auth_setkeytype[22m,
+     [1mkrb5_auth_setlocalseqnumber[22m, [1mkrb5_auth_setremoteseqnumber[22m,
+     [1mkrb5_free_authenticator [22m-- manage authentication on connection level
+
+[1mLIBRARY[0m
+     Kerberos 5 Library (libkrb5, -lkrb5)
+
+[1mSYNOPSIS[0m
+     [1m#include <krb5.h>[0m
+
+     [4mkrb5_error_code[0m
+     [1mkrb5_auth_con_init[22m([4mkrb5_context[24m [4mcontext[24m,
+         [4mkrb5_auth_context[24m [4m*auth_context[24m);
+
+     [4mvoid[0m
+     [1mkrb5_auth_con_free[22m([4mkrb5_context[24m [4mcontext[24m, [4mkrb5_auth_context[24m [4mauth_context[24m);
+
+     [4mkrb5_error_code[0m
+     [1mkrb5_auth_con_setflags[22m([4mkrb5_context[24m [4mcontext[24m,
+         [4mkrb5_auth_context[24m [4mauth_context[24m, [4mint32_t[24m [4mflags[24m);
+
+     [4mkrb5_error_code[0m
+     [1mkrb5_auth_con_getflags[22m([4mkrb5_context[24m [4mcontext[24m,
+         [4mkrb5_auth_context[24m [4mauth_context[24m, [4mint32_t[24m [4m*flags[24m);
+
+     [4mkrb5_error_code[0m
+     [1mkrb5_auth_con_addflags[22m([4mkrb5_context[24m [4mcontext[24m,
+         [4mkrb5_auth_context[24m [4mauth_context[24m, [4mint32_t[24m [4maddflags[24m, [4mint32_t[24m [4m*flags[24m);
+
+     [4mkrb5_error_code[0m
+     [1mkrb5_auth_con_removeflags[22m([4mkrb5_context[24m [4mcontext[24m,
+         [4mkrb5_auth_context[24m [4mauth_context[24m, [4mint32_t[24m [4mremovelags[24m, [4mint32_t[24m [4m*flags[24m);
+
+     [4mkrb5_error_code[0m
+     [1mkrb5_auth_con_setaddrs[22m([4mkrb5_context[24m [4mcontext[24m,
+         [4mkrb5_auth_context[24m [4mauth_context[24m, [4mkrb5_address[24m [4m*local_addr[24m,
+         [4mkrb5_address[24m [4m*remote_addr[24m);
+
+     [4mkrb5_error_code[0m
+     [1mkrb5_auth_con_getaddrs[22m([4mkrb5_context[24m [4mcontext[24m,
+         [4mkrb5_auth_context[24m [4mauth_context[24m, [4mkrb5_address[24m [4m**local_addr[24m,
+         [4mkrb5_address[24m [4m**remote_addr[24m);
+
+     [4mkrb5_error_code[0m
+     [1mkrb5_auth_con_genaddrs[22m([4mkrb5_context[24m [4mcontext[24m,
+         [4mkrb5_auth_context[24m [4mauth_context[24m, [4mint[24m [4mfd[24m, [4mint[24m [4mflags[24m);
+
+     [4mkrb5_error_code[0m
+     [1mkrb5_auth_con_setaddrs_from_fd[22m([4mkrb5_context[24m [4mcontext[24m,
+         [4mkrb5_auth_context[24m [4mauth_context[24m, [4mvoid[24m [4m*p_fd[24m);
+
+     [4mkrb5_error_code[0m
+     [1mkrb5_auth_con_getkey[22m([4mkrb5_context[24m [4mcontext[24m,
+         [4mkrb5_auth_context[24m [4mauth_context[24m, [4mkrb5_keyblock[24m [4m**keyblock[24m);
+
+     [4mkrb5_error_code[0m
+     [1mkrb5_auth_con_getlocalsubkey[22m([4mkrb5_context[24m [4mcontext[24m,
+         [4mkrb5_auth_context[24m [4mauth_context[24m, [4mkrb5_keyblock[24m [4m**keyblock[24m);
+
+     [4mkrb5_error_code[0m
+     [1mkrb5_auth_con_getremotesubkey[22m([4mkrb5_context[24m [4mcontext[24m,
+         [4mkrb5_auth_context[24m [4mauth_context[24m, [4mkrb5_keyblock[24m [4m**keyblock[24m);
+
+     [4mkrb5_error_code[0m
+     [1mkrb5_auth_con_generatelocalsubkey[22m([4mkrb5_context[24m [4mcontext[24m,
+         [4mkrb5_auth_context[24m [4mauth_context[24m, [4mkrb5_keyblock[24m, [4m*key"[24m);
+
+     [4mkrb5_error_code[0m
+     [1mkrb5_auth_con_initivector[22m([4mkrb5_context[24m [4mcontext[24m,
+         [4mkrb5_auth_context[24m [4mauth_context[24m);
+
+     [4mkrb5_error_code[0m
+     [1mkrb5_auth_con_setivector[22m([4mkrb5_context[24m [4mcontext[24m,
+         [4mkrb5_auth_context[24m [4m*auth_context[24m, [4mkrb5_pointer[24m [4mivector[24m);
+
+     [4mvoid[0m
+     [1mkrb5_free_authenticator[22m([4mkrb5_context[24m [4mcontext[24m,
+         [4mkrb5_authenticator[24m [4m*authenticator[24m);
+
+[1mDESCRIPTION[0m
+     The [1mkrb5_auth_context [22mstructure holds all context related to an authenti-
+     cated connection, in a similar way to [1mkrb5_context [22mthat holds the context
+     for the thread or process.  [1mkrb5_auth_context [22mis used by various func-
+     tions that are directly related to authentication between the
+     server/client. Example of data that this structure contains are various
+     flags, addresses of client and server, port numbers, keyblocks (and sub-
+     keys), sequence numbers, replay cache, and checksum-type.
+
+     [1mkrb5_auth_con_init[22m() allocates and initializes the [1mkrb5_auth_context[0m
+     structure. Default values can be changed with
+     [1mkrb5_auth_con_setcksumtype[22m() and [1mkrb5_auth_con_setflags[22m().  The
+     [1mauth_context [22mstructure must be freed by [1mkrb5_auth_con_free[22m().
+
+     [1mkrb5_auth_con_getflags[22m(), [1mkrb5_auth_con_setflags[22m(),
+     [1mkrb5_auth_con_addflags[22m() and [1mkrb5_auth_con_removeflags[22m() gets and modi-
+     fies the flags for a [1mkrb5_auth_context [22mstructure. Possible flags to set
+     are:
+
+     KRB5_AUTH_CONTEXT_DO_SEQUENCE
+             Generate and check sequence-number on each packet.
+
+     KRB5_AUTH_CONTEXT_DO_TIME
+             Check timestamp on incoming packets.
+
+     KRB5_AUTH_CONTEXT_RET_SEQUENCE, KRB5_AUTH_CONTEXT_RET_TIME
+             Return sequence numbers and time stamps in the outdata parame-
+             ters.
+
+     KRB5_AUTH_CONTEXT_CLEAR_FORWARDED_CRED
+             will force [1mkrb5_get_forwarded_creds[22m() and [1mkrb5_fwd_tgt_creds[22m() to
+             create unencrypted ) KRB5_ENCTYPE_NULL) credentials.  This is for
+             use with old MIT server and JAVA based servers as they can't han-
+             dle encrypted KRB-CRED.  Note that sending such KRB-CRED is clear
+             exposes crypto keys and tickets and is insecure, make sure the
+             packet is encrypted in the protocol.  krb5_rd_cred(3),
+             krb5_rd_priv(3), krb5_rd_safe(3), krb5_mk_priv(3) and
+             krb5_mk_safe(3).  Setting this flag requires that parameter to be
+             passed to these functions.
+
+             The flags KRB5_AUTH_CONTEXT_DO_TIME also modifies the behavior
+             the function [1mkrb5_get_forwarded_creds[22m() by removing the timestamp
+             in the forward credential message, this have backward compatibil-
+             ity problems since not all versions of the heimdal supports time-
+             less credentional messages.  Is very useful since it always the
+             sender of the message to cache forward message and thus avoiding
+             a round trip to the KDC for each time a credential is forwarded.
+             The same functionality can be obtained by using address-less
+             tickets.
+
+     [1mkrb5_auth_con_setaddrs[22m(), [1mkrb5_auth_con_setaddrs_from_fd[22m() and
+     [1mkrb5_auth_con_getaddrs[22m() gets and sets the addresses that are checked
+     when a packet is received.  It is mandatory to set an address for the re-
+     mote host. If the local address is not set, it iss deduced from the un-
+     derlaying operating system.  [1mkrb5_auth_con_getaddrs[22m() will call
+     [1mkrb5_free_address[22m() on any address that is passed in [4mlocal_addr[24m or
+     [4mremote_addr[24m.  [1mkrb5_auth_con_setaddr[22m() allows passing in a NULL pointer as
+     [4mlocal_addr[24m and [4mremote_addr[24m, in that case it will just not set that ad-
+     dress.
+
+     [1mkrb5_auth_con_setaddrs_from_fd[22m() fetches the addresses from a file de-
+     scriptor.
+
+     [1mkrb5_auth_con_genaddrs[22m() fetches the address information from the given
+     file descriptor [4mfd[24m depending on the bitmap argument [4mflags[24m.
+
+     Possible values on [4mflags[24m are:
+
+     [4mKRB5_AUTH_CONTEXT_GENERATE_LOCAL_ADDR[0m
+             fetches the local address from [4mfd[24m.
+
+     [4mKRB5_AUTH_CONTEXT_GENERATE_REMOTE_ADDR[0m
+             fetches the remote address from [4mfd[24m.
+
+     [1mkrb5_auth_con_setkey[22m(), [1mkrb5_auth_con_setuserkey[22m() and
+     [1mkrb5_auth_con_getkey[22m() gets and sets the key used for this auth context.
+     The keyblock returned by [1mkrb5_auth_con_getkey[22m() should be freed with
+     [1mkrb5_free_keyblock[22m().  The keyblock send into [1mkrb5_auth_con_setkey[22m() is
+     copied into the [1mkrb5_auth_context[22m, and thus no special handling is
+     needed.  NULL is not a valid keyblock to [1mkrb5_auth_con_setkey[22m().
+
+     [1mkrb5_auth_con_setuserkey[22m() is only useful when doing user to user authen-
+     tication.  [1mkrb5_auth_con_setkey[22m() is equivalent to
+     [1mkrb5_auth_con_setuserkey[22m().
+
+     [1mkrb5_auth_con_getlocalsubkey[22m(), [1mkrb5_auth_con_setlocalsubkey[22m(),
+     [1mkrb5_auth_con_getremotesubkey[22m() and [1mkrb5_auth_con_setremotesubkey[22m() gets
+     and sets the keyblock for the local and remote subkey.  The keyblock re-
+     turned by [1mkrb5_auth_con_getlocalsubkey[22m() and
+     [1mkrb5_auth_con_getremotesubkey[22m() must be freed with [1mkrb5_free_keyblock[22m().
+
+     [1mkrb5_auth_setcksumtype[22m() and [1mkrb5_auth_getcksumtype[22m() sets and gets the
+     checksum type that should be used for this connection.
+
+     [1mkrb5_auth_con_generatelocalsubkey[22m() generates a local subkey that have
+     the same encryption type as [4mkey[24m.
+
+     [1mkrb5_auth_getremoteseqnumber[22m() [1mkrb5_auth_setremoteseqnumber[22m(),
+     [1mkrb5_auth_getlocalseqnumber[22m() and [1mkrb5_auth_setlocalseqnumber[22m() gets and
+     sets the sequence-number for the local and remote sequence-number
+     counter.
+
+     [1mkrb5_auth_setkeytype[22m() and [1mkrb5_auth_getkeytype[22m() gets and gets the key-
+     type of the keyblock in [1mkrb5_auth_context[22m.
+
+     [1mkrb5_auth_con_getauthenticator[22m() Retrieves the authenticator that was
+     used during mutual authentication. The authenticator returned should be
+     freed by calling [1mkrb5_free_authenticator[22m().
+
+     [1mkrb5_auth_con_getrcache[22m() and [1mkrb5_auth_con_setrcache[22m() gets and sets the
+     replay-cache.
+
+     [1mkrb5_auth_con_initivector[22m() allocates memory for and zeros the initial
+     vector in the [4mauth_context[24m keyblock.
+
+     [1mkrb5_auth_con_setivector[22m() sets the i_vector portion of [4mauth_context[24m to
+     [4mivector[24m.
+
+     [1mkrb5_free_authenticator[22m() free the content of [4mauthenticator[24m and
+     [4mauthenticator[24m itself.
+
+[1mSEE ALSO[0m
+     krb5_context(3), kerberos(8)
+
+HEIMDAL                          May 17, 2005                          HEIMDAL

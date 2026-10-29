@@ -1,0 +1,112 @@
+IPROP(8)                  BSD System Manager's Manual                 IPROP(8)
+
+[1mNAME[0m
+     [1miprop[22m, [1mipropd-master[22m, [1mipropd-slave [22m-- propagate transactions from a Heim-
+     dal Kerberos master KDC to slave KDCs
+
+[1mSYNOPSIS[0m
+     [1mipropd-master [22m[[1m-c [4m[22mstring[24m | [1m--config-file=[4m[22mstring[24m] [[1m-r [4m[22mstring[24m |
+                   [1m--realm=[4m[22mstring[24m] [[1m-k [4m[22mkspec[24m | [1m--keytab=[4m[22mkspec[24m] [[1m-d [4m[22mfile[24m |
+                   [1m--database=[4m[22mfile[24m] [[1m--slave-stats-file=[4m[22mfile[24m]
+                   [[1m--time-missing=[4m[22mtime[24m] [[1m--time-gone=[4m[22mtime[24m] [[1m--detach[22m]
+                   [[1m--version[22m] [[1m--help[22m]
+     [1mipropd-slave [22m[[1m-c [4m[22mstring[24m | [1m--config-file=[4m[22mstring[24m] [[1m-r [4m[22mstring[24m |
+                   [1m--realm=[4m[22mstring[24m] [[1m-k [4m[22mkspec[24m | [1m--keytab=[4m[22mkspec[24m]
+                   [[1m--time-lost=[4m[22mtime[24m] [[1m--detach[22m] [[1m--version[22m] [[1m--help[22m] [4mmaster[0m
+
+[1mDESCRIPTION[0m
+     [1mipropd-master [22mis used to propagate changes to a Heimdal Kerberos database
+     from the master Kerberos server on which it runs to slave Kerberos
+     servers running [1mipropd-slave[22m.
+
+     The slaves are specified by the contents of the [4mslaves[24m file in the KDC's
+     database directory, e.g. [4m/var/heimdal/slaves[24m.  This has principals one
+     per-line of the form
+           iprop/[4mslave[24m@[4mREALM[0m
+     where [4mslave[24m is the hostname of the slave server in the given [4mREALM[24m, e.g.
+           iprop/kerberos-1.example.com@EXAMPLE.COM
+     On a slave, the argument [4mmaster[24m specifies the hostname of the master
+     server from which to receive updates.
+
+     In contrast to hprop(8), which sends the whole database to the slaves
+     regularly, [1miprop [22mnormally sends only the changes as they happen on the
+     master.  The master keeps track of all the changes by assigning a version
+     number to every transaction to the database.  The slaves know which was
+     the latest version they saw, and in this way it can be determined if they
+     are in sync or not.  A log of all the transactions is kept on the master.
+     When a slave is at an older version than the oldest one in the log, the
+     whole database has to be sent.
+
+     The log of transactions is also used to implement a two-phase commit
+     (with roll-forward for recovery) method of updating the HDB.  Transac-
+     tions are first recorded in the log, then in the HDB, then the log is up-
+     dated to mark the transaction as committed.
+
+     The changes are propagated over a secure channel (on port 2121 by de-
+     fault).  This should normally be defined as "iprop/tcp" in [4m/etc/services[0m
+     or another source of the services database.  The master and slaves must
+     each have access to a keytab with keys for the [1miprop [22mservice principal on
+     the local host.
+
+     There is a keep-alive feature logged in the master's [4mslave-stats[24m file
+     (e.g. [4m/var/heimdal/slave-stats[24m).
+
+     Supported options for [1mipropd-master[22m:
+
+     [1m-c [4m[22mstring[24m, [1m--config-file=[4m[22mstring[0m
+
+     [1m-r [4m[22mstring[24m, [1m--realm=[4m[22mstring[0m
+
+     [1m-k [4m[22mkspec[24m, [1m--keytab=[4m[22mkspec[0m
+             keytab to get authentication from
+
+     [1m-d [4m[22mfile[24m, [1m--database=[4m[22mfile[0m
+             Database (default per KDC)
+
+     [1m--slave-stats-file=[4m[22mfile[0m
+             file for slave status information
+
+     [1m--time-missing=[4m[22mtime[0m
+             time before slave is polled for presence (default 2 min)
+
+     [1m--time-gone=[4m[22mtime[0m
+             time of inactivity after which a slave is considered gone (de-
+             fault 5 min)
+
+     [1m--detach[0m
+             detach from console
+
+     [1m--version[0m
+
+     [1m--help[0m
+
+     Supported options for [1mipropd-slave[22m:
+
+     [1m-c [4m[22mstring[24m, [1m--config-file=[4m[22mstring[0m
+
+     [1m-r [4m[22mstring[24m, [1m--realm=[4m[22mstring[0m
+
+     [1m-k [4m[22mkspec[24m, [1m--keytab=[4m[22mkspec[0m
+             keytab to get authentication from
+
+     [1m--time-lost=[4m[22mtime[0m
+             time before server is considered lost (default 5 min)
+
+     [1m--detach[0m
+             detach from console
+
+     [1m--version[0m
+
+     [1m--help[0m
+     Time arguments for the relevant options above may be specified in forms
+     like 5 min, 300 s, or simply a number of seconds.
+
+[1mFILES[0m
+     [4mslaves[24m, [4mslave-stats[24m in the database directory.  [4mipropd-master.pid[24m,
+     [4mipropd-slave.pid[24m in the database directory, or in the directory named by
+     the HEIM_PIDFILE_DIR environment variable.
+
+[1mSEE ALSO[0m
+     krb5.conf(5), hprop(8), hpropd(8), iprop-log(8), kdc(8).
+
+BSD                              May 24, 2005                              BSD

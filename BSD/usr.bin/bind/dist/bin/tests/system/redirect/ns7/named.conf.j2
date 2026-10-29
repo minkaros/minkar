@@ -1,0 +1,24 @@
+// NS7
+
+options {
+	{% include_indented "_common/options.conf.j2" %}
+	nxdomain-redirect redirect;
+	dnssec-validation no;
+	dns64 64:ff9b::/96 {
+		clients { any; };
+		mapped { any; };
+		suffix ::;
+	};
+};
+
+{% include "_common/controls.conf.j2" %}
+
+zone "." {
+	type primary;
+	file "root.db";
+};
+
+zone "redirect" {
+	type primary;
+	file "redirect.db";
+};

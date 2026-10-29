@@ -1,0 +1,128 @@
+IPROP-LOG(8)              BSD System Manager's Manual             IPROP-LOG(8)
+
+[1mNAME[0m
+     [1miprop-log [22m-- examine and maintain the iprop log file
+
+[1mSYNOPSIS[0m
+     [1miprop-log [22m[[1m--version[22m] [[1m-h [22m| [1m--help[22m] [4mcommand[0m
+
+     [1miprop-log truncate [22m[[1m-c [4m[22mfile[24m | [1m--config-file=[4m[22mfile[24m] [[1m-r [4m[22mstring[24m |
+               [1m--realm=[4m[22mstring[24m] [[1m-K [4m[22minteger[24m | [1m--keep-entries=[4m[22minteger[24m] [[1m-B[0m
+               [4minteger[24m | [1m--max-bytes=[4m[22minteger[24m] [[1m-R [22m| [1m--reset[22m] [[1m-h [22m| [1m--help[22m]
+               [[4mlog-file[24m]
+
+     [1miprop-log dump [22m[[1m-c [4m[22mfile[24m | [1m--config-file=[4m[22mfile[24m] [[1m-r [4m[22mstring[24m |
+               [1m--realm=[4m[22mstring[24m] [[1m-n [22m| [1m--no-lock[22m] [[1m-R [22m| [1m--reverse[22m] [[1m-h [22m| [1m--help[22m]
+               [[4mlog-file[24m]
+
+     [1miprop-log replay [22m[[1m--start-version=[4m[22mversion-number[24m]
+               [[1m--end-version=[4m[22mversion-number[24m] [[1m-c [4m[22mfile[24m | [1m--config-file=[4m[22mfile[24m]
+               [[1m-r [4m[22mstring[24m | [1m--realm=[4m[22mstring[24m] [[1m-h [22m| [1m--help[22m] [[4mlog-file[24m]
+
+     [1miprop-log last-version [22m[[1m-c [4m[22mfile[24m | [1m--config-file=[4m[22mfile[24m] [[1m-r [4m[22mstring[24m |
+               [1m--realm=[4m[22mstring[24m] [[1m-n [22m| [1m--no-lock[22m] [[1m-h [22m| [1m--help[22m] [[4mlog-files[24m]
+
+     [1miprop-log signal [22m[[1m-c [4m[22mfile[24m | [1m--config-file=[4m[22mfile[24m] [[1m-r [4m[22mstring[24m |
+               [1m--realm=[4m[22mstring[24m] [[1m-h [22m| [1m--help[22m]
+
+[1mDESCRIPTION[0m
+     Supported options:
+
+     [1m--version[0m
+
+     [1m-h[22m, [1m--help[0m
+
+     command can be one of the following:
+
+     truncate
+
+               [1m-c [4m[22mfile[24m, [1m--config-file=[4m[22mfile[0m
+                       configuration file
+
+               [1m-r [4m[22mstring[24m, [1m--realm=[4m[22mstring[0m
+                       realm
+
+               [1m-K [4m[22minteger[24m, [1m--keep-entries=[4m[22minteger[0m
+
+               [1m-B [4m[22minteger[24m, [1m--max-bytes=[4m[22minteger[0m
+
+               [1m-R[22m, [1m--reset[0m
+
+               If [1m--reset [22mis given, then the given, configured, or default log
+               file will be truncated and will start at version 1.  This
+               forces full propagations to all slave KDCs.
+
+               Otherwise the log will be truncated but some entries will be
+               preserved, as specified by the [1m--keep-entries [22mand/or
+               [1m--max-bytes [22moptions.  The largest number of [1m--keep-entries [22men-
+               tries that are available and fit in the given [1m--max-bytes [22mop-
+               tion will be used.  The [1m--keep-entries -option -defaults -to[0m
+               [1m-100, -and -the --max-bytes [22moption defaults to the [4mlog-max-size[0m
+               parameter in the configuration.
+
+     dump
+
+               [1m-c [4m[22mfile[24m, [1m--config-file=[4m[22mfile[0m
+                       configuration file
+
+               [1m-r [4m[22mstring[24m, [1m--realm=[4m[22mstring[0m
+                       realm
+
+               [1m-n [4m[22mstring[24m, [1m--no-lock[0m
+
+               [1m-R [4m[22mstring[24m, [1m--reverse[0m
+
+               Print out all entries in the given, configured, or default log
+               file to standard output.  If the [1m-n [22moption is used then don't
+               lock the iprop log file.  If the [1m-R [22moption is used, then print
+               the entries in reverse order (this can be useful when the log
+               is very large).
+
+     replay
+
+               [1m--start-version=[4m[22mversion-number[0m
+                       start replay with this version
+
+               [1m--end-version=[4m[22mversion-number[0m
+                       end replay with this version
+
+               [1m-c [4m[22mfile[24m, [1m--config-file=[4m[22mfile[0m
+                       configuration file
+
+               [1m-r [4m[22mstring[24m, [1m--realm=[4m[22mstring[0m
+                       realm
+
+               Replay the changes from specified entries (or all if none is
+               specified) in the given, configured, or default transaction log
+               file to the database.
+
+     last-version
+
+               [1m-c [4m[22mfile[24m, [1m--config-file=[4m[22mfile[0m
+                       configuration file
+
+               [1m-r [4m[22mstring[24m, [1m--realm=[4m[22mstring[0m
+                       realm
+
+               [1m-n [4m[22mstring[24m, [1m--no-lock[0m
+
+               prints the version of the last record in each of the given log
+               files, or the configured, or the default log file if none is
+               given.
+
+     signal
+
+               [1m-c [4m[22mfile[24m, [1m--config-file=[4m[22mfile[0m
+                       configuration file
+
+               [1m-r [4m[22mstring[24m, [1m--realm=[4m[22mstring[0m
+                       realm
+
+               Signals the ipropd-master daemon to send updates to slaves.
+               Normally kadmin does this every time it writes to the database,
+               so this should rarely be needed.
+
+[1mSEE ALSO[0m
+     iprop(8)
+
+BSD                            February 18, 2007                           BSD

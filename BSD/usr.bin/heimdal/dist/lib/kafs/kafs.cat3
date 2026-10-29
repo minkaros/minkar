@@ -1,0 +1,174 @@
+KAFS(3)                  BSD Library Functions Manual                  KAFS(3)
+
+[1mNAME[0m
+     [1mk_hasafs[22m, [1mk_hasafs_recheck[22m, [1mk_pioctl[22m, [1mk_unlog[22m, [1mk_setpag[22m,
+     [1mk_afs_cell_of_file[22m, [1mkafs_set_verbose[22m, [1mkafs_settoken_rxkad[22m, [1mkafs_settoken[22m,
+     [1mkrb_afslog[22m, [1mkrb_afslog_uid[22m, [1mkafs_settoken5[22m, [1mkrb5_afslog[22m, [1mkrb5_afslog_uid[0m
+     -- AFS library
+
+[1mLIBRARY[0m
+     AFS cache manager access library (libkafs, -lkafs)
+
+[1mSYNOPSIS[0m
+     [1m#include <kafs.h>[0m
+
+     [4mint[0m
+     [1mk_afs_cell_of_file[22m([4mconst[24m [4mchar[24m [4m*path[24m, [4mchar[24m [4m*cell[24m, [4mint[24m [4mlen[24m);
+
+     [4mint[0m
+     [1mk_hasafs[22m([4mvoid[24m);
+
+     [4mint[0m
+     [1mk_hasafs_recheck[22m([4mvoid[24m);
+
+     [4mint[0m
+     [1mk_pioctl[22m([4mchar[24m [4m*a_path[24m, [4mint[24m [4mo_opcode[24m, [4mstruct[24m [4mViceIoctl[24m [4m*a_paramsP[24m,
+         [4mint[24m [4ma_followSymlinks[24m);
+
+     [4mint[0m
+     [1mk_setpag[22m([4mvoid[24m);
+
+     [4mint[0m
+     [1mk_unlog[22m([4mvoid[24m);
+
+     [4mvoid[0m
+     [1mkafs_set_verbose[22m([4mvoid[24m [4m(*func)(void[24m [4m*,[24m [4mconst[24m [4mchar[24m [4m*,[24m [4mint)[24m, [4mvoid[24m [4m*[24m);
+
+     [4mint[0m
+     [1mkafs_settoken_rxkad[22m([4mconst[24m [4mchar[24m [4m*cell[24m, [4mstruct[24m [4mClearToken[24m [4m*token[24m,
+         [4mvoid[24m [4m*ticket[24m, [4msize_t[24m [4mticket_len[24m);
+
+     [4mint[0m
+     [1mkafs_settoken[22m([4mconst[24m [4mchar[24m [4m*cell[24m, [4muid_t[24m [4muid[24m, [4mCREDENTIALS[24m [4m*c[24m);
+
+     [1mkrb_afslog[22m([4mchar[24m [4m*cell[24m, [4mchar[24m [4m*realm[24m);
+
+     [4mint[0m
+     [1mkrb_afslog_uid[22m([4mchar[24m [4m*cell[24m, [4mchar[24m [4m*realm[24m, [4muid_t[24m [4muid[24m);
+
+     [4mkrb5_error_code[0m
+     [1mkrb5_afslog_uid[22m([4mkrb5_context[24m [4mcontext[24m, [4mkrb5_ccache[24m [4mid[24m, [4mconst[24m [4mchar[24m [4m*cell[24m,
+         [4mkrb5_const_realm[24m [4mrealm[24m, [4muid_t[24m [4muid[24m);
+
+     [4mint[0m
+     [1mkafs_settoken5[22m([4mconst[24m [4mchar[24m [4m*cell[24m, [4muid_t[24m [4muid[24m, [4mkrb5_creds[24m [4m*c[24m);
+
+     [4mkrb5_error_code[0m
+     [1mkrb5_afslog[22m([4mkrb5_context[24m [4mcontext[24m, [4mkrb5_ccache[24m [4mid[24m, [4mconst[24m [4mchar[24m [4m*cell[24m,
+         [4mkrb5_const_realm[24m [4mrealm[24m);
+
+[1mDESCRIPTION[0m
+     [1mk_hasafs[22m() initializes some library internal structures, and tests for
+     the presence of AFS in the kernel, none of the other functions should be
+     called before [1mk_hasafs[22m() is called, or if it fails.
+
+     [1mk_hasafs_recheck[22m() forces a recheck if a AFS client has started since
+     last time [1mk_hasafs[22m() or [1mk_hasafs_recheck[22m() was called.
+
+     [1mkafs_set_verbose[22m() set a log function that will be called each time the
+     kafs library does something important so that the application using
+     libkafs can output verbose logging.  Calling the function
+     [4mkafs_set_verbose[24m with the function argument set to NULL will stop libkafs
+     from calling the logging function (if set).
+
+     [1mkafs_settoken_rxkad[22m() set rxkad with the [4mtoken[24m and [4mticket[24m (that have the
+     length [4mticket_len[24m) for a given [4mcell[24m.
+
+     [1mkafs_settoken[22m() and [1mkafs_settoken5[22m() work the same way as
+     [1mkafs_settoken_rxkad[22m() but internally converts the Kerberos 4 or 5 creden-
+     tial to a afs cleartoken and ticket.
+
+     [1mkrb_afslog[22m(), and [1mkrb_afslog_uid[22m() obtains new tokens (and possibly tick-
+     ets) for the specified [4mcell[24m and [4mrealm[24m.  If [4mcell[24m is NULL, the local cell
+     is used. If [4mrealm[24m is NULL, the function tries to guess what realm to use.
+     Unless you  have some good knowledge of what cell or realm to use, you
+     should pass NULL.  [1mkrb_afslog[22m() will use the real user-id for the ViceId
+     field in the token, [1mkrb_afslog_uid[22m() will use [4muid[24m.
+
+     [1mkrb5_afslog[22m(), and [1mkrb5_afslog_uid[22m() are the Kerberos 5 equivalents of
+     [1mkrb_afslog[22m(), and [1mkrb_afslog_uid[22m().
+
+     [1mkrb5_afslog[22m(), [1mkafs_settoken5[22m() can be configured to behave differently
+     via a [1mkrb5_appdefault [22moption afs-use-524 in [4mkrb5.conf[24m.  Possible values
+     for afs-use-524 are:
+
+     yes    use the 524 server in the realm to convert the ticket
+
+     no     use the Kerberos 5 ticket directly, can be used with if the afs
+            cell support 2b token.
+
+     local, 2b
+            convert the Kerberos 5 credential to a 2b token locally (the same
+            work as a 2b 524 server should have done).
+
+     Example:
+
+     [appdefaults]
+             SU.SE = { afs-use-524 = local }
+             PDC.KTH.SE = { afs-use-524 = yes }
+             afs-use-524 = yes
+
+     libkafs will use the libkafs as application name when running the
+     [1mkrb5_appdefault [22mfunction call.
+
+     The (uppercased) cell name is used as the realm to the [1mkrb5_appdefault[0m
+     [1mfunction.[0m
+
+     [1mk_afs_cell_of_file[22m() will in [4mcell[24m return the cell of a specified file, no
+     more than [4mlen[24m characters is put in [4mcell[24m.
+
+     [1mk_pioctl[22m() does a [1mpioctl[22m() system call with the specified arguments. This
+     function is equivalent to [1mlpioctl[22m().
+
+     [1mk_setpag[22m() initializes a new PAG.
+
+     [1mk_unlog[22m() removes destroys all tokens in the current PAG.
+
+[1mRETURN VALUES[0m
+     [1mk_hasafs[22m() returns 1 if AFS is present in the kernel, 0 otherwise.
+     [1mkrb_afslog[22m() and [1mkrb_afslog_uid[22m() returns 0 on success, or a Kerberos er-
+     ror number on failure.  [1mk_afs_cell_of_file[22m(), [1mk_pioctl[22m(), [1mk_setpag[22m(), and
+     [1mk_unlog[22m() all return the value of the underlaying system call, 0 on suc-
+     cess.
+
+[1mENVIRONMENT[0m
+     The following environment variable affect the mode of operation of [1mkafs[22m:
+
+     AFS_SYSCALL  Normally, [1mkafs [22mwill try to figure out the correct system
+                  call(s) that are used by AFS by itself.  If it does not man-
+                  age to do that, or does it incorrectly, you can set this
+                  variable to the system call number or list of system call
+                  numbers that should be used.
+
+[1mEXAMPLES[0m
+     The following code from [1mlogin [22mwill obtain a new PAG and tokens for the
+     local cell and the cell of the users home directory.
+
+     if (k_hasafs()) {
+             char cell[64];
+             k_setpag();
+             if(k_afs_cell_of_file(pwd->pw_dir, cell, sizeof(cell)) == 0)
+                     krb_afslog(cell, NULL);
+             krb_afslog(NULL, NULL);
+     }
+
+[1mERRORS[0m
+     If any of these functions (apart from [1mk_hasafs[22m()) is called without AFS
+     being present in the kernel, the process will usually (depending on the
+     operating system) receive a SIGSYS signal.
+
+[1mSEE ALSO[0m
+     krb5_appdefault(3), krb5.conf(5)
+
+     Transarc Corporation, "File Server/Cache Manager Interface", [4mAFS-3[0m
+     [4mProgrammer's[24m [4mReference[24m, 1991.
+
+[1mFILES[0m
+     libkafs will search for [4mThisCell[24m [4mand[24m [4mTheseCells[24m in the following loca-
+     tions: [4m/usr/vice/etc[24m, [4m/etc/openafs[24m, [4m/var/db/openafs/etc[24m, [4m/usr/arla/etc[24m,
+     [4m/etc/arla[24m, and [4m/etc/afs[0m
+
+[1mBUGS[0m
+     AFS_SYSCALL has no effect under AIX.
+
+HEIMDAL                           May 1, 2006                          HEIMDAL

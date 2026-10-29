@@ -1,0 +1,35 @@
+KRB5_MK_SAFE(3)          BSD Library Functions Manual          KRB5_MK_SAFE(3)
+
+[1mNAME[0m
+     [1mkrb5_mk_safe[22m, [1mkrb5_mk_priv [22m-- generates integrity protected and/or en-
+     crypted messages
+
+[1mLIBRARY[0m
+     Kerberos 5 Library (libkrb5, -lkrb5)
+
+[1mSYNOPSIS[0m
+     [1m#include <krb5.h>[0m
+
+     [4mkrb5_error_code[0m
+     [1mkrb5_mk_priv[22m([4mkrb5_context[24m [4mcontext[24m, [4mkrb5_auth_context[24m [4mauth_context[24m,
+         [4mconst[24m [4mkrb5_data[24m [4m*userdata[24m, [4mkrb5_data[24m [4m*outbuf[24m,
+         [4mkrb5_replay_data[24m [4m*outdata[24m);
+
+     [4mkrb5_error_code[0m
+     [1mkrb5_mk_safe[22m([4mkrb5_context[24m [4mcontext[24m, [4mkrb5_auth_context[24m [4mauth_context[24m,
+         [4mconst[24m [4mkrb5_data[24m [4m*userdata[24m, [4mkrb5_data[24m [4m*outbuf[24m,
+         [4mkrb5_replay_data[24m [4m*outdata[24m);
+
+[1mDESCRIPTION[0m
+     [1mkrb5_mk_safe[22m() and [1mkrb5_mk_priv[22m() formats KRB-SAFE (integrity protected)
+     and KRB-PRIV (also encrypted) messages into [4moutbuf[24m.  The actual message
+     data is taken from [4muserdata[24m.  If the KRB5_AUTH_CONTEXT_DO_SEQUENCE or
+     KRB5_AUTH_CONTEXT_DO_TIME flags are set in the [4mauth_context[24m, sequence
+     numbers and time stamps are generated.  If the
+     KRB5_AUTH_CONTEXT_RET_SEQUENCE or KRB5_AUTH_CONTEXT_RET_TIME flags are
+     set they are also returned in the [4moutdata[24m parameter.
+
+[1mSEE ALSO[0m
+     krb5_auth_con_init(3), krb5_rd_priv(3), krb5_rd_safe(3)
+
+HEIMDAL                           May 1, 2006                          HEIMDAL

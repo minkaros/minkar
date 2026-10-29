@@ -1,0 +1,92 @@
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\" Copyright (c) 2026 The Minkar contributors
+.\" Part of Minkar.
+.Dd October 29, 2026
+.Dt LSBOM 1
+.Os
+.Sh NAME
+.Nm lsbom
+.Nd list the contents of a bill of materials
+.Sh SYNOPSIS
+.Nm
+.Op Fl b
+.Op Fl c
+.Op Fl d
+.Op Fl f
+.Op Fl l
+.Op Fl m
+.Op Fl s
+.Op Fl x
+.Op Fl p Ar parameters
+.Ar bom ...
+.Sh DESCRIPTION
+A bill of materials
+.Pq Pa .bom
+records the files an installer package lays down.
+.Nm
+prints one line for each path in it:
+.Bl -tag -width "symbolic links" -compact
+.It directories
+path, mode, uid/gid
+.It files
+path, mode, uid/gid, size, checksum
+.It symbolic links
+path, mode, uid/gid, size, checksum, target
+.It devices
+path, mode, uid/gid, device number
+.El
+.Pp
+The modes are in octal, the fields separated by tabs.
+.Bl -tag -width Ds
+.It Fl b , c , d , f , l
+Only block devices, character devices, directories, files or symbolic
+links; several may be given.
+.It Fl m
+Also the modification time of files.
+.It Fl s
+Only the paths.
+.It Fl x
+No modes for directories and symbolic links.
+.It Fl p Ar parameters
+Print the fields named, in that order:
+.Cm c
+checksum,
+.Cm f
+path,
+.Cm F
+path in quotes,
+.Cm g
+group id,
+.Cm G
+group name,
+.Cm m
+mode in octal,
+.Cm M
+mode as
+.Xr ls 1
+shows it,
+.Cm s
+size,
+.Cm S
+size in K or M,
+.Cm t
+modification time,
+.Cm T
+modification time as a date,
+.Cm u
+user id,
+.Cm U
+user name,
+.Cm /
+uid/gid,
+.Cm \&?
+user/group names.
+.El
+.Sh EXIT STATUS
+.Ex -std
+.Sh SEE ALSO
+.Xr pkgutil 1
+.Sh HISTORY
+Minkar's
+.Nm
+is its own.

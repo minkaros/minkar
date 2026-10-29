@@ -1,0 +1,8 @@
+
+@c
+@c Variables depending on installation
+@c
+
+@set dbdir /var/heimdal
+@set dbtype db3
+@set PACKAGE_VERSION 7.8.0

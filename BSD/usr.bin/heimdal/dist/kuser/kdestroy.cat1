@@ -1,0 +1,36 @@
+KDESTROY(1)               BSD General Commands Manual              KDESTROY(1)
+
+[1mNAME[0m
+     [1mkdestroy [22m-- remove one credential or destroy the current ticket file
+
+[1mSYNOPSIS[0m
+     [1mkdestroy [22m[[1m-c [4m[22mcachefile[24m] [[1m--credential=[4m[22mprincipal[24m] [[1m--cache=[4m[22mcachefile[24m]
+              [[1m-A [22m| [1m--all[22m] [[1m--no-unlog[22m] [[1m--no-delete-v4[22m] [[1m--version[22m] [[1m--help[22m]
+
+[1mDESCRIPTION[0m
+     [1mkdestroy [22mremoves one credential or the current set of tickets.
+
+     Supported options:
+
+     [1m-credential=[4m[22mprincipal[0m
+             remove [4mprincipal[24m from the credential cache if it exists.
+
+     [1m-c [4m[22mcachefile[0m
+
+     [1m-cache=[4m[22mcachefile[0m
+             The cache file to remove.
+
+     [1m-A[0m
+
+     [1m--all   [22mremove all credential caches.
+
+     [1m--no-unlog[0m
+             Do not remove AFS tokens.
+
+     [1m--no-delete-v4[0m
+             Do not remove v4 tickets.
+
+[1mSEE ALSO[0m
+     kinit(1), klist(1)
+
+HEIMDAL                         April 27, 2006                         HEIMDAL

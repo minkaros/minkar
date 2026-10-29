@@ -1,0 +1,51 @@
+KRB5_VERIFY_INIT_CRED... BSD Library Functions Manual KRB5_VERIFY_INIT_CRED...
+
+[1mNAME[0m
+     [1mkrb5_verify_init_creds_opt_init[22m,
+     [1mkrb5_verify_init_creds_opt_set_ap_req_nofail[22m, [1mkrb5_verify_init_creds [22m--
+     verifies a credential cache is correct by using a local keytab
+
+[1mLIBRARY[0m
+     Kerberos 5 Library (libkrb5, -lkrb5)
+
+[1mSYNOPSIS[0m
+     [1m#include <krb5.h>[0m
+
+     struct krb5_verify_init_creds_opt;
+
+     [4mvoid[0m
+     [1mkrb5_verify_init_creds_opt_init[22m([4mkrb5_verify_init_creds_opt[24m [4m*options[24m);
+
+     [4mvoid[0m
+     [1mkrb5_verify_init_creds_opt_set_ap_req_nofail[22m([4mkrb5_verify_init_creds_opt[24m [4m*options[24m,
+         [4mint[24m [4map_req_nofail[24m);
+
+     [4mkrb5_error_code[0m
+     [1mkrb5_verify_init_creds[22m([4mkrb5_context[24m [4mcontext[24m, [4mkrb5_creds[24m [4m*creds[24m,
+         [4mkrb5_principal[24m [4map_req_server[24m, [4mkrb5_ccache[24m [4m*ccache[24m,
+         [4mkrb5_verify_init_creds_opt[24m [4m*options[24m);
+
+[1mDESCRIPTION[0m
+     The [1mkrb5_verify_init_creds [22mfunction verifies the initial tickets with the
+     local keytab to make sure the response of the KDC was spoof-ed.
+
+     [1mkrb5_verify_init_creds [22mwill use principal [4map_req_server[24m from the local
+     keytab, if NULL is passed in, the code will guess the local hostname and
+     use that to form host/hostname/GUESSED-REALM-FOR-HOSTNAME.  [4mcreds[24m is the
+     credential that [1mkrb5_verify_init_creds [22mshould verify.  If [4mccache[24m is given
+     [1mkrb5_verify_init_creds[22m() stores all credentials it fetched from the KDC
+     there, otherwise it will use a memory credential cache that is destroyed
+     when done.
+
+     [1mkrb5_verify_init_creds_opt_init[22m() cleans the the structure, must be used
+     before trying to pass it in to [1mkrb5_verify_init_creds[22m().
+
+     [1mkrb5_verify_init_creds_opt_set_ap_req_nofail[22m() controls controls the be-
+     havior if [4map_req_server[24m doesn't exists in the local keytab or in the
+     KDC's database, if it's true, the error will be ignored.  Note that this
+     use is possible insecure.
+
+[1mSEE ALSO[0m
+     krb5(3), krb5_get_init_creds(3), krb5_verify_user(3), krb5.conf(5)
+
+HEIMDAL                           May 1, 2006                          HEIMDAL
