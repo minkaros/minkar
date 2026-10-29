@@ -1,167 +1,45 @@
-# C Shell with process control; VM/UNIX VAX Makefile
-# Bill Joy UC Berkeley; Jim Kulp IIASA, Austria
+# SPDX-License-Identifier: BSD-2-Clause
+# Copyright (c) 2026 The Minkar contributors
+# Part of Minkar.
 #
-# To profile, put -DPROF in DEFS and -pg in CFLAGS, and recompile.
+# tcsh 6.24.16 (BSD-3, dist/Copyright; astron.com/pub/tcsh), the C shell
+# macOS ships as /bin/tcsh and /bin/csh. dist/ holds upstream's release
+# tarball (sha256 4208cf4630fb64d91d81987f854f9570a5a0e8a001a92827def37d0ed8f37364,
+# signature checked against Kimmo Suominen's key) without the win32,
+# cygwin, debian and svn folders. Built with its own configure,
+# cross-compiling for Darwin; gethost, which writes tc.defs.c while
+# building, runs on the build machine. Multibyte (UTF-8) text; no
+# message catalogs (as on macOS, the messages are the built-in English
+# ones). csh.cshrc, csh.login and csh.logout are the system-wide start
+# files, empty but for comments, in /etc.
 
-.include <src.opts.mk>
+all: ${.OBJDIR}/.installed
 
-PACKAGE=	csh
+TCSH_JOBS =	-j${.MAKE.JOBS:U1}
 
-CONFGROUPS=	ETC ROOT
-ETCPACKAGE=	csh
-ROOTPACKAGE=	csh
-ETC=	csh.cshrc csh.login csh.logout
-ROOT=	dot.cshrc dot.login
-ROOTDIR=	/root
-ROOTDIR_MODE=	0750
-ROOTNAME_dot.cshrc=	.cshrc
-ROOTNAME_dot.login=	.login
-TCSHDIR= ${SRCTOP}/contrib/tcsh
-.PATH: ${TCSHDIR}
+# What configure cannot run when cross-compiling, answered for Darwin.
+TCSH_DARWIN =	ac_cv_func_getpgrp_void=yes ac_cv_func_mbrtowc=yes \
+	ac_cv_func_strcoll_works=yes
 
-PROG=	csh
-.if defined(RESCUE)
-DFLAGS= -D_PATH_TCSHELL='"/rescue/${PROG}"'
-.else
-DFLAGS= -D_PATH_TCSHELL='"/bin/${PROG}"'
-.endif
-CFLAGS+= -I. -I${.CURDIR} -I${TCSHDIR} ${DFLAGS}
-WARNS?=	1
-SRCS=	sh.c sh.dir.c sh.dol.c sh.err.c sh.exec.c sh.char.c \
-	sh.exp.c sh.file.c sh.func.c sh.glob.c sh.hist.c sh.init.c \
-	sh.lex.c sh.misc.c sh.parse.c sh.print.c sh.proc.c sh.sem.c \
-	sh.set.c sh.time.c sh.char.h sh.dir.h sh.proc.h sh.h
-SRCS+=	sh.decls.h glob.c glob.h mi.termios.c mi.wait.h mi.varargs.h
-SRCS+=	tw.decls.h tw.h tw.help.c tw.init.c tw.parse.c tw.spell.c \
-	tw.comp.c tw.color.c
-SRCS+=	ed.chared.c ed.decls.h ed.defns.c ed.h ed.init.c ed.inputl.c \
-	ed.refresh.c ed.screen.c ed.xmap.c ed.term.c ed.term.h
-SRCS+=	tc.alloc.c tc.bind.c tc.const.c tc.decls.h tc.disc.c \
-	tc.func.c tc.nls.c tc.os.c tc.os.h tc.printf.c tc.prompt.c \
-	tc.sched.c tc.sig.c tc.sig.h tc.str.c sh.types.h tc.vers.c tc.wait.h \
-	tc.who.c tc.h
-SRCS+=	dotlock.c dotlock.h
-GENHDRS= ed.defns.h sh.err.h tc.const.h tc.defs.c
-SRCS+=	${GENHDRS}
+${.OBJDIR}/tcsh: ${.CURDIR}/Makefile
+	env -u CFLAGS -u LDFLAGS \
+	CC=${CC} AR=${AR} RANLIB=${RANLIB} ${TCSH_DARWIN} \
+	CFLAGS="--sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} -O2 -Wno-nullability-completeness" \
+	LDFLAGS="--sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} -fuse-ld=${LD}" \
+	CC_FOR_GETHOST=cc \
+	${.CURDIR}/dist/configure --prefix=/usr --bindir=/bin \
+	    --host=${CpuArch}-apple-darwin19 --disable-nls-catalogs
+	env -u CFLAGS -u LDFLAGS MAKEFLAGS="" ${TOOLS}/gmake ${TCSH_JOBS} \
+	    CPPFLAGS_FOR_BUILD="-I. -I${.CURDIR}/dist" tcsh tcsh.man
 
-MLINKS= csh.1 tcsh.1
-# MLINKS for Shell built in commands for which there are no userland
-# utilities of the same name are handled with the associated manpage,
-# builtin.1 in share/man/man1/.
-
-LIBADD=	termcapw crypt
-
-LINKS=	${BINDIR}/csh ${BINDIR}/tcsh
-
-CLEANFILES= ${GENHDRS} gethost csh.1
-
-.if ${MK_EXAMPLES} != "no"
-FILESDIR= ${SHAREDIR}/examples/tcsh
-FILES= complete.tcsh csh-mode.el
-.endif
-
-CATALOGS=	et:et_EE.UTF-8 \
-		finnish:fi_FI.UTF-8 \
-		french:fr_FR.UTF-8 \
-		german:de_DE.UTF-8 \
-		greek:el_GR.UTF-8 \
-		italian:it_IT.UTF-8 \
-		ja:ja_JP.UTF-8 \
-		russian:ru_RU.UTF-8 \
-		spanish:es_ES.UTF-8 \
-		ukrainian:uk_UA.UTF-8
-
-NLSLINKS_de_DE.UTF-8 = de_AT.UTF-8 de_CH.UTF-8
-NLSLINKS_fr_FR.UTF-8 = fr_BE.UTF-8 fr_CA.UTF-8 fr_CH.UTF-8
-NLSLINKS_it_IT.UTF-8 = it_CH.UTF-8
-
-.if ${MK_NLS_CATALOGS} == "no" || defined(RESCUE)
-CFLAGS+= -DNO_NLS_CATALOGS
-.else
-CFLAGS+= -DHAVE_ICONV
-.if ${MK_ICONV} != "no"
-NLSLINKS_de_DE.UTF-8 += de_AT.ISO8859-1 de_AT.ISO8859-15 de_CH.ISO8859-1 \
-		de_CH.ISO8859-15 de_DE.ISO8859-1 de_DE.ISO8859-15
-NLSLINKS_el_GR.UTF-8 = el_GR.ISO8859-7
-NLSLINKS_es_ES.UTF-8 = es_ES.ISO8859-1 es_ES.ISO8859-15
-NLSLINKS_et_EE.UTF-8 = et_EE.ISO8859-15
-NLSLINKS_fi_FI.UTF-8 = fi_FI.ISO8859-1 fi_FI.ISO8859-15
-NLSLINKS_fr_FR.UTF-8 += fr_BE.ISO8859-1 fr_BE.ISO8859-15 \
-		fr_CA.ISO8859-1 fr_CA.ISO8859-15 fr_CH.ISO8859-1 \
-		fr_CH.ISO8859-15 fr_FR.ISO8859-1 fr_FR.ISO8859-15
-NLSLINKS_it_IT.UTF-8 += it_CH.ISO8859-1 it_CH.ISO8859-15 it_IT.ISO8859-1 \
-		it_IT.ISO8859-15
-NLSLINKS_ja_JP.UTF-8 = ja_JP.SJIS ja_JP.eucJP
-NLSLINKS_ru_RU.UTF-8 = ru_RU.CP1251 ru_RU.CP866 ru_RU.ISO8859-5 ru_RU.KOI8-R
-NLSLINKS_uk_UA.UTF-8 = uk_UA.ISO8859-5 uk_UA.KOI8-U
-.else
-# Above links can be installed from ports/shells/tcsh_nls
-
-GENHDRS+= iconv.h
-SRCS+=	iconv_stub.c
-
-iconv.h: ${.CURDIR}/iconv_stub.h
-	${CP} ${.CURDIR}/iconv_stub.h ${.TARGET}
-.endif
-.endif
-
-NLSNAME= tcsh
-
-.for catalog in ${CATALOGS}
-NLS+=		${catalog:C/.*://}
-NLSSRCDIR_${catalog:C/.*://}= ${TCSHDIR}/nls/${catalog:C/:.*//}
-NLSSRCFILES_${catalog:C/.*://}!= cd ${NLSSRCDIR_${catalog:C/.*://}}; echo charset set[0-9]*
+${.OBJDIR}/.installed: ${.OBJDIR}/tcsh ${.CURDIR}/csh.cshrc ${.CURDIR}/csh.login \
+    ${.CURDIR}/csh.logout
+	mkdir -p ${SYSROOT_DIR}/bin ${SYSROOT_DIR}/etc ${SYSROOT_DIR}/usr/share/man/man1
+	install -m 0555 -o 0 -g 0 ${.OBJDIR}/tcsh ${SYSROOT_DIR}/bin/tcsh
+	install -m 0555 -o 0 -g 0 ${.OBJDIR}/tcsh ${SYSROOT_DIR}/bin/csh
+	install -m 0444 ${.OBJDIR}/tcsh.man ${SYSROOT_DIR}/usr/share/man/man1/tcsh.1
+	ln -sf tcsh.1 ${SYSROOT_DIR}/usr/share/man/man1/csh.1
+.for f in csh.cshrc csh.login csh.logout
+	install -m 0644 ${.CURDIR}/${f} ${SYSROOT_DIR}/etc/${f}
 .endfor
-
-csh.1: tcsh.man
-	cat ${.ALLSRC} > ${.TARGET}
-
-.if ${MACHINE} == "host" || ${MK_DIRDEPS_BUILD} == "no"
-build-tools: gethost
-tc.defs.c: gethost
-
-DEPENDOBJS+= gethost
-gethost: gethost.c sh.err.h sh.h ${BUILD_TOOLS_META}
-	@rm -f ${.TARGET}
-	# Define _h_tc_const so that tc.h will skip including tc.const.h.
-	# gethost.c does not actually require any of the definitions in there,
-	# and building tc.const.h requires target headers which are not
-	# available when we need to build gethost.
-	${HOST_CC:N${CCACHE_BIN}} -o gethost ${LDFLAGS} ${CFLAGS:C/-DHAVE_ICONV//} \
-	    -D_h_tc_const \
-	    ${TCSHDIR}/gethost.c
-.endif
-
-tc.defs.c: ${TCSHDIR}/host.defs
-	@rm -f ${.TARGET}
-	@echo "/* Do not edit this file, make creates it */" > ${.TARGET}
-	${BTOOLSPATH:U.}/gethost ${TCSHDIR}/host.defs >> ${.TARGET}
-
-ed.defns.h: ed.defns.c
-	@rm -f ${.TARGET}
-	@echo '/* Do not edit this file, make creates it. */' > ${.TARGET}
-	@echo '#ifndef _h_ed_defns' >> ${.TARGET}
-	@echo '#define _h_ed_defns' >> ${.TARGET}
-	grep '[FV]_' ${TCSHDIR}/ed.defns.c | grep '^#define' >> ${.TARGET}
-	@echo '#endif /* _h_ed_defns */' >> ${.TARGET}
-
-sh.err.h: sh.err.c
-	@rm -f ${.TARGET}
-	@echo '/* Do not edit this file, make creates it. */' > ${.TARGET}
-	@echo '#ifndef _h_sh_err' >> ${.TARGET}
-	@echo '#define _h_sh_err' >> ${.TARGET}
-	grep 'ERR_' ${.ALLSRC} | grep '^#define' >> ${.TARGET}
-	@echo '#endif /* _h_sh_err */' >> ${.TARGET}
-
-tc.const.h: tc.const.c sh.char.h config.h config_f.h sh.types.h sh.err.h ${BUILD_TOOLS_META}
-	@rm -f ${.TARGET}
-	@echo '/* Do not edit this file, make creates it. */' > ${.TARGET}
-	@echo '#ifndef _h_tc_const' >> ${.TARGET}
-	@echo '#define _h_tc_const' >> ${.TARGET}
-	${CC:N${CCACHE_BIN}} -E ${CFLAGS:C/-DHAVE_ICONV//} ${.ALLSRC} -D_h_tc_const | \
-	    grep 'Char STR' | \
-	    sed -e 's/Char \([a-zA-Z0-9_]*\)\(.*\)/extern Char \1[];/' | \
-	    sort >> ${.TARGET}
-	@echo '#endif /* _h_tc_const */' >> ${.TARGET}
-
-.include <bsd.prog.mk>
+	touch ${.TARGET}
