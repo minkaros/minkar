@@ -1,0 +1,183 @@
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\" Copyright (c) 2026 The Minkar contributors
+.\" Part of Minkar.
+.Dd October 28, 2026
+.Dt XXD 1
+.Os
+.Sh NAME
+.Nm xxd
+.Nd make a hex dump, or turn one back into bytes
+.Sh SYNOPSIS
+.Nm
+.Op Fl a
+.Op Fl b | e | i | p
+.Op Fl C
+.Op Fl c Ar cols
+.Op Fl d
+.Op Fl g Ar bytes
+.Op Fl l Ar len
+.Op Fl n Ar name
+.Op Fl o Ar off
+.Op Fl s Oo + Oc Ns Oo - Oc Ns Ar seek
+.Op Fl u
+.Op Ar infile Op Ar outfile
+.Nm
+.Fl r
+.Op Fl p
+.Op Fl c Ar cols
+.Op Fl s Oo - Oc Ns Ar off
+.Op Ar infile Op Ar outfile
+.Sh DESCRIPTION
+.Nm
+writes a hex dump of
+.Ar infile ,
+or of the standard input when it is missing or
+.Sq - ,
+to
+.Ar outfile
+or the standard output.
+Each line holds the offset, the bytes in hexadecimal in groups, and the
+same bytes as text, with a dot for each byte that does not print:
+.Bd -literal -offset indent
+00000000: 6865 6c6c 6f0a                           hello.
+.Ed
+.Pp
+With
+.Fl r
+it reads such a dump, or a plain one, and writes the bytes back.
+.Pp
+Numbers may be given in decimal, in hexadecimal with
+.Ql 0x ,
+or in octal with a leading
+.Ql 0 .
+The options are:
+.Bl -tag -width Ds
+.It Fl a
+Write a single
+.Ql *
+in place of consecutive lines of zero bytes.
+.It Fl b
+Show the bytes in binary, six to a line, instead of hexadecimal.
+.It Fl C
+With
+.Fl i ,
+write the variable names in capitals.
+.It Fl c Ar cols
+Put
+.Ar cols
+bytes on each line: 16 by default, 30 with
+.Fl p ,
+12 with
+.Fl i
+and 6 with
+.Fl b ;
+at most 256.
+.It Fl d
+Show the offsets in decimal.
+.It Fl E
+Not supported: EBCDIC.
+.It Fl e
+Little-endian dump: the bytes of each group are shown in reverse order,
+four to a group by default.
+.It Fl g Ar bytes
+Put
+.Ar bytes
+bytes in each group: 2 by default, 1 with
+.Fl b ,
+4 with
+.Fl e .
+With 0, a line is one group.
+.It Fl h
+Print a summary of the options.
+.It Fl i
+Write C source: an
+.Vt unsigned char
+array of the bytes, named after
+.Ar infile ,
+and an
+.Vt unsigned int
+of its length.
+From the standard input, only the bytes.
+.It Fl l Ar len
+Stop after
+.Ar len
+bytes.
+.It Fl n Ar name
+With
+.Fl i ,
+name the variables after
+.Ar name
+instead of the file.
+.It Fl o Ar off
+Add
+.Ar off
+to the offsets shown.
+.It Fl p
+Plain dump: hexadecimal digits only, 30 bytes to a line.
+.It Fl R Ar when
+Colour; accepted for compatibility, never used.
+.It Fl r
+Turn a dump back into bytes.
+Each line's offset says where its bytes go;
+.Ar outfile ,
+if it exists, is patched in place rather than truncated, and gaps are
+filled with zeros where it cannot seek.
+With
+.Fl p ,
+the input is read as plain hexadecimal digits, and anything else is
+ignored.
+.It Fl s Ar seek
+Start at
+.Ar seek
+bytes into
+.Ar infile ;
+with a minus sign, that many bytes before its end; with
+.Ql + ,
+past the standard input's current position.
+With
+.Fl r ,
+add
+.Ar seek
+to the offsets read.
+.It Fl u
+Use capital hexadecimal letters.
+.It Fl v
+Print the version.
+.El
+.Pp
+The long spellings
+.Fl cols ,
+.Fl groupsize ,
+.Fl len ,
+.Fl seek ,
+.Fl ps ,
+.Fl plain ,
+.Fl include ,
+.Fl bits ,
+.Fl revert ,
+.Fl version
+and
+.Fl help
+are accepted too.
+.Sh EXIT STATUS
+0 on success, 1 for a bad option or argument, 2 when
+.Ar infile
+cannot be read, 3 when
+.Ar outfile
+cannot be written and 4 when the seek fails.
+.Sh EXAMPLES
+Dump the first 32 bytes of a file:
+.Dl xxd -l 32 file
+.Pp
+Change byte 0x10 of a file to 0xff:
+.Dl echo 10: ff | xxd -r - file
+.Pp
+Copy a file through a plain dump:
+.Dl xxd -p file | xxd -r -p > copy
+.Sh SEE ALSO
+.Xr hexdump 1 ,
+.Xr od 1
+.Sh HISTORY
+Minkar's
+.Nm
+is its own, written to behave as the one on macOS.
