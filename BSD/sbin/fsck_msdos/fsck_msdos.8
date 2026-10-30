@@ -37,6 +37,9 @@
 .Nm
 .Op Fl BCMny
 .Ar filesystem ...
+.Nm
+.Fl q
+.Ar filesystem ...
 .Sh DESCRIPTION
 The
 .Nm
@@ -117,6 +120,13 @@ questions, except
 .Dq Li CONTINUE? .
 .It Fl p
 Preen the specified file systems.
+.It Fl q
+Only tell whether each file system was unmounted cleanly, from the clean
+flag in its FAT, without checking it: the exit status is 0 when it was
+(a FAT12 file system, which keeps no such flag, counts as clean), 3 when
+it was not.
+.Xr diskarbitrationd 8
+asks this before mounting a FAT volume.
 .It Fl y
 Causes
 .Nm

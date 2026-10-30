@@ -31,6 +31,7 @@
 __RCSID("$NetBSD: main.c,v 1.10 1997/10/01 02:18:14 enami Exp $");
 #endif /* not lint */
 
+#include <fcntl.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
@@ -47,16 +48,48 @@ int preen;		/* set when preening */
 int rdonly;		/* device is opened read only (supersedes above) */
 int skipclean;		/* skip clean file systems if preening */
 int allow_mmap;		/* Allow the use of mmap(), if possible */
+static int quick;	/* -q: only whether it was unmounted cleanly */
 
 static void usage(void) __dead2;
+static int quickcheck(const char *);
+
+/*
+ * Minkar: -q, as macOS's fsck_msdos (diskarbitrationd asks it before
+ * mounting): 0 when the file system was unmounted cleanly, 3 when not
+ * (FAT12 keeps no such flag: clean), 8 when it is not a FAT file system.
+ */
+static int
+quickcheck(const char *fname)
+{
+	struct bootblock boot;
+	int fd, ret;
+
+	rdonly = 1;
+	if ((fd = open(fname, O_RDONLY, 0)) < 0) {
+		perr("Can't open `%s'", fname);
+		return 8;
+	}
+	if (readboot(fd, &boot) == FSFATAL) {
+		close(fd);
+		return 8;
+	}
+	if (boot.ClustMask == CLUST12_MASK || checkdirty(fd, &boot))
+		ret = 0;
+	else
+		ret = 3;
+	close(fd);
+	printf("** %s: %s\n", fname, ret == 0 ? "clean" : "dirty");
+	return ret;
+}
 
 static void
 usage(void)
 {
 
-	fprintf(stderr, "%s\n%s\n",
+	fprintf(stderr, "%s\n%s\n%s\n",
 	    "usage: fsck_msdosfs -p [-f] filesystem ...",
-	    "       fsck_msdosfs [-ny] filesystem ...");
+	    "       fsck_msdosfs [-ny] filesystem ...",
+	    "       fsck_msdosfs -q filesystem ...");
 	exit(1);
 }
 
@@ -68,7 +101,7 @@ main(int argc, char **argv)
 
 	skipclean = 1;
 	allow_mmap = 1;
-	while ((ch = getopt(argc, argv, "BCfFnpyM")) != -1) {
+	while ((ch = getopt(argc, argv, "BCfFnpqyM")) != -1) {
 		switch (ch) {
 		case 'B': /* for fsck_ffs compatibility */
 		case 'C':
@@ -103,6 +136,10 @@ main(int argc, char **argv)
 			allow_mmap = 0;
 			break;
 
+		case 'q':	/* macOS: only whether it was unmounted cleanly */
+			quick = 1;
+			break;
+
 		default:
 			usage();
 			break;
@@ -115,6 +152,12 @@ main(int argc, char **argv)
 		usage();
 
 	while (--argc >= 0) {
+		if (quick) {
+			erg = quickcheck(*argv++);
+			if (erg > ret)
+				ret = erg;
+			continue;
+		}
 		setcdevname(*argv, preen);
 		erg = checkfilesys(*argv++);
 		if (erg > ret)
