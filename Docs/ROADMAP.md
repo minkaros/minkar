@@ -208,6 +208,16 @@ mounted.
   through a KVM switch, the I219-V network and a usable console terminal;
   and since 2026-10-29 it boots from its NVMe SSD (`MinkarNVMe`). PC 2
   is not chosen yet.
+- [ ] More than 64 processors and x2APIC (after 1.0): the kernel takes
+  64 (a 64-bit processor mask in the scheduler, IPIs and TLB shootdowns)
+  and APIC IDs up to 255; a bigger machine runs on its first 64 since
+  2026-10-30.
+- [ ] AMD processors (noted 2026-10-30, no date): the kernel recognizes
+  them since an earlier change, and starts the other processors the same
+  way (INIT and SIPI), but Minkar has never run on one. First in QEMU with
+  an emulated AMD CPU (`-cpu EPYC` under TCG; KVM on this Intel host
+  cannot), then on a physical AMD PC when there is one. To check: the
+  Intel-only MSRs (power, temperature), the TSC and the SMP start.
 
 - [ ] **Exit gate (M1):** in QEMU and on a reference PC, the kernel mounts
   the HFS+ root and runs `/sbin/launchd` (or a temporary init) with a shell
@@ -658,8 +668,9 @@ The highest-impact open items, in critical-path order:
 
 1. Reference PC 1 (Phase 1): its console is usable at the native
    resolution, both network cards are on the LAN and it boots from its
-   NVMe SSD; next, powering off (ACPI S5), the other CPUs (SMP, also
-   missing in QEMU) and the boot without `pci_keep_console`; then a second, different PC (gate M1;
+   NVMe SSD; the other CPUs run in QEMU since 2026-10-30 (SMP), to be
+   checked on it; next, powering off (ACPI S5) and the boot without
+   `pci_keep_console`; then a second, different PC (gate M1;
    a Mac Pro 6,1 is the candidate). See [Hardware.md](Hardware.md).
 2. Userland (Phase 2): the last two macOS tools that need no later
    phase, `leaks` and `fsck_exfat` (with our own exFAT driver); then
