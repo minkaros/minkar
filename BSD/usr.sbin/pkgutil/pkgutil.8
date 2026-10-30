@@ -1,0 +1,85 @@
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\" Copyright (c) 2026 The Minkar contributors
+.\" Part of Minkar.
+.Dd October 29, 2026
+.Dt PKGUTIL 8
+.Os Minkar
+.Sh NAME
+.Nm pkgutil
+.Nd query and manage the receipts of installed packages
+.Sh SYNOPSIS
+.Nm
+.Op Ar options
+.Op Ar command ...
+.Sh DESCRIPTION
+Each package the installer lays down leaves a receipt in
+.Pa /var/db/receipts
+on its volume: a property list with the package's identifier, version,
+install location, install date and groups, and a bill of materials of the
+files it installed.
+.Nm
+lists and describes these receipts and forgets them.
+Commands that take a package identifier take several.
+.Ss Commands
+.Bl -tag -width indent
+.It Fl -pkgs , Fl -packages
+List the identifiers of the installed packages.
+.It Fl -pkgs Ns = Ns Ar regexp
+List those that match the extended regular expression, as a whole.
+.It Fl -pkgs-plist
+List them as a property list.
+.It Fl -files Ar pkg-id
+List the files and directories the package installed, relative to its
+install location.
+.It Fl -pkg-info Ar pkg-id
+Show the package's identifier, version, volume, install location, install
+time (seconds since the epoch) and groups.
+.It Fl -pkg-info-plist Ar pkg-id
+The same as a property list.
+.It Fl -export-plist Ar pkg-id
+The package's information and the paths it installed, as a property list.
+.It Fl -file-info Ar path
+Show, for each package that installed
+.Ar path ,
+its identifier, version, install time, and the owner, group and mode it
+installed the path with.
+.It Fl -file-info-plist Ar path
+The same as a property list.
+.It Fl -forget Ar pkg-id
+Remove the package's receipt; its files stay where they are.
+.It Fl -groups , Fl -groups-plist
+List the groups the receipts name.
+.It Fl -group-pkgs Ar group-id
+List the packages in a group.
+.It Fl -pkg-groups Ar pkg-id
+List the groups a package belongs to.
+.El
+.Ss Options
+.Bl -tag -width indent
+.It Fl -volume Ar path
+Use the receipts of the volume (or home directory) at
+.Ar path
+instead of
+.Pa / .
+.It Fl -only-files , Fl -only-dirs
+With
+.Fl -files ,
+list only files (and links), or only directories.
+.It Fl -regexp
+Take package identifier arguments as extended regular expressions.
+.It Fl f , Fl -force , Fl v , Fl -verbose
+Accepted for compatibility.
+.El
+.Sh FILES
+.Bl -tag -width indent
+.It Pa /var/db/receipts/ Ns Ar pkg-id Ns Pa .plist
+.It Pa /var/db/receipts/ Ns Ar pkg-id Ns Pa .bom
+.El
+.Sh EXIT STATUS
+.Ex -std
+.Sh SEE ALSO
+.Xr lsbom 8
+.Sh BUGS
+Expanding, flattening and checking flat
+.Pa .pkg
+files is not done yet.
