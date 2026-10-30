@@ -1,0 +1,72 @@
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\" Copyright (c) 2026 The Minkar contributors
+.\" Part of Minkar.
+.Dd October 29, 2026
+.Dt DISKLABEL 8
+.Os Minkar
+.Sh NAME
+.Nm disklabel
+.Nd manipulate Apple labels
+.Sh SYNOPSIS
+.Nm
+.Fl create Ar device
+.Op Fl msize Ns = Ns Ar size
+.Op Ar property Ns = Ns Ar value ...
+.Nm
+.Fl properties Ar device
+.Op Ar property Ns Op = Ns Ar value ...
+.Nm
+.Fl status Ar device
+.Sh DESCRIPTION
+An Apple label is a 512-byte header at the start of a device and a
+property area after it: a property list whose integrity a CRC-32 in the
+header guards.
+On a partition of type Apple_Label (GUID
+.Li 4C616265-6C00-11AA-AA11-00306543ECAC )
+the kernel reads the label and publishes the labeled content as a child
+medium
+.Pq Ar device Ns Li s1 ,
+from the label's
+.Li Base
+(where the content starts, in bytes) and
+.Li Size
+properties.
+The other properties (such as
+.Li owner-uid , owner-gid , owner-mode
+or
+.Li dev-name )
+are the label's own.
+.Bl -tag -width indent
+.It Fl create Ar device
+Write a new label: the property area of
+.Ar size
+bytes (64 KB by default, at most 128 KB; a
+.Li k
+suffix counts kilobytes) right after the header, the content starting at
+the next 4 KB boundary after it and taking the rest of the device, and the
+properties given.
+.It Fl properties Ar device
+Show the properties, or those named; a
+.Ar property Ns = Ns Ar value
+changes one.
+.Li Base
+and
+.Li Size
+are the label's own and are not changed this way.
+.It Fl status Ar device
+Check the label (magic, version, bounds and checksum) and show it.
+.El
+.Pp
+A value that is a number (with
+.Li 0x
+for hexadecimal, a leading
+.Li 0
+for octal, as modes are written) is kept as a number,
+.Li true
+and
+.Li false
+as booleans, anything else as a string.
+.Sh EXIT STATUS
+.Ex -std
+.Sh SEE ALSO
+.Xr newfs_hfs 8
