@@ -1,0 +1,46 @@
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\" Copyright (c) 2026 The Minkar contributors
+.\" Part of Minkar.
+.Dd October 30, 2026
+.Dt NEWFS_EXFAT 8
+.Os Minkar
+.Sh NAME
+.Nm newfs_exfat
+.Nd make an exFAT file system
+.Sh SYNOPSIS
+.Nm
+.Op Fl N
+.Op Fl v Ar name
+.Op Fl b Ar bytes-per-sector
+.Op Fl c Ar bytes-per-cluster
+.Op Fl I Ar volume-id
+.Ar special
+.Sh DESCRIPTION
+.Nm
+makes an exFAT file system on a disk, a partition or an image file: the
+boot region and its backup, one FAT, and the cluster heap with the
+allocation bitmap, the up-case table and an empty root directory.
+.Bl -tag -width indent
+.It Fl N
+Shows the layout without writing it.
+.It Fl v Ar name
+The volume's name, up to 11 characters.
+.It Fl b Ar bytes-per-sector
+512 to 4096; by default the disk's.
+.It Fl c Ar bytes-per-cluster
+A power of two up to 32 MB; by default 4 KB up to 256 MB, 32 KB up to
+32 GB, and 128 KB above.
+.It Fl I Ar volume-id
+The volume's serial number; by default one from the time.
+.El
+.Sh EXIT STATUS
+0 on success, 1 on failure.
+.Sh SEE ALSO
+.Xr fsck_exfat 8 ,
+.Xr newfs_msdos 8
+.Sh STANDARDS
+Microsoft's exFAT file system specification.
+.Sh HISTORY
+This
+.Nm
+was written for Minkar.

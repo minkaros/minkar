@@ -1,0 +1,62 @@
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\" Copyright (c) 2026 The Minkar contributors
+.\" Part of Minkar.
+.Dd October 30, 2026
+.Dt FSCK_EXFAT 8
+.Os Minkar
+.Sh NAME
+.Nm fsck_exfat
+.Nd exFAT file system consistency check
+.Sh SYNOPSIS
+.Nm
+.Fl q
+.Ar special
+.Nm
+.Op Fl fnpy
+.Ar special
+.Sh DESCRIPTION
+.Nm
+checks an exFAT file system:
+its boot region (signatures, geometry and checksum, against its backup),
+its system files (the allocation bitmap, and the up-case table and its
+checksum), every directory's entry sets (their checksums and name
+hashes, and their cluster chains: valid, without loops and not shared
+with another file), and the bitmap against the clusters in use.
+.Pp
+It repairs a damaged main boot region from its backup, the bitmap,
+entry set checksums and name hashes, and clears the volume's dirty flag
+once nothing is left to repair.
+With a broken chain or directory, it leaves the bitmap as it is: what
+those held would look free and be given away.
+.Bl -tag -width indent
+.It Fl q
+Only tells whether the volume was unmounted cleanly, from its dirty
+flag: the exit status is 0 when it was, 3 when not.
+.Xr diskarbitrationd 8
+asks this before mounting an exFAT volume.
+.It Fl n
+Makes no change, and answers no to every question.
+.It Fl y
+Repairs without asking.
+.It Fl p
+Preens: checks a volume only if it is dirty (or with
+.Fl f ) ,
+and repairs without asking.
+.It Fl f
+With
+.Fl p ,
+checks a clean volume as well.
+.El
+.Sh EXIT STATUS
+0 when the volume is fine or was repaired; 3 with
+.Fl q
+when it is dirty; 8 when problems are left.
+.Sh SEE ALSO
+.Xr newfs_exfat 8 ,
+.Xr fsck 8
+.Sh STANDARDS
+Microsoft's exFAT file system specification.
+.Sh HISTORY
+This
+.Nm
+was written for Minkar.
