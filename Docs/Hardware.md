@@ -70,7 +70,7 @@ QEMU fails on an MSR the kernel reads).
 | Part | Device | State |
 |---|---|---|
 | Board | Gigabyte H270N-WIFI (Intel H270), AMI UEFI firmware | Boots |
-| CPU | Intel Core i7-7700 (4 cores, 8 threads) | ACPI lists all eight; SMP since 2026-10-30 in QEMU, untested here yet |
+| CPU | Intel Core i7-7700 (4 cores, 8 threads) | All eight run (SMP, 2026-10-30): `hw.ncpu` 8, 4 physical; eight busy loops take 99.8% |
 | Disk | SATA through AHCI (`MinkarAHCIPort`) | Root file system, fsck |
 | Disk | NVMe (M.2), "SK 256GB" (Silicon Motion, PCI 126f:2263) | Root file system: boots from it (`MinkarNVMe`, 2026-10-29), completions by interrupt |
 | USB | xHCI (`MinkarXHCIPort`), USB 2 hub of a KVM switch | Keyboard and mouse, directly and through the switch |
@@ -89,8 +89,20 @@ loader's output on screen for photos.
 - IOKit does not get quiet within 30 seconds, so some drivers (the
   display's) start after the login prompt; `kextstart` now names the
   services still busy.
-- SMP (2026-10-30): tested in QEMU, including this PC's layout (one
-  package, 4 cores of 2 threads); not yet on the PC itself.
+- SMP (2026-10-30): the first image with it panicked here, in the
+  topology check: the threads a core has came from the real number of
+  threads a package has (CPUID's topology leaf, 8) over leaf 4's bound
+  on cores (8), one thread a core, so the topology showed 8 cores where
+  4 were expected. QEMU's leaf 4 gives the real count, so it never
+  showed there. A core's threads now come from the topology leaf's SMT
+  level; all eight threads run.
+- NVMe (2026-10-30, the SK hynix 256 GB): about 1.4 GB/s reading the
+  raw device and 1.1 GB/s writing a file, nearly every completion by
+  interrupt.
+- Power (2026-10-30): the model and UUID from SMBIOS, `powerd` and
+  `pmset` (settings, assertions, schedules, sleep refused as not
+  supported) work. Display sleep does nothing: the GOP framebuffer
+  cannot turn the display off (no GPU driver); blanking it is to do.
 - Booting without `pci_keep_console=1` (see the QEMU known bug).
 
 ### How it got there
