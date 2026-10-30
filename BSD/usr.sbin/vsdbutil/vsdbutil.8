@@ -1,0 +1,41 @@
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\" Copyright (c) 2026 The Minkar contributors
+.\" Part of Minkar.
+.Dd October 29, 2026
+.Dt VSDBUTIL 8
+.Os Minkar
+.Sh NAME
+.Nm vsdbutil
+.Nd turn the use of permissions on a volume on or off
+.Sh SYNOPSIS
+.Nm
+.Fl a Ar path
+.Nm
+.Fl c Ar path
+.Nm
+.Fl d Ar path
+.Nm
+.Fl i
+.Sh DESCRIPTION
+.Nm
+acts on the volume
+.Ar path
+is on.
+.Bl -tag -width indent
+.It Fl a Ar path
+Adopt the files' owners and permissions: the volume is mounted again with
+.Cm owners .
+.It Fl c Ar path
+Show whether the volume uses them.
+.It Fl d Ar path
+Disown them: the volume is mounted again with
+.Cm noowners ,
+and its files belong to whoever uses them.
+.It Fl i
+Fill the database of volumes' settings; Minkar keeps no such database
+yet, and this does nothing.
+.El
+.Sh EXIT STATUS
+.Ex -std
+.Sh SEE ALSO
+.Xr mount 8
