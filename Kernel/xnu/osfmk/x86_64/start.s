@@ -286,6 +286,13 @@ LEXT(slave_pstart)
 
 	xor 	%edi, %edi		/* AP, no "kernbootstruct" */
 
+	/*
+	 * Minkar: the BSP comes from UEFI already in long mode, so the
+	 * switch in L_pstart_common is left out; an AP still comes from the
+	 * real mode bootstrap in protected mode, and switches here.
+	 */
+	SWITCH_TO_64BIT_MODE
+
 	jmp	L_pstart_common		/* hop a ride to vstart() */
 
 
