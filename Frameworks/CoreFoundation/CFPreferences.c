@@ -109,7 +109,9 @@ CF_PRIVATE CFStringRef _CFGetHostUUIDString(void) {
     if (!__hostUUIDString) {
         CFUUIDBytes uuidBytes;
         int getuuidErr = 0;
-        struct timespec timeout = {0, 0};   // Infinite timeout for gethostuuid()
+        /* Minkar: not forever; a platform without a UUID (no SMBIOS) would
+         * hang every by-host preference. */
+        struct timespec timeout = {5, 0};
         
         getuuidErr = gethostuuid((unsigned char *)&uuidBytes, &timeout);
         if (getuuidErr == -1) {
