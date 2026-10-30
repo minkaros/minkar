@@ -53,11 +53,11 @@ DT_INC =	-I${.OBJDIR} -I${.OBJDIR}/inc -I${DIST}/compat/opensolaris \
 	-I${DIST}/lib/libproc -I${DIST}/lib/libdtrace/common \
 	-I${DIST}/lib/libdtrace/apple -I${DIST}/lib/libdtrace/i386
 CFLAGS += --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
-	-Wno-nullability-completeness -DPRIVATE -DCTF_OLD_VERSIONS ${DT_INC} \
+	-Wno-nullability-completeness -DPRIVATE -DCTF_OLD_VERSIONS -DMINKAR_NO_OS_LOG ${DT_INC} \
 	-idirafter ${XNU}/libkern -idirafter ${LIBSYSTEM_PRIVATE} \
 	-include ${.CURDIR}/dtrace_minkar.h
 CXXFLAGS += --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
-	-Wno-nullability-completeness -DPRIVATE ${DT_INC} -std=c++11 \
+	-Wno-nullability-completeness -DPRIVATE -DMINKAR_NO_OS_LOG ${DT_INC} -std=c++11 \
 	-idirafter ${XNU}/libkern -include ${.CURDIR}/dtrace_minkar.h
 LDFLAGS += --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
 	-fuse-ld=${LD}
