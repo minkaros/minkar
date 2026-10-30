@@ -74,6 +74,8 @@ static struct {
 } console_ring;
 
 hw_lock_data_t cnputc_lock;
+/* Minkar: the console's serial output stopped inside a line. */
+static volatile boolean_t cnputc_mid_line = FALSE;
 static volatile uint32_t console_output = 0;
 
 /*
@@ -314,11 +316,55 @@ _cnputs(char * c, int size)
 			cons_ops[cons_ops_index].putc(0, 0, '\r');
 		}
 		cons_ops[cons_ops_index].putc(0, 0, *c);
+		cnputc_mid_line = (*c != '\n');
 		c++;
 	}
 
 	hw_lock_unlock(&cnputc_lock);
 	mp_enable_preemption();
+}
+
+/*
+ * Minkar: kprintf writes a message to the serial port holding this lock,
+ * so that it does not mix with the console's output there (SMP). The
+ * lock is held only while characters go out, and the console lets it go
+ * every 8 of them: kprintf waits for the end of the console's line, up to
+ * 10 ms, and then starts on a line of its own.
+ */
+boolean_t
+console_serial_lock(void)
+{
+	uint64_t deadline, now;
+
+	nanoseconds_to_absolutetime(10 * NSEC_PER_MSEC, &deadline);
+	deadline += mach_absolute_time();
+	for (;;) {
+#ifdef __x86_64__
+		if (!hw_lock_to(&cnputc_lock, LockTimeOutTSC, LCK_GRP_NULL)) {
+#else
+		if (!hw_lock_to(&cnputc_lock, LockTimeOut, LCK_GRP_NULL)) {
+#endif
+			return FALSE;
+		}
+		if (!cnputc_mid_line) {
+			return TRUE;
+		}
+		now = mach_absolute_time();
+		if (now >= deadline) {
+			cons_ops[cons_ops_index].putc(0, 0, '\r');
+			cons_ops[cons_ops_index].putc(0, 0, '\n');
+			cnputc_mid_line = FALSE;
+			return TRUE;
+		}
+		hw_lock_unlock(&cnputc_lock);
+		delay(10);	/* let the console finish its line */
+	}
+}
+
+void
+console_serial_unlock(void)
+{
+	hw_lock_unlock(&cnputc_lock);
 }
 
 void

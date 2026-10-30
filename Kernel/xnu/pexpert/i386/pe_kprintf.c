@@ -108,6 +108,8 @@ PE_init_kprintf(boolean_t vm_initialized)
 }
 
 extern int console_quiet;
+extern boolean_t console_serial_lock(void);	/* osfmk/console */
+extern void console_serial_unlock(void);
 
 #if CONFIG_NO_KPRINTF_STRINGS
 /* Prevent CPP from breaking the definition below */
@@ -184,11 +186,27 @@ kprintf(const char *fmt, ...)
 			cpu_last_locked = cpu_number();
 		}
 
+		/*
+		 * Minkar: with SMP, a kprintf and another processor's console
+		 * output went out the serial port at once, mixed character by
+		 * character. The message goes out holding the console's
+		 * serial lock, which is held only while characters go out
+		 * (never while waiting on another processor); in a panic, or
+		 * if the lock does not come in time, it goes out anyway.
+		 */
+		boolean_t serial_locked = FALSE;
+		if (PE_kputc == pal_serial_putc && !in_panic_context) {
+			serial_locked = console_serial_lock();
+		}
+
 		va_start(listp, fmt);
 		va_copy(listp2, listp);
 		/* Minkar: kprintf_console=1 stays off the screen after login. */
 		if (!(PE_kputc == cnputc && console_quiet)) {
 			_doprnt(fmt, &listp, PE_kputc, 16);
+		}
+		if (serial_locked) {
+			console_serial_unlock();
 		}
 		va_end(listp);
 
