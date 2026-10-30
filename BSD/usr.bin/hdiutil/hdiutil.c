@@ -34,12 +34,18 @@
  * table with one partition (or none), formatted with newfs_hfs or
  * newfs_msdos, optionally filled from a folder.
  *
+ * With diskarbitrationd running, attach mounts through DiskArbitration,
+ * as on macOS (and keeps it from mounting the image's volumes itself, for
+ * -nomount or another mount point); without it, hdiutil mounts them.
+ *
  * Images are raw (what "hdiutil create" writes, and UDTO/.cdr/.iso) or
  * UDIF read/write images (UDRW, a raw data fork and a "koly" trailer).
  * Compressed UDIF images are not read yet.
  */
 
 #include <CoreFoundation/CoreFoundation.h>
+#include <DiskArbitration/DiskArbitration.h>
+#include <DiskArbitration/DiskArbitrationPrivate.h>	/* DARegisterIdleCallback */
 #include <IOKit/IOKitLib.h>
 
 #include <sys/types.h>
@@ -579,6 +585,130 @@ mount_volume(const char *disk, const char *at, bool readonly, char *mp,
 	return (true);
 }
 
+/* ---- DiskArbitration ------------------------------------------------------ */
+
+static struct {
+	DASessionRef	session;
+	char		disk[64];	/* the attached image's whole disk */
+	bool		approve;	/* our own mounts */
+	bool		appeared;	/* DiskArbitration has the disk */
+	bool		idle;		/* and is done with it */
+} da;
+
+static bool
+da_ours(DADiskRef disk)
+{
+	const char *bsd = DADiskGetBSDName(disk);
+	size_t n = strlen(da.disk);
+
+	return (bsd != NULL && n > 0 && strncmp(bsd, da.disk, n) == 0 &&
+	    (bsd[n] == '\0' || bsd[n] == 's'));
+}
+
+/* diskarbitrationd's own mounts of the image's volumes are ours to make. */
+static DADissenterRef
+da_approve_mount(DADiskRef disk, void *context)
+{
+	(void)context;
+	if (!da.approve && da_ours(disk))
+		return (DADissenterCreate(kCFAllocatorDefault,
+		    kDAReturnExclusiveAccess, CFSTR("hdiutil")));
+	return (NULL);
+}
+
+static void
+da_appeared(DADiskRef disk, void *context)
+{
+	(void)context;
+	if (da_ours(disk)) {
+		da.appeared = true;
+		da.idle = false;
+	}
+}
+
+static void
+da_idle(void *context)
+{
+	(void)context;
+	if (da.appeared)
+		da.idle = true;
+}
+
+static bool
+da_open(void)
+{
+	da.session = DASessionCreate(kCFAllocatorDefault);
+	if (da.session == NULL)
+		return (false);
+	DARegisterDiskMountApprovalCallback(da.session, NULL, da_approve_mount,
+	    NULL);
+	DARegisterDiskAppearedCallback(da.session, NULL, da_appeared, NULL);
+	DARegisterIdleCallback(da.session, da_idle, NULL);
+	DASessionScheduleWithRunLoop(da.session, CFRunLoopGetCurrent(),
+	    kCFRunLoopDefaultMode);
+	return (true);
+}
+
+/* Runs the session until cond, or seconds pass. */
+static bool
+da_wait(bool *cond, double seconds)
+{
+	CFAbsoluteTime end = CFAbsoluteTimeGetCurrent() + seconds;
+
+	while (!*cond && CFAbsoluteTimeGetCurrent() < end)
+		CFRunLoopRunInMode(kCFRunLoopDefaultMode, 0.1, true);
+	return (*cond);
+}
+
+struct da_mount_result {
+	bool	done;
+	bool	ok;
+};
+
+static void
+da_mounted(DADiskRef disk, DADissenterRef dissenter, void *context)
+{
+	struct da_mount_result *r = context;
+
+	(void)disk;
+	r->ok = (dissenter == NULL);
+	r->done = true;
+}
+
+/* Mounts a volume through DiskArbitration (in /Volumes, or at). */
+static bool
+da_mount(const char *bsd, const char *at, bool readonly, char *mp, size_t len)
+{
+	struct da_mount_result r = { false, false };
+	CFStringRef args[2] = { readonly ? CFSTR("rdonly") : NULL, NULL };
+	CFDictionaryRef desc;
+	CFURLRef url = NULL, path;
+	DADiskRef disk;
+	bool ok = false;
+
+	disk = DADiskCreateFromBSDName(kCFAllocatorDefault, da.session, bsd);
+	if (disk == NULL)
+		return (false);
+	if (at != NULL)
+		url = CFURLCreateFromFileSystemRepresentation(kCFAllocatorDefault,
+		    (const UInt8 *)at, (CFIndex)strlen(at), true);
+	da.approve = true;
+	DADiskMountWithArguments(disk, url, kDADiskMountOptionDefault,
+	    da_mounted, &r, args);
+	da_wait(&r.done, 60);
+	da.approve = false;
+	if (r.ok && (desc = DADiskCopyDescription(disk)) != NULL) {
+		path = CFDictionaryGetValue(desc, kDADiskDescriptionVolumePathKey);
+		ok = path != NULL && CFURLGetFileSystemRepresentation(path, true,
+		    (UInt8 *)mp, (CFIndex)len);
+		CFRelease(desc);
+	}
+	if (url != NULL)
+		CFRelease(url);
+	CFRelease(disk);
+	return (ok);
+}
+
 static void
 print_media(const struct media *m, const char *mp)
 {
@@ -599,6 +729,7 @@ attach(const char *path, bool readonly, bool nomount, const char *mountpoint)
 	io_service_t dev;
 	kern_return_t kr;
 	int n, i, mounted = 0;
+	bool usingda;
 
 	if (realpath(path, abspath) == NULL)
 		err(1, "%s", path);
@@ -606,6 +737,8 @@ attach(const char *path, bool readonly, bool nomount, const char *mountpoint)
 		fprintf(stderr, "hdiutil: attach failed - %s\n", why);
 		return (1);
 	}
+	/* Before the disk appears: its volumes are not to be mounted for us. */
+	usingda = da_open();
 	c = driver();
 	in[0] = img.offset;
 	in[1] = img.length;
@@ -633,12 +766,23 @@ attach(const char *path, bool readonly, bool nomount, const char *mountpoint)
 		return (1);
 	}
 	IOObjectRelease(dev);
-	usleep(500000);		/* the partitions are published after */
+	if (usingda) {
+		/* diskarbitrationd probes the volumes: let it finish. */
+		strlcpy(da.disk, disk, sizeof(da.disk));
+		if (da_wait(&da.appeared, 10))
+			da_wait(&da.idle, 30);
+	} else
+		usleep(500000);	/* the partitions are published after */
 	n = list_media(disk, m, 32);
 	for (i = 0; i < n; i++) {
 		bool ok = false;
 
-		if (!nomount && m[i].leaf) {
+		if (!nomount && m[i].leaf && usingda) {
+			ok = da_mount(m[i].name, mounted == 0 ? mountpoint :
+			    NULL, readonly, mp, sizeof(mp));
+			if (ok)
+				mounted++;
+		} else if (!nomount && m[i].leaf) {
 			ok = mount_volume(m[i].name, mounted == 0 ? mountpoint :
 			    NULL, readonly, mp, sizeof(mp));
 			if (ok)
