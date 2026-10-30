@@ -20,12 +20,12 @@
 # commit's date), so __DATE__ and __TIME__ in the tools do not change
 # their bytes.
 llvm | llvm | swift-6.0-RELEASE (LLVM 17.0.6), tapi-1600.0.11.8 | 1715a1292aff0526a90ca046afcd92706aedaf78 | clang --version: Apple clang version 17.0.6
-cctools | cctools | PureDarwin cctools, ld64-609 | c1fb0d0045aa9aa643aec420f20a66dad551a741 | ld64 -v: PROJECT:pdcctools
+cctools | cctools | PureDarwin cctools, ld64-609 | a92889483c407225f8fe39c8a21a88e52d179493 | ld64 -v: PROJECT:pdcctools
 mig | mig | PureDarwin mig | 3953ed91ca8f662ac5728fde9b584f3305f1e133 | -
 xar | xar | PureDarwin xar | 778e860acbf15e96b615735caf87c99bf6a3ed5a | -
 gmake | gmake | GNU make 4.4.1 | 2d1f9546a24250b10dc3f8956f5d2023b7d18360 | gmake --version: GNU Make 4.4.1
 unifdef | unifdef | unifdef 2.5.6 | 16a54abbef230dcbbf102b72afbb2c2d6d6861e2 | unifdef -V: Version: unifdef-2.5.6
-dtrace_ctf | dtrace_ctf | PureDarwin dtrace (CTF tools) | da0190455459aec4e5d31408aec165894cf43e44 | -
+dtrace_ctf | dtrace_ctf | Apple dtrace-338.100.1 CTF tools (BSD/usr.sbin/dtrace/dist) | eed689d688c3b1ee888a4b3fb9d068eb1a2ccc64 | -
 rpcgen | rpcgen | Minkar | 6fb404d1adf353540cacbab517924ef2a72a28da | -
 plktool | plktool | Minkar | 76802f1b50ab912027048674e40cd344e191f0ee | -
 xcbuild | xcbuild | darlinghq xcbuild (main) | 9aa9e6a038a8b3209fbad37a3c4647cfaa6460e2 | -
