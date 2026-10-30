@@ -9,10 +9,10 @@ Each command comes from FreeBSD main where FreeBSD has it, and behaves as on mac
 | Directory | Commands |
 |---|---:|
 | `/bin` | 42 |
-| `/sbin` | 40 |
-| `/usr/bin` | 281 |
-| `/usr/sbin` | 48 |
-| **Total** | **411** |
+| `/sbin` | 41 |
+| `/usr/bin` | 282 |
+| `/usr/sbin` | 51 |
+| **Total** | **416** |
 
 ## In the source tree
 
@@ -21,19 +21,19 @@ Command directories under `BSD/`, at commit `60aa4ff4b1` (where Minkar started f
 | Directory | Then | Now |
 |---|---:|---:|
 | `BSD/bin` | 30 | 35 |
-| `BSD/sbin` | 4 | 25 |
-| `BSD/usr.bin` | 55 | 179 |
-| `BSD/usr.sbin` | 7 | 44 |
-| **Total** | **96** | **283** |
+| `BSD/sbin` | 4 | 26 |
+| `BSD/usr.bin` | 55 | 180 |
+| `BSD/usr.sbin` | 7 | 47 |
+| **Total** | **96** | **288** |
 
 ## Against macOS
 
-324 of the 354 reference commands are in the image; 30 are missing.
+329 of the 354 reference commands are in the image; 25 are missing.
 
 | Kind | In the image | Missing | What it takes |
 |---|---:|---:|---|
 | BSD and other portable tools | 273 | 0 | Ported from FreeBSD main (or their own upstream), as the ones before. |
-| macOS's own tools | 22 | 24 | Written for Minkar; many need the graphical system or frameworks of later phases. |
+| macOS's own tools | 27 | 19 | Written for Minkar; many need the graphical system or frameworks of later phases. |
 | Darwin's own components | 15 | 0 | Kept from Apple's open source (launchd, configd, syslogd...). |
 | File system tools | 4 | 6 | Need the file system (APFS, exFAT, FAT, NFS, SMB) in the kernel first. |
 | Licence to approve | 5 | 0 | Their licence (GPL, Vim, CDDL...) needs the project's approval first. |
@@ -41,6 +41,6 @@ Command directories under `BSD/`, at commit `60aa4ff4b1` (where Minkar started f
 
 ### Missing
 
-- **macOS's own tools** (24): `autodiskmount`, `bless`, `disklabel`, `diskutil`, `emond`, `fdesctl`, `fs_usage`, `hdiutil`, `leaks`, `lsappinfo`, `mdfind`, `mdls`, `mdutil`, `networksetup`, `open`, `opendiff`, `osascript`, `pbcopy`, `pbpaste`, `pmset`, `say`, `screencapture`, `sysadminctl`, `tmutil`
+- **macOS's own tools** (19): `autodiskmount`, `diskutil`, `emond`, `fdesctl`, `fs_usage`, `leaks`, `lsappinfo`, `mdfind`, `mdls`, `mdutil`, `open`, `opendiff`, `osascript`, `pbcopy`, `pbpaste`, `pmset`, `say`, `screencapture`, `tmutil`
 - **File system tools** (6): `fsck_apfs`, `fsck_exfat`, `mount_apfs`, `mount_smbfs`, `newfs_apfs`, `nfsd`
 
