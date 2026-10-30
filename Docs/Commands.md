@@ -9,10 +9,10 @@ Each command comes from FreeBSD main where FreeBSD has it, and behaves as on mac
 | Directory | Commands |
 |---|---:|
 | `/bin` | 42 |
-| `/sbin` | 43 |
+| `/sbin` | 44 |
 | `/usr/bin` | 284 |
 | `/usr/sbin` | 53 |
-| **Total** | **422** |
+| **Total** | **423** |
 
 ## In the source tree
 
@@ -21,19 +21,19 @@ Command directories under `BSD/`, at commit `60aa4ff4b1` (where Minkar started f
 | Directory | Then | Now |
 |---|---:|---:|
 | `BSD/bin` | 30 | 35 |
-| `BSD/sbin` | 4 | 28 |
+| `BSD/sbin` | 4 | 30 |
 | `BSD/usr.bin` | 55 | 182 |
-| `BSD/usr.sbin` | 7 | 49 |
-| **Total** | **96** | **294** |
+| `BSD/usr.sbin` | 7 | 51 |
+| **Total** | **96** | **298** |
 
 ## Against macOS
 
-334 of the 354 reference commands are in the image; 20 are missing.
+335 of the 354 reference commands are in the image; 19 are missing.
 
 | Kind | In the image | Missing | What it takes |
 |---|---:|---:|---|
 | BSD and other portable tools | 273 | 0 | Ported from FreeBSD main (or their own upstream), as the ones before. |
-| macOS's own tools | 31 | 15 | Written for Minkar; many need the graphical system or frameworks of later phases. |
+| macOS's own tools | 32 | 14 | Written for Minkar; many need the graphical system or frameworks of later phases. |
 | Darwin's own components | 15 | 0 | Kept from Apple's open source (launchd, configd, syslogd...). |
 | File system tools | 5 | 5 | Need the file system (APFS, exFAT, FAT, NFS, SMB) in the kernel first. |
 | Licence to approve | 5 | 0 | Their licence (GPL, Vim, CDDL...) needs the project's approval first. |
@@ -41,6 +41,6 @@ Command directories under `BSD/`, at commit `60aa4ff4b1` (where Minkar started f
 
 ### Missing
 
-- **macOS's own tools** (15): `autodiskmount`, `fdesctl`, `leaks`, `lsappinfo`, `mdfind`, `mdls`, `mdutil`, `open`, `opendiff`, `osascript`, `pbcopy`, `pbpaste`, `say`, `screencapture`, `tmutil`
+- **macOS's own tools** (14): `fdesctl`, `leaks`, `lsappinfo`, `mdfind`, `mdls`, `mdutil`, `open`, `opendiff`, `osascript`, `pbcopy`, `pbpaste`, `say`, `screencapture`, `tmutil`
 - **File system tools** (5): `fsck_apfs`, `fsck_exfat`, `mount_apfs`, `mount_smbfs`, `newfs_apfs`
 

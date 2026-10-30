@@ -253,7 +253,7 @@ The generic Unix commands come from FreeBSD `main`, with our own macOS
 layer where macOS behaves differently; Darwin's own components stay. Each
 command, where it comes from and what was fixed while porting it, is in
 [Userland.md](Userland.md); [Commands.md](Commands.md) counts them against
-macOS's (334 of 354 on 2026-10-30).
+macOS's (335 of 354 on 2026-10-30).
 
 - [x] Boot: `sh`, `ls`, `cp`, `mv`, `rm`, `mount`, `ifconfig`, `ps`, `kill`.
 - [x] Replace the commands from Apple's command sets with FreeBSD main's
@@ -262,8 +262,8 @@ macOS's (334 of 354 on 2026-10-30).
 - [ ] Everyday tools missing from the image. *Partial:* ported in batches
   since 2026-10-26, with locales, time zones, manual pages and libiconv.
   `passwd` since 2026-10-28; `dig`, `nslookup`, Kerberos and `pfctl`
-  since 2026-10-29: every BSD tool of Commands.md. Left for this phase
-  (2026-10-30): `autodiskmount` (on DiskArbitration), `leaks` and
+  since 2026-10-29: every BSD tool of Commands.md; `autodiskmount` on
+  DiskArbitration since 2026-10-30. Left for this phase: `leaks` and
   `fsck_exfat` (with our own exFAT driver); the phase closes with them.
   The macOS tools that need a later phase moved to it: `pbcopy`,
   `pbpaste` and `screencapture` to Phase 4; `open`, `lsappinfo`, `say`,
@@ -661,10 +661,10 @@ The highest-impact open items, in critical-path order:
    NVMe SSD; next, powering off (ACPI S5), the other CPUs (SMP, also
    missing in QEMU) and the boot without `pci_keep_console`; then a second, different PC (gate M1;
    a Mac Pro 6,1 is the candidate). See [Hardware.md](Hardware.md).
-2. Userland (Phase 2): the last three macOS tools that need no later
-   phase, `autodiskmount`, `leaks` and `fsck_exfat` (with our own exFAT
-   driver); then Phase 2 closes. 334 of 354 on 2026-10-30, with the NFS
-   server and DiskArbitration done.
+2. Userland (Phase 2): the last two macOS tools that need no later
+   phase, `leaks` and `fsck_exfat` (with our own exFAT driver); then
+   Phase 2 closes. 335 of 354 on 2026-10-30, with the NFS server,
+   DiskArbitration and `autodiskmount` done.
 3. IOHIDSystem event delivery in the kernel, the `ApplePS2Mouse` driver and
    the WindowServer input reader (Phase 4).
 4. Install WindowServer's launchd job and get a first boot that draws on
