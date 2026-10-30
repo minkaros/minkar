@@ -593,6 +593,7 @@ manual_lease(void)
 	memset(&l, 0, sizeof(l));
 	l.addr = ifs.manual_addr;
 	l.mask = ifs.manual_mask;
+	l.router = ifs.manual_router;
 	l.start = now();
 	return l;
 }

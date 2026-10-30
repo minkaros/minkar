@@ -524,6 +524,41 @@ parse_in(const char *s, struct in_addr *a)
 	return s != NULL && inet_pton(AF_INET, s, a) == 1;
 }
 
+static const char *const method4_names[] = {
+	"NONE", "DHCP", "BOOTP", "MANUAL", "INFORM"
+};
+static const char *const method6_names[] = {
+	"NONE-V6", "AUTOMATIC-V6", "LINKLOCAL-V6", "MANUAL-V6"
+};
+
+/* Changes how IPv4 is configured: what was there goes, the new starts. */
+void
+set_method4(int method, struct in_addr addr, struct in_addr mask,
+    struct in_addr router)
+{
+	dhcp4_stop();
+	drop_lease();
+	ifs.method4 = method;
+	ifs.manual_addr = addr;
+	ifs.manual_mask = mask;
+	ifs.manual_router = router;
+	logmsg(LOG_NOTICE, "IPv4: %s", method4_names[method]);
+	dhcp4_start();
+}
+
+void
+set_method6(int method, const struct in6_addr *addr, int prefix)
+{
+	ipv6_stop();
+	ifs.method6 = method;
+	if (addr != NULL) {
+		ifs.manual6 = *addr;
+		ifs.manual6_prefix = prefix;
+	}
+	logmsg(LOG_NOTICE, "IPv6: %s", method6_names[method]);
+	ipv6_start();
+}
+
 /*
  * One command, "set <METHOD> [args]", as macOS's ipconfig names them:
  * DHCP, BOOTP, MANUAL addr mask, INFORM addr mask, NONE; AUTOMATIC-V6,
@@ -534,7 +569,7 @@ control_command(char *line)
 {
 	char *argv[5];
 	int argc = 0;
-	struct in_addr a, m;
+	struct in_addr a = { 0 }, m = { 0 }, none = { 0 };
 
 	for (char *p = strtok(line, " \t\r\n"); p != NULL && argc < 5; p = strtok(NULL, " \t\r\n"))
 		argv[argc++] = p;
@@ -556,14 +591,8 @@ control_command(char *line)
 			if (argc != 4 || !parse_in(argv[2], &a) || !parse_in(argv[3], &m))
 				return "error: MANUAL and INFORM take an address and a mask";
 			method = strcasecmp(argv[1], "MANUAL") == 0 ? M4_MANUAL : M4_INFORM;
-			ifs.manual_addr = a;
-			ifs.manual_mask = m;
 		}
-		dhcp4_stop();
-		drop_lease();
-		ifs.method4 = method;
-		logmsg(LOG_NOTICE, "IPv4: %s", argv[1]);
-		dhcp4_start();
+		set_method4(method, a, m, none);
 		return "ok";
 	}
 	if (strcasecmp(argv[1], "AUTOMATIC-V6") == 0 || strcasecmp(argv[1], "NONE-V6") == 0 ||
@@ -578,9 +607,8 @@ control_command(char *line)
 			if (argc != 4 || inet_pton(AF_INET6, argv[2], &a6) != 1 ||
 			    (plen = strtol(argv[3], &end, 10)) < 1 || plen > 128 || *end != '\0')
 				return "error: MANUAL-V6 takes an address and a prefix length";
-			ifs.manual6 = a6;
-			ifs.manual6_prefix = (int)plen;
-			method = M6_MANUAL;
+			set_method6(M6_MANUAL, &a6, (int)plen);
+			return "ok";
 		} else if (strcasecmp(argv[1], "AUTOMATIC-V6") == 0) {
 			method = M6_AUTOMATIC;
 		} else if (strcasecmp(argv[1], "LINKLOCAL-V6") == 0) {
@@ -588,10 +616,7 @@ control_command(char *line)
 		} else {
 			method = M6_NONE;
 		}
-		ipv6_stop();
-		ifs.method6 = method;
-		logmsg(LOG_NOTICE, "IPv6: %s", argv[1]);
-		ipv6_start();
+		set_method6(method, NULL, 0);
 		return "ok";
 	}
 	return "error: unknown method";
@@ -668,6 +693,8 @@ serve(const char *name)
 
 	bool published = false;		/* configd has our service */
 	time_t store_check = 0;
+	struct setup applied;		/* the Setup: last followed */
+	bool have_applied = false;
 
 	for (;;) {
 		struct pollfd pfd[8];
@@ -686,7 +713,9 @@ serve(const char *name)
 		if (ifs.next6 != 0)
 			timeout = ifs.next6 <= t ? 0 : (int)(ifs.next6 - t) * 1000 < timeout ?
 			    (int)(ifs.next6 - t) * 1000 : timeout;
-		if (!published && timeout > STORE_RETRY * 1000)
+		/* Before configd has our service, and after (to follow its
+		 * Setup:), look at the store every few seconds. */
+		if (timeout > STORE_RETRY * 1000)
 			timeout = STORE_RETRY * 1000;
 
 		if (poll(pfd, (nfds_t)n, timeout) > 0) {
@@ -717,6 +746,31 @@ serve(const char *name)
 					ifs.route.s_addr = 0;
 				}
 				publish_state();
+			}
+		}
+		/*
+		 * Follow the service's configuration when it changes (networksetup,
+		 * System Preferences); ipconfig's own changes hold until then.
+		 */
+		if (published && t >= store_check) {
+			struct setup s;
+
+			store_check = t + STORE_RETRY;
+			if (store_setup(&s) && (!have_applied ||
+			    memcmp(&s, &applied, sizeof(s)) != 0)) {
+				if (s.method4 != ifs.method4 ||
+				    s.addr4.s_addr != ifs.manual_addr.s_addr ||
+				    s.mask4.s_addr != ifs.manual_mask.s_addr ||
+				    s.router4.s_addr != ifs.manual_router.s_addr)
+					set_method4(s.method4, s.addr4, s.mask4,
+					    s.router4);
+				if (s.method6 != ifs.method6 ||
+				    (s.method6 == M6_MANUAL &&
+				    (memcmp(&s.addr6, &ifs.manual6, sizeof(s.addr6)) != 0 ||
+				    s.prefix6 != ifs.manual6_prefix)))
+					set_method6(s.method6, &s.addr6, s.prefix6);
+				applied = s;
+				have_applied = true;
 			}
 		}
 		if (ifs.next4 != 0 && t >= ifs.next4)
