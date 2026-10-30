@@ -36,6 +36,11 @@
 #include <i386/pmCPU.h>
 #include <i386/bit_routines.h>
 
+/* Minkar: from cpuid.c, the topology leaf's shifts. */
+extern uint32_t cpuid_apic_package_shift;
+extern uint32_t cpuid_apic_smt_shift;
+extern boolean_t cpuid_apic_smt_known;
+
 #if MONOTONIC
 #include <kern/monotonic.h>
 #endif /* MONOTONIC */
@@ -220,6 +225,17 @@ initTopoParms(void)
 	topoParms.nLThreadsPerCore = nonzero_u32(topoParms.nLThreadsPerCore, 1);
 	DIVISOR_GUARD(cpuinfo->cpuid_cores_per_package);
 	topoParms.nPThreadsPerCore = cpuinfo->cpuid_logical_per_package / cpuinfo->cpuid_cores_per_package;
+	/*
+	 * Minkar: a core's threads in the APIC ID space, from the topology
+	 * leaf's SMT level when there is one. The ratio above takes the
+	 * real number of threads (the topology leaf's) over the leaf 4
+	 * bound on cores: on a 4-core, 8-thread i7-7700 that was 8 / 8, one
+	 * thread a core, and the topology came out as 8 cores (a panic in
+	 * x86_validate_topology).
+	 */
+	if (cpuid_apic_smt_known && cpuid_apic_smt_shift < 8) {
+		topoParms.nPThreadsPerCore = 1u << cpuid_apic_smt_shift;
+	}
 	topoParms.nPThreadsPerCore = nonzero_u32(topoParms.nPThreadsPerCore, 1);
 
 	/*
@@ -447,7 +463,6 @@ x86_core_free(x86_core_t *core)
 	simple_unlock(&x86_topo_lock);
 }
 
-extern uint32_t cpuid_apic_package_shift;
 
 /*
  * Minkar: a processor's package, from its APIC ID: by the topology leaf's
