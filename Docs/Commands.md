@@ -9,10 +9,10 @@ Each command comes from FreeBSD main where FreeBSD has it, and behaves as on mac
 | Directory | Commands |
 |---|---:|
 | `/bin` | 42 |
-| `/sbin` | 37 |
+| `/sbin` | 38 |
 | `/usr/bin` | 280 |
 | `/usr/sbin` | 43 |
-| **Total** | **402** |
+| **Total** | **403** |
 
 ## In the source tree
 
@@ -28,13 +28,13 @@ Command directories under `BSD/`, at commit `60aa4ff4b1` (where Minkar started f
 
 ## Against macOS
 
-315 of the 354 reference commands are in the image; 39 are missing.
+316 of the 354 reference commands are in the image; 38 are missing.
 
 | Kind | In the image | Missing | What it takes |
 |---|---:|---:|---|
 | BSD and other portable tools | 273 | 0 | Ported from FreeBSD main (or their own upstream), as the ones before. |
 | macOS's own tools | 17 | 29 | Written for Minkar; many need the graphical system or frameworks of later phases. |
-| Darwin's own components | 11 | 4 | Kept from Apple's open source (launchd, configd, syslogd...). |
+| Darwin's own components | 12 | 3 | Kept from Apple's open source (launchd, configd, syslogd...). |
 | File system tools | 4 | 6 | Need the file system (APFS, exFAT, FAT, NFS, SMB) in the kernel first. |
 | Licence to approve | 5 | 0 | Their licence (GPL, Vim, CDDL...) needs the project's approval first. |
 | Shell builtins as files | 5 | 0 | macOS has /usr/bin/cd and the like: small scripts that run the builtin. |
@@ -42,6 +42,6 @@ Command directories under `BSD/`, at commit `60aa4ff4b1` (where Minkar started f
 ### Missing
 
 - **macOS's own tools** (29): `autodiskmount`, `bless`, `csrutil`, `disklabel`, `diskutil`, `emond`, `fdesctl`, `fs_usage`, `hdiutil`, `leaks`, `lsappinfo`, `mdfind`, `mdls`, `mdutil`, `networksetup`, `open`, `opendiff`, `osascript`, `pbcopy`, `pbpaste`, `pkgutil`, `pmset`, `say`, `screencapture`, `sysadminctl`, `system_profiler`, `systemsetup`, `tmutil`, `vsdbutil`
-- **Darwin's own components** (4): `dynamic_pager`, `kextload`, `kextstat`, `kextunload`
+- **Darwin's own components** (3): `kextload`, `kextstat`, `kextunload`
 - **File system tools** (6): `fsck_apfs`, `fsck_exfat`, `mount_apfs`, `mount_smbfs`, `newfs_apfs`, `nfsd`
 
