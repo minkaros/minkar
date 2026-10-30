@@ -1,0 +1,44 @@
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\" Copyright (c) 2026 The Minkar contributors
+.\" Part of Minkar.
+.Dd October 30, 2026
+.Dt AUTODISKMOUNT 8
+.Os Minkar
+.Sh NAME
+.Nm autodiskmount
+.Nd mount the volumes that are not mounted
+.Sh SYNOPSIS
+.Nm
+.Op Fl v
+.Sh DESCRIPTION
+.Nm
+asks
+.Xr diskarbitrationd 8
+to mount every volume it knows that is not mounted, by the rules it
+follows when a disk appears: the volumes it would mount on its own, where
+it would mount them (in
+.Pa /Volumes ,
+or as
+.Xr fstab 5
+says).
+A volume it does not mount on its own, such as an EFI partition, stays
+unmounted; so do those
+.Xr fstab 5
+marks
+.Cm noauto .
+.Pp
+macOS keeps the command for compatibility, with no options.
+.Bl -tag -width indent
+.It Fl v
+Tells each volume mounted and where.
+.El
+.Sh EXIT STATUS
+0, or 1 when diskarbitrationd cannot be reached.
+.Sh SEE ALSO
+.Xr diskutil 8 ,
+.Xr fstab 5 ,
+.Xr diskarbitrationd 8
+.Sh HISTORY
+This
+.Nm
+was written for Minkar.
