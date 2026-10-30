@@ -244,8 +244,21 @@ enum vt100state_e {
 	ESsetG1,		/* Specify the G1 character set            */
 	ESask,
 	EScharsize,
-	ESignore		/* Ignore this sequence                    */
+	ESignore,		/* Ignore this sequence                    */
+	ESstring		/* Minkar: OSC/DCS/APC/PM string, skipped  */
 } gc_vt100state = ESnormal;
+
+/*
+ * Minkar (2026): sequences the console does not draw are skipped whole, as
+ * terminals do: a control string (ESC ] ... BEL or ESC \, and ESC P, ESC _,
+ * ESC ^) and a CSI sequence with a private marker (< = >) or intermediate
+ * bytes (space to /), up to its final byte. vim, for one, asks xterm for
+ * its colors (ESC ] 10 ; ? BEL) and sets keyboard modes (ESC [ > 4 ; m);
+ * their parameters were drawn as text. A string longer than
+ * GC_STRING_MAX ends anyway, so that a lost terminator cannot hide output.
+ */
+#define GC_STRING_MAX	512
+static unsigned int gc_string_len;
 
 
 enum
@@ -665,6 +678,18 @@ gc_putchar(char ch)
 	case ESsetG1:
 		gc_putc_charsetcmd(1, ch);
 		break;
+	case ESignore:		/* Minkar: up to a CSI final byte */
+		if (ch == '\033')
+			gc_vt100state = ESesc;
+		else if (ch >= 0x40 && ch <= 0x7E)
+			gc_vt100state = ESnormal;
+		break;
+	case ESstring:		/* Minkar: up to BEL or ST (ESC \) */
+		if (ch == 0x07 || ++gc_string_len > GC_STRING_MAX)
+			gc_vt100state = ESnormal;
+		else if (ch == '\033')
+			gc_vt100state = ESesc;
+		break;
 	}
 
 	if (gc_x >= vinfo.v_columns) {
@@ -783,6 +808,13 @@ gc_putc_esc(unsigned char ch)
 	case '[':
 		gc_vt100state = ESsquare;
 		break;
+	case ']':		/* Minkar: control strings, skipped */
+	case 'P':
+	case '_':
+	case '^':
+		gc_vt100state = ESstring;
+		gc_string_len = 0;
+		break;
 	case 'c':		/* Reset terminal 	 */
 		gc_reset_vt100();
 		gc_clear_screen(gc_x, gc_y, 0, vinfo.v_rows, 2);
@@ -858,6 +890,12 @@ gc_putc_getpars(unsigned char ch)
 	if (ch == '[') {
 		gc_vt100state = ESnormal;
 		/* Not supported */
+		return;
+	}
+	/* Minkar: private markers and intermediate bytes: not supported, and
+	 * the sequence is skipped up to its final byte. */
+	if (ch == '<' || ch == '=' || ch == '>' || (ch >= 0x20 && ch <= 0x2F)) {
+		gc_vt100state = ESignore;
 		return;
 	}
 	if (ch == ';' && gc_numpars < MAXPARS - 1) {
