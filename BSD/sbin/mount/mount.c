@@ -36,7 +36,8 @@
  *
  * As on macOS, this is a front end: the file-system-specific mount_<type>
  * program does the mounting. It gets every option in one -o list, where
- * -u, -w, -r and -f become "update", "rw", "ro" and "force".
+ * -u, -w, -r and -f become "update", "rw", "ro" and "force"; an option
+ * that starts with "-" ("-m=755") is passed to it as its own ("-m 755").
  */
 
 #include <sys/param.h>
@@ -227,7 +228,9 @@ static int
 mountfs(const char *type, const char *special, const char *node, const char *options)
 {
 	char helper[MAXPATHLEN], name[MFSNAMELEN + 8];
-	const char *argv[7];
+	char *opts = NULL, *rest = NULL, *o, *p;
+	const char *argv[64];
+	size_t restlen;
 	int argc = 0, status;
 	pid_t pid;
 
@@ -238,8 +241,33 @@ mountfs(const char *type, const char *special, const char *node, const char *opt
 	snprintf(name, sizeof(name), "mount_%s", type);
 	argv[argc++] = name;
 	if (options != NULL) {
-		argv[argc++] = "-o";
-		argv[argc++] = options;
+		/*
+		 * As macOS's mount: an option that starts with "-" is the
+		 * helper's own ("-m=755" gives "-m 755", as diskarbitrationd
+		 * asks of mount_hfs); the others stay in the -o list.
+		 */
+		if ((opts = strdup(options)) == NULL ||
+		    (rest = calloc(1, restlen = strlen(options) + 1)) == NULL)
+			err(EX_OSERR, NULL);
+		for (o = opts; (p = strsep(&o, ",")) != NULL;) {
+			if (*p == '\0')
+				continue;
+			if (*p == '-' && argc < 56) {
+				argv[argc++] = p;
+				if ((p = strchr(p, '=')) != NULL) {
+					*p++ = '\0';
+					argv[argc++] = p;
+				}
+				continue;
+			}
+			if (rest[0] != '\0')
+				strlcat(rest, ",", restlen);
+			strlcat(rest, p, restlen);
+		}
+		if (rest[0] != '\0') {
+			argv[argc++] = "-o";
+			argv[argc++] = rest;
+		}
 	}
 	argv[argc++] = special;
 	argv[argc++] = node;
@@ -252,17 +280,23 @@ mountfs(const char *type, const char *special, const char *node, const char *opt
 		printf("\n");
 		fflush(stdout);
 	}
-	if (dryrun)
+	if (dryrun) {
+		free(opts);
+		free(rest);
 		return 0;
+	}
 
-	switch (pid = fork()) {
-	case -1:
-		warn("fork");
-		return 1;
-	case 0:
+	pid = fork();
+	if (pid == 0) {
 		execv(helper, __DECONST(char **, argv));
 		warn("exec %s", helper);
 		_exit(EX_OSERR);
+	}
+	free(opts);
+	free(rest);
+	if (pid == -1) {
+		warn("fork");
+		return 1;
 	}
 	if (waitpid(pid, &status, 0) < 0) {
 		warn("waitpid");

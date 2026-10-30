@@ -173,6 +173,12 @@ main(int argc, char *argv[])
 		args.gid = sb.st_gid;
 	if (!set_mask)
 		args.mask = sb.st_mode & ACCESSPERMS;
+	/*
+	 * As on macOS: with none of -u, -g and -m (diskarbitrationd's mount
+	 * of a volume, over the 0111 mount point it makes), everyone may use it.
+	 */
+	if (!set_uid && !set_gid && !set_mask)
+		args.mask = ACCESSPERMS;
 
 	now = time(NULL);
 	localtime_r(&now, &local);
