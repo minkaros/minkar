@@ -401,6 +401,8 @@ x86_lcpu_init(int cpu)
 	}
 }
 
+static uint32_t x86_package_local(cpu_data_t *cpup);	/* Minkar */
+
 static x86_core_t *
 x86_core_alloc(int cpu)
 {
@@ -426,7 +428,9 @@ x86_core_alloc(int cpu)
 	bzero((void *) core, sizeof(x86_core_t));
 
 	core->pcore_num = cpup->cpu_phys_number / topoParms.nPThreadsPerCore;
-	core->lcore_num = core->pcore_num % topoParms.nPCoresPerPackage;
+	/* Minkar: numbered within its package (see x86_package_local). */
+	core->lcore_num = (x86_package_local(cpup) / topoParms.nPThreadsPerCore) %
+	    topoParms.nPCoresPerPackage;
 
 	core->flags = X86CORE_FL_PRESENT | X86CORE_FL_READY
 	    | X86CORE_FL_HALTED | X86CORE_FL_IDLE;
@@ -443,6 +447,47 @@ x86_core_free(x86_core_t *core)
 	simple_unlock(&x86_topo_lock);
 }
 
+extern uint32_t cpuid_apic_package_shift;
+
+/*
+ * Minkar: a processor's package, from its APIC ID: by the topology leaf's
+ * shift when there is one (the package field starts at a power of two),
+ * else by the number of threads a package has, as before.
+ */
+static uint32_t
+x86_package_number(cpu_data_t *cpup)
+{
+	if (cpuid_apic_package_shift != 0 && cpuid_apic_package_shift < 32) {
+		return cpup->cpu_phys_number >> cpuid_apic_package_shift;
+	}
+	return cpup->cpu_phys_number / topoParms.nPThreadsPerPackage;
+}
+
+/*
+ * Minkar: a processor's thread number within its package (the APIC ID's
+ * bits under the package's): dies and cores are numbered within it.
+ */
+static uint32_t
+x86_package_local(cpu_data_t *cpup)
+{
+	if (cpuid_apic_package_shift != 0 && cpuid_apic_package_shift < 32) {
+		return cpup->cpu_phys_number &
+		       ((1u << cpuid_apic_package_shift) - 1);
+	}
+	return cpup->cpu_phys_number % topoParms.nPThreadsPerPackage;
+}
+
+/* Minkar: a processor's die, numbered as before but within its package. */
+static uint32_t
+x86_die_number(cpu_data_t *cpup)
+{
+	if (cpuid_apic_package_shift != 0 && cpuid_apic_package_shift < 32) {
+		return x86_package_number(cpup) * topoParms.nPDiesPerPackage +
+		       x86_package_local(cpup) / topoParms.nPThreadsPerDie;
+	}
+	return cpup->cpu_phys_number / topoParms.nPThreadsPerDie;
+}
+
 static x86_pkg_t *
 x86_package_find(int cpu)
 {
@@ -452,7 +497,7 @@ x86_package_find(int cpu)
 
 	cpup = cpu_datap(cpu);
 
-	pkg_num = cpup->cpu_phys_number / topoParms.nPThreadsPerPackage;
+	pkg_num = x86_package_number(cpup);
 
 	pkg = x86_pkgs;
 	while (pkg != NULL) {
@@ -475,7 +520,7 @@ x86_die_find(int cpu)
 
 	cpup = cpu_datap(cpu);
 
-	die_num = cpup->cpu_phys_number / topoParms.nPThreadsPerDie;
+	die_num = x86_die_number(cpup);
 
 	pkg = x86_package_find(cpu);
 	if (pkg == NULL) {
@@ -573,7 +618,7 @@ x86_die_alloc(int cpu)
 
 	bzero((void *) die, sizeof(x86_die_t));
 
-	die->pdie_num = cpup->cpu_phys_number / topoParms.nPThreadsPerDie;
+	die->pdie_num = x86_die_number(cpup);
 
 	die->ldie_num = num_dies;
 	atomic_incl((long *) &num_dies, 1);
@@ -616,7 +661,7 @@ x86_package_alloc(int cpu)
 
 	bzero((void *) pkg, sizeof(x86_pkg_t));
 
-	pkg->ppkg_num = cpup->cpu_phys_number / topoParms.nPThreadsPerPackage;
+	pkg->ppkg_num = x86_package_number(cpup);
 
 	pkg->lpkg_num = topoParms.nPackages;
 	atomic_incl((long *) &topoParms.nPackages, 1);
@@ -1083,6 +1128,17 @@ x86_validate_topology(void)
 	 *  - max_ncpus:  max number of processors that will be started
 	 */
 	nCPUs = topoParms.nPackages * topoParms.nLThreadsPerPackage;
+	if (nCPUs > real_ncpus) {
+		/*
+		 * Minkar: fewer processors than the packages have, as when
+		 * the platform leaves some out (the kernel takes 64, and APIC
+		 * IDs up to 255): the packages are partial, which the checks
+		 * below would take for a broken topology.
+		 */
+		printf("x86_validate_topology: %d threads, %d registered; the "
+		    "topology is not checked\n", nCPUs, real_ncpus);
+		return;
+	}
 	if (nCPUs != real_ncpus) {
 		panic("x86_validate_topology() %d threads but %d registered from MADT",
 		    nCPUs, real_ncpus);
