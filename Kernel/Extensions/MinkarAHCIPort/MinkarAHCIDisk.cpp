@@ -26,6 +26,7 @@
 #include <IOKit/IOLib.h>
 #include <IOKit/storage/IOStorage.h>
 #include "MinkarAHCIDisk.h"
+#include "MinkarStorageCharacteristics.h"
 
 #define super IOBlockStorageDevice
 OSDefineMetaClassAndStructors(MinkarAHCIDisk, IOBlockStorageDevice);
@@ -46,6 +47,9 @@ MinkarAHCIDisk::initWithPort(MinkarAHCIPort *parent, UInt32 portIndex)
     strlcpy(fProductStr,  model    ? model    : "Unknown", sizeof(fProductStr));
     strlcpy(fRevisionStr, firmware ? firmware : "0000",    sizeof(fRevisionStr));
     setProperty(kIOBlockStorageDeviceTypeKey, kIOBlockStorageDeviceTypeGeneric);
+    MinkarSetStorageCharacteristics(this, fVendorStr, fProductStr, fRevisionStr,
+        parent->mediumType(portIndex), kIOPropertyPhysicalInterconnectTypeSerialATA,
+        true);
     char loc[8];
     snprintf(loc, sizeof(loc), "%u", portIndex);
     setLocation(loc);

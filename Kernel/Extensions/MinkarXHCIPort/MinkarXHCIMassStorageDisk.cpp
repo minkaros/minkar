@@ -28,6 +28,7 @@
 #include <IOKit/storage/IOStorage.h>
 #include <IOKit/IOBufferMemoryDescriptor.h>
 #include "MinkarXHCIMassStorageDisk.h"
+#include "MinkarStorageCharacteristics.h"
 
 #define super IOBlockStorageDevice
 OSDefineMetaClassAndStructors(MinkarXHCIMassStorageDisk, IOBlockStorageDevice);
@@ -64,6 +65,8 @@ MinkarXHCIMassStorageDisk::initWithPort(MinkarXHCIPort *parent, UInt32 mscIndex)
         XHCI_Log("usbdisk%u: INQUIRY failed (continuing)", mscIndex);
     if (!scsiReadCapacity10())
         XHCI_Log("usbdisk%u: READ CAPACITY(10) failed", mscIndex);
+    MinkarSetStorageCharacteristics(this, fVendorStr, fProductStr, fRevisionStr,
+        NULL, kIOPropertyPhysicalInterconnectTypeUSB, false);
 
     XHCI_Log("usbdisk%u init slot=%u vendor=%s product=%s blocks=%llu blksz=%u",
             mscIndex, fSlotId, fVendorStr, fProductStr, fCapacityBlocks, fBlockSize);

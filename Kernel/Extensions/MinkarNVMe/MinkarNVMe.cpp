@@ -27,6 +27,7 @@
  */
 
 #include "MinkarNVMe.h"
+#include "MinkarStorageCharacteristics.h"
 #include <IOKit/IOLib.h>
 #include <IOKit/IOKitKeys.h>
 #include <IOKit/IOMessage.h>
@@ -306,6 +307,9 @@ MinkarNVMe::identify()
 	copyString(fModel, sizeof(fModel), id + NVME_IDC_MN, 40);
 	copyString(fSerial, sizeof(fSerial), id + NVME_IDC_SN, 20);
 	copyString(fFirmware, sizeof(fFirmware), id + NVME_IDC_FR, 8);
+	MinkarSetStorageCharacteristics(this, getVendorString(), fModel, fFirmware,
+	    kIOPropertyMediumTypeSolidStateKey,
+	    kIOPropertyPhysicalInterconnectTypePCIExpress, true);
 	uint8_t mdts = id[NVME_IDC_MDTS];
 	uint32_t nn = OSReadLittleInt32(id, NVME_IDC_NN);
 	fWriteCache = (id[NVME_IDC_VWC] & 1) != 0;
