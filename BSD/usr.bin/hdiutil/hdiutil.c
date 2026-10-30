@@ -174,6 +174,27 @@ driver(void)
 	return (c);
 }
 
+/*
+ * The image device the driver made, by its registry ID. Its registration
+ * goes on as the attach returns (on another processor with SMP), and a
+ * matching lookup finds it only once registered: wait for it, up to 5 s.
+ */
+static io_service_t
+image_device(uint64_t id)
+{
+	io_service_t dev;
+	int tries;
+
+	for (tries = 0; tries < 50; tries++) {
+		dev = IOServiceGetMatchingService(kIOMasterPortDefault,
+		    IORegistryEntryIDMatching(id));
+		if (dev != MACH_PORT_NULL)
+			return (dev);
+		usleep(100000);
+	}
+	return (MACH_PORT_NULL);
+}
+
 /* The BSD name of the whole medium on an image device (waits for it). */
 static bool
 device_disk(io_service_t dev, char *name, size_t len, int tries)
@@ -759,8 +780,7 @@ attach(const char *path, bool readonly, bool nomount, const char *mountpoint)
 		    mach_error_string(kr));
 		return (1);
 	}
-	dev = IOServiceGetMatchingService(kIOMasterPortDefault,
-	    IORegistryEntryIDMatching(out[0]));
+	dev = image_device(out[0]);
 	if (dev == MACH_PORT_NULL || !device_disk(dev, disk, sizeof(disk), 50)) {
 		fprintf(stderr, "hdiutil: attach failed - no disk appeared\n");
 		return (1);
@@ -1045,8 +1065,7 @@ create(const char *image, uint64_t size, const char *fs, const char *volname,
 	    strlen(path) + 1, out, &outcnt, NULL, NULL) != KERN_SUCCESS)
 		errx(1, "create failed - can't attach the new image");
 	IOServiceClose(c);
-	dev = IOServiceGetMatchingService(kIOMasterPortDefault,
-	    IORegistryEntryIDMatching(out[0]));
+	dev = image_device(out[0]);
 	if (dev == MACH_PORT_NULL || !device_disk(dev, disk, sizeof(disk), 50))
 		errx(1, "create failed - no disk appeared");
 	IOObjectRelease(dev);
