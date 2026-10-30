@@ -15,6 +15,10 @@
 # keys C strings by content, as that copy does (host_llvm.cpp: the few
 # LLVMSupport functions DenseMap calls). include/ holds the generated
 # llvm/Config headers (and headers cctools uses).
+#
+# The CI caches the toolchain by Developer/Default.xctoolchain's tree,
+# which does not hold dist/: after changing dist's libelf, libdwarf,
+# libctf or tools/ctfconvert, bump the workflow's CACHE_VERSION.
 
 DT =		${ROOT_SOURCE_DIR}/BSD/usr.sbin/dtrace/dist
 HOST =		${.CURDIR}/host
