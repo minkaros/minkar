@@ -257,9 +257,13 @@ struct object *object)
 	 * dynamic symbol table info. Or a code signature at the point this
 	 * program is called in the build process.
 	 */
+	/*
+	 * Minkar: the x86_64 kernel is linked with -add_split_seg_info; its
+	 * split info is kept as it is (as newer cctools do): __CTF goes
+	 * where __LINKEDIT was, so the segments it describes do not move.
+	 */
 	if((flags & MH_DYLDLINK) == MH_DYLDLINK ||
 	   object->dyld_info != NULL ||
-	   object->split_info_cmd != NULL ||
 	   object->hints_cmd != NULL)
 	     fatal_arch(arch, member, "file is input for the dynamic linker so "
 			"not a valid input for this program to process: ");
@@ -407,6 +411,14 @@ struct object *object)
 	    object->input_sym_info_size +=
 		object->link_opt_hint_cmd->datasize;
 	}
+	if(object->split_info_cmd != NULL){	/* Minkar */
+	    object->output_split_info_data = object->object_addr +
+		object->split_info_cmd->dataoff;
+	    object->output_split_info_data_size =
+		object->split_info_cmd->datasize;
+	    object->input_sym_info_size +=
+		object->split_info_cmd->datasize;
+	}
 	object->output_sym_info_size = object->input_sym_info_size;
 
 	/*
@@ -439,6 +451,8 @@ struct object *object)
 	    object->code_sign_drs_cmd->dataoff += move_size;
 	if(object->link_opt_hint_cmd != NULL)
 	    object->link_opt_hint_cmd->dataoff += move_size;
+	if(object->split_info_cmd != NULL)	/* Minkar */
+	    object->split_info_cmd->dataoff += move_size;
 
 	/*
 	 * Record the new content for writeout() to put in to the output file.

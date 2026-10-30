@@ -73,6 +73,9 @@ struct ctf_buf {
 };
 
 /*PRINTFLIKE1*/
+/* Minkar: an unknown type (read back as NULL) is written as type 0. */
+#define	TDESC_ID(td)	((td) != NULL ? (td)->t_id : 0)
+
 static void
 parseterminate(char *fmt, ...)
 {
@@ -181,12 +184,12 @@ write_functions(iidesc_t *idp, ctf_buf_t *b)
 
 	nargs = idp->ii_nargs + (idp->ii_vargs != 0);
 	fdata[0] = CTF_TYPE_INFO(CTF_K_FUNCTION, 1, nargs);
-	fdata[1] = idp->ii_dtype->t_id;
+	fdata[1] = TDESC_ID(idp->ii_dtype);
 
 	ctf_buf_write(b, fdata, sizeof (fdata));
 
 	for (i = 0; i < idp->ii_nargs; i++) {
-		id = idp->ii_args[i]->t_id;
+		id = TDESC_ID(idp->ii_args[i]);
 		ctf_buf_write(b, &id, sizeof (id));
 	}
 
@@ -301,8 +304,8 @@ write_type(tdesc_t *tp, ctf_buf_t *b)
 
 	case POINTER:
 		ctt.ctt_info = CTF_TYPE_INFO(CTF_K_POINTER, isroot, 0);
-		ctt.ctt_type = tp->t_tdesc->t_id;
-		debug(3, "pointer with %llu\n", tp->t_tdesc->t_id);
+		ctt.ctt_type = TDESC_ID(tp->t_tdesc);
+		debug(3, "pointer with %llu\n", TDESC_ID(tp->t_tdesc));
 		write_unsized_type_rec(b, &ctt);
 		break;
 
@@ -310,8 +313,8 @@ write_type(tdesc_t *tp, ctf_buf_t *b)
 		ctt.ctt_info = CTF_TYPE_INFO(CTF_K_ARRAY, isroot, 1);
 		write_sized_type_rec(b, &ctt, tp->t_size);
 
-		cta.cta_contents = tp->t_ardef->ad_contents->t_id;
-		cta.cta_index = tp->t_ardef->ad_idxtype->t_id;
+		cta.cta_contents = TDESC_ID(tp->t_ardef->ad_contents);
+		cta.cta_index = TDESC_ID(tp->t_ardef->ad_idxtype);
 		cta.cta_nelems = tp->t_ardef->ad_nelems;
 		ctf_buf_write(b, &cta, sizeof (cta));
 		break;
@@ -335,7 +338,7 @@ write_type(tdesc_t *tp, ctf_buf_t *b)
 
 				ctm.ctm_name = CTF_TYPE_NAME(CTF_STRTAB_0,
 				    offset);
-				ctm.ctm_type = mp->ml_type->t_id;
+				ctm.ctm_type = TDESC_ID(mp->ml_type);
 				ctm.ctm_offset = mp->ml_offset;
 				ctf_buf_write(b, &ctm, sizeof (ctm));
 			}
@@ -346,7 +349,7 @@ write_type(tdesc_t *tp, ctf_buf_t *b)
 
 				ctlm.ctlm_name = CTF_TYPE_NAME(CTF_STRTAB_0,
 				    offset);
-				ctlm.ctlm_type = mp->ml_type->t_id;
+				ctlm.ctlm_type = TDESC_ID(mp->ml_type);
 				ctlm.ctlm_offsethi =
 				    CTF_OFFSET_TO_LMEMHI(mp->ml_offset);
 				ctlm.ctlm_offsetlo =
@@ -379,30 +382,30 @@ write_type(tdesc_t *tp, ctf_buf_t *b)
 
 	case TYPEDEF:
 		ctt.ctt_info = CTF_TYPE_INFO(CTF_K_TYPEDEF, isroot, 0);
-		ctt.ctt_type = tp->t_tdesc->t_id;
+		ctt.ctt_type = TDESC_ID(tp->t_tdesc);
 		write_unsized_type_rec(b, &ctt);
 		break;
 
 	case VOLATILE:
 		ctt.ctt_info = CTF_TYPE_INFO(CTF_K_VOLATILE, isroot, 0);
-		ctt.ctt_type = tp->t_tdesc->t_id;
+		ctt.ctt_type = TDESC_ID(tp->t_tdesc);
 		write_unsized_type_rec(b, &ctt);
 		break;
 
 	case CONST:
 		ctt.ctt_info = CTF_TYPE_INFO(CTF_K_CONST, isroot, 0);
-		ctt.ctt_type = tp->t_tdesc->t_id;
+		ctt.ctt_type = TDESC_ID(tp->t_tdesc);
 		write_unsized_type_rec(b, &ctt);
 		break;
 
 	case FUNCTION:
 		ctt.ctt_info = CTF_TYPE_INFO(CTF_K_FUNCTION, isroot,
 		    tp->t_fndef->fn_nargs + tp->t_fndef->fn_vargs);
-		ctt.ctt_type = tp->t_fndef->fn_ret->t_id;
+		ctt.ctt_type = TDESC_ID(tp->t_fndef->fn_ret);
 		write_unsized_type_rec(b, &ctt);
 
 		for (i = 0; i < tp->t_fndef->fn_nargs; i++) {
-			id = tp->t_fndef->fn_args[i]->t_id;
+			id = TDESC_ID(tp->t_fndef->fn_args[i]);
 			ctf_buf_write(b, &id, sizeof (id));
 		}
 
@@ -420,13 +423,13 @@ write_type(tdesc_t *tp, ctf_buf_t *b)
 
 	case RESTRICT:
 		ctt.ctt_info = CTF_TYPE_INFO(CTF_K_RESTRICT, isroot, 0);
-		ctt.ctt_type = tp->t_tdesc->t_id;
+		ctt.ctt_type = TDESC_ID(tp->t_tdesc);
 		write_unsized_type_rec(b, &ctt);
 		break;
 
 	case PTRAUTH:
 		ctt.ctt_info = CTF_TYPE_INFO(CTF_K_PTRAUTH, isroot, 1);
-		ctt.ctt_type = tp->t_ptrauth->pta_type->t_id;
+		ctt.ctt_type = TDESC_ID(tp->t_ptrauth->pta_type);
 		write_unsized_type_rec(b, &ctt);
 
 		data = CTF_PTRAUTH_DATA(tp->t_ptrauth->pta_key, tp->t_ptrauth->pta_discriminator, tp->t_ptrauth->pta_discriminated);

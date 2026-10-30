@@ -40,21 +40,34 @@
 
 static const char	armag[] = ARMAG;
 
+#ifndef __linux__
 #include <crt_externs.h>
+#endif
 #include <mach/mach.h>
 #include <mach-o/loader.h>
-#include <mach-o/dyld.h>
 #include <mach-o/fat.h>
+/* Minkar: on a Linux build machine (the CTF tools) there is no dyld or
+ * sysctl to ask; the tools run on x86_64. */
+#ifndef __linux__
+#include <mach-o/dyld.h>
 #include <sys/sysctl.h>
+#endif
 
 static cpu_type_t current_program_arch(void)
 {
+#ifdef __linux__
+        return CPU_TYPE_X86_64;	/* Minkar */
+#else
         cpu_type_t current_arch = (_NSGetMachExecuteHeader())->cputype;
         return current_arch;
+#endif
 }
 
 static cpu_type_t current_kernel_arch(void)
 {
+#ifdef __linux__
+        return CPU_TYPE_X86_64;	/* Minkar */
+#else
         struct host_basic_info  hi;
         unsigned int            size;
         kern_return_t           kret;
@@ -83,6 +96,7 @@ static cpu_type_t current_kernel_arch(void)
                 current_arch |= CPU_ARCH_ABI64;
         }
         return current_arch;
+#endif /* __linux__ */
 }
 
 static Elf *
