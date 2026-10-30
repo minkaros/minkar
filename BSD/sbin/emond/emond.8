@@ -1,0 +1,119 @@
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\" Copyright (c) 2026 The Minkar contributors
+.\" Part of Minkar.
+.Dd October 30, 2026
+.Dt EMOND 8
+.Os Minkar
+.Sh NAME
+.Nm emond
+.Nd the event monitor daemon
+.Sh SYNOPSIS
+.Nm
+.Op Fl d
+.Op Fl r Ar rulesdir
+.Op Fl e Ar eventsdir
+.Op Fl c Ar clientsdir
+.Sh DESCRIPTION
+.Nm
+takes events and acts on them as its rules say.
+.Xr launchd 8
+starts it when its clients directory,
+.Pa /var/db/emondClients ,
+is not empty; it stays while it is, and rereads its rules on
+.Dv SIGHUP .
+.Ss Events
+When it starts,
+.Nm
+has a
+.Li startup
+event.
+Clients leave events as property lists in
+.Pa /var/db/emond/events :
+a dictionary with the
+.Li eventType
+and the event's own keys; each is handled and removed.
+.Ss Rules
+Each property list in
+.Pa /etc/emond.d/rules
+is an array of rules, dictionaries with:
+.Bl -tag -width indent
+.It Li name
+The rule's name, for the log.
+.It Li enabled
+False leaves the rule out.
+.It Li eventTypes
+The event types it takes.
+.It Li criterion
+What the event must hold: dictionaries with a
+.Li key
+(a dotted path into the event), an
+.Li operator
+.Pf ( Li Equal ,
+.Li NotEqual ,
+.Li Contains ,
+.Li BeginsWith ,
+.Li EndsWith ,
+.Li GreaterThan ,
+.Li LessThan ,
+.Li GreaterThanOrEqual ,
+.Li LessThanOrEqual ,
+.Li Exists ,
+.Li NotExists ;
+numbers compare as numbers) and a
+.Li value .
+All must hold, or any with
+.Li allowPartialCriterionMatch .
+.It Li actions
+What to do, in order: dictionaries with a
+.Li type :
+.Bl -tag -width indent
+.It Li Log
+Log the
+.Li message
+to the system log at
+.Li logLevel
+.Pf ( Li Notice
+by default).
+.It Li RunCommand
+Run
+.Li command
+(an absolute path) with
+.Li arguments ,
+as
+.Li user
+(root by default).
+.It Li SendEmail
+Mail the
+.Li message
+with the
+.Li subject
+to the
+.Li recipientAddresses
+through
+.Xr sendmail 8 .
+.El
+.El
+.Pp
+Messages, subjects and arguments may name
+.Li ${event. Ns Ar key Ns Li } ,
+.Li ${builtin:now}
+and
+.Li ${builtin:hostname} .
+.Pp
+.Fl d
+stays in the foreground and also writes the log to the standard error;
+.Fl r ,
+.Fl e
+and
+.Fl c
+name other rules, events and clients directories.
+.Sh FILES
+.Bl -tag -width indent
+.It Pa /etc/emond.d/rules
+.It Pa /var/db/emond/events
+.It Pa /var/db/emondClients
+.It Pa /System/Library/LaunchDaemons/org.minkar.emond.plist
+.El
+.Sh SEE ALSO
+.Xr launchd 8 ,
+.Xr syslog 3
