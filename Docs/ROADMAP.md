@@ -253,7 +253,7 @@ The generic Unix commands come from FreeBSD `main`, with our own macOS
 layer where macOS behaves differently; Darwin's own components stay. Each
 command, where it comes from and what was fixed while porting it, is in
 [Userland.md](Userland.md); [Commands.md](Commands.md) counts them against
-macOS's (333 of 354 on 2026-10-30).
+macOS's (334 of 354 on 2026-10-30).
 
 - [x] Boot: `sh`, `ls`, `cp`, `mv`, `rm`, `mount`, `ifconfig`, `ps`, `kill`.
 - [x] Replace the commands from Apple's command sets with FreeBSD main's
@@ -262,15 +262,24 @@ macOS's (333 of 354 on 2026-10-30).
 - [ ] Everyday tools missing from the image. *Partial:* ported in batches
   since 2026-10-26, with locales, time zones, manual pages and libiconv.
   `passwd` since 2026-10-28; `dig`, `nslookup`, Kerberos and `pfctl`
-  since 2026-10-29: every BSD tool of Commands.md. Left: macOS's own
-  tools, Darwin components and file systems (see Commands.md).
+  since 2026-10-29: every BSD tool of Commands.md. Left for this phase
+  (2026-10-30): `autodiskmount` (on DiskArbitration), `leaks` and
+  `fsck_exfat` (with our own exFAT driver); the phase closes with them.
+  The macOS tools that need a later phase moved to it: `pbcopy`,
+  `pbpaste` and `screencapture` to Phase 4; `open`, `lsappinfo`, `say`,
+  `mdfind`, `mdls` and `mdutil` to Phase 5; `osascript`, `opendiff` and
+  `tmutil` to Phase 6.
+- [x] Left out until 1.0 (decided 2026-10-30): APFS (`fsck_apfs`,
+  `mount_apfs`, `newfs_apfs`; no open implementation), SMB
+  (`mount_smbfs`; Samba is GPL and FreeBSD's smbfs is gone) and
+  `fdesctl`.
 - [ ] Power user: `zsh`, `tar`, `ssh`, `curl`, `make`, `git`. *Partial:* all
   six in the image (`git` 2.56.0 since 2026-10-28), without git's Perl,
   Python and Tcl commands.
-- [ ] Apple tools: `open`, `plutil`, `defaults`, `sw_vers`, `ditto`
-  (`hdiutil` comes with Phase 6). *Partial:* all but `open`, which needs
-  LaunchServices; `chmod` has macOS's ACL syntax, and the kernel applies
-  allow entries as well as deny ones since 2026-10-28.
+- [x] Apple tools: `plutil`, `defaults`, `sw_vers`, `ditto`, `hdiutil`
+  and `diskutil`; `chmod` has macOS's ACL syntax, and the kernel applies
+  allow entries as well as deny ones since 2026-10-28. `open` needs
+  LaunchServices: it moved to Phase 5.
 
 **Support daemons** (needed by Phases 5 and 6)
 
@@ -278,7 +287,14 @@ macOS's (333 of 354 on 2026-10-30).
 - [ ] `logd` (missing; `syslogd` and `aslmanager` have launchd jobs
   instead).
 - [ ] Directory Services–style user management (missing).
-- [ ] DiskArbitration, mounting volumes in `/Volumes` (missing).
+- [x] DiskArbitration, mounting volumes in `/Volumes` (2026-10-30): Apple's
+  framework and `diskarbitrationd` (DiskArbitration-297.70.1, APSL), with
+  the `hfs.fs` and `msdos.fs` bundles of Apple's hfs and msdosfs projects
+  and our own `diskutil`; `hdiutil attach` mounts through it. Without a
+  Security framework, the daemon decides a user's rights itself (root and
+  the disk's owner; admins any disk; the console user the disks that are
+  not internal). Disks mount without a user logged in
+  (`AutomountDisksWithoutUserLogin`), as there is no login window yet.
 
 - [x] **Exit gate (M2):** launchd as PID 1, network by DHCP, console login
   and SSH access. `boottest GATE=M2` sees its 13 markers (about 75 s under
@@ -488,6 +504,8 @@ behind a stable interface.
     (`MinkarUSB`; see Phase 1). Untested on real hardware.
 - [ ] Remove `libinput`, `libevdev` and `mtdev` from the tree.
 - [ ] virtio-gpu 2D driver as an `IOFramebuffer` subclass.
+- [ ] `pbcopy` and `pbpaste` on the pasteboard server, and
+  `screencapture` on WindowServer's capture (from Phase 2).
 - [ ] Multiple displays and resolution changes, only after M4.
 - [ ] 3D acceleration ADR (deferred past 1.0).
 
@@ -520,6 +538,13 @@ sees at boot.
 All of these are ordinary Cocoa apps or bundles, so they double as a
 continuous AppKit test.
 
+Commands that come with this phase (from Phase 2):
+
+- [ ] `open` and `lsappinfo`, on LaunchServices.
+- [ ] `mdfind`, `mdls` and `mdutil`, with a metadata index for Filer's
+  search.
+- [ ] `say`, with an audio driver and speech synthesis.
+
 **Exit gate (M5):** from boot, a graphical session starts, an app opens from
 the Dock, Filer browses, and the resolution changes from System Preferences.
 
@@ -534,7 +559,7 @@ the best source of bugs.
 1. Our own `DiskImages.framework` (MIT/BSD): read UDIF with its usual
    compression formats, then write.
 2. Mount through DiskArbitration at `/Volumes/<label>`, using the Phase 1
-   HFS+ driver.
+   HFS+ driver (`hdiutil attach` already does, 2026-10-30).
 3. A minimal `hdiutil` (`attach`, `detach`, `create`) on the framework, and
    double-click in Filer.
 
@@ -549,6 +574,12 @@ the best source of bugs.
 
 Many current macOS apps use SwiftUI; this is tracked as an open decision
 (see Phase 3).
+
+Commands that come with this phase (from Phase 2):
+
+- [ ] `osascript`, with an Open Scripting Architecture for the apps.
+- [ ] `opendiff`, with a file comparison app.
+- [ ] `tmutil`, with backups.
 
 **Exit gate (M6):** a DMG is downloaded, mounted, the app copied to
 `/Applications` and run; Terminal, TextEdit and the browser are used daily
@@ -630,10 +661,10 @@ The highest-impact open items, in critical-path order:
    NVMe SSD; next, powering off (ACPI S5), the other CPUs (SMP, also
    missing in QEMU) and the boot without `pci_keep_console`; then a second, different PC (gate M1;
    a Mac Pro 6,1 is the candidate). See [Hardware.md](Hardware.md).
-2. Userland (Phase 2): the macOS tools of `Docs/Commands.md` that need
-   no later phase (FAT, `newfs_hfs` and kernel CTF for `dtrace` done;
-   next our own CoreSymbolication for dtrace's pid provider, and the NFS
-   server).
+2. Userland (Phase 2): the last three macOS tools that need no later
+   phase, `autodiskmount`, `leaks` and `fsck_exfat` (with our own exFAT
+   driver); then Phase 2 closes. 334 of 354 on 2026-10-30, with the NFS
+   server and DiskArbitration done.
 3. IOHIDSystem event delivery in the kernel, the `ApplePS2Mouse` driver and
    the WindowServer input reader (Phase 4).
 4. Install WindowServer's launchd job and get a first boot that draws on
