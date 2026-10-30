@@ -302,6 +302,18 @@ ACPIPlatformExpert::parseMCFG(void * table, IOService * nub)
 
     aNub->setName("pci");
     aNub->attach(nub);
+
+    // The PCI devices attach under it in the device tree plane too: it
+    // hangs from the tree's root, at 0, so that their paths are whole
+    // (IODeviceTree:/pci@0/...), as PCI0@0 on a Mac. DiskArbitration
+    // names a disk's bus by that path.
+    IORegistryEntry *dtRoot = IORegistryEntry::fromPath("/", gIODTPlane);
+    if (dtRoot) {
+        aNub->attachToParent(dtRoot, gIODTPlane);
+        aNub->setLocation("0", gIODTPlane);
+        dtRoot->release();
+    }
+
     aNub->registerService();
     aNub->release();
     dict->release();
