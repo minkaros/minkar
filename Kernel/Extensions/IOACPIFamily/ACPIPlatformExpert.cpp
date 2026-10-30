@@ -25,6 +25,7 @@
  */
 
 #include <IOKit/IOLib.h>
+#include <IOKit/pwr_mgt/RootDomain.h> /* Minkar */
 #include <IOKit/assert.h>
 #include <IOKit/system.h>
 #include <IOKit/IORegistryEntry.h>
@@ -138,6 +139,15 @@ bool ACPIPlatformExpert::start(IOService *provider) {
 
     if (!super::start(provider))
         return false;
+
+    /*
+     * Minkar: this platform does not put the machine to sleep (no ACPI S3
+     * yet): say so. powerd then disables sleep in the root domain, which
+     * is not ready for that this early.
+     */
+    IOPMrootDomain *root = getPMRootDomain();
+    if (root != NULL)
+        root->setProperty("IOSleepSupported", kOSBooleanFalse);
 
     if (gIOACPIPlane == 0) {
         PE_Log("ACPIPlatformExpert::start <<<< gIOACPIPlane == 0 >>>>");
