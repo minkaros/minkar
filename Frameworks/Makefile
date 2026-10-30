@@ -7,6 +7,8 @@ SUBDIR = CoreFoundation
 SUBDIR += ../Kernel/IOKitUser
 #SUBDIR += CFNetwork
 SUBDIR += SystemConfiguration
+# DiskArbitration links IOKit; diskarbitrationd (BSD) links SystemConfiguration.
+SUBDIR += DiskArbitration
 SUBDIR += Foundation
 SUBDIR += CoreServices
 SUBDIR += Onyx2D
@@ -22,6 +24,7 @@ all: ${SUBDIR}
 
 Foundation: CoreFoundation
 SystemConfiguration: CoreFoundation
+DiskArbitration: CoreFoundation
 CoreData: Foundation
 QuartzCore: OpenGL
 AppKit: CoreData QuartzCore

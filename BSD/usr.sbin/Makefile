@@ -10,6 +10,6 @@ SUBDIR_PARALLEL =
 SUBDIR = notifyd configd configd/scutil.tproj chown ipconfig mDNSResponder/minkar sysctl traceroute \
 	syslogd aslmanager cron/cron cron/crontab lsof zic zdump ac arp ndp traceroute6 newsyslog \
 	mtree vipw pwd_mkdb accton sa fstyp vifs quotaon edquota repquota tcpdump fdisk \
-	tzlink purge dot_clean ioreg nvram dtrace vsdbutil kextstat kextload kextunload system_profiler pkgutil systemsetup sysadminctl networksetup bless powerd rpcbind
+	tzlink purge dot_clean ioreg nvram dtrace vsdbutil kextstat kextload kextunload system_profiler pkgutil systemsetup sysadminctl networksetup bless powerd rpcbind diskarbitrationd
 
 .include <bsd.subdir.mk>
