@@ -1644,6 +1644,17 @@ sock_dict_edit_entry(launch_data_t tmp, const char *key, launch_data_t fdarray, 
 	}
 }
 
+#ifdef __MINKAR__
+/*
+ * Minkar: launchd watches QueueDirectories, WatchPaths and PathState itself
+ * (there is no file system events provider to hand them to as events).
+ */
+void
+distill_fsevents(launch_data_t id_plist)
+{
+	(void)id_plist;
+}
+#else
 void
 distill_fsevents(launch_data_t id_plist)
 {
@@ -1679,6 +1690,7 @@ distill_fsevents(launch_data_t id_plist)
 		}
 	}
 }
+#endif /* __MINKAR__ */
 
 void
 do_mgroup_join(int fd, int family, int socktype, int protocol, const char *mgroup)
