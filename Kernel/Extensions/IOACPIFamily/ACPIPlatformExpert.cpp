@@ -45,6 +45,7 @@ extern "C" {
 }
 
 #include "ACPIPlatformExpert.h"
+#include "SMBIOS.h" /* Minkar */
 #include "ACPIOSLayer.h"
 
 const IORegistryPlane * gIOACPIPlane           = 0;
@@ -333,6 +334,9 @@ bool ACPIPlatformExpert::configure(IOService *provider) {
     if (!super::configure(provider)) return false;
 
     parseACPI(this);
+    /* Minkar: the machine's identity from SMBIOS, once memory can be mapped
+     * and before the platform UUID is published (when NVRAM registers). */
+    MinkarSMBIOSPublish(provider);
     return true;
 }
 
@@ -384,6 +388,12 @@ bool ACPIPlatformExpert::getMachineName(char *name, int maxLength) {
 
 bool ACPIPlatformExpert::getModelName(char *name, int maxLengh) {
     i386_cpu_info_t *cpuid_cpu_info = cpuid_info();
+
+    /* Minkar: the product SMBIOS names, as a Mac's model; else the CPU. */
+    if (MinkarSMBIOSModel() != NULL) {
+        strlcpy(name, MinkarSMBIOSModel(), maxLengh);
+        return true;
+    }
 
     if (cpuid_cpu_info->cpuid_brand_string[0] != '\0') {
         strncpy(name, cpuid_cpu_info->cpuid_brand_string, maxLengh);

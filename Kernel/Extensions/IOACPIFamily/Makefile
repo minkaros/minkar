@@ -6,7 +6,7 @@ BUNDLE_IDENTIFIER = com.apple.iokit.IOACPIFamily
 BUNDLE_VERSION = 1.0.0
 KERNEL_PRIVATE = yes
 
-SRCS = ACPIRTC.cpp \
+SRCS = ACPIRTC.cpp SMBIOS.cpp \
 	EFINVRAM.cpp \
 	ACPICPU.cpp \
 	ACPIPCIBridge.cpp \
