@@ -1,0 +1,12 @@
+--- a/MdeModulePkg/Application/Loader/loader.c
++++ b/MdeModulePkg/Application/Loader/loader.c
+@@ -933,7 +933,8 @@
+         FdtCreateNode(DTB, "/efi/runtime-services/configuration-table", buffer);
+         AsciiSPrint(buffer2, sizeof(buffer), "/efi/runtime-services/configuration-table/%g", guid);
+ 
+-        FdtSetProperty(DTB, buffer2, "table", table[i].VendorTable, sizeof(UINTN));
++        /* Minkar: the table's address, not its first bytes. */
++        FdtSetProperty(DTB, buffer2, "table", &table[i].VendorTable, sizeof(UINTN));
+         FdtSetProperty(DTB, buffer2, "guid", (void *)&guid, sizeof(guid));
+         
+         if(CompareGUIDs(guid, gEfiSmbiosTableGuid) == 0 || CompareGUIDs(guid, gEfiSmbios3TableGuid) == 0) {
