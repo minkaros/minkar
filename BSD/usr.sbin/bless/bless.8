@@ -1,0 +1,63 @@
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\" Copyright (c) 2026 The Minkar contributors
+.\" Part of Minkar.
+.Dd October 29, 2026
+.Dt BLESS 8
+.Os Minkar
+.Sh NAME
+.Nm bless
+.Nd set a volume's boot information and the boot device
+.Sh SYNOPSIS
+.Nm
+.Fl -info Op Ar mountpoint
+.Nm
+.Fl -folder Ar directory
+.Op Fl -file Ar file
+.Op Fl -setBoot
+.Nm
+.Fl -unbless Ar directory
+.Nm
+.Fl -mount Ar mountpoint | Fl -device Ar device
+.Fl -setBoot
+.Nm
+.Fl -getBoot
+.Sh DESCRIPTION
+An HFS+ volume keeps its boot information in its header: the blessed
+system folder, the blessed booter file, the open-folder list, an alternate
+OS's folder, an unused word and the OS X blessed folder (each a catalog
+ID), and the volume's 64-bit ID.
+.Bl -tag -width indent
+.It Fl -info Op Ar mountpoint
+Show the boot information of the volume holding
+.Ar mountpoint
+(the root volume by default), with the paths the IDs name.
+.It Fl -folder Ar directory Op Fl -file Ar file
+Bless the folder (as the system folder and the OS X blessed folder) and
+the booter file, on their volume.
+.It Fl -unbless Ar directory
+Take the folder's blessing away, and its booter's.
+.It Fl -getBoot
+Print the device the firmware boots from: the one the
+.Va efi-boot-device
+NVRAM variable names, or, when it is not set, the volume the system started
+from.
+.It Fl -setBoot
+Make the firmware boot from the volume.
+NVRAM variables can't be written on this system yet: this fails with exit
+status 3.
+.El
+.Pp
+.Fl -verbose ,
+.Fl -quiet ,
+.Fl -nextonly ,
+.Fl -legacy ,
+.Fl -label
+and
+.Fl -bootefi
+are accepted.
+Blessing needs root.
+.Sh EXIT STATUS
+0 on success, 1 on an error, 3 when the boot device can't be set.
+.Sh SEE ALSO
+.Xr nvram 8 ,
+.Xr systemsetup 8
