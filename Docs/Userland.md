@@ -138,6 +138,8 @@ No command from Apple's command sets is left.
 | 2026-10-29 | `disklabel` | Ours: Apple labels (`-create`, `-properties`, `-status`), the header from the SDK's IOAppleLabelScheme.h, which the kernel's label scheme publishes as a child medium |
 | 2026-10-29 | `bless` | Ours (the user chose it over Apple's): HFS+ boot information (`--info`, `--folder`, `--file`, `--unbless`) through getattrlist/setattrlist, `--getBoot`; `--setBoot` fails (exit 3) until NVRAM variables can be written |
 | 2026-10-30 | `hdiutil` | Ours, over our MinkarDiskImage kext (an image file as an IOBlockStorageDevice, so `/dev/diskN` and its partitions): `create` (raw, GPT or none, HFS+ or MS-DOS, `-srcfolder`), `attach` (raw and UDIF read/write, mounted in /Volumes), `detach`, `info`, `imageinfo`; compressed UDIF not yet |
+| 2026-10-30 | `emond` | Ours: rules in /etc/emond.d/rules (eventTypes, criterion with its operators and partial matches, Log, RunCommand, SendEmail; `${event.key}` and `${builtin:...}`), the startup event and events queued in /var/db/emond/events; launchd starts it for its clients, as on macOS |
+| 2026-10-30 | `fs_usage` | Ours, over the kernel's trace (kdebug): system calls paired by thread with the paths looked up, F=, B= and errors, processes named from the thread map and exec events; `-w`, `-f`, `-e`, `-t`, by pid or command |
 | 2026-10-29 | `localedef` | FreeBSD main's (Nexenta's, BSD-2), writing what Darwin's libc reads: LC_CTYPE as `RuneMagA` and `LC_MESSAGES/LC_MESSAGES` (our `darwin_out.c`); LC_COLLATE in code point order, as all of Minkar's locales (Darwin's collation tables are not publicly documented); our own manual (upstream's is CDDL) |
 
 `btop` and `htop` draw their UTF-8 boxes and graphs on the kernel's console
