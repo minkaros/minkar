@@ -155,6 +155,15 @@ ACPIPlatformExpert::parseAPIC(void * table, IOService * nub)
 
                 if (rec->type == 0) {
                     struct LAPIC_RECORD * lr = (struct LAPIC_RECORD *) rec;
+
+                    /*
+                     * Minkar: firmware may list more processors than
+                     * there are; a disabled one is not there, and
+                     * starting it would hang.
+                     */
+                    if (!(lr->flags & 1u)) {
+                        break;
+                    }
                     apic_id = lr->lapic_id;
                     proc_id = lr->proc_id;
                 } else {
@@ -164,8 +173,8 @@ ACPIPlatformExpert::parseAPIC(void * table, IOService * nub)
                         PE_Log("Malformed MADT x2APIC record, length %d", rec->length);
                         break;
                     }
-                    /* Unlike type 0 above, x2APIC tables are routinely padded with
-                     * disabled entries, so the enabled flag has to be honoured. */
+                    /* As type 0 above, and more so: x2APIC tables are routinely
+                     * padded with disabled entries. */
                     if (!(xr->flags & 1u) || xr->x2apic_id == 0xFFFFFFFFu) {
                         break;
                     }
@@ -174,6 +183,23 @@ ACPIPlatformExpert::parseAPIC(void * table, IOService * nub)
                     }
                     apic_id = xr->x2apic_id;
                     proc_id = xr->acpi_uid;
+                }
+
+                /*
+                 * Minkar: the kernel takes 64 processors (MAX_CPUS) and
+                 * local APIC IDs up to 255 (xAPIC): the others are left
+                 * out, and a bigger machine runs on its first 64.
+                 */
+                if (apic_id > 0xFFu) {
+                    IOLog("ACPI: processor with APIC ID %u left out (above 255)\n",
+                        apic_id);
+                    break;
+                }
+                if (ncpus >= 64) {
+                    if (ncpus++ == 64)
+                        IOLog("ACPI: more than 64 processors; the kernel takes "
+                            "the first 64\n");
+                    break;
                 }
 
                 ncpus++;

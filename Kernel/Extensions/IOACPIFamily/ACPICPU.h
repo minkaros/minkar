@@ -34,9 +34,14 @@ class ACPICPU : public IOCPU {
 
 private:
         uint32_t index;
+	uint32_t apicID;	/* its local APIC's, from the MADT */
+	bool bootCPU;		/* the processor the system booted on */
+	bool interruptsEnabled;
 
 	IOCPUInterruptController *cpuIC;
 	bool startCommonCompleted;
+
+	static void startAll(void);
 
 public:
 	virtual IOService *probe(IOService *provider, SInt32 *score) APPLE_KEXT_OVERRIDE;
