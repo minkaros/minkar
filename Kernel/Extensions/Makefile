@@ -11,6 +11,10 @@ all: kernelcache
 .for kext in ${SUBDIR}
 	cp -fR ${.OBJDIR}/${kext}/${kext:S/IOGraphics/IOGOPFramebuffer/}.kext ${target_dir}/
 .endfor
+	# hfs's encodings go inside it, as on macOS, so a load of hfs finds them.
+	mkdir -p ${target_dir}/hfs.kext/Contents/PlugIns
+	cp -fR ${.OBJDIR}/hfs/hfs_encodings/hfs_encodings.kext \
+	    ${target_dir}/hfs.kext/Contents/PlugIns/
 .endfor
 
 EXTENSIONS = ${ROOT_BINARY_DIR}${ROOT_SOURCE_DIR}/Kernel/Extensions
