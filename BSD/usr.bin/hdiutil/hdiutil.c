@@ -855,8 +855,14 @@ detach(const char *arg, bool force)
 	IORegistryEntryGetRegistryEntryID(svc, &id);
 	IOObjectRelease(svc);
 	c = driver();
-	kr = IOConnectCallMethod(c, kMinkarDiskImageDetach, &id, 1, NULL, 0,
-	    NULL, NULL, NULL, NULL);
+	/* A prober (diskarbitrationd's) may hold the disk open a moment. */
+	for (i = 0; i < 25; i++) {
+		kr = IOConnectCallMethod(c, kMinkarDiskImageDetach, &id, 1, NULL,
+		    0, NULL, NULL, NULL, NULL);
+		if (kr != kIOReturnBusy)
+			break;
+		usleep(200000);
+	}
 	IOServiceClose(c);
 	if (kr != KERN_SUCCESS) {
 		fprintf(stderr, "hdiutil: detach failed - %s\n",
@@ -977,6 +983,7 @@ create(const char *image, uint64_t size, const char *fs, const char *volname,
 	uint64_t in[3], out[1];
 	uint32_t outcnt = 1;
 	int fd, rc = 0;
+	bool usingda;
 
 	if (fs == NULL)
 		fs = "HFS+";
@@ -1030,6 +1037,8 @@ create(const char *image, uint64_t size, const char *fs, const char *volname,
 	if (realpath(path, mp) == NULL)
 		err(1, "%s", path);
 	strlcpy(path, mp, sizeof(path));
+	/* diskarbitrationd is not to mount the new volume on its own. */
+	usingda = da_open();
 	c = driver();
 	in[0] = 0; in[1] = 0; in[2] = 0;
 	if (IOConnectCallMethod(c, kMinkarDiskImageAttach, in, 3, path,
@@ -1041,6 +1050,12 @@ create(const char *image, uint64_t size, const char *fs, const char *volname,
 	if (dev == MACH_PORT_NULL || !device_disk(dev, disk, sizeof(disk), 50))
 		errx(1, "create failed - no disk appeared");
 	IOObjectRelease(dev);
+	if (usingda) {
+		/* It probes the bare disk first: let it finish. */
+		strlcpy(da.disk, disk, sizeof(da.disk));
+		if (da_wait(&da.appeared, 10))
+			da_wait(&da.idle, 30);
+	}
 	if (gpt) {
 		int tries;
 
@@ -1082,7 +1097,9 @@ create(const char *image, uint64_t size, const char *fs, const char *volname,
 		const char *argv[] = { "/bin/cp", "-pR", src, mp, NULL };
 
 		snprintf(vol, sizeof(vol), "%ss1", disk);
-		if (!mount_volume(gpt ? vol : disk, NULL, false, mp, sizeof(mp))) {
+		if (!(usingda ? da_mount(gpt ? vol : disk, NULL, false, mp,
+		    sizeof(mp)) : mount_volume(gpt ? vol : disk, NULL, false, mp,
+		    sizeof(mp)))) {
 			detach(disk, true);
 			errx(1, "create failed - can't mount the new volume");
 		}
