@@ -78,9 +78,12 @@ compiler_rt: .PHONY
 
 # In this order, also with -j: Libraries needs the kernel headers, and
 # libfirehose_kernel archives Libraries' libplatform, libkernel and libc++.
+# The kernel carries its CTF (__CTF), the types dtrace reads: the
+# toolchain's ctfconvert, ctfmerge and ctf_insert make it from the dSYM.
+KERNEL_CTF =	${.OBJDIR}/xnu/${KERNEL_CONFIGS}_${ARCH_CONFIGS}/kernel${DEBUG}.ctf
 xnu_all: installhdrs .WAIT compiler_rt .WAIT libfirehose_kernel
 	MAKEFLAGS= PATH="${PATH}" ${GMAKE} -C ${.CURDIR}/xnu SHELL=${XNU_SHELL} LOGCOLORS=y \
-		PLATFORM=MacOSX BUILD_LTO=0 BUILD_WERROR=0 DO_CTFMERGE=0 \
+		PLATFORM=MacOSX BUILD_LTO=0 BUILD_WERROR=0 DO_CTFMERGE=1 \
 		SDKVERSION=${MACOS_VERSION_MIN} SRCROOT=${.CURDIR}/xnu \
 		OBJROOT=${.OBJDIR}/xnu DSTROOT=${MINKAR_SDKROOT} \
 		SYMROOT=${.OBJDIR}/xnu/sym BUILD_STATIC_LINK=1 \
@@ -101,6 +104,16 @@ xnu_all: installhdrs .WAIT compiler_rt .WAIT libfirehose_kernel
 	mkdir -p ${target_dir} ${target_dir:H}/Extensions
 	cp -Rf ${.OBJDIR}/xnu/sym/kernel${DEBUG}.dSYM ${target_dir}/
 	cp -f ${.OBJDIR}/xnu/sym/kernel${DEBUG} ${target_dir}/
+	# The installed kernel (with all its symbols) gets its CTF from the
+	# types xnu converted, merged again against its own symbol table (the
+	# CTF maps symbols to types by their index); sym/kernel, which the
+	# kernel cache takes, stays as linked.
+	if [ -s ${KERNEL_CTF} ]; then rm -f ${target_dir}/kernel${DEBUG}.ctfdata && \
+	    ${CTFMERGE} -l xnu -o ${target_dir}/kernel${DEBUG} \
+	    -Z ${target_dir}/kernel${DEBUG}.ctfdata ${KERNEL_CTF} && \
+	    ${CTFINSERT} ${target_dir}/kernel${DEBUG} -arch x86_64 \
+	    ${target_dir}/kernel${DEBUG}.ctfdata -o ${target_dir}/kernel${DEBUG} && \
+	    rm -f ${target_dir}/kernel${DEBUG}.ctfdata; fi
 	cp -Rf ${.OBJDIR}/xnu/sym/System.kext ${target_dir:H}/Extensions/
 .endfor
 
