@@ -253,7 +253,7 @@ The generic Unix commands come from FreeBSD `main`, with our own macOS
 layer where macOS behaves differently; Darwin's own components stay. Each
 command, where it comes from and what was fixed while porting it, is in
 [Userland.md](Userland.md); [Commands.md](Commands.md) counts them against
-macOS's (314 of 354 on 2026-10-29).
+macOS's (315 of 354 on 2026-10-29).
 
 - [x] Boot: `sh`, `ls`, `cp`, `mv`, `rm`, `mount`, `ifconfig`, `ps`, `kill`.
 - [x] Replace the commands from Apple's command sets with FreeBSD main's
@@ -631,8 +631,9 @@ The highest-impact open items, in critical-path order:
    missing in QEMU) and the boot without `pci_keep_console`; then a second, different PC (gate M1;
    a Mac Pro 6,1 is the candidate). See [Hardware.md](Hardware.md).
 2. Userland (Phase 2): the macOS tools of `Docs/Commands.md` that need
-   no later phase (FAT done; `dtrace` in part: kernel CTF and our own
-   CoreSymbolication next; NFS).
+   no later phase (FAT, `newfs_hfs` and kernel CTF for `dtrace` done;
+   next our own CoreSymbolication for dtrace's pid provider, and the NFS
+   server).
 3. IOHIDSystem event delivery in the kernel, the `ApplePS2Mouse` driver and
    the WindowServer input reader (Phase 4).
 4. Install WindowServer's launchd job and get a first boot that draws on
