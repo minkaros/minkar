@@ -1,0 +1,69 @@
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\" Copyright (c) 2026 The Minkar contributors
+.\" Part of Minkar.
+.Dd October 29, 2026
+.Dt SYSTEM_PROFILER 8
+.Os Minkar
+.Sh NAME
+.Nm system_profiler
+.Nd report the system's hardware and software configuration
+.Sh SYNOPSIS
+.Nm
+.Fl listDataTypes
+.Nm
+.Op Fl xml | Fl json
+.Op Fl detailLevel Ar mini | basic | full
+.Op Fl timeout Ar seconds
+.Op Ar dataType ...
+.Sh DESCRIPTION
+.Nm
+reports the configuration of the machine by data type.
+Without a data type it reports all of them; a data type it does not know
+is not reported.
+The data types are:
+.Bl -tag -width SPHardwareDataType
+.It Cm SPHardwareDataType
+The model, the processors and their caches, the memory, the firmware
+version, the serial number and the hardware UUID.
+.It Cm SPNetworkDataType
+Each Ethernet interface: its BSD name, IPv4 addresses and subnet masks,
+MAC address and media.
+.It Cm SPSoftwareDataType
+The system and kernel versions, the boot volume and mode, the computer and
+user names, whether swap is encrypted, System Integrity Protection and the
+time since boot.
+.It Cm SPStorageDataType
+Each mounted local volume: free space and capacity, mount point, file
+system, whether it is writable and ignores ownership, its BSD name and
+UUID, and the drive it is on (name, medium, protocol, whether internal, and
+the partition map).
+.El
+.Pp
+The options are:
+.Bl -tag -width indent
+.It Fl listDataTypes
+List the data types and exit.
+.It Fl xml
+Report as a property list: an array with a dictionary per data type, its
+items under
+.Li _items .
+.It Fl json
+Report as JSON: an object with an array of items per data type.
+.It Fl detailLevel Ar level
+.Ar mini
+leaves out what identifies the machine or its user (serial number, UUIDs,
+computer and user names, MAC addresses);
+.Ar basic
+and
+.Ar full ,
+the default, report everything.
+.It Fl timeout Ar seconds
+Accepted for compatibility; nothing is waited for.
+.El
+.Sh EXIT STATUS
+.Ex -std
+.Sh SEE ALSO
+.Xr ifconfig 8 ,
+.Xr ioreg 8 ,
+.Xr sw_vers 1 ,
+.Xr sysctl 8
