@@ -1,6 +1,8 @@
 Imported from GitHub: PureDarwin/PureDarwin.git
 - cctools (SPDX:APSL-2.0)
-- dtrace_ctf (SPDX:APSL-1.1,SPDX:CDDL-1.0,SPDX:LGPL-2.0)
+- dtrace_ctf: its include/ (SPDX:APSL-1.1,SPDX:CDDL-1.0,SPDX:LGPL-2.0); since
+  2026-10-29 the CTF tools build from BSD/usr.sbin/dtrace/dist (Apple's
+  dtrace-338.100.1) with host/ (SPDX:BSD-2-Clause, Minkar)
 - mig (SPDX:APSL-2.0)
 - cmake
 - unifdef (SPDX:BSD-2-Clause)
