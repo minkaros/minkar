@@ -1,74 +1,60 @@
 /*
-Original Author: Michael Ash on 11/9/08
-Copyright (c) 2008 Rogue Amoeba Software LLC
+ * SPDX-License-Identifier: BSD-2-Clause
+ *
+ * Copyright (c) 2026 The Minkar contributors
+ * Part of Minkar.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ */
 
-Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+#import <Foundation/NSOperation.h>
+#include <dispatch/dispatch.h>
 
-The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+@class NSProgress, NSString;
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+static const NSInteger NSOperationQueueDefaultMaxConcurrentOperationCount = -1;
 
-*/
-#import <Foundation/NSObject.h>
+@interface NSOperationQueue : NSObject
 
-@class NSArray, NSMutableArray, NSOperation, NSCondition, NSThread;
-
-enum {
-    NSOperationQueueDefaultMaxConcurrentOperationCount = -1
-};
-
-enum {
-    NSOperationQueuePriority_Count = 3
-};
-
-@interface NSOperationQueue : NSObject {
-    NSThread *_thread;
-
-    NSCondition *workAvailable;
-    NSCondition *suspendedCondition;
-    NSCondition *allWorkDone;
-    BOOL isSuspended;
-
-    NSMutableArray *_operations;
-
-    void *queues[NSOperationQueuePriority_Count];
-    NSString *_name;
-}
-
-- (id)init;
-
-#pragma mark Managing Operations in the Queue
+@property (readonly, retain) NSProgress *progress;
 
 - (void)addOperation:(NSOperation *)op;
+- (void)addOperations:(NSArray<NSOperation *> *)ops waitUntilFinished:(BOOL)wait;
+- (void)addOperationWithBlock:(void (^)(void))block;
+- (void)addBarrierBlock:(void (^)(void))barrier;
 
-- (void)addOperations:(NSArray *)ops waitUntilFinished:(BOOL)wait;
-
-- (NSArray *)operations;
-
-- (NSUInteger)operationCount;
+@property NSInteger maxConcurrentOperationCount;
+@property (getter=isSuspended) BOOL suspended;
+@property (copy) NSString *name;
+@property NSQualityOfService qualityOfService;
+@property (assign) dispatch_queue_t underlyingQueue;
 
 - (void)cancelAllOperations;
-
 - (void)waitUntilAllOperationsAreFinished;
 
-#pragma mark Managing the Number of Running Operations
+@property (class, readonly, retain) NSOperationQueue *currentQueue;
+@property (class, readonly, retain) NSOperationQueue *mainQueue;
 
-- (NSInteger)maxConcurrentOperationCount;
-- (void)setMaxConcurrentOperationCount:(NSInteger)count;
-
-#pragma mark Managing the Queue Name
-
-- (NSString *)name;
-- (void)setName:(NSString *)newName;
-
-#pragma mark Suspending Operations
-
-- (BOOL)isSuspended;
-- (void)setSuspended:(BOOL)suspend;
-
-#pragma mark Getting Specific Operation Queues
-
-+ (id)currentQueue;
-+ (id)mainQueue;
+@property (readonly, copy) NSArray<__kindof NSOperation *> *operations;
+@property (readonly) NSUInteger operationCount;
 
 @end

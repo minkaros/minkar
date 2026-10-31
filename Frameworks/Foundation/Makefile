@@ -187,7 +187,6 @@ SRCS = 	NSFormatter.m \
 	NSArray/NSArray.m \
 	NSThread/NSThread.m \
 	NSOperation/NSOperationQueue.m \
-	NSOperation/NSAtomicList.m \
 	NSOperation/NSOperation.m \
 	NSObjCRuntime.m \
 	NSDistributedNotificationCenter.m \
@@ -388,6 +387,8 @@ CFLAGS.NSCollectionBlocks.m = -fobjc-arc
 CFLAGS.NSJSONSerialization.m = -fobjc-arc
 CFLAGS.NSCache.m = -fobjc-arc
 CFLAGS.NSProgress.m = -fobjc-arc
+CFLAGS.NSOperation.m = -fobjc-arc
+CFLAGS.NSOperationQueue.m = -fobjc-arc
 CFLAGS.NSStringModern.m = -fobjc-arc -DU_DISABLE_RENAMING=1 \
 	-I${ROOT_SOURCE_DIR}/Libraries/ICU/source/common \
 	-I${ROOT_SOURCE_DIR}/Libraries/ICU/source/i18n

@@ -68,6 +68,16 @@
 #define CF_RETURNS_RETAINED __attribute__((cf_returns_retained))
 #endif
 
+/* The quality of service of work (NSOperation, NSOperationQueue, NSThread):
+ * the same values as dispatch's QOS_CLASS_* classes. */
+typedef NS_ENUM(NSInteger, NSQualityOfService) {
+    NSQualityOfServiceUserInteractive = 0x21,
+    NSQualityOfServiceUserInitiated = 0x19,
+    NSQualityOfServiceUtility = 0x11,
+    NSQualityOfServiceBackground = 0x09,
+    NSQualityOfServiceDefault = -1
+};
+
 #if __OBJC__
 @class NSString;
 const char *NSGetSizeAndAlignment(const char *type, NSUInteger *size, NSUInteger *alignment);
