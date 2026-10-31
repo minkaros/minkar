@@ -68,6 +68,17 @@
 #define CF_RETURNS_RETAINED __attribute__((cf_returns_retained))
 #endif
 
+/* MIN, MAX and ABS, evaluating each argument once. */
+#if !defined(MIN)
+#define MIN(A, B) ({ __typeof__(A) __min_a = (A); __typeof__(B) __min_b = (B); __min_a < __min_b ? __min_a : __min_b; })
+#endif
+#if !defined(MAX)
+#define MAX(A, B) ({ __typeof__(A) __max_a = (A); __typeof__(B) __max_b = (B); __max_a < __max_b ? __max_b : __max_a; })
+#endif
+#if !defined(ABS)
+#define ABS(A) ({ __typeof__(A) __abs_a = (A); __abs_a < 0 ? -__abs_a : __abs_a; })
+#endif
+
 /* The quality of service of work (NSOperation, NSOperationQueue, NSThread):
  * the same values as dispatch's QOS_CLASS_* classes. */
 typedef NS_ENUM(NSInteger, NSQualityOfService) {

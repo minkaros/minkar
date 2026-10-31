@@ -24,6 +24,11 @@ NSString * const NSLocalizedDescriptionKey=@"NSLocalizedDescriptionKey";
 NSString * const NSLocalizedFailureReasonErrorKey=@"NSLocalizedFailureReasonErrorKey";
 NSString * const NSLocalizedRecoveryOptionsErrorKey=@"NSLocalizedRecoveryOptionsErrorKey";
 NSString * const NSLocalizedRecoverySuggestionErrorKey=@"NSLocalizedRecoverySuggestionErrorKey";
+// Minkar: declared in NSError.h, never defined (a program using one did not link).
+NSString * const NSStringEncodingErrorKey=@"NSStringEncodingErrorKey";
+NSString * const NSFilePathErrorKey=@"NSFilePath";
+NSString * const NSErrorFailingURLStringKey=@"NSErrorFailingURLStringKey";
+NSString * const NSURLErrorKey=@"NSURL";
 NSString * const NSRecoveryAttempterErrorKey=@"NSRecoveryAttempterErrorKey";
 NSString * const NSDebugDescriptionErrorKey=@"NSDebugDescription";
 

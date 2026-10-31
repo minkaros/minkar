@@ -87,6 +87,7 @@ SRCS = 	NSFormatter.m \
 	NSDirectoryEnumerator.m \
 	NSProcessInfo.m \
 	NSData/NSData.m \
+	NSData/NSDataBase64.m \
 	NSData/NSData_mapped.m \
 	NSData/NSData_concrete.m \
 	NSData/NSMutableData.m \
@@ -388,6 +389,7 @@ CFLAGS.NSJSONSerialization.m = -fobjc-arc
 CFLAGS.NSCache.m = -fobjc-arc
 CFLAGS.NSProgress.m = -fobjc-arc
 CFLAGS.NSOperation.m = -fobjc-arc
+CFLAGS.NSDataBase64.m = -fobjc-arc
 CFLAGS.NSOperationQueue.m = -fobjc-arc
 CFLAGS.NSStringModern.m = -fobjc-arc -DU_DISABLE_RENAMING=1 \
 	-I${ROOT_SOURCE_DIR}/Libraries/ICU/source/common \

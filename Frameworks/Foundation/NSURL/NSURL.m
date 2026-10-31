@@ -615,6 +615,15 @@ static BOOL scanURL(urlScanner *scanner,NSURL *url){
    else return _host;
 }
 
+// Minkar: the port goes with the host: a relative URL without a host of
+// its own has the base URL's port (it was lost from absoluteString).
+-(NSNumber *)_basePort  {
+   if (!_scheme && !_host)
+    return [_baseURL _basePort];
+
+   return _port;
+}
+
 -(NSString *)_baseUser  {
    if (!_user && !_host && !_scheme )
      return [_baseURL _baseUser];
@@ -683,7 +692,7 @@ static void AppendValueWithPrefix( NSMutableString *orig, NSString *prefix, NSSt
 	}
 }
 
-static NSMutableString *AssembleResourceSpecifier( NSMutableString *result, NSString *host, NSString *user, NSString *password, NSString *path, NSString *parameterString, NSString * query, NSString *fragment )
+static NSMutableString *AssembleResourceSpecifier( NSMutableString *result, NSString *host, NSNumber *port, NSString *user, NSString *password, NSString *path, NSString *parameterString, NSString * query, NSString *fragment )
 {
 	if (host) {
 		[result appendString:@"//"];
@@ -696,6 +705,10 @@ static NSMutableString *AssembleResourceSpecifier( NSMutableString *result, NSSt
 			[result appendString: @"@"];
 		}
 		[result appendString: host];
+		if (port) {
+			[result appendString: @":"];
+			[result appendString: [port stringValue]];
+		}
 	}
 	
 	[result appendString: path];
@@ -717,7 +730,7 @@ static NSMutableString *AssembleResourceSpecifier( NSMutableString *result, NSSt
 	NSString *query = [self query];
 	NSString *fragment = [self fragment];
 	
-	return AssembleResourceSpecifier( [NSMutableString string], host, user, password, path, parameterString, query, fragment );
+	return AssembleResourceSpecifier( [NSMutableString string], host, [self _basePort], user, password, path, parameterString, query, fragment );
 }
 
 -(NSString *)absoluteString 
@@ -783,10 +796,7 @@ static NSMutableString *AssembleResourceSpecifier( NSMutableString *result, NSSt
 }
 
 -(NSNumber *)port {
-   if(_port==nil)
-    return [_baseURL port];
-
-   return _port;
+   return [self _basePort];
 }
 
 -(NSString *)query 

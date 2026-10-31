@@ -2,6 +2,9 @@
 
 enum {
     NSURLErrorUnknown = -1,
+    NSURLErrorBackgroundSessionRequiresSharedContainer = -995,
+    NSURLErrorBackgroundSessionInUseByAnotherProcess = -996,
+    NSURLErrorBackgroundSessionWasDisconnected = -997,
     NSURLErrorCancelled = -999,
     NSURLErrorBadURL = -1000,
     NSURLErrorTimedOut = -1001,
@@ -21,10 +24,16 @@ enum {
     NSURLErrorCannotDecodeRawData = -1015,
     NSURLErrorCannotDecodeContentData = -1016,
     NSURLErrorCannotParseResponse = -1017,
+    NSURLErrorInternationalRoamingOff = -1018,
+    NSURLErrorCallIsActive = -1019,
+    NSURLErrorDataNotAllowed = -1020,
+    NSURLErrorRequestBodyStreamExhausted = -1021,
+    NSURLErrorAppTransportSecurityRequiresSecureConnection = -1022,
     NSURLErrorFileDoesNotExist = -1100,
     NSURLErrorFileIsDirectory = -1101,
     NSURLErrorNoPermissionsToReadFile = -1102,
     NSURLErrorDataLengthExceedsMaximum = -1103,
+    NSURLErrorFileOutsideSafeArea = -1104,
     NSURLErrorSecureConnectionFailed = -1200,
     NSURLErrorServerCertificateHasBadDate = -1201,
     NSURLErrorServerCertificateUntrusted = -1202,
@@ -44,3 +53,20 @@ enum {
 };
 
 FOUNDATION_EXPORT NSString *const NSURLErrorDomain;
+FOUNDATION_EXPORT NSString *const NSURLErrorFailingURLErrorKey;
+FOUNDATION_EXPORT NSString *const NSURLErrorFailingURLStringErrorKey;
+FOUNDATION_EXPORT NSString *const NSURLErrorFailingURLPeerTrustErrorKey;
+FOUNDATION_EXPORT NSString *const NSURLErrorBackgroundTaskCancelledReasonKey;
+FOUNDATION_EXPORT NSString *const NSURLErrorNetworkUnavailableReasonKey;
+
+enum {
+    NSURLErrorCancelledReasonUserForceQuitApplication = 0,
+    NSURLErrorCancelledReasonBackgroundUpdatesDisabled = 1,
+    NSURLErrorCancelledReasonInsufficientSystemResources = 2
+};
+
+typedef NS_ENUM(NSInteger, NSURLErrorNetworkUnavailableReason) {
+    NSURLErrorNetworkUnavailableReasonCellular = 0,
+    NSURLErrorNetworkUnavailableReasonExpensive = 1,
+    NSURLErrorNetworkUnavailableReasonConstrained = 2
+};

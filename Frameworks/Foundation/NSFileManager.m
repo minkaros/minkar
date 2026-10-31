@@ -157,9 +157,11 @@ NSString * const NSFileSystemFreeSize=@"NSFileSystemFreeSize";
    return 0;
 }
 
+// Minkar: paths are UTF-8 (this returned nil).
 -(NSString *)stringWithFileSystemRepresentation:(const char *)string length:(NSUInteger)length {
-   //NSUnimplementedMethod();
-   return 0;
+   if(string==NULL)
+    return nil;
+   return [[[NSString alloc] initWithBytes:string length:length encoding:NSUTF8StringEncoding] autorelease];
 }
 
 -(void)_subpathsAtPath:(NSString *)path basePath:(NSString*)basePath
