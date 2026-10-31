@@ -97,7 +97,7 @@ Minkar arranca sobre Darwin con su propio cargador EFI, todo el sistema se compi
 | Userland y herramientas del sistema | Todos los comandos de la Fase 2 (337 de 354 de la lista de referencia) | `open` y los comandos de fases posteriores | 2 (cerrada) |
 | DiskArbitration | Framework y `diskarbitrationd` originales (APSL); `diskutil` y `hdiutil` propios; monta HFS+, FAT y exFAT | — | 2 (cerrada) |
 | CoreFoundation | CF-Lite (APSL) | APIs que faltan hasta la API 21; puente `CFArray`/`CFDictionary` | 3 |
-| Foundation | Tres lotes de correcciones (26 oct); `NSProcessInfo` con `operatingSystemVersion` (31 oct) | `NSURLSession`; auditoría de la API 19 | 3 |
+| Foundation | Tres lotes de correcciones (26 oct); `NSProcessInfo` con `operatingSystemVersion`; reexporta CoreFoundation (31 oct) | `NSURLSession`; auditoría de la API 19 | 3 |
 | Swift 6 | Nada en el árbol | Compilador, stdlib, overlays | 3 |
 | WindowServer | Compila sobre XNU con backend IOFramebuffer; nunca ejecutado | Ejecutarlo; entrada por IOHIDSystem | 4 |
 | Aceleración por GPU | No existe; sin ella tampoco se puede apagar la pantalla | Frente completo (requisito de rendimiento) | 4 y Minkar 21.0 |
@@ -116,7 +116,7 @@ Objetivo: cualquier contribuidor obtiene una ISO arrancable desde cero con un so
 - [x] Fijar el toolchain: `tools/toolchain/MANIFEST` fija la versión upstream, el árbol git y la línea de versión de cada componente (clang 17.0.6 de `swift-6.0-RELEASE`, ld64-609, y desde el 29 oct cctools con `ctf_insert` y las herramientas CTF de dtrace); `manifest.sh check` lo verifica en la CI y comprueba que una entrada compila, enlaza y archiva a los mismos bytes dos veces.
 - [x] Targets de bmake por capa: `bmake <capa>` y `bmake <capa>-check`, `layers-check` e `image-check`. Los frameworks de terceros pasaron a la Fase 3.
 - [x] CI: `.github/workflows/build-boottest.yml` compila el toolchain (en caché), el sistema y la imagen, y pasa `boottest GATE=M2`. Desde el 29 oct corre en `main` y a mano, para no agotar los minutos de Actions de una cuenta gratuita.
-- [x] Inventario de símbolos: `tools/symbols/`; Minkar cubre el 68,3% de los imports de sistema de las cuatro apps de referencia (31 oct).
+- [x] Inventario de símbolos: `tools/symbols/`; Minkar cubre el 72,0% de los imports de sistema de las cuatro apps de referencia (68,3% la mañana del 31 oct).
 - [x] Documentar el build: `BUILDING.md` con host, paquetes, tiempos medidos y 17 errores frecuentes.
 
 * [x] **Criterio de salida (M0):** cumplido en la CI (`05fa75cb65`, y de nuevo en `9191fe8458`, 29 oct 2026).
@@ -237,7 +237,7 @@ Orden de decisión: CoreFoundation condiciona la Foundation para Swift, y esta c
 
 Llegan de la Fase 2 (31 oct 2026):
 
-- [ ] Completar libc, libm, pthread, libdispatch, libxpc, notify y os\_log. *Parcial:* desde el 31 oct las apps de referencia encuentran todos sus imports de libSystem (308 de 308): `os_log` escribe sus mensajes en syslogd, con `%{public}`/`%{private}` y `%@`, y en stderr en modo DT (antes no escribía nada, y el `<os/log.h>` del SDK no tenía `os_log()`); `syslog(3)` vuelve a llegar a syslogd; `os_log_error`/`os_log_fault` con los nombres de la referencia; `os_activity`; `_availability_version_check` para `@available`; `launch_activate_socket` (`0709544df7`, `c0923c1bc7`, `5051c781b4`). `math.h` compatible con la referencia desde el 26 oct; a `vis(3)` le faltan las flags nuevas.
+- [ ] Completar libc, libm, pthread, libdispatch, libxpc, notify y os\_log. *Parcial:* desde el 31 oct las apps de referencia encuentran todos sus imports de libSystem (308 de 308): `os_log` escribe sus mensajes en syslogd, con `%{public}`/`%{private}` y `%@`, y en stderr en modo DT (antes no escribía nada, y el `<os/log.h>` del SDK no tenía `os_log()`); `syslog(3)` vuelve a llegar a syslogd; `os_log_error`/`os_log_fault` con los nombres de la referencia; `os_activity`; `_availability_version_check` para `@available`; `launch_activate_socket` (`0709544df7`, `c0923c1bc7`, `5051c781b4`). También están las demás bibliotecas de `/usr/lib` que importan: `libsqlite3` (SQLite 3.54.1, con el intérprete `sqlite3`, `bbe573a8a5`), `libxar` (xar-503) y nuestra `libcompression` (ZLIB, LZMA, LZFSE) (`cae9a9c4f4`); CommonCrypto tiene `CCDigest` (`88e4800b96`). Foundation reexporta CoreFoundation, como la referencia (`55ac68b1f0`). `math.h` compatible con la referencia desde el 26 oct; a `vis(3)` le faltan las flags nuevas.
 - [ ] Stubs ruidosos (log en la primera llamada). *Parcial (31 oct):* `<minkar/stub.h>` registra en syslogd (`org.minkar.stubs`) la primera llamada a un stub en cada proceso, con la imagen que lo llamó, y en stderr en modo DT; los 875 métodos y funciones sin implementar de Foundation, AppKit, CoreData y QuartzCore lo usan (antes escribían en stderr en cada llamada), y los 12 stubs silenciosos de libxpc ya avisan. `tools/symbols/trivial-functions.py` lista las funciones exportadas que no hacen nada (404 el 31 oct, muchas de terceros y vacías a propósito): el resto se revisa desde esa lista.
 - [ ] Shared cache de dyld (opcional al principio).
 - [ ] `logd`, con `os_log` (mientras tanto, `syslogd` y `aslmanager`: los mensajes de `os_log` van a syslogd hasta que `logd` los guarde).

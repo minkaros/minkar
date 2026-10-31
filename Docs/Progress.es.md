@@ -41,12 +41,13 @@ flowchart TB
         L2["os_log to syslogd<br/>os_activity"]:::done
         L3["@available<br/>_availability_version_check"]:::done
         L4["launch_activate_socket"]:::done
+        L8["sqlite3, libxar,<br/>libcompression"]:::done
         L5["Stubs ruidosos<br/>mecanismo + 887 sitios"]:::partial
         L6["logd"]:::todo
         L7["Shared cache de dyld"]:::todo
     end
     subgraph FW["Frameworks"]
-        F1["Auditoría de Foundation<br/>NSProcessInfo hecho"]:::partial
+        F1["Auditoría de Foundation<br/>NSProcessInfo, reexporta CF"]:::partial
         F2["NSURLSession"]:::todo
         F3["CF-Lite hasta la API 21<br/>puente CFArray/CFDictionary"]:::partial
         F4["Security, LaunchServices"]:::todo
