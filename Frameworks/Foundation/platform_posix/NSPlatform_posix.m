@@ -319,27 +319,33 @@ void *NSPlatformContentsOfFile(NSString *path,NSUInteger *lengthp) {
     size_t total = 0;
 
     if (atomically) {
+        // Minkar: a name of its own (it was always path + "1"), made
+        // exclusively.
+        static unsigned counter;
         do {
-            atomic = [path stringByAppendingString:@"1"];
-        } while ([[NSFileManager defaultManager] fileExistsAtPath:atomic] == YES);
-                
-        fd = open([atomic fileSystemRepresentation], O_WRONLY|O_CREAT, FOUNDATION_FILE_MODE);
+            atomic = [path stringByAppendingFormat:@".%d.%u.tmp", getpid(), __sync_fetch_and_add(&counter, 1)];
+            fd = open([atomic fileSystemRepresentation], O_WRONLY|O_CREAT|O_EXCL, FOUNDATION_FILE_MODE);
+        } while (fd == -1 && errno == EEXIST);
         if (fd == -1) {
             if (errorp) *errorp = [NSError errorWithDomain:NSPOSIXErrorDomain code:errno userInfo:nil];
             return NO;
         }
     }
     else {
-        fd = open([path fileSystemRepresentation], O_WRONLY|O_CREAT, FOUNDATION_FILE_MODE);
+        // Minkar: truncated (a shorter file kept the old one's tail).
+        fd = open([path fileSystemRepresentation], O_WRONLY|O_CREAT|O_TRUNC, FOUNDATION_FILE_MODE);
         if (fd == -1) {
             if (errorp) *errorp = [NSError errorWithDomain:NSPOSIXErrorDomain code:errno userInfo:nil];
             return NO;
         }
     }
 
-    do {
-        size_t written = write(fd, bytes+total, length);
+    while (total < length) {
+        // Minkar: what is left (each pass wrote length bytes again).
+        ssize_t written = write(fd, (const char *)bytes+total, length-total);
 
+        if (written == -1 && errno == EINTR)
+            continue;
         if (written == -1) {
             if (errorp) *errorp = [NSError errorWithDomain:NSPOSIXErrorDomain code:errno userInfo:nil];
             close(fd);
@@ -347,7 +353,7 @@ void *NSPlatformContentsOfFile(NSString *path,NSUInteger *lengthp) {
         }
 
         total += written;
-    } while (total < length);
+    }
 
     close(fd);
 

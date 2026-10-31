@@ -46,6 +46,18 @@ NSString * const NSFileSystemFreeSize=@"NSFileSystemFreeSize";
 
 @implementation NSFileManager
 
+// Minkar: a file manager is the platform's (NSFileManager_posix). Made
+// as NSFileManager, it was turned into one by writing its isa by hand in
+// fileExistsAtPath:, which wiped the reference count objc4 keeps there:
+// the manager was later freed while still in use.
++allocWithZone:(NSZone *)zone {
+   Class platform=objc_lookUpClass("NSFileManager_posix");
+
+   if(self==objc_lookUpClass("NSFileManager") && platform!=Nil)
+    return NSAllocateObject(platform,0,zone);
+   return NSAllocateObject(self,0,zone);
+}
+
 +(NSFileManager *)defaultManager {
    return NSThreadSharedInstance(@"NSFileManager");
 }
@@ -262,13 +274,6 @@ stringByAppendingPathComponent:[files objectAtIndex:x]] paths:paths];
 }
 
 -(BOOL)fileExistsAtPath:(NSString *)path {
-   /* *** HACK ALERT ***
-    * For some reason (likely the way this object is created), it has a nil
-    * isa which causes all sorts of fun problems. This function is called
-    * early in an app's initialization of NSBundle so we patch it here
-    * until the root cause can be fixed.
-    */
-   *(uintptr_t *)self = (uintptr_t)objc_lookUpClass("NSFileManager_posix");
    BOOL foo;
    return [self fileExistsAtPath:path isDirectory:&foo];
 }
