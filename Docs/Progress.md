@@ -47,8 +47,8 @@ flowchart TB
         L7["dyld shared cache"]:::todo
     end
     subgraph FW["Frameworks"]
-        F1["Foundation audit<br/>NSProcessInfo, NSOperationQueue,<br/>main queue in the run loop"]:::partial
-        F2["NSURLSession on libcurl<br/>cookies, cache, metrics left"]:::partial
+        F1["Foundation audit<br/>NSProcessInfo, NSOperationQueue,<br/>main queue in the run loop,<br/>NSDateFormatter on ICU"]:::partial
+        F2["NSURLSession on libcurl, cookies<br/>cache, metrics left"]:::partial
         F3["CF-Lite to API 21<br/>arrays and dictionaries bridged"]:::partial
         F4["Security, LaunchServices"]:::todo
     end
