@@ -29,6 +29,7 @@
 #ifndef	_LIBXPC_XPC_INTERNAL_H
 #define	_LIBXPC_XPC_INTERNAL_H
 
+#include <minkar/stub.h>
 #include <sys/queue.h>
 #include <sys/uio.h>
 #include <stdatomic.h>

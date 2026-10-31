@@ -1,7 +1,7 @@
 SUBDIR =
 MK_WERROR = no
 LIB = system_trace
-SRCS = log.c signpost.c init.c activity.c format.c
+SRCS = log.c signpost.c init.c activity.c format.c stub.c
 
 SLF = /System/Library/Frameworks
 CFLAGS = -mmacos-version-min=${MACOS_VERSION_MIN} --sysroot=${MINKAR_SDKROOT} \
@@ -34,5 +34,7 @@ ${.OBJDIR}/lib${LIB}.dylib: lib${LIB}.a
 	# library's own log.h only adds to it, for its own build.
 	cp -f ${ROOT_SOURCE_DIR}/Kernel/xnu/libkern/os/log.h ${MINKAR_SDKROOT}/usr/include/os
 	cp -f ${.CURDIR}/activity.h ${MINKAR_SDKROOT}/usr/include/os
+	mkdir -p ${MINKAR_SDKROOT}/usr/local/include/minkar
+	cp -f ${.CURDIR}/stub.h ${MINKAR_SDKROOT}/usr/local/include/minkar
 
 .include <bsd.lib.mk>

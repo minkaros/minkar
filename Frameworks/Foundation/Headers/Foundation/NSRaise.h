@@ -10,6 +10,8 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 #import <Foundation/NSException.h>
 #import <Foundation/NSString.h>
+#import <objc/runtime.h>
+#include <stdio.h>
 
 static inline void _NSInvalidAbstractInvocation(SEL selector, id object, const char *file, int line) {
     [NSException raise:NSInvalidArgumentException
@@ -17,12 +19,32 @@ static inline void _NSInvalidAbstractInvocation(SEL selector, id object, const c
                 sel_getName(selector), [object class], sel_getName(selector), file, line];
 }
 
+/*
+ * Minkar: noisy stubs. An unimplemented method or function says so once,
+ * in the system log (see <minkar/stub.h>), instead of on stderr at every
+ * call.
+ */
+extern void _minkar_stub(const char *what, const void *caller);
+
 static inline void _NSUnimplementedMethod(SEL selector, id object, const char *file, int line) {
-    NSLog(@"-[%@ %s] unimplemented in %s at %d", [object class], sel_getName(selector), file, line);
+    char what[256];
+
+    (void)file;
+    (void)line;
+    snprintf(what, sizeof(what), "%c[%s %s]",
+        object_isClass(object) ? '+' : '-',
+        class_getName(object_isClass(object) ? (Class)object : object_getClass(object)),
+        sel_getName(selector));
+    _minkar_stub(what, __builtin_return_address(0));
 }
 
 static inline void _NSUnimplementedFunction(const char *function, const char *file, int line) {
-    NSLog(@"%s() unimplemented in %s at %d", function, file, line);
+    char what[256];
+
+    (void)file;
+    (void)line;
+    snprintf(what, sizeof(what), "%s()", function);
+    _minkar_stub(what, __builtin_return_address(0));
 }
 
 #define NSInvalidAbstractInvocation() \

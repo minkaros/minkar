@@ -214,7 +214,7 @@ void
 xpc_array_set_connection(xpc_object_t xarray, size_t index,
     xpc_connection_t value)
 {
-
+	MINKAR_STUB();
 }
 
 bool
@@ -293,14 +293,14 @@ xpc_array_get_string(xpc_object_t xarray, size_t index)
 int
 xpc_array_dup_fd(xpc_object_t array, size_t index)
 {
-	/* XXX */
+	MINKAR_STUB();
 	return (-1);
 }
 
 xpc_connection_t
 xpc_array_get_connection(xpc_object_t array, size_t index)
 {
-	/* XXX */
+	MINKAR_STUB();
 	return (NULL);
 }
 
