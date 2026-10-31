@@ -538,6 +538,12 @@ for pat in 'panic' 'Still waiting for root device' 'IOKitWaitQuiet' 'timed out|t
 	fi
 done
 grep -iE 'panic|error|fail|timeout|timed out|not responding' "$RAW/dmesg.txt" | head -80 >> "$DETAIL"
+# Minkar's own drivers log each step ("MinkarBGE: ..."): where one stopped.
+printf '\nMinkar driver messages:\n' >> "$DETAIL"
+grep -E 'Minkar[A-Za-z0-9]+: ' "$RAW/dmesg.txt" | head -200 >> "$DETAIL"
+for drv in $(grep -oE 'Minkar[A-Za-z0-9]+: ' "$RAW/dmesg.txt" | sort -u | tr -d ': '); do
+	result INFO "driver $drv" "$(grep -E "$drv: " "$RAW/dmesg.txt" | tail -1 | sed "s/.*$drv: //" | cut -c1-90)"
+done
 result INFO "dmesg" "$(wc -l < "$RAW/dmesg.txt") lines (raw/dmesg.txt)"
 
 # ---- reboot ---------------------------------------------------------------------------
