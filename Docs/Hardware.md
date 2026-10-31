@@ -28,7 +28,7 @@ QEMU fails on an MSR the kernel reads).
   under KVM yet, so `boottest` uses TCG unless KVM is asked for.
 - **SMP** (2026-10-30): every processor the MADT lists as enabled runs.
   Three fixes: ACPICPU registers the processors with the kernel and starts
-  them, the boot one first, as macOS's ACPI platform does (`startCPU` was
+  them, the boot one first, as the reference system's ACPI platform does (`startCPU` was
   a stub, and each CPU made its own interrupt controller of one, which set
   the kernel's maximum to one processor); the kernel's number of
   processors is set only once all are registered (the commpage takes the
@@ -49,7 +49,7 @@ QEMU fails on an MSR the kernel reads).
   holding the console's serial lock); and `hdiutil` looked the
   new image device up before its registration ended, now finished on
   another processor (it waits for it). Disk numbers are not fixed any
-  more either: drivers match in parallel, as on macOS.
+  more either: drivers match in parallel, as on the reference system.
 - **Limits** (2026-10-30): the kernel takes 64 processors (`MAX_CPUS`, a
   64-bit mask) with local APIC IDs up to 255 (xAPIC). A bigger machine
   runs on its first 64, and a processor with a higher APIC ID is left
@@ -111,10 +111,10 @@ loader's output on screen for photos.
   PC powers off; `pmset` settings survive a reboot.
 - `shutdown`, `reboot` and `poweroff` took 20 seconds more since
   DiskArbitration came: `diskarbitrationd` only stops mounting on
-  SIGTERM, and its job lacked Apple's `EnableTransactions`, with which
+  SIGTERM, and its job lacked the `EnableTransactions` key of the original, with which
   launchd ends it at once when it is idle. About 2 seconds now, here
   too (hw-test38: `reboot` and `shutdown -h now`, which powers off).
-- `dmesg` keeps 16 KB, as a release macOS kernel: a verbose boot pushes
+- `dmesg` keeps 16 KB, as a release kernel of the reference system: a verbose boot pushes
   its start out. The PC test images boot with `msgbuf=1048576` for that
   (hw-test38: about 100 KB from the first line).
 - IPv6 on the LAN: RDNSS (the router's name servers in resolv.conf) and
@@ -197,7 +197,7 @@ clears the screen for every login but the first.
 
 **Two network cards** (2026-10-28). Moving the cable from the I219-V to the
 I211 gave the I211 an address, but ping went out through the I219-V, which
-kept its address and routes with no link. As on macOS, `dhcpclient` now
+kept its address and routes with no link. As on the reference system, `dhcpclient` now
 gives up an interface's addresses (IPv4 and IPv6) and routes when its link
 goes down, and asks for it again when the link comes back.
 
