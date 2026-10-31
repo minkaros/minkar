@@ -202,6 +202,8 @@ struct xpc_connection {
 	bool			xc_cancelled;
 	bool			xc_anonymous;	/* an anonymous listener */
 	bool			xc_error_sent;	/* XPC_ERROR_CONNECTION_INVALID */
+	bool			xc_bundled;	/* a service in the app's bundle */
+	bool			xc_interrupted;	/* INTERRUPTED sent for this instance */
 };
 
 struct xpc_resource {
@@ -228,6 +230,10 @@ struct xpc_resource_list {
 };
 __private_extern__ __thread struct xpc_resource_list *_xpc_resources;
 __private_extern__ void _xpc_array_destroy(struct xpc_object *xo);
+/* XPC services in the app's bundle (xpc_bundle.c). */
+__private_extern__ bool _xpc_bundle_has_service(const char *name);
+__private_extern__ mach_port_t _xpc_bundle_lookup(const char *name);
+__private_extern__ bool _xpc_bundle_handoff(mach_port_t listener);
 size_t _xpc_resource_add(struct xpc_resource_list *list,
     mach_port_t port, mach_msg_type_name_t disposition);
 

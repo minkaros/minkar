@@ -116,6 +116,14 @@ xpc_connection_create(const char *name, dispatch_queue_t targetq)
 {
 	struct xpc_connection *conn;
 
+	/* A service in the app's bundle starts on the first message. */
+	if (name != NULL && _xpc_bundle_has_service(name)) {
+		if ((conn = xpc_connection_alloc(name, targetq)) == NULL)
+			return (NULL);
+		conn->xc_bundled = true;
+		conn->xc_local_port = (xpc_port_t)xpc_new_receive_port();
+		return ((xpc_connection_t)conn);
+	}
 	if (name != NULL)
 		return (xpc_connection_create_mach_service(name, targetq, 0));
 	if ((conn = xpc_connection_alloc(NULL, targetq)) == NULL)
@@ -284,7 +292,11 @@ xpc_connection_watch_remote(struct xpc_connection *conn)
 			conn->xc_remote_port = (xpc_port_t)MACH_PORT_NULL;
 			dispatch_release(conn->xc_dead_source);
 			conn->xc_dead_source = NULL;
-			xpc_connection_deliver_error(conn, XPC_ERROR_CONNECTION_INTERRUPTED);
+			/* Once per instance: its process exit may say it too. */
+			if (!conn->xc_interrupted) {
+				conn->xc_interrupted = true;
+				xpc_connection_deliver_error(conn, XPC_ERROR_CONNECTION_INTERRUPTED);
+			}
 		} else {
 			xpc_connection_deliver_error(conn, XPC_ERROR_CONNECTION_INVALID);
 		}
@@ -315,7 +327,10 @@ xpc_connection_watch_process(struct xpc_connection *conn, pid_t pid)
 		if (conn->xc_proc_pid != pid || conn->xc_cancelled)
 			return;
 		conn->xc_proc_pid = 0;
-		xpc_connection_deliver_error(conn, XPC_ERROR_CONNECTION_INTERRUPTED);
+		if (!conn->xc_interrupted) {
+			conn->xc_interrupted = true;
+			xpc_connection_deliver_error(conn, XPC_ERROR_CONNECTION_INTERRUPTED);
+		}
 	});
 	dispatch_resume(conn->xc_proc_source);
 }
@@ -375,15 +390,41 @@ xpc_connection_remote(struct xpc_connection *conn)
 
 	if (MACH_PORT_VALID((mach_port_t)conn->xc_remote_port) || conn->xc_cancelled)
 		return ((mach_port_t)conn->xc_remote_port);
+	if (conn->xc_bundled) {
+		mach_port_t port = _xpc_bundle_lookup(conn->xc_name);
+
+		if (MACH_PORT_VALID(port)) {
+			conn->xc_remote_port = (xpc_port_t)port;
+			conn->xc_interrupted = false;
+			if (conn->xc_resumed)
+				xpc_connection_watch_remote(conn);
+		}
+		return ((mach_port_t)conn->xc_remote_port);
+	}
 	if (conn->xc_name != NULL && conn->xc_parent == NULL &&
 	    !(conn->xc_flags & XPC_CONNECTION_MACH_SERVICE_LISTENER) &&
 	    transport->xt_lookup(conn->xc_name, &local, &remote) == 0) {
 		mach_port_mod_refs(mach_task_self(), (mach_port_t)local, MACH_PORT_RIGHT_RECEIVE, -1);
 		conn->xc_remote_port = remote;
+		conn->xc_interrupted = false;
 		if (conn->xc_resumed)
 			xpc_connection_watch_remote(conn);
 	}
 	return ((mach_port_t)conn->xc_remote_port);
+}
+
+/*
+ * A message could not leave. A named service that cannot be found (it is
+ * not interrupted: no instance of it ran) makes the connection invalid.
+ */
+static void
+xpc_connection_unreachable(struct xpc_connection *conn)
+{
+	if (conn->xc_cancelled || conn->xc_interrupted)
+		return;
+	if (MACH_PORT_VALID((mach_port_t)conn->xc_remote_port))
+		return;
+	xpc_connection_deliver_error(conn, XPC_ERROR_CONNECTION_INVALID);
 }
 
 /* On the send queue: NO when the message could not leave. */
@@ -412,8 +453,8 @@ xpc_connection_send_message(xpc_connection_t xconn, xpc_object_t message)
 
 	xpc_retain(message);
 	dispatch_async(conn->xc_send_queue, ^{
-		if (!conn->xc_cancelled)
-			xpc_send(conn, message, id);
+		if (!conn->xc_cancelled && !xpc_send(conn, message, id))
+			xpc_connection_unreachable(conn);
 		xpc_release(message);
 	});
 }
@@ -451,13 +492,19 @@ xpc_connection_send_message_with_reply(xpc_connection_t xconn,
 					break;
 				}
 			pthread_mutex_unlock(&conn->xc_lock);
-			if (found)
+			if (found) {
+				/* Interrupted: an instance that ran will start again. */
+				bool interrupted = conn->xc_name != NULL && !conn->xc_cancelled &&
+				    conn->xc_interrupted;
+
 				dispatch_async(call->xp_queue ? call->xp_queue : conn->xc_recv_queue, ^{
-					call->xp_handler(conn->xc_name && !conn->xc_cancelled ?
+					call->xp_handler(interrupted ?
 					    XPC_ERROR_CONNECTION_INTERRUPTED : XPC_ERROR_CONNECTION_INVALID);
 					Block_release(call->xp_handler);
 					free(call);
 				});
+			}
+			xpc_connection_unreachable(conn);
 		}
 	});
 }
@@ -597,7 +644,16 @@ xpc_main(xpc_connection_handler_t handler)
 		exit(EXIT_FAILURE);
 	}
 	/* handler is a function, not a block. */
-	listener = xpc_connection_create_mach_service(name, NULL,
+	if (getenv("MINKAR_XPC_HANDOFF") != NULL) {
+		/* Started by its app: an anonymous listener, handed to the app. */
+		listener = xpc_connection_create(NULL, NULL);
+		if (listener == NULL ||
+		    !_xpc_bundle_handoff((mach_port_t)((struct xpc_connection *)listener)->xc_local_port)) {
+			fprintf(stderr, "xpc_main: %s: cannot reach the app that started it\n", name);
+			exit(EXIT_FAILURE);
+		}
+	} else
+		listener = xpc_connection_create_mach_service(name, NULL,
 	    XPC_CONNECTION_MACH_SERVICE_LISTENER);
 	xpc_connection_set_event_handler(listener, ^(xpc_object_t peer) {
 		if (xpc_get_type(peer) == XPC_TYPE_CONNECTION)
