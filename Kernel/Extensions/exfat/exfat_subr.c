@@ -75,7 +75,7 @@ exfat_cluster_sector(struct exfat_mount *xmp, uint32_t cluster)
 }
 
 /* The FAT's entry for a cluster: the next one in its chain. */
-static int
+int
 exfat_fat_next(struct exfat_mount *xmp, uint32_t cluster, uint32_t *next)
 {
 	uint64_t byte = (uint64_t)cluster * 4;
@@ -301,6 +301,7 @@ exfat_dir_next(struct exfat_dcursor *c, uint64_t *indexp, uint64_t parent_id,
 		if (n < 2 || n >= EXFAT_SET_MAX)
 			continue;
 		id = c->last_byte / EXFAT_ENTRY_SIZE;
+		e->info.pos[0] = c->last_byte;
 		memcpy(set, ent, EXFAT_ENTRY_SIZE);
 		for (k = 1; k <= n; k++) {
 			error = exfat_dentry(c, index + k, &ent);
@@ -308,6 +309,7 @@ exfat_dir_next(struct exfat_dcursor *c, uint64_t *indexp, uint64_t parent_id,
 				break;
 			if (error)
 				return (error);
+			e->info.pos[k] = c->last_byte;
 			memcpy(set + k * EXFAT_ENTRY_SIZE, ent, EXFAT_ENTRY_SIZE);
 		}
 		if (k <= n)
@@ -341,6 +343,7 @@ exfat_dir_next(struct exfat_dcursor *c, uint64_t *indexp, uint64_t parent_id,
 		e->count = n + 1;
 		e->info.id = id;
 		e->info.parent_id = parent_id;
+		e->info.count = n + 1;
 		e->info.attr = le16(fe->attributes);
 		e->info.ctime = le32(fe->create_time);
 		e->info.mtime = le32(fe->modify_time);

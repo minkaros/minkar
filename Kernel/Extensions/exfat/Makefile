@@ -2,9 +2,9 @@
 # Copyright (c) 2026 The Minkar contributors
 # Part of Minkar.
 #
-# exfat: ours, after Microsoft's published exFAT specification. Reads
-# exFAT volumes (read only for now); its on-disk format is the header
-# fsck_exfat and newfs_exfat use.
+# exfat: ours, after Microsoft's published exFAT specification. Reads and
+# writes exFAT volumes; its on-disk format is the header fsck_exfat and
+# newfs_exfat use.
 
 MK_WERROR = no
 SUBDIR =
@@ -17,6 +17,7 @@ MAIN_FUNCTION = exfat_module_start
 ANTIMAIN_FUNCTION = exfat_module_stop
 
 SRCS =	exfat_subr.c \
+	exfat_write.c \
 	exfat_vfsops.c \
 	exfat_vnops.c \
 	exfat_loader.cpp

@@ -29,7 +29,6 @@
 /*
  * The exfat kext's own structures: the mounted volume, its files and
  * directories, and the routines the vfs and vnode operations share.
- * Read only for now.
  */
 
 #ifndef _EXFAT_FS_H_
@@ -74,6 +73,8 @@ struct exfat_info {
 	uint8_t		contig;
 	uint64_t	valid;		/* bytes written; zeros after them */
 	uint64_t	length;		/* the file's size */
+	uint32_t	count;		/* entries in its set; 0: the root */
+	uint64_t	pos[EXFAT_SET_MAX];	/* each one's byte on the device */
 };
 
 /* A parsed entry set of a directory. */
@@ -103,6 +104,10 @@ struct exfat_mount {
 	uint64_t	volume_sectors;
 	uint32_t	serial;
 	uint64_t	free_clusters;
+	uint32_t	alloc_hint;	/* where to look for a free cluster */
+	struct exfat_stream bitmap;	/* the allocation bitmap */
+	int		rw;		/* mounted read-write */
+	lck_rw_t	*meta;		/* directories, FAT and bitmap changes */
 	uint16_t	*upcase;	/* EXFAT_UPCASE_CHARS entries */
 	char		label[EXFAT_LABEL_MAX * 3 + 1];
 	uid_t		uid;
@@ -126,6 +131,9 @@ struct exfat_dirrec {
 
 #define EXFAT_NODE_ATTACHING	0x01	/* its vnode is being made */
 #define EXFAT_NODE_WANTED	0x02	/* someone waits for that */
+#define EXFAT_NODE_DELETED	0x04	/* its entries are gone */
+#define EXFAT_NODE_FREED	0x08	/* and so are its clusters */
+#define EXFAT_NODE_HASHED	0x10	/* in the node table */
 
 struct exfat_node {
 	LIST_ENTRY(exfat_node) link;
@@ -133,7 +141,8 @@ struct exfat_node {
 	struct exfat_mount *xmp;
 	uint32_t	state;
 	struct exfat_info info;
-	lck_mtx_t	*lock;		/* the stream's hint */
+	lck_mtx_t	*lock;		/* info and stream */
+	lck_rw_t	*iolock;	/* writes and size changes */
 	struct exfat_stream stream;
 };
 
@@ -155,6 +164,7 @@ extern int (**exfat_vnodeop_p)(void *);
 extern struct vnodeopv_desc exfat_vnodeop_opv_desc;
 
 /* exfat_subr.c */
+int	exfat_fat_next(struct exfat_mount *, uint32_t, uint32_t *);
 int	exfat_bread(struct exfat_mount *, uint64_t, buf_t *, uint8_t **);
 int	exfat_map(struct exfat_mount *, struct exfat_stream *, uint32_t,
 	    uint32_t *, uint32_t *);
@@ -178,9 +188,32 @@ void	exfat_time(struct exfat_mount *, uint32_t, uint8_t, uint8_t,
 int	exfat_name_to_utf8(const uint16_t *, uint16_t, char *, size_t,
 	    size_t *);
 
+/* exfat_write.c; with the mount's meta lock held exclusive */
+void	exfat_encode_time(struct exfat_mount *, const struct timespec *,
+	    uint32_t *, uint8_t *, uint8_t *);
+void	exfat_now(struct exfat_mount *, uint32_t *, uint8_t *, uint8_t *);
+int	exfat_grow(struct exfat_mount *, struct exfat_stream *, uint64_t);
+int	exfat_shrink(struct exfat_mount *, struct exfat_stream *, uint64_t,
+	    int);
+int	exfat_zero_cluster(struct exfat_mount *, uint32_t);
+int	exfat_name_from_utf8(const char *, size_t, uint16_t *, uint16_t *);
+unsigned exfat_build_set(struct exfat_mount *, const struct exfat_info *,
+	    const uint16_t *, uint16_t, uint8_t *);
+int	exfat_write_set(struct exfat_mount *, const uint64_t *, unsigned,
+	    const uint8_t *);
+int	exfat_read_set(struct exfat_mount *, const uint64_t *, unsigned,
+	    uint8_t *);
+int	exfat_update_set(struct exfat_mount *, const struct exfat_info *);
+int	exfat_delete_set(struct exfat_mount *, const uint64_t *, unsigned);
+int	exfat_dir_space(struct exfat_mount *, struct exfat_node *, unsigned,
+	    uint64_t *);
+int	exfat_dir_empty(struct exfat_mount *, const struct exfat_info *);
+int	exfat_set_dirty(struct exfat_mount *, int);
+
 /* exfat_vnops.c */
 int	exfat_getnode(struct exfat_mount *, const struct exfat_info *,
 	    vnode_t, struct componentname *, const char *, vnode_t *);
 struct exfat_dirrec *exfat_dirrec_find(struct exfat_mount *, uint64_t);
+void	exfat_node_changed(struct exfat_mount *, struct exfat_node *);
 
 #endif /* !_EXFAT_FS_H_ */

@@ -28,8 +28,8 @@
 
 /*
  * exfat: the volume operations, and the kext's start and stop, which
- * register and remove the "exfat" file system. Read only: a mount must
- * ask for it (mount_exfat does).
+ * register and remove the "exfat" file system. A volume mounted
+ * read-write is marked dirty on the disk until it is unmounted cleanly.
  */
 
 #include <sys/systm.h>
@@ -40,6 +40,7 @@
 #include <sys/stat.h>
 #include <sys/attr.h>
 #include <sys/vnode_if.h>
+#include <sys/ubc.h>
 #include <mach/kmod.h>
 #include <libkern/OSByteOrder.h>
 
@@ -203,6 +204,9 @@ exfat_read_root(struct exfat_mount *xmp)
 	if (exfat_load_upcase(xmp, up_first, up_length, up_sum) != 0)
 		printf("exfat: no usable up-case table; only ASCII letters "
 		    "fold\n");
+	xmp->bitmap.first = bm_first;
+	xmp->bitmap.contig = 0;
+	xmp->bitmap.length = bm_length;
 	if (exfat_count_free(xmp, bm_first, bm_length) != 0) {
 		printf("exfat: no usable allocation bitmap\n");
 		xmp->free_clusters = 0;
@@ -232,6 +236,8 @@ exfat_free_mount(struct exfat_mount *xmp)
 		OSFree(xmp->upcase, EXFAT_UPCASE_CHARS * 2, exfat_tag);
 	if (xmp->lock != NULL)
 		lck_mtx_free(xmp->lock, exfat_lck_grp);
+	if (xmp->meta != NULL)
+		lck_rw_free(xmp->meta, exfat_lck_grp);
 	OSFree(xmp, sizeof(*xmp), exfat_tag);
 }
 
@@ -301,12 +307,13 @@ exfat_mountfs(mount_t mp, vnode_t devvp, const struct exfat_args_fs *args,
 	xmp->seconds_west = (args->flags & EXFAT_MNT_SECONDSWEST) ?
 	    args->seconds_west : 0;
 	xmp->lock = lck_mtx_alloc_init(exfat_lck_grp, LCK_ATTR_NULL);
+	xmp->meta = lck_rw_alloc_init(exfat_lck_grp, LCK_ATTR_NULL);
 	for (i = 0; i < EXFAT_HASH; i++) {
 		LIST_INIT(&xmp->nodes[i]);
 		LIST_INIT(&xmp->dirs[i]);
 	}
 	xmp->upcase = OSMalloc(EXFAT_UPCASE_CHARS * 2, exfat_tag);
-	if (xmp->lock == NULL || xmp->upcase == NULL) {
+	if (xmp->lock == NULL || xmp->meta == NULL || xmp->upcase == NULL) {
 		error = ENOMEM;
 		goto fail;
 	}
@@ -327,8 +334,19 @@ exfat_mountfs(mount_t mp, vnode_t devvp, const struct exfat_args_fs *args,
 	if ((error = exfat_read_root(xmp)))
 		goto fail;
 
+	if (!vfs_isrdonly(mp)) {
+		/* Two FATs (TexFAT) or no bitmap: read only. */
+		if (boot.nfats != 1 || xmp->bitmap.first == 0) {
+			error = EROFS;
+			goto fail;
+		}
+		if ((error = exfat_set_dirty(xmp, 1)))
+			goto fail;
+		xmp->rw = 1;
+	}
 	vfs_setfsprivate(mp, xmp);
 	vfs_getnewfsid(mp);
+	vfs_setlocklocal(mp);
 	return (0);
 
 fail:
@@ -349,10 +367,26 @@ exfat_vfs_mount(mount_t mp, vnode_t devvp, user_addr_t data,
 	struct exfat_args_fs args;
 	int error;
 
-	if (vfs_isupdate(mp))
-		return (vfs_iswriteupgrade(mp) ? EROFS : 0);
-	if (!vfs_isrdonly(mp))
-		return (EROFS);
+	if (vfs_isupdate(mp)) {
+		struct exfat_mount *xmp = VFSTOEXFAT(mp);
+
+		if (vfs_iswriteupgrade(mp) && !xmp->rw) {
+			if (xmp->bitmap.first == 0)
+				return (EROFS);
+			if ((error = exfat_set_dirty(xmp, 1)))
+				return (error);
+			xmp->rw = 1;
+		} else if (vfs_isrdonly(mp) && xmp->rw) {
+			error = vflush(mp, NULLVP,
+			    (vfs_flags(mp) & MNT_FORCE) ? FORCECLOSE : WRITECLOSE);
+			if (error)
+				return (error);
+			buf_flushdirtyblks(xmp->devvp, 1, 0, "exfat_ro");
+			xmp->rw = 0;
+			(void)exfat_set_dirty(xmp, 0);
+		}
+		return (0);
+	}
 	if ((error = copyin(data, &args, sizeof(args))))
 		return (error);
 	if (args.version != EXFAT_ARGS_VERSION)
@@ -378,6 +412,12 @@ exfat_vfs_unmount(mount_t mp, int mntflags, vfs_context_t ctx)
 	error = vflush(mp, NULLVP, (mntflags & MNT_FORCE) ? FORCECLOSE : 0);
 	if (error)
 		return (error);
+	if (xmp->rw) {
+		/* Everything on the disk, then the volume is clean. */
+		buf_flushdirtyblks(devvp, 1, 0, "exfat_unmount");
+		(void)exfat_set_dirty(xmp, 0);
+		(void)VNOP_FSYNC(devvp, MNT_WAIT, ctx);
+	}
 	buf_invalidateblks(devvp, 0, 0, 0);
 	if (old != 0)
 		(void)VNOP_IOCTL(devvp, DKIOCSETBLOCKSIZE, (caddr_t)&old, FWRITE,
@@ -450,9 +490,27 @@ exfat_vfs_getattr(mount_t mp, struct vfs_attr *fsap, vfs_context_t ctx)
 }
 
 static int
+exfat_sync_vnode(vnode_t vp, void *arg)
+{
+	int wait = *(int *)arg;
+
+	if (vnode_isreg(vp))
+		(void)cluster_push(vp, wait ? IO_SYNC : 0);
+	return (VNODE_RETURNED);
+}
+
+/* Files' data, then the FAT, bitmap and directories. */
+static int
 exfat_vfs_sync(mount_t mp, int waitfor, vfs_context_t ctx)
 {
-#pragma unused(mp, waitfor, ctx)
+#pragma unused(ctx)
+	struct exfat_mount *xmp = VFSTOEXFAT(mp);
+	int wait = waitfor == MNT_WAIT;
+
+	if (xmp == NULL || !xmp->rw)
+		return (0);
+	(void)vnode_iterate(mp, 0, exfat_sync_vnode, &wait);
+	buf_flushdirtyblks(xmp->devvp, wait, 0, "exfat_sync");
 	return (0);
 }
 
