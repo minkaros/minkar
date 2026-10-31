@@ -106,13 +106,17 @@ loader's output on screen for photos.
   The power button did nothing: IOACPIFamily now takes ACPI's power
   button (the fixed event, or a PNP0C0C device) and `powerd` asks for an
   orderly shutdown (sleep instead where the machine can sleep and
-  "Sleep On Power Button" is on); tested in QEMU, to test here.
+  "Sleep On Power Button" is on). Here (hw-test38): the firmware has
+  both the fixed event and a PNP0C0C device; a press shuts down and the
+  PC powers off; `pmset` settings survive a reboot.
 - `shutdown`, `reboot` and `poweroff` took 20 seconds more since
   DiskArbitration came: `diskarbitrationd` only stops mounting on
   SIGTERM, and its job lacked Apple's `EnableTransactions`, with which
-  launchd ends it at once when it is idle. About 2 seconds in QEMU now.
+  launchd ends it at once when it is idle. About 2 seconds now, here
+  too (hw-test38: `reboot` and `shutdown -h now`, which powers off).
 - `dmesg` keeps 16 KB, as a release macOS kernel: a verbose boot pushes
-  its start out. The PC test images boot with `msgbuf=1048576` for that.
+  its start out. The PC test images boot with `msgbuf=1048576` for that
+  (hw-test38: about 100 KB from the first line).
 - Booting without `pci_keep_console=1` (see the QEMU known bug).
 
 ### How it got there
