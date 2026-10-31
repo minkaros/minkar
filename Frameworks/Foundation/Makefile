@@ -259,6 +259,7 @@ SRCS = 	NSFormatter.m \
 	NSTimer/NSTimer_concrete.m \
 	NSTimer/NSTimer_invocation.m \
 	NSTimer/NSTimer.m \
+	NSTimer/NSTimer_block.m \
 	NSClassDescription.m \
 	NSTask.m \
 	NSSet/NSSet_placeholder.m \
