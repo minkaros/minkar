@@ -64,6 +64,7 @@
 #include <notify.h>
 #include <servers/bootstrap.h>
 #include <signal.h>
+#include <spawn.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -1227,6 +1228,126 @@ disable_unsupported_sleep(void)
 	IOObjectRelease(root);
 }
 
+/* ---- the power button ----------------------------------------------------------- */
+
+/*
+ * IOACPIFamily's ACPIPowerButton tells of each press with this message.
+ * Where the machine can sleep and "Sleep On Power Button" is on, it
+ * sleeps, as on macOS; else (with no login window to ask) an orderly
+ * shutdown, once.
+ */
+#define kACPIPowerButtonPressed	iokit_vendor_specific_msg(0x0100)
+
+extern char **environ;
+
+static IONotificationPortRef button_port;
+static io_iterator_t button_iter;
+
+static bool
+can_sleep(void)
+{
+	io_service_t root = IOServiceGetMatchingService(kIOMasterPortDefault,
+	    IOServiceNameMatching("IOPMrootDomain"));
+	CFTypeRef supported;
+	bool can = true;
+
+	if (root == MACH_PORT_NULL)
+		return (false);
+	supported = IORegistryEntryCreateCFProperty(root,
+	    CFSTR("IOSleepSupported"), NULL, 0);
+	if (supported == kCFBooleanFalse)
+		can = false;
+	if (supported != NULL)
+		CFRelease(supported);
+	IOObjectRelease(root);
+	return (can);
+}
+
+static bool
+sleep_on_button(void)
+{
+	CFDictionaryRef prefs = IOPMCopyActivePMPreferences();
+	CFTypeRef v;
+	int n = 0;
+
+	if (prefs == NULL)
+		return (false);
+	v = CFDictionaryGetValue(prefs, CFSTR(kIOPMSleepOnPowerButtonKey));
+	if (v != NULL && CFGetTypeID(v) == CFNumberGetTypeID())
+		CFNumberGetValue(v, kCFNumberIntType, &n);
+	else if (v == kCFBooleanTrue)
+		n = 1;
+	CFRelease(prefs);
+	return (n != 0);
+}
+
+static void
+power_button(void)
+{
+	static bool shutting_down;
+	const char *argv[] = { "shutdown", "-h", "now",
+	    "the power button was pressed", NULL };
+	pid_t pid;
+
+	if (can_sleep() && sleep_on_button()) {
+		io_connect_t fb = IOPMFindPowerManagement(MACH_PORT_NULL);
+
+		syslog(LOG_NOTICE, "power button: sleep");
+		if (fb != MACH_PORT_NULL) {
+			IOPMSleepSystem(fb);
+			IOServiceClose(fb);
+		}
+		return;
+	}
+	if (shutting_down)
+		return;
+	shutting_down = true;
+	syslog(LOG_NOTICE, "power button: shutting down");
+	if (posix_spawn(&pid, "/sbin/shutdown", NULL, NULL,
+	    (char *const *)argv, environ) != 0) {
+		syslog(LOG_ERR, "power button: cannot run shutdown: %m");
+		shutting_down = false;
+	}
+}
+
+static void
+button_message(void *refcon, io_service_t service, natural_t type, void *arg)
+{
+	(void)refcon;
+	(void)service;
+	(void)arg;
+	if (type == kACPIPowerButtonPressed)
+		power_button();
+}
+
+static void
+button_matched(void *refcon, io_iterator_t it)
+{
+	io_service_t s;
+	io_object_t note;
+
+	(void)refcon;
+	while ((s = IOIteratorNext(it)) != IO_OBJECT_NULL) {
+		if (IOServiceAddInterestNotification(button_port, s,
+		    kIOGeneralInterest, button_message, NULL, &note) ==
+		    KERN_SUCCESS)
+			syslog(LOG_INFO, "power button: watching");
+		IOObjectRelease(s);
+	}
+}
+
+static void
+watch_power_button(void)
+{
+	if ((button_port = IONotificationPortCreate(kIOMasterPortDefault)) == NULL)
+		return;
+	IONotificationPortSetDispatchQueue(button_port, queue);
+	if (IOServiceAddMatchingNotification(button_port,
+	    kIOFirstMatchNotification, IOServiceMatching("ACPIPowerButton"),
+	    button_matched, NULL, &button_iter) == KERN_SUCCESS)
+		button_matched(NULL, button_iter);	/* arms it */
+}
+
 /* ---- main ---------------------------------------------------------------------- */
 
 int
@@ -1250,6 +1371,7 @@ main(int argc, char *argv[])
 		load_schedule();
 		apply_settings();
 		apply_levels();
+		watch_power_button();
 	});
 	notify_register_dispatch(kIOPMPrefsChangeNotify, &token, queue,
 	    ^(int t) {
