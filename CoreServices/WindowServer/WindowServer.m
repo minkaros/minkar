@@ -597,6 +597,8 @@ static NSString *_pathForPID(pid_t pid) {
     O2ImageSource *cursorIS = [O2ImageSource newImageSourceWithData:(__bridge CFMutableDataRef)cursorData
                                                             options:NULL];
     O2ImageRef cursor = [cursorIS createImageAtIndex:0 options:nil];
+    if(cursor == NULL)
+        NSLog(@"Cannot load the cursor image %@", path);
     NSRect cursorRect = NSMakeRect(0, 0, _cursor_height, _cursor_height);
 
     struct pollfd fds;

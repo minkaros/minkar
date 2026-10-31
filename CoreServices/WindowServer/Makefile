@@ -12,7 +12,7 @@ ENTITLEMENTS = WindowServer.entitlements
 MK_WERROR = no
 WARNS = 1
 
-# Display: IOKit IOFramebuffer. Input: IOKit HID (not connected yet);
+# Display: IOKit IOFramebuffer. Input: IOHIDSystem's event queue;
 # keyboard layouts through libxkbcommon and xkeyboard-config.
 # The old FreeBSD backends (libinput, libevdev, mtdev) are not built.
 SRCS = \

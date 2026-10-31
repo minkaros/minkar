@@ -71,8 +71,9 @@ int main(int argc, const char *argv[]) {
     if(ws == nil)
         exit(1);
 
-    while(getopt(argc, (char * const *)argv, "LxvD:") != -1) {
-        switch(optopt) {
+    int opt;
+    while((opt = getopt(argc, (char * const *)argv, "LxvD:")) != -1) {
+        switch(opt) {
             case 'L': // bypass loginwindow, run desktop for current user
                 curShell = DESKTOP;
                 break;
@@ -94,11 +95,19 @@ int main(int argc, const char *argv[]) {
     }
     [ws setLogLevel:logLevel];
 
+    // SHORTCUT(WS0): a received message is a ReceiveMessage of about
+    // 128 KB on the stack, and the default 512 KB thread stack overflowed.
+    // Goes away with message.h (MIG messages, WS1) and the legacy server.
+    pthread_attr_t attr;
+    pthread_attr_init(&attr);
+    pthread_attr_setstacksize(&attr, 4 * 1024 * 1024);
+
     pthread_t machSvcThread;
-    pthread_create(&machSvcThread, NULL, machSvcLoop, (__bridge void *)ws);
+    pthread_create(&machSvcThread, &attr, machSvcLoop, (__bridge void *)ws);
 
     pthread_t kqThread;
-    pthread_create(&kqThread, NULL, kqSvcLoop, (__bridge void *)ws);
+    pthread_create(&kqThread, &attr, kqSvcLoop, (__bridge void *)ws);
+    pthread_attr_destroy(&attr);
 
     [ws setShell:curShell];
     [ws run];

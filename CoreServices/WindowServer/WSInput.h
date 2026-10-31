@@ -26,10 +26,12 @@
  * pointer and button changes here; WSInput keeps the pointer position
  * and button state and turns them into mach_events for applications.
  *
- * Keys arrive as macOS virtual key codes (kVK_*) and are translated with
+ * Keys arrive as virtual key codes (kVK_*) and are translated with
  * the keyboard layout through WSKeymap (libxkbcommon).
  *
- * FIXME: the IOKit HID backend is not connected yet, so no events arrive.
+ * The device backend is IOHIDSystem's event server connection: WSInput
+ * maps its shared low-level event queue and reads it when the port it
+ * registered is told (fileDescriptor is a kqueue on that port).
  */
 
 #import <Foundation/Foundation.h>
