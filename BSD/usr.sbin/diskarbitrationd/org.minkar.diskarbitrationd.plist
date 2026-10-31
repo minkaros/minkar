@@ -18,6 +18,11 @@
 		<key>__CFPREFERENCES_AVOID_DAEMON</key>
 		<string>1</string>
 	</dict>
+	<!-- As Apple's job: diskarbitrationd tells launchd when it is busy
+	     (transactions), and is ended at once at shutdown when it is not;
+	     SIGTERM alone only stops its mounts. -->
+	<key>EnableTransactions</key>
+	<true/>
 	<key>RunAtLoad</key>
 	<true/>
 	<key>KeepAlive</key>
