@@ -13,6 +13,7 @@ SLF = /System/Library/Frameworks
 INSTALL_NAME_DIR = ${SLF}/${FRAMEWORK}.framework/Versions/${FMWK_VERSION}
 
 SRCS = 	NSFormatter.m \
+	NSModernFormatters.m \
 	NSObject/NSInvocationCall-x86_64.s \
 	NSDictionary/NSEnumerator_dictionaryObjects.m \
 	NSDictionary/NSMutableDictionary.m \
@@ -323,6 +324,7 @@ SRCS = 	NSFormatter.m \
 	NSDate/NSDate.m \
 	NSDate/NSDateComponents.m \
 	NSDate/NSDateFormatter.m \
+	NSDate/NSDateInterval.m \
 	platform_darwin/DarwinMemoryFunctions.m \
 	platform_darwin/NSPlatform_darwin.m \
 	platform_darwin/NSDispatchMainQueueSource.m \
@@ -399,6 +401,10 @@ CFLAGS.NSDataBase64.m = -fobjc-arc
 CFLAGS.NSFileHandleErrors.m = -fobjc-arc
 CFLAGS.NSURLResources.m = -fobjc-arc
 CFLAGS.NSURLComponents.m = -fobjc-arc
+CFLAGS.NSDateInterval.m = -fobjc-arc
+CFLAGS.NSModernFormatters.m = -fobjc-arc -DU_DISABLE_RENAMING=1 \
+	-I${ROOT_SOURCE_DIR}/Libraries/ICU/source/common \
+	-I${ROOT_SOURCE_DIR}/Libraries/ICU/source/i18n
 CFLAGS.NSHTTPCookie.m = -fobjc-arc
 CFLAGS.NSHTTPCookieStorage.m = -fobjc-arc
 CFLAGS.NSURLSession.m = -fobjc-arc -I${ROOT_SOURCE_DIR}/BSD/usr.bin/curl/include

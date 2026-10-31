@@ -90,6 +90,12 @@
 #import <Foundation/NSDate.h>
 #import <Foundation/NSDateComponents.h>
 #import <Foundation/NSDateFormatter.h>
+#import <Foundation/NSDateInterval.h>
+#import <Foundation/NSDateIntervalFormatter.h>
+#import <Foundation/NSDateComponentsFormatter.h>
+#import <Foundation/NSByteCountFormatter.h>
+#import <Foundation/NSRelativeDateTimeFormatter.h>
+#import <Foundation/NSListFormatter.h>
 #import <Foundation/NSDebug.h>
 #import <Foundation/NSDecimalNumber.h>
 #import <Foundation/NSDictionary.h>
