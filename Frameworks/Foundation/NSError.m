@@ -12,6 +12,14 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <Foundation/NSRaise.h>
 #import <Foundation/NSBundle.h>
 #import <Foundation/NSZone.h>
+#import <Foundation/NSSet.h>
+#import <Foundation/NSArray.h>
+#import <Foundation/NSData.h>
+#import <Foundation/NSDate.h>
+#import <Foundation/NSURL.h>
+#import <Foundation/NSNull.h>
+#import <Foundation/NSValue.h>
+#import <Foundation/NSCoder.h>
 
 NSString * const NSPOSIXErrorDomain=@"NSPOSIXErrorDomain";
 NSString * const NSOSStatusErrorDomain=@"NSOSStatusErrorDomain";
@@ -47,12 +55,60 @@ NSString * const NSDebugDescriptionErrorKey=@"NSDebugDescription";
    [super dealloc];
 }
 
+/* Minkar: errors are archived (and sent over NSXPCConnection) with their
+ * domain, code and the user info values that can be archived securely
+ * (NSSecureCodingSupport.m says NSError supports secure coding). */
+static NSDictionary *NSErrorArchivableUserInfo(NSDictionary *userInfo) {
+   NSMutableDictionary *result=[NSMutableDictionary dictionary];
+
+   for(id key in userInfo){
+    id    value=[userInfo objectForKey:key];
+    Class cls=[value class];
+
+    if(![key isKindOfClass:[NSString class]])
+     continue;
+    if([cls respondsToSelector:@selector(supportsSecureCoding)] && [cls supportsSecureCoding])
+     [result setObject:value forKey:key];
+   }
+   return result;
+}
+
 -(void)encodeWithCoder:(NSCoder *)coder {
-   NSUnimplementedMethod();
+   NSDictionary *userInfo=NSErrorArchivableUserInfo(_userInfo);
+
+   if([coder allowsKeyedCoding]){
+    [coder encodeObject:_domain forKey:@"NSDomain"];
+    [coder encodeInteger:_code forKey:@"NSCode"];
+    if([userInfo count]>0)
+     [coder encodeObject:userInfo forKey:@"NSUserInfo"];
+   }
+   else {
+    NSInteger code=_code;
+
+    [coder encodeObject:_domain];
+    [coder encodeValueOfObjCType:@encode(NSInteger) at:&code];
+    [coder encodeObject:userInfo];
+   }
 }
 
 -initWithCoder:(NSCoder *)coder {
-   NSUnimplementedMethod();
+   if([coder allowsKeyedCoding]){
+    NSSet *values=[NSSet setWithObjects:[NSDictionary class],[NSArray class],[NSString class],
+      [NSNumber class],[NSData class],[NSDate class],[NSURL class],[NSError class],[NSNull class],nil];
+
+    _domain=[[coder decodeObjectOfClass:[NSString class] forKey:@"NSDomain"] copy];
+    _code=[coder decodeIntegerForKey:@"NSCode"];
+    _userInfo=[[coder decodeObjectOfClasses:values forKey:@"NSUserInfo"] retain];
+   }
+   else {
+    _domain=[[coder decodeObject] copy];
+    [coder decodeValueOfObjCType:@encode(NSInteger) at:&_code];
+    _userInfo=[[coder decodeObject] retain];
+   }
+   if(_domain==nil){
+    [self release];
+    return nil;
+   }
    return self;
 }
 

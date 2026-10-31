@@ -31,7 +31,7 @@ FOUNDATION_EXPORT NSString *const NSFilePathErrorKey;
 FOUNDATION_EXPORT NSString *const NSErrorFailingURLStringKey;
 FOUNDATION_EXPORT NSString *const NSURLErrorKey;
 
-@interface NSError : NSObject <NSCoding, NSCopying> {
+@interface NSError : NSObject <NSCopying, NSSecureCoding> {
     NSString *_domain;
     NSInteger _code;
     NSDictionary *_userInfo;
