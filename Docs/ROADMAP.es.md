@@ -97,7 +97,7 @@ Minkar arranca sobre Darwin con su propio cargador EFI, todo el sistema se compi
 | Userland y herramientas del sistema | Todos los comandos de la Fase 2 (337 de 354 de la lista de referencia) | `open` y los comandos de fases posteriores | 2 (cerrada) |
 | DiskArbitration | Framework y `diskarbitrationd` originales (APSL); `diskutil` y `hdiutil` propios; monta HFS+, FAT y exFAT | — | 2 (cerrada) |
 | CoreFoundation | CF-Lite (APSL) | APIs que faltan hasta la API 21 | 3 |
-| Foundation | Tres lotes de correcciones (26 oct); `NSProcessInfo` con `operatingSystemVersion`; reexporta CoreFoundation; `NSURLSession` sobre libcurl, con cookies; `NSOperationQueue` sobre dispatch; el run loop principal ejecuta la cola principal de dispatch; `NSDateFormatter` sobre ICU (31 oct); `NSXPCConnection` sobre libxpc (31 oct) | Caché de URL y métricas de tareas en `NSURLSession`; servicios XPC dentro de las apps; auditoría de la API 19 | 3 |
+| Foundation | Tres lotes de correcciones (26 oct); `NSProcessInfo` con `operatingSystemVersion`; reexporta CoreFoundation; `NSURLSession` sobre libcurl, con cookies; `NSOperationQueue` sobre dispatch; el run loop principal ejecuta la cola principal de dispatch; `NSDateFormatter` sobre ICU (31 oct); `NSXPCConnection` sobre libxpc, con los servicios XPC dentro de las apps (31 oct) | Caché de URL y métricas de tareas en `NSURLSession`; auditoría de la API 19 | 3 |
 | Swift 6 | Nada en el árbol | Compilador, stdlib, overlays | 3 |
 | WindowServer | Compila sobre XNU con backend IOFramebuffer; nunca ejecutado | Ejecutarlo; entrada por IOHIDSystem | 4 |
 | Aceleración por GPU | No existe; sin ella tampoco se puede apagar la pantalla | Frente completo (requisito de rendimiento) | 4 y Minkar 21.0 |
@@ -435,7 +435,7 @@ En el mismo orden que los próximos pasos de `Docs/ROADMAP.md` (ruta crítica):
 - [x] **Userland (Fase 2):** cerrada el 31 oct (exFAT en lectura y escritura, `launchctl kickstart`, rutas de dyld, notifyd e IPv6 probados; el resto pasó a las Fases 3, 5 y 6).
 - [ ] **Fase 4:** entrega de eventos de IOHIDSystem en el kernel, el driver `ApplePS2Mouse` y el lector de entrada de WindowServer.
 - [ ] **Fase 4:** instalar el job de WindowServer y lograr el primer arranque que dibuje en `IOGOPFramebuffer`.
-- [ ] **Fase 3:** las clases de Foundation que más faltan según el informe de símbolos (`NSURLSession` hecha el 31 oct, `00617d5f6c`, con cookies; quedan su caché y métricas; `NSXPCConnection`, `NSXPCListener` y `NSXPCInterface` hechas el 31 oct, `82c5f3e8f8`, prueba `foundation-xpc-connection` 20/0, suite completa 2977/0, M2 PASS; quedan los servicios XPC dentro de las apps, lanzados bajo demanda), y lo que llegó de la Fase 2 (libSystem, stubs ruidosos, `logd`).
+- [ ] **Fase 3:** las clases de Foundation que más faltan según el informe de símbolos (`NSURLSession` hecha el 31 oct, `00617d5f6c`, con cookies; quedan su caché y métricas; `NSXPCConnection`, `NSXPCListener` y `NSXPCInterface` hechas el 31 oct, `82c5f3e8f8`, prueba `foundation-xpc-connection` 20/0, suite completa 2977/0, M2 PASS; servicios XPC dentro de las apps: la app los lanza bajo demanda como hijos suyos, sin launchd, prueba `foundation-xpc-service` 9/0), y lo que llegó de la Fase 2 (libSystem, stubs ruidosos, `logd`).
 - [ ] **Fase 3:** los prototipos del toolchain Swift.
 
 Además, lo que este plan añade y aún no está en el repo:

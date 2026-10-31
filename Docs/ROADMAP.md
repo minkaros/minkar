@@ -97,7 +97,7 @@ Minkar boots on Darwin with its own EFI loader, the whole system builds as Mach-
 | Userland and system tools | Every Phase 2 command (337 of the reference list's 354) | `open` and the commands of later phases | 2 (closed) |
 | DiskArbitration | The original framework and `diskarbitrationd` (APSL); our own `diskutil` and `hdiutil`; mounts HFS+, FAT and exFAT | — | 2 (closed) |
 | CoreFoundation | CF-Lite (APSL) | The APIs missing up to API 21 | 3 |
-| Foundation | Three batches of fixes (2026-10-26); `NSProcessInfo` with `operatingSystemVersion`; re-exports CoreFoundation; `NSURLSession` on libcurl, with cookies; `NSOperationQueue` on dispatch; the main run loop runs dispatch's main queue; `NSDateFormatter` on ICU (2026-10-31); `NSXPCConnection` over libxpc (2026-10-31) | URL cache and task metrics in `NSURLSession`; XPC services inside app bundles; the API 19 audit | 3 |
+| Foundation | Three batches of fixes (2026-10-26); `NSProcessInfo` with `operatingSystemVersion`; re-exports CoreFoundation; `NSURLSession` on libcurl, with cookies; `NSOperationQueue` on dispatch; the main run loop runs dispatch's main queue; `NSDateFormatter` on ICU (2026-10-31); `NSXPCConnection` over libxpc, with the XPC services inside app bundles (2026-10-31) | URL cache and task metrics in `NSURLSession`; the API 19 audit | 3 |
 | Swift 6 | Nothing in the tree | Compiler, stdlib, overlays | 3 |
 | WindowServer | Builds on XNU with an IOFramebuffer backend; never run | Run it; input from IOHIDSystem | 4 |
 | GPU acceleration | None; without it the display cannot be turned off either | The whole track (performance requirement) | 4 and Minkar 21.0 |
@@ -435,7 +435,7 @@ In critical-path order:
 - [x] **Userland (Phase 2):** closed on 2026-10-31 (exFAT reading and writing, `launchctl kickstart`, dyld paths, notifyd and IPv6 tested; the rest went to Phases 3, 5 and 6).
 - [ ] **Phase 4:** IOHIDSystem event delivery in the kernel, the `ApplePS2Mouse` driver and WindowServer's input reader.
 - [ ] **Phase 4:** install WindowServer's job and get a first boot that draws on `IOGOPFramebuffer`.
-- [ ] **Phase 3:** the Foundation classes the symbol report misses most (`NSURLSession` done 2026-10-31, `00617d5f6c`, with cookies; its cache and metrics left; `NSXPCConnection`, `NSXPCListener` and `NSXPCInterface` done 2026-10-31, `82c5f3e8f8`, test `foundation-xpc-connection` 20/0, full suite 2977/0, M2 PASS; XPC services inside app bundles, launched on demand, left), and what came from Phase 2 (libSystem, noisy stubs, `logd`).
+- [ ] **Phase 3:** the Foundation classes the symbol report misses most (`NSURLSession` done 2026-10-31, `00617d5f6c`, with cookies; its cache and metrics left; `NSXPCConnection`, `NSXPCListener` and `NSXPCInterface` done 2026-10-31, `82c5f3e8f8`, test `foundation-xpc-connection` 20/0, full suite 2977/0, M2 PASS; XPC services inside app bundles: the app starts them on demand as its children, without launchd, test `foundation-xpc-service` 9/0), and what came from Phase 2 (libSystem, noisy stubs, `logd`).
 - [ ] **Phase 3:** the Swift toolchain prototypes.
 
 What this plan adds, and its state:
