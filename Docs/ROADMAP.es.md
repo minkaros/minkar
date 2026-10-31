@@ -8,7 +8,7 @@ La meta de Minkar es un sistema sobre Darwin 19.6.0 que compile y ejecute apps C
 
 El plan tiene 8 fases (0–7), cada una con entregables y un criterio de salida verificable en CI. Ninguna fase superior se da por cerrada si la inferior no pasa su gate. Desde el 29 oct 2026 rige además un requisito de rendimiento: igual o mejor que el sistema de referencia en el mismo equipo físico, exigido desde Minkar 21.0 (ver Requisitos de rendimiento).
 
-**Fuente de verdad del estado:** [`Docs/ROADMAP.md`](https://github.com/minkaros/minkar/blob/devel/Docs/ROADMAP.md) en el repositorio (en inglés). Este documento lo refleja en español; verificado contra la rama `devel` en `fb6e25b877` (31 oct 2026), 95 commits por delante de `main`.
+**Fuente de verdad del estado:** [`Docs/ROADMAP.md`](https://github.com/minkaros/minkar/blob/devel/Docs/ROADMAP.md) en el repositorio (en inglés). Este documento lo refleja en español, y [Progress.es.md](Progress.es.md) muestra su estado en diagramas (ruta crítica, Fase 3, pila gráfica); verificado contra la rama `devel` en `fb6e25b877` (31 oct 2026), 95 commits por delante de `main`.
 
 ### Principios arquitectónicos
 
@@ -238,7 +238,7 @@ Orden de decisión: CoreFoundation condiciona la Foundation para Swift, y esta c
 Llegan de la Fase 2 (31 oct 2026):
 
 - [ ] Completar libc, libm, pthread, libdispatch, libxpc, notify y os\_log. *Parcial:* desde el 31 oct las apps de referencia encuentran todos sus imports de libSystem (308 de 308): `os_log` escribe sus mensajes en syslogd, con `%{public}`/`%{private}` y `%@`, y en stderr en modo DT (antes no escribía nada, y el `<os/log.h>` del SDK no tenía `os_log()`); `syslog(3)` vuelve a llegar a syslogd; `os_log_error`/`os_log_fault` con los nombres de la referencia; `os_activity`; `_availability_version_check` para `@available`; `launch_activate_socket` (`0709544df7`, `c0923c1bc7`, `5051c781b4`). `math.h` compatible con la referencia desde el 26 oct; a `vis(3)` le faltan las flags nuevas.
-- [ ] Stubs ruidosos (log en la primera llamada).
+- [ ] Stubs ruidosos (log en la primera llamada). *Parcial (31 oct):* `<minkar/stub.h>` registra en syslogd (`org.minkar.stubs`) la primera llamada a un stub en cada proceso, con la imagen que lo llamó, y en stderr en modo DT; los 875 métodos y funciones sin implementar de Foundation, AppKit, CoreData y QuartzCore lo usan (antes escribían en stderr en cada llamada), y los 12 stubs silenciosos de libxpc ya avisan. `tools/symbols/trivial-functions.py` lista las funciones exportadas que no hacen nada (404 el 31 oct, muchas de terceros y vacías a propósito): el resto se revisa desde esa lista.
 - [ ] Shared cache de dyld (opcional al principio).
 - [ ] `logd`, con `os_log` (mientras tanto, `syslogd` y `aslmanager`: los mensajes de `os_log` van a syslogd hasta que `logd` los guarde).
 
@@ -301,7 +301,7 @@ Componentes, por estado:
 - **Parciales:** WindowServer (compila, nunca se ha ejecutado); el teclado PS/2 (llega a la consola, no a WindowServer); QuartzCore y Onyx2D; AppKit (Cocotron).
 - **Faltan:** la entrega de eventos de IOHIDSystem; `ApplePS2Mouse`; virtio-gpu 2D; IOSurface; el compositor de Core Animation; Core Text sobre HarfBuzz/FreeType; giflib y libwebp; ColorSync sobre Little CMS; y el frente de GPU (driver del kernel, Mesa, Metal).
 
-El detalle técnico de cada pieza está en la guía técnica de la pila gráfica.
+El detalle técnico de cada pieza está en la guía técnica de la pila gráfica; [Progress.es.md](Progress.es.md) las dibuja por estado.
 
 Secuencia de desarrollo:
 

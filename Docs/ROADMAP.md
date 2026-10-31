@@ -8,7 +8,7 @@ Minkar's goal is a system on Darwin 19.6.0 that builds and runs Cocoa apps. The 
 
 The plan has 8 phases (0–7), each with deliverables and an exit gate that CI can check. No phase is closed while the one below it fails its gate. Since 2026-10-29 there is also a performance requirement: equal to or better than the reference system on the same physical machine, required from Minkar 21.0 on (see Performance requirements).
 
-**Source of truth:** this file. [ROADMAP.es.md](ROADMAP.es.md) is the same plan in Spanish. Verified against `devel` at `fb6e25b877` (2026-10-31), 95 commits ahead of `main`.
+**Source of truth:** this file. [ROADMAP.es.md](ROADMAP.es.md) is the same plan in Spanish, and [Progress.md](Progress.md) shows its state as diagrams (critical path, Phase 3, the graphics stack). Verified against `devel` at `fb6e25b877` (2026-10-31), 95 commits ahead of `main`.
 
 ### Principles
 
@@ -238,7 +238,7 @@ Decision order: CoreFoundation constrains Foundation for Swift, which constrains
 From Phase 2 (2026-10-31):
 
 - [ ] Complete libc, libm, pthread, libdispatch, libxpc, notify and os\_log. *Partial:* since 2026-10-31 the reference apps find all their libSystem imports (308 of 308): `os_log` writes its messages to syslogd, with `%{public}`/`%{private}` and `%@`, and to stderr in DT mode (it wrote nothing before, and the SDK's `<os/log.h>` had no `os_log()`); `syslog(3)` reaches syslogd again; `os_log_error`/`os_log_fault` under the reference's names; `os_activity`; `_availability_version_check` for `@available`; `launch_activate_socket` (`0709544df7`, `c0923c1bc7`, `5051c781b4`). `math.h` matches the reference since 2026-10-26; `vis(3)` lacks the newer flags.
-- [ ] Noisy stubs (log on the first call).
+- [ ] Noisy stubs (log on the first call). *Partial (2026-10-31):* `<minkar/stub.h>` logs a stub's first call in a process to syslogd (`org.minkar.stubs`), with the image that called it, and to stderr in DT mode; the 875 unimplemented methods and functions of Foundation, AppKit, CoreData and QuartzCore use it (they printed on stderr at every call), and libxpc's 12 silent stubs say so now. `tools/symbols/trivial-functions.py` lists the exported functions that do nothing (404 on 2026-10-31, many of them third-party and empty by design): the rest are reviewed from that list.
 - [ ] dyld's shared cache (optional at first).
 - [ ] `logd`, with `os_log` (`syslogd` and `aslmanager` meanwhile: `os_log` messages go to syslogd until logd keeps them).
 
@@ -301,7 +301,7 @@ Components, by state:
 - **Partial:** WindowServer (builds, never run); the PS/2 keyboard (reaches the console, not WindowServer); QuartzCore and Onyx2D; AppKit (Cocotron).
 - **Missing:** IOHIDSystem event delivery; `ApplePS2Mouse`; virtio-gpu 2D; IOSurface; the Core Animation compositor; Core Text on HarfBuzz/FreeType; giflib and libwebp; ColorSync on Little CMS; and the GPU track (kernel driver, Mesa, Metal).
 
-Each piece's technical detail is in the graphics stack's technical guide.
+Each piece's technical detail is in the graphics stack's technical guide; [Progress.md](Progress.md) draws them by state.
 
 Development sequence:
 
