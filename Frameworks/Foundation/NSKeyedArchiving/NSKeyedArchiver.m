@@ -165,65 +165,47 @@ NSString *const NSKeyedArchiveRootObjectKey=@"root";
    _outputFormat=format;
 }
 
--(void)encodeBool:(BOOL)value forKey:(NSString *)key {
-   if(_pass==0)
-    return;
+/* Minkar: where a value goes: the object being encoded, or $top for one
+ * encoded at the top level (those were dropped). */
+-(NSMutableDictionary *)_keyedValues {
+   return _pass==0 ? _top : [_plistStack lastObject];
+}
 
-   [[_plistStack lastObject] setObject:[NSNumber numberWithBool:value] forKey:key];
+-(void)encodeBool:(BOOL)value forKey:(NSString *)key {
+   [[self _keyedValues] setObject:[NSNumber numberWithBool:value] forKey:key];
 }
 
 -(void)encodeInt:(int)value forKey:(NSString *)key {
-   if(_pass==0)
-    return;
-
-   [[_plistStack lastObject] setObject:[NSNumber numberWithInt:value] forKey:key];
+   [[self _keyedValues] setObject:[NSNumber numberWithInt:value] forKey:key];
 }
 
 -(void)encodeInteger:(NSInteger)value forKey:(NSString *)key {
-    if(_pass==0)
-        return;
-    
-    [[_plistStack lastObject] setObject:[NSNumber numberWithInteger:value] forKey:key];
+    [[self _keyedValues] setObject:[NSNumber numberWithInteger:value] forKey:key];
 }
 
 -(void)encodeInt32:(int32_t)value forKey:(NSString *)key {
-   if(_pass==0)
-    return;
-
-   [[_plistStack lastObject] setObject:[NSNumber numberWithInt:value] forKey:key];
+   [[self _keyedValues] setObject:[NSNumber numberWithInt:value] forKey:key];
 }
 
 -(void)encodeInt64:(int64_t)value forKey:(NSString *)key {
-   if(_pass==0)
-    return;
-
-   [[_plistStack lastObject] setObject:[NSNumber numberWithLongLong:value] forKey:key];
+   [[self _keyedValues] setObject:[NSNumber numberWithLongLong:value] forKey:key];
 }
 
 -(void)encodeFloat:(float)value forKey:(NSString *)key {
-   if(_pass==0)
-    return;
-
-   [[_plistStack lastObject] setObject:[NSNumber numberWithFloat:value] forKey:key];
+   [[self _keyedValues] setObject:[NSNumber numberWithFloat:value] forKey:key];
 }
 
 -(void)encodeDouble:(double)value forKey:(NSString *)key {
-   if(_pass==0)
-    return;
-
-   [[_plistStack lastObject] setObject:[NSNumber numberWithDouble:value] forKey:key];
+   [[self _keyedValues] setObject:[NSNumber numberWithDouble:value] forKey:key];
 }
 
 -(void)encodeBytes:(const uint8_t *)ptr length:(NSUInteger)length forKey:(NSString *)key {
-   if(_pass==0)
-    return;
-   
-   [[_plistStack lastObject] setObject:[NSData dataWithBytes:ptr length:length] forKey:key];
+   [[self _keyedValues] setObject:[NSData dataWithBytes:ptr length:length] forKey:key];
 }
 
 
 - (void)encodeArrayOfDoubles:(double *)array count:(NSUInteger)count forKey:(NSString *)key {
-   if(_pass == 0 || count < 1)
+   if(count < 1)
     return;
    
     NSMutableString *str = [NSMutableString stringWithString:@"{"];
