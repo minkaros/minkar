@@ -8,7 +8,7 @@ La meta de Minkar es un sistema sobre Darwin 19.6.0 que compile y ejecute apps C
 
 El plan tiene 8 fases (0–7), cada una con entregables y un criterio de salida verificable en CI. Ninguna fase superior se da por cerrada si la inferior no pasa su gate. Desde el 29 oct 2026 rige además un requisito de rendimiento: igual o mejor que el sistema de referencia en el mismo equipo físico, exigido desde Minkar 21.0 (ver Requisitos de rendimiento).
 
-**Fuente de verdad del estado:** [`Docs/ROADMAP.md`](https://github.com/minkaros/minkar/blob/devel/Docs/ROADMAP.md) en el repositorio (en inglés). Este documento lo refleja en español, y [Progress.es.md](Progress.es.md) muestra su estado en diagramas (ruta crítica, Fase 3, pila gráfica); verificado contra la rama `devel` en `fb6e25b877` (31 oct 2026), 95 commits por delante de `main`.
+**Fuente de verdad del estado:** [`Docs/ROADMAP.md`](https://github.com/minkaros/minkar/blob/devel/Docs/ROADMAP.md) en el repositorio (en inglés). Este documento lo refleja en español, y [Progress.es.md](Progress.es.md) muestra su estado en diagramas (ruta crítica, Fase 3, pila gráfica); verificado contra la rama `devel` en `82c5f3e8f8` (31 oct 2026), 140 commits por delante de `main`.
 
 ### Principios arquitectónicos
 
@@ -97,7 +97,7 @@ Minkar arranca sobre Darwin con su propio cargador EFI, todo el sistema se compi
 | Userland y herramientas del sistema | Todos los comandos de la Fase 2 (337 de 354 de la lista de referencia) | `open` y los comandos de fases posteriores | 2 (cerrada) |
 | DiskArbitration | Framework y `diskarbitrationd` originales (APSL); `diskutil` y `hdiutil` propios; monta HFS+, FAT y exFAT | — | 2 (cerrada) |
 | CoreFoundation | CF-Lite (APSL) | APIs que faltan hasta la API 21 | 3 |
-| Foundation | Tres lotes de correcciones (26 oct); `NSProcessInfo` con `operatingSystemVersion`; reexporta CoreFoundation; `NSURLSession` sobre libcurl, con cookies; `NSOperationQueue` sobre dispatch; el run loop principal ejecuta la cola principal de dispatch; `NSDateFormatter` sobre ICU (31 oct) | Caché de URL y métricas de tareas en `NSURLSession`; auditoría de la API 19 | 3 |
+| Foundation | Tres lotes de correcciones (26 oct); `NSProcessInfo` con `operatingSystemVersion`; reexporta CoreFoundation; `NSURLSession` sobre libcurl, con cookies; `NSOperationQueue` sobre dispatch; el run loop principal ejecuta la cola principal de dispatch; `NSDateFormatter` sobre ICU (31 oct); `NSXPCConnection` sobre libxpc (31 oct) | Caché de URL y métricas de tareas en `NSURLSession`; servicios XPC dentro de las apps; auditoría de la API 19 | 3 |
 | Swift 6 | Nada en el árbol | Compilador, stdlib, overlays | 3 |
 | WindowServer | Compila sobre XNU con backend IOFramebuffer; nunca ejecutado | Ejecutarlo; entrada por IOHIDSystem | 4 |
 | Aceleración por GPU | No existe; sin ella tampoco se puede apagar la pantalla | Frente completo (requisito de rendimiento) | 4 y Minkar 21.0 |
@@ -239,7 +239,7 @@ Orden de decisión: CoreFoundation condiciona la Foundation para Swift, y esta c
 
 Llegan de la Fase 2 (31 oct 2026):
 
-- [ ] Completar libc, libm, pthread, libdispatch, libxpc, notify y os\_log. *Parcial:* desde el 31 oct las apps de referencia encuentran todos sus imports de libSystem (308 de 308): `os_log` escribe sus mensajes en syslogd, con `%{public}`/`%{private}` y `%@`, y en stderr en modo DT (antes no escribía nada, y el `<os/log.h>` del SDK no tenía `os_log()`); `syslog(3)` vuelve a llegar a syslogd; `os_log_error`/`os_log_fault` con los nombres de la referencia; `os_activity`; `_availability_version_check` para `@available`; `launch_activate_socket` (`0709544df7`, `c0923c1bc7`, `5051c781b4`). También están las demás bibliotecas de `/usr/lib` que importan: `libsqlite3` (SQLite 3.54.1, con el intérprete `sqlite3`, `bbe573a8a5`), `libxar` (xar-503) y nuestra `libcompression` (ZLIB, LZMA, LZFSE) (`cae9a9c4f4`); CommonCrypto tiene `CCDigest` (`88e4800b96`). Foundation reexporta CoreFoundation, como la referencia (`55ac68b1f0`). `math.h` compatible con la referencia desde el 26 oct; a `vis(3)` le faltan las flags nuevas.
+- [ ] Completar libc, libm, pthread, libdispatch, libxpc, notify y os\_log. *Parcial:* desde el 31 oct las apps de referencia encuentran todos sus imports de libSystem (308 de 308): `os_log` escribe sus mensajes en syslogd, con `%{public}`/`%{private}` y `%@`, y en stderr en modo DT (antes no escribía nada, y el `<os/log.h>` del SDK no tenía `os_log()`); `syslog(3)` vuelve a llegar a syslogd; `os_log_error`/`os_log_fault` con los nombres de la referencia; `os_activity`; `_availability_version_check` para `@available`; `launch_activate_socket` (`0709544df7`, `c0923c1bc7`, `5051c781b4`). También están las demás bibliotecas de `/usr/lib` que importan: `libsqlite3` (SQLite 3.54.1, con el intérprete `sqlite3`, `bbe573a8a5`), `libxar` (xar-503) y nuestra `libcompression` (ZLIB, LZMA, LZFSE) (`cae9a9c4f4`); CommonCrypto tiene `CCDigest` (`88e4800b96`). libxpc tiene conexiones reales desde el 31 oct (`b2a0bee6ce`): escuchas anónimas y endpoints, servicios Mach a través de launchd con interrupción y relanzamiento, respuestas, descriptores, puertos y memoria compartida en los mensajes, las credenciales del emisor; los arrays funcionan (antes no podían contener nada). Prueba `libxpc-connection` (14 comprobaciones). `xpc_set_event_stream_handler` sigue siendo un stub. Foundation reexporta CoreFoundation, como la referencia (`55ac68b1f0`). `math.h` compatible con la referencia desde el 26 oct; a `vis(3)` le faltan las flags nuevas.
 - [ ] Stubs ruidosos (log en la primera llamada). *Parcial (31 oct):* `<minkar/stub.h>` registra en syslogd (`org.minkar.stubs`) la primera llamada a un stub en cada proceso, con la imagen que lo llamó, y en stderr en modo DT; los 875 métodos y funciones sin implementar de Foundation, AppKit, CoreData y QuartzCore lo usan (antes escribían en stderr en cada llamada), y los 12 stubs silenciosos de libxpc ya avisan. `tools/symbols/trivial-functions.py` lista las funciones exportadas que no hacen nada (404 el 31 oct, muchas de terceros y vacías a propósito): el resto se revisa desde esa lista.
 - [ ] Shared cache de dyld (opcional al principio).
 - [ ] `logd`, con `os_log` (mientras tanto, `syslogd` y `aslmanager`: los mensajes de `os_log` van a syslogd hasta que `logd` los guarde).
@@ -435,7 +435,7 @@ En el mismo orden que los próximos pasos de `Docs/ROADMAP.md` (ruta crítica):
 - [x] **Userland (Fase 2):** cerrada el 31 oct (exFAT en lectura y escritura, `launchctl kickstart`, rutas de dyld, notifyd e IPv6 probados; el resto pasó a las Fases 3, 5 y 6).
 - [ ] **Fase 4:** entrega de eventos de IOHIDSystem en el kernel, el driver `ApplePS2Mouse` y el lector de entrada de WindowServer.
 - [ ] **Fase 4:** instalar el job de WindowServer y lograr el primer arranque que dibuje en `IOGOPFramebuffer`.
-- [ ] **Fase 3:** las clases de Foundation que más faltan según el informe de símbolos (`NSURLSession` hecha el 31 oct, `00617d5f6c`, con cookies; quedan su caché y métricas), y lo que llegó de la Fase 2 (libSystem, stubs ruidosos, `logd`).
+- [ ] **Fase 3:** las clases de Foundation que más faltan según el informe de símbolos (`NSURLSession` hecha el 31 oct, `00617d5f6c`, con cookies; quedan su caché y métricas; `NSXPCConnection`, `NSXPCListener` y `NSXPCInterface` hechas el 31 oct, `82c5f3e8f8`, prueba `foundation-xpc-connection` 20/0, suite completa 2977/0, M2 PASS; quedan los servicios XPC dentro de las apps, lanzados bajo demanda), y lo que llegó de la Fase 2 (libSystem, stubs ruidosos, `logd`).
 - [ ] **Fase 3:** los prototipos del toolchain Swift.
 
 Además, lo que este plan añade y aún no está en el repo:
@@ -449,7 +449,7 @@ Además, lo que este plan añade y aún no está en el repo:
 
 ## Fuentes
 
-- [Repositorio minkaros/minkar](https://github.com/minkaros/minkar), rama `devel`, verificada en `fb6e25b877` (31 oct 2026).
+- [Repositorio minkaros/minkar](https://github.com/minkaros/minkar), rama `devel`, verificada en `82c5f3e8f8` (31 oct 2026).
 - [`Docs/ROADMAP.md`](https://github.com/minkaros/minkar/blob/devel/Docs/ROADMAP.md): estado de cada fase.
 - [`Docs/Hardware.md`](https://github.com/minkaros/minkar/blob/devel/Docs/Hardware.md): equipos de referencia.
 - [`Docs/Commands.md`](https://github.com/minkaros/minkar/blob/devel/Docs/Commands.md): comandos de Minkar frente a la lista de referencia.

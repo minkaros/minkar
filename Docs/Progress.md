@@ -49,6 +49,7 @@ flowchart TB
     subgraph FW["Frameworks"]
         F1["Foundation audit<br/>NSProcessInfo, NSOperationQueue,<br/>main queue in the run loop,<br/>NSDateFormatter on ICU"]:::partial
         F2["NSURLSession on libcurl, cookies<br/>cache, metrics left"]:::partial
+        F5["NSXPCConnection over libxpc<br/>services in app bundles left"]:::partial
         F3["CF-Lite to API 21<br/>arrays, dictionaries, strings bridged"]:::partial
         F4["Security, LaunchServices"]:::todo
     end

@@ -8,7 +8,7 @@ Minkar's goal is a system on Darwin 19.6.0 that builds and runs Cocoa apps. The 
 
 The plan has 8 phases (0–7), each with deliverables and an exit gate that CI can check. No phase is closed while the one below it fails its gate. Since 2026-10-29 there is also a performance requirement: equal to or better than the reference system on the same physical machine, required from Minkar 21.0 on (see Performance requirements).
 
-**Source of truth:** this file. [ROADMAP.es.md](ROADMAP.es.md) is the same plan in Spanish, and [Progress.md](Progress.md) shows its state as diagrams (critical path, Phase 3, the graphics stack). Verified against `devel` at `fb6e25b877` (2026-10-31), 95 commits ahead of `main`.
+**Source of truth:** this file. [ROADMAP.es.md](ROADMAP.es.md) is the same plan in Spanish, and [Progress.md](Progress.md) shows its state as diagrams (critical path, Phase 3, the graphics stack). Verified against `devel` at `82c5f3e8f8` (2026-10-31), 140 commits ahead of `main`.
 
 ### Principles
 
@@ -97,7 +97,7 @@ Minkar boots on Darwin with its own EFI loader, the whole system builds as Mach-
 | Userland and system tools | Every Phase 2 command (337 of the reference list's 354) | `open` and the commands of later phases | 2 (closed) |
 | DiskArbitration | The original framework and `diskarbitrationd` (APSL); our own `diskutil` and `hdiutil`; mounts HFS+, FAT and exFAT | — | 2 (closed) |
 | CoreFoundation | CF-Lite (APSL) | The APIs missing up to API 21 | 3 |
-| Foundation | Three batches of fixes (2026-10-26); `NSProcessInfo` with `operatingSystemVersion`; re-exports CoreFoundation; `NSURLSession` on libcurl, with cookies; `NSOperationQueue` on dispatch; the main run loop runs dispatch's main queue; `NSDateFormatter` on ICU (2026-10-31) | URL cache and task metrics in `NSURLSession`; the API 19 audit | 3 |
+| Foundation | Three batches of fixes (2026-10-26); `NSProcessInfo` with `operatingSystemVersion`; re-exports CoreFoundation; `NSURLSession` on libcurl, with cookies; `NSOperationQueue` on dispatch; the main run loop runs dispatch's main queue; `NSDateFormatter` on ICU (2026-10-31); `NSXPCConnection` over libxpc (2026-10-31) | URL cache and task metrics in `NSURLSession`; XPC services inside app bundles; the API 19 audit | 3 |
 | Swift 6 | Nothing in the tree | Compiler, stdlib, overlays | 3 |
 | WindowServer | Builds on XNU with an IOFramebuffer backend; never run | Run it; input from IOHIDSystem | 4 |
 | GPU acceleration | None; without it the display cannot be turned off either | The whole track (performance requirement) | 4 and Minkar 21.0 |
@@ -239,7 +239,7 @@ Decision order: CoreFoundation constrains Foundation for Swift, which constrains
 
 From Phase 2 (2026-10-31):
 
-- [ ] Complete libc, libm, pthread, libdispatch, libxpc, notify and os\_log. *Partial:* since 2026-10-31 the reference apps find all their libSystem imports (308 of 308): `os_log` writes its messages to syslogd, with `%{public}`/`%{private}` and `%@`, and to stderr in DT mode (it wrote nothing before, and the SDK's `<os/log.h>` had no `os_log()`); `syslog(3)` reaches syslogd again; `os_log_error`/`os_log_fault` under the reference's names; `os_activity`; `_availability_version_check` for `@available`; `launch_activate_socket` (`0709544df7`, `c0923c1bc7`, `5051c781b4`). The other libraries in `/usr/lib` they import are there too: `libsqlite3` (SQLite 3.54.1, with the `sqlite3` shell, `bbe573a8a5`), `libxar` (xar-503) and our own `libcompression` (ZLIB, LZMA, LZFSE) (`cae9a9c4f4`); CommonCrypto has `CCDigest` (`88e4800b96`). Foundation re-exports CoreFoundation, as the reference system's does (`55ac68b1f0`). `math.h` matches the reference since 2026-10-26; `vis(3)` lacks the newer flags.
+- [ ] Complete libc, libm, pthread, libdispatch, libxpc, notify and os\_log. *Partial:* since 2026-10-31 the reference apps find all their libSystem imports (308 of 308): `os_log` writes its messages to syslogd, with `%{public}`/`%{private}` and `%@`, and to stderr in DT mode (it wrote nothing before, and the SDK's `<os/log.h>` had no `os_log()`); `syslog(3)` reaches syslogd again; `os_log_error`/`os_log_fault` under the reference's names; `os_activity`; `_availability_version_check` for `@available`; `launch_activate_socket` (`0709544df7`, `c0923c1bc7`, `5051c781b4`). The other libraries in `/usr/lib` they import are there too: `libsqlite3` (SQLite 3.54.1, with the `sqlite3` shell, `bbe573a8a5`), `libxar` (xar-503) and our own `libcompression` (ZLIB, LZMA, LZFSE) (`cae9a9c4f4`); CommonCrypto has `CCDigest` (`88e4800b96`). libxpc has real connections since 2026-10-31 (`b2a0bee6ce`): anonymous listeners and endpoints, Mach services through launchd with interruption and relaunch, replies, descriptors, ports and shared memory in messages, the sender's credentials; arrays work (they could hold nothing before). Test `libxpc-connection` (14 checks). `xpc_set_event_stream_handler` is still a stub. Foundation re-exports CoreFoundation, as the reference system's does (`55ac68b1f0`). `math.h` matches the reference since 2026-10-26; `vis(3)` lacks the newer flags.
 - [ ] Noisy stubs (log on the first call). *Partial (2026-10-31):* `<minkar/stub.h>` logs a stub's first call in a process to syslogd (`org.minkar.stubs`), with the image that called it, and to stderr in DT mode; the 875 unimplemented methods and functions of Foundation, AppKit, CoreData and QuartzCore use it (they printed on stderr at every call), and libxpc's 12 silent stubs say so now. `tools/symbols/trivial-functions.py` lists the exported functions that do nothing (404 on 2026-10-31, many of them third-party and empty by design): the rest are reviewed from that list.
 - [ ] dyld's shared cache (optional at first).
 - [ ] `logd`, with `os_log` (`syslogd` and `aslmanager` meanwhile: `os_log` messages go to syslogd until logd keeps them).
@@ -435,7 +435,7 @@ In critical-path order:
 - [x] **Userland (Phase 2):** closed on 2026-10-31 (exFAT reading and writing, `launchctl kickstart`, dyld paths, notifyd and IPv6 tested; the rest went to Phases 3, 5 and 6).
 - [ ] **Phase 4:** IOHIDSystem event delivery in the kernel, the `ApplePS2Mouse` driver and WindowServer's input reader.
 - [ ] **Phase 4:** install WindowServer's job and get a first boot that draws on `IOGOPFramebuffer`.
-- [ ] **Phase 3:** the Foundation classes the symbol report misses most (`NSURLSession` done 2026-10-31, `00617d5f6c`, with cookies; its cache and metrics left), and what came from Phase 2 (libSystem, noisy stubs, `logd`).
+- [ ] **Phase 3:** the Foundation classes the symbol report misses most (`NSURLSession` done 2026-10-31, `00617d5f6c`, with cookies; its cache and metrics left; `NSXPCConnection`, `NSXPCListener` and `NSXPCInterface` done 2026-10-31, `82c5f3e8f8`, test `foundation-xpc-connection` 20/0, full suite 2977/0, M2 PASS; XPC services inside app bundles, launched on demand, left), and what came from Phase 2 (libSystem, noisy stubs, `logd`).
 - [ ] **Phase 3:** the Swift toolchain prototypes.
 
 What this plan adds, and its state:
@@ -449,7 +449,7 @@ What this plan adds, and its state:
 
 ## Sources
 
-- [The minkaros/minkar repository](https://github.com/minkaros/minkar), branch `devel`, verified at `fb6e25b877` (2026-10-31).
+- [The minkaros/minkar repository](https://github.com/minkaros/minkar), branch `devel`, verified at `82c5f3e8f8` (2026-10-31).
 - [Hardware.md](Hardware.md): reference machines.
 - [Commands.md](Commands.md): Minkar's commands against the reference list.
 - [Userland.md](Userland.md): the history of ported commands (exFAT, `notifyutil`, `launchctl kickstart`).
