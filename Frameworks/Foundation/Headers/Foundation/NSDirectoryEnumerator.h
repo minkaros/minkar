@@ -9,9 +9,11 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <Foundation/NSEnumerator.h>
 @class NSDictionary;
 
-@interface NSDirectoryEnumerator : NSEnumerator
+@interface NSDirectoryEnumerator<ObjectType> : NSEnumerator<ObjectType>
 - (void)skipDescendents;
 - (void)skipDescendants;
 - (NSDictionary *)directoryAttributes;
 - (NSDictionary *)fileAttributes;
+@property (readonly) NSUInteger level;
+@property (readonly) BOOL isEnumeratingDirectoryPostOrder;
 @end

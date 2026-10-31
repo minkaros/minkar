@@ -7,8 +7,9 @@ The above copyright notice and this permission notice shall be included in all c
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE. */
 
 #import <Foundation/NSObject.h>
+#import <Foundation/NSArray.h>
 
-@class NSArray, NSDictionary, NSString, NSError, NSMutableDictionary, NSURL;
+@class NSDictionary, NSString, NSError, NSMutableDictionary, NSURL;
 
 FOUNDATION_EXPORT NSString *const NSBundleDidLoadNotification;
 FOUNDATION_EXPORT NSString *const NSLoadedClasses;
@@ -83,6 +84,28 @@ FOUNDATION_EXPORT NSString *const NSLoadedClasses;
 - (NSString *)localizedStringForKey:(NSString *)key value:(NSString *)value table:(NSString *)table;
 
 @end
+
+@interface NSBundle (NSURLResources)
++ (instancetype)bundleWithURL:(NSURL *)url;
+- (instancetype)initWithURL:(NSURL *)url;
+@property (readonly, copy) NSURL *bundleURL;
+@property (readonly, copy) NSURL *resourceURL;
+@property (readonly, copy) NSURL *executableURL;
+@property (readonly, copy) NSURL *privateFrameworksURL;
+@property (readonly, copy) NSURL *sharedFrameworksURL;
+@property (readonly, copy) NSURL *sharedSupportURL;
+@property (readonly, copy) NSURL *builtInPlugInsURL;
+@property (readonly, copy) NSURL *appStoreReceiptURL;
+- (NSURL *)URLForAuxiliaryExecutable:(NSString *)executableName;
+- (NSArray<NSURL *> *)URLsForResourcesWithExtension:(NSString *)ext subdirectory:(NSString *)subpath;
+- (NSArray<NSURL *> *)URLsForResourcesWithExtension:(NSString *)ext subdirectory:(NSString *)subpath
+                                       localization:(NSString *)localizationName;
++ (NSURL *)URLForResource:(NSString *)name withExtension:(NSString *)ext subdirectory:(NSString *)subpath
+          inBundleWithURL:(NSURL *)bundleURL;
++ (NSArray<NSURL *> *)URLsForResourcesWithExtension:(NSString *)ext subdirectory:(NSString *)subpath
+                                    inBundleWithURL:(NSURL *)bundleURL;
+@end
+
 
 FOUNDATION_EXPORT NSString *NSLocalizedString(NSString *key, NSString *comment);
 FOUNDATION_EXPORT NSString *NSLocalizedStringFromTable(NSString *key, NSString *table, NSString *comment);

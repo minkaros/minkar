@@ -40,6 +40,29 @@ FOUNDATION_EXPORT NSString *const NSFileSystemNumber;
 FOUNDATION_EXPORT NSString *const NSFileSystemSize;
 FOUNDATION_EXPORT NSString *const NSFileSystemFreeSize;
 
+#import <Foundation/NSPathUtilities.h>
+
+@class NSURL;
+
+typedef NS_OPTIONS(NSUInteger, NSDirectoryEnumerationOptions) {
+    NSDirectoryEnumerationSkipsSubdirectoryDescendants = 1UL << 0,
+    NSDirectoryEnumerationSkipsPackageDescendants = 1UL << 1,
+    NSDirectoryEnumerationSkipsHiddenFiles = 1UL << 2,
+    NSDirectoryEnumerationIncludesDirectoriesPostOrder = 1UL << 3,
+    NSDirectoryEnumerationProducesRelativePathURLs = 1UL << 4,
+};
+
+typedef NS_OPTIONS(NSUInteger, NSFileManagerItemReplacementOptions) {
+    NSFileManagerItemReplacementUsingNewMetadataOnly = 1UL << 0,
+    NSFileManagerItemReplacementWithoutDeletingBackupItem = 1UL << 1
+};
+
+typedef NS_ENUM(NSInteger, NSURLRelationship) {
+    NSURLRelationshipContains,
+    NSURLRelationshipSame,
+    NSURLRelationshipOther
+};
+
 @interface NSFileManager : NSObject
 
 + (NSFileManager *)defaultManager;
@@ -118,6 +141,32 @@ FOUNDATION_EXPORT NSString *const NSFileSystemFreeSize;
 - (const uint16_t *)fileSystemRepresentationWithPathW:(NSString *)path;
 
 @end
+
+@interface NSFileManager (NSURLResources)
+- (NSArray<NSURL *> *)URLsForDirectory:(NSSearchPathDirectory)directory inDomains:(NSSearchPathDomainMask)domainMask;
+- (NSURL *)URLForDirectory:(NSSearchPathDirectory)directory inDomain:(NSSearchPathDomainMask)domain
+         appropriateForURL:(NSURL *)url create:(BOOL)shouldCreate error:(NSError **)error;
+@property (readonly, copy) NSURL *homeDirectoryForCurrentUser;
+@property (readonly, copy) NSURL *temporaryDirectory;
+- (NSURL *)homeDirectoryForUser:(NSString *)userName;
+- (NSArray<NSURL *> *)contentsOfDirectoryAtURL:(NSURL *)url includingPropertiesForKeys:(NSArray<NSString *> *)keys
+                                       options:(NSDirectoryEnumerationOptions)mask error:(NSError **)error;
+- (NSDirectoryEnumerator<NSURL *> *)enumeratorAtURL:(NSURL *)url includingPropertiesForKeys:(NSArray<NSString *> *)keys
+                                            options:(NSDirectoryEnumerationOptions)mask
+                                       errorHandler:(BOOL (^)(NSURL *url, NSError *error))handler;
+- (BOOL)replaceItemAtURL:(NSURL *)originalItemURL withItemAtURL:(NSURL *)newItemURL
+          backupItemName:(NSString *)backupItemName options:(NSFileManagerItemReplacementOptions)options
+        resultingItemURL:(NSURL **)resultingURL error:(NSError **)error;
+- (BOOL)trashItemAtURL:(NSURL *)url resultingItemURL:(NSURL **)outResultingURL error:(NSError **)error;
+- (BOOL)createSymbolicLinkAtURL:(NSURL *)url withDestinationURL:(NSURL *)destURL error:(NSError **)error;
+- (BOOL)getRelationship:(NSURLRelationship *)outRelationship ofDirectoryAtURL:(NSURL *)directoryURL
+           toItemAtURL:(NSURL *)otherURL error:(NSError **)error;
+- (BOOL)getRelationship:(NSURLRelationship *)outRelationship ofDirectory:(NSSearchPathDirectory)directory
+              inDomain:(NSSearchPathDomainMask)domainMask toItemAtURL:(NSURL *)url error:(NSError **)error;
+- (NSURL *)URLForUbiquityContainerIdentifier:(NSString *)containerIdentifier;
+@property (readonly, copy) id ubiquityIdentityToken;
+@end
+
 
 @interface NSObject (NSFileManager_handler)
 - (BOOL)fileManager:(NSFileManager *)fileManager shouldProceedAfterError:(NSDictionary *)dictionary;
