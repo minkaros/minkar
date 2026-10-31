@@ -47,8 +47,8 @@ flowchart TB
         L7["dyld shared cache"]:::todo
     end
     subgraph FW["Frameworks"]
-        F1["Foundation audit<br/>NSProcessInfo, CF re-export"]:::partial
-        F2["NSURLSession"]:::todo
+        F1["Foundation audit<br/>NSProcessInfo, NSOperationQueue,<br/>main queue in the run loop"]:::partial
+        F2["NSURLSession on libcurl<br/>cookies, cache, metrics left"]:::partial
         F3["CF-Lite to API 21<br/>arrays and dictionaries bridged"]:::partial
         F4["Security, LaunchServices"]:::todo
     end
@@ -58,7 +58,7 @@ flowchart TB
         S3["Overlays, Foundation overlay"]:::todo
     end
     S1 --> S2 --> S3
-    F4 --> F2
+    F4 -.-> F2
 
     classDef done fill:#2e7d32,stroke:#1b5e20,color:#fff
     classDef partial fill:#f9a825,stroke:#f57f17,color:#000
