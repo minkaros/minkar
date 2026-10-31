@@ -28,6 +28,7 @@
 
 #include <CoreFoundation/CFArray.h>
 #include <CoreFoundation/CFPriv.h>
+#define CF_OBJC_DISPATCH 1	/* Minkar: toll-free bridging (CFInternal.h) */
 #include "CFInternal.h"
 #include <string.h>
 
@@ -364,6 +365,14 @@ CFTypeID CFArrayGetTypeID(void) {
     static dispatch_once_t initOnce;
     dispatch_once(&initOnce, ^{ __kCFArrayTypeID = _CFRuntimeRegisterClass(&__CFArrayClass); });
     return __kCFArrayTypeID;
+}
+
+/* Minkar: for Foundation's bridge class (__NSCFArray), which raises when a
+ * mutating method reaches an immutable CF array. */
+CF_EXPORT Boolean _CFArrayIsMutable(CFArrayRef array) {
+    if (CF_IS_OBJC(CFArrayGetTypeID(), array)) return false;
+    __CFGenericValidateType(array, CFArrayGetTypeID());
+    return __CFArrayGetType(array) != __kCFArrayImmutable;
 }
 
 static CFArrayRef __CFArrayInit(CFAllocatorRef allocator, UInt32 flags, CFIndex capacity, const CFArrayCallBacks *callBacks) {
@@ -1045,7 +1054,7 @@ void CFArraySortValues(CFMutableArrayRef array, CFRange range, CFComparatorFunct
     Boolean immutable = false;
     if (CF_IS_OBJC(CFArrayGetTypeID(), array)) {
         BOOL result;
-        result = CF_OBJC_CALLV((NSMutableArray *)array, isKindOfClass:[NSMutableArray class]);
+        result = CF_OBJC_CALLV((NSMutableArray *)array, isKindOfClass:(Class)objc_getClass("NSMutableArray"));
         immutable = !result;
     } else if (__kCFArrayImmutable == __CFArrayGetType(array)) {
         immutable = true;

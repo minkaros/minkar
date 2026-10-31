@@ -222,6 +222,13 @@ CF_PRIVATE CFRuntimeClass * __CFRuntimeClassTable[__CFRuntimeClassTableSize] = {
 CF_PRIVATE int32_t __CFRuntimeClassTableCount = 0;
 
 CF_PRIVATE uintptr_t __CFRuntimeObjCClassTable[__CFRuntimeClassTableSize] = {0};
+/* Minkar: the types whose functions take Foundation's objects (CFInternal.h). */
+CF_PRIVATE uint8_t __CFRuntimeObjCDispatch[__CFRuntimeClassTableSize] = {0};
+
+CF_EXPORT void _CFRuntimeBridgeObjCDispatch(CFTypeID typeID) {
+    if (typeID < __CFRuntimeClassTableSize)
+        __CFRuntimeObjCDispatch[typeID] = 1;
+}
 
 #if !defined(__CFObjCIsCollectable)
 bool (*__CFObjCIsCollectable)(void *) = NULL;
@@ -575,6 +582,13 @@ CFTypeID CFGetTypeID(CFTypeRef cf) {
     if (NULL == cf) { CRSetCrashLogMessage("*** CFGetTypeID() called with NULL ***"); HALT; }
 #endif
     CFTYPE_OBJC_FUNCDISPATCH0(CFTypeID, cf, _cfTypeID);
+    /* Minkar: a Foundation object says its type itself (-_cfTypeID). */
+    if (__CFIsForeignObjC(cf)) {
+        static SEL s;
+        if (class_respondsToSelector(object_getClass((id)cf), __CFSel(&s, "_cfTypeID")))
+            return __CFObjCSend0(CFTypeID, cf, "_cfTypeID");
+        return __kCFNotATypeTypeID;
+    }
     __CFGenericAssertIsCF(cf);
     return __CFGenericTypeID_inline(cf);
 }

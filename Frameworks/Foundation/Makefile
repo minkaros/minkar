@@ -128,6 +128,7 @@ SRCS = 	NSFormatter.m \
 	NSPointerFunctions.m \
 	NSOrthography.m \
 	NSString/NSCFString.m \
+	NSCFCollections.m \
 	NSString/NSDarwinString.m \
 	NSString/NSStringUTF8.m \
 	NSString/NSString_placeholder.m \

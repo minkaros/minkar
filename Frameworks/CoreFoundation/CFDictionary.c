@@ -32,6 +32,7 @@
 
 
 #include <CoreFoundation/CFDictionary.h>
+#define CF_OBJC_DISPATCH 1	/* Minkar: toll-free bridging (CFInternal.h) */
 #include "CFInternal.h"
 #include "CFBasicHash.h"
 #include <CoreFoundation/CFString.h>
