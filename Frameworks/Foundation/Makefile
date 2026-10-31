@@ -262,6 +262,7 @@ SRCS = 	NSFormatter.m \
 	NSTimer/NSTimer_block.m \
 	NSClassDescription.m \
 	NSTask.m \
+	NSFileHandleErrors.m \
 	NSSet/NSSet_placeholder.m \
 	NSSet/NSMutableSet_concrete.m \
 	NSSet/NSSet_concrete.m \
@@ -394,6 +395,7 @@ CFLAGS.NSCache.m = -fobjc-arc
 CFLAGS.NSProgress.m = -fobjc-arc
 CFLAGS.NSOperation.m = -fobjc-arc
 CFLAGS.NSDataBase64.m = -fobjc-arc
+CFLAGS.NSFileHandleErrors.m = -fobjc-arc
 CFLAGS.NSURLResources.m = -fobjc-arc
 CFLAGS.NSHTTPCookie.m = -fobjc-arc
 CFLAGS.NSHTTPCookieStorage.m = -fobjc-arc
