@@ -391,6 +391,8 @@ CFLAGS.NSCache.m = -fobjc-arc
 CFLAGS.NSProgress.m = -fobjc-arc
 CFLAGS.NSOperation.m = -fobjc-arc
 CFLAGS.NSDataBase64.m = -fobjc-arc
+CFLAGS.NSHTTPCookie.m = -fobjc-arc
+CFLAGS.NSHTTPCookieStorage.m = -fobjc-arc
 CFLAGS.NSURLSession.m = -fobjc-arc -I${ROOT_SOURCE_DIR}/BSD/usr.bin/curl/include
 CFLAGS.NSOperationQueue.m = -fobjc-arc
 CFLAGS.NSStringModern.m = -fobjc-arc -DU_DISABLE_RENAMING=1 \

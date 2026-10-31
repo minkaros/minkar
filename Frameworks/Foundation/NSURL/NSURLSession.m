@@ -50,6 +50,8 @@
 #import <Foundation/NSError.h>
 #import <Foundation/NSException.h>
 #import <Foundation/NSFileManager.h>
+#import <Foundation/NSHTTPCookie.h>
+#import <Foundation/NSHTTPCookieStorage.h>
 #import <Foundation/NSHTTPURLResponse.h>
 #import <Foundation/NSMutableURLRequest.h>
 #import <Foundation/NSNumber.h>
@@ -280,6 +282,11 @@ static NSInteger URLErrorCodeForCurl(CURLcode code) {
     }
 }
 
+@interface NSHTTPCookieStorage (NSURLSession)
+- (void)_setCookies:(NSArray *)cookies forURL:(NSURL *)URL mainDocumentURL:(NSURL *)mainDocumentURL
+             policy:(NSHTTPCookieAcceptPolicy)policy;
+@end
+
 #pragma mark - Configuration
 
 @implementation NSURLSessionConfiguration {
@@ -308,18 +315,22 @@ static NSInteger URLErrorCodeForCurl(CURLcode code) {
 }
 
 + (NSURLSessionConfiguration *)defaultSessionConfiguration {
-    return [[self alloc] init];
+    NSURLSessionConfiguration *configuration = [[self alloc] init];
+    configuration.HTTPCookieStorage = [NSHTTPCookieStorage sharedHTTPCookieStorage];
+    return configuration;
 }
 
-// Nothing is kept on disk: there is no cache nor cookie store to keep.
+// Nothing is kept on disk: the session's cookies stay in memory.
 + (NSURLSessionConfiguration *)ephemeralSessionConfiguration {
-    return [[self alloc] init];
+    NSURLSessionConfiguration *configuration = [[self alloc] init];
+    configuration.HTTPCookieStorage = [[NSHTTPCookieStorage alloc] init];
+    return configuration;
 }
 
 // Minkar: a background session's transfers run in the process, like a
 // default session's; they do not outlive it.
 + (NSURLSessionConfiguration *)backgroundSessionConfigurationWithIdentifier:(NSString *)identifier {
-    NSURLSessionConfiguration *configuration = [[self alloc] init];
+    NSURLSessionConfiguration *configuration = [self defaultSessionConfiguration];
     configuration->_identifier = [identifier copy];
     return configuration;
 }
@@ -787,6 +798,9 @@ static int onProgress(void *task, curl_off_t downloadTotal, curl_off_t downloade
         }
     };
     add([request allHTTPHeaderFields], YES);
+    NSHTTPCookieStorage *cookies = [self _cookieStorage];
+    if (cookies != nil)
+        add([NSHTTPCookie requestHeaderFieldsWithCookies:[cookies cookiesForURL:[request URL]]], NO);
     add([[_session configuration] HTTPAdditionalHeaders], NO);
     add(@{ @"Accept": @"*/*", @"Accept-Language": @"en-us", @"User-Agent": userAgent() }, NO);
 
@@ -1029,9 +1043,25 @@ static int onProgress(void *task, curl_off_t downloadTotal, curl_off_t downloade
     return length;
 }
 
+// The cookie store this request reads and fills, or nil.
+- (NSHTTPCookieStorage *)_cookieStorage {
+    NSURLSessionConfiguration *configuration = [_session configuration];
+    if (![configuration HTTPShouldSetCookies] || ![_currentRequest HTTPShouldHandleCookies])
+        return nil;
+    return [configuration HTTPCookieStorage];
+}
+
 // NO stops the transfer (with _failure set).
 - (BOOL)_headersComplete {
     NSURL *url = [_currentRequest URL];
+    // Every response may set cookies, redirects included.
+    NSHTTPCookieStorage *cookies = [self _cookieStorage];
+    if (cookies != nil) {
+        NSArray *set = [NSHTTPCookie cookiesWithResponseHeaderFields:_headers forURL:url];
+        if ([set count] > 0)
+            [cookies _setCookies:set forURL:url mainDocumentURL:[_currentRequest mainDocumentURL]
+                          policy:[[_session configuration] HTTPCookieAcceptPolicy]];
+    }
     NSHTTPURLResponse *response = [[NSHTTPURLResponse alloc] initWithURL:url statusCode:_status
                                                              HTTPVersion:@"HTTP/1.1"
                                                             headerFields:[_headers copy]];
