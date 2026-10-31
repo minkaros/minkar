@@ -39,6 +39,39 @@
  */
 #define	XPC_MPACK_EXT_UUID	1	/* 16 bytes */
 #define	XPC_MPACK_EXT_DATE	2	/* int64 nanoseconds, big-endian */
+/*
+ * Minkar: rights the message carries as port descriptors; the payload is
+ * the index (4 bytes, big-endian) in the message's resources.
+ */
+#define	XPC_MPACK_EXT_ENDPOINT	3	/* a send right */
+#define	XPC_MPACK_EXT_FD	4	/* a fileport */
+#define	XPC_MPACK_EXT_RECEIVE	5	/* a receive right */
+#define	XPC_MPACK_EXT_SHMEM	6	/* a memory entry: index, then 8-byte size */
+
+extern int fileport_makeport(int, mach_port_t *);
+extern int fileport_makefd(mach_port_t);
+
+static void
+write_index(mpack_writer_t *writer, int8_t type, size_t index)
+{
+	char be[4] = { (char)(index >> 24), (char)(index >> 16), (char)(index >> 8), (char)index };
+
+	mpack_write_ext(writer, type, be, sizeof(be));
+}
+
+static struct xpc_resource *
+read_resource(const char *data, size_t length)
+{
+	size_t index;
+
+	if (length != 4 || _xpc_resources == NULL)
+		return (NULL);
+	index = ((size_t)(uint8_t)data[0] << 24) | ((size_t)(uint8_t)data[1] << 16) |
+	    ((size_t)(uint8_t)data[2] << 8) | (uint8_t)data[3];
+	if (index >= _xpc_resources->count)
+		return (NULL);
+	return (&_xpc_resources->items[index]);
+}
 
 static struct xpc_object *
 mpack2xpc_extension(int8_t type, const char *data, size_t length)
@@ -57,6 +90,49 @@ mpack2xpc_extension(int8_t type, const char *data, size_t length)
 		for (size_t i = 0; i < sizeof(v); i++)
 			v = v << 8 | (uint8_t)data[i];
 		return (xpc_date_create((int64_t)v));
+	}
+
+	case XPC_MPACK_EXT_ENDPOINT:
+	case XPC_MPACK_EXT_RECEIVE: {
+		struct xpc_resource *res = read_resource(data, length);
+		xpc_u val;
+
+		if (res == NULL)
+			return (NULL);
+		val.port = res->xr_port;
+		res->xr_port = MACH_PORT_NULL;		/* the object has it */
+		return (_xpc_prim_create_flags(_XPC_TYPE_ENDPOINT, val, 0,
+		    type == XPC_MPACK_EXT_RECEIVE ? _XPC_PORT_RECEIVE : 0));
+	}
+
+	case XPC_MPACK_EXT_SHMEM: {
+		struct xpc_resource *res = length == 12 ? read_resource(data, 4) : NULL;
+		uint64_t size = 0;
+		xpc_u val;
+
+		if (res == NULL)
+			return (NULL);
+		for (int i = 4; i < 12; i++)
+			size = size << 8 | (uint8_t)data[i];
+		val.port = res->xr_port;
+		res->xr_port = MACH_PORT_NULL;
+		return (_xpc_prim_create(_XPC_TYPE_SHMEM, val, (size_t)size));
+	}
+
+	case XPC_MPACK_EXT_FD: {
+		struct xpc_resource *res = read_resource(data, length);
+		struct xpc_object *xo;
+		xpc_u val;
+
+		if (res == NULL)
+			return (NULL);
+		val.fd = fileport_makefd(res->xr_port);
+		mach_port_deallocate(mach_task_self(), res->xr_port);
+		res->xr_port = MACH_PORT_NULL;
+		if (val.fd < 0)
+			return (NULL);
+		xo = _xpc_prim_create(_XPC_TYPE_FD, val, 1);
+		return (xo);
 	}
 
 	default:
@@ -97,8 +173,10 @@ mpack2xpc(const mpack_node_t node)
 		break;
 
 	case mpack_type_str:
-		val.str = mpack_node_cstr_alloc(node, 65536);
-		xotmp = xpc_string_create(val.str);
+		/* Minkar: any length (it was 64 KB at most); the object copies it. */
+		val.str = mpack_node_cstr_alloc(node, mpack_node_strlen(node) + 1);
+		xotmp = xpc_string_create(val.str ? val.str : "");
+		free(val.str);
 		break;
 
 	case mpack_type_bin:
@@ -217,11 +295,60 @@ xpc2mpack(mpack_writer_t *writer, xpc_object_t obj)
 		break;
 	}
 
+	case _XPC_TYPE_ENDPOINT: {
+		struct xpc_object *xo = obj;
+		bool receive = (xo->xo_flags & _XPC_PORT_RECEIVE) != 0;
+		size_t index = _xpc_resources == NULL ? (size_t)-1 :
+		    _xpc_resource_add(_xpc_resources, xo->xo_port,
+		    receive ? MACH_MSG_TYPE_MOVE_RECEIVE : MACH_MSG_TYPE_COPY_SEND);
+
+		if (index == (size_t)-1) {
+			mpack_write_nil(writer);
+			break;
+		}
+		/* A receive right leaves with the message. */
+		if (receive)
+			xo->xo_port = MACH_PORT_NULL;
+		write_index(writer, receive ? XPC_MPACK_EXT_RECEIVE : XPC_MPACK_EXT_ENDPOINT, index);
+		break;
+	}
+
+	case _XPC_TYPE_SHMEM: {
+		struct xpc_object *xo = obj;
+		size_t index = _xpc_resources == NULL ? (size_t)-1 :
+		    _xpc_resource_add(_xpc_resources, xo->xo_port, MACH_MSG_TYPE_COPY_SEND);
+		char payload[12];
+		uint64_t size = xo->xo_size;
+
+		if (index == (size_t)-1) {
+			mpack_write_nil(writer);
+			break;
+		}
+		payload[0] = (char)(index >> 24); payload[1] = (char)(index >> 16);
+		payload[2] = (char)(index >> 8); payload[3] = (char)index;
+		for (int i = 0; i < 8; i++)
+			payload[4 + i] = (char)(size >> (8 * (7 - i)));
+		mpack_write_ext(writer, XPC_MPACK_EXT_SHMEM, payload, sizeof(payload));
+		break;
+	}
+
+	case _XPC_TYPE_FD: {
+		struct xpc_object *xo = obj;
+		mach_port_t port = MACH_PORT_NULL;
+		size_t index = (size_t)-1;
+
+		if (_xpc_resources != NULL && fileport_makeport(xo->xo_fd, &port) == 0)
+			index = _xpc_resource_add(_xpc_resources, port, MACH_MSG_TYPE_MOVE_SEND);
+		if (index == (size_t)-1)
+			mpack_write_nil(writer);
+		else
+			write_index(writer, XPC_MPACK_EXT_FD, index);
+		break;
+	}
+
 	default:
-		/*
-		 * No wire format (file descriptors, endpoints, ...): nil,
-		 * so that the container's count still holds.
-		 */
+		/* No wire format (shared memory, connections): nil, so that
+		 * the container's count still holds. */
 		mpack_write_nil(writer);
 		break;
 	}
@@ -258,6 +385,7 @@ xpc_dictionary_create_reply(xpc_object_t original)
 	if (reply != NULL) {
 		reply->xo_connection = xo_orig->xo_connection;
 		reply->xo_seqid = xo_orig->xo_seqid;
+		reply->xo_flags |= _XPC_REPLY;
 	}
 	return (reply);
 }
@@ -291,9 +419,11 @@ xpc_dictionary_set_mach_recv(xpc_object_t xdict, const char *key,
 	xpc_u val;
 
 	val.port = port;
-	xotmp = _xpc_prim_create(_XPC_TYPE_ENDPOINT, val, 0);
+	/* A receive right: it moves with the message. */
+	xotmp = _xpc_prim_create_flags(_XPC_TYPE_ENDPOINT, val, 0, _XPC_PORT_RECEIVE);
 
 	xpc_dictionary_set_value(xdict, key, xotmp);
+	xpc_release(xotmp);
 }
 
 void
@@ -303,20 +433,42 @@ xpc_dictionary_set_mach_send(xpc_object_t xdict, const char *key,
 	struct xpc_object *xotmp;
 	xpc_u val;
 
+	/* The dictionary holds a send right of its own. */
+	if (MACH_PORT_VALID(port))
+		mach_port_mod_refs(mach_task_self(), port, MACH_PORT_RIGHT_SEND, 1);
 	val.port = port;
 	xotmp = _xpc_prim_create(_XPC_TYPE_ENDPOINT, val, 0);
 
 	xpc_dictionary_set_value(xdict, key, xotmp);
+	xpc_release(xotmp);
 }
 
 mach_port_t
 xpc_dictionary_copy_mach_send(xpc_object_t xdict, const char *key)
 {
-	struct xpc_object *xo;
-	const struct xpc_object *xotmp;
+	struct xpc_object *xotmp = xpc_dictionary_get_value(xdict, key);
 
-	MINKAR_STUB();
-	return (MACH_PORT_NULL);
+	/* A send right of the caller's own. */
+	if (xotmp == NULL || xotmp->xo_xpc_type != _XPC_TYPE_ENDPOINT ||
+	    (xotmp->xo_flags & _XPC_PORT_RECEIVE) || !MACH_PORT_VALID(xotmp->xo_port))
+		return (MACH_PORT_NULL);
+	mach_port_mod_refs(mach_task_self(), xotmp->xo_port, MACH_PORT_RIGHT_SEND, 1);
+	return (xotmp->xo_port);
+}
+
+/* The receive right, taken out of the dictionary's object. */
+mach_port_t
+xpc_dictionary_extract_mach_recv(xpc_object_t xdict, const char *key)
+{
+	struct xpc_object *xotmp = xpc_dictionary_get_value(xdict, key);
+	mach_port_t port;
+
+	if (xotmp == NULL || xotmp->xo_xpc_type != _XPC_TYPE_ENDPOINT ||
+	    !(xotmp->xo_flags & _XPC_PORT_RECEIVE))
+		return (MACH_PORT_NULL);
+	port = xotmp->xo_port;
+	xotmp->xo_port = MACH_PORT_NULL;
+	return (port);
 }
 #endif
 
@@ -440,6 +592,9 @@ xpc_dictionary_get_bool(xpc_object_t xdict, const char *key)
 	xpc_object_t xo;
 
 	xo = xpc_dictionary_get_value(xdict, key);
+	/* A missing key, or another type, gives false. */
+	if (xo == NULL || xpc_get_type(xo) != XPC_TYPE_BOOL)
+		return (false);
 	return (xpc_bool_get_value(xo));
 }
 
@@ -449,6 +604,12 @@ xpc_dictionary_get_int64(xpc_object_t xdict, const char *key)
 	xpc_object_t xo;
 
 	xo = xpc_dictionary_get_value(xdict, key);
+	/* A missing key, or another type, gives 0. Signed and unsigned are
+	 * one type on the wire (msgpack sends positive numbers unsigned). */
+	if (xo != NULL && xpc_get_type(xo) == XPC_TYPE_UINT64)
+		return ((int64_t)xpc_uint64_get_value(xo));
+	if (xo == NULL || xpc_get_type(xo) != XPC_TYPE_INT64)
+		return (0);
 	return (xpc_int64_get_value(xo));
 }
 
@@ -458,6 +619,12 @@ xpc_dictionary_get_uint64(xpc_object_t xdict, const char *key)
 	xpc_object_t xo;
 
 	xo = xpc_dictionary_get_value(xdict, key);
+	/* A missing key, or another type, gives 0. Signed and unsigned are
+	 * one type on the wire (msgpack sends positive numbers unsigned). */
+	if (xo != NULL && xpc_get_type(xo) == XPC_TYPE_INT64)
+		return ((uint64_t)xpc_int64_get_value(xo));
+	if (xo == NULL || xpc_get_type(xo) != XPC_TYPE_UINT64)
+		return (0);
 	return (xpc_uint64_get_value(xo));
 }
 
@@ -467,6 +634,9 @@ xpc_dictionary_get_string(xpc_object_t xdict, const char *key)
 	xpc_object_t xo;
 
 	xo = xpc_dictionary_get_value(xdict, key);
+	/* A missing key, or another type, gives NULL. */
+	if (xo == NULL || xpc_get_type(xo) != XPC_TYPE_STRING)
+		return (NULL);
 	return (xpc_string_get_string_ptr(xo));
 }
 

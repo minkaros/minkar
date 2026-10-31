@@ -77,7 +77,7 @@ _xpc_object_validate(xpc_object_t object) {
 #else // OS_OBJECT_USE_OBJC
 typedef void * xpc_object_t;
 #define XPC_DECL(name) typedef struct _##name##_s * name##_t
-#define XPC_GLOBAL_OBJECT(object) (&(object))
+#define XPC_GLOBAL_OBJECT(object) ((xpc_object_t)(uintptr_t)&(object))
 #define XPC_RETURNS_RETAINED
 #endif // OS_OBJECT_USE_OBJC 
 
@@ -2373,53 +2373,6 @@ const uint8_t *
 xpc_dictionary_get_uuid(xpc_object_t xdict, const char *key);
 
 /*!
- * @function xpc_dictionary_get_dictionary
- *
- * @abstract
- * Gets a dictionary object from a dictionary directly.
- *
- * @param xdict
- * The dictionary object which is to be examined.
- *
- * @param key
- * The key whose value is to be obtained.
- *
- * @result
- * A <code>xpc_object_t</code> value for the specified key. NULL if the
- * value at the specified index is not a XPC_DICTIONARY value.
- */
-__OSX_AVAILABLE_STARTING(__MAC_10_7, __IPHONE_5_0)
-XPC_EXPORT XPC_WARN_RESULT XPC_NONNULL1 XPC_NONNULL2
-const uint8_t *
-xpc_dictionary_get_dictionary(xpc_object_t xdict, const char *key);
-
-/*!
- * @function xpc_dictionary_get_array
- *
- * @abstract
- * Gets an array object from a dictionary directly.
- *
- * @param xdict
- * The dictionary object which is to be examined.
- *
- * @param key
- * The key whose value is to be obtained.
- *
- * @result
- * The <code>xpc_object_t</code> for the specified key. NULL if the
- * value at the specified key is not an array or the key does not have a
- * value.
- *
- * @discussion
- * The caller does not receive a reference to the object and must not
- * release it.
- */
-__OSX_AVAILABLE_STARTING(__MAC_10_7, __IPHONE_5_0)
-XPC_EXPORT XPC_WARN_RESULT XPC_NONNULL1 XPC_NONNULL2
-const uint8_t *
-xpc_dictionary_get_array(xpc_object_t xdict, const char *key);
-
-/*!
  * @function xpc_dictionary_dup_fd
  *
  * @abstract
@@ -2467,24 +2420,6 @@ __OSX_AVAILABLE_STARTING(__MAC_10_7, __IPHONE_5_0)
 XPC_EXPORT XPC_MALLOC XPC_RETURNS_RETAINED XPC_WARN_RESULT XPC_NONNULL_ALL
 xpc_connection_t
 xpc_dictionary_create_connection(xpc_object_t xdict, const char *key);
-
-/*!
- * @function xpc_dictionary_dup_fd
- * Creates a file descriptor from a dictionary directly.
- *
- * @param xdict The dictionary object to be examined.
- * @param key   The key whose value is obtained.
- *
- * @return
- * A new file descriptor created from the value of the specified key. You
- * are responsible for closing this descriptor. -1 is returned if the
- * specified key is not a file descriptor value or if there is no value for
- * the specified key.
- */
-__OSX_AVAILABLE_STARTING(__MAC_10_7, __IPHONE_5_0)
-XPC_EXPORT XPC_WARN_RESULT XPC_NONNULL_ALL
-int
-xpc_dictionary_dup_fd(xpc_object_t dictionary, const char *key);
 
 #pragma mark Runtime
 /*!

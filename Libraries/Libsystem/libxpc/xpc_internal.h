@@ -33,6 +33,8 @@
 #include <sys/queue.h>
 #include <sys/uio.h>
 #include <stdatomic.h>
+#include <pthread.h>
+#include <mach/mach.h>
 #include <dispatch/dispatch.h>
 #include "mpack.h"
 
@@ -75,7 +77,11 @@ struct xpc_resource;
 struct xpc_credentials;
 
 TAILQ_HEAD(xpc_dict_head, xpc_dict_pair);
-TAILQ_HEAD(xpc_array_head, xpc_object);
+/* An array's elements: a vector of retained pointers (xpc_array.c). */
+struct xpc_array_head {
+	struct xpc_object **items;
+	size_t capacity;
+};
 
 typedef void *xpc_port_t;
 typedef void (*xpc_transport_init_t)();
@@ -86,8 +92,9 @@ typedef int (*xpc_transport_port_compare)(xpc_port_t, xpc_port_t);
 typedef int (*xpc_transport_release)(xpc_port_t);
 typedef int (*xpc_transport_send)(xpc_port_t, xpc_port_t, void *buf,
     size_t len, struct xpc_resource *, size_t);
-typedef int(*xpc_transport_recv)(xpc_port_t, xpc_port_t*, void *buf,
-    size_t len, struct xpc_resource **, size_t *, struct xpc_credentials *);
+/* Minkar: the message is allocated by the transport (any size); free it. */
+typedef int(*xpc_transport_recv)(xpc_port_t, xpc_port_t*, void **buf,
+    size_t *len, struct xpc_resource **, size_t *, struct xpc_credentials *);
 typedef dispatch_source_t (*xpc_transport_create_source)(xpc_port_t,
     void *, dispatch_queue_t);
 
@@ -115,6 +122,12 @@ struct xpc_frame_header {
 };
 
 #define _XPC_FROM_WIRE 0x1
+/* An endpoint object holding a receive right (not a send right). */
+#define _XPC_PORT_RECEIVE 0x2
+/* A global object (errors, booleans): never retained, released or freed. */
+#define _XPC_GLOBAL 0x4
+/* A reply (xpc_dictionary_create_reply): sent with the request's id. */
+#define _XPC_REPLY 0x8
 struct xpc_object {
 	uint8_t			xo_xpc_type;
 	uint16_t		xo_flags;
@@ -180,16 +193,43 @@ struct xpc_connection {
 	TAILQ_HEAD(, xpc_pending_call) xc_pending;
 	TAILQ_HEAD(, xpc_connection) xc_peers;
 	TAILQ_ENTRY(xpc_connection) xc_link;
+	/* Minkar: the lock of the pending calls and peers, and the state. */
+	pthread_mutex_t		xc_lock;
+	dispatch_source_t	xc_dead_source;	/* the remote port's death */
+	dispatch_source_t	xc_proc_source;	/* the service process's exit */
+	pid_t			xc_proc_pid;
+	bool			xc_resumed;
+	bool			xc_cancelled;
+	bool			xc_anonymous;	/* an anonymous listener */
+	bool			xc_error_sent;	/* XPC_ERROR_CONNECTION_INVALID */
 };
 
 struct xpc_resource {
     	int			xr_type;
 #define XPC_RESOURCE_FD		0x01
 #define XPC_RESOURCE_SHMEM	0x02
+#define XPC_RESOURCE_PORT	0x04	/* a port right, sent with xr_disposition */
     	union {
 	    int 		xr_fd;
+	    mach_port_t		xr_port;
 	};
+	mach_msg_type_name_t	xr_disposition;
 };
+
+/*
+ * Minkar: the port rights of a message being packed or unpacked: endpoints
+ * and file descriptors (as fileports) travel as port descriptors, and the
+ * packed message names them by their index here.
+ */
+struct xpc_resource_list {
+	struct xpc_resource *	items;
+	size_t			count;
+	size_t			capacity;
+};
+__private_extern__ __thread struct xpc_resource_list *_xpc_resources;
+__private_extern__ void _xpc_array_destroy(struct xpc_object *xo);
+size_t _xpc_resource_add(struct xpc_resource_list *list,
+    mach_port_t port, mach_msg_type_name_t disposition);
 
 struct xpc_transport {
     	const char *		xt_name;
@@ -238,6 +278,7 @@ __private_extern__ void xpc_connection_recv_mach_message(void *);
 __private_extern__ void *xpc_connection_new_peer(void *context,
     xpc_port_t local, xpc_port_t remote, dispatch_source_t src);
 __private_extern__ void xpc_connection_destroy_peer(void *context);
+void xpc_connection_get_audit_token(xpc_connection_t, audit_token_t *);
 __private_extern__ int xpc_pipe_send(xpc_object_t obj, uint64_t id,
     xpc_port_t local, xpc_port_t remote);
 __private_extern__ int xpc_pipe_receive(xpc_port_t local, xpc_port_t *remote,

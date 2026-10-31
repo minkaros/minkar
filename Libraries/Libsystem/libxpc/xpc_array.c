@@ -1,6 +1,7 @@
 /*
  * Copyright 2014-2015 iXsystems, Inc.
  * All rights reserved
+ * Modifications Copyright (c) 2026 The Minkar contributors
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted providing that the following conditions
@@ -26,8 +27,43 @@
  */
 
 #include <sys/types.h>
+#include <stdlib.h>
+#include <string.h>
 #include <xpc/xpc.h>
 #include "xpc_internal.h"
+
+/*
+ * Minkar: an array keeps its elements in a vector of retained pointers
+ * (xo_array.items), xo_size of them. Elements were linked through their
+ * own xo_link before, so an object could be in one array only, the count
+ * never grew, and a replaced element was freed while others held it.
+ */
+
+static bool
+xpc_array_reserve(struct xpc_object *xo, size_t count)
+{
+	struct xpc_object **items;
+	size_t capacity;
+
+	if (count <= xo->xo_array.capacity)
+		return (true);
+	capacity = xo->xo_array.capacity ? xo->xo_array.capacity * 2 : 8;
+	while (capacity < count)
+		capacity *= 2;
+	items = realloc(xo->xo_array.items, capacity * sizeof(*items));
+	if (items == NULL)
+		return (false);
+	xo->xo_array.items = items;
+	xo->xo_array.capacity = capacity;
+	return (true);
+}
+
+static bool
+xpc_array_check(xpc_object_t xarray)
+{
+	return (xarray != NULL &&
+	    ((struct xpc_object *)xarray)->xo_xpc_type == _XPC_TYPE_ARRAY);
+}
 
 xpc_object_t
 xpc_array_create(const xpc_object_t *objects, size_t count)
@@ -36,289 +72,256 @@ xpc_array_create(const xpc_object_t *objects, size_t count)
 	size_t i;
 	xpc_u val;
 
+	memset(&val, 0, sizeof(val));
 	xo = _xpc_prim_create(_XPC_TYPE_ARRAY, val, 0);
-	
+	if (xo == NULL)
+		return (NULL);
 	for (i = 0; i < count; i++)
 		xpc_array_append_value(xo, objects[i]);
-
 	return (xo);
+}
+
+/* Every element released, the vector freed (xpc_object_destroy). */
+__private_extern__ void
+_xpc_array_destroy(struct xpc_object *xo)
+{
+	size_t i;
+
+	for (i = 0; i < xo->xo_size; i++)
+		xpc_release(xo->xo_array.items[i]);
+	free(xo->xo_array.items);
+	xo->xo_array.items = NULL;
+	xo->xo_array.capacity = 0;
+	xo->xo_size = 0;
 }
 
 void
 xpc_array_set_value(xpc_object_t xarray, size_t index, xpc_object_t value)
 {
-	struct xpc_object *xo, *xotmp, *xotmp2;
-	struct xpc_array_head *arr;
-	size_t i;
+	struct xpc_object *xo = xarray, *old;
 
-	xo = xarray;
-	arr = &xo->xo_array;
-	i = 0;
-
-	if (index == XPC_ARRAY_APPEND)
-		return xpc_array_append_value(xarray, value);
-
-	if (index >= (size_t)xo->xo_size)
+	if (!xpc_array_check(xarray) || value == NULL)
 		return;
-
-	TAILQ_FOREACH_SAFE(xotmp, arr, xo_link, xotmp2) {
-		if (i++ == index) {
-			TAILQ_INSERT_AFTER(arr, (struct xpc_object *)value,
-			    xotmp, xo_link);
-			TAILQ_REMOVE(arr, xotmp, xo_link);
-			xpc_retain(value);
-			free(xotmp);
-			break;
-		}
+	if (index == XPC_ARRAY_APPEND) {
+		xpc_array_append_value(xarray, value);
+		return;
 	}
+	if (index >= xo->xo_size)
+		return;
+	old = xo->xo_array.items[index];
+	xo->xo_array.items[index] = xpc_retain(value);
+	xpc_release(old);
 }
-	
+
 void
 xpc_array_append_value(xpc_object_t xarray, xpc_object_t value)
 {
-	struct xpc_object *xo;
-	struct xpc_array_head *arr;
-	
-	xo = xarray;
-	arr = &xo->xo_array;
+	struct xpc_object *xo = xarray;
 
-	TAILQ_INSERT_TAIL(arr, (struct xpc_object *)value, xo_link);
-	xpc_retain(value);
+	if (!xpc_array_check(xarray) || value == NULL)
+		return;
+	if (!xpc_array_reserve(xo, xo->xo_size + 1))
+		return;
+	xo->xo_array.items[xo->xo_size++] = xpc_retain(value);
 }
-
 
 xpc_object_t
 xpc_array_get_value(xpc_object_t xarray, size_t index)
 {
-	struct xpc_object *xo, *xotmp;
-	struct xpc_array_head *arr;
-	size_t i;
+	struct xpc_object *xo = xarray;
 
-	xo = xarray;
-	arr = &xo->xo_array;
-	i = 0;
-
-	if (index > xo->xo_size)
+	if (!xpc_array_check(xarray) || index >= xo->xo_size)
 		return (NULL);
-	
-	TAILQ_FOREACH(xotmp, arr, xo_link) {
-		if (i++ == index)
-			return (xotmp);
-	}
-
-	return (NULL);
+	return (xo->xo_array.items[index]);
 }
 
 size_t
 xpc_array_get_count(xpc_object_t xarray)
 {
-	struct xpc_object *xo;
+	if (!xpc_array_check(xarray))
+		return (0);
+	return (((struct xpc_object *)xarray)->xo_size);
+}
 
-	xo = xarray;
-	return (xo->xo_size);
+/* The setters take a new object: the array keeps it, the setter lets go. */
+static void
+xpc_array_set_new(xpc_object_t xarray, size_t index, xpc_object_t value)
+{
+	if (value == NULL)
+		return;
+	xpc_array_set_value(xarray, index, value);
+	xpc_release(value);
 }
 
 void
 xpc_array_set_bool(xpc_object_t xarray, size_t index, bool value)
 {
-	struct xpc_object *xo, *xotmp;
-
-	xo = xarray;
-	xotmp = xpc_bool_create(value);
-	return (xpc_array_set_value(xarray, index, xotmp));
+	xpc_array_set_value(xarray, index, value ? XPC_BOOL_TRUE : XPC_BOOL_FALSE);
 }
-
 
 void
 xpc_array_set_int64(xpc_object_t xarray, size_t index, int64_t value)
 {
-	struct xpc_object *xo, *xotmp;
-
-	xo = xarray;
-	xotmp = xpc_int64_create(value);
-	return (xpc_array_set_value(xarray, index, xotmp));
+	xpc_array_set_new(xarray, index, xpc_int64_create(value));
 }
 
 void
 xpc_array_set_uint64(xpc_object_t xarray, size_t index, uint64_t value)
 {
-	struct xpc_object *xo, *xotmp;
-
-	xo = xarray;
-	xotmp = xpc_uint64_create(value);
-	return (xpc_array_set_value(xarray, index, xotmp));
+	xpc_array_set_new(xarray, index, xpc_uint64_create(value));
 }
 
 void
 xpc_array_set_double(xpc_object_t xarray, size_t index, double value)
 {
-	struct xpc_object *xo, *xotmp;
-
-	xo = xarray;
-	xotmp = xpc_double_create(value);
-	return (xpc_array_set_value(xarray, index, xotmp));
+	xpc_array_set_new(xarray, index, xpc_double_create(value));
 }
 
 void
 xpc_array_set_date(xpc_object_t xarray, size_t index, int64_t value)
 {
-	struct xpc_object *xo, *xotmp;
-
-	xo = xarray;
-	xotmp = xpc_date_create(value);
-	return (xpc_array_set_value(xarray, index, xotmp));
+	xpc_array_set_new(xarray, index, xpc_date_create(value));
 }
 
 void
 xpc_array_set_data(xpc_object_t xarray, size_t index, const void *data,
     size_t length)
 {
-	struct xpc_object *xo, *xotmp;
-
-	xo = xarray;
-	xotmp = xpc_data_create(data, length);
-	return (xpc_array_set_value(xarray, index, xotmp));
+	xpc_array_set_new(xarray, index, xpc_data_create(data, length));
 }
 
 void
 xpc_array_set_string(xpc_object_t xarray, size_t index, const char *string)
 {
-	struct xpc_object *xo, *xotmp;
-
-	xo = xarray;
-	xotmp = xpc_string_create(string);
-	return (xpc_array_set_value(xarray, index, xotmp));
+	xpc_array_set_new(xarray, index, xpc_string_create(string));
 }
 
 void
 xpc_array_set_uuid(xpc_object_t xarray, size_t index, const uuid_t value)
 {
-	struct xpc_object *xo, *xotmp;
-
-	xo = xarray;
-	xotmp = xpc_uuid_create(value);
-	return (xpc_array_set_value(xarray, index, xotmp));
+	xpc_array_set_new(xarray, index, xpc_uuid_create(value));
 }
 
 void
 xpc_array_set_fd(xpc_object_t xarray, size_t index, int value)
 {
-	struct xpc_object *xo, *xotmp;
-
-	xo = xarray;
-	//xotmp = xpc_fd_create(value);
-	return (xpc_array_set_value(xarray, index, xotmp));
+	xpc_array_set_new(xarray, index, xpc_fd_create(value));
 }
 
 void
 xpc_array_set_connection(xpc_object_t xarray, size_t index,
     xpc_connection_t value)
 {
-	MINKAR_STUB();
+	xpc_array_set_value(xarray, index, value);
+}
+
+/* The getters give zero, NULL or -1 for an index out of range or another type. */
+static struct xpc_object *
+xpc_array_get_typed(xpc_object_t xarray, size_t index, xpc_type_t type)
+{
+	xpc_object_t xo = xpc_array_get_value(xarray, index);
+
+	if (xo == NULL || xpc_get_type(xo) != type)
+		return (NULL);
+	return (xo);
 }
 
 bool
 xpc_array_get_bool(xpc_object_t xarray, size_t index)
 {
-	struct xpc_object *xotmp;
+	struct xpc_object *xo = xpc_array_get_typed(xarray, index, XPC_TYPE_BOOL);
 
-	xotmp = xpc_array_get_value(xarray, index);
-	return (xpc_bool_get_value(xotmp));
+	return (xo != NULL && xpc_bool_get_value(xo));
 }
 
 int64_t
 xpc_array_get_int64(xpc_object_t xarray, size_t index)
 {
-	struct xpc_object *xotmp;
+	struct xpc_object *xo = xpc_array_get_typed(xarray, index, XPC_TYPE_INT64);
 
-	xotmp = xpc_array_get_value(xarray, index);
-	return (xpc_int64_get_value(xotmp));
+	/* Signed and unsigned are one type on the wire (xpc_dictionary.c). */
+	if (xo == NULL && (xo = xpc_array_get_typed(xarray, index, XPC_TYPE_UINT64)) != NULL)
+		return ((int64_t)xpc_uint64_get_value(xo));
+	return (xo != NULL ? xpc_int64_get_value(xo) : 0);
 }
 
 uint64_t
 xpc_array_get_uint64(xpc_object_t xarray, size_t index)
 {
-	struct xpc_object *xotmp;
+	struct xpc_object *xo = xpc_array_get_typed(xarray, index, XPC_TYPE_UINT64);
 
-	xotmp = xpc_array_get_value(xarray, index);
-	return (xpc_uint64_get_value(xotmp));
+	/* Signed and unsigned are one type on the wire (xpc_dictionary.c). */
+	if (xo == NULL && (xo = xpc_array_get_typed(xarray, index, XPC_TYPE_INT64)) != NULL)
+		return ((uint64_t)xpc_int64_get_value(xo));
+	return (xo != NULL ? xpc_uint64_get_value(xo) : 0);
 }
 
 double
 xpc_array_get_double(xpc_object_t xarray, size_t index)
 {
-	struct xpc_object *xotmp;
+	struct xpc_object *xo = xpc_array_get_typed(xarray, index, XPC_TYPE_DOUBLE);
 
-	xotmp = xpc_array_get_value(xarray, index);
-	return (xpc_double_get_value(xotmp));
+	return (xo != NULL ? xpc_double_get_value(xo) : 0);
 }
 
 int64_t
 xpc_array_get_date(xpc_object_t xarray, size_t index)
 {
-	struct xpc_object *xotmp;
+	struct xpc_object *xo = xpc_array_get_typed(xarray, index, XPC_TYPE_DATE);
 
-	xotmp = xpc_array_get_value(xarray, index);
-	return (xpc_date_get_value(xotmp));
+	return (xo != NULL ? xpc_date_get_value(xo) : 0);
 }
 
 const void *
 xpc_array_get_data(xpc_object_t xarray, size_t index, size_t *length)
 {
-	struct xpc_object *xotmp;
+	struct xpc_object *xo = xpc_array_get_typed(xarray, index, XPC_TYPE_DATA);
 
-	xotmp = xpc_array_get_value(xarray, index);
-	*length = xpc_data_get_length(xotmp);
-	return (xpc_data_get_bytes_ptr(xotmp));
+	if (length != NULL)
+		*length = xo != NULL ? xpc_data_get_length(xo) : 0;
+	return (xo != NULL ? xpc_data_get_bytes_ptr(xo) : NULL);
 }
 
 const uint8_t *
 xpc_array_get_uuid(xpc_object_t xarray, size_t index)
 {
-	struct xpc_object *xotmp;
+	struct xpc_object *xo = xpc_array_get_typed(xarray, index, XPC_TYPE_UUID);
 
-	xotmp = xpc_array_get_value(xarray, index);
-	return (xpc_uuid_get_bytes(xotmp));
+	return (xo != NULL ? xpc_uuid_get_bytes(xo) : NULL);
 }
 
 const char *
 xpc_array_get_string(xpc_object_t xarray, size_t index)
 {
-	struct xpc_object *xotmp;
+	struct xpc_object *xo = xpc_array_get_typed(xarray, index, XPC_TYPE_STRING);
 
-	xotmp = xpc_array_get_value(xarray, index);
-	return (xpc_string_get_string_ptr(xotmp));
+	return (xo != NULL ? xpc_string_get_string_ptr(xo) : NULL);
 }
 
 int
-xpc_array_dup_fd(xpc_object_t array, size_t index)
+xpc_array_dup_fd(xpc_object_t xarray, size_t index)
 {
-	MINKAR_STUB();
-	return (-1);
+	struct xpc_object *xo = xpc_array_get_typed(xarray, index, XPC_TYPE_FD);
+
+	return (xo != NULL ? xpc_fd_dup(xo) : -1);
 }
 
 xpc_connection_t
-xpc_array_get_connection(xpc_object_t array, size_t index)
+xpc_array_get_connection(xpc_object_t xarray, size_t index)
 {
-	MINKAR_STUB();
-	return (NULL);
+	return ((xpc_connection_t)xpc_array_get_typed(xarray, index, XPC_TYPE_CONNECTION));
 }
 
 bool
 xpc_array_apply(xpc_object_t xarray, xpc_array_applier_t applier)
 {
-	struct xpc_object *xo, *xotmp;
-	struct xpc_array_head *arr;
+	struct xpc_object *xo = xarray;
 	size_t i;
 
-	i = 0;
-	xo = xarray;
-	arr = &xo->xo_array;
-
-	TAILQ_FOREACH(xotmp, arr, xo_link) {
-		if (!applier(i++, xotmp))
+	if (!xpc_array_check(xarray))
+		return (true);
+	for (i = 0; i < xo->xo_size; i++)
+		if (!applier(i, xo->xo_array.items[i]))
 			return (false);
-	}
-
 	return (true);
 }

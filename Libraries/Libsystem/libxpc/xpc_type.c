@@ -58,22 +58,44 @@ xt _xpc_type_uuid;
 xt _xpc_type_double;
 
 
+/*
+ * Minkar: the global objects are objects (they were empty structures, so
+ * that xpc_get_type() and xpc_dictionary_get_string() read other memory):
+ * the booleans, and the errors, each a dictionary with its description.
+ */
 struct _xpc_bool_s {
+	struct xpc_object	xo;
 };
 
 typedef const struct _xpc_bool_s xb;
 
-xb _xpc_bool_true;
-xb _xpc_bool_false;
+xb _xpc_bool_true = { { .xo_xpc_type = _XPC_TYPE_BOOL, .xo_flags = _XPC_GLOBAL,
+    .xo_refcnt = 1, .xo_u = { .b = true } } };
+xb _xpc_bool_false = { { .xo_xpc_type = _XPC_TYPE_BOOL, .xo_flags = _XPC_GLOBAL,
+    .xo_refcnt = 1, .xo_u = { .b = false } } };
 
 struct _xpc_dictionary_s {
+	struct xpc_object	xo;
 };
 
 typedef const struct _xpc_dictionary_s xs;
 
-xs _xpc_error_connection_interrupted;
-xs _xpc_error_connection_invalid;
-xs _xpc_error_connection_imminent;
+#define XPC_GLOBAL_ERROR(name, text)						\
+	static struct xpc_object name##_text = { .xo_xpc_type = _XPC_TYPE_STRING, \
+	    .xo_flags = _XPC_GLOBAL, .xo_refcnt = 1, .xo_size = sizeof(text) - 1, \
+	    .xo_u = { .str = (char *)text } };					\
+	extern xs name;								\
+	static struct xpc_dict_pair name##_pair = { .key = (char *)"XPCErrorDescription", \
+	    .value = &name##_text, .xo_link = { NULL,				\
+	    (struct xpc_dict_pair **)&name.xo.xo_u.dict.tqh_first } };		\
+	xs name = { { .xo_xpc_type = _XPC_TYPE_ERROR, .xo_flags = _XPC_GLOBAL,	\
+	    .xo_refcnt = 1, .xo_size = 1, .xo_u = { .dict = { &name##_pair,	\
+	    &name##_pair.xo_link.tqe_next } } } };
+
+XPC_GLOBAL_ERROR(_xpc_error_connection_interrupted, "Connection interrupted")
+XPC_GLOBAL_ERROR(_xpc_error_connection_invalid, "Connection invalid")
+XPC_GLOBAL_ERROR(_xpc_error_connection_imminent, "Connection termination imminent")
+XPC_GLOBAL_ERROR(_xpc_error_termination_imminent, "Connection termination imminent")
 
 /* The key of an error dictionary's description (XPC_ERROR_KEY_DESCRIPTION). */
 const char *const _xpc_error_key_description = "XPCErrorDescription";
@@ -150,8 +172,11 @@ _xpc_prim_create_flags(int type, xpc_u value, size_t size, uint16_t flags)
 	if (type == _XPC_TYPE_DICTIONARY)
 		TAILQ_INIT(&xo->xo_dict);
 
-	if (type == _XPC_TYPE_ARRAY)
-		TAILQ_INIT(&xo->xo_array);
+	if (type == _XPC_TYPE_ARRAY) {
+		xo->xo_array.items = NULL;	/* xpc_array.c grows it */
+		xo->xo_array.capacity = 0;
+		xo->xo_size = 0;
+	}
 
 	return (xo);
 }
@@ -301,7 +326,14 @@ xpc_data_create(const void *bytes, size_t length)
 {
 	xpc_u val;
 
-	val.ptr = (uintptr_t)bytes;
+	/* Minkar: the bytes are copied, as the API has it (it kept the caller's). */
+	void *copy = malloc(length ? length : 1);
+
+	if (copy == NULL)
+		return (NULL);
+	if (length > 0)
+		memcpy(copy, bytes, length);
+	val.ptr = (uintptr_t)copy;
 	return _xpc_prim_create(_XPC_TYPE_DATA, val, length);
 }
 
@@ -355,7 +387,9 @@ xpc_fd_create(int fd)
 {
 	xpc_u val;
 
-	val.fd = fd;
+	/* Minkar: a duplicate, the object's own (it took the caller's). */
+	if ((val.fd = dup(fd)) < 0)
+		return (NULL);
 	return _xpc_prim_create(_XPC_TYPE_FD, val, 1);
 }
 
@@ -379,7 +413,9 @@ xpc_string_create(const char *string)
 {
 	xpc_u val;
 
-	val.str = __DECONST(char *, string);
+	/* Minkar: the string is copied, as the API has it. */
+	if ((val.str = strdup(string)) == NULL)
+		return (NULL);
 	return _xpc_prim_create(_XPC_TYPE_STRING, val, strlen(string));
 }
 
@@ -392,6 +428,7 @@ xpc_string_create_with_format(const char *fmt, ...)
 	va_start(ap, fmt);
 	vasprintf(&val.str, fmt, ap);
 	va_end(ap);
+	/* The string vasprintf made is the object's. */
 	return _xpc_prim_create(_XPC_TYPE_STRING, val, strlen(val.str));
 }
 
@@ -489,12 +526,17 @@ xpc_copy(xpc_object_t obj)
 		case _XPC_TYPE_INT64:
 		case _XPC_TYPE_UINT64:
 		case _XPC_TYPE_DATE:
-		case _XPC_TYPE_ENDPOINT:
 			return _xpc_prim_create(xo->xo_xpc_type, xo->xo_u, 1);
 
+		case _XPC_TYPE_ENDPOINT:
+			/* A copy holds a send right of its own. */
+			if (!(xo->xo_flags & _XPC_PORT_RECEIVE) && MACH_PORT_VALID(xo->xo_port))
+				mach_port_mod_refs(mach_task_self(), xo->xo_port, MACH_PORT_RIGHT_SEND, 1);
+			return _xpc_prim_create_flags(xo->xo_xpc_type, xo->xo_u, 1,
+			    xo->xo_flags & _XPC_PORT_RECEIVE);
+
 		case _XPC_TYPE_STRING:
-			return xpc_string_create(strdup(
-			    xpc_string_get_string_ptr(xo)));
+			return xpc_string_create(xpc_string_get_string_ptr(xo));
 
 		case _XPC_TYPE_DATA:
 			newdata = xpc_data_get_bytes_ptr(obj);
@@ -504,15 +546,19 @@ xpc_copy(xpc_object_t obj)
 		case _XPC_TYPE_DICTIONARY:
 			xotmp = xpc_dictionary_create(NULL, NULL, 0);
 			xpc_dictionary_apply(obj, ^(const char *k, xpc_object_t v) {
-			    xpc_dictionary_set_value(xotmp, k, xpc_copy(v));
+			    xpc_object_t copy = xpc_copy(v);
+			    xpc_dictionary_set_value(xotmp, k, copy);
+			    xpc_release(copy);
 			    return (bool)true;
 			});
 			return (xotmp);
 
 		case _XPC_TYPE_ARRAY:
 			xotmp = xpc_array_create(NULL, 0);
-			xpc_array_apply(obj, ^(size_t idx, xpc_object_t v) {
-			    xpc_array_set_value(xotmp, idx, xpc_copy(v));
+			xpc_array_apply(obj, ^(size_t idx __unused, xpc_object_t v) {
+			    xpc_object_t copy = xpc_copy(v);
+			    xpc_array_append_value(xotmp, copy);
+			    xpc_release(copy);
 			    return ((bool)true);
 			});
 			return (xotmp);
