@@ -35,29 +35,52 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 @implementation NSString(NSStringPathUtilities)
 
+// Minkar: as the API has them, "/" is a component: the first of an
+// absolute path, the last of a path ending with a slash. Both lost it, so
+// absolute paths came back relative. The separator is "/" only.
 +(NSString *)pathWithComponents:(NSArray *)components {
-   return [components componentsJoinedByString:@"/"];
+   NSMutableString *result=[NSMutableString string];
+
+   for(NSString *component in components){
+    if([component length]==0)
+     continue;
+    if([result length]>0 && ![result hasSuffix:@"/"])
+     [result appendString:@"/"];
+    if([result hasSuffix:@"/"] && [component hasPrefix:@"/"])
+     component=[component substringFromIndex:1];
+    [result appendString:component];
+   }
+   while([result length]>1 && [result hasSuffix:@"/"])
+    [result deleteCharactersInRange:NSMakeRange([result length]-1,1)];
+   return result;
 }
 
 -(NSArray *)pathComponents {
    NSMutableArray *array=[NSMutableArray array];
    NSUInteger length=[self length];
-   unichar  unicode[length];
-   NSString *string;
-   int b,e;
+   unichar  unicode[length>0?length:1];
+   NSUInteger b,e=0;
 
+   if(length==0)
+    return array;
    [self getCharacters:unicode];
 
-   e=0;
-   do{
-    b=e;
-    while(e<length && unicode[e]!='\\' && unicode[e]!='/')
+   if(unicode[0]=='/'){
+    [array addObject:@"/"];
+    while(e<length && unicode[e]=='/')
      e++;
-    string=[NSString stringWithCharacters:unicode+b length:e-b];
-	if ([string length])
-   	 [array addObject:string];
-    e++; // skip sepchar
-   }while(e<length);
+   }
+   while(e<length){
+    b=e;
+    while(e<length && unicode[e]!='/')
+     e++;
+    if(e>b)
+     [array addObject:[NSString stringWithCharacters:unicode+b length:e-b]];
+    while(e<length && unicode[e]=='/')
+     e++;
+   }
+   if(length>1 && unicode[length-1]=='/' && [array count]>0 && ![[array lastObject] isEqualToString:@"/"])
+    [array addObject:@"/"];
 
    return array;
 }

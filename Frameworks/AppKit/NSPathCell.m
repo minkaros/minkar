@@ -217,6 +217,8 @@
     NSMutableString *currentPath = [NSMutableString string];
     
     for (NSString *path in pathComponents) {
+     if ([path isEqualToString: @"/"])
+      continue;
      [currentPath appendString: @"/"];
      [currentPath appendString: path];
      
