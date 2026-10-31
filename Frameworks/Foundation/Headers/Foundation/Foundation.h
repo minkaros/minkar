@@ -180,6 +180,7 @@
 #import <Foundation/NSURLError.h>
 #import <Foundation/NSURLProtectionSpace.h>
 #import <Foundation/NSURLProtocol.h>
+#import <Foundation/NSURLComponents.h>
 #import <Foundation/NSURLSession.h>
 #import <Foundation/NSUserDefaults.h>
 #import <Foundation/NSValue.h>

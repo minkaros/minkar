@@ -102,6 +102,7 @@ SRCS = 	NSFormatter.m \
 	NSURL/NSURLError.m \
 	NSURL/NSURL.m \
 	NSURL/NSURLResources.m \
+	NSURL/NSURLComponents.m \
 	NSURL/NSURLRequest.m \
 	NSURL/NSURLSession.m \
 	NSURL/NSURLHandle.m \
@@ -397,6 +398,7 @@ CFLAGS.NSOperation.m = -fobjc-arc
 CFLAGS.NSDataBase64.m = -fobjc-arc
 CFLAGS.NSFileHandleErrors.m = -fobjc-arc
 CFLAGS.NSURLResources.m = -fobjc-arc
+CFLAGS.NSURLComponents.m = -fobjc-arc
 CFLAGS.NSHTTPCookie.m = -fobjc-arc
 CFLAGS.NSHTTPCookieStorage.m = -fobjc-arc
 CFLAGS.NSURLSession.m = -fobjc-arc -I${ROOT_SOURCE_DIR}/BSD/usr.bin/curl/include
