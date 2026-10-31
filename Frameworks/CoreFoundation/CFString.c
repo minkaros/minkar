@@ -38,6 +38,7 @@
 #include <CoreFoundation/CFPriv.h>
 #include <CoreFoundation/CFNumber.h>
 #include <CoreFoundation/CFNumberFormatter.h>
+#define CF_OBJC_DISPATCH 1	/* Minkar: toll-free bridging (CFInternal.h) */
 #include "CFInternal.h"
 #if DEPLOYMENT_TARGET_MACOSX || DEPLOYMENT_TARGET_EMBEDDED || DEPLOYMENT_TARGET_EMBEDDED_MINI || DEPLOYMENT_TARGET_WINDOWS || DEPLOYMENT_TARGET_LINUX
 #include "CFLocaleInternal.h"
@@ -1640,8 +1641,23 @@ CFStringRef  CFStringCreateWithFormat(CFAllocatorRef alloc, CFDictionaryRef form
     return result;
 }
 
+/* Minkar: a CF string with the characters of a Foundation string (one
+ * that is not a CF string), read through CFStringGetCharacters, which
+ * sends it the message. */
+static CFStringRef __CFStringCreateFromObjC(CFAllocatorRef alloc, CFStringRef str, CFRange range) {
+    UniChar stackBuffer[256];
+    UniChar *buffer = range.length <= 256 ? stackBuffer : (UniChar *)malloc(sizeof(UniChar) * range.length);
+    CFStringRef result;
+    if (buffer == NULL) return NULL;
+    CFStringGetCharacters(str, range, buffer);
+    result = CFStringCreateWithCharacters(alloc, buffer, range.length);
+    if (buffer != stackBuffer) free(buffer);
+    return result;
+}
+
 CFStringRef CFStringCreateWithSubstring(CFAllocatorRef alloc, CFStringRef str, CFRange range) {
 //      CF_OBJC_FUNCDISPATCHV(__kCFStringTypeID, CFStringRef , (NSString *)str, _createSubstringWithRange:NSMakeRange(range.location, range.length));
+    if (CF_IS_OBJC(__kCFStringTypeID, str)) return __CFStringCreateFromObjC(alloc, str, range);
 
     __CFAssertIsString(str);
     __CFAssertRangeIsInStringBounds(str, range.location, range.length);
@@ -1659,6 +1675,7 @@ CFStringRef CFStringCreateWithSubstring(CFAllocatorRef alloc, CFStringRef str, C
 
 CFStringRef CFStringCreateCopy(CFAllocatorRef alloc, CFStringRef str) {
 //  CF_OBJC_FUNCDISPATCHV(__kCFStringTypeID, CFStringRef, (NSString *)str, copy);
+    if (CF_IS_OBJC(__kCFStringTypeID, str)) return __CFStringCreateFromObjC(alloc, str, CFRangeMake(0, CFStringGetLength(str)));
 
     __CFAssertIsString(str);
     if (!__CFStrIsMutable((CFStringRef)str) && 								// If the string is not mutable
@@ -2048,7 +2065,9 @@ CFIndex CFStringGetBytes(CFStringRef str, CFRange range, CFStringEncoding encodi
         __CFAssertIsString(str);
         __CFAssertRangeIsInStringBounds(str, range.location, range.length);
 
-        if (__CFStrIsEightBit(str) && ((__CFStringGetEightBitStringEncoding() == encoding) || (__CFStringGetEightBitStringEncoding() == kCFStringEncodingASCII && __CFStringEncodingIsSupersetOfASCII(encoding)))) {	// Requested encoding is equal to the encoding in string
+        /* Minkar: a Foundation string has no CF contents to copy: the
+         * byte stream below reads it through its characters. */
+        if (!CF_IS_OBJC(__kCFStringTypeID, str) && __CFStrIsEightBit(str) && ((__CFStringGetEightBitStringEncoding() == encoding) || (__CFStringGetEightBitStringEncoding() == kCFStringEncodingASCII && __CFStringEncodingIsSupersetOfASCII(encoding)))) {	// Requested encoding is equal to the encoding in string
             const unsigned char *contents = (const unsigned char *)__CFStrContents(str);
             CFIndex cLength = range.length;
 

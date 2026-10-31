@@ -22,6 +22,7 @@
  */
 
 #include "NSCFString.h"
+#import "NSStringCFBridging.h"
 #include <stdio.h>
 #include <sys/param.h>
 #include <objc/runtime.h>
@@ -184,23 +185,32 @@ static inline BOOL isCFString(id self)
     return c;
 }
 
+// The subclasses with storage of their own (NSString_unicode...) are not
+// CF strings: CF would send them these messages again. They get NSString's.
 -(NSStringEncoding)fastestEncoding {
+    if (!isCFString(self))
+        return [super fastestEncoding];
     return CFStringConvertEncodingToNSStringEncoding(
         CFStringGetFastestEncoding((CFStringRef)self));
 }
 
 // The 8-bit contents, when CF keeps them so; NULL otherwise.
 -(const char *)_fastCStringContents:(BOOL)getContents {
-    (void)getContents;
+    if (!isCFString(self))
+        return [super _fastCStringContents:getContents];
     return CFStringGetCStringPtr((CFStringRef)self, kCFStringEncodingASCII);
 }
 
 // The UTF-16 contents, when CF keeps them so; NULL otherwise.
 -(unichar *)_fastCharacterContents {
+    if (!isCFString(self))
+        return [super _fastCharacterContents];
     return (unichar *)CFStringGetCharactersPtr((CFStringRef)self);
 }
 
 -(BOOL)_encodingCantBeStoredInEightBitCFString {
+    if (!isCFString(self))
+        return [super _encodingCantBeStoredInEightBitCFString];
     return CFStringGetCharactersPtr((CFStringRef)self) != NULL;
 }
 
