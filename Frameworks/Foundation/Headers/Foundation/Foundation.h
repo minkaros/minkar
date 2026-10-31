@@ -173,6 +173,14 @@
 #import <Foundation/NSURLConnection.h>
 #import <Foundation/NSURLDownload.h>
 #import <Foundation/NSURLResponse.h>
+#import <Foundation/NSURLAuthenticationChallenge.h>
+#import <Foundation/NSURLCache.h>
+#import <Foundation/NSURLCredential.h>
+#import <Foundation/NSURLCredentialStorage.h>
+#import <Foundation/NSURLError.h>
+#import <Foundation/NSURLProtectionSpace.h>
+#import <Foundation/NSURLProtocol.h>
+#import <Foundation/NSURLSession.h>
 #import <Foundation/NSUserDefaults.h>
 #import <Foundation/NSValue.h>
 #import <Foundation/NSValueTransformer.h>

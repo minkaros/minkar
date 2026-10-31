@@ -17,6 +17,18 @@ typedef enum {
     NSURLRequestReturnCacheDataDontLoad
 } NSURLRequestCachePolicy;
 
+typedef NS_ENUM(NSUInteger, NSURLRequestNetworkServiceType) {
+    NSURLNetworkServiceTypeDefault = 0,
+    NSURLNetworkServiceTypeVoIP = 1,
+    NSURLNetworkServiceTypeVideo = 2,
+    NSURLNetworkServiceTypeBackground = 3,
+    NSURLNetworkServiceTypeVoice = 4,
+    NSURLNetworkServiceTypeResponsiveData = 6,
+    NSURLNetworkServiceTypeAVStreaming = 8,
+    NSURLNetworkServiceTypeResponsiveAV = 9,
+    NSURLNetworkServiceTypeCallSignaling = 11,
+};
+
 @interface NSURLRequest : NSObject <NSCopying, NSMutableCopying> {
     NSURL *_url;
     NSURLRequestCachePolicy _cachePolicy;

@@ -102,6 +102,7 @@ SRCS = 	NSFormatter.m \
 	NSURL/NSURLError.m \
 	NSURL/NSURL.m \
 	NSURL/NSURLRequest.m \
+	NSURL/NSURLSession.m \
 	NSURL/NSURLHandle.m \
 	NSURL/NSURLProtectionSpace.m \
 	NSURL/NSURLConnectionState.m \
@@ -390,6 +391,7 @@ CFLAGS.NSCache.m = -fobjc-arc
 CFLAGS.NSProgress.m = -fobjc-arc
 CFLAGS.NSOperation.m = -fobjc-arc
 CFLAGS.NSDataBase64.m = -fobjc-arc
+CFLAGS.NSURLSession.m = -fobjc-arc -I${ROOT_SOURCE_DIR}/BSD/usr.bin/curl/include
 CFLAGS.NSOperationQueue.m = -fobjc-arc
 CFLAGS.NSStringModern.m = -fobjc-arc -DU_DISABLE_RENAMING=1 \
 	-I${ROOT_SOURCE_DIR}/Libraries/ICU/source/common \
