@@ -241,6 +241,7 @@ commits.
   sigue siendo el predeterminado.
 - Display Services y la lista de ventanas portados a MIG, con un cliente de
   prueba que llama a cada función y comprueba las respuestas.
+- La organización del repositorio de la sección 10.1.
 
 ### WS2 — Ventanas, superficies y compositor por software
 
@@ -273,6 +274,11 @@ commits.
   sombras por software, `NSCursor` y cursor rects, captura de pantalla
   mediante superficies.
 - El arranque de la sesión sale de WindowServer.
+- Sección 10.2: menús y status items dibujados por AppKit de cada app;
+  avisos de apps lanzadas, cerradas y activadas a través de LaunchServices y
+  `NSWorkspace`; los códigos de relevo eliminados de `message.h`.
+- Sección 10.3: la ventana de login gestiona el fin de la sesión, en lo que
+  necesita la Fase 4 (atajo hasta la Fase 5).
 - El núcleo nuevo pasa a ser el predeterminado; se borra `Legacy/`, y
   también los árboles de libinput, libevdev y mtdev.
 - Gate M4 en QEMU: varias apps de AppKit abren ventanas, se arrastran,
@@ -340,6 +346,60 @@ Decidido el 31 oct 2026, según la regla general de la sección 1:
 | Dónde vive | `SkyLight.framework/Resources/WindowServer`; el cliente en `SkyLight.framework`, reexportado por CoreGraphics | `CoreServices/WindowServer.app` para WS0 (servidor actual) | WS1 |
 | Capturar pantalla y enviar eventos | Permisos de grabación de pantalla, monitoreo de entrada y accesibilidad, mediante un servicio de permisos | Política interna: se permite a root y a los procesos del usuario de consola; el resto, denegado | ADR del servicio de privacidad (antes de M5) |
 | Mover ventanas | Movimientos en el servidor a partir de las zonas de arrastre que declara el cliente, más `performWindowDragWithEvent:` | Solo la zona de la barra de título | WS4 |
+| Terminar la sesión | La ventana de login pide a las apps que terminen, cierra la sesión y después reinicia o apaga | Un `loginwindow` mínimo que solo cierra la sesión y llama a `reboot(2)` | Fase 5 (LoginWindow) |
 
 Cada atajo queda marcado en el código con `// SHORTCUT(WSn):` y el hito que
 lo elimina, para listarlos todos con `git grep`.
+
+## 10. Reestructuración alrededor de WindowServer
+
+La reescritura cambia también lo que rodea a WindowServer: lo que vive en su
+directorio, los mensajes que reenvía entre apps y quién gestiona la sesión.
+Cada parte sigue la organización de la plataforma de referencia.
+
+### 10.1 Organización del repositorio (WS1)
+
+| Hoy | Después |
+| --- | --- |
+| `CoreServices/WindowServer/` contiene el servidor y LoginWindow, SystemUIServer y LoadingWindow | El servidor nuevo en `PrivateFrameworks/SkyLight/` (el servidor se instala en `SkyLight.framework/Resources`, la biblioteca del cliente en el framework); el servidor actual en `CoreServices/WindowServer/Legacy/` hasta WS4 |
+| LoginWindow, SystemUIServer y LoadingWindow dentro del directorio del servidor | Apps propias en `CoreServices/`: `loginwindow.app` y `SystemUIServer.app`, junto a `Dock.app` y el gestor de archivos; LoadingWindow pasa a formar parte de loginwindow |
+| Árboles de libinput, libevdev y mtdev | Se borran en WS4 |
+
+### 10.2 Mensajes que WindowServer reenvía hoy (WS4)
+
+`message.h` lleva mensajes que no son trabajo de un servidor de ventanas;
+los usan AppKit (`NSApplication.m`) y SystemUIServer (`AppDelegate.m`). Cada
+uno pasa a donde lo tiene la plataforma de referencia:
+
+| Hoy, a través de WindowServer | Después |
+| --- | --- |
+| La app envía su menú serializado a SystemUIServer (`CODE_MENU_FOR_APP`), que lo dibuja y devuelve los clics (`CODE_ITEM_CLICKED`) | AppKit de cada app dibuja su propia barra de menús y sus menús, en ventanas de nivel `kCGMainMenuWindowLevel` y de los niveles de menú, mientras es la app del frente |
+| Status items enviados a SystemUIServer (`CODE_ADD_STATUS_ITEM`, `CODE_STATUS_ITEM_ADDED`) | Cada `NSStatusItem` es una ventana de su propia app, de nivel `kCGStatusWindowLevel`; WindowServer solo ordena la zona de estado. SystemUIServer aloja los Menu Extras del sistema |
+| App lanzada o cerrada, reenviado al Dock y a SystemUIServer (`CODE_APP_LAUNCHED`, `CODE_APP_EXITED`) | LaunchServices y las notificaciones de `NSWorkspace` (`NSWorkspaceDidLaunchApplicationNotification`, `NSWorkspaceDidTerminateApplicationNotification`, `NSWorkspaceDidActivateApplicationNotification`) |
+| Elementos recientes (`CODE_ADD_RECENT_ITEM`) | Las listas de archivos compartidas de LaunchServices, a través de `NSDocumentController` |
+
+WindowServer se queda solo con lo suyo: la app del frente, el orden de
+activación, las ventanas key y main, y el lugar de la barra de menús en la
+pantalla. Después de WS4 se eliminan los códigos de relevo de `message.h`, y
+el propio `message.h` desaparece con el servidor anterior.
+
+### 10.3 Ciclo de vida de la sesión (WS4, se completa en la Fase 5)
+
+Hoy reiniciar, apagar y cerrar sesión son códigos de salida: SystemUIServer
+termina con `EXIT_RESTART`, `EXIT_SHUTDOWN` o `EXIT_LOGOUT` (`common.h`,
+`SystemUIServer/MenuView.m`), y WindowServer reacciona a ellos; apagar solo
+registra «should shut down!».
+
+Como en la plataforma de referencia, la ventana de login gestiona la sesión:
+
+- launchd arranca `loginwindow` en la consola; muestra la ventana de login
+  y, después del login, arranca la sesión del usuario (su dominio de launchd
+  y sus `LaunchAgents`).
+- Reiniciar, apagar y cerrar sesión son peticiones a `loginwindow` (la referencia las envía como eventos de scripting; aquí primero un mensaje Mach). Pide a cada app
+  que termine (`applicationShouldTerminate:`), espera, cierra la sesión y
+  después llama a `reboot(2)` con las opciones que corresponden.
+- WindowServer no recibe más aviso que la desconexión de sus clientes.
+
+La Fase 4 solo necesita el `loginwindow` mínimo de la sección 9 (fin de la
+sesión y `reboot(2)`), marcado `// SHORTCUT(WS4):`; la ventana de login
+completa es de la Fase 5.
