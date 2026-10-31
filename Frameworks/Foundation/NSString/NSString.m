@@ -1413,44 +1413,34 @@ static inline void reverseString(unichar *buf, NSUInteger len) {
     return sign*value;
 }
 
+/* Minkar: CoreFoundation's case mapping, with the whole Unicode table
+ * (only ASCII changed before) and changes of length (ß gives SS). */
+static NSString *NSStringMapCase(NSString *self, int mapping) {
+   CFMutableStringRef copy=CFStringCreateMutableCopy(NULL,0,(CFStringRef)self);
+   NSString          *result;
+
+   if(copy==NULL)
+    return [[self copy] autorelease];
+   switch(mapping){
+    case 0: CFStringLowercase(copy,NULL); break;
+    case 1: CFStringUppercase(copy,NULL); break;
+    default: CFStringCapitalize(copy,NULL); break;
+   }
+   result=[(NSString *)copy copy];
+   CFRelease(copy);
+   return [result autorelease];
+}
+
 -(NSString *)lowercaseString {
-   NSUInteger length=[self length];
-   unichar  *unicode = NSZoneMalloc(NULL, (length)*sizeof(unichar));
-
-   [self getCharacters:unicode];
-
-    NSUnicodeToLowercase(unicode,length);
-
-    NSString * ret =  [NSString stringWithCharacters:unicode length:length];
-    NSZoneFree(NULL, unicode);
-    return ret;
-
+   return NSStringMapCase(self,0);
 }
 
 -(NSString *)uppercaseString {
-   NSUInteger length=[self length];
-    unichar  *unicode = NSZoneMalloc(NULL, (length)*sizeof(unichar));
-
-   [self getCharacters:unicode];
-
-   NSUnicodeToUppercase(unicode,length);
-
-   NSString * ret = [NSString stringWithCharacters:unicode length:length];
-    NSZoneFree(NULL, unicode);
-    return ret;
+   return NSStringMapCase(self,1);
 }
 
 -(NSString *)capitalizedString {
-   NSUInteger length=[self length];
-   unichar  *unicode = NSZoneMalloc(NULL, (length)*sizeof(unichar));
-
-   [self getCharacters:unicode];
-
-   NSUnicodeToCapitalized(unicode,length);
-
-   NSString * ret = [NSString stringWithCharacters:unicode length:length];
-   NSZoneFree(NULL, unicode);
-   return ret;
+   return NSStringMapCase(self,2);
 }
 
 -(NSString *)stringByAppendingFormat:(NSString *)format,... {
