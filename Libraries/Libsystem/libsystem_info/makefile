@@ -144,9 +144,15 @@ CFLAGS = --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
 
 MIG_FLAGS = -mmacos-version-min=${MACOS_VERSION_MIN} ${HDRS} -D__MigTypeCheck
 
+# The library's own versions, as its stub in Libraries/bootstrap/stubs
+# says them: not the release's (PROD_VERSION).
+LIBINFO_CURRENT_VERSION = 0.7.1
+LIBINFO_COMPATIBILITY_VERSION = 1
+
 LDFLAGS = -Wl,-syslibroot,${MINKAR_SDKROOT}/usr/lib -umbrella System \
     -L${MINKAR_SDKROOT}/usr/lib -L${MINKAR_SDKROOT}/usr/lib/system \
-    -Wl,-current_version,${PROD_VERSION} -Wl,-compatibility_version,1 \
+    -Wl,-current_version,${LIBINFO_CURRENT_VERSION} \
+    -Wl,-compatibility_version,${LIBINFO_COMPATIBILITY_VERSION} \
     -Wl,-install_name,/usr/lib/system/libsystem_info.dylib -lsystem_c -lxpc \
     -lsystem_blocks -lsystem_malloc -lsystem_platform -lsystem_kernel \
     -lsystem_trace -lsystem_dnssd -lsystem_notify -ldispatch -ldyld \

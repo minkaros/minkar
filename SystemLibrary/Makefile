@@ -11,6 +11,7 @@ SystemVersion.plist: ${.CURDIR}/SystemVersion.plist.in ${.CURDIR:H}/Makefile .EX
 	sed -e 's/@BUILD_STAMP@/${BUILD_STAMP}/' \
 	  -e 's/@PROD_FAMILY@/${PROD_FAMILY}/' \
 	  -e 's/@PROD_VERSION@/${PROD_VERSION}/' \
+	  -e 's/@PROD_COMPAT_VERSION@/${PROD_COMPAT_VERSION}/' \
 	  < ${.CURDIR}/SystemVersion.plist.in > ${.OBJDIR}/${.TARGET}
 	mkdir -p ${SYSROOT_DIR}/System/Library/CoreServices
 	cp -f ${.OBJDIR}/${.TARGET} ${SYSROOT_DIR}/System/Library/CoreServices

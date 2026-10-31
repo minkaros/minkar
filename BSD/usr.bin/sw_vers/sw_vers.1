@@ -1,0 +1,38 @@
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\" Copyright (c) 2026 The Minkar contributors
+.\" Part of Minkar.
+.Dd October 31, 2026
+.Dt SW_VERS 1
+.Os Minkar
+.Sh NAME
+.Nm sw_vers
+.Nd print the operating system's version
+.Sh SYNOPSIS
+.Nm
+.Op Fl productName | Fl productVersion | Fl buildVersion
+.Sh DESCRIPTION
+With no option,
+.Nm
+prints the system's name and release, and the version of the kernel under
+it, as in
+.Dl Minkar 19.6.0 (kernel Darwin 19.6.0)
+.Pp
+The options print one value each, from
+.Pa /System/Library/CoreServices/SystemVersion.plist :
+.Bl -tag -width indent
+.It Fl productName
+The system's name
+.Pq Li ProductName .
+.It Fl productVersion
+The version of the Cocoa API the system is compatible with
+.Pq Li ProductVersion ,
+such as 10.15 for API 19: what programs and scripts compare to know which
+interfaces they can use. It is not the release.
+.It Fl buildVersion
+The build
+.Pq Li ProductBuildVersion .
+.El
+.Sh EXIT STATUS
+.Ex -std
+.Sh SEE ALSO
+.Xr uname 1

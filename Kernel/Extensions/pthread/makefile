@@ -4,7 +4,8 @@ KEXT = pthread
 INFO_PLIST = Info.plist
 KERNEL_PRIVATE = yes
 BUNDLE_IDENTIFIER = com.apple.kec.pthread
-BUNDLE_VERSION = ${PROD_VERSION}
+# Its own version, not the release's (PROD_VERSION).
+BUNDLE_VERSION = 0.7.1
 MAIN_FUNCTION = pthread_start
 ANTIMAIN_FUNCTION = pthread_stop
 
