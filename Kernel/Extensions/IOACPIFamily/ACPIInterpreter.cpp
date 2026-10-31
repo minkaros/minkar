@@ -52,6 +52,7 @@ extern "C" {
 }
 
 #include "ACPIOSLayer.h"
+#include "ACPIPowerButton.h"
 
 static const OSSymbol *gInterruptController;
 static IOLock *gStartLock;
@@ -127,6 +128,9 @@ startThread(void *, wait_result_t)
 			AcpiGetDevices((char *)"PNP0A03", findRootBridge, NULL, &gRootBridge);
 		IOLog("ACPI: ACPICA %08x running; PCI root bridge %s\n",
 		    ACPI_CA_VERSION, gRootBridge != NULL ? "found" : "not found");
+
+		/* The power button, now that events come. */
+		ACPIPowerButton::install(IOService::getPlatform());
 	}
 
 	IOLockLock(gStartLock);

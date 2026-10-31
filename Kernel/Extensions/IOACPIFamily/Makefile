@@ -14,7 +14,8 @@ SRCS = ACPIRTC.cpp SMBIOS.cpp \
 	IOACPIPlatformDevice.cpp \
 	util.cpp \
 	ACPIOSLayer.cpp \
-	ACPIInterpreter.cpp
+	ACPIInterpreter.cpp \
+	ACPIPowerButton.cpp
 
 # ACPICA (Intel, BSD-3 option; restored from this repository's history):
 # the AML interpreter, without its debugger and disassembler. See
