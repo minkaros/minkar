@@ -85,11 +85,11 @@ Mach-O. The biggest gap is between the kernel and the desktop.
 
 | Component | State | What is missing | Phase |
 | --- | --- | --- | --- |
-| EFI loader + Darwin kernel | Boots in QEMU (gates M0, M1) | Reference PC, virtio drivers | 1 |
+| EFI loader + Darwin kernel | Boots in QEMU (gates M0, M1) and on the reference PC | A second PC (gate M1) | 1 |
 | System build (bmake, `/usr/share/mk`, frameworks) | Full `world` builds; CI builds and boots it | Per-layer targets, toolchain manifest | 0 |
-| libSystem | Partial | Many functions missing or link-only stubs | 2 |
-| launchd / launchctl | launchd-842 as PID 1 (gate M2) | `launchctl kickstart` | 2 |
-| BSD userland + `open`, `plutil`, `defaults` | Mostly built | `zsh`, `make`, `git`, `open` | 2 |
+| libSystem | Partial; dyld paths tested | Many functions missing or link-only stubs | 3 |
+| launchd / launchctl | launchd-842 as PID 1 (gate M2), `kickstart` | — | 2 (done) |
+| BSD userland, `plutil`, `defaults` | Built: every Phase 2 command (337 of 354) | `open` and the commands of later phases | 2 (done) |
 | CoreFoundation | Partial | CF-Lite up to the macOS 12 APIs | 3 |
 | Foundation, CoreText, CoreData | Partial | Audit against 10.15, then 11 and 12 | 3 |
 | Swift 6 | None in the tree | Compiler, stdlib, overlays | 3 |
@@ -232,27 +232,17 @@ the services Magma and the apps will need.
 
 **libSystem and dyld**
 
-- [ ] Complete libc, libm, pthread, libdispatch, libxpc, notify and os_log,
-  guided by the Phase 0 coverage report. *Partial:* enough for M2; the
-  coverage report exists (`tools/symbols`): the reference apps find 98.1%
-  of their libSystem imports. The SDK's `math.h` was a stand-in (isnan
-  and the other classification macros as double-only functions, its own
-  `bool`, half the C99 functions undeclared); since 2026-10-26 it is
-  macOS-compatible and declares everything `libsystem_m` exports.
-  `vis(3)` in libc predates `VIS_SHELL`, `VIS_META` and the other newer
-  flags.
-- [ ] Turn silent stubs into noisy stubs (log on first call).
-- [ ] Real dyld: optional shared cache at first; `@rpath`, `@loader_path`
-  and re-exports right from day one. *Partial:* `Libraries/dyld` is Apple's
-  dyld; `@rpath` and `@loader_path` are untested.
+- [x] Real dyld with `@rpath`, `@loader_path` and re-exports:
+  `Libraries/dyld` is Apple's dyld; a test builds a program, its libraries
+  and a re-exporting one and runs them (2026-10-31). The rest of
+  libSystem, noisy stubs and the shared cache moved to Phase 3.
 
 **launchd**
 
 - [x] Port launchd to Darwin: launchd-842 runs as PID 1 (`91b426f401`, boot
   log: `launchd[1] has started up`).
-- [ ] `launchctl` with `load`, `bootstrap`, `list` and `kickstart`.
-  *Partial:* `load`, `list` and the old-style `bootstrap` exist
-  (`BSD/bin/launchctl/launchctl.c`); `kickstart` does not.
+- [x] `launchctl` with `load`, `bootstrap`, `list` and `kickstart`
+  (`kickstart [-k] [-p]` since 2026-10-31, tested by restarting notifyd).
 - [x] XML property lists, so `LaunchDaemons` and `LaunchAgents` work as they
   come from macOS: every job in `/System/Library/LaunchDaemons` is XML, and
   gate M2 logs in through `sshd` started from `com.openssh.sshd.plist`.
@@ -269,7 +259,7 @@ macOS's (337 of 354 on 2026-10-30).
 - [x] Replace the commands from Apple's command sets with FreeBSD main's
   and the macOS layer: none is left (2026-10-27). Missing in `grep`:
   macOS's `-Z`/`-J`.
-- [ ] Everyday tools missing from the image. *Partial:* ported in batches
+- [x] Everyday tools missing from the image: ported in batches
   since 2026-10-26, with locales, time zones, manual pages and libiconv.
   `passwd` since 2026-10-28; `dig`, `nslookup`, Kerberos and `pfctl`
   since 2026-10-29: every BSD tool of Commands.md; `autodiskmount` on
@@ -286,9 +276,9 @@ macOS's (337 of 354 on 2026-10-30).
   `mount_apfs`, `newfs_apfs`; no open implementation), SMB
   (`mount_smbfs`; Samba is GPL and FreeBSD's smbfs is gone) and
   `fdesctl`.
-- [ ] Power user: `zsh`, `tar`, `ssh`, `curl`, `make`, `git`. *Partial:* all
-  six in the image (`git` 2.56.0 since 2026-10-28), without git's Perl,
-  Python and Tcl commands.
+- [x] Power user: `zsh`, `tar`, `ssh`, `curl`, `make`, `git`: all six in
+  the image (`git` 2.56.0 since 2026-10-28). git's Perl, Python and Tcl
+  commands moved to Phase 6.
 - [x] Apple tools: `plutil`, `defaults`, `sw_vers`, `ditto`, `hdiutil`
   and `diskutil`; `chmod` has macOS's ACL syntax, and the kernel applies
   allow entries as well as deny ones since 2026-10-28. `open` needs
@@ -296,10 +286,11 @@ macOS's (337 of 354 on 2026-10-30).
 
 **Support daemons** (needed by Phases 5 and 6)
 
-- [ ] `notifyd`. *Partial:* installed with a launchd job; no gate checks it.
-- [ ] `logd` (missing; `syslogd` and `aslmanager` have launchd jobs
-  instead).
-- [ ] Directory Services–style user management (missing).
+- [x] `notifyd`, with Apple's `notifyutil` since 2026-10-31: posts,
+  waiting clients and states are tested, also after a restart.
+- `logd` moved to Phase 3, with `os_log` (`syslogd` and `aslmanager` have
+  launchd jobs meanwhile); Directory Services–style user management moved
+  to Phase 5, with the login window that needs it.
 - [x] DiskArbitration, mounting volumes in `/Volumes` (2026-10-30): Apple's
   framework and `diskarbitrationd` (DiskArbitration-297.70.1, APSL), with
   the `hfs.fs` and `msdos.fs` bundles of Apple's hfs and msdosfs projects
@@ -308,6 +299,10 @@ macOS's (337 of 354 on 2026-10-30).
   the disk's owner; admins any disk; the console user the disks that are
   not internal). Disks mount without a user logged in
   (`AutomountDisksWithoutUserLogin`), as there is no login window yet.
+
+Phase 2 closed on 2026-10-31: every command of it is in the image, and the
+items that are not commands went to the phase that needs them (decided
+2026-10-30).
 
 - [x] **Exit gate (M2):** launchd as PID 1, network by DHCP, console login
   and SSH access. `boottest GATE=M2` sees its 13 markers (about 75 s under
@@ -330,10 +325,12 @@ Components behind M2:
 - [x] MSI for disk and network; fixed the AHCI race with MSI that made
   launchd fail (`556c20aad1`: gate M2 passed three runs out of three).
 - [x] `getaddrinfo`, `id` and `dscacheutil`.
-- [ ] IPv6: link-local, SLAAC and RDNSS. *Partial:* tested by hand in QEMU
-  (`ce72ffdae3`, `6c014daca8`); no gate checks it.
-- [ ] DNS over IPv4 and IPv6 with `libresolv` and mDNSResponder. *Partial:*
-  the gate checks IPv4 only; IPv6 was tested by hand.
+- [x] IPv6: link-local and SLAAC addresses, `ping6` and DNS queries over
+  IPv6 are tested in QEMU since 2026-10-31. RDNSS and DNS answers over
+  IPv6 need a router that announces them and a resolver QEMU's user
+  network does not give: they are checked on the reference PC (Phase 1).
+- [x] DNS over IPv4 with `libresolv` and mDNSResponder (gate M2); over IPv6
+  as above.
 
 ## Phase 3 — Base frameworks and Swift
 
@@ -436,6 +433,21 @@ constrains the Swift runtime.
    with that SDK work; then `ProductVersion` goes up. Check at each stage
    which APIs need kernel changes.
 
+Items that come with this phase (from Phase 2, 2026-10-31):
+
+- [ ] Complete libc, libm, pthread, libdispatch, libxpc, notify and os_log,
+  guided by the Phase 0 coverage report. *Partial:* enough for M2; the
+  coverage report exists (`tools/symbols`): the reference apps find 98.1%
+  of their libSystem imports. The SDK's `math.h` was a stand-in (isnan
+  and the other classification macros as double-only functions, its own
+  `bool`, half the C99 functions undeclared); since 2026-10-26 it is
+  macOS-compatible and declares everything `libsystem_m` exports.
+  `vis(3)` in libc predates `VIS_SHELL`, `VIS_META` and the other newer
+  flags.
+- [ ] Turn silent stubs into noisy stubs (log on first call).
+- [ ] dyld's shared cache (optional at first).
+- [ ] `logd`, with `os_log` (`syslogd` and `aslmanager` meanwhile).
+
 **Swift toolchain** (the prototype gates the rest of the Swift work)
 
 - [ ] Prototype 1: build `swiftc` (`swiftlang/swift`, `release/6.0`) on the
@@ -531,7 +543,7 @@ Goal: a complete Monterey-style graphical session with login, global menu
 bar, Dock, desktop icons and preferences. The order follows what the user
 sees at boot.
 
-1. **LoginWindow:** authentication against the Phase 2 user service, and
+1. **LoginWindow:** authentication against the user service (below), and
    session start (the user's `LaunchAgents`).
 2. **SystemUIServer and menu bar:** the active app's menu through
    WindowServer, plus a public Menu Extras and `NSStatusItem` API.
@@ -553,6 +565,8 @@ continuous AppKit test.
 
 Commands that come with this phase (from Phase 2):
 
+- [ ] Directory Services–style user management, for LoginWindow and the
+  Users pane (moved 2026-10-31).
 - [ ] `open` and `lsappinfo`, on LaunchServices.
 - [ ] `mdfind`, `mdls` and `mdutil`, with a metadata index for Filer's
   search.
@@ -593,6 +607,8 @@ Commands that come with this phase (from Phase 2):
 - [ ] `osascript`, with an Open Scripting Architecture for the apps.
 - [ ] `opendiff`, with a file comparison app.
 - [ ] `tmutil`, with backups.
+- [ ] git's Perl, Python and Tcl commands (`git send-email`, `gitk`...),
+  with those languages (moved 2026-10-31).
 
 **Exit gate (M6):** a DMG is downloaded, mounted, the app copied to
 `/Applications` and run; Terminal, TextEdit and the browser are used daily
@@ -675,9 +691,9 @@ The highest-impact open items, in critical-path order:
    checked on it; next, powering off (ACPI S5) and the boot without
    `pci_keep_console`; then a second, different PC (gate M1;
    a Mac Pro 6,1 is the candidate). See [Hardware.md](Hardware.md).
-2. Userland (Phase 2): its commands are done (exFAT reads and writes
-   since 2026-10-31); closing it, the items that are not commands go to
-   the phase that needs them (decided 2026-10-30). 337
+2. Userland (Phase 2): closed on 2026-10-31 (exFAT reads and writes,
+   `launchctl kickstart`, dyld paths, notifyd and IPv6 tested; the rest
+   went to Phases 3, 5 and 6). 337
    of 354 on 2026-10-30, with the NFS server, DiskArbitration,
    `autodiskmount` and `leaks` done.
 3. IOHIDSystem event delivery in the kernel, the `ApplePS2Mouse` driver and

@@ -117,6 +117,8 @@ loader's output on screen for photos.
 - `dmesg` keeps 16 KB, as a release macOS kernel: a verbose boot pushes
   its start out. The PC test images boot with `msgbuf=1048576` for that
   (hw-test38: about 100 KB from the first line).
+- IPv6 on the LAN: RDNSS (the router's name servers in resolv.conf) and
+  DNS answers over IPv6, which QEMU's user network cannot give.
 - Booting without `pci_keep_console=1` (see the QEMU known bug).
 
 ### How it got there
