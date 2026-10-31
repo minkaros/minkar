@@ -25,7 +25,8 @@
 #include "IOGOPFramebuffer.h"
 
 #define kDisplayModeID 1
-#define kDepth         32 /* GOP is always 32 */
+/* Depths are indexes into a mode's list; GOP has one, 32 bits per pixel. */
+#define kDepthIndex    0
 
 #define DEBUG(x, ...) kprintf("IOGOPFramebuffer: " x, ##__VA_ARGS__)
 
@@ -151,7 +152,7 @@ IOGOPFramebuffer::getCurrentDisplayMode(IODisplayModeID * displayMode,
                                         IOIndex         * depth)
 {
     *displayMode = kDisplayModeID;
-    *depth = kDepth;
+    *depth = kDepthIndex;
     return kIOReturnSuccess;
 }
 
@@ -181,7 +182,7 @@ IOGOPFramebuffer::getInformationForDisplayMode(IODisplayModeID,
     info->nominalHeight = height;
     info->refreshRate   = 60 << 16;
 
-    info->maxDepthIndex = kDepth;
+    info->maxDepthIndex = kDepthIndex;
 
     return kIOReturnSuccess;
 }
@@ -214,7 +215,7 @@ IOGOPFramebuffer::getPixelInformation(IODisplayModeID      displayMode,
 {
     PE_Video    bootDisplay;
 
-    if (aperture || depth || (displayMode != kDisplayModeID))
+    if (aperture || (depth != kDepthIndex) || (displayMode != kDisplayModeID))
     {
         return (kIOReturnUnsupportedMode);
     }
