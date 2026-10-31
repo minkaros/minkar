@@ -104,3 +104,11 @@ extern pthread_mutex_t renderLock;
 
 @end
 
+
+/*
+ * A System V shared memory segment for one client's pixels (display
+ * capture, display images): created readable and writable by its owner
+ * only, then handed to the client's user, so neither other users nor
+ * other clients can read or change it. Returns the segment ID or -1.
+ */
+int WSCreateClientSegment(key_t key, size_t size, pid_t client);

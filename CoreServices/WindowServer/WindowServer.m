@@ -861,14 +861,18 @@ static NSString *_pathForPID(pid_t pid) {
         rect.size.height = (args->val3 & 0xFFFF);
         O2ImageRef img = [display imageForRect:rect];
         int imglen = 0;
+        int segment = -1;
         if(img) {
             imglen = O2ImageGetBytesPerRow(img) * O2ImageGetHeight(img);
-            reply.val1 = shmget(args->val1 ^ random(), imglen, IPC_CREAT|0666);
+            segment = WSCreateClientSegment(args->val1 ^ random(), imglen, msg->pid);
         }
+        reply.val1 = segment > 0 ? segment : 0;
         if(reply.val1) {
             uint8_t *p = shmat(reply.val1, NULL, 0);
-            if(!p)
+            if(p == (void *)-1) {
                 shmctl(reply.val1, IPC_RMID, NULL);
+                reply.val1 = 0;
+            }
             else {
                 memcpy(p, [img directBytes], imglen);
                 shmdt(p);

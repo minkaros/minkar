@@ -276,7 +276,7 @@ static uint32_t displayIDForService(io_service_t service) {
 
     pthread_mutex_lock(&renderLock);
     size_t size = kCaptureHeaderSize + _frameSize;
-    int segment = shmget(_ID ^ (key_t)random(), size, IPC_CREAT | 0666);
+    int segment = WSCreateClientSegment(_ID ^ (key_t)random(), size, pid);
     if (segment < 0) {
         pthread_mutex_unlock(&renderLock);
         return NO;

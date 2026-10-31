@@ -26,6 +26,30 @@
 #import <CoreGraphics/CGDirectDisplay.h>
 #import "WSDisplay.h"
 #import "rpc.h" // for flags constants
+#include <libproc.h>
+#include <sys/ipc.h>
+#include <sys/shm.h>
+
+int WSCreateClientSegment(key_t key, size_t size, pid_t client) {
+    struct proc_bsdinfo info;
+    if(proc_pidinfo(client, PROC_PIDTBSDINFO, 0, &info, sizeof(info)) != sizeof(info))
+        return -1;
+    int segment = shmget(key, size, IPC_CREAT | IPC_EXCL | 0600);
+    if(segment < 0)
+        return -1;
+    struct shmid_ds ds;
+    if(shmctl(segment, IPC_STAT, &ds) != 0) {
+        shmctl(segment, IPC_RMID, NULL);
+        return -1;
+    }
+    ds.shm_perm.uid = info.pbi_uid;
+    ds.shm_perm.gid = info.pbi_gid;
+    if(shmctl(segment, IPC_SET, &ds) != 0) {
+        shmctl(segment, IPC_RMID, NULL);
+        return -1;
+    }
+    return segment;
+}
 
 @implementation WSDisplay
 -init {
