@@ -82,6 +82,10 @@ Other components
   ICU - Unicode License v3 (Libraries/ICU/LICENSE)
 - Intel's shared e1000 code (FreeBSD main's sys/dev/e1000) - BSD-3-Clause
   (Kernel/Extensions/MinkarE1000/e1000/LICENSE)
+- FreeBSD's bge(4) and brgphy(4) (sys/dev/bge, sys/dev/mii), the chip
+  setup of MinkarBGE and its register definitions - BSD-4-Clause
+  (headers of Kernel/Extensions/MinkarBGE/MinkarBGE.cpp and bge/).
+  This product includes software developed by Bill Paul.
 - XZ Utils / liblzma - 0BSD; other parts under other licenses
   (Frameworks/CoreText/xz/COPYING)
 - xkeyboard-config - MIT-style (Frameworks/AppKit/xkeyboard-config/COPYING)

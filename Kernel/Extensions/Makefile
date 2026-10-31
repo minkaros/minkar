@@ -1,7 +1,7 @@
 SUBDIR = AppleAPIC IOACPIFamily IOPCIFamily IOStorageFamily IOATAFamily \
 	 AppleIntelPIIXATA msdosfs exfat hfs AppleFileSystemDriver MinkarAHCIPort \
 	 IOGraphics corecrypto pthread IOHIDFamily ApplePS2Controller \
-	 AppleI386PCI IONetworkingFamily MinkarE1000 MinkarVirtio MinkarNVMe \
+	 AppleI386PCI IONetworkingFamily MinkarE1000 MinkarBGE MinkarVirtio MinkarNVMe \
 	 IOUSBFamily MinkarXHCIPort MinkarUSB MinkarDiskImage
 
 all: kernelcache
@@ -45,6 +45,7 @@ kernelcache: ${SUBDIR}
 	${EXTENSIONS}/IOHIDFamily/IOHIDFamily.kext \
 	${EXTENSIONS}/IONetworkingFamily/IONetworkingFamily.kext \
 	${EXTENSIONS}/MinkarE1000/MinkarE1000.kext \
+	${EXTENSIONS}/MinkarBGE/MinkarBGE.kext \
 	${EXTENSIONS}/MinkarVirtio/MinkarVirtio.kext \
 	${EXTENSIONS}/MinkarNVMe/MinkarNVMe.kext \
 	${EXTENSIONS}/IOUSBFamily/IOUSBFamily.kext \
