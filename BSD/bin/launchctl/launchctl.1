@@ -111,6 +111,24 @@ Remove the job from launchd by label.
 .It Ar start Ar job_label
 Start the specified job by label. The expected use of this subcommand is for
 debugging and testing so that one can manually kick-start an on-demand server.
+.It Xo Ar kickstart
+.Op Fl k
+.Op Fl p
+.Ar service-target
+.Xc
+Start the service now, if it is not running. A
+.Ar service-target
+is
+.Ar system/label ,
+.Ar gui/uid/label
+or
+.Ar user/uid/label .
+With
+.Fl k ,
+a running instance is killed first and the service is started again once
+it has exited; with
+.Fl p ,
+the new process's PID is printed.
 .It Ar stop Ar job_label
 Stop the specified job by label. If a job is on-demand, launchd may immediately
 restart the job if launchd finds any criteria that is satisfied.
