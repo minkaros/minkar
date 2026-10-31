@@ -23,6 +23,10 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 NSString * const NSDefaultRunLoopMode=@"kCFRunLoopDefaultMode";
 NSString * const NSRunLoopCommonModes=@"kCFRunLoopCommonModes";
 
+#if defined(__APPLE__)
+#import "../platform_darwin/NSDispatchMainQueueSource.h"
+#endif
+
 @implementation NSRunLoop
 
 +(NSRunLoop *)currentRunLoop {
@@ -45,6 +49,21 @@ NSString * const NSRunLoopCommonModes=@"kCFRunLoopCommonModes";
 
    if((parentDeath=[[NSPlatform currentPlatform] parentDeathInputSource])!=nil)
     [self addInputSource:parentDeath forMode:NSDefaultRunLoopMode];
+
+#if defined(__APPLE__)
+   // Minkar: the main thread's run loop runs dispatch's main queue, in the
+   // default mode and in AppKit's modal and event tracking modes, as
+   // CFRunLoop does in its common modes.
+   if([NSThread isMainThread]){
+    NSInputSource *mainQueue=[NSDispatchMainQueueSource sharedSource];
+
+    if(mainQueue!=nil){
+     [self addInputSource:mainQueue forMode:NSDefaultRunLoopMode];
+     [self addInputSource:mainQueue forMode:@"NSModalPanelRunLoopMode"];
+     [self addInputSource:mainQueue forMode:@"NSEventTrackingRunLoopMode"];
+    }
+   }
+#endif
 
    return self;
 }

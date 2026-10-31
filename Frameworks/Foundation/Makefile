@@ -319,6 +319,7 @@ SRCS = 	NSFormatter.m \
 	NSDate/NSDateFormatter.m \
 	platform_darwin/DarwinMemoryFunctions.m \
 	platform_darwin/NSPlatform_darwin.m \
+	platform_darwin/NSDispatchMainQueueSource.m \
 	platform_darwin/NSString_defaultEncoding_darwin.m \
 	platform_darwin/libmain.m \
 	platform_posix/NSCancelInputSource_posix.m \
