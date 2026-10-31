@@ -1,5 +1,5 @@
 SUBDIR = AppleAPIC IOACPIFamily IOPCIFamily IOStorageFamily IOATAFamily \
-	 AppleIntelPIIXATA msdosfs hfs AppleFileSystemDriver MinkarAHCIPort \
+	 AppleIntelPIIXATA msdosfs exfat hfs AppleFileSystemDriver MinkarAHCIPort \
 	 IOGraphics corecrypto pthread IOHIDFamily ApplePS2Controller \
 	 AppleI386PCI IONetworkingFamily MinkarE1000 MinkarVirtio MinkarNVMe \
 	 IOUSBFamily MinkarXHCIPort MinkarUSB MinkarDiskImage
@@ -40,6 +40,7 @@ kernelcache: ${SUBDIR}
 	${EXTENSIONS}/hfs/hfs_encodings/hfs_encodings.kext \
 	${EXTENSIONS}/hfs/hfs.kext \
 	${EXTENSIONS}/msdosfs/msdosfs.kext \
+	${EXTENSIONS}/exfat/exfat.kext \
 	${EXTENSIONS}/IOGraphics/IOGOPFramebuffer.kext \
 	${EXTENSIONS}/IOHIDFamily/IOHIDFamily.kext \
 	${EXTENSIONS}/IONetworkingFamily/IONetworkingFamily.kext \
