@@ -315,6 +315,8 @@ xpc_dictionary_copy_mach_send(xpc_object_t xdict, const char *key)
 	struct xpc_object *xo;
 	const struct xpc_object *xotmp;
 
+	MINKAR_STUB();
+	return (MACH_PORT_NULL);
 }
 #endif
 
@@ -565,7 +567,8 @@ xpc_dictionary_apply(xpc_object_t xdict, xpc_dictionary_applier_t applier)
 xpc_object_t
 xpc_create_from_plist(uint8_t *buf, size_t length)
 {
-    return NULL; /* FIXME: stub */
+    MINKAR_STUB();
+    return NULL;
 }
 
 int

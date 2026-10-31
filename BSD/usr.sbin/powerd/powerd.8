@@ -1,0 +1,50 @@
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\" Copyright (c) 2026 The Minkar contributors
+.\" Part of Minkar.
+.Dd October 30, 2026
+.Dt POWERD 8
+.Os Minkar
+.Sh NAME
+.Nm powerd
+.Nd the power management daemon
+.Sh SYNOPSIS
+.Nm
+.Sh DESCRIPTION
+.Nm
+is the server of IOKit's power management functions, started by
+.Xr launchd 8
+(org.minkar.powerd) for the
+.Li com.apple.PowerManagement.control
+service.
+.Bl -bullet
+.It
+Assertions: processes create, change, retain and release them
+.Pq Fn IOPMAssertionCreateWithName ... ;
+they are listed by process, by type and as a status, and go when their
+process exits or their timeout expires.
+Their combined levels go to the kernel's root domain, which keeps the
+display awake or the system from idle sleep accordingly; declared user
+activity wakes the display.
+.It
+Settings: the active power settings go to the kernel as the display,
+disk and system idle timers, and as the root domain's settings, when
+.Nm
+starts and whenever they change.
+.It
+Scheduled and repeating power events are kept in
+.Pa /Library/Preferences/SystemConfiguration/com.apple.AutoWake.plist ;
+power sources other processes publish are listed with the others.
+.It
+A platform that cannot sleep says so in the root domain's
+.Li IOSleepSupported ;
+.Nm
+then disables system sleep, so that it is never attempted.
+.El
+.Sh FILES
+.Bl -tag -width indent
+.It Pa /System/Library/LaunchDaemons/org.minkar.powerd.plist
+.It Pa /Library/Preferences/SystemConfiguration/com.apple.AutoWake.plist
+.El
+.Sh SEE ALSO
+.Xr caffeinate 8 ,
+.Xr pmset 1

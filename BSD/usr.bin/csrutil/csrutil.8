@@ -1,0 +1,27 @@
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\" Copyright (c) 2026 The Minkar contributors
+.\" Part of Minkar.
+.Dd October 29, 2026
+.Dt CSRUTIL 8
+.Os Minkar
+.Sh NAME
+.Nm csrutil
+.Nd show the System Integrity Protection configuration
+.Sh SYNOPSIS
+.Nm
+.Cm status
+.Nm
+.Cm enable | disable | clear
+.Sh DESCRIPTION
+.Nm status
+describes System Integrity Protection's configuration as the kernel has
+it: enabled, disabled, or a custom configuration listing each protection.
+.Pp
+.Cm enable ,
+.Cm disable
+and
+.Cm clear
+change the configuration only from a recovery system, which Minkar does
+not have; elsewhere they fail, as on macOS.
+.Sh EXIT STATUS
+.Ex -std

@@ -40,7 +40,7 @@ NSRange NSMakeRange(NSUInteger location, NSUInteger length) {
 
 CF_EXPORT int _CFRuntimeRegisterObjCClass(CFTypeID typeID, uintptr_t cls)
 {
-    if (typeID < 0 && typeID >= __CFRuntimeClassTableSize)
+    if (typeID >= __CFRuntimeClassTableSize)
         return -1;
     TRACE("Registering ObjC class 0x%lx for type ID %d\n", cls, typeID);
     __CFRuntimeObjCClassTable[typeID] = cls;
@@ -60,5 +60,21 @@ CF_EXPORT void CFSetupFoundationBridging(void)
         _CFRuntimeRegisterObjCClass(CFBooleanGetTypeID(), boolClass);
         ((CFRuntimeBase *)kCFBooleanTrue)->_cfisa = boolClass;
         ((CFRuntimeBase *)kCFBooleanFalse)->_cfisa = boolClass;
+    }
+
+    /* Minkar: arrays and dictionaries are toll-free bridged both ways.
+     * The CF objects made from now on have Foundation's bridge class
+     * (__NSCFArray, __NSCFDictionary), so Objective-C messages reach CF;
+     * and CF's functions send Foundation's own collections the message
+     * (CF_OBJC_FUNCDISPATCHV in CFArray.c and CFDictionary.c). */
+    uintptr_t arrayClass = (uintptr_t)objc_lookUpClass("__NSCFArray");
+    if (arrayClass != 0) {
+        _CFRuntimeRegisterObjCClass(CFArrayGetTypeID(), arrayClass);
+        _CFRuntimeBridgeObjCDispatch(CFArrayGetTypeID());
+    }
+    uintptr_t dictionaryClass = (uintptr_t)objc_lookUpClass("__NSCFDictionary");
+    if (dictionaryClass != 0) {
+        _CFRuntimeRegisterObjCClass(CFDictionaryGetTypeID(), dictionaryClass);
+        _CFRuntimeBridgeObjCDispatch(CFDictionaryGetTypeID());
     }
 }

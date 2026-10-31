@@ -1,8 +1,8 @@
 SUBDIR = AppleAPIC IOACPIFamily IOPCIFamily IOStorageFamily IOATAFamily \
-	 AppleIntelPIIXATA msdosfs hfs AppleFileSystemDriver MinkarAHCIPort \
+	 AppleIntelPIIXATA msdosfs exfat hfs AppleFileSystemDriver MinkarAHCIPort \
 	 IOGraphics corecrypto pthread IOHIDFamily ApplePS2Controller \
 	 AppleI386PCI IONetworkingFamily MinkarE1000 MinkarVirtio MinkarNVMe \
-	 IOUSBFamily MinkarXHCIPort MinkarUSB
+	 IOUSBFamily MinkarXHCIPort MinkarUSB MinkarDiskImage
 
 all: kernelcache
 .for target_dir in ${MINKAR_SDKROOT}/System/Library/Extensions \
@@ -11,6 +11,10 @@ all: kernelcache
 .for kext in ${SUBDIR}
 	cp -fR ${.OBJDIR}/${kext}/${kext:S/IOGraphics/IOGOPFramebuffer/}.kext ${target_dir}/
 .endfor
+	# hfs's encodings go inside it, as on macOS, so a load of hfs finds them.
+	mkdir -p ${target_dir}/hfs.kext/Contents/PlugIns
+	cp -fR ${.OBJDIR}/hfs/hfs_encodings/hfs_encodings.kext \
+	    ${target_dir}/hfs.kext/Contents/PlugIns/
 .endfor
 
 EXTENSIONS = ${ROOT_BINARY_DIR}${ROOT_SOURCE_DIR}/Kernel/Extensions
@@ -36,6 +40,7 @@ kernelcache: ${SUBDIR}
 	${EXTENSIONS}/hfs/hfs_encodings/hfs_encodings.kext \
 	${EXTENSIONS}/hfs/hfs.kext \
 	${EXTENSIONS}/msdosfs/msdosfs.kext \
+	${EXTENSIONS}/exfat/exfat.kext \
 	${EXTENSIONS}/IOGraphics/IOGOPFramebuffer.kext \
 	${EXTENSIONS}/IOHIDFamily/IOHIDFamily.kext \
 	${EXTENSIONS}/IONetworkingFamily/IONetworkingFamily.kext \
@@ -44,7 +49,8 @@ kernelcache: ${SUBDIR}
 	${EXTENSIONS}/MinkarNVMe/MinkarNVMe.kext \
 	${EXTENSIONS}/IOUSBFamily/IOUSBFamily.kext \
 	${EXTENSIONS}/MinkarXHCIPort/MinkarXHCIPort.kext \
-	${EXTENSIONS}/MinkarUSB/MinkarUSB.kext
+	${EXTENSIONS}/MinkarUSB/MinkarUSB.kext \
+	${EXTENSIONS}/MinkarDiskImage/MinkarDiskImage.kext
 	chmod 0644 ${.TARGET}.tmp
 	${LIPO} -create -output ${.OBJDIR}/${.TARGET} \
 	  -arch x86_64 ${.OBJDIR}/${.TARGET}.tmp

@@ -10,19 +10,28 @@
 # Developer/Default.xctoolchain, and the cache holds the installed
 # toolchain plus its object directories (not LLVM's build tree). Bump
 # CACHE_VERSION to throw it away.
+#
+# The repository is private on a free account, whose Actions minutes a
+# run of more than an hour each uses up quickly: the CI runs on pushes and
+# pull requests to main and when started by hand (Actions > build and
+# boottest > Run workflow, on any branch). devel's batches are verified
+# locally before they are pushed (component tests, gate M2, the full
+# suite when shared parts change).
 
 name: build and boottest
 
 on:
   push:
-    branches: [main, devel]
+    branches: [main]
   pull_request:
-    branches: [main, devel]
+    branches: [main]
   workflow_dispatch:
 
+# A newer run on the same branch replaces one still going: minutes are
+# counted.
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+  cancel-in-progress: true
 
 permissions:
   contents: read

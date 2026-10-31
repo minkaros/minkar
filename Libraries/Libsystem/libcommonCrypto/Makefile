@@ -17,10 +17,11 @@
 SUBDIR =
 MK_WERROR = no
 LIB = commonCrypto
-SRCS = digest.c hmac.c aes.c cryptor.c keyderivation.c
+SRCS = digest.c digest_spi.c hmac.c aes.c cryptor.c keyderivation.c
 
 CFLAGS = --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
-	-I${.CURDIR} -Wno-deprecated-declarations -Wno-nullability-completeness
+	-I${.CURDIR} -I${MINKAR_SDKROOT}/usr/include/Private \
+	-Wno-deprecated-declarations -Wno-nullability-completeness
 
 LDFLAGS = -Wl,-syslibroot,${MINKAR_SDKROOT}/usr/lib -umbrella System \
 	-L${MINKAR_SDKROOT}/usr/lib/system \

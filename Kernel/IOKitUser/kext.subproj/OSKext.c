@@ -58,6 +58,7 @@
 #include <fcntl.h>
 #include <libc.h>
 #include <pthread.h>
+#include <mach/mach_error.h>
 #include <mach/host_priv.h>
 #include <mach/machine.h>
 #include <zlib.h>

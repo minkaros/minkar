@@ -201,6 +201,7 @@ static int bootstrap_cmd(int argc, char *const argv[]);
 static int load_and_unload_cmd(int argc, char *const argv[]);
 //static int reload_cmd(int argc, char *const argv[]);
 static int start_stop_remove_cmd(int argc, char *const argv[]);
+static int kickstart_cmd(int argc, char *const argv[]);
 static int submit_cmd(int argc, char *const argv[]);
 static int list_cmd(int argc, char *const argv[]);
 
@@ -237,6 +238,7 @@ static const struct {
 //	{ "reload",			reload_cmd,				"Reload configuration files and/or directories" },
 	{ "start",			start_stop_remove_cmd,	"Start specified job" },
 	{ "stop",			start_stop_remove_cmd,	"Stop specified job" },
+	{ "kickstart",		kickstart_cmd,			"Start (or with -k, restart) a service now" },
 	{ "submit",			submit_cmd,				"Submit a job from the command line" },
 	{ "remove",			start_stop_remove_cmd,	"Remove specified job" },
 	{ "bootstrap",		bootstrap_cmd,			"Bootstrap launchd" },
@@ -1644,6 +1646,17 @@ sock_dict_edit_entry(launch_data_t tmp, const char *key, launch_data_t fdarray, 
 	}
 }
 
+#ifdef __MINKAR__
+/*
+ * Minkar: launchd watches QueueDirectories, WatchPaths and PathState itself
+ * (there is no file system events provider to hand them to as events).
+ */
+void
+distill_fsevents(launch_data_t id_plist)
+{
+	(void)id_plist;
+}
+#else
 void
 distill_fsevents(launch_data_t id_plist)
 {
@@ -1679,6 +1692,7 @@ distill_fsevents(launch_data_t id_plist)
 		}
 	}
 }
+#endif /* __MINKAR__ */
 
 void
 do_mgroup_join(int fd, int family, int socktype, int protocol, const char *mgroup)
@@ -2930,6 +2944,140 @@ start_stop_remove_cmd(int argc, char *const argv[])
 
 	launch_data_free(resp);
 	return r;
+}
+
+/*
+ * Minkar: kickstart, as macOS's launchctl. A job's PID, or 0 when it is
+ * not running; -1 when there is no such job.
+ */
+static pid_t
+kickstart_pid(const char *label)
+{
+	launch_data_t msg, resp, pido;
+	pid_t pid = -1;
+
+	msg = launch_data_alloc(LAUNCH_DATA_DICTIONARY);
+	launch_data_dict_insert(msg, launch_data_new_string(label), LAUNCH_KEY_GETJOB);
+	resp = launch_msg(msg);
+	launch_data_free(msg);
+	if (resp == NULL)
+		return -1;
+	if (launch_data_get_type(resp) == LAUNCH_DATA_DICTIONARY) {
+		pido = launch_data_dict_lookup(resp, LAUNCH_JOBKEY_PID);
+		pid = pido ? (pid_t)launch_data_get_integer(pido) : 0;
+	}
+	launch_data_free(resp);
+	return pid;
+}
+
+static int
+kickstart_send(const char *label, const char *key)
+{
+	launch_data_t msg, resp;
+	int e = 0;
+
+	msg = launch_data_alloc(LAUNCH_DATA_DICTIONARY);
+	launch_data_dict_insert(msg, launch_data_new_string(label), key);
+	resp = launch_msg(msg);
+	launch_data_free(msg);
+	if (resp == NULL)
+		return errno;
+	if (launch_data_get_type(resp) == LAUNCH_DATA_ERRNO)
+		e = launch_data_get_errno(resp);
+	launch_data_free(resp);
+	return e;
+}
+
+/*
+ * kickstart [-k] [-p] service-target: starts the service now; with -k
+ * an instance that runs is killed first and the service started again
+ * once it has exited; -p prints the PID. A target is system/<label>,
+ * gui/<uid>/<label> or user/<uid>/<label>, in this launchd's domain.
+ */
+static int
+kickstart_cmd(int argc, char *const argv[])
+{
+	const char *target, *label, *slash;
+	bool kill_first = false, print_pid = false;
+	pid_t old, pid = 0;
+	int i, ch, e;
+
+	optind = 1;
+	optreset = 1;
+	while ((ch = getopt(argc, argv, "kps")) != -1) {
+		switch (ch) {
+		case 'k':
+			kill_first = true;
+			break;
+		case 'p':
+			print_pid = true;
+			break;
+		case 's':
+			break;	/* suspended start: not supported, starts */
+		default:
+			goto usage;
+		}
+	}
+	if (optind != argc - 1)
+		goto usage;
+	target = argv[optind];
+	if (strncmp(target, "system/", 7) == 0)
+		label = target + 7;
+	else if (strncmp(target, "gui/", 4) == 0 || strncmp(target, "user/", 5) == 0) {
+		slash = strchr(strchr(target, '/') + 1, '/');
+		if (slash == NULL)
+			goto usage;
+		label = slash + 1;
+	} else
+		goto usage;
+	if (*label == '\0')
+		goto usage;
+
+	old = kickstart_pid(label);
+	if (old < 0) {
+		launchctl_log(LOG_ERR, "Could not find service \"%s\" in domain for %.*s",
+		    label, (int)(label - target - 1), target);
+		return 113;
+	}
+	if (kill_first && old > 0) {
+		if ((e = kickstart_send(label, LAUNCH_KEY_STOPJOB))) {
+			launchctl_log(LOG_ERR, "Could not kill service: %s", strerror(e));
+			return 1;
+		}
+		/* Until it has exited (or launchd started it again, KeepAlive). */
+		for (i = 0; i < 1000; i++) {
+			pid = kickstart_pid(label);
+			if (pid != old)
+				break;
+			usleep(10000);
+		}
+		if (pid == old) {
+			launchctl_log(LOG_ERR, "Service did not exit: %d", (int)old);
+			return 1;
+		}
+	}
+	if (kill_first || old == 0) {
+		if ((e = kickstart_send(label, LAUNCH_KEY_STARTJOB))) {
+			launchctl_log(LOG_ERR, "Could not start service: %s", strerror(e));
+			return 1;
+		}
+	}
+	if (print_pid) {
+		for (i = 0; i < 500; i++) {
+			pid = kickstart_pid(label);
+			if (pid > 0 && (!kill_first || pid != old))
+				break;
+			usleep(10000);
+		}
+		if (pid > 0)
+			fprintf(stdout, "service spawned with pid: %d\n", (int)pid);
+		else
+			launchctl_log(LOG_ERR, "service did not spawn");
+	}
+	return 0;
+usage:
+	launchctl_log(LOG_ERR, "usage: %s kickstart [-k] [-p] <service-target>", getprogname());
+	return 64;
 }
 
 void

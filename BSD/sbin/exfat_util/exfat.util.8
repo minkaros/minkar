@@ -1,0 +1,47 @@
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\" Copyright (c) 2026 The Minkar contributors
+.\" Part of Minkar.
+.Dd October 30, 2026
+.Dt EXFAT.UTIL 8
+.Os Minkar
+.Sh NAME
+.Nm exfat.util
+.Nd probe exFAT volumes for diskarbitrationd
+.Sh SYNOPSIS
+.Nm
+.Fl p
+.Ar disk
+.Cm removable Ns | Ns Cm fixed
+.Cm readonly Ns | Ns Cm writable
+.Nm
+.Fl k
+.Ar disk
+.Sh DESCRIPTION
+.Nm
+lives in the exfat.fs bundle in
+.Pa /System/Library/Filesystems .
+.Xr diskarbitrationd 8
+runs it on a disk whose partition type may hold exFAT.
+.Ar disk
+is a device name, such as
+.Ql disk2s1 ,
+read through its raw device.
+.Bl -tag -width indent
+.It Fl p
+Prints the volume's label, if it has one, and exits with
+.Dv FSUR_RECOGNIZED
+(255) if the disk holds exFAT, or
+.Dv FSUR_UNRECOGNIZED
+(254) if not.
+.It Fl k
+Prints the volume's UUID, the same each time: a name-based UUID (version
+3) made from the volume's serial number and its size and layout. Exits with
+.Dv FSUR_IO_SUCCESS
+(253).
+.El
+.Sh SEE ALSO
+.Xr diskarbitrationd 8 ,
+.Xr diskutil 8 ,
+.Xr fsck_exfat 8 ,
+.Xr mount_exfat 8 ,
+.Xr newfs_exfat 8

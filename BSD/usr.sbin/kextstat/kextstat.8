@@ -1,0 +1,34 @@
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\" Copyright (c) 2026 The Minkar contributors
+.\" Part of Minkar.
+.Dd October 29, 2026
+.Dt KEXTSTAT 8
+.Os Minkar
+.Sh NAME
+.Nm kextstat
+.Nd list the loaded kernel extensions
+.Sh SYNOPSIS
+.Nm
+.Op Fl k
+.Op Fl l
+.Op Fl b Ar bundle_id ...
+.Sh DESCRIPTION
+.Nm
+lists the kernel extensions the kernel has loaded, in load order: their
+index, how many others refer to them, their load address, size and wired
+size, identifier, version and UUID, and the indexes of the extensions they
+are linked against.
+.Bl -tag -width indent
+.It Fl b Ar bundle_id
+Only the extension with this identifier (repeatable).
+.It Fl k
+Leave out the kernel and its built-in components
+.Pq Li com.apple.kpi.* , com.apple.kernel* .
+.It Fl l
+Leave out the header line.
+.El
+.Sh EXIT STATUS
+.Ex -std
+.Sh SEE ALSO
+.Xr kextload 8 ,
+.Xr kextunload 8

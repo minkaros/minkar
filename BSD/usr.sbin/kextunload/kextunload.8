@@ -1,0 +1,37 @@
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\" Copyright (c) 2026 The Minkar contributors
+.\" Part of Minkar.
+.Dd October 29, 2026
+.Dt KEXTUNLOAD 8
+.Os Minkar
+.Sh NAME
+.Nm kextunload
+.Nd unload kernel extensions
+.Sh SYNOPSIS
+.Nm
+.Op Fl qv
+.Op Fl b Ar bundle_id ...
+.Op Ar kext ...
+.Sh DESCRIPTION
+.Nm
+unloads the kernel extensions given by path
+.Pq Ar kext
+or by identifier
+.Pq Fl b Ar bundle_id ,
+through IOKit's kext functions.
+Their services are terminated and their personalities removed first; an
+extension in use (another depends on it, or it cannot stop) stays loaded,
+and the kernel's reason is printed.
+.Pp
+The options are:
+.Bl -tag -width indent
+.It Fl b Ar bundle_id
+Unload the extension with this identifier; it may be repeated.
+.It Fl q , Fl v
+Accepted for compatibility.
+.El
+.Sh EXIT STATUS
+.Ex -std
+.Sh SEE ALSO
+.Xr kextload 8 ,
+.Xr kextstat 8

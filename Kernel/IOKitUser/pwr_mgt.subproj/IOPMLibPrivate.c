@@ -33,6 +33,8 @@
 #include <servers/bootstrap.h>
 #include <bootstrap_priv.h>
 #include <sys/types.h>
+/* <string.h> here is the kernel's, which has no strsep; undeclared, its pointer would be cut to an int. */
+extern char *strsep(char **, const char *);
 #include <sys/sysctl.h>
 #include <notify.h>
 #include <os/log.h>

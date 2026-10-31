@@ -77,7 +77,7 @@ struct ifstate {
 	uint8_t		mac[ETHER_ADDR_LEN];
 
 	int		method4;
-	struct in_addr	manual_addr, manual_mask;
+	struct in_addr	manual_addr, manual_mask, manual_router;
 	int		method6;
 	struct in6_addr	manual6;
 	int		manual6_prefix;
@@ -128,6 +128,9 @@ void logmsg(int pri, const char *fmt, ...) __printflike(2, 3);
 time_t now(void);
 time_t wallclock(void);
 void serve(const char *name) __dead2;
+void set_method4(int method, struct in_addr addr, struct in_addr mask,
+    struct in_addr router);
+void set_method6(int method, const struct in6_addr *addr, int prefix);
 int set_address(const struct lease *l);
 void delete_address(struct in_addr addr);
 int default_route(int cmd, struct in_addr gateway);
@@ -155,6 +158,16 @@ void delete_address6(const struct in6_addr *addr);
 
 /* store.c */
 bool store_active(void);
+/* The service's configuration in configd's Setup: (what networksetup and
+ * System Preferences set): the methods and their manual values. */
+struct setup {
+	int		method4;
+	struct in_addr	addr4, mask4, router4;
+	int		method6;
+	struct in6_addr	addr6;
+	int		prefix6;
+};
+bool store_setup(struct setup *s);
 bool store_publish(void);
 
 /* dhcp6.c */

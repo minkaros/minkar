@@ -4,6 +4,7 @@
 #include <CoreFoundation/CoreFoundation.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
+#include <sys/utsname.h>
 
 #define PLIST_PATH "/System/Library/CoreServices/SystemVersion.plist"
 #define BUFSIZE 256
@@ -46,6 +47,8 @@ int main(int argc, char* argv[])
 	char*             prodName = NULL;
 	char*             prodVer = NULL;
 	char*             prodBuild = NULL;
+	char*             prodShown = NULL;
+	struct utsname    uts;
 
 
 	fd = open(PLIST_PATH, O_RDONLY);
@@ -91,6 +94,7 @@ int main(int argc, char* argv[])
 	prodName = getValue(plist, CFSTR("ProductName"));
 	prodVer = getValue(plist, CFSTR("ProductVersion"));
 	prodBuild = getValue(plist, CFSTR("ProductBuildVersion"));
+	prodShown = getValue(plist, CFSTR("ProductUserVisibleVersion"));
 
 	if (argc > 2 || (argc == 2 && strcmp(argv[1], "-productName") &&
 	    strcmp(argv[1], "-productVersion") && strcmp(argv[1], "-buildVersion"))) {
@@ -105,9 +109,16 @@ int main(int argc, char* argv[])
 		else
 			printf("%s\n", prodBuild);
 	} else {
-		/* No options: all three, a tab after each label, as on macOS. */
-		printf("ProductName:\t%s\nProductVersion:\t%s\nBuildVersion:\t%s\n",
-			prodName, prodVer, prodBuild);
+		/*
+		 * Minkar: no options, the release and the kernel under it. The
+		 * options give what scripts written for the reference system
+		 * expect: -productVersion is the API version Minkar is
+		 * compatible with (ProductVersion), not the release.
+		 */
+		if (uname(&uts) < 0)
+			strlcpy(uts.release, "?", sizeof(uts.release));
+		printf("%s %s (kernel Darwin %s)\n", prodName, prodShown,
+		    uts.release);
 	}
 
 	rc = 0;
@@ -119,6 +130,7 @@ out:
 	if (prodName) free((void*)prodName);
 	if (prodVer) free((void*)prodVer);
 	if (prodBuild) free((void*)prodBuild);
+	if (prodShown) free((void*)prodShown);
 
 	return rc;
 }

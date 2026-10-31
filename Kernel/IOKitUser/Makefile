@@ -114,7 +114,7 @@ CXXSTD = none
 CFLAGS = ${DEFS} -fblocks --sysroot=${MINKAR_SDKROOT} \
 	-mmacos-version-min=${MACOS_VERSION_MIN} \
 	-Wno-nullability-completeness \
-	-Wno-implicit-function-declaration \
+	-Wimplicit-function-declaration -Wno-error=implicit-function-declaration \
 	-Wno-elaborated-enum-base -Wno-int-conversion
 # CF_ENUM, rdar://121475724
 

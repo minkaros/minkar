@@ -2,7 +2,12 @@
 #  MINKAR BUILD SYSTEM - TOP LEVEL
 # ------------------------------------------------------------------------
 
-PROD_VERSION = 0.7.1
+# The Minkar release (what users see) and the API version it is compatible
+# with (ProductVersion: what @available, operatingSystemVersion and
+# LSMinimumSystemVersion compare against; API 19 is 10.15). The kernel
+# stays Darwin 19.6.0 whatever these say.
+PROD_VERSION = 19.6.0
+PROD_COMPAT_VERSION = 10.15
 PROD_FAMILY = Pre Alpha
 
 # Set ONE arch and ONE config
@@ -135,7 +140,7 @@ SUBDIR :=	${ONLY_STAGE}
 .endif
 
 .export ROOT_SOURCE_DIR ROOT_BINARY_DIR ARCH_CONFIGS KERNEL_CONFIGS \
-	PROD_VERSION PROD_FAMILY CFLAGS DEVEL DARWIN_VERSION \
+	PROD_VERSION PROD_COMPAT_VERSION PROD_FAMILY CFLAGS DEVEL DARWIN_VERSION \
 	LLVM_VERSION_MAJOR LLVM_VERSION_MINOR LLVM_VERSION_PATCH \
 	LLVM_VERSION PROD_MAJOR PROD_MINOR PROD_PATCH DARWIN_MAJOR \
 	DARWIN_MINOR DARWIN_PATCH MACOS_VERSION_MIN MACOSX_DEPLOYMENT_TARGET \

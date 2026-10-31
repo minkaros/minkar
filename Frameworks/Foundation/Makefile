@@ -128,6 +128,7 @@ SRCS = 	NSFormatter.m \
 	NSPointerFunctions.m \
 	NSOrthography.m \
 	NSString/NSCFString.m \
+	NSCFCollections.m \
 	NSString/NSDarwinString.m \
 	NSString/NSStringUTF8.m \
 	NSString/NSString_placeholder.m \
@@ -357,6 +358,9 @@ ACFLAGS = -mmacos-version-min=${MACOS_VERSION_MIN}
 
 # We need to link this manually to avoid chicken & egg issue with ld wanting
 # to link against Foundation and libobjc :)
+# Foundation re-exports libobjc and CoreFoundation, as the reference
+# system's does: a program linked with Foundation alone finds CF's
+# symbols (@"..." needs __CFConstantStringClassReference).
 # Cocotron's NSNumber and NSStream define CoreFoundation's constants for
 # themselves (NSNumber objects for kCFNumberNaN...). Foundation uses its
 # own inside, but must not export them: those names belong to
@@ -367,7 +371,8 @@ CF_CONSTANTS_KEPT_PRIVATE = _kCFNumberNaN \
 
 LDFLAGS = --sysroot=${MINKAR_SDKROOT} -Wl,-current_version,1677.104.0 \
 	-Wl,-compatibility_version,300.0.0 -Xlinker -reexport-lobjc \
-	-F${MINKAR_SDKROOT}/System/Library/Frameworks -framework CoreFoundation \
+	-F${MINKAR_SDKROOT}/System/Library/Frameworks \
+	-Wl,-reexport_framework,CoreFoundation \
 	-lSystem -licucore \
 	${CF_CONSTANTS_KEPT_PRIVATE:S/^/-Wl,-unexported_symbol,/}
 

@@ -1,0 +1,42 @@
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\" Copyright (c) 2026 The Minkar contributors
+.\" Part of Minkar.
+.Dd October 29, 2026
+.Dt KEXTLOAD 8
+.Os Minkar
+.Sh NAME
+.Nm kextload
+.Nd load kernel extensions
+.Sh SYNOPSIS
+.Nm
+.Op Fl qv
+.Op Fl b Ar bundle_id ...
+.Op Ar kext ...
+.Sh DESCRIPTION
+.Nm
+loads the kernel extensions given by path
+.Pq Ar kext
+or by identifier
+.Pq Fl b Ar bundle_id ,
+through IOKit's kext functions.
+They and the extensions they depend on are linked for the running kernel
+and started. Identifiers and dependencies are looked up in
+.Pa /System/Library/Extensions
+and
+.Pa /Library/Extensions .
+An extension already loaded is left as it is, and that is not an error.
+.Pp
+The options are:
+.Bl -tag -width indent
+.It Fl b Ar bundle_id
+Load the extension with this identifier; it may be repeated.
+.It Fl q
+Accepted for compatibility; only errors are printed anyway.
+.It Fl v
+Print the kernel's warnings and progress too.
+.El
+.Sh EXIT STATUS
+.Ex -std
+.Sh SEE ALSO
+.Xr kextstat 8 ,
+.Xr kextunload 8

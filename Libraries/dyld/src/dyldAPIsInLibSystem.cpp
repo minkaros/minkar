@@ -637,6 +637,62 @@ dyld_platform_t dyld_get_active_platform(void) {
     return result;
 }
 
+// Minkar: the system's version, as ProductVersion in SystemVersion.plist
+// says it (the Cocoa API version: 10.15 for API 19), encoded as dyld
+// encodes versions (major << 16 | minor << 8 | patch); 0 if unknown.
+static uint32_t minkar_system_version(void)
+{
+    static uint32_t version;
+    static int read;
+
+    if (__atomic_load_n(&read, __ATOMIC_ACQUIRE))
+        return version;
+    uint32_t v = 0;
+    int fd = open("/System/Library/CoreServices/SystemVersion.plist", O_RDONLY);
+    if (fd >= 0) {
+        char buf[4096];
+        ssize_t n = ::read(fd, buf, sizeof(buf) - 1);
+        close(fd);
+        if (n > 0) {
+            buf[n] = '\0';
+            const char* key = strstr(buf, "<key>ProductVersion</key>");
+            const char* str = key ? strstr(key, "<string>") : NULL;
+            if (str != NULL) {
+                unsigned parts[3] = { 0, 0, 0 };
+                const char* p = str + 8;
+                for (int i = 0; i < 3; i++) {
+                    while (*p >= '0' && *p <= '9')
+                        parts[i] = parts[i] * 10 + (unsigned)(*p++ - '0');
+                    if (*p != '.')
+                        break;
+                    p++;
+                }
+                v = (parts[0] << 16) | ((parts[1] & 0xff) << 8) | (parts[2] & 0xff);
+            }
+        }
+    }
+    version = v;
+    __atomic_store_n(&read, 1, __ATOMIC_RELEASE);
+    return version;
+}
+
+// Minkar: what @available asks (through compiler-rt): whether the system
+// is at least the version given for its platform. Platforms other than
+// this one's do not count; with none of them, the answer is yes.
+extern "C" bool _availability_version_check(uint32_t count, dyld_build_version_t versions[]);
+bool _availability_version_check(uint32_t count, dyld_build_version_t versions[])
+{
+    dyld_platform_t platform = dyld_get_base_platform(dyld_get_active_platform());
+    uint32_t current = minkar_system_version();
+
+    for (uint32_t i = 0; i < count; i++) {
+        if (dyld_get_base_platform(versions[i].platform) != platform)
+            continue;
+        return current >= versions[i].version;
+    }
+    return true;
+}
+
 dyld_platform_t dyld_get_base_platform(dyld_platform_t platform) {
     return dyld3::dyld_get_base_platform(platform);
 }

@@ -174,7 +174,7 @@ CTFFLAGS	?=	-L VERSION
 
 CTFCONVERT	?=	${TOOLS}/ctfconvert
 CTFMERGE	?=	${TOOLS}/ctfmerge
-CTFINSERT	?=	${TOOLS}/ctfinsert
+CTFINSERT	?=	${TOOLS}/ctf_insert
 CTFDUMP		?=	${TOOLS}/ctfdump
 
 .if defined(CFLAGS) && (${CFLAGS:M-g} != "")

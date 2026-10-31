@@ -1,0 +1,100 @@
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\" Copyright (c) 2026 The Minkar contributors
+.\" Part of Minkar.
+.Dd October 30, 2026
+.Dt DISKUTIL 8
+.Os Minkar
+.Sh NAME
+.Nm diskutil
+.Nd disks, partitions and volumes
+.Sh SYNOPSIS
+.Nm
+.Cm list Op Ar disk
+.Nm
+.Cm info Oo Fl plist Oc Ar disk | mountPoint
+.Nm
+.Cm mount Oo Cm readOnly Oc Oo Fl mountPoint Ar path Oc Ar disk
+.Nm
+.Cm mountDisk Ar disk
+.Nm
+.Cm unmount Oo Cm force Oc Ar disk | mountPoint
+.Nm
+.Cm unmountDisk Oo Cm force Oc Ar disk
+.Nm
+.Cm eject Ar disk
+.Nm
+.Cm rename Ar disk name
+.Nm
+.Cm verifyVolume | repairVolume Ar disk | mountPoint
+.Nm
+.Cm eraseVolume Ar format name disk
+.Nm
+.Cm listFilesystems
+.Sh DESCRIPTION
+.Nm
+works on the disks
+.Xr diskarbitrationd 8
+knows: it asks it to mount, unmount, eject and rename them, and shows how
+it describes each.
+A
+.Ar disk
+is named as
+.Pa disk2s1 ,
+.Pa /dev/disk2s1
+or by the mount point of its volume.
+.Bl -tag -width indent
+.It Cm list
+Every disk and its partitions, with their type, volume name, size and
+identifier; or those of one disk.
+.It Cm info
+A disk's or volume's description; with
+.Fl plist ,
+as a property list.
+.It Cm mount , Cm mountDisk
+Mounts a volume (in
+.Pa /Volumes ,
+or at
+.Ar path ) ,
+or every volume of a disk.
+.It Cm unmount , Cm unmountDisk
+Unmounts a volume, or every volume of a disk;
+.Cm force
+even when files are open on it.
+.It Cm eject
+Unmounts the volumes of a disk and ejects it.
+.It Cm rename
+Renames a volume.
+.It Cm verifyVolume , Cm repairVolume
+Checks a volume's file system with its
+.Nm fsck_ Ns Ar type ,
+or repairs it (unmounted for the time it takes).
+A mounted HFS Plus volume is verified as it is.
+.It Cm eraseVolume
+Makes a new file system on a volume, with its
+.Nm newfs_ Ns Ar type ,
+and mounts it.
+.It Cm listFilesystems
+The formats
+.Cm eraseVolume
+takes: JHFS+, HFS+, JHFSX, HFSX, FAT32, FAT16, FAT12 and MS-DOS.
+.El
+.Sh EXIT STATUS
+0 on success, 1 on failure.
+.Sh EXAMPLES
+.Dl diskutil list
+.Dl diskutil info /
+.Dl diskutil eraseVolume FAT32 USB disk2s1
+.Dl diskutil eject disk2
+.Sh SEE ALSO
+.Xr hdiutil 1 ,
+.Xr diskarbitrationd 8 ,
+.Xr fsck_hfs 8 ,
+.Xr fsck_msdos 8 ,
+.Xr mount 8 ,
+.Xr newfs_hfs 8 ,
+.Xr newfs_msdos 8
+.Sh HISTORY
+This
+.Nm
+was written for Minkar, after macOS's.
+It has no partitioning, APFS or RAID verbs yet.

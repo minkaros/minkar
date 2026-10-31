@@ -18,6 +18,12 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <Foundation/NSPlatform_win32.h>
 #endif
 #import <objc/runtime.h>
+#import <Foundation/NSString.h>
+#import <sys/sysctl.h>
+#import <sys/time.h>
+#import <mach/mach_time.h>
+#import <stdlib.h>
+#import <string.h>
 
 #import "NSCFString.h"
 #import "NSDarwinString.h"
@@ -53,29 +59,86 @@ const char * const *NSProcessInfoArgv=NULL;
    return self;
 }
 
+/* Minkar: the system's numbers, from sysctl. */
+static uint64_t sysctl_number(const char *name) {
+   uint64_t value=0;
+   size_t size=sizeof(value);
+
+   if(sysctlbyname(name,&value,&size,NULL,0)!=0)
+    return 0;
+   if(size==sizeof(uint32_t))
+    return *(uint32_t *)&value;
+   return value;
+}
+
 -(NSUInteger)processorCount {
-   NSUnimplementedMethod();
-   return 0;
+   return (NSUInteger)sysctl_number("hw.ncpu");
 }
 
 -(NSUInteger)activeProcessorCount {
-   NSUnimplementedMethod();
-   return 0;
+   return (NSUInteger)sysctl_number("hw.activecpu");
 }
 
 -(uint64_t)physicalMemory {
-   NSUnimplementedMethod();
-   return 0;
+   return sysctl_number("hw.memsize");
 }
 
 -(NSUInteger)operatingSystem {
-   NSUnimplementedMethod();
-   return 0;
+   return NSMACHOperatingSystem;
 }
 
 -(NSString *)operatingSystemName {
-   NSUnimplementedMethod();
-   return 0;
+   return @"NSMACHOperatingSystem";
+}
+
+/*
+ * Minkar: the version programs compare against is ProductVersion in
+ * SystemVersion.plist (the Cocoa API version: 10.15 for API 19), not the
+ * release. Read once.
+ */
+static NSOperatingSystemVersion system_version;
+static NSString *system_build;
+
+static void read_system_version(void) {
+   static dispatch_once_t once;
+
+   dispatch_once(&once, ^{
+    NSDictionary *plist=[NSDictionary dictionaryWithContentsOfFile:
+      @"/System/Library/CoreServices/SystemVersion.plist"];
+    NSString *version=[plist objectForKey:@"ProductVersion"];
+    NSArray *parts=[version componentsSeparatedByString:@"."];
+
+    if([parts count]>0)
+     system_version.majorVersion=[[parts objectAtIndex:0] integerValue];
+    if([parts count]>1)
+     system_version.minorVersion=[[parts objectAtIndex:1] integerValue];
+    if([parts count]>2)
+     system_version.patchVersion=[[parts objectAtIndex:2] integerValue];
+    system_build=[[plist objectForKey:@"ProductBuildVersion"] copy];
+   });
+}
+
+-(NSOperatingSystemVersion)operatingSystemVersion {
+   read_system_version();
+   return system_version;
+}
+
+-(BOOL)isOperatingSystemAtLeastVersion:(NSOperatingSystemVersion)version {
+   NSOperatingSystemVersion current=[self operatingSystemVersion];
+
+   if(current.majorVersion!=version.majorVersion)
+    return current.majorVersion>version.majorVersion;
+   if(current.minorVersion!=version.minorVersion)
+    return current.minorVersion>version.minorVersion;
+   return current.patchVersion>=version.patchVersion;
+}
+
+-(NSTimeInterval)systemUptime {
+   static mach_timebase_info_data_t timebase;
+
+   if(timebase.denom==0)
+    mach_timebase_info(&timebase);
+   return (NSTimeInterval)mach_absolute_time()*timebase.numer/timebase.denom/1e9;
 }
 
 -(NSString *)operatingSystemVersionString {
@@ -137,8 +200,12 @@ const char * const *NSProcessInfoArgv=NULL;
 			break;
 	}
 #else
-    NSUnimplementedMethod();
-    return 0;
+   NSOperatingSystemVersion v=[self operatingSystemVersion];
+
+   /* As the reference system writes it: "Version 10.15 (Build 19G2021)". */
+   if(v.patchVersion!=0)
+    return [NSString stringWithFormat:@"Version %ld.%ld.%ld (Build %@)",(long)v.majorVersion,(long)v.minorVersion,(long)v.patchVersion,system_build?system_build:@""];
+   return [NSString stringWithFormat:@"Version %ld.%ld (Build %@)",(long)v.majorVersion,(long)v.minorVersion,system_build?system_build:@""];
 #endif
 }
 

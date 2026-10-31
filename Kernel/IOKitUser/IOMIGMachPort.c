@@ -35,6 +35,7 @@
 #include <dispatch/private.h>
 #include <pthread.h>
 #include <mach/mach.h>
+#include <mach/mach_error.h>
 #include <mach/mach_time.h>
 #include <servers/bootstrap.h>
 #include "IOMIGMachPort.h"

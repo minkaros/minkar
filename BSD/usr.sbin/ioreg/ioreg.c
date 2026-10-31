@@ -283,13 +283,12 @@ wanted(io_registry_entry_t e)
 
 static void
 object(io_registry_entry_t e, const bool *more, int level, bool hasmore,
-    bool show)
+    bool matched)
 {
 	io_name_t name, cls, loc;
 	uint64_t id = 0;
 	uint32_t busy = 0;
 
-	(void)show;
 	found = true;
 	if (IORegistryEntryGetNameInPlane(e, plane, name) != KERN_SUCCESS)
 		strlcpy(name, "?", sizeof(name));
@@ -325,7 +324,8 @@ object(io_registry_entry_t e, const bool *more, int level, bool hasmore,
 		CFRelease(c);
 		endline();
 	}
-	if (lflag)
+	/* As macOS's: -c, -n and -k show the matching objects' properties. */
+	if (lflag || matched)
 		properties(e, more, level, hasmore);
 }
 
@@ -348,7 +348,7 @@ tree(io_registry_entry_t e, bool *more, int level, bool showing)
 		level = 0;
 	}
 	if (show)
-		object(e, more, level, false, true);
+		object(e, more, level, false, filtering && wanted(e));
 	if (show && (filtering && !showing) && !rflag)
 		show = false;	/* a match without -r: not its children */
 	else if (show && depth >= 0 && level + 1 >= depth)

@@ -106,16 +106,14 @@ extern uint32_t _asl_lib_vlog(asl_object_t obj, uint32_t eval, asl_object_t msg,
 extern uint32_t _asl_lib_vlog_text(asl_object_t obj, uint32_t eval, asl_object_t msg, const char *format, va_list ap);
 
 /**
- * Shim to os_log_shim_enabled. This shim should use addr (a code address
- * in a Mach-O executable) to find the image, look up its logging and
- * tracing preferences, and then call the real function with appropriate
- * log and type arguments. However, we don't do that - it just means
- * "caller wants tracing", so let them have it.
+ * Shim to os_log_shim_enabled: whether a message goes to the unified log
+ * (os_log, for logd to keep) instead of syslogd. Minkar: there is no logd
+ * yet, so nothing would keep it: syslog messages go to syslogd.
  */
 static bool os_log_shim_enabled(void *addr)
 {
     (void)addr;
-    return true;
+    return false;
 }
 
 static void

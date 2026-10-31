@@ -1,0 +1,57 @@
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\" Copyright (c) 2026 The Minkar contributors
+.\" Part of Minkar.
+.Dd October 31, 2026
+.Dt SQLITE3 1
+.Os Minkar
+.Sh NAME
+.Nm sqlite3
+.Nd command-line interface to SQLite databases
+.Sh SYNOPSIS
+.Nm
+.Op Ar options
+.Op Ar database
+.Op Ar sql
+.Sh DESCRIPTION
+.Nm
+opens the SQLite database file
+.Ar database ,
+or a temporary in-memory one, and runs the SQL statements given as
+.Ar sql
+or read from standard input. Lines starting with a dot are the shell's
+own commands:
+.Ql .tables ,
+.Ql .schema ,
+.Ql .mode ,
+.Ql .import ,
+.Ql .dump ,
+.Ql .help
+lists them all.
+.Pp
+Among the options:
+.Bl -tag -width indent
+.It Fl csv , Fl json , Fl line , Fl list , Fl column , Fl box
+The output mode.
+.It Fl header , Fl noheader
+Column names first, or not.
+.It Fl cmd Ar command
+Run
+.Ar command
+before reading the input.
+.It Fl readonly
+Open the database read only.
+.It Fl version
+Print SQLite's version.
+.It Fl help
+List every option.
+.El
+.Pp
+The library is
+.Pa /usr/lib/libsqlite3.dylib ,
+with full-text search (FTS3, FTS4, FTS5), R-Tree and JSON.
+.Sh EXAMPLES
+.Dl sqlite3 data.db "select count(*) from items;"
+.Dl echo "create table t(x); insert into t values(1);" | sqlite3 data.db
+.Sh SEE ALSO
+The SQL language and the shell are documented at
+.Lk https://www.sqlite.org/docs.html .

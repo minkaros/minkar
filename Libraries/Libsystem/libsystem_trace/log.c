@@ -51,6 +51,7 @@
 #include <os/log_encode_types.h>
 #include <os/log_encode.h>
 #include "init.h"
+#include "format.h"
 
 
 /*
@@ -81,6 +82,8 @@ os_log_create(const char* subsystem, const char* category)
             category, kCFStringEncodingUTF8);
     }
 
+    log->subsystem_str = subsystem ? strdup(subsystem) : NULL;
+    log->category_str = category ? strdup(category) : NULL;
     log->isa = OS_os_log_class;
     log->sink_type = OS_LOG_SINK_TYPE_FD;
     log->sink_dest = STDOUT_FILENO;
@@ -91,15 +94,13 @@ os_log_create(const char* subsystem, const char* category)
 bool
 os_log_shim_enabled(os_log_t log, os_log_type_t type)
 {
-    switch (type) {
-        case OS_LOG_TYPE_DEFAULT:
-        case OS_LOG_TYPE_DEBUG:
-        case OS_LOG_TYPE_INFO:
-            return true;
-        default:
-            return false;
-    }
-    return true;
+    /*
+     * Whether ASL (asl_log, syslog) should hand its messages to os_log
+     * instead of syslogd. No logd keeps them yet: no.
+     */
+    (void)log;
+    (void)type;
+    return false;
 }
 
 bool os_log_type_enabled(os_log_t log, os_log_type_t type)
@@ -110,15 +111,13 @@ bool os_log_type_enabled(os_log_t log, os_log_type_t type)
 bool
 os_log_info_enabled(os_log_t log)
 {
-    return os_log_shim_enabled(log, OS_LOG_TYPE_INFO)
-        && os_log_type_enabled(log, OS_LOG_TYPE_INFO);
+    return os_log_type_enabled(log, OS_LOG_TYPE_INFO);
 }
 
 bool
 os_log_debug_enabled(os_log_t log)
 {
-    return os_log_shim_enabled(log, OS_LOG_TYPE_DEBUG)
-        && os_log_type_enabled(log, OS_LOG_TYPE_DEBUG);
+    return os_log_type_enabled(log, OS_LOG_TYPE_DEBUG);
 }
 
 static const char* _typeToStr(os_log_type_t type)
@@ -133,11 +132,42 @@ static const char* _typeToStr(os_log_type_t type)
     return "unknown";
 }
 
+/* A log object's names, or none for the default one; false if disabled. */
+static bool
+_log_names(os_log_t log, const char** subsystem, const char** category)
+{
+    struct os_log_s* s = (struct os_log_s*)log;
+
+    if (s == &_os_log_disabled || s == &_os_log_null)
+        return false;
+    *subsystem = (s && s != &_os_log_default) ? s->subsystem_str : NULL;
+    *category = (s && s != &_os_log_default) ? s->category_str : NULL;
+    return true;
+}
+
+static void
+_log_va_to(os_log_t log, os_log_type_t type, const char* format, va_list args,
+    bool to_syslog)
+{
+    const char *subsystem, *category;
+
+    if (_log_names(log, &subsystem, &category))
+        _os_log_emit_va(subsystem, category, type, format, args, to_syslog);
+}
+
+static void
+_log_va(os_log_t log, os_log_type_t type, const char* format, va_list args)
+{
+    _log_va_to(log, type, format, args, true);
+}
+
 __OSX_AVAILABLE_STARTING(__MAC_10_12, __IPHONE_10_0)
 OS_EXPORT OS_NOTHROW
 void
 os_log_with_args(os_log_t oslog, os_log_type_t type, const char* format, va_list args, void* ret_addr)
 {
+    /* ASL's: it went to syslogd already. */
+    _log_va_to(oslog, type, format, args, false);
 }
 
 __WATCHOS_AVAILABLE(3.0) __OSX_AVAILABLE(10.12) __IOS_AVAILABLE(10.0) __TVOS_AVAILABLE(10.0)
@@ -145,6 +175,11 @@ OS_EXPORT OS_NOTHROW
 void
 _os_log_internal(void* dso, os_log_t log, os_log_type_t type, const char* message, ...)
 {
+    va_list args;
+
+    va_start(args, message);
+    _log_va(log, type, message, args);
+    va_end(args);
 }
 
 __WATCHOS_AVAILABLE(3.0) __OSX_AVAILABLE(10.12) __IOS_AVAILABLE(10.0) __TVOS_AVAILABLE(10.0)
@@ -284,15 +319,12 @@ void __os_log_impl(void* dso,
     uint8_t* buffer,
     uint32_t buffer_size)
 {
-    if (!format)
-        return;
+    const char *subsystem, *category;
 
-    /* This _should_ be identical to the NSObject layout */
-    struct os_log_s* s = (struct os_log_s*)log;
-    fprintf(stderr, "[%s] %s.%s(%p): ", _typeToStr(type), s->subsystem, s->category, dso);
-    fputs(format, stderr);
-    //vfprintf(stderr, format, args); // FIXME
-    fputc('\n', stderr);
+    if (!format || !_log_names(log, &subsystem, &category))
+        return;
+    /* The arguments, as the compiler encodes them for os_log. */
+    _os_log_emit_buffer(subsystem, category, type, format, buffer, buffer_size);
 
 }
 
@@ -310,6 +342,27 @@ void __os_log_fault_impl(void* dso,
     const char* format,
     uint8_t* buffer,
     uint32_t buffer_size)
+{
+    __os_log_impl(dso, log, OS_LOG_TYPE_FAULT, format, buffer, buffer_size);
+}
+
+/*
+ * Minkar: until 2026-10-31 these two went out under one underscore too
+ * many (not the names the reference system's binaries import); programs
+ * built before keep these.
+ */
+void __os_log_error_impl_compat(void* dso, os_log_t log, const char* format,
+    uint8_t* buffer, uint32_t buffer_size) __asm("___os_log_error_impl");
+void __os_log_error_impl_compat(void* dso, os_log_t log, const char* format,
+    uint8_t* buffer, uint32_t buffer_size)
+{
+    __os_log_impl(dso, log, OS_LOG_TYPE_ERROR, format, buffer, buffer_size);
+}
+
+void __os_log_fault_impl_compat(void* dso, os_log_t log, const char* format,
+    uint8_t* buffer, uint32_t buffer_size) __asm("___os_log_fault_impl");
+void __os_log_fault_impl_compat(void* dso, os_log_t log, const char* format,
+    uint8_t* buffer, uint32_t buffer_size)
 {
     __os_log_impl(dso, log, OS_LOG_TYPE_FAULT, format, buffer, buffer_size);
 }
@@ -371,11 +424,22 @@ void _os_trace_error(const char* message)
                               0);
 }
 
+static void
+_log_text(os_log_t log, os_log_type_t type, const char* format, ...)
+{
+    va_list args;
+
+    va_start(args, format);
+    _log_va(log, type, format, args);
+    va_end(args);
+}
+
 void _os_log_simple(void* dso,
     os_log_t log,
     os_log_type_t type,
     const char* message)
 {
+    _log_text(log, type, "%{public}s", message);
 }
 
 void _os_log_simple_impl(void* dso,
@@ -383,54 +447,43 @@ void _os_log_simple_impl(void* dso,
     os_log_type_t type,
     const char* message)
 {
+    _log_text(log, type, "%{public}s", message);
 }
 
 void _os_log_error(void* dso, os_log_t log, const char* format, ...)
 {
-    char buffer[4096] = {0};
-    size_t buffer_size = sizeof(buffer);
     va_list args;
 
     va_start(args, format);
-    size_t len = os_log_encode(buffer, buffer_size, format, args, 0);
+    _log_va(log, OS_LOG_TYPE_ERROR, format, args);
     va_end(args);
-    __os_log_impl(dso, log, OS_LOG_TYPE_ERROR, format, buffer, buffer_size);
 }
 
 void _os_log_fault(void* dso, os_log_t log, const char* format, ...)
 {
-    char buffer[4096] = {0};
-    size_t buffer_size = sizeof(buffer);
     va_list args;
 
     va_start(args, format);
-    size_t len = os_log_encode(buffer, buffer_size, format, args, 0);
+    _log_va(log, OS_LOG_TYPE_FAULT, format, args);
     va_end(args);
-    __os_log_impl(dso, log, OS_LOG_TYPE_FAULT, format, buffer, buffer_size);
 }
 
 void _os_log_info(void* dso, os_log_t log, const char* format, ...)
 {
-    char buffer[4096] = {0};
-    size_t buffer_size = sizeof(buffer);
     va_list args;
 
     va_start(args, format);
-    size_t len = os_log_encode(buffer, buffer_size, format, args, 0);
+    _log_va(log, OS_LOG_TYPE_INFO, format, args);
     va_end(args);
-    __os_log_impl(dso, log, OS_LOG_TYPE_INFO, format, buffer, buffer_size);
 }
 
 void _os_log_debug(void* dso, os_log_t log, const char* format, ...)
 {
-    char buffer[4096] = {0};
-    size_t buffer_size = sizeof(buffer);
     va_list args;
 
     va_start(args, format);
-    size_t len = os_log_encode(buffer, buffer_size, format, args, 0);
+    _log_va(log, OS_LOG_TYPE_DEBUG, format, args);
     va_end(args);
-    __os_log_impl(dso, log, OS_LOG_TYPE_DEBUG, format, buffer, buffer_size);
 }
 
 void _os_log_set_mode(uint32_t mode)

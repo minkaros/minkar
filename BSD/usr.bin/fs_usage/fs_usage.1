@@ -1,0 +1,62 @@
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\" Copyright (c) 2026 The Minkar contributors
+.\" Part of Minkar.
+.Dd October 30, 2026
+.Dt FS_USAGE 1
+.Os Minkar
+.Sh NAME
+.Nm fs_usage
+.Nd report file system activity as it happens
+.Sh SYNOPSIS
+.Nm
+.Op Fl e
+.Op Fl w
+.Op Fl f Ar mode
+.Op Fl t Ar seconds
+.Op Ar pid | command ...
+.Sh DESCRIPTION
+.Nm
+shows the file system (and network) system calls processes make, from the
+kernel's trace, until it is interrupted or
+.Fl t
+seconds pass.
+Each line has the time, the call, its file descriptor
+.Pq Li F= ,
+the bytes it moved
+.Pq Li B= ,
+or its error
+.Pq Li [ Ns Ar errno Ns Li ] ,
+the path the kernel looked up for it, how long it took in seconds, and the
+process as
+.Ar command Ns Li . Ns Ar pid .
+Processes may be chosen by pid or command name;
+.Fl e
+excludes those instead.
+.Nm
+leaves itself out.
+.Bl -tag -width indent
+.It Fl w
+Wide lines: microseconds and whole paths.
+.It Fl f Ar mode
+Only
+.Cm filesys
+calls,
+.Cm network
+calls,
+.Cm exec
+(execve and posix_spawn), or
+.Cm pathname
+(file system calls with a path); may be repeated.
+.Cm diskio
+and
+.Cm cachehit
+are taken as
+.Cm filesys .
+.It Fl t Ar seconds
+Stop after that long.
+.El
+.Pp
+It needs root, and the kernel's trace to itself while it runs.
+.Sh SEE ALSO
+.Xr dtrace 1 ,
+.Xr lsof 8

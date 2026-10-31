@@ -1,0 +1,102 @@
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\" Copyright (c) 2026 The Minkar contributors
+.\" Part of Minkar.
+.Dd October 29, 2026
+.Dt NETWORKSETUP 8
+.Os Minkar
+.Sh NAME
+.Nm networksetup
+.Nd configure the network settings
+.Sh SYNOPSIS
+.Nm
+.Fl Ar command
+.Op Ar argument ...
+.Nm
+.Fl printcommands | Fl help
+.Sh DESCRIPTION
+.Nm
+reads and changes the network settings of System Preferences, kept by
+.Xr configd 8
+in
+.Pa /Library/Preferences/SystemConfiguration/preferences.plist ,
+through SystemConfiguration's network configuration API; changing them
+needs root.
+Network services are named as
+.Fl listallnetworkservices
+lists them; hardware ports and devices as
+.Fl listallhardwareports
+does.
+.Fl printcommands
+lists every command with its arguments.
+.Ss Services
+.Fl listallnetworkservices ,
+.Fl listnetworkserviceorder ,
+.Fl ordernetworkservices Ar service ... ,
+.Fl createnetworkservice Ar name hardwareport ,
+.Fl renamenetworkservice Ar service name ,
+.Fl removenetworkservice Ar service ,
+.Fl getnetworkserviceenabled Ar service ,
+.Fl setnetworkserviceenabled Ar service Cm on | off ,
+.Fl detectnewhardware .
+.Ss Addresses
+.Fl getinfo Ar service
+shows the configuration method and what the service has now (address,
+mask, router, IPv6, Ethernet address).
+.Fl setmanual Ar service ip mask router ,
+.Fl setdhcp Ar service Op Ar clientid ,
+.Fl setbootp Ar service ,
+.Fl setmanualwithdhcprouter Ar service ip ,
+.Fl setv4off Ar service ;
+.Fl setv6automatic ,
+.Fl setv6LinkLocal ,
+.Fl setv6off Ar service .
+.Ss DNS
+.Fl getdnsservers ,
+.Fl setdnsservers Ar service server ... ,
+.Fl getsearchdomains ,
+.Fl setsearchdomains Ar service domain ... ;
+.Cm Empty
+clears the list.
+.Ss Proxies
+For each of
+.Cm webproxy , securewebproxy , ftpproxy , socksfirewallproxy ,
+.Cm streamingproxy
+and
+.Cm gopherproxy :
+.Fl get Ns Ar proxy Ar service ,
+.Fl set Ns Ar proxy Ar service server port ,
+.Fl set Ns Ar proxy Ns Cm state Ar service Cm on | off .
+Also
+.Fl getproxybypassdomains ,
+.Fl setproxybypassdomains Ar service domain ... ,
+.Fl getautoproxyurl ,
+.Fl setautoproxyurl Ar service url ,
+.Fl setautoproxystate ,
+.Fl getproxyautodiscovery ,
+.Fl setproxyautodiscovery .
+.Ss Hardware
+.Fl listallhardwareports ,
+.Fl getmacaddress Ar port ,
+.Fl getMTU ,
+.Fl setMTU Ar port value ,
+.Fl listvalidMTUrange ,
+.Fl getmedia ,
+.Fl setmedia Ar port subtype Op Ar option ... ,
+.Fl listvalidmedia .
+.Ss Locations
+.Fl listlocations ,
+.Fl getcurrentlocation ,
+.Fl createlocation Ar name Op Cm populate ,
+.Fl deletelocation Ar name ,
+.Fl switchtolocation Ar name .
+.Ss Other
+.Fl getcomputername ,
+.Fl setcomputername Ar name .
+There is no Wi-Fi yet: the AirPort commands report that the device is not
+a Wi-Fi interface.
+.Sh EXIT STATUS
+0 on success, 1 when the parameters are not valid or the change fails.
+.Sh SEE ALSO
+.Xr ipconfig 8 ,
+.Xr scutil 8 ,
+.Xr systemsetup 8

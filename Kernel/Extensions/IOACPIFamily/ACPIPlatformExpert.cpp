@@ -25,6 +25,7 @@
  */
 
 #include <IOKit/IOLib.h>
+#include <IOKit/pwr_mgt/RootDomain.h> /* Minkar */
 #include <IOKit/assert.h>
 #include <IOKit/system.h>
 #include <IOKit/IORegistryEntry.h>
@@ -45,6 +46,7 @@ extern "C" {
 }
 
 #include "ACPIPlatformExpert.h"
+#include "SMBIOS.h" /* Minkar */
 #include "ACPIOSLayer.h"
 
 const IORegistryPlane * gIOACPIPlane           = 0;
@@ -137,6 +139,15 @@ bool ACPIPlatformExpert::start(IOService *provider) {
 
     if (!super::start(provider))
         return false;
+
+    /*
+     * Minkar: this platform does not put the machine to sleep (no ACPI S3
+     * yet): say so. powerd then disables sleep in the root domain, which
+     * is not ready for that this early.
+     */
+    IOPMrootDomain *root = getPMRootDomain();
+    if (root != NULL)
+        root->setProperty("IOSleepSupported", kOSBooleanFalse);
 
     if (gIOACPIPlane == 0) {
         PE_Log("ACPIPlatformExpert::start <<<< gIOACPIPlane == 0 >>>>");
@@ -333,6 +344,9 @@ bool ACPIPlatformExpert::configure(IOService *provider) {
     if (!super::configure(provider)) return false;
 
     parseACPI(this);
+    /* Minkar: the machine's identity from SMBIOS, once memory can be mapped
+     * and before the platform UUID is published (when NVRAM registers). */
+    MinkarSMBIOSPublish(provider);
     return true;
 }
 
@@ -384,6 +398,12 @@ bool ACPIPlatformExpert::getMachineName(char *name, int maxLength) {
 
 bool ACPIPlatformExpert::getModelName(char *name, int maxLengh) {
     i386_cpu_info_t *cpuid_cpu_info = cpuid_info();
+
+    /* Minkar: the product SMBIOS names, as a Mac's model; else the CPU. */
+    if (MinkarSMBIOSModel() != NULL) {
+        strlcpy(name, MinkarSMBIOSModel(), maxLengh);
+        return true;
+    }
 
     if (cpuid_cpu_info->cpuid_brand_string[0] != '\0') {
         strncpy(name, cpuid_cpu_info->cpuid_brand_string, maxLengh);

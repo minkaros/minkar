@@ -575,17 +575,40 @@ extern uintptr_t __CFRuntimeObjCClassTable[__CFRuntimeClassTableSize];
 #if INCLUDE_OBJC
 #include <Foundation/NSRange.h>
 #endif
-/* Minkar: no dispatch, as CF_IS_OBJC is false (see below): it sent a
- * redundant message before the native code ran anyway, raising for
- * selectors Foundation does not implement. */
+/*
+ * Minkar: toll-free bridging, type by type. Foundation turns on the
+ * dispatch for a type (_CFRuntimeBridgeObjCDispatch) whose functions can
+ * take Foundation's own objects: there, CF_IS_OBJC is true for an object
+ * that is not one of CF's (another class than the type's CF class or its
+ * bridge class), and the function sends it the Objective-C message
+ * instead. Only the files that define CF_OBJC_DISPATCH (CFArray.c,
+ * CFDictionary.c) compile the messages; elsewhere, and for the types not
+ * turned on (strings, booleans: CF's own objects with an Objective-C
+ * isa), nothing is sent and CF handles its objects natively.
+ */
+extern uint8_t __CFRuntimeObjCDispatch[__CFRuntimeClassTableSize];
+CF_EXPORT void _CFRuntimeBridgeObjCDispatch(CFTypeID typeID);
+extern int __CFConstantStringClassReference[];
+CF_INLINE Boolean __CFIsForeignObjCForType(CFTypeID typeID, const void *cf) {
+    if (cf == NULL || typeID >= __CFRuntimeClassTableSize ||
+        !__CFRuntimeObjCDispatch[typeID])
+        return false;
+    uintptr_t isa = *(const uintptr_t *)cf;
+    if (isa == 0 || isa == (uintptr_t)__CFConstantStringClassReference)
+        return false;
+    return isa != (uintptr_t)_CFRuntimeGetClassWithTypeID(typeID) &&
+        isa != __CFRuntimeObjCClassTable[typeID];
+}
+#define CF_IS_OBJC(typeID, obj) __CFIsForeignObjCForType((typeID), (const void *)(obj))
+#if defined(CF_OBJC_DISPATCH) && INCLUDE_OBJC
+#define CF_OBJC_FUNCDISPATCHV(typeID, rettype, obj, ...) do { \
+    if (CF_IS_OBJC(typeID, obj)) return (rettype)[(id)(obj) __VA_ARGS__]; \
+    } while (0)
+#define CF_OBJC_CALLV(obj, ...) [(id)(obj) __VA_ARGS__]
+#else
 #define CF_OBJC_FUNCDISPATCHV(typeID, rettype, obj, ...) do { } while(0)
 #define CF_OBJC_CALLV(obj, ...) (0)
-/* Minkar: false. The only Objective-C classes CF knows (NSCFString,
- * __NSCFBoolean) are its own objects with an Objective-C isa: they have
- * CF's layout and CF handles them natively. Where this was true, CF took
- * "Objective-C" paths through CF_OBJC_CALLV, which is (0): strings came
- * out empty when Foundation was loaded. */
-#define CF_IS_OBJC(typeID, obj) ((void)(obj), 0)
+#endif
 #define __CFISAForTypeID(t) (t < __CFRuntimeClassTableSize \
     ? __CFRuntimeObjCClassTable[t] \
         ? (uintptr_t)__CFRuntimeObjCClassTable[t] \

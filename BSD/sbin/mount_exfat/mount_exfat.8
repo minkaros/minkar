@@ -1,0 +1,84 @@
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\" Copyright (c) 2026 The Minkar contributors
+.\" Part of Minkar.
+.Dd October 31, 2026
+.Dt MOUNT_EXFAT 8
+.Os Minkar
+.Sh NAME
+.Nm mount_exfat
+.Nd mount an exFAT file system
+.Sh SYNOPSIS
+.Nm
+.Op Fl o Ar options
+.Op Fl u Ar user
+.Op Fl g Ar group
+.Op Fl m Ar mask
+.Ar special
+.Ar node
+.Sh DESCRIPTION
+.Nm
+mounts the exFAT file system on the device
+.Ar special
+at the directory
+.Ar node .
+It is usually run by
+.Xr mount 8
+as
+.Ql mount -t exfat ,
+or by
+.Xr diskarbitrationd 8
+when an exFAT disk appears.
+.Pp
+The volume is marked dirty on the disk while it is mounted read-write,
+and clean again when it is unmounted; a volume left dirty is checked by
+.Xr fsck_exfat 8
+before
+.Xr diskarbitrationd 8
+mounts it. Volumes with two FATs (TexFAT) mount read only.
+.Pp
+exFAT keeps no owner or permissions for its files. All of them take the
+owner, group and permissions given by these options, or by default those of
+.Ar node ;
+with none of
+.Fl u ,
+.Fl g
+and
+.Fl m ,
+as on macOS, the permissions are 0777 (how
+.Xr diskarbitrationd 8
+mounts a volume):
+.Bl -tag -width indent
+.It Fl o Ar options
+Options as in
+.Xr mount 8 ,
+such as
+.Cm rdonly
+or
+.Cm noexec .
+.It Fl u Ar user
+The owner of the files, a name or a number.
+.It Fl g Ar group
+The group of the files, a name or a number.
+.It Fl m Ar mask
+The permissions of the files, in octal.
+.El
+.Pp
+Names are looked up without regard to case, with the volume's own up-case
+table. Times saved with their offset from UTC are converted with it; the
+others are taken as local time in the time zone in effect when the file
+system is mounted.
+.Sh EXIT STATUS
+.Ex -std
+.Sh EXAMPLES
+Mount the first partition of a USB disk, owned by user
+.Ql minkar :
+.Pp
+.Dl mount_exfat -u minkar /dev/disk2s1 /Volumes/USB
+.Sh SEE ALSO
+.Xr mount 2 ,
+.Xr fsck_exfat 8 ,
+.Xr mount 8 ,
+.Xr newfs_exfat 8
+.Sh BUGS
+exFAT has no links, symbolic links or device files, and keeps no owner
+or permissions: changing them succeeds and has no effect.

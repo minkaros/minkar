@@ -8,10 +8,9 @@
 # distributions/dtrace, tarball sha256
 # d39f9d77a4851d12916e2a2475ae29d6d54e9419a4ceed67ad54d6c7866d8d3f)
 # without its tests and Xcode project. Built without CoreSymbolication (as Apple's dtrace_host), so
-# for now it symbolicates neither processes nor kexts, and with no CTF
-# in the kernel, D's kernel types (user_addr_t, darwin.d's) are missing:
-# the syscall, mach_trap, profile and lockstat providers and D's own
-# types work. dtrace_minkar.h gives what macOS's headers bring along. libelf, libctf, libproc,
+# for now it symbolicates neither processes nor kexts: the syscall,
+# mach_trap, profile and lockstat providers, and the kernel's types from
+# its CTF (copyinstr, curpsinfo, darwin.d's translators) work. dtrace_minkar.h gives what macOS's headers bring along. libelf, libctf, libproc,
 # libdtrace and the command are linked into one program. Changes for
 # Darwin are the lines marked Minkar.
 
@@ -53,11 +52,11 @@ DT_INC =	-I${.OBJDIR} -I${.OBJDIR}/inc -I${DIST}/compat/opensolaris \
 	-I${DIST}/lib/libproc -I${DIST}/lib/libdtrace/common \
 	-I${DIST}/lib/libdtrace/apple -I${DIST}/lib/libdtrace/i386
 CFLAGS += --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
-	-Wno-nullability-completeness -DPRIVATE -DCTF_OLD_VERSIONS ${DT_INC} \
+	-Wno-nullability-completeness -DPRIVATE -DCTF_OLD_VERSIONS -DMINKAR_NO_OS_LOG ${DT_INC} \
 	-idirafter ${XNU}/libkern -idirafter ${LIBSYSTEM_PRIVATE} \
 	-include ${.CURDIR}/dtrace_minkar.h
 CXXFLAGS += --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
-	-Wno-nullability-completeness -DPRIVATE ${DT_INC} -std=c++11 \
+	-Wno-nullability-completeness -DPRIVATE -DMINKAR_NO_OS_LOG ${DT_INC} -std=c++11 \
 	-idirafter ${XNU}/libkern -include ${.CURDIR}/dtrace_minkar.h
 LDFLAGS += --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
 	-fuse-ld=${LD}
@@ -73,10 +72,10 @@ ${.OBJDIR}/inc/sys/dtrace.h: ${XNU}/bsd/sys/dtrace.h
 	    lockstat.h csr.h codesign.h kas_info.h proc_info.h event.h \
 	    ${.OBJDIR}/inc/sys/
 
-# The D libraries that need no kernel types: darwin.d (and io.d, ip.d,
-# sched.d, socket.d, tcp.d, which depend on it) needs the kernel's CTF,
-# which Minkar's kernel does not carry yet.
-DLIBS =	errno.d regs_x86_64.d signal.d unistd.d
+# The D libraries; darwin.d and those built on it use the kernel's types,
+# from the CTF the installed kernel carries (Kernel/makefile).
+DLIBS =	darwin.d errno.d io.d ip.d regs_x86_64.d sched.d signal.d socket.d \
+	tcp.d unistd.d
 
 all: to-sysroot
 

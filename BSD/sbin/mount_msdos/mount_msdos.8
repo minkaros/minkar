@@ -28,7 +28,15 @@ as
 .Pp
 FAT keeps no owner or permissions for its files. All of them take the
 owner, group and permissions given by these options, or by default those of
-.Ar node :
+.Ar node ;
+with none of
+.Fl u ,
+.Fl g
+and
+.Fl m ,
+as on macOS, the permissions are 0777 (how
+.Xr diskarbitrationd 8
+mounts a volume):
 .Bl -tag -width indent
 .It Fl o Ar options
 Options as in

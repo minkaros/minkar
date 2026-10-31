@@ -1,0 +1,31 @@
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\" Copyright (c) 2026 The Minkar contributors
+.\" Part of Minkar.
+.Dd October 30, 2026
+.Dt RPCBIND 8
+.Os Minkar
+.Sh NAME
+.Nm rpcbind
+.Nd the ONC RPC binder
+.Sh SYNOPSIS
+.Nm
+.Op Fl d
+.Sh DESCRIPTION
+.Nm
+maps ONC RPC programs and versions to the addresses their servers listen
+on, on UDP and TCP port 111.
+It speaks the portmapper protocol (version 2), which NFS clients use over
+IPv4, and rpcbind's (versions 3 and 4, RFC 1833), with transports named
+.Pq Li udp , tcp , udp6 ...
+and universal addresses.
+Services register and unregister from this machine only; indirect calls
+are not made.
+.Xr launchd 8
+starts it (org.minkar.rpcbind) when a service, such as
+.Xr nfsd 8 ,
+first registers.
+.Fl d
+logs each registration.
+.Sh SEE ALSO
+.Xr mount_nfs 8 ,
+.Xr nfsd 8

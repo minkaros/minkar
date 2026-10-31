@@ -27,6 +27,7 @@
  */
 
 #include "MinkarVirtioBlock.h"
+#include "MinkarStorageCharacteristics.h"
 #include <IOKit/IOLib.h>
 #include <IOKit/IOKitKeys.h>
 
@@ -147,6 +148,9 @@ MinkarVirtioBlock::setupDevice()
 		}
 		id->release();
 	}
+	MinkarSetStorageCharacteristics(this, getVendorString(), fProduct,
+	    getRevisionString(), NULL, kIOPropertyPhysicalInterconnectTypeVirtual,
+	    true);
 
 	LOG("%llu sectors of 512 bytes, block size %u%s%s, queue of %u", fCapacity,
 	    fBlockSize, fReadOnly ? ", read-only" : "",

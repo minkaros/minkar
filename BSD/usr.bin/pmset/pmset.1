@@ -1,0 +1,103 @@
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\" Copyright (c) 2026 The Minkar contributors
+.\" Part of Minkar.
+.Dd October 30, 2026
+.Dt PMSET 1
+.Os Minkar
+.Sh NAME
+.Nm pmset
+.Nd manipulate power management settings
+.Sh SYNOPSIS
+.Nm
+.Fl g Op Cm live | custom | cap | batt | ps | assertions | sched | therm | uuid | log
+.Nm
+.Op Fl a | c | b | u
+.Ar setting value ...
+.Nm
+.Cm sleepnow | displaysleepnow | restoredefaults | touch | noidle
+.Nm
+.Cm disablesleep Cm 0 | 1
+.Nm
+.Cm schedule Op Cm cancel
+.Ar type Qq Ar MM/dd/yy HH:mm:ss
+.Op Ar owner
+.Nm
+.Cm repeat Cm cancel | Ar type weekdays HH:mm:ss
+.Sh DESCRIPTION
+.Nm
+reads and changes the power management settings, through IOKit's power
+functions and
+.Xr powerd 8 ,
+which applies them.
+Changes need root.
+.Ss Reading
+.Bl -tag -width indent
+.It Fl g , Fl g Cm live
+The settings in use, for the power source the machine draws from.
+On a machine that cannot sleep,
+.Cm sleep
+says so.
+.It Fl g Cm custom
+The settings of each power source the machine has.
+.It Fl g Cm cap
+The settings this machine supports.
+.It Fl g Cm batt , Fl g Cm ps
+The power source in use and the batteries or UPSes known.
+.It Fl g Cm assertions
+The assertions held: their status by type and each process's, with how
+long it has held them.
+.It Fl g Cm sched
+Scheduled and repeating power events.
+.It Fl g Cm therm , Cm uuid , Cm log
+Thermal state, the sleep/wake UUID, the log (none yet on this system).
+.El
+.Ss Settings
+.Fl a
+(the default),
+.Fl c ,
+.Fl b
+and
+.Fl u
+change the settings of all power sources, AC power, battery or UPS:
+.Cm displaysleep , disksleep
+and
+.Cm sleep
+(minutes, 0 or
+.Cm never
+to turn them off),
+.Cm womp , ring , autorestart , lidwake , acwake , lessbright , halfdim ,
+.Cm ttyskeepawake , hibernatemode , hibernatefile , standby ,
+.Cm standbydelay , autopoweroff , autopoweroffdelay , powernap ,
+.Cm tcpkeepalive , networkoversleep , proximitywake , gpuswitch , dps .
+.Ss Actions
+.Bl -tag -width indent
+.It Cm sleepnow
+Sleep now; refused where the machine cannot sleep.
+.It Cm displaysleepnow
+Put the display to sleep now.
+.It Cm restoredefaults
+Back to the default settings.
+.It Cm touch
+Apply the settings again.
+.It Cm noidle
+Keep the system from idle sleep until interrupted.
+.It Cm disablesleep Cm 1 | 0
+Disable or allow system sleep; a machine that cannot sleep keeps it
+disabled.
+.It Cm schedule
+Schedule (or cancel) a
+.Cm sleep , wake , poweron , shutdown , wakeorpoweron
+or
+.Cm restart
+at a date and time.
+.It Cm repeat
+A weekly event on the days given (a subset of
+.Li MTWRFSU )
+at a time of day, or
+.Cm cancel
+them.
+.El
+.Sh SEE ALSO
+.Xr caffeinate 8 ,
+.Xr powerd 8 ,
+.Xr systemsetup 8

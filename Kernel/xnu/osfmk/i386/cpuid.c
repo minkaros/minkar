@@ -34,6 +34,15 @@
 #include <i386/cpu_threads.h>
 #include <i386/cpuid.h>
 
+/* Minkar: the APIC ID bit where the package number starts (0: unknown). */
+uint32_t cpuid_apic_package_shift = 0;
+/*
+ * Minkar: the APIC ID bits a core's threads take (the topology leaf's SMT
+ * level), when that leaf has one.
+ */
+uint32_t cpuid_apic_smt_shift = 0;
+boolean_t cpuid_apic_smt_known = FALSE;
+
 int force_tecs_at_idle;
 int tecs_mode_supported;
 
@@ -716,6 +725,19 @@ cpuid_set_generic_info(i386_cpu_info_t *info_p)
 			}
 			if (bitfield32(topo[ebx], 15, 0) > widest) {
 				widest = bitfield32(topo[ebx], 15, 0);
+			}
+			/*
+			 * Minkar: the last level's shift is where the package
+			 * starts in an APIC ID. The count above is the real
+			 * number of threads, not a power of two: with 3 cores a
+			 * package, the IDs are 0-2 and 4-6, and dividing them by
+			 * 3 made three packages of two (a panic in
+			 * x86_validate_topology).
+			 */
+			cpuid_apic_package_shift = bitfield32(topo[eax], 4, 0);
+			if (bitfield32(topo[ecx], 15, 8) == 1) {	/* SMT */
+				cpuid_apic_smt_shift = bitfield32(topo[eax], 4, 0);
+				cpuid_apic_smt_known = TRUE;
 			}
 		}
 		DBG("cpuid: topology leaf 0x%x levels=%u logical_per_package=%u"

@@ -29,7 +29,7 @@ LDFLAGS = -Wl,-syslibroot,${MINKAR_SDKROOT}/usr/lib \
 	-L${MINKAR_SDKROOT}/usr/lib -Wl,-upward-lobjc \
 	-L${MINKAR_SDKROOT}/usr/lib/system -ldispatch -lsystem_c \
 	-lsystem_platform -lsystem_kernel -lsystem_blocks -lsystem_malloc \
-	-llaunch -ldyld -lsystem_pthread \
+	-llaunch -ldyld -lsystem_pthread -lsystem_trace \
 	-Wl,-install_name,/usr/lib/system/libxpc.dylib \
 	-Wl,-current_version,1738.0.17 \
 	-Wl,-compatibility_version,1.0.0

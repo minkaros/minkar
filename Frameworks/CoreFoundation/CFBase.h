@@ -200,6 +200,11 @@ CF_EXTERN_C_BEGIN
 #define CF_SWIFT_NAME(_name)
 #endif
 
+/* No Swift here: an API Swift should not see is just declared. */
+#ifndef CF_SWIFT_UNAVAILABLE
+#define CF_SWIFT_UNAVAILABLE(_msg)
+#endif
+
 #define CF_OPEN_ENUM(_type, _name) \
     enum __attribute__((enum_extensibility(open))) _name : _type _name; \
     enum _name : _type

@@ -17,7 +17,7 @@ SUBDIR += cmp du gzip logger mktemp seq stat tr uniq uptime w wc
 SUBDIR += awk btop less sort tar who
 SUBDIR += diff nc netstat
 SUBDIR += curl fetch file su top sudo
-SUBDIR += defaults plutil ditto syslog
+SUBDIR += defaults plutil ditto syslog notifyutil
 SUBDIR += printenv hexdump paste nohup xinstall
 SUBDIR += m4 cpio bc zsh
 SUBDIR += rev column comm join fold fmt split csplit tsort nl expand unexpand tty ncal getconf locale
@@ -27,6 +27,6 @@ SUBDIR += jot lam rs col colrm look logname mkfifo renice nice lockf cksum bintr
 	gencat cap_mkdb last indent ctags timeout passwd \
 	uuidgen asa c99 finger newgrp pagesize unzip zip at \
 	ipcs ipcrm htop builtin xxd nano bash rsync vim ksh llvm-tools chpass shlock mail lex telnet quota openssl bind \
-	ftp rlogin arch vm_stat caffeinate lsbom talk localedef heimdal
+	ftp rlogin arch vm_stat caffeinate lsbom talk localedef heimdal csrutil hdiutil leaks fs_usage pmset
 
 .include <bsd.subdir.mk>

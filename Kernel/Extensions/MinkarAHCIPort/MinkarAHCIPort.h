@@ -63,6 +63,7 @@ public:
     const char *modelString   (uint32_t portIndex) const;
     const char *serialString  (uint32_t portIndex) const;
     const char *firmwareString(uint32_t portIndex) const;
+    const char *mediumType    (uint32_t portIndex) const;
 
 private:
     struct PortState {
@@ -73,6 +74,7 @@ private:
         IOPhysicalAddress          memPhys;
         uint64_t                   sectorCount;
         bool                       lba48;
+        uint16_t                   rotation;    /* IDENTIFY word 217 */
         char                       model[41];
         char                       serial[21];
         char                       firmware[9];

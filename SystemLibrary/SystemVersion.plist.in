@@ -9,7 +9,7 @@
         <key>ProductCopyright</key>
         <string>2021-2026 Zoe Knox</string>
         <key>ProductVersion</key>
-        <string>@PROD_VERSION@</string>
+        <string>@PROD_COMPAT_VERSION@</string>
         <key>ProductUserVisibleVersion</key>
         <string>@PROD_VERSION@</string>
         <key>ProductBuildVersion</key>

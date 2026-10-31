@@ -327,9 +327,13 @@ MinkarE1000::checkLink()
 		    ((m == 1000 ? 2U : m == 100 ? 1U : 0U) << E1000_STATUS_SPEED_SHIFT);
 	}
 	if ((status & E1000_STATUS_LU) == 0) {
-		if (getLinkStatus() != kIONetworkLinkValid) {
+		UInt32 was = getLinkStatus();
+
+		if (was != kIONetworkLinkValid) {
 			setLinkStatus(kIONetworkLinkValid);
-			LOG("link down");
+			/* Only a link that was up goes down; at enable it is negotiating. */
+			if (was & kIONetworkLinkActive)
+				LOG("link down");
 		}
 		return;
 	}

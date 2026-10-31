@@ -1,0 +1,107 @@
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\" Copyright (c) 2026 The Minkar contributors
+.\" Part of Minkar.
+.Dd October 30, 2026
+.Dt HDIUTIL 1
+.Os Minkar
+.Sh NAME
+.Nm hdiutil
+.Nd manipulate disk images
+.Sh SYNOPSIS
+.Nm
+.Cm create
+.Op Fl size Ar size
+.Op Fl fs Ar filesystem
+.Op Fl volname Ar name
+.Op Fl layout Cm GPTSPUD | NONE
+.Op Fl srcfolder Ar folder
+.Op Fl ov
+.Ar image
+.Nm
+.Cm attach
+.Op Fl readonly
+.Op Fl nomount
+.Op Fl mountpoint Ar path
+.Ar image
+.Nm
+.Cm detach | eject
+.Op Fl force
+.Ar device | mountpoint
+.Nm
+.Cm info
+.Nm
+.Cm imageinfo
+.Ar image
+.Sh DESCRIPTION
+.Nm
+attaches disk images as disks through the kernel's MinkarDiskImage driver:
+an image becomes
+.Pa /dev/disk Ns Ar N ,
+its partitions are published as on any disk, and their volumes are mounted
+in
+.Pa /Volumes
+under their names.
+It needs root.
+.Bl -tag -width indent
+.It Cm create
+Make a raw image of
+.Ar size
+(with a
+.Li b
+(512-byte sectors),
+.Li k , m , g
+or
+.Li t
+suffix; or, with
+.Fl srcfolder ,
+large enough for the folder, whose contents are copied in).
+The name gets
+.Pa .dmg
+unless it has an extension.
+.Fl layout Cm GPTSPUD ,
+the default, gives it a GUID partition table with one partition;
+.Cm NONE ,
+none.
+.Fl fs
+is
+.Li HFS+
+(the default),
+.Li Journaled HFS+
+or
+.Li MS-DOS .
+.Fl type
+and
+.Fl format
+are accepted: the image is raw whatever they say.
+.It Cm attach
+Attach an image and mount its volumes
+.Pf ( Fl nomount :
+none;
+.Fl mountpoint :
+the first at
+.Ar path ) .
+A read-only image file, or
+.Fl readonly ,
+attaches read-only.
+Prints the disk and its partitions, with their content and mount points.
+.It Cm detach , eject
+Unmount the image's volumes (by force with
+.Fl force )
+and detach it.
+.It Cm info
+List the attached images.
+.It Cm imageinfo
+Show an image's format and size.
+.El
+.Pp
+Raw images (what
+.Cm create
+makes, and CD/DVD masters) and UDIF read/write images (UDRW) are read;
+compressed and segmented UDIF images are not yet.
+.Sh EXIT STATUS
+.Ex -std
+.Sh SEE ALSO
+.Xr fstyp 8 ,
+.Xr mount 8 ,
+.Xr newfs_hfs 8 ,
+.Xr newfs_msdos 8

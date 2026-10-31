@@ -11,6 +11,7 @@ tracks the list as a whole.
 | QEMU VM | Every change: `boottest`, the local test suite, the CI | Boots to login under TCG and KVM |
 | PC 1: Gigabyte H270N-WIFI | First physical PC | Boots to login from SATA; display, keyboard and network work |
 | PC 2 | Second physical PC | Not chosen yet |
+| AMD PC | An AMD processor | Pending: no hardware yet (see below) |
 
 ## QEMU virtual machine
 
@@ -25,6 +26,38 @@ QEMU fails on an MSR the kernel reads).
   polling every millisecond): the full suite takes about 9 minutes
   instead of 32. *Partial:* on the CI runners the kernel does not boot
   under KVM yet, so `boottest` uses TCG unless KVM is asked for.
+- **SMP** (2026-10-30): every processor the MADT lists as enabled runs.
+  Three fixes: ACPICPU registers the processors with the kernel and starts
+  them, the boot one first, as the reference system's ACPI platform does (`startCPU` was
+  a stub, and each CPU made its own interrupt controller of one, which set
+  the kernel's maximum to one processor); the kernel's number of
+  processors is set only once all are registered (the commpage takes the
+  count of logical ones then, and libmalloc makes a magazine for each: a
+  thread on cpu1 read past the last one); and an AP switches to long mode
+  in `slave_pstart` (the BSP comes from UEFI already in long mode, so the
+  switch was left out of the common path, and an AP triple faulted).
+  The kernel also numbered packages and dies by dividing APIC IDs by the
+  real number of threads; with 3 or 6 cores a package and more than one
+  package, the IDs leave gaps and that made too many packages (a panic in
+  `x86_validate_topology`): the package now comes from the CPUID
+  topology leaf's shift. Tested with 2, 3, 4 and 5 processors, 2 packages
+  of 3 cores (with and without 2 threads a core) and one package of 4
+  cores of 2 threads; the test suite's VMs run with 2. Running on two
+  processors showed two more things: `kprintf` wrote straight to the
+  serial port while the console wrote there too, and two processors'
+  lines came out mixed character by character (a message now goes out
+  holding the console's serial lock); and `hdiutil` looked the
+  new image device up before its registration ended, now finished on
+  another processor (it waits for it). Disk numbers are not fixed any
+  more either: drivers match in parallel, as on the reference system.
+- **Limits** (2026-10-30): the kernel takes 64 processors (`MAX_CPUS`, a
+  64-bit mask) with local APIC IDs up to 255 (xAPIC). A bigger machine
+  runs on its first 64, and a processor with a higher APIC ID is left
+  out, both said in the log (the kernel used to panic on a topology with
+  fewer processors than its packages have). Tested with 64 processors
+  (all run) and 128 (64 run).
+- **NVMe reads through the block device are slow** (about 1 MB/s with
+  4 KB reads, one or two processors alike): to look at.
 - **Console test** (`run.sh console`): boots an image with a PC's boot
   arguments and no serial console, types on the USB keyboard through QMP
   and reads the screen back through the console's font.
@@ -37,9 +70,9 @@ QEMU fails on an MSR the kernel reads).
 | Part | Device | State |
 |---|---|---|
 | Board | Gigabyte H270N-WIFI (Intel H270), AMI UEFI firmware | Boots |
-| CPU | Intel Core i7-7700 (4 cores, 8 threads) | ACPI lists all eight; only the boot CPU runs (no SMP yet, as in QEMU) |
+| CPU | Intel Core i7-7700 (4 cores, 8 threads) | All eight run (SMP, 2026-10-30): `hw.ncpu` 8, 4 physical; eight busy loops take 99.8% |
 | Disk | SATA through AHCI (`MinkarAHCIPort`) | Root file system, fsck |
-| Disk | NVMe (M.2) | Driver `MinkarNVMe` (2026-10-29), tested in QEMU; on PC 1 to test |
+| Disk | NVMe (M.2), "SK 256GB" (Silicon Motion, PCI 126f:2263) | Root file system: boots from it (`MinkarNVMe`, 2026-10-29), completions by interrupt |
 | USB | xHCI (`MinkarXHCIPort`), USB 2 hub of a KVM switch | Keyboard and mouse, directly and through the switch |
 | Display | GOP framebuffer, Xiaomi 34" ultrawide | Native 3440x1440 text console |
 | Network | Intel I219-V (PCH LAN) | ping on the LAN (`MinkarE1000`) |
@@ -53,19 +86,48 @@ loader's output on screen for photos.
 
 ### Still open
 
-- NVMe: `MinkarNVMe` boots QEMU from an NVMe disk; on PC 1 it is to be
-  tested. Its line in the boot log names the model, the size and the
-  interrupt it uses (MSI, pin interrupt or polling); `ioreg -r -c
-  MinkarNVMe -l` counts the completions that came by interrupt and by the
-  timer.
 - IOKit does not get quiet within 30 seconds, so some drivers (the
   display's) start after the login prompt; `kextstart` now names the
   services still busy.
-- Only the boot CPU runs (the other CPUs are found but not started; also
-  in QEMU).
+- SMP (2026-10-30): the first image with it panicked here, in the
+  topology check: the threads a core has came from the real number of
+  threads a package has (CPUID's topology leaf, 8) over leaf 4's bound
+  on cores (8), one thread a core, so the topology showed 8 cores where
+  4 were expected. QEMU's leaf 4 gives the real count, so it never
+  showed there. A core's threads now come from the topology leaf's SMT
+  level; all eight threads run.
+- NVMe (2026-10-30, the SK hynix 256 GB): about 1.4 GB/s reading the
+  raw device and 1.1 GB/s writing a file, nearly every completion by
+  interrupt.
+- Power (2026-10-30): the model and UUID from SMBIOS, `powerd` and
+  `pmset` (settings, assertions, schedules, sleep refused as not
+  supported) work. Display sleep does nothing: the GOP framebuffer
+  cannot turn the display off (no GPU driver); blanking it is to do.
+  The power button did nothing: IOACPIFamily now takes ACPI's power
+  button (the fixed event, or a PNP0C0C device) and `powerd` asks for an
+  orderly shutdown (sleep instead where the machine can sleep and
+  "Sleep On Power Button" is on). Here (hw-test38): the firmware has
+  both the fixed event and a PNP0C0C device; a press shuts down and the
+  PC powers off; `pmset` settings survive a reboot.
+- `shutdown`, `reboot` and `poweroff` took 20 seconds more since
+  DiskArbitration came: `diskarbitrationd` only stops mounting on
+  SIGTERM, and its job lacked the `EnableTransactions` key of the original, with which
+  launchd ends it at once when it is idle. About 2 seconds now, here
+  too (hw-test38: `reboot` and `shutdown -h now`, which powers off).
+- `dmesg` keeps 16 KB, as a release kernel of the reference system: a verbose boot pushes
+  its start out. The PC test images boot with `msgbuf=1048576` for that
+  (hw-test38: about 100 KB from the first line).
+- IPv6 on the LAN: RDNSS (the router's name servers in resolv.conf) and
+  DNS answers over IPv6, which QEMU's user network cannot give.
 - Booting without `pci_keep_console=1` (see the QEMU known bug).
 
 ### How it got there
+
+**NVMe** (2026-10-29). `MinkarNVMe`, written from the NVM Express
+specification, found the SSD (a Silicon Motion 126f:2263 "SK 256GB"), the
+image written to it booted with its root file system there, and of 958
+completions 19 came by the timer that stands in for a late interrupt
+(`ioreg -r -c MinkarNVMe -l`). The SATA and the Intel SSD stay visible.
 
 **Loader** (2026-10-26). From the SATA disk, the loader read the kernel
 from another disk's EFI partition, then overwrote firmware memory: the
@@ -135,7 +197,7 @@ clears the screen for every login but the first.
 
 **Two network cards** (2026-10-28). Moving the cable from the I219-V to the
 I211 gave the I211 an address, but ping went out through the I219-V, which
-kept its address and routes with no link. As on macOS, `dhcpclient` now
+kept its address and routes with no link. As on the reference system, `dhcpclient` now
 gives up an interface's addresses (IPv4 and IPv6) and routes when its link
 goes down, and asks for it again when the link comes back.
 
@@ -155,3 +217,13 @@ slow only while the network was misconfigured.
 **Full-screen programs** (2026-10-28). The console draws box lines, block
 elements and Braille dots, so btop shows its boxes and graphs as on a
 terminal emulator instead of `+ - | #`.
+
+## AMD
+
+Pending, with no date (2026-10-30): no AMD machine is at hand. The kernel
+recognizes AMD processors since an earlier change, and starts the other
+processors the same way as on Intel (INIT and SIPI through the local
+APIC), but Minkar has not run on one. First step without hardware: QEMU
+with an emulated AMD processor (`-cpu EPYC` under TCG, as KVM on an Intel
+host cannot present one). What to look at: the MSRs only Intel has
+(power, temperature), the TSC and the start of the other processors.

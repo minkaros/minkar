@@ -1,0 +1,74 @@
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\" Copyright (c) 2026 The Minkar contributors
+.\" Part of Minkar.
+.Dd October 29, 2026
+.Dt SYSTEMSETUP 8
+.Os Minkar
+.Sh NAME
+.Nm systemsetup
+.Nd configure the machine's settings
+.Sh SYNOPSIS
+.Nm
+.Op Fl f
+.Fl command Op Ar argument
+.Ar ...
+.Nm
+.Fl help | Fl printCommands
+.Sh DESCRIPTION
+.Nm
+reads and changes settings that are otherwise made in System Preferences.
+It needs administrator access: run as root.
+Several commands may be given at once; each
+.Fl set
+command takes one argument.
+.Bl -tag -width indent
+.It Fl getdate , Fl setdate Ar mm:dd:yy
+The date, kept the time of day.
+.It Fl gettime , Fl settime Ar hh:mm:ss
+The time of day, kept the date.
+.It Fl gettimezone , Fl settimezone Ar zone , Fl listtimezones
+The time zone, set with
+.Xr tzlink 8 ;
+the list has the zones named by area and city, and a zone outside it such as
+.Li UTC
+is accepted too.
+.It Fl getcomputername , Fl setcomputername Ar name
+The computer's name, in the system configuration.
+.It Fl getlocalsubnetname , Fl setlocalsubnetname Ar name
+The name on the local network
+.Pq Ar name Ns .local .
+.It Fl getremotelogin , Fl setremotelogin Ar on | off
+Whether
+.Xr sshd 8 Ns 's
+job is loaded in
+.Xr launchd 8 .
+Turning it off asks first, unless
+.Fl f
+is given, since it ends remote sessions' way back.
+.It Fl getnetworktimeserver , Fl setnetworktimeserver Ar server
+The server named in
+.Pa /etc/ntp.conf .
+.It Fl getusingnetworktime
+Off: there is no network time service yet.
+.It Fl getsleep , Fl getcomputersleep , Fl getdisplaysleep , Fl getharddisksleep
+Never: the machine does not sleep yet.
+.El
+.Pp
+The other commands of
+.Fl printCommands
+(the sleep timers' and wake settings, restarting after a power failure or a
+freeze, the power button, remote Apple events, the startup disk) print
+.Dq Not supported on this machine.
+.Sh FILES
+.Bl -tag -width indent
+.It Pa /etc/localtime
+.It Pa /etc/ntp.conf
+.It Pa /System/Library/LaunchDaemons/com.openssh.sshd.plist
+.El
+.Sh EXIT STATUS
+.Ex -std
+.Sh SEE ALSO
+.Xr date 1 ,
+.Xr launchctl 1 ,
+.Xr scutil 8 ,
+.Xr tzlink 8

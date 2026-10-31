@@ -1,0 +1,52 @@
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\" Copyright (c) 2026 The Minkar contributors
+.\" Part of Minkar.
+.Dd October 30, 2026
+.Dt LEAKS 1
+.Os Minkar
+.Sh NAME
+.Nm leaks
+.Nd the memory a process allocated and can no longer reach
+.Sh SYNOPSIS
+.Nm
+.Op Fl nocontext
+.Op Fl quiet
+.Ar pid | name
+.Sh DESCRIPTION
+.Nm
+stops a process, lists the blocks
+.Xr malloc 3
+gave it, and finds those it can no longer reach: no pointer to them is
+left in its writable memory (its globals and stacks, outside malloc's
+own), in its threads' registers, or in a block it can reach.
+Those leaked; each is shown with its address, size and zone, and its
+first bytes.
+The process goes on when
+.Nm
+is done.
+.Pp
+The search is conservative: any word that holds an address inside a
+block counts as a pointer to it, so a leak can go unseen, but a block
+shown leaked has no pointer to it.
+.Pp
+A process is named by its pid or by part of its name.
+Examining another user's process takes root.
+.Bl -tag -width indent
+.It Fl nocontext
+Leaves out each leak's first bytes.
+.It Fl quiet
+Prints only the two summary lines.
+.El
+.Sh EXIT STATUS
+0 when nothing leaked, 1 when something did, 2 on an error.
+.Sh EXAMPLES
+.Dl leaks Safari
+.Dl leaks -quiet 1234
+.Sh SEE ALSO
+.Xr malloc 3
+.Sh HISTORY
+This
+.Nm
+was written for Minkar, after macOS's.
+It does not show where each leak was allocated (macOS's
+.Ev MallocStackLogging ) .

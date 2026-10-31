@@ -2165,7 +2165,9 @@ dw_read(Elf *elf, const char *filename, const char *unitmatch, int verbose, tdat
 			/* This code doesn't handle the DW_TAG_class_type,
 			 *  or scope c++ definitions properly.
 			 */
-			if (lang == DW_LANG_C_plus_plus) {
+			/* Minkar: newer compilers name C++ by its standard. */
+			if (lang == DW_LANG_C_plus_plus || lang == 0x19 /* _03 */ ||
+			    lang == 0x1a /* _11 */ || lang == 0x21 /* _14 */) {
 				continue;
 			}
 		}

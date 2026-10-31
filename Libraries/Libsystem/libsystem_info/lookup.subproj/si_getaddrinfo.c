@@ -24,6 +24,7 @@
 #include "libinfo_common.h"
 
 #include <dlfcn.h>
+#include <unistd.h>
 #include <netdb.h>
 #include <sys/types.h>
 #include <ctype.h>
@@ -1083,6 +1084,16 @@ static void _gai_load_libnetwork_once(void)
 	// Using dlopen will trigger libnetwork's init functions which should call
 	// si_set_nat64_v4_synthesize and si_set_nat64_v4_requires_synthesis
 	static void *handle;
+	/*
+	 * Minkar: libnetwork (NAT64 address synthesis) is not part of the
+	 * system; without it IPv4 addresses are used as they are, which is
+	 * right on networks that are not IPv6-only. Not an error to log in
+	 * every process that resolves a name.
+	 */
+	if (access("/usr/lib/libnetwork.dylib", F_OK) != 0) {
+		os_log_debug(gai_log(), "No libnetwork.dylib: no NAT64 synthesis");
+		return;
+	}
 	os_log_debug(gai_log(), "Opening libnetwork.dylib");
 	handle = dlopen("/usr/lib/libnetwork.dylib", RTLD_LAZY | RTLD_LOCAL);
 	if (handle == NULL) {

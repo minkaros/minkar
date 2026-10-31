@@ -22,7 +22,8 @@ ${PROG}: ${.OBJDIR}/${PROG}
 install: ${PROG}
 
 copyprog: ${PROG}
-	mkdir -p ${SYSROOT_DIR}/usr/bin
+	mkdir -p ${SYSROOT_DIR}/usr/bin ${SYSROOT_DIR}/usr/share/man/man1
 	cp -f ${.OBJDIR}/${PROG} ${SYSROOT_DIR}/usr/bin/
+	install -m 0444 ${.CURDIR}/sw_vers.1 ${SYSROOT_DIR}/usr/share/man/man1/
 
 .include <bsd.prog.mk>

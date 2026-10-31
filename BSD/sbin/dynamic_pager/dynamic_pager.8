@@ -1,0 +1,47 @@
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\" Copyright (c) 2026 The Minkar contributors
+.\" Part of Minkar.
+.Dd October 29, 2026
+.Dt DYNAMIC_PAGER 8
+.Os Minkar
+.Sh NAME
+.Nm dynamic_pager
+.Nd set where the swap files go
+.Sh SYNOPSIS
+.Nm
+.Op Fl F Ar filename
+.Op Fl S Ar filesize
+.Op Fl H Ar high-water-trigger
+.Op Fl L Ar low-water-trigger
+.Sh DESCRIPTION
+The kernel's memory compressor writes the pages it cannot keep in memory to
+swap files, which it creates, grows and removes itself.
+.Nm
+tells it where they go: the path
+.Ar filename
+followed by a number
+.Pq Pa swapfile0 , Pa swapfile1 , No ...
+\&.
+It creates the directory if it does not exist, sets the prefix and exits.
+.Bl -tag -width indent
+.It Fl F Ar filename
+The prefix of the swap files' paths; by default
+.Pa /private/var/vm/swapfile .
+.It Fl S , Fl H , Fl L
+Sizes and triggers that older versions used; accepted and ignored.
+.El
+.Pp
+The prefix in use is the
+.Va vm.swapfileprefix
+sysctl; how much swap is used is
+.Va vm.swapusage .
+.Sh FILES
+.Bl -tag -width indent
+.It Pa /private/var/vm/swapfile*
+the swap files
+.El
+.Sh EXIT STATUS
+.Ex -std
+.Sh SEE ALSO
+.Xr sysctl 8 ,
+.Xr vm_stat 1

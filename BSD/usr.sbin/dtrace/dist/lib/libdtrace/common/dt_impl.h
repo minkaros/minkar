@@ -45,7 +45,9 @@
 
 #include <sys/param.h>
 
-#if defined(__APPLE__)
+/* Minkar: Minkar's os_log does not print its arguments yet; without it,
+ * -x debug writes to stderr. */
+#if defined(__APPLE__) && !defined(MINKAR_NO_OS_LOG)
 #define OS_LOG_SUPPORTED 1
 #include <os/log.h>
 #endif /* defined(__APPLE__) */

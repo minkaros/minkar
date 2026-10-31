@@ -641,5 +641,11 @@ Example:
 */
 #define kIOPropertyPhysicalInterconnectTypePCI		"PCI"
 
+/*!
+@defined kIOPropertyPhysicalInterconnectTypePCIExpress
+@discussion The interconnect of a device on PCI Express, such as an NVMe drive.
+*/
+#define kIOPropertyPhysicalInterconnectTypePCIExpress	"PCI-Express"
+
 
 #endif	/* _IOKIT_IO_STORAGE_PROTOCOL_CHARACTERISTICS_H_ */

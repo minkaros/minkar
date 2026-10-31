@@ -127,6 +127,102 @@ store_active(void)
 	return service_id != NULL;
 }
 
+static bool
+string_in(CFTypeRef v, int af, void *out)
+{
+	char buf[INET6_ADDRSTRLEN];
+
+	if (v != NULL && CFGetTypeID(v) == CFArrayGetTypeID())
+		v = CFArrayGetCount(v) > 0 ? CFArrayGetValueAtIndex(v, 0) : NULL;
+	if (v == NULL || CFGetTypeID(v) != CFStringGetTypeID() ||
+	    !CFStringGetCString(v, buf, sizeof(buf), kCFStringEncodingASCII))
+		return false;
+	return inet_pton(af, buf, out) == 1;
+}
+
+static CFDictionaryRef
+copy_setup(CFStringRef entity)
+{
+	CFStringRef key = SCDynamicStoreKeyCreateNetworkServiceEntity(NULL,
+	    kSCDynamicStoreDomainSetup, service_id, entity);
+	CFPropertyListRef v = SCDynamicStoreCopyValue(store, key);
+
+	CFRelease(key);
+	if (v != NULL && CFGetTypeID(v) != CFDictionaryGetTypeID()) {
+		CFRelease(v);
+		v = NULL;
+	}
+	return v;
+}
+
+/*
+ * The service's IPv4 and IPv6 in Setup:. A protocol without its entity is
+ * off; a method this worker does not know (PPP's and the like) leaves the
+ * call failing, and the worker as it is.
+ */
+bool
+store_setup(struct setup *s)
+{
+	CFDictionaryRef v4, v6;
+	CFStringRef m;
+	bool ok = true;
+
+	if (service_id == NULL)
+		return false;
+	memset(s, 0, sizeof(*s));
+	v4 = copy_setup(kSCEntNetIPv4);
+	v6 = copy_setup(kSCEntNetIPv6);
+	m = v4 ? CFDictionaryGetValue(v4, kSCPropNetIPv4ConfigMethod) : NULL;
+	if (v4 == NULL)
+		s->method4 = M4_NONE;
+	else if (m == NULL || CFEqual(m, kSCValNetIPv4ConfigMethodDHCP))
+		s->method4 = M4_DHCP;
+	else if (CFEqual(m, kSCValNetIPv4ConfigMethodBOOTP))
+		s->method4 = M4_BOOTP;
+	else if (CFEqual(m, kSCValNetIPv4ConfigMethodManual) ||
+	    CFEqual(m, kSCValNetIPv4ConfigMethodINFORM)) {
+		s->method4 = CFEqual(m, kSCValNetIPv4ConfigMethodManual) ?
+		    M4_MANUAL : M4_INFORM;
+		if (!string_in(CFDictionaryGetValue(v4, kSCPropNetIPv4Addresses),
+		    AF_INET, &s->addr4))
+			ok = false;
+		if (!string_in(CFDictionaryGetValue(v4, kSCPropNetIPv4SubnetMasks),
+		    AF_INET, &s->mask4))
+			s->mask4.s_addr = htonl(0xffffff00);
+		string_in(CFDictionaryGetValue(v4, kSCPropNetIPv4Router), AF_INET,
+		    &s->router4);
+	} else
+		ok = false;
+	m = v6 ? CFDictionaryGetValue(v6, kSCPropNetIPv6ConfigMethod) : NULL;
+	if (v6 == NULL)
+		s->method6 = M6_NONE;
+	else if (m == NULL || CFEqual(m, kSCValNetIPv6ConfigMethodAutomatic) ||
+	    CFEqual(m, kSCValNetIPv6ConfigMethodRouterAdvertisement))
+		s->method6 = M6_AUTOMATIC;
+	else if (CFEqual(m, kSCValNetIPv6ConfigMethodLinkLocal))
+		s->method6 = M6_LINKLOCAL;
+	else if (CFEqual(m, kSCValNetIPv6ConfigMethodManual)) {
+		CFTypeRef p = CFDictionaryGetValue(v6, kSCPropNetIPv6PrefixLength);
+
+		s->method6 = M6_MANUAL;
+		s->prefix6 = 64;
+		if (p != NULL && CFGetTypeID(p) == CFArrayGetTypeID() &&
+		    CFArrayGetCount(p) > 0)
+			p = CFArrayGetValueAtIndex(p, 0);
+		if (p != NULL && CFGetTypeID(p) == CFNumberGetTypeID())
+			CFNumberGetValue(p, kCFNumberIntType, &s->prefix6);
+		if (!string_in(CFDictionaryGetValue(v6, kSCPropNetIPv6Addresses),
+		    AF_INET6, &s->addr6))
+			ok = false;
+	} else
+		ok = false;
+	if (v4 != NULL)
+		CFRelease(v4);
+	if (v6 != NULL)
+		CFRelease(v6);
+	return ok;
+}
+
 static CFStringRef
 copy_string4(struct in_addr a)
 {

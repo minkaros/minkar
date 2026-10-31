@@ -300,11 +300,18 @@ typedef enum {
 	OTHER_JOB_DISABLED,
 	OTHER_JOB_ACTIVE,
 	OTHER_JOB_INACTIVE,
+	/* Minkar: KeepAlive's PathState, WatchPaths and QueueDirectories. */
+	PATH_EXISTS,
+	PATH_MISSING,
+	PATH_CHANGES,
+	DIR_NOT_EMPTY,
 } semaphore_reason_t;
 
 struct semaphoreitem {
 	SLIST_ENTRY(semaphoreitem) sle;
 	semaphore_reason_t why;
+	int fd;		/* Minkar: the watched path (or an ancestor), or -1 */
+	bool self;	/* Minkar: fd is the path itself, not an ancestor */
 
 	union {
 		const char what[0];
@@ -323,6 +330,9 @@ static void semaphoreitem_delete(job_t j, struct semaphoreitem *si);
 static void semaphoreitem_setup(launch_data_t obj, const char *key, void *context);
 static void semaphoreitem_setup_dict_iter(launch_data_t obj, const char *key, void *context);
 static void semaphoreitem_runtime_mod_ref(struct semaphoreitem *si, bool add);
+static bool semaphoreitem_is_path(struct semaphoreitem *si);
+static void semaphoreitem_watch(job_t j, struct semaphoreitem *si);
+static void job_callback_vnode(job_t j, struct kevent *kev);
 
 struct externalevent {
 	LIST_ENTRY(externalevent) sys_le;
@@ -3038,6 +3048,27 @@ job_import_array(job_t j, const char *key, launch_data_t value)
 			}
 		}
 		break;
+	/* Minkar: paths that start the job when they change, directories that
+	 * keep it running while they hold something. */
+	case 'w':
+	case 'W':
+	case 'q':
+	case 'Q': {
+		bool watch = strcasecmp(key, LAUNCH_JOBKEY_WATCHPATHS) == 0;
+
+		if (!watch && strcasecmp(key, LAUNCH_JOBKEY_QUEUEDIRECTORIES) != 0) {
+			job_log(j, LOG_WARNING, "Unknown key for array: %s", key);
+			break;
+		}
+		for (i = 0; i < value_cnt; i++) {
+			launch_data_t p = launch_data_array_get_index(value, i);
+
+			if (launch_data_get_type(p) == LAUNCH_DATA_STRING) {
+				semaphoreitem_new(j, watch ? PATH_CHANGES : DIR_NOT_EMPTY, launch_data_get_string(p));
+			}
+		}
+		break;
+	}
 	default:
 		job_log(j, LOG_WARNING, "Unknown key for array: %s", key);
 		break;
@@ -4367,6 +4398,8 @@ job_callback(void *obj, struct kevent *kev)
 		return job_callback_read(j, (int) kev->ident);
 	case EVFILT_MACHPORT:
 		return (void)job_dispatch(j, true);
+	case EVFILT_VNODE:
+		return job_callback_vnode(j, kev);
 	default:
 		job_log(j, LOG_ERR, "Unrecognized job callback filter: %hd", kev->filter);
 	}
@@ -6224,6 +6257,37 @@ job_keepalive(job_t j)
 				}
 			}
 			break;
+		/* Minkar: a path that exists (or not), a queue with something in it. */
+		case PATH_EXISTS:
+			wanted_state = true;
+		case PATH_MISSING: {
+			struct stat sb;
+
+			if ((stat(si->what, &sb) == 0) == wanted_state) {
+				job_log(j, LOG_DEBUG, "KeepAlive: The following path %s: %s", wanted_state ? "exists" : "is missing", si->what);
+				return true;
+			}
+			break;
+		}
+		case DIR_NOT_EMPTY: {
+			DIR *dir = opendir(si->what);
+			struct dirent *de;
+			bool full = false;
+
+			while (dir && !full && (de = readdir(dir)) != NULL) {
+				full = strcmp(de->d_name, ".") != 0 && strcmp(de->d_name, "..") != 0;
+			}
+			if (dir) {
+				closedir(dir);
+			}
+			if (full) {
+				job_log(j, LOG_DEBUG, "KeepAlive: The queue directory is not empty: %s", si->what);
+				return true;
+			}
+			break;
+		}
+		case PATH_CHANGES:
+			break;
 		}
 	}
 
@@ -7482,12 +7546,17 @@ semaphoreitem_new(job_t j, semaphore_reason_t why, const char *what)
 	}
 
 	si->why = why;
+	si->fd = -1;
 
 	if (what) {
 		strcpy(si->what_init, what);
 	}
 
 	SLIST_INSERT_HEAD(&j->semaphores, si, sle);
+
+	if (semaphoreitem_is_path(si)) {
+		semaphoreitem_watch(j, si);
+	}
 
 	if ((why == OTHER_JOB_ENABLED || why == OTHER_JOB_DISABLED) && !j->nosy) {
 		job_log(j, LOG_DEBUG, "Job is interested in \"%s\".", what);
@@ -7498,6 +7567,78 @@ semaphoreitem_new(job_t j, semaphore_reason_t why, const char *what)
 	semaphoreitem_runtime_mod_ref(si, true);
 
 	return true;
+}
+
+/*
+ * Minkar: paths are watched with kqueue: the path itself, or while it does
+ * not exist the nearest ancestor that does (a change there may bring it).
+ * Every event re-arms the job's watches and dispatches the job again.
+ */
+bool
+semaphoreitem_is_path(struct semaphoreitem *si)
+{
+	return (si->why == PATH_EXISTS || si->why == PATH_MISSING ||
+	    si->why == PATH_CHANGES || si->why == DIR_NOT_EMPTY);
+}
+
+void
+semaphoreitem_watch(job_t j, struct semaphoreitem *si)
+{
+	char path[PATH_MAX];
+	int fd = -1;
+
+	if (si->fd != -1) {
+		(void)close(si->fd);
+		si->fd = -1;
+	}
+	(void)strlcpy(path, si->what, sizeof(path));
+	while (path[0] != '\0') {
+		char *slash;
+
+		if ((fd = open(path, O_EVTONLY)) != -1 || strcmp(path, "/") == 0) {
+			break;
+		}
+		if ((slash = strrchr(path, '/')) == NULL) {
+			break;
+		}
+		if (slash == path) {
+			path[1] = '\0';
+		} else {
+			*slash = '\0';
+		}
+	}
+	if (fd == -1) {
+		return;
+	}
+	si->self = strcmp(path, si->what) == 0;
+	si->fd = _fd(fd);
+	(void)job_assumes_zero_p(j, kevent_mod((uintptr_t)fd, EVFILT_VNODE,
+	    EV_ADD|EV_CLEAR, NOTE_WRITE|NOTE_DELETE|NOTE_RENAME|NOTE_EXTEND|
+	    NOTE_ATTRIB|NOTE_LINK|NOTE_REVOKE, 0, j));
+}
+
+void
+job_callback_vnode(job_t j, struct kevent *kev)
+{
+	struct semaphoreitem *si;
+	bool changed = false;
+
+	SLIST_FOREACH(si, &j->semaphores, sle) {
+		struct stat sb;
+
+		/* A change in an ancestor counts when it brought the path. */
+		if (si->fd == (int)kev->ident && si->why == PATH_CHANGES &&
+		    (si->self || stat(si->what, &sb) == 0)) {
+			changed = true;
+		}
+	}
+	SLIST_FOREACH(si, &j->semaphores, sle) {
+		if (semaphoreitem_is_path(si)) {
+			semaphoreitem_watch(j, si);
+		}
+	}
+	job_log(j, LOG_DEBUG, "A watched path changed.");
+	(void)job_dispatch(j, changed);
 }
 
 void
@@ -7533,6 +7674,10 @@ semaphoreitem_delete(job_t j, struct semaphoreitem *si)
 	semaphoreitem_runtime_mod_ref(si, false);
 
 	SLIST_REMOVE(&j->semaphores, si, semaphoreitem, sle);
+
+	if (si->fd != -1) {
+		(void)close(si->fd);	// its knote goes with it
+	}
 
 	// We'll need to rethink this if it ever becomes possible to dynamically add or remove semaphores.
 	if ((si->why == OTHER_JOB_ENABLED || si->why == OTHER_JOB_DISABLED) && j->nosy) {
@@ -7587,6 +7732,9 @@ semaphoreitem_setup(launch_data_t obj, const char *key, void *context)
 		} else if (strcasecmp(key, LAUNCH_JOBKEY_KEEPALIVE_OTHERJOBENABLED) == 0) {
 			sdic.why_true = OTHER_JOB_ENABLED;
 			sdic.why_false = OTHER_JOB_DISABLED;
+		} else if (strcasecmp(key, LAUNCH_JOBKEY_KEEPALIVE_PATHSTATE) == 0) {
+			sdic.why_true = PATH_EXISTS;	// Minkar
+			sdic.why_false = PATH_MISSING;
 		} else {
 			job_log(j, LOG_ERR, "Unrecognized KeepAlive attribute: %s", key);
 			break;

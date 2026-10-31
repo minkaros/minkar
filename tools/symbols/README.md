@@ -34,8 +34,28 @@ What it compares, and what not:
   asks for.
 - Objective-C classes are symbols (`_OBJC_CLASS_$_NSUUID`); methods are
   looked up at run time and are not covered.
-- A symbol that exists but is a stub counts as present. Noisy stubs (plan,
-  Phase 2) will let the report tell them apart.
+- A symbol that exists but is a stub counts as present. `trivial-functions.py`
+  (below) and the noisy-stub log tell them apart.
+
+## Silent stubs
+
+`trivial-functions.py` lists the exported functions of a sysroot's
+libraries and frameworks that do nothing: their code, without the frame
+set-up, is only a return (of nothing, zero, a constant or the first
+argument).
+
+    python3 -B tools/symbols/trivial-functions.py --sysroot ../build/sysroot \
+        --out ../build/symbols/trivial.tsv
+
+Most are stubs that answer without doing the work; some are empty by design
+(fork hooks, no-ops). The ones that are stubs become noisy stubs: they call
+`MINKAR_STUB()` (C) or `NSUnimplementedMethod()` (Objective-C), from
+`<minkar/stub.h>`, and their first call in a process is logged to syslogd
+under the subsystem `org.minkar.stubs`:
+
+    syslog | grep org.minkar.stubs
+
+A stub answers as before; only the log line is new.
 
 ## Reference apps
 

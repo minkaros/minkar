@@ -162,6 +162,11 @@ tdtraverse(tdesc_t *this, tdesc_t **thisp, tdtrav_data_t *tdtd)
 	int descend = 1;
 	int rc;
 
+	/* Minkar: a type that could not be converted (a member's or a
+	 * pointer's target left unset) ends the walk there. */
+	if (this == NULL)
+		return (1);
+
 	if ((travcb = tdtd->firstops[this->t_type]) != NULL) {
 		if ((rc = travcb(this, thisp, tdtd->private)) < 0)
 			return (rc);

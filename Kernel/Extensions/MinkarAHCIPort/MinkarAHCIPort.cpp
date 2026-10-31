@@ -25,6 +25,7 @@
 
 #include <IOKit/IOLib.h>
 #include <IOKit/storage/IOMedia.h>
+#include <IOKit/storage/IOStorageDeviceCharacteristics.h>
 #include <pexpert/pexpert.h>
 #include "MinkarAHCIPort.h"
 #include "MinkarAHCIDisk.h"
@@ -1211,6 +1212,17 @@ MinkarAHCIPort::firmwareString(uint32_t portIndex) const
     return fPorts[portIndex].firmware;
 }
 
+/* What IDENTIFY's word 217 says of the medium, or NULL when it says nothing. */
+const char *
+MinkarAHCIPort::mediumType(uint32_t portIndex) const
+{
+    if (portIndex >= 32 || !fPorts[portIndex].valid) return NULL;
+    uint16_t r = fPorts[portIndex].rotation;
+    if (r == 0x0001) return kIOPropertyMediumTypeSolidStateKey;
+    if (r >= 0x0401 && r <= 0xFFFE) return kIOPropertyMediumTypeRotationalKey;
+    return NULL;
+}
+
 void
 MinkarAHCIPort::ataSwapString(char         * dst,
                              size_t         dstLen,
@@ -1249,6 +1261,7 @@ MinkarAHCIPort::parseIdentifyData(PortState &portState, const uint16_t *id)
                   id + IDENTIFY_MODEL_START, 20);
 
     portState.lba48 = ((id[IDENTIFY_CAP_83] & (1U << 10)) != 0);
+    portState.rotation = id[IDENTIFY_ROTATION];
 
     if (portState.lba48) {
         portState.sectorCount =

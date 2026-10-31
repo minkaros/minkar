@@ -6,7 +6,7 @@ BUNDLE_IDENTIFIER = com.apple.iokit.IOACPIFamily
 BUNDLE_VERSION = 1.0.0
 KERNEL_PRIVATE = yes
 
-SRCS = ACPIRTC.cpp \
+SRCS = ACPIRTC.cpp SMBIOS.cpp \
 	EFINVRAM.cpp \
 	ACPICPU.cpp \
 	ACPIPCIBridge.cpp \
@@ -14,7 +14,8 @@ SRCS = ACPIRTC.cpp \
 	IOACPIPlatformDevice.cpp \
 	util.cpp \
 	ACPIOSLayer.cpp \
-	ACPIInterpreter.cpp
+	ACPIInterpreter.cpp \
+	ACPIPowerButton.cpp
 
 # ACPICA (Intel, BSD-3 option; restored from this repository's history):
 # the AML interpreter, without its debugger and disassembler. See

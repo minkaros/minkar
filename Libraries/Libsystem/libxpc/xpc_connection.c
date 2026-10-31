@@ -252,7 +252,7 @@ xpc_connection_send_barrier(xpc_connection_t xconn, dispatch_block_t barrier)
 void
 xpc_connection_cancel(xpc_connection_t connection)
 {
-
+	MINKAR_STUB();
 }
 
 const char *
@@ -320,12 +320,13 @@ void
 xpc_connection_set_finalizer_f(xpc_connection_t connection,
     xpc_finalizer_t finalizer)
 {
-
+	MINKAR_STUB();
 }
 
 xpc_endpoint_t
 xpc_endpoint_create(xpc_connection_t connection)
 {
+	MINKAR_STUB();
 	return (NULL);
 }
 
@@ -554,5 +555,6 @@ xpc_object_t
 xpc_connection_copy_entitlement_value(xpc_connection_t connection __unused,
     const char *entitlement __unused)
 {
+	MINKAR_STUB();
 	return (NULL);
 }

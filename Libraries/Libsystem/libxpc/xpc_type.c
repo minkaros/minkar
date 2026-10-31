@@ -309,7 +309,8 @@ xpc_data_create(const void *bytes, size_t length)
 xpc_object_t
 xpc_data_create_with_dispatch_data(dispatch_data_t ddata)
 {
-
+	MINKAR_STUB();
+	return (NULL);
 }
 #endif
 
@@ -345,7 +346,7 @@ size_t
 xpc_data_get_bytes(xpc_object_t xdata, void *buffer, size_t off, size_t length)
 {
 
-	/* XXX */
+	MINKAR_STUB();
 	return (0);
 }
 
@@ -472,7 +473,7 @@ xpc_equal(xpc_object_t x1, xpc_object_t x2)
 	xo1 = x1;
 	xo2 = x2;
 
-	/* FIXME */
+	MINKAR_STUB();
 	return (false);
 }
 

@@ -190,6 +190,7 @@ struct AHCIFIS_H2D {
 #define IDENTIFY_SECTORS_48   100   /* Total sectors (48-bit LBA), 4 words */
 #define IDENTIFY_SECTORS_28   60    /* Total sectors (28-bit LBA), 2 words */
 #define IDENTIFY_CAP_83       83    /* Features supported: bit 10 = 48-bit LBA */
+#define IDENTIFY_ROTATION    217    /* Nominal media rotation rate: 1 = solid state */
 #define IDENTIFY_MODEL_START  27    /* Model string (40 bytes, 20 words) */
 #define IDENTIFY_FIRMWARE_REV 23    /* Firmware revision (8 bytes, 4 words) */
 #define IDENTIFY_SERIAL_START 10    /* Serial number (20 bytes, 10 words) */

@@ -1,0 +1,105 @@
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\" Copyright (c) 2026 The Minkar contributors
+.\" Part of Minkar.
+.Dd October 29, 2026
+.Dt SYSADMINCTL 8
+.Os Minkar
+.Sh NAME
+.Nm sysadminctl
+.Nd manage user accounts
+.Sh SYNOPSIS
+.Nm
+.Fl addUser Ar name
+.Op Fl fullName Ar full_name
+.Op Fl UID Ar uid
+.Op Fl shell Ar path
+.Op Fl password Ar password | Fl
+.Op Fl home Ar path
+.Op Fl admin
+.Nm
+.Fl deleteUser Ar name
+.Op Fl secure | Fl keepHome
+.Nm
+.Fl resetPasswordFor Ar name
+.Fl newPassword Ar password | Fl
+.Nm
+.Fl secureTokenStatus Ar name
+.Nm
+.Fl guestAccount Cm status
+.Sh DESCRIPTION
+.Nm
+creates, deletes and changes the local user accounts, kept in
+.Pa /etc/master.passwd
+(the databases are rebuilt with
+.Xr pwd_mkdb 8 )
+and
+.Pa /etc/group .
+It must be run as root.
+It reports what it does on the standard error, each line stamped with the
+time and the process.
+A password given as
+.Fl
+is asked for on the terminal.
+.Bl -tag -width indent
+.It Fl addUser Ar name
+Create the account: the first free user ID from 501 unless
+.Fl UID
+gives one, the
+.Li staff
+group, the full name (the name itself unless
+.Fl fullName ) ,
+the home
+.Pa /Users/ Ns Ar name
+(or
+.Fl home )
+with the folders Desktop, Documents, Downloads, Library, Movies, Music,
+Pictures and Public, and
+.Pa /bin/zsh
+(or
+.Fl shell ) .
+The password is stored as a SHA-512
+.Xr crypt 3
+hash; without
+.Fl password
+the account is created locked.
+.Fl admin
+adds the user to the
+.Li admin
+group.
+.It Fl deleteUser Ar name
+End the user's processes, delete the account, take the user out of every
+group and remove the home under
+.Pa /Users ,
+unless
+.Fl keepHome .
+.Fl secure
+is accepted.
+System accounts (user IDs below 501) are not deleted.
+.It Fl resetPasswordFor Ar name Fl newPassword Ar password
+Set the user's password.
+.It Fl secureTokenStatus Ar name
+Disabled: there is no volume encryption yet.
+.It Fl guestAccount Cm status
+Whether a Guest account exists.
+.El
+.Pp
+.Fl hint ,
+.Fl passwordHint ,
+.Fl picture ,
+.Fl adminUser
+and
+.Fl adminPassword
+are accepted and not used.
+.Sh FILES
+.Bl -tag -width indent
+.It Pa /etc/master.passwd
+.It Pa /etc/group
+.It Pa /Users
+.El
+.Sh EXIT STATUS
+.Ex -std
+.Sh SEE ALSO
+.Xr chpass 1 ,
+.Xr passwd 1 ,
+.Xr pwd_mkdb 8 ,
+.Xr vipw 8
