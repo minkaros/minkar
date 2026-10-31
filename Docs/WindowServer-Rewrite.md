@@ -1,0 +1,319 @@
+# WindowServer rewrite plan
+
+Status: **accepted** (2026-10-31). Phase 4 of [ROADMAP.md](ROADMAP.md).
+Spanish version: [WindowServer-Rewrite.es.md](WindowServer-Rewrite.es.md).
+Checked against `devel` at `21fb25034`.
+
+This document is both the decision record and the work plan.
+Read "Rules for this work" before the first commit.
+
+## 1. Decision
+
+Write a new WindowServer core and port the parts of the current one that are
+worth keeping. Do not keep extending the current core, and do not throw all
+of it away.
+
+Before the new core exists, run the current WindowServer once, as it is, to
+get the first pixels on screen (milestone WS0). That validates the kernel
+input path, the framebuffer and AppKit drawing end to end, and gives the
+project a graphical `boottest` gate early. After WS0 the current core only
+receives fixes that WS0 needs.
+
+**Guiding rule (decided 2026-10-31):** where the reference platform has a
+known design (process layout, user, permissions, window movement), the new
+WindowServer follows it, so nothing has to be redone later for
+compatibility. A shortcut is allowed during development only when it is
+written down in section 9 with the milestone that removes it.
+
+## 2. Why: findings in the current code
+
+Own code is about 2,800 lines (MIT, from ravynOS) in
+`CoreServices/WindowServer`, plus about 440,000 lines of third-party input code: libinput, libevdev
+and mtdev are no longer built; libxkbcommon is, for keyboard layouts. It has
+never run on Minkar; its only test covers the keymap.
+
+1. **Compositing cannot meet the performance requirement.**
+   `-[WindowServer run]` (`WindowServer.m`) redraws the whole screen on every
+   pass of a `poll()` with a 50 ms timeout: no damage tracking, no vsync, no
+   synchronized double buffering. Clients draw into shared memory while the
+   server reads it, with no fence, so frames tear. There is no place to plug
+   IOSurface or a GPU backend ("FIXME: lock this to vsync").
+2. **Hand-written IPC.** `message.h` defines fixed structs of about 128 KB
+   (`unsigned char data[128*1024]`) that are copied whole for every message,
+   a 60-byte input event included. Sends use a 50 ms timeout, so events are
+   dropped under load. `message.h` itself says "refactor this to a .defs file
+   and use mig". Window IDs are chosen by each client and are only unique
+   together with the owner PID (`rpc.h`, `wsWindowListEntry`).
+3. **Security.** Display capture creates its shared memory with
+   `shmget(..., IPC_CREAT | 0666)` (`IOFramebufferDisplay.m`): any process can
+   read and write the captured screen. Window surfaces are named POSIX shared
+   memory objects.
+4. **Window model.** States copied from X11/Wayland (`MAXVERT`, `MAXHORIZ`);
+   no relative ordering (`orderWindow:relativeTo:`), child windows, sheets,
+   alpha, shadows or Spaces. Window dragging is decided by the server from
+   the title bar's geometry (`sendEventToApp:`).
+5. **Input.** No device backend (`-[WSInput run:]` is empty), no IOHIDSystem
+   reader, X keyboard layouts through libxkbcommon, no key repeat.
+   `CGEventTapCreate`, `CGEventPost` and the other event tap functions in
+   `Frameworks/CoreGraphics/CGEvent.m` are empty bodies of non-void functions
+   (undefined behavior).
+6. **Mixed responsibilities.** WindowServer launches LoginWindow and
+   SystemUIServer and sets up the user environment (`launchShell:`,
+   `setUpEnviron:`). Session start belongs to launchd and the login window.
+7. **Core Animation.** `CARenderer` composites on the client with OpenGL;
+   there is no layer tree the server can composite.
+
+What is worth keeping:
+
+- `IOFramebufferDisplay.m` (363 lines): the IOFramebuffer backend already
+  ported to XNU (server connection, mode query, scanout mapping).
+- `WSDisplay`: the display model (modes, gamma, mirroring, capture state).
+- The logic of the ~60 Quartz Display Services RPCs in `WindowServer.m`
+  (`rpcGetOnlineDisplayList:` to `rpcGetLastMouseDelta:`) and of the window
+  list (`rpcWindowList:`), with their clients `CGDirectDisplay.m` and
+  `CGWindowList.m`.
+- `WSKeymap.c`, as a stopgap until layouts move to `UCKeyTranslate`.
+- App activation (`activateApp:`, `switchApp`), as a reference.
+- SystemUIServer and LoginWindow as clients.
+
+## 3. What compatibility means here
+
+The protocol between AppKit and WindowServer on the reference platform is
+private, and Minkar ships its own AppKit and CoreGraphics. So the protocol
+is ours to design. Compatibility is the public API and its behavior:
+
+| Area | Public API | Today |
+| --- | --- | --- |
+| Quartz Display Services | `CGGetActiveDisplayList`, modes, gamma, capture, configuration | Mostly there; port it |
+| Quartz Window Services | `CGWindowListCopyWindowInfo`, `CGWindowListCreateImage` | Partial |
+| Quartz Event Services | `CGEventTapCreate`, `CGEventPost`, `CGEventSourceRef` | Empty |
+| Display streams | `CGDisplayStream` | Missing |
+| Window semantics | `NSWindow` levels, ordering, key and main window, child windows, sheets, collection behavior, alpha, shadows | Minimal |
+| Screens | `NSScreen` frames, visible frames, backing scale | Partial |
+| Cursors | `NSCursor`, cursor rects, hide and show, warp | Partial |
+| Core Animation | Layer trees rendered by the server | Missing |
+
+Non-goals: cloning the reference platform's private window server SPI;
+Spaces and an overview UI in the first version (the model keeps room for
+them); HDR; more than one GPU.
+
+## 4. Target architecture
+
+### Process
+
+- One daemon, laid out as on the reference platform: the executable is
+  `/System/Library/PrivateFrameworks/SkyLight.framework/Resources/WindowServer`,
+  started by launchd from `org.minkar.WindowServer.plist`, with its Mach
+  service in `MachServices`. It only serves; it launches nothing.
+  `SkyLight` is used as an identifier for compatibility, like any other
+  framework name.
+- The login window and the user session are started by launchd (LoginWindow
+  as a daemon on the console; the session's agents after login). The code
+  in `launchShell:` and `setUpEnviron:` moves there.
+- Runs as the `_windowserver` user (UID 88), as on the reference platform.
+  The launchd job sets the user; the kernel grants the framebuffer and HID
+  user clients to it. Root only until WS4 (section 9).
+
+### Modules (new layout in `CoreServices/WindowServer/`)
+
+| Module | Responsibility |
+| --- | --- |
+| `IPC/` | `WindowServer.defs` (MIG): connection, window, surface, display, event, cursor and capture subsystems. Messages carry only their data; large data travels as out-of-line memory or memory entries. |
+| `Server/` | `main`, dispatch queues, connection manager. Each client connection records PID, UID and audit token from the Mach trailer. |
+| `Model/` | `WSConnection`, `WSWindow` (server-assigned global `CGWindowID`, owner, level, order, frame, alpha, opacity, shadow, parent and children, collection behavior, title, sharing state), `WSWindowList` (ordering within and across levels), `WSSpace` (one space now). |
+| `Surfaces/` | `WSSurface`: a window's backing store. First a Mach memory entry (`mach_make_memory_entry_64`) sent as a port, never a named shared memory object; later an IOSurface (roadmap step 4) behind the same interface. Two buffers per window; the client draws into the back one and commits it with its damage and a seed; the server latches committed buffers at frame time. |
+| `Compositor/` | `WSCompositor` over a `WSRenderBackend` interface: create a texture from a surface, draw a quad with alpha, transform and clip, present with damage, report vsync. Per-window damage plus moves and order changes give the screen damage; only damaged regions are composited and presented. Backends: `WSPixmanBackend` first (pixman is in the tree), `WSVulkanBackend` later (GPU track G4). |
+| `Displays/` | `IOFramebufferDisplay` and `WSDisplay` ported: modes, gamma, mirroring, configuration, capture. A display link per display: GOP has no vsync, so a timer at the mode's refresh rate paces frames; virtio-gpu and KMS give real flips later. |
+| `Input/` | IOHIDSystem reader (`kIOHIDServerConnectType`, the shared `EvGlobals` queue, a Mach notification port) → event pipeline: cursor position and acceleration, modifier state, key repeat, keymap (`WSKeymap` for now), hit testing, event taps, routing. Keys go to the key window's owner; mouse events go to the window under the pointer, or to the window that got the mouse down until the mouse up. Each client has a bounded queue; mouse moves are coalesced; the server never blocks on a client. |
+| `Cursor/` | The cursor drawn last as an overlay, with its own damage; hardware cursor later. |
+| `Capture/` | `CGDisplayCreateImage`, `CGWindowListCreateImage`, display capture (the client gets a surface, not a world-readable segment); `CGDisplayStream` later. |
+| `Debug/` | `wsctl`: list windows and connections, frame statistics, damage, input latency. |
+
+### Threading
+
+- IPC on a serial queue; input on a high-priority queue; one render thread
+  per display, driven by its display link.
+- The model is changed only on the model queue. The render thread works on
+  an immutable snapshot taken at frame start, so it never holds a lock while
+  drawing.
+
+### Window movement
+
+As on the reference platform, the server moves windows by itself, so a
+window follows the pointer even while its app is busy:
+
+- Each window tells the server its drag regions (the title bar and, with
+  `movableByWindowBackground`, the background), and updates them when its
+  layout changes. A mouse down in a drag region starts a server-side move.
+- `-[NSWindow performWindowDragWithEvent:]` starts the same move from the
+  app.
+- The app is told the new frame (`NSWindowDidMoveNotification` and the
+  usual delegate calls) when the move ends, and as it goes.
+- The server no longer guesses from the title bar's geometry.
+
+### Core Animation
+
+Version 1 composites each window's surface; AppKit renders its layers into
+it on the client. Version 2 lets a client send layer-tree commits to the
+server's compositor (needed for smooth animation at the performance gates).
+`WSSurface` and `WSCompositor` keep that door open; the design comes in its
+own ADR after M4.
+
+### Client side
+
+- The client side lives in the same private framework,
+  `PrivateFrameworks/SkyLight.framework`, which wraps the MIG interface:
+  connection, windows, surfaces, events. CoreGraphics re-exports it, as on
+  the reference platform, so the private `CGS*` and `SLS*` functions that
+  third-party apps call (main connection, window alpha, level, order...)
+  resolve where those apps expect them. That subset is implemented from
+  public information and observed behavior only; the wire protocol stays
+  ours (MIG) and is not meant to match the reference.
+- CoreGraphics (`CGDirectDisplay.m`, `CGWindowList.m`, `CGEvent.m`) and
+  AppKit (`NSApplication`, `NSWindow`, `NSScreen`, `NSEvent`, `NSCursor`) use
+  it. AppKit's public headers stop including WindowServer headers
+  (`<AppKit/NSDisplay.h>` pulls in `<WindowServer/message.h>` today).
+
+### Security
+
+- Every request is checked against the caller's audit token.
+- Privacy permissions as on the reference platform since API 19:
+  - **Screen recording:** `CGDisplayCreateImage`, `CGWindowListCreateImage`,
+    display streams and other apps' window titles in
+    `CGWindowListCopyWindowInfo` (without it, `kCGWindowName` is left out).
+    `CGPreflightScreenCaptureAccess` and `CGRequestScreenCaptureAccess`.
+  - **Input monitoring:** listen-only event taps that see keyboard events.
+    `CGPreflightListenEventAccess` and `CGRequestListenEventAccess`.
+  - **Accessibility / posting events:** filtering taps and `CGEventPost`.
+    `CGPreflightPostEventAccess`, `CGRequestPostEventAccess` and
+    `AXIsProcessTrusted`.
+- WindowServer asks one permission service for every check, keyed by the
+  client's code identity (bundle ID, path) and the user. The service is a
+  privacy database daemon with its own ADR; until it exists, a built-in
+  policy answers (section 9). The check points and the API answers are the
+  final ones from WS3 on.
+- Surfaces are shared only through ports given to their owner; no
+  world-readable or world-writable memory.
+
+## 5. Milestones
+
+Each milestone ends with tests that pass, `boottest GATE=M2` still green,
+and the roadmap updated with the evidence.
+
+### WS0 — First pixels with the current server
+
+Depends on the Phase 4 kernel work: IOHIDSystem event delivery (the dispatch
+loop under the undefined `NEW_HID`, the event queues) and the
+`ApplePS2Mouse` driver. Those are separate tasks with their own commits.
+
+- Install WindowServer's launchd job; boot to a WindowServer that draws on
+  `IOGOPFramebuffer`, with a demo client window.
+- Minimal fixes only, and the capture memory not world-accessible (`0666`).
+- New `boottest` gate `M4-draw`: a QMP `screendump` compared with a
+  reference image (with a tolerance), and a key and a mouse click injected
+  through QMP that reach the demo window as `NSEvent`s.
+
+### WS1 — Skeleton and interface
+
+- This document accepted; `WindowServer.defs` and the client side in `SkyLight.framework`; the new server installed in `SkyLight.framework/Resources`.
+- New core built next to the old one; the old one moves to `Legacy/` and
+  stays the default.
+- Display Services and the window list ported to MIG, with a test client
+  that calls every one and checks the replies.
+
+### WS2 — Windows, surfaces and the software compositor
+
+- Window model with global `CGWindowID`s, levels and ordering.
+- Surfaces as memory entries with two buffers and commits with damage.
+- `WSPixmanBackend`, damage-driven compositing, display link at the
+  refresh rate, cursor overlay.
+- `NSWindow` drawing through `SkyLight.framework`.
+- Tests: two overlapping AppKit windows, ordering changes and moves checked
+  with `screendump`; frame statistics from `wsctl` (no frame while nothing
+  changes; only damaged regions redrawn).
+
+### WS3 — Input
+
+- IOHIDSystem reader, routing, key repeat, coalescing, mouse capture during
+  drags, key and main window, client-started moves.
+- `CGEventTapCreate`, `CGEventTapEnable`, `CGEventPost`,
+  `CGGetEventTapList` implemented.
+- Tests: QMP-injected keys and clicks reach the right window; a
+  listen-only tap sees them; a filtering tap can drop one; `CGEventPost`
+  reaches the key window.
+
+### WS4 — Window behavior and the switch
+
+- `CGWindowListCopyWindowInfo` with the reference dictionary keys,
+  `CGWindowListCreateImage`, child windows, sheets, alpha, software shadows,
+  `NSCursor` and cursor rects, display capture through surfaces.
+- Session start moved out of WindowServer.
+- The new core becomes the default; `Legacy/` is removed, and so are the
+  libinput, libevdev and mtdev trees.
+- Gate M4 in QEMU: several AppKit apps open windows, are dragged, take
+  keyboard input and redraw without artifacts.
+
+### WS5 — IOSurface and virtio-gpu
+
+- IOSurface (roadmap step 4) behind `WSSurface`.
+- virtio-gpu 2D display (roadmap step 3) with real flips and resolution
+  changes from `CGDisplaySetDisplayMode`.
+- `CGDisplayStream`.
+
+### WS6 — GPU compositing
+
+- `WSVulkanBackend` (GPU track G4), selected per display.
+- Compositing performance gate on the reference PC, required for
+  Minkar 21.0: display refresh rate without dropped frames with several
+  animated windows, and WindowServer CPU no higher than the reference.
+
+Later: layer trees composited by the server (its own ADR), several
+displays, Spaces, hardware cursor.
+
+## 6. Measurements built in from WS2
+
+- Frame time, frames presented and skipped, damaged area per frame.
+- Input-to-present latency: timestamp at the HID event, at delivery, at the
+  commit that answers it and at present.
+- Exposed by `wsctl stats`, so the performance gates can be measured the
+  same way in the VM and on the physical machines.
+
+## 7. Tests
+
+- Model tests (ordering, levels, damage regions) as command-line programs
+  in the existing test suite.
+- Integration through `boottest`: `M4-draw` from WS0, and gate `M4` from
+  WS4.
+- QMP `screendump` comparisons with a per-pixel tolerance; QMP input
+  injection for keyboard and mouse.
+
+## 8. Rules for this work
+
+- Everything committed is in English, except the `.es.md` translations of
+  the documentation. No third-party product names in code,
+  comments, documentation or commit messages; API and symbol names stay as
+  they are.
+- New code under MIT or BSD-2-Clause. Clean room: no code from closed
+  sources of the reference platform; public documentation and headers of
+  the public API only.
+- Small commits, one subject each; show the diff before committing.
+- Kernel changes (IOHIDSystem, `ApplePS2Mouse`, IOSurface, virtio-gpu) are
+  separate commits from WindowServer changes.
+- Mark a roadmap item done only with evidence (commit, test, `boottest`
+  output) and cite it.
+- Keep `boottest GATE=M2` green after every milestone; keep the old server
+  working until WS4 switches.
+
+## 9. Decisions and development shortcuts
+
+Decided 2026-10-31, following the guiding rule in section 1:
+
+| Question | Decision (target) | Development shortcut | Removed by |
+| --- | --- | --- | --- |
+| User WindowServer runs as | `_windowserver` (UID 88), set by the launchd job | Root | WS4 |
+| Where it lives | `SkyLight.framework/Resources/WindowServer`; client in `SkyLight.framework`, re-exported by CoreGraphics | `CoreServices/WindowServer.app` for WS0 (current server) | WS1 |
+| Capturing and posting events | Screen recording, input monitoring and accessibility permissions, through a permission service | Built-in policy: root and the console user's processes are allowed; everything else denied | Privacy service ADR (before M5) |
+| Moving windows | Server-side moves from client-declared drag regions, plus `performWindowDragWithEvent:` | Title bar region only | WS4 |
+
+Every shortcut is marked in the code with `// SHORTCUT(WSn):` and the
+milestone that removes it, so they can be listed with `git grep`.

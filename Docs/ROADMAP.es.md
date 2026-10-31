@@ -267,6 +267,8 @@ Objetivo: WindowServer dibuja ventanas de AppKit y recibe teclado y ratón. En l
 
 **Decisión de backend (25 oct 2026)**
 
+El propio WindowServer se reescribe en los hitos WS0 a WS6, según lo decidido el 31 oct 2026: ver el [plan de reescritura de WindowServer](WindowServer-Rewrite.es.md). Las decisiones de salida, compositor y entrada de abajo son las que usa ese plan.
+
 - **Salida inicial:** `IOGOPFramebuffer.kext` con `IOFramebufferDisplay.m` y composición por software. Sirve para Minkar 19.6.0 y para la VM; en los equipos físicos es solo el punto de partida.
 - **Compositor (cambio del 29 oct 2026):** se diseña para GPU desde el inicio, con Vulkan como backend principal detrás de una interfaz propia. pixman queda para el arranque inicial y para VMs sin GPU.
 - **VMs:** driver virtio-gpu 2D como subclase de `IOFramebuffer`; los modos 3D de virtio-gpu (virgl, Venus) son opcionales para probar caminos acelerados.
