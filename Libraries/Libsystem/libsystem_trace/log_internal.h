@@ -62,6 +62,8 @@ struct os_log_s {
     uintptr_t sink_dest; // either int val or pointer
     _os_log_sink_type_t sink_type;
     uint64_t generate_symptoms;
+    char* subsystem_str; // the same names in C, for the messages
+    char* category_str;
 };
 
 typedef void (^os_block_t)(void);

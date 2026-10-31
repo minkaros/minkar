@@ -262,13 +262,13 @@ void __os_log_error_impl(void* dso,
     os_log_t log,
     const char* format,
     uint8_t* buffer,
-    uint32_t buffer_size);
+    uint32_t buffer_size) __DARWIN_ALIAS(_os_log_error_impl);
 
 void __os_log_fault_impl(void* dso,
     os_log_t log,
     const char* format,
     uint8_t* buffer,
-    uint32_t buffer_size);
+    uint32_t buffer_size) __DARWIN_ALIAS(_os_log_fault_impl);
 
 size_t _os_trace_encode(void* buffer,
     size_t buffer_size,
