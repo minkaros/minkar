@@ -8,8 +8,11 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 #import <Foundation/NSObject.h>
 
+// Minkar: NSIntegerMax, as the API has it (it was 0x7fffffff, which
+// programs built for the reference system do not compare with).
 enum {
-    NSUndefinedDateComponent = 0x7fffffff
+    NSDateComponentUndefined = NSIntegerMax,
+    NSUndefinedDateComponent = NSDateComponentUndefined
 };
 
 @interface NSDateComponents : NSObject {
@@ -24,6 +27,10 @@ enum {
     NSInteger _hour;
     NSInteger _minute;
     NSInteger _second;
+    NSInteger _weekOfMonth;
+    NSInteger _weekOfYear;
+    NSInteger _yearForWeekOfYear;
+    NSInteger _nanosecond;
 }
 
 - (NSInteger)era;
@@ -50,4 +57,8 @@ enum {
 - (void)setMinute:(NSInteger)value;
 - (void)setSecond:(NSInteger)value;
 
+@property NSInteger weekOfMonth;
+@property NSInteger weekOfYear;
+@property NSInteger yearForWeekOfYear;
+@property NSInteger nanosecond;
 @end

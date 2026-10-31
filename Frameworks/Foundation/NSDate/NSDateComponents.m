@@ -22,6 +22,10 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    _hour=NSUndefinedDateComponent;
    _minute=NSUndefinedDateComponent;
    _second=NSUndefinedDateComponent;
+   _weekOfMonth=NSUndefinedDateComponent;
+   _weekOfYear=NSUndefinedDateComponent;
+   _yearForWeekOfYear=NSUndefinedDateComponent;
+   _nanosecond=NSUndefinedDateComponent;
    return self;
 }
 
@@ -112,5 +116,14 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 -(void)setSecond:(NSInteger)value {
    _second=value;
 }
+
+-(NSInteger)weekOfMonth { return _weekOfMonth; }
+-(void)setWeekOfMonth:(NSInteger)value { _weekOfMonth=value; }
+-(NSInteger)weekOfYear { return _weekOfYear; }
+-(void)setWeekOfYear:(NSInteger)value { _weekOfYear=value; }
+-(NSInteger)yearForWeekOfYear { return _yearForWeekOfYear; }
+-(void)setYearForWeekOfYear:(NSInteger)value { _yearForWeekOfYear=value; }
+-(NSInteger)nanosecond { return _nanosecond; }
+-(void)setNanosecond:(NSInteger)value { _nanosecond=value; }
 
 @end
