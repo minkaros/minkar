@@ -274,9 +274,10 @@ macOS's (337 of 354 on 2026-10-30).
   `passwd` since 2026-10-28; `dig`, `nslookup`, Kerberos and `pfctl`
   since 2026-10-29: every BSD tool of Commands.md; `autodiskmount` on
   DiskArbitration, `leaks`, and `fsck_exfat` with `newfs_exfat` since
-  2026-10-30; our own exFAT kernel driver (read only), `mount_exfat` and
-  the `exfat.fs` bundle since 2026-10-30, so diskarbitrationd mounts exFAT
-  disks. Left for this phase: writing exFAT; the phase closes with it.
+  2026-10-30; our own exFAT kernel driver (reading and writing),
+  `mount_exfat` and the `exfat.fs` bundle since 2026-10-31, so
+  diskarbitrationd mounts exFAT disks read-write. Every command of this
+  phase is there.
   The macOS tools that need a later phase moved to it: `pbcopy`,
   `pbpaste` and `screencapture` to Phase 4; `open`, `lsappinfo`, `say`,
   `mdfind`, `mdls` and `mdutil` to Phase 5; `osascript`, `opendiff` and
@@ -674,9 +675,9 @@ The highest-impact open items, in critical-path order:
    checked on it; next, powering off (ACPI S5) and the boot without
    `pci_keep_console`; then a second, different PC (gate M1;
    a Mac Pro 6,1 is the candidate). See [Hardware.md](Hardware.md).
-2. Userland (Phase 2): writing exFAT in our own kernel driver (it
-   reads since 2026-10-30, with `mount_exfat`, `fsck_exfat`, `newfs_exfat`
-   and diskarbitrationd's `exfat.fs`); then Phase 2 closes. 337
+2. Userland (Phase 2): its commands are done (exFAT reads and writes
+   since 2026-10-31); closing it, the items that are not commands go to
+   the phase that needs them (decided 2026-10-30). 337
    of 354 on 2026-10-30, with the NFS server, DiskArbitration,
    `autodiskmount` and `leaks` done.
 3. IOHIDSystem event delivery in the kernel, the `ApplePS2Mouse` driver and
