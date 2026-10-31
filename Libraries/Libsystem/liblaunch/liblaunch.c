@@ -1184,6 +1184,88 @@ launch_msg(launch_data_t d)
 	return r;
 }
 
+/*
+ * Minkar: launch_activate_socket, the reference system's way for a job
+ * to take the sockets of its plist's Sockets dictionary: through a
+ * check-in with launchd. A name is handed out once (EALREADY after).
+ */
+static pthread_mutex_t activated_lock = PTHREAD_MUTEX_INITIALIZER;
+static char **activated;
+static size_t nactivated;
+
+static int
+socket_fds(launch_data_t sock, int **fds, size_t *cnt)
+{
+	size_t i, n;
+
+	if (launch_data_get_type(sock) == LAUNCH_DATA_FD) {
+		if ((*fds = malloc(sizeof(int))) == NULL)
+			return ENOMEM;
+		(*fds)[0] = launch_data_get_fd(sock);
+		*cnt = 1;
+		return 0;
+	}
+	if (launch_data_get_type(sock) != LAUNCH_DATA_ARRAY)
+		return ENOENT;
+	n = launch_data_array_get_count(sock);
+	if ((*fds = calloc(n ? n : 1, sizeof(int))) == NULL)
+		return ENOMEM;
+	for (i = 0; i < n; i++)
+		(*fds)[i] = launch_data_get_fd(launch_data_array_get_index(sock, i));
+	*cnt = n;
+	return 0;
+}
+
+int
+launch_activate_socket(const char *name, int **fds, size_t *cnt)
+{
+	launch_data_t msg, resp, socks, sock;
+	char **grown;
+	size_t i;
+	int error;
+
+	*fds = NULL;
+	*cnt = 0;
+	pthread_mutex_lock(&activated_lock);
+	for (i = 0; i < nactivated; i++) {
+		if (strcmp(activated[i], name) == 0) {
+			pthread_mutex_unlock(&activated_lock);
+			return EALREADY;
+		}
+	}
+	pthread_mutex_unlock(&activated_lock);
+
+	msg = launch_data_new_string(LAUNCH_KEY_CHECKIN);
+	resp = launch_msg(msg);
+	launch_data_free(msg);
+	if (resp == NULL)
+		return ESRCH;
+	if (launch_data_get_type(resp) != LAUNCH_DATA_DICTIONARY) {
+		error = launch_data_get_type(resp) == LAUNCH_DATA_ERRNO &&
+		    launch_data_get_errno(resp) != EPERM ?
+		    launch_data_get_errno(resp) : ESRCH;
+		launch_data_free(resp);
+		return error;
+	}
+	socks = launch_data_dict_lookup(resp, LAUNCH_JOBKEY_SOCKETS);
+	sock = socks ? launch_data_dict_lookup(socks, name) : NULL;
+	error = sock ? socket_fds(sock, fds, cnt) : ENOENT;
+	launch_data_free(resp);
+	if (error)
+		return error;
+
+	pthread_mutex_lock(&activated_lock);
+	grown = realloc(activated, (nactivated + 1) * sizeof(char *));
+	if (grown != NULL) {
+		activated = grown;
+		activated[nactivated] = strdup(name);
+		if (activated[nactivated] != NULL)
+			nactivated++;
+	}
+	pthread_mutex_unlock(&activated_lock);
+	return 0;
+}
+
 extern kern_return_t vproc_mig_set_security_session(mach_port_t, uuid_t, mach_port_t);
 
 #if 0
