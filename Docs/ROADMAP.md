@@ -99,7 +99,7 @@ Minkar boots on Darwin with its own EFI loader, the whole system builds as Mach-
 | CoreFoundation | CF-Lite (APSL) | The APIs missing up to API 21 | 3 |
 | Foundation | Three batches of fixes (2026-10-26); `NSProcessInfo` with `operatingSystemVersion`; re-exports CoreFoundation; `NSURLSession` on libcurl, with cookies; `NSOperationQueue` on dispatch; the main run loop runs dispatch's main queue; `NSDateFormatter` on ICU (2026-10-31); `NSXPCConnection` over libxpc, with the XPC services inside app bundles (2026-10-31) | URL cache and task metrics in `NSURLSession`; the API 19 audit | 3 |
 | Swift 6 | Nothing in the tree | Compiler, stdlib, overlays | 3 |
-| WindowServer | Builds on XNU with an IOFramebuffer backend; never run | Run it; input from IOHIDSystem | 4 |
+| WindowServer | Runs by hand on the GOP framebuffer, with input from IOHIDSystem (WS0, 2026-10-31) | Start at boot, a demo client window, gate `M4-draw` | 4 |
 | GPU acceleration | None; without it the display cannot be turned off either | The whole track (performance requirement) | 4 and Minkar 21.0 |
 | SystemUIServer, Dock | Partial, not built | Almost everything | 5 |
 | Kraz, System Preferences | Do not exist | New Cocoa apps | 5 |
@@ -278,12 +278,12 @@ The WindowServer itself is rewritten in milestones WS0 to WS6, as decided on 202
 
 **Work**
 
-- [ ] Output backend on IOFramebuffer. *Partial:* the kext loads and WindowServer builds with the backend, but it has never run.
-- [ ] WindowServer starts and draws in QEMU. Its job (`org.minkar.WindowServer.plist`) is in the tree but not installed.
-- [ ] IOHIDSystem event delivery to user space: the dispatch loop is under an undefined `NEW_HID` and the event queues are never created.
-- [ ] An IOHIDSystem input reader in WindowServer (`kIOHIDServerConnectType`, `EvGlobals`, Mach port).
-  - [ ] PS/2 keyboard. *Partial:* its keys reach the console, not WindowServer.
-  - [ ] An `ApplePS2Mouse` driver on `ApplePS2MouseDevice`; `IOHIPointing` builds since `90c96e8862`.
+- [x] Output backend on IOFramebuffer: WindowServer opens `IOGOPFramebuffer` and draws on it (2026-10-31, `f10f778c78`: a depth is an index; test `windowserver` 6/0).
+- [ ] WindowServer starts and draws in QEMU. *Partial:* started by hand it stays up and draws the cursor where the pointer goes (`ab71ce75a4`, test `windowserver` 6/0); its job (`org.minkar.WindowServer.plist`) is not installed yet and no client window is drawn.
+- [x] IOHIDSystem event delivery to user space (2026-10-31, `e2df542919`): the event server connection maps the shared `EvGlobals` queue and is told through its Mach port; pointing devices reach it too. Test `hid-events` 9/0. The `NEW_HID` dispatch loop stays off: it feeds the event system queues, which are not built.
+- [x] An IOHIDSystem input reader in WindowServer (`kIOHIDServerConnectType`, `EvGlobals`, Mach port), 2026-10-31, `ab71ce75a4`: moves, clicks and keys injected through QMP reach it (test `windowserver` 6/0).
+  - [ ] PS/2 keyboard. *Partial:* its keys reach the console and IOHIDSystem's queue; through WindowServer only the USB keyboard has been tested.
+  - [x] An `ApplePS2Mouse` driver on `ApplePS2MouseDevice` (2026-10-31, `2aa9a1da6e`): moves, three buttons and the wheel (IntelliMouse); test `ps2-mouse` 12/0.
   - [x] `IOKit/hidsystem` headers in the SDK.
   - [x] xHCI + HID (`MinkarUSB`), tested in QEMU and on PC 1.
 - [ ] Remove `libinput`, `libevdev` and `mtdev` from the tree.
@@ -297,13 +297,13 @@ The WindowServer itself is rewritten in milestones WS0 to WS6, as decided on 202
 
 ## Graphics stack: components and sequence
 
-Of the graphical environment, the drawing base exists (Core Graphics with FreeType, and pixman, libpng, libjpeg and libtiff in `BSD/lib`), as do the GOP console and USB input. The compositing server, IOSurface and everything that depends on the GPU are missing. State verified on `devel` (`fb6e25b877`, 2026-10-31): the graphics stack has not changed since 2026-10-29.
+Of the graphical environment, the drawing base exists (Core Graphics with FreeType, and pixman, libpng, libjpeg and libtiff in `BSD/lib`), as do the GOP console and USB input. The compositing server, IOSurface and everything that depends on the GPU are missing. State verified on `devel` (`ab71ce75a4`, 2026-10-31): IOHIDSystem delivers events, the PS/2 mouse works and WindowServer runs by hand with input (WS0 a to c).
 
 Components, by state:
 
-- **There:** Core Graphics with FreeType; pixman, libpng, libjpeg and libtiff (`BSD/lib`); the GOP console (`IOGOPFramebuffer`); USB input (xHCI + HID, `MinkarUSB`); the `IOKit/hidsystem` headers.
-- **Partial:** WindowServer (builds, never run); the PS/2 keyboard (reaches the console, not WindowServer); QuartzCore and Onyx2D; AppKit (Cocotron).
-- **Missing:** IOHIDSystem event delivery; `ApplePS2Mouse`; virtio-gpu 2D; IOSurface; the Core Animation compositor; Core Text on HarfBuzz/FreeType; giflib and libwebp; ColorSync on Little CMS; and the GPU track (kernel driver, Mesa, Metal).
+- **There:** Core Graphics with FreeType; pixman, libpng, libjpeg and libtiff (`BSD/lib`); the GOP console (`IOGOPFramebuffer`); USB input (xHCI + HID, `MinkarUSB`); the `IOKit/hidsystem` headers; IOHIDSystem event delivery; `ApplePS2Mouse`.
+- **Partial:** WindowServer (runs by hand with input; not at boot, no client window yet); the PS/2 keyboard (reaches the console and IOHIDSystem; tested through WindowServer with the USB keyboard only); QuartzCore and Onyx2D; AppKit (Cocotron).
+- **Missing:** virtio-gpu 2D; IOSurface; the Core Animation compositor; Core Text on HarfBuzz/FreeType; giflib and libwebp; ColorSync on Little CMS; and the GPU track (kernel driver, Mesa, Metal).
 
 Each piece's technical detail is in the graphics stack's technical guide; [Progress.md](Progress.md) draws them by state.
 
@@ -319,7 +319,7 @@ Development sequence:
 
 In parallel, the GPU track G1–G5: from the first driver's family and the KMS prototype to Mesa (lavapipe/llvmpipe in VMs) and Metal (darling-metal and Indium, MPL-2.0).
 
-Step 1 is next: without input, WindowServer cannot close M4. G1 starts as soon as the GPU family is decided, and the GPU track reuses steps 4 and 5.
+Step 1 was done on 2026-10-31 (`e2df542919`, `2aa9a1da6e`); step 2 is under way (WS0). G1 starts as soon as the GPU family is decided, and the GPU track reuses steps 4 and 5.
 
 ## Phase 5 — Gienah desktop
 
@@ -407,7 +407,7 @@ M0 and M2 are met, M1 waits only for the second PC, and Phase 2 is closed (2026-
 | M1 | Darwin boot | Met in QEMU and on PC 1 (SATA, NVMe, SMP); PC 2 missing |
 | M2 | Base userland | Met (`boottest GATE=M2`, 13 markers); Phase 2 closed on 2026-10-31 |
 | M3 | Frameworks and Swift | Not started; prior work in Foundation and libSystem |
-| M4 | Graphics and WindowServer | In progress: WindowServer does not run yet |
+| M4 | Graphics and WindowServer | In progress: WindowServer runs by hand with input (WS0 a to c); not at boot yet |
 | M5 | Gienah desktop | Not started |
 | M6 (Minkar 19.6.0) | Apps and distribution | Not started; `hdiutil attach` already mounts |
 | Minkar 21.0 | API 21 complete and performance ≥ the reference system on a physical machine | Not started; depends on the GPU track |
@@ -435,8 +435,8 @@ In critical-path order:
 - [x] **PC 1 (Phase 1):** NVMe (boots from the SSD) and SMP (all eight threads run), 2026-10-29 and 30; power button and ACPI S5 power-off, 2026-10-31.
 - [ ] **PC 1 (Phase 1):** boot without `pci_keep_console`, IPv6 on the network (RDNSS, DNS over IPv6) and ACPI S3 sleep; then a second, different PC (gate M1; to measure the reference, the Mac Pro 6,1; the machine with the RX 6600, as a test machine).
 - [x] **Userland (Phase 2):** closed on 2026-10-31 (exFAT reading and writing, `launchctl kickstart`, dyld paths, notifyd and IPv6 tested; the rest went to Phases 3, 5 and 6).
-- [ ] **Phase 4:** IOHIDSystem event delivery in the kernel, the `ApplePS2Mouse` driver and WindowServer's input reader.
-- [ ] **Phase 4:** install WindowServer's job and get a first boot that draws on `IOGOPFramebuffer`.
+- [x] **Phase 4:** IOHIDSystem event delivery in the kernel (`e2df542919`), the `ApplePS2Mouse` driver (`2aa9a1da6e`) and WindowServer's input reader (`ab71ce75a4`), 2026-10-31; tests `hid-events` 9/0, `ps2-mouse` 12/0, `windowserver` 6/0, the console tests and M2 pass (full suite 2991 passed after (a)).
+- [ ] **Phase 4:** install WindowServer's job and get a first boot that draws on `IOGOPFramebuffer`. *Partial:* it draws when started by hand (`f10f778c78`, `ab71ce75a4`); left: the capture memory, a demo client window, the job and gate `M4-draw` (WS0 c and d).
 - [ ] **Phase 3:** the Foundation classes the symbol report misses most (`NSURLSession` done 2026-10-31, `00617d5f6c`, with cookies; its cache and metrics left; `NSXPCConnection`, `NSXPCListener` and `NSXPCInterface` done 2026-10-31, `82c5f3e8f8`, test `foundation-xpc-connection` 20/0, full suite 2977/0, M2 PASS; XPC services inside app bundles: the app starts them on demand as its children, without launchd, test `foundation-xpc-service` 9/0), and what came from Phase 2 (libSystem, noisy stubs, `logd`).
 - [ ] **Phase 3:** the Swift toolchain prototypes.
 

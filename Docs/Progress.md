@@ -88,14 +88,14 @@ flowchart TB
         IOS["IOSurface<br/>step 4"]:::todo
     end
     subgraph SERVER["Window server"]
-        WS["WindowServer<br/>builds, never run<br/>step 2"]:::partial
+        WS["WindowServer<br/>runs by hand, with input<br/>step 2 (WS0)"]:::partial
     end
     subgraph INPUT["Input"]
         HIDH["IOKit/hidsystem<br/>headers"]:::done
         USB["xHCI + HID<br/>(MinkarUSB)"]:::done
-        KBD["PS/2 keyboard<br/>reaches the console<br/>step 1"]:::partial
-        MOUSE["ApplePS2Mouse<br/>step 1"]:::todo
-        HIDS["IOHIDSystem event<br/>delivery<br/>step 1"]:::todo
+        KBD["PS/2 keyboard<br/>console and IOHIDSystem"]:::partial
+        MOUSE["ApplePS2Mouse"]:::done
+        HIDS["IOHIDSystem event<br/>delivery"]:::done
     end
     subgraph DISPLAY["Display"]
         GOP["GOP console<br/>(IOGOPFramebuffer)"]:::done
@@ -123,8 +123,8 @@ flowchart TB
 
 ```mermaid
 flowchart LR
-    S1["1. IOHIDSystem events<br/>and the PS/2 mouse"]:::next
-    S2["2. WindowServer<br/>on the GOP framebuffer"]:::todo
+    S1["1. IOHIDSystem events<br/>and the PS/2 mouse"]:::done
+    S2["2. WindowServer<br/>on the GOP framebuffer"]:::next
     S3["3. virtio-gpu 2D<br/>(FreeBSD, BSD-2)"]:::todo
     S4["4. IOSurface<br/>(Mach shared memory)"]:::todo
     S5["5. Core Animation compositor<br/>(Vulkan; pixman for bring-up)"]:::todo
@@ -138,10 +138,12 @@ flowchart LR
     S4 -.-> G2
     S5 -.-> G2
 
+    classDef done fill:#2e7d32,stroke:#1b5e20,color:#fff
     classDef next fill:#1565c0,stroke:#0d47a1,color:#fff
     classDef todo fill:#9e9e9e,stroke:#616161,color:#fff
 ```
 
-Step 1 is next (blue): without input, WindowServer cannot close M4. G1 starts
+Step 1 is done (green, 2026-10-31); step 2 is next (blue): WindowServer runs
+by hand with input and still has to start at boot and draw a client window. G1 starts
 as soon as the GPU family is decided; the dashed arrows mark what the GPU
 track reuses from steps 4 and 5.

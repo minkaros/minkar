@@ -233,6 +233,31 @@ commits.
   inyectados por QMP que llegan a la ventana de demostración como
   `NSEvent`.
 
+Estado al 31 oct 2026:
+
+- [x] (a) Entrega de eventos de IOHIDSystem (`e2df542919`): la conexión del
+  servidor de eventos mapea la cola compartida `EvGlobals` y recibe avisos
+  por su puerto Mach; los dispositivos de puntero también llegan. El bucle
+  de despacho de `NEW_HID` sigue desactivado: alimenta las colas del
+  sistema de eventos, que no se compilan y no son lo que lee WindowServer.
+  Prueba `hid-events` 9/0.
+- [x] (b) `ApplePS2Mouse` (`2aa9a1da6e`): movimiento, tres botones y rueda.
+  Prueba `ps2-mouse` 12/0.
+- [ ] (c) WindowServer. *Parcial:* `IOGOPFramebuffer` da la información de
+  píxeles del modo actual (`f10f778c78`); el backend de entrada lee la cola
+  y el servidor ya no se cae al arrancar (`ab71ce75a4`). Arrancado a mano
+  dibuja el cursor donde QMP mueve el puntero y registra los clics y las
+  teclas (prueba `windowserver` 6/0). Falta: la memoria de captura sin
+  acceso para todos, una ventana de un cliente de demostración y el job de
+  launchd.
+- [ ] (d) Gate `M4-draw`.
+
+Atajos tomados (sección 9): root puede abrir la conexión de servidor de
+IOHIDSystem, porque todavía ningún módulo de política valida las firmas de
+código y ningún proceso tiene entitlements (`SHORTCUT(WS0)` en
+`IOHIDUserClient.cpp`); los hilos del servidor actual tienen pilas de 4 MB
+para sus mensajes de 128 KB (`SHORTCUT(WS0)` en `main.m`).
+
 ### WS1 — Esqueleto e interfaz
 
 - `WindowServer.defs` y el lado del cliente en `SkyLight.framework`; el

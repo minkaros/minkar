@@ -213,6 +213,29 @@ loop under the undefined `NEW_HID`, the event queues) and the
   reference image (with a tolerance), and a key and a mouse click injected
   through QMP that reach the demo window as `NSEvent`s.
 
+State on 2026-10-31:
+
+- [x] (a) IOHIDSystem event delivery (`e2df542919`): the event server
+  connection maps the shared `EvGlobals` queue and is told through its
+  Mach port; pointing devices reach it. The `NEW_HID` dispatch loop stays
+  off: it feeds the event system's queues, which are not built and are not
+  what WindowServer reads. Test `hid-events` 9/0.
+- [x] (b) `ApplePS2Mouse` (`2aa9a1da6e`): moves, three buttons, the
+  wheel. Test `ps2-mouse` 12/0.
+- [ ] (c) WindowServer. *Partial:* `IOGOPFramebuffer` gives the current
+  mode's pixel information (`f10f778c78`); the input backend reads the
+  queue, and the server no longer crashes at start (`ab71ce75a4`). Started
+  by hand it draws the cursor where QMP moves the pointer and logs the
+  clicks and keys (test `windowserver` 6/0). Left: the capture memory not
+  world-accessible, a demo client window, the launchd job.
+- [ ] (d) Gate `M4-draw`.
+
+Shortcuts taken (section 9): root may open IOHIDSystem's server
+connection, since no policy module validates code signatures yet and no
+process has entitlements (`SHORTCUT(WS0)` in `IOHIDUserClient.cpp`); the
+legacy server's threads get 4 MB stacks for its 128 KB messages
+(`SHORTCUT(WS0)` in `main.m`).
+
 ### WS1 — Skeleton and interface
 
 - This document accepted; `WindowServer.defs` and the client side in `SkyLight.framework`; the new server installed in `SkyLight.framework/Resources`.

@@ -88,14 +88,14 @@ flowchart TB
         IOS["IOSurface<br/>paso 4"]:::todo
     end
     subgraph SERVER["Servidor de ventanas"]
-        WS["WindowServer<br/>compila, nunca se ejecutó<br/>paso 2"]:::partial
+        WS["WindowServer<br/>se ejecuta a mano, con entrada<br/>paso 2 (WS0)"]:::partial
     end
     subgraph INPUT["Entrada"]
         HIDH["IOKit/hidsystem<br/>headers"]:::done
         USB["xHCI + HID<br/>(MinkarUSB)"]:::done
-        KBD["PS/2 keyboard<br/>llega a la consola<br/>paso 1"]:::partial
-        MOUSE["ApplePS2Mouse<br/>paso 1"]:::todo
-        HIDS["Entrega de eventos<br/>de IOHIDSystem<br/>paso 1"]:::todo
+        KBD["Teclado PS/2<br/>consola e IOHIDSystem"]:::partial
+        MOUSE["ApplePS2Mouse"]:::done
+        HIDS["Entrega de eventos<br/>de IOHIDSystem"]:::done
     end
     subgraph DISPLAY["Pantalla"]
         GOP["Consola GOP<br/>(IOGOPFramebuffer)"]:::done
@@ -123,8 +123,8 @@ flowchart TB
 
 ```mermaid
 flowchart LR
-    S1["1. Eventos de IOHIDSystem<br/>y ratón PS/2"]:::next
-    S2["2. WindowServer<br/>sobre el framebuffer GOP"]:::todo
+    S1["1. Eventos de IOHIDSystem<br/>y ratón PS/2"]:::done
+    S2["2. WindowServer<br/>sobre el framebuffer GOP"]:::next
     S3["3. virtio-gpu 2D<br/>(FreeBSD, BSD-2)"]:::todo
     S4["4. IOSurface<br/>(memoria compartida Mach)"]:::todo
     S5["5. Compositor de Core Animation<br/>(Vulkan; pixman para arrancar)"]:::todo
@@ -138,10 +138,12 @@ flowchart LR
     S4 -.-> G2
     S5 -.-> G2
 
+    classDef done fill:#2e7d32,stroke:#1b5e20,color:#fff
     classDef next fill:#1565c0,stroke:#0d47a1,color:#fff
     classDef todo fill:#9e9e9e,stroke:#616161,color:#fff
 ```
 
-El paso 1 es el siguiente (azul): sin entrada, WindowServer no puede cerrar M4. G1
-empieza en cuanto se decida la familia de GPU; las flechas discontinuas marcan lo
+El paso 1 está hecho (verde, 31 oct 2026); el paso 2 es el siguiente (azul):
+WindowServer se ejecuta a mano con entrada y aún tiene que arrancar en el boot y
+dibujar una ventana de un cliente. G1 empieza en cuanto se decida la familia de GPU; las flechas discontinuas marcan lo
 que el frente de GPU reutiliza de los pasos 4 y 5.
