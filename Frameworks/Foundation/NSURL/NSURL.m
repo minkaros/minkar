@@ -472,11 +472,32 @@ static BOOL scanURL(urlScanner *scanner,NSURL *url){
    return self;
 }
 
+// Minkar: as the API makes them: "file:///a%20b/" (no "localhost"), the
+// path percent-encoded, a directory's ending with "/", and a relative path
+// taken from the current directory (it was made absolute by a "/").
+-initFileURLWithPath:(NSString *)path isDirectory:(BOOL)isDirectory {
+   if (path == nil)
+    [NSException raise:NSInvalidArgumentException format:@"-[%@ %s] nil path",object_getClass(self),sel_getName(_cmd)];
+   if (![path hasPrefix:@"/"]) {
+    NSString *cwd = [[NSFileManager defaultManager] currentDirectoryPath];
+    path = [path length] ? [cwd stringByAppendingPathComponent:path] : cwd;
+   }
+   if (isDirectory && ![path hasSuffix:@"/"])
+    path = [path stringByAppendingString:@"/"];
+   NSString *encoded = [path stringByAddingPercentEncodingWithAllowedCharacters:[NSCharacterSet URLPathAllowedCharacterSet]];
+   return [self initWithScheme:NSURLFileScheme host:@"" path:encoded ? encoded : path];
+}
+
+// A directory is known by asking the file system.
 -initFileURLWithPath:(NSString *)path {
-	if (![path hasPrefix: @"/"])
-     path = [@"/" stringByAppendingString: path];
-     
-	return [self initWithScheme: NSURLFileScheme host: @"localhost" path:path];
+   BOOL isDirectory = NO;
+   NSString *absolute = path;
+   if (path != nil && ![path hasPrefix:@"/"])
+    absolute = [[[NSFileManager defaultManager] currentDirectoryPath] stringByAppendingPathComponent:path];
+   if (path != nil && ![path hasSuffix:@"/"] &&
+       ![[NSFileManager defaultManager] fileExistsAtPath:absolute isDirectory:&isDirectory])
+    isDirectory = NO;
+   return [self initFileURLWithPath:path isDirectory:isDirectory];
 }
 
 -initWithString:(NSString *)string {
@@ -539,18 +560,9 @@ static BOOL scanURL(urlScanner *scanner,NSURL *url){
     NSKeyedUnarchiver *keyed=(NSKeyedUnarchiver *)coder;
     NSString          *rel=[keyed decodeObjectForKey:@"NS.relative"];
     
-    BOOL isLocalFileURL = NO;
-    if (rel) {
-      NSRange range;
-      if ((range = [rel rangeOfString:@"file://localhost"]).location == 0) {
-        rel = [rel substringFromIndex:range.length];
-        isLocalFileURL = YES;
-      }
-    }
-    if (isLocalFileURL)
-      [self initFileURLWithPath:rel];
-    else
-      [self initWithString:rel relativeToURL:[keyed decodeObjectForKey:@"NS.base"]];
+    // Minkar: file URLs too ("file:///..."; older archives have
+    // "file://localhost/...").
+    [self initWithString:rel relativeToURL:[keyed decodeObjectForKey:@"NS.base"]];
     
     return self;
    }
@@ -564,15 +576,7 @@ static BOOL scanURL(urlScanner *scanner,NSURL *url){
 -(void)encodeWithCoder:(NSCoder *)coder {
    if([coder isKindOfClass:[NSKeyedArchiver class]]){
      NSKeyedArchiver *keyed=(NSKeyedArchiver *)coder;
-     NSString        *rel=_string;
-    
-     if ([self isFileURL] && [_path length] > 0) {
-       NSString *path = _path;
-       if ( ![path hasPrefix:@"/"])
-         path = [@"/" stringByAppendingString:path];
-          
-       rel = [NSString stringWithFormat:@"file://localhost%@", path];
-     }
+     NSString        *rel=_baseURL ? [self relativeString] : [self absoluteString];
      
      if (_baseURL)  [keyed encodeObject:_baseURL forKey:@"NS.base"];
      if (rel)       [keyed encodeObject:rel forKey:@"NS.relative"];
@@ -583,29 +587,17 @@ static BOOL scanURL(urlScanner *scanner,NSURL *url){
 }
 
 
+// Minkar: two URLs are equal when their strings are (fields compared one
+// by one told "file:///x" made from a path from the same URL read back).
 -(NSUInteger)hash {
-	return [_path hash];
+	return [[self absoluteString] hash];
 }
 
 -(BOOL)isEqual:other {
-   NSURL *otherURL;
-   
 	if (self == other) return YES;
-	
-   if(![other isKindOfClass:[NSURL class]])
-    return NO;
-    
-   otherURL=other;
-   if(![otherURL->_scheme isEqual:_scheme])
-    return NO;
-   
-   if(otherURL->_host!=_host && ![otherURL->_host isEqual:_host])
-    return NO;
-    
-   if(otherURL->_path!=_path && ![otherURL->_path isEqual:_path])
-    return NO;
-    
-   return YES;
+	if (![other isKindOfClass:[NSURL class]])
+		return NO;
+	return [[self absoluteString] isEqualToString:[other absoluteString]];
 }
 
 -(NSString *)_baseHost  {
@@ -769,7 +761,8 @@ static NSMutableString *AssembleResourceSpecifier( NSMutableString *result, NSSt
 }
 
 -(NSString *)host {
-   return [self _baseHost];
+   NSString *host = [self _baseHost];
+   return [host length] ? host : nil;
 }
 
 -(NSString *)user {
@@ -786,8 +779,13 @@ static NSMutableString *AssembleResourceSpecifier( NSMutableString *result, NSSt
 	else return _fragment;
 }
 
+// Minkar: without percent escapes, as the API has it.
 -(NSString *)path {
    NSString *result=[self _basePath];
+   NSString *decoded=[result stringByRemovingPercentEncoding];
+
+   if(decoded!=nil)
+    result=decoded;
    
    if([result length]>1 && [result hasSuffix:@"/"])
     result=[result substringToIndex:[result length]-1];
@@ -874,43 +872,84 @@ static NSMutableString *AssembleResourceSpecifier( NSMutableString *result, NSSt
 }
 
 
+// Minkar: these work on the path (they worked on the whole string, query
+// and percent escapes included), and keep the rest of the URL.
+- (NSURL *)_URLWithPath:(NSString *)path isDirectory:(BOOL)isDirectory
+{
+    if ([self isFileURL])
+        return [NSURL fileURLWithPath:path isDirectory:isDirectory];
+
+    if (isDirectory && ![path hasSuffix:@"/"])
+        path = [path stringByAppendingString:@"/"];
+    NSMutableString *string = [NSMutableString string];
+    NSString *encoded = [path stringByAddingPercentEncodingWithAllowedCharacters:[NSCharacterSet URLPathAllowedCharacterSet]];
+    if ([self scheme])
+        [string appendFormat:@"%@:", [self scheme]];
+    if ([self host]) {
+        [string appendString:@"//"];
+        if ([self user])
+            [string appendFormat:@"%@%@@", [self user], [self password] ? [@":" stringByAppendingString:[self password]] : @""];
+        [string appendString:[self host]];
+        if ([self port])
+            [string appendFormat:@":%@", [self port]];
+    }
+    [string appendString:encoded ? encoded : path];
+    if ([self query])
+        [string appendFormat:@"?%@", [self query]];
+    if ([self fragment])
+        [string appendFormat:@"#%@", [self fragment]];
+    return [NSURL URLWithString:string];
+}
+
+- (BOOL)hasDirectoryPath
+{
+    return [[self _basePath] hasSuffix:@"/"];
+}
+
 - (NSURL *)URLByAppendingPathComponent:(NSString *)pathComponent
 {
-    NSString *url = [[self absoluteString] stringByAppendingPathComponent:pathComponent];
-    return [NSURL URLWithString:url];
+    BOOL isDirectory = [pathComponent hasSuffix:@"/"];
+    if (!isDirectory && [self isFileURL])
+        [[NSFileManager defaultManager] fileExistsAtPath:[[self path] stringByAppendingPathComponent:pathComponent] isDirectory:&isDirectory];
+    return [self URLByAppendingPathComponent:pathComponent isDirectory:isDirectory];
 }
 
 - (NSURL *)URLByAppendingPathExtension:(NSString *)pathExtension
 {
-    NSString *url = [[self absoluteString] stringByAppendingPathExtension:pathExtension];
-    return [NSURL URLWithString:url];
+    return [self _URLWithPath:[[self path] stringByAppendingPathExtension:pathExtension] isDirectory:[self hasDirectoryPath]];
 }
 
 - (NSURL *)URLByDeletingLastPathComponent
 {
-    NSString *url = [[self absoluteString] stringByDeletingLastPathComponent];
-    return [NSURL URLWithString:url];
+    NSString *path = [self path];
+    NSString *parent = [path stringByDeletingLastPathComponent];
+    if ([parent length] == 0)
+        parent = [path hasPrefix:@"/"] ? @"/" : @"../";
+    return [self _URLWithPath:parent isDirectory:YES];
 }
 
 - (NSURL *)URLByDeletingPathExtension
 {
-    NSString *url = [[self absoluteString] stringByDeletingPathExtension];
-    return [NSURL URLWithString:url];
+    return [self _URLWithPath:[[self path] stringByDeletingPathExtension] isDirectory:[self hasDirectoryPath]];
 }
 
 - (NSString *)lastPathComponent
 {
-    return [[self absoluteString] lastPathComponent];
+    return [[self path] lastPathComponent];
 }
 
 - (NSString *)pathExtension
 {
-    return [[self absoluteString] pathExtension];
+    return [[self path] pathExtension];
 }
 
 @end
 
 @implementation NSURL (NSURLPathUtilities)
+
++ (NSURL *)fileURLWithPath:(NSString *)path isDirectory:(BOOL)isDirectory {
+    return [[[self alloc] initFileURLWithPath:path isDirectory:isDirectory] autorelease];
+}
 
 + (NSURL *)fileURLWithPathComponents:(NSArray *)components {
     return [NSURL fileURLWithPath:[NSString pathWithComponents:components]];
@@ -921,8 +960,10 @@ static NSMutableString *AssembleResourceSpecifier( NSMutableString *result, NSSt
 }
 
 - (NSURL *)URLByAppendingPathComponent:(NSString *)pathComponent isDirectory:(BOOL)isDirectory {
-    NSUnimplementedMethod();
-    return nil;
+    NSString *path = [self path];
+    if ([path length] == 0)
+        path = @"/";
+    return [self _URLWithPath:[path stringByAppendingPathComponent:pathComponent] isDirectory:isDirectory];
 }
 
 - (NSURL *)URLByStandardizingPath {
