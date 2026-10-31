@@ -1,7 +1,7 @@
 .\" SPDX-License-Identifier: BSD-2-Clause
 .\" Copyright (c) 2026 The Minkar contributors
 .\" Part of Minkar.
-.Dd October 30, 2026
+.Dd October 31, 2026
 .Dt MOUNT_EXFAT 8
 .Os Minkar
 .Sh NAME
@@ -29,8 +29,12 @@ or by
 .Xr diskarbitrationd 8
 when an exFAT disk appears.
 .Pp
-The file system is mounted read only: this release of the exfat kernel
-extension reads exFAT but does not write it.
+The volume is marked dirty on the disk while it is mounted read-write,
+and clean again when it is unmounted; a volume left dirty is checked by
+.Xr fsck_exfat 8
+before
+.Xr diskarbitrationd 8
+mounts it. Volumes with two FATs (TexFAT) mount read only.
 .Pp
 exFAT keeps no owner or permissions for its files. All of them take the
 owner, group and permissions given by these options, or by default those of
@@ -48,6 +52,8 @@ mounts a volume):
 Options as in
 .Xr mount 8 ,
 such as
+.Cm rdonly
+or
 .Cm noexec .
 .It Fl u Ar user
 The owner of the files, a name or a number.
@@ -74,4 +80,5 @@ Mount the first partition of a USB disk, owned by user
 .Xr mount 8 ,
 .Xr newfs_exfat 8
 .Sh BUGS
-Writing is not supported yet.
+exFAT has no links, symbolic links or device files, and keeps no owner
+or permissions: changing them succeeds and has no effect.

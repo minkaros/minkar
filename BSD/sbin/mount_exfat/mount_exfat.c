@@ -28,7 +28,7 @@
 
 /*
  * mount_exfat: mount an exFAT file system with the exfat kext, as on
- * macOS. Read only for now: the mount always is. Files have no owner or
+ * macOS, read-write unless -o rdonly. Files have no owner or
  * mode on exFAT: they take -u, -g and -m, or by default those of the
  * mount point. Times saved without their offset from UTC are local:
  * the offset given here converts them.
@@ -172,9 +172,6 @@ main(int argc, char *argv[])
 	args.fs.version = EXFAT_ARGS_VERSION;
 	args.fs.flags = EXFAT_MNT_UID | EXFAT_MNT_GID | EXFAT_MNT_PERMS |
 	    EXFAT_MNT_SECONDSWEST;
-
-	/* The kext reads exFAT only, for now. */
-	mntflags |= MNT_RDONLY;
 
 	if (mount("exfat", node, mntflags, &args) == -1) {
 		if (errno == ENODEV || errno == EOPNOTSUPP)
