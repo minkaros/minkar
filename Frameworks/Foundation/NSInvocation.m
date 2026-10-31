@@ -507,8 +507,27 @@ typedef struct {
 
 - (void)invoke
 {
+    id   target = [self target];
+    SEL  selector = [self selector];
+    int  returnClasses[2];
+
+    if (target == nil) {
+        memset(_returnValue, 0, MAX(_returnSize, sizeof(NSUInteger)));
+        return;                             // messages to nil return zero
+    }
+    // class_getMethodImplementation gives _objc_msgForward for a selector
+    // the class does not implement, so forwarding works as usual.
+    if ([self _returnInMemory:returnClasses])
+        [self invokeUsingIMP:(IMP)class_getMethodImplementation_stret(object_getClass(target), selector)];
+    else
+        [self invokeUsingIMP:class_getMethodImplementation(object_getClass(target), selector)];
+}
+
+// Calls imp with the arguments as they are, the first one included: a
+// block's invoke function is called with the block as argument 0.
+- (void)invokeUsingIMP:(IMP)imp
+{
     id                    target = [self target];
-    SEL                   selector = [self selector];
     NSUInteger            count = [_signature numberOfArguments], stackWords, i;
     NSArgumentWord       *words;
     NSUInteger           *first;
@@ -516,11 +535,10 @@ typedef struct {
     uint64_t             *stack;
     int                   returnClasses[2];
     BOOL                  returnInMemory = [self _returnInMemory:returnClasses];
-    void                 *imp;
 
     memset(_returnValue, 0, MAX(_returnSize, sizeof(NSUInteger)));
-    if (target == nil)
-        return;                             // messages to nil return zero
+    if (target == nil || imp == NULL)
+        return;
 
     words = NSZoneCalloc(NULL, _argumentFrameSize / 8 + 1, sizeof(NSArgumentWord));
     first = NSZoneCalloc(NULL, count + 1, sizeof(NSUInteger));
@@ -554,13 +572,7 @@ typedef struct {
     frame.stack = stack;
     frame.stackCount = stackWords;
 
-    // class_getMethodImplementation gives _objc_msgForward for a selector
-    // the class does not implement, so forwarding works as usual.
-    if (returnInMemory)
-        imp = (void *)class_getMethodImplementation_stret(object_getClass(target), selector);
-    else
-        imp = (void *)class_getMethodImplementation(object_getClass(target), selector);
-    NSInvocationCall(imp, &frame);
+    NSInvocationCall((void *)imp, &frame);
     NSZoneFree(NULL, stack);
     NSZoneFree(NULL, words);
     NSZoneFree(NULL, first);
@@ -695,4 +707,45 @@ void NSInvocationForwardRegisters(const uint64_t *regs, const uint64_t *stack, u
     } else {
         [invocation _storeReturnInRegisters:returnRegs classes:classes];
     }
+}
+
+/*
+ * Blocks made at run time (NSXPCConnection's reply blocks): their invoke
+ * function is NSInvocationBlockForward (NSInvocationCall-x86_64.s), which
+ * saves the registers and calls this. The block captures one object, right
+ * after the block header, that answers -_blockSignature and
+ * -_blockInvoked: with the call as an NSInvocation (argument 0 the block).
+ */
+struct NSInvocationBlockHeader {
+    void    *isa;
+    int32_t  flags;
+    int32_t  reserved;
+    void    *invoke;
+    void    *descriptor;
+};
+
+@interface NSObject (NSInvocationBlockForwarding)
+-(NSMethodSignature *)_blockSignature;
+-(void)_blockInvoked:(NSInvocation *)invocation;
+@end
+
+void NSInvocationBlockForwardRegisters(const uint64_t *regs, const uint64_t *stack, uint64_t *returnRegs);
+
+void NSInvocationBlockForwardRegisters(const uint64_t *regs, const uint64_t *stack, uint64_t *returnRegs) {
+    void              *block = (void *)(uintptr_t)regs[0];
+    id                 handler = *(id *)((char *)block + sizeof(struct NSInvocationBlockHeader));
+    NSMethodSignature *signature = [handler _blockSignature];
+    NSInvocation      *invocation;
+    int                classes[2];
+    BOOL               inMemory;
+
+    memset(returnRegs, 0, 4 * sizeof(uint64_t));
+    if (signature == nil)
+        return;
+    invocation = [NSInvocation invocationWithMethodSignature:signature];
+    inMemory = [invocation _returnInMemory:classes];
+    [invocation _setArgumentsFromRegisters:regs stack:stack hiddenReturn:NO];
+    [handler _blockInvoked:invocation];
+    if (!inMemory)
+        [invocation _storeReturnInRegisters:returnRegs classes:classes];
 }
