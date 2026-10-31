@@ -106,6 +106,7 @@ SRCS = 	NSFormatter.m \
 	NSURL/NSURLComponents.m \
 	NSURL/NSURLRequest.m \
 	NSURL/NSURLSession.m \
+	NSXPCConnection/NSXPCConnection.m \
 	NSURL/NSURLHandle.m \
 	NSURL/NSURLProtectionSpace.m \
 	NSURL/NSURLConnectionState.m \
@@ -407,6 +408,7 @@ CFLAGS.NSModernFormatters.m = -fobjc-arc -DU_DISABLE_RENAMING=1 \
 	-I${ROOT_SOURCE_DIR}/Libraries/ICU/source/i18n
 CFLAGS.NSHTTPCookie.m = -fobjc-arc
 CFLAGS.NSHTTPCookieStorage.m = -fobjc-arc
+CFLAGS.NSXPCConnection.m = -fobjc-arc -DOS_OBJECT_USE_OBJC=0
 CFLAGS.NSURLSession.m = -fobjc-arc -I${ROOT_SOURCE_DIR}/BSD/usr.bin/curl/include
 CFLAGS.NSOperationQueue.m = -fobjc-arc
 CFLAGS.NSStringModern.m = -fobjc-arc -DU_DISABLE_RENAMING=1 \

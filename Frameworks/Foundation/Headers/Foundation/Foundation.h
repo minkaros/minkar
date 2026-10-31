@@ -188,6 +188,7 @@
 #import <Foundation/NSURLProtocol.h>
 #import <Foundation/NSURLComponents.h>
 #import <Foundation/NSURLSession.h>
+#import <Foundation/NSXPCConnection.h>
 #import <Foundation/NSUserDefaults.h>
 #import <Foundation/NSValue.h>
 #import <Foundation/NSValueTransformer.h>
