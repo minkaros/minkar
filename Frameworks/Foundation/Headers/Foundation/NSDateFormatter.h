@@ -8,21 +8,34 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 #import <Foundation/NSFormatter.h>
 #import <Foundation/NSDate.h>
+#import <Foundation/NSArray.h>
+#import <Foundation/NSDictionary.h>
 #import <CoreFoundation/CFDateFormatter.h>
 
-typedef enum {
+typedef NS_ENUM(NSUInteger, NSDateFormatterBehavior) {
     NSDateFormatterBehaviorDefault = 0,
     NSDateFormatterBehavior10_0 = 1000,
     NSDateFormatterBehavior10_4 = 1040,
-} NSDateFormatterBehavior;
+};
 
-typedef enum {
+typedef NS_ENUM(NSUInteger, NSDateFormatterStyle) {
     NSDateFormatterNoStyle = kCFDateFormatterNoStyle,
     NSDateFormatterShortStyle = kCFDateFormatterShortStyle,
     NSDateFormatterMediumStyle = kCFDateFormatterMediumStyle,
     NSDateFormatterLongStyle = kCFDateFormatterLongStyle,
     NSDateFormatterFullStyle = kCFDateFormatterFullStyle
-} NSDateFormatterStyle;
+};
+
+typedef NS_ENUM(NSInteger, NSFormattingContext) {
+    NSFormattingContextUnknown = 0,
+    NSFormattingContextDynamic = 1,
+    NSFormattingContextStandalone = 2,
+    NSFormattingContextListItem = 3,
+    NSFormattingContextBeginningOfSentence = 4,
+    NSFormattingContextMiddleOfSentence = 5,
+};
+
+@class NSArray, NSCalendar, NSLocale, NSTimeZone;
 
 @interface NSDateFormatter : NSFormatter {
     NSDateFormatterBehavior _behavior;
@@ -33,31 +46,68 @@ typedef enum {
     BOOL _allowsNaturalLanguage;
     NSDictionary *_locale;
     NSTimeZone *_tz;
+    // Minkar: the 10.4 behavior, on CFDateFormatter.
+    NSLocale *_nsLocale;
+    NSCalendar *_calendar;
+    void *_cf;
+    NSMutableDictionary *_properties;
+    BOOL _lenient;
+    BOOL _relative;
+    BOOL _generatesCalendarDates;
+    NSFormattingContext _formattingContext;
 }
 
-- initWithDateFormat:(NSString *)format allowNaturalLanguage:(BOOL)flag; // shouldn't this be "allows" ?
++ (NSString *)localizedStringFromDate:(NSDate *)date dateStyle:(NSDateFormatterStyle)dstyle timeStyle:(NSDateFormatterStyle)tstyle;
++ (NSString *)dateFormatFromTemplate:(NSString *)tmplate options:(NSUInteger)opts locale:(NSLocale *)locale;
++ (NSDateFormatterBehavior)defaultFormatterBehavior;
++ (void)setDefaultFormatterBehavior:(NSDateFormatterBehavior)behavior;
 
-// added because NSDateFormatter is the backend for initWithString:calendarFormat:locale
-// shouldn't this really exist anyway?
+- (instancetype)init;
+- initWithDateFormat:(NSString *)format allowNaturalLanguage:(BOOL)flag;
+// The backend of NSCalendarDate's initWithString:calendarFormat:locale:.
 - initWithDateFormat:(NSString *)format allowNaturalLanguage:(BOOL)flag locale:(NSDictionary *)locale;
 
-- (NSString *)dateFormat;
 - (BOOL)allowsNaturalLanguage;
-- (NSDateFormatterBehavior)formatterBehavior;
+- (void)setLocalizedDateFormatFromTemplate:(NSString *)dateFormatTemplate;
 
-- (NSDictionary *)locale;
-
-- (void)setDateFormat:(NSString *)format;
+@property (copy) NSString *dateFormat;
+@property NSDateFormatterStyle dateStyle;
+@property NSDateFormatterStyle timeStyle;
+@property (copy) NSLocale *locale;
+@property BOOL generatesCalendarDates;
+@property NSDateFormatterBehavior formatterBehavior;
+@property (copy) NSTimeZone *timeZone;
+@property (copy) NSCalendar *calendar;
+@property (getter=isLenient) BOOL lenient;
+@property (copy) NSDate *twoDigitStartDate;
+@property (copy) NSDate *defaultDate;
+@property (copy) NSArray<NSString *> *eraSymbols;
+@property (copy) NSArray<NSString *> *monthSymbols;
+@property (copy) NSArray<NSString *> *shortMonthSymbols;
+@property (copy) NSArray<NSString *> *weekdaySymbols;
+@property (copy) NSArray<NSString *> *shortWeekdaySymbols;
+@property (copy) NSString *AMSymbol;
+@property (copy) NSString *PMSymbol;
+@property (copy) NSArray<NSString *> *longEraSymbols;
+@property (copy) NSArray<NSString *> *veryShortMonthSymbols;
+@property (copy) NSArray<NSString *> *standaloneMonthSymbols;
+@property (copy) NSArray<NSString *> *shortStandaloneMonthSymbols;
+@property (copy) NSArray<NSString *> *veryShortStandaloneMonthSymbols;
+@property (copy) NSArray<NSString *> *veryShortWeekdaySymbols;
+@property (copy) NSArray<NSString *> *standaloneWeekdaySymbols;
+@property (copy) NSArray<NSString *> *shortStandaloneWeekdaySymbols;
+@property (copy) NSArray<NSString *> *veryShortStandaloneWeekdaySymbols;
+@property (copy) NSArray<NSString *> *quarterSymbols;
+@property (copy) NSArray<NSString *> *shortQuarterSymbols;
+@property (copy) NSArray<NSString *> *standaloneQuarterSymbols;
+@property (copy) NSArray<NSString *> *shortStandaloneQuarterSymbols;
+@property (copy) NSDate *gregorianStartDate;
+@property BOOL doesRelativeDateFormatting;
+@property NSFormattingContext formattingContext;
 
 - (NSString *)stringFromDate:(NSDate *)date;
 - (NSDate *)dateFromString:(NSString *)string;
-- (NSArray *)shortStandaloneWeekdaySymbols;
-- (NSArray *)standaloneWeekdaySymbols;
-
-- (void)setLenient:(BOOL)value;
-- (void)setFormatterBehavior:(NSDateFormatterBehavior)value;
-- (void)setTimeZone:(NSTimeZone *)tz;
-- (NSTimeZone *)timeZone;
+- (BOOL)getObjectValue:(out id *)obj forString:(NSString *)string range:(inout NSRange *)rangep error:(out NSError **)error;
 
 @end
 

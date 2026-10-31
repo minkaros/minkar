@@ -21,7 +21,57 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <Foundation/NSCalendar.h>
 #import <Foundation/NSNumber.h>
 
+// Minkar: two behaviors. 10.0 (initWithDateFormat:allowNaturalLanguage:,
+// "%Y-%m-%d" formats, NSCalendarDate) is Cocotron's code below. 10.4,
+// the default (init), uses CFDateFormatter on ICU: Unicode patterns
+// ("yyyy-MM-dd"), date and time styles, locale, time zone, calendar,
+// symbols, templates.
+
+#import <Foundation/NSLocale.h>
+#import <Foundation/NSError.h>
+#import <CoreFoundation/CFLocale.h>
+#import <CoreFoundation/CFTimeZone.h>
+#import <CoreFoundation/CFNumber.h>
+#import <CoreFoundation/CFDate.h>
+
+static NSDateFormatterBehavior defaultBehavior = NSDateFormatterBehavior10_4;
+
+// A CF string with the same characters: CF's string functions do not take
+// Foundation's own string classes (only CF's strings), so every NSString
+// handed to CF goes through here. Returned retained.
+static CFStringRef copyCFString(NSString *string) {
+   if(string==nil)
+    return NULL;
+   return CFStringCreateWithCString(NULL,[string UTF8String],kCFStringEncodingUTF8);
+}
+
+// The same for the values of properties (symbol arrays, symbols).
+static CFTypeRef copyCFValue(id value) {
+   if([value isKindOfClass:[NSString class]])
+    return copyCFString(value);
+   if([value isKindOfClass:[NSArray class]]){
+    CFMutableArrayRef array=CFArrayCreateMutable(NULL,[value count],&kCFTypeArrayCallBacks);
+    for(id item in value){
+     CFTypeRef cf=copyCFValue(item);
+     if(cf!=NULL){
+      CFArrayAppendValue(array,cf);
+      CFRelease(cf);
+     }
+    }
+    return array;
+   }
+   return value?CFRetain((CFTypeRef)value):NULL;
+}
+
 @implementation NSDateFormatter
+
++(NSDateFormatterBehavior)defaultFormatterBehavior {
+   return defaultBehavior;
+}
+
++(void)setDefaultFormatterBehavior:(NSDateFormatterBehavior)behavior {
+   defaultBehavior=(behavior==NSDateFormatterBehavior10_0)?NSDateFormatterBehavior10_0:NSDateFormatterBehavior10_4;
+}
 
 -initWithDateFormat:(NSString *)format allowNaturalLanguage:(BOOL)flag {
     return [self initWithDateFormat:format allowNaturalLanguage:flag locale:[[NSUserDefaults standardUserDefaults] dictionaryRepresentation]];
@@ -35,19 +85,47 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
     _allowsNaturalLanguage = flag;
     _locale = [locale retain];
     _tz = [[NSTimeZone defaultTimeZone] retain];
+    _nsLocale = [[NSLocale currentLocale] retain];
 
     return self;
 }
 
 -init {
-   return [self initWithDateFormat:@"" allowNaturalLanguage:NO];
+   if((self=[super init])==nil)
+    return nil;
+   _behavior=NSDateFormatterBehaviorDefault;
+   _dateStyle=NSDateFormatterNoStyle;
+   _timeStyle=NSDateFormatterNoStyle;
+   _dateFormat=nil;
+   _nsLocale=[[NSLocale currentLocale] retain];
+   _tz=[[NSTimeZone defaultTimeZone] retain];
+   _properties=[[NSMutableDictionary alloc] init];
+   return self;
+}
+
+-(BOOL)_isModern {
+   NSDateFormatterBehavior behavior=_behavior;
+   if(behavior==NSDateFormatterBehaviorDefault)
+    behavior=defaultBehavior;
+   return behavior!=NSDateFormatterBehavior10_0;
+}
+
+-(void)_invalidate {
+   if(_cf!=NULL){
+    CFRelease((CFTypeRef)_cf);
+    _cf=NULL;
+   }
 }
 
 -(void)dealloc {
+    [self _invalidate];
     [_dateFormat10_0 release];
     [_dateFormat release];
     [_locale release];
     [_tz release];
+    [_nsLocale release];
+    [_calendar release];
+    [_properties release];
 
     [super dealloc];
 }
@@ -65,86 +143,375 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
     _dateFormat=[[coder decodeObjectForKey:@"NS.format"] retain];
     _allowsNaturalLanguage=[coder decodeBoolForKey:@"NS.natural"];
     _tz = [[coder decodeObjectForKey:@"timeZone"] retain];
-
    }
+   if(_tz==nil)
+    _tz=[[NSTimeZone defaultTimeZone] retain];
+   _nsLocale=[[NSLocale currentLocale] retain];
+   _properties=[[NSMutableDictionary alloc] init];
 
    return self;
 }
 
+-copyWithZone:(NSZone *)zone {
+   NSDateFormatter *copy;
+
+   if(![self _isModern])
+    return [[NSDateFormatter allocWithZone:zone] initWithDateFormat:_dateFormat10_0 allowNaturalLanguage:_allowsNaturalLanguage locale:_locale];
+   copy=[[NSDateFormatter allocWithZone:zone] init];
+   [copy setFormatterBehavior:_behavior];
+   [copy setLocale:_nsLocale];
+   [copy setTimeZone:_tz];
+   [copy setCalendar:_calendar];
+   [copy setDateStyle:_dateStyle];
+   [copy setTimeStyle:_timeStyle];
+   if(_dateFormat!=nil)
+    [copy setDateFormat:_dateFormat];
+   [copy setLenient:_lenient];
+   [copy->_properties addEntriesFromDictionary:_properties];
+   return copy;
+}
+
+// The CFDateFormatter for the current settings, made again after a change.
+-(CFDateFormatterRef)_cfFormatter {
+   if(_cf==NULL){
+    NSString        *identifier=[_nsLocale localeIdentifier];
+    NSMutableString *full=[NSMutableString stringWithString:identifier?identifier:@"en_US"];
+    CFLocaleRef      locale;
+    CFDateFormatterRef formatter;
+
+    if(_calendar!=nil && [_calendar calendarIdentifier]!=nil && [full rangeOfString:@"@calendar="].location==NSNotFound)
+     [full appendFormat:@"@calendar=%@",[_calendar calendarIdentifier]];
+    CFStringRef localeName=copyCFString(full);
+    locale=CFLocaleCreate(NULL,localeName);
+    CFRelease(localeName);
+    formatter=CFDateFormatterCreate(NULL,locale,(CFDateFormatterStyle)_dateStyle,(CFDateFormatterStyle)_timeStyle);
+    if(locale!=NULL)
+     CFRelease(locale);
+    if(formatter==NULL)
+     return NULL;
+
+    CFTimeZoneRef zone=NULL;
+    if([_tz name]!=nil){
+     CFStringRef zoneName=copyCFString([_tz name]);
+     zone=CFTimeZoneCreateWithName(NULL,zoneName,true);
+     CFRelease(zoneName);
+    }
+    if(zone==NULL)
+     zone=CFTimeZoneCreateWithTimeIntervalFromGMT(NULL,[_tz secondsFromGMT]);
+    if(zone!=NULL){
+     CFDateFormatterSetProperty(formatter,kCFDateFormatterTimeZone,zone);
+     CFRelease(zone);
+    }
+    CFDateFormatterSetProperty(formatter,kCFDateFormatterIsLenient,_lenient?kCFBooleanTrue:kCFBooleanFalse);
+    for(NSString *key in _properties){
+     CFTypeRef value=copyCFValue([_properties objectForKey:key]);
+     CFDateFormatterSetProperty(formatter,(CFStringRef)key,value);
+     if(value!=NULL)
+      CFRelease(value);
+    }
+    if(_dateFormat!=nil){
+     CFStringRef format=copyCFString(_dateFormat);
+     CFDateFormatterSetFormat(formatter,format);
+     CFRelease(format);
+    }
+    _cf=(void *)formatter;
+   }
+   return (CFDateFormatterRef)_cf;
+}
+
 -(NSString *)dateFormat {
-    return _dateFormat;
+   if(![self _isModern] || _dateFormat!=nil)
+    return _dateFormat?_dateFormat:@"";
+   CFDateFormatterRef formatter=[self _cfFormatter];
+   return formatter?(NSString *)CFDateFormatterGetFormat(formatter):@"";
+}
+
+-(void)setDateFormat:(NSString *)format {
+   format=[format copy];
+   if(![self _isModern]){
+    [_dateFormat10_0 release];
+    _dateFormat10_0=[format retain];
+   }
+   [_dateFormat release];
+   _dateFormat=format;
+   if(_cf!=NULL && format!=nil){
+    CFStringRef cfFormat=copyCFString(format);
+    CFDateFormatterSetFormat((CFDateFormatterRef)_cf,cfFormat);
+    CFRelease(cfFormat);
+   }
+   else
+    [self _invalidate];
+}
+
+// A style sets the format again.
+-(NSDateFormatterStyle)dateStyle {
+   return _dateStyle;
+}
+
+-(void)setDateStyle:(NSDateFormatterStyle)style {
+   _dateStyle=style;
+   [_dateFormat release];
+   _dateFormat=nil;
+   [self _invalidate];
+}
+
+-(NSDateFormatterStyle)timeStyle {
+   return _timeStyle;
+}
+
+-(void)setTimeStyle:(NSDateFormatterStyle)style {
+   _timeStyle=style;
+   [_dateFormat release];
+   _dateFormat=nil;
+   [self _invalidate];
+}
+
+-(void)setLocalizedDateFormatFromTemplate:(NSString *)dateFormatTemplate {
+   NSString *format=[[self class] dateFormatFromTemplate:dateFormatTemplate options:0 locale:_nsLocale];
+   if(format!=nil)
+    [self setDateFormat:format];
 }
 
 -(BOOL)allowsNaturalLanguage {
-    return _allowsNaturalLanguage;
+   return _allowsNaturalLanguage;
 }
 
 -(NSDateFormatterBehavior)formatterBehavior {
    return _behavior;
 }
 
--(NSDictionary *)locale {
-    return _locale;
+-(void)setFormatterBehavior:(NSDateFormatterBehavior)value {
+   _behavior=value;
+   [self _invalidate];
 }
 
--(void)setDateFormat:(NSString *)format {
-   format=[format copy];
-   [_dateFormat10_0 release];
-   _dateFormat10_0 = format;
+-(NSLocale *)locale {
+   return _nsLocale;
+}
 
-   format=[format copy];
-   [_dateFormat release];
-   _dateFormat = format;
+-(void)setLocale:(NSLocale *)locale {
+   if(locale==nil)
+    locale=[NSLocale currentLocale];
+   [_nsLocale release];
+   _nsLocale=[locale copy];
+   [self _invalidate];
 }
 
 -(void)setTimeZone:(NSTimeZone*)tz {
-    NSParameterAssert(tz);
+    if(tz==nil)
+     tz=[NSTimeZone defaultTimeZone];
     [_tz autorelease];
     _tz = [tz retain];
+    [self _invalidate];
 }
 
 -(NSTimeZone*)timeZone {
     return _tz;
 }
 
-- (NSString *)stringFromDate:(NSDate *)date {
-	return NSStringWithDateFormatLocale([date timeIntervalSinceReferenceDate], [self dateFormat], nil, _tz);
+-(NSCalendar *)calendar {
+   return _calendar;
 }
 
-- (NSDate*)dateFromString:(NSString*)string {
-    return NSDateWithStringDateFormatLocale(string, [self dateFormat], nil, _tz);
+-(void)setCalendar:(NSCalendar *)calendar {
+   [_calendar release];
+   _calendar=[calendar retain];
+   [self _invalidate];
 }
 
-- (NSArray *)shortStandaloneWeekdaySymbols {
-
-	return [[[NSUserDefaults standardUserDefaults] dictionaryRepresentation] objectForKey:
-NSShortWeekDayNameArray];
-}
-- (NSArray *)standaloneWeekdaySymbols {
-	return [[[NSUserDefaults standardUserDefaults] dictionaryRepresentation] objectForKey:
-NSWeekDayNameArray];
+-(BOOL)isLenient {
+   return _lenient;
 }
 
 -(void)setLenient:(BOOL)value {
+   _lenient=value;
+   if(_cf!=NULL)
+    CFDateFormatterSetProperty((CFDateFormatterRef)_cf,kCFDateFormatterIsLenient,value?kCFBooleanTrue:kCFBooleanFalse);
 }
 
--(void)setFormatterBehavior:(NSDateFormatterBehavior)value {
-   _behavior=value;
+-(BOOL)generatesCalendarDates {
+   return _generatesCalendarDates;
+}
+
+-(void)setGeneratesCalendarDates:(BOOL)value {
+   _generatesCalendarDates=value;
+}
+
+// Relative dates ("today") need what CFDateFormatter does not have: the
+// setting is kept, the dates are formatted as usual.
+-(BOOL)doesRelativeDateFormatting {
+   return _relative;
+}
+
+-(void)setDoesRelativeDateFormatting:(BOOL)value {
+   _relative=value;
+}
+
+-(NSFormattingContext)formattingContext {
+   return _formattingContext;
+}
+
+-(void)setFormattingContext:(NSFormattingContext)context {
+   _formattingContext=context;
+}
+
+#pragma mark Properties of the CFDateFormatter
+
+-(id)_property:(CFStringRef)key {
+   CFDateFormatterRef formatter=[self _cfFormatter];
+   CFTypeRef value=formatter?CFDateFormatterCopyProperty(formatter,key):NULL;
+   return [(id)value autorelease];
+}
+
+-(void)_setProperty:(CFStringRef)key value:(id)value {
+   if(value==nil)
+    [_properties removeObjectForKey:(NSString *)key];
+   else
+    [_properties setObject:value forKey:(NSString *)key];
+   [self _invalidate];
+}
+
+-(NSDate *)_dateProperty:(CFStringRef)key {
+   id value=[self _property:key];
+   if(value==nil)
+    return nil;
+   return [NSDate dateWithTimeIntervalSinceReferenceDate:CFDateGetAbsoluteTime((CFDateRef)value)];
+}
+
+-(void)_setDateProperty:(CFStringRef)key value:(NSDate *)date {
+   CFDateRef cfDate=date?CFDateCreate(NULL,[date timeIntervalSinceReferenceDate]):NULL;
+   [self _setProperty:key value:(id)cfDate];
+   if(cfDate!=NULL)
+    CFRelease(cfDate);
+}
+
+-(NSDate *)twoDigitStartDate { return [self _dateProperty:kCFDateFormatterTwoDigitStartDate]; }
+-(void)setTwoDigitStartDate:(NSDate *)date { [self _setDateProperty:kCFDateFormatterTwoDigitStartDate value:date]; }
+-(NSDate *)defaultDate { return [self _dateProperty:kCFDateFormatterDefaultDate]; }
+-(void)setDefaultDate:(NSDate *)date { [self _setDateProperty:kCFDateFormatterDefaultDate value:date]; }
+-(NSDate *)gregorianStartDate { return [self _dateProperty:kCFDateFormatterGregorianStartDate]; }
+-(void)setGregorianStartDate:(NSDate *)date { [self _setDateProperty:kCFDateFormatterGregorianStartDate value:date]; }
+
+#define SYMBOLS(getter, setter, key, type) \
+-(type)getter { return [self _property:key]; } \
+-(void)setter:(type)value { [self _setProperty:key value:value]; }
+
+SYMBOLS(eraSymbols, setEraSymbols, kCFDateFormatterEraSymbols, NSArray *)
+SYMBOLS(longEraSymbols, setLongEraSymbols, kCFDateFormatterLongEraSymbols, NSArray *)
+SYMBOLS(monthSymbols, setMonthSymbols, kCFDateFormatterMonthSymbols, NSArray *)
+SYMBOLS(shortMonthSymbols, setShortMonthSymbols, kCFDateFormatterShortMonthSymbols, NSArray *)
+SYMBOLS(veryShortMonthSymbols, setVeryShortMonthSymbols, kCFDateFormatterVeryShortMonthSymbols, NSArray *)
+SYMBOLS(standaloneMonthSymbols, setStandaloneMonthSymbols, kCFDateFormatterStandaloneMonthSymbols, NSArray *)
+SYMBOLS(shortStandaloneMonthSymbols, setShortStandaloneMonthSymbols, kCFDateFormatterShortStandaloneMonthSymbols, NSArray *)
+SYMBOLS(veryShortStandaloneMonthSymbols, setVeryShortStandaloneMonthSymbols, kCFDateFormatterVeryShortStandaloneMonthSymbols, NSArray *)
+SYMBOLS(weekdaySymbols, setWeekdaySymbols, kCFDateFormatterWeekdaySymbols, NSArray *)
+SYMBOLS(shortWeekdaySymbols, setShortWeekdaySymbols, kCFDateFormatterShortWeekdaySymbols, NSArray *)
+SYMBOLS(veryShortWeekdaySymbols, setVeryShortWeekdaySymbols, kCFDateFormatterVeryShortWeekdaySymbols, NSArray *)
+SYMBOLS(standaloneWeekdaySymbols, setStandaloneWeekdaySymbols, kCFDateFormatterStandaloneWeekdaySymbols, NSArray *)
+SYMBOLS(shortStandaloneWeekdaySymbols, setShortStandaloneWeekdaySymbols, kCFDateFormatterShortStandaloneWeekdaySymbols, NSArray *)
+SYMBOLS(veryShortStandaloneWeekdaySymbols, setVeryShortStandaloneWeekdaySymbols, kCFDateFormatterVeryShortStandaloneWeekdaySymbols, NSArray *)
+SYMBOLS(quarterSymbols, setQuarterSymbols, kCFDateFormatterQuarterSymbols, NSArray *)
+SYMBOLS(shortQuarterSymbols, setShortQuarterSymbols, kCFDateFormatterShortQuarterSymbols, NSArray *)
+SYMBOLS(standaloneQuarterSymbols, setStandaloneQuarterSymbols, kCFDateFormatterStandaloneQuarterSymbols, NSArray *)
+SYMBOLS(shortStandaloneQuarterSymbols, setShortStandaloneQuarterSymbols, kCFDateFormatterShortStandaloneQuarterSymbols, NSArray *)
+SYMBOLS(AMSymbol, setAMSymbol, kCFDateFormatterAMSymbol, NSString *)
+SYMBOLS(PMSymbol, setPMSymbol, kCFDateFormatterPMSymbol, NSString *)
+
+#undef SYMBOLS
+
+#pragma mark Formatting
+
+- (NSString *)stringFromDate:(NSDate *)date {
+   if(date==nil)
+    return nil;
+   if(![self _isModern])
+    return NSStringWithDateFormatLocale([date timeIntervalSinceReferenceDate], [self dateFormat], nil, _tz);
+
+   CFDateFormatterRef formatter=[self _cfFormatter];
+   CFStringRef string=formatter?CFDateFormatterCreateStringWithAbsoluteTime(NULL,formatter,[date timeIntervalSinceReferenceDate]):NULL;
+   return [(NSString *)string autorelease];
+}
+
+- (NSDate*)dateFromString:(NSString*)string {
+   NSDate *date=nil;
+
+   if(string==nil)
+    return nil;
+   if(![self _isModern])
+    return NSDateWithStringDateFormatLocale(string, [self dateFormat], nil, _tz);
+   if([self getObjectValue:&date forString:string range:NULL error:NULL])
+    return date;
+   return nil;
+}
+
+// The whole string (or the range) must be a date.
+-(BOOL)getObjectValue:(id *)object forString:(NSString *)string range:(NSRange *)rangep error:(NSError **)error {
+   CFDateFormatterRef formatter=[self _cfFormatter];
+   CFAbsoluteTime     at=0;
+   CFRange            range=CFRangeMake(0,[string length]);
+   BOOL               ok;
+
+   if(rangep!=NULL)
+    range=CFRangeMake(rangep->location,rangep->length);
+   CFStringRef cfString=copyCFString(string);
+   ok=formatter!=NULL && cfString!=NULL &&
+      CFDateFormatterGetAbsoluteTimeFromString(formatter,cfString,&range,&at) &&
+      (rangep!=NULL || range.length==(CFIndex)[string length]);
+   if(cfString!=NULL)
+    CFRelease(cfString);
+   if(rangep!=NULL && ok)
+    *rangep=NSMakeRange(range.location,range.length);
+   if(!ok){
+    if(object!=NULL)
+     *object=nil;
+    if(error!=NULL)
+     *error=[NSError errorWithDomain:NSCocoaErrorDomain code:2048 userInfo:
+             [NSDictionary dictionaryWithObject:[NSString stringWithFormat:@"The value “%@” is invalid.",string] forKey:NSLocalizedDescriptionKey]];
+    return NO;
+   }
+   if(object!=NULL)
+    *object=[NSDate dateWithTimeIntervalSinceReferenceDate:at];
+   return YES;
+}
+
++(NSString *)localizedStringFromDate:(NSDate *)date dateStyle:(NSDateFormatterStyle)dstyle timeStyle:(NSDateFormatterStyle)tstyle {
+   NSDateFormatter *formatter=[[[NSDateFormatter alloc] init] autorelease];
+   [formatter setDateStyle:dstyle];
+   [formatter setTimeStyle:tstyle];
+   return [formatter stringFromDate:date];
+}
+
++(NSString *)dateFormatFromTemplate:(NSString *)tmplate options:(NSUInteger)opts locale:(NSLocale *)locale {
+   NSString   *identifier=[(locale?locale:[NSLocale currentLocale]) localeIdentifier];
+   CFStringRef name=copyCFString(identifier?identifier:@"en_US");
+   CFLocaleRef cfLocale=CFLocaleCreate(NULL,name);
+   CFStringRef cfTemplate=copyCFString(tmplate);
+   CFStringRef format=cfTemplate?CFDateFormatterCreateDateFormatFromTemplate(NULL,cfTemplate,opts,cfLocale):NULL;
+
+   CFRelease(name);
+   if(cfTemplate!=NULL)
+    CFRelease(cfTemplate);
+   if(cfLocale!=NULL)
+    CFRelease(cfLocale);
+   return [(NSString *)format autorelease];
 }
 
 -(NSString *)stringForObjectValue:(id)object {
-
-   if([object isKindOfClass:[NSDate class]])
-    return NSStringWithDateFormatLocale([object timeIntervalSinceReferenceDate], _dateFormat10_0, _locale, _tz);
-   if([object isKindOfClass:[NSCalendarDate class]]) 
+   if(![object isKindOfClass:[NSDate class]])
+    return nil;
+   if([self _isModern])
+    return [self stringFromDate:object];
+   if([object isKindOfClass:[NSCalendarDate class]])
     return NSStringWithDateFormatLocale([object timeIntervalSinceReferenceDate], _dateFormat10_0, _locale, [object timeZone]);
-
-   return nil;
+   return NSStringWithDateFormatLocale([object timeIntervalSinceReferenceDate], _dateFormat10_0, _locale, _tz);
 }
 
 -(NSAttributedString *)attributedStringForObjectValue:(id)object
    withDefaultAttributes:(NSDictionary *)attributes {
-    return [[[NSAttributedString allocWithZone:NULL] initWithString:[self stringForObjectValue:object] attributes:attributes] autorelease];
+    NSString *string=[self stringForObjectValue:object];
+    if(string==nil)
+     return nil;
+    return [[[NSAttributedString allocWithZone:NULL] initWithString:string attributes:attributes] autorelease];
 }
 
 -(NSString *)editingStringForObjectValue:(id)object {
@@ -152,6 +519,13 @@ NSWeekDayNameArray];
 }
 
 -(BOOL)getObjectValue:(id *)object forString:(NSString *)string errorDescription:(NSString **)error {
+    if([self _isModern]){
+     NSError *e=nil;
+     BOOL ok=[self getObjectValue:object forString:string range:NULL error:&e];
+     if(!ok && error!=NULL)
+      *error=[e localizedDescription];
+     return ok;
+    }
     *object = NSDateWithStringDateFormatLocale(string, _dateFormat10_0, _locale, _tz);
     if (*object == nil) {
 // FIX localization
@@ -165,11 +539,11 @@ NSWeekDayNameArray];
 
 -(BOOL)isPartialStringValid:(NSString *)partialString
    newEditingString:(NSString **)newString errorDescription:(NSString **)error {
-   NSUnimplementedMethod();
-   return NO;
+   return YES;
 }
 
 @end
+
 
 
 @interface NSMutableString(NSDateFormatterExtensions)
