@@ -10,7 +10,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <Foundation/NSGeometry.h>
 #import <Foundation/NSZone.h>
 
-@class NSString, NSData;
+@class NSString, NSData, NSSet;
 
 @interface NSCoder : NSObject
 
@@ -82,6 +82,9 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 - (float)decodeFloatForKey:(NSString *)key;
 - (int)decodeIntForKey:(NSString *)key;
 - decodeObjectForKey:(NSString *)key;
+- (id)decodeObjectOfClass:(Class)cls forKey:(NSString *)key;
+- (id)decodeObjectOfClasses:(NSSet *)classes forKey:(NSString *)key;
+@property (readonly) BOOL requiresSecureCoding;
 
 - (int32_t)decodeInt32ForKey:(NSString *)key;
 - (int64_t)decodeInt64ForKey:(NSString *)key;
