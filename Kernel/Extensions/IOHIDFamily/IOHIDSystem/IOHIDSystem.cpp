@@ -77,6 +77,11 @@
 #include <sys/proc.h>
 #include <string.h>
 #include <libkern/libkern.h>
+#include <kern/ipc_mig.h>
+#include <pexpert/pexpert.h>
+
+/* Minkar: ipc_port_release_send (com.apple.kpi.private). */
+extern "C" void ipc_port_release_send(ipc_port_t port);
 
 #ifdef __cplusplus
     extern "C"
@@ -1028,7 +1033,7 @@ IOReturn IOHIDSystem::evCloseGated(void)
         screens = 0;
     }
     // Remove port notification for the eventPort and clear the port out
-    //setEventPortGated(MACH_PORT_NULL);
+    setEventPortGated(MACH_PORT_NULL);
 
     // Clear local state to shutdown
     evStateChanging = false;
@@ -1765,6 +1770,9 @@ void IOHIDSystem::postEvent(int           what,
         nxEvent.payload.data = *myData;
     }
 
+    /* Minkar: the event server reads the shared low-level queue. */
+    enqueueLowLevelEvent(&nxEvent.payload);
+
     event = IOHIDEvent::vendorDefinedEvent(
                                   ts,
                                   kHIDPage_AppleVendor,
@@ -2190,6 +2198,14 @@ bool IOHIDSystem::registerEventSource(IOService * source)
                     (KeyboardEventCallback)        _keyboardEvent,
                     (KeyboardSpecialEventCallback) _keyboardSpecialEvent,
                     (UpdateEventFlagsCallback)     _updateEventFlags);
+    }
+    else if ( OSDynamicCast(IOHIPointing, source)) {
+        /* Minkar: mouse events reach the event server through postEvent,
+         * as the keyboard's do (IOHIDPointingEventDevice is NEW_HID). */
+        success = ((IOHIPointing*)source)->open(this, kIOServiceSeize, 0,
+                    (RelativePointerEventCallback) _relativePointerEvent,
+                    (AbsolutePointerEventCallback) _absolutePointerEvent,
+                    (ScrollWheelEventCallback)     _scrollWheelEvent);
     }
 
     if ( success )
@@ -4304,3 +4320,321 @@ void IOHIDSystem::detach( IOService * provider )
     super::detach(provider);
 }
 
+
+/*
+ * Minkar: the event server's low-level queue and pointing devices.
+ *
+ * The event server (WindowServer) opens kIOHIDServerConnectType, creates
+ * the shared memory (method 0), maps kIOHIDGlobalMemory and registers a
+ * port for kIOHIDEventNotification. Every event posted here is also
+ * written to EvGlobals' lleq, and the port gets an empty message when the
+ * reader has caught up with the queue, so it never polls.
+ */
+
+IOReturn IOHIDSystem::setEventPort(mach_port_t port)
+{
+    if (!cmdGate) {
+        if (port) ipc_port_release_send((ipc_port_t)port);
+        return kIOReturnNotReady;
+    }
+    return cmdGate->runAction((IOCommandGate::Action)doSetEventPort, (void *)port);
+}
+
+IOReturn IOHIDSystem::doSetEventPort(IOHIDSystem * self, void * port)
+                        /* IOCommandGate::Action */
+{
+    self->setEventPortGated((mach_port_t)port);
+    return kIOReturnSuccess;
+}
+
+void IOHIDSystem::setEventPortGated(mach_port_t port)
+{
+    mach_port_t old = _eventPort;
+
+    _eventPort = port;
+    if (old && old != port)
+        ipc_port_release_send((ipc_port_t)old);
+    if (port && eventsOpen && evg && evg->LLEHead != evg->LLETail)
+        kickEventConsumer();
+}
+
+void IOHIDSystem::kickEventConsumer(void)
+{
+    mach_msg_header_t msg;
+
+    if (!_eventPort)
+        return;
+    bzero(&msg, sizeof(msg));
+    msg.msgh_bits = MACH_MSGH_BITS(MACH_MSG_TYPE_COPY_SEND, 0);
+    msg.msgh_size = sizeof(msg);
+    msg.msgh_remote_port = _eventPort;
+    msg.msgh_local_port = MACH_PORT_NULL;
+    msg.msgh_id = 0;
+    mach_msg_send_from_kernel(&msg, sizeof(msg));
+}
+
+/*
+ * Producer side of lleq; runs under cmdGate. The reader takes events from
+ * LLEHead while it differs from LLETail and moves LLEHead along `next`;
+ * one slot always stays free, so a full queue drops the new event.
+ */
+void IOHIDSystem::enqueueLowLevelEvent(const NXEvent * event)
+{
+    volatile NXEQElement * slot;
+    int tail, next;
+
+    if (!eventsOpen || !evg)
+        return;
+
+    tail = evg->LLETail;
+    if (tail < 0 || tail >= lleqSize)
+        return;
+    slot = &evg->lleq[tail];
+    next = slot->next;
+    if (next == evg->LLEHead || !OSSpinLockTry((OSSpinLock *)&slot->sema)) {
+        if ((_lleqDropped++ % 100) == 0)
+            IOLog("IOHIDSystem: event queue full, %u event(s) dropped\n", _lleqDropped);
+        return;
+    }
+    memcpy((void *)&slot->event, event, sizeof(NXEvent));
+    OSSpinLockUnlock((OSSpinLock *)&slot->sema);
+
+    evg->LLELast = tail;
+    __sync_synchronize();
+    evg->LLETail = next;
+    __sync_synchronize();
+
+    /* Tell the reader only when it is waiting at this event: it had read
+     * everything before it. Checking after publishing the tail closes the
+     * window where it finds the queue empty just before the store above. */
+    if (evg->LLEHead == tail)
+        kickEventConsumer();
+}
+
+/* Pointer events come from device threads; they are copied and handled
+ * under cmdGate, like keyboard events. */
+enum { kPointerRelative, kPointerAbsolute, kPointerScroll };
+
+struct PointerEventArgs {
+    int             kind;
+    int             buttons;
+    int             dx, dy;
+    IOGPoint        location;
+    IOGBounds       bounds;
+    short           delta[3];
+    IOFixed         fixedDelta[3];
+    SInt32          pointDelta[3];
+    AbsoluteTime    ts;
+    OSObject *      sender;
+};
+
+void IOHIDSystem::_relativePointerEvent(IOHIDSystem * self, int buttons, int dx, int dy,
+                                        AbsoluteTime ts, OSObject * sender, void * refcon __unused)
+{
+    PointerEventArgs args;
+
+    bzero(&args, sizeof(args));
+    args.kind = kPointerRelative;
+    args.buttons = buttons;
+    args.dx = dx;
+    args.dy = dy;
+    args.ts = ts;
+    args.sender = sender;
+    self->cmdGate->runAction((IOCommandGate::Action)doPointerEvent, &args);
+}
+
+void IOHIDSystem::_absolutePointerEvent(IOHIDSystem * self, int buttons, IOGPoint * newLoc,
+                                        IOGBounds * bounds, bool proximity __unused,
+                                        int pressure __unused, int stylusAngle __unused,
+                                        AbsoluteTime ts, OSObject * sender, void * refcon __unused)
+{
+    PointerEventArgs args;
+
+    if (!newLoc || !bounds)
+        return;
+    bzero(&args, sizeof(args));
+    args.kind = kPointerAbsolute;
+    args.buttons = buttons;
+    args.location = *newLoc;
+    args.bounds = *bounds;
+    args.ts = ts;
+    args.sender = sender;
+    self->cmdGate->runAction((IOCommandGate::Action)doPointerEvent, &args);
+}
+
+void IOHIDSystem::_scrollWheelEvent(IOHIDSystem * self, short deltaAxis1, short deltaAxis2,
+                                    short deltaAxis3, IOFixed fixedDelta1, IOFixed fixedDelta2,
+                                    IOFixed fixedDelta3, SInt32 pointDelta1, SInt32 pointDelta2,
+                                    SInt32 pointDelta3, SInt32 options __unused, AbsoluteTime ts,
+                                    OSObject * sender, void * refcon __unused)
+{
+    PointerEventArgs args;
+
+    bzero(&args, sizeof(args));
+    args.kind = kPointerScroll;
+    args.delta[0] = deltaAxis1;
+    args.delta[1] = deltaAxis2;
+    args.delta[2] = deltaAxis3;
+    args.fixedDelta[0] = fixedDelta1;
+    args.fixedDelta[1] = fixedDelta2;
+    args.fixedDelta[2] = fixedDelta3;
+    args.pointDelta[0] = pointDelta1;
+    args.pointDelta[1] = pointDelta2;
+    args.pointDelta[2] = pointDelta3;
+    args.ts = ts;
+    args.sender = sender;
+    self->cmdGate->runAction((IOCommandGate::Action)doPointerEvent, &args);
+}
+
+IOReturn IOHIDSystem::doPointerEvent(IOHIDSystem * self, void * args)
+                        /* IOCommandGate::Action */
+{
+    self->pointerEventGated(args);
+    return kIOReturnSuccess;
+}
+
+/* The desktop the cursor moves on: the registered screens, or the boot
+ * framebuffer before any screen is registered. */
+void IOHIDSystem::pointerBounds(IOGBounds * bounds)
+{
+    bool found = false;
+
+    if (evScreen) {
+        EvScreen * screen = (EvScreen *)evScreen;
+        for (int i = 0; i < screens; i++) {
+            if (!screen[i].instance || !screen[i].desktopBounds)
+                continue;
+            IOGBounds * b = screen[i].desktopBounds;
+            if (!found) {
+                *bounds = *b;
+                found = true;
+                continue;
+            }
+            if (b->minx < bounds->minx) bounds->minx = b->minx;
+            if (b->miny < bounds->miny) bounds->miny = b->miny;
+            if (b->maxx > bounds->maxx) bounds->maxx = b->maxx;
+            if (b->maxy > bounds->maxy) bounds->maxy = b->maxy;
+        }
+    }
+    if (!found) {
+        bounds->minx = 0;
+        bounds->miny = 0;
+        bounds->maxx = PE_state.video.v_width ? (SInt16)PE_state.video.v_width : 1024;
+        bounds->maxy = PE_state.video.v_height ? (SInt16)PE_state.video.v_height : 768;
+    }
+}
+
+/* IOHIPointing's button bits (EV_LB left, EV_RB right, 0x2 middle, the
+ * rest by number) to button numbers: bit n is button n, 0 the left. */
+static int pointerButtonNumbers(int buttons)
+{
+    return ((buttons & EV_LB) ? 1 : 0)
+         | ((buttons & EV_RB) ? 2 : 0)
+         | ((buttons & 0x2) ? 4 : 0)
+         | (buttons & ~0x7);
+}
+
+void IOHIDSystem::postPointerButtons(int buttons, AbsoluteTime ts, OSObject * sender)
+{
+    int changed = buttons ^ _pointerButtons;
+
+    for (int n = 0; changed && n < 32; n++) {
+        int bit = 1 << n;
+        if (!(changed & bit))
+            continue;
+        changed &= ~bit;
+
+        bool down = (buttons & bit) != 0;
+        int what = (n == 0) ? (down ? NX_LMOUSEDOWN : NX_LMOUSEUP)
+                 : (n == 1) ? (down ? NX_RMOUSEDOWN : NX_RMOUSEUP)
+                 :            (down ? NX_OMOUSEDOWN : NX_OMOUSEUP);
+        NXEventData data;
+        bzero(&data, sizeof(data));
+        if (down)
+            _pointerEventNum++;
+        data.mouse.eventNum = _pointerEventNum;
+        data.mouse.click = down ? 1 : 0;
+        data.mouse.pressure = down ? 255 : 0;
+        data.mouse.buttonNumber = n;
+
+        if (down) _pointerButtons |= bit; else _pointerButtons &= ~bit;
+        if (evg) {
+            int evButtons = 0;
+            if (_pointerButtons & 1) evButtons |= EV_LB;
+            if (_pointerButtons & 2) evButtons |= EV_RB;
+            evg->buttons = evButtons;
+        }
+        postEvent(what, &_cursorHelper.desktopLocation(), ts, &data, sender);
+    }
+}
+
+void IOHIDSystem::pointerEventGated(void * p)
+{
+    PointerEventArgs * args = (PointerEventArgs *)p;
+    IOGBounds desk;
+    IOGPoint before, after;
+
+    if (args->kind == kPointerScroll) {
+        NXEventData data;
+        bzero(&data, sizeof(data));
+        data.scrollWheel.deltaAxis1 = args->delta[0];
+        data.scrollWheel.deltaAxis2 = args->delta[1];
+        data.scrollWheel.deltaAxis3 = args->delta[2];
+        data.scrollWheel.fixedDeltaAxis1 = args->fixedDelta[0];
+        data.scrollWheel.fixedDeltaAxis2 = args->fixedDelta[1];
+        data.scrollWheel.fixedDeltaAxis3 = args->fixedDelta[2];
+        data.scrollWheel.pointDeltaAxis1 = args->pointDelta[0];
+        data.scrollWheel.pointDeltaAxis2 = args->pointDelta[1];
+        data.scrollWheel.pointDeltaAxis3 = args->pointDelta[2];
+        postEvent(NX_SCROLLWHEELMOVED, &_cursorHelper.desktopLocation(), args->ts, &data, args->sender);
+        return;
+    }
+
+    pointerBounds(&desk);
+    before.x = _cursorHelper.desktopLocation().xValue().as32();
+    before.y = _cursorHelper.desktopLocation().yValue().as32();
+
+    SInt32 x, y;
+    if (args->kind == kPointerRelative) {
+        x = before.x + args->dx;
+        y = before.y + args->dy;
+    } else {
+        /* Scale the device's range onto the desktop. */
+        SInt32 dw = args->bounds.maxx - args->bounds.minx;
+        SInt32 dh = args->bounds.maxy - args->bounds.miny;
+        x = desk.minx + (dw > 0 ? (SInt32)(((SInt64)(args->location.x - args->bounds.minx)
+                                    * (desk.maxx - desk.minx)) / dw) : 0);
+        y = desk.miny + (dh > 0 ? (SInt32)(((SInt64)(args->location.y - args->bounds.miny)
+                                    * (desk.maxy - desk.miny)) / dh) : 0);
+    }
+    if (x < desk.minx) x = desk.minx;
+    if (x > desk.maxx - 1) x = desk.maxx - 1;
+    if (y < desk.miny) y = desk.miny;
+    if (y > desk.maxy - 1) y = desk.maxy - 1;
+    after.x = (SInt16)x;
+    after.y = (SInt16)y;
+
+    int buttons = pointerButtonNumbers(args->buttons);
+
+    if (after.x != before.x || after.y != before.y) {
+        _cursorHelper.desktopLocation().fromIntFloor(after.x, after.y);
+        if (evg) {
+            evg->cursorLoc.x = after.x;
+            evg->cursorLoc.y = after.y;
+            evg->desktopCursorFixed.x = _cursorHelper.desktopLocation().xValue().asFixed24x8();
+            evg->desktopCursorFixed.y = _cursorHelper.desktopLocation().yValue().asFixed24x8();
+        }
+
+        NXEventData data;
+        bzero(&data, sizeof(data));
+        data.mouseMove.dx = after.x - before.x;
+        data.mouseMove.dy = after.y - before.y;
+        int what = (_pointerButtons & 1) ? NX_LMOUSEDRAGGED
+                 : (_pointerButtons & 2) ? NX_RMOUSEDRAGGED
+                 : _pointerButtons       ? NX_OMOUSEDRAGGED
+                 :                         NX_MOUSEMOVED;
+        postEvent(what, &_cursorHelper.desktopLocation(), args->ts, &data, args->sender);
+    }
+    if (buttons != _pointerButtons)
+        postPointerButtons(buttons, args->ts, args->sender);
+}

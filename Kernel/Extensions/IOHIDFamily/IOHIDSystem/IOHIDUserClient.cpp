@@ -74,6 +74,13 @@ bool IOHIDUserClient::initWithTask(task_t owningTask, void *security_id, UInt32 
         result = (entitlement == kOSBooleanTrue);
         entitlement->release();
     }
+    // SHORTCUT(WS0): no policy module validates signatures yet, so no
+    // process has entitlements; the event server runs as root until WS4.
+    // Root may connect. Removed by the privacy service (before M5).
+    if (!result
+        && clientHasPrivilege(owningTask, kIOClientPrivilegeAdministrator) == kIOReturnSuccess) {
+        result = true;
+    }
     if (!result) {
         proc_t      process;
         process = (proc_t)get_bsdtask_info(owningTask);
@@ -144,13 +151,14 @@ IOReturn IOHIDUserClient::registerNotificationPort(
 {
     if( type != kIOHIDEventNotification)
         return kIOReturnUnsupported;
-    if (!owner)
+    if (!owner) {
+        releaseNotificationPort (port);
         return kIOReturnOffline;
-    
-    releaseNotificationPort (port);
+    }
 
-    //owner->setEventPort(port);
-    return kIOReturnSuccess;
+    /* The system keeps the send right and tells the port when the
+     * low-level event queue has events (IOHIDSystem::kickEventConsumer). */
+    return owner->setEventPort(port);
 }
 
 IOReturn IOHIDUserClient::connectClient( IOUserClient * client )
