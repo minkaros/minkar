@@ -6,6 +6,7 @@ The above copyright notice and this permission notice shall be included in all c
 
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE. */
 #import <Foundation/NSProxy.h>
+#import <Foundation/NSCFTypeID.h>
 #import <Foundation/NSException.h>
 #import <Foundation/NSInvocation.h>
 #import <Foundation/NSString.h>
@@ -13,10 +14,17 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <Foundation/NSAutoreleasePool-private.h>
 #import <Foundation/NSRaise.h>
 #import <objc/message.h>
+#import <objc/runtime.h>
 
 @interface NSInvocation(private)
 +(NSInvocation *)invocationWithMethodSignature:(NSMethodSignature *)signature arguments:(void *)arguments;
 @end
+
+// objc4's root reference counting (objc-internal.h).
+extern id _objc_rootRetain(id object);
+extern BOOL _objc_rootReleaseWasZero(id object);
+extern NSUInteger _objc_rootRetainCount(id object);
+extern id _objc_rootAutorelease(id object);
 
 @implementation NSProxy
 
@@ -37,11 +45,21 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
  */
 
 +allocWithZone:(NSZone *)zone {
-   return NSAllocateObject(self,0,zone);
+   /* Minkar: not NSAllocateObject, which stores the CF type in the word
+    * after isa (NSObject's cfinfo): a proxy has no such field, and that
+    * word is its subclass's first instance variable. */
+   return class_createInstance(self, 0);
 }
 
 +alloc {
    return [self allocWithZone:NULL];
+}
+
+/* Minkar: CF asks objects for their CF type; a proxy answers it itself
+ * instead of forwarding it to what it stands for (or raising, when it
+ * stands for nothing yet). */
+-(unsigned)_cfTypeID {
+   return kNSCFTypeObject;
 }
 
 -(void)dealloc {
@@ -204,24 +222,27 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 }
 
 -autorelease {
-   return NSAutorelease(self);
+   return _objc_rootAutorelease(self);
 }
 
 
+/* Minkar: the runtime's own reference count, as objc4's NSObject keeps
+ * it. NSIncrementExtraRefCount calls objc_retain (and NSAutorelease
+ * objc_autorelease), which sends the message back to a class that
+ * implements it, as NSProxy does: it never returned. */
 -(oneway void)release {
-   if(NSDecrementExtraRefCountWasZero(self))
+   if(_objc_rootReleaseWasZero(self))
     [self dealloc];
 }
 
 
 -retain {
-   NSIncrementExtraRefCount(self);
-   return self;
+   return _objc_rootRetain(self);
 }
 
 
 -(NSUInteger)retainCount {
-   return NSExtraRefCount(self);
+   return _objc_rootRetainCount(self);
 }
 
 
