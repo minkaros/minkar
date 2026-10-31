@@ -96,7 +96,7 @@ Minkar arranca sobre Darwin con su propio cargador EFI, todo el sistema se compi
 | launchd / launchctl | launchd-842 como PID 1; launchctl con kickstart; `KeepAlive PathState`, `WatchPaths` y `QueueDirectories` | Nada | 2 (cerrada) |
 | Userland y herramientas del sistema | Todos los comandos de la Fase 2 (337 de 354 de la lista de referencia) | `open` y los comandos de fases posteriores | 2 (cerrada) |
 | DiskArbitration | Framework y `diskarbitrationd` originales (APSL); `diskutil` y `hdiutil` propios; monta HFS+, FAT y exFAT | — | 2 (cerrada) |
-| CoreFoundation | CF-Lite (APSL) | APIs que faltan hasta la API 21; puente `CFArray`/`CFDictionary` | 3 |
+| CoreFoundation | CF-Lite (APSL) | APIs que faltan hasta la API 21 | 3 |
 | Foundation | Tres lotes de correcciones (26 oct); `NSProcessInfo` con `operatingSystemVersion`; reexporta CoreFoundation (31 oct) | `NSURLSession`; auditoría de la API 19 | 3 |
 | Swift 6 | Nada en el árbol | Compilador, stdlib, overlays | 3 |
 | WindowServer | Compila sobre XNU con backend IOFramebuffer; nunca ejecutado | Ejecutarlo; entrada por IOHIDSystem | 4 |
@@ -227,7 +227,8 @@ Orden de decisión: CoreFoundation condiciona la Foundation para Swift, y esta c
 **Actividades**
 
 0. Traer los frameworks de terceros restantes (movido desde la Fase 0): 13 frameworks se compilan e instalan; CFNetwork está comentado, y Security y OpenDirectory no se compilan.
-1. Completar la CF-Lite hasta la API 21, con pruebas de bridging en cada cambio. Pendiente: `CFArray` y `CFDictionary` aún no tienen puente a `NSArray` y `NSDictionary`.
+1. Completar la CF-Lite hasta la API 21, con pruebas de bridging en cada cambio.
+   - [x] `CFArray` y `CFDictionary` tienen toll-free bridging con `NSArray` y `NSDictionary` en los dos sentidos: los objetos de CF aceptan mensajes de Objective-C (`__NSCFArray`, `__NSCFDictionary`) y las funciones de CF aceptan las colecciones de Foundation. Evidencia: commit "CoreFoundation and Foundation: arrays and dictionaries bridged both ways", prueba `foundation-cf-bridging` (13/0), suite completa 2761/0, M2 PASS.
 2. Auditar Foundation contra la API 19 empezando por lo que importan las apps de referencia. *Hecho (25–26 oct):* `NSException`, `NSUUID`, `NSSecureCoding`, `NSRegularExpression`, `NSJSONSerialization` (con JSON5), `NSCache`, `NSInvocation` con la convención System V, `NSHashTable` y `NSMapTable` débiles, listas de propiedades binarias byte a byte como la referencia, `NSProgress` y la API moderna de `NSString`, además de decenas de fallos encontrados al probar. *Hecho (31 oct):* `NSProcessInfo` con `operatingSystemVersion` (10.15.0), `isOperatingSystemAtLeastVersion:`, `operatingSystemVersionString`, procesadores, memoria y `systemUptime` (`fb6e25b877`). *Queda del informe de símbolos:* `NSURLSession`. *Fallo conocido:* `NSKeyedUnarchiver` no lee la lista de propiedades XML que escribe `NSKeyedArchiver`. Sin probar: el comportamiento dependiente del locale (los datos de locale UTF-8 están en la imagen desde el 27 oct).
 3. Security (APSL) para certificados y keychain básico, necesario para TLS en `NSURLSession`.
 4. LaunchServices: base de datos de bundles y tipos UTI; `open` y Kraz dependen de ella.

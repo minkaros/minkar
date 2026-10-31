@@ -96,7 +96,7 @@ Minkar boots on Darwin with its own EFI loader, the whole system builds as Mach-
 | launchd / launchctl | launchd-842 as PID 1; launchctl with kickstart; `KeepAlive PathState`, `WatchPaths` and `QueueDirectories` | Nothing | 2 (closed) |
 | Userland and system tools | Every Phase 2 command (337 of the reference list's 354) | `open` and the commands of later phases | 2 (closed) |
 | DiskArbitration | The original framework and `diskarbitrationd` (APSL); our own `diskutil` and `hdiutil`; mounts HFS+, FAT and exFAT | — | 2 (closed) |
-| CoreFoundation | CF-Lite (APSL) | The APIs missing up to API 21; `CFArray`/`CFDictionary` bridging | 3 |
+| CoreFoundation | CF-Lite (APSL) | The APIs missing up to API 21 | 3 |
 | Foundation | Three batches of fixes (2026-10-26); `NSProcessInfo` with `operatingSystemVersion`; re-exports CoreFoundation (2026-10-31) | `NSURLSession`; the API 19 audit | 3 |
 | Swift 6 | Nothing in the tree | Compiler, stdlib, overlays | 3 |
 | WindowServer | Builds on XNU with an IOFramebuffer backend; never run | Run it; input from IOHIDSystem | 4 |
@@ -227,7 +227,8 @@ Decision order: CoreFoundation constrains Foundation for Swift, which constrains
 **Work**
 
 0. Bring in the remaining third-party frameworks (moved from Phase 0): 13 frameworks build and install; CFNetwork is commented out, and Security and OpenDirectory are not built.
-1. Complete CF-Lite up to API 21, with bridging tests on every change. Pending: `CFArray` and `CFDictionary` are not bridged to `NSArray` and `NSDictionary` yet.
+1. Complete CF-Lite up to API 21, with bridging tests on every change.
+   - [x] `CFArray` and `CFDictionary` are toll-free bridged to `NSArray` and `NSDictionary`, both ways: CF's objects take Objective-C messages (`__NSCFArray`, `__NSCFDictionary`) and CF's functions take Foundation's collections. Evidence: commit "CoreFoundation and Foundation: arrays and dictionaries bridged both ways", test `foundation-cf-bridging` (13/0), full suite 2761/0, M2 PASS.
 2. Audit Foundation against API 19, starting with what the reference apps import. *Done (2026-10-25/26):* `NSException`, `NSUUID`, `NSSecureCoding`, `NSRegularExpression`, `NSJSONSerialization` (with JSON5), `NSCache`, `NSInvocation` with the System V calling convention, weak `NSHashTable` and `NSMapTable`, binary property lists byte for byte as the reference writes them, `NSProgress` and the modern `NSString` API, plus dozens of bugs found while testing. *Done (2026-10-31):* `NSProcessInfo` with `operatingSystemVersion` (10.15.0), `isOperatingSystemAtLeastVersion:`, `operatingSystemVersionString`, processors, memory and `systemUptime` (`fb6e25b877`). *Left from the symbol report:* `NSURLSession`. *Known bug:* `NSKeyedUnarchiver` cannot read the XML property list `NSKeyedArchiver` writes. Untested: locale-dependent behaviour (UTF-8 locale data is in the image since 2026-10-27).
 3. Security (APSL) for certificates and a basic keychain, needed for TLS in `NSURLSession`.
 4. LaunchServices: bundle database and UTI types; `open` and Kraz depend on it.

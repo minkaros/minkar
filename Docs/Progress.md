@@ -49,7 +49,7 @@ flowchart TB
     subgraph FW["Frameworks"]
         F1["Foundation audit<br/>NSProcessInfo, CF re-export"]:::partial
         F2["NSURLSession"]:::todo
-        F3["CF-Lite to API 21<br/>CFArray/CFDictionary bridging"]:::partial
+        F3["CF-Lite to API 21<br/>arrays and dictionaries bridged"]:::partial
         F4["Security, LaunchServices"]:::todo
     end
     subgraph SW["Swift 6"]

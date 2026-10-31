@@ -49,7 +49,7 @@ flowchart TB
     subgraph FW["Frameworks"]
         F1["Auditoría de Foundation<br/>NSProcessInfo, reexporta CF"]:::partial
         F2["NSURLSession"]:::todo
-        F3["CF-Lite hasta la API 21<br/>puente CFArray/CFDictionary"]:::partial
+        F3["CF-Lite hasta la API 21<br/>puente de arrays y diccionarios hecho"]:::partial
         F4["Security, LaunchServices"]:::todo
     end
     subgraph SW["Swift 6"]
