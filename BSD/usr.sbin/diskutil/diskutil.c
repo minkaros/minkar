@@ -598,7 +598,8 @@ cmd_info(int argc, char **argv)
 		    (strstr(type, "Journaled") ? "Journaled HFS+" : "HFS+") :
 		    strcmp(kind, "msdos") == 0 ? (strstr(type, "FAT32") ?
 		    "MS-DOS FAT32" : strstr(type, "FAT16") ? "MS-DOS FAT16" :
-		    strstr(type, "FAT12") ? "MS-DOS FAT12" : "MS-DOS") : kind);
+		    strstr(type, "FAT12") ? "MS-DOS FAT12" : "MS-DOS") :
+		    strcmp(kind, "exfat") == 0 ? "ExFAT" : kind);
 		row("Type (Bundle)", kind);
 		row("Name (User Visible)", type[0] ? type : kind);
 	}
@@ -920,6 +921,7 @@ static const struct format {
 	{ { "FAT16", "MS-DOS FAT16", NULL }, "msdos", { "-F", "16", NULL } },
 	{ { "FAT12", "MS-DOS FAT12", NULL }, "msdos", { "-F", "12", NULL } },
 	{ { "MS-DOS", "FAT", "MS-DOS FAT", NULL }, "msdos", { NULL } },
+	{ { "ExFAT", "ExFAT", NULL }, "exfat", { NULL } },
 };
 
 static const struct format *
