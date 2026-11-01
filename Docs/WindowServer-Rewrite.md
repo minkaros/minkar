@@ -456,16 +456,18 @@ source, so no Minkar process has entitlements today. Decided 2026-10-31:
   `com.apple.hid.system.server-access`) are honored only for platform
   binaries. Unrestricted ones (hardened runtime, sandbox) are honored with any
   valid signature, ad hoc included. Binaries outside the trust cache still
-  run; their restricted entitlements are ignored.
+  run, unless they carry a restricted entitlement: then the exec is refused,
+  as on the reference platform (ADR 0001).
 - **Names.** Entitlement names stay as the kernel and the frameworks check
   them.
 - **Later.** Certificate-based signatures, verified with corecrypto, for what
   is signed outside the build and for third-party apps (Phase 7); the policy
   kext keeps a place for that check. A user-space validation daemon only if
   provisioning profiles or expensive checks need it.
-- **Milestone.** Its own ADR first, then an implementation before WS4, with
-  tests: a system binary in the trust cache gets a restricted entitlement; a
-  re-signed copy outside the cache does not; an ad-hoc signed binary keeps its
+- **Milestone.** Its own ADR first (`Docs/ADR/0001-Kernel-Entitlements.md`,
+  accepted 2026-11-01), then an implementation before WS4, with tests: a
+  system binary in the trust cache gets a restricted entitlement; a re-signed
+  copy outside the cache is refused; an ad-hoc signed binary keeps its
   unrestricted entitlements. `SHORTCUT(WS0)` in `IOHIDUserClient.cpp` is
   removed then.
 

@@ -494,16 +494,18 @@ Minkar tiene entitlements. Decidido el 31 oct 2026:
   `com.apple.hid.system.server-access`) solo se respetan en binarios de
   plataforma. Los no restringidos (hardened runtime, sandbox) se respetan con
   cualquier firma válida, incluida la ad hoc. Los binarios fuera de la trust
-  cache se siguen ejecutando; sus entitlements restringidos se ignoran.
+  cache se siguen ejecutando, salvo si llevan un entitlement restringido:
+  entonces el exec se rechaza, como en la plataforma de referencia (ADR 0001).
 - **Nombres.** Los nombres de los entitlements se quedan como los comprueban
   el kernel y los frameworks.
 - **Después.** Firmas con certificado, verificadas con corecrypto, para lo que
   se firme fuera del build y para las apps de terceros (Fase 7); el kext de
   política deja sitio para esa comprobación. Un daemon de validación en espacio
   de usuario solo si lo necesitan provisioning profiles o comprobaciones caras.
-- **Hito.** Primero su propio ADR; después la implementación, antes de WS4, con
+- **Hito.** Primero su propio ADR (`Docs/ADR/0001-Kernel-Entitlements.es.md`,
+  aceptado el 2026-11-01); después la implementación, antes de WS4, con
   pruebas: un binario del sistema que está en la trust cache obtiene un
-  entitlement restringido; una copia refirmada fuera de la caché no; un binario
+  entitlement restringido; una copia refirmada fuera de la caché se rechaza; un binario
   firmado ad hoc conserva sus entitlements no restringidos. Entonces se quita
   `SHORTCUT(WS0)` de `IOHIDUserClient.cpp`.
 
