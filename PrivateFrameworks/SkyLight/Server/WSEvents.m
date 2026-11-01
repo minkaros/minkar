@@ -130,6 +130,22 @@ WSEventsConnectionDied(WSConnection *c)
 		keyWindow = WSWindowFrontmostOf(next);
 }
 
+/* ---- The menu bar ---- */
+
+/* A window moved by the server keeps its top below the menu bar of the
+ * display under the pointer. */
+static void
+keepBelowMenuBar(SLSRect *f, double px, double py)
+{
+	for (WSDisplay *d in WSDisplays) {
+		if (px < d.x || py < d.y || px >= d.x + d.width || py >= d.y + d.height)
+			continue;
+		if (f->y < d.y + d.menuBarHeight)
+			f->y = d.y + d.menuBarHeight;
+		return;
+	}
+}
+
 /* ---- Queues ---- */
 
 /* Tells the client its queue has events: a header only, never waited for. */
@@ -296,6 +312,7 @@ routeMouse(SLSEvent *e)
 		BOOL ends = e->type == kSLSEventLeftMouseUp;
 		f.x = e->x - moveOffsetX;
 		f.y = e->y - moveOffsetY;
+		keepBelowMenuBar(&f, e->x, e->y);
 		WSWindowSetFrame(moving, f);
 		SLSEvent moved = *e;
 		moved.type = kSLSEventWindowMoved;

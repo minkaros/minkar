@@ -110,8 +110,9 @@
      * "busy N" (the app does not answer for N seconds; the window server
      * still moves its windows), "quit". For the window server's tests.
      * "-cmd PATH" reads the commands from PATH instead, with one window,
-     * so two instances can run; then also "apps" (the running apps) and
-     * "activate PID" (asks that app to activate).
+     * so two instances can run; then also "apps" (the running apps),
+     * "activate PID" (asks that app to activate) and "screens" (each
+     * screen's frame and visible frame, and the menu bar's height).
      */
     NSArray *args = [[NSProcessInfo processInfo] arguments];
     NSUInteger cmd = [args indexOfObject:@"-cmd"];
@@ -214,6 +215,16 @@
         printf("busy done\n");
     } else if (strncmp(line, "apps", 4) == 0)
         [self printApplications];
+    else if (strncmp(line, "screens", 7) == 0) {
+        for (NSScreen *screen in [NSScreen screens]) {
+            NSRect f = [screen frame], v = [screen visibleFrame];
+            printf("screen frame=%.0f,%.0f,%.0f,%.0f visible=%.0f,%.0f,%.0f,%.0f\n",
+                f.origin.x, f.origin.y, f.size.width, f.size.height,
+                v.origin.x, v.origin.y, v.size.width, v.size.height);
+        }
+        printf("menu bar height=%.0f status bar thickness=%.0f\n",
+            [[NSApp mainMenu] menuBarHeight], [[NSStatusBar systemStatusBar] thickness]);
+    }
     else if (sscanf(line, "activate %d", &pid) == 1) {
         NSRunningApplication *app = [NSRunningApplication runningApplicationWithProcessIdentifier:pid];
         BOOL ok = [app activateWithOptions:NSApplicationActivateIgnoringOtherApps];

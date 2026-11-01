@@ -12,6 +12,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <AppKit/NSWindow.h>
 #import <AppKit/NSEvent.h>
 #import <AppKit/NSRaise.h>
+#import <CoreGraphics/CGDirectDisplay.h>
 #import <Foundation/NSKeyedArchiver.h>
 
 @implementation NSMenu
@@ -108,6 +109,14 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 -(NSMenu *)supermenu {
    return _supermenu;
+}
+
+extern CGFloat _NSMenuBarHeightForDisplay(CGDirectDisplayID display);
+
+-(CGFloat)menuBarHeight {
+   if(self!=[NSApp mainMenu])
+      return 0;
+   return _NSMenuBarHeightForDisplay(CGMainDisplayID());
 }
 
 -(NSString *)title {

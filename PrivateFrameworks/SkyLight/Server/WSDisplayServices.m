@@ -91,6 +91,22 @@ wss_display_info(mach_port_t server, uint32_t display, int32_t *result,
 	return KERN_SUCCESS;
 }
 
+kern_return_t
+wss_display_menu_bar_height(mach_port_t server, uint32_t display, int32_t *result,
+    uint32_t *height)
+{
+	WSDisplay *d = WSDisplayWithID(display);
+
+	*height = 0;
+	if (d == nil) {
+		*result = kSLSErrorIllegalArgument;
+		return KERN_SUCCESS;
+	}
+	*height = d.menuBarHeight;
+	*result = kSLSErrorSuccess;
+	return KERN_SUCCESS;
+}
+
 /* ---- Display modes and configuration ---- */
 
 kern_return_t

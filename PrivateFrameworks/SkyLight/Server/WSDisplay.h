@@ -58,6 +58,8 @@
 @property (nonatomic) SLSDisplayID mirrorOf;
 @property double x;
 @property double y;
+/* The menu bar's height at the top of the display, in points. */
+@property uint32_t menuBarHeight;
 
 /* Maps the framebuffer's scanout memory (write-combined); NO when it
  * cannot. The mapping lasts until the next call or the display's end. */

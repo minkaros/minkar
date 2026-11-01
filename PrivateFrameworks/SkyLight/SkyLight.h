@@ -48,7 +48,7 @@ extern "C" {
 #define kSLSServiceName		"org.minkar.WindowServer.next"
 
 /* The interface version both sides are built for. */
-#define kSLSInterfaceVersion	5
+#define kSLSInterfaceVersion	6
 
 typedef int32_t SLSConnectionID;
 
@@ -119,6 +119,14 @@ int SLSGetDisplaysWithPoint(double x, double y, uint32_t max, SLSDisplayID *disp
 int SLSGetDisplaysWithRect(double x, double y, double width, double height,
     uint32_t max, SLSDisplayID *displays, uint32_t *count);
 int SLSGetDisplayInfo(SLSDisplayID display, SLSDisplayInfo *info);
+
+/*
+ * The menu bar (interface version 6): a strip at the top of every display,
+ * kept for the front app's menu bar and the status area. Its height is in
+ * points; windows the server moves stay below it.
+ */
+#define kSLSMenuBarHeight	22
+int SLSGetDisplayMenuBarHeight(SLSDisplayID display, uint32_t *height);
 
 /* ---- Display modes and configuration ---------------------------------- */
 

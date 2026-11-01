@@ -27,7 +27,36 @@ SOFTWARE. */
 #import <AppKit/O2Font_FT.h>
 #import <fontconfig.h>
 
-#define MENU_BAR_HEIGHT 24  // exclude from visibleFrame height
+#include <SkyLight/SkyLight.h>
+
+extern int _CGUsesSkyLight(void);
+
+/* The legacy server's menu bar, drawn by SystemUIServer. */
+#define LEGACY_MENU_BAR_HEIGHT 24
+
+/* The menu bar's height on a display: the window server keeps it (WS4a). */
+CGFloat _NSMenuBarHeightForDisplay(CGDirectDisplayID display) {
+    uint32_t height = 0;
+
+    if(!_CGUsesSkyLight())
+        return LEGACY_MENU_BAR_HEIGHT;
+    if(SLSGetDisplayMenuBarHeight(display, &height) != kSLSErrorSuccess)
+        return 0;
+    return height;
+}
+
+/* A display's bounds (from the top left of the main display, y down) in
+ * AppKit's screen coordinates (from the bottom left, y up), and its
+ * visible part, without the menu bar. */
+static NSRect screenFrame(CGDirectDisplayID display, CGFloat mainHeight, NSRect *visible) {
+    CGRect b = CGDisplayBounds(display);
+    NSRect frame = NSMakeRect(b.origin.x, mainHeight - (b.origin.y + b.size.height),
+        b.size.width, b.size.height);
+
+    *visible = frame;
+    visible->size.height -= _NSMenuBarHeightForDisplay(display);
+    return frame;
+}
 
 @implementation NSDisplay
 
@@ -62,9 +91,14 @@ SOFTWARE. */
     // the main display is the one that has an origin of 0,0
     CGDisplayModeRef mode = CGDisplayCopyDisplayMode(mainDisplay);
     CGColorSpaceRef cs = CGDisplayCopyColorSpace(mainDisplay);
-    NSRect frame = NSMakeRect(0, 0, CGDisplayModeGetWidth(mode), CGDisplayModeGetHeight(mode));
-    NSRect visFrame = frame;
-    visFrame.size.height -= MENU_BAR_HEIGHT;
+    CGFloat mainHeight = CGDisplayBounds(mainDisplay).size.height;
+    NSRect visFrame;
+    NSRect frame = screenFrame(mainDisplay, mainHeight, &visFrame);
+    if(NSIsEmptyRect(frame)) {
+        frame = NSMakeRect(0, 0, CGDisplayModeGetWidth(mode), CGDisplayModeGetHeight(mode));
+        visFrame = frame;
+        visFrame.size.height -= _NSMenuBarHeightForDisplay(mainDisplay);
+    }
     NSScreen *screen = [[[NSScreen alloc] initWithFrame:frame visibleFrame:visFrame] retain];
     [screen _propertiesFromMode:mode colorSpace:cs displayID:mainDisplay];
     CGDisplayModeRelease(mode);
@@ -76,8 +110,8 @@ SOFTWARE. */
             continue;
         mode = CGDisplayCopyDisplayMode(cgDisplays[i]);
         cs = CGDisplayCopyColorSpace(mainDisplay);
-        frame = NSMakeRect(0, 0, CGDisplayModeGetWidth(mode), CGDisplayModeGetHeight(mode));
-        NSScreen *screen = [[[NSScreen alloc] initWithFrame:frame visibleFrame:frame] retain];
+        frame = screenFrame(cgDisplays[i], mainHeight, &visFrame);
+        NSScreen *screen = [[[NSScreen alloc] initWithFrame:frame visibleFrame:visFrame] retain];
         [screen _propertiesFromMode:mode colorSpace:cs displayID:cgDisplays[i]];
         CGDisplayModeRelease(mode);
         [_screens addObject:screen];

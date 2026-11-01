@@ -92,6 +92,20 @@ SLSGetDisplayInfo(SLSDisplayID display, SLSDisplayInfo *info)
 	return result;
 }
 
+int
+SLSGetDisplayMenuBarHeight(SLSDisplayID display, uint32_t *height)
+{
+	int32_t result = kSLSErrorFailure;
+	mach_port_t server = SLSServerPort();
+
+	if (height == NULL)
+		return kSLSErrorIllegalArgument;
+	if (server == MACH_PORT_NULL ||
+	    ws_display_menu_bar_height(server, display, &result, height) != KERN_SUCCESS)
+		return kSLSErrorFailure;
+	return result;
+}
+
 /*
  * The online displays whose bounds contain the point, or meet the rect
  * (bounds include their origin, not their far edges).

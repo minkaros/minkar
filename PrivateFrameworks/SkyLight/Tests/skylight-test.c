@@ -129,6 +129,14 @@ testDisplays(void)
 
 	err = SLSGetDisplayInfo(0xdeadbeef, &info);
 	check(err == kSLSErrorIllegalArgument, "an unknown display is refused", NULL);
+	/* The menu bar (interface version 6). */
+	{
+		uint32_t h = 0;
+		check(SLSGetDisplayMenuBarHeight(main, &h) == kSLSErrorSuccess &&
+		    h == kSLSMenuBarHeight, "the main display has a menu bar", NULL);
+		check(SLSGetDisplayMenuBarHeight(0xdeadbeef, &h) == kSLSErrorIllegalArgument,
+		    "an unknown display has none", NULL);
+	}
 }
 
 static void

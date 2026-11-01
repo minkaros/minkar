@@ -121,6 +121,7 @@ displayInfoNumber(io_service_t framebuffer, CFStringRef key)
 	IOObjectRetain(service);
 	_service = service;
 	_displayID = displayIDForService(service);
+	_menuBarHeight = kSLSMenuBarHeight;
 
 	kr = IOServiceOpen(service, mach_task_self(), kIOFBServerConnectType, &_connect);
 	if (kr != KERN_SUCCESS) {
