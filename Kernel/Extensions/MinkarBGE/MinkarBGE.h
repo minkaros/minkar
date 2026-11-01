@@ -69,12 +69,14 @@ class MinkarBGE : public IOEthernetController
 
 	IOPCIDevice *			fPCI;
 	IOMemoryMap *			fRegsMap;
+	IOMemoryDescriptor *		fRegsDesc;	/* BAR 0 mapped by hand */
 	volatile uint8_t *		fRegs;
 	uint16_t			fDeviceID;
 	uint32_t			fChipID;
 	uint32_t			fAsicRev;
 	uint32_t			fChipRev;
 	uint8_t				fPCIeCap;	/* PCI Express capability */
+	UInt32				fPCIeErrors;	/* checks that found errors */
 	uint32_t			fMaxPayload;
 	uint32_t			fMIMode;
 	uint32_t			fASF;		/* management firmware */
@@ -133,6 +135,7 @@ class MinkarBGE : public IOEthernetController
 	void writePHY(uint32_t reg, uint16_t value);
 
 	/* Chip setup (if_bge.c: bge_reset, bge_chipinit, bge_blockinit...). */
+	bool mapRegisters();
 	bool identifyChip();
 	void signalPreReset(int type);
 	void signalPostReset(int type);

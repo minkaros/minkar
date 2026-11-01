@@ -89,7 +89,6 @@ static int gBGEDebug;
 #define BGE_RESET_START		1
 
 /* PCI Express device control and status (offsets in the capability). */
-#define PCIE_DEVICE_CAP		0x04
 #define PCIE_DEVICE_CTL		0x08
 #define PCIE_DEVICE_STA		0x0A
 #define PCIE_CTL_RELAXED_ORD	0x0010
@@ -202,6 +201,62 @@ MinkarBGE::writePHY(uint32_t reg, uint16_t value)
 	}
 	if (i == BGE_TIMEOUT_LOOPS)
 		LOG("PHY write timed out (register %u)", reg);
+}
+
+/* ---- Registers window ------------------------------------------------------ */
+
+/*
+ * BAR 0: the registers (64 KB, memory space, 64-bit on this family, BAR 1
+ * holding the high half). When the PCI family made no IODeviceMemory for
+ * it (as for these chips behind the Mac Pro 6,1's bridges), the BAR's own
+ * address and size are mapped, as MinkarE1000 does.
+ */
+bool
+MinkarBGE::mapRegisters()
+{
+	uint32_t lo, hi = 0, szlo, szhi = 0xFFFFFFFF;
+	uint64_t base, size;
+	bool is64;
+
+	fRegsMap = fPCI->mapDeviceMemoryWithRegister(kIOPCIConfigBaseAddress0, kIOMapInhibitCache);
+	if (fRegsMap != NULL) {
+		fRegs = (volatile uint8_t *)fRegsMap->getVirtualAddress();
+		return fRegs != NULL;
+	}
+	lo = fPCI->configRead32(kIOPCIConfigBaseAddress0);
+	is64 = (lo & 0x6) == 0x4;
+	if (is64)
+		hi = fPCI->configRead32(kIOPCIConfigBaseAddress1);
+	if (lo & 1) {
+		LOG("BAR 0 is I/O space (0x%08x): cannot map the registers", lo);
+		return false;
+	}
+	fPCI->configWrite32(kIOPCIConfigBaseAddress0, 0xFFFFFFFF);
+	szlo = fPCI->configRead32(kIOPCIConfigBaseAddress0);
+	fPCI->configWrite32(kIOPCIConfigBaseAddress0, lo);
+	if (is64) {
+		fPCI->configWrite32(kIOPCIConfigBaseAddress1, 0xFFFFFFFF);
+		szhi = fPCI->configRead32(kIOPCIConfigBaseAddress1);
+		fPCI->configWrite32(kIOPCIConfigBaseAddress1, hi);
+	}
+	base = ((uint64_t)hi << 32) | (lo & ~0xFULL);
+	size = ~((((uint64_t)szhi << 32) | (szlo & ~0xFULL))) + 1;
+	if (!is64)
+		size &= 0xFFFFFFFFULL;
+	LOG("BAR 0 0x%08x%08x (%s, %llu KB) without IODeviceMemory; mapping it",
+	    hi, lo, is64 ? "64-bit" : "32-bit", size / 1024);
+	if (base == 0 || size == 0 || size > (16ULL << 20)) {
+		LOG("BAR 0 not assigned (address 0x%llx, size 0x%llx): cannot map the registers",
+		    base, size);
+		return false;
+	}
+	fRegsDesc = IOMemoryDescriptor::withPhysicalAddress(base, size, kIODirectionNone);
+	if (fRegsDesc == NULL || (fRegsMap = fRegsDesc->map(kIOMapAnywhere | kIOMapInhibitCache)) == NULL) {
+		LOG("cannot map BAR 0 at 0x%llx", base);
+		return false;
+	}
+	fRegs = (volatile uint8_t *)fRegsMap->getVirtualAddress();
+	return fRegs != NULL;
 }
 
 /* ---- Chip identification ------------------------------------------------- */
@@ -877,6 +932,21 @@ void
 MinkarBGE::checkLink()
 {
 	uint16_t bmsr, aux;
+
+	/*
+	 * PCI Express errors the device reported (correctable, non-fatal,
+	 * fatal, unsupported request), logged when they change and cleared.
+	 */
+	if (fPCIeCap != 0) {
+		uint16_t sta = fPCI->configRead16(fPCIeCap + PCIE_DEVICE_STA) & PCIE_STA_ERRORS;
+
+		if (sta != 0) {
+			fPCIeErrors++;
+			if (fPCIeErrors <= 10 || (fPCIeErrors % 100) == 0)
+				LOG("PCIe error status 0x%x (%u times)", sta, (unsigned)fPCIeErrors);
+			fPCI->configWrite16(fPCIeCap + PCIE_DEVICE_STA, sta);
+		}
+	}
 	IOMediumType type;
 	UInt64 mbps;
 	bool fdx;
@@ -1138,8 +1208,15 @@ MinkarBGE::probe(IOService *provider, SInt32 *score)
 {
 	IOPCIDevice *pci = OSDynamicCast(IOPCIDevice, provider);
 
+	uint32_t disable = 0;
+
 	if (pci == NULL || super::probe(provider, score) == NULL)
 		return NULL;
+	/* bge_disable=1: leave the chip alone (to tell its faults from others'). */
+	if (PE_parse_boot_argn("bge_disable", &disable, sizeof(disable)) && disable) {
+		LOG("%04x: disabled by bge_disable", pci->configRead16(kIOPCIConfigDeviceID));
+		return NULL;
+	}
 	fPCI = pci;
 	if (!identifyChip()) {
 		LOG("%04x: ASIC revision 0x%x is not of the 57765 family",
@@ -1169,23 +1246,22 @@ MinkarBGE::start(IOService *provider)
 	fDeviceID = fPCI->configRead16(kIOPCIConfigDeviceID);
 	fPCI->setMemoryEnable(true);
 	fPCI->setBusMasterEnable(true);
-	fRegsMap = fPCI->mapDeviceMemoryWithRegister(kIOPCIConfigBaseAddress0,
-	    kIOMapInhibitCache);
-	if (fRegsMap == NULL) {
-		LOG("cannot map the registers (BAR 0)");
+	if (!mapRegisters())
 		return false;
-	}
-	fRegs = (volatile uint8_t *)fRegsMap->getVirtualAddress();
 	if (!identifyChip()) {
 		LOG("not a 57765 family chip (ASIC revision 0x%x)", fAsicRev);
 		return false;
 	}
 	LOG("BCM%04x, chip id 0x%08x", fDeviceID, fChipID);
 
-	/* PCI Express: maximum payload size. */
+	/*
+	 * PCI Express: the maximum payload size the firmware set (device
+	 * control bits 7:5), as bge_attach reads it. The device's capability
+	 * can be larger than what its root port accepts.
+	 */
 	fMaxPayload = 128;
 	if (fPCI->findPCICapability(kIOPCIPCIExpressCapability, &fPCIeCap) != 0 && fPCIeCap != 0)
-		fMaxPayload = 128U << (fPCI->configRead16(fPCIeCap + PCIE_DEVICE_CAP) & 7);
+		fMaxPayload = 128U << ((fPCI->configRead16(fPCIeCap + PCIE_DEVICE_CTL) >> 5) & 7);
 	else
 		fPCIeCap = 0;
 	/* The family has a CPMU: the MDIO clock is constant. */
@@ -1215,6 +1291,13 @@ MinkarBGE::start(IOService *provider)
 		}
 	}
 	fTaggedStatus = fMSI;
+	/* bge_poll=1: no interrupt at all; the timer polls the status block. */
+	uint32_t poll = 0;
+	if (PE_parse_boot_argn("bge_poll", &poll, sizeof(poll)) && poll) {
+		fPolling = true;
+		fMSI = false;
+		fTaggedStatus = false;
+	}
 
 	/* Management firmware (ASF): only when the bootcode says so. */
 	fASF = 0;
@@ -1241,18 +1324,22 @@ MinkarBGE::start(IOService *provider)
 	}
 	publishMedia();
 
-	fIntSource = IOFilterInterruptEventSource::filterInterruptEventSource(this,
-	    OSMemberFunctionCast(IOInterruptEventSource::Action, this, &MinkarBGE::interruptHandler),
-	    OSMemberFunctionCast(IOFilterInterruptEventSource::Filter, this, &MinkarBGE::interruptFilter),
-	    fPCI, intIndex);
-	if (fIntSource == NULL || getWorkLoop()->addEventSource(fIntSource) != kIOReturnSuccess) {
-		LOG("no interrupt; polling every %d ms", kPollMS);
-		OSSafeReleaseNULL(fIntSource);
-		fPolling = true;
-		fMSI = false;
-		fTaggedStatus = false;
+	if (fPolling) {
+		LOG("polling every %d ms (bge_poll)", kPollMS);
 	} else {
-		fIntSource->enable();
+		fIntSource = IOFilterInterruptEventSource::filterInterruptEventSource(this,
+		    OSMemberFunctionCast(IOInterruptEventSource::Action, this, &MinkarBGE::interruptHandler),
+		    OSMemberFunctionCast(IOFilterInterruptEventSource::Filter, this, &MinkarBGE::interruptFilter),
+		    fPCI, intIndex);
+		if (fIntSource == NULL || getWorkLoop()->addEventSource(fIntSource) != kIOReturnSuccess) {
+			LOG("no interrupt; polling every %d ms", kPollMS);
+			OSSafeReleaseNULL(fIntSource);
+			fPolling = true;
+			fMSI = false;
+			fTaggedStatus = false;
+		} else {
+			fIntSource->enable();
+		}
 	}
 	fTimer = IOTimerEventSource::timerEventSource(this,
 	    OSMemberFunctionCast(IOTimerEventSource::Action, this, &MinkarBGE::timerFired));
@@ -1301,6 +1388,7 @@ MinkarBGE::free()
 	OSSafeReleaseNULL(fMedia);
 	freeRings();
 	OSSafeReleaseNULL(fRegsMap);
+	OSSafeReleaseNULL(fRegsDesc);
 	OSSafeReleaseNULL(fPCI);
 	super::free();
 }
@@ -1356,11 +1444,16 @@ MinkarBGE::enable(IONetworkInterface *)
 	/* Tell the firmware we are alive. */
 	setBits(BGE_MODE_CTL, BGE_MODECTL_STACKUP);
 
-	/* Host interrupts on. */
+	/* Host interrupts on, unless polling (then masked: nobody handles them). */
 	fInterrupts = 0;
-	setBits(BGE_PCI_MISC_CTL, BGE_PCIMISCCTL_CLEAR_INTA);
-	clearBits(BGE_PCI_MISC_CTL, BGE_PCIMISCCTL_MASK_PCI_INTR);
-	writeMailbox(BGE_MBX_IRQ0_LO, 0);
+	if (fPolling) {
+		setBits(BGE_PCI_MISC_CTL, BGE_PCIMISCCTL_MASK_PCI_INTR);
+		writeMailbox(BGE_MBX_IRQ0_LO, 1);
+	} else {
+		setBits(BGE_PCI_MISC_CTL, BGE_PCIMISCCTL_CLEAR_INTA);
+		clearBits(BGE_PCI_MISC_CTL, BGE_PCIMISCCTL_MASK_PCI_INTR);
+		writeMailbox(BGE_MBX_IRQ0_LO, 0);
+	}
 
 	fLinkUp = false;
 	setLinkStatus(kIONetworkLinkValid);
