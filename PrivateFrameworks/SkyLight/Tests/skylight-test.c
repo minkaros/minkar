@@ -125,12 +125,94 @@ testDisplays(void)
 	check(err == kSLSErrorIllegalArgument, "an unknown display is refused", NULL);
 }
 
+static void
+testModes(void)
+{
+	char detail[128];
+	SLSDisplayID main = SLSMainDisplayID();
+	SLSDisplayMode modes[kSLSMaxDisplayModes], current;
+	SLSDisplayInfo info, after;
+	SLSDisplayConfigRef config;
+	uint32_t n = 0, all = 0;
+	int err, found = 0;
+
+	err = SLSCopyDisplayModes(main, kSLSMaxDisplayModes, modes, &n);
+	snprintf(detail, sizeof(detail), "%u modes", n);
+	check(err == kSLSErrorSuccess && n > 0, "the main display lists its modes", detail);
+	err = SLSCopyDisplayModes(main, 0, NULL, &all);
+	check(err == kSLSErrorSuccess && all == n, "the mode count alone", NULL);
+
+	err = SLSGetCurrentDisplayMode(main, &current);
+	SLSGetDisplayInfo(main, &info);
+	snprintf(detail, sizeof(detail), "id %u %ux%u %u bpp %.0f Hz", current.modeID,
+	    current.pixelWidth, current.pixelHeight, current.depth, current.refreshRate);
+	check(err == kSLSErrorSuccess && current.pixelWidth == info.width &&
+	    current.pixelHeight == info.height && current.depth == 32,
+	    "the current mode is the display's size, 32 bits per pixel", detail);
+	for (uint32_t i = 0; i < n; i++)
+		if (modes[i].modeID == current.modeID)
+			found = 1;
+	check(found, "the current mode is in the list", NULL);
+	check(SLSGetCurrentDisplayMode(0xdeadbeef, &current) == kSLSErrorIllegalArgument &&
+	    SLSCopyDisplayModes(0xdeadbeef, 0, NULL, &all) == kSLSErrorIllegalArgument,
+	    "an unknown display has no modes", NULL);
+	SLSGetCurrentDisplayMode(main, &current);
+
+	/* Configurations. */
+	err = SLSBeginDisplayConfiguration(&config);
+	check(err == kSLSErrorSuccess && SLSCancelDisplayConfiguration(config) == kSLSErrorSuccess,
+	    "a configuration is begun and cancelled", NULL);
+	SLSBeginDisplayConfiguration(&config);
+	check(SLSCompleteDisplayConfiguration(config, kSLSConfigureForSession) == kSLSErrorSuccess,
+	    "an empty configuration completes", NULL);
+
+	SLSBeginDisplayConfiguration(&config);
+	SLSConfigureDisplayWithDisplayMode(config, main, current.modeID);
+	err = SLSCompleteDisplayConfiguration(config, kSLSConfigureForSession);
+	SLSGetDisplayInfo(main, &after);
+	check(err == kSLSErrorSuccess && after.width == info.width && after.height == info.height,
+	    "the current mode is set again", NULL);
+
+	SLSBeginDisplayConfiguration(&config);
+	SLSConfigureDisplayOrigin(config, main, 100, 50);
+	err = SLSCompleteDisplayConfiguration(config, kSLSConfigureForAppOnly);
+	SLSGetDisplayInfo(main, &after);
+	snprintf(detail, sizeof(detail), "%.0f,%.0f", after.x, after.y);
+	check(err == kSLSErrorSuccess && after.x == 0 && after.y == 0,
+	    "the main display stays at the origin", detail);
+
+	/* A bad change refuses the whole configuration. */
+	SLSBeginDisplayConfiguration(&config);
+	SLSConfigureDisplayOrigin(config, main, 10, 10);
+	SLSConfigureDisplayWithDisplayMode(config, main, 0xdeadbeef);
+	err = SLSCompleteDisplayConfiguration(config, kSLSConfigureForSession);
+	SLSGetCurrentDisplayMode(main, &modes[0]);
+	check(err == kSLSErrorIllegalArgument && modes[0].modeID == current.modeID,
+	    "an unknown mode refuses the configuration", NULL);
+	SLSBeginDisplayConfiguration(&config);
+	SLSConfigureDisplayOrigin(config, 0xdeadbeef, 0, 0);
+	check(SLSCompleteDisplayConfiguration(config, kSLSConfigureForSession) ==
+	    kSLSErrorIllegalArgument, "a change to an unknown display is refused", NULL);
+	SLSBeginDisplayConfiguration(&config);
+	check(SLSCompleteDisplayConfiguration(config, 7) == kSLSErrorIllegalArgument,
+	    "an unknown option is refused", NULL);
+
+	SLSBeginDisplayConfiguration(&config);
+	for (int i = 0; i < kSLSMaxDisplayConfigOps; i++)
+		SLSConfigureDisplayOrigin(config, main, 0, 0);
+	check(SLSConfigureDisplayOrigin(config, main, 0, 0) == kSLSErrorRangeCheck,
+	    "a configuration holds at most 32 changes", NULL);
+	check(SLSCompleteDisplayConfiguration(config, kSLSConfigureForSession) == kSLSErrorSuccess,
+	    "and 32 complete", NULL);
+}
+
 int
 main(void)
 {
 	setvbuf(stdout, NULL, _IOLBF, 0);
 	testConnection();
 	testDisplays();
+	testModes();
 	printf("skylight-test: %d passed, %d failed\n", passed, failed);
 	return failed;
 }

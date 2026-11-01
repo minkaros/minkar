@@ -116,6 +116,74 @@ int SLSGetDisplaysWithRect(double x, double y, double width, double height,
     uint32_t max, SLSDisplayID *displays, uint32_t *count);
 int SLSGetDisplayInfo(SLSDisplayID display, SLSDisplayInfo *info);
 
+/* ---- Display modes and configuration ---------------------------------- */
+
+/* One mode of a display. Sizes in points are the pixel sizes until
+ * scaled modes exist. */
+typedef struct SLSDisplayMode {
+	uint32_t	modeID;			/* the framebuffer's mode ID */
+	uint32_t	flags;			/* the framebuffer's mode flags */
+	uint32_t	width, height;		/* points */
+	uint32_t	pixelWidth, pixelHeight;
+	uint32_t	depth;			/* bits per pixel */
+	uint32_t	reserved;
+	double		refreshRate;		/* Hz; 0 when unknown */
+} SLSDisplayMode;
+
+#define kSLSDisplayModeWords	10
+#define kSLSMaxDisplayModes	64
+#ifndef __cplusplus
+_Static_assert(sizeof(SLSDisplayMode) == kSLSDisplayModeWords * 4, "SLSDisplayMode size");
+#endif
+
+/* The modes of a display, at most max (all of them with modes NULL: then
+ * only the count). */
+int SLSCopyDisplayModes(SLSDisplayID display, uint32_t max, SLSDisplayMode *modes,
+    uint32_t *count);
+int SLSGetCurrentDisplayMode(SLSDisplayID display, SLSDisplayMode *mode);
+
+/* A configuration: changes collected on the client and sent at once by
+ * SLSCompleteDisplayConfiguration. The server checks every change before
+ * it applies any. */
+typedef struct SLSDisplayConfiguration *SLSDisplayConfigRef;
+
+/* SLSCompleteDisplayConfiguration's option, as the public CGConfigureOption. */
+enum {
+	kSLSConfigureForAppOnly		= 0,
+	kSLSConfigureForSession		= 1,
+	kSLSConfigurePermanently	= 2,
+};
+
+/* One change, as the MIG interface carries it. */
+typedef struct SLSDisplayConfigOp {
+	uint32_t	kind;			/* kSLSConfigOp* */
+	SLSDisplayID	display;
+	uint32_t	modeID;			/* kSLSConfigOpMode */
+	int32_t		x, y;			/* kSLSConfigOpOrigin */
+	uint32_t	reserved[3];
+} SLSDisplayConfigOp;
+
+enum {
+	kSLSConfigOpMode	= 1,
+	kSLSConfigOpOrigin	= 2,
+};
+
+#define kSLSDisplayConfigOpWords	8
+#define kSLSMaxDisplayConfigOps		32
+#ifndef __cplusplus
+_Static_assert(sizeof(SLSDisplayConfigOp) == kSLSDisplayConfigOpWords * 4,
+    "SLSDisplayConfigOp size");
+#endif
+
+int SLSBeginDisplayConfiguration(SLSDisplayConfigRef *config);
+int SLSConfigureDisplayWithDisplayMode(SLSDisplayConfigRef config, SLSDisplayID display,
+    uint32_t modeID);
+int SLSConfigureDisplayOrigin(SLSDisplayConfigRef config, SLSDisplayID display,
+    int32_t x, int32_t y);
+/* Sends the changes and frees the configuration, whatever the result. */
+int SLSCompleteDisplayConfiguration(SLSDisplayConfigRef config, uint32_t option);
+int SLSCancelDisplayConfiguration(SLSDisplayConfigRef config);
+
 #ifdef __cplusplus
 }
 #endif

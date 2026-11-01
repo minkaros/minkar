@@ -58,4 +58,13 @@
 /* The reply to display_info. */
 - (void)getInfo:(SLSDisplayInfo *)info;
 
+/* The framebuffer's modes, read at startup. */
+@property (readonly) uint32_t modeCount;
+- (const SLSDisplayMode *)modeAtIndex:(uint32_t)index;
+- (const SLSDisplayMode *)modeWithID:(uint32_t)modeID;
+- (const SLSDisplayMode *)currentMode;
+
+/* Switches the framebuffer to a mode of modeWithID:. */
+- (int)setModeID:(uint32_t)modeID;
+
 @end

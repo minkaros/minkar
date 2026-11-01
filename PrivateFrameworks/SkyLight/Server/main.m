@@ -109,6 +109,106 @@ wss_display_info(mach_port_t server, uint32_t display, int32_t *result,
 	return KERN_SUCCESS;
 }
 
+/* ---- Display modes and configuration ---- */
+
+kern_return_t
+wss_display_modes(mach_port_t server, uint32_t display, int32_t *result,
+    ws_display_mode_list_t modes, mach_msg_type_number_t *count)
+{
+	WSDisplay *d = displayWithID(display);
+
+	*count = 0;
+	if (d == nil) {
+		*result = kSLSErrorIllegalArgument;
+		return KERN_SUCCESS;
+	}
+	for (uint32_t i = 0; i < d.modeCount && i < kSLSMaxDisplayModes; i++)
+		modes[(*count)++] = *[d modeAtIndex:i];
+	*result = kSLSErrorSuccess;
+	return KERN_SUCCESS;
+}
+
+kern_return_t
+wss_display_current_mode(mach_port_t server, uint32_t display, int32_t *result,
+    SLSDisplayMode *mode)
+{
+	WSDisplay *d = displayWithID(display);
+	const SLSDisplayMode *current = [d currentMode];
+
+	memset(mode, 0, sizeof(*mode));
+	if (current == NULL) {
+		*result = kSLSErrorIllegalArgument;
+		return KERN_SUCCESS;
+	}
+	*mode = *current;
+	*result = kSLSErrorSuccess;
+	return KERN_SUCCESS;
+}
+
+/* Keeps the main display at the global origin, the others where they were
+ * relative to it. */
+static void
+moveMainToOrigin(void)
+{
+	WSDisplay *first = displays.firstObject;
+	double dx = first.x, dy = first.y;
+
+	for (WSDisplay *d in displays) {
+		d.x -= dx;
+		d.y -= dy;
+	}
+}
+
+kern_return_t
+wss_display_configure(mach_port_t server, audit_token_t token, uint32_t option,
+    ws_display_config_list_t ops, mach_msg_type_number_t count, int32_t *result,
+    int32_t *failed)
+{
+	*failed = -1;
+	if (option > kSLSConfigurePermanently) {
+		*result = kSLSErrorIllegalArgument;
+		return KERN_SUCCESS;
+	}
+	/* Every change is checked before any is applied. */
+	for (mach_msg_type_number_t i = 0; i < count; i++) {
+		WSDisplay *d = displayWithID(ops[i].display);
+		BOOL good = d != nil;
+
+		if (good && ops[i].kind == kSLSConfigOpMode)
+			good = [d modeWithID:ops[i].modeID] != NULL;
+		else if (good && ops[i].kind != kSLSConfigOpOrigin)
+			good = NO;
+		if (!good) {
+			*result = kSLSErrorIllegalArgument;
+			*failed = (int32_t)i;
+			return KERN_SUCCESS;
+		}
+	}
+	for (mach_msg_type_number_t i = 0; i < count; i++) {
+		WSDisplay *d = displayWithID(ops[i].display);
+
+		if (ops[i].kind == kSLSConfigOpMode) {
+			int err = [d setModeID:ops[i].modeID];
+			if (err != kSLSErrorSuccess) {
+				*result = err;
+				*failed = (int32_t)i;
+				moveMainToOrigin();
+				return KERN_SUCCESS;
+			}
+		} else {
+			d.x = ops[i].x;
+			d.y = ops[i].y;
+		}
+	}
+	moveMainToOrigin();
+	// SHORTCUT(WS1): every option lasts for the session. App-only changes
+	// are not undone when the app exits, and permanent ones are not saved.
+	fprintf(stderr, "WindowServer: pid %d configured %u display change(s), option %u\n",
+	    audit_token_to_pid(token), count, option);
+	*result = kSLSErrorSuccess;
+	return KERN_SUCCESS;
+}
+
 int
 main(int argc, char *argv[])
 {
@@ -124,9 +224,9 @@ main(int argc, char *argv[])
 
 	displays = [WSDisplay availableDisplays];
 	for (WSDisplay *d in displays)
-		fprintf(stderr, "WindowServer: display 0x%x %ux%u (%.0fx%.0f mm)%s\n",
+		fprintf(stderr, "WindowServer: display 0x%x %ux%u (%.0fx%.0f mm)%s, %u mode(s)\n",
 		    d.displayID, d.width, d.height, d.widthMM, d.heightMM,
-		    (d.flags & kSLSDisplayMain) ? " main" : "");
+		    (d.flags & kSLSDisplayMain) ? " main" : "", d.modeCount);
 
 	/* The IPC queue: requests are served in order, one at a time. */
 	dispatch_queue_t ipc = dispatch_queue_create("org.minkar.WindowServer.ipc",

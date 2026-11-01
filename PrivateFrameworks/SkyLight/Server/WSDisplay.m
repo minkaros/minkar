@@ -35,6 +35,10 @@
 enum {
 	kFBMethodGetPixelInformation = 1,	/* in: mode, depth, aperture */
 	kFBMethodGetCurrentDisplayMode = 2,	/* out: mode, depth */
+	kFBMethodSetDisplayMode = 4,		/* in: mode, depth */
+	kFBMethodGetInformationForDisplayMode = 5, /* in: mode */
+	kFBMethodGetDisplayModeCount = 6,	/* out: count */
+	kFBMethodGetDisplayModes = 7,		/* out: mode IDs */
 };
 
 /* Without an EDID size: 72 dots per inch. */
@@ -43,6 +47,8 @@ static const double kPixelsPerMM = 72.0 / 25.4;
 @implementation WSDisplay {
 	io_service_t _service;
 	io_connect_t _connect;
+	SLSDisplayMode _modes[kSLSMaxDisplayModes];
+	uint32_t _currentModeID;
 }
 
 + (NSArray<WSDisplay *> *)availableDisplays
@@ -68,7 +74,9 @@ static const double kPixelsPerMM = 72.0 / 25.4;
 	return displays;
 }
 
-/* A stable, non-zero ID derived from the registry entry. */
+/* A non-zero ID from the registry entry: stable for one boot only.
+ * TODO(WS1): derive it from the EDID (vendor, model, serial) when there is
+ * one, so it survives a restart as on the reference platform. */
 static uint32_t
 displayIDForService(io_service_t service)
 {
@@ -122,16 +130,16 @@ displayInfoNumber(io_service_t framebuffer, CFStringRef key)
 	    current, &count);
 	if (kr != KERN_SUCCESS)
 		return nil;
-	uint64_t query[3] = { current[0], current[1], kIOFBSystemAperture };
-	IOPixelInformation pixels;
-	size_t size = sizeof(pixels);
-	memset(&pixels, 0, sizeof(pixels));
-	kr = IOConnectCallMethod(_connect, kFBMethodGetPixelInformation, query, 3, NULL, 0,
-	    NULL, NULL, &pixels, &size);
-	if (kr != KERN_SUCCESS || pixels.activeWidth == 0 || pixels.activeHeight == 0)
+	_currentModeID = (uint32_t)current[0];
+	[self loadModes];
+	const SLSDisplayMode *mode = [self currentMode];
+	if (mode == NULL || mode->pixelWidth == 0 || mode->pixelHeight == 0) {
+		fprintf(stderr, "WindowServer: framebuffer 0x%x: no usable current mode\n",
+		    _displayID);
 		return nil;
-	_width = pixels.activeWidth;
-	_height = pixels.activeHeight;
+	}
+	_width = mode->pixelWidth;
+	_height = mode->pixelHeight;
 	_flags = kSLSDisplayActive | kSLSDisplayOnline;
 
 	_vendor = displayInfoNumber(service, CFSTR(kDisplayVendorID));
@@ -142,6 +150,100 @@ displayInfoNumber(io_service_t framebuffer, CFStringRef key)
 	_widthMM = hmm ? hmm : _width / kPixelsPerMM;
 	_heightMM = vmm ? vmm : _height / kPixelsPerMM;
 	return self;
+}
+
+/* One mode's description, or NO when the framebuffer has none for it. */
+- (BOOL)describeMode:(uint32_t)modeID into:(SLSDisplayMode *)mode
+{
+	IODisplayModeInformation info;
+	IOPixelInformation pixels;
+	uint64_t in[3] = { modeID, 0, kIOFBSystemAperture };
+	size_t size = sizeof(info);
+
+	memset(mode, 0, sizeof(*mode));
+	memset(&info, 0, sizeof(info));
+	if (IOConnectCallMethod(_connect, kFBMethodGetInformationForDisplayMode, in, 1,
+	    NULL, 0, NULL, NULL, &info, &size) != KERN_SUCCESS)
+		return NO;
+	/* The deepest depth of the mode; ours all draw 32 bits per pixel. */
+	in[1] = info.maxDepthIndex;
+	size = sizeof(pixels);
+	memset(&pixels, 0, sizeof(pixels));
+	if (IOConnectCallMethod(_connect, kFBMethodGetPixelInformation, in, 3, NULL, 0,
+	    NULL, NULL, &pixels, &size) != KERN_SUCCESS)
+		pixels.bitsPerPixel = 0;
+	mode->modeID = modeID;
+	mode->flags = info.flags;
+	mode->pixelWidth = pixels.activeWidth ? pixels.activeWidth : info.nominalWidth;
+	mode->pixelHeight = pixels.activeHeight ? pixels.activeHeight : info.nominalHeight;
+	mode->width = mode->pixelWidth;
+	mode->height = mode->pixelHeight;
+	mode->depth = pixels.bitsPerPixel;
+	mode->refreshRate = info.refreshRate / 65536.0;
+	return mode->pixelWidth != 0 && mode->pixelHeight != 0;
+}
+
+- (void)loadModes
+{
+	IODisplayModeID ids[kSLSMaxDisplayModes];
+	uint64_t total = 0;
+	uint32_t one = 1;
+	size_t size = sizeof(ids);
+
+	_modeCount = 0;
+	if (IOConnectCallScalarMethod(_connect, kFBMethodGetDisplayModeCount, NULL, 0,
+	    &total, &one) != KERN_SUCCESS || total == 0)
+		total = 0;
+	if (total > kSLSMaxDisplayModes)
+		total = kSLSMaxDisplayModes;
+	size = (size_t)total * sizeof(IODisplayModeID);
+	if (total != 0 && IOConnectCallStructMethod(_connect, kFBMethodGetDisplayModes,
+	    NULL, 0, ids, &size) != KERN_SUCCESS)
+		total = 0;
+	for (uint64_t i = 0; i < total && i < size / sizeof(IODisplayModeID); i++)
+		if ([self describeMode:(uint32_t)ids[i] into:&_modes[_modeCount]])
+			_modeCount++;
+	/* A framebuffer that lists no modes still has the one it is in. */
+	if ([self modeWithID:_currentModeID] == NULL && _modeCount < kSLSMaxDisplayModes &&
+	    [self describeMode:_currentModeID into:&_modes[_modeCount]])
+		_modeCount++;
+}
+
+- (const SLSDisplayMode *)modeAtIndex:(uint32_t)index
+{
+	return index < _modeCount ? &_modes[index] : NULL;
+}
+
+- (const SLSDisplayMode *)modeWithID:(uint32_t)modeID
+{
+	for (uint32_t i = 0; i < _modeCount; i++)
+		if (_modes[i].modeID == modeID)
+			return &_modes[i];
+	return NULL;
+}
+
+- (const SLSDisplayMode *)currentMode
+{
+	return [self modeWithID:_currentModeID];
+}
+
+- (int)setModeID:(uint32_t)modeID
+{
+	const SLSDisplayMode *mode = [self modeWithID:modeID];
+
+	if (mode == NULL)
+		return kSLSErrorIllegalArgument;
+	if (modeID == _currentModeID)
+		return kSLSErrorSuccess;
+	/* Depth index 0: every mode is drawn at 32 bits per pixel. */
+	uint64_t in[2] = { modeID, 0 };
+	if (IOConnectCallScalarMethod(_connect, kFBMethodSetDisplayMode, in, 2, NULL,
+	    NULL) != KERN_SUCCESS)
+		return kSLSErrorFailure;
+	_currentModeID = modeID;
+	_width = mode->pixelWidth;
+	_height = mode->pixelHeight;
+	return kSLSErrorSuccess;
 }
 
 - (void)dealloc

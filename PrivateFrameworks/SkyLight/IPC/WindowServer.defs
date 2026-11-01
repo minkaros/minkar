@@ -46,6 +46,12 @@ import "WindowServerTypes.h";
 type ws_display_list_t = array[*:32] of uint32_t;
 type ws_display_info_t = struct[24] of uint32_t
 	ctype: SLSDisplayInfo;
+type ws_display_mode_t = struct[10] of uint32_t
+	ctype: SLSDisplayMode;
+type ws_display_mode_list_t = array[*:64] of ws_display_mode_t;
+type ws_display_config_op_t = struct[8] of uint32_t
+	ctype: SLSDisplayConfigOp;
+type ws_display_config_list_t = array[*:32] of ws_display_config_op_t;
 
 /*
  * Opens a connection: the server records the client's PID and user from
@@ -77,3 +83,33 @@ routine display_info(
 	display			: uint32_t;
 	out result		: int32_t;
 	out info		: ws_display_info_t);
+
+/* ---- Display modes and configuration ---- */
+
+/* Every mode of a display; result is an SLS error. */
+routine display_modes(
+	server			: mach_port_t;
+	display			: uint32_t;
+	out result		: int32_t;
+	out modes		: ws_display_mode_list_t);
+
+/* The mode a display is in. */
+routine display_current_mode(
+	server			: mach_port_t;
+	display			: uint32_t;
+	out result		: int32_t;
+	out mode		: ws_display_mode_t);
+
+/*
+ * A configuration: every change is checked before any is applied, then
+ * the main display is moved back to the origin with the others around
+ * it. option is kSLSConfigure*. failed is the index of the change that
+ * was refused, or -1.
+ */
+routine display_configure(
+	server			: mach_port_t;
+	ServerAuditToken token	: audit_token_t;
+	option			: uint32_t;
+	ops			: ws_display_config_list_t;
+	out result		: int32_t;
+	out failed		: int32_t);

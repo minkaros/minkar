@@ -13,7 +13,7 @@ FMWK_INSTALL_DIR = /System/Library/PrivateFrameworks
 SUBDIR =
 MK_WERROR = no
 
-SRCS = SLSConnection.c SLSDisplay.c WindowServerUser.c
+SRCS = SLSConnection.c SLSDisplay.c SLSDisplayMode.c WindowServerUser.c
 HEADERS = SkyLight.h
 CFLAGS += -I${.OBJDIR} -I${.CURDIR} -I${.CURDIR}/IPC
 CLEANFILES += WindowServerUser.c WindowServer.h
@@ -25,7 +25,7 @@ WindowServerUser.c WindowServer.h: ${.CURDIR}/IPC/WindowServer.defs
 	    -user WindowServerUser.c -header WindowServer.h \
 	    -server /dev/null -sheader /dev/null ${.ALLSRC}
 
-SLSConnection.o SLSDisplay.o: WindowServer.h
+SLSConnection.o SLSDisplay.o SLSDisplayMode.o: WindowServer.h
 
 fmwk-install-hook:
 	mkdir -p ${MINKAR_SDKROOT}${FMWK_INSTALL_DIR} ${SYSROOT_DIR}${FMWK_INSTALL_DIR}
