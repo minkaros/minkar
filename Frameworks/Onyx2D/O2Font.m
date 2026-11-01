@@ -404,8 +404,18 @@ NSString *O2MacRomanGlyphNames[256]={
 extern O2FontRef O2FontCreateWithFontName_platform(NSString *name);
 extern O2FontRef O2FontCreateWithDataProvider_platform(O2DataProviderRef provider);
 
+/* The platform's fonts (AppKit's FreeType fonts, found through fontconfig)
+ * take over O2Font's allocation from another image, with a category. The
+ * _platform function would be Onyx2D's own stub, which has no fonts: a
+ * call from inside Onyx2D binds to it, never to AppKit's. */
 O2FontRef O2FontCreateWithFontName(NSString *name) {
-   return O2FontCreateWithFontName_platform(name);
+   O2Font *font=[O2Font alloc];
+
+   if([font class]==[O2Font class]){
+    [font release];
+    return O2FontCreateWithFontName_platform(name);
+   }
+   return [font initWithFontName:name];
 }
 
 O2FontRef O2FontCreateWithDataProvider(O2DataProviderRef provider) {
