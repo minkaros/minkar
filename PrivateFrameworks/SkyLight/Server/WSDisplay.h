@@ -54,6 +54,8 @@
 @property (readonly) double widthMM;		/* from the EDID, else 72 dpi */
 @property (readonly) double heightMM;
 @property uint32_t unit;
+/* The display this one mirrors, or 0; setting it sets kSLSDisplayMirrored. */
+@property (nonatomic) SLSDisplayID mirrorOf;
 @property double x;
 @property double y;
 

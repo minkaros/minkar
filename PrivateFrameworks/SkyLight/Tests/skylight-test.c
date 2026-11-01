@@ -288,6 +288,65 @@ testGamma(void)
 }
 
 static void
+testMirrorAndFade(void)
+{
+	char detail[96];
+	SLSDisplayID main = SLSMainDisplayID();
+	SLSDisplayConfigRef config;
+	SLSFadeReservation r = 0, other = 0;
+	SLSDisplayInfo info;
+	float blend = -1;
+	int32_t holder = -1;
+
+	SLSBeginDisplayConfiguration(&config);
+	SLSConfigureDisplayMirrorOfDisplay(config, main, main);
+	check(SLSCompleteDisplayConfiguration(config, kSLSConfigureForSession) ==
+	    kSLSErrorIllegalArgument, "a display does not mirror itself", NULL);
+	SLSBeginDisplayConfiguration(&config);
+	SLSConfigureDisplayMirrorOfDisplay(config, main, 0xdeadbeef);
+	check(SLSCompleteDisplayConfiguration(config, kSLSConfigureForSession) ==
+	    kSLSErrorIllegalArgument, "nor an unknown display", NULL);
+	SLSBeginDisplayConfiguration(&config);
+	SLSConfigureDisplayMirrorOfDisplay(config, main, 0);
+	check(SLSCompleteDisplayConfiguration(config, kSLSConfigureForSession) == kSLSErrorSuccess &&
+	    SLSGetDisplayInfo(main, &info) == kSLSErrorSuccess && info.mirrorOf == 0 &&
+	    !(info.flags & kSLSDisplayMirrored), "mirroring is turned off", NULL);
+
+	SLSGetFadeState(&blend, &holder);
+	check(blend == 0 && holder == 0, "no fade and no reservation", NULL);
+	check(SLSAcquireFadeReservation(20, &r) == kSLSErrorIllegalArgument &&
+	    SLSAcquireFadeReservation(0, &r) == kSLSErrorIllegalArgument,
+	    "a reservation is 15 seconds at most, and more than 0", NULL);
+	check(SLSAcquireFadeReservation(5, &r) == kSLSErrorSuccess && r != 0,
+	    "a fade reservation is acquired", NULL);
+	SLSGetFadeState(&blend, &holder);
+	check(holder == getpid(), "held by this process", NULL);
+	check(SLSAcquireFadeReservation(5, &other) == kSLSErrorNoneAvailable,
+	    "a second one is not available", NULL);
+	check(SLSFadeDisplays(r, 0.2, 0, 1, 0, 0, 0, 1) == kSLSErrorSuccess,
+	    "the displays fade to black, synchronously", NULL);
+	SLSGetFadeState(&blend, &holder);
+	snprintf(detail, sizeof(detail), "blend %.2f", blend);
+	check(blend == 1, "the blend is the end blend", detail);
+	check(SLSFadeDisplays(r, 0, 1, 2, 0, 0, 0, 0) == kSLSErrorIllegalArgument &&
+	    SLSFadeDisplays(r, 0, 0, 1, NAN, 0, 0, 0) == kSLSErrorIllegalArgument,
+	    "a blend or color outside 0..1 is refused", NULL);
+	check(SLSFadeDisplays(r + 1, 0, 1, 0, 0, 0, 0, 0) == kSLSErrorIllegalArgument,
+	    "another reservation number is refused", NULL);
+	SLSFadeDisplays(r, 0, 1, 0, 0, 0, 0, 0);
+	check(SLSReleaseFadeReservation(r) == kSLSErrorSuccess &&
+	    SLSReleaseFadeReservation(r) == kSLSErrorIllegalArgument,
+	    "the reservation is released, once", NULL);
+	check(SLSFadeDisplays(r, 0, 0, 1, 0, 0, 0, 0) == kSLSErrorIllegalArgument,
+	    "a released reservation fades nothing", NULL);
+	check(SLSAcquireFadeReservation(0.3, &r) == kSLSErrorSuccess, "a short reservation", NULL);
+	usleep(500000);
+	SLSGetFadeState(&blend, &holder);
+	check(holder == 0 && SLSFadeDisplays(r, 0, 0, 1, 0, 0, 0, 0) == kSLSErrorIllegalArgument,
+	    "runs out", NULL);
+}
+
+static void
 testCapture(void)
 {
 	char detail[128];
@@ -481,6 +540,7 @@ childMain(void)
 	SLSGammaFormula f = { 0, 0.5f, 1, 0, 0.5f, 1, 0, 0.5f, 1 };
 	SLSDisplayConfigRef config;
 	SLSDisplayMode mode;
+	SLSFadeReservation r = 0;
 	SLSWindowID w = 0;
 	char c;
 
@@ -489,7 +549,9 @@ childMain(void)
 	    SLSOrderWindow(w, kSLSOrderAbove, 0) != kSLSErrorSuccess ||
 	    SLSHideCursor(0) != kSLSErrorSuccess ||
 	    SLSSetDisplayTransferByFormula(main, &f) != kSLSErrorSuccess ||
-	    SLSGetCurrentDisplayMode(main, &mode) != kSLSErrorSuccess)
+	    SLSGetCurrentDisplayMode(main, &mode) != kSLSErrorSuccess ||
+	    SLSAcquireFadeReservation(10, &r) != kSLSErrorSuccess ||
+	    SLSFadeDisplays(r, 0, 0, 0.5f, 0, 0, 0, 0) != kSLSErrorSuccess)
 		return 1;
 	SLSBeginDisplayConfiguration(&config);
 	SLSConfigureDisplayWithDisplayMode(config, main, mode.modeID);
@@ -554,6 +616,14 @@ testClientExit(const char *self)
 	    "this process cannot change the child's window", NULL);
 	SLSCursorIsVisible(&visible);
 	check(visible == 0, "the child hid the cursor", NULL);
+	{
+		float blend = 0;
+		int32_t holder = 0;
+
+		SLSGetFadeState(&blend, &holder);
+		check(holder == child && blend == 0.5f, "and holds a fade reservation, half faded",
+		    NULL);
+	}
 
 	close(toChild[1]);
 	waitpid(child, &status, 0);
@@ -574,6 +644,13 @@ testClientExit(const char *self)
 	check(visible == 1, "the cursor shows again", NULL);
 	SLSGetDisplayTransferByFormula(main, &got);
 	check(got.redMax == 1 && got.greenMax == 1, "its transfer table is undone", NULL);
+	{
+		float blend = 1;
+		int32_t holder = 1;
+
+		SLSGetFadeState(&blend, &holder);
+		check(holder == 0 && blend == 0, "its reservation and fade end", NULL);
+	}
 	check(SLSCaptureDisplay(main, 0) == kSLSErrorSuccess &&
 	    SLSReleaseDisplay(main) == kSLSErrorSuccess, "and the display can be captured again",
 	    NULL);
@@ -589,6 +666,7 @@ main(int argc, char *argv[])
 	testDisplays();
 	testModes();
 	testGamma();
+	testMirrorAndFade();
 	testCapture();
 	testCursor();
 	testWindows();

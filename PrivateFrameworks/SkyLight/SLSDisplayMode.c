@@ -120,6 +120,16 @@ SLSConfigureDisplayOrigin(SLSDisplayConfigRef config, SLSDisplayID display,
 }
 
 int
+SLSConfigureDisplayMirrorOfDisplay(SLSDisplayConfigRef config, SLSDisplayID display,
+    SLSDisplayID primary)
+{
+	SLSDisplayConfigOp op = { .kind = kSLSConfigOpMirror, .display = display,
+	    .mirrorOf = primary };
+
+	return addOp(config, &op);
+}
+
+int
 SLSCompleteDisplayConfiguration(SLSDisplayConfigRef config, uint32_t option)
 {
 	int32_t result = kSLSErrorFailure, failed = -1;

@@ -165,7 +165,12 @@ wss_display_configure(mach_port_t server, audit_token_t token, uint32_t option,
 
 		if (good && ops[i].kind == kSLSConfigOpMode)
 			good = [d modeWithID:ops[i].modeID] != NULL;
-		else if (good && ops[i].kind != kSLSConfigOpOrigin)
+		else if (good && ops[i].kind == kSLSConfigOpMirror && ops[i].mirrorOf != 0) {
+			/* Neither itself nor a display that is a mirror. */
+			WSDisplay *primary = WSDisplayWithID(ops[i].mirrorOf);
+			good = primary != nil && primary != d && primary.mirrorOf == 0;
+		} else if (good && ops[i].kind != kSLSConfigOpOrigin &&
+		    ops[i].kind != kSLSConfigOpMirror)
 			good = NO;
 		if (!good) {
 			*result = kSLSErrorIllegalArgument;
@@ -184,7 +189,8 @@ wss_display_configure(mach_port_t server, audit_token_t token, uint32_t option,
 		if (option != kSLSConfigureForAppOnly)
 			[connection.appOnlyDisplays removeObjectForKey:key];
 		else if (connection.appOnlyDisplays[key] == nil)
-			connection.appOnlyDisplays[key] = @[ @(d.currentMode->modeID), @(d.x), @(d.y) ];
+			connection.appOnlyDisplays[key] = @[ @(d.currentMode->modeID), @(d.x), @(d.y),
+			    @(d.mirrorOf) ];
 	}
 	for (mach_msg_type_number_t i = 0; i < count; i++) {
 		WSDisplay *d = WSDisplayWithID(ops[i].display);
@@ -196,6 +202,14 @@ wss_display_configure(mach_port_t server, audit_token_t token, uint32_t option,
 				*failed = (int32_t)i;
 				displaysMoved();
 				return KERN_SUCCESS;
+			}
+		} else if (ops[i].kind == kSLSConfigOpMirror) {
+			/* A mirror shows its primary's area of the desktop. */
+			WSDisplay *primary = WSDisplayWithID(ops[i].mirrorOf);
+			d.mirrorOf = ops[i].mirrorOf;
+			if (primary != nil) {
+				d.x = primary.x;
+				d.y = primary.y;
 			}
 		} else {
 			d.x = ops[i].x;
@@ -281,6 +295,108 @@ wss_restore_transfers(mach_port_t server, audit_token_t token)
 		[d restoreTransfer];
 	for (WSConnection *c in [WSConnection allConnections])
 		c.changedTransfers = NO;
+	return KERN_SUCCESS;
+}
+
+/* ---- Display fades ---- */
+
+/* SHORTCUT(WS1): the blend is kept here; the compositor applies it from
+ * WS2. */
+static SLSFadeReservation fadeReservation, nextFadeReservation = 1;
+static __weak WSConnection *fadeHolder;
+static __weak WSConnection *fadedBy;	/* who set the current blend */
+static NSTimeInterval fadeExpires;
+static float fadeBlend, fadeColor[3];
+
+/* The holder of a reservation still in time, or nil. */
+static WSConnection *
+currentFadeHolder(void)
+{
+	if (fadeHolder != nil && [NSDate timeIntervalSinceReferenceDate] > fadeExpires) {
+		fadeHolder = nil;
+		fadeReservation = 0;
+	}
+	return fadeHolder;
+}
+
+kern_return_t
+wss_fade_acquire(mach_port_t server, audit_token_t token, double seconds, int32_t *result,
+    uint32_t *reservation)
+{
+	WSConnection *c = [WSConnection connectionForToken:token];
+
+	*reservation = 0;
+	if (c == nil)
+		*result = kSLSErrorInvalidConnection;
+	else if (!isfinite(seconds) || seconds <= 0 || seconds > kSLSMaxFadeReservation)
+		*result = kSLSErrorIllegalArgument;
+	else if (currentFadeHolder() != nil)
+		*result = kSLSErrorNoneAvailable;
+	else {
+		fadeHolder = c;
+		fadeReservation = nextFadeReservation++;
+		fadeExpires = [NSDate timeIntervalSinceReferenceDate] + seconds;
+		*reservation = fadeReservation;
+		*result = kSLSErrorSuccess;
+	}
+	return KERN_SUCCESS;
+}
+
+/* The caller's reservation, still valid, or why not. */
+static int
+checkFadeReservation(audit_token_t token, uint32_t reservation)
+{
+	WSConnection *c = [WSConnection connectionForToken:token];
+
+	if (c == nil)
+		return kSLSErrorInvalidConnection;
+	if (reservation == 0 || reservation != fadeReservation || currentFadeHolder() != c)
+		return kSLSErrorIllegalArgument;
+	return kSLSErrorSuccess;
+}
+
+kern_return_t
+wss_fade_release(mach_port_t server, audit_token_t token, uint32_t reservation,
+    int32_t *result)
+{
+	if ((*result = checkFadeReservation(token, reservation)) == kSLSErrorSuccess) {
+		fadeHolder = nil;
+		fadeReservation = 0;
+	}
+	return KERN_SUCCESS;
+}
+
+static BOOL
+unit(float v)
+{
+	return isfinite(v) && v >= 0 && v <= 1;
+}
+
+kern_return_t
+wss_fade(mach_port_t server, audit_token_t token, uint32_t reservation, float startBlend,
+    float endBlend, float red, float green, float blue, int32_t *result)
+{
+	if ((*result = checkFadeReservation(token, reservation)) != kSLSErrorSuccess)
+		return KERN_SUCCESS;
+	if (!unit(startBlend) || !unit(endBlend) || !unit(red) || !unit(green) || !unit(blue)) {
+		*result = kSLSErrorIllegalArgument;
+		return KERN_SUCCESS;
+	}
+	fadeBlend = endBlend;
+	fadedBy = [WSConnection connectionForToken:token];
+	fadeColor[0] = red;
+	fadeColor[1] = green;
+	fadeColor[2] = blue;
+	return KERN_SUCCESS;
+}
+
+kern_return_t
+wss_fade_state(mach_port_t server, float *blend, int32_t *holder)
+{
+	WSConnection *c = currentFadeHolder();
+
+	*blend = fadeBlend;
+	*holder = c ? c.pid : 0;
 	return KERN_SUCCESS;
 }
 
@@ -475,6 +591,15 @@ WSDisplayServicesConnectionDied(WSConnection *c)
 	for (WSDisplay *d in WSDisplays)
 		if (d.capturedBy == c)
 			releaseOne(d);
+	/* Its reservation and its fade end with it. */
+	if (fadeHolder == c) {
+		fadeHolder = nil;
+		fadeReservation = 0;
+	}
+	if (fadedBy == c) {
+		fadedBy = nil;
+		fadeBlend = 0;
+	}
 	/* Its app-only changes are undone. */
 	for (NSNumber *key in c.appOnlyDisplays) {
 		WSDisplay *d = WSDisplayWithID(key.unsignedIntValue);
@@ -485,6 +610,7 @@ WSDisplayServicesConnectionDied(WSConnection *c)
 		[d setModeID:was[0].unsignedIntValue];
 		d.x = was[1].doubleValue;
 		d.y = was[2].doubleValue;
+		d.mirrorOf = was[3].unsignedIntValue;
 		moved = YES;
 	}
 	if (moved)

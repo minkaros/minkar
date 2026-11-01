@@ -163,12 +163,14 @@ typedef struct SLSDisplayConfigOp {
 	SLSDisplayID	display;
 	uint32_t	modeID;			/* kSLSConfigOpMode */
 	int32_t		x, y;			/* kSLSConfigOpOrigin */
-	uint32_t	reserved[3];
+	SLSDisplayID	mirrorOf;		/* kSLSConfigOpMirror; 0 to stop */
+	uint32_t	reserved[2];
 } SLSDisplayConfigOp;
 
 enum {
 	kSLSConfigOpMode	= 1,
 	kSLSConfigOpOrigin	= 2,
+	kSLSConfigOpMirror	= 3,
 };
 
 #define kSLSDisplayConfigOpWords	8
@@ -184,6 +186,10 @@ int SLSConfigureDisplayWithDisplayMode(SLSDisplayConfigRef config, SLSDisplayID 
 int SLSConfigureDisplayOrigin(SLSDisplayConfigRef config, SLSDisplayID display,
     int32_t x, int32_t y);
 /* Sends the changes and frees the configuration, whatever the result. */
+/* display shows what primary shows; primary 0 stops mirroring. A display
+ * mirrors neither itself nor a display that is a mirror. */
+int SLSConfigureDisplayMirrorOfDisplay(SLSDisplayConfigRef config, SLSDisplayID display,
+    SLSDisplayID primary);
 int SLSCompleteDisplayConfiguration(SLSDisplayConfigRef config, uint32_t option);
 int SLSCancelDisplayConfiguration(SLSDisplayConfigRef config);
 
@@ -217,6 +223,27 @@ int SLSSetDisplayTransferByFormula(SLSDisplayID display, const SLSGammaFormula *
 int SLSGetDisplayTransferByFormula(SLSDisplayID display, SLSGammaFormula *formula);
 /* Every display back to its default (identity) transfer. */
 int SLSRestoreDisplayTransfers(void);
+
+/* ---- Display fades ---------------------------------------------------- */
+
+/*
+ * One process at a time holds a fade reservation, for at most
+ * kSLSMaxFadeReservation seconds; while it is valid it may fade the
+ * displays to a color. A blend is 0 (no color) to 1 (only the color).
+ * The reservation and the fade end when the process exits.
+ */
+#define kSLSMaxFadeReservation	15.0
+
+typedef uint32_t SLSFadeReservation;
+
+int SLSAcquireFadeReservation(double seconds, SLSFadeReservation *reservation);
+int SLSReleaseFadeReservation(SLSFadeReservation reservation);
+/* The server applies endBlend at once; with synchronous set the caller
+ * then waits duration seconds, as the fade would take. */
+int SLSFadeDisplays(SLSFadeReservation reservation, double duration, float startBlend,
+    float endBlend, float red, float green, float blue, int synchronous);
+/* The current blend and the reservation holder's PID (0 when none). */
+int SLSGetFadeState(float *blend, int32_t *holder);
 
 /* ---- Display capture --------------------------------------------------- */
 

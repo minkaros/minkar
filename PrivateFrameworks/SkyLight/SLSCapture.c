@@ -26,10 +26,68 @@
  * SUCH DAMAGE.
  */
 
-/* Display capture and the cursor over the window server's interface. */
+/* Display fades, capture and the cursor over the window server's interface. */
 
+#include <math.h>
+#include <unistd.h>
 #include "SkyLight.h"
 #include "WindowServer.h"	/* MIG user side */
+
+int
+SLSAcquireFadeReservation(double seconds, SLSFadeReservation *reservation)
+{
+	int32_t result = kSLSErrorFailure;
+	mach_port_t server = SLSServerPort();
+
+	if (reservation == NULL)
+		return kSLSErrorIllegalArgument;
+	*reservation = 0;
+	if (server == MACH_PORT_NULL ||
+	    ws_fade_acquire(server, seconds, &result, reservation) != KERN_SUCCESS)
+		return kSLSErrorFailure;
+	return result;
+}
+
+int
+SLSReleaseFadeReservation(SLSFadeReservation reservation)
+{
+	int32_t result = kSLSErrorFailure;
+	mach_port_t server = SLSServerPort();
+
+	if (server == MACH_PORT_NULL ||
+	    ws_fade_release(server, reservation, &result) != KERN_SUCCESS)
+		return kSLSErrorFailure;
+	return result;
+}
+
+int
+SLSFadeDisplays(SLSFadeReservation reservation, double duration, float startBlend,
+    float endBlend, float red, float green, float blue, int synchronous)
+{
+	int32_t result = kSLSErrorFailure;
+	mach_port_t server = SLSServerPort();
+
+	if (!isfinite(duration) || duration < 0 || duration > kSLSMaxFadeReservation)
+		return kSLSErrorIllegalArgument;
+	if (server == MACH_PORT_NULL || ws_fade(server, reservation, startBlend, endBlend,
+	    red, green, blue, &result) != KERN_SUCCESS)
+		return kSLSErrorFailure;
+	if (result == kSLSErrorSuccess && synchronous && duration > 0)
+		usleep((useconds_t)(duration * 1e6));
+	return result;
+}
+
+int
+SLSGetFadeState(float *blend, int32_t *holder)
+{
+	mach_port_t server = SLSServerPort();
+
+	if (blend == NULL || holder == NULL)
+		return kSLSErrorIllegalArgument;
+	if (server == MACH_PORT_NULL || ws_fade_state(server, blend, holder) != KERN_SUCCESS)
+		return kSLSErrorFailure;
+	return kSLSErrorSuccess;
+}
 
 int
 SLSCaptureDisplay(SLSDisplayID display, uint32_t options)

@@ -46,8 +46,8 @@
 @property int32_t cursorHideCount;
 @property BOOL cursorAssociated;
 @property BOOL changedTransfers;
-/* Displays changed for this app only: display ID -> @[mode ID, x, y] as
- * they were before. */
+/* Displays changed for this app only: display ID -> @[mode ID, x, y,
+ * mirror of] as they were before. */
 @property (readonly) NSMutableDictionary<NSNumber *, NSArray<NSNumber *> *> *appOnlyDisplays;
 
 /* Starts watching for dead clients on the IPC queue. */

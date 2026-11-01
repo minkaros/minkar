@@ -322,6 +322,15 @@ static const SLSGammaFormula identityFormula = { 0, 1, 1, 0, 1, 1, 0, 1, 1 };
 	IOObjectRelease(_service);
 }
 
+- (void)setMirrorOf:(SLSDisplayID)mirrorOf
+{
+	_mirrorOf = mirrorOf;
+	if (mirrorOf)
+		_flags |= kSLSDisplayMirrored;
+	else
+		_flags &= ~kSLSDisplayMirrored;
+}
+
 - (void)markAsMain
 {
 	_flags |= kSLSDisplayPrimary | kSLSDisplayMain;
@@ -343,8 +352,9 @@ static const SLSGammaFormula identityFormula = { 0, 1, 1, 0, 1, 1, 0, 1, 1 };
 	info->rotation = 0;
 	info->widthMM = _widthMM;
 	info->heightMM = _heightMM;
-	info->mirrorOf = 0;
-	info->primary = _displayID;	/* no hardware mirroring yet */
+	info->mirrorOf = _mirrorOf;
+	/* Software mirroring: the primary of a mirror set is what it mirrors. */
+	info->primary = _mirrorOf ? _mirrorOf : _displayID;
 	info->openGLMask = 1U << _unit;
 }
 

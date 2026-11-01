@@ -160,6 +160,37 @@ routine restore_transfers(
 	server			: mach_port_t;
 	ServerAuditToken token	: audit_token_t);
 
+/* ---- Display fades ---- */
+
+routine fade_acquire(
+	server			: mach_port_t;
+	ServerAuditToken token	: audit_token_t;
+	seconds			: double;
+	out result		: int32_t;
+	out reservation		: uint32_t);
+
+routine fade_release(
+	server			: mach_port_t;
+	ServerAuditToken token	: audit_token_t;
+	reservation		: uint32_t;
+	out result		: int32_t);
+
+routine fade(
+	server			: mach_port_t;
+	ServerAuditToken token	: audit_token_t;
+	reservation		: uint32_t;
+	start_blend		: float;
+	end_blend		: float;
+	red			: float;
+	green			: float;
+	blue			: float;
+	out result		: int32_t);
+
+routine fade_state(
+	server			: mach_port_t;
+	out blend		: float;
+	out holder		: int32_t);
+
 /* ---- Display capture ---- */
 
 /* display 0 is every display. */
