@@ -55,8 +55,9 @@ Gates from the architecture plan:
       windows: the screen matches a reference image,
       again after a window is raised and after one is moved; a click and
       a key reach a window as NSEvents, a window is dragged by its title
-      bar (and AppKit is told its new frame); wsctl shows no frame while
-      nothing changes                              (--gate M4-compose)
+      bar (and AppKit is told its new frame), also while its app does not
+      answer, and by its background once it is movable by it; wsctl
+      shows no frame while nothing changes         (--gate M4-compose)
 
 For M1 the kernel prints nothing once PID 1 starts, so PID 1 itself
 (launchd, or a temporary init) must print USERLAND_MARKER on the console,
@@ -212,6 +213,22 @@ GATES['M4-compose'] = GATES['M2'] + [
     SSH('sleep 2; grep "second moved" /tmp/demo.out | tail -1'),
     'second moved frame=500,200,302,282',
     Act('compare M4-compose-4'), 'boottest-draw: the screen matches the reference',
+    # Drag regions (WS4a): the server moves a window from its title bar by
+    # itself, while its app does not answer for 8 s; then by its
+    # background, once it is movable by it.
+    SSH(DEMO_COMMAND % ('busy 8', 'boottest: busy')), 'boottest: busy',
+    Act('drag 700 295 650 245'),
+    SSH('/usr/local/bin/wsctl windows | grep " 302x282 "; tail -3 %s; tail -4 /tmp/demo.out; '
+        '/usr/local/bin/wsctl windows | grep -q " 450,236 302x282 " && '
+        'echo "boottest: moved while busy"' % WS_NEXT_LOG),
+    'boottest: moved while busy',
+    SSH('for i in $(seq 20); do grep -q "^busy done" /tmp/demo.out && break; sleep 1; done; '
+        'sleep 1; grep "second moved" /tmp/demo.out | tail -1'),
+    'second moved frame=450,250,302,282',
+    SSH(DEMO_COMMAND % ('movable-red', 'boottest: movable')), 'boottest: movable',
+    Act('drag 600 400 550 450'),
+    SSH('sleep 2; grep "second moved" /tmp/demo.out | tail -1'),
+    'second moved frame=400,200,302,282',
     SSH('a=$(/usr/local/bin/wsctl stats | awk \'/^frames/ { print $2 }\'); sleep 2; '
         'b=$(/usr/local/bin/wsctl stats | awk \'/^frames/ { print $2 }\'); '
         '[ "$a" = "$b" ] && echo "boottest: no frame while idle ($a)"'),

@@ -101,8 +101,9 @@
     /*
      * -two: a red window over the blue one, and commands, one at a time,
      * from /tmp/ws-demo.cmd (deleted when done): "raise-blue", "move-red X
-     * Y" (its frame's origin), "quit". For the window server's tests while
-     * there is no input to click with.
+     * Y" (its frame's origin), "movable-red" (movable by its background),
+     * "busy N" (the app does not answer for N seconds; the window server
+     * still moves its windows), "quit". For the window server's tests.
      */
     if (![[[NSProcessInfo processInfo] arguments] containsObject:@"-two"])
         return;
@@ -140,11 +141,19 @@
     if (fgets(line, sizeof(line), f) == NULL)
         line[0] = '\0';
     fclose(f);
+    unlink(path);
     if (strncmp(line, "raise-blue", 10) == 0)
         [self.window orderFront:nil];
     else if (sscanf(line, "move-red %lf %lf", &x, &y) == 2)
         [self.second setFrameOrigin:NSMakePoint(x, y)];
-    unlink(path);
+    else if (strncmp(line, "movable-red", 11) == 0) {
+        [self.second setMovableByWindowBackground:YES];
+        [self.second display];
+    } else if (sscanf(line, "busy %lf", &x) == 1) {
+        printf("busy for %.0f s\n", x);
+        usleep((useconds_t)(x * 1000000));
+        printf("busy done\n");
+    }
     if (strncmp(line, "quit", 4) == 0)
         exit(0);
 }
