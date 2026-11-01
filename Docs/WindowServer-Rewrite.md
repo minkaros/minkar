@@ -324,8 +324,8 @@ fixed on the way: run loops spun on `select` (`61cb01ce77`), and the
 Shortcuts taken: AppKit damages its whole window at each flush
 (`SHORTCUT(WS5)`, removed with IOSurface, when AppKit tracks its
 dirty rects into the surface); the display link ticks at the refresh rate
-even when idle, though no frame is drawn then (removed in WS5, with real
-flips).
+even when idle, though no frame is drawn then (`SHORTCUT(WS5)`, removed
+with real flips).
 
 ### WS3 — Input
 
@@ -514,6 +514,7 @@ Decided 2026-10-31, following the guiding rule in section 1:
 | System font | Gienah's own font | Inter (SIL OFL 1.1), four faces (`SHORTCUT(Phase 5)` in `SystemLibrary/Fonts/Makefile`, taken in WS0) | Phase 5 (Gienah) |
 | Permanent display configurations | Stored and applied again at the next session | They last for the session (`SHORTCUT(WS5)`, taken in WS1) | WS5 (real mode changes) |
 | Transfer tables and fades | Applied to the screen by the compositor, and by gamma hardware where there is some | Kept and returned, not applied (`SHORTCUT(WS4a)`, taken in WS1) | WS4a |
+| Display link while idle | Frames paced by the display's flips; nothing wakes while nothing changes | A timer at the refresh rate ticks even when idle, drawing nothing (`SHORTCUT(WS5)` in `WSCompositor.m`, taken in WS2) | WS5 (real flips) |
 | AppKit's damage | AppKit sends the rects it redrew | The whole window at each flush (`SHORTCUT(WS5)` in `NSWindow.m`, taken in WS2) | WS5 (IOSurface) |
 | Input queue | Input read and routed on its own high-priority queue, over a model snapshot | On the IPC queue (`SHORTCUT(WS4a)` in the server's `main.m`, taken in WS3) | WS4a |
 | `CGEventSource` HID state | Asked of the window server | Not asked: buttons, keys and flags read as up (`SHORTCUT(WS4a)` in `CGEvent.m`, taken in WS3) | WS4a |

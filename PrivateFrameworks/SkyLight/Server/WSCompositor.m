@@ -182,6 +182,10 @@ WSDamageGlobalRect(SLSRect rect)
 	double hz = (mode != NULL && mode->refreshRate >= 20) ? mode->refreshRate : 60;
 	uint64_t interval = (uint64_t)(NSEC_PER_SEC / hz);
 
+	/* SHORTCUT(WS5): the timer ticks at the refresh rate even while nothing
+	 * changes (no frame is drawn then, but the thread wakes), since GOP has
+	 * no vsync; real flips (virtio-gpu) pace frames and let it sleep;
+	 * taken in WS2. */
 	_link = dispatch_source_create(DISPATCH_SOURCE_TYPE_TIMER, 0, 0, _render);
 	dispatch_source_set_timer(_link, dispatch_time(DISPATCH_TIME_NOW, interval), interval,
 	    interval / 10);

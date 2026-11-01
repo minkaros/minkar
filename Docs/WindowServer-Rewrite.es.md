@@ -354,8 +354,8 @@ liberación de más de `NSEvent` de WS0 (`1508bd4d3c`).
 Atajos tomados: AppKit marca dañada toda la ventana en cada flush
 (`SHORTCUT(WS5)`, se quita con IOSurface, cuando AppKit lleve sus
 rectángulos sucios a la superficie); el reloj de pantalla late a la
-frecuencia de refresco también en reposo, aunque no dibuje ningún frame (se
-quita en WS5, con flips reales).
+frecuencia de refresco también en reposo, aunque no dibuje ningún frame
+(`SHORTCUT(WS5)`, se quita con flips reales).
 
 ### WS3 — Entrada
 
@@ -556,6 +556,7 @@ Decidido el 31 oct 2026, según la regla general de la sección 1:
 | Fuente del sistema | La fuente propia de Gienah | Inter (SIL OFL 1.1), cuatro estilos (`SHORTCUT(Phase 5)` en `SystemLibrary/Fonts/Makefile`, tomado en WS0) | Fase 5 (Gienah) |
 | Configuraciones de pantalla permanentes | Se guardan y se vuelven a aplicar en la sesión siguiente | Duran la sesión (`SHORTCUT(WS5)`, tomado en WS1) | WS5 (cambios de modo reales) |
 | Tablas de transferencia y fundidos | Los aplica a la pantalla el compositor, y el hardware de gamma donde lo haya | Se guardan y se devuelven, sin aplicarse (`SHORTCUT(WS4a)`, tomado en WS1) | WS4a |
+| Reloj de pantalla en reposo | Los flips de la pantalla marcan los frames; nada se despierta mientras nada cambia | Un temporizador a la frecuencia de refresco late también en reposo, sin dibujar nada (`SHORTCUT(WS5)` en `WSCompositor.m`, tomado en WS2) | WS5 (flips reales) |
 | Daño de AppKit | AppKit envía los rectángulos que redibujó | Toda la ventana en cada flush (`SHORTCUT(WS5)` en `NSWindow.m`, tomado en WS2) | WS5 (IOSurface) |
 | Cola de entrada | La entrada se lee y se reparte en su propia cola de alta prioridad, sobre una instantánea del modelo | En la cola IPC (`SHORTCUT(WS4a)` en el `main.m` del servidor, tomado en WS3) | WS4a |
 | Estado HID de `CGEventSource` | Se pregunta al servidor de ventanas | No se pregunta: botones, teclas y modificadores se leen como no pulsados (`SHORTCUT(WS4a)` en `CGEvent.m`, tomado en WS3) | WS4a |
