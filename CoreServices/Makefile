@@ -6,6 +6,6 @@
 # (SystemUIServer, LoginWindow, LoadingWindow) still use the old build
 # rules and are not built yet.
 
-SUBDIR = WindowServer/libxkbcommon .WAIT WindowServer
+SUBDIR = WindowServer/libxkbcommon .WAIT WindowServer WindowServer/Demo
 
 .include <bsd.subdir.mk>

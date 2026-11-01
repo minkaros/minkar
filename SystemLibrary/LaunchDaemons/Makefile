@@ -1,7 +1,7 @@
 # System launchd jobs: /System/Library/LaunchDaemons (architecture plan,
 # Phase 2). launchctl reads these XML property lists at boot.
-# org.minkar.WindowServer.plist is not installed yet: WindowServer comes up
-# with Phase 4.
+# org.minkar.WindowServer.plist is installed disabled (WindowServer plan,
+# WS0): started, it takes the screen from the text console.
 
 SUBDIR =
 
@@ -10,7 +10,8 @@ SYSDAEMONS =	com.apple.configd.plist com.apple.mDNSResponder.plist com.apple.not
 		com.openssh.sshd.plist \
 		org.minkar.dhcpclient.plist org.minkar.kextstart.plist \
 		org.minkar.getty.console.plist com.vix.cron.plist org.minkar.atrun.plist \
-		org.minkar.newsyslog.plist org.minkar.ntalkd.plist
+		org.minkar.newsyslog.plist org.minkar.ntalkd.plist \
+		org.minkar.WindowServer.plist
 DIR =		${SYSROOT_DIR}/System/Library/LaunchDaemons
 
 all: install-daemons
