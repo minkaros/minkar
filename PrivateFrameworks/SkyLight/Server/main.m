@@ -209,6 +209,75 @@ wss_display_configure(mach_port_t server, audit_token_t token, uint32_t option,
 	return KERN_SUCCESS;
 }
 
+/* ---- Gamma ---- */
+
+kern_return_t
+wss_display_set_transfer_table(mach_port_t server, audit_token_t token, uint32_t display,
+    uint32_t count, ws_gamma_table_t table, mach_msg_type_number_t tableCount,
+    int32_t *result)
+{
+	WSDisplay *d = displayWithID(display);
+
+	if (d == nil || tableCount != 3 * count)
+		*result = kSLSErrorIllegalArgument;
+	else
+		*result = [d setTransferTable:table count:count];
+	return KERN_SUCCESS;
+}
+
+kern_return_t
+wss_display_transfer_table(mach_port_t server, uint32_t display, int32_t *result,
+    ws_gamma_table_t table, mach_msg_type_number_t *count)
+{
+	WSDisplay *d = displayWithID(display);
+
+	*count = 0;
+	if (d == nil) {
+		*result = kSLSErrorIllegalArgument;
+		return KERN_SUCCESS;
+	}
+	[d getTransferTable:table];
+	*count = 3 * kSLSGammaTableCapacity;
+	*result = kSLSErrorSuccess;
+	return KERN_SUCCESS;
+}
+
+kern_return_t
+wss_display_set_transfer_formula(mach_port_t server, audit_token_t token, uint32_t display,
+    SLSGammaFormula formula, int32_t *result)
+{
+	WSDisplay *d = displayWithID(display);
+
+	*result = d ? [d setTransferFormula:&formula] : kSLSErrorIllegalArgument;
+	return KERN_SUCCESS;
+}
+
+kern_return_t
+wss_display_transfer_formula(mach_port_t server, uint32_t display, int32_t *result,
+    SLSGammaFormula *formula)
+{
+	WSDisplay *d = displayWithID(display);
+
+	memset(formula, 0, sizeof(*formula));
+	if (d == nil) {
+		*result = kSLSErrorIllegalArgument;
+		return KERN_SUCCESS;
+	}
+	*formula = d.transferFormula;
+	*result = kSLSErrorSuccess;
+	return KERN_SUCCESS;
+}
+
+// SHORTCUT(WS1): transfers a client set are not restored when it exits;
+// that needs the client's death notification (connections, later in WS1).
+kern_return_t
+wss_restore_transfers(mach_port_t server, audit_token_t token)
+{
+	for (WSDisplay *d in displays)
+		[d restoreTransfer];
+	return KERN_SUCCESS;
+}
+
 int
 main(int argc, char *argv[])
 {

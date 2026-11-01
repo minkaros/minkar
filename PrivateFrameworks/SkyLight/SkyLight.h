@@ -184,6 +184,37 @@ int SLSConfigureDisplayOrigin(SLSDisplayConfigRef config, SLSDisplayID display,
 int SLSCompleteDisplayConfiguration(SLSDisplayConfigRef config, uint32_t option);
 int SLSCancelDisplayConfiguration(SLSDisplayConfigRef config);
 
+/* ---- Gamma: display transfer tables ------------------------------------ */
+
+/* Entries of each channel's table the server keeps. */
+#define kSLSGammaTableCapacity	256
+
+/* value = min + (max - min) * input ^ gamma, per channel. */
+typedef struct SLSGammaFormula {
+	float	redMin, redMax, redGamma;
+	float	greenMin, greenMax, greenGamma;
+	float	blueMin, blueMax, blueGamma;
+} SLSGammaFormula;
+
+#define kSLSGammaFormulaWords	9
+#ifndef __cplusplus
+_Static_assert(sizeof(SLSGammaFormula) == kSLSGammaFormulaWords * 4, "SLSGammaFormula size");
+#endif
+
+int SLSGetGammaTableCapacity(SLSDisplayID display, uint32_t *capacity);
+/* Tables of count entries (2 to 256) each, values 0 to 1; resampled to the
+ * capacity. */
+int SLSSetDisplayTransferByTable(SLSDisplayID display, uint32_t count, const float *red,
+    const float *green, const float *blue);
+/* The table in use, at most capacity entries per channel. */
+int SLSGetDisplayTransferByTable(SLSDisplayID display, uint32_t capacity, float *red,
+    float *green, float *blue, uint32_t *count);
+int SLSSetDisplayTransferByFormula(SLSDisplayID display, const SLSGammaFormula *formula);
+/* The formula last set; the identity after a table or a restore. */
+int SLSGetDisplayTransferByFormula(SLSDisplayID display, SLSGammaFormula *formula);
+/* Every display back to its default (identity) transfer. */
+int SLSRestoreDisplayTransfers(void);
+
 #ifdef __cplusplus
 }
 #endif

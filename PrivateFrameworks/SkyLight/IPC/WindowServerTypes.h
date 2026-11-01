@@ -37,5 +37,7 @@
 typedef uint32_t ws_display_list_t[32];
 typedef SLSDisplayMode ws_display_mode_list_t[kSLSMaxDisplayModes];
 typedef SLSDisplayConfigOp ws_display_config_list_t[kSLSMaxDisplayConfigOps];
+/* Red, then green, then blue: count entries each. */
+typedef float ws_gamma_table_t[3 * kSLSGammaTableCapacity];
 
 #endif

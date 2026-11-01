@@ -34,7 +34,9 @@
  * server up (SkyLight.framework/Resources/WindowServer).
  */
 
+#include <math.h>
 #include <stdio.h>
+#include <string.h>
 #include <SkyLight/SkyLight.h>
 
 static int passed, failed;
@@ -206,6 +208,81 @@ testModes(void)
 	    "and 32 complete", NULL);
 }
 
+static int
+near(float a, float b)
+{
+	return fabsf(a - b) < 0.002f;
+}
+
+static void
+testGamma(void)
+{
+	char detail[128];
+	SLSDisplayID main = SLSMainDisplayID();
+	float r[kSLSGammaTableCapacity], g[kSLSGammaTableCapacity], b[kSLSGammaTableCapacity];
+	float in[3] = { 0, 0.5f, 1 }, half[3] = { 0, 0.25f, 0.5f };
+	SLSGammaFormula f, got;
+	uint32_t capacity = 0, n = 0;
+	int err;
+
+	err = SLSGetGammaTableCapacity(main, &capacity);
+	snprintf(detail, sizeof(detail), "%u", capacity);
+	check(err == kSLSErrorSuccess && capacity == kSLSGammaTableCapacity,
+	    "the gamma table capacity", detail);
+
+	SLSRestoreDisplayTransfers();
+	err = SLSGetDisplayTransferByTable(main, capacity, r, g, b, &n);
+	check(err == kSLSErrorSuccess && n == capacity && near(r[0], 0) &&
+	    near(g[n / 2], (float)(n / 2) / (n - 1)) && near(b[n - 1], 1),
+	    "the default transfer is the identity", NULL);
+	err = SLSGetDisplayTransferByFormula(main, &got);
+	check(err == kSLSErrorSuccess && got.redMin == 0 && got.redMax == 1 &&
+	    got.redGamma == 1 && got.blueGamma == 1, "and so is its formula", NULL);
+
+	/* A formula: red at half brightness, green squared. */
+	f = (SLSGammaFormula){ 0, 0.5f, 1, 0, 1, 2, 0.1f, 0.9f, 1 };
+	err = SLSSetDisplayTransferByFormula(main, &f);
+	check(err == kSLSErrorSuccess, "a formula is set", NULL);
+	SLSGetDisplayTransferByTable(main, capacity, r, g, b, &n);
+	snprintf(detail, sizeof(detail), "red %.3f green %.3f blue %.3f", r[n - 1],
+	    g[(n - 1) / 2], b[0]);
+	check(near(r[n - 1], 0.5f) && near(g[(n - 1) / 2], powf((float)((n - 1) / 2) / (n - 1), 2)) &&
+	    near(b[0], 0.1f) && near(b[n - 1], 0.9f), "its table follows the formula", detail);
+	SLSGetDisplayTransferByFormula(main, &got);
+	check(memcmp(&got, &f, sizeof(f)) == 0, "the formula is read back", NULL);
+	f.greenGamma = 0;
+	check(SLSSetDisplayTransferByFormula(main, &f) == kSLSErrorIllegalArgument,
+	    "a gamma of 0 is refused", NULL);
+	f.greenGamma = 1;
+	f.redMin = 0.8f;
+	check(SLSSetDisplayTransferByFormula(main, &f) == kSLSErrorIllegalArgument,
+	    "a minimum above the maximum is refused", NULL);
+
+	/* A three-entry table, resampled. */
+	err = SLSSetDisplayTransferByTable(main, 3, in, half, in);
+	SLSGetDisplayTransferByTable(main, capacity, r, g, b, &n);
+	snprintf(detail, sizeof(detail), "green %.3f..%.3f", g[0], g[n - 1]);
+	check(err == kSLSErrorSuccess && near(g[n - 1], 0.5f) && near(r[n - 1], 1) &&
+	    near(g[(n - 1) / 2], 0.25f * ((float)((n - 1) / 2) / ((n - 1) / 2.0f))),
+	    "a short table is resampled to the capacity", detail);
+	SLSGetDisplayTransferByFormula(main, &got);
+	check(got.redGamma == 1 && got.redMax == 1, "a table resets the formula", NULL);
+	in[1] = NAN;
+	check(SLSSetDisplayTransferByTable(main, 3, in, half, in) == kSLSErrorIllegalArgument,
+	    "a table with a NaN is refused", NULL);
+	check(SLSSetDisplayTransferByTable(main, 1, in, half, in) == kSLSErrorIllegalArgument,
+	    "a one-entry table is refused", NULL);
+	check(SLSSetDisplayTransferByTable(0xdeadbeef, 3, half, half, half) ==
+	    kSLSErrorIllegalArgument, "an unknown display has no transfer", NULL);
+
+	check(SLSRestoreDisplayTransfers() == kSLSErrorSuccess, "the transfers are restored", NULL);
+	SLSGetDisplayTransferByTable(main, capacity, r, g, b, &n);
+	check(near(r[n - 1], 1) && near(g[n - 1], 1), "to the identity", NULL);
+	n = 99;
+	check(SLSGetDisplayTransferByTable(main, 0, NULL, NULL, NULL, &n) == kSLSErrorSuccess &&
+	    n == 0, "a table read with no room returns nothing", NULL);
+}
+
 int
 main(void)
 {
@@ -213,6 +290,7 @@ main(void)
 	testConnection();
 	testDisplays();
 	testModes();
+	testGamma();
 	printf("skylight-test: %d passed, %d failed\n", passed, failed);
 	return failed;
 }

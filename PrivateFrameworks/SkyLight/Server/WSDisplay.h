@@ -67,4 +67,15 @@
 /* Switches the framebuffer to a mode of modeWithID:. */
 - (int)setModeID:(uint32_t)modeID;
 
+/*
+ * The transfer (gamma) table: kSLSGammaTableCapacity entries per channel,
+ * red, green, blue. SHORTCUT(WS1): kept here only; the compositor applies
+ * it from WS2, and drivers with gamma hardware come later.
+ */
+- (int)setTransferTable:(const float *)table count:(uint32_t)count;
+- (void)getTransferTable:(float *)table;
+- (int)setTransferFormula:(const SLSGammaFormula *)formula;
+@property (readonly) SLSGammaFormula transferFormula;
+- (void)restoreTransfer;
+
 @end

@@ -28,6 +28,7 @@
 
 #include <IOKit/graphics/IOGraphicsLib.h>
 #include <IOKit/graphics/IOGraphicsTypes.h>
+#include <math.h>
 #include <stdio.h>
 #import "WSDisplay.h"
 
@@ -49,6 +50,7 @@ static const double kPixelsPerMM = 72.0 / 25.4;
 	io_connect_t _connect;
 	SLSDisplayMode _modes[kSLSMaxDisplayModes];
 	uint32_t _currentModeID;
+	float _transfer[3 * kSLSGammaTableCapacity];
 }
 
 + (NSArray<WSDisplay *> *)availableDisplays
@@ -141,6 +143,7 @@ displayInfoNumber(io_service_t framebuffer, CFStringRef key)
 	_width = mode->pixelWidth;
 	_height = mode->pixelHeight;
 	_flags = kSLSDisplayActive | kSLSDisplayOnline;
+	[self restoreTransfer];
 
 	_vendor = displayInfoNumber(service, CFSTR(kDisplayVendorID));
 	_model = displayInfoNumber(service, CFSTR(kDisplayProductID));
@@ -243,6 +246,72 @@ displayInfoNumber(io_service_t framebuffer, CFStringRef key)
 	_currentModeID = modeID;
 	_width = mode->pixelWidth;
 	_height = mode->pixelHeight;
+	return kSLSErrorSuccess;
+}
+
+/* ---- Transfer tables ---- */
+
+static const SLSGammaFormula identityFormula = { 0, 1, 1, 0, 1, 1, 0, 1, 1 };
+
+- (void)restoreTransfer
+{
+	[self setTransferFormula:&identityFormula];
+}
+
+- (int)setTransferTable:(const float *)table count:(uint32_t)count
+{
+	const uint32_t cap = kSLSGammaTableCapacity;
+	float resampled[3 * kSLSGammaTableCapacity];
+
+	if (count < 2 || count > cap)
+		return kSLSErrorIllegalArgument;
+	for (uint32_t i = 0; i < 3 * count; i++)
+		if (!isfinite(table[i]))
+			return kSLSErrorIllegalArgument;
+	/* Linear interpolation to the capacity, each value clamped to 0..1. */
+	for (uint32_t c = 0; c < 3; c++) {
+		const float *in = table + c * count;
+
+		for (uint32_t i = 0; i < cap; i++) {
+			double pos = (double)i * (count - 1) / (cap - 1);
+			uint32_t lo = (uint32_t)pos;
+			uint32_t hi = lo + 1 < count ? lo + 1 : lo;
+			double v = in[lo] + (in[hi] - in[lo]) * (pos - lo);
+
+			resampled[c * cap + i] = (float)fmin(1.0, fmax(0.0, v));
+		}
+	}
+	memcpy(_transfer, resampled, sizeof(_transfer));
+	_transferFormula = identityFormula;
+	return kSLSErrorSuccess;
+}
+
+- (void)getTransferTable:(float *)table
+{
+	memcpy(table, _transfer, sizeof(_transfer));
+}
+
+- (int)setTransferFormula:(const SLSGammaFormula *)f
+{
+	const float *v = (const float *)f;
+	const uint32_t cap = kSLSGammaTableCapacity;
+
+	for (int i = 0; i < kSLSGammaFormulaWords; i++)
+		if (!isfinite(v[i]))
+			return kSLSErrorIllegalArgument;
+	for (uint32_t c = 0; c < 3; c++) {
+		double lo = v[3 * c], hi = v[3 * c + 1], gamma = v[3 * c + 2];
+
+		if (gamma <= 0 || lo < 0 || hi > 1 || lo > hi)
+			return kSLSErrorIllegalArgument;
+	}
+	for (uint32_t c = 0; c < 3; c++) {
+		double lo = v[3 * c], hi = v[3 * c + 1], gamma = v[3 * c + 2];
+
+		for (uint32_t i = 0; i < cap; i++)
+			_transfer[c * cap + i] = (float)(lo + (hi - lo) * pow((double)i / (cap - 1), gamma));
+	}
+	_transferFormula = *f;
 	return kSLSErrorSuccess;
 }
 

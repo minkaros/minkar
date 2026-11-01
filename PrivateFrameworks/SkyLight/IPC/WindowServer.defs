@@ -52,6 +52,9 @@ type ws_display_mode_list_t = array[*:64] of ws_display_mode_t;
 type ws_display_config_op_t = struct[8] of uint32_t
 	ctype: SLSDisplayConfigOp;
 type ws_display_config_list_t = array[*:32] of ws_display_config_op_t;
+type ws_gamma_table_t = array[*:768] of float;
+type ws_gamma_formula_t = struct[9] of float
+	ctype: SLSGammaFormula;
 
 /*
  * Opens a connection: the server records the client's PID and user from
@@ -113,3 +116,40 @@ routine display_configure(
 	ops			: ws_display_config_list_t;
 	out result		: int32_t;
 	out failed		: int32_t);
+
+/* ---- Gamma: display transfer tables ---- */
+
+/* A table per channel, red then green then blue, count entries each
+ * (2 to 256), values 0 to 1. */
+routine display_set_transfer_table(
+	server			: mach_port_t;
+	ServerAuditToken token	: audit_token_t;
+	display			: uint32_t;
+	count			: uint32_t;
+	table			: ws_gamma_table_t;
+	out result		: int32_t);
+
+/* The table in use, kSLSGammaTableCapacity entries per channel. */
+routine display_transfer_table(
+	server			: mach_port_t;
+	display			: uint32_t;
+	out result		: int32_t;
+	out table		: ws_gamma_table_t);
+
+routine display_set_transfer_formula(
+	server			: mach_port_t;
+	ServerAuditToken token	: audit_token_t;
+	display			: uint32_t;
+	formula			: ws_gamma_formula_t;
+	out result		: int32_t);
+
+routine display_transfer_formula(
+	server			: mach_port_t;
+	display			: uint32_t;
+	out result		: int32_t;
+	out formula		: ws_gamma_formula_t);
+
+/* Every display back to the identity transfer. */
+routine restore_transfers(
+	server			: mach_port_t;
+	ServerAuditToken token	: audit_token_t);
