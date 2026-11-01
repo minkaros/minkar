@@ -211,7 +211,7 @@ if [ "$MODE" = after ]; then
 	rm -f "$DAEMON"
 	section "Reboot"
 	before=$(cat "$DIR/reboot-requested" 2>/dev/null)
-	boot=$(sysctl_n kern.boottime | sed -E 's/.*sec = ([0-9]+).*/\1/')
+	boot=$(sysctl_n kern.boottime | sed -E 's/^[{] sec = ([0-9]+),.*/\1/')
 	if [ -n "$before" ] && [ -n "$boot" ] && [ "$boot" -gt "${before%.*}" ]; then
 		down=$((boot - ${before%.*}))
 		result PASS "reboot" "the machine came back up (kernel started ${down}s after the request)"
@@ -313,7 +313,7 @@ gpu_windows() {
 display_check() {
 	section "Display"
 	local hb=$ROOT/heartbeat boot last
-	boot=$(sysctl_n kern.boottime | sed -E 's/.*sec = ([0-9]+).*/\1/')
+	boot=$(sysctl_n kern.boottime | sed -E 's/^[{] sec = ([0-9]+),.*/\1/')
 	if [ -f "$hb" ]; then
 		read -r hbboot hblast < "$hb"
 		if [ "$hbboot" != "$boot" ]; then
@@ -343,6 +343,16 @@ display_check() {
 	local n inside=0
 	n=$(wc -l < "$RAW/gpu-windows.txt" | tr -d " ")
 	result INFO "gpu windows" "$n assigned (raw/gpu-windows.txt)"
+	# The window IOGOPFramebuffer matched on (it drives only the card
+	# whose window holds the framebuffer); else the assigned windows.
+	local wbase wsize
+	wbase=$(awk -F'= ' '/"MinkarFramebufferWindowBase"/ { print $2; exit }' "$RAW/ioreg-gop.txt")
+	wsize=$(awk -F'= ' '/"MinkarFramebufferWindowSize"/ { print $2; exit }' "$RAW/ioreg-gop.txt")
+	result INFO "framebuffer drivers" "$(grep -c '<class IOGOPFramebuffer' "$RAW/ioreg-gop.txt") IOGOPFramebuffer (one expected)"
+	if [ -n "$wbase" ] && [ -n "$fb" ]; then
+		result PASS "framebuffer in a gpu window" "$(awk -v b="$wbase" -v z="$wsize" 'BEGIN { printf "window of %d MB at %d (decimal)", z / 1048576, b }')"
+		fb=""
+	fi
 	if [ -n "$fb" ]; then
 		inside=$(awk -v fb="$fb" "$AWK_HEX"'BEGIN { f = hex(fb) } { s = hex($3); z = hex($4); if (f >= s && f < s + z) { print $1 " " $2; exit } }' "$RAW/gpu-windows.txt")
 		if [ -n "$inside" ]; then
