@@ -15,7 +15,7 @@ SUBDIR = ../PrivateFrameworks/SkyLight/Keymap/libxkbcommon .WAIT WindowServer/Le
 # in the Frameworks stage). pixman, its compositor's library, is built
 # first: the BSD stage comes after this one.
 SUBDIR += .WAIT ../BSD/lib/libpixman .WAIT ../PrivateFrameworks/SkyLight/Server \
-	../PrivateFrameworks/SkyLight/Tests ../PrivateFrameworks/SkyLight/Tests/eventtap \
+	../PrivateFrameworks/SkyLight/Tests ../PrivateFrameworks/SkyLight/Tests/eventtap ../PrivateFrameworks/SkyLight/Tests/cgwindow \
 	../PrivateFrameworks/SkyLight/Tools/wsctl
 # LaunchServices' session daemon (LaunchServices.framework is built in the
 # Frameworks stage).

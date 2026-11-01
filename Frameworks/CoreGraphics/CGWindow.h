@@ -9,6 +9,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 #import <CoreGraphics/CGWindowLevel.h>
 #import <CoreGraphics/CGGeometry.h>
+#import <CoreGraphics/CGImage.h>
 #import <CoreFoundation/CFArray.h>
 #import <CoreFoundation/CFDictionary.h>
 
@@ -78,6 +79,19 @@ COREGRAPHICS_EXPORT CFArrayRef CGWindowListCopyWindowInfo(CGWindowListOption opt
 
 /* Descriptions for the windows in an array from CGWindowListCreate. */
 COREGRAPHICS_EXPORT CFArrayRef CGWindowListCreateDescriptionFromArray(CFArrayRef windowArray);
+
+typedef uint32_t CGWindowImageOption;
+enum {
+    kCGWindowImageDefault             = 0,
+    kCGWindowImageBoundsIgnoreFraming = (1 << 0),
+    kCGWindowImageShouldBeOpaque      = (1 << 1),
+    kCGWindowImageOnlyShadows         = (1 << 2),
+    kCGWindowImageBestResolution      = (1 << 3),
+    kCGWindowImageNominalResolution   = (1 << 4),
+};
+
+COREGRAPHICS_EXPORT CGImageRef CGWindowListCreateImage(CGRect screenBounds,
+    CGWindowListOption listOption, CGWindowID windowID, CGWindowImageOption imageOption);
 
 CGRect CGInsetRectForNativeWindowBorder(CGRect frame, unsigned styleMask);
 CGRect CGOutsetRectForNativeWindowBorder(CGRect frame, unsigned styleMask);
