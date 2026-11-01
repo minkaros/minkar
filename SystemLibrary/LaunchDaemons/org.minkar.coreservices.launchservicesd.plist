@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+ SPDX-License-Identifier: BSD-2-Clause
+ Copyright (c) 2026 The Minkar contributors
+ Part of Minkar.
+
+ launchservicesd, LaunchServices' session (WindowServer plan, WS4a): the
+ running applications. Started on demand, by the first lookup of its
+ service. As root, with one session for the console, until sessions per
+ user come with the login window (Phase 5).
+-->
+<plist version="1.0">
+<dict>
+	<key>Label</key>
+	<string>org.minkar.coreservices.launchservicesd</string>
+	<key>ProgramArguments</key>
+	<array>
+		<string>/System/Library/CoreServices/launchservicesd</string>
+	</array>
+	<key>MachServices</key>
+	<dict>
+		<key>org.minkar.coreservices.launchservicesd</key>
+		<true/>
+	</dict>
+	<key>StandardErrorPath</key>
+	<string>/var/log/launchservicesd.log</string>
+	<key>KeepAlive</key>
+	<false/>
+</dict>
+</plist>

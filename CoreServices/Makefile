@@ -17,6 +17,9 @@ SUBDIR = ../PrivateFrameworks/SkyLight/Keymap/libxkbcommon .WAIT WindowServer/Le
 SUBDIR += .WAIT ../BSD/lib/libpixman .WAIT ../PrivateFrameworks/SkyLight/Server \
 	../PrivateFrameworks/SkyLight/Tests ../PrivateFrameworks/SkyLight/Tests/eventtap \
 	../PrivateFrameworks/SkyLight/Tools/wsctl
+# LaunchServices' session daemon (LaunchServices.framework is built in the
+# Frameworks stage).
+SUBDIR += launchservicesd launchservicesd/tests
 # The code integrity policy's test program (it needs IOKit).
 SUBDIR += ../Kernel/Extensions/MinkarCodeIntegrity/tests
 # IOHIDSystem's event queue reader, for the input tests (it needs IOKit).
