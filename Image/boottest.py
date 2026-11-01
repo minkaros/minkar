@@ -48,6 +48,10 @@ Gates from the architecture plan:
       reference image within a tolerance, and a click (USB tablet) and a
       key (PS/2 keyboard) injected through QMP reach the demo's window as
       NSEvents                                     (--gate M4-draw)
+  M4-compose  M2, then the new window server (SkyLight) and the demo's two
+      overlapping AppKit windows: the screen matches a reference image,
+      again after a window is raised and after one is moved, and wsctl
+      shows no frame while nothing changes        (--gate M4-compose)
 
 For M1 the kernel prints nothing once PID 1 starts, so PID 1 itself
 (launchd, or a temporary init) must print USERLAND_MARKER on the console,
@@ -78,10 +82,11 @@ class Send(str):
 
 
 class Act(str):
-    """A gate step done on the host through QEMU's QMP: "compare" (the
-    screen against the reference image), "click X Y" (screen pixels) or
-    "key NAME" (a QEMU key code). Its result lines are matched by the
-    markers that follow."""
+    """A gate step done on the host through QEMU's QMP: "compare [NAME]"
+    (the screen against the reference image: --reference, or
+    reference/NAME.ppm.gz), "click X Y" (screen pixels) or "key NAME" (a
+    QEMU key code). Its result lines are matched by the markers that
+    follow."""
 
 
 class SSH(str):
@@ -154,10 +159,38 @@ GATES['M4-draw'] = GATES['M2'] + [
     SSH('sleep 2; cat /tmp/demo.out'),
     'event mouseDown x=', 'event mouseUp', 'event keyDown keyCode=0 chars=a',
 ]
+# Gate M4-compose (WindowServer plan, WS2): the new server, started by
+# hand (its job comes in WS4), composites the demo's two AppKit windows
+# (WindowServerDemo -two); the demo takes commands from a file, as there
+# is no input through the new server before WS3.
+WS_NEXT = ('/System/Library/PrivateFrameworks/SkyLight.framework/Versions/A/Resources/'
+           'WindowServer')
+DEMO_COMMAND = ('echo "%s" > /tmp/ws-demo.cmd; for i in $(seq 100); do '
+                '[ -e /tmp/ws-demo.cmd ] || break; sleep 0.1; done; sleep 1; echo "%s"')
+GATES['M4-compose'] = GATES['M2'] + [
+    SSH('cd /; (nohup %s > /tmp/ws2.log 2>&1 < /dev/null &); for i in $(seq 60); do '
+        'grep -q "^WindowServer: serving" /tmp/ws2.log && break; sleep 1; done; '
+        'cat /tmp/ws2.log' % WS_NEXT),
+    'WindowServer: serving org.minkar.WindowServer.next',
+    SSH('cd /; (nohup %s -two > /tmp/demo.out 2>&1 < /dev/null &); for i in $(seq 60); do '
+        'grep -q "^second frame=" /tmp/demo.out && break; sleep 1; done; sleep 3; '
+        'grep "frame=" /tmp/demo.out' % WS_DEMO),
+    'window frame=198,197,402,332', 'second frame=448,97,302,282',
+    Act('compare M4-compose-1'), 'boottest-draw: the screen matches the reference',
+    SSH(DEMO_COMMAND % ('raise-blue', 'boottest: raised')), 'boottest: raised',
+    Act('compare M4-compose-2'), 'boottest-draw: the screen matches the reference',
+    SSH(DEMO_COMMAND % ('move-red 600 400', 'boottest: moved')), 'boottest: moved',
+    Act('compare M4-compose-3'), 'boottest-draw: the screen matches the reference',
+    SSH('a=$(/usr/local/bin/wsctl stats | awk \'/^frames/ { print $2 }\'); sleep 2; '
+        'b=$(/usr/local/bin/wsctl stats | awk \'/^frames/ { print $2 }\'); '
+        '[ "$a" = "$b" ] && echo "boottest: no frame while idle ($a)"'),
+    'boottest: no frame while idle',
+]
 GATE_FAIL = {
     'M2-login': ['Login incorrect'],
     'M2': ['Login incorrect'],
     'M4-draw': ['Login incorrect', 'boottest-draw: the screen differs'],
+    'M4-compose': ['Login incorrect', 'boottest-draw: the screen differs'],
 }
 # How long the shell gets to print its prompt before input is sent.
 SEND_DELAY = 3
@@ -313,20 +346,23 @@ def act(args, step, tmp):
     """Does an Act step; returns the lines its markers are matched in."""
     words = step.split()
     if words[0] == 'compare':
+        name = words[1] if len(words) > 1 else None
+        reference = (os.path.join(os.path.dirname(REFERENCE), name + '.ppm.gz') if name
+                     else args.reference)
         shot = os.path.join(tmp, 'screen.ppm')
         qmp(args, ('screendump', {'filename': shot}))
         time.sleep(1)
         with open(shot, 'rb') as f:
             data = f.read()
         if args.log:
-            shutil.copyfile(shot, args.log + '.screen.ppm')
+            shutil.copyfile(shot, args.log + ('.%s' % name if name else '') + '.screen.ppm')
         if args.update_reference:
-            os.makedirs(os.path.dirname(args.reference), exist_ok=True)
-            with gzip.open(args.reference, 'wb') as f:
+            os.makedirs(os.path.dirname(reference), exist_ok=True)
+            with gzip.open(reference, 'wb') as f:
                 f.write(data)
             return ['boottest-draw: the screen matches the reference (written to %s)'
-                    % args.reference]
-        with gzip.open(args.reference, 'rb') as f:
+                    % reference]
+        with gzip.open(reference, 'rb') as f:
             rw, rh, ref = read_ppm(f.read())
         w, h, px = read_ppm(data)
         if (w, h) != (rw, rh):
@@ -581,8 +617,8 @@ def main(argv=None):
     p.add_argument('--reference', default=REFERENCE,
                    help='reference screen for gate M4-draw (gzip-compressed PPM)')
     p.add_argument('--update-reference', action='store_true',
-                   help='gate M4-draw: write the screen to --reference instead of '
-                        'comparing it (from a run checked by hand)')
+                   help='gates M4-draw and M4-compose: write the screens to their '
+                        'references instead of comparing them (from a run checked by hand)')
     p.add_argument('--ovmf-code', default='/usr/share/OVMF/OVMF_CODE_4M.fd')
     p.add_argument('--ovmf-vars', default='/usr/share/OVMF/OVMF_VARS_4M.fd')
     args = p.parse_args(argv)
