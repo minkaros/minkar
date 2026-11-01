@@ -228,6 +228,10 @@ static O2Image *wsZoom, *wsZoomUp, *wsZoomDown;
    [contentView setFrame:contentFrame];
 }
 
+-(NSRect)_windowControlsRect {
+    return NSUnionRect(NSUnionRect(_closeButtonRect, _miniButtonRect), _zoomButtonRect);
+}
+
 -(void)mouseDown:(NSEvent *)event {
     CGFloat top, left, right, bottom;
     CGNativeBorderFrameWidthsForStyle([[self window] styleMask], &top, &left, &bottom, &right);

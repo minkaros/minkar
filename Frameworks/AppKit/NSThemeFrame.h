@@ -40,5 +40,8 @@ typedef enum {
 
 - (NSWindowBorderType)windowBorderType;
 - (void)setWindowBorderType:(NSWindowBorderType)borderType;
+/* The close, minimize and zoom buttons together, in the frame view's
+ * coordinates (empty until the frame is drawn). */
+- (NSRect)_windowControlsRect;
 
 @end

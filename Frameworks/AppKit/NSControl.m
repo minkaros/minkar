@@ -25,6 +25,12 @@ NSString * const NSControlTextDidEndEditingNotification=@"NSControlTextDidEndEdi
 
 @implementation NSControl
 
+/* A control takes its own clicks: a window movable by its background does
+   not move from one. */
+-(BOOL)mouseDownCanMoveWindow {
+   return NO;
+}
+
 static NSMutableDictionary *cellClassDictionary = nil;
 
 +(void)initialize {

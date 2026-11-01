@@ -178,6 +178,23 @@ extern int _CGUsesSkyLight(void);
 
 static NSMutableDictionary *slsWindows;	/* window number -> SLSWindowID */
 static NSMutableSet *slsShown;		/* window numbers ordered in */
+static NSMutableDictionary *slsDragRegions;	/* window number -> last region sent */
+/* window number -> the frame the server has (sent, or told us by a move) */
+static NSMutableDictionary *slsKnownFrames;
+
+/* Whether frame is the one the server has; records it as such. */
+static BOOL slsFrameIsKnown(int number, SLSRect frame) {
+    NSNumber *key = [NSNumber numberWithInt:number];
+    NSData *value = [NSData dataWithBytes:&frame length:sizeof(frame)];
+    @synchronized([NSWindow class]) {
+        if([[slsKnownFrames objectForKey:key] isEqualToData:value])
+            return YES;
+        if(slsKnownFrames == nil)
+            slsKnownFrames = [[NSMutableDictionary alloc] init];
+        [slsKnownFrames setObject:value forKey:key];
+    }
+    return NO;
+}
 
 static SLSWindowID slsWindowFor(int number) {
     @synchronized([NSWindow class]) {
@@ -1099,7 +1116,7 @@ NSArray *_NSWindowNumbersFromWindowInfo(CFArrayRef info,BOOL allApps) {
 }
 
 -(void)setMovable:(BOOL)movable {
-   NSUnimplementedMethod();
+   _isNotMovable = !movable;
 }
 
 -(void)setBackingType:(NSBackingStoreType)value {
@@ -1577,9 +1594,9 @@ NSArray *_NSWindowNumbersFromWindowInfo(CFArrayRef info,BOOL allApps) {
     return _isMiniaturized;
 }
 
+/* As documented: a window is movable unless setMovable:NO was called. */
 -(BOOL)isMovable {
-   NSUnimplementedMethod();
-   return NO;
+   return !_isNotMovable;
 }
 
 -(BOOL)inLiveResize {
@@ -1953,6 +1970,7 @@ NSArray *_NSWindowNumbersFromWindowInfo(CFArrayRef info,BOOL allApps) {
                AppKit tracks its dirty rects into the surface; taken in WS2. */
             int32_t width = (int32_t)_frame.size.width, height = (int32_t)_frame.size.height;
             SLSIntRect all = { 0, 0, width, height };
+            [self _syncSkyLightDragRegion];
             SLSWindowFlushPixels(slsWindowFor(_number), buffer, 4 * width, &all, 1);
         }
     }
@@ -2135,6 +2153,8 @@ NSArray *_NSWindowNumbersFromWindowInfo(CFArrayRef info,BOOL allApps) {
         SLSReleaseWindow(slsWindowFor(_number));
         @synchronized([NSWindow class]) {
             [slsWindows removeObjectForKey:key];
+            [slsDragRegions removeObjectForKey:key];
+            [slsKnownFrames removeObjectForKey:key];
         }
         [slsShown removeObject:key];
     } else {
@@ -3218,6 +3238,75 @@ NSArray *_NSWindowNumbersFromWindowInfo(CFArrayRef info,BOOL allApps) {
 {
 }
 
+void CGNativeBorderFrameWidthsForStyle(unsigned styleMask,CGFloat *top,CGFloat *left,
+                                       CGFloat *bottom,CGFloat *right);
+
+/* A rectangle of the window (bottom left origin) in the server's window
+   coordinates (top left origin), clipped to the window. */
+static BOOL slsWindowRect(NSRect r, NSSize size, SLSIntRect *out) {
+    r = NSIntersectionRect(r, NSMakeRect(0, 0, size.width, size.height));
+    if(NSIsEmptyRect(r))
+        return NO;
+    out->x = (int32_t)floor(r.origin.x);
+    out->y = (int32_t)floor(size.height - NSMaxY(r));
+    out->width = (int32_t)ceil(r.size.width);
+    out->height = (int32_t)ceil(r.size.height);
+    return YES;
+}
+
+/* The views that take their own clicks, as excluded rectangles: a view that
+   cannot move the window is excluded whole; one that can lets through what
+   its subviews do not take. */
+static void slsCollectExcluded(NSView *view, NSSize size, SLSIntRect *rects, uint32_t *count) {
+    for(NSView *sub in [view subviews]) {
+        if([sub isHidden] || *count >= kSLSMaxRegionRects)
+            continue;
+        if(![sub mouseDownCanMoveWindow]) {
+            if(slsWindowRect([sub convertRect:[sub bounds] toView:nil], size, &rects[*count]))
+                (*count)++;
+        } else
+            slsCollectExcluded(sub, size, rects, count);
+    }
+}
+
+/* The drag regions the server moves the window from by itself: the title
+   bar without its buttons, and the background of a window movable by it.
+   Sent when they change. */
+-(void)_syncSkyLightDragRegion {
+    SLSIntRect drag[kSLSMaxRegionRects], exclude[kSLSMaxRegionRects];
+    uint32_t dragCount = 0, excludeCount = 0;
+    NSSize size = _frame.size;
+    CGFloat top, left, bottom, right;
+
+    CGNativeBorderFrameWidthsForStyle(_styleMask, &top, &left, &bottom, &right);
+    if([self isMovable]) {
+        if([self isMovableByWindowBackground]) {
+            if(slsWindowRect(NSMakeRect(0, 0, size.width, size.height), size, &drag[dragCount]))
+                dragCount++;
+            slsCollectExcluded(_contentView, size, exclude, &excludeCount);
+        } else if(top > 0 &&
+            slsWindowRect(NSMakeRect(0, size.height - top, size.width, top), size, &drag[dragCount]))
+            dragCount++;
+        if(dragCount > 0 && [_backgroundView isKindOfClass:[NSThemeFrame class]] &&
+           excludeCount < kSLSMaxRegionRects &&
+           slsWindowRect([(NSThemeFrame *)_backgroundView _windowControlsRect], size, &exclude[excludeCount]))
+            excludeCount++;
+    }
+
+    NSMutableData *region = [NSMutableData dataWithBytes:drag length:dragCount * sizeof(SLSIntRect)];
+    [region appendBytes:&dragCount length:sizeof(dragCount)];
+    [region appendBytes:exclude length:excludeCount * sizeof(SLSIntRect)];
+    NSNumber *key = [NSNumber numberWithInt:_number];
+    @synchronized([NSWindow class]) {
+        if([[slsDragRegions objectForKey:key] isEqualToData:region])
+            return;
+        if(slsDragRegions == nil)
+            slsDragRegions = [[NSMutableDictionary alloc] init];
+        [slsDragRegions setObject:region forKey:key];
+    }
+    SLSWindowSetDragRegion(slsWindowFor(_number), drag, dragCount, exclude, excludeCount);
+}
+
 -(void)requestMove:(NSEvent *)event {
     [self postNotificationName:NSWindowWillMoveNotification];
     /* The new window server moves the window with the pointer by itself
@@ -3235,6 +3324,8 @@ NSArray *_NSWindowNumbersFromWindowInfo(CFArrayRef info,BOOL allApps) {
 -(void)_skyLightMovedToX:(NSInteger)x y:(NSInteger)y {
     CGFloat height = CGDisplayBounds(CGMainDisplayID()).size.height;
     _frame.origin = NSMakePoint(x, height - y - _frame.size.height);
+    /* The server has this frame: it is not sent back. */
+    slsFrameIsKnown(_number, slsFrame(_frame));
     [self postNotificationName:NSWindowDidMoveNotification];
 }
 
@@ -3301,7 +3392,12 @@ NSArray *_NSWindowNumbersFromWindowInfo(CFArrayRef info,BOOL allApps) {
         SLSWindowID window = slsWindowFor(_number);
         NSNumber *key = [NSNumber numberWithInt:_number];
 
-        SLSSetWindowFrame(window, slsFrame(_frame));
+        /* Only a frame the server does not have: a window the server moved
+           while its app was busy keeps its new place, even if events
+           queued before the move (a click that orders it front) are
+           handled first, with the old frame. */
+        if(!slsFrameIsKnown(_number, slsFrame(_frame)))
+            SLSSetWindowFrame(window, slsFrame(_frame));
         /* This AppKit's levels are CGWindowLevelKeys; the server takes levels. */
         SLSSetWindowLevel(window, CGWindowLevelForKey((CGWindowLevelKey)_level));
         /* Ordering in is orderWindow:relativeTo:'s; this only takes out. */

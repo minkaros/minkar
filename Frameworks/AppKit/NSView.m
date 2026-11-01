@@ -2107,9 +2107,11 @@ static NSGraphicsContext *graphicsContextForView(NSView *view){
    }
 }
 
+/* As documented: an opaque view handles its clicks; a transparent one lets
+   them through to what is behind it, so a window movable by its background
+   moves from there. */
 -(BOOL)mouseDownCanMoveWindow {
-   NSUnimplementedMethod();
-   return NO;
+   return ![self isOpaque];
 }
 
 -(void)print:sender {
