@@ -86,6 +86,8 @@
 @property (strong) NSWindow *window;
 @property (strong) NSWindow *second;
 @property (copy) NSString *commandPath;
+@property (strong) NSWindow *child;
+@property (strong) NSWindow *sheet;
 @end
 
 @implementation DemoDelegate
@@ -113,7 +115,8 @@
      * so two instances can run; then also "apps" (the running apps),
      * "activate PID" (asks that app to activate), "screens" (each
      * screen's frame and visible frame, and the menu bar's height),
-     * "minimize" and "restore" (its window).
+     * "minimize" and "restore" (its window), "child" and "unchild" (a
+     * green child window over its right edge), "sheet" and "endsheet".
      */
     NSArray *args = [[NSProcessInfo processInfo] arguments];
     NSUInteger cmd = [args indexOfObject:@"-cmd"];
@@ -222,6 +225,30 @@
     } else if (strncmp(line, "restore", 7) == 0) {
         [self.window deminiaturize:nil];
         printf("minimized=%d\n", [self.window isMiniaturized]);
+    } else if (strncmp(line, "unchild", 7) == 0) {
+        [self.window removeChildWindow:self.child];
+        printf("children=%lu\n", (unsigned long)[[self.window childWindows] count]);
+    } else if (strncmp(line, "child", 5) == 0) {
+        NSRect f = [self.window frame];
+        self.child = [[NSWindow alloc] initWithContentRect:NSMakeRect(NSMaxX(f) - 60, f.origin.y + 40, 120, 80)
+            styleMask:NSBorderlessWindowMask backing:NSBackingStoreBuffered defer:NO];
+        DemoView *green = [[DemoView alloc] initWithFrame:NSMakeRect(0, 0, 120, 80)];
+        green.color = [NSColor colorWithCalibratedRed:0.1 green:0.8 blue:0.2 alpha:1];
+        [self.child setContentView:green];
+        [self.window addChildWindow:self.child ordered:NSWindowAbove];
+        printf("children=%lu\n", (unsigned long)[[self.window childWindows] count]);
+    } else if (strncmp(line, "endsheet", 8) == 0) {
+        [NSApp endSheet:self.sheet];
+        [self.sheet orderOut:nil];
+        printf("sheet ended\n");
+    } else if (strncmp(line, "sheet", 5) == 0) {
+        self.sheet = [[NSWindow alloc] initWithContentRect:NSMakeRect(0, 0, 240, 120)
+            styleMask:NSTitledWindowMask backing:NSBackingStoreBuffered defer:NO];
+        [NSApp beginSheet:self.sheet modalForWindow:self.window modalDelegate:nil
+            didEndSelector:NULL contextInfo:NULL];
+        NSRect f = [self.sheet frame];
+        printf("sheet frame=%.0f,%.0f,%.0f,%.0f\n", f.origin.x, f.origin.y,
+            f.size.width, f.size.height);
     } else if (strncmp(line, "screens", 7) == 0) {
         for (NSScreen *screen in [NSScreen screens]) {
             NSRect f = [screen frame], v = [screen visibleFrame];

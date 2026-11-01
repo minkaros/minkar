@@ -48,7 +48,7 @@ extern "C" {
 #define kSLSServiceName		"org.minkar.WindowServer.next"
 
 /* The interface version both sides are built for. */
-#define kSLSInterfaceVersion	10
+#define kSLSInterfaceVersion	11
 
 typedef int32_t SLSConnectionID;
 
@@ -396,6 +396,17 @@ int SLSRequestWindowNotifications(int on);
  */
 int SLSCopyWindowImage(SLSWindowID window, uint8_t **pixels, uint32_t *width,
     uint32_t *height, uint32_t *rowBytes);
+
+/*
+ * Child windows (interface version 11), for NSWindow's child windows and
+ * sheets: a window of the same app attached to a parent, place
+ * kSLSOrderAbove or kSLSOrderBelow it. The server keeps the child next to
+ * its parent in the order, moves it with its parent (telling its app,
+ * kSLSEventWindowMoved), and orders it out and back in with its parent
+ * (minimizing too). parent 0 detaches it; a parent that goes away
+ * detaches its children.
+ */
+int SLSSetWindowParent(SLSWindowID child, SLSWindowID parent, int32_t place);
 
 /* 0 (transparent) to 1 (opaque); the server blends the surface with it. */
 int SLSSetWindowAlpha(SLSWindowID window, double alpha);

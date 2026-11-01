@@ -60,6 +60,7 @@
 		_windowID = windowID;
 		_owner = owner;
 		_alpha = 1;
+		_children = [NSMutableArray array];
 	}
 	return self;
 }
@@ -222,6 +223,8 @@ notifyMinimized(WSWindow *w)
 			WSEventsEnqueue(c, &e);
 }
 
+static void detach(WSWindow *child);
+
 WSWindow *
 WSWindowCreate(WSConnection *owner, int32_t level, SLSRect frame)
 {
@@ -245,14 +248,101 @@ WSWindowRelease(WSWindow *w)
 	w.onScreen = NO;
 	statusItemGone(w);
 	WSEventsWindowGone(w);
+	detach(w);
+	for (WSWindow *child in [w.children copy])
+		detach(child);
 }
 
+/* Tells a window's app the server moved it, as after a move. */
+static void
+notifyMoved(WSWindow *w)
+{
+	SLSEvent moved;
+
+	if (w.owner == nil)
+		return;
+	memset(&moved, 0, sizeof(moved));
+	moved.type = kSLSEventWindowMoved;
+	moved.window = w.windowID;
+	moved.x = w.frame.x;
+	moved.y = w.frame.y;
+	moved.clickCount = 1;
+	moved.timestamp = WSNanoseconds();
+	WSEventsEnqueue(w.owner, &moved);
+}
+
+/* Its children (and theirs) move with a window. */
 void
 WSWindowSetFrame(WSWindow *w, SLSRect frame)
 {
+	double dx = frame.x - w.frame.x, dy = frame.y - w.frame.y;
+
 	damageWindow(w);
 	w.frame = frame;
 	damageWindow(w);
+	if (dx == 0 && dy == 0)
+		return;
+	for (WSWindow *child in [w.children copy]) {
+		SLSRect f = child.frame;
+		f.x += dx;
+		f.y += dy;
+		WSWindowSetFrame(child, f);
+		notifyMoved(child);
+	}
+}
+
+/* ---- Child windows ---- */
+
+static NSUInteger levelEdge(int32_t level, BOOL front);
+
+/* Puts a window's children next to it in the order, and back on the
+ * screen if they left with it. */
+static void
+placeChildren(WSWindow *w)
+{
+	/* Last attached nearest the parent: the first goes on the outside. */
+	for (WSWindow *child in [w.children reverseObjectEnumerator]) {
+		if (!child.onScreen && !child.hiddenWithParent)
+			continue;
+		damageWindow(child);
+		[stack removeObject:child];
+		NSUInteger index = [stack indexOfObject:w];
+		if (index == NSNotFound)
+			continue;
+		if (child.level != w.level)
+			index = levelEdge(child.level, child.childPlace != kSLSOrderBelow);
+		else if (child.childPlace == kSLSOrderBelow)
+			index++;
+		[stack insertObject:child atIndex:index];
+		child.onScreen = YES;
+		child.hiddenWithParent = NO;
+		damageWindow(child);
+		placeChildren(child);
+	}
+}
+
+/* Its children leave the screen with a window, to come back with it. */
+static void
+hideChildren(WSWindow *w)
+{
+	for (WSWindow *child in w.children) {
+		if (!child.onScreen)
+			continue;
+		damageWindow(child);
+		[stack removeObject:child];
+		child.onScreen = NO;
+		child.hiddenWithParent = YES;
+		WSEventsWindowGone(child);
+		hideChildren(child);
+	}
+}
+
+static void
+detach(WSWindow *child)
+{
+	[child.parent.children removeObject:child];
+	child.parent = nil;
+	child.hiddenWithParent = NO;
 }
 
 /* Where a window of this level goes: the front of its level, or the back. */
@@ -287,8 +377,10 @@ WSWindowOrder(WSWindow *w, int32_t place, SLSWindowID relativeTo)
 		if (isStatusItem(w))
 			layoutStatusArea();
 		WSEventsWindowGone(w);
+		hideChildren(w);
 		return kSLSErrorSuccess;
 	}
+	w.hiddenWithParent = NO;
 	/* Ordered in, a minimized window is restored. */
 	if (w.minimized) {
 		w.minimized = NO;
@@ -309,6 +401,11 @@ WSWindowOrder(WSWindow *w, int32_t place, SLSWindowID relativeTo)
 	damageWindow(w);
 	if (isStatusItem(w))
 		layoutStatusArea();
+	/* A child stays next to its parent; the parent brings its children. */
+	if (w.parent != nil && w.parent.onScreen)
+		placeChildren(w.parent);
+	else
+		placeChildren(w);
 	return kSLSErrorSuccess;
 }
 
@@ -416,6 +513,42 @@ wss_window_set_status_item(mach_port_t server, audit_token_t token, uint32_t win
 		layoutStatusArea();
 	} else if (!item)
 		statusItemGone(w);
+	return KERN_SUCCESS;
+}
+
+kern_return_t
+wss_window_set_parent(mach_port_t server, audit_token_t token, uint32_t child,
+    uint32_t parent, int32_t place, int32_t *result)
+{
+	WSWindow *c = ownWindow(token, child, result);
+	WSWindow *p = nil;
+
+	if (c == nil)
+		return KERN_SUCCESS;
+	if (parent != 0) {
+		p = ownWindow(token, parent, result);
+		if (p == nil)
+			return KERN_SUCCESS;
+		if (place != kSLSOrderAbove && place != kSLSOrderBelow) {
+			*result = kSLSErrorIllegalArgument;
+			return KERN_SUCCESS;
+		}
+		/* Not itself, nor one of its own children. */
+		for (WSWindow *a = p; a != nil; a = a.parent)
+			if (a == c) {
+				*result = kSLSErrorIllegalArgument;
+				return KERN_SUCCESS;
+			}
+	}
+	detach(c);
+	if (p != nil) {
+		c.parent = p;
+		c.childPlace = place;
+		[p.children addObject:c];
+		if (p.onScreen && c.onScreen)
+			placeChildren(p);
+	}
+	*result = kSLSErrorSuccess;
 	return KERN_SUCCESS;
 }
 

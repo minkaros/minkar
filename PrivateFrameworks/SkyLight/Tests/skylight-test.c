@@ -576,6 +576,51 @@ testMinimize(void)
 
 static SLSWindowID solidWindow(SLSRect frame, uint32_t color);
 
+/* Child windows (interface version 11): next to the parent in the order,
+ * moved and ordered out with it. */
+static void
+testChildWindows(void)
+{
+	SLSWindowID parent = 0, child = 0, l[8];
+	SLSWindowInfo info;
+	uint32_t n = 0;
+
+	SLSNewWindow(0, (SLSRect){ 200, 200, 100, 100 }, &parent);
+	SLSNewWindow(0, (SLSRect){ 220, 230, 50, 40 }, &child);
+	SLSOrderWindow(parent, kSLSOrderAbove, 0);
+	SLSOrderWindow(child, kSLSOrderAbove, 0);
+	check(SLSSetWindowParent(child, parent, kSLSOrderAbove) == kSLSErrorSuccess,
+	    "a child window is attached", NULL);
+	check(SLSSetWindowParent(parent, child, kSLSOrderAbove) == kSLSErrorIllegalArgument,
+	    "a parent cannot be its child's child", NULL);
+	check(SLSSetWindowParent(child, child, kSLSOrderAbove) == kSLSErrorIllegalArgument,
+	    "nor its own", NULL);
+	SLSOrderWindow(parent, kSLSOrderAbove, 0);
+	SLSWindowListCopy(kSLSWindowListOnScreenOnly, 0, 8, l, &n);
+	check(n >= 2 && l[0] == child && l[1] == parent,
+	    "ordering the parent front brings the child just above it", NULL);
+	SLSSetWindowFrame(parent, (SLSRect){ 210, 220, 100, 100 });
+	memset(&info, 0, sizeof(info));
+	SLSGetWindowInfo(child, &info);
+	check(info.x == 230 && info.y == 250, "the child moves with its parent", NULL);
+	SLSOrderWindow(parent, kSLSOrderOut, 0);
+	memset(&info, 0, sizeof(info));
+	SLSGetWindowInfo(child, &info);
+	check(!(info.flags & kSLSWindowOnScreen), "and leaves the screen with it", NULL);
+	SLSOrderWindow(parent, kSLSOrderAbove, 0);
+	memset(&info, 0, sizeof(info));
+	SLSGetWindowInfo(child, &info);
+	check(info.flags & kSLSWindowOnScreen, "and comes back with it", NULL);
+	check(SLSSetWindowParent(child, 0, 0) == kSLSErrorSuccess, "a child is detached", NULL);
+	SLSSetWindowFrame(parent, (SLSRect){ 200, 200, 100, 100 });
+	memset(&info, 0, sizeof(info));
+	SLSGetWindowInfo(child, &info);
+	check(info.x == 230, "and no longer moves with it", NULL);
+	SLSReleaseWindow(child);
+	SLSReleaseWindow(parent);
+	heard(0, 0);	/* the moved notices are read */
+}
+
 /* Window images (interface version 10): what the surface shows. */
 static void
 testWindowImage(void)
@@ -1180,6 +1225,7 @@ main(int argc, char *argv[])
 	testStatusArea();
 	testMinimize();
 	testWindowImage();
+	testChildWindows();
 	testSurfaces();
 	testEvents();
 	testClientExit(argv[0]);

@@ -1686,9 +1686,27 @@ NSArray *_NSWindowNumbersFromWindowInfo(CFArrayRef info,BOOL allApps) {
    return _childWindows;
 }
 
+/*
+ * With the new server (WS4a), the server keeps a child next to its parent,
+ * moves it with the parent and orders it out and in with it
+ * (SLSSetWindowParent); a child is ordered, not made key, as on the
+ * reference platform, and removing it leaves it where it is.
+ */
 -(void)addChildWindow:(NSWindow *)child ordered:(NSWindowOrderingMode)ordered {
    if(_childWindows==nil)
     _childWindows=[NSMutableArray new];
+
+   if(_CGUsesSkyLight()) {
+       if([_childWindows indexOfObjectIdenticalTo:child]==NSNotFound)
+           [_childWindows addObject:child];
+       [child setParentWindow:self];
+       SLSSetWindowParent(slsWindowFor([child windowNumber]), slsWindowFor(_number),
+           ordered==NSWindowBelow ? kSLSOrderBelow : kSLSOrderAbove);
+       if([self isVisible])
+           [child orderWindow:ordered==NSWindowBelow ? NSWindowBelow : NSWindowAbove
+               relativeTo:_number];
+       return;
+   }
 
    [_childWindows addObject:child];
    [child setParentWindow:self];
@@ -1696,6 +1714,12 @@ NSArray *_NSWindowNumbersFromWindowInfo(CFArrayRef info,BOOL allApps) {
 }
 
 -(void)removeChildWindow:(NSWindow *)child {
+   if(_CGUsesSkyLight()) {
+       SLSSetWindowParent(slsWindowFor([child windowNumber]), 0, 0);
+       [child setParentWindow:nil];
+       [_childWindows removeObjectIdenticalTo:child];
+       return;
+   }
    [child orderOut:nil];
    [child setParentWindow:nil];
    [_childWindows removeObjectIdenticalTo:child];
@@ -2798,9 +2822,11 @@ NSArray *_NSWindowNumbersFromWindowInfo(CFArrayRef info,BOOL allApps) {
    NSWindow *sheet=[_sheetContext sheet];
    NSRect    sheetFrame=[sheet frame];
    NSRect    frame=[self frame];
+   /* Under the title bar: the content area's top edge. */
+   NSRect    content=[self contentRectForFrameRect:frame];
    NSPoint   origin;
 
-   origin.y=frame.origin.y+(frame.size.height-sheetFrame.size.height);
+   origin.y=NSMaxY(content)-sheetFrame.size.height;
    origin.x=frame.origin.x+floor((frame.size.width-sheetFrame.size.width)/2);
 
 
@@ -2838,6 +2864,14 @@ NSArray *_NSWindowNumbersFromWindowInfo(CFArrayRef info,BOOL allApps) {
    [self _setSheetOrigin];
    sheetFrame = [sheet frame];
 
+   if(_CGUsesSkyLight()) {
+       /* A sheet is a child window over the title bar's bottom edge. */
+       [sheet orderWindow:NSWindowAbove relativeTo:_number];
+       SLSSetWindowParent(slsWindowFor([sheet windowNumber]), slsWindowFor(_number),
+           kSLSOrderAbove);
+       [self makeKeyWindow];
+       return;
+   }
    sheet->_isVisible=YES;
    [sheet display];
    [[sheet platformWindow] sheetOrderFrontFromFrame:NSMakeRect(sheetFrame.origin.x,NSMaxY(sheetFrame),sheetFrame.size.width,0) aboveWindow:[self platformWindow]];
@@ -2859,6 +2893,13 @@ NSArray *_NSWindowNumbersFromWindowInfo(CFArrayRef info,BOOL allApps) {
     NSWindow *sheet = [_sheetContext sheet];
     NSRect sheetFrame = [sheet frame];
 
+    if(_CGUsesSkyLight()) {
+        SLSSetWindowParent(slsWindowFor([sheet windowNumber]), 0, 0);
+        [sheet orderWindow:NSWindowOut relativeTo:0];
+        [_sheetContext release];
+        _sheetContext=nil;
+        return;
+    }
     sheet->_isVisible=NO;
     [[sheet platformWindow] sheetOrderOutToFrame:NSMakeRect(sheetFrame.origin.x,NSMaxY(sheetFrame),sheetFrame.size.width,0)];
 

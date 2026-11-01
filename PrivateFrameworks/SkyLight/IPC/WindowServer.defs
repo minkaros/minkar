@@ -475,6 +475,16 @@ routine display_menu_bar_height(
 	out result		: int32_t;
 	out height		: uint32_t);
 
+/* ---- Child windows (interface version 11) ---- */
+
+routine window_set_parent(
+	server			: mach_port_t;
+	ServerAuditToken token	: audit_token_t;
+	child			: uint32_t;
+	parent			: uint32_t;
+	place			: int32_t;
+	out result		: int32_t);
+
 /* ---- Window images (interface version 10) ---- */
 
 routine window_image(

@@ -235,3 +235,15 @@ SLSCopyWindowImage(SLSWindowID window, uint8_t **pixels, uint32_t *width,
 		vm_deallocate(mach_task_self(), data, size);
 	return result;
 }
+
+int
+SLSSetWindowParent(SLSWindowID child, SLSWindowID parent, int32_t place)
+{
+	int32_t result = kSLSErrorFailure;
+	mach_port_t server = SLSServerPort();
+
+	if (server == MACH_PORT_NULL ||
+	    ws_window_set_parent(server, child, parent, place, &result) != KERN_SUCCESS)
+		return kSLSErrorFailure;
+	return result;
+}
