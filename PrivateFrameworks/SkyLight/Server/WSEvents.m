@@ -53,6 +53,8 @@ static int32_t clickCount;
 static dispatch_source_t repeatTimer;
 /* A server-side move: the window, and the pointer's offset in it. */
 static __weak WSWindow *moveWindow;
+/* Holds the pointer for an open menu (SLSCapturePointer). */
+static __weak WSWindow *grabWindow;
 static double moveOffsetX, moveOffsetY;
 static SLSEvent repeatEvent;
 
@@ -92,6 +94,9 @@ tellFrontApp(pid_t pid)
 static void
 makeFront(WSConnection *c)
 {
+	/* A capture belongs to the front app. */
+	if (grabWindow != nil && grabWindow.owner != c)
+		grabWindow = nil;
 	if (activationOrder == nil)
 		activationOrder = [NSMutableArray array];
 	if (c != nil) {
@@ -305,6 +310,22 @@ routeMouse(SLSEvent *e)
 		e->dy = now.y - previous.y;
 	}
 
+	/* A captured pointer: every mouse event to the capturing window, with
+	 * drags while a button is down; no key window change, no move. */
+	WSWindow *grab = grabWindow;
+	if (grab != nil) {
+		if (down) {
+			buttonsDown |= 1u << e->buttonNumber;
+			e->clickCount = 1;
+		} else if (up) {
+			buttonsDown &= ~(1u << e->buttonNumber);
+			e->clickCount = 1;
+		} else if (isMove(e->type) && buttonsDown != 0)
+			e->type = dragType();
+		send(grab, e);
+		return;
+	}
+
 	/* A server-side move takes the left button's drags; its up ends it. */
 	WSWindow *moving = moveWindow;
 	if (moving != nil && (isMove(e->type) || e->type == kSLSEventLeftMouseUp)) {
@@ -502,6 +523,42 @@ wss_set_front_process(mach_port_t server, audit_token_t token, int32_t *result)
 		keyWindow = WSWindowFrontmostOf(c);
 	}
 	*result = kSLSErrorSuccess;
+	return KERN_SUCCESS;
+}
+
+kern_return_t
+wss_capture_pointer(mach_port_t server, audit_token_t token, uint32_t window,
+    int32_t *result)
+{
+	WSConnection *c = [WSConnection connectionForToken:token];
+	WSWindow *w = window ? WSWindowWithID(window) : nil;
+
+	if (c == nil)
+		*result = kSLSErrorInvalidConnection;
+	else if (window == 0) {
+		if (grabWindow != nil && grabWindow.owner == c)
+			grabWindow = nil;
+		*result = kSLSErrorSuccess;
+	} else if (w == nil)
+		*result = kSLSErrorIllegalArgument;
+	else if (w.owner != c || c != frontConnection)
+		*result = kSLSErrorCannotComplete;	/* not its window, or not in front */
+	else {
+		/* What the pointer was doing stops: a move, a click's window. */
+		moveWindow = nil;
+		captureWindow = nil;
+		grabWindow = w;
+		*result = kSLSErrorSuccess;
+	}
+	return KERN_SUCCESS;
+}
+
+kern_return_t
+wss_pointer_capture(mach_port_t server, uint32_t *window)
+{
+	WSWindow *grab = grabWindow;
+
+	*window = grab != nil ? grab.windowID : 0;
 	return KERN_SUCCESS;
 }
 

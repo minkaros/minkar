@@ -837,21 +837,39 @@ testEvents(void)
 		check(SLSGetFrontProcess(NULL) == kSLSErrorIllegalArgument,
 		    "the front process needs somewhere to go", NULL);
 	}
+	/* Pointer capture (interface version 7). */
+	{
+		SLSWindowID menu = 0;
+		SLSNewWindow(0, (SLSRect){ 40, 40, 20, 20 }, &menu);
+		check(SLSCapturePointer(menu) == kSLSErrorSuccess && SLSGetPointerCapture() == menu,
+		    "the front app captures the pointer", NULL);
+		check(SLSCapturePointer(0) == kSLSErrorSuccess && SLSGetPointerCapture() == 0,
+		    "and releases it", NULL);
+		check(SLSCapturePointer(0xdeadbeef) == kSLSErrorIllegalArgument,
+		    "an unknown window cannot capture it", NULL);
+		SLSCapturePointer(menu);
+		SLSReleaseWindow(menu);
+		check(SLSGetPointerCapture() == 0, "a released window holds it no more", NULL);
+	}
 }
 
 /*
  * skylight-test events: a white window at 100,100 (400 x 300), key, and
  * every event it gets printed, one line each, until it is killed. A mouse
- * down in its top 20 pixels starts a server-side move. For the local
+ * down in its top 20 pixels starts a server-side move. With "grab" the
+ * window captures the pointer first, as an open menu does. For the local
  * input tests.
  */
 static int
-eventsMain(void)
+eventsMain(int grab)
 {
 	SLSWindowID w = solidWindowAt((SLSRect){ 100, 100, 400, 300 }, 0xffffffff);
 	SLSEvent events[kSLSMaxEvents];
 
 	SLSSetKeyWindow(w);
+	/* "events grab": the window holds the pointer, as an open menu. */
+	if (grab)
+		printf("grab %d\n", SLSCapturePointer(w));
 	printf("ready %u\n", w);
 	fflush(stdout);
 	for (;;) {
@@ -974,7 +992,7 @@ main(int argc, char *argv[])
 	if (argc > 1 && strcmp(argv[1], "hotkeys") == 0)
 		return hotkeysMain();
 	if (argc > 1 && strcmp(argv[1], "events") == 0)
-		return eventsMain();
+		return eventsMain(argc > 2 && strcmp(argv[2], "grab") == 0);
 	setvbuf(stdout, NULL, _IOLBF, 0);
 	testConnection();
 	testDisplays();

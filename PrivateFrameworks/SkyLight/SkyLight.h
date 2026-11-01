@@ -48,7 +48,7 @@ extern "C" {
 #define kSLSServiceName		"org.minkar.WindowServer.next"
 
 /* The interface version both sides are built for. */
-#define kSLSInterfaceVersion	6
+#define kSLSInterfaceVersion	7
 
 typedef int32_t SLSConnectionID;
 
@@ -577,6 +577,17 @@ SLSWindowID SLSGetKeyWindow(void);
 int SLSSetFrontProcess(void);
 /* The front app's process, or 0 when there is none. */
 int SLSGetFrontProcess(pid_t *pid);
+
+/*
+ * Pointer capture (interface version 7), for an open menu: every mouse
+ * event goes to the window, wherever the pointer is, and no click makes a
+ * window key or starts a move. Only the front app may capture, with one
+ * of its windows; 0 releases. It ends by itself when the window or its
+ * app goes away.
+ */
+int SLSCapturePointer(SLSWindowID window);
+/* The window holding the pointer, or 0. */
+SLSWindowID SLSGetPointerCapture(void);
 
 /* ---- Server statistics (wsctl) ----------------------------------------- */
 

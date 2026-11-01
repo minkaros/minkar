@@ -112,6 +112,29 @@ SLSGetFrontProcess(pid_t *pid)
 	return kSLSErrorSuccess;
 }
 
+int
+SLSCapturePointer(SLSWindowID window)
+{
+	int32_t result = kSLSErrorFailure;
+	mach_port_t server = SLSServerPort();
+
+	if (server == MACH_PORT_NULL ||
+	    ws_capture_pointer(server, window, &result) != KERN_SUCCESS)
+		return kSLSErrorFailure;
+	return result;
+}
+
+SLSWindowID
+SLSGetPointerCapture(void)
+{
+	uint32_t window = 0;
+	mach_port_t server = SLSServerPort();
+
+	if (server == MACH_PORT_NULL || ws_pointer_capture(server, &window) != KERN_SUCCESS)
+		return 0;
+	return window;
+}
+
 SLSWindowID
 SLSGetKeyWindow(void)
 {

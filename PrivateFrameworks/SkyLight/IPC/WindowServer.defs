@@ -454,6 +454,18 @@ routine front_process(
 	server			: mach_port_t;
 	out pid			: int32_t);
 
+/* ---- Pointer capture (interface version 7) ---- */
+
+routine capture_pointer(
+	server			: mach_port_t;
+	ServerAuditToken token	: audit_token_t;
+	window			: uint32_t;
+	out result		: int32_t);
+
+routine pointer_capture(
+	server			: mach_port_t;
+	out window		: uint32_t);
+
 /* ---- The menu bar (interface version 6) ---- */
 
 routine display_menu_bar_height(
