@@ -278,6 +278,11 @@ private:
     bool setupEventRing();
     void scanPorts();
     bool resetAndEnumeratePort(UInt32 port0based);
+    /* resetAndEnumeratePort, again (up to 3 times in all) when Address
+     * Device failed: a device slow to come up after the port reset (a KVM
+     * switch powered from the same machine) answers the next one. */
+    bool resetAndEnumeratePortRetrying(UInt32 port0based);
+    bool fAddressFailed;
 
     bool allocRing(IOBufferMemoryDescriptor **outMem, volatile XHCITRB **outVirt, UInt32 trbCount);
     void pushTRB(volatile XHCITRB *ring, UInt32 &enqueue, UInt8 &cycle, UInt32 ringSizeTRBs,

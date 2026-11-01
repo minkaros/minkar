@@ -949,7 +949,7 @@ void MinkarXHCIPort::scanPorts()
             anyNew = true;
             fPortOccupied[p] = true;
             XHCI_Log("Port %u connected, portsc=%08x speed=%u", p, portsc, XHCI_PORTSC_SPEED(portsc));
-            resetAndEnumeratePort(p);
+            resetAndEnumeratePortRetrying(p);
         }
 
         /* Everything else: USB2 protocol ports and unknown protocol ports.
@@ -972,7 +972,7 @@ void MinkarXHCIPort::scanPorts()
             anyNew = true;
             fPortOccupied[p] = true;
             XHCI_Log("Port %u connected, portsc=%08x speed=%u", p, portsc, XHCI_PORTSC_SPEED(portsc));
-            resetAndEnumeratePort(p);
+            resetAndEnumeratePortRetrying(p);
         }
 
         if (!anyNew && pass > 0) break;
@@ -1015,7 +1015,7 @@ void MinkarXHCIPort::hotplugLoop()
             fPortOccupied[p] = true;
             XHCI_Log("hotplug: Port %u connected, portsc=%08x speed=%u",
                     p, portsc, XHCI_PORTSC_SPEED(portsc));
-            resetAndEnumeratePort(p);
+            resetAndEnumeratePortRetrying(p);
         }
         IOSleep(500);
     }
@@ -1039,6 +1039,20 @@ void MinkarXHCIPort::handleRootPortDisconnect(UInt32 port0based, UInt32 portsc)
             XHCI_Log("hotplug: Port %u removed generic interrupt slot=%u",
                     port0based, slot);
         }
+    }
+}
+
+bool MinkarXHCIPort::resetAndEnumeratePortRetrying(UInt32 port0based)
+{
+    for (int attempt = 1; ; attempt++) {
+        fAddressFailed = false;
+        if (resetAndEnumeratePort(port0based))
+            return true;
+        if (!fAddressFailed || attempt == 3)
+            return false;
+        XHCI_Log("Port %u: Address Device failed, reset and try again (%d of 3)",
+                port0based, attempt + 1);
+        IOSleep(200);
     }
 }
 
@@ -2197,6 +2211,7 @@ bool MinkarXHCIPort::tryEnumerateMassStorage(UInt32 port0based, UInt32 speed)
 
     UInt16 maxPkt0 = 8;
     if (!addressDevice(slotId, port0based, 0, speed, maxPkt0)) {
+        fAddressFailed = true;
         disableSlot(slotId);
         freeSlotResources(slotId);
         return false;
