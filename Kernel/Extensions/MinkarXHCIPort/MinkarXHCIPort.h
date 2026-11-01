@@ -89,6 +89,7 @@ private:
         bool                       tdOutstanding; /* an interrupt-IN TD is armed */
         bool                       loggedPollArm;
         bool                       loggedFirstCompletion;
+        UInt32                     errors;       /* failed transfers, for the log */
         IOBufferMemoryDescriptor * reportMem;
         volatile UInt8           * reportVirt;
         UInt64                     reportPhys;
@@ -303,6 +304,7 @@ private:
     void releaseInterruptEndpoint(InterruptInEndpoint &intr);
     void waitForEvent(UInt32 ms, volatile bool *done);
     void resetHaltedControlEndpoint(UInt32 slotId);
+    void resetHaltedInterruptEndpoint(InterruptInEndpoint &intr, UInt32 dci, UInt8 cc);
     bool configureInterruptInEndpoint(UInt32 slotId, UInt8 epNum, UInt16 maxPkt, UInt8 interval);
     bool bulkEndpointConfigured(UInt32 slotId, bool in) const
         { return slotId < 64 && (in ? fSlots[slotId].bulkInRingMem : fSlots[slotId].bulkOutRingMem) != NULL; }
