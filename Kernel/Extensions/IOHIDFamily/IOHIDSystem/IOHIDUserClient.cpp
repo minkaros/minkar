@@ -74,9 +74,9 @@ bool IOHIDUserClient::initWithTask(task_t owningTask, void *security_id, UInt32 
         result = (entitlement == kOSBooleanTrue);
         entitlement->release();
     }
-    // SHORTCUT(WS0): no policy module validates signatures yet, so no
-    // process has entitlements; the event server runs as root until WS4.
-    // Root may connect. Removed by the privacy service (before M5).
+    // SHORTCUT(WS4a): root may connect, since no policy module validates
+    // signatures yet and no process has entitlements; removed by ADR 0001's
+    // entitlement check, before WS4a; taken in WS0.
     if (!result
         && clientHasPrivilege(owningTask, kIOClientPrivilegeAdministrator) == kIOReturnSuccess) {
         result = true;

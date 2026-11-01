@@ -95,9 +95,10 @@ int main(int argc, const char *argv[]) {
     }
     [ws setLogLevel:logLevel];
 
-    // SHORTCUT(WS0): a received message is a ReceiveMessage of about
-    // 128 KB on the stack, and the default 512 KB thread stack overflowed.
-    // Goes away with message.h (MIG messages, WS1) and the legacy server.
+    // SHORTCUT(WS4b): 4 MB thread stacks, since a received message is a
+    // ReceiveMessage of about 128 KB on the stack and the default 512 KB
+    // stack overflowed; goes away with message.h and the legacy server;
+    // taken in WS0.
     pthread_attr_t attr;
     pthread_attr_init(&attr);
     pthread_attr_setstacksize(&attr, 4 * 1024 * 1024);

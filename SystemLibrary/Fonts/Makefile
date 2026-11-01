@@ -1,10 +1,10 @@
 # System fonts: /System/Library/Fonts, where fontconfig looks first.
 #
-# SHORTCUT(WS0): AppKit's interface font is Inter (SIL Open Font License
-# 1.1, Inter-LICENSE.txt), installed as a provisional system font so
-# AppKit can draw text (decided 2026-10-31). Only the four faces AppKit
-# names are installed; the other fonts under TTF/ are not. Removed when
-# Gienah has its own font (Phase 5).
+# SHORTCUT(Phase 5): AppKit's interface font is Inter (SIL Open Font
+# License 1.1, Inter-LICENSE.txt), installed as a provisional system font
+# so AppKit can draw text (decided 2026-10-31), until Gienah has its own
+# font. Only the four faces AppKit names are installed; the other fonts
+# under TTF/ are not; taken in WS0.
 
 SUBDIR =
 

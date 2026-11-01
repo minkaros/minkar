@@ -84,8 +84,9 @@
 
 /*
  * The transfer (gamma) table: kSLSGammaTableCapacity entries per channel,
- * red, green, blue. SHORTCUT(WS1): kept here only; the compositor applies
- * it from WS2, and drivers with gamma hardware come later.
+ * red, green, blue. SHORTCUT(WS4a): the table is only kept and returned;
+ * nothing applies it to the screen yet (the compositor does in WS4a, and
+ * drivers with gamma hardware later); taken in WS1.
  */
 - (int)setTransferTable:(const float *)table count:(uint32_t)count;
 - (void)getTransferTable:(float *)table;

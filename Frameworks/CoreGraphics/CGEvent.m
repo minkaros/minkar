@@ -627,8 +627,9 @@ CGEventSourceStateID CGEventSourceGetSourceStateID(CGEventSourceRef source) {
     return source ? source->state : kCGEventSourceStatePrivate;
 }
 
-/* SHORTCUT(WS3): the HID state (buttons, keys, flags, times since the
- * last events) is not asked of the server yet. */
+/* SHORTCUT(WS4a): the HID state (buttons, keys, flags, times since the
+ * last events) is not asked of the server yet, which has no request for
+ * it; taken in WS3. */
 bool CGEventSourceButtonState(CGEventSourceStateID stateID, CGMouseButton button) {
     return false;
 }

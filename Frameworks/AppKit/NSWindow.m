@@ -1949,7 +1949,8 @@ NSArray *_NSWindowNumbersFromWindowInfo(CFArrayRef info,BOOL allApps) {
             O2ContextFlush(_context);
         }
         if(_CGUsesSkyLight() && buffer != NULL) {
-            /* SHORTCUT(WS2): the whole window is damaged at each flush. */
+            /* SHORTCUT(WS5): the whole window is damaged at each flush, until
+               AppKit tracks its dirty rects into the surface; taken in WS2. */
             int32_t width = (int32_t)_frame.size.width, height = (int32_t)_frame.size.height;
             SLSIntRect all = { 0, 0, width, height };
             SLSWindowFlushPixels(slsWindowFor(_number), buffer, 4 * width, &all, 1);

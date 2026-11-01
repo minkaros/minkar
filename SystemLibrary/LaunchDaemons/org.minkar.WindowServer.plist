@@ -12,8 +12,9 @@
 	<key>ProgramArguments</key>
 	<array>
 		<string>/System/Library/CoreServices/WindowServer.app/Contents/MacOS/WindowServer</string>
-		<!-- SHORTCUT(WS0): the compositor only (-x): LoginWindow is not
-		     built yet. Session start leaves WindowServer in WS4. -->
+		<!-- SHORTCUT(WS4b): the compositor only (-x), since LoginWindow is
+		     not built yet; session start leaves WindowServer in WS4b;
+		     taken in WS0. -->
 		<string>-x</string>
 	</array>
 	<key>EnvironmentVariables</key>

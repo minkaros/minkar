@@ -69,9 +69,10 @@ static uint32_t nextTapID = 1;
 static mach_port_t replyPort = MACH_PORT_NULL;
 
 /*
- * SHORTCUT(WS3): the built-in policy of section 9 of the plan until the
- * privacy service: root and the console's user may post events and filter
- * them, and listen to keys.
+ * SHORTCUT(M5): the built-in policy of section 9 of the plan, until the
+ * privacy service (its own ADR, before gate M5) decides: root and the
+ * console's user may post events and filter them, and listen to keys;
+ * taken in WS3.
  */
 static BOOL
 mayControlInput(WSConnection *c)

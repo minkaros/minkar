@@ -220,8 +220,9 @@ wss_display_configure(mach_port_t server, audit_token_t token, uint32_t option,
 		}
 	}
 	displaysMoved();
-	// SHORTCUT(WS1): a permanent change lasts for the session; it is not
-	// saved for the next one.
+	// SHORTCUT(WS5): a permanent change lasts for the session and is not
+	// saved for the next one, until real mode changes (virtio-gpu) store
+	// the configuration; taken in WS1.
 	fprintf(stderr, "WindowServer: pid %d configured %u display change(s), option %u\n",
 	    audit_token_to_pid(token), count, option);
 	*result = kSLSErrorSuccess;
@@ -303,8 +304,8 @@ wss_restore_transfers(mach_port_t server, audit_token_t token)
 
 /* ---- Display fades ---- */
 
-/* SHORTCUT(WS1): the blend is kept here; the compositor applies it from
- * WS2. */
+/* SHORTCUT(WS4a): the blend is only kept and returned here; nothing fades
+ * the screen yet (the compositor applies it in WS4a); taken in WS1. */
 static SLSFadeReservation fadeReservation, nextFadeReservation = 1;
 static __weak WSConnection *fadeHolder;
 static __weak WSConnection *fadedBy;	/* who set the current blend */

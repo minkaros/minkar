@@ -104,8 +104,9 @@ main(int argc, char *argv[])
 		    MACH_RCV_TRAILER_TYPE(MACH_MSG_TRAILER_FORMAT_0));
 	});
 	/* Input, read and routed on the IPC queue: routing needs the window list.
-	 * SHORTCUT(WS3): the plan's own high-priority input queue comes with a
-	 * model snapshot input can read without the IPC queue. */
+	 * SHORTCUT(WS4a): input runs on the IPC queue, until the plan's own
+	 * high-priority input queue, with a model snapshot input can read
+	 * without the IPC queue; taken in WS3. */
 	static WSInput *input;
 	input = [WSInput startOnQueue:ipc];
 

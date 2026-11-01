@@ -455,9 +455,10 @@ int SLSWindowStartMove(SLSWindowID window);
  * listen-only tap is sent a copy; a filtering one is asked, in its turn,
  * and may change the event or drop it; one that does not answer within a
  * second is disabled. Taps are sent to port (a receive right of the
- * caller's) as SLSTapEventMessages (read by CoreGraphics' CGEventTapCreate). SHORTCUT(WS3): filtering taps, and
- * listen-only taps that see keys, need root or the console's user until
- * the privacy service decides (WindowServer plan, section 9).
+ * caller's) as SLSTapEventMessages (read by CoreGraphics' CGEventTapCreate).
+ * SHORTCUT(M5): filtering taps, and listen-only taps that see keys, need
+ * root or the console's user until the privacy service decides
+ * (WindowServer plan, section 9); taken in WS3.
  */
 typedef struct SLSEventTapInfo {
 	uint64_t	mask;
@@ -508,8 +509,9 @@ int SLSEventTapEnable(uint32_t tap, int enable);
 int SLSEventTapRelease(uint32_t tap);
 int SLSGetEventTapList(uint32_t max, SLSEventTapInfo *taps, uint32_t *count);
 /* Posts an event at a tap location: it passes the taps from there and is
- * routed as input (mouse events move the cursor). SHORTCUT(WS3): root or
- * the console's user only, as filtering taps. */
+ * routed as input (mouse events move the cursor). SHORTCUT(M5): root or
+ * the console's user only, as filtering taps, until the privacy service
+ * decides; taken in WS3. */
 int SLSPostEvent(uint32_t location, const SLSEvent *event);
 
 /* The key window, which gets the keys; a click makes a window key too. */
