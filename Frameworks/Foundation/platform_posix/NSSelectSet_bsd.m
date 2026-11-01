@@ -171,7 +171,12 @@ static void transferNativeToSetWithOriginals(native_set *sset,NSMutableSet *set,
 
         timeval.tv_sec = interval;
         interval -= timeval.tv_sec;
-        timeval.tv_usec = (typeof(timeval.tv_usec))(interval * 1000);
+        /* Minkar: microseconds (was * 1000: a 50 ms wait became 50 us, and
+         * the loop spun on select until the deadline). */
+        timeval.tv_usec = (typeof(timeval.tv_usec))(interval * 1000000);
+        if (timeval.tv_usec > 999999) {
+            timeval.tv_usec = 999999;
+        }
 
         if ((numFds = select(maxDescriptor + 1, activeRead->fdset, activeWrite->fdset, activeExcept->fdset, &timeval)) < 0) {
             if (errno != EINTR) {
