@@ -450,6 +450,14 @@ State on 2026-11-01:
   no longer puts back a window the server moved. Gate M4-compose drags a
   window while its app does not answer for 8 s, then by its background
   (37 markers).
+- [x] Keymap in SkyLight (`ac31e3c9a4`): `WSKeymap`, libxkbcommon and their
+  host tests moved from `Legacy/` to `PrivateFrameworks/SkyLight/Keymap`,
+  marked `SHORTCUT(Phase 5)`.
+- [x] Symbolic hotkeys (`41db3de41f`): Command-Tab, Command-Shift-Tab and
+  Command-Option-Escape go to the process that claimed them, Control-F2 to
+  the front app; their keys reach no window. The table is changed by
+  `/Library/Preferences/org.minkar.symbolichotkeys.plist`. Local test
+  `hotkeys` 11/11.
 
 ### WS4b — The switch
 
@@ -532,7 +540,7 @@ Decided 2026-10-31, following the guiding rule in section 1:
 | --- | --- | --- | --- |
 | User WindowServer runs as | `_windowserver` (UID 88), set by the launchd job (`UserName`) | Root; the new server runs as `_windowserver` since 2026-11-01 (`9af6b6295d`), the legacy one stays root until it goes | WS4b (the legacy server's removal) |
 | Where it lives | `SkyLight.framework/Resources/WindowServer`; client in `SkyLight.framework`, re-exported by CoreGraphics | `CoreServices/WindowServer.app` for WS0 (current server) | WS1 |
-| Capturing and posting events | Screen recording, input monitoring and accessibility permissions, through a permission service | Built-in policy: root and the console user's processes are allowed; everything else denied (`SHORTCUT(M5)`) | M5 (the privacy service ADR comes before gate M5) |
+| Capturing and posting events | Screen recording, input monitoring and accessibility permissions, through a permission service | Built-in policy: root and the console user's processes are allowed (also to claim symbolic hotkeys); everything else denied (`SHORTCUT(M5)`) | M5 (the privacy service ADR comes before gate M5) |
 | Moving windows | Server-side moves from client-declared drag regions, plus `performWindowDragWithEvent:` | Title bar region only | Removed 2026-11-01 (`f03d8ddc9d`, `5df94c8821`) |
 | Keyboard layouts | The server delivers hardware key codes; the client turns them into characters from the current layout (layout data and a `UCKeyTranslate`-style call in the app), with Text Input Sources | `WSKeymap` and libxkbcommon in SkyLight, from WS4a (`SHORTCUT(Phase 5)`) | Phase 5 (Text Input Sources and our own layout files) |
 | Ending the session | The login window asks apps to quit, ends the session and then restarts or shuts down | A minimal `loginwindow` that only ends the session and calls `reboot(2)` | Phase 5 (LoginWindow) |

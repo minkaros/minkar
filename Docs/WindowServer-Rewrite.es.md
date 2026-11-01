@@ -490,6 +490,14 @@ Estado al 1 nov 2026:
   ocupada ya no devuelve a su sitio una ventana que movió el servidor. El
   gate M4-compose arrastra una ventana mientras su app no responde durante
   8 s, y después por el fondo (37 marcadores).
+- [x] Mapa de teclado en SkyLight (`ac31e3c9a4`): `WSKeymap`, libxkbcommon y
+  sus pruebas de host pasan de `Legacy/` a `PrivateFrameworks/SkyLight/Keymap`,
+  marcados `SHORTCUT(Phase 5)`.
+- [x] Atajos simbólicos (`41db3de41f`): Comando-Tab, Comando-Mayúsculas-Tab y
+  Comando-Opción-Escape van al proceso que los reclamó, Control-F2 a la app
+  del frente; sus teclas no llegan a ninguna ventana. La tabla se cambia con
+  `/Library/Preferences/org.minkar.symbolichotkeys.plist`. Prueba local
+  `hotkeys` 11/11.
 
 ### WS4b — El cambio de servidor
 
@@ -575,7 +583,7 @@ Decidido el 31 oct 2026, según la regla general de la sección 1:
 | --- | --- | --- | --- |
 | Usuario con el que corre WindowServer | `_windowserver` (UID 88), fijado por el job de launchd (`UserName`) | Root; el servidor nuevo corre como `_windowserver` desde el 1 nov 2026 (`9af6b6295d`), el anterior sigue como root hasta que se va | WS4b (se borra el servidor anterior) |
 | Dónde vive | `SkyLight.framework/Resources/WindowServer`; el cliente en `SkyLight.framework`, reexportado por CoreGraphics | `CoreServices/WindowServer.app` para WS0 (servidor actual) | WS1 |
-| Capturar pantalla y enviar eventos | Permisos de grabación de pantalla, monitoreo de entrada y accesibilidad, mediante un servicio de permisos | Política interna: se permite a root y a los procesos del usuario de consola; el resto, denegado (`SHORTCUT(M5)`) | M5 (el ADR del servicio de privacidad llega antes del gate M5) |
+| Capturar pantalla y enviar eventos | Permisos de grabación de pantalla, monitoreo de entrada y accesibilidad, mediante un servicio de permisos | Política interna: se permite a root y a los procesos del usuario de consola; el resto, denegado (también para reclamar atajos simbólicos) (`SHORTCUT(M5)`) | M5 (el ADR del servicio de privacidad llega antes del gate M5) |
 | Mover ventanas | Movimientos en el servidor a partir de las zonas de arrastre que declara el cliente, más `performWindowDragWithEvent:` | Solo la zona de la barra de título | Se quitó el 1 nov 2026 (`f03d8ddc9d`, `5df94c8821`) |
 | Distribuciones de teclado | El servidor entrega códigos de tecla del hardware; el cliente los convierte en caracteres según la distribución actual (datos de la distribución y una llamada al estilo de `UCKeyTranslate` en la app), con Text Input Sources | `WSKeymap` y libxkbcommon en SkyLight, desde WS4a (`SHORTCUT(Phase 5)`) | Fase 5 (Text Input Sources y ficheros de distribución propios) |
 | Terminar la sesión | La ventana de login pide a las apps que terminen, cierra la sesión y después reinicia o apaga | Un `loginwindow` mínimo que solo cierra la sesión y llama a `reboot(2)` | Fase 5 (LoginWindow) |
