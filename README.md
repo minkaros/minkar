@@ -1,19 +1,20 @@
 # Minkar
 
-Minkar is an open source operating system that aims to provide a
-macOS-like experience and compatibility with macOS applications on x86-64
-systems (and eventually arm64). It builds on the foundations of Darwin and
+Minkar is an open source operating system that aims to run Cocoa
+applications of the reference platform unmodified, with that platform's
+conventions, on x86-64 systems (and eventually arm64). It builds on the foundations of Darwin and
 FreeBSD, existing open source packages in the same space, and new code to
 fill the gaps.
 
 The main design goals are:
 
-- Source compatibility with macOS applications: a Mac application can be
-  compiled on Minkar and run. Binary compatibility later.
+- Source compatibility with the reference platform's applications: a Cocoa
+  application can be compiled on Minkar and run. Binary compatibility later.
 - Familiar GUI metaphors and UX (file manager, application launcher, a top
-  menu bar that reflects the active application) built on the Apple APIs
+  menu bar that reflects the active application) built on the Cocoa APIs
   applications expect.
-- macOS folder layouts (/Library, /System, /Users, /Volumes) and file
+- The reference platform's folder layouts (/Library, /System, /Users,
+  /Volumes) and file
   systems (HFS+, APFS), plus other useful ones such as FAT and NTFS.
 - Self-contained applications in app bundles, with support for DMG files
   and other archive formats.
@@ -29,8 +30,8 @@ See [Docs/BUILDING.md](Docs/BUILDING.md). The source map is in
 
 See [Docs/CONTRIBUTING.md](Docs/CONTRIBUTING.md) and the
 [Code of Conduct](Docs/CODE_OF_CONDUCT.md). What is done and what comes
-next is in [Docs/ROADMAP.md](Docs/ROADMAP.md); how many of macOS's
-command-line tools Minkar has, in [Docs/Commands.md](Docs/Commands.md), and
+next is in [Docs/ROADMAP.md](Docs/ROADMAP.md); how many of the reference
+platform's command-line tools Minkar has, in [Docs/Commands.md](Docs/Commands.md), and
 where each comes from, in [Docs/Userland.md](Docs/Userland.md); the
 machines it is tested on, in [Docs/Hardware.md](Docs/Hardware.md). Issues and
 discussion:
@@ -46,11 +47,7 @@ in [LICENSE-ravynOS](LICENSE-ravynOS). Minkar's contributors are listed in
 
 ## Trademarks
 
-Apple, Mac, macOS and Darwin are trademarks of Apple Inc. Minkar is an
-independent project, not affiliated with, sponsored by or endorsed by
-Apple, the ravynOS project or The FreeBSD Foundation; their names appear
-only to credit the code that comes from them and where compatibility
-needs them. See [NOTICE](NOTICE).
+See [TRADEMARKS.md](TRADEMARKS.md).
 
 ## License
 

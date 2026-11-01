@@ -42,7 +42,7 @@ Follow the code of conduct.
 
 New code is licensed under the BSD 2-clause license.
 
-If you have _ever_ seen Apple's proprietary code (not APSL-licensed or other open-source stuff) then you may *not* contribute code to Minkar. Sorry :( However, you may be able to contribute in other ways!
+If you have _ever_ seen the reference platform's proprietary code (not APSL-licensed or other open-source stuff) then you may *not* contribute code to Minkar. Sorry :( However, you may be able to contribute in other ways!
 
 ### Development shortcuts
 
