@@ -24,7 +24,7 @@
 #import <AppKit/AppKit.h>
 #import <Foundation/NSPlatform.h>
 #import "desktop.h"
-#import "../common.h"
+#import <WindowServer/Legacy/common.h>
 #import "AboutWindow.h"
 
 extern const char **environ;

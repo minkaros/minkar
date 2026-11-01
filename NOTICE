@@ -90,7 +90,7 @@ Other components
   (Frameworks/CoreText/xz/COPYING)
 - xkeyboard-config - MIT-style (Frameworks/AppKit/xkeyboard-config/COPYING)
 - libevdev, libinput, libxkbcommon, mtdev - MIT
-  (CoreServices/WindowServer/*/COPYING, LICENSE)
+  (CoreServices/WindowServer/Legacy/*/COPYING, LICENSE)
 - Mozilla CA certificate bundle - MPL-2.0 (BSD/etc/ssl/cert.pem)
 - Unicode Character Database 16.0.0 - Unicode License v3
   (BSD/share/locale/data/unicode/LICENSE), for the locales' LC_CTYPE

@@ -62,8 +62,8 @@
 #import <AppKit/NSControl.h>
 #import <AppKit/NSOpenGLView.h>
 #import <AppKit/NSDocument.h>
-#import <WindowServer/message.h>
-#import <WindowServer/rpc.h>
+#import <WindowServer/Legacy/message.h>
+#import <WindowServer/Legacy/rpc.h>
 #import "O2Context_builtin_FT.h"
 
 NSString * const NSWindowDidBecomeKeyNotification=@"NSWindowDidBecomeKeyNotification";

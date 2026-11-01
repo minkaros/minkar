@@ -11,7 +11,7 @@ SRCS=           SystemUIServer.m \
                 Label.m \
                 AboutWindow.m
 RELEASE_LOGO=	Minkar-256
-RESOURCES=	${.CURDIR}/../Icon.png \
+RESOURCES=	${.CURDIR}/../WindowServer/Legacy/Icon.png \
 		${SRCTOP}/Logo_Assets/Minkar/MenuBar/MinkarMenu-Black-64.png \
 		${SRCTOP}/Logo_Assets/Minkar/PNG/${RELEASE_LOGO}.png \
 		${.CURDIR}/kickSession

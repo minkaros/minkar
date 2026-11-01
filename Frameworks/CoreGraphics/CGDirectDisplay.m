@@ -30,8 +30,8 @@
 #import <CoreGraphics/CGError.h>
 #import <Onyx2D/O2Context_builtin.h>
 #import <CoreFoundation/CFMachPort.h>
-#import <WindowServer/message.h>
-#import <WindowServer/rpc.h>
+#import <WindowServer/Legacy/message.h>
+#import <WindowServer/Legacy/rpc.h>
 
 const CFStringRef kCGDisplayStreamSourceRect = CFSTR("kCGDisplayStreamSourceRect");
 const CFStringRef kCGDisplayStreamDestinationRect = CFSTR("kCGDisplayStreamDestinationRect");

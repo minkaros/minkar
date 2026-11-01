@@ -41,7 +41,7 @@ FRAMEWORKS = AppKit Foundation CoreFoundation CoreGraphics Onyx2D IOKit
 
 # Some SDK headers are not self-contained yet: <Foundation/Foundation.h>
 # pulls in <CFNetwork/CFNetwork.h> and <AppKit/NSDisplay.h> pulls in
-# <WindowServer/message.h>, neither of which is installed. Take them from
+# <WindowServer/Legacy/message.h>, neither of which is installed. Take them from
 # the source tree, like the frameworks do.
 CFLAGS += -fobjc-arc -g -pthread -D__WSRPC -std=gnu17 \
 	-Wno-incompatible-sysroot \

@@ -4,8 +4,8 @@
 #
 # Host-side tests for WindowServer's portable C code.
 #
-#   make -C CoreServices/WindowServer/tests          (GNU make or bmake)
-#   make -C CoreServices/WindowServer/tests clean
+#   make -C CoreServices/WindowServer/Legacy/tests          (GNU make or bmake)
+#   make -C CoreServices/WindowServer/Legacy/tests clean
 #
 # libxkbcommon is built for the build host from the vendored sources
 # (parser generated with byacc, as in the Minkar build). The keymaps come
@@ -16,7 +16,7 @@ CC =		clang
 SRCDIR =	..
 XKB =		$(SRCDIR)/libxkbcommon
 BUILDDIR =	build
-XKB_ROOT =	$(SRCDIR)/../../../build/sysroot/System/Library/KeyboardLayout
+XKB_ROOT =	$(SRCDIR)/../../../../build/sysroot/System/Library/KeyboardLayout
 
 XKB_SRCS =	$(XKB)/src/compose/parser.c $(XKB)/src/compose/paths.c \
 		$(XKB)/src/compose/state.c $(XKB)/src/compose/table.c \

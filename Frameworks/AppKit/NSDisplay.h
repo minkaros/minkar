@@ -22,7 +22,7 @@ SOFTWARE. */
 #import <Foundation/Foundation.h>
 #import <AppKit/NSFont.h>
 #ifdef __WSRPC
-#import <WindowServer/message.h>
+#import <WindowServer/Legacy/message.h>
 #endif
 
 @class NSEvent, NSColor, NSPasteboard, NSDraggingManager, NSPrintInfo, NSView, NSSavePanel, NSOpenPanel, CGWindow;

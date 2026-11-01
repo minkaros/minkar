@@ -10,7 +10,7 @@ WARNS= 1
 CFLAGS= -g -DMINKAR_VERSION=\"${MINKAR_VERSION}\" \
 	--sysroot=${OBJTOP}/tmp -B${OBJTOP}/tmp/usr/bin \
 	-Wno-missing-method-return-type \
-	-I${OBJTOP}/CoreServices/WindowServer/SystemUIServer \
+	-I${OBJTOP}/CoreServices/SystemUIServer \
 	-I${SRCTOP}/Frameworks -I${OBJTOP}/Frameworks/Foundation/Headers \
 	-I${SRCTOP}/Frameworks/AppKit/Headers
 LDFLAGS= -L${OBJTOP}/Frameworks/AppKit/AppKit.framework \

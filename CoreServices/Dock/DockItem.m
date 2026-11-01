@@ -27,8 +27,8 @@
 #import "Dock.h"
 #import "DockItem.h"
 #import "DockTileData.h"
-#import "WindowServer/message.h"
-#import "WindowServer/rpc.h"
+#import "WindowServer/Legacy/message.h"
+#import "WindowServer/Legacy/rpc.h"
 #import <LaunchServices/LaunchServices.h>
 
 #define RUNMK_DIAMETER 8

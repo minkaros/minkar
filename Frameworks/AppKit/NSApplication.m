@@ -46,8 +46,8 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #include <stdlib.h>
 #include <unistd.h>
 
-#import <WindowServer/message.h>
-#import <WindowServer/rpc.h>
+#import <WindowServer/Legacy/message.h>
+#import <WindowServer/Legacy/rpc.h>
 
 NSString * const NSModalPanelRunLoopMode=@"NSModalPanelRunLoopMode";
 NSString * const NSEventTrackingRunLoopMode=@"NSEventTrackingRunLoopMode";

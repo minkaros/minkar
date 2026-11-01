@@ -26,7 +26,7 @@
 #import <sys/event.h>
 #import "desktop.h"
 #import <servers/bootstrap.h>
-#import <WindowServer/message.h>
+#import <WindowServer/Legacy/message.h>
 
 
 @implementation AppDelegate
