@@ -35,7 +35,11 @@
  */
 
 #include <math.h>
+#include <spawn.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <sys/wait.h>
+#include <unistd.h>
 #include <string.h>
 #include <SkyLight/SkyLight.h>
 
@@ -283,14 +287,312 @@ testGamma(void)
 	    n == 0, "a table read with no room returns nothing", NULL);
 }
 
-int
-main(void)
+static void
+testCapture(void)
 {
+	char detail[128];
+	SLSDisplayID main = SLSMainDisplayID();
+	SLSDisplayInfo d;
+	SLSWindowInfo w;
+	int32_t pid = -1;
+	uint32_t shield;
+	int err;
+
+	SLSGetDisplayInfo(main, &d);
+	err = SLSDisplayCapturedBy(main, &pid);
+	check(err == kSLSErrorSuccess && pid == 0, "the main display is not captured", NULL);
+	check(SLSCaptureDisplay(main, 0) == kSLSErrorSuccess, "it is captured", NULL);
+	SLSDisplayCapturedBy(main, &pid);
+	snprintf(detail, sizeof(detail), "pid %d", pid);
+	check(pid == getpid(), "by this process", detail);
+	check(SLSCaptureDisplay(main, 0) == kSLSErrorSuccess, "capturing it again does nothing",
+	    NULL);
+	shield = SLSShieldingWindowID(main);
+	err = SLSGetWindowInfo(shield, &w);
+	snprintf(detail, sizeof(detail), "window %u level %d %.0fx%.0f", shield, w.level,
+	    w.width, w.height);
+	check(shield != 0 && err == kSLSErrorSuccess && w.level == kSLSShieldingWindowLevel &&
+	    w.x == d.x && w.y == d.y && w.width == d.width && w.height == d.height &&
+	    (w.flags & kSLSWindowOnScreen) && w.ownerPID == getpid(),
+	    "a shielding window covers it, on screen", detail);
+	check(SLSReleaseWindow(shield) == kSLSErrorCannotComplete,
+	    "the shielding window is not released alone", NULL);
+	check(SLSReleaseDisplay(main) == kSLSErrorSuccess, "the display is released", NULL);
+	SLSDisplayCapturedBy(main, &pid);
+	check(pid == 0 && SLSShieldingWindowID(main) == 0 &&
+	    SLSGetWindowInfo(shield, &w) == kSLSErrorIllegalArgument,
+	    "and its shielding window is gone", NULL);
+	check(SLSCaptureDisplay(0, 0) == kSLSErrorSuccess && SLSShieldingWindowID(main) != 0,
+	    "every display is captured", NULL);
+	check(SLSReleaseDisplay(0) == kSLSErrorSuccess && SLSShieldingWindowID(main) == 0,
+	    "and released", NULL);
+	check(SLSCaptureDisplay(0xdeadbeef, 0) == kSLSErrorIllegalArgument,
+	    "an unknown display is not captured", NULL);
+}
+
+static void
+testCursor(void)
+{
+	char detail[128];
+	SLSDisplayInfo d;
+	SLSPoint p;
+	int visible = -1;
+	int32_t dx = 1, dy = 1;
+
+	SLSGetDisplayInfo(SLSMainDisplayID(), &d);
+	SLSCursorIsVisible(&visible);
+	check(visible == 1, "the cursor is visible", NULL);
+	SLSHideCursor(0);
+	SLSCursorIsVisible(&visible);
+	check(visible == 0, "hidden", NULL);
+	SLSHideCursor(0);
+	SLSShowCursor(0);
+	SLSCursorIsVisible(&visible);
+	check(visible == 0, "two hides need two shows", NULL);
+	SLSShowCursor(0);
+	SLSCursorIsVisible(&visible);
+	check(visible == 1, "and then it shows", NULL);
+	SLSShowCursor(0);
+	SLSHideCursor(0);
+	SLSCursorIsVisible(&visible);
+	check(visible == 0, "an extra show is not kept for later", NULL);
+	SLSShowCursor(0);
+
+	check(SLSWarpCursorPosition((SLSPoint){ 100, 120 }) == kSLSErrorSuccess &&
+	    SLSGetCursorPosition(&p) == kSLSErrorSuccess && p.x == 100 && p.y == 120,
+	    "the cursor is warped", NULL);
+	SLSWarpCursorPosition((SLSPoint){ -50, 99999 });
+	SLSGetCursorPosition(&p);
+	snprintf(detail, sizeof(detail), "%.0f,%.0f", p.x, p.y);
+	check(p.x == 0 && p.y == d.height - 1, "a warp is kept on the displays", detail);
+	check(SLSWarpCursorPosition((SLSPoint){ NAN, 0 }) == kSLSErrorIllegalArgument,
+	    "a warp to NaN is refused", NULL);
+	check(SLSGetLastMouseDelta(&dx, &dy) == kSLSErrorSuccess && dx == 0 && dy == 0,
+	    "no mouse delta after a warp", NULL);
+	check(SLSAssociateMouseAndCursorPosition(0) == kSLSErrorSuccess &&
+	    SLSAssociateMouseAndCursorPosition(1) == kSLSErrorSuccess,
+	    "the mouse is dissociated and associated again", NULL);
+}
+
+/* This process's windows in the list, front to back. */
+static uint32_t
+ownList(uint32_t option, SLSWindowID relative, SLSWindowID *own, uint32_t max)
+{
+	static SLSWindowID list[kSLSMaxWindowList];
+	uint32_t n = 0, k = 0;
+
+	SLSWindowListCopy(option, relative, kSLSMaxWindowList, list, &n);
+	for (uint32_t i = 0; i < n && k < max; i++) {
+		SLSWindowInfo info;
+
+		if (SLSGetWindowInfo(list[i], &info) == kSLSErrorSuccess &&
+		    info.ownerPID == getpid())
+			own[k++] = list[i];
+	}
+	return k;
+}
+
+static void
+testWindows(void)
+{
+	char detail[160];
+	SLSWindowID a = 0, b = 0, desk = 0, l[8];
+	SLSWindowInfo info;
+	SLSRect frame = { 10, 20, 300, 200 };
+	uint32_t n;
+	int err;
+
+	err = SLSNewWindow(0, frame, &a);
+	check(err == kSLSErrorSuccess && a != 0, "a window is made", NULL);
+	err = SLSGetWindowInfo(a, &info);
+	snprintf(detail, sizeof(detail), "%s, level %d, %.0f,%.0f %.0fx%.0f", info.ownerName,
+	    info.level, info.x, info.y, info.width, info.height);
+	check(err == kSLSErrorSuccess && info.window == a && info.ownerPID == getpid() &&
+	    info.connection == SLSMainConnectionID() && info.level == 0 && info.x == 10 &&
+	    info.width == 300 && info.alpha == 1 && strcmp(info.ownerName, "skylight-test") == 0,
+	    "its info names its owner and frame", detail);
+	check(!(info.flags & kSLSWindowOnScreen) && ownList(kSLSWindowListOnScreenOnly, 0, l, 8) == 0 &&
+	    ownList(kSLSWindowListAll, 0, l, 8) == 1, "it starts ordered out, listed with all", NULL);
+
+	SLSNewWindow(0, frame, &b);
+	SLSOrderWindow(a, kSLSOrderAbove, 0);
+	SLSOrderWindow(b, kSLSOrderAbove, 0);
+	n = ownList(kSLSWindowListOnScreenOnly, 0, l, 8);
+	check(n == 2 && l[0] == b && l[1] == a, "ordered in, the last is in front", NULL);
+	SLSOrderWindow(b, kSLSOrderBelow, a);
+	n = ownList(kSLSWindowListOnScreenOnly, 0, l, 8);
+	check(n == 2 && l[0] == a && l[1] == b, "ordered below another", NULL);
+	SLSOrderWindow(b, kSLSOrderAbove, a);
+	n = ownList(kSLSWindowListOnScreenOnly, 0, l, 8);
+	check(n == 2 && l[0] == b && l[1] == a, "and above it again", NULL);
+	SLSSetWindowLevel(a, 3);
+	n = ownList(kSLSWindowListOnScreenOnly, 0, l, 8);
+	check(n == 2 && l[0] == a && l[1] == b, "a higher level comes first", NULL);
+	SLSOrderWindow(b, kSLSOrderAbove, 0);
+	n = ownList(kSLSWindowListOnScreenOnly, 0, l, 8);
+	check(n == 2 && l[0] == a, "and a lower one cannot pass it", NULL);
+
+	n = ownList(kSLSWindowListOnScreenBelowWindow, a, l, 8);
+	check(n == 1 && l[0] == b, "the windows below one", NULL);
+	n = ownList(kSLSWindowListOnScreenAboveWindow | kSLSWindowListIncludingWindow, b, l, 8);
+	check(n == 2 && l[0] == a && l[1] == b, "the windows above one, with it", NULL);
+	n = ownList(kSLSWindowListIncludingWindow, b, l, 8);
+	check(n == 1 && l[0] == b, "only one window", NULL);
+	check(ownList(kSLSWindowListOnScreenAboveWindow, 0xdeadbeef, l, 8) == 0,
+	    "relative to an unknown window, none", NULL);
+
+	SLSNewWindow(kSLSDesktopIconWindowLevel, frame, &desk);
+	SLSOrderWindow(desk, kSLSOrderAbove, 0);
+	n = ownList(kSLSWindowListOnScreenOnly, 0, l, 8);
+	check(n == 3 && l[2] == desk, "a desktop window is at the back", NULL);
+	n = ownList(kSLSWindowListOnScreenOnly | kSLSWindowListExcludeDesktopElements, 0, l, 8);
+	check(n == 2, "and left out with the desktop elements", NULL);
+
+	check(SLSSetWindowFrame(b, (SLSRect){ 5, 6, 70, 80 }) == kSLSErrorSuccess &&
+	    SLSGetWindowInfo(b, &info) == kSLSErrorSuccess && info.x == 5 && info.height == 80,
+	    "a window moves", NULL);
+	check(SLSSetWindowFrame(b, (SLSRect){ 0, 0, -1, 10 }) == kSLSErrorIllegalArgument &&
+	    SLSNewWindow(0, (SLSRect){ 0, 0, NAN, 1 }, &l[0]) == kSLSErrorIllegalArgument,
+	    "a negative or NaN size is refused", NULL);
+	check(SLSOrderWindow(b, kSLSOrderAbove, b) == kSLSErrorIllegalArgument &&
+	    SLSOrderWindow(b, 7, 0) == kSLSErrorIllegalArgument,
+	    "ordering relative to itself or with a bad place is refused", NULL);
+	SLSOrderWindow(b, kSLSOrderOut, 0);
+	SLSGetWindowInfo(b, &info);
+	check(!(info.flags & kSLSWindowOnScreen) && ownList(kSLSWindowListOnScreenOnly, 0, l, 8) == 2,
+	    "a window is ordered out", NULL);
+	check(SLSReleaseWindow(a) == kSLSErrorSuccess && SLSReleaseWindow(b) == kSLSErrorSuccess &&
+	    SLSReleaseWindow(desk) == kSLSErrorSuccess && ownList(kSLSWindowListAll, 0, l, 8) == 0,
+	    "the windows are released", NULL);
+	check(SLSReleaseWindow(a) == kSLSErrorIllegalArgument &&
+	    SLSGetWindowInfo(a, &info) == kSLSErrorIllegalArgument,
+	    "a released window is unknown", NULL);
+}
+
+/*
+ * The child of testClientExit: it captures the main display, makes a
+ * window, hides the cursor, changes the transfer table and a display for
+ * itself only, says "ready" and waits for its standard input to close.
+ */
+static int
+childMain(void)
+{
+	SLSDisplayID main = SLSMainDisplayID();
+	SLSGammaFormula f = { 0, 0.5f, 1, 0, 0.5f, 1, 0, 0.5f, 1 };
+	SLSDisplayConfigRef config;
+	SLSDisplayMode mode;
+	SLSWindowID w = 0;
+	char c;
+
+	if (SLSCaptureDisplay(main, 0) != kSLSErrorSuccess ||
+	    SLSNewWindow(0, (SLSRect){ 0, 0, 50, 50 }, &w) != kSLSErrorSuccess ||
+	    SLSOrderWindow(w, kSLSOrderAbove, 0) != kSLSErrorSuccess ||
+	    SLSHideCursor(0) != kSLSErrorSuccess ||
+	    SLSSetDisplayTransferByFormula(main, &f) != kSLSErrorSuccess ||
+	    SLSGetCurrentDisplayMode(main, &mode) != kSLSErrorSuccess)
+		return 1;
+	SLSBeginDisplayConfiguration(&config);
+	SLSConfigureDisplayWithDisplayMode(config, main, mode.modeID);
+	if (SLSCompleteDisplayConfiguration(config, kSLSConfigureForAppOnly) != kSLSErrorSuccess)
+		return 1;
+	printf("ready %u\n", w);
+	fflush(stdout);
+	while (read(0, &c, 1) > 0)
+		;
+	return 0;
+}
+
+static void
+testClientExit(const char *self)
+{
+	char detail[128], line[64];
+	int toChild[2], fromChild[2], status = 0, visible = -1;
+	SLSDisplayID main = SLSMainDisplayID();
+	SLSWindowInfo info;
+	SLSGammaFormula got;
+	posix_spawn_file_actions_t actions;
+	char *argv[] = { (char *)self, "child", NULL };
+	unsigned window = 0;
+	int32_t pid = 0;
+	pid_t child;
+	FILE *in;
+
+	if (pipe(toChild) != 0 || pipe(fromChild) != 0) {
+		check(0, "a child client is started", "no pipe");
+		return;
+	}
+	posix_spawn_file_actions_init(&actions);
+	posix_spawn_file_actions_adddup2(&actions, toChild[0], 0);
+	posix_spawn_file_actions_adddup2(&actions, fromChild[1], 1);
+	posix_spawn_file_actions_addclose(&actions, toChild[1]);
+	posix_spawn_file_actions_addclose(&actions, fromChild[0]);
+	if (posix_spawn(&child, self, &actions, NULL, argv, NULL) != 0) {
+		check(0, "a child client is started", self);
+		return;
+	}
+	close(toChild[0]);
+	close(fromChild[1]);
+	in = fdopen(fromChild[0], "r");
+	if (in == NULL || fgets(line, sizeof(line), in) == NULL ||
+	    sscanf(line, "ready %u", &window) != 1) {
+		check(0, "a child client is started", "it did not get ready");
+		close(toChild[1]);
+		waitpid(child, &status, 0);
+		return;
+	}
+	check(1, "a child client is started", NULL);
+
+	SLSDisplayCapturedBy(main, &pid);
+	check(pid == child, "the child captured the main display", NULL);
+	check(SLSCaptureDisplay(main, 0) == kSLSErrorCannotComplete &&
+	    SLSReleaseDisplay(main) == kSLSErrorCannotComplete,
+	    "this process can neither capture nor release it", NULL);
+	check(SLSGetWindowInfo(window, &info) == kSLSErrorSuccess && info.ownerPID == child,
+	    "the child's window is listed as its", NULL);
+	check(SLSReleaseWindow(window) == kSLSErrorCannotComplete &&
+	    SLSOrderWindow(window, kSLSOrderOut, 0) == kSLSErrorCannotComplete,
+	    "this process cannot change the child's window", NULL);
+	SLSCursorIsVisible(&visible);
+	check(visible == 0, "the child hid the cursor", NULL);
+
+	close(toChild[1]);
+	waitpid(child, &status, 0);
+	fclose(in);
+	/* The server hears of the exit asynchronously. */
+	for (int i = 0; i < 40; i++) {
+		SLSDisplayCapturedBy(main, &pid);
+		if (pid == 0)
+			break;
+		usleep(50000);
+	}
+	snprintf(detail, sizeof(detail), "exit status %d", WEXITSTATUS(status));
+	check(pid == 0 && SLSShieldingWindowID(main) == 0,
+	    "when the child exits, its capture is released", detail);
+	check(SLSGetWindowInfo(window, &info) == kSLSErrorIllegalArgument,
+	    "its window is released", NULL);
+	SLSCursorIsVisible(&visible);
+	check(visible == 1, "the cursor shows again", NULL);
+	SLSGetDisplayTransferByFormula(main, &got);
+	check(got.redMax == 1 && got.greenMax == 1, "its transfer table is undone", NULL);
+	check(SLSCaptureDisplay(main, 0) == kSLSErrorSuccess &&
+	    SLSReleaseDisplay(main) == kSLSErrorSuccess, "and the display can be captured again",
+	    NULL);
+}
+
+int
+main(int argc, char *argv[])
+{
+	if (argc > 1 && strcmp(argv[1], "child") == 0)
+		return childMain();
 	setvbuf(stdout, NULL, _IOLBF, 0);
 	testConnection();
 	testDisplays();
 	testModes();
 	testGamma();
+	testCapture();
+	testCursor();
+	testWindows();
+	testClientExit(argv[0]);
 	printf("skylight-test: %d passed, %d failed\n", passed, failed);
 	return failed;
 }

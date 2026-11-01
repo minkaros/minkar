@@ -13,7 +13,8 @@ WARNS ?= 2
 MK_PIE = no
 MK_DEBUG_FILES = no
 PROG =	WindowServer
-SRCS =	main.m WSDisplay.m WindowServerServer.c
+SRCS =	main.m WSConnection.m WSDisplay.m WSDisplayServices.m WSWindowList.m \
+	WindowServerServer.c
 MAN =
 SKYLIGHT = ${.CURDIR}/..
 RESOURCES = /System/Library/PrivateFrameworks/SkyLight.framework/Versions/A/Resources
@@ -32,7 +33,7 @@ WindowServerServer.c WindowServerServer.h: ${SKYLIGHT}/IPC/WindowServer.defs
 	    -header /dev/null -user /dev/null -server WindowServerServer.c \
 	    -sheader WindowServerServer.h ${.ALLSRC}
 
-main.o WSDisplay.o: WindowServerServer.h
+main.o WSDisplayServices.o WSWindowList.o: WindowServerServer.h
 
 all: to-sysroot
 

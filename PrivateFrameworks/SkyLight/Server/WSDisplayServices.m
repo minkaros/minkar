@@ -1,0 +1,496 @@
+/*
+ * SPDX-License-Identifier: BSD-2-Clause
+ *
+ * Copyright (c) 2026 The Minkar contributors
+ * Part of Minkar.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ */
+
+
+/*
+ * The display services of the new server: displays, modes and
+ * configurations, transfer tables, capture and the cursor (the
+ * CGDirectDisplay API).
+ */
+
+#include <math.h>
+#include <stdio.h>
+#import "WSServer.h"
+#import "WSConnection.h"
+#import "WSWindowList.h"
+#include "WindowServerServer.h"	/* MIG server side */
+
+NSArray<WSDisplay *> *WSDisplays;
+
+/* ---- Displays ---- */
+
+WSDisplay *
+WSDisplayWithID(uint32_t ID)
+{
+	for (WSDisplay *d in WSDisplays)
+		if (d.displayID == ID)
+			return d;
+	return nil;
+}
+
+kern_return_t
+wss_main_display(mach_port_t server, uint32_t *display)
+{
+	*display = WSDisplays.firstObject.displayID;
+	return KERN_SUCCESS;
+}
+
+kern_return_t
+wss_display_list(mach_port_t server, uint32_t which, ws_display_list_t list,
+    mach_msg_type_number_t *count)
+{
+	uint32_t want = (which == 0) ? kSLSDisplayOnline : kSLSDisplayActive;
+	mach_msg_type_number_t n = 0;
+
+	for (WSDisplay *d in WSDisplays)
+		if ((d.flags & want) && n < 32)
+			list[n++] = d.displayID;
+	*count = n;
+	return KERN_SUCCESS;
+}
+
+kern_return_t
+wss_display_info(mach_port_t server, uint32_t display, int32_t *result,
+    SLSDisplayInfo *info)
+{
+	WSDisplay *d = WSDisplayWithID(display);
+
+	memset(info, 0, sizeof(*info));
+	if (d == nil) {
+		*result = kSLSErrorIllegalArgument;
+		return KERN_SUCCESS;
+	}
+	[d getInfo:info];
+	*result = kSLSErrorSuccess;
+	return KERN_SUCCESS;
+}
+
+/* ---- Display modes and configuration ---- */
+
+kern_return_t
+wss_display_modes(mach_port_t server, uint32_t display, int32_t *result,
+    ws_display_mode_list_t modes, mach_msg_type_number_t *count)
+{
+	WSDisplay *d = WSDisplayWithID(display);
+
+	*count = 0;
+	if (d == nil) {
+		*result = kSLSErrorIllegalArgument;
+		return KERN_SUCCESS;
+	}
+	for (uint32_t i = 0; i < d.modeCount && i < kSLSMaxDisplayModes; i++)
+		modes[(*count)++] = *[d modeAtIndex:i];
+	*result = kSLSErrorSuccess;
+	return KERN_SUCCESS;
+}
+
+kern_return_t
+wss_display_current_mode(mach_port_t server, uint32_t display, int32_t *result,
+    SLSDisplayMode *mode)
+{
+	WSDisplay *d = WSDisplayWithID(display);
+	const SLSDisplayMode *current = [d currentMode];
+
+	memset(mode, 0, sizeof(*mode));
+	if (current == NULL) {
+		*result = kSLSErrorIllegalArgument;
+		return KERN_SUCCESS;
+	}
+	*mode = *current;
+	*result = kSLSErrorSuccess;
+	return KERN_SUCCESS;
+}
+
+/* Keeps the main display at the global origin, the others where they were
+ * relative to it, and the shielding windows over their displays. */
+static void
+displaysMoved(void)
+{
+	WSDisplay *first = WSDisplays.firstObject;
+	double dx = first.x, dy = first.y;
+
+	for (WSDisplay *d in WSDisplays) {
+		d.x -= dx;
+		d.y -= dy;
+		if (d.shield != nil)
+			WSWindowSetFrame(d.shield, (SLSRect){ d.x, d.y, d.width, d.height });
+	}
+}
+
+kern_return_t
+wss_display_configure(mach_port_t server, audit_token_t token, uint32_t option,
+    ws_display_config_list_t ops, mach_msg_type_number_t count, int32_t *result,
+    int32_t *failed)
+{
+	WSConnection *connection = [WSConnection connectionForToken:token];
+
+	*failed = -1;
+	if (connection == nil) {
+		*result = kSLSErrorInvalidConnection;
+		return KERN_SUCCESS;
+	}
+	if (option > kSLSConfigurePermanently) {
+		*result = kSLSErrorIllegalArgument;
+		return KERN_SUCCESS;
+	}
+	/* Every change is checked before any is applied. */
+	for (mach_msg_type_number_t i = 0; i < count; i++) {
+		WSDisplay *d = WSDisplayWithID(ops[i].display);
+		BOOL good = d != nil;
+
+		if (good && ops[i].kind == kSLSConfigOpMode)
+			good = [d modeWithID:ops[i].modeID] != NULL;
+		else if (good && ops[i].kind != kSLSConfigOpOrigin)
+			good = NO;
+		if (!good) {
+			*result = kSLSErrorIllegalArgument;
+			*failed = (int32_t)i;
+			return KERN_SUCCESS;
+		}
+	}
+	/*
+	 * An app-only change remembers how the display was, to put it back when
+	 * the app exits; a session change makes the display the session's.
+	 */
+	for (mach_msg_type_number_t i = 0; i < count; i++) {
+		WSDisplay *d = WSDisplayWithID(ops[i].display);
+		NSNumber *key = @(d.displayID);
+
+		if (option != kSLSConfigureForAppOnly)
+			[connection.appOnlyDisplays removeObjectForKey:key];
+		else if (connection.appOnlyDisplays[key] == nil)
+			connection.appOnlyDisplays[key] = @[ @(d.currentMode->modeID), @(d.x), @(d.y) ];
+	}
+	for (mach_msg_type_number_t i = 0; i < count; i++) {
+		WSDisplay *d = WSDisplayWithID(ops[i].display);
+
+		if (ops[i].kind == kSLSConfigOpMode) {
+			int err = [d setModeID:ops[i].modeID];
+			if (err != kSLSErrorSuccess) {
+				*result = err;
+				*failed = (int32_t)i;
+				displaysMoved();
+				return KERN_SUCCESS;
+			}
+		} else {
+			d.x = ops[i].x;
+			d.y = ops[i].y;
+		}
+	}
+	displaysMoved();
+	// SHORTCUT(WS1): a permanent change lasts for the session; it is not
+	// saved for the next one.
+	fprintf(stderr, "WindowServer: pid %d configured %u display change(s), option %u\n",
+	    audit_token_to_pid(token), count, option);
+	*result = kSLSErrorSuccess;
+	return KERN_SUCCESS;
+}
+
+/* ---- Gamma ---- */
+
+kern_return_t
+wss_display_set_transfer_table(mach_port_t server, audit_token_t token, uint32_t display,
+    uint32_t count, ws_gamma_table_t table, mach_msg_type_number_t tableCount,
+    int32_t *result)
+{
+	WSDisplay *d = WSDisplayWithID(display);
+
+	if (d == nil || tableCount != 3 * count)
+		*result = kSLSErrorIllegalArgument;
+	else
+		*result = [d setTransferTable:table count:count];
+	if (*result == kSLSErrorSuccess)
+		[WSConnection connectionForToken:token].changedTransfers = YES;
+	return KERN_SUCCESS;
+}
+
+kern_return_t
+wss_display_transfer_table(mach_port_t server, uint32_t display, int32_t *result,
+    ws_gamma_table_t table, mach_msg_type_number_t *count)
+{
+	WSDisplay *d = WSDisplayWithID(display);
+
+	*count = 0;
+	if (d == nil) {
+		*result = kSLSErrorIllegalArgument;
+		return KERN_SUCCESS;
+	}
+	[d getTransferTable:table];
+	*count = 3 * kSLSGammaTableCapacity;
+	*result = kSLSErrorSuccess;
+	return KERN_SUCCESS;
+}
+
+kern_return_t
+wss_display_set_transfer_formula(mach_port_t server, audit_token_t token, uint32_t display,
+    SLSGammaFormula formula, int32_t *result)
+{
+	WSDisplay *d = WSDisplayWithID(display);
+
+	*result = d ? [d setTransferFormula:&formula] : kSLSErrorIllegalArgument;
+	if (*result == kSLSErrorSuccess)
+		[WSConnection connectionForToken:token].changedTransfers = YES;
+	return KERN_SUCCESS;
+}
+
+kern_return_t
+wss_display_transfer_formula(mach_port_t server, uint32_t display, int32_t *result,
+    SLSGammaFormula *formula)
+{
+	WSDisplay *d = WSDisplayWithID(display);
+
+	memset(formula, 0, sizeof(*formula));
+	if (d == nil) {
+		*result = kSLSErrorIllegalArgument;
+		return KERN_SUCCESS;
+	}
+	*formula = d.transferFormula;
+	*result = kSLSErrorSuccess;
+	return KERN_SUCCESS;
+}
+
+kern_return_t
+wss_restore_transfers(mach_port_t server, audit_token_t token)
+{
+	for (WSDisplay *d in WSDisplays)
+		[d restoreTransfer];
+	for (WSConnection *c in [WSConnection allConnections])
+		c.changedTransfers = NO;
+	return KERN_SUCCESS;
+}
+
+/* ---- Display capture ---- */
+
+static int
+captureOne(WSDisplay *d, WSConnection *c)
+{
+	if (d.capturedBy == c)
+		return kSLSErrorSuccess;
+	if (d.capturedBy != nil)
+		return kSLSErrorCannotComplete;
+	d.capturedBy = c;
+	d.shield = WSWindowCreate(c, kSLSShieldingWindowLevel,
+	    (SLSRect){ d.x, d.y, d.width, d.height });
+	WSWindowOrder(d.shield, kSLSOrderAbove, 0);
+	return kSLSErrorSuccess;
+}
+
+static void
+releaseOne(WSDisplay *d)
+{
+	if (d.shield != nil)
+		WSWindowRelease(d.shield);
+	d.shield = nil;
+	d.capturedBy = nil;
+}
+
+kern_return_t
+wss_display_capture(mach_port_t server, audit_token_t token, uint32_t display,
+    uint32_t options, int32_t *result)
+{
+	WSConnection *c = [WSConnection connectionForToken:token];
+
+	if (c == nil) {
+		*result = kSLSErrorInvalidConnection;
+		return KERN_SUCCESS;
+	}
+	if (display != 0) {
+		WSDisplay *d = WSDisplayWithID(display);
+		*result = d ? captureOne(d, c) : kSLSErrorIllegalArgument;
+		return KERN_SUCCESS;
+	}
+	/* All of them, or none. */
+	for (WSDisplay *d in WSDisplays)
+		if (d.capturedBy != nil && d.capturedBy != c) {
+			*result = kSLSErrorCannotComplete;
+			return KERN_SUCCESS;
+		}
+	for (WSDisplay *d in WSDisplays)
+		captureOne(d, c);
+	*result = kSLSErrorSuccess;
+	return KERN_SUCCESS;
+}
+
+kern_return_t
+wss_display_release(mach_port_t server, audit_token_t token, uint32_t display,
+    int32_t *result)
+{
+	WSConnection *c = [WSConnection connectionForToken:token];
+
+	if (c == nil) {
+		*result = kSLSErrorInvalidConnection;
+		return KERN_SUCCESS;
+	}
+	if (display != 0) {
+		WSDisplay *d = WSDisplayWithID(display);
+		if (d == nil)
+			*result = kSLSErrorIllegalArgument;
+		else if (d.capturedBy != nil && d.capturedBy != c)
+			*result = kSLSErrorCannotComplete;
+		else {
+			releaseOne(d);
+			*result = kSLSErrorSuccess;
+		}
+		return KERN_SUCCESS;
+	}
+	for (WSDisplay *d in WSDisplays)
+		if (d.capturedBy == c)
+			releaseOne(d);
+	*result = kSLSErrorSuccess;
+	return KERN_SUCCESS;
+}
+
+kern_return_t
+wss_display_capture_state(mach_port_t server, uint32_t display, int32_t *result,
+    int32_t *pid, uint32_t *shield)
+{
+	WSDisplay *d = WSDisplayWithID(display);
+
+	*pid = 0;
+	*shield = 0;
+	if (d == nil) {
+		*result = kSLSErrorIllegalArgument;
+		return KERN_SUCCESS;
+	}
+	*pid = d.capturedBy ? d.capturedBy.pid : 0;
+	*shield = d.shield ? d.shield.windowID : 0;
+	*result = kSLSErrorSuccess;
+	return KERN_SUCCESS;
+}
+
+/* ---- Cursor ---- */
+
+/* SHORTCUT(WS1): the position only moves by warps until the server reads
+ * input (WS3), and the cursor is drawn from WS2. */
+static double cursorX, cursorY;
+
+kern_return_t
+wss_cursor_hide(mach_port_t server, audit_token_t token, uint32_t display, int32_t delta,
+    int32_t *result)
+{
+	WSConnection *c = [WSConnection connectionForToken:token];
+
+	if (c == nil) {
+		*result = kSLSErrorInvalidConnection;
+		return KERN_SUCCESS;
+	}
+	if ((display != 0 && WSDisplayWithID(display) == nil) || (delta != 1 && delta != -1)) {
+		*result = kSLSErrorIllegalArgument;
+		return KERN_SUCCESS;
+	}
+	/* Showing more than was hidden does nothing. */
+	if (delta > 0 || c.cursorHideCount > 0)
+		c.cursorHideCount += delta;
+	*result = kSLSErrorSuccess;
+	return KERN_SUCCESS;
+}
+
+kern_return_t
+wss_cursor_state(mach_port_t server, int32_t *visible, double *x, double *y, int32_t *dx,
+    int32_t *dy)
+{
+	*visible = 1;
+	for (WSConnection *c in [WSConnection allConnections])
+		if (c.cursorHideCount > 0)
+			*visible = 0;
+	*x = cursorX;
+	*y = cursorY;
+	*dx = 0;
+	*dy = 0;
+	return KERN_SUCCESS;
+}
+
+kern_return_t
+wss_cursor_warp(mach_port_t server, audit_token_t token, double x, double y,
+    int32_t *result)
+{
+	double minX = 0, minY = 0, maxX = 0, maxY = 0;
+	BOOL first = YES;
+
+	if (!isfinite(x) || !isfinite(y)) {
+		*result = kSLSErrorIllegalArgument;
+		return KERN_SUCCESS;
+	}
+	/* Clamped to the box around the displays. */
+	for (WSDisplay *d in WSDisplays) {
+		if (first || d.x < minX) minX = d.x;
+		if (first || d.y < minY) minY = d.y;
+		if (first || d.x + d.width > maxX) maxX = d.x + d.width;
+		if (first || d.y + d.height > maxY) maxY = d.y + d.height;
+		first = NO;
+	}
+	cursorX = fmin(fmax(x, minX), maxX - 1);
+	cursorY = fmin(fmax(y, minY), maxY - 1);
+	*result = kSLSErrorSuccess;
+	return KERN_SUCCESS;
+}
+
+kern_return_t
+wss_cursor_associate(mach_port_t server, audit_token_t token, int32_t connected,
+    int32_t *result)
+{
+	WSConnection *c = [WSConnection connectionForToken:token];
+
+	if (c == nil) {
+		*result = kSLSErrorInvalidConnection;
+		return KERN_SUCCESS;
+	}
+	c.cursorAssociated = connected != 0;
+	*result = kSLSErrorSuccess;
+	return KERN_SUCCESS;
+}
+
+/* ---- A connection's process exited ---- */
+
+void
+WSDisplayServicesConnectionDied(WSConnection *c)
+{
+	BOOL moved = NO;
+
+	for (WSDisplay *d in WSDisplays)
+		if (d.capturedBy == c)
+			releaseOne(d);
+	/* Its app-only changes are undone. */
+	for (NSNumber *key in c.appOnlyDisplays) {
+		WSDisplay *d = WSDisplayWithID(key.unsignedIntValue);
+		NSArray<NSNumber *> *was = c.appOnlyDisplays[key];
+
+		if (d == nil)
+			continue;
+		[d setModeID:was[0].unsignedIntValue];
+		d.x = was[1].doubleValue;
+		d.y = was[2].doubleValue;
+		moved = YES;
+	}
+	if (moved)
+		displaysMoved();
+	/* As at an app's exit on the reference platform: the default transfers. */
+	if (c.changedTransfers)
+		for (WSDisplay *d in WSDisplays)
+			[d restoreTransfer];
+}

@@ -34,6 +34,12 @@
 static pthread_once_t connectOnce = PTHREAD_ONCE_INIT;
 static mach_port_t serverPort = MACH_PORT_NULL;
 static SLSConnectionID mainConnection = 0;
+/*
+ * A port only this process holds the receive right to: the server keeps a
+ * send right and is told when it dies, that is when the process exits, to
+ * release what the connection held.
+ */
+static mach_port_t clientPort = MACH_PORT_NULL;
 
 static void
 openMainConnection(void)
@@ -45,7 +51,10 @@ openMainConnection(void)
 		serverPort = MACH_PORT_NULL;
 		return;
 	}
-	if (ws_connect(serverPort, &version, &connection) != KERN_SUCCESS ||
+	if (mach_port_allocate(mach_task_self(), MACH_PORT_RIGHT_RECEIVE, &clientPort) !=
+	    KERN_SUCCESS)
+		return;
+	if (ws_connect(serverPort, clientPort, &version, &connection) != KERN_SUCCESS ||
 	    version != kSLSInterfaceVersion)
 		return;
 	mainConnection = connection;

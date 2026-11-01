@@ -55,6 +55,11 @@ type ws_display_config_list_t = array[*:32] of ws_display_config_op_t;
 type ws_gamma_table_t = array[*:768] of float;
 type ws_gamma_formula_t = struct[9] of float
 	ctype: SLSGammaFormula;
+type ws_rect_t = struct[4] of double
+	ctype: SLSRect;
+type ws_window_list_t = array[*:1024] of uint32_t;
+type ws_window_info_t = struct[32] of uint32_t
+	ctype: SLSWindowInfo;
 
 /*
  * Opens a connection: the server records the client's PID and user from
@@ -64,6 +69,7 @@ type ws_gamma_formula_t = struct[9] of float
 routine connect(
 	server			: mach_port_t;
 	ServerAuditToken token	: audit_token_t;
+	client			: mach_port_make_send_t;
 	out version		: uint32_t;
 	out connection		: int32_t);
 
@@ -153,3 +159,109 @@ routine display_transfer_formula(
 routine restore_transfers(
 	server			: mach_port_t;
 	ServerAuditToken token	: audit_token_t);
+
+/* ---- Display capture ---- */
+
+/* display 0 is every display. */
+routine display_capture(
+	server			: mach_port_t;
+	ServerAuditToken token	: audit_token_t;
+	display			: uint32_t;
+	options			: uint32_t;
+	out result		: int32_t);
+
+routine display_release(
+	server			: mach_port_t;
+	ServerAuditToken token	: audit_token_t;
+	display			: uint32_t;
+	out result		: int32_t);
+
+/* The capturing process and the shielding window, 0 when not captured. */
+routine display_capture_state(
+	server			: mach_port_t;
+	display			: uint32_t;
+	out result		: int32_t;
+	out pid			: int32_t;
+	out shield		: uint32_t);
+
+/* ---- Cursor ---- */
+
+/* delta is +1 (hide) or -1 (show) on the connection's hide count. */
+routine cursor_hide(
+	server			: mach_port_t;
+	ServerAuditToken token	: audit_token_t;
+	display			: uint32_t;
+	delta			: int32_t;
+	out result		: int32_t);
+
+routine cursor_state(
+	server			: mach_port_t;
+	out visible		: int32_t;
+	out x			: double;
+	out y			: double;
+	out dx			: int32_t;
+	out dy			: int32_t);
+
+routine cursor_warp(
+	server			: mach_port_t;
+	ServerAuditToken token	: audit_token_t;
+	x			: double;
+	y			: double;
+	out result		: int32_t);
+
+routine cursor_associate(
+	server			: mach_port_t;
+	ServerAuditToken token	: audit_token_t;
+	connected		: int32_t;
+	out result		: int32_t);
+
+/* ---- Windows ---- */
+
+routine window_create(
+	server			: mach_port_t;
+	ServerAuditToken token	: audit_token_t;
+	level			: int32_t;
+	frame			: ws_rect_t;
+	out result		: int32_t;
+	out window		: uint32_t);
+
+routine window_release(
+	server			: mach_port_t;
+	ServerAuditToken token	: audit_token_t;
+	window			: uint32_t;
+	out result		: int32_t);
+
+routine window_set_frame(
+	server			: mach_port_t;
+	ServerAuditToken token	: audit_token_t;
+	window			: uint32_t;
+	frame			: ws_rect_t;
+	out result		: int32_t);
+
+routine window_set_level(
+	server			: mach_port_t;
+	ServerAuditToken token	: audit_token_t;
+	window			: uint32_t;
+	level			: int32_t;
+	out result		: int32_t);
+
+routine window_order(
+	server			: mach_port_t;
+	ServerAuditToken token	: audit_token_t;
+	window			: uint32_t;
+	place			: int32_t;
+	relative		: uint32_t;
+	out result		: int32_t);
+
+/* Window IDs front to back for a CGWindowListOption. */
+routine window_list(
+	server			: mach_port_t;
+	option			: uint32_t;
+	relative		: uint32_t;
+	out windows		: ws_window_list_t);
+
+routine window_info(
+	server			: mach_port_t;
+	window			: uint32_t;
+	out result		: int32_t;
+	out info		: ws_window_info_t);

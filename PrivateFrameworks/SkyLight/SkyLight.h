@@ -47,7 +47,7 @@ extern "C" {
 #define kSLSServiceName		"org.minkar.WindowServer.next"
 
 /* The interface version both sides are built for. */
-#define kSLSInterfaceVersion	1
+#define kSLSInterfaceVersion	2
 
 typedef int32_t SLSConnectionID;
 
@@ -68,7 +68,10 @@ enum {
 	kSLSErrorSuccess	= 0,
 	kSLSErrorFailure	= 1000,
 	kSLSErrorIllegalArgument = 1001,
+	kSLSErrorInvalidConnection = 1002,
+	kSLSErrorCannotComplete	= 1004,
 	kSLSErrorRangeCheck	= 1007,
+	kSLSErrorNoneAvailable	= 1011,
 };
 
 typedef uint32_t SLSDisplayID;
@@ -214,6 +217,110 @@ int SLSSetDisplayTransferByFormula(SLSDisplayID display, const SLSGammaFormula *
 int SLSGetDisplayTransferByFormula(SLSDisplayID display, SLSGammaFormula *formula);
 /* Every display back to its default (identity) transfer. */
 int SLSRestoreDisplayTransfers(void);
+
+/* ---- Display capture --------------------------------------------------- */
+
+/*
+ * A captured display belongs to one connection: the server puts a
+ * shielding window over it, and only that connection may release it.
+ * Everything a connection captured is released when its process exits.
+ * display 0 captures or releases every display.
+ */
+int SLSCaptureDisplay(SLSDisplayID display, uint32_t options);
+int SLSReleaseDisplay(SLSDisplayID display);
+/* The PID of the process that captured the display, or 0. */
+int SLSDisplayCapturedBy(SLSDisplayID display, int32_t *pid);
+/* The shielding window over a captured display, or 0. */
+uint32_t SLSShieldingWindowID(SLSDisplayID display);
+/* The level of shielding windows, as the public CGShieldingWindowLevel. */
+#define kSLSShieldingWindowLevel	2147483630
+
+/* ---- Cursor ------------------------------------------------------------ */
+
+typedef struct SLSPoint {
+	double	x, y;
+} SLSPoint;
+
+/*
+ * Each connection keeps its own hide count; the cursor shows when every
+ * count is 0. A connection's count is dropped when its process exits.
+ */
+int SLSHideCursor(SLSDisplayID display);
+int SLSShowCursor(SLSDisplayID display);
+int SLSCursorIsVisible(int *visible);
+/* The cursor position in global coordinates. */
+int SLSGetCursorPosition(SLSPoint *point);
+/* Moves the cursor (clamped to the displays) without an event. */
+int SLSWarpCursorPosition(SLSPoint point);
+/* Whether mouse motion moves the cursor, for this connection. */
+int SLSAssociateMouseAndCursorPosition(int connected);
+/* The motion since the last mouse event (0 after a warp). */
+int SLSGetLastMouseDelta(int32_t *dx, int32_t *dy);
+
+/* ---- Windows ----------------------------------------------------------- */
+
+typedef uint32_t SLSWindowID;
+
+typedef struct SLSRect {
+	double	x, y, width, height;
+} SLSRect;
+
+/* SLSOrderWindow's place, as the public NSWindowOrderingMode. */
+enum {
+	kSLSOrderOut	= 0,
+	kSLSOrderAbove	= 1,
+	kSLSOrderBelow	= -1,
+};
+
+/* SLSWindowListCopy's option: the public CGWindowListOption bits. */
+enum {
+	kSLSWindowListAll			= 0,
+	kSLSWindowListOnScreenOnly		= 1 << 0,
+	kSLSWindowListOnScreenAboveWindow	= 1 << 1,
+	kSLSWindowListOnScreenBelowWindow	= 1 << 2,
+	kSLSWindowListIncludingWindow		= 1 << 3,
+	kSLSWindowListExcludeDesktopElements	= 1 << 4,
+};
+
+/* Windows at or below this level are desktop elements. */
+#define kSLSDesktopIconWindowLevel	(-2147483603)
+
+/* SLSWindowInfo.flags */
+enum {
+	kSLSWindowOnScreen	= 1 << 0,
+};
+
+/* What the server knows about a window (CGWindowListCopyWindowInfo). */
+typedef struct SLSWindowInfo {
+	SLSWindowID	window;
+	int32_t		level;
+	int32_t		ownerPID;
+	SLSConnectionID	connection;
+	double		x, y, width, height;	/* global coordinates */
+	double		alpha;
+	uint32_t	flags;			/* kSLSWindow* */
+	uint32_t	sharingState;		/* the public CGWindowSharingType */
+	char		ownerName[64];
+} SLSWindowInfo;
+
+#define kSLSWindowInfoWords	32
+#define kSLSMaxWindowList	1024
+#ifndef __cplusplus
+_Static_assert(sizeof(SLSWindowInfo) == kSLSWindowInfoWords * 4, "SLSWindowInfo size");
+#endif
+
+/* A window of this connection, ordered out. */
+int SLSNewWindow(int32_t level, SLSRect frame, SLSWindowID *window);
+/* The calls below change only the connection's own windows. */
+int SLSReleaseWindow(SLSWindowID window);
+int SLSSetWindowFrame(SLSWindowID window, SLSRect frame);
+int SLSSetWindowLevel(SLSWindowID window, int32_t level);
+/* place is kSLSOrder*; relativeTo 0 is the front (or back) of its level. */
+int SLSOrderWindow(SLSWindowID window, int32_t place, SLSWindowID relativeTo);
+/* Window IDs front to back, as CGWindowListCreate. */
+int SLSWindowListCopy(uint32_t option, SLSWindowID relativeTo, uint32_t max,
+    SLSWindowID *windows, uint32_t *count);
+int SLSGetWindowInfo(SLSWindowID window, SLSWindowInfo *info);
 
 #ifdef __cplusplus
 }

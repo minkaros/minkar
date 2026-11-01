@@ -37,6 +37,8 @@
 #include <IOKit/IOKitLib.h>
 #include "SkyLight.h"
 
+@class WSConnection, WSWindow;
+
 @interface WSDisplay : NSObject
 
 /* Every framebuffer the server could open; the first is the main display. */
@@ -54,6 +56,10 @@
 @property uint32_t unit;
 @property double x;
 @property double y;
+
+/* The connection that captured the display, and its shielding window. */
+@property (weak) WSConnection *capturedBy;
+@property (strong) WSWindow *shield;
 
 /* The reply to display_info. */
 - (void)getInfo:(SLSDisplayInfo *)info;
