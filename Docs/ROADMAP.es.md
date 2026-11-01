@@ -99,7 +99,7 @@ Minkar arranca sobre Darwin con su propio cargador EFI, todo el sistema se compi
 | CoreFoundation | CF-Lite (APSL) | APIs que faltan hasta la API 21 | 3 |
 | Foundation | Tres lotes de correcciones (26 oct); `NSProcessInfo` con `operatingSystemVersion`; reexporta CoreFoundation; `NSURLSession` sobre libcurl, con cookies; `NSOperationQueue` sobre dispatch; el run loop principal ejecuta la cola principal de dispatch; `NSDateFormatter` sobre ICU (31 oct); `NSXPCConnection` sobre libxpc, con los servicios XPC dentro de las apps (31 oct) | Caché de URL y métricas de tareas en `NSURLSession`; auditoría de la API 19 | 3 |
 | Swift 6 | Nada en el árbol | Compilador, stdlib, overlays | 3 |
-| WindowServer | El servidor actual dibuja ventanas de AppKit sobre el framebuffer GOP con entrada de IOHIDSystem; su job de launchd se instala desactivado (WS0 hecho el 31 oct 2026, gate `M4-draw`). La interfaz del núcleo nuevo está en `SkyLight.framework`, con su servidor junto al actual (WS1 hecho el 31 oct 2026); compone ventanas de AppKit con pixman (WS2 hecho el 1 nov 2026, gate `M4-compose`) y reparte la entrada de IOHIDSystem, con event taps (WS3 hecho el 1 nov 2026) | El comportamiento de las ventanas y el cambio del núcleo nuevo (WS4), después IOSurface y la GPU (WS5, WS6) | 4 |
+| WindowServer | El servidor actual dibuja ventanas de AppKit sobre el framebuffer GOP con entrada de IOHIDSystem; su job de launchd se instala desactivado (WS0 hecho el 31 oct 2026, gate `M4-draw`). La interfaz del núcleo nuevo está en `SkyLight.framework`, con su servidor junto al actual (WS1 hecho el 31 oct 2026); compone ventanas de AppKit con pixman (WS2 hecho el 1 nov 2026, gate `M4-compose`) y reparte la entrada de IOHIDSystem, con event taps (WS3 hecho el 1 nov 2026) | El comportamiento del servidor del núcleo nuevo (WS4a, tras la comprobación de entitlements del ADR 0001) y el cambio de servidor (WS4b), después IOSurface y la GPU (WS5, WS6) | 4 |
 | Aceleración por GPU | No existe; sin ella tampoco se puede apagar la pantalla | Frente completo (requisito de rendimiento) | 4 y Minkar 21.0 |
 | SystemUIServer, Dock | Parciales, no se compilan | Casi todo | 5 |
 | Kraz, System Preferences | No existen | Apps nuevas en Cocoa | 5 |
@@ -305,7 +305,7 @@ Del entorno gráfico ya existen la base de dibujo (Core Graphics con FreeType, y
 Componentes, por estado:
 
 - **Existen:** Core Graphics con FreeType; pixman, libpng, libjpeg y libtiff (`BSD/lib`); la consola GOP (`IOGOPFramebuffer`); la entrada USB (xHCI + HID, `MinkarUSB`); los headers `IOKit/hidsystem`; la entrega de eventos de IOHIDSystem; `ApplePS2Mouse` y el teclado PS/2.
-- **Parciales:** WindowServer (WS0 hecho con el servidor actual; WS1 a WS3 hechos, la interfaz, el servidor, el compositor y la entrada del núcleo nuevo; WS4 a WS6 por hacer); QuartzCore y Onyx2D; AppKit (Cocotron; con los arreglos que necesitó una primera ventana, 31 oct 2026).
+- **Parciales:** WindowServer (WS0 hecho con el servidor actual; WS1 a WS3 hechos, la interfaz, el servidor, el compositor y la entrada del núcleo nuevo; WS4a, WS4b, WS5 y WS6 por hacer); QuartzCore y Onyx2D; AppKit (Cocotron; con los arreglos que necesitó una primera ventana, 31 oct 2026).
 - **Faltan:** virtio-gpu 2D; IOSurface; el compositor de Core Animation; Core Text sobre HarfBuzz/FreeType; giflib y libwebp; ColorSync sobre Little CMS; y el frente de GPU (driver del kernel, Mesa, Metal).
 
 El detalle técnico de cada pieza está en la guía técnica de la pila gráfica; [Progress.es.md](Progress.es.md) las dibuja por estado.
@@ -322,14 +322,14 @@ Secuencia de desarrollo:
 
 En paralelo, el frente de GPU G1–G5: desde la familia del primer driver y el prototipo KMS hasta Mesa (lavapipe/llvmpipe en VMs) y Metal (darling-metal e Indium, MPL-2.0).
 
-El paso 1 se completó el 31 oct 2026 (`e2df542919`, `2aa9a1da6e`), y también los primeros hitos del paso 2, WS0 (gate `M4-draw`, `cce7da92bc`) WS1 (la interfaz del núcleo nuevo, `030dba37c7`) WS2 (su compositor, gate `M4-compose`, `8512fe60ba`) y WS3 (entrada y event taps, `98237bf14e`); sigue WS4. G1 empieza en cuanto se decida la familia de GPU, y las flechas discontinuas marcan lo que el frente de GPU reutiliza de los pasos 4 y 5.
+El paso 1 se completó el 31 oct 2026 (`e2df542919`, `2aa9a1da6e`), y también los primeros hitos del paso 2, WS0 (gate `M4-draw`, `cce7da92bc`) WS1 (la interfaz del núcleo nuevo, `030dba37c7`) WS2 (su compositor, gate `M4-compose`, `8512fe60ba`) y WS3 (entrada y event taps, `98237bf14e`); sigue WS4a, después del ADR 0001. G1 empieza en cuanto se decida la familia de GPU, y las flechas discontinuas marcan lo que el frente de GPU reutiliza de los pasos 4 y 5.
 
 ## Fase 5 — Escritorio Gienah
 
 Objetivo: una sesión gráfica completa con el lenguaje visual Gienah, con login, barra de menús global, Dock, escritorio con iconos y preferencias. El orden sigue lo que el usuario ve al arrancar.
 
 1. **LoginWindow:** autenticación contra el servicio de usuarios de esta fase (Directory Services, más abajo) y arranque de la sesión (`LaunchAgents` del usuario).
-2. **Barra de menús y SystemUIServer:** el AppKit de cada app dibuja su propia barra de menús y sus menús; los status items son ventanas de sus apps; SystemUIServer aloja los Menu Extras. Plan: [Menus.es.md](Menus.es.md) (MB0 en WS4, MB1 a MB4 aquí).
+2. **Barra de menús y SystemUIServer:** el AppKit de cada app dibuja su propia barra de menús y sus menús; los status items son ventanas de sus apps; SystemUIServer aloja los Menu Extras. Plan: [Menus.es.md](Menus.es.md) (MB0 en WS4b, MB1 a MB4 aquí).
 3. **Menu Extras básicos:** volumen, pantallas, red, reloj, notificaciones. Cada uno como bundle cargable, no compilado dentro de SystemUIServer. Plan: [Menus.es.md](Menus.es.md) (MB1).
 4. **Dock:** lanzador, apps abiertas, minimizado y gestión del fondo de pantalla, sobre LaunchServices. Plan: [Dock-Kraz.es.md](Dock-Kraz.es.md) (D0–D4).
 5. **Kraz:** app nueva en Cocoa puro. Navegación con LaunchServices, montaje vía DiskArbitration, iconos de escritorio, papelera y "Abrir con". Plan: [Dock-Kraz.es.md](Dock-Kraz.es.md) (K0–K4).
@@ -410,7 +410,7 @@ M0 y M2 están cumplidos, M1 solo espera el segundo PC y la Fase 2 está cerrada
 | M1 | Arranque Darwin | Cumplido en QEMU y en el PC 1 (SATA, NVMe, SMP); falta el PC 2 |
 | M2 | Userland base | Cumplido (`boottest GATE=M2`, 13 marcadores); Fase 2 cerrada el 31 oct |
 | M3 | Frameworks y Swift | Sin empezar; hay trabajo previo en Foundation |
-| M4 | Gráficos y WindowServer | En curso: WS0 hecho (el gate `M4-draw` pasa, `cce7da92bc`); WS1 hecho (`skylight-test` 115/0, `030dba37c7`); WS2 hecho (el gate `M4-compose` pasa, `8512fe60ba`); WS3 hecho (entrada, `98237bf14e`); sigue WS4 |
+| M4 | Gráficos y WindowServer | En curso: WS0 hecho (el gate `M4-draw` pasa, `cce7da92bc`); WS1 hecho (`skylight-test` 115/0, `030dba37c7`); WS2 hecho (el gate `M4-compose` pasa, `8512fe60ba`); WS3 hecho (entrada, `98237bf14e`); sigue WS4a, después WS4b |
 | M5 | Escritorio Gienah | Sin empezar |
 | M6 (Minkar 19.6.0) | Apps y distribución | Sin empezar; `hdiutil attach` ya monta |
 | Minkar 21.0 | API 21 completa y rendimiento ≥ sistema de referencia en equipo físico | Sin empezar; depende del frente de GPU |

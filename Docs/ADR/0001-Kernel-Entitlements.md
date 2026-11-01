@@ -2,7 +2,7 @@
 
 Status: accepted, 2026-11-01. Implements section 9.1 of
 `Docs/WindowServer-Rewrite.md` (option C, decided 2026-10-31). Required
-before WS4, where WindowServer stops running as root.
+before WS4a, where WindowServer stops running as root.
 
 ## Context
 
@@ -101,7 +101,7 @@ a new boottest gate step:
 4. An unsigned binary still runs and is not `CS_SIGNED`.
 
 When the tests pass, `SHORTCUT(WS0)` in `IOHIDUserClient.cpp` is removed and
-the WindowServer job (WS4) carries `com.apple.hid.system.server-access`.
+the WindowServer job (WS4a) carries `com.apple.hid.system.server-access`.
 
 ## Alternatives considered
 

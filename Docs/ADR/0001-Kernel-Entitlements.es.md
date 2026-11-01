@@ -2,7 +2,7 @@
 
 Estado: aceptado, 2026-11-01. Desarrolla la sección 9.1 de
 `Docs/WindowServer-Rewrite.es.md` (opción C, decidida el 2026-10-31). Hace
-falta antes de WS4, cuando WindowServer deja de ejecutarse como root.
+falta antes de WS4a, cuando WindowServer deja de ejecutarse como root.
 
 ## Contexto
 
@@ -105,7 +105,7 @@ de imagen y un paso nuevo de boottest:
 4. Un binario sin firmar sigue ejecutándose y no es `CS_SIGNED`.
 
 Cuando pasan las pruebas se elimina `SHORTCUT(WS0)` de `IOHIDUserClient.cpp`
-y el job de WindowServer (WS4) lleva `com.apple.hid.system.server-access`.
+y el job de WindowServer (WS4a) lleva `com.apple.hid.system.server-access`.
 
 ## Alternativas consideradas
 

@@ -122,10 +122,10 @@ plataforma de referencia; Spaces y una vista general en la primera versión
   del login). El código de `launchShell:` y `setUpEnviron:` se muda allí.
 - Corre como el usuario `_windowserver` (UID 88), como en la plataforma de
   referencia. El job de launchd fija el usuario; el kernel le concede a ese
-  usuario los user clients del framebuffer y de HID. Root solo hasta WS4
+  usuario los user clients del framebuffer y de HID. Root solo hasta WS4a
   (sección 9).
 
-### Módulos (nueva organización en `CoreServices/WindowServer/`)
+### Módulos (en `PrivateFrameworks/SkyLight/`, sección 10.1)
 
 | Módulo | Responsabilidad |
 | --- | --- |
@@ -292,7 +292,7 @@ C.
 
 WS1 está hecho (31 oct 2026). El servidor nuevo funciona junto al actual,
 que sigue siendo el predeterminado; se registra como
-`org.minkar.WindowServer.next` hasta WS4 y launchd todavía no lo arranca.
+`org.minkar.WindowServer.next` hasta WS4b y launchd todavía no lo arranca.
 Commits: estructura (`9e48d1f62a`), interfaz, cliente y servidor
 (`f9028e286a`), consultas de pantalla (`0e4d7293ff`), modos y
 configuraciones (`8dab4060cc`), tablas de transferencia (`37996817e4`),
@@ -307,17 +307,19 @@ capturas, su cuenta de ocultación del cursor, su fundido, sus cambios de
 pantalla solo para la app y las tablas de transferencia que cambió.
 
 Atajos tomados (`SHORTCUT(WS1)`): una configuración de pantalla permanente
-dura solo la sesión; las tablas de transferencia y la mezcla del fundido
-las guarda el servidor y las aplica el compositor desde WS2; la posición
-del cursor solo cambia con warps hasta que el servidor lea la entrada
-(WS3).
+dura solo la sesión (se quita en WS5, con cambios de modo reales); las
+tablas de transferencia y la mezcla del fundido las guarda el servidor, y el
+compositor todavía no las aplica (se quita en WS4a); la posición del cursor
+solo cambiaba con warps hasta que el servidor leyó la entrada (se quitó en
+WS3).
 
 Quedan para hitos posteriores: los ID de pantalla salen de la entrada del
-registro y duran un arranque (se derivarán del EDID); el espejo se
-comprueba con una sola pantalla (rechazos y desactivarlo);
-`CGDisplayGetDrawingContext` y los flujos de pantalla llegan con la
-captura mediante superficies (WS4); las funciones de CoreGraphics siguen
-llamando al servidor actual hasta el cambio (WS4).
+registro y duran un arranque (se derivarán del EDID en WS5, con
+virtio-gpu); el espejo se comprueba con una sola pantalla (rechazos y
+desactivarlo; varias pantallas llegan más adelante, sección 5);
+`CGDisplayGetDrawingContext` llega con la captura mediante superficies
+(WS4a) y los flujos de pantalla en WS5; las funciones de CoreGraphics
+siguen llamando al servidor actual hasta el cambio (WS4b).
 
 ### WS2 — Ventanas, superficies y compositor por software
 
@@ -350,8 +352,10 @@ camino: los run loops giraban sobre `select` (`61cb01ce77`), y la
 liberación de más de `NSEvent` de WS0 (`1508bd4d3c`).
 
 Atajos tomados: AppKit marca dañada toda la ventana en cada flush
-(`SHORTCUT(WS2)`); el reloj de pantalla late a la frecuencia de refresco
-también en reposo (sin dibujar ningún frame).
+(`SHORTCUT(WS2)`, se quita en WS5 con IOSurface, cuando AppKit lleve sus
+rectángulos sucios a la superficie); el reloj de pantalla late a la
+frecuencia de refresco también en reposo, aunque no dibuje ningún frame (se
+quita en WS5, con flips reales).
 
 ### WS3 — Entrada
 
@@ -388,34 +392,43 @@ evento liberado dentro de `nextEventMatchingMask:` (`13f99802d5`),
 incluirse desde C (`b4f8ed015d`, el problema conocido de WS0).
 
 Atajos tomados (`SHORTCUT(WS3)`): la entrada se lee y se reparte en la
-cola IPC; la política integrada de la sección 9 decide quién publica y
-filtra (root o el usuario de la consola); `CGEventSource` todavía no
-pregunta el estado HID al servidor. El mapa de teclado y libxkbcommon
-siguen siendo los del servidor actual, enlazados desde allí hasta WS4.
+cola IPC (se quita en WS4a); la política integrada de la sección 9 decide
+quién publica y filtra, root o el usuario de la consola (se quita con el
+ADR del servicio de privacidad, antes de M5); `CGEventSource` todavía no
+pregunta el estado HID al servidor (se quita en WS4a). El mapa de teclado y
+libxkbcommon siguen siendo los del servidor actual, enlazados desde allí
+hasta que WS4a los pase a SkyLight (entonces un `SHORTCUT(Phase 5)`,
+sección 9).
 
-### WS4 — Comportamiento de ventanas y cambio de servidor
+### WS4a — Comportamiento del servidor
 
-- `CGWindowListCopyWindowInfo` con las claves de diccionario de la
-  referencia, `CGWindowListCreateImage`, ventanas hijas, sheets, alfa,
-  sombras por software, `NSCursor` y cursor rects, captura de pantalla
-  mediante superficies.
-- El arranque de la sesión sale de WindowServer.
-- Sección 10.2: menús y status items dibujados por AppKit de cada app;
-  avisos de apps lanzadas, cerradas y activadas a través de LaunchServices y
-  `NSWorkspace`; los códigos de relevo eliminados de `message.h`. La parte
-  de los menús es el hito MB0 de [Menus.es.md](Menus.es.md); WS4 solo se
-  cierra cuando pasa MB0.
-- Sección 10.3: la ventana de login gestiona el fin de la sesión, en lo que
-  necesita la Fase 4 (atajo hasta la Fase 5).
-- Atajos simbólicos (symbolic hotkeys), como en la plataforma de referencia:
-  el servidor reconoce los atajos de todo el sistema de una tabla guardada en
-  el dominio de preferencias `org.minkar.symbolichotkeys` (con la estructura
-  de claves de la plataforma de referencia) y envía cada uno a su dueño en
-  lugar de entregarlo como evento de teclado: Comando-Tab al Dock,
-  Comando-Opción-Escape a loginwindow, Control-F2 al AppKit de la app del
-  frente (el foco a la barra de menús). El servidor no dibuja ningún
+`Legacy/` sigue presente y sigue siendo el predeterminado. Necesita el ADR
+0001 ([ADR/0001-Kernel-Entitlements.es.md](ADR/0001-Kernel-Entitlements.es.md)).
+
+- **`_windowserver` (UID 88).** El usuario y el grupo se añaden a los
+  ficheros de contraseñas y grupos del sistema base; el job de launchd fija
+  `UserName`. Depende del ADR 0001: sin la comprobación de entitlements,
+  WindowServer no puede abrir la conexión de servidor de IOHIDSystem como
+  usuario que no es root.
+- **Zonas de arrastre:** cada ventana declara sus zonas de arrastre (la
+  barra de título y, con `movableByWindowBackground`, el fondo), y un mouse
+  down en una de ellas empieza un movimiento en el servidor.
+- **Mapa de teclado en SkyLight:** `WSKeymap` y libxkbcommon pasan de
+  `Legacy/` a SkyLight. En la plataforma de referencia el servidor de
+  ventanas entrega códigos de tecla del hardware y el cliente los convierte
+  en caracteres según la distribución de teclado actual (datos de la
+  distribución y una llamada al estilo de `UCKeyTranslate` en el proceso de
+  la app); libxkbcommon no es ese diseño, así que el traslado es un atajo
+  (`SHORTCUT(Phase 5)`, sección 9).
+- **Atajos simbólicos (symbolic hotkeys),** como en la plataforma de
+  referencia: el servidor reconoce los atajos de todo el sistema de una
+  tabla guardada en el dominio de preferencias `org.minkar.symbolichotkeys`
+  (con la estructura de claves de la plataforma de referencia) y envía cada
+  uno a su dueño en lugar de entregarlo como evento de teclado: Comando-Tab
+  al Dock, Comando-Opción-Escape a loginwindow, Control-F2 al AppKit de la
+  app del frente (el foco a la barra de menús). El servidor no dibuja ningún
   selector de apps; lo hace el Dock (D4 de [Dock-Kraz.es.md](Dock-Kraz.es.md)).
-- Apps en ejecución a través de LaunchServices: un servicio de sesión de
+- **Apps en ejecución a través de LaunchServices:** un servicio de sesión de
   LaunchServices guarda la lista de apps en ejecución; cada app se registra
   desde `NSApplication` al arrancar, su salida se detecta cuando ocurre, y el
   servidor de ventanas avisa al servicio cuando cambia la app del frente.
@@ -426,10 +439,43 @@ siguen siendo los del servidor actual, enlazados desde allí hasta WS4.
   `processIdentifier`, `bundleIdentifier`, `localizedName`, `isActive`,
   `activateWithOptions:`. El resto de `NSRunningApplication` llega con D0 de
   [Dock-Kraz.es.md](Dock-Kraz.es.md).
-- El núcleo nuevo pasa a ser el predeterminado; se borra `Legacy/`, y
-  también los árboles de libinput, libevdev y mtdev.
+- **Lo que necesita MB0** ([Menus.es.md](Menus.es.md)): el sitio y la altura
+  de la barra de menús en cada pantalla (el `visibleFrame` de `NSScreen` la
+  excluye), avisos a cada app cuando pasa a estar o deja de estar al frente,
+  la disposición de la zona de estado (ventanas de status items y Menu
+  Extras, conservando el orden) y la captura del puntero mientras hay un
+  menú abierto.
+- **Lo que necesita el Dock** ([Dock-Kraz.es.md](Dock-Kraz.es.md)): como en
+  la plataforma de referencia, el Dock es el dueño de las ventanas
+  minimizadas. `miniaturize:` de AppKit se lo pide al Dock, que hace la
+  animación y guarda el tile; el servidor de ventanas retira la ventana y la
+  vuelve a mostrar, avisa al Dock cuando una ventana se minimiza o se
+  restaura, y le da la imagen de la ventana con `CGWindowListCreateImage` y
+  un solo ID de ventana. La animación y el tile son D2 y D3 del plan del
+  Dock.
+- `CGWindowListCopyWindowInfo` con las claves de diccionario de la
+  referencia, `CGWindowListCreateImage`, ventanas hijas, sheets, alfa,
+  sombras por software, `NSCursor` y cursor rects, captura de pantalla
+  mediante superficies y `CGDisplayGetDrawingContext`.
+- Atajos de hitos anteriores que se quitan aquí: la entrada se lee y se
+  reparte en su propia cola de alta prioridad, no en la cola IPC (WS3);
+  `CGEventSource` pregunta el estado HID al servidor (WS3); el compositor
+  aplica las tablas de transferencia y el fundido (WS1).
+
+### WS4b — El cambio de servidor
+
+- **MB0** de [Menus.es.md](Menus.es.md): menús y status items dibujados por
+  AppKit de cada app (sección 10.2). WS4b solo se cierra cuando pasa MB0.
+- Los códigos de relevo eliminados de `message.h` (sección 10.2).
+- El arranque de la sesión sale de WindowServer.
+- El `loginwindow` mínimo de la sección 10.3 (fin de la sesión y
+  `reboot(2)`, atajo hasta la Fase 5).
+- El núcleo nuevo pasa a ser el predeterminado, arrancado por launchd; las
+  funciones de CoreGraphics dejan de llamar al servidor anterior. Se borra
+  `Legacy/`, y también los árboles de libinput, libevdev y mtdev.
 - Gate M4 en QEMU: varias apps de AppKit abren ventanas, se arrastran,
-  reciben teclado y redibujan sin artefactos.
+  reciben teclado y redibujan sin artefactos, más las pruebas de menús de
+  MB0.
 
 ### WS5 — IOSurface y virtio-gpu
 
@@ -462,7 +508,8 @@ varias pantallas, Spaces, cursor por hardware.
 
 - Pruebas del modelo (orden, niveles, zonas modificadas) como programas de
   línea de comandos dentro de la suite de pruebas existente.
-- Integración con `boottest`: `M4-draw` desde WS0 y el gate `M4` desde WS4.
+- Integración con `boottest`: `M4-draw` desde WS0, `M4-compose` desde WS2 y
+  el gate `M4` desde WS4b.
 - Comparaciones de `screendump` de QMP con tolerancia por píxel; inyección
   de teclado y ratón por QMP.
 
@@ -481,7 +528,7 @@ varias pantallas, Spaces, cursor por hardware.
 - Marcar un punto del roadmap como hecho solo con evidencia (commit, prueba,
   salida de `boottest`) y citarla.
 - Mantener `boottest GATE=M2` en verde después de cada hito; mantener el
-  servidor viejo funcionando hasta el cambio de WS4.
+  servidor viejo funcionando hasta el cambio de WS4b.
 
 ## 9. Decisiones y atajos de desarrollo
 
@@ -489,13 +536,14 @@ Decidido el 31 oct 2026, según la regla general de la sección 1:
 
 | Pregunta | Decisión (objetivo) | Atajo de desarrollo | Se quita en |
 | --- | --- | --- | --- |
-| Usuario con el que corre WindowServer | `_windowserver` (UID 88), fijado por el job de launchd | Root | WS4 |
+| Usuario con el que corre WindowServer | `_windowserver` (UID 88), fijado por el job de launchd (`UserName`) | Root | WS4a (necesita el ADR 0001) |
 | Dónde vive | `SkyLight.framework/Resources/WindowServer`; el cliente en `SkyLight.framework`, reexportado por CoreGraphics | `CoreServices/WindowServer.app` para WS0 (servidor actual) | WS1 |
 | Capturar pantalla y enviar eventos | Permisos de grabación de pantalla, monitoreo de entrada y accesibilidad, mediante un servicio de permisos | Política interna: se permite a root y a los procesos del usuario de consola; el resto, denegado | ADR del servicio de privacidad (antes de M5) |
-| Mover ventanas | Movimientos en el servidor a partir de las zonas de arrastre que declara el cliente, más `performWindowDragWithEvent:` | Solo la zona de la barra de título | WS4 |
+| Mover ventanas | Movimientos en el servidor a partir de las zonas de arrastre que declara el cliente, más `performWindowDragWithEvent:` | Solo la zona de la barra de título | WS4a |
+| Distribuciones de teclado | El servidor entrega códigos de tecla del hardware; el cliente los convierte en caracteres según la distribución actual (datos de la distribución y una llamada al estilo de `UCKeyTranslate` en la app), con Text Input Sources | `WSKeymap` y libxkbcommon en SkyLight, desde WS4a (`SHORTCUT(Phase 5)`) | Fase 5 (Text Input Sources y ficheros de distribución propios) |
 | Terminar la sesión | La ventana de login pide a las apps que terminen, cierra la sesión y después reinicia o apaga | Un `loginwindow` mínimo que solo cierra la sesión y llama a `reboot(2)` | Fase 5 (LoginWindow) |
-| Selector de apps (Comando-Tab) | Lo dibuja el Dock; la tabla de atajos simbólicos del servidor de ventanas le entrega Comando-Tab | Sin selector desde que se va el servidor anterior (WS4): se cambia de app con clic en sus ventanas (`SHORTCUT(D4)`) | D4 ([Dock-Kraz.es.md](Dock-Kraz.es.md)) |
-| Validación de entitlements en el kernel | Una trust cache estática de los binarios del sistema y un kext de política MAC propio (sección 9.1) | Root puede abrir la conexión de servidor de IOHIDSystem (`SHORTCUT(WS0)` en `IOHIDUserClient.cpp`) | Antes de WS4 |
+| Selector de apps (Comando-Tab) | Lo dibuja el Dock; la tabla de atajos simbólicos del servidor de ventanas le entrega Comando-Tab | Sin selector desde que se va el servidor anterior (WS4b): se cambia de app con clic en sus ventanas (`SHORTCUT(D4)`) | D4 ([Dock-Kraz.es.md](Dock-Kraz.es.md)) |
+| Validación de entitlements en el kernel | Una trust cache estática de los binarios del sistema y un kext de política MAC propio (sección 9.1) | Root puede abrir la conexión de servidor de IOHIDSystem (`SHORTCUT(WS0)` en `IOHIDUserClient.cpp`) | Antes de WS4a |
 
 ### 9.1 Validación de entitlements en el kernel
 
@@ -525,7 +573,7 @@ Minkar tiene entitlements. Decidido el 31 oct 2026:
   política deja sitio para esa comprobación. Un daemon de validación en espacio
   de usuario solo si lo necesitan provisioning profiles o comprobaciones caras.
 - **Hito.** Primero su propio ADR (`Docs/ADR/0001-Kernel-Entitlements.es.md`,
-  aceptado el 2026-11-01); después la implementación, antes de WS4, con
+  aceptado el 2026-11-01); después la implementación, antes de WS4a, con
   pruebas: un binario del sistema que está en la trust cache obtiene un
   entitlement restringido; una copia refirmada fuera de la caché se rechaza; un binario
   firmado ad hoc conserva sus entitlements no restringidos. Entonces se quita
@@ -544,11 +592,11 @@ Cada parte sigue la organización de la plataforma de referencia.
 
 | Hoy | Después |
 | --- | --- |
-| `CoreServices/WindowServer/` contiene el servidor y LoginWindow, SystemUIServer y LoadingWindow | El servidor nuevo en `PrivateFrameworks/SkyLight/` (el servidor se instala en `SkyLight.framework/Resources`, la biblioteca del cliente en el framework); el servidor actual en `CoreServices/WindowServer/Legacy/` hasta WS4 |
+| `CoreServices/WindowServer/` contiene el servidor y LoginWindow, SystemUIServer y LoadingWindow | El servidor nuevo en `PrivateFrameworks/SkyLight/` (el servidor se instala en `SkyLight.framework/Resources`, la biblioteca del cliente en el framework); el servidor actual en `CoreServices/WindowServer/Legacy/` hasta WS4b |
 | LoginWindow, SystemUIServer y LoadingWindow dentro del directorio del servidor | Apps propias en `CoreServices/`: `loginwindow.app` y `SystemUIServer.app`, junto a `Dock.app` y el gestor de archivos; LoadingWindow pasa a formar parte de loginwindow |
-| Árboles de libinput, libevdev y mtdev | Se borran en WS4 |
+| Árboles de libinput, libevdev y mtdev | Se borran en WS4b |
 
-### 10.2 Mensajes que WindowServer reenvía hoy (WS4)
+### 10.2 Mensajes que WindowServer reenvía hoy (WS4a y WS4b)
 
 `message.h` lleva mensajes que no son trabajo de un servidor de ventanas;
 los usan AppKit (`NSApplication.m`) y SystemUIServer (`AppDelegate.m`). Cada
@@ -558,7 +606,7 @@ uno pasa a donde lo tiene la plataforma de referencia:
 | --- | --- |
 | La app envía su menú serializado a SystemUIServer (`CODE_MENU_FOR_APP`), que lo dibuja y devuelve los clics (`CODE_ITEM_CLICKED`) | AppKit de cada app dibuja su propia barra de menús y sus menús, en ventanas de nivel `kCGMainMenuWindowLevel` y de los niveles de menú, mientras es la app del frente |
 | Status items enviados a SystemUIServer (`CODE_ADD_STATUS_ITEM`, `CODE_STATUS_ITEM_ADDED`) | Cada `NSStatusItem` es una ventana de su propia app, de nivel `kCGStatusWindowLevel`; WindowServer solo ordena la zona de estado. SystemUIServer aloja los Menu Extras del sistema |
-| App lanzada o cerrada, reenviado al Dock y a SystemUIServer (`CODE_APP_LAUNCHED`, `CODE_APP_EXITED`) | El servicio de sesión de LaunchServices y las notificaciones de `NSWorkspace` (`NSWorkspaceDidLaunchApplicationNotification`, `NSWorkspaceDidTerminateApplicationNotification`, `NSWorkspaceDidActivateApplicationNotification`), desde WS4 (sección 5) |
+| App lanzada o cerrada, reenviado al Dock y a SystemUIServer (`CODE_APP_LAUNCHED`, `CODE_APP_EXITED`) | El servicio de sesión de LaunchServices y las notificaciones de `NSWorkspace` (`NSWorkspaceDidLaunchApplicationNotification`, `NSWorkspaceDidTerminateApplicationNotification`, `NSWorkspaceDidActivateApplicationNotification`), desde WS4a (sección 5) |
 | Elementos recientes (`CODE_ADD_RECENT_ITEM`) | Las listas de archivos compartidas de LaunchServices, a través de `NSDocumentController` |
 
 Las filas de menús, status items y elementos recientes se planifican en
@@ -566,10 +614,10 @@ detalle en [Menus.es.md](Menus.es.md).
 
 WindowServer se queda solo con lo suyo: la app del frente, el orden de
 activación, las ventanas key y main, y el lugar de la barra de menús en la
-pantalla. Después de WS4 se eliminan los códigos de relevo de `message.h`, y
+pantalla. En WS4b se eliminan los códigos de relevo de `message.h`, y
 el propio `message.h` desaparece con el servidor anterior.
 
-### 10.3 Ciclo de vida de la sesión (WS4, se completa en la Fase 5)
+### 10.3 Ciclo de vida de la sesión (WS4b, se completa en la Fase 5)
 
 Hoy reiniciar, apagar y cerrar sesión son códigos de salida: SystemUIServer
 termina con `EXIT_RESTART`, `EXIT_SHUTDOWN` o `EXIT_LOGOUT` (`common.h`,
@@ -587,7 +635,7 @@ Como en la plataforma de referencia, la ventana de login gestiona la sesión:
 - WindowServer no recibe más aviso que la desconexión de sus clientes.
 
 La Fase 4 solo necesita el `loginwindow` mínimo de la sección 9 (fin de la
-sesión y `reboot(2)`), marcado `// SHORTCUT(WS4):`; la ventana de login
+sesión y `reboot(2)`), marcado `// SHORTCUT(Phase 5):`, el hito que lo quita; la ventana de login
 completa es de la Fase 5.
 
 El menú del sistema que envía estas peticiones se planifica en

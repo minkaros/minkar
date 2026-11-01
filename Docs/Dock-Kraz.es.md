@@ -75,7 +75,7 @@ Lo que vale la pena conservar:
 | --- | --- |
 | Tiles del Dock, indicadores de apps en ejecución, ventanas minimizadas, pilas, tile de la papelera | Dock |
 | Fondo de escritorio, una ventana por pantalla en `kCGDesktopWindowLevel` | Dock |
-| Selector de apps (Comando-Tab) | Dock, que recibe Comando-Tab de la tabla de atajos simbólicos del servidor de ventanas (hoy dibuja uno el WindowServer anterior en `WSInput.m`; desaparece con `Legacy/` en WS4) |
+| Selector de apps (Comando-Tab) | Dock, que recibe Comando-Tab de la tabla de atajos simbólicos del servidor de ventanas (hoy dibuja uno el WindowServer anterior en `WSInput.m`; desaparece con `Legacy/` en WS4b) |
 | Ventanas del navegador de archivos, iconos del escritorio en `kCGDesktopIconWindowLevel`, contenido y vaciado de la papelera, «Abrir con», Obtener información | Kraz |
 | Arrancar el Dock y Kraz al iniciar sesión, y de nuevo si terminan | loginwindow (Fase 5; launchd hasta entonces) |
 
@@ -99,10 +99,14 @@ quedan fuera de este plan; el modelo del Dock les deja sitio.
   `NSRunningApplication`; iconos a través de LaunchServices y
   `-[NSWorkspace iconForFile:]`; activación con
   `-[NSRunningApplication activateWithOptions:]`.
-- **Ventanas minimizadas.** El servidor de ventanas avisa al Dock cuando una
-  ventana se minimiza o se restaura; la miniatura sale de la API de captura
-  del servidor (el Dock es un cliente del sistema con ese permiso). Restaurar
-  pide al servidor que muestre la ventana y activa su app.
+- **Ventanas minimizadas.** Como en la plataforma de referencia, son del
+  Dock: `miniaturize:` de AppKit se lo pide al Dock, que hace la animación
+  (`mineffect`) y guarda el tile. El servidor de ventanas (WS4a) retira la
+  ventana y la vuelve a mostrar, avisa al Dock cuando una ventana se
+  minimiza o se restaura, y le da la imagen de la ventana con
+  `CGWindowListCreateImage` y un solo ID de ventana (el Dock es un cliente
+  del sistema con ese permiso). Restaurar pide al servidor que muestre la
+  ventana y activa su app.
 - **Servicio de tiles del Dock.** Un servicio Mach, `org.minkar.dock.server`,
   definido en MIG, para lo que las apps envían a través de `NSDockTile`
   (texto de la insignia, captura de la vista de contenido, insignia de la
@@ -121,10 +125,10 @@ quedan fuera de este plan; el modelo del Dock les deja sitio.
   `-[NSWorkspace setDesktopImageURL:forScreen:options:error:]` guarda la
   elección y el Dock la sigue.
 - **Selector de apps.** La tabla de atajos simbólicos del servidor de
-  ventanas (WS4) envía Comando-Tab al Dock en lugar de entregarlo como evento
+  ventanas (WS4a) envía Comando-Tab al Dock en lugar de entregarlo como evento
   de teclado; el Dock muestra el selector y activa la app elegida. El
   selector del servidor anterior (`WSInput.m`) desaparece con `Legacy/` en
-  WS4, así que hasta D4 no hay ninguno.
+  WS4b, así que hasta D4 no hay ninguno.
 
 ## 5. Arquitectura de Kraz
 
@@ -159,10 +163,10 @@ quedan fuera de este plan; el modelo del Dock les deja sitio.
 
 | La necesita | Dependencia | Estado hoy | Dónde |
 | --- | --- | --- | --- |
-| Dock | Las notificaciones de `NSWorkspace` de apps lanzadas, cerradas y activadas y el `NSRunningApplication` básico | Faltan (solo existe el antiguo `launchedApplications`) | Servicio de sesión de LaunchServices, plan de WindowServer WS4 |
+| Dock | Las notificaciones de `NSWorkspace` de apps lanzadas, cerradas y activadas y el `NSRunningApplication` básico | Faltan (solo existe el antiguo `launchedApplications`) | Servicio de sesión de LaunchServices, plan de WindowServer WS4a |
 | Dock | El resto de `NSRunningApplication` (icono, fecha de arranque, ocultar y mostrar, `activationPolicy`, terminar) | Falta | AppKit, D0 |
-| Dock | Avisos del servidor de ventanas sobre ventanas minimizadas, y captura de ventanas | Faltan | Plan de WindowServer, WS4 |
-| Dock | Relevos eliminados, `kWSApplicationActivate` retirado | Planeado | Plan de WindowServer, sección 10.2 (WS4) |
+| Dock | La parte del servidor de ventanas al minimizar (retirar y mostrar, avisos al Dock) y la captura de una sola ventana | Faltan | Plan de WindowServer, WS4a |
+| Dock | Relevos eliminados, `kWSApplicationActivate` retirado | Planeado | Plan de WindowServer, sección 10.2 (WS4b) |
 | Dock | `NSDockTile` enviando su estado | Guarda valores, no envía nada | AppKit, D3 |
 | Dock | `setDesktopImageURL:forScreen:options:error:` | Por comprobar | AppKit, D1 |
 | Kraz | Base de datos de bundles y UTI de LaunchServices, apps predeterminadas, «Abrir con» | Fase 3, punto 4 | Frameworks |
@@ -182,9 +186,9 @@ evidencia.
 
 - **D0 — Requisitos previos.** El resto de `NSRunningApplication` (icono,
   fecha de arranque, ocultar y mostrar, `activationPolicy`, terminar) sobre la
-  lista que guarda el servicio de sesión de LaunchServices desde WS4, y la API
+  lista que guarda el servicio de sesión de LaunchServices desde WS4a, y la API
   del fondo de escritorio. Las notificaciones de apps lanzadas, cerradas y
-  activadas y el `NSRunningApplication` básico llegan con WS4. Pruebas: se
+  activadas y el `NSRunningApplication` básico llegan con WS4a. Pruebas: se
   leen el icono y la fecha de arranque de una app de prueba; ocultarla,
   mostrarla y terminarla con `NSRunningApplication` funciona; la elección del
   fondo de escritorio se guarda.
@@ -199,10 +203,11 @@ evidencia.
 - **D2 — Interacción.** Arrastrar para reordenar, añadir y quitar; menús
   contextuales (Mantener en el Dock, Abrir al iniciar sesión, Mostrar en
   Kraz, Salir) y el menú de la propia app; ocultación automática,
-  magnificación, orientación.
+  magnificación, orientación; la animación de minimizar y restaurar
+  (`mineffect`) para `miniaturize:`.
 - **D3 — Servicio de tiles y ventanas minimizadas.**
   `org.minkar.dock.server`: insignias, contenido, rebote de atención;
-  ventanas minimizadas con miniaturas (después de WS4).
+  ventanas minimizadas con miniaturas (después de WS4a).
 - **D4 — Pilas, papelera y selector de apps.** Pilas de Descargas y de
   carpetas; tile de la papelera (vacía o llena, soltar para tirar, vaciar a
   través de Kraz); el selector de apps en el Dock, que recibe Comando-Tab de
@@ -256,8 +261,8 @@ del roadmap; sin líneas `Co-Authored-By`.
 | --- | --- | --- | --- |
 | Preferencias del Dock | Dominio `org.minkar.dock`, claves y formato de datos de tiles de la referencia | — | — |
 | Quién dibuja el escritorio | Dock: fondos; Kraz: iconos | Escritorio sin iconos hasta K3 | K3 |
-| Selector de apps | Dock, con Comando-Tab de la tabla de atajos del servidor de ventanas | Servidor de ventanas anterior (`WSInput.m`) hasta WS4; después ninguno: se cambia de app con clic en sus ventanas (`SHORTCUT(D4)`) | D4 |
-| Ventanas minimizadas | Miniaturas desde la captura del servidor de ventanas | Icono de ventana genérico | D3 (después de WS4) |
+| Selector de apps | Dock, con Comando-Tab de la tabla de atajos del servidor de ventanas | Servidor de ventanas anterior (`WSInput.m`) hasta WS4b; después ninguno: se cambia de app con clic en sus ventanas (`SHORTCUT(D4)`) | D4 |
+| Ventanas minimizadas | Miniaturas desde la captura del servidor de ventanas | Icono de ventana genérico | D3 (después de WS4a) |
 | Arranque del Dock y de Kraz | loginwindow, que los rearranca si terminan | Agentes de launchd | Fase 5 (loginwindow) |
 | Aspecto | Guía del lenguaje visual Gienah | Controles y colores del sistema, sin estilo propio | Cuando exista la guía |
 

@@ -21,8 +21,10 @@ la parte del menú del sistema de su sección 10.3.
   `SubmenuView`, `NSMenuWindow`) pasa a AppKit y se rehace allí.
 - **Los status items se reescriben** como ventanas de su propia app.
 - **SystemUIServer solo aloja los Menu Extras del sistema.**
-- **El primer hito, MB0, es parte de WS4:** es el trabajo de menús que la
-  sección 10.2 asigna a WS4, y WS4 no se cierra hasta que MB0 pase. El resto
+- **El primer hito, MB0, es parte de WS4b:** es el trabajo de menús que la
+  sección 10.2 asigna al cambio de servidor, y WS4b no se cierra hasta que
+  MB0 pase. Lo que MB0 necesita del servidor de ventanas llega en WS4a. El
+  resto
   (MB1 a MB4) es de la Fase 5.
 
 **Regla general**, como en WindowServer: donde la plataforma de referencia
@@ -42,7 +44,7 @@ desarrollo si la sección 10 lo registra con el hito que lo elimina.
    (`WindowServer/Legacy/WindowServer.m`) a SystemUIServer, que lo desarchiva
    y lo dibuja (`AppDelegate.m`, `NSMainMenuView.m`, `SubmenuView.m`). Un clic
    vuelve como un tag (`CODE_ITEM_CLICKED`) y la app busca el elemento por
-   ese tag. El servidor anterior desaparece en WS4, y este camino con él.
+   ese tag. El servidor anterior desaparece en WS4b, y este camino con él.
 3. **Se sobrescriben los tags de la app.** Antes de enviar, `_tagAllMenus`
    pone en cada elemento un ID interno como tag, así que fallan las apps que
    usan `tag`, `itemWithTag:` o `indexOfItemWithTag:`.
@@ -234,9 +236,9 @@ accesibilidad puedan leerlos y pulsarlos.
 
 | La necesita | Dependencia | Dónde |
 | --- | --- | --- |
-| MB0 | App del frente, orden de activación, sitio de la barra de menús, disposición de la zona de estado, captura del puntero | Plan de WindowServer, WS4 (sección 10.2) |
-| MB0 | `loginwindow` mínimo que atiende peticiones de reiniciar, apagar y cerrar sesión | Plan de WindowServer, sección 10.3 (WS4) |
-| MB0 | Tabla de atajos simbólicos con entrega a sus dueños (Control-F2 a la app del frente) | Plan de WindowServer, WS4 |
+| MB0 | App del frente, orden de activación, sitio de la barra de menús, disposición de la zona de estado, captura del puntero | Plan de WindowServer, WS4a (sección 10.2) |
+| MB0 | `loginwindow` mínimo que atiende peticiones de reiniciar, apagar y cerrar sesión | Plan de WindowServer, sección 10.3 (WS4b) |
+| MB0 | Tabla de atajos simbólicos con entrega a sus dueños (Control-F2 a la app del frente) | Plan de WindowServer, WS4a |
 | MB1 | SystemUIServer con las reglas de compilación actuales | FIXME de `CoreServices/Makefile` |
 | MB2 | Listas compartidas de archivos de LaunchServices, `NSWorkspace` | Fase 3 (LaunchServices); plan de WindowServer 10.2 |
 | MB3 | El LoginWindow completo (reposo, forzar salida, bloquear pantalla) | Fase 5, punto 1 |
@@ -251,7 +253,7 @@ Cada hito termina con pruebas que pasan, los gates existentes todavía en verde
 y el roadmap actualizado con la evidencia. Los hitos se llaman MB*n* para
 distinguirlos de los gates M*n*.
 
-- **MB0 — Menús en la app (parte de WS4).** Las vistas de menú pasan a
+- **MB0 — Menús en la app (parte de WS4b).** Las vistas de menú pasan a
   AppKit; una ventana de barra de menús por pantalla para la app del frente;
   seguimiento con clic, arrastre y teclado; submenús; validación y delegado
   al abrir; atajos en el orden documentado; menús contextuales y botones
@@ -260,7 +262,7 @@ distinguirlos de los gates M*n*.
   peticiones al `loginwindow` mínimo. Los status items como ventanas de su
   app con la API básica (`statusItemWithLength:`, `button`, `menu`,
   `length`). El camino anterior se elimina de AppKit y de SystemUIServer,
-  para que WS4 pueda quitar los códigos de relevo. Pruebas, añadidas al gate
+  para que WS4b pueda quitar los códigos de relevo. Pruebas, añadidas al gate
   M4: un clic por QMP abre el menú Archivo y la acción de un elemento se
   ejecuta en la app; un elemento desactivado (por validación) no hace nada;
   un atajo con Comando ejecuta su elemento; un menú contextual se abre con

@@ -21,8 +21,9 @@ side of its section 10.3.
   `NSMenuWindow`) moves into AppKit and is reworked there.
 - **Status items are rewritten** as windows of their own app.
 - **SystemUIServer only hosts the system's Menu Extras.**
-- **The first milestone, MB0, is part of WS4:** it is the menu work section
-  10.2 assigns to WS4, and WS4 is not closed until MB0 passes. The rest
+- **The first milestone, MB0, is part of WS4b:** it is the menu work section
+  10.2 assigns to the switch, and WS4b is not closed until MB0 passes. What
+  MB0 needs from the window server comes in WS4a. The rest
   (MB1 to MB4) is Phase 5.
 
 **Guiding rule**, as for WindowServer: where the reference platform has a
@@ -42,7 +43,7 @@ menus follow it. A shortcut is allowed during development only when section
    server (`WindowServer/Legacy/WindowServer.m`) to SystemUIServer, which
    unarchives and draws it (`AppDelegate.m`, `NSMainMenuView.m`,
    `SubmenuView.m`). A click comes back as a tag (`CODE_ITEM_CLICKED`) and
-   the app looks the item up by tag. The legacy server goes away in WS4, and
+   the app looks the item up by tag. The legacy server goes away in WS4b, and
    this path with it.
 3. **The app's tags are overwritten.** Before sending, `_tagAllMenus` sets
    every item's tag to an internal ID, so apps that use `tag`,
@@ -221,9 +222,9 @@ tools and the accessibility API can read and press them.
 
 | Needed by | Dependency | Where |
 | --- | --- | --- |
-| MB0 | Front app, activation order, the menu bar's place, status area layout, pointer capture | WindowServer plan, WS4 (section 10.2) |
-| MB0 | Minimal `loginwindow` taking restart, shut down and log out requests | WindowServer plan, section 10.3 (WS4) |
-| MB0 | Symbolic hotkey table with delivery to owners (Control-F2 to the front app) | WindowServer plan, WS4 |
+| MB0 | Front app, activation order, the menu bar's place, status area layout, pointer capture | WindowServer plan, WS4a (section 10.2) |
+| MB0 | Minimal `loginwindow` taking restart, shut down and log out requests | WindowServer plan, section 10.3 (WS4b) |
+| MB0 | Symbolic hotkey table with delivery to owners (Control-F2 to the front app) | WindowServer plan, WS4a |
 | MB1 | SystemUIServer on the current build rules | `CoreServices/Makefile` FIXME |
 | MB2 | LaunchServices' shared file lists, `NSWorkspace` | Phase 3 (LaunchServices); WindowServer plan 10.2 |
 | MB3 | The full LoginWindow (sleep, force quit, lock screen) | Phase 5, item 1 |
@@ -238,7 +239,7 @@ Each milestone ends with tests that pass, the existing gates still green and
 the roadmap updated with the evidence. Milestones are named MB*n* to keep
 them apart from the gates M*n*.
 
-- **MB0 — Menus in the app (part of WS4).** Menu views moved into AppKit;
+- **MB0 — Menus in the app (part of WS4b).** Menu views moved into AppKit;
   one menu bar window per display for the front app; tracking by click,
   drag and keyboard; submenus; validation and the delegate at open time;
   key equivalents in the documented order; context menus and pop-up
@@ -246,7 +247,7 @@ them apart from the gates M*n*.
   This Computer, Restart, Shut Down and Log Out as requests to the minimal
   `loginwindow`. Status items as windows of their app with the basic API
   (`statusItemWithLength:`, `button`, `menu`, `length`). The old path
-  removed from AppKit and SystemUIServer, so WS4 can drop the relay codes.
+  removed from AppKit and SystemUIServer, so WS4b can drop the relay codes.
   Tests, added to gate M4: a QMP click opens the File menu and an item's
   action runs in the app; a disabled item (by validation) does nothing; a
   Command-key equivalent fires its item; a context menu opens on

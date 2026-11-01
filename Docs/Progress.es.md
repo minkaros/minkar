@@ -146,5 +146,5 @@ flowchart LR
 El paso 1 está hecho (verde, 31 oct 2026); el paso 2 es el siguiente (azul): su
 primer hito, WS0, está hecho (el WindowServer actual dibuja ventanas de AppKit con
 entrada, gate M4-draw), y también WS1 (la interfaz y el servidor del núcleo nuevo
-en SkyLight.framework) WS2 (su compositor, gate M4-compose) y WS3 (entrada y event taps); siguen WS4 a WS6. G1 empieza en cuanto se decida la familia de GPU; las flechas discontinuas marcan lo
+en SkyLight.framework) WS2 (su compositor, gate M4-compose) y WS3 (entrada y event taps); siguen WS4a, WS4b, WS5 y WS6. G1 empieza en cuanto se decida la familia de GPU; las flechas discontinuas marcan lo
 que el frente de GPU reutiliza de los pasos 4 y 5.

@@ -146,6 +146,6 @@ flowchart LR
 Step 1 is done (green, 2026-10-31); step 2 is next (blue): its first milestone,
 WS0, is done (the current WindowServer draws AppKit windows with input, gate
 M4-draw), and so are WS1 (the new core's interface and server in
-SkyLight.framework) WS2 (its compositor, gate M4-compose) and WS3 (input and event taps); WS4 to WS6 follow. G1 starts
+SkyLight.framework) WS2 (its compositor, gate M4-compose) and WS3 (input and event taps); WS4a, WS4b, WS5 and WS6 follow. G1 starts
 as soon as the GPU family is decided; the dashed arrows mark what the GPU
 track reuses from steps 4 and 5.
