@@ -332,15 +332,22 @@ ACPIInterpreterPowerOff(void)
 	/* Each step is shown, to see on a PC where powering off stops. */
 	IOLog("ACPI: S5: _PTS\n");
 	if (ACPI_FAILURE(st = AcpiEnterSleepStatePrep(ACPI_STATE_S5))) {
-		IOLog("ACPI: S5 prepare: %s\n", AcpiFormatException(st));
-		return false;
+		/*
+		 * Minkar: _PTS failing does not stop the power off. On the
+		 * Mac Pro 6,1 it touches the embedded controller, which has no
+		 * handler here (AE_NOT_EXIST), and the machine stayed on. The
+		 * sleep type was read before _PTS ran, so S5 can still be
+		 * entered.
+		 */
+		IOLog("ACPI: S5 prepare: %s; powering off anyway\n", AcpiFormatException(st));
 	}
 	IOLog("ACPI: S5: SLP_TYP, SLP_EN\n");
 	istate = ml_set_interrupts_enabled(FALSE);
 	st = AcpiEnterSleepState(ACPI_STATE_S5);
 	ml_set_interrupts_enabled(istate);
 	IOLog("ACPI: S5: %s\n", AcpiFormatException(st));
-	return false;
+	/* Still on: write SLP_TYP and SLP_EN from the FADT ourselves. */
+	return powerOffDirect();
 }
 
 /* ---- PCI interrupt routing --------------------------------------------- */
