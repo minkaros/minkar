@@ -402,7 +402,9 @@ siguen siendo los del servidor actual, enlazados desde allí hasta WS4.
 - El arranque de la sesión sale de WindowServer.
 - Sección 10.2: menús y status items dibujados por AppKit de cada app;
   avisos de apps lanzadas, cerradas y activadas a través de LaunchServices y
-  `NSWorkspace`; los códigos de relevo eliminados de `message.h`.
+  `NSWorkspace`; los códigos de relevo eliminados de `message.h`. La parte
+  de los menús es el hito MB0 de [Menus.es.md](Menus.es.md); WS4 solo se
+  cierra cuando pasa MB0.
 - Sección 10.3: la ventana de login gestiona el fin de la sesión, en lo que
   necesita la Fase 4 (atajo hasta la Fase 5).
 - El núcleo nuevo pasa a ser el predeterminado; se borra `Legacy/`, y
@@ -539,6 +541,9 @@ uno pasa a donde lo tiene la plataforma de referencia:
 | App lanzada o cerrada, reenviado al Dock y a SystemUIServer (`CODE_APP_LAUNCHED`, `CODE_APP_EXITED`) | LaunchServices y las notificaciones de `NSWorkspace` (`NSWorkspaceDidLaunchApplicationNotification`, `NSWorkspaceDidTerminateApplicationNotification`, `NSWorkspaceDidActivateApplicationNotification`) |
 | Elementos recientes (`CODE_ADD_RECENT_ITEM`) | Las listas de archivos compartidas de LaunchServices, a través de `NSDocumentController` |
 
+Las filas de menús, status items y elementos recientes se planifican en
+detalle en [Menus.es.md](Menus.es.md).
+
 WindowServer se queda solo con lo suyo: la app del frente, el orden de
 activación, las ventanas key y main, y el lugar de la barra de menús en la
 pantalla. Después de WS4 se eliminan los códigos de relevo de `message.h`, y
@@ -564,3 +569,6 @@ Como en la plataforma de referencia, la ventana de login gestiona la sesión:
 La Fase 4 solo necesita el `loginwindow` mínimo de la sección 9 (fin de la
 sesión y `reboot(2)`), marcado `// SHORTCUT(WS4):`; la ventana de login
 completa es de la Fase 5.
+
+El menú del sistema que envía estas peticiones se planifica en
+[Menus.es.md](Menus.es.md) (MB0 y MB3).

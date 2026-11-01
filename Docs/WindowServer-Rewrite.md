@@ -367,7 +367,8 @@ server's, linked from there until WS4.
 - Session start moved out of WindowServer.
 - Section 10.2: menus and status items drawn by each app's AppKit; launch,
   exit and activation news through LaunchServices and `NSWorkspace`; the
-  relay codes removed from `message.h`.
+  relay codes removed from `message.h`. The menu part is milestone MB0 of
+  [Menus.md](Menus.md); WS4 closes only when MB0 passes.
 - Section 10.3: the login window manages the session's end, as far as
   Phase 4 needs (shortcut until Phase 5).
 - The new core becomes the default; `Legacy/` is removed, and so are the
@@ -501,6 +502,9 @@ to where the reference platform keeps it:
 | App launched or exited, forwarded to the Dock and SystemUIServer (`CODE_APP_LAUNCHED`, `CODE_APP_EXITED`) | LaunchServices and the `NSWorkspace` notifications (`NSWorkspaceDidLaunchApplicationNotification`, `NSWorkspaceDidTerminateApplicationNotification`, `NSWorkspaceDidActivateApplicationNotification`) |
 | Recent items (`CODE_ADD_RECENT_ITEM`) | LaunchServices' shared file lists, through `NSDocumentController` |
 
+The menu, status item and recent item rows are planned in detail in
+[Menus.md](Menus.md).
+
 WindowServer keeps only what is its own: the front app, activation order,
 key and main windows, and the menu bar's place on screen. After WS4 the
 relay codes are removed from `message.h`, and `message.h` itself goes away
@@ -525,3 +529,6 @@ As on the reference platform, the login window manages the session:
 
 Phase 4 only needs the minimal `loginwindow` of section 9 (session end and
 `reboot(2)`), marked `// SHORTCUT(WS4):`; the full login window is Phase 5.
+
+The system menu that sends these requests is planned in [Menus.md](Menus.md)
+(MB0 and MB3).

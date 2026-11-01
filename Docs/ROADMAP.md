@@ -329,8 +329,8 @@ Step 1 was done on 2026-10-31 (`e2df542919`, `2aa9a1da6e`), and step 2's first m
 Goal: a complete graphical session in the Gienah visual language, with login, a global menu bar, Dock, desktop icons and preferences. The order follows what the user sees at boot.
 
 1. **LoginWindow:** authentication against this phase's user service (Directory Services, below) and session start (the user's `LaunchAgents`).
-2. **SystemUIServer and the menu bar:** the active app's menu through WindowServer, plus a public Menu Extras and `NSStatusItem` API (official priority).
-3. **Basic Menu Extras:** volume, displays, network, clock, notifications. Each one a loadable bundle, not built into SystemUIServer.
+2. **Menu bar and SystemUIServer:** each app's AppKit draws its own menu bar and menus; status items are windows of their apps; SystemUIServer hosts the Menu Extras. Plan: [Menus.md](Menus.md) (MB0 in WS4, MB1 to MB4 here).
+3. **Basic Menu Extras:** volume, displays, network, clock, notifications. Each one a loadable bundle, not built into SystemUIServer. Plan: [Menus.md](Menus.md) (MB1).
 4. **Dock:** launcher, open apps, minimizing and wallpaper, on LaunchServices. Plan: [Dock-Kraz.md](Dock-Kraz.md) (D0–D4).
 5. **Kraz:** a new pure Cocoa app. Browsing with LaunchServices, mounting through DiskArbitration, desktop icons, Trash and "Open With". Plan: [Dock-Kraz.md](Dock-Kraz.md) (K0–K4).
 6. **System Preferences:** host app + `.prefPane` bundle loader (`NSPreferencePane`). First panes: Displays, Keyboard, Users, Network, Date & Time.
