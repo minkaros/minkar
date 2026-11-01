@@ -41,6 +41,12 @@ subsystem WindowServer 29000;
 userprefix ws_;
 serverprefix wss_;
 
+import "WindowServerTypes.h";
+
+type ws_display_list_t = array[*:32] of uint32_t;
+type ws_display_info_t = struct[24] of uint32_t
+	ctype: SLSDisplayInfo;
+
 /*
  * Opens a connection: the server records the client's PID and user from
  * the message's audit token and answers with the interface version and
@@ -51,3 +57,23 @@ routine connect(
 	ServerAuditToken token	: audit_token_t;
 	out version		: uint32_t;
 	out connection		: int32_t);
+
+/* ---- Displays (the CGDirectDisplay API) ---- */
+
+/* The main display: the one with the menu bar, at the global origin. */
+routine main_display(
+	server			: mach_port_t;
+	out display		: uint32_t);
+
+/* The displays online (which = 0) or active, that is drawable (which = 1). */
+routine display_list(
+	server			: mach_port_t;
+	which			: uint32_t;
+	out displays		: ws_display_list_t);
+
+/* One display's bounds, state and identity; result is an SLS error. */
+routine display_info(
+	server			: mach_port_t;
+	display			: uint32_t;
+	out result		: int32_t;
+	out info		: ws_display_info_t);

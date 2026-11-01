@@ -13,16 +13,16 @@ WARNS ?= 2
 MK_PIE = no
 MK_DEBUG_FILES = no
 PROG =	WindowServer
-SRCS =	main.m WindowServerServer.c
+SRCS =	main.m WSDisplay.m WindowServerServer.c
 MAN =
 SKYLIGHT = ${.CURDIR}/..
 RESOURCES = /System/Library/PrivateFrameworks/SkyLight.framework/Versions/A/Resources
 CFLAGS += --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
 	-fobjc-arc -Wno-nullability-completeness -Wno-incompatible-sysroot \
-	-I${.OBJDIR} -I${SKYLIGHT}
+	-I${.OBJDIR} -I${SKYLIGHT} -I${SKYLIGHT}/IPC
 LDFLAGS += --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
 	-fuse-ld=${LD}
-LDADD += -framework Foundation -lbsm -lobjc
+LDADD += -framework Foundation -framework IOKit -framework CoreFoundation -lbsm -lobjc
 CLEANFILES += WindowServerServer.c WindowServerServer.h
 
 # The server side of the MIG interface.
@@ -32,7 +32,7 @@ WindowServerServer.c WindowServerServer.h: ${SKYLIGHT}/IPC/WindowServer.defs
 	    -header /dev/null -user /dev/null -server WindowServerServer.c \
 	    -sheader WindowServerServer.h ${.ALLSRC}
 
-main.o: WindowServerServer.h
+main.o WSDisplay.o: WindowServerServer.h
 
 all: to-sysroot
 

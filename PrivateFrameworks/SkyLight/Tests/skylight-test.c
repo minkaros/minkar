@@ -62,11 +62,75 @@ testConnection(void)
 	check(SLSMainConnectionID() == cid, "the main connection is kept", NULL);
 }
 
+static int
+inList(SLSDisplayID display, const SLSDisplayID *list, uint32_t n)
+{
+	for (uint32_t i = 0; i < n; i++)
+		if (list[i] == display)
+			return 1;
+	return 0;
+}
+
+static void
+testDisplays(void)
+{
+	char detail[128];
+	SLSDisplayID main = SLSMainDisplayID(), list[32];
+	SLSDisplayInfo info;
+	uint32_t n = 0;
+	int err;
+
+	snprintf(detail, sizeof(detail), "0x%x", main);
+	check(main != 0, "the main display is known", detail);
+
+	err = SLSGetOnlineDisplayList(32, list, &n);
+	snprintf(detail, sizeof(detail), "%u displays", n);
+	check(err == kSLSErrorSuccess && n > 0 && inList(main, list, n),
+	    "the main display is online", detail);
+	err = SLSGetActiveDisplayList(32, list, &n);
+	check(err == kSLSErrorSuccess && n > 0 && inList(main, list, n),
+	    "the main display is active", NULL);
+	n = 0;
+	err = SLSGetActiveDisplayList(0, NULL, &n);
+	check(err == kSLSErrorSuccess && n > 0, "the display count alone", NULL);
+
+	err = SLSGetDisplayInfo(main, &info);
+	snprintf(detail, sizeof(detail), "%.0f,%.0f %.0fx%.0f", info.x, info.y,
+	    info.width, info.height);
+	check(err == kSLSErrorSuccess && info.display == main && info.x == 0 &&
+	    info.y == 0 && info.width > 0 && info.height > 0,
+	    "the main display's bounds start at the origin", detail);
+	snprintf(detail, sizeof(detail), "0x%x", info.flags);
+	check((info.flags & (kSLSDisplayOnline | kSLSDisplayActive | kSLSDisplayMain)) ==
+	    (kSLSDisplayOnline | kSLSDisplayActive | kSLSDisplayMain),
+	    "the main display is online, active and main", detail);
+	snprintf(detail, sizeof(detail), "%.0fx%.0f mm", info.widthMM, info.heightMM);
+	check(info.widthMM > 0 && info.heightMM > 0, "the physical size is known", detail);
+	check(info.primary == main && info.mirrorOf == 0, "the main display is not mirrored",
+	    NULL);
+
+	n = 0;
+	err = SLSGetDisplaysWithPoint(10, 10, 32, list, &n);
+	check(err == kSLSErrorSuccess && n >= 1 && inList(main, list, n),
+	    "a point near the origin is on the main display", NULL);
+	n = 1;
+	err = SLSGetDisplaysWithPoint(-10, -10, 32, list, &n);
+	check(err == kSLSErrorSuccess && n == 0, "a point left of the origin is on none", NULL);
+	n = 0;
+	err = SLSGetDisplaysWithRect(-50, -50, 100, 100, 32, list, &n);
+	check(err == kSLSErrorSuccess && n >= 1 && inList(main, list, n),
+	    "a rect over the origin meets the main display", NULL);
+
+	err = SLSGetDisplayInfo(0xdeadbeef, &info);
+	check(err == kSLSErrorIllegalArgument, "an unknown display is refused", NULL);
+}
+
 int
 main(void)
 {
 	setvbuf(stdout, NULL, _IOLBF, 0);
 	testConnection();
+	testDisplays();
 	printf("skylight-test: %d passed, %d failed\n", passed, failed);
 	return failed;
 }

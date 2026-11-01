@@ -61,6 +61,61 @@ SLSConnectionID SLSMainConnectionID(void);
  * client functions. */
 mach_port_t SLSServerPort(void);
 
+/* ---- Displays (the CGDirectDisplay API) ------------------------------- */
+
+/* Results, with the values of the public CGError. */
+enum {
+	kSLSErrorSuccess	= 0,
+	kSLSErrorFailure	= 1000,
+	kSLSErrorIllegalArgument = 1001,
+	kSLSErrorRangeCheck	= 1007,
+};
+
+typedef uint32_t SLSDisplayID;
+
+/* SLSDisplayInfo.flags */
+enum {
+	kSLSDisplayActive	= 1 << 0,
+	kSLSDisplayOnline	= 1 << 1,
+	kSLSDisplaySleeping	= 1 << 2,
+	kSLSDisplayMirrored	= 1 << 3,
+	kSLSDisplayPrimary	= 1 << 4,
+	kSLSDisplayMain		= 1 << 5,
+	kSLSDisplayBuiltin	= 1 << 6,
+	kSLSDisplayStereo	= 1 << 7,
+	kSLSDisplayHWMirror	= 1 << 8,
+};
+
+/* Everything the server knows about one display, in one reply. Bounds are
+ * in global coordinates (points), the main display at the origin. */
+typedef struct SLSDisplayInfo {
+	SLSDisplayID	display;
+	uint32_t	flags;
+	double		x, y, width, height;
+	uint32_t	vendor, model, serial, unit;
+	double		rotation;		/* degrees, clockwise */
+	double		widthMM, heightMM;	/* physical size */
+	SLSDisplayID	mirrorOf;		/* 0 when not a mirror */
+	SLSDisplayID	primary;		/* of its mirror set */
+	uint32_t	openGLMask;
+	uint32_t	reserved;
+} SLSDisplayInfo;
+
+/* The size the MIG interface carries (IPC/WindowServer.defs). */
+#define kSLSDisplayInfoWords	24
+#ifndef __cplusplus
+_Static_assert(sizeof(SLSDisplayInfo) == kSLSDisplayInfoWords * 4, "SLSDisplayInfo size");
+#endif
+
+SLSDisplayID SLSMainDisplayID(void);
+int SLSGetOnlineDisplayList(uint32_t max, SLSDisplayID *displays, uint32_t *count);
+int SLSGetActiveDisplayList(uint32_t max, SLSDisplayID *displays, uint32_t *count);
+int SLSGetDisplaysWithPoint(double x, double y, uint32_t max, SLSDisplayID *displays,
+    uint32_t *count);
+int SLSGetDisplaysWithRect(double x, double y, double width, double height,
+    uint32_t max, SLSDisplayID *displays, uint32_t *count);
+int SLSGetDisplayInfo(SLSDisplayID display, SLSDisplayInfo *info);
+
 #ifdef __cplusplus
 }
 #endif

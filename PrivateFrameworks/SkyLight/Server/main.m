@@ -43,8 +43,12 @@
 #include <stdio.h>
 #include "SkyLight.h"
 #include "WindowServerServer.h"	/* MIG server side */
+#import "WSDisplay.h"
 
 static int32_t nextConnection = 1;
+
+/* The displays, found at startup; the first is the main display. */
+static NSArray<WSDisplay *> *displays;
 
 kern_return_t
 wss_connect(mach_port_t server, audit_token_t token, uint32_t *version,
@@ -54,6 +58,54 @@ wss_connect(mach_port_t server, audit_token_t token, uint32_t *version,
 	*connection = nextConnection++;
 	fprintf(stderr, "WindowServer: connection %d from pid %d (uid %u)\n",
 	    *connection, audit_token_to_pid(token), audit_token_to_euid(token));
+	return KERN_SUCCESS;
+}
+
+/* ---- Displays ---- */
+
+static WSDisplay *
+displayWithID(uint32_t ID)
+{
+	for (WSDisplay *d in displays)
+		if (d.displayID == ID)
+			return d;
+	return nil;
+}
+
+kern_return_t
+wss_main_display(mach_port_t server, uint32_t *display)
+{
+	*display = displays.firstObject.displayID;
+	return KERN_SUCCESS;
+}
+
+kern_return_t
+wss_display_list(mach_port_t server, uint32_t which, ws_display_list_t list,
+    mach_msg_type_number_t *count)
+{
+	uint32_t want = (which == 0) ? kSLSDisplayOnline : kSLSDisplayActive;
+	mach_msg_type_number_t n = 0;
+
+	for (WSDisplay *d in displays)
+		if ((d.flags & want) && n < 32)
+			list[n++] = d.displayID;
+	*count = n;
+	return KERN_SUCCESS;
+}
+
+kern_return_t
+wss_display_info(mach_port_t server, uint32_t display, int32_t *result,
+    SLSDisplayInfo *info)
+{
+	WSDisplay *d = displayWithID(display);
+
+	memset(info, 0, sizeof(*info));
+	if (d == nil) {
+		*result = kSLSErrorIllegalArgument;
+		return KERN_SUCCESS;
+	}
+	[d getInfo:info];
+	*result = kSLSErrorSuccess;
 	return KERN_SUCCESS;
 }
 
@@ -69,6 +121,12 @@ main(int argc, char *argv[])
 		fprintf(stderr, "WindowServer: cannot check in %s: 0x%x\n", kSLSServiceName, kr);
 		return 1;
 	}
+
+	displays = [WSDisplay availableDisplays];
+	for (WSDisplay *d in displays)
+		fprintf(stderr, "WindowServer: display 0x%x %ux%u (%.0fx%.0f mm)%s\n",
+		    d.displayID, d.width, d.height, d.widthMM, d.heightMM,
+		    (d.flags & kSLSDisplayMain) ? " main" : "");
 
 	/* The IPC queue: requests are served in order, one at a time. */
 	dispatch_queue_t ipc = dispatch_queue_create("org.minkar.WindowServer.ipc",

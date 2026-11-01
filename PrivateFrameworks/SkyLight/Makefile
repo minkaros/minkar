@@ -13,9 +13,9 @@ FMWK_INSTALL_DIR = /System/Library/PrivateFrameworks
 SUBDIR =
 MK_WERROR = no
 
-SRCS = SLSConnection.c WindowServerUser.c
+SRCS = SLSConnection.c SLSDisplay.c WindowServerUser.c
 HEADERS = SkyLight.h
-CFLAGS += -I${.OBJDIR} -I${.CURDIR}
+CFLAGS += -I${.OBJDIR} -I${.CURDIR} -I${.CURDIR}/IPC
 CLEANFILES += WindowServerUser.c WindowServer.h
 
 # The client side of the MIG interface.
@@ -25,7 +25,7 @@ WindowServerUser.c WindowServer.h: ${.CURDIR}/IPC/WindowServer.defs
 	    -user WindowServerUser.c -header WindowServer.h \
 	    -server /dev/null -sheader /dev/null ${.ALLSRC}
 
-SLSConnection.o: WindowServer.h
+SLSConnection.o SLSDisplay.o: WindowServer.h
 
 fmwk-install-hook:
 	mkdir -p ${MINKAR_SDKROOT}${FMWK_INSTALL_DIR} ${SYSROOT_DIR}${FMWK_INSTALL_DIR}
