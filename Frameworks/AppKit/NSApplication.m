@@ -556,14 +556,8 @@ static NSMenuItem *itemWithTag(NSMenu *root, int tag) {
 
    pthread_mutex_init(_lock,NULL);
 
-   // We can't display the splash until WindowServer gives us a real display to use. This will
-   // come as a mach msg processed by the service loop. Keep polling display until it is ready
-   // FIXME: need a timeout here?
-    //NSLog(@"waiting for display to become ready");
-    while([_display isReady] == NO) {
-        usleep(10000);
-    }
-
+   // NSDisplay asked WindowServer for the displays when it was created
+   // (CGGetActiveDisplayList), so they are there already.
     [self _showSplashImage];
 
    return NSApp;
@@ -868,7 +862,6 @@ static int _tagAllMenus(NSMenu *menu, int tag) {
         NSLog(@"Failed to send menus to WS");
 
     [menuCopy release];
-    [d release];
 }
 
 - (void)addRecentItem:(NSURL *)url {
