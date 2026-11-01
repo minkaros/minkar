@@ -11,7 +11,7 @@ Colores: verde hecho, amarillo parcial o en curso, gris sin empezar.
 ```mermaid
 flowchart LR
     P0["Fase 0<br/>Build, toolchain, CI<br/><b>M0 cumplido</b>"]:::done
-    P1["Fase 1<br/>Arranque Darwin<br/><b>M1: falta el PC 2</b>"]:::partial
+    P1["Fase 1<br/>Arranque Darwin<br/><b>M1 cumplido</b>"]:::done
     P2["Fase 2<br/>Userland base<br/><b>M2 cumplido, cerrada</b>"]:::done
     P3["Fase 3<br/>Frameworks y Swift<br/><b>M3</b>"]:::partial
     P4["Fase 4<br/>Gráficos, WindowServer<br/><b>M4</b>"]:::partial

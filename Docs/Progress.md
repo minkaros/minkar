@@ -11,7 +11,7 @@ Colours: green done, yellow partial or in progress, grey not started.
 ```mermaid
 flowchart LR
     P0["Phase 0<br/>Build, toolchain, CI<br/><b>M0 met</b>"]:::done
-    P1["Phase 1<br/>Darwin boot<br/><b>M1: PC 2 missing</b>"]:::partial
+    P1["Phase 1<br/>Darwin boot<br/><b>M1 met</b>"]:::done
     P2["Phase 2<br/>Base userland<br/><b>M2 met, closed</b>"]:::done
     P3["Phase 3<br/>Frameworks and Swift<br/><b>M3</b>"]:::partial
     P4["Phase 4<br/>Graphics, WindowServer<br/><b>M4</b>"]:::partial

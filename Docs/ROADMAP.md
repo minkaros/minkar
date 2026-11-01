@@ -78,7 +78,7 @@ Minkar's performance must be equal to or better than the reference system's on t
 | --- | --- | --- |
 | QEMU VM (TCG and KVM) | Development and CI | Functional; software paths (pixman, lavapipe, llvmpipe) allowed as scaffolding |
 | PC 1: Gigabyte H270N-WIFI, i7-7700 | First physical machine; boots to login from SATA or NVMe | Functional and performance, against the reference system |
-| PC 2 | To be chosen; to measure the reference, the vendor's original hardware (candidate: Mac Pro 6,1) | Same |
+| PC 2 | Mac Pro 6,1 (2026-11-01): Minkar's second PC (gate M1), and the vendor's original hardware to measure the reference | Same |
 
 - **How it is measured:** Minkar and the reference system on the same machine (dual boot), with the same benchmarks run over SSH. The reference system is measured only on its vendor's original hardware (candidate: Mac Pro 6,1), as its license allows no other, and its values are kept out of the public repository.
 - **Consequence:** if the reference is measured only on the Mac Pro 6,1, Minkar must be measured there too, and its GPU (FirePro D300, GCN 1.0, the oldest and least maturely supported) becomes the first high-performance driver's.
@@ -90,7 +90,7 @@ Minkar boots on Darwin with its own EFI loader, the whole system builds as Mach-
 
 | Component | State | What is missing | Phase |
 | --- | --- | --- | --- |
-| EFI loader + Darwin kernel | Boots in QEMU (TCG and KVM) and on PC 1, from SATA or NVMe; SMP with every CPU; the power button shuts down in order | PC 2, AMD processors, MSI-X | 1 |
+| EFI loader + Darwin kernel | Boots in QEMU (TCG and KVM), on PC 1 from SATA or NVMe, and on PC 2 (Mac Pro 6,1) from NVMe; SMP with every CPU (24 threads on PC 2); the power button shuts down in order | AMD processors, MSI-X | 1 |
 | System build | Full `world`; CI builds and boots it on `main` and by hand | — (M0 met) | 0 |
 | libSystem | The reference apps find all their libSystem imports (308 of 308); `os_log` writes to syslogd; `@available` compares against `ProductVersion`; dyld's @rpath, @loader\_path and re-exports tested | Noisy stubs, `logd`, dyld's shared cache | 3 |
 | launchd / launchctl | launchd-842 as PID 1; launchctl with kickstart; `KeepAlive PathState`, `WatchPaths` and `QueueDirectories` | Nothing | 2 (closed) |
@@ -143,14 +143,14 @@ Goal: XNU boots on a generic x86-64 PC up to PID 1 with the root disk mounted. I
 - [x] Boot in QEMU with KVM and TCG. *Partial:* CI runners still use TCG only.
 - [x] SMP (2026-10-30): every CPU the MADT enables runs. On PC 1, eight threads (`hw.ncpu` 8, 4 physical); in QEMU tested with 2 to 64 processors and several topologies.
 - [x] Power button (2026-10-31): IOACPIFamily takes ACPI's fixed event or the PNP0C0C device and `powerd` asks for an orderly shutdown; on PC 1 the machine powers off. `shutdown` and `reboot` take about 2 s (20 s before, because of diskarbitrationd), and the test images boot with `msgbuf=1048576`.
-- [ ] Reference hardware list ([Hardware.md](Hardware.md)). *In progress:* PC 1 documented; PC 2 not chosen.
+- [x] Reference hardware list ([Hardware.md](Hardware.md)): PC 1 and PC 2 (Mac Pro 6,1, 2026-11-01) documented; AMD below.
 - [ ] More than 64 processors and x2APIC (after Minkar 19.6.0); a larger machine runs on its first 64 today.
 - [ ] AMD processors: the kernel recognizes them, but Minkar has never run on one. First in QEMU with `-cpu EPYC`, then on an AMD PC.
 - [ ] Boot without `pci_keep_console=1`; IOKit takes more than 30 s to go quiet.
 - [ ] IPv6 on PC 1's network: RDNSS and DNS answers over IPv6, which QEMU's user network does not give (moved from Phase 2 on 2026-10-31).
 - [ ] PC 1's Wi-Fi (Intel, M.2): no driver.
 
-* [ ] **Exit gate (M1):** met in QEMU and on PC 1 (from SATA and from NVMe, with SMP). A second PC is missing.
+* [x] **Exit gate (M1):** met in QEMU, on PC 1 (from SATA and from NVMe, with SMP) and on PC 2, a Mac Pro 6,1 (2026-11-01: from NVMe, 24 threads under load, 40 GB, storage and a reboot pass in `minkar-hwcheck`; `9c3dbe9873`, `c129adf018`, `e9a4446222`).
 
 ## Phase 2 — Base userland
 
@@ -403,10 +403,10 @@ Goal after Minkar 19.6.0: run x86-64 binaries built for the reference platform w
 
 Critical path: Phase 0 (M0) → Phase 1 (M1) → Phase 2 (M2) → Phase 3 (M3) → Phase 4 (M4) → Phase 5 (M5) → Phase 6 (M6, Minkar 19.6.0); Phase 7 (M7) and Minkar 21.0's performance run apart.
 
-M0 and M2 are met, M1 waits only for the second PC, and Phase 2 is closed (2026-10-31). Active work is in Phases 3 and 4, which must close before Gienah. The GPU track starts in parallel and feeds Minkar 21.0's performance requirement: equal to or better than the reference system on the same machine. Phase 7 comes after Minkar 19.6.0.
+M0, M1 and M2 are met (M1 on 2026-11-01, with the Mac Pro 6,1 as PC 2), and Phase 2 is closed (2026-10-31). Active work is in Phases 3 and 4, which must close before Gienah. The GPU track starts in parallel and feeds Minkar 21.0's performance requirement: equal to or better than the reference system on the same machine. Phase 7 comes after Minkar 19.6.0.
 
 - [x] M0 — Build, toolchain, CI
-- [ ] M1 — Darwin boot (only PC 2 is missing)
+- [x] M1 — Darwin boot
 - [x] M2 — Base userland
 - [ ] M3 — Frameworks and Swift
 - [ ] M4 — Graphics and WindowServer (WS0 to WS3 done)
@@ -418,7 +418,7 @@ M0 and M2 are met, M1 waits only for the second PC, and Phase 2 is closed (2026-
 | Gate | Phase | State on 2026-10-31 |
 | --- | --- | --- |
 | M0 | Build, toolchain, CI | Met (CI green since `05fa75cb65`) |
-| M1 | Darwin boot | Met in QEMU and on PC 1 (SATA, NVMe, SMP); PC 2 missing |
+| M1 | Darwin boot | Met in QEMU, on PC 1 (SATA, NVMe, SMP) and on PC 2, a Mac Pro 6,1 (NVMe, 24 threads; 2026-11-01) |
 | M2 | Base userland | Met (`boottest GATE=M2`, 17 markers since 2026-11-01, with the code integrity check); Phase 2 closed on 2026-10-31 |
 | M3 | Frameworks and Swift | Not started; prior work in Foundation and libSystem |
 | M4 | Graphics and WindowServer | In progress: WS0 done (gate `M4-draw` passes, `cce7da92bc`); WS1 done (`skylight-test` 115/0, `030dba37c7`); WS2 done (gate `M4-compose` passes, `8512fe60ba`); WS3 done (input, `98237bf14e`); WS4a next, then WS4b |
@@ -447,7 +447,7 @@ The dominant risk is people, not technology: a small team with many layers open 
 In critical-path order:
 
 - [x] **PC 1 (Phase 1):** NVMe (boots from the SSD) and SMP (all eight threads run), 2026-10-29 and 30; power button and ACPI S5 power-off, 2026-10-31.
-- [ ] **PC 1 (Phase 1):** boot without `pci_keep_console`, IPv6 on the network (RDNSS, DNS over IPv6) and ACPI S3 sleep; then a second, different PC (gate M1; to measure the reference, the Mac Pro 6,1; the machine with the RX 6600, as a test machine).
+- [ ] **PC 1 (Phase 1):** boot without `pci_keep_console`, IPv6 on the network (RDNSS, DNS over IPv6) and ACPI S3 sleep; the machine with the RX 6600 as a further test machine. (The second PC of gate M1 is the Mac Pro 6,1, 2026-11-01.)
 - [x] **Userland (Phase 2):** closed on 2026-10-31 (exFAT reading and writing, `launchctl kickstart`, dyld paths, notifyd and IPv6 tested; the rest went to Phases 3, 5 and 6).
 - [x] **Phase 4:** IOHIDSystem event delivery in the kernel (`e2df542919`), the `ApplePS2Mouse` driver (`2aa9a1da6e`) and WindowServer's input reader (`ab71ce75a4`), 2026-10-31; tests `hid-events` 9/0, `ps2-mouse` 12/0, `windowserver` 6/0, the console tests and M2 pass (full suite 2991 passed after (a)).
 - [x] **Phase 4:** install WindowServer's job and get a first boot that draws on `IOGOPFramebuffer` (WS0, 2026-10-31): the job is installed disabled (`f56c70bb88`); enabled, WindowServer draws a demo AppKit window that gets a click and a key; gate `M4-draw` (`cce7da92bc`).
