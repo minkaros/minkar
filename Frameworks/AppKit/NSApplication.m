@@ -14,6 +14,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <Foundation/NSSocket_bsd.h>
 #import <Foundation/NSSelectInputSource.h>
 #import <AppKit/NSApplication.h>
+#include <SkyLight/SkyLight.h>
 #import <AppKit/NSWindow-Private.h>
 #import <AppKit/NSPanel.h>
 #import <AppKit/NSMenu.h>
@@ -150,6 +151,81 @@ static NSMenuItem *itemWithTag(NSMenu *root, int tag) {
         }
     }
     return nil;
+}
+
+/*
+ * Events from the new window server (WindowServer plan, WS3): a thread
+ * waits for them through SkyLight, makes NSEvents and posts them, as
+ * machServiceLoop: does for the legacy server.
+ */
+extern int _CGUsesSkyLight(void);
+extern NSWindow *_NSWindowForSLSWindow(SLSWindowID window);
+
+-(void)_postSkyLightEvent:(SLSEvent *)e {
+    static CGFloat height;
+    NSWindow *window = _NSWindowForSLSWindow(e->window);
+    NSEvent *event = nil;
+
+    if(window == nil)
+        return;
+    if(height == 0)
+        height = CGDisplayBounds(CGMainDisplayID()).size.height;
+    /* Global, from the top left, to the window's own coordinates. */
+    NSRect frame = [window frame];
+    NSPoint location = NSMakePoint(e->x - frame.origin.x, (height - e->y) - frame.origin.y);
+
+    switch(e->type) {
+        case kSLSEventKeyDown:
+        case kSLSEventKeyUp:
+        case kSLSEventFlagsChanged:
+            event = [NSEvent keyEventWithType:e->type location:location
+                modifierFlags:e->flags window:window
+                characters:[NSString stringWithUTF8String:e->characters]
+                charactersIgnoringModifiers:[NSString stringWithUTF8String:e->charactersIgnoringModifiers]
+                isARepeat:e->isRepeat keyCode:e->keyCode];
+            break;
+        case kSLSEventLeftMouseDown: case kSLSEventLeftMouseUp:
+        case kSLSEventRightMouseDown: case kSLSEventRightMouseUp:
+        case kSLSEventOtherMouseDown: case kSLSEventOtherMouseUp:
+        case kSLSEventMouseMoved:
+        case kSLSEventLeftMouseDragged: case kSLSEventRightMouseDragged:
+        case kSLSEventOtherMouseDragged:
+            event = [NSEvent mouseEventWithType:e->type location:location
+                modifierFlags:e->flags window:window clickCount:e->clickCount
+                deltaX:e->dx deltaY:e->dy];
+            break;
+        case kSLSEventScrollWheel:
+            event = [NSEvent mouseEventWithType:NSScrollWheel location:location
+                modifierFlags:e->flags window:window deltaY:e->scrollY];
+            break;
+        case kSLSEventWindowMoved:
+            event = [NSEvent otherEventWithType:NSAppKitDefined location:NSZeroPoint
+                modifierFlags:0 timestamp:0 windowNumber:[window windowNumber] context:nil
+                subtype:NSWindowMovedEventType data1:(NSInteger)e->x data2:(NSInteger)e->y];
+            break;
+        default:
+            return;
+    }
+    [_display postEvent:event atStart:NO];
+}
+
+-(void)skyLightEventLoop:(id)object {
+    SLSEvent events[kSLSMaxEvents];
+
+    for(;;) {
+        uint32_t n = 0;
+
+        if(SLSReceiveEvents(events, kSLSMaxEvents, &n, 1) != kSLSErrorSuccess) {
+            sleep(1);
+            continue;
+        }
+        NSAutoreleasePool *pool = [NSAutoreleasePool new];
+        for(uint32_t i = 0; i < n; i++)
+            [self _postSkyLightEvent:&events[i]];
+        [pool release];
+        if(n > 0 && [self _wakeUp] < 0)
+            NSLog(@"Error waking runloop - write: %s", strerror(errno));
+    }
 }
 
 -(void)machServiceLoop:(id)object {
@@ -524,8 +600,9 @@ static NSMenuItem *itemWithTag(NSMenu *root, int tag) {
     if(bundleID == nil)
         bundleID = [NSString stringWithFormat:@"unix.%u", getpid()];
    /* With the new window server (no legacy service), SkyLight is the
-    * connection; events through it come with WS3 (WindowServer plan). */
-   extern int _CGUsesSkyLight(void);
+    * connection, and its events come through skyLightEventLoop:. */
+   if(_CGUsesSkyLight())
+       [NSThread detachNewThreadSelector:@selector(skyLightEventLoop:) toTarget:self withObject:nil];
    if(!([bundleID isEqualToString:@"org.minkar.WindowServer"]) && !_CGUsesSkyLight()) {
         NSLog(@"Finding service %s (%u)", WINDOWSERVER_SVC_NAME, bootstrap_port);
         if(bootstrap_look_up(bootstrap_port, WINDOWSERVER_SVC_NAME, &_wsSvcPort) != KERN_SUCCESS) {
@@ -1236,9 +1313,13 @@ static int _tagAllMenus(NSMenu *menu, int tag) {
      nextEvent=[_display nextEventMatchingMask:mask untilDate:untilDate inMode:mode dequeue:dequeue];
 
      /* NSDisplay's placeholder for "no event": autoreleased, so it is
-      * only dropped here (releasing it too freed it twice). */
+      * only dropped here (releasing it too freed it twice). A real event
+      * is retained now: it is autoreleased in this loop's pool, released
+      * below, and the display's queue no longer holds it. */
      if([nextEvent type]==NSAppKitSystem)
       nextEvent=nil;
+     else
+      [nextEvent retain];
 
    NS_HANDLER
     [self reportException:localException];
@@ -1248,6 +1329,8 @@ static int _tagAllMenus(NSMenu *menu, int tag) {
    }while(nextEvent==nil && [untilDate timeIntervalSinceNow]>0);
 
    if(nextEvent!=nil){
+    /* The loop's reference is the one autoreleased below; this one is
+     * _currentEvent's. */
     nextEvent=[nextEvent retain];
 
     pthread_mutex_lock(_lock);
