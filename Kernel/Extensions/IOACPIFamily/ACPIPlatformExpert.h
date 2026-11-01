@@ -128,6 +128,12 @@ class ACPIPlatformExpert : public IOPlatformExpert {
     void parseMCFG(void * table, IOService * nub);
     static int handlePEHaltRestart(unsigned int type);
     IOService * createNub(OSDictionary *dict);
+ public:
+    /* Keeps the first I/O APIC's controller as it registers, for
+     * handleInterrupt (which cannot look it up in interrupt context). */
+    virtual IOReturn registerInterruptController(OSSymbol *name,
+        IOInterruptController *interruptController) APPLE_KEXT_OVERRIDE;
+ private:
     bool compareNubName( const IOService * nub, OSString * name, OSString ** matched ) const;
 
 protected:
