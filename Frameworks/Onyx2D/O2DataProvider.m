@@ -53,8 +53,16 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    return result;
 }
 
+/* The bytes stay the caller's: releaseCallback gets them back when the
+ * provider goes (Minkar: it was never called, so they leaked). */
 O2DataProviderRef O2DataProviderCreateWithData(void *info,const void *data,size_t size,O2DataProviderReleaseDataCallback releaseCallback) {
-   return [[O2DataProvider alloc] initWithBytes:data length:size];
+   O2DataProvider *self=[[O2DataProvider alloc] initWithBytes:data length:size];
+
+   if(self!=nil){
+    self->_releaseCallback=releaseCallback;
+    self->_releaseInfo=info;
+   }
+   return self;
 }
 
 O2DataProviderRef O2DataProviderCreateWithCFData(CFDataRef data) {
@@ -79,6 +87,10 @@ void O2DataProviderRelease(O2DataProviderRef self) {
 }
 
 CFDataRef O2DataProviderCopyData(O2DataProviderRef self) {
+   /* Bytes the caller gets back when the provider goes: a real copy, which
+      outlives it. */
+   if(self->_releaseCallback!=NULL)
+    return (CFDataRef)[[NSData alloc] initWithBytes:self->_bytes length:self->_length];
    if(self->_data!=nil)
     return (CFDataRef)[self->_data copy];
    else
@@ -89,6 +101,8 @@ CFDataRef O2DataProviderCopyData(O2DataProviderRef self) {
    [_inputStream close];
    [_inputStream release];
    [_data release];
+   if(_releaseCallback!=NULL)
+    _releaseCallback(_releaseInfo,_bytes,_length);
    [_path release];
    [super dealloc];
 }
