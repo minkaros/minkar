@@ -145,8 +145,10 @@ it, and Force Quit (loginwindow) remains available.
 - In the documented order: the key window and its views
   (`performKeyEquivalent:`), then the main menu, each item validated first.
 - The menu shows key equivalents with the modifier glyphs.
-- Shortcuts reserved by the system (Control-F2, the app switcher, Force
-  Quit) are handled by the window server and never reach the app.
+- Shortcuts reserved by the system are recognized by the window server and
+  sent to their owner, not delivered as key events: Command-Tab to the Dock,
+  Command-Option-Escape to loginwindow, Control-F2 to the front app's
+  AppKit, which moves focus to the menu bar.
 
 ### Standard menus
 
@@ -221,6 +223,7 @@ tools and the accessibility API can read and press them.
 | --- | --- | --- |
 | MB0 | Front app, activation order, the menu bar's place, status area layout, pointer capture | WindowServer plan, WS4 (section 10.2) |
 | MB0 | Minimal `loginwindow` taking restart, shut down and log out requests | WindowServer plan, section 10.3 (WS4) |
+| MB0 | Symbolic hotkey table with delivery to owners (Control-F2 to the front app) | WindowServer plan, WS4 |
 | MB1 | SystemUIServer on the current build rules | `CoreServices/Makefile` FIXME |
 | MB2 | LaunchServices' shared file lists, `NSWorkspace` | Phase 3 (LaunchServices); WindowServer plan 10.2 |
 | MB3 | The full LoginWindow (sleep, force quit, lock screen) | Phase 5, item 1 |

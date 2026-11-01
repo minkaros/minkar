@@ -407,6 +407,25 @@ siguen siendo los del servidor actual, enlazados desde allí hasta WS4.
   cierra cuando pasa MB0.
 - Sección 10.3: la ventana de login gestiona el fin de la sesión, en lo que
   necesita la Fase 4 (atajo hasta la Fase 5).
+- Atajos simbólicos (symbolic hotkeys), como en la plataforma de referencia:
+  el servidor reconoce los atajos de todo el sistema de una tabla guardada en
+  el dominio de preferencias `org.minkar.symbolichotkeys` (con la estructura
+  de claves de la plataforma de referencia) y envía cada uno a su dueño en
+  lugar de entregarlo como evento de teclado: Comando-Tab al Dock,
+  Comando-Opción-Escape a loginwindow, Control-F2 al AppKit de la app del
+  frente (el foco a la barra de menús). El servidor no dibuja ningún
+  selector de apps; lo hace el Dock (D4 de [Dock-Kraz.es.md](Dock-Kraz.es.md)).
+- Apps en ejecución a través de LaunchServices: un servicio de sesión de
+  LaunchServices guarda la lista de apps en ejecución; cada app se registra
+  desde `NSApplication` al arrancar, su salida se detecta cuando ocurre, y el
+  servidor de ventanas avisa al servicio cuando cambia la app del frente.
+  Publica `NSWorkspaceDidLaunchApplicationNotification`,
+  `NSWorkspaceDidTerminateApplicationNotification` y
+  `NSWorkspaceDidActivateApplicationNotification`. Un `NSRunningApplication`
+  básico lee la misma lista: `runningApplications`, `currentApplication`,
+  `processIdentifier`, `bundleIdentifier`, `localizedName`, `isActive`,
+  `activateWithOptions:`. El resto de `NSRunningApplication` llega con D0 de
+  [Dock-Kraz.es.md](Dock-Kraz.es.md).
 - El núcleo nuevo pasa a ser el predeterminado; se borra `Legacy/`, y
   también los árboles de libinput, libevdev y mtdev.
 - Gate M4 en QEMU: varias apps de AppKit abren ventanas, se arrastran,
@@ -475,6 +494,7 @@ Decidido el 31 oct 2026, según la regla general de la sección 1:
 | Capturar pantalla y enviar eventos | Permisos de grabación de pantalla, monitoreo de entrada y accesibilidad, mediante un servicio de permisos | Política interna: se permite a root y a los procesos del usuario de consola; el resto, denegado | ADR del servicio de privacidad (antes de M5) |
 | Mover ventanas | Movimientos en el servidor a partir de las zonas de arrastre que declara el cliente, más `performWindowDragWithEvent:` | Solo la zona de la barra de título | WS4 |
 | Terminar la sesión | La ventana de login pide a las apps que terminen, cierra la sesión y después reinicia o apaga | Un `loginwindow` mínimo que solo cierra la sesión y llama a `reboot(2)` | Fase 5 (LoginWindow) |
+| Selector de apps (Comando-Tab) | Lo dibuja el Dock; la tabla de atajos simbólicos del servidor de ventanas le entrega Comando-Tab | Sin selector desde que se va el servidor anterior (WS4): se cambia de app con clic en sus ventanas (`SHORTCUT(D4)`) | D4 ([Dock-Kraz.es.md](Dock-Kraz.es.md)) |
 | Validación de entitlements en el kernel | Una trust cache estática de los binarios del sistema y un kext de política MAC propio (sección 9.1) | Root puede abrir la conexión de servidor de IOHIDSystem (`SHORTCUT(WS0)` en `IOHIDUserClient.cpp`) | Antes de WS4 |
 
 ### 9.1 Validación de entitlements en el kernel
@@ -538,7 +558,7 @@ uno pasa a donde lo tiene la plataforma de referencia:
 | --- | --- |
 | La app envía su menú serializado a SystemUIServer (`CODE_MENU_FOR_APP`), que lo dibuja y devuelve los clics (`CODE_ITEM_CLICKED`) | AppKit de cada app dibuja su propia barra de menús y sus menús, en ventanas de nivel `kCGMainMenuWindowLevel` y de los niveles de menú, mientras es la app del frente |
 | Status items enviados a SystemUIServer (`CODE_ADD_STATUS_ITEM`, `CODE_STATUS_ITEM_ADDED`) | Cada `NSStatusItem` es una ventana de su propia app, de nivel `kCGStatusWindowLevel`; WindowServer solo ordena la zona de estado. SystemUIServer aloja los Menu Extras del sistema |
-| App lanzada o cerrada, reenviado al Dock y a SystemUIServer (`CODE_APP_LAUNCHED`, `CODE_APP_EXITED`) | LaunchServices y las notificaciones de `NSWorkspace` (`NSWorkspaceDidLaunchApplicationNotification`, `NSWorkspaceDidTerminateApplicationNotification`, `NSWorkspaceDidActivateApplicationNotification`) |
+| App lanzada o cerrada, reenviado al Dock y a SystemUIServer (`CODE_APP_LAUNCHED`, `CODE_APP_EXITED`) | El servicio de sesión de LaunchServices y las notificaciones de `NSWorkspace` (`NSWorkspaceDidLaunchApplicationNotification`, `NSWorkspaceDidTerminateApplicationNotification`, `NSWorkspaceDidActivateApplicationNotification`), desde WS4 (sección 5) |
 | Elementos recientes (`CODE_ADD_RECENT_ITEM`) | Las listas de archivos compartidas de LaunchServices, a través de `NSDocumentController` |
 
 Las filas de menús, status items y elementos recientes se planifican en

@@ -371,6 +371,24 @@ server's, linked from there until WS4.
   [Menus.md](Menus.md); WS4 closes only when MB0 passes.
 - Section 10.3: the login window manages the session's end, as far as
   Phase 4 needs (shortcut until Phase 5).
+- Symbolic hotkeys, as on the reference platform: the server recognizes the
+  system-wide shortcuts in a table kept in the preferences domain
+  `org.minkar.symbolichotkeys` (the reference platform's key structure) and
+  sends each one to its owner instead of delivering it as a key event:
+  Command-Tab to the Dock, Command-Option-Escape to loginwindow, Control-F2
+  to the front app's AppKit (focus to the menu bar). The server draws no
+  app switcher; the Dock does (D4 of [Dock-Kraz.md](Dock-Kraz.md)).
+- Running applications through LaunchServices: a LaunchServices session
+  service keeps the list of running apps; each app checks in from
+  `NSApplication` at launch, its exit is noticed when it happens, and the
+  window server tells the service when the front app changes. It posts
+  `NSWorkspaceDidLaunchApplicationNotification`,
+  `NSWorkspaceDidTerminateApplicationNotification` and
+  `NSWorkspaceDidActivateApplicationNotification`. A basic
+  `NSRunningApplication` reads the same list: `runningApplications`,
+  `currentApplication`, `processIdentifier`, `bundleIdentifier`,
+  `localizedName`, `isActive`, `activateWithOptions:`. The rest of
+  `NSRunningApplication` comes with D0 of [Dock-Kraz.md](Dock-Kraz.md).
 - The new core becomes the default; `Legacy/` is removed, and so are the
   libinput, libevdev and mtdev trees.
 - Gate M4 in QEMU: several AppKit apps open windows, are dragged, take
@@ -438,6 +456,7 @@ Decided 2026-10-31, following the guiding rule in section 1:
 | Capturing and posting events | Screen recording, input monitoring and accessibility permissions, through a permission service | Built-in policy: root and the console user's processes are allowed; everything else denied | Privacy service ADR (before M5) |
 | Moving windows | Server-side moves from client-declared drag regions, plus `performWindowDragWithEvent:` | Title bar region only | WS4 |
 | Ending the session | The login window asks apps to quit, ends the session and then restarts or shuts down | A minimal `loginwindow` that only ends the session and calls `reboot(2)` | Phase 5 (LoginWindow) |
+| App switcher (Command-Tab) | The Dock draws it; the window server's symbolic hotkey table delivers Command-Tab to it | No switcher after the legacy server goes (WS4): apps are switched by clicking their windows (`SHORTCUT(D4)`) | D4 ([Dock-Kraz.md](Dock-Kraz.md)) |
 | Kernel entitlement validation | A static trust cache of system binaries and our own MAC policy kext (section 9.1) | Root may open IOHIDSystem's server connection (`SHORTCUT(WS0)` in `IOHIDUserClient.cpp`) | Before WS4 |
 
 ### 9.1 Kernel entitlement validation
@@ -499,7 +518,7 @@ to where the reference platform keeps it:
 | --- | --- |
 | The app sends its serialized menu to SystemUIServer (`CODE_MENU_FOR_APP`), which draws it and sends clicks back (`CODE_ITEM_CLICKED`) | Each app's AppKit draws its own menu bar and menus, in windows at `kCGMainMenuWindowLevel` and the menu levels, while it is the front app |
 | Status items sent to SystemUIServer (`CODE_ADD_STATUS_ITEM`, `CODE_STATUS_ITEM_ADDED`) | Each `NSStatusItem` is a window of its own app at `kCGStatusWindowLevel`; WindowServer only lays out the status area. SystemUIServer hosts the system's Menu Extras |
-| App launched or exited, forwarded to the Dock and SystemUIServer (`CODE_APP_LAUNCHED`, `CODE_APP_EXITED`) | LaunchServices and the `NSWorkspace` notifications (`NSWorkspaceDidLaunchApplicationNotification`, `NSWorkspaceDidTerminateApplicationNotification`, `NSWorkspaceDidActivateApplicationNotification`) |
+| App launched or exited, forwarded to the Dock and SystemUIServer (`CODE_APP_LAUNCHED`, `CODE_APP_EXITED`) | LaunchServices' session service and the `NSWorkspace` notifications (`NSWorkspaceDidLaunchApplicationNotification`, `NSWorkspaceDidTerminateApplicationNotification`, `NSWorkspaceDidActivateApplicationNotification`), from WS4 (section 5) |
 | Recent items (`CODE_ADD_RECENT_ITEM`) | LaunchServices' shared file lists, through `NSDocumentController` |
 
 The menu, status item and recent item rows are planned in detail in

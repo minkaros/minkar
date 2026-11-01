@@ -71,7 +71,7 @@ Worth keeping:
 | --- | --- |
 | Dock tiles, running-app indicators, minimized windows, stacks, Trash tile | Dock |
 | Desktop picture, one window per display at `kCGDesktopWindowLevel` | Dock |
-| App switcher (Command-Tab) | Dock (today the legacy WindowServer, `WSInput.m`) |
+| App switcher (Command-Tab) | Dock, which gets Command-Tab from the window server's symbolic hotkey table (today the legacy WindowServer draws one in `WSInput.m`; it goes away with `Legacy/` in WS4) |
 | File browser windows, desktop icons at `kCGDesktopIconWindowLevel`, Trash contents and emptying, "Open With", Get Info | Kraz |
 | Starting the Dock and Kraz at login, and again if they exit | loginwindow (Phase 5; launchd until then) |
 
@@ -114,9 +114,11 @@ this plan; the Dock's model keeps room for them.
   display ID (`NSScreenNumber` in `-[NSScreen deviceDescription]`), not the
   fixed `"NSMainScreen"` key. `-[NSWorkspace setDesktopImageURL:forScreen:options:error:]`
   stores the choice and the Dock follows it.
-- **App switcher.** Command-Tab moves from the legacy window server to the
-  Dock: the window server reports the hot key, the Dock shows the switcher
-  and activates the chosen app.
+- **App switcher.** The window server's symbolic hotkey table (WS4) sends
+  Command-Tab to the Dock instead of delivering it as a key event; the Dock
+  shows the switcher and activates the chosen app. The legacy server's
+  switcher (`WSInput.m`) goes away with `Legacy/` in WS4, so until D4 there
+  is none.
 
 ## 5. Kraz architecture
 
@@ -150,7 +152,8 @@ this plan; the Dock's model keeps room for them.
 
 | Needed by | Dependency | State today | Where |
 | --- | --- | --- | --- |
-| Dock | `NSRunningApplication`, `NSWorkspace` launch, terminate and activate notifications | Missing (only the old `launchedApplications`) | AppKit + LaunchServices, before D1 |
+| Dock | `NSWorkspace` launch, terminate and activate notifications and the basic `NSRunningApplication` | Missing (only the old `launchedApplications`) | LaunchServices session service, WindowServer plan WS4 |
+| Dock | The rest of `NSRunningApplication` (icon, launch date, hide and unhide, `activationPolicy`, terminate) | Missing | AppKit, D0 |
 | Dock | Window server news of minimized windows, and window capture | Missing | WindowServer plan, WS4 |
 | Dock | Relayed messages removed, `kWSApplicationActivate` gone | Planned | WindowServer plan, section 10.2 (WS4) |
 | Dock | `NSDockTile` sending its state | Keeps values, sends nothing | AppKit, D3 |
@@ -169,10 +172,13 @@ exists, gate M4) still green, and the roadmap updated with the evidence.
 
 ### Dock
 
-- **D0 — Prerequisites.** `NSRunningApplication`, the `NSWorkspace`
-  application notifications on LaunchServices, desktop image API. Tests:
-  launching and quitting a test app produces the notifications and the
-  running-application list changes.
+- **D0 — Prerequisites.** The rest of `NSRunningApplication` (icon, launch
+  date, hide and unhide, `activationPolicy`, terminate) on the list that
+  LaunchServices' session service keeps from WS4, and the desktop picture
+  API. The launch, terminate and activate notifications and the basic
+  `NSRunningApplication` come with WS4. Tests: a test app's icon and launch
+  date are read; hiding, unhiding and terminating it through
+  `NSRunningApplication` work; the desktop picture choice is stored.
 - **D1 — New core.** `DockModel`, preferences in the reference keys,
   persistent and running app tiles, launch and activate, running indicators,
   desktop pictures per display. The old code goes: `Trash.app`,
@@ -187,8 +193,9 @@ exists, gate M4) still green, and the roadmap updated with the evidence.
   badges, content, attention bounce; minimized windows with thumbnails
   (after WS4).
 - **D4 — Stacks, Trash and the app switcher.** Downloads and folder stacks;
-  Trash tile (empty or full, drop to trash, empty through Kraz); Command-Tab
-  in the Dock, removed from the window server.
+  Trash tile (empty or full, drop to trash, empty through Kraz); the app
+  switcher in the Dock, which gets Command-Tab from the window server's
+  symbolic hotkey table.
 
 ### Kraz
 
@@ -236,7 +243,7 @@ commits with the diff shown first; evidence for every roadmap item; no
 | --- | --- | --- | --- |
 | Dock preferences | Domain `org.minkar.dock`, reference keys and tile data format | — | — |
 | Who draws the desktop | Dock: pictures; Kraz: icons | Desktop without icons until K3 | K3 |
-| App switcher | Dock | Legacy window server (`WSInput.m`) | D4 |
+| App switcher | Dock, Command-Tab from the window server's hotkey table | Legacy window server (`WSInput.m`) until WS4; then none: apps are switched by clicking their windows (`SHORTCUT(D4)`) | D4 |
 | Minimized windows | Thumbnails from the window server's capture | Generic window icon | D3 (after WS4) |
 | Starting the Dock and Kraz | loginwindow, restarting them if they exit | launchd agents | Phase 5 (loginwindow) |
 | Look | Gienah visual language guide | Plain system controls and colors | Guide available |

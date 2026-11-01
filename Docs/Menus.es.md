@@ -152,8 +152,10 @@ disponible.
   (`performKeyEquivalent:`), después el menú principal, validando antes cada
   elemento.
 - El menú muestra los atajos con los símbolos de los modificadores.
-- Los atajos reservados por el sistema (Control-F2, el selector de apps,
-  Forzar salida) los gestiona el servidor de ventanas y nunca llegan a la app.
+- Los atajos reservados por el sistema los reconoce el servidor de ventanas y
+  los envía a su dueño, sin entregarlos como eventos de teclado: Comando-Tab
+  al Dock, Comando-Opción-Escape a loginwindow, Control-F2 al AppKit de la app
+  del frente, que lleva el foco a la barra de menús.
 
 ### Menús estándar
 
@@ -234,6 +236,7 @@ accesibilidad puedan leerlos y pulsarlos.
 | --- | --- | --- |
 | MB0 | App del frente, orden de activación, sitio de la barra de menús, disposición de la zona de estado, captura del puntero | Plan de WindowServer, WS4 (sección 10.2) |
 | MB0 | `loginwindow` mínimo que atiende peticiones de reiniciar, apagar y cerrar sesión | Plan de WindowServer, sección 10.3 (WS4) |
+| MB0 | Tabla de atajos simbólicos con entrega a sus dueños (Control-F2 a la app del frente) | Plan de WindowServer, WS4 |
 | MB1 | SystemUIServer con las reglas de compilación actuales | FIXME de `CoreServices/Makefile` |
 | MB2 | Listas compartidas de archivos de LaunchServices, `NSWorkspace` | Fase 3 (LaunchServices); plan de WindowServer 10.2 |
 | MB3 | El LoginWindow completo (reposo, forzar salida, bloquear pantalla) | Fase 5, punto 1 |
