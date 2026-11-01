@@ -81,4 +81,10 @@ CF_EXPORT void CFSetupFoundationBridging(void)
         _CFRuntimeRegisterObjCClass(CFDictionaryGetTypeID(), dictionaryClass);
         _CFRuntimeBridgeObjCDispatch(CFDictionaryGetTypeID());
     }
+
+    /* Minkar: CF's data functions take Foundation's NSData and
+     * NSMutableData too (CF_OBJC_FUNCDISPATCHV in CFData.c): an NSData
+     * from Foundation, such as CGDataProviderCopyData's, used to be read
+     * as a CFData, with NULL bytes. CF's own data objects stay native. */
+    _CFRuntimeBridgeObjCDispatch(CFDataGetTypeID());
 }
