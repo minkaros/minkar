@@ -88,7 +88,7 @@ flowchart TB
         IOS["IOSurface<br/>step 4"]:::todo
     end
     subgraph SERVER["Window server"]
-        WS["WindowServer<br/>WS0 done: AppKit windows<br/>with input (M4-draw)<br/>WS1 done: new core interface<br/>(SkyLight, MIG)"]:::partial
+        WS["WindowServer<br/>WS0 done: AppKit windows<br/>with input (M4-draw)<br/>WS1 done: new core interface<br/>(SkyLight, MIG)<br/>WS2 done: pixman compositor<br/>(M4-compose)"]:::partial
     end
     subgraph INPUT["Input"]
         HIDH["IOKit/hidsystem<br/>headers"]:::done
@@ -145,7 +145,7 @@ flowchart LR
 
 Step 1 is done (green, 2026-10-31); step 2 is next (blue): its first milestone,
 WS0, is done (the current WindowServer draws AppKit windows with input, gate
-M4-draw), and so is WS1 (the new core's interface and server in
-SkyLight.framework); WS2 to WS6 follow. G1 starts
+M4-draw), and so are WS1 (the new core's interface and server in
+SkyLight.framework) and WS2 (its compositor, gate M4-compose); WS3 to WS6 follow. G1 starts
 as soon as the GPU family is decided; the dashed arrows mark what the GPU
 track reuses from steps 4 and 5.

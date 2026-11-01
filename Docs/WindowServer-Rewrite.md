@@ -302,6 +302,26 @@ CoreGraphics functions keep calling the legacy server until the switch
   with `screendump`; frame statistics from `wsctl` (no frame while nothing
   changes; only damaged regions redrawn).
 
+WS2 is done (2026-11-01). Commits: pixman as a system library
+(`6ca5e31aae`), surfaces and the compositor (`1aa140cdab`), AppKit and
+CoreGraphics through SkyLight (`b957c09fac`), gate M4-compose
+(`8512fe60ba`). A window's surface is two buffers in memory the server
+shares with its owner through a Mach memory entry; commits carry damage,
+and the client keeps its back buffer equal to the front one. One
+compositor per display composites only the damaged area with pixman, at
+the mode's refresh rate and only when there is damage, cursor last.
+`wsctl stats` gives frames, idle ticks, commits, damaged area and frame
+times. AppKit uses the new server when the legacy one is not running.
+Tests: `skylight-test` 128/0; the local compositor test (overlap, raise,
+move, half alpha, cursor, no frame while idle); gate M4-compose (two
+AppKit windows, a raise and a move, 0 pixels differing). Two older bugs
+fixed on the way: run loops spun on `select` (`61cb01ce77`), and the
+`NSEvent` over-release of WS0 (`1508bd4d3c`).
+
+Shortcuts taken: AppKit damages its whole window at each flush
+(`SHORTCUT(WS2)`); the display link ticks at the refresh rate even when
+idle (no frame is drawn then).
+
 ### WS3 — Input
 
 - IOHIDSystem reader, routing, key repeat, coalescing, mouse capture during

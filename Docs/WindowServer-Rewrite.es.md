@@ -332,6 +332,27 @@ llamando al servidor actual hasta el cambio (WS4).
   `wsctl` (ningún frame si nada cambia; solo se redibujan las zonas
   modificadas).
 
+WS2 está hecho (1 nov 2026). Commits: pixman como biblioteca del sistema
+(`6ca5e31aae`), superficies y compositor (`1aa140cdab`), AppKit y
+CoreGraphics a través de SkyLight (`b957c09fac`), gate M4-compose
+(`8512fe60ba`). La superficie de una ventana son dos buffers en memoria
+que el servidor comparte con su dueño mediante una entrada de memoria
+Mach; los commits llevan el daño, y el cliente mantiene su buffer trasero
+igual al delantero. Un compositor por pantalla compone con pixman solo el
+área dañada, a la frecuencia de refresco del modo y solo cuando hay daño,
+con el cursor al final. `wsctl stats` da frames, ticks en reposo, commits,
+área dañada y tiempos de frame. AppKit usa el servidor nuevo cuando el
+actual no está en marcha. Pruebas: `skylight-test` 128/0; el test local
+del compositor (solapamiento, subir, mover, media transparencia, cursor,
+ningún frame en reposo); el gate M4-compose (dos ventanas de AppKit,
+subir y mover, 0 píxeles distintos). Dos fallos antiguos corregidos por el
+camino: los run loops giraban sobre `select` (`61cb01ce77`), y la
+liberación de más de `NSEvent` de WS0 (`1508bd4d3c`).
+
+Atajos tomados: AppKit marca dañada toda la ventana en cada flush
+(`SHORTCUT(WS2)`); el reloj de pantalla late a la frecuencia de refresco
+también en reposo (sin dibujar ningún frame).
+
 ### WS3 — Entrada
 
 - Lector de IOHIDSystem, enrutamiento, repetición de teclas, agrupación de
