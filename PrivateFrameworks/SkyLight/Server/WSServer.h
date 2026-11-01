@@ -54,10 +54,24 @@ void WSWindowSetFrame(WSWindow *window, SLSRect frame);
 int WSWindowOrder(WSWindow *window, int32_t place, SLSWindowID relativeTo);
 /* Releases every window of the connection; returns how many. */
 unsigned WSWindowsConnectionDied(WSConnection *connection);
+/* A cursor image an app set (SLSSetCursorImage): premultiplied BGRA,
+ * width * 4 bytes a row, its hot spot from the top left. */
+@interface WSCursorShape : NSObject
+@property (readonly) NSData *pixels;
+@property (readonly) uint32_t width;
+@property (readonly) uint32_t height;
+@property (readonly) double hotX;
+@property (readonly) double hotY;
+- (instancetype)initWithPixels:(NSData *)pixels width:(uint32_t)width height:(uint32_t)height
+    hotX:(double)hotX hotY:(double)hotY;
+@end
+/* The front app changed: the cursor shown may be another one. */
+void WSCursorShapeChanged(void);
+
 /* The on-screen windows back to front, for a frame (IPC queue). */
 NSArray<WSFrameItem *> *WSWindowSnapshot(void);
 /* The cursor's position; YES when it shows (IPC queue). */
-BOOL WSCursorSnapshot(SLSPoint *position);
+BOOL WSCursorSnapshot(SLSPoint *position, WSCursorShape **shape);
 /* Counts a surface commit in the statistics. */
 void WSStatsCountCommit(void);
 /* The window list: the on-screen window at a point (front most), or nil;

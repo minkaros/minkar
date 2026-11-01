@@ -244,3 +244,20 @@ SLSAssociateMouseAndCursorPosition(int connected)
 		return kSLSErrorFailure;
 	return result;
 }
+
+int
+SLSSetCursorImage(const uint8_t *pixels, uint32_t width, uint32_t height, double hotX,
+    double hotY)
+{
+	int32_t result = kSLSErrorFailure;
+	mach_port_t server = SLSServerPort();
+	uint8_t none = 0;
+
+	if (pixels == NULL)
+		width = height = 0;
+	if (server == MACH_PORT_NULL ||
+	    ws_cursor_set_image(server, width, height, hotX, hotY,
+	    (ws_pixels_t)(uintptr_t)(pixels ? pixels : &none), width * height * 4, &result) != KERN_SUCCESS)
+		return kSLSErrorFailure;
+	return result;
+}

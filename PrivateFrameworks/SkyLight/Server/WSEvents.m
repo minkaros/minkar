@@ -55,6 +55,8 @@ static dispatch_source_t repeatTimer;
 static __weak WSWindow *moveWindow;
 /* Holds the pointer for an open menu (SLSCapturePointer). */
 static __weak WSWindow *grabWindow;
+/* The window the pointer was last over, without a button down. */
+static __weak WSWindow *hoverWindow;
 static double moveOffsetX, moveOffsetY;
 static SLSEvent repeatEvent;
 
@@ -106,6 +108,7 @@ makeFront(WSConnection *c)
 	frontConnection = c;
 	if (keyWindow != nil && keyWindow.owner != c)
 		keyWindow = nil;
+	WSCursorShapeChanged();
 	tellFrontApp(c != nil ? c.pid : 0);
 }
 
@@ -400,8 +403,18 @@ routeMouse(SLSEvent *e)
 	} else if (isMove(e->type) && buttonsDown != 0) {
 		e->type = dragType();
 		target = captureWindow;
-	} else
+	} else {
 		target = WSWindowAtPoint(e->x, e->y);
+		/* The window the pointer left gets this move too, outside it: its
+		 * app ends its tracking areas there (cursor rects back to the
+		 * arrow, mouse exited). */
+		WSWindow *left = hoverWindow;
+		if (left != nil && left != target && e->type == kSLSEventMouseMoved) {
+			SLSEvent last = *e;
+			send(left, &last);
+		}
+		hoverWindow = target;
+	}
 	if (target != nil)
 		send(target, e);
 }

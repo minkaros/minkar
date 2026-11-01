@@ -621,6 +621,23 @@ testChildWindows(void)
 	heard(0, 0);	/* the moved notices are read */
 }
 
+/* Cursor images (interface version 12). */
+static void
+testCursorImage(void)
+{
+	static uint8_t pixels[8 * 8 * 4];
+
+	memset(pixels, 0xff, sizeof(pixels));
+	check(SLSSetCursorImage(pixels, 8, 8, 1, 1) == kSLSErrorSuccess,
+	    "a cursor image is set", NULL);
+	check(SLSSetCursorImage(pixels, 8, 8, 9, 1) == kSLSErrorIllegalArgument,
+	    "a hot spot outside it is refused", NULL);
+	check(SLSSetCursorImage(pixels, kSLSMaxCursorSize + 1, 1, 0, 0) ==
+	    kSLSErrorIllegalArgument, "and a cursor too large", NULL);
+	check(SLSSetCursorImage(NULL, 0, 0, 0, 0) == kSLSErrorSuccess,
+	    "the arrow comes back", NULL);
+}
+
 /* Window images (interface version 10): what the surface shows. */
 static void
 testWindowImage(void)
@@ -1226,6 +1243,7 @@ main(int argc, char *argv[])
 	testMinimize();
 	testWindowImage();
 	testChildWindows();
+	testCursorImage();
 	testSurfaces();
 	testEvents();
 	testClientExit(argv[0]);

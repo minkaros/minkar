@@ -46,12 +46,19 @@
 
 @interface DemoView : NSView
 @property (strong) NSColor *color;
+@property BOOL beamCursor;
 @end
 
 @implementation DemoView
 
 - (BOOL)acceptsFirstResponder {
     return YES;
+}
+
+/* "cursorrect": an I-beam over the whole view, as text views have. */
+- (void)resetCursorRects {
+    if (self.beamCursor)
+        [self addCursorRect:[self bounds] cursor:[NSCursor IBeamCursor]];
 }
 
 - (void)drawRect:(NSRect)rect {
@@ -116,7 +123,9 @@
      * "activate PID" (asks that app to activate), "screens" (each
      * screen's frame and visible frame, and the menu bar's height),
      * "minimize" and "restore" (its window), "child" and "unchild" (a
-     * green child window over its right edge), "sheet" and "endsheet".
+     * green child window over its right edge), "sheet" and "endsheet",
+     * "cursorrect" (an I-beam cursor over its blue view), "ibeam" (sets
+     * the I-beam cursor).
      */
     NSArray *args = [[NSProcessInfo processInfo] arguments];
     NSUInteger cmd = [args indexOfObject:@"-cmd"];
@@ -249,6 +258,13 @@
         NSRect f = [self.sheet frame];
         printf("sheet frame=%.0f,%.0f,%.0f,%.0f\n", f.origin.x, f.origin.y,
             f.size.width, f.size.height);
+    } else if (strncmp(line, "ibeam", 5) == 0) {
+        [[NSCursor IBeamCursor] set];
+        printf("cursor set\n");
+    } else if (strncmp(line, "cursorrect", 10) == 0) {
+        ((DemoView *)[self.window contentView]).beamCursor = YES;
+        [self.window invalidateCursorRectsForView:[self.window contentView]];
+        printf("cursor rect set\n");
     } else if (strncmp(line, "screens", 7) == 0) {
         for (NSScreen *screen in [NSScreen screens]) {
             NSRect f = [screen frame], v = [screen visibleFrame];

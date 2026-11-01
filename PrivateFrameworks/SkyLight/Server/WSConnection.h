@@ -45,6 +45,8 @@
 /* State the connection holds, released when it dies. */
 @property int32_t cursorHideCount;
 @property BOOL cursorAssociated;
+/* The cursor image it set, or nil for the server's arrow. */
+@property (strong) id cursorShape;
 @property BOOL changedTransfers;
 /* Events waiting for the client (SLSEvents), and how many were dropped
  * because the queue was full. */

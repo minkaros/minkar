@@ -64,6 +64,7 @@ SRCS = \
     NSController/NSUserDefaultsControllerProxy.m \
     NSController/_NSControllerArray.m \
     NSCursor.m \
+    NSCursorImage.m \
     NSCursorRect.m \
     NSCustomImageRep.m \
     NSDatePicker.m \

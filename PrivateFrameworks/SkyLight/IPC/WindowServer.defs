@@ -259,6 +259,17 @@ routine cursor_associate(
 	connected		: int32_t;
 	out result		: int32_t);
 
+/* The cursor's image (interface version 12). */
+routine cursor_set_image(
+	server			: mach_port_t;
+	ServerAuditToken token	: audit_token_t;
+	width			: uint32_t;
+	height			: uint32_t;
+	hot_x			: double;
+	hot_y			: double;
+	pixels			: ws_pixels_t;
+	out result		: int32_t);
+
 /* ---- Windows ---- */
 
 routine window_create(

@@ -241,7 +241,8 @@ WSDamageGlobalRect(SLSRect rect)
 	dispatch_async(WSIPCQueue, ^{
 		NSArray<WSFrameItem *> *items = WSWindowSnapshot();
 		SLSPoint cursor;
-		BOOL cursorVisible = WSCursorSnapshot(&cursor);
+		WSCursorShape *shape = nil;
+		BOOL cursorVisible = WSCursorSnapshot(&cursor, &shape);
 		pixman_region32_t *damage = malloc(sizeof(*damage));
 
 		pixman_region32_init(damage);
@@ -251,8 +252,8 @@ WSDamageGlobalRect(SLSRect rect)
 		double ox = self->_originX, oy = self->_originY;
 		pthread_mutex_unlock(&self->_lock);
 		dispatch_async(self->_render, ^{
-			[self composite:items damage:damage cursor:cursor visible:cursorVisible
-			    originX:ox originY:oy];
+			[self composite:items damage:damage cursor:cursor shape:shape
+			    visible:cursorVisible originX:ox originY:oy];
 			pixman_region32_fini(damage);
 			free(damage);
 			pthread_mutex_lock(&self->_lock);
@@ -263,7 +264,8 @@ WSDamageGlobalRect(SLSRect rect)
 }
 
 - (void)composite:(NSArray<WSFrameItem *> *)items damage:(pixman_region32_t *)damage
-    cursor:(SLSPoint)cursor visible:(BOOL)cursorVisible originX:(double)ox originY:(double)oy
+    cursor:(SLSPoint)cursor shape:(WSCursorShape *)shape visible:(BOOL)cursorVisible
+    originX:(double)ox originY:(double)oy
 {
 	uint64_t start = mach_absolute_time();
 	pixman_color_t black = { 0, 0, 0, 0xffff };
@@ -307,7 +309,15 @@ WSDamageGlobalRect(SLSRect rect)
 		pixman_image_unref(src);
 		[surface unlock];
 	}
-	if (cursorVisible)
+	if (cursorVisible && shape != nil) {
+		/* The front app's own cursor, at its hot spot. */
+		pixman_image_t *image = pixman_image_create_bits(PIXMAN_a8r8g8b8, shape.width,
+		    shape.height, (uint32_t *)shape.pixels.bytes, shape.width * 4);
+		pixman_image_composite32(PIXMAN_OP_OVER, image, NULL, _shadow, 0, 0, 0, 0,
+		    (int)floor(cursor.x - shape.hotX - ox), (int)floor(cursor.y - shape.hotY - oy),
+		    shape.width, shape.height);
+		pixman_image_unref(image);
+	} else if (cursorVisible)
 		pixman_image_composite32(PIXMAN_OP_OVER, cursorImage(), NULL, _shadow, 0, 0, 0, 0,
 		    (int)floor(cursor.x - ox), (int)floor(cursor.y - oy), kArrowWidth, kArrowHeight);
 	pixman_image_set_clip_region32(_shadow, NULL);

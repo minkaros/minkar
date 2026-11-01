@@ -48,7 +48,7 @@ extern "C" {
 #define kSLSServiceName		"org.minkar.WindowServer.next"
 
 /* The interface version both sides are built for. */
-#define kSLSInterfaceVersion	11
+#define kSLSInterfaceVersion	12
 
 typedef int32_t SLSConnectionID;
 
@@ -297,6 +297,17 @@ int SLSGetCursorPosition(SLSPoint *point);
 int SLSWarpCursorPosition(SLSPoint point);
 /* Whether mouse motion moves the cursor, for this connection. */
 int SLSAssociateMouseAndCursorPosition(int connected);
+
+/*
+ * The cursor's image (interface version 12), as NSCursor sets it: each
+ * connection has its own, and the screen shows the front app's (the
+ * server's arrow while it set none, or with a NULL image).
+ * Premultiplied BGRA, width * 4 bytes a row, at most
+ * kSLSMaxCursorSize on a side; the hot spot is from its top left.
+ */
+#define kSLSMaxCursorSize	256
+int SLSSetCursorImage(const uint8_t *pixels, uint32_t width, uint32_t height, double hotX,
+    double hotY);
 /* The motion since the last mouse event (0 after a warp). */
 int SLSGetLastMouseDelta(int32_t *dx, int32_t *dy);
 

@@ -37,6 +37,7 @@
 #include <stdio.h>
 #import "WSServer.h"
 #import "WSConnection.h"
+#import "WSEvents.h"
 #import "WSWindowList.h"
 #import "WSCompositor.h"
 #include "WindowServerServer.h"	/* MIG server side */
@@ -525,11 +526,48 @@ wss_display_capture_state(mach_port_t server, uint32_t display, int32_t *result,
 /* The cursor: moved by input (WSEvents) and by warps. */
 static double cursorX, cursorY;
 
-/* The area the cursor image covers (WSCompositor's arrow, 11 x 17). */
+@implementation WSCursorShape
+- (instancetype)initWithPixels:(NSData *)pixels width:(uint32_t)width height:(uint32_t)height
+    hotX:(double)hotX hotY:(double)hotY
+{
+	if ((self = [super init]) != nil) {
+		_pixels = pixels;
+		_width = width;
+		_height = height;
+		_hotX = hotX;
+		_hotY = hotY;
+	}
+	return self;
+}
+@end
+
+/* The shape the screen shows: the front app's, or nil for the arrow. */
+static WSCursorShape *
+shownShape(void)
+{
+	return WSFrontConnection().cursorShape;
+}
+
+/* The area the cursor covers (WSCompositor's arrow is 11 x 17): the one
+ * drawn last and the one to draw. */
+static SLSRect drawnCursorRect;
+
 static void
 damageCursor(void)
 {
-	WSDamageGlobalRect((SLSRect){ cursorX, cursorY, 11, 17 });
+	WSCursorShape *shape = shownShape();
+	SLSRect r = shape ? (SLSRect){ cursorX - shape.hotX, cursorY - shape.hotY, shape.width,
+	    shape.height } : (SLSRect){ cursorX, cursorY, 11, 17 };
+
+	WSDamageGlobalRect(drawnCursorRect);
+	WSDamageGlobalRect(r);
+	drawnCursorRect = r;
+}
+
+void
+WSCursorShapeChanged(void)
+{
+	damageCursor();
 }
 
 static BOOL
@@ -542,11 +580,39 @@ cursorVisible(void)
 }
 
 BOOL
-WSCursorSnapshot(SLSPoint *position)
+WSCursorSnapshot(SLSPoint *position, WSCursorShape **shape)
 {
 	position->x = cursorX;
 	position->y = cursorY;
+	*shape = shownShape();
 	return cursorVisible();
+}
+
+kern_return_t
+wss_cursor_set_image(mach_port_t server, audit_token_t token, uint32_t width, uint32_t height,
+    double hotX, double hotY, ws_pixels_t pixels, mach_msg_type_number_t count, int32_t *result)
+{
+	WSConnection *c = [WSConnection connectionForToken:token];
+
+	if (c == nil)
+		*result = kSLSErrorInvalidConnection;
+	else if (width == 0 || height == 0) {
+		c.cursorShape = nil;
+		*result = kSLSErrorSuccess;
+	} else if (width > kSLSMaxCursorSize || height > kSLSMaxCursorSize ||
+	    count != width * height * 4 || !(hotX >= 0 && hotX <= width) ||
+	    !(hotY >= 0 && hotY <= height))
+		*result = kSLSErrorIllegalArgument;
+	else {
+		c.cursorShape = [[WSCursorShape alloc]
+		    initWithPixels:[NSData dataWithBytes:pixels length:count] width:width
+		    height:height hotX:hotX hotY:hotY];
+		*result = kSLSErrorSuccess;
+	}
+	if (c != nil && c == WSFrontConnection())
+		damageCursor();
+	vm_deallocate(mach_task_self(), (vm_address_t)pixels, count);
+	return KERN_SUCCESS;
 }
 
 kern_return_t

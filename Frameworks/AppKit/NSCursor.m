@@ -18,12 +18,22 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <Foundation/NSPlatform_win32.h>
 #endif
 
+/* With the new window server: NSCursorImage.m. */
+extern int _CGUsesSkyLight(void);
+id _NSCursorSkyLightWithName(NSString *name);
+id _NSCursorSkyLightWithImage(NSImage *image, NSPoint hotSpot);
+void _NSCursorSkyLightSet(id object);
+
 id NSPlatformCreateCursorImpWithName(NSString *name) {
+   if(_CGUsesSkyLight())
+    return _NSCursorSkyLightWithName(name);
    return [[[NSDisplay currentDisplay] cursorWithName:name] retain];
 }
 
 id NSPlatformCreateCursorImpWithImage(NSImage *image,NSPoint hotSpot) {
 #ifndef WINDOWS
+   if(_CGUsesSkyLight())
+    return _NSCursorSkyLightWithImage(image,hotSpot);
    return nil;
 #else
 /// move to the platform files
@@ -152,6 +162,10 @@ void NSPlatformReleaseCursorImp(id object){
 
 
 void NSPlatformSetCursorImp(id object) {
+   if(_CGUsesSkyLight()) {
+    _NSCursorSkyLightSet(object);
+    return;
+   }
    [[NSDisplay currentDisplay] setCursor:object];
 }
 
