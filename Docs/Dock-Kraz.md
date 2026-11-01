@@ -176,47 +176,47 @@ exists, gate M4) still green, and the roadmap updated with the evidence.
 
 ### Dock
 
-- **D0 — Prerequisites.** The rest of `NSRunningApplication` (icon, launch
+- [ ] **D0 — Prerequisites.** The rest of `NSRunningApplication` (icon, launch
   date, hide and unhide, `activationPolicy`, terminate) on the list that
   LaunchServices' session service keeps from WS4a, and the desktop picture
   API. The launch, terminate and activate notifications and the basic
   `NSRunningApplication` come with WS4a. Tests: a test app's icon and launch
   date are read; hiding, unhiding and terminating it through
   `NSRunningApplication` work; the desktop picture choice is stored.
-- **D1 — New core.** `DockModel`, preferences in the reference keys,
+- [ ] **D1 — New core.** `DockModel`, preferences in the reference keys,
   persistent and running app tiles, launch and activate, running indicators,
   desktop pictures per display. The old code goes: `Trash.app`,
   `Downloads.app`, `AppDir`, the relayed notifications. Tests: model tests;
   launching an app shows its tile and indicator, quitting removes it; the
   preferences round-trip; `screendump` shows the Dock and the desktop
   picture; the Dock uses no CPU while idle.
-- **D2 — Interaction.** Drag to reorder, add and remove; context menus
+- [ ] **D2 — Interaction.** Drag to reorder, add and remove; context menus
   (Keep in Dock, Open at Login, Show in Kraz, Quit) and the app's dock menu;
   autohide, magnification, orientation; the minimize and restore animation
   (`mineffect`) for `miniaturize:`.
-- **D3 — Dock tile service and minimized windows.** `org.minkar.dock.server`:
+- [ ] **D3 — Dock tile service and minimized windows.** `org.minkar.dock.server`:
   badges, content, attention bounce; minimized windows with thumbnails
   (after WS4a).
-- **D4 — Stacks, Trash and the app switcher.** Downloads and folder stacks;
+- [ ] **D4 — Stacks, Trash and the app switcher.** Downloads and folder stacks;
   Trash tile (empty or full, drop to trash, empty through Kraz); the app
   switcher in the Dock, which gets Command-Tab from the window server's
   symbolic hotkey table.
 
 ### Kraz
 
-- **K0 — Prerequisites.** File system events daemon and API; LaunchServices
+- [ ] **K0 — Prerequisites.** File system events daemon and API; LaunchServices
   open and "Open With"; the AppKit views checked with test apps.
-- **K1 — Browsing.** Windows with sidebar, icon, list and column views,
+- [ ] **K1 — Browsing.** Windows with sidebar, icon, list and column views,
   navigation, opening files and apps, basic Get Info. Filer becomes Kraz:
   bundle ID, `LSRevealInFiler` kept as a deprecated alias of the new name for
   one release, `open -R`, the Dock's default tiles. This is the "Kraz
   browses" part of gate M5.
-- **K2 — File operations.** Copy, move, rename, duplicate with progress and
+- [ ] **K2 — File operations.** Copy, move, rename, duplicate with progress and
   undo; drag and drop between windows and onto the Dock; Trash with Put Back;
   "Open With".
-- **K3 — Desktop and session.** Desktop icons and volumes with eject; reveal
+- [ ] **K3 — Desktop and session.** Desktop icons and volumes with eject; reveal
   APIs; started and restarted by loginwindow.
-- **K4 — Later work.** Search on the metadata index, DMG double-click
+- [ ] **K4 — Later work.** Search on the metadata index, DMG double-click
   (Phase 6), tags, previews.
 
 Gate M5 ("a graphical session starts, an app opens from the Dock, Kraz

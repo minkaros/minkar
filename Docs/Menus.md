@@ -239,7 +239,7 @@ Each milestone ends with tests that pass, the existing gates still green and
 the roadmap updated with the evidence. Milestones are named MB*n* to keep
 them apart from the gates M*n*.
 
-- **MB0 — Menus in the app (part of WS4b).** Menu views moved into AppKit;
+- [ ] **MB0 — Menus in the app (part of WS4b).** Menu views moved into AppKit;
   one menu bar window per display for the front app; tracking by click,
   drag and keyboard; submenus; validation and the delegate at open time;
   key equivalents in the documented order; context menus and pop-up
@@ -254,21 +254,21 @@ them apart from the gates M*n*.
   Control-click; an app that uses tags keeps them; switching apps swaps the
   menu bar; a test app's status item appears and opens its menu; Log Out
   ends the session; `screendump`.
-- **MB1 — Menu Extras and the full status item API.** SystemUIServer built
+- [ ] **MB1 — Menu Extras and the full status item API.** SystemUIServer built
   and hosting `.menu` bundles: clock, volume, displays, network,
   notifications (Phase 5, item 3); `visible`, `autosaveName`, `behavior`;
   Command-drag reorders and the order is kept. Tests: two apps and the
   clock appear in order and open their menus; the order survives a
   restart. Gate M5 needs MB1.
-- **MB2 — Standard menus and details.** Window menu, Open Recent, Help menu
+- [ ] **MB2 — Standard menus and details.** Window menu, Open Recent, Help menu
   search over menu items, alternates with Option, long menus scrolling,
   type-select, Control-F2, the View menu's full screen item, accessibility
   roles.
-- **MB3 — The full system menu.** With the Phase 5 LoginWindow and System
+- [ ] **MB3 — The full system menu.** With the Phase 5 LoginWindow and System
   Preferences: Sleep, Force Quit window, Lock Screen, System Preferences…,
   Recent Items. Tests: Restart asks apps to quit before rebooting the VM;
   Force Quit ends a hung test app.
-- **MB4 — Services and the menu bar's behavior.** Services daemon and menu;
+- [ ] **MB4 — Services and the menu bar's behavior.** Services daemon and menu;
   hiding in full screen; auto-hide.
 
 ## 8. Tests and measurements

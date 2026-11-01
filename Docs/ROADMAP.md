@@ -405,6 +405,16 @@ Critical path: Phase 0 (M0) → Phase 1 (M1) → Phase 2 (M2) → Phase 3 (M3) �
 
 M0 and M2 are met, M1 waits only for the second PC, and Phase 2 is closed (2026-10-31). Active work is in Phases 3 and 4, which must close before Gienah. The GPU track starts in parallel and feeds Minkar 21.0's performance requirement: equal to or better than the reference system on the same machine. Phase 7 comes after Minkar 19.6.0.
 
+- [x] M0 — Build, toolchain, CI
+- [ ] M1 — Darwin boot (only PC 2 is missing)
+- [x] M2 — Base userland
+- [ ] M3 — Frameworks and Swift
+- [ ] M4 — Graphics and WindowServer (WS0 to WS3 done)
+- [ ] M5 — Gienah desktop
+- [ ] M6 — Apps and distribution (Minkar 19.6.0)
+- [ ] Minkar 21.0 — API 21 complete and performance
+- [ ] M7 — Binary compatibility, arm64
+
 | Gate | Phase | State on 2026-10-31 |
 | --- | --- | --- |
 | M0 | Build, toolchain, CI | Met (CI green since `05fa75cb65`) |

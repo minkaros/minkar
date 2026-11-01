@@ -200,6 +200,18 @@ own ADR after M4.
 Each milestone ends with tests that pass, `boottest GATE=M2` still green,
 and the roadmap updated with the evidence.
 
+Progress:
+
+- [x] WS0 — First pixels with the current server (2026-10-31)
+- [x] WS1 — Skeleton and interface (2026-10-31)
+- [x] WS2 — Windows, surfaces and the software compositor (2026-11-01)
+- [x] WS3 — Input (2026-11-01)
+- [x] ADR 0001 — Kernel entitlement validation, needed by WS4a (2026-11-01)
+- [ ] WS4a — Server behavior
+- [ ] WS4b — The switch (with MB0 of [Menus.md](Menus.md))
+- [ ] WS5 — IOSurface and virtio-gpu
+- [ ] WS6 — GPU compositing
+
 ### WS0 — First pixels with the current server
 
 Depends on the Phase 4 kernel work: IOHIDSystem event delivery (the dispatch

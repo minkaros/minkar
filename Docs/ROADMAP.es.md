@@ -405,6 +405,16 @@ Ruta crítica: Fase 0 (M0) → Fase 1 (M1) → Fase 2 (M2) → Fase 3 (M3) → F
 
 M0 y M2 están cumplidos, M1 solo espera el segundo PC y la Fase 2 está cerrada (31 oct). El trabajo activo está en las Fases 3 y 4, que deben cerrar antes de Gienah. El frente de GPU arranca en paralelo y alimenta el requisito de rendimiento de Minkar 21.0: igual o mejor que el sistema de referencia en el mismo equipo. La Fase 7 sigue después de Minkar 19.6.0.
 
+- [x] M0 — Build, toolchain, CI
+- [ ] M1 — Arranque Darwin (solo falta el PC 2)
+- [x] M2 — Userland base
+- [ ] M3 — Frameworks y Swift
+- [ ] M4 — Gráficos y WindowServer (WS0 a WS3 hechos)
+- [ ] M5 — Escritorio Gienah
+- [ ] M6 — Apps y distribución (Minkar 19.6.0)
+- [ ] Minkar 21.0 — API 21 completa y rendimiento
+- [ ] M7 — Compatibilidad binaria, arm64
+
 | Gate | Fase | Estado al 31 oct 2026 |
 | --- | --- | --- |
 | M0 | Build, toolchain, CI | Cumplido (CI verde desde `05fa75cb65`) |

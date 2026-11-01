@@ -184,7 +184,7 @@ evidencia.
 
 ### Dock
 
-- **D0 — Requisitos previos.** El resto de `NSRunningApplication` (icono,
+- [ ] **D0 — Requisitos previos.** El resto de `NSRunningApplication` (icono,
   fecha de arranque, ocultar y mostrar, `activationPolicy`, terminar) sobre la
   lista que guarda el servicio de sesión de LaunchServices desde WS4a, y la API
   del fondo de escritorio. Las notificaciones de apps lanzadas, cerradas y
@@ -192,7 +192,7 @@ evidencia.
   leen el icono y la fecha de arranque de una app de prueba; ocultarla,
   mostrarla y terminarla con `NSRunningApplication` funciona; la elección del
   fondo de escritorio se guarda.
-- **D1 — Núcleo nuevo.** `DockModel`, preferencias con las claves de la
+- [ ] **D1 — Núcleo nuevo.** `DockModel`, preferencias con las claves de la
   referencia, tiles de apps fijas y en ejecución, lanzar y activar,
   indicadores de ejecución, fondos de escritorio por pantalla. Se va el
   código anterior: `Trash.app`, `Downloads.app`, `AppDir`, las
@@ -200,35 +200,35 @@ evidencia.
   muestra su tile y su indicador, cerrarla lo quita; las preferencias se
   guardan y se leen igual; `screendump` muestra el Dock y el fondo; el Dock
   no consume CPU en reposo.
-- **D2 — Interacción.** Arrastrar para reordenar, añadir y quitar; menús
+- [ ] **D2 — Interacción.** Arrastrar para reordenar, añadir y quitar; menús
   contextuales (Mantener en el Dock, Abrir al iniciar sesión, Mostrar en
   Kraz, Salir) y el menú de la propia app; ocultación automática,
   magnificación, orientación; la animación de minimizar y restaurar
   (`mineffect`) para `miniaturize:`.
-- **D3 — Servicio de tiles y ventanas minimizadas.**
+- [ ] **D3 — Servicio de tiles y ventanas minimizadas.**
   `org.minkar.dock.server`: insignias, contenido, rebote de atención;
   ventanas minimizadas con miniaturas (después de WS4a).
-- **D4 — Pilas, papelera y selector de apps.** Pilas de Descargas y de
+- [ ] **D4 — Pilas, papelera y selector de apps.** Pilas de Descargas y de
   carpetas; tile de la papelera (vacía o llena, soltar para tirar, vaciar a
   través de Kraz); el selector de apps en el Dock, que recibe Comando-Tab de
   la tabla de atajos simbólicos del servidor de ventanas.
 
 ### Kraz
 
-- **K0 — Requisitos previos.** Daemon y API de eventos del sistema de
+- [ ] **K0 — Requisitos previos.** Daemon y API de eventos del sistema de
   archivos; abrir y «Abrir con» de LaunchServices; las vistas de AppKit
   comprobadas con apps de prueba.
-- **K1 — Navegación.** Ventanas con barra lateral, vistas de iconos, lista y
+- [ ] **K1 — Navegación.** Ventanas con barra lateral, vistas de iconos, lista y
   columnas, navegación, abrir archivos y apps, Obtener información básico.
   Filer pasa a ser Kraz: bundle ID, `LSRevealInFiler` como alias obsoleto del
   nombre nuevo durante una versión, `open -R`, los tiles predeterminados del
   Dock. Es la parte «Kraz navega» del gate M5.
-- **K2 — Operaciones con archivos.** Copiar, mover, renombrar y duplicar con
+- [ ] **K2 — Operaciones con archivos.** Copiar, mover, renombrar y duplicar con
   progreso y deshacer; arrastrar y soltar entre ventanas y sobre el Dock;
   papelera con «Devolver»; «Abrir con».
-- **K3 — Escritorio y sesión.** Iconos del escritorio y volúmenes con
+- [ ] **K3 — Escritorio y sesión.** Iconos del escritorio y volúmenes con
   expulsar; API para mostrar en Kraz; arranque y rearranque por loginwindow.
-- **K4 — Trabajo posterior.** Búsqueda sobre el índice de metadatos, doble
+- [ ] **K4 — Trabajo posterior.** Búsqueda sobre el índice de metadatos, doble
   clic en un DMG (Fase 6), etiquetas, vistas previas.
 
 El gate M5 («desde el arranque se llega a una sesión gráfica, se abre una app

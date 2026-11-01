@@ -216,6 +216,18 @@ puerta abierta; el diseño irá en su propio ADR después de M4.
 Cada hito termina con pruebas que pasan, `boottest GATE=M2` todavía en verde
 y el roadmap actualizado con la evidencia.
 
+Avance:
+
+- [x] WS0 — Primeros píxeles con el servidor actual (31 oct 2026)
+- [x] WS1 — Esqueleto e interfaz (31 oct 2026)
+- [x] WS2 — Ventanas, superficies y compositor por software (1 nov 2026)
+- [x] WS3 — Entrada (1 nov 2026)
+- [x] ADR 0001 — Validación de entitlements en el kernel, necesaria para WS4a (1 nov 2026)
+- [ ] WS4a — Comportamiento del servidor
+- [ ] WS4b — El cambio de servidor (con MB0 de [Menus.es.md](Menus.es.md))
+- [ ] WS5 — IOSurface y virtio-gpu
+- [ ] WS6 — Composición por GPU
+
 ### WS0 — Primeros píxeles con el servidor actual
 
 Depende del trabajo de kernel de la Fase 4: la entrega de eventos de

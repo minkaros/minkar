@@ -253,7 +253,7 @@ Cada hito termina con pruebas que pasan, los gates existentes todavía en verde
 y el roadmap actualizado con la evidencia. Los hitos se llaman MB*n* para
 distinguirlos de los gates M*n*.
 
-- **MB0 — Menús en la app (parte de WS4b).** Las vistas de menú pasan a
+- [ ] **MB0 — Menús en la app (parte de WS4b).** Las vistas de menú pasan a
   AppKit; una ventana de barra de menús por pantalla para la app del frente;
   seguimiento con clic, arrastre y teclado; submenús; validación y delegado
   al abrir; atajos en el orden documentado; menús contextuales y botones
@@ -269,23 +269,23 @@ distinguirlos de los gates M*n*.
   Control-clic; una app que usa tags los conserva; al cambiar de app cambia
   la barra de menús; el status item de una app de prueba aparece y abre su
   menú; Cerrar sesión termina la sesión; `screendump`.
-- **MB1 — Menu Extras y la API completa de status items.** SystemUIServer
+- [ ] **MB1 — Menu Extras y la API completa de status items.** SystemUIServer
   compilado y alojando bundles `.menu`: reloj, volumen, pantallas, red,
   notificaciones (Fase 5, punto 3); `visible`, `autosaveName`, `behavior`;
   Comando-arrastrar los reordena y el orden se conserva. Pruebas: dos apps y
   el reloj aparecen en orden y abren sus menús; el orden se mantiene tras
   reiniciar. El gate M5 necesita MB1.
-- **MB2 — Menús estándar y detalles.** Menú Ventana, Abrir recientes,
+- [ ] **MB2 — Menús estándar y detalles.** Menú Ventana, Abrir recientes,
   búsqueda del menú Ayuda sobre los elementos de menú, alternativos con
   Opción, desplazamiento de menús largos, búsqueda por escritura,
   Control-F2, el elemento de pantalla completa del menú Visualización, roles
   de accesibilidad.
-- **MB3 — El menú del sistema completo.** Con el LoginWindow y Preferencias
+- [ ] **MB3 — El menú del sistema completo.** Con el LoginWindow y Preferencias
   del Sistema de la Fase 5: Reposo, ventana de Forzar salida, Bloquear
   pantalla, Preferencias del Sistema…, Ítems recientes. Pruebas: Reiniciar
   pide a las apps que terminen antes de reiniciar la VM; Forzar salida
   termina una app de prueba colgada.
-- **MB4 — Servicios y comportamiento de la barra.** Daemon y menú de
+- [ ] **MB4 — Servicios y comportamiento de la barra.** Daemon y menú de
   servicios; ocultación en pantalla completa; ocultación automática.
 
 ## 8. Pruebas y mediciones
