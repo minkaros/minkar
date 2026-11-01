@@ -35,6 +35,7 @@
 #include <i386/machine_cpu.h>
 #include <i386/pmCPU.h>
 #include <i386/bit_routines.h>
+#include <i386/lapic.h>		/* Minkar: cpu_to_lapic, for the topology panic */
 
 /* Minkar: from cpuid.c, the topology leaf's shifts. */
 extern uint32_t cpuid_apic_package_shift;
@@ -248,8 +249,29 @@ initTopoParms(void)
 	DIVISOR_GUARD(topoParms.maxSharingLLC / topoParms.nPThreadsPerCore);
 	uint32_t pcores_sharing_llc = topoParms.maxSharingLLC / topoParms.nPThreadsPerCore;
 	pcores_sharing_llc = nonzero_u32(pcores_sharing_llc, 1);
-	if (pcores_sharing_llc > nonzero_u32(cpuinfo->cpuid_cores_per_package, 1)) {
-		pcores_sharing_llc = nonzero_u32(cpuinfo->cpuid_cores_per_package, 1);
+	/*
+	 * Minkar: the cap is the cores' slots in the APIC ID space when the
+	 * topology leaf gives it (the bits between the SMT level and the
+	 * package). Core numbers may be sparse: a 12-core Ivy Bridge Xeon
+	 * numbers its cores 0-5 and 8-13 (APIC IDs 0-11 and 16-27), and 12
+	 * cores a die (its L3's sharing, capped at the real thread count)
+	 * cut a "die" every 24 APIC IDs, which split the package in two (a
+	 * panic in x86_validate_topology).
+	 */
+	uint32_t pcores_cap = nonzero_u32(cpuinfo->cpuid_cores_per_package, 1);
+	if (cpuid_apic_smt_known && cpuid_apic_package_shift > cpuid_apic_smt_shift &&
+	    cpuid_apic_package_shift - cpuid_apic_smt_shift < 16) {
+		uint32_t pow2 = 1;
+
+		pcores_cap = 1u << (cpuid_apic_package_shift - cpuid_apic_smt_shift);
+		/* A die spans a power of two of core slots, used or not. */
+		while (pow2 < pcores_sharing_llc) {
+			pow2 <<= 1;
+		}
+		pcores_sharing_llc = pow2;
+	}
+	if (pcores_sharing_llc > pcores_cap) {
+		pcores_sharing_llc = pcores_cap;
 	}
 	topoParms.nPDiesPerPackage = cpuinfo->cpuid_cores_per_package / pcores_sharing_llc;
 	topoParms.nPDiesPerPackage = nonzero_u32(topoParms.nPDiesPerPackage, 1);
@@ -1201,8 +1223,26 @@ x86_validate_topology(void)
 			TOPO_DBG("\n");
 
 			if (nCores != topoParms.nLCoresPerDie) {
-				panic("Should have %d Cores, but only found %d for Die %d",
-				    topoParms.nLCoresPerDie, nCores, die->pdie_num);
+				/*
+				 * Minkar: what the topology was built from, for a
+				 * machine whose console is the only record.
+				 */
+				char apics[96];
+				int len = 0;
+
+				apics[0] = '\0';
+				for (int c = 0; c < real_ncpus && len < (int)sizeof(apics) - 6; c++) {
+					len += snprintf(apics + len, sizeof(apics) - len, "%s%d",
+					    c ? "," : "", cpu_to_lapic[c]);
+				}
+				panic("Should have %d Cores, but only found %d for Die %d "
+				    "(cpus %d apic [%s] pthreads/core %d lthreads/core %d "
+				    "pcores/die %d smt shift %u%s pkg shift %u)",
+				    topoParms.nLCoresPerDie, nCores, die->pdie_num,
+				    real_ncpus, apics, topoParms.nPThreadsPerCore,
+				    topoParms.nLThreadsPerCore, topoParms.nPCoresPerDie,
+				    cpuid_apic_smt_shift, cpuid_apic_smt_known ? "" : "?",
+				    cpuid_apic_package_shift);
 			}
 
 			/*
