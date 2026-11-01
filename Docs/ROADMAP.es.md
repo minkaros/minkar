@@ -419,7 +419,7 @@ M0 y M2 están cumplidos, M1 solo espera el segundo PC y la Fase 2 está cerrada
 | --- | --- | --- |
 | M0 | Build, toolchain, CI | Cumplido (CI verde desde `05fa75cb65`) |
 | M1 | Arranque Darwin | Cumplido en QEMU y en el PC 1 (SATA, NVMe, SMP); falta el PC 2 |
-| M2 | Userland base | Cumplido (`boottest GATE=M2`, 13 marcadores); Fase 2 cerrada el 31 oct |
+| M2 | Userland base | Cumplido (`boottest GATE=M2`, 17 marcadores desde el 1 nov 2026, con la comprobación de integridad de código); Fase 2 cerrada el 31 oct |
 | M3 | Frameworks y Swift | Sin empezar; hay trabajo previo en Foundation |
 | M4 | Gráficos y WindowServer | En curso: WS0 hecho (el gate `M4-draw` pasa, `cce7da92bc`); WS1 hecho (`skylight-test` 115/0, `030dba37c7`); WS2 hecho (el gate `M4-compose` pasa, `8512fe60ba`); WS3 hecho (entrada, `98237bf14e`); sigue WS4a, después WS4b |
 | M5 | Escritorio Gienah | Sin empezar |

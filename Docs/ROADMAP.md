@@ -419,7 +419,7 @@ M0 and M2 are met, M1 waits only for the second PC, and Phase 2 is closed (2026-
 | --- | --- | --- |
 | M0 | Build, toolchain, CI | Met (CI green since `05fa75cb65`) |
 | M1 | Darwin boot | Met in QEMU and on PC 1 (SATA, NVMe, SMP); PC 2 missing |
-| M2 | Base userland | Met (`boottest GATE=M2`, 13 markers); Phase 2 closed on 2026-10-31 |
+| M2 | Base userland | Met (`boottest GATE=M2`, 17 markers since 2026-11-01, with the code integrity check); Phase 2 closed on 2026-10-31 |
 | M3 | Frameworks and Swift | Not started; prior work in Foundation and libSystem |
 | M4 | Graphics and WindowServer | In progress: WS0 done (gate `M4-draw` passes, `cce7da92bc`); WS1 done (`skylight-test` 115/0, `030dba37c7`); WS2 done (gate `M4-compose` passes, `8512fe60ba`); WS3 done (input, `98237bf14e`); WS4a next, then WS4b |
 | M5 | Gienah desktop | Not started |
