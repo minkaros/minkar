@@ -331,8 +331,8 @@ Goal: a complete graphical session in the Gienah visual language, with login, a 
 1. **LoginWindow:** authentication against this phase's user service (Directory Services, below) and session start (the user's `LaunchAgents`).
 2. **SystemUIServer and the menu bar:** the active app's menu through WindowServer, plus a public Menu Extras and `NSStatusItem` API (official priority).
 3. **Basic Menu Extras:** volume, displays, network, clock, notifications. Each one a loadable bundle, not built into SystemUIServer.
-4. **Dock:** launcher, open apps, minimizing and wallpaper, on LaunchServices.
-5. **Kraz:** a new pure Cocoa app. Browsing with LaunchServices, mounting through DiskArbitration, desktop icons, Trash and "Open With".
+4. **Dock:** launcher, open apps, minimizing and wallpaper, on LaunchServices. Plan: [Dock-Kraz.md](Dock-Kraz.md) (D0–D4).
+5. **Kraz:** a new pure Cocoa app. Browsing with LaunchServices, mounting through DiskArbitration, desktop icons, Trash and "Open With". Plan: [Dock-Kraz.md](Dock-Kraz.md) (K0–K4).
 6. **System Preferences:** host app + `.prefPane` bundle loader (`NSPreferencePane`). First panes: Displays, Keyboard, Users, Network, Date & Time.
 7. **AppKit:** complete the missing controls and give the whole system the Gienah visual language (our own design, no third-party artwork), prioritized by what Kraz and System Preferences use.
 
