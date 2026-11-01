@@ -523,7 +523,10 @@ static NSMenuItem *itemWithTag(NSMenu *root, int tag) {
    bundleID = [mainBundle bundleIdentifier];
     if(bundleID == nil)
         bundleID = [NSString stringWithFormat:@"unix.%u", getpid()];
-   if(!([bundleID isEqualToString:@"org.minkar.WindowServer"])) {
+   /* With the new window server (no legacy service), SkyLight is the
+    * connection; events through it come with WS3 (WindowServer plan). */
+   extern int _CGUsesSkyLight(void);
+   if(!([bundleID isEqualToString:@"org.minkar.WindowServer"]) && !_CGUsesSkyLight()) {
         NSLog(@"Finding service %s (%u)", WINDOWSERVER_SVC_NAME, bootstrap_port);
         if(bootstrap_look_up(bootstrap_port, WINDOWSERVER_SVC_NAME, &_wsSvcPort) != KERN_SUCCESS) {
             NSLog(@"Failed to locate service");
@@ -1232,10 +1235,10 @@ static int _tagAllMenus(NSMenu *menu, int tag) {
 
      nextEvent=[_display nextEventMatchingMask:mask untilDate:untilDate inMode:mode dequeue:dequeue];
 
-     if([nextEvent type]==NSAppKitSystem){
-      [nextEvent release];
+     /* NSDisplay's placeholder for "no event": autoreleased, so it is
+      * only dropped here (releasing it too freed it twice). */
+     if([nextEvent type]==NSAppKitSystem)
       nextEvent=nil;
-     }
 
    NS_HANDLER
     [self reportException:localException];
