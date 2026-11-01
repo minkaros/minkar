@@ -176,3 +176,27 @@ SLSSetWindowStatusItem(SLSWindowID window, int isItem)
 		return kSLSErrorFailure;
 	return result;
 }
+
+int
+SLSSetWindowMinimized(SLSWindowID window, int minimized)
+{
+	int32_t result = kSLSErrorFailure;
+	mach_port_t server = SLSServerPort();
+
+	if (server == MACH_PORT_NULL ||
+	    ws_window_set_minimized(server, window, minimized != 0, &result) != KERN_SUCCESS)
+		return kSLSErrorFailure;
+	return result;
+}
+
+int
+SLSRequestWindowNotifications(int on)
+{
+	int32_t result = kSLSErrorFailure;
+	mach_port_t server = SLSServerPort();
+
+	if (server == MACH_PORT_NULL ||
+	    ws_window_notifications(server, on != 0, &result) != KERN_SUCCESS)
+		return kSLSErrorFailure;
+	return result;
+}

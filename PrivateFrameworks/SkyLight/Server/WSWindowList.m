@@ -203,6 +203,25 @@ isStatusItem(WSWindow *w)
 	return [statusItems containsObject:w];
 }
 
+/* ---- Minimized windows ---- */
+
+/* Tells the connections that asked: w was minimized, or restored. */
+static void
+notifyMinimized(WSWindow *w)
+{
+	SLSEvent e;
+
+	memset(&e, 0, sizeof(e));
+	e.type = w.minimized ? kSLSEventWindowMinimized : kSLSEventWindowRestored;
+	e.window = w.windowID;
+	e.x = w.frame.x;
+	e.y = w.frame.y;
+	e.timestamp = WSNanoseconds();
+	for (WSConnection *c in [WSConnection allConnections])
+		if (c.windowNotifications)
+			WSEventsEnqueue(c, &e);
+}
+
 WSWindow *
 WSWindowCreate(WSConnection *owner, int32_t level, SLSRect frame)
 {
@@ -225,6 +244,7 @@ WSWindowRelease(WSWindow *w)
 	[allWindows removeObject:w];
 	w.onScreen = NO;
 	statusItemGone(w);
+	WSEventsWindowGone(w);
 }
 
 void
@@ -266,7 +286,13 @@ WSWindowOrder(WSWindow *w, int32_t place, SLSWindowID relativeTo)
 		/* The status items left of it close up. */
 		if (isStatusItem(w))
 			layoutStatusArea();
+		WSEventsWindowGone(w);
 		return kSLSErrorSuccess;
+	}
+	/* Ordered in, a minimized window is restored. */
+	if (w.minimized) {
+		w.minimized = NO;
+		notifyMinimized(w);
 	}
 
 	NSUInteger index;
@@ -394,6 +420,38 @@ wss_window_set_status_item(mach_port_t server, audit_token_t token, uint32_t win
 }
 
 kern_return_t
+wss_window_set_minimized(mach_port_t server, audit_token_t token, uint32_t window,
+    int32_t minimized, int32_t *result)
+{
+	WSWindow *w = ownWindow(token, window, result);
+
+	if (w == nil || (minimized != 0) == w.minimized)
+		return KERN_SUCCESS;
+	if (minimized) {
+		WSWindowOrder(w, kSLSOrderOut, 0);
+		w.minimized = YES;
+		notifyMinimized(w);
+	} else
+		WSWindowOrder(w, kSLSOrderAbove, 0);	/* restores it */
+	return KERN_SUCCESS;
+}
+
+kern_return_t
+wss_window_notifications(mach_port_t server, audit_token_t token, int32_t on,
+    int32_t *result)
+{
+	WSConnection *c = [WSConnection connectionForToken:token];
+
+	if (c == nil)
+		*result = kSLSErrorInvalidConnection;
+	else {
+		c.windowNotifications = on != 0;
+		*result = kSLSErrorSuccess;
+	}
+	return KERN_SUCCESS;
+}
+
+kern_return_t
 wss_window_set_level(mach_port_t server, audit_token_t token, uint32_t window,
     int32_t level, int32_t *result)
 {
@@ -496,7 +554,8 @@ wss_window_info(mach_port_t server, uint32_t window, int32_t *result, SLSWindowI
 	info->width = w.frame.width;
 	info->height = w.frame.height;
 	info->alpha = w.alpha;
-	info->flags = w.onScreen ? kSLSWindowOnScreen : 0;
+	info->flags = (w.onScreen ? kSLSWindowOnScreen : 0) |
+	    (w.minimized ? kSLSWindowMinimized : 0);
 	info->sharingState = 1;		/* kCGWindowSharingReadOnly */
 	if (proc_name(w.owner.pid, info->ownerName, sizeof(info->ownerName)) <= 0)
 		info->ownerName[0] = '\0';

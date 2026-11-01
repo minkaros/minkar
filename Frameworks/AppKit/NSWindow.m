@@ -2629,13 +2629,42 @@ NSArray *_NSWindowNumbersFromWindowInfo(CFArrayRef info,BOOL allApps) {
     }
 }
 
+/*
+ * With the new server, minimizing is the server's (WS4a): it orders the
+ * window out, makes the app's next window key and tells the Dock, which
+ * keeps it. The Dock's animation and tile come with D2 and D3.
+ */
 -(void)miniaturize:sender {
+    if(_CGUsesSkyLight()) {
+        if(_isMiniaturized)
+            return;
+        [self postNotificationName:NSWindowWillMiniaturizeNotification];
+        _isMiniaturized = YES;
+        _isZoomed = NO;
+        SLSSetWindowMinimized(slsWindowFor(_number), 1);
+        [slsShown removeObject:[NSNumber numberWithInt:_number]];
+        if([self isKeyWindow])
+            [self resignKeyWindow];
+        if([self isMainWindow])
+            [self resignMainWindow];
+        [self postNotificationName:NSWindowDidMiniaturizeNotification];
+        return;
+    }
     _isMiniaturized = YES;
     _isZoomed = NO;
     [self _updateWSState];
 }
 
 -(void)deminiaturize:sender {
+    if(_CGUsesSkyLight()) {
+        if(!_isMiniaturized)
+            return;
+        /* Ordering it in restores it on the server. */
+        _isMiniaturized = NO;
+        [self makeKeyAndOrderFront:sender];
+        [self postNotificationName:NSWindowDidDeminiaturizeNotification];
+        return;
+    }
     _isMiniaturized = NO;
     [self _updateWSState];
 }

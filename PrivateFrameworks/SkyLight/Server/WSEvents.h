@@ -52,5 +52,9 @@ void WSTapsConnectionDied(WSConnection *connection);
 void WSEventsConnectionDied(WSConnection *connection);
 /* The front app's connection, or nil. */
 WSConnection *WSFrontConnection(void);
+/* A window left the screen or went away: it stops being key (its app's
+ * front window is key instead) and holding the pointer. */
+@class WSWindow;
+void WSEventsWindowGone(WSWindow *window);
 /* Nanoseconds since boot (WSInput.m). */
 uint64_t WSNanoseconds(void);

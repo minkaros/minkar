@@ -521,6 +521,91 @@ testStatusArea(void)
 	SLSReleaseWindow(two);
 }
 
+/* Minimized windows (WS4a, interface version 9): ordered out, no longer
+ * key, flagged, and the connections that asked hear about it. */
+static int
+heard(uint32_t type, SLSWindowID w)
+{
+	SLSEvent events[kSLSMaxEvents];
+	uint32_t n = 0;
+	int found = 0;
+
+	while (SLSReceiveEvents(events, kSLSMaxEvents, &n, 0) == kSLSErrorSuccess && n > 0)
+		for (uint32_t i = 0; i < n; i++)
+			if (events[i].type == type && events[i].window == w)
+				found = 1;
+	return found;
+}
+
+static void
+testMinimize(void)
+{
+	SLSWindowID w = 0, other = 0;
+	SLSWindowInfo info;
+
+	SLSNewWindow(0, (SLSRect){ 20, 40, 100, 80 }, &other);
+	SLSNewWindow(0, (SLSRect){ 30, 50, 100, 80 }, &w);
+	SLSOrderWindow(other, kSLSOrderAbove, 0);
+	SLSOrderWindow(w, kSLSOrderAbove, 0);
+	SLSSetKeyWindow(w);
+	check(SLSRequestWindowNotifications(1) == kSLSErrorSuccess,
+	    "window notifications are asked for", NULL);
+	check(SLSSetWindowMinimized(w, 1) == kSLSErrorSuccess, "a window is minimized", NULL);
+	memset(&info, 0, sizeof(info));
+	SLSGetWindowInfo(w, &info);
+	check((info.flags & kSLSWindowMinimized) && !(info.flags & kSLSWindowOnScreen),
+	    "it is off the screen and flagged", NULL);
+	check(SLSGetKeyWindow() == other, "its app's next window becomes key", NULL);
+	check(heard(kSLSEventWindowMinimized, w), "the minimize is heard", NULL);
+	check(SLSSetWindowMinimized(w, 0) == kSLSErrorSuccess, "and restored", NULL);
+	memset(&info, 0, sizeof(info));
+	SLSGetWindowInfo(w, &info);
+	check(!(info.flags & kSLSWindowMinimized) && (info.flags & kSLSWindowOnScreen),
+	    "it is back on the screen", NULL);
+	check(heard(kSLSEventWindowRestored, w), "the restore is heard", NULL);
+	SLSSetWindowMinimized(w, 1);
+	SLSOrderWindow(w, kSLSOrderAbove, 0);
+	check(heard(kSLSEventWindowRestored, w), "ordering it in restores it too", NULL);
+	check(SLSSetWindowMinimized(0xdeadbeef, 1) == kSLSErrorIllegalArgument,
+	    "an unknown window is not minimized", NULL);
+	SLSRequestWindowNotifications(0);
+	SLSReleaseWindow(w);
+	SLSReleaseWindow(other);
+	heard(0, 0);	/* the queue is read empty for the next tests */
+}
+
+/*
+ * skylight-test watch: prints the windows minimized and restored, as the
+ * Dock hears them, one line each, until it is killed. For the local tests.
+ */
+static int
+watchMain(void)
+{
+	SLSEvent events[kSLSMaxEvents];
+
+	if (SLSRequestWindowNotifications(1) != kSLSErrorSuccess)
+		return 1;
+	printf("watching\n");
+	fflush(stdout);
+	for (;;) {
+		uint32_t n = 0;
+
+		if (SLSReceiveEvents(events, kSLSMaxEvents, &n, 1) != kSLSErrorSuccess)
+			return 1;
+		for (uint32_t i = 0; i < n; i++) {
+			SLSWindowInfo info;
+			memset(&info, 0, sizeof(info));
+			SLSGetWindowInfo(events[i].window, &info);
+			if (events[i].type == kSLSEventWindowMinimized ||
+			    events[i].type == kSLSEventWindowRestored)
+				printf("%s window=%u pid=%d\n",
+				    events[i].type == kSLSEventWindowMinimized ? "minimized" : "restored",
+				    events[i].window, info.ownerPID);
+		}
+		fflush(stdout);
+	}
+}
+
 static void
 testWindows(void)
 {
@@ -1053,6 +1138,8 @@ main(int argc, char *argv[])
 		return drawMain();
 	if (argc > 1 && strcmp(argv[1], "hotkeys") == 0)
 		return hotkeysMain();
+	if (argc > 1 && strcmp(argv[1], "watch") == 0)
+		return watchMain();
 	if (argc > 1 && strcmp(argv[1], "events") == 0)
 		return eventsMain(argc > 2 && strcmp(argv[2], "grab") == 0);
 	setvbuf(stdout, NULL, _IOLBF, 0);
@@ -1065,6 +1152,7 @@ main(int argc, char *argv[])
 	testCursor();
 	testWindows();
 	testStatusArea();
+	testMinimize();
 	testSurfaces();
 	testEvents();
 	testClientExit(argv[0]);

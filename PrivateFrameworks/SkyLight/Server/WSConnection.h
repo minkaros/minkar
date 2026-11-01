@@ -50,6 +50,8 @@
  * because the queue was full. */
 @property (readonly) NSMutableData *eventQueue;
 @property uint32_t droppedEvents;
+/* It asked to hear about windows minimized and restored. */
+@property BOOL windowNotifications;
 /* Displays changed for this app only: display ID -> @[mode ID, x, y,
  * mirror of] as they were before. */
 @property (readonly) NSMutableDictionary<NSNumber *, NSArray<NSNumber *> *> *appOnlyDisplays;

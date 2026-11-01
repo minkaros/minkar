@@ -111,8 +111,9 @@
      * still moves its windows), "quit". For the window server's tests.
      * "-cmd PATH" reads the commands from PATH instead, with one window,
      * so two instances can run; then also "apps" (the running apps),
-     * "activate PID" (asks that app to activate) and "screens" (each
-     * screen's frame and visible frame, and the menu bar's height).
+     * "activate PID" (asks that app to activate), "screens" (each
+     * screen's frame and visible frame, and the menu bar's height),
+     * "minimize" and "restore" (its window).
      */
     NSArray *args = [[NSProcessInfo processInfo] arguments];
     NSUInteger cmd = [args indexOfObject:@"-cmd"];
@@ -215,7 +216,13 @@
         printf("busy done\n");
     } else if (strncmp(line, "apps", 4) == 0)
         [self printApplications];
-    else if (strncmp(line, "screens", 7) == 0) {
+    else if (strncmp(line, "minimize", 8) == 0) {
+        [self.window miniaturize:nil];
+        printf("minimized=%d\n", [self.window isMiniaturized]);
+    } else if (strncmp(line, "restore", 7) == 0) {
+        [self.window deminiaturize:nil];
+        printf("minimized=%d\n", [self.window isMiniaturized]);
+    } else if (strncmp(line, "screens", 7) == 0) {
         for (NSScreen *screen in [NSScreen screens]) {
             NSRect f = [screen frame], v = [screen visibleFrame];
             printf("screen frame=%.0f,%.0f,%.0f,%.0f visible=%.0f,%.0f,%.0f,%.0f\n",

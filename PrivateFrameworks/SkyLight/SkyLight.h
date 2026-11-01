@@ -48,7 +48,7 @@ extern "C" {
 #define kSLSServiceName		"org.minkar.WindowServer.next"
 
 /* The interface version both sides are built for. */
-#define kSLSInterfaceVersion	8
+#define kSLSInterfaceVersion	9
 
 typedef int32_t SLSConnectionID;
 
@@ -331,6 +331,7 @@ enum {
 /* SLSWindowInfo.flags */
 enum {
 	kSLSWindowOnScreen	= 1 << 0,
+	kSLSWindowMinimized	= 1 << 1,
 };
 
 /* What the server knows about a window (CGWindowListCopyWindowInfo). */
@@ -374,6 +375,16 @@ int SLSGetWindowInfo(SLSWindowID window, SLSWindowInfo *info);
  * left where its app puts it.
  */
 int SLSSetWindowStatusItem(SLSWindowID window, int isItem);
+
+/*
+ * Minimized windows (interface version 9), for the Dock, which keeps them
+ * as on the reference platform: its app minimizes a window, the server
+ * orders it out (another window of the app becomes key) and tells the
+ * connections that asked. Restoring, or ordering the window in again,
+ * puts it in front.
+ */
+int SLSSetWindowMinimized(SLSWindowID window, int minimized);
+int SLSRequestWindowNotifications(int on);
 
 /* 0 (transparent) to 1 (opaque); the server blends the surface with it. */
 int SLSSetWindowAlpha(SLSWindowID window, double alpha);
@@ -429,6 +440,11 @@ enum {
 	/* A symbolic hotkey for its owner: buttonNumber is the hotkey,
 	 * keyCode, flags and isRepeat the key that was pressed. */
 	kSLSEventSymbolicHotKey		= 0x1002,
+	/* To connections that asked (SLSRequestWindowNotifications): a
+	 * window was minimized or restored; x, y is its frame's top left.
+	 * SLSGetWindowInfo gives its owner. */
+	kSLSEventWindowMinimized	= 0x1003,
+	kSLSEventWindowRestored		= 0x1004,
 };
 
 /*

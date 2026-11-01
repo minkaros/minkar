@@ -117,6 +117,17 @@ setKeyWindow(WSWindow *w)
 		makeFront(w.owner);
 }
 
+void
+WSEventsWindowGone(WSWindow *w)
+{
+	if (grabWindow == w)
+		grabWindow = nil;
+	if (keyWindow == w && w.owner != nil)
+		keyWindow = WSWindowFrontmostOf(w.owner);
+	if (moveWindow == w)
+		moveWindow = nil;
+}
+
 WSConnection *
 WSFrontConnection(void)
 {

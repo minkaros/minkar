@@ -46,6 +46,8 @@
 @property (readonly, strong) id surface;
 /* A capture's shielding window: drawn opaque black. */
 @property BOOL shield;
+/* Minimized (SLSSetWindowMinimized): out of the screen, kept by the Dock. */
+@property BOOL minimized;
 /* Its drag regions (SLSIntRect arrays, window coordinates). */
 @property (copy) NSData *dragRects;
 @property (copy) NSData *dragExcludes;
