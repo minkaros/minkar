@@ -50,8 +50,9 @@ Gates from the architecture plan:
       reference image within a tolerance, and a click (USB tablet) and a
       key (PS/2 keyboard) injected through QMP reach the demo's window as
       NSEvents                                     (--gate M4-draw)
-  M4-compose  M2, then the new window server (SkyLight) and the demo's two
-      overlapping AppKit windows: the screen matches a reference image,
+  M4-compose  M2, then the new window server (SkyLight), started by its
+      launchd job as _windowserver, and the demo's two overlapping AppKit
+      windows: the screen matches a reference image,
       again after a window is raised and after one is moved; a click and
       a key reach a window as NSEvents, a window is dragged by its title
       bar (and AppKit is told its new frame); wsctl shows no frame while
@@ -175,21 +176,24 @@ GATES['M4-draw'] = GATES['M2'] + [
     SSH('sleep 2; cat /tmp/demo.out'),
     'event mouseDown x=', 'event mouseUp', 'event keyDown keyCode=0 chars=a',
 ]
-# Gate M4-compose (WindowServer plan, WS2): the new server, started by
-# hand (its job comes in WS4), composites the demo's two AppKit windows
+# Gate M4-compose (WindowServer plan, WS2): the new server, started by its
+# launchd job as _windowserver (WS4a), composites the demo's two AppKit windows
 # (WindowServerDemo -two); the demo takes commands from a file, as there
 # is no input through the new server before WS3.
-WS_NEXT = ('/System/Library/PrivateFrameworks/SkyLight.framework/Versions/A/Resources/'
-           'WindowServer')
 # Written whole, then renamed: the demo must not read a half-written file.
 DEMO_COMMAND = ('echo "%s" > /tmp/ws-demo.cmd.new; mv /tmp/ws-demo.cmd.new /tmp/ws-demo.cmd; '
                 'for i in $(seq 100); do '
                 '[ -e /tmp/ws-demo.cmd ] || break; sleep 0.1; done; sleep 1; echo "%s"')
+# From WS4a the new server is started by its launchd job, as its own user.
+WS_NEXT_JOB = '/System/Library/LaunchDaemons/org.minkar.WindowServer.next.plist'
+WS_NEXT_LOG = '/var/log/WindowServer/WindowServer.next.log'
 GATES['M4-compose'] = GATES['M2'] + [
-    SSH('cd /; (nohup %s > /tmp/ws2.log 2>&1 < /dev/null &); for i in $(seq 60); do '
-        'grep -q "^WindowServer: serving" /tmp/ws2.log && break; sleep 1; done; '
-        'cat /tmp/ws2.log' % WS_NEXT),
+    SSH('launchctl load -w %s; for i in $(seq 60); do '
+        'grep -q "^WindowServer: serving" %s 2>/dev/null && break; sleep 1; done; '
+        'cat %s; ps -ax -o user= -o comm= | grep "[W]indowServer$" | sed "s/^/boottest: runs as /"'
+        % (WS_NEXT_JOB, WS_NEXT_LOG, WS_NEXT_LOG)),
     'WindowServer: serving org.minkar.WindowServer.next',
+    'boottest: runs as _windowserver',
     SSH('cd /; (nohup %s -two > /tmp/demo.out 2>&1 < /dev/null &); for i in $(seq 60); do '
         'grep -q "^second frame=" /tmp/demo.out && break; sleep 1; done; sleep 3; '
         'grep "frame=" /tmp/demo.out' % WS_DEMO),

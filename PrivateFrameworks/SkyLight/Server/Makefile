@@ -52,6 +52,9 @@ all: to-sysroot
 to-sysroot: ${PROG}
 	mkdir -p ${SYSROOT_DIR}${RESOURCES}
 	install -m 0555 -o 0 -g 0 ${PROG} ${SYSROOT_DIR}${RESOURCES}/WindowServer
+	# Its log directory: launchd opens the job's StandardErrorPath as
+	# _windowserver (UID and GID 88), who cannot write /var/log.
+	install -d -m 0755 -o 88 -g 88 ${SYSROOT_DIR}/private/var/log/WindowServer
 	${CODESIGN} -f -s - -i org.minkar.WindowServer \
 	    --entitlements ${.CURDIR}/WindowServer.entitlements \
 	    ${SYSROOT_DIR}${RESOURCES}/WindowServer
