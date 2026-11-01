@@ -39,7 +39,8 @@ EFILOADER_PATCHES =	efiloader-0001-macho-16-char-names.patch \
 			efiloader-0004-kernel-memory.patch \
 			efiloader-0005-graphics-mode.patch \
 			efiloader-0006-configuration-table-address.patch \
-			efiloader-0007-bus-and-tsc-frequency.patch
+			efiloader-0007-bus-and-tsc-frequency.patch \
+			efiloader-0008-loader-log.patch
 
 EFILOADER_SRC ?=	${ROOT_BINARY_DIR}/src/efiloader
 EFILOADER_TOOLS =	${ROOT_BINARY_DIR}/src/efiloader-tools
