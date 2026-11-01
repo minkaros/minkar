@@ -498,6 +498,16 @@ Estado al 1 nov 2026:
   del frente; sus teclas no llegan a ninguna ventana. La tabla se cambia con
   `/Library/Preferences/org.minkar.symbolichotkeys.plist`. Prueba local
   `hotkeys` 11/11.
+- [x] Apps en ejecución (`996178d949`, `3be3e23e16`, `cae549c9a0`):
+  `launchservicesd` en `/System/Library/CoreServices`, que launchd arranca
+  bajo demanda como root (una sola sesión hasta la Fase 5), y
+  `LaunchServices.framework` dentro de `CoreServices.framework` solo con
+  el cliente de la sesión. Las apps se registran desde `NSApplication`; el
+  servidor de ventanas dice qué app está al frente (la dueña de la ventana
+  key, `SHORTCUT(WS4b)`); NSWorkspace publica los avisos de lanzamiento,
+  terminación, activación y desactivación, y un `NSRunningApplication`
+  básico lee la lista. El gate M4-compose ejecuta dos apps de demo (40
+  marcadores); pruebas locales `launchservicesd` y `launchservices-apps`.
 
 ### WS4b — El cambio de servidor
 

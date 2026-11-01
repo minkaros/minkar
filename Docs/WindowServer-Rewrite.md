@@ -458,6 +458,16 @@ State on 2026-11-01:
   the front app; their keys reach no window. The table is changed by
   `/Library/Preferences/org.minkar.symbolichotkeys.plist`. Local test
   `hotkeys` 11/11.
+- [x] Running applications (`996178d949`, `3be3e23e16`, `cae549c9a0`):
+  `launchservicesd` in `/System/Library/CoreServices`, started on demand
+  by launchd as root (one session until Phase 5), and
+  `LaunchServices.framework` inside `CoreServices.framework` with only the
+  session client. Apps check in from `NSApplication`; the window server
+  says which app is in front (the key window's owner, `SHORTCUT(WS4b)`);
+  NSWorkspace posts the launch, terminate, activate and deactivate
+  notices, and a basic `NSRunningApplication` reads the list. Gate
+  M4-compose runs two demo apps (40 markers); local tests
+  `launchservicesd` and `launchservices-apps`.
 
 ### WS4b — The switch
 
