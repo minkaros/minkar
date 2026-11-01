@@ -12,3 +12,4 @@ bin:*:7:
 staff:*:20:root
 admin:*:80:root
 _sshd:*:75:
+_windowserver:*:88:

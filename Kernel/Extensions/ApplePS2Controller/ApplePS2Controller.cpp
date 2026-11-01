@@ -206,6 +206,20 @@ bool ApplePS2Controller::start(IOService * provider)
   //
  if (!super::start(provider))  return false;
 
+  //
+  // Minkar: a PC without an 8042 (the Mac Pro 6,1, and machines with USB
+  // only) decodes nothing at its ports, and reads of them give 0xFF: the
+  // status claims data forever, and the drain below never ended. The
+  // driver spun on one processor and never finished starting ("still
+  // busy: ps2controller" at boot, and power off waited for it).
+  //
+  if (inb(kCommandPort) == 0xFF)
+  {
+    IOLog("ApplePS2Controller: no 8042 controller (status 0xFF); not starting\n");
+    super::stop(provider);
+    return false;
+  }
+
 #if DEBUGGER_SUPPORT
   // Enable special key sequence to enter debugger if debug boot-arg was set.
   int debugFlag = 0;
@@ -249,7 +263,9 @@ bool ApplePS2Controller::start(IOService * provider)
   // the work loop.
   //
 
-  while ( inb(kCommandPort) & kOutputReady )
+  // Minkar: at most the controller's buffer (16 bytes), as a real 8042
+  // never holds more: one that does is not an 8042.
+  for (int drained = 0; drained < 16 && (inb(kCommandPort) & kOutputReady); drained++)
   {
     IODelay(kDataDelay);
     inb(kDataPort);

@@ -1,0 +1,16 @@
+# Trademarks
+
+Apple, Mac, macOS and Darwin are trademarks of Apple Inc., registered in
+the U.S. and other countries. FreeBSD is a registered trademark of The
+FreeBSD Foundation. ravynOS is the name of the ravynOS project. Other
+names belong to their owners.
+
+Minkar is an independent project. It is not affiliated with, sponsored
+by or endorsed by Apple Inc., the ravynOS project or The FreeBSD
+Foundation. Their names appear in Minkar only to credit the code that
+comes from them, and where software looks them up for compatibility:
+the names of Apple's open source components (such as AppleAPIC or
+IOPCIFamily) and identifiers such as com.apple.* bundle identifiers.
+
+Minkar's documentation calls the platform whose public API it implements
+"the reference platform" or "the reference system".

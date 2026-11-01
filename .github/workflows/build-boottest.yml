@@ -42,6 +42,25 @@ env:
   BUILD_DIR: /home/runner/work/minkar/build
 
 jobs:
+  # The progress pages are generated from Docs/progress/status.toml: they
+  # must be what "bmake progress" writes from it. A few seconds, no build.
+  progress:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Install bmake
+        run: sudo apt-get update && sudo apt-get install -y bmake
+
+      - name: Regenerate the progress pages
+        run: bmake -m "$PWD/BSD/share/mk" progress
+
+      - name: Check they are current
+        run: git diff --exit-code Docs/
+
   toolchain:
     runs-on: ubuntu-22.04
     timeout-minutes: 330

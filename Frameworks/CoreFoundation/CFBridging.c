@@ -51,6 +51,10 @@ CF_EXPORT void CFSetupFoundationBridging(void)
 {
     TRACE("Setting up bridging\n");
     _CFRuntimeRegisterObjCClass(kNSCFTypeString, (uintptr_t)objc_lookUpClass("NSCFString"));
+    /* Minkar: CF's string functions take Foundation's own strings too
+     * (NSMutableString's, NSString_unicode...): CFString.c sends them the
+     * message. CF's strings (NSCFString, constant strings) stay native. */
+    _CFRuntimeBridgeObjCDispatch(CFStringGetTypeID());
 
     /* kCFBooleanTrue and kCFBooleanFalse are NSNumbers (__NSCFBoolean), as
      * on macOS: they were set up before Foundation loaded, so give them the

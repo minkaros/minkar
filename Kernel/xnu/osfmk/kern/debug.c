@@ -992,7 +992,12 @@ debugger_collect_diagnostics(unsigned int exception, unsigned int code, unsigned
 	if (debugger_current_op == DBOP_PANIC) {
 		paniclog_append_noflush("panic(cpu %d caller 0x%lx): ", (unsigned) cpu_number(), debugger_panic_caller);
 		if (debugger_panic_str) {
-			_doprnt(debugger_panic_str, debugger_panic_args, consdebug_putc, 0);
+			/* Minkar: on a copy, so the panic summary can print it again. */
+			va_list args_copy;
+
+			va_copy(args_copy, *debugger_panic_args);
+			_doprnt(debugger_panic_str, &args_copy, consdebug_putc, 0);
+			va_end(args_copy);
 		}
 		paniclog_append_noflush("\n");
 	}

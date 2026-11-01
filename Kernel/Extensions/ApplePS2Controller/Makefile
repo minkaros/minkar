@@ -9,7 +9,8 @@ KERNEL_PRIVATE = yes
 SRCS =  ApplePS2Controller.cpp \
         ApplePS2KeyboardDevice.cpp \
         ApplePS2MouseDevice.cpp \
-        ApplePS2Keyboard.cpp
+        ApplePS2Keyboard.cpp \
+        ApplePS2Mouse.cpp
 
 CFLAGS += -I${.CURDIR}/../../xnu/iokit -I${.CURDIR}/../../xnu/osfmk \
 	-I${.CURDIR}/../../xnu/bsd -I${.CURDIR}/../../xnu/libkern \

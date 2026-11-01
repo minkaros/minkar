@@ -66,3 +66,23 @@ FOUNDATION_EXPORT NSString *const NSFileHandleOperationException;
 - (void)waitForDataInBackgroundAndNotify;
 
 @end
+
+@class NSURL, NSError;
+
+@interface NSFileHandle (NSFileHandleErrors)
++ (instancetype)fileHandleForReadingFromURL:(NSURL *)url error:(NSError **)error;
++ (instancetype)fileHandleForWritingToURL:(NSURL *)url error:(NSError **)error;
++ (instancetype)fileHandleForUpdatingURL:(NSURL *)url error:(NSError **)error;
+- (NSData *)readDataToEndOfFileAndReturnError:(NSError **)error;
+- (NSData *)readDataUpToLength:(NSUInteger)length error:(NSError **)error;
+- (BOOL)writeData:(NSData *)data error:(NSError **)error;
+- (BOOL)getOffset:(unsigned long long *)offsetInFile error:(NSError **)error;
+- (BOOL)seekToEndReturningOffset:(unsigned long long *)offsetInFile error:(NSError **)error;
+- (BOOL)seekToOffset:(unsigned long long)offset error:(NSError **)error;
+- (BOOL)truncateAtOffset:(unsigned long long)offset error:(NSError **)error;
+- (BOOL)synchronizeAndReturnError:(NSError **)error;
+- (BOOL)closeAndReturnError:(NSError **)error;
+@property (copy) void (^readabilityHandler)(NSFileHandle *);
+@property (copy) void (^writeabilityHandler)(NSFileHandle *);
+@end
+

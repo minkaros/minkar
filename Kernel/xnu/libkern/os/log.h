@@ -219,6 +219,27 @@ os_log_t
 os_log_create(const char *subsystem, const char *category);
 
 /*!
+ * @function os_log_type_enabled
+ *
+ * @abstract
+ * Returns if a log message of the given type would be recorded for a
+ * particular log object.
+ *
+ * @param log
+ * Pass OS_LOG_DEFAULT or a log object previously created with os_log_create.
+ *
+ * @param type
+ * The type of message (OS_LOG_TYPE_DEFAULT, _INFO, _DEBUG, _ERROR, _FAULT).
+ *
+ * @result
+ * Returns 'true' if messages of that type are enabled.
+ */
+__WATCHOS_AVAILABLE(3.0) __OSX_AVAILABLE(10.12) __IOS_AVAILABLE(10.0) __TVOS_AVAILABLE(10.0)
+OS_EXPORT OS_NOTHROW OS_WARN_RESULT
+bool
+os_log_type_enabled(os_log_t log, os_log_type_t type);
+
+/*!
  * @function os_log_info_enabled
  *
  * @abstract

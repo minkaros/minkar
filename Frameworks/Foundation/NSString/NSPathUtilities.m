@@ -12,6 +12,9 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <Foundation/NSProcessInfo.h>
 #import <Foundation/NSPlatform.h>
 #import <Foundation/NSRaise.h>
+#import <Foundation/NSBundle.h>
+#include <limits.h>
+#include <stdlib.h>
 
 #include <string.h>
 #include <stdio.h>
@@ -35,29 +38,52 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 @implementation NSString(NSStringPathUtilities)
 
+// Minkar: as the API has them, "/" is a component: the first of an
+// absolute path, the last of a path ending with a slash. Both lost it, so
+// absolute paths came back relative. The separator is "/" only.
 +(NSString *)pathWithComponents:(NSArray *)components {
-   return [components componentsJoinedByString:@"/"];
+   NSMutableString *result=[NSMutableString string];
+
+   for(NSString *component in components){
+    if([component length]==0)
+     continue;
+    if([result length]>0 && ![result hasSuffix:@"/"])
+     [result appendString:@"/"];
+    if([result hasSuffix:@"/"] && [component hasPrefix:@"/"])
+     component=[component substringFromIndex:1];
+    [result appendString:component];
+   }
+   while([result length]>1 && [result hasSuffix:@"/"])
+    [result deleteCharactersInRange:NSMakeRange([result length]-1,1)];
+   return result;
 }
 
 -(NSArray *)pathComponents {
    NSMutableArray *array=[NSMutableArray array];
    NSUInteger length=[self length];
-   unichar  unicode[length];
-   NSString *string;
-   int b,e;
+   unichar  unicode[length>0?length:1];
+   NSUInteger b,e=0;
 
+   if(length==0)
+    return array;
    [self getCharacters:unicode];
 
-   e=0;
-   do{
-    b=e;
-    while(e<length && unicode[e]!='\\' && unicode[e]!='/')
+   if(unicode[0]=='/'){
+    [array addObject:@"/"];
+    while(e<length && unicode[e]=='/')
      e++;
-    string=[NSString stringWithCharacters:unicode+b length:e-b];
-	if ([string length])
-   	 [array addObject:string];
-    e++; // skip sepchar
-   }while(e<length);
+   }
+   while(e<length){
+    b=e;
+    while(e<length && unicode[e]!='/')
+     e++;
+    if(e>b)
+     [array addObject:[NSString stringWithCharacters:unicode+b length:e-b]];
+    while(e<length && unicode[e]=='/')
+     e++;
+   }
+   if(length>1 && unicode[length-1]=='/' && [array count]>0 && ![[array lastObject] isEqualToString:@"/"])
+    [array addObject:@"/"];
 
    return array;
 }
@@ -308,40 +334,109 @@ extern char *NSString_unicodeToAnyCString(NSStringEncoding encoding,
    return [[NSFileManager defaultManager] fileSystemRepresentationWithPathW:self];
 }
 
+// Minkar: this was missing. The real path of an existing file, without
+// "/private" before /tmp, /var and /etc (as the API gives them); a path
+// that is not there comes back standardized.
+-(NSString *)stringByResolvingSymlinksInPath {
+   char resolved[PATH_MAX];
+   NSString *path=[self stringByExpandingTildeInPath];
+
+   if(![path isAbsolutePath] || realpath([path fileSystemRepresentation],resolved)==NULL)
+    return [path stringByStandardizingPath];
+   NSString *result=[NSString stringWithUTF8String:resolved];
+   for(NSString *prefix in [NSArray arrayWithObjects:@"/private/tmp",@"/private/var",@"/private/etc",nil])
+    if([result isEqualToString:prefix] || [result hasPrefix:[prefix stringByAppendingString:@"/"]])
+     return [result substringFromIndex:8];
+   return result;
+}
+
 @end
 
+// Minkar: every directory and domain of the API (this knew three
+// directories, of the user domain only). Each entry: the directory, the
+// domains it exists in, and its path inside a domain's root ("~", "",
+// "/Network", "/System"). The user's Library, Caches and Application
+// Support are made if they are not there, as before.
+static const struct {
+   NSSearchPathDirectory directory;
+   NSSearchPathDomainMask domains;
+   const char *path;
+} searchPaths[] = {
+   { NSApplicationDirectory, NSUserDomainMask | NSLocalDomainMask | NSNetworkDomainMask | NSSystemDomainMask, "Applications" },
+   { NSDemoApplicationDirectory, NSUserDomainMask | NSLocalDomainMask | NSNetworkDomainMask | NSSystemDomainMask, "Applications/Demos" },
+   { NSDeveloperApplicationDirectory, NSUserDomainMask | NSLocalDomainMask | NSNetworkDomainMask | NSSystemDomainMask, "Developer/Applications" },
+   { NSAdminApplicationDirectory, NSUserDomainMask | NSLocalDomainMask | NSNetworkDomainMask | NSSystemDomainMask, "Applications/Utilities" },
+   { NSLibraryDirectory, NSUserDomainMask | NSLocalDomainMask | NSNetworkDomainMask | NSSystemDomainMask, "Library" },
+   { NSDeveloperDirectory, NSUserDomainMask | NSLocalDomainMask | NSNetworkDomainMask | NSSystemDomainMask, "Developer" },
+   { NSUserDirectory, NSLocalDomainMask | NSNetworkDomainMask, "Users" },
+   { NSDocumentationDirectory, NSUserDomainMask | NSLocalDomainMask | NSNetworkDomainMask | NSSystemDomainMask, "Library/Documentation" },
+   { NSDocumentDirectory, NSUserDomainMask, "Documents" },
+   { NSCoreServiceDirectory, NSSystemDomainMask, "Library/CoreServices" },
+   { NSAutosavedInformationDirectory, NSUserDomainMask, "Library/Autosave Information" },
+   { NSDesktopDirectory, NSUserDomainMask, "Desktop" },
+   { NSCachesDirectory, NSUserDomainMask | NSLocalDomainMask | NSSystemDomainMask, "Library/Caches" },
+   { NSApplicationSupportDirectory, NSUserDomainMask | NSLocalDomainMask | NSNetworkDomainMask | NSSystemDomainMask, "Library/Application Support" },
+   { NSDownloadsDirectory, NSUserDomainMask, "Downloads" },
+   { NSInputMethodsDirectory, NSUserDomainMask | NSLocalDomainMask | NSNetworkDomainMask | NSSystemDomainMask, "Library/Input Methods" },
+   { NSMoviesDirectory, NSUserDomainMask, "Movies" },
+   { NSMusicDirectory, NSUserDomainMask, "Music" },
+   { NSPicturesDirectory, NSUserDomainMask, "Pictures" },
+   { NSPrinterDescriptionDirectory, NSLocalDomainMask | NSNetworkDomainMask | NSSystemDomainMask, "Library/Printers/PPDs" },
+   { NSSharedPublicDirectory, NSUserDomainMask, "Public" },
+   { NSPreferencePanesDirectory, NSUserDomainMask | NSLocalDomainMask | NSNetworkDomainMask | NSSystemDomainMask, "Library/PreferencePanes" },
+   { NSApplicationScriptsDirectory, NSUserDomainMask, "Library/Application Scripts" },
+   { NSTrashDirectory, NSUserDomainMask, ".Trash" },
+};
+
+static void appendDirectory(NSMutableArray *result, NSSearchPathDirectory directory, NSSearchPathDomainMask mask, BOOL expand) {
+   static const NSSearchPathDomainMask domains[] = { NSUserDomainMask, NSLocalDomainMask, NSNetworkDomainMask, NSSystemDomainMask };
+   static const char *roots[] = { "~", "", "/Network", "/System" };
+   NSUInteger d, i;
+
+   for(d=0;d<4;d++){
+    if(!(mask&domains[d]))
+     continue;
+    for(i=0;i<sizeof(searchPaths)/sizeof(searchPaths[0]);i++){
+     if(searchPaths[i].directory!=directory || !(searchPaths[i].domains&domains[d]))
+      continue;
+     NSString *path=[NSString stringWithFormat:@"%s/%s",roots[d],searchPaths[i].path];
+     if(domains[d]==NSUserDomainMask && expand)
+      path=[NSHomeDirectory() stringByAppendingPathComponent:[path substringFromIndex:2]];
+     // An app's scripts directory is named after it.
+     if(directory==NSApplicationScriptsDirectory){
+      NSString *identifier=[[NSBundle mainBundle] bundleIdentifier];
+      if(identifier!=nil)
+       path=[path stringByAppendingPathComponent:identifier];
+     }
+     [result addObject:path];
+    }
+   }
+}
+
 NSArray *NSSearchPathForDirectoriesInDomains(NSSearchPathDirectory directory,NSSearchPathDomainMask mask,BOOL expand) {
-   if(mask!=NSUserDomainMask)
-    NSUnimplementedFunction();
+   NSMutableArray *result=[NSMutableArray array];
 
-/* Callers expect the directories to exist, so create them if needed.
- */
-
-	if(directory==NSLibraryDirectory){
-		NSString *path=[[NSPlatform currentPlatform] libraryDirectory];
-
-		[[NSFileManager defaultManager] createDirectoryAtPath:path withIntermediateDirectories:YES attributes:nil error:NULL];
-
-		return [NSArray arrayWithObject:path];
-	}
-
-   if(directory==NSCachesDirectory){
-    NSString *path=[[[NSPlatform currentPlatform] libraryDirectory] stringByAppendingPathComponent:@"Caches"];
-
-    [[NSFileManager defaultManager] createDirectoryAtPath:path withIntermediateDirectories:YES attributes:nil error:NULL];
-
-    return [NSArray arrayWithObject:path];
+   if(directory==NSAllApplicationsDirectory){
+    appendDirectory(result,NSApplicationDirectory,mask,expand);
+    appendDirectory(result,NSAdminApplicationDirectory,mask,expand);
+    appendDirectory(result,NSDeveloperApplicationDirectory,mask,expand);
+    appendDirectory(result,NSDemoApplicationDirectory,mask,expand);
+   }
+   else if(directory==NSAllLibrariesDirectory){
+    appendDirectory(result,NSLibraryDirectory,mask,expand);
+    appendDirectory(result,NSDeveloperDirectory,mask,expand);
+   }
+   else {
+    appendDirectory(result,directory,mask,expand);
    }
 
-   if(directory==NSApplicationSupportDirectory){
-    NSString *path=[[[NSPlatform currentPlatform] libraryDirectory] stringByAppendingPathComponent:@"Application Support"];
+   // Callers of the user's Library, Caches and Application Support expect
+   // them to exist.
+   if(expand && (mask&NSUserDomainMask) && [result count]>0 &&
+      (directory==NSLibraryDirectory || directory==NSCachesDirectory || directory==NSApplicationSupportDirectory))
+    [[NSFileManager defaultManager] createDirectoryAtPath:[result objectAtIndex:0] withIntermediateDirectories:YES attributes:nil error:NULL];
 
-    [[NSFileManager defaultManager] createDirectoryAtPath:path withIntermediateDirectories:YES attributes:nil error:NULL];
-
-    return [NSArray arrayWithObject:path];
-   }
-
-    return nil;
+   return result;
 }
 
 NSString *NSHomeDirectory(void) {

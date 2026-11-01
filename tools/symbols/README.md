@@ -33,9 +33,32 @@ What it compares, and what not:
   Minkar's install name: dyld would not load it under the name the app
   asks for.
 - Objective-C classes are symbols (`_OBJC_CLASS_$_NSUUID`); methods are
-  looked up at run time and are not covered.
+  looked up at run time and are not covered here: see *Selectors* below.
 - A symbol that exists but is a stub counts as present. `trivial-functions.py`
   (below) and the noisy-stub log tell them apart.
+
+## Selectors
+
+`selector-inventory.py` covers what the symbol inventory cannot see: the
+Objective-C messages. It lists, per app, the selectors its binaries send
+(`__objc_selrefs`) that neither the app (any binary in its bundle, embedded
+frameworks included, and the methods of the protocols it declares) nor
+any Minkar class implements.
+
+    python3 -B tools/symbols/selector-inventory.py --sysroot ../build/sysroot \
+        --apps ../build/reference-apps/apps --out ../build/symbols
+
+It reads the Objective-C metadata of each Mach-O file itself (class,
+metaclass and category method lists, relative ones included, with chained
+fixups): `llvm-otool -ov` leaves out the metaclass, so the class methods,
+of exported classes. Output: `selectors.md` (per app: sent, by the app,
+system, in Minkar, missing; the missing ones most used first),
+`selectors-missing.tsv`, `selectors-used.tsv` and `selectors-minkar.tsv`
+(every Minkar method by selector, `-[Class sel]` and `+[Class sel]`).
+
+A selector counts as implemented when any class has a method by that
+name, so a message that reaches the wrong class is not caught; a stub
+counts as implemented.
 
 ## Silent stubs
 

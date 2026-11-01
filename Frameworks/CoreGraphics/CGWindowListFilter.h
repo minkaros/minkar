@@ -36,7 +36,7 @@
 
 #include <stddef.h>
 #include <stdint.h>
-#include <WindowServer/rpc.h>
+#include <WindowServer/Legacy/rpc.h>
 
 /* Same values as the public CGWindowListOption bits (CGWindow.h). */
 #define _CGWLOptionOnScreenOnly         (1u << 0)

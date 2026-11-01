@@ -14,6 +14,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <Foundation/NSSocket_bsd.h>
 #import <Foundation/NSSelectInputSource.h>
 #import <AppKit/NSApplication.h>
+#include <SkyLight/SkyLight.h>
 #import <AppKit/NSWindow-Private.h>
 #import <AppKit/NSPanel.h>
 #import <AppKit/NSMenu.h>
@@ -33,6 +34,8 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <AppKit/NSAlert.h>
 #import <AppKit/NSWorkspace.h>
 #import <AppKit/NSDockTile.h>
+#import <AppKit/NSRunningApplication.h>
+#import "NSRunningApplication_private.h"
 #import <CoreGraphics/CGWindow.h>
 #import <AppKit/NSRaise.h>
 #import <AppKit/NSSpellChecker.h>
@@ -46,8 +49,8 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #include <stdlib.h>
 #include <unistd.h>
 
-#import <WindowServer/message.h>
-#import <WindowServer/rpc.h>
+#import <WindowServer/Legacy/message.h>
+#import <WindowServer/Legacy/rpc.h>
 
 NSString * const NSModalPanelRunLoopMode=@"NSModalPanelRunLoopMode";
 NSString * const NSEventTrackingRunLoopMode=@"NSEventTrackingRunLoopMode";
@@ -150,6 +153,81 @@ static NSMenuItem *itemWithTag(NSMenu *root, int tag) {
         }
     }
     return nil;
+}
+
+/*
+ * Events from the new window server (WindowServer plan, WS3): a thread
+ * waits for them through SkyLight, makes NSEvents and posts them, as
+ * machServiceLoop: does for the legacy server.
+ */
+extern int _CGUsesSkyLight(void);
+extern NSWindow *_NSWindowForSLSWindow(SLSWindowID window);
+
+-(void)_postSkyLightEvent:(SLSEvent *)e {
+    static CGFloat height;
+    NSWindow *window = _NSWindowForSLSWindow(e->window);
+    NSEvent *event = nil;
+
+    if(window == nil)
+        return;
+    if(height == 0)
+        height = CGDisplayBounds(CGMainDisplayID()).size.height;
+    /* Global, from the top left, to the window's own coordinates. */
+    NSRect frame = [window frame];
+    NSPoint location = NSMakePoint(e->x - frame.origin.x, (height - e->y) - frame.origin.y);
+
+    switch(e->type) {
+        case kSLSEventKeyDown:
+        case kSLSEventKeyUp:
+        case kSLSEventFlagsChanged:
+            event = [NSEvent keyEventWithType:e->type location:location
+                modifierFlags:e->flags window:window
+                characters:[NSString stringWithUTF8String:e->characters]
+                charactersIgnoringModifiers:[NSString stringWithUTF8String:e->charactersIgnoringModifiers]
+                isARepeat:e->isRepeat keyCode:e->keyCode];
+            break;
+        case kSLSEventLeftMouseDown: case kSLSEventLeftMouseUp:
+        case kSLSEventRightMouseDown: case kSLSEventRightMouseUp:
+        case kSLSEventOtherMouseDown: case kSLSEventOtherMouseUp:
+        case kSLSEventMouseMoved:
+        case kSLSEventLeftMouseDragged: case kSLSEventRightMouseDragged:
+        case kSLSEventOtherMouseDragged:
+            event = [NSEvent mouseEventWithType:e->type location:location
+                modifierFlags:e->flags window:window clickCount:e->clickCount
+                deltaX:e->dx deltaY:e->dy];
+            break;
+        case kSLSEventScrollWheel:
+            event = [NSEvent mouseEventWithType:NSScrollWheel location:location
+                modifierFlags:e->flags window:window deltaY:e->scrollY];
+            break;
+        case kSLSEventWindowMoved:
+            event = [NSEvent otherEventWithType:NSAppKitDefined location:NSZeroPoint
+                modifierFlags:0 timestamp:0 windowNumber:[window windowNumber] context:nil
+                subtype:NSWindowMovedEventType data1:(NSInteger)e->x data2:(NSInteger)e->y];
+            break;
+        default:
+            return;
+    }
+    [_display postEvent:event atStart:NO];
+}
+
+-(void)skyLightEventLoop:(id)object {
+    SLSEvent events[kSLSMaxEvents];
+
+    for(;;) {
+        uint32_t n = 0;
+
+        if(SLSReceiveEvents(events, kSLSMaxEvents, &n, 1) != kSLSErrorSuccess) {
+            sleep(1);
+            continue;
+        }
+        NSAutoreleasePool *pool = [NSAutoreleasePool new];
+        for(uint32_t i = 0; i < n; i++)
+            [self _postSkyLightEvent:&events[i]];
+        [pool release];
+        if(n > 0 && [self _wakeUp] < 0)
+            NSLog(@"Error waking runloop - write: %s", strerror(errno));
+    }
 }
 
 -(void)machServiceLoop:(id)object {
@@ -523,7 +601,11 @@ static NSMenuItem *itemWithTag(NSMenu *root, int tag) {
    bundleID = [mainBundle bundleIdentifier];
     if(bundleID == nil)
         bundleID = [NSString stringWithFormat:@"unix.%u", getpid()];
-   if(!([bundleID isEqualToString:@"org.minkar.WindowServer"])) {
+   /* With the new window server (no legacy service), SkyLight is the
+    * connection, and its events come through skyLightEventLoop:. */
+   if(_CGUsesSkyLight())
+       [NSThread detachNewThreadSelector:@selector(skyLightEventLoop:) toTarget:self withObject:nil];
+   if(!([bundleID isEqualToString:@"org.minkar.WindowServer"]) && !_CGUsesSkyLight()) {
         NSLog(@"Finding service %s (%u)", WINDOWSERVER_SVC_NAME, bootstrap_port);
         if(bootstrap_look_up(bootstrap_port, WINDOWSERVER_SVC_NAME, &_wsSvcPort) != KERN_SUCCESS) {
             NSLog(@"Failed to locate service");
@@ -549,6 +631,14 @@ static NSMenuItem *itemWithTag(NSMenu *root, int tag) {
             NSLog(@"Failed to register with WS: mach_msg error 0x%x", ret);
    }
 
+   /* As LaunchServices reads it: an agent (LSUIElement) has no Dock icon
+    * or menu bar, a background-only app (LSBackgroundOnly) no windows. */
+   _activationPolicy=NSApplicationActivationPolicyRegular;
+   if([[mainBundle objectForInfoDictionaryKey:@"LSBackgroundOnly"] boolValue])
+       _activationPolicy=NSApplicationActivationPolicyProhibited;
+   else if([[mainBundle objectForInfoDictionaryKey:@"LSUIElement"] boolValue])
+       _activationPolicy=NSApplicationActivationPolicyAccessory;
+
    _dockTile=[[NSDockTile alloc] initWithOwner:self];
    _modalStack=[NSMutableArray new];
 
@@ -556,14 +646,8 @@ static NSMenuItem *itemWithTag(NSMenu *root, int tag) {
 
    pthread_mutex_init(_lock,NULL);
 
-   // We can't display the splash until WindowServer gives us a real display to use. This will
-   // come as a mach msg processed by the service loop. Keep polling display until it is ready
-   // FIXME: need a timeout here?
-    //NSLog(@"waiting for display to become ready");
-    while([_display isReady] == NO) {
-        usleep(10000);
-    }
-
+   // NSDisplay asked WindowServer for the displays when it was created
+   // (CGGetActiveDisplayList), so they are there already.
     [self _showSplashImage];
 
    return NSApp;
@@ -868,7 +952,6 @@ static int _tagAllMenus(NSMenu *menu, int tag) {
         NSLog(@"Failed to send menus to WS");
 
     [menuCopy release];
-    [d release];
 }
 
 - (void)addRecentItem:(NSURL *)url {
@@ -1043,6 +1126,8 @@ static int _tagAllMenus(NSMenu *menu, int tag) {
 -(void)finishLaunching {
    NSAutoreleasePool *pool=[NSAutoreleasePool new];
    BOOL               needsUntitled=YES;
+
+   [self _checkInWithLaunchServices];
 
    NS_DURING
     [[NSNotificationCenter defaultCenter] postNotificationName: NSApplicationWillFinishLaunchingNotification object:self];
@@ -1239,10 +1324,14 @@ static int _tagAllMenus(NSMenu *menu, int tag) {
 
      nextEvent=[_display nextEventMatchingMask:mask untilDate:untilDate inMode:mode dequeue:dequeue];
 
-     if([nextEvent type]==NSAppKitSystem){
-      [nextEvent release];
+     /* NSDisplay's placeholder for "no event": autoreleased, so it is
+      * only dropped here (releasing it too freed it twice). A real event
+      * is retained now: it is autoreleased in this loop's pool, released
+      * below, and the display's queue no longer holds it. */
+     if([nextEvent type]==NSAppKitSystem)
       nextEvent=nil;
-     }
+     else
+      [nextEvent retain];
 
    NS_HANDLER
     [self reportException:localException];
@@ -1252,6 +1341,8 @@ static int _tagAllMenus(NSMenu *menu, int tag) {
    }while(nextEvent==nil && [untilDate timeIntervalSinceNow]>0);
 
    if(nextEvent!=nil){
+    /* The loop's reference is the one autoreleased below; this one is
+     * _currentEvent's. */
     nextEvent=[nextEvent retain];
 
     pthread_mutex_lock(_lock);
@@ -1407,8 +1498,108 @@ static int _tagAllMenus(NSMenu *menu, int tag) {
    [_windows makeObjectsPerformSelector:@selector(update)];
 }
 
+/*
+ * Activating: the window server makes this the front app (with the new
+ * server), and a window comes forward and becomes key. LaunchServices'
+ * session, told by the server, then makes the app active
+ * (_launchServicesMessage:).
+ */
 -(void)activateIgnoringOtherApps:(BOOL)flag {
-   NSUnimplementedMethod();
+   NSWindow *window=_keyWindow ? _keyWindow : _mainWindow;
+
+   if(_CGUsesSkyLight())
+       SLSSetFrontProcess();
+   if(window==nil || ![window isVisible] || ![window canBecomeKeyWindow]) {
+       window=nil;
+       for(NSWindow *check in [self orderedWindows])
+           if([check isVisible] && [check canBecomeKeyWindow]) {
+               window=check;
+               break;
+           }
+   }
+   [window makeKeyAndOrderFront:self];
+}
+
+-(NSApplicationActivationPolicy)activationPolicy {
+   return _activationPolicy;
+}
+
+-(BOOL)setActivationPolicy:(NSApplicationActivationPolicy)policy {
+   if(policy<NSApplicationActivationPolicyRegular || policy>NSApplicationActivationPolicyProhibited)
+       return NO;
+   _activationPolicy=policy;
+   if(_lsPort!=MACH_PORT_NULL)
+       [self _checkInWithLaunchServices];
+   return YES;
+}
+
+/*
+ * LaunchServices' session (WindowServer plan, WS4a): the app checks in
+ * with launchservicesd as it finishes launching, then hears on its own
+ * port about the other apps (NSWorkspace's notifications), about being
+ * made the front app or not (active), and requests to activate.
+ */
+-(void)_checkInWithLaunchServices {
+   LSSessionApp app;
+   BOOL first=(_lsPort==MACH_PORT_NULL);
+
+   _NSRunningApplicationDescribeSelf(&app, _activationPolicy);
+   if(LSSessionCheckIn(&app, &_lsPort, NULL)!=kLSSessionSuccess)
+       return;
+   if(first)
+       [NSThread detachNewThreadSelector:@selector(launchServicesLoop:) toTarget:self withObject:nil];
+}
+
+-(void)launchServicesLoop:(id)object {
+   union {
+       LSSessionMessage msg;
+       uint8_t bytes[sizeof(LSSessionMessage) + MAX_TRAILER_SIZE];
+   } buf;
+
+   for(;;) {
+       if(mach_msg(&buf.msg.header, MACH_RCV_MSG, 0, sizeof(buf), _lsPort,
+           MACH_MSG_TIMEOUT_NONE, MACH_PORT_NULL)!=MACH_MSG_SUCCESS)
+           return;
+       if(buf.msg.header.msgh_id!=kLSSessionMessageID)
+           continue;
+       NSAutoreleasePool *pool=[NSAutoreleasePool new];
+       NSData *data=[NSData dataWithBytes:&buf.msg length:sizeof(LSSessionMessage)];
+       [self performSelectorOnMainThread:@selector(_launchServicesMessage:) withObject:data
+           waitUntilDone:NO];
+       [pool release];
+   }
+}
+
+-(void)_setActiveFromLaunchServices:(BOOL)active {
+   if(active==_isActive)
+       return;
+   [[NSNotificationCenter defaultCenter] postNotificationName:
+       active ? NSApplicationWillBecomeActiveNotification : NSApplicationWillResignActiveNotification
+       object:self];
+   _isActive=active;
+   [self _checkForAppActivation];
+   [[NSNotificationCenter defaultCenter] postNotificationName:
+       active ? NSApplicationDidBecomeActiveNotification : NSApplicationDidResignActiveNotification
+       object:self];
+}
+
+-(void)_launchServicesMessage:(NSData *)data {
+   const LSSessionMessage *msg=[data bytes];
+
+   if(msg->app.pid==getpid()) {
+       switch(msg->kind) {
+           case kLSSessionAppActivated:
+               [self _setActiveFromLaunchServices:YES];
+               break;
+           case kLSSessionAppDeactivated:
+               [self _setActiveFromLaunchServices:NO];
+               break;
+           case kLSSessionActivateRequest:
+               [self activateIgnoringOtherApps:(msg->options & NSApplicationActivateIgnoringOtherApps)!=0];
+               break;
+       }
+   }
+   _NSRunningApplicationSessionMessage(msg);
 }
 
 -(void)deactivate {

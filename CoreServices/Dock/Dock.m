@@ -29,8 +29,8 @@
 #import "Dock.h"
 #import "DockTileData.h"
 #import "DesktopWindow.h"
-#import "WindowServer/message.h"
-#import "WindowServer/rpc.h"
+#import "WindowServer/Legacy/message.h"
+#import "WindowServer/Legacy/rpc.h"
 
 @interface DockView: NSView
 @end

@@ -187,6 +187,7 @@ APPKIT_EXPORT NSString *const NSWindowDidEndLiveResizeNotification;
     BOOL _showsToolbarButton;
     BOOL _ignoresMouseEvents;
     BOOL _isMovableByWindowBackground;
+    BOOL _isNotMovable;	/* setMovable:NO; windows are movable by default */
     BOOL _allowsToolTipsWhenApplicationIsInactive;
     BOOL _defaultButtonCellKeyEquivalentDisabled;
     BOOL _autorecalculatesKeyViewLoop;
@@ -463,6 +464,7 @@ APPKIT_EXPORT NSString *const NSWindowDidEndLiveResizeNotification;
 
 - (void)close;
 - (void)center;
+- (void)performWindowDragWithEvent:(NSEvent *)event;
 - (void)orderWindow:(NSWindowOrderingMode)place relativeTo:(int)relativeTo;
 - (void)orderFrontRegardless;
 

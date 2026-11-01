@@ -144,13 +144,14 @@ IOReturn IOHIDUserClient::registerNotificationPort(
 {
     if( type != kIOHIDEventNotification)
         return kIOReturnUnsupported;
-    if (!owner)
+    if (!owner) {
+        releaseNotificationPort (port);
         return kIOReturnOffline;
-    
-    releaseNotificationPort (port);
+    }
 
-    //owner->setEventPort(port);
-    return kIOReturnSuccess;
+    /* The system keeps the send right and tells the port when the
+     * low-level event queue has events (IOHIDSystem::kickEventConsumer). */
+    return owner->setEventPort(port);
 }
 
 IOReturn IOHIDUserClient::connectClient( IOUserClient * client )

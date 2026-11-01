@@ -279,4 +279,5 @@ typedef NSUInteger NSNumberFormatterRoundingMode;
 - (void)setAttributedStringForNotANumber:(NSAttributedString *)attributedString;
 - (void)setRoundingBehavior:(NSDecimalNumberHandler *)value;
 
++ (NSString *)localizedStringFromNumber:(NSNumber *)num numberStyle:(NSNumberFormatterStyle)nstyle;
 @end

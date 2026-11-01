@@ -25,7 +25,7 @@
 #import <CoreGraphics/CoreGraphicsExport.h>
 #import <CoreGraphics/CGError.h>
 
-#define CGEventMaskBit(eventType) eventType
+#define CGEventMaskBit(eventType) ((CGEventMask)1 << (eventType))
 #define kCGAnyInputEventType (~(CGEventType)0)
 #define kCGEventMaskForAllEvents (~(CGEventMask)0)
 

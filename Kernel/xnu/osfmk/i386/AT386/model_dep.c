@@ -1239,6 +1239,10 @@ panic_print_symbol_name(vm_address_t search)
 
 #define DUMPFRAMES 32
 #define PBT_TIMEOUT_CYCLES (5 * 1000 * 1000 * 1000ULL)
+/* The panic message (osfmk/kern/debug.c), for panic_summary. */
+extern va_list *debugger_panic_args;
+extern unsigned long debugger_panic_caller;
+
 void
 panic_i386_backtrace(void *_frame, int nframes, const char *msg, boolean_t regdump, x86_saved_state_t *regs)
 {
@@ -1372,6 +1376,45 @@ out:
 	}
 
 	panic_display_system_configuration(FALSE);
+
+	/*
+	 * Minkar: panic_summary=1 repeats the panic message and the
+	 * backtrace's function names at the end of the report, where they
+	 * stay on a screen the report scrolled past (a PC without a serial
+	 * port).
+	 */
+	uint32_t summary = 0;
+	if (PE_parse_boot_argn("panic_summary", &summary, sizeof(summary)) && summary) {
+		paniclog_append_noflush("\n==== Minkar panic summary ====\n");
+		if (debugger_panic_str != NULL && debugger_panic_args != NULL) {
+			va_list args_copy;
+
+			va_copy(args_copy, *debugger_panic_args);
+			paniclog_append_noflush("panic(cpu %d caller 0x%lx): ", cn, debugger_panic_caller);
+			_doprnt(debugger_panic_str, &args_copy, consdebug_putc, 0);
+			va_end(args_copy);
+			paniclog_append_noflush("\n");
+		}
+		if (PC != 0) {
+			paniclog_append_noflush("RIP 0x%lx ", PC);
+			if (keepsyms) {
+				panic_print_symbol_name((vm_address_t)PC);
+			}
+			paniclog_append_noflush("\n");
+		}
+		for (int i = 0; i < frame_index && i < DUMPFRAMES && i < 16; i++) {
+			paniclog_append_noflush("%2d 0x%lx ", i, raddrs[i]);
+			if (keepsyms) {
+				panic_print_symbol_name((vm_address_t)raddrs[i]);
+			}
+			paniclog_append_noflush("\n");
+		}
+		/* What tools/panic-report.py needs to name the frames. */
+		paniclog_append_noflush("Kernel slide: 0x%016lx\n", (unsigned long) vm_kernel_slide);
+		if (frame_index) {
+			kmod_panic_dump((vm_offset_t *)&raddrs[0], frame_index);
+		}
+	}
 
 	doprnt_hide_pointers = old_doprnt_hide_pointers;
 

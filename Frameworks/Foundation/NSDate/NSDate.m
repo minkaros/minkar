@@ -111,7 +111,11 @@ const NSTimeInterval NSTimeIntervalSince1970 = (NSTimeInterval)978307200.0;
 -(void)encodeWithCoder:(NSCoder *)coder {
    NSTimeInterval interval=[self timeIntervalSinceReferenceDate];
 
-   [coder encodeValueOfObjCType:@encode(NSTimeInterval) at:&interval];
+   // Minkar: keyed archives (NS.time) too, as initWithCoder: reads them.
+   if([coder allowsKeyedCoding])
+    [coder encodeDouble:interval forKey:@"NS.time"];
+   else
+    [coder encodeValueOfObjCType:@encode(NSTimeInterval) at:&interval];
 }
 
 -initWithCoder:(NSCoder *)coder {

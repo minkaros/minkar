@@ -249,10 +249,29 @@ def sign(path, identifier=None, entitlements=None, force=False):
     assert len(signature) <= sig_size
     data += signature + b'\0' * (sig_size - len(signature))
 
+    write_keeping_identity(path, data)
+
+
+def write_keeping_identity(path, data):
+    """Replace path's contents with data, keeping what identifies the file:
+    a file with hard links is rewritten in place, so its links stay one
+    file; any other file is replaced whole, with its owner, group and mode
+    (setuid and setgid included) carried over."""
+    st = os.stat(path)
+    if st.st_nlink > 1:
+        with open(path, 'r+b') as f:
+            f.write(data)
+            f.truncate()
+        return
     tmp = path + '.cstemp'
     with open(tmp, 'wb') as f:
         f.write(data)
-    os.chmod(tmp, os.stat(path).st_mode)
+    try:
+        os.chown(tmp, st.st_uid, st.st_gid)
+    except PermissionError:
+        pass    # not root: the file is ours anyway
+    # After chown, which clears setuid and setgid.
+    os.chmod(tmp, st.st_mode & 0o7777)
     os.replace(tmp, path)
 
 

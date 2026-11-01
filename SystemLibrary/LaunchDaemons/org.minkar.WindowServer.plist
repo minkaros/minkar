@@ -4,9 +4,18 @@
 <dict>
 	<key>Label</key>
 	<string>org.minkar.WindowServer</string>
+	<!-- Installed disabled: started, the server takes the screen and the
+	     text console is no longer seen on it. Enable it with
+	     launchctl load -w (the boottest gate M4-draw does). -->
+	<key>Disabled</key>
+	<true/>
 	<key>ProgramArguments</key>
 	<array>
 		<string>/System/Library/CoreServices/WindowServer.app/Contents/MacOS/WindowServer</string>
+		<!-- SHORTCUT(WS4b): the compositor only (-x), since LoginWindow is
+		     not built yet; session start leaves WindowServer in WS4b;
+		     taken in WS0. -->
+		<string>-x</string>
 	</array>
 	<key>EnvironmentVariables</key>
 	<dict>

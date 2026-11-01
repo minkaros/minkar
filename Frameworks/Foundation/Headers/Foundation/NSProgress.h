@@ -84,4 +84,9 @@ FOUNDATION_EXPORT NSProgressUserInfoKey const NSProgressThroughputKey;
 
 @end
 
+@protocol NSProgressReporting <NSObject>
+@property (readonly) NSProgress *progress;
+@end
+
+
 NS_ASSUME_NONNULL_END

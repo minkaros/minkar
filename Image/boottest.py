@@ -41,8 +41,23 @@ Gates from the architecture plan:
       password and the shell answers               (--gate M2-login)
   M2  M2-login, then the network: dhcpclient configures en0 (and tells
       configd, whose DNS configuration scutil shows), root logs
-      in over ssh from the host with a key, and the guest resolves the
-      host's name through DNS                      (--gate M2)
+      in over ssh from the host with a key, the guest resolves the
+      host's name through DNS, and the code integrity policy marks a
+      binary of the trust cache as a platform binary and refuses a copy
+      re-signed outside it                         (--gate M2)
+  M4-draw  M2, then WindowServer (its launchd job enabled over ssh) and
+      its demo client: the screen, taken through QMP, matches a
+      reference image within a tolerance, and a click (USB tablet) and a
+      key (PS/2 keyboard) injected through QMP reach the demo's window as
+      NSEvents                                     (--gate M4-draw)
+  M4-compose  M2, then the new window server (SkyLight), started by its
+      launchd job as _windowserver, and the demo's two overlapping AppKit
+      windows: the screen matches a reference image,
+      again after a window is raised and after one is moved; a click and
+      a key reach a window as NSEvents, a window is dragged by its title
+      bar (and AppKit is told its new frame), also while its app does not
+      answer, and by its background once it is movable by it; wsctl
+      shows no frame while nothing changes         (--gate M4-compose)
 
 For M1 the kernel prints nothing once PID 1 starts, so PID 1 itself
 (launchd, or a temporary init) must print USERLAND_MARKER on the console,
@@ -50,6 +65,8 @@ and the shell it starts SHELL_MARKER.
 """
 
 import argparse
+import gzip
+import json
 import os
 import re
 import selectors
@@ -68,6 +85,14 @@ SHELL_MARKER = 'Minkar: shell running'
 
 class Send(str):
     """A gate step that types a line on the console instead of waiting."""
+
+
+class Act(str):
+    """A gate step done on the host through QEMU's QMP: "compare [NAME]"
+    (the screen against the reference image: --reference, or
+    reference/NAME.ppm.gz), "click X Y" (screen pixels) or "key NAME" (a
+    QEMU key code). Its result lines are matched by the markers that
+    follow."""
 
 
 class SSH(str):
@@ -110,10 +135,131 @@ GATES = {
                  'launchd[1] has started up', 'login:', Send('root'), 'Password:',
                  PASSWORD, 'Welcome to Minkar.'] + SHELL_INPUT,
 }
-GATES['M2'] = GATES['M2-login'] + SSH_INPUT
+# Code integrity (Docs/ADR/0001-Kernel-Entitlements.md): cstest in the
+# trust cache is a platform binary; a copy re-signed outside it with the
+# same restricted entitlement is killed at exec (137: SIGKILL), and an
+# ad-hoc copy without it is refused by IOHIDSystem as its server.
+CS_OUTSIDE = '/usr/local/tests/codesign/outside'
+CODESIGN_INPUT = [SSH('dmesg | grep "MinkarCodeIntegrity: trust cache loaded"; '
+                      '/usr/local/bin/cstest status; '
+                      '%s/cstest-resigned status; echo "boottest: resigned rc=$?"; '
+                      '%s/cstest-adhoc hid' % (CS_OUTSIDE, CS_OUTSIDE)),
+                  'MinkarCodeIntegrity: trust cache loaded',
+                  'valid=1 adhoc=0 signed=1 platform=1',
+                  'boottest: resigned rc=137', 'refused']
+GATES['M2'] = GATES['M2-login'] + SSH_INPUT + CODESIGN_INPUT
+
+# Gate M4-draw (WindowServer plan, WS0): WindowServer's job is installed
+# disabled; enabled over ssh, it takes the screen. Its demo client opens
+# one window at a fixed place, so the screen can be compared with
+# REFERENCE (--update-reference writes it from a good run).
+WS_JOB = '/System/Library/LaunchDaemons/org.minkar.WindowServer.plist'
+WS_DEMO = '/System/Library/CoreServices/WindowServerDemo.app/Contents/MacOS/WindowServerDemo'
+REFERENCE = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'reference',
+                         'M4-draw.ppm.gz')
+# A pixel differs when a channel differs by more than PIXEL_TOLERANCE; the
+# screen matches when at most SCREEN_TOLERANCE of its pixels differ.
+PIXEL_TOLERANCE = 32
+SCREEN_TOLERANCE = 0.005
+GATES['M4-draw'] = GATES['M2'] + [
+    SSH('launchctl load -w %s; for i in $(seq 60); do grep -q "IOFramebuffer: display" '
+        '/var/log/WindowServer.log 2>/dev/null && break; sleep 1; done; '
+        'grep "IOFramebuffer: display" /var/log/WindowServer.log' % WS_JOB),
+    'IOFramebuffer: display',
+    SSH('cd /; (nohup %s > /tmp/demo.out 2>&1 < /dev/null &); for i in $(seq 60); do '
+        'grep -q "^window frame=" /tmp/demo.out && break; sleep 1; done; sleep 3; '
+        'grep "^window frame=" /tmp/demo.out' % WS_DEMO),
+    'window frame=198,197,402,332',
+    Act('compare'), 'boottest-draw: the screen matches the reference',
+    # The middle of the demo's content (its frame is 198,197,402,332 from
+    # the bottom left, on a 1024x768 screen).
+    Act('click 399 405'), Act('key a'),
+    SSH('sleep 2; cat /tmp/demo.out'),
+    'event mouseDown x=', 'event mouseUp', 'event keyDown keyCode=0 chars=a',
+]
+# Gate M4-compose (WindowServer plan, WS2): the new server, started by its
+# launchd job as _windowserver (WS4a), composites the demo's two AppKit windows
+# (WindowServerDemo -two); the demo takes commands from a file, as there
+# is no input through the new server before WS3.
+# Written whole, then renamed: the demo must not read a half-written file.
+DEMO_COMMAND = ('echo "%s" > /tmp/ws-demo.cmd.new; mv /tmp/ws-demo.cmd.new /tmp/ws-demo.cmd; '
+                'for i in $(seq 100); do '
+                '[ -e /tmp/ws-demo.cmd ] || break; sleep 0.1; done; sleep 1; echo "%s"')
+# From WS4a the new server is started by its launchd job, as its own user.
+WS_NEXT_JOB = '/System/Library/LaunchDaemons/org.minkar.WindowServer.next.plist'
+WS_NEXT_LOG = '/var/log/WindowServer/WindowServer.next.log'
+GATES['M4-compose'] = GATES['M2'] + [
+    SSH('launchctl load -w %s; for i in $(seq 60); do '
+        'grep -q "^WindowServer: serving" %s 2>/dev/null && break; sleep 1; done; '
+        'cat %s; ps -ax -o user= -o comm= | grep "[W]indowServer$" | sed "s/^/boottest: runs as /"'
+        % (WS_NEXT_JOB, WS_NEXT_LOG, WS_NEXT_LOG)),
+    'WindowServer: serving org.minkar.WindowServer.next',
+    'boottest: runs as _windowserver',
+    SSH('cd /; (nohup %s -two > /tmp/demo.out 2>&1 < /dev/null &); for i in $(seq 60); do '
+        'grep -q "^second frame=" /tmp/demo.out && break; sleep 1; done; sleep 3; '
+        'grep "frame=" /tmp/demo.out' % WS_DEMO),
+    'window frame=198,197,402,332', 'second frame=448,97,302,282',
+    Act('compare M4-compose-1'), 'boottest-draw: the screen matches the reference',
+    SSH(DEMO_COMMAND % ('raise-blue', 'boottest: raised')), 'boottest: raised',
+    Act('compare M4-compose-2'), 'boottest-draw: the screen matches the reference',
+    SSH(DEMO_COMMAND % ('move-red 600 400', 'boottest: moved')), 'boottest: moved',
+    Act('compare M4-compose-3'), 'boottest-draw: the screen matches the reference',
+    # Input (WS3): a click and a key reach the blue window (the middle of
+    # its content), and the red one is dragged by its title bar.
+    Act('click 399 405'), Act('key a'),
+    SSH('sleep 2; grep event /tmp/demo.out'),
+    'event mouseDown x=', 'event mouseUp', 'event keyDown keyCode=0 chars=a',
+    Act('drag 700 100 600 300'),
+    SSH('sleep 2; grep "second moved" /tmp/demo.out | tail -1'),
+    'second moved frame=500,200,302,282',
+    Act('compare M4-compose-4'), 'boottest-draw: the screen matches the reference',
+    # Drag regions (WS4a): the server moves a window from its title bar by
+    # itself, while its app does not answer for 8 s; then by its
+    # background, once it is movable by it.
+    SSH(DEMO_COMMAND % ('busy 8', 'boottest: busy')), 'boottest: busy',
+    Act('drag 700 295 650 245'),
+    SSH('/usr/local/bin/wsctl windows | grep " 302x282 "; tail -3 %s; tail -4 /tmp/demo.out; '
+        '/usr/local/bin/wsctl windows | grep -q " 450,236 302x282 " && '
+        'echo "boottest: moved while busy"' % WS_NEXT_LOG),
+    'boottest: moved while busy',
+    SSH('for i in $(seq 20); do grep -q "^busy done" /tmp/demo.out && break; sleep 1; done; '
+        'sleep 1; grep "second moved" /tmp/demo.out | tail -1'),
+    'second moved frame=450,250,302,282',
+    SSH(DEMO_COMMAND % ('movable-red', 'boottest: movable')), 'boottest: movable',
+    Act('drag 600 400 550 450'),
+    SSH('sleep 2; grep "second moved" /tmp/demo.out | tail -1'),
+    'second moved frame=400,200,302,282',
+    SSH('a=$(/usr/local/bin/wsctl stats | awk \'/^frames/ { print $2 }\'); sleep 2; '
+        'b=$(/usr/local/bin/wsctl stats | awk \'/^frames/ { print $2 }\'); '
+        '[ "$a" = "$b" ] && echo "boottest: no frame while idle ($a)"'),
+    'boottest: no frame while idle',
+    # LaunchServices' session (WS4a): a second demo (B, its commands in
+    # its own file) launches and comes to the front; the first (A) hears
+    # it through NSWorkspace and resigns active. B asks A to activate, and
+    # A hears B terminate.
+    SSH('cd /; (nohup %s -cmd /tmp/ws-demo-b.cmd > /tmp/demo-b.out 2>&1 < /dev/null &); '
+        'for i in $(seq 60); do grep -q "^window frame=" /tmp/demo-b.out && break; sleep 1; '
+        'done; sleep 2; b=$(pgrep -n -x WindowServerDemo); grep "^workspace\\|^app " '
+        '/tmp/demo.out; grep -q "^workspace launched pid=$b " /tmp/demo.out && '
+        'grep -q "^workspace activated pid=$b " /tmp/demo.out && '
+        '[ "$(grep "^app " /tmp/demo.out | tail -1)" = "app inactive" ] && '
+        'echo "boottest: A saw B launch and come to the front"' % WS_DEMO),
+    'boottest: A saw B launch and come to the front',
+    SSH('a=$(pgrep -o -x WindowServerDemo); echo "activate $a" > /tmp/ws-demo-b.cmd.new; '
+        'mv /tmp/ws-demo-b.cmd.new /tmp/ws-demo-b.cmd; sleep 3; grep "^activate" '
+        '/tmp/demo-b.out; [ "$(grep "^app " /tmp/demo.out | tail -1)" = "app active" ] && '
+        'echo "boottest: B activated A"'),
+    'boottest: B activated A',
+    SSH('b=$(pgrep -n -x WindowServerDemo); kill $b; sleep 2; '
+        'grep -q "^workspace terminated pid=$b " /tmp/demo.out && '
+        'echo "boottest: A saw B terminate"'),
+    'boottest: A saw B terminate',
+]
 GATE_FAIL = {
     'M2-login': ['Login incorrect'],
     'M2': ['Login incorrect'],
+    'M4-draw': ['Login incorrect', 'boottest-draw: the screen differs'],
+    'M4-compose': ['Login incorrect', 'boottest-draw: the screen differs'],
 }
 # How long the shell gets to print its prompt before input is sent.
 SEND_DELAY = 3
@@ -167,7 +313,12 @@ def qemu_command(args, vars_copy):
         '-device', '%s,netdev=net0' % args.nic,
         '-serial', 'stdio', '-monitor', 'none', '-display', 'none',
         '-no-reboot',
-    ]
+    ] + ([] if args.qmp is None else [
+        # Gate M4-draw: a USB tablet for absolute pointer positions, and QMP
+        # to take the screen and inject input.
+        '-device', 'qemu-xhci,id=xhci', '-device', 'usb-tablet,bus=xhci.0',
+        '-qmp', 'unix:%s,server,nowait' % args.qmp,
+    ])
 
 
 def send_pending(proc, pending, start):
@@ -229,6 +380,103 @@ def print_panic_report(args, console):
         print('boottest: | ' + line, file=sys.stderr)
 
 
+def qmp(args, *commands):
+    """Runs QMP commands (name, arguments) and returns their results."""
+    s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+    s.connect(args.qmp)
+    f = s.makefile('rw')
+    f.readline()
+    results = []
+    for name, arguments in (('qmp_capabilities', None),) + commands:
+        msg = {'execute': name}
+        if arguments is not None:
+            msg['arguments'] = arguments
+        f.write(json.dumps(msg) + '\n')
+        f.flush()
+        while True:
+            r = json.loads(f.readline())
+            if 'return' in r or 'error' in r:
+                if 'error' in r:
+                    raise RuntimeError('QMP %s: %s' % (name, r['error']))
+                results.append(r['return'])
+                break
+    s.close()
+    return results[1:]
+
+
+def read_ppm(data):
+    """Width, height and RGB bytes of a binary PPM (P6, 8 bits)."""
+    parts = data.split(b'\n', 3)
+    w, h = map(int, parts[1].split())
+    return w, h, parts[3]
+
+
+def act(args, step, tmp):
+    """Does an Act step; returns the lines its markers are matched in."""
+    words = step.split()
+    if words[0] == 'compare':
+        name = words[1] if len(words) > 1 else None
+        reference = (os.path.join(os.path.dirname(REFERENCE), name + '.ppm.gz') if name
+                     else args.reference)
+        shot = os.path.join(tmp, 'screen.ppm')
+        qmp(args, ('screendump', {'filename': shot}))
+        time.sleep(1)
+        with open(shot, 'rb') as f:
+            data = f.read()
+        if args.log:
+            shutil.copyfile(shot, args.log + ('.%s' % name if name else '') + '.screen.ppm')
+        if args.update_reference:
+            os.makedirs(os.path.dirname(reference), exist_ok=True)
+            with gzip.open(reference, 'wb') as f:
+                f.write(data)
+            return ['boottest-draw: the screen matches the reference (written to %s)'
+                    % reference]
+        with gzip.open(reference, 'rb') as f:
+            rw, rh, ref = read_ppm(f.read())
+        w, h, px = read_ppm(data)
+        if (w, h) != (rw, rh):
+            return ['boottest-draw: the screen differs: %dx%d, the reference %dx%d'
+                    % (w, h, rw, rh)]
+        differ = sum(1 for i in range(0, len(px), 3)
+                     if max(abs(px[i + c] - ref[i + c]) for c in range(3)) > PIXEL_TOLERANCE)
+        verdict = 'matches' if differ <= SCREEN_TOLERANCE * w * h else 'differs'
+        return ['boottest-draw: the screen %s the reference (%d of %d pixels differ)'
+                % (verdict, differ, w * h)]
+    if words[0] in ('click', 'drag'):
+        # The tablet spans 0..32767 on each axis of the screen.
+        shot = os.path.join(tmp, 'size.ppm')
+        qmp(args, ('screendump', {'filename': shot}))
+        time.sleep(1)
+        with open(shot, 'rb') as f:
+            w, h, _ = read_ppm(f.read())
+        points = [(int(words[i]) * 32767 // w, int(words[i + 1]) * 32767 // h)
+                  for i in range(1, len(words) - 1, 2)]
+
+        def send(x, y, down):
+            events = [{'type': 'abs', 'data': {'axis': 'x', 'value': x}},
+                      {'type': 'abs', 'data': {'axis': 'y', 'value': y}}]
+            if down is not None:
+                events.append({'type': 'btn', 'data': {'down': down, 'button': 'left'}})
+            qmp(args, ('input-send-event', {'events': events}))
+            time.sleep(0.5)
+
+        (x, y), (x2, y2) = points[0], points[-1]
+        send(x, y, None)
+        send(x, y, True)
+        if words[0] == 'drag':
+            # In steps, as a hand moves: the window follows each one.
+            for k in range(1, 5):
+                send(x + (x2 - x) * k // 4, y + (y2 - y) * k // 4, None)
+        send(x2, y2, False)
+        return ['boottest-draw: %s at %s' % ('dragged' if words[0] == 'drag' else 'clicked',
+                                            ' '.join(words[1:]))]
+    if words[0] == 'key':
+        qmp(args, ('send-key', {'keys': [{'type': 'qcode', 'data': words[1]}]}))
+        time.sleep(0.5)
+        return ['boottest-draw: typed %s' % words[1]]
+    raise ValueError('unknown step: %s' % step)
+
+
 def run(args):
     expect = list(args.expect or GATES[args.gate])
     if PASSWORD in expect:
@@ -258,6 +506,8 @@ def run(args):
             return 1
 
     tmp = tempfile.mkdtemp(prefix='minkar-boottest-')
+    args.qmp = os.path.join(tmp, 'qmp.sock') if any(
+        isinstance(m, Act) for m in expect) else None
     vars_copy = os.path.join(tmp, 'OVMF_VARS.fd')
     shutil.copyfile(args.ovmf_vars, vars_copy)
     cmd = qemu_command(args, vars_copy)
@@ -298,6 +548,22 @@ def run(args):
 
     try:
         while time.monotonic() - start < args.timeout:
+            while pending and isinstance(pending[0], Act) and status != 1:
+                step = pending.pop(0)
+                print('boottest: [%6.1fs] qmp: %s' % (time.monotonic() - start, step),
+                      file=sys.stderr)
+                for text in act(args, step, tmp):
+                    print('boottest: [%6.1fs] %s' % (time.monotonic() - start, text),
+                          file=sys.stderr)
+                    if log:
+                        log.write(b'qmp| ' + text.encode() + b'\n')
+                        log.flush()
+                    match(text, True)
+            if status == 1 or (not pending and expect):
+                if not pending:
+                    status, reason = 0, 'all %d markers seen' % sum(
+                        not isinstance(m, (Send, SSH, Act)) for m in expect)
+                break
             if pending and isinstance(pending[0], SSH) and ssh is None and \
                     time.monotonic() >= ssh_retry:
                 ssh = start_ssh()
@@ -354,7 +620,7 @@ def run(args):
             if status == 1 or not pending:
                 if not pending:
                     status, reason = 0, 'all %d markers seen' % sum(
-                        not isinstance(m, (Send, SSH)) for m in expect)
+                        not isinstance(m, (Send, SSH, Act)) for m in expect)
                 break
         if status == 1 and any(m in reason for m in PANIC_MARKERS):
             drain_panic(proc, sel, console, log, args.verbose)
@@ -377,7 +643,7 @@ def run(args):
         print_panic_report(args, console)
     if pending and status != 0:
         print('boottest: not seen: %s' % ', '.join(p for p in pending
-                                                  if not isinstance(p, Send)),
+                                                  if not isinstance(p, (Send, Act))),
               file=sys.stderr)
     return status
 
@@ -418,7 +684,8 @@ def main(argv=None):
                         'NVMe SSD (default: $BOOTTEST_DISK or ahci)')
     p.add_argument('--no-rng', action='store_true',
                    help='no virtio-rng: firmware without EFI_RNG_PROTOCOL')
-    p.add_argument('--smp', type=int, default=2)
+    # A count, or a QEMU topology (e.g. 24,sockets=1,cores=12,threads=2).
+    p.add_argument('--smp', default='2')
     p.add_argument('--memory', type=int, default=4096, help='MiB')
     p.add_argument('--ssh-key', default=os.environ.get('BOOTTEST_SSH_KEY'),
                    help='private key ssh steps log in with (default: $BOOTTEST_SSH_KEY)')
@@ -427,6 +694,11 @@ def main(argv=None):
     p.add_argument('--ssh-port', type=int,
                    default=int(os.environ.get('BOOTTEST_SSH_PORT', '2222')),
                    help='host port forwarded to the guest\'s port 22')
+    p.add_argument('--reference', default=REFERENCE,
+                   help='reference screen for gate M4-draw (gzip-compressed PPM)')
+    p.add_argument('--update-reference', action='store_true',
+                   help='gates M4-draw and M4-compose: write the screens to their '
+                        'references instead of comparing them (from a run checked by hand)')
     p.add_argument('--ovmf-code', default='/usr/share/OVMF/OVMF_CODE_4M.fd')
     p.add_argument('--ovmf-vars', default='/usr/share/OVMF/OVMF_VARS_4M.fd')
     args = p.parse_args(argv)

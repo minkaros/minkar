@@ -73,18 +73,39 @@ xpc_dictionary_destroy(struct xpc_object *dict)
 	}
 }
 
-static void
-xpc_array_destroy(struct xpc_object *dict)
+
+__thread struct xpc_resource_list *_xpc_resources;
+
+size_t
+_xpc_resource_add(struct xpc_resource_list *list, mach_port_t port,
+    mach_msg_type_name_t disposition)
 {
-	struct xpc_object *p, *ptmp;
-	struct xpc_array_head *head;
+	if (list->count == list->capacity) {
+		size_t capacity = list->capacity ? list->capacity * 2 : 4;
+		struct xpc_resource *items = realloc(list->items,
+		    capacity * sizeof(struct xpc_resource));
 
-	head = &dict->xo_array;
-
-	TAILQ_FOREACH_SAFE(p, head, xo_link, ptmp) {
-		TAILQ_REMOVE(head, p, xo_link);
-		xpc_release(p);		/* append_value retained it */
+		if (items == NULL)
+			return ((size_t)-1);
+		list->items = items;
+		list->capacity = capacity;
 	}
+	list->items[list->count].xr_type = XPC_RESOURCE_PORT;
+	list->items[list->count].xr_port = port;
+	list->items[list->count].xr_disposition = disposition;
+	return (list->count++);
+}
+
+/* The rights a packed message made for itself (fileports): its own. */
+static void
+xpc_resources_release(struct xpc_resource_list *list, bool sent)
+{
+	for (size_t i = 0; i < list->count; i++)
+		if (!sent && list->items[i].xr_disposition == MACH_MSG_TYPE_MOVE_SEND)
+			mach_port_deallocate(mach_task_self(), list->items[i].xr_port);
+	free(list->items);
+	list->items = NULL;
+	list->count = list->capacity = 0;
 }
 
 static int
@@ -147,8 +168,22 @@ xpc_object_destroy(struct xpc_object *xo)
 		xpc_dictionary_destroy(xo);
 
 	if (xo->xo_xpc_type == _XPC_TYPE_ARRAY)
-		xpc_array_destroy(xo);
+		_xpc_array_destroy(xo);
 
+	/* Minkar: an object owns its descriptor and its port right. */
+	if (xo->xo_xpc_type == _XPC_TYPE_FD && xo->xo_fd >= 0)
+		close(xo->xo_fd);
+	if (xo->xo_xpc_type == _XPC_TYPE_ENDPOINT && MACH_PORT_VALID(xo->xo_port))
+		mach_port_mod_refs(mach_task_self(), xo->xo_port,
+		    (xo->xo_flags & _XPC_PORT_RECEIVE) ? MACH_PORT_RIGHT_RECEIVE :
+		    MACH_PORT_RIGHT_SEND, -1);
+	if (xo->xo_xpc_type == _XPC_TYPE_SHMEM && MACH_PORT_VALID(xo->xo_port))
+		mach_port_deallocate(mach_task_self(), xo->xo_port);
+	if (xo->xo_xpc_type == _XPC_TYPE_STRING)
+		free(xo->xo_str);
+	if (xo->xo_xpc_type == _XPC_TYPE_DATA)
+		free((void *)xo->xo_ptr);
+	free(xo->xo_audit_token);
 	free(xo);
 }
 
@@ -158,6 +193,8 @@ xpc_retain(xpc_object_t obj)
 	struct xpc_object *xo;
 
 	xo = obj;
+	if (xo == NULL || (xo->xo_flags & _XPC_GLOBAL))
+		return (obj);
 	atomic_fetch_add(&xo->xo_refcnt, 1);
 	return (obj);
 }
@@ -168,6 +205,8 @@ xpc_release(xpc_object_t obj)
 	struct xpc_object *xo;
 
 	xo = obj;
+	if (xo == NULL || (xo->xo_flags & _XPC_GLOBAL))
+		return;
 	if (atomic_fetch_add(&xo->xo_refcnt, -1) > 1)
 		return;
 
@@ -360,17 +399,29 @@ int
 xpc_pipe_send(xpc_object_t xobj, uint64_t id, xpc_port_t local, xpc_port_t remote)
 {
 	struct xpc_transport *transport = xpc_get_transport();
+	struct xpc_resource_list resources = { NULL, 0, 0 };
 	void *buf;
 	size_t size;
+	int err;
 
 	assert(xpc_get_type(xobj) == &_xpc_type_dictionary);
 
-	if (xpc_pack(xobj, &buf, id, &size) != 0) {
+	/* The rights in the message are gathered while it is packed. */
+	_xpc_resources = &resources;
+	err = xpc_pack(xobj, &buf, id, &size);
+	_xpc_resources = NULL;
+	if (err != 0) {
 		debugf("pack failed");
+		xpc_resources_release(&resources, false);
 		return (-1);
 	}
 
-	if (transport->xt_send(local, remote, buf, size, NULL, 0) != 0) {
+	err = transport->xt_send(local, remote, buf, size, resources.items,
+	    resources.count);
+	xpc_resources_release(&resources, err == 0);
+	free(buf);
+	if (err != 0) {
+		errno = err;
 		debugf("transport send function failed: %s", strerror(errno));
 		return (-1);
 	}
@@ -383,49 +434,51 @@ xpc_pipe_receive(xpc_port_t local, xpc_port_t *remote, xpc_object_t *result,
     uint64_t *id, struct xpc_credentials *creds)
 {
 	struct xpc_transport *transport = xpc_get_transport();
-	struct xpc_resource *resources;
+	struct xpc_resource_list resources = { NULL, 0, 0 };
+	struct xpc_resource *items;
 	struct xpc_frame_header *header;
 	void *buffer;
-	size_t nresources;
+	size_t length, nresources;
 	int ret;
 
-	buffer = malloc(RECV_BUFFER_SIZE);
-
-	ret = transport->xt_recv(local, remote, buffer, RECV_BUFFER_SIZE,
-	    &resources, &nresources, creds);
+	ret = transport->xt_recv(local, remote, &buffer, &length, &items,
+	    &nresources, creds);
 	if (ret < 0) {
-		debugf("transport receive function failed: %s", strerror(errno));
+		debugf("transport receive function failed");
 		return (-1);
-	}
-
-	if (ret == 0) {
-		debugf("remote side closed connection, port=%s", transport->xt_port_to_string(local));
-		return (ret);
 	}
 
 	header = (struct xpc_frame_header *)buffer;
-	if (header->length > (ret - sizeof(*header))) {
-		debugf("invalid message length");
-		return (-1);
-	}
-
-	if (header->version != XPC_PROTOCOL_VERSION) {
-		debugf("invalid protocol version")
+	if (length < sizeof(*header) || header->length > length - sizeof(*header) ||
+	    header->version != XPC_PROTOCOL_VERSION) {
+		debugf("invalid message");
+		for (size_t i = 0; i < nresources; i++)
+			mach_port_deallocate(mach_task_self(), items[i].xr_port);
+		free(items);
+		free(buffer);
 		return (-1);
 	}
 
 	*id = header->id;
-
-	debugf("length=%ld", header->length);
-
-	*result = xpc_unpack(buffer + sizeof(*header), header->length);
+	resources.items = items;
+	resources.count = resources.capacity = nresources;
+	_xpc_resources = &resources;
+	*result = xpc_unpack((char *)buffer + sizeof(*header), header->length);
+	_xpc_resources = NULL;
+	free(items);
+	free(buffer);
 
 	if (*result == NULL)
 		return (-1);
 
 	/* A message from the wire: xpc_dictionary_create_reply() may answer it. */
 	((struct xpc_object *)*result)->xo_flags |= _XPC_FROM_WIRE;
-
-	free(buffer);
-	return (ret);
+	if (creds != NULL) {
+		((struct xpc_object *)*result)->xo_audit_token =
+		    malloc(sizeof(audit_token_t));
+		if (((struct xpc_object *)*result)->xo_audit_token != NULL)
+			*((struct xpc_object *)*result)->xo_audit_token =
+			    creds->xc_audit_token;
+	}
+	return ((int)length);
 }

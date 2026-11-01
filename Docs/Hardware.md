@@ -10,7 +10,7 @@ tracks the list as a whole.
 |---|---|---|
 | QEMU VM | Every change: `boottest`, the local test suite, the CI | Boots to login under TCG and KVM |
 | PC 1: Gigabyte H270N-WIFI | First physical PC | Boots to login from SATA; display, keyboard and network work |
-| PC 2 | Second physical PC | Not chosen yet |
+| PC 2: Mac Pro 6,1 | Second physical PC (gate M1); the vendor's original hardware, to measure the reference | Boots to login from NVMe; 24 threads, display, keyboard and network work |
 | AMD PC | An AMD processor | Pending: no hardware yet (see below) |
 
 ## QEMU virtual machine
@@ -217,6 +217,59 @@ slow only while the network was misconfigured.
 **Full-screen programs** (2026-10-28). The console draws box lines, block
 elements and Braille dots, so btop shows its boxes and graphs as on a
 terminal emulator instead of `+ - | #`.
+
+## PC 2: Mac Pro 6,1
+
+Chosen on 2026-11-01. Gate M1 passed on it that day: `minkar-hwcheck`
+ran unattended with 20 checks passing (boot from the internal NVMe, the
+24 threads online and loaded for 30 s with a 12.7x speedup, 40 GB of
+memory, 1 GB written and read back, services, ACPI, and a reboot that came
+back in 68 s), after an hour of idle with network traffic every 10
+minutes and no error.
+
+| Part | Device | State |
+|---|---|---|
+| Board | Mac Pro 6,1, the vendor's EFI firmware | Boots the Minkar loader from the internal disk |
+| CPU | Intel Xeon E5-2697 v2 (12 cores, 24 threads) | All 24 run (SMP) |
+| Memory | 40 GB | Full size seen, round trip checked |
+| Disk | NVMe, Samsung MZVLB256HAHQ (PCI 144d:a808) | Root file system (`MinkarNVMe`) |
+| USB | Fresco Logic FL1100 xHCI (1b73:1100) | Keyboards, directly and through a KVM switch's hub; card reader |
+| USB | Intel USB 2 EHCI (8086:1d26) | No driver |
+| Display | Two AMD FirePro (1002:679e); GOP framebuffer, Xiaomi 34" ultrawide | Native 3440x1440 text console on the card that drives it |
+| Network | Two Broadcom BCM57762 (14e4:1682) | DHCP, ssh (`MinkarBGE`); 100 Mb/s on a 100 Mb/s switch |
+
+Images for it are the usual test images; `minkar-hwcheck --display`
+checks the display, and the loader writes `\Minkar\loader.log` on the
+EFI partition, since this firmware never shows the loader's text.
+
+### Still open
+
+- Once, during the hardware check's storage test, both network links went
+  down at the same moment and came back about 30 s later (with their
+  addresses); in an hour of traffic before it, never. To be seen again
+  before blaming the driver or the switch.
+- PCI configuration assigns no window to devices behind a bridge (GPUs,
+  network, USB): the firmware's stay in place, so they work, but drivers
+  get no `IODeviceMemory` for 64-bit BARs and `MinkarBGE` maps its own.
+- The power button device (PNP0C0C) is not in the ACPI tree; the fixed
+  event is not checked yet. The EHCI controller has no driver.
+
+### How it got there
+
+- Up to 2026-10-31 the machine hung with noise growing on the screen,
+  sometimes in the vendor's own diagnostics too. On 2026-11-01 the cause
+  turned out to be the KVM switch it was connected through, powered from
+  the machine's USB: through it the display's EDID changed from boot to
+  boot (3440x1440 one boot, 1024x768 the next, seen in the loader's log)
+  and a keyboard sometimes failed Address Device. Connected directly, the
+  display and the machine ran clean for over an hour.
+- Fixes found on the way: one IOGOPFramebuffer per GPU claimed the same
+  framebuffer (now only the card whose window holds it, `9c3dbe9873`);
+  Address Device is retried after a port reset (`c129adf018`); the loader
+  logs its output to the EFI partition (`e9a4446222`); the kernel's
+  topology code cut a die every 24 APIC IDs (now rounded to a power of
+  two), and the PCI family's 64-bit BARs were mapped by hand in
+  `MinkarBGE` (2026-10-31).
 
 ## AMD
 

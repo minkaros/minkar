@@ -62,8 +62,9 @@
 #import <AppKit/NSControl.h>
 #import <AppKit/NSOpenGLView.h>
 #import <AppKit/NSDocument.h>
-#import <WindowServer/message.h>
-#import <WindowServer/rpc.h>
+#import <WindowServer/Legacy/message.h>
+#import <WindowServer/Legacy/rpc.h>
+#include <SkyLight/SkyLight.h>
 #import "O2Context_builtin_FT.h"
 
 NSString * const NSWindowDidBecomeKeyNotification=@"NSWindowDidBecomeKeyNotification";
@@ -166,6 +167,61 @@ const float WSWindowEdgePad = 2;
 
 @end
 
+/*
+ * The new window server (WindowServer plan, WS2): when CoreGraphics talks
+ * to it (_CGUsesSkyLight, no legacy server running), each window is a
+ * SkyLight window. AppKit draws into its own pixels and flushes them into
+ * the window's surface; frame, level, alpha and order go to the server.
+ * Events come with WS3.
+ */
+extern int _CGUsesSkyLight(void);
+
+static NSMutableDictionary *slsWindows;	/* window number -> SLSWindowID */
+static NSMutableSet *slsShown;		/* window numbers ordered in */
+static NSMutableDictionary *slsDragRegions;	/* window number -> last region sent */
+/* window number -> the frame the server has (sent, or told us by a move) */
+static NSMutableDictionary *slsKnownFrames;
+
+/* Whether frame is the one the server has; records it as such. */
+static BOOL slsFrameIsKnown(int number, SLSRect frame) {
+    NSNumber *key = [NSNumber numberWithInt:number];
+    NSData *value = [NSData dataWithBytes:&frame length:sizeof(frame)];
+    @synchronized([NSWindow class]) {
+        if([[slsKnownFrames objectForKey:key] isEqualToData:value])
+            return YES;
+        if(slsKnownFrames == nil)
+            slsKnownFrames = [[NSMutableDictionary alloc] init];
+        [slsKnownFrames setObject:value forKey:key];
+    }
+    return NO;
+}
+
+static SLSWindowID slsWindowFor(int number) {
+    @synchronized([NSWindow class]) {
+        return [[slsWindows objectForKey:[NSNumber numberWithInt:number]] unsignedIntValue];
+    }
+}
+
+/* The NSWindow of a SkyLight window, for events (any thread). */
+NSWindow *_NSWindowForSLSWindow(SLSWindowID window) {
+    int number = 0;
+
+    @synchronized([NSWindow class]) {
+        for(NSNumber *key in slsWindows)
+            if([[slsWindows objectForKey:key] unsignedIntValue] == window)
+                number = [key intValue];
+    }
+    return number ? [NSApp windowWithWindowNumber:number] : nil;
+}
+
+/* AppKit's frames start at the main screen's bottom left; the server's at
+ * its top left. */
+static SLSRect slsFrame(NSRect frame) {
+    CGFloat height = CGDisplayBounds(CGMainDisplayID()).size.height;
+    return (SLSRect){ frame.origin.x, height - frame.origin.y - frame.size.height,
+        frame.size.width, frame.size.height };
+}
+
 @implementation NSWindow
 
 +(NSWindowDepth)defaultDepthLimit {
@@ -264,6 +320,19 @@ NSArray *_NSWindowNumbersFromWindowInfo(CFArrayRef info,BOOL allApps) {
     _frame=[self frameRectForContentRect:contentRect];
     _frame=[self constrainFrameRect: _frame toScreen: [NSScreen mainScreen]];
     _level=NSNormalWindowLevel;
+    if(_CGUsesSkyLight()) {
+        SLSWindowID window = 0;
+        if(SLSNewWindow(CGWindowLevelForKey(_level), slsFrame(_frame), &window) != kSLSErrorSuccess)
+            return nil;
+        @synchronized([NSWindow class]) {
+            if(slsWindows == nil) {
+                slsWindows = [NSMutableDictionary new];
+                slsShown = [NSMutableSet new];
+            }
+            [slsWindows setObject:[NSNumber numberWithUnsignedInt:window]
+                forKey:[NSNumber numberWithInt:_number]];
+        }
+    } else {
     struct wsRPCWindow data = {
         { kWSWindowCreate, sizeof(struct wsRPCWindow) - sizeof(struct wsRPCBase) },
         _number, _frame.origin.x, _frame.origin.y,
@@ -274,6 +343,7 @@ NSArray *_NSWindowNumbersFromWindowInfo(CFArrayRef info,BOOL allApps) {
     kern_return_t ret = _windowServerRPC(&data, sizeof(data), &reply, &len);
     if(ret != KERN_SUCCESS)
         return nil;
+    }
 
     _preferredScreen = screen;
 
@@ -354,10 +424,8 @@ NSArray *_NSWindowNumbersFromWindowInfo(CFArrayRef info,BOOL allApps) {
     _isMiniaturized = NO;
 
     buffer = NULL;
-    bundleID = [[NSBundle mainBundle] bundleIdentifier];
-    if(bundleID == nil)
-        bundleID = [NSString stringWithFormat:@"unix.%u", getpid()];
-    shmPath = [NSString stringWithFormat:@"/%s/%u/win/%u", [bundleID cString], getpid(), _number];
+    // The same name as WindowServer's: XNU takes at most 31 characters.
+    shmPath = [NSString stringWithFormat:@"/ws.%u.%u", getpid(), _number];
 
     _context = [self cgContext];
     [[NSDraggingManager draggingManager] registerWindow:self dragTypes:nil];
@@ -378,9 +446,14 @@ NSArray *_NSWindowNumbersFromWindowInfo(CFArrayRef info,BOOL allApps) {
     [[NSNotificationCenter defaultCenter] removeObserver:self];
     if(_context)
         [_context release];
-    if(buffer && bufsize)
-        munmap(buffer, bufsize);
-    shm_unlink([shmPath cString]);
+    if(buffer && bufsize) {
+        if(_CGUsesSkyLight())
+            free(buffer);
+        else
+            munmap(buffer, bufsize);
+    }
+    if(!_CGUsesSkyLight())
+        shm_unlink([shmPath cString]);
     //if(_cglContext)
     //    [_cglContext release];
     //if(_caContext)
@@ -409,16 +482,26 @@ NSArray *_NSWindowNumbersFromWindowInfo(CFArrayRef info,BOOL allApps) {
 -(O2Context *) createCGContextIfNeeded
 {
     if(_context == nil) {
-        if(buffer != NULL && bufsize > 0)
-            munmap(buffer, bufsize);
+        if(buffer != NULL && bufsize > 0) {
+            if(_CGUsesSkyLight())
+                free(buffer);
+            else
+                munmap(buffer, bufsize);
+            buffer = NULL;
+        }
 
         int depth = [_display depth] / 8;
-        int shmfd = shm_open([shmPath cString], O_RDWR, 0600);
         bufsize = depth * _frame.size.width * _frame.size.height;
 
-        if(shmfd >= 0) {
-            buffer = mmap(NULL, bufsize, PROT_WRITE|PROT_READ, MAP_SHARED, shmfd, 0);
-            close(shmfd);
+        if(_CGUsesSkyLight()) {
+            /* The window's own pixels; flushWindow copies them to its surface. */
+            buffer = calloc(1, bufsize);
+        } else {
+            int shmfd = shm_open([shmPath cString], O_RDWR, 0600);
+            if(shmfd >= 0) {
+                buffer = mmap(NULL, bufsize, PROT_WRITE|PROT_READ, MAP_SHARED, shmfd, 0);
+                close(shmfd);
+            }
         }
 
         O2ColorSpaceRef colorSpace = O2ColorSpaceCreateDeviceRGB();
@@ -1033,7 +1116,7 @@ NSArray *_NSWindowNumbersFromWindowInfo(CFArrayRef info,BOOL allApps) {
 }
 
 -(void)setMovable:(BOOL)movable {
-   NSUnimplementedMethod();
+   _isNotMovable = !movable;
 }
 
 -(void)setBackingType:(NSBackingStoreType)value {
@@ -1147,6 +1230,8 @@ NSArray *_NSWindowNumbersFromWindowInfo(CFArrayRef info,BOOL allApps) {
 
 -(void)setAlphaValue:(CGFloat)value {
    _alphaValue=value;
+   if(_CGUsesSkyLight())
+       SLSSetWindowAlpha(slsWindowFor(_number), value);
 }
 
 -(void)_toolbarSizeDidChangeFromOldHeight:(CGFloat)oldHeight {
@@ -1509,9 +1594,9 @@ NSArray *_NSWindowNumbersFromWindowInfo(CFArrayRef info,BOOL allApps) {
     return _isMiniaturized;
 }
 
+/* As documented: a window is movable unless setMovable:NO was called. */
 -(BOOL)isMovable {
-   NSUnimplementedMethod();
-   return NO;
+   return !_isNotMovable;
 }
 
 -(BOOL)inLiveResize {
@@ -1663,6 +1748,9 @@ NSArray *_NSWindowNumbersFromWindowInfo(CFArrayRef info,BOOL allApps) {
 }
 
 -(void)makeKeyWindow {
+    /* The new window server sends this window the keys. */
+    if(_CGUsesSkyLight())
+        SLSSetKeyWindow(slsWindowFor(_number));
     if(!_hasBeenOnScreen){
         _hasBeenOnScreen=YES;
 
@@ -1877,6 +1965,14 @@ NSArray *_NSWindowNumbersFromWindowInfo(CFArrayRef info,BOOL allApps) {
         if(!([self isOpaque] && [_contentView isKindOfClass:[NSOpenGLView class]] && [_contentView isOpaque])) {
             O2ContextFlush(_context);
         }
+        if(_CGUsesSkyLight() && buffer != NULL) {
+            /* SHORTCUT(WS5): the whole window is damaged at each flush, until
+               AppKit tracks its dirty rects into the surface; taken in WS2. */
+            int32_t width = (int32_t)_frame.size.width, height = (int32_t)_frame.size.height;
+            SLSIntRect all = { 0, 0, width, height };
+            [self _syncSkyLightDragRegion];
+            SLSWindowFlushPixels(slsWindowFor(_number), buffer, 4 * width, &all, 1);
+        }
     }
 }
 
@@ -2052,12 +2148,23 @@ NSArray *_NSWindowNumbersFromWindowInfo(CFArrayRef info,BOOL allApps) {
 
     [self postNotificationName:NSWindowWillCloseNotification];
 
+    if(_CGUsesSkyLight()) {
+        NSNumber *key = [NSNumber numberWithInt:_number];
+        SLSReleaseWindow(slsWindowFor(_number));
+        @synchronized([NSWindow class]) {
+            [slsWindows removeObjectForKey:key];
+            [slsDragRegions removeObjectForKey:key];
+            [slsKnownFrames removeObjectForKey:key];
+        }
+        [slsShown removeObject:key];
+    } else {
     struct wsRPCWindow data = {
         { kWSWindowDestroy, sizeof(struct wsRPCWindow) - sizeof(struct wsRPCBase) },
         _number, _frame.origin.x, _frame.origin.y,
         _frame.size.width, _frame.size.height, _styleMask, 0, {'\0'}, _level
     };
     _windowServerRPC(&data, sizeof(data), NULL, NULL);
+    }
 
     if(_releaseWhenClosed)
         [self autorelease];
@@ -2117,6 +2224,13 @@ NSArray *_NSWindowNumbersFromWindowInfo(CFArrayRef info,BOOL allApps) {
        [NSApp removeWindowsItem:self];
      }
      break;
+   }
+
+   if(_CGUsesSkyLight() && place != NSWindowOut) {
+       NSNumber *key = [NSNumber numberWithInt:_number];
+       SLSOrderWindow(slsWindowFor(_number), place == NSWindowAbove ? kSLSOrderAbove : kSLSOrderBelow,
+           relativeTo ? slsWindowFor(relativeTo) : 0);
+       [slsShown addObject:key];
    }
 
    [self postNotificationName:NSWindowDidMoveNotification];
@@ -2213,6 +2327,11 @@ NSArray *_NSWindowNumbersFromWindowInfo(CFArrayRef info,BOOL allApps) {
     case NSLeftMouseDown:{
         NSView *view=[_backgroundView hitTest:[event locationInWindow]];
 
+        /* A click in a window that is not key makes it key and brings it
+         * to the front (the window server does not reorder windows). */
+        if(![self isKeyWindow] && [self canBecomeKeyWindow])
+            [self makeKeyAndOrderFront:self];
+
         if([view acceptsFirstResponder]){
             if([view needsPanelToBecomeKey]) {
                 [self makeFirstResponder:view];
@@ -2286,7 +2405,8 @@ NSArray *_NSWindowNumbersFromWindowInfo(CFArrayRef info,BOOL allApps) {
      break;
 
     case NSAppKitDefined:
-     // Nothing special to do
+     if([event subtype] == NSWindowMovedEventType && _CGUsesSkyLight())
+      [self _skyLightMovedToX:[event data1] y:[event data2]];
      break;
 
     default:
@@ -3118,8 +3238,95 @@ NSArray *_NSWindowNumbersFromWindowInfo(CFArrayRef info,BOOL allApps) {
 {
 }
 
+void CGNativeBorderFrameWidthsForStyle(unsigned styleMask,CGFloat *top,CGFloat *left,
+                                       CGFloat *bottom,CGFloat *right);
+
+/* A rectangle of the window (bottom left origin) in the server's window
+   coordinates (top left origin), clipped to the window. */
+static BOOL slsWindowRect(NSRect r, NSSize size, SLSIntRect *out) {
+    r = NSIntersectionRect(r, NSMakeRect(0, 0, size.width, size.height));
+    if(NSIsEmptyRect(r))
+        return NO;
+    out->x = (int32_t)floor(r.origin.x);
+    out->y = (int32_t)floor(size.height - NSMaxY(r));
+    out->width = (int32_t)ceil(r.size.width);
+    out->height = (int32_t)ceil(r.size.height);
+    return YES;
+}
+
+/* The views that take their own clicks, as excluded rectangles: a view that
+   cannot move the window is excluded whole; one that can lets through what
+   its subviews do not take. */
+static void slsCollectExcluded(NSView *view, NSSize size, SLSIntRect *rects, uint32_t *count) {
+    for(NSView *sub in [view subviews]) {
+        if([sub isHidden] || *count >= kSLSMaxRegionRects)
+            continue;
+        if(![sub mouseDownCanMoveWindow]) {
+            if(slsWindowRect([sub convertRect:[sub bounds] toView:nil], size, &rects[*count]))
+                (*count)++;
+        } else
+            slsCollectExcluded(sub, size, rects, count);
+    }
+}
+
+/* The drag regions the server moves the window from by itself: the title
+   bar without its buttons, and the background of a window movable by it.
+   Sent when they change. */
+-(void)_syncSkyLightDragRegion {
+    SLSIntRect drag[kSLSMaxRegionRects], exclude[kSLSMaxRegionRects];
+    uint32_t dragCount = 0, excludeCount = 0;
+    NSSize size = _frame.size;
+    CGFloat top, left, bottom, right;
+
+    CGNativeBorderFrameWidthsForStyle(_styleMask, &top, &left, &bottom, &right);
+    if([self isMovable]) {
+        if([self isMovableByWindowBackground]) {
+            if(slsWindowRect(NSMakeRect(0, 0, size.width, size.height), size, &drag[dragCount]))
+                dragCount++;
+            slsCollectExcluded(_contentView, size, exclude, &excludeCount);
+        } else if(top > 0 &&
+            slsWindowRect(NSMakeRect(0, size.height - top, size.width, top), size, &drag[dragCount]))
+            dragCount++;
+        if(dragCount > 0 && [_backgroundView isKindOfClass:[NSThemeFrame class]] &&
+           excludeCount < kSLSMaxRegionRects &&
+           slsWindowRect([(NSThemeFrame *)_backgroundView _windowControlsRect], size, &exclude[excludeCount]))
+            excludeCount++;
+    }
+
+    NSMutableData *region = [NSMutableData dataWithBytes:drag length:dragCount * sizeof(SLSIntRect)];
+    [region appendBytes:&dragCount length:sizeof(dragCount)];
+    [region appendBytes:exclude length:excludeCount * sizeof(SLSIntRect)];
+    NSNumber *key = [NSNumber numberWithInt:_number];
+    @synchronized([NSWindow class]) {
+        if([[slsDragRegions objectForKey:key] isEqualToData:region])
+            return;
+        if(slsDragRegions == nil)
+            slsDragRegions = [[NSMutableDictionary alloc] init];
+        [slsDragRegions setObject:region forKey:key];
+    }
+    SLSWindowSetDragRegion(slsWindowFor(_number), drag, dragCount, exclude, excludeCount);
+}
+
 -(void)requestMove:(NSEvent *)event {
     [self postNotificationName:NSWindowWillMoveNotification];
+    /* The new window server moves the window with the pointer by itself
+     * and tells us where it went (NSWindowMovedEventType). */
+    if(_CGUsesSkyLight())
+        SLSWindowStartMove(slsWindowFor(_number));
+}
+
+-(void)performWindowDragWithEvent:(NSEvent *)event {
+    [self requestMove:event];
+}
+
+/* The new window server moved the window: its frame's top left is at x, y
+ * (global, from the top left). */
+-(void)_skyLightMovedToX:(NSInteger)x y:(NSInteger)y {
+    CGFloat height = CGDisplayBounds(CGMainDisplayID()).size.height;
+    _frame.origin = NSMakePoint(x, height - y - _frame.size.height);
+    /* The server has this frame: it is not sent back. */
+    slsFrameIsKnown(_number, slsFrame(_frame));
+    [self postNotificationName:NSWindowDidMoveNotification];
 }
 
 -(void)requestResize:(NSEvent *)event {
@@ -3181,6 +3388,25 @@ NSArray *_NSWindowNumbersFromWindowInfo(CFArrayRef info,BOOL allApps) {
 
 
 -(BOOL)_updateWSState {
+    if(_CGUsesSkyLight()) {
+        SLSWindowID window = slsWindowFor(_number);
+        NSNumber *key = [NSNumber numberWithInt:_number];
+
+        /* Only a frame the server does not have: a window the server moved
+           while its app was busy keeps its new place, even if events
+           queued before the move (a click that orders it front) are
+           handled first, with the old frame. */
+        if(!slsFrameIsKnown(_number, slsFrame(_frame)))
+            SLSSetWindowFrame(window, slsFrame(_frame));
+        /* This AppKit's levels are CGWindowLevelKeys; the server takes levels. */
+        SLSSetWindowLevel(window, CGWindowLevelForKey((CGWindowLevelKey)_level));
+        /* Ordering in is orderWindow:relativeTo:'s; this only takes out. */
+        if((_isVisible == NO || _isMiniaturized == YES) && [slsShown containsObject:key]) {
+            SLSOrderWindow(window, kSLSOrderOut, 0);
+            [slsShown removeObject:key];
+        }
+        return YES;
+    }
     struct wsRPCWindow data = {
         { kWSWindowModifyState, sizeof(struct wsRPCWindow) - sizeof(struct wsRPCBase) },
         _number, _frame.origin.x, _frame.origin.y,

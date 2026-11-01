@@ -8,7 +8,7 @@ Minkar's goal is a system on Darwin 19.6.0 that builds and runs Cocoa apps. The 
 
 The plan has 8 phases (0–7), each with deliverables and an exit gate that CI can check. No phase is closed while the one below it fails its gate. Since 2026-10-29 there is also a performance requirement: equal to or better than the reference system on the same physical machine, required from Minkar 21.0 on (see Performance requirements).
 
-**Source of truth:** this file. [ROADMAP.es.md](ROADMAP.es.md) is the same plan in Spanish, and [Progress.md](Progress.md) shows its state as diagrams (critical path, Phase 3, the graphics stack). Verified against `devel` at `fb6e25b877` (2026-10-31), 95 commits ahead of `main`.
+**Source of truth:** this file. [ROADMAP.es.md](ROADMAP.es.md) is the same plan in Spanish, and [Progress.md](Progress.md) summarizes its state: a table, a metro map of milestones by plan and a work board, generated from `progress/status.toml`. Verified against `devel` at `82c5f3e8f8` (2026-10-31), 140 commits ahead of `main`.
 
 ### Principles
 
@@ -78,7 +78,7 @@ Minkar's performance must be equal to or better than the reference system's on t
 | --- | --- | --- |
 | QEMU VM (TCG and KVM) | Development and CI | Functional; software paths (pixman, lavapipe, llvmpipe) allowed as scaffolding |
 | PC 1: Gigabyte H270N-WIFI, i7-7700 | First physical machine; boots to login from SATA or NVMe | Functional and performance, against the reference system |
-| PC 2 | To be chosen; to measure the reference, the vendor's original hardware (candidate: Mac Pro 6,1) | Same |
+| PC 2 | Mac Pro 6,1 (2026-11-01): Minkar's second PC (gate M1), and the vendor's original hardware to measure the reference | Same |
 
 - **How it is measured:** Minkar and the reference system on the same machine (dual boot), with the same benchmarks run over SSH. The reference system is measured only on its vendor's original hardware (candidate: Mac Pro 6,1), as its license allows no other, and its values are kept out of the public repository.
 - **Consequence:** if the reference is measured only on the Mac Pro 6,1, Minkar must be measured there too, and its GPU (FirePro D300, GCN 1.0, the oldest and least maturely supported) becomes the first high-performance driver's.
@@ -90,16 +90,16 @@ Minkar boots on Darwin with its own EFI loader, the whole system builds as Mach-
 
 | Component | State | What is missing | Phase |
 | --- | --- | --- | --- |
-| EFI loader + Darwin kernel | Boots in QEMU (TCG and KVM) and on PC 1, from SATA or NVMe; SMP with every CPU; the power button shuts down in order | PC 2, AMD processors, MSI-X | 1 |
+| EFI loader + Darwin kernel | Boots in QEMU (TCG and KVM), on PC 1 from SATA or NVMe, and on PC 2 (Mac Pro 6,1) from NVMe; SMP with every CPU (24 threads on PC 2); the power button shuts down in order | AMD processors, MSI-X | 1 |
 | System build | Full `world`; CI builds and boots it on `main` and by hand | — (M0 met) | 0 |
 | libSystem | The reference apps find all their libSystem imports (308 of 308); `os_log` writes to syslogd; `@available` compares against `ProductVersion`; dyld's @rpath, @loader\_path and re-exports tested | Noisy stubs, `logd`, dyld's shared cache | 3 |
 | launchd / launchctl | launchd-842 as PID 1; launchctl with kickstart; `KeepAlive PathState`, `WatchPaths` and `QueueDirectories` | Nothing | 2 (closed) |
 | Userland and system tools | Every Phase 2 command (337 of the reference list's 354) | `open` and the commands of later phases | 2 (closed) |
 | DiskArbitration | The original framework and `diskarbitrationd` (APSL); our own `diskutil` and `hdiutil`; mounts HFS+, FAT and exFAT | — | 2 (closed) |
 | CoreFoundation | CF-Lite (APSL) | The APIs missing up to API 21 | 3 |
-| Foundation | Three batches of fixes (2026-10-26); `NSProcessInfo` with `operatingSystemVersion`; re-exports CoreFoundation (2026-10-31) | `NSURLSession`; the API 19 audit | 3 |
+| Foundation | Three batches of fixes (2026-10-26); `NSProcessInfo` with `operatingSystemVersion`; re-exports CoreFoundation; `NSURLSession` on libcurl, with cookies; `NSOperationQueue` on dispatch; the main run loop runs dispatch's main queue; `NSDateFormatter` on ICU (2026-10-31); `NSXPCConnection` over libxpc, with the XPC services inside app bundles (2026-10-31) | URL cache and task metrics in `NSURLSession`; the API 19 audit | 3 |
 | Swift 6 | Nothing in the tree | Compiler, stdlib, overlays | 3 |
-| WindowServer | Builds on XNU with an IOFramebuffer backend; never run | Run it; input from IOHIDSystem | 4 |
+| WindowServer | The current server draws AppKit windows on the GOP framebuffer with input from IOHIDSystem; its launchd job is installed disabled (WS0 done 2026-10-31, gate `M4-draw`). The new core's interface is in `SkyLight.framework`, with its server next to the current one (WS1 done 2026-10-31); it composites AppKit windows with pixman (WS2 done 2026-11-01, gate `M4-compose`) and routes input from IOHIDSystem, with event taps (WS3 done 2026-11-01) | The new core's server behavior (WS4a, in progress: its own user, drag regions, symbolic hotkeys, running applications through LaunchServices, the front app and the menu bar's place are done) and the switch (WS4b), then IOSurface and the GPU (WS5, WS6) | 4 |
 | GPU acceleration | None; without it the display cannot be turned off either | The whole track (performance requirement) | 4 and Minkar 21.0 |
 | SystemUIServer, Dock | Partial, not built | Almost everything | 5 |
 | Kraz, System Preferences | Do not exist | New Cocoa apps | 5 |
@@ -143,14 +143,14 @@ Goal: XNU boots on a generic x86-64 PC up to PID 1 with the root disk mounted. I
 - [x] Boot in QEMU with KVM and TCG. *Partial:* CI runners still use TCG only.
 - [x] SMP (2026-10-30): every CPU the MADT enables runs. On PC 1, eight threads (`hw.ncpu` 8, 4 physical); in QEMU tested with 2 to 64 processors and several topologies.
 - [x] Power button (2026-10-31): IOACPIFamily takes ACPI's fixed event or the PNP0C0C device and `powerd` asks for an orderly shutdown; on PC 1 the machine powers off. `shutdown` and `reboot` take about 2 s (20 s before, because of diskarbitrationd), and the test images boot with `msgbuf=1048576`.
-- [ ] Reference hardware list ([Hardware.md](Hardware.md)). *In progress:* PC 1 documented; PC 2 not chosen.
+- [x] Reference hardware list ([Hardware.md](Hardware.md)): PC 1 and PC 2 (Mac Pro 6,1, 2026-11-01) documented; AMD below.
 - [ ] More than 64 processors and x2APIC (after Minkar 19.6.0); a larger machine runs on its first 64 today.
 - [ ] AMD processors: the kernel recognizes them, but Minkar has never run on one. First in QEMU with `-cpu EPYC`, then on an AMD PC.
 - [ ] Boot without `pci_keep_console=1`; IOKit takes more than 30 s to go quiet.
 - [ ] IPv6 on PC 1's network: RDNSS and DNS answers over IPv6, which QEMU's user network does not give (moved from Phase 2 on 2026-10-31).
 - [ ] PC 1's Wi-Fi (Intel, M.2): no driver.
 
-* [ ] **Exit gate (M1):** met in QEMU and on PC 1 (from SATA and from NVMe, with SMP). A second PC is missing.
+* [x] **Exit gate (M1):** met in QEMU, on PC 1 (from SATA and from NVMe, with SMP) and on PC 2, a Mac Pro 6,1 (2026-11-01: from NVMe, 24 threads under load, 40 GB, storage and a reboot pass in `minkar-hwcheck`; `9c3dbe9873`, `c129adf018`, `e9a4446222`).
 
 ## Phase 2 — Base userland
 
@@ -228,17 +228,18 @@ Decision order: CoreFoundation constrains Foundation for Swift, which constrains
 
 0. Bring in the remaining third-party frameworks (moved from Phase 0): 13 frameworks build and install; CFNetwork is commented out, and Security and OpenDirectory are not built.
 1. Complete CF-Lite up to API 21, with bridging tests on every change.
+   - [x] CF's string functions take Foundation's own strings (`NSMutableString`'s were read as garbage by `CFLocaleCreate`, `CFStringGetCString`...) (`42a40ffab0`, test `foundation-cf-string-bridging`, full suite 2888/0).
    - [x] `CFArray` and `CFDictionary` are toll-free bridged to `NSArray` and `NSDictionary`, both ways: CF's objects take Objective-C messages (`__NSCFArray`, `__NSCFDictionary`) and CF's functions take Foundation's collections. Evidence: commit "CoreFoundation and Foundation: arrays and dictionaries bridged both ways", test `foundation-cf-bridging` (13/0), full suite 2761/0, M2 PASS.
-2. Audit Foundation against API 19, starting with what the reference apps import. *Done (2026-10-25/26):* `NSException`, `NSUUID`, `NSSecureCoding`, `NSRegularExpression`, `NSJSONSerialization` (with JSON5), `NSCache`, `NSInvocation` with the System V calling convention, weak `NSHashTable` and `NSMapTable`, binary property lists byte for byte as the reference writes them, `NSProgress` and the modern `NSString` API, plus dozens of bugs found while testing. *Done (2026-10-31):* `NSProcessInfo` with `operatingSystemVersion` (10.15.0), `isOperatingSystemAtLeastVersion:`, `operatingSystemVersionString`, processors, memory and `systemUptime` (`fb6e25b877`). *Left from the symbol report:* `NSURLSession`. *Known bug:* `NSKeyedUnarchiver` cannot read the XML property list `NSKeyedArchiver` writes. Untested: locale-dependent behaviour (UTF-8 locale data is in the image since 2026-10-27).
-3. Security (APSL) for certificates and a basic keychain, needed for TLS in `NSURLSession`.
-4. LaunchServices: bundle database and UTI types; `open` and Kraz depend on it.
+2. Audit Foundation against API 19, starting with what the reference apps import. *Done (2026-10-25/26):* `NSException`, `NSUUID`, `NSSecureCoding`, `NSRegularExpression`, `NSJSONSerialization` (with JSON5), `NSCache`, `NSInvocation` with the System V calling convention, weak `NSHashTable` and `NSMapTable`, binary property lists byte for byte as the reference writes them, `NSProgress` and the modern `NSString` API, plus dozens of bugs found while testing. *Done (2026-10-31):* `NSProcessInfo` with `operatingSystemVersion` (10.15.0), `isOperatingSystemAtLeastVersion:`, `operatingSystemVersionString`, processors, memory and `systemUptime` (`fb6e25b877`). *Done (2026-10-31):* `NSURLSession` on libcurl: configuration, data, upload and download tasks, delegate and completion handlers, redirects and authentication challenges through the delegate, resume data, `file:` and `data:` URLs (`00617d5f6c`); the main thread's run loop runs dispatch's main queue, which never ran in a program driven by `NSRunLoop` (`c88f713757`); `NSOperation`, `NSBlockOperation` and `NSOperationQueue` rewritten on dispatch, with `mainQueue`, `currentQueue`, concurrency limits, asynchronous operations and barriers (`3f886f812e`); `NSData` Base64 and `rangeOfData:options:range:`, `NSHTTPURLResponse` (MIME type, charset, unknown length), four `NSError` keys that did not link, relative URLs that lost their port, `MIN`/`MAX`/`ABS` (`81d2593fb7`). Tests `foundation-url-session` (30/0, HTTPS included), `foundation-operation-queue`, `foundation-main-queue`, `foundation-url-support`; full suite 2826/0, M2 PASS. Then (`b48794b0dc`, `dc214ec2ce`, `852676bdeb`, `5671610ec9`): HTTP cookies (`NSHTTPCookie` and `NSHTTPCookieStorage` were empty), sent and stored by `NSURLSession`; `pathComponents` kept no `/`, so `createDirectoryAtPath:withIntermediateDirectories:` made absolute paths relative; `addObserverForName:object:queue:usingBlock:`; `NSDateFormatter`'s default behavior on CFDateFormatter (Unicode patterns, styles, locales; only `%Y` formats worked). Tests `foundation-cookies`, `foundation-paths-blocks`, `foundation-date-formatter`; full suite 2871/1 (an intermittent test, passed again), M2 PASS. Then the URL API of files (`8b9592659f`, `4738af30ea`, `e2ebc901c5`): every standard directory in `NSSearchPathForDirectoriesInDomains` (it knew three), file URLs as the API makes them (`file:///a%20b/`, `path` decoded), NSURL's resource values and bookmarks, NSFileManager's and NSBundle's URL methods; test `foundation-file-urls`; full suite 2907/0, M2 PASS. `tools/symbols/selector-inventory.py` (`093bf4113e`) lists the Objective-C messages the reference apps send that no Minkar class implements: 80.0% of 3305 are there on 2026-10-31 (77.9% before the file URLs). Then processes, files and formatters (`2ebf423f7b` to `15c3a8fd96`, 9 commits): NSTask on posix_spawn with its modern API (it closed the child's standard output when not set and reaped every child of the process); NSFileHandle's error methods and readability handlers; block timers; the file manager freed while in use (its isa was written by hand) and writes that did not truncate; NSURLComponents and NSURLQueryItem; NSDateInterval; NSByteCountFormatter, NSDateComponentsFormatter, and on ICU NSRelativeDateTimeFormatter, NSDateIntervalFormatter and NSListFormatter; NSDateComponentUndefined as NSIntegerMax. Tests `foundation-process-io`, `foundation-components-formatters`; full suite 2943/0, M2 PASS; selectors 81.2%. *Left in `NSURLSession`:* the URL cache, task metrics (needs `NSDateInterval`), stream and WebSocket tasks, server trust challenges (needs Security). *Known bug:* `NSKeyedUnarchiver` cannot read the XML property list `NSKeyedArchiver` writes. Untested: locale-dependent behaviour (UTF-8 locale data is in the image since 2026-10-27).
+3. Security (APSL) for certificates and a basic keychain. TLS in `NSURLSession` works without it (libcurl with mbedTLS and `/etc/ssl/cert.pem`); `SecTrust` server trust challenges and client certificates need it.
+4. LaunchServices: bundle database and UTI types; `open` and Kraz depend on it. *Done in WS4a:* the session service, which keeps the running applications (`launchservicesd` and the session client in `LaunchServices.framework`, `996178d949`).
 5. CoreText and CoreData: a minimal implementation driven by real use (see the graphics stack's technical guide).
 6. Swift 6: full stdlib and runtime, with concurrency in the system, and module maps for the frameworks.
 7. API 19 → 20 → 21, raising `ProductVersion` (10.15 → 11.0 → 12.0) as each one closes; each close is a Minkar release (19.6.0, 20.0, 21.0).
 
 From Phase 2 (2026-10-31):
 
-- [ ] Complete libc, libm, pthread, libdispatch, libxpc, notify and os\_log. *Partial:* since 2026-10-31 the reference apps find all their libSystem imports (308 of 308): `os_log` writes its messages to syslogd, with `%{public}`/`%{private}` and `%@`, and to stderr in DT mode (it wrote nothing before, and the SDK's `<os/log.h>` had no `os_log()`); `syslog(3)` reaches syslogd again; `os_log_error`/`os_log_fault` under the reference's names; `os_activity`; `_availability_version_check` for `@available`; `launch_activate_socket` (`0709544df7`, `c0923c1bc7`, `5051c781b4`). The other libraries in `/usr/lib` they import are there too: `libsqlite3` (SQLite 3.54.1, with the `sqlite3` shell, `bbe573a8a5`), `libxar` (xar-503) and our own `libcompression` (ZLIB, LZMA, LZFSE) (`cae9a9c4f4`); CommonCrypto has `CCDigest` (`88e4800b96`). Foundation re-exports CoreFoundation, as the reference system's does (`55ac68b1f0`). `math.h` matches the reference since 2026-10-26; `vis(3)` lacks the newer flags.
+- [ ] Complete libc, libm, pthread, libdispatch, libxpc, notify and os\_log. *Partial:* since 2026-10-31 the reference apps find all their libSystem imports (308 of 308): `os_log` writes its messages to syslogd, with `%{public}`/`%{private}` and `%@`, and to stderr in DT mode (it wrote nothing before, and the SDK's `<os/log.h>` had no `os_log()`); `syslog(3)` reaches syslogd again; `os_log_error`/`os_log_fault` under the reference's names; `os_activity`; `_availability_version_check` for `@available`; `launch_activate_socket` (`0709544df7`, `c0923c1bc7`, `5051c781b4`). The other libraries in `/usr/lib` they import are there too: `libsqlite3` (SQLite 3.54.1, with the `sqlite3` shell, `bbe573a8a5`), `libxar` (xar-503) and our own `libcompression` (ZLIB, LZMA, LZFSE) (`cae9a9c4f4`); CommonCrypto has `CCDigest` (`88e4800b96`). libxpc has real connections since 2026-10-31 (`b2a0bee6ce`): anonymous listeners and endpoints, Mach services through launchd with interruption and relaunch, replies, descriptors, ports and shared memory in messages, the sender's credentials; arrays work (they could hold nothing before). Test `libxpc-connection` (14 checks). `xpc_set_event_stream_handler` is still a stub. Foundation re-exports CoreFoundation, as the reference system's does (`55ac68b1f0`). `math.h` matches the reference since 2026-10-26; `vis(3)` lacks the newer flags.
 - [ ] Noisy stubs (log on the first call). *Partial (2026-10-31):* `<minkar/stub.h>` logs a stub's first call in a process to syslogd (`org.minkar.stubs`), with the image that called it, and to stderr in DT mode; the 875 unimplemented methods and functions of Foundation, AppKit, CoreData and QuartzCore use it (they printed on stderr at every call), and libxpc's 12 silent stubs say so now. `tools/symbols/trivial-functions.py` lists the exported functions that do nothing (404 on 2026-10-31, many of them third-party and empty by design): the rest are reviewed from that list.
 - [ ] dyld's shared cache (optional at first).
 - [ ] `logd`, with `os_log` (`syslogd` and `aslmanager` meanwhile: `os_log` messages go to syslogd until logd keeps them).
@@ -266,6 +267,8 @@ Goal: WindowServer draws AppKit windows and receives keyboard and mouse. In the 
 
 **Backend decision (2026-10-25)**
 
+The WindowServer itself is rewritten in milestones WS0 to WS6, as decided on 2026-10-31: see the [WindowServer rewrite plan](WindowServer-Rewrite.md). The output, compositor and input choices below are the ones that plan builds on.
+
 - **First output:** `IOGOPFramebuffer.kext` with `IOFramebufferDisplay.m` and software compositing. Enough for Minkar 19.6.0 and the VM; on physical machines only the starting point.
 - **Compositor (changed 2026-10-29):** designed for the GPU from the start, with Vulkan as the main backend behind our own interface. pixman stays for bring-up and for VMs without a GPU.
 - **VMs:** a virtio-gpu 2D driver as an `IOFramebuffer` subclass; virtio-gpu's 3D modes (virgl, Venus) are optional, to test accelerated paths.
@@ -275,12 +278,16 @@ Goal: WindowServer draws AppKit windows and receives keyboard and mouse. In the 
 
 **Work**
 
-- [ ] Output backend on IOFramebuffer. *Partial:* the kext loads and WindowServer builds with the backend, but it has never run.
-- [ ] WindowServer starts and draws in QEMU. Its job (`org.minkar.WindowServer.plist`) is in the tree but not installed.
-- [ ] IOHIDSystem event delivery to user space: the dispatch loop is under an undefined `NEW_HID` and the event queues are never created.
-- [ ] An IOHIDSystem input reader in WindowServer (`kIOHIDServerConnectType`, `EvGlobals`, Mach port).
-  - [ ] PS/2 keyboard. *Partial:* its keys reach the console, not WindowServer.
-  - [ ] An `ApplePS2Mouse` driver on `ApplePS2MouseDevice`; `IOHIPointing` builds since `90c96e8862`.
+- [x] Output backend on IOFramebuffer: WindowServer opens `IOGOPFramebuffer` and draws on it (2026-10-31, `f10f778c78`: a depth is an index; test `windowserver` 6/0).
+- [x] WindowServer starts and draws in QEMU (WS0, 2026-10-31): its launchd job is installed disabled and, enabled, starts it and restarts it if it dies (`f56c70bb88`, `9f46a761ac`); a demo AppKit window is drawn and gets a click and a key as `NSEvent`s (`6888034ad2`, `70b62fe8bc`, `0e3d06ec35`, `dc931eeeb0`). Gate `M4-draw` (`cce7da92bc`) passes with 0 of 786432 pixels differing from the reference.
+- [x] The new core's skeleton and interface (WS1, 2026-10-31): `WindowServer.defs` (MIG), the client in `SkyLight.framework` and the new server in its `Resources`, next to the current one in `CoreServices/WindowServer/Legacy` (`9e48d1f62a`, `f9028e286a`). Display queries, modes and configurations, transfer tables, capture, the cursor, fades and the window list are served over MIG, and a client's exit releases what it held (`0e4d7293ff`, `8dab4060cc`, `37996817e4`, `41e37b7441`, `030dba37c7`). `skylight-test` 115/0.
+- [x] Windows, surfaces and the software compositor (WS2, 2026-11-01): surfaces as Mach memory entries with two buffers and damage, a pixman compositor per display driven by damage and the refresh rate, the cursor drawn last, `wsctl` (`6ca5e31aae`, `1aa140cdab`); AppKit windows drawn through SkyLight (`b957c09fac`). Gate `M4-compose` (`8512fe60ba`) passes with 0 of 786432 pixels differing, three times.
+- [x] Input (WS3, 2026-11-01): IOHIDSystem read by the new server and routed to windows, with key repeat, click counts, capture during drags, the key window and server-side title-bar moves (`c3763a06a8`, `03bb7ed773`); `CGEventTapCreate`, `CGEventPost` and `CGGetEventTapList` (`fa7aae5e38`); AppKit through it (`13f99802d5`, `d0c63753c2`). Gate `M4-compose` with a click, a key and a drag (`98237bf14e`); `eventtap-test` 15/0.
+- [x] Kernel entitlement validation (ADR 0001, 2026-11-01; `57c6d5734b`, `48ee7a4288`, `24412d4182`, `c1cda1f1ae`, `f77748bbb7`, `8366b8d0f6`): the image build signs the sysroot's executables and writes a static trust cache; the `MinkarCodeIntegrity` policy kext marks signatures `CS_SIGNED`, and platform binaries from the cache, and kills at exec a binary outside it that carries a restricted entitlement. Root no longer opens IOHIDSystem's server connection without the entitlement. Gate M2 checks it (17 markers); local test `codesign` 13/0; full local image suite 2773 passed.
+- [x] IOHIDSystem event delivery to user space (2026-10-31, `e2df542919`): the event server connection maps the shared `EvGlobals` queue and is told through its Mach port; pointing devices reach it too. Test `hid-events` 9/0. The `NEW_HID` dispatch loop stays off: it feeds the event system queues, which are not built.
+- [x] An IOHIDSystem input reader in WindowServer (`kIOHIDServerConnectType`, `EvGlobals`, Mach port), 2026-10-31, `ab71ce75a4`: moves, clicks and keys injected through QMP reach it (test `windowserver` 6/0).
+  - [x] PS/2 keyboard: its keys reach WindowServer and an AppKit window (gate `M4-draw` types through it, 2026-10-31).
+  - [x] An `ApplePS2Mouse` driver on `ApplePS2MouseDevice` (2026-10-31, `2aa9a1da6e`): moves, three buttons and the wheel (IntelliMouse); test `ps2-mouse` 12/0.
   - [x] `IOKit/hidsystem` headers in the SDK.
   - [x] xHCI + HID (`MinkarUSB`), tested in QEMU and on PC 1.
 - [ ] Remove `libinput`, `libevdev` and `mtdev` from the tree.
@@ -294,15 +301,15 @@ Goal: WindowServer draws AppKit windows and receives keyboard and mouse. In the 
 
 ## Graphics stack: components and sequence
 
-Of the graphical environment, the drawing base exists (Core Graphics with FreeType, and pixman, libpng, libjpeg and libtiff in `BSD/lib`), as do the GOP console and USB input. The compositing server, IOSurface and everything that depends on the GPU are missing. State verified on `devel` (`fb6e25b877`, 2026-10-31): the graphics stack has not changed since 2026-10-29.
+Of the graphical environment, the drawing base exists (Core Graphics with FreeType, and pixman, libpng, libjpeg and libtiff in `BSD/lib`), as do the GOP console and USB input. The compositing server, IOSurface and everything that depends on the GPU are missing. State verified on `devel` (`cce7da92bc`, 2026-10-31): WS0 is done, the current WindowServer draws AppKit windows with input (gate `M4-draw`); WS1 too (`030dba37c7`): the new core's interface and server, tested by `skylight-test`; WS2 (`8512fe60ba`): it composites AppKit windows (gate `M4-compose`); and WS3 (`98237bf14e`): input and event taps.
 
 Components, by state:
 
-- **There:** Core Graphics with FreeType; pixman, libpng, libjpeg and libtiff (`BSD/lib`); the GOP console (`IOGOPFramebuffer`); USB input (xHCI + HID, `MinkarUSB`); the `IOKit/hidsystem` headers.
-- **Partial:** WindowServer (builds, never run); the PS/2 keyboard (reaches the console, not WindowServer); QuartzCore and Onyx2D; AppKit (Cocotron).
-- **Missing:** IOHIDSystem event delivery; `ApplePS2Mouse`; virtio-gpu 2D; IOSurface; the Core Animation compositor; Core Text on HarfBuzz/FreeType; giflib and libwebp; ColorSync on Little CMS; and the GPU track (kernel driver, Mesa, Metal).
+- **There:** Core Graphics with FreeType; pixman, libpng, libjpeg and libtiff (`BSD/lib`); the GOP console (`IOGOPFramebuffer`); USB input (xHCI + HID, `MinkarUSB`); the `IOKit/hidsystem` headers; IOHIDSystem event delivery; `ApplePS2Mouse` and the PS/2 keyboard.
+- **Partial:** WindowServer (WS0 done with the current server; WS1 to WS3 done, the new core's interface, server, compositor and input; WS4a, WS4b, WS5 and WS6 to do); QuartzCore and Onyx2D; AppKit (Cocotron; the fixes a first window needed, 2026-10-31).
+- **Missing:** virtio-gpu 2D; IOSurface; the Core Animation compositor; Core Text on HarfBuzz/FreeType; giflib and libwebp; ColorSync on Little CMS; and the GPU track (kernel driver, Mesa, Metal).
 
-Each piece's technical detail is in the graphics stack's technical guide; [Progress.md](Progress.md) draws them by state.
+Each piece's technical detail is in the graphics stack's technical guide.
 
 Development sequence:
 
@@ -316,17 +323,17 @@ Development sequence:
 
 In parallel, the GPU track G1–G5: from the first driver's family and the KMS prototype to Mesa (lavapipe/llvmpipe in VMs) and Metal (darling-metal and Indium, MPL-2.0).
 
-Step 1 is next: without input, WindowServer cannot close M4. G1 starts as soon as the GPU family is decided, and the GPU track reuses steps 4 and 5.
+Step 1 was done on 2026-10-31 (`e2df542919`, `2aa9a1da6e`), and step 2's first milestones, WS0 (gate `M4-draw`, `cce7da92bc`) WS1 (the new core's interface, `030dba37c7`) WS2 (its compositor, gate `M4-compose`, `8512fe60ba`) and WS3 (input and event taps, `98237bf14e`); ADR 0001's entitlement check is done (`8366b8d0f6`) and WS4a is in progress. G1 starts as soon as the GPU family is decided, and the GPU track reuses steps 4 and 5.
 
 ## Phase 5 — Gienah desktop
 
 Goal: a complete graphical session in the Gienah visual language, with login, a global menu bar, Dock, desktop icons and preferences. The order follows what the user sees at boot.
 
 1. **LoginWindow:** authentication against this phase's user service (Directory Services, below) and session start (the user's `LaunchAgents`).
-2. **SystemUIServer and the menu bar:** the active app's menu through WindowServer, plus a public Menu Extras and `NSStatusItem` API (official priority).
-3. **Basic Menu Extras:** volume, displays, network, clock, notifications. Each one a loadable bundle, not built into SystemUIServer.
-4. **Dock:** launcher, open apps, minimizing and wallpaper, on LaunchServices.
-5. **Kraz:** a new pure Cocoa app. Browsing with LaunchServices, mounting through DiskArbitration, desktop icons, Trash and "Open With".
+2. **Menu bar and SystemUIServer:** each app's AppKit draws its own menu bar and menus; status items are windows of their apps; SystemUIServer hosts the Menu Extras. Plan: [Menus.md](Menus.md) (MB0 in WS4b, MB1 to MB4 here).
+3. **Basic Menu Extras:** volume, displays, network, clock, notifications. Each one a loadable bundle, not built into SystemUIServer. Plan: [Menus.md](Menus.md) (MB1).
+4. **Dock:** launcher, open apps, minimizing and wallpaper, on LaunchServices. Plan: [Dock-Kraz.md](Dock-Kraz.md) (D0–D4).
+5. **Kraz:** a new pure Cocoa app. Browsing with LaunchServices, mounting through DiskArbitration, desktop icons, Trash and "Open With". Plan: [Dock-Kraz.md](Dock-Kraz.md) (K0–K4).
 6. **System Preferences:** host app + `.prefPane` bundle loader (`NSPreferencePane`). First panes: Displays, Keyboard, Users, Network, Date & Time.
 7. **AppKit:** complete the missing controls and give the whole system the Gienah visual language (our own design, no third-party artwork), prioritized by what Kraz and System Preferences use.
 
@@ -339,7 +346,7 @@ Commands that come with this phase (moved from Phase 2):
 - [ ] Directory Services–style user management, for LoginWindow and the Users pane (moved from Phase 2 on 2026-10-31).
 - [ ] `say`, with an audio driver and speech synthesis.
 
-**Exit gate (M5):** from boot, a graphical session starts, an app opens from the Dock, Kraz browses, and the resolution changes from Preferences.
+**Exit gate (M5):** from boot, a graphical session starts, an app opens from the Dock, Kraz browses, and the resolution changes from Preferences, with the Gienah visual language K1 needs ([Dock-Kraz.md](Dock-Kraz.md)).
 
 ## Phase 6 — Applications and distribution
 
@@ -396,15 +403,25 @@ Goal after Minkar 19.6.0: run x86-64 binaries built for the reference platform w
 
 Critical path: Phase 0 (M0) → Phase 1 (M1) → Phase 2 (M2) → Phase 3 (M3) → Phase 4 (M4) → Phase 5 (M5) → Phase 6 (M6, Minkar 19.6.0); Phase 7 (M7) and Minkar 21.0's performance run apart.
 
-M0 and M2 are met, M1 waits only for the second PC, and Phase 2 is closed (2026-10-31). Active work is in Phases 3 and 4, which must close before Gienah. The GPU track starts in parallel and feeds Minkar 21.0's performance requirement: equal to or better than the reference system on the same machine. Phase 7 comes after Minkar 19.6.0.
+M0, M1 and M2 are met (M1 on 2026-11-01, with the Mac Pro 6,1 as PC 2), and Phase 2 is closed (2026-10-31). Active work is in Phases 3 and 4, which must close before Gienah. The GPU track starts in parallel and feeds Minkar 21.0's performance requirement: equal to or better than the reference system on the same machine. Phase 7 comes after Minkar 19.6.0.
+
+- [x] M0 — Build, toolchain, CI
+- [x] M1 — Darwin boot
+- [x] M2 — Base userland
+- [ ] M3 — Frameworks and Swift
+- [ ] M4 — Graphics and WindowServer (WS0 to WS3 done)
+- [ ] M5 — Gienah desktop
+- [ ] M6 — Apps and distribution (Minkar 19.6.0)
+- [ ] Minkar 21.0 — API 21 complete and performance
+- [ ] M7 — Binary compatibility, arm64
 
 | Gate | Phase | State on 2026-10-31 |
 | --- | --- | --- |
 | M0 | Build, toolchain, CI | Met (CI green since `05fa75cb65`) |
-| M1 | Darwin boot | Met in QEMU and on PC 1 (SATA, NVMe, SMP); PC 2 missing |
-| M2 | Base userland | Met (`boottest GATE=M2`, 13 markers); Phase 2 closed on 2026-10-31 |
+| M1 | Darwin boot | Met in QEMU, on PC 1 (SATA, NVMe, SMP) and on PC 2, a Mac Pro 6,1 (NVMe, 24 threads; 2026-11-01) |
+| M2 | Base userland | Met (`boottest GATE=M2`, 17 markers since 2026-11-01, with the code integrity check); Phase 2 closed on 2026-10-31 |
 | M3 | Frameworks and Swift | Not started; prior work in Foundation and libSystem |
-| M4 | Graphics and WindowServer | In progress: WindowServer does not run yet |
+| M4 | Graphics and WindowServer | In progress: WS0 done (gate `M4-draw` passes, `cce7da92bc`); WS1 done (`skylight-test` 115/0, `030dba37c7`); WS2 done (gate `M4-compose` passes, `8512fe60ba`); WS3 done (input, `98237bf14e`); WS4a in progress (LaunchServices session `996178d949`, front app `95160b2955`, menu bar place `79cc777e5c`; gate `M4-compose` 40 markers), then WS4b |
 | M5 | Gienah desktop | Not started |
 | M6 (Minkar 19.6.0) | Apps and distribution | Not started; `hdiutil attach` already mounts |
 | Minkar 21.0 | API 21 complete and performance ≥ the reference system on a physical machine | Not started; depends on the GPU track |
@@ -430,11 +447,11 @@ The dominant risk is people, not technology: a small team with many layers open 
 In critical-path order:
 
 - [x] **PC 1 (Phase 1):** NVMe (boots from the SSD) and SMP (all eight threads run), 2026-10-29 and 30; power button and ACPI S5 power-off, 2026-10-31.
-- [ ] **PC 1 (Phase 1):** boot without `pci_keep_console`, IPv6 on the network (RDNSS, DNS over IPv6) and ACPI S3 sleep; then a second, different PC (gate M1; to measure the reference, the Mac Pro 6,1; the machine with the RX 6600, as a test machine).
+- [ ] **PC 1 (Phase 1):** boot without `pci_keep_console`, IPv6 on the network (RDNSS, DNS over IPv6) and ACPI S3 sleep; the machine with the RX 6600 as a further test machine. (The second PC of gate M1 is the Mac Pro 6,1, 2026-11-01.)
 - [x] **Userland (Phase 2):** closed on 2026-10-31 (exFAT reading and writing, `launchctl kickstart`, dyld paths, notifyd and IPv6 tested; the rest went to Phases 3, 5 and 6).
-- [ ] **Phase 4:** IOHIDSystem event delivery in the kernel, the `ApplePS2Mouse` driver and WindowServer's input reader.
-- [ ] **Phase 4:** install WindowServer's job and get a first boot that draws on `IOGOPFramebuffer`.
-- [ ] **Phase 3:** the Foundation classes the symbol report misses most (`NSURLSession`), and what came from Phase 2 (libSystem, noisy stubs, `logd`).
+- [x] **Phase 4:** IOHIDSystem event delivery in the kernel (`e2df542919`), the `ApplePS2Mouse` driver (`2aa9a1da6e`) and WindowServer's input reader (`ab71ce75a4`), 2026-10-31; tests `hid-events` 9/0, `ps2-mouse` 12/0, `windowserver` 6/0, the console tests and M2 pass (full suite 2991 passed after (a)).
+- [x] **Phase 4:** install WindowServer's job and get a first boot that draws on `IOGOPFramebuffer` (WS0, 2026-10-31): the job is installed disabled (`f56c70bb88`); enabled, WindowServer draws a demo AppKit window that gets a click and a key; gate `M4-draw` (`cce7da92bc`).
+- [ ] **Phase 3:** the Foundation classes the symbol report misses most (`NSURLSession` done 2026-10-31, `00617d5f6c`, with cookies; its cache and metrics left; `NSXPCConnection`, `NSXPCListener` and `NSXPCInterface` done 2026-10-31, `82c5f3e8f8`, test `foundation-xpc-connection` 20/0, full suite 2977/0, M2 PASS; XPC services inside app bundles: the app starts them on demand as its children, without launchd, test `foundation-xpc-service` 9/0), and what came from Phase 2 (libSystem, noisy stubs, `logd`).
 - [ ] **Phase 3:** the Swift toolchain prototypes.
 
 What this plan adds, and its state:
@@ -448,7 +465,7 @@ What this plan adds, and its state:
 
 ## Sources
 
-- [The minkaros/minkar repository](https://github.com/minkaros/minkar), branch `devel`, verified at `fb6e25b877` (2026-10-31).
+- [The minkaros/minkar repository](https://github.com/minkaros/minkar), branch `devel`, verified at `c7a066b196` (2026-11-01).
 - [Hardware.md](Hardware.md): reference machines.
 - [Commands.md](Commands.md): Minkar's commands against the reference list.
 - [Userland.md](Userland.md): the history of ported commands (exFAT, `notifyutil`, `launchctl kickstart`).

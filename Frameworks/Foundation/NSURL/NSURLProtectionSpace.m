@@ -8,6 +8,23 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <Foundation/NSURLProtectionSpace.h>
 #import <Foundation/NSRaise.h>
 
+// Minkar: the protocols and authentication methods of a protection space.
+NSString *const NSURLProtectionSpaceHTTP=@"http";
+NSString *const NSURLProtectionSpaceHTTPS=@"https";
+NSString *const NSURLProtectionSpaceFTP=@"ftp";
+NSString *const NSURLProtectionSpaceHTTPProxy=@"http";
+NSString *const NSURLProtectionSpaceHTTPSProxy=@"https";
+NSString *const NSURLProtectionSpaceFTPProxy=@"ftp";
+NSString *const NSURLProtectionSpaceSOCKSProxy=@"SOCKS";
+NSString *const NSURLAuthenticationMethodDefault=@"NSURLAuthenticationMethodDefault";
+NSString *const NSURLAuthenticationMethodHTTPBasic=@"NSURLAuthenticationMethodHTTPBasic";
+NSString *const NSURLAuthenticationMethodHTTPDigest=@"NSURLAuthenticationMethodHTTPDigest";
+NSString *const NSURLAuthenticationMethodHTMLForm=@"NSURLAuthenticationMethodHTMLForm";
+NSString *const NSURLAuthenticationMethodNTLM=@"NSURLAuthenticationMethodNTLM";
+NSString *const NSURLAuthenticationMethodNegotiate=@"NSURLAuthenticationMethodNegotiate";
+NSString *const NSURLAuthenticationMethodClientCertificate=@"NSURLAuthenticationMethodClientCertificate";
+NSString *const NSURLAuthenticationMethodServerTrust=@"NSURLAuthenticationMethodServerTrust";
+
 @implementation NSURLProtectionSpace
 
 -initWithHost:(NSString *)host port:(int)port protocol:(NSString *)protocol realm:(NSString *)realm authenticationMethod:(NSString *)authenticationMethod {

@@ -8,6 +8,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 // Original - Christopher Lloyd <cjwl@objc.net>
 #import <Foundation/NSCoder.h>
+#import <Foundation/NSSet.h>
 #import <Foundation/NSObjCRuntime.h>
 #import <Foundation/NSRaise.h>
 #include <string.h>
@@ -302,6 +303,26 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 -decodeObjectForKey:(NSString *)key {
    return [self decodeObject];
+}
+
+// Minkar: secure decoding for any coder; keyed unarchivers have their own.
+-(id)decodeObjectOfClass:(Class)cls forKey:(NSString *)key {
+   id object=[self decodeObjectForKey:key];
+   return (object==nil || cls==Nil || [object isKindOfClass:cls])?object:nil;
+}
+
+-(id)decodeObjectOfClasses:(NSSet *)classes forKey:(NSString *)key {
+   id object=[self decodeObjectForKey:key];
+   if(object==nil || classes==nil)
+    return object;
+   for(Class cls in classes)
+    if([object isKindOfClass:cls])
+     return object;
+   return nil;
+}
+
+-(BOOL)requiresSecureCoding {
+   return NO;
 }
 
 -(NSPoint)decodePointForKey:(NSString *)key {

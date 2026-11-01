@@ -28,6 +28,8 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 - (NSMenu *)supermenu;
 - (NSString *)title;
+/* The menu bar's height for the application's main menu, else 0. */
+- (CGFloat)menuBarHeight;
 - (int)numberOfItems;
 - (NSArray *)itemArray;
 - (BOOL)autoenablesItems;

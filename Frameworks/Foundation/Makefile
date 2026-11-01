@@ -13,6 +13,7 @@ SLF = /System/Library/Frameworks
 INSTALL_NAME_DIR = ${SLF}/${FRAMEWORK}.framework/Versions/${FMWK_VERSION}
 
 SRCS = 	NSFormatter.m \
+	NSModernFormatters.m \
 	NSObject/NSInvocationCall-x86_64.s \
 	NSDictionary/NSEnumerator_dictionaryObjects.m \
 	NSDictionary/NSMutableDictionary.m \
@@ -87,6 +88,7 @@ SRCS = 	NSFormatter.m \
 	NSDirectoryEnumerator.m \
 	NSProcessInfo.m \
 	NSData/NSData.m \
+	NSData/NSDataBase64.m \
 	NSData/NSData_mapped.m \
 	NSData/NSData_concrete.m \
 	NSData/NSMutableData.m \
@@ -100,7 +102,11 @@ SRCS = 	NSFormatter.m \
 	NSURL/NSURLDownload.m \
 	NSURL/NSURLError.m \
 	NSURL/NSURL.m \
+	NSURL/NSURLResources.m \
+	NSURL/NSURLComponents.m \
 	NSURL/NSURLRequest.m \
+	NSURL/NSURLSession.m \
+	NSXPCConnection/NSXPCConnection.m \
 	NSURL/NSURLHandle.m \
 	NSURL/NSURLProtectionSpace.m \
 	NSURL/NSURLConnectionState.m \
@@ -128,6 +134,7 @@ SRCS = 	NSFormatter.m \
 	NSPointerFunctions.m \
 	NSOrthography.m \
 	NSString/NSCFString.m \
+	NSString/NSStringCFBridging.m \
 	NSCFCollections.m \
 	NSString/NSDarwinString.m \
 	NSString/NSStringUTF8.m \
@@ -187,7 +194,6 @@ SRCS = 	NSFormatter.m \
 	NSArray/NSArray.m \
 	NSThread/NSThread.m \
 	NSOperation/NSOperationQueue.m \
-	NSOperation/NSAtomicList.m \
 	NSOperation/NSOperation.m \
 	NSObjCRuntime.m \
 	NSDistributedNotificationCenter.m \
@@ -256,8 +262,10 @@ SRCS = 	NSFormatter.m \
 	NSTimer/NSTimer_concrete.m \
 	NSTimer/NSTimer_invocation.m \
 	NSTimer/NSTimer.m \
+	NSTimer/NSTimer_block.m \
 	NSClassDescription.m \
 	NSTask.m \
+	NSFileHandleErrors.m \
 	NSSet/NSSet_placeholder.m \
 	NSSet/NSMutableSet_concrete.m \
 	NSSet/NSSet_concrete.m \
@@ -317,8 +325,10 @@ SRCS = 	NSFormatter.m \
 	NSDate/NSDate.m \
 	NSDate/NSDateComponents.m \
 	NSDate/NSDateFormatter.m \
+	NSDate/NSDateInterval.m \
 	platform_darwin/DarwinMemoryFunctions.m \
 	platform_darwin/NSPlatform_darwin.m \
+	platform_darwin/NSDispatchMainQueueSource.m \
 	platform_darwin/NSString_defaultEncoding_darwin.m \
 	platform_darwin/libmain.m \
 	platform_posix/NSCancelInputSource_posix.m \
@@ -387,6 +397,20 @@ CFLAGS.NSCollectionBlocks.m = -fobjc-arc
 CFLAGS.NSJSONSerialization.m = -fobjc-arc
 CFLAGS.NSCache.m = -fobjc-arc
 CFLAGS.NSProgress.m = -fobjc-arc
+CFLAGS.NSOperation.m = -fobjc-arc
+CFLAGS.NSDataBase64.m = -fobjc-arc
+CFLAGS.NSFileHandleErrors.m = -fobjc-arc
+CFLAGS.NSURLResources.m = -fobjc-arc
+CFLAGS.NSURLComponents.m = -fobjc-arc
+CFLAGS.NSDateInterval.m = -fobjc-arc
+CFLAGS.NSModernFormatters.m = -fobjc-arc -DU_DISABLE_RENAMING=1 \
+	-I${ROOT_SOURCE_DIR}/Libraries/ICU/source/common \
+	-I${ROOT_SOURCE_DIR}/Libraries/ICU/source/i18n
+CFLAGS.NSHTTPCookie.m = -fobjc-arc
+CFLAGS.NSHTTPCookieStorage.m = -fobjc-arc
+CFLAGS.NSXPCConnection.m = -fobjc-arc -DOS_OBJECT_USE_OBJC=0
+CFLAGS.NSURLSession.m = -fobjc-arc -I${ROOT_SOURCE_DIR}/BSD/usr.bin/curl/include
+CFLAGS.NSOperationQueue.m = -fobjc-arc
 CFLAGS.NSStringModern.m = -fobjc-arc -DU_DISABLE_RENAMING=1 \
 	-I${ROOT_SOURCE_DIR}/Libraries/ICU/source/common \
 	-I${ROOT_SOURCE_DIR}/Libraries/ICU/source/i18n

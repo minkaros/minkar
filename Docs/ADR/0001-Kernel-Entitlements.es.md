@@ -1,0 +1,153 @@
+# ADR 0001: validación de entitlements en el kernel
+
+Estado: aceptado, 2026-11-01; implementado el mismo día (ver el final). Desarrolla la sección 9.1 de
+`Docs/WindowServer-Rewrite.es.md` (opción C, decidida el 2026-10-31). Hace
+falta antes de WS4a, cuando WindowServer deja de ejecutarse como root.
+
+## Contexto
+
+XNU lee los entitlements de un proceso solo si el proceso está marcado
+`CS_SIGNED` (`cs_entitlements_dictionary_copy`, `cs_entitlements_blob_get`
+en `bsd/kern/kern_cs.c`). Esa marca la pone el módulo de política de
+integridad de código: `ubc_cs_blob_add` da al blob `CS_VALID`, llama a
+`mac_vnode_check_signature`, y la política añade `CS_SIGNED` y, para el código
+del sistema, `CS_PLATFORM_BINARY` a los flags que devuelve. Minkar no tiene
+ese módulo, así que:
+
+- ningún proceso es `CS_SIGNED` y ningún proceso tiene entitlements;
+- las comprobaciones de entitlements de IOKit
+  (`IOUserClient::copyClientEntitlement`, `IOTaskHasEntitlement`) fallan
+  siempre; por eso root puede abrir la conexión de servidor de IOHIDSystem
+  (`SHORTCUT(WS4a)` en `IOHIDUserClient.cpp`);
+- la mayoría de los binarios del sistema no están firmados: solo lo están los
+  bundles de aplicación, ad hoc, con `minkar.app.mk` y
+  `Developer/Default.xctoolchain/codesign/codesign.py`.
+
+En x86_64 el código de trust cache de XNU es un stub (`trust_cache_init` y las
+funciones `pmap_*trust_cache*` de `osfmk/x86_64/pmap.c`). El formato de
+`osfmk/kern/trustcache.h` (versión 1: entradas ordenadas por CDHash, cada una
+con tipo de hash y flags) sigue sirviendo.
+
+## Decisión
+
+### 1. Todos los binarios del sistema se firman
+
+- Un programa que necesita entitlements se firma ad hoc con `codesign.py` al
+  instalarse, con sus entitlements: los bundles de aplicación con
+  `minkar.app.mk` (`ENTITLEMENTS`), los demás programas en su propio Makefile
+  (el WindowServer nuevo, `hidevents`, `cstest`).
+- Todos los demás ejecutables los firma el paso de imagen de abajo, ad hoc y
+  sin entitlements, con el identificador `org.minkar.<nombre>` (el código en
+  bundles conserva su `CFBundleIdentifier`).
+
+### 2. La construcción de la imagen escribe una trust cache estática
+
+- Una herramienta nueva, `tools/mktrustcache.py`, se ejecuta en
+  `Image/Makefile` antes de crear la imagen de disco. Recorre el sysroot y
+  firma todo ejecutable Mach-O (y dyld) sin firma, o cuyo código cambió
+  después de firmarse (conservando su identificador y sus entitlements). Lee
+  cada CodeDirectory, calcula su CDHash (SHA-256 del CodeDirectory, primeros
+  20 bytes) y escribe una trust cache de versión 1, ordenada y con un UUID
+  derivado de sus entradas (el mismo sysroot da el mismo fichero). Las
+  bibliotecas todavía no se firman: solo los ejecutables llevan
+  entitlements, y la validación de bibliotecas queda fuera de alcance.
+- Se instala en `/System/Library/Security/TrustCache` (de root, modo 0644),
+  con todos los ejecutables del sysroot, salvo las rutas que se pasan con
+  `--exclude` (las copias de cstest que deben quedar fuera).
+
+### 3. Un kext de política MAC marca los binarios del sistema
+
+- Kext nuevo `Kernel/Extensions/MinkarCodeIntegrity`
+  (`org.minkar.driver.MinkarCodeIntegrity`), código propio de sala limpia,
+  BSD-2. Va en el kernelcache con `AppleSecurityExtension`, así que
+  `bootstrapLoadSecurityExtensions` lo carga antes de que arranque BSD y se
+  registra antes del primer `exec` (launchd). No se puede descargar.
+  `KLDBootstrap::loadSecurityExtensions` (`libsa/bootstrap.cpp`) solo carga
+  bundle IDs que empiezan por `com.apple.`; Minkar lo cambia para que acepte
+  también `org.minkar.`, así el kext conserva un nombre de Minkar.
+- Implementa solo `mpo_vnode_check_signature`:
+  - CDHash en la trust cache: añade `CS_SIGNED | CS_PLATFORM_BINARY` (el
+    kernel pone entonces `csb_platform_binary`).
+  - Cualquier otra firma válida, ad hoc incluida: añade `CS_SIGNED`, sin
+    `CS_PLATFORM_BINARY`.
+  - Entitlements restringidos y no restringidos: ver la sección 4.
+- La trust cache se lee una vez, en la primera llamada (para entonces el
+  volumen raíz ya está montado), con `vnode_open` y `vn_rdwr`; se comprueba
+  (versión 1, ordenada, tamaño acorde a `num_entries`) y se queda en memoria.
+  La búsqueda es binaria. Si el fichero falta o está mal, el kext lo registra
+  una vez y ningún binario es de plataforma; el sistema arranca igual.
+- Se deja sitio para firmas con certificado verificadas con corecrypto
+  (Fase 7): hasta entonces una firma con blob CMS se trata como ad hoc.
+
+### 4. Entitlements restringidos
+
+- No restringidos: los nombres que empiezan por `com.apple.security.`
+  (sandbox, excepciones del hardened runtime, `get-task-allow`, acceso a
+  ficheros, red y dispositivos). Cualquier firma válida puede llevarlos.
+- Restringidos: todos los demás, como `com.apple.hid.system.server-access` y
+  los privados. Solo los binarios de plataforma pueden llevarlos.
+- Una firma fuera de la trust cache que lleva un entitlement restringido se
+  rechaza, como en la plataforma de referencia: la política devuelve un error
+  y un motivo de fallo fatal, el proceso muere en el exec (SIGKILL, con un
+  motivo de salida de firma de código) y la consola nombra el entitlement
+  rechazado. Un error simple no basta: sin enforcement, el kernel ejecutaría
+  el binario como no firmado. Así ningún lector de entitlements, del kernel ni del espacio de
+  usuario (`SecTask` lee el blob en bruto con `csops`), puede verlo, y los
+  lectores de XNU no cambian.
+
+### 5. Pruebas
+
+Un programa de prueba, `Tests/codesign/cstest`, lo ejecutan una prueba local
+de imagen y un paso nuevo de boottest:
+
+1. La copia que está en la trust cache informa `CS_SIGNED | CS_PLATFORM_BINARY`
+   con `csops(CS_OPS_STATUS)` y, como usuario no root, abre la conexión de
+   servidor de IOHIDSystem (entitlement restringido).
+2. El mismo binario copiado y vuelto a firmar (CDHash nuevo, fuera de la
+   cache) se rechaza en el `exec`.
+3. Un binario firmado ad hoc con `com.apple.security.get-task-allow` lo
+   conserva (`csops(CS_OPS_ENTITLEMENTS_BLOB)`).
+4. Un binario sin firmar sigue ejecutándose y no es `CS_SIGNED`.
+
+Cuando pasan las pruebas se elimina `SHORTCUT(WS4a)` de `IOHIDUserClient.cpp`
+y el job de WindowServer (WS4a) lleva `com.apple.hid.system.server-access`.
+
+## Alternativas consideradas
+
+- Ejecutar ese binario y ocultar sus entitlements restringidos: requiere un
+  cambio en XNU para que tanto el diccionario de entitlements como el blob en
+  bruto que devuelve `csops` omitan los nombres restringidos en código que no
+  es de plataforma.
+- Un bundle ID `com.apple.` para el kext: sin cambiar el kernel, pero el
+  código propio de Minkar llevaría un nombre ajeno.
+- Entregar la trust cache con el cargador EFI, como datos de arranque: sin
+  fichero en el volumen raíz, pero requiere cambiar el cargador y un lector
+  de datos de arranque en el kernel. Posible más adelante, con un volumen de
+  sistema sellado.
+
+## Fuera de alcance
+
+- Validación de bibliotecas, aplicación del hardened runtime y el sandbox.
+- Proteger el fichero de la trust cache más allá de que sea de root (un
+  volumen de sistema sellado es un tema posterior).
+- Firmas con certificado y perfiles de aprovisionamiento (Fase 7).
+
+## Implementación
+
+Hecha el 1 nov 2026 (`57c6d5734b`, `48ee7a4288`, `24412d4182`, `c1cda1f1ae`, `f77748bbb7`, `8366b8d0f6`):
+
+- XNU carga pronto las extensiones de seguridad con bundle IDs
+  `org.minkar.` (`libsa/bootstrap.cpp`).
+- `Kernel/Extensions/MinkarCodeIntegrity`, en el kernelcache.
+- `tools/mktrustcache.py` (pruebas en el host:
+  `tools/check/test_mktrustcache.py`), ejecutado por `Image/Makefile`.
+- `cstest` (`Kernel/Extensions/MinkarCodeIntegrity/tests`), comprobado por
+  el gate M2 y una prueba local de imagen: la copia de la caché es binario de
+  plataforma con su entitlement restringido e IOHIDSystem la acepta como
+  servidor, como nobody; la copia refirmada muere en el exec; la copia ad hoc
+  conserva `com.apple.security.get-task-allow` e IOHIDSystem la rechaza; la
+  copia sin firma se ejecuta, sin firma.
+- Se quita `SHORTCUT(WS4a)` de `IOHIDUserClient.cpp`: root ya no puede abrir
+  la conexión de servidor de IOHIDSystem. Los dos servidores de ventanas y
+  `hidevents` (ahora instalado en la imagen, para las pruebas de entrada)
+  van firmados con `com.apple.hid.system.server-access`.

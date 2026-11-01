@@ -143,6 +143,117 @@ ACPIPlatformExpert::parseAPIC(void * table, IOService * nub)
         }
     }
 
+    /*
+     * Minkar: an x2APIC record (type 9) is a duplicate only when an
+     * enabled type 0 record has the same APIC ID. Firmware may describe
+     * some processors with type 0 records and the rest with type 9 ones,
+     * small IDs included: skipping every type 9 record below 255 when any
+     * type 0 one exists dropped those.
+     */
+    auto legacyListed = [&](uint32_t apic) -> bool {
+        if (!haveLegacyLapics || apic > 0xFFu)
+            return false;
+        for (MADT_Record * scan = madt->records;
+             (uint64_t)scan < ((uint64_t)madt + madt->length) && scan->length != 0;
+             scan = (MADT_Record *) ((uint64_t)scan + scan->length)) {
+            struct LAPIC_RECORD * lr = (struct LAPIC_RECORD *) scan;
+
+            if (scan->type == 0 && (lr->flags & 1u) && lr->lapic_id == apic)
+                return true;
+        }
+        return false;
+    };
+
+    /*
+     * Minkar: a processor record the kernel can use: enabled, not a
+     * duplicate of a type 0 record, and an xAPIC ID (up to 255).
+     */
+    auto usableProcessor = [&](MADT_Record * r, uint32_t * apic, uint32_t * proc,
+        bool log) -> bool {
+        if (r->type == 0) {
+            struct LAPIC_RECORD * lr = (struct LAPIC_RECORD *) r;
+
+            /* A disabled processor is not there; starting it would hang. */
+            if (!(lr->flags & 1u)) {
+                return false;
+            }
+            *apic = lr->lapic_id;
+            *proc = lr->proc_id;
+        } else if (r->type == 9) {
+            struct X2APIC_RECORD * xr = (struct X2APIC_RECORD *) r;
+
+            if (r->length < sizeof(*xr)) {
+                if (log)
+                    PE_Log("Malformed MADT x2APIC record, length %d", r->length);
+                return false;
+            }
+            /* x2APIC tables are routinely padded with disabled entries. */
+            if (!(xr->flags & 1u) || xr->x2apic_id == 0xFFFFFFFFu) {
+                return false;
+            }
+            if (legacyListed(xr->x2apic_id)) {
+                return false; /* already described by a type 0 record */
+            }
+            *apic = xr->x2apic_id;
+            *proc = xr->acpi_uid;
+        } else {
+            return false;
+        }
+        if (*apic > 0xFFu) {
+            if (log)
+                IOLog("ACPI: processor with APIC ID %u left out (above 255)\n", *apic);
+            return false;
+        }
+        return true;
+    };
+
+    /*
+     * Minkar: count the processors before the first one is published.
+     * Each ACPICPU starts as soon as its nub is registered, and the first
+     * takes ncpus as the number to wait for: counted as the nubs were made,
+     * the Mac Pro 6,1 (24 threads) started 2 and the kernel panicked
+     * ("Should have 12 Cores, but only found 2").
+     */
+    uint32_t total = 0, created = 0;
+    for (MADT_Record * scan = madt->records;
+         (uint64_t)scan < ((uint64_t)madt + madt->length) && scan->length != 0;
+         scan = (MADT_Record *) ((uint64_t)scan + scan->length)) {
+        uint32_t apic, proc;
+
+        if (usableProcessor(scan, &apic, &proc, false))
+            total++;
+    }
+    ncpus = total < 64 ? total : 64;
+    PE_Log("MADT: %u usable processor(s)", total);
+
+    /*
+     * Minkar: madt_pause=<seconds> lists every processor record and waits,
+     * to photograph a PC's processor table (no serial port to read).
+     */
+    uint32_t madtPause = 0;
+    if (PE_parse_boot_argn("madt_pause", &madtPause, sizeof(madtPause)) && madtPause) {
+        unsigned shown = 0;
+
+        for (MADT_Record * scan = madt->records;
+             (uint64_t)scan < ((uint64_t)madt + madt->length) && scan->length != 0;
+             scan = (MADT_Record *) ((uint64_t)scan + scan->length)) {
+            if (scan->type == 0) {
+                struct LAPIC_RECORD * lr = (struct LAPIC_RECORD *) scan;
+
+                kprintf("MADT LAPIC uid %u apic %u flags 0x%x%s", lr->proc_id, lr->lapic_id,
+                    lr->flags, (++shown % 3) ? "   " : "\n");
+            } else if (scan->type == 9 && scan->length >= sizeof(struct X2APIC_RECORD)) {
+                struct X2APIC_RECORD * xr = (struct X2APIC_RECORD *) scan;
+
+                kprintf("MADT x2APIC uid %u apic %u flags 0x%x%s", xr->acpi_uid, xr->x2apic_id,
+                    xr->flags, (++shown % 3) ? "   " : "\n");
+            }
+        }
+        kprintf("\nMADT: %u processor record(s), %u usable; waiting %u s\n", shown, total,
+            madtPause);
+        IOSleep(madtPause * 1000);
+    }
+
     while ((uint64_t)rec < ((uint64_t)madt + madt->length)) {
         if (rec->length == 0) {
             rec = (MADT_Record *) ((uint64_t)rec + sizeof(MADT_Record));
@@ -153,56 +264,20 @@ ACPIPlatformExpert::parseAPIC(void * table, IOService * nub)
             case 9: { /* Local x2APIC */
                 uint32_t apic_id, proc_id;
 
-                if (rec->type == 0) {
-                    struct LAPIC_RECORD * lr = (struct LAPIC_RECORD *) rec;
-
-                    /*
-                     * Minkar: firmware may list more processors than
-                     * there are; a disabled one is not there, and
-                     * starting it would hang.
-                     */
-                    if (!(lr->flags & 1u)) {
-                        break;
-                    }
-                    apic_id = lr->lapic_id;
-                    proc_id = lr->proc_id;
-                } else {
-                    struct X2APIC_RECORD * xr = (struct X2APIC_RECORD *) rec;
-
-                    if (rec->length < sizeof(*xr)) {
-                        PE_Log("Malformed MADT x2APIC record, length %d", rec->length);
-                        break;
-                    }
-                    /* As type 0 above, and more so: x2APIC tables are routinely
-                     * padded with disabled entries. */
-                    if (!(xr->flags & 1u) || xr->x2apic_id == 0xFFFFFFFFu) {
-                        break;
-                    }
-                    if (xr->x2apic_id < 0xFFu && haveLegacyLapics) {
-                        break; /* already described by a type 0 record */
-                    }
-                    apic_id = xr->x2apic_id;
-                    proc_id = xr->acpi_uid;
-                }
-
-                /*
-                 * Minkar: the kernel takes 64 processors (MAX_CPUS) and
-                 * local APIC IDs up to 255 (xAPIC): the others are left
-                 * out, and a bigger machine runs on its first 64.
-                 */
-                if (apic_id > 0xFFu) {
-                    IOLog("ACPI: processor with APIC ID %u left out (above 255)\n",
-                        apic_id);
+                if (!usableProcessor(rec, &apic_id, &proc_id, true)) {
                     break;
                 }
-                if (ncpus >= 64) {
-                    if (ncpus++ == 64)
+                /*
+                 * Minkar: the kernel takes 64 processors (MAX_CPUS); a
+                 * bigger machine runs on its first 64.
+                 */
+                if (created >= 64) {
+                    if (created++ == 64)
                         IOLog("ACPI: more than 64 processors; the kernel takes "
                             "the first 64\n");
                     break;
                 }
-
-                ncpus++;
+                created++;
                 OSDictionary * dict = OSDictionary::withCapacity(7);
 
                 dict->setObject("device_type", OSString::withCString("processor"));

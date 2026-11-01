@@ -236,11 +236,16 @@ NSString* NSImageCompressionFactor = @"NSImageCompressionFactor";
     return nil;
    }
 
+   // An image without properties (no resolution) gives NULL.
    CFDictionaryRef properties=CGImageSourceCopyPropertiesAtIndex(imageSource,0,nil);
-   NSNumber        *xres=[[(id)CFDictionaryGetValue(properties,kCGImagePropertyDPIWidth) copy] autorelease];
-   NSNumber        *yres=[[(id)CFDictionaryGetValue(properties,kCGImagePropertyDPIHeight) copy] autorelease];
+   NSNumber        *xres=nil;
+   NSNumber        *yres=nil;
 
-   CFRelease(properties);
+   if(properties!=NULL){
+    xres=[[(id)CFDictionaryGetValue(properties,kCGImagePropertyDPIWidth) copy] autorelease];
+    yres=[[(id)CFDictionaryGetValue(properties,kCGImagePropertyDPIHeight) copy] autorelease];
+    CFRelease(properties);
+   }
    CFRelease(imageSource);
 
    if(cgImage==nil){

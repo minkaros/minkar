@@ -42,6 +42,28 @@ Follow the code of conduct.
 
 New code is licensed under the BSD 2-clause license.
 
-If you have _ever_ seen Apple's proprietary code (not APSL-licensed or other open-source stuff) then you may *not* contribute code to Minkar. Sorry :( However, you may be able to contribute in other ways!
+If you have _ever_ seen the reference platform's proprietary code (not APSL-licensed or other open-source stuff) then you may *not* contribute code to Minkar. Sorry :( However, you may be able to contribute in other ways!
+
+### Development shortcuts
+
+A temporary solution taken during development is marked in the code with
+the milestone that removes it:
+
+    // SHORTCUT(<removed by>): <what and why>; taken in <milestone>.
+
+For example `SHORTCUT(WS4a)`, `SHORTCUT(Phase 5)` or `SHORTCUT(D4)`. Each
+shortcut also has a row in its plan's shortcut table (section 9 of
+[WindowServer-Rewrite.md](WindowServer-Rewrite.md), section 10 of
+[Menus.md](Menus.md) and of [Dock-Kraz.md](Dock-Kraz.md)). A milestone
+closes only when `git grep -n 'SHORTCUT(<milestone>)'` finds nothing.
+
+### Progress pages
+
+[Progress.md](Progress.md) and [Progress.es.md](Progress.es.md) are
+generated from [progress/status.toml](progress/status.toml). The commit
+that closes a milestone also updates `status.toml` and runs
+`bmake progress`, which rewrites the pages' summary table and the SVGs in
+`Docs/progress`; the work board keeps the six most recent done items. CI
+fails when the committed pages are not what `bmake progress` writes.
 
 Have fun and do great things!

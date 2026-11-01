@@ -38,10 +38,16 @@
 	.globl	_NSInvocationCall
 	.p2align 4
 _NSInvocationCall:
+	.cfi_startproc
 	pushq	%rbp
+	.cfi_def_cfa_offset 16
+	.cfi_offset %rbp, -16
 	movq	%rsp, %rbp
+	.cfi_def_cfa_register %rbp
 	pushq	%rbx	/* callee-saved: the frame */
 	pushq	%r12	/* callee-saved: the IMP */
+	.cfi_offset %rbx, -24
+	.cfi_offset %r12, -32
 	movq	%rsi, %rbx
 	movq	%rdi, %r12
 
@@ -86,6 +92,7 @@ _NSInvocationCall:
 	popq	%rbx
 	popq	%rbp
 	retq
+	.cfi_endproc
 
 /*
  * The forward handlers (objc_setForwardHandler): _objc_msgForward jumps
@@ -102,19 +109,33 @@ _NSInvocationCall:
 	.globl	_NSInvocationForward
 	.globl	_NSInvocationForward_stret
 	.p2align 4
-_NSInvocationForward:
-	pushq	%rbp
-	movq	%rsp, %rbp
-	subq	$176, %rsp
-	movq	$0, 144(%rsp)		/* not a struct return */
-	jmp	Lsave
-
-	.p2align 4
 _NSInvocationForward_stret:
+	.cfi_startproc
 	pushq	%rbp
+	.cfi_def_cfa_offset 16
+	.cfi_offset %rbp, -16
 	movq	%rsp, %rbp
+	.cfi_def_cfa_register %rbp
 	subq	$176, %rsp
 	movq	$1, 144(%rsp)		/* struct return: rdi is the buffer */
+	jmp	Lsave
+	.cfi_endproc
+
+/*
+ * The unwind information (.cfi) lets an exception raised while forwarding
+ * (-forwardInvocation:, -doesNotRecognizeSelector:) reach the caller's
+ * handler; both entries build the same frame before Lsave.
+ */
+	.p2align 4
+_NSInvocationForward:
+	.cfi_startproc
+	pushq	%rbp
+	.cfi_def_cfa_offset 16
+	.cfi_offset %rbp, -16
+	movq	%rsp, %rbp
+	.cfi_def_cfa_register %rbp
+	subq	$176, %rsp
+	movq	$0, 144(%rsp)		/* not a struct return */
 
 Lsave:	movq	%rdi, 0(%rsp)
 	movq	%rsi, 8(%rsp)
@@ -179,3 +200,47 @@ Lslow:	movq	%rsp, %rdi		/* the saved registers */
 	movq	%rbp, %rsp
 	popq	%rbp
 	retq
+	.cfi_endproc
+
+/*
+ * The invoke function of blocks made at run time (NSInvocation.m has
+ * NSInvocationBlockForwardRegisters): the block is in rdi. The registers
+ * are saved in a frame laid out as above, and the return value is loaded
+ * from it.
+ */
+	.globl	_NSInvocationBlockForward
+	.p2align 4
+_NSInvocationBlockForward:
+	.cfi_startproc
+	pushq	%rbp
+	.cfi_def_cfa_offset 16
+	.cfi_offset %rbp, -16
+	movq	%rsp, %rbp
+	.cfi_def_cfa_register %rbp
+	subq	$176, %rsp
+	movq	%rdi, 0(%rsp)
+	movq	%rsi, 8(%rsp)
+	movq	%rdx, 16(%rsp)
+	movq	%rcx, 24(%rsp)
+	movq	%r8, 32(%rsp)
+	movq	%r9, 40(%rsp)
+	movsd	%xmm0, 48(%rsp)
+	movsd	%xmm1, 56(%rsp)
+	movsd	%xmm2, 64(%rsp)
+	movsd	%xmm3, 72(%rsp)
+	movsd	%xmm4, 80(%rsp)
+	movsd	%xmm5, 88(%rsp)
+	movsd	%xmm6, 96(%rsp)
+	movsd	%xmm7, 104(%rsp)
+	movq	%rsp, %rdi		/* the saved registers */
+	leaq	16(%rbp), %rsi		/* the caller's stack arguments */
+	leaq	112(%rsp), %rdx		/* the return registers */
+	callq	_NSInvocationBlockForwardRegisters
+	movq	112(%rsp), %rax
+	movq	120(%rsp), %rdx
+	movsd	128(%rsp), %xmm0
+	movsd	136(%rsp), %xmm1
+	movq	%rbp, %rsp
+	popq	%rbp
+	retq
+	.cfi_endproc

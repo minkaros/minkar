@@ -450,6 +450,7 @@ copy_headers: .PHONY
 		${iokitHdrs}/pwr_mgt/
 	cp -f \
 		${.CURDIR}/IOKitLibPrivate.h \
+		${.CURDIR}/IOCFPlugIn.h \
 		${.CURDIR}/IOCFSerialize.h \
 		${.CURDIR}/IOCFUnserialize.h \
 		${.CURDIR}/IOKitLib.h \

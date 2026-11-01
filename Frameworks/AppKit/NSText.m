@@ -15,6 +15,11 @@ NSString * const NSTextDidChangeNotification=@"NSTextDidChangeNotification";
 
 @implementation NSText
 
+/* Text takes its own clicks (selection), so the window does not move. */
+-(BOOL)mouseDownCanMoveWindow {
+   return NO;
+}
+
 -delegate {
    NSInvalidAbstractInvocation();
    return nil;

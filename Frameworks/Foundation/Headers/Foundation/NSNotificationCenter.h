@@ -8,7 +8,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 #import <Foundation/NSNotification.h>
 
-@class NSMutableDictionary;
+@class NSMutableDictionary, NSNotification, NSOperationQueue;
 
 @interface NSNotificationCenter : NSObject {
     NSMutableDictionary *_nameToRegistry;
@@ -18,6 +18,8 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 + (NSNotificationCenter *)defaultCenter;
 
 - (void)addObserver:observer selector:(SEL)selector name:(NSString *)name object:object;
+
+- (id)addObserverForName:(NSString *)name object:object queue:(NSOperationQueue *)queue usingBlock:(void (^)(NSNotification *note))block;
 
 - (void)removeObserver:observer;
 - (void)removeObserver:observer name:(NSString *)name object:object;

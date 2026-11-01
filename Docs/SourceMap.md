@@ -50,10 +50,10 @@ management.
   * Developer/SDKs/Minkar.sdk - project file and some sources for the SDK
 * cctools - lipo, ld64 linker, otool, etc
 * dtrace_ctf - ctf utilities
-* llvm-project - Apple fork of LLVM and Apple TAPI project
+* llvm-project - the reference platform vendor's fork of LLVM, and its TAPI project
 * unifdef
-* xcbuild - Xcode project builder from Meta, `xcrun`, `xcodebuild`, `xcode-select`
-* gmake - GNU make, the default on macOS
+* xcbuild - a builder for the reference platform's IDE projects, from Meta, `xcrun`, `xcodebuild`, `xcode-select`
+* gmake - GNU make, the default on the reference system
 * mig - Mach interface generator
 * xar - archiver tool used in the build
 

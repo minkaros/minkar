@@ -194,7 +194,15 @@ private:
     bool setParamPropertiesInProgress;
 
     OSSet * dataQueueSet;
-  
+
+    /* Minkar: the event server's side of kIOHIDServerConnectType: the
+     * port told when the shared low-level event queue gets events, and
+     * the pointer state behind the mouse events posted there. */
+    mach_port_t     _eventPort;
+    UInt32          _lleqDropped;       // events lost to a full queue
+    int             _pointerButtons;    // buttons down, bit 0 = left
+    SInt16          _pointerEventNum;   // eventNum of the last mouse down
+
 
 private:
 
@@ -411,6 +419,30 @@ private:
                                     unsigned   flags,
                                     OSObject * sender,
                                     void *     refcon);  /* Does not generate events */
+
+  /* Minkar: pointing devices (IOHIPointing) and the low-level queue. */
+  static void _relativePointerEvent(IOHIDSystem * self, int buttons, int dx, int dy,
+                                    AbsoluteTime ts, OSObject * sender, void * refcon);
+  static void _absolutePointerEvent(IOHIDSystem * self, int buttons, IOGPoint * newLoc,
+                                    IOGBounds * bounds, bool proximity, int pressure,
+                                    int stylusAngle, AbsoluteTime ts, OSObject * sender,
+                                    void * refcon);
+  static void _scrollWheelEvent(    IOHIDSystem * self, short deltaAxis1, short deltaAxis2,
+                                    short deltaAxis3, IOFixed fixedDelta1, IOFixed fixedDelta2,
+                                    IOFixed fixedDelta3, SInt32 pointDelta1, SInt32 pointDelta2,
+                                    SInt32 pointDelta3, SInt32 options, AbsoluteTime ts,
+                                    OSObject * sender, void * refcon);
+  static IOReturn doPointerEvent(IOHIDSystem * self, void * args);
+  void     pointerEventGated(void * args);
+  void     pointerBounds(IOGBounds * bounds);
+  void     postPointerButtons(int buttons, AbsoluteTime ts, OSObject * sender);
+  void     enqueueLowLevelEvent(const NXEvent * event);
+  void     kickEventConsumer(void);
+  static IOReturn doSetEventPort(IOHIDSystem * self, void * port);
+  void     setEventPortGated(mach_port_t port);
+public:
+  IOReturn setEventPort(mach_port_t port);
+private:
 
 
 /*

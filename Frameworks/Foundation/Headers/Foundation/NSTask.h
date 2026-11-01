@@ -12,6 +12,13 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 FOUNDATION_EXPORT NSString *const NSTaskDidTerminateNotification;
 
+@class NSURL, NSError;
+
+typedef NS_ENUM(NSInteger, NSTaskTerminationReason) {
+    NSTaskTerminationReasonExit = 1,
+    NSTaskTerminationReasonUncaughtSignal = 2
+};
+
 @interface NSTask : NSObject {
     NSString *launchPath;
     NSArray *arguments;
@@ -60,5 +67,14 @@ FOUNDATION_EXPORT NSString *const NSTaskDidTerminateNotification;
 - (void)blockAndWaitUntilExit;
 
 - (int)processIdentifier;
+
++ (NSTask *)launchedTaskWithExecutableURL:(NSURL *)url arguments:(NSArray *)arguments error:(NSError **)error
+                       terminationHandler:(void (^)(NSTask *))terminationHandler;
+- (BOOL)launchAndReturnError:(NSError **)error;
+@property (copy) NSURL *executableURL;
+@property (copy) NSURL *currentDirectoryURL;
+@property (readonly) NSTaskTerminationReason terminationReason;
+@property (copy) void (^terminationHandler)(NSTask *);
+@property NSQualityOfService qualityOfService;
 
 @end

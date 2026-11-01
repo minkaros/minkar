@@ -30,6 +30,25 @@ enum {
 };
 typedef NSUInteger NSCalendarUnit;
 
+enum {
+    NSCalendarUnitEra = kCFCalendarUnitEra,
+    NSCalendarUnitYear = kCFCalendarUnitYear,
+    NSCalendarUnitMonth = kCFCalendarUnitMonth,
+    NSCalendarUnitDay = kCFCalendarUnitDay,
+    NSCalendarUnitHour = kCFCalendarUnitHour,
+    NSCalendarUnitMinute = kCFCalendarUnitMinute,
+    NSCalendarUnitSecond = kCFCalendarUnitSecond,
+    NSCalendarUnitWeekday = kCFCalendarUnitWeekday,
+    NSCalendarUnitWeekdayOrdinal = kCFCalendarUnitWeekdayOrdinal,
+    NSCalendarUnitQuarter = (1UL << 11),
+    NSCalendarUnitWeekOfMonth = (1UL << 12),
+    NSCalendarUnitWeekOfYear = (1UL << 13),
+    NSCalendarUnitYearForWeekOfYear = (1UL << 14),
+    NSCalendarUnitNanosecond = (1UL << 15),
+    NSCalendarUnitCalendar = (1UL << 20),
+    NSCalendarUnitTimeZone = (1UL << 21),
+};
+
 FOUNDATION_EXPORT NSString *const NSGregorianCalendar;
 
 @interface NSCalendar : NSObject <NSCopying> {

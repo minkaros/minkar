@@ -10,8 +10,13 @@ SUBDIR += SystemConfiguration
 # DiskArbitration links IOKit; diskarbitrationd (BSD) links SystemConfiguration.
 SUBDIR += DiskArbitration
 SUBDIR += Foundation
+# LaunchServices is inside CoreServices, which re-exports it.
+SUBDIR += CoreServices/LaunchServices
 SUBDIR += CoreServices
 SUBDIR += Onyx2D
+# SkyLight (the window server's client side) comes before CoreGraphics,
+# which is to re-export it (WindowServer plan).
+SUBDIR += ../PrivateFrameworks/SkyLight
 # CoreGraphics links OpenGL.
 SUBDIR += OpenGL
 SUBDIR += CoreGraphics
@@ -23,6 +28,7 @@ SUBDIR += AppKit
 all: ${SUBDIR}
 
 Foundation: CoreFoundation
+CoreServices: CoreServices/LaunchServices
 SystemConfiguration: CoreFoundation
 DiskArbitration: CoreFoundation
 CoreData: Foundation

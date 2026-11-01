@@ -8,11 +8,53 @@ The above copyright notice and this permission notice shall be included in all c
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE. */
 
 enum {
+    // Files.
+    NSFileNoSuchFileError = 4,
+    NSFileLockingError = 255,
+    NSFileReadUnknownError = 256,
+    NSFileReadNoPermissionError = 257,
     NSFileReadInvalidFileNameError = 258,
     NSFileReadCorruptFileError = 259,
     NSFileReadNoSuchFileError = 260,
-
+    NSFileReadInapplicableStringEncodingError = 261,
+    NSFileReadUnsupportedSchemeError = 262,
+    NSFileReadTooLargeError = 263,
+    NSFileReadUnknownStringEncodingError = 264,
     NSFileWriteUnknownError = 512,
+    NSFileWriteNoPermissionError = 513,
+    NSFileWriteInvalidFileNameError = 514,
+    NSFileWriteFileExistsError = 516,
+    NSFileWriteInapplicableStringEncodingError = 517,
+    NSFileWriteUnsupportedSchemeError = 518,
+    NSFileWriteOutOfSpaceError = 640,
+    NSFileWriteVolumeReadOnlyError = 642,
+    NSFileManagerUnmountUnknownError = 768,
+    NSFileManagerUnmountBusyError = 769,
+    NSFileErrorMinimum = 0,
+    NSFileErrorMaximum = 1023,
+
+    NSKeyValueValidationError = 1024,
+    NSValidationErrorMinimum = 1024,
+    NSValidationErrorMaximum = 2047,
+
+    NSUserCancelledError = 3072,
+    NSFeatureUnsupportedError = 3328,
+
+    // Bundles' executables.
+    NSExecutableNotLoadableError = 3584,
+    NSExecutableArchitectureMismatchError = 3585,
+    NSExecutableRuntimeMismatchError = 3586,
+    NSExecutableLoadError = 3587,
+    NSExecutableLinkError = 3588,
+    NSExecutableErrorMinimum = 3584,
+    NSExecutableErrorMaximum = 3839,
+
+    // NSXPCConnection.
+    NSXPCConnectionInterrupted = 4097,
+    NSXPCConnectionInvalid = 4099,
+    NSXPCConnectionReplyInvalid = 4101,
+    NSXPCConnectionErrorMinimum = 4096,
+    NSXPCConnectionErrorMaximum = 4224,
 
     // A string that could not be parsed or formatted (an invalid regular
     // expression, for one).

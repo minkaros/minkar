@@ -69,6 +69,7 @@ typedef NSUInteger NSDataSearchOptions;
 - (void)getBytes:(void *)result;
 
 - (NSData *)subdataWithRange:(NSRange)range;
+- (NSRange)rangeOfData:(NSData *)dataToFind options:(NSDataSearchOptions)mask range:(NSRange)searchRange;
 
 - (BOOL)writeToFile:(NSString *)path atomically:(BOOL)atomically;
 - (BOOL)writeToURL:(NSURL *)url atomically:(BOOL)atomically;
@@ -77,6 +78,24 @@ typedef NSUInteger NSDataSearchOptions;
 
 - (NSString *)description;
 
+@end
+
+typedef NS_OPTIONS(NSUInteger, NSDataBase64EncodingOptions) {
+    NSDataBase64Encoding64CharacterLineLength = 1UL << 0,
+    NSDataBase64Encoding76CharacterLineLength = 1UL << 1,
+    NSDataBase64EncodingEndLineWithCarriageReturn = 1UL << 4,
+    NSDataBase64EncodingEndLineWithLineFeed = 1UL << 5,
+};
+
+typedef NS_OPTIONS(NSUInteger, NSDataBase64DecodingOptions) {
+    NSDataBase64DecodingIgnoreUnknownCharacters = 1UL << 0
+};
+
+@interface NSData (NSDataBase64Encoding)
+- (instancetype)initWithBase64EncodedString:(NSString *)base64String options:(NSDataBase64DecodingOptions)options;
+- (NSString *)base64EncodedStringWithOptions:(NSDataBase64EncodingOptions)options;
+- (instancetype)initWithBase64EncodedData:(NSData *)base64Data options:(NSDataBase64DecodingOptions)options;
+- (NSData *)base64EncodedDataWithOptions:(NSDataBase64EncodingOptions)options;
 @end
 
 #import <Foundation/NSMutableData.h>

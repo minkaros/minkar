@@ -77,7 +77,7 @@ _xpc_object_validate(xpc_object_t object) {
 #else // OS_OBJECT_USE_OBJC
 typedef void * xpc_object_t;
 #define XPC_DECL(name) typedef struct _##name##_s * name##_t
-#define XPC_GLOBAL_OBJECT(object) (&(object))
+#define XPC_GLOBAL_OBJECT(object) ((xpc_object_t)(uintptr_t)&(object))
 #define XPC_RETURNS_RETAINED
 #endif // OS_OBJECT_USE_OBJC 
 

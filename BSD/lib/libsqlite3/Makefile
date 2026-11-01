@@ -52,11 +52,16 @@ install-headers: .PHONY
 	install -m 0444 ${.CURDIR}/dist/sqlite3.h ${.CURDIR}/dist/sqlite3ext.h \
 	  ${MINKAR_SDKROOT}/usr/include/
 
+# The shell's object is shell.o: sqlite3.o is the library's (sqlite3.c),
+# and writing the shell over it put the shell in libsqlite3.a on the next
+# build.
 sqlite3: ${.CURDIR}/dist/shell.c lib${LIB}.dylib
 	mkdir -p ${SYSROOT_DIR}/usr/bin
-	${CC} ${CFLAGS} -o ${.TARGET}.o -c ${.CURDIR}/dist/shell.c
-	${CC} ${LDFLAGS} -o ${SYSROOT_DIR}/usr/bin/sqlite3 ${.TARGET}.o \
+	${CC} ${CFLAGS} -o shell.o -c ${.CURDIR}/dist/shell.c
+	${CC} ${LDFLAGS} -o ${SYSROOT_DIR}/usr/bin/sqlite3 shell.o \
 	  -L${.OBJDIR} -lsqlite3
+
+CLEANFILES += shell.o
 
 man-page: .PHONY
 	mkdir -p ${SYSROOT_DIR}/usr/share/man/man1

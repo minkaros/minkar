@@ -8,6 +8,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <Foundation/NSTimer.h>
 #import <Foundation/NSRunLoop.h>
 #import <Foundation/NSTimer_targetAction.h>
+#import <Foundation/NSTimer_block.h>
 #import <Foundation/NSTimer_invocation.h>
 #import <Foundation/NSAutoreleasePool-private.h>
 #import <Foundation/NSRaise.h>
@@ -61,6 +62,34 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    [[NSRunLoop currentRunLoop] addTimer:result forMode:NSDefaultRunLoopMode];
 
    return result;
+}
+
+// Minkar: timers with a block (API 19).
++(NSTimer *)timerWithTimeInterval:(NSTimeInterval)interval repeats:(BOOL)repeats block:(void (^)(NSTimer *))block {
+   return NSAutorelease([NSAllocateObject([NSTimer_block class],0,NULL)
+     initWithFireDate:nil interval:interval repeats:repeats block:block]);
+}
+
++(NSTimer *)scheduledTimerWithTimeInterval:(NSTimeInterval)interval repeats:(BOOL)repeats block:(void (^)(NSTimer *))block {
+   NSTimer *result=[self timerWithTimeInterval:interval repeats:repeats block:block];
+
+   [[NSRunLoop currentRunLoop] addTimer:result forMode:NSDefaultRunLoopMode];
+
+   return result;
+}
+
+// [NSTimer alloc] made a target-action timer: this one is another kind.
+-initWithFireDate:(NSDate *)date interval:(NSTimeInterval)interval repeats:(BOOL)repeats block:(void (^)(NSTimer *))block {
+   NSDeallocateObject(self);
+   return [NSAllocateObject([NSTimer_block class],0,NULL) initWithFireDate:date interval:interval repeats:repeats block:block];
+}
+
+-(NSTimeInterval)tolerance {
+   return 0;
+}
+
+// A timer fires on time here: the tolerance is kept for the caller only.
+-(void)setTolerance:(NSTimeInterval)tolerance {
 }
 
 -(NSDate *)fireDate {

@@ -23,19 +23,62 @@
  */
 
 #include "IOGOPFramebuffer.h"
+#include <IOKit/pci/IOPCIDevice.h>
 
 #define kDisplayModeID 1
-#define kDepth         32 /* GOP is always 32 */
+/* Depths are indexes into a mode's list; GOP has one, 32 bits per pixel. */
+#define kDepthIndex    0
 
 #define DEBUG(x, ...) kprintf("IOGOPFramebuffer: " x, ##__VA_ARGS__)
 
 #define super IOFramebuffer
 OSDefineMetaClassAndStructors(IOGOPFramebuffer, IOFramebuffer);
 
+/*
+ * Minkar: only the card whose memory window holds the firmware's
+ * framebuffer drives it. A machine with two GPUs (a Mac Pro 6,1) matched
+ * one IOGOPFramebuffer on each, both claiming the same framebuffer.
+ * A window's base is read from the card's BAR; its size from "reg", which
+ * PCI configuration publishes even when it leaves the firmware's
+ * assignment in place.
+ */
 IOService *
 IOGOPFramebuffer::probe(IOService *provider, SInt32 *score)
 {
-    return this;
+    PE_Video boot;
+    IOPCIDevice *pci = OSDynamicCast(IOPCIDevice, provider);
+    OSData *reg;
+
+    if (pci == NULL)
+        return this;
+    if (getPlatform() == NULL || getPlatform()->getConsoleInfo(&boot) != kIOReturnSuccess ||
+        boot.v_baseAddr == 0)
+        return NULL;
+    uint64_t fb = boot.v_baseAddr & ~(uint64_t)0xFFF;
+    reg = OSDynamicCast(OSData, pci->getProperty("reg"));
+    if (reg == NULL)
+        return this;
+    const IOPCIPhysicalAddress *e = (const IOPCIPhysicalAddress *)reg->getBytesNoCopy();
+    unsigned n = reg->getLength() / sizeof(IOPCIPhysicalAddress);
+    for (unsigned i = 0; i < n; i++) {
+        unsigned bar = e[i].physHi.s.registerNum;
+        if (bar < kIOPCIConfigBaseAddress0 || bar > kIOPCIConfigBaseAddress5 ||
+            e[i].physHi.s.space < kIOPCI32BitMemorySpace)
+            continue;
+        uint32_t lo = pci->configRead32(bar);
+        uint64_t base = lo & ~(uint64_t)0xF;
+        if ((lo & 0x6) == 0x4 && bar < kIOPCIConfigBaseAddress5)
+            base |= (uint64_t)pci->configRead32(bar + 4) << 32;
+        uint64_t size = ((uint64_t)e[i].lengthHi << 32) | e[i].lengthLo;
+        if (base != 0 && fb >= base && fb < base + size) {
+            setProperty("MinkarFramebufferWindowBase", (unsigned long long)base, 64);
+            setProperty("MinkarFramebufferWindowSize", (unsigned long long)size, 64);
+            return this;
+        }
+    }
+    IOLog("IOGOPFramebuffer: %s does not decode the framebuffer at 0x%llx\n",
+        pci->getName(), (unsigned long long)fb);
+    return NULL;
 }
 
 bool
@@ -68,6 +111,13 @@ IOGOPFramebuffer::start(IOService *provider)
     bpp    = 32;
 
     IOLog("IOFB: GOP framebuffer %dx%d @ %p\n", width, height, fbBase);
+    // Minkar: the geometry the firmware gave and the console uses, for
+    // hardware checks (minkar-hwcheck --display): the address must lie in
+    // a window the GPU decodes.
+    setProperty("MinkarFramebufferAddress", (unsigned long long)(uintptr_t)fbBase, 64);
+    setProperty("MinkarFramebufferWidth", (unsigned long long)width, 32);
+    setProperty("MinkarFramebufferHeight", (unsigned long long)height, 32);
+    setProperty("MinkarFramebufferRowBytes", (unsigned long long)pitch, 32);
 
     // Register the framebuffer with the kernel console system
     PE_Video consoleInfo;
@@ -151,7 +201,7 @@ IOGOPFramebuffer::getCurrentDisplayMode(IODisplayModeID * displayMode,
                                         IOIndex         * depth)
 {
     *displayMode = kDisplayModeID;
-    *depth = kDepth;
+    *depth = kDepthIndex;
     return kIOReturnSuccess;
 }
 
@@ -181,7 +231,7 @@ IOGOPFramebuffer::getInformationForDisplayMode(IODisplayModeID,
     info->nominalHeight = height;
     info->refreshRate   = 60 << 16;
 
-    info->maxDepthIndex = kDepth;
+    info->maxDepthIndex = kDepthIndex;
 
     return kIOReturnSuccess;
 }
@@ -214,7 +264,7 @@ IOGOPFramebuffer::getPixelInformation(IODisplayModeID      displayMode,
 {
     PE_Video    bootDisplay;
 
-    if (aperture || depth || (displayMode != kDisplayModeID))
+    if (aperture || (depth != kDepthIndex) || (displayMode != kDisplayModeID))
     {
         return (kIOReturnUnsupportedMode);
     }

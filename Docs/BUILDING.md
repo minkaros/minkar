@@ -1,7 +1,7 @@
 # Building Minkar From Source
 
 Minkar is built with BSD make (bmake). The build first creates a host
-toolchain (Default.xctoolchain: clang/LLVM, Apple cctools, ld64, xcbuild,
+toolchain (Default.xctoolchain: clang/LLVM, cctools, ld64, xcbuild,
 mig, ...) and then uses it, together with the Minkar.sdk it produces, to
 build the rest of the system for the same CPU architecture.
 
@@ -172,7 +172,7 @@ Gates (see the architecture plan):
   which has no MSI: it uses its INTx line, routed through ACPI _PRT by
   ACPICA in IOACPIFamily.
 
-  configd (Apple's, with its plugins built in) names the interfaces: its
+  configd (the APSL one, with its plugins built in) names the interfaces: its
   InterfaceNamer gives IONetworkStack the unit each one keeps across boots
   (/Library/Preferences/SystemConfiguration/NetworkInterfaces.plist) once
   IOKit is quiet; kextstart tells IOKit at boot that there is no kextd to
@@ -229,7 +229,7 @@ RELEASE kernel tries. Build the image with `INIT=` to boot the sysroot's own
 * Everything rebuilds after moving the source tree\
   Object directories are named after the source path
   (`../build/<source path>/...`). Keep the tree where it was built.
-* Odd missing files on macOS or on an HFS+ or APFS disk\
+* Odd missing files on the reference system or on an HFS+ or APFS disk\
   The file system is case-insensitive; some trees have names that differ
   only in case. Use a case-sensitive volume.
 * `mount: unknown filesystem type 'hfsplus'` (image)\

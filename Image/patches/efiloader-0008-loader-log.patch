@@ -1,0 +1,87 @@
+--- a/MdeModulePkg/Application/Loader/loader.c
++++ b/MdeModulePkg/Application/Loader/loader.c
+@@ -30,6 +30,31 @@
+ #include <mach-o/fat.h>
+ 
+ #define VERSION_STR UEFI_STR("v0.8 IN DEVELOPMENT")
++
++/*
++ * Minkar: everything the loader prints is kept and written to
++ * \Minkar\loader.log on its own volume before the kernel starts. Some
++ * firmware (a Mac Pro's) never shows the loader's text on the screen;
++ * the log says which graphics mode was chosen and what the kernel got.
++ */
++STATIC CHAR8 gLog[16384];
++STATIC UINTN gLogLength;
++
++STATIC UINTN EFIAPI LogPrint(IN CONST CHAR16 *Format, ...)
++{
++    VA_LIST Args;
++    CHAR16 Line[512];
++    UINTN Length;
++
++    VA_START(Args, Format);
++    Length = UnicodeVSPrint(Line, sizeof(Line), Format, Args);
++    VA_END(Args);
++    Print(UEFI_STR("%s"), Line);
++    for (UINTN i = 0; Line[i] != 0 && gLogLength < sizeof(gLog) - 1; i++)
++        gLog[gLogLength++] = (Line[i] < 0x80) ? (CHAR8)Line[i] : '?';
++    return Length;
++}
++#define Print LogPrint
+ /*
+  * Minkar: room reserved after the kernel for the device tree, the boot
+  * arguments and the copied EFI tables (see the layout in loader.h).
+@@ -105,8 +130,10 @@
+ 
+     if (want[0] == '\0')
+         return;
+-    if (EFI_ERROR(LocateGOP(&GOP)))
++    if (EFI_ERROR(LocateGOP(&GOP))) {
++        Print(UEFI_STR("[] No graphics output: graphics-mode ignored\n"));
+         return;
++    }
+     UINTN nativeW = 0, nativeH = 0;
+     BOOLEAN haveNative = NativeResolution(&nativeW, &nativeH);
+     if (haveNative)
+@@ -239,6 +266,27 @@
+  * partition: the kernel was not found there and the firmware went back
+  * to its boot menu.
+  */
++EFI_STATUS OpenBootVolume(EFI_FILE_HANDLE *Root);
++
++/* Minkar: the log, written over the last boot's. */
++STATIC VOID SaveLog(VOID)
++{
++    EFI_FILE_HANDLE Root, File;
++    CHAR16 *Name = UEFI_STR("\\Minkar\\loader.log");
++    UINTN Size = gLogLength;
++
++    if (EFI_ERROR(OpenBootVolume(&Root)))
++        return;
++    if (!EFI_ERROR(Root->Open(Root, &File, Name, EFI_FILE_MODE_READ | EFI_FILE_MODE_WRITE, 0)))
++        File->Delete(File);
++    if (!EFI_ERROR(Root->Open(Root, &File, Name,
++            EFI_FILE_MODE_CREATE | EFI_FILE_MODE_READ | EFI_FILE_MODE_WRITE, 0))) {
++        File->Write(File, &Size, gLog);
++        File->Close(File);
++    }
++    Root->Close(Root);
++}
++
+ EFI_STATUS OpenBootVolume(EFI_FILE_HANDLE *Root)
+ {
+     EFI_STATUS Status;
+@@ -1097,6 +1145,12 @@
+         }
+     }
+ 
++    Print(UEFI_STR("[] The kernel gets %ux%u, %u bytes per row, at 0x%lx\n"),
++        BootArgs->Video.width, BootArgs->Video.height, BootArgs->Video.bytesPerRow,
++        BootArgs->Video.baseAddr);
++    /* Before the check below: it also covers what writing the log allocates. */
++    SaveLog();
++
+     Status = CheckMoveIsSafe(ImageHandle);
+     if (EFI_ERROR(Status))
+         return LoaderFail(UEFI_STR("the kernel cannot be moved to its place"), Status);

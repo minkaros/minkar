@@ -1,0 +1,484 @@
+/*
+ * SPDX-License-Identifier: BSD-2-Clause
+ *
+ * Copyright (c) 2026 The Minkar contributors
+ * Part of Minkar.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ */
+
+/*
+ * WindowServer.defs: the interface between the window server and its
+ * clients (WindowServer plan, section 4: IPC/). Messages carry only their
+ * data; large data travels out of line. Grows by subsystem: connection
+ * (WS1), displays, windows, surfaces, events, cursor, capture.
+ */
+
+subsystem WindowServer 29000;
+
+#include <mach/std_types.defs>
+#include <mach/mach_types.defs>
+
+userprefix ws_;
+serverprefix wss_;
+
+import "WindowServerTypes.h";
+
+type ws_display_list_t = array[*:32] of uint32_t;
+type ws_display_info_t = struct[24] of uint32_t
+	ctype: SLSDisplayInfo;
+type ws_display_mode_t = struct[10] of uint32_t
+	ctype: SLSDisplayMode;
+type ws_display_mode_list_t = array[*:64] of ws_display_mode_t;
+type ws_display_config_op_t = struct[8] of uint32_t
+	ctype: SLSDisplayConfigOp;
+type ws_display_config_list_t = array[*:32] of ws_display_config_op_t;
+type ws_gamma_table_t = array[*:768] of float;
+type ws_gamma_formula_t = struct[9] of float
+	ctype: SLSGammaFormula;
+type ws_rect_t = struct[4] of double
+	ctype: SLSRect;
+type ws_window_list_t = array[*:1024] of uint32_t;
+type ws_window_info_t = struct[32] of uint32_t
+	ctype: SLSWindowInfo;
+type ws_int_rect_t = struct[4] of int32_t
+	ctype: SLSIntRect;
+type ws_damage_t = array[*:64] of ws_int_rect_t;
+type ws_region_t = array[*:64] of ws_int_rect_t;
+type ws_server_stats_t = struct[16] of uint32_t
+	ctype: SLSServerStats;
+type ws_event_t = struct[24] of uint32_t
+	ctype: SLSEvent;
+type ws_event_list_t = array[*:64] of ws_event_t;
+type ws_tap_info_t = struct[12] of uint32_t
+	ctype: SLSEventTapInfo;
+type ws_tap_list_t = array[*:32] of ws_tap_info_t;
+
+/*
+ * Opens a connection: the server records the client's PID and user from
+ * the message's audit token and answers with the interface version and
+ * the connection's ID.
+ */
+routine connect(
+	server			: mach_port_t;
+	ServerAuditToken token	: audit_token_t;
+	client			: mach_port_make_send_t;
+	out version		: uint32_t;
+	out connection		: int32_t);
+
+/* ---- Displays (the CGDirectDisplay API) ---- */
+
+/* The main display: the one with the menu bar, at the global origin. */
+routine main_display(
+	server			: mach_port_t;
+	out display		: uint32_t);
+
+/* The displays online (which = 0) or active, that is drawable (which = 1). */
+routine display_list(
+	server			: mach_port_t;
+	which			: uint32_t;
+	out displays		: ws_display_list_t);
+
+/* One display's bounds, state and identity; result is an SLS error. */
+routine display_info(
+	server			: mach_port_t;
+	display			: uint32_t;
+	out result		: int32_t;
+	out info		: ws_display_info_t);
+
+/* ---- Display modes and configuration ---- */
+
+/* Every mode of a display; result is an SLS error. */
+routine display_modes(
+	server			: mach_port_t;
+	display			: uint32_t;
+	out result		: int32_t;
+	out modes		: ws_display_mode_list_t);
+
+/* The mode a display is in. */
+routine display_current_mode(
+	server			: mach_port_t;
+	display			: uint32_t;
+	out result		: int32_t;
+	out mode		: ws_display_mode_t);
+
+/*
+ * A configuration: every change is checked before any is applied, then
+ * the main display is moved back to the origin with the others around
+ * it. option is kSLSConfigure*. failed is the index of the change that
+ * was refused, or -1.
+ */
+routine display_configure(
+	server			: mach_port_t;
+	ServerAuditToken token	: audit_token_t;
+	option			: uint32_t;
+	ops			: ws_display_config_list_t;
+	out result		: int32_t;
+	out failed		: int32_t);
+
+/* ---- Gamma: display transfer tables ---- */
+
+/* A table per channel, red then green then blue, count entries each
+ * (2 to 256), values 0 to 1. */
+routine display_set_transfer_table(
+	server			: mach_port_t;
+	ServerAuditToken token	: audit_token_t;
+	display			: uint32_t;
+	count			: uint32_t;
+	table			: ws_gamma_table_t;
+	out result		: int32_t);
+
+/* The table in use, kSLSGammaTableCapacity entries per channel. */
+routine display_transfer_table(
+	server			: mach_port_t;
+	display			: uint32_t;
+	out result		: int32_t;
+	out table		: ws_gamma_table_t);
+
+routine display_set_transfer_formula(
+	server			: mach_port_t;
+	ServerAuditToken token	: audit_token_t;
+	display			: uint32_t;
+	formula			: ws_gamma_formula_t;
+	out result		: int32_t);
+
+routine display_transfer_formula(
+	server			: mach_port_t;
+	display			: uint32_t;
+	out result		: int32_t;
+	out formula		: ws_gamma_formula_t);
+
+/* Every display back to the identity transfer. */
+routine restore_transfers(
+	server			: mach_port_t;
+	ServerAuditToken token	: audit_token_t);
+
+/* ---- Display fades ---- */
+
+routine fade_acquire(
+	server			: mach_port_t;
+	ServerAuditToken token	: audit_token_t;
+	seconds			: double;
+	out result		: int32_t;
+	out reservation		: uint32_t);
+
+routine fade_release(
+	server			: mach_port_t;
+	ServerAuditToken token	: audit_token_t;
+	reservation		: uint32_t;
+	out result		: int32_t);
+
+routine fade(
+	server			: mach_port_t;
+	ServerAuditToken token	: audit_token_t;
+	reservation		: uint32_t;
+	start_blend		: float;
+	end_blend		: float;
+	red			: float;
+	green			: float;
+	blue			: float;
+	out result		: int32_t);
+
+routine fade_state(
+	server			: mach_port_t;
+	out blend		: float;
+	out holder		: int32_t);
+
+/* ---- Display capture ---- */
+
+/* display 0 is every display. */
+routine display_capture(
+	server			: mach_port_t;
+	ServerAuditToken token	: audit_token_t;
+	display			: uint32_t;
+	options			: uint32_t;
+	out result		: int32_t);
+
+routine display_release(
+	server			: mach_port_t;
+	ServerAuditToken token	: audit_token_t;
+	display			: uint32_t;
+	out result		: int32_t);
+
+/* The capturing process and the shielding window, 0 when not captured. */
+routine display_capture_state(
+	server			: mach_port_t;
+	display			: uint32_t;
+	out result		: int32_t;
+	out pid			: int32_t;
+	out shield		: uint32_t);
+
+/* ---- Cursor ---- */
+
+/* delta is +1 (hide) or -1 (show) on the connection's hide count. */
+routine cursor_hide(
+	server			: mach_port_t;
+	ServerAuditToken token	: audit_token_t;
+	display			: uint32_t;
+	delta			: int32_t;
+	out result		: int32_t);
+
+routine cursor_state(
+	server			: mach_port_t;
+	out visible		: int32_t;
+	out x			: double;
+	out y			: double;
+	out dx			: int32_t;
+	out dy			: int32_t);
+
+routine cursor_warp(
+	server			: mach_port_t;
+	ServerAuditToken token	: audit_token_t;
+	x			: double;
+	y			: double;
+	out result		: int32_t);
+
+routine cursor_associate(
+	server			: mach_port_t;
+	ServerAuditToken token	: audit_token_t;
+	connected		: int32_t;
+	out result		: int32_t);
+
+/* ---- Windows ---- */
+
+routine window_create(
+	server			: mach_port_t;
+	ServerAuditToken token	: audit_token_t;
+	level			: int32_t;
+	frame			: ws_rect_t;
+	out result		: int32_t;
+	out window		: uint32_t);
+
+routine window_release(
+	server			: mach_port_t;
+	ServerAuditToken token	: audit_token_t;
+	window			: uint32_t;
+	out result		: int32_t);
+
+routine window_set_frame(
+	server			: mach_port_t;
+	ServerAuditToken token	: audit_token_t;
+	window			: uint32_t;
+	frame			: ws_rect_t;
+	out result		: int32_t);
+
+routine window_set_level(
+	server			: mach_port_t;
+	ServerAuditToken token	: audit_token_t;
+	window			: uint32_t;
+	level			: int32_t;
+	out result		: int32_t);
+
+routine window_order(
+	server			: mach_port_t;
+	ServerAuditToken token	: audit_token_t;
+	window			: uint32_t;
+	place			: int32_t;
+	relative		: uint32_t;
+	out result		: int32_t);
+
+/* Window IDs front to back for a CGWindowListOption. */
+routine window_list(
+	server			: mach_port_t;
+	option			: uint32_t;
+	relative		: uint32_t;
+	out windows		: ws_window_list_t);
+
+routine window_info(
+	server			: mach_port_t;
+	window			: uint32_t;
+	out result		: int32_t;
+	out info		: ws_window_info_t);
+
+routine window_set_alpha(
+	server			: mach_port_t;
+	ServerAuditToken token	: audit_token_t;
+	window			: uint32_t;
+	alpha			: double;
+	out result		: int32_t);
+
+/* ---- Window surfaces ---- */
+
+/*
+ * The window's surface for its current size, made if needed: two buffers
+ * of row_bytes * height bytes, one after the other, in the memory entry.
+ * back is the buffer to draw into; surface names this surface in commits.
+ */
+routine window_surface(
+	server			: mach_port_t;
+	ServerAuditToken token	: audit_token_t;
+	window			: uint32_t;
+	out result		: int32_t;
+	out surface		: uint32_t;
+	out width		: uint32_t;
+	out height		: uint32_t;
+	out row_bytes		: uint32_t;
+	out back		: uint32_t;
+	out memory		: mach_port_copy_send_t);
+
+/* Shows buffer (the back one) from the next frame; back is the new back
+ * buffer. A commit to a surface the window no longer has is refused. */
+routine window_commit(
+	server			: mach_port_t;
+	ServerAuditToken token	: audit_token_t;
+	window			: uint32_t;
+	surface			: uint32_t;
+	buffer			: uint32_t;
+	damage			: ws_damage_t;
+	out result		: int32_t;
+	out back		: uint32_t);
+
+/* ---- Statistics ---- */
+
+routine server_stats(
+	server			: mach_port_t;
+	out stats		: ws_server_stats_t);
+
+/* ---- Events ---- */
+
+/* The connection's queued events, oldest first; at most 64 at a time. */
+routine next_events(
+	server			: mach_port_t;
+	ServerAuditToken token	: audit_token_t;
+	out events		: ws_event_list_t);
+
+routine set_key_window(
+	server			: mach_port_t;
+	ServerAuditToken token	: audit_token_t;
+	window			: uint32_t;
+	out result		: int32_t);
+
+routine key_window(
+	server			: mach_port_t;
+	out window		: uint32_t);
+
+/* A server-side move of the window, while the left button is down. */
+routine window_start_move(
+	server			: mach_port_t;
+	ServerAuditToken token	: audit_token_t;
+	window			: uint32_t;
+	out result		: int32_t);
+
+/* ---- Event taps and posted events ---- */
+
+routine tap_create(
+	server			: mach_port_t;
+	ServerAuditToken token	: audit_token_t;
+	location		: uint32_t;
+	placement		: uint32_t;
+	options			: uint32_t;
+	mask			: uint64_t;
+	port			: mach_port_make_send_t;
+	out result		: int32_t;
+	out tap			: uint32_t);
+
+routine tap_enable(
+	server			: mach_port_t;
+	ServerAuditToken token	: audit_token_t;
+	tap			: uint32_t;
+	enable			: int32_t;
+	out result		: int32_t);
+
+routine tap_release(
+	server			: mach_port_t;
+	ServerAuditToken token	: audit_token_t;
+	tap			: uint32_t;
+	out result		: int32_t);
+
+routine tap_list(
+	server			: mach_port_t;
+	out taps		: ws_tap_list_t);
+
+routine post_event(
+	server			: mach_port_t;
+	ServerAuditToken token	: audit_token_t;
+	location		: uint32_t;
+	event			: ws_event_t;
+	out result		: int32_t);
+
+/* ---- Drag regions (interface version 3) ---- */
+
+/* The window's drag regions: see SLSWindowSetDragRegion. */
+routine window_set_drag_region(
+	server			: mach_port_t;
+	ServerAuditToken token	: audit_token_t;
+	window			: uint32_t;
+	drag			: ws_region_t;
+	exclude			: ws_region_t;
+	out result		: int32_t);
+
+/* ---- Symbolic hotkeys (interface version 4) ---- */
+
+routine hotkey_claim(
+	server			: mach_port_t;
+	ServerAuditToken token	: audit_token_t;
+	hotkey			: uint32_t;
+	claim			: int32_t;
+	out result		: int32_t);
+
+routine hotkey_get(
+	server			: mach_port_t;
+	hotkey			: uint32_t;
+	out result		: int32_t;
+	out keycode		: uint32_t;
+	out modifiers		: uint32_t;
+	out enabled		: int32_t);
+
+/* ---- The front app (interface version 5) ---- */
+
+routine set_front_process(
+	server			: mach_port_t;
+	ServerAuditToken token	: audit_token_t;
+	out result		: int32_t);
+
+routine front_process(
+	server			: mach_port_t;
+	out pid			: int32_t);
+
+/* ---- Pointer capture (interface version 7) ---- */
+
+routine capture_pointer(
+	server			: mach_port_t;
+	ServerAuditToken token	: audit_token_t;
+	window			: uint32_t;
+	out result		: int32_t);
+
+routine pointer_capture(
+	server			: mach_port_t;
+	out window		: uint32_t);
+
+/* ---- The menu bar (interface version 6) ---- */
+
+routine display_menu_bar_height(
+	server			: mach_port_t;
+	display			: uint32_t;
+	out result		: int32_t;
+	out height		: uint32_t);
+
+/* ---- Status items (interface version 8) ---- */
+
+routine window_set_status_item(
+	server			: mach_port_t;
+	ServerAuditToken token	: audit_token_t;
+	window			: uint32_t;
+	item			: int32_t;
+	out result		: int32_t);

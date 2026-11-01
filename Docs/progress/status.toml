@@ -1,0 +1,304 @@
+# Minkar's progress data: the single source of Docs/Progress.md,
+# Docs/Progress.es.md and the SVGs next to this file. After a change here,
+# run "bmake progress" at the top of the tree and commit what it rewrites.
+# ROADMAP.md and the plans stay the source of truth: every value here
+# summarizes them at the commit named below.
+#
+# States: done | current (in progress) | partial | todo.
+#
+# Gates are done or not: a gate is never partial, and "current" marks
+# only the next gate on the critical path. Partial work shows on the
+# stations.
+#
+# The metro map is laid out by hand: x is a column in pixels, 1200 wide.
+#
+# - To add a station to a line, put [label, x, state] in its stations, in
+#   order from left to right, 50 to 60 px from its neighbours (move the
+#   ones after it if there is no room).
+# - To add a line, add a [[line]] block where it goes, top to bottom (each
+#   line is a row 64 px below the one before): id, name, a colour from
+#   tools/progress/gen.py's THEMES (blue, purple, orange, teal, pink,
+#   green, red, brown, slate, gray), doc (its plan, relative to Docs/),
+#   doc_es when the plan has a Spanish version with other anchors, and
+#   stations.
+# - A gate's x is the x of the stations it encloses, on every line in its
+#   rows (the lines it needs): it sits where those milestones close. A
+#   gate with no rows (M0 to M2) sits over the first line.
+# - deps draws "starts after" connectors: [from line, x on that line (the
+#   station it starts after), to line], ending at the first station of the
+#   second line.
+#
+# The board keeps the six most recent done items, newest first; the
+# commit that closes a milestone updates this file and runs
+# "bmake progress" (Docs/CONTRIBUTING.md).
+
+updated = "2026-11-01"
+commit  = "b15eaab556"
+
+deps = [["ws", 555, "dock"], ["fw", 535, "kraz"]]
+
+[[gate]]
+id = "M0"
+title = "M0 Build, toolchain, CI"
+label = "M0"
+state = "done"
+x = 160
+
+[[gate]]
+id = "M1"
+title = "M1 Darwin boot"
+label = "M1"
+state = "done"
+x = 235
+
+[[gate]]
+id = "M2"
+title = "M2 Base userland"
+label = "M2"
+state = "done"
+x = 310
+
+[[gate]]
+id = "M3"
+title = "M3 Frameworks and Swift"
+label = "M3"
+state = "todo"
+x = 590
+rows = ["fw"]
+
+[[gate]]
+id = "M4"
+title = "M4 Graphics and WindowServer"
+label = "M4"
+state = "current"
+x = 650
+rows = ["ws", "mb"]
+
+[[gate]]
+id = "M5"
+title = "M5 Gienah desktop"
+label = "M5"
+state = "todo"
+x = 760
+rows = ["mb", "dock", "kraz", "gienah"]
+
+[[gate]]
+id = "M6"
+title = "M6 Minkar 19.6.0"
+label = "M6 · 19.6.0"
+state = "todo"
+x = 970
+rows = ["apps"]
+
+[[gate]]
+id = "R21"
+title = "Minkar 21.0"
+label = "21.0"
+state = "todo"
+x = 1060
+rows = ["ws", "gpu"]
+
+[[gate]]
+id = "M7"
+title = "M7 Compat, arm64"
+label = "M7"
+state = "todo"
+x = 1150
+rows = ["compat"]
+
+# Lines of the metro map, top to bottom. Each station: [label, x, state].
+
+[[line]]
+id = "base"
+name = "Phases 0–2"
+color = "slate"
+doc = "ROADMAP.md"
+doc_es = "ROADMAP.es.md"
+stations = [["Build · CI", 160, "done"], ["Boot", 235, "done"], ["Userland", 310, "done"]]
+
+[[line]]
+id = "fw"
+name = "Frameworks"
+color = "brown"
+doc = "ROADMAP.md#phase-3--base-frameworks-and-swift"
+doc_es = "ROADMAP.es.md#fase-3--frameworks-base-y-swift"
+stations = [
+  ["XPC", 270, "done"], ["libSystem", 325, "partial"], ["Foundation", 380, "partial"],
+  ["CF-Lite", 435, "partial"], ["Security", 485, "todo"], ["LaunchServices", 535, "partial"],
+  ["Swift 6", 590, "todo"],
+]
+
+[[line]]
+id = "ws"
+name = "WindowServer"
+color = "blue"
+doc = "WindowServer-Rewrite.md"
+doc_es = "WindowServer-Rewrite.es.md"
+stations = [
+  ["WS0", 290, "done"], ["WS1", 340, "done"], ["WS2", 390, "done"], ["WS3", 440, "done"],
+  ["ADR 0001", 495, "done"], ["WS4a", 555, "current"], ["WS4b", 650, "todo"],
+  ["WS5", 850, "todo"], ["WS6", 1060, "todo"],
+]
+
+[[line]]
+id = "mb"
+name = "Menus"
+color = "purple"
+doc = "Menus.md"
+doc_es = "Menus.es.md"
+stations = [
+  ["MB0", 650, "todo"], ["MB1", 760, "todo"], ["MB2", 870, "todo"], ["MB3", 920, "todo"],
+  ["MB4", 970, "todo"],
+]
+
+[[line]]
+id = "dock"
+name = "Dock"
+color = "orange"
+doc = "Dock-Kraz.md"
+doc_es = "Dock-Kraz.es.md"
+stations = [
+  ["D0", 700, "todo"], ["D1", 760, "todo"], ["D2", 870, "todo"], ["D3", 920, "todo"],
+  ["D4", 970, "todo"],
+]
+
+[[line]]
+id = "kraz"
+name = "Kraz"
+color = "teal"
+doc = "Dock-Kraz.md"
+doc_es = "Dock-Kraz.es.md"
+stations = [
+  ["K0", 700, "todo"], ["K1", 760, "todo"], ["K2", 870, "todo"], ["K3", 920, "todo"],
+  ["K4", 970, "todo"],
+]
+
+[[line]]
+id = "gienah"
+name = "Gienah"
+color = "pink"
+doc = "ROADMAP.md#phase-5--gienah-desktop"
+doc_es = "ROADMAP.es.md#fase-5--escritorio-gienah"
+stations = [["LoginWindow", 570, "todo"], ["Preferences", 660, "todo"], ["Visual design", 760, "todo"]]
+
+[[line]]
+id = "apps"
+name = "Apps · DMG"
+color = "green"
+doc = "ROADMAP.md#phase-6--applications-and-distribution"
+doc_es = "ROADMAP.es.md#fase-6--aplicaciones-y-distribución"
+stations = [
+  ["DiskImages", 805, "todo"], ["Terminal", 860, "todo"], ["TextEdit", 915, "todo"],
+  ["Browser", 970, "todo"],
+]
+
+[[line]]
+id = "gpu"
+name = "GPU track"
+color = "red"
+doc = "ROADMAP.md#graphics-stack-components-and-sequence"
+doc_es = "ROADMAP.es.md#pila-gráfica-componentes-y-secuencia"
+# One station for G2 to G5 until the GPU ADR (G1) defines them.
+stations = [["G1 ADR", 700, "todo"], ["G2–G5", 1060, "todo"]]
+
+[[line]]
+id = "compat"
+name = "Compat · arm64"
+color = "gray"
+doc = "ROADMAP.md#phase-7--binary-compatibility-and-arm64"
+doc_es = "ROADMAP.es.md#fase-7--compatibilidad-binaria-y-arm64"
+stations = [["x86-64 apps", 1082, "todo"], ["arm64", 1150, "todo"]]
+
+# The work board. "line" picks a card's colour; "here" marks a station of
+# the metro map as where work is.
+[board]
+here = "WS4a"
+
+[[board.done]]
+title = "Status area layout"
+note = "WS4a · 1 nov"
+line = "ws"
+
+[[board.done]]
+title = "Pointer capture"
+note = "WS4a · 1 nov"
+line = "ws"
+
+[[board.done]]
+title = "Menu bar place"
+note = "WS4a · 1 nov"
+line = "ws"
+
+[[board.done]]
+title = "Front app and activation order"
+note = "WS4a · 1 nov"
+line = "ws"
+
+[[board.done]]
+title = "Running applications"
+note = "LaunchServices session · WS4a · 1 nov"
+line = "ws"
+
+[[board.done]]
+title = "Symbolic hotkeys"
+note = "WS4a · 1 nov"
+line = "ws"
+
+[[board.now]]
+title = "WS4a — Server behavior"
+note = "Left: what the Dock needs, window list and capture, earlier shortcuts"
+line = "ws"
+done = 6
+total = 9
+
+[[board.now]]
+title = "Foundation audit"
+note = "NSURLSession cache and metrics left"
+line = "fw"
+partial = true
+
+[[board.now]]
+title = "Noisy stubs"
+note = "mechanism done, 887 sites"
+line = "fw"
+partial = true
+
+[[board.next]]
+title = "WS4b + MB0 — The switch"
+note = "menus in the app, Legacy/ removed → gate M4"
+line = "ws"
+
+[[board.next]]
+title = "D0 · K0 — Dock and Kraz prerequisites"
+note = "after WS4a"
+line = "dock"
+
+[[board.next]]
+title = "Swift prototypes 1 and 2"
+note = "swiftc, libswiftCore → M3"
+line = "fw"
+
+[[board.next]]
+title = "GPU ADR (G1)"
+note = "family, licenses, KMS prototype"
+line = "gpu"
+
+[[board.later]]
+group = "→ M5 Gienah session"
+items = [["MB1 Menu Extras", "mb"], ["D1 Dock core", "dock"], ["K1 Kraz browsing", "kraz"], ["LoginWindow, Preferences", "gienah"]]
+
+[[board.later]]
+group = "After M5"
+items = [["MB2–MB4 menus", "mb"], ["D2–D4 Dock", "dock"], ["K2–K4 Kraz", "kraz"]]
+
+[[board.later]]
+group = "→ M6 · Minkar 19.6.0"
+items = [["DiskImages (hdiutil attach already mounts)", "apps"], ["Terminal, TextEdit, Browser", "apps"]]
+
+[[board.later]]
+group = "→ Minkar 21.0"
+items = [["WS5 IOSurface, WS6 GPU compositing", "ws"], ["G2–G5 driver, Mesa, Metal", "gpu"]]
+
+[[board.later]]
+group = "→ M7"
+items = [["x86-64 apps, arm64", "compat"]]

@@ -86,7 +86,9 @@ static NSStatusBar *_statusBar=nil;
         return 30;
     }
 #endif
-    return 42;
+    /* Status items sit in the menu bar (WS4a). */
+    extern CGFloat _NSMenuBarHeightForDisplay(CGDirectDisplayID display);
+    return _NSMenuBarHeightForDisplay(CGMainDisplayID());
 }
 
 #ifdef WIN32

@@ -950,7 +950,9 @@ consdebug_putc(char c)
 
 	debug_putc(c);
 
-	if (!console_is_serial() && !disable_serial_output) {
+	/* Minkar: kprintf_console=1 points PE_kputc at the console too:
+	 * once is enough. */
+	if (!console_is_serial() && !disable_serial_output && PE_kputc != cnputc) {
 		PE_kputc(c);
 	}
 }
@@ -964,7 +966,9 @@ consdebug_putc_unbuffered(char c)
 
 	debug_putc(c);
 
-	if (!console_is_serial() && !disable_serial_output) {
+	/* Minkar: kprintf_console=1 points PE_kputc at the console too:
+	 * once is enough. */
+	if (!console_is_serial() && !disable_serial_output && PE_kputc != cnputc) {
 		PE_kputc(c);
 	}
 }

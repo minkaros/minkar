@@ -949,7 +949,7 @@ void MinkarXHCIPort::scanPorts()
             anyNew = true;
             fPortOccupied[p] = true;
             XHCI_Log("Port %u connected, portsc=%08x speed=%u", p, portsc, XHCI_PORTSC_SPEED(portsc));
-            resetAndEnumeratePort(p);
+            resetAndEnumeratePortRetrying(p);
         }
 
         /* Everything else: USB2 protocol ports and unknown protocol ports.
@@ -972,7 +972,7 @@ void MinkarXHCIPort::scanPorts()
             anyNew = true;
             fPortOccupied[p] = true;
             XHCI_Log("Port %u connected, portsc=%08x speed=%u", p, portsc, XHCI_PORTSC_SPEED(portsc));
-            resetAndEnumeratePort(p);
+            resetAndEnumeratePortRetrying(p);
         }
 
         if (!anyNew && pass > 0) break;
@@ -1015,7 +1015,7 @@ void MinkarXHCIPort::hotplugLoop()
             fPortOccupied[p] = true;
             XHCI_Log("hotplug: Port %u connected, portsc=%08x speed=%u",
                     p, portsc, XHCI_PORTSC_SPEED(portsc));
-            resetAndEnumeratePort(p);
+            resetAndEnumeratePortRetrying(p);
         }
         IOSleep(500);
     }
@@ -1039,6 +1039,20 @@ void MinkarXHCIPort::handleRootPortDisconnect(UInt32 port0based, UInt32 portsc)
             XHCI_Log("hotplug: Port %u removed generic interrupt slot=%u",
                     port0based, slot);
         }
+    }
+}
+
+bool MinkarXHCIPort::resetAndEnumeratePortRetrying(UInt32 port0based)
+{
+    for (int attempt = 1; ; attempt++) {
+        fAddressFailed = false;
+        if (resetAndEnumeratePort(port0based))
+            return true;
+        if (!fAddressFailed || attempt == 3)
+            return false;
+        XHCI_Log("Port %u: Address Device failed, reset and try again (%d of 3)",
+                port0based, attempt + 1);
+        IOSleep(200);
     }
 }
 
@@ -1367,6 +1381,55 @@ void MinkarXHCIPort::resetHaltedControlEndpoint(UInt32 slotId)
     XHCI_Log("slot %u: control endpoint reset after a STALL", slotId);
 }
 
+/*
+ * A failed interrupt transfer (a USB Transaction Error on real hardware,
+ * Babble, or a STALL) leaves the endpoint Halted: the controller completes
+ * nothing more on it, and a keyboard behind it goes silent for good while
+ * the rest of the system runs on. xHCI section 4.6.8: Reset Endpoint, then
+ * Set TR Dequeue Pointer to the next free slot of the ring, dropping the
+ * failed TD; after a STALL the device's own halt is cleared as well.
+ */
+void MinkarXHCIPort::resetHaltedInterruptEndpoint(InterruptInEndpoint &intr, UInt32 dci, UInt8 cc)
+{
+    UInt32 slotId = intr.slotId;
+    SlotResources &sr = fSlots[slotId];
+    XHCIDeviceContext *dc = (XHCIDeviceContext *)sr.deviceCtxMem->getBytesNoCopy();
+    UInt32 state = dc->ep[dci - 1].dword0 & 0x7;
+
+    if (++intr.errors <= 5 || (intr.errors % 100) == 0)
+        XHCI_Log("intr-in: slot %u ep %u transfer failed cc=%u, endpoint state %u (error %u)",
+                slotId, intr.intrEp, cc, state, intr.errors);
+    if (state != 2) /* not Halted: the next TD just goes on */
+        return;
+
+    UInt8 rc = 0;
+    if (!doCommand(0, 0, TRB_SET_TYPE(TRB_TYPE_RESET_EP) | TRB_SET_SLOT(slotId) | TRB_SET_EP(dci),
+                   &rc, NULL, 1000) || rc != TRB_CC_SUCCESS) {
+        XHCI_Log("intr-in: slot %u ep %u: Reset Endpoint failed cc=%u", slotId, intr.intrEp, rc);
+        return;
+    }
+    UInt64 deq = intr.ringMem->getPhysicalAddress() + (UInt64)intr.enqueue * sizeof(XHCITRB);
+    if (!doCommand(deq | (intr.cycle ? 1 : 0), 0,
+                   TRB_SET_TYPE(TRB_TYPE_SET_TR_DEQUEUE) | TRB_SET_SLOT(slotId) | TRB_SET_EP(dci),
+                   &rc, NULL, 1000) || rc != TRB_CC_SUCCESS) {
+        XHCI_Log("intr-in: slot %u ep %u: Set TR Dequeue failed cc=%u", slotId, intr.intrEp, rc);
+        return;
+    }
+    if (cc == TRB_CC_STALL) {
+        /* CLEAR_FEATURE(ENDPOINT_HALT) on the IN endpoint. */
+        USBSetupPacket setup;
+        setup.bmRequestType = 0x02;
+        setup.bRequest = 1;
+        setup.wValue = 0;
+        setup.wIndex = 0x80 | intr.intrEp;
+        setup.wLength = 0;
+        controlTransfer(slotId, setup, NULL, 0, false);
+    }
+    fXferDone[slotId][dci].pending = false;
+    if (intr.errors <= 5)
+        XHCI_Log("intr-in: slot %u ep %u reset after a failed transfer", slotId, intr.intrEp);
+}
+
 bool MinkarXHCIPort::controlTransfer(UInt32 slotId, const USBSetupPacket &setup,
                                     void *buf, UInt16 len, bool in)
 {
@@ -1582,6 +1645,7 @@ bool MinkarXHCIPort::configureInterruptInEndpoint(UInt32 slotId, UInt8 epNum,
     intr.slotId = slotId;
     intr.rootPort = fSlotRootPort[slotId];
     intr.intrEp = epNum & 0x0fU;
+    intr.errors = 0;
     intr.intrMaxPkt = (UInt16)reportLen;
     intr.reportVirt = (volatile UInt8 *)intr.reportMem->getBytesNoCopy();
     intr.reportPhys = intr.reportMem->getPhysicalAddress();
@@ -1627,8 +1691,10 @@ IOReturn MinkarXHCIPort::interruptTransfer(UInt32 slotId, UInt8 epNum,
                 intr.reportVirt[4], intr.reportVirt[5], intr.reportVirt[6], intr.reportVirt[7]);
         intr.loggedFirstCompletion = true;
     }
-    if (cc != TRB_CC_SUCCESS && cc != TRB_CC_SHORT_PACKET)
+    if (cc != TRB_CC_SUCCESS && cc != TRB_CC_SHORT_PACKET) {
+        resetHaltedInterruptEndpoint(intr, dci, cc);
         return kIOReturnIOError;
+    }
     buffer->writeBytes(0, (void *)intr.reportVirt, reportLen);
     return kIOReturnSuccess;
 }
@@ -2145,6 +2211,7 @@ bool MinkarXHCIPort::tryEnumerateMassStorage(UInt32 port0based, UInt32 speed)
 
     UInt16 maxPkt0 = 8;
     if (!addressDevice(slotId, port0based, 0, speed, maxPkt0)) {
+        fAddressFailed = true;
         disableSlot(slotId);
         freeSlotResources(slotId);
         return false;

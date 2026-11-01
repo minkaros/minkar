@@ -259,6 +259,38 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    [self getBytes:result range:range];
 }
 
+// Minkar: the first (or last) occurrence of dataToFind in searchRange;
+// anchored, only at the start (or end) of the range.
+-(NSRange)rangeOfData:(NSData *)dataToFind options:(NSDataSearchOptions)mask range:(NSRange)searchRange {
+   NSUInteger length=[self length];
+
+   if(dataToFind==nil)
+    [NSException raise:NSInvalidArgumentException format:@"-[%@ %@]: nil data", [self class], NSStringFromSelector(_cmd)];
+   if(searchRange.location>length || searchRange.length>length-searchRange.location)
+    [NSException raise:NSRangeException format:@"-[%@ %@]: range {%lu, %lu} beyond length %lu", [self class], NSStringFromSelector(_cmd), (unsigned long)searchRange.location, (unsigned long)searchRange.length, (unsigned long)length];
+
+   NSUInteger findLength=[dataToFind length];
+   if(findLength==0 || findLength>searchRange.length)
+    return NSMakeRange(NSNotFound,0);
+
+   const uint8_t *bytes=(const uint8_t *)[self bytes]+searchRange.location;
+   const uint8_t *find=[dataToFind bytes];
+   NSUInteger last=searchRange.length-findLength;
+   BOOL backwards=(mask&NSDataSearchBackwards)!=0;
+   BOOL anchored=(mask&NSDataSearchAnchored)!=0;
+   NSUInteger i;
+
+   for(i=0;i<=last;i++){
+    NSUInteger at=backwards?last-i:i;
+
+    if(memcmp(bytes+at,find,findLength)==0)
+     return NSMakeRange(searchRange.location+at,findLength);
+    if(anchored)
+     break;
+   }
+   return NSMakeRange(NSNotFound,0);
+}
+
 -(NSData *)subdataWithRange:(NSRange)range {
    void *buffer;
 

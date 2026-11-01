@@ -188,28 +188,35 @@ IONetworkStack::free()
 	super::free();
 }
 
-/* No namer in time (configd not running): name in order of appearance. */
+/*
+ * No namer in time (configd not running), or one that left interfaces
+ * unnamed: name the rest in order of appearance, and later ones as they
+ * come. Minkar: the timer stays armed when the namer connects; on the
+ * Mac Pro 6,1 its Broadcom interfaces were published, never named, and
+ * with the timer cancelled they stayed without a BSD interface.
+ */
 void
 IONetworkStack::namerTimeout(thread_call_param_t param, thread_call_param_t)
 {
 	IONetworkStack *stack = (IONetworkStack *)param;
+	unsigned left;
 
-	if (!stack->_namerSeen) {
+	IOLockLock(stack->_lock);
+	left = stack->_interfaces->getCount();
+	IOLockUnlock(stack->_lock);
+	if (!stack->_namerSeen)
 		IOLog("IONetworkStack: no interface namer; naming interfaces in order\n");
-		stack->_autoRegister = true;
-		stack->registerAllInterfaces();
-	}
+	else if (left != 0)
+		IOLog("IONetworkStack: %u interface(s) the namer left unnamed; naming them in order\n", left);
+	stack->_autoRegister = true;
+	stack->registerAllInterfaces();
 	stack->release();
 }
 
 void
 IONetworkStack::namerConnected()
 {
-	if (!_namerSeen) {
-		_namerSeen = true;
-		if (thread_call_cancel(_namerTimer))
-			release();
-	}
+	_namerSeen = true;
 }
 
 void

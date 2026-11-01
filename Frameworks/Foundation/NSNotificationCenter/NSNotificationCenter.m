@@ -18,6 +18,42 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <Foundation/NSThread-Private.h>
 #import <Foundation/NSNotification_concrete.h>
 #import <Foundation/NSAutoreleasePool-private.h>
+#import <Foundation/NSOperation.h>
+#import <Foundation/NSOperationQueue.h>
+#import <Foundation/NSSet.h>
+
+// Minkar: the observer that addObserverForName:object:queue:usingBlock:
+// returns. The center keeps it until it is removed.
+@interface _NSNotificationBlockObserver : NSObject {
+@public
+   void (^_block)(NSNotification *);
+   NSOperationQueue *_queue;
+}
+@end
+
+@implementation _NSNotificationBlockObserver
+
+-(void)dealloc {
+   [_block release];
+   [_queue release];
+   [super dealloc];
+}
+
+// Without a queue the block runs on the posting thread; with one, on the
+// queue, and the post waits for it.
+-(void)_notify:(NSNotification *)note {
+   if(_queue==nil || _queue==[NSOperationQueue currentQueue]){
+    _block(note);
+    return;
+   }
+   void (^block)(NSNotification *)=_block;
+   NSBlockOperation *operation=[NSBlockOperation blockOperationWithBlock:^{ block(note); }];
+   [_queue addOperations:[NSArray arrayWithObject:operation] waitUntilFinished:YES];
+}
+
+@end
+
+static NSMutableSet *blockObservers=nil;
 
 @implementation NSNotificationCenter
 
@@ -67,7 +103,32 @@ static NSNotificationCenter *defaultCenter = nil;
 	}
 }
 
+-(id)addObserverForName:(NSString *)name object:object queue:(NSOperationQueue *)queue usingBlock:(void (^)(NSNotification *))block {
+   _NSNotificationBlockObserver *observer=[[_NSNotificationBlockObserver alloc] init];
+
+   observer->_block=[block copy];
+   observer->_queue=[queue retain];
+   @synchronized(self) {
+    if(blockObservers==nil)
+     blockObservers=[[NSMutableSet alloc] init];
+    [blockObservers addObject:observer];
+   }
+   [self addObserver:observer selector:@selector(_notify:) name:name object:object];
+   return [observer autorelease];
+}
+
+// A block observer removed altogether is let go.
+-(void)_releaseBlockObserver:anObserver {
+   if([anObserver isKindOfClass:[_NSNotificationBlockObserver class]]){
+    @synchronized(self) {
+     [[anObserver retain] autorelease];
+     [blockObservers removeObject:anObserver];
+    }
+   }
+}
+
 -(void)removeObserver:anObserver {
+   [self _releaseBlockObserver:anObserver];
 	@synchronized(self) {
    NSMutableArray          *removeRegistries=[NSMutableArray array];
    NSEnumerator            *keyEnumerator=[_nameToRegistry keyEnumerator];
@@ -91,6 +152,8 @@ static NSNotificationCenter *defaultCenter = nil;
 }
 
 -(void)removeObserver:anObserver name:(NSString *)name object:object {
+   if(name==nil && object==nil)
+    [self _releaseBlockObserver:anObserver];
 	@synchronized(self) {
    NSMutableArray          *removeRegistries=[NSMutableArray array];
    NSObjectToObservers *registry;

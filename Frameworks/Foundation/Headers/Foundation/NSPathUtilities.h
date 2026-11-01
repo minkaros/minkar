@@ -40,23 +40,43 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 @end
 
-enum {
-    NSLibraryDirectory = 5,
+typedef NS_ENUM(NSUInteger, NSSearchPathDirectory) {
+    NSApplicationDirectory = 1,
+    NSDemoApplicationDirectory,
+    NSDeveloperApplicationDirectory,
+    NSAdminApplicationDirectory,
+    NSLibraryDirectory,
+    NSDeveloperDirectory,
+    NSUserDirectory,
+    NSDocumentationDirectory,
+    NSDocumentDirectory,
+    NSCoreServiceDirectory,
+    NSAutosavedInformationDirectory = 11,
+    NSDesktopDirectory = 12,
     NSCachesDirectory = 13,
     NSApplicationSupportDirectory = 14,
+    NSDownloadsDirectory = 15,
+    NSInputMethodsDirectory = 16,
+    NSMoviesDirectory = 17,
+    NSMusicDirectory = 18,
+    NSPicturesDirectory = 19,
+    NSPrinterDescriptionDirectory = 20,
+    NSSharedPublicDirectory = 21,
+    NSPreferencePanesDirectory = 22,
+    NSApplicationScriptsDirectory = 23,
+    NSItemReplacementDirectory = 99,
+    NSAllApplicationsDirectory = 100,
+    NSAllLibrariesDirectory = 101,
+    NSTrashDirectory = 102
 };
 
-typedef NSUInteger NSSearchPathDirectory;
-
-enum {
-    NSUserDomainMask = 0x0001,
-    NSLocalDomainMask = 0x0002,
-    NSNetworkDomainMask = 0x0004,
-    NSSystemDomainMask = 0x0008,
-    NSAllDomainsMask = 0xffff,
+typedef NS_OPTIONS(NSUInteger, NSSearchPathDomainMask) {
+    NSUserDomainMask = 1,
+    NSLocalDomainMask = 2,
+    NSNetworkDomainMask = 4,
+    NSSystemDomainMask = 8,
+    NSAllDomainsMask = 0x0ffff
 };
-
-typedef NSUInteger NSSearchPathDomainMask;
 
 FOUNDATION_EXPORT NSArray *NSSearchPathForDirectoriesInDomains(NSSearchPathDirectory d, NSSearchPathDomainMask mask, BOOL expand);
 

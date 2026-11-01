@@ -150,6 +150,15 @@ enum {
     NSApplicationDeactivated = 1
 };
 
+/* Subtypes of NSAppKitDefined events (the public NSEventSubtype). */
+typedef NS_ENUM(short, NSEventSubtype) {
+    NSWindowExposedEventType = 0,
+    NSApplicationActivatedEventType = 1,
+    NSApplicationDeactivatedEventType = 2,
+    NSWindowMovedEventType = 4,
+    NSScreenChangedEventType = 8,
+};
+
 @interface NSEvent : NSObject {
     int _type;
     NSTimeInterval _timestamp;

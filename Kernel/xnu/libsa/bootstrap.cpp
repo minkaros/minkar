@@ -725,6 +725,7 @@ finish:
 /*********************************************************************
 *********************************************************************/
 #define COM_APPLE  "com.apple."
+#define ORG_MINKAR "org.minkar."
 
 void
 KLDBootstrap::loadSecurityExtensions(void)
@@ -756,10 +757,12 @@ KLDBootstrap::loadSecurityExtensions(void)
 	while ((bundleID = OSDynamicCast(OSString, keyIterator->getNextObject()))) {
 		const char * bundle_id = bundleID->getCStringNoCopy();
 
-		/* Skip extensions whose bundle IDs don't start with "com.apple.".
+		/* Skip extensions whose bundle IDs don't start with "com.apple."
+		 * or, for Minkar's own (its code integrity policy), "org.minkar.".
 		 */
 		if (!bundle_id ||
-		    (strncmp(bundle_id, COM_APPLE, CONST_STRLEN(COM_APPLE)) != 0)) {
+		    ((strncmp(bundle_id, COM_APPLE, CONST_STRLEN(COM_APPLE)) != 0) &&
+		    (strncmp(bundle_id, ORG_MINKAR, CONST_STRLEN(ORG_MINKAR)) != 0))) {
 			continue;
 		}
 

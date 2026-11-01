@@ -1,0 +1,47 @@
+/*
+ * SPDX-License-Identifier: BSD-2-Clause
+ * Copyright (c) 2026 The Minkar contributors
+ * Part of Minkar.
+ *
+ * LaunchServices' session: the MIG interface of launchservicesd (see
+ * LSSession.h). Subsystem 29100; the window server's is 29000.
+ */
+
+subsystem LSSession 29100;
+
+#include <mach/std_types.defs>
+#include <mach/mach_types.defs>
+
+userprefix lss_;
+serverprefix lsd_;
+
+import "LSSessionTypes.h";
+
+type ls_app_t = struct[182] of uint32_t
+	ctype: LSSessionApp;
+type ls_app_list_t = array[*:64] of ls_app_t;
+
+routine check_in(
+	server			: mach_port_t;
+	ServerAuditToken token	: audit_token_t;
+	port			: mach_port_make_send_t;
+	app			: ls_app_t;
+	out result		: int32_t;
+	out serial		: uint32_t);
+
+routine copy_apps(
+	server			: mach_port_t;
+	out apps		: ls_app_list_t);
+
+routine set_front(
+	server			: mach_port_t;
+	ServerAuditToken token	: audit_token_t;
+	pid			: int32_t;
+	out result		: int32_t);
+
+routine activate(
+	server			: mach_port_t;
+	ServerAuditToken token	: audit_token_t;
+	pid			: int32_t;
+	options			: uint32_t;
+	out result		: int32_t);

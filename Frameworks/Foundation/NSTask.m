@@ -12,6 +12,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <Foundation/NSRunLoop.h>
 #import <Foundation/NSFileManager.h>
 #import <Foundation/NSProcessInfo.h>
+#import <Foundation/NSURL.h>
 
 NSString * const NSTaskDidTerminateNotification=@"NSTaskDidTerminateNotification";
 
@@ -161,6 +162,58 @@ NSString * const NSTaskDidTerminateNotification=@"NSTaskDidTerminateNotification
 -(int)processIdentifier {
    NSInvalidAbstractInvocation();
    return -1;
+}
+
+// Minkar: the URL forms of the paths, and the modern launch.
++(NSTask *)launchedTaskWithExecutableURL:(NSURL *)url arguments:(NSArray *)args error:(NSError **)error
+                      terminationHandler:(void (^)(NSTask *))terminationHandler {
+   NSTask *task=[[NSTask new] autorelease];
+   [task setExecutableURL:url];
+   [task setArguments:args];
+   [task setTerminationHandler:terminationHandler];
+   return [task launchAndReturnError:error]?task:nil;
+}
+
+-(NSURL *)executableURL {
+   return launchPath?[NSURL fileURLWithPath:launchPath isDirectory:NO]:nil;
+}
+
+-(void)setExecutableURL:(NSURL *)url {
+   [self setLaunchPath:[url path]];
+}
+
+-(NSURL *)currentDirectoryURL {
+   return currentDirectoryPath?[NSURL fileURLWithPath:currentDirectoryPath isDirectory:YES]:nil;
+}
+
+-(void)setCurrentDirectoryURL:(NSURL *)url {
+   [self setCurrentDirectoryPath:[url path]];
+}
+
+-(BOOL)launchAndReturnError:(NSError **)error {
+   NSInvalidAbstractInvocation();
+   return NO;
+}
+
+-(NSTaskTerminationReason)terminationReason {
+   NSInvalidAbstractInvocation();
+   return NSTaskTerminationReasonExit;
+}
+
+-(void (^)(NSTask *))terminationHandler {
+   NSInvalidAbstractInvocation();
+   return nil;
+}
+
+-(void)setTerminationHandler:(void (^)(NSTask *))handler {
+   NSInvalidAbstractInvocation();
+}
+
+-(NSQualityOfService)qualityOfService {
+   return NSQualityOfServiceDefault;
+}
+
+-(void)setQualityOfService:(NSQualityOfService)qos {
 }
 
 @end
