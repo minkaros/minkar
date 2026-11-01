@@ -1,0 +1,295 @@
+/*
+ * SPDX-License-Identifier: BSD-2-Clause
+ *
+ * Copyright (c) 2026 The Minkar contributors
+ * Part of Minkar.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ */
+
+#include <mach/mach.h>
+#include <stdio.h>
+#import "WSEvents.h"
+#import "WSConnection.h"
+#import "WSWindowList.h"
+#include "WindowServerServer.h"	/* MIG server side */
+#include "WindowServerTypes.h"
+
+/* A connection's queue holds at most this many events; more are dropped. */
+enum { kQueueLimit = 256 };
+/* Key repeat: the first after 500 ms, then every 33 ms. */
+static const uint64_t kRepeatDelay = 500000000, kRepeatInterval = 33000000;
+/* A second click within 500 ms and 4 pixels of the first counts double. */
+static const uint64_t kClickInterval = 500000000;
+static const double kClickSlop = 4;
+
+static __weak WSWindow *captureWindow;	/* got the mouse down */
+static uint32_t buttonsDown;		/* bit per button number */
+static __weak WSWindow *keyWindow;
+static uint64_t lastClickTime;
+static double lastClickX, lastClickY;
+static uint32_t lastClickButton;
+static int32_t clickCount;
+static dispatch_source_t repeatTimer;
+static SLSEvent repeatEvent;
+
+/* ---- Queues ---- */
+
+/* Tells the client its queue has events: a header only, never waited for. */
+static void
+ping(WSConnection *c)
+{
+	mach_msg_header_t msg = {
+		.msgh_bits = MACH_MSGH_BITS(MACH_MSG_TYPE_COPY_SEND, 0),
+		.msgh_size = sizeof(msg),
+		.msgh_remote_port = c.port,
+		.msgh_id = WS_EVENTS_PENDING_ID,
+	};
+
+	mach_msg(&msg, MACH_SEND_MSG | MACH_SEND_TIMEOUT, sizeof(msg), 0, MACH_PORT_NULL, 0,
+	    MACH_PORT_NULL);
+}
+
+static BOOL
+isMove(uint32_t type)
+{
+	return type == kSLSEventMouseMoved || type == kSLSEventLeftMouseDragged ||
+	    type == kSLSEventRightMouseDragged || type == kSLSEventOtherMouseDragged;
+}
+
+static void
+enqueue(WSConnection *c, const SLSEvent *e)
+{
+	NSMutableData *queue = c.eventQueue;
+	NSUInteger n = queue.length / sizeof(SLSEvent);
+
+	if (n > 0 && isMove(e->type)) {
+		SLSEvent *last = (SLSEvent *)queue.mutableBytes + n - 1;
+		/* Coalesced: the last move to the same window takes this one in. */
+		if (last->type == e->type && last->window == e->window) {
+			last->x = e->x;
+			last->y = e->y;
+			last->dx += e->dx;
+			last->dy += e->dy;
+			last->flags = e->flags;
+			last->timestamp = e->timestamp;
+			return;
+		}
+	}
+	if (n >= kQueueLimit) {
+		c.droppedEvents++;
+		return;
+	}
+	[queue appendBytes:e length:sizeof(*e)];
+	if (n == 0)
+		ping(c);
+}
+
+/* ---- Routing ---- */
+
+static void
+send(WSWindow *w, SLSEvent *e)
+{
+	WSConnection *owner = w.owner;
+
+	if (owner == nil)
+		return;
+	e->window = w.windowID;
+	enqueue(owner, e);
+}
+
+/* The window keys go to: a capture's shielding window, else the key one. */
+static WSWindow *
+keyTarget(void)
+{
+	for (WSDisplay *d in WSDisplays)
+		if (d.shield != nil)
+			return d.shield;
+	return keyWindow;
+}
+
+static void
+stopRepeat(void)
+{
+	if (repeatTimer != nil) {
+		dispatch_source_cancel(repeatTimer);
+		repeatTimer = nil;
+	}
+}
+
+static void
+startRepeat(const SLSEvent *e)
+{
+	stopRepeat();
+	repeatEvent = *e;
+	repeatEvent.isRepeat = 1;
+	repeatTimer = dispatch_source_create(DISPATCH_SOURCE_TYPE_TIMER, 0, 0, WSIPCQueue);
+	dispatch_source_set_timer(repeatTimer, dispatch_time(DISPATCH_TIME_NOW, kRepeatDelay),
+	    kRepeatInterval, kRepeatInterval / 10);
+	dispatch_source_set_event_handler(repeatTimer, ^{
+		WSWindow *target = keyTarget();
+		if (target == nil) {
+			stopRepeat();
+			return;
+		}
+		repeatEvent.timestamp = WSNanoseconds();
+		send(target, &repeatEvent);
+	});
+	dispatch_resume(repeatTimer);
+}
+
+static void
+routeKey(SLSEvent *e)
+{
+	WSWindow *target = keyTarget();
+
+	if (e->type == kSLSEventKeyDown && !e->isRepeat)
+		startRepeat(e);
+	else if (e->type == kSLSEventKeyUp && e->keyCode == repeatEvent.keyCode)
+		stopRepeat();
+	if (target != nil)
+		send(target, e);
+}
+
+static uint32_t
+dragType(void)
+{
+	if (buttonsDown & 1)
+		return kSLSEventLeftMouseDragged;
+	if (buttonsDown & 2)
+		return kSLSEventRightMouseDragged;
+	return kSLSEventOtherMouseDragged;
+}
+
+static void
+routeMouse(SLSEvent *e)
+{
+	BOOL down = e->type == kSLSEventLeftMouseDown || e->type == kSLSEventRightMouseDown ||
+	    e->type == kSLSEventOtherMouseDown;
+	BOOL up = e->type == kSLSEventLeftMouseUp || e->type == kSLSEventRightMouseUp ||
+	    e->type == kSLSEventOtherMouseUp;
+	WSWindow *target;
+
+	SLSPoint previous = WSCursorPosition();
+	WSCursorMoveTo(e->x, e->y);
+	SLSPoint now = WSCursorPosition();
+	e->x = now.x;
+	e->y = now.y;
+	if (isMove(e->type)) {
+		e->dx = now.x - previous.x;
+		e->dy = now.y - previous.y;
+	}
+
+	if (down) {
+		if (buttonsDown == 0)
+			captureWindow = WSWindowAtPoint(e->x, e->y);
+		buttonsDown |= 1u << e->buttonNumber;
+		if (e->buttonNumber == lastClickButton &&
+		    e->timestamp - lastClickTime < kClickInterval &&
+		    fabs(e->x - lastClickX) <= kClickSlop && fabs(e->y - lastClickY) <= kClickSlop)
+			clickCount++;
+		else
+			clickCount = 1;
+		lastClickTime = e->timestamp;
+		lastClickX = e->x;
+		lastClickY = e->y;
+		lastClickButton = e->buttonNumber;
+		e->clickCount = clickCount;
+		target = captureWindow;
+		/* A click makes its window key. */
+		if (target != nil && e->buttonNumber == 0)
+			keyWindow = target;
+	} else if (up) {
+		target = captureWindow ? captureWindow : WSWindowAtPoint(e->x, e->y);
+		buttonsDown &= ~(1u << e->buttonNumber);
+		e->clickCount = clickCount;
+		if (buttonsDown == 0)
+			captureWindow = nil;
+	} else if (isMove(e->type) && buttonsDown != 0) {
+		e->type = dragType();
+		target = captureWindow;
+	} else
+		target = WSWindowAtPoint(e->x, e->y);
+	if (target != nil)
+		send(target, e);
+}
+
+void
+WSRouteEvent(SLSEvent *e)
+{
+	WSStatsCountEvent();
+	if (e->type == kSLSEventKeyDown || e->type == kSLSEventKeyUp ||
+	    e->type == kSLSEventFlagsChanged)
+		routeKey(e);
+	else
+		routeMouse(e);
+}
+
+/* ---- Routines ---- */
+
+kern_return_t
+wss_next_events(mach_port_t server, audit_token_t token, ws_event_list_t events,
+    mach_msg_type_number_t *count)
+{
+	WSConnection *c = [WSConnection connectionForToken:token];
+	NSMutableData *queue = c.eventQueue;
+	NSUInteger n = queue.length / sizeof(SLSEvent);
+
+	*count = 0;
+	if (c == nil)
+		return KERN_SUCCESS;
+	if (n > kSLSMaxEvents)
+		n = kSLSMaxEvents;
+	memcpy(events, queue.bytes, n * sizeof(SLSEvent));
+	[queue replaceBytesInRange:NSMakeRange(0, n * sizeof(SLSEvent)) withBytes:NULL length:0];
+	*count = (mach_msg_type_number_t)n;
+	/* More left: the client is told again. */
+	if (queue.length > 0)
+		ping(c);
+	return KERN_SUCCESS;
+}
+
+kern_return_t
+wss_set_key_window(mach_port_t server, audit_token_t token, uint32_t window, int32_t *result)
+{
+	WSConnection *c = [WSConnection connectionForToken:token];
+	WSWindow *w = WSWindowWithID(window);
+
+	if (c == nil)
+		*result = kSLSErrorInvalidConnection;
+	else if (w == nil)
+		*result = kSLSErrorIllegalArgument;
+	else if (w.owner != c)
+		*result = kSLSErrorCannotComplete;
+	else {
+		keyWindow = w;
+		*result = kSLSErrorSuccess;
+	}
+	return KERN_SUCCESS;
+}
+
+kern_return_t
+wss_key_window(mach_port_t server, uint32_t *window)
+{
+	*window = keyWindow ? keyWindow.windowID : 0;
+	return KERN_SUCCESS;
+}

@@ -105,6 +105,7 @@ static SLSConnectionID nextConnectionID = 1;
 	c->_port = port;
 	c->_cursorAssociated = YES;
 	c->_appOnlyDisplays = [NSMutableDictionary dictionary];
+	c->_eventQueue = [NSMutableData data];
 
 	mach_port_t previous = MACH_PORT_NULL;
 	/* sync 1: told at once if the client is already gone. */

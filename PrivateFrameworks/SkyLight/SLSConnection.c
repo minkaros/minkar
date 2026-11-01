@@ -73,3 +73,10 @@ SLSServerPort(void)
 	pthread_once(&connectOnce, openMainConnection);
 	return serverPort;
 }
+
+mach_port_t
+SLSEventPort(void)
+{
+	pthread_once(&connectOnce, openMainConnection);
+	return clientPort;
+}

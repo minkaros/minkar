@@ -46,6 +46,7 @@
 #import "WSServer.h"
 #import "WSConnection.h"
 #import "WSCompositor.h"
+#import "WSInput.h"
 
 dispatch_queue_t WSIPCQueue;
 
@@ -102,6 +103,12 @@ main(int argc, char *argv[])
 		    service, MACH_RCV_TRAILER_ELEMENTS(MACH_RCV_TRAILER_AUDIT) |
 		    MACH_RCV_TRAILER_TYPE(MACH_MSG_TRAILER_FORMAT_0));
 	});
+	/* Input, read and routed on the IPC queue: routing needs the window list.
+	 * SHORTCUT(WS3): the plan's own high-priority input queue comes with a
+	 * model snapshot input can read without the IPC queue. */
+	static WSInput *input;
+	input = [WSInput startOnQueue:ipc];
+
 	/* Before the first request: connect needs the dead-name port. */
 	[WSConnection startOnQueue:ipc];
 	dispatch_resume(source);

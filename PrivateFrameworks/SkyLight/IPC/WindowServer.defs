@@ -65,6 +65,9 @@ type ws_int_rect_t = struct[4] of int32_t
 type ws_damage_t = array[*:64] of ws_int_rect_t;
 type ws_server_stats_t = struct[16] of uint32_t
 	ctype: SLSServerStats;
+type ws_event_t = struct[24] of uint32_t
+	ctype: SLSEvent;
+type ws_event_list_t = array[*:64] of ws_event_t;
 
 /*
  * Opens a connection: the server records the client's PID and user from
@@ -345,3 +348,21 @@ routine window_commit(
 routine server_stats(
 	server			: mach_port_t;
 	out stats		: ws_server_stats_t);
+
+/* ---- Events ---- */
+
+/* The connection's queued events, oldest first; at most 64 at a time. */
+routine next_events(
+	server			: mach_port_t;
+	ServerAuditToken token	: audit_token_t;
+	out events		: ws_event_list_t);
+
+routine set_key_window(
+	server			: mach_port_t;
+	ServerAuditToken token	: audit_token_t;
+	window			: uint32_t;
+	out result		: int32_t);
+
+routine key_window(
+	server			: mach_port_t;
+	out window		: uint32_t);

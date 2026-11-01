@@ -338,3 +338,11 @@ WSStatsCountCommit(void)
 	stats.commits++;
 	pthread_mutex_unlock(&statsLock);
 }
+
+void
+WSStatsCountEvent(void)
+{
+	pthread_mutex_lock(&statsLock);
+	stats.events++;
+	pthread_mutex_unlock(&statsLock);
+}

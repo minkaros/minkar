@@ -14,7 +14,7 @@ SUBDIR =
 MK_WERROR = no
 
 SRCS = SLSConnection.c SLSDisplay.c SLSDisplayMode.c SLSGamma.c SLSCapture.c \
-	SLSWindow.c SLSSurface.c WindowServerUser.c
+	SLSWindow.c SLSSurface.c SLSEvents.c WindowServerUser.c
 HEADERS = SkyLight.h
 CFLAGS += -I${.OBJDIR} -I${.CURDIR} -I${.CURDIR}/IPC
 CLEANFILES += WindowServerUser.c WindowServer.h

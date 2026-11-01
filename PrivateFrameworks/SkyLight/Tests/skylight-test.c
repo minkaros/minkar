@@ -762,6 +762,58 @@ testSurfaces(void)
 	SLSReleaseWindow(w);
 }
 
+static SLSWindowID solidWindow(SLSRect frame, uint32_t color);
+#define solidWindowAt solidWindow
+
+static void
+testEvents(void)
+{
+	SLSEvent events[kSLSMaxEvents];
+	SLSWindowID w = 0;
+	uint32_t n = 99;
+
+	check(SLSEventPort() != MACH_PORT_NULL, "the connection has an event port", NULL);
+	check(SLSReceiveEvents(events, kSLSMaxEvents, &n, 0) == kSLSErrorSuccess && n == 0,
+	    "no event is waiting", NULL);
+	SLSNewWindow(0, (SLSRect){ 10, 10, 20, 20 }, &w);
+	check(SLSSetKeyWindow(w) == kSLSErrorSuccess && SLSGetKeyWindow() == w,
+	    "a window is made key", NULL);
+	check(SLSSetKeyWindow(0xdeadbeef) == kSLSErrorIllegalArgument,
+	    "an unknown window is not made key", NULL);
+	SLSReleaseWindow(w);
+	check(SLSGetKeyWindow() == 0, "a released key window is key no more", NULL);
+}
+
+/*
+ * skylight-test events: a white window at 100,100 (400 x 300), key, and
+ * every event it gets printed, one line each, until it is killed. For the
+ * local input tests.
+ */
+static int
+eventsMain(void)
+{
+	SLSWindowID w = solidWindowAt((SLSRect){ 100, 100, 400, 300 }, 0xffffffff);
+	SLSEvent events[kSLSMaxEvents];
+
+	SLSSetKeyWindow(w);
+	printf("ready %u\n", w);
+	fflush(stdout);
+	for (;;) {
+		uint32_t n = 0;
+
+		if (SLSReceiveEvents(events, kSLSMaxEvents, &n, 1) != kSLSErrorSuccess)
+			return 1;
+		for (uint32_t i = 0; i < n; i++) {
+			SLSEvent *e = &events[i];
+			printf("event type=%u window=%u x=%.0f y=%.0f click=%d button=%u key=%u "
+			    "chars=%s repeat=%u flags=0x%x\n", e->type, e->window, e->x, e->y,
+			    e->clickCount, e->buttonNumber, e->keyCode, e->characters, e->isRepeat,
+			    e->flags);
+		}
+		fflush(stdout);
+	}
+}
+
 /*
  * skylight-test draw: windows for the screen checks of the local tests.
  * A red window at 100,100 (300 x 200), a blue one over it at 250,200 and a
@@ -828,6 +880,8 @@ main(int argc, char *argv[])
 		return childMain();
 	if (argc > 1 && strcmp(argv[1], "draw") == 0)
 		return drawMain();
+	if (argc > 1 && strcmp(argv[1], "events") == 0)
+		return eventsMain();
 	setvbuf(stdout, NULL, _IOLBF, 0);
 	testConnection();
 	testDisplays();
@@ -838,6 +892,7 @@ main(int argc, char *argv[])
 	testCursor();
 	testWindows();
 	testSurfaces();
+	testEvents();
 	testClientExit(argv[0]);
 	printf("skylight-test: %d passed, %d failed\n", passed, failed);
 	return failed;

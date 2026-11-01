@@ -60,3 +60,14 @@ NSArray<WSFrameItem *> *WSWindowSnapshot(void);
 BOOL WSCursorSnapshot(SLSPoint *position);
 /* Counts a surface commit in the statistics. */
 void WSStatsCountCommit(void);
+/* The window list: the on-screen window at a point (front most), or nil;
+ * any window by its ID. */
+WSWindow *WSWindowAtPoint(double x, double y);
+WSWindow *WSWindowWithID(SLSWindowID windowID);
+/* The cursor: where it is, and a move by input (kept on the displays). */
+SLSPoint WSCursorPosition(void);
+void WSCursorMoveTo(double x, double y);
+/* Counts an input event in the statistics. */
+void WSStatsCountEvent(void);
+/* Tells the HID system where a warp put the cursor (WSInput.m). */
+void WSInputSetCursor(double x, double y);

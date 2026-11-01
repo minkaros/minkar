@@ -46,6 +46,10 @@
 @property int32_t cursorHideCount;
 @property BOOL cursorAssociated;
 @property BOOL changedTransfers;
+/* Events waiting for the client (SLSEvents), and how many were dropped
+ * because the queue was full. */
+@property (readonly) NSMutableData *eventQueue;
+@property uint32_t droppedEvents;
 /* Displays changed for this app only: display ID -> @[mode ID, x, y,
  * mirror of] as they were before. */
 @property (readonly) NSMutableDictionary<NSNumber *, NSArray<NSNumber *> *> *appOnlyDisplays;

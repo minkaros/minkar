@@ -30,8 +30,8 @@
  * wsctl: what the new window server is doing (WindowServer plan, section
  * 4, Debug/, and section 6). Through SkyLight, as any client.
  *
- *   wsctl stats      frames, idle display link ticks, commits, damaged
- *                    area and frame times
+ *   wsctl stats      frames, idle display link ticks, commits, input
+ *                    events, damaged area and frame times
  *   wsctl windows    the window list, front to back
  *   wsctl displays   each display's bounds, mode and state
  */
@@ -52,6 +52,7 @@ stats(void)
 	printf("frames %llu\n", (unsigned long long)st.frames);
 	printf("idle_ticks %llu\n", (unsigned long long)st.idleTicks);
 	printf("commits %llu\n", (unsigned long long)st.commits);
+	printf("events %llu\n", (unsigned long long)st.events);
 	printf("damaged_pixels %llu\n", (unsigned long long)st.damagedPixels);
 	printf("last_damaged_pixels %llu\n", (unsigned long long)st.lastDamagedPixels);
 	printf("last_frame_us %llu\n", (unsigned long long)st.lastFrameMicros);

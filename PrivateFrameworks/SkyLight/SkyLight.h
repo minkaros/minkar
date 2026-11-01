@@ -378,6 +378,67 @@ int SLSWindowFlushPixels(SLSWindowID window, const void *pixels, uint32_t rowByt
 #define kSLSMaxSurfaceSide	16384
 #define kSLSMaxDamageRects	64
 
+/* ---- Events ------------------------------------------------------------ */
+
+/* SLSEvent.type: the public CGEventType values (the same as NSEventType's). */
+enum {
+	kSLSEventLeftMouseDown		= 1,
+	kSLSEventLeftMouseUp		= 2,
+	kSLSEventRightMouseDown		= 3,
+	kSLSEventRightMouseUp		= 4,
+	kSLSEventMouseMoved		= 5,
+	kSLSEventLeftMouseDragged	= 6,
+	kSLSEventRightMouseDragged	= 7,
+	kSLSEventKeyDown		= 10,
+	kSLSEventKeyUp			= 11,
+	kSLSEventFlagsChanged		= 12,
+	kSLSEventScrollWheel		= 22,
+	kSLSEventOtherMouseDown		= 25,
+	kSLSEventOtherMouseUp		= 26,
+	kSLSEventOtherMouseDragged	= 27,
+};
+
+/*
+ * One input event, as the server routes it: mouse events go to the window
+ * under the pointer (to the one that got the mouse down until every
+ * button is up), keys to the key window. Locations are global (top left
+ * origin); flags are the public CGEventFlags.
+ */
+typedef struct SLSEvent {
+	uint32_t	type;
+	SLSWindowID	window;			/* the window it was routed to */
+	uint32_t	flags;
+	uint16_t	keyCode;
+	uint16_t	isRepeat;
+	int32_t		clickCount;		/* mouse downs and ups */
+	uint32_t	buttonNumber;		/* 0 left, 1 right, 2 other */
+	double		x, y;
+	double		dx, dy;			/* mouse moves */
+	double		scrollX, scrollY;	/* lines */
+	uint64_t	timestamp;		/* nanoseconds since boot */
+	char		characters[8];		/* UTF-8 */
+	char		charactersIgnoringModifiers[8];
+} SLSEvent;
+
+#define kSLSEventWords		24
+#define kSLSMaxEvents		64
+#ifndef __cplusplus
+_Static_assert(sizeof(SLSEvent) == kSLSEventWords * 4, "SLSEvent size");
+#endif
+
+/*
+ * This connection's events. The server keeps a bounded queue per
+ * connection, mouse moves coalesced, and sends a message to SLSEventPort
+ * when the queue stops being empty; SLSReceiveEvents empties the queue,
+ * after waiting for that message when wait is set.
+ */
+mach_port_t SLSEventPort(void);
+int SLSReceiveEvents(SLSEvent *events, uint32_t max, uint32_t *count, int wait);
+
+/* The key window, which gets the keys; a click makes a window key too. */
+int SLSSetKeyWindow(SLSWindowID window);
+SLSWindowID SLSGetKeyWindow(void);
+
 /* ---- Server statistics (wsctl) ----------------------------------------- */
 
 typedef struct SLSServerStats {
@@ -388,7 +449,7 @@ typedef struct SLSServerStats {
 	uint64_t	lastDamagedPixels;	/* composited, last frame */
 	uint64_t	lastFrameMicros;	/* compositing and present, last frame */
 	uint64_t	totalFrameMicros;
-	uint64_t	reserved;
+	uint64_t	events;			/* input events read from the HID system */
 } SLSServerStats;
 
 #define kSLSServerStatsWords	16

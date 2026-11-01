@@ -67,6 +67,25 @@ static NSMutableArray<WSWindow *> *stack;	/* on screen, front to back */
 static NSMutableArray<WSWindow *> *allWindows;	/* in the order they were made */
 static SLSWindowID nextWindowID = 1;
 
+static WSWindow *windowWithID(SLSWindowID windowID);
+
+WSWindow *
+WSWindowAtPoint(double x, double y)
+{
+	for (WSWindow *w in stack) {
+		SLSRect f = w.frame;
+		if (x >= f.x && x < f.x + f.width && y >= f.y && y < f.y + f.height)
+			return w;
+	}
+	return nil;
+}
+
+WSWindow *
+WSWindowWithID(SLSWindowID windowID)
+{
+	return windowWithID(windowID);
+}
+
 static WSWindow *
 windowWithID(SLSWindowID windowID)
 {

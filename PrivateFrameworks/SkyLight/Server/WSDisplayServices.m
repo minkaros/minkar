@@ -505,8 +505,7 @@ wss_display_capture_state(mach_port_t server, uint32_t display, int32_t *result,
 
 /* ---- Cursor ---- */
 
-/* SHORTCUT(WS1): the position only moves by warps until the server reads
- * input (WS3). */
+/* The cursor: moved by input (WSEvents) and by warps. */
 static double cursorX, cursorY;
 
 /* The area the cursor image covers (WSCompositor's arrow, 11 x 17). */
@@ -567,29 +566,55 @@ wss_cursor_state(mach_port_t server, int32_t *visible, double *x, double *y, int
 	return KERN_SUCCESS;
 }
 
+SLSPoint
+WSCursorPosition(void)
+{
+	return (SLSPoint){ cursorX, cursorY };
+}
+
+/* The box around the displays, where the cursor stays. */
+static void
+displaysBox(double *minX, double *minY, double *maxX, double *maxY)
+{
+	BOOL first = YES;
+
+	*minX = *minY = *maxX = *maxY = 0;
+	for (WSDisplay *d in WSDisplays) {
+		if (first || d.x < *minX) *minX = d.x;
+		if (first || d.y < *minY) *minY = d.y;
+		if (first || d.x + d.width > *maxX) *maxX = d.x + d.width;
+		if (first || d.y + d.height > *maxY) *maxY = d.y + d.height;
+		first = NO;
+	}
+}
+
+void
+WSCursorMoveTo(double x, double y)
+{
+	double minX, minY, maxX, maxY;
+
+	displaysBox(&minX, &minY, &maxX, &maxY);
+	x = fmin(fmax(x, minX), maxX - 1);
+	y = fmin(fmax(y, minY), maxY - 1);
+	if (x == cursorX && y == cursorY)
+		return;
+	damageCursor();
+	cursorX = x;
+	cursorY = y;
+	damageCursor();
+}
+
 kern_return_t
 wss_cursor_warp(mach_port_t server, audit_token_t token, double x, double y,
     int32_t *result)
 {
-	double minX = 0, minY = 0, maxX = 0, maxY = 0;
-	BOOL first = YES;
-
 	if (!isfinite(x) || !isfinite(y)) {
 		*result = kSLSErrorIllegalArgument;
 		return KERN_SUCCESS;
 	}
-	/* Clamped to the box around the displays. */
-	for (WSDisplay *d in WSDisplays) {
-		if (first || d.x < minX) minX = d.x;
-		if (first || d.y < minY) minY = d.y;
-		if (first || d.x + d.width > maxX) maxX = d.x + d.width;
-		if (first || d.y + d.height > maxY) maxY = d.y + d.height;
-		first = NO;
-	}
-	damageCursor();
-	cursorX = fmin(fmax(x, minX), maxX - 1);
-	cursorY = fmin(fmax(y, minY), maxY - 1);
-	damageCursor();
+	WSCursorMoveTo(x, y);
+	/* The HID system moves on from there. */
+	WSInputSetCursor(cursorX, cursorY);
 	*result = kSLSErrorSuccess;
 	return KERN_SUCCESS;
 }
