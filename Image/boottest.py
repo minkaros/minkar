@@ -50,8 +50,10 @@ Gates from the architecture plan:
       NSEvents                                     (--gate M4-draw)
   M4-compose  M2, then the new window server (SkyLight) and the demo's two
       overlapping AppKit windows: the screen matches a reference image,
-      again after a window is raised and after one is moved, and wsctl
-      shows no frame while nothing changes        (--gate M4-compose)
+      again after a window is raised and after one is moved; a click and
+      a key reach a window as NSEvents, a window is dragged by its title
+      bar (and AppKit is told its new frame); wsctl shows no frame while
+      nothing changes                              (--gate M4-compose)
 
 For M1 the kernel prints nothing once PID 1 starts, so PID 1 itself
 (launchd, or a temporary init) must print USERLAND_MARKER on the console,
@@ -165,7 +167,9 @@ GATES['M4-draw'] = GATES['M2'] + [
 # is no input through the new server before WS3.
 WS_NEXT = ('/System/Library/PrivateFrameworks/SkyLight.framework/Versions/A/Resources/'
            'WindowServer')
-DEMO_COMMAND = ('echo "%s" > /tmp/ws-demo.cmd; for i in $(seq 100); do '
+# Written whole, then renamed: the demo must not read a half-written file.
+DEMO_COMMAND = ('echo "%s" > /tmp/ws-demo.cmd.new; mv /tmp/ws-demo.cmd.new /tmp/ws-demo.cmd; '
+                'for i in $(seq 100); do '
                 '[ -e /tmp/ws-demo.cmd ] || break; sleep 0.1; done; sleep 1; echo "%s"')
 GATES['M4-compose'] = GATES['M2'] + [
     SSH('cd /; (nohup %s > /tmp/ws2.log 2>&1 < /dev/null &); for i in $(seq 60); do '
@@ -181,6 +185,15 @@ GATES['M4-compose'] = GATES['M2'] + [
     Act('compare M4-compose-2'), 'boottest-draw: the screen matches the reference',
     SSH(DEMO_COMMAND % ('move-red 600 400', 'boottest: moved')), 'boottest: moved',
     Act('compare M4-compose-3'), 'boottest-draw: the screen matches the reference',
+    # Input (WS3): a click and a key reach the blue window (the middle of
+    # its content), and the red one is dragged by its title bar.
+    Act('click 399 405'), Act('key a'),
+    SSH('sleep 2; grep event /tmp/demo.out'),
+    'event mouseDown x=', 'event mouseUp', 'event keyDown keyCode=0 chars=a',
+    Act('drag 700 100 600 300'),
+    SSH('sleep 2; grep "second moved" /tmp/demo.out | tail -1'),
+    'second moved frame=500,200,302,282',
+    Act('compare M4-compose-4'), 'boottest-draw: the screen matches the reference',
     SSH('a=$(/usr/local/bin/wsctl stats | awk \'/^frames/ { print $2 }\'); sleep 2; '
         'b=$(/usr/local/bin/wsctl stats | awk \'/^frames/ { print $2 }\'); '
         '[ "$a" = "$b" ] && echo "boottest: no frame while idle ($a)"'),
@@ -373,23 +386,34 @@ def act(args, step, tmp):
         verdict = 'matches' if differ <= SCREEN_TOLERANCE * w * h else 'differs'
         return ['boottest-draw: the screen %s the reference (%d of %d pixels differ)'
                 % (verdict, differ, w * h)]
-    if words[0] == 'click':
+    if words[0] in ('click', 'drag'):
         # The tablet spans 0..32767 on each axis of the screen.
         shot = os.path.join(tmp, 'size.ppm')
         qmp(args, ('screendump', {'filename': shot}))
         time.sleep(1)
         with open(shot, 'rb') as f:
             w, h, _ = read_ppm(f.read())
-        x, y = int(words[1]) * 32767 // w, int(words[2]) * 32767 // h
-        move = [{'type': 'abs', 'data': {'axis': 'x', 'value': x}},
-                {'type': 'abs', 'data': {'axis': 'y', 'value': y}}]
-        for down in (None, True, False):
-            events = list(move)
+        points = [(int(words[i]) * 32767 // w, int(words[i + 1]) * 32767 // h)
+                  for i in range(1, len(words) - 1, 2)]
+
+        def send(x, y, down):
+            events = [{'type': 'abs', 'data': {'axis': 'x', 'value': x}},
+                      {'type': 'abs', 'data': {'axis': 'y', 'value': y}}]
             if down is not None:
                 events.append({'type': 'btn', 'data': {'down': down, 'button': 'left'}})
             qmp(args, ('input-send-event', {'events': events}))
             time.sleep(0.5)
-        return ['boottest-draw: clicked at %s,%s' % (words[1], words[2])]
+
+        (x, y), (x2, y2) = points[0], points[-1]
+        send(x, y, None)
+        send(x, y, True)
+        if words[0] == 'drag':
+            # In steps, as a hand moves: the window follows each one.
+            for k in range(1, 5):
+                send(x + (x2 - x) * k // 4, y + (y2 - y) * k // 4, None)
+        send(x2, y2, False)
+        return ['boottest-draw: %s at %s' % ('dragged' if words[0] == 'drag' else 'clicked',
+                                            ' '.join(words[1:]))]
     if words[0] == 'key':
         qmp(args, ('send-key', {'keys': [{'type': 'qcode', 'data': words[1]}]}))
         time.sleep(0.5)

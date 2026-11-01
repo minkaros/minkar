@@ -118,6 +118,15 @@
         f.size.width, f.size.height);
     [NSTimer scheduledTimerWithTimeInterval:0.05 target:self
         selector:@selector(readCommand:) userInfo:nil repeats:YES];
+    /* Moved by its title bar: the frame AppKit was told. */
+    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(secondMoved:)
+        name:NSWindowDidMoveNotification object:self.second];
+}
+
+- (void)secondMoved:(NSNotification *)note {
+    NSRect f = [self.second frame];
+    printf("second moved frame=%.0f,%.0f,%.0f,%.0f\n", f.origin.x, f.origin.y,
+        f.size.width, f.size.height);
 }
 
 - (void)readCommand:(NSTimer *)timer {
