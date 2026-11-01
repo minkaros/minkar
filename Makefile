@@ -153,6 +153,12 @@ SUBDIR :=	${ONLY_STAGE}
 version:
 	${MAKE} -C ${.CURDIR}/SystemLibrary SystemVersion.plist
 
+# The progress pages (Docs/Progress.md, Docs/Progress.es.md) and their
+# SVGs, from Docs/progress/status.toml. CI checks they are current.
+progress: .PHONY
+	python3 ${.CURDIR}/tools/progress/gen.py ${.CURDIR}/Docs/progress/status.toml \
+	    ${.CURDIR}/Docs/progress ${.CURDIR}/Docs/Progress.md ${.CURDIR}/Docs/Progress.es.md
+
 # Bootable disk image and QEMU boot test (Image/Makefile). Not part of
 # "world": they need root, network access for the EFI loader, and time.
 efiloader image boottest boottest-key: .PHONY
