@@ -474,6 +474,15 @@ sección 9).
   `CGEventSource` pregunta el estado HID al servidor (WS3); el compositor
   aplica las tablas de transferencia y el fundido (WS1).
 
+Estado al 1 nov 2026:
+
+- [x] `_windowserver` (`fb090b8b82`, `9af6b6295d`): el usuario y el grupo
+  en el sistema base; el job de launchd del servidor nuevo,
+  `org.minkar.WindowServer.next.plist`, instalado desactivado, lo ejecuta
+  con ese usuario y guarda su log en `/var/log/WindowServer/`. El gate
+  M4-compose lo arranca con el job y comprueba el usuario (32 marcadores,
+  0 píxeles distintos).
+
 ### WS4b — El cambio de servidor
 
 - **MB0** de [Menus.es.md](Menus.es.md): menús y status items dibujados por
@@ -556,7 +565,7 @@ Decidido el 31 oct 2026, según la regla general de la sección 1:
 
 | Pregunta | Decisión (objetivo) | Atajo de desarrollo | Se quita en |
 | --- | --- | --- | --- |
-| Usuario con el que corre WindowServer | `_windowserver` (UID 88), fijado por el job de launchd (`UserName`) | Root | WS4a (necesita el ADR 0001) |
+| Usuario con el que corre WindowServer | `_windowserver` (UID 88), fijado por el job de launchd (`UserName`) | Root; el servidor nuevo corre como `_windowserver` desde el 1 nov 2026 (`9af6b6295d`), el anterior sigue como root hasta que se va | WS4b (se borra el servidor anterior) |
 | Dónde vive | `SkyLight.framework/Resources/WindowServer`; el cliente en `SkyLight.framework`, reexportado por CoreGraphics | `CoreServices/WindowServer.app` para WS0 (servidor actual) | WS1 |
 | Capturar pantalla y enviar eventos | Permisos de grabación de pantalla, monitoreo de entrada y accesibilidad, mediante un servicio de permisos | Política interna: se permite a root y a los procesos del usuario de consola; el resto, denegado (`SHORTCUT(M5)`) | M5 (el ADR del servicio de privacidad llega antes del gate M5) |
 | Mover ventanas | Movimientos en el servidor a partir de las zonas de arrastre que declara el cliente, más `performWindowDragWithEvent:` | Solo la zona de la barra de título | WS4a |

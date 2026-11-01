@@ -435,6 +435,14 @@ server's, linked from there until WS4a moves them to SkyLight (then a
   asks the server for the HID state (WS3); the compositor applies the
   transfer tables and the fade (WS1).
 
+State on 2026-11-01:
+
+- [x] `_windowserver` (`fb090b8b82`, `9af6b6295d`): the user and group in
+  the base system; the new server's launchd job,
+  `org.minkar.WindowServer.next.plist`, installed disabled, runs it as
+  that user and logs to `/var/log/WindowServer/`. Gate M4-compose starts
+  it through the job and checks the user (32 markers, 0 pixels differing).
+
 ### WS4b — The switch
 
 - **MB0** of [Menus.md](Menus.md): menus and status items drawn by each
@@ -514,7 +522,7 @@ Decided 2026-10-31, following the guiding rule in section 1:
 
 | Question | Decision (target) | Development shortcut | Removed by |
 | --- | --- | --- | --- |
-| User WindowServer runs as | `_windowserver` (UID 88), set by the launchd job (`UserName`) | Root | WS4a (needs ADR 0001) |
+| User WindowServer runs as | `_windowserver` (UID 88), set by the launchd job (`UserName`) | Root; the new server runs as `_windowserver` since 2026-11-01 (`9af6b6295d`), the legacy one stays root until it goes | WS4b (the legacy server's removal) |
 | Where it lives | `SkyLight.framework/Resources/WindowServer`; client in `SkyLight.framework`, re-exported by CoreGraphics | `CoreServices/WindowServer.app` for WS0 (current server) | WS1 |
 | Capturing and posting events | Screen recording, input monitoring and accessibility permissions, through a permission service | Built-in policy: root and the console user's processes are allowed; everything else denied (`SHORTCUT(M5)`) | M5 (the privacy service ADR comes before gate M5) |
 | Moving windows | Server-side moves from client-declared drag regions, plus `performWindowDragWithEvent:` | Title bar region only | WS4a |
