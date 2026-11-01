@@ -1441,7 +1441,7 @@ static NSString *_pathForPID(pid_t pid) {
     struct wsRPCSimple data;
     int ret = kCGErrorFailure;
 
-    WSAppRecord *app = [apps objectForKey:[NSString stringWithCString:msg->bundleID]];
+    WSAppRecord *app = [apps objectForKey:[self bundleIDForMessage:msg]];
     if(app) {
         ret = kCGErrorSuccess;
         [app mouseCursorConnected:((struct wsRPCSimple *)msg->data)->val1];
@@ -1488,7 +1488,7 @@ static NSString *_pathForPID(pid_t pid) {
 
     if(msg->len == sizeof(struct wsRPCWindow)) {
         struct wsRPCWindow *data = (struct wsRPCWindow*)msg->data;
-        WSAppRecord *app = [apps objectForKey:[NSString stringWithCString:msg->bundleID]];
+        WSAppRecord *app = [apps objectForKey:[self bundleIDForMessage:msg]];
 
         if(app != nil) {
             if([self windowCreate:data forApp:app] != 0)
@@ -1562,7 +1562,7 @@ static void fillWindowListEntry(struct wsWindowListEntry *e, WSWindowRecord *win
 
     if(msg->len == sizeof(struct wsRPCWindow)) {
         struct wsRPCWindow *data = (struct wsRPCWindow*)msg->data;
-        WSAppRecord *app = [apps objectForKey:[NSString stringWithCString:msg->bundleID]];
+        WSAppRecord *app = [apps objectForKey:[self bundleIDForMessage:msg]];
 
         if(app != nil) {
             [self windowModify:data forApp:app];
@@ -1577,7 +1577,7 @@ static void fillWindowListEntry(struct wsWindowListEntry *e, WSWindowRecord *win
 -(void)rpcWindowDestroy:(PortMessage *)msg {
     if(msg->len == sizeof(struct wsRPCWindow)) {
         struct wsRPCWindow *data = (struct wsRPCWindow*)msg->data;
-        WSAppRecord *app = [apps objectForKey:[NSString stringWithCString:msg->bundleID]];
+        WSAppRecord *app = [apps objectForKey:[self bundleIDForMessage:msg]];
 
         if(app != nil) {
             WSWindowRecord *winrec = [app removeWindowWithID:data->windowID];
@@ -1643,6 +1643,15 @@ static void fillWindowListEntry(struct wsWindowListEntry *e, WSWindowRecord *win
     }
 }
 
+/* The app a message comes from: its bundle ID, or "unix.<pid>" for a
+ * program without a bundle, as it registered itself (NSApplication). */
+- (NSString *)bundleIDForMessage:(PortMessage *)msg {
+    if(msg->bundleID[0] == '\0')
+        return [NSString stringWithFormat:@"unix.%u", msg->pid];
+    msg->bundleID[sizeof(msg->bundleID) - 1] = '\0'; // ensure null terminated
+    return [NSString stringWithCString:msg->bundleID];
+}
+
 - (void)receiveMachMessage {
     ReceiveMessage msg = {0};
     mach_msg_return_t result = mach_msg((mach_msg_header_t *)&msg, MACH_RCV_MSG, 0, sizeof(msg),
@@ -1656,12 +1665,7 @@ static void fillWindowListEntry(struct wsWindowListEntry *e, WSWindowRecord *win
                 if(msg.portMsg.msgh_descriptor_count > 0)
                     reply = msg.portMsg.descriptor.name;
                 pid_t pid = msg.portMsg.pid;
-                NSString *bundleID = nil;
-                if(msg.portMsg.bundleID[0] != '\0') {
-                    msg.portMsg.bundleID[sizeof(msg.portMsg.bundleID) - 1] = '\0'; // ensure null terminated
-                    bundleID = [NSString stringWithCString:msg.portMsg.bundleID];
-                } else
-                    bundleID = [NSString stringWithFormat:@"unix.%u", pid];
+                NSString *bundleID = [self bundleIDForMessage:&msg.portMsg];
                 struct wsRPCBase *base = (struct wsRPCBase *)msg.portMsg.data;
 
                 if(logLevel >= WS_WARNING)
