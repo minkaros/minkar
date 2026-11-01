@@ -344,6 +344,37 @@ Decided 2026-10-31, following the guiding rule in section 1:
 | Capturing and posting events | Screen recording, input monitoring and accessibility permissions, through a permission service | Built-in policy: root and the console user's processes are allowed; everything else denied | Privacy service ADR (before M5) |
 | Moving windows | Server-side moves from client-declared drag regions, plus `performWindowDragWithEvent:` | Title bar region only | WS4 |
 | Ending the session | The login window asks apps to quit, ends the session and then restarts or shuts down | A minimal `loginwindow` that only ends the session and calls `reboot(2)` | Phase 5 (LoginWindow) |
+| Kernel entitlement validation | A static trust cache of system binaries and our own MAC policy kext (section 9.1) | Root may open IOHIDSystem's server connection (`SHORTCUT(WS0)` in `IOHIDUserClient.cpp`) | Before WS4 |
+
+### 9.1 Kernel entitlement validation
+
+XNU honors a process's entitlements only when its code signature is marked
+valid (`CS_VALID`, checked in `csblob_get_entitlements`), and a code integrity
+policy module sets that mark. The reference platform's module is closed
+source, so no Minkar process has entitlements today. Decided 2026-10-31:
+
+- **Trust cache.** The build computes the CDHash of every signed system
+  binary and writes a static trust cache (format of `kern/trustcache.h`) that
+  ships in the boot image.
+- **Policy kext.** Our own MAC policy module marks a binary whose CDHash is in
+  the trust cache as `CS_VALID` and as a platform binary.
+- **Two kinds of entitlements, as on the reference platform.** Restricted
+  entitlements (private ones and hardware access, such as
+  `com.apple.hid.system.server-access`) are honored only for platform
+  binaries. Unrestricted ones (hardened runtime, sandbox) are honored with any
+  valid signature, ad hoc included. Binaries outside the trust cache still
+  run; their restricted entitlements are ignored.
+- **Names.** Entitlement names stay as the kernel and the frameworks check
+  them.
+- **Later.** Certificate-based signatures, verified with corecrypto, for what
+  is signed outside the build and for third-party apps (Phase 7); the policy
+  kext keeps a place for that check. A user-space validation daemon only if
+  provisioning profiles or expensive checks need it.
+- **Milestone.** Its own ADR first, then an implementation before WS4, with
+  tests: a system binary in the trust cache gets a restricted entitlement; a
+  re-signed copy outside the cache does not; an ad-hoc signed binary keeps its
+  unrestricted entitlements. `SHORTCUT(WS0)` in `IOHIDUserClient.cpp` is
+  removed then.
 
 Every shortcut is marked in the code with `// SHORTCUT(WSn):` and the
 milestone that removes it, so they can be listed with `git grep`.

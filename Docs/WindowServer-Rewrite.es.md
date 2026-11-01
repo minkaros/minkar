@@ -372,6 +372,39 @@ Decidido el 31 oct 2026, según la regla general de la sección 1:
 | Capturar pantalla y enviar eventos | Permisos de grabación de pantalla, monitoreo de entrada y accesibilidad, mediante un servicio de permisos | Política interna: se permite a root y a los procesos del usuario de consola; el resto, denegado | ADR del servicio de privacidad (antes de M5) |
 | Mover ventanas | Movimientos en el servidor a partir de las zonas de arrastre que declara el cliente, más `performWindowDragWithEvent:` | Solo la zona de la barra de título | WS4 |
 | Terminar la sesión | La ventana de login pide a las apps que terminen, cierra la sesión y después reinicia o apaga | Un `loginwindow` mínimo que solo cierra la sesión y llama a `reboot(2)` | Fase 5 (LoginWindow) |
+| Validación de entitlements en el kernel | Una trust cache estática de los binarios del sistema y un kext de política MAC propio (sección 9.1) | Root puede abrir la conexión de servidor de IOHIDSystem (`SHORTCUT(WS0)` en `IOHIDUserClient.cpp`) | Antes de WS4 |
+
+### 9.1 Validación de entitlements en el kernel
+
+XNU solo respeta los entitlements de un proceso cuando su firma de código está
+marcada como válida (`CS_VALID`, comprobado en `csblob_get_entitlements`), y
+esa marca la pone un módulo de política de integridad de código. El módulo de
+la plataforma de referencia es de código cerrado, así que hoy ningún proceso de
+Minkar tiene entitlements. Decidido el 31 oct 2026:
+
+- **Trust cache.** El build calcula el CDHash de cada binario del sistema
+  firmado y escribe una trust cache estática (con el formato de
+  `kern/trustcache.h`) que viaja en la imagen de arranque.
+- **Kext de política.** Un módulo de política MAC propio marca como
+  `CS_VALID` y como binario de plataforma todo binario cuyo CDHash está en la
+  trust cache.
+- **Dos clases de entitlements, como en la plataforma de referencia.** Los
+  restringidos (los privados y los de acceso a hardware, como
+  `com.apple.hid.system.server-access`) solo se respetan en binarios de
+  plataforma. Los no restringidos (hardened runtime, sandbox) se respetan con
+  cualquier firma válida, incluida la ad hoc. Los binarios fuera de la trust
+  cache se siguen ejecutando; sus entitlements restringidos se ignoran.
+- **Nombres.** Los nombres de los entitlements se quedan como los comprueban
+  el kernel y los frameworks.
+- **Después.** Firmas con certificado, verificadas con corecrypto, para lo que
+  se firme fuera del build y para las apps de terceros (Fase 7); el kext de
+  política deja sitio para esa comprobación. Un daemon de validación en espacio
+  de usuario solo si lo necesitan provisioning profiles o comprobaciones caras.
+- **Hito.** Primero su propio ADR; después la implementación, antes de WS4, con
+  pruebas: un binario del sistema que está en la trust cache obtiene un
+  entitlement restringido; una copia refirmada fuera de la caché no; un binario
+  firmado ad hoc conserva sus entitlements no restringidos. Entonces se quita
+  `SHORTCUT(WS0)` de `IOHIDUserClient.cpp`.
 
 Cada atajo queda marcado en el código con `// SHORTCUT(WSn):` y el hito que
 lo elimina, para listarlos todos con `git grep`.
