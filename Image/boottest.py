@@ -418,7 +418,8 @@ def main(argv=None):
                         'NVMe SSD (default: $BOOTTEST_DISK or ahci)')
     p.add_argument('--no-rng', action='store_true',
                    help='no virtio-rng: firmware without EFI_RNG_PROTOCOL')
-    p.add_argument('--smp', type=int, default=2)
+    # A count, or a QEMU topology (e.g. 24,sockets=1,cores=12,threads=2).
+    p.add_argument('--smp', default='2')
     p.add_argument('--memory', type=int, default=4096, help='MiB')
     p.add_argument('--ssh-key', default=os.environ.get('BOOTTEST_SSH_KEY'),
                    help='private key ssh steps log in with (default: $BOOTTEST_SSH_KEY)')
