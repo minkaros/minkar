@@ -454,7 +454,7 @@ What this plan adds, and its state:
 
 ## Sources
 
-- [The minkaros/minkar repository](https://github.com/minkaros/minkar), branch `devel`, verified at `82c5f3e8f8` (2026-10-31).
+- [The minkaros/minkar repository](https://github.com/minkaros/minkar), branch `devel`, verified at `c7a066b196` (2026-11-01).
 - [Hardware.md](Hardware.md): reference machines.
 - [Commands.md](Commands.md): Minkar's commands against the reference list.
 - [Userland.md](Userland.md): the history of ported commands (exFAT, `notifyutil`, `launchctl kickstart`).

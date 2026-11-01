@@ -241,12 +241,12 @@ WS0 is done (2026-10-31).
 
 Shortcuts taken (section 9): root may open IOHIDSystem's server
 connection, since no policy module validates code signatures yet and no
-process has entitlements (`SHORTCUT(WS0)` in `IOHIDUserClient.cpp`); the
+process has entitlements (`SHORTCUT(WS4a)` in `IOHIDUserClient.cpp`); the
 legacy server's threads get 4 MB stacks for its 128 KB messages
-(`SHORTCUT(WS0)` in `main.m`); the launchd job runs the compositor only
-(`-x`), since LoginWindow is not built (`SHORTCUT(WS0)` in its plist);
+(`SHORTCUT(WS4b)` in `main.m`); the launchd job runs the compositor only
+(`-x`), since LoginWindow is not built (`SHORTCUT(WS4b)` in its plist);
 Inter is the provisional system font until Gienah has its own
-(`SHORTCUT(WS0)` in `SystemLibrary/Fonts/Makefile`).
+(`SHORTCUT(Phase 5)` in `SystemLibrary/Fonts/Makefile`).
 
 Known issues left for later milestones: the window decorations are the
 images inherited from ravynOS, which look like the reference platform's
@@ -279,10 +279,10 @@ told when that port dies and releases what the process held: windows,
 captures, its cursor hide count, its fade, its app-only display changes
 and the transfer tables it changed.
 
-Shortcuts taken (`SHORTCUT(WS1)`): a permanent display configuration
-lasts for the session only (removed in WS5, with real mode changes); the
-transfer tables and the fade blend are kept by the server, and the
-compositor does not apply them yet (removed in WS4a); the cursor position
+Shortcuts taken: a permanent display configuration lasts for the session
+only (`SHORTCUT(WS5)`, with real mode changes); the transfer tables and the
+fade blend are kept by the server, and the compositor does not apply them
+yet (`SHORTCUT(WS4a)`); the cursor position
 only moved by warps until the server read input (removed in WS3).
 
 Left for later milestones: display IDs come from the registry entry and
@@ -321,7 +321,7 @@ fixed on the way: run loops spun on `select` (`61cb01ce77`), and the
 `NSEvent` over-release of WS0 (`1508bd4d3c`).
 
 Shortcuts taken: AppKit damages its whole window at each flush
-(`SHORTCUT(WS2)`, removed in WS5 with IOSurface, when AppKit tracks its
+(`SHORTCUT(WS5)`, removed with IOSurface, when AppKit tracks its
 dirty rects into the surface); the display link ticks at the refresh rate
 even when idle, though no frame is drawn then (removed in WS5, with real
 flips).
@@ -357,11 +357,11 @@ AppKit, 0 pixels differing). Found on the way: an event freed under
 argument, and `CGLayer.h` not usable from C (`b4f8ed015d`, the known
 issue of WS0).
 
-Shortcuts taken (`SHORTCUT(WS3)`): input is read and routed on the IPC
-queue (removed in WS4a); the built-in policy of section 9 decides posting
-and filtering, root or the console's user (removed by the privacy service
-ADR, before M5); `CGEventSource` does not ask the server for the HID state
-yet (removed in WS4a). The keymap and libxkbcommon are still the legacy
+Shortcuts taken: input is read and routed on the IPC queue
+(`SHORTCUT(WS4a)`); the built-in policy of section 9 decides posting and
+filtering, root or the console's user (`SHORTCUT(M5)`: the privacy service
+ADR comes before gate M5); `CGEventSource` does not ask the server for the
+HID state yet (`SHORTCUT(WS4a)`). The keymap and libxkbcommon are still the legacy
 server's, linked from there until WS4a moves them to SkyLight (then a
 `SHORTCUT(Phase 5)`, section 9).
 
@@ -486,6 +486,14 @@ displays, Spaces, hardware cursor.
   output) and cite it.
 - Keep `boottest GATE=M2` green after every milestone; keep the old server
   working until WS4b switches.
+- Development shortcuts are marked in the code with the milestone that
+  removes them:
+  `// SHORTCUT(<removed by>): <what and why>; taken in <milestone>.`
+  (for example `SHORTCUT(WS4a)`, `SHORTCUT(Phase 5)`, `SHORTCUT(D4)`), and
+  each one has a row in its plan's shortcut table (section 9 here, section
+  10 of [Menus.md](Menus.md) and of [Dock-Kraz.md](Dock-Kraz.md)). A
+  milestone closes only when `git grep -n 'SHORTCUT(<milestone>)'` finds
+  nothing.
 
 ## 9. Decisions and development shortcuts
 
@@ -495,12 +503,20 @@ Decided 2026-10-31, following the guiding rule in section 1:
 | --- | --- | --- | --- |
 | User WindowServer runs as | `_windowserver` (UID 88), set by the launchd job (`UserName`) | Root | WS4a (needs ADR 0001) |
 | Where it lives | `SkyLight.framework/Resources/WindowServer`; client in `SkyLight.framework`, re-exported by CoreGraphics | `CoreServices/WindowServer.app` for WS0 (current server) | WS1 |
-| Capturing and posting events | Screen recording, input monitoring and accessibility permissions, through a permission service | Built-in policy: root and the console user's processes are allowed; everything else denied | Privacy service ADR (before M5) |
+| Capturing and posting events | Screen recording, input monitoring and accessibility permissions, through a permission service | Built-in policy: root and the console user's processes are allowed; everything else denied (`SHORTCUT(M5)`) | M5 (the privacy service ADR comes before gate M5) |
 | Moving windows | Server-side moves from client-declared drag regions, plus `performWindowDragWithEvent:` | Title bar region only | WS4a |
 | Keyboard layouts | The server delivers hardware key codes; the client turns them into characters from the current layout (layout data and a `UCKeyTranslate`-style call in the app), with Text Input Sources | `WSKeymap` and libxkbcommon in SkyLight, from WS4a (`SHORTCUT(Phase 5)`) | Phase 5 (Text Input Sources and our own layout files) |
 | Ending the session | The login window asks apps to quit, ends the session and then restarts or shuts down | A minimal `loginwindow` that only ends the session and calls `reboot(2)` | Phase 5 (LoginWindow) |
 | App switcher (Command-Tab) | The Dock draws it; the window server's symbolic hotkey table delivers Command-Tab to it | No switcher after the legacy server goes (WS4b): apps are switched by clicking their windows (`SHORTCUT(D4)`) | D4 ([Dock-Kraz.md](Dock-Kraz.md)) |
-| Kernel entitlement validation | A static trust cache of system binaries and our own MAC policy kext (section 9.1) | Root may open IOHIDSystem's server connection (`SHORTCUT(WS0)` in `IOHIDUserClient.cpp`) | Before WS4a |
+| Legacy server's thread stacks | Gone with the legacy server and `message.h` | 4 MB stacks for its 128 KB messages (`SHORTCUT(WS4b)` in `Legacy/main.m`, taken in WS0) | WS4b |
+| What WindowServer's launchd job starts | The window server only; the session starts elsewhere (section 10.3) | The compositor only (`-x`), since LoginWindow is not built (`SHORTCUT(WS4b)` in the plist, taken in WS0) | WS4b |
+| System font | Gienah's own font | Inter (SIL OFL 1.1), four faces (`SHORTCUT(Phase 5)` in `SystemLibrary/Fonts/Makefile`, taken in WS0) | Phase 5 (Gienah) |
+| Permanent display configurations | Stored and applied again at the next session | They last for the session (`SHORTCUT(WS5)`, taken in WS1) | WS5 (real mode changes) |
+| Transfer tables and fades | Applied to the screen by the compositor, and by gamma hardware where there is some | Kept and returned, not applied (`SHORTCUT(WS4a)`, taken in WS1) | WS4a |
+| AppKit's damage | AppKit sends the rects it redrew | The whole window at each flush (`SHORTCUT(WS5)` in `NSWindow.m`, taken in WS2) | WS5 (IOSurface) |
+| Input queue | Input read and routed on its own high-priority queue, over a model snapshot | On the IPC queue (`SHORTCUT(WS4a)` in the server's `main.m`, taken in WS3) | WS4a |
+| `CGEventSource` HID state | Asked of the window server | Not asked: buttons, keys and flags read as up (`SHORTCUT(WS4a)` in `CGEvent.m`, taken in WS3) | WS4a |
+| Kernel entitlement validation | A static trust cache of system binaries and our own MAC policy kext (section 9.1) | Root may open IOHIDSystem's server connection (`SHORTCUT(WS4a)` in `IOHIDUserClient.cpp`) | WS4a (implemented before it) |
 
 ### 9.1 Kernel entitlement validation
 
@@ -531,11 +547,12 @@ source, so no Minkar process has entitlements today. Decided 2026-10-31:
   accepted 2026-11-01), then an implementation before WS4a, with tests: a
   system binary in the trust cache gets a restricted entitlement; a re-signed
   copy outside the cache is refused; an ad-hoc signed binary keeps its
-  unrestricted entitlements. `SHORTCUT(WS0)` in `IOHIDUserClient.cpp` is
-  removed then.
+  unrestricted entitlements. The root shortcut in `IOHIDUserClient.cpp`
+  (`SHORTCUT(WS4a)`) is removed then.
 
-Every shortcut is marked in the code with `// SHORTCUT(WSn):` and the
-milestone that removes it, so they can be listed with `git grep`.
+Every shortcut is marked in the code as section 8 says, with the milestone
+that removes it, so each milestone's shortcuts can be listed with
+`git grep`.
 
 ## 10. Restructuring around WindowServer
 

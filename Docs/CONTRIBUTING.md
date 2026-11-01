@@ -44,4 +44,17 @@ New code is licensed under the BSD 2-clause license.
 
 If you have _ever_ seen Apple's proprietary code (not APSL-licensed or other open-source stuff) then you may *not* contribute code to Minkar. Sorry :( However, you may be able to contribute in other ways!
 
+### Development shortcuts
+
+A temporary solution taken during development is marked in the code with
+the milestone that removes it:
+
+    // SHORTCUT(<removed by>): <what and why>; taken in <milestone>.
+
+For example `SHORTCUT(WS4a)`, `SHORTCUT(Phase 5)` or `SHORTCUT(D4)`. Each
+shortcut also has a row in its plan's shortcut table (section 9 of
+[WindowServer-Rewrite.md](WindowServer-Rewrite.md), section 10 of
+[Menus.md](Menus.md) and of [Dock-Kraz.md](Dock-Kraz.md)). A milestone
+closes only when `git grep -n 'SHORTCUT(<milestone>)'` finds nothing.
+
 Have fun and do great things!

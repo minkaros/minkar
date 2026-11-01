@@ -454,10 +454,9 @@ Además, lo que este plan añade y aún no está en el repo:
 
 ## Fuentes
 
-- [Repositorio minkaros/minkar](https://github.com/minkaros/minkar), rama `devel`, verificada en `82c5f3e8f8` (31 oct 2026).
-- [`Docs/ROADMAP.md`](https://github.com/minkaros/minkar/blob/devel/Docs/ROADMAP.md): estado de cada fase.
-- [`Docs/Hardware.md`](https://github.com/minkaros/minkar/blob/devel/Docs/Hardware.md): equipos de referencia.
-- [`Docs/Commands.md`](https://github.com/minkaros/minkar/blob/devel/Docs/Commands.md): comandos de Minkar frente a la lista de referencia.
-- [`Docs/Userland.md`](https://github.com/minkaros/minkar/blob/devel/Docs/Userland.md): historial de comandos portados (exFAT, `notifyutil`, `launchctl kickstart`).
+- [El repositorio minkaros/minkar](https://github.com/minkaros/minkar), rama `devel`, verificada en `c7a066b196` (1 nov 2026).
+- [Hardware.md](Hardware.md): equipos de referencia.
+- [Commands.md](Commands.md): comandos de Minkar frente a la lista de referencia.
+- [Userland.md](Userland.md): historial de comandos portados (exFAT, `notifyutil`, `launchctl kickstart`).
 
-El estado sale del repositorio; las decisiones de arquitectura, los requisitos de rendimiento y la secuencia de la pila gráfica son propuestas de este plan, y las que se confirman se registran en `Docs/ROADMAP.md`.
+El estado sale del repositorio; las decisiones de arquitectura, los requisitos de rendimiento y la secuencia de la pila gráfica son propuestas de este plan, y las que se confirman se registran aquí.

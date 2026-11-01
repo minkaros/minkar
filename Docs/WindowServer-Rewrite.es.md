@@ -264,12 +264,12 @@ WS0 está hecho (31 oct 2026).
 
 Atajos tomados (sección 9): root puede abrir la conexión de servidor de
 IOHIDSystem, porque todavía ningún módulo de política valida las firmas de
-código y ningún proceso tiene entitlements (`SHORTCUT(WS0)` en
+código y ningún proceso tiene entitlements (`SHORTCUT(WS4a)` en
 `IOHIDUserClient.cpp`); los hilos del servidor actual tienen pilas de 4 MB
-para sus mensajes de 128 KB (`SHORTCUT(WS0)` en `main.m`); el job de launchd
+para sus mensajes de 128 KB (`SHORTCUT(WS4b)` en `main.m`); el job de launchd
 ejecuta solo el compositor (`-x`), porque LoginWindow no se compila
-(`SHORTCUT(WS0)` en su plist); Inter es la fuente provisional del sistema
-hasta que Gienah tenga la suya (`SHORTCUT(WS0)` en
+(`SHORTCUT(WS4b)` en su plist); Inter es la fuente provisional del sistema
+hasta que Gienah tenga la suya (`SHORTCUT(Phase 5)` en
 `SystemLibrary/Fonts/Makefile`).
 
 Problemas conocidos para hitos posteriores: las decoraciones de las ventanas
@@ -306,10 +306,10 @@ cuando ese puerto muere y libera lo que tenía el proceso: ventanas,
 capturas, su cuenta de ocultación del cursor, su fundido, sus cambios de
 pantalla solo para la app y las tablas de transferencia que cambió.
 
-Atajos tomados (`SHORTCUT(WS1)`): una configuración de pantalla permanente
-dura solo la sesión (se quita en WS5, con cambios de modo reales); las
-tablas de transferencia y la mezcla del fundido las guarda el servidor, y el
-compositor todavía no las aplica (se quita en WS4a); la posición del cursor
+Atajos tomados: una configuración de pantalla permanente dura solo la
+sesión (`SHORTCUT(WS5)`, con cambios de modo reales); las tablas de
+transferencia y la mezcla del fundido las guarda el servidor, y el
+compositor todavía no las aplica (`SHORTCUT(WS4a)`); la posición del cursor
 solo cambiaba con warps hasta que el servidor leyó la entrada (se quitó en
 WS3).
 
@@ -352,7 +352,7 @@ camino: los run loops giraban sobre `select` (`61cb01ce77`), y la
 liberación de más de `NSEvent` de WS0 (`1508bd4d3c`).
 
 Atajos tomados: AppKit marca dañada toda la ventana en cada flush
-(`SHORTCUT(WS2)`, se quita en WS5 con IOSurface, cuando AppKit lleve sus
+(`SHORTCUT(WS5)`, se quita con IOSurface, cuando AppKit lleve sus
 rectángulos sucios a la superficie); el reloj de pantalla late a la
 frecuencia de refresco también en reposo, aunque no dibuje ningún frame (se
 quita en WS5, con flips reales).
@@ -391,11 +391,11 @@ evento liberado dentro de `nextEventMatchingMask:` (`13f99802d5`),
 `CGEventMaskBit` definido como su argumento, y `CGLayer.h` sin poder
 incluirse desde C (`b4f8ed015d`, el problema conocido de WS0).
 
-Atajos tomados (`SHORTCUT(WS3)`): la entrada se lee y se reparte en la
-cola IPC (se quita en WS4a); la política integrada de la sección 9 decide
-quién publica y filtra, root o el usuario de la consola (se quita con el
-ADR del servicio de privacidad, antes de M5); `CGEventSource` todavía no
-pregunta el estado HID al servidor (se quita en WS4a). El mapa de teclado y
+Atajos tomados: la entrada se lee y se reparte en la cola IPC
+(`SHORTCUT(WS4a)`); la política integrada de la sección 9 decide quién
+publica y filtra, root o el usuario de la consola (`SHORTCUT(M5)`: el ADR
+del servicio de privacidad llega antes del gate M5); `CGEventSource`
+todavía no pregunta el estado HID al servidor (`SHORTCUT(WS4a)`). El mapa de teclado y
 libxkbcommon siguen siendo los del servidor actual, enlazados desde allí
 hasta que WS4a los pase a SkyLight (entonces un `SHORTCUT(Phase 5)`,
 sección 9).
@@ -529,6 +529,14 @@ varias pantallas, Spaces, cursor por hardware.
   salida de `boottest`) y citarla.
 - Mantener `boottest GATE=M2` en verde después de cada hito; mantener el
   servidor viejo funcionando hasta el cambio de WS4b.
+- Los atajos de desarrollo se marcan en el código con el hito que los quita:
+  `// SHORTCUT(<se quita en>): <qué y por qué>; taken in <hito>.`
+  (por ejemplo `SHORTCUT(WS4a)`, `SHORTCUT(Phase 5)`, `SHORTCUT(D4)`; el
+  comentario va en inglés, como todo el código), y cada uno tiene una fila
+  en la tabla de atajos de su plan (aquí la sección 9; la sección 10 de
+  [Menus.es.md](Menus.es.md) y de [Dock-Kraz.es.md](Dock-Kraz.es.md)). Un
+  hito solo se cierra cuando `git grep -n 'SHORTCUT(<hito>)'` no encuentra
+  nada.
 
 ## 9. Decisiones y atajos de desarrollo
 
@@ -538,12 +546,20 @@ Decidido el 31 oct 2026, según la regla general de la sección 1:
 | --- | --- | --- | --- |
 | Usuario con el que corre WindowServer | `_windowserver` (UID 88), fijado por el job de launchd (`UserName`) | Root | WS4a (necesita el ADR 0001) |
 | Dónde vive | `SkyLight.framework/Resources/WindowServer`; el cliente en `SkyLight.framework`, reexportado por CoreGraphics | `CoreServices/WindowServer.app` para WS0 (servidor actual) | WS1 |
-| Capturar pantalla y enviar eventos | Permisos de grabación de pantalla, monitoreo de entrada y accesibilidad, mediante un servicio de permisos | Política interna: se permite a root y a los procesos del usuario de consola; el resto, denegado | ADR del servicio de privacidad (antes de M5) |
+| Capturar pantalla y enviar eventos | Permisos de grabación de pantalla, monitoreo de entrada y accesibilidad, mediante un servicio de permisos | Política interna: se permite a root y a los procesos del usuario de consola; el resto, denegado (`SHORTCUT(M5)`) | M5 (el ADR del servicio de privacidad llega antes del gate M5) |
 | Mover ventanas | Movimientos en el servidor a partir de las zonas de arrastre que declara el cliente, más `performWindowDragWithEvent:` | Solo la zona de la barra de título | WS4a |
 | Distribuciones de teclado | El servidor entrega códigos de tecla del hardware; el cliente los convierte en caracteres según la distribución actual (datos de la distribución y una llamada al estilo de `UCKeyTranslate` en la app), con Text Input Sources | `WSKeymap` y libxkbcommon en SkyLight, desde WS4a (`SHORTCUT(Phase 5)`) | Fase 5 (Text Input Sources y ficheros de distribución propios) |
 | Terminar la sesión | La ventana de login pide a las apps que terminen, cierra la sesión y después reinicia o apaga | Un `loginwindow` mínimo que solo cierra la sesión y llama a `reboot(2)` | Fase 5 (LoginWindow) |
 | Selector de apps (Comando-Tab) | Lo dibuja el Dock; la tabla de atajos simbólicos del servidor de ventanas le entrega Comando-Tab | Sin selector desde que se va el servidor anterior (WS4b): se cambia de app con clic en sus ventanas (`SHORTCUT(D4)`) | D4 ([Dock-Kraz.es.md](Dock-Kraz.es.md)) |
-| Validación de entitlements en el kernel | Una trust cache estática de los binarios del sistema y un kext de política MAC propio (sección 9.1) | Root puede abrir la conexión de servidor de IOHIDSystem (`SHORTCUT(WS0)` en `IOHIDUserClient.cpp`) | Antes de WS4a |
+| Pilas de los hilos del servidor anterior | Desaparecen con el servidor anterior y `message.h` | Pilas de 4 MB para sus mensajes de 128 KB (`SHORTCUT(WS4b)` en `Legacy/main.m`, tomado en WS0) | WS4b |
+| Qué arranca el job de launchd de WindowServer | Solo el servidor de ventanas; la sesión arranca en otro sitio (sección 10.3) | Solo el compositor (`-x`), porque LoginWindow no se compila (`SHORTCUT(WS4b)` en el plist, tomado en WS0) | WS4b |
+| Fuente del sistema | La fuente propia de Gienah | Inter (SIL OFL 1.1), cuatro estilos (`SHORTCUT(Phase 5)` en `SystemLibrary/Fonts/Makefile`, tomado en WS0) | Fase 5 (Gienah) |
+| Configuraciones de pantalla permanentes | Se guardan y se vuelven a aplicar en la sesión siguiente | Duran la sesión (`SHORTCUT(WS5)`, tomado en WS1) | WS5 (cambios de modo reales) |
+| Tablas de transferencia y fundidos | Los aplica a la pantalla el compositor, y el hardware de gamma donde lo haya | Se guardan y se devuelven, sin aplicarse (`SHORTCUT(WS4a)`, tomado en WS1) | WS4a |
+| Daño de AppKit | AppKit envía los rectángulos que redibujó | Toda la ventana en cada flush (`SHORTCUT(WS5)` en `NSWindow.m`, tomado en WS2) | WS5 (IOSurface) |
+| Cola de entrada | La entrada se lee y se reparte en su propia cola de alta prioridad, sobre una instantánea del modelo | En la cola IPC (`SHORTCUT(WS4a)` en el `main.m` del servidor, tomado en WS3) | WS4a |
+| Estado HID de `CGEventSource` | Se pregunta al servidor de ventanas | No se pregunta: botones, teclas y modificadores se leen como no pulsados (`SHORTCUT(WS4a)` en `CGEvent.m`, tomado en WS3) | WS4a |
+| Validación de entitlements en el kernel | Una trust cache estática de los binarios del sistema y un kext de política MAC propio (sección 9.1) | Root puede abrir la conexión de servidor de IOHIDSystem (`SHORTCUT(WS4a)` en `IOHIDUserClient.cpp`) | WS4a (se implementa antes) |
 
 ### 9.1 Validación de entitlements en el kernel
 
@@ -577,10 +593,10 @@ Minkar tiene entitlements. Decidido el 31 oct 2026:
   pruebas: un binario del sistema que está en la trust cache obtiene un
   entitlement restringido; una copia refirmada fuera de la caché se rechaza; un binario
   firmado ad hoc conserva sus entitlements no restringidos. Entonces se quita
-  `SHORTCUT(WS0)` de `IOHIDUserClient.cpp`.
+  el atajo de root de `IOHIDUserClient.cpp` (`SHORTCUT(WS4a)`).
 
-Cada atajo queda marcado en el código con `// SHORTCUT(WSn):` y el hito que
-lo elimina, para listarlos todos con `git grep`.
+Cada atajo queda marcado en el código como dice la sección 8, con el hito
+que lo quita, para listar con `git grep` los atajos de cada hito.
 
 ## 10. Reestructuración alrededor de WindowServer
 
