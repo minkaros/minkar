@@ -518,6 +518,17 @@ Estado al 1 nov 2026:
   mueve el servidor queda por debajo; `visibleFrame` de AppKit,
   `-[NSMenu menuBarHeight]` y `-[NSStatusBar thickness]` la siguen.
   Prueba local `menubar`.
+- [x] Captura del puntero (`b0398566e6`): `SLSCapturePointer` da a una
+  ventana de la app del frente todos los eventos del ratón, también los
+  clics y arrastres fuera de ella, sin cambiar la ventana key ni mover
+  ninguna. Prueba local `pointer-capture`.
+- [x] Disposición del área de estado (`95ed3656ce`): una ventana convertida
+  en elemento de estado (`SLSSetWindowStatusItem`) la coloca el servidor en
+  la barra de menús de la pantalla principal, de derecha a izquierda en el
+  orden en que llegaron, y su app sabe dónde. Los Menu Extras y el orden
+  guardado entre sesiones son MB1. Con los avisos de app del frente, el
+  sitio de la barra de menús y la captura del puntero, es lo que MB0
+  necesita del servidor. `skylight-test` 164/0.
 
 ### WS4b — El cambio de servidor
 

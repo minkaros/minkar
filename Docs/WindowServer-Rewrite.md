@@ -476,6 +476,16 @@ State on 2026-11-01:
   display (`SLSGetDisplayMenuBarHeight`); a window the server moves stays
   below it; AppKit's `visibleFrame`, `-[NSMenu menuBarHeight]` and
   `-[NSStatusBar thickness]` follow it. Local test `menubar`.
+- [x] Pointer capture (`b0398566e6`): `SLSCapturePointer` gives one of the
+  front app's windows every mouse event, clicks and drags outside it
+  included, with no key window change or move. Local test
+  `pointer-capture`.
+- [x] Status area layout (`95ed3656ce`): a window made a status item
+  (`SLSSetWindowStatusItem`) is placed by the server in the main display's
+  menu bar, right to left in the order the items came, and its app is
+  told where. Menu Extras and the order kept across sessions are MB1.
+  With the front app notices, the menu bar's place and pointer capture,
+  this is what MB0 needs from the server. `skylight-test` 164/0.
 
 ### WS4b — The switch
 
