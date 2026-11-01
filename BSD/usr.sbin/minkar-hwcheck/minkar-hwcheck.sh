@@ -32,6 +32,14 @@
 #   sudo minkar-hwcheck            all checks, then a reboot test; the run
 #                                  ends by itself after the reboot
 #   sudo minkar-hwcheck --no-reboot   all checks, no reboot test
+#   sudo minkar-hwcheck --display  the inventory and a display check only
+#                                  (no load): the GPUs' PCI windows, where
+#                                  the framebuffer is, whether PCI
+#                                  configuration moved it; then a heartbeat
+#                                  every 10 s on disk, so the next run says
+#                                  how long this boot lasted (for a machine
+#                                  that hangs). Boot with pci=0x1 to log
+#                                  every BAR the configurator assigns.
 #
 # Results: /var/log/minkar-hwcheck/<stamp>/report.txt (summary first) and
 # /var/log/minkar-hwcheck/minkar-hwcheck-<stamp>.tar.gz (report + raw
@@ -56,10 +64,11 @@ SELF=/usr/local/bin/minkar-hwcheck
 MODE=full
 case "${1:-}" in
 --no-reboot) MODE=noreboot ;;
+--display) MODE=display ;;
 --after-reboot) MODE=after ;;
 "" ) ;;
--h|--help) sed -n '29,48p' "$0"; exit 0 ;;
-*) echo "usage: minkar-hwcheck [--no-reboot]" >&2; exit 2 ;;
+-h|--help) sed -n '29,56p' "$0"; exit 0 ;;
+*) echo "usage: minkar-hwcheck [--no-reboot | --display]" >&2; exit 2 ;;
 esac
 
 if [ "$(id -u)" != 0 ]; then
@@ -120,6 +129,13 @@ mask_serials() {
 }
 
 sysctl_n() { sysctl -n "$1" 2>/dev/null; }
+
+# awk does not read "0x..." strings as numbers: hex() does, for awk
+# programs (prepend "$AWK_HEX").
+AWK_HEX='function hex(h,   i, n) { h = tolower(h); sub(/^0x/, "", h); n = 0
+	for (i = 1; i <= length(h); i++) n = n * 16 + index("0123456789abcdef", substr(h, i, 1)) - 1
+	return n }
+'
 
 # ---- after the reboot ----------------------------------------------------
 
@@ -221,7 +237,11 @@ if [ "$MODE" = after ]; then
 fi
 
 echo "minkar-hwcheck: results go to $DIR"
-echo "Nothing to do meanwhile; it takes about 10 minutes and reboots at the end (unless --no-reboot)."
+if [ "$MODE" = display ]; then
+	echo "Display check: about a minute, no load and no reboot."
+else
+	echo "Nothing to do meanwhile; it takes about 10 minutes and reboots at the end (unless --no-reboot)."
+fi
 
 # ---- inventory -----------------------------------------------------------
 
@@ -252,14 +272,103 @@ model=$(sysctl_n hw.model)
 result INFO "model" "${model:-unknown}"
 result INFO "cpu" "$(sysctl_n machdep.cpu.brand_string)"
 # The EFI node: firmware-vendor is UTF-16, firmware-revision a 32-bit number.
-fw=$(ioreg -l -w0 -p IODeviceTree -n efi 2>/dev/null | awk '
+fw=$(ioreg -l -w0 -p IODeviceTree -n efi 2>/dev/null | awk "$AWK_HEX"'
 	/"firmware-vendor" = </ { v = $0; sub(/.*</, "", v); sub(/>.*/, "", v)
 		for (i = 1; i + 1 <= length(v); i += 4) { c = substr(v, i, 2); if (c == "00") break
-			vendor = vendor sprintf("%c", ("0x" c) + 0) } }
+			vendor = vendor sprintf("%c", hex(c)) } }
 	/"firmware-revision" = </ { r = $0; sub(/.*</, "", r); sub(/>.*/, "", r)
 		rev = substr(r,7,2) substr(r,5,2) substr(r,3,2) substr(r,1,2) }
 	END { printf "%s revision 0x%s", vendor, rev }')
 result INFO "firmware" "$fw"
+
+# ---- display (--display) ---------------------------------------------------
+
+# Each display-class PCI device (class 03xxxx) and its assigned windows,
+# decoded from "assigned-addresses": 5 little-endian words per window
+# (phys.hi with the BAR in its low byte, phys.mid, phys.lo, size.hi,
+# size.lo). One line per window: "vendor:device bar start size".
+gpu_windows() {
+	awk "$AWK_HEX"'
+	function le(h, o) { return hex(substr(h,o+7,2) substr(h,o+5,2) substr(h,o+3,2) substr(h,o+1,2)) }
+	function hx(n,   s, d) { s = ""; do { d = n % 16; s = substr("0123456789abcdef", d + 1, 1) s; n = (n - d) / 16 } while (n > 0); return "0x" s }
+	function flush() {
+		if (inpci && class ~ /^03/ && aa != "")
+			for (o = 0; o + 40 <= length(aa); o += 40) {
+				hi = le(aa, o); bar = hx(hi % 256)
+				start = le(aa, o + 8) * 4294967296 + le(aa, o + 16)
+				size = le(aa, o + 24) * 4294967296 + le(aa, o + 32)
+				printf "%s:%s %s %s %s\n", vendor, device, bar, hx(start), hx(size)
+			}
+		aa = ""; class = ""
+	}
+	/\+-o / { flush(); inpci = ($0 ~ /<class IOPCIDevice/) }
+	inpci && /"vendor-id" = </ { v = $0; sub(/.*</, "", v); sub(/>.*/, "", v); vendor = substr(v,3,2) substr(v,1,2) }
+	inpci && /"device-id" = </ { v = $0; sub(/.*</, "", v); sub(/>.*/, "", v); device = substr(v,3,2) substr(v,1,2) }
+	inpci && /"class-code" = </ { v = $0; sub(/.*</, "", v); sub(/>.*/, "", v); class = substr(v,5,2) substr(v,3,2) substr(v,1,2) }
+	inpci && /"assigned-addresses" = </ { aa = $0; sub(/.*</, "", aa); sub(/>.*/, "", aa) }
+	END { flush() }
+	' "$RAW/ioreg-pci.txt"
+}
+
+display_check() {
+	section "Display"
+	local hb=$ROOT/heartbeat boot last
+	boot=$(sysctl_n kern.boottime | sed -E 's/.*sec = ([0-9]+).*/\1/')
+	if [ -f "$hb" ]; then
+		read -r hbboot hblast < "$hb"
+		if [ "$hbboot" != "$boot" ]; then
+			result INFO "previous boot" "lasted at least $((hblast - hbboot)) s (last heartbeat $(date -u -r "$hblast" '+%H:%M:%S UTC'))"
+		fi
+	fi
+	run bootargs sysctl kern.bootargs
+	grep -iE 'IOFB:|console relocated|lost console|console setting|console [0-9]+ x' "$RAW/dmesg.txt" >> "$DETAIL"
+	# IOGOPFramebuffer publishes the geometry the firmware gave.
+	local fb fbw
+	ioreg -l -w0 -r -c IOGOPFramebuffer > "$RAW/ioreg-gop.txt" 2>&1
+	# ioreg prints numbers in decimal (or as 0x... when asked): as hex here.
+	fb=$(awk -F'= ' "$AWK_HEX"'
+	    function hx(n,   s, d) { s = ""; do { d = n % 16; s = substr("0123456789abcdef", d + 1, 1) s; n = (n - d) / 16 } while (n > 0); return "0x" s }
+	    /"MinkarFramebufferAddress"/ { v = $2; print (v ~ /^0x/) ? v : hx(v + 0); exit }' "$RAW/ioreg-gop.txt")
+	fbw=$(awk -F'= ' '/"MinkarFramebufferWidth"/ { w = $2 } /"MinkarFramebufferHeight"/ { h = $2 }
+	    /"MinkarFramebufferRowBytes"/ { r = $2 } END { if (w != "") printf "%sx%s, %s bytes per row", w, h, r }' "$RAW/ioreg-gop.txt")
+	result INFO "framebuffer" "${fbw:-?} at ${fb:-unknown}"
+	if grep -q 'console relocated' "$RAW/dmesg.txt"; then
+		result WARN "pci: console" "PCI configuration moved the framebuffer: $(grep -oE 'console relocated to 0x[0-9a-f]+' "$RAW/dmesg.txt" | tail -1)"
+	else
+		result INFO "pci: console" "not moved by PCI configuration (or not logged: boot with pci=0x1)"
+	fi
+	gpu_windows > "$RAW/gpu-windows.txt"
+	printf '\nGPU windows (vendor:device bar start size):\n' >> "$DETAIL"
+	cat "$RAW/gpu-windows.txt" >> "$DETAIL"
+	local n inside=0
+	n=$(wc -l < "$RAW/gpu-windows.txt" | tr -d " ")
+	result INFO "gpu windows" "$n assigned (raw/gpu-windows.txt)"
+	if [ -n "$fb" ]; then
+		inside=$(awk -v fb="$fb" "$AWK_HEX"'BEGIN { f = hex(fb) } { s = hex($3); z = hex($4); if (f >= s && f < s + z) { print $1 " " $2; exit } }' "$RAW/gpu-windows.txt")
+		if [ -n "$inside" ]; then
+			result PASS "framebuffer in a gpu window" "$inside"
+		else
+			result FAIL "framebuffer in a gpu window" "$fb is in no window a GPU decodes now"
+		fi
+	fi
+	local low
+	low=$(awk "$AWK_HEX"'{ if (hex($3) < 4294967296 && hex($4) >= 16777216) print $1 " " $2 " " $3 " " $4 }' "$RAW/gpu-windows.txt")
+	result INFO "gpu windows below 4 GB" "${low:-none}"
+	# With pci=0x1, raw/dmesg.txt has every BAR the configurator wrote and
+	# what it read back.
+	grep -q 'PCI configuration begin' "$RAW/dmesg.txt" &&
+	    result INFO "pci configuration log" "$(grep -c '  \[0x' "$RAW/dmesg.txt") BAR writes logged (raw/dmesg.txt)"
+	# The heartbeat: this boot's start and the last time it was alive.
+	nohup sh -c "while :; do echo \"$boot \$(date -u +%s)\" > $hb.new && mv $hb.new $hb && sync; sleep 10; done" \
+	    > /dev/null 2>&1 < /dev/null &
+	result INFO "heartbeat" "every 10 s in $hb until shutdown"
+}
+
+if [ "$MODE" = display ]; then
+	display_check
+	finish
+	exit 0
+fi
 
 # Each PCI device, its IDs and the driver that matched it.
 {
