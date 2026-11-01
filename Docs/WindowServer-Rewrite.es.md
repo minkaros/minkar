@@ -265,7 +265,7 @@ WS0 está hecho (31 oct 2026).
 Atajos tomados (sección 9): root puede abrir la conexión de servidor de
 IOHIDSystem, porque todavía ningún módulo de política valida las firmas de
 código y ningún proceso tiene entitlements (`SHORTCUT(WS4a)` en
-`IOHIDUserClient.cpp`); los hilos del servidor actual tienen pilas de 4 MB
+`IOHIDUserClient.cpp`, quitado el 1 nov 2026 con el ADR 0001); los hilos del servidor actual tienen pilas de 4 MB
 para sus mensajes de 128 KB (`SHORTCUT(WS4b)` en `main.m`); el job de launchd
 ejecuta solo el compositor (`-x`), porque LoginWindow no se compila
 (`SHORTCUT(WS4b)` en su plist); Inter es la fuente provisional del sistema
@@ -559,7 +559,7 @@ Decidido el 31 oct 2026, según la regla general de la sección 1:
 | Daño de AppKit | AppKit envía los rectángulos que redibujó | Toda la ventana en cada flush (`SHORTCUT(WS5)` en `NSWindow.m`, tomado en WS2) | WS5 (IOSurface) |
 | Cola de entrada | La entrada se lee y se reparte en su propia cola de alta prioridad, sobre una instantánea del modelo | En la cola IPC (`SHORTCUT(WS4a)` en el `main.m` del servidor, tomado en WS3) | WS4a |
 | Estado HID de `CGEventSource` | Se pregunta al servidor de ventanas | No se pregunta: botones, teclas y modificadores se leen como no pulsados (`SHORTCUT(WS4a)` en `CGEvent.m`, tomado en WS3) | WS4a |
-| Validación de entitlements en el kernel | Una trust cache estática de los binarios del sistema y un kext de política MAC propio (sección 9.1) | Root puede abrir la conexión de servidor de IOHIDSystem (`SHORTCUT(WS4a)` en `IOHIDUserClient.cpp`) | WS4a (se implementa antes) |
+| Validación de entitlements en el kernel | Una trust cache estática de los binarios del sistema y un kext de política MAC propio (sección 9.1) | Root puede abrir la conexión de servidor de IOHIDSystem (`SHORTCUT(WS4a)` en `IOHIDUserClient.cpp`) | Se quitó el 1 nov 2026 (`8366b8d0f6`), antes de WS4a |
 
 ### 9.1 Validación de entitlements en el kernel
 
@@ -593,7 +593,8 @@ Minkar tiene entitlements. Decidido el 31 oct 2026:
   pruebas: un binario del sistema que está en la trust cache obtiene un
   entitlement restringido; una copia refirmada fuera de la caché se rechaza; un binario
   firmado ad hoc conserva sus entitlements no restringidos. Entonces se quita
-  el atajo de root de `IOHIDUserClient.cpp` (`SHORTCUT(WS4a)`).
+  el atajo de root de `IOHIDUserClient.cpp` (`SHORTCUT(WS4a)`). Hecho el 1
+  nov 2026 (`57c6d5734b`, `48ee7a4288`, `24412d4182`, `c1cda1f1ae`, `f77748bbb7`, `8366b8d0f6`): ver el final del ADR.
 
 Cada atajo queda marcado en el código como dice la sección 8, con el hito
 que lo quita, para listar con `git grep` los atajos de cada hito.

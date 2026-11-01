@@ -1,6 +1,6 @@
 # ADR 0001: Kernel entitlement validation
 
-Status: accepted, 2026-11-01. Implements section 9.1 of
+Status: accepted, 2026-11-01; implemented the same day (see the end). Implements section 9.1 of
 `Docs/WindowServer-Rewrite.md` (option C, decided 2026-10-31). Required
 before WS4a, where WindowServer stops running as root.
 
@@ -17,7 +17,7 @@ so:
 - no process is `CS_SIGNED`, and no process has entitlements;
 - IOKit's entitlement checks (`IOUserClient::copyClientEntitlement`,
   `IOTaskHasEntitlement`) always fail, which is why root may open
-  IOHIDSystem's server connection (`SHORTCUT(WS0)` in `IOHIDUserClient.cpp`);
+  IOHIDSystem's server connection (`SHORTCUT(WS4a)` in `IOHIDUserClient.cpp`);
 - most system binaries are not signed at all: only app bundles are, ad hoc,
   by `minkar.app.mk` with `Developer/Default.xctoolchain/codesign/codesign.py`.
 
@@ -30,23 +30,28 @@ hash type and flags) is still usable.
 
 ### 1. Every system binary is signed
 
-- `bsd.prog.mk` and `bsd.lib.mk` gain the `ENTITLEMENTS` variable that
-  `minkar.app.mk` already has. Installed executables are signed ad hoc with
-  `codesign.py`, with an identifier `org.minkar.<name>` (bundle code keeps its
-  `CFBundleIdentifier`) and the entitlements, if any.
-- Code not built by these rules (LLVM, third-party build systems) is signed
-  by the image step below, ad hoc, without entitlements.
+- A program that needs entitlements is signed ad hoc with `codesign.py` when
+  it is installed, with its entitlements: app bundles through
+  `minkar.app.mk` (`ENTITLEMENTS`), other programs in their own Makefile
+  (the new WindowServer, `hidevents`, `cstest`).
+- Every other executable is signed by the image step below, ad hoc, without
+  entitlements, with the identifier `org.minkar.<name>` (bundle code keeps
+  its `CFBundleIdentifier`).
 
 ### 2. The image build writes a static trust cache
 
 - A new tool, `tools/mktrustcache.py`, runs in `Image/Makefile` before the
-  disk image is made. It walks the sysroot, signs every Mach-O executable
-  and library that has no signature, reads each CodeDirectory, computes its
-  CDHash (SHA-256 of the CodeDirectory, first 20 bytes) and writes a version 1
-  trust cache, sorted, with a fresh UUID.
+  disk image is made. It walks the sysroot and signs every Mach-O
+  executable (and dyld) that has no signature, or whose code changed after
+  it was signed (keeping its identifier and entitlements). It reads each
+  CodeDirectory, computes its CDHash (SHA-256 of the CodeDirectory, first
+  20 bytes) and writes a version 1 trust cache, sorted, with a UUID derived
+  from its entries (the same sysroot gives the same file). Libraries are not
+  signed yet: only executables carry entitlements, and library validation is
+  out of scope.
 - It is installed at `/System/Library/Security/TrustCache` (root-owned,
-  mode 0644). The image build checks that every Mach-O file in the sysroot
-  is in it.
+  mode 0644), with every executable of the sysroot in it, except the paths
+  given with `--exclude` (cstest's copies that must stay outside).
 
 ### 3. A MAC policy kext marks system binaries
 
@@ -80,9 +85,11 @@ hash type and flags) is still usable.
 - Restricted: every other name, such as `com.apple.hid.system.server-access`
   and the private ones. Only platform binaries may carry them.
 - A signature outside the trust cache that carries a restricted entitlement
-  is refused, as on the reference platform: the policy returns an error with
-  a reason, the process does not start, and the console names the refused
-  entitlement. No entitlement reader, in the kernel or in user space
+  is refused, as on the reference platform: the policy returns an error and
+  a fatal failure reason, the process is killed at exec (SIGKILL, with a
+  code signing exit reason), and the console names the refused entitlement.
+  A plain error is not enough: without enforcement the kernel would run the
+  binary as unsigned. No entitlement reader, in the kernel or in user space
   (`SecTask` reads the raw blob through `csops`), can then see it, so XNU's
   readers need no change.
 
@@ -100,7 +107,7 @@ a new boottest gate step:
    (`csops(CS_OPS_ENTITLEMENTS_BLOB)`).
 4. An unsigned binary still runs and is not `CS_SIGNED`.
 
-When the tests pass, `SHORTCUT(WS0)` in `IOHIDUserClient.cpp` is removed and
+When the tests pass, `SHORTCUT(WS4a)` in `IOHIDUserClient.cpp` is removed and
 the WindowServer job (WS4a) carries `com.apple.hid.system.server-access`.
 
 ## Alternatives considered
@@ -120,3 +127,23 @@ the WindowServer job (WS4a) carries `com.apple.hid.system.server-access`.
 - Protecting the trust cache file beyond root ownership (a sealed system
   volume is a later topic).
 - Certificate signatures and provisioning profiles (Phase 7).
+
+## Implementation
+
+Done on 2026-11-01 (`57c6d5734b`, `48ee7a4288`, `24412d4182`, `c1cda1f1ae`, `f77748bbb7`, `8366b8d0f6`):
+
+- XNU loads security extensions with `org.minkar.` bundle IDs early
+  (`libsa/bootstrap.cpp`).
+- `Kernel/Extensions/MinkarCodeIntegrity`, in the kernelcache.
+- `tools/mktrustcache.py` (host tests: `tools/check/test_mktrustcache.py`),
+  run by `Image/Makefile`.
+- `cstest` (`Kernel/Extensions/MinkarCodeIntegrity/tests`), checked by gate
+  M2 and a local image test: the copy in the cache is a platform binary
+  with its restricted entitlement and IOHIDSystem accepts it as server, as
+  nobody; the re-signed copy is killed at exec; the ad-hoc copy keeps
+  `com.apple.security.get-task-allow` and IOHIDSystem refuses it; the
+  unsigned copy runs, unsigned.
+- `SHORTCUT(WS4a)` removed from `IOHIDUserClient.cpp`: root no longer may
+  open IOHIDSystem's server connection. Both window servers and
+  `hidevents` (now installed in the image, for the input tests) are signed
+  with `com.apple.hid.system.server-access`.

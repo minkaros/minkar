@@ -241,7 +241,8 @@ WS0 is done (2026-10-31).
 
 Shortcuts taken (section 9): root may open IOHIDSystem's server
 connection, since no policy module validates code signatures yet and no
-process has entitlements (`SHORTCUT(WS4a)` in `IOHIDUserClient.cpp`); the
+process has entitlements (`SHORTCUT(WS4a)` in `IOHIDUserClient.cpp`,
+removed on 2026-11-01 with ADR 0001); the
 legacy server's threads get 4 MB stacks for its 128 KB messages
 (`SHORTCUT(WS4b)` in `main.m`); the launchd job runs the compositor only
 (`-x`), since LoginWindow is not built (`SHORTCUT(WS4b)` in its plist);
@@ -516,7 +517,7 @@ Decided 2026-10-31, following the guiding rule in section 1:
 | AppKit's damage | AppKit sends the rects it redrew | The whole window at each flush (`SHORTCUT(WS5)` in `NSWindow.m`, taken in WS2) | WS5 (IOSurface) |
 | Input queue | Input read and routed on its own high-priority queue, over a model snapshot | On the IPC queue (`SHORTCUT(WS4a)` in the server's `main.m`, taken in WS3) | WS4a |
 | `CGEventSource` HID state | Asked of the window server | Not asked: buttons, keys and flags read as up (`SHORTCUT(WS4a)` in `CGEvent.m`, taken in WS3) | WS4a |
-| Kernel entitlement validation | A static trust cache of system binaries and our own MAC policy kext (section 9.1) | Root may open IOHIDSystem's server connection (`SHORTCUT(WS4a)` in `IOHIDUserClient.cpp`) | WS4a (implemented before it) |
+| Kernel entitlement validation | A static trust cache of system binaries and our own MAC policy kext (section 9.1) | Root may open IOHIDSystem's server connection (`SHORTCUT(WS4a)` in `IOHIDUserClient.cpp`) | Removed 2026-11-01 (`8366b8d0f6`), before WS4a |
 
 ### 9.1 Kernel entitlement validation
 
@@ -548,7 +549,8 @@ source, so no Minkar process has entitlements today. Decided 2026-10-31:
   system binary in the trust cache gets a restricted entitlement; a re-signed
   copy outside the cache is refused; an ad-hoc signed binary keeps its
   unrestricted entitlements. The root shortcut in `IOHIDUserClient.cpp`
-  (`SHORTCUT(WS4a)`) is removed then.
+  (`SHORTCUT(WS4a)`) is removed then. Done on 2026-11-01 (`57c6d5734b`, `48ee7a4288`, `24412d4182`, `c1cda1f1ae`, `f77748bbb7`, `8366b8d0f6`):
+  see the end of the ADR.
 
 Every shortcut is marked in the code as section 8 says, with the milestone
 that removes it, so each milestone's shortcuts can be listed with
