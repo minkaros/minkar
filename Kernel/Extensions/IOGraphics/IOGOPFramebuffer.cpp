@@ -69,6 +69,13 @@ IOGOPFramebuffer::start(IOService *provider)
     bpp    = 32;
 
     IOLog("IOFB: GOP framebuffer %dx%d @ %p\n", width, height, fbBase);
+    // Minkar: the geometry the firmware gave and the console uses, for
+    // hardware checks (minkar-hwcheck --display): the address must lie in
+    // a window the GPU decodes.
+    setProperty("MinkarFramebufferAddress", (unsigned long long)(uintptr_t)fbBase, 64);
+    setProperty("MinkarFramebufferWidth", (unsigned long long)width, 32);
+    setProperty("MinkarFramebufferHeight", (unsigned long long)height, 32);
+    setProperty("MinkarFramebufferRowBytes", (unsigned long long)pitch, 32);
 
     // Register the framebuffer with the kernel console system
     PE_Video consoleInfo;
