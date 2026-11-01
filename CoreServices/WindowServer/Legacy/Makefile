@@ -25,17 +25,15 @@ SRCS = \
 	WindowServer.m \
 	main.m
 
+# The window controls (close, mini, zoom; hover, Inactive and Dark
+# variants, @2x for double density), drawn by AppKit's NSThemeFrame.
+DECORATIONS != ls ${.CURDIR}/Decorations/*.png
+
 RESOURCES = \
 	${.CURDIR}/Icon.png \
 	${.CURDIR}/Cursors/arrowCursor.png \
 	${.CURDIR}/Cursors/resizeCursor.png \
-	${.CURDIR}/Decorations/close.png \
-	${.CURDIR}/Decorations/closeHover.png \
-	${.CURDIR}/Decorations/mini.png \
-	${.CURDIR}/Decorations/miniHover.png \
-	${.CURDIR}/Decorations/zoom.png \
-	${.CURDIR}/Decorations/zoomUpHover.png \
-	${.CURDIR}/Decorations/zoomDownHover.png
+	${DECORATIONS}
 
 FRAMEWORKS = AppKit Foundation CoreFoundation CoreGraphics Onyx2D IOKit
 
