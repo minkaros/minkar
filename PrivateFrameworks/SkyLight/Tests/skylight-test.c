@@ -459,6 +459,68 @@ ownList(uint32_t option, SLSWindowID relative, SLSWindowID *own, uint32_t max)
 	return k;
 }
 
+/* Status items (WS4a): windows made status items, laid out right to left
+ * in the main display's menu bar. */
+static double
+windowX(SLSWindowID w, double *y)
+{
+	SLSWindowInfo info;
+
+	memset(&info, 0, sizeof(info));
+	SLSGetWindowInfo(w, &info);
+	if (y != NULL)
+		*y = info.y;
+	return info.x;
+}
+
+static void
+testStatusArea(void)
+{
+	SLSDisplayInfo d;
+	SLSWindowID one = 0, two = 0;
+	double y = -1, right;
+
+	SLSGetDisplayInfo(SLSMainDisplayID(), &d);
+	right = d.x + d.width;
+	SLSNewWindow(kSLSStatusWindowLevel, (SLSRect){ 5, 300, 30, 22 }, &one);
+	SLSNewWindow(kSLSStatusWindowLevel, (SLSRect){ 5, 300, 50, 22 }, &two);
+	SLSOrderWindow(one, kSLSOrderAbove, 0);
+	SLSOrderWindow(two, kSLSOrderAbove, 0);
+	check(windowX(one, NULL) == 5, "a window at the status level stays where it is", NULL);
+	check(SLSSetWindowStatusItem(one, 1) == kSLSErrorSuccess &&
+	    SLSSetWindowStatusItem(two, 1) == kSLSErrorSuccess, "two windows become status items",
+	    NULL);
+	check(windowX(one, &y) == right - 30 && y == d.y,
+	    "the first status item goes at the right of the menu bar", NULL);
+	check(windowX(two, NULL) == right - 80, "the next one to its left", NULL);
+	SLSSetWindowFrame(two, (SLSRect){ 0, 0, 40, 22 });
+	check(windowX(two, &y) == right - 70 && y == d.y,
+	    "a status item keeps its width and the server its place", NULL);
+	SLSOrderWindow(one, kSLSOrderOut, 0);
+	check(windowX(two, NULL) == right - 40, "the items close up when one goes", NULL);
+	check(SLSSetWindowStatusItem(two, 0) == kSLSErrorSuccess, "a status item stops being one",
+	    NULL);
+	SLSSetWindowFrame(two, (SLSRect){ 5, 300, 40, 22 });
+	check(windowX(two, NULL) == 5, "and its window is its own again", NULL);
+	check(SLSSetWindowStatusItem(0xdeadbeef, 1) == kSLSErrorIllegalArgument,
+	    "an unknown window is no status item", NULL);
+	/* Its app was told where the server put each one; the queue is read
+	 * empty for the next tests. */
+	{
+		SLSEvent events[kSLSMaxEvents];
+		uint32_t n = 0;
+		int told = 0;
+		while (SLSReceiveEvents(events, kSLSMaxEvents, &n, 0) == kSLSErrorSuccess && n > 0)
+			for (uint32_t i = 0; i < n; i++)
+				if (events[i].type == kSLSEventWindowMoved && events[i].window == one &&
+				    events[i].x == right - 30)
+					told = 1;
+		check(told, "the app is told where its status item went", NULL);
+	}
+	SLSReleaseWindow(one);
+	SLSReleaseWindow(two);
+}
+
 static void
 testWindows(void)
 {
@@ -1002,6 +1064,7 @@ main(int argc, char *argv[])
 	testCapture();
 	testCursor();
 	testWindows();
+	testStatusArea();
 	testSurfaces();
 	testEvents();
 	testClientExit(argv[0]);

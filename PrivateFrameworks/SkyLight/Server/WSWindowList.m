@@ -35,10 +35,12 @@
 #include <libproc.h>
 #include <math.h>
 #include <stdio.h>
+#include <string.h>
 #import "WSWindowList.h"
 #import "WSConnection.h"
 #import "WSCompositor.h"
 #import "WSSurface.h"
+#import "WSEvents.h"
 #include "WindowServerServer.h"	/* MIG server side */
 
 @interface WSWindow ()
@@ -146,6 +148,61 @@ frameIsValid(SLSRect f)
 	    f.width >= 0 && f.height >= 0;
 }
 
+/* ---- The status area ---- */
+
+/* Status items, right to left in the order they came (WS4a). Their order
+ * kept across sessions and Command-drag come with MB1. */
+static NSMutableArray<WSWindow *> *statusItems;
+
+static void
+layoutStatusArea(void)
+{
+	WSDisplay *d = WSDisplays.firstObject;
+	double right;
+
+	if (d == nil)
+		return;
+	right = d.x + d.width;
+	for (WSWindow *w in statusItems) {
+		if (!w.onScreen)
+			continue;
+		SLSRect f = w.frame;
+		right -= f.width;
+		if (f.x == right && f.y == d.y)
+			continue;
+		f.x = right;
+		f.y = d.y;
+		WSWindowSetFrame(w, f);
+		/* Its app learns where it is, as after a move. */
+		SLSEvent moved;
+		memset(&moved, 0, sizeof(moved));
+		moved.type = kSLSEventWindowMoved;
+		moved.window = w.windowID;
+		moved.x = f.x;
+		moved.y = f.y;
+		moved.clickCount = 1;
+		moved.timestamp = WSNanoseconds();
+		if (w.owner != nil)
+			WSEventsEnqueue(w.owner, &moved);
+	}
+}
+
+/* A window went: the items left of it close up. */
+static void
+statusItemGone(WSWindow *w)
+{
+	if (![statusItems containsObject:w])
+		return;
+	[statusItems removeObject:w];
+	layoutStatusArea();
+}
+
+static BOOL
+isStatusItem(WSWindow *w)
+{
+	return [statusItems containsObject:w];
+}
+
 WSWindow *
 WSWindowCreate(WSConnection *owner, int32_t level, SLSRect frame)
 {
@@ -167,6 +224,7 @@ WSWindowRelease(WSWindow *w)
 	[stack removeObject:w];
 	[allWindows removeObject:w];
 	w.onScreen = NO;
+	statusItemGone(w);
 }
 
 void
@@ -204,8 +262,12 @@ WSWindowOrder(WSWindow *w, int32_t place, SLSWindowID relativeTo)
 	damageWindow(w);
 	[stack removeObject:w];
 	w.onScreen = NO;
-	if (place == kSLSOrderOut)
+	if (place == kSLSOrderOut) {
+		/* The status items left of it close up. */
+		if (isStatusItem(w))
+			layoutStatusArea();
 		return kSLSErrorSuccess;
+	}
 
 	NSUInteger index;
 	/* Next to the relative window when it is on screen at the same level;
@@ -219,6 +281,8 @@ WSWindowOrder(WSWindow *w, int32_t place, SLSWindowID relativeTo)
 	[stack insertObject:w atIndex:index];
 	w.onScreen = YES;
 	damageWindow(w);
+	if (isStatusItem(w))
+		layoutStatusArea();
 	return kSLSErrorSuccess;
 }
 
@@ -300,11 +364,32 @@ wss_window_set_frame(mach_port_t server, audit_token_t token, uint32_t window,
 	WSWindow *w = ownWindow(token, window, result);
 
 	if (w != nil) {
-		if (frameIsValid(frame))
+		if (frameIsValid(frame)) {
 			WSWindowSetFrame(w, frame);
-		else
+			/* A status item's width is its own, its place the server's. */
+			if (isStatusItem(w))
+				layoutStatusArea();
+		} else
 			*result = kSLSErrorIllegalArgument;
 	}
+	return KERN_SUCCESS;
+}
+
+kern_return_t
+wss_window_set_status_item(mach_port_t server, audit_token_t token, uint32_t window,
+    int32_t item, int32_t *result)
+{
+	WSWindow *w = ownWindow(token, window, result);
+
+	if (w == nil)
+		return KERN_SUCCESS;
+	if (statusItems == nil)
+		statusItems = [NSMutableArray array];
+	if (item && !isStatusItem(w)) {
+		[statusItems addObject:w];
+		layoutStatusArea();
+	} else if (!item)
+		statusItemGone(w);
 	return KERN_SUCCESS;
 }
 

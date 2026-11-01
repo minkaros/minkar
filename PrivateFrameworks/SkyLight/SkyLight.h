@@ -48,7 +48,7 @@ extern "C" {
 #define kSLSServiceName		"org.minkar.WindowServer.next"
 
 /* The interface version both sides are built for. */
-#define kSLSInterfaceVersion	7
+#define kSLSInterfaceVersion	8
 
 typedef int32_t SLSConnectionID;
 
@@ -127,6 +127,7 @@ int SLSGetDisplayInfo(SLSDisplayID display, SLSDisplayInfo *info);
  */
 #define kSLSMenuBarHeight	22
 int SLSGetDisplayMenuBarHeight(SLSDisplayID display, uint32_t *height);
+
 
 /* ---- Display modes and configuration ---------------------------------- */
 
@@ -268,6 +269,12 @@ int SLSReleaseDisplay(SLSDisplayID display);
 int SLSDisplayCapturedBy(SLSDisplayID display, int32_t *pid);
 /* The shielding window over a captured display, or 0. */
 uint32_t SLSShieldingWindowID(SLSDisplayID display);
+/* The menu levels, as the public kCGMainMenuWindowLevel,
+ * kCGStatusWindowLevel and kCGPopUpMenuWindowLevel. */
+#define kSLSMainMenuWindowLevel		24
+#define kSLSStatusWindowLevel		25
+#define kSLSPopUpMenuWindowLevel	101
+
 /* The level of shielding windows, as the public CGShieldingWindowLevel. */
 #define kSLSShieldingWindowLevel	2147483630
 
@@ -357,6 +364,17 @@ int SLSOrderWindow(SLSWindowID window, int32_t place, SLSWindowID relativeTo);
 int SLSWindowListCopy(uint32_t option, SLSWindowID relativeTo, uint32_t max,
     SLSWindowID *windows, uint32_t *count);
 int SLSGetWindowInfo(SLSWindowID window, SLSWindowInfo *info);
+
+/*
+ * Status items (interface version 8): a window of its app made a status
+ * item is laid out by the server in the main display's menu bar, right to
+ * left in the order the items came, as wide as its frame; the server
+ * places it and tells its app (kSLSEventWindowMoved). Shown items only
+ * take room. A window at the status level that is not a status item is
+ * left where its app puts it.
+ */
+int SLSSetWindowStatusItem(SLSWindowID window, int isItem);
+
 /* 0 (transparent) to 1 (opaque); the server blends the surface with it. */
 int SLSSetWindowAlpha(SLSWindowID window, double alpha);
 

@@ -473,3 +473,12 @@ routine display_menu_bar_height(
 	display			: uint32_t;
 	out result		: int32_t;
 	out height		: uint32_t);
+
+/* ---- Status items (interface version 8) ---- */
+
+routine window_set_status_item(
+	server			: mach_port_t;
+	ServerAuditToken token	: audit_token_t;
+	window			: uint32_t;
+	item			: int32_t;
+	out result		: int32_t);

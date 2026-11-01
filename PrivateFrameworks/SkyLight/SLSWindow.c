@@ -164,3 +164,15 @@ SLSGetServerStats(SLSServerStats *stats)
 		return kSLSErrorFailure;
 	return kSLSErrorSuccess;
 }
+
+int
+SLSSetWindowStatusItem(SLSWindowID window, int isItem)
+{
+	int32_t result = kSLSErrorFailure;
+	mach_port_t server = SLSServerPort();
+
+	if (server == MACH_PORT_NULL ||
+	    ws_window_set_status_item(server, window, isItem != 0, &result) != KERN_SUCCESS)
+		return kSLSErrorFailure;
+	return result;
+}
