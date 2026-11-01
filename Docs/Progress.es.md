@@ -88,12 +88,12 @@ flowchart TB
         IOS["IOSurface<br/>paso 4"]:::todo
     end
     subgraph SERVER["Servidor de ventanas"]
-        WS["WindowServer<br/>se ejecuta a mano, con entrada<br/>paso 2 (WS0)"]:::partial
+        WS["WindowServer<br/>WS0 hecho: ventanas de AppKit<br/>con entrada (M4-draw)<br/>núcleo nuevo: paso 2"]:::partial
     end
     subgraph INPUT["Entrada"]
         HIDH["IOKit/hidsystem<br/>headers"]:::done
         USB["xHCI + HID<br/>(MinkarUSB)"]:::done
-        KBD["Teclado PS/2<br/>consola e IOHIDSystem"]:::partial
+        KBD["Teclado PS/2"]:::done
         MOUSE["ApplePS2Mouse"]:::done
         HIDS["Entrega de eventos<br/>de IOHIDSystem"]:::done
     end
@@ -143,7 +143,7 @@ flowchart LR
     classDef todo fill:#9e9e9e,stroke:#616161,color:#fff
 ```
 
-El paso 1 está hecho (verde, 31 oct 2026); el paso 2 es el siguiente (azul):
-WindowServer se ejecuta a mano con entrada y aún tiene que arrancar en el boot y
-dibujar una ventana de un cliente. G1 empieza en cuanto se decida la familia de GPU; las flechas discontinuas marcan lo
+El paso 1 está hecho (verde, 31 oct 2026); el paso 2 es el siguiente (azul): su
+primer hito, WS0, está hecho (el WindowServer actual dibuja ventanas de AppKit con
+entrada, gate M4-draw); después viene el núcleo nuevo (WS1 a WS6). G1 empieza en cuanto se decida la familia de GPU; las flechas discontinuas marcan lo
 que el frente de GPU reutiliza de los pasos 4 y 5.

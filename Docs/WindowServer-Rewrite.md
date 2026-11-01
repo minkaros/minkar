@@ -222,19 +222,38 @@ State on 2026-10-31:
   what WindowServer reads. Test `hid-events` 9/0.
 - [x] (b) `ApplePS2Mouse` (`2aa9a1da6e`): moves, three buttons, the
   wheel. Test `ps2-mouse` 12/0.
-- [ ] (c) WindowServer. *Partial:* `IOGOPFramebuffer` gives the current
-  mode's pixel information (`f10f778c78`); the input backend reads the
-  queue, and the server no longer crashes at start (`ab71ce75a4`). Started
-  by hand it draws the cursor where QMP moves the pointer and logs the
-  clicks and keys (test `windowserver` 6/0). Left: the capture memory not
-  world-accessible, a demo client window, the launchd job.
-- [ ] (d) Gate `M4-draw`.
+- [x] (c) WindowServer: `IOGOPFramebuffer` gives the current mode's pixel
+  information (`f10f778c78`); the input backend reads the queue and the
+  server no longer crashes at start (`ab71ce75a4`); the capture memory is
+  the capturing client's only (`e2731c426f`); the framebuffer's server
+  connection is closed when its client goes away (`9f46a761ac`); window
+  surface names fit XNU's limit (`dc931eeeb0`); the launchd job is
+  installed disabled, with the demo client WindowServerDemo
+  (`f56c70bb88`). AppKit needed three fixes (`70b62fe8bc`), Onyx2D one
+  for fonts (`6888034ad2`), WindowServer one for apps without a bundle
+  (`0e3d06ec35`). Test `windowserver` 16/0.
+- [x] (d) Gate `M4-draw` (`cce7da92bc`): the screen matches the
+  reference (0 of 786432 pixels differ, twice in a row), and a click
+  (USB tablet) and a key (PS/2 keyboard) reach the demo's window as
+  `NSEvent`s. Full suite 3023 passed before (d); M2 passes.
+
+WS0 is done (2026-10-31). WS1 starts after review.
 
 Shortcuts taken (section 9): root may open IOHIDSystem's server
 connection, since no policy module validates code signatures yet and no
 process has entitlements (`SHORTCUT(WS0)` in `IOHIDUserClient.cpp`); the
 legacy server's threads get 4 MB stacks for its 128 KB messages
-(`SHORTCUT(WS0)` in `main.m`).
+(`SHORTCUT(WS0)` in `main.m`); the launchd job runs the compositor only
+(`-x`), since LoginWindow is not built (`SHORTCUT(WS0)` in its plist);
+Inter is the provisional system font until Gienah has its own
+(`SHORTCUT(WS0)` in `SystemLibrary/Fonts/Makefile`).
+
+Known issues left for later milestones: the window decorations are the
+images inherited from ravynOS, which look like the reference platform's
+(Gienah replaces them); POSIX shared memory objects ignore `fchown`, so a
+surface is the server's user's only (the surfaces become memory entries
+in WS2); an `NSEvent` is over-released when an app without windows
+exits; `CGLayer.h` cannot be included from C.
 
 ### WS1 — Skeleton and interface
 

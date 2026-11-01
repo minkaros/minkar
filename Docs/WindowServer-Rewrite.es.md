@@ -243,20 +243,42 @@ Estado al 31 oct 2026:
   Prueba `hid-events` 9/0.
 - [x] (b) `ApplePS2Mouse` (`2aa9a1da6e`): movimiento, tres botones y rueda.
   Prueba `ps2-mouse` 12/0.
-- [ ] (c) WindowServer. *Parcial:* `IOGOPFramebuffer` da la información de
-  píxeles del modo actual (`f10f778c78`); el backend de entrada lee la cola
-  y el servidor ya no se cae al arrancar (`ab71ce75a4`). Arrancado a mano
-  dibuja el cursor donde QMP mueve el puntero y registra los clics y las
-  teclas (prueba `windowserver` 6/0). Falta: la memoria de captura sin
-  acceso para todos, una ventana de un cliente de demostración y el job de
-  launchd.
-- [ ] (d) Gate `M4-draw`.
+- [x] (c) WindowServer: `IOGOPFramebuffer` da la información de píxeles del
+  modo actual (`f10f778c78`); el backend de entrada lee la cola y el
+  servidor ya no se cae al arrancar (`ab71ce75a4`); la memoria de captura
+  es solo del cliente que captura (`e2731c426f`); la conexión de servidor
+  del framebuffer se cierra cuando su cliente desaparece (`9f46a761ac`);
+  los nombres de las superficies caben en el límite de XNU (`dc931eeeb0`);
+  el job de launchd se instala desactivado, con el cliente de
+  demostración WindowServerDemo (`f56c70bb88`). AppKit necesitó tres
+  arreglos (`70b62fe8bc`), Onyx2D uno para las fuentes (`6888034ad2`) y
+  WindowServer uno para las apps sin bundle (`0e3d06ec35`). Prueba
+  `windowserver` 16/0.
+- [x] (d) Gate `M4-draw` (`cce7da92bc`): la pantalla coincide con la
+  referencia (0 de 786432 píxeles distintos, dos veces seguidas), y un clic
+  (tableta USB) y una tecla (teclado PS/2) llegan a la ventana de la
+  demostración como `NSEvent`. Suite completa con 3023 pruebas superadas
+  antes de (d); M2 pasa.
+
+WS0 está hecho (31 oct 2026). WS1 empieza después de la revisión.
 
 Atajos tomados (sección 9): root puede abrir la conexión de servidor de
 IOHIDSystem, porque todavía ningún módulo de política valida las firmas de
 código y ningún proceso tiene entitlements (`SHORTCUT(WS0)` en
 `IOHIDUserClient.cpp`); los hilos del servidor actual tienen pilas de 4 MB
-para sus mensajes de 128 KB (`SHORTCUT(WS0)` en `main.m`).
+para sus mensajes de 128 KB (`SHORTCUT(WS0)` en `main.m`); el job de launchd
+ejecuta solo el compositor (`-x`), porque LoginWindow no se compila
+(`SHORTCUT(WS0)` en su plist); Inter es la fuente provisional del sistema
+hasta que Gienah tenga la suya (`SHORTCUT(WS0)` en
+`SystemLibrary/Fonts/Makefile`).
+
+Problemas conocidos para hitos posteriores: las decoraciones de las ventanas
+son las imágenes heredadas de ravynOS, con el aspecto de la plataforma de
+referencia (Gienah las sustituye); los objetos de memoria compartida POSIX
+ignoran `fchown`, así que una superficie es solo del usuario del servidor
+(las superficies pasan a ser memory entries en WS2); un `NSEvent` se libera
+de más al salir una app sin ventanas; `CGLayer.h` no se puede incluir desde
+C.
 
 ### WS1 — Esqueleto e interfaz
 

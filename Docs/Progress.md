@@ -88,12 +88,12 @@ flowchart TB
         IOS["IOSurface<br/>step 4"]:::todo
     end
     subgraph SERVER["Window server"]
-        WS["WindowServer<br/>runs by hand, with input<br/>step 2 (WS0)"]:::partial
+        WS["WindowServer<br/>WS0 done: AppKit windows<br/>with input (M4-draw)<br/>new core: step 2"]:::partial
     end
     subgraph INPUT["Input"]
         HIDH["IOKit/hidsystem<br/>headers"]:::done
         USB["xHCI + HID<br/>(MinkarUSB)"]:::done
-        KBD["PS/2 keyboard<br/>console and IOHIDSystem"]:::partial
+        KBD["PS/2 keyboard"]:::done
         MOUSE["ApplePS2Mouse"]:::done
         HIDS["IOHIDSystem event<br/>delivery"]:::done
     end
@@ -143,7 +143,8 @@ flowchart LR
     classDef todo fill:#9e9e9e,stroke:#616161,color:#fff
 ```
 
-Step 1 is done (green, 2026-10-31); step 2 is next (blue): WindowServer runs
-by hand with input and still has to start at boot and draw a client window. G1 starts
+Step 1 is done (green, 2026-10-31); step 2 is next (blue): its first milestone,
+WS0, is done (the current WindowServer draws AppKit windows with input, gate
+M4-draw); the new core (WS1 to WS6) follows. G1 starts
 as soon as the GPU family is decided; the dashed arrows mark what the GPU
 track reuses from steps 4 and 5.
