@@ -316,7 +316,8 @@ display_check() {
 	boot=$(sysctl_n kern.boottime | sed -E 's/^[{] sec = ([0-9]+),.*/\1/')
 	if [ -f "$hb" ]; then
 		read -r hbboot hblast < "$hb"
-		if [ "$hbboot" != "$boot" ]; then
+		# A heartbeat from an older minkar-hwcheck has 0 for the boot.
+		if [ "${hbboot:-0}" != 0 ] && [ "$hbboot" != "$boot" ]; then
 			result INFO "previous boot" "lasted at least $((hblast - hbboot)) s (last heartbeat $(date -u -r "$hblast" '+%H:%M:%S UTC'))"
 		fi
 	fi
@@ -332,7 +333,9 @@ display_check() {
 	fbw=$(awk -F'= ' '/"MinkarFramebufferWidth"/ { w = $2 } /"MinkarFramebufferHeight"/ { h = $2 }
 	    /"MinkarFramebufferRowBytes"/ { r = $2 } END { if (w != "") printf "%sx%s, %s bytes per row", w, h, r }' "$RAW/ioreg-gop.txt")
 	result INFO "framebuffer" "${fbw:-?} at ${fb:-unknown}"
-	if grep -q 'console relocated' "$RAW/dmesg.txt"; then
+	if grep -q 'lost console' "$RAW/dmesg.txt"; then
+		result INFO "pci: console" "left where the firmware put it (PCI configuration could not place its window)"
+	elif grep -q 'console relocated' "$RAW/dmesg.txt"; then
 		result WARN "pci: console" "PCI configuration moved the framebuffer: $(grep -oE 'console relocated to 0x[0-9a-f]+' "$RAW/dmesg.txt" | tail -1)"
 	else
 		result INFO "pci: console" "not moved by PCI configuration (or not logged: boot with pci=0x1)"
@@ -350,7 +353,9 @@ display_check() {
 	wsize=$(awk -F'= ' '/"MinkarFramebufferWindowSize"/ { print $2; exit }' "$RAW/ioreg-gop.txt")
 	result INFO "framebuffer drivers" "$(grep -c '<class IOGOPFramebuffer' "$RAW/ioreg-gop.txt") IOGOPFramebuffer (one expected)"
 	if [ -n "$wbase" ] && [ -n "$fb" ]; then
-		result PASS "framebuffer in a gpu window" "$(awk -v b="$wbase" -v z="$wsize" 'BEGIN { printf "window of %d MB at %d (decimal)", z / 1048576, b }')"
+		result PASS "framebuffer in a gpu window" "$(awk -v b="$wbase" -v z="$wsize" '
+		    function hx(n,   s, d) { s = ""; do { d = n % 16; s = substr("0123456789abcdef", d + 1, 1) s; n = (n - d) / 16 } while (n > 0); return "0x" s }
+		    BEGIN { printf "window of %d MB at %s", z / 1048576, hx(b + 0) }')"
 		fb=""
 	fi
 	if [ -n "$fb" ]; then
