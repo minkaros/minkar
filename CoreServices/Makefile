@@ -16,5 +16,7 @@ SUBDIR = WindowServer/Legacy/libxkbcommon .WAIT WindowServer/Legacy WindowServer
 SUBDIR += .WAIT ../BSD/lib/libpixman .WAIT ../PrivateFrameworks/SkyLight/Server \
 	../PrivateFrameworks/SkyLight/Tests ../PrivateFrameworks/SkyLight/Tests/eventtap \
 	../PrivateFrameworks/SkyLight/Tools/wsctl
+# The code integrity policy's test program (it needs IOKit).
+SUBDIR += ../Kernel/Extensions/MinkarCodeIntegrity/tests
 
 .include <bsd.subdir.mk>

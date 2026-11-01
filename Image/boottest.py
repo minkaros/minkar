@@ -41,8 +41,10 @@ Gates from the architecture plan:
       password and the shell answers               (--gate M2-login)
   M2  M2-login, then the network: dhcpclient configures en0 (and tells
       configd, whose DNS configuration scutil shows), root logs
-      in over ssh from the host with a key, and the guest resolves the
-      host's name through DNS                      (--gate M2)
+      in over ssh from the host with a key, the guest resolves the
+      host's name through DNS, and the code integrity policy marks a
+      binary of the trust cache as a platform binary and refuses a copy
+      re-signed outside it                         (--gate M2)
   M4-draw  M2, then WindowServer (its launchd job enabled over ssh) and
       its demo client: the screen, taken through QMP, matches a
       reference image within a tolerance, and a click (USB tablet) and a
@@ -131,7 +133,19 @@ GATES = {
                  'launchd[1] has started up', 'login:', Send('root'), 'Password:',
                  PASSWORD, 'Welcome to Minkar.'] + SHELL_INPUT,
 }
-GATES['M2'] = GATES['M2-login'] + SSH_INPUT
+# Code integrity (Docs/ADR/0001-Kernel-Entitlements.md): cstest in the
+# trust cache is a platform binary; a copy re-signed outside it with the
+# same restricted entitlement is killed at exec (137: SIGKILL), and an
+# ad-hoc copy without it is refused by IOHIDSystem as its server.
+CS_OUTSIDE = '/usr/local/tests/codesign/outside'
+CODESIGN_INPUT = [SSH('dmesg | grep "MinkarCodeIntegrity: trust cache loaded"; '
+                      '/usr/local/bin/cstest status; '
+                      '%s/cstest-resigned status; echo "boottest: resigned rc=$?"; '
+                      '%s/cstest-adhoc hid' % (CS_OUTSIDE, CS_OUTSIDE)),
+                  'MinkarCodeIntegrity: trust cache loaded',
+                  'valid=1 adhoc=0 signed=1 platform=1',
+                  'boottest: resigned rc=137', 'refused']
+GATES['M2'] = GATES['M2-login'] + SSH_INPUT + CODESIGN_INPUT
 
 # Gate M4-draw (WindowServer plan, WS0): WindowServer's job is installed
 # disabled; enabled over ssh, it takes the screen. Its demo client opens
