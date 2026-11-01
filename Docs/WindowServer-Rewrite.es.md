@@ -364,6 +364,35 @@ también en reposo (sin dibujar ningún frame).
   correcta; un tap de solo escucha los ve; un tap que filtra puede descartar
   uno; `CGEventPost` llega a la ventana key.
 
+WS3 está hecho (1 nov 2026). Commits: entrada desde IOHIDSystem y
+reparto (`c3763a06a8`), movimientos por el servidor, taps y eventos
+publicados (`03bb7ed773`), los eventos de CoreGraphics (`fa7aae5e38`),
+AppKit (`13f99802d5`, `d0c63753c2`), gate M4-compose con entrada
+(`98237bf14e`). El servidor lee IOHIDSystem y reparte: los eventos de
+ratón a la ventana bajo el puntero, o a la que recibió el clic hasta que
+se sueltan todos los botones; las teclas a la ventana clave; un clic hace
+clave a su ventana. Cuenta los clics, repite las teclas mantenidas, agrupa
+los movimientos en la cola acotada de cada conexión y nunca espera a un
+cliente. El servidor mueve una ventana desde un clic en su barra de
+título. Funcionan `CGEventTapCreate`, `CGEventTapEnable`, `CGEventPost` y
+`CGGetEventTapList`; un tap filtrante que no responde en un segundo se
+desactiva. Pruebas: el test local de entrada (movimientos, clics, doble
+clic, repetición de teclas, un arrastre fuera de la ventana, un tap de
+solo escucha que ve la entrada inyectada), `eventtap-test` 15/0 (una
+tecla publicada que llega a la ventana clave, un tap filtrante que
+descarta una tecla, un tap desactivado por no responder), el gate
+M4-compose (un clic, una tecla y un arrastre de la barra de título a
+través de AppKit, 0 píxeles distintos). Encontrados por el camino: un
+evento liberado dentro de `nextEventMatchingMask:` (`13f99802d5`),
+`CGEventMaskBit` definido como su argumento, y `CGLayer.h` sin poder
+incluirse desde C (`b4f8ed015d`, el problema conocido de WS0).
+
+Atajos tomados (`SHORTCUT(WS3)`): la entrada se lee y se reparte en la
+cola IPC; la política integrada de la sección 9 decide quién publica y
+filtra (root o el usuario de la consola); `CGEventSource` todavía no
+pregunta el estado HID al servidor. El mapa de teclado y libxkbcommon
+siguen siendo los del servidor actual, enlazados desde allí hasta WS4.
+
 ### WS4 — Comportamiento de ventanas y cambio de servidor
 
 - `CGWindowListCopyWindowInfo` con las claves de diccionario de la

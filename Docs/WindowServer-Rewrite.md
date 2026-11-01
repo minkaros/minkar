@@ -332,6 +332,33 @@ idle (no frame is drawn then).
   listen-only tap sees them; a filtering tap can drop one; `CGEventPost`
   reaches the key window.
 
+WS3 is done (2026-11-01). Commits: input from IOHIDSystem and routing
+(`c3763a06a8`), server-side moves, taps and posting (`03bb7ed773`),
+CoreGraphics' events (`fa7aae5e38`), AppKit (`13f99802d5`,
+`d0c63753c2`), gate M4-compose with input (`98237bf14e`). The server
+reads IOHIDSystem and routes: mouse events to the window under the
+pointer, or to the one that got the mouse down until every button is up;
+keys to the key window; a click makes its window key. It counts clicks,
+repeats held keys, coalesces moves in each connection's bounded queue and
+never waits on a client. A window is moved by the server from a mouse
+down in its title bar. `CGEventTapCreate`, `CGEventTapEnable`,
+`CGEventPost` and `CGGetEventTapList` work; a filtering tap that does not
+answer within a second is disabled. Tests: the local input test (moves,
+clicks, double clicks, key repeat, a drag out of the window, a listen-only
+tap seeing injected input), `eventtap-test` 15/0 (a posted key reaching
+the key window, a filtering tap dropping a key, a tap disabled by
+timeout), gate M4-compose (a click, a key and a title-bar drag through
+AppKit, 0 pixels differing). Found on the way: an event freed under
+`nextEventMatchingMask:` (`13f99802d5`), `CGEventMaskBit` defined as its
+argument, and `CGLayer.h` not usable from C (`b4f8ed015d`, the known
+issue of WS0).
+
+Shortcuts taken (`SHORTCUT(WS3)`): input is read and routed on the IPC
+queue; the built-in policy of section 9 decides posting and filtering
+(root or the console's user); `CGEventSource` does not ask the server for
+the HID state yet. The keymap and libxkbcommon are still the legacy
+server's, linked from there until WS4.
+
 ### WS4 — Window behavior and the switch
 
 - `CGWindowListCopyWindowInfo` with the reference dictionary keys,
