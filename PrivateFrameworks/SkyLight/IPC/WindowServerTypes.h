@@ -41,6 +41,7 @@ typedef SLSDisplayConfigOp ws_display_config_list_t[kSLSMaxDisplayConfigOps];
 typedef float ws_gamma_table_t[3 * kSLSGammaTableCapacity];
 typedef SLSWindowID ws_window_list_t[kSLSMaxWindowList];
 typedef SLSIntRect ws_damage_t[kSLSMaxDamageRects];
+typedef SLSIntRect ws_region_t[kSLSMaxRegionRects];
 typedef SLSEvent ws_event_list_t[kSLSMaxEvents];
 
 /* The message the server sends a client's port when its event queue

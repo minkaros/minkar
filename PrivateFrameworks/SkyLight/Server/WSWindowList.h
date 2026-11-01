@@ -46,5 +46,11 @@
 @property (readonly, strong) id surface;
 /* A capture's shielding window: drawn opaque black. */
 @property BOOL shield;
+/* Its drag regions (SLSIntRect arrays, window coordinates). */
+@property (copy) NSData *dragRects;
+@property (copy) NSData *dragExcludes;
+
+/* Whether (x, y), in the window's coordinates, starts a server-side move. */
+- (BOOL)dragRegionContainsX:(double)x y:(double)y;
 
 @end

@@ -203,7 +203,7 @@ routeMouse(SLSEvent *e)
 		e->dy = now.y - previous.y;
 	}
 
-	/* A server-side move takes the left button's drags and its up. */
+	/* A server-side move takes the left button's drags; its up ends it. */
 	WSWindow *moving = moveWindow;
 	if (moving != nil && (isMove(e->type) || e->type == kSLSEventLeftMouseUp)) {
 		SLSRect f = moving.frame;
@@ -218,6 +218,9 @@ routeMouse(SLSEvent *e)
 		moved.clickCount = ends;
 		send(moving, &moved);
 		if (ends) {
+			/* The owner gets the mouse up that ends it, as for any click. */
+			e->clickCount = clickCount;
+			send(moving, e);
 			moveWindow = nil;
 			buttonsDown &= ~1u;
 			if (buttonsDown == 0)
@@ -245,6 +248,14 @@ routeMouse(SLSEvent *e)
 		/* A click makes its window key. */
 		if (target != nil && e->buttonNumber == 0)
 			keyWindow = target;
+		/* A left click in a drag region moves the window from now on,
+		 * whether or not its app answers (it still gets this click). */
+		if (target != nil && e->type == kSLSEventLeftMouseDown && buttonsDown == 1u &&
+		    [target dragRegionContainsX:e->x - target.frame.x y:e->y - target.frame.y]) {
+			moveWindow = target;
+			moveOffsetX = e->x - target.frame.x;
+			moveOffsetY = e->y - target.frame.y;
+		}
 	} else if (up) {
 		target = captureWindow ? captureWindow : WSWindowAtPoint(e->x, e->y);
 		buttonsDown &= ~(1u << e->buttonNumber);
@@ -340,6 +351,35 @@ wss_window_start_move(mach_port_t server, audit_token_t token, uint32_t window,
 		moveWindow = w;
 		moveOffsetX = p.x - w.frame.x;
 		moveOffsetY = p.y - w.frame.y;
+		*result = kSLSErrorSuccess;
+	}
+	return KERN_SUCCESS;
+}
+
+kern_return_t
+wss_window_set_drag_region(mach_port_t server, audit_token_t token, uint32_t window,
+    ws_region_t drag, mach_msg_type_number_t dragCount, ws_region_t exclude,
+    mach_msg_type_number_t excludeCount, int32_t *result)
+{
+	WSConnection *c = [WSConnection connectionForToken:token];
+	WSWindow *w = WSWindowWithID(window);
+
+	if (c == nil)
+		*result = kSLSErrorInvalidConnection;
+	else if (w == nil || dragCount > kSLSMaxRegionRects || excludeCount > kSLSMaxRegionRects)
+		*result = kSLSErrorIllegalArgument;
+	else if (w.owner != c)
+		*result = kSLSErrorCannotComplete;
+	else {
+		w.dragRects = [NSData dataWithBytes:drag length:dragCount * sizeof(SLSIntRect)];
+		w.dragExcludes = [NSData dataWithBytes:exclude
+		    length:excludeCount * sizeof(SLSIntRect)];
+		fprintf(stderr, "WindowServer: window %u drag region: %u rect(s), %u excluded",
+		    window, dragCount, excludeCount);
+		if (dragCount > 0)
+			fprintf(stderr, " (first %d,%d %dx%d)", drag[0].x, drag[0].y, drag[0].width,
+			    drag[0].height);
+		fprintf(stderr, "\n");
 		*result = kSLSErrorSuccess;
 	}
 	return KERN_SUCCESS;

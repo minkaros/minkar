@@ -61,6 +61,24 @@
 	}
 	return self;
 }
+
+static BOOL
+rectsContain(NSData *rects, double x, double y)
+{
+	const SLSIntRect *r = rects.bytes;
+	NSUInteger n = rects.length / sizeof(SLSIntRect);
+
+	for (NSUInteger i = 0; i < n; i++)
+		if (x >= r[i].x && x < r[i].x + r[i].width && y >= r[i].y &&
+		    y < r[i].y + r[i].height)
+			return YES;
+	return NO;
+}
+
+- (BOOL)dragRegionContainsX:(double)x y:(double)y
+{
+	return rectsContain(self.dragRects, x, y) && !rectsContain(self.dragExcludes, x, y);
+}
 @end
 
 static NSMutableArray<WSWindow *> *stack;	/* on screen, front to back */

@@ -111,6 +111,28 @@ SLSWindowStartMove(SLSWindowID window)
 }
 
 int
+SLSWindowSetDragRegion(SLSWindowID window, const SLSIntRect *drag, uint32_t dragCount,
+    const SLSIntRect *exclude, uint32_t excludeCount)
+{
+	int32_t result = kSLSErrorFailure;
+	mach_port_t server = SLSServerPort();
+	ws_region_t d, x;
+
+	if (dragCount > kSLSMaxRegionRects || excludeCount > kSLSMaxRegionRects ||
+	    (dragCount != 0 && drag == NULL) || (excludeCount != 0 && exclude == NULL))
+		return kSLSErrorIllegalArgument;
+	if (dragCount)
+		memcpy(d, drag, dragCount * sizeof(SLSIntRect));
+	if (excludeCount)
+		memcpy(x, exclude, excludeCount * sizeof(SLSIntRect));
+	if (server == MACH_PORT_NULL ||
+	    ws_window_set_drag_region(server, window, d, dragCount, x, excludeCount,
+		&result) != KERN_SUCCESS)
+		return kSLSErrorFailure;
+	return result;
+}
+
+int
 SLSEventTapCreate(uint32_t location, uint32_t placement, uint32_t options, uint64_t mask,
     mach_port_t port, uint32_t *tap)
 {

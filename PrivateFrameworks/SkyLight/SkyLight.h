@@ -47,7 +47,7 @@ extern "C" {
 #define kSLSServiceName		"org.minkar.WindowServer.next"
 
 /* The interface version both sides are built for. */
-#define kSLSInterfaceVersion	2
+#define kSLSInterfaceVersion	3
 
 typedef int32_t SLSConnectionID;
 
@@ -445,6 +445,19 @@ int SLSReceiveEvents(SLSEvent *events, uint32_t max, uint32_t *count, int wait);
  * -[NSWindow performWindowDragWithEvent:] does.
  */
 int SLSWindowStartMove(SLSWindowID window);
+
+/*
+ * The window's drag regions, in the window's coordinates (top left
+ * origin): a left mouse down inside a drag rectangle and outside every
+ * excluded one starts a server-side move at once, without the app (it
+ * still gets the mouse down, and the mouse up when the move ends). AppKit
+ * gives the title bar without its buttons and, for a window movable by its
+ * background, the window without the views that take their own clicks.
+ * At most kSLSMaxRegionRects of each; no rectangles: no drag region.
+ */
+#define kSLSMaxRegionRects	64
+int SLSWindowSetDragRegion(SLSWindowID window, const SLSIntRect *drag, uint32_t dragCount,
+    const SLSIntRect *exclude, uint32_t excludeCount);
 
 /* ---- Event taps and posted events ------------------------------------- */
 

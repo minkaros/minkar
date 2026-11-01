@@ -614,6 +614,8 @@ testClientExit(const char *self)
 	check(SLSReleaseWindow(window) == kSLSErrorCannotComplete &&
 	    SLSOrderWindow(window, kSLSOrderOut, 0) == kSLSErrorCannotComplete,
 	    "this process cannot change the child's window", NULL);
+	check(SLSWindowSetDragRegion(window, NULL, 0, NULL, 0) == kSLSErrorCannotComplete,
+	    "nor its drag region", NULL);
 	SLSCursorIsVisible(&visible);
 	check(visible == 0, "the child hid the cursor", NULL);
 	{
@@ -782,6 +784,16 @@ testEvents(void)
 	    "an unknown window is not made key", NULL);
 	check(SLSWindowStartMove(w) == kSLSErrorCannotComplete,
 	    "a move needs the left button down", NULL);
+	/* Drag regions (interface version 3). */
+	SLSIntRect title = { 0, 0, 20, 5 }, button = { 1, 1, 3, 3 };
+	check(SLSWindowSetDragRegion(w, &title, 1, &button, 1) == kSLSErrorSuccess,
+	    "a drag region is set", NULL);
+	check(SLSWindowSetDragRegion(w, NULL, 0, NULL, 0) == kSLSErrorSuccess,
+	    "and taken away", NULL);
+	check(SLSWindowSetDragRegion(w, &title, kSLSMaxRegionRects + 1, NULL, 0) ==
+	    kSLSErrorIllegalArgument, "too many drag rectangles are refused", NULL);
+	check(SLSWindowSetDragRegion(0xdeadbeef, &title, 1, NULL, 0) == kSLSErrorIllegalArgument,
+	    "an unknown window gets no drag region", NULL);
 	SLSReleaseWindow(w);
 	check(SLSGetKeyWindow() == 0, "a released key window is key no more", NULL);
 }
