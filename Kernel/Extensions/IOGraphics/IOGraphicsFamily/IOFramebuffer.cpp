@@ -533,6 +533,10 @@ struct IOFramebufferPrivate
 	IOTimerEventSource *        vblUpdateTimer;
 	IOTimerEventSource *        deferredCLUTSetTimerEvent;
 	IOInterruptEventSource *    deferredVBLDisableEvent;
+    // Closing the server connection: extClose() runs closeWork() on the
+    // system work loop and sleeps until it is done.
+    IOInterruptEventSource *    fCloseWorkES;
+    bool                        fClosePending;
     uint64_t					actualVBLCount;
 	OSObject *                  displayAttributes;
 
@@ -4472,9 +4476,7 @@ do {                                                                           \
         if ((unsigned) -1 != i) gStartedFramebuffers->removeObject(i);
     }
 
-#if 0
     RELEASE_EVENT_SOURCE(gIOFBSystemWorkLoop, __private->fCloseWorkES);
-#endif
 
     if (this == gIOFBConsoleFramebuffer) {
         gIOFBConsoleFramebuffer = NULL;
@@ -4792,13 +4794,11 @@ bool IOFramebuffer::start( IOService * provider )
         }
         bzero(serverMsg, sizeof(mach_msg_header_t));
 
-#if 0
         __private->fCloseWorkES = IOInterruptEventSource::interruptEventSource(this,
             OSMemberFunctionCast(IOInterruptEventSource::Action, this,
                 &IOFramebuffer::closeWork));
         if (!static_cast<bool>(__private->fCloseWorkES)) return false;
         gIOFBSystemWorkLoop->addEventSource(__private->fCloseWorkES);
-#endif
 
         // Grab the gate before we try to find a controller
         SYSGATEGUARD(sysgated);
@@ -10165,13 +10165,13 @@ void IOFramebuffer::extClose(void)
     FBASSERTGATED(this);
 
     // Start closeWork() on sys WL and sleep (with gate open) until it finishes.
-#if 0
+    // Minkar: without it a window server that went away left
+    // fServerConnect set, and no other could connect (exclusive access).
     __private->fClosePending = true;
     do {
         __private->fCloseWorkES->interruptOccurred(0, 0, 0);
         FBWL(this)->sleepGate(&__private->fClosePending, THREAD_UNINT);
     } while (__private->fClosePending);
-#endif
 
     IOG_KTRACE(DBG_IOG_FB_EXT_CLOSE, DBG_FUNC_END,
                0, __private->regID, 0, 0, 0, 0, 0, 0);
@@ -10182,8 +10182,8 @@ void IOFramebuffer::closeWork(IOInterruptEventSource *, int)
     SYSASSERTGATED(); // Scheduled on sys WL by extClose.
     FBGATEGUARD(ctrlgated, this);
     close();
-    //__private->fClosePending = false;
-    //FBWL(this)->wakeupGate(&__private->fClosePending, kManyThreadWakeup);
+    __private->fClosePending = false;
+    FBWL(this)->wakeupGate(&__private->fClosePending, kManyThreadWakeup);
 }
 
 /*!
