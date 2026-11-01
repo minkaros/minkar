@@ -99,7 +99,7 @@ Minkar arranca sobre Darwin con su propio cargador EFI, todo el sistema se compi
 | CoreFoundation | CF-Lite (APSL) | APIs que faltan hasta la API 21 | 3 |
 | Foundation | Tres lotes de correcciones (26 oct); `NSProcessInfo` con `operatingSystemVersion`; reexporta CoreFoundation; `NSURLSession` sobre libcurl, con cookies; `NSOperationQueue` sobre dispatch; el run loop principal ejecuta la cola principal de dispatch; `NSDateFormatter` sobre ICU (31 oct); `NSXPCConnection` sobre libxpc, con los servicios XPC dentro de las apps (31 oct) | Caché de URL y métricas de tareas en `NSURLSession`; auditoría de la API 19 | 3 |
 | Swift 6 | Nada en el árbol | Compilador, stdlib, overlays | 3 |
-| WindowServer | El servidor actual dibuja ventanas de AppKit sobre el framebuffer GOP con entrada de IOHIDSystem; su job de launchd se instala desactivado (WS0 hecho el 31 oct 2026, gate `M4-draw`). La interfaz del núcleo nuevo está en `SkyLight.framework`, con su servidor junto al actual (WS1 hecho el 31 oct 2026); compone ventanas de AppKit con pixman (WS2 hecho el 1 nov 2026, gate `M4-compose`) y reparte la entrada de IOHIDSystem, con event taps (WS3 hecho el 1 nov 2026) | El comportamiento del servidor del núcleo nuevo (WS4a; ya está hecha la comprobación de entitlements del ADR 0001, que necesita) y el cambio de servidor (WS4b), después IOSurface y la GPU (WS5, WS6) | 4 |
+| WindowServer | El servidor actual dibuja ventanas de AppKit sobre el framebuffer GOP con entrada de IOHIDSystem; su job de launchd se instala desactivado (WS0 hecho el 31 oct 2026, gate `M4-draw`). La interfaz del núcleo nuevo está en `SkyLight.framework`, con su servidor junto al actual (WS1 hecho el 31 oct 2026); compone ventanas de AppKit con pixman (WS2 hecho el 1 nov 2026, gate `M4-compose`) y reparte la entrada de IOHIDSystem, con event taps (WS3 hecho el 1 nov 2026) | El comportamiento del servidor del núcleo nuevo (WS4a, en curso: su propio usuario, regiones de arrastre, atajos simbólicos, apps en ejecución por LaunchServices, la app del frente y el sitio de la barra de menús están hechos) y el cambio de servidor (WS4b), después IOSurface y la GPU (WS5, WS6) | 4 |
 | Aceleración por GPU | No existe; sin ella tampoco se puede apagar la pantalla | Frente completo (requisito de rendimiento) | 4 y Minkar 21.0 |
 | SystemUIServer, Dock | Parciales, no se compilan | Casi todo | 5 |
 | Kraz, System Preferences | No existen | Apps nuevas en Cocoa | 5 |
@@ -323,7 +323,7 @@ Secuencia de desarrollo:
 
 En paralelo, el frente de GPU G1–G5: desde la familia del primer driver y el prototipo KMS hasta Mesa (lavapipe/llvmpipe en VMs) y Metal (darling-metal e Indium, MPL-2.0).
 
-El paso 1 se completó el 31 oct 2026 (`e2df542919`, `2aa9a1da6e`), y también los primeros hitos del paso 2, WS0 (gate `M4-draw`, `cce7da92bc`) WS1 (la interfaz del núcleo nuevo, `030dba37c7`) WS2 (su compositor, gate `M4-compose`, `8512fe60ba`) y WS3 (entrada y event taps, `98237bf14e`); la comprobación de entitlements del ADR 0001 está hecha (`8366b8d0f6`) y sigue WS4a. G1 empieza en cuanto se decida la familia de GPU, y las flechas discontinuas marcan lo que el frente de GPU reutiliza de los pasos 4 y 5.
+El paso 1 se completó el 31 oct 2026 (`e2df542919`, `2aa9a1da6e`), y también los primeros hitos del paso 2, WS0 (gate `M4-draw`, `cce7da92bc`) WS1 (la interfaz del núcleo nuevo, `030dba37c7`) WS2 (su compositor, gate `M4-compose`, `8512fe60ba`) y WS3 (entrada y event taps, `98237bf14e`); la comprobación de entitlements del ADR 0001 está hecha (`8366b8d0f6`) y WS4a está en curso. G1 empieza en cuanto se decida la familia de GPU, y las flechas discontinuas marcan lo que el frente de GPU reutiliza de los pasos 4 y 5.
 
 ## Fase 5 — Escritorio Gienah
 
@@ -421,7 +421,7 @@ M0, M1 y M2 están cumplidos (M1 el 1 nov, con el Mac Pro 6,1 como PC 2) y la Fa
 | M1 | Arranque Darwin | Cumplido en QEMU, en el PC 1 (SATA, NVMe, SMP) y en el PC 2, un Mac Pro 6,1 (NVMe, 24 hilos; 1 nov 2026) |
 | M2 | Userland base | Cumplido (`boottest GATE=M2`, 17 marcadores desde el 1 nov 2026, con la comprobación de integridad de código); Fase 2 cerrada el 31 oct |
 | M3 | Frameworks y Swift | Sin empezar; hay trabajo previo en Foundation |
-| M4 | Gráficos y WindowServer | En curso: WS0 hecho (el gate `M4-draw` pasa, `cce7da92bc`); WS1 hecho (`skylight-test` 115/0, `030dba37c7`); WS2 hecho (el gate `M4-compose` pasa, `8512fe60ba`); WS3 hecho (entrada, `98237bf14e`); sigue WS4a, después WS4b |
+| M4 | Gráficos y WindowServer | En curso: WS0 hecho (el gate `M4-draw` pasa, `cce7da92bc`); WS1 hecho (`skylight-test` 115/0, `030dba37c7`); WS2 hecho (el gate `M4-compose` pasa, `8512fe60ba`); WS3 hecho (entrada, `98237bf14e`); WS4a en curso (sesión de LaunchServices `996178d949`, app del frente `95160b2955`, sitio de la barra de menús `79cc777e5c`; gate `M4-compose` 40 marcadores), después WS4b |
 | M5 | Escritorio Gienah | Sin empezar |
 | M6 (Minkar 19.6.0) | Apps y distribución | Sin empezar; `hdiutil attach` ya monta |
 | Minkar 21.0 | API 21 completa y rendimiento ≥ sistema de referencia en equipo físico | Sin empezar; depende del frente de GPU |

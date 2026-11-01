@@ -468,6 +468,14 @@ State on 2026-11-01:
   notices, and a basic `NSRunningApplication` reads the list. Gate
   M4-compose runs two demo apps (40 markers); local tests
   `launchservicesd` and `launchservices-apps`.
+- [x] Front app and activation order (`95160b2955`): the server keeps the
+  front app; a window made key or `SLSSetFrontProcess` (an app with no
+  window too) makes it so, and when it goes away the one before it takes
+  its place. `wsctl front`; local test `launchservices-apps`.
+- [x] Menu bar place (`79cc777e5c`): a 22-point strip at the top of every
+  display (`SLSGetDisplayMenuBarHeight`); a window the server moves stays
+  below it; AppKit's `visibleFrame`, `-[NSMenu menuBarHeight]` and
+  `-[NSStatusBar thickness]` follow it. Local test `menubar`.
 
 ### WS4b — The switch
 

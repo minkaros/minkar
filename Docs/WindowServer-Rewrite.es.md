@@ -508,6 +508,16 @@ Estado al 1 nov 2026:
   terminación, activación y desactivación, y un `NSRunningApplication`
   básico lee la lista. El gate M4-compose ejecuta dos apps de demo (40
   marcadores); pruebas locales `launchservicesd` y `launchservices-apps`.
+- [x] App del frente y orden de activación (`95160b2955`): el servidor
+  guarda la app del frente; una ventana que pasa a key o
+  `SLSSetFrontProcess` (también una app sin ventanas) la ponen al frente, y
+  cuando se va ocupa su lugar la anterior. `wsctl front`; prueba local
+  `launchservices-apps`.
+- [x] Sitio de la barra de menús (`79cc777e5c`): una franja de 22 puntos
+  arriba en cada pantalla (`SLSGetDisplayMenuBarHeight`); una ventana que
+  mueve el servidor queda por debajo; `visibleFrame` de AppKit,
+  `-[NSMenu menuBarHeight]` y `-[NSStatusBar thickness]` la siguen.
+  Prueba local `menubar`.
 
 ### WS4b — El cambio de servidor
 
