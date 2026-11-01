@@ -1772,9 +1772,20 @@ NSArray *_NSWindowNumbersFromWindowInfo(CFArrayRef info,BOOL allApps) {
 }
 
 -(void)makeKeyWindow {
-    /* The new window server sends this window the keys. */
-    if(_CGUsesSkyLight())
+    /* The new window server sends this window the keys, and AppKit makes
+       it its key window (becomeKeyWindow, which calls back here): the
+       legacy server's activation callbacks did that, and nothing did with
+       the new one, so NSApp had no key window. */
+    static BOOL becoming;
+    if(_CGUsesSkyLight()) {
         SLSSetKeyWindow(slsWindowFor(_number));
+        if(!becoming && ![self isKeyWindow]) {
+            becoming=YES;
+            [self becomeKeyWindow];
+            becoming=NO;
+            return;
+        }
+    }
     if(!_hasBeenOnScreen){
         _hasBeenOnScreen=YES;
 
@@ -2265,6 +2276,16 @@ NSArray *_NSWindowNumbersFromWindowInfo(CFArrayRef info,BOOL allApps) {
 }
 
 -(NSPoint)mouseLocationOutsideOfEventStream {
+    if(_CGUsesSkyLight()) {
+        /* The cursor, from the top left of the main display, in this
+           window's coordinates. */
+        SLSPoint p;
+
+        if(SLSGetCursorPosition(&p) != kSLSErrorSuccess)
+            return NSZeroPoint;
+        CGFloat height = CGDisplayBounds(CGMainDisplayID()).size.height;
+        return [self convertScreenToBase:NSMakePoint(p.x, height - p.y)];
+    }
     struct wsRPCSimple data = { {kCGGetLastMouseDelta, 0}, 0, 0, 0, 0};
     int len = sizeof(data);
     kern_return_t ret = _windowServerRPC(&data, sizeof(data), &data, &len);
@@ -2390,6 +2411,10 @@ NSArray *_NSWindowNumbersFromWindowInfo(CFArrayRef info,BOOL allApps) {
        [self mouseMoved:event];
       else
        [hit mouseMoved:event];
+      /* With the new server, the moves that reach the window drive its
+         tracking areas: cursor rects, entered and exited, tool tips. */
+      if(_CGUsesSkyLight())
+       [self _updateTrackingAreas];
      }
      break;
 
@@ -3045,7 +3070,15 @@ NSArray *_NSWindowNumbersFromWindowInfo(CFArrayRef info,BOOL allApps) {
    return ([NSApp modalWindow]==self)?NO:YES;
 }
 
--(BOOL)platformWindowSetCursorEvent:(CGWindow *)window {
+#endif // 0
+
+/*
+ * The tracking areas (cursor rects, entered and exited, mouse moved, tool
+ * tips) for where the mouse is now. Moved out of the platform window
+ * callbacks, which nothing calls: with the new server, sendEvent: calls it
+ * for each mouse move (WS4a).
+ */
+-(BOOL)_updateTrackingAreas {
    NSMutableArray *exited=[NSMutableArray array];
    NSMutableArray *entered=[NSMutableArray array];
    NSMutableArray *moved=[NSMutableArray array];
@@ -3251,7 +3284,6 @@ NSArray *_NSWindowNumbersFromWindowInfo(CFArrayRef info,BOOL allApps) {
 
    return cursorIsSet;
 }
-#endif // 0
 
 -(NSUndoManager *)undoManager {
     if ([_delegate respondsToSelector:@selector(windowWillReturnUndoManager:)])
