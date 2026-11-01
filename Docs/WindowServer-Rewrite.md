@@ -559,6 +559,9 @@ displays, Spaces, hardware cursor.
   10 of [Menus.md](Menus.md) and of [Dock-Kraz.md](Dock-Kraz.md)). A
   milestone closes only when `git grep -n 'SHORTCUT(<milestone>)'` finds
   nothing.
+- The commit that closes a milestone also updates
+  `Docs/progress/status.toml` and runs `bmake progress` (the progress pages
+  and their SVGs); the work board keeps the six most recent done items.
 
 ## 9. Decisions and development shortcuts
 

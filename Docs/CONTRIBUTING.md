@@ -57,4 +57,13 @@ shortcut also has a row in its plan's shortcut table (section 9 of
 [Menus.md](Menus.md) and of [Dock-Kraz.md](Dock-Kraz.md)). A milestone
 closes only when `git grep -n 'SHORTCUT(<milestone>)'` finds nothing.
 
+### Progress pages
+
+[Progress.md](Progress.md) and [Progress.es.md](Progress.es.md) are
+generated from [progress/status.toml](progress/status.toml). The commit
+that closes a milestone also updates `status.toml` and runs
+`bmake progress`, which rewrites the pages' summary table and the SVGs in
+`Docs/progress`; the work board keeps the six most recent done items. CI
+fails when the committed pages are not what `bmake progress` writes.
+
 Have fun and do great things!

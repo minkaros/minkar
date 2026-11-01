@@ -605,6 +605,10 @@ varias pantallas, Spaces, cursor por hardware.
   [Menus.es.md](Menus.es.md) y de [Dock-Kraz.es.md](Dock-Kraz.es.md)). Un
   hito solo se cierra cuando `git grep -n 'SHORTCUT(<hito>)'` no encuentra
   nada.
+- El commit que cierra un hito también actualiza
+  `Docs/progress/status.toml` y ejecuta `bmake progress` (las páginas de
+  avance y sus SVG); el tablero de trabajo guarda los seis últimos puntos
+  hechos.
 
 ## 9. Decisiones y atajos de desarrollo
 
