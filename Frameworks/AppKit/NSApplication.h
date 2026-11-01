@@ -77,6 +77,12 @@ typedef enum {
     NSApplicationDelegateReplyFailure,
 } NSApplicationDelegateReply;
 
+typedef NS_ENUM(NSInteger, NSApplicationActivationPolicy) {
+    NSApplicationActivationPolicyRegular = 0,
+    NSApplicationActivationPolicyAccessory = 1,
+    NSApplicationActivationPolicyProhibited = 2,
+};
+
 typedef enum {
     NSPrintingCancelled,
     NSPrintingSuccess,
@@ -112,6 +118,10 @@ typedef enum {
 
     int _machEventPipe[2];
     NSSelectInputSource *_inputSource;
+
+    /* LaunchServices' session: the port its messages come on. */
+    mach_port_t _lsPort;
+    NSApplicationActivationPolicy _activationPolicy;
 }
 
 @property(strong) NSMenu *helpMenu;
@@ -135,6 +145,8 @@ typedef enum {
 - (NSImage *)applicationIconImage;
 - (BOOL)isActive;
 - (BOOL)isHidden;
+- (NSApplicationActivationPolicy)activationPolicy;
+- (BOOL)setActivationPolicy:(NSApplicationActivationPolicy)policy;
 - (BOOL)isRunning;
 
 - (NSWindow *)makeWindowsPerform:(SEL)selector inOrder:(BOOL)inOrder;

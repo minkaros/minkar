@@ -9,9 +9,17 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <Foundation/Foundation.h>
 #import <AppKit/AppKitExport.h>
 
-@class NSImage, NSView;
+@class NSImage, NSView, NSRunningApplication;
 
 APPKIT_EXPORT NSString *const NSWorkspaceWillPowerOffNotification;
+
+/* On the workspace's notification center; their NSWorkspaceApplicationKey
+ * is the NSRunningApplication. */
+APPKIT_EXPORT NSString *const NSWorkspaceDidLaunchApplicationNotification;
+APPKIT_EXPORT NSString *const NSWorkspaceDidTerminateApplicationNotification;
+APPKIT_EXPORT NSString *const NSWorkspaceDidActivateApplicationNotification;
+APPKIT_EXPORT NSString *const NSWorkspaceDidDeactivateApplicationNotification;
+APPKIT_EXPORT NSString *const NSWorkspaceApplicationKey;
 
 APPKIT_EXPORT NSString *const NSWorkspaceRecycleOperation;
 
@@ -65,6 +73,8 @@ APPKIT_EXPORT NSString *const NSWorkspaceRecycleOperation;
 - (NSString *)absolutePathForAppBundleWithIdentifier:(NSString *)identifier;
 - (NSString *)pathForApplication:(NSString *)application;
 - (NSArray *)launchedApplications;
+- (NSArray *)runningApplications;
+- (NSRunningApplication *)frontmostApplication;
 - (BOOL)launchApplication:(NSString *)application;
 - (BOOL)launchApplication:(NSString *)application showIcon:(BOOL)showIcon autolaunch:(BOOL)autolaunch;
 

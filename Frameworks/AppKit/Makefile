@@ -244,6 +244,7 @@ SRCS = \
     NSWindowController.m \
     NSWindowScripting.m \
     NSWorkspace.m \
+    NSRunningApplication.m \
     _NSRuleEditorViewSliceHolder.m \
     nib.subproj/NSButtonImageSource.m \
     nib.subproj/NSClassSwapper.m \
@@ -517,6 +518,7 @@ HEADERS = \
     NSWindowController.h \
     NSWindowScripting.h \
     NSWorkspace.h \
+    NSRunningApplication.h \
     _NSRuleEditorViewSliceHolder.h \
     nib.subproj/NSButtonImageSource.h \
     nib.subproj/NSClassSwapper.h \
@@ -582,12 +584,14 @@ CFLAGS = --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
 	-I${ROOT_SOURCE_DIR}/Frameworks/CoreText/fontconfig/include \
 	-I${ROOT_SOURCE_DIR}/Frameworks/CoreText/fontconfig/fontconfig \
 	-D_BuildingFramework -DFREETYPE_PRESENT -pthread \
-	-F${MINKAR_SDKROOT}/System/Library/PrivateFrameworks
+	-F${MINKAR_SDKROOT}/System/Library/PrivateFrameworks \
+	-F${MINKAR_SDKROOT}/System/Library/Frameworks/CoreServices.framework/Frameworks
 
 LDFLAGS = -pthread -framework Foundation -framework CoreFoundation \
     -framework CoreGraphics -framework CoreText -framework CoreData \
     -framework QuartzCore -framework OpenGL -framework Onyx2D \
 	-F${MINKAR_SDKROOT}/System/Library/PrivateFrameworks -framework SkyLight \
+	-framework CoreServices \
 	-lobjc -lSystem
 
 DIRS = \

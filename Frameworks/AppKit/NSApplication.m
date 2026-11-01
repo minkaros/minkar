@@ -34,6 +34,8 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <AppKit/NSAlert.h>
 #import <AppKit/NSWorkspace.h>
 #import <AppKit/NSDockTile.h>
+#import <AppKit/NSRunningApplication.h>
+#import "NSRunningApplication_private.h"
 #import <CoreGraphics/CGWindow.h>
 #import <AppKit/NSRaise.h>
 #import <AppKit/NSSpellChecker.h>
@@ -629,6 +631,14 @@ extern NSWindow *_NSWindowForSLSWindow(SLSWindowID window);
             NSLog(@"Failed to register with WS: mach_msg error 0x%x", ret);
    }
 
+   /* As LaunchServices reads it: an agent (LSUIElement) has no Dock icon
+    * or menu bar, a background-only app (LSBackgroundOnly) no windows. */
+   _activationPolicy=NSApplicationActivationPolicyRegular;
+   if([[mainBundle objectForInfoDictionaryKey:@"LSBackgroundOnly"] boolValue])
+       _activationPolicy=NSApplicationActivationPolicyProhibited;
+   else if([[mainBundle objectForInfoDictionaryKey:@"LSUIElement"] boolValue])
+       _activationPolicy=NSApplicationActivationPolicyAccessory;
+
    _dockTile=[[NSDockTile alloc] initWithOwner:self];
    _modalStack=[NSMutableArray new];
 
@@ -1117,6 +1127,8 @@ static int _tagAllMenus(NSMenu *menu, int tag) {
    NSAutoreleasePool *pool=[NSAutoreleasePool new];
    BOOL               needsUntitled=YES;
 
+   [self _checkInWithLaunchServices];
+
    NS_DURING
     [[NSNotificationCenter defaultCenter] postNotificationName: NSApplicationWillFinishLaunchingNotification object:self];
    NS_HANDLER
@@ -1486,8 +1498,108 @@ static int _tagAllMenus(NSMenu *menu, int tag) {
    [_windows makeObjectsPerformSelector:@selector(update)];
 }
 
+/*
+ * Activating is bringing a window forward and making it key: the window
+ * server then makes this the front app and tells LaunchServices' session,
+ * whose message makes the app active (_launchServicesMessage:).
+ * SHORTCUT(WS4b): the front app is the key window's owner, so an app with
+ * no window to show cannot become active; with the menu bar (MB0) the
+ * server keeps the front app itself; taken in WS4a.
+ */
 -(void)activateIgnoringOtherApps:(BOOL)flag {
-   NSUnimplementedMethod();
+   NSWindow *window=_keyWindow ? _keyWindow : _mainWindow;
+
+   if(window==nil || ![window isVisible] || ![window canBecomeKeyWindow]) {
+       window=nil;
+       for(NSWindow *check in [self orderedWindows])
+           if([check isVisible] && [check canBecomeKeyWindow]) {
+               window=check;
+               break;
+           }
+   }
+   [window makeKeyAndOrderFront:self];
+}
+
+-(NSApplicationActivationPolicy)activationPolicy {
+   return _activationPolicy;
+}
+
+-(BOOL)setActivationPolicy:(NSApplicationActivationPolicy)policy {
+   if(policy<NSApplicationActivationPolicyRegular || policy>NSApplicationActivationPolicyProhibited)
+       return NO;
+   _activationPolicy=policy;
+   if(_lsPort!=MACH_PORT_NULL)
+       [self _checkInWithLaunchServices];
+   return YES;
+}
+
+/*
+ * LaunchServices' session (WindowServer plan, WS4a): the app checks in
+ * with launchservicesd as it finishes launching, then hears on its own
+ * port about the other apps (NSWorkspace's notifications), about being
+ * made the front app or not (active), and requests to activate.
+ */
+-(void)_checkInWithLaunchServices {
+   LSSessionApp app;
+   BOOL first=(_lsPort==MACH_PORT_NULL);
+
+   _NSRunningApplicationDescribeSelf(&app, _activationPolicy);
+   if(LSSessionCheckIn(&app, &_lsPort, NULL)!=kLSSessionSuccess)
+       return;
+   if(first)
+       [NSThread detachNewThreadSelector:@selector(launchServicesLoop:) toTarget:self withObject:nil];
+}
+
+-(void)launchServicesLoop:(id)object {
+   union {
+       LSSessionMessage msg;
+       uint8_t bytes[sizeof(LSSessionMessage) + MAX_TRAILER_SIZE];
+   } buf;
+
+   for(;;) {
+       if(mach_msg(&buf.msg.header, MACH_RCV_MSG, 0, sizeof(buf), _lsPort,
+           MACH_MSG_TIMEOUT_NONE, MACH_PORT_NULL)!=MACH_MSG_SUCCESS)
+           return;
+       if(buf.msg.header.msgh_id!=kLSSessionMessageID)
+           continue;
+       NSAutoreleasePool *pool=[NSAutoreleasePool new];
+       NSData *data=[NSData dataWithBytes:&buf.msg length:sizeof(LSSessionMessage)];
+       [self performSelectorOnMainThread:@selector(_launchServicesMessage:) withObject:data
+           waitUntilDone:NO];
+       [pool release];
+   }
+}
+
+-(void)_setActiveFromLaunchServices:(BOOL)active {
+   if(active==_isActive)
+       return;
+   [[NSNotificationCenter defaultCenter] postNotificationName:
+       active ? NSApplicationWillBecomeActiveNotification : NSApplicationWillResignActiveNotification
+       object:self];
+   _isActive=active;
+   [self _checkForAppActivation];
+   [[NSNotificationCenter defaultCenter] postNotificationName:
+       active ? NSApplicationDidBecomeActiveNotification : NSApplicationDidResignActiveNotification
+       object:self];
+}
+
+-(void)_launchServicesMessage:(NSData *)data {
+   const LSSessionMessage *msg=[data bytes];
+
+   if(msg->app.pid==getpid()) {
+       switch(msg->kind) {
+           case kLSSessionAppActivated:
+               [self _setActiveFromLaunchServices:YES];
+               break;
+           case kLSSessionAppDeactivated:
+               [self _setActiveFromLaunchServices:NO];
+               break;
+           case kLSSessionActivateRequest:
+               [self activateIgnoringOtherApps:(msg->options & NSApplicationActivateIgnoringOtherApps)!=0];
+               break;
+       }
+   }
+   _NSRunningApplicationSessionMessage(msg);
 }
 
 -(void)deactivate {

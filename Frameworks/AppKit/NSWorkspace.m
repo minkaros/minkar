@@ -7,15 +7,31 @@ The above copyright notice and this permission notice shall be included in all c
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE. */
 #import <AppKit/NSWorkspace.h>
 #import <AppKit/NSRaise.h>
+#import <AppKit/NSRunningApplication.h>
+#import "NSRunningApplication_private.h"
+#include <dispatch/dispatch.h>
 
 NSString * const NSWorkspaceWillPowerOffNotification=@"NSWorkspaceWillPowerOffNotification";
+NSString * const NSWorkspaceDidLaunchApplicationNotification=@"NSWorkspaceDidLaunchApplicationNotification";
+NSString * const NSWorkspaceDidTerminateApplicationNotification=@"NSWorkspaceDidTerminateApplicationNotification";
+NSString * const NSWorkspaceDidActivateApplicationNotification=@"NSWorkspaceDidActivateApplicationNotification";
+NSString * const NSWorkspaceDidDeactivateApplicationNotification=@"NSWorkspaceDidDeactivateApplicationNotification";
+NSString * const NSWorkspaceApplicationKey=@"NSWorkspaceApplicationKey";
 
 NSString * const NSWorkspaceRecycleOperation=@"NSWorkspaceRecycleOperation";
 
 @implementation NSWorkspace
 
+/* One per process: its notification center gets the session's notices
+ * whichever thread asks for it. */
 +(NSWorkspace *)sharedWorkspace {
-   return NSThreadSharedInstance(@"NSWorkspace");
+   static NSWorkspace *shared;
+   static dispatch_once_t once;
+
+   dispatch_once(&once, ^{
+      shared=[NSWorkspace new];
+   });
+   return shared;
 }
 
 -init {
@@ -182,9 +198,40 @@ NSString * const NSWorkspaceRecycleOperation=@"NSWorkspaceRecycleOperation";
    return 0;
 }
 
+-(NSArray *)runningApplications {
+   return [NSRunningApplication _runningApplications];
+}
+
+-(NSRunningApplication *)frontmostApplication {
+   for(NSRunningApplication *app in [self runningApplications])
+      if([app isActive])
+         return app;
+   return nil;
+}
+
+/* The dictionaries from before NSRunningApplication. */
+static NSDictionary *applicationDictionary(NSRunningApplication *app) {
+   NSMutableDictionary *result=[NSMutableDictionary dictionary];
+   NSURL *url=[app bundleURL] ? [app bundleURL] : [app executableURL];
+
+   [result setObject:[NSNumber numberWithInt:[app processIdentifier]]
+      forKey:@"NSApplicationProcessIdentifier"];
+   if([app localizedName]!=nil)
+      [result setObject:[app localizedName] forKey:@"NSApplicationName"];
+   if([app bundleIdentifier]!=nil)
+      [result setObject:[app bundleIdentifier] forKey:@"NSApplicationBundleIdentifier"];
+   if(url!=nil)
+      [result setObject:[url path] forKey:@"NSApplicationPath"];
+   return result;
+}
+
 -(NSArray *)launchedApplications {
-   NSInvalidAbstractInvocation();
-   return 0;
+   NSMutableArray *result=[NSMutableArray array];
+
+   for(NSRunningApplication *app in [self runningApplications])
+      if([app activationPolicy]==NSApplicationActivationPolicyRegular)
+         [result addObject:applicationDictionary(app)];
+   return result;
 }
 
 -(BOOL)launchApplication:(NSString *)application {
@@ -202,8 +249,9 @@ NSString * const NSWorkspaceRecycleOperation=@"NSWorkspaceRecycleOperation";
 }
 
 -(NSDictionary *)activeApplication {
-   NSInvalidAbstractInvocation();
-   return 0;
+   NSRunningApplication *app=[self frontmostApplication];
+
+   return app ? applicationDictionary(app) : nil;
 }
 
 -(void)hideOtherApplications {
