@@ -42,8 +42,8 @@ Minkar separates three layers that go together on the reference platform. The ke
 
 | Minkar | Delivers | Kernel (`uname -r`) | `ProductVersion` |
 | --- | --- | --- | --- |
-| 19.6.0 | API 19, the Gienah desktop and DMG; functional gates M0–M6 on physical hardware | 19.6.0 | 10.15 |
-| 19.6.x | Fixes; may carry parts of API 20 | 19.6.0 | 10.15 |
+| 19.6.0 | API 19, the Gienah desktop complete for daily use (MB2–MB3, D2–D3, K2–K3) and DMG; functional gates M0–M6 on physical hardware | 19.6.0 | 10.15 |
+| 19.6.x | Fixes, and MB4, D4 and K4; may carry parts of API 20 | 19.6.0 | 10.15 |
 | 20.0 | API 20 complete and tested | 19.6.0 | 11.0 |
 | 21.0 | API 21 complete and tested, plus the performance gates | 19.6.0 | 12.0 |
 
@@ -378,7 +378,7 @@ Commands that come with this phase (moved from Phase 2):
 
 Ahead of time: `hdiutil attach` already mounts images in `/Volumes` through DiskArbitration (2026-10-30); reading the DMGs' UDIF format is missing.
 
-**Exit gate (M6):** a DMG is downloaded, mounted, the app copied to `/Applications` and run; Terminal, TextEdit and the browser are used daily on the development machine itself.
+**Exit gate (M6):** a DMG is downloaded, mounted, the app copied to `/Applications` and run; Terminal, TextEdit and the browser are used daily on the development machine itself; and the Gienah desktop is complete for daily use: MB2 and MB3 of [Menus.md](Menus.md), D2 and D3 and K2 and K3 of [Dock-Kraz.md](Dock-Kraz.md); MB4, D4 and K4 follow in 19.6.x.
 
 ## Phase 7 — Binary compatibility and arm64
 
@@ -423,7 +423,7 @@ M0, M1 and M2 are met (M1 on 2026-11-01, with the Mac Pro 6,1 as PC 2), and Phas
 | M3 | Frameworks and Swift | Not started; prior work in Foundation and libSystem |
 | M4 | Graphics and WindowServer | In progress: WS0 done (gate `M4-draw` passes, `cce7da92bc`); WS1 done (`skylight-test` 115/0, `030dba37c7`); WS2 done (gate `M4-compose` passes, `8512fe60ba`); WS3 done (input, `98237bf14e`); WS4a in progress (LaunchServices session `996178d949`, front app `95160b2955`, menu bar place `79cc777e5c`; gate `M4-compose` 40 markers), then WS4b |
 | M5 | Gienah desktop | Not started |
-| M6 (Minkar 19.6.0) | Apps and distribution | Not started; `hdiutil attach` already mounts |
+| M6 (Minkar 19.6.0) | Apps and distribution, and the desktop complete for daily use (MB2–MB3, D2–D3, K2–K3) | Not started; `hdiutil attach` already mounts |
 | Minkar 21.0 | API 21 complete and performance ≥ the reference system on a physical machine | Not started; depends on the GPU track |
 | M7 | Binary compatibility, arm64 | After Minkar 19.6.0 |
 

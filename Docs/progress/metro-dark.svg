@@ -2,7 +2,7 @@
 <title>Minkar milestones by plan, 2026-11-01</title>
 <rect width="1200" height="798" fill="#0d1117"/>
 <text x="20" y="30" font-size="20" font-weight="700" fill="#e6edf3" text-anchor="start">Minkar milestones by plan</text>
-<text x="20" y="54" font-size="14" font-weight="400" fill="#9198a1" text-anchor="start">2026-11-01 · devel b15eaab556</text>
+<text x="20" y="54" font-size="14" font-weight="400" fill="#9198a1" text-anchor="start">2026-11-01 · devel e21b539ee6</text>
 <line x1="160" y1="95" x2="160" y2="110" stroke="#e6edf3" stroke-opacity=".35" stroke-width="1.5" stroke-dasharray="2 4"/>
 <rect x="139" y="72" width="42" height="24" rx="12" fill="#e6edf3" stroke="#e6edf3" stroke-width="1.5"/>
 <text x="160" y="89" font-size="13.5" font-weight="700" fill="#0d1117" text-anchor="middle">M0</text>
@@ -24,7 +24,9 @@
 <rect x="734" y="282" width="52" height="264" rx="14" fill="#e6edf3" fill-opacity=".05" stroke="#e6edf3" stroke-opacity=".5" stroke-width="1.5" stroke-dasharray="5 4"/>
 <rect x="739" y="72" width="42" height="24" rx="12" fill="#0d1117" stroke="#e6edf3" stroke-width="1.5"/>
 <text x="760" y="89" font-size="13.5" font-weight="700" fill="#e6edf3" text-anchor="middle">M5</text>
-<line x1="970" y1="95" x2="970" y2="538" stroke="#e6edf3" stroke-opacity=".35" stroke-width="1.5" stroke-dasharray="2 4"/>
+<line x1="970" y1="95" x2="970" y2="282" stroke="#e6edf3" stroke-opacity=".35" stroke-width="1.5" stroke-dasharray="2 4"/>
+<rect x="944" y="282" width="52" height="200" rx="14" fill="#e6edf3" fill-opacity=".05" stroke="#e6edf3" stroke-opacity=".5" stroke-width="1.5" stroke-dasharray="5 4"/>
+<line x1="970" y1="482" x2="970" y2="538" stroke="#e6edf3" stroke-opacity=".35" stroke-width="1.5" stroke-dasharray="2 4"/>
 <rect x="944" y="538" width="52" height="72" rx="14" fill="#e6edf3" fill-opacity=".05" stroke="#e6edf3" stroke-opacity=".5" stroke-width="1.5" stroke-dasharray="5 4"/>
 <rect x="919.4" y="72" width="101.2" height="24" rx="12" fill="#0d1117" stroke="#e6edf3" stroke-width="1.5"/>
 <text x="970" y="89" font-size="13.5" font-weight="700" fill="#e6edf3" text-anchor="middle">M6 · 19.6.0</text>
@@ -92,41 +94,41 @@
 <circle cx="1060" cy="250" r="8" fill="#0d1117" stroke="#4493f8" stroke-opacity=".7" stroke-width="2.5"/>
 <text x="1060" y="279" font-size="13.5" font-weight="500" fill="#9198a1" text-anchor="middle">WS6</text>
 <text x="20" y="319" font-size="15" font-weight="700" fill="#ab7df8" text-anchor="start">Menus</text>
-<line x1="650" y1="314" x2="970" y2="314" stroke="#ab7df8" stroke-opacity=".22" stroke-width="8" stroke-linecap="round"/>
+<line x1="650" y1="314" x2="1025" y2="314" stroke="#ab7df8" stroke-opacity=".22" stroke-width="8" stroke-linecap="round"/>
 <circle cx="650" cy="314" r="8" fill="#0d1117" stroke="#ab7df8" stroke-opacity=".7" stroke-width="2.5"/>
 <text x="650" y="343" font-size="13.5" font-weight="500" fill="#9198a1" text-anchor="middle">MB0</text>
 <circle cx="760" cy="314" r="8" fill="#0d1117" stroke="#ab7df8" stroke-opacity=".7" stroke-width="2.5"/>
 <text x="760" y="343" font-size="13.5" font-weight="500" fill="#9198a1" text-anchor="middle">MB1</text>
-<circle cx="870" cy="314" r="8" fill="#0d1117" stroke="#ab7df8" stroke-opacity=".7" stroke-width="2.5"/>
-<text x="870" y="343" font-size="13.5" font-weight="500" fill="#9198a1" text-anchor="middle">MB2</text>
-<circle cx="920" cy="314" r="8" fill="#0d1117" stroke="#ab7df8" stroke-opacity=".7" stroke-width="2.5"/>
-<text x="920" y="343" font-size="13.5" font-weight="500" fill="#9198a1" text-anchor="middle">MB3</text>
+<circle cx="865" cy="314" r="8" fill="#0d1117" stroke="#ab7df8" stroke-opacity=".7" stroke-width="2.5"/>
+<text x="865" y="343" font-size="13.5" font-weight="500" fill="#9198a1" text-anchor="middle">MB2</text>
 <circle cx="970" cy="314" r="8" fill="#0d1117" stroke="#ab7df8" stroke-opacity=".7" stroke-width="2.5"/>
-<text x="970" y="343" font-size="13.5" font-weight="500" fill="#9198a1" text-anchor="middle">MB4</text>
+<text x="970" y="343" font-size="13.5" font-weight="500" fill="#9198a1" text-anchor="middle">MB3</text>
+<circle cx="1025" cy="314" r="8" fill="#0d1117" stroke="#ab7df8" stroke-opacity=".7" stroke-width="2.5"/>
+<text x="1025" y="343" font-size="13.5" font-weight="500" fill="#9198a1" text-anchor="middle">MB4</text>
 <text x="20" y="383" font-size="15" font-weight="700" fill="#f0883e" text-anchor="start">Dock</text>
-<line x1="700" y1="378" x2="970" y2="378" stroke="#f0883e" stroke-opacity=".22" stroke-width="8" stroke-linecap="round"/>
+<line x1="700" y1="378" x2="1025" y2="378" stroke="#f0883e" stroke-opacity=".22" stroke-width="8" stroke-linecap="round"/>
 <circle cx="700" cy="378" r="8" fill="#0d1117" stroke="#f0883e" stroke-opacity=".7" stroke-width="2.5"/>
 <text x="700" y="407" font-size="13.5" font-weight="500" fill="#9198a1" text-anchor="middle">D0</text>
 <circle cx="760" cy="378" r="8" fill="#0d1117" stroke="#f0883e" stroke-opacity=".7" stroke-width="2.5"/>
 <text x="760" y="407" font-size="13.5" font-weight="500" fill="#9198a1" text-anchor="middle">D1</text>
-<circle cx="870" cy="378" r="8" fill="#0d1117" stroke="#f0883e" stroke-opacity=".7" stroke-width="2.5"/>
-<text x="870" y="407" font-size="13.5" font-weight="500" fill="#9198a1" text-anchor="middle">D2</text>
-<circle cx="920" cy="378" r="8" fill="#0d1117" stroke="#f0883e" stroke-opacity=".7" stroke-width="2.5"/>
-<text x="920" y="407" font-size="13.5" font-weight="500" fill="#9198a1" text-anchor="middle">D3</text>
+<circle cx="865" cy="378" r="8" fill="#0d1117" stroke="#f0883e" stroke-opacity=".7" stroke-width="2.5"/>
+<text x="865" y="407" font-size="13.5" font-weight="500" fill="#9198a1" text-anchor="middle">D2</text>
 <circle cx="970" cy="378" r="8" fill="#0d1117" stroke="#f0883e" stroke-opacity=".7" stroke-width="2.5"/>
-<text x="970" y="407" font-size="13.5" font-weight="500" fill="#9198a1" text-anchor="middle">D4</text>
+<text x="970" y="407" font-size="13.5" font-weight="500" fill="#9198a1" text-anchor="middle">D3</text>
+<circle cx="1025" cy="378" r="8" fill="#0d1117" stroke="#f0883e" stroke-opacity=".7" stroke-width="2.5"/>
+<text x="1025" y="407" font-size="13.5" font-weight="500" fill="#9198a1" text-anchor="middle">D4</text>
 <text x="20" y="447" font-size="15" font-weight="700" fill="#3bc4b5" text-anchor="start">Kraz</text>
-<line x1="700" y1="442" x2="970" y2="442" stroke="#3bc4b5" stroke-opacity=".22" stroke-width="8" stroke-linecap="round"/>
+<line x1="700" y1="442" x2="1025" y2="442" stroke="#3bc4b5" stroke-opacity=".22" stroke-width="8" stroke-linecap="round"/>
 <circle cx="700" cy="442" r="8" fill="#0d1117" stroke="#3bc4b5" stroke-opacity=".7" stroke-width="2.5"/>
 <text x="700" y="471" font-size="13.5" font-weight="500" fill="#9198a1" text-anchor="middle">K0</text>
 <circle cx="760" cy="442" r="8" fill="#0d1117" stroke="#3bc4b5" stroke-opacity=".7" stroke-width="2.5"/>
 <text x="760" y="471" font-size="13.5" font-weight="500" fill="#9198a1" text-anchor="middle">K1</text>
-<circle cx="870" cy="442" r="8" fill="#0d1117" stroke="#3bc4b5" stroke-opacity=".7" stroke-width="2.5"/>
-<text x="870" y="471" font-size="13.5" font-weight="500" fill="#9198a1" text-anchor="middle">K2</text>
-<circle cx="920" cy="442" r="8" fill="#0d1117" stroke="#3bc4b5" stroke-opacity=".7" stroke-width="2.5"/>
-<text x="920" y="471" font-size="13.5" font-weight="500" fill="#9198a1" text-anchor="middle">K3</text>
+<circle cx="865" cy="442" r="8" fill="#0d1117" stroke="#3bc4b5" stroke-opacity=".7" stroke-width="2.5"/>
+<text x="865" y="471" font-size="13.5" font-weight="500" fill="#9198a1" text-anchor="middle">K2</text>
 <circle cx="970" cy="442" r="8" fill="#0d1117" stroke="#3bc4b5" stroke-opacity=".7" stroke-width="2.5"/>
-<text x="970" y="471" font-size="13.5" font-weight="500" fill="#9198a1" text-anchor="middle">K4</text>
+<text x="970" y="471" font-size="13.5" font-weight="500" fill="#9198a1" text-anchor="middle">K3</text>
+<circle cx="1025" cy="442" r="8" fill="#0d1117" stroke="#3bc4b5" stroke-opacity=".7" stroke-width="2.5"/>
+<text x="1025" y="471" font-size="13.5" font-weight="500" fill="#9198a1" text-anchor="middle">K4</text>
 <text x="20" y="511" font-size="15" font-weight="700" fill="#f778ba" text-anchor="start">Gienah</text>
 <line x1="570" y1="506" x2="760" y2="506" stroke="#f778ba" stroke-opacity=".22" stroke-width="8" stroke-linecap="round"/>
 <circle cx="570" cy="506" r="8" fill="#0d1117" stroke="#f778ba" stroke-opacity=".7" stroke-width="2.5"/>

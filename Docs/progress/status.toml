@@ -33,7 +33,7 @@
 # "bmake progress" (Docs/CONTRIBUTING.md).
 
 updated = "2026-11-01"
-commit  = "b15eaab556"
+commit  = "e21b539ee6"
 
 deps = [["ws", 555, "dock"], ["fw", 535, "kraz"]]
 
@@ -88,7 +88,7 @@ title = "M6 Minkar 19.6.0"
 label = "M6 · 19.6.0"
 state = "todo"
 x = 970
-rows = ["apps"]
+rows = ["mb", "dock", "kraz", "apps"]
 
 [[gate]]
 id = "R21"
@@ -147,8 +147,8 @@ color = "purple"
 doc = "Menus.md"
 doc_es = "Menus.es.md"
 stations = [
-  ["MB0", 650, "todo"], ["MB1", 760, "todo"], ["MB2", 870, "todo"], ["MB3", 920, "todo"],
-  ["MB4", 970, "todo"],
+  ["MB0", 650, "todo"], ["MB1", 760, "todo"], ["MB2", 865, "todo"], ["MB3", 970, "todo"],
+  ["MB4", 1025, "todo"],
 ]
 
 [[line]]
@@ -158,8 +158,8 @@ color = "orange"
 doc = "Dock-Kraz.md"
 doc_es = "Dock-Kraz.es.md"
 stations = [
-  ["D0", 700, "todo"], ["D1", 760, "todo"], ["D2", 870, "todo"], ["D3", 920, "todo"],
-  ["D4", 970, "todo"],
+  ["D0", 700, "todo"], ["D1", 760, "todo"], ["D2", 865, "todo"], ["D3", 970, "todo"],
+  ["D4", 1025, "todo"],
 ]
 
 [[line]]
@@ -169,8 +169,8 @@ color = "teal"
 doc = "Dock-Kraz.md"
 doc_es = "Dock-Kraz.es.md"
 stations = [
-  ["K0", 700, "todo"], ["K1", 760, "todo"], ["K2", 870, "todo"], ["K3", 920, "todo"],
-  ["K4", 970, "todo"],
+  ["K0", 700, "todo"], ["K1", 760, "todo"], ["K2", 865, "todo"], ["K3", 970, "todo"],
+  ["K4", 1025, "todo"],
 ]
 
 [[line]]
@@ -288,12 +288,12 @@ group = "→ M5 Gienah session"
 items = [["MB1 Menu Extras", "mb"], ["D1 Dock core", "dock"], ["K1 Kraz browsing", "kraz"], ["LoginWindow, Preferences", "gienah"]]
 
 [[board.later]]
-group = "After M5"
-items = [["MB2–MB4 menus", "mb"], ["D2–D4 Dock", "dock"], ["K2–K4 Kraz", "kraz"]]
+group = "→ M6 · Minkar 19.6.0"
+items = [["MB2–MB3 menus for daily use", "mb"], ["D2–D3 Dock, with the app switcher", "dock"], ["K2–K3 Kraz, with DMG double-click", "kraz"], ["DiskImages (hdiutil attach already mounts)", "apps"], ["Terminal, TextEdit, Browser", "apps"]]
 
 [[board.later]]
-group = "→ M6 · Minkar 19.6.0"
-items = [["DiskImages (hdiutil attach already mounts)", "apps"], ["Terminal, TextEdit, Browser", "apps"]]
+group = "→ 19.6.x"
+items = [["MB4 Services, D4 stacks and Trash, K4 search and tags", "mb"]]
 
 [[board.later]]
 group = "→ Minkar 21.0"

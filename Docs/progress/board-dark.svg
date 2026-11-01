@@ -1,9 +1,9 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1120" height="648" viewBox="0 0 1120 648" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif" role="img" aria-label="Minkar work board, 2026-11-01">
+<svg xmlns="http://www.w3.org/2000/svg" width="1120" height="732" viewBox="0 0 1120 732" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif" role="img" aria-label="Minkar work board, 2026-11-01">
 <title>Minkar work board, 2026-11-01</title>
-<rect width="1120" height="648" fill="#0d1117"/>
+<rect width="1120" height="732" fill="#0d1117"/>
 <text x="16" y="30" font-size="20" font-weight="700" fill="#e6edf3" text-anchor="start">Minkar work board</text>
-<text x="16" y="52" font-size="13" font-weight="400" fill="#9198a1" text-anchor="start">2026-11-01 · devel b15eaab556</text>
-<rect x="16" y="70" width="261.5" height="570" rx="10" fill="#151b23"/>
+<text x="16" y="52" font-size="13" font-weight="400" fill="#9198a1" text-anchor="start">2026-11-01 · devel e21b539ee6</text>
+<rect x="16" y="70" width="261.5" height="654" rx="10" fill="#151b23"/>
 <text x="30" y="96" font-size="13" font-weight="700" fill="#9198a1" text-anchor="start" letter-spacing=".08em">DONE · LATEST</text>
 <rect x="26" y="114" width="241.5" height="68" rx="8" fill="#0d1117" stroke="#3d444d" stroke-width="1"/><rect x="26" y="114" width="5" height="68" rx="2" fill="#4493f8"/>
 <text x="42" y="138" font-size="15" font-weight="650" fill="#e6edf3" text-anchor="start">Status area layout</text>
@@ -25,7 +25,7 @@
 <rect x="26" y="544" width="241.5" height="68" rx="8" fill="#0d1117" stroke="#3d444d" stroke-width="1"/><rect x="26" y="544" width="5" height="68" rx="2" fill="#4493f8"/>
 <text x="42" y="568" font-size="15" font-weight="650" fill="#e6edf3" text-anchor="start">Symbolic hotkeys</text>
 <text x="42" y="589" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">WS4a · 1 nov</text>
-<rect x="291.5" y="70" width="261.5" height="570" rx="10" fill="#151b23"/>
+<rect x="291.5" y="70" width="261.5" height="654" rx="10" fill="#151b23"/>
 <text x="305.5" y="96" font-size="13" font-weight="700" fill="#9198a1" text-anchor="start" letter-spacing=".08em">NOW</text>
 <rect x="301.5" y="114" width="241.5" height="128" rx="8" fill="#0d1117" stroke="#4493f8" stroke-width="2"/><rect x="301.5" y="114" width="5" height="128" rx="2" fill="#4493f8"/>
 <text x="317.5" y="138" font-size="15" font-weight="650" fill="#e6edf3" text-anchor="start">WS4a — Server behavior</text>
@@ -45,7 +45,7 @@
 <text x="317.5" y="394" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">mechanism done, 887 sites</text>
 <rect x="479" y="359" width="54" height="18" rx="9" fill="#d29922" fill-opacity=".15"/>
 <text x="506" y="372" font-size="11" font-weight="600" fill="#d29922" text-anchor="middle">partial</text>
-<rect x="567" y="70" width="261.5" height="570" rx="10" fill="#151b23"/>
+<rect x="567" y="70" width="261.5" height="654" rx="10" fill="#151b23"/>
 <text x="581" y="96" font-size="13" font-weight="700" fill="#9198a1" text-anchor="start" letter-spacing=".08em">NEXT</text>
 <rect x="577" y="114" width="241.5" height="87" rx="8" fill="#0d1117" stroke="#3d444d" stroke-width="1"/><rect x="577" y="114" width="5" height="87" rx="2" fill="#4493f8"/>
 <text x="593" y="138" font-size="15" font-weight="650" fill="#e6edf3" text-anchor="start">WS4b + MB0 — The switch</text>
@@ -62,7 +62,7 @@
 <text x="593" y="412" font-size="15" font-weight="650" fill="#e6edf3" text-anchor="start">GPU ADR (G1)</text>
 <text x="593" y="433" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">family, licenses, KMS</text>
 <text x="593" y="452" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">prototype</text>
-<rect x="842.5" y="70" width="261.5" height="570" rx="10" fill="#151b23"/>
+<rect x="842.5" y="70" width="261.5" height="654" rx="10" fill="#151b23"/>
 <text x="856.5" y="96" font-size="13" font-weight="700" fill="#9198a1" text-anchor="start" letter-spacing=".08em">LATER</text>
 <text x="856.5" y="128" font-size="14.5" font-weight="700" fill="#e6edf3" text-anchor="start">→ M5 Gienah session</text>
 <circle cx="862.5" cy="147" r="4.5" fill="#ab7df8"/>
@@ -73,26 +73,31 @@
 <text x="874.5" y="200" font-size="14" font-weight="400" fill="#9198a1" text-anchor="start">K1 Kraz browsing</text>
 <circle cx="862.5" cy="219" r="4.5" fill="#f778ba"/>
 <text x="874.5" y="224" font-size="14" font-weight="400" fill="#9198a1" text-anchor="start">LoginWindow, Preferences</text>
-<text x="856.5" y="262" font-size="14.5" font-weight="700" fill="#e6edf3" text-anchor="start">After M5</text>
+<text x="856.5" y="262" font-size="14.5" font-weight="700" fill="#e6edf3" text-anchor="start">→ M6 · Minkar 19.6.0</text>
 <circle cx="862.5" cy="281" r="4.5" fill="#ab7df8"/>
-<text x="874.5" y="286" font-size="14" font-weight="400" fill="#9198a1" text-anchor="start">MB2–MB4 menus</text>
+<text x="874.5" y="286" font-size="14" font-weight="400" fill="#9198a1" text-anchor="start">MB2–MB3 menus for daily use</text>
 <circle cx="862.5" cy="305" r="4.5" fill="#f0883e"/>
-<text x="874.5" y="310" font-size="14" font-weight="400" fill="#9198a1" text-anchor="start">D2–D4 Dock</text>
-<circle cx="862.5" cy="329" r="4.5" fill="#3bc4b5"/>
-<text x="874.5" y="334" font-size="14" font-weight="400" fill="#9198a1" text-anchor="start">K2–K4 Kraz</text>
-<text x="856.5" y="372" font-size="14.5" font-weight="700" fill="#e6edf3" text-anchor="start">→ M6 · Minkar 19.6.0</text>
-<circle cx="862.5" cy="391" r="4.5" fill="#3fb950"/>
-<text x="874.5" y="396" font-size="14" font-weight="400" fill="#9198a1" text-anchor="start">DiskImages (hdiutil attach</text>
-<text x="874.5" y="416" font-size="14" font-weight="400" fill="#9198a1" text-anchor="start">already mounts)</text>
-<circle cx="862.5" cy="435" r="4.5" fill="#3fb950"/>
-<text x="874.5" y="440" font-size="14" font-weight="400" fill="#9198a1" text-anchor="start">Terminal, TextEdit, Browser</text>
-<text x="856.5" y="478" font-size="14.5" font-weight="700" fill="#e6edf3" text-anchor="start">→ Minkar 21.0</text>
-<circle cx="862.5" cy="497" r="4.5" fill="#4493f8"/>
-<text x="874.5" y="502" font-size="14" font-weight="400" fill="#9198a1" text-anchor="start">WS5 IOSurface, WS6 GPU</text>
-<text x="874.5" y="522" font-size="14" font-weight="400" fill="#9198a1" text-anchor="start">compositing</text>
-<circle cx="862.5" cy="541" r="4.5" fill="#f85149"/>
-<text x="874.5" y="546" font-size="14" font-weight="400" fill="#9198a1" text-anchor="start">G2–G5 driver, Mesa, Metal</text>
-<text x="856.5" y="584" font-size="14.5" font-weight="700" fill="#e6edf3" text-anchor="start">→ M7</text>
-<circle cx="862.5" cy="603" r="4.5" fill="#8b949e"/>
-<text x="874.5" y="608" font-size="14" font-weight="400" fill="#9198a1" text-anchor="start">x86-64 apps, arm64</text>
+<text x="874.5" y="310" font-size="14" font-weight="400" fill="#9198a1" text-anchor="start">D2–D3 Dock, with the app</text>
+<text x="874.5" y="330" font-size="14" font-weight="400" fill="#9198a1" text-anchor="start">switcher</text>
+<circle cx="862.5" cy="349" r="4.5" fill="#3bc4b5"/>
+<text x="874.5" y="354" font-size="14" font-weight="400" fill="#9198a1" text-anchor="start">K2–K3 Kraz, with DMG</text>
+<text x="874.5" y="374" font-size="14" font-weight="400" fill="#9198a1" text-anchor="start">double-click</text>
+<circle cx="862.5" cy="393" r="4.5" fill="#3fb950"/>
+<text x="874.5" y="398" font-size="14" font-weight="400" fill="#9198a1" text-anchor="start">DiskImages (hdiutil attach</text>
+<text x="874.5" y="418" font-size="14" font-weight="400" fill="#9198a1" text-anchor="start">already mounts)</text>
+<circle cx="862.5" cy="437" r="4.5" fill="#3fb950"/>
+<text x="874.5" y="442" font-size="14" font-weight="400" fill="#9198a1" text-anchor="start">Terminal, TextEdit, Browser</text>
+<text x="856.5" y="480" font-size="14.5" font-weight="700" fill="#e6edf3" text-anchor="start">→ 19.6.x</text>
+<circle cx="862.5" cy="499" r="4.5" fill="#ab7df8"/>
+<text x="874.5" y="504" font-size="14" font-weight="400" fill="#9198a1" text-anchor="start">MB4 Services, D4 stacks and</text>
+<text x="874.5" y="524" font-size="14" font-weight="400" fill="#9198a1" text-anchor="start">Trash, K4 search and tags</text>
+<text x="856.5" y="562" font-size="14.5" font-weight="700" fill="#e6edf3" text-anchor="start">→ Minkar 21.0</text>
+<circle cx="862.5" cy="581" r="4.5" fill="#4493f8"/>
+<text x="874.5" y="586" font-size="14" font-weight="400" fill="#9198a1" text-anchor="start">WS5 IOSurface, WS6 GPU</text>
+<text x="874.5" y="606" font-size="14" font-weight="400" fill="#9198a1" text-anchor="start">compositing</text>
+<circle cx="862.5" cy="625" r="4.5" fill="#f85149"/>
+<text x="874.5" y="630" font-size="14" font-weight="400" fill="#9198a1" text-anchor="start">G2–G5 driver, Mesa, Metal</text>
+<text x="856.5" y="668" font-size="14.5" font-weight="700" fill="#e6edf3" text-anchor="start">→ M7</text>
+<circle cx="862.5" cy="687" r="4.5" fill="#8b949e"/>
+<text x="874.5" y="692" font-size="14" font-weight="400" fill="#9198a1" text-anchor="start">x86-64 apps, arm64</text>
 </svg>

@@ -121,7 +121,7 @@ this plan; the Dock's model keeps room for them.
 - **App switcher.** The window server's symbolic hotkey table (WS4a) sends
   Command-Tab to the Dock instead of delivering it as a key event; the Dock
   shows the switcher and activates the chosen app. The legacy server's
-  switcher (`WSInput.m`) goes away with `Legacy/` in WS4b, so until D4 there
+  switcher (`WSInput.m`) goes away with `Legacy/` in WS4b, so until D3 there
   is none.
 
 ## 5. Kraz architecture
@@ -149,8 +149,10 @@ this plan; the Dock's model keeps room for them.
 - **Reveal.** `open -R`, `-[NSWorkspace activateFileViewerSelectingURLs:]`
   and `selectFile:inFileViewerRootedAtPath:` open a Kraz window with the
   item selected.
-- **Later.** Search on the metadata index (`mdfind`, Phase 5), double-click
-  on a DMG (Phase 6), tags, previews.
+- **DMG double-click** (Phase 6): mounts the image and opens its volume
+  (K3, for gate M6).
+- **Later.** Search on the metadata index (`mdfind`, Phase 5), tags,
+  previews.
 
 ## 6. Dependencies
 
@@ -194,13 +196,12 @@ exists, gate M4) still green, and the roadmap updated with the evidence.
   (Keep in Dock, Open at Login, Show in Kraz, Quit) and the app's dock menu;
   autohide, magnification, orientation; the minimize and restore animation
   (`mineffect`) for `miniaturize:`.
-- [ ] **D3 — Dock tile service and minimized windows.** `org.minkar.dock.server`:
-  badges, content, attention bounce; minimized windows with thumbnails
-  (after WS4a).
-- [ ] **D4 — Stacks, Trash and the app switcher.** Downloads and folder stacks;
-  Trash tile (empty or full, drop to trash, empty through Kraz); the app
-  switcher in the Dock, which gets Command-Tab from the window server's
-  symbolic hotkey table.
+- [ ] **D3 — Dock tile service, minimized windows and the app switcher.**
+  `org.minkar.dock.server`: badges, content, attention bounce; minimized
+  windows with thumbnails (after WS4a); the app switcher in the Dock, which
+  gets Command-Tab from the window server's symbolic hotkey table.
+- [ ] **D4 — Stacks and Trash.** Downloads and folder stacks; Trash tile
+  (empty or full, drop to trash, empty through Kraz).
 
 ### Kraz
 
@@ -215,13 +216,16 @@ exists, gate M4) still green, and the roadmap updated with the evidence.
   undo; drag and drop between windows and onto the Dock; Trash with Put Back;
   "Open With".
 - [ ] **K3 — Desktop and session.** Desktop icons and volumes with eject; reveal
-  APIs; started and restarted by loginwindow.
-- [ ] **K4 — Later work.** Search on the metadata index, DMG double-click
-  (Phase 6), tags, previews.
+  APIs; started and restarted by loginwindow; DMG double-click (Phase 6,
+  DMG step 3).
+- [ ] **K4 — Later work.** Search on the metadata index, tags, previews.
 
 Gate M5 ("a graphical session starts, an app opens from the Dock, Kraz
 browses, and the resolution changes from System Preferences") needs D1 and
 K1, besides loginwindow and System Preferences.
+
+Gate M6 (Minkar 19.6.0, a desktop for daily use) needs D2 and D3, and K2
+and K3. D4 and K4 come in 19.6.x.
 
 ## 8. Tests and measurements
 
@@ -248,7 +252,7 @@ commits with the diff shown first; evidence for every roadmap item; no
 | --- | --- | --- | --- |
 | Dock preferences | Domain `org.minkar.dock`, reference keys and tile data format | — | — |
 | Who draws the desktop | Dock: pictures; Kraz: icons | Desktop without icons until K3 | K3 |
-| App switcher | Dock, Command-Tab from the window server's hotkey table | Legacy window server (`WSInput.m`) until WS4b; then none: apps are switched by clicking their windows (`SHORTCUT(D4)`) | D4 |
+| App switcher | Dock, Command-Tab from the window server's hotkey table | Legacy window server (`WSInput.m`) until WS4b; then none: apps are switched by clicking their windows (`SHORTCUT(D3)`) | D3 |
 | Minimized windows | Thumbnails from the window server's capture | Generic window icon | D3 (after WS4a) |
 | Starting the Dock and Kraz | loginwindow, restarting them if they exit | launchd agents | Phase 5 (loginwindow) |
 | Look | Gienah visual language guide | Plain system controls and colors | Guide available |

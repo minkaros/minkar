@@ -42,8 +42,8 @@ Minkar separa tres capas que en la plataforma de referencia van juntas. El kerne
 
 | Minkar | Entrega | Kernel (`uname -r`) | `ProductVersion` |
 | --- | --- | --- | --- |
-| 19.6.0 | API 19, escritorio Gienah y DMG; gates funcionales M0–M6 en equipo físico | 19.6.0 | 10.15 |
-| 19.6.x | Correcciones; pueden traer partes de API 20 | 19.6.0 | 10.15 |
+| 19.6.0 | API 19, escritorio Gienah completo para el uso diario (MB2–MB3, D2–D3, K2–K3) y DMG; gates funcionales M0–M6 en equipo físico | 19.6.0 | 10.15 |
+| 19.6.x | Correcciones, y MB4, D4 y K4; pueden traer partes de API 20 | 19.6.0 | 10.15 |
 | 20.0 | API 20 completa y probada | 19.6.0 | 11.0 |
 | 21.0 | API 21 completa y probada, más los gates de rendimiento | 19.6.0 | 12.0 |
 
@@ -378,7 +378,7 @@ Comandos que llegan con esta fase (movidos desde la Fase 2):
 
 Adelanto: `hdiutil attach` ya monta imágenes en `/Volumes` a través de DiskArbitration (30 oct 2026); falta leer el formato UDIF de los DMG.
 
-**Criterio de salida (M6):** se descarga un DMG, se monta, se copia la app a `/Applications` y corre; Terminal, TextEdit y el navegador se usan a diario en la propia máquina de desarrollo.
+**Criterio de salida (M6):** se descarga un DMG, se monta, se copia la app a `/Applications` y corre; Terminal, TextEdit y el navegador se usan a diario en la propia máquina de desarrollo; y el escritorio Gienah está completo para el uso diario: MB2 y MB3 de [Menus.es.md](Menus.es.md), D2 y D3 y K2 y K3 de [Dock-Kraz.es.md](Dock-Kraz.es.md); MB4, D4 y K4 llegan en 19.6.x.
 
 ## Fase 7 — Compatibilidad binaria y arm64
 
@@ -423,7 +423,7 @@ M0, M1 y M2 están cumplidos (M1 el 1 nov, con el Mac Pro 6,1 como PC 2) y la Fa
 | M3 | Frameworks y Swift | Sin empezar; hay trabajo previo en Foundation |
 | M4 | Gráficos y WindowServer | En curso: WS0 hecho (el gate `M4-draw` pasa, `cce7da92bc`); WS1 hecho (`skylight-test` 115/0, `030dba37c7`); WS2 hecho (el gate `M4-compose` pasa, `8512fe60ba`); WS3 hecho (entrada, `98237bf14e`); WS4a en curso (sesión de LaunchServices `996178d949`, app del frente `95160b2955`, sitio de la barra de menús `79cc777e5c`; gate `M4-compose` 40 marcadores), después WS4b |
 | M5 | Escritorio Gienah | Sin empezar |
-| M6 (Minkar 19.6.0) | Apps y distribución | Sin empezar; `hdiutil attach` ya monta |
+| M6 (Minkar 19.6.0) | Apps y distribución, y el escritorio completo para el uso diario (MB2–MB3, D2–D3, K2–K3) | Sin empezar; `hdiutil attach` ya monta |
 | Minkar 21.0 | API 21 completa y rendimiento ≥ sistema de referencia en equipo físico | Sin empezar; depende del frente de GPU |
 | M7 | Compatibilidad binaria, arm64 | Después de Minkar 19.6.0 |
 

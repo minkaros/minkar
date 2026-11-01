@@ -271,6 +271,9 @@ them apart from the gates M*n*.
 - [ ] **MB4 — Services and the menu bar's behavior.** Services daemon and menu;
   hiding in full screen; auto-hide.
 
+Gate M6 (Minkar 19.6.0, a desktop for daily use) needs MB2 and MB3. MB4
+comes in 19.6.x.
+
 ## 8. Tests and measurements
 
 - Model tests (validation order, key equivalent order, tag preservation) as

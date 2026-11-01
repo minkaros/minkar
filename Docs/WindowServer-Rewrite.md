@@ -402,7 +402,7 @@ server's, linked from there until WS4a moves them to SkyLight (then a
   sends each one to its owner instead of delivering it as a key event:
   Command-Tab to the Dock, Command-Option-Escape to loginwindow, Control-F2
   to the front app's AppKit (focus to the menu bar). The server draws no
-  app switcher; the Dock does (D4 of [Dock-Kraz.md](Dock-Kraz.md)).
+  app switcher; the Dock does (D3 of [Dock-Kraz.md](Dock-Kraz.md)).
 - **Running applications through LaunchServices:** a LaunchServices session
   service keeps the list of running apps; each app checks in from
   `NSApplication` at launch, its exit is noticed when it happens, and the
@@ -554,7 +554,7 @@ displays, Spaces, hardware cursor.
 - Development shortcuts are marked in the code with the milestone that
   removes them:
   `// SHORTCUT(<removed by>): <what and why>; taken in <milestone>.`
-  (for example `SHORTCUT(WS4a)`, `SHORTCUT(Phase 5)`, `SHORTCUT(D4)`), and
+  (for example `SHORTCUT(WS4a)`, `SHORTCUT(Phase 5)`, `SHORTCUT(D3)`), and
   each one has a row in its plan's shortcut table (section 9 here, section
   10 of [Menus.md](Menus.md) and of [Dock-Kraz.md](Dock-Kraz.md)). A
   milestone closes only when `git grep -n 'SHORTCUT(<milestone>)'` finds
@@ -575,7 +575,7 @@ Decided 2026-10-31, following the guiding rule in section 1:
 | Moving windows | Server-side moves from client-declared drag regions, plus `performWindowDragWithEvent:` | Title bar region only | Removed 2026-11-01 (`f03d8ddc9d`, `5df94c8821`) |
 | Keyboard layouts | The server delivers hardware key codes; the client turns them into characters from the current layout (layout data and a `UCKeyTranslate`-style call in the app), with Text Input Sources | `WSKeymap` and libxkbcommon in SkyLight, from WS4a (`SHORTCUT(Phase 5)`) | Phase 5 (Text Input Sources and our own layout files) |
 | Ending the session | The login window asks apps to quit, ends the session and then restarts or shuts down | A minimal `loginwindow` that only ends the session and calls `reboot(2)` | Phase 5 (LoginWindow) |
-| App switcher (Command-Tab) | The Dock draws it; the window server's symbolic hotkey table delivers Command-Tab to it | No switcher after the legacy server goes (WS4b): apps are switched by clicking their windows (`SHORTCUT(D4)`) | D4 ([Dock-Kraz.md](Dock-Kraz.md)) |
+| App switcher (Command-Tab) | The Dock draws it; the window server's symbolic hotkey table delivers Command-Tab to it | No switcher after the legacy server goes (WS4b): apps are switched by clicking their windows (`SHORTCUT(D3)`) | D3 ([Dock-Kraz.md](Dock-Kraz.md)) |
 | Legacy server's thread stacks | Gone with the legacy server and `message.h` | 4 MB stacks for its 128 KB messages (`SHORTCUT(WS4b)` in `Legacy/main.m`, taken in WS0) | WS4b |
 | What WindowServer's launchd job starts | The window server only; the session starts elsewhere (section 10.3) | The compositor only (`-x`), since LoginWindow is not built (`SHORTCUT(WS4b)` in the plist, taken in WS0) | WS4b |
 | System font | Gienah's own font | Inter (SIL OFL 1.1), four faces (`SHORTCUT(Phase 5)` in `SystemLibrary/Fonts/Makefile`, taken in WS0) | Phase 5 (Gienah) |

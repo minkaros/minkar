@@ -439,7 +439,7 @@ sección 9).
   uno a su dueño en lugar de entregarlo como evento de teclado: Comando-Tab
   al Dock, Comando-Opción-Escape a loginwindow, Control-F2 al AppKit de la
   app del frente (el foco a la barra de menús). El servidor no dibuja ningún
-  selector de apps; lo hace el Dock (D4 de [Dock-Kraz.es.md](Dock-Kraz.es.md)).
+  selector de apps; lo hace el Dock (D3 de [Dock-Kraz.es.md](Dock-Kraz.es.md)).
 - **Apps en ejecución a través de LaunchServices:** un servicio de sesión de
   LaunchServices guarda la lista de apps en ejecución; cada app se registra
   desde `NSApplication` al arrancar, su salida se detecta cuando ocurre, y el
@@ -599,7 +599,7 @@ varias pantallas, Spaces, cursor por hardware.
   servidor viejo funcionando hasta el cambio de WS4b.
 - Los atajos de desarrollo se marcan en el código con el hito que los quita:
   `// SHORTCUT(<se quita en>): <qué y por qué>; taken in <hito>.`
-  (por ejemplo `SHORTCUT(WS4a)`, `SHORTCUT(Phase 5)`, `SHORTCUT(D4)`; el
+  (por ejemplo `SHORTCUT(WS4a)`, `SHORTCUT(Phase 5)`, `SHORTCUT(D3)`; el
   comentario va en inglés, como todo el código), y cada uno tiene una fila
   en la tabla de atajos de su plan (aquí la sección 9; la sección 10 de
   [Menus.es.md](Menus.es.md) y de [Dock-Kraz.es.md](Dock-Kraz.es.md)). Un
@@ -622,7 +622,7 @@ Decidido el 31 oct 2026, según la regla general de la sección 1:
 | Mover ventanas | Movimientos en el servidor a partir de las zonas de arrastre que declara el cliente, más `performWindowDragWithEvent:` | Solo la zona de la barra de título | Se quitó el 1 nov 2026 (`f03d8ddc9d`, `5df94c8821`) |
 | Distribuciones de teclado | El servidor entrega códigos de tecla del hardware; el cliente los convierte en caracteres según la distribución actual (datos de la distribución y una llamada al estilo de `UCKeyTranslate` en la app), con Text Input Sources | `WSKeymap` y libxkbcommon en SkyLight, desde WS4a (`SHORTCUT(Phase 5)`) | Fase 5 (Text Input Sources y ficheros de distribución propios) |
 | Terminar la sesión | La ventana de login pide a las apps que terminen, cierra la sesión y después reinicia o apaga | Un `loginwindow` mínimo que solo cierra la sesión y llama a `reboot(2)` | Fase 5 (LoginWindow) |
-| Selector de apps (Comando-Tab) | Lo dibuja el Dock; la tabla de atajos simbólicos del servidor de ventanas le entrega Comando-Tab | Sin selector desde que se va el servidor anterior (WS4b): se cambia de app con clic en sus ventanas (`SHORTCUT(D4)`) | D4 ([Dock-Kraz.es.md](Dock-Kraz.es.md)) |
+| Selector de apps (Comando-Tab) | Lo dibuja el Dock; la tabla de atajos simbólicos del servidor de ventanas le entrega Comando-Tab | Sin selector desde que se va el servidor anterior (WS4b): se cambia de app con clic en sus ventanas (`SHORTCUT(D3)`) | D3 ([Dock-Kraz.es.md](Dock-Kraz.es.md)) |
 | Pilas de los hilos del servidor anterior | Desaparecen con el servidor anterior y `message.h` | Pilas de 4 MB para sus mensajes de 128 KB (`SHORTCUT(WS4b)` en `Legacy/main.m`, tomado en WS0) | WS4b |
 | Qué arranca el job de launchd de WindowServer | Solo el servidor de ventanas; la sesión arranca en otro sitio (sección 10.3) | Solo el compositor (`-x`), porque LoginWindow no se compila (`SHORTCUT(WS4b)` en el plist, tomado en WS0) | WS4b |
 | Fuente del sistema | La fuente propia de Gienah | Inter (SIL OFL 1.1), cuatro estilos (`SHORTCUT(Phase 5)` en `SystemLibrary/Fonts/Makefile`, tomado en WS0) | Fase 5 (Gienah) |

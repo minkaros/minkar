@@ -128,7 +128,7 @@ quedan fuera de este plan; el modelo del Dock les deja sitio.
   ventanas (WS4a) envía Comando-Tab al Dock en lugar de entregarlo como evento
   de teclado; el Dock muestra el selector y activa la app elegida. El
   selector del servidor anterior (`WSInput.m`) desaparece con `Legacy/` en
-  WS4b, así que hasta D4 no hay ninguno.
+  WS4b, así que hasta D3 no hay ninguno.
 
 ## 5. Arquitectura de Kraz
 
@@ -156,8 +156,10 @@ quedan fuera de este plan; el modelo del Dock les deja sitio.
   `-[NSWorkspace activateFileViewerSelectingURLs:]` y
   `selectFile:inFileViewerRootedAtPath:` abren una ventana de Kraz con el
   elemento seleccionado.
+- **Doble clic en un DMG** (Fase 6): monta la imagen y abre su volumen
+  (K3, para el gate M6).
 - **Después.** Búsqueda sobre el índice de metadatos (`mdfind`, Fase 5),
-  doble clic en un DMG (Fase 6), etiquetas, vistas previas.
+  etiquetas, vistas previas.
 
 ## 6. Dependencias
 
@@ -205,13 +207,13 @@ evidencia.
   Kraz, Salir) y el menú de la propia app; ocultación automática,
   magnificación, orientación; la animación de minimizar y restaurar
   (`mineffect`) para `miniaturize:`.
-- [ ] **D3 — Servicio de tiles y ventanas minimizadas.**
+- [ ] **D3 — Servicio de tiles, ventanas minimizadas y selector de apps.**
   `org.minkar.dock.server`: insignias, contenido, rebote de atención;
-  ventanas minimizadas con miniaturas (después de WS4a).
-- [ ] **D4 — Pilas, papelera y selector de apps.** Pilas de Descargas y de
-  carpetas; tile de la papelera (vacía o llena, soltar para tirar, vaciar a
-  través de Kraz); el selector de apps en el Dock, que recibe Comando-Tab de
-  la tabla de atajos simbólicos del servidor de ventanas.
+  ventanas minimizadas con miniaturas (después de WS4a); el selector de apps
+  en el Dock, que recibe Comando-Tab de la tabla de atajos simbólicos del
+  servidor de ventanas.
+- [ ] **D4 — Pilas y papelera.** Pilas de Descargas y de carpetas; tile de la
+  papelera (vacía o llena, soltar para tirar, vaciar a través de Kraz).
 
 ### Kraz
 
@@ -227,14 +229,18 @@ evidencia.
   progreso y deshacer; arrastrar y soltar entre ventanas y sobre el Dock;
   papelera con «Devolver»; «Abrir con».
 - [ ] **K3 — Escritorio y sesión.** Iconos del escritorio y volúmenes con
-  expulsar; API para mostrar en Kraz; arranque y rearranque por loginwindow.
-- [ ] **K4 — Trabajo posterior.** Búsqueda sobre el índice de metadatos, doble
-  clic en un DMG (Fase 6), etiquetas, vistas previas.
+  expulsar; API para mostrar en Kraz; arranque y rearranque por loginwindow;
+  doble clic en un DMG (Fase 6, paso 3 de DMG).
+- [ ] **K4 — Trabajo posterior.** Búsqueda sobre el índice de metadatos,
+  etiquetas, vistas previas.
 
 El gate M5 («desde el arranque se llega a una sesión gráfica, se abre una app
 desde el Dock, se navega con Kraz y se cambia la resolución desde
 Preferencias») necesita D1 y K1, además de loginwindow y Preferencias del
 Sistema.
+
+El gate M6 (Minkar 19.6.0, un escritorio para el uso diario) necesita D2 y
+D3, y K2 y K3. D4 y K4 llegan en 19.6.x.
 
 ## 8. Pruebas y mediciones
 
@@ -261,7 +267,7 @@ del roadmap; sin líneas `Co-Authored-By`.
 | --- | --- | --- | --- |
 | Preferencias del Dock | Dominio `org.minkar.dock`, claves y formato de datos de tiles de la referencia | — | — |
 | Quién dibuja el escritorio | Dock: fondos; Kraz: iconos | Escritorio sin iconos hasta K3 | K3 |
-| Selector de apps | Dock, con Comando-Tab de la tabla de atajos del servidor de ventanas | Servidor de ventanas anterior (`WSInput.m`) hasta WS4b; después ninguno: se cambia de app con clic en sus ventanas (`SHORTCUT(D4)`) | D4 |
+| Selector de apps | Dock, con Comando-Tab de la tabla de atajos del servidor de ventanas | Servidor de ventanas anterior (`WSInput.m`) hasta WS4b; después ninguno: se cambia de app con clic en sus ventanas (`SHORTCUT(D3)`) | D3 |
 | Ventanas minimizadas | Miniaturas desde la captura del servidor de ventanas | Icono de ventana genérico | D3 (después de WS4a) |
 | Arranque del Dock y de Kraz | loginwindow, que los rearranca si terminan | Agentes de launchd | Fase 5 (loginwindow) |
 | Aspecto | Guía del lenguaje visual Gienah | Controles y colores del sistema, sin estilo propio | Cuando exista la guía |

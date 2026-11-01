@@ -288,6 +288,9 @@ distinguirlos de los gates M*n*.
 - [ ] **MB4 — Servicios y comportamiento de la barra.** Daemon y menú de
   servicios; ocultación en pantalla completa; ocultación automática.
 
+El gate M6 (Minkar 19.6.0, un escritorio para el uso diario) necesita MB2 y
+MB3. MB4 llega en 19.6.x.
+
 ## 8. Pruebas y mediciones
 
 - Pruebas del modelo (orden de validación, orden de los atajos,
