@@ -43,6 +43,11 @@ Gates from the architecture plan:
       configd, whose DNS configuration scutil shows), root logs
       in over ssh from the host with a key, and the guest resolves the
       host's name through DNS                      (--gate M2)
+  M4-draw  M2, then WindowServer (its launchd job enabled over ssh) and
+      its demo client: the screen, taken through QMP, matches a
+      reference image within a tolerance, and a click (USB tablet) and a
+      key (PS/2 keyboard) injected through QMP reach the demo's window as
+      NSEvents                                     (--gate M4-draw)
 
 For M1 the kernel prints nothing once PID 1 starts, so PID 1 itself
 (launchd, or a temporary init) must print USERLAND_MARKER on the console,
@@ -50,6 +55,8 @@ and the shell it starts SHELL_MARKER.
 """
 
 import argparse
+import gzip
+import json
 import os
 import re
 import selectors
@@ -68,6 +75,13 @@ SHELL_MARKER = 'Minkar: shell running'
 
 class Send(str):
     """A gate step that types a line on the console instead of waiting."""
+
+
+class Act(str):
+    """A gate step done on the host through QEMU's QMP: "compare" (the
+    screen against the reference image), "click X Y" (screen pixels) or
+    "key NAME" (a QEMU key code). Its result lines are matched by the
+    markers that follow."""
 
 
 class SSH(str):
@@ -111,9 +125,39 @@ GATES = {
                  PASSWORD, 'Welcome to Minkar.'] + SHELL_INPUT,
 }
 GATES['M2'] = GATES['M2-login'] + SSH_INPUT
+
+# Gate M4-draw (WindowServer plan, WS0): WindowServer's job is installed
+# disabled; enabled over ssh, it takes the screen. Its demo client opens
+# one window at a fixed place, so the screen can be compared with
+# REFERENCE (--update-reference writes it from a good run).
+WS_JOB = '/System/Library/LaunchDaemons/org.minkar.WindowServer.plist'
+WS_DEMO = '/System/Library/CoreServices/WindowServerDemo.app/Contents/MacOS/WindowServerDemo'
+REFERENCE = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'reference',
+                         'M4-draw.ppm.gz')
+# A pixel differs when a channel differs by more than PIXEL_TOLERANCE; the
+# screen matches when at most SCREEN_TOLERANCE of its pixels differ.
+PIXEL_TOLERANCE = 32
+SCREEN_TOLERANCE = 0.005
+GATES['M4-draw'] = GATES['M2'] + [
+    SSH('launchctl load -w %s; for i in $(seq 60); do grep -q "IOFramebuffer: display" '
+        '/var/log/WindowServer.log 2>/dev/null && break; sleep 1; done; '
+        'grep "IOFramebuffer: display" /var/log/WindowServer.log' % WS_JOB),
+    'IOFramebuffer: display',
+    SSH('cd /; (nohup %s > /tmp/demo.out 2>&1 < /dev/null &); for i in $(seq 60); do '
+        'grep -q "^window frame=" /tmp/demo.out && break; sleep 1; done; sleep 3; '
+        'grep "^window frame=" /tmp/demo.out' % WS_DEMO),
+    'window frame=198,197,402,332',
+    Act('compare'), 'boottest-draw: the screen matches the reference',
+    # The middle of the demo's content (its frame is 198,197,402,332 from
+    # the bottom left, on a 1024x768 screen).
+    Act('click 399 405'), Act('key a'),
+    SSH('sleep 2; cat /tmp/demo.out'),
+    'event mouseDown x=', 'event mouseUp', 'event keyDown keyCode=0 chars=a',
+]
 GATE_FAIL = {
     'M2-login': ['Login incorrect'],
     'M2': ['Login incorrect'],
+    'M4-draw': ['Login incorrect', 'boottest-draw: the screen differs'],
 }
 # How long the shell gets to print its prompt before input is sent.
 SEND_DELAY = 3
@@ -167,7 +211,12 @@ def qemu_command(args, vars_copy):
         '-device', '%s,netdev=net0' % args.nic,
         '-serial', 'stdio', '-monitor', 'none', '-display', 'none',
         '-no-reboot',
-    ]
+    ] + ([] if args.qmp is None else [
+        # Gate M4-draw: a USB tablet for absolute pointer positions, and QMP
+        # to take the screen and inject input.
+        '-device', 'qemu-xhci,id=xhci', '-device', 'usb-tablet,bus=xhci.0',
+        '-qmp', 'unix:%s,server,nowait' % args.qmp,
+    ])
 
 
 def send_pending(proc, pending, start):
@@ -229,6 +278,89 @@ def print_panic_report(args, console):
         print('boottest: | ' + line, file=sys.stderr)
 
 
+def qmp(args, *commands):
+    """Runs QMP commands (name, arguments) and returns their results."""
+    s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+    s.connect(args.qmp)
+    f = s.makefile('rw')
+    f.readline()
+    results = []
+    for name, arguments in (('qmp_capabilities', None),) + commands:
+        msg = {'execute': name}
+        if arguments is not None:
+            msg['arguments'] = arguments
+        f.write(json.dumps(msg) + '\n')
+        f.flush()
+        while True:
+            r = json.loads(f.readline())
+            if 'return' in r or 'error' in r:
+                if 'error' in r:
+                    raise RuntimeError('QMP %s: %s' % (name, r['error']))
+                results.append(r['return'])
+                break
+    s.close()
+    return results[1:]
+
+
+def read_ppm(data):
+    """Width, height and RGB bytes of a binary PPM (P6, 8 bits)."""
+    parts = data.split(b'\n', 3)
+    w, h = map(int, parts[1].split())
+    return w, h, parts[3]
+
+
+def act(args, step, tmp):
+    """Does an Act step; returns the lines its markers are matched in."""
+    words = step.split()
+    if words[0] == 'compare':
+        shot = os.path.join(tmp, 'screen.ppm')
+        qmp(args, ('screendump', {'filename': shot}))
+        time.sleep(1)
+        with open(shot, 'rb') as f:
+            data = f.read()
+        if args.log:
+            shutil.copyfile(shot, args.log + '.screen.ppm')
+        if args.update_reference:
+            os.makedirs(os.path.dirname(args.reference), exist_ok=True)
+            with gzip.open(args.reference, 'wb') as f:
+                f.write(data)
+            return ['boottest-draw: the screen matches the reference (written to %s)'
+                    % args.reference]
+        with gzip.open(args.reference, 'rb') as f:
+            rw, rh, ref = read_ppm(f.read())
+        w, h, px = read_ppm(data)
+        if (w, h) != (rw, rh):
+            return ['boottest-draw: the screen differs: %dx%d, the reference %dx%d'
+                    % (w, h, rw, rh)]
+        differ = sum(1 for i in range(0, len(px), 3)
+                     if max(abs(px[i + c] - ref[i + c]) for c in range(3)) > PIXEL_TOLERANCE)
+        verdict = 'matches' if differ <= SCREEN_TOLERANCE * w * h else 'differs'
+        return ['boottest-draw: the screen %s the reference (%d of %d pixels differ)'
+                % (verdict, differ, w * h)]
+    if words[0] == 'click':
+        # The tablet spans 0..32767 on each axis of the screen.
+        shot = os.path.join(tmp, 'size.ppm')
+        qmp(args, ('screendump', {'filename': shot}))
+        time.sleep(1)
+        with open(shot, 'rb') as f:
+            w, h, _ = read_ppm(f.read())
+        x, y = int(words[1]) * 32767 // w, int(words[2]) * 32767 // h
+        move = [{'type': 'abs', 'data': {'axis': 'x', 'value': x}},
+                {'type': 'abs', 'data': {'axis': 'y', 'value': y}}]
+        for down in (None, True, False):
+            events = list(move)
+            if down is not None:
+                events.append({'type': 'btn', 'data': {'down': down, 'button': 'left'}})
+            qmp(args, ('input-send-event', {'events': events}))
+            time.sleep(0.5)
+        return ['boottest-draw: clicked at %s,%s' % (words[1], words[2])]
+    if words[0] == 'key':
+        qmp(args, ('send-key', {'keys': [{'type': 'qcode', 'data': words[1]}]}))
+        time.sleep(0.5)
+        return ['boottest-draw: typed %s' % words[1]]
+    raise ValueError('unknown step: %s' % step)
+
+
 def run(args):
     expect = list(args.expect or GATES[args.gate])
     if PASSWORD in expect:
@@ -258,6 +390,8 @@ def run(args):
             return 1
 
     tmp = tempfile.mkdtemp(prefix='minkar-boottest-')
+    args.qmp = os.path.join(tmp, 'qmp.sock') if any(
+        isinstance(m, Act) for m in expect) else None
     vars_copy = os.path.join(tmp, 'OVMF_VARS.fd')
     shutil.copyfile(args.ovmf_vars, vars_copy)
     cmd = qemu_command(args, vars_copy)
@@ -298,6 +432,22 @@ def run(args):
 
     try:
         while time.monotonic() - start < args.timeout:
+            while pending and isinstance(pending[0], Act) and status != 1:
+                step = pending.pop(0)
+                print('boottest: [%6.1fs] qmp: %s' % (time.monotonic() - start, step),
+                      file=sys.stderr)
+                for text in act(args, step, tmp):
+                    print('boottest: [%6.1fs] %s' % (time.monotonic() - start, text),
+                          file=sys.stderr)
+                    if log:
+                        log.write(b'qmp| ' + text.encode() + b'\n')
+                        log.flush()
+                    match(text, True)
+            if status == 1 or (not pending and expect):
+                if not pending:
+                    status, reason = 0, 'all %d markers seen' % sum(
+                        not isinstance(m, (Send, SSH, Act)) for m in expect)
+                break
             if pending and isinstance(pending[0], SSH) and ssh is None and \
                     time.monotonic() >= ssh_retry:
                 ssh = start_ssh()
@@ -354,7 +504,7 @@ def run(args):
             if status == 1 or not pending:
                 if not pending:
                     status, reason = 0, 'all %d markers seen' % sum(
-                        not isinstance(m, (Send, SSH)) for m in expect)
+                        not isinstance(m, (Send, SSH, Act)) for m in expect)
                 break
         if status == 1 and any(m in reason for m in PANIC_MARKERS):
             drain_panic(proc, sel, console, log, args.verbose)
@@ -377,7 +527,7 @@ def run(args):
         print_panic_report(args, console)
     if pending and status != 0:
         print('boottest: not seen: %s' % ', '.join(p for p in pending
-                                                  if not isinstance(p, Send)),
+                                                  if not isinstance(p, (Send, Act))),
               file=sys.stderr)
     return status
 
@@ -428,6 +578,11 @@ def main(argv=None):
     p.add_argument('--ssh-port', type=int,
                    default=int(os.environ.get('BOOTTEST_SSH_PORT', '2222')),
                    help='host port forwarded to the guest\'s port 22')
+    p.add_argument('--reference', default=REFERENCE,
+                   help='reference screen for gate M4-draw (gzip-compressed PPM)')
+    p.add_argument('--update-reference', action='store_true',
+                   help='gate M4-draw: write the screen to --reference instead of '
+                        'comparing it (from a run checked by hand)')
     p.add_argument('--ovmf-code', default='/usr/share/OVMF/OVMF_CODE_4M.fd')
     p.add_argument('--ovmf-vars', default='/usr/share/OVMF/OVMF_VARS_4M.fd')
     args = p.parse_args(argv)
