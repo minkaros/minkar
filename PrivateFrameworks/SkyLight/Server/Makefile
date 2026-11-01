@@ -43,10 +43,17 @@ WindowServerServer.c WindowServerServer.h: ${SKYLIGHT}/IPC/WindowServer.defs
 
 main.o WSDisplayServices.o WSWindowList.o WSCompositor.o WSEvents.o WSTaps.o: WindowServerServer.h
 
+# Signed with its entitlements; the image build puts it in the trust cache
+# (Docs/ADR/0001-Kernel-Entitlements.md).
+CODESIGN = python3 -B ${ROOT_SOURCE_DIR}/Developer/Default.xctoolchain/codesign/codesign.py
+
 all: to-sysroot
 
 to-sysroot: ${PROG}
 	mkdir -p ${SYSROOT_DIR}${RESOURCES}
 	install -m 0555 -o 0 -g 0 ${PROG} ${SYSROOT_DIR}${RESOURCES}/WindowServer
+	${CODESIGN} -f -s - -i org.minkar.WindowServer \
+	    --entitlements ${.CURDIR}/WindowServer.entitlements \
+	    ${SYSROOT_DIR}${RESOURCES}/WindowServer
 
 .include <bsd.prog.mk>

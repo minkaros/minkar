@@ -18,5 +18,7 @@ SUBDIR += .WAIT ../BSD/lib/libpixman .WAIT ../PrivateFrameworks/SkyLight/Server 
 	../PrivateFrameworks/SkyLight/Tools/wsctl
 # The code integrity policy's test program (it needs IOKit).
 SUBDIR += ../Kernel/Extensions/MinkarCodeIntegrity/tests
+# IOHIDSystem's event queue reader, for the input tests (it needs IOKit).
+SUBDIR += ../Kernel/Extensions/IOHIDFamily/tests/hidevents
 
 .include <bsd.subdir.mk>
