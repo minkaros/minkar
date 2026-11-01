@@ -10,5 +10,8 @@
 # LoadingWindow) still use the old build rules and are not built yet.
 
 SUBDIR = WindowServer/Legacy/libxkbcommon .WAIT WindowServer/Legacy WindowServer/Demo
+# The new window server and its test client (SkyLight.framework is built
+# in the Frameworks stage).
+SUBDIR += ../PrivateFrameworks/SkyLight/Server ../PrivateFrameworks/SkyLight/Tests
 
 .include <bsd.subdir.mk>

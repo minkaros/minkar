@@ -12,6 +12,9 @@ SUBDIR += DiskArbitration
 SUBDIR += Foundation
 SUBDIR += CoreServices
 SUBDIR += Onyx2D
+# SkyLight (the window server's client side) comes before CoreGraphics,
+# which is to re-export it (WindowServer plan).
+SUBDIR += ../PrivateFrameworks/SkyLight
 # CoreGraphics links OpenGL.
 SUBDIR += OpenGL
 SUBDIR += CoreGraphics
