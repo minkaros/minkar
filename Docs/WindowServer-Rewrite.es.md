@@ -260,7 +260,7 @@ Estado al 31 oct 2026:
   demostración como `NSEvent`. Suite completa con 3023 pruebas superadas
   antes de (d); M2 pasa.
 
-WS0 está hecho (31 oct 2026). WS1 empieza después de la revisión.
+WS0 está hecho (31 oct 2026).
 
 Atajos tomados (sección 9): root puede abrir la conexión de servidor de
 IOHIDSystem, porque todavía ningún módulo de política valida las firmas de
@@ -289,6 +289,35 @@ C.
 - Display Services y la lista de ventanas portados a MIG, con un cliente de
   prueba que llama a cada función y comprueba las respuestas.
 - La organización del repositorio de la sección 10.1.
+
+WS1 está hecho (31 oct 2026). El servidor nuevo funciona junto al actual,
+que sigue siendo el predeterminado; se registra como
+`org.minkar.WindowServer.next` hasta WS4 y launchd todavía no lo arranca.
+Commits: estructura (`9e48d1f62a`), interfaz, cliente y servidor
+(`f9028e286a`), consultas de pantalla (`0e4d7293ff`), modos y
+configuraciones (`8dab4060cc`), tablas de transferencia (`37996817e4`),
+conexiones, captura, cursor y lista de ventanas (`41e37b7441`), espejo y
+fundidos (`030dba37c7`). `skylight-test` llama a cada rutina y comprueba
+las respuestas: 115 de 115 pasan en QEMU, igual que los gates M2 y
+M4-draw.
+
+Cada cliente pasa un puerto propio al conectarse; al servidor se le avisa
+cuando ese puerto muere y libera lo que tenía el proceso: ventanas,
+capturas, su cuenta de ocultación del cursor, su fundido, sus cambios de
+pantalla solo para la app y las tablas de transferencia que cambió.
+
+Atajos tomados (`SHORTCUT(WS1)`): una configuración de pantalla permanente
+dura solo la sesión; las tablas de transferencia y la mezcla del fundido
+las guarda el servidor y las aplica el compositor desde WS2; la posición
+del cursor solo cambia con warps hasta que el servidor lea la entrada
+(WS3).
+
+Quedan para hitos posteriores: los ID de pantalla salen de la entrada del
+registro y duran un arranque (se derivarán del EDID); el espejo se
+comprueba con una sola pantalla (rechazos y desactivarlo);
+`CGDisplayGetDrawingContext` y los flujos de pantalla llegan con la
+captura mediante superficies (WS4); las funciones de CoreGraphics siguen
+llamando al servidor actual hasta el cambio (WS4).
 
 ### WS2 — Ventanas, superficies y compositor por software
 

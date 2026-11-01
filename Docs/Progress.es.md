@@ -88,7 +88,7 @@ flowchart TB
         IOS["IOSurface<br/>paso 4"]:::todo
     end
     subgraph SERVER["Servidor de ventanas"]
-        WS["WindowServer<br/>WS0 hecho: ventanas de AppKit<br/>con entrada (M4-draw)<br/>núcleo nuevo: paso 2"]:::partial
+        WS["WindowServer<br/>WS0 hecho: ventanas de AppKit<br/>con entrada (M4-draw)<br/>WS1 hecho: interfaz del núcleo nuevo<br/>(SkyLight, MIG)"]:::partial
     end
     subgraph INPUT["Entrada"]
         HIDH["IOKit/hidsystem<br/>headers"]:::done
@@ -145,5 +145,6 @@ flowchart LR
 
 El paso 1 está hecho (verde, 31 oct 2026); el paso 2 es el siguiente (azul): su
 primer hito, WS0, está hecho (el WindowServer actual dibuja ventanas de AppKit con
-entrada, gate M4-draw); después viene el núcleo nuevo (WS1 a WS6). G1 empieza en cuanto se decida la familia de GPU; las flechas discontinuas marcan lo
+entrada, gate M4-draw), y también WS1 (la interfaz y el servidor del núcleo nuevo
+en SkyLight.framework); siguen WS2 a WS6. G1 empieza en cuanto se decida la familia de GPU; las flechas discontinuas marcan lo
 que el frente de GPU reutiliza de los pasos 4 y 5.

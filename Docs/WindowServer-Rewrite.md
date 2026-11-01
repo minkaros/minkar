@@ -237,7 +237,7 @@ State on 2026-10-31:
   (USB tablet) and a key (PS/2 keyboard) reach the demo's window as
   `NSEvent`s. Full suite 3023 passed before (d); M2 passes.
 
-WS0 is done (2026-10-31). WS1 starts after review.
+WS0 is done (2026-10-31).
 
 Shortcuts taken (section 9): root may open IOHIDSystem's server
 connection, since no policy module validates code signatures yet and no
@@ -263,6 +263,33 @@ exits; `CGLayer.h` cannot be included from C.
 - Display Services and the window list ported to MIG, with a test client
   that calls every one and checks the replies.
 - Repository layout of section 10.1.
+
+WS1 is done (2026-10-31). The new server runs next to the legacy one,
+which stays the default; it checks in `org.minkar.WindowServer.next`
+until WS4 and is not started by launchd yet. Commits: layout
+(`9e48d1f62a`), interface, client and server (`f9028e286a`), display
+queries (`0e4d7293ff`), modes and configurations (`8dab4060cc`), transfer
+tables (`37996817e4`), connections, capture, cursor and window list
+(`41e37b7441`), mirroring and fades (`030dba37c7`). `skylight-test`
+calls every routine and checks the replies: 115 of 115 pass in QEMU, as
+do gates M2 and M4-draw.
+
+Each client passes a port of its own when it connects; the server is
+told when that port dies and releases what the process held: windows,
+captures, its cursor hide count, its fade, its app-only display changes
+and the transfer tables it changed.
+
+Shortcuts taken (`SHORTCUT(WS1)`): a permanent display configuration
+lasts for the session only; the transfer tables and the fade blend are
+kept by the server and applied by the compositor from WS2; the cursor
+position only moves by warps until the server reads input (WS3).
+
+Left for later milestones: display IDs come from the registry entry and
+last one boot (to be derived from the EDID); mirroring is checked with
+one display only (refusals and turning it off); `CGDisplayGetDrawingContext`
+and display streams come with capture through surfaces (WS4); the
+CoreGraphics functions keep calling the legacy server until the switch
+(WS4).
 
 ### WS2 — Windows, surfaces and the software compositor
 
