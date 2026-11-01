@@ -574,6 +574,32 @@ testMinimize(void)
 	heard(0, 0);	/* the queue is read empty for the next tests */
 }
 
+static SLSWindowID solidWindow(SLSRect frame, uint32_t color);
+
+/* Window images (interface version 10): what the surface shows. */
+static void
+testWindowImage(void)
+{
+	SLSWindowID w = solidWindow((SLSRect){ 60, 70, 40, 30 }, 0xff336699);
+	uint8_t *pixels = NULL;
+	uint32_t width = 0, height = 0, rowBytes = 0;
+
+	check(SLSCopyWindowImage(w, &pixels, &width, &height, &rowBytes) == kSLSErrorSuccess &&
+	    width == 40 && height == 30 && rowBytes >= 160 && pixels != NULL,
+	    "a window's image is copied", NULL);
+	/* 0xff336699 is ARGB; the surface is BGRA in memory. */
+	check(pixels != NULL && pixels[0] == 0x99 && pixels[1] == 0x66 && pixels[2] == 0x33 &&
+	    pixels[3] == 0xff, "with its pixels", NULL);
+	free(pixels);
+	SLSOrderWindow(w, kSLSOrderOut, 0);
+	check(SLSCopyWindowImage(w, &pixels, &width, &height, &rowBytes) == kSLSErrorSuccess,
+	    "also when it is off the screen", NULL);
+	free(pixels);
+	check(SLSCopyWindowImage(0xdeadbeef, &pixels, &width, &height, &rowBytes) ==
+	    kSLSErrorIllegalArgument, "an unknown window has none", NULL);
+	SLSReleaseWindow(w);
+}
+
 /*
  * skylight-test watch: prints the windows minimized and restored, as the
  * Dock hears them, one line each, until it is killed. For the local tests.
@@ -1153,6 +1179,7 @@ main(int argc, char *argv[])
 	testWindows();
 	testStatusArea();
 	testMinimize();
+	testWindowImage();
 	testSurfaces();
 	testEvents();
 	testClientExit(argv[0]);

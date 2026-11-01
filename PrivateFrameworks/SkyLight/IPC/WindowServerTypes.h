@@ -49,6 +49,8 @@ typedef SLSEvent ws_event_list_t[kSLSMaxEvents];
 #define WS_EVENTS_PENDING_ID	0x534c5345	/* 'SLSE' */
 
 typedef SLSEventTapInfo ws_tap_list_t[kSLSMaxEventTaps];
+/* A window image, out of line. */
+typedef uint8_t *ws_pixels_t;
 
 
 #endif

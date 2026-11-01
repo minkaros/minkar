@@ -48,7 +48,7 @@ extern "C" {
 #define kSLSServiceName		"org.minkar.WindowServer.next"
 
 /* The interface version both sides are built for. */
-#define kSLSInterfaceVersion	9
+#define kSLSInterfaceVersion	10
 
 typedef int32_t SLSConnectionID;
 
@@ -385,6 +385,17 @@ int SLSSetWindowStatusItem(SLSWindowID window, int isItem);
  */
 int SLSSetWindowMinimized(SLSWindowID window, int minimized);
 int SLSRequestWindowNotifications(int on);
+
+/*
+ * A window's image (interface version 10): what its surface shows,
+ * premultiplied BGRA, *rowBytes apart, also for a minimized or ordered-out
+ * window (the Dock's thumbnails, CGWindowListCreateImage). free(*pixels)
+ * when done. Its app may read it; another process only under the
+ * built-in policy of event taps (SHORTCUT(M5), until the privacy
+ * service's screen recording permission).
+ */
+int SLSCopyWindowImage(SLSWindowID window, uint8_t **pixels, uint32_t *width,
+    uint32_t *height, uint32_t *rowBytes);
 
 /* 0 (transparent) to 1 (opaque); the server blends the surface with it. */
 int SLSSetWindowAlpha(SLSWindowID window, double alpha);

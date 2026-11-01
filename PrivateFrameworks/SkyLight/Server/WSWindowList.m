@@ -420,6 +420,55 @@ wss_window_set_status_item(mach_port_t server, audit_token_t token, uint32_t win
 }
 
 kern_return_t
+wss_window_image(mach_port_t server, audit_token_t token, uint32_t window, int32_t *result,
+    uint32_t *width, uint32_t *height, uint32_t *rowBytes, ws_pixels_t *pixels,
+    mach_msg_type_number_t *count)
+{
+	WSConnection *c = [WSConnection connectionForToken:token];
+	WSWindow *w = windowWithID(window);
+	WSSurface *s = w.surface;
+
+	*width = *height = *rowBytes = 0;
+	*pixels = NULL;
+	*count = 0;
+	if (c == nil) {
+		*result = kSLSErrorInvalidConnection;
+		return KERN_SUCCESS;
+	}
+	if (w == nil) {
+		*result = kSLSErrorIllegalArgument;
+		return KERN_SUCCESS;
+	}
+	/* SHORTCUT(M5): another app's window under the built-in policy of event
+	 * taps (root or the console's user), until the privacy service's
+	 * screen recording permission; taken in WS4a. */
+	if (w.owner != c && !WSMayControlInput(c)) {
+		*result = kSLSErrorCannotComplete;
+		return KERN_SUCCESS;
+	}
+	if (s == nil || !s.committed) {
+		*result = kSLSErrorCannotComplete;	/* nothing drawn yet */
+		return KERN_SUCCESS;
+	}
+	vm_address_t copy = 0;
+	vm_size_t size = (vm_size_t)s.rowBytes * s.height;
+	if (vm_allocate(mach_task_self(), &copy, size, VM_FLAGS_ANYWHERE) != KERN_SUCCESS) {
+		*result = kSLSErrorFailure;
+		return KERN_SUCCESS;
+	}
+	memcpy((void *)copy, [s lockFront], size);
+	[s unlock];
+	/* MIG sends it out of line and deallocates it here (dealloc). */
+	*pixels = (ws_pixels_t)copy;
+	*count = (mach_msg_type_number_t)size;
+	*width = s.width;
+	*height = s.height;
+	*rowBytes = s.rowBytes;
+	*result = kSLSErrorSuccess;
+	return KERN_SUCCESS;
+}
+
+kern_return_t
 wss_window_set_minimized(mach_port_t server, audit_token_t token, uint32_t window,
     int32_t minimized, int32_t *result)
 {

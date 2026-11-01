@@ -28,6 +28,7 @@
 
 /* Windows and the window list over the window server's interface. */
 
+#include <stdlib.h>
 #include <string.h>
 #include "SkyLight.h"
 #include "WindowServer.h"	/* MIG user side */
@@ -198,5 +199,39 @@ SLSRequestWindowNotifications(int on)
 	if (server == MACH_PORT_NULL ||
 	    ws_window_notifications(server, on != 0, &result) != KERN_SUCCESS)
 		return kSLSErrorFailure;
+	return result;
+}
+
+int
+SLSCopyWindowImage(SLSWindowID window, uint8_t **pixels, uint32_t *width,
+    uint32_t *height, uint32_t *rowBytes)
+{
+	int32_t result = kSLSErrorFailure;
+	mach_port_t server = SLSServerPort();
+	vm_offset_t data = 0;
+	mach_msg_type_number_t size = 0;
+	uint32_t w = 0, h = 0, rb = 0;
+
+	if (pixels == NULL || width == NULL || height == NULL || rowBytes == NULL)
+		return kSLSErrorIllegalArgument;
+	*pixels = NULL;
+	if (server == MACH_PORT_NULL ||
+	    ws_window_image(server, window, &result, &w, &h, &rb, (ws_pixels_t *)&data, &size) !=
+	    KERN_SUCCESS)
+		return kSLSErrorFailure;
+	if (result == kSLSErrorSuccess) {
+		/* The caller frees it with free(), not vm_deallocate(). */
+		*pixels = malloc(size ? size : 1);
+		if (*pixels == NULL)
+			result = kSLSErrorFailure;
+		else {
+			memcpy(*pixels, (void *)data, size);
+			*width = w;
+			*height = h;
+			*rowBytes = rb;
+		}
+	}
+	if (data != 0)
+		vm_deallocate(mach_task_self(), data, size);
 	return result;
 }
