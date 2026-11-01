@@ -2,10 +2,10 @@
 # Copyright (c) 2026 The Minkar contributors
 # Part of Minkar.
 #
-# Host-side tests for WindowServer's portable C code.
+# Host-side tests for the window server's keymap (WSKeymap).
 #
-#   make -C CoreServices/WindowServer/Legacy/tests          (GNU make or bmake)
-#   make -C CoreServices/WindowServer/Legacy/tests clean
+#   make -C PrivateFrameworks/SkyLight/Keymap/tests          (GNU make or bmake)
+#   make -C PrivateFrameworks/SkyLight/Keymap/tests clean
 #
 # libxkbcommon is built for the build host from the vendored sources
 # (parser generated with byacc, as in the Minkar build). The keymaps come

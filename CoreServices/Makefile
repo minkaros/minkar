@@ -4,12 +4,13 @@
 #
 # WindowServer/Legacy is the current window server (WindowServer plan:
 # the new one is built in PrivateFrameworks/SkyLight from WS1; this one
-# goes away in WS4). WindowServer/Demo is its demo client.
+# goes away in WS4b). WindowServer/Demo is its demo client. The keymap
+# (WSKeymap and libxkbcommon) lives in PrivateFrameworks/SkyLight/Keymap.
 #
 # FIXME: Dock, Filer, DMIHelper, SystemUIServer and loginwindow (with
 # LoadingWindow) still use the old build rules and are not built yet.
 
-SUBDIR = WindowServer/Legacy/libxkbcommon .WAIT WindowServer/Legacy WindowServer/Demo
+SUBDIR = ../PrivateFrameworks/SkyLight/Keymap/libxkbcommon .WAIT WindowServer/Legacy WindowServer/Demo
 # The new window server and its test client (SkyLight.framework is built
 # in the Frameworks stage). pixman, its compositor's library, is built
 # first: the BSD stage comes after this one.

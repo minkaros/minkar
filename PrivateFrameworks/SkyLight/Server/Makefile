@@ -18,20 +18,23 @@ SRCS =	main.m WSConnection.m WSDisplay.m WSDisplayServices.m WSWindowList.m \
 	WindowServerServer.c
 MAN =
 SKYLIGHT = ${.CURDIR}/..
-# The keymap (WSKeymap, over libxkbcommon) is the legacy server's for now;
-# both move here when the legacy server goes (WS4).
-LEGACY = ${ROOT_SOURCE_DIR}/CoreServices/WindowServer/Legacy
-LEGACY_OBJ = ${ROOT_BINARY_DIR}${LEGACY}
-.PATH: ${LEGACY}
+# The keymap: WSKeymap over libxkbcommon, in ../Keymap (moved from the
+# legacy server in WS4a). SHORTCUT(Phase 5): the client should turn key
+# codes into characters from the current layout (Text Input Sources and
+# our own layout files), not the server through libxkbcommon; taken in
+# WS4a.
+KEYMAP = ${SKYLIGHT}/Keymap
+KEYMAP_OBJ = ${ROOT_BINARY_DIR}${ROOT_SOURCE_DIR}/PrivateFrameworks/SkyLight/Keymap
+.PATH: ${KEYMAP}
 RESOURCES = /System/Library/PrivateFrameworks/SkyLight.framework/Versions/A/Resources
 CFLAGS += --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
 	-fobjc-arc -Wno-nullability-completeness -Wno-incompatible-sysroot \
 	-I${.OBJDIR} -I${SKYLIGHT} -I${SKYLIGHT}/IPC -I${MINKAR_SDKROOT}/usr/include/pixman-1 \
-	-I${LEGACY} -I${LEGACY}/libxkbcommon/include
+	-I${KEYMAP} -I${KEYMAP}/libxkbcommon/include
 LDFLAGS += --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
 	-fuse-ld=${LD}
 LDADD += -framework Foundation -framework IOKit -framework CoreFoundation -lbsm -lobjc \
-	-lpixman-1 -L${LEGACY_OBJ}/libxkbcommon -lxkbcommon
+	-lpixman-1 -L${KEYMAP_OBJ}/libxkbcommon -lxkbcommon
 CLEANFILES += WindowServerServer.c WindowServerServer.h
 
 # The server side of the MIG interface.

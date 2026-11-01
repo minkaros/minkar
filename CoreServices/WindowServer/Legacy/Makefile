@@ -13,7 +13,10 @@ MK_WERROR = no
 WARNS = 1
 
 # Display: IOKit IOFramebuffer. Input: IOHIDSystem's event queue;
-# keyboard layouts through libxkbcommon and xkeyboard-config.
+# keyboard layouts through libxkbcommon and xkeyboard-config, from the new
+# server's tree (PrivateFrameworks/SkyLight/Keymap) since WS4a.
+KEYMAP = ${ROOT_SOURCE_DIR}/PrivateFrameworks/SkyLight/Keymap
+.PATH: ${KEYMAP}
 # The old FreeBSD backends (libinput, libevdev, mtdev) are not built.
 SRCS = \
 	IOFramebufferDisplay.m \
@@ -44,8 +47,8 @@ FRAMEWORKS = AppKit Foundation CoreFoundation CoreGraphics Onyx2D IOKit
 CFLAGS += -fobjc-arc -g -pthread -D__WSRPC -std=gnu17 \
 	-Wno-incompatible-sysroot \
 	-I${.CURDIR} -I${ROOT_SOURCE_DIR}/Frameworks -I${ROOT_SOURCE_DIR}/CoreServices \
-	-I${.CURDIR}/libxkbcommon/include
-# libxkbcommon is built first by ../Makefile (static).
-LDFLAGS += -pthread -lobjc -L${.OBJDIR}/libxkbcommon -lxkbcommon
+	-I${KEYMAP} -I${KEYMAP}/libxkbcommon/include
+# libxkbcommon is built first by ../../Makefile (static).
+LDFLAGS += -pthread -lobjc -L${ROOT_BINARY_DIR}${KEYMAP}/libxkbcommon -lxkbcommon
 
 .include <minkar.app.mk>
