@@ -780,14 +780,17 @@ testEvents(void)
 	    "a window is made key", NULL);
 	check(SLSSetKeyWindow(0xdeadbeef) == kSLSErrorIllegalArgument,
 	    "an unknown window is not made key", NULL);
+	check(SLSWindowStartMove(w) == kSLSErrorCannotComplete,
+	    "a move needs the left button down", NULL);
 	SLSReleaseWindow(w);
 	check(SLSGetKeyWindow() == 0, "a released key window is key no more", NULL);
 }
 
 /*
  * skylight-test events: a white window at 100,100 (400 x 300), key, and
- * every event it gets printed, one line each, until it is killed. For the
- * local input tests.
+ * every event it gets printed, one line each, until it is killed. A mouse
+ * down in its top 20 pixels starts a server-side move. For the local
+ * input tests.
  */
 static int
 eventsMain(void)
@@ -805,6 +808,12 @@ eventsMain(void)
 			return 1;
 		for (uint32_t i = 0; i < n; i++) {
 			SLSEvent *e = &events[i];
+			if (e->type == kSLSEventLeftMouseDown) {
+				SLSWindowInfo info;
+				SLSGetWindowInfo(w, &info);
+				if (e->y - info.y < 20)
+					printf("move %d\n", SLSWindowStartMove(w));
+			}
 			printf("event type=%u window=%u x=%.0f y=%.0f click=%d button=%u key=%u "
 			    "chars=%s repeat=%u flags=0x%x\n", e->type, e->window, e->x, e->y,
 			    e->clickCount, e->buttonNumber, e->keyCode, e->characters, e->isRepeat,

@@ -71,3 +71,5 @@ void WSCursorMoveTo(double x, double y);
 void WSStatsCountEvent(void);
 /* Tells the HID system where a warp put the cursor (WSInput.m). */
 void WSInputSetCursor(double x, double y);
+/* A posted key event without characters gets the keymap's (WSInput.m). */
+void WSInputTranslatePosted(SLSEvent *event);

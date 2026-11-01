@@ -68,6 +68,9 @@ type ws_server_stats_t = struct[16] of uint32_t
 type ws_event_t = struct[24] of uint32_t
 	ctype: SLSEvent;
 type ws_event_list_t = array[*:64] of ws_event_t;
+type ws_tap_info_t = struct[12] of uint32_t
+	ctype: SLSEventTapInfo;
+type ws_tap_list_t = array[*:32] of ws_tap_info_t;
 
 /*
  * Opens a connection: the server records the client's PID and user from
@@ -366,3 +369,47 @@ routine set_key_window(
 routine key_window(
 	server			: mach_port_t;
 	out window		: uint32_t);
+
+/* A server-side move of the window, while the left button is down. */
+routine window_start_move(
+	server			: mach_port_t;
+	ServerAuditToken token	: audit_token_t;
+	window			: uint32_t;
+	out result		: int32_t);
+
+/* ---- Event taps and posted events ---- */
+
+routine tap_create(
+	server			: mach_port_t;
+	ServerAuditToken token	: audit_token_t;
+	location		: uint32_t;
+	placement		: uint32_t;
+	options			: uint32_t;
+	mask			: uint64_t;
+	port			: mach_port_make_send_t;
+	out result		: int32_t;
+	out tap			: uint32_t);
+
+routine tap_enable(
+	server			: mach_port_t;
+	ServerAuditToken token	: audit_token_t;
+	tap			: uint32_t;
+	enable			: int32_t;
+	out result		: int32_t);
+
+routine tap_release(
+	server			: mach_port_t;
+	ServerAuditToken token	: audit_token_t;
+	tap			: uint32_t;
+	out result		: int32_t);
+
+routine tap_list(
+	server			: mach_port_t;
+	out taps		: ws_tap_list_t);
+
+routine post_event(
+	server			: mach_port_t;
+	ServerAuditToken token	: audit_token_t;
+	location		: uint32_t;
+	event			: ws_event_t;
+	out result		: int32_t);

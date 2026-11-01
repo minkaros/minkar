@@ -50,6 +50,9 @@ static double lastClickX, lastClickY;
 static uint32_t lastClickButton;
 static int32_t clickCount;
 static dispatch_source_t repeatTimer;
+/* A server-side move: the window, and the pointer's offset in it. */
+static __weak WSWindow *moveWindow;
+static double moveOffsetX, moveOffsetY;
 static SLSEvent repeatEvent;
 
 /* ---- Queues ---- */
@@ -73,7 +76,8 @@ static BOOL
 isMove(uint32_t type)
 {
 	return type == kSLSEventMouseMoved || type == kSLSEventLeftMouseDragged ||
-	    type == kSLSEventRightMouseDragged || type == kSLSEventOtherMouseDragged;
+	    type == kSLSEventRightMouseDragged || type == kSLSEventOtherMouseDragged ||
+	    type == kSLSEventWindowMoved;
 }
 
 static void
@@ -199,6 +203,29 @@ routeMouse(SLSEvent *e)
 		e->dy = now.y - previous.y;
 	}
 
+	/* A server-side move takes the left button's drags and its up. */
+	WSWindow *moving = moveWindow;
+	if (moving != nil && (isMove(e->type) || e->type == kSLSEventLeftMouseUp)) {
+		SLSRect f = moving.frame;
+		BOOL ends = e->type == kSLSEventLeftMouseUp;
+		f.x = e->x - moveOffsetX;
+		f.y = e->y - moveOffsetY;
+		WSWindowSetFrame(moving, f);
+		SLSEvent moved = *e;
+		moved.type = kSLSEventWindowMoved;
+		moved.x = f.x;
+		moved.y = f.y;
+		moved.clickCount = ends;
+		send(moving, &moved);
+		if (ends) {
+			moveWindow = nil;
+			buttonsDown &= ~1u;
+			if (buttonsDown == 0)
+				captureWindow = nil;
+		}
+		return;
+	}
+
 	if (down) {
 		if (buttonsDown == 0)
 			captureWindow = WSWindowAtPoint(e->x, e->y);
@@ -237,6 +264,14 @@ void
 WSRouteEvent(SLSEvent *e)
 {
 	WSStatsCountEvent();
+	WSRouteEventAt(e, 0);
+}
+
+void
+WSRouteEventAt(SLSEvent *e, uint32_t location)
+{
+	if (!WSTapsFilter(e, location))
+		return;
 	if (e->type == kSLSEventKeyDown || e->type == kSLSEventKeyUp ||
 	    e->type == kSLSEventFlagsChanged)
 		routeKey(e);
@@ -282,6 +317,29 @@ wss_set_key_window(mach_port_t server, audit_token_t token, uint32_t window, int
 		*result = kSLSErrorCannotComplete;
 	else {
 		keyWindow = w;
+		*result = kSLSErrorSuccess;
+	}
+	return KERN_SUCCESS;
+}
+
+kern_return_t
+wss_window_start_move(mach_port_t server, audit_token_t token, uint32_t window,
+    int32_t *result)
+{
+	WSConnection *c = [WSConnection connectionForToken:token];
+	WSWindow *w = WSWindowWithID(window);
+
+	if (c == nil)
+		*result = kSLSErrorInvalidConnection;
+	else if (w == nil)
+		*result = kSLSErrorIllegalArgument;
+	else if (w.owner != c || !(buttonsDown & 1))
+		*result = kSLSErrorCannotComplete;	/* not its window, or no button down */
+	else {
+		SLSPoint p = WSCursorPosition();
+		moveWindow = w;
+		moveOffsetX = p.x - w.frame.x;
+		moveOffsetY = p.y - w.frame.y;
 		*result = kSLSErrorSuccess;
 	}
 	return KERN_SUCCESS;

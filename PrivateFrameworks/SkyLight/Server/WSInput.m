@@ -237,3 +237,9 @@ WSInputSetCursor(double x, double y)
 {
 	[theInput setLocationX:x y:y];
 }
+
+void
+WSInputTranslatePosted(SLSEvent *e)
+{
+	[theInput translateKey:e->keyCode down:e->type == kSLSEventKeyDown into:e];
+}

@@ -97,3 +97,90 @@ SLSGetKeyWindow(void)
 		return 0;
 	return window;
 }
+
+int
+SLSWindowStartMove(SLSWindowID window)
+{
+	int32_t result = kSLSErrorFailure;
+	mach_port_t server = SLSServerPort();
+
+	if (server == MACH_PORT_NULL ||
+	    ws_window_start_move(server, window, &result) != KERN_SUCCESS)
+		return kSLSErrorFailure;
+	return result;
+}
+
+int
+SLSEventTapCreate(uint32_t location, uint32_t placement, uint32_t options, uint64_t mask,
+    mach_port_t port, uint32_t *tap)
+{
+	int32_t result = kSLSErrorFailure;
+	mach_port_t server = SLSServerPort();
+
+	if (tap == NULL || port == MACH_PORT_NULL)
+		return kSLSErrorIllegalArgument;
+	*tap = 0;
+	if (server == MACH_PORT_NULL || ws_tap_create(server, location, placement, options,
+	    mask, port, &result, tap) != KERN_SUCCESS)
+		return kSLSErrorFailure;
+	return result;
+}
+
+int
+SLSEventTapEnable(uint32_t tap, int enable)
+{
+	int32_t result = kSLSErrorFailure;
+	mach_port_t server = SLSServerPort();
+
+	if (server == MACH_PORT_NULL ||
+	    ws_tap_enable(server, tap, enable != 0, &result) != KERN_SUCCESS)
+		return kSLSErrorFailure;
+	return result;
+}
+
+int
+SLSEventTapRelease(uint32_t tap)
+{
+	int32_t result = kSLSErrorFailure;
+	mach_port_t server = SLSServerPort();
+
+	if (server == MACH_PORT_NULL || ws_tap_release(server, tap, &result) != KERN_SUCCESS)
+		return kSLSErrorFailure;
+	return result;
+}
+
+int
+SLSGetEventTapList(uint32_t max, SLSEventTapInfo *taps, uint32_t *count)
+{
+	ws_tap_list_t list;
+	mach_msg_type_number_t n = kSLSMaxEventTaps;
+	mach_port_t server = SLSServerPort();
+
+	if (count == NULL)
+		return kSLSErrorIllegalArgument;
+	if (server == MACH_PORT_NULL || ws_tap_list(server, list, &n) != KERN_SUCCESS)
+		return kSLSErrorFailure;
+	if (taps == NULL) {
+		*count = n;
+		return kSLSErrorSuccess;
+	}
+	if (n > max)
+		n = max;
+	memcpy(taps, list, n * sizeof(SLSEventTapInfo));
+	*count = n;
+	return kSLSErrorSuccess;
+}
+
+int
+SLSPostEvent(uint32_t location, const SLSEvent *event)
+{
+	int32_t result = kSLSErrorFailure;
+	mach_port_t server = SLSServerPort();
+
+	if (event == NULL)
+		return kSLSErrorIllegalArgument;
+	if (server == MACH_PORT_NULL ||
+	    ws_post_event(server, location, *event, &result) != KERN_SUCCESS)
+		return kSLSErrorFailure;
+	return result;
+}

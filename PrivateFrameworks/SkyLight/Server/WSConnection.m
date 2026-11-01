@@ -30,6 +30,7 @@
 #include <mach/notify.h>
 #include <stdio.h>
 #import "WSConnection.h"
+#import "WSEvents.h"
 
 static NSMutableArray<WSConnection *> *connections;
 static mach_port_t notifyPort = MACH_PORT_NULL;
@@ -83,6 +84,7 @@ static SLSConnectionID nextConnectionID = 1;
 	[connections removeObject:dead];
 
 	unsigned windows = WSWindowsConnectionDied(dead);
+	WSTapsConnectionDied(dead);
 	WSDisplayServicesConnectionDied(dead);
 	fprintf(stderr, "WindowServer: connection %d (pid %d) closed, %u window(s) released\n",
 	    dead.connectionID, dead.pid, windows);

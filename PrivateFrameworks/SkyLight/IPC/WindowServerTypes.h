@@ -47,4 +47,7 @@ typedef SLSEvent ws_event_list_t[kSLSMaxEvents];
  * stops being empty: a header only. */
 #define WS_EVENTS_PENDING_ID	0x534c5345	/* 'SLSE' */
 
+typedef SLSEventTapInfo ws_tap_list_t[kSLSMaxEventTaps];
+
+
 #endif

@@ -396,6 +396,9 @@ enum {
 	kSLSEventOtherMouseDown		= 25,
 	kSLSEventOtherMouseUp		= 26,
 	kSLSEventOtherMouseDragged	= 27,
+	/* Private: a server-side move put the window at x, y (its frame's
+	 * top left); sent as it goes and when the move ends (clickCount 1). */
+	kSLSEventWindowMoved		= 0x1001,
 };
 
 /*
@@ -434,6 +437,80 @@ _Static_assert(sizeof(SLSEvent) == kSLSEventWords * 4, "SLSEvent size");
  */
 mach_port_t SLSEventPort(void);
 int SLSReceiveEvents(SLSEvent *events, uint32_t max, uint32_t *count, int wait);
+
+/*
+ * Moves the window with the pointer while the left button stays down: the
+ * server moves it by itself (no drags reach the app meanwhile) and sends
+ * kSLSEventWindowMoved. Asked for from a mouse down, as
+ * -[NSWindow performWindowDragWithEvent:] does.
+ */
+int SLSWindowStartMove(SLSWindowID window);
+
+/* ---- Event taps and posted events ------------------------------------- */
+
+/*
+ * A tap sees the events of the types in its mask (bit 1 << type) before
+ * they are routed: taps at the HID location (0) see every event, session
+ * taps (1 and 2) the events entering at the session location too. A
+ * listen-only tap is sent a copy; a filtering one is asked, in its turn,
+ * and may change the event or drop it; one that does not answer within a
+ * second is disabled. Taps are sent to port (a receive right of the
+ * caller's) as SLSTapEventMessages (read by CoreGraphics' CGEventTapCreate). SHORTCUT(WS3): filtering taps, and
+ * listen-only taps that see keys, need root or the console's user until
+ * the privacy service decides (WindowServer plan, section 9).
+ */
+typedef struct SLSEventTapInfo {
+	uint64_t	mask;
+	uint32_t	tap;
+	uint32_t	location;		/* CGEventTapLocation */
+	uint32_t	options;		/* CGEventTapOptions */
+	int32_t		tappingPID;
+	int32_t		processBeingTapped;	/* 0: every process */
+	uint32_t	enabled;
+	float		minUsecLatency, avgUsecLatency, maxUsecLatency;
+	uint32_t	reserved;
+} SLSEventTapInfo;
+
+#define kSLSEventTapInfoWords	12
+#define kSLSMaxEventTaps	32
+#ifndef __cplusplus
+_Static_assert(sizeof(SLSEventTapInfo) == kSLSEventTapInfoWords * 4, "SLSEventTapInfo size");
+#endif
+
+/*
+ * An event for a tap, sent to the tap's port. For a filtering tap the
+ * message carries a send-once reply port, and the tap answers with an
+ * SLSTapReplyMessage (drop 1 to drop the event; event, possibly changed).
+ */
+#define kSLSTapEventMessageID	0x534c5354	/* 'SLST' */
+#define kSLSTapReplyMessageID	0x534c5352	/* 'SLSR' */
+
+typedef struct SLSTapEventMessage {
+	mach_msg_header_t	header;
+	uint32_t		tap;
+	uint32_t		reserved;
+	SLSEvent		event;
+} SLSTapEventMessage;
+
+typedef struct SLSTapReplyMessage {
+	mach_msg_header_t	header;
+	uint32_t		drop;
+	uint32_t		reserved;
+	SLSEvent		event;
+} SLSTapReplyMessage;
+
+/* Sent to a tap the server disabled (the public kCGEventTapDisabledByTimeout). */
+#define kSLSEventTapDisabledByTimeout	0xFFFFFFFE
+
+int SLSEventTapCreate(uint32_t location, uint32_t placement, uint32_t options,
+    uint64_t mask, mach_port_t port, uint32_t *tap);
+int SLSEventTapEnable(uint32_t tap, int enable);
+int SLSEventTapRelease(uint32_t tap);
+int SLSGetEventTapList(uint32_t max, SLSEventTapInfo *taps, uint32_t *count);
+/* Posts an event at a tap location: it passes the taps from there and is
+ * routed as input (mouse events move the cursor). SHORTCUT(WS3): root or
+ * the console's user only, as filtering taps. */
+int SLSPostEvent(uint32_t location, const SLSEvent *event);
 
 /* The key window, which gets the keys; a click makes a window key too. */
 int SLSSetKeyWindow(SLSWindowID window);

@@ -38,7 +38,15 @@
 
 #import "WSServer.h"
 
-/* An event read from the HID system (or posted), to route. */
+/* An event read from the HID system, to pass the taps and route. */
 void WSRouteEvent(SLSEvent *event);
+/* The same for an event entering at a tap location (posted). */
+void WSRouteEventAt(SLSEvent *event, uint32_t location);
+
+/* Event taps (WSTaps.m): NO when a filtering tap dropped the event; it
+ * may have changed it. */
+BOOL WSTapsFilter(SLSEvent *event, uint32_t location);
+@class WSConnection;
+void WSTapsConnectionDied(WSConnection *connection);
 /* Nanoseconds since boot (WSInput.m). */
 uint64_t WSNanoseconds(void);

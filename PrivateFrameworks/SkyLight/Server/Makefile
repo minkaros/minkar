@@ -14,7 +14,7 @@ MK_PIE = no
 MK_DEBUG_FILES = no
 PROG =	WindowServer
 SRCS =	main.m WSConnection.m WSDisplay.m WSDisplayServices.m WSWindowList.m \
-	WSSurface.m WSCompositor.m WSInput.m WSEvents.m WSKeymap.c \
+	WSSurface.m WSCompositor.m WSInput.m WSEvents.m WSTaps.m WSKeymap.c \
 	WindowServerServer.c
 MAN =
 SKYLIGHT = ${.CURDIR}/..
@@ -41,7 +41,7 @@ WindowServerServer.c WindowServerServer.h: ${SKYLIGHT}/IPC/WindowServer.defs
 	    -header /dev/null -user /dev/null -server WindowServerServer.c \
 	    -sheader WindowServerServer.h ${.ALLSRC}
 
-main.o WSDisplayServices.o WSWindowList.o WSCompositor.o WSEvents.o: WindowServerServer.h
+main.o WSDisplayServices.o WSWindowList.o WSCompositor.o WSEvents.o WSTaps.o: WindowServerServer.h
 
 all: to-sysroot
 
