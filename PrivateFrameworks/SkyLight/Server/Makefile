@@ -30,10 +30,12 @@ RESOURCES = /System/Library/PrivateFrameworks/SkyLight.framework/Versions/A/Reso
 CFLAGS += --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
 	-fobjc-arc -Wno-nullability-completeness -Wno-incompatible-sysroot \
 	-I${.OBJDIR} -I${SKYLIGHT} -I${SKYLIGHT}/IPC -I${MINKAR_SDKROOT}/usr/include/pixman-1 \
-	-I${KEYMAP} -I${KEYMAP}/libxkbcommon/include
+	-I${KEYMAP} -I${KEYMAP}/libxkbcommon/include \
+	-F${MINKAR_SDKROOT}/System/Library/Frameworks/CoreServices.framework/Frameworks
 LDFLAGS += --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
 	-fuse-ld=${LD}
-LDADD += -framework Foundation -framework IOKit -framework CoreFoundation -lbsm -lobjc \
+LDADD += -framework Foundation -framework IOKit -framework CoreFoundation \
+	-framework CoreServices -lbsm -lobjc \
 	-lpixman-1 -L${KEYMAP_OBJ}/libxkbcommon -lxkbcommon
 CLEANFILES += WindowServerServer.c WindowServerServer.h
 

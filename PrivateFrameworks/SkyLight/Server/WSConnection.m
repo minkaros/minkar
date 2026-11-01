@@ -85,6 +85,7 @@ static SLSConnectionID nextConnectionID = 1;
 
 	unsigned windows = WSWindowsConnectionDied(dead);
 	WSTapsConnectionDied(dead);
+	WSEventsConnectionDied(dead);
 	WSDisplayServicesConnectionDied(dead);
 	fprintf(stderr, "WindowServer: connection %d (pid %d) closed, %u window(s) released\n",
 	    dead.connectionID, dead.pid, windows);

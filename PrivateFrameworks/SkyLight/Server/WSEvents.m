@@ -28,6 +28,7 @@
 
 #include <mach/mach.h>
 #include <stdio.h>
+#include <LaunchServices/LSSession.h>
 #import "WSEvents.h"
 #import "WSConnection.h"
 #import "WSWindowList.h"
@@ -54,6 +55,50 @@ static dispatch_source_t repeatTimer;
 static __weak WSWindow *moveWindow;
 static double moveOffsetX, moveOffsetY;
 static SLSEvent repeatEvent;
+
+/* ---- The front app ---- */
+
+/*
+ * LaunchServices' session hears which app is in front (WS4a): the key
+ * window's owner. It stays in front when its windows close, and stops
+ * being it when it goes away. Told from a queue of its own, in order: the
+ * IPC queue never waits for launchservicesd.
+ */
+static pid_t frontPID;
+
+static void
+tellFrontApp(pid_t pid)
+{
+	static dispatch_queue_t queue;
+
+	if (pid == frontPID)
+		return;
+	frontPID = pid;
+	if (queue == nil)
+		queue = dispatch_queue_create("org.minkar.WindowServer.launchservices",
+		    DISPATCH_QUEUE_SERIAL);
+	dispatch_async(queue, ^{
+		int result = LSSessionSetFront(pid);
+		if (result != kLSSessionSuccess)
+			fprintf(stderr, "WindowServer: cannot tell launchservicesd the front app "
+			    "(pid %d): %d\n", pid, result);
+	});
+}
+
+static void
+setKeyWindow(WSWindow *w)
+{
+	keyWindow = w;
+	if (w != nil)
+		tellFrontApp(w.owner.pid);
+}
+
+void
+WSEventsConnectionDied(WSConnection *c)
+{
+	if (c.pid == frontPID)
+		tellFrontApp(0);
+}
 
 /* ---- Queues ---- */
 
@@ -258,7 +303,7 @@ routeMouse(SLSEvent *e)
 		target = captureWindow;
 		/* A click makes its window key. */
 		if (target != nil && e->buttonNumber == 0)
-			keyWindow = target;
+			setKeyWindow(target);
 		/* A left click in a drag region moves the window from now on,
 		 * whether or not its app answers (it still gets this click). */
 		if (target != nil && e->type == kSLSEventLeftMouseDown && buttonsDown == 1u &&
@@ -338,7 +383,7 @@ wss_set_key_window(mach_port_t server, audit_token_t token, uint32_t window, int
 	else if (w.owner != c)
 		*result = kSLSErrorCannotComplete;
 	else {
-		keyWindow = w;
+		setKeyWindow(w);
 		*result = kSLSErrorSuccess;
 	}
 	return KERN_SUCCESS;

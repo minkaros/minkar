@@ -233,6 +233,27 @@ GATES['M4-compose'] = GATES['M2'] + [
         'b=$(/usr/local/bin/wsctl stats | awk \'/^frames/ { print $2 }\'); '
         '[ "$a" = "$b" ] && echo "boottest: no frame while idle ($a)"'),
     'boottest: no frame while idle',
+    # LaunchServices' session (WS4a): a second demo (B, its commands in
+    # its own file) launches and comes to the front; the first (A) hears
+    # it through NSWorkspace and resigns active. B asks A to activate, and
+    # A hears B terminate.
+    SSH('cd /; (nohup %s -cmd /tmp/ws-demo-b.cmd > /tmp/demo-b.out 2>&1 < /dev/null &); '
+        'for i in $(seq 60); do grep -q "^window frame=" /tmp/demo-b.out && break; sleep 1; '
+        'done; sleep 2; b=$(pgrep -n -x WindowServerDemo); grep "^workspace\\|^app " '
+        '/tmp/demo.out; grep -q "^workspace launched pid=$b " /tmp/demo.out && '
+        'grep -q "^workspace activated pid=$b " /tmp/demo.out && '
+        '[ "$(grep "^app " /tmp/demo.out | tail -1)" = "app inactive" ] && '
+        'echo "boottest: A saw B launch and come to the front"' % WS_DEMO),
+    'boottest: A saw B launch and come to the front',
+    SSH('a=$(pgrep -o -x WindowServerDemo); echo "activate $a" > /tmp/ws-demo-b.cmd.new; '
+        'mv /tmp/ws-demo-b.cmd.new /tmp/ws-demo-b.cmd; sleep 3; grep "^activate" '
+        '/tmp/demo-b.out; [ "$(grep "^app " /tmp/demo.out | tail -1)" = "app active" ] && '
+        'echo "boottest: B activated A"'),
+    'boottest: B activated A',
+    SSH('b=$(pgrep -n -x WindowServerDemo); kill $b; sleep 2; '
+        'grep -q "^workspace terminated pid=$b " /tmp/demo.out && '
+        'echo "boottest: A saw B terminate"'),
+    'boottest: A saw B terminate',
 ]
 GATE_FAIL = {
     'M2-login': ['Login incorrect'],
