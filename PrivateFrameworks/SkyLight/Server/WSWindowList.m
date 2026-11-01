@@ -99,6 +99,15 @@ WSWindowAtPoint(double x, double y)
 }
 
 WSWindow *
+WSWindowFrontmostOf(WSConnection *c)
+{
+	for (WSWindow *w in stack)
+		if (w.owner == c)
+			return w;
+	return nil;
+}
+
+WSWindow *
 WSWindowWithID(SLSWindowID windowID)
 {
 	return windowWithID(windowID);

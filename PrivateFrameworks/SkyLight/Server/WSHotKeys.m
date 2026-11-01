@@ -41,6 +41,7 @@
 #import "WSServer.h"
 #import "WSConnection.h"
 #import "WSWindowList.h"
+#import "WSEvents.h"
 #import "WindowServerServer.h"
 
 #define kModifierMask	(WSModifierShift | WSModifierControl | WSModifierOption | \
@@ -117,7 +118,10 @@ WSHotKeysHandle(const SLSEvent *e, WSWindow *keyTarget)
 		hot.type = kSLSEventSymbolicHotKey;
 		hot.buttonNumber = n;
 		swallowedKeyCode = e->keyCode;
-		WSConnection *owner = h->frontApp ? keyTarget.owner : owners[n];
+		/* The front app's hotkeys go to the key window, or the front app
+		 * with none (a capture's shielding window first). */
+		WSConnection *owner = h->frontApp ?
+		    (keyTarget != nil ? keyTarget.owner : WSFrontConnection()) : owners[n];
 		if (owner != nil) {
 			hot.window = h->frontApp ? keyTarget.windowID : 0;
 			WSEventsEnqueue(owner, &hot);

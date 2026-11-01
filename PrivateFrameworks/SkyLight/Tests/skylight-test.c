@@ -813,8 +813,22 @@ testEvents(void)
 		    SLSClaimSymbolicHotKey(kSLSHotKeyForceQuit, 0) == kSLSErrorSuccess,
 		    "a hotkey is claimed and given back", NULL);
 	}
-	SLSReleaseWindow(w);
-	check(SLSGetKeyWindow() == 0, "a released key window is key no more", NULL);
+	/* The front app (interface version 5): this process, made so by its
+	 * key window; asked for, it stays in front with no window. */
+	{
+		pid_t front = 0;
+		check(SLSGetFrontProcess(&front) == kSLSErrorSuccess && front == getpid(),
+		    "a key window's owner is the front app", NULL);
+		SLSReleaseWindow(w);
+		check(SLSGetKeyWindow() == 0, "a released key window is key no more", NULL);
+		check(SLSGetFrontProcess(&front) == kSLSErrorSuccess && front == getpid(),
+		    "and its app stays in front", NULL);
+		check(SLSSetFrontProcess() == kSLSErrorSuccess &&
+		    SLSGetFrontProcess(&front) == kSLSErrorSuccess && front == getpid(),
+		    "an app with no window is made front", NULL);
+		check(SLSGetFrontProcess(NULL) == kSLSErrorIllegalArgument,
+		    "the front process needs somewhere to go", NULL);
+	}
 }
 
 /*

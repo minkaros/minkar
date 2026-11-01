@@ -87,6 +87,31 @@ SLSSetKeyWindow(SLSWindowID window)
 	return result;
 }
 
+int
+SLSSetFrontProcess(void)
+{
+	int32_t result = kSLSErrorFailure;
+	mach_port_t server = SLSServerPort();
+
+	if (server == MACH_PORT_NULL || ws_set_front_process(server, &result) != KERN_SUCCESS)
+		return kSLSErrorFailure;
+	return result;
+}
+
+int
+SLSGetFrontProcess(pid_t *pid)
+{
+	int32_t front = 0;
+	mach_port_t server = SLSServerPort();
+
+	if (pid == NULL)
+		return kSLSErrorIllegalArgument;
+	if (server == MACH_PORT_NULL || ws_front_process(server, &front) != KERN_SUCCESS)
+		return kSLSErrorFailure;
+	*pid = front;
+	return kSLSErrorSuccess;
+}
+
 SLSWindowID
 SLSGetKeyWindow(void)
 {

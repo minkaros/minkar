@@ -59,11 +59,15 @@ static SLSEvent repeatEvent;
 /* ---- The front app ---- */
 
 /*
- * LaunchServices' session hears which app is in front (WS4a): the key
- * window's owner. It stays in front when its windows close, and stops
- * being it when it goes away. Told from a queue of its own, in order: the
+ * The front app (WS4a): made so by a window becoming key, or by asking
+ * (SLSSetFrontProcess, an app with no window). It stays in front when its
+ * windows close; when it goes away, the app in front before it takes its
+ * place. The key window, when there is one, is always the front app's.
+ * LaunchServices' session is told from a queue of its own, in order: the
  * IPC queue never waits for launchservicesd.
  */
+static WSConnection *frontConnection;
+static NSMutableArray<WSConnection *> *activationOrder;	/* front first */
 static pid_t frontPID;
 
 static void
@@ -86,18 +90,44 @@ tellFrontApp(pid_t pid)
 }
 
 static void
+makeFront(WSConnection *c)
+{
+	if (activationOrder == nil)
+		activationOrder = [NSMutableArray array];
+	if (c != nil) {
+		[activationOrder removeObject:c];
+		[activationOrder insertObject:c atIndex:0];
+	}
+	frontConnection = c;
+	if (keyWindow != nil && keyWindow.owner != c)
+		keyWindow = nil;
+	tellFrontApp(c != nil ? c.pid : 0);
+}
+
+static void
 setKeyWindow(WSWindow *w)
 {
 	keyWindow = w;
-	if (w != nil)
-		tellFrontApp(w.owner.pid);
+	if (w != nil && w.owner != frontConnection)
+		makeFront(w.owner);
+}
+
+WSConnection *
+WSFrontConnection(void)
+{
+	return frontConnection;
 }
 
 void
 WSEventsConnectionDied(WSConnection *c)
 {
-	if (c.pid == frontPID)
-		tellFrontApp(0);
+	[activationOrder removeObject:c];
+	if (c != frontConnection)
+		return;
+	WSConnection *next = activationOrder.firstObject;
+	makeFront(next);
+	if (next != nil)
+		keyWindow = WSWindowFrontmostOf(next);
 }
 
 /* ---- Queues ---- */
@@ -438,6 +468,30 @@ wss_window_set_drag_region(mach_port_t server, audit_token_t token, uint32_t win
 		fprintf(stderr, "\n");
 		*result = kSLSErrorSuccess;
 	}
+	return KERN_SUCCESS;
+}
+
+kern_return_t
+wss_set_front_process(mach_port_t server, audit_token_t token, int32_t *result)
+{
+	WSConnection *c = [WSConnection connectionForToken:token];
+
+	if (c == nil) {
+		*result = kSLSErrorInvalidConnection;
+		return KERN_SUCCESS;
+	}
+	if (c != frontConnection) {
+		makeFront(c);
+		keyWindow = WSWindowFrontmostOf(c);
+	}
+	*result = kSLSErrorSuccess;
+	return KERN_SUCCESS;
+}
+
+kern_return_t
+wss_front_process(mach_port_t server, int32_t *pid)
+{
+	*pid = frontConnection != nil ? frontConnection.pid : 0;
 	return KERN_SUCCESS;
 }
 

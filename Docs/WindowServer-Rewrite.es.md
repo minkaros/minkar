@@ -504,7 +504,7 @@ Estado al 1 nov 2026:
   `LaunchServices.framework` dentro de `CoreServices.framework` solo con
   el cliente de la sesión. Las apps se registran desde `NSApplication`; el
   servidor de ventanas dice qué app está al frente (la dueña de la ventana
-  key, `SHORTCUT(WS4b)`); NSWorkspace publica los avisos de lanzamiento,
+  key); NSWorkspace publica los avisos de lanzamiento,
   terminación, activación y desactivación, y un `NSRunningApplication`
   básico lee la lista. El gate M4-compose ejecuta dos apps de demo (40
   marcadores); pruebas locales `launchservicesd` y `launchservices-apps`.
@@ -605,7 +605,7 @@ Decidido el 31 oct 2026, según la regla general de la sección 1:
 | Tablas de transferencia y fundidos | Los aplica a la pantalla el compositor, y el hardware de gamma donde lo haya | Se guardan y se devuelven, sin aplicarse (`SHORTCUT(WS4a)`, tomado en WS1) | WS4a |
 | Reloj de pantalla en reposo | Los flips de la pantalla marcan los frames; nada se despierta mientras nada cambia | Un temporizador a la frecuencia de refresco late también en reposo, sin dibujar nada (`SHORTCUT(WS5)` en `WSCompositor.m`, tomado en WS2) | WS5 (flips reales) |
 | Daño de AppKit | AppKit envía los rectángulos que redibujó | Toda la ventana en cada flush (`SHORTCUT(WS5)` en `NSWindow.m`, tomado en WS2) | WS5 (IOSurface) |
-| App del frente | El servidor de ventanas guarda la app del frente, que puede no tener ventanas (sus menús están en la barra de menús), y se lo dice a la sesión de LaunchServices | La dueña de la ventana key: una app sin ventana que mostrar no se puede activar (`SHORTCUT(WS4b)` en `NSApplication.m`, tomado en WS4a) | WS4b (MB0) |
+| App del frente | El servidor de ventanas guarda la app del frente, que puede no tener ventanas (sus menús están en la barra de menús), y se lo dice a la sesión de LaunchServices | La dueña de la ventana key: una app sin ventana que mostrar no se podía activar (tomado en WS4a, `3be3e23e16`) | Quitado el 2026-11-01, en WS4a |
 | Cola de entrada | La entrada se lee y se reparte en su propia cola de alta prioridad, sobre una instantánea del modelo | En la cola IPC (`SHORTCUT(WS4a)` en el `main.m` del servidor, tomado en WS3) | WS4a |
 | Estado HID de `CGEventSource` | Se pregunta al servidor de ventanas | No se pregunta: botones, teclas y modificadores se leen como no pulsados (`SHORTCUT(WS4a)` en `CGEvent.m`, tomado en WS3) | WS4a |
 | Validación de entitlements en el kernel | Una trust cache estática de los binarios del sistema y un kext de política MAC propio (sección 9.1) | Root puede abrir la conexión de servidor de IOHIDSystem (`SHORTCUT(WS4a)` en `IOHIDUserClient.cpp`) | Se quitó el 1 nov 2026 (`8366b8d0f6`), antes de WS4a |

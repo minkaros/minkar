@@ -463,7 +463,7 @@ State on 2026-11-01:
   by launchd as root (one session until Phase 5), and
   `LaunchServices.framework` inside `CoreServices.framework` with only the
   session client. Apps check in from `NSApplication`; the window server
-  says which app is in front (the key window's owner, `SHORTCUT(WS4b)`);
+  says which app is in front (the key window's owner);
   NSWorkspace posts the launch, terminate, activate and deactivate
   notices, and a basic `NSRunningApplication` reads the list. Gate
   M4-compose runs two demo apps (40 markers); local tests
@@ -562,7 +562,7 @@ Decided 2026-10-31, following the guiding rule in section 1:
 | Transfer tables and fades | Applied to the screen by the compositor, and by gamma hardware where there is some | Kept and returned, not applied (`SHORTCUT(WS4a)`, taken in WS1) | WS4a |
 | Display link while idle | Frames paced by the display's flips; nothing wakes while nothing changes | A timer at the refresh rate ticks even when idle, drawing nothing (`SHORTCUT(WS5)` in `WSCompositor.m`, taken in WS2) | WS5 (real flips) |
 | AppKit's damage | AppKit sends the rects it redrew | The whole window at each flush (`SHORTCUT(WS5)` in `NSWindow.m`, taken in WS2) | WS5 (IOSurface) |
-| Front app | The window server keeps the front app, which may have no window (its menus are in the menu bar), and tells LaunchServices' session | The key window's owner: an app with no window to show cannot be activated (`SHORTCUT(WS4b)` in `NSApplication.m`, taken in WS4a) | WS4b (MB0) |
+| Front app | The window server keeps the front app, which may have no window (its menus are in the menu bar), and tells LaunchServices' session | The key window's owner: an app with no window to show could not be activated (taken in WS4a, `3be3e23e16`) | Removed 2026-11-01, in WS4a |
 | Input queue | Input read and routed on its own high-priority queue, over a model snapshot | On the IPC queue (`SHORTCUT(WS4a)` in the server's `main.m`, taken in WS3) | WS4a |
 | `CGEventSource` HID state | Asked of the window server | Not asked: buttons, keys and flags read as up (`SHORTCUT(WS4a)` in `CGEvent.m`, taken in WS3) | WS4a |
 | Kernel entitlement validation | A static trust cache of system binaries and our own MAC policy kext (section 9.1) | Root may open IOHIDSystem's server connection (`SHORTCUT(WS4a)` in `IOHIDUserClient.cpp`) | Removed 2026-11-01 (`8366b8d0f6`), before WS4a |

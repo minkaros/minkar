@@ -48,7 +48,9 @@ void WSRouteEventAt(SLSEvent *event, uint32_t location);
 BOOL WSTapsFilter(SLSEvent *event, uint32_t location);
 @class WSConnection;
 void WSTapsConnectionDied(WSConnection *connection);
-/* A client went away: if it was the front app, there is none. */
+/* A client went away: if it was the front app, the one before it is. */
 void WSEventsConnectionDied(WSConnection *connection);
+/* The front app's connection, or nil. */
+WSConnection *WSFrontConnection(void);
 /* Nanoseconds since boot (WSInput.m). */
 uint64_t WSNanoseconds(void);

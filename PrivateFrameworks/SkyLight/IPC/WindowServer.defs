@@ -442,3 +442,14 @@ routine hotkey_get(
 	out keycode		: uint32_t;
 	out modifiers		: uint32_t;
 	out enabled		: int32_t);
+
+/* ---- The front app (interface version 5) ---- */
+
+routine set_front_process(
+	server			: mach_port_t;
+	ServerAuditToken token	: audit_token_t;
+	out result		: int32_t);
+
+routine front_process(
+	server			: mach_port_t;
+	out pid			: int32_t);

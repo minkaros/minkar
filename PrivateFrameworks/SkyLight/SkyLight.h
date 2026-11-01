@@ -36,6 +36,7 @@
 #define _SKYLIGHT_H
 
 #include <stdint.h>
+#include <sys/types.h>
 #include <mach/mach.h>
 
 #ifdef __cplusplus
@@ -47,7 +48,7 @@ extern "C" {
 #define kSLSServiceName		"org.minkar.WindowServer.next"
 
 /* The interface version both sides are built for. */
-#define kSLSInterfaceVersion	4
+#define kSLSInterfaceVersion	5
 
 typedef int32_t SLSConnectionID;
 
@@ -556,6 +557,18 @@ int SLSPostEvent(uint32_t location, const SLSEvent *event);
 /* The key window, which gets the keys; a click makes a window key too. */
 int SLSSetKeyWindow(SLSWindowID window);
 SLSWindowID SLSGetKeyWindow(void);
+
+/*
+ * The front app (interface version 5): the process whose menus the menu
+ * bar shows and whose key window gets the keys. Making a window key (a
+ * click, or SLSSetKeyWindow) makes its owner the front app;
+ * SLSSetFrontProcess makes the caller the front app, with or without a
+ * window, and its front window key. When the front app goes away, the one
+ * in front before it takes its place. LaunchServices' session is told.
+ */
+int SLSSetFrontProcess(void);
+/* The front app's process, or 0 when there is none. */
+int SLSGetFrontProcess(pid_t *pid);
 
 /* ---- Server statistics (wsctl) ----------------------------------------- */
 

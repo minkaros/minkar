@@ -34,6 +34,7 @@
  *                    events, damaged area and frame times
  *   wsctl windows    the window list, front to back
  *   wsctl displays   each display's bounds, mode and state
+ *   wsctl front      the front app's process and the key window
  */
 
 #include <stdio.h>
@@ -110,6 +111,19 @@ displays(void)
 	return 0;
 }
 
+static int
+front(void)
+{
+	pid_t pid = 0;
+
+	if (SLSGetFrontProcess(&pid) != kSLSErrorSuccess) {
+		fprintf(stderr, "wsctl: no window server\n");
+		return 1;
+	}
+	printf("front pid=%d key window=%u\n", (int)pid, SLSGetKeyWindow());
+	return 0;
+}
+
 int
 main(int argc, char *argv[])
 {
@@ -119,6 +133,8 @@ main(int argc, char *argv[])
 		return windows();
 	if (argc == 2 && strcmp(argv[1], "displays") == 0)
 		return displays();
-	fprintf(stderr, "usage: wsctl stats | windows | displays\n");
+	if (argc == 2 && strcmp(argv[1], "front") == 0)
+		return front();
+	fprintf(stderr, "usage: wsctl stats | windows | displays | front\n");
 	return 2;
 }

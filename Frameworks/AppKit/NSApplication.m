@@ -1499,16 +1499,16 @@ static int _tagAllMenus(NSMenu *menu, int tag) {
 }
 
 /*
- * Activating is bringing a window forward and making it key: the window
- * server then makes this the front app and tells LaunchServices' session,
- * whose message makes the app active (_launchServicesMessage:).
- * SHORTCUT(WS4b): the front app is the key window's owner, so an app with
- * no window to show cannot become active; with the menu bar (MB0) the
- * server keeps the front app itself; taken in WS4a.
+ * Activating: the window server makes this the front app (with the new
+ * server), and a window comes forward and becomes key. LaunchServices'
+ * session, told by the server, then makes the app active
+ * (_launchServicesMessage:).
  */
 -(void)activateIgnoringOtherApps:(BOOL)flag {
    NSWindow *window=_keyWindow ? _keyWindow : _mainWindow;
 
+   if(_CGUsesSkyLight())
+       SLSSetFrontProcess();
    if(window==nil || ![window isVisible] || ![window canBecomeKeyWindow]) {
        window=nil;
        for(NSWindow *check in [self orderedWindows])

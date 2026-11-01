@@ -64,6 +64,8 @@ void WSStatsCountCommit(void);
  * any window by its ID. */
 WSWindow *WSWindowAtPoint(double x, double y);
 WSWindow *WSWindowWithID(SLSWindowID windowID);
+/* A connection's front most on-screen window, or nil. */
+WSWindow *WSWindowFrontmostOf(WSConnection *connection);
 /* The cursor: where it is, and a move by input (kept on the displays). */
 SLSPoint WSCursorPosition(void);
 void WSCursorMoveTo(double x, double y);
