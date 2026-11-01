@@ -153,7 +153,14 @@ ${LOADER}: ${EFILOADER_SRC} ${EFILOADER_PATCHES:S,^,${.CURDIR}/patches/,}
 	        -p EmulatorPkg/EmulatorPkg.dsc \
 	        -m MdeModulePkg/Application/Loader/Loader.inf'
 
+# Signs the sysroot's executables and writes its static trust cache
+# (Docs/ADR/0001-Kernel-Entitlements.md). cstest's copies outside the
+# cache stay out of it.
+TRUST_CACHE_EXCLUDE ?=	/usr/local/tests/codesign/outside
+
 image: ${LOADER}
+	${PYTHON} ${.CURDIR:H}/tools/mktrustcache.py \
+	    ${TRUST_CACHE_EXCLUDE:S/^/--exclude /} ${SYSROOT_DIR}
 	${PYTHON} ${.CURDIR}/mkdiskimage.py --sysroot ${SYSROOT_DIR} \
 	    --kernelcache ${KERNELCACHE} --loader ${LOADER} --output ${IMAGE} \
 	    --size-mb ${IMAGE_SIZE_MB} --boot-args "${BOOT_ARGS}" \

@@ -176,6 +176,21 @@ class CodesignTests(unittest.TestCase):
         with self.assertRaises(codesign.SignError):
             codesign.verify(exe)
 
+    def test_keeps_hard_links(self):
+        link = os.path.join(self.dir, 'tool-link')
+        os.link(self.path, link)
+        codesign.sign(self.path)
+        self.assertTrue(os.path.samefile(self.path, link))
+        codesign.verify(link)
+
+    def test_keeps_mode_and_group(self):
+        os.chmod(self.path, 0o2555)
+        before = os.stat(self.path)
+        codesign.sign(self.path)
+        after = os.stat(self.path)
+        self.assertEqual(after.st_mode & 0o7777, 0o2555)
+        self.assertEqual((after.st_uid, after.st_gid), (before.st_uid, before.st_gid))
+
     def test_command_line(self):
         ent_path = os.path.join(self.dir, 'ent.plist')
         with open(ent_path, 'wb') as f:
