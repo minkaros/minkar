@@ -36,7 +36,10 @@
 #include "SkyLight.h"
 #import "WSDisplay.h"
 
-@class WSConnection, WSWindow;
+@class WSConnection, WSWindow, WSFrameItem;
+
+/* The queue every request is served on; the model changes only there. */
+extern dispatch_queue_t WSIPCQueue;
 
 /* Displays (WSDisplayServices.m). The first is the main display. */
 extern NSArray<WSDisplay *> *WSDisplays;
@@ -51,3 +54,9 @@ void WSWindowSetFrame(WSWindow *window, SLSRect frame);
 int WSWindowOrder(WSWindow *window, int32_t place, SLSWindowID relativeTo);
 /* Releases every window of the connection; returns how many. */
 unsigned WSWindowsConnectionDied(WSConnection *connection);
+/* The on-screen windows back to front, for a frame (IPC queue). */
+NSArray<WSFrameItem *> *WSWindowSnapshot(void);
+/* The cursor's position; YES when it shows (IPC queue). */
+BOOL WSCursorSnapshot(SLSPoint *position);
+/* Counts a surface commit in the statistics. */
+void WSStatsCountCommit(void);

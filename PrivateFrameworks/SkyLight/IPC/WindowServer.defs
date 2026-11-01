@@ -60,6 +60,11 @@ type ws_rect_t = struct[4] of double
 type ws_window_list_t = array[*:1024] of uint32_t;
 type ws_window_info_t = struct[32] of uint32_t
 	ctype: SLSWindowInfo;
+type ws_int_rect_t = struct[4] of int32_t
+	ctype: SLSIntRect;
+type ws_damage_t = array[*:64] of ws_int_rect_t;
+type ws_server_stats_t = struct[16] of uint32_t
+	ctype: SLSServerStats;
 
 /*
  * Opens a connection: the server records the client's PID and user from
@@ -296,3 +301,47 @@ routine window_info(
 	window			: uint32_t;
 	out result		: int32_t;
 	out info		: ws_window_info_t);
+
+routine window_set_alpha(
+	server			: mach_port_t;
+	ServerAuditToken token	: audit_token_t;
+	window			: uint32_t;
+	alpha			: double;
+	out result		: int32_t);
+
+/* ---- Window surfaces ---- */
+
+/*
+ * The window's surface for its current size, made if needed: two buffers
+ * of row_bytes * height bytes, one after the other, in the memory entry.
+ * back is the buffer to draw into; surface names this surface in commits.
+ */
+routine window_surface(
+	server			: mach_port_t;
+	ServerAuditToken token	: audit_token_t;
+	window			: uint32_t;
+	out result		: int32_t;
+	out surface		: uint32_t;
+	out width		: uint32_t;
+	out height		: uint32_t;
+	out row_bytes		: uint32_t;
+	out back		: uint32_t;
+	out memory		: mach_port_copy_send_t);
+
+/* Shows buffer (the back one) from the next frame; back is the new back
+ * buffer. A commit to a surface the window no longer has is refused. */
+routine window_commit(
+	server			: mach_port_t;
+	ServerAuditToken token	: audit_token_t;
+	window			: uint32_t;
+	surface			: uint32_t;
+	buffer			: uint32_t;
+	damage			: ws_damage_t;
+	out result		: int32_t;
+	out back		: uint32_t);
+
+/* ---- Statistics ---- */
+
+routine server_stats(
+	server			: mach_port_t;
+	out stats		: ws_server_stats_t);

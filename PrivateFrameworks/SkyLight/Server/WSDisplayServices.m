@@ -38,6 +38,7 @@
 #import "WSServer.h"
 #import "WSConnection.h"
 #import "WSWindowList.h"
+#import "WSCompositor.h"
 #include "WindowServerServer.h"	/* MIG server side */
 
 NSArray<WSDisplay *> *WSDisplays;
@@ -139,6 +140,8 @@ displaysMoved(void)
 		d.y -= dy;
 		if (d.shield != nil)
 			WSWindowSetFrame(d.shield, (SLSRect){ d.x, d.y, d.width, d.height });
+		/* Its size or its place on the desktop may have changed. */
+		[d.compositor displayChanged];
 	}
 }
 
@@ -412,6 +415,7 @@ captureOne(WSDisplay *d, WSConnection *c)
 	d.capturedBy = c;
 	d.shield = WSWindowCreate(c, kSLSShieldingWindowLevel,
 	    (SLSRect){ d.x, d.y, d.width, d.height });
+	d.shield.shield = YES;
 	WSWindowOrder(d.shield, kSLSOrderAbove, 0);
 	return kSLSErrorSuccess;
 }
@@ -502,8 +506,32 @@ wss_display_capture_state(mach_port_t server, uint32_t display, int32_t *result,
 /* ---- Cursor ---- */
 
 /* SHORTCUT(WS1): the position only moves by warps until the server reads
- * input (WS3), and the cursor is drawn from WS2. */
+ * input (WS3). */
 static double cursorX, cursorY;
+
+/* The area the cursor image covers (WSCompositor's arrow, 11 x 17). */
+static void
+damageCursor(void)
+{
+	WSDamageGlobalRect((SLSRect){ cursorX, cursorY, 11, 17 });
+}
+
+static BOOL
+cursorVisible(void)
+{
+	for (WSConnection *c in [WSConnection allConnections])
+		if (c.cursorHideCount > 0)
+			return NO;
+	return YES;
+}
+
+BOOL
+WSCursorSnapshot(SLSPoint *position)
+{
+	position->x = cursorX;
+	position->y = cursorY;
+	return cursorVisible();
+}
 
 kern_return_t
 wss_cursor_hide(mach_port_t server, audit_token_t token, uint32_t display, int32_t delta,
@@ -522,6 +550,7 @@ wss_cursor_hide(mach_port_t server, audit_token_t token, uint32_t display, int32
 	/* Showing more than was hidden does nothing. */
 	if (delta > 0 || c.cursorHideCount > 0)
 		c.cursorHideCount += delta;
+	damageCursor();
 	*result = kSLSErrorSuccess;
 	return KERN_SUCCESS;
 }
@@ -530,10 +559,7 @@ kern_return_t
 wss_cursor_state(mach_port_t server, int32_t *visible, double *x, double *y, int32_t *dx,
     int32_t *dy)
 {
-	*visible = 1;
-	for (WSConnection *c in [WSConnection allConnections])
-		if (c.cursorHideCount > 0)
-			*visible = 0;
+	*visible = cursorVisible();
 	*x = cursorX;
 	*y = cursorY;
 	*dx = 0;
@@ -560,8 +586,10 @@ wss_cursor_warp(mach_port_t server, audit_token_t token, double x, double y,
 		if (first || d.y + d.height > maxY) maxY = d.y + d.height;
 		first = NO;
 	}
+	damageCursor();
 	cursorX = fmin(fmax(x, minX), maxX - 1);
 	cursorY = fmin(fmax(y, minY), maxY - 1);
+	damageCursor();
 	*result = kSLSErrorSuccess;
 	return KERN_SUCCESS;
 }
@@ -588,6 +616,9 @@ WSDisplayServicesConnectionDied(WSConnection *c)
 {
 	BOOL moved = NO;
 
+	/* Its hide count went with it. */
+	if (c.cursorHideCount > 0)
+		damageCursor();
 	for (WSDisplay *d in WSDisplays)
 		if (d.capturedBy == c)
 			releaseOne(d);

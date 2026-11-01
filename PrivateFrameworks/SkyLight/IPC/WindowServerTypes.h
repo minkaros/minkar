@@ -40,5 +40,6 @@ typedef SLSDisplayConfigOp ws_display_config_list_t[kSLSMaxDisplayConfigOps];
 /* Red, then green, then blue: count entries each. */
 typedef float ws_gamma_table_t[3 * kSLSGammaTableCapacity];
 typedef SLSWindowID ws_window_list_t[kSLSMaxWindowList];
+typedef SLSIntRect ws_damage_t[kSLSMaxDamageRects];
 
 #endif

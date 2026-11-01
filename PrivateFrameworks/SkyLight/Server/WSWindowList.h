@@ -28,8 +28,8 @@
 
 /*
  * WSWindow: a window of the new server, as far as the window list needs
- * it: a global ID, its owner, a level, a frame and its place in the
- * on-screen order. Surfaces and drawing come with WS2.
+ * it and the compositor draws it: a global ID, its owner, a level, a
+ * frame, an alpha, its surface and its place in the on-screen order.
  */
 
 #import "WSServer.h"
@@ -41,5 +41,10 @@
 @property (readonly) int32_t level;
 @property (readonly) SLSRect frame;
 @property (readonly) BOOL onScreen;
+@property (readonly) double alpha;
+/* WSSurface, made by window_surface for the window's size. */
+@property (readonly, strong) id surface;
+/* A capture's shielding window: drawn opaque black. */
+@property BOOL shield;
 
 @end

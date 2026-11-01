@@ -656,11 +656,178 @@ testClientExit(const char *self)
 	    NULL);
 }
 
+static void
+fill(uint8_t *pixels, uint32_t rowBytes, SLSIntRect r, uint32_t color)
+{
+	for (int32_t y = r.y; y < r.y + r.height; y++)
+		for (int32_t x = r.x; x < r.x + r.width; x++)
+			((uint32_t *)(pixels + (size_t)y * rowBytes))[x] = color;
+}
+
+static SLSServerStats
+statsAfterFrames(void)
+{
+	SLSServerStats st;
+
+	usleep(150000);		/* a few display link periods */
+	SLSGetServerStats(&st);
+	return st;
+}
+
+static void
+testSurfaces(void)
+{
+	char detail[128];
+	SLSWindowID w = 0, empty = 0;
+	SLSWindowInfo info;
+	SLSServerStats before, after, idle;
+	void *pixels = NULL, *again = NULL;
+	uint32_t width = 0, height = 0, rowBytes = 0, color = 0;
+	int err;
+
+	SLSNewWindow(0, (SLSRect){ 0, 0, 0, 0 }, &empty);
+	check(SLSWindowBackBuffer(empty, &pixels, &width, &height, &rowBytes) ==
+	    kSLSErrorIllegalArgument, "a window of no size has no surface", NULL);
+	SLSReleaseWindow(empty);
+
+	SLSNewWindow(0, (SLSRect){ 40, 40, 64, 32 }, &w);
+	SLSOrderWindow(w, kSLSOrderAbove, 0);
+	err = SLSWindowBackBuffer(w, &pixels, &width, &height, &rowBytes);
+	snprintf(detail, sizeof(detail), "%ux%u, %u bytes a row", width, height, rowBytes);
+	check(err == kSLSErrorSuccess && pixels != NULL && width == 64 && height == 32 &&
+	    rowBytes >= 256, "a window gets a surface of its size", detail);
+	check(((uint32_t *)pixels)[0] == 0 && ((uint32_t *)pixels)[64 * 32 - 1] == 0,
+	    "it starts transparent", NULL);
+
+	before = statsAfterFrames();
+	fill(pixels, rowBytes, (SLSIntRect){ 0, 0, 64, 32 }, 0xffff0000);
+	err = SLSWindowCommit(w, (SLSIntRect[]){ { 0, 0, 64, 32 } }, 1);
+	after = statsAfterFrames();
+	snprintf(detail, sizeof(detail), "%llu frame(s), %llu pixels",
+	    (unsigned long long)(after.frames - before.frames),
+	    (unsigned long long)after.lastDamagedPixels);
+	check(err == kSLSErrorSuccess && after.commits == before.commits + 1 &&
+	    after.frames > before.frames && after.lastDamagedPixels >= 64 * 32,
+	    "a commit is composited", detail);
+
+	SLSWindowBackBuffer(w, &again, &width, &height, &rowBytes);
+	check(again != pixels && ((uint32_t *)again)[0] == 0xffff0000 &&
+	    ((uint32_t *)again)[64 * 32 - 1] == 0xffff0000,
+	    "the new back buffer holds what was committed", NULL);
+
+	idle = statsAfterFrames();
+	usleep(300000);
+	SLSGetServerStats(&after);
+	snprintf(detail, sizeof(detail), "%llu idle ticks",
+	    (unsigned long long)(after.idleTicks - idle.idleTicks));
+	check(after.frames == idle.frames && after.idleTicks > idle.idleTicks,
+	    "no frame while nothing changes", detail);
+
+	fill(again, rowBytes, (SLSIntRect){ 8, 8, 4, 4 }, 0xff00ff00);
+	before = after;
+	err = SLSWindowCommit(w, (SLSIntRect[]){ { 8, 8, 4, 4 } }, 1);
+	after = statsAfterFrames();
+	snprintf(detail, sizeof(detail), "%llu pixels", (unsigned long long)after.lastDamagedPixels);
+	check(err == kSLSErrorSuccess && after.frames == before.frames + 1 &&
+	    after.lastDamagedPixels == 16, "only the damaged area is composited", detail);
+
+	color = 0xff0000ff;
+	{
+		static uint32_t own[64 * 32];
+		for (int i = 0; i < 64 * 32; i++)
+			own[i] = color;
+		err = SLSWindowFlushPixels(w, own, 64 * 4, (SLSIntRect[]){ { 0, 0, 64, 32 } }, 1);
+		SLSWindowBackBuffer(w, &again, &width, &height, &rowBytes);
+		check(err == kSLSErrorSuccess && ((uint32_t *)again)[100] == color,
+		    "pixels are flushed from the client's own buffer", NULL);
+	}
+
+	SLSSetWindowFrame(w, (SLSRect){ 40, 40, 80, 40 });
+	err = SLSWindowBackBuffer(w, &again, &width, &height, &rowBytes);
+	snprintf(detail, sizeof(detail), "%ux%u", width, height);
+	check(err == kSLSErrorSuccess && width == 80 && height == 40,
+	    "a new size gets a new surface", detail);
+	SLSSetWindowFrame(w, (SLSRect){ 60, 50, 80, 40 });
+	SLSWindowBackBuffer(w, &pixels, &width, &height, &rowBytes);
+	check(pixels == again, "a move keeps the surface", NULL);
+
+	check(SLSSetWindowAlpha(w, 0.5) == kSLSErrorSuccess &&
+	    SLSGetWindowInfo(w, &info) == kSLSErrorSuccess && info.alpha == 0.5,
+	    "a window's alpha is set", NULL);
+	check(SLSSetWindowAlpha(w, 1.5) == kSLSErrorIllegalArgument &&
+	    SLSSetWindowAlpha(w, NAN) == kSLSErrorIllegalArgument,
+	    "an alpha outside 0..1 is refused", NULL);
+	check(SLSWindowCommit(0xdeadbeef, NULL, 0) == kSLSErrorIllegalArgument,
+	    "a commit to an unknown window is refused", NULL);
+	SLSReleaseWindow(w);
+}
+
+/*
+ * skylight-test draw: windows for the screen checks of the local tests.
+ * A red window at 100,100 (300 x 200), a blue one over it at 250,200 and a
+ * green one at 600,100 (100 x 100) at half alpha. Then commands, one at a
+ * time, from /tmp/ws-draw.cmd (deleted when done): "raise-red", "move-blue
+ * X Y", "cursor X Y" (a warp), "quit".
+ */
+static SLSWindowID
+solidWindow(SLSRect frame, uint32_t color)
+{
+	SLSWindowID w = 0;
+	void *pixels;
+	uint32_t width, height, rowBytes;
+
+	SLSNewWindow(0, frame, &w);
+	SLSWindowBackBuffer(w, &pixels, &width, &height, &rowBytes);
+	fill(pixels, rowBytes, (SLSIntRect){ 0, 0, (int32_t)width, (int32_t)height }, color);
+	SLSWindowCommit(w, (SLSIntRect[]){ { 0, 0, (int32_t)width, (int32_t)height } }, 1);
+	SLSOrderWindow(w, kSLSOrderAbove, 0);
+	return w;
+}
+
+static int
+drawMain(void)
+{
+	SLSWindowID red = solidWindow((SLSRect){ 100, 100, 300, 200 }, 0xffff0000);
+	SLSWindowID blue = solidWindow((SLSRect){ 250, 200, 300, 200 }, 0xff0000ff);
+	SLSWindowID green = solidWindow((SLSRect){ 600, 100, 100, 100 }, 0xff00ff00);
+	const char *path = "/tmp/ws-draw.cmd";
+
+	SLSSetWindowAlpha(green, 0.5);
+	printf("drawn %u %u %u\n", red, blue, green);
+	fflush(stdout);
+	for (;;) {
+		char line[64] = "";
+		double x, y;
+		FILE *f = fopen(path, "r");
+
+		if (f == NULL) {
+			usleep(20000);
+			continue;
+		}
+		if (fgets(line, sizeof(line), f) == NULL)
+			line[0] = '\0';
+		fclose(f);
+		if (strncmp(line, "quit", 4) == 0) {
+			unlink(path);
+			return 0;
+		}
+		if (strncmp(line, "raise-red", 9) == 0)
+			SLSOrderWindow(red, kSLSOrderAbove, 0);
+		else if (sscanf(line, "move-blue %lf %lf", &x, &y) == 2)
+			SLSSetWindowFrame(blue, (SLSRect){ x, y, 300, 200 });
+		else if (sscanf(line, "cursor %lf %lf", &x, &y) == 2)
+			SLSWarpCursorPosition((SLSPoint){ x, y });
+		unlink(path);
+	}
+}
+
 int
 main(int argc, char *argv[])
 {
 	if (argc > 1 && strcmp(argv[1], "child") == 0)
 		return childMain();
+	if (argc > 1 && strcmp(argv[1], "draw") == 0)
+		return drawMain();
 	setvbuf(stdout, NULL, _IOLBF, 0);
 	testConnection();
 	testDisplays();
@@ -670,6 +837,7 @@ main(int argc, char *argv[])
 	testCapture();
 	testCursor();
 	testWindows();
+	testSurfaces();
 	testClientExit(argv[0]);
 	printf("skylight-test: %d passed, %d failed\n", passed, failed);
 	return failed;

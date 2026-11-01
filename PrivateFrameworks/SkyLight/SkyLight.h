@@ -348,6 +348,55 @@ int SLSOrderWindow(SLSWindowID window, int32_t place, SLSWindowID relativeTo);
 int SLSWindowListCopy(uint32_t option, SLSWindowID relativeTo, uint32_t max,
     SLSWindowID *windows, uint32_t *count);
 int SLSGetWindowInfo(SLSWindowID window, SLSWindowInfo *info);
+/* 0 (transparent) to 1 (opaque); the server blends the surface with it. */
+int SLSSetWindowAlpha(SLSWindowID window, double alpha);
+
+/* ---- Window surfaces ---------------------------------------------------- */
+
+typedef struct SLSIntRect {
+	int32_t	x, y, width, height;
+} SLSIntRect;
+
+/*
+ * A window's surface: two buffers of premultiplied 32-bit BGRA pixels
+ * (alpha in the high byte), its frame's size rounded up, in memory the
+ * server shares with this process only. The client draws into the back
+ * buffer and commits it with the rectangles it changed (window
+ * coordinates, origin top left); the server shows it from its next frame,
+ * and the other buffer becomes the back one, already holding the same
+ * pixels. A surface is made on first use and again after the window's
+ * size changes; until its first commit the window shows nothing.
+ */
+int SLSWindowBackBuffer(SLSWindowID window, void **pixels, uint32_t *width,
+    uint32_t *height, uint32_t *rowBytes);
+int SLSWindowCommit(SLSWindowID window, const SLSIntRect *damage, uint32_t count);
+/* Copies the damaged rectangles from pixels (the window's size, rowBytes
+ * apart) into the back buffer, then commits. */
+int SLSWindowFlushPixels(SLSWindowID window, const void *pixels, uint32_t rowBytes,
+    const SLSIntRect *damage, uint32_t count);
+
+#define kSLSMaxSurfaceSide	16384
+#define kSLSMaxDamageRects	64
+
+/* ---- Server statistics (wsctl) ----------------------------------------- */
+
+typedef struct SLSServerStats {
+	uint64_t	frames;			/* frames composited and presented */
+	uint64_t	idleTicks;		/* display link ticks with nothing to do */
+	uint64_t	commits;		/* surface commits received */
+	uint64_t	damagedPixels;		/* composited, all frames */
+	uint64_t	lastDamagedPixels;	/* composited, last frame */
+	uint64_t	lastFrameMicros;	/* compositing and present, last frame */
+	uint64_t	totalFrameMicros;
+	uint64_t	reserved;
+} SLSServerStats;
+
+#define kSLSServerStatsWords	16
+#ifndef __cplusplus
+_Static_assert(sizeof(SLSServerStats) == kSLSServerStatsWords * 4, "SLSServerStats size");
+#endif
+
+int SLSGetServerStats(SLSServerStats *stats);
 
 #ifdef __cplusplus
 }

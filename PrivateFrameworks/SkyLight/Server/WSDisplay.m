@@ -48,6 +48,8 @@ static const double kPixelsPerMM = 72.0 / 25.4;
 @implementation WSDisplay {
 	io_service_t _service;
 	io_connect_t _connect;
+	mach_vm_address_t _vram;
+	mach_vm_size_t _vramSize;
 	SLSDisplayMode _modes[kSLSMaxDisplayModes];
 	uint32_t _currentModeID;
 	float _transfer[3 * kSLSGammaTableCapacity];
@@ -315,8 +317,37 @@ static const SLSGammaFormula identityFormula = { 0, 1, 1, 0, 1, 1, 0, 1, 1 };
 	return kSLSErrorSuccess;
 }
 
+- (BOOL)mapFramebuffer:(uint8_t **)base rowBytes:(uint32_t *)rowBytes
+{
+	IOPixelInformation pixels;
+	uint64_t query[3] = { _currentModeID, 0, kIOFBSystemAperture };
+	size_t size = sizeof(pixels);
+	IOOptionBits options = kIOMapAnywhere | kIOMapWriteCombineCache;
+
+	memset(&pixels, 0, sizeof(pixels));
+	if (IOConnectCallMethod(_connect, kFBMethodGetPixelInformation, query, 3, NULL, 0,
+	    NULL, NULL, &pixels, &size) != KERN_SUCCESS || pixels.bitsPerPixel != 32)
+		return NO;
+	if (_vram != 0) {
+		IOConnectUnmapMemory64(_connect, kIOFBSystemAperture, mach_task_self(), _vram);
+		_vram = 0;
+	}
+	if (IOConnectMapMemory64(_connect, kIOFBSystemAperture, mach_task_self(), &_vram,
+	    &_vramSize, options) != KERN_SUCCESS) {
+		_vram = 0;
+		return NO;
+	}
+	if (_vramSize < (mach_vm_size_t)pixels.bytesPerRow * _height)
+		return NO;
+	*base = (uint8_t *)(uintptr_t)_vram;
+	*rowBytes = pixels.bytesPerRow;
+	return YES;
+}
+
 - (void)dealloc
 {
+	if (_vram != 0)
+		IOConnectUnmapMemory64(_connect, kIOFBSystemAperture, mach_task_self(), _vram);
 	if (_connect != IO_OBJECT_NULL)
 		IOServiceClose(_connect);
 	IOObjectRelease(_service);

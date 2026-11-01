@@ -59,6 +59,13 @@
 @property double x;
 @property double y;
 
+/* Maps the framebuffer's scanout memory (write-combined); NO when it
+ * cannot. The mapping lasts until the next call or the display's end. */
+- (BOOL)mapFramebuffer:(uint8_t **)base rowBytes:(uint32_t *)rowBytes;
+
+/* The display's compositor (WSCompositor), made at startup. */
+@property (strong) id compositor;
+
 /* The connection that captured the display, and its shielding window. */
 @property (weak) WSConnection *capturedBy;
 @property (strong) WSWindow *shield;

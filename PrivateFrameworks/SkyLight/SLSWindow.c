@@ -32,6 +32,10 @@
 #include "SkyLight.h"
 #include "WindowServer.h"	/* MIG user side */
 
+/* SLSSurface.c */
+void _SLSForgetSurface(SLSWindowID window);
+void _SLSFrameChanged(SLSWindowID window, double width, double height);
+
 int
 SLSNewWindow(int32_t level, SLSRect frame, SLSWindowID *window)
 {
@@ -53,6 +57,7 @@ SLSReleaseWindow(SLSWindowID window)
 	int32_t result = kSLSErrorFailure;
 	mach_port_t server = SLSServerPort();
 
+	_SLSForgetSurface(window);
 	if (server == MACH_PORT_NULL ||
 	    ws_window_release(server, window, &result) != KERN_SUCCESS)
 		return kSLSErrorFailure;
@@ -68,6 +73,9 @@ SLSSetWindowFrame(SLSWindowID window, SLSRect frame)
 	if (server == MACH_PORT_NULL ||
 	    ws_window_set_frame(server, window, frame, &result) != KERN_SUCCESS)
 		return kSLSErrorFailure;
+	/* A new size gets a new surface (a commit to the old one is refused). */
+	if (result == kSLSErrorSuccess)
+		_SLSFrameChanged(window, frame.width, frame.height);
 	return result;
 }
 
@@ -131,4 +139,28 @@ SLSGetWindowInfo(SLSWindowID window, SLSWindowInfo *info)
 	    ws_window_info(server, window, &result, info) != KERN_SUCCESS)
 		return kSLSErrorFailure;
 	return result;
+}
+
+int
+SLSSetWindowAlpha(SLSWindowID window, double alpha)
+{
+	int32_t result = kSLSErrorFailure;
+	mach_port_t server = SLSServerPort();
+
+	if (server == MACH_PORT_NULL ||
+	    ws_window_set_alpha(server, window, alpha, &result) != KERN_SUCCESS)
+		return kSLSErrorFailure;
+	return result;
+}
+
+int
+SLSGetServerStats(SLSServerStats *stats)
+{
+	mach_port_t server = SLSServerPort();
+
+	if (stats == NULL)
+		return kSLSErrorIllegalArgument;
+	if (server == MACH_PORT_NULL || ws_server_stats(server, stats) != KERN_SUCCESS)
+		return kSLSErrorFailure;
+	return kSLSErrorSuccess;
 }

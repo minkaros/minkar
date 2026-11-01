@@ -11,7 +11,9 @@
 
 SUBDIR = WindowServer/Legacy/libxkbcommon .WAIT WindowServer/Legacy WindowServer/Demo
 # The new window server and its test client (SkyLight.framework is built
-# in the Frameworks stage).
-SUBDIR += ../PrivateFrameworks/SkyLight/Server ../PrivateFrameworks/SkyLight/Tests
+# in the Frameworks stage). pixman, its compositor's library, is built
+# first: the BSD stage comes after this one.
+SUBDIR += .WAIT ../BSD/lib/libpixman .WAIT ../PrivateFrameworks/SkyLight/Server \
+	../PrivateFrameworks/SkyLight/Tests ../PrivateFrameworks/SkyLight/Tools/wsctl
 
 .include <bsd.subdir.mk>

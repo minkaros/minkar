@@ -37,12 +37,18 @@
 #include <stdio.h>
 #import "WSWindowList.h"
 #import "WSConnection.h"
+#import "WSCompositor.h"
+#import "WSSurface.h"
 #include "WindowServerServer.h"	/* MIG server side */
 
 @interface WSWindow ()
 @property (readwrite) int32_t level;
 @property (readwrite) SLSRect frame;
 @property (readwrite) BOOL onScreen;
+@property (readwrite) double alpha;
+@property (readwrite, strong) id surface;
+/* A surface of the new size, given to the client but not committed yet. */
+@property (strong) WSSurface *pendingSurface;
 @end
 
 @implementation WSWindow
@@ -51,6 +57,7 @@
 	if ((self = [super init]) != nil) {
 		_windowID = windowID;
 		_owner = owner;
+		_alpha = 1;
 	}
 	return self;
 }
@@ -67,6 +74,23 @@ windowWithID(SLSWindowID windowID)
 		if (w.windowID == windowID)
 			return w;
 	return nil;
+}
+
+/* What the window covers on screen, if it is on screen: its frame, or its
+ * surface where a surface of the old size is still shown. */
+static void
+damageWindow(WSWindow *w)
+{
+	SLSRect r = w.frame;
+	WSSurface *surface = w.surface;
+
+	if (!w.onScreen)
+		return;
+	if (surface != nil && surface.width > r.width)
+		r.width = surface.width;
+	if (surface != nil && surface.height > r.height)
+		r.height = surface.height;
+	WSDamageGlobalRect(r);
 }
 
 static BOOL
@@ -93,6 +117,7 @@ WSWindowCreate(WSConnection *owner, int32_t level, SLSRect frame)
 void
 WSWindowRelease(WSWindow *w)
 {
+	damageWindow(w);
 	[stack removeObject:w];
 	[allWindows removeObject:w];
 	w.onScreen = NO;
@@ -101,7 +126,9 @@ WSWindowRelease(WSWindow *w)
 void
 WSWindowSetFrame(WSWindow *w, SLSRect frame)
 {
+	damageWindow(w);
 	w.frame = frame;
+	damageWindow(w);
 }
 
 /* Where a window of this level goes: the front of its level, or the back. */
@@ -128,6 +155,7 @@ WSWindowOrder(WSWindow *w, int32_t place, SLSWindowID relativeTo)
 		if (relative == nil || relative == w)
 			return kSLSErrorIllegalArgument;
 	}
+	damageWindow(w);
 	[stack removeObject:w];
 	w.onScreen = NO;
 	if (place == kSLSOrderOut)
@@ -144,6 +172,7 @@ WSWindowOrder(WSWindow *w, int32_t place, SLSWindowID relativeTo)
 		index = levelEdge(w.level, place == kSLSOrderAbove);
 	[stack insertObject:w atIndex:index];
 	w.onScreen = YES;
+	damageWindow(w);
 	return kSLSErrorSuccess;
 }
 
@@ -226,7 +255,7 @@ wss_window_set_frame(mach_port_t server, audit_token_t token, uint32_t window,
 
 	if (w != nil) {
 		if (frameIsValid(frame))
-			w.frame = frame;
+			WSWindowSetFrame(w, frame);
 		else
 			*result = kSLSErrorIllegalArgument;
 	}
@@ -335,11 +364,127 @@ wss_window_info(mach_port_t server, uint32_t window, int32_t *result, SLSWindowI
 	info->y = w.frame.y;
 	info->width = w.frame.width;
 	info->height = w.frame.height;
-	info->alpha = 1.0;
+	info->alpha = w.alpha;
 	info->flags = w.onScreen ? kSLSWindowOnScreen : 0;
 	info->sharingState = 1;		/* kCGWindowSharingReadOnly */
 	if (proc_name(w.owner.pid, info->ownerName, sizeof(info->ownerName)) <= 0)
 		info->ownerName[0] = '\0';
 	*result = kSLSErrorSuccess;
 	return KERN_SUCCESS;
+}
+
+kern_return_t
+wss_window_set_alpha(mach_port_t server, audit_token_t token, uint32_t window, double alpha,
+    int32_t *result)
+{
+	WSWindow *w = ownWindow(token, window, result);
+
+	if (w == nil)
+		return KERN_SUCCESS;
+	if (!isfinite(alpha) || alpha < 0 || alpha > 1) {
+		*result = kSLSErrorIllegalArgument;
+		return KERN_SUCCESS;
+	}
+	w.alpha = alpha;
+	damageWindow(w);
+	return KERN_SUCCESS;
+}
+
+/* ---- Surfaces ---- */
+
+kern_return_t
+wss_window_surface(mach_port_t server, audit_token_t token, uint32_t window, int32_t *result,
+    uint32_t *surfaceID, uint32_t *width, uint32_t *height, uint32_t *rowBytes,
+    uint32_t *back, mach_port_t *memory)
+{
+	WSWindow *w = ownWindow(token, window, result);
+
+	*surfaceID = *width = *height = *rowBytes = *back = 0;
+	*memory = MACH_PORT_NULL;
+	if (w == nil)
+		return KERN_SUCCESS;
+	double fw = ceil(w.frame.width), fh = ceil(w.frame.height);
+	if (fw < 1 || fh < 1 || fw > kSLSMaxSurfaceSide || fh > kSLSMaxSurfaceSide) {
+		*result = kSLSErrorIllegalArgument;
+		return KERN_SUCCESS;
+	}
+	WSSurface *current = w.pendingSurface ? w.pendingSurface : w.surface;
+	if (current == nil || current.width != fw || current.height != fh) {
+		current = [[WSSurface alloc] initWithWidth:(uint32_t)fw height:(uint32_t)fh];
+		if (current == nil) {
+			*result = kSLSErrorFailure;
+			return KERN_SUCCESS;
+		}
+		/* A shown surface stays until the new one is committed. */
+		if (w.surface == nil || ![w.surface committed]) {
+			w.surface = current;
+			w.pendingSurface = nil;
+		} else
+			w.pendingSurface = current;
+	}
+	WSSurface *given = current;
+	*surfaceID = given.surfaceID;
+	*width = given.width;
+	*height = given.height;
+	*rowBytes = given.rowBytes;
+	*back = given.backBuffer;
+	*memory = given.memoryEntry;
+	return KERN_SUCCESS;
+}
+
+kern_return_t
+wss_window_commit(mach_port_t server, audit_token_t token, uint32_t window, uint32_t surfaceID,
+    uint32_t buffer, ws_damage_t damage, mach_msg_type_number_t count, int32_t *result,
+    uint32_t *back)
+{
+	WSWindow *w = ownWindow(token, window, result);
+	WSSurface *surface;
+
+	*back = 0;
+	if (w == nil)
+		return KERN_SUCCESS;
+	surface = w.pendingSurface ? w.pendingSurface : w.surface;
+	if (surface == nil || surface.surfaceID != surfaceID) {
+		*result = kSLSErrorRangeCheck;	/* a surface the window no longer has */
+		return KERN_SUCCESS;
+	}
+	BOOL first = !surface.committed;
+	if (![surface commitBuffer:buffer]) {
+		*result = kSLSErrorIllegalArgument;
+		return KERN_SUCCESS;
+	}
+	if (w.pendingSurface != nil) {
+		/* The new size shows from now: the old area and the new one change. */
+		damageWindow(w);
+		w.surface = w.pendingSurface;
+		w.pendingSurface = nil;
+		first = YES;
+	}
+	if (first)
+		damageWindow(w);
+	else if (w.onScreen)
+		for (mach_msg_type_number_t i = 0; i < count; i++)
+			WSDamageGlobalRect((SLSRect){ w.frame.x + damage[i].x, w.frame.y + damage[i].y,
+			    damage[i].width, damage[i].height });
+	WSStatsCountCommit();
+	*back = surface.backBuffer;
+	return KERN_SUCCESS;
+}
+
+/* ---- Frames ---- */
+
+NSArray<WSFrameItem *> *
+WSWindowSnapshot(void)
+{
+	NSMutableArray *items = [NSMutableArray arrayWithCapacity:stack.count];
+
+	for (WSWindow *w in [stack reverseObjectEnumerator]) {
+		WSFrameItem *item = [[WSFrameItem alloc] init];
+		item.frame = w.frame;
+		item.alpha = w.alpha;
+		item.surface = w.surface;
+		item.solid = w.shield;
+		[items addObject:item];
+	}
+	return items;
 }

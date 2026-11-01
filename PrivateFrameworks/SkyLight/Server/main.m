@@ -45,6 +45,9 @@
 #include "WindowServerServer.h"	/* MIG server side */
 #import "WSServer.h"
 #import "WSConnection.h"
+#import "WSCompositor.h"
+
+dispatch_queue_t WSIPCQueue;
 
 kern_return_t
 wss_connect(mach_port_t server, audit_token_t token, mach_port_t client,
@@ -81,6 +84,15 @@ main(int argc, char *argv[])
 	/* The IPC queue: requests are served in order, one at a time. */
 	dispatch_queue_t ipc = dispatch_queue_create("org.minkar.WindowServer.ipc",
 	    DISPATCH_QUEUE_SERIAL);
+	WSIPCQueue = ipc;
+
+	/* A compositor per display it can draw on; each starts with a frame
+	 * that clears its screen. */
+	for (WSDisplay *d in WSDisplays) {
+		WSCompositor *c = [[WSCompositor alloc] initWithDisplay:d];
+		d.compositor = c;
+		[c start];
+	}
 	/* Static: under ARC the source is an object, and ARC may release a local
 	 * after its last use even though dispatch_main() never returns. */
 	static dispatch_source_t source;
@@ -96,4 +108,11 @@ main(int argc, char *argv[])
 	fprintf(stderr, "WindowServer: serving %s (interface version %d)\n",
 	    kSLSServiceName, kSLSInterfaceVersion);
 	dispatch_main();
+}
+
+kern_return_t
+wss_server_stats(mach_port_t server, SLSServerStats *stats)
+{
+	[WSCompositor getStats:stats];
+	return KERN_SUCCESS;
 }
