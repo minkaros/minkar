@@ -482,6 +482,14 @@ Estado al 1 nov 2026:
   con ese usuario y guarda su log en `/var/log/WindowServer/`. El gate
   M4-compose lo arranca con el job y comprueba el usuario (32 marcadores,
   0 píxeles distintos).
+- [x] Zonas de arrastre (`f03d8ddc9d`, `5df94c8821`, `9c48a4cb31`): AppKit da
+  al servidor la barra de título de cada ventana sin sus botones, o la
+  ventana sin las vistas que atienden su propio clic cuando se mueve por el
+  fondo; un mouse down ahí empieza un movimiento en el servidor sin la app.
+  AppKit solo envía un marco que el servidor no tiene, así que una app
+  ocupada ya no devuelve a su sitio una ventana que movió el servidor. El
+  gate M4-compose arrastra una ventana mientras su app no responde durante
+  8 s, y después por el fondo (37 marcadores).
 
 ### WS4b — El cambio de servidor
 
@@ -568,7 +576,7 @@ Decidido el 31 oct 2026, según la regla general de la sección 1:
 | Usuario con el que corre WindowServer | `_windowserver` (UID 88), fijado por el job de launchd (`UserName`) | Root; el servidor nuevo corre como `_windowserver` desde el 1 nov 2026 (`9af6b6295d`), el anterior sigue como root hasta que se va | WS4b (se borra el servidor anterior) |
 | Dónde vive | `SkyLight.framework/Resources/WindowServer`; el cliente en `SkyLight.framework`, reexportado por CoreGraphics | `CoreServices/WindowServer.app` para WS0 (servidor actual) | WS1 |
 | Capturar pantalla y enviar eventos | Permisos de grabación de pantalla, monitoreo de entrada y accesibilidad, mediante un servicio de permisos | Política interna: se permite a root y a los procesos del usuario de consola; el resto, denegado (`SHORTCUT(M5)`) | M5 (el ADR del servicio de privacidad llega antes del gate M5) |
-| Mover ventanas | Movimientos en el servidor a partir de las zonas de arrastre que declara el cliente, más `performWindowDragWithEvent:` | Solo la zona de la barra de título | WS4a |
+| Mover ventanas | Movimientos en el servidor a partir de las zonas de arrastre que declara el cliente, más `performWindowDragWithEvent:` | Solo la zona de la barra de título | Se quitó el 1 nov 2026 (`f03d8ddc9d`, `5df94c8821`) |
 | Distribuciones de teclado | El servidor entrega códigos de tecla del hardware; el cliente los convierte en caracteres según la distribución actual (datos de la distribución y una llamada al estilo de `UCKeyTranslate` en la app), con Text Input Sources | `WSKeymap` y libxkbcommon en SkyLight, desde WS4a (`SHORTCUT(Phase 5)`) | Fase 5 (Text Input Sources y ficheros de distribución propios) |
 | Terminar la sesión | La ventana de login pide a las apps que terminen, cierra la sesión y después reinicia o apaga | Un `loginwindow` mínimo que solo cierra la sesión y llama a `reboot(2)` | Fase 5 (LoginWindow) |
 | Selector de apps (Comando-Tab) | Lo dibuja el Dock; la tabla de atajos simbólicos del servidor de ventanas le entrega Comando-Tab | Sin selector desde que se va el servidor anterior (WS4b): se cambia de app con clic en sus ventanas (`SHORTCUT(D4)`) | D4 ([Dock-Kraz.es.md](Dock-Kraz.es.md)) |

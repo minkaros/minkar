@@ -442,6 +442,14 @@ State on 2026-11-01:
   `org.minkar.WindowServer.next.plist`, installed disabled, runs it as
   that user and logs to `/var/log/WindowServer/`. Gate M4-compose starts
   it through the job and checks the user (32 markers, 0 pixels differing).
+- [x] Drag regions (`f03d8ddc9d`, `5df94c8821`, `9c48a4cb31`): AppKit gives
+  the server each window's title bar without its buttons, or the window
+  without the views that take their own clicks when it is movable by its
+  background; a mouse down there starts a server-side move without the
+  app. AppKit sends a frame only when the server lacks it, so a busy app
+  no longer puts back a window the server moved. Gate M4-compose drags a
+  window while its app does not answer for 8 s, then by its background
+  (37 markers).
 
 ### WS4b — The switch
 
@@ -525,7 +533,7 @@ Decided 2026-10-31, following the guiding rule in section 1:
 | User WindowServer runs as | `_windowserver` (UID 88), set by the launchd job (`UserName`) | Root; the new server runs as `_windowserver` since 2026-11-01 (`9af6b6295d`), the legacy one stays root until it goes | WS4b (the legacy server's removal) |
 | Where it lives | `SkyLight.framework/Resources/WindowServer`; client in `SkyLight.framework`, re-exported by CoreGraphics | `CoreServices/WindowServer.app` for WS0 (current server) | WS1 |
 | Capturing and posting events | Screen recording, input monitoring and accessibility permissions, through a permission service | Built-in policy: root and the console user's processes are allowed; everything else denied (`SHORTCUT(M5)`) | M5 (the privacy service ADR comes before gate M5) |
-| Moving windows | Server-side moves from client-declared drag regions, plus `performWindowDragWithEvent:` | Title bar region only | WS4a |
+| Moving windows | Server-side moves from client-declared drag regions, plus `performWindowDragWithEvent:` | Title bar region only | Removed 2026-11-01 (`f03d8ddc9d`, `5df94c8821`) |
 | Keyboard layouts | The server delivers hardware key codes; the client turns them into characters from the current layout (layout data and a `UCKeyTranslate`-style call in the app), with Text Input Sources | `WSKeymap` and libxkbcommon in SkyLight, from WS4a (`SHORTCUT(Phase 5)`) | Phase 5 (Text Input Sources and our own layout files) |
 | Ending the session | The login window asks apps to quit, ends the session and then restarts or shuts down | A minimal `loginwindow` that only ends the session and calls `reboot(2)` | Phase 5 (LoginWindow) |
 | App switcher (Command-Tab) | The Dock draws it; the window server's symbolic hotkey table delivers Command-Tab to it | No switcher after the legacy server goes (WS4b): apps are switched by clicking their windows (`SHORTCUT(D4)`) | D4 ([Dock-Kraz.md](Dock-Kraz.md)) |
