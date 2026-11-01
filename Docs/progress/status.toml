@@ -33,7 +33,7 @@
 # "bmake progress" (Docs/CONTRIBUTING.md).
 
 updated = "2026-11-01"
-commit  = "e21b539ee6"
+commit  = "8466272a0b"
 
 deps = [["ws", 555, "dock"], ["fw", 535, "kraz"]]
 
@@ -215,6 +215,16 @@ stations = [["x86-64 apps", 1082, "todo"], ["arm64", 1150, "todo"]]
 here = "WS4a"
 
 [[board.done]]
+title = "Window lists and images"
+note = "CGWindowListCreateImage · WS4a · 1 nov"
+line = "ws"
+
+[[board.done]]
+title = "Minimized windows"
+note = "for the Dock · WS4a · 1 nov"
+line = "ws"
+
+[[board.done]]
 title = "Status area layout"
 note = "WS4a · 1 nov"
 line = "ws"
@@ -234,21 +244,12 @@ title = "Front app and activation order"
 note = "WS4a · 1 nov"
 line = "ws"
 
-[[board.done]]
-title = "Running applications"
-note = "LaunchServices session · WS4a · 1 nov"
-line = "ws"
-
-[[board.done]]
-title = "Symbolic hotkeys"
-note = "WS4a · 1 nov"
-line = "ws"
 
 [[board.now]]
 title = "WS4a — Server behavior"
-note = "Left: what the Dock needs, window list and capture, earlier shortcuts"
+note = "Left: child windows, sheets, shadows, cursors, display capture; earlier shortcuts"
 line = "ws"
-done = 6
+done = 7
 total = 9
 
 [[board.now]]

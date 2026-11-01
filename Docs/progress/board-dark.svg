@@ -2,38 +2,38 @@
 <title>Minkar work board, 2026-11-01</title>
 <rect width="1120" height="732" fill="#0d1117"/>
 <text x="16" y="30" font-size="20" font-weight="700" fill="#e6edf3" text-anchor="start">Minkar work board</text>
-<text x="16" y="52" font-size="13" font-weight="400" fill="#9198a1" text-anchor="start">2026-11-01 · devel e21b539ee6</text>
+<text x="16" y="52" font-size="13" font-weight="400" fill="#9198a1" text-anchor="start">2026-11-01 · devel 8466272a0b</text>
 <rect x="16" y="70" width="261.5" height="654" rx="10" fill="#151b23"/>
 <text x="30" y="96" font-size="13" font-weight="700" fill="#9198a1" text-anchor="start" letter-spacing=".08em">DONE · LATEST</text>
-<rect x="26" y="114" width="241.5" height="68" rx="8" fill="#0d1117" stroke="#3d444d" stroke-width="1"/><rect x="26" y="114" width="5" height="68" rx="2" fill="#4493f8"/>
-<text x="42" y="138" font-size="15" font-weight="650" fill="#e6edf3" text-anchor="start">Status area layout</text>
-<text x="42" y="159" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">WS4a · 1 nov</text>
-<rect x="26" y="192" width="241.5" height="68" rx="8" fill="#0d1117" stroke="#3d444d" stroke-width="1"/><rect x="26" y="192" width="5" height="68" rx="2" fill="#4493f8"/>
-<text x="42" y="216" font-size="15" font-weight="650" fill="#e6edf3" text-anchor="start">Pointer capture</text>
-<text x="42" y="237" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">WS4a · 1 nov</text>
-<rect x="26" y="270" width="241.5" height="68" rx="8" fill="#0d1117" stroke="#3d444d" stroke-width="1"/><rect x="26" y="270" width="5" height="68" rx="2" fill="#4493f8"/>
-<text x="42" y="294" font-size="15" font-weight="650" fill="#e6edf3" text-anchor="start">Menu bar place</text>
-<text x="42" y="315" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">WS4a · 1 nov</text>
-<rect x="26" y="348" width="241.5" height="89" rx="8" fill="#0d1117" stroke="#3d444d" stroke-width="1"/><rect x="26" y="348" width="5" height="89" rx="2" fill="#4493f8"/>
-<text x="42" y="372" font-size="15" font-weight="650" fill="#e6edf3" text-anchor="start">Front app and activation</text>
-<text x="42" y="393" font-size="15" font-weight="650" fill="#e6edf3" text-anchor="start">order</text>
-<text x="42" y="414" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">WS4a · 1 nov</text>
-<rect x="26" y="447" width="241.5" height="87" rx="8" fill="#0d1117" stroke="#3d444d" stroke-width="1"/><rect x="26" y="447" width="5" height="87" rx="2" fill="#4493f8"/>
-<text x="42" y="471" font-size="15" font-weight="650" fill="#e6edf3" text-anchor="start">Running applications</text>
-<text x="42" y="492" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">LaunchServices session · WS4a</text>
-<text x="42" y="511" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">· 1 nov</text>
-<rect x="26" y="544" width="241.5" height="68" rx="8" fill="#0d1117" stroke="#3d444d" stroke-width="1"/><rect x="26" y="544" width="5" height="68" rx="2" fill="#4493f8"/>
-<text x="42" y="568" font-size="15" font-weight="650" fill="#e6edf3" text-anchor="start">Symbolic hotkeys</text>
+<rect x="26" y="114" width="241.5" height="87" rx="8" fill="#0d1117" stroke="#3d444d" stroke-width="1"/><rect x="26" y="114" width="5" height="87" rx="2" fill="#4493f8"/>
+<text x="42" y="138" font-size="15" font-weight="650" fill="#e6edf3" text-anchor="start">Window lists and images</text>
+<text x="42" y="159" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">CGWindowListCreateImage ·</text>
+<text x="42" y="178" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">WS4a · 1 nov</text>
+<rect x="26" y="211" width="241.5" height="68" rx="8" fill="#0d1117" stroke="#3d444d" stroke-width="1"/><rect x="26" y="211" width="5" height="68" rx="2" fill="#4493f8"/>
+<text x="42" y="235" font-size="15" font-weight="650" fill="#e6edf3" text-anchor="start">Minimized windows</text>
+<text x="42" y="256" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">for the Dock · WS4a · 1 nov</text>
+<rect x="26" y="289" width="241.5" height="68" rx="8" fill="#0d1117" stroke="#3d444d" stroke-width="1"/><rect x="26" y="289" width="5" height="68" rx="2" fill="#4493f8"/>
+<text x="42" y="313" font-size="15" font-weight="650" fill="#e6edf3" text-anchor="start">Status area layout</text>
+<text x="42" y="334" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">WS4a · 1 nov</text>
+<rect x="26" y="367" width="241.5" height="68" rx="8" fill="#0d1117" stroke="#3d444d" stroke-width="1"/><rect x="26" y="367" width="5" height="68" rx="2" fill="#4493f8"/>
+<text x="42" y="391" font-size="15" font-weight="650" fill="#e6edf3" text-anchor="start">Pointer capture</text>
+<text x="42" y="412" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">WS4a · 1 nov</text>
+<rect x="26" y="445" width="241.5" height="68" rx="8" fill="#0d1117" stroke="#3d444d" stroke-width="1"/><rect x="26" y="445" width="5" height="68" rx="2" fill="#4493f8"/>
+<text x="42" y="469" font-size="15" font-weight="650" fill="#e6edf3" text-anchor="start">Menu bar place</text>
+<text x="42" y="490" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">WS4a · 1 nov</text>
+<rect x="26" y="523" width="241.5" height="89" rx="8" fill="#0d1117" stroke="#3d444d" stroke-width="1"/><rect x="26" y="523" width="5" height="89" rx="2" fill="#4493f8"/>
+<text x="42" y="547" font-size="15" font-weight="650" fill="#e6edf3" text-anchor="start">Front app and activation</text>
+<text x="42" y="568" font-size="15" font-weight="650" fill="#e6edf3" text-anchor="start">order</text>
 <text x="42" y="589" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">WS4a · 1 nov</text>
 <rect x="291.5" y="70" width="261.5" height="654" rx="10" fill="#151b23"/>
 <text x="305.5" y="96" font-size="13" font-weight="700" fill="#9198a1" text-anchor="start" letter-spacing=".08em">NOW</text>
 <rect x="301.5" y="114" width="241.5" height="128" rx="8" fill="#0d1117" stroke="#4493f8" stroke-width="2"/><rect x="301.5" y="114" width="5" height="128" rx="2" fill="#4493f8"/>
 <text x="317.5" y="138" font-size="15" font-weight="650" fill="#e6edf3" text-anchor="start">WS4a — Server behavior</text>
-<text x="317.5" y="159" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">Left: what the Dock needs,</text>
-<text x="317.5" y="178" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">window list and capture,</text>
-<text x="317.5" y="197" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">earlier shortcuts</text>
-<rect x="317.5" y="212" width="171.5" height="7" rx="3.5" fill="#4493f8" fill-opacity=".2"/><rect x="317.5" y="212" width="114" height="7" rx="3.5" fill="#4493f8"/>
-<text x="495" y="219" font-size="12" font-weight="600" fill="#9198a1" text-anchor="start">6/9</text>
+<text x="317.5" y="159" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">Left: child windows, sheets,</text>
+<text x="317.5" y="178" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">shadows, cursors, display</text>
+<text x="317.5" y="197" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">capture; earlier shortcuts</text>
+<rect x="317.5" y="212" width="171.5" height="7" rx="3.5" fill="#4493f8" fill-opacity=".2"/><rect x="317.5" y="212" width="133" height="7" rx="3.5" fill="#4493f8"/>
+<text x="495" y="219" font-size="12" font-weight="600" fill="#9198a1" text-anchor="start">7/9</text>
 <rect x="301.5" y="252" width="241.5" height="87" rx="8" fill="#0d1117" stroke="#3d444d" stroke-width="1"/><rect x="301.5" y="252" width="5" height="87" rx="2" fill="#d29922"/>
 <text x="317.5" y="276" font-size="15" font-weight="650" fill="#e6edf3" text-anchor="start">Foundation audit</text>
 <text x="317.5" y="297" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">NSURLSession cache and</text>

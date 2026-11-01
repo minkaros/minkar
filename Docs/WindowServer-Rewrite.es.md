@@ -529,6 +529,15 @@ Estado al 1 nov 2026:
   guardado entre sesiones son MB1. Con los avisos de app del frente, el
   sitio de la barra de menús y la captura del puntero, es lo que MB0
   necesita del servidor. `skylight-test` 164/0.
+- [x] Lo que necesita el Dock (`508452db94`, `0531c43795`, `8466272a0b`):
+  `SLSSetWindowMinimized` saca una ventana de pantalla, la marca y avisa a
+  las conexiones que lo pidieron (`SLSRequestWindowNotifications`), como
+  hará el Dock; `miniaturize:` y `deminiaturize:` de AppKit lo usan.
+  `SLSCopyWindowImage` da la imagen de una ventana, también minimizada, y
+  las listas de ventanas de CoreGraphics (`CGWindowListCopyWindowInfo` con
+  las claves de referencia) y `CGWindowListCreateImage` pasan por el
+  servidor nuevo. Pruebas locales `minimize` y `cgwindow` (5/0); gate
+  M4-compose.
 
 ### WS4b — El cambio de servidor
 

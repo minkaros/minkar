@@ -486,6 +486,14 @@ State on 2026-11-01:
   told where. Menu Extras and the order kept across sessions are MB1.
   With the front app notices, the menu bar's place and pointer capture,
   this is what MB0 needs from the server. `skylight-test` 164/0.
+- [x] What the Dock needs (`508452db94`, `0531c43795`, `8466272a0b`):
+  `SLSSetWindowMinimized` orders a window out, flags it and tells the
+  connections that asked (`SLSRequestWindowNotifications`), as the Dock
+  will; AppKit's `miniaturize:` and `deminiaturize:` use it.
+  `SLSCopyWindowImage` gives a window's image, minimized too, and
+  CoreGraphics' window lists (`CGWindowListCopyWindowInfo` with the
+  reference keys) and `CGWindowListCreateImage` go through the new server.
+  Local tests `minimize` and `cgwindow` (5/0); gate M4-compose.
 
 ### WS4b — The switch
 
