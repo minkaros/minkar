@@ -64,6 +64,7 @@
 #import <AppKit/NSDocument.h>
 #import <WindowServer/Legacy/message.h>
 #import <WindowServer/Legacy/rpc.h>
+#include <SkyLight/SkyLight.h>
 #import "O2Context_builtin_FT.h"
 
 NSString * const NSWindowDidBecomeKeyNotification=@"NSWindowDidBecomeKeyNotification";
@@ -166,6 +167,30 @@ const float WSWindowEdgePad = 2;
 
 @end
 
+/*
+ * The new window server (WindowServer plan, WS2): when CoreGraphics talks
+ * to it (_CGUsesSkyLight, no legacy server running), each window is a
+ * SkyLight window. AppKit draws into its own pixels and flushes them into
+ * the window's surface; frame, level, alpha and order go to the server.
+ * Events come with WS3.
+ */
+extern int _CGUsesSkyLight(void);
+
+static NSMutableDictionary *slsWindows;	/* window number -> SLSWindowID */
+static NSMutableSet *slsShown;		/* window numbers ordered in */
+
+static SLSWindowID slsWindowFor(int number) {
+    return [[slsWindows objectForKey:[NSNumber numberWithInt:number]] unsignedIntValue];
+}
+
+/* AppKit's frames start at the main screen's bottom left; the server's at
+ * its top left. */
+static SLSRect slsFrame(NSRect frame) {
+    CGFloat height = CGDisplayBounds(CGMainDisplayID()).size.height;
+    return (SLSRect){ frame.origin.x, height - frame.origin.y - frame.size.height,
+        frame.size.width, frame.size.height };
+}
+
 @implementation NSWindow
 
 +(NSWindowDepth)defaultDepthLimit {
@@ -264,6 +289,17 @@ NSArray *_NSWindowNumbersFromWindowInfo(CFArrayRef info,BOOL allApps) {
     _frame=[self frameRectForContentRect:contentRect];
     _frame=[self constrainFrameRect: _frame toScreen: [NSScreen mainScreen]];
     _level=NSNormalWindowLevel;
+    if(_CGUsesSkyLight()) {
+        SLSWindowID window = 0;
+        if(SLSNewWindow(CGWindowLevelForKey(_level), slsFrame(_frame), &window) != kSLSErrorSuccess)
+            return nil;
+        if(slsWindows == nil) {
+            slsWindows = [NSMutableDictionary new];
+            slsShown = [NSMutableSet new];
+        }
+        [slsWindows setObject:[NSNumber numberWithUnsignedInt:window]
+            forKey:[NSNumber numberWithInt:_number]];
+    } else {
     struct wsRPCWindow data = {
         { kWSWindowCreate, sizeof(struct wsRPCWindow) - sizeof(struct wsRPCBase) },
         _number, _frame.origin.x, _frame.origin.y,
@@ -274,6 +310,7 @@ NSArray *_NSWindowNumbersFromWindowInfo(CFArrayRef info,BOOL allApps) {
     kern_return_t ret = _windowServerRPC(&data, sizeof(data), &reply, &len);
     if(ret != KERN_SUCCESS)
         return nil;
+    }
 
     _preferredScreen = screen;
 
@@ -376,9 +413,14 @@ NSArray *_NSWindowNumbersFromWindowInfo(CFArrayRef info,BOOL allApps) {
     [[NSNotificationCenter defaultCenter] removeObserver:self];
     if(_context)
         [_context release];
-    if(buffer && bufsize)
-        munmap(buffer, bufsize);
-    shm_unlink([shmPath cString]);
+    if(buffer && bufsize) {
+        if(_CGUsesSkyLight())
+            free(buffer);
+        else
+            munmap(buffer, bufsize);
+    }
+    if(!_CGUsesSkyLight())
+        shm_unlink([shmPath cString]);
     //if(_cglContext)
     //    [_cglContext release];
     //if(_caContext)
@@ -407,16 +449,26 @@ NSArray *_NSWindowNumbersFromWindowInfo(CFArrayRef info,BOOL allApps) {
 -(O2Context *) createCGContextIfNeeded
 {
     if(_context == nil) {
-        if(buffer != NULL && bufsize > 0)
-            munmap(buffer, bufsize);
+        if(buffer != NULL && bufsize > 0) {
+            if(_CGUsesSkyLight())
+                free(buffer);
+            else
+                munmap(buffer, bufsize);
+            buffer = NULL;
+        }
 
         int depth = [_display depth] / 8;
-        int shmfd = shm_open([shmPath cString], O_RDWR, 0600);
         bufsize = depth * _frame.size.width * _frame.size.height;
 
-        if(shmfd >= 0) {
-            buffer = mmap(NULL, bufsize, PROT_WRITE|PROT_READ, MAP_SHARED, shmfd, 0);
-            close(shmfd);
+        if(_CGUsesSkyLight()) {
+            /* The window's own pixels; flushWindow copies them to its surface. */
+            buffer = calloc(1, bufsize);
+        } else {
+            int shmfd = shm_open([shmPath cString], O_RDWR, 0600);
+            if(shmfd >= 0) {
+                buffer = mmap(NULL, bufsize, PROT_WRITE|PROT_READ, MAP_SHARED, shmfd, 0);
+                close(shmfd);
+            }
         }
 
         O2ColorSpaceRef colorSpace = O2ColorSpaceCreateDeviceRGB();
@@ -1145,6 +1197,8 @@ NSArray *_NSWindowNumbersFromWindowInfo(CFArrayRef info,BOOL allApps) {
 
 -(void)setAlphaValue:(CGFloat)value {
    _alphaValue=value;
+   if(_CGUsesSkyLight())
+       SLSSetWindowAlpha(slsWindowFor(_number), value);
 }
 
 -(void)_toolbarSizeDidChangeFromOldHeight:(CGFloat)oldHeight {
@@ -1875,6 +1929,12 @@ NSArray *_NSWindowNumbersFromWindowInfo(CFArrayRef info,BOOL allApps) {
         if(!([self isOpaque] && [_contentView isKindOfClass:[NSOpenGLView class]] && [_contentView isOpaque])) {
             O2ContextFlush(_context);
         }
+        if(_CGUsesSkyLight() && buffer != NULL) {
+            /* SHORTCUT(WS2): the whole window is damaged at each flush. */
+            int32_t width = (int32_t)_frame.size.width, height = (int32_t)_frame.size.height;
+            SLSIntRect all = { 0, 0, width, height };
+            SLSWindowFlushPixels(slsWindowFor(_number), buffer, 4 * width, &all, 1);
+        }
     }
 }
 
@@ -2050,12 +2110,19 @@ NSArray *_NSWindowNumbersFromWindowInfo(CFArrayRef info,BOOL allApps) {
 
     [self postNotificationName:NSWindowWillCloseNotification];
 
+    if(_CGUsesSkyLight()) {
+        NSNumber *key = [NSNumber numberWithInt:_number];
+        SLSReleaseWindow(slsWindowFor(_number));
+        [slsWindows removeObjectForKey:key];
+        [slsShown removeObject:key];
+    } else {
     struct wsRPCWindow data = {
         { kWSWindowDestroy, sizeof(struct wsRPCWindow) - sizeof(struct wsRPCBase) },
         _number, _frame.origin.x, _frame.origin.y,
         _frame.size.width, _frame.size.height, _styleMask, 0, {'\0'}, _level
     };
     _windowServerRPC(&data, sizeof(data), NULL, NULL);
+    }
 
     if(_releaseWhenClosed)
         [self autorelease];
@@ -2115,6 +2182,13 @@ NSArray *_NSWindowNumbersFromWindowInfo(CFArrayRef info,BOOL allApps) {
        [NSApp removeWindowsItem:self];
      }
      break;
+   }
+
+   if(_CGUsesSkyLight() && place != NSWindowOut) {
+       NSNumber *key = [NSNumber numberWithInt:_number];
+       SLSOrderWindow(slsWindowFor(_number), place == NSWindowAbove ? kSLSOrderAbove : kSLSOrderBelow,
+           relativeTo ? slsWindowFor(relativeTo) : 0);
+       [slsShown addObject:key];
    }
 
    [self postNotificationName:NSWindowDidMoveNotification];
@@ -3179,6 +3253,20 @@ NSArray *_NSWindowNumbersFromWindowInfo(CFArrayRef info,BOOL allApps) {
 
 
 -(BOOL)_updateWSState {
+    if(_CGUsesSkyLight()) {
+        SLSWindowID window = slsWindowFor(_number);
+        NSNumber *key = [NSNumber numberWithInt:_number];
+
+        SLSSetWindowFrame(window, slsFrame(_frame));
+        /* This AppKit's levels are CGWindowLevelKeys; the server takes levels. */
+        SLSSetWindowLevel(window, CGWindowLevelForKey((CGWindowLevelKey)_level));
+        /* Ordering in is orderWindow:relativeTo:'s; this only takes out. */
+        if((_isVisible == NO || _isMiniaturized == YES) && [slsShown containsObject:key]) {
+            SLSOrderWindow(window, kSLSOrderOut, 0);
+            [slsShown removeObject:key];
+        }
+        return YES;
+    }
     struct wsRPCWindow data = {
         { kWSWindowModifyState, sizeof(struct wsRPCWindow) - sizeof(struct wsRPCBase) },
         _number, _frame.origin.x, _frame.origin.y,

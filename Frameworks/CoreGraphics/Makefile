@@ -70,8 +70,10 @@ HEADERS= \
 RESOURCES=Info.plist
 CFLAGS+= -I${.CURDIR:H}/OpenGL -I${.CURDIR:H} -I${.OBJDIR:H} -fblocks \
 	-I${.CURDIR}/Foundation/Headers -I${.OBJDIR} \
-	-I${ROOT_SOURCE_DIR}/CoreServices -Wno-implicit-function-declaration
-LDFLAGS+= -framework Onyx2D -framework CoreFoundation -framework OpenGL
+	-I${ROOT_SOURCE_DIR}/CoreServices -Wno-implicit-function-declaration \
+	-F${MINKAR_SDKROOT}/System/Library/PrivateFrameworks
+LDFLAGS+= -framework Onyx2D -framework CoreFoundation -framework OpenGL \
+	-F${MINKAR_SDKROOT}/System/Library/PrivateFrameworks -framework SkyLight
 
 all: copy-headers libCoreGraphics.a
 

@@ -31,6 +31,8 @@
 #import <Onyx2D/O2Context_builtin.h>
 #import <CoreFoundation/CFMachPort.h>
 #import <WindowServer/Legacy/message.h>
+#include <SkyLight/SkyLight.h>
+#include <dispatch/dispatch.h>
 #import <WindowServer/Legacy/rpc.h>
 
 const CFStringRef kCGDisplayStreamSourceRect = CFSTR("kCGDisplayStreamSourceRect");
@@ -67,8 +69,25 @@ static const CFDictionaryValueCallBacks __CGDispCtxValCallback = {0}; // same
 kern_return_t _windowServerRPC(void *data, size_t len, void *replyBuf, int *replyLen);
 static uint32_t CGDisplayStateFlags(CGDirectDisplayID display);
 
+/*
+ * Which window server to talk to (WindowServer plan, WS2): the legacy one
+ * while its service exists, which it does whenever it runs (the default
+ * until WS4); otherwise the new one through SkyLight. Decided once.
+ */
+int _CGUsesSkyLight(void) {
+    static dispatch_once_t once;
+    static int uses;
+
+    dispatch_once(&once, ^{
+        uses = CGWindowServerCFMachPort() == NULL && SLSServerPort() != MACH_PORT_NULL;
+    });
+    return uses;
+}
+
 // Finding displays
 CGDirectDisplayID CGMainDisplayID(void) {
+    if(_CGUsesSkyLight())
+        return SLSMainDisplayID();
     struct wsRPCBase data = { kCGMainDisplayID, 0 };
     struct wsRPCSimple ID;
     int len = sizeof(ID);
@@ -79,6 +98,11 @@ CGDirectDisplayID CGMainDisplayID(void) {
 }
 
 CGError CGGetDisplayList(uint32_t code, uint32_t maxDisplays, CGDirectDisplayID *displays, uint32_t *displayCount) {
+    if(_CGUsesSkyLight()) {
+        if(code == kCGGetOnlineDisplayList)
+            return SLSGetOnlineDisplayList(maxDisplays, displays, displayCount);
+        return SLSGetActiveDisplayList(maxDisplays, displays, displayCount);
+    }
     struct wsRPCBase data = { code, 0 };
     int replyLen = sizeof(data) + sizeof(CGDirectDisplayID)*maxDisplays;
     uint8_t *replyBuf = (uint8_t *)malloc(replyLen);
@@ -649,6 +673,12 @@ CGError CGDisplayRemoveReconfigurationCallback(CGDisplayReconfigurationCallBack 
 // Retrieving Display Parameters
 // FIXME: these are returning info on the current mode, not the display itself
 CGRect CGDisplayBounds(CGDirectDisplayID display) {
+    if(_CGUsesSkyLight()) {
+        SLSDisplayInfo info;
+        if(SLSGetDisplayInfo(display, &info) != kSLSErrorSuccess)
+            return NSZeroRect;
+        return NSMakeRect(info.x, info.y, info.width, info.height);
+    }
     struct wsRPCSimple data = { {kCGDisplayBounds, 4} };
     data.val1 = display;
     int len = sizeof(data);
@@ -670,6 +700,20 @@ size_t CGDisplayPixelsWide(CGDirectDisplayID display) {
 
 // Creating and Managing Display Modes
 CGDisplayModeRef CGDisplayCopyDisplayMode(CGDirectDisplayID display) {
+    if(_CGUsesSkyLight()) {
+        SLSDisplayMode m;
+        struct CGDisplayMode *mode;
+        if(SLSGetCurrentDisplayMode(display, &m) != kSLSErrorSuccess ||
+            (mode = calloc(sizeof(struct CGDisplayMode), 1)) == NULL)
+            return NULL;
+        mode->refcount = 1;
+        mode->width = m.width;
+        mode->height = m.height;
+        mode->depth = m.depth;
+        mode->refresh = m.refreshRate;
+        mode->flags = m.flags;
+        return mode;
+    }
     struct wsRPCSimple data = { {kCGDisplayCopyDisplayMode, 4} };
     data.val1 = display;
     struct {

@@ -38,8 +38,11 @@
 
 #import <AppKit/AppKit.h>
 #include <stdio.h>
+#include <string.h>
+#include <unistd.h>
 
 @interface DemoView : NSView
+@property (strong) NSColor *color;
 @end
 
 @implementation DemoView
@@ -49,7 +52,10 @@
 }
 
 - (void)drawRect:(NSRect)rect {
-    [[NSColor colorWithCalibratedRed:0.1 green:0.3 blue:0.9 alpha:1] set];
+    NSColor *color = self.color;
+    if (color == nil)
+        color = [NSColor colorWithCalibratedRed:0.1 green:0.3 blue:0.9 alpha:1];
+    [color set];
     NSRectFill([self bounds]);
 }
 
@@ -75,6 +81,7 @@
 
 @interface DemoDelegate : NSObject <NSApplicationDelegate>
 @property (strong) NSWindow *window;
+@property (strong) NSWindow *second;
 @end
 
 @implementation DemoDelegate
@@ -90,6 +97,47 @@
     NSRect f = [self.window frame];
     printf("window frame=%.0f,%.0f,%.0f,%.0f\n", f.origin.x, f.origin.y,
         f.size.width, f.size.height);
+
+    /*
+     * -two: a red window over the blue one, and commands, one at a time,
+     * from /tmp/ws-demo.cmd (deleted when done): "raise-blue", "move-red X
+     * Y" (its frame's origin), "quit". For the window server's tests while
+     * there is no input to click with.
+     */
+    if (![[[NSProcessInfo processInfo] arguments] containsObject:@"-two"])
+        return;
+    self.second = [[NSWindow alloc] initWithContentRect:NSMakeRect(450, 100, 300, 250)
+        styleMask:NSTitledWindowMask backing:NSBackingStoreBuffered defer:NO];
+    [self.second setTitle:@"Second"];
+    DemoView *red = [[DemoView alloc] initWithFrame:NSMakeRect(0, 0, 300, 250)];
+    red.color = [NSColor colorWithCalibratedRed:0.9 green:0.1 blue:0.1 alpha:1];
+    [self.second setContentView:red];
+    [self.second orderFront:nil];
+    f = [self.second frame];
+    printf("second frame=%.0f,%.0f,%.0f,%.0f\n", f.origin.x, f.origin.y,
+        f.size.width, f.size.height);
+    [NSTimer scheduledTimerWithTimeInterval:0.05 target:self
+        selector:@selector(readCommand:) userInfo:nil repeats:YES];
+}
+
+- (void)readCommand:(NSTimer *)timer {
+    const char *path = "/tmp/ws-demo.cmd";
+    char line[64] = "";
+    double x, y;
+    FILE *f = fopen(path, "r");
+
+    if (f == NULL)
+        return;
+    if (fgets(line, sizeof(line), f) == NULL)
+        line[0] = '\0';
+    fclose(f);
+    if (strncmp(line, "raise-blue", 10) == 0)
+        [self.window orderFront:nil];
+    else if (sscanf(line, "move-red %lf %lf", &x, &y) == 2)
+        [self.second setFrameOrigin:NSMakePoint(x, y)];
+    unlink(path);
+    if (strncmp(line, "quit", 4) == 0)
+        exit(0);
 }
 
 @end

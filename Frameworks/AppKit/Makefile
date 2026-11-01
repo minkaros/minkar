@@ -581,11 +581,13 @@ CFLAGS = --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
 	-I${ROOT_SOURCE_DIR}/Frameworks/Onyx2D/freetype/include \
 	-I${ROOT_SOURCE_DIR}/Frameworks/CoreText/fontconfig/include \
 	-I${ROOT_SOURCE_DIR}/Frameworks/CoreText/fontconfig/fontconfig \
-	-D_BuildingFramework -DFREETYPE_PRESENT -pthread
+	-D_BuildingFramework -DFREETYPE_PRESENT -pthread \
+	-F${MINKAR_SDKROOT}/System/Library/PrivateFrameworks
 
 LDFLAGS = -pthread -framework Foundation -framework CoreFoundation \
     -framework CoreGraphics -framework CoreText -framework CoreData \
     -framework QuartzCore -framework OpenGL -framework Onyx2D \
+	-F${MINKAR_SDKROOT}/System/Library/PrivateFrameworks -framework SkyLight \
 	-lobjc -lSystem
 
 DIRS = \
