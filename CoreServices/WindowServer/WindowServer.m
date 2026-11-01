@@ -278,8 +278,9 @@ static NSString *_pathForPID(pid_t pid) {
     winrec.title = [NSString stringWithCString:data->title length:len];
     winrec.icon = nil;
 
-    winrec.shmPath = [NSString stringWithFormat:@"/%@/%u/win/%u", [app bundleID],
-        [app pid], winrec.number];
+    // The same name as the client's (NSWindow): XNU takes at most 31
+    // characters (PSHMNAMLEN), so the pid stands for the app.
+    winrec.shmPath = [NSString stringWithFormat:@"/ws.%u.%u", [app pid], winrec.number];
     winrec.bufSize = ([fb getDepth]/8) * data->w * data->h;
     winrec.surfaceBuf = mapClientSurface(winrec.shmPath, winrec.bufSize, [app pid]);
     if(winrec.surfaceBuf == NULL) {
@@ -309,6 +310,10 @@ static NSString *_pathForPID(pid_t pid) {
     }
 
     WSWindowRecord *winrec = [app windowWithID:data->windowID];
+    if(winrec == nil) {
+        NSLog(@"windowModify: no window %llu for %@", (unsigned long long)data->windowID, [app bundleID]);
+        return;
+    }
     int oldState = winrec.state;
     winrec.state = data->state;
     winrec.styleMask = data->style;

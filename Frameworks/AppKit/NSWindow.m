@@ -354,10 +354,8 @@ NSArray *_NSWindowNumbersFromWindowInfo(CFArrayRef info,BOOL allApps) {
     _isMiniaturized = NO;
 
     buffer = NULL;
-    bundleID = [[NSBundle mainBundle] bundleIdentifier];
-    if(bundleID == nil)
-        bundleID = [NSString stringWithFormat:@"unix.%u", getpid()];
-    shmPath = [NSString stringWithFormat:@"/%s/%u/win/%u", [bundleID cString], getpid(), _number];
+    // The same name as WindowServer's: XNU takes at most 31 characters.
+    shmPath = [NSString stringWithFormat:@"/ws.%u.%u", getpid(), _number];
 
     _context = [self cgContext];
     [[NSDraggingManager draggingManager] registerWindow:self dragTypes:nil];
