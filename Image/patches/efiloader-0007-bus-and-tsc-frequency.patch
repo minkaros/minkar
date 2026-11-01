@@ -1,0 +1,59 @@
+--- a/MdeModulePkg/Application/Loader/loader.c
++++ b/MdeModulePkg/Application/Loader/loader.c
+@@ -610,8 +610,54 @@
+     FdtCreateNode(DTB, "/efi", "platform"); /* IODTPlane:/efi/platform */
+     FdtSetProperty(DTB, "/efi/platform", "apple-coprocessor-version", &val, 4);
+     FdtSetProperty(DTB, "/efi/platform", "boot-chime-on-last-boot", &val, 4);
+-    val64 = 133000000;
+-    FdtSetProperty(DTB, "/efi/platform", "FSBFrequency", &val64, 8); // FIXME: get from ACPI?
++    /*
++     * Minkar: the bus and TSC frequencies. A fixed 133 MHz bus was right
++     * for the first Nehalem parts only: Sandy Bridge to Broadwell run it at
++     * 100 MHz, and the kernel took their TSC (bus x ratio) a third too fast.
++     * On an Intel processor not under a hypervisor the TSC is measured
++     * here and the bus is TSC / the non-turbo ratio (MSR_PLATFORM_INFO).
++     * Elsewhere nothing changes: virtual machines are measured by the
++     * kernel, and Skylake and later use the ART instead.
++     */
++    UINT64 fsb = 133000000, tscHz = 0;
++    {
++        UINT32 a, b, c, d;
++        BOOLEAN intel, hypervisor;
++
++        asm volatile("cpuid" : "=a"(a), "=b"(b), "=c"(c), "=d"(d) : "a"(0), "c"(0));
++        intel = (b == 0x756e6547 && d == 0x49656e69 && c == 0x6c65746e);	/* GenuineIntel */
++        asm volatile("cpuid" : "=a"(a), "=b"(b), "=c"(c), "=d"(d) : "a"(1), "c"(0));
++        hypervisor = (c & (1u << 31)) != 0;
++        if (intel && !hypervisor && ((a >> 8) & 0xf) == 6) {
++            UINT32 lo1, hi1, lo2, hi2, mlo, mhi;
++            UINT32 ratio;
++
++            asm volatile("rdtsc" : "=a"(lo1), "=d"(hi1));
++            gBS->Stall(50 * 1000);
++            asm volatile("rdtsc" : "=a"(lo2), "=d"(hi2));
++            tscHz = ((((UINT64)hi2 << 32) | lo2) - (((UINT64)hi1 << 32) | lo1)) * 20;
++            asm volatile("rdmsr" : "=a"(mlo), "=d"(mhi) : "c"(0xce));	/* MSR_PLATFORM_INFO */
++            ratio = (mlo >> 8) & 0xff;
++            if (ratio != 0 && tscHz != 0) {
++                /* The bus is a round 100 or 133.33 MHz: drop the measurement's noise. */
++                fsb = (tscHz / ratio + 500000) / 1000000 * 1000000;
++                if (fsb > 130000000 && fsb < 136000000)
++                    fsb = 133333333;
++                tscHz = fsb * ratio;
++            } else {
++                fsb = 133000000;
++                tscHz = 0;
++            }
++            Print(UEFI_STR("[] TSC %lu MHz, bus %lu MHz (ratio %u)\n"),
++                tscHz / 1000000, fsb / 1000000, ratio);
++        }
++    }
++    val64 = fsb;
++    FdtSetProperty(DTB, "/efi/platform", "FSBFrequency", &val64, 8);
++    if (tscHz != 0) {
++        val64 = tscHz;
++        FdtSetProperty(DTB, "/efi/platform", "TSCFrequency", &val64, 8);
++    }
+     val64 = 24000000;
+     FdtSetProperty(DTB, "/efi/platform", "ARTFrequency", &val64, 8); // FIXME: read actual ART
+ 

@@ -30,14 +30,16 @@ EDK2_BUILD_PY =		BuildReport.py __init__.py build.py buildoptions.py
 # Our changes on top of the pinned commit (patches/): a fix to send
 # upstream, then Minkar's boot paths and loader banner, the volume the
 # loader reads from (its own, not the first one the firmware found), and
-# memory reserved from the firmware before the loader writes to it, and
-# the EFI configuration tables' addresses (SMBIOS's for the kernel).
+# memory reserved from the firmware before the loader writes to it, the
+# EFI configuration tables' addresses (SMBIOS's for the kernel), and the
+# bus and TSC frequencies measured on real Intel processors.
 EFILOADER_PATCHES =	efiloader-0001-macho-16-char-names.patch \
 			efiloader-0002-minkar-boot-paths.patch \
 			efiloader-0003-boot-volume.patch \
 			efiloader-0004-kernel-memory.patch \
 			efiloader-0005-graphics-mode.patch \
-			efiloader-0006-configuration-table-address.patch
+			efiloader-0006-configuration-table-address.patch \
+			efiloader-0007-bus-and-tsc-frequency.patch
 
 EFILOADER_SRC ?=	${ROOT_BINARY_DIR}/src/efiloader
 EFILOADER_TOOLS =	${ROOT_BINARY_DIR}/src/efiloader-tools
