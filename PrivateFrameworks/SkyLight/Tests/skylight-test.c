@@ -794,6 +794,25 @@ testEvents(void)
 	    kSLSErrorIllegalArgument, "too many drag rectangles are refused", NULL);
 	check(SLSWindowSetDragRegion(0xdeadbeef, &title, 1, NULL, 0) == kSLSErrorIllegalArgument,
 	    "an unknown window gets no drag region", NULL);
+	/* Symbolic hotkeys (interface version 4). */
+	{
+		uint16_t code = 0;
+		uint32_t mods = 0;
+		int on = 0;
+		check(SLSGetSymbolicHotKey(kSLSHotKeyAppSwitcher, &code, &mods, &on) ==
+		    kSLSErrorSuccess && code == 48 && mods == (1u << 20) && on,
+		    "the app switcher hotkey is Command-Tab", NULL);
+		check(SLSGetSymbolicHotKey(kSLSHotKeyMenuBarFocus, &code, &mods, &on) ==
+		    kSLSErrorSuccess && code == 120 && mods == (1u << 18) && on,
+		    "the menu bar focus hotkey is Control-F2", NULL);
+		check(SLSGetSymbolicHotKey(99, &code, &mods, &on) == kSLSErrorIllegalArgument,
+		    "an unknown hotkey is refused", NULL);
+		check(SLSClaimSymbolicHotKey(kSLSHotKeyMenuBarFocus, 1) == kSLSErrorIllegalArgument,
+		    "the front app's hotkey cannot be claimed", NULL);
+		check(SLSClaimSymbolicHotKey(kSLSHotKeyForceQuit, 1) == kSLSErrorSuccess &&
+		    SLSClaimSymbolicHotKey(kSLSHotKeyForceQuit, 0) == kSLSErrorSuccess,
+		    "a hotkey is claimed and given back", NULL);
+	}
 	SLSReleaseWindow(w);
 	check(SLSGetKeyWindow() == 0, "a released key window is key no more", NULL);
 }
@@ -831,6 +850,35 @@ eventsMain(void)
 			    e->clickCount, e->buttonNumber, e->keyCode, e->characters, e->isRepeat,
 			    e->flags);
 		}
+		fflush(stdout);
+	}
+}
+
+/*
+ * skylight-test hotkeys: claims the app switcher and force quit hotkeys
+ * (what the Dock and loginwindow do) and prints the ones it gets, for the
+ * local input tests: "hotkey N key=K flags=0x..".
+ */
+static int
+hotkeysMain(void)
+{
+	SLSEvent events[kSLSMaxEvents];
+
+	if (SLSClaimSymbolicHotKey(kSLSHotKeyAppSwitcher, 1) != kSLSErrorSuccess ||
+	    SLSClaimSymbolicHotKey(kSLSHotKeyAppSwitcherBackward, 1) != kSLSErrorSuccess ||
+	    SLSClaimSymbolicHotKey(kSLSHotKeyForceQuit, 1) != kSLSErrorSuccess)
+		return 1;
+	printf("claimed\n");
+	fflush(stdout);
+	for (;;) {
+		uint32_t n = 0;
+
+		if (SLSReceiveEvents(events, kSLSMaxEvents, &n, 1) != kSLSErrorSuccess)
+			return 1;
+		for (uint32_t i = 0; i < n; i++)
+			if (events[i].type == kSLSEventSymbolicHotKey)
+				printf("hotkey %u key=%u flags=0x%x\n", events[i].buttonNumber,
+				    events[i].keyCode, events[i].flags);
 		fflush(stdout);
 	}
 }
@@ -901,6 +949,8 @@ main(int argc, char *argv[])
 		return childMain();
 	if (argc > 1 && strcmp(argv[1], "draw") == 0)
 		return drawMain();
+	if (argc > 1 && strcmp(argv[1], "hotkeys") == 0)
+		return hotkeysMain();
 	if (argc > 1 && strcmp(argv[1], "events") == 0)
 		return eventsMain();
 	setvbuf(stdout, NULL, _IOLBF, 0);

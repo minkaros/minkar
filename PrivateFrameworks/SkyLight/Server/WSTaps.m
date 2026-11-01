@@ -74,6 +74,14 @@ static mach_port_t replyPort = MACH_PORT_NULL;
  * console's user may post events and filter them, and listen to keys;
  * taken in WS3.
  */
+static BOOL mayControlInput(WSConnection *c);
+
+BOOL
+WSMayControlInput(WSConnection *connection)
+{
+	return mayControlInput(connection);
+}
+
 static BOOL
 mayControlInput(WSConnection *c)
 {

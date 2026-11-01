@@ -425,3 +425,20 @@ routine window_set_drag_region(
 	drag			: ws_region_t;
 	exclude			: ws_region_t;
 	out result		: int32_t);
+
+/* ---- Symbolic hotkeys (interface version 4) ---- */
+
+routine hotkey_claim(
+	server			: mach_port_t;
+	ServerAuditToken token	: audit_token_t;
+	hotkey			: uint32_t;
+	claim			: int32_t;
+	out result		: int32_t);
+
+routine hotkey_get(
+	server			: mach_port_t;
+	hotkey			: uint32_t;
+	out result		: int32_t;
+	out keycode		: uint32_t;
+	out modifiers		: uint32_t;
+	out enabled		: int32_t);

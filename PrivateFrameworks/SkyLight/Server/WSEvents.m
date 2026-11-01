@@ -80,6 +80,14 @@ isMove(uint32_t type)
 	    type == kSLSEventWindowMoved;
 }
 
+static void enqueue(WSConnection *c, const SLSEvent *e);
+
+void
+WSEventsEnqueue(WSConnection *connection, const SLSEvent *event)
+{
+	enqueue(connection, event);
+}
+
 static void
 enqueue(WSConnection *c, const SLSEvent *e)
 {
@@ -166,6 +174,9 @@ routeKey(SLSEvent *e)
 {
 	WSWindow *target = keyTarget();
 
+	/* A system-wide shortcut goes to its owner, not to the key window. */
+	if (WSHotKeysHandle(e, target))
+		return;
 	if (e->type == kSLSEventKeyDown && !e->isRepeat)
 		startRepeat(e);
 	else if (e->type == kSLSEventKeyUp && e->keyCode == repeatEvent.keyCode)

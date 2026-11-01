@@ -108,6 +108,7 @@ main(int argc, char *argv[])
 	 * high-priority input queue, with a model snapshot input can read
 	 * without the IPC queue; taken in WS3. */
 	static WSInput *input;
+	WSHotKeysStart();
 	input = [WSInput startOnQueue:ipc];
 
 	/* Before the first request: connect needs the dead-name port. */

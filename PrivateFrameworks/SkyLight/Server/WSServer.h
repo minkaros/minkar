@@ -69,6 +69,17 @@ SLSPoint WSCursorPosition(void);
 void WSCursorMoveTo(double x, double y);
 /* Counts an input event in the statistics. */
 void WSStatsCountEvent(void);
+/* Queues an event for a connection (WSEvents.m). */
+void WSEventsEnqueue(WSConnection *connection, const SLSEvent *event);
+/* Whether a connection may control input: post, filter, listen to keys,
+ * claim symbolic hotkeys (WSTaps.m). */
+BOOL WSMayControlInput(WSConnection *connection);
+/* Symbolic hotkeys (WSHotKeys.m): reads the table at start; for a key
+ * down that is one, sends it to its owner and returns YES (the key and its
+ * up are not delivered). keyTarget is the key window, for hotkeys owned by
+ * the front app. */
+void WSHotKeysStart(void);
+BOOL WSHotKeysHandle(const SLSEvent *event, WSWindow *keyTarget);
 /* Tells the HID system where a warp put the cursor (WSInput.m). */
 void WSInputSetCursor(double x, double y);
 /* A posted key event without characters gets the keymap's (WSInput.m). */

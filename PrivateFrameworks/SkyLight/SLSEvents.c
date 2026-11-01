@@ -133,6 +133,37 @@ SLSWindowSetDragRegion(SLSWindowID window, const SLSIntRect *drag, uint32_t drag
 }
 
 int
+SLSClaimSymbolicHotKey(uint32_t hotKey, int claim)
+{
+	int32_t result = kSLSErrorFailure;
+	mach_port_t server = SLSServerPort();
+
+	if (server == MACH_PORT_NULL ||
+	    ws_hotkey_claim(server, hotKey, claim != 0, &result) != KERN_SUCCESS)
+		return kSLSErrorFailure;
+	return result;
+}
+
+int
+SLSGetSymbolicHotKey(uint32_t hotKey, uint16_t *keyCode, uint32_t *modifiers, int *enabled)
+{
+	int32_t result = kSLSErrorFailure, on = 0;
+	uint32_t code = 0, flags = 0;
+	mach_port_t server = SLSServerPort();
+
+	if (server == MACH_PORT_NULL ||
+	    ws_hotkey_get(server, hotKey, &result, &code, &flags, &on) != KERN_SUCCESS)
+		return kSLSErrorFailure;
+	if (keyCode != NULL)
+		*keyCode = (uint16_t)code;
+	if (modifiers != NULL)
+		*modifiers = flags;
+	if (enabled != NULL)
+		*enabled = on;
+	return result;
+}
+
+int
 SLSEventTapCreate(uint32_t location, uint32_t placement, uint32_t options, uint64_t mask,
     mach_port_t port, uint32_t *tap)
 {

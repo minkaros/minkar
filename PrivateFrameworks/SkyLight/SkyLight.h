@@ -47,7 +47,7 @@ extern "C" {
 #define kSLSServiceName		"org.minkar.WindowServer.next"
 
 /* The interface version both sides are built for. */
-#define kSLSInterfaceVersion	3
+#define kSLSInterfaceVersion	4
 
 typedef int32_t SLSConnectionID;
 
@@ -399,6 +399,9 @@ enum {
 	/* Private: a server-side move put the window at x, y (its frame's
 	 * top left); sent as it goes and when the move ends (clickCount 1). */
 	kSLSEventWindowMoved		= 0x1001,
+	/* A symbolic hotkey for its owner: buttonNumber is the hotkey,
+	 * keyCode, flags and isRepeat the key that was pressed. */
+	kSLSEventSymbolicHotKey		= 0x1002,
 };
 
 /*
@@ -456,6 +459,29 @@ int SLSWindowStartMove(SLSWindowID window);
  * At most kSLSMaxRegionRects of each; no rectangles: no drag region.
  */
 #define kSLSMaxRegionRects	64
+
+/*
+ * Symbolic hotkeys: system-wide shortcuts the server recognizes and sends
+ * to their owner as kSLSEventSymbolicHotKey, instead of delivering the key
+ * to the key window. The defaults below can be changed in
+ * /Library/Preferences/org.minkar.symbolichotkeys.plist, a dictionary
+ * "AppleSymbolicHotKeys" of hotkey number -> { enabled; value = {
+ * parameters = (character, key code, modifier flags); type = standard } }.
+ * A hotkey with no owner is still not delivered as a key.
+ */
+enum {
+	kSLSHotKeyAppSwitcher		= 1,	/* Command-Tab: the Dock */
+	kSLSHotKeyAppSwitcherBackward	= 2,	/* Command-Shift-Tab: the Dock */
+	kSLSHotKeyForceQuit		= 3,	/* Command-Option-Escape: loginwindow */
+	kSLSHotKeyMenuBarFocus		= 4,	/* Control-F2: the front app */
+	kSLSMaxSymbolicHotKeys		= 4
+};
+/* The connection becomes (claim) or stops being the hotkey's owner. The
+ * front app owns kSLSHotKeyMenuBarFocus, and cannot be claimed. */
+int SLSClaimSymbolicHotKey(uint32_t hotKey, int claim);
+/* The hotkey's key code, modifier flags (NSEventModifierFlags) and state. */
+int SLSGetSymbolicHotKey(uint32_t hotKey, uint16_t *keyCode, uint32_t *modifiers,
+    int *enabled);
 int SLSWindowSetDragRegion(SLSWindowID window, const SLSIntRect *drag, uint32_t dragCount,
     const SLSIntRect *exclude, uint32_t excludeCount);
 
