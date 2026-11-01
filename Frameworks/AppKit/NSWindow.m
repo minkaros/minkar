@@ -180,7 +180,21 @@ static NSMutableDictionary *slsWindows;	/* window number -> SLSWindowID */
 static NSMutableSet *slsShown;		/* window numbers ordered in */
 
 static SLSWindowID slsWindowFor(int number) {
-    return [[slsWindows objectForKey:[NSNumber numberWithInt:number]] unsignedIntValue];
+    @synchronized([NSWindow class]) {
+        return [[slsWindows objectForKey:[NSNumber numberWithInt:number]] unsignedIntValue];
+    }
+}
+
+/* The NSWindow of a SkyLight window, for events (any thread). */
+NSWindow *_NSWindowForSLSWindow(SLSWindowID window) {
+    int number = 0;
+
+    @synchronized([NSWindow class]) {
+        for(NSNumber *key in slsWindows)
+            if([[slsWindows objectForKey:key] unsignedIntValue] == window)
+                number = [key intValue];
+    }
+    return number ? [NSApp windowWithWindowNumber:number] : nil;
 }
 
 /* AppKit's frames start at the main screen's bottom left; the server's at
@@ -293,12 +307,14 @@ NSArray *_NSWindowNumbersFromWindowInfo(CFArrayRef info,BOOL allApps) {
         SLSWindowID window = 0;
         if(SLSNewWindow(CGWindowLevelForKey(_level), slsFrame(_frame), &window) != kSLSErrorSuccess)
             return nil;
-        if(slsWindows == nil) {
-            slsWindows = [NSMutableDictionary new];
-            slsShown = [NSMutableSet new];
+        @synchronized([NSWindow class]) {
+            if(slsWindows == nil) {
+                slsWindows = [NSMutableDictionary new];
+                slsShown = [NSMutableSet new];
+            }
+            [slsWindows setObject:[NSNumber numberWithUnsignedInt:window]
+                forKey:[NSNumber numberWithInt:_number]];
         }
-        [slsWindows setObject:[NSNumber numberWithUnsignedInt:window]
-            forKey:[NSNumber numberWithInt:_number]];
     } else {
     struct wsRPCWindow data = {
         { kWSWindowCreate, sizeof(struct wsRPCWindow) - sizeof(struct wsRPCBase) },
@@ -1715,6 +1731,9 @@ NSArray *_NSWindowNumbersFromWindowInfo(CFArrayRef info,BOOL allApps) {
 }
 
 -(void)makeKeyWindow {
+    /* The new window server sends this window the keys. */
+    if(_CGUsesSkyLight())
+        SLSSetKeyWindow(slsWindowFor(_number));
     if(!_hasBeenOnScreen){
         _hasBeenOnScreen=YES;
 
@@ -2113,7 +2132,9 @@ NSArray *_NSWindowNumbersFromWindowInfo(CFArrayRef info,BOOL allApps) {
     if(_CGUsesSkyLight()) {
         NSNumber *key = [NSNumber numberWithInt:_number];
         SLSReleaseWindow(slsWindowFor(_number));
-        [slsWindows removeObjectForKey:key];
+        @synchronized([NSWindow class]) {
+            [slsWindows removeObjectForKey:key];
+        }
         [slsShown removeObject:key];
     } else {
     struct wsRPCWindow data = {
@@ -2285,6 +2306,11 @@ NSArray *_NSWindowNumbersFromWindowInfo(CFArrayRef info,BOOL allApps) {
     case NSLeftMouseDown:{
         NSView *view=[_backgroundView hitTest:[event locationInWindow]];
 
+        /* A click in a window that is not key makes it key and brings it
+         * to the front (the window server does not reorder windows). */
+        if(![self isKeyWindow] && [self canBecomeKeyWindow])
+            [self makeKeyAndOrderFront:self];
+
         if([view acceptsFirstResponder]){
             if([view needsPanelToBecomeKey]) {
                 [self makeFirstResponder:view];
@@ -2358,7 +2384,8 @@ NSArray *_NSWindowNumbersFromWindowInfo(CFArrayRef info,BOOL allApps) {
      break;
 
     case NSAppKitDefined:
-     // Nothing special to do
+     if([event subtype] == NSWindowMovedEventType && _CGUsesSkyLight())
+      [self _skyLightMovedToX:[event data1] y:[event data2]];
      break;
 
     default:
@@ -3192,6 +3219,22 @@ NSArray *_NSWindowNumbersFromWindowInfo(CFArrayRef info,BOOL allApps) {
 
 -(void)requestMove:(NSEvent *)event {
     [self postNotificationName:NSWindowWillMoveNotification];
+    /* The new window server moves the window with the pointer by itself
+     * and tells us where it went (NSWindowMovedEventType). */
+    if(_CGUsesSkyLight())
+        SLSWindowStartMove(slsWindowFor(_number));
+}
+
+-(void)performWindowDragWithEvent:(NSEvent *)event {
+    [self requestMove:event];
+}
+
+/* The new window server moved the window: its frame's top left is at x, y
+ * (global, from the top left). */
+-(void)_skyLightMovedToX:(NSInteger)x y:(NSInteger)y {
+    CGFloat height = CGDisplayBounds(CGMainDisplayID()).size.height;
+    _frame.origin = NSMakePoint(x, height - y - _frame.size.height);
+    [self postNotificationName:NSWindowDidMoveNotification];
 }
 
 -(void)requestResize:(NSEvent *)event {

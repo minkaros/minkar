@@ -463,6 +463,7 @@ APPKIT_EXPORT NSString *const NSWindowDidEndLiveResizeNotification;
 
 - (void)close;
 - (void)center;
+- (void)performWindowDragWithEvent:(NSEvent *)event;
 - (void)orderWindow:(NSWindowOrderingMode)place relativeTo:(int)relativeTo;
 - (void)orderFrontRegardless;
 
