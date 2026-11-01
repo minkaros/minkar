@@ -74,13 +74,6 @@ bool IOHIDUserClient::initWithTask(task_t owningTask, void *security_id, UInt32 
         result = (entitlement == kOSBooleanTrue);
         entitlement->release();
     }
-    // SHORTCUT(WS4a): root may connect, since no policy module validates
-    // signatures yet and no process has entitlements; removed by ADR 0001's
-    // entitlement check, before WS4a; taken in WS0.
-    if (!result
-        && clientHasPrivilege(owningTask, kIOClientPrivilegeAdministrator) == kIOReturnSuccess) {
-        result = true;
-    }
     if (!result) {
         proc_t      process;
         process = (proc_t)get_bsdtask_info(owningTask);
