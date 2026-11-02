@@ -83,7 +83,9 @@ private:
 	bool findDisplay(uint64_t bootAddress);
 	void measureRefresh();
 	void publishTimings();
-	bool scanOut(uint64_t offset, UInt32 width, UInt32 height, UInt32 pitchPixels);
+	bool scanOut(uint64_t offset, UInt32 width, UInt32 height, UInt32 pitchPixels,
+	    bool wait);
+	bool surfaceTaken(uint64_t offset);
 	bool showMode(unsigned index);
 	void setConsole();
 	const Mode *modeFor(IODisplayModeID id);

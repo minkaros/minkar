@@ -225,7 +225,8 @@ MinkarAMDFramebuffer::publishTimings()
  * blank. The sequence of amdgpu's dce_v6_0.c (MIT).
  */
 bool
-MinkarAMDFramebuffer::scanOut(uint64_t offset, UInt32 width, UInt32 height, UInt32 pitchPixels)
+MinkarAMDFramebuffer::scanOut(uint64_t offset, UInt32 width, UInt32 height, UInt32 pitchPixels,
+    bool wait)
 {
 	uint32_t off = fCRTCOffset;
 	uint64_t address = fVRAMStart + offset;
@@ -252,11 +253,22 @@ MinkarAMDFramebuffer::scanOut(uint64_t offset, UInt32 width, UInt32 height, UInt
 	writeReg(mmVIEWPORT_START + off, 0);
 	writeReg(mmVIEWPORT_SIZE + off, (width << 16) | ((height + 1) & ~1U));
 	writeReg(mmGRPH_UPDATE + off, readReg(mmGRPH_UPDATE + off) & ~GRPH_UPDATE_LOCK);
+	return wait ? surfaceTaken(offset) : true;
+}
 
-	/* The new surface is taken at the next vertical blank. */
+/*
+ * The surface is taken at the next vertical blank, and only once nothing
+ * holds the crtc's double-buffered registers.
+ */
+bool
+MinkarAMDFramebuffer::surfaceTaken(uint64_t offset)
+{
+	uint32_t off = fCRTCOffset;
+	uint32_t address = (uint32_t)(fVRAMStart + offset) & ~0xFFU;
+
 	for (int i = 0; i < 200; i++) {
 		if (!(readReg(mmGRPH_UPDATE + off) & GRPH_UPDATE_SURFACE_UPDATE_PENDING))
-			return readReg(mmGRPH_PRIMARY_SURFACE_ADDRESS + off) == ((uint32_t)address & ~0xFFU);
+			return readReg(mmGRPH_PRIMARY_SURFACE_ADDRESS + off) == address;
 		IOSleep(1);
 	}
 	LOG("crtc %u: the surface update is still pending", fCRTC);
@@ -286,15 +298,20 @@ MinkarAMDFramebuffer::showMode(unsigned index)
 	/* Black first: the window server draws the new mode in full. */
 	bzero((void *)fMap->getVirtualAddress(), (size_t)pitchFor(m.width) * 4 * m.height);
 
+	/* Held while it changes, so it all takes effect in one frame; the
+	 * surface is checked once released. */
+	bool ok = true;
 	if (fAtom != NULL)
 		minkar_atom_crtc_lock(fAtom, (int)fCRTC, 1);
-	bool ok = scanOut(fOffset, m.width, m.height, pitchFor(m.width));
+	scanOut(fOffset, m.width, m.height, pitchFor(m.width), false);
 	if (fAtom != NULL) {
 		if (minkar_atom_overscan(fAtom, (int)fCRTC, left, right, top, bottom) != 0 ||
 		    minkar_atom_scaler(fAtom, (int)fCRTC, scaled) != 0)
 			ok = false;
 		minkar_atom_crtc_lock(fAtom, (int)fCRTC, 0);
 	}
+	if (!surfaceTaken(fOffset))
+		ok = false;
 	if (!ok) {
 		LOG("%ux%u: the display engine did not take it", m.width, m.height);
 		return false;
@@ -414,9 +431,9 @@ MinkarAMDFramebuffer::start(IOService *provider)
 		from->release();
 	} else
 		bzero(to, fSize);
-	if (!scanOut(fOffset, fModes[0].width, fModes[0].height, pitchFor(fModes[0].width))) {
+	if (!scanOut(fOffset, fModes[0].width, fModes[0].height, pitchFor(fModes[0].width), true)) {
 		/* Give the display back as it was. */
-		scanOut(fFirmwareOffset, fModes[0].width, fModes[0].height, fFirmwarePitch);
+		scanOut(fFirmwareOffset, fModes[0].width, fModes[0].height, fFirmwarePitch, true);
 		LOG("the display engine did not take our framebuffer");
 		return false;
 	}
