@@ -383,6 +383,27 @@ display_check() {
 	local low
 	low=$(awk "$AWK_HEX"'{ if (hex($3) < 4294967296 && hex($4) >= 16777216) print $1 " " $2 " " $3 " " $4 }' "$RAW/gpu-windows.txt")
 	result INFO "gpu windows below 4 GB" "${low:-none}"
+	# MinkarAMDGPU (ADR 0002, G1): what it read of each AMD GPU, without
+	# driving it: the VBIOS (and where from), and the VRAM size register.
+	ioreg -l -w0 -r -c MinkarAMDGPU > "$RAW/ioreg-amdgpu.txt" 2>&1
+	local amd prop
+	amd=$(grep -c '<class MinkarAMDGPU' "$RAW/ioreg-amdgpu.txt")
+	result INFO "amd gpus" "$amd (MinkarAMDGPU)"
+	if [ "$amd" -gt 0 ]; then
+		for prop in MinkarGPUFamily MinkarVBIOSSource MinkarVBIOSPartNumber \
+		    MinkarVBIOSVersion MinkarVRAMMegabytes MinkarRegisterWindowSize; do
+			result INFO "amd: ${prop#Minkar}" "$(awk -F'= ' -v k="\"$prop\"" \
+			    '$1 ~ k { gsub(/"/, "", $2); v = v (v ? ", " : "") $2 } END { print (v ? v : "-") }' \
+			    "$RAW/ioreg-amdgpu.txt")"
+		done
+		if grep -q '"MinkarVBIOSSource" = "none"' "$RAW/ioreg-amdgpu.txt"; then
+			result WARN "amd: vbios" "no VBIOS from the firmware or the ROM window"
+		elif grep -q '"MinkarVBIOSPartNumber"' "$RAW/ioreg-amdgpu.txt"; then
+			result PASS "amd: vbios" "read and parsed by the AtomBIOS interpreter"
+		else
+			result FAIL "amd: vbios" "read, but the AtomBIOS interpreter refused it"
+		fi
+	fi
 	# With pci=0x1, raw/dmesg.txt has every BAR the configurator wrote and
 	# what it read back.
 	grep -q 'PCI configuration begin' "$RAW/dmesg.txt" &&

@@ -43,7 +43,11 @@
 #include <linux/unaligned.h>
 #include <asm/byteorder.h>
 #include <drm/drm_print.h>
+#ifdef KERNEL
+#include <sys/errno.h>
+#else
 #include <errno.h>
+#endif
 #include <string.h>
 
 struct drm_device;
