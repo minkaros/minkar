@@ -1004,13 +1004,17 @@ testSurfaces(void)
 	    ((uint32_t *)again)[64 * 32 - 1] == 0xffff0000,
 	    "the new back buffer holds what was committed", NULL);
 
+	/* With nothing to do the display link ticks a few times, then sleeps:
+	 * no frame and no tick in the next 300 ms. */
 	idle = statsAfterFrames();
+	usleep(300000);
+	SLSGetServerStats(&idle);
 	usleep(300000);
 	SLSGetServerStats(&after);
 	snprintf(detail, sizeof(detail), "%llu idle ticks",
 	    (unsigned long long)(after.idleTicks - idle.idleTicks));
-	check(after.frames == idle.frames && after.idleTicks > idle.idleTicks,
-	    "no frame while nothing changes", detail);
+	check(after.frames == idle.frames && after.idleTicks == idle.idleTicks,
+	    "the display link sleeps while nothing changes", detail);
 
 	fill(again, rowBytes, (SLSIntRect){ 8, 8, 4, 4 }, 0xff00ff00);
 	before = after;

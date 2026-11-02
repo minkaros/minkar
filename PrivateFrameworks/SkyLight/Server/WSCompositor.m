@@ -104,13 +104,18 @@ WSDamageGlobalRect(SLSRect rect)
 		[c damageGlobalRect:rect];
 }
 
+/* Ticks with nothing to do before the display link sleeps. */
+static const unsigned kIdleTicks = 2;
+
 @implementation WSCompositor {
 	WSDisplay *_display;
 	dispatch_queue_t _render;
 	dispatch_source_t _link;
-	pthread_mutex_t _lock;		/* _damage, _pending, the origin */
+	pthread_mutex_t _lock;		/* _damage, _pending, _sleeping, the origin */
 	pixman_region32_t _damage;
 	BOOL _pending;			/* a frame is on its way */
+	BOOL _sleeping;			/* the link is suspended */
+	unsigned _idle;			/* ticks in a row with nothing to do */
 	double _originX, _originY;	/* the display's, global */
 	uint32_t _width, _height;
 	/* Render queue only: */
@@ -185,16 +190,23 @@ WSDamageGlobalRect(SLSRect rect)
 	double hz = (mode != NULL && mode->refreshRate >= 20) ? mode->refreshRate : 60;
 	uint64_t interval = (uint64_t)(NSEC_PER_SEC / hz);
 
-	/* SHORTCUT(WS5): the timer ticks at the refresh rate even while nothing
-	 * changes (no frame is drawn then, but the thread wakes), since GOP has
-	 * no vsync; real flips (virtio-gpu) pace frames and let it sleep;
-	 * taken in WS2. */
+	/* The display link ticks at the refresh rate while there is work, and
+	 * sleeps after kIdleTicks ticks with none; damage wakes it. */
 	_link = dispatch_source_create(DISPATCH_SOURCE_TYPE_TIMER, 0, 0, _render);
 	dispatch_source_set_timer(_link, dispatch_time(DISPATCH_TIME_NOW, interval), interval,
 	    interval / 10);
 	__unsafe_unretained WSCompositor *me = self;	/* compositors live for good */
 	dispatch_source_set_event_handler(_link, ^{ [me tick]; });
 	dispatch_resume(_link);
+}
+
+/* Called with _lock held, after damage was added. */
+- (void)wakeLink
+{
+	if (_sleeping) {
+		_sleeping = NO;
+		dispatch_resume(_link);
+	}
 }
 
 - (void)damageGlobalRect:(SLSRect)r
@@ -206,9 +218,11 @@ WSDamageGlobalRect(SLSRect rect)
 	if (y0 < 0) y0 = 0;
 	if (x1 > _width) x1 = _width;
 	if (y1 > _height) y1 = _height;
-	if (x1 > x0 && y1 > y0)
+	if (x1 > x0 && y1 > y0) {
 		pixman_region32_union_rect(&_damage, &_damage, (int)x0, (int)y0,
 		    (unsigned)(x1 - x0), (unsigned)(y1 - y0));
+		[self wakeLink];
+	}
 	pthread_mutex_unlock(&_lock);
 }
 
@@ -216,6 +230,7 @@ WSDamageGlobalRect(SLSRect rect)
 {
 	pthread_mutex_lock(&_lock);
 	pixman_region32_union_rect(&_damage, &_damage, 0, 0, _width, _height);
+	[self wakeLink];
 	pthread_mutex_unlock(&_lock);
 }
 
@@ -226,20 +241,30 @@ WSDamageGlobalRect(SLSRect rect)
 	});
 }
 
-/* The display link: a frame when there is damage. */
+/* The display link: a frame when there is damage; asleep after a few
+ * ticks with none (a frame on its way keeps it awake). */
 - (void)tick
 {
 	pthread_mutex_lock(&_lock);
-	BOOL work = pixman_region32_not_empty(&_damage) && !_pending;
+	BOOL damaged = pixman_region32_not_empty(&_damage);
+	BOOL work = damaged && !_pending;
 	if (work)
 		_pending = YES;
+	BOOL idle = !damaged && !_pending;
+	_idle = idle ? _idle + 1 : 0;
+	if (idle && _idle >= kIdleTicks && !_sleeping) {
+		_sleeping = YES;
+		_idle = 0;
+		dispatch_suspend(_link);
+	}
 	pthread_mutex_unlock(&_lock);
-	if (!work) {
+	if (idle) {
 		pthread_mutex_lock(&statsLock);
 		stats.idleTicks++;
 		pthread_mutex_unlock(&statsLock);
-		return;
 	}
+	if (!work)
+		return;
 	/* The windows and the damage are taken together, on the IPC queue. */
 	dispatch_async(WSIPCQueue, ^{
 		NSArray<WSFrameItem *> *items = WSWindowSnapshot();
