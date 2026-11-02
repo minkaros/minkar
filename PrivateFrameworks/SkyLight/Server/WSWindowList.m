@@ -809,6 +809,10 @@ wss_window_surface(mach_port_t server, audit_token_t token, uint32_t window, int
 		*result = kSLSErrorIllegalArgument;
 		return KERN_SUCCESS;
 	}
+	if ([w.surface isKindOfClass:[WSIOSurfaceBacking class]]) {
+		*result = kSLSErrorCannotComplete;	/* it shows its app's IOSurface */
+		return KERN_SUCCESS;
+	}
 	WSSurface *current = w.pendingSurface ? w.pendingSurface : w.surface;
 	if (current == nil || current.width != fw || current.height != fh) {
 		current = [[WSSurface alloc] initWithWidth:(uint32_t)fw height:(uint32_t)fh];
@@ -869,6 +873,34 @@ wss_window_commit(mach_port_t server, audit_token_t token, uint32_t window, uint
 			    damage[i].width, damage[i].height });
 	WSStatsCountCommit();
 	*back = surface.backBuffer;
+	return KERN_SUCCESS;
+}
+
+/* The window shows an IOSurface of its app, or again buffers of its own
+ * (surface 0). */
+kern_return_t
+wss_window_set_iosurface(mach_port_t server, audit_token_t token, uint32_t window,
+    uint32_t surfaceID, int32_t *result)
+{
+	WSWindow *w = ownWindow(token, window, result);
+
+	if (w == nil)
+		return KERN_SUCCESS;
+	if (surfaceID == 0) {
+		if ([w.surface isKindOfClass:[WSIOSurfaceBacking class]])
+			w.surface = nil;
+		damageWindow(w);
+		return KERN_SUCCESS;
+	}
+	WSIOSurfaceBacking *backing = [[WSIOSurfaceBacking alloc] initWithSurfaceID:surfaceID
+	    width:(uint32_t)ceil(w.frame.width) height:(uint32_t)ceil(w.frame.height)];
+	if (backing == nil) {
+		*result = kSLSErrorIllegalArgument;	/* none, or not BGRA of its size */
+		return KERN_SUCCESS;
+	}
+	w.surface = (id)backing;
+	w.pendingSurface = nil;
+	damageWindow(w);
 	return KERN_SUCCESS;
 }
 

@@ -29,6 +29,7 @@
 #import <Onyx2D/O2Context_builtin.h>
 #import <CoreFoundation/CFMachPort.h>
 #include <SkyLight/SkyLight.h>
+#include <IOSurface/IOSurfaceRef.h>
 #include <dispatch/dispatch.h>
 #include <unistd.h>
 #import <CoreGraphics/CGBitmapContext.h>
@@ -93,14 +94,6 @@ static void displayModeArrayRelease(CFAllocatorRef allocator, const void *value)
 /* An array of modes holds them. */
 static const CFArrayCallBacks displayModeCallBacks = {
     0, displayModeArrayRetain, displayModeArrayRelease, NULL, NULL
-};
-
-static struct CGDisplayStream {
-    uintptr_t cfisa;
-};
-
-static struct CGDisplayStreamUpdate {
-    uintptr_t cfisa;
 };
 
 // dictionary of display contexts
@@ -190,32 +183,18 @@ CGOpenGLDisplayMask CGDisplayIDToOpenGLDisplayMask(CGDirectDisplayID display) {
 /* ---- Captured displays with the new server (WS4a) ---- */
 
 /*
- * CGDisplayGetDrawingContext's context draws into memory of this process;
- * a timer copies it into the display's shielding window (its surface) at
- * the refresh rate, when it changed since the last copy.
- * SHORTCUT(WS5): the app should draw into the surface that is scanned out,
- * through IOSurface; until then a copy, and a frame behind; taken in WS4a.
+ * CGDisplayGetDrawingContext's context draws into an IOSurface the
+ * display's shielding window shows: the window server shows it again at
+ * every frame while it is there, as a display's scanout, so what the app
+ * draws appears at the next frame, with no copy and no commit.
  */
 typedef struct {
     CGContextRef context;
-    uint8_t *pixels, *flushed;     /* what is drawn; what was copied last */
-    size_t width, height, rowBytes;
+    IOSurfaceRef surface;
     SLSWindowID shield;
-    dispatch_source_t timer;
 } SLSDrawingContext;
 
 static CFMutableDictionaryRef slsDrawingContexts;    /* display -> SLSDrawingContext */
-static dispatch_queue_t slsDrawingQueue;
-
-static void slsFlushDrawing(SLSDrawingContext *d) {
-    size_t size = d->height * d->rowBytes;
-
-    if(memcmp(d->pixels, d->flushed, size) == 0)
-        return;
-    memcpy(d->flushed, d->pixels, size);
-    SLSIntRect all = { 0, 0, (int32_t)d->width, (int32_t)d->height };
-    SLSWindowFlushPixels(d->shield, d->flushed, (uint32_t)d->rowBytes, &all, 1);
-}
 
 static void slsDropDrawingContext(CGDirectDisplayID display) {
     if(slsDrawingContexts == NULL)
@@ -225,12 +204,9 @@ static void slsDropDrawingContext(CGDirectDisplayID display) {
     if(d == NULL)
         return;
     CFDictionaryRemoveValue(slsDrawingContexts, (const void *)(uintptr_t)display);
-    dispatch_source_cancel(d->timer);
-    dispatch_sync(slsDrawingQueue, ^{});    /* no copy running */
-    dispatch_release(d->timer);
+    SLSWindowSetIOSurface(d->shield, 0);
     CGContextRelease(d->context);
-    free(d->pixels);
-    free(d->flushed);
+    CFRelease(d->surface);
     free(d);
 }
 
@@ -240,52 +216,55 @@ static CGContextRef slsDrawingContext(CGDirectDisplayID display) {
 
     if(shield == 0 || SLSDisplayCapturedBy(display, &pid) != kSLSErrorSuccess || pid != getpid())
         return NULL;    /* not captured, or not by this process */
-    if(slsDrawingContexts == NULL) {
+    if(slsDrawingContexts == NULL)
         slsDrawingContexts = CFDictionaryCreateMutable(NULL, 8, NULL, NULL);
-        slsDrawingQueue = dispatch_queue_create("org.minkar.CoreGraphics.capture", NULL);
-    }
     SLSDrawingContext *d = (SLSDrawingContext *)CFDictionaryGetValue(slsDrawingContexts,
         (const void *)(uintptr_t)display);
     if(d != NULL)
         return d->context;
 
     CGRect bounds = CGDisplayBounds(display);
+    int width = (int)bounds.size.width, height = (int)bounds.size.height;
+    int bytesPerElement = 4, pixelFormat = 'BGRA';
+    CFNumberRef w = CFNumberCreate(NULL, kCFNumberIntType, &width);
+    CFNumberRef h = CFNumberCreate(NULL, kCFNumberIntType, &height);
+    CFNumberRef bpe = CFNumberCreate(NULL, kCFNumberIntType, &bytesPerElement);
+    CFNumberRef format = CFNumberCreate(NULL, kCFNumberIntType, &pixelFormat);
+    const void *keys[] = { kIOSurfaceWidth, kIOSurfaceHeight, kIOSurfaceBytesPerElement,
+        kIOSurfacePixelFormat };
+    const void *values[] = { w, h, bpe, format };
+    CFDictionaryRef properties = CFDictionaryCreate(NULL, keys, values, 4,
+        &kCFTypeDictionaryKeyCallBacks, &kCFTypeDictionaryValueCallBacks);
+    CFRelease(w);
+    CFRelease(h);
+    CFRelease(bpe);
+    CFRelease(format);
+    IOSurfaceRef surface = IOSurfaceCreate(properties);
+    CFRelease(properties);
+    if(surface == NULL)
+        return NULL;
+
     d = calloc(1, sizeof(*d));
-    d->width = (size_t)bounds.size.width;
-    d->height = (size_t)bounds.size.height;
-    d->rowBytes = d->width * 4;
+    d->surface = surface;
     d->shield = shield;
-    d->pixels = calloc(d->height, d->rowBytes);
-    d->flushed = calloc(d->height, d->rowBytes);
     CGColorSpaceRef space = CGColorSpaceCreateDeviceRGB();
-    d->context = CGBitmapContextCreate(d->pixels, d->width, d->height, 8, d->rowBytes, space,
+    d->context = CGBitmapContextCreate(IOSurfaceGetBaseAddress(surface), width, height, 8,
+        IOSurfaceGetBytesPerRow(surface), space,
         kCGImageAlphaPremultipliedFirst | kCGBitmapByteOrder32Little);
     CGColorSpaceRelease(space);
-    if(d->context == NULL || d->pixels == NULL || d->flushed == NULL) {
+    if(d->context != NULL) {
+        /* Opaque black to start with, as the shielding window. */
+        CGContextSetRGBFillColor(d->context, 0, 0, 0, 1);
+        CGContextFillRect(d->context, CGRectMake(0, 0, width, height));
+    }
+    if(d->context == NULL ||
+       SLSWindowSetIOSurface(shield, IOSurfaceGetID(surface)) != kSLSErrorSuccess) {
         if(d->context != NULL)
             CGContextRelease(d->context);
-        free(d->pixels);
-        free(d->flushed);
+        CFRelease(surface);
         free(d);
         return NULL;
     }
-    /* Opaque black to start with, as the shielding window. */
-    CGContextSetRGBFillColor(d->context, 0, 0, 0, 1);
-    CGContextFillRect(d->context, CGRectMake(0, 0, d->width, d->height));
-    memset(d->flushed, 0xff, d->height * d->rowBytes);    /* the first tick copies */
-    double refresh = 60;
-    CGDisplayModeRef mode = CGDisplayCopyDisplayMode(display);
-    if(mode != NULL) {
-        if(CGDisplayModeGetRefreshRate(mode) > 0)
-            refresh = CGDisplayModeGetRefreshRate(mode);
-        CGDisplayModeRelease(mode);
-    }
-    d->timer = dispatch_source_create(DISPATCH_SOURCE_TYPE_TIMER, 0, 0, slsDrawingQueue);
-    uint64_t interval = (uint64_t)(NSEC_PER_SEC / refresh);
-    dispatch_source_set_timer(d->timer, dispatch_time(DISPATCH_TIME_NOW, 0), interval,
-        interval / 10);
-    dispatch_source_set_event_handler(d->timer, ^{ slsFlushDrawing(d); });
-    dispatch_resume(d->timer);
     CFDictionarySetValue(slsDrawingContexts, (const void *)(uintptr_t)display, d);
     return d->context;
 }
@@ -901,49 +880,6 @@ CGWindowLevel CGWindowLevelForKey(CGWindowLevelKey key) {
 }
 
 // Streaming the Display Contents -- all stubs for now! (deprecated after 14.4)
-
-CGDisplayStreamRef CGDisplayStreamCreate(CGDirectDisplayID display, size_t outputWidth, size_t outputHeight, int32_t pixelFormat, CFDictionaryRef properties, CGDisplayStreamFrameAvailableHandler handler) {
-    return NULL;
-}
-
-CGDisplayStreamRef CGDisplayStreamCreateWithDispatchQueue(CGDirectDisplayID display, size_t outputWidth, size_t outputHeight, int32_t pixelFormat, CFDictionaryRef properties, dispatch_queue_t queue, CGDisplayStreamFrameAvailableHandler handler) {
-    return NULL;
-}
-
-CGError CGDisplayStreamStart(CGDisplayStreamRef displayStream) {
-    return kCGErrorFailure;
-}
-
-CGError CGDisplayStreamStop(CGDisplayStreamRef displayStream) {
-    return kCGErrorSuccess;
-}
-
-CFRunLoopSourceRef CGDisplayStreamGetRunLoopSource(CGDisplayStreamRef displayStream) {
-    return NULL;
-}
-
-const CGRect * CGDisplayStreamUpdateGetRects(CGDisplayStreamUpdateRef updateRef, CGDisplayStreamUpdateRectType rectType, size_t *rectCount) {
-    return NULL;
-}
-
-CGDisplayStreamUpdateRef CGDisplayStreamUpdateCreateMergedUpdate(CGDisplayStreamUpdateRef firstUpdate, CGDisplayStreamUpdateRef secondUpdate) {
-    return NULL;
-}
-
-void CGDisplayStreamUpdateGetMovedRectsDelta(CGDisplayStreamUpdateRef updateRef, CGFloat *dx, CGFloat *dy) {
-}
-
-size_t CGDisplayStreamUpdateGetDropCount(CGDisplayStreamUpdateRef updateRef) {
-    return 0;
-}
-
-CFTypeID CGDisplayStreamGetTypeID(void) {
-    return 0;
-}
-
-CFTypeID CGDisplayStreamUpdateGetTypeID(void) {
-    return 0;
-}
 
 // Private functions
 

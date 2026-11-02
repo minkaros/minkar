@@ -272,3 +272,17 @@ SLSWindowFlushPixels(SLSWindowID window, const void *pixels, uint32_t rowBytes,
 	}
 	return err;
 }
+
+int
+SLSWindowSetIOSurface(SLSWindowID window, uint32_t surfaceID)
+{
+	int32_t result = kSLSErrorFailure;
+	mach_port_t server = SLSServerPort();
+
+	if (server == MACH_PORT_NULL ||
+	    ws_window_set_iosurface(server, window, surfaceID, &result) != KERN_SUCCESS)
+		return kSLSErrorFailure;
+	/* Its own buffers, if it had any, are gone. */
+	_SLSForgetSurface(window);
+	return result;
+}

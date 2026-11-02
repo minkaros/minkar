@@ -66,6 +66,8 @@ type ws_damage_t = array[*:64] of ws_int_rect_t;
 type ws_region_t = array[*:64] of ws_int_rect_t;
 type ws_server_stats_t = struct[16] of uint32_t
 	ctype: SLSServerStats;
+type ws_display_stream_options_t = struct[10] of uint32_t
+	ctype: SLSDisplayStreamOptions;
 type ws_event_t = struct[24] of uint32_t
 	ctype: SLSEvent;
 type ws_event_list_t = array[*:64] of ws_event_t;
@@ -552,11 +554,44 @@ routine window_set_status_item(
 	item			: int32_t;
 	out result		: int32_t);
 
-/* ---- Permanent display configuration (interface version 15) ---- */
+/* ---- Permanent display configuration and IOSurface windows
+ * (interface version 15) ---- */
 
 /* Puts every display back as last saved permanently (or as the server
  * started, when nothing was saved); the caller's app-only changes end. */
 routine display_restore_permanent(
 	server			: mach_port_t;
 	ServerAuditToken token	: audit_token_t;
+	out result		: int32_t);
+
+/* The window shows an IOSurface of its app (BGRA, 4 bytes per pixel, the
+ * window's size) in place of its own buffers, again at every frame while
+ * shown; surface 0 gives it buffers of its own again. */
+routine window_set_iosurface(
+	server			: mach_port_t;
+	ServerAuditToken token	: audit_token_t;
+	window			: uint32_t;
+	surface			: uint32_t;
+	out result		: int32_t);
+
+/* ---- Display streams (interface version 15) ---- */
+
+/* Frames of a display into the caller's IOSurfaces (their IDs, all of
+ * the output size, BGRA), each sent to notify as an SLSDisplayStreamFrame
+ * while a surface is free (its use count is 0). */
+routine display_stream_start(
+	server			: mach_port_t;
+	ServerAuditToken token	: audit_token_t;
+	display			: uint32_t;
+	surfaces		: ws_window_list_t;
+	options			: ws_display_stream_options_t;
+	notify			: mach_port_make_send_t;
+	out result		: int32_t;
+	out stream		: uint32_t);
+
+/* No more frames; a last message says the stream stopped. */
+routine display_stream_stop(
+	server			: mach_port_t;
+	ServerAuditToken token	: audit_token_t;
+	stream			: uint32_t;
 	out result		: int32_t);

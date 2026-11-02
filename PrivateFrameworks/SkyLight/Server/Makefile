@@ -14,7 +14,7 @@ MK_PIE = no
 MK_DEBUG_FILES = no
 PROG =	WindowServer
 SRCS =	main.m WSConnection.m WSDisplay.m WSDisplayServices.m WSWindowList.m \
-	WSSurface.m WSCompositor.m WSInput.m WSEvents.m WSTaps.m WSHotKeys.m WSKeymap.c \
+	WSSurface.m WSDisplayStream.m WSCompositor.m WSInput.m WSEvents.m WSTaps.m WSHotKeys.m WSKeymap.c \
 	WindowServerServer.c
 MAN =
 SKYLIGHT = ${.CURDIR}/..
@@ -35,7 +35,7 @@ CFLAGS += --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
 LDFLAGS += --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
 	-fuse-ld=${LD}
 LDADD += -framework Foundation -framework IOKit -framework CoreFoundation \
-	-framework CoreServices -lbsm -lobjc \
+	-framework CoreServices -framework IOSurface -lbsm -lobjc \
 	-lpixman-1 -L${KEYMAP_OBJ}/libxkbcommon -lxkbcommon
 CLEANFILES += WindowServerServer.c WindowServerServer.h
 

@@ -458,8 +458,64 @@ int SLSWindowCommit(SLSWindowID window, const SLSIntRect *damage, uint32_t count
 int SLSWindowFlushPixels(SLSWindowID window, const void *pixels, uint32_t rowBytes,
     const SLSIntRect *damage, uint32_t count);
 
+/*
+ * The window shows an IOSurface of this process (its ID; BGRA, 4 bytes per
+ * pixel, the window's size) in place of its own buffers: what the app
+ * draws into it shows at the next frame, with no commit, as on a display's
+ * scanout (CGDisplayGetDrawingContext). Surface 0 gives the window buffers
+ * of its own again (interface version 15).
+ */
+int SLSWindowSetIOSurface(SLSWindowID window, uint32_t surfaceID);
+
 #define kSLSMaxSurfaceSide	16384
 #define kSLSMaxDamageRects	64
+
+/* ---- Display streams (interface version 15) ---------------------------- */
+
+/*
+ * A display stream copies a display's frames into IOSurfaces of the
+ * caller (CGDisplayStream). After a frame that changed the display, the
+ * server copies it, from source scaled to the output size, into a surface
+ * whose use count is 0, increments that count and sends the caller's port
+ * an SLSDisplayStreamFrame; the caller decrements it when done.
+ */
+typedef struct SLSDisplayStreamOptions {
+	uint32_t	outputWidth, outputHeight;
+	int32_t		sourceX, sourceY;	/* display pixels; width 0: all of it */
+	uint32_t	sourceWidth, sourceHeight;
+	uint32_t	minFrameMicros;		/* 0: every frame */
+	uint32_t	showCursor;
+	uint32_t	reserved[2];
+} SLSDisplayStreamOptions;
+
+#ifndef __cplusplus
+_Static_assert(sizeof(SLSDisplayStreamOptions) == 10 * 4, "SLSDisplayStreamOptions size");
+#endif
+
+#define kSLSMaxStreamRects	16
+#define kSLSDisplayStreamMessageID	0x534c4453	/* 'SLDS' */
+
+enum {
+	kSLSDisplayStreamFrameComplete	= 0,
+	kSLSDisplayStreamStopped	= 3,
+};
+
+/* What the server sends: a frame in a surface, or that the stream stopped.
+ * The rects are what changed since the last frame sent, in output pixels
+ * (more than kSLSMaxStreamRects: the box around them all). */
+typedef struct SLSDisplayStreamFrame {
+	mach_msg_header_t	header;
+	uint32_t		stream;
+	uint32_t		status;		/* kSLSDisplayStream* */
+	uint32_t		surface;	/* IOSurfaceID; 0 when stopped */
+	uint32_t		count;
+	uint64_t		time;		/* mach_absolute_time of the frame */
+	SLSIntRect		rects[kSLSMaxStreamRects];
+} SLSDisplayStreamFrame;
+
+int SLSDisplayStreamStart(SLSDisplayID display, const uint32_t *surfaces, uint32_t count,
+    const SLSDisplayStreamOptions *options, mach_port_t notify, uint32_t *stream);
+int SLSDisplayStreamStop(uint32_t stream);
 
 /* ---- Events ------------------------------------------------------------ */
 

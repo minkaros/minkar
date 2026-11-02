@@ -165,3 +165,32 @@ SLSCancelDisplayConfiguration(SLSDisplayConfigRef config)
 	free(config);
 	return kSLSErrorSuccess;
 }
+
+int
+SLSDisplayStreamStart(SLSDisplayID display, const uint32_t *surfaces, uint32_t count,
+    const SLSDisplayStreamOptions *options, mach_port_t notify, uint32_t *stream)
+{
+	int32_t result = kSLSErrorFailure;
+	mach_port_t server = SLSServerPort();
+
+	*stream = 0;
+	if (surfaces == NULL || count == 0 || options == NULL || notify == MACH_PORT_NULL)
+		return kSLSErrorIllegalArgument;
+	if (server == MACH_PORT_NULL ||
+	    ws_display_stream_start(server, display, (uint32_t *)(uintptr_t)surfaces, count,
+	    *options, notify, &result, stream) != KERN_SUCCESS)
+		return kSLSErrorFailure;
+	return result;
+}
+
+int
+SLSDisplayStreamStop(uint32_t stream)
+{
+	int32_t result = kSLSErrorFailure;
+	mach_port_t server = SLSServerPort();
+
+	if (server == MACH_PORT_NULL || ws_display_stream_stop(server, stream, &result) !=
+	    KERN_SUCCESS)
+		return kSLSErrorFailure;
+	return result;
+}

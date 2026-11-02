@@ -19,7 +19,7 @@ CFLAGS += --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
 	-F${MINKAR_SDKROOT}${PFW}
 LDFLAGS += --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
 	-fuse-ld=${LD} -F${MINKAR_SDKROOT}${PFW}
-LDADD += -framework SkyLight -framework CoreGraphics -framework CoreFoundation 
+LDADD += -framework SkyLight -framework CoreGraphics -framework CoreFoundation -framework IOSurface 
 
 all: to-sysroot
 

@@ -59,6 +59,14 @@
 /* The display's mode or origin changed (IPC queue). */
 - (void)displayChanged;
 
+/* Display streams (WSDisplayStream) fed from its frames; any thread. */
+- (void)addStream:(id)stream;
+/* The stream with this ID, after telling its client it stopped; nil when
+ * it has none. */
+- (id)removeStreamWithID:(uint32_t)streamID;
+/* Stops every stream of a connection. */
+- (void)removeStreamsOfOwner:(id)owner;
+
 /* Every compositor's counts together. */
 + (void)getStats:(SLSServerStats *)stats;
 

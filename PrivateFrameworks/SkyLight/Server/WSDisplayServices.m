@@ -41,6 +41,7 @@
 #import "WSEvents.h"
 #import "WSWindowList.h"
 #import "WSCompositor.h"
+#import "WSDisplayStream.h"
 #include "WindowServerServer.h"	/* MIG server side */
 
 /* A transfer table or the fade changed (below). */
@@ -914,6 +915,10 @@ WSDisplayServicesConnectionDied(WSConnection *c)
 {
 	BOOL moved = NO;
 
+	/* Its display streams end. */
+	for (WSDisplay *d in WSDisplays)
+		[(WSCompositor *)d.compositor removeStreamsOfOwner:c];
+
 	/* Its hide count went with it. */
 	if (c.cursorHideCount > 0)
 		damageCursor();
@@ -952,4 +957,56 @@ WSDisplayServicesConnectionDied(WSConnection *c)
 			[d restoreTransfer];
 		colorsChanged();
 	}
+}
+
+/* ---- Display streams ---- */
+
+kern_return_t
+wss_display_stream_start(mach_port_t server, audit_token_t token, uint32_t display,
+    ws_window_list_t surfaces, mach_msg_type_number_t count,
+    SLSDisplayStreamOptions options, mach_port_t notify, int32_t *result, uint32_t *stream)
+{
+	WSConnection *connection = [WSConnection connectionForToken:token];
+	WSDisplay *d = WSDisplayWithID(display);
+
+	*stream = 0;
+	if (connection == nil || d == nil || d.compositor == nil) {
+		*result = connection == nil ? kSLSErrorInvalidConnection : kSLSErrorIllegalArgument;
+		mach_port_deallocate(mach_task_self(), notify);
+		return KERN_SUCCESS;
+	}
+	/* SHORTCUT(M5): other apps' windows show in it, so the built-in policy
+	 * of event taps (root or the console's user) decides, as for window
+	 * images, until the privacy service's screen recording permission;
+	 * taken in WS5. */
+	if (!WSMayControlInput(connection)) {
+		*result = kSLSErrorCannotComplete;
+		mach_port_deallocate(mach_task_self(), notify);
+		return KERN_SUCCESS;
+	}
+	WSDisplayStream *s = [[WSDisplayStream alloc] initWithDisplayID:display surfaces:surfaces
+	    count:count options:options notify:notify owner:connection];
+	if (s == nil) {
+		*result = kSLSErrorIllegalArgument;	/* a surface missing or of another size */
+		mach_port_deallocate(mach_task_self(), notify);
+		return KERN_SUCCESS;
+	}
+	[(WSCompositor *)d.compositor addStream:s];
+	*stream = s.streamID;
+	*result = kSLSErrorSuccess;
+	return KERN_SUCCESS;
+}
+
+kern_return_t
+wss_display_stream_stop(mach_port_t server, audit_token_t token, uint32_t stream,
+    int32_t *result)
+{
+	WSConnection *connection = [WSConnection connectionForToken:token];
+
+	*result = kSLSErrorIllegalArgument;
+	for (WSDisplay *d in WSDisplays)
+		if ([(WSCompositor *)d.compositor removeStreamWithID:stream] != nil)
+			*result = kSLSErrorSuccess;
+	(void)connection;
+	return KERN_SUCCESS;
 }

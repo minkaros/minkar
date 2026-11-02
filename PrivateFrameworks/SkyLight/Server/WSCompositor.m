@@ -33,6 +33,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #import "WSCompositor.h"
+#import "WSDisplayStream.h"
 #import "WSSurface.h"
 
 @implementation WSFrameItem
@@ -119,6 +120,8 @@ static const unsigned kIdleTicks = 2;
 	double _originX, _originY;	/* the display's, global */
 	uint32_t _width, _height;
 	/* Render queue only: */
+	pixman_region32_t _live;	/* where live surfaces showed last frame */
+	NSMutableArray<WSDisplayStream *> *_streams;
 	pixman_image_t *_shadow;
 	uint32_t *_shadowPixels;
 	/* Window shadow masks (A8) by window size, "WxH": made on the render
@@ -142,6 +145,7 @@ static const unsigned kIdleTicks = 2;
 	_display = display;
 	pthread_mutex_init(&_lock, NULL);
 	pixman_region32_init(&_damage);
+	pixman_region32_init(&_live);
 	_render = dispatch_queue_create("org.minkar.WindowServer.render",
 	    dispatch_queue_attr_make_with_qos_class(DISPATCH_QUEUE_SERIAL,
 	    QOS_CLASS_USER_INTERACTIVE, 0));
@@ -234,6 +238,60 @@ static const unsigned kIdleTicks = 2;
 	pthread_mutex_unlock(&_lock);
 }
 
+- (void)addStream:(id)stream
+{
+	dispatch_async(_render, ^{
+		if (self->_streams == nil)
+			self->_streams = [NSMutableArray array];
+		[self->_streams addObject:stream];
+		/* Its first frame: everything it shows. */
+		[self damageAll];
+	});
+}
+
+- (id)removeStreamWithID:(uint32_t)streamID
+{
+	__block WSDisplayStream *found = nil;
+
+	dispatch_sync(_render, ^{
+		for (WSDisplayStream *s in self->_streams)
+			if (s.streamID == streamID)
+				found = s;
+		if (found != nil) {
+			[found stop];
+			[self->_streams removeObject:found];
+		}
+	});
+	return found;
+}
+
+- (void)removeStreamsOfOwner:(id)owner
+{
+	dispatch_async(_render, ^{
+		for (WSDisplayStream *s in [self->_streams copy])
+			if (s.owner == owner || s.owner == nil) {
+				[s stop];
+				[self->_streams removeObject:s];
+			}
+	});
+}
+
+/* Render queue: the frame to the streams that take it with or without
+ * the cursor; what one cannot take yet is drawn again at the next tick. */
+- (void)offerFrame:(pixman_region32_t *)damage cursor:(BOOL)cursor
+    again:(pixman_region32_t *)again
+{
+	for (WSDisplayStream *s in _streams) {
+		if (s.showsCursor != cursor)
+			continue;
+		pixman_region32_t pending;
+		pixman_region32_init(&pending);
+		if (![s offerFrame:_shadow damage:damage pending:&pending])
+			pixman_region32_union(again, again, &pending);
+		pixman_region32_fini(&pending);
+	}
+}
+
 - (void)displayChanged
 {
 	dispatch_async(_render, ^{
@@ -246,6 +304,10 @@ static const unsigned kIdleTicks = 2;
 - (void)tick
 {
 	pthread_mutex_lock(&_lock);
+	/* Live surfaces (an app drawing into a captured display) show again
+	 * at every frame, as a scanout would. */
+	if (pixman_region32_not_empty(&_live))
+		pixman_region32_union(&_damage, &_damage, &_live);
 	BOOL damaged = pixman_region32_not_empty(&_damage);
 	BOOL work = damaged && !_pending;
 	if (work)
@@ -351,6 +413,7 @@ static const unsigned kIdleTicks = 2;
 	pixman_image_set_clip_region32(_shadow, damage);
 	pixman_image_fill_boxes(PIXMAN_OP_SRC, _shadow, &black, nboxes, boxes);
 
+	pixman_region32_clear(&_live);
 	for (WSFrameItem *item in items) {
 		int x = (int)floor(item.frame.x - ox), y = (int)floor(item.frame.y - oy);
 
@@ -379,6 +442,9 @@ static const unsigned kIdleTicks = 2;
 			pixman_image_unref(fill);
 			pixman_image_unref(maskImage);
 		}
+		if ([surface live])
+			pixman_region32_union_rect(&_live, &_live, x, y, surface.width,
+			    surface.height);
 		const uint8_t *pixels = [surface lockFront];
 		pixman_image_t *src = pixman_image_create_bits(PIXMAN_a8r8g8b8, surface.width,
 		    surface.height, (uint32_t *)(uintptr_t)pixels, surface.rowBytes);
@@ -394,18 +460,45 @@ static const unsigned kIdleTicks = 2;
 		pixman_image_unref(src);
 		[surface unlock];
 	}
-	if (cursorVisible && shape != nil) {
-		/* The front app's own cursor, at its hot spot. */
-		pixman_image_t *image = pixman_image_create_bits(PIXMAN_a8r8g8b8, shape.width,
-		    shape.height, (uint32_t *)shape.pixels.bytes, shape.width * 4);
-		pixman_image_composite32(PIXMAN_OP_OVER, image, NULL, _shadow, 0, 0, 0, 0,
-		    (int)floor(cursor.x - shape.hotX - ox), (int)floor(cursor.y - shape.hotY - oy),
-		    shape.width, shape.height);
-		pixman_image_unref(image);
-	} else if (cursorVisible)
-		pixman_image_composite32(PIXMAN_OP_OVER, cursorImage(), NULL, _shadow, 0, 0, 0, 0,
-		    (int)floor(cursor.x - ox), (int)floor(cursor.y - oy), kArrowWidth, kArrowHeight);
 	pixman_image_set_clip_region32(_shadow, NULL);
+
+	/* Streams without the cursor take the frame now. */
+	pixman_region32_t again;
+	pixman_region32_init(&again);
+	if (_streams.count > 0)
+		[self offerFrame:damage cursor:NO again:&again];
+
+	/*
+	 * The cursor: the front app's own, at its hot spot, or the arrow. The
+	 * shadow keeps no cursor between frames (streams may not want it):
+	 * what is under it is kept here, it is drawn whole, presented where
+	 * the frame changed, and what was under it is put back.
+	 */
+	pixman_image_t *cursorSource = NULL;
+	int cx = 0, cy = 0, cw = 0, ch = 0;
+	if (cursorVisible && shape != nil) {
+		cursorSource = pixman_image_create_bits(PIXMAN_a8r8g8b8, shape.width,
+		    shape.height, (uint32_t *)shape.pixels.bytes, shape.width * 4);
+		cx = (int)floor(cursor.x - shape.hotX - ox);
+		cy = (int)floor(cursor.y - shape.hotY - oy);
+		cw = shape.width;
+		ch = shape.height;
+	} else if (cursorVisible) {
+		cursorSource = pixman_image_ref(cursorImage());
+		cx = (int)floor(cursor.x - ox);
+		cy = (int)floor(cursor.y - oy);
+		cw = kArrowWidth;
+		ch = kArrowHeight;
+	}
+	pixman_image_t *under = NULL;
+	if (cursorSource != NULL) {
+		under = pixman_image_create_bits(PIXMAN_x8r8g8b8, cw, ch, NULL, 0);
+		pixman_image_composite32(PIXMAN_OP_SRC, _shadow, NULL, under, cx, cy, 0, 0, 0, 0,
+		    cw, ch);
+		pixman_image_composite32(PIXMAN_OP_OVER, cursorSource, NULL, _shadow, 0, 0, 0, 0,
+		    cx, cy, cw, ch);
+		pixman_image_unref(cursorSource);
+	}
 
 	/* Present: the damaged rows, from the shadow to the framebuffer,
 	 * through the display's colour table (transfer table and fade) when
@@ -440,6 +533,23 @@ static const unsigned kIdleTicks = 2;
 		for (int i = 0; i < nboxes; i++)
 			[_display flushX:boxes[i].x1 y:boxes[i].y1 width:boxes[i].x2 - boxes[i].x1
 			    height:boxes[i].y2 - boxes[i].y1];
+
+	/* Streams with the cursor; then the shadow without it again. What a
+	 * stream could not take yet is drawn again at the next tick. */
+	if (_streams.count > 0)
+		[self offerFrame:damage cursor:YES again:&again];
+	if (under != NULL) {
+		pixman_image_composite32(PIXMAN_OP_SRC, under, NULL, _shadow, 0, 0, 0, 0, cx, cy,
+		    cw, ch);
+		pixman_image_unref(under);
+	}
+	if (pixman_region32_not_empty(&again)) {
+		pthread_mutex_lock(&_lock);
+		pixman_region32_union(&_damage, &_damage, &again);
+		[self wakeLink];
+		pthread_mutex_unlock(&_lock);
+	}
+	pixman_region32_fini(&again);
 
 	uint64_t us = micros(mach_absolute_time() - start);
 	pthread_mutex_lock(&statsLock);

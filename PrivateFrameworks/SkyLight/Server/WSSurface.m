@@ -101,6 +101,11 @@ static uint32_t nextSurfaceID = 1;
 	return good;
 }
 
+- (BOOL)live
+{
+	return NO;
+}
+
 - (const uint8_t *)lockFront
 {
 	pthread_mutex_lock(&_lock);
@@ -110,6 +115,68 @@ static uint32_t nextSurfaceID = 1;
 - (void)unlock
 {
 	pthread_mutex_unlock(&_lock);
+}
+
+@end
+
+@implementation WSIOSurfaceBacking {
+	IOSurfaceRef _surface;
+}
+
+- (instancetype)initWithSurfaceID:(IOSurfaceID)surfaceID width:(uint32_t)width
+    height:(uint32_t)height
+{
+	if ((self = [super init]) == nil)
+		return nil;
+	_surface = IOSurfaceLookup(surfaceID);
+	if (_surface == NULL || IOSurfaceGetWidth(_surface) != width ||
+	    IOSurfaceGetHeight(_surface) != height ||
+	    IOSurfaceGetBytesPerElement(_surface) != 4 ||
+	    (IOSurfaceGetPixelFormat(_surface) != 'BGRA' &&
+	    IOSurfaceGetPixelFormat(_surface) != 0))
+		return nil;
+	_surfaceID = surfaceID;
+	_width = width;
+	_height = height;
+	_rowBytes = (uint32_t)IOSurfaceGetBytesPerRow(_surface);
+	return self;
+}
+
+- (void)dealloc
+{
+	if (_surface != NULL)
+		CFRelease(_surface);
+}
+
+- (uint32_t)backBuffer
+{
+	return 0;
+}
+
+- (BOOL)committed
+{
+	return YES;
+}
+
+- (BOOL)live
+{
+	return YES;
+}
+
+- (BOOL)commitBuffer:(uint32_t)buffer
+{
+	return buffer == 0;
+}
+
+- (const uint8_t *)lockFront
+{
+	IOSurfaceLock(_surface, kIOSurfaceLockReadOnly, NULL);
+	return IOSurfaceGetBaseAddress(_surface);
+}
+
+- (void)unlock
+{
+	IOSurfaceUnlock(_surface, kIOSurfaceLockReadOnly, NULL);
 }
 
 @end

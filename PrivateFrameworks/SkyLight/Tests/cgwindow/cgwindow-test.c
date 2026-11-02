@@ -42,6 +42,8 @@
 #include <CoreFoundation/CoreFoundation.h>
 #include <CoreGraphics/CoreGraphics.h>
 #include <SkyLight/SkyLight.h>
+#include <IOSurface/IOSurfaceRef.h>
+#include <dispatch/dispatch.h>
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
@@ -74,6 +76,112 @@ solid(SLSRect frame, uint32_t argb)
 	SLSWindowCommit(w, (SLSIntRect[]){ { 0, 0, (int32_t)width, (int32_t)height } }, 1);
 	SLSOrderWindow(w, kSLSOrderAbove, 0);
 	return w;
+}
+
+/* A pixel of an IOSurface (BGRA) as ARGB. */
+static uint32_t
+surfacePixel(IOSurfaceRef s, size_t x, size_t y)
+{
+	const uint8_t *p = (const uint8_t *)IOSurfaceGetBaseAddress(s) +
+	    y * IOSurfaceGetBytesPerRow(s) + x * 4;
+	return (uint32_t)p[3] << 24 | (uint32_t)p[2] << 16 | (uint32_t)p[1] << 8 | p[0];
+}
+
+/* CGDisplayStream: frames of the windows' area, half size, on a queue and
+ * on a run loop. */
+static void
+displayStreams(CGDirectDisplayID main)
+{
+	__block int frames = 0, stopped = 0;
+	__block uint32_t redSeen = 0, blueSeen = 0, inUse = 0;
+	__block size_t rectCount = 0;
+	__block CGRect firstRect = CGRectNull;
+	dispatch_semaphore_t got = dispatch_semaphore_create(0);
+	CGRect source = CGRectMake(100, 120, 160, 120);
+	CFDictionaryRef sourceDict = CGRectCreateDictionaryRepresentation(source);
+	const void *keys[] = { kCGDisplayStreamSourceRect, kCGDisplayStreamShowCursor };
+	const void *values[] = { sourceDict, kCFBooleanFalse };
+	CFDictionaryRef props = CFDictionaryCreate(NULL, keys, values, 2,
+	    &kCFTypeDictionaryKeyCallBacks, &kCFTypeDictionaryValueCallBacks);
+	dispatch_queue_t q = dispatch_queue_create("cgwindow-test.stream", NULL);
+
+	CGDisplayStreamRef stream = CGDisplayStreamCreateWithDispatchQueue(main, 80, 60, 'BGRA',
+	    props, q, ^(CGDisplayStreamFrameStatus status, uint64_t time, IOSurfaceRef surface,
+	    CGDisplayStreamUpdateRef update) {
+		(void)time;
+		if (status == kCGDisplayStreamFrameStatusStopped) {
+			stopped++;
+			dispatch_semaphore_signal(got);
+			return;
+		}
+		if (status != kCGDisplayStreamFrameStatusFrameComplete || surface == NULL)
+			return;
+		frames++;
+		if (frames == 1) {
+			redSeen = surfacePixel(surface, 5, 5);
+			blueSeen = surfacePixel(surface, 55, 40);
+			inUse = IOSurfaceIsInUse(surface);
+		} else {
+			const CGRect *r = CGDisplayStreamUpdateGetRects(update,
+			    kCGDisplayStreamUpdateDirtyRects, &rectCount);
+			if (r != NULL && rectCount > 0)
+				firstRect = r[0];
+		}
+		dispatch_semaphore_signal(got);
+	});
+	check(stream != NULL && CFGetTypeID(stream) == CGDisplayStreamGetTypeID(),
+	    "a display stream is made");
+	check(stream != NULL && CGDisplayStreamStart(stream) == kCGErrorSuccess,
+	    "and started");
+	long waited = dispatch_semaphore_wait(got, dispatch_time(DISPATCH_TIME_NOW, 3 * NSEC_PER_SEC));
+	check(waited == 0 && frames >= 1, "its first frame comes");
+	check(redSeen == 0xffff0000 && blueSeen == 0xff0000ff,
+	    "with the windows, from the source rect scaled to the output size");
+	check(inUse, "the surface is the handler's while it runs");
+
+	/* A window appears in the source: a frame with what changed. */
+	SLSWindowID green = solid((SLSRect){ 110, 130, 10, 10 }, 0xff00ff00);
+	waited = dispatch_semaphore_wait(got, dispatch_time(DISPATCH_TIME_NOW, 3 * NSEC_PER_SEC));
+	check(waited == 0 && frames >= 2 && rectCount >= 1 &&
+	    CGRectContainsRect(firstRect, CGRectMake(5, 5, 5, 5)),
+	    "a change comes as a frame with its rect, in output pixels");
+	SLSReleaseWindow(green);
+
+	check(stream != NULL && CGDisplayStreamStop(stream) == kCGErrorSuccess,
+	    "the stream stops");
+	waited = dispatch_semaphore_wait(got, dispatch_time(DISPATCH_TIME_NOW, 3 * NSEC_PER_SEC));
+	check(waited == 0 && stopped == 1, "and the handler hears it stopped");
+	check(CGDisplayStreamGetRunLoopSource(stream) == NULL, "a queue's stream has no run loop source");
+	if (stream != NULL)
+		CFRelease(stream);
+
+	/* The run loop variant. */
+	__block int loopFrames = 0;
+	CGDisplayStreamRef loop = CGDisplayStreamCreate(main, 80, 60, 'BGRA', props,
+	    ^(CGDisplayStreamFrameStatus status, uint64_t time, IOSurfaceRef surface,
+	    CGDisplayStreamUpdateRef update) {
+		(void)time; (void)surface; (void)update;
+		if (status == kCGDisplayStreamFrameStatusFrameComplete)
+			loopFrames++;
+	});
+	CFRunLoopSourceRef rls = loop ? CGDisplayStreamGetRunLoopSource(loop) : NULL;
+	if (rls != NULL) {
+		CFRunLoopAddSource(CFRunLoopGetCurrent(), rls, kCFRunLoopDefaultMode);
+		CGDisplayStreamStart(loop);
+		for (int i = 0; i < 30 && loopFrames == 0; i++)
+			CFRunLoopRunInMode(kCFRunLoopDefaultMode, 0.1, true);
+		CGDisplayStreamStop(loop);
+		CFRunLoopRunInMode(kCFRunLoopDefaultMode, 0.2, false);
+		CFRunLoopRemoveSource(CFRunLoopGetCurrent(), rls, kCFRunLoopDefaultMode);
+	}
+	check(rls != NULL && loopFrames >= 1, "a run loop's stream delivers on its run loop");
+	if (loop != NULL)
+		CFRelease(loop);
+	check(CGDisplayStreamCreate(main, 80, 60, '420v', NULL, ^(CGDisplayStreamFrameStatus st,
+	    uint64_t t, IOSurfaceRef su, CGDisplayStreamUpdateRef u) { (void)st; (void)t; (void)su;
+	    (void)u; }) == NULL, "a format it cannot make is refused");
+	CFRelease(props);
+	CFRelease(sourceDict);
 }
 
 /* The ARGB value of an image's pixel (x, y from the top left). */
@@ -262,6 +370,8 @@ main(void)
 	if (image != NULL)
 		CGImageRelease(image);
 
+	displayStreams(main);
+
 	/* Captured, the display shows what the app draws in its context. */
 	check(CGDisplayCapture(main) == kCGErrorSuccess, "the display is captured");
 	CGContextRef context = CGDisplayGetDrawingContext(main);
@@ -270,9 +380,19 @@ main(void)
 		CGContextSetRGBFillColor(context, 0, 1, 0, 1);
 		CGContextFillRect(context, CGRectMake(0, 0, 4000, 4000));
 	}
-	usleep(200000);	/* a refresh or two: the context is copied to the screen */
+	usleep(200000);	/* a frame or two: the server shows the context's surface */
 	image = CGDisplayCreateImageForRect(main, CGRectMake(10, 10, 20, 20));
 	check(image != NULL && pixel(image, 5, 5) == 0xff00ff00, "what it draws reaches the screen");
+	if (image != NULL)
+		CGImageRelease(image);
+	/* Drawn again, with no flush: the surface is shown at every frame. */
+	if (context != NULL) {
+		CGContextSetRGBFillColor(context, 1, 1, 0, 1);
+		CGContextFillRect(context, CGRectMake(0, 0, 4000, 4000));
+	}
+	usleep(200000);
+	image = CGDisplayCreateImageForRect(main, CGRectMake(10, 10, 20, 20));
+	check(image != NULL && pixel(image, 5, 5) == 0xffffff00, "and what it draws next, with no flush");
 	if (image != NULL)
 		CGImageRelease(image);
 	check(CGDisplayRelease(main) == kCGErrorSuccess, "and it is released");
