@@ -546,6 +546,11 @@ enum {
 	 * SLSGetWindowInfo gives its owner. */
 	kSLSEventWindowMinimized	= 0x1003,
 	kSLSEventWindowRestored		= 0x1004,
+	/* To every connection: a display's mode, place or mirroring changed.
+	 * buttonNumber is the display, flags the public
+	 * CGDisplayChangeSummaryFlags of the change (never the begin flag);
+	 * x, y is its new origin and dx, dy its new size, global. */
+	kSLSEventDisplayReconfigured	= 0x1005,
 };
 
 /*

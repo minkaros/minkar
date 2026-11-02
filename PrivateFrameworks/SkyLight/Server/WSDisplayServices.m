@@ -149,6 +149,65 @@ wss_display_current_mode(mach_port_t server, uint32_t display, int32_t *result,
 	return KERN_SUCCESS;
 }
 
+/* The public CGDisplayChangeSummaryFlags the notices carry. */
+enum {
+	kChangeMoved		= 1 << 1,
+	kChangeSetMode		= 1 << 3,
+	kChangeMirror		= 1 << 10,
+	kChangeUnMirror		= 1 << 11,
+	kChangeDesktopShape	= 1 << 12,
+};
+
+/*
+ * Tells every connection what changed on each display since the last
+ * notice (kSLSEventDisplayReconfigured): apps update their screens and
+ * keep their windows on them, as CGDisplayRegisterReconfigurationCallback
+ * and NSApplicationDidChangeScreenParametersNotification promise.
+ */
+static void
+notifyReconfigured(void)
+{
+	static NSMutableDictionary<NSNumber *, NSArray<NSNumber *> *> *notified;
+
+	if (notified == nil)
+		notified = [NSMutableDictionary dictionary];
+	for (WSDisplay *d in WSDisplays) {
+		NSNumber *key = @(d.displayID);
+		NSArray<NSNumber *> *now = @[ @(d.currentMode->modeID), @(d.x), @(d.y),
+		    @(d.width), @(d.height), @(d.mirrorOf) ];
+		NSArray<NSNumber *> *was = notified[key];
+		uint32_t flags = 0;
+
+		notified[key] = now;
+		if (was == nil)
+			continue;	/* as it started: nothing to tell */
+		if (![was[0] isEqual:now[0]])
+			flags |= kChangeSetMode;
+		if (![was[1] isEqual:now[1]] || ![was[2] isEqual:now[2]])
+			flags |= kChangeMoved;
+		if (![was[3] isEqual:now[3]] || ![was[4] isEqual:now[4]] ||
+		    (flags & kChangeMoved))
+			flags |= kChangeDesktopShape;
+		if (![was[5] isEqual:now[5]])
+			flags |= now[5].unsignedIntValue != 0 ? kChangeMirror : kChangeUnMirror;
+		if (flags == 0)
+			continue;
+
+		SLSEvent e;
+		memset(&e, 0, sizeof(e));
+		e.type = kSLSEventDisplayReconfigured;
+		e.buttonNumber = d.displayID;
+		e.flags = flags;
+		e.x = d.x;
+		e.y = d.y;
+		e.dx = d.width;
+		e.dy = d.height;
+		e.timestamp = WSNanoseconds();
+		for (WSConnection *c in [WSConnection allConnections])
+			WSEventsEnqueue(c, &e);
+	}
+}
+
 /* Keeps the main display at the global origin, the others where they were
  * relative to it, and the shielding windows over their displays. */
 static void
@@ -166,6 +225,7 @@ displaysMoved(void)
 		/* Its size or its place on the desktop may have changed. */
 		[d.compositor displayChanged];
 	}
+	notifyReconfigured();
 }
 
 /*
@@ -252,6 +312,8 @@ WSDisplaysRestoreSaved(void)
 		fprintf(stderr, "WindowServer: applied the saved display configuration\n");
 	}
 	startupConfiguration = currentConfiguration();
+	/* What the displays are now, for the first notice to compare. */
+	notifyReconfigured();
 }
 
 kern_return_t
