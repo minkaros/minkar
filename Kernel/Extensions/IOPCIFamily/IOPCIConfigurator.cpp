@@ -2140,6 +2140,10 @@ void CLASS::probeBaseAddressRegister(IOPCIConfigEntry * device, uint32_t lastBar
 
         range = device->ranges[kIOPCIRangeExpansionROM];
         start = (resetMask & (1 << kIOPCIResourceTypeMemory)) ? 0 : (saved & ~barMask);
+        // Minkar: firmware may leave the size mask in an unassigned ROM BAR
+        // (OVMF does); that is no address, so the ROM gets one of its own.
+        if ((saved & ~barMask) == (value & ~barMask))
+            start = 0;
         value &= ~barMask;
         size  = -value;
         IOPCIRangeInit(range, kIOPCIResourceTypeMemory, start, size, size);
