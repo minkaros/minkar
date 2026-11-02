@@ -100,6 +100,7 @@ main(int argc, char *argv[])
 	}
 
 	WSDisplays = [WSDisplay availableDisplays];
+	WSDisplaysRestoreSaved();
 	for (WSDisplay *d in WSDisplays)
 		fprintf(stderr, "WindowServer: display 0x%x %ux%u (%.0fx%.0f mm)%s, %u mode(s)\n",
 		    d.displayID, d.width, d.height, d.widthMM, d.heightMM,

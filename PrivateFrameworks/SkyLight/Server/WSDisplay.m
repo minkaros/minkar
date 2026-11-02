@@ -121,6 +121,18 @@ displayInfoNumber(io_service_t framebuffer, CFStringRef key)
 	return value;
 }
 
+- (NSString *)persistentKey
+{
+	/* 'unkn': IODisplay's vendor for a display with no EDID. */
+	if ((self.vendor != 0 || self.model != 0) && self.vendor != 0x756e6b6e)
+		return [NSString stringWithFormat:@"edid:%x:%x:%x", self.vendor, self.model,
+		    self.serial];
+	io_string_t path;
+	if (IORegistryEntryGetPath(_service, kIOServicePlane, path) == KERN_SUCCESS)
+		return [NSString stringWithFormat:@"path:%s", path];
+	return [NSString stringWithFormat:@"unit:%u", self.unit];
+}
+
 - (instancetype)initWithService:(io_service_t)service
 {
 	kern_return_t kr;

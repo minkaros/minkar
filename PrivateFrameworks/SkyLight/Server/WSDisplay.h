@@ -51,6 +51,10 @@
 @property (readonly) uint32_t vendor;
 @property (readonly) uint32_t model;
 @property (readonly) uint32_t serial;
+/* What names the display across restarts, for its saved configuration:
+ * the monitor's vendor, model and serial when it has an EDID, else where
+ * its framebuffer is in the registry. */
+@property (readonly) NSString *persistentKey;
 @property (readonly) double widthMM;		/* from the EDID, else 72 dpi */
 @property (readonly) double heightMM;
 @property uint32_t unit;

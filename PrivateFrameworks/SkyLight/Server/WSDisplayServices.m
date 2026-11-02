@@ -167,6 +167,68 @@ displaysMoved(void)
 	}
 }
 
+/*
+ * Permanent configurations: each display's mode (by size and refresh
+ * rate, since mode IDs may change) and place, by its persistent key,
+ * saved when a client configures permanently and applied at startup.
+ */
+static NSString *const kWSDisplaysPath = @"/var/db/WindowServer/Displays.plist";
+
+static void
+saveDisplays(void)
+{
+	NSMutableDictionary *all = [NSMutableDictionary dictionary];
+
+	for (WSDisplay *d in WSDisplays) {
+		const SLSDisplayMode *m = d.currentMode;
+		if (m == NULL)
+			continue;
+		all[d.persistentKey] = @{
+			@"Width": @(m->pixelWidth), @"Height": @(m->pixelHeight),
+			@"RefreshRate": @(m->refreshRate), @"X": @(d.x), @"Y": @(d.y),
+		};
+	}
+	if (![all writeToFile:kWSDisplaysPath atomically:YES])
+		fprintf(stderr, "WindowServer: cannot save %s\n", kWSDisplaysPath.UTF8String);
+}
+
+void
+WSDisplaysRestoreSaved(void)
+{
+	NSDictionary *all = [NSDictionary dictionaryWithContentsOfFile:kWSDisplaysPath];
+
+	for (WSDisplay *d in WSDisplays) {
+		NSDictionary *saved = all[d.persistentKey];
+		if (![saved isKindOfClass:[NSDictionary class]])
+			continue;
+		/* integerValue and doubleValue: numbers, or strings in a file
+		 * written in the old text format. */
+		uint32_t width = (uint32_t)[saved[@"Width"] integerValue];
+		uint32_t height = (uint32_t)[saved[@"Height"] integerValue];
+		double hz = [saved[@"RefreshRate"] doubleValue];
+		const SLSDisplayMode *best = NULL;
+		for (uint32_t i = 0; i < d.modeCount; i++) {
+			const SLSDisplayMode *m = [d modeAtIndex:i];
+			if (m->pixelWidth != width || m->pixelHeight != height)
+				continue;
+			if (best == NULL || fabs(m->refreshRate - hz) < fabs(best->refreshRate - hz))
+				best = m;
+		}
+		if (best != NULL && [d setModeID:best->modeID] == kSLSErrorSuccess)
+			fprintf(stderr, "WindowServer: display 0x%x: saved mode %ux%u\n",
+			    d.displayID, width, height);
+		d.x = [saved[@"X"] doubleValue];
+		d.y = [saved[@"Y"] doubleValue];
+	}
+	/* The main display stays at the origin. */
+	WSDisplay *first = WSDisplays.firstObject;
+	double dx = first.x, dy = first.y;
+	for (WSDisplay *d in WSDisplays) {
+		d.x -= dx;
+		d.y -= dy;
+	}
+}
+
 kern_return_t
 wss_display_configure(mach_port_t server, audit_token_t token, uint32_t option,
     ws_display_config_list_t ops, mach_msg_type_number_t count, int32_t *result,
@@ -242,9 +304,8 @@ wss_display_configure(mach_port_t server, audit_token_t token, uint32_t option,
 		}
 	}
 	displaysMoved();
-	// SHORTCUT(WS5): a permanent change lasts for the session and is not
-	// saved for the next one, until real mode changes (virtio-gpu) store
-	// the configuration; taken in WS1.
+	if (option == kSLSConfigurePermanently)
+		saveDisplays();
 	fprintf(stderr, "WindowServer: pid %d configured %u display change(s), option %u\n",
 	    audit_token_to_pid(token), count, option);
 	*result = kSLSErrorSuccess;

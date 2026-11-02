@@ -35,7 +35,9 @@
  *   wsctl windows    the window list, front to back
  *   wsctl displays   each display's bounds, mode and state
  *   wsctl modes      the main display's modes, the current one marked *
- *   wsctl mode ID    sets the main display's mode for the session
+ *   wsctl mode ID [permanent]
+ *                    sets the main display's mode for the session, or
+ *                    saves it for the next ones too
  *   wsctl front      the front app's process and the key window
  */
 
@@ -149,9 +151,9 @@ modes(void)
 	return 0;
 }
 
-/* Sets the main display's mode for the session. */
+/* Sets the main display's mode for the session, or permanently. */
 static int
-setMode(const char *arg)
+setMode(const char *arg, uint32_t option)
 {
 	SLSDisplayConfigRef config;
 	SLSDisplayID display;
@@ -169,7 +171,7 @@ setMode(const char *arg)
 		fprintf(stderr, "wsctl: no such mode: %s (%d)\n", arg, err);
 		return 1;
 	}
-	if ((err = SLSCompleteDisplayConfiguration(config, kSLSConfigureForSession)) !=
+	if ((err = SLSCompleteDisplayConfiguration(config, option)) !=
 	    kSLSErrorSuccess) {
 		fprintf(stderr, "wsctl: the mode was not set (%d)\n", err);
 		return 1;
@@ -189,9 +191,11 @@ main(int argc, char *argv[])
 	if (argc == 2 && strcmp(argv[1], "modes") == 0)
 		return modes();
 	if (argc == 3 && strcmp(argv[1], "mode") == 0)
-		return setMode(argv[2]);
+		return setMode(argv[2], kSLSConfigureForSession);
+	if (argc == 4 && strcmp(argv[1], "mode") == 0 && strcmp(argv[3], "permanent") == 0)
+		return setMode(argv[2], kSLSConfigurePermanently);
 	if (argc == 2 && strcmp(argv[1], "front") == 0)
 		return front();
-	fprintf(stderr, "usage: wsctl stats | windows | displays | modes | mode ID | front\n");
+	fprintf(stderr, "usage: wsctl stats | windows | displays | modes | mode ID [permanent] | front\n");
 	return 2;
 }

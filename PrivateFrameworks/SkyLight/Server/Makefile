@@ -60,6 +60,8 @@ to-sysroot: ${PROG}
 	# Its log directory: launchd opens the job's StandardErrorPath as
 	# _windowserver (UID and GID 88), who cannot write /var/log.
 	install -d -m 0755 -o 88 -g 88 ${SYSROOT_DIR}/private/var/log/WindowServer
+	# Where it saves permanent display configurations.
+	install -d -m 0755 -o 88 -g 88 ${SYSROOT_DIR}/private/var/db/WindowServer
 	${CODESIGN} -f -s - -i org.minkar.WindowServer \
 	    --entitlements ${.CURDIR}/WindowServer.entitlements \
 	    ${SYSROOT_DIR}${RESOURCES}/WindowServer

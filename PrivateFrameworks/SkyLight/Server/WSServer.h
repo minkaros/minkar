@@ -55,6 +55,9 @@ WSDisplay *WSDisplayWithID(uint32_t displayID);
 NSData *WSDisplayColorTable(WSDisplay *display);
 /* A connection's process exited: release what it held on the displays. */
 void WSDisplayServicesConnectionDied(WSConnection *connection);
+/* Applies the configuration last saved permanently (/var/db/WindowServer/
+ * Displays.plist), at startup, before the compositors start. */
+void WSDisplaysRestoreSaved(void);
 
 /* Window shadows: how far they reach out of the window, and how far
  * down they are; the compositor draws them, the window list damages them. */
