@@ -125,6 +125,9 @@ SRCS = \
     NSMeasurementUnit.m \
     NSMenu.subproj/NSMenu.m \
     NSMenu.subproj/NSMenuItem.m \
+    NSMenu.subproj/NSMenuBarView.m \
+    NSMenu.subproj/NSMenuView.m \
+    NSMenu.subproj/NSMenuWindow.m \
     NSModalSessionX.m \
     NSMutableAttributedString.m \
     NSMutableParagraphStyle.m \
@@ -542,6 +545,9 @@ HEADERS = \
 
 RESOURCES_DIRS = en.lproj de.lproj fr.lproj
 RESOURCES_FILES = Info.plist \
+	NSMenu.subproj/NSMenuArrow.tiff \
+	NSMenu.subproj/NSMenuViewDoubleRightArrow.tiff \
+	NSMenu.subproj/NSMenuViewDoubleRightArrowGray.tiff \
 	NSToolbar.subproj/NSToolbarPrintItem.tiff \
 	NSToolbar.subproj/NSToolbarOverflowArrow.tiff \
 	NSToolbar.subproj/NSToolbarShowFontsItem.tiff \

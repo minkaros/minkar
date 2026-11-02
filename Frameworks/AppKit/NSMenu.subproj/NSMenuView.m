@@ -21,7 +21,7 @@
  * THE SOFTWARE.
  */
 
-#import "desktop.h"
+#import "NSMenuBarView.h"
 #import "NSMenuWindow.h"
 
 #define MIN_TITLE_KEY_GAP 8
@@ -32,7 +32,7 @@ static NSRect boundsToTitleAreaRect(NSRect rect){
    return NSInsetRect(rect, WINDOW_BORDER_THICKNESS, WINDOW_BORDER_THICKNESS);
 }
 
-@implementation SubmenuView
+@implementation NSMenuView
 
 -initWithMenu:(NSMenu *)menu {
     NSRect frame = NSZeroRect;
@@ -118,7 +118,7 @@ static NSRect boundsToTitleAreaRect(NSRect rect){
             ITEM_MAX(size);
         }
 		
-        return NSMakeSize(width, MAX(height, menuBarHeight));
+        return NSMakeSize(width, MAX(height, kNSMenuItemHeight));
     }
 }
 
@@ -253,7 +253,7 @@ static NSRect boundsToTitleAreaRect(NSRect rect){
     [self setNeedsDisplay:YES];
 }
 
--(SubmenuView *)viewAtSelectedIndexPositionOnScreen:(NSScreen *)screen {
+-(NSMenuView *)viewAtSelectedIndexPositionOnScreen:(NSScreen *)screen {
     NSArray *items = [self visibleItemArray];
 
 #if 0
@@ -292,7 +292,7 @@ static NSRect boundsToTitleAreaRect(NSRect rect){
     NSImage *img = [item image];
     if(img) {
         titleSize.width += [img size].width;
-        titleSize.height = MAX(titleSize.height, menuBarHeight);
+        titleSize.height = MAX(titleSize.height, kNSMenuItemHeight);
     }
 
     result.origin = NSMakePoint(6, previousBorderRect.origin.y);

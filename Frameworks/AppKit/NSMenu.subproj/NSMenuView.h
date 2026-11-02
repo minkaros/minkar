@@ -24,11 +24,16 @@
 #import <AppKit/AppKit.h>
 #import <AppKit/NSGraphicsStyle.h>
 
-@interface NSMenu(SystemUIServer)
+@interface NSMenu(NSMenuViews)
 -(NSString *)_name;
 @end
 
-@interface SubmenuView : NSView {
+/* An item's height in the menu bar and in menus. SHORTCUT(Phase 5): the
+ * look of SystemUIServer's menus, kept until Gienah's design; taken in
+ * WS4b. */
+#define kNSMenuItemHeight	22
+
+@interface NSMenuView : NSView {
     NSWindow *_menuWindow;
     NSUInteger _selectedItemIndex;
     NSMutableArray *_visibleArray;
@@ -40,7 +45,7 @@
 -(NSSize)sizeForMenuItemImage:(NSMenuItem *)item;
 -(NSSize)sizeForMenuItems:(NSArray *)items;
 -(void)positionBranchForSelectedItem:(NSWindow *)branch window:(NSWindow *)window screen:(NSScreen *)screen;
--(SubmenuView *)viewAtSelectedIndexPositionOnScreen:(NSScreen *)screen;
+-(NSMenuView *)viewAtSelectedIndexPositionOnScreen:(NSScreen *)screen;
 -(unsigned)itemIndexAtPoint:(NSPoint)point;
 -(NSUInteger)selectedItemIndex;
 -(void)setSelectedItemIndex:(NSUInteger)itemIndex;

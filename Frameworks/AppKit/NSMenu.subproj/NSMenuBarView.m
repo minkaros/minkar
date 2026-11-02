@@ -19,7 +19,7 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE. */
 
-#import "desktop.h"
+#import "NSMenuBarView.h"
 #import "NSMenuWindow.h"
 #import <AppKit/NSFont.h>
 #import <AppKit/NSGraphicsStyle.h>
@@ -33,7 +33,7 @@ enum {
 	kNSMenuKeyboardNavigationLetter
 };
 
-@implementation NSMainMenuView
+@implementation NSMenuBarView
 
 +(NSFont *)menuFont {
     return [NSFont menuFontOfSize:15.0];
@@ -92,7 +92,7 @@ enum {
     NSImage *img = [item image];
     if(img) {
         titleSize.width += [img size].width;
-        titleSize.height = MAX(titleSize.height, menuBarHeight);
+        titleSize.height = MAX(titleSize.height, kNSMenuItemHeight);
     }
 
     result.origin = NSMakePoint(NSMaxX(previousBorderRect)+6,floor(([self bounds].size.height-titleSize.height)/2));
@@ -206,7 +206,7 @@ enum {
                 NSImage *img = [item image];
                 if(img) {
                     NSPoint pt = titleRect.origin;
-                    pt.y = (menuBarHeight / 2) + ([img size].height / 2);
+                    pt.y = (kNSMenuItemHeight / 2) + ([img size].height / 2);
                     [[item image] compositeToPoint:pt operation:NSCompositeSourceOver];
                 }
 
@@ -348,7 +348,7 @@ enum {
   [branch setFrameTopLeftPoint:topLeft];
 }
 
--(SubmenuView *)viewAtSelectedIndexPositionOnScreen:(NSScreen *)screen {
+-(NSMenuView *)viewAtSelectedIndexPositionOnScreen:(NSScreen *)screen {
    NSArray *items=[self visibleItemArray];
 
 #if 0
@@ -452,7 +452,7 @@ const float kMouseMovementThreshold = .001f;
             while(--count>=0){
                 
                 // get the deepest one
-                SubmenuView *checkView=[viewStack objectAtIndex:count];
+                NSMenuView *checkView=[viewStack objectAtIndex:count];
                 
                 // And find out where the mouse is relative to it
                 NSPoint     checkPoint=[[checkView window] convertScreenToBase:point];
@@ -473,7 +473,7 @@ const float kMouseMovementThreshold = .001f;
 
                     // If it's not the currently selected item
                     if(itemIndex!=[checkView selectedItemIndex]){
-                        SubmenuView *branch;
+                        NSMenuView *branch;
                         
                         // This looks like it's dealing with pushed cascading menu
                         // views that are no longer needed because the user has moved
@@ -569,10 +569,10 @@ const float kMouseMovementThreshold = .001f;
 					break;
 			}
 			
-			SubmenuView* activeMenuView = [viewStack lastObject];
+			NSMenuView* activeMenuView = [viewStack lastObject];
 
 			BOOL ignoreEnabledState = NO;
-			if ([viewStack count] == 1 && [activeMenuView isKindOfClass: [NSMainMenuView class]]) {
+			if ([viewStack count] == 1 && [activeMenuView isKindOfClass: [NSMenuBarView class]]) {
 				// For some reason main menu items are disabled - even though they work fine...
 				ignoreEnabledState = YES;
 				// we're navigating the top menu which has opposite semantics than a regular menu
@@ -679,7 +679,7 @@ const float kMouseMovementThreshold = .001f;
 				case kNSMenuKeyboardNavigationRight:
                 {
 						MENUDEBUG(@"Right...");
-					SubmenuView *branch = nil;
+					NSMenuView *branch = nil;
 					// If there's a submenu at the current  selected index
 					if((branch=[activeMenuView viewAtSelectedIndexPositionOnScreen:screen])!=nil) {
 						MENUDEBUG(@"adding a new cascading view: %@", branch);
@@ -762,7 +762,7 @@ const float kMouseMovementThreshold = .001f;
 			BOOL mouseMoved = ([event type] != NSAppKitDefined) &&
 								(fabs([event deltaX]) > kMouseMovementThreshold || fabs([event deltaY]) > kMouseMovementThreshold);
 			
-			SubmenuView * activeView = nil;
+			NSMenuView * activeView = nil;
 
 			// We may not have a menuview here - so be cautious - and we may have added a cascading menu
 			// so lastObject is also not the right thing to look at - we need to look at the menuview found in

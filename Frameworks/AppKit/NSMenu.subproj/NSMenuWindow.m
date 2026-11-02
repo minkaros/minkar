@@ -20,12 +20,12 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE. */
 
 #import "NSMenuWindow.h"
-#import "SubmenuView.h"
+#import "NSMenuView.h"
 
 @implementation NSMenuWindow
 
 -initWithMenu:(NSMenu *)menu {
-    SubmenuView *view=[[SubmenuView alloc] initWithMenu:menu];
+    NSMenuView *view=[[NSMenuView alloc] initWithMenu:menu];
     NSRect contentRect=[view frame];
 
     self = [self initWithContentRect:contentRect
@@ -63,7 +63,7 @@ SOFTWARE. */
 }
 #endif
 
--(SubmenuView *)menuView {
+-(NSMenuView *)menuView {
     return _view;
 }
 

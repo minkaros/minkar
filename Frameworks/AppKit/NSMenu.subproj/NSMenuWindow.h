@@ -20,15 +20,15 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE. */
 
 #import <AppKit/AppKit.h>
-#import "SubmenuView.h"
+#import "NSMenuView.h"
 
 @interface NSMenuWindow : NSPanel {
-    SubmenuView *_view;
+    NSMenuView *_view;
 }
 
 - initWithMenu:(NSMenu *)menu;
 //- initWithMenu:(NSMenu *)menu overflowAtIndex:(unsigned)overflowIndex;
 
-- (SubmenuView *)menuView;
+- (NSMenuView *)menuView;
 
 @end
