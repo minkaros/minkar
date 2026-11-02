@@ -206,6 +206,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
     title=[title copy];
     [_title release];
     _title=title;
+    [_menu itemChanged:self];
 }
 
 -(void)setAttributedTitle:(NSAttributedString *)title {
@@ -244,22 +245,26 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 -(void)setState:(int)state {
     _state = state;
+    [_menu itemChanged:self];
 }
 
 -(void)setKeyEquivalent:(NSString *)keyEquivalent {
    keyEquivalent=[keyEquivalent copy];
    [_keyEquivalent release];
    _keyEquivalent=keyEquivalent;
+   [_menu itemChanged:self];
 }
 
 -(void)setKeyEquivalentModifierMask:(unsigned)mask {
    _keyEquivalentModifierMask=mask;
+   [_menu itemChanged:self];
 }
 
 -(void)setImage:(NSImage *)image {
    image=[image retain];
     [_image release];
     _image = image;
+    [_menu itemChanged:self];
 }
 
 -(void)setOnStateImage:(NSImage *)image {
@@ -287,14 +292,21 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    [_submenu release];
    _submenu=submenu;
     [submenu setSupermenu:_menu];
+    [_menu itemChanged:self];
 }
 
 -(void)setEnabled:(BOOL)flag {
+   if(_enabled==flag)
+    return;
    _enabled=flag;
+   [_menu itemChanged:self];
 }
 
 -(void)setHidden:(BOOL)flag {
+   if(_hidden==flag)
+    return;
    _hidden=flag;
+   [_menu itemChanged:self];
 }
 
 +(NSDictionary *)keyNames {

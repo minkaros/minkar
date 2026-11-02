@@ -24,6 +24,7 @@ SOFTWARE. */
 
 @interface NSMenuWindow : NSPanel {
     NSMenuView *_view;
+    BOOL _didClose;
 }
 
 - initWithMenu:(NSMenu *)menu;

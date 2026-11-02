@@ -15,6 +15,21 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <CoreGraphics/CGDirectDisplay.h>
 #import <Foundation/NSKeyedArchiver.h>
 
+NSString *const NSMenuWillSendActionNotification = @"NSMenuWillSendActionNotification";
+NSString *const NSMenuDidSendActionNotification = @"NSMenuDidSendActionNotification";
+NSString *const NSMenuDidAddItemNotification = @"NSMenuDidAddItemNotification";
+NSString *const NSMenuDidRemoveItemNotification = @"NSMenuDidRemoveItemNotification";
+NSString *const NSMenuDidChangeItemNotification = @"NSMenuDidChangeItemNotification";
+NSString *const NSMenuDidBeginTrackingNotification = @"NSMenuDidBeginTrackingNotification";
+NSString *const NSMenuDidEndTrackingNotification = @"NSMenuDidEndTrackingNotification";
+
+static void postItemNotification(NSMenu *menu, NSString *name, NSUInteger index) {
+   NSDictionary *info=[NSDictionary dictionaryWithObject:[NSNumber numberWithInteger:index]
+                                                  forKey:@"NSMenuItemIndex"];
+
+   [[NSNotificationCenter defaultCenter] postNotificationName:name object:menu userInfo:info];
+}
+
 @implementation NSMenu
 
 +(void)popUpContextMenu:(NSMenu *)menu withEvent:(NSEvent *)event forView:(NSView *)view {
@@ -252,6 +267,7 @@ extern CGFloat _NSMenuBarHeightForDisplay(CGDirectDisplayID display);
 -(void)addItem:(NSMenuItem *)item {
    [item performSelector:@selector(_setMenu:) withObject:self];
    [_itemArray addObject:item];
+   postItemNotification(self,NSMenuDidAddItemNotification,[_itemArray count]-1);
 }
 
 -(NSMenuItem *)addItemWithTitle:(NSString *)title action:(SEL)action keyEquivalent:(NSString *)keyEquivalent {
@@ -268,8 +284,15 @@ extern CGFloat _NSMenuBarHeightForDisplay(CGDirectDisplayID display);
 }
 
 -(void)removeItem:(NSMenuItem *)item {
+   NSUInteger index=[_itemArray indexOfObjectIdenticalTo:item];
+
+   if(index==NSNotFound)
+    return;
+   [item retain];
    [item performSelector:@selector(_setMenu:) withObject:nil];
-   [_itemArray removeObjectIdenticalTo:item];
+   [_itemArray removeObjectAtIndex:index];
+   postItemNotification(self,NSMenuDidRemoveItemNotification,index);
+   [item release];
 }
 
 -(void)removeItemAtIndex:(int)index {
@@ -279,6 +302,7 @@ extern CGFloat _NSMenuBarHeightForDisplay(CGDirectDisplayID display);
 -(void)insertItem:(NSMenuItem *)item atIndex:(int)index {
    [item performSelector:@selector(_setMenu:) withObject:self];
    [_itemArray insertObject:item atIndex:index];
+   postItemNotification(self,NSMenuDidAddItemNotification,index);
 }
 
 -(NSMenuItem *)insertItemWithTitle:(NSString *)title action:(SEL)action keyEquivalent:(NSString *)keyEquivalent atIndex:(int)index {
@@ -330,16 +354,19 @@ BOOL itemIsEnabled(NSMenuItem *item) {
             BOOL currentlyEnabled = [item isEnabled] ? YES : NO;
             
             if(enabled!=currentlyEnabled && ![item _binderForBinding:@"enabled" create:NO]){
-                [item setEnabled:enabled];
-                [self itemChanged:item];
+                [item setEnabled:enabled]; // posts the change
             }
         }
-        
-        [[item submenu] update];
     }
+    /* Not the submenus: each is updated as it opens, or before its key
+       equivalents are looked at. */
 }
 
 -(void)itemChanged:(NSMenuItem *)item {
+   NSUInteger index=[_itemArray indexOfObjectIdenticalTo:item];
+
+   if(index!=NSNotFound)
+    postItemNotification(self,NSMenuDidChangeItemNotification,index);
 }
 
 -(BOOL)performKeyEquivalent:(NSEvent *)event {

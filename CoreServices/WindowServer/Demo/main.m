@@ -89,7 +89,7 @@
 
 @end
 
-@interface DemoDelegate : NSObject <NSApplicationDelegate>
+@interface DemoDelegate : NSObject <NSApplicationDelegate, NSMenuDelegate>
 @property (strong) NSWindow *window;
 @property (strong) NSWindow *second;
 @property (copy) NSString *commandPath;
@@ -125,7 +125,9 @@
      * "minimize" and "restore" (its window), "child" and "unchild" (a
      * green child window over its right edge), "sheet" and "endsheet",
      * "cursorrect" (an I-beam cursor over its blue view), "ibeam" (sets
-     * the I-beam cursor).
+     * the I-beam cursor), "menus" (a Test menu: Alpha, Beta disabled
+     * by validation, a More submenu with Gamma, and a delegate; each
+     * prints what happens).
      */
     NSArray *args = [[NSProcessInfo processInfo] arguments];
     NSUInteger cmd = [args indexOfObject:@"-cmd"];
@@ -202,6 +204,49 @@
         f.size.width, f.size.height);
 }
 
+/* The Test menu (MB0): actions, validation, a submenu and a delegate. */
+- (void)addTestMenu {
+    NSMenu *menu = [[NSMenu alloc] initWithTitle:@"Test"];
+    [menu setDelegate:self];
+    [[menu addItemWithTitle:@"Alpha" action:@selector(menuAlpha:) keyEquivalent:@"a"]
+        setTarget:self];
+    [[menu addItemWithTitle:@"Beta" action:@selector(menuBeta:) keyEquivalent:@""]
+        setTarget:self];
+    NSMenu *more = [[NSMenu alloc] initWithTitle:@"More"];
+    [more setDelegate:self];
+    [[more addItemWithTitle:@"Gamma" action:@selector(menuGamma:) keyEquivalent:@""]
+        setTarget:self];
+    [[menu addItemWithTitle:@"More" action:NULL keyEquivalent:@""] setSubmenu:more];
+    NSMenuItem *item = [[NSMenuItem alloc] initWithTitle:@"Test" action:NULL keyEquivalent:@""];
+    [item setSubmenu:menu];
+    [[NSApp mainMenu] addItem:item];
+    for (NSString *name in @[ NSMenuDidBeginTrackingNotification, NSMenuDidEndTrackingNotification,
+            NSMenuDidSendActionNotification ])
+        [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(menuNote:)
+            name:name object:nil];
+    printf("menus added\n");
+}
+
+- (void)menuAlpha:(id)sender { printf("menu alpha\n"); }
+- (void)menuBeta:(id)sender { printf("menu beta\n"); }
+- (void)menuGamma:(id)sender { printf("menu gamma\n"); }
+
+- (BOOL)validateMenuItem:(NSMenuItem *)item {
+    return [item action] != @selector(menuBeta:);
+}
+
+- (void)menuNeedsUpdate:(NSMenu *)menu { printf("menu needs update %s\n", [[menu title] UTF8String]); }
+- (void)menuWillOpen:(NSMenu *)menu { printf("menu will open %s\n", [[menu title] UTF8String]); }
+- (void)menuDidClose:(NSMenu *)menu { printf("menu did close %s\n", [[menu title] UTF8String]); }
+- (void)menu:(NSMenu *)menu willHighlightItem:(NSMenuItem *)item {
+    if (item != nil)
+        printf("menu highlight %s\n", [[item title] UTF8String]);
+}
+
+- (void)menuNote:(NSNotification *)note {
+    printf("menu note %s\n", [[note name] UTF8String]);
+}
+
 - (void)readCommand:(NSTimer *)timer {
     const char *path = [self.commandPath fileSystemRepresentation];
     char line[64] = "";
@@ -275,6 +320,8 @@
         printf("menu bar height=%.0f status bar thickness=%.0f\n",
             [[NSApp mainMenu] menuBarHeight], [[NSStatusBar systemStatusBar] thickness]);
     }
+    else if (strncmp(line, "menus", 5) == 0)
+        [self addTestMenu];
     else if (sscanf(line, "activate %d", &pid) == 1) {
         NSRunningApplication *app = [NSRunningApplication runningApplicationWithProcessIdentifier:pid];
         BOOL ok = [app activateWithOptions:NSApplicationActivateIgnoringOtherApps];

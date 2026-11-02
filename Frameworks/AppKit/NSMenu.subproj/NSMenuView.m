@@ -193,61 +193,33 @@ static NSRect boundsToTitleAreaRect(NSRect rect){
     return result;
 }
 
+/* A submenu opens to the right of this menu, its first item level with
+   the selected one; to the left when it does not fit on the right, and
+   moved up when it does not fit below. */
 -(void)positionBranchForSelectedItem:(NSWindow *)branch screen:(NSScreen *)screen {
     NSRect branchFrame = [branch frame];
-    //NSRect windowFrame = [window frame];
     NSRect screenVisible = [screen visibleFrame];
-    NSArray *items = [[self menu] itemArray];
-    unsigned i, count = [items count];
-    NSRect itemRect = boundsToTitleAreaRect([self bounds]);
-    NSPoint topLeft = NSZeroPoint;
+    NSArray *items = [self visibleItemArray];
+    NSRect itemArea = boundsToTitleAreaRect([self bounds]);
+    CGFloat y = itemArea.origin.y;
+    NSUInteger i, count = [items count];
 
-    for(i = 0; i < count; i++) {
-        NSMenuItem *item = [items objectAtIndex:i];
+    for(i = 0; i < count && i < _selectedItemIndex; i++)
+        y += [self heightOfMenuItem:[items objectAtIndex:i]];
 
-        itemRect.size.height = [self heightOfMenuItem:item];
-    
-        if(i == _selectedItemIndex) {
-            topLeft = itemRect.origin;
+    /* The view is flipped: the item's top is y, the branch's border
+       above it. */
+    NSPoint topLeft = NSMakePoint(NSMaxX([self bounds]), y - WINDOW_BORDER_THICKNESS);
+    topLeft = [[self window] convertBaseToScreen:[self convertPoint:topLeft toView:nil]];
 
-            topLeft.x += itemRect.size.width;
-            //topLeft.x -= WINDOW_BORDER_THICKNESS;
-            topLeft.y -= WINDOW_BORDER_THICKNESS;
-
-            break;
-        }
-
-        itemRect.origin.y += itemRect.size.height;
-    }
-
-    topLeft = [self convertPoint:topLeft toView:nil];
-    //topLeft = [[self window] convertBaseToScreen:topLeft];
-
-    if(topLeft.y - branchFrame.size.height < NSMinY(screenVisible)) {
-        topLeft = itemRect.origin;
-
-        topLeft.x += itemRect.size.width;
-        topLeft.y += itemRect.size.height;
-        topLeft.y += WINDOW_BORDER_THICKNESS;
-
-        topLeft = [self convertPoint:topLeft toView:nil];
-        //topLeft = [[self window] convertBaseToScreen:topLeft];
-
-        topLeft.y += branchFrame.size.height;
-    }
-
-    if(topLeft.x + branchFrame.size.width > NSMaxX(screenVisible)) {
-        NSPoint redo = itemRect.origin;
-
-        redo = [self convertPoint:redo toView:nil];
-        //redo = [[self window] convertBaseToScreen:redo];
-        redo.x -= branchFrame.size.width;
-
-        topLeft.x = redo.x;
-    }
-
-    //    topLeft.y -= windowFrame.origin.y;
-    //    topLeft.x -= windowFrame.origin.x;
+    if(topLeft.x + branchFrame.size.width > NSMaxX(screenVisible))
+        topLeft.x = NSMinX([[self window] frame]) - branchFrame.size.width;
+    if(topLeft.x < NSMinX(screenVisible))
+        topLeft.x = NSMinX(screenVisible);
+    if(topLeft.y - branchFrame.size.height < NSMinY(screenVisible))
+        topLeft.y = NSMinY(screenVisible) + branchFrame.size.height;
+    if(topLeft.y > NSMaxY(screenVisible))
+        topLeft.y = NSMaxY(screenVisible);
 
     [branch setFrameTopLeftPoint:topLeft];
     [self setNeedsDisplay:YES];
@@ -358,6 +330,12 @@ static NSRect boundsToTitleAreaRect(NSRect rect){
 
 -(void)setSelectedItemIndex:(NSUInteger)itemIndex {
     if (_selectedItemIndex != itemIndex) {
+        NSArray *items = [self visibleItemArray];
+        id delegate = [[self menu] delegate];
+
+        if ([delegate respondsToSelector:@selector(menu:willHighlightItem:)])
+            [delegate menu:[self menu] willHighlightItem:
+                (itemIndex < [items count]) ? [items objectAtIndex:itemIndex] : nil];
         _selectedItemIndex=itemIndex;
         [self setNeedsDisplay:YES];
     }

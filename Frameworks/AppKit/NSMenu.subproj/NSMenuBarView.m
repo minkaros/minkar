@@ -439,8 +439,7 @@ const float kMouseMovementThreshold = .001f;
 	// But while we're dealing with menus we want to track the mouse...
 	[[self window] setAcceptsMouseMovedEvents:YES];
 	
-	// Make sure the menu contents are up to date
-	[[self menu] update];
+	// Each menu is brought up to date as it opens (NSMenuWindow)
 	
 	// And we, of course, are first on the stack
 	[viewStack addObject:self];
@@ -568,7 +567,10 @@ const float kMouseMovementThreshold = .001f;
 					break;
 					
 				case '\r': // Return = select the current item and exit the loop
+				case 3: // Enter
 					MENUDEBUG(@"Selecting current item and exit");
+					// The keyboard's item, not one the mouse passed over
+					item = [[viewStack lastObject] itemAtSelectedIndex];
 					state = STATE_EXIT;
 					break;
 				case 27: // Escape = pop unless we're done then it's cancel
@@ -704,6 +706,15 @@ const float kMouseMovementThreshold = .001f;
 					if((branch=[activeMenuView viewAtSelectedIndexPositionOnScreen:screen])!=nil) {
 						MENUDEBUG(@"adding a new cascading view: %@", branch);
 						[viewStack addObject:branch];
+						// Opened from the keyboard: its first usable item is selected
+						NSArray *branchItems = [branch itemArray];
+						for (NSUInteger i = 0; i < [branchItems count]; i++) {
+							NSMenuItem *candidate = [branchItems objectAtIndex: i];
+							if (![candidate isSeparatorItem] && ([candidate isEnabled] || [candidate hasSubmenu])) {
+								[branch setSelectedItemIndex: i];
+								break;
+							}
+						}
 					} else {
 						// We'll pop it - they're trying to navigate to the next menu most likely
 						if ([viewStack count] > 1) {
@@ -821,7 +832,9 @@ const float kMouseMovementThreshold = .001f;
 					item=[activeView itemAtSelectedIndex];
 					if([event type]==NSLeftMouseUp){
 						MENUDEBUG(@"mouseUp on item: %@", item);
-						if(item == nil || ([viewStack count]<=2) || [item isEnabled]) {
+						/* Released over a disabled item or one with a submenu
+						   (a menu title too), the menu stays open. */
+						if(item == nil || ([item isEnabled] && ![item hasSubmenu])) {
 							MENUDEBUG(@"mouse up - exiting because of many possible reasons...");
 							state=STATE_EXIT;
 						} else {
@@ -859,7 +872,7 @@ const float kMouseMovementThreshold = .001f;
 	[[self window] setAcceptsMouseMovedEvents:oldAcceptsMouseMovedEvents];
 	[self setNeedsDisplay:YES];
 	
-	return ([item isEnabled])?item:(NSMenuItem *)nil;
+	return ([item isEnabled] && ![item hasSubmenu])?item:(NSMenuItem *)nil;
 }
 
 -(void)mouseDown:(NSEvent *)event {
@@ -869,15 +882,25 @@ const float kMouseMovementThreshold = .001f;
    [[self window] setAcceptsMouseMovedEvents:YES];
    /* With the new server, the bar holds the pointer while its menus are
       open: clicks outside them reach it (and close them). */
+   NSNotificationCenter *center=[NSNotificationCenter defaultCenter];
+
+   [center postNotificationName:NSMenuDidBeginTrackingNotification object:[self menu]];
    if(_CGUsesSkyLight())
     SLSCapturePointer([[self window] _skyLightWindowID]);
    item=[self trackForEvent:event];
    if(_CGUsesSkyLight())
     SLSCapturePointer(0);
    [[self window] setAcceptsMouseMovedEvents:didAccept];
-   
-   if(item!=nil)
+   [center postNotificationName:NSMenuDidEndTrackingNotification object:[self menu]];
+
+   if(item!=nil){
+    NSMenu       *menu=[item menu];
+    NSDictionary *info=[NSDictionary dictionaryWithObject:item forKey:@"MenuItem"];
+
+    [center postNotificationName:NSMenuWillSendActionNotification object:menu userInfo:info];
     [NSApp sendAction:[item action] to:[item target] from:item];
+    [center postNotificationName:NSMenuDidSendActionNotification object:menu userInfo:info];
+   }
 }
 
 @end

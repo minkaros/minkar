@@ -24,7 +24,19 @@ SOFTWARE. */
 
 @implementation NSMenuWindow
 
+/* A menu about to open is brought up to date first (its delegate's
+   menuNeedsUpdate:, then its items' validation), and told when it opens
+   and closes. */
+static void menuWillOpen(NSMenu *menu) {
+    id delegate=[menu delegate];
+
+    [menu update];
+    if([delegate respondsToSelector:@selector(menuWillOpen:)])
+        [delegate menuWillOpen:menu];
+}
+
 -initWithMenu:(NSMenu *)menu {
+    menuWillOpen(menu);
     NSMenuView *view=[[NSMenuView alloc] initWithMenu:menu];
     NSRect contentRect=[view frame];
 
@@ -65,6 +77,18 @@ SOFTWARE. */
 
 -(NSMenuView *)menuView {
     return _view;
+}
+
+-(void)close {
+    NSMenu *menu=[[[_view menu] retain] autorelease];
+    id      delegate=[menu delegate];
+
+    if(!_didClose && menu!=nil){
+        _didClose=YES;
+        if([delegate respondsToSelector:@selector(menuDidClose:)])
+            [delegate menuDidClose:menu];
+    }
+    [super close];
 }
 
 @end

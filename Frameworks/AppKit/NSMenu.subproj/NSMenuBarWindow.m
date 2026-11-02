@@ -44,6 +44,7 @@
 
 static NSMutableArray *menuBars;	/* NSMenuBarWindow, one per screen */
 static BOOL shown;
+static BOOL updating;	/* setting the bars up changes the main menu too */
 
 /*
  * The system menu, the same in every app: its items act with the minimal
@@ -160,8 +161,24 @@ static NSRect barFrame(NSScreen *screen) {
     [_view setNeedsDisplay:YES];
 }
 
+/* An item added to, removed from or changed in the main menu shows on
+ * the bars at once. */
++ (void)_menuChanged:(NSNotification *)note {
+    if([note object] == [NSApp mainMenu])
+        [self _mainMenuChanged];
+}
+
 + (void)_showMenuBars {
     NSArray *screens = [NSScreen screens];
+    static BOOL observing;
+
+    if(!observing) {
+        NSNotificationCenter *center = [NSNotificationCenter defaultCenter];
+        for(NSString *name in @[ NSMenuDidAddItemNotification, NSMenuDidRemoveItemNotification,
+                NSMenuDidChangeItemNotification ])
+            [center addObserver:self selector:@selector(_menuChanged:) name:name object:nil];
+        observing = YES;
+    }
 
     if(menuBars == nil)
         menuBars = [NSMutableArray new];
@@ -174,10 +191,12 @@ static NSRect barFrame(NSScreen *screen) {
         [menuBars addObject:bar];
         [bar release];
     }
+    updating = YES;
     for(NSMenuBarWindow *bar in menuBars) {
         [bar _setMainMenu:[NSApp mainMenu]];
         [bar orderFront:nil];
     }
+    updating = NO;
     shown = YES;
 }
 
@@ -188,10 +207,12 @@ static NSRect barFrame(NSScreen *screen) {
 }
 
 + (void)_mainMenuChanged {
-    if(!shown)
+    if(!shown || updating)
         return;
+    updating = YES;
     for(NSMenuBarWindow *bar in menuBars)
         [bar _setMainMenu:[NSApp mainMenu]];
+    updating = NO;
 }
 
 @end
