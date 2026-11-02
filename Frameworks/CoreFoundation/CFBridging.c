@@ -82,9 +82,14 @@ CF_EXPORT void CFSetupFoundationBridging(void)
         _CFRuntimeBridgeObjCDispatch(CFDictionaryGetTypeID());
     }
 
-    /* Minkar: CF's data functions take Foundation's NSData and
-     * NSMutableData too (CF_OBJC_FUNCDISPATCHV in CFData.c): an NSData
-     * from Foundation, such as CGDataProviderCopyData's, used to be read
-     * as a CFData, with NULL bytes. CF's own data objects stay native. */
+    /* Minkar: data is toll-free bridged both ways, as arrays are. CF's
+     * data objects made from now on have Foundation's bridge class
+     * (__NSCFData, NSCFData.m), so Objective-C messages reach CF (a CFData
+     * taken as an NSData crashed); and CF's data functions send
+     * Foundation's NSData and NSMutableData the message
+     * (CF_OBJC_FUNCDISPATCHV in CFData.c). */
+    uintptr_t dataClass = (uintptr_t)objc_lookUpClass("__NSCFData");
+    if (dataClass != 0)
+        _CFRuntimeRegisterObjCClass(CFDataGetTypeID(), dataClass);
     _CFRuntimeBridgeObjCDispatch(CFDataGetTypeID());
 }
