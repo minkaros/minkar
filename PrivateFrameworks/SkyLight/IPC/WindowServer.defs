@@ -551,3 +551,12 @@ routine window_set_status_item(
 	window			: uint32_t;
 	item			: int32_t;
 	out result		: int32_t);
+
+/* ---- Permanent display configuration (interface version 15) ---- */
+
+/* Puts every display back as last saved permanently (or as the server
+ * started, when nothing was saved); the caller's app-only changes end. */
+routine display_restore_permanent(
+	server			: mach_port_t;
+	ServerAuditToken token	: audit_token_t;
+	out result		: int32_t);

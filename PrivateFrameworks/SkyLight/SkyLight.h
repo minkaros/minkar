@@ -48,7 +48,7 @@ extern "C" {
 #define kSLSServiceName		"org.minkar.WindowServer"
 
 /* The interface version both sides are built for. */
-#define kSLSInterfaceVersion	14
+#define kSLSInterfaceVersion	15
 
 typedef int32_t SLSConnectionID;
 
@@ -202,6 +202,9 @@ int SLSConfigureDisplayMirrorOfDisplay(SLSDisplayConfigRef config, SLSDisplayID 
     SLSDisplayID primary);
 int SLSCompleteDisplayConfiguration(SLSDisplayConfigRef config, uint32_t option);
 int SLSCancelDisplayConfiguration(SLSDisplayConfigRef config);
+/* Every display as last saved permanently, or as the server started when
+ * nothing was (interface version 15). */
+int SLSRestorePermanentDisplayConfiguration(void);
 
 /* ---- Gamma: display transfer tables ------------------------------------ */
 

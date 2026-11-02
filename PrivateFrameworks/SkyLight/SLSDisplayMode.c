@@ -146,6 +146,18 @@ SLSCompleteDisplayConfiguration(SLSDisplayConfigRef config, uint32_t option)
 }
 
 int
+SLSRestorePermanentDisplayConfiguration(void)
+{
+	int32_t result = kSLSErrorFailure;
+	mach_port_t server = SLSServerPort();
+
+	if (server == MACH_PORT_NULL ||
+	    ws_display_restore_permanent(server, &result) != KERN_SUCCESS)
+		return kSLSErrorFailure;
+	return result;
+}
+
+int
 SLSCancelDisplayConfiguration(SLSDisplayConfigRef config)
 {
 	if (config == NULL)

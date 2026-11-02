@@ -452,9 +452,10 @@ CGError CGConfigureDisplayOrigin(CGDisplayConfigRef config, CGDirectDisplayID di
     return SLSConfigureDisplayOrigin(config->sls, display, x, y);
 }
 
-/* SHORTCUT(WS5) (the window server's): configurations last for the
-   session, so there is no permanent one to go back to. */
+/* The configuration last saved with kCGConfigurePermanently (or the
+   session's first, when none was), on every display. */
 void CGRestorePermanentDisplayConfiguration(void) {
+    SLSRestorePermanentDisplayConfiguration();
 }
 
 CGError CGConfigureDisplayStereoOperation(CGDisplayConfigRef config, CGDirectDisplayID display, boolean_t stereo, boolean_t forceBlueLine) {

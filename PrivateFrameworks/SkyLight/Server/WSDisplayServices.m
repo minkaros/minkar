@@ -174,8 +174,9 @@ displaysMoved(void)
  */
 static NSString *const kWSDisplaysPath = @"/var/db/WindowServer/Displays.plist";
 
-static void
-saveDisplays(void)
+/* Every display's mode and place, by persistent key. */
+static NSDictionary *
+currentConfiguration(void)
 {
 	NSMutableDictionary *all = [NSMutableDictionary dictionary];
 
@@ -188,15 +189,20 @@ saveDisplays(void)
 			@"RefreshRate": @(m->refreshRate), @"X": @(d.x), @"Y": @(d.y),
 		};
 	}
-	if (![all writeToFile:kWSDisplaysPath atomically:YES])
+	return all;
+}
+
+static void
+saveDisplays(void)
+{
+	if (![currentConfiguration() writeToFile:kWSDisplaysPath atomically:YES])
 		fprintf(stderr, "WindowServer: cannot save %s\n", kWSDisplaysPath.UTF8String);
 }
 
-void
-WSDisplaysRestoreSaved(void)
+/* Sets each display of the configuration to its mode and place. */
+static void
+applyConfiguration(NSDictionary *all)
 {
-	NSDictionary *all = [NSDictionary dictionaryWithContentsOfFile:kWSDisplaysPath];
-
 	for (WSDisplay *d in WSDisplays) {
 		NSDictionary *saved = all[d.persistentKey];
 		if (![saved isKindOfClass:[NSDictionary class]])
@@ -214,11 +220,13 @@ WSDisplaysRestoreSaved(void)
 			if (best == NULL || fabs(m->refreshRate - hz) < fabs(best->refreshRate - hz))
 				best = m;
 		}
-		if (best != NULL && [d setModeID:best->modeID] == kSLSErrorSuccess)
+		if (best != NULL && (d.currentMode == NULL || best->modeID != d.currentMode->modeID) &&
+		    [d setModeID:best->modeID] == kSLSErrorSuccess)
 			fprintf(stderr, "WindowServer: display 0x%x: saved mode %ux%u\n",
 			    d.displayID, width, height);
 		d.x = [saved[@"X"] doubleValue];
 		d.y = [saved[@"Y"] doubleValue];
+		d.mirrorOf = 0;
 	}
 	/* The main display stays at the origin. */
 	WSDisplay *first = WSDisplays.firstObject;
@@ -227,6 +235,35 @@ WSDisplaysRestoreSaved(void)
 		d.x -= dx;
 		d.y -= dy;
 	}
+}
+
+/* How the displays were when the server started: the permanent
+ * configuration while none was saved. */
+static NSDictionary *startupConfiguration;
+
+void
+WSDisplaysRestoreSaved(void)
+{
+	NSDictionary *saved = [NSDictionary dictionaryWithContentsOfFile:kWSDisplaysPath];
+
+	if (saved != nil) {
+		applyConfiguration(saved);
+		fprintf(stderr, "WindowServer: applied the saved display configuration\n");
+	}
+	startupConfiguration = currentConfiguration();
+}
+
+kern_return_t
+wss_display_restore_permanent(mach_port_t server, audit_token_t token, int32_t *result)
+{
+	NSDictionary *saved = [NSDictionary dictionaryWithContentsOfFile:kWSDisplaysPath];
+
+	/* The caller's app-only changes end here. */
+	[[WSConnection connectionForToken:token].appOnlyDisplays removeAllObjects];
+	applyConfiguration(saved != nil ? saved : startupConfiguration);
+	displaysMoved();
+	*result = kSLSErrorSuccess;
+	return KERN_SUCCESS;
 }
 
 kern_return_t

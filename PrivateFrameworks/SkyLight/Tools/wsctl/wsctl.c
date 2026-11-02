@@ -38,6 +38,7 @@
  *   wsctl mode ID [permanent]
  *                    sets the main display's mode for the session, or
  *                    saves it for the next ones too
+ *   wsctl restore    every display as saved permanently
  *   wsctl front      the front app's process and the key window
  */
 
@@ -194,8 +195,14 @@ main(int argc, char *argv[])
 		return setMode(argv[2], kSLSConfigureForSession);
 	if (argc == 4 && strcmp(argv[1], "mode") == 0 && strcmp(argv[3], "permanent") == 0)
 		return setMode(argv[2], kSLSConfigurePermanently);
+	if (argc == 2 && strcmp(argv[1], "restore") == 0) {
+		if (SLSRestorePermanentDisplayConfiguration() == kSLSErrorSuccess)
+			return 0;
+		fprintf(stderr, "wsctl: no window server\n");
+		return 1;
+	}
 	if (argc == 2 && strcmp(argv[1], "front") == 0)
 		return front();
-	fprintf(stderr, "usage: wsctl stats | windows | displays | modes | mode ID [permanent] | front\n");
+	fprintf(stderr, "usage: wsctl stats | windows | displays | modes | mode ID [permanent] | restore | front\n");
 	return 2;
 }
