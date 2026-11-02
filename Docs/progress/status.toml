@@ -33,7 +33,7 @@
 # "bmake progress" (Docs/CONTRIBUTING.md).
 
 updated = "2026-11-02"
-commit  = "ec034c983a"
+commit  = "9d510ec6c2"
 
 deps = [["ws", 555, "dock"], ["fw", 535, "kraz"]]
 
@@ -70,7 +70,7 @@ rows = ["fw"]
 id = "M4"
 title = "M4 Graphics and WindowServer"
 label = "M4"
-state = "current"
+state = "done"
 x = 650
 rows = ["ws", "mb"]
 
@@ -136,8 +136,8 @@ doc = "WindowServer-Rewrite.md"
 doc_es = "WindowServer-Rewrite.es.md"
 stations = [
   ["WS0", 290, "done"], ["WS1", 340, "done"], ["WS2", 390, "done"], ["WS3", 440, "done"],
-  ["ADR 0001", 495, "done"], ["WS4a", 555, "done"], ["WS4b", 650, "current"],
-  ["WS5", 850, "todo"], ["WS6", 1060, "todo"],
+  ["ADR 0001", 495, "done"], ["WS4a", 555, "done"], ["WS4b", 650, "done"],
+  ["WS5", 850, "current"], ["WS6", 1060, "todo"],
 ]
 
 [[line]]
@@ -147,7 +147,7 @@ color = "purple"
 doc = "Menus.md"
 doc_es = "Menus.es.md"
 stations = [
-  ["MB0", 650, "current"], ["MB1", 760, "todo"], ["MB2", 865, "todo"], ["MB3", 970, "todo"],
+  ["MB0", 650, "done"], ["MB1", 760, "todo"], ["MB2", 865, "todo"], ["MB3", 970, "todo"],
   ["MB4", 1025, "todo"],
 ]
 
@@ -212,7 +212,17 @@ stations = [["x86-64 apps", 1082, "todo"], ["arm64", 1150, "todo"]]
 # The work board. "line" picks a card's colour; "here" marks a station of
 # the metro map as where work is.
 [board]
-here = "WS4b"
+here = "WS5"
+
+[[board.done]]
+title = "Gate M4 met (in QEMU)"
+note = "54 markers, the menus in the app · 2 nov"
+line = "ws"
+
+[[board.done]]
+title = "WS4b closed: the switch"
+note = "new server by default, legacy removed · 2 nov"
+line = "ws"
 
 [[board.done]]
 title = "Minimal loginwindow"
@@ -234,22 +244,13 @@ title = "The app's menu bar"
 note = "its own window, Minkar logo · MB0 · 1 nov"
 line = "mb"
 
-[[board.done]]
-title = "CF data bridged both ways"
-note = "CFData and NSData · 1 nov"
-line = "fw"
-
-[[board.done]]
-title = "WS4a closed"
-note = "the server's behavior · 1 nov"
-line = "ws"
 
 [[board.now]]
-title = "WS4b + MB0 — The switch"
-note = "menus in the app, Legacy/ removed → gate M4"
+title = "WS5 — IOSurface and virtio-gpu"
+note = "surfaces in Mach memory, real flips, display streams"
 line = "ws"
-done = 9
-total = 14
+done = 0
+total = 3
 
 [[board.now]]
 title = "Foundation audit"
@@ -292,7 +293,7 @@ items = [["MB4 Services, D4 stacks and Trash, K4 search and tags", "mb"]]
 
 [[board.later]]
 group = "→ Minkar 21.0"
-items = [["WS5 IOSurface, WS6 GPU compositing", "ws"], ["G2–G5 driver, Mesa, Metal", "gpu"]]
+items = [["WS6 GPU compositing", "ws"], ["G2–G5 driver, Mesa, Metal", "gpu"]]
 
 [[board.later]]
 group = "→ M7"

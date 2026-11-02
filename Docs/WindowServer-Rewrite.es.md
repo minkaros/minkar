@@ -224,7 +224,7 @@ Avance:
 - [x] WS3 — Entrada (1 nov 2026)
 - [x] ADR 0001 — Validación de entitlements en el kernel, necesaria para WS4a (1 nov 2026)
 - [x] WS4a — Comportamiento del servidor (1 nov 2026)
-- [ ] WS4b — El cambio de servidor (con MB0 de [Menus.es.md](Menus.es.md))
+- [x] WS4b — El cambio de servidor (con MB0 de [Menus.es.md](Menus.es.md); 2 nov 2026)
 - [ ] WS5 — IOSurface y virtio-gpu
 - [ ] WS6 — Composición por GPU
 
@@ -571,6 +571,20 @@ Estado al 1 nov 2026:
 - Gate M4 en QEMU: varias apps de AppKit abren ventanas, se arrastran,
   reciben teclado y redibujan sin artefactos, más las pruebas de menús de
   MB0.
+- Hecho el 2 nov 2026 (`6c3b719a32` a `9d510ec6c2`): MB0 (las vistas de
+  menú en AppKit, la barra de menús de la app, el seguimiento, los atajos de
+  teclado y Control-F2, los menús contextuales y los botones emergentes, los
+  elementos de estado, el menú del sistema, sin el camino viejo de menús);
+  `quit` en la sesión de LaunchServices y el `loginwindow` mínimo, que
+  arranca la sesión; el servicio del servidor nuevo es
+  `org.minkar.WindowServer` y arranca con el sistema (`-textconsole` mantiene
+  la consola de texto); CoreGraphics y AppKit solo a través de SkyLight (los
+  modos, la configuración, el cursor, la gamma y los fundidos de Quartz
+  Display Services van por ahí); `Legacy/` y sus bibliotecas borrados. Gate
+  M4: 54 marcadores, con M4-draw y M4-compose dentro; pruebas locales
+  `menubar`, `menus`, `loginwindow` y `cgwindow` (30 comprobaciones); suite
+  local completa: 3192 pasadas. WS4b queda cerrado: no queda ningún
+  `SHORTCUT(WS4b)`.
 
 ### WS5 — IOSurface y virtio-gpu
 

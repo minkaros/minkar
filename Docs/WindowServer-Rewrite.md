@@ -208,7 +208,7 @@ Progress:
 - [x] WS3 — Input (2026-11-01)
 - [x] ADR 0001 — Kernel entitlement validation, needed by WS4a (2026-11-01)
 - [x] WS4a — Server behavior (2026-11-01)
-- [ ] WS4b — The switch (with MB0 of [Menus.md](Menus.md))
+- [x] WS4b — The switch (with MB0 of [Menus.md](Menus.md); 2026-11-02)
 - [ ] WS5 — IOSurface and virtio-gpu
 - [ ] WS6 — GPU compositing
 
@@ -525,6 +525,18 @@ State on 2026-11-01:
   are the libinput, libevdev and mtdev trees.
 - Gate M4 in QEMU: several AppKit apps open windows, are dragged, take
   keyboard input and redraw without artifacts, plus MB0's menu tests.
+- Done 2026-11-02 (`6c3b719a32` to `9d510ec6c2`): MB0 (the menu views in
+  AppKit, the app's menu bar, tracking, key equivalents and Control-F2,
+  context menus and pop-up buttons, status items, the system menu, the old
+  menu path removed); `quit` in LaunchServices' session and the minimal
+  `loginwindow`, which starts the session; the new server's service is
+  `org.minkar.WindowServer`, started at boot (`-textconsole` keeps the text
+  console); CoreGraphics and AppKit through SkyLight only (Quartz Display
+  Services' modes, configuration, cursor, gamma and fades routed there);
+  `Legacy/` and its libraries removed. Gate M4: 54 markers, with M4-draw
+  and M4-compose folded into it; local tests `menubar`, `menus`,
+  `loginwindow` and `cgwindow` (30 checks); full local suite 3192 passed.
+  WS4b is closed: no `SHORTCUT(WS4b)` is left.
 
 ### WS5 — IOSurface and virtio-gpu
 

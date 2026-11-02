@@ -239,7 +239,7 @@ Each milestone ends with tests that pass, the existing gates still green and
 the roadmap updated with the evidence. Milestones are named MB*n* to keep
 them apart from the gates M*n*.
 
-- [ ] **MB0 — Menus in the app (part of WS4b).** Menu views moved into AppKit;
+- [x] **MB0 — Menus in the app (part of WS4b; done 2026-11-02, gate M4, `9d510ec6c2`).** Menu views moved into AppKit;
   one menu bar window per display for the front app; tracking by click,
   drag and keyboard; submenus; validation and the delegate at open time;
   key equivalents in the documented order; context menus and pop-up

@@ -253,7 +253,7 @@ Cada hito termina con pruebas que pasan, los gates existentes todavía en verde
 y el roadmap actualizado con la evidencia. Los hitos se llaman MB*n* para
 distinguirlos de los gates M*n*.
 
-- [ ] **MB0 — Menús en la app (parte de WS4b).** Las vistas de menú pasan a
+- [x] **MB0 — Menús en la app (parte de WS4b; hecho el 2 nov 2026, gate M4, `9d510ec6c2`).** Las vistas de menú pasan a
   AppKit; una ventana de barra de menús por pantalla para la app del frente;
   seguimiento con clic, arrastre y teclado; submenús; validación y delegado
   al abrir; atajos en el orden documentado; menús contextuales y botones
