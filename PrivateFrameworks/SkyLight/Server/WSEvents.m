@@ -419,16 +419,75 @@ routeMouse(SLSEvent *e)
 		send(target, e);
 }
 
+/* ---- The input state (SLSGetHIDState) ---- */
+
+static SLSHIDState hidStates[2];	/* hardware, combined */
+
+static void
+noteState(SLSHIDState *s, const SLSEvent *e)
+{
+	uint32_t type = e->type;
+
+	if (type < kSLSHIDEventTypes) {
+		s->counters[type]++;
+		s->lastEvent[type] = e->timestamp ? e->timestamp : WSNanoseconds();
+	}
+	switch (type) {
+	case kSLSEventLeftMouseDown: case kSLSEventRightMouseDown: case kSLSEventOtherMouseDown:
+		if (e->buttonNumber < 32)
+			s->buttons |= 1u << e->buttonNumber;
+		break;
+	case kSLSEventLeftMouseUp: case kSLSEventRightMouseUp: case kSLSEventOtherMouseUp:
+		if (e->buttonNumber < 32)
+			s->buttons &= ~(1u << e->buttonNumber);
+		break;
+	case kSLSEventKeyDown:
+		if (e->keyCode < 128)
+			s->keys[e->keyCode / 32] |= 1u << (e->keyCode % 32);
+		break;
+	case kSLSEventKeyUp:
+		if (e->keyCode < 128)
+			s->keys[e->keyCode / 32] &= ~(1u << (e->keyCode % 32));
+		break;
+	case kSLSEventFlagsChanged:
+		/* A modifier key: one event when pressed, one when released. */
+		if (e->keyCode < 128)
+			s->keys[e->keyCode / 32] ^= 1u << (e->keyCode % 32);
+		break;
+	}
+	if (type == kSLSEventKeyDown || type == kSLSEventKeyUp || type == kSLSEventFlagsChanged ||
+	    (type >= kSLSEventLeftMouseDown && type <= 27))
+		s->flags = e->flags;
+}
+
+kern_return_t
+wss_hid_state(mach_port_t server, uint32_t which, int32_t *result, SLSHIDState *state)
+{
+	memset(state, 0, sizeof(*state));
+	if (which > kSLSHIDStateCombined) {
+		*result = kSLSErrorIllegalArgument;
+		return KERN_SUCCESS;
+	}
+	*state = hidStates[which];
+	state->now = WSNanoseconds();
+	*result = kSLSErrorSuccess;
+	return KERN_SUCCESS;
+}
+
+/* From the input devices. */
 void
 WSRouteEvent(SLSEvent *e)
 {
 	WSStatsCountEvent();
+	noteState(&hidStates[kSLSHIDStateHardware], e);
 	WSRouteEventAt(e, 0);
 }
 
+/* From the devices, or posted at a tap location. */
 void
 WSRouteEventAt(SLSEvent *e, uint32_t location)
 {
+	noteState(&hidStates[kSLSHIDStateCombined], e);
 	if (!WSTapsFilter(e, location))
 		return;
 	if (e->type == kSLSEventKeyDown || e->type == kSLSEventKeyUp ||

@@ -627,27 +627,73 @@ CGEventSourceStateID CGEventSourceGetSourceStateID(CGEventSourceRef source) {
     return source ? source->state : kCGEventSourceStatePrivate;
 }
 
-/* SHORTCUT(WS4a): the HID state (buttons, keys, flags, times since the
- * last events) is not asked of the server yet, which has no request for
- * it; taken in WS3. */
+/*
+ * The input state, from the new window server (SLSGetHIDState): the HID
+ * system state is what the devices did, the combined session state adds
+ * the events posted. A private state (one source's own events) is not
+ * kept: it reads as nothing pressed, as before any event.
+ */
+static bool hidState(CGEventSourceStateID stateID, SLSHIDState *state) {
+    uint32_t which;
+
+    if(stateID == kCGEventSourceStateHIDSystemState)
+        which = kSLSHIDStateHardware;
+    else if(stateID == kCGEventSourceStateCombinedSessionState)
+        which = kSLSHIDStateCombined;
+    else
+        return false;
+    return _CGUsesSkyLight() && SLSGetHIDState(which, state) == kSLSErrorSuccess;
+}
+
 bool CGEventSourceButtonState(CGEventSourceStateID stateID, CGMouseButton button) {
-    return false;
+    SLSHIDState state;
+
+    return button < 32 && hidState(stateID, &state) && (state.buttons & (1u << button)) != 0;
 }
 
 bool CGEventSourceKeyState(CGEventSourceStateID stateID, CGKeyCode key) {
-    return false;
+    SLSHIDState state;
+
+    return key < 128 && hidState(stateID, &state) &&
+        (state.keys[key / 32] & (1u << (key % 32))) != 0;
 }
 
 CGEventFlags CGEventSourceFlagsState(CGEventSourceStateID stateID) {
-    return 0;
+    SLSHIDState state;
+
+    return hidState(stateID, &state) ? (CGEventFlags)state.flags : 0;
 }
 
+/* kCGAnyInputEventType: the most recent of any type. */
 CFTimeInterval CGEventSourceSecondsSinceLastEventType(CGEventSourceStateID stateID, CGEventType eventType) {
-    return 0;
+    SLSHIDState state;
+    uint64_t last = 0;
+
+    if(!hidState(stateID, &state))
+        return 0;
+    if(eventType == kCGAnyInputEventType) {
+        for(uint32_t i = 0; i < kSLSHIDEventTypes; i++)
+            if(state.lastEvent[i] > last)
+                last = state.lastEvent[i];
+    } else if(eventType < kSLSHIDEventTypes)
+        last = state.lastEvent[eventType];
+    if(last == 0 || last > state.now)
+        return state.now / 1e9;    /* none since boot */
+    return (state.now - last) / 1e9;
 }
 
 uint32_t CGEventSourceCounterForEventType(CGEventSourceStateID stateID, CGEventType eventType) {
-    return 0;
+    SLSHIDState state;
+    uint32_t n = 0;
+
+    if(!hidState(stateID, &state))
+        return 0;
+    if(eventType == kCGAnyInputEventType) {
+        for(uint32_t i = 0; i < kSLSHIDEventTypes; i++)
+            n += state.counters[i];
+        return n;
+    }
+    return eventType < kSLSHIDEventTypes ? state.counters[eventType] : 0;
 }
 
 int64_t CGEventSourceGetUserData(CGEventSourceRef source) {

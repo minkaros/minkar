@@ -48,7 +48,7 @@ extern "C" {
 #define kSLSServiceName		"org.minkar.WindowServer.next"
 
 /* The interface version both sides are built for. */
-#define kSLSInterfaceVersion	13
+#define kSLSInterfaceVersion	14
 
 typedef int32_t SLSConnectionID;
 
@@ -248,8 +248,9 @@ typedef uint32_t SLSFadeReservation;
 
 int SLSAcquireFadeReservation(double seconds, SLSFadeReservation *reservation);
 int SLSReleaseFadeReservation(SLSFadeReservation reservation);
-/* The server applies endBlend at once; with synchronous set the caller
- * then waits duration seconds, as the fade would take. */
+/* The server goes from startBlend to endBlend over duration seconds (at
+ * once for 0), drawing each frame; with synchronous set the caller waits
+ * that long. Interface version 14 sends the duration. */
 int SLSFadeDisplays(SLSFadeReservation reservation, double duration, float startBlend,
     float endBlend, float red, float green, float blue, int synchronous);
 /* The current blend and the reservation holder's PID (0 when none). */
@@ -636,6 +637,33 @@ int SLSGetEventTapList(uint32_t max, SLSEventTapInfo *taps, uint32_t *count);
  * the console's user only, as filtering taps, until the privacy service
  * decides; taken in WS3. */
 int SLSPostEvent(uint32_t location, const SLSEvent *event);
+
+/*
+ * The input state (interface version 14), for CGEventSource's state
+ * functions: kSLSHIDStateHardware is what the input devices did,
+ * kSLSHIDStateCombined adds the events posted (SLSPostEvent). Buttons are
+ * bits by button number, keys bits by key code; per event type (the
+ * public CGEventType, below 32), how many there were and when the last
+ * one came (nanoseconds since boot, as now).
+ */
+enum {
+	kSLSHIDStateHardware	= 0,
+	kSLSHIDStateCombined	= 1,
+};
+#define kSLSHIDEventTypes	32
+typedef struct SLSHIDState {
+	uint32_t	buttons;
+	uint32_t	flags;
+	uint32_t	keys[4];		/* key codes 0 to 127 */
+	uint32_t	counters[kSLSHIDEventTypes];
+	uint64_t	lastEvent[kSLSHIDEventTypes];
+	uint64_t	now;
+} SLSHIDState;
+#define kSLSHIDStateWords	104
+#ifndef __cplusplus
+_Static_assert(sizeof(SLSHIDState) == kSLSHIDStateWords * 4, "SLSHIDState size");
+#endif
+int SLSGetHIDState(uint32_t which, SLSHIDState *state);
 
 /* The key window, which gets the keys; a click makes a window key too. */
 int SLSSetKeyWindow(SLSWindowID window);
