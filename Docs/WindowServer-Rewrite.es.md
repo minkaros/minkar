@@ -223,7 +223,7 @@ Avance:
 - [x] WS2 — Ventanas, superficies y compositor por software (1 nov 2026)
 - [x] WS3 — Entrada (1 nov 2026)
 - [x] ADR 0001 — Validación de entitlements en el kernel, necesaria para WS4a (1 nov 2026)
-- [ ] WS4a — Comportamiento del servidor
+- [x] WS4a — Comportamiento del servidor (1 nov 2026)
 - [ ] WS4b — El cambio de servidor (con MB0 de [Menus.es.md](Menus.es.md))
 - [ ] WS5 — IOSurface y virtio-gpu
 - [ ] WS6 — Composición por GPU
@@ -548,6 +548,14 @@ Estado al 1 nov 2026:
   servidor nuevo (`5039d3f2e4`). Pruebas locales `child-windows`,
   `cursors`, `cgwindow` (11/0); gate M4-compose con referencias nuevas
   (`c10556003b`).
+- [x] Atajos de hitos anteriores (`a2a46220f8`, `9d166822ff`,
+  `e31dd0ef53`): el estado de `CGEventSource` lo da el servidor; el
+  compositor aplica las tablas de transferencia y los fundidos (animados
+  durante su duración); la entrada se lee y se reparte en su propia cola
+  de alta prioridad sobre una instantánea del modelo que publica la cola
+  de IPC. Prueba local `gamma-fade` y el conjunto del servidor (117
+  pasadas); gates M2 y M4-compose. WS4a queda cerrado: no queda ningún
+  `SHORTCUT(WS4a)` (1 nov 2026).
 
 ### WS4b — El cambio de servidor
 

@@ -207,7 +207,7 @@ Progress:
 - [x] WS2 — Windows, surfaces and the software compositor (2026-11-01)
 - [x] WS3 — Input (2026-11-01)
 - [x] ADR 0001 — Kernel entitlement validation, needed by WS4a (2026-11-01)
-- [ ] WS4a — Server behavior
+- [x] WS4a — Server behavior (2026-11-01)
 - [ ] WS4b — The switch (with MB0 of [Menus.md](Menus.md))
 - [ ] WS5 — IOSurface and virtio-gpu
 - [ ] WS6 — GPU compositing
@@ -503,6 +503,13 @@ State on 2026-11-01:
   with the new server (`5039d3f2e4`). Local tests `child-windows`,
   `cursors`, `cgwindow` (11/0); gate M4-compose with new references
   (`c10556003b`).
+- [x] Shortcuts of earlier milestones (`a2a46220f8`, `9d166822ff`,
+  `e31dd0ef53`): `CGEventSource`'s state from the server; the compositor
+  applies transfer tables and fades (animated over their duration); input
+  is read and routed on its own high-priority queue over a snapshot of
+  the model the IPC queue publishes. Local tests `gamma-fade` and the
+  server's set (117 passed); gates M2 and M4-compose. WS4a is closed: no
+  `SHORTCUT(WS4a)` is left (2026-11-01).
 
 ### WS4b — The switch
 

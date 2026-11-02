@@ -33,7 +33,7 @@
 # "bmake progress" (Docs/CONTRIBUTING.md).
 
 updated = "2026-11-01"
-commit  = "08cad8d686"
+commit  = "e31dd0ef53"
 
 deps = [["ws", 555, "dock"], ["fw", 535, "kraz"]]
 
@@ -136,7 +136,7 @@ doc = "WindowServer-Rewrite.md"
 doc_es = "WindowServer-Rewrite.es.md"
 stations = [
   ["WS0", 290, "done"], ["WS1", 340, "done"], ["WS2", 390, "done"], ["WS3", 440, "done"],
-  ["ADR 0001", 495, "done"], ["WS4a", 555, "current"], ["WS4b", 650, "todo"],
+  ["ADR 0001", 495, "done"], ["WS4a", 555, "done"], ["WS4b", 650, "current"],
   ["WS5", 850, "todo"], ["WS6", 1060, "todo"],
 ]
 
@@ -212,7 +212,27 @@ stations = [["x86-64 apps", 1082, "todo"], ["arm64", 1150, "todo"]]
 # The work board. "line" picks a card's colour; "here" marks a station of
 # the metro map as where work is.
 [board]
-here = "WS4a"
+here = "WS4b"
+
+[[board.done]]
+title = "WS4a closed"
+note = "the server's behavior · 1 nov"
+line = "ws"
+
+[[board.done]]
+title = "Input on its own queue"
+note = "over a model snapshot · WS4a · 1 nov"
+line = "ws"
+
+[[board.done]]
+title = "Transfer tables and fades"
+note = "on the screen · WS4a · 1 nov"
+line = "ws"
+
+[[board.done]]
+title = "CGEventSource state"
+note = "WS4a · 1 nov"
+line = "ws"
 
 [[board.done]]
 title = "Display capture"
@@ -220,36 +240,16 @@ note = "CGDisplayGetDrawingContext · WS4a · 1 nov"
 line = "ws"
 
 [[board.done]]
-title = "Window shadows"
-note = "WS4a · 1 nov"
-line = "ws"
-
-[[board.done]]
-title = "Cursors and cursor rects"
-note = "WS4a · 1 nov"
-line = "ws"
-
-[[board.done]]
-title = "Child windows and sheets"
-note = "WS4a · 1 nov"
-line = "ws"
-
-[[board.done]]
 title = "Boot panic fixed"
 note = "ACPI interrupts · 1 nov"
 line = "base"
 
-[[board.done]]
-title = "Window lists and images"
-note = "CGWindowListCreateImage · WS4a · 1 nov"
-line = "ws"
-
 [[board.now]]
-title = "WS4a — Server behavior"
-note = "Left: earlier shortcuts (input queue, CGEventSource state, transfer tables and fades)"
+title = "WS4b + MB0 — The switch"
+note = "menus in the app, Legacy/ removed → gate M4"
 line = "ws"
-done = 8
-total = 9
+done = 0
+total = 6
 
 [[board.now]]
 title = "Foundation audit"
@@ -264,13 +264,13 @@ line = "fw"
 partial = true
 
 [[board.next]]
-title = "WS4b + MB0 — The switch"
-note = "menus in the app, Legacy/ removed → gate M4"
-line = "ws"
+title = "CF data bridged both ways"
+note = "a CFData taken as an NSData crashes"
+line = "fw"
 
 [[board.next]]
 title = "D0 · K0 — Dock and Kraz prerequisites"
-note = "after WS4a"
+note = "can start: WS4a is done"
 line = "dock"
 
 [[board.next]]
