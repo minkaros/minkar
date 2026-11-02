@@ -99,7 +99,7 @@ Minkar boots on Darwin with its own EFI loader, the whole system builds as Mach-
 | CoreFoundation | CF-Lite (APSL) | The APIs missing up to API 21 | 3 |
 | Foundation | Three batches of fixes (2026-10-26); `NSProcessInfo` with `operatingSystemVersion`; re-exports CoreFoundation; `NSURLSession` on libcurl, with cookies; `NSOperationQueue` on dispatch; the main run loop runs dispatch's main queue; `NSDateFormatter` on ICU (2026-10-31); `NSXPCConnection` over libxpc, with the XPC services inside app bundles (2026-10-31) | URL cache and task metrics in `NSURLSession`; the API 19 audit | 3 |
 | Swift 6 | Nothing in the tree | Compiler, stdlib, overlays | 3 |
-| WindowServer | The new core is the window server (WS4b done 2026-11-02, gate `M4`): its interface in `SkyLight.framework`, its server started at boot as `_windowserver` with the minimal `loginwindow`; it composites AppKit windows with pixman, routes input from IOHIDSystem with event taps, and each app draws its own menus (MB0). The legacy server is gone. WS5 under way: IOSurface with its registry `iosurfaced`, and a virtio-gpu 2D driver flushed per frame, with mode changes (2026-11-02) | The rest of WS5 (display streams, captured displays' drawing context, the idle display link), then the GPU (WS6) | 4 |
+| WindowServer | The new core is the window server (WS4b done 2026-11-02, gate `M4`): its interface in `SkyLight.framework`, its server started at boot as `_windowserver` with the minimal `loginwindow`; it composites AppKit windows with pixman, routes input from IOHIDSystem with event taps, and each app draws its own menus (MB0). The legacy server is gone. WS5 done (2026-11-02): IOSurface with its registry `iosurfaced`, IOSurface windows, a virtio-gpu 2D driver flushed per frame with mode changes, permanent display configurations, `CGDisplayStream` | The GPU (WS6): the G1 ADR first | 4 |
 | GPU acceleration | None; without it the display cannot be turned off either | The whole track (performance requirement) | 4 and Minkar 21.0 |
 | SystemUIServer, Dock | Partial, not built | Almost everything | 5 |
 | Kraz, System Preferences | Do not exist | New Cocoa apps | 5 |
@@ -308,7 +308,7 @@ Of the graphical environment, the drawing base exists (Core Graphics with FreeTy
 Components, by state:
 
 - **There:** Core Graphics with FreeType; pixman, libpng, libjpeg and libtiff (`BSD/lib`); the GOP console (`IOGOPFramebuffer`); USB input (xHCI + HID, `MinkarUSB`); the `IOKit/hidsystem` headers; IOHIDSystem event delivery; `ApplePS2Mouse` and the PS/2 keyboard.
-- **Partial:** WindowServer (WS0 to WS4b done: the new core is the window server, in QEMU; WS5 and WS6 to do); QuartzCore and Onyx2D; AppKit (Cocotron; the fixes a first window needed, 2026-10-31).
+- **Partial:** WindowServer (WS0 to WS5 done: the new core is the window server, with IOSurface and virtio-gpu, in QEMU; WS6 to do); QuartzCore and Onyx2D; AppKit (Cocotron; the fixes a first window needed, 2026-10-31).
 - **Missing:** the Core Animation compositor; Core Text on HarfBuzz/FreeType; giflib and libwebp; ColorSync on Little CMS; and the GPU track (kernel driver, Mesa, Metal).
 
 Each piece's technical detail is in the graphics stack's technical guide.
@@ -325,7 +325,7 @@ Development sequence:
 
 In parallel, the GPU track G1–G5: from the first driver's family and the KMS prototype to Mesa (lavapipe/llvmpipe in VMs) and Metal (darling-metal and Indium, MPL-2.0).
 
-Step 1 was done on 2026-10-31 (`e2df542919`, `2aa9a1da6e`), and step 2's first milestones, WS0 (gate `M4-draw`, `cce7da92bc`) WS1 (the new core's interface, `030dba37c7`) WS2 (its compositor, gate `M4-compose`, `8512fe60ba`) and WS3 (input and event taps, `98237bf14e`); ADR 0001's entitlement check is done (`8366b8d0f6`), WS4a too (the server's behavior, 2026-11-01, `e31dd0ef53`), and WS4b too (the switch, gate `M4`, 2026-11-02, `9d510ec6c2`); WS5 is under way: steps 3 and 4 are done (virtio-gpu 2D, `3e73fce129` and `1f58b3fb44`; IOSurface, `b28eb5f413`). G1 starts as soon as the GPU family is decided, and the GPU track reuses steps 4 and 5.
+Step 1 was done on 2026-10-31 (`e2df542919`, `2aa9a1da6e`), and step 2's first milestones, WS0 (gate `M4-draw`, `cce7da92bc`) WS1 (the new core's interface, `030dba37c7`) WS2 (its compositor, gate `M4-compose`, `8512fe60ba`) and WS3 (input and event taps, `98237bf14e`); ADR 0001's entitlement check is done (`8366b8d0f6`), WS4a too (the server's behavior, 2026-11-01, `e31dd0ef53`), and WS4b too (the switch, gate `M4`, 2026-11-02, `9d510ec6c2`); and WS5 too (2026-11-02, `9a472063c1`): steps 3 and 4 are done (virtio-gpu 2D, `3e73fce129` and `1f58b3fb44`; IOSurface, `b28eb5f413`). WS6 and G1 are next: the GPU family is decided (GCN 1.0, then the RX 6600, then Intel HD 630) and its ADR comes first; the GPU track reuses steps 4 and 5.
 
 ## Phase 5 — Gienah desktop
 
@@ -423,7 +423,7 @@ M0, M1 and M2 are met (M1 on 2026-11-01, with the Mac Pro 6,1 as PC 2), and Phas
 | M1 | Darwin boot | Met in QEMU, on PC 1 (SATA, NVMe, SMP) and on PC 2, a Mac Pro 6,1 (NVMe, 24 threads; 2026-11-01) |
 | M2 | Base userland | Met (`boottest GATE=M2`, 17 markers since 2026-11-01, with the code integrity check); Phase 2 closed on 2026-10-31 |
 | M3 | Frameworks and Swift | Not started; prior work in Foundation and libSystem |
-| M4 | Graphics and WindowServer | Met in QEMU (`boottest GATE=M4`, 54 markers, 2026-11-02, `9d510ec6c2`): WS0 to WS4b done (the new core is the window server, the menus in each app with MB0, the minimal `loginwindow`; the legacy server removed). Phase 4 goes on with IOSurface and virtio-gpu (WS5) and the GPU (WS6), and on physical hardware |
+| M4 | Graphics and WindowServer | Met in QEMU (`boottest GATE=M4`, 54 markers, 2026-11-02, `9d510ec6c2`): WS0 to WS4b done (the new core is the window server, the menus in each app with MB0, the minimal `loginwindow`; the legacy server removed). WS5 done too (IOSurface and virtio-gpu, 2026-11-02, `9a472063c1`; M4 passes on virtio-vga and on the standard VGA). Phase 4 goes on with the GPU (WS6) and on physical hardware |
 | M5 | Gienah desktop | Not started |
 | M6 (Minkar 19.6.0) | Apps and distribution, and the desktop complete for daily use (MB2–MB3, D2–D3, K2–K3) | Not started; `hdiutil attach` already mounts |
 | Minkar 21.0 | API 21 complete and performance ≥ the reference system on a physical machine | Not started; depends on the GPU track |

@@ -99,7 +99,7 @@ Minkar arranca sobre Darwin con su propio cargador EFI, todo el sistema se compi
 | CoreFoundation | CF-Lite (APSL) | APIs que faltan hasta la API 21 | 3 |
 | Foundation | Tres lotes de correcciones (26 oct); `NSProcessInfo` con `operatingSystemVersion`; reexporta CoreFoundation; `NSURLSession` sobre libcurl, con cookies; `NSOperationQueue` sobre dispatch; el run loop principal ejecuta la cola principal de dispatch; `NSDateFormatter` sobre ICU (31 oct); `NSXPCConnection` sobre libxpc, con los servicios XPC dentro de las apps (31 oct) | Caché de URL y métricas de tareas en `NSURLSession`; auditoría de la API 19 | 3 |
 | Swift 6 | Nada en el árbol | Compilador, stdlib, overlays | 3 |
-| WindowServer | El núcleo nuevo es el servidor de ventanas (WS4b hecho el 2 nov 2026, gate `M4`): su interfaz en `SkyLight.framework`, su servidor arranca con el sistema como `_windowserver` junto al `loginwindow` mínimo; compone ventanas de AppKit con pixman, reparte la entrada de IOHIDSystem con event taps, y cada app dibuja sus propios menús (MB0). El servidor anterior ya no existe. WS5 en marcha: IOSurface con su registro `iosurfaced`, y un driver virtio-gpu 2D que vuelca por fotograma, con cambios de modo (2 nov 2026) | El resto de WS5 (display streams, el contexto de dibujo de las pantallas capturadas, el display link en reposo), después la GPU (WS6) | 4 |
+| WindowServer | El núcleo nuevo es el servidor de ventanas (WS4b hecho el 2 nov 2026, gate `M4`): su interfaz en `SkyLight.framework`, su servidor arranca con el sistema como `_windowserver` junto al `loginwindow` mínimo; compone ventanas de AppKit con pixman, reparte la entrada de IOHIDSystem con event taps, y cada app dibuja sus propios menús (MB0). El servidor anterior ya no existe. WS5 hecho (2 nov 2026): IOSurface con su registro `iosurfaced`, ventanas con IOSurface, un driver virtio-gpu 2D que vuelca por fotograma y cambia de modo, configuraciones de pantalla permanentes, `CGDisplayStream` | La GPU (WS6): primero el ADR de G1 | 4 |
 | Aceleración por GPU | No existe; sin ella tampoco se puede apagar la pantalla | Frente completo (requisito de rendimiento) | 4 y Minkar 21.0 |
 | SystemUIServer, Dock | Parciales, no se compilan | Casi todo | 5 |
 | Kraz, System Preferences | No existen | Apps nuevas en Cocoa | 5 |
@@ -308,7 +308,7 @@ Del entorno gráfico ya existen la base de dibujo (Core Graphics con FreeType, y
 Componentes, por estado:
 
 - **Existen:** Core Graphics con FreeType; pixman, libpng, libjpeg y libtiff (`BSD/lib`); la consola GOP (`IOGOPFramebuffer`); la entrada USB (xHCI + HID, `MinkarUSB`); los headers `IOKit/hidsystem`; la entrega de eventos de IOHIDSystem; `ApplePS2Mouse` y el teclado PS/2.
-- **Parciales:** WindowServer (WS0 a WS4b hechos: el núcleo nuevo es el servidor de ventanas, en QEMU; WS5 y WS6 por hacer); QuartzCore y Onyx2D; AppKit (Cocotron; con los arreglos que necesitó una primera ventana, 31 oct 2026).
+- **Parciales:** WindowServer (WS0 a WS5 hechos: el núcleo nuevo es el servidor de ventanas, con IOSurface y virtio-gpu, en QEMU; WS6 por hacer); QuartzCore y Onyx2D; AppKit (Cocotron; con los arreglos que necesitó una primera ventana, 31 oct 2026).
 - **Faltan:** el compositor de Core Animation; Core Text sobre HarfBuzz/FreeType; giflib y libwebp; ColorSync sobre Little CMS; y el frente de GPU (driver del kernel, Mesa, Metal).
 
 El detalle técnico de cada pieza está en la guía técnica de la pila gráfica.
@@ -325,7 +325,7 @@ Secuencia de desarrollo:
 
 En paralelo, el frente de GPU G1–G5: desde la familia del primer driver y el prototipo KMS hasta Mesa (lavapipe/llvmpipe en VMs) y Metal (darling-metal e Indium, MPL-2.0).
 
-El paso 1 se completó el 31 oct 2026 (`e2df542919`, `2aa9a1da6e`), y también los primeros hitos del paso 2, WS0 (gate `M4-draw`, `cce7da92bc`) WS1 (la interfaz del núcleo nuevo, `030dba37c7`) WS2 (su compositor, gate `M4-compose`, `8512fe60ba`) y WS3 (entrada y event taps, `98237bf14e`); la comprobación de entitlements del ADR 0001 está hecha (`8366b8d0f6`), también WS4a (el comportamiento del servidor, 1 nov 2026, `e31dd0ef53`), y también WS4b (el cambio, gate `M4`, 2 nov 2026, `9d510ec6c2`); WS5 está en marcha: los pasos 3 y 4 están hechos (virtio-gpu 2D, `3e73fce129` y `1f58b3fb44`; IOSurface, `b28eb5f413`). G1 empieza en cuanto se decida la familia de GPU, y las flechas discontinuas marcan lo que el frente de GPU reutiliza de los pasos 4 y 5.
+El paso 1 se completó el 31 oct 2026 (`e2df542919`, `2aa9a1da6e`), y también los primeros hitos del paso 2, WS0 (gate `M4-draw`, `cce7da92bc`) WS1 (la interfaz del núcleo nuevo, `030dba37c7`) WS2 (su compositor, gate `M4-compose`, `8512fe60ba`) y WS3 (entrada y event taps, `98237bf14e`); la comprobación de entitlements del ADR 0001 está hecha (`8366b8d0f6`), también WS4a (el comportamiento del servidor, 1 nov 2026, `e31dd0ef53`), y también WS4b (el cambio, gate `M4`, 2 nov 2026, `9d510ec6c2`); y también WS5 (2 nov 2026, `9a472063c1`): los pasos 3 y 4 están hechos (virtio-gpu 2D, `3e73fce129` y `1f58b3fb44`; IOSurface, `b28eb5f413`). Siguen WS6 y G1: la familia de GPU está decidida (GCN 1.0, después la RX 6600, después Intel HD 630) y primero va su ADR; las flechas discontinuas marcan lo que el frente de GPU reutiliza de los pasos 4 y 5.
 
 ## Fase 5 — Escritorio Gienah
 
@@ -423,7 +423,7 @@ M0, M1 y M2 están cumplidos (M1 el 1 nov, con el Mac Pro 6,1 como PC 2) y la Fa
 | M1 | Arranque Darwin | Cumplido en QEMU, en el PC 1 (SATA, NVMe, SMP) y en el PC 2, un Mac Pro 6,1 (NVMe, 24 hilos; 1 nov 2026) |
 | M2 | Userland base | Cumplido (`boottest GATE=M2`, 17 marcadores desde el 1 nov 2026, con la comprobación de integridad de código); Fase 2 cerrada el 31 oct |
 | M3 | Frameworks y Swift | Sin empezar; hay trabajo previo en Foundation |
-| M4 | Gráficos y WindowServer | Cumplido en QEMU (`boottest GATE=M4`, 54 marcadores, 2 nov 2026, `9d510ec6c2`): WS0 a WS4b hechos (el núcleo nuevo es el servidor de ventanas, los menús en cada app con MB0, el `loginwindow` mínimo; el servidor anterior borrado). La Fase 4 sigue con IOSurface y virtio-gpu (WS5) y la GPU (WS6), y en hardware físico |
+| M4 | Gráficos y WindowServer | Cumplido en QEMU (`boottest GATE=M4`, 54 marcadores, 2 nov 2026, `9d510ec6c2`): WS0 a WS4b hechos (el núcleo nuevo es el servidor de ventanas, los menús en cada app con MB0, el `loginwindow` mínimo; el servidor anterior borrado). También WS5 (IOSurface y virtio-gpu, 2 nov 2026, `9a472063c1`; M4 pasa con virtio-vga y con la VGA estándar). La Fase 4 sigue con la GPU (WS6) y en hardware físico |
 | M5 | Escritorio Gienah | Sin empezar |
 | M6 (Minkar 19.6.0) | Apps y distribución, y el escritorio completo para el uso diario (MB2–MB3, D2–D3, K2–K3) | Sin empezar; `hdiutil attach` ya monta |
 | Minkar 21.0 | API 21 completa y rendimiento ≥ sistema de referencia en equipo físico | Sin empezar; depende del frente de GPU |

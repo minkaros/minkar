@@ -33,7 +33,7 @@
 # "bmake progress" (Docs/CONTRIBUTING.md).
 
 updated = "2026-11-02"
-commit  = "ce474d4d4d"
+commit  = "9a472063c1"
 
 deps = [["ws", 555, "dock"], ["fw", 535, "kraz"]]
 
@@ -137,7 +137,7 @@ doc_es = "WindowServer-Rewrite.es.md"
 stations = [
   ["WS0", 290, "done"], ["WS1", 340, "done"], ["WS2", 390, "done"], ["WS3", 440, "done"],
   ["ADR 0001", 495, "done"], ["WS4a", 555, "done"], ["WS4b", 650, "done"],
-  ["WS5", 850, "current"], ["WS6", 1060, "todo"],
+  ["WS5", 850, "done"], ["WS6", 1060, "current"],
 ]
 
 [[line]]
@@ -212,7 +212,12 @@ stations = [["x86-64 apps", 1082, "todo"], ["arm64", 1150, "todo"]]
 # The work board. "line" picks a card's colour; "here" marks a station of
 # the metro map as where work is.
 [board]
-here = "WS5"
+here = "WS6"
+
+[[board.done]]
+title = "WS5 closed: IOSurface and virtio-gpu"
+note = "display streams, captured displays, saved configs · 2 nov"
+line = "ws"
 
 [[board.done]]
 title = "virtio-gpu 2D display"
@@ -239,17 +244,12 @@ title = "Minimal loginwindow"
 note = "Log Out, Restart, Shut Down · WS4b · 2 nov"
 line = "ws"
 
-[[board.done]]
-title = "Status items, context menus"
-note = "pop-up buttons, key equivalents · MB0 · 2 nov"
-line = "mb"
-
 
 [[board.now]]
-title = "WS5 — IOSurface and virtio-gpu"
-note = "display streams, captured displays, idle display link left"
+title = "WS6 — GPU compositing"
+note = "G1 ADR first: GCN 1.0, then RX 6600, then Intel HD 630"
 line = "ws"
-done = 2
+done = 0
 total = 3
 
 [[board.now]]
@@ -276,7 +276,7 @@ line = "fw"
 
 [[board.next]]
 title = "GPU ADR (G1)"
-note = "family, licenses, KMS prototype"
+note = "family decided; licenses, KMS prototype"
 line = "gpu"
 
 [[board.later]]
@@ -293,7 +293,7 @@ items = [["MB4 Services, D4 stacks and Trash, K4 search and tags", "mb"]]
 
 [[board.later]]
 group = "→ Minkar 21.0"
-items = [["WS6 GPU compositing", "ws"], ["G2–G5 driver, Mesa, Metal", "gpu"]]
+items = [["WS6 performance gate", "ws"], ["G2–G5 driver, Mesa, Metal", "gpu"]]
 
 [[board.later]]
 group = "→ M7"

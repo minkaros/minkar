@@ -2,7 +2,7 @@
 <title>Minkar milestones by plan, 2026-11-02</title>
 <rect width="1200" height="798" fill="#ffffff"/>
 <text x="20" y="30" font-size="20" font-weight="700" fill="#1f2328" text-anchor="start">Minkar milestones by plan</text>
-<text x="20" y="54" font-size="14" font-weight="400" fill="#59636e" text-anchor="start">2026-11-02 · devel ce474d4d4d</text>
+<text x="20" y="54" font-size="14" font-weight="400" fill="#59636e" text-anchor="start">2026-11-02 · devel 9a472063c1</text>
 <line x1="160" y1="95" x2="160" y2="110" stroke="#1f2328" stroke-opacity=".35" stroke-width="1.5" stroke-dasharray="2 4"/>
 <rect x="139" y="72" width="42" height="24" rx="12" fill="#1f2328" stroke="#1f2328" stroke-width="1.5"/>
 <text x="160" y="89" font-size="13.5" font-weight="700" fill="#ffffff" text-anchor="middle">M0</text>
@@ -72,8 +72,8 @@
 <text x="590" y="168" font-size="13.5" font-weight="500" fill="#59636e" text-anchor="middle">Swift 6</text>
 <text x="20" y="255" font-size="15" font-weight="700" fill="#0969da" text-anchor="start">WindowServer</text>
 <line x1="290" y1="250" x2="1060" y2="250" stroke="#0969da" stroke-opacity=".22" stroke-width="8" stroke-linecap="round"/>
-<line x1="290" y1="250" x2="850" y2="250" stroke="#0969da" stroke-opacity=".55" stroke-width="8" stroke-linecap="round"/>
-<line x1="290" y1="250" x2="650" y2="250" stroke="#0969da" stroke-opacity="1" stroke-width="8" stroke-linecap="round"/>
+<line x1="290" y1="250" x2="1060" y2="250" stroke="#0969da" stroke-opacity=".55" stroke-width="8" stroke-linecap="round"/>
+<line x1="290" y1="250" x2="850" y2="250" stroke="#0969da" stroke-opacity="1" stroke-width="8" stroke-linecap="round"/>
 <circle cx="290" cy="250" r="10" fill="#0969da" stroke="#ffffff" stroke-width="3"/><path d="M285.5 250 l3 3 l6 -6.5" fill="none" stroke="#ffffff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
 <text x="290" y="279" font-size="13.5" font-weight="500" fill="#1f2328" text-anchor="middle">WS0</text>
 <circle cx="340" cy="250" r="10" fill="#0969da" stroke="#ffffff" stroke-width="3"/><path d="M335.5 250 l3 3 l6 -6.5" fill="none" stroke="#ffffff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -88,11 +88,11 @@
 <text x="555" y="279" font-size="13.5" font-weight="500" fill="#1f2328" text-anchor="middle">WS4a</text>
 <circle cx="650" cy="250" r="10" fill="#0969da" stroke="#ffffff" stroke-width="3"/><path d="M645.5 250 l3 3 l6 -6.5" fill="none" stroke="#ffffff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
 <text x="650" y="279" font-size="13.5" font-weight="500" fill="#1f2328" text-anchor="middle">WS4b</text>
-<circle cx="850" cy="250" r="17" fill="#0969da" fill-opacity=".2"/><circle cx="850" cy="250" r="10" fill="#ffffff" stroke="#0969da" stroke-width="5"/>
-<text x="850" y="279" font-size="13.5" font-weight="700" fill="#1f2328" text-anchor="middle">WS5</text>
-<text x="850" y="296" font-size="11.5" font-weight="800" fill="#0969da" text-anchor="middle" letter-spacing=".06em">WE ARE HERE</text>
-<circle cx="1060" cy="250" r="8" fill="#ffffff" stroke="#0969da" stroke-opacity=".7" stroke-width="2.5"/>
-<text x="1060" y="279" font-size="13.5" font-weight="500" fill="#59636e" text-anchor="middle">WS6</text>
+<circle cx="850" cy="250" r="10" fill="#0969da" stroke="#ffffff" stroke-width="3"/><path d="M845.5 250 l3 3 l6 -6.5" fill="none" stroke="#ffffff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="850" y="279" font-size="13.5" font-weight="500" fill="#1f2328" text-anchor="middle">WS5</text>
+<circle cx="1060" cy="250" r="17" fill="#0969da" fill-opacity=".2"/><circle cx="1060" cy="250" r="10" fill="#ffffff" stroke="#0969da" stroke-width="5"/>
+<text x="1060" y="279" font-size="13.5" font-weight="700" fill="#1f2328" text-anchor="middle">WS6</text>
+<text x="1060" y="296" font-size="11.5" font-weight="800" fill="#0969da" text-anchor="middle" letter-spacing=".06em">WE ARE HERE</text>
 <text x="20" y="319" font-size="15" font-weight="700" fill="#8250df" text-anchor="start">Menus</text>
 <line x1="650" y1="314" x2="1025" y2="314" stroke="#8250df" stroke-opacity=".22" stroke-width="8" stroke-linecap="round"/>
 <line x1="650" y1="314" x2="650" y2="314" stroke="#8250df" stroke-opacity=".55" stroke-width="8" stroke-linecap="round"/>

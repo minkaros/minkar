@@ -209,7 +209,7 @@ Progress:
 - [x] ADR 0001 — Kernel entitlement validation, needed by WS4a (2026-11-01)
 - [x] WS4a — Server behavior (2026-11-01)
 - [x] WS4b — The switch (with MB0 of [Menus.md](Menus.md); 2026-11-02)
-- [ ] WS5 — IOSurface and virtio-gpu
+- [x] WS5 — IOSurface and virtio-gpu (2026-11-02)
 - [ ] WS6 — GPU compositing
 
 ### WS0 — First pixels with the current server
@@ -294,7 +294,7 @@ captures, its cursor hide count, its fade, its app-only display changes
 and the transfer tables it changed.
 
 Shortcuts taken: a permanent display configuration lasts for the session
-only (`SHORTCUT(WS5)`, with real mode changes); the transfer tables and the
+only (a WS5 shortcut, removed 2026-11-02); the transfer tables and the
 fade blend are kept by the server, and the compositor does not apply them
 yet (`SHORTCUT(WS4a)`); the cursor position
 only moved by warps until the server read input (removed in WS3).
@@ -335,10 +335,10 @@ fixed on the way: run loops spun on `select` (`61cb01ce77`), and the
 `NSEvent` over-release of WS0 (`1508bd4d3c`).
 
 Shortcuts taken: AppKit damages its whole window at each flush
-(`SHORTCUT(WS5)`, removed with IOSurface, when AppKit tracks its
-dirty rects into the surface); the display link ticks at the refresh rate
-even when idle, though no frame is drawn then (`SHORTCUT(WS5)`, removed
-with real flips).
+(a WS5 shortcut, removed 2026-11-02: AppKit sends the rects its
+views drew); the display link ticks at the refresh rate
+even when idle, though no frame is drawn then (a WS5 shortcut,
+removed 2026-11-02: the link sleeps).
 
 ### WS3 — Input
 
@@ -499,7 +499,7 @@ State on 2026-11-01:
   `e566689e10`, `d0284701f9`, `84e3995f38`, `08cad8d686`): child windows
   and sheets kept and moved with their parent; cursors set by each app
   (the front app's shown) with AppKit's cursor rects; software window
-  shadows; display capture, `CGDisplayGetDrawingContext` (`SHORTCUT(WS5)`)
+  shadows; display capture, `CGDisplayGetDrawingContext` (through a copy until WS5)
   and `CGDisplayCreateImage`. AppKit's key window and tracking areas work
   with the new server (`5039d3f2e4`). Local tests `child-windows`,
   `cursors`, `cgwindow` (11/0); gate M4-compose with new references
@@ -551,6 +551,16 @@ Progress: IOSurface.framework and its registry `iosurfaced` (2026-11-02,
 server tells it what each frame changed, so only that is transferred and
 flushed; `wsctl mode` changes the resolution through it (2026-11-02,
 `3e73fce129`, `1f58b3fb44`, `ce474d4d4d`).
+
+Closed 2026-11-02: the display link sleeps while nothing changes
+(`fe8d15a42b`); permanent display configurations are saved and restored
+(`0cf3f87d2f`, `220e72b870`); a window can show an IOSurface of its app,
+a captured display's drawing context draws into one, and
+`CGDisplayStream` delivers frames in IOSurfaces (`9a472063c1`). No
+`SHORTCUT(WS5)` is left. Not as first written: virtio-gpu 2D has no
+vertical sync to flip on, so each frame is flushed with its damage rather
+than flipped; flips paced by the display come with the GPU (WS6). Moved
+rects of display streams are not reported (only dirty rects).
 
 ### WS6 — GPU compositing
 
@@ -615,7 +625,7 @@ Decided 2026-10-31, following the guiding rule in section 1:
 | --- | --- | --- | --- |
 | User WindowServer runs as | `_windowserver` (UID 88), set by the launchd job (`UserName`) | Root; the new server runs as `_windowserver` since 2026-11-01 (`9af6b6295d`), the legacy one stays root until it goes | Removed 2026-11-02, in WS4b, with the legacy server |
 | Where it lives | `SkyLight.framework/Resources/WindowServer`; client in `SkyLight.framework`, re-exported by CoreGraphics | `CoreServices/WindowServer.app` for WS0 (current server) | WS1 |
-| Capturing and posting events | Screen recording, input monitoring and accessibility permissions, through a permission service | Built-in policy: root and the console user's processes are allowed (also to claim symbolic hotkeys and to read other apps' window images); everything else denied (`SHORTCUT(M5)`) | M5 (the privacy service ADR comes before gate M5) |
+| Capturing and posting events | Screen recording, input monitoring and accessibility permissions, through a permission service | Built-in policy: root and the console user's processes are allowed (also to claim symbolic hotkeys to read other apps' window images, and to stream a display); everything else denied (`SHORTCUT(M5)`) | M5 (the privacy service ADR comes before gate M5) |
 | Moving windows | Server-side moves from client-declared drag regions, plus `performWindowDragWithEvent:` | Title bar region only | Removed 2026-11-01 (`f03d8ddc9d`, `5df94c8821`) |
 | Keyboard layouts | The server delivers hardware key codes; the client turns them into characters from the current layout (layout data and a `UCKeyTranslate`-style call in the app), with Text Input Sources | `WSKeymap` and libxkbcommon in SkyLight, from WS4a (`SHORTCUT(Phase 5)`) | Phase 5 (Text Input Sources and our own layout files) |
 | Ending the session | The login window asks apps to quit, ends the session and then restarts or shuts down | A minimal `loginwindow` that only ends the session and calls `reboot(2)` | Phase 5 (LoginWindow) |
@@ -623,14 +633,14 @@ Decided 2026-10-31, following the guiding rule in section 1:
 | Legacy server's thread stacks | Gone with the legacy server and `message.h` | 4 MB stacks for its 128 KB messages (taken in WS0) | Removed 2026-11-02, in WS4b, with the legacy server and `message.h` |
 | What WindowServer's launchd job starts | The window server only; the session starts elsewhere (section 10.3) | The compositor only (`-x`), since LoginWindow is not built (taken in WS0) | Removed 2026-11-02, in WS4b: the new server's job starts it alone, `loginwindow` the session |
 | System font | Gienah's own font | Inter (SIL OFL 1.1), four faces (`SHORTCUT(Phase 5)` in `SystemLibrary/Fonts/Makefile`, taken in WS0) | Phase 5 (Gienah) |
-| Permanent display configurations | Stored and applied again at the next session | They last for the session (`SHORTCUT(WS5)`, taken in WS1) | WS5 (real mode changes) |
+| Permanent display configurations | Stored and applied again at the next session | They last for the session (taken in WS1) | Removed 2026-11-02, in WS5: saved in `/var/db/WindowServer/Displays.plist` and applied at startup; `CGRestorePermanentDisplayConfiguration` goes back to them |
 | Transfer tables and fades | Applied to the screen by the compositor, and by gamma hardware where there is some | Kept and returned, not applied (taken in WS1) | Removed 2026-11-01, in WS4a |
-| Display link while idle | Frames paced by the display's flips; nothing wakes while nothing changes | A timer at the refresh rate ticks even when idle, drawing nothing (`SHORTCUT(WS5)` in `WSCompositor.m`, taken in WS2) | WS5 (real flips) |
+| Display link while idle | Frames paced by the display's flips; nothing wakes while nothing changes | A timer at the refresh rate ticks even when idle, drawing nothing (taken in WS2) | Removed 2026-11-02, in WS5: the link sleeps after two idle ticks and damage wakes it |
 | AppKit's damage | AppKit sends the rects it redrew | The whole window at each flush (taken in WS2) | Removed 2026-11-02, in WS5: views note what they draw, the window sends those rects |
 | virtio-gpu flushes | The window server's damage goes with each frame; only those rects are transferred and flushed | The whole screen transferred and flushed at 60 Hz (taken in WS5) | Removed 2026-11-02, in WS5: the window server sends each frame's rects; the timer runs only for the console |
 | Front app | The window server keeps the front app, which may have no window (its menus are in the menu bar), and tells LaunchServices' session | The key window's owner: an app with no window to show could not be activated (taken in WS4a, `3be3e23e16`) | Removed 2026-11-01, in WS4a |
 | Standard cursors | Gienah's cursor set (I-beam, hands, crosshair, resize, not allowed...), each app's AppKit setting them | Plain black shapes with a white outline drawn in `NSCursorImage.m`, the arrow for the ones without a shape (`SHORTCUT(Phase 5)`, taken in WS4a) | Phase 5 (Gienah) |
-| A captured display's drawing context | The app draws into the surface that is scanned out (IOSurface) | `CGDisplayGetDrawingContext` draws into the app's memory, copied to the shielding window at the refresh rate when it changed, a frame behind (`SHORTCUT(WS5)` in `CGDirectDisplay.m`, taken in WS4a) | WS5 (IOSurface) |
+| A captured display's drawing context | The app draws into the surface that is scanned out (IOSurface) | `CGDisplayGetDrawingContext` draws into the app's memory, copied to the shielding window at the refresh rate when it changed, a frame behind (taken in WS4a) | Removed 2026-11-02, in WS5: the context draws into an IOSurface the shielding window shows at every frame |
 | Input queue | Input read and routed on its own high-priority queue, over a model snapshot | On the IPC queue (taken in WS3) | Removed 2026-11-01, in WS4a |
 | `CGEventSource` HID state | Asked of the window server | Not asked: buttons, keys and flags read as up (taken in WS3) | Removed 2026-11-01, in WS4a |
 | Kernel entitlement validation | A static trust cache of system binaries and our own MAC policy kext (section 9.1) | Root may open IOHIDSystem's server connection (`SHORTCUT(WS4a)` in `IOHIDUserClient.cpp`) | Removed 2026-11-01 (`8366b8d0f6`), before WS4a |
