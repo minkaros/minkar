@@ -5,7 +5,7 @@ This page is generated from [progress/status.toml](progress/status.toml) by
 [Progress.es.md](Progress.es.md).
 
 <!-- progress:summary:begin -->
-_Updated 2026-11-01, devel `e31dd0ef53`_
+_Updated 2026-11-01, devel `85e5238ce2`_
 
 | Plan | Progress |  | Now | Next |
 | --- | --- | --- | --- | --- |
@@ -13,7 +13,7 @@ _Updated 2026-11-01, devel `e31dd0ef53`_
 | [Phases 0–2](ROADMAP.md) | 🟩🟩🟩 | 3 / 3 | — | — |
 | [Frameworks](ROADMAP.md#phase-3--base-frameworks-and-swift) | 🟩🟨🟨🟨⬜🟨⬜ | 1 / 7 | libSystem, Foundation, CF-Lite, LaunchServices | Security |
 | [WindowServer](WindowServer-Rewrite.md) | 🟩🟩🟩🟩🟩🟩🟦⬜⬜ | 6 / 9 | WS4b | WS5 |
-| [Menus](Menus.md) | ⬜⬜⬜⬜⬜ | 0 / 5 | — | MB0 |
+| [Menus](Menus.md) | 🟦⬜⬜⬜⬜ | 0 / 5 | MB0 | MB1 |
 | [Dock](Dock-Kraz.md) | ⬜⬜⬜⬜⬜ | 0 / 5 | — | D0 |
 | [Kraz](Dock-Kraz.md) | ⬜⬜⬜⬜⬜ | 0 / 5 | — | K0 |
 | [Gienah](ROADMAP.md#phase-5--gienah-desktop) | ⬜⬜⬜ | 0 / 3 | — | LoginWindow |

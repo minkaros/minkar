@@ -33,7 +33,7 @@
 # "bmake progress" (Docs/CONTRIBUTING.md).
 
 updated = "2026-11-01"
-commit  = "e31dd0ef53"
+commit  = "85e5238ce2"
 
 deps = [["ws", 555, "dock"], ["fw", 535, "kraz"]]
 
@@ -147,7 +147,7 @@ color = "purple"
 doc = "Menus.md"
 doc_es = "Menus.es.md"
 stations = [
-  ["MB0", 650, "todo"], ["MB1", 760, "todo"], ["MB2", 865, "todo"], ["MB3", 970, "todo"],
+  ["MB0", 650, "current"], ["MB1", 760, "todo"], ["MB2", 865, "todo"], ["MB3", 970, "todo"],
   ["MB4", 1025, "todo"],
 ]
 
@@ -215,6 +215,21 @@ stations = [["x86-64 apps", 1082, "todo"], ["arm64", 1150, "todo"]]
 here = "WS4b"
 
 [[board.done]]
+title = "Menu tracking"
+note = "pointer, keyboard, validation, delegate · MB0 · 1 nov"
+line = "mb"
+
+[[board.done]]
+title = "The app's menu bar"
+note = "its own window, Minkar logo · MB0 · 1 nov"
+line = "mb"
+
+[[board.done]]
+title = "CF data bridged both ways"
+note = "CFData and NSData · 1 nov"
+line = "fw"
+
+[[board.done]]
 title = "WS4a closed"
 note = "the server's behavior · 1 nov"
 line = "ws"
@@ -229,27 +244,12 @@ title = "Transfer tables and fades"
 note = "on the screen · WS4a · 1 nov"
 line = "ws"
 
-[[board.done]]
-title = "CGEventSource state"
-note = "WS4a · 1 nov"
-line = "ws"
-
-[[board.done]]
-title = "Display capture"
-note = "CGDisplayGetDrawingContext · WS4a · 1 nov"
-line = "ws"
-
-[[board.done]]
-title = "Boot panic fixed"
-note = "ACPI interrupts · 1 nov"
-line = "base"
-
 [[board.now]]
 title = "WS4b + MB0 — The switch"
 note = "menus in the app, Legacy/ removed → gate M4"
 line = "ws"
-done = 0
-total = 6
+done = 3
+total = 14
 
 [[board.now]]
 title = "Foundation audit"
@@ -262,11 +262,6 @@ title = "Noisy stubs"
 note = "mechanism done, 887 sites"
 line = "fw"
 partial = true
-
-[[board.next]]
-title = "CF data bridged both ways"
-note = "a CFData taken as an NSData crashes"
-line = "fw"
 
 [[board.next]]
 title = "D0 · K0 — Dock and Kraz prerequisites"

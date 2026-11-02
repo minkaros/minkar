@@ -324,7 +324,7 @@ Development sequence:
 
 In parallel, the GPU track G1–G5: from the first driver's family and the KMS prototype to Mesa (lavapipe/llvmpipe in VMs) and Metal (darling-metal and Indium, MPL-2.0).
 
-Step 1 was done on 2026-10-31 (`e2df542919`, `2aa9a1da6e`), and step 2's first milestones, WS0 (gate `M4-draw`, `cce7da92bc`) WS1 (the new core's interface, `030dba37c7`) WS2 (its compositor, gate `M4-compose`, `8512fe60ba`) and WS3 (input and event taps, `98237bf14e`); ADR 0001's entitlement check is done (`8366b8d0f6`), WS4a too (the server's behavior, 2026-11-01, `e31dd0ef53`), and WS4b is next. G1 starts as soon as the GPU family is decided, and the GPU track reuses steps 4 and 5.
+Step 1 was done on 2026-10-31 (`e2df542919`, `2aa9a1da6e`), and step 2's first milestones, WS0 (gate `M4-draw`, `cce7da92bc`) WS1 (the new core's interface, `030dba37c7`) WS2 (its compositor, gate `M4-compose`, `8512fe60ba`) and WS3 (input and event taps, `98237bf14e`); ADR 0001's entitlement check is done (`8366b8d0f6`), WS4a too (the server's behavior, 2026-11-01, `e31dd0ef53`), and WS4b is under way (MB0: the app's own menu bar and menu tracking, `85e5238ce2`). G1 starts as soon as the GPU family is decided, and the GPU track reuses steps 4 and 5.
 
 ## Phase 5 — Gienah desktop
 
@@ -422,7 +422,7 @@ M0, M1 and M2 are met (M1 on 2026-11-01, with the Mac Pro 6,1 as PC 2), and Phas
 | M1 | Darwin boot | Met in QEMU, on PC 1 (SATA, NVMe, SMP) and on PC 2, a Mac Pro 6,1 (NVMe, 24 threads; 2026-11-01) |
 | M2 | Base userland | Met (`boottest GATE=M2`, 17 markers since 2026-11-01, with the code integrity check); Phase 2 closed on 2026-10-31 |
 | M3 | Frameworks and Swift | Not started; prior work in Foundation and libSystem |
-| M4 | Graphics and WindowServer | In progress: WS0 done (gate `M4-draw` passes, `cce7da92bc`); WS1 done (`skylight-test` 115/0, `030dba37c7`); WS2 done (gate `M4-compose` passes, `8512fe60ba`); WS3 done (input, `98237bf14e`); WS4a done (the server's behavior: LaunchServices session, front app, menu bar, pointer capture, status items, minimized windows, window images and lists, child windows, cursors, shadows, display capture, input on its own queue; last commit `e31dd0ef53`; gate `M4-compose` 40 markers); WS4b next |
+| M4 | Graphics and WindowServer | In progress: WS0 done (gate `M4-draw` passes, `cce7da92bc`); WS1 done (`skylight-test` 115/0, `030dba37c7`); WS2 done (gate `M4-compose` passes, `8512fe60ba`); WS3 done (input, `98237bf14e`); WS4a done (the server's behavior: LaunchServices session, front app, menu bar, pointer capture, status items, minimized windows, window images and lists, child windows, cursors, shadows, display capture, input on its own queue; last commit `e31dd0ef53`; gate `M4-compose` 40 markers); WS4b in progress: the menus in each app, steps 1 to 3 of 14 (the menu views in AppKit, the app's menu bar in its own window, full menu tracking; `6c3b719a32` to `85e5238ce2`; local tests `menubar` and `menus`) |
 | M5 | Gienah desktop | Not started |
 | M6 (Minkar 19.6.0) | Apps and distribution, and the desktop complete for daily use (MB2–MB3, D2–D3, K2–K3) | Not started; `hdiutil attach` already mounts |
 | Minkar 21.0 | API 21 complete and performance ≥ the reference system on a physical machine | Not started; depends on the GPU track |

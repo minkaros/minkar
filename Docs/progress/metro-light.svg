@@ -2,7 +2,7 @@
 <title>Minkar milestones by plan, 2026-11-01</title>
 <rect width="1200" height="798" fill="#ffffff"/>
 <text x="20" y="30" font-size="20" font-weight="700" fill="#1f2328" text-anchor="start">Minkar milestones by plan</text>
-<text x="20" y="54" font-size="14" font-weight="400" fill="#59636e" text-anchor="start">2026-11-01 · devel e31dd0ef53</text>
+<text x="20" y="54" font-size="14" font-weight="400" fill="#59636e" text-anchor="start">2026-11-01 · devel 85e5238ce2</text>
 <line x1="160" y1="95" x2="160" y2="110" stroke="#1f2328" stroke-opacity=".35" stroke-width="1.5" stroke-dasharray="2 4"/>
 <rect x="139" y="72" width="42" height="24" rx="12" fill="#1f2328" stroke="#1f2328" stroke-width="1.5"/>
 <text x="160" y="89" font-size="13.5" font-weight="700" fill="#ffffff" text-anchor="middle">M0</text>
@@ -95,8 +95,9 @@
 <text x="1060" y="279" font-size="13.5" font-weight="500" fill="#59636e" text-anchor="middle">WS6</text>
 <text x="20" y="319" font-size="15" font-weight="700" fill="#8250df" text-anchor="start">Menus</text>
 <line x1="650" y1="314" x2="1025" y2="314" stroke="#8250df" stroke-opacity=".22" stroke-width="8" stroke-linecap="round"/>
-<circle cx="650" cy="314" r="8" fill="#ffffff" stroke="#8250df" stroke-opacity=".7" stroke-width="2.5"/>
-<text x="650" y="343" font-size="13.5" font-weight="500" fill="#59636e" text-anchor="middle">MB0</text>
+<line x1="650" y1="314" x2="650" y2="314" stroke="#8250df" stroke-opacity=".55" stroke-width="8" stroke-linecap="round"/>
+<circle cx="650" cy="314" r="17" fill="#8250df" fill-opacity=".2"/><circle cx="650" cy="314" r="10" fill="#ffffff" stroke="#8250df" stroke-width="5"/>
+<text x="650" y="343" font-size="13.5" font-weight="700" fill="#1f2328" text-anchor="middle">MB0</text>
 <circle cx="760" cy="314" r="8" fill="#ffffff" stroke="#8250df" stroke-opacity=".7" stroke-width="2.5"/>
 <text x="760" y="343" font-size="13.5" font-weight="500" fill="#59636e" text-anchor="middle">MB1</text>
 <circle cx="865" cy="314" r="8" fill="#ffffff" stroke="#8250df" stroke-opacity=".7" stroke-width="2.5"/>

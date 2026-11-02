@@ -2,37 +2,39 @@
 <title>Minkar work board, 2026-11-01</title>
 <rect width="1120" height="732" fill="#ffffff"/>
 <text x="16" y="30" font-size="20" font-weight="700" fill="#1f2328" text-anchor="start">Minkar work board</text>
-<text x="16" y="52" font-size="13" font-weight="400" fill="#59636e" text-anchor="start">2026-11-01 · devel e31dd0ef53</text>
+<text x="16" y="52" font-size="13" font-weight="400" fill="#59636e" text-anchor="start">2026-11-01 · devel 85e5238ce2</text>
 <rect x="16" y="70" width="261.5" height="654" rx="10" fill="#f6f8fa"/>
 <text x="30" y="96" font-size="13" font-weight="700" fill="#59636e" text-anchor="start" letter-spacing=".08em">DONE · LATEST</text>
-<rect x="26" y="114" width="241.5" height="68" rx="8" fill="#ffffff" stroke="#d1d9e0" stroke-width="1"/><rect x="26" y="114" width="5" height="68" rx="2" fill="#0969da"/>
-<text x="42" y="138" font-size="15" font-weight="650" fill="#1f2328" text-anchor="start">WS4a closed</text>
-<text x="42" y="159" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">the server&#x27;s behavior · 1 nov</text>
-<rect x="26" y="192" width="241.5" height="87" rx="8" fill="#ffffff" stroke="#d1d9e0" stroke-width="1"/><rect x="26" y="192" width="5" height="87" rx="2" fill="#0969da"/>
-<text x="42" y="216" font-size="15" font-weight="650" fill="#1f2328" text-anchor="start">Input on its own queue</text>
-<text x="42" y="237" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">over a model snapshot · WS4a</text>
-<text x="42" y="256" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">· 1 nov</text>
-<rect x="26" y="289" width="241.5" height="68" rx="8" fill="#ffffff" stroke="#d1d9e0" stroke-width="1"/><rect x="26" y="289" width="5" height="68" rx="2" fill="#0969da"/>
-<text x="42" y="313" font-size="15" font-weight="650" fill="#1f2328" text-anchor="start">Transfer tables and fades</text>
-<text x="42" y="334" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">on the screen · WS4a · 1 nov</text>
-<rect x="26" y="367" width="241.5" height="68" rx="8" fill="#ffffff" stroke="#d1d9e0" stroke-width="1"/><rect x="26" y="367" width="5" height="68" rx="2" fill="#0969da"/>
-<text x="42" y="391" font-size="15" font-weight="650" fill="#1f2328" text-anchor="start">CGEventSource state</text>
-<text x="42" y="412" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">WS4a · 1 nov</text>
-<rect x="26" y="445" width="241.5" height="87" rx="8" fill="#ffffff" stroke="#d1d9e0" stroke-width="1"/><rect x="26" y="445" width="5" height="87" rx="2" fill="#0969da"/>
-<text x="42" y="469" font-size="15" font-weight="650" fill="#1f2328" text-anchor="start">Display capture</text>
-<text x="42" y="490" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">CGDisplayGetDrawingContext ·</text>
-<text x="42" y="509" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">WS4a · 1 nov</text>
-<rect x="26" y="542" width="241.5" height="68" rx="8" fill="#ffffff" stroke="#d1d9e0" stroke-width="1"/><rect x="26" y="542" width="5" height="68" rx="2" fill="#57606a"/>
-<text x="42" y="566" font-size="15" font-weight="650" fill="#1f2328" text-anchor="start">Boot panic fixed</text>
-<text x="42" y="587" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">ACPI interrupts · 1 nov</text>
+<rect x="26" y="114" width="241.5" height="106" rx="8" fill="#ffffff" stroke="#d1d9e0" stroke-width="1"/><rect x="26" y="114" width="5" height="106" rx="2" fill="#8250df"/>
+<text x="42" y="138" font-size="15" font-weight="650" fill="#1f2328" text-anchor="start">Menu tracking</text>
+<text x="42" y="159" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">pointer, keyboard,</text>
+<text x="42" y="178" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">validation, delegate · MB0 ·</text>
+<text x="42" y="197" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">1 nov</text>
+<rect x="26" y="230" width="241.5" height="87" rx="8" fill="#ffffff" stroke="#d1d9e0" stroke-width="1"/><rect x="26" y="230" width="5" height="87" rx="2" fill="#8250df"/>
+<text x="42" y="254" font-size="15" font-weight="650" fill="#1f2328" text-anchor="start">The app&#x27;s menu bar</text>
+<text x="42" y="275" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">its own window, Minkar logo ·</text>
+<text x="42" y="294" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">MB0 · 1 nov</text>
+<rect x="26" y="327" width="241.5" height="68" rx="8" fill="#ffffff" stroke="#d1d9e0" stroke-width="1"/><rect x="26" y="327" width="5" height="68" rx="2" fill="#9a6700"/>
+<text x="42" y="351" font-size="15" font-weight="650" fill="#1f2328" text-anchor="start">CF data bridged both ways</text>
+<text x="42" y="372" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">CFData and NSData · 1 nov</text>
+<rect x="26" y="405" width="241.5" height="68" rx="8" fill="#ffffff" stroke="#d1d9e0" stroke-width="1"/><rect x="26" y="405" width="5" height="68" rx="2" fill="#0969da"/>
+<text x="42" y="429" font-size="15" font-weight="650" fill="#1f2328" text-anchor="start">WS4a closed</text>
+<text x="42" y="450" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">the server&#x27;s behavior · 1 nov</text>
+<rect x="26" y="483" width="241.5" height="87" rx="8" fill="#ffffff" stroke="#d1d9e0" stroke-width="1"/><rect x="26" y="483" width="5" height="87" rx="2" fill="#0969da"/>
+<text x="42" y="507" font-size="15" font-weight="650" fill="#1f2328" text-anchor="start">Input on its own queue</text>
+<text x="42" y="528" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">over a model snapshot · WS4a</text>
+<text x="42" y="547" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">· 1 nov</text>
+<rect x="26" y="580" width="241.5" height="68" rx="8" fill="#ffffff" stroke="#d1d9e0" stroke-width="1"/><rect x="26" y="580" width="5" height="68" rx="2" fill="#0969da"/>
+<text x="42" y="604" font-size="15" font-weight="650" fill="#1f2328" text-anchor="start">Transfer tables and fades</text>
+<text x="42" y="625" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">on the screen · WS4a · 1 nov</text>
 <rect x="291.5" y="70" width="261.5" height="654" rx="10" fill="#f6f8fa"/>
 <text x="305.5" y="96" font-size="13" font-weight="700" fill="#59636e" text-anchor="start" letter-spacing=".08em">NOW</text>
 <rect x="301.5" y="114" width="241.5" height="109" rx="8" fill="#ffffff" stroke="#0969da" stroke-width="2"/><rect x="301.5" y="114" width="5" height="109" rx="2" fill="#0969da"/>
 <text x="317.5" y="138" font-size="15" font-weight="650" fill="#1f2328" text-anchor="start">WS4b + MB0 — The switch</text>
 <text x="317.5" y="159" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">menus in the app, Legacy/</text>
 <text x="317.5" y="178" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">removed → gate M4</text>
-<rect x="317.5" y="193" width="171.5" height="7" rx="3.5" fill="#0969da" fill-opacity=".2"/><rect x="317.5" y="193" width="0" height="7" rx="3.5" fill="#0969da"/>
-<text x="495" y="200" font-size="12" font-weight="600" fill="#59636e" text-anchor="start">0/6</text>
+<rect x="317.5" y="193" width="171.5" height="7" rx="3.5" fill="#0969da" fill-opacity=".2"/><rect x="317.5" y="193" width="37" height="7" rx="3.5" fill="#0969da"/>
+<text x="495" y="200" font-size="12" font-weight="600" fill="#59636e" text-anchor="start">3/14</text>
 <rect x="301.5" y="233" width="241.5" height="87" rx="8" fill="#ffffff" stroke="#d1d9e0" stroke-width="1"/><rect x="301.5" y="233" width="5" height="87" rx="2" fill="#9a6700"/>
 <text x="317.5" y="257" font-size="15" font-weight="650" fill="#1f2328" text-anchor="start">Foundation audit</text>
 <text x="317.5" y="278" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">NSURLSession cache and</text>
@@ -46,21 +48,17 @@
 <text x="506" y="353" font-size="11" font-weight="600" fill="#9a6700" text-anchor="middle">partial</text>
 <rect x="567" y="70" width="261.5" height="654" rx="10" fill="#f6f8fa"/>
 <text x="581" y="96" font-size="13" font-weight="700" fill="#59636e" text-anchor="start" letter-spacing=".08em">NEXT</text>
-<rect x="577" y="114" width="241.5" height="87" rx="8" fill="#ffffff" stroke="#d1d9e0" stroke-width="1"/><rect x="577" y="114" width="5" height="87" rx="2" fill="#9a6700"/>
-<text x="593" y="138" font-size="15" font-weight="650" fill="#1f2328" text-anchor="start">CF data bridged both ways</text>
-<text x="593" y="159" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">a CFData taken as an NSData</text>
-<text x="593" y="178" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">crashes</text>
-<rect x="577" y="211" width="241.5" height="89" rx="8" fill="#ffffff" stroke="#d1d9e0" stroke-width="1"/><rect x="577" y="211" width="5" height="89" rx="2" fill="#bc4c00"/>
-<text x="593" y="235" font-size="15" font-weight="650" fill="#1f2328" text-anchor="start">D0 · K0 — Dock and Kraz</text>
-<text x="593" y="256" font-size="15" font-weight="650" fill="#1f2328" text-anchor="start">prerequisites</text>
-<text x="593" y="277" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">can start: WS4a is done</text>
-<rect x="577" y="310" width="241.5" height="68" rx="8" fill="#ffffff" stroke="#d1d9e0" stroke-width="1"/><rect x="577" y="310" width="5" height="68" rx="2" fill="#9a6700"/>
-<text x="593" y="334" font-size="15" font-weight="650" fill="#1f2328" text-anchor="start">Swift prototypes 1 and 2</text>
-<text x="593" y="355" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">swiftc, libswiftCore → M3</text>
-<rect x="577" y="388" width="241.5" height="87" rx="8" fill="#ffffff" stroke="#d1d9e0" stroke-width="1"/><rect x="577" y="388" width="5" height="87" rx="2" fill="#cf222e"/>
-<text x="593" y="412" font-size="15" font-weight="650" fill="#1f2328" text-anchor="start">GPU ADR (G1)</text>
-<text x="593" y="433" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">family, licenses, KMS</text>
-<text x="593" y="452" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">prototype</text>
+<rect x="577" y="114" width="241.5" height="89" rx="8" fill="#ffffff" stroke="#d1d9e0" stroke-width="1"/><rect x="577" y="114" width="5" height="89" rx="2" fill="#bc4c00"/>
+<text x="593" y="138" font-size="15" font-weight="650" fill="#1f2328" text-anchor="start">D0 · K0 — Dock and Kraz</text>
+<text x="593" y="159" font-size="15" font-weight="650" fill="#1f2328" text-anchor="start">prerequisites</text>
+<text x="593" y="180" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">can start: WS4a is done</text>
+<rect x="577" y="213" width="241.5" height="68" rx="8" fill="#ffffff" stroke="#d1d9e0" stroke-width="1"/><rect x="577" y="213" width="5" height="68" rx="2" fill="#9a6700"/>
+<text x="593" y="237" font-size="15" font-weight="650" fill="#1f2328" text-anchor="start">Swift prototypes 1 and 2</text>
+<text x="593" y="258" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">swiftc, libswiftCore → M3</text>
+<rect x="577" y="291" width="241.5" height="87" rx="8" fill="#ffffff" stroke="#d1d9e0" stroke-width="1"/><rect x="577" y="291" width="5" height="87" rx="2" fill="#cf222e"/>
+<text x="593" y="315" font-size="15" font-weight="650" fill="#1f2328" text-anchor="start">GPU ADR (G1)</text>
+<text x="593" y="336" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">family, licenses, KMS</text>
+<text x="593" y="355" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">prototype</text>
 <rect x="842.5" y="70" width="261.5" height="654" rx="10" fill="#f6f8fa"/>
 <text x="856.5" y="96" font-size="13" font-weight="700" fill="#59636e" text-anchor="start" letter-spacing=".08em">LATER</text>
 <text x="856.5" y="128" font-size="14.5" font-weight="700" fill="#1f2328" text-anchor="start">→ M5 Gienah session</text>
