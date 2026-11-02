@@ -164,10 +164,22 @@ static NSMenuItem *itemWithTag(NSMenu *root, int tag) {
 extern int _CGUsesSkyLight(void);
 extern NSWindow *_NSWindowForSLSWindow(SLSWindowID window);
 
+/* Control-F2 (the server's kSLSHotKeyMenuBarFocus) as AppKit posts it to
+   itself: the menu bar takes the keyboard. */
+enum { kNSMenuBarFocusEventSubtype = 0x4d42 };
+
 -(void)_postSkyLightEvent:(SLSEvent *)e {
     static CGFloat height;
     NSWindow *window = _NSWindowForSLSWindow(e->window);
     NSEvent *event = nil;
+
+    if(e->type == kSLSEventSymbolicHotKey) {
+        if(e->buttonNumber == kSLSHotKeyMenuBarFocus)
+            [_display postEvent:[NSEvent otherEventWithType:NSAppKitDefined location:NSZeroPoint
+                modifierFlags:0 timestamp:0 windowNumber:0 context:nil
+                subtype:kNSMenuBarFocusEventSubtype data1:0 data2:0] atStart:NO];
+        return;
+    }
 
     if(window == nil)
         return;
@@ -1298,9 +1310,13 @@ static int _tagAllMenus(NSMenu *menu, int tag) {
    if([event type]==NSKeyDown){
     unsigned modifierFlags=[event modifierFlags];
 
-    if(modifierFlags&(NSCommandKeyMask|NSAlternateKeyMask))
+    if(modifierFlags&(NSCommandKeyMask|NSAlternateKeyMask|NSControlKeyMask))
      if([self _performKeyEquivalent:event])
       return;
+   }
+   if([event type]==NSAppKitDefined && [event subtype]==kNSMenuBarFocusEventSubtype){
+    [NSMenuBarWindow _focusMenuBar];
+    return;
    }
 
    [[event window] sendEvent:event];

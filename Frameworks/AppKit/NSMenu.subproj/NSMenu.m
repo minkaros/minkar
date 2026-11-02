@@ -369,36 +369,82 @@ BOOL itemIsEnabled(NSMenuItem *item) {
     postItemNotification(self,NSMenuDidChangeItemNotification,index);
 }
 
+/* Whether an item's key equivalent is this key event: the same key
+   (charactersIgnoringModifiers, which keeps Shift's effect) and the same
+   Control, Option, Shift and Command. An uppercase letter as the key
+   equivalent implies Shift. */
+static BOOL itemMatchesKeyEvent(NSMenuItem *item, NSString *characters, NSUInteger modifiers) {
+    NSString  *key=[item keyEquivalent];
+    NSUInteger relevant=NSControlKeyMask|NSAlternateKeyMask|NSShiftKeyMask|NSCommandKeyMask;
+    NSUInteger itemModifiers=[item keyEquivalentModifierMask]&relevant;
+
+    if([key length]==0 || [item isHidden])
+        return NO;
+    if(![key isEqualToString:[key lowercaseString]])
+        itemModifiers|=NSShiftKeyMask;
+    modifiers&=relevant;
+    if([[key lowercaseString] isEqualToString:[characters lowercaseString]])
+        return modifiers==itemModifiers;
+    /* A key Shift makes (such as ? on most layouts) matches as typed. */
+    if([key isEqualToString:characters])
+        return (modifiers&~NSShiftKeyMask)==(itemModifiers&~NSShiftKeyMask);
+    return NO;
+}
+
 -(BOOL)performKeyEquivalent:(NSEvent *)event {
-    int       i,count=[_itemArray count];
+    int       i,count;
     NSString *characters=[event charactersIgnoringModifiers];
-    unsigned  modifiers=[event modifierFlags];
-    
+    NSUInteger modifiers=[event modifierFlags];
+
+    /* The delegate may answer for the menu without its items being
+       brought up to date. */
+    if([_delegate respondsToSelector:@selector(menuHasKeyEquivalent:forEvent:target:action:)]){
+        id  target=nil;
+        SEL action=NULL;
+
+        if(![_delegate menuHasKeyEquivalent:self forEvent:event target:&target action:&action])
+            return NO;
+        if(action!=NULL)
+            return [NSApp sendAction:action to:target from:self];
+    }
+
     if (_autoenablesItems)
         [self update];
-    
+
+    count=[_itemArray count];
     for(i=0;i<count;i++){
         NSMenuItem *item=[_itemArray objectAtIndex:i];
-        unsigned    itemModifiers=[item keyEquivalentModifierMask]&(NSCommandKeyMask|NSAlternateKeyMask);
-        NSString *key=[item keyEquivalent];
-        
-        if((modifiers&(NSCommandKeyMask|NSAlternateKeyMask))==itemModifiers){
-            
-            if([key isEqualToString:characters]){
-                /* This *must* accurately reflect menu validation when ignoring or processing
-                    key equivalents. Relying on update to keep isEnabled in the proper state is
-                    unfortunately too tenuous.
-                 */
-                if (itemIsEnabled(item))
-                    return [NSApp sendAction:[item action] to:[item target] from:item];
-            }
+
+        if(itemMatchesKeyEvent(item,characters,modifiers)){
+            /* This *must* accurately reflect menu validation when ignoring or processing
+                key equivalents. Relying on update to keep isEnabled in the proper state is
+                unfortunately too tenuous.
+             */
+            BOOL enabled=_autoenablesItems?itemIsEnabled(item):[item isEnabled];
+
+            if(enabled)
+                return [self _sendActionOfItem:item];
+            return NO;
         }
-        
+
         if([[item submenu] performKeyEquivalent:event])
             return YES;
     }
-    
+
     return NO;
+}
+
+/* An item's action, between NSMenuWillSendActionNotification and
+   NSMenuDidSendActionNotification (MenuItem in their user info). */
+-(BOOL)_sendActionOfItem:(NSMenuItem *)item {
+    NSNotificationCenter *center=[NSNotificationCenter defaultCenter];
+    NSDictionary         *info=[NSDictionary dictionaryWithObject:item forKey:@"MenuItem"];
+    BOOL                  result;
+
+    [center postNotificationName:NSMenuWillSendActionNotification object:self userInfo:info];
+    result=[NSApp sendAction:[item action] to:[item target] from:item];
+    [center postNotificationName:NSMenuDidSendActionNotification object:self userInfo:info];
+    return result;
 }
 
 -(BOOL)performClickEquivalent:(NSMenuItem *)item {

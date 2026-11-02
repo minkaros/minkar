@@ -28,5 +28,8 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 - (NSMenuItem *)itemAtSelectedIndex;
 - (NSMenuView *)viewAtSelectedIndexPositionOnScreen:(NSScreen *)screen;
 - (NSMenuItem *)trackForEvent:(NSEvent *)event;
+/* Tracks from the keyboard (Control-F2): the first menu selected, not
+ * open; the arrows, Return and Escape drive it. */
+- (void)_trackFromKeyboard;
 
 @end

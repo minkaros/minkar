@@ -127,7 +127,9 @@
      * "cursorrect" (an I-beam cursor over its blue view), "ibeam" (sets
      * the I-beam cursor), "menus" (a Test menu: Alpha, Beta disabled
      * by validation, a More submenu with Gamma, and a delegate; each
-     * prints what happens).
+     * prints what happens; key equivalents Command-A, Shift-Command-B
+     * and Option-Command-G), "keyequivs" (how menus show some key
+     * equivalents).
      */
     NSArray *args = [[NSProcessInfo processInfo] arguments];
     NSUInteger cmd = [args indexOfObject:@"-cmd"];
@@ -210,12 +212,13 @@
     [menu setDelegate:self];
     [[menu addItemWithTitle:@"Alpha" action:@selector(menuAlpha:) keyEquivalent:@"a"]
         setTarget:self];
-    [[menu addItemWithTitle:@"Beta" action:@selector(menuBeta:) keyEquivalent:@""]
+    [[menu addItemWithTitle:@"Beta" action:@selector(menuBeta:) keyEquivalent:@"B"]
         setTarget:self];
     NSMenu *more = [[NSMenu alloc] initWithTitle:@"More"];
     [more setDelegate:self];
-    [[more addItemWithTitle:@"Gamma" action:@selector(menuGamma:) keyEquivalent:@""]
-        setTarget:self];
+    NSMenuItem *gamma = [more addItemWithTitle:@"Gamma" action:@selector(menuGamma:) keyEquivalent:@"g"];
+    [gamma setTarget:self];
+    [gamma setKeyEquivalentModifierMask:NSCommandKeyMask | NSAlternateKeyMask];
     [[menu addItemWithTitle:@"More" action:NULL keyEquivalent:@""] setSubmenu:more];
     NSMenuItem *item = [[NSMenuItem alloc] initWithTitle:@"Test" action:NULL keyEquivalent:@""];
     [item setSubmenu:menu];
@@ -225,6 +228,24 @@
         [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(menuNote:)
             name:name object:nil];
     printf("menus added\n");
+}
+
+/* How menus show some key equivalents (AppKit's private description). */
+- (void)printKeyEquivalents {
+    struct { NSString *key; NSUInteger mask; } cases[] = {
+        { @"a", NSCommandKeyMask },
+        { @"B", NSCommandKeyMask },
+        { @"g", NSCommandKeyMask | NSAlternateKeyMask },
+        { @"\r", NSCommandKeyMask },
+        { @"\x1b", NSCommandKeyMask | NSAlternateKeyMask },
+        { [NSString stringWithFormat:@"%C", (unichar)NSF5FunctionKey], 0 },
+        { [NSString stringWithFormat:@"%C", (unichar)NSLeftArrowFunctionKey], NSControlKeyMask | NSShiftKeyMask },
+    };
+    for (size_t i = 0; i < sizeof(cases) / sizeof(cases[0]); i++) {
+        NSMenuItem *item = [[NSMenuItem alloc] initWithTitle:@"x" action:NULL keyEquivalent:cases[i].key];
+        [item setKeyEquivalentModifierMask:cases[i].mask];
+        printf("keyequiv %s\n", [[item performSelector:@selector(_keyEquivalentDescription)] UTF8String]);
+    }
 }
 
 - (void)menuAlpha:(id)sender { printf("menu alpha\n"); }
@@ -322,6 +343,8 @@
     }
     else if (strncmp(line, "menus", 5) == 0)
         [self addTestMenu];
+    else if (strncmp(line, "keyequivs", 9) == 0)
+        [self printKeyEquivalents];
     else if (sscanf(line, "activate %d", &pid) == 1) {
         NSRunningApplication *app = [NSRunningApplication runningApplicationWithProcessIdentifier:pid];
         BOOL ok = [app activateWithOptions:NSApplicationActivateIgnoringOtherApps];

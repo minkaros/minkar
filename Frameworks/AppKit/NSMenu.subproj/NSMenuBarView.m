@@ -34,7 +34,8 @@ enum {
 	kNSMenuKeyboardNavigationDown,
 	kNSMenuKeyboardNavigationLeft,
 	kNSMenuKeyboardNavigationRight,
-	kNSMenuKeyboardNavigationLetter
+	kNSMenuKeyboardNavigationLetter,
+	kNSMenuKeyboardNavigationStart	// tracking begun from the keyboard
 };
 
 @implementation NSMenuBarView
@@ -416,6 +417,10 @@ const float kMouseMovementThreshold = .001f;
 #endif
 
 -(NSMenuItem *)trackForEvent:(NSEvent *)event {
+	return [self _trackForEvent:event fromKeyboard:NO];
+}
+
+-(NSMenuItem *)_trackForEvent:(NSEvent *)event fromKeyboard:(BOOL)fromKeyboard {
 	NSMenuItem *item=nil;
 	
 	enum {
@@ -445,6 +450,14 @@ const float kMouseMovementThreshold = .001f;
 	[viewStack addObject:self];
 	
 	int keyboardNavigationAction = kNSMenuKeyboardNavigationNone;
+
+	// From the keyboard: the first menu is selected, and the pointer
+	// is not looked at until it moves
+	if (fromKeyboard) {
+		[self setSelectedItemIndex:0];
+		keyboardNavigationAction = kNSMenuKeyboardNavigationStart;
+		state = STATE_MOUSEUP;
+	}
 	
 	BOOL cancelled = NO;
 	
@@ -876,6 +889,14 @@ const float kMouseMovementThreshold = .001f;
 }
 
 -(void)mouseDown:(NSEvent *)event {
+   [self _trackAndPerform:event fromKeyboard:NO];
+}
+
+-(void)_trackFromKeyboard {
+   [self _trackAndPerform:[NSApp currentEvent] fromKeyboard:YES];
+}
+
+-(void)_trackAndPerform:(NSEvent *)event fromKeyboard:(BOOL)fromKeyboard {
    BOOL        didAccept=[[self window] acceptsMouseMovedEvents];
    NSMenuItem *item;
 
@@ -887,20 +908,14 @@ const float kMouseMovementThreshold = .001f;
    [center postNotificationName:NSMenuDidBeginTrackingNotification object:[self menu]];
    if(_CGUsesSkyLight())
     SLSCapturePointer([[self window] _skyLightWindowID]);
-   item=[self trackForEvent:event];
+   item=[self _trackForEvent:event fromKeyboard:fromKeyboard];
    if(_CGUsesSkyLight())
     SLSCapturePointer(0);
    [[self window] setAcceptsMouseMovedEvents:didAccept];
    [center postNotificationName:NSMenuDidEndTrackingNotification object:[self menu]];
 
-   if(item!=nil){
-    NSMenu       *menu=[item menu];
-    NSDictionary *info=[NSDictionary dictionaryWithObject:item forKey:@"MenuItem"];
-
-    [center postNotificationName:NSMenuWillSendActionNotification object:menu userInfo:info];
-    [NSApp sendAction:[item action] to:[item target] from:item];
-    [center postNotificationName:NSMenuDidSendActionNotification object:menu userInfo:info];
-   }
+   if(item!=nil)
+    [[item menu] _sendActionOfItem:item];
 }
 
 @end

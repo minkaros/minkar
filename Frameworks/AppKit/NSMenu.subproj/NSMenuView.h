@@ -26,6 +26,7 @@
 
 @interface NSMenu(NSMenuViews)
 -(NSString *)_name;
+-(BOOL)_sendActionOfItem:(NSMenuItem *)item;
 @end
 
 /* An item's height in the menu bar and in menus. SHORTCUT(Phase 5): the

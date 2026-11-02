@@ -206,6 +206,13 @@ static NSRect barFrame(NSScreen *screen) {
     shown = NO;
 }
 
++ (void)_focusMenuBar {
+    if(!shown || [menuBars count] == 0)
+        return;
+    NSMenuBarWindow *bar = [menuBars objectAtIndex:0];
+    [bar->_view _trackFromKeyboard];
+}
+
 + (void)_mainMenuChanged {
     if(!shown || updating)
         return;
