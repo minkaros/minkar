@@ -12,6 +12,9 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <AppKit/NSWindow.h>
 #import <AppKit/NSEvent.h>
 #import <AppKit/NSRaise.h>
+#import <AppKit/NSScreen.h>
+#import "NSMenuWindow.h"
+#import "NSMenuView.h"
 #import <CoreGraphics/CGDirectDisplay.h>
 #import <Foundation/NSKeyedArchiver.h>
 
@@ -32,30 +35,80 @@ static void postItemNotification(NSMenu *menu, NSString *name, NSUInteger index)
 
 @implementation NSMenu
 
-+(void)popUpContextMenu:(NSMenu *)menu withEvent:(NSEvent *)event forView:(NSView *)view {
-#if 0
-   [menu update];
-   if([[menu itemArray] count]>0){
-    NSPoint       point=[event locationInWindow];
-    NSWindow     *window=[event window];
-    NSMenuWindow *menuWindow=[[NSMenuWindow alloc] initWithMenu:menu];
-    NSMenuView   *menuView=[menuWindow menuView];
-    NSMenuItem   *item;
-    
-    [menuWindow setReleasedWhenClosed:YES];
-    [menuWindow setFrameTopLeftPoint:[window convertBaseToScreen:point]];
-    [menuWindow orderFront:nil];
+/* Opens the menu with its top left (or the given item's) at a point on
+   the screen, kept on the screen: above the point when it does not fit
+   below, to its left when it does not fit on the right; at least
+   minimumWidth wide. Then tracks it and, with perform, sends the chosen
+   item's action; the item chosen, or nil. */
+-(NSMenuItem *)_popUpAtScreenPoint:(NSPoint)screenPoint positioning:(NSMenuItem *)positioned
+    event:(NSEvent *)event startedOpen:(BOOL)startedOpen minimumWidth:(CGFloat)minimumWidth
+    perform:(BOOL)perform {
+   if([_itemArray count]==0)
+    return nil;
 
-    item=[menuView trackForEvent:event];
- 
-    [menuWindow close];
+   NSMenuWindow *menuWindow=[[NSMenuWindow alloc] initWithMenu:self];
+   NSMenuView   *menuView=[menuWindow menuView];
+   NSRect        frame=[menuWindow frame];
+   NSScreen     *screen=[NSScreen mainScreen];
 
-    if(item!=nil)
-     [NSApp sendAction:[item action] to:[item target] from:item];
+   if(frame.size.width<minimumWidth){
+    frame.size.width=minimumWidth;
+    [menuWindow setFrame:frame display:NO];
+    [menuView setFrameSize:NSMakeSize(minimumWidth,[menuView frame].size.height)];
    }
-#else
-   NSUnimplementedMethod();
-#endif
+   for(NSScreen *check in [NSScreen screens])
+    if(NSPointInRect(screenPoint,[check frame]))
+     screen=check;
+
+   NSRect   visible=[screen visibleFrame];
+   NSPoint  topLeft=screenPoint;
+   NSUInteger index=positioned?[[menuView visibleItemArray] indexOfObjectIdenticalTo:positioned]:NSNotFound;
+
+   if(index!=NSNotFound)
+    topLeft.y+=[menuView _topOfItemAtIndex:index];
+   else if(!startedOpen){
+    /* Just beside the pointer, not under it: no item is chosen until the
+       pointer moves onto one. */
+    topLeft.x+=1;
+    topLeft.y-=1;
+   }
+   if(topLeft.y-frame.size.height<NSMinY(visible))
+    topLeft.y=(index==NSNotFound)?screenPoint.y+frame.size.height:NSMinY(visible)+frame.size.height;
+   if(topLeft.y>NSMaxY(visible))
+    topLeft.y=NSMaxY(visible);
+   if(topLeft.x+frame.size.width>NSMaxX(visible))
+    topLeft.x=MAX(NSMinX(visible),screenPoint.x-frame.size.width);
+   [menuWindow setFrameTopLeftPoint:topLeft];
+   [menuWindow orderFront:nil];
+
+   NSMenuItem *item=perform?[menuView _trackAndPerform:event selecting:index startedOpen:startedOpen]
+                           :[menuView _trackMenus:event selecting:index startedOpen:startedOpen];
+
+   [menuWindow close];
+   return item;
+}
+
++(void)popUpContextMenu:(NSMenu *)menu withEvent:(NSEvent *)event forView:(NSView *)view {
+   NSWindow *window=[event window]?[event window]:[view window];
+
+   [menu _popUpAtScreenPoint:[window convertBaseToScreen:[event locationInWindow]] positioning:nil
+       event:event startedOpen:NO minimumWidth:0 perform:YES];
+}
+
++(void)popUpContextMenu:(NSMenu *)menu withEvent:(NSEvent *)event forView:(NSView *)view withFont:(NSFont *)font {
+   [self popUpContextMenu:menu withEvent:event forView:view];
+}
+
+/* The item (if any) is placed at the location, in the view's coordinates
+   (the screen's with no view), and selected; the menu stays open until
+   an item is chosen or it is left. YES when an item was chosen. */
+-(BOOL)popUpMenuPositioningItem:(NSMenuItem *)item atLocation:(NSPoint)location inView:(NSView *)view {
+   NSPoint screenPoint=location;
+
+   if(view!=nil)
+    screenPoint=[[view window] convertBaseToScreen:[view convertPoint:location toView:nil]];
+   return [self _popUpAtScreenPoint:screenPoint positioning:item event:[NSApp currentEvent]
+       startedOpen:YES minimumWidth:0 perform:YES]!=nil;
 }
 
 -(void)encodeWithCoder:(NSCoder *)coder {

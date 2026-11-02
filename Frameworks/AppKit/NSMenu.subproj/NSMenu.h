@@ -9,7 +9,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <Foundation/Foundation.h>
 #import <AppKit/AppKitExport.h>
 
-@class NSScreen, NSMenu, NSMenuItem, NSWindow, NSEvent, NSView;
+@class NSScreen, NSMenu, NSMenuItem, NSWindow, NSEvent, NSView, NSFont;
 
 @protocol NSMenuDelegate;
 
@@ -34,6 +34,8 @@ APPKIT_EXPORT NSString *const NSMenuDidEndTrackingNotification;
 }
 
 + (void)popUpContextMenu:(NSMenu *)menu withEvent:(NSEvent *)event forView:(NSView *)view;
++ (void)popUpContextMenu:(NSMenu *)menu withEvent:(NSEvent *)event forView:(NSView *)view withFont:(NSFont *)font;
+- (BOOL)popUpMenuPositioningItem:(NSMenuItem *)item atLocation:(NSPoint)location inView:(NSView *)view;
 
 - initWithTitle:(NSString *)title;
 

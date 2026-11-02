@@ -2308,7 +2308,12 @@ static NSGraphicsContext *graphicsContextForView(NSView *view){
 }
 
 -(void)rightMouseDown:(NSEvent *)event {
-   [NSMenu popUpContextMenu:[self menuForEvent:event] withEvent:event forView:self];
+   NSMenu *menu=[self menuForEvent:event];
+
+   if(menu!=nil)
+    [NSMenu popUpContextMenu:menu withEvent:event forView:self];
+   else
+    [super rightMouseDown:event];
 }
 
 

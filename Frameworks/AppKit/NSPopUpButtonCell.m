@@ -12,7 +12,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <AppKit/NSGraphics.h>
 #import <AppKit/NSGraphicsStyle.h>
 #import <AppKit/NSImage.h>
-#import <AppKit/NSPopUpWindow.h>
+#import "NSMenu.subproj/NSMenuView.h"
 #import <Foundation/NSKeyedArchiver.h>
 #import <AppKit/NSRaise.h>
 
@@ -458,55 +458,29 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    return [[self selectedItem] tag];
 }
 
+/* The menu opens as other menus do (NSMenu): a pop-up button's with its
+   selected item over the button, a pull-down button's below it without
+   its first item (the button's title); at least as wide as the button. */
 -(BOOL)trackMouse:(NSEvent *)event inRect:(NSRect)cellFrame ofView:(NSView *)controlView untilMouseUp:(BOOL)flag {
-   NSRect bounds = [controlView bounds];
-   NSPoint        origin=bounds.origin;
-   
-#if 0
-   // Note: the min options don't mean much unless we don't have room for the menu, so either way we just pop
-   // up over the button itself. However, maxX and maxY *do* have special meanings
-   switch( _preferredEdge )
-   {
-      case NSMinXEdge:
-      case NSMinYEdge:
-	     break;
-	  case NSMaxXEdge:
-		 origin.x += [controlView bounds].size.width;
-	     break;
-	  case NSMaxYEdge: 
-         // Remember, our Y axis is flipped in Cocoa. Also, not sure why we need the -4 offset here, 
-		 // can't figure out where the offset comes from, but it works			
-		 origin.y -= [controlView bounds].size.height - 4;
-	     break;
-   }
-#endif
-    origin=[controlView convertPoint:origin toView:nil];
-    origin=[[controlView window] convertBaseToScreen:origin];
-
-    [[_menu delegate] menuNeedsUpdate: _menu];
-//	[[_menu delegate] menuWillOpen: _menu];
     NSMenu *menu = _menu;
     if (_pullsDown && [_menu numberOfItems]) {
         // Don't display the first item for pullDowns controls
         menu = [[_menu copy] autorelease];
         [menu removeItemAtIndex:0];
     }
-    [menu update];
 
-    NSPopUpWindow *window=[[NSPopUpWindow alloc] initWithFrame:NSMakeRect(origin.x,origin.y,
-        cellFrame.size.width,cellFrame.size.height)];
-    [window setPullsDown:_pullsDown];
-    [window setMenu:menu];
-   if([self font]!=nil)
-    [window setFont:[self font]];
+    NSRect frame = [controlView convertRect:cellFrame toView:nil];
+    frame.origin = [[controlView window] convertBaseToScreen:frame.origin];
+    NSMenuItem *positioned = nil;
+    if (!_pullsDown && _selectedIndex >= 0 && _selectedIndex < [menu numberOfItems])
+        positioned = [menu itemAtIndex:_selectedIndex];
+    NSPoint at = _pullsDown ? NSMakePoint(NSMinX(frame), NSMinY(frame))
+                            : NSMakePoint(NSMinX(frame), NSMaxY(frame));
 
-   if(_pullsDown)
-    [window selectItemAtIndex:-1]; // No initial selection for pullsDown
-   else
-    [window selectItemAtIndex:_selectedIndex];
+    NSMenuItem *item = [menu _popUpAtScreenPoint:at positioning:positioned event:event
+        startedOpen:NO minimumWidth:frame.size.width perform:NO];
+    NSInteger itemIndex = item ? [menu indexOfItem:item] : NSNotFound;
 
-    [window orderFront:nil];
-    NSInteger itemIndex=[window runTrackingWithEvent:event];
     if(itemIndex!=NSNotFound) {
         if (_pullsDown) {
             // remember that thing we did with the first menu item?
@@ -517,10 +491,8 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
         if ([controlView respondsToSelector: @selector(selectItemAtIndex:)]) {
             [(id)controlView selectItemAtIndex:itemIndex];
         }
+        _selectedIndex = itemIndex;
     }
-    _selectedIndex = (itemIndex == NSNotFound) ? -1 : itemIndex;
-    [window close]; // release when closed=YES
-//	[[_menu delegate] menuDidClose: _menu];
 
    return itemIndex!=NSNotFound;
 }

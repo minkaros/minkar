@@ -27,6 +27,9 @@
 @interface NSMenu(NSMenuViews)
 -(NSString *)_name;
 -(BOOL)_sendActionOfItem:(NSMenuItem *)item;
+-(NSMenuItem *)_popUpAtScreenPoint:(NSPoint)screenPoint positioning:(NSMenuItem *)positioned
+    event:(NSEvent *)event startedOpen:(BOOL)startedOpen minimumWidth:(CGFloat)minimumWidth
+    perform:(BOOL)perform;
 @end
 
 /* An item's height in the menu bar and in menus. SHORTCUT(Phase 5): the
@@ -52,6 +55,17 @@
 -(void)setSelectedItemIndex:(NSUInteger)itemIndex;
 -(void)mouseDown:(NSEvent *)event;
 -(NSMenuItem *)trackForEvent:(NSEvent *)event;
+/* NO here, YES for the menu bar, whose items run left to right. */
+-(BOOL)_isMenuBar;
+/* Tracks the menus from here and sends the chosen item's action (see
+   _trackForEvent:selecting:startedOpen:); the item chosen, or nil. */
+-(NSMenuItem *)_trackAndPerform:(NSEvent *)event selecting:(NSUInteger)selecting startedOpen:(BOOL)startedOpen;
+-(NSMenuItem *)_trackForEvent:(NSEvent *)event selecting:(NSUInteger)selecting startedOpen:(BOOL)startedOpen;
+-(NSMenuItem *)_trackMenus:(NSEvent *)event selecting:(NSUInteger)selecting startedOpen:(BOOL)startedOpen;
+/* Control-F2: from the keyboard, the first item selected. */
+-(void)_trackFromKeyboard;
+/* How far below the menu's top the item's top is, in points. */
+-(CGFloat)_topOfItemAtIndex:(NSUInteger)index;
 -(NSMenuItem *)itemAtSelectedIndex;
 -(void)setWindow:(NSWindow *)window;
 

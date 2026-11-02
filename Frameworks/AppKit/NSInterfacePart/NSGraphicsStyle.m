@@ -321,8 +321,10 @@ static NSDictionary *sDimmedMenuTextShadowAttributes = nil;
 {
 	if (enabled)
 	{
+		/* Over the menu's background: the color may be translucent, and
+		   NSRectFill copies it, which would leave the window see-through. */
 		[[NSColor selectedMenuItemColor] setFill];
-		NSRectFill(rect);
+		NSRectFillUsingOperation(rect,NSCompositeSourceOver);
 	}
 }
 

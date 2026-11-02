@@ -8,10 +8,8 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 #import "NSMenuView.h"
 
-@interface NSMenuBarView : NSView {
+@interface NSMenuBarView : NSMenuView {
     NSFont *_font;
-    NSUInteger _selectedItemIndex;
-    NSMutableArray *_visibleArray;
     NSMenuItem *_leadingItem;
 }
 
@@ -22,14 +20,9 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 - (void)setLeadingItem:(NSMenuItem *)item;
 - (void)sizeToFit;
 - (NSUInteger)itemIndexAtPoint:(NSPoint)point;
-- (NSUInteger)selectedItemIndex;
-- (void)setSelectedItemIndex:(NSUInteger)itemIndex;
 - (NSArray *)visibleItemArray;
 - (NSMenuItem *)itemAtSelectedIndex;
 - (NSMenuView *)viewAtSelectedIndexPositionOnScreen:(NSScreen *)screen;
-- (NSMenuItem *)trackForEvent:(NSEvent *)event;
-/* Tracks from the keyboard (Control-F2): the first menu selected, not
- * open; the arrows, Return and Escape drive it. */
-- (void)_trackFromKeyboard;
+
 
 @end

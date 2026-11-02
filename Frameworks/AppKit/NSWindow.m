@@ -2377,6 +2377,17 @@ NSArray *_NSWindowNumbersFromWindowInfo(CFArrayRef info,BOOL allApps) {
     case NSLeftMouseDown:{
         NSView *view=[_backgroundView hitTest:[event locationInWindow]];
 
+        /* Control-click is a context menu click, as on the reference
+           platform, where the view has a menu. */
+        if(([event modifierFlags]&NSControlKeyMask) && view!=nil){
+            NSMenu *contextMenu=[view menuForEvent:event];
+
+            if(contextMenu!=nil){
+                [NSMenu popUpContextMenu:contextMenu withEvent:event forView:view];
+                break;
+            }
+        }
+
         /* A click in a window that is not key makes it key and brings it
          * to the front (the window server does not reorder windows). */
         if(![self isKeyWindow] && [self canBecomeKeyWindow])

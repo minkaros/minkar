@@ -95,6 +95,8 @@
 @property (copy) NSString *commandPath;
 @property (strong) NSWindow *child;
 @property (strong) NSWindow *sheet;
+@property (strong) NSMenu *contextMenu;
+@property (strong) NSPopUpButton *popUp;
 @end
 
 @implementation DemoDelegate
@@ -129,7 +131,10 @@
      * by validation, a More submenu with Gamma, and a delegate; each
      * prints what happens; key equivalents Command-A, Shift-Command-B
      * and Option-Command-G), "keyequivs" (how menus show some key
-     * equivalents).
+     * equivalents), "context" (a context menu on the blue view: One, Two,
+     * a Three submenu with Four), "popup" (that menu opened at the view's
+     * middle by popUpMenuPositioningItem:, Two placed there), "popupbutton"
+     * (a pop-up button: Red, Green, Blue).
      */
     NSArray *args = [[NSProcessInfo processInfo] arguments];
     NSUInteger cmd = [args indexOfObject:@"-cmd"];
@@ -248,6 +253,39 @@
     }
 }
 
+- (void)addContextMenu {
+    NSMenu *menu = [[NSMenu alloc] initWithTitle:@"Context"];
+    [menu setDelegate:self];
+    for (NSString *title in @[ @"One", @"Two" ])
+        [[menu addItemWithTitle:title action:@selector(contextItem:) keyEquivalent:@""] setTarget:self];
+    NSMenu *three = [[NSMenu alloc] initWithTitle:@"Three"];
+    [[three addItemWithTitle:@"Four" action:@selector(contextItem:) keyEquivalent:@""] setTarget:self];
+    [[menu addItemWithTitle:@"Three" action:NULL keyEquivalent:@""] setSubmenu:three];
+    self.contextMenu = menu;
+    [[self.window contentView] setMenu:menu];
+    printf("context menu set\n");
+}
+
+- (void)contextItem:(NSMenuItem *)item {
+    printf("context %s\n", [[item title] UTF8String]);
+}
+
+- (void)addPopUpButton {
+    NSPopUpButton *button = [[NSPopUpButton alloc] initWithFrame:NSMakeRect(20, 20, 140, 26) pullsDown:NO];
+    [button addItemsWithTitles:@[ @"Red", @"Green", @"Blue" ]];
+    [button setTarget:self];
+    [button setAction:@selector(popUpChanged:)];
+    [[self.window contentView] addSubview:button];
+    self.popUp = button;
+    NSRect f = [button convertRect:[button bounds] toView:nil];
+    f.origin = [self.window convertBaseToScreen:f.origin];
+    printf("popup button frame=%.0f,%.0f,%.0f,%.0f\n", f.origin.x, f.origin.y, f.size.width, f.size.height);
+}
+
+- (void)popUpChanged:(NSPopUpButton *)sender {
+    printf("popup button selected %s\n", [[sender titleOfSelectedItem] UTF8String]);
+}
+
 - (void)menuAlpha:(id)sender { printf("menu alpha\n"); }
 - (void)menuBeta:(id)sender { printf("menu beta\n"); }
 - (void)menuGamma:(id)sender { printf("menu gamma\n"); }
@@ -345,6 +383,17 @@
         [self addTestMenu];
     else if (strncmp(line, "keyequivs", 9) == 0)
         [self printKeyEquivalents];
+    else if (strncmp(line, "context", 7) == 0)
+        [self addContextMenu];
+    else if (strncmp(line, "popupbutton", 11) == 0)
+        [self addPopUpButton];
+    else if (strncmp(line, "popup", 5) == 0) {
+        NSView *view = [self.window contentView];
+        NSRect b = [view bounds];
+        BOOL chosen = [self.contextMenu popUpMenuPositioningItem:[self.contextMenu itemAtIndex:1]
+            atLocation:NSMakePoint(NSMidX(b), NSMidY(b)) inView:view];
+        printf("popup chosen=%d\n", chosen);
+    }
     else if (sscanf(line, "activate %d", &pid) == 1) {
         NSRunningApplication *app = [NSRunningApplication runningApplicationWithProcessIdentifier:pid];
         BOOL ok = [app activateWithOptions:NSApplicationActivateIgnoringOtherApps];
