@@ -76,3 +76,16 @@ routine port_id(
 	port			: mach_port_t;
 	out surfaceID		: uint32_t;
 	out result		: int32_t);
+
+/*
+ * A surface in GPU memory: the GPU's shared buffer behind it (the GPU's
+ * registry entry ID and the buffer's global ID), which the registry holds
+ * while the surface lives. From a process holding the surface.
+ */
+routine attach_gpu_buffer(
+	server			: mach_port_t;
+	ServerAuditToken token	: audit_token_t;
+	surfaceID		: uint32_t;
+	gpu			: uint64_t;
+	buffer			: uint32_t;
+	out result		: int32_t);

@@ -42,7 +42,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <IOKit/IOKitLib.h>
 #include "IOSurfaceRegistryServer.h"	/* MIG, generated */
+#include "MinkarAMDGPUInterface.h"
 
 #define kService	"org.minkar.iosurfaced"
 
@@ -62,6 +64,8 @@ typedef struct Surface {
 	size_t		valuesLen;
 	mach_port_t	port;		/* receive right, made_port's; or null */
 	Hold		*holds;
+	io_connect_t	gpu;		/* a surface in GPU memory: its GPU, */
+	uint64_t	gpuBuffer;	/* and the buffer held there */
 	struct Surface	*next;
 } Surface;
 
@@ -83,12 +87,49 @@ static Surface *find(uint32_t surfaceID) {
 	return NULL;
 }
 
+/* ---- Surfaces in GPU memory ---- */
+
+/* One connection per GPU, by registry entry ID, kept. */
+typedef struct GPU {
+	uint64_t	entryID;
+	io_connect_t	connect;
+	struct GPU	*next;
+} GPU;
+static GPU *gpus;
+
+static io_connect_t gpuConnect(uint64_t entryID) {
+	for (GPU *g = gpus; g; g = g->next)
+		if (g->entryID == entryID)
+			return g->connect;
+	io_service_t service = IOServiceGetMatchingService(kIOMasterPortDefault,
+	    IORegistryEntryIDMatching(entryID));
+	io_connect_t connect = IO_OBJECT_NULL;
+	if (service == IO_OBJECT_NULL || !IOObjectConformsTo(service, "MinkarAMDGPU") ||
+	    IOServiceOpen(service, mach_task_self(), 0, &connect) != KERN_SUCCESS)
+		connect = IO_OBJECT_NULL;
+	if (service != IO_OBJECT_NULL)
+		IOObjectRelease(service);
+	if (connect == IO_OBJECT_NULL)
+		return IO_OBJECT_NULL;
+	GPU *g = calloc(1, sizeof(*g));
+	g->entryID = entryID;
+	g->connect = connect;
+	g->next = gpus;
+	gpus = g;
+	return connect;
+}
+
 static void destroy(Surface *s) {
 	Surface **p = &surfaces;
 
 	while (*p != s)
 		p = &(*p)->next;
 	*p = s->next;
+	/* Its GPU memory goes when the GPU's last holder lets it go. */
+	if (s->gpuBuffer != 0) {
+		uint64_t b = s->gpuBuffer;
+		IOConnectCallScalarMethod(s->gpu, kMinkarAMDGPUDestroyBuffer, &b, 1, NULL, NULL);
+	}
 	mach_port_deallocate(mach_task_self(), s->memory);
 	if (s->port != MACH_PORT_NULL)
 		mach_port_mod_refs(mach_task_self(), s->port, MACH_PORT_RIGHT_RECEIVE, -1);
@@ -253,6 +294,33 @@ iosd_release(mach_port_t server, audit_token_t token, uint32_t surfaceID)
 
 	if (s != NULL && unhold(s, audit_token_to_pid(token), 0))
 		destroy(s);
+	return KERN_SUCCESS;
+}
+
+kern_return_t
+iosd_attach_gpu_buffer(mach_port_t server, audit_token_t token, uint32_t surfaceID, uint64_t gpu,
+    uint32_t buffer, int32_t *result)
+{
+	pid_t pid = audit_token_to_pid(token);
+	Surface *s = find(surfaceID);
+	int holds = 0;
+
+	*result = -1;
+	if (s != NULL)
+		for (Hold *h = s->holds; h; h = h->next)
+			if (h->pid == pid)
+				holds = 1;
+	if (s == NULL || !holds || s->gpuBuffer != 0 || buffer == 0)
+		return KERN_SUCCESS;
+	io_connect_t c = gpuConnect(gpu);
+	uint64_t in = buffer, out[3];
+	uint32_t n = 3;
+	if (c == IO_OBJECT_NULL ||
+	    IOConnectCallScalarMethod(c, kMinkarAMDGPURetainSharedBuffer, &in, 1, out, &n) != KERN_SUCCESS)
+		return KERN_SUCCESS;
+	s->gpu = c;
+	s->gpuBuffer = out[0];
+	*result = 0;
 	return KERN_SUCCESS;
 }
 

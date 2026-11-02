@@ -13,8 +13,9 @@ MK_WERROR = no
 
 SRCS = IOSurface.c IOSurfaceRegistryUser.c
 HEADERS = IOSurface.h IOSurfaceRef.h IOSurfaceTypes.h IOSurfaceAPI.h
-CFLAGS += -I${.OBJDIR} -I${.OBJDIR}/include -I${.CURDIR}
-LDFLAGS += -framework CoreFoundation
+CFLAGS += -I${.OBJDIR} -I${.OBJDIR}/include -I${.CURDIR} \
+	-I${ROOT_SOURCE_DIR}/Kernel/Extensions/MinkarDRM
+LDFLAGS += -framework CoreFoundation -framework IOKit
 CLEANFILES += IOSurfaceRegistryUser.c IOSurfaceRegistryUser.h
 
 # The client side of the MIG interface.

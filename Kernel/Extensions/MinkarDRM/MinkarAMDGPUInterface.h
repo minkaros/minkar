@@ -56,6 +56,11 @@
  *			framebuffer the display shows, bytes; out: nanoseconds.
  *			The DMA engine copies into the scanout (the window
  *			server's present); the range must lie in it.
+ *   CreateSharedBuffer	in: size; out: buffer, its GPU address, its global ID.
+ *			A VRAM buffer other clients may hold too: its VRAM is
+ *			freed when the last holder lets it go (IOSurfaces in
+ *			VRAM: iosurfaced holds one for each).
+ *   RetainSharedBuffer	in: global ID; out: buffer, its GPU address, size.
  *   ReadRegister	in: dword index; out: its value. For bring-up: the
  *			register window only, reading only (no indexed
  *			registers, which take two writes).
@@ -75,6 +80,8 @@ enum {
 	kMinkarAMDGPUCreateSystemBuffer,
 	kMinkarAMDGPUImportMemory,
 	kMinkarAMDGPUCopyToScanout,
+	kMinkarAMDGPUCreateSharedBuffer,
+	kMinkarAMDGPURetainSharedBuffer,
 	kMinkarAMDGPUMethodCount
 };
 

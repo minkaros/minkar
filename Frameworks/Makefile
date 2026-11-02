@@ -30,7 +30,7 @@ SUBDIR += AppKit
 all: ${SUBDIR}
 
 Foundation: CoreFoundation
-IOSurface: CoreFoundation
+IOSurface: CoreFoundation ../Kernel/IOKitUser
 CoreServices: CoreServices/LaunchServices
 SystemConfiguration: CoreFoundation
 DiskArbitration: CoreFoundation

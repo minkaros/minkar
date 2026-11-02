@@ -80,6 +80,10 @@ public:
 	IOReturn mapSystemMemory(IOMemoryDescriptor *memory, uint64_t *gpuAddress);
 	void unmapSystemMemory(uint64_t gpuAddress, uint64_t size);
 	IOReturn readWindowRegister(uint32_t reg, uint32_t *value);
+	/* Shared VRAM buffers, by global ID, freed with their last holder. */
+	IOReturn createShared(uint64_t size, uint32_t *id, uint64_t *offset, uint64_t *rounded);
+	IOReturn retainShared(uint32_t id, uint64_t *offset, uint64_t *size);
+	void releaseShared(uint32_t id);
 	/* Into the framebuffer the display shows, at offset. */
 	IOReturn copyToScanout(uint64_t src, uint64_t offset, uint64_t bytes, uint64_t *ns);
 
@@ -97,7 +101,11 @@ private:
 	static void sleepForTrap(void *gpu);
 	bool lightsDisplay();
 
-	enum { kVRAMRanges = 1024, kGARTRanges = 1024 };
+	enum { kVRAMRanges = 1024, kGARTRanges = 1024, kSharedBuffers = 512 };
+	struct Shared {
+		uint32_t id, holders;	/* holders 0: the slot is empty */
+		uint64_t offset, size;
+	};
 
 	IOPCIDevice *		fPCI;
 	struct MinkarAMDRegs	fRegs;
@@ -116,6 +124,8 @@ private:
 	struct minkar_vram	fGARTPages;	/* what is free of it, by offset */
 	struct minkar_vram_range fGARTRanges[kGARTRanges];
 	IOLock *		fVRAMLock;	/* the VRAM's and the GART's allocators */
+	Shared			fShared[kSharedBuffers];	/* under fVRAMLock */
+	uint32_t		fNextSharedID;
 
 	/* Interrupts: the IH ring and its write-back in system memory. */
 	IOWorkLoop *		fWorkLoop;

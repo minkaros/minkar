@@ -44,6 +44,8 @@
 #include <string.h>
 #include "IOSurfaceRef.h"
 #include "IOSurfaceRegistryUser.h"
+#include <IOKit/IOKitLib.h>
+#include "MinkarAMDGPUInterface.h"
 
 #define kRegistryService	"org.minkar.iosurfaced"
 #define kMaxPlanes		4
@@ -105,6 +107,10 @@ struct __IOSurface {
 	SurfacePlane		planes[kMaxPlanes];
 	CFMutableDictionaryRef	localValues;	/* without the registry */
 	_Atomic int		locks;
+	/* In GPU memory, in the process that made it: the GPU's buffer,
+	 * mapped from the GPU's user client (the others map the entry). */
+	uint64_t		gpuHandle;
+	uint32_t		gpuBuffer;	/* its global ID */
 };
 
 static CFTypeID surfaceTypeID;
@@ -222,6 +228,83 @@ static CFPropertyListRef deserialize(const void *bytes, size_t len) {
 	return p;
 }
 
+/* ---- Surfaces in GPU memory (G2) -------------------------------------- */
+
+/*
+ * Asked for with IOSurfaceMinkarGPUMemory (a private property, true): the
+ * pixels in VRAM of the GPU that lights the display, a shared buffer of
+ * its user client (for administrators and the gpu-client entitlement, so
+ * for the window server and GPU daemons). The registry holds the buffer
+ * while the surface lives anywhere; others map it through the memory
+ * entry as any surface. The CPU reads VRAM slowly: for what the GPU draws.
+ */
+static const CFStringRef kIOSurfaceMinkarGPUMemory = CFSTR("IOSurfaceMinkarGPUMemory");
+static pthread_once_t gpuOnce = PTHREAD_ONCE_INIT;
+static io_connect_t gpu = IO_OBJECT_NULL;
+static uint64_t gpuEntryID;
+
+static void openGPU(void) {
+	io_iterator_t it = IO_OBJECT_NULL;
+	io_service_t service, chosen = IO_OBJECT_NULL;
+
+	if (IOServiceGetMatchingServices(kIOMasterPortDefault, IOServiceMatching("MinkarAMDGPU"),
+	    &it) != KERN_SUCCESS)
+		return;
+	while ((service = IOIteratorNext(it)) != IO_OBJECT_NULL) {
+		CFTypeRef lights = IORegistryEntryCreateCFProperty(service, CFSTR("MinkarLightsDisplay"),
+		    kCFAllocatorDefault, 0);
+		Boolean display = lights == kCFBooleanTrue;
+		if (lights != NULL)
+			CFRelease(lights);
+		if (chosen == IO_OBJECT_NULL || display) {
+			if (chosen != IO_OBJECT_NULL)
+				IOObjectRelease(chosen);
+			chosen = service;
+			if (display)
+				break;
+		} else
+			IOObjectRelease(service);
+	}
+	IOObjectRelease(it);
+	if (chosen == IO_OBJECT_NULL)
+		return;
+	if (IOServiceOpen(chosen, mach_task_self(), 0, &gpu) != KERN_SUCCESS)
+		gpu = IO_OBJECT_NULL;
+	else
+		IORegistryEntryGetRegistryEntryID(chosen, &gpuEntryID);
+	IOObjectRelease(chosen);
+}
+
+static Boolean wantsGPUMemory(CFDictionaryRef properties) {
+	CFTypeRef v = properties ? CFDictionaryGetValue(properties, kIOSurfaceMinkarGPUMemory) : NULL;
+	return v == kCFBooleanTrue;
+}
+
+/* The pixels and the trailer in a shared VRAM buffer, mapped here. */
+static Boolean allocateInGPU(IOSurfaceRef s) {
+	uint64_t in = s->mapSize, out[3];
+	uint32_t n = 3;
+	mach_vm_size_t size = 0;
+
+	pthread_once(&gpuOnce, openGPU);
+	if (gpu == IO_OBJECT_NULL ||
+	    IOConnectCallScalarMethod(gpu, kMinkarAMDGPUCreateSharedBuffer, &in, 1, out, &n) != KERN_SUCCESS)
+		return false;
+	s->gpuHandle = out[0];
+	s->gpuBuffer = (uint32_t)out[2];
+	if (IOConnectMapMemory64(gpu, (uint32_t)s->gpuHandle, mach_task_self(), &s->address, &size,
+	    kIOMapAnywhere) != KERN_SUCCESS || size < s->mapSize) {
+		s->address = 0;
+		return false;
+	}
+	return true;
+}
+
+/* The GPU's buffer behind a surface: its global ID, 0 for system memory. */
+uint32_t IOSurfaceGetMinkarGPUBuffer(IOSurfaceRef buffer) {
+	return buffer ? buffer->gpuBuffer : 0;
+}
+
 /* ---- Making and finding surfaces ------------------------------------- */
 
 static IOSurfaceRef newSurface(void) {
@@ -241,7 +324,12 @@ IOSurfaceRef IOSurfaceCreate(CFDictionaryRef properties) {
 		CFRelease(s);
 		return NULL;
 	}
-	if (mach_vm_allocate(mach_task_self(), &s->address, s->mapSize, VM_FLAGS_ANYWHERE) !=
+	if (wantsGPUMemory(properties)) {
+		if (!allocateInGPU(s)) {
+			CFRelease(s);
+			return NULL;
+		}
+	} else if (mach_vm_allocate(mach_task_self(), &s->address, s->mapSize, VM_FLAGS_ANYWHERE) !=
 	    KERN_SUCCESS) {
 		s->address = 0;
 		CFRelease(s);
@@ -268,6 +356,13 @@ IOSurfaceRef IOSurfaceCreate(CFDictionaryRef properties) {
 			s->surfaceID = 0;
 		if (p)
 			CFRelease(p);
+		/* The registry holds the GPU memory while the surface lives. */
+		if (s->surfaceID != 0 && s->gpuBuffer != 0 &&
+		    (iosr_attach_gpu_buffer(registry, s->surfaceID, gpuEntryID, s->gpuBuffer, &result) !=
+		    KERN_SUCCESS || result != 0)) {
+			CFRelease(s);
+			return NULL;
+		}
 	}
 	return s;
 }
@@ -319,7 +414,13 @@ IOSurfaceID IOSurfaceGetID(IOSurfaceRef buffer) {
 static void surfaceFinalize(CFTypeRef cf) {
 	IOSurfaceRef s = (IOSurfaceRef)cf;
 
-	if (s->address != 0)
+	if (s->gpuHandle != 0) {
+		/* This process's hold on the GPU's buffer; the registry may keep it. */
+		uint64_t h = s->gpuHandle;
+		if (s->address != 0)
+			IOConnectUnmapMemory64(gpu, (uint32_t)h, mach_task_self(), s->address);
+		IOConnectCallScalarMethod(gpu, kMinkarAMDGPUDestroyBuffer, &h, 1, NULL, NULL);
+	} else if (s->address != 0)
 		mach_vm_deallocate(mach_task_self(), s->address, s->mapSize);
 	if (s->memory != MACH_PORT_NULL)
 		mach_port_deallocate(mach_task_self(), s->memory);

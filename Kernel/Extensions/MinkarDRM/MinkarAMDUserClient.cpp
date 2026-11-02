@@ -64,7 +64,9 @@ MinkarAMDUserClient::start(IOService *provider)
 void
 MinkarAMDUserClient::destroy(Buffer *b)
 {
-	if (b->system != NULL)
+	if (b->shared != 0)
+		fGPU->releaseShared(b->shared);
+	else if (b->system != NULL)
 		fGPU->destroySystemBuffer(b->system, b->gpu);
 	else if (b->imported != NULL) {
 		fGPU->unmapSystemMemory(b->gpu, b->size);
@@ -74,6 +76,7 @@ MinkarAMDUserClient::destroy(Buffer *b)
 		fGPU->destroyBuffer(b->offset, b->size);
 	b->system = NULL;
 	b->imported = NULL;
+	b->shared = 0;
 	b->size = 0;
 }
 
@@ -128,6 +131,8 @@ MinkarAMDUserClient::externalMethod(uint32_t selector, IOExternalMethodArguments
 		{ (IOExternalMethodAction)&sCreateSystem, 1, 0, 2, 0 },
 		{ (IOExternalMethodAction)&sImport, 2, 0, 2, 0 },
 		{ (IOExternalMethodAction)&sCopyToScanout, 4, 0, 1, 0 },
+		{ (IOExternalMethodAction)&sCreateShared, 1, 0, 3, 0 },
+		{ (IOExternalMethodAction)&sRetainShared, 1, 0, 3, 0 },
 	};
 
 	(void)dispatch; (void)target;
@@ -169,6 +174,7 @@ MinkarAMDUserClient::sCreate(OSObject *target, void *, IOExternalMethodArguments
 		me->fBuffers[slot].gpu = me->fGPU->gpuAddress(offset);
 		me->fBuffers[slot].system = NULL;
 		me->fBuffers[slot].imported = NULL;
+		me->fBuffers[slot].shared = 0;
 		args->scalarOutput[0] = slot + 1;
 		args->scalarOutput[1] = me->fBuffers[slot].gpu;
 	}
@@ -245,6 +251,7 @@ MinkarAMDUserClient::sCreateSystem(OSObject *target, void *, IOExternalMethodArg
 		me->fBuffers[slot].gpu = gpu;
 		me->fBuffers[slot].system = m;
 		me->fBuffers[slot].imported = NULL;
+		me->fBuffers[slot].shared = 0;
 		args->scalarOutput[0] = slot + 1;
 		args->scalarOutput[1] = gpu;
 	}
@@ -284,6 +291,7 @@ MinkarAMDUserClient::sImport(OSObject *target, void *, IOExternalMethodArguments
 		me->fBuffers[slot].gpu = gpu;
 		me->fBuffers[slot].system = NULL;
 		me->fBuffers[slot].imported = m;
+		me->fBuffers[slot].shared = 0;
 		args->scalarOutput[0] = slot + 1;
 		args->scalarOutput[1] = gpu;
 	}
@@ -311,6 +319,67 @@ MinkarAMDUserClient::sCopyToScanout(OSObject *target, void *, IOExternalMethodAr
 	IOLockUnlock(me->fLock);
 	if (err == kIOReturnSuccess)
 		args->scalarOutput[0] = ns;
+	return err;
+}
+
+/* A shared VRAM buffer, held by this client. */
+IOReturn
+MinkarAMDUserClient::sCreateShared(OSObject *target, void *, IOExternalMethodArguments *args)
+{
+	MinkarAMDUserClient *me = (MinkarAMDUserClient *)target;
+	uint64_t offset = 0, size = 0;
+	uint32_t id = 0;
+	unsigned slot;
+
+	IOLockLock(me->fLock);
+	for (slot = 0; slot < kMinkarAMDGPUMaxBuffers && me->fBuffers[slot].size != 0; slot++)
+		;
+	IOReturn err = slot == kMinkarAMDGPUMaxBuffers ? kIOReturnNoResources :
+	    me->fGPU->createShared(args->scalarInput[0], &id, &offset, &size);
+	if (err == kIOReturnSuccess) {
+		Buffer *b = &me->fBuffers[slot];
+		b->offset = offset;
+		b->size = size;
+		b->gpu = me->fGPU->gpuAddress(offset);
+		b->system = NULL;
+		b->imported = NULL;
+		b->shared = id;
+		args->scalarOutput[0] = slot + 1;
+		args->scalarOutput[1] = b->gpu;
+		args->scalarOutput[2] = id;
+	}
+	IOLockUnlock(me->fLock);
+	return err;
+}
+
+/* Another client's shared buffer, by its global ID: held by this one too. */
+IOReturn
+MinkarAMDUserClient::sRetainShared(OSObject *target, void *, IOExternalMethodArguments *args)
+{
+	MinkarAMDUserClient *me = (MinkarAMDUserClient *)target;
+	uint64_t offset = 0, size = 0;
+	unsigned slot;
+
+	if (args->scalarInput[0] == 0 || args->scalarInput[0] > UINT32_MAX)
+		return kIOReturnBadArgument;
+	IOLockLock(me->fLock);
+	for (slot = 0; slot < kMinkarAMDGPUMaxBuffers && me->fBuffers[slot].size != 0; slot++)
+		;
+	IOReturn err = slot == kMinkarAMDGPUMaxBuffers ? kIOReturnNoResources :
+	    me->fGPU->retainShared((uint32_t)args->scalarInput[0], &offset, &size);
+	if (err == kIOReturnSuccess) {
+		Buffer *b = &me->fBuffers[slot];
+		b->offset = offset;
+		b->size = size;
+		b->gpu = me->fGPU->gpuAddress(offset);
+		b->system = NULL;
+		b->imported = NULL;
+		b->shared = (uint32_t)args->scalarInput[0];
+		args->scalarOutput[0] = slot + 1;
+		args->scalarOutput[1] = b->gpu;
+		args->scalarOutput[2] = size;
+	}
+	IOLockUnlock(me->fLock);
 	return err;
 }
 

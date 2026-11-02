@@ -62,6 +62,7 @@ private:
 		uint64_t gpu;		/* its GPU address */
 		IOBufferMemoryDescriptor *system;	/* a system buffer's memory */
 		IOMemoryDescriptor *imported;		/* the client's own, wired */
+		uint32_t shared;			/* a shared buffer's global ID */
 	};
 
 	static IOReturn sInfo(OSObject *target, void *reference, IOExternalMethodArguments *args);
@@ -72,6 +73,8 @@ private:
 	static IOReturn sCreateSystem(OSObject *target, void *reference, IOExternalMethodArguments *args);
 	static IOReturn sImport(OSObject *target, void *reference, IOExternalMethodArguments *args);
 	static IOReturn sCopyToScanout(OSObject *target, void *reference, IOExternalMethodArguments *args);
+	static IOReturn sCreateShared(OSObject *target, void *reference, IOExternalMethodArguments *args);
+	static IOReturn sRetainShared(OSObject *target, void *reference, IOExternalMethodArguments *args);
 	void destroy(Buffer *b);
 	Buffer *buffer(uint64_t handle);
 	void releaseAll();

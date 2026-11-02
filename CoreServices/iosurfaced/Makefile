@@ -16,10 +16,11 @@ SRCS =	iosurfaced.c IOSurfaceRegistryServer.c
 MAN =
 IOS = ${ROOT_SOURCE_DIR}/Frameworks/IOSurface
 CFLAGS += --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
-	-Wno-incompatible-sysroot -I${.OBJDIR} -I${IOS}
+	-Wno-incompatible-sysroot -I${.OBJDIR} -I${IOS} \
+	-I${ROOT_SOURCE_DIR}/Kernel/Extensions/MinkarDRM
 LDFLAGS += --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
 	-fuse-ld=${LD}
-LDADD += -lbsm
+LDADD += -lbsm -framework IOKit -framework CoreFoundation
 CLEANFILES += IOSurfaceRegistryServer.c IOSurfaceRegistryServer.h
 
 # The server side of the MIG interface.

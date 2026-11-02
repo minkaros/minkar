@@ -127,6 +127,7 @@ MinkarAMDGPU::start(IOService *provider)
 	if (gcn1 && fRegs.base != NULL) {
 		dmaSelfTest();
 		bool display = lightsDisplay();
+		setProperty("MinkarLightsDisplay", display);
 		startGART(display);
 		startInterrupts(display);
 	}
@@ -538,6 +539,75 @@ MinkarAMDGPU::destroySystemBuffer(IOBufferMemoryDescriptor *m, uint64_t gpuAddre
 	unmapSystemMemory(gpuAddress, m->getLength());
 	m->complete();
 	m->release();
+}
+
+/* ---- Shared buffers ---- */
+
+IOReturn
+MinkarAMDGPU::createShared(uint64_t size, uint32_t *id, uint64_t *offset, uint64_t *rounded)
+{
+	const uint64_t unit = 64 * 1024;
+	IOReturn err = createBuffer(size, offset);
+
+	if (err != kIOReturnSuccess)
+		return err;
+	*rounded = (size + unit - 1) & ~(unit - 1);
+	IOLockLock(fVRAMLock);
+	unsigned slot;
+	for (slot = 0; slot < kSharedBuffers && fShared[slot].holders != 0; slot++)
+		;
+	if (slot < kSharedBuffers) {
+		if (++fNextSharedID == 0)
+			fNextSharedID = 1;
+		fShared[slot].id = fNextSharedID;
+		fShared[slot].holders = 1;
+		fShared[slot].offset = *offset;
+		fShared[slot].size = *rounded;
+		*id = fNextSharedID;
+	}
+	IOLockUnlock(fVRAMLock);
+	if (slot == kSharedBuffers) {
+		destroyBuffer(*offset, size);
+		return kIOReturnNoResources;
+	}
+	return kIOReturnSuccess;
+}
+
+IOReturn
+MinkarAMDGPU::retainShared(uint32_t id, uint64_t *offset, uint64_t *size)
+{
+	IOReturn err = kIOReturnNotFound;
+
+	IOLockLock(fVRAMLock);
+	for (unsigned i = 0; i < kSharedBuffers; i++)
+		if (fShared[i].holders != 0 && fShared[i].id == id) {
+			fShared[i].holders++;
+			*offset = fShared[i].offset;
+			*size = fShared[i].size;
+			err = kIOReturnSuccess;
+			break;
+		}
+	IOLockUnlock(fVRAMLock);
+	return err;
+}
+
+void
+MinkarAMDGPU::releaseShared(uint32_t id)
+{
+	uint64_t offset = 0, size = 0;
+
+	IOLockLock(fVRAMLock);
+	for (unsigned i = 0; i < kSharedBuffers; i++)
+		if (fShared[i].holders != 0 && fShared[i].id == id) {
+			if (--fShared[i].holders == 0) {
+				offset = fShared[i].offset;
+				size = fShared[i].size;
+			}
+			break;
+		}
+	IOLockUnlock(fVRAMLock);
+	if (size != 0)
+		destroyBuffer(offset, size);
 }
 
 /* The display's framebuffer is MinkarAMDFramebuffer's, on the same PCI
