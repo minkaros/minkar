@@ -42,6 +42,10 @@
  *			offset, bytes; out: nanoseconds from the submission
  *			to the fence. The DMA engine copies; the call returns
  *			once the fence has signalled.
+ *   CreateSystemBuffer	in: size; out: buffer, its GPU address. A buffer in
+ *			system memory the GPU reaches through the GART (when
+ *			the driver turned it on: minkaramd_gart); mapped the
+ *			same way, cached.
  *   ReadRegister	in: dword index; out: its value. For bring-up: the
  *			register window only, reading only (no indexed
  *			registers, which take two writes).
@@ -58,6 +62,7 @@ enum {
 	kMinkarAMDGPUDestroyBuffer,
 	kMinkarAMDGPUCopy,
 	kMinkarAMDGPUReadRegister,
+	kMinkarAMDGPUCreateSystemBuffer,
 	kMinkarAMDGPUMethodCount
 };
 

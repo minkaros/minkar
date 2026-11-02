@@ -44,6 +44,7 @@
 #include "MinkarAMDDevice.h"
 #include "minkar_vram.h"
 #include "MinkarAMDDMA.h"
+#include "MinkarAMDGART.h"
 
 struct minkar_atom;
 
@@ -67,7 +68,12 @@ public:
 	void destroyBuffer(uint64_t offset, uint64_t size);
 	IODeviceMemory *bufferMemory(uint64_t offset, uint64_t size);
 	uint64_t gpuAddress(uint64_t offset) { return fVRAMStart + offset; }
+	/* Between two GPU addresses (VRAM or the GART). */
 	IOReturn copy(uint64_t dst, uint64_t src, uint64_t bytes, uint64_t *ns);
+	/* System memory through the GART: pages from the GART's allocator. */
+	IOReturn createSystemBuffer(uint64_t size, IOBufferMemoryDescriptor **memory,
+	    uint64_t *gpuAddress);
+	void destroySystemBuffer(IOBufferMemoryDescriptor *memory, uint64_t gpuAddress);
 	IOReturn readWindowRegister(uint32_t reg, uint32_t *value);
 
 private:
@@ -76,8 +82,10 @@ private:
 	    uint64_t vramStart);
 	void setUpVRAM(uint32_t megabytes);
 	bool startDMA();
+	void startGART(bool display);
+	bool lightsDisplay();
 
-	enum { kVRAMRanges = 1024 };
+	enum { kVRAMRanges = 1024, kGARTRanges = 1024 };
 
 	IOPCIDevice *		fPCI;
 	struct MinkarAMDRegs	fRegs;
@@ -91,7 +99,11 @@ private:
 	bool			fDMAStarted;
 	IOMemoryMap *		fDMAMap;	/* its ring and write-back */
 	uint64_t		fDMAOffset;
-	IOLock *		fVRAMLock;
+	struct MinkarAMDGART	fGART;		/* on while the driver runs */
+	uint64_t		fGARTTable, fGARTScratch;	/* its VRAM */
+	struct minkar_vram	fGARTPages;	/* what is free of it, by offset */
+	struct minkar_vram_range fGARTRanges[kGARTRanges];
+	IOLock *		fVRAMLock;	/* the VRAM's and the GART's allocators */
 	struct minkar_vram	fVRAM;		/* what is free of VRAM */
 	struct minkar_vram_range fVRAMRanges[kVRAMRanges];
 };

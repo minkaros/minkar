@@ -37,6 +37,7 @@
 #define _MINKARAMDUSERCLIENT_H
 
 #include <IOKit/IOUserClient.h>
+#include <IOKit/IOBufferMemoryDescriptor.h>
 #include "MinkarAMDGPUInterface.h"
 
 class MinkarAMDGPU;
@@ -57,7 +58,9 @@ public:
 
 private:
 	struct Buffer {
-		uint64_t offset, size;	/* size 0: the slot is empty */
+		uint64_t offset, size;	/* VRAM offset; size 0: the slot is empty */
+		uint64_t gpu;		/* its GPU address */
+		IOBufferMemoryDescriptor *system;	/* a system buffer's memory */
 	};
 
 	static IOReturn sInfo(OSObject *target, void *reference, IOExternalMethodArguments *args);
@@ -65,6 +68,8 @@ private:
 	static IOReturn sDestroy(OSObject *target, void *reference, IOExternalMethodArguments *args);
 	static IOReturn sCopy(OSObject *target, void *reference, IOExternalMethodArguments *args);
 	static IOReturn sReadRegister(OSObject *target, void *reference, IOExternalMethodArguments *args);
+	static IOReturn sCreateSystem(OSObject *target, void *reference, IOExternalMethodArguments *args);
+	void destroy(Buffer *b);
 	Buffer *buffer(uint64_t handle);
 	void releaseAll();
 

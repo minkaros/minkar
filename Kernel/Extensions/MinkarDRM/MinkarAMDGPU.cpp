@@ -121,8 +121,10 @@ MinkarAMDGPU::start(IOService *provider)
 	}
 	setProperty("MinkarVBIOSSource", source);
 
-	if (gcn1 && fRegs.base != NULL)
+	if (gcn1 && fRegs.base != NULL) {
 		dmaSelfTest();
+		startGART(lightsDisplay());
+	}
 
 	registerService();
 	return true;
@@ -142,6 +144,56 @@ MinkarAMDGPU::setUpVRAM(uint32_t megabytes)
 		return;
 	}
 	setProperty("MinkarVRAMFreeMegabytes", (unsigned long long)(fVRAM.freeBytes >> 20), 32);
+}
+
+/* Whether the firmware's framebuffer, the boot display, is in this GPU's
+ * VRAM window. */
+bool
+MinkarAMDGPU::lightsDisplay()
+{
+	PE_Video boot;
+	IODeviceMemory *vram = MinkarAMDBARRange(fPCI, kIOPCIConfigBaseAddress0);
+	bool display = vram != NULL && getPlatform() != NULL &&
+	    getPlatform()->getConsoleInfo(&boot) == kIOReturnSuccess &&
+	    boot.v_baseAddr >= vram->getPhysicalAddress() &&
+	    boot.v_baseAddr < vram->getPhysicalAddress() + vram->getLength();
+	OSSafeReleaseNULL(vram);
+	return display;
+}
+
+/*
+ * The GART, on for the driver's life when asked for ("minkaramd_gart": 1
+ * on the GPUs that light no display, 2 on every GPU), for clients'
+ * system buffers.
+ */
+void
+MinkarAMDGPU::startGART(bool display)
+{
+	const uint64_t size = 256ULL << 20, tableBytes = MinkarAMDGARTTableBytes(size);
+	UInt32 mode = 0;
+
+	if (!PE_parse_boot_argn("minkaramd_gart", &mode, sizeof(mode)) || mode == 0 ||
+	    (display && mode < 2) || fWindow == NULL || fVRAMLock == NULL)
+		return;
+	IOLockLock(fVRAMLock);
+	bool have = minkar_vram_alloc(&fVRAM, tableBytes, 64 * 1024, &fGARTTable) == 0;
+	if (have && minkar_vram_alloc(&fVRAM, 4096, 4096, &fGARTScratch) != 0) {
+		minkar_vram_free(&fVRAM, fGARTTable, tableBytes);
+		have = false;
+	}
+	IOLockUnlock(fVRAMLock);
+	if (!have || !MinkarAMDGARTEnable(&fGART, &fRegs, fWindow, size, fGARTTable, fGARTScratch)) {
+		LOG("the GART did not start");
+		if (have) {
+			IOLockLock(fVRAMLock);
+			minkar_vram_free(&fVRAM, fGARTTable, tableBytes);
+			minkar_vram_free(&fVRAM, fGARTScratch, 4096);
+			IOLockUnlock(fVRAMLock);
+		}
+		return;
+	}
+	minkar_vram_init(&fGARTPages, size, fGARTRanges, kGARTRanges);
+	setProperty("MinkarGARTMegabytes", (unsigned long long)(size >> 20), 32);
 }
 
 /* ---- For the user client ---- */
@@ -235,10 +287,59 @@ MinkarAMDGPU::copy(uint64_t dst, uint64_t src, uint64_t bytes, uint64_t *ns)
 	IOLockLock(fDMALock);
 	IOReturn err = kIOReturnNotReady;
 	if (startDMA())
-		err = MinkarAMDDMACopyAddresses(&fDMA, fVRAMStart + dst, fVRAMStart + src, bytes, ns) ?
+		err = MinkarAMDDMACopyAddresses(&fDMA, dst, src, bytes, ns) ?
 		    kIOReturnSuccess : kIOReturnTimeout;
 	IOLockUnlock(fDMALock);
 	return err;
+}
+
+/* Wired kernel memory the client maps too, its pages in the GART. */
+IOReturn
+MinkarAMDGPU::createSystemBuffer(uint64_t size, IOBufferMemoryDescriptor **memory,
+    uint64_t *gpuAddress)
+{
+	uint64_t offset;
+
+	if (!fGART.on)
+		return kIOReturnUnsupported;
+	if (size == 0 || size > fGARTPages.size)
+		return kIOReturnBadArgument;
+	size = (size + 4095) & ~4095ULL;
+	IOBufferMemoryDescriptor *m = IOBufferMemoryDescriptor::inTaskWithOptions(kernel_task,
+	    kIODirectionInOut | kIOMemoryKernelUserShared, size, 4096);
+	if (m == NULL)
+		return kIOReturnNoMemory;
+	if (m->prepare() != kIOReturnSuccess) {
+		m->release();
+		return kIOReturnNoMemory;
+	}
+	bzero(m->getBytesNoCopy(), size);
+	IOLockLock(fVRAMLock);
+	bool have = minkar_vram_alloc(&fGARTPages, size, 4096, &offset) == 0;
+	bool mapped = have && MinkarAMDGARTMap(&fGART, (uint32_t)(offset / 4096), m, gpuAddress);
+	if (have && !mapped)
+		minkar_vram_free(&fGARTPages, offset, size);
+	IOLockUnlock(fVRAMLock);
+	if (!mapped) {
+		m->complete();
+		m->release();
+		return kIOReturnNoMemory;
+	}
+	*memory = m;
+	return kIOReturnSuccess;
+}
+
+void
+MinkarAMDGPU::destroySystemBuffer(IOBufferMemoryDescriptor *m, uint64_t gpuAddress)
+{
+	uint64_t offset = gpuAddress - fGART.start, size = m->getLength();
+
+	IOLockLock(fVRAMLock);
+	MinkarAMDGARTUnmap(&fGART, (uint32_t)(offset / 4096), (uint32_t)(size / 4096));
+	minkar_vram_free(&fGARTPages, offset, size);
+	IOLockUnlock(fVRAMLock);
+	m->complete();
+	m->release();
 }
 
 /* Only inside the register window: MM_INDEX/MM_DATA would need writes. */
@@ -260,7 +361,6 @@ void
 MinkarAMDGPU::dmaSelfTest()
 {
 	UInt32 mode = 0;
-	PE_Video boot;
 
 	if (!PE_parse_boot_argn("minkaramd_dmatest", &mode, sizeof(mode)) || mode == 0 ||
 	    fVRAMLock == NULL)
@@ -270,11 +370,7 @@ MinkarAMDGPU::dmaSelfTest()
 		LOG("DMA test: no VRAM window");
 		return;
 	}
-	bool display = false;
-	if (getPlatform() != NULL && getPlatform()->getConsoleInfo(&boot) == kIOReturnSuccess &&
-	    boot.v_baseAddr >= vram->getPhysicalAddress() &&
-	    boot.v_baseAddr < vram->getPhysicalAddress() + vram->getLength())
-		display = true;
+	bool display = lightsDisplay();
 	if (display && mode < 2) {
 		LOG("DMA test: skipped on the GPU that lights the display");
 		vram->release();
@@ -430,6 +526,7 @@ MinkarAMDGPU::free()
 	MinkarAMDFreeVBIOS(fBIOS);
 	if (fDMAStarted)
 		MinkarAMDDMAStop(&fDMA);
+	MinkarAMDGARTDisable(&fGART);
 	OSSafeReleaseNULL(fDMAMap);
 	OSSafeReleaseNULL(fWindow);
 	MinkarAMDUnmapRegisters(&fRegs);

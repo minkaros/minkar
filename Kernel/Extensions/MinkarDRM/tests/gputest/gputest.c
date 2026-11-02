@@ -31,7 +31,9 @@
  * minkar-gputest: MinkarAMDGPU's user client from a program (ADR 0002,
  * G2). Opens an AMD GPU, prints its VRAM, makes two buffers, fills one
  * through its mapping, has the DMA engine copy it to the other, checks
- * the copy through the other's mapping, and frees them. One line per
+ * the copy through the other's mapping, and frees them; with the GART on
+ * (minkaramd_gart), also system buffers: one filled by the CPU, copied by
+ * the engine to VRAM and on to another, compared in full. One line per
  * step; the exit status is the number of failures.
  *
  *   minkar-gputest [-g GPU] [-m MB]	GPU: 0 and up (default 0); MB: the
@@ -207,6 +209,78 @@ main(int argc, char **argv)
 		snprintf(detail, sizeof(detail), "%llu mismatches", (unsigned long long)bad);
 		check(bad == 0, "the copy is right", detail);
 	}
+	/* System memory through the GART: system -> VRAM -> system. */
+	if (kr == KERN_SUCCESS) {
+		uint64_t sys[2] = { 0, 0 }, sysAddr[2] = { 0, 0 };
+		mach_vm_address_t sysMap[2] = { 0, 0 };
+		mach_vm_size_t sysSize[2] = { 0, 0 };
+		int haveSystem = 1;
+		for (int b = 0; b < 2 && haveSystem; b++) {
+			uint64_t want = bytes;
+			n = 2;
+			if (IOConnectCallScalarMethod(conn, kMinkarAMDGPUCreateSystemBuffer, &want, 1, out,
+			    &n) != KERN_SUCCESS)
+				haveSystem = 0;
+			else {
+				sys[b] = out[0];
+				sysAddr[b] = out[1];
+			}
+		}
+		if (!haveSystem && sys[0] == 0)
+			printf("skip system buffers: no GART (boot with minkaramd_gart)\n");
+		else {
+			snprintf(detail, sizeof(detail), "at GPU addresses 0x%llx and 0x%llx",
+			    (unsigned long long)sysAddr[0], (unsigned long long)sysAddr[1]);
+			check(haveSystem, "create two system buffers", haveSystem ? detail : "refused");
+		}
+		for (int b = 0; b < 2 && haveSystem; b++)
+			if (IOConnectMapMemory64(conn, (uint32_t)sys[b], mach_task_self(), &sysMap[b],
+			    &sysSize[b], kIOMapAnywhere) != KERN_SUCCESS || sysSize[b] < bytes)
+				haveSystem = 0;
+		if (sys[0] != 0 && sys[1] != 0)
+			check(haveSystem, "map the system buffers", "");
+		if (haveSystem) {
+			uint32_t *a = (uint32_t *)(uintptr_t)sysMap[0], *z = (uint32_t *)(uintptr_t)sysMap[1];
+			for (uint64_t i = 0; i < words; i++) {
+				a[i] = pattern(i) ^ 0x0f0f0f0fu;
+				z[i] = 0;
+			}
+			uint64_t toVRAM[5] = { handle[1], 0, sys[0], 0, bytes };
+			uint64_t back[5] = { sys[1], 0, handle[1], 0, bytes };
+			uint64_t ns1 = 0, ns2 = 0;
+			n = 1;
+			kern_return_t k1 = IOConnectCallScalarMethod(conn, kMinkarAMDGPUCopy, toVRAM, 5, out, &n);
+			ns1 = out[0];
+			n = 1;
+			kern_return_t k2 = k1 == KERN_SUCCESS ?
+			    IOConnectCallScalarMethod(conn, kMinkarAMDGPUCopy, back, 5, out, &n) : k1;
+			ns2 = out[0];
+			snprintf(detail, sizeof(detail), "to VRAM %llu MB/s, back %llu MB/s",
+			    ns1 ? (unsigned long long)(bytes * 1000 / ns1) : 0ULL,
+			    ns2 ? (unsigned long long)(bytes * 1000 / ns2) : 0ULL);
+			check(k1 == KERN_SUCCESS && k2 == KERN_SUCCESS,
+			    "the engine copies system memory to VRAM and back", k2 == KERN_SUCCESS ? detail : "failed");
+			if (k2 == KERN_SUCCESS) {
+				uint64_t bad = 0;
+				for (uint64_t i = 0; i < words; i++)
+					if (z[i] != a[i])
+						bad++;
+				snprintf(detail, sizeof(detail), "%llu of %llu words differ",
+				    (unsigned long long)bad, (unsigned long long)words);
+				check(bad == 0, "the round trip is right", detail);
+			}
+		}
+		for (int b = 0; b < 2; b++) {
+			if (sysMap[b] != 0)
+				IOConnectUnmapMemory64(conn, (uint32_t)sys[b], mach_task_self(), sysMap[b]);
+			if (sys[b] != 0) {
+				uint64_t h = sys[b];
+				check(IOConnectCallScalarMethod(conn, kMinkarAMDGPUDestroyBuffer, &h, 1, NULL,
+				    NULL) == KERN_SUCCESS, "free a system buffer", "");
+			}
+		}
+	}
+
 	/* A copy past a buffer's end is refused. */
 	in[4] = bytes + 4096;
 	n = 1;

@@ -54,6 +54,18 @@ MinkarAMDUserClient::start(IOService *provider)
 	return fGPU != NULL && super::start(provider);
 }
 
+/* Called locked. */
+void
+MinkarAMDUserClient::destroy(Buffer *b)
+{
+	if (b->system != NULL)
+		fGPU->destroySystemBuffer(b->system, b->gpu);
+	else
+		fGPU->destroyBuffer(b->offset, b->size);
+	b->system = NULL;
+	b->size = 0;
+}
+
 void
 MinkarAMDUserClient::releaseAll()
 {
@@ -61,10 +73,8 @@ MinkarAMDUserClient::releaseAll()
 		return;
 	IOLockLock(fLock);
 	for (unsigned i = 0; i < kMinkarAMDGPUMaxBuffers; i++)
-		if (fBuffers[i].size != 0) {
-			fGPU->destroyBuffer(fBuffers[i].offset, fBuffers[i].size);
-			fBuffers[i].size = 0;
-		}
+		if (fBuffers[i].size != 0)
+			destroy(&fBuffers[i]);
 	IOLockUnlock(fLock);
 }
 
@@ -104,6 +114,7 @@ MinkarAMDUserClient::externalMethod(uint32_t selector, IOExternalMethodArguments
 		{ (IOExternalMethodAction)&sDestroy, 1, 0, 0, 0 },
 		{ (IOExternalMethodAction)&sCopy, 5, 0, 1, 0 },
 		{ (IOExternalMethodAction)&sReadRegister, 1, 0, 1, 0 },
+		{ (IOExternalMethodAction)&sCreateSystem, 1, 0, 2, 0 },
 	};
 
 	(void)dispatch; (void)target;
@@ -142,8 +153,10 @@ MinkarAMDUserClient::sCreate(OSObject *target, void *, IOExternalMethodArguments
 	if (err == kIOReturnSuccess) {
 		me->fBuffers[slot].offset = offset;
 		me->fBuffers[slot].size = size;
+		me->fBuffers[slot].gpu = me->fGPU->gpuAddress(offset);
+		me->fBuffers[slot].system = NULL;
 		args->scalarOutput[0] = slot + 1;
-		args->scalarOutput[1] = me->fGPU->gpuAddress(offset);
+		args->scalarOutput[1] = me->fBuffers[slot].gpu;
 	}
 	IOLockUnlock(me->fLock);
 	return err;
@@ -156,10 +169,8 @@ MinkarAMDUserClient::sDestroy(OSObject *target, void *, IOExternalMethodArgument
 
 	IOLockLock(me->fLock);
 	Buffer *b = me->buffer(args->scalarInput[0]);
-	if (b != NULL) {
-		me->fGPU->destroyBuffer(b->offset, b->size);
-		b->size = 0;
-	}
+	if (b != NULL)
+		me->destroy(b);
 	IOLockUnlock(me->fLock);
 	return b != NULL ? kIOReturnSuccess : kIOReturnBadArgument;
 }
@@ -178,7 +189,7 @@ MinkarAMDUserClient::sCopy(OSObject *target, void *, IOExternalMethodArguments *
 	bool good = d != NULL && s != NULL && bytes > 0 &&
 	    in[1] <= d->size && bytes <= d->size - in[1] &&
 	    in[3] <= s->size && bytes <= s->size - in[3];
-	uint64_t dst = good ? d->offset + in[1] : 0, src = good ? s->offset + in[3] : 0;
+	uint64_t dst = good ? d->gpu + in[1] : 0, src = good ? s->gpu + in[3] : 0;
 	/* Held over the copy: the buffers cannot go while the engine uses them. */
 	IOReturn err = good ? me->fGPU->copy(dst, src, bytes, &ns) : kIOReturnBadArgument;
 	IOLockUnlock(me->fLock);
@@ -201,19 +212,52 @@ MinkarAMDUserClient::sReadRegister(OSObject *target, void *, IOExternalMethodArg
 	return err;
 }
 
-/* A buffer's VRAM, mapped into the client: the memory type is the
- * buffer. */
+IOReturn
+MinkarAMDUserClient::sCreateSystem(OSObject *target, void *, IOExternalMethodArguments *args)
+{
+	MinkarAMDUserClient *me = (MinkarAMDUserClient *)target;
+	IOBufferMemoryDescriptor *m = NULL;
+	uint64_t gpu = 0;
+	unsigned slot;
+
+	IOLockLock(me->fLock);
+	for (slot = 0; slot < kMinkarAMDGPUMaxBuffers && me->fBuffers[slot].size != 0; slot++)
+		;
+	IOReturn err = slot == kMinkarAMDGPUMaxBuffers ? kIOReturnNoResources :
+	    me->fGPU->createSystemBuffer(args->scalarInput[0], &m, &gpu);
+	if (err == kIOReturnSuccess) {
+		me->fBuffers[slot].offset = 0;
+		me->fBuffers[slot].size = m->getLength();
+		me->fBuffers[slot].gpu = gpu;
+		me->fBuffers[slot].system = m;
+		args->scalarOutput[0] = slot + 1;
+		args->scalarOutput[1] = gpu;
+	}
+	IOLockUnlock(me->fLock);
+	return err;
+}
+
+/* A buffer mapped into the client, the memory type being the buffer:
+ * VRAM through the window, write-combined; system memory cached. */
 IOReturn
 MinkarAMDUserClient::clientMemoryForType(UInt32 type, IOOptionBits *options,
     IOMemoryDescriptor **memory)
 {
+	IOMemoryDescriptor *m = NULL;
+
 	IOLockLock(fLock);
 	Buffer *b = buffer(type);
-	IODeviceMemory *m = b != NULL ? fGPU->bufferMemory(b->offset, b->size) : NULL;
+	if (b != NULL && b->system != NULL) {
+		m = b->system;
+		m->retain();
+		*options = kIOMapDefaultCache;
+	} else if (b != NULL) {
+		m = fGPU->bufferMemory(b->offset, b->size);
+		*options = kIOMapWriteCombineCache;
+	}
 	IOLockUnlock(fLock);
 	if (m == NULL)
 		return kIOReturnBadArgument;
-	*options = kIOMapWriteCombineCache;
 	*memory = m;	/* the caller releases it */
 	return kIOReturnSuccess;
 }
