@@ -327,13 +327,17 @@ display_check() {
 	# MinkarVirtioGPU publishes its own (its scanout is in system memory).
 	local fb fbw virtio=no
 	ioreg -l -w0 -r -c IOGOPFramebuffer > "$RAW/ioreg-gop.txt" 2>&1
-	ioreg -l -w0 -r -c MinkarAMDFramebuffer > "$RAW/ioreg-amdfb.txt" 2>&1
 	if ! grep -q '<class IOGOPFramebuffer' "$RAW/ioreg-gop.txt" &&
 	    ioreg -l -w0 -r -c MinkarVirtioGPU > "$RAW/ioreg-virtio-gpu.txt" 2>&1 &&
 	    grep -q '<class MinkarVirtioGPU' "$RAW/ioreg-virtio-gpu.txt"; then
 		virtio=yes
 		cp "$RAW/ioreg-virtio-gpu.txt" "$RAW/ioreg-gop.txt"
 	fi
+	# The AMD driver (G1) publishes the same geometry for its framebuffer.
+	ioreg -l -w0 -r -c MinkarAMDFramebuffer > "$RAW/ioreg-amdfb.txt" 2>&1
+	grep -q '<class MinkarAMDFramebuffer' "$RAW/ioreg-amdfb.txt" &&
+	    ! grep -q '<class IOGOPFramebuffer' "$RAW/ioreg-gop.txt" &&
+	    cp "$RAW/ioreg-amdfb.txt" "$RAW/ioreg-gop.txt"
 	# ioreg prints numbers in decimal (or as 0x... when asked): as hex here.
 	fb=$(awk -F'= ' "$AWK_HEX"'
 	    function hx(n,   s, d) { s = ""; do { d = n % 16; s = substr("0123456789abcdef", d + 1, 1) s; n = (n - d) / 16 } while (n > 0); return "0x" s }

@@ -339,6 +339,16 @@ MinkarAMDFramebuffer::setConsole()
 	console.v_rowBytes = pitchFor(m.width) * 4;
 	console.v_display = GRAPHICS_MODE;
 	console.v_scale = kPEScaleFactor1x;
+	/* As IOGOPFramebuffer publishes them, for minkar-hwcheck --display:
+	 * the framebuffer and the window it lies in. */
+	setProperty("MinkarFramebufferAddress",
+	    (unsigned long long)(fVRAM->getPhysicalAddress() + fOffset), 64);
+	setProperty("MinkarFramebufferWidth", (unsigned long long)m.width, 32);
+	setProperty("MinkarFramebufferHeight", (unsigned long long)m.height, 32);
+	setProperty("MinkarFramebufferRowBytes", (unsigned long long)console.v_rowBytes, 32);
+	setProperty("MinkarFramebufferWindowBase",
+	    (unsigned long long)fVRAM->getPhysicalAddress(), 64);
+	setProperty("MinkarFramebufferWindowSize", (unsigned long long)fVRAM->getLength(), 64);
 	getPlatform()->setConsoleInfo(&console, kPEAcquireScreen);
 	getPlatform()->setConsoleInfo(&console, kPEGraphicsMode);
 	getPlatform()->setConsoleInfo(&console, kPEEnableScreen);
