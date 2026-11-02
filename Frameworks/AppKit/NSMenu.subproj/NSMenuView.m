@@ -730,7 +730,11 @@ const float kMouseMovementThreshold = .001f;
 					break;
 				case 27: // Escape = pop unless we're done then it's cancel
 				{
-					if ([viewStack count] > 1) {
+					// Menus opened with the pointer close at once; from the
+					// keyboard (Control-F2) one level at a time
+					if (!startedOpen) {
+						cancelled = YES;
+					} else if ([viewStack count] > 1) {
 						NSView* view = [viewStack lastObject];
 						MENUDEBUG(@"popping cascading view: %@", view);
 						[[view window] close];
