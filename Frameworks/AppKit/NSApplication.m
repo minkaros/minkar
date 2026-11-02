@@ -1648,7 +1648,6 @@ static int _tagAllMenus(NSMenu *menu, int tag) {
 
    [_modalStack addObject:session];
 
-   [window _hideMenuViewIfNeeded];
    if(![window isVisible]){
     [window center];
    }
@@ -1714,7 +1713,6 @@ static int _tagAllMenus(NSMenu *menu, int tag) {
         [self postEvent:requeue atStart:YES];
     }
 
-    [[session modalWindow] _showMenuViewIfNeeded];
     [_modalStack removeLastObject];
 }
 
@@ -1730,8 +1728,10 @@ static int _tagAllMenus(NSMenu *menu, int tag) {
    int result;
 
    while((result=[NSApp runModalSession:session])==NSRunContinuesResponse){
-    //NSDate *date = [NSDate dateWithTimeIntervalSinceNow:0.1];
-    [[NSRunLoop currentRunLoop] runMode:NSModalPanelRunLoopMode beforeDate:[NSDate distantFuture]];
+    /* Waits for the next event with the app's event source in the run
+       loop (a plain runMode: here never woke for one). */
+    [self nextEventMatchingMask:NSAnyEventMask untilDate:[NSDate distantFuture]
+        inMode:NSModalPanelRunLoopMode dequeue:NO];
    }
 
    [self endModalSession:session];
@@ -1783,7 +1783,8 @@ static int _tagAllMenus(NSMenu *menu, int tag) {
         NSModalSession session = [self beginModalSessionForWindow: sheet];
         [context setModalSession: session];
         while([NSApp runModalSession:session] == NSRunContinuesResponse){
-            [[NSRunLoop currentRunLoop] runMode:NSModalPanelRunLoopMode beforeDate:[NSDate distantFuture]];
+            [self nextEventMatchingMask:NSAnyEventMask untilDate:[NSDate distantFuture]
+                inMode:NSModalPanelRunLoopMode dequeue:NO];
         }
         [self endModalSession:session];
     } else {

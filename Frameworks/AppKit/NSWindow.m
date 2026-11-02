@@ -493,8 +493,11 @@ NSArray *_NSWindowNumbersFromWindowInfo(CFArrayRef info,BOOL allApps) {
             buffer = NULL;
         }
 
+        /* Whole pixels, as flushWindow copies them: a fractional frame
+           (an alert sized to its text) gave a stride a pixel off. */
+        size_t pixelsWide = (size_t)_frame.size.width, pixelsHigh = (size_t)_frame.size.height;
         int depth = [_display depth] / 8;
-        bufsize = depth * _frame.size.width * _frame.size.height;
+        bufsize = depth * pixelsWide * pixelsHigh;
 
         if(_CGUsesSkyLight()) {
             /* The window's own pixels; flushWindow copies them to its surface. */
@@ -509,16 +512,16 @@ NSArray *_NSWindowNumbersFromWindowInfo(CFArrayRef info,BOOL allApps) {
 
         O2ColorSpaceRef colorSpace = O2ColorSpaceCreateDeviceRGB();
         O2Surface *surface = [[O2Surface alloc] initWithBytes:buffer
-                width:_frame.size.width height:_frame.size.height
-                bitsPerComponent:8 bytesPerRow:4*_frame.size.width colorSpace:colorSpace
+                width:pixelsWide height:pixelsHigh
+                bitsPerComponent:8 bytesPerRow:4*pixelsWide colorSpace:colorSpace
                 bitmapInfo:kO2BitmapByteOrderDefault|kCGImageAlphaPremultipliedFirst];
         _context = [[O2Context_builtin_FT alloc] initWithSurface:surface flipped:NO];
 
-        /* The current context may be another window's (one drawing while
-         * this one is made, as a menu bar opening a menu): it is not ours
-         * to release. */
+        /* The current context is left alone: it may be another window's,
+         * one drawing while this one is made (a menu bar or a pop-up
+         * button opening a menu), which restores it afterwards; lockFocus
+         * makes this one current when it draws. */
         NSGraphicsContext *gc = [NSGraphicsContext graphicsContextWithGraphicsPort:_context flipped:NO];
-        [NSGraphicsContext setCurrentContext:gc];
         NSValue *key = [NSValue valueWithPointer:[NSThread currentThread]];
         [_threadToContext setObject:gc forKey:key];
     }
@@ -553,7 +556,6 @@ NSArray *_NSWindowNumbersFromWindowInfo(CFArrayRef info,BOOL allApps) {
    if(result==nil){
     result=[NSGraphicsContext graphicsContextWithWindow:self];
     [_threadToContext setObject:result forKey:key];
-    [NSGraphicsContext setCurrentContext:result];
    }
 
    return result;
