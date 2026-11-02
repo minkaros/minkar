@@ -80,6 +80,10 @@ public:
 	IOReturn mapSystemMemory(IOMemoryDescriptor *memory, uint64_t *gpuAddress);
 	void unmapSystemMemory(uint64_t gpuAddress, uint64_t size);
 	IOReturn readWindowRegister(uint32_t reg, uint32_t *value);
+	IOReturn i2cRead(const uint64_t *in, uint64_t *out);
+	/* One AUX transaction through this GPU's VBIOS, for bring-up. */
+	IOReturn auxTransaction(const uint64_t *in, uint64_t *out, uint32_t *trace,
+	    uint32_t *traceBytes);
 	/* Shared VRAM buffers, by global ID, freed with their last holder. */
 	IOReturn createShared(uint64_t size, uint32_t *id, uint64_t *offset, uint64_t *rounded);
 	IOReturn retainShared(uint32_t id, uint64_t *offset, uint64_t *size);

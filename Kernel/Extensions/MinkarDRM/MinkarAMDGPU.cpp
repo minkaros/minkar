@@ -632,6 +632,53 @@ MinkarAMDGPU::copyToScanout(uint64_t src, uint64_t offset, uint64_t bytes, uint6
 	return copy(fVRAMStart + fb + offset, src, bytes, ns);
 }
 
+IOReturn
+MinkarAMDGPU::i2cRead(const uint64_t *in, uint64_t *out)
+{
+	uint8_t data[16];
+
+	if (fAtom == NULL || in[3] == 0 || in[3] > 16 || in[1] > 0x7f || in[2] > 0xff)
+		return kIOReturnBadArgument;
+	bzero(data, sizeof(data));
+	IOLockLock(fDMALock);
+	int r = minkar_atom_i2c(fAtom, (uint8_t)in[0], (uint8_t)in[1], 1, (uint8_t)in[2], NULL, 0, NULL, 0);
+	if (r == 0)
+		r = minkar_atom_i2c(fAtom, (uint8_t)in[0], (uint8_t)in[1], 0, 0, NULL, 0, data, (uint8_t)in[3]);
+	IOLockUnlock(fDMALock);
+	out[0] = (uint64_t)(int64_t)r;
+	memcpy(&out[1], data, 8);
+	memcpy(&out[2], data + 8, 8);
+	return kIOReturnSuccess;
+}
+
+IOReturn
+MinkarAMDGPU::auxTransaction(const uint64_t *in, uint64_t *out, uint32_t *trace,
+    uint32_t *traceBytes)
+{
+	uint8_t data[16], reply = 0, dataOut = 0;
+	int execute = 0;
+
+	if (fAtom == NULL || in[4] > 16 || in[1] > 5)
+		return kIOReturnBadArgument;
+	bzero(data, sizeof(data));
+	IOLockLock(fDMALock);	/* one table at a time from here */
+	minkar_atom_trace(fAtom, trace != NULL);
+	int n = minkar_atom_aux(fAtom, (uint8_t)in[0], (uint8_t)in[1], (uint8_t)in[2],
+	    (uint32_t)in[3], data, (uint8_t)in[4], &reply);
+	minkar_atom_trace(fAtom, 0);
+	minkar_atom_aux_last(fAtom, &execute, &dataOut);
+	if (trace != NULL)
+		*traceBytes = minkar_atom_trace_get(fAtom, trace, *traceBytes / 8) * 8;
+	IOLockUnlock(fDMALock);
+	out[0] = (uint64_t)(int64_t)n;
+	out[1] = reply;
+	out[2] = (uint64_t)(int64_t)execute;
+	out[3] = dataOut;
+	memcpy(&out[4], data, 8);
+	memcpy(&out[5], data + 8, 8);
+	return kIOReturnSuccess;
+}
+
 /* Only inside the register window: MM_INDEX/MM_DATA would need writes. */
 IOReturn
 MinkarAMDGPU::readWindowRegister(uint32_t reg, uint32_t *value)

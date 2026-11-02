@@ -30,6 +30,7 @@
 #include <IOKit/IOLib.h>
 #include "MinkarAMDUserClient.h"
 #include "MinkarAMDGPU.h"
+#include "atom_glue.h"
 
 #define super IOUserClient
 OSDefineMetaClassAndStructors(MinkarAMDUserClient, IOUserClient);
@@ -133,6 +134,8 @@ MinkarAMDUserClient::externalMethod(uint32_t selector, IOExternalMethodArguments
 		{ (IOExternalMethodAction)&sCopyToScanout, 4, 0, 1, 0 },
 		{ (IOExternalMethodAction)&sCreateShared, 1, 0, 3, 0 },
 		{ (IOExternalMethodAction)&sRetainShared, 1, 0, 3, 0 },
+		{ (IOExternalMethodAction)&sAUX, 5, 0, 6, kIOUCVariableStructureSize },
+		{ (IOExternalMethodAction)&sI2C, 4, 0, 3, 0 },
 	};
 
 	(void)dispatch; (void)target;
@@ -381,6 +384,34 @@ MinkarAMDUserClient::sRetainShared(OSObject *target, void *, IOExternalMethodArg
 	}
 	IOLockUnlock(me->fLock);
 	return err;
+}
+
+IOReturn
+MinkarAMDUserClient::sAUX(OSObject *target, void *, IOExternalMethodArguments *args)
+{
+	MinkarAMDUserClient *me = (MinkarAMDUserClient *)target;
+
+	/* Administrators only: it drives the display's link. */
+	if (clientHasPrivilege(me->fTask, kIOClientPrivilegeAdministrator) != kIOReturnSuccess)
+		return kIOReturnNotPrivileged;
+	uint32_t *trace = (uint32_t *)args->structureOutput;
+	uint32_t bytes = args->structureOutputSize;
+	if (bytes > MINKAR_ATOM_TRACE_MAX * 8)
+		bytes = MINKAR_ATOM_TRACE_MAX * 8;
+	IOReturn err = me->fGPU->auxTransaction(args->scalarInput, args->scalarOutput,
+	    bytes >= 8 ? trace : NULL, &bytes);
+	args->structureOutputSize = bytes >= 8 ? bytes : 0;
+	return err;
+}
+
+IOReturn
+MinkarAMDUserClient::sI2C(OSObject *target, void *, IOExternalMethodArguments *args)
+{
+	MinkarAMDUserClient *me = (MinkarAMDUserClient *)target;
+
+	if (clientHasPrivilege(me->fTask, kIOClientPrivilegeAdministrator) != kIOReturnSuccess)
+		return kIOReturnNotPrivileged;
+	return me->fGPU->i2cRead(args->scalarInput, args->scalarOutput);
 }
 
 /* A buffer mapped into the client, the memory type being the buffer:

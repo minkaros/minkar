@@ -49,6 +49,10 @@
  *					go, its VRAM back once both are done
  *   minkar-gputest -V ID -F FD		(the child: looks up surface ID, says
  *					so on FD, checks once the maker let go)
+ *   minkar-gputest [-g GPU] -a CH,HPD,REQ,ADDR,SIZE
+ *					one AUX transaction (hex), for bring-up
+ *   minkar-gputest [-g GPU] -i LINE,SLAVE,OFFSET,COUNT
+ *					one DDC (I2C) read (hex), for bring-up
  *   minkar-gputest [-g GPU] -e		whether VRAM mapped from the user
  *					client can be shared as a Mach memory
  *					entry (IOSurfaces in VRAM)
@@ -219,15 +223,17 @@ main(int argc, char **argv)
 	int list = 0, entry = 0, vram = 0, c;
 	unsigned childID = 0;
 	int childFD = -1;
-	const char *regs = NULL;
+	const char *regs = NULL, *auxSpec = NULL, *i2cSpec = NULL;
 	char detail[256];
 
-	while ((c = getopt(argc, argv, "g:m:lr:evV:F:")) != -1)
+	while ((c = getopt(argc, argv, "g:m:lr:evV:F:a:i:")) != -1)
 		switch (c) {
 		case 'g': gpu = (unsigned)strtoul(optarg, NULL, 0); break;
 		case 'm': megabytes = (unsigned)strtoul(optarg, NULL, 0); break;
 		case 'l': list = 1; break;
 		case 'r': regs = optarg; break;
+		case 'a': auxSpec = optarg; break;
+		case 'i': i2cSpec = optarg; break;
 		case 'e': entry = 1; break;
 		case 'v': vram = 1; break;
 		case 'V': childID = (unsigned)strtoul(optarg, NULL, 0); break;
@@ -278,6 +284,47 @@ main(int argc, char **argv)
 
 	uint64_t out[3];
 	uint32_t n = 3;
+	if (i2cSpec != NULL) {
+		uint64_t in[4] = { 0 }, o[3] = { 0 };
+		uint32_t on = 3;
+		char *copy = strdup(i2cSpec), *save = NULL, *t;
+		int k = 0;
+		for (t = strtok_r(copy, ",", &save); t != NULL && k < 4; t = strtok_r(NULL, ",", &save))
+			in[k++] = strtoull(t, NULL, 16);
+		free(copy);
+		kern_return_t r = IOConnectCallScalarMethod(conn, kMinkarAMDGPUI2CRead, in, 4, o, &on);
+		printf("call 0x%x result %lld data", r, (long long)o[0]);
+		uint8_t *bytes = (uint8_t *)&o[1];
+		for (unsigned i = 0; i < 16; i++)
+			printf(" %02x", bytes[i]);
+		printf("\n");
+		IOServiceClose(conn);
+		return r != KERN_SUCCESS;
+	}
+	if (auxSpec != NULL) {
+		uint64_t in[5] = { 0 }, o[6] = { 0 };
+		uint32_t on = 6;
+		char *copy = strdup(auxSpec), *save = NULL, *t;
+		int k = 0;
+		for (t = strtok_r(copy, ",", &save); t != NULL && k < 5; t = strtok_r(NULL, ",", &save))
+			in[k++] = strtoull(t, NULL, 16);
+		free(copy);
+		static uint32_t trace[2 * 512];
+		size_t traceBytes = sizeof(trace);
+		kern_return_t r = IOConnectCallMethod(conn, kMinkarAMDGPUAUXTransaction, in, 5, NULL, 0,
+		    o, &on, trace, &traceBytes);
+		printf("call 0x%x result %lld reply 0x%02llx execute %lld dataout %llu data", r,
+		    (long long)o[0], (unsigned long long)o[1], (long long)o[2], (unsigned long long)o[3]);
+		uint8_t *bytes = (uint8_t *)&o[4];
+		for (int i = 0; i < 16; i++)
+			printf(" %02x", bytes[i]);
+		printf("\n");
+		for (size_t i = 0; i + 1 < traceBytes / 4; i += 2)
+			printf("  %s 0x%04x 0x%08x\n", trace[i] >> 31 ? "W" : "R", trace[i] & 0x7fffffff,
+			    trace[i + 1]);
+		IOServiceClose(conn);
+		return r != KERN_SUCCESS;
+	}
 	if (regs != NULL) {
 		char *copy = strdup(regs), *save = NULL;
 		for (char *r = strtok_r(copy, ",", &save); r != NULL; r = strtok_r(NULL, ",", &save)) {

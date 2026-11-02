@@ -34,6 +34,7 @@
 #include "MinkarAMDFramebuffer.h"
 
 #include "atom_glue.h"
+#include "amd_atom_objects.h"
 
 #define LOG(fmt, ...)	IOLog("MinkarAMDFramebuffer: " fmt "\n", ##__VA_ARGS__)
 
@@ -323,6 +324,147 @@ MinkarAMDFramebuffer::showMode(unsigned index)
 	return true;
 }
 
+/* ---- The display, over AUX ---- */
+
+#define mmDC_HPD1_INT_STATUS	0x1807	/* HPDn's at 3 dwords apart */
+#define DC_HPD_SENSE		0x2
+
+/* One AUX transaction, retried while the sink defers (DP: up to 7 times). */
+int
+MinkarAMDFramebuffer::aux(uint8_t request, uint32_t address, uint8_t *buffer, uint8_t size)
+{
+	for (int tries = 0; tries < 8; tries++) {
+		uint8_t reply = 0;
+		int n = minkar_atom_aux(fAtom, fAUX, fHPD, request, address, buffer, size, &reply);
+		if (n < 0)
+			return n;
+		uint8_t r = reply >> 4;
+		bool i2c = (request & ~0x4) <= 0x1;
+		uint8_t status = i2c ? ((r >> 2) & 3) : (r & 3);
+		if ((r & 3) == 0 && status == 0)
+			return n;		/* ACK */
+		if ((r & 3) == 1 || status == 1)
+			return -1;		/* NACK */
+		IODelay(500);			/* DEFER */
+	}
+	return -1;
+}
+
+/*
+ * The connector whose HPD pin senses the display, its DPCD (the receiver's
+ * capabilities, 16 bytes at 0) and its EDID through I2C over AUX (slave
+ * 0x50, each 128-byte block in 16-byte reads), as drm_dp_i2c_xfer does.
+ */
+void
+MinkarAMDFramebuffer::readSink()
+{
+	struct atom_connector c[kAtomMaxConnectors];
+	unsigned n = atom_connectors(fBIOS, fBIOSSize, kSIDCGPIOHPDA, c, kAtomMaxConnectors);
+
+	fConnector = -1;
+	fEDIDBytes = 0;
+	for (unsigned i = 0; i < n && fConnector < 0; i++) {
+		if (c[i].hpd < 0 || ATOM_OBJECT_ID(c[i].object) != kAtomConnectorDisplayPort)
+			continue;
+		if (!(readReg(mmDC_HPD1_INT_STATUS + 3 * c[i].hpd) & DC_HPD_SENSE))
+			continue;
+		fConnector = (int)i;
+		fAUX = c[i].aux;
+		fHPD = (uint8_t)c[i].hpd;
+		fEncoder = c[i].encoder;
+	}
+	if (fConnector < 0) {
+		LOG("no DisplayPort connector senses a display");
+		return;
+	}
+	setProperty("MinkarConnector", (unsigned long long)c[fConnector].object, 32);
+	setProperty("MinkarEncoder", (unsigned long long)fEncoder, 32);
+	setProperty("MinkarAUXChannel", (unsigned long long)fAUX, 32);
+	setProperty("MinkarHPD", (unsigned long long)fHPD + 1, 32);
+
+	bzero(fDPCD, sizeof(fDPCD));
+	if (aux(0x9, 0x000, fDPCD, sizeof(fDPCD)) == (int)sizeof(fDPCD)) {
+		setProperty("MinkarDPCD", fDPCD, sizeof(fDPCD));
+		LOG("DPCD %u.%u, %u.%u Gbps x %u lanes", fDPCD[0] >> 4, fDPCD[0] & 0xf,
+		    fDPCD[1] * 27 / 100, fDPCD[1] * 27 % 100, fDPCD[2] & 0x1f);
+	} else {
+		bzero(fDPCD, sizeof(fDPCD));
+		LOG("no DPCD from AUX channel 0x%02x: not a DisplayPort sink", fAUX);
+	}
+
+	/* The EDID: over AUX (I2C over AUX) to a DisplayPort sink; on the
+	 * DDC line itself (hardware I2C) when there is no DPCD: an HDMI or
+	 * DVI sink on a dual-mode port (the Mac Pro 6,1's HDMI port). */
+	bool dp = fDPCD[0] != 0;
+	if (!dp) {
+		for (unsigned block = 0; block < 2; block++) {
+			if (minkar_atom_i2c(fAtom, fAUX, 0x50, 1, (uint8_t)(block * 128), NULL, 0, NULL, 0) != 0 ||
+			    minkar_atom_i2c(fAtom, fAUX, 0x50, 0, 0, NULL, 0, fEDID + block * 128, 128) != 0)
+				break;
+			fEDIDBytes = (block + 1) * 128;
+			if (block == 0 && fEDID[126] == 0)
+				break;
+		}
+		setProperty("MinkarSinkType", "HDMI or DVI (DDC)");
+	} else
+		setProperty("MinkarSinkType", "DisplayPort");
+	uint8_t zero = 0;
+	for (unsigned block = 0; dp && block < 2; block++) {
+		uint8_t offset = (uint8_t)(block * 128);
+		if (aux(0x0 | 0x4, 0x50, &offset, 1) != 1)
+			break;
+		bool good = true;
+		for (unsigned at = 0; at < 128 && good; at += 16)
+			good = aux(0x1 | 0x4, 0x50, fEDID + block * 128 + at, 16) == 16;
+		(void)aux(0x1, 0x50, &zero, 0);	/* stop */
+		if (!good)
+			break;
+		fEDIDBytes = (block + 1) * 128;
+		if (block == 0 && fEDID[126] == 0)
+			break;	/* no extension */
+	}
+	if (fEDIDBytes >= 128 && fEDID[0] == 0x00 && fEDID[1] == 0xff && fEDID[7] == 0x00) {
+		setProperty("MinkarEDID", fEDID, fEDIDBytes);
+		LOG("EDID: %u bytes, vendor %c%c%c, product 0x%04x", fEDIDBytes,
+		    '@' + ((fEDID[8] >> 2) & 0x1f), '@' + (((fEDID[8] & 3) << 3) | (fEDID[9] >> 5)),
+		    '@' + (fEDID[9] & 0x1f), fEDID[10] | (fEDID[11] << 8));
+	} else {
+		LOG("no EDID from the display");
+		fEDIDBytes = 0;
+	}
+}
+
+bool
+MinkarAMDFramebuffer::hasDDCConnect(IOIndex connectIndex)
+{
+	return connectIndex == 0 && fEDIDBytes >= 128;
+}
+
+/* With an EDID, IODisplay reads it through hasDDCConnect and getDDCBlock. */
+IOReturn
+MinkarAMDFramebuffer::getAttributeForConnection(IOIndex connectIndex, IOSelect attribute,
+    uintptr_t *value)
+{
+	if (connectIndex == 0 && attribute == kConnectionSupportsHLDDCSense)
+		return fEDIDBytes >= 128 ? kIOReturnSuccess : kIOReturnUnsupported;
+	return super::getAttributeForConnection(connectIndex, attribute, value);
+}
+
+/* The EDID, 128 bytes a block, as IODisplay asks for it. */
+IOReturn
+MinkarAMDFramebuffer::getDDCBlock(IOIndex connectIndex, UInt32 blockNumber, IOSelect blockType,
+    IOOptionBits options, UInt8 *data, IOByteCount *length)
+{
+	(void)blockType;
+	(void)options;
+	if (connectIndex != 0 || blockNumber < 1 || blockNumber * 128 > fEDIDBytes ||
+	    *length < 128)
+		return kIOReturnUnsupported;
+	bcopy(fEDID + (blockNumber - 1) * 128, data, 128);
+	*length = 128;
+	return kIOReturnSuccess;
+}
+
 /* The kernel's console draws into our framebuffer, as it did into the
  * firmware's. */
 void
@@ -422,6 +564,8 @@ MinkarAMDFramebuffer::start(IOService *provider)
 		}
 	} else
 		LOG("no VBIOS display tables (VBIOS from %s): the native mode only", source);
+	if (fAtom != NULL)
+		readSink();
 
 	if (!super::start(provider))
 		return false;

@@ -61,6 +61,15 @@
  *			freed when the last holder lets it go (IOSurfaces in
  *			VRAM: iosurfaced holds one for each).
  *   RetainSharedBuffer	in: global ID; out: buffer, its GPU address, size.
+ *   AUXTransaction	in: AUX channel, HPD (0-5), request, address, size;
+ *			out: bytes or a negative errno, the reply byte, the
+ *			interpreter's result, the data length, the first 8
+ *			and next 8 bytes read. For bring-up (administrators).
+ *			The structure output, if given, gets the registers the
+ *			table read and wrote: pairs of (reg | write << 31, value).
+ *   I2CRead		in: DDC line, slave (7-bit), offset, count (<= 16);
+ *			out: 0 or a negative errno, the first 8 and next 8
+ *			bytes. Writes the offset, then reads. For bring-up.
  *   ReadRegister	in: dword index; out: its value. For bring-up: the
  *			register window only, reading only (no indexed
  *			registers, which take two writes).
@@ -82,6 +91,8 @@ enum {
 	kMinkarAMDGPUCopyToScanout,
 	kMinkarAMDGPUCreateSharedBuffer,
 	kMinkarAMDGPURetainSharedBuffer,
+	kMinkarAMDGPUAUXTransaction,
+	kMinkarAMDGPUI2CRead,
 	kMinkarAMDGPUMethodCount
 };
 

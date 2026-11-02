@@ -70,6 +70,11 @@ public:
 	virtual IOReturn setDisplayMode(IODisplayModeID displayMode, IOIndex depth) APPLE_KEXT_OVERRIDE;
 	virtual IODeviceMemory *getApertureRange(IOPixelAperture aperture) APPLE_KEXT_OVERRIDE;
 	virtual bool isConsoleDevice(void) APPLE_KEXT_OVERRIDE;
+	virtual bool hasDDCConnect(IOIndex connectIndex) APPLE_KEXT_OVERRIDE;
+	virtual IOReturn getAttributeForConnection(IOIndex connectIndex, IOSelect attribute,
+	    uintptr_t *value) APPLE_KEXT_OVERRIDE;
+	virtual IOReturn getDDCBlock(IOIndex connectIndex, UInt32 blockNumber, IOSelect blockType,
+	    IOOptionBits options, UInt8 *data, IOByteCount *length) APPLE_KEXT_OVERRIDE;
 
 	/* The framebuffer being shown: its VRAM offset and size (the current
 	 * mode's rows). */
@@ -85,6 +90,8 @@ private:
 	enum { kMaxModes = 16 };
 
 	bool findDisplay(uint64_t bootAddress);
+	void readSink();
+	int aux(uint8_t request, uint32_t address, uint8_t *buffer, uint8_t size);
 	void measureRefresh();
 	void publishTimings();
 	bool scanOut(uint64_t offset, UInt32 width, UInt32 height, UInt32 pitchPixels,
@@ -111,6 +118,15 @@ private:
 	IOByteCount		fSize;
 	IOMemoryMap *		fMap;		/* ours, for the driver */
 	UInt32			fRefreshMilliHz;
+
+	/* The display's connector (from the VBIOS's objects) and what it says
+	 * of itself over AUX: its DPCD and its EDID. */
+	int			fConnector;	/* -1: not found */
+	uint8_t			fAUX, fHPD;
+	uint16_t		fEncoder;
+	uint8_t			fDPCD[16];
+	uint8_t			fEDID[256];
+	unsigned		fEDIDBytes;
 
 	Mode			fModes[kMaxModes];
 	unsigned		fModeCount;

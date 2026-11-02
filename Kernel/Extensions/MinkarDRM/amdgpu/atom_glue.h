@@ -59,6 +59,34 @@ struct minkar_atom *minkar_atom_open(void *gpu, minkar_reg_read_t read,
 int minkar_atom_execute(struct minkar_atom *a, int index, uint32_t *params, int size);
 void minkar_atom_close(struct minkar_atom *a);
 
+/*
+ * One DisplayPort AUX transaction through ProcessAuxChannelTransaction
+ * (amdgpu_atombios_dp_aux_transfer): request is the DP AUX request (native
+ * read 0x9, native write 0x8, I2C read 0x1, I2C write 0x0, | 0x4 for
+ * I2C middle-of-transaction), at most 16 bytes. Returns the bytes read
+ * (or written), a negative errno on a timeout or an error; *reply is the
+ * sink's reply (bits 1:0 native ACK/NACK/DEFER, bits 3:2 I2C's).
+ */
+int minkar_atom_aux(struct minkar_atom *a, uint8_t channel, uint8_t hpd, uint8_t request,
+    uint32_t address, uint8_t *buffer, uint8_t size, uint8_t *reply);
+/*
+ * One hardware I2C transaction through ProcessI2cChannelTransaction
+ * (amdgpu_atombios_i2c_process_i2c_ch), on DDC line (the connector's I2C
+ * id) to slave (7-bit): a write of reg and up to 2 more bytes, or a read
+ * of up to 255 bytes into buffer. 0, or a negative errno.
+ */
+int minkar_atom_i2c(struct minkar_atom *a, uint8_t line, uint8_t slave, int write, uint8_t reg,
+    const uint8_t *more, uint8_t moreBytes, uint8_t *buffer, uint8_t readBytes);
+
+/* The last AUX transaction's interpreter result and data length, for
+ * bring-up. */
+void minkar_atom_aux_last(struct minkar_atom *a, int *execute, uint8_t *dataOut);
+/* Register accesses of the tables while tracing is on, for bring-up:
+ * each entry is reg | (write ? 1u << 31 : 0), then the value. */
+#define MINKAR_ATOM_TRACE_MAX	512
+void minkar_atom_trace(struct minkar_atom *a, int on);
+unsigned minkar_atom_trace_get(struct minkar_atom *a, uint32_t *entries, unsigned max);
+
 /* Display tables (DCE 6 and later), by crtc index; 0 or a negative errno. */
 enum minkar_atom_table {
 	MINKAR_ATOM_ENABLE_SCALER,
