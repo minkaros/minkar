@@ -116,6 +116,9 @@ WSDamageGlobalRect(SLSRect rect)
 	/* Render queue only: */
 	pixman_image_t *_shadow;
 	uint32_t *_shadowPixels;
+	/* Window shadow masks (A8) by window size, "WxH": made on the render
+	 * queue, so each compositor keeps its own. */
+	NSMutableDictionary<NSString *, NSData *> *_shadowMasks;
 	uint8_t *_vram;
 	uint32_t _vramRowBytes;
 }
@@ -263,6 +266,46 @@ WSDamageGlobalRect(SLSRect rect)
 	});
 }
 
+/*
+ * A window's shadow mask, kWSShadowRadius wider on each side: dark under
+ * the window, fading out to nothing at the radius. Separable, from one
+ * falloff per axis.
+ */
+- (NSData *)shadowMaskForWidth:(int)w height:(int)h stride:(int *)stride
+{
+	const int R = kWSShadowRadius;
+	const double maxAlpha = 0.35;
+	int mw = w + 2 * R, mh = h + 2 * R;
+	NSString *key = [NSString stringWithFormat:@"%dx%d", w, h];
+	NSData *mask = _shadowMasks[key];
+
+	*stride = (mw + 3) & ~3;
+	if (mask != nil)
+		return mask;
+	if (_shadowMasks == nil || _shadowMasks.count > 64)
+		_shadowMasks = [NSMutableDictionary dictionary];
+	NSMutableData *data = [NSMutableData dataWithLength:(NSUInteger)*stride * mh];
+	uint8_t *bytes = data.mutableBytes;
+	double *fx = calloc(mw, sizeof(double)), *fy = calloc(mh, sizeof(double));
+	for (int pass = 0; pass < 2; pass++) {
+		int len = pass ? h : w, n = pass ? mh : mw;
+		double *f = pass ? fy : fx;
+		for (int i = 0; i < n; i++) {
+			int p = i - R;	/* from the window's edge */
+			double d = p < 0 ? -p : (p >= len ? p - len + 1 : 0);
+			double t = d >= R ? 0 : 1 - d / R;
+			f[i] = t * t;
+		}
+	}
+	for (int y = 0; y < mh; y++)
+		for (int x = 0; x < mw; x++)
+			bytes[y * *stride + x] = (uint8_t)(255 * maxAlpha * fx[x] * fy[y] + 0.5);
+	free(fx);
+	free(fy);
+	_shadowMasks[key] = data;
+	return data;
+}
+
 - (void)composite:(NSArray<WSFrameItem *> *)items damage:(pixman_region32_t *)damage
     cursor:(SLSPoint)cursor shape:(WSCursorShape *)shape visible:(BOOL)cursorVisible
     originX:(double)ox originY:(double)oy
@@ -294,6 +337,22 @@ WSDamageGlobalRect(SLSRect rect)
 		WSSurface *surface = item.surface;
 		if (surface == nil || !surface.committed || item.alpha <= 0)
 			continue;
+		if (item.shadow) {
+			/* The shadow first, black through its mask, faded with the
+			 * window's alpha. */
+			int sw = (int)ceil(item.frame.width), sh = (int)ceil(item.frame.height), stride;
+			NSData *maskData = [self shadowMaskForWidth:sw height:sh stride:&stride];
+			pixman_image_t *maskImage = pixman_image_create_bits(PIXMAN_a8,
+			    sw + 2 * kWSShadowRadius, sh + 2 * kWSShadowRadius,
+			    (uint32_t *)(uintptr_t)maskData.bytes, stride);
+			pixman_color_t shade = { 0, 0, 0, (uint16_t)(item.alpha * 0xffff) };
+			pixman_image_t *fill = pixman_image_create_solid_fill(&shade);
+			pixman_image_composite32(PIXMAN_OP_OVER, fill, maskImage, _shadow, 0, 0, 0, 0,
+			    x - kWSShadowRadius, y - kWSShadowRadius + kWSShadowOffsetY,
+			    sw + 2 * kWSShadowRadius, sh + 2 * kWSShadowRadius);
+			pixman_image_unref(fill);
+			pixman_image_unref(maskImage);
+		}
 		const uint8_t *pixels = [surface lockFront];
 		pixman_image_t *src = pixman_image_create_bits(PIXMAN_a8r8g8b8, surface.width,
 		    surface.height, (uint32_t *)(uintptr_t)pixels, surface.rowBytes);

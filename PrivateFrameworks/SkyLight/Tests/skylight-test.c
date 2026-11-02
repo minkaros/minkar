@@ -621,6 +621,26 @@ testChildWindows(void)
 	heard(0, 0);	/* the moved notices are read */
 }
 
+/* Window shadows (interface version 13). */
+static void
+testShadow(void)
+{
+	SLSWindowID w = 0;
+	SLSWindowInfo info;
+
+	SLSNewWindow(0, (SLSRect){ 50, 50, 40, 40 }, &w);
+	memset(&info, 0, sizeof(info));
+	SLSGetWindowInfo(w, &info);
+	check(!(info.flags & kSLSWindowHasShadow), "a new window has no shadow", NULL);
+	check(SLSSetWindowShadow(w, 1) == kSLSErrorSuccess, "a shadow is set", NULL);
+	memset(&info, 0, sizeof(info));
+	SLSGetWindowInfo(w, &info);
+	check(info.flags & kSLSWindowHasShadow, "and listed", NULL);
+	check(SLSSetWindowShadow(0xdeadbeef, 1) == kSLSErrorIllegalArgument,
+	    "an unknown window gets none", NULL);
+	SLSReleaseWindow(w);
+}
+
 /* Cursor images (interface version 12). */
 static void
 testCursorImage(void)
@@ -1244,6 +1264,7 @@ main(int argc, char *argv[])
 	testWindowImage();
 	testChildWindows();
 	testCursorImage();
+	testShadow();
 	testSurfaces();
 	testEvents();
 	testClientExit(argv[0]);

@@ -320,6 +320,7 @@ NSArray *_NSWindowNumbersFromWindowInfo(CFArrayRef info,BOOL allApps) {
     _frame=[self frameRectForContentRect:contentRect];
     _frame=[self constrainFrameRect: _frame toScreen: [NSScreen mainScreen]];
     _level=NSNormalWindowLevel;
+    _hasShadow=YES;
     if(_CGUsesSkyLight()) {
         SLSWindowID window = 0;
         if(SLSNewWindow(CGWindowLevelForKey(_level), slsFrame(_frame), &window) != kSLSErrorSuccess)
@@ -332,6 +333,8 @@ NSArray *_NSWindowNumbersFromWindowInfo(CFArrayRef info,BOOL allApps) {
             [slsWindows setObject:[NSNumber numberWithUnsignedInt:window]
                 forKey:[NSNumber numberWithInt:_number]];
         }
+        /* Windows have shadows by default, as on the reference platform. */
+        SLSSetWindowShadow(window, 1);
     } else {
     struct wsRPCWindow data = {
         { kWSWindowCreate, sizeof(struct wsRPCWindow) - sizeof(struct wsRPCBase) },
@@ -1317,6 +1320,8 @@ NSArray *_NSWindowNumbersFromWindowInfo(CFArrayRef info,BOOL allApps) {
 
 -(void)setHasShadow:(BOOL)value {
    _hasShadow=value;
+   if(_CGUsesSkyLight())
+    SLSSetWindowShadow(slsWindowFor(_number), value);
 }
 
 -(void)setIgnoresMouseEvents:(BOOL)value {

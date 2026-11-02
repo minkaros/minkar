@@ -247,3 +247,15 @@ SLSSetWindowParent(SLSWindowID child, SLSWindowID parent, int32_t place)
 		return kSLSErrorFailure;
 	return result;
 }
+
+int
+SLSSetWindowShadow(SLSWindowID window, int hasShadow)
+{
+	int32_t result = kSLSErrorFailure;
+	mach_port_t server = SLSServerPort();
+
+	if (server == MACH_PORT_NULL ||
+	    ws_window_set_shadow(server, window, hasShadow != 0, &result) != KERN_SUCCESS)
+		return kSLSErrorFailure;
+	return result;
+}

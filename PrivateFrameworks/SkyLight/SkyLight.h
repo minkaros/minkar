@@ -48,7 +48,7 @@ extern "C" {
 #define kSLSServiceName		"org.minkar.WindowServer.next"
 
 /* The interface version both sides are built for. */
-#define kSLSInterfaceVersion	12
+#define kSLSInterfaceVersion	13
 
 typedef int32_t SLSConnectionID;
 
@@ -343,6 +343,7 @@ enum {
 enum {
 	kSLSWindowOnScreen	= 1 << 0,
 	kSLSWindowMinimized	= 1 << 1,
+	kSLSWindowHasShadow	= 1 << 2,
 };
 
 /* What the server knows about a window (CGWindowListCopyWindowInfo). */
@@ -418,6 +419,13 @@ int SLSCopyWindowImage(SLSWindowID window, uint8_t **pixels, uint32_t *width,
  * detaches its children.
  */
 int SLSSetWindowParent(SLSWindowID child, SLSWindowID parent, int32_t place);
+
+/*
+ * Window shadows (interface version 13), as NSWindow's hasShadow: the
+ * server draws a soft shadow under the window, a little below it, in
+ * software. Off for a new window.
+ */
+int SLSSetWindowShadow(SLSWindowID window, int hasShadow);
 
 /* 0 (transparent) to 1 (opaque); the server blends the surface with it. */
 int SLSSetWindowAlpha(SLSWindowID window, double alpha);

@@ -47,6 +47,10 @@ WSDisplay *WSDisplayWithID(uint32_t displayID);
 /* A connection's process exited: release what it held on the displays. */
 void WSDisplayServicesConnectionDied(WSConnection *connection);
 
+/* Window shadows: how far they reach out of the window, and how far
+ * down they are; the compositor draws them, the window list damages them. */
+enum { kWSShadowRadius = 16, kWSShadowOffsetY = 6 };
+
 /* Windows (WSWindowList.m). */
 WSWindow *WSWindowCreate(WSConnection *owner, int32_t level, SLSRect frame);
 void WSWindowRelease(WSWindow *window);

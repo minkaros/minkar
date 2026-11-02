@@ -486,6 +486,15 @@ routine display_menu_bar_height(
 	out result		: int32_t;
 	out height		: uint32_t);
 
+/* ---- Window shadows (interface version 13) ---- */
+
+routine window_set_shadow(
+	server			: mach_port_t;
+	ServerAuditToken token	: audit_token_t;
+	window			: uint32_t;
+	shadow			: int32_t;
+	out result		: int32_t);
+
 /* ---- Child windows (interface version 11) ---- */
 
 routine window_set_parent(

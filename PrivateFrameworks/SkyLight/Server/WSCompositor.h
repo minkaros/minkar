@@ -44,6 +44,7 @@
 @property SLSRect frame;		/* global coordinates */
 @property double alpha;
 @property BOOL solid;			/* a shielding window: opaque black */
+@property BOOL shadow;			/* drawn with a shadow */
 @end
 
 @interface WSCompositor : NSObject

@@ -48,6 +48,8 @@
 @property BOOL shield;
 /* Minimized (SLSSetWindowMinimized): out of the screen, kept by the Dock. */
 @property BOOL minimized;
+/* It has a shadow (SLSSetWindowShadow). */
+@property BOOL hasShadow;
 /* Child windows (SLSSetWindowParent): the parent, the children in the
  * order they were attached, which side of the parent the window goes, and
  * whether it is out of the screen only because its parent is. */

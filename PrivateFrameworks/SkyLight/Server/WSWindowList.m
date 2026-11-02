@@ -139,6 +139,12 @@ damageWindow(WSWindow *w)
 		r.width = surface.width;
 	if (surface != nil && surface.height > r.height)
 		r.height = surface.height;
+	if (w.hasShadow) {
+		r.x -= kWSShadowRadius;
+		r.y -= kWSShadowRadius - kWSShadowOffsetY;
+		r.width += 2 * kWSShadowRadius;
+		r.height += 2 * kWSShadowRadius;
+	}
 	WSDamageGlobalRect(r);
 }
 
@@ -517,6 +523,20 @@ wss_window_set_status_item(mach_port_t server, audit_token_t token, uint32_t win
 }
 
 kern_return_t
+wss_window_set_shadow(mach_port_t server, audit_token_t token, uint32_t window, int32_t shadow,
+    int32_t *result)
+{
+	WSWindow *w = ownWindow(token, window, result);
+
+	if (w != nil && w.hasShadow != (shadow != 0)) {
+		damageWindow(w);
+		w.hasShadow = shadow != 0;
+		damageWindow(w);
+	}
+	return KERN_SUCCESS;
+}
+
+kern_return_t
 wss_window_set_parent(mach_port_t server, audit_token_t token, uint32_t child,
     uint32_t parent, int32_t place, int32_t *result)
 {
@@ -737,7 +757,7 @@ wss_window_info(mach_port_t server, uint32_t window, int32_t *result, SLSWindowI
 	info->height = w.frame.height;
 	info->alpha = w.alpha;
 	info->flags = (w.onScreen ? kSLSWindowOnScreen : 0) |
-	    (w.minimized ? kSLSWindowMinimized : 0);
+	    (w.minimized ? kSLSWindowMinimized : 0) | (w.hasShadow ? kSLSWindowHasShadow : 0);
 	info->sharingState = 1;		/* kCGWindowSharingReadOnly */
 	if (proc_name(w.owner.pid, info->ownerName, sizeof(info->ownerName)) <= 0)
 		info->ownerName[0] = '\0';
@@ -856,6 +876,7 @@ WSWindowSnapshot(void)
 		item.alpha = w.alpha;
 		item.surface = w.surface;
 		item.solid = w.shield;
+		item.shadow = w.hasShadow && !w.shield;
 		[items addObject:item];
 	}
 	return items;
