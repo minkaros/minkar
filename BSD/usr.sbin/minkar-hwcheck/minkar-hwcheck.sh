@@ -323,9 +323,16 @@ display_check() {
 	fi
 	run bootargs sysctl kern.bootargs
 	grep -iE 'IOFB:|console relocated|lost console|console setting|console [0-9]+ x' "$RAW/dmesg.txt" >> "$DETAIL"
-	# IOGOPFramebuffer publishes the geometry the firmware gave.
-	local fb fbw
+	# IOGOPFramebuffer publishes the geometry the firmware gave; in a VM,
+	# MinkarVirtioGPU publishes its own (its scanout is in system memory).
+	local fb fbw virtio=no
 	ioreg -l -w0 -r -c IOGOPFramebuffer > "$RAW/ioreg-gop.txt" 2>&1
+	if ! grep -q '<class IOGOPFramebuffer' "$RAW/ioreg-gop.txt" &&
+	    ioreg -l -w0 -r -c MinkarVirtioGPU > "$RAW/ioreg-virtio-gpu.txt" 2>&1 &&
+	    grep -q '<class MinkarVirtioGPU' "$RAW/ioreg-virtio-gpu.txt"; then
+		virtio=yes
+		cp "$RAW/ioreg-virtio-gpu.txt" "$RAW/ioreg-gop.txt"
+	fi
 	# ioreg prints numbers in decimal (or as 0x... when asked): as hex here.
 	fb=$(awk -F'= ' "$AWK_HEX"'
 	    function hx(n,   s, d) { s = ""; do { d = n % 16; s = substr("0123456789abcdef", d + 1, 1) s; n = (n - d) / 16 } while (n > 0); return "0x" s }
@@ -351,7 +358,14 @@ display_check() {
 	local wbase wsize
 	wbase=$(awk -F'= ' '/"MinkarFramebufferWindowBase"/ { print $2; exit }' "$RAW/ioreg-gop.txt")
 	wsize=$(awk -F'= ' '/"MinkarFramebufferWindowSize"/ { print $2; exit }' "$RAW/ioreg-gop.txt")
-	result INFO "framebuffer drivers" "$(grep -c '<class IOGOPFramebuffer' "$RAW/ioreg-gop.txt") IOGOPFramebuffer (one expected)"
+	if [ $virtio = yes ]; then
+		result INFO "framebuffer drivers" "MinkarVirtioGPU (virtio-gpu, no IOGOPFramebuffer)"
+		[ -n "$fb" ] && result PASS "framebuffer in system memory" \
+		    "virtio-gpu: the host reads the scanout from RAM, no GPU window"
+		fb=""
+	else
+		result INFO "framebuffer drivers" "$(grep -c '<class IOGOPFramebuffer' "$RAW/ioreg-gop.txt") IOGOPFramebuffer (one expected)"
+	fi
 	if [ -n "$wbase" ] && [ -n "$fb" ]; then
 		result PASS "framebuffer in a gpu window" "$(awk -v b="$wbase" -v z="$wsize" '
 		    function hx(n,   s, d) { s = ""; do { d = n % 16; s = substr("0123456789abcdef", d + 1, 1) s; n = (n - d) / 16 } while (n > 0); return "0x" s }
@@ -419,7 +433,10 @@ result INFO "pci devices" "$pci_total found, $pci_nodriver without a driver (see
 usb_count=$(grep -c '+-o ' "$RAW/ioreg-usb.txt")
 result INFO "usb" "$usb_count entries in the USB plane"
 fbmem=$(ioreg -l -w0 -r -c IOGOPFramebuffer 2>/dev/null | awk -F'= ' '/"IOFBMemorySize"/ { print $2; exit }')
-if [ -n "$fbmem" ]; then
+vgpu=$(ioreg -l -w0 -r -c MinkarVirtioGPU 2>/dev/null | awk -F'= ' '/"MinkarFramebufferWidth"/ { w = $2 } /"MinkarFramebufferHeight"/ { h = $2 } END { if (w != "") print w "x" h }')
+if [ -n "$vgpu" ]; then
+	result PASS "display: virtio-gpu" "MinkarVirtioGPU at $vgpu (check the picture by hand)"
+elif [ -n "$fbmem" ]; then
 	result PASS "display: GOP framebuffer" "$((fbmem / 1048576)) MB of framebuffer (check the picture by hand)"
 else
 	result FAIL "display: GOP framebuffer" "no IOGOPFramebuffer: no picture from the firmware's GOP"
