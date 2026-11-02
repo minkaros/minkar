@@ -33,6 +33,9 @@
 #import <WindowServer/Legacy/message.h>
 #include <SkyLight/SkyLight.h>
 #include <dispatch/dispatch.h>
+#include <unistd.h>
+#import <CoreGraphics/CGBitmapContext.h>
+#import <CoreGraphics/CGWindow.h>
 #import <WindowServer/Legacy/rpc.h>
 
 const CFStringRef kCGDisplayStreamSourceRect = CFSTR("kCGDisplayStreamSourceRect");
@@ -272,12 +275,176 @@ CGOpenGLDisplayMask CGDisplayIDToOpenGLDisplayMask(CGDirectDisplayID display) {
     return mask;
 }
 
+/* ---- Captured displays with the new server (WS4a) ---- */
+
+/*
+ * CGDisplayGetDrawingContext's context draws into memory of this process;
+ * a timer copies it into the display's shielding window (its surface) at
+ * the refresh rate, when it changed since the last copy.
+ * SHORTCUT(WS5): the app should draw into the surface that is scanned out,
+ * through IOSurface; until then a copy, and a frame behind; taken in WS4a.
+ */
+typedef struct {
+    CGContextRef context;
+    uint8_t *pixels, *flushed;     /* what is drawn; what was copied last */
+    size_t width, height, rowBytes;
+    SLSWindowID shield;
+    dispatch_source_t timer;
+} SLSDrawingContext;
+
+static CFMutableDictionaryRef slsDrawingContexts;    /* display -> SLSDrawingContext */
+static dispatch_queue_t slsDrawingQueue;
+
+static void slsFlushDrawing(SLSDrawingContext *d) {
+    size_t size = d->height * d->rowBytes;
+
+    if(memcmp(d->pixels, d->flushed, size) == 0)
+        return;
+    memcpy(d->flushed, d->pixels, size);
+    SLSIntRect all = { 0, 0, (int32_t)d->width, (int32_t)d->height };
+    SLSWindowFlushPixels(d->shield, d->flushed, (uint32_t)d->rowBytes, &all, 1);
+}
+
+static void slsDropDrawingContext(CGDirectDisplayID display) {
+    if(slsDrawingContexts == NULL)
+        return;
+    SLSDrawingContext *d = (SLSDrawingContext *)CFDictionaryGetValue(slsDrawingContexts,
+        (const void *)(uintptr_t)display);
+    if(d == NULL)
+        return;
+    CFDictionaryRemoveValue(slsDrawingContexts, (const void *)(uintptr_t)display);
+    dispatch_source_cancel(d->timer);
+    dispatch_sync(slsDrawingQueue, ^{});    /* no copy running */
+    dispatch_release(d->timer);
+    CGContextRelease(d->context);
+    free(d->pixels);
+    free(d->flushed);
+    free(d);
+}
+
+static CGContextRef slsDrawingContext(CGDirectDisplayID display) {
+    int32_t pid = 0;
+    SLSWindowID shield = SLSShieldingWindowID(display);
+
+    if(shield == 0 || SLSDisplayCapturedBy(display, &pid) != kSLSErrorSuccess || pid != getpid())
+        return NULL;    /* not captured, or not by this process */
+    if(slsDrawingContexts == NULL) {
+        slsDrawingContexts = CFDictionaryCreateMutable(NULL, 8, NULL, NULL);
+        slsDrawingQueue = dispatch_queue_create("org.minkar.CoreGraphics.capture", NULL);
+    }
+    SLSDrawingContext *d = (SLSDrawingContext *)CFDictionaryGetValue(slsDrawingContexts,
+        (const void *)(uintptr_t)display);
+    if(d != NULL)
+        return d->context;
+
+    CGRect bounds = CGDisplayBounds(display);
+    d = calloc(1, sizeof(*d));
+    d->width = (size_t)bounds.size.width;
+    d->height = (size_t)bounds.size.height;
+    d->rowBytes = d->width * 4;
+    d->shield = shield;
+    d->pixels = calloc(d->height, d->rowBytes);
+    d->flushed = calloc(d->height, d->rowBytes);
+    CGColorSpaceRef space = CGColorSpaceCreateDeviceRGB();
+    d->context = CGBitmapContextCreate(d->pixels, d->width, d->height, 8, d->rowBytes, space,
+        kCGImageAlphaPremultipliedFirst | kCGBitmapByteOrder32Little);
+    CGColorSpaceRelease(space);
+    if(d->context == NULL || d->pixels == NULL || d->flushed == NULL) {
+        if(d->context != NULL)
+            CGContextRelease(d->context);
+        free(d->pixels);
+        free(d->flushed);
+        free(d);
+        return NULL;
+    }
+    /* Opaque black to start with, as the shielding window. */
+    CGContextSetRGBFillColor(d->context, 0, 0, 0, 1);
+    CGContextFillRect(d->context, CGRectMake(0, 0, d->width, d->height));
+    memset(d->flushed, 0xff, d->height * d->rowBytes);    /* the first tick copies */
+    double refresh = 60;
+    CGDisplayModeRef mode = CGDisplayCopyDisplayMode(display);
+    if(mode != NULL) {
+        if(CGDisplayModeGetRefreshRate(mode) > 0)
+            refresh = CGDisplayModeGetRefreshRate(mode);
+        CGDisplayModeRelease(mode);
+    }
+    d->timer = dispatch_source_create(DISPATCH_SOURCE_TYPE_TIMER, 0, 0, slsDrawingQueue);
+    uint64_t interval = (uint64_t)(NSEC_PER_SEC / refresh);
+    dispatch_source_set_timer(d->timer, dispatch_time(DISPATCH_TIME_NOW, 0), interval,
+        interval / 10);
+    dispatch_source_set_event_handler(d->timer, ^{ slsFlushDrawing(d); });
+    dispatch_resume(d->timer);
+    CFDictionarySetValue(slsDrawingContexts, (const void *)(uintptr_t)display, d);
+    return d->context;
+}
+
+static CGError slsRelease(CGDirectDisplayID display) {
+    if(display == 0) {
+        if(slsDrawingContexts != NULL) {
+            CFIndex n = CFDictionaryGetCount(slsDrawingContexts);
+            const void *keys[n > 0 ? n : 1];
+            CFDictionaryGetKeysAndValues(slsDrawingContexts, keys, NULL);
+            for(CFIndex i = 0; i < n; i++)
+                slsDropDrawingContext((CGDirectDisplayID)(uintptr_t)keys[i]);
+        }
+    } else
+        slsDropDrawingContext(display);
+    return (CGError)SLSReleaseDisplay(display);
+}
+
+static void slsReleasePixels(void *info, const void *data, size_t size) {
+    free((void *)data);
+}
+
+/* The screen's contents in a rect of a display: its on-screen windows,
+ * composed over black, without the cursor. */
+static CGImageRef slsDisplayImage(CGDirectDisplayID display, CGRect rect) {
+    CGRect bounds = CGDisplayBounds(display);
+    CGRect global = CGRectIntersection(CGRectOffset(rect, bounds.origin.x, bounds.origin.y), bounds);
+
+    if(CGRectIsNull(global) || CGRectIsEmpty(global))
+        return NULL;
+    global = CGRectIntegral(global);
+    size_t w = (size_t)global.size.width, h = (size_t)global.size.height;
+    CGColorSpaceRef space = CGColorSpaceCreateDeviceRGB();
+    uint8_t *pixels = calloc(h, w * 4);
+    CGContextRef context = CGBitmapContextCreate(pixels, w, h, 8, w * 4, space,
+        kCGImageAlphaPremultipliedFirst | kCGBitmapByteOrder32Little);
+    CGImageRef image = NULL;
+
+    if(context != NULL) {
+        CGContextSetRGBFillColor(context, 0, 0, 0, 1);
+        CGContextFillRect(context, CGRectMake(0, 0, w, h));
+        CGImageRef windows = CGWindowListCreateImage(global, kCGWindowListOptionOnScreenOnly,
+            kCGNullWindowID, kCGWindowImageDefault);
+        if(windows != NULL) {
+            CGContextDrawImage(context, CGRectMake(0, 0, w, h), windows);
+            CGImageRelease(windows);
+        }
+        CGContextRelease(context);
+        /* The image takes the pixels (a CF data object would reach
+           Onyx2D's provider as an NSData, and CF's are not bridged). */
+        CGDataProviderRef provider = CGDataProviderCreateWithData(NULL, pixels, h * w * 4,
+            slsReleasePixels);
+        image = CGImageCreate(w, h, 8, 32, w * 4, space,
+            kCGImageAlphaPremultipliedFirst | kCGBitmapByteOrder32Little, provider, NULL, false,
+            kCGRenderingIntentDefault);
+        CGDataProviderRelease(provider);
+    } else
+        free(pixels);
+    CGColorSpaceRelease(space);
+    return image;
+}
+
 // Capturing and Releasing Displays
 CGError CGDisplayCapture(CGDirectDisplayID display) {
     return CGDisplayCaptureWithOptions(display, kCGCaptureNoOptions);
 }
 
 CGError CGDisplayCaptureWithOptions(CGDirectDisplayID display, CGCaptureOptions options) {
+    if(_CGUsesSkyLight())
+        return display == 0 ? kCGErrorIllegalArgument :
+            (CGError)SLSCaptureDisplay(display, (uint32_t)options);
     struct wsRPCSimple data = { kCGDisplayCaptureWithOptions, 8 };
     data.val1 = display;
     data.val2 = options;
@@ -289,6 +456,8 @@ CGError CGDisplayCaptureWithOptions(CGDirectDisplayID display, CGCaptureOptions 
 }
 
 CGError CGDisplayRelease(CGDirectDisplayID display) {
+    if(_CGUsesSkyLight())
+        return display == 0 ? kCGErrorIllegalArgument : slsRelease(display);
     struct wsRPCSimple data = { kCGDisplayRelease, 4 };
     data.val1 = display;
     int len = sizeof(data);
@@ -314,6 +483,8 @@ CGError CGCaptureAllDisplays(void) {
 }
 
 CGError CGCaptureAllDisplaysWithOptions(CGCaptureOptions options) {
+    if(_CGUsesSkyLight())
+        return (CGError)SLSCaptureDisplay(0, (uint32_t)options);
     struct wsRPCSimple data = { kCGCaptureAllDisplaysWithOptions, 0 };
     data.val1 = options;
     int len = sizeof(data);
@@ -324,6 +495,8 @@ CGError CGCaptureAllDisplaysWithOptions(CGCaptureOptions options) {
 }
 
 CGError CGReleaseAllDisplays(void) {
+    if(_CGUsesSkyLight())
+        return slsRelease(0);
     struct wsRPCSimple data = { kCGReleaseAllDisplays, 0 };
     int len = sizeof(data);
     kern_return_t ret = _windowServerRPC(&data, sizeof(data), &data, &len);
@@ -358,6 +531,8 @@ CGWindowLevel CGShieldingWindowLevel(void) {
 }
 
 CGContextRef CGDisplayGetDrawingContext(CGDirectDisplayID display) {
+    if(_CGUsesSkyLight())
+        return slsDrawingContext(display);
     struct wsRPCSimple data = { kCGDisplayGetDrawingContext, 4 };
     data.val1 = display;
     int len = sizeof(data);
@@ -394,6 +569,8 @@ CGImageRef CGDisplayCreateImage(CGDirectDisplayID display) {
 }
 
 CGImageRef CGDisplayCreateImageForRect(CGDirectDisplayID display, CGRect rect) {
+    if(_CGUsesSkyLight())
+        return slsDisplayImage(display, rect);
     struct wsRPCSimple data = { {kCGDisplayCreateImageForRect, 12} };
     data.val1 = display;
     // convert floats to int

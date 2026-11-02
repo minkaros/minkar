@@ -30,7 +30,9 @@
  * cgwindow-test: Quartz Window Services through the new window server
  * (WindowServer plan, WS4a): CGWindowListCopyWindowInfo with the reference
  * keys, CGWindowListCreate, and CGWindowListCreateImage for one window
- * (minimized too, as the Dock's thumbnails) and for an area with two.
+ * (minimized too, as the Dock's thumbnails) and for an area with two;
+ * CGDisplayCreateImage, and a captured display drawn through
+ * CGDisplayGetDrawingContext.
  * One line per check, "ok" or "FAIL", then "cgwindow-test: N passed, M
  * failed"; the exit status is the number of failures. Needs the new
  * server up.
@@ -151,6 +153,33 @@ main(void)
 	    pixel(image, 5, 5) == 0xffff0000 && pixel(image, 60, 50) == 0xff0000ff &&
 	    pixel(image, 110, 5) == 0,
 	    "an area's image composes the windows in order");
+	if (image != NULL)
+		CGImageRelease(image);
+
+	/* The display's image: the windows over black. */
+	CGDirectDisplayID main = CGMainDisplayID();
+	image = CGDisplayCreateImageForRect(main, CGRectMake(90, 110, 100, 80));
+	check(image != NULL && CGImageGetWidth(image) == 100 && pixel(image, 20, 20) == 0xffff0000 &&
+	    pixel(image, 2, 2) == 0xff000000, "a display's image has its windows over black");
+	if (image != NULL)
+		CGImageRelease(image);
+
+	/* Captured, the display shows what the app draws in its context. */
+	check(CGDisplayCapture(main) == kCGErrorSuccess, "the display is captured");
+	CGContextRef context = CGDisplayGetDrawingContext(main);
+	check(context != NULL, "its drawing context");
+	if (context != NULL) {
+		CGContextSetRGBFillColor(context, 0, 1, 0, 1);
+		CGContextFillRect(context, CGRectMake(0, 0, 4000, 4000));
+	}
+	usleep(200000);	/* a refresh or two: the context is copied to the screen */
+	image = CGDisplayCreateImageForRect(main, CGRectMake(10, 10, 20, 20));
+	check(image != NULL && pixel(image, 5, 5) == 0xff00ff00, "what it draws reaches the screen");
+	if (image != NULL)
+		CGImageRelease(image);
+	check(CGDisplayRelease(main) == kCGErrorSuccess, "and it is released");
+	image = CGDisplayCreateImageForRect(main, CGRectMake(90, 110, 100, 80));
+	check(image != NULL && pixel(image, 20, 20) == 0xffff0000, "the windows show again");
 	if (image != NULL)
 		CGImageRelease(image);
 
