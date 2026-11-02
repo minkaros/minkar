@@ -7,8 +7,9 @@
 # goes away in WS4b). WindowServer/Demo is its demo client. The keymap
 # (WSKeymap and libxkbcommon) lives in PrivateFrameworks/SkyLight/Keymap.
 #
-# FIXME: Dock, Filer, DMIHelper, SystemUIServer and loginwindow (with
-# LoadingWindow) still use the old build rules and are not built yet.
+# FIXME: Dock, Filer, DMIHelper, SystemUIServer and the login window of
+# ravynOS (loginwindow/LoginWindow.m, LoadingWindow) still use the old
+# build rules and are not built yet.
 
 SUBDIR = ../PrivateFrameworks/SkyLight/Keymap/libxkbcommon .WAIT WindowServer/Legacy WindowServer/Demo
 # The new window server and its test client (SkyLight.framework is built
@@ -20,6 +21,8 @@ SUBDIR += .WAIT ../BSD/lib/libpixman .WAIT ../PrivateFrameworks/SkyLight/Server 
 # LaunchServices' session daemon (LaunchServices.framework is built in the
 # Frameworks stage).
 SUBDIR += launchservicesd launchservicesd/tests
+# The minimal loginwindow, the session's owner (WindowServer plan, 10.3).
+SUBDIR += loginwindow
 # The code integrity policy's test program (it needs IOKit).
 SUBDIR += ../Kernel/Extensions/MinkarCodeIntegrity/tests
 # IOHIDSystem's event queue reader, for the input tests (it needs IOKit).

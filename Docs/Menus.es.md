@@ -315,6 +315,8 @@ del roadmap.
 | --- | --- | --- | --- |
 | Quién dibuja y sigue los menús de la app | La app (AppKit), en su propio proceso | Ninguno: SystemUIServer dibujaba una copia, y no se compila | MB0 |
 | Menú del sistema | Logo de Minkar, los elementos de la plataforma de referencia, acciones a través de loginwindow | Reiniciar, Apagar y Cerrar sesión a través del `loginwindow` mínimo; Reposo, Forzar salida, Bloquear pantalla y Preferencias del Sistema desactivados | MB3 |
+| Confirmar Reiniciar, Apagar y Cerrar sesión | El panel de `loginwindow`, con su cuenta atrás | La app que lo pide muestra una alerta; con Opción pulsada no se muestra (`SHORTCUT(Phase 5)` en `NSMenuBarWindow.m`) | Fase 5 (LoginWindow) |
+| Acerca de este equipo | La ventana propia de Gienah | Una alerta sencilla con el nombre y la versión del sistema, el kernel, el procesador, la memoria y la pantalla (`SHORTCUT(Phase 5)` en `NSMenuBarWindow.m`) | Fase 5 |
 | Status items | Ventanas de sus apps, dispuestas por el servidor de ventanas | Solo la API básica | MB1 |
 | Menu Extras | Bundles en SystemUIServer | Ninguno hasta que SystemUIServer se compile | MB1 |
 | Documentos recientes | Listas compartidas de archivos de LaunchServices | Guardados por app por `NSDocumentController` en sus preferencias | MB2 |

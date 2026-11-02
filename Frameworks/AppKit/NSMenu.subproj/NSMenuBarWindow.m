@@ -37,6 +37,11 @@
 #import <AppKit/NSMenuItem.h>
 #import <AppKit/NSScreen.h>
 #import <AppKit/NSWindow.h>
+#import <AppKit/NSAlert.h>
+#import <AppKit/NSEvent.h>
+#include <servers/bootstrap.h>
+#include <sys/sysctl.h>
+#include "../../../CoreServices/loginwindow/LoginWindowRequest.h"
 
 @interface NSMenu (NSMenuBarWindow)
 - (NSString *)_name;
@@ -47,26 +52,123 @@ static BOOL shown;
 static BOOL updating;	/* setting the bars up changes the main menu too */
 
 /*
- * The system menu, the same in every app: its items act with the minimal
- * loginwindow (MB0, WindowServer plan section 10.3); until then they are
- * listed, disabled.
+ * The system menu, the same in every app (Menus.md, MB0): About This
+ * Computer, and Restart, Shut Down and Log Out as requests to the minimal
+ * loginwindow (WindowServer plan, section 10.3). The other items act from
+ * MB3; until then they are listed, disabled.
  */
+@interface NSSystemMenuActions : NSObject
+@end
+
+@implementation NSSystemMenuActions
+
+/* SHORTCUT(Phase 5): a plain alert shows the computer; Gienah has its own
+   About This Computer; taken in WS4b. */
+- (void)aboutThisComputer:(id)sender {
+    NSDictionary *version = [NSDictionary dictionaryWithContentsOfFile:
+        @"/System/Library/CoreServices/SystemVersion.plist"];
+    NSString *name = [version objectForKey:@"ProductName"];
+    NSString *shown = [version objectForKey:@"ProductUserVisibleVersion"];
+    char cpu[128] = "", kernel[64] = "";
+    size_t len = sizeof(cpu);
+    uint64_t memory = 0;
+    size_t memLen = sizeof(memory);
+
+    sysctlbyname("machdep.cpu.brand_string", cpu, &len, NULL, 0);
+    len = sizeof(kernel);
+    sysctlbyname("kern.osrelease", kernel, &len, NULL, 0);
+    sysctlbyname("hw.memsize", &memory, &memLen, NULL, 0);
+    NSSize screen = [[NSScreen mainScreen] frame].size;
+
+    NSAlert *alert = [[[NSAlert alloc] init] autorelease];
+    [alert setMessageText:[NSString stringWithFormat:@"%@ %@", name ? name : @"Minkar",
+        shown ? shown : @""]];
+    [alert setInformativeText:[NSString stringWithFormat:
+        @"Kernel: Darwin %s\nProcessor: %s\nMemory: %.0f GB\nDisplay: %.0f × %.0f",
+        kernel, cpu, memory / 1073741824.0, screen.width, screen.height]];
+    [alert addButtonWithTitle:@"OK"];
+    [alert runModal];
+}
+
+/* Sends a request to loginwindow, without waiting. */
+static BOOL sendLoginWindowRequest(uint32_t request) {
+    mach_port_t service = MACH_PORT_NULL;
+    LoginWindowRequest msg;
+
+    if(bootstrap_look_up(bootstrap_port, kLoginWindowServiceName, &service) != KERN_SUCCESS)
+        return NO;
+    memset(&msg, 0, sizeof(msg));
+    msg.header.msgh_bits = MACH_MSGH_BITS(MACH_MSG_TYPE_COPY_SEND, 0);
+    msg.header.msgh_size = sizeof(msg);
+    msg.header.msgh_remote_port = service;
+    msg.header.msgh_id = kLoginWindowRequestID;
+    msg.request = request;
+    kern_return_t kr = mach_msg(&msg.header, MACH_SEND_MSG | MACH_SEND_TIMEOUT, sizeof(msg), 0,
+        MACH_PORT_NULL, 1000, MACH_PORT_NULL);
+    mach_port_deallocate(mach_task_self(), service);
+    return kr == MACH_MSG_SUCCESS;
+}
+
+/* SHORTCUT(Phase 5): the app asks for confirmation; on the reference
+   platform loginwindow does, with its countdown; taken in WS4b. Option
+   held skips it, as there. */
+- (void)request:(uint32_t)request question:(NSString *)question button:(NSString *)button {
+    if(!([[NSApp currentEvent] modifierFlags] & NSAlternateKeyMask)) {
+        NSAlert *alert = [[[NSAlert alloc] init] autorelease];
+        [alert setMessageText:question];
+        [alert setInformativeText:@"Applications that are open are asked to quit."];
+        [alert addButtonWithTitle:button];
+        [alert addButtonWithTitle:@"Cancel"];
+        if([alert runModal] != NSAlertFirstButtonReturn)
+            return;
+    }
+    if(!sendLoginWindowRequest(request))
+        NSLog(@"loginwindow is not running: %@ not done", button);
+}
+
+- (void)restart:(id)sender {
+    [self request:kLoginWindowRestart question:@"Are you sure you want to restart your computer now?"
+        button:@"Restart"];
+}
+
+- (void)shutDown:(id)sender {
+    [self request:kLoginWindowShutDown question:@"Are you sure you want to shut down your computer now?"
+        button:@"Shut Down"];
+}
+
+- (void)logOut:(id)sender {
+    [self request:kLoginWindowLogOut question:@"Are you sure you want to quit all applications and log out now?"
+        button:@"Log Out"];
+}
+
+@end
+
 static NSMenuItem *systemMenuItem(void) {
     static NSMenuItem *item;
+    static NSSystemMenuActions *actions;
 
     if(item != nil)
         return item;
+    actions = [NSSystemMenuActions new];
     NSMenu *menu = [[NSMenu alloc] initWithTitle:@""];
     [menu setAutoenablesItems:NO];
-    NSArray *titles = @[ @"About This Computer", @"System Preferences…", @"-", @"Force Quit…",
-        @"-", @"Sleep", @"Restart…", @"Shut Down…", @"-", @"Lock Screen", @"Log Out" ];
-    for(NSString *title in titles) {
+    NSString *logOut = [NSString stringWithFormat:@"Log Out %@…", NSFullUserName()];
+    NSArray *entries = @[
+        @[ @"About This Computer", @"aboutThisComputer:" ], @[ @"System Preferences…", @"" ], @[ @"-" ],
+        @[ @"Force Quit…", @"" ], @[ @"-" ],
+        @[ @"Sleep", @"" ], @[ @"Restart…", @"restart:" ], @[ @"Shut Down…", @"shutDown:" ], @[ @"-" ],
+        @[ @"Lock Screen", @"" ], @[ logOut, @"logOut:" ] ];
+    for(NSArray *entry in entries) {
+        NSString *title = [entry objectAtIndex:0];
         if([title isEqualToString:@"-"]) {
             [menu addItem:[NSMenuItem separatorItem]];
             continue;
         }
-        NSMenuItem *entry = [menu addItemWithTitle:title action:NULL keyEquivalent:@""];
-        [entry setEnabled:NO];
+        NSString *action = [entry objectAtIndex:1];
+        NSMenuItem *it = [menu addItemWithTitle:title
+            action:[action length] ? NSSelectorFromString(action) : NULL keyEquivalent:@""];
+        [it setTarget:actions];
+        [it setEnabled:[action length] > 0];
     }
     item = [[NSMenuItem alloc] initWithTitle:@"" action:NULL keyEquivalent:@""];
     NSString *path = [[NSBundle bundleForClass:[NSMenuBarWindow class]]

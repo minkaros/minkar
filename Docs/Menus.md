@@ -296,6 +296,8 @@ commits with the diff shown first; evidence for every roadmap item.
 | --- | --- | --- | --- |
 | Who draws and tracks the app's menus | The app (AppKit), in its own process | None: SystemUIServer drew a copy, and it is not built | MB0 |
 | System menu | Minkar logo, the reference platform's items, actions through loginwindow | Restart, Shut Down and Log Out through the minimal `loginwindow`; Sleep, Force Quit, Lock Screen and System Preferences disabled | MB3 |
+| Confirming Restart, Shut Down and Log Out | `loginwindow`'s panel, with its countdown | The app that asks shows an alert; Option held skips it (`SHORTCUT(Phase 5)` in `NSMenuBarWindow.m`) | Phase 5 (LoginWindow) |
+| About This Computer | Gienah's own window | A plain alert with the system's name and version, kernel, processor, memory and display (`SHORTCUT(Phase 5)` in `NSMenuBarWindow.m`) | Phase 5 |
 | Status items | Windows of their apps, laid out by the window server | Basic API only | MB1 |
 | Menu Extras | Bundles in SystemUIServer | None until SystemUIServer is built | MB1 |
 | Recent items | LaunchServices' shared file lists | Kept per app by `NSDocumentController` in its preferences | MB2 |
