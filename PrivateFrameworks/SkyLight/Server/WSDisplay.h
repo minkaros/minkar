@@ -65,6 +65,10 @@
  * cannot. The mapping lasts until the next call or the display's end. */
 - (BOOL)mapFramebuffer:(uint8_t **)base rowBytes:(uint32_t *)rowBytes;
 
+/* Tells the framebuffer's driver what a frame changed, for devices that
+ * show only what they are told (virtio-gpu). Nothing for the others. */
+- (void)flushX:(uint32_t)x y:(uint32_t)y width:(uint32_t)width height:(uint32_t)height;
+
 /* The display's compositor (WSCompositor), made at startup. */
 @property (strong) id compositor;
 

@@ -343,8 +343,9 @@ def qemu_command(args, vars_copy):
         '-device', '%s,netdev=net0' % args.nic,
     ] + ([] if args.vga == 'std' else [
         # virtio-vga: the firmware keeps a framebuffer for the boot console
-        # and MinkarVirtioGPU takes over the device.
-        '-vga', 'none', '-device', 'virtio-vga',
+        # and MinkarVirtioGPU takes over the device, in its preferred size
+        # (1024x768, the size gate M4's positions are given in).
+        '-vga', 'none', '-device', 'virtio-vga,xres=1024,yres=768',
     ]) + [
         '-serial', 'stdio', '-monitor', 'none', '-display', 'none',
         '-no-reboot',

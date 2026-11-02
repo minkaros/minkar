@@ -40,6 +40,14 @@ enum {
 	kFBMethodGetInformationForDisplayMode = 5, /* in: mode */
 	kFBMethodGetDisplayModeCount = 6,	/* out: count */
 	kFBMethodGetDisplayModes = 7,		/* out: mode IDs */
+	kFBMethodSetAttribute = 19,		/* in: attribute, value */
+};
+
+/* Minkar's flush attributes: a rect's origin, then its size (each as
+ * a << 16 | b); the size flushes. Drivers that do not know them fail. */
+enum {
+	kIOFBMinkarFlushOrigin = 'mfbo',
+	kIOFBMinkarFlushSize = 'mfbs',
 };
 
 /* Without an EDID size: 72 dots per inch. */
@@ -52,6 +60,7 @@ static const double kPixelsPerMM = 72.0 / 25.4;
 	mach_vm_size_t _vramSize;
 	SLSDisplayMode _modes[kSLSMaxDisplayModes];
 	uint32_t _currentModeID;
+	BOOL _noFlush;		/* the driver does not take flushes */
 	float _transfer[3 * kSLSGammaTableCapacity];
 }
 
@@ -343,6 +352,19 @@ static const SLSGammaFormula identityFormula = { 0, 1, 1, 0, 1, 1, 0, 1, 1 };
 	*base = (uint8_t *)(uintptr_t)_vram;
 	*rowBytes = pixels.bytesPerRow;
 	return YES;
+}
+
+- (void)flushX:(uint32_t)x y:(uint32_t)y width:(uint32_t)width height:(uint32_t)height
+{
+	if (_noFlush || width == 0 || height == 0)
+		return;
+	uint64_t origin[2] = { kIOFBMinkarFlushOrigin, (uint64_t)(x << 16 | y) };
+	uint64_t size[2] = { kIOFBMinkarFlushSize, (uint64_t)(width << 16 | height) };
+	if (IOConnectCallScalarMethod(_connect, kFBMethodSetAttribute, origin, 2, NULL, NULL) !=
+	        KERN_SUCCESS ||
+	    IOConnectCallScalarMethod(_connect, kFBMethodSetAttribute, size, 2, NULL, NULL) !=
+	        KERN_SUCCESS)
+		_noFlush = YES;
 }
 
 - (void)dealloc

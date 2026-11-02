@@ -406,6 +406,15 @@ WSDamageGlobalRect(SLSRect rect)
 		}
 		area += (uint64_t)(boxes[i].x2 - boxes[i].x1) * (boxes[i].y2 - boxes[i].y1);
 	}
+	/* Devices that show only what they are told: each box, or with many
+	 * the box around them all. */
+	if (nboxes > 8) {
+		pixman_box32_t *all = pixman_region32_extents(damage);
+		[_display flushX:all->x1 y:all->y1 width:all->x2 - all->x1 height:all->y2 - all->y1];
+	} else
+		for (int i = 0; i < nboxes; i++)
+			[_display flushX:boxes[i].x1 y:boxes[i].y1 width:boxes[i].x2 - boxes[i].x1
+			    height:boxes[i].y2 - boxes[i].y1];
 
 	uint64_t us = micros(mach_absolute_time() - start);
 	pthread_mutex_lock(&statsLock);

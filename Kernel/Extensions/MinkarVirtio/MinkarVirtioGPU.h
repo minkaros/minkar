@@ -72,6 +72,8 @@ public:
 	virtual IOReturn setDisplayMode(IODisplayModeID displayMode, IOIndex depth) APPLE_KEXT_OVERRIDE;
 	virtual IODeviceMemory *getApertureRange(IOPixelAperture aperture) APPLE_KEXT_OVERRIDE;
 	virtual bool isConsoleDevice(void) APPLE_KEXT_OVERRIDE;
+	virtual IOReturn setAttribute(IOSelect attribute, uintptr_t value) APPLE_KEXT_OVERRIDE;
+	virtual void close(void) APPLE_KEXT_OVERRIDE;
 
 private:
 	struct Mode {
@@ -85,6 +87,7 @@ private:
 	bool readDisplayInfo(UInt32 *width, UInt32 *height);
 	bool showMode(unsigned index);
 	void flushAll();
+	void flushRect(UInt32 x, UInt32 y, UInt32 width, UInt32 height);
 	void timerFired(IOTimerEventSource *sender);
 	const Mode *modeFor(IODisplayModeID id);
 
@@ -102,6 +105,8 @@ private:
 	IOBufferMemoryDescriptor *	fBacking;	/* the current mode's pixels */
 	UInt32				fResource;	/* its host resource, or 0 */
 	UInt32				fNextResource;
+	UInt32				fFlushOrigin;	/* x << 16 | y */
+	bool				fServerFlushes;	/* else the timer does */
 };
 
 #endif

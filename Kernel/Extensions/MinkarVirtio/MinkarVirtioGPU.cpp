@@ -28,9 +28,13 @@
 /*
  * The 2D commands of the virtio specification (1.1, section 5.7), on the
  * PCI transport of MinkarVirtio: one control queue, each command waited
- * for. SHORTCUT(WS5): the whole screen is transferred and flushed at the
- * refresh rate, until the window server sends its damage with each frame;
- * taken in WS5.
+ * for.
+ *
+ * The host shows only what is transferred and flushed. While the window
+ * server has the framebuffer open it says, after each frame, what it
+ * changed (kIOFBMinkarFlushOrigin, then kIOFBMinkarFlushSize); otherwise,
+ * for the kernel's console, a timer flushes the whole screen at the
+ * refresh rate.
  */
 
 #include "MinkarVirtioGPU.h"
@@ -122,6 +126,11 @@ struct virtio_gpu_resource_flush {
 #define kDepthIndex	0
 #define kRefreshMS	16
 
+/* The window server's flush: the rect's origin, then its size, each as
+ * a << 16 | b; the size flushes. */
+#define kIOFBMinkarFlushOrigin	'mfbo'
+#define kIOFBMinkarFlushSize	'mfbs'
+
 #define super IOFramebuffer
 OSDefineMetaClassAndStructors(MinkarVirtioGPU, IOFramebuffer);
 
@@ -186,9 +195,11 @@ MinkarVirtioGPU::setupDevice()
 		fModes[fModeCount].height = kStandardModes[i].height;
 		fModeCount++;
 	}
-	/* The firmware's size first, so the console does not jump. */
+	/* The display's preferred size, as a driver of real hardware takes the
+	 * monitor's native mode; without one, the firmware's size. */
 	fCurrent = 0;
-	if (getPlatform() != NULL && getPlatform()->getConsoleInfo(&boot) == kIOReturnSuccess)
+	if (fModeCount > 0 && (width < 640 || height < 480) && getPlatform() != NULL &&
+	    getPlatform()->getConsoleInfo(&boot) == kIOReturnSuccess)
 		for (unsigned i = 0; i < fModeCount; i++)
 			if (fModes[i].width == boot.v_width && fModes[i].height == boot.v_height)
 				fCurrent = i;
@@ -354,22 +365,37 @@ MinkarVirtioGPU::showMode(unsigned index)
 void
 MinkarVirtioGPU::flushAll()
 {
+	const Mode *m = &fModes[fCurrent];
+
+	flushRect(0, 0, m->width, m->height);
+}
+
+void
+MinkarVirtioGPU::flushRect(UInt32 x, UInt32 y, UInt32 width, UInt32 height)
+{
 	struct virtio_gpu_ctrl_hdr response;
 	const Mode *m = &fModes[fCurrent];
 
-	if (fResource == 0)
+	if (fResource == 0 || x >= m->width || y >= m->height || width == 0 || height == 0)
 		return;
+	if (width > m->width - x)
+		width = m->width - x;
+	if (height > m->height - y)
+		height = m->height - y;
 	struct virtio_gpu_transfer_to_host_2d transfer;
 	bzero(&transfer, sizeof(transfer));
 	transfer.hdr.type = OSSwapHostToLittleInt32(VIRTIO_GPU_CMD_TRANSFER_TO_HOST_2D);
-	transfer.r.width = OSSwapHostToLittleInt32(m->width);
-	transfer.r.height = OSSwapHostToLittleInt32(m->height);
+	transfer.r.x = OSSwapHostToLittleInt32(x);
+	transfer.r.y = OSSwapHostToLittleInt32(y);
+	transfer.r.width = OSSwapHostToLittleInt32(width);
+	transfer.r.height = OSSwapHostToLittleInt32(height);
+	/* Where the rect starts in the backing. */
+	transfer.offset = OSSwapHostToLittleInt64((uint64_t)y * m->width * 4 + (uint64_t)x * 4);
 	transfer.resource_id = OSSwapHostToLittleInt32(fResource);
 	struct virtio_gpu_resource_flush flush;
 	bzero(&flush, sizeof(flush));
 	flush.hdr.type = OSSwapHostToLittleInt32(VIRTIO_GPU_CMD_RESOURCE_FLUSH);
-	flush.r.width = OSSwapHostToLittleInt32(m->width);
-	flush.r.height = OSSwapHostToLittleInt32(m->height);
+	flush.r = transfer.r;
 	flush.resource_id = OSSwapHostToLittleInt32(fResource);
 	command(&transfer, sizeof(transfer), &response, sizeof(response));
 	command(&flush, sizeof(flush), &response, sizeof(response));
@@ -378,8 +404,45 @@ MinkarVirtioGPU::flushAll()
 void
 MinkarVirtioGPU::timerFired(IOTimerEventSource *)
 {
+	if (fServerFlushes)
+		return;
 	flushAll();
 	fTimer->setTimeoutMS(kRefreshMS);
+}
+
+IOReturn
+MinkarVirtioGPU::setAttribute(IOSelect attribute, uintptr_t value)
+{
+	switch (attribute) {
+	case kIOFBMinkarFlushOrigin:
+		fFlushOrigin = (UInt32)value;
+		return kIOReturnSuccess;
+	case kIOFBMinkarFlushSize:
+		if (!fServerFlushes) {
+			/* The window server flushes from now on: the timer stops. */
+			fServerFlushes = true;
+			fTimer->cancelTimeout();
+			setProperty("MinkarServerFlushes", true);
+		}
+		flushRect(fFlushOrigin >> 16, fFlushOrigin & 0xffff, (UInt32)value >> 16,
+		    (UInt32)value & 0xffff);
+		return kIOReturnSuccess;
+	default:
+		return super::setAttribute(attribute, value);
+	}
+}
+
+/* The window server let go: the console's timer flushes again. */
+void
+MinkarVirtioGPU::close(void)
+{
+	super::close();
+	if (fServerFlushes) {
+		fServerFlushes = false;
+		setProperty("MinkarServerFlushes", false);
+		flushAll();
+		fTimer->setTimeoutMS(kRefreshMS);
+	}
 }
 
 void
