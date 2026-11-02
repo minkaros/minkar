@@ -276,7 +276,7 @@ line = "fw"
 
 [[board.next]]
 title = "G2 — GPU memory, rings, fences"
-note = "G1 done on the Mac Pro: display driver, scaled modes"
+note = "gate met on the Mac Pro: DMA, fences, GART; IOSurfaces in VRAM next"
 line = "gpu"
 
 [[board.later]]
