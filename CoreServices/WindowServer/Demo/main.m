@@ -138,7 +138,8 @@
      * middle by popUpMenuPositioningItem:, Two placed there), "popupbutton"
      * (a pop-up button: Red, Green, Blue), "statusitem" (a status item
      * "Demo" with a menu: Status One, Status Two), "nostatusitem" (removes
-     * it), "refusequit" (its delegate refuses to quit from now on).
+     * it), "refusequit" (its delegate refuses to quit from now on), "tags"
+     * (the Test menu's item tags; Alpha's is 42).
      */
     NSArray *args = [[NSProcessInfo processInfo] arguments];
     NSUInteger cmd = [args indexOfObject:@"-cmd"];
@@ -219,8 +220,9 @@
 - (void)addTestMenu {
     NSMenu *menu = [[NSMenu alloc] initWithTitle:@"Test"];
     [menu setDelegate:self];
-    [[menu addItemWithTitle:@"Alpha" action:@selector(menuAlpha:) keyEquivalent:@"a"]
-        setTarget:self];
+    NSMenuItem *alpha = [menu addItemWithTitle:@"Alpha" action:@selector(menuAlpha:) keyEquivalent:@"a"];
+    [alpha setTarget:self];
+    [alpha setTag:42];
     [[menu addItemWithTitle:@"Beta" action:@selector(menuBeta:) keyEquivalent:@"B"]
         setTarget:self];
     NSMenu *more = [[NSMenu alloc] initWithTitle:@"More"];
@@ -405,7 +407,10 @@
     }
     else if (strncmp(line, "menus", 5) == 0)
         [self addTestMenu];
-    else if (strncmp(line, "keyequivs", 9) == 0)
+    else if (strncmp(line, "tags", 4) == 0) {
+        for (NSMenuItem *item in [[[[NSApp mainMenu] itemWithTitle:@"Test"] submenu] itemArray])
+            printf("tag %s %ld\n", [[item title] UTF8String], (long)[item tag]);
+    } else if (strncmp(line, "keyequivs", 9) == 0)
         [self printKeyEquivalents];
     else if (strncmp(line, "context", 7) == 0)
         [self addContextMenu];

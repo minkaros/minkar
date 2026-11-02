@@ -140,22 +140,6 @@ id NSApp=nil;
    }
 }
 
-static NSMenuItem *itemWithTag(NSMenu *root, int tag) {
-    NSArray *items = [root itemArray];
-    NSMenuItem *item = nil;
-    for(int i = 0; i < [items count]; ++i) {
-        item = [items objectAtIndex:i];
-        if([item tag] == tag)
-            return item;
-        if([item hasSubmenu]) {
-            item = itemWithTag([item submenu], tag);
-            if(item)
-                return item;
-        }
-    }
-    return nil;
-}
-
 /*
  * Events from the new window server (WindowServer plan, WS3): a thread
  * waits for them through SkyLight, makes NSEvents and posts them, as
@@ -415,45 +399,6 @@ enum { kNSMenuBarFocusEventSubtype = 0x4d42 };
                 memcpy(&handle, msg.data, sizeof(handle));
                 NSLog(@"ZMK DEBUG: status item added with handle %u", handle);
             }
-                        case CODE_MENU_FOR_APP:
-                        {
-                            if([bundleID isEqualToString:@"org.minkar.SystemUIServer"]) {
-                                NSMutableData *data = [NSMutableData new];
-                                [data appendBytes:msg.data length:msg.len];
-
-                                NSObject *o = nil;
-                                @try {
-                                    o = [NSKeyedUnarchiver unarchiveObjectWithData:data];
-                                }
-                                @catch(NSException *localException) {
-                                    NSLog(@"%@",localException);
-                                }
-
-                                if(o == nil || [o isKindOfClass:[NSDictionary class]] == NO) {
-                                    NSLog(@"menuForApp: not a dictionary");
-                                    break;
-                                }
-                                if([(NSDictionary *)o objectForKey:@"MainMenu"] == nil) {
-                                    NSLog(@"menuForApp: missing MainMenu key");
-                                    break;
-                                }
-                                if(![[(NSDictionary *)o objectForKey:@"MainMenu"] isKindOfClass:[NSMenu class]]) {
-                                    NSLog(@"menuForApp: invalid menu class");
-                                    break;
-                                }
-
-                                NSMutableDictionary *md = [NSMutableDictionary new];
-                                [md setDictionary:(NSDictionary *)o];
-                                [md setObject:[NSNumber numberWithInt:msg.pid] forKey:@"ProcessID"];
-                                [md setObject:[NSString stringWithCString:msg.bundleID] forKey:@"BundleID"];
-
-                                [[NSNotificationCenter defaultCenter]
-                                    postNotificationName:@"NSMenuDidUpdate" object:nil
-                                    userInfo:md];
-                                [o release];
-                            }
-                            break;
-                        }
                         case CODE_APP_EXITED:
                         {
                             if([bundleID isEqualToString:@"org.minkar.SystemUIServer"] ||
@@ -481,21 +426,6 @@ enum { kNSMenuBarFocusEventSubtype = 0x4d42 };
                                     postNotificationName:@"NSApplicationDidLaunch" object:nil
                                     userInfo:md];
                             }
-                            break;
-                        }
-                        case CODE_ITEM_CLICKED:
-                        {
-                            int itemID;
-                            if(msg.len != sizeof(itemID)) {
-                                NSLog(@"weirdness detected! expected size %d, got %d", sizeof(itemID), msg.len);
-                                break;
-                            }
-                            memcpy(&itemID, msg.data, sizeof(itemID));
-                            NSMenuItem *item = itemWithTag(_mainMenu, itemID);
-                            if(item != nil)
-                                [self sendAction:[item action] to:[item target] from:item];
-                            else
-                                NSLog(@"Error: cannot find menu item with tag %d!", itemID);
                             break;
                         }
                         case CODE_ACTIVATION_STATE:
@@ -877,18 +807,6 @@ enum { kNSMenuBarFocusEventSubtype = 0x4d42 };
     }
 }
 
-static int _tagAllMenus(NSMenu *menu, int tag) {
-    NSArray *items = [menu itemArray];
-    for(int i = 0; i < [items count]; ++i) {
-        NSMenuItem *item = [items objectAtIndex:i];
-        [item setTag:tag++];
-        if([item hasSubmenu])
-            tag = _tagAllMenus([item submenu], tag);
-    }
-
-    return tag;
-}
-
 -(void)setMainMenu:(NSMenu *)menu {
    int i,count=[_windows count];
 
@@ -912,64 +830,7 @@ static int _tagAllMenus(NSMenu *menu, int tag) {
      [window setMenu:_mainMenu];
    }
 
-    [self sendMenusToWindowServer];
-}
-
-/* Make a copy of the menus with nil delegates and targets before
- * sending the menu tree to WindowServer. Otherwise it may reject
- * the menus because of unknown classes.
- * This function is recursive.
- */
-
--(void)_menuEnumerateAndChange:(NSMenu *)menu {
-    NSArray *items = [menu itemArray];
-    [menu setDelegate:nil];
-    for(int i = 0; i < [items count]; ++i) {
-        NSMenuItem *item = [[items objectAtIndex:i] copy];
-        [item setTarget:nil];
-        [menu removeItemAtIndex:i];
-        [menu insertItem:item atIndex:i];
-        if([item hasSubmenu])
-            [self _menuEnumerateAndChange:[item submenu]];
-    }
-}
-
--(void)sendMenusToWindowServer {
-    if(_mainMenu == nil)
-        return;
-    /* With the new server the app's menu bar shows them (MB0). */
-    if(_CGUsesSkyLight()) {
-        [NSMenuBarWindow _mainMenuChanged];
-        return;
-    }
-
-    _tagAllMenus(_mainMenu, 1);
-    NSMenu *menuCopy = [_mainMenu copy];
-    [self _menuEnumerateAndChange:menuCopy];
-
-    NSDictionary *dict = [NSDictionary
-        dictionaryWithObjects:@[menuCopy]
-        forKeys:@[@"MainMenu"]];
-
-    NSData *d = [NSKeyedArchiver archivedDataWithRootObject:dict];
-
-    Message msg = {0};
-    msg.header.msgh_remote_port = _wsSvcPort;
-    msg.header.msgh_bits = MACH_MSGH_BITS_SET(MACH_MSG_TYPE_COPY_SEND, 0, 0, 0);
-    msg.header.msgh_id = MSG_ID_INLINE;
-    msg.header.msgh_size = sizeof(msg);
-    msg.code = CODE_MENU_FOR_APP;
-    msg.pid = getpid();
-    strncpy(msg.bundleID, [bundleID UTF8String], sizeof(msg.bundleID));
-    int len = MIN([d length], sizeof(msg.data));
-    memcpy(msg.data, [d bytes], len);
-    msg.len = len;
-
-    if(mach_msg((mach_msg_header_t *)&msg, MACH_SEND_MSG|MACH_SEND_TIMEOUT, sizeof(msg), 0, MACH_PORT_NULL,
-            1000 /* ms timeout */, MACH_PORT_NULL) != MACH_MSG_SUCCESS)
-        NSLog(@"Failed to send menus to WS");
-
-    [menuCopy release];
+    [NSMenuBarWindow _mainMenuChanged];
 }
 
 - (void)addRecentItem:(NSURL *)url {
@@ -1040,7 +901,7 @@ static int _tagAllMenus(NSMenu *menu, int tag) {
 -(void)setWindowsMenu:(NSMenu *)menu {
    [_windowsMenu autorelease];
    _windowsMenu=[menu retain];
-    [self sendMenusToWindowServer];
+    [NSMenuBarWindow _mainMenuChanged];
 }
 
 
@@ -1057,7 +918,7 @@ static int _tagAllMenus(NSMenu *menu, int tag) {
     [item setTarget:window];
 
     [[self windowsMenu] addItem:item];
-    [self sendMenusToWindowServer];
+    [NSMenuBarWindow _mainMenuChanged];
 }
 
 -(void)changeWindowsItem:(NSWindow *)window title:(NSString *)title filename:(BOOL)isFilename {
@@ -1080,7 +941,7 @@ static int _tagAllMenus(NSMenu *menu, int tag) {
         else
             [self addWindowsItem:window title:title filename:isFilename];
     }
-    [self sendMenusToWindowServer];
+    [NSMenuBarWindow _mainMenuChanged];
 }
 
 -(void)removeWindowsItem:(NSWindow *)window {
@@ -1093,7 +954,7 @@ static int _tagAllMenus(NSMenu *menu, int tag) {
             [[self windowsMenu] removeItem:[[[self windowsMenu] itemArray] lastObject]];
           }
     }
-    [self sendMenusToWindowServer];
+    [NSMenuBarWindow _mainMenuChanged];
 }
 
 -(void)updateWindowsItem:(NSWindow *)window {
@@ -1104,7 +965,7 @@ static int _tagAllMenus(NSMenu *menu, int tag) {
     NSMenuItem *item=[menu itemAtIndex:itemIndex];
 
    }
-    [self sendMenusToWindowServer];
+    [NSMenuBarWindow _mainMenuChanged];
 }
 
 -(BOOL)openFiles

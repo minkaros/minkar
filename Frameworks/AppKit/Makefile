@@ -150,8 +150,6 @@ SRCS = \
     NSPoofAnimation.m \
     NSPopUpButton.m \
     NSPopUpButtonCell.m \
-    NSPopUpView.m \
-    NSPopUpWindow.m \
     NSPredicateEditor.m \
     NSPredicateEditorRowTemplate.m \
     NSPrintInfo.m \
@@ -418,8 +416,6 @@ HEADERS = \
     NSPoofAnimation.h \
     NSPopUpButton.h \
     NSPopUpButtonCell.h \
-    NSPopUpView.h \
-    NSPopUpWindow.h \
     NSPredicateEditor.h \
     NSPredicateEditorRowTemplate.h \
     NSPrinter.h \
