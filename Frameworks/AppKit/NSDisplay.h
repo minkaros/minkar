@@ -36,6 +36,8 @@ SOFTWARE. */
 + (NSDisplay *)currentDisplay;
 
 - (NSArray *)screens;
+/* Again from the displays, after a display changed. */
+- (void)_reloadScreens;
 - (uint32_t)depth;
 
 - (NSPasteboard *)pasteboardWithName:(NSString *)name;

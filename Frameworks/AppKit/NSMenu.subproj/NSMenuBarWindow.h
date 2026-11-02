@@ -49,5 +49,7 @@
 /* Control-F2: the main screen's menu bar takes the keyboard, its first
  * menu (the system menu) selected. */
 + (void)_focusMenuBar;
+/* A display changed: the bars follow the screens. */
++ (void)_screensChanged;
 
 @end

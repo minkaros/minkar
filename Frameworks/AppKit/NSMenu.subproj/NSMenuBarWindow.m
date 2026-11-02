@@ -302,6 +302,24 @@ static NSRect barFrame(NSScreen *screen) {
     shown = YES;
 }
 
+/* A display changed: each bar takes its screen's new top edge; a bar
+ * left without a screen is put away. */
++ (void)_screensChanged {
+    NSArray *screens = [NSScreen screens];
+
+    for(NSUInteger i = 0; i < [menuBars count]; i++) {
+        NSMenuBarWindow *bar = [menuBars objectAtIndex:i];
+        if(i < [screens count]) {
+            [bar setFrame:barFrame([screens objectAtIndex:i]) display:shown];
+            if(shown)
+                [bar orderFront:nil];
+        } else
+            [bar orderOut:nil];
+    }
+    if(shown)
+        [self _showMenuBars];	/* a bar for a screen that came */
+}
+
 + (void)_hideMenuBars {
     for(NSMenuBarWindow *bar in menuBars)
         [bar orderOut:nil];

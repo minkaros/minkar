@@ -37,6 +37,10 @@
  *   app active | app inactive         (NSApplication's notifications)
  *   workspace launched|terminated|activated|deactivated pid=P id=ID
  *                                     (NSWorkspace's, about any app)
+ *   reconfigure display=D flags=F     (a display changed: the
+ *                                     CGDisplayReconfigurationCallBack)
+ *   screens main=W,H window=X,Y,W,H [second=X,Y,W,H]
+ *                                     (applicationDidChangeScreenParameters:)
  */
 
 #import <AppKit/AppKit.h>
@@ -101,9 +105,27 @@
 @property BOOL refusesToQuit;
 @end
 
+static void displayReconfigured(CGDirectDisplayID display, CGDisplayChangeSummaryFlags flags,
+    void *info) {
+    printf("reconfigure display=%u flags=0x%x\n", display, flags);
+}
+
 @implementation DemoDelegate
 
+/* A display changed: the screens and where the windows are now. */
+- (void)applicationDidChangeScreenParameters:(NSNotification *)notification {
+    NSRect m = [[NSScreen mainScreen] frame], f = [self.window frame];
+    printf("screens main=%.0f,%.0f window=%.0f,%.0f,%.0f,%.0f", m.size.width, m.size.height,
+        f.origin.x, f.origin.y, f.size.width, f.size.height);
+    if (self.second != nil) {
+        f = [self.second frame];
+        printf(" second=%.0f,%.0f,%.0f,%.0f", f.origin.x, f.origin.y, f.size.width, f.size.height);
+    }
+    printf("\n");
+}
+
 - (void)applicationDidFinishLaunching:(NSNotification *)notification {
+    CGDisplayRegisterReconfigurationCallback(displayReconfigured, NULL);
     self.window = [[NSWindow alloc] initWithContentRect:NSMakeRect(200, 200, 400, 300)
         styleMask:NSTitledWindowMask backing:NSBackingStoreBuffered defer:NO];
     [self.window setTitle:@"Demo"];

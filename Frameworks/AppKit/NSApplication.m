@@ -37,6 +37,11 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <AppKit/NSRunningApplication.h>
 #import "NSRunningApplication_private.h"
 #import "NSMenu.subproj/NSMenuBarWindow.h"
+
+/* NSWindow's: sends the server what it does not have of the window. */
+@interface NSWindow (SkyLightState)
+-(BOOL)_updateWSState;
+@end
 #import <CoreGraphics/CGWindow.h>
 #import <AppKit/NSRaise.h>
 #import <AppKit/NSSpellChecker.h>
@@ -146,13 +151,23 @@ extern int _CGUsesSkyLight(void);
 extern NSWindow *_NSWindowForSLSWindow(SLSWindowID window);
 
 /* Control-F2 (the server's kSLSHotKeyMenuBarFocus) as AppKit posts it to
-   itself: the menu bar takes the keyboard. */
-enum { kNSMenuBarFocusEventSubtype = 0x4d42 };
+   itself: the menu bar takes the keyboard. A display that changed
+   (kSLSEventDisplayReconfigured) goes to the main thread the same way:
+   data1 the display, data2 the CGDisplayChangeSummaryFlags. */
+enum { kNSMenuBarFocusEventSubtype = 0x4d42, kNSDisplayReconfiguredEventSubtype = 0x4443 };
+extern void _CGDisplayReconfigured(CGDirectDisplayID display, CGDisplayChangeSummaryFlags flags);
 
 -(void)_postSkyLightEvent:(SLSEvent *)e {
-    static CGFloat height;
     NSWindow *window = _NSWindowForSLSWindow(e->window);
     NSEvent *event = nil;
+
+    if(e->type == kSLSEventDisplayReconfigured) {
+        [_display postEvent:[NSEvent otherEventWithType:NSAppKitDefined location:NSZeroPoint
+            modifierFlags:0 timestamp:0 windowNumber:0 context:nil
+            subtype:kNSDisplayReconfiguredEventSubtype data1:e->buttonNumber data2:e->flags]
+            atStart:NO];
+        return;
+    }
 
     if(e->type == kSLSEventSymbolicHotKey) {
         if(e->buttonNumber == kSLSHotKeyMenuBarFocus)
@@ -164,9 +179,9 @@ enum { kNSMenuBarFocusEventSubtype = 0x4d42 };
 
     if(window == nil)
         return;
-    if(height == 0)
-        height = CGDisplayBounds(CGMainDisplayID()).size.height;
-    /* Global, from the top left, to the window's own coordinates. */
+    /* Global, from the top left, to the window's own coordinates (the
+       main display's height read each time: a mode change changes it). */
+    CGFloat height = CGDisplayBounds(CGMainDisplayID()).size.height;
     NSRect frame = [window frame];
     NSPoint location = NSMakePoint(e->x - frame.origin.x, (height - e->y) - frame.origin.y);
 
@@ -203,6 +218,41 @@ enum { kNSMenuBarFocusEventSubtype = 0x4d42 };
             return;
     }
     [_display postEvent:event atStart:NO];
+}
+
+/*
+ * A display changed: the reconfiguration callbacks run, the screens and
+ * the menu bars follow the new configuration, and each window keeps its
+ * place from the top of the main screen (where the server keeps it) and
+ * is brought back onto a screen if the change left it off; then
+ * NSApplicationDidChangeScreenParametersNotification, as on the reference
+ * platform.
+ */
+-(void)_displayReconfigured:(CGDirectDisplayID)display flags:(CGDisplayChangeSummaryFlags)flags {
+    NSRect was = [[[NSScreen screens] objectAtIndex:0] frame];
+
+    _CGDisplayReconfigured(display, flags);
+    [[NSDisplay currentDisplay] _reloadScreens];
+    [NSMenuBarWindow _screensChanged];
+
+    NSScreen *main = [[NSScreen screens] objectAtIndex:0];
+    CGFloat top = NSMaxY([main frame]);
+    for(NSWindow *window in [[_windows copy] autorelease]) {
+        if([window isKindOfClass:[NSMenuBarWindow class]])
+            continue;
+        NSRect frame = [window frame];
+        frame.origin.y = top - (NSMaxY(was) - NSMaxY(frame)) - frame.size.height;
+        NSScreen *screen = [window screen];
+        frame = [window constrainFrameRect:frame toScreen:screen != nil ? screen : main];
+        if(!NSEqualRects(frame, [window frame]))
+            [window setFrame:frame display:[window isVisible]];
+        else
+            /* The same AppKit frame is another place on the server's
+               desktop when the main screen's height changed. */
+            [window _updateWSState];
+    }
+    [[NSNotificationCenter defaultCenter]
+        postNotificationName:NSApplicationDidChangeScreenParametersNotification object:self];
 }
 
 -(void)skyLightEventLoop:(id)object {
@@ -465,6 +515,10 @@ enum { kNSMenuBarFocusEventSubtype = 0x4d42 };
         [[NSNotificationCenter defaultCenter] removeObserver:_delegate
                                                      name: NSApplicationWillTerminateNotification object:self];
     }
+    if([_delegate respondsToSelector:@selector(applicationDidChangeScreenParameters:)]){
+        [[NSNotificationCenter defaultCenter] removeObserver:_delegate
+            name:NSApplicationDidChangeScreenParametersNotification object:self];
+    }
 }
 
 -(void)registerDelegate {
@@ -488,6 +542,11 @@ enum { kNSMenuBarFocusEventSubtype = 0x4d42 };
                                                selector:@selector(applicationWillTerminate:)
                                                    name: NSApplicationWillTerminateNotification object:self];
    }
+    if([_delegate respondsToSelector:@selector(applicationDidChangeScreenParameters:)]){
+     [[NSNotificationCenter defaultCenter] addObserver:_delegate
+       selector:@selector(applicationDidChangeScreenParameters:)
+        name:NSApplicationDidChangeScreenParametersNotification object:self];
+    }
 
 }
 
@@ -821,6 +880,11 @@ enum { kNSMenuBarFocusEventSubtype = 0x4d42 };
    }
    if([event type]==NSAppKitDefined && [event subtype]==kNSMenuBarFocusEventSubtype){
     [NSMenuBarWindow _focusMenuBar];
+    return;
+   }
+   if([event type]==NSAppKitDefined && [event subtype]==kNSDisplayReconfiguredEventSubtype){
+    [self _displayReconfigured:(CGDirectDisplayID)[event data1]
+        flags:(CGDisplayChangeSummaryFlags)[event data2]];
     return;
    }
 
