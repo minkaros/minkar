@@ -34,6 +34,7 @@
  * (icon, hide, terminate, owning the menu bar) comes with the Dock (D0).
  */
 
+#include <signal.h>
 #import <AppKit/NSRunningApplication.h>
 #import <AppKit/NSWorkspace.h>
 #import "NSRunningApplication_private.h"
@@ -206,6 +207,20 @@ static NSLock *applicationsLock;
     if (_terminated)
         return NO;
     return LSSessionActivate(_processIdentifier, (uint32_t)options) == kLSSessionSuccess;
+}
+
+/* Asks the app to quit, as its Quit item does; NO when it cannot be
+   asked (gone, or not ours to ask). */
+- (BOOL)terminate {
+    if(_terminated)
+        return NO;
+    return LSSessionQuit(_processIdentifier) == kLSSessionSuccess;
+}
+
+- (BOOL)forceTerminate {
+    if(_terminated)
+        return NO;
+    return kill(_processIdentifier, SIGKILL) == 0;
 }
 
 - (NSString *)description {

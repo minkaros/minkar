@@ -138,3 +138,12 @@ LSSessionActivate(pid_t pid, uint32_t options)
 	LSS_CALL(lss_activate(s, pid, options, &result));
 	return result;
 }
+
+int
+LSSessionQuit(pid_t pid)
+{
+	int32_t result = kLSSessionSuccess;
+
+	LSS_CALL(lss_quit(s, pid, &result));
+	return result;
+}

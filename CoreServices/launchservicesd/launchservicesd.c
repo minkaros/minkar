@@ -55,6 +55,7 @@
 typedef struct {
 	LSSessionApp	app;
 	mach_port_t	port;		/* send right to the app's port */
+	uid_t		uid;		/* the app's user, from its check-in */
 } Client;
 
 static Client clients[kLSSessionMaxApps];
@@ -163,6 +164,7 @@ lsd_check_in(mach_port_t server, audit_token_t token, mach_port_t port,
 		/* The same port again: keep one reference. */
 		mach_port_deallocate(mach_task_self(), port);
 	}
+	c->uid = audit_token_to_euid(token);
 	app.pid = pid;
 	app.serial = c->app.serial;
 	app.launchTime = c->app.launchTime;
@@ -259,6 +261,26 @@ lsd_activate(mach_port_t server, audit_token_t token, int32_t pid, uint32_t opti
 		return KERN_SUCCESS;
 	}
 	sendMessage(c, kLSSessionActivateRequest, options, &c->app);
+	*result = kLSSessionSuccess;
+	return KERN_SUCCESS;
+}
+
+/* Root and the app's own user may ask it to quit. */
+kern_return_t
+lsd_quit(mach_port_t server, audit_token_t token, int32_t pid, int32_t *result)
+{
+	uid_t uid = audit_token_to_euid(token);
+	Client *c = clientForPID(pid);
+
+	if (c == NULL) {
+		*result = kLSSessionNoSuchApp;
+		return KERN_SUCCESS;
+	}
+	if (uid != 0 && uid != c->uid) {
+		*result = kLSSessionNotAllowed;
+		return KERN_SUCCESS;
+	}
+	sendMessage(c, kLSSessionQuitRequest, 0, &c->app);
 	*result = kLSSessionSuccess;
 	return KERN_SUCCESS;
 }

@@ -29,7 +29,7 @@
 /*
  * lssession-test: checks launchservicesd (LaunchServices' session) end to
  * end, run as root. This process and a child check in as two apps; the
- * test checks the list, the launch, activate, front-app and terminate
+ * test checks the list, the launch, activate, quit, front-app and terminate
  * messages, and that only root or the window server's user may say which
  * app is in front. Prints "lssession-test: PASS" at the end.
  */
@@ -97,7 +97,8 @@ expect(mach_port_t port, uint32_t kind, pid_t pid, LSSessionMessage *out)
 	return 0;
 }
 
-/* The child: an app that waits to be asked to activate itself. */
+/* The child: an app that waits to be asked to activate itself, then to
+ * quit. */
 static int
 childApp(int ready)
 {
@@ -112,7 +113,11 @@ childApp(int ready)
 	write(ready, "r", 1);
 	if (!expect(port, kLSSessionActivateRequest, getpid(), &msg))
 		return 3;
-	return msg.options == 3 ? 0 : 4;
+	if (msg.options != 3)
+		return 4;
+	if (!expect(port, kLSSessionQuitRequest, getpid(), &msg))
+		return 5;
+	return 0;
 }
 
 int
@@ -177,8 +182,21 @@ main(void)
 	check(LSSessionActivate(getpid() + 100000, 0) == kLSSessionNoSuchApp,
 	    "activate an unknown app");
 	check(LSSessionActivate(child, 3) == kLSSessionSuccess, "activate");
+
+	/* Quit: another user may not ask a root app; root may. */
+	other = fork();
+	if (other == 0) {
+		if (setuid(-2) != 0)
+			_exit(2);
+		_exit(LSSessionQuit(child) == kLSSessionNotAllowed ? 0 : 1);
+	}
+	waitpid(other, &status, 0);
+	check(WIFEXITED(status) && WEXITSTATUS(status) == 0, "quit refused to another user");
+	check(LSSessionQuit(getpid() + 100000) == kLSSessionNoSuchApp, "quit an unknown app");
+	check(LSSessionQuit(child) == kLSSessionSuccess, "quit");
 	waitpid(child, &status, 0);
-	check(WIFEXITED(status) && WEXITSTATUS(status) == 0, "the child was asked to activate");
+	check(WIFEXITED(status) && WEXITSTATUS(status) == 0,
+	    "the child was asked to activate, then to quit");
 	check(expect(port, kLSSessionAppTerminated, child, NULL), "terminated message");
 	check(LSSessionCopyApps(&apps, &count) == kLSSessionSuccess, "copy apps after");
 	found = 0;

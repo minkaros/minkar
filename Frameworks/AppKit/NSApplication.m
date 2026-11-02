@@ -1626,6 +1626,10 @@ static int _tagAllMenus(NSMenu *menu, int tag) {
            case kLSSessionActivateRequest:
                [self activateIgnoringOtherApps:(msg->options & NSApplicationActivateIgnoringOtherApps)!=0];
                break;
+           case kLSSessionQuitRequest:
+               /* As the Quit item: the delegate may refuse. */
+               [self terminate:self];
+               break;
        }
    }
    _NSRunningApplicationSessionMessage(msg);
