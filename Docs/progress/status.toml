@@ -198,8 +198,8 @@ name = "GPU track"
 color = "red"
 doc = "ROADMAP.md#graphics-stack-components-and-sequence"
 doc_es = "ROADMAP.es.md#pila-gráfica-componentes-y-secuencia"
-# One station for G2 to G5 until the GPU ADR (G1) defines them.
-stations = [["G1 ADR", 700, "todo"], ["G2–G5", 1060, "todo"]]
+# G1 done on the Mac Pro 6,1 (2026-11-02); one station for G2 to G5.
+stations = [["G1 KMS", 700, "done"], ["G2–G5", 1060, "todo"]]
 
 [[line]]
 id = "compat"
@@ -247,7 +247,7 @@ line = "ws"
 
 [[board.now]]
 title = "WS6 — GPU compositing"
-note = "G1 ADR first: GCN 1.0, then RX 6600, then Intel HD 630"
+note = "G1 done (FirePro display driver); G2: GPU memory and rings"
 line = "ws"
 done = 0
 total = 3
@@ -275,8 +275,8 @@ note = "swiftc, libswiftCore → M3"
 line = "fw"
 
 [[board.next]]
-title = "GPU ADR (G1)"
-note = "family decided; licenses, KMS prototype"
+title = "G2 — GPU memory, rings, fences"
+note = "G1 done on the Mac Pro: display driver, scaled modes"
 line = "gpu"
 
 [[board.later]]
