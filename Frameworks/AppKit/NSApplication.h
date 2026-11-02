@@ -99,8 +99,6 @@ typedef enum {
     NSWindow *_mainWindow;
     NSMenu *_mainMenu;
     NSMenu *_windowsMenu;
-    mach_port_t _wsReplyPort;
-    mach_port_t _wsSvcPort;
 
     NSImage *_applicationIconImage;
 
@@ -247,7 +245,6 @@ typedef enum {
 - (void)_windowWillBecomeDeactive:(NSWindow *)window;
 - (void)_windowDidBecomeDeactive:(NSWindow *)window;
 
-- (mach_port_t)_wsServicePort;
 
 @end
 

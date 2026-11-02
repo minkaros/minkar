@@ -25,8 +25,8 @@
 /*
  * The events are the new window server's (WindowServer plan, WS3): a
  * CGEventRef holds an SLSEvent, CGEventPost and the taps go through
- * SkyLight. With the legacy server running (_CGUsesSkyLight() false) taps
- * and posting do nothing; that server goes in WS4.
+ * SkyLight. With no window server answering (_CGUsesSkyLight() false, as
+ * under -textconsole) taps and posting do nothing.
  */
 
 #import <CoreFoundation/CFRuntime.h>

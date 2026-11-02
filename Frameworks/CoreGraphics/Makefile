@@ -31,7 +31,6 @@ SRCS= \
 	CGPattern.m \
 	CGShading.m \
 	CGWindowList.m \
-	CGWindowListFilter.c
 
 HEADERS= \
 	CGAffineTransform.h \

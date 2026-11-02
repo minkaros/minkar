@@ -32,7 +32,8 @@
  * keys, CGWindowListCreate, and CGWindowListCreateImage for one window
  * (minimized too, as the Dock's thumbnails) and for an area with two;
  * CGDisplayCreateImage, and a captured display drawn through
- * CGDisplayGetDrawingContext.
+ * CGDisplayGetDrawingContext; then Quartz Display Services: finding
+ * displays, parameters, modes, configuration, the cursor, gamma, fades.
  * One line per check, "ok" or "FAIL", then "cgwindow-test: N passed, M
  * failed"; the exit status is the number of failures. Needs the new
  * server up.
@@ -97,6 +98,103 @@ dictionaryHasNumber(CFDictionaryRef d, CFStringRef key, int64_t want)
 	int64_t v = 0;
 
 	return n != NULL && CFNumberGetValue(n, kCFNumberSInt64Type, &v) && v == want;
+}
+
+/*
+ * Quartz Display Services through the window server (WS4b, without the
+ * legacy RPC): finding displays, their parameters, modes, configuration,
+ * the cursor, gamma and fades.
+ */
+static void
+displays(CGDirectDisplayID main)
+{
+	CGDirectDisplayID found[4];
+	uint32_t n = 0;
+
+	check(CGGetDisplaysWithPoint(CGPointMake(10, 10), 4, found, &n) == kCGErrorSuccess &&
+	    n == 1 && found[0] == main, "CGGetDisplaysWithPoint finds the main display");
+	n = 0;
+	check(CGGetDisplaysWithRect(CGRectMake(0, 0, 50, 50), 4, found, &n) == kCGErrorSuccess &&
+	    n == 1 && found[0] == main, "and CGGetDisplaysWithRect");
+	CGOpenGLDisplayMask mask = CGDisplayIDToOpenGLDisplayMask(main);
+	check(mask != 0 && CGOpenGLDisplayMaskToDisplayID(mask) == main,
+	    "its OpenGL display mask, both ways");
+	CGSize mm = CGDisplayScreenSize(main);
+	check(mm.width > 0 && mm.height > 0, "its physical size");
+	check(CGDisplayIsActive(main) && CGDisplayIsOnline(main) && CGDisplayIsMain(main),
+	    "it is active, online and main");
+	check(CGDisplayMirrorsDisplay(main) == kCGNullDirectDisplay &&
+	    CGDisplayPrimaryDisplay(main) == main && CGDisplayRotation(main) == 0,
+	    "no mirror, its own primary, not rotated");
+
+	/* Modes: the current one is among them, and setting it works. */
+	CGDisplayModeRef current = CGDisplayCopyDisplayMode(main);
+	CFArrayRef modes = CGDisplayCopyAllDisplayModes(main, NULL);
+	int listed = 0;
+	for (CFIndex i = 0; modes != NULL && i < CFArrayGetCount(modes); i++) {
+		CGDisplayModeRef m = (CGDisplayModeRef)CFArrayGetValueAtIndex(modes, i);
+		if (current != NULL &&
+		    CGDisplayModeGetIODisplayModeID(m) == CGDisplayModeGetIODisplayModeID(current) &&
+		    CGDisplayModeGetWidth(m) == CGDisplayModeGetWidth(current))
+			listed = 1;
+	}
+	check(current != NULL && modes != NULL && CFArrayGetCount(modes) > 0 && listed,
+	    "the current mode is among the display's modes");
+	check(current != NULL && CGDisplaySetDisplayMode(main, current, NULL) == kCGErrorSuccess,
+	    "setting the current mode again succeeds");
+	if (modes != NULL)
+		CFRelease(modes);
+	CGDisplayModeRelease(current);
+
+	/* A configuration begun and cancelled, and one completed with nothing. */
+	CGDisplayConfigRef config;
+	check(CGBeginDisplayConfiguration(&config) == kCGErrorSuccess &&
+	    CGConfigureDisplayOrigin(config, main, 0, 0) == kCGErrorSuccess &&
+	    CGCancelDisplayConfiguration(config) == kCGErrorSuccess,
+	    "a display configuration, cancelled");
+	check(CGBeginDisplayConfiguration(&config) == kCGErrorSuccess &&
+	    CGCompleteDisplayConfiguration(config, kCGConfigureForSession) == kCGErrorSuccess,
+	    "and one completed");
+
+	/* The cursor: warped, it is where it was put; hidden and shown. */
+	CGWarpMouseCursorPosition(CGPointMake(321, 234));
+	SLSPoint p = { 0, 0 };
+	check(SLSGetCursorPosition(&p) == kSLSErrorSuccess && p.x == 321 && p.y == 234,
+	    "CGWarpMouseCursorPosition moves the cursor");
+	CGDisplayMoveCursorToPoint(main, CGPointMake(100, 50));
+	check(SLSGetCursorPosition(&p) == kSLSErrorSuccess && p.x == 100 && p.y == 50,
+	    "and CGDisplayMoveCursorToPoint, from the display's top left");
+	int visible = 1;
+	check(CGDisplayHideCursor(main) == kCGErrorSuccess &&
+	    SLSCursorIsVisible(&visible) == kSLSErrorSuccess && !visible,
+	    "CGDisplayHideCursor hides it");
+	check(CGDisplayShowCursor(main) == kCGErrorSuccess &&
+	    SLSCursorIsVisible(&visible) == kSLSErrorSuccess && visible, "and it shows again");
+	int32_t dx = 7, dy = 7;
+	CGGetLastMouseDelta(&dx, &dy);
+	check(dx == 0 && dy == 0, "no mouse delta after a warp");
+
+	/* Gamma: the capacity, a formula set and read back, then restored. */
+	check(CGDisplayGammaTableCapacity(main) == 256, "the gamma table capacity");
+	CGGammaValue v[9];
+	check(CGSetDisplayTransferByFormula(main, 0, 1, 2, 0, 1, 2, 0, 1, 2) == kCGErrorSuccess &&
+	    CGGetDisplayTransferByFormula(main, &v[0], &v[1], &v[2], &v[3], &v[4], &v[5], &v[6],
+	    &v[7], &v[8]) == kCGErrorSuccess && v[2] == 2 && v[5] == 2 && v[8] == 2,
+	    "a transfer formula, set and read back");
+	uint8_t bytes[2] = { 0, 255 };
+	CGGammaValue r[256], g[256], b[256];
+	uint32_t samples = 0;
+	check(CGSetDisplayTransferByByteTable(main, 2, bytes, bytes, bytes) == kCGErrorSuccess &&
+	    CGGetDisplayTransferByTable(main, 256, r, g, b, &samples) == kCGErrorSuccess &&
+	    samples > 0, "a byte table, set and read back");
+	CGDisplayRestoreColorSyncSettings();
+
+	/* A fade reservation, a fade at once, released. */
+	CGDisplayFadeReservationToken token;
+	check(CGAcquireDisplayFadeReservation(5, &token) == kCGErrorSuccess &&
+	    CGDisplayFade(token, 0, kCGDisplayBlendNormal, kCGDisplayBlendNormal, 0, 0, 0, true) ==
+	    kCGErrorSuccess && CGReleaseDisplayFadeReservation(token) == kCGErrorSuccess,
+	    "a fade reservation, a fade and its release");
 }
 
 int
@@ -185,6 +283,7 @@ main(void)
 
 	SLSReleaseWindow(blue);
 	SLSReleaseWindow(red);
+	displays(main);
 	printf("cgwindow-test: %d passed, %d failed\n", passed, failed);
 	return failed;
 }

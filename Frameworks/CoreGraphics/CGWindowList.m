@@ -29,10 +29,8 @@
 /*
  * Quartz Window Services: window lists.
  *
- * With the new window server (WS4a) the lists, the descriptions and the
- * images come from SkyLight, which filters by CGWindowListOption itself.
- * With the legacy one, WindowServer reports every window front-most first
- * (kWSWindowList) and the filtering happens here (CGWindowListFilter.c).
+ * The lists, the descriptions and the images come from the window server
+ * (SkyLight), which filters by CGWindowListOption itself.
  */
 
 #include <CoreGraphics/CGWindow.h>
@@ -44,23 +42,12 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "CGWindowListFilter.h"
 #include <CoreGraphics/CGBitmapContext.h>
 #include <CoreGraphics/CGColorSpace.h>
 #include <CoreGraphics/CGContext.h>
 #include <CoreGraphics/CGDataProvider.h>
 #include <SkyLight/SkyLight.h>
 
-extern int _CGUsesSkyLight(void);
-
-kern_return_t _windowServerRPC(void *data, size_t len, void *replyBuf, int *replyLen);
-
-_Static_assert(kCGWindowListOptionOnScreenOnly == _CGWLOptionOnScreenOnly &&
-               kCGWindowListOptionOnScreenAboveWindow == _CGWLOptionOnScreenAboveWindow &&
-               kCGWindowListOptionOnScreenBelowWindow == _CGWLOptionOnScreenBelowWindow &&
-               kCGWindowListOptionIncludingWindow == _CGWLOptionIncludingWindow &&
-               kCGWindowListExcludeDesktopElements == _CGWLExcludeDesktopElements,
-               "CGWindowListOption values out of sync");
 
 const CFStringRef kCGWindowNumber = CFSTR("kCGWindowNumber");
 const CFStringRef kCGWindowStoreType = CFSTR("kCGWindowStoreType");
@@ -75,132 +62,6 @@ const CFStringRef kCGWindowName = CFSTR("kCGWindowName");
 const CFStringRef kCGWindowIsOnscreen = CFSTR("kCGWindowIsOnscreen");
 const CFStringRef kCGWindowBackingLocationVideoMemory =
     CFSTR("kCGWindowBackingLocationVideoMemory");
-
-/* Largest reply WindowServer can send inline. */
-#define WINDOW_LIST_REPLY_MAX   (128 * 1024)
-
-/*
- * Fetch the full window list into a malloc'ed array (*entries may be
- * NULL when there are no windows). Returns false if WindowServer could
- * not be asked.
- */
-static bool fetch_window_list(struct wsWindowListEntry **entries, size_t *count)
-{
-    struct wsRPCBase request = { kWSWindowList, 0 };
-    struct wsRPCBase *reply;
-    int replyLen = WINDOW_LIST_REPLY_MAX;
-    void *buf;      /* malloc'ed, so suitably aligned for the reply */
-
-    *entries = NULL;
-    *count = 0;
-    buf = malloc(WINDOW_LIST_REPLY_MAX);
-    if (buf == NULL)
-        return false;
-
-    if (_windowServerRPC(&request, sizeof(request), buf, &replyLen) != KERN_SUCCESS ||
-        replyLen < (int)sizeof(struct wsRPCBase)) {
-        free(buf);
-        return false;
-    }
-
-    reply = buf;
-    if (reply->code != kWSWindowList ||
-        reply->len > (uint32_t)replyLen - sizeof(struct wsRPCBase)) {
-        free(buf);
-        return false;
-    }
-
-    *count = reply->len / sizeof(struct wsWindowListEntry);
-    if (*count > 0) {
-        *entries = malloc(*count * sizeof(**entries));
-        if (*entries == NULL) {
-            free(buf);
-            *count = 0;
-            return false;
-        }
-        memcpy(*entries, (uint8_t *)buf + sizeof(struct wsRPCBase),
-               *count * sizeof(**entries));
-    }
-    free(buf);
-    return true;
-}
-
-static CFDictionaryRef copy_description(const struct wsWindowListEntry *e)
-{
-    const void *keys[8], *values[8];
-    int32_t number = (int32_t)e->windowID;
-    int32_t pid = (int32_t)e->ownerPID;
-    int32_t layer = CGWindowLevelForKey((CGWindowLevelKey)e->levelKey);
-    int32_t store = kCGBackingStoreBuffered;
-    int32_t sharing = kCGWindowSharingNone;
-    int64_t memory = (int64_t)(e->w * e->h * 4);
-    double alpha = 1.0;
-    CGRect bounds = CGRectMake(e->x, e->y, e->w, e->h);
-    CFMutableDictionaryRef dict;
-    int i, n = 0;
-
-    keys[n] = kCGWindowNumber;
-    values[n++] = CFNumberCreate(NULL, kCFNumberSInt32Type, &number);
-    keys[n] = kCGWindowOwnerPID;
-    values[n++] = CFNumberCreate(NULL, kCFNumberSInt32Type, &pid);
-    keys[n] = kCGWindowLayer;
-    values[n++] = CFNumberCreate(NULL, kCFNumberSInt32Type, &layer);
-    keys[n] = kCGWindowStoreType;
-    values[n++] = CFNumberCreate(NULL, kCFNumberSInt32Type, &store);
-    keys[n] = kCGWindowSharingState;
-    values[n++] = CFNumberCreate(NULL, kCFNumberSInt32Type, &sharing);
-    keys[n] = kCGWindowMemoryUsage;
-    values[n++] = CFNumberCreate(NULL, kCFNumberSInt64Type, &memory);
-    keys[n] = kCGWindowAlpha;
-    values[n++] = CFNumberCreate(NULL, kCFNumberDoubleType, &alpha);
-    keys[n] = kCGWindowBounds;
-    values[n++] = CGRectCreateDictionaryRepresentation(bounds);
-
-    dict = CFDictionaryCreateMutable(NULL, n + 1, &kCFTypeDictionaryKeyCallBacks,
-                                     &kCFTypeDictionaryValueCallBacks);
-    if (dict != NULL) {
-        for (i = 0; i < n; i++) {
-            if (values[i] != NULL)
-                CFDictionarySetValue(dict, keys[i], values[i]);
-        }
-        /* Like macOS, only present for on-screen windows. */
-        if (e->flags & kWSWindowListOnScreen)
-            CFDictionarySetValue(dict, kCGWindowIsOnscreen, kCFBooleanTrue);
-    }
-    for (i = 0; i < n; i++) {
-        if (values[i] != NULL)
-            CFRelease(values[i]);
-    }
-    return dict;
-}
-
-/*
- * Fetch and filter. Returns false if WindowServer could not be asked;
- * otherwise *n windows were selected (entries/indexes are malloc'ed).
- */
-static bool select_windows(CGWindowListOption option, CGWindowID relativeToWindow,
-                           struct wsWindowListEntry **entries, size_t **indexes,
-                           size_t *n)
-{
-    size_t count;
-
-    *indexes = NULL;
-    *n = 0;
-    if (!fetch_window_list(entries, &count))
-        return false;
-    if (count == 0)
-        return true;
-    *indexes = malloc(count * sizeof(**indexes));
-    if (*indexes == NULL) {
-        free(*entries);
-        *entries = NULL;
-        return false;
-    }
-    *n = _CGWindowListFilter(*entries, count, option, relativeToWindow, *indexes);
-    return true;
-}
-
-/* ---- With the new window server (WS4a) ---- */
 
 /* The window IDs the option selects, front to back, from the server. */
 static uint32_t sls_window_ids(CGWindowListOption option, CGWindowID relativeToWindow,
@@ -296,8 +157,6 @@ CGImageRef CGWindowListCreateImage(CGRect screenBounds, CGWindowListOption listO
     CGColorSpaceRef space;
     CGImageRef image = NULL;
 
-    if (!_CGUsesSkyLight())
-        return NULL;
     ids = malloc(kSLSMaxWindowList * sizeof(*ids));
     if (ids == NULL)
         return NULL;
@@ -377,117 +236,55 @@ CGImageRef CGWindowListCreateImage(CGRect screenBounds, CGWindowListOption listO
 
 CFArrayRef CGWindowListCreate(CGWindowListOption option, CGWindowID relativeToWindow)
 {
-    struct wsWindowListEntry *entries;
-    size_t *indexes, i, n;
     CFMutableArrayRef array;
 
-    if (_CGUsesSkyLight()) {
-        SLSWindowID *ids = malloc(kSLSMaxWindowList * sizeof(*ids));
-        uint32_t count = ids ? sls_window_ids(option, relativeToWindow, ids) : 0;
+    SLSWindowID *ids = malloc(kSLSMaxWindowList * sizeof(*ids));
+    uint32_t count = ids ? sls_window_ids(option, relativeToWindow, ids) : 0;
 
-        array = CFArrayCreateMutable(NULL, (CFIndex)count, NULL);
-        for (uint32_t j = 0; array != NULL && j < count; j++)
-            CFArrayAppendValue(array, (const void *)(uintptr_t)ids[j]);
-        free(ids);
-        return array;
-    }
-
-    if (!select_windows(option, relativeToWindow, &entries, &indexes, &n))
-        return NULL;            /* WindowServer unreachable */
-
-    /* Values are the window IDs themselves, as on macOS. */
-    array = CFArrayCreateMutable(NULL, (CFIndex)n, NULL);
-    for (i = 0; array != NULL && i < n; i++)
-        CFArrayAppendValue(array,
-                           (const void *)(uintptr_t)entries[indexes[i]].windowID);
-    free(indexes);
-    free(entries);
+    array = CFArrayCreateMutable(NULL, (CFIndex)count, NULL);
+    for (uint32_t j = 0; array != NULL && j < count; j++)
+        CFArrayAppendValue(array, (const void *)(uintptr_t)ids[j]);
+    free(ids);
     return array;
 }
 
 CFArrayRef CGWindowListCopyWindowInfo(CGWindowListOption option,
                                       CGWindowID relativeToWindow)
 {
-    struct wsWindowListEntry *entries;
-    size_t *indexes, i, n;
     CFMutableArrayRef array;
 
-    if (_CGUsesSkyLight()) {
-        SLSWindowID *ids = malloc(kSLSMaxWindowList * sizeof(*ids));
-        uint32_t count = ids ? sls_window_ids(option, relativeToWindow, ids) : 0;
+    SLSWindowID *ids = malloc(kSLSMaxWindowList * sizeof(*ids));
+    uint32_t count = ids ? sls_window_ids(option, relativeToWindow, ids) : 0;
 
-        array = CFArrayCreateMutable(NULL, (CFIndex)count, &kCFTypeArrayCallBacks);
-        for (uint32_t j = 0; array != NULL && j < count; j++) {
-            CFDictionaryRef d = copy_sls_description(ids[j]);
-            if (d != NULL) {
-                CFArrayAppendValue(array, d);
-                CFRelease(d);
-            }
-        }
-        free(ids);
-        return array;
-    }
-
-    if (!select_windows(option, relativeToWindow, &entries, &indexes, &n))
-        return NULL;
-
-    array = CFArrayCreateMutable(NULL, (CFIndex)n, &kCFTypeArrayCallBacks);
-    for (i = 0; array != NULL && i < n; i++) {
-        CFDictionaryRef d = copy_description(&entries[indexes[i]]);
-
+    array = CFArrayCreateMutable(NULL, (CFIndex)count, &kCFTypeArrayCallBacks);
+    for (uint32_t j = 0; array != NULL && j < count; j++) {
+        CFDictionaryRef d = copy_sls_description(ids[j]);
         if (d != NULL) {
             CFArrayAppendValue(array, d);
             CFRelease(d);
         }
     }
-    free(indexes);
-    free(entries);
+    free(ids);
     return array;
 }
 
 CFArrayRef CGWindowListCreateDescriptionFromArray(CFArrayRef windowArray)
 {
-    struct wsWindowListEntry *entries;
     CFMutableArrayRef array;
     CFIndex i, n;
-    size_t j, count;
 
     if (windowArray == NULL)
         return NULL;
-    if (_CGUsesSkyLight()) {
-        n = CFArrayGetCount(windowArray);
-        array = CFArrayCreateMutable(NULL, n, &kCFTypeArrayCallBacks);
-        for (i = 0; array != NULL && i < n; i++) {
-            CFDictionaryRef d = copy_sls_description(
-                (SLSWindowID)(uintptr_t)CFArrayGetValueAtIndex(windowArray, i));
-            if (d != NULL) {
-                CFArrayAppendValue(array, d);
-                CFRelease(d);
-            }
-        }
-        return array;
-    }
-    if (!fetch_window_list(&entries, &count))
-        return NULL;
-
+    /* Windows that no longer exist are skipped. */
     n = CFArrayGetCount(windowArray);
     array = CFArrayCreateMutable(NULL, n, &kCFTypeArrayCallBacks);
     for (i = 0; array != NULL && i < n; i++) {
-        CGWindowID wid = (CGWindowID)(uintptr_t)CFArrayGetValueAtIndex(windowArray, i);
-
-        /* Windows that no longer exist are skipped. */
-        for (j = 0; j < count; j++) {
-            if (entries[j].windowID == wid) {
-                CFDictionaryRef d = copy_description(&entries[j]);
-
-                if (d != NULL) {
-                    CFArrayAppendValue(array, d);
-                    CFRelease(d);
-                }
-                break;
-            }
+        CFDictionaryRef d = copy_sls_description(
+            (SLSWindowID)(uintptr_t)CFArrayGetValueAtIndex(windowArray, i));
+        if (d != NULL) {
+            CFArrayAppendValue(array, d);
+            CFRelease(d);
         }
     }
-    free(entries);
     return array;
 }

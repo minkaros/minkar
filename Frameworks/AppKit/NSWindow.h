@@ -113,7 +113,6 @@ APPKIT_EXPORT NSString *const NSWindowDidEndLiveResizeNotification;
     BOOL _isZoomed;
     BOOL _isMiniaturized;
 
-    NSString *shmPath;
     NSString *bundleID;
     void *buffer;
     int bufsize;
