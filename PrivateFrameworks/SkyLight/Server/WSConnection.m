@@ -65,6 +65,8 @@ static SLSConnectionID nextConnectionID = 1;
 			return;
 		if (msg.dead.not_header.msgh_id == MACH_NOTIFY_DEAD_NAME)
 			[self portDied:msg.dead.not_port];
+		/* Its windows went: input routes without them. */
+		WSInputPublish();
 	});
 	dispatch_resume(notifySource);
 }

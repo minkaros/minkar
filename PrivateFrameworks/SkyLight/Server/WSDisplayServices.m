@@ -34,6 +34,7 @@
  */
 
 #include <math.h>
+#include <pthread.h>
 #include <stdio.h>
 #import "WSServer.h"
 #import "WSConnection.h"
@@ -152,6 +153,7 @@ wss_display_current_mode(mach_port_t server, uint32_t display, int32_t *result,
 static void
 displaysMoved(void)
 {
+	WSInputModelChanged();
 	WSDisplay *first = WSDisplays.firstObject;
 	double dx = first.x, dy = first.y;
 
@@ -597,8 +599,13 @@ wss_display_capture_state(mach_port_t server, uint32_t display, int32_t *result,
 
 /* ---- Cursor ---- */
 
-/* The cursor: moved by input (WSEvents) and by warps. */
+/* The cursor: moved by input (WSEvents, on its queue) and by warps (IPC
+ * queue): its position, the area drawn last, the shape shown and the box
+ * it stays in, under cursorLock. */
+static pthread_mutex_t cursorLock = PTHREAD_MUTEX_INITIALIZER;
 static double cursorX, cursorY;
+static WSCursorShape *shownShapeValue;
+static double boxMinX, boxMinY, boxMaxX = 1, boxMaxY = 1;
 
 @implementation WSCursorShape
 - (instancetype)initWithPixels:(NSData *)pixels width:(uint32_t)width height:(uint32_t)height
@@ -615,21 +622,14 @@ static double cursorX, cursorY;
 }
 @end
 
-/* The shape the screen shows: the front app's, or nil for the arrow. */
-static WSCursorShape *
-shownShape(void)
-{
-	return WSFrontConnection().cursorShape;
-}
-
 /* The area the cursor covers (WSCompositor's arrow is 11 x 17): the one
- * drawn last and the one to draw. */
+ * drawn last and the one to draw. With cursorLock held. */
 static SLSRect drawnCursorRect;
 
 static void
-damageCursor(void)
+damageCursorLocked(void)
 {
-	WSCursorShape *shape = shownShape();
+	WSCursorShape *shape = shownShapeValue;
 	SLSRect r = shape ? (SLSRect){ cursorX - shape.hotX, cursorY - shape.hotY, shape.width,
 	    shape.height } : (SLSRect){ cursorX, cursorY, 11, 17 };
 
@@ -638,10 +638,36 @@ damageCursor(void)
 	drawnCursorRect = r;
 }
 
+static void
+damageCursor(void)
+{
+	pthread_mutex_lock(&cursorLock);
+	damageCursorLocked();
+	pthread_mutex_unlock(&cursorLock);
+}
+
+/* The front app or its cursor changed (IPC queue): the shape shown is the
+ * front app's, or nil for the arrow. */
 void
 WSCursorShapeChanged(void)
 {
-	damageCursor();
+	WSCursorShape *shape = WSFrontConnection().cursorShape;
+
+	pthread_mutex_lock(&cursorLock);
+	shownShapeValue = shape;
+	damageCursorLocked();
+	pthread_mutex_unlock(&cursorLock);
+}
+
+void
+WSCursorSetBounds(double minX, double minY, double maxX, double maxY)
+{
+	pthread_mutex_lock(&cursorLock);
+	boxMinX = minX;
+	boxMinY = minY;
+	boxMaxX = maxX;
+	boxMaxY = maxY;
+	pthread_mutex_unlock(&cursorLock);
 }
 
 static BOOL
@@ -656,9 +682,11 @@ cursorVisible(void)
 BOOL
 WSCursorSnapshot(SLSPoint *position, WSCursorShape **shape)
 {
+	pthread_mutex_lock(&cursorLock);
 	position->x = cursorX;
 	position->y = cursorY;
-	*shape = shownShape();
+	*shape = shownShapeValue;
+	pthread_mutex_unlock(&cursorLock);
 	return cursorVisible();
 }
 
@@ -684,7 +712,7 @@ wss_cursor_set_image(mach_port_t server, audit_token_t token, uint32_t width, ui
 		*result = kSLSErrorSuccess;
 	}
 	if (c != nil && c == WSFrontConnection())
-		damageCursor();
+		WSCursorShapeChanged();
 	vm_deallocate(mach_task_self(), (vm_address_t)pixels, count);
 	return KERN_SUCCESS;
 }
@@ -715,9 +743,11 @@ kern_return_t
 wss_cursor_state(mach_port_t server, int32_t *visible, double *x, double *y, int32_t *dx,
     int32_t *dy)
 {
+	SLSPoint p = WSCursorPosition();
+
 	*visible = cursorVisible();
-	*x = cursorX;
-	*y = cursorY;
+	*x = p.x;
+	*y = p.y;
 	*dx = 0;
 	*dy = 0;
 	return KERN_SUCCESS;
@@ -726,39 +756,26 @@ wss_cursor_state(mach_port_t server, int32_t *visible, double *x, double *y, int
 SLSPoint
 WSCursorPosition(void)
 {
-	return (SLSPoint){ cursorX, cursorY };
+	pthread_mutex_lock(&cursorLock);
+	SLSPoint p = { cursorX, cursorY };
+	pthread_mutex_unlock(&cursorLock);
+	return p;
 }
 
-/* The box around the displays, where the cursor stays. */
-static void
-displaysBox(double *minX, double *minY, double *maxX, double *maxY)
-{
-	BOOL first = YES;
-
-	*minX = *minY = *maxX = *maxY = 0;
-	for (WSDisplay *d in WSDisplays) {
-		if (first || d.x < *minX) *minX = d.x;
-		if (first || d.y < *minY) *minY = d.y;
-		if (first || d.x + d.width > *maxX) *maxX = d.x + d.width;
-		if (first || d.y + d.height > *maxY) *maxY = d.y + d.height;
-		first = NO;
-	}
-}
-
+/* Any queue: clamped to the box around the displays. */
 void
 WSCursorMoveTo(double x, double y)
 {
-	double minX, minY, maxX, maxY;
-
-	displaysBox(&minX, &minY, &maxX, &maxY);
-	x = fmin(fmax(x, minX), maxX - 1);
-	y = fmin(fmax(y, minY), maxY - 1);
-	if (x == cursorX && y == cursorY)
-		return;
-	damageCursor();
-	cursorX = x;
-	cursorY = y;
-	damageCursor();
+	pthread_mutex_lock(&cursorLock);
+	x = fmin(fmax(x, boxMinX), boxMaxX - 1);
+	y = fmin(fmax(y, boxMinY), boxMaxY - 1);
+	if (x != cursorX || y != cursorY) {
+		damageCursorLocked();
+		cursorX = x;
+		cursorY = y;
+		damageCursorLocked();
+	}
+	pthread_mutex_unlock(&cursorLock);
 }
 
 kern_return_t
@@ -771,7 +788,8 @@ wss_cursor_warp(mach_port_t server, audit_token_t token, double x, double y,
 	}
 	WSCursorMoveTo(x, y);
 	/* The HID system moves on from there. */
-	WSInputSetCursor(cursorX, cursorY);
+	SLSPoint p = WSCursorPosition();
+	WSInputSetCursor(p.x, p.y);
 	*result = kSLSErrorSuccess;
 	return KERN_SUCCESS;
 }

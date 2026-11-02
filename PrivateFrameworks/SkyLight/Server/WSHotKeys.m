@@ -38,6 +38,7 @@
 
 #import <CoreFoundation/CoreFoundation.h>
 
+#include <pthread.h>
 #import "WSServer.h"
 #import "WSConnection.h"
 #import "WSWindowList.h"
@@ -69,6 +70,8 @@ static WSHotKey hotKeys[kSLSMaxSymbolicHotKeys + 1] = {
 	[kSLSHotKeyMenuBarFocus]	= { 120, WSModifierControl, YES, YES },
 };
 static __weak WSConnection *owners[kSLSMaxSymbolicHotKeys + 1];
+/* The table and its owners: claimed on the IPC queue, read by input. */
+static pthread_mutex_t hotKeysLock = PTHREAD_MUTEX_INITIALIZER;
 /* The key of the last hotkey sent: its key up is not delivered either. */
 static int32_t swallowedKeyCode = -1;
 
@@ -100,8 +103,10 @@ WSHotKeysStart(void)
 	    kPreferencesPath.UTF8String);
 }
 
+/* Input queue. */
 BOOL
-WSHotKeysHandle(const SLSEvent *e, WSWindow *keyTarget)
+WSHotKeysHandle(const SLSEvent *e, WSConnection *keyOwner, SLSWindowID keyWindow,
+    WSConnection *front)
 {
 	if (e->type == kSLSEventKeyUp && e->keyCode == swallowedKeyCode) {
 		swallowedKeyCode = -1;
@@ -109,6 +114,7 @@ WSHotKeysHandle(const SLSEvent *e, WSWindow *keyTarget)
 	}
 	if (e->type != kSLSEventKeyDown)
 		return NO;
+	pthread_mutex_lock(&hotKeysLock);
 	for (uint32_t n = 1; n <= kSLSMaxSymbolicHotKeys; n++) {
 		WSHotKey *h = &hotKeys[n];
 		if (!h->enabled || h->keyCode != e->keyCode ||
@@ -120,14 +126,15 @@ WSHotKeysHandle(const SLSEvent *e, WSWindow *keyTarget)
 		swallowedKeyCode = e->keyCode;
 		/* The front app's hotkeys go to the key window, or the front app
 		 * with none (a capture's shielding window first). */
-		WSConnection *owner = h->frontApp ?
-		    (keyTarget != nil ? keyTarget.owner : WSFrontConnection()) : owners[n];
+		WSConnection *owner = h->frontApp ? (keyOwner != nil ? keyOwner : front) : owners[n];
+		pthread_mutex_unlock(&hotKeysLock);
 		if (owner != nil) {
-			hot.window = h->frontApp ? keyTarget.windowID : 0;
+			hot.window = h->frontApp ? keyWindow : 0;
 			WSEventsEnqueue(owner, &hot);
 		}
 		return YES;
 	}
+	pthread_mutex_unlock(&hotKeysLock);
 	return NO;
 }
 
@@ -146,11 +153,15 @@ wss_hotkey_claim(mach_port_t server, audit_token_t token, uint32_t hotkey, int32
 	else if (!WSMayControlInput(c))
 		*result = kSLSErrorCannotComplete;	/* SHORTCUT(M5): the built-in policy */
 	else if (claim) {
+		pthread_mutex_lock(&hotKeysLock);
 		owners[hotkey] = c;
+		pthread_mutex_unlock(&hotKeysLock);
 		*result = kSLSErrorSuccess;
 	} else {
+		pthread_mutex_lock(&hotKeysLock);
 		if (owners[hotkey] == c)
 			owners[hotkey] = nil;
+		pthread_mutex_unlock(&hotKeysLock);
 		*result = kSLSErrorSuccess;
 	}
 	return KERN_SUCCESS;

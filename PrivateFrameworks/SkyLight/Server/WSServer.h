@@ -40,6 +40,12 @@
 
 /* The queue every request is served on; the model changes only there. */
 extern dispatch_queue_t WSIPCQueue;
+/* Input's own high-priority queue (WSEvents.m); it never waits for the IPC
+ * queue. The IPC queue marks the model changed and publishes a snapshot
+ * of it for input after each request. */
+extern dispatch_queue_t WSInputQueue;
+void WSInputModelChanged(void);
+void WSInputPublish(void);
 
 /* Displays (WSDisplayServices.m). The first is the main display. */
 extern NSArray<WSDisplay *> *WSDisplays;
@@ -90,6 +96,10 @@ WSWindow *WSWindowFrontmostOf(WSConnection *connection);
 /* The cursor: where it is, and a move by input (kept on the displays). */
 SLSPoint WSCursorPosition(void);
 void WSCursorMoveTo(double x, double y);
+/* The box the cursor stays in: around the displays (IPC queue). */
+void WSCursorSetBounds(double minX, double minY, double maxX, double maxY);
+/* The on-screen windows, front to back (IPC queue). */
+NSArray<WSWindow *> *WSWindowStack(void);
 /* Counts an input event in the statistics. */
 void WSStatsCountEvent(void);
 /* Queues an event for a connection (WSEvents.m). */
@@ -102,7 +112,8 @@ BOOL WSMayControlInput(WSConnection *connection);
  * up are not delivered). keyTarget is the key window, for hotkeys owned by
  * the front app. */
 void WSHotKeysStart(void);
-BOOL WSHotKeysHandle(const SLSEvent *event, WSWindow *keyTarget);
+BOOL WSHotKeysHandle(const SLSEvent *event, WSConnection *keyOwner, SLSWindowID keyWindow,
+    WSConnection *front);
 /* Tells the HID system where a warp put the cursor (WSInput.m). */
 void WSInputSetCursor(double x, double y);
 /* A posted key event without characters gets the keymap's (WSInput.m). */

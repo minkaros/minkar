@@ -102,14 +102,18 @@ main(int argc, char *argv[])
 		mach_msg_server_once(WindowServer_server, wss_WindowServer_subsystem.maxsize,
 		    service, MACH_RCV_TRAILER_ELEMENTS(MACH_RCV_TRAILER_AUDIT) |
 		    MACH_RCV_TRAILER_TYPE(MACH_MSG_TRAILER_FORMAT_0));
+		/* What the request changed, input routes over from now on. */
+		WSInputPublish();
 	});
-	/* Input, read and routed on the IPC queue: routing needs the window list.
-	 * SHORTCUT(WS4a): input runs on the IPC queue, until the plan's own
-	 * high-priority input queue, with a model snapshot input can read
-	 * without the IPC queue; taken in WS3. */
+	/* Input, read and routed on its own high-priority queue over the
+	 * snapshot the IPC queue publishes (WSEvents.m). */
 	static WSInput *input;
+	WSInputQueue = dispatch_queue_create("org.minkar.WindowServer.input",
+	    dispatch_queue_attr_make_with_qos_class(DISPATCH_QUEUE_SERIAL,
+	    QOS_CLASS_USER_INTERACTIVE, 0));
 	WSHotKeysStart();
-	input = [WSInput startOnQueue:ipc];
+	WSInputPublish();
+	input = [WSInput startOnQueue:WSInputQueue];
 
 	/* Before the first request: connect needs the dead-name port. */
 	[WSConnection startOnQueue:ipc];

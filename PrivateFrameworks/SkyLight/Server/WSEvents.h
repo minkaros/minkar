@@ -33,12 +33,14 @@
  * window key; keys go to the key window. Each connection has a bounded
  * queue, mouse moves coalesced, and its client is told when the queue
  * stops being empty; the server never blocks on a client. Held keys
- * repeat. Everything here runs on the IPC queue.
+ * repeat. Input is routed on WSInputQueue over a snapshot of the model,
+ * which the IPC queue publishes (WSInputPublish); see WSEvents.m.
  */
 
 #import "WSServer.h"
 
-/* An event read from the HID system, to pass the taps and route. */
+/* An event read from the HID system, to pass the taps and route (both on
+ * WSInputQueue). */
 void WSRouteEvent(SLSEvent *event);
 /* The same for an event entering at a tap location (posted). */
 void WSRouteEventAt(SLSEvent *event, uint32_t location);

@@ -101,6 +101,12 @@ WSWindowAtPoint(double x, double y)
 	return nil;
 }
 
+NSArray<WSWindow *> *
+WSWindowStack(void)
+{
+	return stack ? [stack copy] : @[];
+}
+
 WSWindow *
 WSWindowFrontmostOf(WSConnection *c)
 {
@@ -252,6 +258,7 @@ WSWindowRelease(WSWindow *w)
 	[stack removeObject:w];
 	[allWindows removeObject:w];
 	w.onScreen = NO;
+	WSInputModelChanged();
 	statusItemGone(w);
 	WSEventsWindowGone(w);
 	detach(w);
@@ -286,6 +293,7 @@ WSWindowSetFrame(WSWindow *w, SLSRect frame)
 	damageWindow(w);
 	w.frame = frame;
 	damageWindow(w);
+	WSInputModelChanged();
 	if (dx == 0 && dy == 0)
 		return;
 	for (WSWindow *child in [w.children copy]) {
@@ -378,6 +386,7 @@ WSWindowOrder(WSWindow *w, int32_t place, SLSWindowID relativeTo)
 	damageWindow(w);
 	[stack removeObject:w];
 	w.onScreen = NO;
+	WSInputModelChanged();
 	if (place == kSLSOrderOut) {
 		/* The status items left of it close up. */
 		if (isStatusItem(w))

@@ -30,10 +30,12 @@
  * Event taps (WindowServer plan, WS3): the taps' list, in order, and each
  * event passed through them before it is routed. A listen-only tap is sent
  * a copy and never waited for; a filtering tap is asked and waited for up
- * to a second, then disabled. Runs on the IPC queue.
+ * to a second, then disabled. Events pass them on the input queue; the
+ * list changes on the IPC queue, under tapsLock.
  */
 
 #include <mach/mach.h>
+#include <pthread.h>
 #include <stdio.h>
 #include <sys/stat.h>
 #import "WSEvents.h"
@@ -64,7 +66,17 @@ static const mach_msg_timeout_t kTapTimeout = 1000;	/* ms */
 }
 @end
 
-static NSMutableArray<WSTap *> *taps;
+static NSMutableArray<WSTap *> *taps;	/* tapsLock */
+static pthread_mutex_t tapsLock = PTHREAD_MUTEX_INITIALIZER;
+
+static NSArray<WSTap *> *
+tapList(void)
+{
+	pthread_mutex_lock(&tapsLock);
+	NSArray *list = taps ? [taps copy] : @[];
+	pthread_mutex_unlock(&tapsLock);
+	return list;
+}
 static uint32_t nextTapID = 1;
 static mach_port_t replyPort = MACH_PORT_NULL;
 
@@ -172,7 +184,7 @@ ask(WSTap *tap, SLSEvent *e)
 BOOL
 WSTapsFilter(SLSEvent *e, uint32_t location)
 {
-	for (WSTap *tap in [taps copy]) {
+	for (WSTap *tap in tapList()) {
 		if (!tap.enabled || tap.location < location || e->type >= 64 ||
 		    !(tap.mask & (1ULL << e->type)))
 			continue;
@@ -187,9 +199,11 @@ WSTapsFilter(SLSEvent *e, uint32_t location)
 void
 WSTapsConnectionDied(WSConnection *c)
 {
+	pthread_mutex_lock(&tapsLock);
 	for (WSTap *tap in [taps copy])
 		if (tap.owner == c || tap.owner == nil)
 			[taps removeObject:tap];
+	pthread_mutex_unlock(&tapsLock);
 }
 
 /* ---- Routines ---- */
@@ -211,8 +225,6 @@ wss_tap_create(mach_port_t server, audit_token_t token, uint32_t location, uint3
 		mach_port_deallocate(mach_task_self(), port);
 		return KERN_SUCCESS;
 	}
-	if (taps == nil)
-		taps = [NSMutableArray array];
 	WSTap *tap = [[WSTap alloc] init];
 	tap.tapID = nextTapID++;
 	tap.owner = c;
@@ -223,10 +235,14 @@ wss_tap_create(mach_port_t server, audit_token_t token, uint32_t location, uint3
 	tap.port = port;
 	tap.enabled = YES;
 	/* Head-insert taps see events first. */
+	pthread_mutex_lock(&tapsLock);
+	if (taps == nil)
+		taps = [NSMutableArray array];
 	if (placement == 0)
 		[taps insertObject:tap atIndex:0];
 	else
 		[taps addObject:tap];
+	pthread_mutex_unlock(&tapsLock);
 	*tapID = tap.tapID;
 	*result = kSLSErrorSuccess;
 	return KERN_SUCCESS;
@@ -237,7 +253,7 @@ ownTap(audit_token_t token, uint32_t tapID, int32_t *result)
 {
 	WSConnection *c = [WSConnection connectionForToken:token];
 
-	for (WSTap *tap in taps)
+	for (WSTap *tap in tapList())
 		if (tap.tapID == tapID) {
 			if (tap.owner != c) {
 				*result = kSLSErrorCannotComplete;
@@ -266,8 +282,11 @@ wss_tap_release(mach_port_t server, audit_token_t token, uint32_t tapID, int32_t
 {
 	WSTap *tap = ownTap(token, tapID, result);
 
-	if (tap != nil)
+	if (tap != nil) {
+		pthread_mutex_lock(&tapsLock);
 		[taps removeObject:tap];
+		pthread_mutex_unlock(&tapsLock);
+	}
 	return KERN_SUCCESS;
 }
 
@@ -276,7 +295,7 @@ wss_tap_list(mach_port_t server, ws_tap_list_t list, mach_msg_type_number_t *cou
 {
 	mach_msg_type_number_t n = 0;
 
-	for (WSTap *tap in taps) {
+	for (WSTap *tap in tapList()) {
 		if (n == kSLSMaxEventTaps)
 			break;
 		SLSEventTapInfo *info = &list[n++];
@@ -310,20 +329,25 @@ wss_post_event(mach_port_t server, audit_token_t token, uint32_t location, SLSEv
 	else {
 		event.window = 0;
 		event.timestamp = WSNanoseconds();
-		if ((event.type == kSLSEventKeyDown || event.type == kSLSEventKeyUp) &&
-		    event.characters[0] == '\0') {
-			uint32_t flags = event.flags;
-			WSInputTranslatePosted(&event);
-			event.flags |= flags;
-		}
-		BOOL mouse = event.type != kSLSEventKeyDown && event.type != kSLSEventKeyUp &&
-		    event.type != kSLSEventFlagsChanged;
-		WSRouteEventAt(&event, location);
-		/* The HID system's cursor follows a posted mouse event. */
-		if (mouse) {
-			SLSPoint p = WSCursorPosition();
-			WSInputSetCursor(p.x, p.y);
-		}
+		/* Routed as input, on its queue, after what came before it there
+		 * (the keymap is input's too). */
+		dispatch_async(WSInputQueue, ^{
+			SLSEvent e = event;
+			if ((e.type == kSLSEventKeyDown || e.type == kSLSEventKeyUp) &&
+			    e.characters[0] == '\0') {
+				uint32_t flags = e.flags;
+				WSInputTranslatePosted(&e);
+				e.flags |= flags;
+			}
+			BOOL mouse = e.type != kSLSEventKeyDown && e.type != kSLSEventKeyUp &&
+			    e.type != kSLSEventFlagsChanged;
+			WSRouteEventAt(&e, location);
+			/* The HID system's cursor follows a posted mouse event. */
+			if (mouse) {
+				SLSPoint p = WSCursorPosition();
+				WSInputSetCursor(p.x, p.y);
+			}
+		});
 		*result = kSLSErrorSuccess;
 	}
 	return KERN_SUCCESS;
