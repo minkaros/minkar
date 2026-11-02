@@ -33,7 +33,7 @@
 # "bmake progress" (Docs/CONTRIBUTING.md).
 
 updated = "2026-11-02"
-commit  = "9d510ec6c2"
+commit  = "ce474d4d4d"
 
 deps = [["ws", 555, "dock"], ["fw", 535, "kraz"]]
 
@@ -215,6 +215,16 @@ stations = [["x86-64 apps", 1082, "todo"], ["arm64", 1150, "todo"]]
 here = "WS5"
 
 [[board.done]]
+title = "virtio-gpu 2D display"
+note = "per-frame flushes, mode changes · WS5 · 2 nov"
+line = "ws"
+
+[[board.done]]
+title = "IOSurface"
+note = "Mach memory, iosurfaced; AppKit damage · WS5 · 2 nov"
+line = "ws"
+
+[[board.done]]
 title = "Gate M4 met (in QEMU)"
 note = "54 markers, the menus in the app · 2 nov"
 line = "ws"
@@ -234,22 +244,12 @@ title = "Status items, context menus"
 note = "pop-up buttons, key equivalents · MB0 · 2 nov"
 line = "mb"
 
-[[board.done]]
-title = "Menu tracking"
-note = "pointer, keyboard, validation, delegate · MB0 · 1 nov"
-line = "mb"
-
-[[board.done]]
-title = "The app's menu bar"
-note = "its own window, Minkar logo · MB0 · 1 nov"
-line = "mb"
-
 
 [[board.now]]
 title = "WS5 — IOSurface and virtio-gpu"
-note = "surfaces in Mach memory, real flips, display streams"
+note = "display streams, captured displays, idle display link left"
 line = "ws"
-done = 0
+done = 2
 total = 3
 
 [[board.now]]

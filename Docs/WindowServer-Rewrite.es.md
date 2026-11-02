@@ -593,6 +593,13 @@ Estado al 1 nov 2026:
   cambio de resolución desde `CGDisplaySetDisplayMode`.
 - `CGDisplayStream`.
 
+Avance: IOSurface.framework y su registro `iosurfaced` (2 nov 2026,
+`b28eb5f413`); AppKit envía solo lo que dibujaron sus vistas
+(`0c04a371f0`); `MinkarVirtioGPU` maneja virtio-vga en su tamaño preferido,
+y el servidor de ventanas le dice qué cambió cada fotograma, así que solo
+eso se transfiere y vuelca; `wsctl mode` cambia la resolución a través de
+él (2 nov 2026, `3e73fce129`, `1f58b3fb44`, `ce474d4d4d`).
+
 ### WS6 — Composición por GPU
 
 - `WSVulkanBackend` (frente de GPU, G4), elegido por pantalla.
@@ -671,6 +678,7 @@ Decidido el 31 oct 2026, según la regla general de la sección 1:
 | Tablas de transferencia y fundidos | Los aplica a la pantalla el compositor, y el hardware de gamma donde lo haya | Se guardan y se devuelven, sin aplicarse (tomado en WS1) | Quitado el 2026-11-01, en WS4a |
 | Reloj de pantalla en reposo | Los flips de la pantalla marcan los frames; nada se despierta mientras nada cambia | Un temporizador a la frecuencia de refresco late también en reposo, sin dibujar nada (`SHORTCUT(WS5)` en `WSCompositor.m`, tomado en WS2) | WS5 (flips reales) |
 | Daño de AppKit | AppKit envía los rectángulos que redibujó | Toda la ventana en cada flush (tomado en WS2) | Quitado el 2 nov 2026, en WS5: las vistas anotan lo que dibujan y la ventana envía esos rectángulos |
+| Volcados de virtio-gpu | El daño del servidor de ventanas va con cada fotograma; solo esos rectángulos se transfieren y vuelcan | Toda la pantalla transferida y volcada a 60 Hz (tomado en WS5) | Quitado el 2 nov 2026, en WS5: el servidor de ventanas envía los rectángulos de cada fotograma; el temporizador solo trabaja para la consola |
 | App del frente | El servidor de ventanas guarda la app del frente, que puede no tener ventanas (sus menús están en la barra de menús), y se lo dice a la sesión de LaunchServices | La dueña de la ventana key: una app sin ventana que mostrar no se podía activar (tomado en WS4a, `3be3e23e16`) | Quitado el 2026-11-01, en WS4a |
 | Cursores estándar | El juego de cursores de Gienah (I-beam, manos, cruz, redimensionar, no permitido...), que fija el AppKit de cada app | Formas negras sencillas con borde blanco dibujadas en `NSCursorImage.m`, la flecha para las que no tienen forma (`SHORTCUT(Phase 5)`, tomado en WS4a) | Fase 5 (Gienah) |
 | Contexto de dibujo de una pantalla capturada | La app dibuja en la superficie que se muestra (IOSurface) | `CGDisplayGetDrawingContext` dibuja en memoria de la app, que se copia a la ventana de escudo a la frecuencia de refresco cuando cambia, con un fotograma de retraso (`SHORTCUT(WS5)` en `CGDirectDisplay.m`, tomado en WS4a) | WS5 (IOSurface) |

@@ -545,6 +545,13 @@ State on 2026-11-01:
   changes from `CGDisplaySetDisplayMode`.
 - `CGDisplayStream`.
 
+Progress: IOSurface.framework and its registry `iosurfaced` (2026-11-02,
+`b28eb5f413`); AppKit sends only what its views drew (`0c04a371f0`);
+`MinkarVirtioGPU` drives virtio-vga in its preferred size, and the window
+server tells it what each frame changed, so only that is transferred and
+flushed; `wsctl mode` changes the resolution through it (2026-11-02,
+`3e73fce129`, `1f58b3fb44`, `ce474d4d4d`).
+
 ### WS6 — GPU compositing
 
 - `WSVulkanBackend` (GPU track G4), selected per display.
@@ -620,6 +627,7 @@ Decided 2026-10-31, following the guiding rule in section 1:
 | Transfer tables and fades | Applied to the screen by the compositor, and by gamma hardware where there is some | Kept and returned, not applied (taken in WS1) | Removed 2026-11-01, in WS4a |
 | Display link while idle | Frames paced by the display's flips; nothing wakes while nothing changes | A timer at the refresh rate ticks even when idle, drawing nothing (`SHORTCUT(WS5)` in `WSCompositor.m`, taken in WS2) | WS5 (real flips) |
 | AppKit's damage | AppKit sends the rects it redrew | The whole window at each flush (taken in WS2) | Removed 2026-11-02, in WS5: views note what they draw, the window sends those rects |
+| virtio-gpu flushes | The window server's damage goes with each frame; only those rects are transferred and flushed | The whole screen transferred and flushed at 60 Hz (taken in WS5) | Removed 2026-11-02, in WS5: the window server sends each frame's rects; the timer runs only for the console |
 | Front app | The window server keeps the front app, which may have no window (its menus are in the menu bar), and tells LaunchServices' session | The key window's owner: an app with no window to show could not be activated (taken in WS4a, `3be3e23e16`) | Removed 2026-11-01, in WS4a |
 | Standard cursors | Gienah's cursor set (I-beam, hands, crosshair, resize, not allowed...), each app's AppKit setting them | Plain black shapes with a white outline drawn in `NSCursorImage.m`, the arrow for the ones without a shape (`SHORTCUT(Phase 5)`, taken in WS4a) | Phase 5 (Gienah) |
 | A captured display's drawing context | The app draws into the surface that is scanned out (IOSurface) | `CGDisplayGetDrawingContext` draws into the app's memory, copied to the shielding window at the refresh rate when it changed, a frame behind (`SHORTCUT(WS5)` in `CGDirectDisplay.m`, taken in WS4a) | WS5 (IOSurface) |

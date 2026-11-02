@@ -2,7 +2,7 @@
 <title>Minkar milestones by plan, 2026-11-02</title>
 <rect width="1200" height="798" fill="#0d1117"/>
 <text x="20" y="30" font-size="20" font-weight="700" fill="#e6edf3" text-anchor="start">Minkar milestones by plan</text>
-<text x="20" y="54" font-size="14" font-weight="400" fill="#9198a1" text-anchor="start">2026-11-02 · devel 9d510ec6c2</text>
+<text x="20" y="54" font-size="14" font-weight="400" fill="#9198a1" text-anchor="start">2026-11-02 · devel ce474d4d4d</text>
 <line x1="160" y1="95" x2="160" y2="110" stroke="#e6edf3" stroke-opacity=".35" stroke-width="1.5" stroke-dasharray="2 4"/>
 <rect x="139" y="72" width="42" height="24" rx="12" fill="#e6edf3" stroke="#e6edf3" stroke-width="1.5"/>
 <text x="160" y="89" font-size="13.5" font-weight="700" fill="#0d1117" text-anchor="middle">M0</text>

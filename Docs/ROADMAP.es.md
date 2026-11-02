@@ -99,7 +99,7 @@ Minkar arranca sobre Darwin con su propio cargador EFI, todo el sistema se compi
 | CoreFoundation | CF-Lite (APSL) | APIs que faltan hasta la API 21 | 3 |
 | Foundation | Tres lotes de correcciones (26 oct); `NSProcessInfo` con `operatingSystemVersion`; reexporta CoreFoundation; `NSURLSession` sobre libcurl, con cookies; `NSOperationQueue` sobre dispatch; el run loop principal ejecuta la cola principal de dispatch; `NSDateFormatter` sobre ICU (31 oct); `NSXPCConnection` sobre libxpc, con los servicios XPC dentro de las apps (31 oct) | Caché de URL y métricas de tareas en `NSURLSession`; auditoría de la API 19 | 3 |
 | Swift 6 | Nada en el árbol | Compilador, stdlib, overlays | 3 |
-| WindowServer | El núcleo nuevo es el servidor de ventanas (WS4b hecho el 2 nov 2026, gate `M4`): su interfaz en `SkyLight.framework`, su servidor arranca con el sistema como `_windowserver` junto al `loginwindow` mínimo; compone ventanas de AppKit con pixman, reparte la entrada de IOHIDSystem con event taps, y cada app dibuja sus propios menús (MB0). El servidor anterior ya no existe | IOSurface y virtio-gpu (WS5), después la GPU (WS6) | 4 |
+| WindowServer | El núcleo nuevo es el servidor de ventanas (WS4b hecho el 2 nov 2026, gate `M4`): su interfaz en `SkyLight.framework`, su servidor arranca con el sistema como `_windowserver` junto al `loginwindow` mínimo; compone ventanas de AppKit con pixman, reparte la entrada de IOHIDSystem con event taps, y cada app dibuja sus propios menús (MB0). El servidor anterior ya no existe. WS5 en marcha: IOSurface con su registro `iosurfaced`, y un driver virtio-gpu 2D que vuelca por fotograma, con cambios de modo (2 nov 2026) | El resto de WS5 (display streams, el contexto de dibujo de las pantallas capturadas, el display link en reposo), después la GPU (WS6) | 4 |
 | Aceleración por GPU | No existe; sin ella tampoco se puede apagar la pantalla | Frente completo (requisito de rendimiento) | 4 y Minkar 21.0 |
 | SystemUIServer, Dock | Parciales, no se compilan | Casi todo | 5 |
 | Kraz, System Preferences | No existen | Apps nuevas en Cocoa | 5 |
@@ -293,7 +293,7 @@ El propio WindowServer se reescribe en los hitos WS0 a WS6, según lo decidido e
   - [x] Headers `IOKit/hidsystem` en el SDK.
   - [x] xHCI + HID (`MinkarUSB`), probado en QEMU y en el PC 1.
 - [ ] Retirar `libinput`, `libevdev` y `mtdev` del árbol.
-- [ ] virtio-gpu 2D como subclase de `IOFramebuffer`.
+- [x] virtio-gpu 2D como subclase de `IOFramebuffer` (`MinkarVirtioGPU`, 2 nov 2026, `3e73fce129`, `1f58b3fb44`).
 - [ ] `pbcopy` y `pbpaste` sobre el servidor de pasteboard, y `screencapture` sobre la captura de WindowServer (movidos desde la Fase 2).
 - [ ] Multi-monitor y cambio de resolución, después de M4.
 - [ ] ADR de GPU: familia, licencias (solo partes MIT/BSD de drm-kmod), capa tipo LinuxKPI para XNU y prototipo KMS en el equipo de referencia.
@@ -309,7 +309,7 @@ Componentes, por estado:
 
 - **Existen:** Core Graphics con FreeType; pixman, libpng, libjpeg y libtiff (`BSD/lib`); la consola GOP (`IOGOPFramebuffer`); la entrada USB (xHCI + HID, `MinkarUSB`); los headers `IOKit/hidsystem`; la entrega de eventos de IOHIDSystem; `ApplePS2Mouse` y el teclado PS/2.
 - **Parciales:** WindowServer (WS0 a WS4b hechos: el núcleo nuevo es el servidor de ventanas, en QEMU; WS5 y WS6 por hacer); QuartzCore y Onyx2D; AppKit (Cocotron; con los arreglos que necesitó una primera ventana, 31 oct 2026).
-- **Faltan:** virtio-gpu 2D; IOSurface; el compositor de Core Animation; Core Text sobre HarfBuzz/FreeType; giflib y libwebp; ColorSync sobre Little CMS; y el frente de GPU (driver del kernel, Mesa, Metal).
+- **Faltan:** el compositor de Core Animation; Core Text sobre HarfBuzz/FreeType; giflib y libwebp; ColorSync sobre Little CMS; y el frente de GPU (driver del kernel, Mesa, Metal).
 
 El detalle técnico de cada pieza está en la guía técnica de la pila gráfica.
 
@@ -317,15 +317,15 @@ Secuencia de desarrollo:
 
 1. Entrega de eventos de IOHIDSystem y ratón PS/2.
 2. WindowServer sobre el framebuffer GOP.
-3. virtio-gpu 2D (puerto desde FreeBSD, BSD-2).
-4. IOSurface (memoria compartida Mach).
+3. virtio-gpu 2D (driver propio, BSD-2; hecho el 2 nov 2026).
+4. IOSurface (memoria compartida Mach; hecho el 2 nov 2026).
 5. Compositor de Core Animation, diseñado para GPU (backend Vulkan; pixman solo para el arranque y las VMs).
 6. HarfBuzz/FreeType para Core Text, giflib/libwebp, Little CMS para ColorSync.
 7. AppKit moderno con vistas respaldadas por capas.
 
 En paralelo, el frente de GPU G1–G5: desde la familia del primer driver y el prototipo KMS hasta Mesa (lavapipe/llvmpipe en VMs) y Metal (darling-metal e Indium, MPL-2.0).
 
-El paso 1 se completó el 31 oct 2026 (`e2df542919`, `2aa9a1da6e`), y también los primeros hitos del paso 2, WS0 (gate `M4-draw`, `cce7da92bc`) WS1 (la interfaz del núcleo nuevo, `030dba37c7`) WS2 (su compositor, gate `M4-compose`, `8512fe60ba`) y WS3 (entrada y event taps, `98237bf14e`); la comprobación de entitlements del ADR 0001 está hecha (`8366b8d0f6`), también WS4a (el comportamiento del servidor, 1 nov 2026, `e31dd0ef53`), y también WS4b (el cambio, gate `M4`, 2 nov 2026, `9d510ec6c2`); sigue WS5. G1 empieza en cuanto se decida la familia de GPU, y las flechas discontinuas marcan lo que el frente de GPU reutiliza de los pasos 4 y 5.
+El paso 1 se completó el 31 oct 2026 (`e2df542919`, `2aa9a1da6e`), y también los primeros hitos del paso 2, WS0 (gate `M4-draw`, `cce7da92bc`) WS1 (la interfaz del núcleo nuevo, `030dba37c7`) WS2 (su compositor, gate `M4-compose`, `8512fe60ba`) y WS3 (entrada y event taps, `98237bf14e`); la comprobación de entitlements del ADR 0001 está hecha (`8366b8d0f6`), también WS4a (el comportamiento del servidor, 1 nov 2026, `e31dd0ef53`), y también WS4b (el cambio, gate `M4`, 2 nov 2026, `9d510ec6c2`); WS5 está en marcha: los pasos 3 y 4 están hechos (virtio-gpu 2D, `3e73fce129` y `1f58b3fb44`; IOSurface, `b28eb5f413`). G1 empieza en cuanto se decida la familia de GPU, y las flechas discontinuas marcan lo que el frente de GPU reutiliza de los pasos 4 y 5.
 
 ## Fase 5 — Escritorio Gienah
 

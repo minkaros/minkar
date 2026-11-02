@@ -99,7 +99,7 @@ Minkar boots on Darwin with its own EFI loader, the whole system builds as Mach-
 | CoreFoundation | CF-Lite (APSL) | The APIs missing up to API 21 | 3 |
 | Foundation | Three batches of fixes (2026-10-26); `NSProcessInfo` with `operatingSystemVersion`; re-exports CoreFoundation; `NSURLSession` on libcurl, with cookies; `NSOperationQueue` on dispatch; the main run loop runs dispatch's main queue; `NSDateFormatter` on ICU (2026-10-31); `NSXPCConnection` over libxpc, with the XPC services inside app bundles (2026-10-31) | URL cache and task metrics in `NSURLSession`; the API 19 audit | 3 |
 | Swift 6 | Nothing in the tree | Compiler, stdlib, overlays | 3 |
-| WindowServer | The new core is the window server (WS4b done 2026-11-02, gate `M4`): its interface in `SkyLight.framework`, its server started at boot as `_windowserver` with the minimal `loginwindow`; it composites AppKit windows with pixman, routes input from IOHIDSystem with event taps, and each app draws its own menus (MB0). The legacy server is gone | IOSurface and virtio-gpu (WS5), then the GPU (WS6) | 4 |
+| WindowServer | The new core is the window server (WS4b done 2026-11-02, gate `M4`): its interface in `SkyLight.framework`, its server started at boot as `_windowserver` with the minimal `loginwindow`; it composites AppKit windows with pixman, routes input from IOHIDSystem with event taps, and each app draws its own menus (MB0). The legacy server is gone. WS5 under way: IOSurface with its registry `iosurfaced`, and a virtio-gpu 2D driver flushed per frame, with mode changes (2026-11-02) | The rest of WS5 (display streams, captured displays' drawing context, the idle display link), then the GPU (WS6) | 4 |
 | GPU acceleration | None; without it the display cannot be turned off either | The whole track (performance requirement) | 4 and Minkar 21.0 |
 | SystemUIServer, Dock | Partial, not built | Almost everything | 5 |
 | Kraz, System Preferences | Do not exist | New Cocoa apps | 5 |
@@ -293,7 +293,7 @@ The WindowServer itself is rewritten in milestones WS0 to WS6, as decided on 202
   - [x] `IOKit/hidsystem` headers in the SDK.
   - [x] xHCI + HID (`MinkarUSB`), tested in QEMU and on PC 1.
 - [ ] Remove `libinput`, `libevdev` and `mtdev` from the tree.
-- [ ] virtio-gpu 2D as an `IOFramebuffer` subclass.
+- [x] virtio-gpu 2D as an `IOFramebuffer` subclass (`MinkarVirtioGPU`, 2026-11-02, `3e73fce129`, `1f58b3fb44`).
 - [ ] `pbcopy` and `pbpaste` on the pasteboard server, and `screencapture` on WindowServer's capture (moved from Phase 2).
 - [ ] Multiple displays and resolution changes, after M4.
 - [ ] GPU ADR: the family, licenses (only drm-kmod's MIT/BSD parts), a LinuxKPI-style layer for XNU and a KMS prototype on the reference machine.
@@ -309,7 +309,7 @@ Components, by state:
 
 - **There:** Core Graphics with FreeType; pixman, libpng, libjpeg and libtiff (`BSD/lib`); the GOP console (`IOGOPFramebuffer`); USB input (xHCI + HID, `MinkarUSB`); the `IOKit/hidsystem` headers; IOHIDSystem event delivery; `ApplePS2Mouse` and the PS/2 keyboard.
 - **Partial:** WindowServer (WS0 to WS4b done: the new core is the window server, in QEMU; WS5 and WS6 to do); QuartzCore and Onyx2D; AppKit (Cocotron; the fixes a first window needed, 2026-10-31).
-- **Missing:** virtio-gpu 2D; IOSurface; the Core Animation compositor; Core Text on HarfBuzz/FreeType; giflib and libwebp; ColorSync on Little CMS; and the GPU track (kernel driver, Mesa, Metal).
+- **Missing:** the Core Animation compositor; Core Text on HarfBuzz/FreeType; giflib and libwebp; ColorSync on Little CMS; and the GPU track (kernel driver, Mesa, Metal).
 
 Each piece's technical detail is in the graphics stack's technical guide.
 
@@ -317,15 +317,15 @@ Development sequence:
 
 1. IOHIDSystem event delivery and the PS/2 mouse.
 2. WindowServer on the GOP framebuffer.
-3. virtio-gpu 2D (ported from FreeBSD, BSD-2).
-4. IOSurface (Mach shared memory).
+3. virtio-gpu 2D (our own driver, BSD-2; done 2026-11-02).
+4. IOSurface (Mach shared memory; done 2026-11-02).
 5. A Core Animation compositor designed for the GPU (Vulkan backend; pixman only for bring-up and VMs).
 6. HarfBuzz/FreeType for Core Text, giflib/libwebp, Little CMS for ColorSync.
 7. A modern AppKit with layer-backed views.
 
 In parallel, the GPU track G1–G5: from the first driver's family and the KMS prototype to Mesa (lavapipe/llvmpipe in VMs) and Metal (darling-metal and Indium, MPL-2.0).
 
-Step 1 was done on 2026-10-31 (`e2df542919`, `2aa9a1da6e`), and step 2's first milestones, WS0 (gate `M4-draw`, `cce7da92bc`) WS1 (the new core's interface, `030dba37c7`) WS2 (its compositor, gate `M4-compose`, `8512fe60ba`) and WS3 (input and event taps, `98237bf14e`); ADR 0001's entitlement check is done (`8366b8d0f6`), WS4a too (the server's behavior, 2026-11-01, `e31dd0ef53`), and WS4b too (the switch, gate `M4`, 2026-11-02, `9d510ec6c2`); WS5 is next. G1 starts as soon as the GPU family is decided, and the GPU track reuses steps 4 and 5.
+Step 1 was done on 2026-10-31 (`e2df542919`, `2aa9a1da6e`), and step 2's first milestones, WS0 (gate `M4-draw`, `cce7da92bc`) WS1 (the new core's interface, `030dba37c7`) WS2 (its compositor, gate `M4-compose`, `8512fe60ba`) and WS3 (input and event taps, `98237bf14e`); ADR 0001's entitlement check is done (`8366b8d0f6`), WS4a too (the server's behavior, 2026-11-01, `e31dd0ef53`), and WS4b too (the switch, gate `M4`, 2026-11-02, `9d510ec6c2`); WS5 is under way: steps 3 and 4 are done (virtio-gpu 2D, `3e73fce129` and `1f58b3fb44`; IOSurface, `b28eb5f413`). G1 starts as soon as the GPU family is decided, and the GPU track reuses steps 4 and 5.
 
 ## Phase 5 — Gienah desktop
 
