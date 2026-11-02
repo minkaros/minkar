@@ -68,6 +68,7 @@
 enum {
 	kSIDMAPacketWrite	= 0x2,
 	kSIDMAPacketCopy	= 0x3,
+	kSIDMAPacketIndirectBuffer = 0x4,
 	kSIDMAPacketFence	= 0x6,
 	kSIDMAPacketTrap	= 0x7,
 	kSIDMAPacketNop		= 0xf,
@@ -114,6 +115,18 @@ si_dma_fence(uint32_t *p, uint64_t addr, uint32_t seq)
 	p[2] = (uint32_t)(addr >> 32) & 0xff;
 	p[3] = seq;
 	return 4;
+}
+
+/* Runs dwords of commands at addr (32-byte aligned) with the given VM
+ * (0: the GPU's own addresses). In the ring, it must end on an 8-dword
+ * boundary: the caller pads before it with NOPs (si_dma_ring_emit_ib). */
+static inline unsigned
+si_dma_indirect(uint32_t *p, uint64_t addr, uint32_t dwords, uint32_t vmid)
+{
+	p[0] = ((uint32_t)kSIDMAPacketIndirectBuffer << 28) | ((vmid & 0xf) << 20);
+	p[1] = (uint32_t)addr & 0xffffffe0u;
+	p[2] = (dwords << 12) | ((uint32_t)(addr >> 32) & 0xff);
+	return 3;
 }
 
 static inline unsigned

@@ -242,6 +242,24 @@ MinkarAMDDMACopy(struct MinkarAMDDMA *d, uint64_t dst, uint64_t src, uint64_t by
 	return true;
 }
 
+bool
+MinkarAMDDMARunCommands(struct MinkarAMDDMA *d, uint64_t offset, uint32_t dwords)
+{
+	uint32_t p[3], nop;
+
+	if ((offset & 31) != 0 || offset + (uint64_t)dwords * 4 > d->size)
+		return false;
+	reserve(d, 8 + 3 + 5);
+	/* The packet ends on an 8-dword boundary. */
+	si_dma_nop(&nop);
+	while ((d->wptr & 7) != 5)
+		emit(d, &nop, 1);
+	emit(d, p, si_dma_indirect(p, d->gpuBase + offset, dwords, 0));
+	uint32_t seq = emitFence(d);
+	commit(d);
+	return waitFence(d, seq, NULL);
+}
+
 static void
 put(OSDictionary *results, const char *key, uint64_t value)
 {
@@ -261,7 +279,8 @@ pattern(uint64_t i)
 bool
 MinkarAMDDMASelfTest(struct MinkarAMDDMA *d, uint64_t bytes, OSDictionary *results)
 {
-	uint64_t src = kMinkarAMDDMABuffers, dst = src + bytes, ns = 0;
+	/* A command buffer, then the two surfaces. */
+	uint64_t ib = kMinkarAMDDMABuffers, src = ib + 4096, dst = src + bytes, ns = 0;
 
 	if (dst + bytes > d->size)
 		return false;
@@ -301,8 +320,34 @@ MinkarAMDDMASelfTest(struct MinkarAMDDMA *d, uint64_t bytes, OSDictionary *resul
 		if (ns > 0)
 			put(results, "CopyMBPerSecond", bytes * 1000ULL / ns);
 	}
-	LOG("fence %s; copy of %llu KB %s in %llu us, %llu mismatches", fence ? "ok" : "FAILED",
-	    (unsigned long long)bytes / 1024, copied ? "done" : "FAILED",
-	    (unsigned long long)ns / 1000, (unsigned long long)bad);
-	return fence && copied && bad == 0;
+	/* A command buffer: the engine writes a value, then copies the
+	 * surface's first 64 KB back over the second's, which was cleared. */
+	bool commands = false;
+	if (copied) {
+		const uint64_t part = 64 * 1024;
+		volatile uint32_t *buffer = dwordsAt(d, ib);
+		volatile uint32_t *mark = &writeBack(d)[3];
+		uint32_t c[16];
+		unsigned n = si_dma_write(c, d->gpuBase + kWriteBackOffset + 12, 1);
+		c[n++] = 0x600DF00D;
+		n += si_dma_copy(c + n, d->gpuBase + dst, d->gpuBase + src, (uint32_t)part);
+		while (n % 8 != 0)	/* IBs are padded to 8 dwords (si_dma_ring_pad_ib) */
+			n += si_dma_nop(c + n);
+		for (unsigned i = 0; i < n; i++)
+			buffer[i] = c[i];
+		*mark = 0;
+		for (uint64_t i = 0; i < part / 4; i++)
+			t[i] = 0;
+		commands = MinkarAMDDMARunCommands(d, ib, n);
+		if (commands) {
+			invalidateHDP(d);
+			commands = *mark == 0x600DF00D && t[0] == pattern(0) &&
+			    t[part / 4 - 1] == pattern(part / 4 - 1);
+		}
+	}
+	results->setObject("CommandBuffer", commands ? kOSBooleanTrue : kOSBooleanFalse);
+	LOG("fence %s; copy of %llu KB %s in %llu us, %llu mismatches; command buffer %s",
+	    fence ? "ok" : "FAILED", (unsigned long long)bytes / 1024, copied ? "done" : "FAILED",
+	    (unsigned long long)ns / 1000, (unsigned long long)bad, commands ? "ok" : "FAILED");
+	return fence && copied && bad == 0 && commands;
 }

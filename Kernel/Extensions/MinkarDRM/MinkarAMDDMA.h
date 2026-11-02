@@ -71,8 +71,13 @@ void MinkarAMDDMAStop(struct MinkarAMDDMA *dma);
 bool MinkarAMDDMACopy(struct MinkarAMDDMA *dma, uint64_t dst, uint64_t src, uint64_t bytes,
     uint64_t *ns);
 
+/* Runs a command buffer of dwords at offset in the region (32-byte
+ * aligned), then a fence, and waits for it. */
+bool MinkarAMDDMARunCommands(struct MinkarAMDDMA *dma, uint64_t offset, uint32_t dwords);
+
 /* The engine's checks, for the bring-up: a write, a fence, a copy of
- * bytes verified by the CPU and timed. Results in *results. */
+ * bytes verified by the CPU and timed, and a command buffer with a write
+ * and a copy. Results in *results. */
 bool MinkarAMDDMASelfTest(struct MinkarAMDDMA *dma, uint64_t bytes, OSDictionary *results);
 
 #endif
