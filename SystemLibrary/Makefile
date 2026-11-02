@@ -1,8 +1,8 @@
 
 BUILD_STAMP != cd ${.CURDIR} && git log -1|head -1|cut -c8-14|tr '[a-z]' '[A-Z]'
 
-#SUBDIR= Colors LaunchAgents Desktop_Pictures
-SUBDIR= LaunchDaemons Fonts
+#SUBDIR= LaunchAgents Desktop_Pictures
+SUBDIR= Colors LaunchDaemons Fonts
 SUBDIR_PARALLEL=
 
 all: SystemVersion.plist
