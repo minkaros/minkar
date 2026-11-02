@@ -39,9 +39,10 @@
 #define mmCONFIG_MEMSIZE	0x150A
 #define mmMC_VM_FB_LOCATION	0x0809
 
-/* The DMA engine's test region: past the firmware's framebuffer and ours
- * (MinkarAMDFramebuffer's, at 32 MB), inside the VRAM window. */
-#define kDMARegionOffset	(64ULL << 20)
+/* VRAM below this is the firmware's framebuffer and ours
+ * (MinkarAMDFramebuffer's, at 32 MB): never handed out. */
+#define kVRAMReservedLow	(64ULL << 20)
+/* The DMA engine's test region, from the allocator, in the VRAM window. */
 #define kDMARegionSize		(32ULL << 20)
 #define kDMATestBytes		(8ULL << 20)
 
@@ -90,6 +91,7 @@ MinkarAMDGPU::start(IOService *provider)
 		if (gcn1) {
 			uint32_t mb = readReg(mmCONFIG_MEMSIZE);
 			setProperty("MinkarVRAMMegabytes", mb, 32);
+			setUpVRAM(mb);
 			LOG("register window %llu KB, VRAM %u MB",
 			    (unsigned long long)fRegs.size / 1024, mb);
 		}
@@ -120,6 +122,22 @@ MinkarAMDGPU::start(IOService *provider)
 	return true;
 }
 
+/* VRAM's allocator: all of it, less what the firmware and the display
+ * use at its start. */
+void
+MinkarAMDGPU::setUpVRAM(uint32_t megabytes)
+{
+	fVRAMLock = IOLockAlloc();
+	minkar_vram_init(&fVRAM, (uint64_t)megabytes << 20, fVRAMRanges, kVRAMRanges);
+	if (fVRAMLock == NULL || megabytes == 0 ||
+	    minkar_vram_reserve(&fVRAM, 0, kVRAMReservedLow) != 0) {
+		LOG("VRAM allocator not set up (%u MB)", megabytes);
+		minkar_vram_init(&fVRAM, 0, fVRAMRanges, kVRAMRanges);
+		return;
+	}
+	setProperty("MinkarVRAMFreeMegabytes", (unsigned long long)(fVRAM.freeBytes >> 20), 32);
+}
+
 /*
  * G2's first check, asked for with "minkaramd_dmatest": 1 runs it on the
  * GPUs that light no display, 2 on every GPU. DMA0 copies 8 MB between
@@ -131,7 +149,8 @@ MinkarAMDGPU::dmaSelfTest()
 	UInt32 mode = 0;
 	PE_Video boot;
 
-	if (!PE_parse_boot_argn("minkaramd_dmatest", &mode, sizeof(mode)) || mode == 0)
+	if (!PE_parse_boot_argn("minkaramd_dmatest", &mode, sizeof(mode)) || mode == 0 ||
+	    fVRAMLock == NULL)
 		return;
 	IODeviceMemory *vram = MinkarAMDBARRange(fPCI, kIOPCIConfigBaseAddress0);
 	if (vram == NULL) {
@@ -149,13 +168,19 @@ MinkarAMDGPU::dmaSelfTest()
 		return;
 	}
 	OSDictionary *results = OSDictionary::withCapacity(8);
-	IODeviceMemory *region = kDMARegionOffset + kDMARegionSize <= vram->getLength() ?
-	    IODeviceMemory::withSubRange(vram, kDMARegionOffset, kDMARegionSize) : NULL;
+	/* The region from the allocator: inside the window, for the CPU's
+	 * checks, 1 MB aligned. */
+	uint64_t offset = 0;
+	IOLockLock(fVRAMLock);
+	bool have = minkar_vram_alloc(&fVRAM, kDMARegionSize, 1ULL << 20, &offset) == 0;
+	IOLockUnlock(fVRAMLock);
+	IODeviceMemory *region = have && offset + kDMARegionSize <= vram->getLength() ?
+	    IODeviceMemory::withSubRange(vram, offset, kDMARegionSize) : NULL;
 	IOMemoryMap *map = region != NULL ? region->map(kIOMapWriteCombineCache) : NULL;
 	uint64_t vramStart = (uint64_t)(readReg(mmMC_VM_FB_LOCATION) & 0xFFFF) << 24;
 	struct MinkarAMDDMA dma;
 	if (results != NULL && map != NULL) {
-		bool started = MinkarAMDDMAStart(&dma, &fRegs, 0, vramStart + kDMARegionOffset,
+		bool started = MinkarAMDDMAStart(&dma, &fRegs, 0, vramStart + offset,
 		    (volatile uint8_t *)map->getVirtualAddress(), kDMARegionSize);
 		results->setObject("Started", started ? kOSBooleanTrue : kOSBooleanFalse);
 		if (started) {
@@ -169,6 +194,11 @@ MinkarAMDGPU::dmaSelfTest()
 	OSSafeReleaseNULL(results);
 	OSSafeReleaseNULL(map);
 	OSSafeReleaseNULL(region);
+	if (have) {
+		IOLockLock(fVRAMLock);
+		minkar_vram_free(&fVRAM, offset, kDMARegionSize);
+		IOLockUnlock(fVRAMLock);
+	}
 	vram->release();
 }
 
@@ -184,6 +214,8 @@ MinkarAMDGPU::free()
 	minkar_atom_close(fAtom);
 	MinkarAMDFreeVBIOS(fBIOS);
 	MinkarAMDUnmapRegisters(&fRegs);
+	if (fVRAMLock != NULL)
+		IOLockFree(fVRAMLock);
 	OSSafeReleaseNULL(fPCI);
 	super::free();
 }

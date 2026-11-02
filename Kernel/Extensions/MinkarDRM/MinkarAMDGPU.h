@@ -42,6 +42,7 @@
 #include <IOKit/IOMemoryDescriptor.h>
 #include <IOKit/pci/IOPCIDevice.h>
 #include "MinkarAMDDevice.h"
+#include "minkar_vram.h"
 
 struct minkar_atom;
 
@@ -60,12 +61,18 @@ public:
 
 private:
 	void dmaSelfTest();
+	void setUpVRAM(uint32_t megabytes);
+
+	enum { kVRAMRanges = 1024 };
 
 	IOPCIDevice *		fPCI;
 	struct MinkarAMDRegs	fRegs;
 	uint8_t *		fBIOS;
 	IOByteCount		fBIOSSize;
 	struct minkar_atom *	fAtom;
+	IOLock *		fVRAMLock;
+	struct minkar_vram	fVRAM;		/* what is free of VRAM */
+	struct minkar_vram_range fVRAMRanges[kVRAMRanges];
 };
 
 #endif
