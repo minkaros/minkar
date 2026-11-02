@@ -538,6 +538,16 @@ Estado al 1 nov 2026:
   las claves de referencia) y `CGWindowListCreateImage` pasan por el
   servidor nuevo. Pruebas locales `minimize` y `cgwindow` (5/0); gate
   M4-compose.
+- [x] Lista de ventanas, imágenes y captura (`8466272a0b`, `eb4cf23988`,
+  `e566689e10`, `d0284701f9`, `84e3995f38`, `08cad8d686`): ventanas hijas
+  y hojas que se guardan y se mueven con su padre; cursores que fija cada
+  app (se muestra el de la app del frente) con los rectángulos de cursor de
+  AppKit; sombras de ventana por software; captura de pantallas,
+  `CGDisplayGetDrawingContext` (`SHORTCUT(WS5)`) y `CGDisplayCreateImage`.
+  La ventana key y las áreas de seguimiento de AppKit funcionan con el
+  servidor nuevo (`5039d3f2e4`). Pruebas locales `child-windows`,
+  `cursors`, `cgwindow` (11/0); gate M4-compose con referencias nuevas
+  (`c10556003b`).
 
 ### WS4b — El cambio de servidor
 

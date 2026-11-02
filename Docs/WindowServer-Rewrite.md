@@ -494,6 +494,15 @@ State on 2026-11-01:
   CoreGraphics' window lists (`CGWindowListCopyWindowInfo` with the
   reference keys) and `CGWindowListCreateImage` go through the new server.
   Local tests `minimize` and `cgwindow` (5/0); gate M4-compose.
+- [x] Window list, images and capture (`8466272a0b`, `eb4cf23988`,
+  `e566689e10`, `d0284701f9`, `84e3995f38`, `08cad8d686`): child windows
+  and sheets kept and moved with their parent; cursors set by each app
+  (the front app's shown) with AppKit's cursor rects; software window
+  shadows; display capture, `CGDisplayGetDrawingContext` (`SHORTCUT(WS5)`)
+  and `CGDisplayCreateImage`. AppKit's key window and tracking areas work
+  with the new server (`5039d3f2e4`). Local tests `child-windows`,
+  `cursors`, `cgwindow` (11/0); gate M4-compose with new references
+  (`c10556003b`).
 
 ### WS4b — The switch
 

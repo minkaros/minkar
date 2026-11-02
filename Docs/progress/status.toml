@@ -33,7 +33,7 @@
 # "bmake progress" (Docs/CONTRIBUTING.md).
 
 updated = "2026-11-01"
-commit  = "8466272a0b"
+commit  = "08cad8d686"
 
 deps = [["ws", 555, "dock"], ["fw", 535, "kraz"]]
 
@@ -215,41 +215,40 @@ stations = [["x86-64 apps", 1082, "todo"], ["arm64", 1150, "todo"]]
 here = "WS4a"
 
 [[board.done]]
+title = "Display capture"
+note = "CGDisplayGetDrawingContext · WS4a · 1 nov"
+line = "ws"
+
+[[board.done]]
+title = "Window shadows"
+note = "WS4a · 1 nov"
+line = "ws"
+
+[[board.done]]
+title = "Cursors and cursor rects"
+note = "WS4a · 1 nov"
+line = "ws"
+
+[[board.done]]
+title = "Child windows and sheets"
+note = "WS4a · 1 nov"
+line = "ws"
+
+[[board.done]]
+title = "Boot panic fixed"
+note = "ACPI interrupts · 1 nov"
+line = "base"
+
+[[board.done]]
 title = "Window lists and images"
 note = "CGWindowListCreateImage · WS4a · 1 nov"
 line = "ws"
 
-[[board.done]]
-title = "Minimized windows"
-note = "for the Dock · WS4a · 1 nov"
-line = "ws"
-
-[[board.done]]
-title = "Status area layout"
-note = "WS4a · 1 nov"
-line = "ws"
-
-[[board.done]]
-title = "Pointer capture"
-note = "WS4a · 1 nov"
-line = "ws"
-
-[[board.done]]
-title = "Menu bar place"
-note = "WS4a · 1 nov"
-line = "ws"
-
-[[board.done]]
-title = "Front app and activation order"
-note = "WS4a · 1 nov"
-line = "ws"
-
-
 [[board.now]]
 title = "WS4a — Server behavior"
-note = "Left: child windows, sheets, shadows, cursors, display capture; earlier shortcuts"
+note = "Left: earlier shortcuts (input queue, CGEventSource state, transfer tables and fades)"
 line = "ws"
-done = 7
+done = 8
 total = 9
 
 [[board.now]]
