@@ -514,10 +514,10 @@ NSArray *_NSWindowNumbersFromWindowInfo(CFArrayRef info,BOOL allApps) {
                 bitmapInfo:kO2BitmapByteOrderDefault|kCGImageAlphaPremultipliedFirst];
         _context = [[O2Context_builtin_FT alloc] initWithSurface:surface flipped:NO];
 
-        NSGraphicsContext *gc = [NSGraphicsContext currentContext];
-        if(gc != nil)
-            [gc release];
-        gc = [NSGraphicsContext graphicsContextWithGraphicsPort:_context flipped:NO];
+        /* The current context may be another window's (one drawing while
+         * this one is made, as a menu bar opening a menu): it is not ours
+         * to release. */
+        NSGraphicsContext *gc = [NSGraphicsContext graphicsContextWithGraphicsPort:_context flipped:NO];
         [NSGraphicsContext setCurrentContext:gc];
         NSValue *key = [NSValue valueWithPointer:[NSThread currentThread]];
         [_threadToContext setObject:gc forKey:key];
