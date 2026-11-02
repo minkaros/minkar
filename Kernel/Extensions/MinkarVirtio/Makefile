@@ -3,8 +3,8 @@
 # Part of Minkar.
 #
 # MinkarVirtio: virtio 1.x devices over PCI (QEMU virtio-blk-pci and
-# virtio-net-pci): the block device on IOStorageFamily, the network device
-# on IONetworkingFamily.
+# virtio-net-pci, virtio-vga): the block device on IOStorageFamily, the
+# network device on IONetworkingFamily, the 2D display on IOGraphics.
 MK_WERROR = no
 SUBDIR =
 KEXT = MinkarVirtio
@@ -13,12 +13,13 @@ INFO_PLIST = Info.plist
 BUNDLE_IDENTIFIER = org.minkar.driver.MinkarVirtio
 BUNDLE_VERSION = 1.0.0
 
-SRCS = MinkarVirtioPCI.cpp MinkarVirtioBlock.cpp MinkarVirtioNet.cpp
+SRCS = MinkarVirtioPCI.cpp MinkarVirtioBlock.cpp MinkarVirtioNet.cpp MinkarVirtioGPU.cpp
 
 CFLAGS = -Wno-implicit-int-conversion -Wno-sign-conversion \
 	-I${.CURDIR:H}/IOStorageFamily \
 	-I${.CURDIR:H}/IONetworkingFamily \
 	-I${.CURDIR:H}/IOPCIFamily \
+	-I${.CURDIR:H}/IOGraphics/IOGraphicsFamily \
 	-I${ROOT_SOURCE_DIR}/Kernel/xnu/iokit \
 	-I${ROOT_SOURCE_DIR}/Kernel/xnu/osfmk \
 	-I${ROOT_SOURCE_DIR}/Kernel/xnu/bsd \

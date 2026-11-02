@@ -341,6 +341,11 @@ def qemu_command(args, vars_copy):
         # port is forwarded to the host's --ssh-port.
         '-netdev', 'user,id=net0,hostfwd=tcp:127.0.0.1:%d-:22' % args.ssh_port,
         '-device', '%s,netdev=net0' % args.nic,
+    ] + ([] if args.vga == 'std' else [
+        # virtio-vga: the firmware keeps a framebuffer for the boot console
+        # and MinkarVirtioGPU takes over the device.
+        '-vga', 'none', '-device', 'virtio-vga',
+    ]) + [
         '-serial', 'stdio', '-monitor', 'none', '-display', 'none',
         '-no-reboot',
     ] + ([] if args.qmp is None else [
@@ -725,6 +730,10 @@ def main(argv=None):
     p.add_argument('--memory', type=int, default=4096, help='MiB')
     p.add_argument('--ssh-key', default=os.environ.get('BOOTTEST_SSH_KEY'),
                    help='private key ssh steps log in with (default: $BOOTTEST_SSH_KEY)')
+    p.add_argument('--vga', choices=['std', 'virtio'],
+                   default=os.environ.get('BOOTTEST_VGA', 'std'),
+                   help='display device: the standard VGA (the firmware framebuffer '
+                        'only) or virtio-vga (default: $BOOTTEST_VGA or std)')
     p.add_argument('--nic', default='e1000e',
                    help='QEMU network device: e1000e (82574L, MSI) or e1000 (82540EM, INTx)')
     p.add_argument('--ssh-port', type=int,

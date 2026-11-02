@@ -37,6 +37,19 @@
 			<key>IOProviderClass</key>
 			<string>IOPCIDevice</string>
 		</dict>
+		<key>VIRTIO GPU</key>
+		<dict>
+			<key>CFBundleIdentifier</key>
+			<string>@BUNDLE_IDENTIFIER@</string>
+			<key>IOClass</key>
+			<string>MinkarVirtioGPU</string>
+			<key>IOPCIMatch</key>
+			<string>0x10501af4</string>
+			<key>IOProbeScore</key>
+			<integer>3000</integer>
+			<key>IOProviderClass</key>
+			<string>IOPCIDevice</string>
+		</dict>
 		<key>VIRTIO network device</key>
 		<dict>
 			<key>CFBundleIdentifier</key>
@@ -56,6 +69,8 @@
 		<key>com.apple.iokit.IOStorageFamily</key>
 		<string>2.1</string>
 		<key>com.apple.iokit.IONetworkingFamily</key>
+		<string>1.0.0</string>
+		<key>org.minkar.iokit.IOGOPFramebuffer</key>
 		<string>1.0.0</string>
 		<key>com.apple.iokit.IOPCIFamily</key>
 		<string>2.9</string>
