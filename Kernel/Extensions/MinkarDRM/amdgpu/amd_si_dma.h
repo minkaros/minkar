@@ -129,6 +129,14 @@ si_dma_indirect(uint32_t *p, uint64_t addr, uint32_t dwords, uint32_t vmid)
 	return 3;
 }
 
+/* Raises the engine's trap interrupt (DMA_CNTL's trap enable on). */
+static inline unsigned
+si_dma_trap(uint32_t *p)
+{
+	p[0] = si_dma_header(kSIDMAPacketTrap, 0, 0);
+	return 1;
+}
+
 static inline unsigned
 si_dma_nop(uint32_t *p)
 {

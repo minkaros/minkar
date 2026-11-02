@@ -130,7 +130,10 @@ waitFence(struct MinkarAMDDMA *d, uint32_t seq, uint64_t *doneAt)
 				*doneAt = now();
 			return true;
 		}
-		IODelay(2);
+		if (d->sleep != NULL)
+			d->sleep(d->sleepInfo);
+		else
+			IODelay(2);
 		t = now();
 	} while (t - start < kTimeoutNS);
 	LOG("fence %u not reached: status 0x%08x, rptr 0x%x, wptr 0x%x, fence %u", seq,
@@ -142,11 +145,23 @@ waitFence(struct MinkarAMDDMA *d, uint32_t seq, uint64_t *doneAt)
 static uint32_t
 emitFence(struct MinkarAMDDMA *d)
 {
-	uint32_t p[4];
+	uint32_t p[5];
+	unsigned n;
 
 	d->seq++;
-	emit(d, p, si_dma_fence(p, d->gpuBase + kWriteBackOffset + 4, d->seq));
+	n = si_dma_fence(p, d->gpuBase + kWriteBackOffset + 4, d->seq);
+	if (d->sleep != NULL)
+		n += si_dma_trap(p + n);	/* si_dma_ring_emit_fence */
+	emit(d, p, n);
 	return d->seq;
+}
+
+void
+MinkarAMDDMAUseInterrupts(struct MinkarAMDDMA *d, void (*sleep)(void *info), void *info)
+{
+	d->sleepInfo = info;
+	d->sleep = sleep;
+	wr(d, mmSI_DMA_CNTL, rd(d, mmSI_DMA_CNTL) | 1u /* TRAP_ENABLE */);
 }
 
 /* si_dma_start's sequence, for one engine, its ring and write-back in
@@ -258,7 +273,7 @@ MinkarAMDDMARunCommands(struct MinkarAMDDMA *d, uint64_t offset, uint32_t dwords
 
 	if ((offset & 31) != 0 || offset + (uint64_t)dwords * 4 > d->size)
 		return false;
-	reserve(d, 8 + 3 + 5);
+	reserve(d, 8 + 3 + 5 + 1);
 	/* The packet ends on an 8-dword boundary. */
 	si_dma_nop(&nop);
 	while ((d->wptr & 7) != 5)

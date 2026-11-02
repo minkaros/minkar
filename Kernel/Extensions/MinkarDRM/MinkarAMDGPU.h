@@ -39,6 +39,8 @@
 #define _MINKARAMDGPU_H
 
 #include <IOKit/IOService.h>
+#include <IOKit/IOWorkLoop.h>
+#include <IOKit/IOFilterInterruptEventSource.h>
 #include <IOKit/IOMemoryDescriptor.h>
 #include <IOKit/pci/IOPCIDevice.h>
 #include "MinkarAMDDevice.h"
@@ -86,6 +88,11 @@ private:
 	void setUpVRAM(uint32_t megabytes);
 	bool startDMA();
 	void startGART(bool display);
+	void startInterrupts(bool display);
+	void stopInterrupts();
+	bool interruptFilter(IOFilterInterruptEventSource *source);
+	void interruptHandler(IOInterruptEventSource *source, int count);
+	static void sleepForTrap(void *gpu);
 	bool lightsDisplay();
 
 	enum { kVRAMRanges = 1024, kGARTRanges = 1024 };
@@ -107,6 +114,16 @@ private:
 	struct minkar_vram	fGARTPages;	/* what is free of it, by offset */
 	struct minkar_vram_range fGARTRanges[kGARTRanges];
 	IOLock *		fVRAMLock;	/* the VRAM's and the GART's allocators */
+
+	/* Interrupts: the IH ring and its write-back in system memory. */
+	IOWorkLoop *		fWorkLoop;
+	IOFilterInterruptEventSource *fInterrupt;
+	IOBufferMemoryDescriptor *fIHMemory;
+	uint64_t		fIHGPU;
+	uint32_t		fIHRptr;
+	bool			fIHOn;
+	IOLock *		fTrapLock;	/* traps, and waits for them */
+	uint64_t		fInterrupts, fDMATraps, fIHOverflows;
 	struct minkar_vram	fVRAM;		/* what is free of VRAM */
 	struct minkar_vram_range fVRAMRanges[kVRAMRanges];
 };

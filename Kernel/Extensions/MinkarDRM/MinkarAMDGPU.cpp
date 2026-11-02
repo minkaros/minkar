@@ -28,10 +28,12 @@
 
 #include <IOKit/IOLib.h>
 #include <IOKit/IOPlatformExpert.h>
+#include <kern/clock.h>
 #include <pexpert/pexpert.h>
 #include "MinkarAMDGPU.h"
 #include "MinkarAMDDMA.h"
 #include "MinkarAMDGART.h"
+#include "amd_si_ih.h"
 
 #include "atom_glue.h"
 
@@ -123,7 +125,9 @@ MinkarAMDGPU::start(IOService *provider)
 
 	if (gcn1 && fRegs.base != NULL) {
 		dmaSelfTest();
-		startGART(lightsDisplay());
+		bool display = lightsDisplay();
+		startGART(display);
+		startInterrupts(display);
 	}
 
 	registerService();
@@ -196,6 +200,171 @@ MinkarAMDGPU::startGART(bool display)
 	setProperty("MinkarGARTMegabytes", (unsigned long long)(size >> 20), 32);
 }
 
+/* ---- Interrupts ---- */
+
+#define kIHRingBytes	(64 * 1024)
+
+/*
+ * The interrupt ring, on when asked for ("minkaramd_irq": 1 on the GPUs
+ * that light no display, 2 on every GPU) and the GART is on: the ring and
+ * its write-back in system memory through the GART (si_ih_irq_init), the
+ * MSI (or the pin) on a work loop of the GPU's own.
+ */
+void
+MinkarAMDGPU::startInterrupts(bool display)
+{
+	UInt32 mode = 0;
+
+	if (!PE_parse_boot_argn("minkaramd_irq", &mode, sizeof(mode)) || mode == 0 ||
+	    (display && mode < 2) || !fGART.on)
+		return;
+	fTrapLock = IOLockAlloc();
+	fWorkLoop = IOWorkLoop::workLoop();
+	fIHMemory = IOBufferMemoryDescriptor::inTaskWithOptions(kernel_task, kIODirectionInOut,
+	    kIHRingBytes + 4096, 4096);
+	if (fTrapLock == NULL || fWorkLoop == NULL || fIHMemory == NULL ||
+	    fIHMemory->prepare() != kIOReturnSuccess) {
+		LOG("interrupts: no memory");
+		return;
+	}
+	bzero(fIHMemory->getBytesNoCopy(), kIHRingBytes + 4096);
+	if (mapSystemMemory(fIHMemory, &fIHGPU) != kIOReturnSuccess) {
+		LOG("interrupts: the ring is not in the GART");
+		return;
+	}
+
+	/* MSI when there is one, else the pin. */
+	int index = 0, type;
+	bool msi = false;
+	OSArray *controllers = OSDynamicCast(OSArray, fPCI->getProperty(gIOInterruptControllersKey));
+	for (unsigned i = 0; controllers != NULL && i < controllers->getCount(); i++)
+		if (fPCI->getInterruptType((int)i, &type) == kIOReturnSuccess &&
+		    (type & kIOInterruptTypePCIMessaged)) {
+			index = (int)i;
+			msi = true;
+			break;
+		}
+	fInterrupt = IOFilterInterruptEventSource::filterInterruptEventSource(this,
+	    OSMemberFunctionCast(IOInterruptEventSource::Action, this, &MinkarAMDGPU::interruptHandler),
+	    OSMemberFunctionCast(IOFilterInterruptEventSource::Filter, this, &MinkarAMDGPU::interruptFilter),
+	    fPCI, index);
+	if (fInterrupt == NULL || fWorkLoop->addEventSource(fInterrupt) != kIOReturnSuccess) {
+		LOG("interrupts: no interrupt source");
+		OSSafeReleaseNULL(fInterrupt);
+		return;
+	}
+
+	/* si_ih_irq_init. */
+	addr64_t dummy = fIHMemory->getPhysicalSegment(kIHRingBytes, NULL, kIOMemoryMapperNone);
+	writeReg(mmSI_IH_RB_CNTL, readReg(mmSI_IH_RB_CNTL) & ~SI_IH_RB_ENABLE);
+	writeReg(mmSI_IH_CNTL, readReg(mmSI_IH_CNTL) & ~SI_IH_ENABLE_INTR);
+	writeReg(mmSI_IH_RB_RPTR, 0);
+	writeReg(mmSI_IH_RB_WPTR, 0);
+	writeReg(mmSI_INTERRUPT_CNTL2, (uint32_t)(dummy >> 8));
+	writeReg(mmSI_INTERRUPT_CNTL, readReg(mmSI_INTERRUPT_CNTL) &
+	    ~(SI_IH_DUMMY_RD_OVERRIDE | SI_IH_REQ_NONSNOOP_EN));
+	writeReg(mmSI_IH_RB_BASE, (uint32_t)(fIHGPU >> 8));
+	uint64_t wptrAddr = fIHGPU + kIHRingBytes;
+	writeReg(mmSI_IH_RB_WPTR_ADDR_LO, (uint32_t)wptrAddr);
+	writeReg(mmSI_IH_RB_WPTR_ADDR_HI, (uint32_t)(wptrAddr >> 32) & 0xff);
+	writeReg(mmSI_IH_RB_CNTL, si_ih_rb_cntl(kIHRingBytes));
+	writeReg(mmSI_IH_RB_RPTR, 0);
+	writeReg(mmSI_IH_RB_WPTR, 0);
+	writeReg(mmSI_IH_CNTL, si_ih_cntl(msi));
+	fPCI->setBusMasterEnable(true);
+	fIHRptr = 0;
+	fInterrupt->enable();
+	writeReg(mmSI_IH_CNTL, readReg(mmSI_IH_CNTL) | SI_IH_ENABLE_INTR);
+	writeReg(mmSI_IH_RB_CNTL, readReg(mmSI_IH_RB_CNTL) | SI_IH_RB_ENABLE);
+	fIHOn = true;
+	setProperty("MinkarInterruptType", msi ? "MSI" : "pin");
+	LOG("interrupts on (%s), ring at GPU address 0x%llx", msi ? "MSI" : "pin",
+	    (unsigned long long)fIHGPU);
+}
+
+void
+MinkarAMDGPU::stopInterrupts()
+{
+	if (fIHOn) {
+		writeReg(mmSI_IH_RB_CNTL, readReg(mmSI_IH_RB_CNTL) & ~SI_IH_RB_ENABLE);
+		writeReg(mmSI_IH_CNTL, readReg(mmSI_IH_CNTL) & ~SI_IH_ENABLE_INTR);
+		writeReg(mmSI_IH_RB_RPTR, 0);
+		writeReg(mmSI_IH_RB_WPTR, 0);
+		fIHOn = false;
+	}
+	if (fInterrupt != NULL) {
+		fInterrupt->disable();
+		fWorkLoop->removeEventSource(fInterrupt);
+		OSSafeReleaseNULL(fInterrupt);
+	}
+	if (fIHMemory != NULL) {
+		if (fIHGPU != 0)
+			unmapSystemMemory(fIHGPU, kIHRingBytes + 4096);
+		fIHMemory->complete();
+		OSSafeReleaseNULL(fIHMemory);
+	}
+	OSSafeReleaseNULL(fWorkLoop);
+	if (fTrapLock != NULL) {
+		IOLockFree(fTrapLock);
+		fTrapLock = NULL;
+	}
+}
+
+/* Primary interrupt time: the work is on the work loop. */
+bool
+MinkarAMDGPU::interruptFilter(IOFilterInterruptEventSource *)
+{
+	return fIHOn;
+}
+
+static void
+onEntry(const struct si_ih_entry *e, void *info)
+{
+	uint64_t *traps = (uint64_t *)info;
+
+	if (e->source == kSISourceDMA0Trap || e->source == kSISourceDMA1Trap)
+		(*traps)++;
+}
+
+/* The entries since the last time; traps wake the fence waits. */
+void
+MinkarAMDGPU::interruptHandler(IOInterruptEventSource *, int)
+{
+	volatile uint32_t *ring = (volatile uint32_t *)fIHMemory->getBytesNoCopy();
+	uint32_t wptr = ring[kIHRingBytes / 4];	/* the write-back, snooped */
+	uint64_t traps = 0;
+	int overflowed;
+
+	fIHRptr = si_ih_drain(ring, kIHRingBytes, fIHRptr, wptr, &overflowed, onEntry, &traps);
+	if (overflowed) {
+		/* Clear it at once, so the next overflow is seen (si_ih_get_wptr). */
+		uint32_t c = readReg(mmSI_IH_RB_CNTL);
+		writeReg(mmSI_IH_RB_CNTL, c | SI_IH_WPTR_OVERFLOW_CLEAR);
+		writeReg(mmSI_IH_RB_CNTL, c & ~SI_IH_WPTR_OVERFLOW_CLEAR);
+		fIHOverflows++;
+	}
+	writeReg(mmSI_IH_RB_RPTR, fIHRptr);	/* re-arms the MSI */
+	IOLockLock(fTrapLock);
+	fInterrupts++;
+	fDMATraps += traps;
+	if (traps > 0)
+		IOLockWakeup(fTrapLock, &fDMATraps, false);
+	IOLockUnlock(fTrapLock);
+}
+
+/* A fence wait between looks: until a trap, at most 1 ms. */
+void
+MinkarAMDGPU::sleepForTrap(void *info)
+{
+	MinkarAMDGPU *me = (MinkarAMDGPU *)info;
+	AbsoluteTime deadline;
+
+	clock_interval_to_deadline(1, kMillisecondScale, &deadline);
+	IOLockLock(me->fTrapLock);
+	IOLockSleepDeadline(me->fTrapLock, &me->fDMATraps, deadline, THREAD_UNINT);
+	IOLockUnlock(me->fTrapLock);
+}
+
 /* ---- For the user client ---- */
 
 /* The DMA engine for clients' copies, started at the first: its ring and
@@ -217,6 +386,8 @@ MinkarAMDGPU::startDMA()
 	if (fDMAMap != NULL)
 		fDMAStarted = MinkarAMDDMAStart(&fDMA, &fRegs, 0, fVRAMStart + fDMAOffset,
 		    (volatile uint8_t *)fDMAMap->getVirtualAddress(), 1ULL << 20);
+	if (fDMAStarted && fIHOn)
+		MinkarAMDDMAUseInterrupts(&fDMA, sleepForTrap, this);
 	if (!fDMAStarted) {
 		LOG("the DMA engine did not start");
 		OSSafeReleaseNULL(fDMAMap);
@@ -290,6 +461,13 @@ MinkarAMDGPU::copy(uint64_t dst, uint64_t src, uint64_t bytes, uint64_t *ns)
 		err = MinkarAMDDMACopyAddresses(&fDMA, dst, src, bytes, ns) ?
 		    kIOReturnSuccess : kIOReturnTimeout;
 	IOLockUnlock(fDMALock);
+	if (fIHOn) {
+		IOLockLock(fTrapLock);
+		uint64_t interrupts = fInterrupts, traps = fDMATraps;
+		IOLockUnlock(fTrapLock);
+		setProperty("MinkarInterrupts", (unsigned long long)interrupts, 64);
+		setProperty("MinkarDMATraps", (unsigned long long)traps, 64);
+	}
 	return err;
 }
 
@@ -545,6 +723,7 @@ MinkarAMDGPU::free()
 	MinkarAMDFreeVBIOS(fBIOS);
 	if (fDMAStarted)
 		MinkarAMDDMAStop(&fDMA);
+	stopInterrupts();
 	MinkarAMDGARTDisable(&fGART);
 	OSSafeReleaseNULL(fDMAMap);
 	OSSafeReleaseNULL(fWindow);

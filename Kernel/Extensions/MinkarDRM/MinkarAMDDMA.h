@@ -53,7 +53,15 @@ struct MinkarAMDDMA {
 	uint32_t		ringDwords;
 	uint32_t		wptr;		/* in dwords */
 	uint32_t		seq;		/* the last fence emitted */
+	/* With interrupts: each fence is followed by a trap, and a wait
+	 * sleeps in sleep(info) (at most about a millisecond) between looks
+	 * at the fence instead of spinning. */
+	void			(*sleep)(void *info);
+	void *			sleepInfo;
 };
+
+/* Fences raise the trap interrupt, and waits sleep in sleep(info). */
+void MinkarAMDDMAUseInterrupts(struct MinkarAMDDMA *dma, void (*sleep)(void *info), void *info);
 
 /*
  * A region of VRAM for the engine: the first 64 KB its ring, the next
