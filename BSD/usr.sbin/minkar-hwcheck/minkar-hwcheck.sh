@@ -327,6 +327,7 @@ display_check() {
 	# MinkarVirtioGPU publishes its own (its scanout is in system memory).
 	local fb fbw virtio=no
 	ioreg -l -w0 -r -c IOGOPFramebuffer > "$RAW/ioreg-gop.txt" 2>&1
+	ioreg -l -w0 -r -c MinkarAMDFramebuffer > "$RAW/ioreg-amdfb.txt" 2>&1
 	if ! grep -q '<class IOGOPFramebuffer' "$RAW/ioreg-gop.txt" &&
 	    ioreg -l -w0 -r -c MinkarVirtioGPU > "$RAW/ioreg-virtio-gpu.txt" 2>&1 &&
 	    grep -q '<class MinkarVirtioGPU' "$RAW/ioreg-virtio-gpu.txt"; then
@@ -363,6 +364,8 @@ display_check() {
 		[ -n "$fb" ] && result PASS "framebuffer in system memory" \
 		    "virtio-gpu: the host reads the scanout from RAM, no GPU window"
 		fb=""
+	elif grep -q '<class MinkarAMDFramebuffer' "$RAW/ioreg-amdfb.txt"; then
+		result INFO "framebuffer drivers" "MinkarAMDFramebuffer (the AMD driver, in place of IOGOPFramebuffer)"
 	else
 		result INFO "framebuffer drivers" "$(grep -c '<class IOGOPFramebuffer' "$RAW/ioreg-gop.txt") IOGOPFramebuffer (one expected)"
 	fi
@@ -404,6 +407,18 @@ display_check() {
 			result FAIL "amd: vbios" "read, but the AtomBIOS interpreter refused it"
 		fi
 	fi
+	# MinkarAMDFramebuffer (G1): the AMD driver's display, its crtc and
+	# refresh rate as the hardware counts it, and the crtc's registers.
+	if grep -q '<class MinkarAMDFramebuffer' "$RAW/ioreg-amdfb.txt"; then
+		for prop in MinkarDisplayCRTC MinkarRefreshMilliHz MinkarScanoutOffset \
+		    MinkarFirmwareScanoutOffset MinkarScaledModes; do
+			result INFO "amd display: ${prop#Minkar}" "$(awk -F'= ' -v k="\"$prop\"" \
+			    '$1 ~ k { gsub(/"/, "", $2); print $2; exit }' "$RAW/ioreg-amdfb.txt")"
+		done
+		printf '\nAMD display registers:\n' >> "$DETAIL"
+		grep -o '"MinkarDisplayRegisters" = {[^}]*}' "$RAW/ioreg-amdfb.txt" | tr ',' '\n' >> "$DETAIL"
+	fi
+	grep 'MinkarAMD' "$RAW/dmesg.txt" >> "$DETAIL"
 	# With pci=0x1, raw/dmesg.txt has every BAR the configurator wrote and
 	# what it read back.
 	grep -q 'PCI configuration begin' "$RAW/dmesg.txt" &&
@@ -455,7 +470,9 @@ usb_count=$(grep -c '+-o ' "$RAW/ioreg-usb.txt")
 result INFO "usb" "$usb_count entries in the USB plane"
 fbmem=$(ioreg -l -w0 -r -c IOGOPFramebuffer 2>/dev/null | awk -F'= ' '/"IOFBMemorySize"/ { print $2; exit }')
 vgpu=$(ioreg -l -w0 -r -c MinkarVirtioGPU 2>/dev/null | awk -F'= ' '/"MinkarFramebufferWidth"/ { w = $2 } /"MinkarFramebufferHeight"/ { h = $2 } END { if (w != "") print w "x" h }')
-if [ -n "$vgpu" ]; then
+if ioreg -r -c MinkarAMDFramebuffer 2>/dev/null | grep -q MinkarAMDFramebuffer; then
+	result PASS "display: AMD driver" "MinkarAMDFramebuffer drives the display (check the picture by hand)"
+elif [ -n "$vgpu" ]; then
 	result PASS "display: virtio-gpu" "MinkarVirtioGPU at $vgpu (check the picture by hand)"
 elif [ -n "$fbmem" ]; then
 	result PASS "display: GOP framebuffer" "$((fbmem / 1048576)) MB of framebuffer (check the picture by hand)"
