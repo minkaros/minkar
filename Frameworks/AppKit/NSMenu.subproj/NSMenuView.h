@@ -29,7 +29,7 @@
 -(BOOL)_sendActionOfItem:(NSMenuItem *)item;
 -(NSMenuItem *)_popUpAtScreenPoint:(NSPoint)screenPoint positioning:(NSMenuItem *)positioned
     event:(NSEvent *)event startedOpen:(BOOL)startedOpen minimumWidth:(CGFloat)minimumWidth
-    perform:(BOOL)perform;
+    flips:(BOOL)flips perform:(BOOL)perform;
 @end
 
 /* An item's height in the menu bar and in menus. SHORTCUT(Phase 5): the

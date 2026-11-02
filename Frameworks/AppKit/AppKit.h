@@ -119,6 +119,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <AppKit/NSSplitView.h>
 #import <AppKit/NSStatusBar.h>
 #import <AppKit/NSStatusItem.h>
+#import <AppKit/NSStatusBarButton.h>
 #import <AppKit/NSStepper.h>
 #import <AppKit/NSStepperCell.h>
 #import <AppKit/NSStringDrawing.h>

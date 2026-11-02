@@ -458,7 +458,7 @@ HEADERS = \
     NSSplitView.h \
     NSStatusBar.h \
     NSStatusItem.h \
-    NSStatusItem+Private.h \
+    NSStatusBarButton.h \
     NSStepper.h \
     NSStepperCell.h \
     NSStringDrawer.h \

@@ -37,12 +37,13 @@ static void postItemNotification(NSMenu *menu, NSString *name, NSUInteger index)
 
 /* Opens the menu with its top left (or the given item's) at a point on
    the screen, kept on the screen: above the point when it does not fit
-   below, to its left when it does not fit on the right; at least
+   below; when it does not fit on the right, to the point's left (a
+   context menu, flips) or moved left just enough (the others); at least
    minimumWidth wide. Then tracks it and, with perform, sends the chosen
    item's action; the item chosen, or nil. */
 -(NSMenuItem *)_popUpAtScreenPoint:(NSPoint)screenPoint positioning:(NSMenuItem *)positioned
     event:(NSEvent *)event startedOpen:(BOOL)startedOpen minimumWidth:(CGFloat)minimumWidth
-    perform:(BOOL)perform {
+    flips:(BOOL)flips perform:(BOOL)perform {
    if([_itemArray count]==0)
     return nil;
 
@@ -77,7 +78,7 @@ static void postItemNotification(NSMenu *menu, NSString *name, NSUInteger index)
    if(topLeft.y>NSMaxY(visible))
     topLeft.y=NSMaxY(visible);
    if(topLeft.x+frame.size.width>NSMaxX(visible))
-    topLeft.x=MAX(NSMinX(visible),screenPoint.x-frame.size.width);
+    topLeft.x=MAX(NSMinX(visible),flips?screenPoint.x-frame.size.width:NSMaxX(visible)-frame.size.width);
    [menuWindow setFrameTopLeftPoint:topLeft];
    [menuWindow orderFront:nil];
 
@@ -92,7 +93,7 @@ static void postItemNotification(NSMenu *menu, NSString *name, NSUInteger index)
    NSWindow *window=[event window]?[event window]:[view window];
 
    [menu _popUpAtScreenPoint:[window convertBaseToScreen:[event locationInWindow]] positioning:nil
-       event:event startedOpen:NO minimumWidth:0 perform:YES];
+       event:event startedOpen:NO minimumWidth:0 flips:YES perform:YES];
 }
 
 +(void)popUpContextMenu:(NSMenu *)menu withEvent:(NSEvent *)event forView:(NSView *)view withFont:(NSFont *)font {
@@ -108,7 +109,7 @@ static void postItemNotification(NSMenu *menu, NSString *name, NSUInteger index)
    if(view!=nil)
     screenPoint=[[view window] convertBaseToScreen:[view convertPoint:location toView:nil]];
    return [self _popUpAtScreenPoint:screenPoint positioning:item event:[NSApp currentEvent]
-       startedOpen:YES minimumWidth:0 perform:YES]!=nil;
+       startedOpen:YES minimumWidth:0 flips:NO perform:YES]!=nil;
 }
 
 -(void)encodeWithCoder:(NSCoder *)coder {

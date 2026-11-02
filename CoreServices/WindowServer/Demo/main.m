@@ -97,6 +97,8 @@
 @property (strong) NSWindow *sheet;
 @property (strong) NSMenu *contextMenu;
 @property (strong) NSPopUpButton *popUp;
+@property (strong) NSStatusItem *statusItem;
+@property BOOL refusesToQuit;
 @end
 
 @implementation DemoDelegate
@@ -134,7 +136,9 @@
      * equivalents), "context" (a context menu on the blue view: One, Two,
      * a Three submenu with Four), "popup" (that menu opened at the view's
      * middle by popUpMenuPositioningItem:, Two placed there), "popupbutton"
-     * (a pop-up button: Red, Green, Blue).
+     * (a pop-up button: Red, Green, Blue), "statusitem" (a status item
+     * "Demo" with a menu: Status One, Status Two), "nostatusitem" (removes
+     * it), "refusequit" (its delegate refuses to quit from now on).
      */
     NSArray *args = [[NSProcessInfo processInfo] arguments];
     NSUInteger cmd = [args indexOfObject:@"-cmd"];
@@ -286,6 +290,26 @@
     printf("popup button selected %s\n", [[sender titleOfSelectedItem] UTF8String]);
 }
 
+- (NSApplicationTerminateReply)applicationShouldTerminate:(NSApplication *)sender {
+    printf("asked to quit: %s\n", self.refusesToQuit ? "refused" : "quitting");
+    return self.refusesToQuit ? NSTerminateCancel : NSTerminateNow;
+}
+
+- (void)addStatusItem {
+    NSStatusItem *item = [[NSStatusBar systemStatusBar] statusItemWithLength:NSVariableStatusItemLength];
+    item.button.title = @"Demo";
+    NSMenu *menu = [[NSMenu alloc] initWithTitle:@"Status"];
+    for (NSString *title in @[ @"Status One", @"Status Two" ])
+        [[menu addItemWithTitle:title action:@selector(statusChosen:) keyEquivalent:@""] setTarget:self];
+    item.menu = menu;
+    self.statusItem = item;
+    printf("status item added length=%.0f\n", [item length]);
+}
+
+- (void)statusChosen:(NSMenuItem *)sender {
+    printf("status %s\n", [[sender title] UTF8String]);
+}
+
 - (void)menuAlpha:(id)sender { printf("menu alpha\n"); }
 - (void)menuBeta:(id)sender { printf("menu beta\n"); }
 - (void)menuGamma:(id)sender { printf("menu gamma\n"); }
@@ -387,6 +411,16 @@
         [self addContextMenu];
     else if (strncmp(line, "popupbutton", 11) == 0)
         [self addPopUpButton];
+    else if (strncmp(line, "refusequit", 10) == 0) {
+        self.refusesToQuit = YES;
+        printf("refusing to quit\n");
+    } else if (strncmp(line, "statusitem", 10) == 0)
+        [self addStatusItem];
+    else if (strncmp(line, "nostatusitem", 12) == 0) {
+        [[NSStatusBar systemStatusBar] removeStatusItem:self.statusItem];
+        self.statusItem = nil;
+        printf("status item removed\n");
+    }
     else if (strncmp(line, "popup", 5) == 0) {
         NSView *view = [self.window contentView];
         NSRect b = [view bounds];

@@ -478,7 +478,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
                             : NSMakePoint(NSMinX(frame), NSMaxY(frame));
 
     NSMenuItem *item = [menu _popUpAtScreenPoint:at positioning:positioned event:event
-        startedOpen:NO minimumWidth:frame.size.width perform:NO];
+        startedOpen:NO minimumWidth:frame.size.width flips:NO perform:NO];
     NSInteger itemIndex = item ? [menu indexOfItem:item] : NSNotFound;
 
     if(itemIndex!=NSNotFound) {
