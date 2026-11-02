@@ -1,8 +1,8 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="798" viewBox="0 0 1200 798" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif" role="img" aria-label="Minkar milestones by plan, 2026-11-01">
-<title>Minkar milestones by plan, 2026-11-01</title>
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="798" viewBox="0 0 1200 798" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif" role="img" aria-label="Minkar milestones by plan, 2026-11-02">
+<title>Minkar milestones by plan, 2026-11-02</title>
 <rect width="1200" height="798" fill="#ffffff"/>
 <text x="20" y="30" font-size="20" font-weight="700" fill="#1f2328" text-anchor="start">Minkar milestones by plan</text>
-<text x="20" y="54" font-size="14" font-weight="400" fill="#59636e" text-anchor="start">2026-11-01 · devel 85e5238ce2</text>
+<text x="20" y="54" font-size="14" font-weight="400" fill="#59636e" text-anchor="start">2026-11-02 · devel ec034c983a</text>
 <line x1="160" y1="95" x2="160" y2="110" stroke="#1f2328" stroke-opacity=".35" stroke-width="1.5" stroke-dasharray="2 4"/>
 <rect x="139" y="72" width="42" height="24" rx="12" fill="#1f2328" stroke="#1f2328" stroke-width="1.5"/>
 <text x="160" y="89" font-size="13.5" font-weight="700" fill="#ffffff" text-anchor="middle">M0</text>

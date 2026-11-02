@@ -32,8 +32,8 @@
 # commit that closes a milestone updates this file and runs
 # "bmake progress" (Docs/CONTRIBUTING.md).
 
-updated = "2026-11-01"
-commit  = "85e5238ce2"
+updated = "2026-11-02"
+commit  = "ec034c983a"
 
 deps = [["ws", 555, "dock"], ["fw", 535, "kraz"]]
 
@@ -215,6 +215,16 @@ stations = [["x86-64 apps", 1082, "todo"], ["arm64", 1150, "todo"]]
 here = "WS4b"
 
 [[board.done]]
+title = "Minimal loginwindow"
+note = "Log Out, Restart, Shut Down · WS4b · 2 nov"
+line = "ws"
+
+[[board.done]]
+title = "Status items, context menus"
+note = "pop-up buttons, key equivalents · MB0 · 2 nov"
+line = "mb"
+
+[[board.done]]
 title = "Menu tracking"
 note = "pointer, keyboard, validation, delegate · MB0 · 1 nov"
 line = "mb"
@@ -234,21 +244,11 @@ title = "WS4a closed"
 note = "the server's behavior · 1 nov"
 line = "ws"
 
-[[board.done]]
-title = "Input on its own queue"
-note = "over a model snapshot · WS4a · 1 nov"
-line = "ws"
-
-[[board.done]]
-title = "Transfer tables and fades"
-note = "on the screen · WS4a · 1 nov"
-line = "ws"
-
 [[board.now]]
 title = "WS4b + MB0 — The switch"
 note = "menus in the app, Legacy/ removed → gate M4"
 line = "ws"
-done = 3
+done = 9
 total = 14
 
 [[board.now]]
