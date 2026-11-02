@@ -27,13 +27,23 @@
  */
 
 #include <IOKit/IOLib.h>
+#include <IOKit/IOPlatformExpert.h>
+#include <pexpert/pexpert.h>
 #include "MinkarAMDGPU.h"
+#include "MinkarAMDDMA.h"
 
 #include "atom_glue.h"
 
 #define LOG(fmt, ...)	IOLog("MinkarAMDGPU: " fmt "\n", ##__VA_ARGS__)
 
 #define mmCONFIG_MEMSIZE	0x150A
+#define mmMC_VM_FB_LOCATION	0x0809
+
+/* The DMA engine's test region: past the firmware's framebuffer and ours
+ * (MinkarAMDFramebuffer's, at 32 MB), inside the VRAM window. */
+#define kDMARegionOffset	(64ULL << 20)
+#define kDMARegionSize		(32ULL << 20)
+#define kDMATestBytes		(8ULL << 20)
 
 #define super IOService
 OSDefineMetaClassAndStructors(MinkarAMDGPU, IOService);
@@ -103,8 +113,63 @@ MinkarAMDGPU::start(IOService *provider)
 	}
 	setProperty("MinkarVBIOSSource", source);
 
+	if (gcn1 && fRegs.base != NULL)
+		dmaSelfTest();
+
 	registerService();
 	return true;
+}
+
+/*
+ * G2's first check, asked for with "minkaramd_dmatest": 1 runs it on the
+ * GPUs that light no display, 2 on every GPU. DMA0 copies 8 MB between
+ * two surfaces in VRAM; the results go to MinkarDMATest.
+ */
+void
+MinkarAMDGPU::dmaSelfTest()
+{
+	UInt32 mode = 0;
+	PE_Video boot;
+
+	if (!PE_parse_boot_argn("minkaramd_dmatest", &mode, sizeof(mode)) || mode == 0)
+		return;
+	IODeviceMemory *vram = MinkarAMDBARRange(fPCI, kIOPCIConfigBaseAddress0);
+	if (vram == NULL) {
+		LOG("DMA test: no VRAM window");
+		return;
+	}
+	bool display = false;
+	if (getPlatform() != NULL && getPlatform()->getConsoleInfo(&boot) == kIOReturnSuccess &&
+	    boot.v_baseAddr >= vram->getPhysicalAddress() &&
+	    boot.v_baseAddr < vram->getPhysicalAddress() + vram->getLength())
+		display = true;
+	if (display && mode < 2) {
+		LOG("DMA test: skipped on the GPU that lights the display");
+		vram->release();
+		return;
+	}
+	OSDictionary *results = OSDictionary::withCapacity(8);
+	IODeviceMemory *region = kDMARegionOffset + kDMARegionSize <= vram->getLength() ?
+	    IODeviceMemory::withSubRange(vram, kDMARegionOffset, kDMARegionSize) : NULL;
+	IOMemoryMap *map = region != NULL ? region->map(kIOMapWriteCombineCache) : NULL;
+	uint64_t vramStart = (uint64_t)(readReg(mmMC_VM_FB_LOCATION) & 0xFFFF) << 24;
+	struct MinkarAMDDMA dma;
+	if (results != NULL && map != NULL) {
+		bool started = MinkarAMDDMAStart(&dma, &fRegs, 0, vramStart + kDMARegionOffset,
+		    (volatile uint8_t *)map->getVirtualAddress(), kDMARegionSize);
+		results->setObject("Started", started ? kOSBooleanTrue : kOSBooleanFalse);
+		if (started) {
+			bool ok = MinkarAMDDMASelfTest(&dma, kDMATestBytes, results);
+			results->setObject("Passed", ok ? kOSBooleanTrue : kOSBooleanFalse);
+			MinkarAMDDMAStop(&dma);
+		}
+		setProperty("MinkarDMATest", results);
+	} else
+		LOG("DMA test: cannot map the region");
+	OSSafeReleaseNULL(results);
+	OSSafeReleaseNULL(map);
+	OSSafeReleaseNULL(region);
+	vram->release();
 }
 
 void

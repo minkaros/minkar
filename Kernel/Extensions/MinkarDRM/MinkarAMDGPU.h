@@ -59,6 +59,8 @@ public:
 	void writeReg(uint32_t reg, uint32_t value);
 
 private:
+	void dmaSelfTest();
+
 	IOPCIDevice *		fPCI;
 	struct MinkarAMDRegs	fRegs;
 	uint8_t *		fBIOS;

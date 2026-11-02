@@ -422,6 +422,19 @@ display_check() {
 		printf '\nAMD display registers:\n' >> "$DETAIL"
 		grep -o '"MinkarDisplayRegisters" = {[^}]*}' "$RAW/ioreg-amdfb.txt" | tr ',' '\n' >> "$DETAIL"
 	fi
+	# G2's DMA check, when booted with minkaramd_dmatest: a fence and a
+	# copy between two surfaces in VRAM, per GPU that ran it.
+	if grep -q '"MinkarDMATest"' "$RAW/ioreg-amdgpu.txt"; then
+		# Read from a file, not a pipe: result counts in this shell.
+		grep -o '"MinkarDMATest" = {[^}]*}' "$RAW/ioreg-amdgpu.txt" > "$RAW/amd-dma.txt"
+		while read -r t; do
+			if printf '%s' "$t" | grep -q '"Passed"=Yes'; then
+				result PASS "amd: dma copy" "$(printf '%s' "$t" | sed -n 's/.*"CopyMBPerSecond"=\([0-9]*\).*/\1 MB\/s/p')"
+			else
+				result FAIL "amd: dma copy" "$t"
+			fi
+		done < "$RAW/amd-dma.txt"
+	fi
 	grep 'MinkarAMD' "$RAW/dmesg.txt" >> "$DETAIL"
 	# With pci=0x1, raw/dmesg.txt has every BAR the configurator wrote and
 	# what it read back.
