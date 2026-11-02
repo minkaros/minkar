@@ -52,6 +52,7 @@
 #include <string.h>
 #include <sys/reboot.h>
 #include <sys/stat.h>
+#include <sys/sysctl.h>
 #include <unistd.h>
 #include <LaunchServices/LSSession.h>
 #include "LoginWindowRequest.h"
@@ -196,6 +197,21 @@ serve(uint32_t request)
 	}
 }
 
+/* The -textconsole boot argument: no window server, so no session. */
+static int
+textConsole(void)
+{
+	char args[1024] = "";
+	size_t len = sizeof(args);
+
+	if (sysctlbyname("kern.bootargs", args, &len, NULL, 0) != 0)
+		return 0;
+	for (char *word = strtok(args, " "); word != NULL; word = strtok(NULL, " "))
+		if (strcmp(word, "-textconsole") == 0)
+			return 1;
+	return 0;
+}
+
 /* Root and the console's owner may ask. */
 static int
 allowed(const audit_token_t *token)
@@ -215,6 +231,10 @@ main(int argc, char *argv[])
 	setvbuf(stderr, NULL, _IOLBF, 0);
 	if (argc > 1 && strcmp(argv[1], "-n") == 0)
 		dryRun = 1;
+	if (textConsole()) {
+		fprintf(stderr, "loginwindow: -textconsole: no graphical session\n");
+		return 0;
+	}
 	kr = bootstrap_check_in(bootstrap_port, kLoginWindowServiceName, &service);
 	if (kr != KERN_SUCCESS) {
 		fprintf(stderr, "loginwindow: cannot check in %s: 0x%x\n", kLoginWindowServiceName, kr);

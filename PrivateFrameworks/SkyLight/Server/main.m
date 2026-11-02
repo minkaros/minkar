@@ -41,6 +41,8 @@
 #include <dispatch/dispatch.h>
 #include <servers/bootstrap.h>
 #include <stdio.h>
+#include <string.h>
+#include <sys/sysctl.h>
 #include "SkyLight.h"
 #include "WindowServerServer.h"	/* MIG server side */
 #import "WSServer.h"
@@ -63,6 +65,23 @@ wss_connect(mach_port_t server, audit_token_t token, mach_port_t client,
 	return KERN_SUCCESS;
 }
 
+/* The -textconsole boot argument: the kernel's text console stays on the
+ * screen, with no window server (for the console's own tests, and for
+ * machines worked on from it). */
+static int
+textConsole(void)
+{
+	char args[1024] = "";
+	size_t len = sizeof(args);
+
+	if (sysctlbyname("kern.bootargs", args, &len, NULL, 0) != 0)
+		return 0;
+	for (char *word = strtok(args, " "); word != NULL; word = strtok(NULL, " "))
+		if (strcmp(word, "-textconsole") == 0)
+			return 1;
+	return 0;
+}
+
 int
 main(int argc, char *argv[])
 {
@@ -70,6 +89,10 @@ main(int argc, char *argv[])
 	kern_return_t kr;
 
 	setvbuf(stderr, NULL, _IOLBF, 0);
+	if (textConsole()) {
+		fprintf(stderr, "WindowServer: -textconsole: the text console keeps the screen\n");
+		return 0;
+	}
 	kr = bootstrap_check_in(bootstrap_port, kSLSServiceName, &service);
 	if (kr != KERN_SUCCESS) {
 		fprintf(stderr, "WindowServer: cannot check in %s: 0x%x\n", kSLSServiceName, kr);

@@ -43,9 +43,9 @@
 extern "C" {
 #endif
 
-/* The window server's Mach service. The legacy server keeps
- * "org.minkar.WindowServer" until WS4, when this one replaces it. */
-#define kSLSServiceName		"org.minkar.WindowServer.next"
+/* The window server's Mach service (the legacy server's name until
+ * WS4b, when this one replaced it). */
+#define kSLSServiceName		"org.minkar.WindowServer"
 
 /* The interface version both sides are built for. */
 #define kSLSInterfaceVersion	14

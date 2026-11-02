@@ -10,6 +10,7 @@ These arguments can be specified in `org.minkar.boot.plist` and on the booter
 | -disable_x86_64h | Force pre-Haswell CPU support                              |
 | -enable_x86_64h  | Require Haswell or later CPU architecture                  |
 | -topo            | Enable CPU topology debug logging
+| -textconsole     | Keep the kernel's text console on the screen: the window server and loginwindow exit at start (Minkar; for console tests and machines worked on from the console) |
 |                  |                                                            |
 | acpi_pci_dt_dump | Dump generated PCI DT subtree after ACPI MCFG parse (`=1`) |
 | debug            | Flags for Kernel Debugger/KDP (see: osfmk/kern/debug.h)    |

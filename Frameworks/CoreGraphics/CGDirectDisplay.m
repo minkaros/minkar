@@ -82,7 +82,8 @@ int _CGUsesSkyLight(void) {
     static int uses;
 
     dispatch_once(&once, ^{
-        uses = CGWindowServerCFMachPort() == NULL && SLSServerPort() != MACH_PORT_NULL;
+        /* The new server has the window server's service since WS4b. */
+        uses = SLSMainConnectionID() != 0;
     });
     return uses;
 }

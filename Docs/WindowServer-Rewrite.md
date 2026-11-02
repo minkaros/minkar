@@ -601,7 +601,7 @@ Decided 2026-10-31, following the guiding rule in section 1:
 | Ending the session | The login window asks apps to quit, ends the session and then restarts or shuts down | A minimal `loginwindow` that only ends the session and calls `reboot(2)` | Phase 5 (LoginWindow) |
 | App switcher (Command-Tab) | The Dock draws it; the window server's symbolic hotkey table delivers Command-Tab to it | No switcher after the legacy server goes (WS4b): apps are switched by clicking their windows (`SHORTCUT(D3)`) | D3 ([Dock-Kraz.md](Dock-Kraz.md)) |
 | Legacy server's thread stacks | Gone with the legacy server and `message.h` | 4 MB stacks for its 128 KB messages (`SHORTCUT(WS4b)` in `Legacy/main.m`, taken in WS0) | WS4b |
-| What WindowServer's launchd job starts | The window server only; the session starts elsewhere (section 10.3) | The compositor only (`-x`), since LoginWindow is not built (`SHORTCUT(WS4b)` in the plist, taken in WS0) | WS4b |
+| What WindowServer's launchd job starts | The window server only; the session starts elsewhere (section 10.3) | The compositor only (`-x`), since LoginWindow is not built (taken in WS0) | Removed 2026-11-02, in WS4b: the new server's job starts it alone, `loginwindow` the session |
 | System font | Gienah's own font | Inter (SIL OFL 1.1), four faces (`SHORTCUT(Phase 5)` in `SystemLibrary/Fonts/Makefile`, taken in WS0) | Phase 5 (Gienah) |
 | Permanent display configurations | Stored and applied again at the next session | They last for the session (`SHORTCUT(WS5)`, taken in WS1) | WS5 (real mode changes) |
 | Transfer tables and fades | Applied to the screen by the compositor, and by gamma hardware where there is some | Kept and returned, not applied (taken in WS1) | Removed 2026-11-01, in WS4a |
