@@ -875,7 +875,10 @@ WSWindowSnapshot(void)
 		item.frame = w.frame;
 		item.alpha = w.alpha;
 		item.surface = w.surface;
-		item.solid = w.shield;
+		/* A shielding window is opaque black until its app draws in it
+		 * (CGDisplayGetDrawingContext). */
+		WSSurface *surface = w.surface;
+		item.solid = w.shield && !(surface != nil && surface.committed);
 		item.shadow = w.hasShadow && !w.shield;
 		[items addObject:item];
 	}
