@@ -641,9 +641,8 @@ MinkarAMDGPU::i2cRead(const uint64_t *in, uint64_t *out)
 		return kIOReturnBadArgument;
 	bzero(data, sizeof(data));
 	IOLockLock(fDMALock);
-	int r = minkar_atom_i2c(fAtom, (uint8_t)in[0], (uint8_t)in[1], 1, (uint8_t)in[2], NULL, 0, NULL, 0);
-	if (r == 0)
-		r = minkar_atom_i2c(fAtom, (uint8_t)in[0], (uint8_t)in[1], 0, 0, NULL, 0, data, (uint8_t)in[3]);
+	int r = minkar_atom_i2c(fAtom, (uint8_t)in[0], (uint8_t)in[1], 0, (uint8_t)in[2], NULL, 0, data,
+	    (uint8_t)in[3]);
 	IOLockUnlock(fDMALock);
 	out[0] = (uint64_t)(int64_t)r;
 	memcpy(&out[1], data, 8);

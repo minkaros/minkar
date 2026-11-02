@@ -73,7 +73,8 @@ int minkar_atom_aux(struct minkar_atom *a, uint8_t channel, uint8_t hpd, uint8_t
  * One hardware I2C transaction through ProcessI2cChannelTransaction
  * (amdgpu_atombios_i2c_process_i2c_ch), on DDC line (the connector's I2C
  * id) to slave (7-bit): a write of reg and up to 2 more bytes, or a read
- * of up to 255 bytes into buffer. 0, or a negative errno.
+ * of up to 255 bytes from reg on into buffer (the table writes reg
+ * first). 0, or a negative errno.
  */
 int minkar_atom_i2c(struct minkar_atom *a, uint8_t line, uint8_t slave, int write, uint8_t reg,
     const uint8_t *more, uint8_t moreBytes, uint8_t *buffer, uint8_t readBytes);

@@ -35,6 +35,7 @@
 
 #include "atom_glue.h"
 #include "amd_atom_objects.h"
+#include "edid.h"
 
 #define LOG(fmt, ...)	IOLog("MinkarAMDFramebuffer: " fmt "\n", ##__VA_ARGS__)
 
@@ -398,8 +399,8 @@ MinkarAMDFramebuffer::readSink()
 	bool dp = fDPCD[0] != 0;
 	if (!dp) {
 		for (unsigned block = 0; block < 2; block++) {
-			if (minkar_atom_i2c(fAtom, fAUX, 0x50, 1, (uint8_t)(block * 128), NULL, 0, NULL, 0) != 0 ||
-			    minkar_atom_i2c(fAtom, fAUX, 0x50, 0, 0, NULL, 0, fEDID + block * 128, 128) != 0)
+			if (minkar_atom_i2c(fAtom, fAUX, 0x50, 0, (uint8_t)(block * 128), NULL, 0,
+			    fEDID + block * 128, 128) != 0)
 				break;
 			fEDIDBytes = (block + 1) * 128;
 			if (block == 0 && fEDID[126] == 0)
@@ -432,6 +433,53 @@ MinkarAMDFramebuffer::readSink()
 		LOG("no EDID from the display");
 		fEDIDBytes = 0;
 	}
+}
+
+/*
+ * The smaller modes, shown through the scaler: the display's own (from
+ * its EDID), largest first; without an EDID, the usual sizes.
+ */
+void
+MinkarAMDFramebuffer::addScaledModes()
+{
+	struct edid_mode e[32];
+	unsigned n = fEDIDBytes >= 128 ? edid_modes(fEDID, fEDIDBytes, e, 32) : 0;
+
+	for (unsigned i = 0; i < n; i++) {	/* largest first */
+		for (unsigned j = i + 1; j < n; j++)
+			if ((uint32_t)e[j].hactive * e[j].vactive > (uint32_t)e[i].hactive * e[i].vactive) {
+				struct edid_mode t = e[i];
+				e[i] = e[j];
+				e[j] = t;
+			}
+	}
+	for (unsigned i = 0; i < n && fModeCount < kMaxModes; i++) {
+		bool known = false;
+		if (e[i].hactive > fModes[0].width || e[i].vactive > fModes[0].height ||
+		    e[i].hactive < 640 || e[i].vactive < 480)
+			continue;
+		for (unsigned k = 0; k < fModeCount; k++)
+			known |= fModes[k].width == e[i].hactive && fModes[k].height == e[i].vactive;
+		if (known)
+			continue;
+		fModes[fModeCount].width = e[i].hactive;
+		fModes[fModeCount].height = e[i].vactive;
+		fModeCount++;
+	}
+	if (n > 0) {
+		setProperty("MinkarModesFrom", "EDID");
+		return;
+	}
+	for (unsigned i = 0; i < sizeof(kScaledModes) / sizeof(kScaledModes[0]) &&
+	    fModeCount < kMaxModes; i++) {
+		if (kScaledModes[i].width >= fModes[0].width ||
+		    kScaledModes[i].height > fModes[0].height)
+			continue;
+		fModes[fModeCount].width = kScaledModes[i].width;
+		fModes[fModeCount].height = kScaledModes[i].height;
+		fModeCount++;
+	}
+	setProperty("MinkarModesFrom", "the usual sizes");
 }
 
 bool
@@ -550,22 +598,14 @@ MinkarAMDFramebuffer::start(IOService *provider)
 	const char *source;
 	if (MinkarAMDReadVBIOS(fPCI, &fBIOS, &fBIOSSize, &source))
 		fAtom = minkar_atom_open(this, atomRead, atomWrite, fBIOS, NULL);
-	if (fAtom != NULL && minkar_atom_has_table(fAtom, MINKAR_ATOM_ENABLE_SCALER) &&
-	    minkar_atom_has_table(fAtom, MINKAR_ATOM_SET_CRTC_OVERSCAN) &&
-	    minkar_atom_has_table(fAtom, MINKAR_ATOM_UPDATE_CRTC_DOUBLE_BUFFER)) {
-		for (unsigned i = 0; i < sizeof(kScaledModes) / sizeof(kScaledModes[0]) &&
-		    fModeCount < kMaxModes; i++) {
-			if (kScaledModes[i].width >= fModes[0].width ||
-			    kScaledModes[i].height > fModes[0].height)
-				continue;
-			fModes[fModeCount].width = kScaledModes[i].width;
-			fModes[fModeCount].height = kScaledModes[i].height;
-			fModeCount++;
-		}
-	} else
-		LOG("no VBIOS display tables (VBIOS from %s): the native mode only", source);
 	if (fAtom != NULL)
 		readSink();
+	if (fAtom != NULL && minkar_atom_has_table(fAtom, MINKAR_ATOM_ENABLE_SCALER) &&
+	    minkar_atom_has_table(fAtom, MINKAR_ATOM_SET_CRTC_OVERSCAN) &&
+	    minkar_atom_has_table(fAtom, MINKAR_ATOM_UPDATE_CRTC_DOUBLE_BUFFER))
+		addScaledModes();
+	else
+		LOG("no VBIOS display tables (VBIOS from %s): the native mode only", source);
 
 	if (!super::start(provider))
 		return false;

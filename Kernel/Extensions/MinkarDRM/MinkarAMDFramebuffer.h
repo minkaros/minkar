@@ -91,6 +91,7 @@ private:
 
 	bool findDisplay(uint64_t bootAddress);
 	void readSink();
+	void addScaledModes();
 	int aux(uint8_t request, uint32_t address, uint8_t *buffer, uint8_t size);
 	void measureRefresh();
 	void publishTimings();

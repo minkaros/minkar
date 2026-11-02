@@ -273,6 +273,8 @@ minkar_atom_i2c(struct minkar_atom *a, uint8_t line, uint8_t slave, int write, u
 		u.args.ucTransBytes = moreBytes;
 		u.args.ucFlag = HW_I2C_WRITE;
 	} else {
+		/* A read starts at reg: the table writes it first. */
+		u.args.ucRegIndex = reg;
 		u.args.ucTransBytes = readBytes;
 		u.args.ucFlag = HW_I2C_READ;
 	}
