@@ -48,14 +48,26 @@ enum {
 	kIOSurfacePurgeableKeepCurrent	= 3,
 };
 
-/* Cache modes, for kIOSurfaceCacheMode. */
+/* Cache modes, for kIOSurfaceCacheMode. (IOKit's kIOMap*Cache are its
+ * own: IOKit/IOTypes.h, with the mode shifted by 8.) */
 enum {
-	kIOMapDefaultCache		= 0,
-	kIOMapInhibitCache		= 1,
-	kIOMapWriteThruCache		= 2,
-	kIOMapCopybackCache		= 3,
-	kIOMapWriteCombineCache		= 4,
-	kIOMapCopybackInnerCache	= 5,
+	kIOSurfaceDefaultCache		= 0,
+	kIOSurfaceInhibitCache		= 1,
+	kIOSurfaceWriteThruCache	= 2,
+	kIOSurfaceCopybackCache		= 3,
+	kIOSurfaceWriteCombineCache	= 4,
+	kIOSurfaceCopybackInnerCache	= 5,
+};
+
+/* The same modes as IOKit's mapping options carry them. */
+enum {
+	kIOSurfaceMapCacheShift			= 8,
+	kIOSurfaceMapDefaultCache		= kIOSurfaceDefaultCache << kIOSurfaceMapCacheShift,
+	kIOSurfaceMapInhibitCache		= kIOSurfaceInhibitCache << kIOSurfaceMapCacheShift,
+	kIOSurfaceMapWriteThruCache		= kIOSurfaceWriteThruCache << kIOSurfaceMapCacheShift,
+	kIOSurfaceMapCopybackCache		= kIOSurfaceCopybackCache << kIOSurfaceMapCacheShift,
+	kIOSurfaceMapWriteCombineCache		= kIOSurfaceWriteCombineCache << kIOSurfaceMapCacheShift,
+	kIOSurfaceMapCopybackInnerCache		= kIOSurfaceCopybackInnerCache << kIOSurfaceMapCacheShift,
 };
 
 /* Components of a plane, for IOSurfaceGetSubsampling and the like. */
