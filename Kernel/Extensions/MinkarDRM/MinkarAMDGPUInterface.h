@@ -42,6 +42,9 @@
  *			offset, bytes; out: nanoseconds from the submission
  *			to the fence. The DMA engine copies; the call returns
  *			once the fence has signalled.
+ *   ReadRegister	in: dword index; out: its value. For bring-up: the
+ *			register window only, reading only (no indexed
+ *			registers, which take two writes).
  *
  * A client's buffers are freed when it closes or exits.
  */
@@ -54,6 +57,7 @@ enum {
 	kMinkarAMDGPUCreateBuffer,
 	kMinkarAMDGPUDestroyBuffer,
 	kMinkarAMDGPUCopy,
+	kMinkarAMDGPUReadRegister,
 	kMinkarAMDGPUMethodCount
 };
 

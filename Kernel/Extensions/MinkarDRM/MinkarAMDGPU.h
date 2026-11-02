@@ -68,9 +68,12 @@ public:
 	IODeviceMemory *bufferMemory(uint64_t offset, uint64_t size);
 	uint64_t gpuAddress(uint64_t offset) { return fVRAMStart + offset; }
 	IOReturn copy(uint64_t dst, uint64_t src, uint64_t bytes, uint64_t *ns);
+	IOReturn readWindowRegister(uint32_t reg, uint32_t *value);
 
 private:
 	void dmaSelfTest();
+	void gartSelfTest(struct MinkarAMDDMA *dma, IODeviceMemory *window, uint64_t region,
+	    uint64_t vramStart);
 	void setUpVRAM(uint32_t megabytes);
 	bool startDMA();
 

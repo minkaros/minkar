@@ -103,6 +103,7 @@ MinkarAMDUserClient::externalMethod(uint32_t selector, IOExternalMethodArguments
 		{ (IOExternalMethodAction)&sCreate, 1, 0, 2, 0 },
 		{ (IOExternalMethodAction)&sDestroy, 1, 0, 0, 0 },
 		{ (IOExternalMethodAction)&sCopy, 5, 0, 1, 0 },
+		{ (IOExternalMethodAction)&sReadRegister, 1, 0, 1, 0 },
 	};
 
 	(void)dispatch; (void)target;
@@ -183,6 +184,20 @@ MinkarAMDUserClient::sCopy(OSObject *target, void *, IOExternalMethodArguments *
 	IOLockUnlock(me->fLock);
 	if (err == kIOReturnSuccess)
 		args->scalarOutput[0] = ns;
+	return err;
+}
+
+IOReturn
+MinkarAMDUserClient::sReadRegister(OSObject *target, void *, IOExternalMethodArguments *args)
+{
+	MinkarAMDUserClient *me = (MinkarAMDUserClient *)target;
+	uint32_t value = 0;
+
+	if (args->scalarInput[0] > UINT32_MAX)
+		return kIOReturnBadArgument;
+	IOReturn err = me->fGPU->readWindowRegister((uint32_t)args->scalarInput[0], &value);
+	if (err == kIOReturnSuccess)
+		args->scalarOutput[0] = value;
 	return err;
 }
 

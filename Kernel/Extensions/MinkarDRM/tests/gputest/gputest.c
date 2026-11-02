@@ -37,6 +37,8 @@
  *   minkar-gputest [-g GPU] [-m MB]	GPU: 0 and up (default 0); MB: the
  *					size of the copy (default 8)
  *   minkar-gputest -l			lists the GPUs
+ *   minkar-gputest [-g GPU] -r REG,...	prints registers (dword indices,
+ *					hex), for bring-up
  */
 
 #include <IOKit/IOKitLib.h>
@@ -70,15 +72,18 @@ main(int argc, char **argv)
 {
 	unsigned gpu = 0, megabytes = 8;
 	int list = 0, c;
+	const char *regs = NULL;
 	char detail[256];
 
-	while ((c = getopt(argc, argv, "g:m:l")) != -1)
+	while ((c = getopt(argc, argv, "g:m:lr:")) != -1)
 		switch (c) {
 		case 'g': gpu = (unsigned)strtoul(optarg, NULL, 0); break;
 		case 'm': megabytes = (unsigned)strtoul(optarg, NULL, 0); break;
 		case 'l': list = 1; break;
+		case 'r': regs = optarg; break;
 		default:
-			fprintf(stderr, "usage: minkar-gputest [-g gpu] [-m megabytes] | -l\n");
+			fprintf(stderr, "usage: minkar-gputest [-g gpu] [-m megabytes] | -l | "
+			    "[-g gpu] -r reg,...\n");
 			return 2;
 		}
 
@@ -119,6 +124,24 @@ main(int argc, char **argv)
 
 	uint64_t out[3];
 	uint32_t n = 3;
+	if (regs != NULL) {
+		char *copy = strdup(regs), *save = NULL;
+		for (char *r = strtok_r(copy, ",", &save); r != NULL; r = strtok_r(NULL, ",", &save)) {
+			uint64_t reg = strtoull(r, NULL, 16);
+			n = 1;
+			if (IOConnectCallScalarMethod(conn, kMinkarAMDGPUReadRegister, &reg, 1, out, &n) ==
+			    KERN_SUCCESS)
+				printf("0x%04llx 0x%08llx\n", (unsigned long long)reg,
+				    (unsigned long long)out[0]);
+			else {
+				printf("0x%04llx unreadable\n", (unsigned long long)reg);
+				failures++;
+			}
+		}
+		free(copy);
+		IOServiceClose(conn);
+		return failures;
+	}
 	kr = IOConnectCallScalarMethod(conn, kMinkarAMDGPUInfo, NULL, 0, out, &n);
 	snprintf(detail, sizeof(detail), "%llu MB, %llu MB free, %llu MB window",
 	    (unsigned long long)out[0] >> 20, (unsigned long long)out[1] >> 20,

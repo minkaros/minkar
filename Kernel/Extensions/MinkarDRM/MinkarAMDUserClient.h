@@ -64,6 +64,7 @@ private:
 	static IOReturn sCreate(OSObject *target, void *reference, IOExternalMethodArguments *args);
 	static IOReturn sDestroy(OSObject *target, void *reference, IOExternalMethodArguments *args);
 	static IOReturn sCopy(OSObject *target, void *reference, IOExternalMethodArguments *args);
+	static IOReturn sReadRegister(OSObject *target, void *reference, IOExternalMethodArguments *args);
 	Buffer *buffer(uint64_t handle);
 	void releaseAll();
 
