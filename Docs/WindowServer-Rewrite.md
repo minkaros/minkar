@@ -256,8 +256,9 @@ connection, since no policy module validates code signatures yet and no
 process has entitlements (`SHORTCUT(WS4a)` in `IOHIDUserClient.cpp`,
 removed on 2026-11-01 with ADR 0001); the
 legacy server's threads get 4 MB stacks for its 128 KB messages
-(`SHORTCUT(WS4b)` in `main.m`); the launchd job runs the compositor only
-(`-x`), since LoginWindow is not built (`SHORTCUT(WS4b)` in its plist);
+(a WS4b shortcut, gone with that server); the launchd job ran the compositor
+only (`-x`), since LoginWindow was not built (a WS4b shortcut, gone with the
+switch);
 Inter is the provisional system font until Gienah has its own
 (`SHORTCUT(Phase 5)` in `SystemLibrary/Fonts/Makefile`).
 
@@ -593,14 +594,14 @@ Decided 2026-10-31, following the guiding rule in section 1:
 
 | Question | Decision (target) | Development shortcut | Removed by |
 | --- | --- | --- | --- |
-| User WindowServer runs as | `_windowserver` (UID 88), set by the launchd job (`UserName`) | Root; the new server runs as `_windowserver` since 2026-11-01 (`9af6b6295d`), the legacy one stays root until it goes | WS4b (the legacy server's removal) |
+| User WindowServer runs as | `_windowserver` (UID 88), set by the launchd job (`UserName`) | Root; the new server runs as `_windowserver` since 2026-11-01 (`9af6b6295d`), the legacy one stays root until it goes | Removed 2026-11-02, in WS4b, with the legacy server |
 | Where it lives | `SkyLight.framework/Resources/WindowServer`; client in `SkyLight.framework`, re-exported by CoreGraphics | `CoreServices/WindowServer.app` for WS0 (current server) | WS1 |
 | Capturing and posting events | Screen recording, input monitoring and accessibility permissions, through a permission service | Built-in policy: root and the console user's processes are allowed (also to claim symbolic hotkeys and to read other apps' window images); everything else denied (`SHORTCUT(M5)`) | M5 (the privacy service ADR comes before gate M5) |
 | Moving windows | Server-side moves from client-declared drag regions, plus `performWindowDragWithEvent:` | Title bar region only | Removed 2026-11-01 (`f03d8ddc9d`, `5df94c8821`) |
 | Keyboard layouts | The server delivers hardware key codes; the client turns them into characters from the current layout (layout data and a `UCKeyTranslate`-style call in the app), with Text Input Sources | `WSKeymap` and libxkbcommon in SkyLight, from WS4a (`SHORTCUT(Phase 5)`) | Phase 5 (Text Input Sources and our own layout files) |
 | Ending the session | The login window asks apps to quit, ends the session and then restarts or shuts down | A minimal `loginwindow` that only ends the session and calls `reboot(2)` | Phase 5 (LoginWindow) |
 | App switcher (Command-Tab) | The Dock draws it; the window server's symbolic hotkey table delivers Command-Tab to it | No switcher after the legacy server goes (WS4b): apps are switched by clicking their windows (`SHORTCUT(D3)`) | D3 ([Dock-Kraz.md](Dock-Kraz.md)) |
-| Legacy server's thread stacks | Gone with the legacy server and `message.h` | 4 MB stacks for its 128 KB messages (`SHORTCUT(WS4b)` in `Legacy/main.m`, taken in WS0) | WS4b |
+| Legacy server's thread stacks | Gone with the legacy server and `message.h` | 4 MB stacks for its 128 KB messages (taken in WS0) | Removed 2026-11-02, in WS4b, with the legacy server and `message.h` |
 | What WindowServer's launchd job starts | The window server only; the session starts elsewhere (section 10.3) | The compositor only (`-x`), since LoginWindow is not built (taken in WS0) | Removed 2026-11-02, in WS4b: the new server's job starts it alone, `loginwindow` the session |
 | System font | Gienah's own font | Inter (SIL OFL 1.1), four faces (`SHORTCUT(Phase 5)` in `SystemLibrary/Fonts/Makefile`, taken in WS0) | Phase 5 (Gienah) |
 | Permanent display configurations | Stored and applied again at the next session | They last for the session (`SHORTCUT(WS5)`, taken in WS1) | WS5 (real mode changes) |

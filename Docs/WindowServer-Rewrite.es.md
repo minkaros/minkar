@@ -278,9 +278,9 @@ Atajos tomados (sección 9): root puede abrir la conexión de servidor de
 IOHIDSystem, porque todavía ningún módulo de política valida las firmas de
 código y ningún proceso tiene entitlements (`SHORTCUT(WS4a)` en
 `IOHIDUserClient.cpp`, quitado el 1 nov 2026 con el ADR 0001); los hilos del servidor actual tienen pilas de 4 MB
-para sus mensajes de 128 KB (`SHORTCUT(WS4b)` en `main.m`); el job de launchd
-ejecuta solo el compositor (`-x`), porque LoginWindow no se compila
-(`SHORTCUT(WS4b)` en su plist); Inter es la fuente provisional del sistema
+para sus mensajes de 128 KB (un atajo de WS4b, ido con ese servidor); el job
+de launchd ejecutaba solo el compositor (`-x`), porque LoginWindow no se
+compilaba (un atajo de WS4b, ido con el cambio); Inter es la fuente provisional del sistema
 hasta que Gienah tenga la suya (`SHORTCUT(Phase 5)` en
 `SystemLibrary/Fonts/Makefile`).
 
@@ -643,14 +643,14 @@ Decidido el 31 oct 2026, según la regla general de la sección 1:
 
 | Pregunta | Decisión (objetivo) | Atajo de desarrollo | Se quita en |
 | --- | --- | --- | --- |
-| Usuario con el que corre WindowServer | `_windowserver` (UID 88), fijado por el job de launchd (`UserName`) | Root; el servidor nuevo corre como `_windowserver` desde el 1 nov 2026 (`9af6b6295d`), el anterior sigue como root hasta que se va | WS4b (se borra el servidor anterior) |
+| Usuario con el que corre WindowServer | `_windowserver` (UID 88), fijado por el job de launchd (`UserName`) | Root; el servidor nuevo corre como `_windowserver` desde el 1 nov 2026 (`9af6b6295d`), el anterior sigue como root hasta que se va | Quitado el 2 nov 2026, en WS4b, con el servidor anterior |
 | Dónde vive | `SkyLight.framework/Resources/WindowServer`; el cliente en `SkyLight.framework`, reexportado por CoreGraphics | `CoreServices/WindowServer.app` para WS0 (servidor actual) | WS1 |
 | Capturar pantalla y enviar eventos | Permisos de grabación de pantalla, monitoreo de entrada y accesibilidad, mediante un servicio de permisos | Política interna: se permite a root y a los procesos del usuario de consola; el resto, denegado (también para reclamar atajos simbólicos y leer imágenes de ventanas de otras apps) (`SHORTCUT(M5)`) | M5 (el ADR del servicio de privacidad llega antes del gate M5) |
 | Mover ventanas | Movimientos en el servidor a partir de las zonas de arrastre que declara el cliente, más `performWindowDragWithEvent:` | Solo la zona de la barra de título | Se quitó el 1 nov 2026 (`f03d8ddc9d`, `5df94c8821`) |
 | Distribuciones de teclado | El servidor entrega códigos de tecla del hardware; el cliente los convierte en caracteres según la distribución actual (datos de la distribución y una llamada al estilo de `UCKeyTranslate` en la app), con Text Input Sources | `WSKeymap` y libxkbcommon en SkyLight, desde WS4a (`SHORTCUT(Phase 5)`) | Fase 5 (Text Input Sources y ficheros de distribución propios) |
 | Terminar la sesión | La ventana de login pide a las apps que terminen, cierra la sesión y después reinicia o apaga | Un `loginwindow` mínimo que solo cierra la sesión y llama a `reboot(2)` | Fase 5 (LoginWindow) |
 | Selector de apps (Comando-Tab) | Lo dibuja el Dock; la tabla de atajos simbólicos del servidor de ventanas le entrega Comando-Tab | Sin selector desde que se va el servidor anterior (WS4b): se cambia de app con clic en sus ventanas (`SHORTCUT(D3)`) | D3 ([Dock-Kraz.es.md](Dock-Kraz.es.md)) |
-| Pilas de los hilos del servidor anterior | Desaparecen con el servidor anterior y `message.h` | Pilas de 4 MB para sus mensajes de 128 KB (`SHORTCUT(WS4b)` en `Legacy/main.m`, tomado en WS0) | WS4b |
+| Pilas de los hilos del servidor anterior | Desaparecen con el servidor anterior y `message.h` | Pilas de 4 MB para sus mensajes de 128 KB (tomado en WS0) | Quitado el 2 nov 2026, en WS4b, con el servidor anterior y `message.h` |
 | Qué arranca el job de launchd de WindowServer | Solo el servidor de ventanas; la sesión arranca en otro sitio (sección 10.3) | Solo el compositor (`-x`), porque LoginWindow no se compila (tomado en WS0) | Quitado el 2 nov 2026, en WS4b: el job del servidor nuevo solo lo arranca a él, y `loginwindow` arranca la sesión |
 | Fuente del sistema | La fuente propia de Gienah | Inter (SIL OFL 1.1), cuatro estilos (`SHORTCUT(Phase 5)` en `SystemLibrary/Fonts/Makefile`, tomado en WS0) | Fase 5 (Gienah) |
 | Configuraciones de pantalla permanentes | Se guardan y se vuelven a aplicar en la sesión siguiente | Duran la sesión (`SHORTCUT(WS5)`, tomado en WS1) | WS5 (cambios de modo reales) |
