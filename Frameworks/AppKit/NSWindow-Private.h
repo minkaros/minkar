@@ -21,6 +21,9 @@ APPKIT_EXPORT NSArray *_NSWindowNumbersFromWindowInfo(CFArrayRef info,BOOL allAp
 @interface NSWindow (NSWindow_private)
 /* The new window server's ID for this window (0 with the legacy one). */
 - (uint32_t)_skyLightWindowID;
+/* Notes a rect drawn (in the window's base coordinates), sent to the
+ * window server at the next flush. */
+- (void)_addDamageRect:(NSRect)rect;
 - (CGWindow *)platformWindow;
 - (CGContextRef)cgContext;
 - (BOOL)_isActive;

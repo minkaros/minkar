@@ -139,7 +139,8 @@
      * (a pop-up button: Red, Green, Blue), "statusitem" (a status item
      * "Demo" with a menu: Status One, Status Two), "nostatusitem" (removes
      * it), "refusequit" (its delegate refuses to quit from now on), "tags"
-     * (the Test menu's item tags; Alpha's is 42).
+     * (the Test menu's item tags; Alpha's is 42), "smallredraw" (20 by 20
+     * points of its view drawn again).
      */
     NSArray *args = [[NSProcessInfo processInfo] arguments];
     NSUInteger cmd = [args indexOfObject:@"-cmd"];
@@ -407,7 +408,11 @@
     }
     else if (strncmp(line, "menus", 5) == 0)
         [self addTestMenu];
-    else if (strncmp(line, "tags", 4) == 0) {
+    else if (strncmp(line, "smallredraw", 11) == 0) {
+        [[self.window contentView] setNeedsDisplayInRect:NSMakeRect(10, 10, 20, 20)];
+        [self.window displayIfNeeded];
+        printf("small redraw\n");
+    } else if (strncmp(line, "tags", 4) == 0) {
         for (NSMenuItem *item in [[[[NSApp mainMenu] itemWithTitle:@"Test"] submenu] itemArray])
             printf("tag %s %ld\n", [[item title] UTF8String], (long)[item tag]);
     } else if (strncmp(line, "keyequivs", 9) == 0)

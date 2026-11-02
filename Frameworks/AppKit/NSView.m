@@ -1794,7 +1794,10 @@ static NSGraphicsContext *graphicsContextForView(NSView *view){
     [self setUpGState];
 }
 
+/* Drawing outside -display (an app's own lockFocus): what the view shows
+   may change, so the window sends it at its next flush. */
 -(void)lockFocus {
+   [_window _addDamageRect:[self convertRect:[self visibleRect] toView:nil]];
    [self _lockFocusInContext:graphicsContextForView(self)];
 }
 
@@ -2030,7 +2033,9 @@ static NSGraphicsContext *graphicsContextForView(NSView *view){
 
    if ([self canDraw]) {
       // This view must be locked/unlocked prior to drawing subviews otherwise gState changes may affect subviews.
-      [self lockFocus];
+      // The rect drawn is what the window sends to the server.
+      [_window _addDamageRect:[self convertRect:rect toView:nil]];
+      [self _lockFocusInContext:graphicsContextForView(self)];
 
       NSGraphicsContext *context=[NSGraphicsContext currentContext];
       CGContextRef       graphicsPort=[context graphicsPort];

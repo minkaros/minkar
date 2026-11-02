@@ -471,6 +471,8 @@ NSArray *_NSWindowNumbersFromWindowInfo(CFArrayRef info,BOOL allApps) {
         size_t pixelsWide = (size_t)_frame.size.width, pixelsHigh = (size_t)_frame.size.height;
         int depth = [_display depth] / 8;
         bufsize = depth * pixelsWide * pixelsHigh;
+        /* A new buffer: all of it goes to the server at the next flush. */
+        _damageAll = YES;
 
         /* The window's own pixels; flushWindow copies them to its surface. */
         buffer = calloc(1, bufsize);
@@ -1958,14 +1960,56 @@ NSArray *_NSWindowNumbersFromWindowInfo(CFArrayRef info,BOOL allApps) {
             O2ContextFlush(_context);
         }
         if(buffer != NULL) {
-            /* SHORTCUT(WS5): the whole window is damaged at each flush, until
-               AppKit tracks its dirty rects into the surface; taken in WS2. */
+            /* What was drawn since the last flush; the whole window when
+               nothing was noted (or the buffer is new). */
             int32_t width = (int32_t)_frame.size.width, height = (int32_t)_frame.size.height;
             SLSIntRect all = { 0, 0, width, height };
             [self _syncSkyLightDragRegion];
-            SLSWindowFlushPixels(slsWindowFor(_number), buffer, 4 * width, &all, 1);
+            if(_damageAll || _damageCount == 0)
+                SLSWindowFlushPixels(slsWindowFor(_number), buffer, 4 * width, &all, 1);
+            else
+                SLSWindowFlushPixels(slsWindowFor(_number), buffer, 4 * width,
+                    (const SLSIntRect *)_damage, _damageCount);
+            _damageCount = 0;
+            _damageAll = NO;
         }
     }
+}
+
+-(void)_addDamageRect:(NSRect)rect {
+    int32_t width = (int32_t)_frame.size.width, height = (int32_t)_frame.size.height;
+    NSRect r = NSIntegralRect(NSIntersectionRect(rect, NSMakeRect(0, 0, width, height)));
+
+    if(NSIsEmptyRect(r) || _damageAll)
+        return;
+    /* From the bottom left (AppKit) to the top left (the server). */
+    int32_t x = (int32_t)r.origin.x, y = height - (int32_t)NSMaxY(r);
+    int32_t w = (int32_t)r.size.width, h = (int32_t)r.size.height;
+    for(uint32_t i = 0; i < _damageCount; i++) {
+        /* Inside one already noted. */
+        if(x >= _damage[i].x && y >= _damage[i].y && x + w <= _damage[i].x + _damage[i].width &&
+            y + h <= _damage[i].y + _damage[i].height)
+            return;
+    }
+    if(_damageCount == sizeof(_damage) / sizeof(_damage[0])) {
+        /* Too many: their bounding rect. */
+        int32_t x0 = x, y0 = y, x1 = x + w, y1 = y + h;
+        for(uint32_t i = 0; i < _damageCount; i++) {
+            x0 = MIN(x0, _damage[i].x);
+            y0 = MIN(y0, _damage[i].y);
+            x1 = MAX(x1, _damage[i].x + _damage[i].width);
+            y1 = MAX(y1, _damage[i].y + _damage[i].height);
+        }
+        _damageCount = 1;
+        x = x0; y = y0; w = x1 - x0; h = y1 - y0;
+        _damage[0].x = x; _damage[0].y = y; _damage[0].width = w; _damage[0].height = h;
+        return;
+    }
+    _damage[_damageCount].x = x;
+    _damage[_damageCount].y = y;
+    _damage[_damageCount].width = w;
+    _damage[_damageCount].height = h;
+    _damageCount++;
 }
 
 -(void)flushWindowIfNeeded {

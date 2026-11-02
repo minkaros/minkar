@@ -175,6 +175,11 @@ APPKIT_EXPORT NSString *const NSWindowDidEndLiveResizeNotification;
     BOOL _isActive;
     BOOL _viewsNeedDisplay;
     BOOL _flushNeeded;
+    /* What was drawn since the last flush, in the window server's window
+       coordinates (from the top left); everything with _damageAll. */
+    struct { int32_t x, y, width, height; } _damage[16];
+    uint32_t _damageCount;
+    BOOL _damageAll;
     BOOL _isFlushWindowDisabled;
     BOOL _isAutodisplay;
     BOOL _canHide;
