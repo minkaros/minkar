@@ -13,6 +13,8 @@ SUBDIR += Foundation
 # LaunchServices is inside CoreServices, which re-exports it.
 SUBDIR += CoreServices/LaunchServices
 SUBDIR += CoreServices
+# IOSurface (roadmap step 4): pixel buffers shared across processes.
+SUBDIR += IOSurface
 SUBDIR += Onyx2D
 # SkyLight (the window server's client side) comes before CoreGraphics,
 # which is to re-export it (WindowServer plan).
@@ -28,6 +30,7 @@ SUBDIR += AppKit
 all: ${SUBDIR}
 
 Foundation: CoreFoundation
+IOSurface: CoreFoundation
 CoreServices: CoreServices/LaunchServices
 SystemConfiguration: CoreFoundation
 DiskArbitration: CoreFoundation

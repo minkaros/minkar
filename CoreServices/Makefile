@@ -22,6 +22,8 @@ SUBDIR += .WAIT ../BSD/lib/libpixman .WAIT ../PrivateFrameworks/SkyLight/Server 
 SUBDIR += launchservicesd launchservicesd/tests
 # The minimal loginwindow, the session's owner (WindowServer plan, 10.3).
 SUBDIR += loginwindow
+# The IOSurface registry (roadmap step 4).
+SUBDIR += iosurfaced ../Frameworks/IOSurface/tests
 # The code integrity policy's test program (it needs IOKit).
 SUBDIR += ../Kernel/Extensions/MinkarCodeIntegrity/tests
 # IOHIDSystem's event queue reader, for the input tests (it needs IOKit).

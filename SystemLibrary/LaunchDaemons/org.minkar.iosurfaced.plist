@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+ SPDX-License-Identifier: BSD-2-Clause
+ Copyright (c) 2026 The Minkar contributors
+ Part of Minkar.
+
+ iosurfaced, the IOSurface registry (roadmap step 4): surfaces' global
+ IDs, memory entries and values. Started on demand, by the first lookup of
+ its service.
+-->
+<plist version="1.0">
+<dict>
+	<key>Label</key>
+	<string>org.minkar.iosurfaced</string>
+	<key>ProgramArguments</key>
+	<array>
+		<string>/usr/libexec/iosurfaced</string>
+	</array>
+	<key>MachServices</key>
+	<dict>
+		<key>org.minkar.iosurfaced</key>
+		<true/>
+	</dict>
+	<key>StandardErrorPath</key>
+	<string>/var/log/iosurfaced.log</string>
+	<key>KeepAlive</key>
+	<false/>
+</dict>
+</plist>

@@ -1,0 +1,78 @@
+/*
+ * SPDX-License-Identifier: BSD-2-Clause
+ * Copyright (c) 2026 The Minkar contributors
+ * Part of Minkar.
+ *
+ * The IOSurface registry (iosurfaced): surfaces' global IDs, their memory
+ * entries and their values, for every process that holds them. A process
+ * names itself by its session port (a send right the registry watches):
+ * when it dies, its holds go, and a surface no process holds goes too.
+ */
+
+subsystem IOSurfaceRegistry 29200;
+
+#include <mach/std_types.defs>
+#include <mach/mach_types.defs>
+
+userprefix iosr_;
+serverprefix iosd_;
+
+import "IOSurfaceRegistryTypes.h";
+
+type bytes_t = array[] of uint8_t;
+
+/* A new surface: its memory entry and properties (a binary property
+ * list); the caller holds it. */
+routine create(
+	server			: mach_port_t;
+	ServerAuditToken token	: audit_token_t;
+	session			: mach_port_make_send_t;
+	memory			: mach_port_copy_send_t;
+	allocSize		: uint64_t;
+	properties		: bytes_t;
+	out surfaceID		: uint32_t;
+	out result		: int32_t);
+
+/* A surface by its ID: the caller holds it too. */
+routine lookup(
+	server			: mach_port_t;
+	ServerAuditToken token	: audit_token_t;
+	session			: mach_port_make_send_t;
+	surfaceID		: uint32_t;
+	out memory		: mach_port_move_send_t;
+	out allocSize		: uint64_t;
+	out properties		: bytes_t, dealloc;
+	out result		: int32_t);
+
+/* The caller lets it go. */
+routine release(
+	server			: mach_port_t;
+	ServerAuditToken token	: audit_token_t;
+	surfaceID		: uint32_t);
+
+/* Its values (IOSurfaceSetValue and the like), shared by every holder. */
+routine set_values(
+	server			: mach_port_t;
+	surfaceID		: uint32_t;
+	values			: bytes_t;
+	out result		: int32_t);
+
+routine copy_values(
+	server			: mach_port_t;
+	surfaceID		: uint32_t;
+	out values		: bytes_t, dealloc;
+	out result		: int32_t);
+
+/* A port standing for the surface (IOSurfaceCreateMachPort). */
+routine make_port(
+	server			: mach_port_t;
+	surfaceID		: uint32_t;
+	out port		: mach_port_make_send_t;
+	out result		: int32_t);
+
+/* The surface a port of make_port stands for. */
+routine port_id(
+	server			: mach_port_t;
+	port			: mach_port_t;
+	out surfaceID		: uint32_t;
+	out result		: int32_t);
