@@ -31,6 +31,8 @@
 #include <SkyLight/SkyLight.h>
 #include <IOSurface/IOSurfaceRef.h>
 #include <dispatch/dispatch.h>
+#include <pthread.h>
+#include <string.h>
 #include <unistd.h>
 #import <CoreGraphics/CGBitmapContext.h>
 #import <CoreGraphics/CGWindow.h>
@@ -561,13 +563,76 @@ uint32_t CGDisplayVendorNumber(CGDirectDisplayID display) {
     return info.vendor;
 }
 
-// Registering for Notification of Config Changes
+/*
+ * Registering for notification of configuration changes. The window
+ * server tells each connection what changed (kSLSEventDisplayReconfigured);
+ * the app's event loop (AppKit's) hands it to _CGDisplayReconfigured,
+ * which calls each callback twice, as on the reference platform: with
+ * kCGDisplayBeginConfigurationFlag, then with what changed. A callback is
+ * registered once per callback and userInfo pair.
+ */
+enum { kMaxReconfigurationCallbacks = 32 };
+
+static struct {
+    CGDisplayReconfigurationCallBack callback;
+    void *userInfo;
+} reconfigurationCallbacks[kMaxReconfigurationCallbacks];
+static unsigned reconfigurationCallbackCount;
+static pthread_mutex_t reconfigurationLock = PTHREAD_MUTEX_INITIALIZER;
+
 CGError CGDisplayRegisterReconfigurationCallback(CGDisplayReconfigurationCallBack callback, void *userInfo) {
-    return kCGErrorFailure; // FIXME: not yet implemented
+    CGError err = kCGErrorSuccess;
+
+    if(callback == NULL)
+        return kCGErrorIllegalArgument;
+    pthread_mutex_lock(&reconfigurationLock);
+    unsigned i;
+    for(i = 0; i < reconfigurationCallbackCount; i++)
+        if(reconfigurationCallbacks[i].callback == callback &&
+            reconfigurationCallbacks[i].userInfo == userInfo)
+            break;
+    if(i == reconfigurationCallbackCount) {
+        if(i == kMaxReconfigurationCallbacks)
+            err = kCGErrorRangeCheck;
+        else {
+            reconfigurationCallbacks[i].callback = callback;
+            reconfigurationCallbacks[i].userInfo = userInfo;
+            reconfigurationCallbackCount++;
+        }
+    }
+    pthread_mutex_unlock(&reconfigurationLock);
+    return err;
 }
 
 CGError CGDisplayRemoveReconfigurationCallback(CGDisplayReconfigurationCallBack callback, void *userInfo) {
-    return kCGErrorFailure; // FIXME: not yet implemented
+    CGError err = kCGErrorIllegalArgument;
+
+    pthread_mutex_lock(&reconfigurationLock);
+    for(unsigned i = 0; i < reconfigurationCallbackCount; i++)
+        if(reconfigurationCallbacks[i].callback == callback &&
+            reconfigurationCallbacks[i].userInfo == userInfo) {
+            reconfigurationCallbacks[i] = reconfigurationCallbacks[--reconfigurationCallbackCount];
+            err = kCGErrorSuccess;
+            break;
+        }
+    pthread_mutex_unlock(&reconfigurationLock);
+    return err;
+}
+
+/* Private, for the app's event loop: display changed by flags. */
+void _CGDisplayReconfigured(CGDirectDisplayID display, CGDisplayChangeSummaryFlags flags) {
+    struct { CGDisplayReconfigurationCallBack callback; void *userInfo; } copy[kMaxReconfigurationCallbacks];
+    unsigned count;
+
+    /* Called unlocked: a callback may register or remove one. */
+    pthread_mutex_lock(&reconfigurationLock);
+    count = reconfigurationCallbackCount;
+    memcpy(copy, reconfigurationCallbacks, sizeof(copy[0]) * count);
+    pthread_mutex_unlock(&reconfigurationLock);
+    for(unsigned i = 0; i < count; i++)
+        copy[i].callback(display, kCGDisplayBeginConfigurationFlag, copy[i].userInfo);
+    for(unsigned i = 0; i < count; i++)
+        copy[i].callback(display, flags, copy[i].userInfo);
 }
 
 // Retrieving Display Parameters
