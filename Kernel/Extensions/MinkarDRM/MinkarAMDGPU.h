@@ -41,6 +41,7 @@
 #include <IOKit/IOService.h>
 #include <IOKit/IOMemoryDescriptor.h>
 #include <IOKit/pci/IOPCIDevice.h>
+#include "MinkarAMDDevice.h"
 
 struct minkar_atom;
 
@@ -58,16 +59,8 @@ public:
 	void writeReg(uint32_t reg, uint32_t value);
 
 private:
-	const char *family(UInt16 device, bool *gcn1);
-	bool readPlatformROM();
-	bool readExpansionROM();
-	bool keepROM(const uint8_t *p, IOByteCount length);
-
 	IOPCIDevice *		fPCI;
-	IOMemoryMap *		fMMIO;
-	volatile uint8_t *	fRegs;
-	IOByteCount		fRegsSize;
-	IOLock *		fIndexLock;	/* MM_INDEX/MM_DATA pairs */
+	struct MinkarAMDRegs	fRegs;
 	uint8_t *		fBIOS;
 	IOByteCount		fBIOSSize;
 	struct minkar_atom *	fAtom;

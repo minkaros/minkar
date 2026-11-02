@@ -59,6 +59,21 @@ struct minkar_atom *minkar_atom_open(void *gpu, minkar_reg_read_t read,
 int minkar_atom_execute(struct minkar_atom *a, int index, uint32_t *params, int size);
 void minkar_atom_close(struct minkar_atom *a);
 
+/* Display tables (DCE 6 and later), by crtc index; 0 or a negative errno. */
+enum minkar_atom_table {
+	MINKAR_ATOM_ENABLE_SCALER,
+	MINKAR_ATOM_SET_CRTC_OVERSCAN,
+	MINKAR_ATOM_UPDATE_CRTC_DOUBLE_BUFFER,
+};
+int minkar_atom_has_table(struct minkar_atom *a, enum minkar_atom_table t);
+/* Holds (lock 1) or releases (0) the crtc's double-buffered registers, so
+ * a set of changes takes effect in one frame. */
+int minkar_atom_crtc_lock(struct minkar_atom *a, int crtc, int lock);
+/* Borders around the scaled picture, in pixels of the display's mode. */
+int minkar_atom_overscan(struct minkar_atom *a, int crtc, int left, int right, int top, int bottom);
+/* Scales the viewport to the display's mode (expand), or passes it through. */
+int minkar_atom_scaler(struct minkar_atom *a, int crtc, int expand);
+
 #ifdef __cplusplus
 }
 #endif

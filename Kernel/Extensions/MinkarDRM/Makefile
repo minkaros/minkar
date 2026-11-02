@@ -5,8 +5,8 @@
 # MinkarDRM: GPU drivers from drm-kmod on XNU (ADR 0002). Our LinuxKPI
 # layer (linuxkpi/), files imported unchanged (dist/, by
 # tools/drm-import), and the IOKit drivers around them. So far:
-# MinkarAMDGPU, which reads and parses an AMD GPU's VBIOS without driving
-# its display (G1).
+# MinkarAMDGPU, which reads and parses an AMD GPU's VBIOS, and
+# MinkarAMDFramebuffer, the display of a GCN 1.0 GPU (G1).
 MK_WERROR = no
 SUBDIR =
 KEXT = MinkarDRM
@@ -18,7 +18,8 @@ BUNDLE_VERSION = 1.0.0
 AMD = ${.CURDIR}/dist/drm-kmod/drivers/gpu/drm/amd
 .PATH: ${.CURDIR}/linuxkpi/xnu ${.CURDIR}/amdgpu ${AMD}/amdgpu
 
-SRCS = lkpi_xnu.cpp atom_glue.c atom.c MinkarAMDGPU.cpp
+SRCS = lkpi_xnu.cpp atom_glue.c atom.c MinkarAMDDevice.cpp MinkarAMDGPU.cpp \
+	MinkarAMDFramebuffer.cpp
 
 CFLAGS = -Wno-implicit-int-conversion -Wno-sign-conversion -Wno-format-zero-length \
 	-Wno-pointer-sign -Wno-unused-parameter -Wno-missing-prototypes \
@@ -27,6 +28,7 @@ CFLAGS = -Wno-implicit-int-conversion -Wno-sign-conversion -Wno-format-zero-leng
 	-I${.CURDIR}/linuxkpi/include -I${.CURDIR}/amdgpu \
 	-I${AMD}/amdgpu -I${AMD}/include \
 	-I${.CURDIR:H}/IOPCIFamily \
+	-I${.CURDIR:H}/IOGraphics/IOGraphicsFamily \
 	-I${ROOT_SOURCE_DIR}/Kernel/xnu/iokit \
 	-I${ROOT_SOURCE_DIR}/Kernel/xnu/osfmk \
 	-I${ROOT_SOURCE_DIR}/Kernel/xnu/bsd \
