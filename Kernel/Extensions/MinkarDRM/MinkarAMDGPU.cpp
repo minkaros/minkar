@@ -92,6 +92,11 @@ MinkarAMDGPU::start(IOService *provider)
 			uint32_t mb = readReg(mmCONFIG_MEMSIZE);
 			setProperty("MinkarVRAMMegabytes", mb, 32);
 			setUpVRAM(mb);
+			fVRAMStart = (uint64_t)(readReg(mmMC_VM_FB_LOCATION) & 0xFFFF) << 24;
+			fWindow = MinkarAMDBARRange(fPCI, kIOPCIConfigBaseAddress0);
+			fDMALock = IOLockAlloc();
+			if (fWindow != NULL && fDMALock != NULL && fVRAMLock != NULL)
+				setProperty("IOUserClientClass", "MinkarAMDUserClient");
 			LOG("register window %llu KB, VRAM %u MB",
 			    (unsigned long long)fRegs.size / 1024, mb);
 		}
@@ -136,6 +141,103 @@ MinkarAMDGPU::setUpVRAM(uint32_t megabytes)
 		return;
 	}
 	setProperty("MinkarVRAMFreeMegabytes", (unsigned long long)(fVRAM.freeBytes >> 20), 32);
+}
+
+/* ---- For the user client ---- */
+
+/* The DMA engine for clients' copies, started at the first: its ring and
+ * write-back in 1 MB of VRAM from the allocator. Called locked. */
+bool
+MinkarAMDGPU::startDMA()
+{
+	if (fDMAStarted)
+		return true;
+	IOLockLock(fVRAMLock);
+	bool have = minkar_vram_alloc(&fVRAM, 1ULL << 20, 1ULL << 20, &fDMAOffset) == 0;
+	IOLockUnlock(fVRAMLock);
+	if (!have)
+		return false;
+	IODeviceMemory *region = fDMAOffset + (1ULL << 20) <= fWindow->getLength() ?
+	    IODeviceMemory::withSubRange(fWindow, fDMAOffset, 1ULL << 20) : NULL;
+	fDMAMap = region != NULL ? region->map(kIOMapWriteCombineCache) : NULL;
+	OSSafeReleaseNULL(region);
+	if (fDMAMap != NULL)
+		fDMAStarted = MinkarAMDDMAStart(&fDMA, &fRegs, 0, fVRAMStart + fDMAOffset,
+		    (volatile uint8_t *)fDMAMap->getVirtualAddress(), 1ULL << 20);
+	if (!fDMAStarted) {
+		LOG("the DMA engine did not start");
+		OSSafeReleaseNULL(fDMAMap);
+		IOLockLock(fVRAMLock);
+		minkar_vram_free(&fVRAM, fDMAOffset, 1ULL << 20);
+		IOLockUnlock(fVRAMLock);
+	}
+	return fDMAStarted;
+}
+
+IOReturn
+MinkarAMDGPU::vramInfo(uint64_t *total, uint64_t *available, uint64_t *window)
+{
+	if (fWindow == NULL || fVRAMLock == NULL)
+		return kIOReturnNotReady;
+	IOLockLock(fVRAMLock);
+	*total = fVRAM.size;
+	*available = fVRAM.freeBytes;
+	IOLockUnlock(fVRAMLock);
+	*window = fWindow->getLength();
+	return kIOReturnSuccess;
+}
+
+/* In 64 KB units, inside the CPU's window. */
+IOReturn
+MinkarAMDGPU::createBuffer(uint64_t size, uint64_t *offset)
+{
+	const uint64_t unit = 64 * 1024;
+
+	if (fWindow == NULL || fVRAMLock == NULL)
+		return kIOReturnNotReady;
+	if (size == 0 || size > fWindow->getLength())
+		return kIOReturnBadArgument;
+	size = (size + unit - 1) & ~(unit - 1);
+	IOLockLock(fVRAMLock);
+	int err = minkar_vram_alloc(&fVRAM, size, unit, offset);
+	if (err == 0 && *offset + size > fWindow->getLength()) {
+		minkar_vram_free(&fVRAM, *offset, size);
+		err = -1;
+	}
+	IOLockUnlock(fVRAMLock);
+	return err == 0 ? kIOReturnSuccess : kIOReturnNoMemory;
+}
+
+void
+MinkarAMDGPU::destroyBuffer(uint64_t offset, uint64_t size)
+{
+	const uint64_t unit = 64 * 1024;
+
+	IOLockLock(fVRAMLock);
+	minkar_vram_free(&fVRAM, offset, (size + unit - 1) & ~(unit - 1));
+	IOLockUnlock(fVRAMLock);
+}
+
+IODeviceMemory *
+MinkarAMDGPU::bufferMemory(uint64_t offset, uint64_t size)
+{
+	if (fWindow == NULL || offset + size > fWindow->getLength())
+		return NULL;
+	return IODeviceMemory::withSubRange(fWindow, offset, size);
+}
+
+IOReturn
+MinkarAMDGPU::copy(uint64_t dst, uint64_t src, uint64_t bytes, uint64_t *ns)
+{
+	if (fDMALock == NULL)
+		return kIOReturnNotReady;
+	IOLockLock(fDMALock);
+	IOReturn err = kIOReturnNotReady;
+	if (startDMA())
+		err = MinkarAMDDMACopyAddresses(&fDMA, fVRAMStart + dst, fVRAMStart + src, bytes, ns) ?
+		    kIOReturnSuccess : kIOReturnTimeout;
+	IOLockUnlock(fDMALock);
+	return err;
 }
 
 /*
@@ -213,9 +315,15 @@ MinkarAMDGPU::free()
 {
 	minkar_atom_close(fAtom);
 	MinkarAMDFreeVBIOS(fBIOS);
+	if (fDMAStarted)
+		MinkarAMDDMAStop(&fDMA);
+	OSSafeReleaseNULL(fDMAMap);
+	OSSafeReleaseNULL(fWindow);
 	MinkarAMDUnmapRegisters(&fRegs);
 	if (fVRAMLock != NULL)
 		IOLockFree(fVRAMLock);
+	if (fDMALock != NULL)
+		IOLockFree(fDMALock);
 	OSSafeReleaseNULL(fPCI);
 	super::free();
 }

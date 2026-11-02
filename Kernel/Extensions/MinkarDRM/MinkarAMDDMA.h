@@ -70,6 +70,9 @@ void MinkarAMDDMAStop(struct MinkarAMDDMA *dma);
  * the fence; the time from the write pointer to the fence in *ns. */
 bool MinkarAMDDMACopy(struct MinkarAMDDMA *dma, uint64_t dst, uint64_t src, uint64_t bytes,
     uint64_t *ns);
+/* The same between any two addresses in the GPU's space. */
+bool MinkarAMDDMACopyAddresses(struct MinkarAMDDMA *dma, uint64_t dst, uint64_t src,
+    uint64_t bytes, uint64_t *ns);
 
 /* Runs a command buffer of dwords at offset in the region (32-byte
  * aligned), then a fence, and waits for it. */

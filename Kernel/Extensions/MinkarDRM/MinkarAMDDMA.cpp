@@ -222,14 +222,23 @@ bool
 MinkarAMDDMACopy(struct MinkarAMDDMA *d, uint64_t dst, uint64_t src, uint64_t bytes,
     uint64_t *ns)
 {
+	if (dst + bytes > d->size || src + bytes > d->size)
+		return false;
+	return MinkarAMDDMACopyAddresses(d, d->gpuBase + dst, d->gpuBase + src, bytes, ns);
+}
+
+bool
+MinkarAMDDMACopyAddresses(struct MinkarAMDDMA *d, uint64_t dst, uint64_t src, uint64_t bytes,
+    uint64_t *ns)
+{
 	uint32_t p[5];
 
-	if (dst + bytes > d->size || src + bytes > d->size)
+	if (bytes == 0)
 		return false;
 	for (uint64_t done = 0; done < bytes; ) {
 		uint32_t chunk = bytes - done > kSIDMAMaxCopyBytes ? kSIDMAMaxCopyBytes :
 		    (uint32_t)(bytes - done);
-		emit(d, p, si_dma_copy(p, d->gpuBase + dst + done, d->gpuBase + src + done, chunk));
+		emit(d, p, si_dma_copy(p, dst + done, src + done, chunk));
 		done += chunk;
 	}
 	uint32_t seq = emitFence(d);

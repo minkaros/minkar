@@ -28,5 +28,7 @@ SUBDIR += iosurfaced ../Frameworks/IOSurface/tests
 SUBDIR += ../Kernel/Extensions/MinkarCodeIntegrity/tests
 # IOHIDSystem's event queue reader, for the input tests (it needs IOKit).
 SUBDIR += ../Kernel/Extensions/IOHIDFamily/tests/hidevents
+# The AMD GPU driver's user client from a program (G2; it needs IOKit).
+SUBDIR += ../Kernel/Extensions/MinkarDRM/tests/gputest
 
 .include <bsd.subdir.mk>

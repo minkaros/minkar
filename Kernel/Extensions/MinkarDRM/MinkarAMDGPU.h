@@ -43,6 +43,7 @@
 #include <IOKit/pci/IOPCIDevice.h>
 #include "MinkarAMDDevice.h"
 #include "minkar_vram.h"
+#include "MinkarAMDDMA.h"
 
 struct minkar_atom;
 
@@ -59,9 +60,19 @@ public:
 	uint32_t readReg(uint32_t reg);
 	void writeReg(uint32_t reg, uint32_t value);
 
+	/* For the user client (MinkarAMDGPUInterface.h). Buffers are VRAM
+	 * offsets the CPU's window reaches. */
+	IOReturn vramInfo(uint64_t *total, uint64_t *available, uint64_t *window);
+	IOReturn createBuffer(uint64_t size, uint64_t *offset);
+	void destroyBuffer(uint64_t offset, uint64_t size);
+	IODeviceMemory *bufferMemory(uint64_t offset, uint64_t size);
+	uint64_t gpuAddress(uint64_t offset) { return fVRAMStart + offset; }
+	IOReturn copy(uint64_t dst, uint64_t src, uint64_t bytes, uint64_t *ns);
+
 private:
 	void dmaSelfTest();
 	void setUpVRAM(uint32_t megabytes);
+	bool startDMA();
 
 	enum { kVRAMRanges = 1024 };
 
@@ -70,6 +81,13 @@ private:
 	uint8_t *		fBIOS;
 	IOByteCount		fBIOSSize;
 	struct minkar_atom *	fAtom;
+	IODeviceMemory *	fWindow;	/* VRAM through BAR 0 */
+	uint64_t		fVRAMStart;	/* VRAM in the GPU's space */
+	IOLock *		fDMALock;	/* one submission at a time */
+	struct MinkarAMDDMA	fDMA;
+	bool			fDMAStarted;
+	IOMemoryMap *		fDMAMap;	/* its ring and write-back */
+	uint64_t		fDMAOffset;
 	IOLock *		fVRAMLock;
 	struct minkar_vram	fVRAM;		/* what is free of VRAM */
 	struct minkar_vram_range fVRAMRanges[kVRAMRanges];
