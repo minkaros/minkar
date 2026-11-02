@@ -71,6 +71,7 @@ private:
 	static IOReturn sReadRegister(OSObject *target, void *reference, IOExternalMethodArguments *args);
 	static IOReturn sCreateSystem(OSObject *target, void *reference, IOExternalMethodArguments *args);
 	static IOReturn sImport(OSObject *target, void *reference, IOExternalMethodArguments *args);
+	static IOReturn sCopyToScanout(OSObject *target, void *reference, IOExternalMethodArguments *args);
 	void destroy(Buffer *b);
 	Buffer *buffer(uint64_t handle);
 	void releaseAll();

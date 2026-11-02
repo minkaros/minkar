@@ -30,6 +30,7 @@ RESOURCES = /System/Library/PrivateFrameworks/SkyLight.framework/Versions/A/Reso
 CFLAGS += --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
 	-fobjc-arc -Wno-nullability-completeness -Wno-incompatible-sysroot \
 	-I${.OBJDIR} -I${SKYLIGHT} -I${SKYLIGHT}/IPC -I${MINKAR_SDKROOT}/usr/include/pixman-1 \
+	-I${ROOT_SOURCE_DIR}/Kernel/Extensions/MinkarDRM \
 	-I${KEYMAP} -I${KEYMAP}/libxkbcommon/include \
 	-F${MINKAR_SDKROOT}/System/Library/Frameworks/CoreServices.framework/Frameworks
 LDFLAGS += --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \

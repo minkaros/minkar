@@ -27,6 +27,8 @@
  */
 
 #include <mach/mach_time.h>
+#include <mach/mach_vm.h>
+#include <mach/mach_init.h>
 #include <math.h>
 #include <pixman.h>
 #include <pthread.h>
@@ -123,7 +125,9 @@ static const unsigned kIdleTicks = 2;
 	pixman_region32_t _live;	/* where live surfaces showed last frame */
 	NSMutableArray<WSDisplayStream *> *_streams;
 	pixman_image_t *_shadow;
-	uint32_t *_shadowPixels;
+	uint32_t *_shadowPixels;	/* page-aligned, rows as the framebuffer's */
+	size_t _shadowBytes;
+	BOOL _gpuPresent;		/* the GPU copies the shadow to the screen */
 	/* Window shadow masks (A8) by window size, "WxH": made on the render
 	 * queue, so each compositor keeps its own. */
 	NSMutableDictionary<NSString *, NSData *> *_shadowMasks;
@@ -170,12 +174,26 @@ static const unsigned kIdleTicks = 2;
 	}
 	if (_shadow != NULL)
 		pixman_image_unref(_shadow);
-	free(_shadowPixels);
-	_shadowPixels = calloc((size_t)width * height, 4);
-	if (_shadowPixels == NULL)
+	/* Rows as long as the framebuffer's, so damaged rows are one range in
+	 * both; page-aligned and whole pages, for the GPU to take. */
+	[_display tearDownGPUPresent];
+	if (_shadowPixels != NULL)
+		mach_vm_deallocate(mach_task_self(), (mach_vm_address_t)(uintptr_t)_shadowPixels,
+		    _shadowBytes);
+	_shadowPixels = NULL;
+	if (rowBytes < width * 4)
+		rowBytes = width * 4;
+	_shadowBytes = ((size_t)rowBytes * height + 4095) & ~(size_t)4095;
+	mach_vm_address_t pixels = 0;
+	if (mach_vm_allocate(mach_task_self(), &pixels, _shadowBytes, VM_FLAGS_ANYWHERE) !=
+	    KERN_SUCCESS)
 		return NO;
+	_shadowPixels = (uint32_t *)(uintptr_t)pixels;
 	_shadow = pixman_image_create_bits(PIXMAN_x8r8g8b8, width, height, _shadowPixels,
-	    width * 4);
+	    rowBytes);
+	_gpuPresent = [_display setUpGPUPresentFrom:_shadowPixels bytes:_shadowBytes];
+	fprintf(stderr, "WindowServer: display 0x%x: %ux%u, presented by %s\n", _display.displayID,
+	    width, height, _gpuPresent ? "the GPU's DMA engine" : "the CPU");
 	_vram = vram;
 	_vramRowBytes = rowBytes;
 	pthread_mutex_lock(&_lock);
@@ -290,6 +308,53 @@ static const unsigned kIdleTicks = 2;
 			pixman_region32_union(again, again, &pending);
 		pixman_region32_fini(&pending);
 	}
+}
+
+/*
+ * The damaged rows as bands (overlapping and touching rows merged), each
+ * copied whole by the GPU's DMA engine from the shadow to the framebuffer,
+ * which have the same layout. NO if a copy failed: the GPU path is given
+ * up, and the caller copies this frame itself.
+ */
+- (BOOL)presentByGPU:(pixman_box32_t *)boxes count:(int)n rowBytes:(uint32_t)rowBytes
+{
+	int32_t bands[2 * 64];
+	int nbands = 0;
+
+	for (int i = 0; i < n; i++) {
+		int32_t y1 = boxes[i].y1, y2 = boxes[i].y2;
+		int j;
+		for (j = 0; j < nbands; j++)
+			if (y1 <= bands[2 * j + 1] && y2 >= bands[2 * j]) {
+				bands[2 * j] = MIN(bands[2 * j], y1);
+				bands[2 * j + 1] = MAX(bands[2 * j + 1], y2);
+				break;
+			}
+		if (j == nbands) {
+			if (nbands == 64) {	/* many: one band around them all */
+				bands[0] = MIN(bands[0], y1);
+				bands[1] = MAX(bands[1], y2);
+				for (j = 1; j < nbands; j++) {
+					bands[0] = MIN(bands[0], bands[2 * j]);
+					bands[1] = MAX(bands[1], bands[2 * j + 1]);
+				}
+				nbands = 1;
+			} else {
+				bands[2 * nbands] = y1;
+				bands[2 * nbands + 1] = y2;
+				nbands++;
+			}
+		}
+	}
+	for (int j = 0; j < nbands; j++)
+		if (![_display gpuPresentOffset:(size_t)bands[2 * j] * rowBytes
+		    bytes:(size_t)(bands[2 * j + 1] - bands[2 * j]) * rowBytes]) {
+			fprintf(stderr, "WindowServer: display 0x%x: the GPU did not take a frame; "
+			    "the CPU presents from now on\n", _display.displayID);
+			_gpuPresent = NO;
+			return NO;
+		}
+	return YES;
 }
 
 - (void)displayChanged
@@ -505,7 +570,12 @@ static const unsigned kIdleTicks = 2;
 	 * it has one. */
 	uint32_t shadowRowBytes = (uint32_t)pixman_image_get_stride(_shadow);
 	const uint8_t *lut = colors.bytes;	/* red, green, blue */
-	for (int i = 0; i < nboxes; i++) {
+	BOOL presented = NO;
+	if (_gpuPresent && lut == NULL && shadowRowBytes == _vramRowBytes)
+		presented = [self presentByGPU:boxes count:nboxes rowBytes:shadowRowBytes];
+	for (int i = 0; i < nboxes && presented; i++)
+		area += (uint64_t)(boxes[i].x2 - boxes[i].x1) * (boxes[i].y2 - boxes[i].y1);
+	for (int i = 0; i < nboxes && !presented; i++) {
 		size_t bytes = (size_t)(boxes[i].x2 - boxes[i].x1) * 4;
 		for (int y = boxes[i].y1; y < boxes[i].y2; y++) {
 			uint8_t *to = _vram + (size_t)y * _vramRowBytes + (size_t)boxes[i].x1 * 4;

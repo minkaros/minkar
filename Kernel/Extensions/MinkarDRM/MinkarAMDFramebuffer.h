@@ -71,6 +71,10 @@ public:
 	virtual IODeviceMemory *getApertureRange(IOPixelAperture aperture) APPLE_KEXT_OVERRIDE;
 	virtual bool isConsoleDevice(void) APPLE_KEXT_OVERRIDE;
 
+	/* The framebuffer being shown: its VRAM offset and size (the current
+	 * mode's rows). */
+	bool scanout(uint64_t *offset, uint64_t *bytes);
+
 	uint32_t readReg(uint32_t reg) { return MinkarAMDRead(&fRegs, reg); }
 	void writeReg(uint32_t reg, uint32_t value) { MinkarAMDWrite(&fRegs, reg, value); }
 

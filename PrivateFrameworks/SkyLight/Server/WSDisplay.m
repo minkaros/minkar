@@ -31,6 +31,7 @@
 #include <math.h>
 #include <stdio.h>
 #import "WSDisplay.h"
+#include "MinkarAMDGPUInterface.h"
 
 /* Method indices of the IOFramebuffer server connection. */
 enum {
@@ -61,6 +62,8 @@ static const double kPixelsPerMM = 72.0 / 25.4;
 	SLSDisplayMode _modes[kSLSMaxDisplayModes];
 	uint32_t _currentModeID;
 	BOOL _noFlush;		/* the driver does not take flushes */
+	io_connect_t _gpu;	/* the companion GPU's user client */
+	uint64_t _gpuShadow;	/* the shadow, imported: its buffer */
 	float _transfer[3 * kSLSGammaTableCapacity];
 }
 
@@ -366,6 +369,76 @@ static const SLSGammaFormula identityFormula = { 0, 1, 1, 0, 1, 1, 0, 1, 1 };
 	return YES;
 }
 
+/* The framebuffer's sibling on the same device, of the class it names. */
+static io_connect_t
+openAccelerator(io_service_t framebuffer)
+{
+	CFTypeRef name = IORegistryEntryCreateCFProperty(framebuffer,
+	    CFSTR("MinkarAcceleratorClass"), kCFAllocatorDefault, 0);
+	char class[64];
+	io_registry_entry_t parent = IO_OBJECT_NULL;
+	io_iterator_t it = IO_OBJECT_NULL;
+	io_service_t s;
+	io_connect_t connect = IO_OBJECT_NULL;
+
+	if (name == NULL || CFGetTypeID(name) != CFStringGetTypeID() ||
+	    !CFStringGetCString(name, class, sizeof(class), kCFStringEncodingUTF8)) {
+		if (name != NULL)
+			CFRelease(name);
+		return IO_OBJECT_NULL;
+	}
+	CFRelease(name);
+	if (IORegistryEntryGetParentEntry(framebuffer, kIOServicePlane, &parent) != KERN_SUCCESS)
+		return IO_OBJECT_NULL;
+	if (IORegistryEntryGetChildIterator(parent, kIOServicePlane, &it) == KERN_SUCCESS) {
+		while (connect == IO_OBJECT_NULL && (s = IOIteratorNext(it)) != IO_OBJECT_NULL) {
+			if (IOObjectConformsTo(s, class) &&
+			    IOServiceOpen(s, mach_task_self(), 0, &connect) != KERN_SUCCESS)
+				connect = IO_OBJECT_NULL;
+			IOObjectRelease(s);
+		}
+		IOObjectRelease(it);
+	}
+	IOObjectRelease(parent);
+	return connect;
+}
+
+- (BOOL)setUpGPUPresentFrom:(void *)shadow bytes:(size_t)bytes
+{
+	[self tearDownGPUPresent];
+	if (getenv("WSNoGPUPresent") != NULL)
+		return NO;
+	if (_gpu == IO_OBJECT_NULL)
+		_gpu = openAccelerator(_service);
+	if (_gpu == IO_OBJECT_NULL)
+		return NO;
+	uint64_t in[2] = { (uint64_t)(uintptr_t)shadow, bytes }, out[2];
+	uint32_t n = 2;
+	if (IOConnectCallScalarMethod(_gpu, kMinkarAMDGPUImportMemory, in, 2, out, &n) !=
+	    KERN_SUCCESS)
+		return NO;
+	_gpuShadow = out[0];
+	return YES;
+}
+
+- (void)tearDownGPUPresent
+{
+	if (_gpuShadow != 0) {
+		uint64_t h = _gpuShadow;
+		IOConnectCallScalarMethod(_gpu, kMinkarAMDGPUDestroyBuffer, &h, 1, NULL, NULL);
+		_gpuShadow = 0;
+	}
+}
+
+- (BOOL)gpuPresentOffset:(size_t)offset bytes:(size_t)bytes
+{
+	uint64_t in[4] = { _gpuShadow, offset, offset, bytes }, ns;
+	uint32_t n = 1;
+
+	return _gpuShadow != 0 && IOConnectCallScalarMethod(_gpu, kMinkarAMDGPUCopyToScanout, in, 4,
+	    &ns, &n) == KERN_SUCCESS;
+}
+
 - (void)flushX:(uint32_t)x y:(uint32_t)y width:(uint32_t)width height:(uint32_t)height
 {
 	if (_noFlush || width == 0 || height == 0)
@@ -381,6 +454,9 @@ static const SLSGammaFormula identityFormula = { 0, 1, 1, 0, 1, 1, 0, 1, 1 };
 
 - (void)dealloc
 {
+	[self tearDownGPUPresent];
+	if (_gpu != IO_OBJECT_NULL)
+		IOServiceClose(_gpu);
 	if (_vram != 0)
 		IOConnectUnmapMemory64(_connect, kIOFBSystemAperture, mach_task_self(), _vram);
 	if (_connect != IO_OBJECT_NULL)

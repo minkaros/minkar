@@ -456,6 +456,8 @@ MinkarAMDFramebuffer::start(IOService *provider)
 	setProperty("MinkarScanoutOffset", (unsigned long long)fOffset, 64);
 	setProperty("MinkarRefreshMilliHz", fRefreshMilliHz, 32);
 	setProperty("MinkarScaledModes", fModeCount > 1);
+	/* The window server presents through this GPU's user client. */
+	setProperty("MinkarAcceleratorClass", "MinkarAMDGPU");
 	LOG("crtc %u, %ux%u at %u.%03u Hz, framebuffer at VRAM 0x%llx, %u modes", fCRTC,
 	    fModes[0].width, fModes[0].height, fRefreshMilliHz / 1000, fRefreshMilliHz % 1000,
 	    (unsigned long long)fOffset, fModeCount);
@@ -475,6 +477,16 @@ MinkarAMDFramebuffer::free()
 	MinkarAMDUnmapRegisters(&fRegs);
 	OSSafeReleaseNULL(fPCI);
 	super::free();
+}
+
+bool
+MinkarAMDFramebuffer::scanout(uint64_t *offset, uint64_t *bytes)
+{
+	if (fMap == NULL || fCurrent >= fModeCount)
+		return false;
+	*offset = fOffset;
+	*bytes = (uint64_t)pitchFor(fModes[fCurrent].width) * 4 * fModes[fCurrent].height;
+	return true;
 }
 
 /* ---- IOFramebuffer ----------------------------------------------------- */

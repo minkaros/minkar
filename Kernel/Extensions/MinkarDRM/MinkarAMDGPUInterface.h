@@ -31,7 +31,8 @@
  * MinkarAMDGPU's user client (ADR 0002, G2): what a program asks of an AMD
  * GPU through IOServiceOpen and IOConnectCall*. Shared by the driver and
  * its tools; the selectors and their scalars are the interface. For
- * administrators only, for now.
+ * administrators, and for programs signed with the org.minkar.gpu-client
+ * entitlement (restricted: in the trust cache only), the window server.
  *
  *   Info		out: VRAM, free VRAM, the CPU's window on it (bytes)
  *   CreateBuffer	in: size; out: buffer (1 and up), its GPU address
@@ -51,6 +52,10 @@
  *			address. The pages are wired and put in the GART while
  *			the buffer lives; DestroyBuffer gives them back. It is
  *			not mapped again (the caller has it).
+ *   CopyToScanout	in: source buffer and offset, offset into the
+ *			framebuffer the display shows, bytes; out: nanoseconds.
+ *			The DMA engine copies into the scanout (the window
+ *			server's present); the range must lie in it.
  *   ReadRegister	in: dword index; out: its value. For bring-up: the
  *			register window only, reading only (no indexed
  *			registers, which take two writes).
@@ -69,8 +74,13 @@ enum {
 	kMinkarAMDGPUReadRegister,
 	kMinkarAMDGPUCreateSystemBuffer,
 	kMinkarAMDGPUImportMemory,
+	kMinkarAMDGPUCopyToScanout,
 	kMinkarAMDGPUMethodCount
 };
+
+/* The entitlement that opens the user client without administrator
+ * rights. */
+#define kMinkarGPUClientEntitlement	"org.minkar.gpu-client"
 
 /* The most buffers a client holds at once. */
 #define kMinkarAMDGPUMaxBuffers	64

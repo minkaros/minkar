@@ -80,6 +80,8 @@ public:
 	IOReturn mapSystemMemory(IOMemoryDescriptor *memory, uint64_t *gpuAddress);
 	void unmapSystemMemory(uint64_t gpuAddress, uint64_t size);
 	IOReturn readWindowRegister(uint32_t reg, uint32_t *value);
+	/* Into the framebuffer the display shows, at offset. */
+	IOReturn copyToScanout(uint64_t src, uint64_t offset, uint64_t bytes, uint64_t *ns);
 
 private:
 	void dmaSelfTest();

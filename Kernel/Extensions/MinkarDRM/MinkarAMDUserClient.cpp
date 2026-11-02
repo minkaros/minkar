@@ -39,10 +39,15 @@ MinkarAMDUserClient::initWithTask(task_t owningTask, void *securityID, UInt32 ty
 {
 	if (!super::initWithTask(owningTask, securityID, type))
 		return false;
-	/* The GPU's memory and engines: administrators only, until the
-	 * window server's clients come through it (G3). */
-	if (clientHasPrivilege(securityID, kIOClientPrivilegeAdministrator) != kIOReturnSuccess)
-		return false;
+	/* The GPU's memory and engines: administrators, and programs signed
+	 * with the restricted gpu-client entitlement (the window server). */
+	if (clientHasPrivilege(securityID, kIOClientPrivilegeAdministrator) != kIOReturnSuccess) {
+		OSObject *e = copyClientEntitlement(owningTask, kMinkarGPUClientEntitlement);
+		bool allowed = e == kOSBooleanTrue;
+		OSSafeReleaseNULL(e);
+		if (!allowed)
+			return false;
+	}
 	fTask = owningTask;
 	fLock = IOLockAlloc();
 	return fLock != NULL;
@@ -122,6 +127,7 @@ MinkarAMDUserClient::externalMethod(uint32_t selector, IOExternalMethodArguments
 		{ (IOExternalMethodAction)&sReadRegister, 1, 0, 1, 0 },
 		{ (IOExternalMethodAction)&sCreateSystem, 1, 0, 2, 0 },
 		{ (IOExternalMethodAction)&sImport, 2, 0, 2, 0 },
+		{ (IOExternalMethodAction)&sCopyToScanout, 4, 0, 1, 0 },
 	};
 
 	(void)dispatch; (void)target;
@@ -286,6 +292,25 @@ MinkarAMDUserClient::sImport(OSObject *target, void *, IOExternalMethodArguments
 		m->complete();
 		m->release();
 	}
+	return err;
+}
+
+/* source buffer, source offset, framebuffer offset, bytes. */
+IOReturn
+MinkarAMDUserClient::sCopyToScanout(OSObject *target, void *, IOExternalMethodArguments *args)
+{
+	MinkarAMDUserClient *me = (MinkarAMDUserClient *)target;
+	const uint64_t *in = args->scalarInput;
+	uint64_t ns = 0;
+
+	IOLockLock(me->fLock);
+	Buffer *s = me->buffer(in[0]);
+	bool good = s != NULL && in[3] > 0 && in[1] <= s->size && in[3] <= s->size - in[1];
+	IOReturn err = good ? me->fGPU->copyToScanout(s->gpu + in[1], in[2], in[3], &ns) :
+	    kIOReturnBadArgument;
+	IOLockUnlock(me->fLock);
+	if (err == kIOReturnSuccess)
+		args->scalarOutput[0] = ns;
 	return err;
 }
 

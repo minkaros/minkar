@@ -31,6 +31,7 @@
 #include <kern/clock.h>
 #include <pexpert/pexpert.h>
 #include "MinkarAMDGPU.h"
+#include "MinkarAMDFramebuffer.h"
 #include "MinkarAMDDMA.h"
 #include "MinkarAMDGART.h"
 #include "amd_si_ih.h"
@@ -537,6 +538,28 @@ MinkarAMDGPU::destroySystemBuffer(IOBufferMemoryDescriptor *m, uint64_t gpuAddre
 	unmapSystemMemory(gpuAddress, m->getLength());
 	m->complete();
 	m->release();
+}
+
+/* The display's framebuffer is MinkarAMDFramebuffer's, on the same PCI
+ * device. */
+IOReturn
+MinkarAMDGPU::copyToScanout(uint64_t src, uint64_t offset, uint64_t bytes, uint64_t *ns)
+{
+	uint64_t fb = 0, fbBytes = 0;
+	bool found = false;
+
+	OSIterator *it = fPCI->getClientIterator();
+	OSObject *o;
+	while (!found && it != NULL && (o = it->getNextObject()) != NULL) {
+		MinkarAMDFramebuffer *f = OSDynamicCast(MinkarAMDFramebuffer, o);
+		found = f != NULL && f->scanout(&fb, &fbBytes);
+	}
+	OSSafeReleaseNULL(it);
+	if (!found)
+		return kIOReturnNotFound;
+	if (bytes == 0 || offset > fbBytes || bytes > fbBytes - offset)
+		return kIOReturnBadArgument;
+	return copy(fVRAMStart + fb + offset, src, bytes, ns);
 }
 
 /* Only inside the register window: MM_INDEX/MM_DATA would need writes. */
