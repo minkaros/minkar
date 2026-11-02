@@ -293,13 +293,42 @@ MinkarAMDGPU::copy(uint64_t dst, uint64_t src, uint64_t bytes, uint64_t *ns)
 	return err;
 }
 
+/* Prepared memory's pages into the GART, from the GART's allocator. */
+IOReturn
+MinkarAMDGPU::mapSystemMemory(IOMemoryDescriptor *m, uint64_t *gpuAddress)
+{
+	uint64_t offset, size = (m->getLength() + 4095) & ~4095ULL;
+
+	if (!fGART.on)
+		return kIOReturnUnsupported;
+	if (size == 0 || size > fGARTPages.size)
+		return kIOReturnBadArgument;
+	IOLockLock(fVRAMLock);
+	bool have = minkar_vram_alloc(&fGARTPages, size, 4096, &offset) == 0;
+	bool mapped = have && MinkarAMDGARTMap(&fGART, (uint32_t)(offset / 4096), m, gpuAddress);
+	if (have && !mapped)
+		minkar_vram_free(&fGARTPages, offset, size);
+	IOLockUnlock(fVRAMLock);
+	return mapped ? kIOReturnSuccess : kIOReturnNoMemory;
+}
+
+void
+MinkarAMDGPU::unmapSystemMemory(uint64_t gpuAddress, uint64_t size)
+{
+	uint64_t offset = gpuAddress - fGART.start;
+
+	size = (size + 4095) & ~4095ULL;
+	IOLockLock(fVRAMLock);
+	MinkarAMDGARTUnmap(&fGART, (uint32_t)(offset / 4096), (uint32_t)(size / 4096));
+	minkar_vram_free(&fGARTPages, offset, size);
+	IOLockUnlock(fVRAMLock);
+}
+
 /* Wired kernel memory the client maps too, its pages in the GART. */
 IOReturn
 MinkarAMDGPU::createSystemBuffer(uint64_t size, IOBufferMemoryDescriptor **memory,
     uint64_t *gpuAddress)
 {
-	uint64_t offset;
-
 	if (!fGART.on)
 		return kIOReturnUnsupported;
 	if (size == 0 || size > fGARTPages.size)
@@ -314,16 +343,11 @@ MinkarAMDGPU::createSystemBuffer(uint64_t size, IOBufferMemoryDescriptor **memor
 		return kIOReturnNoMemory;
 	}
 	bzero(m->getBytesNoCopy(), size);
-	IOLockLock(fVRAMLock);
-	bool have = minkar_vram_alloc(&fGARTPages, size, 4096, &offset) == 0;
-	bool mapped = have && MinkarAMDGARTMap(&fGART, (uint32_t)(offset / 4096), m, gpuAddress);
-	if (have && !mapped)
-		minkar_vram_free(&fGARTPages, offset, size);
-	IOLockUnlock(fVRAMLock);
-	if (!mapped) {
+	IOReturn err = mapSystemMemory(m, gpuAddress);
+	if (err != kIOReturnSuccess) {
 		m->complete();
 		m->release();
-		return kIOReturnNoMemory;
+		return err;
 	}
 	*memory = m;
 	return kIOReturnSuccess;
@@ -332,12 +356,7 @@ MinkarAMDGPU::createSystemBuffer(uint64_t size, IOBufferMemoryDescriptor **memor
 void
 MinkarAMDGPU::destroySystemBuffer(IOBufferMemoryDescriptor *m, uint64_t gpuAddress)
 {
-	uint64_t offset = gpuAddress - fGART.start, size = m->getLength();
-
-	IOLockLock(fVRAMLock);
-	MinkarAMDGARTUnmap(&fGART, (uint32_t)(offset / 4096), (uint32_t)(size / 4096));
-	minkar_vram_free(&fGARTPages, offset, size);
-	IOLockUnlock(fVRAMLock);
+	unmapSystemMemory(gpuAddress, m->getLength());
 	m->complete();
 	m->release();
 }

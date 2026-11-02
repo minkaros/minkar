@@ -17,7 +17,7 @@ CFLAGS += --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
 	-Wno-nullability-completeness -Wno-incompatible-sysroot -I${.CURDIR:H:H}
 LDFLAGS += --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
 	-fuse-ld=${LD}
-LDADD += -framework IOKit -framework CoreFoundation
+LDADD += -framework IOKit -framework IOSurface -framework CoreFoundation
 
 all: to-sysroot
 

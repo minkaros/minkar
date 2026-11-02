@@ -74,6 +74,9 @@ public:
 	IOReturn createSystemBuffer(uint64_t size, IOBufferMemoryDescriptor **memory,
 	    uint64_t *gpuAddress);
 	void destroySystemBuffer(IOBufferMemoryDescriptor *memory, uint64_t gpuAddress);
+	/* Prepared (wired) memory into the GART, and out. */
+	IOReturn mapSystemMemory(IOMemoryDescriptor *memory, uint64_t *gpuAddress);
+	void unmapSystemMemory(uint64_t gpuAddress, uint64_t size);
 	IOReturn readWindowRegister(uint32_t reg, uint32_t *value);
 
 private:

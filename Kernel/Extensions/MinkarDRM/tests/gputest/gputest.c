@@ -33,7 +33,9 @@
  * through its mapping, has the DMA engine copy it to the other, checks
  * the copy through the other's mapping, and frees them; with the GART on
  * (minkaramd_gart), also system buffers: one filled by the CPU, copied by
- * the engine to VRAM and on to another, compared in full. One line per
+ * the engine to VRAM and on to another, compared in full; and an
+ * IOSurface, imported into the GART, copied by the engine to VRAM and
+ * back into it, its pixels checked through the surface. One line per
  * step; the exit status is the number of failures.
  *
  *   minkar-gputest [-g GPU] [-m MB]	GPU: 0 and up (default 0); MB: the
@@ -44,6 +46,8 @@
  */
 
 #include <IOKit/IOKitLib.h>
+#include <IOSurface/IOSurfaceRef.h>
+#include <CoreFoundation/CoreFoundation.h>
 #include <mach/mach.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -278,6 +282,73 @@ main(int argc, char **argv)
 				check(IOConnectCallScalarMethod(conn, kMinkarAMDGPUDestroyBuffer, &h, 1, NULL,
 				    NULL) == KERN_SUCCESS, "free a system buffer", "");
 			}
+		}
+	}
+
+	/* An IOSurface, imported: its own pages, reached through the GART. */
+	if (kr == KERN_SUCCESS) {
+		const int w = 1024, h = 1024, bpe = 4;
+		CFMutableDictionaryRef props = CFDictionaryCreateMutable(NULL, 0,
+		    &kCFTypeDictionaryKeyCallBacks, &kCFTypeDictionaryValueCallBacks);
+		int values[3] = { w, h, bpe };
+		CFStringRef keys[3] = { kIOSurfaceWidth, kIOSurfaceHeight, kIOSurfaceBytesPerElement };
+		for (int k = 0; k < 3; k++) {
+			CFNumberRef v = CFNumberCreate(NULL, kCFNumberIntType, &values[k]);
+			CFDictionarySetValue(props, keys[k], v);
+			CFRelease(v);
+		}
+		IOSurfaceRef surface = IOSurfaceCreate(props);
+		CFRelease(props);
+		check(surface != NULL, "create an IOSurface", surface != NULL ? "1024x1024, 4 bytes per pixel" : "");
+		if (surface != NULL) {
+			IOSurfaceLock(surface, 0, NULL);
+			uint32_t *px = (uint32_t *)IOSurfaceGetBaseAddress(surface);
+			size_t rowBytes = IOSurfaceGetBytesPerRow(surface);
+			uint64_t span = ((uint64_t)rowBytes * h + 4095) & ~4095ULL;
+			for (int y = 0; y < h; y++)
+				for (int x = 0; x < w; x++)
+					((uint32_t *)((char *)px + (size_t)y * rowBytes))[x] =
+					    0xff000000u | (uint32_t)(x * 131 + y * 7919);
+			uint64_t imp[2] = { (uint64_t)(uintptr_t)px, span }, ih = 0;
+			n = 2;
+			kern_return_t ki = IOConnectCallScalarMethod(conn, kMinkarAMDGPUImportMemory, imp, 2, out, &n);
+			if (ki == KERN_SUCCESS)
+				ih = out[0];
+			snprintf(detail, sizeof(detail), "%llu KB at GPU address 0x%llx",
+			    (unsigned long long)span / 1024, (unsigned long long)out[1]);
+			if (ki == kIOReturnUnsupported)
+				printf("skip IOSurface: no GART (boot with minkaramd_gart)\n");
+			else
+				check(ki == KERN_SUCCESS, "import the surface into the GPU", ki == KERN_SUCCESS ? detail : "refused");
+			if (ki == KERN_SUCCESS && span <= bytes) {
+				uint64_t toVRAM[5] = { handle[1], 0, ih, 0, span };
+				uint64_t back[5] = { ih, 0, handle[1], 0, span };
+				n = 1;
+				kern_return_t k1 = IOConnectCallScalarMethod(conn, kMinkarAMDGPUCopy, toVRAM, 5, out, &n);
+				uint64_t ns1 = out[0];
+				for (int y = 0; y < h; y++)
+					memset((char *)px + (size_t)y * rowBytes, 0, rowBytes);
+				n = 1;
+				kern_return_t k2 = k1 == KERN_SUCCESS ?
+				    IOConnectCallScalarMethod(conn, kMinkarAMDGPUCopy, back, 5, out, &n) : k1;
+				uint64_t bad = 0;
+				for (int y = 0; y < h && k2 == KERN_SUCCESS; y++)
+					for (int x = 0; x < w; x++)
+						if (((uint32_t *)((char *)px + (size_t)y * rowBytes))[x] !=
+						    (0xff000000u | (uint32_t)(x * 131 + y * 7919)))
+							bad++;
+				snprintf(detail, sizeof(detail), "4 MB to VRAM at %llu MB/s, back; %llu pixels differ",
+				    ns1 ? (unsigned long long)(span * 1000 / ns1) : 0ULL, (unsigned long long)bad);
+				check(k1 == KERN_SUCCESS && k2 == KERN_SUCCESS && bad == 0,
+				    "the engine copies the surface to VRAM and back", detail);
+			}
+			if (ih != 0) {
+				uint64_t hh = ih;
+				check(IOConnectCallScalarMethod(conn, kMinkarAMDGPUDestroyBuffer, &hh, 1, NULL, NULL) ==
+				    KERN_SUCCESS, "release the surface's pages", "");
+			}
+			IOSurfaceUnlock(surface, 0, NULL);
+			CFRelease(surface);
 		}
 	}
 

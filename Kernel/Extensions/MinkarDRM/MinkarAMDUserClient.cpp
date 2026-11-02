@@ -43,6 +43,7 @@ MinkarAMDUserClient::initWithTask(task_t owningTask, void *securityID, UInt32 ty
 	 * window server's clients come through it (G3). */
 	if (clientHasPrivilege(securityID, kIOClientPrivilegeAdministrator) != kIOReturnSuccess)
 		return false;
+	fTask = owningTask;
 	fLock = IOLockAlloc();
 	return fLock != NULL;
 }
@@ -60,9 +61,14 @@ MinkarAMDUserClient::destroy(Buffer *b)
 {
 	if (b->system != NULL)
 		fGPU->destroySystemBuffer(b->system, b->gpu);
-	else
+	else if (b->imported != NULL) {
+		fGPU->unmapSystemMemory(b->gpu, b->size);
+		b->imported->complete();
+		b->imported->release();
+	} else
 		fGPU->destroyBuffer(b->offset, b->size);
 	b->system = NULL;
+	b->imported = NULL;
 	b->size = 0;
 }
 
@@ -115,6 +121,7 @@ MinkarAMDUserClient::externalMethod(uint32_t selector, IOExternalMethodArguments
 		{ (IOExternalMethodAction)&sCopy, 5, 0, 1, 0 },
 		{ (IOExternalMethodAction)&sReadRegister, 1, 0, 1, 0 },
 		{ (IOExternalMethodAction)&sCreateSystem, 1, 0, 2, 0 },
+		{ (IOExternalMethodAction)&sImport, 2, 0, 2, 0 },
 	};
 
 	(void)dispatch; (void)target;
@@ -155,6 +162,7 @@ MinkarAMDUserClient::sCreate(OSObject *target, void *, IOExternalMethodArguments
 		me->fBuffers[slot].size = size;
 		me->fBuffers[slot].gpu = me->fGPU->gpuAddress(offset);
 		me->fBuffers[slot].system = NULL;
+		me->fBuffers[slot].imported = NULL;
 		args->scalarOutput[0] = slot + 1;
 		args->scalarOutput[1] = me->fBuffers[slot].gpu;
 	}
@@ -230,10 +238,54 @@ MinkarAMDUserClient::sCreateSystem(OSObject *target, void *, IOExternalMethodArg
 		me->fBuffers[slot].size = m->getLength();
 		me->fBuffers[slot].gpu = gpu;
 		me->fBuffers[slot].system = m;
+		me->fBuffers[slot].imported = NULL;
 		args->scalarOutput[0] = slot + 1;
 		args->scalarOutput[1] = gpu;
 	}
 	IOLockUnlock(me->fLock);
+	return err;
+}
+
+/* The client's own memory into the GART: page-aligned, wired for the
+ * buffer's life. */
+IOReturn
+MinkarAMDUserClient::sImport(OSObject *target, void *, IOExternalMethodArguments *args)
+{
+	MinkarAMDUserClient *me = (MinkarAMDUserClient *)target;
+	mach_vm_address_t address = args->scalarInput[0];
+	mach_vm_size_t size = args->scalarInput[1];
+	uint64_t gpu = 0;
+	unsigned slot;
+
+	if (size == 0 || (address & 4095) != 0 || (size & 4095) != 0 || address + size < address)
+		return kIOReturnBadArgument;
+	IOMemoryDescriptor *m = IOMemoryDescriptor::withAddressRange(address, size,
+	    kIODirectionInOut, me->fTask);
+	if (m == NULL)
+		return kIOReturnNoMemory;
+	if (m->prepare() != kIOReturnSuccess) {
+		m->release();
+		return kIOReturnVMError;
+	}
+	IOLockLock(me->fLock);
+	for (slot = 0; slot < kMinkarAMDGPUMaxBuffers && me->fBuffers[slot].size != 0; slot++)
+		;
+	IOReturn err = slot == kMinkarAMDGPUMaxBuffers ? kIOReturnNoResources :
+	    me->fGPU->mapSystemMemory(m, &gpu);
+	if (err == kIOReturnSuccess) {
+		me->fBuffers[slot].offset = 0;
+		me->fBuffers[slot].size = size;
+		me->fBuffers[slot].gpu = gpu;
+		me->fBuffers[slot].system = NULL;
+		me->fBuffers[slot].imported = m;
+		args->scalarOutput[0] = slot + 1;
+		args->scalarOutput[1] = gpu;
+	}
+	IOLockUnlock(me->fLock);
+	if (err != kIOReturnSuccess) {
+		m->complete();
+		m->release();
+	}
 	return err;
 }
 
@@ -247,7 +299,9 @@ MinkarAMDUserClient::clientMemoryForType(UInt32 type, IOOptionBits *options,
 
 	IOLockLock(fLock);
 	Buffer *b = buffer(type);
-	if (b != NULL && b->system != NULL) {
+	if (b != NULL && b->imported != NULL)
+		m = NULL;	/* the client has it already */
+	else if (b != NULL && b->system != NULL) {
 		m = b->system;
 		m->retain();
 		*options = kIOMapDefaultCache;

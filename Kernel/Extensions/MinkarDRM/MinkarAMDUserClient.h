@@ -61,6 +61,7 @@ private:
 		uint64_t offset, size;	/* VRAM offset; size 0: the slot is empty */
 		uint64_t gpu;		/* its GPU address */
 		IOBufferMemoryDescriptor *system;	/* a system buffer's memory */
+		IOMemoryDescriptor *imported;		/* the client's own, wired */
 	};
 
 	static IOReturn sInfo(OSObject *target, void *reference, IOExternalMethodArguments *args);
@@ -69,11 +70,13 @@ private:
 	static IOReturn sCopy(OSObject *target, void *reference, IOExternalMethodArguments *args);
 	static IOReturn sReadRegister(OSObject *target, void *reference, IOExternalMethodArguments *args);
 	static IOReturn sCreateSystem(OSObject *target, void *reference, IOExternalMethodArguments *args);
+	static IOReturn sImport(OSObject *target, void *reference, IOExternalMethodArguments *args);
 	void destroy(Buffer *b);
 	Buffer *buffer(uint64_t handle);
 	void releaseAll();
 
 	MinkarAMDGPU *		fGPU;
+	task_t			fTask;		/* the client's, for ImportMemory */
 	IOLock *		fLock;
 	Buffer			fBuffers[kMinkarAMDGPUMaxBuffers];
 };

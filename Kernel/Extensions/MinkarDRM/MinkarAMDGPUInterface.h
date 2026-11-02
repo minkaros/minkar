@@ -46,6 +46,11 @@
  *			system memory the GPU reaches through the GART (when
  *			the driver turned it on: minkaramd_gart); mapped the
  *			same way, cached.
+ *   ImportMemory	in: address, size (page-aligned, the caller's own
+ *			memory, an IOSurface's for one); out: buffer, its GPU
+ *			address. The pages are wired and put in the GART while
+ *			the buffer lives; DestroyBuffer gives them back. It is
+ *			not mapped again (the caller has it).
  *   ReadRegister	in: dword index; out: its value. For bring-up: the
  *			register window only, reading only (no indexed
  *			registers, which take two writes).
@@ -63,6 +68,7 @@ enum {
 	kMinkarAMDGPUCopy,
 	kMinkarAMDGPUReadRegister,
 	kMinkarAMDGPUCreateSystemBuffer,
+	kMinkarAMDGPUImportMemory,
 	kMinkarAMDGPUMethodCount
 };
 
