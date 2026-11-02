@@ -1,0 +1,11 @@
+# drm-kmod drm_v6.12.110_1: path, SHA-256, license (tools/drm-import)
+drivers/gpu/drm/amd/amdgpu/atom.c d2ce82e3319524bf3fc4494db3416f18fe3fe000b22e2113adf4f9df0d0604e6 MIT
+drivers/gpu/drm/amd/amdgpu/atom.h 1b1682ac01d0d2a8f16ef66107903d37184c8a284da4f833a249b9cadfa33f77 MIT
+drivers/gpu/drm/amd/include/atom-bits.h d885526a0ebf5f47c4a0daadf3a0c9c6f3281b46d88cc857a98c01e893df6301 MIT
+drivers/gpu/drm/amd/include/atom-names.h e197bec3d065d70d7a9d4955ae4cceb5988f0a3ebc36646352d8539659176b61 MIT
+drivers/gpu/drm/amd/include/atom-types.h ca242c70b270fa2fe3e182dce87e7838fe909c44ec8ddefd0df546b1f851e223 MIT
+drivers/gpu/drm/amd/include/atombios.h f7ca3f6cde2db6dcadd2606fa5af53c8be7308f0442fc3a76dfc815985ee0dd0 MIT
+drivers/gpu/drm/amd/include/atomfirmware.h 95d7856f6449579faf3983760f2d9f4a171327cac431d968b6625bbe38e5e49a MIT
+drivers/gpu/drm/amd/amdgpu/ObjectID.h 8f5a5dc001686ddae347332547f8767b83f33981a953877b95fabd8ca1313d4a MIT
+drivers/gpu/drm/amd/include/atomfirmwareid.h 9e6bd22e466b4b0d608a61ffb9a424c1b8fcf8b9430fefa2b8671ef356387817 MIT
+drivers/gpu/drm/amd/include/pptable.h a3f907e51ad17ce79300ddb7498c0813e929f3fd1afad0817a558d83c3e4be90 MIT
