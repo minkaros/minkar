@@ -301,7 +301,7 @@ commits with the diff shown first; evidence for every roadmap item.
 | Recent items | LaunchServices' shared file lists | Kept per app by `NSDocumentController` in its preferences | MB2 |
 | Services menu | Services daemon and pasteboard | Empty Services menu | MB4 |
 | System status cluster | API 19: Menu Extras in SystemUIServer; API 20: a separate control-center app | None | Minkar 20.0 |
-| Look | Gienah visual language | Plain system font and colors | Phase 5, item 7 |
+| Look | Gienah visual language | SystemUIServer's former look: 22-point items, the system font and colors (`SHORTCUT(Phase 5)` in `NSMenuView.h`) | Phase 5, item 7 |
 
 Every shortcut is marked in the code with `// SHORTCUT(MBn):` and the
 milestone that removes it.

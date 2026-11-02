@@ -128,6 +128,7 @@ SRCS = \
     NSMenu.subproj/NSMenuBarView.m \
     NSMenu.subproj/NSMenuView.m \
     NSMenu.subproj/NSMenuWindow.m \
+    NSMenu.subproj/NSMenuBarWindow.m \
     NSModalSessionX.m \
     NSMutableAttributedString.m \
     NSMutableParagraphStyle.m \
@@ -546,6 +547,8 @@ HEADERS = \
 RESOURCES_DIRS = en.lproj de.lproj fr.lproj
 RESOURCES_FILES = Info.plist \
 	NSMenu.subproj/NSMenuArrow.tiff \
+	../../Logo_Assets/Minkar/MenuBar/MinkarMenu-Black-18.png \
+	../../Logo_Assets/Minkar/MenuBar/MinkarMenu-Black-36.png \
 	NSMenu.subproj/NSMenuViewDoubleRightArrow.tiff \
 	NSMenu.subproj/NSMenuViewDoubleRightArrowGray.tiff \
 	NSToolbar.subproj/NSToolbarPrintItem.tiff \

@@ -23,6 +23,10 @@ SOFTWARE. */
 #import "NSMenuWindow.h"
 #import <AppKit/NSFont.h>
 #import <AppKit/NSGraphicsStyle.h>
+#import <AppKit/NSWindow-Private.h>
+#include <SkyLight/SkyLight.h>
+
+extern int _CGUsesSkyLight(void);
 
 enum {
 	kNSMenuKeyboardNavigationNone,
@@ -140,17 +144,33 @@ enum {
 }
 
 
+/* The leading item (the system menu, NSMenuBarWindow) and then the
+ * menu's: the app's items stay in its own menu. */
 -(NSArray *)itemArray {
-   return [[self menu] itemArray];
+   NSArray *items=[[self menu] itemArray];
+
+   if(_leadingItem==nil)
+    return items;
+   return [[NSArray arrayWithObject:_leadingItem] arrayByAddingObjectsFromArray:items];
+}
+
+-(void)setLeadingItem:(NSMenuItem *)item {
+   [_leadingItem autorelease];
+   _leadingItem=[item retain];
+   [self setNeedsDisplay:YES];
+}
+
+-(BOOL)acceptsFirstMouse:(NSEvent *)event {
+   return YES;
 }
 
 -(NSArray *)visibleItemArray
 {
-   NSArray * items = [[self menu] itemArray];
+   NSArray * items = [self itemArray];
    
    // Construct a new array of just the visible items
    if( _visibleArray == NULL )
-      _visibleArray = [[NSMutableArray init] alloc];
+      _visibleArray = [[NSMutableArray alloc] init];
 	
    [_visibleArray removeAllObjects];
    
@@ -182,7 +202,7 @@ enum {
 
 -(void)drawRect:(NSRect)rect {
 	NSRect        bounds=[self bounds];
-	NSArray      *items=[[self menu] itemArray];
+	NSArray      *items=[self itemArray];
 	int           i,count=[items count];
 	NSRect        previousBorderRect=NSMakeRect(0,0,0,0);
 	BOOL          overflow=NO;
@@ -251,7 +271,7 @@ enum {
 
 -(unsigned)overflowIndex {
    NSRect        bounds=[self bounds];
-   NSArray      *items=[[self menu] itemArray];
+   NSArray      *items=[self itemArray];
    unsigned      i,count=[items count];
    NSRect        previousBorderRect=NSMakeRect(0,0,0,0);
 
@@ -272,7 +292,7 @@ enum {
 -(unsigned)itemIndexAtPoint:(NSPoint)point {
    NSInteger    result=NSNotFound;
    NSRect        bounds=[self bounds];
-   NSArray      *items=[[self menu] itemArray];
+   NSArray      *items=[self itemArray];
    unsigned      i,count=[items count];
    NSRect        previousBorderRect=NSMakeRect(0,0,0,0);
    BOOL          overflow=NO;
@@ -302,7 +322,7 @@ enum {
 -(void)positionBranchForSelectedItem:(NSMenuWindow *)branch screen:(NSScreen *)screen {
    NSRect        branchFrame=[branch frame];
    NSRect        screenVisible=[screen visibleFrame];
-   NSArray      *items=[[self menu] itemArray];
+   NSArray      *items=[self itemArray];
    unsigned      i,count=[items count];
    NSRect        previousBorderRect=NSMakeRect(0,0,0,0);
    NSRect        itemRect=NSZeroRect;
@@ -847,7 +867,13 @@ const float kMouseMovementThreshold = .001f;
    NSMenuItem *item;
 
    [[self window] setAcceptsMouseMovedEvents:YES];
+   /* With the new server, the bar holds the pointer while its menus are
+      open: clicks outside them reach it (and close them). */
+   if(_CGUsesSkyLight())
+    SLSCapturePointer([[self window] _skyLightWindowID]);
    item=[self trackForEvent:event];
+   if(_CGUsesSkyLight())
+    SLSCapturePointer(0);
    [[self window] setAcceptsMouseMovedEvents:didAccept];
    
    if(item!=nil)

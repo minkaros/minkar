@@ -64,6 +64,7 @@ static const double kClickSlop = 4;
 @interface WSInputWindow : NSObject
 @property SLSWindowID windowID;
 @property SLSRect frame;
+@property int32_t level;
 @property (strong) WSConnection *owner;
 @property (copy) NSData *dragRects;
 @property (copy) NSData *dragExcludes;
@@ -126,6 +127,7 @@ inputWindow(WSWindow *w)
 	WSInputWindow *i = [[WSInputWindow alloc] init];
 	i.windowID = w.windowID;
 	i.frame = w.frame;
+	i.level = w.level;
 	i.owner = w.owner;
 	i.dragRects = w.dragRects;
 	i.dragExcludes = w.dragExcludes;
@@ -594,8 +596,10 @@ routeMouse(WSInputModel *m, SLSEvent *e)
 		lastClickButton = e->buttonNumber;
 		e->clickCount = clickCount;
 		target = windowWithID(m, captureID);
-		/* A click makes its window key. */
-		if (target != nil && e->buttonNumber == 0)
+		/* A click makes its window key; not a menu bar's, a menu's or a
+		 * status item's (the menu levels and above), as on the
+		 * reference platform. */
+		if (target != nil && e->buttonNumber == 0 && target.level < kSLSMainMenuWindowLevel)
 			makeKey(m, target);
 		/* A left click in a drag region moves the window from now on,
 		 * whether or not its app answers (it still gets this click). */

@@ -36,6 +36,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <AppKit/NSDockTile.h>
 #import <AppKit/NSRunningApplication.h>
 #import "NSRunningApplication_private.h"
+#import "NSMenu.subproj/NSMenuBarWindow.h"
 #import <CoreGraphics/CGWindow.h>
 #import <AppKit/NSRaise.h>
 #import <AppKit/NSSpellChecker.h>
@@ -924,6 +925,11 @@ static int _tagAllMenus(NSMenu *menu, int tag) {
 -(void)sendMenusToWindowServer {
     if(_mainMenu == nil)
         return;
+    /* With the new server the app's menu bar shows them (MB0). */
+    if(_CGUsesSkyLight()) {
+        [NSMenuBarWindow _mainMenuChanged];
+        return;
+    }
 
     _tagAllMenus(_mainMenu, 1);
     NSMenu *menuCopy = [_mainMenu copy];
@@ -1573,6 +1579,13 @@ static int _tagAllMenus(NSMenu *menu, int tag) {
 -(void)_setActiveFromLaunchServices:(BOOL)active {
    if(active==_isActive)
        return;
+   /* The front app's menu bar is on the screen (MB0). */
+   if(_activationPolicy==NSApplicationActivationPolicyRegular) {
+       if(active)
+           [NSMenuBarWindow _showMenuBars];
+       else
+           [NSMenuBarWindow _hideMenuBars];
+   }
    [[NSNotificationCenter defaultCenter] postNotificationName:
        active ? NSApplicationWillBecomeActiveNotification : NSApplicationWillResignActiveNotification
        object:self];

@@ -19,6 +19,8 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 APPKIT_EXPORT NSArray *_NSWindowNumbersFromWindowInfo(CFArrayRef info,BOOL allApps);
 
 @interface NSWindow (NSWindow_private)
+/* The new window server's ID for this window (0 with the legacy one). */
+- (uint32_t)_skyLightWindowID;
 - (CGWindow *)platformWindow;
 - (CGContextRef)cgContext;
 - (BOOL)_isActive;

@@ -320,7 +320,7 @@ del roadmap.
 | Documentos recientes | Listas compartidas de archivos de LaunchServices | Guardados por app por `NSDocumentController` en sus preferencias | MB2 |
 | Menú Servicios | Daemon de servicios y pasteboard | Menú Servicios vacío | MB4 |
 | Grupo de estado del sistema | API 19: Menu Extras en SystemUIServer; API 20: una app de centro de control aparte | Ninguno | Minkar 20.0 |
-| Aspecto | Lenguaje visual Gienah | Tipografía y colores del sistema, sin estilo propio | Fase 5, punto 7 |
+| Aspecto | Lenguaje visual Gienah | El aspecto que tenía SystemUIServer: elementos de 22 puntos, tipografía y colores del sistema (`SHORTCUT(Phase 5)` en `NSMenuView.h`) | Fase 5, punto 7 |
 
 Cada atajo queda marcado en el código con `// SHORTCUT(MBn):` y el hito que lo
 elimina.

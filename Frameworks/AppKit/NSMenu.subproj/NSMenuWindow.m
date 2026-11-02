@@ -32,7 +32,7 @@ SOFTWARE. */
                            styleMask:NSBorderlessWindowMask
                              backing:NSBackingStoreBuffered
                                defer:NO];
-    [self setLevel:NSSubmenuWindowLevel];
+    [self setLevel:NSPopUpMenuWindowLevel];
 
     _releaseWhenClosed=YES;
     _view=view;
@@ -51,7 +51,7 @@ SOFTWARE. */
                            styleMask:NSBorderlessWindowMask
                              backing:NSBackingStoreBuffered
                                defer:NO];
-    [self setLevel:NSSubmenuWindowLevel];
+    [self setLevel:NSPopUpMenuWindowLevel];
 
     _releaseWhenClosed=YES;
     _view=view;

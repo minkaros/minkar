@@ -12,11 +12,14 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
     NSFont *_font;
     NSUInteger _selectedItemIndex;
     NSMutableArray *_visibleArray;
+    NSMenuItem *_leadingItem;
 }
 
 + (float)menuHeight;
 
 - initWithFrame:(NSRect)frame menu:(NSMenu *)menu;
+/* An item shown before the menu's (the system menu). */
+- (void)setLeadingItem:(NSMenuItem *)item;
 - (void)sizeToFit;
 - (NSUInteger)itemIndexAtPoint:(NSPoint)point;
 - (NSUInteger)selectedItemIndex;

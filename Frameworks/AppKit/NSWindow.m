@@ -3494,6 +3494,10 @@ static void slsCollectExcluded(NSView *view, NSSize size, SLSIntRect *rects, uin
 }
 
 
+-(uint32_t)_skyLightWindowID {
+    return _CGUsesSkyLight() ? slsWindowFor(_number) : 0;
+}
+
 -(BOOL)_updateWSState {
     if(_CGUsesSkyLight()) {
         SLSWindowID window = slsWindowFor(_number);
