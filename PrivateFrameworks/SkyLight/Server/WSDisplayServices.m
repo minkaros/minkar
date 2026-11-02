@@ -42,6 +42,9 @@
 #import "WSCompositor.h"
 #include "WindowServerServer.h"	/* MIG server side */
 
+/* A transfer table or the fade changed (below). */
+static void colorsChanged(void);
+
 NSArray<WSDisplay *> *WSDisplays;
 
 /* ---- Displays ---- */
@@ -259,8 +262,10 @@ wss_display_set_transfer_table(mach_port_t server, audit_token_t token, uint32_t
 		*result = kSLSErrorIllegalArgument;
 	else
 		*result = [d setTransferTable:table count:count];
-	if (*result == kSLSErrorSuccess)
+	if (*result == kSLSErrorSuccess) {
 		[WSConnection connectionForToken:token].changedTransfers = YES;
+		colorsChanged();
+	}
 	return KERN_SUCCESS;
 }
 
@@ -288,8 +293,10 @@ wss_display_set_transfer_formula(mach_port_t server, audit_token_t token, uint32
 	WSDisplay *d = WSDisplayWithID(display);
 
 	*result = d ? [d setTransferFormula:&formula] : kSLSErrorIllegalArgument;
-	if (*result == kSLSErrorSuccess)
+	if (*result == kSLSErrorSuccess) {
 		[WSConnection connectionForToken:token].changedTransfers = YES;
+		colorsChanged();
+	}
 	return KERN_SUCCESS;
 }
 
@@ -316,18 +323,80 @@ wss_restore_transfers(mach_port_t server, audit_token_t token)
 		[d restoreTransfer];
 	for (WSConnection *c in [WSConnection allConnections])
 		c.changedTransfers = NO;
+	colorsChanged();
 	return KERN_SUCCESS;
 }
 
 /* ---- Display fades ---- */
 
-/* SHORTCUT(WS4a): the blend is only kept and returned here; nothing fades
- * the screen yet (the compositor applies it in WS4a); taken in WS1. */
 static SLSFadeReservation fadeReservation, nextFadeReservation = 1;
 static __weak WSConnection *fadeHolder;
 static __weak WSConnection *fadedBy;	/* who set the current blend */
 static NSTimeInterval fadeExpires;
 static float fadeBlend, fadeColor[3];
+/* A fade going on: from fadeFrom to fadeBlend between these times. */
+static float fadeFrom;
+static NSTimeInterval fadeStart, fadeDuration;
+
+/* The blend now: along the fade going on, if any (IPC queue). */
+static float
+currentBlend(BOOL *going)
+{
+	*going = NO;
+	if (fadeDuration <= 0)
+		return fadeBlend;
+	double t = ([NSDate timeIntervalSinceReferenceDate] - fadeStart) / fadeDuration;
+	if (t >= 1) {
+		fadeDuration = 0;
+		return fadeBlend;
+	}
+	*going = YES;
+	return fadeFrom + (float)t * (fadeBlend - fadeFrom);
+}
+
+/* ---- What the screen shows: transfer tables and the fade ---- */
+
+/*
+ * A display's colour table for the compositor: 256 bytes for each of red,
+ * green and blue, its transfer table with the fade's colour mixed in by
+ * the fade's blend; nil when it changes nothing (the identity, no fade).
+ */
+NSData *
+WSDisplayColorTable(WSDisplay *d)
+{
+	const uint32_t cap = kSLSGammaTableCapacity;
+	float table[3 * kSLSGammaTableCapacity];
+	BOOL going;
+	float blend = currentBlend(&going);
+	BOOL identity = blend == 0;
+	uint8_t lut[3 * 256];
+
+	/* A fade going on draws the next frame too. */
+	if (going)
+		colorsChanged();
+	[d getTransferTable:table];
+	for (uint32_t c = 0; c < 3; c++)
+		for (uint32_t v = 0; v < 256; v++) {
+			float x = table[c * cap + v * (cap - 1) / 255];
+			float y = (1 - blend) * x + blend * fadeColor[c];
+			if (y < 0)
+				y = 0;
+			if (y > 1)
+				y = 1;
+			lut[c * 256 + v] = (uint8_t)lroundf(y * 255);
+			if (lut[c * 256 + v] != v)
+				identity = NO;
+		}
+	return identity ? nil : [NSData dataWithBytes:lut length:sizeof(lut)];
+}
+
+/* A transfer table or the fade changed: every display is drawn again. */
+static void
+colorsChanged(void)
+{
+	for (WSDisplay *d in WSDisplays)
+		[(WSCompositor *)d.compositor damageAll];
+}
 
 /* The holder of a reservation still in time, or nil. */
 static WSConnection *
@@ -394,20 +463,25 @@ unit(float v)
 }
 
 kern_return_t
-wss_fade(mach_port_t server, audit_token_t token, uint32_t reservation, float startBlend,
-    float endBlend, float red, float green, float blue, int32_t *result)
+wss_fade(mach_port_t server, audit_token_t token, uint32_t reservation, double duration,
+    float startBlend, float endBlend, float red, float green, float blue, int32_t *result)
 {
 	if ((*result = checkFadeReservation(token, reservation)) != kSLSErrorSuccess)
 		return KERN_SUCCESS;
-	if (!unit(startBlend) || !unit(endBlend) || !unit(red) || !unit(green) || !unit(blue)) {
+	if (!unit(startBlend) || !unit(endBlend) || !unit(red) || !unit(green) || !unit(blue) ||
+	    !isfinite(duration) || duration < 0 || duration > kSLSMaxFadeReservation) {
 		*result = kSLSErrorIllegalArgument;
 		return KERN_SUCCESS;
 	}
+	fadeFrom = startBlend;
+	fadeStart = [NSDate timeIntervalSinceReferenceDate];
+	fadeDuration = duration;
 	fadeBlend = endBlend;
 	fadedBy = [WSConnection connectionForToken:token];
 	fadeColor[0] = red;
 	fadeColor[1] = green;
 	fadeColor[2] = blue;
+	colorsChanged();
 	return KERN_SUCCESS;
 }
 
@@ -738,6 +812,8 @@ WSDisplayServicesConnectionDied(WSConnection *c)
 	if (fadedBy == c) {
 		fadedBy = nil;
 		fadeBlend = 0;
+		fadeDuration = 0;
+		colorsChanged();
 	}
 	/* Its app-only changes are undone. */
 	for (NSNumber *key in c.appOnlyDisplays) {
@@ -755,7 +831,9 @@ WSDisplayServicesConnectionDied(WSConnection *c)
 	if (moved)
 		displaysMoved();
 	/* As at an app's exit on the reference platform: the default transfers. */
-	if (c.changedTransfers)
+	if (c.changedTransfers) {
 		for (WSDisplay *d in WSDisplays)
 			[d restoreTransfer];
+		colorsChanged();
+	}
 }

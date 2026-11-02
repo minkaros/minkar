@@ -44,6 +44,9 @@ extern dispatch_queue_t WSIPCQueue;
 /* Displays (WSDisplayServices.m). The first is the main display. */
 extern NSArray<WSDisplay *> *WSDisplays;
 WSDisplay *WSDisplayWithID(uint32_t displayID);
+/* A display's colour table (transfer table and fade), 3 x 256 bytes, or
+ * nil for none (IPC queue). */
+NSData *WSDisplayColorTable(WSDisplay *display);
 /* A connection's process exited: release what it held on the displays. */
 void WSDisplayServicesConnectionDied(WSConnection *connection);
 

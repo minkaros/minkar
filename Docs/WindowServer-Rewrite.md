@@ -597,14 +597,14 @@ Decided 2026-10-31, following the guiding rule in section 1:
 | What WindowServer's launchd job starts | The window server only; the session starts elsewhere (section 10.3) | The compositor only (`-x`), since LoginWindow is not built (`SHORTCUT(WS4b)` in the plist, taken in WS0) | WS4b |
 | System font | Gienah's own font | Inter (SIL OFL 1.1), four faces (`SHORTCUT(Phase 5)` in `SystemLibrary/Fonts/Makefile`, taken in WS0) | Phase 5 (Gienah) |
 | Permanent display configurations | Stored and applied again at the next session | They last for the session (`SHORTCUT(WS5)`, taken in WS1) | WS5 (real mode changes) |
-| Transfer tables and fades | Applied to the screen by the compositor, and by gamma hardware where there is some | Kept and returned, not applied (`SHORTCUT(WS4a)`, taken in WS1) | WS4a |
+| Transfer tables and fades | Applied to the screen by the compositor, and by gamma hardware where there is some | Kept and returned, not applied (taken in WS1) | Removed 2026-11-01, in WS4a |
 | Display link while idle | Frames paced by the display's flips; nothing wakes while nothing changes | A timer at the refresh rate ticks even when idle, drawing nothing (`SHORTCUT(WS5)` in `WSCompositor.m`, taken in WS2) | WS5 (real flips) |
 | AppKit's damage | AppKit sends the rects it redrew | The whole window at each flush (`SHORTCUT(WS5)` in `NSWindow.m`, taken in WS2) | WS5 (IOSurface) |
 | Front app | The window server keeps the front app, which may have no window (its menus are in the menu bar), and tells LaunchServices' session | The key window's owner: an app with no window to show could not be activated (taken in WS4a, `3be3e23e16`) | Removed 2026-11-01, in WS4a |
 | Standard cursors | Gienah's cursor set (I-beam, hands, crosshair, resize, not allowed...), each app's AppKit setting them | Plain black shapes with a white outline drawn in `NSCursorImage.m`, the arrow for the ones without a shape (`SHORTCUT(Phase 5)`, taken in WS4a) | Phase 5 (Gienah) |
 | A captured display's drawing context | The app draws into the surface that is scanned out (IOSurface) | `CGDisplayGetDrawingContext` draws into the app's memory, copied to the shielding window at the refresh rate when it changed, a frame behind (`SHORTCUT(WS5)` in `CGDirectDisplay.m`, taken in WS4a) | WS5 (IOSurface) |
 | Input queue | Input read and routed on its own high-priority queue, over a model snapshot | On the IPC queue (`SHORTCUT(WS4a)` in the server's `main.m`, taken in WS3) | WS4a |
-| `CGEventSource` HID state | Asked of the window server | Not asked: buttons, keys and flags read as up (`SHORTCUT(WS4a)` in `CGEvent.m`, taken in WS3) | WS4a |
+| `CGEventSource` HID state | Asked of the window server | Not asked: buttons, keys and flags read as up (taken in WS3) | Removed 2026-11-01, in WS4a |
 | Kernel entitlement validation | A static trust cache of system binaries and our own MAC policy kext (section 9.1) | Root may open IOHIDSystem's server connection (`SHORTCUT(WS4a)` in `IOHIDUserClient.cpp`) | Removed 2026-11-01 (`8366b8d0f6`), before WS4a |
 
 ### 9.1 Kernel entitlement validation

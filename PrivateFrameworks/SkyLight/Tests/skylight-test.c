@@ -683,6 +683,30 @@ testWindowImage(void)
 }
 
 /*
+ * skylight-test gamma: a white window at 100,100 (200 x 150); the main
+ * display's transfer table halves red ("halved"), 3 s later a fade to
+ * black ("faded"), 3 s later it exits, and the server restores both. For
+ * the local test that looks at the screen.
+ */
+static int
+gammaMain(void)
+{
+	SLSWindowID w = solidWindow((SLSRect){ 100, 100, 200, 150 }, 0xffffffff);
+	SLSFadeReservation r = 0;
+	float red[2] = { 0, 0.5f }, green[2] = { 0, 1 }, blue[2] = { 0, 1 };
+
+	(void)w;
+	printf("halved %d\n", SLSSetDisplayTransferByTable(SLSMainDisplayID(), 2, red, green, blue));
+	fflush(stdout);
+	sleep(3);
+	SLSAcquireFadeReservation(10, &r);
+	printf("faded %d\n", SLSFadeDisplays(r, 0, 0, 1, 0, 0, 0, 1));
+	fflush(stdout);
+	sleep(3);
+	return 0;
+}
+
+/*
  * skylight-test watch: prints the windows minimized and restored, as the
  * Dock hears them, one line each, until it is killed. For the local tests.
  */
@@ -1246,6 +1270,8 @@ main(int argc, char *argv[])
 		return drawMain();
 	if (argc > 1 && strcmp(argv[1], "hotkeys") == 0)
 		return hotkeysMain();
+	if (argc > 1 && strcmp(argv[1], "gamma") == 0)
+		return gammaMain();
 	if (argc > 1 && strcmp(argv[1], "watch") == 0)
 		return watchMain();
 	if (argc > 1 && strcmp(argv[1], "events") == 0)

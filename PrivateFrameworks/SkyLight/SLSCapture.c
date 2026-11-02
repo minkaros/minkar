@@ -69,8 +69,8 @@ SLSFadeDisplays(SLSFadeReservation reservation, double duration, float startBlen
 
 	if (!isfinite(duration) || duration < 0 || duration > kSLSMaxFadeReservation)
 		return kSLSErrorIllegalArgument;
-	if (server == MACH_PORT_NULL || ws_fade(server, reservation, startBlend, endBlend,
-	    red, green, blue, &result) != KERN_SUCCESS)
+	if (server == MACH_PORT_NULL || ws_fade(server, reservation, duration, startBlend,
+	    endBlend, red, green, blue, &result) != KERN_SUCCESS)
 		return kSLSErrorFailure;
 	if (result == kSLSErrorSuccess && synchronous && duration > 0)
 		usleep((useconds_t)(duration * 1e6));

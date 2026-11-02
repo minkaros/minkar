@@ -246,6 +246,7 @@ WSDamageGlobalRect(SLSRect rect)
 		SLSPoint cursor;
 		WSCursorShape *shape = nil;
 		BOOL cursorVisible = WSCursorSnapshot(&cursor, &shape);
+		NSData *colors = WSDisplayColorTable(self->_display);
 		pixman_region32_t *damage = malloc(sizeof(*damage));
 
 		pixman_region32_init(damage);
@@ -256,7 +257,7 @@ WSDamageGlobalRect(SLSRect rect)
 		pthread_mutex_unlock(&self->_lock);
 		dispatch_async(self->_render, ^{
 			[self composite:items damage:damage cursor:cursor shape:shape
-			    visible:cursorVisible originX:ox originY:oy];
+			    visible:cursorVisible colors:colors originX:ox originY:oy];
 			pixman_region32_fini(damage);
 			free(damage);
 			pthread_mutex_lock(&self->_lock);
@@ -308,7 +309,7 @@ WSDamageGlobalRect(SLSRect rect)
 
 - (void)composite:(NSArray<WSFrameItem *> *)items damage:(pixman_region32_t *)damage
     cursor:(SLSPoint)cursor shape:(WSCursorShape *)shape visible:(BOOL)cursorVisible
-    originX:(double)ox originY:(double)oy
+    colors:(NSData *)colors originX:(double)ox originY:(double)oy
 {
 	uint64_t start = mach_absolute_time();
 	pixman_color_t black = { 0, 0, 0, 0xffff };
@@ -381,14 +382,28 @@ WSDamageGlobalRect(SLSRect rect)
 		    (int)floor(cursor.x - ox), (int)floor(cursor.y - oy), kArrowWidth, kArrowHeight);
 	pixman_image_set_clip_region32(_shadow, NULL);
 
-	/* Present: the damaged rows, from the shadow to the framebuffer. */
+	/* Present: the damaged rows, from the shadow to the framebuffer,
+	 * through the display's colour table (transfer table and fade) when
+	 * it has one. */
 	uint32_t shadowRowBytes = (uint32_t)pixman_image_get_stride(_shadow);
+	const uint8_t *lut = colors.bytes;	/* red, green, blue */
 	for (int i = 0; i < nboxes; i++) {
 		size_t bytes = (size_t)(boxes[i].x2 - boxes[i].x1) * 4;
-		for (int y = boxes[i].y1; y < boxes[i].y2; y++)
-			memcpy(_vram + (size_t)y * _vramRowBytes + (size_t)boxes[i].x1 * 4,
-			    (uint8_t *)_shadowPixels + (size_t)y * shadowRowBytes +
-			    (size_t)boxes[i].x1 * 4, bytes);
+		for (int y = boxes[i].y1; y < boxes[i].y2; y++) {
+			uint8_t *to = _vram + (size_t)y * _vramRowBytes + (size_t)boxes[i].x1 * 4;
+			const uint8_t *from = (uint8_t *)_shadowPixels + (size_t)y * shadowRowBytes +
+			    (size_t)boxes[i].x1 * 4;
+			if (lut == NULL) {
+				memcpy(to, from, bytes);
+				continue;
+			}
+			for (size_t x = 0; x < bytes; x += 4) {	/* B, G, R, X */
+				to[x] = lut[512 + from[x]];
+				to[x + 1] = lut[256 + from[x + 1]];
+				to[x + 2] = lut[from[x + 2]];
+				to[x + 3] = from[x + 3];
+			}
+		}
 		area += (uint64_t)(boxes[i].x2 - boxes[i].x1) * (boxes[i].y2 - boxes[i].y1);
 	}
 
