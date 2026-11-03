@@ -53,6 +53,8 @@
 #include <pthread.h>
 
 #include "format.h"
+#include "logd_client.h"
+#include "activity.h"
 
 /* The encoded buffer's items (the compiler's os_log layout). */
 #define ITEM_SCALAR	0
@@ -396,8 +398,18 @@ emit(const char *subsystem, const char *category, os_log_type_t type,
 	if (subsystem != NULL && *subsystem != '\0')
 		snprintf(scope, sizeof(scope), "[%s:%s] ", subsystem,
 		    category ? category : "");
-	if (to_syslog && type != OS_LOG_TYPE_INFO && type != OS_LOG_TYPE_DEBUG) {
+	/* logd keeps it with its subsystem, category and type (private
+	 * arguments redacted); syslogd still gets the default types. */
+	bool rendered = false;
+	if (_logd_keeps(subsystem, type)) {
 		render(text, sizeof(text), fmt, a, true);
+		rendered = true;
+		_logd_send(subsystem, category, type,
+		    os_activity_get_identifier(OS_ACTIVITY_CURRENT, NULL), text);
+	}
+	if (to_syslog && type != OS_LOG_TYPE_INFO && type != OS_LOG_TYPE_DEBUG) {
+		if (!rendered)
+			render(text, sizeof(text), fmt, a, true);
 		syslog(syslog_level(type), "%s%s", scope, text);
 	}
 	if (dt_mode()) {
