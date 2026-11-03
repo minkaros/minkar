@@ -1,0 +1,8 @@
+# Khronos's Vulkan conformance test suite, VK-GL-CTS (Apache-2.0), at the
+# version RADV reports as its conformance version (1.4.5.3), fetched and
+# checked against this SHA-256; its own fetch_sources.py then fetches the
+# sources it builds with, each pinned by commit or SHA-256.
+url https://github.com/KhronosGroup/VK-GL-CTS/archive/refs/tags/vulkan-cts-1.4.5.3.tar.gz
+file VK-GL-CTS-1.4.5.3.tar.gz
+sha256 69458393d131823cce7435e7ee8fea15ccd9094af3bbb85bae7c896d844b6d74
+version 1.4.5.3
