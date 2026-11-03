@@ -32,6 +32,7 @@
 
 #import <CoreGraphics/CGDirectDisplay.h>
 #import <CoreGraphics/CGWindow.h>
+#import <QuartzCore/CAMetalLayerPrivate.h>
 #import <Onyx2D/O2Surface.h>
 #import <Onyx2D/O2GraphicsState.h>
 #import <AppKit/NSWindow.h>
@@ -1972,6 +1973,8 @@ NSArray *_NSWindowNumbersFromWindowInfo(CFArrayRef info,BOOL allApps) {
                     (const SLSIntRect *)_damage, _damageCount);
             _damageCount = 0;
             _damageAll = NO;
+            /* The window's drawing may have covered its Metal layers. */
+            _CAMetalLayersWindowFlushed(slsWindowFor(_number));
         }
     }
 }
