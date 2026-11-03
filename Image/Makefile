@@ -33,7 +33,8 @@ EDK2_BUILD_PY =		BuildReport.py __init__.py build.py buildoptions.py
 # memory reserved from the firmware before the loader writes to it, the
 # EFI configuration tables' addresses (SMBIOS's for the kernel), the
 # bus and TSC frequencies measured on real Intel processors, and display
-# controllers' option ROMs as the firmware read them (for GPU drivers).
+# controllers' option ROMs as the firmware read them (for GPU drivers),
+# and the firmware's startup sound turned off or on.
 EFILOADER_PATCHES =	efiloader-0001-macho-16-char-names.patch \
 			efiloader-0002-minkar-boot-paths.patch \
 			efiloader-0003-boot-volume.patch \
@@ -42,7 +43,8 @@ EFILOADER_PATCHES =	efiloader-0001-macho-16-char-names.patch \
 			efiloader-0006-configuration-table-address.patch \
 			efiloader-0007-bus-and-tsc-frequency.patch \
 			efiloader-0008-loader-log.patch \
-			efiloader-0009-pci-option-roms.patch
+			efiloader-0009-pci-option-roms.patch \
+			efiloader-0010-startup-sound.patch
 
 EFILOADER_SRC ?=	${ROOT_BINARY_DIR}/src/efiloader
 EFILOADER_TOOLS =	${ROOT_BINARY_DIR}/src/efiloader-tools

@@ -1,0 +1,87 @@
+Minkar: "startup-sound" in the boot plist ("off" or "on") sets the
+firmware's startup sound through its SystemAudioVolume variable.
+
+--- a/MdeModulePkg/Application/Loader/config.c
++++ b/MdeModulePkg/Application/Loader/config.c
+@@ -79,6 +79,8 @@
+         CopyValue(gBootConfig.BootUUID, sizeof(gBootConfig.BootUUID), val, valLen);
+     } else if(isString && KeyMatch(key, keyLen, "graphics-mode")) {
+         CopyValue(gBootConfig.GraphicsMode, sizeof(gBootConfig.GraphicsMode), val, valLen);
++    } else if(isString && KeyMatch(key, keyLen, "startup-sound")) {
++        CopyValue(gBootConfig.StartupSound, sizeof(gBootConfig.StartupSound), val, valLen);
+     } else if(isString && KeyMatch(key, keyLen, "platform-uuid")) {
+         CopyValue(gBootConfig.PlatformUUID, sizeof(gBootConfig.PlatformUUID), val, valLen);
+     } else if(!isString && KeyMatch(key, keyLen, "loader-pause")) {
+--- a/MdeModulePkg/Application/Loader/config.h
++++ b/MdeModulePkg/Application/Loader/config.h
+@@ -41,6 +41,7 @@
+     UINT32  CsrActiveConfig;    // "csr-active-config"  -> BOOT_ARGS.csrActiveConfig
+     UINT32  LoaderPause;        // "loader-pause" -> seconds to show the loader's output
+     CHAR8   GraphicsMode[16];   // "graphics-mode" -> "WIDTHxHEIGHT" or "max"; empty: the firmware's
++    CHAR8   StartupSound[8];    // "startup-sound" -> "off" or "on"; empty: left as it is
+ } BOOT_CONFIG;
+ 
+ extern BOOT_CONFIG gBootConfig;
+--- a/MdeModulePkg/Application/Loader/loader.c
++++ b/MdeModulePkg/Application/Loader/loader.c
+@@ -105,6 +105,52 @@
+     return gBS->LocateProtocol(&gEfiGraphicsOutputProtocolGuid, NULL, (VOID **)GOP);
+ }
+ 
++/*
++ * Minkar: the firmware's startup sound, from "startup-sound" in the boot
++ * plist ("off" or "on"). Some machines' firmware plays it at power-on with
++ * the volume in the 1-byte NVRAM variable SystemAudioVolume (the firmware
++ * vendor's GUID below); bit 7 set mutes it. The change takes effect at the
++ * next power-on, and is written only when it differs.
++ */
++STATIC EFI_GUID gStartupSoundGuid =
++    { 0x7C436110, 0xAB2A, 0x4BBB, { 0xA8, 0x80, 0xFE, 0x41, 0x99, 0x5C, 0x9F, 0x82 } };
++#define STARTUP_SOUND_MUTED	0x80
++
++STATIC VOID SetStartupSound(VOID)
++{
++    CONST CHAR8 *want = gBootConfig.StartupSound;
++    BOOLEAN off;
++    UINT8 volume = 0;
++    UINTN size = sizeof(volume);
++    UINT32 attributes = EFI_VARIABLE_NON_VOLATILE | EFI_VARIABLE_BOOTSERVICE_ACCESS |
++        EFI_VARIABLE_RUNTIME_ACCESS;
++
++    if (AsciiStrCmp(want, "off") == 0)
++        off = TRUE;
++    else if (AsciiStrCmp(want, "on") == 0)
++        off = FALSE;
++    else
++        return;
++    EFI_STATUS st = gST->RuntimeServices->GetVariable(UEFI_STR("SystemAudioVolume"), &gStartupSoundGuid,
++                                     &attributes, &size, &volume);
++    if (EFI_ERROR(st)) {
++        if (!off)
++            return;		/* no variable: nothing to turn back on */
++        volume = 0;
++        attributes = EFI_VARIABLE_NON_VOLATILE | EFI_VARIABLE_BOOTSERVICE_ACCESS |
++            EFI_VARIABLE_RUNTIME_ACCESS;
++    }
++    UINT8 next = off ? (UINT8)(volume | STARTUP_SOUND_MUTED) : (UINT8)(volume & ~STARTUP_SOUND_MUTED);
++    if (!EFI_ERROR(st) && next == volume) {
++        Print(UEFI_STR("[] Startup sound: %a (0x%02x)\n"), off ? "off" : "on", volume);
++        return;
++    }
++    st = gST->RuntimeServices->SetVariable(UEFI_STR("SystemAudioVolume"), &gStartupSoundGuid, attributes,
++                          sizeof(next), &next);
++    Print(UEFI_STR("[] Startup sound: %a (0x%02x -> 0x%02x): %r\n"), off ? "off" : "on",
++          volume, next, st);
++}
++
+ /* The display's preferred resolution: the EDID's first detailed timing. */
+ STATIC BOOLEAN NativeResolution(UINTN *w, UINTN *h)
+ {
+@@ -1022,6 +1068,7 @@
+     Print(UEFI_STR(":: Minkar EFI Loader %s\n"), VERSION_STR);
+     LoadBootConfig();
+     SetGraphicsMode();
++    SetStartupSound();
+ 
+     Status = gBS->GetMemoryMap(&MemoryMapSize, MemoryMap, &MapKey, &DescriptorSize, &DescriptorVersion);
+     if (Status == EFI_BUFFER_TOO_SMALL) {
