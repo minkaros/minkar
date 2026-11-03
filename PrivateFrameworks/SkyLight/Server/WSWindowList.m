@@ -746,6 +746,27 @@ wss_window_list(mach_port_t server, uint32_t option, uint32_t relativeTo,
 	return KERN_SUCCESS;
 }
 
+/*
+ * A process's name, for any process: its executable's file name, else its
+ * command name. Not proc_name, whose flavor (PROC_PIDTBSDINFO) the kernel
+ * gives only for processes of the caller's own user, and the server runs
+ * as _windowserver; the path and the short BSD info are for anyone.
+ */
+static void
+ownerName(pid_t pid, char *name, size_t size)
+{
+	char path[PROC_PIDPATHINFO_MAXSIZE];
+	struct proc_bsdshortinfo info;
+
+	name[0] = '\0';
+	if (proc_pidpath(pid, path, sizeof(path)) > 0) {
+		const char *slash = strrchr(path, '/');
+		strlcpy(name, slash != NULL ? slash + 1 : path, size);
+	} else if (proc_pidinfo(pid, PROC_PIDT_SHORTBSDINFO, 0, &info, sizeof(info)) ==
+	    (int)sizeof(info))
+		strlcpy(name, info.pbsi_comm, size);
+}
+
 kern_return_t
 wss_window_info(mach_port_t server, uint32_t window, int32_t *result, SLSWindowInfo *info)
 {
@@ -768,8 +789,7 @@ wss_window_info(mach_port_t server, uint32_t window, int32_t *result, SLSWindowI
 	info->flags = (w.onScreen ? kSLSWindowOnScreen : 0) |
 	    (w.minimized ? kSLSWindowMinimized : 0) | (w.hasShadow ? kSLSWindowHasShadow : 0);
 	info->sharingState = 1;		/* kCGWindowSharingReadOnly */
-	if (proc_name(w.owner.pid, info->ownerName, sizeof(info->ownerName)) <= 0)
-		info->ownerName[0] = '\0';
+	ownerName(w.owner.pid, info->ownerName, sizeof(info->ownerName));
 	*result = kSLSErrorSuccess;
 	return KERN_SUCCESS;
 }
