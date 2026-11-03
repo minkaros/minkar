@@ -85,6 +85,13 @@ mmCB_PERFCOUNTER1_SELECT1 mmCB_PERFCOUNTER2_SELECT0 mmCB_PERFCOUNTER2_SELECT1
 mmCB_PERFCOUNTER3_SELECT0 mmCB_PERFCOUNTER3_SELECT1 mmHDP_HOST_PATH_CNTL mmPA_CL_ENHANCE
 PA_CL_ENHANCE__CLIP_VTX_REORDER_ENA_MASK PA_CL_ENHANCE__NUM_CLIP_SEQ__SHIFT
 mmCGTS_TCC_DISABLE mmCGTS_USER_TCC_DISABLE
+mmRLC_CNTL RLC_CNTL__RLC_ENABLE_F32_MASK mmRLC_RL_BASE mmRLC_RL_SIZE mmRLC_LB_CNTL
+RLC_LB_CNTL__LOAD_BALANCE_ENABLE_MASK mmRLC_LB_CNTR_MAX mmRLC_LB_CNTR_INIT mmRLC_LB_INIT_CU_MASK
+mmRLC_MC_CNTL mmRLC_UCODE_CNTL mmRLC_UCODE_ADDR mmRLC_UCODE_DATA mmRLC_SAVE_AND_RESTORE_BASE
+mmRLC_CLEAR_STATE_RESTORE_BASE mmRLC_SERDES_MASTER_BUSY_0 mmRLC_SERDES_MASTER_BUSY_1 mmRLC_STAT
+RLC_BUSY_STATUS GFX_POWER_STATUS GFX_CLOCK_STATUS GFX_LS_STATUS mmCP_INT_CNTL_RING0
+CP_INT_CNTL__CNTX_BUSY_INT_ENABLE_MASK CP_INT_CNTL__CNTX_EMPTY_INT_ENABLE_MASK mmDB_DEPTH_INFO
+mmSPI_LB_CU_MASK mmMC_SEQ_MISC0 GRBM_SOFT_RESET__SOFT_RESET_RLC_MASK
 """.split()
 
 GOLDEN = {
@@ -127,21 +134,41 @@ def run(source):
     tiling = function_body(gfx, 'gfx_v6_0_tiling_mode_table_init')
     regs = ['gca/gfx_6_0_d.h', 'gmc/gmc_6_0_d.h', 'dce/dce_6_0_d.h', 'oss/oss_1_0_d.h',
             'bif/bif_3_0_d.h', 'uvd/uvd_4_0_d.h']
-    prog = ['#include <stdio.h>', '#include <stdint.h>', '#include <string.h>',
+    prog = ['#include <stdio.h>', '#include <stdint.h>', '#include <string.h>', '#include <stdbool.h>',
             'typedef uint32_t u32;',
             'enum { %s };' % ', '.join('CHIP_' + c for c in CHIPS),
+            '#include "clearstate_defs.h"',
+            'struct amdgpu_ring { int unused; };',
             'struct amdgpu_device { int asic_type; struct { struct { u32 tile_mode_array[32];'
-            ' u32 mem_row_size_in_kb; } config; } gfx; };',
+            ' u32 mem_row_size_in_kb; u32 max_hw_contexts;'
+            ' struct { u32 raster_config; } rb_config[4][4]; } config;'
+            ' struct { const struct cs_section_def *cs_data; } rlc;'
+            ' struct amdgpu_ring gfx_ring[1]; } gfx; };',
             '#define ARRAY_SIZE(a) (sizeof(a) / sizeof((a)[0]))',
             '#define WREG32(r, v) ((void)(r), (void)(v))',
-            '#define DRM_ERROR(...) ((void)0)']
+            '#define DRM_ERROR(...) ((void)0)',
+            '#define udelay(n) ((void)(n))',
+            '#define cpu_to_le32(v) (v)',
+            # The ring, recorded: each commit ends a part.
+            'static u32 stream[4096]; static unsigned streamN, parts[8], partN;',
+            'static int amdgpu_ring_alloc(struct amdgpu_ring *r, unsigned n) { (void)r; (void)n; return 0; }',
+            'static void amdgpu_ring_write(struct amdgpu_ring *r, u32 v) { (void)r; stream[streamN++] = v; }',
+            'static void amdgpu_ring_commit(struct amdgpu_ring *r) { (void)r; parts[partN++] = streamN; }']
     prog += ['#include "asic_reg/%s"' % r for r in regs]
     prog += ['#include "asic_reg/%s"' % r.replace('_d.h', '_sh_mask.h') for r in regs
              if os.path.exists(os.path.join(amd, 'include', 'asic_reg', r.replace('_d.h', '_sh_mask.h')))]
     # gfx_v6_0.c gets the tiling macros, and si.c the golden tables'
     # names, from sid.h (through amdgpu.h).
     prog += ['#include "gca/gfx_7_2_enum.h"', '#include "sid.h"', '#include "si_enums.h"']
+    prog.append('#include "clearstate_si.h"')
     prog.append(tiling)
+    # The clear state (the RLC's buffer and the command processor's start)
+    # and the RLC's save and restore list.
+    for f in ('gfx_v6_0_get_csb_size', 'gfx_v6_0_get_csb_buffer', 'gfx_v6_0_cp_gfx_enable',
+              'gfx_v6_0_cp_gfx_start'):
+        prog.append(function_body(gfx, f))
+    prog.append('static const u32 verde_rlc_save_restore_register_list[] = {%s};' %
+                array_text(gfx, 'verde_rlc_save_restore_register_list'))
     for chip in CHIPS:
         for a in GOLDEN[chip]:
             prog.append('static const u32 %s[] = {%s};' % (a, array_text(si, a)))
@@ -159,6 +186,17 @@ def run(source):
             prog += ['\tprintf("golden %s %s");' % (chip, a),
                      '\tfor (size_t i = 0; i < ARRAY_SIZE(%s); i++) printf(" 0x%%08x", %s[i]);' % (a, a),
                      '\tprintf("\\n");']
+    prog += ['\tmemset(&d, 0, sizeof(d));', '\td.gfx.rlc.cs_data = si_cs_data;',
+             '\td.gfx.config.max_hw_contexts = 8;',
+             '\td.gfx.config.rb_config[0][0].raster_config = 0x5a5a5a5a;',
+             '\t{ u32 n = gfx_v6_0_get_csb_size(&d), buf[4096]; gfx_v6_0_get_csb_buffer(&d, buf);',
+             '\t  printf("csb"); for (u32 i = 0; i < n; i++) printf(" 0x%08x", buf[i]); printf("\\n"); }',
+             '\tgfx_v6_0_cp_gfx_start(&d);',
+             '\tfor (unsigned p = 0, at = 0; p < partN; at = parts[p++]) {',
+             '\t  printf("start%u", p); for (unsigned i = at; i < parts[p]; i++) printf(" 0x%08x", stream[i]);',
+             '\t  printf("\\n"); }',
+             '\tprintf("saverestore"); for (size_t i = 0; i < ARRAY_SIZE(verde_rlc_save_restore_register_list); i++)',
+             '\t  printf(" 0x%08x", verde_rlc_save_restore_register_list[i]); printf("\\n");']
     for name in CONSTANTS:
         prog.append('\tprintf("const %s 0x%%llx\\n", (unsigned long long)(%s));' % (name, name))
     prog.append('\treturn 0;\n}')
@@ -180,8 +218,9 @@ def header(values, notice, version):
            '/*',
            ' * GCN 1.0 (SI) graphics tables, as numbers: generated by',
            ' * tools/drm-import/si-tables.py from drm-kmod %s (gfx_v6_0.c\'s' % version,
-           ' * tiling mode tables, si.c\'s golden registers and the registers the',
-           ' * graphics block\'s start uses, under the notice',
+           ' * tiling mode tables, clear state and command processor start,',
+           ' * si.c\'s golden registers and the registers the graphics block\'s',
+           ' * start uses, under the notice',
            ' * above). Do not edit: run the tool again.',
            ' */', '',
            '#ifndef _MINKAR_AMD_SI_GFX_TABLES_H',
@@ -199,6 +238,26 @@ def header(values, notice, version):
             for i in range(3, len(f), 3):
                 out.append('\t%s, %s, %s,' % tuple(f[i:i + 3]))
             out += ['};', '']
+    def words(name, comment, vals):
+        out.append('/* %s */' % comment)
+        out.append('static const uint32_t %s[] = {' % name)
+        for i in range(0, len(vals), 4):
+            out.append('\t%s,' % ', '.join(vals[i:i + 4]))
+        out.extend(['};', ''])
+    for line in values.splitlines():
+        f = line.split()
+        if f[0] == 'csb':
+            words('si_clear_state', 'The clear state buffer\'s commands (gfx_v6_0_get_csb_buffer); '
+                  'PA_SC_RASTER_CONFIG\'s value is 0x5a5a5a5a, for the driver to set.', f[1:])
+            out.append('#define SI_CLEAR_STATE_RASTER_INDEX\t%d' % f[1:].index('0x5a5a5a5a'))
+            out.append('')
+        elif f[0].startswith('start'):
+            words('si_cp_start%s' % f[0][5:], 'The command processor\'s start, part %s '
+                  '(gfx_v6_0_cp_gfx_start: %s).' % (f[0][5:], 'before it is on' if f[0] == 'start0'
+                  else 'once it is on'), f[1:])
+        elif f[0] == 'saverestore':
+            words('si_rlc_save_restore', 'The RLC\'s save and restore list '
+                  '(verde_rlc_save_restore_register_list, every GCN 1.0 chip\'s).', f[1:])
     consts = [line.split()[1:] for line in values.splitlines() if line.startswith('const ')]
     out.append('/* Registers (dword indices), fields and values (gfx_v6_0.c\'s headers). */')
     for name, value in consts:

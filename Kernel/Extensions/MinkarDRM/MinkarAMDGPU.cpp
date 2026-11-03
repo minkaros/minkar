@@ -824,16 +824,16 @@ MinkarAMDGPU::gfxTestThread(void *gpu, wait_result_t)
 /* The command processor's three microcodes (prefetch parser, micro
  * engine, constant engine), read and parsed. */
 bool
-MinkarAMDGPU::readMicrocode(uint8_t *file[3], size_t bytes[3], struct amd_ucode code[3])
+MinkarAMDGPU::readMicrocode(uint8_t *file[4], size_t bytes[4], struct amd_ucode code[4])
 {
-	static const char *const parts[3] = { "pfp", "me", "ce" };
+	static const char *const parts[4] = { "pfp", "me", "ce", "rlc" };
 	char name[40];
 
-	for (int i = 0; i < 3; i++) {
+	for (int i = 0; i < 4; i++) {
 		file[i] = NULL;
 		bytes[i] = 0;
 	}
-	for (int i = 0; i < 3; i++) {
+	for (int i = 0; i < 4; i++) {
 		snprintf(name, sizeof(name), "%s_%s.bin", fMicrocodePrefix, parts[i]);
 		if (!MinkarAMDReadFirmware(name, &file[i], &bytes[i]) ||
 		    amd_ucode_parse(file[i], bytes[i], &code[i]) != 0) {
@@ -845,9 +845,9 @@ MinkarAMDGPU::readMicrocode(uint8_t *file[3], size_t bytes[3], struct amd_ucode 
 }
 
 void
-MinkarAMDGPU::freeMicrocode(uint8_t *file[3], size_t bytes[3])
+MinkarAMDGPU::freeMicrocode(uint8_t *file[4], size_t bytes[4])
 {
-	for (int i = 0; i < 3; i++) {
+	for (int i = 0; i < 4; i++) {
 		MinkarAMDFreeFirmware(file[i], bytes[i]);
 		file[i] = NULL;
 		bytes[i] = 0;
@@ -857,9 +857,9 @@ MinkarAMDGPU::freeMicrocode(uint8_t *file[3], size_t bytes[3])
 void
 MinkarAMDGPU::gfxSelfTest()
 {
-	uint8_t *file[3];
-	size_t bytes[3];
-	struct amd_ucode code[3];
+	uint8_t *file[4];
+	size_t bytes[4];
+	struct amd_ucode code[4];
 	char name[40];
 	bool have = false;
 
@@ -899,7 +899,7 @@ MinkarAMDGPU::gfxSelfTest()
 			if (!fGFXStarted) {
 				MinkarAMDGFXLoadMicrocode(&fRegs, &code[0], &code[1], &code[2]);
 				started = MinkarAMDGFXStart(&gfx, &fRegs, fVRAMStart + offset,
-				    (volatile uint8_t *)map->getVirtualAddress(), results);
+				    (volatile uint8_t *)map->getVirtualAddress(), false, results);
 				passed = started && MinkarAMDGFXRingTest(&gfx, &ns, results);
 				ib = passed && MinkarAMDGFXIBTest(&gfx, results);
 				MinkarAMDGFXStop(&gfx);
@@ -940,9 +940,9 @@ MinkarAMDGPU::gfxSelfTest()
 bool
 MinkarAMDGPU::startGFX()
 {
-	uint8_t *file[3];
-	size_t bytes[3];
-	struct amd_ucode code[3];
+	uint8_t *file[4];
+	size_t bytes[4];
+	struct amd_ucode code[4];
 
 	if (fGFXStarted)
 		return true;
@@ -959,10 +959,14 @@ MinkarAMDGPU::startGFX()
 	OSSafeReleaseNULL(region);
 	if (fGFXMap != NULL) {
 		uint64_t ns = 0;
+		/* As gfx_v6_0_hw_init: the graphics block, the RLC with the clear
+		 * state, then the command processor with it. */
 		initEngine();
+		MinkarAMDGFXStartRLC(&fRegs, &code[3], fVRAMStart + fGFXOffset,
+		    (volatile uint8_t *)fGFXMap->getVirtualAddress(), fRasterConfig);
 		MinkarAMDGFXLoadMicrocode(&fRegs, &code[0], &code[1], &code[2]);
 		fGFXStarted = MinkarAMDGFXStart(&fGFX, &fRegs, fVRAMStart + fGFXOffset,
-		    (volatile uint8_t *)fGFXMap->getVirtualAddress(), NULL) &&
+		    (volatile uint8_t *)fGFXMap->getVirtualAddress(), true, NULL) &&
 		    MinkarAMDGFXRingTest(&fGFX, &ns, NULL);
 		if (!fGFXStarted)
 			MinkarAMDGFXStop(&fGFX);
@@ -1009,8 +1013,12 @@ MinkarAMDGPU::initEngine()
 
 	if (amd_si_gfx_init_engine(chip, &io, &info) != 0) {
 		LOG("no graphics block settings for %s", fFamily != NULL ? fFamily : "this chip");
+		fRasterConfig = readReg(SI_mmPA_SC_RASTER_CONFIG);
 		return;
 	}
+	/* The rasterizer's configuration, for the clear state: as set, or the
+	 * golden one when it was left. */
+	fRasterConfig = info.rasterConfig != 0 ? info.rasterConfig : readReg(SI_mmPA_SC_RASTER_CONFIG);
 	OSDictionary *d = OSDictionary::withCapacity(12);
 	if (d != NULL) {
 		static const char *const keys[] = { "RowKB", "AddrConfig", "BackendMask", "Backends",

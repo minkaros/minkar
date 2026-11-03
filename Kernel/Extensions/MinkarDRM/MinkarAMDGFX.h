@@ -29,8 +29,8 @@
 /*
  * MinkarAMDGFX (ADR 0002, G2): a GCN 1.0 GPU's graphics command processor,
  * its microcode loaded from AMD's files, its ring (ring 0) in VRAM. The
- * first step: the processor started and its ring tested by a register
- * write, as amdgpu's gfx_v6_0.c does before anything else.
+ * processor started with the RLC and the clear state, as amdgpu's
+ * gfx_v6_0.c does, its ring tested by a register write.
  */
 
 #ifndef _MINKARAMDGFX_H
@@ -52,17 +52,26 @@ struct MinkarAMDGFX {
 };
 
 /* The region the processor needs: its ring, then a page for write-back
- * (fences) and the self-test's indirect buffer. */
+ * (fences) and the self-test's indirect buffer, then the RLC's: its save
+ * and restore list (a page) and the clear state buffer (a page). */
 #define kMinkarAMDGFXRingBytes		(64 * 1024)
-#define kMinkarAMDGFXRegionBytes	(kMinkarAMDGFXRingBytes + 4096)
+#define kMinkarAMDGFXRegionBytes	(kMinkarAMDGFXRingBytes + 3 * 4096)
 
 /* Halts the processor and loads its three microcodes. */
 void MinkarAMDGFXLoadMicrocode(struct MinkarAMDRegs *regs, const struct amd_ucode *pfp,
     const struct amd_ucode *me, const struct amd_ucode *ce);
+/* The RLC (the graphics block's run list controller) started with its
+ * microcode, its save and restore list and the clear state buffer in the
+ * region (rasterConfig in it), as gfx_v6_0_rlc_init and _rlc_resume do
+ * (no power gating: GCN 1.0's discrete chips have none on). */
+void MinkarAMDGFXStartRLC(struct MinkarAMDRegs *regs, const struct amd_ucode *rlc, uint64_t gpuBase,
+    volatile uint8_t *cpuBase, uint32_t rasterConfig);
 /* Sets up ring 0 at gpuBase (kMinkarAMDGFXRegionBytes, mapped at cpuBase) and
- * starts the processor on it; false if it does not take its start. */
+ * starts the processor on it, then (clearState, the RLC started) loads
+ * the context registers' clear state as gfx_v6_0_cp_gfx_start does; false
+ * if it does not take its start. */
 bool MinkarAMDGFXStart(struct MinkarAMDGFX *gfx, struct MinkarAMDRegs *regs, uint64_t gpuBase,
-    volatile uint8_t *cpuBase, OSDictionary *results);
+    volatile uint8_t *cpuBase, bool clearState, OSDictionary *results);
 /* A scratch register written through the ring; the time it took. */
 bool MinkarAMDGFXRingTest(struct MinkarAMDGFX *gfx, uint64_t *ns, OSDictionary *results);
 /* An indirect buffer at a GPU address (VRAM or the GART in context 0, a

@@ -109,8 +109,9 @@ private:
 	void startGFXTest(const char *family);
 	static void gfxTestThread(void *gpu, wait_result_t);
 	void gfxSelfTest();
-	bool readMicrocode(uint8_t *file[3], size_t bytes[3], struct amd_ucode code[3]);
-	void freeMicrocode(uint8_t *file[3], size_t bytes[3]);
+	/* pfp, me, ce, rlc */
+	bool readMicrocode(uint8_t *file[4], size_t bytes[4], struct amd_ucode code[4]);
+	void freeMicrocode(uint8_t *file[4], size_t bytes[4]);
 	bool startGFX();
 	void resetGFX();
 	void initEngine();
@@ -151,6 +152,7 @@ private:
 	IOMemoryMap *		fGFXMap;	/* its ring and write-back */
 	uint64_t		fGFXOffset;
 	uint32_t		fGFXResets;
+	uint32_t		fRasterConfig;	/* for the RLC's clear state */
 	/* Clients' address spaces: each context's page directory in VRAM
 	 * (0: the context is free); written through all of the VRAM window,
 	 * mapped once. */
