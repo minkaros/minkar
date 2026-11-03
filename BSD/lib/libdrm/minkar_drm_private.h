@@ -70,4 +70,25 @@ void minkar_drm_close(int fd);
  * 0 or a negative errno. */
 int minkar_drm_command(int fd, unsigned long index, void *data, unsigned long size);
 
+/* The buffer, context and submission commands (amdgpu_cmd.c). */
+int minkar_drm_amdgpu_command(int fd, unsigned long index, void *data, unsigned long size);
+
+/* A sync object signaled (point 0) or its timeline advanced to point. */
+void minkar_drm_syncobj_signal(uint32_t handle, uint64_t point);
+
+/* What libdrm_amdgpu knows of a buffer, by its KMS handle (the user
+ * client's), for the kernel commands. */
+struct minkar_drm_bo {
+	uint64_t size, alignment;
+	uint32_t domains;
+	uint64_t flags;
+	uint64_t metadataFlags, tilingInfo;
+	uint32_t metadataBytes;
+	uint32_t metadata[64];
+};
+struct minkar_drm_bo *minkar_drm_bo_lookup(uint32_t handle);
+void minkar_drm_bo_add(uint32_t handle, uint64_t size, uint64_t alignment, uint32_t domains,
+    uint64_t flags);
+void minkar_drm_bo_remove(uint32_t handle);
+
 #endif

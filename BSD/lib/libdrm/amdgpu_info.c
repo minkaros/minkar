@@ -150,8 +150,10 @@ devInfo(const struct gpu_view *v, struct drm_amdgpu_info_device *d)
 	memset(cu, 0, sizeof(cu));
 	configWords(v, "ComputeUnitMasks", &cu[0][0], 8);
 	d->device_id = v->gpu.device;
-	d->chip_rev = v->gpu.revision;
-	d->external_rev = externalRevision(v->gpu.device, v->gpu.revision);
+	/* The chip's revision from its straps (as amdgpu's rev_id), and the
+	 * external one Mesa's chip tables take from it. */
+	d->chip_rev = configNumber(v, "RevisionID");
+	d->external_rev = externalRevision(v->gpu.device, d->chip_rev);
 	d->pci_rev = v->gpu.revision;
 	d->family = AMDGPU_FAMILY_SI;
 	d->num_shader_engines = configNumber(v, "ShaderEngines");
@@ -357,7 +359,9 @@ info(int fd, struct drm_amdgpu_info *req)
 	case AMDGPU_INFO_MAX_IBS: {
 		uint32_t ibs[AMDGPU_HW_IP_NUM];
 		memset(ibs, 0, sizeof(ibs));
-		ibs[AMDGPU_HW_IP_GFX] = 1;
+		/* The submission runs its IBs one after another, so any number
+		 * fits; amdgpu's own limit for GFX6 (as Mesa assumes it). */
+		ibs[AMDGPU_HW_IP_GFX] = 144;
 		memcpy(ret, ibs, size < sizeof(ibs) ? size : sizeof(ibs));
 		break;
 	}
@@ -372,10 +376,25 @@ info(int fd, struct drm_amdgpu_info *req)
 int
 minkar_drm_command(int fd, unsigned long index, void *data, unsigned long size)
 {
-	switch (index) {
-	case DRM_AMDGPU_INFO:
-		return size >= sizeof(struct drm_amdgpu_info) ? info(fd, data) : -EINVAL;
-	default:
-		return -ENOSYS;
+	static int trace = -1;
+	int err;
+
+	if (index == DRM_AMDGPU_INFO)
+		err = size >= sizeof(struct drm_amdgpu_info) ? info(fd, data) : -EINVAL;
+	else
+		err = minkar_drm_amdgpu_command(fd, index, data, size);
+	/* MINKAR_DRM_DEBUG=1: each command, its first word (the operation or
+	 * the query), and what it gave, on standard error. */
+	if (trace < 0)
+		trace = getenv("MINKAR_DRM_DEBUG") != NULL;
+	if (trace) {
+		uint32_t first = 0;
+		if (index == DRM_AMDGPU_INFO && size >= sizeof(struct drm_amdgpu_info))
+			first = ((struct drm_amdgpu_info *)data)->query;
+		else if (data != NULL && size >= sizeof(first))
+			memcpy(&first, data, sizeof(first));
+		fprintf(stderr, "libdrm: fd %d command 0x%02lx (0x%x), %lu bytes: %d\n", fd, index, first,
+		    size, err);
 	}
+	return err;
 }

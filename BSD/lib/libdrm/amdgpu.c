@@ -159,7 +159,10 @@ amdgpu_query_sw_info(amdgpu_device_handle d, enum amdgpu_sw_info info, void *val
 		*(uint32_t *)value = 0;		/* 32-bit addresses are the low 4 GB */
 		return 0;
 	case amdgpu_sw_info_address_prt_wa_control_bit:
-		*(uint64_t *)value = ~0ull;	/* none */
+		/* None (no half of the space kept for sparse buffers). A 32-bit
+		 * value, as libdrm's: Mesa reads it into a uint8_t field, and a
+		 * wider write runs into the fields after it. */
+		*(uint32_t *)value = ~0u;
 		return 0;
 	}
 	return -EINVAL;
@@ -217,6 +220,8 @@ amdgpu_bo_alloc(amdgpu_device_handle d, struct amdgpu_bo_alloc_request *req,
 	bo->handle = (uint32_t)out[0];
 	bo->gpu = out[1];
 	bo->size = (req->alloc_size + 4095) & ~4095ull;
+	minkar_drm_bo_add(bo->handle, req->alloc_size, req->phys_alignment, req->preferred_heap,
+	    req->flags);
 	*buf_handle = bo;
 	return 0;
 }
@@ -243,6 +248,7 @@ amdgpu_create_bo_from_user_mem(amdgpu_device_handle d, void *cpu, uint64_t size,
 	bo->size = size;
 	bo->cpu = cpu;		/* the client's own: never unmapped here */
 	bo->imported = true;
+	minkar_drm_bo_add(bo->handle, size, 4096, AMDGPU_GEM_DOMAIN_GTT, 0);
 	*buf_handle = bo;
 	return 0;
 }
@@ -288,6 +294,7 @@ amdgpu_bo_free(amdgpu_bo_handle bo)
 		IOConnectUnmapMemory64(bo->dev->conn, bo->handle, mach_task_self(),
 		    (mach_vm_address_t)(uintptr_t)bo->cpu);
 	uint64_t h = bo->handle;
+	minkar_drm_bo_remove(bo->handle);
 	IOConnectCallScalarMethod(bo->dev->conn, kMinkarAMDGPUDestroyBuffer, &h, 1, NULL, NULL);
 	free(bo);
 	return 0;

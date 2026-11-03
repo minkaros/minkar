@@ -364,7 +364,7 @@ drmGetCap(int fd, uint64_t capability, uint64_t *value)
 	switch (capability) {
 	case DRM_CAP_SYNCOBJ:
 	case DRM_CAP_SYNCOBJ_TIMELINE:
-		*value = 0;	/* not yet */
+		*value = 1;	/* in this process (drm.c's sync objects) */
 		return 0;
 	default:
 		*value = 0;
@@ -381,14 +381,21 @@ drmGetFormatModifierName(uint64_t modifier)
 
 /* ---- Commands: the kernel interface, on the user client ---- */
 
+/* An ioctl as Mesa's os_drm.h makes it (patched to come here on Darwin):
+ * the driver commands by their number and size. */
 int
 drmIoctl(int fd, unsigned long request, void *arg)
 {
-	(void)fd;
-	(void)request;
-	(void)arg;
-	errno = ENOSYS;
-	return -1;
+	unsigned nr = (unsigned)(request & 0xff);
+	int err = -ENOTTY;
+
+	if (nr >= DRM_COMMAND_BASE && nr < DRM_COMMAND_END)
+		err = minkar_drm_command(fd, nr - DRM_COMMAND_BASE, arg, IOCPARM_LEN(request));
+	if (err < 0) {
+		errno = -err;
+		return -1;
+	}
+	return 0;
 }
 
 int
@@ -409,19 +416,232 @@ drmCommandRead(int fd, unsigned long index, void *data, unsigned long size)
 	return minkar_drm_command(fd, index, data, size);
 }
 
-/* ---- Sync objects: not yet (DRM_CAP_SYNCOBJ is 0) ---- */
+/* ---- Sync objects ----
+ *
+ * Kept in this process: each a binary state (signaled or not) and a
+ * timeline point. Submissions finish before they return (the user
+ * client's SubmitGFXVM waits for the fence), so a submission signals its
+ * objects as it returns; waits sleep on a condition until then or the
+ * deadline (CLOCK_MONOTONIC, nanoseconds; 0: just look). Not shared with
+ * other processes yet (no file descriptors for them).
+ */
 
-int drmSyncobjCreate(int fd, uint32_t flags, uint32_t *handle) { (void)fd; (void)flags; (void)handle; return -ENOSYS; }
-int drmSyncobjDestroy(int fd, uint32_t handle) { (void)fd; (void)handle; return -ENOSYS; }
+#include <time.h>
+
+#define MINKAR_SYNCOBJS	4096
+
+static pthread_mutex_t sSyncLock = PTHREAD_MUTEX_INITIALIZER;
+static pthread_cond_t sSyncCond = PTHREAD_COND_INITIALIZER;
+static struct syncobj {
+	bool used, signaled;
+	uint64_t point;
+} sSyncobjs[MINKAR_SYNCOBJS];
+
+static struct syncobj *
+syncobj(uint32_t handle)
+{
+	return handle > 0 && handle < MINKAR_SYNCOBJS && sSyncobjs[handle].used ?
+	    &sSyncobjs[handle] : NULL;
+}
+
+int
+drmSyncobjCreate(int fd, uint32_t flags, uint32_t *handle)
+{
+	(void)fd;
+	pthread_mutex_lock(&sSyncLock);
+	for (uint32_t h = 1; h < MINKAR_SYNCOBJS; h++)
+		if (!sSyncobjs[h].used) {
+			sSyncobjs[h].used = true;
+			sSyncobjs[h].signaled = (flags & DRM_SYNCOBJ_CREATE_SIGNALED) != 0;
+			sSyncobjs[h].point = 0;
+			*handle = h;
+			pthread_mutex_unlock(&sSyncLock);
+			return 0;
+		}
+	pthread_mutex_unlock(&sSyncLock);
+	return -ENOMEM;
+}
+
+int
+drmSyncobjDestroy(int fd, uint32_t handle)
+{
+	(void)fd;
+	pthread_mutex_lock(&sSyncLock);
+	struct syncobj *o = syncobj(handle);
+	if (o != NULL)
+		memset(o, 0, sizeof(*o));
+	pthread_mutex_unlock(&sSyncLock);
+	return o != NULL ? 0 : -EINVAL;
+}
+
+/* For submissions: signaled, or the timeline at point (0: binary). */
+void
+minkar_drm_syncobj_signal(uint32_t handle, uint64_t point)
+{
+	pthread_mutex_lock(&sSyncLock);
+	struct syncobj *o = syncobj(handle);
+	if (o != NULL) {
+		o->signaled = true;
+		if (point > o->point)
+			o->point = point;
+		pthread_cond_broadcast(&sSyncCond);
+	}
+	pthread_mutex_unlock(&sSyncLock);
+}
+
+static bool
+reached(const struct syncobj *o, uint64_t point)
+{
+	return point == 0 ? o->signaled : o->point >= point;
+}
+
+/* Until all (or one) of the objects are at their points, or the deadline. */
+static int
+waitFor(uint32_t *handles, const uint64_t *points, unsigned n, int64_t deadline, unsigned flags,
+    uint32_t *first)
+{
+	bool all = (flags & DRM_SYNCOBJ_WAIT_FLAGS_WAIT_ALL) != 0;
+	int err = 0;
+
+	pthread_mutex_lock(&sSyncLock);
+	for (;;) {
+		unsigned done = 0;
+		int which = -1;
+		for (unsigned i = 0; i < n; i++) {
+			struct syncobj *o = syncobj(handles[i]);
+			if (o == NULL) {
+				err = -EINVAL;
+				goto out;
+			}
+			if (reached(o, points != NULL ? points[i] : 0)) {
+				done++;
+				if (which < 0)
+					which = (int)i;
+			}
+		}
+		if ((all && done == n) || (!all && done > 0)) {
+			if (first != NULL)
+				*first = which < 0 ? 0 : (uint32_t)which;
+			break;
+		}
+		struct timespec now;
+		clock_gettime(CLOCK_MONOTONIC, &now);
+		int64_t ns = (int64_t)now.tv_sec * 1000000000ll + now.tv_nsec;
+		if (deadline <= ns) {
+			err = -ETIME;
+			break;
+		}
+		/* The condition's clock is the real time one: a bounded nap. */
+		struct timespec until;
+		clock_gettime(CLOCK_REALTIME, &until);
+		int64_t nap = deadline - ns < 100000000ll ? deadline - ns : 100000000ll;
+		until.tv_nsec += nap % 1000000000ll;
+		until.tv_sec += nap / 1000000000ll + until.tv_nsec / 1000000000l;
+		until.tv_nsec %= 1000000000l;
+		pthread_cond_timedwait(&sSyncCond, &sSyncLock, &until);
+	}
+out:
+	pthread_mutex_unlock(&sSyncLock);
+	return err;
+}
+
+int
+drmSyncobjWait(int fd, uint32_t *handles, unsigned num_handles, int64_t timeout_nsec, unsigned flags,
+    uint32_t *first_signaled)
+{
+	(void)fd;
+	return waitFor(handles, NULL, num_handles, timeout_nsec, flags, first_signaled);
+}
+
+int
+drmSyncobjTimelineWait(int fd, uint32_t *handles, uint64_t *points, unsigned num_handles,
+    int64_t timeout_nsec, unsigned flags, uint32_t *first_signaled)
+{
+	(void)fd;
+	return waitFor(handles, points, num_handles, timeout_nsec, flags, first_signaled);
+}
+
+int
+drmSyncobjReset(int fd, const uint32_t *handles, uint32_t handle_count)
+{
+	(void)fd;
+	pthread_mutex_lock(&sSyncLock);
+	for (uint32_t i = 0; i < handle_count; i++) {
+		struct syncobj *o = syncobj(handles[i]);
+		if (o != NULL)
+			o->signaled = false;
+	}
+	pthread_mutex_unlock(&sSyncLock);
+	return 0;
+}
+
+int
+drmSyncobjSignal(int fd, const uint32_t *handles, uint32_t handle_count)
+{
+	(void)fd;
+	for (uint32_t i = 0; i < handle_count; i++)
+		minkar_drm_syncobj_signal(handles[i], 0);
+	return 0;
+}
+
+int
+drmSyncobjTimelineSignal(int fd, const uint32_t *handles, uint64_t *points, uint32_t handle_count)
+{
+	(void)fd;
+	for (uint32_t i = 0; i < handle_count; i++)
+		minkar_drm_syncobj_signal(handles[i], points[i]);
+	return 0;
+}
+
+int
+drmSyncobjQuery2(int fd, uint32_t *handles, uint64_t *points, uint32_t handle_count, uint32_t flags)
+{
+	(void)fd;
+	(void)flags;
+	int err = 0;
+	pthread_mutex_lock(&sSyncLock);
+	for (uint32_t i = 0; i < handle_count; i++) {
+		struct syncobj *o = syncobj(handles[i]);
+		if (o == NULL)
+			err = -EINVAL;
+		else
+			points[i] = o->point;
+	}
+	pthread_mutex_unlock(&sSyncLock);
+	return err;
+}
+
+int
+drmSyncobjQuery(int fd, uint32_t *handles, uint64_t *points, uint32_t handle_count)
+{
+	return drmSyncobjQuery2(fd, handles, points, handle_count, 0);
+}
+
+/* src at src_point (0: its binary state) to dst at dst_point (0: binary). */
+int
+drmSyncobjTransfer(int fd, uint32_t dst_handle, uint64_t dst_point, uint32_t src_handle,
+    uint64_t src_point, uint32_t flags)
+{
+	(void)fd;
+	(void)flags;
+	pthread_mutex_lock(&sSyncLock);
+	struct syncobj *s = syncobj(src_handle), *d = syncobj(dst_handle);
+	bool done = s != NULL && reached(s, src_point);
+	pthread_mutex_unlock(&sSyncLock);
+	if (s == NULL || d == NULL)
+		return -EINVAL;
+	if (done)
+		minkar_drm_syncobj_signal(dst_handle, dst_point);
+	else if (dst_point == 0) {
+		pthread_mutex_lock(&sSyncLock);
+		d->signaled = false;
+		pthread_mutex_unlock(&sSyncLock);
+	}
+	return 0;
+}
+
+/* Across processes (file descriptors, sync files): not yet. */
 int drmSyncobjHandleToFD(int fd, uint32_t handle, int *obj_fd) { (void)fd; (void)handle; (void)obj_fd; return -ENOSYS; }
 int drmSyncobjFDToHandle(int fd, int obj_fd, uint32_t *handle) { (void)fd; (void)obj_fd; (void)handle; return -ENOSYS; }
 int drmSyncobjImportSyncFile(int fd, uint32_t handle, int sync_file_fd) { (void)fd; (void)handle; (void)sync_file_fd; return -ENOSYS; }
 int drmSyncobjExportSyncFile(int fd, uint32_t handle, int *sync_file_fd) { (void)fd; (void)handle; (void)sync_file_fd; return -ENOSYS; }
-int drmSyncobjWait(int fd, uint32_t *handles, unsigned num_handles, int64_t timeout_nsec, unsigned flags, uint32_t *first_signaled) { (void)fd; (void)handles; (void)num_handles; (void)timeout_nsec; (void)flags; (void)first_signaled; return -ENOSYS; }
-int drmSyncobjReset(int fd, const uint32_t *handles, uint32_t handle_count) { (void)fd; (void)handles; (void)handle_count; return -ENOSYS; }
-int drmSyncobjSignal(int fd, const uint32_t *handles, uint32_t handle_count) { (void)fd; (void)handles; (void)handle_count; return -ENOSYS; }
-int drmSyncobjTimelineSignal(int fd, const uint32_t *handles, uint64_t *points, uint32_t handle_count) { (void)fd; (void)handles; (void)points; (void)handle_count; return -ENOSYS; }
-int drmSyncobjTimelineWait(int fd, uint32_t *handles, uint64_t *points, unsigned num_handles, int64_t timeout_nsec, unsigned flags, uint32_t *first_signaled) { (void)fd; (void)handles; (void)points; (void)num_handles; (void)timeout_nsec; (void)flags; (void)first_signaled; return -ENOSYS; }
-int drmSyncobjQuery(int fd, uint32_t *handles, uint64_t *points, uint32_t handle_count) { (void)fd; (void)handles; (void)points; (void)handle_count; return -ENOSYS; }
-int drmSyncobjQuery2(int fd, uint32_t *handles, uint64_t *points, uint32_t handle_count, uint32_t flags) { (void)fd; (void)handles; (void)points; (void)handle_count; (void)flags; return -ENOSYS; }
-int drmSyncobjTransfer(int fd, uint32_t dst_handle, uint64_t dst_point, uint32_t src_handle, uint64_t src_point, uint32_t flags) { (void)fd; (void)dst_handle; (void)dst_point; (void)src_handle; (void)src_point; (void)flags; return -ENOSYS; }

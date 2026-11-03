@@ -42,8 +42,11 @@ amdgpu.o: ${.CURDIR}/amdgpu.c ${.CURDIR}/minkar_drm_private.h install-headers
 amdgpu_info.o: ${.CURDIR}/amdgpu_info.c ${.CURDIR}/minkar_drm_private.h install-headers
 	${CC} ${DRM_CFLAGS} -c ${.CURDIR}/amdgpu_info.c -o ${.TARGET}
 
-libdrm.dylib: drm.o amdgpu_info.o
-	${CC} ${DRM_LDFLAGS} -o ${.TARGET} drm.o amdgpu_info.o -framework IOKit -framework CoreFoundation \
+amdgpu_cmd.o: ${.CURDIR}/amdgpu_cmd.c ${.CURDIR}/minkar_drm_private.h install-headers
+	${CC} ${DRM_CFLAGS} -c ${.CURDIR}/amdgpu_cmd.c -o ${.TARGET}
+
+libdrm.dylib: drm.o amdgpu_info.o amdgpu_cmd.o
+	${CC} ${DRM_LDFLAGS} -o ${.TARGET} drm.o amdgpu_info.o amdgpu_cmd.o -framework IOKit -framework CoreFoundation \
 	    -Wl,-install_name,/usr/lib/libdrm.dylib \
 	    -Wl,-compatibility_version,2.0.0 -Wl,-current_version,2.4.134
 	mkdir -p ${SYSROOT_DIR}/usr/lib ${MINKAR_SDKROOT}/usr/lib
@@ -58,6 +61,6 @@ libdrm_amdgpu.dylib: amdgpu.o libdrm.dylib
 	cp -f ${.TARGET} ${MINKAR_SDKROOT}/usr/lib/libdrm_amdgpu.dylib
 
 clean: .PHONY
-	rm -f drm.o amdgpu.o amdgpu_info.o libdrm.dylib libdrm_amdgpu.dylib
+	rm -f drm.o amdgpu.o amdgpu_info.o amdgpu_cmd.o libdrm.dylib libdrm_amdgpu.dylib
 
 .include <bsd.prog.mk>
