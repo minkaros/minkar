@@ -22,7 +22,8 @@ PATCHES =	0001-darwin-libdrm.patch \
 		0002-radv-darwin-weak-entrypoints.patch \
 		0003-darwin-drm-ioctl.patch \
 		0004-darwin-bo-map.patch \
-		0005-minkar-metal-wsi.patch
+		0005-minkar-metal-wsi.patch \
+		0006-minkar-wsi-gpu-copy.patch
 
 PIP_WHEEL =	pip-25.0.1-py3-none-any.whl
 PIP_URL =	https://files.pythonhosted.org/packages/c9/bc/b7db44f5f39f9d0494071bddae6880eb645970366d0a200022a1a93d57f5/${PIP_WHEEL}

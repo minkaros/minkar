@@ -96,6 +96,22 @@ minkar_drm_gpus(struct minkar_drm_gpu *gpus, unsigned max)
 		IOObjectRelease(pci);
 	}
 	IOObjectRelease(it);
+	/* The GPU that lights the display first: Vulkan's first device, the
+	 * one most apps draw with, is then the one whose VRAM holds windows'
+	 * surfaces (IOSurfaces in VRAM go there). */
+	for (unsigned i = 1; i < n; i++) {
+		CFTypeRef lights = IORegistryEntryCreateCFProperty(gpus[i].service,
+		    CFSTR("MinkarLightsDisplay"), kCFAllocatorDefault, 0);
+		bool display = lights == kCFBooleanTrue;
+		if (lights != NULL)
+			CFRelease(lights);
+		if (display) {
+			struct minkar_drm_gpu g = gpus[i];
+			memmove(&gpus[1], &gpus[0], i * sizeof(gpus[0]));
+			gpus[0] = g;
+			break;
+		}
+	}
 	return n;
 }
 

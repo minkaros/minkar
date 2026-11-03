@@ -135,21 +135,23 @@ spin(double seconds)
 #define TRY(what, call) do { VkResult r_ = (call); char d_[32]; snprintf(d_, sizeof(d_), "%d", r_); \
 	if (r_ != VK_SUCCESS) { check(0, what, d_); return failures; } } while (0)
 
-/* The window's pixels where the server has them, at (x, y) of the view
- * (which fills the content, below the title bar). */
+/* The window's image as the server shows it (its layers over its
+ * pixels; CGWindowListCreateImage's), at (x, y) of the view (which fills
+ * the content, below the title bar). */
 static int
 windowPixel(NSWindow *window, uint32_t x, uint32_t y, uint32_t *out, char *detail, size_t size)
 {
-	void *pixels = NULL;
+	uint8_t *pixels = NULL;
 	uint32_t ww = 0, wh = 0, rowBytes = 0;
-	if (SLSWindowBackBuffer([window _skyLightWindowID], &pixels, &ww, &wh, &rowBytes) != kSLSErrorSuccess ||
+	if (SLSCopyWindowImage([window _skyLightWindowID], &pixels, &ww, &wh, &rowBytes) != kSLSErrorSuccess ||
 	    pixels == NULL) {
-		snprintf(detail, size, "no back buffer");
+		snprintf(detail, size, "no window image");
 		return 0;
 	}
 	NSRect content = [window contentRectForFrameRect:[window frame]];
 	uint32_t top = wh - (uint32_t)NSHeight(content);	/* the title bar */
-	*out = ((const uint32_t *)pixels)[(size_t)(top + y) * (rowBytes / 4) + x];
+	*out = ((const uint32_t *)(void *)pixels)[(size_t)(top + y) * (rowBytes / 4) + x];
+	free(pixels);
 	snprintf(detail, size, "window %ux%u, title %u", ww, wh, top);
 	return 1;
 }
