@@ -43,9 +43,9 @@
 #include <IOKit/graphics/IOFramebuffer.h>
 #include <IOKit/pci/IOPCIDevice.h>
 #include "MinkarAMDDevice.h"
+#include "edid.h"
 
 struct minkar_atom;
-struct edid_mode;
 
 class MinkarAMDFramebuffer : public IOFramebuffer
 {
@@ -90,16 +90,23 @@ public:
 	void writeReg(uint32_t reg, uint32_t value) { MinkarAMDWrite(&fRegs, reg, value); }
 
 private:
+	/* A mode: the native size at one of the display's refresh rates
+	 * (timing, an index in fTimings), or a smaller size scaled up to the
+	 * timing in use (timing -1, refresh 0). Mode 0 is the firmware's. */
 	struct Mode {
 		UInt32 width, height;
+		UInt32 refreshMilliHz;
+		int timing;
 	};
-	enum { kMaxModes = 16 };
+	enum { kMaxModes = 16, kMaxTimings = 4 };
 
 	bool findDisplay(uint64_t bootAddress);
 	void readSink();
 	IOReturn setTiming(const struct edid_mode *m, uint32_t stage, uint64_t *out);
 	void setBestNativeMode();
+	void addTimedModes();
 	void addScaledModes();
+	void tookTiming(const struct edid_mode *m);
 	int aux(uint8_t request, uint32_t address, uint8_t *buffer, uint8_t size);
 	void measureRefresh();
 	void publishTimings();
@@ -140,6 +147,11 @@ private:
 	Mode			fModes[kMaxModes];
 	unsigned		fModeCount;
 	unsigned		fCurrent;	/* index in fModes; 0 is native */
+	/* The native size's timings from the EDID, and the one the display
+	 * runs at (-1: the firmware's, not one of them). */
+	struct edid_mode	fTimings[kMaxTimings];
+	unsigned		fTimingCount;
+	int			fTiming;
 };
 
 #endif

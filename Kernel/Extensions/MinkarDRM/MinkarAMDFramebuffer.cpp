@@ -289,7 +289,27 @@ MinkarAMDFramebuffer::showMode(unsigned index)
 	const Mode &m = fModes[index];
 	const Mode &n = fModes[0];
 	int left = 0, right = 0, top = 0, bottom = 0;
-	bool scaled = index != 0;
+	bool scaled = index != 0 && m.timing < 0;
+
+	/* Another refresh rate: the display's timing changes. */
+	if (m.timing >= 0 && m.timing != fTiming) {
+		int before = fTiming;
+		if (fCurrent != 0 && fModes[fCurrent].timing < 0)	/* a smaller picture */
+			bzero((void *)fMap->getVirtualAddress(), fSize);
+		if (setTiming(&fTimings[m.timing], 3, NULL) != kIOReturnSuccess) {
+			LOG("%ux%u at %u mHz: not set", m.width, m.height, m.refreshMilliHz);
+			if (before >= 0)
+				setTiming(&fTimings[before], 3, NULL);
+			return false;
+		}
+		fTiming = m.timing;
+		fCurrent = index;
+		setConsole();
+		publishTimings();
+		LOG("%ux%u at %u.%03u Hz", m.width, m.height, fRefreshMilliHz / 1000,
+		    fRefreshMilliHz % 1000);
+		return true;
+	}
 
 	if (scaled) {
 		uint64_t a1 = (uint64_t)m.height * n.width, a2 = (uint64_t)n.height * m.width;
@@ -465,6 +485,8 @@ MinkarAMDFramebuffer::addScaledModes()
 			continue;
 		fModes[fModeCount].width = e[i].hactive;
 		fModes[fModeCount].height = e[i].vactive;
+		fModes[fModeCount].refreshMilliHz = 0;
+		fModes[fModeCount].timing = -1;
 		fModeCount++;
 	}
 	if (n > 0) {
@@ -478,6 +500,8 @@ MinkarAMDFramebuffer::addScaledModes()
 			continue;
 		fModes[fModeCount].width = kScaledModes[i].width;
 		fModes[fModeCount].height = kScaledModes[i].height;
+		fModes[fModeCount].refreshMilliHz = 0;
+		fModes[fModeCount].timing = -1;
 		fModeCount++;
 	}
 	setProperty("MinkarModesFrom", "the usual sizes");
@@ -503,9 +527,9 @@ MinkarAMDFramebuffer::setTiming(const struct edid_mode *m, uint32_t stage, uint6
 
 	if (fAtom == NULL || fConnector < 0 || stage > 3)
 		return kIOReturnBadArgument;
-	if (m->hactive != fModes[fCurrent].width || m->vactive != fModes[fCurrent].height ||
-	    fCurrent != 0)
-		return kIOReturnUnsupported;	/* the framebuffer stays as it is */
+	/* The native size only: the framebuffer stays as it is. */
+	if (m->hactive != fModes[0].width || m->vactive != fModes[0].height)
+		return kIOReturnUnsupported;
 	if (!atom_pll_limits(fBIOS, fBIOSSize, &l.reference, &l.inMin, &l.inMax, &l.vcoMin, &l.vcoMax))
 		return kIOReturnUnsupported;
 	l.refDivMin = 1;
@@ -607,37 +631,97 @@ MinkarAMDFramebuffer::bringUpModeSet(uint32_t stage, uint32_t edidIndex, uint64_
 
 	if (edidIndex >= n)
 		return kIOReturnBadArgument;
+	if (fCurrent != 0 && fModes[fCurrent].timing < 0)
+		return kIOReturnNotPermitted;	/* from a scaled mode: set a native one first */
 	IOReturn err = setTiming(&modes[edidIndex], stage, out);
+	if (err == kIOReturnSuccess && stage == 3)
+		tookTiming(&modes[edidIndex]);
 	return err == kIOReturnIOError ? kIOReturnSuccess : err;	/* out says how it went */
 }
 
+/* The mode a timing set from outside the modes (bring-up) belongs to. */
+void
+MinkarAMDFramebuffer::tookTiming(const struct edid_mode *m)
+{
+	fTiming = -1;
+	for (unsigned k = 0; k < fTimingCount; k++)
+		if (edid_has(&fTimings[k], 1, m))
+			fTiming = (int)k;
+	for (unsigned i = 0; i < fModeCount; i++)
+		if (fModes[i].timing >= 0 && fModes[i].timing == fTiming)
+			fCurrent = i;
+	if (fTiming < 0)
+		fCurrent = 0;
+	publishTimings();
+}
+
 /*
- * The native size at the highest refresh rate the link carries (the
- * maintainer's choice, over the firmware's preferred mode), set at start;
- * "minkaramd_native=0" keeps the firmware's mode.
+ * The native size at each refresh rate the EDID lists and the link carries
+ * (340 MHz for HDMI, 165 MHz for DVI), when the firmware's is one of them
+ * so it can be set again: mode 0 is the firmware's, the others follow.
+ */
+void
+MinkarAMDFramebuffer::addTimedModes()
+{
+	struct edid_mode modes[32];
+	unsigned n = fEDIDBytes >= 128 ? edid_modes(fEDID, fEDIDBytes, modes, 32) : 0;
+	unsigned rates[kMaxTimings];
+	int firmware = -1;
+
+	if (fConnector < 0 || fDPCD[0] != 0 || n == 0)
+		return;		/* DisplayPort needs link training: not yet */
+	unsigned count = edid_rates(modes, n, fModes[0].width, fModes[0].height,
+	    fEDIDBytes > 128 ? 340000u : 165000u, rates, kMaxTimings);
+	for (unsigned k = 0; k < count; k++) {
+		uint32_t hz = edid_refresh_mhz(&modes[rates[k]]);
+		/* Measured, it is off by a few tenths of a hertz. */
+		if ((hz > fRefreshMilliHz ? hz - fRefreshMilliHz : fRefreshMilliHz - hz) <= 1000)
+			firmware = (int)k;
+	}
+	if (firmware < 0) {
+		if (count > 0)
+			LOG("the firmware's %u mHz is not one of the EDID's rates: it stays",
+			    fRefreshMilliHz);
+		return;
+	}
+	for (unsigned k = 0; k < count; k++)
+		fTimings[k] = modes[rates[k]];
+	fTimingCount = count;
+	fTiming = firmware;
+	fModes[0].timing = firmware;
+	fModes[0].refreshMilliHz = edid_refresh_mhz(&fTimings[firmware]);
+	for (unsigned k = 0; k < count && fModeCount < kMaxModes; k++) {
+		if ((int)k == firmware)
+			continue;
+		fModes[fModeCount].width = fModes[0].width;
+		fModes[fModeCount].height = fModes[0].height;
+		fModes[fModeCount].refreshMilliHz = edid_refresh_mhz(&fTimings[k]);
+		fModes[fModeCount].timing = (int)k;
+		fModeCount++;
+	}
+}
+
+/*
+ * The native size at its fastest refresh rate (the maintainer's choice,
+ * over the firmware's preferred mode), set at start; "minkaramd_native=0"
+ * keeps the firmware's mode.
  */
 void
 MinkarAMDFramebuffer::setBestNativeMode()
 {
-	struct edid_mode modes[32];
-	unsigned n = fEDIDBytes >= 128 ? edid_modes(fEDID, fEDIDBytes, modes, 32) : 0;
 	UInt32 enabled = 1;
 	int best = -1;
 
 	if (PE_parse_boot_argn("minkaramd_native", &enabled, sizeof(enabled)) && enabled == 0)
 		return;
-	if (fConnector < 0 || fDPCD[0] != 0 || n == 0)
-		return;
-	uint32_t limit = fEDIDBytes > 128 ? 340000u : 165000u;
-	for (unsigned i = 0; i < n; i++)
-		if (modes[i].hactive == fModes[0].width && modes[i].vactive == fModes[0].height &&
-		    modes[i].clock <= limit &&
-		    (best < 0 || edid_refresh_mhz(&modes[i]) > edid_refresh_mhz(&modes[best])))
+	for (unsigned i = 0; i < fModeCount; i++)
+		if (fModes[i].timing >= 0 &&
+		    (best < 0 || fModes[i].refreshMilliHz > fModes[best].refreshMilliHz))
 			best = (int)i;
 	/* Only when it is faster than what the firmware set. */
-	if (best < 0 || edid_refresh_mhz(&modes[best]) <= fRefreshMilliHz + 500)
+	if (best < 0 || fModes[best].refreshMilliHz <= fRefreshMilliHz + 500)
 		return;
-	if (setTiming(&modes[best], 3, NULL) != kIOReturnSuccess)
+	if (!showMode((unsigned)best))
 		LOG("the faster native mode was not set; the firmware's stays");
 }
 
@@ -733,7 +817,11 @@ MinkarAMDFramebuffer::start(IOService *provider)
 	if ((viewport >> 16) != boot.v_width || ((viewport & 0x1FFF) & ~1U) != (boot.v_height & ~1U))
 		LOG("viewport %ux%u, firmware mode %ux%u", viewport >> 16, viewport & 0x1FFF,
 		    (unsigned)boot.v_width, (unsigned)boot.v_height);
+	fModes[0].refreshMilliHz = 0;
+	fModes[0].timing = -1;
 	fModeCount = 1;
+	fTimingCount = 0;
+	fTiming = -1;
 	measureRefresh();
 
 	/* Ours, after the firmware's, on a 16 MB boundary: as big as the
@@ -761,8 +849,10 @@ MinkarAMDFramebuffer::start(IOService *provider)
 		readSink();
 	if (fAtom != NULL && minkar_atom_has_table(fAtom, MINKAR_ATOM_ENABLE_SCALER) &&
 	    minkar_atom_has_table(fAtom, MINKAR_ATOM_SET_CRTC_OVERSCAN) &&
-	    minkar_atom_has_table(fAtom, MINKAR_ATOM_UPDATE_CRTC_DOUBLE_BUFFER))
+	    minkar_atom_has_table(fAtom, MINKAR_ATOM_UPDATE_CRTC_DOUBLE_BUFFER)) {
+		addTimedModes();
 		addScaledModes();
+	}
 	else
 		LOG("no VBIOS display tables (VBIOS from %s): the native mode only", source);
 
@@ -881,7 +971,9 @@ MinkarAMDFramebuffer::getInformationForDisplayMode(IODisplayModeID displayMode,
 	bzero(info, sizeof(*info));
 	info->nominalWidth = m->width;
 	info->nominalHeight = m->height;
-	info->refreshRate = (IOFixed1616)(((uint64_t)fRefreshMilliHz << 16) / 1000);
+	/* A scaled mode runs at the timing in use. */
+	UInt32 hz = m->refreshMilliHz != 0 ? m->refreshMilliHz : fRefreshMilliHz;
+	info->refreshRate = (IOFixed1616)(((uint64_t)hz << 16) / 1000);
 	info->maxDepthIndex = kDepthIndex;
 	return kIOReturnSuccess;
 }
@@ -932,9 +1024,11 @@ MinkarAMDFramebuffer::setDisplayMode(IODisplayModeID displayMode, IOIndex depth)
 		return kIOReturnUnsupportedMode;
 	if ((unsigned)displayMode - 1 == fCurrent)
 		return kIOReturnSuccess;
+	unsigned before = fCurrent;
 	if (showMode((unsigned)displayMode - 1))
 		return kIOReturnSuccess;
-	showMode(0);
+	if (!showMode(before))
+		showMode(0);
 	return kIOReturnUnsupportedMode;
 }
 

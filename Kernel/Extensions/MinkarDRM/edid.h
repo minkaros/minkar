@@ -237,4 +237,39 @@ edid_modes(const uint8_t *e, size_t bytes, struct edid_mode *out, unsigned max)
 	return n;
 }
 
+/*
+ * The refresh rates of one size, as indices into modes, fastest first: the
+ * modes of width x height whose clock a link of limitKHz carries, one for
+ * each rate (rates within 0.5 Hz are the same; the first listed wins, so
+ * the preferred mode stands for its rate), at most max; how many.
+ */
+static inline unsigned
+edid_rates(const struct edid_mode *modes, unsigned n, unsigned width, unsigned height,
+    uint32_t limitKHz, unsigned *out, unsigned max)
+{
+	unsigned count = 0;
+
+	for (unsigned i = 0; i < n && count < max; i++) {
+		if (modes[i].hactive != width || modes[i].vactive != height ||
+		    modes[i].clock > limitKHz)
+			continue;
+		uint32_t hz = edid_refresh_mhz(&modes[i]);
+		int same = 0;
+		for (unsigned k = 0; k < count && !same; k++) {
+			uint32_t other = edid_refresh_mhz(&modes[out[k]]);
+			same = (hz > other ? hz - other : other - hz) <= 500;
+		}
+		if (!same)
+			out[count++] = i;
+	}
+	for (unsigned i = 1; i < count; i++)	/* fastest first */
+		for (unsigned k = i; k > 0 &&
+		    edid_refresh_mhz(&modes[out[k]]) > edid_refresh_mhz(&modes[out[k - 1]]); k--) {
+			unsigned t = out[k];
+			out[k] = out[k - 1];
+			out[k - 1] = t;
+		}
+	return count;
+}
+
 #endif
