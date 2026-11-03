@@ -29,6 +29,7 @@
 #include "amdgpu.h"
 #include "atom.h"
 #include "atombios.h"
+#include "ObjectID.h"
 #include "atom_glue.h"
 
 struct minkar_atom {
@@ -294,6 +295,139 @@ minkar_atom_aux_last(struct minkar_atom *a, int *execute, uint8_t *dataOut)
 {
 	*execute = a->auxExecute;
 	*dataOut = a->auxDataOut;
+}
+
+#define ARGS(type) union { type args; uint32_t dwords[(sizeof(type) + 3) / 4]; } u; \
+	memset(&u, 0, sizeof(u))
+#define RUN(table) amdgpu_atom_execute_table(a->ctx, TABLE(table), u.dwords, sizeof(u.args))
+
+int
+minkar_atom_dig_for(const struct minkar_atom_output *o)
+{
+	switch (o->encoderID) {
+	case ENCODER_OBJECT_ID_INTERNAL_UNIPHY:		return o->linkB ? 1 : 0;
+	case ENCODER_OBJECT_ID_INTERNAL_UNIPHY1:	return o->linkB ? 3 : 2;
+	case ENCODER_OBJECT_ID_INTERNAL_UNIPHY2:	return o->linkB ? 5 : 4;
+	default:					return -1;
+	}
+}
+
+int
+minkar_atom_crtc_blank(struct minkar_atom *a, int crtc, int blank)
+{
+	ARGS(BLANK_CRTC_PARAMETERS);
+	u.args.ucCRTC = (uint8_t)crtc;
+	u.args.ucBlanking = blank ? ATOM_BLANKING : ATOM_BLANKING_OFF;
+	return RUN(BlankCRTC);
+}
+
+int
+minkar_atom_crtc_enable(struct minkar_atom *a, int crtc, int enable)
+{
+	ARGS(ENABLE_CRTC_PARAMETERS);
+	u.args.ucCRTC = (uint8_t)crtc;
+	u.args.ucEnable = enable ? ATOM_ENABLE : ATOM_DISABLE;
+	return RUN(EnableCRTC);
+}
+
+/* amdgpu_atombios_crtc_program_pll, crev 6, without spread spectrum. */
+int
+minkar_atom_set_pixel_clock(struct minkar_atom *a, const struct minkar_atom_output *o,
+    const struct minkar_atom_timing *t)
+{
+	ARGS(PIXEL_CLOCK_PARAMETERS_V6);
+	u.args.ulDispEngClkFreq = cpu_to_le32((uint32_t)o->crtc << 24 | t->clock / 10);
+	u.args.ucRefDiv = (uint8_t)t->refDiv;
+	u.args.usFbDiv = cpu_to_le16(t->fbDiv);
+	u.args.ulFbDivDecFrac = cpu_to_le32((uint32_t)t->fbFrac * 100000);
+	u.args.ucPostDiv = (uint8_t)t->postDiv;
+	u.args.ucMiscInfo = o->hdmi ? PIXEL_CLOCK_V6_MISC_HDMI_24BPP : 0;
+	u.args.ucTransmitterID = o->encoderID;
+	u.args.ucEncoderMode = o->hdmi ? ATOM_ENCODER_MODE_HDMI : ATOM_ENCODER_MODE_DVI;
+	u.args.ucPpll = o->pll;
+	return RUN(SetPixelClock);
+}
+
+/* amdgpu_atombios_crtc_set_dtd_timing, no borders. */
+int
+minkar_atom_set_timing(struct minkar_atom *a, int crtc, const struct minkar_atom_timing *t)
+{
+	ARGS(SET_CRTC_USING_DTD_TIMING_PARAMETERS);
+	uint16_t misc = 0;
+	u.args.usH_Size = cpu_to_le16(t->hactive);
+	u.args.usH_Blanking_Time = cpu_to_le16(t->hfront + t->hsync + t->hback);
+	u.args.usV_Size = cpu_to_le16(t->vactive);
+	u.args.usV_Blanking_Time = cpu_to_le16(t->vfront + t->vsync + t->vback);
+	u.args.usH_SyncOffset = cpu_to_le16(t->hfront);
+	u.args.usH_SyncWidth = cpu_to_le16(t->hsync);
+	u.args.usV_SyncOffset = cpu_to_le16(t->vfront);
+	u.args.usV_SyncWidth = cpu_to_le16(t->vsync);
+	if (!t->vpositive)
+		misc |= ATOM_VSYNC_POLARITY;
+	if (!t->hpositive)
+		misc |= ATOM_HSYNC_POLARITY;
+	u.args.susModeMiscInfo.usAccess = cpu_to_le16(misc);
+	u.args.ucCRTC = (uint8_t)crtc;
+	return RUN(SetCRTC_UsingDTDTiming);
+}
+
+/* amdgpu_atombios_encoder_set_crtc_source, crev 2. */
+int
+minkar_atom_select_crtc_source(struct minkar_atom *a, const struct minkar_atom_output *o)
+{
+	static const uint8_t digIDs[6] = {
+		ASIC_INT_DIG1_ENCODER_ID, ASIC_INT_DIG2_ENCODER_ID, ASIC_INT_DIG3_ENCODER_ID,
+		ASIC_INT_DIG4_ENCODER_ID, ASIC_INT_DIG5_ENCODER_ID, ASIC_INT_DIG6_ENCODER_ID,
+	};
+	int dig = minkar_atom_dig_for(o);
+	ARGS(SELECT_CRTC_SOURCE_PARAMETERS_V2);
+	if (dig < 0)
+		return -EINVAL;
+	u.args.ucCRTC = o->crtc;
+	u.args.ucEncoderID = digIDs[dig];
+	u.args.ucEncodeMode = o->hdmi ? ATOM_ENCODER_MODE_HDMI : ATOM_ENCODER_MODE_DVI;
+	return RUN(SelectCRTC_Source);
+}
+
+/* amdgpu_atombios_encoder_setup_dig_encoder, crev 4, SETUP, a single-link
+ * TMDS sink, 8 bits per colour. */
+int
+minkar_atom_dig_setup(struct minkar_atom *a, const struct minkar_atom_output *o, uint32_t clock)
+{
+	int dig = minkar_atom_dig_for(o);
+	ARGS(DIG_ENCODER_CONTROL_PARAMETERS_V4);
+	if (dig < 0)
+		return -EINVAL;
+	u.args.ucAction = ATOM_ENCODER_CMD_SETUP;
+	u.args.usPixelClock = cpu_to_le16(clock / 10);
+	u.args.ucEncoderMode = o->hdmi ? ATOM_ENCODER_MODE_HDMI : ATOM_ENCODER_MODE_DVI;
+	u.args.ucLaneNum = 4;
+	u.args.acConfig.ucDigSel = (uint8_t)dig;
+	u.args.ucBitPerColor = PANEL_8BIT_PER_COLOR;
+	u.args.ucHPD_ID = (uint8_t)(o->hpd + 1);
+	return RUN(DIGxEncoderControl);
+}
+
+/* amdgpu_atombios_encoder_setup_dig_transmitter, crev 5, TMDS, coherent. */
+int
+minkar_atom_transmitter(struct minkar_atom *a, const struct minkar_atom_output *o, int action,
+    uint32_t clock)
+{
+	int dig = minkar_atom_dig_for(o);
+	ARGS(DIG_TRANSMITTER_CONTROL_PARAMETERS_V1_5);
+	if (dig < 0)
+		return -EINVAL;
+	u.args.ucAction = (uint8_t)action;
+	u.args.usSymClock = cpu_to_le16(clock / 10);
+	u.args.ucPhyId = (uint8_t)dig;	/* UNIPHYA-F follow the DIGs: 2 * UNIPHYn + link */
+	u.args.ucLaneNum = 4;
+	u.args.ucConnObjId = o->connectorID;
+	u.args.ucDigMode = o->hdmi ? ATOM_ENCODER_MODE_HDMI : ATOM_ENCODER_MODE_DVI;
+	u.args.asConfig.ucPhyClkSrcId = o->pll;
+	u.args.asConfig.ucCoherentMode = 1;
+	u.args.asConfig.ucHPDSel = (uint8_t)(o->hpd + 1);
+	u.args.ucDigEncoderSel = (uint8_t)(1u << dig);
+	return RUN(UNIPHYTransmitterControl);
 }
 
 void

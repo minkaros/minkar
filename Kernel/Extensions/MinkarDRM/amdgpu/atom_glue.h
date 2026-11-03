@@ -88,6 +88,44 @@ void minkar_atom_aux_last(struct minkar_atom *a, int *execute, uint8_t *dataOut)
 void minkar_atom_trace(struct minkar_atom *a, int on);
 unsigned minkar_atom_trace_get(struct minkar_atom *a, uint32_t *entries, unsigned max);
 
+/*
+ * A display path and a mode on it, for setting the mode through the
+ * VBIOS's tables (SetPixelClock 1.6, SetCRTC_UsingDTDTiming, EnableCRTC,
+ * BlankCRTC, SelectCRTC_Source 1.2, DIGxEncoderControl 1.4,
+ * UNIPHYTransmitterControl 1.5), with the parameters amdgpu's
+ * atombios_crtc.c and atombios_encoders.c give them for a TMDS sink.
+ */
+struct minkar_atom_output {
+	uint8_t crtc;			/* 0-5 */
+	uint8_t pll;			/* ATOM_PPLL1 0, PPLL2 1, PPLL0 2 */
+	uint8_t encoderID;		/* the encoder object's id (UNIPHY 0x1e, 0x20, 0x21) */
+	uint8_t linkB;			/* the encoder object's enum is 2 */
+	uint8_t connectorID;		/* the connector object's id */
+	uint8_t hpd;			/* 0-5 */
+	uint8_t hdmi;			/* else DVI */
+};
+
+struct minkar_atom_timing {
+	uint32_t clock;			/* kHz */
+	uint16_t hactive, hfront, hsync, hback;
+	uint16_t vactive, vfront, vsync, vback;
+	uint8_t  hpositive, vpositive;
+	uint16_t refDiv, fbDiv, fbFrac, postDiv;	/* fbFrac in tenths */
+};
+
+/* The DIG front end Linux picks for an encoder (dce_v6_0_pick_dig_encoder). */
+int minkar_atom_dig_for(const struct minkar_atom_output *o);
+int minkar_atom_crtc_blank(struct minkar_atom *a, int crtc, int blank);
+int minkar_atom_crtc_enable(struct minkar_atom *a, int crtc, int enable);
+int minkar_atom_set_pixel_clock(struct minkar_atom *a, const struct minkar_atom_output *o,
+    const struct minkar_atom_timing *t);
+int minkar_atom_set_timing(struct minkar_atom *a, int crtc, const struct minkar_atom_timing *t);
+int minkar_atom_select_crtc_source(struct minkar_atom *a, const struct minkar_atom_output *o);
+int minkar_atom_dig_setup(struct minkar_atom *a, const struct minkar_atom_output *o, uint32_t clock);
+/* ATOM_TRANSMITTER_ACTION_ENABLE (1) or _DISABLE (0). */
+int minkar_atom_transmitter(struct minkar_atom *a, const struct minkar_atom_output *o, int action,
+    uint32_t clock);
+
 /* Display tables (DCE 6 and later), by crtc index; 0 or a negative errno. */
 enum minkar_atom_table {
 	MINKAR_ATOM_ENABLE_SCALER,

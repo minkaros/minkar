@@ -77,6 +77,7 @@ private:
 	static IOReturn sRetainShared(OSObject *target, void *reference, IOExternalMethodArguments *args);
 	static IOReturn sAUX(OSObject *target, void *reference, IOExternalMethodArguments *args);
 	static IOReturn sI2C(OSObject *target, void *reference, IOExternalMethodArguments *args);
+	static IOReturn sModeSet(OSObject *target, void *reference, IOExternalMethodArguments *args);
 	void destroy(Buffer *b);
 	Buffer *buffer(uint64_t handle);
 	void releaseAll();

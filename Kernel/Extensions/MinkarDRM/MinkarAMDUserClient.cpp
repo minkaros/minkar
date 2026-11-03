@@ -136,6 +136,7 @@ MinkarAMDUserClient::externalMethod(uint32_t selector, IOExternalMethodArguments
 		{ (IOExternalMethodAction)&sRetainShared, 1, 0, 3, 0 },
 		{ (IOExternalMethodAction)&sAUX, 5, 0, 6, kIOUCVariableStructureSize },
 		{ (IOExternalMethodAction)&sI2C, 4, 0, 3, 0 },
+		{ (IOExternalMethodAction)&sModeSet, 2, 0, 6, 0 },
 	};
 
 	(void)dispatch; (void)target;
@@ -412,6 +413,16 @@ MinkarAMDUserClient::sI2C(OSObject *target, void *, IOExternalMethodArguments *a
 	if (clientHasPrivilege(me->fTask, kIOClientPrivilegeAdministrator) != kIOReturnSuccess)
 		return kIOReturnNotPrivileged;
 	return me->fGPU->i2cRead(args->scalarInput, args->scalarOutput);
+}
+
+IOReturn
+MinkarAMDUserClient::sModeSet(OSObject *target, void *, IOExternalMethodArguments *args)
+{
+	MinkarAMDUserClient *me = (MinkarAMDUserClient *)target;
+
+	if (clientHasPrivilege(me->fTask, kIOClientPrivilegeAdministrator) != kIOReturnSuccess)
+		return kIOReturnNotPrivileged;
+	return me->fGPU->modeSet(args->scalarInput, args->scalarOutput);
 }
 
 /* A buffer mapped into the client, the memory type being the buffer:

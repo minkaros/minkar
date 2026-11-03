@@ -633,6 +633,24 @@ MinkarAMDGPU::copyToScanout(uint64_t src, uint64_t offset, uint64_t bytes, uint6
 }
 
 IOReturn
+MinkarAMDGPU::modeSet(const uint64_t *in, uint64_t *out)
+{
+	IOReturn err = kIOReturnNotFound;
+	OSIterator *it = fPCI->getClientIterator();
+	OSObject *o;
+	while (err == kIOReturnNotFound && it != NULL && (o = it->getNextObject()) != NULL) {
+		MinkarAMDFramebuffer *f = OSDynamicCast(MinkarAMDFramebuffer, o);
+		if (f != NULL) {
+			IOLockLock(fDMALock);
+			err = f->bringUpModeSet((uint32_t)in[0], (uint32_t)in[1], out);
+			IOLockUnlock(fDMALock);
+		}
+	}
+	OSSafeReleaseNULL(it);
+	return err;
+}
+
+IOReturn
 MinkarAMDGPU::i2cRead(const uint64_t *in, uint64_t *out)
 {
 	uint8_t data[16];

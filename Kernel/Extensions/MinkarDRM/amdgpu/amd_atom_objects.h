@@ -45,6 +45,7 @@
 #define kAtomMaxConnectors	8
 
 /* Data tables, by their index in the master list (atombios.h). */
+#define kAtomDataFirmwareInfo	4
 #define kAtomDataGPIOPinLUT	12
 #define kAtomDataObjectHeader	22
 
@@ -160,6 +161,30 @@ atom_connectors(const uint8_t *bios, size_t size, uint16_t hpdRegister,
 			out[n++] = c;
 	}
 	return n;
+}
+
+/*
+ * The display PLLs' limits from FirmwareInfo 2.2 (amdgpu_atombios_get_clock_info):
+ * the reference clock, the PLL's input and output (VCO) ranges, in kHz.
+ * 0 if the table is not there or not that version.
+ */
+static inline int
+atom_pll_limits(const uint8_t *bios, size_t size, uint32_t *reference, uint32_t *inMin,
+    uint32_t *inMax, uint32_t *outMin, uint32_t *outMax)
+{
+	size_t fw = atom_data_table(bios, size, kAtomDataFirmwareInfo);
+
+	/* ulMaxPixelClockPLL_Output at 0x20, ulMinPixelClockPLL_Output at
+	 * 0x38, usMin/MaxPixelClockPLL_Input at 0x4a/0x4c, usCoreReferenceClock
+	 * at 0x52, in 10 kHz. */
+	if (fw == 0 || fw + 0x54 > size || bios[fw + 2] != 2)
+		return 0;
+	*outMax = (uint32_t)(atom_u16(bios, fw + 0x20) | (atom_u16(bios, fw + 0x22) << 16)) * 10;
+	*outMin = (uint32_t)(atom_u16(bios, fw + 0x38) | (atom_u16(bios, fw + 0x3a) << 16)) * 10;
+	*inMin = (uint32_t)atom_u16(bios, fw + 0x4a) * 10;
+	*inMax = (uint32_t)atom_u16(bios, fw + 0x4c) * 10;
+	*reference = (uint32_t)atom_u16(bios, fw + 0x52) * 10;
+	return *reference != 0 && *outMax > *outMin && *inMax >= *inMin;
 }
 
 #endif

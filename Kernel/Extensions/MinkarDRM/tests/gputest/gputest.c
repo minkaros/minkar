@@ -53,6 +53,8 @@
  *					one AUX transaction (hex), for bring-up
  *   minkar-gputest [-g GPU] -i LINE,SLAVE,OFFSET,COUNT
  *					one DDC (I2C) read (hex), for bring-up
+ *   minkar-gputest [-g GPU] -s STAGE,INDEX
+ *					a mode set through the VBIOS (bring-up)
  *   minkar-gputest [-g GPU] -e		whether VRAM mapped from the user
  *					client can be shared as a Mach memory
  *					entry (IOSurfaces in VRAM)
@@ -223,10 +225,10 @@ main(int argc, char **argv)
 	int list = 0, entry = 0, vram = 0, c;
 	unsigned childID = 0;
 	int childFD = -1;
-	const char *regs = NULL, *auxSpec = NULL, *i2cSpec = NULL;
+	const char *regs = NULL, *auxSpec = NULL, *i2cSpec = NULL, *modeSpec = NULL;
 	char detail[256];
 
-	while ((c = getopt(argc, argv, "g:m:lr:evV:F:a:i:")) != -1)
+	while ((c = getopt(argc, argv, "g:m:lr:evV:F:a:i:s:")) != -1)
 		switch (c) {
 		case 'g': gpu = (unsigned)strtoul(optarg, NULL, 0); break;
 		case 'm': megabytes = (unsigned)strtoul(optarg, NULL, 0); break;
@@ -234,6 +236,7 @@ main(int argc, char **argv)
 		case 'r': regs = optarg; break;
 		case 'a': auxSpec = optarg; break;
 		case 'i': i2cSpec = optarg; break;
+		case 's': modeSpec = optarg; break;
 		case 'e': entry = 1; break;
 		case 'v': vram = 1; break;
 		case 'V': childID = (unsigned)strtoul(optarg, NULL, 0); break;
@@ -284,6 +287,19 @@ main(int argc, char **argv)
 
 	uint64_t out[3];
 	uint32_t n = 3;
+	if (modeSpec != NULL) {
+		uint64_t in[2] = { 0, 0 }, o[6] = { 0 };
+		uint32_t on = 6;
+		sscanf(modeSpec, "%llu,%llu", (unsigned long long *)&in[0], (unsigned long long *)&in[1]);
+		kern_return_t r = IOConnectCallScalarMethod(conn, kMinkarAMDGPUModeSet, in, 2, o, &on);
+		printf("call 0x%x result %lld dividers ref %llu fb %llu.%llu post %llu PLL 0x%08llx 0x%08llx "
+		    "0x%08llx refresh %llu mHz\n", r, (long long)o[0], (unsigned long long)(o[1] >> 24),
+		    (unsigned long long)((o[1] >> 12) & 0xfff), (unsigned long long)((o[1] >> 8) & 0xf),
+		    (unsigned long long)(o[1] & 0xff), (unsigned long long)o[2], (unsigned long long)o[3],
+		    (unsigned long long)o[4], (unsigned long long)o[5]);
+		IOServiceClose(conn);
+		return r != KERN_SUCCESS;
+	}
 	if (i2cSpec != NULL) {
 		uint64_t in[4] = { 0 }, o[3] = { 0 };
 		uint32_t on = 3;

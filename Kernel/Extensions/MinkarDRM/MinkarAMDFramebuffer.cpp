@@ -36,6 +36,7 @@
 #include "atom_glue.h"
 #include "amd_atom_objects.h"
 #include "edid.h"
+#include "amd_pll.h"
 
 #define LOG(fmt, ...)	IOLog("MinkarAMDFramebuffer: " fmt "\n", ##__VA_ARGS__)
 
@@ -480,6 +481,113 @@ MinkarAMDFramebuffer::addScaledModes()
 		fModeCount++;
 	}
 	setProperty("MinkarModesFrom", "the usual sizes");
+}
+
+/* ---- Setting modes through the VBIOS (bring-up) ---- */
+
+#define mmCRTC0_PIXEL_RATE_CNTL	0x0140	/* CRTCn's at 4 dwords apart */
+#define mmPLL_REF_DIV		0x1700	/* PPLL0's; PPLL1 0x1710, PPLL2 0x1720 */
+
+IOReturn
+MinkarAMDFramebuffer::bringUpModeSet(uint32_t stage, uint32_t edidIndex, uint64_t *out)
+{
+	struct edid_mode modes[32];
+	unsigned n = fEDIDBytes >= 128 ? edid_modes(fEDID, fEDIDBytes, modes, 32) : 0;
+	struct amd_pll_limits l;
+	struct amd_pll_dividers d;
+
+	if (fAtom == NULL || fConnector < 0 || edidIndex >= n || stage > 3)
+		return kIOReturnBadArgument;
+	const struct edid_mode *m = &modes[edidIndex];
+	if (m->hactive != fModes[fCurrent].width || m->vactive != fModes[fCurrent].height ||
+	    fCurrent != 0)
+		return kIOReturnUnsupported;	/* the framebuffer stays as it is */
+	if (!atom_pll_limits(fBIOS, fBIOSSize, &l.reference, &l.inMin, &l.inMax, &l.vcoMin, &l.vcoMax))
+		return kIOReturnUnsupported;
+	l.refDivMin = 1;
+	l.refDivMax = 0x3ff;
+	l.fbDivMin = 4;
+	l.fbDivMax = 0xfff;
+	l.postDivMin = 2;
+	l.postDivMax = 0x7f;
+	if (!amd_pll_compute(&l, m->clock, &d))
+		return kIOReturnUnsupported;
+
+	/* The path: the crtc's PLL (its pixel rate source: 1 PPLL1, 2 PPLL2,
+	 * 0 PPLL0), the connector's encoder and DIG, an HDMI sink when it
+	 * has no DPCD and a CEA extension. */
+	struct atom_connector c[kAtomMaxConnectors];
+	unsigned nc = atom_connectors(fBIOS, fBIOSSize, kSIDCGPIOHPDA, c, kAtomMaxConnectors);
+	if ((unsigned)fConnector >= nc)
+		return kIOReturnNotFound;
+	uint32_t source = readReg(mmCRTC0_PIXEL_RATE_CNTL + 4 * fCRTC) & 3;
+	struct minkar_atom_output o;
+	o.crtc = (uint8_t)fCRTC;
+	o.pll = source == 1 ? 0 : source == 2 ? 1 : 2;
+	o.encoderID = (uint8_t)ATOM_OBJECT_ID(fEncoder);
+	o.linkB = ATOM_OBJECT_ENUM(fEncoder) == 2;
+	o.connectorID = (uint8_t)ATOM_OBJECT_ID(c[fConnector].object);
+	o.hpd = fHPD;
+	o.hdmi = fDPCD[0] == 0 && fEDIDBytes > 128;
+	struct minkar_atom_timing t = {
+		m->clock, m->hactive, m->hfront, m->hsync, m->hback,
+		m->vactive, m->vfront, m->vsync, m->vback, m->hpositive, m->vpositive,
+		(uint16_t)d.refDiv, (uint16_t)d.fbDiv, (uint16_t)d.fbFrac, (uint16_t)d.postDiv,
+	};
+	/* A single TMDS link: 340 MHz for HDMI 1.4, 165 MHz for DVI. */
+	if (m->clock > (o.hdmi ? 340000u : 165000u))
+		return kIOReturnUnsupported;
+	int rc = 0;
+	LOG("bring-up mode set, stage %u: %ux%u, %u kHz: crtc %u, PPLL index %u, dividers %u %u.%u %u, "
+	    "encoder 0x%02x%s, DIG %d, %s", stage, m->hactive, m->vactive, m->clock, o.crtc, o.pll,
+	    d.refDiv, d.fbDiv, d.fbFrac, d.postDiv, o.encoderID, o.linkB ? " link B" : "",
+	    minkar_atom_dig_for(&o), o.hdmi ? "HDMI" : "DVI");
+
+	switch (stage) {
+	case 1:
+		rc = minkar_atom_set_pixel_clock(fAtom, &o, &t);
+		break;
+	case 2:
+		rc = minkar_atom_set_timing(fAtom, (int)o.crtc, &t);
+		break;
+	case 3:
+		/* As DRM's helpers do: the encoder off, the crtc off, the mode,
+		 * the crtc on, the encoder on (dce_v6_0.c, atombios_*.c). */
+		rc |= minkar_atom_transmitter(fAtom, &o, 0, t.clock);
+		rc |= minkar_atom_crtc_lock(fAtom, (int)o.crtc, 1);
+		rc |= minkar_atom_crtc_blank(fAtom, (int)o.crtc, 1);
+		rc |= minkar_atom_crtc_enable(fAtom, (int)o.crtc, 0);
+		rc |= minkar_atom_set_pixel_clock(fAtom, &o, &t);
+		rc |= minkar_atom_set_timing(fAtom, (int)o.crtc, &t);
+		scanOut(fOffset, m->hactive, m->vactive, pitchFor(m->hactive), false);
+		rc |= minkar_atom_overscan(fAtom, (int)o.crtc, 0, 0, 0, 0);
+		rc |= minkar_atom_scaler(fAtom, (int)o.crtc, 0);
+		rc |= minkar_atom_select_crtc_source(fAtom, &o);
+		rc |= minkar_atom_crtc_enable(fAtom, (int)o.crtc, 1);
+		rc |= minkar_atom_crtc_blank(fAtom, (int)o.crtc, 0);
+		rc |= minkar_atom_crtc_lock(fAtom, (int)o.crtc, 0);
+		rc |= minkar_atom_dig_setup(fAtom, &o, t.clock);
+		rc |= minkar_atom_transmitter(fAtom, &o, 1, t.clock);
+		break;
+	default:
+		break;
+	}
+	if (stage != 0) {
+		IOSleep(200);
+		measureRefresh();
+		setProperty("MinkarRefreshMilliHz", fRefreshMilliHz, 32);
+		publishTimings();
+	}
+	uint32_t pll = mmPLL_REF_DIV + (o.pll == 2 ? 0 : 0x10 * (o.pll + 1));
+	out[0] = (uint64_t)(int64_t)rc;
+	out[1] = (uint64_t)d.refDiv << 24 | (uint64_t)d.fbDiv << 12 | (uint64_t)d.fbFrac << 8 | d.postDiv;
+	out[2] = readReg(pll);
+	out[3] = readReg(pll + 1);
+	out[4] = readReg(pll + 2);
+	out[5] = stage != 0 ? fRefreshMilliHz : (uint64_t)edid_refresh_mhz(m);
+	LOG("bring-up mode set, stage %u: result %d, PLL 0x%08x 0x%08x 0x%08x, %u mHz", stage, rc,
+	    (uint32_t)out[2], (uint32_t)out[3], (uint32_t)out[4], (uint32_t)out[5]);
+	return kIOReturnSuccess;
 }
 
 bool

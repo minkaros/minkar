@@ -81,6 +81,7 @@ public:
 	void unmapSystemMemory(uint64_t gpuAddress, uint64_t size);
 	IOReturn readWindowRegister(uint32_t reg, uint32_t *value);
 	IOReturn i2cRead(const uint64_t *in, uint64_t *out);
+	IOReturn modeSet(const uint64_t *in, uint64_t *out);
 	/* One AUX transaction through this GPU's VBIOS, for bring-up. */
 	IOReturn auxTransaction(const uint64_t *in, uint64_t *out, uint32_t *trace,
 	    uint32_t *traceBytes);

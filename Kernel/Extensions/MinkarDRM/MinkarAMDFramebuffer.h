@@ -79,6 +79,11 @@ public:
 	/* The framebuffer being shown: its VRAM offset and size (the current
 	 * mode's rows). */
 	bool scanout(uint64_t *offset, uint64_t *bytes);
+	/* Bring-up (G2): sets one of the EDID's modes of the current size
+	 * through the VBIOS's tables, by stages (0 dividers only, 1 the PLL,
+	 * 2 the timing, 3 all of it); out: result, dividers, the PLL's
+	 * registers, the refresh rate measured after. */
+	IOReturn bringUpModeSet(uint32_t stage, uint32_t edidIndex, uint64_t *out);
 
 	uint32_t readReg(uint32_t reg) { return MinkarAMDRead(&fRegs, reg); }
 	void writeReg(uint32_t reg, uint32_t value) { MinkarAMDWrite(&fRegs, reg, value); }
