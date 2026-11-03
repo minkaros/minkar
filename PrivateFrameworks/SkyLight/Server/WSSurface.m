@@ -106,6 +106,16 @@ static uint32_t nextSurfaceID = 1;
 	return NO;
 }
 
+- (mach_vm_address_t)memoryBase
+{
+	return _base;
+}
+
+- (mach_vm_size_t)memorySize
+{
+	return _allocated;
+}
+
 - (const uint8_t *)lockFront
 {
 	pthread_mutex_lock(&_lock);

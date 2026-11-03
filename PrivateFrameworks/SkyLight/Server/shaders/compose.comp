@@ -1,0 +1,112 @@
+// SPDX-License-Identifier: BSD-2-Clause
+// Copyright (c) 2026 The Minkar contributors
+// Part of Minkar.
+//
+// The window server's Vulkan compositor (WSVulkanBackend, GPU track G4):
+// one rectangle of the frame per dispatch, 8x8 pixels a group. Pixels are
+// 32-bit BGRA in memory (0xAARRGGBB read as a uint), premultiplied, as
+// pixman's a8r8g8b8; buffers are reached by their GPU addresses. The
+// arithmetic is pixman's (8 bits, rounded division by 255), so frames
+// match the CPU's compositor.
+#version 460
+#extension GL_EXT_buffer_reference : require
+#extension GL_EXT_shader_explicit_arithmetic_types_int64 : require
+
+layout(local_size_x = 8, local_size_y = 8) in;
+
+layout(buffer_reference, std430, buffer_reference_align = 4) buffer Pixels { uint p[]; };
+layout(buffer_reference, std430, buffer_reference_align = 4) readonly buffer Table { uint t[]; };
+
+layout(push_constant) uniform Op {
+	uint64_t dst;		// the frame (or a save buffer)
+	uint64_t src;		// a surface, the cursor, the frame, or a table
+	ivec4 rect;		// x, y, width, height in dst's pixels
+	ivec2 srcOrigin;	// where src's first pixel is, in dst's pixels
+	uint dstStride;		// pixels a row
+	uint srcStride;
+	uint mode;
+	uint alpha;		// 0-255: the window's alpha (or the shade's)
+	ivec2 size;		// a shadow's window, width and height
+} op;
+
+const uint kFillBlack = 0u, kOver = 1u, kShadow = 2u, kCopy = 3u, kCopyTable = 4u;
+const int kRadius = 16;		// kWSShadowRadius
+const int kOffsetY = 6;		// kWSShadowOffsetY
+
+// pixman's MUL_UN8: a * b / 255, rounded.
+uint mul8(uint a, uint b)
+{
+	uint t = a * b + 0x80u;
+	return (t + (t >> 8)) >> 8;
+}
+
+uint channel(uint v, uint i) { return (v >> (8u * i)) & 0xffu; }
+
+// dst = src + dst * (255 - src's alpha) / 255, by channel.
+uint over(uint s, uint d)
+{
+	uint ia = 255u - channel(s, 3u), r = 0u;
+	for (uint i = 0u; i < 4u; i++)
+		r |= min(channel(s, i) + mul8(channel(d, i), ia), 255u) << (8u * i);
+	return r;
+}
+
+uint scale(uint v, uint a)
+{
+	uint r = 0u;
+	for (uint i = 0u; i < 4u; i++)
+		r |= mul8(channel(v, i), a) << (8u * i);
+	return r;
+}
+
+// The shadow mask's falloff along one axis (pixman backend's formula).
+float falloff(int i, int len)
+{
+	int p = i - kRadius;
+	float d = p < 0 ? float(-p) : (p >= len ? float(p - len + 1) : 0.0);
+	float t = d >= float(kRadius) ? 0.0 : 1.0 - d / float(kRadius);
+	return t * t;
+}
+
+void main()
+{
+	ivec2 g = ivec2(gl_GlobalInvocationID.xy);
+	if (g.x >= op.rect.z || g.y >= op.rect.w)
+		return;
+	ivec2 at = op.rect.xy + g;
+	Pixels dst = Pixels(op.dst);
+	uint di = uint(at.y) * op.dstStride + uint(at.x);
+
+	if (op.mode == kFillBlack) {
+		dst.p[di] = 0xff000000u;
+	} else if (op.mode == kOver || op.mode == kCopy) {
+		ivec2 s = at - op.srcOrigin;
+		uint v = Pixels(op.src).p[uint(s.y) * op.srcStride + uint(s.x)];
+		if (op.mode == kCopy)
+			dst.p[di] = v;
+		else
+			dst.p[di] = over(op.alpha < 255u ? scale(v, op.alpha) : v, dst.p[di]);
+	} else if (op.mode == kShadow) {
+		// The mask's pixel: its origin is the window's less the radius,
+		// lowered by the offset.
+		ivec2 m = at - (op.srcOrigin - ivec2(kRadius, kRadius - kOffsetY));
+		uint mask = uint(255.0 * 0.35 * falloff(m.x, op.size.x) * falloff(m.y, op.size.y) + 0.5);
+		uint a = mul8(mask, op.alpha);		// black, a's alpha: dst * (255 - a)
+		uint d = dst.p[di], r = 0u;
+		for (uint i = 0u; i < 4u; i++)
+			r |= mul8(channel(d, i), 255u - a) << (8u * i);
+		dst.p[di] = r;
+	} else if (op.mode == kCopyTable) {
+		// The frame through the display's colour table (red, green and
+		// blue, 256 entries each), alpha kept.
+		ivec2 s = at - op.srcOrigin;
+		Pixels frame = Pixels(op.src);
+		Table table = Table(uint64_t(op.size.x) | (uint64_t(op.size.y) << 32));
+		uint v = frame.p[uint(s.y) * op.srcStride + uint(s.x)];
+		uint b = channel(v, 0u), gr = channel(v, 1u), rd = channel(v, 2u);
+		uint tr = table.t[rd >> 2] >> (8u * (rd & 3u)) & 0xffu;
+		uint tg = table.t[(256u + gr) >> 2] >> (8u * (gr & 3u)) & 0xffu;
+		uint tb = table.t[(512u + b) >> 2] >> (8u * (b & 3u)) & 0xffu;
+		dst.p[di] = (v & 0xff000000u) | (tr << 16) | (tg << 8) | tb;
+	}
+}

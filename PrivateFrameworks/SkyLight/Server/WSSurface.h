@@ -66,6 +66,11 @@
  * into): the compositor shows it again at every frame. */
 @property (readonly) BOOL live;
 
+/* Both buffers' memory, whole pages, as long as the surface lives (for the
+ * GPU compositor to take once). */
+@property (readonly) mach_vm_address_t memoryBase;
+@property (readonly) mach_vm_size_t memorySize;
+
 @end
 
 /*

@@ -34,6 +34,39 @@
 #import "WSDisplay.h"
 #import "WSSurface.h"
 
+int
+WSRowBands(const pixman_box32_t *boxes, int n, int32_t *bands)
+{
+	int nbands = 0;
+
+	for (int i = 0; i < n; i++) {
+		int32_t y1 = boxes[i].y1, y2 = boxes[i].y2;
+		int j;
+		for (j = 0; j < nbands; j++)
+			if (y1 <= bands[2 * j + 1] && y2 >= bands[2 * j]) {
+				bands[2 * j] = MIN(bands[2 * j], y1);
+				bands[2 * j + 1] = MAX(bands[2 * j + 1], y2);
+				break;
+			}
+		if (j < nbands)
+			continue;
+		if (nbands == kWSMaxRowBands) {	/* many: one band around them all */
+			bands[0] = MIN(bands[0], y1);
+			bands[1] = MAX(bands[1], y2);
+			for (j = 1; j < nbands; j++) {
+				bands[0] = MIN(bands[0], bands[2 * j]);
+				bands[1] = MAX(bands[1], bands[2 * j + 1]);
+			}
+			nbands = 1;
+		} else {
+			bands[2 * nbands] = y1;
+			bands[2 * nbands + 1] = y2;
+			nbands++;
+		}
+	}
+	return nbands;
+}
+
 /*
  * pixman's backend: the frame is drawn into a shadow buffer in memory with
  * rows as long as the framebuffer's, then its damaged rows go to the
@@ -236,34 +269,9 @@
  */
 - (BOOL)presentByGPU:(pixman_box32_t *)boxes count:(int)n rowBytes:(uint32_t)rowBytes
 {
-	int32_t bands[2 * 64];
-	int nbands = 0;
+	int32_t bands[2 * kWSMaxRowBands];
+	int nbands = WSRowBands(boxes, n, bands);
 
-	for (int i = 0; i < n; i++) {
-		int32_t y1 = boxes[i].y1, y2 = boxes[i].y2;
-		int j;
-		for (j = 0; j < nbands; j++)
-			if (y1 <= bands[2 * j + 1] && y2 >= bands[2 * j]) {
-				bands[2 * j] = MIN(bands[2 * j], y1);
-				bands[2 * j + 1] = MAX(bands[2 * j + 1], y2);
-				break;
-			}
-		if (j == nbands) {
-			if (nbands == 64) {	/* many: one band around them all */
-				bands[0] = MIN(bands[0], y1);
-				bands[1] = MAX(bands[1], y2);
-				for (j = 1; j < nbands; j++) {
-					bands[0] = MIN(bands[0], bands[2 * j]);
-					bands[1] = MAX(bands[1], bands[2 * j + 1]);
-				}
-				nbands = 1;
-			} else {
-				bands[2 * nbands] = y1;
-				bands[2 * nbands + 1] = y2;
-				nbands++;
-			}
-		}
-	}
 	for (int j = 0; j < nbands; j++)
 		if (![_display gpuPresentOffset:(size_t)bands[2 * j] * rowBytes
 		    bytes:(size_t)(bands[2 * j + 1] - bands[2 * j]) * rowBytes]) {

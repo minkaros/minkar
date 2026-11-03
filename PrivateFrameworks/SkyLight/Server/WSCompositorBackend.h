@@ -32,7 +32,8 @@
  * shows (the windows, the damage, the cursor) and when; a backend draws it
  * back to front, clipped to the damage, and presents it. WSPixmanBackend
  * draws with pixman into a buffer in memory and presents it by the GPU's
- * DMA engine or the CPU; a Vulkan backend comes next. Everything here runs
+ * DMA engine or the CPU; WSVulkanBackend draws with compute shaders on the
+ * GPU into a frame in VRAM and presents it the same way. Everything here runs
  * on the compositor's render queue.
  */
 
@@ -79,7 +80,18 @@
 
 @end
 
+/* The damaged rows as at most kWSMaxRowBands bands (y1, y2 pairs), rows
+ * that overlap or touch merged: what a backend presents by the GPU's DMA
+ * engine, a band at a time. Returns how many. */
+enum { kWSMaxRowBands = 64 };
+int WSRowBands(const pixman_box32_t *boxes, int n, int32_t *bands);
+
 /* pixman in memory; presented by the GPU's DMA engine when the display has
  * one, else by the CPU. */
 @interface WSPixmanBackend : NSObject <WSCompositorBackend>
+@end
+
+/* Vulkan compute shaders into a frame in the GPU's memory, presented by
+ * its DMA engine; only on a display whose GPU has a Vulkan driver. */
+@interface WSVulkanBackend : NSObject <WSCompositorBackend>
 @end

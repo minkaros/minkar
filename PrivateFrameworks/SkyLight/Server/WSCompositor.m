@@ -152,14 +152,46 @@ static const unsigned kIdleTicks = 2;
 	return self;
 }
 
+/*
+ * Which backend draws: pixman, unless the environment's WSCompositor or the
+ * preference Compositor (org.minkar.WindowServer) says "vulkan". A display
+ * whose GPU has no Vulkan driver falls back to pixman.
+ */
+static Class
+backendClass(void)
+{
+	NSString *name = nil;
+	const char *env = getenv("WSCompositor");
+
+	if (env != NULL)
+		name = @(env);
+	else {
+		CFPropertyListRef value = CFPreferencesCopyAppValue(CFSTR("Compositor"),
+		    CFSTR("org.minkar.WindowServer"));
+		if (value != NULL && CFGetTypeID(value) == CFStringGetTypeID())
+			name = [(__bridge NSString *)value copy];
+		if (value != NULL)
+			CFRelease(value);
+	}
+	return [name caseInsensitiveCompare:@"vulkan"] == NSOrderedSame ? [WSVulkanBackend class] :
+	    [WSPixmanBackend class];
+}
+
 /* The backend's buffers, for the current mode. */
 - (BOOL)setUpBuffers
 {
 	uint32_t width = _display.width, height = _display.height;
 
 	if (_backend == nil)
+		_backend = [[backendClass() alloc] init];
+	BOOL ready = [_backend setUpForDisplay:_display width:width height:height];
+	if (!ready && ![_backend isKindOfClass:[WSPixmanBackend class]]) {
+		fprintf(stderr, "WindowServer: display 0x%x: %s cannot draw here; pixman does\n",
+		    _display.displayID, NSStringFromClass([_backend class]).UTF8String);
 		_backend = [[WSPixmanBackend alloc] init];
-	if (![_backend setUpForDisplay:_display width:width height:height]) {
+		ready = [_backend setUpForDisplay:_display width:width height:height];
+	}
+	if (!ready) {
 		fprintf(stderr, "WindowServer: display 0x%x: cannot map the framebuffer\n",
 		    _display.displayID);
 		return NO;

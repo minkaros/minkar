@@ -14,7 +14,8 @@ MK_PIE = no
 MK_DEBUG_FILES = no
 PROG =	WindowServer
 SRCS =	main.m WSConnection.m WSDisplay.m WSDisplayServices.m WSWindowList.m \
-	WSSurface.m WSDisplayStream.m WSCompositor.m WSPixmanBackend.m WSInput.m WSEvents.m WSTaps.m WSHotKeys.m WSKeymap.c \
+	WSSurface.m WSDisplayStream.m WSCompositor.m WSPixmanBackend.m WSVulkanBackend.m \
+	WSInput.m WSEvents.m WSTaps.m WSHotKeys.m WSKeymap.c \
 	WindowServerServer.c
 MAN =
 SKYLIGHT = ${.CURDIR}/..

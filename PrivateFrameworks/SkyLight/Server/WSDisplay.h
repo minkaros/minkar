@@ -83,6 +83,15 @@
 - (BOOL)setUpGPUPresentFrom:(void *)shadow bytes:(size_t)bytes;
 - (void)tearDownGPUPresent;
 - (BOOL)gpuPresentOffset:(size_t)offset bytes:(size_t)bytes;
+/*
+ * For a compositor that draws on the GPU (G4): a frame of bytes in VRAM,
+ * shared (its global ID, for Vulkan to import), mapped for the CPU (for
+ * display streams), presented as the shadow is by gpuPresentOffset. NO
+ * when there is no such GPU or it refuses.
+ */
+- (BOOL)setUpGPUFrame:(size_t)bytes globalID:(uint32_t *)globalID cpu:(uint8_t **)cpu;
+/* The companion GPU's render node (/dev/dri/renderD<n>), or 0. */
+@property (readonly) uint32_t gpuRenderMinor;
 
 /* The display's compositor (WSCompositor), made at startup. */
 @property (strong) id compositor;

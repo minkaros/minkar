@@ -63,7 +63,9 @@ static const double kPixelsPerMM = 72.0 / 25.4;
 	uint32_t _currentModeID;
 	BOOL _noFlush;		/* the driver does not take flushes */
 	io_connect_t _gpu;	/* the companion GPU's user client */
-	uint64_t _gpuShadow;	/* the shadow, imported: its buffer */
+	uint64_t _gpuShadow;	/* the shadow, imported, or the frame: its buffer */
+	mach_vm_address_t _gpuFrameCPU;	/* the shared frame's CPU mapping */
+	uint32_t _gpuRenderMinor;
 	float _transfer[3 * kSLSGammaTableCapacity];
 }
 
@@ -372,9 +374,10 @@ static const SLSGammaFormula identityFormula = { 0, 1, 1, 0, 1, 1, 0, 1, 1 };
 	return YES;
 }
 
-/* The framebuffer's sibling on the same device, of the class it names. */
+/* The framebuffer's sibling on the same device, of the class it names;
+ * its render node in *minor (0 if none). */
 static io_connect_t
-openAccelerator(io_service_t framebuffer)
+openAccelerator(io_service_t framebuffer, uint32_t *minor)
 {
 	CFTypeRef name = IORegistryEntryCreateCFProperty(framebuffer,
 	    CFSTR("MinkarAcceleratorClass"), kCFAllocatorDefault, 0);
@@ -398,6 +401,15 @@ openAccelerator(io_service_t framebuffer)
 			if (IOObjectConformsTo(s, class) &&
 			    IOServiceOpen(s, mach_task_self(), 0, &connect) != KERN_SUCCESS)
 				connect = IO_OBJECT_NULL;
+			if (connect != IO_OBJECT_NULL && minor != NULL) {
+				CFTypeRef m = IORegistryEntryCreateCFProperty(s, CFSTR("MinkarDRMMinor"),
+				    kCFAllocatorDefault, 0);
+				*minor = 0;
+				if (m != NULL && CFGetTypeID(m) == CFNumberGetTypeID())
+					CFNumberGetValue(m, kCFNumberSInt32Type, minor);
+				if (m != NULL)
+					CFRelease(m);
+			}
 			IOObjectRelease(s);
 		}
 		IOObjectRelease(it);
@@ -412,7 +424,7 @@ openAccelerator(io_service_t framebuffer)
 	if (getenv("WSNoGPUPresent") != NULL)
 		return NO;
 	if (_gpu == IO_OBJECT_NULL)
-		_gpu = openAccelerator(_service);
+		_gpu = openAccelerator(_service, &_gpuRenderMinor);
 	if (_gpu == IO_OBJECT_NULL)
 		return NO;
 	uint64_t in[2] = { (uint64_t)(uintptr_t)shadow, bytes }, out[2];
@@ -424,8 +436,43 @@ openAccelerator(io_service_t framebuffer)
 	return YES;
 }
 
+- (BOOL)setUpGPUFrame:(size_t)bytes globalID:(uint32_t *)globalID cpu:(uint8_t **)cpu
+{
+	[self tearDownGPUPresent];
+	if (_gpu == IO_OBJECT_NULL)
+		_gpu = openAccelerator(_service, &_gpuRenderMinor);
+	if (_gpu == IO_OBJECT_NULL)
+		return NO;
+	uint64_t in = bytes, out[3] = { 0, 0, 0 };
+	uint32_t n = 3;
+	if (IOConnectCallScalarMethod(_gpu, kMinkarAMDGPUCreateSharedBuffer, &in, 1, out, &n) !=
+	    KERN_SUCCESS)
+		return NO;
+	_gpuShadow = out[0];
+	mach_vm_size_t size = 0;
+	if (IOConnectMapMemory64(_gpu, (uint32_t)_gpuShadow, mach_task_self(), &_gpuFrameCPU, &size,
+	    kIOMapAnywhere) != KERN_SUCCESS) {
+		[self tearDownGPUPresent];
+		return NO;
+	}
+	*globalID = (uint32_t)out[2];
+	*cpu = (uint8_t *)(uintptr_t)_gpuFrameCPU;
+	return YES;
+}
+
+- (uint32_t)gpuRenderMinor
+{
+	if (_gpu == IO_OBJECT_NULL)
+		_gpu = openAccelerator(_service, &_gpuRenderMinor);
+	return _gpuRenderMinor;
+}
+
 - (void)tearDownGPUPresent
 {
+	if (_gpuFrameCPU != 0) {
+		IOConnectUnmapMemory64(_gpu, (uint32_t)_gpuShadow, mach_task_self(), _gpuFrameCPU);
+		_gpuFrameCPU = 0;
+	}
 	if (_gpuShadow != 0) {
 		uint64_t h = _gpuShadow;
 		IOConnectCallScalarMethod(_gpu, kMinkarAMDGPUDestroyBuffer, &h, 1, NULL, NULL);
