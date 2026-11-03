@@ -23,17 +23,19 @@
 
 #import <mach/mach.h>
 #import <sys/types.h>
-#import <sys/ipc.h>
-#import <sys/shm.h>
 #import <sys/mman.h>
 #import <CoreGraphics/CGDirectDisplay.h>
 #import <CoreGraphics/CGError.h>
 #import <Onyx2D/O2Context_builtin.h>
 #import <CoreFoundation/CFMachPort.h>
-#import <WindowServer/Legacy/message.h>
 #include <SkyLight/SkyLight.h>
+#include <IOSurface/IOSurfaceRef.h>
 #include <dispatch/dispatch.h>
-#import <WindowServer/Legacy/rpc.h>
+#include <pthread.h>
+#include <string.h>
+#include <unistd.h>
+#import <CoreGraphics/CGBitmapContext.h>
+#import <CoreGraphics/CGWindow.h>
 
 const CFStringRef kCGDisplayStreamSourceRect = CFSTR("kCGDisplayStreamSourceRect");
 const CFStringRef kCGDisplayStreamDestinationRect = CFSTR("kCGDisplayStreamDestinationRect");
@@ -48,16 +50,52 @@ const CFStringRef kCGDisplayStreamYCbCrMatrix_ITU_R_709_2 = CFSTR("kCGDisplayStr
 const CFStringRef kCGDisplayStreamYCbCrMatrix_ITU_R_601_4 = CFSTR("kCGDisplayStreamYCbCrMatrix_ITU_R_601_4");
 const CFStringRef kCGDisplayStreamYCbCrMatrix_SMPTE_240M_1995 = CFSTR("kCGDisplayStreamYCbCrMatrix_SMPTE_240M_1995");
 
+/* A configuration: the window server's, and the fade around it. */
 struct _CGDisplayConfig {
-    struct _CGDisplayConfigInner *inner;
+    SLSDisplayConfigRef sls;
+    CGDisplayFadeInterval fadeOut, fadeIn;
+    float fadeColor[3];
 };
 
-static struct CGDisplayStream {
-    uintptr_t cfisa;
+/* A display mode, as the window server describes it, reference counted. */
+struct CGDisplayMode {
+    int refcount;
+    uint32_t modeID;
+    uint32_t flags;
+    uint32_t width, height;		/* points */
+    uint32_t pixelWidth, pixelHeight;
+    uint32_t depth;			/* bits per pixel */
+    double refresh;			/* Hz, 0 when unknown */
 };
 
-static struct CGDisplayStreamUpdate {
-    uintptr_t cfisa;
+static CGDisplayModeRef displayModeCreate(const SLSDisplayMode *m) {
+    struct CGDisplayMode *mode = calloc(sizeof(struct CGDisplayMode), 1);
+
+    if(mode == NULL)
+        return NULL;
+    mode->refcount = 1;
+    mode->modeID = m->modeID;
+    mode->flags = m->flags;
+    mode->width = m->width;
+    mode->height = m->height;
+    mode->pixelWidth = m->pixelWidth;
+    mode->pixelHeight = m->pixelHeight;
+    mode->depth = m->depth;
+    mode->refresh = m->refreshRate;
+    return mode;
+}
+
+static const void *displayModeArrayRetain(CFAllocatorRef allocator, const void *value) {
+    return CGDisplayModeRetain((CGDisplayModeRef)value);
+}
+
+static void displayModeArrayRelease(CFAllocatorRef allocator, const void *value) {
+    CGDisplayModeRelease((CGDisplayModeRef)value);
+}
+
+/* An array of modes holds them. */
+static const CFArrayCallBacks displayModeCallBacks = {
+    0, displayModeArrayRetain, displayModeArrayRelease, NULL, NULL
 };
 
 // dictionary of display contexts
@@ -65,211 +103,230 @@ static CFMutableDictionaryRef __displayContexts = NULL;
 static const CFDictionaryKeyCallBacks __CGDispCtxKeyCallback = {0}; // all NULL - use defaults
 static const CFDictionaryValueCallBacks __CGDispCtxValCallback = {0}; // same
 
-// make a RPC to WindowServer with optional reply
-kern_return_t _windowServerRPC(void *data, size_t len, void *replyBuf, int *replyLen);
 static uint32_t CGDisplayStateFlags(CGDirectDisplayID display);
 
 /*
- * Which window server to talk to (WindowServer plan, WS2): the legacy one
- * while its service exists, which it does whenever it runs (the default
- * until WS4); otherwise the new one through SkyLight. Decided once.
+ * Whether the window server answers (WindowServer plan: SkyLight's, the
+ * only one since WS4b). Decided once.
  */
 int _CGUsesSkyLight(void) {
     static dispatch_once_t once;
     static int uses;
 
     dispatch_once(&once, ^{
-        uses = CGWindowServerCFMachPort() == NULL && SLSServerPort() != MACH_PORT_NULL;
+        /* The new server has the window server's service since WS4b. */
+        uses = SLSMainConnectionID() != 0;
     });
     return uses;
 }
 
 // Finding displays
 CGDirectDisplayID CGMainDisplayID(void) {
-    if(_CGUsesSkyLight())
-        return SLSMainDisplayID();
-    struct wsRPCBase data = { kCGMainDisplayID, 0 };
-    struct wsRPCSimple ID;
-    int len = sizeof(ID);
-    kern_return_t ret = _windowServerRPC(&data, sizeof(data), &ID, &len);
-    if(ret == KERN_SUCCESS)
-        return ID.val1;
-    return kCGNullDirectDisplay;
-}
-
-CGError CGGetDisplayList(uint32_t code, uint32_t maxDisplays, CGDirectDisplayID *displays, uint32_t *displayCount) {
-    if(_CGUsesSkyLight()) {
-        if(code == kCGGetOnlineDisplayList)
-            return SLSGetOnlineDisplayList(maxDisplays, displays, displayCount);
-        return SLSGetActiveDisplayList(maxDisplays, displays, displayCount);
-    }
-    struct wsRPCBase data = { code, 0 };
-    int replyLen = sizeof(data) + sizeof(CGDirectDisplayID)*maxDisplays;
-    uint8_t *replyBuf = (uint8_t *)malloc(replyLen);
-
-    if(replyBuf == NULL)
-        return kCGErrorFailure;
-
-    _windowServerRPC(&data, sizeof(data), replyBuf, &replyLen);
-    if(replyLen < 0) {
-        free(replyBuf);
-        return kCGErrorFailure;
-    }
-
-    memcpy(&data, replyBuf, sizeof(data));
-    uint32_t *list = (uint32_t *)(replyBuf + sizeof(data));
-
-    int count = data.len / sizeof(CGDirectDisplayID);
-    if(maxDisplays < count)
-        count = maxDisplays;
-
-    if(displays != NULL) {
-        for(int i = 0; i < count; i++) 
-            displays[i] = list[i];
-    }
-    *displayCount = count;
-
-    free(replyBuf);
-    return kCGErrorSuccess;
+    return SLSMainDisplayID();
 }
 
 CGError CGGetOnlineDisplayList(uint32_t maxDisplays, CGDirectDisplayID *onlineDisplays, uint32_t *displayCount) {
-    return CGGetDisplayList(kCGGetOnlineDisplayList, maxDisplays, onlineDisplays, displayCount);
+    return SLSGetOnlineDisplayList(maxDisplays, onlineDisplays, displayCount);
 }
 
 CGError CGGetActiveDisplayList(uint32_t maxDisplays, CGDirectDisplayID *activeDisplays, uint32_t *displayCount) {
-    return CGGetDisplayList(kCGGetActiveDisplayList, maxDisplays, activeDisplays, displayCount);
+    return SLSGetActiveDisplayList(maxDisplays, activeDisplays, displayCount);
 }
 
 CGError CGGetDisplaysWithOpenGLDisplayMask(CGOpenGLDisplayMask mask, uint32_t maxDisplays, CGDirectDisplayID *displays, uint32_t *matchingDisplayCount) {
-    struct wsRPCSimple data = { kCGGetDisplaysWithOpenGLDisplayMask, sizeof(CGOpenGLDisplayMask), mask };
-    int replyLen = sizeof(struct wsRPCBase) + sizeof(CGDirectDisplayID)*maxDisplays;
-    uint8_t *replyBuf = (uint8_t *)malloc(replyLen);
+    CGDirectDisplayID active[32];
+    uint32_t count = 0, n = 0;
+    CGError err = SLSGetActiveDisplayList(32, active, &count);
 
-    if(replyBuf == NULL)
-        return kCGErrorFailure;
-
-    _windowServerRPC(&data, sizeof(data), replyBuf, &replyLen);
-    if(replyLen < 0) {
-        free(replyBuf);
-        return kCGErrorFailure;
+    if(err != kCGErrorSuccess)
+        return err;
+    for(uint32_t i = 0; i < count; i++) {
+        SLSDisplayInfo info;
+        if(SLSGetDisplayInfo(active[i], &info) != kSLSErrorSuccess || !(info.openGLMask & mask))
+            continue;
+        if(displays != NULL && n < maxDisplays)
+            displays[n] = active[i];
+        n++;
     }
-
-    struct wsRPCBase *base = (struct wsRPCBase *)replyBuf;
-    uint32_t *list = (uint32_t *)(replyBuf + sizeof(struct wsRPCBase));
-
-    int count = base->len / sizeof(CGDirectDisplayID);
-    if(maxDisplays < count)
-        count = maxDisplays;
-
-    if(displays != NULL) {
-        for(int i = 0; i < count; i++) 
-            displays[i] = list[i];
-    }
-    *matchingDisplayCount = count;
-
-    free(replyBuf);
+    if(matchingDisplayCount != NULL)
+        *matchingDisplayCount = (displays != NULL && n > maxDisplays) ? maxDisplays : n;
     return kCGErrorSuccess;
 }
 
 CGError CGGetDisplaysWithPoint(CGPoint point, uint32_t maxDisplays, CGDirectDisplayID *displays, uint32_t *matchingDisplayCount) {
-    struct wsRPCSimple data = { kCGGetDisplaysWithPoint, 8 };
-    data.val1 = (uint32_t)point.x;
-    data.val2 = (uint32_t)point.y;
-
-    int replyLen = sizeof(struct wsRPCBase) + sizeof(CGDirectDisplayID)*maxDisplays;
-    uint8_t *replyBuf = (uint8_t *)malloc(replyLen);
-
-    if(replyBuf == NULL)
-        return kCGErrorFailure;
-
-    _windowServerRPC(&data, sizeof(data), replyBuf, &replyLen);
-    if(replyLen < 0) {
-        free(replyBuf);
-        return kCGErrorFailure;
-    }
-
-    struct wsRPCBase *base = (struct wsRPCBase *)replyBuf;
-    uint32_t *list = (uint32_t *)(replyBuf + sizeof(struct wsRPCBase));
-
-    int count = base->len / sizeof(CGDirectDisplayID);
-    if(maxDisplays == 0)
-        displays = NULL;
-    else if(maxDisplays < count && displays != NULL)
-        count = maxDisplays;
-
-    if(displays != NULL) {
-        for(int i = 0; i < count; i++) 
-            displays[i] = list[i];
-    }
-    *matchingDisplayCount = count;
-
-    free(replyBuf);
-    return kCGErrorSuccess;
+    return SLSGetDisplaysWithPoint(point.x, point.y, maxDisplays, displays, matchingDisplayCount);
 }
 
 CGError CGGetDisplaysWithRect(CGRect rect, uint32_t maxDisplays, CGDirectDisplayID *displays, uint32_t *matchingDisplayCount) {
-    struct wsRPCSimple data = { kCGGetDisplaysWithPoint, 16 };
-    data.val1 = (uint32_t)rect.origin.x;
-    data.val2 = (uint32_t)rect.origin.y;
-    data.val3 = (uint32_t)rect.size.width;
-    data.val4 = (uint32_t)rect.size.height;
-
-    int replyLen = sizeof(struct wsRPCBase) + sizeof(CGDirectDisplayID)*maxDisplays;
-    uint8_t *replyBuf = (uint8_t *)malloc(replyLen);
-
-    if(replyBuf == NULL)
-        return kCGErrorFailure;
-
-    _windowServerRPC(&data, sizeof(data), replyBuf, &replyLen);
-    if(replyLen < 0) {
-        free(replyBuf);
-        return kCGErrorFailure;
-    }
-
-    struct wsRPCBase *base = (struct wsRPCBase *)replyBuf;
-    uint32_t *list = (uint32_t *)(replyBuf + sizeof(struct wsRPCBase));
-
-    int count = base->len / sizeof(CGDirectDisplayID);
-    if(maxDisplays == 0)
-        displays = NULL;
-    else if(maxDisplays < count && displays != NULL)
-        count = maxDisplays;
-
-    if(displays != NULL) {
-        for(int i = 0; i < count; i++) 
-            displays[i] = list[i];
-    }
-    *matchingDisplayCount = count;
-
-    free(replyBuf);
-    return kCGErrorSuccess;
+    return SLSGetDisplaysWithRect(rect.origin.x, rect.origin.y, rect.size.width, rect.size.height,
+        maxDisplays, displays, matchingDisplayCount);
 }
 
 CGDirectDisplayID CGOpenGLDisplayMaskToDisplayID(CGOpenGLDisplayMask mask) {
-    uint32_t display;
-    int32_t len = sizeof(display);
+    CGDirectDisplayID display = kCGNullDirectDisplay;
+    uint32_t count = 0;
 
-    struct wsRPCSimple data = { kCGOpenGLDisplayMaskToDisplayID, 4 };
-    data.val1 = mask;
-
-    _windowServerRPC(&data, sizeof(data), &display, &len);
-    if(len < 0)
+    /* The display of the mask's lowest bit. */
+    mask &= -mask;
+    if(mask == 0 || CGGetDisplaysWithOpenGLDisplayMask(mask, 1, &display, &count) != kCGErrorSuccess ||
+        count == 0)
         return kCGNullDirectDisplay;
     return display;
 }
 
 CGOpenGLDisplayMask CGDisplayIDToOpenGLDisplayMask(CGDirectDisplayID display) {
-    uint32_t mask;
-    int32_t len = sizeof(mask);
+    SLSDisplayInfo info;
 
-    struct wsRPCSimple data = { kCGDisplayIDToOpenGLDisplayMask, 4 };
-    data.val1 = display;
-
-    _windowServerRPC(&data, sizeof(data), &mask, &len);
-    if(len < 0)
+    if(SLSGetDisplayInfo(display, &info) != kSLSErrorSuccess)
         return 0;
-    return mask;
+    return info.openGLMask;
+}
+
+/* ---- Captured displays with the new server (WS4a) ---- */
+
+/*
+ * CGDisplayGetDrawingContext's context draws into an IOSurface the
+ * display's shielding window shows: the window server shows it again at
+ * every frame while it is there, as a display's scanout, so what the app
+ * draws appears at the next frame, with no copy and no commit.
+ */
+typedef struct {
+    CGContextRef context;
+    IOSurfaceRef surface;
+    SLSWindowID shield;
+} SLSDrawingContext;
+
+static CFMutableDictionaryRef slsDrawingContexts;    /* display -> SLSDrawingContext */
+
+static void slsDropDrawingContext(CGDirectDisplayID display) {
+    if(slsDrawingContexts == NULL)
+        return;
+    SLSDrawingContext *d = (SLSDrawingContext *)CFDictionaryGetValue(slsDrawingContexts,
+        (const void *)(uintptr_t)display);
+    if(d == NULL)
+        return;
+    CFDictionaryRemoveValue(slsDrawingContexts, (const void *)(uintptr_t)display);
+    SLSWindowSetIOSurface(d->shield, 0);
+    CGContextRelease(d->context);
+    CFRelease(d->surface);
+    free(d);
+}
+
+static CGContextRef slsDrawingContext(CGDirectDisplayID display) {
+    int32_t pid = 0;
+    SLSWindowID shield = SLSShieldingWindowID(display);
+
+    if(shield == 0 || SLSDisplayCapturedBy(display, &pid) != kSLSErrorSuccess || pid != getpid())
+        return NULL;    /* not captured, or not by this process */
+    if(slsDrawingContexts == NULL)
+        slsDrawingContexts = CFDictionaryCreateMutable(NULL, 8, NULL, NULL);
+    SLSDrawingContext *d = (SLSDrawingContext *)CFDictionaryGetValue(slsDrawingContexts,
+        (const void *)(uintptr_t)display);
+    if(d != NULL)
+        return d->context;
+
+    CGRect bounds = CGDisplayBounds(display);
+    int width = (int)bounds.size.width, height = (int)bounds.size.height;
+    int bytesPerElement = 4, pixelFormat = 'BGRA';
+    CFNumberRef w = CFNumberCreate(NULL, kCFNumberIntType, &width);
+    CFNumberRef h = CFNumberCreate(NULL, kCFNumberIntType, &height);
+    CFNumberRef bpe = CFNumberCreate(NULL, kCFNumberIntType, &bytesPerElement);
+    CFNumberRef format = CFNumberCreate(NULL, kCFNumberIntType, &pixelFormat);
+    const void *keys[] = { kIOSurfaceWidth, kIOSurfaceHeight, kIOSurfaceBytesPerElement,
+        kIOSurfacePixelFormat };
+    const void *values[] = { w, h, bpe, format };
+    CFDictionaryRef properties = CFDictionaryCreate(NULL, keys, values, 4,
+        &kCFTypeDictionaryKeyCallBacks, &kCFTypeDictionaryValueCallBacks);
+    CFRelease(w);
+    CFRelease(h);
+    CFRelease(bpe);
+    CFRelease(format);
+    IOSurfaceRef surface = IOSurfaceCreate(properties);
+    CFRelease(properties);
+    if(surface == NULL)
+        return NULL;
+
+    d = calloc(1, sizeof(*d));
+    d->surface = surface;
+    d->shield = shield;
+    CGColorSpaceRef space = CGColorSpaceCreateDeviceRGB();
+    d->context = CGBitmapContextCreate(IOSurfaceGetBaseAddress(surface), width, height, 8,
+        IOSurfaceGetBytesPerRow(surface), space,
+        kCGImageAlphaPremultipliedFirst | kCGBitmapByteOrder32Little);
+    CGColorSpaceRelease(space);
+    if(d->context != NULL) {
+        /* Opaque black to start with, as the shielding window. */
+        CGContextSetRGBFillColor(d->context, 0, 0, 0, 1);
+        CGContextFillRect(d->context, CGRectMake(0, 0, width, height));
+    }
+    if(d->context == NULL ||
+       SLSWindowSetIOSurface(shield, IOSurfaceGetID(surface)) != kSLSErrorSuccess) {
+        if(d->context != NULL)
+            CGContextRelease(d->context);
+        CFRelease(surface);
+        free(d);
+        return NULL;
+    }
+    CFDictionarySetValue(slsDrawingContexts, (const void *)(uintptr_t)display, d);
+    return d->context;
+}
+
+static CGError slsRelease(CGDirectDisplayID display) {
+    if(display == 0) {
+        if(slsDrawingContexts != NULL) {
+            CFIndex n = CFDictionaryGetCount(slsDrawingContexts);
+            const void *keys[n > 0 ? n : 1];
+            CFDictionaryGetKeysAndValues(slsDrawingContexts, keys, NULL);
+            for(CFIndex i = 0; i < n; i++)
+                slsDropDrawingContext((CGDirectDisplayID)(uintptr_t)keys[i]);
+        }
+    } else
+        slsDropDrawingContext(display);
+    return (CGError)SLSReleaseDisplay(display);
+}
+
+static void slsReleasePixels(void *info, const void *data, size_t size) {
+    free((void *)data);
+}
+
+/* The screen's contents in a rect of a display: its on-screen windows,
+ * composed over black, without the cursor. */
+static CGImageRef slsDisplayImage(CGDirectDisplayID display, CGRect rect) {
+    CGRect bounds = CGDisplayBounds(display);
+    CGRect global = CGRectIntersection(CGRectOffset(rect, bounds.origin.x, bounds.origin.y), bounds);
+
+    if(CGRectIsNull(global) || CGRectIsEmpty(global))
+        return NULL;
+    global = CGRectIntegral(global);
+    size_t w = (size_t)global.size.width, h = (size_t)global.size.height;
+    CGColorSpaceRef space = CGColorSpaceCreateDeviceRGB();
+    uint8_t *pixels = calloc(h, w * 4);
+    CGContextRef context = CGBitmapContextCreate(pixels, w, h, 8, w * 4, space,
+        kCGImageAlphaPremultipliedFirst | kCGBitmapByteOrder32Little);
+    CGImageRef image = NULL;
+
+    if(context != NULL) {
+        CGContextSetRGBFillColor(context, 0, 0, 0, 1);
+        CGContextFillRect(context, CGRectMake(0, 0, w, h));
+        CGImageRef windows = CGWindowListCreateImage(global, kCGWindowListOptionOnScreenOnly,
+            kCGNullWindowID, kCGWindowImageDefault);
+        if(windows != NULL) {
+            CGContextDrawImage(context, CGRectMake(0, 0, w, h), windows);
+            CGImageRelease(windows);
+        }
+        CGContextRelease(context);
+        /* The image takes the pixels (a CF data object would reach
+           Onyx2D's provider as an NSData, and CF's are not bridged). */
+        CGDataProviderRef provider = CGDataProviderCreateWithData(NULL, pixels, h * w * 4,
+            slsReleasePixels);
+        image = CGImageCreate(w, h, 8, 32, w * 4, space,
+            kCGImageAlphaPremultipliedFirst | kCGBitmapByteOrder32Little, provider, NULL, false,
+            kCGRenderingIntentDefault);
+        CGDataProviderRelease(provider);
+    } else
+        free(pixels);
+    CGColorSpaceRelease(space);
+    return image;
 }
 
 // Capturing and Releasing Displays
@@ -278,35 +335,12 @@ CGError CGDisplayCapture(CGDirectDisplayID display) {
 }
 
 CGError CGDisplayCaptureWithOptions(CGDirectDisplayID display, CGCaptureOptions options) {
-    struct wsRPCSimple data = { kCGDisplayCaptureWithOptions, 8 };
-    data.val1 = display;
-    data.val2 = options;
-    int len = sizeof(data);
-    kern_return_t ret = _windowServerRPC(&data, sizeof(data), &data, &len);
-    if(ret == KERN_SUCCESS)
-        return data.val1;
-    return kCGErrorFailure;
+    return display == 0 ? kCGErrorIllegalArgument :
+            (CGError)SLSCaptureDisplay(display, (uint32_t)options);
 }
 
 CGError CGDisplayRelease(CGDirectDisplayID display) {
-    struct wsRPCSimple data = { kCGDisplayRelease, 4 };
-    data.val1 = display;
-    int len = sizeof(data);
-    kern_return_t ret = _windowServerRPC(&data, sizeof(data), &data, &len);
-    if(ret == KERN_SUCCESS) {
-        if(__displayContexts != NULL) {
-            CGContextRef ctx = CFDictionaryGetValue(__displayContexts, [NSNumber numberWithInt:display]);
-            if(ctx) {
-                void *buffer = [[ctx surface] pixelBytes];
-                buffer -= 6*sizeof(int);
-                shmdt(buffer);
-                CGContextRelease(ctx);
-                CFDictionaryRemoveValue(__displayContexts, [NSNumber numberWithInt:display]);
-            }
-        }
-        return data.val1;
-    }
-    return kCGErrorFailure;
+    return display == 0 ? kCGErrorIllegalArgument : slsRelease(display);
 }
 
 CGError CGCaptureAllDisplays(void) {
@@ -314,37 +348,11 @@ CGError CGCaptureAllDisplays(void) {
 }
 
 CGError CGCaptureAllDisplaysWithOptions(CGCaptureOptions options) {
-    struct wsRPCSimple data = { kCGCaptureAllDisplaysWithOptions, 0 };
-    data.val1 = options;
-    int len = sizeof(data);
-    kern_return_t ret = _windowServerRPC(&data, sizeof(data), &data, &len);
-    if(ret == KERN_SUCCESS)
-        return data.val1;
-    return kCGErrorFailure;
+    return (CGError)SLSCaptureDisplay(0, (uint32_t)options);
 }
 
 CGError CGReleaseAllDisplays(void) {
-    struct wsRPCSimple data = { kCGReleaseAllDisplays, 0 };
-    int len = sizeof(data);
-    kern_return_t ret = _windowServerRPC(&data, sizeof(data), &data, &len);
-    if(ret == KERN_SUCCESS) {
-        if(__displayContexts != NULL) {
-            int count = CFDictionaryGetCount(__displayContexts);
-            NSNumber *keys[count];
-            CGContextRef vals[count];
-            CFDictionaryGetKeysAndValues(__displayContexts, &keys, &vals);
-            for(int i = 0; i < count; ++i) {
-                CGContextRef ctx = vals[i];
-                void *buffer = [[ctx surface] pixelBytes];
-                buffer -= 6*sizeof(int);
-                shmdt(buffer);
-                CGContextRelease(ctx);
-            }
-            CFDictionaryRemoveAllValues(__displayContexts);
-        }
-        return data.val1;
-    }
-    return kCGErrorFailure;
+    return slsRelease(0);
 }
 
 CGWindowID CGShieldingWindowID(CGDirectDisplayID display) {
@@ -358,33 +366,7 @@ CGWindowLevel CGShieldingWindowLevel(void) {
 }
 
 CGContextRef CGDisplayGetDrawingContext(CGDirectDisplayID display) {
-    struct wsRPCSimple data = { kCGDisplayGetDrawingContext, 4 };
-    data.val1 = display;
-    int len = sizeof(data);
-    kern_return_t ret = _windowServerRPC(&data, sizeof(data), &data, &len);
-    if(ret == KERN_SUCCESS) {
-        if(data.val1 == 0)
-            return NULL; // display is not captured
-        void *p = shmat(data.val1, NULL, 0);
-        if((void *)-1 == p)
-            return NULL;
-        intptr_t *q = (intptr_t *)p;
-        int width = q[0];
-        int height = q[1];
-        int format = q[2];
-
-        CGContextRef ctx = (CGContextRef)[[[O2Context_builtin alloc]
-            initWithBytes:(p+sizeof(int)*6) width:width height:height
-            bitsPerComponent:8 bytesPerRow:width*4 colorSpace:CGColorSpaceCreateDeviceRGB()
-            bitmapInfo:format releaseCallback:NULL releaseInfo:NULL] retain];
-
-        // cache it so we can release later. we support up to 8 captured displays
-        if(__displayContexts == NULL) 
-            __displayContexts = CFDictionaryCreateMutable(NULL, 8, &__CGDispCtxKeyCallback, &__CGDispCtxValCallback);
-        CFDictionarySetValue(__displayContexts, [NSNumber numberWithInt:display], ctx);
-        return ctx;
-    }
-    return NULL;
+    return slsDrawingContext(display);
 }
 
 // Creating Images from the Display
@@ -394,118 +376,67 @@ CGImageRef CGDisplayCreateImage(CGDirectDisplayID display) {
 }
 
 CGImageRef CGDisplayCreateImageForRect(CGDirectDisplayID display, CGRect rect) {
-    struct wsRPCSimple data = { {kCGDisplayCreateImageForRect, 12} };
-    data.val1 = display;
-    // convert floats to int
-    int x = rect.origin.x;
-    int y = rect.origin.y;
-    int w = rect.size.width;
-    int h = rect.size.height;
-    // and pack them
-    data.val2 = (x << 16) | y;
-    data.val3 = (w << 16) | h;
-    int len = sizeof(data);
-    kern_return_t ret = _windowServerRPC(&data, sizeof(data), &data, &len);
-    if(ret == KERN_SUCCESS) {
-        if(data.val1 == 0)
-            return NULL;
-        uint8_t *p = shmat(data.val1, NULL, 0);
-        CFDataRef cfd = CFDataCreate(NULL, p, h*w*4);
-        shmctl(data.val1, IPC_RMID, 0);
-        shmdt(p);
-        CGDataProviderRef d = CGDataProviderCreateWithCFData(cfd);
-        CFRelease(cfd);
-        CGImageRef img = CGImageCreate(w, h, 8, 32, w*4, CGColorSpaceCreateDeviceRGB(),
-            kCGBitmapByteOrderDefault|kCGImageAlphaPremultipliedFirst, d, NULL, 0, kCGRenderingIntentDefault);
-        CFRelease(d);
-        return img;
-    }
-    return NULL;
+    return slsDisplayImage(display, rect);
 }
 
 // Configuring Displays
 CGError CGBeginDisplayConfiguration(CGDisplayConfigRef *config) {
     if(config == NULL)
         return kCGErrorIllegalArgument;
-
     *config = calloc(sizeof(struct _CGDisplayConfig), 1);
     if(*config == NULL)
         return kCGErrorFailure;
-
-    (*config)->inner = calloc(sizeof(struct _CGDisplayConfigInner), 1);
-    if((*config)->inner == NULL) {
+    CGError err = SLSBeginDisplayConfiguration(&(*config)->sls);
+    if(err != kCGErrorSuccess) {
         free(*config);
-        return kCGErrorFailure;
+        *config = NULL;
     }
-
-    (*config)->inner->length = sizeof(struct _CGDisplayConfigInner);
-    return kCGErrorSuccess;
+    return err;
 }
 
 CGError CGCancelDisplayConfiguration(CGDisplayConfigRef config) {
     if(config == NULL)
         return kCGErrorIllegalArgument;
-    free(config->inner);
+    CGError err = SLSCancelDisplayConfiguration(config->sls);
     free(config);
-    return kCGErrorSuccess;
+    return err;
 }
 
 CGError CGCompleteDisplayConfiguration(CGDisplayConfigRef config, CGConfigureOption option) {
-    if(config == NULL || config->inner == NULL)
+    CGDisplayFadeReservationToken fade = kCGDisplayFadeReservationInvalidToken;
+
+    if(config == NULL)
         return kCGErrorIllegalArgument;
-
-    config->inner->rpc.code = kCGCompleteDisplayConfiguration;
-    config->inner->rpc.len = config->inner->length - sizeof(config->inner->rpc); // trailing data length
-    config->inner->option = option;
-
-    struct wsRPCSimple reply = {0};
-    int len = sizeof(reply);
-
-    kern_return_t ret = _windowServerRPC(config->inner, config->inner->length, &reply, &len);
-    free(config->inner);
+    if((config->fadeOut > 0 || config->fadeIn > 0) &&
+        CGAcquireDisplayFadeReservation(config->fadeOut + config->fadeIn + 2, &fade) == kCGErrorSuccess)
+        CGDisplayFade(fade, config->fadeOut, kCGDisplayBlendNormal, kCGDisplayBlendSolidColor,
+            config->fadeColor[0], config->fadeColor[1], config->fadeColor[2], true);
+    CGError err = SLSCompleteDisplayConfiguration(config->sls, (uint32_t)option);
+    if(fade != kCGDisplayFadeReservationInvalidToken) {
+        CGDisplayFade(fade, config->fadeIn, kCGDisplayBlendSolidColor, kCGDisplayBlendNormal,
+            config->fadeColor[0], config->fadeColor[1], config->fadeColor[2], true);
+        CGReleaseDisplayFadeReservation(fade);
+    }
     free(config);
-
-    if(ret == KERN_SUCCESS)
-        return reply.val1;
-    return kCGErrorFailure;
+    return err;
 }
 
 CGError CGConfigureDisplayMirrorOfDisplay(CGDisplayConfigRef config, CGDirectDisplayID display, CGDirectDisplayID primary) {
-    if(config == NULL || config->inner == NULL || display == kCGNullDirectDisplay)
+    if(config == NULL || display == kCGNullDirectDisplay)
         return kCGErrorIllegalArgument;
-
-    void *_inner = realloc(config->inner, config->inner->length + sizeof(struct _CGDispCfgMirror));
-    if(_inner == NULL)
-        return kCGErrorFailure;
-    config->inner = _inner;
-    struct _CGDispCfgMirror *op = ((char *)config->inner + config->inner->length); 
-    op->opcode = CGDISPCFG_MIRROR;
-    op->display = display;
-    op->primary = primary;
-    config->inner->length += sizeof(struct _CGDispCfgMirror);
-    return kCGErrorSuccess;
+    return SLSConfigureDisplayMirrorOfDisplay(config->sls, display, primary);
 }
 
 CGError CGConfigureDisplayOrigin(CGDisplayConfigRef config, CGDirectDisplayID display, int32_t x, int32_t y) {
-    if(config == NULL || config->inner == NULL || display == kCGNullDirectDisplay)
+    if(config == NULL || display == kCGNullDirectDisplay)
         return kCGErrorIllegalArgument;
-
-    void *_inner = realloc(config->inner, config->inner->length + sizeof(struct _CGDispCfgOrigin));
-    if(_inner == NULL)
-        return kCGErrorFailure;
-    config->inner = _inner;
-    struct _CGDispCfgOrigin *op = ((char *)config->inner + config->inner->length);
-    op->opcode = CGDISPCFG_ORIGIN;
-    op->display = display;
-    op->x = x;
-    op->y = y;
-    config->inner->length += sizeof(struct _CGDispCfgOrigin);
-    return kCGErrorSuccess;
+    return SLSConfigureDisplayOrigin(config->sls, display, x, y);
 }
 
+/* The configuration last saved with kCGConfigurePermanently (or the
+   session's first, when none was), on every display. */
 void CGRestorePermanentDisplayConfiguration(void) {
-    struct wsRPCBase data = { kCGRestorePermanentDisplayConfiguration, 0 };
-    _windowServerRPC(&data, sizeof(data), NULL, NULL);
+    SLSRestorePermanentDisplayConfiguration();
 }
 
 CGError CGConfigureDisplayStereoOperation(CGDisplayConfigRef config, CGDirectDisplayID display, boolean_t stereo, boolean_t forceBlueLine) {
@@ -517,22 +448,9 @@ CGError CGDisplaySetStereoOperation(CGDirectDisplayID display, boolean_t stereo,
 }
 
 CGError CGConfigureDisplayWithDisplayMode(CGDisplayConfigRef config, CGDirectDisplayID display, CGDisplayModeRef mode, CFDictionaryRef options) {
-    if(config == NULL || config->inner == NULL || display == kCGNullDirectDisplay)
+    if(config == NULL || display == kCGNullDirectDisplay || mode == NULL)
         return kCGErrorIllegalArgument;
-
-    struct _CGDispCfgMode op = {
-        .opcode = CGDISPCFG_MODE,
-        .display = display,
-    };
-    memcpy(&op.mode, mode, sizeof(struct CGDisplayMode));
-
-    void *_inner = realloc(config->inner, config->inner->length + sizeof(op));
-    if(_inner == NULL)
-        return kCGErrorFailure;
-    config->inner = _inner;
-    memcpy((char *)config->inner + config->inner->length, &op, sizeof(op));
-    config->inner->length += sizeof(op);
-    return kCGErrorSuccess;
+    return SLSConfigureDisplayWithDisplayMode(config->sls, display, mode->modeID);
 }
 
 // Getting the Display Configuration
@@ -542,7 +460,7 @@ CGColorSpaceRef CGDisplayCopyColorSpace(CGDirectDisplayID display) {
 }
 
 boolean_t CGDisplayIsActive(CGDirectDisplayID display) {
-    return (CGDisplayStateFlags(display) & kWSDisplayActive);
+    return (CGDisplayStateFlags(display) & kSLSDisplayActive);
 }
 
 boolean_t CGDisplayIsAlwaysInMirrorSet(CGDirectDisplayID display) {
@@ -550,27 +468,27 @@ boolean_t CGDisplayIsAlwaysInMirrorSet(CGDirectDisplayID display) {
 }
 
 boolean_t CGDisplayIsAsleep(CGDirectDisplayID display) {
-    return (CGDisplayStateFlags(display) & kWSDisplaySleeping);
+    return (CGDisplayStateFlags(display) & kSLSDisplaySleeping);
 }
 
 boolean_t CGDisplayIsBuiltin(CGDirectDisplayID display) {
-    return (CGDisplayStateFlags(display) & kWSDisplayBuiltin);
+    return (CGDisplayStateFlags(display) & kSLSDisplayBuiltin);
 }
 
 boolean_t CGDisplayIsInHWMirrorSet(CGDirectDisplayID display) {
-    return (CGDisplayStateFlags(display) & kWSDisplayHWMirror);
+    return (CGDisplayStateFlags(display) & kSLSDisplayHWMirror);
 }
 
 boolean_t CGDisplayIsInMirrorSet(CGDirectDisplayID display) {
-    return (CGDisplayStateFlags(display) & kWSDisplayMirrored);
+    return (CGDisplayStateFlags(display) & kSLSDisplayMirrored);
 }
 
 boolean_t CGDisplayIsMain(CGDirectDisplayID display) {
-    return (CGDisplayStateFlags(display) & kWSDisplayMain);
+    return (CGDisplayStateFlags(display) & kSLSDisplayMain);
 }
 
 boolean_t CGDisplayIsOnline(CGDirectDisplayID display) {
-    return (CGDisplayStateFlags(display) & kWSDisplayOnline);
+    return (CGDisplayStateFlags(display) & kSLSDisplayOnline);
 }
 
 boolean_t CGDisplayIsStereo(CGDirectDisplayID display) {
@@ -578,73 +496,59 @@ boolean_t CGDisplayIsStereo(CGDirectDisplayID display) {
 }
 
 CGDirectDisplayID CGDisplayMirrorsDisplay(CGDirectDisplayID display) {
-    struct wsRPCSimple data = { kCGDisplayMirrorsDisplay, 4 };
-    data.val1 = display;
-    int len = sizeof(data);
-    kern_return_t ret = _windowServerRPC(&data, sizeof(data), &data, &len);
-    if(ret == KERN_SUCCESS)
-        return (data.val1 != 0) ? data.val1 : kCGNullDirectDisplay;
-    return kCGNullDirectDisplay;
+    SLSDisplayInfo info;
+
+    if(SLSGetDisplayInfo(display, &info) != kSLSErrorSuccess)
+        return kCGNullDirectDisplay;
+    return info.mirrorOf;
 }
 
 uint32_t CGDisplayModelNumber(CGDirectDisplayID display) {
-    struct wsRPCSimple data = { kCGDisplayModelNumber, 4 };
-    data.val1 = display;
-    int len = sizeof(data);
-    kern_return_t ret = _windowServerRPC(&data, sizeof(data), &data, &len);
-    if(ret == KERN_SUCCESS)
-        return data.val1;
-    return 0xFFFFFFFF;
+    SLSDisplayInfo info;
+
+    if(SLSGetDisplayInfo(display, &info) != kSLSErrorSuccess)
+        return 0xFFFFFFFF;
+    return info.model;
 }
 
 uint32_t CGDisplayPrimaryDisplay(CGDirectDisplayID display) {
-    struct wsRPCSimple data = { kCGDisplayPrimaryDisplay, 4 };
-    data.val1 = display;
-    int len = sizeof(data);
-    kern_return_t ret = _windowServerRPC(&data, sizeof(data), &data, &len);
-    if(ret == KERN_SUCCESS)
-        return data.val1;
-    return display;
+    SLSDisplayInfo info;
+
+    if(SLSGetDisplayInfo(display, &info) != kSLSErrorSuccess)
+        return display;
+    return info.primary ? info.primary : display;
 }
 
 double CGDisplayRotation(CGDirectDisplayID display) {
-    struct wsRPCSimple data = { kCGDisplayRotation, 4 };
-    data.val1 = display;
-    int len = sizeof(data);
-    kern_return_t ret = _windowServerRPC(&data, sizeof(data), &data, &len);
-    if(ret == KERN_SUCCESS)
-        return (double)(data.val1);
-    return 0;
+    SLSDisplayInfo info;
+
+    if(SLSGetDisplayInfo(display, &info) != kSLSErrorSuccess)
+        return 0;
+    return info.rotation;
 }
 
 CGSize CGDisplayScreenSize(CGDirectDisplayID display) {
-    struct wsRPCSimple data = { kCGDisplayScreenSize, 4 };
-    data.val1 = display;
-    int len = sizeof(data);
-    kern_return_t ret = _windowServerRPC(&data, sizeof(data), &data, &len);
-    if(ret == KERN_SUCCESS)
-        return NSMakeSize(data.val1, data.val2);
-    return NSZeroSize;
+    SLSDisplayInfo info;
+
+    if(SLSGetDisplayInfo(display, &info) != kSLSErrorSuccess)
+        return CGSizeZero;
+    return CGSizeMake(info.widthMM, info.heightMM);
 }
 
 uint32_t CGDisplaySerialNumber(CGDirectDisplayID display) {
-    struct wsRPCSimple data = { kCGDisplaySerialNumber, 4 };
-    data.val1 = display;
-    int len = sizeof(data);
-    kern_return_t ret = _windowServerRPC(&data, sizeof(data), &data, &len);
-    if(ret == KERN_SUCCESS)
-        return data.val1;
-    return 0xFFFFFFFF;
+    SLSDisplayInfo info;
+
+    if(SLSGetDisplayInfo(display, &info) != kSLSErrorSuccess)
+        return 0xFFFFFFFF;
+    return info.serial;
 }
 
 uint32_t CGDisplayUnitNumber(CGDirectDisplayID display) {
-    struct wsRPCSimple data = { kCGDisplayUnitNumber, 4 };
-    data.val1 = display;
-    int len = sizeof(data);
-    kern_return_t ret = _windowServerRPC(&data, sizeof(data), &data, &len);
-    if(ret == KERN_SUCCESS)
-        return data.val1;
-    return 0xFFFFFFFF;
+    SLSDisplayInfo info;
+
+    if(SLSGetDisplayInfo(display, &info) != kSLSErrorSuccess)
+        return 0xFFFFFFFF;
+    return info.unit;
 }
 
 boolean_t CGDisplayUsesOpenGLAcceleration(CGDirectDisplayID display) {
@@ -652,40 +556,92 @@ boolean_t CGDisplayUsesOpenGLAcceleration(CGDirectDisplayID display) {
 }
 
 uint32_t CGDisplayVendorNumber(CGDirectDisplayID display) {
-    struct wsRPCSimple data = { kCGDisplayVendorNumber, 4 };
-    data.val1 = display;
-    int len = sizeof(data);
-    kern_return_t ret = _windowServerRPC(&data, sizeof(data), &data, &len);
-    if(ret == KERN_SUCCESS)
-        return data.val1;
-    return 0xFFFFFFFF;
+    SLSDisplayInfo info;
+
+    if(SLSGetDisplayInfo(display, &info) != kSLSErrorSuccess)
+        return 0xFFFFFFFF;
+    return info.vendor;
 }
 
-// Registering for Notification of Config Changes
+/*
+ * Registering for notification of configuration changes. The window
+ * server tells each connection what changed (kSLSEventDisplayReconfigured);
+ * the app's event loop (AppKit's) hands it to _CGDisplayReconfigured,
+ * which calls each callback twice, as on the reference platform: with
+ * kCGDisplayBeginConfigurationFlag, then with what changed. A callback is
+ * registered once per callback and userInfo pair.
+ */
+enum { kMaxReconfigurationCallbacks = 32 };
+
+static struct {
+    CGDisplayReconfigurationCallBack callback;
+    void *userInfo;
+} reconfigurationCallbacks[kMaxReconfigurationCallbacks];
+static unsigned reconfigurationCallbackCount;
+static pthread_mutex_t reconfigurationLock = PTHREAD_MUTEX_INITIALIZER;
+
 CGError CGDisplayRegisterReconfigurationCallback(CGDisplayReconfigurationCallBack callback, void *userInfo) {
-    return kCGErrorFailure; // FIXME: not yet implemented
+    CGError err = kCGErrorSuccess;
+
+    if(callback == NULL)
+        return kCGErrorIllegalArgument;
+    pthread_mutex_lock(&reconfigurationLock);
+    unsigned i;
+    for(i = 0; i < reconfigurationCallbackCount; i++)
+        if(reconfigurationCallbacks[i].callback == callback &&
+            reconfigurationCallbacks[i].userInfo == userInfo)
+            break;
+    if(i == reconfigurationCallbackCount) {
+        if(i == kMaxReconfigurationCallbacks)
+            err = kCGErrorRangeCheck;
+        else {
+            reconfigurationCallbacks[i].callback = callback;
+            reconfigurationCallbacks[i].userInfo = userInfo;
+            reconfigurationCallbackCount++;
+        }
+    }
+    pthread_mutex_unlock(&reconfigurationLock);
+    return err;
 }
 
 CGError CGDisplayRemoveReconfigurationCallback(CGDisplayReconfigurationCallBack callback, void *userInfo) {
-    return kCGErrorFailure; // FIXME: not yet implemented
+    CGError err = kCGErrorIllegalArgument;
+
+    pthread_mutex_lock(&reconfigurationLock);
+    for(unsigned i = 0; i < reconfigurationCallbackCount; i++)
+        if(reconfigurationCallbacks[i].callback == callback &&
+            reconfigurationCallbacks[i].userInfo == userInfo) {
+            reconfigurationCallbacks[i] = reconfigurationCallbacks[--reconfigurationCallbackCount];
+            err = kCGErrorSuccess;
+            break;
+        }
+    pthread_mutex_unlock(&reconfigurationLock);
+    return err;
+}
+
+/* Private, for the app's event loop: display changed by flags. */
+void _CGDisplayReconfigured(CGDirectDisplayID display, CGDisplayChangeSummaryFlags flags) {
+    struct { CGDisplayReconfigurationCallBack callback; void *userInfo; } copy[kMaxReconfigurationCallbacks];
+    unsigned count;
+
+    /* Called unlocked: a callback may register or remove one. */
+    pthread_mutex_lock(&reconfigurationLock);
+    count = reconfigurationCallbackCount;
+    memcpy(copy, reconfigurationCallbacks, sizeof(copy[0]) * count);
+    pthread_mutex_unlock(&reconfigurationLock);
+    for(unsigned i = 0; i < count; i++)
+        copy[i].callback(display, kCGDisplayBeginConfigurationFlag, copy[i].userInfo);
+    for(unsigned i = 0; i < count; i++)
+        copy[i].callback(display, flags, copy[i].userInfo);
 }
 
 // Retrieving Display Parameters
 // FIXME: these are returning info on the current mode, not the display itself
 CGRect CGDisplayBounds(CGDirectDisplayID display) {
-    if(_CGUsesSkyLight()) {
-        SLSDisplayInfo info;
-        if(SLSGetDisplayInfo(display, &info) != kSLSErrorSuccess)
-            return NSZeroRect;
-        return NSMakeRect(info.x, info.y, info.width, info.height);
-    }
-    struct wsRPCSimple data = { {kCGDisplayBounds, 4} };
-    data.val1 = display;
-    int len = sizeof(data);
-    kern_return_t ret = _windowServerRPC(&data, sizeof(data), &data, &len);
-    if(ret == KERN_SUCCESS) 
-        return NSMakeRect(data.val1, data.val2, data.val3, data.val4);
-    return NSZeroRect;
+    SLSDisplayInfo info;
+    if(SLSGetDisplayInfo(display, &info) != kSLSErrorSuccess)
+        return NSZeroRect;
+    return NSMakeRect(info.x, info.y, info.width, info.height);
 }
 
 size_t CGDisplayPixelsHigh(CGDirectDisplayID display) {
@@ -700,93 +656,45 @@ size_t CGDisplayPixelsWide(CGDirectDisplayID display) {
 
 // Creating and Managing Display Modes
 CGDisplayModeRef CGDisplayCopyDisplayMode(CGDirectDisplayID display) {
-    if(_CGUsesSkyLight()) {
-        SLSDisplayMode m;
-        struct CGDisplayMode *mode;
-        if(SLSGetCurrentDisplayMode(display, &m) != kSLSErrorSuccess ||
-            (mode = calloc(sizeof(struct CGDisplayMode), 1)) == NULL)
-            return NULL;
-        mode->refcount = 1;
-        mode->width = m.width;
-        mode->height = m.height;
-        mode->depth = m.depth;
-        mode->refresh = m.refreshRate;
-        mode->flags = m.flags;
-        return mode;
-    }
-    struct wsRPCSimple data = { {kCGDisplayCopyDisplayMode, 4} };
-    data.val1 = display;
-    struct {
-        struct wsRPCBase base;
-        struct CGDisplayMode mode;
-    } reply;
-    int len = sizeof(reply);
-    kern_return_t ret = _windowServerRPC(&data, sizeof(data), &reply, &len);
-    if(ret == KERN_SUCCESS) {
-        if(reply.base.len > 0) {
-            struct CGDisplayMode *ret = calloc(sizeof(struct CGDisplayMode), 1);
-            if(ret) {
-                memcpy(ret, &reply.mode, sizeof(struct CGDisplayMode));
-                // we don't retain ret because it already has a refcount from WS
-            }
-            return ret;
-        }
-    }
-    return NULL;
+    SLSDisplayMode m;
+
+    if(SLSGetCurrentDisplayMode(display, &m) != kSLSErrorSuccess)
+        return NULL;
+    return displayModeCreate(&m);
 }
 
 CFArrayRef CGDisplayCopyAllDisplayModes(CGDirectDisplayID display, CFDictionaryRef options) {
-    struct wsRPCSimple data = { {kCGDisplayCopyAllDisplayModes, 4} };
-    data.val1 = display;
-    struct {
-        struct wsRPCBase base;
-        struct CGDisplayMode mode[32];
-    } reply;
-    int len = sizeof(reply);
-    kern_return_t ret = _windowServerRPC(&data, sizeof(data), &reply, &len);
-    if(ret == KERN_SUCCESS) {
-        if(reply.base.len > 0) {
-            CFMutableArrayRef entries = CFArrayCreateMutable(NULL, 
-                    reply.base.len / sizeof(struct CGDisplayMode), NULL);
-            for(int i = 0; i < reply.base.len / sizeof(struct CGDisplayMode); ++i) {
-                struct CGDisplayMode *entry = calloc(sizeof(struct CGDisplayMode), 1);
-                if(entry) {
-                    memcpy(entry, &reply.mode[i], sizeof(struct CGDisplayMode));
-                    // we don't retain entry because it already has a refcount from WS
-                    CFArrayAppendValue(entries, entry);
-                }
-            }
-            CFRetain(entries);
-            return entries;
+    SLSDisplayMode modes[kSLSMaxDisplayModes];
+    uint32_t count = 0;
+
+    if(SLSCopyDisplayModes(display, kSLSMaxDisplayModes, modes, &count) != kSLSErrorSuccess)
+        return NULL;
+    CFMutableArrayRef result = CFArrayCreateMutable(NULL, count, &displayModeCallBacks);
+    for(uint32_t i = 0; i < count; i++) {
+        CGDisplayModeRef mode = displayModeCreate(&modes[i]);
+        if(mode != NULL) {
+            CFArrayAppendValue(result, mode);
+            CGDisplayModeRelease(mode);
         }
     }
-    return NULL;
-
+    return result;
 }
 
+/* Until the app quits or the display is configured again, as the
+   reference platform does. */
 CGError CGDisplaySetDisplayMode(CGDirectDisplayID display, CGDisplayModeRef mode, CFDictionaryRef options) {
+    CGDisplayConfigRef config;
+    CGError err;
+
     if(mode == NULL)
         return kCGErrorIllegalArgument;
-
-    struct {
-        struct wsRPCBase base;
-        uint32_t display;
-        struct CGDisplayMode mode;
-    } data = {
-        .base = { kCGDisplaySetDisplayMode, 4 + sizeof(struct CGDisplayMode) }
-    };
-
-    data.display = display;
-    memcpy(&data.mode, mode, sizeof(data.mode));
-
-    struct wsRPCSimple reply = {0};
-    int len = sizeof(reply);
-    kern_return_t ret = _windowServerRPC(&data, sizeof(data), &reply, &len);
-
-    if(ret == KERN_SUCCESS) {
-        return reply.val1;
+    if((err = CGBeginDisplayConfiguration(&config)) != kCGErrorSuccess)
+        return err;
+    if((err = CGConfigureDisplayWithDisplayMode(config, display, mode, options)) != kCGErrorSuccess) {
+        CGCancelDisplayConfiguration(config);
+        return err;
     }
-    return kCGErrorFailure;
+    return CGCompleteDisplayConfiguration(config, kCGConfigureForAppOnly);
 }
 
 CGDisplayModeRef CGDisplayModeRetain(CGDisplayModeRef mode) {
@@ -834,7 +742,9 @@ uint32_t CGDisplayModeGetIOFlags(CGDisplayModeRef mode) {
 }
 
 int32_t CGDisplayModeGetIODisplayModeID(CGDisplayModeRef mode) {
-    return 0;
+    if(mode == NULL)
+        return 0;
+    return (int32_t)mode->modeID;
 }
 
 bool CGDisplayModeIsUsableForDesktopGUI(CGDisplayModeRef mode) {
@@ -857,37 +767,12 @@ CGError CGSetDisplayTransferByFormula(CGDirectDisplayID display,
     if(redMin > redMax || redMin < 0 ||
         greenMin > greenMax || greenMin < 0 ||
         blueMin > blueMax || blueMin < 0 ||
-        redMax < redMin || redMax > 1 ||
-        greenMax < greenMin || greenMax > 1 ||
-        blueMax < blueMin || blueMax > 1)
+        redMax > 1 || greenMax > 1 || blueMax > 1)
             return kCGErrorIllegalArgument;
 
-    struct {
-        struct wsRPCBase base;
-        uint32_t display;
-        CGGammaValue vals[9];
-    } data;
-    data.base.code = kCGSetDisplayTransferByFormula;
-    data.base.len = sizeof(data) - sizeof(struct wsRPCBase);
-    data.display = display;
-    data.vals[0] = redMin;
-    data.vals[1] = redMax;
-    data.vals[2] = redGamma;
-    data.vals[3] = greenMin;
-    data.vals[4] = greenMax;
-    data.vals[5] = greenGamma;
-    data.vals[6] = blueMin;
-    data.vals[7] = blueMax;
-    data.vals[8] = blueGamma;
-
-    struct wsRPCSimple reply = {0};
-    int len = sizeof(reply);
-    kern_return_t ret = _windowServerRPC(&data, sizeof(data), &reply, &len);
-
-    if(ret == KERN_SUCCESS) {
-        return reply.val1;
-    }
-    return kCGErrorFailure;
+    SLSGammaFormula f = { redMin, redMax, redGamma, greenMin, greenMax, greenGamma,
+        blueMin, blueMax, blueGamma };
+    return SLSSetDisplayTransferByFormula(display, &f);
 }
 
 CGError CGGetDisplayTransferByFormula(CGDirectDisplayID display,
@@ -899,245 +784,136 @@ CGError CGGetDisplayTransferByFormula(CGDirectDisplayID display,
         blueMin == NULL || blueMax == NULL || blueGamma == NULL)
             return kCGErrorIllegalArgument;
 
-    struct {
-        struct wsRPCBase base;
-        uint32_t display;
-        CGGammaValue vals[9];
-    } data;
-    data.base.code = kCGGetDisplayTransferByFormula;
-    data.base.len = sizeof(data) - sizeof(struct wsRPCBase);
-    data.display = display;
-
-    int len = sizeof(data);
-    kern_return_t ret = _windowServerRPC(&data, sizeof(data), &data, &len);
-
-    if(ret == KERN_SUCCESS) {
-        *redMin = data.vals[0];
-        *redMax = data.vals[1];
-        *redGamma = data.vals[2];
-        *greenMin = data.vals[3];
-        *greenMax = data.vals[4];
-        *greenGamma = data.vals[5];
-        *blueMin = data.vals[6];
-        *blueMax = data.vals[7];
-        *blueGamma = data.vals[8];
-        return data.display; // actually our return value
-    }
-    return kCGErrorFailure;
+    SLSGammaFormula f;
+    CGError err = SLSGetDisplayTransferByFormula(display, &f);
+    if(err != kCGErrorSuccess)
+        return err;
+    *redMin = f.redMin; *redMax = f.redMax; *redGamma = f.redGamma;
+    *greenMin = f.greenMin; *greenMax = f.greenMax; *greenGamma = f.greenGamma;
+    *blueMin = f.blueMin; *blueMax = f.blueMax; *blueGamma = f.blueGamma;
+    return kCGErrorSuccess;
 }
 
 CGError CGSetDisplayTransferByTable(CGDirectDisplayID display, uint32_t tableSize,
         const CGGammaValue *redTable, const CGGammaValue *greenTable, const CGGammaValue *blueTable) {
-    if(redTable == NULL || greenTable == NULL || blueTable == NULL || tableSize < 0)
+    if(redTable == NULL || greenTable == NULL || blueTable == NULL)
         return kCGErrorIllegalArgument;
     if(tableSize == 0)
         return kCGErrorSuccess; // nothing to do
-
-    size_t dataSize = 3 * tableSize * sizeof(CGGammaValue) + sizeof(struct wsRPCSimple);
-    if(dataSize > 128*1024)
-        return kCGErrorFailure;
-
-    char *data = calloc(dataSize, 1);
-    if(data == NULL)
-        return kCGErrorFailure;
-
-    struct wsRPCSimple *base = data;
-    base->base.code = kCGSetDisplayTransferByTable;
-    base->base.len = dataSize - sizeof(struct wsRPCBase) + 4;
-    base->val1 = display;
-
-    CGGammaValue *p = (CGGammaValue *)(data + sizeof(struct wsRPCBase) + 4);
-
-    for(int i = 0; i < tableSize; ++i) {
-        *p++ = redTable[i];
-        *p++ = greenTable[i];
-        *p++ = blueTable[i];
-    }
-
-    int len = dataSize;
-    kern_return_t ret = _windowServerRPC(&data, dataSize, &data, &len);
-    free(data);
-
-    if(ret == KERN_SUCCESS) {
-        return base->val1;
-    }
-    return kCGErrorFailure;
+    return SLSSetDisplayTransferByTable(display, tableSize, redTable, greenTable, blueTable);
 }
 
 
 CGError CGGetDisplayTransferByTable(CGDirectDisplayID display, uint32_t capacity,
         CGGammaValue *redTable, CGGammaValue *greenTable, CGGammaValue *blueTable, uint32_t *sampleCount) {
-    if(redTable == NULL || greenTable == NULL || blueTable == NULL || capacity <= 0)
+    if(redTable == NULL || greenTable == NULL || blueTable == NULL || capacity == 0 ||
+        sampleCount == NULL)
         return kCGErrorIllegalArgument;
-
-    struct wsRPCSimple data = { {kCGGetDisplayTransferByTable, 4}, 0, 0, 0, 0 };
-    data.val1 = display;
-    int len = sizeof(data);
-
-    kern_return_t ret = _windowServerRPC(&data, sizeof(data), &data, &len);
-    if(ret != KERN_SUCCESS)
-        return kCGErrorFailure;
-
-    int samples = 0;
-    struct { CGGammaValue r; CGGammaValue g; CGGammaValue b; } *vals = &(data.val2);
-    for(int i = 0; i < capacity; ++i) {
-        if(i * 3 * sizeof(CGGammaValue) > data.base.len)
-            break;
-        *(redTable + i) = vals->r;
-        *(greenTable + i) = vals->g;
-        *(blueTable + i) = vals->b;
-        vals += sizeof(CGGammaValue) * 3;
-        samples++;
-    }
-    *sampleCount = samples;
-    return kCGErrorSuccess;
+    return SLSGetDisplayTransferByTable(display, capacity, redTable, greenTable, blueTable,
+        sampleCount);
 }
 
 CGError CGSetDisplayTransferByByteTable(CGDirectDisplayID display, uint32_t tableSize,
         const uint8_t *redTable, const uint8_t *greenTable, const uint8_t *blueTable) {
-    if(redTable == NULL || greenTable == NULL || blueTable == NULL || tableSize < 0)
+    if(redTable == NULL || greenTable == NULL || blueTable == NULL)
         return kCGErrorIllegalArgument;
     if(tableSize == 0)
         return kCGErrorSuccess; // nothing to do
 
-    size_t dataSize = 3 * tableSize + sizeof(struct wsRPCSimple);
-    if(dataSize > 128*1024)
+    CGGammaValue *values = calloc(3 * tableSize, sizeof(CGGammaValue));
+    if(values == NULL)
         return kCGErrorFailure;
-
-    char *data = calloc(dataSize, 1);
-    if(data == NULL)
-        return kCGErrorFailure;
-
-    struct wsRPCSimple *base = data;
-    base->base.code = kCGSetDisplayTransferByByteTable;
-    base->base.len = dataSize - sizeof(struct wsRPCBase) + 4;
-    base->val1 = display;
-
-    uint8_t *p = data + sizeof(struct wsRPCBase) + 4;
-
-    for(int i = 0; i < tableSize; ++i) {
-        *p++ = redTable[i];
-        *p++ = greenTable[i];
-        *p++ = blueTable[i];
+    for(uint32_t i = 0; i < tableSize; i++) {
+        values[i] = redTable[i] / 255.0f;
+        values[tableSize + i] = greenTable[i] / 255.0f;
+        values[2 * tableSize + i] = blueTable[i] / 255.0f;
     }
-
-    int len = dataSize;
-    kern_return_t ret = _windowServerRPC(&data, dataSize, &data, &len);
-    free(data);
-
-    if(ret == KERN_SUCCESS) {
-        return base->val1;
-    }
-    return kCGErrorFailure;
+    CGError err = SLSSetDisplayTransferByTable(display, tableSize, values, values + tableSize,
+        values + 2 * tableSize);
+    free(values);
+    return err;
 }
 
 void CGDisplayRestoreColorSyncSettings(void) {
-    struct wsRPCBase data = {kCGDisplayRestoreColorSyncSettings, 0};
-    _windowServerRPC(&data, sizeof(data), NULL, NULL);
+    SLSRestoreDisplayTransfers();
 }
 
 uint32_t CGDisplayGammaTableCapacity(CGDirectDisplayID display) {
-    struct wsRPCSimple data = { {kCGDisplayGammaTableCapacity, 4}, 0, 0, 0, 0};
-    data.val1 = display;
-    int len = sizeof(data);
-    kern_return_t ret = _windowServerRPC(&data, sizeof(data), &data, &len);
+    uint32_t capacity = 0;
 
-    if(ret == KERN_SUCCESS) {
-        return data.val1;
-    }
-    return 0;
+    if(SLSGetGammaTableCapacity(display, &capacity) != kSLSErrorSuccess)
+        return 0;
+    return capacity;
 }
 
 // Display Fade Effects -- all stubs for now!
+/* The configuration fades the displays out, changes, then fades them in
+   (CGCompleteDisplayConfiguration). */
 CGError CGConfigureDisplayFadeEffect(CGDisplayConfigRef config, CGDisplayFadeInterval fadeOutSeconds, CGDisplayFadeInterval fadeInSeconds, float fadeRed, float fadeGreen, float fadeBlue) {
-    return kCGErrorFailure;
+    if(config == NULL || fadeOutSeconds < 0 || fadeInSeconds < 0)
+        return kCGErrorIllegalArgument;
+    config->fadeOut = fadeOutSeconds;
+    config->fadeIn = fadeInSeconds;
+    config->fadeColor[0] = fadeRed;
+    config->fadeColor[1] = fadeGreen;
+    config->fadeColor[2] = fadeBlue;
+    return kCGErrorSuccess;
 }
 
 CGError CGAcquireDisplayFadeReservation(CGDisplayReservationInterval seconds, CGDisplayFadeReservationToken *token) {
-    return kCGErrorFailure;
+    SLSFadeReservation reservation;
+
+    if(token == NULL)
+        return kCGErrorIllegalArgument;
+    CGError err = SLSAcquireFadeReservation(seconds, &reservation);
+    *token = (err == kCGErrorSuccess) ? (CGDisplayFadeReservationToken)reservation
+                                      : kCGDisplayFadeReservationInvalidToken;
+    return err;
 }
 
 CGError CGDisplayFade(CGDisplayFadeReservationToken token, CGDisplayFadeInterval duration, CGDisplayBlendFraction startBlend, CGDisplayBlendFraction endBlend, float redBlend, float greenBlend, float blueBlend, boolean_t synchronous) {
-    return kCGErrorFailure;
+    return SLSFadeDisplays((SLSFadeReservation)token, duration, startBlend, endBlend,
+        redBlend, greenBlend, blueBlend, synchronous ? 1 : 0);
 }
 
 CGError CGReleaseDisplayFadeReservation(CGDisplayFadeReservationToken token) {
-    return kCGErrorFailure;
+    return SLSReleaseFadeReservation((SLSFadeReservation)token);
 }
 
 // Controlling the Mouse Cursor
 CGError CGDisplayHideCursor(CGDirectDisplayID display) {
-    struct wsRPCSimple data = { {kCGDisplayHideCursor, 0}, 0, 0, 0, 0 };
-    int len = sizeof(data);
-    kern_return_t ret = _windowServerRPC(&data, sizeof(data), &data, &len);
-
-    if(ret == KERN_SUCCESS) {
-        return data.val1;
-    }
-    return kCGErrorFailure;
+    return SLSHideCursor(display);
 }
 
 CGError CGDisplayShowCursor(CGDirectDisplayID display) {
-    struct wsRPCSimple data = { {kCGDisplayShowCursor, 0}, 0, 0, 0, 0 };
-    int len = sizeof(data);
-    kern_return_t ret = _windowServerRPC(&data, sizeof(data), &data, &len);
-
-    if(ret == KERN_SUCCESS) {
-        return data.val1;
-    }
-    return kCGErrorFailure;
+    return SLSShowCursor(display);
 }
 
+/* point is from the display's top left. */
 CGError CGDisplayMoveCursorToPoint(CGDirectDisplayID display, CGPoint point) {
-    struct wsRPCSimple data = { {kCGDisplayMoveCursorToPoint, 12}, 0, 0, 0, 0};
-    data.val1 = display;
-    data.val2 = point.x;
-    data.val3 = point.y;
-    int len = sizeof(data);
-    kern_return_t ret = _windowServerRPC(&data, sizeof(data), &data, &len);
+    SLSDisplayInfo info;
 
-    if(ret == KERN_SUCCESS) {
-        return data.val1;
-    }
-    return kCGErrorFailure;
+    if(SLSGetDisplayInfo(display, &info) != kSLSErrorSuccess)
+        return kCGErrorIllegalArgument;
+    return SLSWarpCursorPosition((SLSPoint){ info.x + point.x, info.y + point.y });
 }
 
 CGError CGAssociateMouseAndMouseCursorPosition(boolean_t connected) {
-    struct wsRPCSimple data = { {kCGAssociateMouseAndMouseCursorPosition, 4}, 0, 0, 0, 0};
-    data.val1 = connected;
-    int len = sizeof(data);
-    kern_return_t ret = _windowServerRPC(&data, sizeof(data), &data, &len);
-
-    if(ret == KERN_SUCCESS) {
-        return data.val1;
-    }
-    return kCGErrorFailure;
+    return SLSAssociateMouseAndCursorPosition(connected ? 1 : 0);
 }
 
 CGError CGWarpMouseCursorPosition(CGPoint newCursorPosition) {
-    struct wsRPCSimple data = { {kCGWarpMouseCursorPosition, 8}, 0, 0, 0, 0};
-    data.val1 = newCursorPosition.x;
-    data.val2 = newCursorPosition.y;
-    int len = sizeof(data);
-    kern_return_t ret = _windowServerRPC(&data, sizeof(data), &data, &len);
-
-    if(ret == KERN_SUCCESS) {
-        return data.val1;
-    }
-    return kCGErrorFailure;
+    return SLSWarpCursorPosition((SLSPoint){ newCursorPosition.x, newCursorPosition.y });
 }
 
 void CGGetLastMouseDelta(int32_t *deltaX, int32_t *deltaY) {
-    struct wsRPCSimple data = { {kCGGetLastMouseDelta, 0}, 0, 0, 0, 0};
-    int len = sizeof(data);
-    kern_return_t ret = _windowServerRPC(&data, sizeof(data), &data, &len);
+    int32_t dx = 0, dy = 0;
 
-    if(ret == KERN_SUCCESS) {
-        // FIXME: these are absolute positions from WS. Compare to last event and
-        // return the deltas
-        *deltaX = data.val1;
-        *deltaY = data.val2;
-    }
+    SLSGetLastMouseDelta(&dx, &dy);
+    if(deltaX != NULL)
+        *deltaX = dx;
+    if(deltaY != NULL)
+        *deltaY = dy;
 }
 
 
@@ -1149,16 +925,11 @@ CFDictionaryRef CGSessionCopyCurrentDictionary(void) {
 // This function resolves the bootstrap service and returns a port with send rights
 // for calling WindowServer. The port must not be deallocated or modified!
 CFMachPortRef CGWindowServerCFMachPort(void) {
-    static CFMachPortRef wsPort = NULL;
-    if(wsPort == NULL) {
-        mach_port_t p;
-        if(bootstrap_look_up(bootstrap_port, WINDOWSERVER_SVC_NAME, &p) == KERN_SUCCESS) {
-            Boolean shouldFree;
-            CFMachPortContext context = {0};
-            wsPort = CFMachPortCreateWithPort(NULL, p, NULL, &context, &shouldFree);
-        }
-    }
-    return wsPort;
+    mach_port_t port = SLSServerPort();
+
+    if(port == MACH_PORT_NULL)
+        return NULL;
+    return CFMachPortCreateWithPort(NULL, port, NULL, NULL, NULL);
 }
 
 // The values below were obtained by testing macOS Sonoma
@@ -1175,138 +946,12 @@ CGWindowLevel CGWindowLevelForKey(CGWindowLevelKey key) {
 
 // Streaming the Display Contents -- all stubs for now! (deprecated after 14.4)
 
-CGDisplayStreamRef CGDisplayStreamCreate(CGDirectDisplayID display, size_t outputWidth, size_t outputHeight, int32_t pixelFormat, CFDictionaryRef properties, CGDisplayStreamFrameAvailableHandler handler) {
-    return NULL;
-}
-
-CGDisplayStreamRef CGDisplayStreamCreateWithDispatchQueue(CGDirectDisplayID display, size_t outputWidth, size_t outputHeight, int32_t pixelFormat, CFDictionaryRef properties, dispatch_queue_t queue, CGDisplayStreamFrameAvailableHandler handler) {
-    return NULL;
-}
-
-CGError CGDisplayStreamStart(CGDisplayStreamRef displayStream) {
-    return kCGErrorFailure;
-}
-
-CGError CGDisplayStreamStop(CGDisplayStreamRef displayStream) {
-    return kCGErrorSuccess;
-}
-
-CFRunLoopSourceRef CGDisplayStreamGetRunLoopSource(CGDisplayStreamRef displayStream) {
-    return NULL;
-}
-
-const CGRect * CGDisplayStreamUpdateGetRects(CGDisplayStreamUpdateRef updateRef, CGDisplayStreamUpdateRectType rectType, size_t *rectCount) {
-    return NULL;
-}
-
-CGDisplayStreamUpdateRef CGDisplayStreamUpdateCreateMergedUpdate(CGDisplayStreamUpdateRef firstUpdate, CGDisplayStreamUpdateRef secondUpdate) {
-    return NULL;
-}
-
-void CGDisplayStreamUpdateGetMovedRectsDelta(CGDisplayStreamUpdateRef updateRef, CGFloat *dx, CGFloat *dy) {
-}
-
-size_t CGDisplayStreamUpdateGetDropCount(CGDisplayStreamUpdateRef updateRef) {
-    return 0;
-}
-
-CFTypeID CGDisplayStreamGetTypeID(void) {
-    return 0;
-}
-
-CFTypeID CGDisplayStreamUpdateGetTypeID(void) {
-    return 0;
-}
-
 // Private functions
 
 static uint32_t CGDisplayStateFlags(CGDirectDisplayID display) {
-    struct wsRPCSimple data = { {kCGDisplayStateFlags, 4} };
-    data.val1 = display;
-    int len = sizeof(data);
-    kern_return_t ret = _windowServerRPC(&data, sizeof(data), &data, &len);
-    if(ret == KERN_SUCCESS) 
-        return data.val1;
-    return 0;
+    SLSDisplayInfo info;
+
+    if(SLSGetDisplayInfo(display, &info) != kSLSErrorSuccess)
+        return 0;
+    return info.flags;
 }
-
-
-/*
- * Make a synchronous RPC call to WS.
- *
- * On entry, data must contain necessary function params and len must contain the length of
- * the data block. These do not need to persist beyond the call. If a reply is needed,
- * replyBuf must point to a suitable block of memory and replyLen must contain the size of
- * the buffer.
- *
- * A send request times out after 2500ms. A receive blocks until WS responds. This is to maintain
- * atomicity of requests.
- *
- * Returns KERN_SUCCESS on success or a Mach error code on failure. If a reply is requested and
- * the buffer is too small for the received data, replyLen is set to -1 and replyBuf is unchanged.
- * Otherwise, the reply data is copied into replyBuf and the replyLen is set to the length of the
- * data block.
- */
-kern_return_t _windowServerRPC(void *data, size_t len, void *replyBuf, int *replyLen) {
-    static mach_port_t replyPort = MACH_PORT_NULL;
-    static mach_port_t wsPort = MACH_PORT_NULL;
-
-    // Get WindowServer's service port
-    if(wsPort == MACH_PORT_NULL) {
-        CFMachPortRef wsCF = CGWindowServerCFMachPort();
-        if(wsCF)
-            wsPort = CFMachPortGetPort(wsCF);
-        if(wsPort == MACH_PORT_NULL)
-            return KERN_FAILURE;
-    }
-
-    // Create a port with send/receive rights for us to use
-    if(replyPort == MACH_PORT_NULL) {
-        kern_return_t ret = mach_port_allocate(mach_task_self(), MACH_PORT_RIGHT_RECEIVE, &replyPort);
-        if(ret == KERN_SUCCESS)
-            ret = mach_port_insert_right(mach_task_self(), replyPort, replyPort, MACH_MSG_TYPE_MAKE_SEND);
-        if(ret != KERN_SUCCESS)
-            return ret;
-    }
-
-    // OK, we seem to have ports set up... do the RPC. This is a blocking call until WS responds.
-    PortMessage msg = {0};
-    msg.header.msgh_remote_port = wsPort;
-    msg.header.msgh_bits = MACH_MSGH_BITS_SET(MACH_MSG_TYPE_COPY_SEND, 0, 0, MACH_MSGH_BITS_COMPLEX);
-    msg.header.msgh_id = MSG_ID_RPC;
-    msg.header.msgh_size = sizeof(msg);
-    msg.msgh_descriptor_count = (replyBuf == NULL) ? 0 : 1;
-    if(msg.msgh_descriptor_count) {
-        msg.descriptor.type = MACH_MSG_PORT_DESCRIPTOR;
-        msg.descriptor.name = replyPort;
-        msg.descriptor.disposition = MACH_MSG_TYPE_MAKE_SEND;
-    }
-    msg.pid = getpid();
-    CFStringRef bundleID = (__bridge CFStringRef)[[NSBundle mainBundle] bundleIdentifier];
-    if(bundleID)
-        strncpy(msg.bundleID, [(__bridge NSString *)bundleID cString], sizeof(msg.bundleID));
-
-    if(len > sizeof(msg.data))
-        return MACH_SEND_TOO_LARGE;
-    memmove(msg.data, data, len);
-    msg.len = len;
-
-    int flags = 0;
-    if(replyBuf != NULL && replyLen != NULL)
-        flags = MACH_RCV_MSG;
-
-    kern_return_t ret = KERN_SUCCESS;
-    ret = mach_msg((mach_msg_header_t *)&msg, MACH_SEND_MSG|MACH_SEND_TIMEOUT|flags, sizeof(msg),
-            sizeof(msg), replyPort, 2000, MACH_PORT_NULL);
-    if(ret == KERN_SUCCESS && replyBuf != NULL) {
-        Message *rmsg = (Message *)&msg;
-        if(*replyLen >= rmsg->len) {
-            *replyLen = rmsg->len;
-            memmove(replyBuf, rmsg->data, *replyLen);
-        } else {
-            *replyLen = -1;
-        }
-    }
-    return ret;
-}
-

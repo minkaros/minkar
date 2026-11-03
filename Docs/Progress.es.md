@@ -6,15 +6,15 @@ Esta página se genera desde [progress/status.toml](progress/status.toml) con
 [Progress.md](Progress.md).
 
 <!-- progress:summary:begin -->
-_Actualizado el 2026-11-01, devel `b15eaab556`_
+_Actualizado el 2026-11-02, devel `9a472063c1`_
 
 | Plan | Avance |  | Ahora | Siguiente |
 | --- | --- | --- | --- | --- |
-| **Gates** | 🟩🟩🟩⬜🟦⬜⬜⬜⬜ | 3 / 9 | M4 Graphics and WindowServer | M3 Frameworks and Swift |
+| **Gates** | 🟩🟩🟩⬜🟩⬜⬜⬜⬜ | 4 / 9 | — | M3 Frameworks and Swift |
 | [Phases 0–2](ROADMAP.es.md) | 🟩🟩🟩 | 3 / 3 | — | — |
 | [Frameworks](ROADMAP.es.md#fase-3--frameworks-base-y-swift) | 🟩🟨🟨🟨⬜🟨⬜ | 1 / 7 | libSystem, Foundation, CF-Lite, LaunchServices | Security |
-| [WindowServer](WindowServer-Rewrite.es.md) | 🟩🟩🟩🟩🟩🟦⬜⬜⬜ | 5 / 9 | WS4a | WS4b |
-| [Menus](Menus.es.md) | ⬜⬜⬜⬜⬜ | 0 / 5 | — | MB0 |
+| [WindowServer](WindowServer-Rewrite.es.md) | 🟩🟩🟩🟩🟩🟩🟩🟩🟦 | 8 / 9 | WS6 | — |
+| [Menus](Menus.es.md) | 🟩⬜⬜⬜⬜ | 1 / 5 | — | MB1 |
 | [Dock](Dock-Kraz.es.md) | ⬜⬜⬜⬜⬜ | 0 / 5 | — | D0 |
 | [Kraz](Dock-Kraz.es.md) | ⬜⬜⬜⬜⬜ | 0 / 5 | — | K0 |
 | [Gienah](ROADMAP.es.md#fase-5--escritorio-gienah) | ⬜⬜⬜ | 0 / 3 | — | LoginWindow |

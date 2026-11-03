@@ -582,7 +582,7 @@ extern uintptr_t __CFRuntimeObjCClassTable[__CFRuntimeClassTableSize];
  * that is not one of CF's (another class than the type's CF class or its
  * bridge class), and the function sends it the Objective-C message
  * instead. Only the files that define CF_OBJC_DISPATCH (CFArray.c,
- * CFDictionary.c) compile the messages; elsewhere, and for the types not
+ * CFDictionary.c, CFString.c, CFData.c) compile the messages; elsewhere, and for the types not
  * turned on (strings, booleans: CF's own objects with an Objective-C
  * isa), nothing is sent and CF handles its objects natively.
  */

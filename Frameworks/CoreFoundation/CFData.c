@@ -28,6 +28,7 @@
 
 #include <CoreFoundation/CFData.h>
 #include <CoreFoundation/CFPriv.h>
+#define CF_OBJC_DISPATCH 1	/* Minkar: toll-free bridging (CFInternal.h) */
 #include "CFInternal.h"
 #include <string.h>
 
@@ -332,6 +333,14 @@ static const CFRuntimeClass __CFDataClass = {
     NULL,	// 
     __CFDataCopyDescription
 };
+
+/* Minkar: for Foundation's bridge class (__NSCFData), which raises when a
+ * mutating method reaches an immutable CF data object. */
+CF_EXPORT Boolean _CFDataIsMutable(CFDataRef data) {
+    if (CF_IS_OBJC(CFDataGetTypeID(), data)) return false;
+    __CFGenericValidateType(data, CFDataGetTypeID());
+    return __CFDataIsMutable(data);
+}
 
 CFTypeID CFDataGetTypeID(void) {
     static dispatch_once_t initOnce;

@@ -253,7 +253,7 @@ Cada hito termina con pruebas que pasan, los gates existentes todavía en verde
 y el roadmap actualizado con la evidencia. Los hitos se llaman MB*n* para
 distinguirlos de los gates M*n*.
 
-- [ ] **MB0 — Menús en la app (parte de WS4b).** Las vistas de menú pasan a
+- [x] **MB0 — Menús en la app (parte de WS4b; hecho el 2 nov 2026, gate M4, `9d510ec6c2`).** Las vistas de menú pasan a
   AppKit; una ventana de barra de menús por pantalla para la app del frente;
   seguimiento con clic, arrastre y teclado; submenús; validación y delegado
   al abrir; atajos en el orden documentado; menús contextuales y botones
@@ -288,6 +288,9 @@ distinguirlos de los gates M*n*.
 - [ ] **MB4 — Servicios y comportamiento de la barra.** Daemon y menú de
   servicios; ocultación en pantalla completa; ocultación automática.
 
+El gate M6 (Minkar 19.6.0, un escritorio para el uso diario) necesita MB2 y
+MB3. MB4 llega en 19.6.x.
+
 ## 8. Pruebas y mediciones
 
 - Pruebas del modelo (orden de validación, orden de los atajos,
@@ -312,12 +315,14 @@ del roadmap.
 | --- | --- | --- | --- |
 | Quién dibuja y sigue los menús de la app | La app (AppKit), en su propio proceso | Ninguno: SystemUIServer dibujaba una copia, y no se compila | MB0 |
 | Menú del sistema | Logo de Minkar, los elementos de la plataforma de referencia, acciones a través de loginwindow | Reiniciar, Apagar y Cerrar sesión a través del `loginwindow` mínimo; Reposo, Forzar salida, Bloquear pantalla y Preferencias del Sistema desactivados | MB3 |
+| Confirmar Reiniciar, Apagar y Cerrar sesión | El panel de `loginwindow`, con su cuenta atrás | La app que lo pide muestra una alerta; con Opción pulsada no se muestra (`SHORTCUT(Phase 5)` en `NSMenuBarWindow.m`) | Fase 5 (LoginWindow) |
+| Acerca de este equipo | La ventana propia de Gienah | Una alerta sencilla con el nombre y la versión del sistema, el kernel, el procesador, la memoria y la pantalla (`SHORTCUT(Phase 5)` en `NSMenuBarWindow.m`) | Fase 5 |
 | Status items | Ventanas de sus apps, dispuestas por el servidor de ventanas | Solo la API básica | MB1 |
 | Menu Extras | Bundles en SystemUIServer | Ninguno hasta que SystemUIServer se compile | MB1 |
 | Documentos recientes | Listas compartidas de archivos de LaunchServices | Guardados por app por `NSDocumentController` en sus preferencias | MB2 |
 | Menú Servicios | Daemon de servicios y pasteboard | Menú Servicios vacío | MB4 |
 | Grupo de estado del sistema | API 19: Menu Extras en SystemUIServer; API 20: una app de centro de control aparte | Ninguno | Minkar 20.0 |
-| Aspecto | Lenguaje visual Gienah | Tipografía y colores del sistema, sin estilo propio | Fase 5, punto 7 |
+| Aspecto | Lenguaje visual Gienah | El aspecto que tenía SystemUIServer: elementos de 22 puntos, tipografía y colores del sistema (`SHORTCUT(Phase 5)` en `NSMenuView.h`) | Fase 5, punto 7 |
 
 Cada atajo queda marcado en el código con `// SHORTCUT(MBn):` y el hito que lo
 elimina.

@@ -46,7 +46,9 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
     id target = [coder decodeObjectForKey: @"NSTarget"];
     [self setTarget: target];
 
-    [self setKeyEquivalentModifierMask:[keyed decodeIntForKey:@"NSKeyEquivModMask"]];
+    /* Left out when it is the default, Command. */
+    if([keyed containsValueForKey:@"NSKeyEquivModMask"])
+     [self setKeyEquivalentModifierMask:[keyed decodeIntForKey:@"NSKeyEquivModMask"]];
     [self setSubmenu:[keyed decodeObjectForKey:@"NSSubmenu"]];
     _tag=[keyed decodeIntForKey:@"NSTag"];
     _hidden = [keyed decodeBoolForKey:@"NSIsHidden"];
@@ -68,7 +70,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    _target=nil;
    _action=action;
    _keyEquivalent=[keyEquivalent copy];
-   _keyEquivalentModifierMask=0;
+   _keyEquivalentModifierMask=NSCommandKeyMask; // the API's default
    _mnemonic=@"";
    _mnemonicLocation=0;
    _submenu=nil;
@@ -206,6 +208,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
     title=[title copy];
     [_title release];
     _title=title;
+    [_menu itemChanged:self];
 }
 
 -(void)setAttributedTitle:(NSAttributedString *)title {
@@ -244,22 +247,26 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 -(void)setState:(int)state {
     _state = state;
+    [_menu itemChanged:self];
 }
 
 -(void)setKeyEquivalent:(NSString *)keyEquivalent {
    keyEquivalent=[keyEquivalent copy];
    [_keyEquivalent release];
    _keyEquivalent=keyEquivalent;
+   [_menu itemChanged:self];
 }
 
 -(void)setKeyEquivalentModifierMask:(unsigned)mask {
    _keyEquivalentModifierMask=mask;
+   [_menu itemChanged:self];
 }
 
 -(void)setImage:(NSImage *)image {
    image=[image retain];
     [_image release];
     _image = image;
+    [_menu itemChanged:self];
 }
 
 -(void)setOnStateImage:(NSImage *)image {
@@ -287,86 +294,72 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    [_submenu release];
    _submenu=submenu;
     [submenu setSupermenu:_menu];
+    [_menu itemChanged:self];
 }
 
 -(void)setEnabled:(BOOL)flag {
+   if(_enabled==flag)
+    return;
    _enabled=flag;
+   [_menu itemChanged:self];
 }
 
 -(void)setHidden:(BOOL)flag {
+   if(_hidden==flag)
+    return;
    _hidden=flag;
+   [_menu itemChanged:self];
 }
 
-+(NSDictionary *)keyNames {
-   static NSDictionary *shared=nil;
-
-   if(shared==nil){
-    NSBundle *bundle=[NSBundle bundleForClass:self];
-    NSString *path=[bundle pathForResource:@"NSMenu" ofType:@"plist"];
-
-    shared=[[NSDictionary alloc] initWithContentsOfFile:path];
+/* The names the reference platform shows for keys that are not
+   characters, by the key equivalent's character. */
+static NSString *keyGlyph(unichar ch) {
+   switch(ch){
+    case '\r': return @"\u21A9";              // return
+    case 3: return @"Enter";                   // enter (no glyph in the font)
+    case '\t': return @"\u21E5";              // tab
+    case 0x19: return @"\u21E4";               // back tab
+    case 8: case 0x7F: return @"\u232B";       // delete
+    case 0x1B: return @"\u238B";               // escape
+    case ' ': return @"Space";
+    case NSDeleteFunctionKey: return @"\u2326";
+    case NSUpArrowFunctionKey: return @"\u2191";
+    case NSDownArrowFunctionKey: return @"\u2193";
+    case NSLeftArrowFunctionKey: return @"\u2190";
+    case NSRightArrowFunctionKey: return @"\u2192";
+    case NSHomeFunctionKey: return @"\u2196";
+    case NSEndFunctionKey: return @"\u2198";
+    case NSPageUpFunctionKey: return @"\u21DE";
+    case NSPageDownFunctionKey: return @"\u21DF";
    }
-
-   return shared;
+   if(ch>=NSF1FunctionKey && ch<=NSF35FunctionKey)
+    return [NSString stringWithFormat:@"F%d",ch-NSF1FunctionKey+1];
+   return nil;
 }
 
--(NSString *)_scanModifierMapFor:(NSString *)key longForm:(BOOL)longForm {
-   NSDictionary *modmap=[[NSUserDefaults standardUserDefaults]
-      dictionaryForKey:@"NSModifierFlagMapping"];
-
-   if([[modmap objectForKey:@"LeftControl"] isEqual:key])
-    return longForm?@"LCtrl+":@"Ctrl+";
-   else if([[modmap objectForKey:@"LeftAlt"] isEqual:key])
-    return longForm?@"LAlt+":@"Alt+";
-   else if([[modmap objectForKey:@"RightAlt"] isEqual:key])
-    return longForm?@"RAlt+":@"Alt+";
-   else if([[modmap objectForKey:@"RightControl"] isEqual:key])
-    return longForm?@"RCtrl+":@"Ctrl+";
-   else {
-    if([key isEqualToString:@"Alt"]){
-     if([[modmap objectForKey:@"LeftAlt"] length]==0)
-      return longForm?@"LAlt+":@"Alt+";
-
-     if([[modmap objectForKey:@"RightAlt"] length]==0)
-      return longForm?@"RAlt+":@"Alt+";
-    }
-    return nil;
-   }
-}
-
+/* The key equivalent as menus show it: the modifiers as glyphs in the
+   reference platform's order (Control, Option, Shift, Command), then the
+   key, uppercase. An uppercase letter implies Shift. */
 -(NSString *)_keyEquivalentDescription {
-   NSString     *result=@"";
-   NSString     *uppercaseKey=[_keyEquivalent uppercaseString];
-   NSString     *lowercaseKey=[_keyEquivalent lowercaseString];
-   NSDictionary *keyNames=[[self class] keyNames];
-   NSString     *keyName;
-   NSString     *command=nil,*alt=nil;
-   if(![_keyEquivalent isEqualToString:lowercaseKey]) // [key isEqualToString:uppercaseKey] doesn't work for numbers
-    result=@"Shift+";
+   NSString        *key=_keyEquivalent;
+   NSUInteger       mask=_keyEquivalentModifierMask;
+   NSMutableString *result=[NSMutableString string];
 
-   if(_keyEquivalentModifierMask&NSCommandKeyMask)
-    if((command=[self _scanModifierMapFor:@"Command" longForm:NO])==nil)
-     return @"";
+   if([key length]==0)
+    return @"";
+   if(![key isEqualToString:[key lowercaseString]])
+    mask|=NSShiftKeyMask;
+   if(mask&NSControlKeyMask)
+    [result appendString:@"\u2303"];
+   if(mask&NSAlternateKeyMask)
+    [result appendString:@"\u2325"];
+   if(mask&NSShiftKeyMask)
+    [result appendString:@"\u21E7"];
+   if(mask&NSCommandKeyMask)
+    [result appendString:@"\u2318"];
 
-   if(_keyEquivalentModifierMask&NSAlternateKeyMask)
-    if((alt=[self _scanModifierMapFor:@"Alt" longForm:NO])==nil)
-     return @"";
-
-   if([command isEqualToString:alt]){
-    command=[self _scanModifierMapFor:@"Command" longForm:YES];
-    alt=[self _scanModifierMapFor:@"Alt" longForm:YES];
-   }
-
-   if(command!=nil)
-    result=[result stringByAppendingString:command];
-   if(alt!=nil)
-    result=[result stringByAppendingString:alt];
-
-   if((keyName=[keyNames objectForKey:_keyEquivalent])==nil)
-    keyName=uppercaseKey;
-
-   result=[result stringByAppendingString:keyName];
-
+   NSString *glyph=([key length]==1)?keyGlyph([key characterAtIndex:0]):nil;
+   [result appendString:glyph?glyph:[key uppercaseString]];
    return result;
 }
 

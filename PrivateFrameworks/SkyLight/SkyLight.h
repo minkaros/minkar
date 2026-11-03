@@ -43,12 +43,12 @@
 extern "C" {
 #endif
 
-/* The window server's Mach service. The legacy server keeps
- * "org.minkar.WindowServer" until WS4, when this one replaces it. */
-#define kSLSServiceName		"org.minkar.WindowServer.next"
+/* The window server's Mach service (the legacy server's name until
+ * WS4b, when this one replaced it). */
+#define kSLSServiceName		"org.minkar.WindowServer"
 
 /* The interface version both sides are built for. */
-#define kSLSInterfaceVersion	8
+#define kSLSInterfaceVersion	15
 
 typedef int32_t SLSConnectionID;
 
@@ -202,6 +202,9 @@ int SLSConfigureDisplayMirrorOfDisplay(SLSDisplayConfigRef config, SLSDisplayID 
     SLSDisplayID primary);
 int SLSCompleteDisplayConfiguration(SLSDisplayConfigRef config, uint32_t option);
 int SLSCancelDisplayConfiguration(SLSDisplayConfigRef config);
+/* Every display as last saved permanently, or as the server started when
+ * nothing was (interface version 15). */
+int SLSRestorePermanentDisplayConfiguration(void);
 
 /* ---- Gamma: display transfer tables ------------------------------------ */
 
@@ -248,8 +251,9 @@ typedef uint32_t SLSFadeReservation;
 
 int SLSAcquireFadeReservation(double seconds, SLSFadeReservation *reservation);
 int SLSReleaseFadeReservation(SLSFadeReservation reservation);
-/* The server applies endBlend at once; with synchronous set the caller
- * then waits duration seconds, as the fade would take. */
+/* The server goes from startBlend to endBlend over duration seconds (at
+ * once for 0), drawing each frame; with synchronous set the caller waits
+ * that long. Interface version 14 sends the duration. */
 int SLSFadeDisplays(SLSFadeReservation reservation, double duration, float startBlend,
     float endBlend, float red, float green, float blue, int synchronous);
 /* The current blend and the reservation holder's PID (0 when none). */
@@ -297,6 +301,17 @@ int SLSGetCursorPosition(SLSPoint *point);
 int SLSWarpCursorPosition(SLSPoint point);
 /* Whether mouse motion moves the cursor, for this connection. */
 int SLSAssociateMouseAndCursorPosition(int connected);
+
+/*
+ * The cursor's image (interface version 12), as NSCursor sets it: each
+ * connection has its own, and the screen shows the front app's (the
+ * server's arrow while it set none, or with a NULL image).
+ * Premultiplied BGRA, width * 4 bytes a row, at most
+ * kSLSMaxCursorSize on a side; the hot spot is from its top left.
+ */
+#define kSLSMaxCursorSize	256
+int SLSSetCursorImage(const uint8_t *pixels, uint32_t width, uint32_t height, double hotX,
+    double hotY);
 /* The motion since the last mouse event (0 after a warp). */
 int SLSGetLastMouseDelta(int32_t *dx, int32_t *dy);
 
@@ -331,6 +346,8 @@ enum {
 /* SLSWindowInfo.flags */
 enum {
 	kSLSWindowOnScreen	= 1 << 0,
+	kSLSWindowMinimized	= 1 << 1,
+	kSLSWindowHasShadow	= 1 << 2,
 };
 
 /* What the server knows about a window (CGWindowListCopyWindowInfo). */
@@ -375,6 +392,45 @@ int SLSGetWindowInfo(SLSWindowID window, SLSWindowInfo *info);
  */
 int SLSSetWindowStatusItem(SLSWindowID window, int isItem);
 
+/*
+ * Minimized windows (interface version 9), for the Dock, which keeps them
+ * as on the reference platform: its app minimizes a window, the server
+ * orders it out (another window of the app becomes key) and tells the
+ * connections that asked. Restoring, or ordering the window in again,
+ * puts it in front.
+ */
+int SLSSetWindowMinimized(SLSWindowID window, int minimized);
+int SLSRequestWindowNotifications(int on);
+
+/*
+ * A window's image (interface version 10): what its surface shows,
+ * premultiplied BGRA, *rowBytes apart, also for a minimized or ordered-out
+ * window (the Dock's thumbnails, CGWindowListCreateImage). free(*pixels)
+ * when done. Its app may read it; another process only under the
+ * built-in policy of event taps (SHORTCUT(M5), until the privacy
+ * service's screen recording permission).
+ */
+int SLSCopyWindowImage(SLSWindowID window, uint8_t **pixels, uint32_t *width,
+    uint32_t *height, uint32_t *rowBytes);
+
+/*
+ * Child windows (interface version 11), for NSWindow's child windows and
+ * sheets: a window of the same app attached to a parent, place
+ * kSLSOrderAbove or kSLSOrderBelow it. The server keeps the child next to
+ * its parent in the order, moves it with its parent (telling its app,
+ * kSLSEventWindowMoved), and orders it out and back in with its parent
+ * (minimizing too). parent 0 detaches it; a parent that goes away
+ * detaches its children.
+ */
+int SLSSetWindowParent(SLSWindowID child, SLSWindowID parent, int32_t place);
+
+/*
+ * Window shadows (interface version 13), as NSWindow's hasShadow: the
+ * server draws a soft shadow under the window, a little below it, in
+ * software. Off for a new window.
+ */
+int SLSSetWindowShadow(SLSWindowID window, int hasShadow);
+
 /* 0 (transparent) to 1 (opaque); the server blends the surface with it. */
 int SLSSetWindowAlpha(SLSWindowID window, double alpha);
 
@@ -402,8 +458,64 @@ int SLSWindowCommit(SLSWindowID window, const SLSIntRect *damage, uint32_t count
 int SLSWindowFlushPixels(SLSWindowID window, const void *pixels, uint32_t rowBytes,
     const SLSIntRect *damage, uint32_t count);
 
+/*
+ * The window shows an IOSurface of this process (its ID; BGRA, 4 bytes per
+ * pixel, the window's size) in place of its own buffers: what the app
+ * draws into it shows at the next frame, with no commit, as on a display's
+ * scanout (CGDisplayGetDrawingContext). Surface 0 gives the window buffers
+ * of its own again (interface version 15).
+ */
+int SLSWindowSetIOSurface(SLSWindowID window, uint32_t surfaceID);
+
 #define kSLSMaxSurfaceSide	16384
 #define kSLSMaxDamageRects	64
+
+/* ---- Display streams (interface version 15) ---------------------------- */
+
+/*
+ * A display stream copies a display's frames into IOSurfaces of the
+ * caller (CGDisplayStream). After a frame that changed the display, the
+ * server copies it, from source scaled to the output size, into a surface
+ * whose use count is 0, increments that count and sends the caller's port
+ * an SLSDisplayStreamFrame; the caller decrements it when done.
+ */
+typedef struct SLSDisplayStreamOptions {
+	uint32_t	outputWidth, outputHeight;
+	int32_t		sourceX, sourceY;	/* display pixels; width 0: all of it */
+	uint32_t	sourceWidth, sourceHeight;
+	uint32_t	minFrameMicros;		/* 0: every frame */
+	uint32_t	showCursor;
+	uint32_t	reserved[2];
+} SLSDisplayStreamOptions;
+
+#ifndef __cplusplus
+_Static_assert(sizeof(SLSDisplayStreamOptions) == 10 * 4, "SLSDisplayStreamOptions size");
+#endif
+
+#define kSLSMaxStreamRects	16
+#define kSLSDisplayStreamMessageID	0x534c4453	/* 'SLDS' */
+
+enum {
+	kSLSDisplayStreamFrameComplete	= 0,
+	kSLSDisplayStreamStopped	= 3,
+};
+
+/* What the server sends: a frame in a surface, or that the stream stopped.
+ * The rects are what changed since the last frame sent, in output pixels
+ * (more than kSLSMaxStreamRects: the box around them all). */
+typedef struct SLSDisplayStreamFrame {
+	mach_msg_header_t	header;
+	uint32_t		stream;
+	uint32_t		status;		/* kSLSDisplayStream* */
+	uint32_t		surface;	/* IOSurfaceID; 0 when stopped */
+	uint32_t		count;
+	uint64_t		time;		/* mach_absolute_time of the frame */
+	SLSIntRect		rects[kSLSMaxStreamRects];
+} SLSDisplayStreamFrame;
+
+int SLSDisplayStreamStart(SLSDisplayID display, const uint32_t *surfaces, uint32_t count,
+    const SLSDisplayStreamOptions *options, mach_port_t notify, uint32_t *stream);
+int SLSDisplayStreamStop(uint32_t stream);
 
 /* ---- Events ------------------------------------------------------------ */
 
@@ -429,6 +541,16 @@ enum {
 	/* A symbolic hotkey for its owner: buttonNumber is the hotkey,
 	 * keyCode, flags and isRepeat the key that was pressed. */
 	kSLSEventSymbolicHotKey		= 0x1002,
+	/* To connections that asked (SLSRequestWindowNotifications): a
+	 * window was minimized or restored; x, y is its frame's top left.
+	 * SLSGetWindowInfo gives its owner. */
+	kSLSEventWindowMinimized	= 0x1003,
+	kSLSEventWindowRestored		= 0x1004,
+	/* To every connection: a display's mode, place or mirroring changed.
+	 * buttonNumber is the display, flags the public
+	 * CGDisplayChangeSummaryFlags of the change (never the begin flag);
+	 * x, y is its new origin and dx, dy its new size, global. */
+	kSLSEventDisplayReconfigured	= 0x1005,
 };
 
 /*
@@ -579,6 +701,33 @@ int SLSGetEventTapList(uint32_t max, SLSEventTapInfo *taps, uint32_t *count);
  * the console's user only, as filtering taps, until the privacy service
  * decides; taken in WS3. */
 int SLSPostEvent(uint32_t location, const SLSEvent *event);
+
+/*
+ * The input state (interface version 14), for CGEventSource's state
+ * functions: kSLSHIDStateHardware is what the input devices did,
+ * kSLSHIDStateCombined adds the events posted (SLSPostEvent). Buttons are
+ * bits by button number, keys bits by key code; per event type (the
+ * public CGEventType, below 32), how many there were and when the last
+ * one came (nanoseconds since boot, as now).
+ */
+enum {
+	kSLSHIDStateHardware	= 0,
+	kSLSHIDStateCombined	= 1,
+};
+#define kSLSHIDEventTypes	32
+typedef struct SLSHIDState {
+	uint32_t	buttons;
+	uint32_t	flags;
+	uint32_t	keys[4];		/* key codes 0 to 127 */
+	uint32_t	counters[kSLSHIDEventTypes];
+	uint64_t	lastEvent[kSLSHIDEventTypes];
+	uint64_t	now;
+} SLSHIDState;
+#define kSLSHIDStateWords	104
+#ifndef __cplusplus
+_Static_assert(sizeof(SLSHIDState) == kSLSHIDStateWords * 4, "SLSHIDState size");
+#endif
+int SLSGetHIDState(uint32_t which, SLSHIDState *state);
 
 /* The key window, which gets the keys; a click makes a window key too. */
 int SLSSetKeyWindow(SLSWindowID window);

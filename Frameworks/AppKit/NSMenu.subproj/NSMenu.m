@@ -12,35 +12,104 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <AppKit/NSWindow.h>
 #import <AppKit/NSEvent.h>
 #import <AppKit/NSRaise.h>
+#import <AppKit/NSScreen.h>
+#import "NSMenuWindow.h"
+#import "NSMenuView.h"
 #import <CoreGraphics/CGDirectDisplay.h>
 #import <Foundation/NSKeyedArchiver.h>
 
+NSString *const NSMenuWillSendActionNotification = @"NSMenuWillSendActionNotification";
+NSString *const NSMenuDidSendActionNotification = @"NSMenuDidSendActionNotification";
+NSString *const NSMenuDidAddItemNotification = @"NSMenuDidAddItemNotification";
+NSString *const NSMenuDidRemoveItemNotification = @"NSMenuDidRemoveItemNotification";
+NSString *const NSMenuDidChangeItemNotification = @"NSMenuDidChangeItemNotification";
+NSString *const NSMenuDidBeginTrackingNotification = @"NSMenuDidBeginTrackingNotification";
+NSString *const NSMenuDidEndTrackingNotification = @"NSMenuDidEndTrackingNotification";
+
+static void postItemNotification(NSMenu *menu, NSString *name, NSUInteger index) {
+   NSDictionary *info=[NSDictionary dictionaryWithObject:[NSNumber numberWithInteger:index]
+                                                  forKey:@"NSMenuItemIndex"];
+
+   [[NSNotificationCenter defaultCenter] postNotificationName:name object:menu userInfo:info];
+}
+
 @implementation NSMenu
 
-+(void)popUpContextMenu:(NSMenu *)menu withEvent:(NSEvent *)event forView:(NSView *)view {
-#if 0
-   [menu update];
-   if([[menu itemArray] count]>0){
-    NSPoint       point=[event locationInWindow];
-    NSWindow     *window=[event window];
-    NSMenuWindow *menuWindow=[[NSMenuWindow alloc] initWithMenu:menu];
-    NSMenuView   *menuView=[menuWindow menuView];
-    NSMenuItem   *item;
-    
-    [menuWindow setReleasedWhenClosed:YES];
-    [menuWindow setFrameTopLeftPoint:[window convertBaseToScreen:point]];
-    [menuWindow orderFront:nil];
+/* Opens the menu with its top left (or the given item's) at a point on
+   the screen, kept on the screen: above the point when it does not fit
+   below; when it does not fit on the right, to the point's left (a
+   context menu, flips) or moved left just enough (the others); at least
+   minimumWidth wide. Then tracks it and, with perform, sends the chosen
+   item's action; the item chosen, or nil. */
+-(NSMenuItem *)_popUpAtScreenPoint:(NSPoint)screenPoint positioning:(NSMenuItem *)positioned
+    event:(NSEvent *)event startedOpen:(BOOL)startedOpen minimumWidth:(CGFloat)minimumWidth
+    flips:(BOOL)flips perform:(BOOL)perform {
+   if([_itemArray count]==0)
+    return nil;
 
-    item=[menuView trackForEvent:event];
- 
-    [menuWindow close];
+   NSMenuWindow *menuWindow=[[NSMenuWindow alloc] initWithMenu:self];
+   NSMenuView   *menuView=[menuWindow menuView];
+   NSRect        frame=[menuWindow frame];
+   NSScreen     *screen=[NSScreen mainScreen];
 
-    if(item!=nil)
-     [NSApp sendAction:[item action] to:[item target] from:item];
+   if(frame.size.width<minimumWidth){
+    frame.size.width=minimumWidth;
+    [menuWindow setFrame:frame display:NO];
+    [menuView setFrameSize:NSMakeSize(minimumWidth,[menuView frame].size.height)];
    }
-#else
-   NSUnimplementedMethod();
-#endif
+   for(NSScreen *check in [NSScreen screens])
+    if(NSPointInRect(screenPoint,[check frame]))
+     screen=check;
+
+   NSRect   visible=[screen visibleFrame];
+   NSPoint  topLeft=screenPoint;
+   NSUInteger index=positioned?[[menuView visibleItemArray] indexOfObjectIdenticalTo:positioned]:NSNotFound;
+
+   if(index!=NSNotFound)
+    topLeft.y+=[menuView _topOfItemAtIndex:index];
+   else if(!startedOpen){
+    /* Just beside the pointer, not under it: no item is chosen until the
+       pointer moves onto one. */
+    topLeft.x+=1;
+    topLeft.y-=1;
+   }
+   if(topLeft.y-frame.size.height<NSMinY(visible))
+    topLeft.y=(index==NSNotFound)?screenPoint.y+frame.size.height:NSMinY(visible)+frame.size.height;
+   if(topLeft.y>NSMaxY(visible))
+    topLeft.y=NSMaxY(visible);
+   if(topLeft.x+frame.size.width>NSMaxX(visible))
+    topLeft.x=MAX(NSMinX(visible),flips?screenPoint.x-frame.size.width:NSMaxX(visible)-frame.size.width);
+   [menuWindow setFrameTopLeftPoint:topLeft];
+   [menuWindow orderFront:nil];
+
+   NSMenuItem *item=perform?[menuView _trackAndPerform:event selecting:index startedOpen:startedOpen]
+                           :[menuView _trackMenus:event selecting:index startedOpen:startedOpen];
+
+   [menuWindow close];
+   return item;
+}
+
++(void)popUpContextMenu:(NSMenu *)menu withEvent:(NSEvent *)event forView:(NSView *)view {
+   NSWindow *window=[event window]?[event window]:[view window];
+
+   [menu _popUpAtScreenPoint:[window convertBaseToScreen:[event locationInWindow]] positioning:nil
+       event:event startedOpen:NO minimumWidth:0 flips:YES perform:YES];
+}
+
++(void)popUpContextMenu:(NSMenu *)menu withEvent:(NSEvent *)event forView:(NSView *)view withFont:(NSFont *)font {
+   [self popUpContextMenu:menu withEvent:event forView:view];
+}
+
+/* The item (if any) is placed at the location, in the view's coordinates
+   (the screen's with no view), and selected; the menu stays open until
+   an item is chosen or it is left. YES when an item was chosen. */
+-(BOOL)popUpMenuPositioningItem:(NSMenuItem *)item atLocation:(NSPoint)location inView:(NSView *)view {
+   NSPoint screenPoint=location;
+
+   if(view!=nil)
+    screenPoint=[[view window] convertBaseToScreen:[view convertPoint:location toView:nil]];
+   return [self _popUpAtScreenPoint:screenPoint positioning:item event:[NSApp currentEvent]
+       startedOpen:YES minimumWidth:0 flips:NO perform:YES]!=nil;
 }
 
 -(void)encodeWithCoder:(NSCoder *)coder {
@@ -252,6 +321,7 @@ extern CGFloat _NSMenuBarHeightForDisplay(CGDirectDisplayID display);
 -(void)addItem:(NSMenuItem *)item {
    [item performSelector:@selector(_setMenu:) withObject:self];
    [_itemArray addObject:item];
+   postItemNotification(self,NSMenuDidAddItemNotification,[_itemArray count]-1);
 }
 
 -(NSMenuItem *)addItemWithTitle:(NSString *)title action:(SEL)action keyEquivalent:(NSString *)keyEquivalent {
@@ -268,8 +338,15 @@ extern CGFloat _NSMenuBarHeightForDisplay(CGDirectDisplayID display);
 }
 
 -(void)removeItem:(NSMenuItem *)item {
+   NSUInteger index=[_itemArray indexOfObjectIdenticalTo:item];
+
+   if(index==NSNotFound)
+    return;
+   [item retain];
    [item performSelector:@selector(_setMenu:) withObject:nil];
-   [_itemArray removeObjectIdenticalTo:item];
+   [_itemArray removeObjectAtIndex:index];
+   postItemNotification(self,NSMenuDidRemoveItemNotification,index);
+   [item release];
 }
 
 -(void)removeItemAtIndex:(int)index {
@@ -279,6 +356,7 @@ extern CGFloat _NSMenuBarHeightForDisplay(CGDirectDisplayID display);
 -(void)insertItem:(NSMenuItem *)item atIndex:(int)index {
    [item performSelector:@selector(_setMenu:) withObject:self];
    [_itemArray insertObject:item atIndex:index];
+   postItemNotification(self,NSMenuDidAddItemNotification,index);
 }
 
 -(NSMenuItem *)insertItemWithTitle:(NSString *)title action:(SEL)action keyEquivalent:(NSString *)keyEquivalent atIndex:(int)index {
@@ -330,48 +408,97 @@ BOOL itemIsEnabled(NSMenuItem *item) {
             BOOL currentlyEnabled = [item isEnabled] ? YES : NO;
             
             if(enabled!=currentlyEnabled && ![item _binderForBinding:@"enabled" create:NO]){
-                [item setEnabled:enabled];
-                [self itemChanged:item];
+                [item setEnabled:enabled]; // posts the change
             }
         }
-        
-        [[item submenu] update];
     }
+    /* Not the submenus: each is updated as it opens, or before its key
+       equivalents are looked at. */
 }
 
 -(void)itemChanged:(NSMenuItem *)item {
+   NSUInteger index=[_itemArray indexOfObjectIdenticalTo:item];
+
+   if(index!=NSNotFound)
+    postItemNotification(self,NSMenuDidChangeItemNotification,index);
+}
+
+/* Whether an item's key equivalent is this key event: the same key
+   (charactersIgnoringModifiers, which keeps Shift's effect) and the same
+   Control, Option, Shift and Command. An uppercase letter as the key
+   equivalent implies Shift. */
+static BOOL itemMatchesKeyEvent(NSMenuItem *item, NSString *characters, NSUInteger modifiers) {
+    NSString  *key=[item keyEquivalent];
+    NSUInteger relevant=NSControlKeyMask|NSAlternateKeyMask|NSShiftKeyMask|NSCommandKeyMask;
+    NSUInteger itemModifiers=[item keyEquivalentModifierMask]&relevant;
+
+    if([key length]==0 || [item isHidden])
+        return NO;
+    if(![key isEqualToString:[key lowercaseString]])
+        itemModifiers|=NSShiftKeyMask;
+    modifiers&=relevant;
+    if([[key lowercaseString] isEqualToString:[characters lowercaseString]])
+        return modifiers==itemModifiers;
+    /* A key Shift makes (such as ? on most layouts) matches as typed. */
+    if([key isEqualToString:characters])
+        return (modifiers&~NSShiftKeyMask)==(itemModifiers&~NSShiftKeyMask);
+    return NO;
 }
 
 -(BOOL)performKeyEquivalent:(NSEvent *)event {
-    int       i,count=[_itemArray count];
+    int       i,count;
     NSString *characters=[event charactersIgnoringModifiers];
-    unsigned  modifiers=[event modifierFlags];
-    
+    NSUInteger modifiers=[event modifierFlags];
+
+    /* The delegate may answer for the menu without its items being
+       brought up to date. */
+    if([_delegate respondsToSelector:@selector(menuHasKeyEquivalent:forEvent:target:action:)]){
+        id  target=nil;
+        SEL action=NULL;
+
+        if(![_delegate menuHasKeyEquivalent:self forEvent:event target:&target action:&action])
+            return NO;
+        if(action!=NULL)
+            return [NSApp sendAction:action to:target from:self];
+    }
+
     if (_autoenablesItems)
         [self update];
-    
+
+    count=[_itemArray count];
     for(i=0;i<count;i++){
         NSMenuItem *item=[_itemArray objectAtIndex:i];
-        unsigned    itemModifiers=[item keyEquivalentModifierMask]&(NSCommandKeyMask|NSAlternateKeyMask);
-        NSString *key=[item keyEquivalent];
-        
-        if((modifiers&(NSCommandKeyMask|NSAlternateKeyMask))==itemModifiers){
-            
-            if([key isEqualToString:characters]){
-                /* This *must* accurately reflect menu validation when ignoring or processing
-                    key equivalents. Relying on update to keep isEnabled in the proper state is
-                    unfortunately too tenuous.
-                 */
-                if (itemIsEnabled(item))
-                    return [NSApp sendAction:[item action] to:[item target] from:item];
-            }
+
+        if(itemMatchesKeyEvent(item,characters,modifiers)){
+            /* This *must* accurately reflect menu validation when ignoring or processing
+                key equivalents. Relying on update to keep isEnabled in the proper state is
+                unfortunately too tenuous.
+             */
+            BOOL enabled=_autoenablesItems?itemIsEnabled(item):[item isEnabled];
+
+            if(enabled)
+                return [self _sendActionOfItem:item];
+            return NO;
         }
-        
+
         if([[item submenu] performKeyEquivalent:event])
             return YES;
     }
-    
+
     return NO;
+}
+
+/* An item's action, between NSMenuWillSendActionNotification and
+   NSMenuDidSendActionNotification (MenuItem in their user info). */
+-(BOOL)_sendActionOfItem:(NSMenuItem *)item {
+    NSNotificationCenter *center=[NSNotificationCenter defaultCenter];
+    NSDictionary         *info=[NSDictionary dictionaryWithObject:item forKey:@"MenuItem"];
+    BOOL                  result;
+
+    [center postNotificationName:NSMenuWillSendActionNotification object:self userInfo:info];
+    result=[NSApp sendAction:[item action] to:[item target] from:item];
+    [center postNotificationName:NSMenuDidSendActionNotification object:self userInfo:info];
+    return result;
 }
 
 -(BOOL)performClickEquivalent:(NSMenuItem *)item {

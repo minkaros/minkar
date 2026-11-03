@@ -285,3 +285,16 @@ SLSPostEvent(uint32_t location, const SLSEvent *event)
 		return kSLSErrorFailure;
 	return result;
 }
+
+int
+SLSGetHIDState(uint32_t which, SLSHIDState *state)
+{
+	int32_t result = kSLSErrorFailure;
+	mach_port_t server = SLSServerPort();
+
+	if (state == NULL)
+		return kSLSErrorIllegalArgument;
+	if (server == MACH_PORT_NULL || ws_hid_state(server, which, &result, state) != KERN_SUCCESS)
+		return kSLSErrorFailure;
+	return result;
+}

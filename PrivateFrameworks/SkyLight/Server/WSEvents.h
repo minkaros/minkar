@@ -33,12 +33,14 @@
  * window key; keys go to the key window. Each connection has a bounded
  * queue, mouse moves coalesced, and its client is told when the queue
  * stops being empty; the server never blocks on a client. Held keys
- * repeat. Everything here runs on the IPC queue.
+ * repeat. Input is routed on WSInputQueue over a snapshot of the model,
+ * which the IPC queue publishes (WSInputPublish); see WSEvents.m.
  */
 
 #import "WSServer.h"
 
-/* An event read from the HID system, to pass the taps and route. */
+/* An event read from the HID system, to pass the taps and route (both on
+ * WSInputQueue). */
 void WSRouteEvent(SLSEvent *event);
 /* The same for an event entering at a tap location (posted). */
 void WSRouteEventAt(SLSEvent *event, uint32_t location);
@@ -52,5 +54,9 @@ void WSTapsConnectionDied(WSConnection *connection);
 void WSEventsConnectionDied(WSConnection *connection);
 /* The front app's connection, or nil. */
 WSConnection *WSFrontConnection(void);
+/* A window left the screen or went away: it stops being key (its app's
+ * front window is key instead) and holding the pointer. */
+@class WSWindow;
+void WSEventsWindowGone(WSWindow *window);
 /* Nanoseconds since boot (WSInput.m). */
 uint64_t WSNanoseconds(void);

@@ -42,8 +42,8 @@ Minkar separa tres capas que en la plataforma de referencia van juntas. El kerne
 
 | Minkar | Entrega | Kernel (`uname -r`) | `ProductVersion` |
 | --- | --- | --- | --- |
-| 19.6.0 | API 19, escritorio Gienah y DMG; gates funcionales M0–M6 en equipo físico | 19.6.0 | 10.15 |
-| 19.6.x | Correcciones; pueden traer partes de API 20 | 19.6.0 | 10.15 |
+| 19.6.0 | API 19, escritorio Gienah completo para el uso diario (MB2–MB3, D2–D3, K2–K3) y DMG; gates funcionales M0–M6 en equipo físico | 19.6.0 | 10.15 |
+| 19.6.x | Correcciones, y MB4, D4 y K4; pueden traer partes de API 20 | 19.6.0 | 10.15 |
 | 20.0 | API 20 completa y probada | 19.6.0 | 11.0 |
 | 21.0 | API 21 completa y probada, más los gates de rendimiento | 19.6.0 | 12.0 |
 
@@ -99,7 +99,7 @@ Minkar arranca sobre Darwin con su propio cargador EFI, todo el sistema se compi
 | CoreFoundation | CF-Lite (APSL) | APIs que faltan hasta la API 21 | 3 |
 | Foundation | Tres lotes de correcciones (26 oct); `NSProcessInfo` con `operatingSystemVersion`; reexporta CoreFoundation; `NSURLSession` sobre libcurl, con cookies; `NSOperationQueue` sobre dispatch; el run loop principal ejecuta la cola principal de dispatch; `NSDateFormatter` sobre ICU (31 oct); `NSXPCConnection` sobre libxpc, con los servicios XPC dentro de las apps (31 oct) | Caché de URL y métricas de tareas en `NSURLSession`; auditoría de la API 19 | 3 |
 | Swift 6 | Nada en el árbol | Compilador, stdlib, overlays | 3 |
-| WindowServer | El servidor actual dibuja ventanas de AppKit sobre el framebuffer GOP con entrada de IOHIDSystem; su job de launchd se instala desactivado (WS0 hecho el 31 oct 2026, gate `M4-draw`). La interfaz del núcleo nuevo está en `SkyLight.framework`, con su servidor junto al actual (WS1 hecho el 31 oct 2026); compone ventanas de AppKit con pixman (WS2 hecho el 1 nov 2026, gate `M4-compose`) y reparte la entrada de IOHIDSystem, con event taps (WS3 hecho el 1 nov 2026) | El comportamiento del servidor del núcleo nuevo (WS4a, en curso: su propio usuario, regiones de arrastre, atajos simbólicos, apps en ejecución por LaunchServices, la app del frente y el sitio de la barra de menús están hechos) y el cambio de servidor (WS4b), después IOSurface y la GPU (WS5, WS6) | 4 |
+| WindowServer | El núcleo nuevo es el servidor de ventanas (WS4b hecho el 2 nov 2026, gate `M4`): su interfaz en `SkyLight.framework`, su servidor arranca con el sistema como `_windowserver` junto al `loginwindow` mínimo; compone ventanas de AppKit con pixman, reparte la entrada de IOHIDSystem con event taps, y cada app dibuja sus propios menús (MB0). El servidor anterior ya no existe. WS5 hecho (2 nov 2026): IOSurface con su registro `iosurfaced`, ventanas con IOSurface, un driver virtio-gpu 2D que vuelca por fotograma y cambia de modo, configuraciones de pantalla permanentes, `CGDisplayStream` | La GPU (WS6): G1 hecho en el Mac Pro (driver de pantalla); G2 en marcha (su gate cumplido) | 4 |
 | Aceleración por GPU | No existe; sin ella tampoco se puede apagar la pantalla | Frente completo (requisito de rendimiento) | 4 y Minkar 21.0 |
 | SystemUIServer, Dock | Parciales, no se compilan | Casi todo | 5 |
 | Kraz, System Preferences | No existen | Apps nuevas en Cocoa | 5 |
@@ -283,6 +283,8 @@ El propio WindowServer se reescribe en los hitos WS0 a WS6, según lo decidido e
 - [x] Esqueleto e interfaz del núcleo nuevo (WS1, 31 oct 2026): `WindowServer.defs` (MIG), el cliente en `SkyLight.framework` y el servidor nuevo en sus `Resources`, junto al actual en `CoreServices/WindowServer/Legacy` (`9e48d1f62a`, `f9028e286a`). Las consultas de pantalla, los modos y configuraciones, las tablas de transferencia, la captura, el cursor, los fundidos y la lista de ventanas se sirven por MIG, y la salida de un cliente libera lo que tenía (`0e4d7293ff`, `8dab4060cc`, `37996817e4`, `41e37b7441`, `030dba37c7`). `skylight-test` 115/0.
 - [x] Ventanas, superficies y compositor por software (WS2, 1 nov 2026): superficies como entradas de memoria Mach con dos buffers y daño, un compositor pixman por pantalla guiado por el daño y la frecuencia de refresco, el cursor dibujado al final, `wsctl` (`6ca5e31aae`, `1aa140cdab`); ventanas de AppKit dibujadas a través de SkyLight (`b957c09fac`). El gate `M4-compose` (`8512fe60ba`) pasa con 0 de 786432 píxeles distintos, tres veces.
 - [x] Entrada (WS3, 1 nov 2026): el servidor nuevo lee IOHIDSystem y reparte a las ventanas, con repetición de teclas, número de clics, captura al arrastrar, la ventana clave y movimientos por la barra de título hechos por el servidor (`c3763a06a8`, `03bb7ed773`); `CGEventTapCreate`, `CGEventPost` y `CGGetEventTapList` (`fa7aae5e38`); AppKit a través de él (`13f99802d5`, `d0c63753c2`). El gate `M4-compose` con un clic, una tecla y un arrastre (`98237bf14e`); `eventtap-test` 15/0.
+- [x] El comportamiento del servidor del núcleo nuevo (WS4a, 1 nov 2026; `996178d949` a `e31dd0ef53`): su propio usuario (`_windowserver`), regiones de arrastre, el mapa de teclado en SkyLight, atajos simbólicos, apps en ejecución por la sesión de LaunchServices, la app del frente, el sitio de la barra de menús, la captura del puntero y los elementos de estado (lo que necesita MB0), ventanas minimizadas e imágenes de ventanas (lo que necesita el Dock), listas de ventanas, ventanas hijas y hojas, cursores y rectángulos de cursor, sombras, captura de pantallas, el estado de `CGEventSource`, tablas de transferencia y fundidos en pantalla, y la entrada en su propia cola sobre una instantánea del modelo. Gate `M4-compose` (40 marcadores); pruebas locales del servidor (117 pasadas); no queda ningún `SHORTCUT(WS4a)`.
+- [x] El cambio (WS4b, 2 nov 2026; `6c3b719a32` a `9d510ec6c2`): cada app dibuja sus propios menús (MB0: su barra de menús en su propia ventana, el seguimiento completo, los atajos de teclado y Control-F2, los menús contextuales y los botones emergentes, los elementos de estado como ventanas de su app, el menú del sistema); el `loginwindow` mínimo es dueño de la sesión (Cerrar sesión, Reiniciar, Apagar); el servidor nuevo es el de por defecto y arranca con el sistema (`-textconsole` mantiene la consola de texto); CoreGraphics y AppKit solo hablan con él (Quartz Display Services a través de SkyLight); el servidor anterior, libinput, libevdev y mtdev ya no existen. Gate `M4` (54 marcadores, con M4-draw y M4-compose dentro); suite local completa: 3192 pasadas; no queda ningún `SHORTCUT(WS4b)`.
 - [x] Validación de entitlements en el kernel (ADR 0001, 1 nov 2026; `57c6d5734b`, `48ee7a4288`, `24412d4182`, `c1cda1f1ae`, `f77748bbb7`, `8366b8d0f6`): la construcción de la imagen firma los ejecutables del sysroot y escribe una trust cache estática; el kext de política `MinkarCodeIntegrity` marca las firmas `CS_SIGNED`, y como binarios de plataforma las de la caché, y mata en el exec a un binario de fuera que lleve un entitlement restringido. Root ya no abre la conexión de servidor de IOHIDSystem sin el entitlement. Lo comprueba el gate M2 (17 marcadores); prueba local `codesign` 13/0; suite local completa de imagen: 2773 pasadas.
 - [x] Entrega de eventos de IOHIDSystem al espacio de usuario (31 oct 2026, `e2df542919`): la conexión del servidor de eventos mapea la cola compartida `EvGlobals` y recibe avisos por su puerto Mach; los dispositivos de puntero también llegan. Prueba `hid-events` 9/0. El bucle de despacho de `NEW_HID` sigue desactivado: alimenta las colas del sistema de eventos, que no se compilan.
 - [x] Lector de entrada IOHIDSystem en WindowServer (`kIOHIDServerConnectType`, `EvGlobals`, puerto Mach), 31 oct 2026, `ab71ce75a4`: los movimientos, clics y teclas inyectados por QMP le llegan (prueba `windowserver` 6/0).
@@ -291,7 +293,7 @@ El propio WindowServer se reescribe en los hitos WS0 a WS6, según lo decidido e
   - [x] Headers `IOKit/hidsystem` en el SDK.
   - [x] xHCI + HID (`MinkarUSB`), probado en QEMU y en el PC 1.
 - [ ] Retirar `libinput`, `libevdev` y `mtdev` del árbol.
-- [ ] virtio-gpu 2D como subclase de `IOFramebuffer`.
+- [x] virtio-gpu 2D como subclase de `IOFramebuffer` (`MinkarVirtioGPU`, 2 nov 2026, `3e73fce129`, `1f58b3fb44`).
 - [ ] `pbcopy` y `pbpaste` sobre el servidor de pasteboard, y `screencapture` sobre la captura de WindowServer (movidos desde la Fase 2).
 - [ ] Multi-monitor y cambio de resolución, después de M4.
 - [ ] ADR de GPU: familia, licencias (solo partes MIT/BSD de drm-kmod), capa tipo LinuxKPI para XNU y prototipo KMS en el equipo de referencia.
@@ -306,8 +308,8 @@ Del entorno gráfico ya existen la base de dibujo (Core Graphics con FreeType, y
 Componentes, por estado:
 
 - **Existen:** Core Graphics con FreeType; pixman, libpng, libjpeg y libtiff (`BSD/lib`); la consola GOP (`IOGOPFramebuffer`); la entrada USB (xHCI + HID, `MinkarUSB`); los headers `IOKit/hidsystem`; la entrega de eventos de IOHIDSystem; `ApplePS2Mouse` y el teclado PS/2.
-- **Parciales:** WindowServer (WS0 hecho con el servidor actual; WS1 a WS3 hechos, la interfaz, el servidor, el compositor y la entrada del núcleo nuevo; WS4a, WS4b, WS5 y WS6 por hacer); QuartzCore y Onyx2D; AppKit (Cocotron; con los arreglos que necesitó una primera ventana, 31 oct 2026).
-- **Faltan:** virtio-gpu 2D; IOSurface; el compositor de Core Animation; Core Text sobre HarfBuzz/FreeType; giflib y libwebp; ColorSync sobre Little CMS; y el frente de GPU (driver del kernel, Mesa, Metal).
+- **Parciales:** WindowServer (WS0 a WS5 hechos: el núcleo nuevo es el servidor de ventanas, con IOSurface y virtio-gpu, en QEMU; WS6 por hacer); QuartzCore y Onyx2D; AppKit (Cocotron; con los arreglos que necesitó una primera ventana, 31 oct 2026).
+- **Faltan:** el compositor de Core Animation; Core Text sobre HarfBuzz/FreeType; giflib y libwebp; ColorSync sobre Little CMS; y el frente de GPU (driver del kernel, Mesa, Metal).
 
 El detalle técnico de cada pieza está en la guía técnica de la pila gráfica.
 
@@ -315,15 +317,15 @@ Secuencia de desarrollo:
 
 1. Entrega de eventos de IOHIDSystem y ratón PS/2.
 2. WindowServer sobre el framebuffer GOP.
-3. virtio-gpu 2D (puerto desde FreeBSD, BSD-2).
-4. IOSurface (memoria compartida Mach).
+3. virtio-gpu 2D (driver propio, BSD-2; hecho el 2 nov 2026).
+4. IOSurface (memoria compartida Mach; hecho el 2 nov 2026).
 5. Compositor de Core Animation, diseñado para GPU (backend Vulkan; pixman solo para el arranque y las VMs).
 6. HarfBuzz/FreeType para Core Text, giflib/libwebp, Little CMS para ColorSync.
 7. AppKit moderno con vistas respaldadas por capas.
 
 En paralelo, el frente de GPU G1–G5: desde la familia del primer driver y el prototipo KMS hasta Mesa (lavapipe/llvmpipe en VMs) y Metal (darling-metal e Indium, MPL-2.0).
 
-El paso 1 se completó el 31 oct 2026 (`e2df542919`, `2aa9a1da6e`), y también los primeros hitos del paso 2, WS0 (gate `M4-draw`, `cce7da92bc`) WS1 (la interfaz del núcleo nuevo, `030dba37c7`) WS2 (su compositor, gate `M4-compose`, `8512fe60ba`) y WS3 (entrada y event taps, `98237bf14e`); la comprobación de entitlements del ADR 0001 está hecha (`8366b8d0f6`) y WS4a está en curso. G1 empieza en cuanto se decida la familia de GPU, y las flechas discontinuas marcan lo que el frente de GPU reutiliza de los pasos 4 y 5.
+El paso 1 se completó el 31 oct 2026 (`e2df542919`, `2aa9a1da6e`), y también los primeros hitos del paso 2, WS0 (gate `M4-draw`, `cce7da92bc`) WS1 (la interfaz del núcleo nuevo, `030dba37c7`) WS2 (su compositor, gate `M4-compose`, `8512fe60ba`) y WS3 (entrada y event taps, `98237bf14e`); la comprobación de entitlements del ADR 0001 está hecha (`8366b8d0f6`), también WS4a (el comportamiento del servidor, 1 nov 2026, `e31dd0ef53`), y también WS4b (el cambio, gate `M4`, 2 nov 2026, `9d510ec6c2`); y también WS5 (2 nov 2026, `9a472063c1`): los pasos 3 y 4 están hechos (virtio-gpu 2D, `3e73fce129` y `1f58b3fb44`; IOSurface, `b28eb5f413`). Sigue WS6. G1 está hecho (2 nov 2026, ADR 0002, `a42a1800b1` y `050acdb1ee`): en el Mac Pro 6,1, `MinkarAMDFramebuffer` toma la pantalla de la FirePro desde el firmware en la resolución nativa del monitor (3440x1440 a 50 Hz), muestra su propio framebuffer en VRAM, y `wsctl mode` cambia el modo con el escalador, con las tablas de la VBIOS ejecutadas por el intérprete AtomBIOS. Los modos con tiempos propios (reloj de píxel y enlace DisplayPort fijados por el driver) llegan con G2. G2 está en marcha y su gate se cumple en el Mac Pro (2 nov 2026): el motor DMA ejecuta un búfer de comandos y su fence se señala, y copia entre superficies en VRAM (`6be0dcb84c`, `b9ac2e1f36`); un gestor de VRAM (`dfee0c87f3`), un user client con `minkar-gputest` (`d405ae35bf`), y la GART con búferes de sistema en las dos GPU, también la del monitor (`34f7974d13`, `2b11571625`). Desde entonces (2 nov 2026): las IOSurfaces llegan a la GPU por la GART (`e92fe4b7ff`), interrupciones con esperas de fence que duermen (`7e6621a639`), el servidor de ventanas presenta sus fotogramas con el motor DMA de la GPU (`38e8875af1`), IOSurfaces en VRAM compartidas entre procesos (`f13053f237`); y los modos con tiempos propios por HDMI: el EDID por DDC (`4dcbddbf47`, `de0233a02d`), el modo fijado con las tablas de la VBIOS (`8677a3bb9b`), la resolución nativa a su frecuencia más alta al arrancar, 60 Hz en el Mac Pro (`59e0165082`), cada frecuencia como un modo propio (`e14a3fc4b6`, `e86385a4f3`), y la pantalla vuelve sola tras desconectar y conectar su cable (`6999c389ad`). Queda de G2: el anillo GFX (el procesador de comandos, con el microcódigo de AMD); los relojes de la GPU (aplazados por el mantenedor: se quedan los del arranque); y el entrenamiento del enlace DisplayPort, a la espera de una pantalla DisplayPort para probarlo. Las flechas discontinuas marcan lo que el frente de GPU reutiliza de los pasos 4 y 5.
 
 ## Fase 5 — Escritorio Gienah
 
@@ -378,7 +380,7 @@ Comandos que llegan con esta fase (movidos desde la Fase 2):
 
 Adelanto: `hdiutil attach` ya monta imágenes en `/Volumes` a través de DiskArbitration (30 oct 2026); falta leer el formato UDIF de los DMG.
 
-**Criterio de salida (M6):** se descarga un DMG, se monta, se copia la app a `/Applications` y corre; Terminal, TextEdit y el navegador se usan a diario en la propia máquina de desarrollo.
+**Criterio de salida (M6):** se descarga un DMG, se monta, se copia la app a `/Applications` y corre; Terminal, TextEdit y el navegador se usan a diario en la propia máquina de desarrollo; y el escritorio Gienah está completo para el uso diario: MB2 y MB3 de [Menus.es.md](Menus.es.md), D2 y D3 y K2 y K3 de [Dock-Kraz.es.md](Dock-Kraz.es.md); MB4, D4 y K4 llegan en 19.6.x.
 
 ## Fase 7 — Compatibilidad binaria y arm64
 
@@ -421,9 +423,9 @@ M0, M1 y M2 están cumplidos (M1 el 1 nov, con el Mac Pro 6,1 como PC 2) y la Fa
 | M1 | Arranque Darwin | Cumplido en QEMU, en el PC 1 (SATA, NVMe, SMP) y en el PC 2, un Mac Pro 6,1 (NVMe, 24 hilos; 1 nov 2026) |
 | M2 | Userland base | Cumplido (`boottest GATE=M2`, 17 marcadores desde el 1 nov 2026, con la comprobación de integridad de código); Fase 2 cerrada el 31 oct |
 | M3 | Frameworks y Swift | Sin empezar; hay trabajo previo en Foundation |
-| M4 | Gráficos y WindowServer | En curso: WS0 hecho (el gate `M4-draw` pasa, `cce7da92bc`); WS1 hecho (`skylight-test` 115/0, `030dba37c7`); WS2 hecho (el gate `M4-compose` pasa, `8512fe60ba`); WS3 hecho (entrada, `98237bf14e`); WS4a en curso (sesión de LaunchServices `996178d949`, app del frente `95160b2955`, sitio de la barra de menús `79cc777e5c`; gate `M4-compose` 40 marcadores), después WS4b |
+| M4 | Gráficos y WindowServer | Cumplido en QEMU (`boottest GATE=M4`, 54 marcadores, 2 nov 2026, `9d510ec6c2`): WS0 a WS4b hechos (el núcleo nuevo es el servidor de ventanas, los menús en cada app con MB0, el `loginwindow` mínimo; el servidor anterior borrado). También WS5 (IOSurface y virtio-gpu, 2 nov 2026, `9a472063c1`; M4 pasa con virtio-vga y con la VGA estándar). La Fase 4 sigue con la GPU (WS6) y en hardware físico |
 | M5 | Escritorio Gienah | Sin empezar |
-| M6 (Minkar 19.6.0) | Apps y distribución | Sin empezar; `hdiutil attach` ya monta |
+| M6 (Minkar 19.6.0) | Apps y distribución, y el escritorio completo para el uso diario (MB2–MB3, D2–D3, K2–K3) | Sin empezar; `hdiutil attach` ya monta |
 | Minkar 21.0 | API 21 completa y rendimiento ≥ sistema de referencia en equipo físico | Sin empezar; depende del frente de GPU |
 | M7 | Compatibilidad binaria, arm64 | Después de Minkar 19.6.0 |
 

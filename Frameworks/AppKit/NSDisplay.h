@@ -22,7 +22,6 @@ SOFTWARE. */
 #import <Foundation/Foundation.h>
 #import <AppKit/NSFont.h>
 #ifdef __WSRPC
-#import <WindowServer/Legacy/message.h>
 #endif
 
 @class NSEvent, NSColor, NSPasteboard, NSDraggingManager, NSPrintInfo, NSView, NSSavePanel, NSOpenPanel, CGWindow;
@@ -37,6 +36,8 @@ SOFTWARE. */
 + (NSDisplay *)currentDisplay;
 
 - (NSArray *)screens;
+/* Again from the displays, after a display changed. */
+- (void)_reloadScreens;
 - (uint32_t)depth;
 
 - (NSPasteboard *)pasteboardWithName:(NSString *)name;

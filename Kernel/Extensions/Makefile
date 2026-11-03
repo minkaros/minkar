@@ -2,7 +2,7 @@ SUBDIR = AppleAPIC IOACPIFamily IOPCIFamily IOStorageFamily IOATAFamily \
 	 AppleIntelPIIXATA msdosfs exfat hfs AppleFileSystemDriver MinkarAHCIPort \
 	 IOGraphics corecrypto pthread IOHIDFamily ApplePS2Controller \
 	 AppleI386PCI IONetworkingFamily MinkarE1000 MinkarBGE MinkarVirtio MinkarNVMe \
-	 IOUSBFamily MinkarXHCIPort MinkarUSB MinkarDiskImage MinkarCodeIntegrity
+	 MinkarDRM IOUSBFamily MinkarXHCIPort MinkarUSB MinkarDiskImage MinkarCodeIntegrity
 
 all: kernelcache
 .for target_dir in ${MINKAR_SDKROOT}/System/Library/Extensions \
@@ -48,6 +48,7 @@ kernelcache: ${SUBDIR}
 	${EXTENSIONS}/MinkarBGE/MinkarBGE.kext \
 	${EXTENSIONS}/MinkarVirtio/MinkarVirtio.kext \
 	${EXTENSIONS}/MinkarNVMe/MinkarNVMe.kext \
+	${EXTENSIONS}/MinkarDRM/MinkarDRM.kext \
 	${EXTENSIONS}/IOUSBFamily/IOUSBFamily.kext \
 	${EXTENSIONS}/MinkarXHCIPort/MinkarXHCIPort.kext \
 	${EXTENSIONS}/MinkarUSB/MinkarUSB.kext \

@@ -51,7 +51,7 @@ the milestone that removes it:
 
     // SHORTCUT(<removed by>): <what and why>; taken in <milestone>.
 
-For example `SHORTCUT(WS4a)`, `SHORTCUT(Phase 5)` or `SHORTCUT(D4)`. Each
+For example `SHORTCUT(WS4a)`, `SHORTCUT(Phase 5)` or `SHORTCUT(D3)`. Each
 shortcut also has a row in its plan's shortcut table (section 9 of
 [WindowServer-Rewrite.md](WindowServer-Rewrite.md), section 10 of
 [Menus.md](Menus.md) and of [Dock-Kraz.md](Dock-Kraz.md)). A milestone

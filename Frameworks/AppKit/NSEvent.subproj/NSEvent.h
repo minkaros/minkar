@@ -32,7 +32,12 @@ typedef enum {
     NSAppKitSystem = 17,
     NSScrollWheel = 18,
     NSApplicationDefined = 19,
-    NSAppKitDefined = 20
+    NSAppKitDefined = 20,
+    /* The API's values; the ones above still differ from it (to fix with
+       binary compatibility, API 19). */
+    NSOtherMouseDown = 25,
+    NSOtherMouseUp = 26,
+    NSOtherMouseDragged = 27
 } NSEventType;
 
 enum {
@@ -53,6 +58,9 @@ enum {
     NSScrollWheelMask = 1 << NSScrollWheel,
     NSApplicationDefinedMask = 1 << NSApplicationDefined,
     NSAppKitDefinedMask = 1 << NSAppKitDefined,
+    NSOtherMouseDownMask = 1 << NSOtherMouseDown,
+    NSOtherMouseUpMask = 1 << NSOtherMouseUp,
+    NSOtherMouseDraggedMask = 1 << NSOtherMouseDragged,
     NSAnyEventMask = 0xffffffff,
 
     NSPlatformSpecificDisplayMask = 1 << NSPlatformSpecificDisplayEvent,

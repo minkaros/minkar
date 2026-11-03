@@ -314,6 +314,37 @@ listenMain(void)
 	return 0;
 }
 
+/* The input state (WS4a): a posted key is down in the combined session
+ * state and not in the hardware's; the counters and times follow. */
+static void
+testSourceState(void)
+{
+	const CGKeyCode key = 37;	/* l */
+	CGEventRef down = CGEventCreateKeyboardEvent(NULL, key, true);
+	CGEventRef up = CGEventCreateKeyboardEvent(NULL, key, false);
+	uint32_t before = CGEventSourceCounterForEventType(kCGEventSourceStateCombinedSessionState,
+	    kCGEventKeyDown);
+
+	CGEventPost(kCGSessionEventTap, down);
+	usleep(100000);
+	check(CGEventSourceKeyState(kCGEventSourceStateCombinedSessionState, key),
+	    "a posted key is down in the combined session state", NULL);
+	check(!CGEventSourceKeyState(kCGEventSourceStateHIDSystemState, key),
+	    "and not in the hardware's", NULL);
+	check(CGEventSourceCounterForEventType(kCGEventSourceStateCombinedSessionState,
+	    kCGEventKeyDown) == before + 1, "the key down is counted", NULL);
+	check(CGEventSourceSecondsSinceLastEventType(kCGEventSourceStateCombinedSessionState,
+	    kCGEventKeyDown) < 2, "and recent", NULL);
+	CGEventPost(kCGSessionEventTap, up);
+	usleep(100000);
+	check(!CGEventSourceKeyState(kCGEventSourceStateCombinedSessionState, key),
+	    "and up again", NULL);
+	check(!CGEventSourceButtonState(kCGEventSourceStateHIDSystemState, kCGMouseButtonLeft),
+	    "no button is down", NULL);
+	CFRelease(down);
+	CFRelease(up);
+}
+
 int
 main(int argc, char *argv[])
 {
@@ -328,6 +359,7 @@ main(int argc, char *argv[])
 	}
 	testEvents();
 	testPostAndTaps();
+	testSourceState();
 	printf("eventtap-test: %d passed, %d failed\n", passed, failed);
 	return failed;
 }

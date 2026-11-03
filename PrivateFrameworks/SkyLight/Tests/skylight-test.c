@@ -521,6 +521,223 @@ testStatusArea(void)
 	SLSReleaseWindow(two);
 }
 
+/* Minimized windows (WS4a, interface version 9): ordered out, no longer
+ * key, flagged, and the connections that asked hear about it. */
+static int
+heard(uint32_t type, SLSWindowID w)
+{
+	SLSEvent events[kSLSMaxEvents];
+	uint32_t n = 0;
+	int found = 0;
+
+	while (SLSReceiveEvents(events, kSLSMaxEvents, &n, 0) == kSLSErrorSuccess && n > 0)
+		for (uint32_t i = 0; i < n; i++)
+			if (events[i].type == type && events[i].window == w)
+				found = 1;
+	return found;
+}
+
+static void
+testMinimize(void)
+{
+	SLSWindowID w = 0, other = 0;
+	SLSWindowInfo info;
+
+	SLSNewWindow(0, (SLSRect){ 20, 40, 100, 80 }, &other);
+	SLSNewWindow(0, (SLSRect){ 30, 50, 100, 80 }, &w);
+	SLSOrderWindow(other, kSLSOrderAbove, 0);
+	SLSOrderWindow(w, kSLSOrderAbove, 0);
+	SLSSetKeyWindow(w);
+	check(SLSRequestWindowNotifications(1) == kSLSErrorSuccess,
+	    "window notifications are asked for", NULL);
+	check(SLSSetWindowMinimized(w, 1) == kSLSErrorSuccess, "a window is minimized", NULL);
+	memset(&info, 0, sizeof(info));
+	SLSGetWindowInfo(w, &info);
+	check((info.flags & kSLSWindowMinimized) && !(info.flags & kSLSWindowOnScreen),
+	    "it is off the screen and flagged", NULL);
+	check(SLSGetKeyWindow() == other, "its app's next window becomes key", NULL);
+	check(heard(kSLSEventWindowMinimized, w), "the minimize is heard", NULL);
+	check(SLSSetWindowMinimized(w, 0) == kSLSErrorSuccess, "and restored", NULL);
+	memset(&info, 0, sizeof(info));
+	SLSGetWindowInfo(w, &info);
+	check(!(info.flags & kSLSWindowMinimized) && (info.flags & kSLSWindowOnScreen),
+	    "it is back on the screen", NULL);
+	check(heard(kSLSEventWindowRestored, w), "the restore is heard", NULL);
+	SLSSetWindowMinimized(w, 1);
+	SLSOrderWindow(w, kSLSOrderAbove, 0);
+	check(heard(kSLSEventWindowRestored, w), "ordering it in restores it too", NULL);
+	check(SLSSetWindowMinimized(0xdeadbeef, 1) == kSLSErrorIllegalArgument,
+	    "an unknown window is not minimized", NULL);
+	SLSRequestWindowNotifications(0);
+	SLSReleaseWindow(w);
+	SLSReleaseWindow(other);
+	heard(0, 0);	/* the queue is read empty for the next tests */
+}
+
+static SLSWindowID solidWindow(SLSRect frame, uint32_t color);
+
+/* Child windows (interface version 11): next to the parent in the order,
+ * moved and ordered out with it. */
+static void
+testChildWindows(void)
+{
+	SLSWindowID parent = 0, child = 0, l[8];
+	SLSWindowInfo info;
+	uint32_t n = 0;
+
+	SLSNewWindow(0, (SLSRect){ 200, 200, 100, 100 }, &parent);
+	SLSNewWindow(0, (SLSRect){ 220, 230, 50, 40 }, &child);
+	SLSOrderWindow(parent, kSLSOrderAbove, 0);
+	SLSOrderWindow(child, kSLSOrderAbove, 0);
+	check(SLSSetWindowParent(child, parent, kSLSOrderAbove) == kSLSErrorSuccess,
+	    "a child window is attached", NULL);
+	check(SLSSetWindowParent(parent, child, kSLSOrderAbove) == kSLSErrorIllegalArgument,
+	    "a parent cannot be its child's child", NULL);
+	check(SLSSetWindowParent(child, child, kSLSOrderAbove) == kSLSErrorIllegalArgument,
+	    "nor its own", NULL);
+	SLSOrderWindow(parent, kSLSOrderAbove, 0);
+	SLSWindowListCopy(kSLSWindowListOnScreenOnly, 0, 8, l, &n);
+	check(n >= 2 && l[0] == child && l[1] == parent,
+	    "ordering the parent front brings the child just above it", NULL);
+	SLSSetWindowFrame(parent, (SLSRect){ 210, 220, 100, 100 });
+	memset(&info, 0, sizeof(info));
+	SLSGetWindowInfo(child, &info);
+	check(info.x == 230 && info.y == 250, "the child moves with its parent", NULL);
+	SLSOrderWindow(parent, kSLSOrderOut, 0);
+	memset(&info, 0, sizeof(info));
+	SLSGetWindowInfo(child, &info);
+	check(!(info.flags & kSLSWindowOnScreen), "and leaves the screen with it", NULL);
+	SLSOrderWindow(parent, kSLSOrderAbove, 0);
+	memset(&info, 0, sizeof(info));
+	SLSGetWindowInfo(child, &info);
+	check(info.flags & kSLSWindowOnScreen, "and comes back with it", NULL);
+	check(SLSSetWindowParent(child, 0, 0) == kSLSErrorSuccess, "a child is detached", NULL);
+	SLSSetWindowFrame(parent, (SLSRect){ 200, 200, 100, 100 });
+	memset(&info, 0, sizeof(info));
+	SLSGetWindowInfo(child, &info);
+	check(info.x == 230, "and no longer moves with it", NULL);
+	SLSReleaseWindow(child);
+	SLSReleaseWindow(parent);
+	heard(0, 0);	/* the moved notices are read */
+}
+
+/* Window shadows (interface version 13). */
+static void
+testShadow(void)
+{
+	SLSWindowID w = 0;
+	SLSWindowInfo info;
+
+	SLSNewWindow(0, (SLSRect){ 50, 50, 40, 40 }, &w);
+	memset(&info, 0, sizeof(info));
+	SLSGetWindowInfo(w, &info);
+	check(!(info.flags & kSLSWindowHasShadow), "a new window has no shadow", NULL);
+	check(SLSSetWindowShadow(w, 1) == kSLSErrorSuccess, "a shadow is set", NULL);
+	memset(&info, 0, sizeof(info));
+	SLSGetWindowInfo(w, &info);
+	check(info.flags & kSLSWindowHasShadow, "and listed", NULL);
+	check(SLSSetWindowShadow(0xdeadbeef, 1) == kSLSErrorIllegalArgument,
+	    "an unknown window gets none", NULL);
+	SLSReleaseWindow(w);
+}
+
+/* Cursor images (interface version 12). */
+static void
+testCursorImage(void)
+{
+	static uint8_t pixels[8 * 8 * 4];
+
+	memset(pixels, 0xff, sizeof(pixels));
+	check(SLSSetCursorImage(pixels, 8, 8, 1, 1) == kSLSErrorSuccess,
+	    "a cursor image is set", NULL);
+	check(SLSSetCursorImage(pixels, 8, 8, 9, 1) == kSLSErrorIllegalArgument,
+	    "a hot spot outside it is refused", NULL);
+	check(SLSSetCursorImage(pixels, kSLSMaxCursorSize + 1, 1, 0, 0) ==
+	    kSLSErrorIllegalArgument, "and a cursor too large", NULL);
+	check(SLSSetCursorImage(NULL, 0, 0, 0, 0) == kSLSErrorSuccess,
+	    "the arrow comes back", NULL);
+}
+
+/* Window images (interface version 10): what the surface shows. */
+static void
+testWindowImage(void)
+{
+	SLSWindowID w = solidWindow((SLSRect){ 60, 70, 40, 30 }, 0xff336699);
+	uint8_t *pixels = NULL;
+	uint32_t width = 0, height = 0, rowBytes = 0;
+
+	check(SLSCopyWindowImage(w, &pixels, &width, &height, &rowBytes) == kSLSErrorSuccess &&
+	    width == 40 && height == 30 && rowBytes >= 160 && pixels != NULL,
+	    "a window's image is copied", NULL);
+	/* 0xff336699 is ARGB; the surface is BGRA in memory. */
+	check(pixels != NULL && pixels[0] == 0x99 && pixels[1] == 0x66 && pixels[2] == 0x33 &&
+	    pixels[3] == 0xff, "with its pixels", NULL);
+	free(pixels);
+	SLSOrderWindow(w, kSLSOrderOut, 0);
+	check(SLSCopyWindowImage(w, &pixels, &width, &height, &rowBytes) == kSLSErrorSuccess,
+	    "also when it is off the screen", NULL);
+	free(pixels);
+	check(SLSCopyWindowImage(0xdeadbeef, &pixels, &width, &height, &rowBytes) ==
+	    kSLSErrorIllegalArgument, "an unknown window has none", NULL);
+	SLSReleaseWindow(w);
+}
+
+/*
+ * skylight-test gamma: a white window at 100,100 (200 x 150); the main
+ * display's transfer table halves red ("halved"), 3 s later a fade to
+ * black ("faded"), 3 s later it exits, and the server restores both. For
+ * the local test that looks at the screen.
+ */
+static int
+gammaMain(void)
+{
+	SLSWindowID w = solidWindow((SLSRect){ 100, 100, 200, 150 }, 0xffffffff);
+	SLSFadeReservation r = 0;
+	float red[2] = { 0, 0.5f }, green[2] = { 0, 1 }, blue[2] = { 0, 1 };
+
+	(void)w;
+	printf("halved %d\n", SLSSetDisplayTransferByTable(SLSMainDisplayID(), 2, red, green, blue));
+	fflush(stdout);
+	sleep(3);
+	SLSAcquireFadeReservation(10, &r);
+	printf("faded %d\n", SLSFadeDisplays(r, 0, 0, 1, 0, 0, 0, 1));
+	fflush(stdout);
+	sleep(3);
+	return 0;
+}
+
+/*
+ * skylight-test watch: prints the windows minimized and restored, as the
+ * Dock hears them, one line each, until it is killed. For the local tests.
+ */
+static int
+watchMain(void)
+{
+	SLSEvent events[kSLSMaxEvents];
+
+	if (SLSRequestWindowNotifications(1) != kSLSErrorSuccess)
+		return 1;
+	printf("watching\n");
+	fflush(stdout);
+	for (;;) {
+		uint32_t n = 0;
+
+		if (SLSReceiveEvents(events, kSLSMaxEvents, &n, 1) != kSLSErrorSuccess)
+			return 1;
+		for (uint32_t i = 0; i < n; i++) {
+			SLSWindowInfo info;
+			memset(&info, 0, sizeof(info));
+			SLSGetWindowInfo(events[i].window, &info);
+			if (events[i].type == kSLSEventWindowMinimized ||
+			    events[i].type == kSLSEventWindowRestored)
+				printf("%s window=%u pid=%d\n",
+				    events[i].type == kSLSEventWindowMinimized ? "minimized" : "restored",
+				    events[i].window, info.ownerPID);
+		}
+		fflush(stdout);
+	}
+}
+
 static void
 testWindows(void)
 {
@@ -787,13 +1004,17 @@ testSurfaces(void)
 	    ((uint32_t *)again)[64 * 32 - 1] == 0xffff0000,
 	    "the new back buffer holds what was committed", NULL);
 
+	/* With nothing to do the display link ticks a few times, then sleeps:
+	 * no frame and no tick in the next 300 ms. */
 	idle = statsAfterFrames();
+	usleep(300000);
+	SLSGetServerStats(&idle);
 	usleep(300000);
 	SLSGetServerStats(&after);
 	snprintf(detail, sizeof(detail), "%llu idle ticks",
 	    (unsigned long long)(after.idleTicks - idle.idleTicks));
-	check(after.frames == idle.frames && after.idleTicks > idle.idleTicks,
-	    "no frame while nothing changes", detail);
+	check(after.frames == idle.frames && after.idleTicks == idle.idleTicks,
+	    "the display link sleeps while nothing changes", detail);
 
 	fill(again, rowBytes, (SLSIntRect){ 8, 8, 4, 4 }, 0xff00ff00);
 	before = after;
@@ -1053,6 +1274,10 @@ main(int argc, char *argv[])
 		return drawMain();
 	if (argc > 1 && strcmp(argv[1], "hotkeys") == 0)
 		return hotkeysMain();
+	if (argc > 1 && strcmp(argv[1], "gamma") == 0)
+		return gammaMain();
+	if (argc > 1 && strcmp(argv[1], "watch") == 0)
+		return watchMain();
 	if (argc > 1 && strcmp(argv[1], "events") == 0)
 		return eventsMain(argc > 2 && strcmp(argv[2], "grab") == 0);
 	setvbuf(stdout, NULL, _IOLBF, 0);
@@ -1065,6 +1290,11 @@ main(int argc, char *argv[])
 	testCursor();
 	testWindows();
 	testStatusArea();
+	testMinimize();
+	testWindowImage();
+	testChildWindows();
+	testCursorImage();
+	testShadow();
 	testSurfaces();
 	testEvents();
 	testClientExit(argv[0]);

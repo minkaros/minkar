@@ -34,10 +34,17 @@
  *                    events, damaged area and frame times
  *   wsctl windows    the window list, front to back
  *   wsctl displays   each display's bounds, mode and state
+ *   wsctl modes      the main display's modes (size, refresh rate), the
+ *                    current one marked *
+ *   wsctl mode ID [permanent]
+ *                    sets the main display's mode for the session, or
+ *                    saves it for the next ones too
+ *   wsctl restore    every display as saved permanently
  *   wsctl front      the front app's process and the key window
  */
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <SkyLight/SkyLight.h>
 
@@ -124,6 +131,60 @@ front(void)
 	return 0;
 }
 
+/* The main display's modes, the current one marked. */
+static int
+modes(void)
+{
+	static SLSDisplayMode list[kSLSMaxDisplayModes];
+	SLSDisplayMode current;
+	SLSDisplayID display;
+	uint32_t n = 0, count = 0;
+
+	if (SLSGetOnlineDisplayList(1, &display, &n) != kSLSErrorSuccess || n == 0 ||
+	    SLSGetCurrentDisplayMode(display, &current) != kSLSErrorSuccess ||
+	    SLSCopyDisplayModes(display, kSLSMaxDisplayModes, list, &count) !=
+	    kSLSErrorSuccess) {
+		fprintf(stderr, "wsctl: no window server\n");
+		return 1;
+	}
+	for (uint32_t i = 0; i < count; i++) {
+		printf("%c %u %ux%u", list[i].modeID == current.modeID ? '*' : ' ',
+		    list[i].modeID, list[i].pixelWidth, list[i].pixelHeight);
+		if (list[i].refreshRate > 0)
+			printf(" %.2f Hz", list[i].refreshRate);
+		printf("\n");
+	}
+	return 0;
+}
+
+/* Sets the main display's mode for the session, or permanently. */
+static int
+setMode(const char *arg, uint32_t option)
+{
+	SLSDisplayConfigRef config;
+	SLSDisplayID display;
+	uint32_t n = 0;
+	int err;
+
+	if (SLSGetOnlineDisplayList(1, &display, &n) != kSLSErrorSuccess || n == 0 ||
+	    SLSBeginDisplayConfiguration(&config) != kSLSErrorSuccess) {
+		fprintf(stderr, "wsctl: no window server\n");
+		return 1;
+	}
+	if ((err = SLSConfigureDisplayWithDisplayMode(config, display,
+	    (uint32_t)strtoul(arg, NULL, 0))) != kSLSErrorSuccess) {
+		SLSCancelDisplayConfiguration(config);
+		fprintf(stderr, "wsctl: no such mode: %s (%d)\n", arg, err);
+		return 1;
+	}
+	if ((err = SLSCompleteDisplayConfiguration(config, option)) !=
+	    kSLSErrorSuccess) {
+		fprintf(stderr, "wsctl: the mode was not set (%d)\n", err);
+		return 1;
+	}
+	return 0;
+}
+
 int
 main(int argc, char *argv[])
 {
@@ -133,8 +194,20 @@ main(int argc, char *argv[])
 		return windows();
 	if (argc == 2 && strcmp(argv[1], "displays") == 0)
 		return displays();
+	if (argc == 2 && strcmp(argv[1], "modes") == 0)
+		return modes();
+	if (argc == 3 && strcmp(argv[1], "mode") == 0)
+		return setMode(argv[2], kSLSConfigureForSession);
+	if (argc == 4 && strcmp(argv[1], "mode") == 0 && strcmp(argv[3], "permanent") == 0)
+		return setMode(argv[2], kSLSConfigurePermanently);
+	if (argc == 2 && strcmp(argv[1], "restore") == 0) {
+		if (SLSRestorePermanentDisplayConfiguration() == kSLSErrorSuccess)
+			return 0;
+		fprintf(stderr, "wsctl: no window server\n");
+		return 1;
+	}
 	if (argc == 2 && strcmp(argv[1], "front") == 0)
 		return front();
-	fprintf(stderr, "usage: wsctl stats | windows | displays | front\n");
+	fprintf(stderr, "usage: wsctl stats | windows | displays | modes | mode ID [permanent] | restore | front\n");
 	return 2;
 }

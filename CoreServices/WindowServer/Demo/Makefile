@@ -14,7 +14,7 @@ WARNS = 1
 
 SRCS = main.m
 
-FRAMEWORKS = AppKit Foundation
+FRAMEWORKS = AppKit CoreGraphics Foundation
 
 # Some SDK headers are not self-contained yet (see ../Makefile): take
 # them from the source tree, as WindowServer does.

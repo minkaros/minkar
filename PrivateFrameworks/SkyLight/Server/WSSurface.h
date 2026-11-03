@@ -39,6 +39,7 @@
 #import <Foundation/Foundation.h>
 #include <mach/mach.h>
 #include <mach/mach_vm.h>
+#include <IOSurface/IOSurfaceRef.h>
 
 @interface WSSurface : NSObject
 
@@ -58,6 +59,36 @@
 - (BOOL)commitBuffer:(uint32_t)buffer;
 
 /* The front buffer's pixels, valid until -unlock. */
+- (const uint8_t *)lockFront;
+- (void)unlock;
+
+/* Whether its pixels change without commits (an IOSurface the app draws
+ * into): the compositor shows it again at every frame. */
+@property (readonly) BOOL live;
+
+@end
+
+/*
+ * A window that shows an IOSurface its app made (SLSWindowSetIOSurface):
+ * the same interface as WSSurface, one buffer, the app's. It is live, as
+ * a display's scanout is: what the app draws shows at the next frame.
+ */
+@interface WSIOSurfaceBacking : NSObject
+
+/* nil unless the surface exists and is BGRA, 4 bytes per pixel, of
+ * this size. */
+- (instancetype)initWithSurfaceID:(IOSurfaceID)surfaceID width:(uint32_t)width
+    height:(uint32_t)height;
+
+@property (readonly) uint32_t surfaceID;
+@property (readonly) uint32_t width;
+@property (readonly) uint32_t height;
+@property (readonly) uint32_t rowBytes;
+@property (readonly) uint32_t backBuffer;	/* always 0 */
+@property (readonly) BOOL committed;		/* always YES */
+@property (readonly) BOOL live;			/* always YES */
+
+- (BOOL)commitBuffer:(uint32_t)buffer;
 - (const uint8_t *)lockFront;
 - (void)unlock;
 

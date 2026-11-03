@@ -115,10 +115,14 @@ NSString* NSImageCompressionFactor = @"NSImageCompressionFactor";
      break;
 
     CFDictionaryRef properties=CGImageSourceCopyPropertiesAtIndex(imageSource,i,nil);
-    NSNumber        *xres=[[(id)CFDictionaryGetValue(properties,kCGImagePropertyDPIWidth) copy] autorelease];
-    NSNumber        *yres=[[(id)CFDictionaryGetValue(properties,kCGImagePropertyDPIHeight) copy] autorelease];
+    NSNumber        *xres=nil,*yres=nil;
 
-    CFRelease(properties);
+    /* Some sources (PNG) have no properties. */
+    if(properties!=NULL){
+     xres=[[(id)CFDictionaryGetValue(properties,kCGImagePropertyDPIWidth) copy] autorelease];
+     yres=[[(id)CFDictionaryGetValue(properties,kCGImagePropertyDPIHeight) copy] autorelease];
+     CFRelease(properties);
+    }
 
     NSBitmapImageRep *imageRep=[[self alloc] initWithCGImage:cgImage];
     NSSize size={ CGImageGetWidth(cgImage),CGImageGetHeight(cgImage) };

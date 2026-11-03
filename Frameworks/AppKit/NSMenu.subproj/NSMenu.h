@@ -7,10 +7,21 @@ The above copyright notice and this permission notice shall be included in all c
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE. */
 
 #import <Foundation/Foundation.h>
+#import <AppKit/AppKitExport.h>
 
-@class NSScreen, NSMenu, NSMenuItem, NSWindow, NSEvent, NSView;
+@class NSScreen, NSMenu, NSMenuItem, NSWindow, NSEvent, NSView, NSFont;
 
 @protocol NSMenuDelegate;
+
+/* Posted with the menu as the object; the add, remove and change ones
+ * give the item's index under NSMenuItemIndex in the user info. */
+APPKIT_EXPORT NSString *const NSMenuWillSendActionNotification;
+APPKIT_EXPORT NSString *const NSMenuDidSendActionNotification;
+APPKIT_EXPORT NSString *const NSMenuDidAddItemNotification;
+APPKIT_EXPORT NSString *const NSMenuDidRemoveItemNotification;
+APPKIT_EXPORT NSString *const NSMenuDidChangeItemNotification;
+APPKIT_EXPORT NSString *const NSMenuDidBeginTrackingNotification;
+APPKIT_EXPORT NSString *const NSMenuDidEndTrackingNotification;
 
 @interface NSMenu : NSObject <NSCopying> {
     NSMenu *_supermenu;
@@ -23,6 +34,8 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 }
 
 + (void)popUpContextMenu:(NSMenu *)menu withEvent:(NSEvent *)event forView:(NSView *)view;
++ (void)popUpContextMenu:(NSMenu *)menu withEvent:(NSEvent *)event forView:(NSView *)view withFont:(NSFont *)font;
+- (BOOL)popUpMenuPositioningItem:(NSMenuItem *)item atLocation:(NSPoint)location inView:(NSView *)view;
 
 - initWithTitle:(NSString *)title;
 

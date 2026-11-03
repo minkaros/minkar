@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+ SPDX-License-Identifier: BSD-2-Clause
+ Copyright (c) 2026 The Minkar contributors
+ Part of Minkar.
+
+ loginwindow, minimal (WindowServer plan, section 10.3): the session's
+ owner; it serves Log Out, Restart and Shut Down. Started at boot with
+ the window server; with the -textconsole boot argument it exits and is
+ not started again.
+-->
+<plist version="1.0">
+<dict>
+	<key>Label</key>
+	<string>org.minkar.loginwindow</string>
+	<key>ProgramArguments</key>
+	<array>
+		<string>/System/Library/CoreServices/loginwindow.app/Contents/MacOS/loginwindow</string>
+	</array>
+	<key>MachServices</key>
+	<dict>
+		<key>org.minkar.loginwindow</key>
+		<true/>
+	</dict>
+	<key>StandardErrorPath</key>
+	<string>/var/log/loginwindow.log</string>
+	<key>RunAtLoad</key>
+	<true/>
+	<key>KeepAlive</key>
+	<dict>
+		<key>SuccessfulExit</key>
+		<false/>
+	</dict>
+</dict>
+</plist>

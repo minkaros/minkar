@@ -45,11 +45,15 @@
 /* State the connection holds, released when it dies. */
 @property int32_t cursorHideCount;
 @property BOOL cursorAssociated;
+/* The cursor image it set, or nil for the server's arrow. */
+@property (strong) id cursorShape;
 @property BOOL changedTransfers;
 /* Events waiting for the client (SLSEvents), and how many were dropped
  * because the queue was full. */
 @property (readonly) NSMutableData *eventQueue;
 @property uint32_t droppedEvents;
+/* It asked to hear about windows minimized and restored. */
+@property BOOL windowNotifications;
 /* Displays changed for this app only: display ID -> @[mode ID, x, y,
  * mirror of] as they were before. */
 @property (readonly) NSMutableDictionary<NSNumber *, NSArray<NSNumber *> *> *appOnlyDisplays;

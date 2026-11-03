@@ -5,5 +5,8 @@
 	<!-- Server connection to IOHIDSystem (kIOHIDServerConnectType). -->
 	<key>com.apple.hid.system.server-access</key>
 	<true/>
+	<!-- The GPU's user client, to present through its DMA engine (G2). -->
+	<key>org.minkar.gpu-client</key>
+	<true/>
 </dict>
 </plist>

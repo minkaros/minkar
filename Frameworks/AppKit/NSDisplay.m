@@ -78,9 +78,10 @@ static NSRect screenFrame(CGDirectDisplayID display, CGFloat mainHeight, NSRect 
    return NSThreadSharedInstance(@"NSDisplay");
 }
 
--init {
-    _eventQueue=[NSMutableArray new];
-    _screens = [NSMutableArray new];
+/* The screens, main first, from the displays as they are now; again
+ * when a display changes (-[NSApplication _displayReconfigured:flags:]). */
+-(void)_reloadScreens {
+    [_screens removeAllObjects];
 
     CGDirectDisplayID cgDisplays[8];
     uint32_t count = 0;
@@ -99,7 +100,7 @@ static NSRect screenFrame(CGDirectDisplayID display, CGFloat mainHeight, NSRect 
         visFrame = frame;
         visFrame.size.height -= _NSMenuBarHeightForDisplay(mainDisplay);
     }
-    NSScreen *screen = [[[NSScreen alloc] initWithFrame:frame visibleFrame:visFrame] retain];
+    NSScreen *screen = [[[NSScreen alloc] initWithFrame:frame visibleFrame:visFrame] autorelease];
     [screen _propertiesFromMode:mode colorSpace:cs displayID:mainDisplay];
     CGDisplayModeRelease(mode);
     [_screens addObject:screen];
@@ -111,12 +112,17 @@ static NSRect screenFrame(CGDirectDisplayID display, CGFloat mainHeight, NSRect 
         mode = CGDisplayCopyDisplayMode(cgDisplays[i]);
         cs = CGDisplayCopyColorSpace(mainDisplay);
         frame = screenFrame(cgDisplays[i], mainHeight, &visFrame);
-        NSScreen *screen = [[[NSScreen alloc] initWithFrame:frame visibleFrame:visFrame] retain];
+        NSScreen *screen = [[[NSScreen alloc] initWithFrame:frame visibleFrame:visFrame] autorelease];
         [screen _propertiesFromMode:mode colorSpace:cs displayID:cgDisplays[i]];
         CGDisplayModeRelease(mode);
         [_screens addObject:screen];
     }
-    
+}
+
+-init {
+    _eventQueue=[NSMutableArray new];
+    _screens = [NSMutableArray new];
+    [self _reloadScreens];
     _depth = 32;
     return self;
 }

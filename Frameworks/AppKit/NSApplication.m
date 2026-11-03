@@ -36,6 +36,12 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <AppKit/NSDockTile.h>
 #import <AppKit/NSRunningApplication.h>
 #import "NSRunningApplication_private.h"
+#import "NSMenu.subproj/NSMenuBarWindow.h"
+
+/* NSWindow's: sends the server what it does not have of the window. */
+@interface NSWindow (SkyLightState)
+-(BOOL)_updateWSState;
+@end
 #import <CoreGraphics/CGWindow.h>
 #import <AppKit/NSRaise.h>
 #import <AppKit/NSSpellChecker.h>
@@ -49,8 +55,6 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #include <stdlib.h>
 #include <unistd.h>
 
-#import <WindowServer/Legacy/message.h>
-#import <WindowServer/Legacy/rpc.h>
 
 NSString * const NSModalPanelRunLoopMode=@"NSModalPanelRunLoopMode";
 NSString * const NSEventTrackingRunLoopMode=@"NSEventTrackingRunLoopMode";
@@ -139,40 +143,45 @@ id NSApp=nil;
    }
 }
 
-static NSMenuItem *itemWithTag(NSMenu *root, int tag) {
-    NSArray *items = [root itemArray];
-    NSMenuItem *item = nil;
-    for(int i = 0; i < [items count]; ++i) {
-        item = [items objectAtIndex:i];
-        if([item tag] == tag)
-            return item;
-        if([item hasSubmenu]) {
-            item = itemWithTag([item submenu], tag);
-            if(item)
-                return item;
-        }
-    }
-    return nil;
-}
-
 /*
- * Events from the new window server (WindowServer plan, WS3): a thread
- * waits for them through SkyLight, makes NSEvents and posts them, as
- * machServiceLoop: does for the legacy server.
+ * Events from the window server (WindowServer plan, WS3): a thread waits
+ * for them through SkyLight, makes NSEvents and posts them.
  */
 extern int _CGUsesSkyLight(void);
 extern NSWindow *_NSWindowForSLSWindow(SLSWindowID window);
 
+/* Control-F2 (the server's kSLSHotKeyMenuBarFocus) as AppKit posts it to
+   itself: the menu bar takes the keyboard. A display that changed
+   (kSLSEventDisplayReconfigured) goes to the main thread the same way:
+   data1 the display, data2 the CGDisplayChangeSummaryFlags. */
+enum { kNSMenuBarFocusEventSubtype = 0x4d42, kNSDisplayReconfiguredEventSubtype = 0x4443 };
+extern void _CGDisplayReconfigured(CGDirectDisplayID display, CGDisplayChangeSummaryFlags flags);
+
 -(void)_postSkyLightEvent:(SLSEvent *)e {
-    static CGFloat height;
     NSWindow *window = _NSWindowForSLSWindow(e->window);
     NSEvent *event = nil;
 
+    if(e->type == kSLSEventDisplayReconfigured) {
+        [_display postEvent:[NSEvent otherEventWithType:NSAppKitDefined location:NSZeroPoint
+            modifierFlags:0 timestamp:0 windowNumber:0 context:nil
+            subtype:kNSDisplayReconfiguredEventSubtype data1:e->buttonNumber data2:e->flags]
+            atStart:NO];
+        return;
+    }
+
+    if(e->type == kSLSEventSymbolicHotKey) {
+        if(e->buttonNumber == kSLSHotKeyMenuBarFocus)
+            [_display postEvent:[NSEvent otherEventWithType:NSAppKitDefined location:NSZeroPoint
+                modifierFlags:0 timestamp:0 windowNumber:0 context:nil
+                subtype:kNSMenuBarFocusEventSubtype data1:0 data2:0] atStart:NO];
+        return;
+    }
+
     if(window == nil)
         return;
-    if(height == 0)
-        height = CGDisplayBounds(CGMainDisplayID()).size.height;
-    /* Global, from the top left, to the window's own coordinates. */
+    /* Global, from the top left, to the window's own coordinates (the
+       main display's height read each time: a mode change changes it). */
+    CGFloat height = CGDisplayBounds(CGMainDisplayID()).size.height;
     NSRect frame = [window frame];
     NSPoint location = NSMakePoint(e->x - frame.origin.x, (height - e->y) - frame.origin.y);
 
@@ -211,6 +220,41 @@ extern NSWindow *_NSWindowForSLSWindow(SLSWindowID window);
     [_display postEvent:event atStart:NO];
 }
 
+/*
+ * A display changed: the reconfiguration callbacks run, the screens and
+ * the menu bars follow the new configuration, and each window keeps its
+ * place from the top of the main screen (where the server keeps it) and
+ * is brought back onto a screen if the change left it off; then
+ * NSApplicationDidChangeScreenParametersNotification, as on the reference
+ * platform.
+ */
+-(void)_displayReconfigured:(CGDirectDisplayID)display flags:(CGDisplayChangeSummaryFlags)flags {
+    NSRect was = [[[NSScreen screens] objectAtIndex:0] frame];
+
+    _CGDisplayReconfigured(display, flags);
+    [[NSDisplay currentDisplay] _reloadScreens];
+    [NSMenuBarWindow _screensChanged];
+
+    NSScreen *main = [[NSScreen screens] objectAtIndex:0];
+    CGFloat top = NSMaxY([main frame]);
+    for(NSWindow *window in [[_windows copy] autorelease]) {
+        if([window isKindOfClass:[NSMenuBarWindow class]])
+            continue;
+        NSRect frame = [window frame];
+        frame.origin.y = top - (NSMaxY(was) - NSMaxY(frame)) - frame.size.height;
+        NSScreen *screen = [window screen];
+        frame = [window constrainFrameRect:frame toScreen:screen != nil ? screen : main];
+        if(!NSEqualRects(frame, [window frame]))
+            [window setFrame:frame display:[window isVisible]];
+        else
+            /* The same AppKit frame is another place on the server's
+               desktop when the main screen's height changed. */
+            [window _updateWSState];
+    }
+    [[NSNotificationCenter defaultCenter]
+        postNotificationName:NSApplicationDidChangeScreenParametersNotification object:self];
+}
+
 -(void)skyLightEventLoop:(id)object {
     SLSEvent events[kSLSMaxEvents];
 
@@ -227,321 +271,6 @@ extern NSWindow *_NSWindowForSLSWindow(SLSWindowID window);
         [pool release];
         if(n > 0 && [self _wakeUp] < 0)
             NSLog(@"Error waking runloop - write: %s", strerror(errno));
-    }
-}
-
--(void)machServiceLoop:(id)object {
-    //NSLog(@"starting mach service loop");
-    NSTimeInterval lastClickTime = 0;
-    NSTimeInterval lastRightClickTime = 0;
-    unsigned clickCount = 0;
-    unsigned rightClickCount = 0;
-    struct timespec ts;
-
-    while(1) {
-        ReceiveMessage msg = {0};
-        mach_msg_return_t result = mach_msg((mach_msg_header_t *)&msg, MACH_RCV_MSG, 0, sizeof(msg),
-            _wsReplyPort, MACH_MSG_TIMEOUT_NONE, MACH_PORT_NULL);
-        if(result != MACH_MSG_SUCCESS)
-            NSLog(@"mach_msg receive error 0x%x", result);
-        else {
-            switch(msg.header.msgh_id) {
-                case MSG_ID_INLINE:
-                    switch(msg.code) {
-                        case CODE_WINDOW_STATE: {
-                            if(msg.len != sizeof(struct wsRPCWindow)) {
-                                NSLog(@"Incorrect data size in window state change: %d vs %d",
-                                        msg.len, sizeof(struct wsRPCWindow));
-                                break;
-                            }
-                            struct wsRPCWindow *data = (struct wsRPCWindow *)msg.data;
-                            int _id = data->windowID;
-
-                            if([bundleID isEqualToString:@"org.minkar.Dock"]) {
-                                NSMutableDictionary *md = [NSMutableDictionary new];
-                                [md setObject:[NSNumber numberWithInt:msg.pid] forKey:@"ProcessID"];
-                                [md setObject:[NSString stringWithCString:msg.bundleID] forKey:@"BundleID"];
-                                [md setObject:[NSNumber numberWithInt:_id] forKey:@"WindowID"];
-                                [md setObject:[NSNumber numberWithInt:data->state] forKey:@"State"];
-
-                                [[NSNotificationCenter defaultCenter]
-                                    postNotificationName:@"WSWindowDidChangeState" object:nil
-                                    userInfo:md];
-
-                                // We're done here if this message wasn't about Dock.
-                                if(strcmp(msg.bundleID, "org.minkar.Dock"))
-                                    break;
-                            }
-
-                            NSWindow *window = [self windowWithWindowNumber:_id];
-                            if(window == nil) {
-                                NSLog(@"WINDOW_STATE: ID %u, not found in window list!", _id);
-                                break;
-                            }
-                            [window processStateUpdate:data];
-                            break;
-                        }
-                        // and all of these should really use Quartz Event Services
-                        case CODE_INPUT_EVENT: {
-                            struct mach_event me;
-                            if(msg.len != sizeof(me)) {
-                                NSLog(@"Incorrect data size in input event: %d vs %d", msg.len, sizeof(me));
-                                break;
-                            }
-                            memcpy(&me, msg.data, msg.len);
-                            NSWindow *window = (me.windowID == 0)
-                                ? [self mainWindow]
-                                : [self windowWithWindowNumber:me.windowID];
-
-                            // translate screen to window coords
-                            me.x -= [window frame].origin.x;
-                            me.y -= [window frame].origin.y;
-                            switch(me.code) {
-                                case NSKeyUp:
-                                case NSKeyDown:
-                                case NSFlagsChanged: {
-                                    NSEvent *e = [NSEvent keyEventWithType:me.code
-                                                  location:NSMakePoint(me.x, me.y)
-                                             modifierFlags:me.mods
-                                                    window:window
-                                                characters:[[NSString alloc] initWithUTF8String:me.chars]
-                               charactersIgnoringModifiers:[[NSString alloc] initWithUTF8String:me.charsIg]
-                                                 isARepeat:me.repeat
-                                                   keyCode:me.keycode];
-                                    [_display postEvent:e atStart:NO];
-                                    break;
-                                }
-                                case NSMouseMoved:
-                                case NSMouseEntered:
-                                case NSMouseExited: {
-                                    NSEvent *e = [NSEvent mouseEventWithType:me.code
-                                                        location:NSMakePoint(me.x, me.y)
-                                               modifierFlags:me.mods
-                                                      window:window
-                                                      clickCount:0
-                                                      deltaX:me.dx
-                                                      deltaY:me.dy];
-                                    [_display postEvent:e atStart:NO];
-                                    break;
-                                }
-                                case NSLeftMouseDown:
-                                    clock_gettime(CLOCK_MONOTONIC, &ts);
-                                    lastClickTime = ts.tv_sec + ts.tv_nsec/1000000000;
-                                    clickCount++;
-                                case NSLeftMouseUp: {
-                                    clock_gettime(CLOCK_MONOTONIC, &ts);
-                                    NSTimeInterval now = ts.tv_sec + ts.tv_nsec/1000000000;
-                                    if((now - lastClickTime) > [_display doubleClickInterval])
-                                        clickCount = 0;
-
-                                    NSEvent *e = [NSEvent mouseEventWithType:me.code
-                                                    location:NSMakePoint(me.x, me.y)
-                                               modifierFlags:me.mods
-                                                      window:window
-                                                  clickCount:clickCount
-                                                      deltaX:me.dx
-                                                      deltaY:me.dy];
-                                    [_display postEvent:e atStart:NO];
-                                    break;
-                                }
-                                case NSLeftMouseDragged: {
-                                    NSEvent *e = [NSEvent mouseEventWithType:me.code
-                                                    location:NSMakePoint(me.x, me.y)
-                                               modifierFlags:me.mods
-                                                      window:window
-                                                  clickCount:0
-                                                      deltaX:me.dx
-                                                      deltaY:me.dy];
-                                    [_display postEvent:e atStart:NO];
-                                    break;
-                                }
-                                case NSRightMouseDown:
-                                    clock_gettime(CLOCK_MONOTONIC, &ts);
-                                    lastRightClickTime = ts.tv_sec + ts.tv_nsec/1000000000;
-                                    rightClickCount++;
-                                case NSRightMouseUp: {
-                                    clock_gettime(CLOCK_MONOTONIC, &ts);
-                                    NSTimeInterval now = ts.tv_sec + ts.tv_nsec/1000000000;
-                                    if((now - lastRightClickTime) > [_display doubleClickInterval])
-                                        rightClickCount = 0;
-
-                                    NSEvent *e = [NSEvent mouseEventWithType:me.code
-                                                    location:NSMakePoint(me.x, me.y)
-                                               modifierFlags:me.mods
-                                                      window:window
-                                                  clickCount:rightClickCount
-                                                      deltaX:me.dx
-                                                      deltaY:me.dy];
-                                    [_display postEvent:e atStart:NO];
-                                    break;
-                                }
-                                case NSRightMouseDragged: {
-                                    NSEvent *e = [NSEvent mouseEventWithType:me.code
-                                                    location:NSMakePoint(me.x, me.y)
-                                               modifierFlags:me.mods
-                                                      window:window
-                                                  clickCount:0
-                                                      deltaX:me.dx
-                                                      deltaY:me.dy];
-                                    [_display postEvent:e atStart:NO];
-                                    break;
-                                }
-                                default:
-                                    NSLog(@"Unhandled input event type %d", me.code);
-                                    break;
-                            }
-                            break;
-                        }
-                        case CODE_STATUS_ITEM_ADDED:
-                        {
-                uint32_t handle;
-                if(msg.len != sizeof(handle)) {
-                NSLog(@"weirdness detected! expected size %d, got %d", sizeof(handle), msg.len);
-                break;
-                }
-                memcpy(&handle, msg.data, sizeof(handle));
-                NSLog(@"ZMK DEBUG: status item added with handle %u", handle);
-            }
-                        case CODE_MENU_FOR_APP:
-                        {
-                            if([bundleID isEqualToString:@"org.minkar.SystemUIServer"]) {
-                                NSMutableData *data = [NSMutableData new];
-                                [data appendBytes:msg.data length:msg.len];
-
-                                NSObject *o = nil;
-                                @try {
-                                    o = [NSKeyedUnarchiver unarchiveObjectWithData:data];
-                                }
-                                @catch(NSException *localException) {
-                                    NSLog(@"%@",localException);
-                                }
-
-                                if(o == nil || [o isKindOfClass:[NSDictionary class]] == NO) {
-                                    NSLog(@"menuForApp: not a dictionary");
-                                    break;
-                                }
-                                if([(NSDictionary *)o objectForKey:@"MainMenu"] == nil) {
-                                    NSLog(@"menuForApp: missing MainMenu key");
-                                    break;
-                                }
-                                if(![[(NSDictionary *)o objectForKey:@"MainMenu"] isKindOfClass:[NSMenu class]]) {
-                                    NSLog(@"menuForApp: invalid menu class");
-                                    break;
-                                }
-
-                                NSMutableDictionary *md = [NSMutableDictionary new];
-                                [md setDictionary:(NSDictionary *)o];
-                                [md setObject:[NSNumber numberWithInt:msg.pid] forKey:@"ProcessID"];
-                                [md setObject:[NSString stringWithCString:msg.bundleID] forKey:@"BundleID"];
-
-                                [[NSNotificationCenter defaultCenter]
-                                    postNotificationName:@"NSMenuDidUpdate" object:nil
-                                    userInfo:md];
-                                [o release];
-                            }
-                            break;
-                        }
-                        case CODE_APP_EXITED:
-                        {
-                            if([bundleID isEqualToString:@"org.minkar.SystemUIServer"] ||
-                               [bundleID isEqualToString:@"org.minkar.Dock"]) {
-                                NSMutableDictionary *md = [NSMutableDictionary new];
-                                [md setObject:[NSNumber numberWithInt:msg.pid] forKey:@"ProcessID"];
-                                [md setObject:[NSString stringWithCString:msg.bundleID] forKey:@"BundleID"];
-                                [md setObject:[NSString stringWithCString:msg.data] forKey:@"Path"];
-
-                                [[NSNotificationCenter defaultCenter]
-                                    postNotificationName:@"NSApplicationDidQuit" object:nil
-                                    userInfo:md];
-                            }
-                            break;
-                        }
-                        case CODE_APP_LAUNCHED:
-                        {
-                            if([bundleID isEqualToString:@"org.minkar.Dock"]) {
-                                NSMutableDictionary *md = [NSMutableDictionary new];
-                                [md setObject:[NSNumber numberWithInt:msg.pid] forKey:@"ProcessID"];
-                                [md setObject:[NSString stringWithCString:msg.bundleID] forKey:@"BundleID"];
-                                [md setObject:[NSString stringWithCString:msg.data] forKey:@"Path"];
-
-                                [[NSNotificationCenter defaultCenter]
-                                    postNotificationName:@"NSApplicationDidLaunch" object:nil
-                                    userInfo:md];
-                            }
-                            break;
-                        }
-                        case CODE_ITEM_CLICKED:
-                        {
-                            int itemID;
-                            if(msg.len != sizeof(itemID)) {
-                                NSLog(@"weirdness detected! expected size %d, got %d", sizeof(itemID), msg.len);
-                                break;
-                            }
-                            memcpy(&itemID, msg.data, sizeof(itemID));
-                            NSMenuItem *item = itemWithTag(_mainMenu, itemID);
-                            if(item != nil)
-                                [self sendAction:[item action] to:[item target] from:item];
-                            else
-                                NSLog(@"Error: cannot find menu item with tag %d!", itemID);
-                            break;
-                        }
-                        case CODE_ACTIVATION_STATE:
-                        {
-                            struct mach_activation_data data;
-                            if(msg.len != sizeof(data)) {
-                                NSLog(@"weirdness detected! expected size %d, got %d", sizeof(data), msg.len);
-                                break;
-                            }
-                            memcpy(&data, msg.data, sizeof(data));
-                            if(data.active == 1 && data.windowID != 0) {
-                                NSWindow *win = [self windowWithWindowNumber:data.windowID];
-                                if(win)
-                                    [win showForActivation];
-                            }
-                            if(data.active && !_isActive)
-                                [[NSNotificationCenter defaultCenter]
-                                    postNotificationName:NSApplicationWillBecomeActiveNotification
-                                                  object:self];
-                            else if(!data.active && _isActive)
-                                [[NSNotificationCenter defaultCenter]
-                                    postNotificationName:NSApplicationWillResignActiveNotification
-                                                  object:self];
-                            _isActive = data.active;
-                            [self _checkForAppActivation];
-
-                            if([bundleID isEqualToString:@"org.minkar.SystemUIServer"]) {
-                                NSMutableDictionary *md = [NSMutableDictionary new];
-                                [md setObject:[NSNumber numberWithInt:msg.pid] forKey:@"ProcessID"];
-                                [md setObject:[NSString stringWithCString:msg.bundleID] forKey:@"BundleID"];
-
-                                [[NSNotificationCenter defaultCenter]
-                                    postNotificationName: (_isActive ? NSApplicationDidBecomeActiveNotification
-                                                                     : NSApplicationDidResignActiveNotification)
-                                                               object:nil
-                                                             userInfo:md];
-                            } else {
-                                [[NSNotificationCenter defaultCenter]
-                                    postNotificationName: (_isActive ? NSApplicationDidBecomeActiveNotification
-                                                                     : NSApplicationDidResignActiveNotification)
-                                                               object:self];
-                            }
-                            break;
-                        }
-                        case CODE_APP_HIDE:
-                        {
-                            [self hide:nil];
-                            break;
-                        }
-                        default:
-                            NSLog(@"Unknown message code %u from WS", msg.code);
-
-                    }
-                    break;
-            }
-            // we received _something_ so wake the main event loop in case we posted
-            if([self _wakeUp] < 0)
-                NSLog(@"Error waking runloop - write: %s", strerror(errno));
-        }
     }
 }
 
@@ -579,17 +308,6 @@ extern NSWindow *_NSWindowForSLSWindow(SLSWindowID window);
     //[NSRunLoop mainRunLoop];
     [NSRunLoop currentRunLoop];
 
-    // Create a port with send/receive rights that communicates with WindowServer
-    mach_port_t task = mach_task_self();
-    if(mach_port_allocate(task, MACH_PORT_RIGHT_RECEIVE, &_wsReplyPort) != KERN_SUCCESS ||
-        mach_port_insert_right(task, _wsReplyPort, _wsReplyPort, MACH_MSG_TYPE_MAKE_SEND) != KERN_SUCCESS) {
-        NSLog(@"Failed to allocate mach_port _wsReplyPort");
-        exit(1);
-    }
-    [NSThread detachNewThreadSelector:@selector(machServiceLoop:) toTarget:self withObject:nil];
-
-   _wsSvcPort = MACH_PORT_NULL;
-
    _display=[[NSDisplay currentDisplay] retain];
 
    _windows=[[NSMutableArray new] retain];
@@ -601,36 +319,9 @@ extern NSWindow *_NSWindowForSLSWindow(SLSWindowID window);
    bundleID = [mainBundle bundleIdentifier];
     if(bundleID == nil)
         bundleID = [NSString stringWithFormat:@"unix.%u", getpid()];
-   /* With the new window server (no legacy service), SkyLight is the
-    * connection, and its events come through skyLightEventLoop:. */
-   if(_CGUsesSkyLight())
-       [NSThread detachNewThreadSelector:@selector(skyLightEventLoop:) toTarget:self withObject:nil];
-   if(!([bundleID isEqualToString:@"org.minkar.WindowServer"]) && !_CGUsesSkyLight()) {
-        NSLog(@"Finding service %s (%u)", WINDOWSERVER_SVC_NAME, bootstrap_port);
-        if(bootstrap_look_up(bootstrap_port, WINDOWSERVER_SVC_NAME, &_wsSvcPort) != KERN_SUCCESS) {
-            NSLog(@"Failed to locate service");
-            return nil;
-        }
-
-        // register this app with WindowServer so we get events
-        PortMessage msg = {0};
-        msg.header.msgh_remote_port = _wsSvcPort;
-        msg.header.msgh_bits = MACH_MSGH_BITS_SET(MACH_MSG_TYPE_COPY_SEND, 0, 0, MACH_MSGH_BITS_COMPLEX);
-        msg.header.msgh_id = MSG_ID_PORT;
-        msg.header.msgh_size = sizeof(msg);
-        msg.msgh_descriptor_count = 1;
-        msg.descriptor.type = MACH_MSG_PORT_DESCRIPTOR;
-        msg.descriptor.name = _wsReplyPort;
-        msg.descriptor.disposition = MACH_MSG_TYPE_MAKE_SEND;
-        msg.pid = getpid();
-        strncpy(msg.bundleID, [bundleID cString], sizeof(msg.bundleID));
-
-        int ret = 0;
-        if((ret = mach_msg((mach_msg_header_t *)&msg, MACH_SEND_MSG|MACH_SEND_TIMEOUT, sizeof(msg), 0, MACH_PORT_NULL,
-            2000 /* ms timeout */, MACH_PORT_NULL)) != MACH_MSG_SUCCESS)
-            NSLog(@"Failed to register with WS: mach_msg error 0x%x", ret);
-   }
-
+   /* SkyLight is the window server's connection, and its events come
+    * through skyLightEventLoop:. */
+   [NSThread detachNewThreadSelector:@selector(skyLightEventLoop:) toTarget:self withObject:nil];
    /* As LaunchServices reads it: an agent (LSUIElement) has no Dock icon
     * or menu bar, a background-only app (LSBackgroundOnly) no windows. */
    _activationPolicy=NSApplicationActivationPolicyRegular;
@@ -657,13 +348,7 @@ extern NSWindow *_NSWindowForSLSWindow(SLSWindowID window);
     return _inputSource;
 }
 
-// private internal method (also used by Dock)
--(mach_port_t)_wsServicePort {
-    return _wsSvcPort;
-}
-
 -(void)dealloc {
-    mach_port_deallocate(mach_task_self(),_wsReplyPort);
     [super dealloc];
 }
 
@@ -830,6 +515,10 @@ extern NSWindow *_NSWindowForSLSWindow(SLSWindowID window);
         [[NSNotificationCenter defaultCenter] removeObserver:_delegate
                                                      name: NSApplicationWillTerminateNotification object:self];
     }
+    if([_delegate respondsToSelector:@selector(applicationDidChangeScreenParameters:)]){
+        [[NSNotificationCenter defaultCenter] removeObserver:_delegate
+            name:NSApplicationDidChangeScreenParametersNotification object:self];
+    }
 }
 
 -(void)registerDelegate {
@@ -853,6 +542,11 @@ extern NSWindow *_NSWindowForSLSWindow(SLSWindowID window);
                                                selector:@selector(applicationWillTerminate:)
                                                    name: NSApplicationWillTerminateNotification object:self];
    }
+    if([_delegate respondsToSelector:@selector(applicationDidChangeScreenParameters:)]){
+     [[NSNotificationCenter defaultCenter] addObserver:_delegate
+       selector:@selector(applicationDidChangeScreenParameters:)
+        name:NSApplicationDidChangeScreenParametersNotification object:self];
+    }
 
 }
 
@@ -862,18 +556,6 @@ extern NSWindow *_NSWindowForSLSWindow(SLSWindowID window);
         _delegate=delegate;
         [self registerDelegate];
     }
-}
-
-static int _tagAllMenus(NSMenu *menu, int tag) {
-    NSArray *items = [menu itemArray];
-    for(int i = 0; i < [items count]; ++i) {
-        NSMenuItem *item = [items objectAtIndex:i];
-        [item setTag:tag++];
-        if([item hasSubmenu])
-            tag = _tagAllMenus([item submenu], tag);
-    }
-
-    return tag;
 }
 
 -(void)setMainMenu:(NSMenu *)menu {
@@ -899,112 +581,12 @@ static int _tagAllMenus(NSMenu *menu, int tag) {
      [window setMenu:_mainMenu];
    }
 
-    [self sendMenusToWindowServer];
+    [NSMenuBarWindow _mainMenuChanged];
 }
 
-/* Make a copy of the menus with nil delegates and targets before
- * sending the menu tree to WindowServer. Otherwise it may reject
- * the menus because of unknown classes.
- * This function is recursive.
- */
-
--(void)_menuEnumerateAndChange:(NSMenu *)menu {
-    NSArray *items = [menu itemArray];
-    [menu setDelegate:nil];
-    for(int i = 0; i < [items count]; ++i) {
-        NSMenuItem *item = [[items objectAtIndex:i] copy];
-        [item setTarget:nil];
-        [menu removeItemAtIndex:i];
-        [menu insertItem:item atIndex:i];
-        if([item hasSubmenu])
-            [self _menuEnumerateAndChange:[item submenu]];
-    }
-}
-
--(void)sendMenusToWindowServer {
-    if(_mainMenu == nil)
-        return;
-
-    _tagAllMenus(_mainMenu, 1);
-    NSMenu *menuCopy = [_mainMenu copy];
-    [self _menuEnumerateAndChange:menuCopy];
-
-    NSDictionary *dict = [NSDictionary
-        dictionaryWithObjects:@[menuCopy]
-        forKeys:@[@"MainMenu"]];
-
-    NSData *d = [NSKeyedArchiver archivedDataWithRootObject:dict];
-
-    Message msg = {0};
-    msg.header.msgh_remote_port = _wsSvcPort;
-    msg.header.msgh_bits = MACH_MSGH_BITS_SET(MACH_MSG_TYPE_COPY_SEND, 0, 0, 0);
-    msg.header.msgh_id = MSG_ID_INLINE;
-    msg.header.msgh_size = sizeof(msg);
-    msg.code = CODE_MENU_FOR_APP;
-    msg.pid = getpid();
-    strncpy(msg.bundleID, [bundleID UTF8String], sizeof(msg.bundleID));
-    int len = MIN([d length], sizeof(msg.data));
-    memcpy(msg.data, [d bytes], len);
-    msg.len = len;
-
-    if(mach_msg((mach_msg_header_t *)&msg, MACH_SEND_MSG|MACH_SEND_TIMEOUT, sizeof(msg), 0, MACH_PORT_NULL,
-            1000 /* ms timeout */, MACH_PORT_NULL) != MACH_MSG_SUCCESS)
-        NSLog(@"Failed to send menus to WS");
-
-    [menuCopy release];
-}
-
+/* SHORTCUT(MB2): NSDocumentController keeps the recent items in the app's
+   preferences; LaunchServices' shared file lists come in MB2 (Menus.md). */
 - (void)addRecentItem:(NSURL *)url {
-    Message msg = {0};
-    msg.header.msgh_remote_port = _wsSvcPort;
-    msg.header.msgh_bits = MACH_MSGH_BITS_SET(MACH_MSG_TYPE_COPY_SEND, 0, 0, 0);
-    msg.header.msgh_id = MSG_ID_INLINE;
-    msg.header.msgh_size = sizeof(msg);
-    msg.code = CODE_ADD_RECENT_ITEM;
-    strncpy(msg.data, [[url absoluteString] UTF8String], sizeof(msg.data));
-    msg.len = strlen(msg.data);
-
-    if(mach_msg((mach_msg_header_t *)&msg, MACH_SEND_MSG|MACH_SEND_TIMEOUT,
-        sizeof(msg), 0, MACH_PORT_NULL,
-        1000 /* ms timeout */, MACH_PORT_NULL) != MACH_MSG_SUCCESS)
-        NSLog(@"Failed to send recent item to WS");
-}
-
-- (void)_addStatusItem:(NSStatusItem *)item {
-    Message msg = {0};
-    msg.header.msgh_remote_port = _wsSvcPort;
-    msg.header.msgh_bits = MACH_MSGH_BITS_SET(MACH_MSG_TYPE_COPY_SEND, 0, 0, 0);
-    msg.header.msgh_id = MSG_ID_INLINE;
-    msg.header.msgh_size = sizeof(msg);
-    msg.code = CODE_ADD_STATUS_ITEM;
-
-    NSNumber *pid = [NSNumber numberWithUnsignedInt:getpid()];
-    NSDictionary *dict = [NSDictionary
-        dictionaryWithObjects:@[item,pid]
-        forKeys:@[@"StatusItem",@"ProcessID"]];
-    NSData *d = [NSKeyedArchiver archivedDataWithRootObject:dict];
-    NSObject *o = nil;
-    @try {
-    o = [NSKeyedUnarchiver unarchiveObjectWithData:d];
-    }
-    @catch(NSException *localException) {
-    NSLog(@"%@",localException);
-    }
-
-    if([d length] > sizeof(msg.data)) {
-    NSLog(@"Failed to send NSStatusItem to WS: overflow");
-    return;
-    }
-
-    memcpy(msg.data, [d bytes], [d length]);
-    msg.len = [d length];
-    [d release];
-    [dict release];
-
-    if(mach_msg((mach_msg_header_t *)&msg, MACH_SEND_MSG|MACH_SEND_TIMEOUT,
-        sizeof(msg), 0, MACH_PORT_NULL,
-        2000 /* ms timeout */, MACH_PORT_NULL) != MACH_MSG_SUCCESS)
-        NSLog(@"Failed to send NSStatusItem to WS");
 }
 
 -(void)setMenu:(NSMenu *)menu {
@@ -1022,7 +604,7 @@ static int _tagAllMenus(NSMenu *menu, int tag) {
 -(void)setWindowsMenu:(NSMenu *)menu {
    [_windowsMenu autorelease];
    _windowsMenu=[menu retain];
-    [self sendMenusToWindowServer];
+    [NSMenuBarWindow _mainMenuChanged];
 }
 
 
@@ -1039,7 +621,7 @@ static int _tagAllMenus(NSMenu *menu, int tag) {
     [item setTarget:window];
 
     [[self windowsMenu] addItem:item];
-    [self sendMenusToWindowServer];
+    [NSMenuBarWindow _mainMenuChanged];
 }
 
 -(void)changeWindowsItem:(NSWindow *)window title:(NSString *)title filename:(BOOL)isFilename {
@@ -1062,7 +644,7 @@ static int _tagAllMenus(NSMenu *menu, int tag) {
         else
             [self addWindowsItem:window title:title filename:isFilename];
     }
-    [self sendMenusToWindowServer];
+    [NSMenuBarWindow _mainMenuChanged];
 }
 
 -(void)removeWindowsItem:(NSWindow *)window {
@@ -1075,7 +657,7 @@ static int _tagAllMenus(NSMenu *menu, int tag) {
             [[self windowsMenu] removeItem:[[[self windowsMenu] itemArray] lastObject]];
           }
     }
-    [self sendMenusToWindowServer];
+    [NSMenuBarWindow _mainMenuChanged];
 }
 
 -(void)updateWindowsItem:(NSWindow *)window {
@@ -1086,7 +668,7 @@ static int _tagAllMenus(NSMenu *menu, int tag) {
     NSMenuItem *item=[menu itemAtIndex:itemIndex];
 
    }
-    [self sendMenusToWindowServer];
+    [NSMenuBarWindow _mainMenuChanged];
 }
 
 -(BOOL)openFiles
@@ -1292,9 +874,18 @@ static int _tagAllMenus(NSMenu *menu, int tag) {
    if([event type]==NSKeyDown){
     unsigned modifierFlags=[event modifierFlags];
 
-    if(modifierFlags&(NSCommandKeyMask|NSAlternateKeyMask))
+    if(modifierFlags&(NSCommandKeyMask|NSAlternateKeyMask|NSControlKeyMask))
      if([self _performKeyEquivalent:event])
       return;
+   }
+   if([event type]==NSAppKitDefined && [event subtype]==kNSMenuBarFocusEventSubtype){
+    [NSMenuBarWindow _focusMenuBar];
+    return;
+   }
+   if([event type]==NSAppKitDefined && [event subtype]==kNSDisplayReconfiguredEventSubtype){
+    [self _displayReconfigured:(CGDirectDisplayID)[event data1]
+        flags:(CGDisplayChangeSummaryFlags)[event data2]];
+    return;
    }
 
    [[event window] sendEvent:event];
@@ -1507,8 +1098,7 @@ static int _tagAllMenus(NSMenu *menu, int tag) {
 -(void)activateIgnoringOtherApps:(BOOL)flag {
    NSWindow *window=_keyWindow ? _keyWindow : _mainWindow;
 
-   if(_CGUsesSkyLight())
-       SLSSetFrontProcess();
+   SLSSetFrontProcess();
    if(window==nil || ![window isVisible] || ![window canBecomeKeyWindow]) {
        window=nil;
        for(NSWindow *check in [self orderedWindows])
@@ -1573,6 +1163,13 @@ static int _tagAllMenus(NSMenu *menu, int tag) {
 -(void)_setActiveFromLaunchServices:(BOOL)active {
    if(active==_isActive)
        return;
+   /* The front app's menu bar is on the screen (MB0). */
+   if(_activationPolicy==NSApplicationActivationPolicyRegular) {
+       if(active)
+           [NSMenuBarWindow _showMenuBars];
+       else
+           [NSMenuBarWindow _hideMenuBars];
+   }
    [[NSNotificationCenter defaultCenter] postNotificationName:
        active ? NSApplicationWillBecomeActiveNotification : NSApplicationWillResignActiveNotification
        object:self];
@@ -1597,6 +1194,10 @@ static int _tagAllMenus(NSMenu *menu, int tag) {
            case kLSSessionActivateRequest:
                [self activateIgnoringOtherApps:(msg->options & NSApplicationActivateIgnoringOtherApps)!=0];
                break;
+           case kLSSessionQuitRequest:
+               /* As the Quit item: the delegate may refuse. */
+               [self terminate:self];
+               break;
        }
    }
    _NSRunningApplicationSessionMessage(msg);
@@ -1615,7 +1216,6 @@ static int _tagAllMenus(NSMenu *menu, int tag) {
 
    [_modalStack addObject:session];
 
-   [window _hideMenuViewIfNeeded];
    if(![window isVisible]){
     [window center];
    }
@@ -1681,7 +1281,6 @@ static int _tagAllMenus(NSMenu *menu, int tag) {
         [self postEvent:requeue atStart:YES];
     }
 
-    [[session modalWindow] _showMenuViewIfNeeded];
     [_modalStack removeLastObject];
 }
 
@@ -1697,8 +1296,10 @@ static int _tagAllMenus(NSMenu *menu, int tag) {
    int result;
 
    while((result=[NSApp runModalSession:session])==NSRunContinuesResponse){
-    //NSDate *date = [NSDate dateWithTimeIntervalSinceNow:0.1];
-    [[NSRunLoop currentRunLoop] runMode:NSModalPanelRunLoopMode beforeDate:[NSDate distantFuture]];
+    /* Waits for the next event with the app's event source in the run
+       loop (a plain runMode: here never woke for one). */
+    [self nextEventMatchingMask:NSAnyEventMask untilDate:[NSDate distantFuture]
+        inMode:NSModalPanelRunLoopMode dequeue:NO];
    }
 
    [self endModalSession:session];
@@ -1750,7 +1351,8 @@ static int _tagAllMenus(NSMenu *menu, int tag) {
         NSModalSession session = [self beginModalSessionForWindow: sheet];
         [context setModalSession: session];
         while([NSApp runModalSession:session] == NSRunContinuesResponse){
-            [[NSRunLoop currentRunLoop] runMode:NSModalPanelRunLoopMode beforeDate:[NSDate distantFuture]];
+            [self nextEventMatchingMask:NSAnyEventMask untilDate:[NSDate distantFuture]
+                inMode:NSModalPanelRunLoopMode dequeue:NO];
         }
         [self endModalSession:session];
     } else {
@@ -2069,23 +1671,6 @@ standardAboutPanel] retain];
 
 -(void)_windowDidBecomeActive:(NSWindow *)window {
     if(![self isActiveExcludingWindow:window]){
-        if(_wsSvcPort) {
-            Message msg = {0};
-            msg.header.msgh_remote_port = _wsSvcPort;
-            msg.header.msgh_bits = MACH_MSGH_BITS_SET(MACH_MSG_TYPE_COPY_SEND, 0, 0, 0);
-            msg.header.msgh_id = MSG_ID_INLINE;
-            msg.header.msgh_size = sizeof(msg);
-            msg.code = CODE_APP_BECAME_ACTIVE;
-
-            unsigned int pid = getpid();
-            msg.len = sizeof(pid);
-            memcpy(msg.data, &pid, msg.len);
-
-            if(mach_msg((mach_msg_header_t *)&msg, MACH_SEND_MSG|MACH_SEND_TIMEOUT,
-                sizeof(msg), 0, MACH_PORT_NULL,
-                1000 /* ms timeout */, MACH_PORT_NULL) != MACH_MSG_SUCCESS)
-                NSLog(@"Failed to send activation state to WS");
-        }
         [[NSNotificationCenter defaultCenter] postNotificationName:NSApplicationDidBecomeActiveNotification object:self];
    }
 }
@@ -2098,23 +1683,6 @@ standardAboutPanel] retain];
 
 -(void)_windowDidBecomeDeactive:(NSWindow *)window {
     if(![self isActive]){
-        if(_wsSvcPort) {
-            Message msg = {0};
-            msg.header.msgh_remote_port = _wsSvcPort;
-            msg.header.msgh_bits = MACH_MSGH_BITS_SET(MACH_MSG_TYPE_COPY_SEND, 0, 0, 0);
-            msg.header.msgh_id = MSG_ID_INLINE;
-            msg.header.msgh_size = sizeof(msg);
-            msg.code = CODE_APP_BECAME_INACTIVE;
-
-            unsigned int pid = getpid();
-            msg.len = sizeof(pid);
-            memcpy(msg.data, &pid, msg.len);
-
-            if(mach_msg((mach_msg_header_t *)&msg, MACH_SEND_MSG|MACH_SEND_TIMEOUT,
-                sizeof(msg), 0, MACH_PORT_NULL,
-                1000 /* ms timeout */, MACH_PORT_NULL) != MACH_MSG_SUCCESS)
-                NSLog(@"Failed to send activation state to WS");
-        }
         // Exposed menus are running tight event tracking loops and would remain visible when the app deactivates (making
         // the UI less than community minded) - unfortunately because they're in these tracking loops they're waiting
         // on events and even though they could receive the notification sent here they can't deal with it until an event is

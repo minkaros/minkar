@@ -64,6 +64,7 @@ SRCS = \
     NSController/NSUserDefaultsControllerProxy.m \
     NSController/_NSControllerArray.m \
     NSCursor.m \
+    NSCursorImage.m \
     NSCursorRect.m \
     NSCustomImageRep.m \
     NSDatePicker.m \
@@ -124,6 +125,10 @@ SRCS = \
     NSMeasurementUnit.m \
     NSMenu.subproj/NSMenu.m \
     NSMenu.subproj/NSMenuItem.m \
+    NSMenu.subproj/NSMenuBarView.m \
+    NSMenu.subproj/NSMenuView.m \
+    NSMenu.subproj/NSMenuWindow.m \
+    NSMenu.subproj/NSMenuBarWindow.m \
     NSModalSessionX.m \
     NSMutableAttributedString.m \
     NSMutableParagraphStyle.m \
@@ -145,8 +150,6 @@ SRCS = \
     NSPoofAnimation.m \
     NSPopUpButton.m \
     NSPopUpButtonCell.m \
-    NSPopUpView.m \
-    NSPopUpWindow.m \
     NSPredicateEditor.m \
     NSPredicateEditorRowTemplate.m \
     NSPrintInfo.m \
@@ -413,8 +416,6 @@ HEADERS = \
     NSPoofAnimation.h \
     NSPopUpButton.h \
     NSPopUpButtonCell.h \
-    NSPopUpView.h \
-    NSPopUpWindow.h \
     NSPredicateEditor.h \
     NSPredicateEditorRowTemplate.h \
     NSPrinter.h \
@@ -453,7 +454,7 @@ HEADERS = \
     NSSplitView.h \
     NSStatusBar.h \
     NSStatusItem.h \
-    NSStatusItem+Private.h \
+    NSStatusBarButton.h \
     NSStepper.h \
     NSStepperCell.h \
     NSStringDrawer.h \
@@ -541,6 +542,11 @@ HEADERS = \
 
 RESOURCES_DIRS = en.lproj de.lproj fr.lproj
 RESOURCES_FILES = Info.plist \
+	NSMenu.subproj/NSMenuArrow.tiff \
+	../../Logo_Assets/Minkar/MenuBar/MinkarMenu-Black-18.png \
+	../../Logo_Assets/Minkar/MenuBar/MinkarMenu-Black-36.png \
+	NSMenu.subproj/NSMenuViewDoubleRightArrow.tiff \
+	NSMenu.subproj/NSMenuViewDoubleRightArrowGray.tiff \
 	NSToolbar.subproj/NSToolbarPrintItem.tiff \
 	NSToolbar.subproj/NSToolbarOverflowArrow.tiff \
 	NSToolbar.subproj/NSToolbarShowFontsItem.tiff \

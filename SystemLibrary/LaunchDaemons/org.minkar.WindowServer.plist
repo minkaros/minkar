@@ -2,31 +2,40 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<!-- The window server (WindowServer plan; the default since WS4b),
+	     started at boot: it takes the screen and the input. With the
+	     -textconsole boot argument it leaves the text console on the
+	     screen and exits, and is not started again. -->
 	<key>Label</key>
 	<string>org.minkar.WindowServer</string>
-	<!-- Installed disabled: started, the server takes the screen and the
-	     text console is no longer seen on it. Enable it with
-	     launchctl load -w (the boottest gate M4-draw does). -->
-	<key>Disabled</key>
-	<true/>
 	<key>ProgramArguments</key>
 	<array>
-		<string>/System/Library/CoreServices/WindowServer.app/Contents/MacOS/WindowServer</string>
-		<!-- SHORTCUT(WS4b): the compositor only (-x), since LoginWindow is
-		     not built yet; session start leaves WindowServer in WS4b;
-		     taken in WS0. -->
-		<string>-x</string>
+		<string>/System/Library/PrivateFrameworks/SkyLight.framework/Versions/A/Resources/WindowServer</string>
 	</array>
+	<!-- As on the reference platform: its own user, not root. IOHIDSystem
+	     accepts it through its entitlement (ADR 0001). -->
+	<key>UserName</key>
+	<string>_windowserver</string>
+	<key>GroupName</key>
+	<string>_windowserver</string>
+	<key>MachServices</key>
+	<dict>
+		<key>org.minkar.WindowServer</key>
+		<true/>
+	</dict>
 	<key>EnvironmentVariables</key>
 	<dict>
 		<key>LANG</key>
 		<string>C.UTF-8</string>
 	</dict>
 	<key>StandardErrorPath</key>
-	<string>/var/log/WindowServer.log</string>
+	<string>/var/log/WindowServer/WindowServer.log</string>
 	<key>RunAtLoad</key>
 	<true/>
 	<key>KeepAlive</key>
-	<true/>
+	<dict>
+		<key>SuccessfulExit</key>
+		<false/>
+	</dict>
 </dict>
 </plist>

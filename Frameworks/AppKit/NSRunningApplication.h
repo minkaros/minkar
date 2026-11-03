@@ -66,5 +66,7 @@ typedef NS_OPTIONS(NSUInteger, NSApplicationActivationOptions) {
 + (instancetype)currentApplication;
 
 - (BOOL)activateWithOptions:(NSApplicationActivationOptions)options;
+- (BOOL)terminate;
+- (BOOL)forceTerminate;
 
 @end

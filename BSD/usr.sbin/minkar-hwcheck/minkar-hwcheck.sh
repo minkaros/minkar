@@ -323,9 +323,21 @@ display_check() {
 	fi
 	run bootargs sysctl kern.bootargs
 	grep -iE 'IOFB:|console relocated|lost console|console setting|console [0-9]+ x' "$RAW/dmesg.txt" >> "$DETAIL"
-	# IOGOPFramebuffer publishes the geometry the firmware gave.
-	local fb fbw
+	# IOGOPFramebuffer publishes the geometry the firmware gave; in a VM,
+	# MinkarVirtioGPU publishes its own (its scanout is in system memory).
+	local fb fbw virtio=no
 	ioreg -l -w0 -r -c IOGOPFramebuffer > "$RAW/ioreg-gop.txt" 2>&1
+	if ! grep -q '<class IOGOPFramebuffer' "$RAW/ioreg-gop.txt" &&
+	    ioreg -l -w0 -r -c MinkarVirtioGPU > "$RAW/ioreg-virtio-gpu.txt" 2>&1 &&
+	    grep -q '<class MinkarVirtioGPU' "$RAW/ioreg-virtio-gpu.txt"; then
+		virtio=yes
+		cp "$RAW/ioreg-virtio-gpu.txt" "$RAW/ioreg-gop.txt"
+	fi
+	# The AMD driver (G1) publishes the same geometry for its framebuffer.
+	ioreg -l -w0 -r -c MinkarAMDFramebuffer > "$RAW/ioreg-amdfb.txt" 2>&1
+	grep -q '<class MinkarAMDFramebuffer' "$RAW/ioreg-amdfb.txt" &&
+	    ! grep -q '<class IOGOPFramebuffer' "$RAW/ioreg-gop.txt" &&
+	    cp "$RAW/ioreg-amdfb.txt" "$RAW/ioreg-gop.txt"
 	# ioreg prints numbers in decimal (or as 0x... when asked): as hex here.
 	fb=$(awk -F'= ' "$AWK_HEX"'
 	    function hx(n,   s, d) { s = ""; do { d = n % 16; s = substr("0123456789abcdef", d + 1, 1) s; n = (n - d) / 16 } while (n > 0); return "0x" s }
@@ -351,7 +363,16 @@ display_check() {
 	local wbase wsize
 	wbase=$(awk -F'= ' '/"MinkarFramebufferWindowBase"/ { print $2; exit }' "$RAW/ioreg-gop.txt")
 	wsize=$(awk -F'= ' '/"MinkarFramebufferWindowSize"/ { print $2; exit }' "$RAW/ioreg-gop.txt")
-	result INFO "framebuffer drivers" "$(grep -c '<class IOGOPFramebuffer' "$RAW/ioreg-gop.txt") IOGOPFramebuffer (one expected)"
+	if [ $virtio = yes ]; then
+		result INFO "framebuffer drivers" "MinkarVirtioGPU (virtio-gpu, no IOGOPFramebuffer)"
+		[ -n "$fb" ] && result PASS "framebuffer in system memory" \
+		    "virtio-gpu: the host reads the scanout from RAM, no GPU window"
+		fb=""
+	elif grep -q '<class MinkarAMDFramebuffer' "$RAW/ioreg-amdfb.txt"; then
+		result INFO "framebuffer drivers" "MinkarAMDFramebuffer (the AMD driver, in place of IOGOPFramebuffer)"
+	else
+		result INFO "framebuffer drivers" "$(grep -c '<class IOGOPFramebuffer' "$RAW/ioreg-gop.txt") IOGOPFramebuffer (one expected)"
+	fi
 	if [ -n "$wbase" ] && [ -n "$fb" ]; then
 		result PASS "framebuffer in a gpu window" "$(awk -v b="$wbase" -v z="$wsize" '
 		    function hx(n,   s, d) { s = ""; do { d = n % 16; s = substr("0123456789abcdef", d + 1, 1) s; n = (n - d) / 16 } while (n > 0); return "0x" s }
@@ -369,6 +390,52 @@ display_check() {
 	local low
 	low=$(awk "$AWK_HEX"'{ if (hex($3) < 4294967296 && hex($4) >= 16777216) print $1 " " $2 " " $3 " " $4 }' "$RAW/gpu-windows.txt")
 	result INFO "gpu windows below 4 GB" "${low:-none}"
+	# MinkarAMDGPU (ADR 0002, G1): what it read of each AMD GPU, without
+	# driving it: the VBIOS (and where from), and the VRAM size register.
+	ioreg -l -w0 -r -c MinkarAMDGPU > "$RAW/ioreg-amdgpu.txt" 2>&1
+	local amd prop
+	amd=$(grep -c '<class MinkarAMDGPU' "$RAW/ioreg-amdgpu.txt")
+	result INFO "amd gpus" "$amd (MinkarAMDGPU)"
+	if [ "$amd" -gt 0 ]; then
+		for prop in MinkarGPUFamily MinkarVBIOSSource MinkarVBIOSPartNumber \
+		    MinkarVBIOSVersion MinkarVRAMMegabytes MinkarRegisterWindowSize; do
+			result INFO "amd: ${prop#Minkar}" "$(awk -F'= ' -v k="\"$prop\"" \
+			    '$1 ~ k { gsub(/"/, "", $2); v = v (v ? ", " : "") $2 } END { print (v ? v : "-") }' \
+			    "$RAW/ioreg-amdgpu.txt")"
+		done
+		if grep -q '"MinkarVBIOSSource" = "none"' "$RAW/ioreg-amdgpu.txt"; then
+			result WARN "amd: vbios" "no VBIOS from the firmware or the ROM window"
+		elif grep -q '"MinkarVBIOSPartNumber"' "$RAW/ioreg-amdgpu.txt"; then
+			result PASS "amd: vbios" "read and parsed by the AtomBIOS interpreter"
+		else
+			result FAIL "amd: vbios" "read, but the AtomBIOS interpreter refused it"
+		fi
+	fi
+	# MinkarAMDFramebuffer (G1): the AMD driver's display, its crtc and
+	# refresh rate as the hardware counts it, and the crtc's registers.
+	if grep -q '<class MinkarAMDFramebuffer' "$RAW/ioreg-amdfb.txt"; then
+		for prop in MinkarDisplayCRTC MinkarRefreshMilliHz MinkarScanoutOffset \
+		    MinkarFirmwareScanoutOffset MinkarScaledModes; do
+			result INFO "amd display: ${prop#Minkar}" "$(awk -F'= ' -v k="\"$prop\"" \
+			    '$1 ~ k { gsub(/"/, "", $2); print $2; exit }' "$RAW/ioreg-amdfb.txt")"
+		done
+		printf '\nAMD display registers:\n' >> "$DETAIL"
+		grep -o '"MinkarDisplayRegisters" = {[^}]*}' "$RAW/ioreg-amdfb.txt" | tr ',' '\n' >> "$DETAIL"
+	fi
+	# G2's DMA check, when booted with minkaramd_dmatest: a fence and a
+	# copy between two surfaces in VRAM, per GPU that ran it.
+	if grep -q '"MinkarDMATest"' "$RAW/ioreg-amdgpu.txt"; then
+		# Read from a file, not a pipe: result counts in this shell.
+		grep -o '"MinkarDMATest" = {[^}]*}' "$RAW/ioreg-amdgpu.txt" > "$RAW/amd-dma.txt"
+		while read -r t; do
+			if printf '%s' "$t" | grep -q '"Passed"=Yes'; then
+				result PASS "amd: dma copy" "$(printf '%s' "$t" | sed -n 's/.*"CopyMBPerSecond"=\([0-9]*\).*/\1 MB\/s/p')"
+			else
+				result FAIL "amd: dma copy" "$t"
+			fi
+		done < "$RAW/amd-dma.txt"
+	fi
+	grep 'MinkarAMD' "$RAW/dmesg.txt" >> "$DETAIL"
 	# With pci=0x1, raw/dmesg.txt has every BAR the configurator wrote and
 	# what it read back.
 	grep -q 'PCI configuration begin' "$RAW/dmesg.txt" &&
@@ -419,7 +486,12 @@ result INFO "pci devices" "$pci_total found, $pci_nodriver without a driver (see
 usb_count=$(grep -c '+-o ' "$RAW/ioreg-usb.txt")
 result INFO "usb" "$usb_count entries in the USB plane"
 fbmem=$(ioreg -l -w0 -r -c IOGOPFramebuffer 2>/dev/null | awk -F'= ' '/"IOFBMemorySize"/ { print $2; exit }')
-if [ -n "$fbmem" ]; then
+vgpu=$(ioreg -l -w0 -r -c MinkarVirtioGPU 2>/dev/null | awk -F'= ' '/"MinkarFramebufferWidth"/ { w = $2 } /"MinkarFramebufferHeight"/ { h = $2 } END { if (w != "") print w "x" h }')
+if ioreg -r -c MinkarAMDFramebuffer 2>/dev/null | grep -q MinkarAMDFramebuffer; then
+	result PASS "display: AMD driver" "MinkarAMDFramebuffer drives the display (check the picture by hand)"
+elif [ -n "$vgpu" ]; then
+	result PASS "display: virtio-gpu" "MinkarVirtioGPU at $vgpu (check the picture by hand)"
+elif [ -n "$fbmem" ]; then
 	result PASS "display: GOP framebuffer" "$((fbmem / 1048576)) MB of framebuffer (check the picture by hand)"
 else
 	result FAIL "display: GOP framebuffer" "no IOGOPFramebuffer: no picture from the firmware's GOP"

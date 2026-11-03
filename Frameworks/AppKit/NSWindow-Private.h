@@ -19,6 +19,11 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 APPKIT_EXPORT NSArray *_NSWindowNumbersFromWindowInfo(CFArrayRef info,BOOL allApps);
 
 @interface NSWindow (NSWindow_private)
+/* The new window server's ID for this window (0 with the legacy one). */
+- (uint32_t)_skyLightWindowID;
+/* Notes a rect drawn (in the window's base coordinates), sent to the
+ * window server at the next flush. */
+- (void)_addDamageRect:(NSRect)rect;
 - (CGWindow *)platformWindow;
 - (CGContextRef)cgContext;
 - (BOOL)_isActive;
@@ -38,8 +43,6 @@ APPKIT_EXPORT NSArray *_NSWindowNumbersFromWindowInfo(CFArrayRef info,BOOL allAp
 - (void)_attachDrawer:(NSDrawer *)drawer;
 - (void)_detachDrawer:(NSDrawer *)drawer;
 - (NSView *)_backgroundView;
-- (void)_hideMenuViewIfNeeded;
-- (void)_showMenuViewIfNeeded;
 - (void)_updateTrackingAreas;
 - (void)_invalidateTrackingAreas;
 - (void)_setFrameAutosaveNameNoIO:(NSString *)name;

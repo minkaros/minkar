@@ -99,8 +99,10 @@ static NSDictionary *sDimmedMenuTextShadowAttributes = nil;
 	return result;
 }
 
+/* With its margins (2 each side, and the item's text margins above and
+   below): a 6 by 9 arrow. */
 -(NSSize)menuItemBranchArrowSize {
-   return NSMakeSize(5,22 /*9*/);
+   return NSMakeSize(10,17);
 }
 
 -(NSSize)menuItemCheckMarkSize {
@@ -319,8 +321,10 @@ static NSDictionary *sDimmedMenuTextShadowAttributes = nil;
 {
 	if (enabled)
 	{
+		/* Over the menu's background: the color may be translucent, and
+		   NSRectFill copies it, which would leave the window see-through. */
 		[[NSColor selectedMenuItemColor] setFill];
-		NSRectFill(rect);
+		NSRectFillUsingOperation(rect,NSCompositeSourceOver);
 	}
 }
 

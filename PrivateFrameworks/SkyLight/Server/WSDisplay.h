@@ -51,6 +51,10 @@
 @property (readonly) uint32_t vendor;
 @property (readonly) uint32_t model;
 @property (readonly) uint32_t serial;
+/* What names the display across restarts, for its saved configuration:
+ * the monitor's vendor, model and serial when it has an EDID, else where
+ * its framebuffer is in the registry. */
+@property (readonly) NSString *persistentKey;
 @property (readonly) double widthMM;		/* from the EDID, else 72 dpi */
 @property (readonly) double heightMM;
 @property uint32_t unit;
@@ -64,6 +68,21 @@
 /* Maps the framebuffer's scanout memory (write-combined); NO when it
  * cannot. The mapping lasts until the next call or the display's end. */
 - (BOOL)mapFramebuffer:(uint8_t **)base rowBytes:(uint32_t *)rowBytes;
+
+/* Tells the framebuffer's driver what a frame changed, for devices that
+ * show only what they are told (virtio-gpu). Nothing for the others. */
+- (void)flushX:(uint32_t)x y:(uint32_t)y width:(uint32_t)width height:(uint32_t)height;
+
+/*
+ * Presenting through the GPU (G2): when the framebuffer names a companion
+ * service (MinkarAcceleratorClass), its user client takes the shadow (page-
+ * aligned memory, laid out as the framebuffer) into the GPU, and its DMA
+ * engine copies ranges of it to the same place in the framebuffer. NO
+ * when there is no such GPU or it refuses; the caller copies itself then.
+ */
+- (BOOL)setUpGPUPresentFrom:(void *)shadow bytes:(size_t)bytes;
+- (void)tearDownGPUPresent;
+- (BOOL)gpuPresentOffset:(size_t)offset bytes:(size_t)bytes;
 
 /* The display's compositor (WSCompositor), made at startup. */
 @property (strong) id compositor;
@@ -86,9 +105,8 @@
 
 /*
  * The transfer (gamma) table: kSLSGammaTableCapacity entries per channel,
- * red, green, blue. SHORTCUT(WS4a): the table is only kept and returned;
- * nothing applies it to the screen yet (the compositor does in WS4a, and
- * drivers with gamma hardware later); taken in WS1.
+ * red, green, blue. The compositor applies it as it presents (with the
+ * fade, WSDisplayColorTable); drivers with gamma hardware may later.
  */
 - (int)setTransferTable:(const float *)table count:(uint32_t)count;
 - (void)getTransferTable:(float *)table;

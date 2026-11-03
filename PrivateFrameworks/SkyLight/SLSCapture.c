@@ -69,8 +69,8 @@ SLSFadeDisplays(SLSFadeReservation reservation, double duration, float startBlen
 
 	if (!isfinite(duration) || duration < 0 || duration > kSLSMaxFadeReservation)
 		return kSLSErrorIllegalArgument;
-	if (server == MACH_PORT_NULL || ws_fade(server, reservation, startBlend, endBlend,
-	    red, green, blue, &result) != KERN_SUCCESS)
+	if (server == MACH_PORT_NULL || ws_fade(server, reservation, duration, startBlend,
+	    endBlend, red, green, blue, &result) != KERN_SUCCESS)
 		return kSLSErrorFailure;
 	if (result == kSLSErrorSuccess && synchronous && duration > 0)
 		usleep((useconds_t)(duration * 1e6));
@@ -241,6 +241,23 @@ SLSAssociateMouseAndCursorPosition(int connected)
 
 	if (server == MACH_PORT_NULL ||
 	    ws_cursor_associate(server, connected != 0, &result) != KERN_SUCCESS)
+		return kSLSErrorFailure;
+	return result;
+}
+
+int
+SLSSetCursorImage(const uint8_t *pixels, uint32_t width, uint32_t height, double hotX,
+    double hotY)
+{
+	int32_t result = kSLSErrorFailure;
+	mach_port_t server = SLSServerPort();
+	uint8_t none = 0;
+
+	if (pixels == NULL)
+		width = height = 0;
+	if (server == MACH_PORT_NULL ||
+	    ws_cursor_set_image(server, width, height, hotX, hotY,
+	    (ws_pixels_t)(uintptr_t)(pixels ? pixels : &none), width * height * 4, &result) != KERN_SUCCESS)
 		return kSLSErrorFailure;
 	return result;
 }

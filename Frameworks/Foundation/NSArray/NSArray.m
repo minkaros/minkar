@@ -16,6 +16,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <Foundation/NSCoder.h>
 #import <Foundation/NSAutoreleasePool-private.h>
 #import <Foundation/NSPropertyListReader.h>
+#import <Foundation/NSPropertyList.h>
 #import <Foundation/NSKeyedUnarchiver.h>
 #import <Foundation/NSKeyedArchiver.h>
 #import <Foundation/NSPredicate.h>
@@ -435,8 +436,14 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    return array;
 }
 
+// An XML property list, as on the reference platform (readers there and
+// here expect XML; the old text format keeps numbers only as strings). NO
+// when the contents are not all property list objects.
 -(BOOL)writeToFile:(NSString *)path atomically:(BOOL)atomically {
-   return [NSPropertyListWriter_vintage writePropertyList:self toFile:path atomically:atomically];
+   NSData *data = [NSPropertyListSerialization dataWithPropertyList:self
+       format:NSPropertyListXMLFormat_v1_0 options:0 error:NULL];
+
+   return data != nil && [data writeToFile:path atomically:atomically];
 }
 
 -(BOOL)writeToURL:(NSURL *)aURL atomically:(BOOL)atomically {

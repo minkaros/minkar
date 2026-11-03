@@ -37,6 +37,10 @@
  *   app active | app inactive         (NSApplication's notifications)
  *   workspace launched|terminated|activated|deactivated pid=P id=ID
  *                                     (NSWorkspace's, about any app)
+ *   reconfigure display=D flags=F     (a display changed: the
+ *                                     CGDisplayReconfigurationCallBack)
+ *   screens main=W,H window=X,Y,W,H [second=X,Y,W,H]
+ *                                     (applicationDidChangeScreenParameters:)
  */
 
 #import <AppKit/AppKit.h>
@@ -46,12 +50,19 @@
 
 @interface DemoView : NSView
 @property (strong) NSColor *color;
+@property BOOL beamCursor;
 @end
 
 @implementation DemoView
 
 - (BOOL)acceptsFirstResponder {
     return YES;
+}
+
+/* "cursorrect": an I-beam over the whole view, as text views have. */
+- (void)resetCursorRects {
+    if (self.beamCursor)
+        [self addCursorRect:[self bounds] cursor:[NSCursor IBeamCursor]];
 }
 
 - (void)drawRect:(NSRect)rect {
@@ -82,15 +93,39 @@
 
 @end
 
-@interface DemoDelegate : NSObject <NSApplicationDelegate>
+@interface DemoDelegate : NSObject <NSApplicationDelegate, NSMenuDelegate>
 @property (strong) NSWindow *window;
 @property (strong) NSWindow *second;
 @property (copy) NSString *commandPath;
+@property (strong) NSWindow *child;
+@property (strong) NSWindow *sheet;
+@property (strong) NSMenu *contextMenu;
+@property (strong) NSPopUpButton *popUp;
+@property (strong) NSStatusItem *statusItem;
+@property BOOL refusesToQuit;
 @end
+
+static void displayReconfigured(CGDirectDisplayID display, CGDisplayChangeSummaryFlags flags,
+    void *info) {
+    printf("reconfigure display=%u flags=0x%x\n", display, flags);
+}
 
 @implementation DemoDelegate
 
+/* A display changed: the screens and where the windows are now. */
+- (void)applicationDidChangeScreenParameters:(NSNotification *)notification {
+    NSRect m = [[NSScreen mainScreen] frame], f = [self.window frame];
+    printf("screens main=%.0f,%.0f window=%.0f,%.0f,%.0f,%.0f", m.size.width, m.size.height,
+        f.origin.x, f.origin.y, f.size.width, f.size.height);
+    if (self.second != nil) {
+        f = [self.second frame];
+        printf(" second=%.0f,%.0f,%.0f,%.0f", f.origin.x, f.origin.y, f.size.width, f.size.height);
+    }
+    printf("\n");
+}
+
 - (void)applicationDidFinishLaunching:(NSNotification *)notification {
+    CGDisplayRegisterReconfigurationCallback(displayReconfigured, NULL);
     self.window = [[NSWindow alloc] initWithContentRect:NSMakeRect(200, 200, 400, 300)
         styleMask:NSTitledWindowMask backing:NSBackingStoreBuffered defer:NO];
     [self.window setTitle:@"Demo"];
@@ -111,8 +146,23 @@
      * still moves its windows), "quit". For the window server's tests.
      * "-cmd PATH" reads the commands from PATH instead, with one window,
      * so two instances can run; then also "apps" (the running apps),
-     * "activate PID" (asks that app to activate) and "screens" (each
-     * screen's frame and visible frame, and the menu bar's height).
+     * "activate PID" (asks that app to activate), "screens" (each
+     * screen's frame and visible frame, and the menu bar's height),
+     * "minimize" and "restore" (its window), "child" and "unchild" (a
+     * green child window over its right edge), "sheet" and "endsheet",
+     * "cursorrect" (an I-beam cursor over its blue view), "ibeam" (sets
+     * the I-beam cursor), "menus" (a Test menu: Alpha, Beta disabled
+     * by validation, a More submenu with Gamma, and a delegate; each
+     * prints what happens; key equivalents Command-A, Shift-Command-B
+     * and Option-Command-G), "keyequivs" (how menus show some key
+     * equivalents), "context" (a context menu on the blue view: One, Two,
+     * a Three submenu with Four), "popup" (that menu opened at the view's
+     * middle by popUpMenuPositioningItem:, Two placed there), "popupbutton"
+     * (a pop-up button: Red, Green, Blue), "statusitem" (a status item
+     * "Demo" with a menu: Status One, Status Two), "nostatusitem" (removes
+     * it), "refusequit" (its delegate refuses to quit from now on), "tags"
+     * (the Test menu's item tags; Alpha's is 42), "smallredraw" (20 by 20
+     * points of its view drawn again).
      */
     NSArray *args = [[NSProcessInfo processInfo] arguments];
     NSUInteger cmd = [args indexOfObject:@"-cmd"];
@@ -189,6 +239,122 @@
         f.size.width, f.size.height);
 }
 
+/* The Test menu (MB0): actions, validation, a submenu and a delegate. */
+- (void)addTestMenu {
+    NSMenu *menu = [[NSMenu alloc] initWithTitle:@"Test"];
+    [menu setDelegate:self];
+    NSMenuItem *alpha = [menu addItemWithTitle:@"Alpha" action:@selector(menuAlpha:) keyEquivalent:@"a"];
+    [alpha setTarget:self];
+    [alpha setTag:42];
+    [[menu addItemWithTitle:@"Beta" action:@selector(menuBeta:) keyEquivalent:@"B"]
+        setTarget:self];
+    NSMenu *more = [[NSMenu alloc] initWithTitle:@"More"];
+    [more setDelegate:self];
+    NSMenuItem *gamma = [more addItemWithTitle:@"Gamma" action:@selector(menuGamma:) keyEquivalent:@"g"];
+    [gamma setTarget:self];
+    [gamma setKeyEquivalentModifierMask:NSCommandKeyMask | NSAlternateKeyMask];
+    [[menu addItemWithTitle:@"More" action:NULL keyEquivalent:@""] setSubmenu:more];
+    NSMenuItem *item = [[NSMenuItem alloc] initWithTitle:@"Test" action:NULL keyEquivalent:@""];
+    [item setSubmenu:menu];
+    [[NSApp mainMenu] addItem:item];
+    for (NSString *name in @[ NSMenuDidBeginTrackingNotification, NSMenuDidEndTrackingNotification,
+            NSMenuDidSendActionNotification ])
+        [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(menuNote:)
+            name:name object:nil];
+    printf("menus added\n");
+}
+
+/* How menus show some key equivalents (AppKit's private description). */
+- (void)printKeyEquivalents {
+    struct { NSString *key; NSUInteger mask; } cases[] = {
+        { @"a", NSCommandKeyMask },
+        { @"B", NSCommandKeyMask },
+        { @"g", NSCommandKeyMask | NSAlternateKeyMask },
+        { @"\r", NSCommandKeyMask },
+        { @"\x1b", NSCommandKeyMask | NSAlternateKeyMask },
+        { [NSString stringWithFormat:@"%C", (unichar)NSF5FunctionKey], 0 },
+        { [NSString stringWithFormat:@"%C", (unichar)NSLeftArrowFunctionKey], NSControlKeyMask | NSShiftKeyMask },
+    };
+    for (size_t i = 0; i < sizeof(cases) / sizeof(cases[0]); i++) {
+        NSMenuItem *item = [[NSMenuItem alloc] initWithTitle:@"x" action:NULL keyEquivalent:cases[i].key];
+        [item setKeyEquivalentModifierMask:cases[i].mask];
+        printf("keyequiv %s\n", [[item performSelector:@selector(_keyEquivalentDescription)] UTF8String]);
+    }
+}
+
+- (void)addContextMenu {
+    NSMenu *menu = [[NSMenu alloc] initWithTitle:@"Context"];
+    [menu setDelegate:self];
+    for (NSString *title in @[ @"One", @"Two" ])
+        [[menu addItemWithTitle:title action:@selector(contextItem:) keyEquivalent:@""] setTarget:self];
+    NSMenu *three = [[NSMenu alloc] initWithTitle:@"Three"];
+    [[three addItemWithTitle:@"Four" action:@selector(contextItem:) keyEquivalent:@""] setTarget:self];
+    [[menu addItemWithTitle:@"Three" action:NULL keyEquivalent:@""] setSubmenu:three];
+    self.contextMenu = menu;
+    [[self.window contentView] setMenu:menu];
+    printf("context menu set\n");
+}
+
+- (void)contextItem:(NSMenuItem *)item {
+    printf("context %s\n", [[item title] UTF8String]);
+}
+
+- (void)addPopUpButton {
+    NSPopUpButton *button = [[NSPopUpButton alloc] initWithFrame:NSMakeRect(20, 20, 140, 26) pullsDown:NO];
+    [button addItemsWithTitles:@[ @"Red", @"Green", @"Blue" ]];
+    [button setTarget:self];
+    [button setAction:@selector(popUpChanged:)];
+    [[self.window contentView] addSubview:button];
+    self.popUp = button;
+    NSRect f = [button convertRect:[button bounds] toView:nil];
+    f.origin = [self.window convertBaseToScreen:f.origin];
+    printf("popup button frame=%.0f,%.0f,%.0f,%.0f\n", f.origin.x, f.origin.y, f.size.width, f.size.height);
+}
+
+- (void)popUpChanged:(NSPopUpButton *)sender {
+    printf("popup button selected %s\n", [[sender titleOfSelectedItem] UTF8String]);
+}
+
+- (NSApplicationTerminateReply)applicationShouldTerminate:(NSApplication *)sender {
+    printf("asked to quit: %s\n", self.refusesToQuit ? "refused" : "quitting");
+    return self.refusesToQuit ? NSTerminateCancel : NSTerminateNow;
+}
+
+- (void)addStatusItem {
+    NSStatusItem *item = [[NSStatusBar systemStatusBar] statusItemWithLength:NSVariableStatusItemLength];
+    item.button.title = @"Demo";
+    NSMenu *menu = [[NSMenu alloc] initWithTitle:@"Status"];
+    for (NSString *title in @[ @"Status One", @"Status Two" ])
+        [[menu addItemWithTitle:title action:@selector(statusChosen:) keyEquivalent:@""] setTarget:self];
+    item.menu = menu;
+    self.statusItem = item;
+    printf("status item added length=%.0f\n", [item length]);
+}
+
+- (void)statusChosen:(NSMenuItem *)sender {
+    printf("status %s\n", [[sender title] UTF8String]);
+}
+
+- (void)menuAlpha:(id)sender { printf("menu alpha\n"); }
+- (void)menuBeta:(id)sender { printf("menu beta\n"); }
+- (void)menuGamma:(id)sender { printf("menu gamma\n"); }
+
+- (BOOL)validateMenuItem:(NSMenuItem *)item {
+    return [item action] != @selector(menuBeta:);
+}
+
+- (void)menuNeedsUpdate:(NSMenu *)menu { printf("menu needs update %s\n", [[menu title] UTF8String]); }
+- (void)menuWillOpen:(NSMenu *)menu { printf("menu will open %s\n", [[menu title] UTF8String]); }
+- (void)menuDidClose:(NSMenu *)menu { printf("menu did close %s\n", [[menu title] UTF8String]); }
+- (void)menu:(NSMenu *)menu willHighlightItem:(NSMenuItem *)item {
+    if (item != nil)
+        printf("menu highlight %s\n", [[item title] UTF8String]);
+}
+
+- (void)menuNote:(NSNotification *)note {
+    printf("menu note %s\n", [[note name] UTF8String]);
+}
+
 - (void)readCommand:(NSTimer *)timer {
     const char *path = [self.commandPath fileSystemRepresentation];
     char line[64] = "";
@@ -215,7 +381,44 @@
         printf("busy done\n");
     } else if (strncmp(line, "apps", 4) == 0)
         [self printApplications];
-    else if (strncmp(line, "screens", 7) == 0) {
+    else if (strncmp(line, "minimize", 8) == 0) {
+        [self.window miniaturize:nil];
+        printf("minimized=%d\n", [self.window isMiniaturized]);
+    } else if (strncmp(line, "restore", 7) == 0) {
+        [self.window deminiaturize:nil];
+        printf("minimized=%d\n", [self.window isMiniaturized]);
+    } else if (strncmp(line, "unchild", 7) == 0) {
+        [self.window removeChildWindow:self.child];
+        printf("children=%lu\n", (unsigned long)[[self.window childWindows] count]);
+    } else if (strncmp(line, "child", 5) == 0) {
+        NSRect f = [self.window frame];
+        self.child = [[NSWindow alloc] initWithContentRect:NSMakeRect(NSMaxX(f) - 60, f.origin.y + 40, 120, 80)
+            styleMask:NSBorderlessWindowMask backing:NSBackingStoreBuffered defer:NO];
+        DemoView *green = [[DemoView alloc] initWithFrame:NSMakeRect(0, 0, 120, 80)];
+        green.color = [NSColor colorWithCalibratedRed:0.1 green:0.8 blue:0.2 alpha:1];
+        [self.child setContentView:green];
+        [self.window addChildWindow:self.child ordered:NSWindowAbove];
+        printf("children=%lu\n", (unsigned long)[[self.window childWindows] count]);
+    } else if (strncmp(line, "endsheet", 8) == 0) {
+        [NSApp endSheet:self.sheet];
+        [self.sheet orderOut:nil];
+        printf("sheet ended\n");
+    } else if (strncmp(line, "sheet", 5) == 0) {
+        self.sheet = [[NSWindow alloc] initWithContentRect:NSMakeRect(0, 0, 240, 120)
+            styleMask:NSTitledWindowMask backing:NSBackingStoreBuffered defer:NO];
+        [NSApp beginSheet:self.sheet modalForWindow:self.window modalDelegate:nil
+            didEndSelector:NULL contextInfo:NULL];
+        NSRect f = [self.sheet frame];
+        printf("sheet frame=%.0f,%.0f,%.0f,%.0f\n", f.origin.x, f.origin.y,
+            f.size.width, f.size.height);
+    } else if (strncmp(line, "ibeam", 5) == 0) {
+        [[NSCursor IBeamCursor] set];
+        printf("cursor set\n");
+    } else if (strncmp(line, "cursorrect", 10) == 0) {
+        ((DemoView *)[self.window contentView]).beamCursor = YES;
+        [self.window invalidateCursorRectsForView:[self.window contentView]];
+        printf("cursor rect set\n");
+    } else if (strncmp(line, "screens", 7) == 0) {
         for (NSScreen *screen in [NSScreen screens]) {
             NSRect f = [screen frame], v = [screen visibleFrame];
             printf("screen frame=%.0f,%.0f,%.0f,%.0f visible=%.0f,%.0f,%.0f,%.0f\n",
@@ -224,6 +427,38 @@
         }
         printf("menu bar height=%.0f status bar thickness=%.0f\n",
             [[NSApp mainMenu] menuBarHeight], [[NSStatusBar systemStatusBar] thickness]);
+    }
+    else if (strncmp(line, "menus", 5) == 0)
+        [self addTestMenu];
+    else if (strncmp(line, "smallredraw", 11) == 0) {
+        [[self.window contentView] setNeedsDisplayInRect:NSMakeRect(10, 10, 20, 20)];
+        [self.window displayIfNeeded];
+        printf("small redraw\n");
+    } else if (strncmp(line, "tags", 4) == 0) {
+        for (NSMenuItem *item in [[[[NSApp mainMenu] itemWithTitle:@"Test"] submenu] itemArray])
+            printf("tag %s %ld\n", [[item title] UTF8String], (long)[item tag]);
+    } else if (strncmp(line, "keyequivs", 9) == 0)
+        [self printKeyEquivalents];
+    else if (strncmp(line, "context", 7) == 0)
+        [self addContextMenu];
+    else if (strncmp(line, "popupbutton", 11) == 0)
+        [self addPopUpButton];
+    else if (strncmp(line, "refusequit", 10) == 0) {
+        self.refusesToQuit = YES;
+        printf("refusing to quit\n");
+    } else if (strncmp(line, "statusitem", 10) == 0)
+        [self addStatusItem];
+    else if (strncmp(line, "nostatusitem", 12) == 0) {
+        [[NSStatusBar systemStatusBar] removeStatusItem:self.statusItem];
+        self.statusItem = nil;
+        printf("status item removed\n");
+    }
+    else if (strncmp(line, "popup", 5) == 0) {
+        NSView *view = [self.window contentView];
+        NSRect b = [view bounds];
+        BOOL chosen = [self.contextMenu popUpMenuPositioningItem:[self.contextMenu itemAtIndex:1]
+            atLocation:NSMakePoint(NSMidX(b), NSMidY(b)) inView:view];
+        printf("popup chosen=%d\n", chosen);
     }
     else if (sscanf(line, "activate %d", &pid) == 1) {
         NSRunningApplication *app = [NSRunningApplication runningApplicationWithProcessIdentifier:pid];

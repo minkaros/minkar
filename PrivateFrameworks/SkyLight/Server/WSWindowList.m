@@ -60,6 +60,7 @@
 		_windowID = windowID;
 		_owner = owner;
 		_alpha = 1;
+		_children = [NSMutableArray array];
 	}
 	return self;
 }
@@ -100,6 +101,12 @@ WSWindowAtPoint(double x, double y)
 	return nil;
 }
 
+NSArray<WSWindow *> *
+WSWindowStack(void)
+{
+	return stack ? [stack copy] : @[];
+}
+
 WSWindow *
 WSWindowFrontmostOf(WSConnection *c)
 {
@@ -138,6 +145,12 @@ damageWindow(WSWindow *w)
 		r.width = surface.width;
 	if (surface != nil && surface.height > r.height)
 		r.height = surface.height;
+	if (w.hasShadow) {
+		r.x -= kWSShadowRadius;
+		r.y -= kWSShadowRadius - kWSShadowOffsetY;
+		r.width += 2 * kWSShadowRadius;
+		r.height += 2 * kWSShadowRadius;
+	}
 	WSDamageGlobalRect(r);
 }
 
@@ -203,6 +216,27 @@ isStatusItem(WSWindow *w)
 	return [statusItems containsObject:w];
 }
 
+/* ---- Minimized windows ---- */
+
+/* Tells the connections that asked: w was minimized, or restored. */
+static void
+notifyMinimized(WSWindow *w)
+{
+	SLSEvent e;
+
+	memset(&e, 0, sizeof(e));
+	e.type = w.minimized ? kSLSEventWindowMinimized : kSLSEventWindowRestored;
+	e.window = w.windowID;
+	e.x = w.frame.x;
+	e.y = w.frame.y;
+	e.timestamp = WSNanoseconds();
+	for (WSConnection *c in [WSConnection allConnections])
+		if (c.windowNotifications)
+			WSEventsEnqueue(c, &e);
+}
+
+static void detach(WSWindow *child);
+
 WSWindow *
 WSWindowCreate(WSConnection *owner, int32_t level, SLSRect frame)
 {
@@ -224,15 +258,105 @@ WSWindowRelease(WSWindow *w)
 	[stack removeObject:w];
 	[allWindows removeObject:w];
 	w.onScreen = NO;
+	WSInputModelChanged();
 	statusItemGone(w);
+	WSEventsWindowGone(w);
+	detach(w);
+	for (WSWindow *child in [w.children copy])
+		detach(child);
 }
 
+/* Tells a window's app the server moved it, as after a move. */
+static void
+notifyMoved(WSWindow *w)
+{
+	SLSEvent moved;
+
+	if (w.owner == nil)
+		return;
+	memset(&moved, 0, sizeof(moved));
+	moved.type = kSLSEventWindowMoved;
+	moved.window = w.windowID;
+	moved.x = w.frame.x;
+	moved.y = w.frame.y;
+	moved.clickCount = 1;
+	moved.timestamp = WSNanoseconds();
+	WSEventsEnqueue(w.owner, &moved);
+}
+
+/* Its children (and theirs) move with a window. */
 void
 WSWindowSetFrame(WSWindow *w, SLSRect frame)
 {
+	double dx = frame.x - w.frame.x, dy = frame.y - w.frame.y;
+
 	damageWindow(w);
 	w.frame = frame;
 	damageWindow(w);
+	WSInputModelChanged();
+	if (dx == 0 && dy == 0)
+		return;
+	for (WSWindow *child in [w.children copy]) {
+		SLSRect f = child.frame;
+		f.x += dx;
+		f.y += dy;
+		WSWindowSetFrame(child, f);
+		notifyMoved(child);
+	}
+}
+
+/* ---- Child windows ---- */
+
+static NSUInteger levelEdge(int32_t level, BOOL front);
+
+/* Puts a window's children next to it in the order, and back on the
+ * screen if they left with it. */
+static void
+placeChildren(WSWindow *w)
+{
+	/* Last attached nearest the parent: the first goes on the outside. */
+	for (WSWindow *child in [w.children reverseObjectEnumerator]) {
+		if (!child.onScreen && !child.hiddenWithParent)
+			continue;
+		damageWindow(child);
+		[stack removeObject:child];
+		NSUInteger index = [stack indexOfObject:w];
+		if (index == NSNotFound)
+			continue;
+		if (child.level != w.level)
+			index = levelEdge(child.level, child.childPlace != kSLSOrderBelow);
+		else if (child.childPlace == kSLSOrderBelow)
+			index++;
+		[stack insertObject:child atIndex:index];
+		child.onScreen = YES;
+		child.hiddenWithParent = NO;
+		damageWindow(child);
+		placeChildren(child);
+	}
+}
+
+/* Its children leave the screen with a window, to come back with it. */
+static void
+hideChildren(WSWindow *w)
+{
+	for (WSWindow *child in w.children) {
+		if (!child.onScreen)
+			continue;
+		damageWindow(child);
+		[stack removeObject:child];
+		child.onScreen = NO;
+		child.hiddenWithParent = YES;
+		WSEventsWindowGone(child);
+		hideChildren(child);
+	}
+}
+
+static void
+detach(WSWindow *child)
+{
+	[child.parent.children removeObject:child];
+	child.parent = nil;
+	child.hiddenWithParent = NO;
 }
 
 /* Where a window of this level goes: the front of its level, or the back. */
@@ -262,11 +386,20 @@ WSWindowOrder(WSWindow *w, int32_t place, SLSWindowID relativeTo)
 	damageWindow(w);
 	[stack removeObject:w];
 	w.onScreen = NO;
+	WSInputModelChanged();
 	if (place == kSLSOrderOut) {
 		/* The status items left of it close up. */
 		if (isStatusItem(w))
 			layoutStatusArea();
+		WSEventsWindowGone(w);
+		hideChildren(w);
 		return kSLSErrorSuccess;
+	}
+	w.hiddenWithParent = NO;
+	/* Ordered in, a minimized window is restored. */
+	if (w.minimized) {
+		w.minimized = NO;
+		notifyMinimized(w);
 	}
 
 	NSUInteger index;
@@ -283,6 +416,11 @@ WSWindowOrder(WSWindow *w, int32_t place, SLSWindowID relativeTo)
 	damageWindow(w);
 	if (isStatusItem(w))
 		layoutStatusArea();
+	/* A child stays next to its parent; the parent brings its children. */
+	if (w.parent != nil && w.parent.onScreen)
+		placeChildren(w.parent);
+	else
+		placeChildren(w);
 	return kSLSErrorSuccess;
 }
 
@@ -394,6 +532,137 @@ wss_window_set_status_item(mach_port_t server, audit_token_t token, uint32_t win
 }
 
 kern_return_t
+wss_window_set_shadow(mach_port_t server, audit_token_t token, uint32_t window, int32_t shadow,
+    int32_t *result)
+{
+	WSWindow *w = ownWindow(token, window, result);
+
+	if (w != nil && w.hasShadow != (shadow != 0)) {
+		damageWindow(w);
+		w.hasShadow = shadow != 0;
+		damageWindow(w);
+	}
+	return KERN_SUCCESS;
+}
+
+kern_return_t
+wss_window_set_parent(mach_port_t server, audit_token_t token, uint32_t child,
+    uint32_t parent, int32_t place, int32_t *result)
+{
+	WSWindow *c = ownWindow(token, child, result);
+	WSWindow *p = nil;
+
+	if (c == nil)
+		return KERN_SUCCESS;
+	if (parent != 0) {
+		p = ownWindow(token, parent, result);
+		if (p == nil)
+			return KERN_SUCCESS;
+		if (place != kSLSOrderAbove && place != kSLSOrderBelow) {
+			*result = kSLSErrorIllegalArgument;
+			return KERN_SUCCESS;
+		}
+		/* Not itself, nor one of its own children. */
+		for (WSWindow *a = p; a != nil; a = a.parent)
+			if (a == c) {
+				*result = kSLSErrorIllegalArgument;
+				return KERN_SUCCESS;
+			}
+	}
+	detach(c);
+	if (p != nil) {
+		c.parent = p;
+		c.childPlace = place;
+		[p.children addObject:c];
+		if (p.onScreen && c.onScreen)
+			placeChildren(p);
+	}
+	*result = kSLSErrorSuccess;
+	return KERN_SUCCESS;
+}
+
+kern_return_t
+wss_window_image(mach_port_t server, audit_token_t token, uint32_t window, int32_t *result,
+    uint32_t *width, uint32_t *height, uint32_t *rowBytes, ws_pixels_t *pixels,
+    mach_msg_type_number_t *count)
+{
+	WSConnection *c = [WSConnection connectionForToken:token];
+	WSWindow *w = windowWithID(window);
+	WSSurface *s = w.surface;
+
+	*width = *height = *rowBytes = 0;
+	*pixels = NULL;
+	*count = 0;
+	if (c == nil) {
+		*result = kSLSErrorInvalidConnection;
+		return KERN_SUCCESS;
+	}
+	if (w == nil) {
+		*result = kSLSErrorIllegalArgument;
+		return KERN_SUCCESS;
+	}
+	/* SHORTCUT(M5): another app's window under the built-in policy of event
+	 * taps (root or the console's user), until the privacy service's
+	 * screen recording permission; taken in WS4a. */
+	if (w.owner != c && !WSMayControlInput(c)) {
+		*result = kSLSErrorCannotComplete;
+		return KERN_SUCCESS;
+	}
+	if (s == nil || !s.committed) {
+		*result = kSLSErrorCannotComplete;	/* nothing drawn yet */
+		return KERN_SUCCESS;
+	}
+	vm_address_t copy = 0;
+	vm_size_t size = (vm_size_t)s.rowBytes * s.height;
+	if (vm_allocate(mach_task_self(), &copy, size, VM_FLAGS_ANYWHERE) != KERN_SUCCESS) {
+		*result = kSLSErrorFailure;
+		return KERN_SUCCESS;
+	}
+	memcpy((void *)copy, [s lockFront], size);
+	[s unlock];
+	/* MIG sends it out of line and deallocates it here (dealloc). */
+	*pixels = (ws_pixels_t)copy;
+	*count = (mach_msg_type_number_t)size;
+	*width = s.width;
+	*height = s.height;
+	*rowBytes = s.rowBytes;
+	*result = kSLSErrorSuccess;
+	return KERN_SUCCESS;
+}
+
+kern_return_t
+wss_window_set_minimized(mach_port_t server, audit_token_t token, uint32_t window,
+    int32_t minimized, int32_t *result)
+{
+	WSWindow *w = ownWindow(token, window, result);
+
+	if (w == nil || (minimized != 0) == w.minimized)
+		return KERN_SUCCESS;
+	if (minimized) {
+		WSWindowOrder(w, kSLSOrderOut, 0);
+		w.minimized = YES;
+		notifyMinimized(w);
+	} else
+		WSWindowOrder(w, kSLSOrderAbove, 0);	/* restores it */
+	return KERN_SUCCESS;
+}
+
+kern_return_t
+wss_window_notifications(mach_port_t server, audit_token_t token, int32_t on,
+    int32_t *result)
+{
+	WSConnection *c = [WSConnection connectionForToken:token];
+
+	if (c == nil)
+		*result = kSLSErrorInvalidConnection;
+	else {
+		c.windowNotifications = on != 0;
+		*result = kSLSErrorSuccess;
+	}
+	return KERN_SUCCESS;
+}
+
+kern_return_t
 wss_window_set_level(mach_port_t server, audit_token_t token, uint32_t window,
     int32_t level, int32_t *result)
 {
@@ -496,7 +765,8 @@ wss_window_info(mach_port_t server, uint32_t window, int32_t *result, SLSWindowI
 	info->width = w.frame.width;
 	info->height = w.frame.height;
 	info->alpha = w.alpha;
-	info->flags = w.onScreen ? kSLSWindowOnScreen : 0;
+	info->flags = (w.onScreen ? kSLSWindowOnScreen : 0) |
+	    (w.minimized ? kSLSWindowMinimized : 0) | (w.hasShadow ? kSLSWindowHasShadow : 0);
 	info->sharingState = 1;		/* kCGWindowSharingReadOnly */
 	if (proc_name(w.owner.pid, info->ownerName, sizeof(info->ownerName)) <= 0)
 		info->ownerName[0] = '\0';
@@ -537,6 +807,10 @@ wss_window_surface(mach_port_t server, audit_token_t token, uint32_t window, int
 	double fw = ceil(w.frame.width), fh = ceil(w.frame.height);
 	if (fw < 1 || fh < 1 || fw > kSLSMaxSurfaceSide || fh > kSLSMaxSurfaceSide) {
 		*result = kSLSErrorIllegalArgument;
+		return KERN_SUCCESS;
+	}
+	if ([w.surface isKindOfClass:[WSIOSurfaceBacking class]]) {
+		*result = kSLSErrorCannotComplete;	/* it shows its app's IOSurface */
 		return KERN_SUCCESS;
 	}
 	WSSurface *current = w.pendingSurface ? w.pendingSurface : w.surface;
@@ -602,6 +876,34 @@ wss_window_commit(mach_port_t server, audit_token_t token, uint32_t window, uint
 	return KERN_SUCCESS;
 }
 
+/* The window shows an IOSurface of its app, or again buffers of its own
+ * (surface 0). */
+kern_return_t
+wss_window_set_iosurface(mach_port_t server, audit_token_t token, uint32_t window,
+    uint32_t surfaceID, int32_t *result)
+{
+	WSWindow *w = ownWindow(token, window, result);
+
+	if (w == nil)
+		return KERN_SUCCESS;
+	if (surfaceID == 0) {
+		if ([w.surface isKindOfClass:[WSIOSurfaceBacking class]])
+			w.surface = nil;
+		damageWindow(w);
+		return KERN_SUCCESS;
+	}
+	WSIOSurfaceBacking *backing = [[WSIOSurfaceBacking alloc] initWithSurfaceID:surfaceID
+	    width:(uint32_t)ceil(w.frame.width) height:(uint32_t)ceil(w.frame.height)];
+	if (backing == nil) {
+		*result = kSLSErrorIllegalArgument;	/* none, or not BGRA of its size */
+		return KERN_SUCCESS;
+	}
+	w.surface = (id)backing;
+	w.pendingSurface = nil;
+	damageWindow(w);
+	return KERN_SUCCESS;
+}
+
 /* ---- Frames ---- */
 
 NSArray<WSFrameItem *> *
@@ -614,7 +916,11 @@ WSWindowSnapshot(void)
 		item.frame = w.frame;
 		item.alpha = w.alpha;
 		item.surface = w.surface;
-		item.solid = w.shield;
+		/* A shielding window is opaque black until its app draws in it
+		 * (CGDisplayGetDrawingContext). */
+		WSSurface *surface = w.surface;
+		item.solid = w.shield && !(surface != nil && surface.committed);
+		item.shadow = w.hasShadow && !w.shield;
 		[items addObject:item];
 	}
 	return items;

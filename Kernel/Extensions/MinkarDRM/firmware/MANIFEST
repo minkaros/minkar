@@ -1,0 +1,10 @@
+# AMD's GPU microcode, fetched at build time from linux-firmware at the tag
+# below and checked against these SHA-256 sums (ADR 0002; the maintainer's
+# choice, 2026-11-02: no binaries in this repository). Installed unchanged
+# in /usr/share/firmware/amdgpu with LICENSE.amdgpu next to them.
+tag 20261019
+amdgpu/tahiti_pfp.bin aabdb871219fe135cb125c4e38adababdd27a02519324f5534abc00f46b24b5b
+amdgpu/tahiti_me.bin 87617358bb876187786c422c3456fef1d072e6532382ecace0847259045131cb
+amdgpu/tahiti_ce.bin 04027c3a7c875aaf581ca438ae5ff93ec90002e0e057dc107e7b47048331ee3c
+amdgpu/tahiti_rlc.bin 46da3468097bb48a24ba47d0cc883695752d8e4f1d333c8a8bdb6e339894bac3
+LICENSES/LICENSE.amdgpu 572872598565dc3513470de971a32bf9db301f47afeef3636345eadae33b2eee

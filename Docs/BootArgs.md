@@ -10,6 +10,7 @@ These arguments can be specified in `org.minkar.boot.plist` and on the booter
 | -disable_x86_64h | Force pre-Haswell CPU support                              |
 | -enable_x86_64h  | Require Haswell or later CPU architecture                  |
 | -topo            | Enable CPU topology debug logging
+| -textconsole     | Keep the kernel's text console on the screen: the window server and loginwindow exit at start (Minkar; for console tests and machines worked on from the console) |
 |                  |                                                            |
 | acpi_pci_dt_dump | Dump generated PCI DT subtree after ACPI MCFG parse (`=1`) |
 | debug            | Flags for Kernel Debugger/KDP (see: osfmk/kern/debug.h)    |
@@ -406,3 +407,16 @@ These arguments can be specified in `org.minkar.boot.plist` and on the booter
     zrecs
     zsize
 ```
+
+## Boot interface
+
+Besides the boot arguments, Minkar's EFI loader sets these device tree
+entries. All of them are set in `MdeModulePkg/Application/Loader/loader.c`
+of `efiloader` (ravynsoft/efiloader at the commit `Image/Makefile` pins;
+the patches in `Image/patches` leave them as they are).
+
+| Node                 | Entry              | Value                                                                   |
+|----------------------|--------------------|-------------------------------------------------------------------------|
+| `/chosen/memory-map` | DeviceTree         | Start and end of the device tree blob (kernel virtual addresses), read during IOKit startup |
+| `/defaults`          | kern.max_task_pmem | 1024                                                                    |
+| `/defaults`          | kern.vm_compressor | 4 (`VM_PAGER_COMPRESSOR_WITH_SWAP`)                                     |

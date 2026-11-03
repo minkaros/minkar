@@ -51,7 +51,7 @@ extern "C" {
 #endif
 
 #define kLSSessionServiceName		"org.minkar.coreservices.launchservicesd"
-#define kLSSessionInterfaceVersion	1
+#define kLSSessionInterfaceVersion	2
 
 /* An application, as the daemon keeps it. */
 typedef struct LSSessionApp {
@@ -83,6 +83,7 @@ enum {
 	kLSSessionAppActivated		= 3,	/* it became the front app */
 	kLSSessionAppDeactivated	= 4,
 	kLSSessionActivateRequest	= 5,	/* to the app itself: activate */
+	kLSSessionQuitRequest		= 6,	/* to the app itself: quit, as Quit does */
 };
 
 #define kLSSessionMessageID	0x4c534e54	/* 'LSNT' */
@@ -115,6 +116,10 @@ int LSSessionSetFront(pid_t pid);
 /* Asks an application to activate itself (its options are
  * NSApplicationActivationOptions). */
 int LSSessionActivate(pid_t pid, uint32_t options);
+/* Asks an application to quit as its Quit item does (its delegate may
+ * refuse). Allowed to root and to the application's user (interface
+ * version 2). */
+int LSSessionQuit(pid_t pid);
 
 #ifdef __cplusplus
 }

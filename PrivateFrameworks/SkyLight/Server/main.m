@@ -41,6 +41,8 @@
 #include <dispatch/dispatch.h>
 #include <servers/bootstrap.h>
 #include <stdio.h>
+#include <string.h>
+#include <sys/sysctl.h>
 #include "SkyLight.h"
 #include "WindowServerServer.h"	/* MIG server side */
 #import "WSServer.h"
@@ -63,6 +65,23 @@ wss_connect(mach_port_t server, audit_token_t token, mach_port_t client,
 	return KERN_SUCCESS;
 }
 
+/* The -textconsole boot argument: the kernel's text console stays on the
+ * screen, with no window server (for the console's own tests, and for
+ * machines worked on from it). */
+static int
+textConsole(void)
+{
+	char args[1024] = "";
+	size_t len = sizeof(args);
+
+	if (sysctlbyname("kern.bootargs", args, &len, NULL, 0) != 0)
+		return 0;
+	for (char *word = strtok(args, " "); word != NULL; word = strtok(NULL, " "))
+		if (strcmp(word, "-textconsole") == 0)
+			return 1;
+	return 0;
+}
+
 int
 main(int argc, char *argv[])
 {
@@ -70,6 +89,10 @@ main(int argc, char *argv[])
 	kern_return_t kr;
 
 	setvbuf(stderr, NULL, _IOLBF, 0);
+	if (textConsole()) {
+		fprintf(stderr, "WindowServer: -textconsole: the text console keeps the screen\n");
+		return 0;
+	}
 	kr = bootstrap_check_in(bootstrap_port, kSLSServiceName, &service);
 	if (kr != KERN_SUCCESS) {
 		fprintf(stderr, "WindowServer: cannot check in %s: 0x%x\n", kSLSServiceName, kr);
@@ -77,6 +100,7 @@ main(int argc, char *argv[])
 	}
 
 	WSDisplays = [WSDisplay availableDisplays];
+	WSDisplaysRestoreSaved();
 	for (WSDisplay *d in WSDisplays)
 		fprintf(stderr, "WindowServer: display 0x%x %ux%u (%.0fx%.0f mm)%s, %u mode(s)\n",
 		    d.displayID, d.width, d.height, d.widthMM, d.heightMM,
@@ -102,14 +126,18 @@ main(int argc, char *argv[])
 		mach_msg_server_once(WindowServer_server, wss_WindowServer_subsystem.maxsize,
 		    service, MACH_RCV_TRAILER_ELEMENTS(MACH_RCV_TRAILER_AUDIT) |
 		    MACH_RCV_TRAILER_TYPE(MACH_MSG_TRAILER_FORMAT_0));
+		/* What the request changed, input routes over from now on. */
+		WSInputPublish();
 	});
-	/* Input, read and routed on the IPC queue: routing needs the window list.
-	 * SHORTCUT(WS4a): input runs on the IPC queue, until the plan's own
-	 * high-priority input queue, with a model snapshot input can read
-	 * without the IPC queue; taken in WS3. */
+	/* Input, read and routed on its own high-priority queue over the
+	 * snapshot the IPC queue publishes (WSEvents.m). */
 	static WSInput *input;
+	WSInputQueue = dispatch_queue_create("org.minkar.WindowServer.input",
+	    dispatch_queue_attr_make_with_qos_class(DISPATCH_QUEUE_SERIAL,
+	    QOS_CLASS_USER_INTERACTIVE, 0));
 	WSHotKeysStart();
-	input = [WSInput startOnQueue:ipc];
+	WSInputPublish();
+	input = [WSInput startOnQueue:WSInputQueue];
 
 	/* Before the first request: connect needs the dead-name port. */
 	[WSConnection startOnQueue:ipc];

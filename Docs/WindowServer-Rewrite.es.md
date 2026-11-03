@@ -223,9 +223,9 @@ Avance:
 - [x] WS2 — Ventanas, superficies y compositor por software (1 nov 2026)
 - [x] WS3 — Entrada (1 nov 2026)
 - [x] ADR 0001 — Validación de entitlements en el kernel, necesaria para WS4a (1 nov 2026)
-- [ ] WS4a — Comportamiento del servidor
-- [ ] WS4b — El cambio de servidor (con MB0 de [Menus.es.md](Menus.es.md))
-- [ ] WS5 — IOSurface y virtio-gpu
+- [x] WS4a — Comportamiento del servidor (1 nov 2026)
+- [x] WS4b — El cambio de servidor (con MB0 de [Menus.es.md](Menus.es.md); 2 nov 2026)
+- [x] WS5 — IOSurface y virtio-gpu (2 nov 2026)
 - [ ] WS6 — Composición por GPU
 
 ### WS0 — Primeros píxeles con el servidor actual
@@ -278,9 +278,9 @@ Atajos tomados (sección 9): root puede abrir la conexión de servidor de
 IOHIDSystem, porque todavía ningún módulo de política valida las firmas de
 código y ningún proceso tiene entitlements (`SHORTCUT(WS4a)` en
 `IOHIDUserClient.cpp`, quitado el 1 nov 2026 con el ADR 0001); los hilos del servidor actual tienen pilas de 4 MB
-para sus mensajes de 128 KB (`SHORTCUT(WS4b)` en `main.m`); el job de launchd
-ejecuta solo el compositor (`-x`), porque LoginWindow no se compila
-(`SHORTCUT(WS4b)` en su plist); Inter es la fuente provisional del sistema
+para sus mensajes de 128 KB (un atajo de WS4b, ido con ese servidor); el job
+de launchd ejecutaba solo el compositor (`-x`), porque LoginWindow no se
+compilaba (un atajo de WS4b, ido con el cambio); Inter es la fuente provisional del sistema
 hasta que Gienah tenga la suya (`SHORTCUT(Phase 5)` en
 `SystemLibrary/Fonts/Makefile`).
 
@@ -319,7 +319,7 @@ capturas, su cuenta de ocultación del cursor, su fundido, sus cambios de
 pantalla solo para la app y las tablas de transferencia que cambió.
 
 Atajos tomados: una configuración de pantalla permanente dura solo la
-sesión (`SHORTCUT(WS5)`, con cambios de modo reales); las tablas de
+sesión (atajo de WS5, quitado el 2 nov 2026); las tablas de
 transferencia y la mezcla del fundido las guarda el servidor, y el
 compositor todavía no las aplica (`SHORTCUT(WS4a)`); la posición del cursor
 solo cambiaba con warps hasta que el servidor leyó la entrada (se quitó en
@@ -364,10 +364,10 @@ camino: los run loops giraban sobre `select` (`61cb01ce77`), y la
 liberación de más de `NSEvent` de WS0 (`1508bd4d3c`).
 
 Atajos tomados: AppKit marca dañada toda la ventana en cada flush
-(`SHORTCUT(WS5)`, se quita con IOSurface, cuando AppKit lleve sus
-rectángulos sucios a la superficie); el reloj de pantalla late a la
+(atajo de WS5, quitado el 2 nov 2026: AppKit envía los rectángulos
+que dibujaron sus vistas); el reloj de pantalla late a la
 frecuencia de refresco también en reposo, aunque no dibuje ningún frame
-(`SHORTCUT(WS5)`, se quita con flips reales).
+(atajo de WS5, quitado el 2 nov 2026: el reloj duerme).
 
 ### WS3 — Entrada
 
@@ -439,7 +439,7 @@ sección 9).
   uno a su dueño en lugar de entregarlo como evento de teclado: Comando-Tab
   al Dock, Comando-Opción-Escape a loginwindow, Control-F2 al AppKit de la
   app del frente (el foco a la barra de menús). El servidor no dibuja ningún
-  selector de apps; lo hace el Dock (D4 de [Dock-Kraz.es.md](Dock-Kraz.es.md)).
+  selector de apps; lo hace el Dock (D3 de [Dock-Kraz.es.md](Dock-Kraz.es.md)).
 - **Apps en ejecución a través de LaunchServices:** un servicio de sesión de
   LaunchServices guarda la lista de apps en ejecución; cada app se registra
   desde `NSApplication` al arrancar, su salida se detecta cuando ocurre, y el
@@ -529,6 +529,33 @@ Estado al 1 nov 2026:
   guardado entre sesiones son MB1. Con los avisos de app del frente, el
   sitio de la barra de menús y la captura del puntero, es lo que MB0
   necesita del servidor. `skylight-test` 164/0.
+- [x] Lo que necesita el Dock (`508452db94`, `0531c43795`, `8466272a0b`):
+  `SLSSetWindowMinimized` saca una ventana de pantalla, la marca y avisa a
+  las conexiones que lo pidieron (`SLSRequestWindowNotifications`), como
+  hará el Dock; `miniaturize:` y `deminiaturize:` de AppKit lo usan.
+  `SLSCopyWindowImage` da la imagen de una ventana, también minimizada, y
+  las listas de ventanas de CoreGraphics (`CGWindowListCopyWindowInfo` con
+  las claves de referencia) y `CGWindowListCreateImage` pasan por el
+  servidor nuevo. Pruebas locales `minimize` y `cgwindow` (5/0); gate
+  M4-compose.
+- [x] Lista de ventanas, imágenes y captura (`8466272a0b`, `eb4cf23988`,
+  `e566689e10`, `d0284701f9`, `84e3995f38`, `08cad8d686`): ventanas hijas
+  y hojas que se guardan y se mueven con su padre; cursores que fija cada
+  app (se muestra el de la app del frente) con los rectángulos de cursor de
+  AppKit; sombras de ventana por software; captura de pantallas,
+  `CGDisplayGetDrawingContext` (con una copia hasta WS5) y `CGDisplayCreateImage`.
+  La ventana key y las áreas de seguimiento de AppKit funcionan con el
+  servidor nuevo (`5039d3f2e4`). Pruebas locales `child-windows`,
+  `cursors`, `cgwindow` (11/0); gate M4-compose con referencias nuevas
+  (`c10556003b`).
+- [x] Atajos de hitos anteriores (`a2a46220f8`, `9d166822ff`,
+  `e31dd0ef53`): el estado de `CGEventSource` lo da el servidor; el
+  compositor aplica las tablas de transferencia y los fundidos (animados
+  durante su duración); la entrada se lee y se reparte en su propia cola
+  de alta prioridad sobre una instantánea del modelo que publica la cola
+  de IPC. Prueba local `gamma-fade` y el conjunto del servidor (117
+  pasadas); gates M2 y M4-compose. WS4a queda cerrado: no queda ningún
+  `SHORTCUT(WS4a)` (1 nov 2026).
 
 ### WS4b — El cambio de servidor
 
@@ -544,6 +571,20 @@ Estado al 1 nov 2026:
 - Gate M4 en QEMU: varias apps de AppKit abren ventanas, se arrastran,
   reciben teclado y redibujan sin artefactos, más las pruebas de menús de
   MB0.
+- Hecho el 2 nov 2026 (`6c3b719a32` a `9d510ec6c2`): MB0 (las vistas de
+  menú en AppKit, la barra de menús de la app, el seguimiento, los atajos de
+  teclado y Control-F2, los menús contextuales y los botones emergentes, los
+  elementos de estado, el menú del sistema, sin el camino viejo de menús);
+  `quit` en la sesión de LaunchServices y el `loginwindow` mínimo, que
+  arranca la sesión; el servicio del servidor nuevo es
+  `org.minkar.WindowServer` y arranca con el sistema (`-textconsole` mantiene
+  la consola de texto); CoreGraphics y AppKit solo a través de SkyLight (los
+  modos, la configuración, el cursor, la gamma y los fundidos de Quartz
+  Display Services van por ahí); `Legacy/` y sus bibliotecas borrados. Gate
+  M4: 54 marcadores, con M4-draw y M4-compose dentro; pruebas locales
+  `menubar`, `menus`, `loginwindow` y `cgwindow` (30 comprobaciones); suite
+  local completa: 3192 pasadas. WS4b queda cerrado: no queda ningún
+  `SHORTCUT(WS4b)`.
 
 ### WS5 — IOSurface y virtio-gpu
 
@@ -551,6 +592,24 @@ Estado al 1 nov 2026:
 - Pantalla virtio-gpu 2D (paso 3 del roadmap) con cambios de búfer reales y
   cambio de resolución desde `CGDisplaySetDisplayMode`.
 - `CGDisplayStream`.
+
+Avance: IOSurface.framework y su registro `iosurfaced` (2 nov 2026,
+`b28eb5f413`); AppKit envía solo lo que dibujaron sus vistas
+(`0c04a371f0`); `MinkarVirtioGPU` maneja virtio-vga en su tamaño preferido,
+y el servidor de ventanas le dice qué cambió cada fotograma, así que solo
+eso se transfiere y vuelca; `wsctl mode` cambia la resolución a través de
+él (2 nov 2026, `3e73fce129`, `1f58b3fb44`, `ce474d4d4d`).
+
+Cerrado el 2 nov 2026: el reloj de pantalla duerme mientras nada cambia
+(`fe8d15a42b`); las configuraciones de pantalla permanentes se guardan y se
+restauran (`0cf3f87d2f`, `220e72b870`); una ventana puede mostrar una
+IOSurface de su app, el contexto de dibujo de una pantalla capturada dibuja
+en una, y `CGDisplayStream` entrega fotogramas en IOSurfaces
+(`9a472063c1`). No queda ningún `SHORTCUT(WS5)`. Distinto de lo escrito al
+principio: virtio-gpu 2D no tiene sincronía vertical sobre la que hacer
+flips, así que cada fotograma se vuelca con su daño en vez de intercambiar
+búferes; los flips al ritmo de la pantalla llegan con la GPU (WS6). Los
+display streams no informan de rectángulos movidos (solo de los sucios).
 
 ### WS6 — Composición por GPU
 
@@ -599,7 +658,7 @@ varias pantallas, Spaces, cursor por hardware.
   servidor viejo funcionando hasta el cambio de WS4b.
 - Los atajos de desarrollo se marcan en el código con el hito que los quita:
   `// SHORTCUT(<se quita en>): <qué y por qué>; taken in <hito>.`
-  (por ejemplo `SHORTCUT(WS4a)`, `SHORTCUT(Phase 5)`, `SHORTCUT(D4)`; el
+  (por ejemplo `SHORTCUT(WS4a)`, `SHORTCUT(Phase 5)`, `SHORTCUT(D3)`; el
   comentario va en inglés, como todo el código), y cada uno tiene una fila
   en la tabla de atajos de su plan (aquí la sección 9; la sección 10 de
   [Menus.es.md](Menus.es.md) y de [Dock-Kraz.es.md](Dock-Kraz.es.md)). Un
@@ -616,23 +675,26 @@ Decidido el 31 oct 2026, según la regla general de la sección 1:
 
 | Pregunta | Decisión (objetivo) | Atajo de desarrollo | Se quita en |
 | --- | --- | --- | --- |
-| Usuario con el que corre WindowServer | `_windowserver` (UID 88), fijado por el job de launchd (`UserName`) | Root; el servidor nuevo corre como `_windowserver` desde el 1 nov 2026 (`9af6b6295d`), el anterior sigue como root hasta que se va | WS4b (se borra el servidor anterior) |
+| Usuario con el que corre WindowServer | `_windowserver` (UID 88), fijado por el job de launchd (`UserName`) | Root; el servidor nuevo corre como `_windowserver` desde el 1 nov 2026 (`9af6b6295d`), el anterior sigue como root hasta que se va | Quitado el 2 nov 2026, en WS4b, con el servidor anterior |
 | Dónde vive | `SkyLight.framework/Resources/WindowServer`; el cliente en `SkyLight.framework`, reexportado por CoreGraphics | `CoreServices/WindowServer.app` para WS0 (servidor actual) | WS1 |
-| Capturar pantalla y enviar eventos | Permisos de grabación de pantalla, monitoreo de entrada y accesibilidad, mediante un servicio de permisos | Política interna: se permite a root y a los procesos del usuario de consola; el resto, denegado (también para reclamar atajos simbólicos) (`SHORTCUT(M5)`) | M5 (el ADR del servicio de privacidad llega antes del gate M5) |
+| Capturar pantalla y enviar eventos | Permisos de grabación de pantalla, monitoreo de entrada y accesibilidad, mediante un servicio de permisos | Política interna: se permite a root y a los procesos del usuario de consola; el resto, denegado (también para reclamar atajos simbólicos, leer imágenes de ventanas de otras apps y hacer streams de una pantalla) (`SHORTCUT(M5)`) | M5 (el ADR del servicio de privacidad llega antes del gate M5) |
 | Mover ventanas | Movimientos en el servidor a partir de las zonas de arrastre que declara el cliente, más `performWindowDragWithEvent:` | Solo la zona de la barra de título | Se quitó el 1 nov 2026 (`f03d8ddc9d`, `5df94c8821`) |
 | Distribuciones de teclado | El servidor entrega códigos de tecla del hardware; el cliente los convierte en caracteres según la distribución actual (datos de la distribución y una llamada al estilo de `UCKeyTranslate` en la app), con Text Input Sources | `WSKeymap` y libxkbcommon en SkyLight, desde WS4a (`SHORTCUT(Phase 5)`) | Fase 5 (Text Input Sources y ficheros de distribución propios) |
 | Terminar la sesión | La ventana de login pide a las apps que terminen, cierra la sesión y después reinicia o apaga | Un `loginwindow` mínimo que solo cierra la sesión y llama a `reboot(2)` | Fase 5 (LoginWindow) |
-| Selector de apps (Comando-Tab) | Lo dibuja el Dock; la tabla de atajos simbólicos del servidor de ventanas le entrega Comando-Tab | Sin selector desde que se va el servidor anterior (WS4b): se cambia de app con clic en sus ventanas (`SHORTCUT(D4)`) | D4 ([Dock-Kraz.es.md](Dock-Kraz.es.md)) |
-| Pilas de los hilos del servidor anterior | Desaparecen con el servidor anterior y `message.h` | Pilas de 4 MB para sus mensajes de 128 KB (`SHORTCUT(WS4b)` en `Legacy/main.m`, tomado en WS0) | WS4b |
-| Qué arranca el job de launchd de WindowServer | Solo el servidor de ventanas; la sesión arranca en otro sitio (sección 10.3) | Solo el compositor (`-x`), porque LoginWindow no se compila (`SHORTCUT(WS4b)` en el plist, tomado en WS0) | WS4b |
+| Selector de apps (Comando-Tab) | Lo dibuja el Dock; la tabla de atajos simbólicos del servidor de ventanas le entrega Comando-Tab | Sin selector desde que se va el servidor anterior (WS4b): se cambia de app con clic en sus ventanas (`SHORTCUT(D3)`) | D3 ([Dock-Kraz.es.md](Dock-Kraz.es.md)) |
+| Pilas de los hilos del servidor anterior | Desaparecen con el servidor anterior y `message.h` | Pilas de 4 MB para sus mensajes de 128 KB (tomado en WS0) | Quitado el 2 nov 2026, en WS4b, con el servidor anterior y `message.h` |
+| Qué arranca el job de launchd de WindowServer | Solo el servidor de ventanas; la sesión arranca en otro sitio (sección 10.3) | Solo el compositor (`-x`), porque LoginWindow no se compila (tomado en WS0) | Quitado el 2 nov 2026, en WS4b: el job del servidor nuevo solo lo arranca a él, y `loginwindow` arranca la sesión |
 | Fuente del sistema | La fuente propia de Gienah | Inter (SIL OFL 1.1), cuatro estilos (`SHORTCUT(Phase 5)` en `SystemLibrary/Fonts/Makefile`, tomado en WS0) | Fase 5 (Gienah) |
-| Configuraciones de pantalla permanentes | Se guardan y se vuelven a aplicar en la sesión siguiente | Duran la sesión (`SHORTCUT(WS5)`, tomado en WS1) | WS5 (cambios de modo reales) |
-| Tablas de transferencia y fundidos | Los aplica a la pantalla el compositor, y el hardware de gamma donde lo haya | Se guardan y se devuelven, sin aplicarse (`SHORTCUT(WS4a)`, tomado en WS1) | WS4a |
-| Reloj de pantalla en reposo | Los flips de la pantalla marcan los frames; nada se despierta mientras nada cambia | Un temporizador a la frecuencia de refresco late también en reposo, sin dibujar nada (`SHORTCUT(WS5)` en `WSCompositor.m`, tomado en WS2) | WS5 (flips reales) |
-| Daño de AppKit | AppKit envía los rectángulos que redibujó | Toda la ventana en cada flush (`SHORTCUT(WS5)` en `NSWindow.m`, tomado en WS2) | WS5 (IOSurface) |
+| Configuraciones de pantalla permanentes | Se guardan y se vuelven a aplicar en la sesión siguiente | Duran la sesión (tomado en WS1) | Quitado el 2 nov 2026, en WS5: se guardan en `/var/db/WindowServer/Displays.plist` y se aplican al arrancar; `CGRestorePermanentDisplayConfiguration` vuelve a ellas |
+| Tablas de transferencia y fundidos | Los aplica a la pantalla el compositor, y el hardware de gamma donde lo haya | Se guardan y se devuelven, sin aplicarse (tomado en WS1) | Quitado el 2026-11-01, en WS4a |
+| Reloj de pantalla en reposo | Los flips de la pantalla marcan los frames; nada se despierta mientras nada cambia | Un temporizador a la frecuencia de refresco late también en reposo, sin dibujar nada (tomado en WS2) | Quitado el 2 nov 2026, en WS5: el reloj duerme tras dos ticks sin trabajo y el daño lo despierta |
+| Daño de AppKit | AppKit envía los rectángulos que redibujó | Toda la ventana en cada flush (tomado en WS2) | Quitado el 2 nov 2026, en WS5: las vistas anotan lo que dibujan y la ventana envía esos rectángulos |
+| Volcados de virtio-gpu | El daño del servidor de ventanas va con cada fotograma; solo esos rectángulos se transfieren y vuelcan | Toda la pantalla transferida y volcada a 60 Hz (tomado en WS5) | Quitado el 2 nov 2026, en WS5: el servidor de ventanas envía los rectángulos de cada fotograma; el temporizador solo trabaja para la consola |
 | App del frente | El servidor de ventanas guarda la app del frente, que puede no tener ventanas (sus menús están en la barra de menús), y se lo dice a la sesión de LaunchServices | La dueña de la ventana key: una app sin ventana que mostrar no se podía activar (tomado en WS4a, `3be3e23e16`) | Quitado el 2026-11-01, en WS4a |
-| Cola de entrada | La entrada se lee y se reparte en su propia cola de alta prioridad, sobre una instantánea del modelo | En la cola IPC (`SHORTCUT(WS4a)` en el `main.m` del servidor, tomado en WS3) | WS4a |
-| Estado HID de `CGEventSource` | Se pregunta al servidor de ventanas | No se pregunta: botones, teclas y modificadores se leen como no pulsados (`SHORTCUT(WS4a)` en `CGEvent.m`, tomado en WS3) | WS4a |
+| Cursores estándar | El juego de cursores de Gienah (I-beam, manos, cruz, redimensionar, no permitido...), que fija el AppKit de cada app | Formas negras sencillas con borde blanco dibujadas en `NSCursorImage.m`, la flecha para las que no tienen forma (`SHORTCUT(Phase 5)`, tomado en WS4a) | Fase 5 (Gienah) |
+| Contexto de dibujo de una pantalla capturada | La app dibuja en la superficie que se muestra (IOSurface) | `CGDisplayGetDrawingContext` dibuja en memoria de la app, que se copia a la ventana de escudo a la frecuencia de refresco cuando cambia, con un fotograma de retraso (tomado en WS4a) | Quitado el 2 nov 2026, en WS5: el contexto dibuja en una IOSurface que la ventana protectora muestra en cada fotograma |
+| Cola de entrada | La entrada se lee y se reparte en su propia cola de alta prioridad, sobre una instantánea del modelo | En la cola IPC (tomado en WS3) | Quitado el 2026-11-01, en WS4a |
+| Estado HID de `CGEventSource` | Se pregunta al servidor de ventanas | No se pregunta: botones, teclas y modificadores se leen como no pulsados (tomado en WS3) | Quitado el 2026-11-01, en WS4a |
 | Validación de entitlements en el kernel | Una trust cache estática de los binarios del sistema y un kext de política MAC propio (sección 9.1) | Root puede abrir la conexión de servidor de IOHIDSystem (`SHORTCUT(WS4a)` en `IOHIDUserClient.cpp`) | Se quitó el 1 nov 2026 (`8366b8d0f6`), antes de WS4a |
 
 ### 9.1 Validación de entitlements en el kernel

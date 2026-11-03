@@ -1,0 +1,16 @@
+# Files imported from drm-kmod by tools/drm-import/drm-import.py (ADR 0002).
+# Exact copies under dist/drm-kmod; never edited here. Only MIT, BSD or
+# dual-licensed files (the tool refuses others).
+version drm_v6.12.110_1
+
+# The AtomBIOS interpreter: runs the VBIOS's command tables (G1).
+drivers/gpu/drm/amd/amdgpu/atom.c
+drivers/gpu/drm/amd/amdgpu/atom.h
+drivers/gpu/drm/amd/include/atom-bits.h
+drivers/gpu/drm/amd/include/atom-names.h
+drivers/gpu/drm/amd/include/atom-types.h
+drivers/gpu/drm/amd/include/atombios.h
+drivers/gpu/drm/amd/include/atomfirmware.h
+drivers/gpu/drm/amd/amdgpu/ObjectID.h
+drivers/gpu/drm/amd/include/atomfirmwareid.h
+drivers/gpu/drm/amd/include/pptable.h

@@ -45,3 +45,9 @@ routine activate(
 	pid			: int32_t;
 	options			: uint32_t;
 	out result		: int32_t);
+
+routine quit(
+	server			: mach_port_t;
+	ServerAuditToken token	: audit_token_t;
+	pid			: int32_t;
+	out result		: int32_t);

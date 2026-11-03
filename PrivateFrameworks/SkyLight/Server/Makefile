@@ -14,7 +14,7 @@ MK_PIE = no
 MK_DEBUG_FILES = no
 PROG =	WindowServer
 SRCS =	main.m WSConnection.m WSDisplay.m WSDisplayServices.m WSWindowList.m \
-	WSSurface.m WSCompositor.m WSInput.m WSEvents.m WSTaps.m WSHotKeys.m WSKeymap.c \
+	WSSurface.m WSDisplayStream.m WSCompositor.m WSInput.m WSEvents.m WSTaps.m WSHotKeys.m WSKeymap.c \
 	WindowServerServer.c
 MAN =
 SKYLIGHT = ${.CURDIR}/..
@@ -30,12 +30,13 @@ RESOURCES = /System/Library/PrivateFrameworks/SkyLight.framework/Versions/A/Reso
 CFLAGS += --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
 	-fobjc-arc -Wno-nullability-completeness -Wno-incompatible-sysroot \
 	-I${.OBJDIR} -I${SKYLIGHT} -I${SKYLIGHT}/IPC -I${MINKAR_SDKROOT}/usr/include/pixman-1 \
+	-I${ROOT_SOURCE_DIR}/Kernel/Extensions/MinkarDRM \
 	-I${KEYMAP} -I${KEYMAP}/libxkbcommon/include \
 	-F${MINKAR_SDKROOT}/System/Library/Frameworks/CoreServices.framework/Frameworks
 LDFLAGS += --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
 	-fuse-ld=${LD}
 LDADD += -framework Foundation -framework IOKit -framework CoreFoundation \
-	-framework CoreServices -lbsm -lobjc \
+	-framework CoreServices -framework IOSurface -lbsm -lobjc \
 	-lpixman-1 -L${KEYMAP_OBJ}/libxkbcommon -lxkbcommon
 CLEANFILES += WindowServerServer.c WindowServerServer.h
 
@@ -60,6 +61,8 @@ to-sysroot: ${PROG}
 	# Its log directory: launchd opens the job's StandardErrorPath as
 	# _windowserver (UID and GID 88), who cannot write /var/log.
 	install -d -m 0755 -o 88 -g 88 ${SYSROOT_DIR}/private/var/log/WindowServer
+	# Where it saves permanent display configurations.
+	install -d -m 0755 -o 88 -g 88 ${SYSROOT_DIR}/private/var/db/WindowServer
 	${CODESIGN} -f -s - -i org.minkar.WindowServer \
 	    --entitlements ${.CURDIR}/WindowServer.entitlements \
 	    ${SYSROOT_DIR}${RESOURCES}/WindowServer

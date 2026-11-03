@@ -66,12 +66,17 @@ type ws_damage_t = array[*:64] of ws_int_rect_t;
 type ws_region_t = array[*:64] of ws_int_rect_t;
 type ws_server_stats_t = struct[16] of uint32_t
 	ctype: SLSServerStats;
+type ws_display_stream_options_t = struct[10] of uint32_t
+	ctype: SLSDisplayStreamOptions;
 type ws_event_t = struct[24] of uint32_t
 	ctype: SLSEvent;
 type ws_event_list_t = array[*:64] of ws_event_t;
 type ws_tap_info_t = struct[12] of uint32_t
 	ctype: SLSEventTapInfo;
 type ws_tap_list_t = array[*:32] of ws_tap_info_t;
+type ws_pixels_t = ^array[] of uint8_t;
+type ws_hid_state_t = struct[104] of uint32_t
+	ctype: SLSHIDState;
 
 /*
  * Opens a connection: the server records the client's PID and user from
@@ -191,6 +196,7 @@ routine fade(
 	server			: mach_port_t;
 	ServerAuditToken token	: audit_token_t;
 	reservation		: uint32_t;
+	duration		: double;
 	start_blend		: float;
 	end_blend		: float;
 	red			: float;
@@ -256,6 +262,17 @@ routine cursor_associate(
 	server			: mach_port_t;
 	ServerAuditToken token	: audit_token_t;
 	connected		: int32_t;
+	out result		: int32_t);
+
+/* The cursor's image (interface version 12). */
+routine cursor_set_image(
+	server			: mach_port_t;
+	ServerAuditToken token	: audit_token_t;
+	width			: uint32_t;
+	height			: uint32_t;
+	hot_x			: double;
+	hot_y			: double;
+	pixels			: ws_pixels_t;
 	out result		: int32_t);
 
 /* ---- Windows ---- */
@@ -474,6 +491,60 @@ routine display_menu_bar_height(
 	out result		: int32_t;
 	out height		: uint32_t);
 
+/* ---- The input state (interface version 14) ---- */
+
+routine hid_state(
+	server			: mach_port_t;
+	which			: uint32_t;
+	out result		: int32_t;
+	out state		: ws_hid_state_t);
+
+/* ---- Window shadows (interface version 13) ---- */
+
+routine window_set_shadow(
+	server			: mach_port_t;
+	ServerAuditToken token	: audit_token_t;
+	window			: uint32_t;
+	shadow			: int32_t;
+	out result		: int32_t);
+
+/* ---- Child windows (interface version 11) ---- */
+
+routine window_set_parent(
+	server			: mach_port_t;
+	ServerAuditToken token	: audit_token_t;
+	child			: uint32_t;
+	parent			: uint32_t;
+	place			: int32_t;
+	out result		: int32_t);
+
+/* ---- Window images (interface version 10) ---- */
+
+routine window_image(
+	server			: mach_port_t;
+	ServerAuditToken token	: audit_token_t;
+	window			: uint32_t;
+	out result		: int32_t;
+	out width		: uint32_t;
+	out height		: uint32_t;
+	out row_bytes		: uint32_t;
+	out pixels		: ws_pixels_t, dealloc);
+
+/* ---- Minimized windows (interface version 9) ---- */
+
+routine window_set_minimized(
+	server			: mach_port_t;
+	ServerAuditToken token	: audit_token_t;
+	window			: uint32_t;
+	minimized		: int32_t;
+	out result		: int32_t);
+
+routine window_notifications(
+	server			: mach_port_t;
+	ServerAuditToken token	: audit_token_t;
+	on			: int32_t;
+	out result		: int32_t);
+
 /* ---- Status items (interface version 8) ---- */
 
 routine window_set_status_item(
@@ -481,4 +552,46 @@ routine window_set_status_item(
 	ServerAuditToken token	: audit_token_t;
 	window			: uint32_t;
 	item			: int32_t;
+	out result		: int32_t);
+
+/* ---- Permanent display configuration and IOSurface windows
+ * (interface version 15) ---- */
+
+/* Puts every display back as last saved permanently (or as the server
+ * started, when nothing was saved); the caller's app-only changes end. */
+routine display_restore_permanent(
+	server			: mach_port_t;
+	ServerAuditToken token	: audit_token_t;
+	out result		: int32_t);
+
+/* The window shows an IOSurface of its app (BGRA, 4 bytes per pixel, the
+ * window's size) in place of its own buffers, again at every frame while
+ * shown; surface 0 gives it buffers of its own again. */
+routine window_set_iosurface(
+	server			: mach_port_t;
+	ServerAuditToken token	: audit_token_t;
+	window			: uint32_t;
+	surface			: uint32_t;
+	out result		: int32_t);
+
+/* ---- Display streams (interface version 15) ---- */
+
+/* Frames of a display into the caller's IOSurfaces (their IDs, all of
+ * the output size, BGRA), each sent to notify as an SLSDisplayStreamFrame
+ * while a surface is free (its use count is 0). */
+routine display_stream_start(
+	server			: mach_port_t;
+	ServerAuditToken token	: audit_token_t;
+	display			: uint32_t;
+	surfaces		: ws_window_list_t;
+	options			: ws_display_stream_options_t;
+	notify			: mach_port_make_send_t;
+	out result		: int32_t;
+	out stream		: uint32_t);
+
+/* No more frames; a last message says the stream stopped. */
+routine display_stream_stop(
+	server			: mach_port_t;
+	ServerAuditToken token	: audit_token_t;
+	stream			: uint32_t;
 	out result		: int32_t);

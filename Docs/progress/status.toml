@@ -32,8 +32,8 @@
 # commit that closes a milestone updates this file and runs
 # "bmake progress" (Docs/CONTRIBUTING.md).
 
-updated = "2026-11-01"
-commit  = "b15eaab556"
+updated = "2026-11-02"
+commit  = "9a472063c1"
 
 deps = [["ws", 555, "dock"], ["fw", 535, "kraz"]]
 
@@ -70,7 +70,7 @@ rows = ["fw"]
 id = "M4"
 title = "M4 Graphics and WindowServer"
 label = "M4"
-state = "current"
+state = "done"
 x = 650
 rows = ["ws", "mb"]
 
@@ -88,7 +88,7 @@ title = "M6 Minkar 19.6.0"
 label = "M6 · 19.6.0"
 state = "todo"
 x = 970
-rows = ["apps"]
+rows = ["mb", "dock", "kraz", "apps"]
 
 [[gate]]
 id = "R21"
@@ -136,8 +136,8 @@ doc = "WindowServer-Rewrite.md"
 doc_es = "WindowServer-Rewrite.es.md"
 stations = [
   ["WS0", 290, "done"], ["WS1", 340, "done"], ["WS2", 390, "done"], ["WS3", 440, "done"],
-  ["ADR 0001", 495, "done"], ["WS4a", 555, "current"], ["WS4b", 650, "todo"],
-  ["WS5", 850, "todo"], ["WS6", 1060, "todo"],
+  ["ADR 0001", 495, "done"], ["WS4a", 555, "done"], ["WS4b", 650, "done"],
+  ["WS5", 850, "done"], ["WS6", 1060, "current"],
 ]
 
 [[line]]
@@ -147,8 +147,8 @@ color = "purple"
 doc = "Menus.md"
 doc_es = "Menus.es.md"
 stations = [
-  ["MB0", 650, "todo"], ["MB1", 760, "todo"], ["MB2", 870, "todo"], ["MB3", 920, "todo"],
-  ["MB4", 970, "todo"],
+  ["MB0", 650, "done"], ["MB1", 760, "todo"], ["MB2", 865, "todo"], ["MB3", 970, "todo"],
+  ["MB4", 1025, "todo"],
 ]
 
 [[line]]
@@ -158,8 +158,8 @@ color = "orange"
 doc = "Dock-Kraz.md"
 doc_es = "Dock-Kraz.es.md"
 stations = [
-  ["D0", 700, "todo"], ["D1", 760, "todo"], ["D2", 870, "todo"], ["D3", 920, "todo"],
-  ["D4", 970, "todo"],
+  ["D0", 700, "todo"], ["D1", 760, "todo"], ["D2", 865, "todo"], ["D3", 970, "todo"],
+  ["D4", 1025, "todo"],
 ]
 
 [[line]]
@@ -169,8 +169,8 @@ color = "teal"
 doc = "Dock-Kraz.md"
 doc_es = "Dock-Kraz.es.md"
 stations = [
-  ["K0", 700, "todo"], ["K1", 760, "todo"], ["K2", 870, "todo"], ["K3", 920, "todo"],
-  ["K4", 970, "todo"],
+  ["K0", 700, "todo"], ["K1", 760, "todo"], ["K2", 865, "todo"], ["K3", 970, "todo"],
+  ["K4", 1025, "todo"],
 ]
 
 [[line]]
@@ -198,8 +198,8 @@ name = "GPU track"
 color = "red"
 doc = "ROADMAP.md#graphics-stack-components-and-sequence"
 doc_es = "ROADMAP.es.md#pila-gráfica-componentes-y-secuencia"
-# One station for G2 to G5 until the GPU ADR (G1) defines them.
-stations = [["G1 ADR", 700, "todo"], ["G2–G5", 1060, "todo"]]
+# G1 done on the Mac Pro 6,1 (2026-11-02); one station for G2 to G5.
+stations = [["G1 KMS", 700, "done"], ["G2–G5", 1060, "todo"]]
 
 [[line]]
 id = "compat"
@@ -212,44 +212,45 @@ stations = [["x86-64 apps", 1082, "todo"], ["arm64", 1150, "todo"]]
 # The work board. "line" picks a card's colour; "here" marks a station of
 # the metro map as where work is.
 [board]
-here = "WS4a"
+here = "WS6"
 
 [[board.done]]
-title = "Status area layout"
-note = "WS4a · 1 nov"
+title = "WS5 closed: IOSurface and virtio-gpu"
+note = "display streams, captured displays, saved configs · 2 nov"
 line = "ws"
 
 [[board.done]]
-title = "Pointer capture"
-note = "WS4a · 1 nov"
+title = "virtio-gpu 2D display"
+note = "per-frame flushes, mode changes · WS5 · 2 nov"
 line = "ws"
 
 [[board.done]]
-title = "Menu bar place"
-note = "WS4a · 1 nov"
+title = "IOSurface"
+note = "Mach memory, iosurfaced; AppKit damage · WS5 · 2 nov"
 line = "ws"
 
 [[board.done]]
-title = "Front app and activation order"
-note = "WS4a · 1 nov"
+title = "Gate M4 met (in QEMU)"
+note = "54 markers, the menus in the app · 2 nov"
 line = "ws"
 
 [[board.done]]
-title = "Running applications"
-note = "LaunchServices session · WS4a · 1 nov"
+title = "WS4b closed: the switch"
+note = "new server by default, legacy removed · 2 nov"
 line = "ws"
 
 [[board.done]]
-title = "Symbolic hotkeys"
-note = "WS4a · 1 nov"
+title = "Minimal loginwindow"
+note = "Log Out, Restart, Shut Down · WS4b · 2 nov"
 line = "ws"
+
 
 [[board.now]]
-title = "WS4a — Server behavior"
-note = "Left: what the Dock needs, window list and capture, earlier shortcuts"
+title = "WS6 — GPU compositing"
+note = "G1 done (FirePro display driver); G2: GPU memory and rings"
 line = "ws"
-done = 6
-total = 9
+done = 0
+total = 3
 
 [[board.now]]
 title = "Foundation audit"
@@ -264,13 +265,8 @@ line = "fw"
 partial = true
 
 [[board.next]]
-title = "WS4b + MB0 — The switch"
-note = "menus in the app, Legacy/ removed → gate M4"
-line = "ws"
-
-[[board.next]]
 title = "D0 · K0 — Dock and Kraz prerequisites"
-note = "after WS4a"
+note = "can start: WS4a is done"
 line = "dock"
 
 [[board.next]]
@@ -279,8 +275,8 @@ note = "swiftc, libswiftCore → M3"
 line = "fw"
 
 [[board.next]]
-title = "GPU ADR (G1)"
-note = "family, licenses, KMS prototype"
+title = "G2 — GPU memory, rings, fences"
+note = "gate met on the Mac Pro: DMA, fences, GART; IOSurfaces in VRAM next"
 line = "gpu"
 
 [[board.later]]
@@ -288,16 +284,16 @@ group = "→ M5 Gienah session"
 items = [["MB1 Menu Extras", "mb"], ["D1 Dock core", "dock"], ["K1 Kraz browsing", "kraz"], ["LoginWindow, Preferences", "gienah"]]
 
 [[board.later]]
-group = "After M5"
-items = [["MB2–MB4 menus", "mb"], ["D2–D4 Dock", "dock"], ["K2–K4 Kraz", "kraz"]]
+group = "→ M6 · Minkar 19.6.0"
+items = [["MB2–MB3 menus for daily use", "mb"], ["D2–D3 Dock, with the app switcher", "dock"], ["K2–K3 Kraz, with DMG double-click", "kraz"], ["DiskImages (hdiutil attach already mounts)", "apps"], ["Terminal, TextEdit, Browser", "apps"]]
 
 [[board.later]]
-group = "→ M6 · Minkar 19.6.0"
-items = [["DiskImages (hdiutil attach already mounts)", "apps"], ["Terminal, TextEdit, Browser", "apps"]]
+group = "→ 19.6.x"
+items = [["MB4 Services, D4 stacks and Trash, K4 search and tags", "mb"]]
 
 [[board.later]]
 group = "→ Minkar 21.0"
-items = [["WS5 IOSurface, WS6 GPU compositing", "ws"], ["G2–G5 driver, Mesa, Metal", "gpu"]]
+items = [["WS6 performance gate", "ws"], ["G2–G5 driver, Mesa, Metal", "gpu"]]
 
 [[board.later]]
 group = "→ M7"

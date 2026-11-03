@@ -32,9 +32,14 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
         return self;
 }
 
+/* These take a window number: the base initializer wants a window, and
+ * sending the number -windowNumber crashed (Minkar: cursor rects, through
+ * NSWindow's tracking areas). */
 -initWithType:(NSEventType)type location:(NSPoint)location modifierFlags:(NSUInteger)modifierFlags timestamp:(NSTimeInterval)timestamp windowNumber:(NSInteger)windowNumber context:(NSGraphicsContext*)context eventNumber:(NSInteger)eventNumber trackingNumber:(NSInteger)tracking userData:(void *)userData {
-   self=[super initWithType:type location:location modifierFlags:modifierFlags window:(id)windowNumber];
+   self=[super initWithType:type location:location modifierFlags:modifierFlags window:nil];
    if(self!=nil){
+    _windowNumber=windowNumber;
+    _timestamp=timestamp;
     _trackingNumber=tracking;
     _userData=userData;
    }
@@ -42,8 +47,12 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 }
 
 -initWithType:(NSEventType)type location:(NSPoint)location modifierFlags:(NSUInteger)modifierFlags timestamp:(NSTimeInterval)timestamp windowNumber:(NSInteger)windowNumber context:(NSGraphicsContext*)context eventNumber:(NSInteger)eventNumber clickCount:(NSInteger)clickCount pressure:(float)pressure {
-   [super initWithType:type location:location modifierFlags:modifierFlags window:(id)windowNumber];
-   _clickCount=clickCount;
+   self=[super initWithType:type location:location modifierFlags:modifierFlags window:nil];
+   if(self!=nil){
+    _windowNumber=windowNumber;
+    _timestamp=timestamp;
+    _clickCount=clickCount;
+   }
    return self;
 }
 

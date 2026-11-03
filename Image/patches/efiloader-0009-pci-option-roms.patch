@@ -1,0 +1,90 @@
+--- a/MdeModulePkg/Application/Loader/Loader.inf
++++ b/MdeModulePkg/Application/Loader/Loader.inf
+@@ -39,6 +39,7 @@
+   gEfiSimpleFileSystemProtocolGuid              ## CONSUMES
+   gEfiEdidActiveProtocolGuid                    ## SOMETIMES_CONSUMES
+   gEfiEdidDiscoveredProtocolGuid                ## SOMETIMES_CONSUMES
++  gEfiPciIoProtocolGuid                         ## SOMETIMES_CONSUMES
+ 
+ [FeaturePcd]
+   gEfiMdeModulePkgTokenSpaceGuid.PcdHelloWorldPrintEnable   ## CONSUMES
+--- a/MdeModulePkg/Application/Loader/loader.c
++++ b/MdeModulePkg/Application/Loader/loader.c
+@@ -25,6 +25,7 @@
+ #include "loader.h"
+ #include <Protocol/EdidActive.h>
+ #include <Protocol/EdidDiscovered.h>
++#include <Protocol/PciIo.h>
+ #include "config.h"
+ #include "lzvn_decode.h"
+ #include <mach-o/fat.h>
+@@ -566,6 +567,60 @@
+     return TRUE;
+ }
+ 
++/*
++ * Minkar: each display controller's option ROM, as the firmware read it
++ * (its PCI I/O protocol's RomImage), for the kernel's GPU drivers: the
++ * expansion ROM window is not always assigned after boot (ADR 0002). Each
++ * copy goes to runtime data pages, which the kernel keeps, and
++ * /chosen/pci-roms/rom-BUS-DEV-FN gets its "reg" (address and size, 64
++ * bits each), "location" (segment, bus, device, function) and
++ * "vendor-device".
++ */
++static VOID AddPciRoms(FdtNode *DTB)
++{
++    EFI_HANDLE *handles = NULL;
++    UINTN count = 0, created = 0;
++
++    if (EFI_ERROR(gBS->LocateHandleBuffer(ByProtocol, &gEfiPciIoProtocolGuid, NULL,
++            &count, &handles)))
++        return;
++    for (UINTN i = 0; i < count; i++) {
++        EFI_PCI_IO_PROTOCOL *io = NULL;
++        UINT32 id = 0, classReg = 0;
++        UINTN seg, bus, dev, fn;
++        EFI_PHYSICAL_ADDRESS copy;
++        CHAR8 name[32], path[64];
++
++        if (EFI_ERROR(gBS->HandleProtocol(handles[i], &gEfiPciIoProtocolGuid, (VOID **)&io)))
++            continue;
++        if (io->RomImage == NULL || io->RomSize < 512 || io->RomSize > 0x100000)
++            continue;
++        if (EFI_ERROR(io->Pci.Read(io, EfiPciIoWidthUint32, 0x08, 1, &classReg)) ||
++            (classReg >> 24) != 0x03)
++            continue;	/* display controllers only */
++        if (EFI_ERROR(io->Pci.Read(io, EfiPciIoWidthUint32, 0x00, 1, &id)) ||
++            EFI_ERROR(io->GetLocation(io, &seg, &bus, &dev, &fn)))
++            continue;
++        if (EFI_ERROR(gBS->AllocatePages(AllocateAnyPages, EfiRuntimeServicesData,
++                EFI_SIZE_TO_PAGES(io->RomSize), &copy)))
++            continue;
++        CopyMem((VOID *)(UINTN)copy, io->RomImage, io->RomSize);
++        if (created++ == 0)
++            FdtCreateNode(DTB, "/chosen", "pci-roms");
++        AsciiSPrint(name, sizeof(name), "rom-%d-%d-%d", bus, dev, fn);
++        FdtCreateNode(DTB, "/chosen/pci-roms", name);
++        AsciiSPrint(path, sizeof(path), "/chosen/pci-roms/%a", name);
++        UINT64 reg[2] = { copy, io->RomSize };
++        UINT32 location[4] = { (UINT32)seg, (UINT32)bus, (UINT32)dev, (UINT32)fn };
++        FdtSetProperty(DTB, path, "reg", reg, sizeof(reg));
++        FdtSetProperty(DTB, path, "location", location, sizeof(location));
++        FdtSetProperty(DTB, path, "vendor-device", &id, sizeof(id));
++        Print(UEFI_STR("[] Option ROM of %04x:%04x at %d:%d.%d, %d bytes\n"),
++            id & 0xFFFF, id >> 16, bus, dev, fn, io->RomSize);
++    }
++    gBS->FreePool(handles);
++}
++
+ #define SET_BUFFER(x) CopyMem(buffer, x, AsciiStrSize(x))
+ FdtNode *InitDTB(EFI_SYSTEM_TABLE *SystemTable, UINTN addr, VOID *ACPI)
+ {
+@@ -1041,6 +1096,8 @@
+         }
+     }
+     
++    AddPciRoms(DTB);
++
+     Print(UEFI_STR("[] Created device tree at 0x%lx (%d bytes)\n"), (UINTN)DTB - gStageDelta, DTBLength);
+     if (DTBLength > EFI_PAGES_TO_SIZE(DTB_PAGES))
+         return LoaderFail(UEFI_STR("the device tree does not fit in its pages"), EFI_BUFFER_TOO_SMALL);

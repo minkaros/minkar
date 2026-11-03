@@ -239,7 +239,7 @@ Each milestone ends with tests that pass, the existing gates still green and
 the roadmap updated with the evidence. Milestones are named MB*n* to keep
 them apart from the gates M*n*.
 
-- [ ] **MB0 — Menus in the app (part of WS4b).** Menu views moved into AppKit;
+- [x] **MB0 — Menus in the app (part of WS4b; done 2026-11-02, gate M4, `9d510ec6c2`).** Menu views moved into AppKit;
   one menu bar window per display for the front app; tracking by click,
   drag and keyboard; submenus; validation and the delegate at open time;
   key equivalents in the documented order; context menus and pop-up
@@ -271,6 +271,9 @@ them apart from the gates M*n*.
 - [ ] **MB4 — Services and the menu bar's behavior.** Services daemon and menu;
   hiding in full screen; auto-hide.
 
+Gate M6 (Minkar 19.6.0, a desktop for daily use) needs MB2 and MB3. MB4
+comes in 19.6.x.
+
 ## 8. Tests and measurements
 
 - Model tests (validation order, key equivalent order, tag preservation) as
@@ -293,12 +296,14 @@ commits with the diff shown first; evidence for every roadmap item.
 | --- | --- | --- | --- |
 | Who draws and tracks the app's menus | The app (AppKit), in its own process | None: SystemUIServer drew a copy, and it is not built | MB0 |
 | System menu | Minkar logo, the reference platform's items, actions through loginwindow | Restart, Shut Down and Log Out through the minimal `loginwindow`; Sleep, Force Quit, Lock Screen and System Preferences disabled | MB3 |
+| Confirming Restart, Shut Down and Log Out | `loginwindow`'s panel, with its countdown | The app that asks shows an alert; Option held skips it (`SHORTCUT(Phase 5)` in `NSMenuBarWindow.m`) | Phase 5 (LoginWindow) |
+| About This Computer | Gienah's own window | A plain alert with the system's name and version, kernel, processor, memory and display (`SHORTCUT(Phase 5)` in `NSMenuBarWindow.m`) | Phase 5 |
 | Status items | Windows of their apps, laid out by the window server | Basic API only | MB1 |
 | Menu Extras | Bundles in SystemUIServer | None until SystemUIServer is built | MB1 |
 | Recent items | LaunchServices' shared file lists | Kept per app by `NSDocumentController` in its preferences | MB2 |
 | Services menu | Services daemon and pasteboard | Empty Services menu | MB4 |
 | System status cluster | API 19: Menu Extras in SystemUIServer; API 20: a separate control-center app | None | Minkar 20.0 |
-| Look | Gienah visual language | Plain system font and colors | Phase 5, item 7 |
+| Look | Gienah visual language | SystemUIServer's former look: 22-point items, the system font and colors (`SHORTCUT(Phase 5)` in `NSMenuView.h`) | Phase 5, item 7 |
 
 Every shortcut is marked in the code with `// SHORTCUT(MBn):` and the
 milestone that removes it.

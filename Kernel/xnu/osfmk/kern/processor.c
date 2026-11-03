@@ -221,6 +221,10 @@ processor_init(
 
 	s = splsched();
 	pset_lock(pset);
+	/* In the array before the set shows it: the scheduler, preempting
+	 * between the two (CPUs registered while threads run, as ACPICPU
+	 * does), looks processors up by the set's bits. */
+	processor_array[cpu_id] = processor;
 	bit_set(pset->cpu_bitmask, cpu_id);
 	bit_set(pset->recommended_bitmask, cpu_id);
 	bit_set(pset->primary_map, cpu_id);

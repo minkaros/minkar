@@ -802,29 +802,36 @@ IOReturn ACPIPlatformExpert::handleInterrupt(void *refCon, IOService *nub, int s
         lapic_end_of_interrupt();
         return ret;
     }
-    if (!_apic) {
-        //PE_Log("No interrupt controller registered! (%p %d)", nub, source);
-        OSIterator *iter = getChildIterator(gIOServicePlane);
-        OSObject *obj;
-        while ((obj = iter->getNextObject()) != NULL) {
-            IOService *io = OSDynamicCast(IOService, obj);
-            if (io && !strcmp("io-apic@0", io->getName())) {
-                OSIterator *subiter = io->getChildIterator(gIOServicePlane);
-                _apic = OSDynamicCast(AppleAPICInterruptController, subiter->getNextObject());
-                subiter->release();
-                break;
-            }
-        }
-        if (!_apic) {
-            lapic_end_of_interrupt();
-            return kIOReturnNotFound;
-        }
+    /*
+     * The I/O APIC's controller is kept when it registers
+     * (registerInterruptController). It used to be looked up here, walking
+     * the registry, whose lock may block: an interrupt before the
+     * controller came (an early ACPI event, during mbinit) panicked with
+     * "blocking ... within interrupt context".
+     */
+    AppleAPIC *apic = _apic;
+    if (apic == NULL) {
+        lapic_end_of_interrupt();
+        return kIOReturnNotFound;
     }
-    IOReturn ret = _apic->handleInterrupt(refCon, nub, source);
+    IOReturn ret = apic->handleInterrupt(refCon, nub, source);
     lapic_end_of_interrupt();
     return ret;
 }
 
+
+IOReturn ACPIPlatformExpert::registerInterruptController(OSSymbol *name,
+    IOInterruptController *interruptController) {
+    AppleAPIC *apic = OSDynamicCast(AppleAPICInterruptController, interruptController);
+    IOService *provider = interruptController ? interruptController->getProvider() : NULL;
+
+    /* The first I/O APIC (io-apic@0) takes the interrupts handleInterrupt
+     * passes on, as before. */
+    if (apic != NULL && _apic == NULL && provider != NULL &&
+        !strcmp("io-apic@0", provider->getName()))
+        _apic = apic;
+    return IOPlatformExpert::registerInterruptController(name, interruptController);
+}
 
 /*
  * The calendar comes from the RTC that published the "IORTC" resource

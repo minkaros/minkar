@@ -40,12 +40,28 @@
 
 /* The queue every request is served on; the model changes only there. */
 extern dispatch_queue_t WSIPCQueue;
+/* Input's own high-priority queue (WSEvents.m); it never waits for the IPC
+ * queue. The IPC queue marks the model changed and publishes a snapshot
+ * of it for input after each request. */
+extern dispatch_queue_t WSInputQueue;
+void WSInputModelChanged(void);
+void WSInputPublish(void);
 
 /* Displays (WSDisplayServices.m). The first is the main display. */
 extern NSArray<WSDisplay *> *WSDisplays;
 WSDisplay *WSDisplayWithID(uint32_t displayID);
+/* A display's colour table (transfer table and fade), 3 x 256 bytes, or
+ * nil for none (IPC queue). */
+NSData *WSDisplayColorTable(WSDisplay *display);
 /* A connection's process exited: release what it held on the displays. */
 void WSDisplayServicesConnectionDied(WSConnection *connection);
+/* Applies the configuration last saved permanently (/var/db/WindowServer/
+ * Displays.plist), at startup, before the compositors start. */
+void WSDisplaysRestoreSaved(void);
+
+/* Window shadows: how far they reach out of the window, and how far
+ * down they are; the compositor draws them, the window list damages them. */
+enum { kWSShadowRadius = 16, kWSShadowOffsetY = 6 };
 
 /* Windows (WSWindowList.m). */
 WSWindow *WSWindowCreate(WSConnection *owner, int32_t level, SLSRect frame);
@@ -54,10 +70,24 @@ void WSWindowSetFrame(WSWindow *window, SLSRect frame);
 int WSWindowOrder(WSWindow *window, int32_t place, SLSWindowID relativeTo);
 /* Releases every window of the connection; returns how many. */
 unsigned WSWindowsConnectionDied(WSConnection *connection);
+/* A cursor image an app set (SLSSetCursorImage): premultiplied BGRA,
+ * width * 4 bytes a row, its hot spot from the top left. */
+@interface WSCursorShape : NSObject
+@property (readonly) NSData *pixels;
+@property (readonly) uint32_t width;
+@property (readonly) uint32_t height;
+@property (readonly) double hotX;
+@property (readonly) double hotY;
+- (instancetype)initWithPixels:(NSData *)pixels width:(uint32_t)width height:(uint32_t)height
+    hotX:(double)hotX hotY:(double)hotY;
+@end
+/* The front app changed: the cursor shown may be another one. */
+void WSCursorShapeChanged(void);
+
 /* The on-screen windows back to front, for a frame (IPC queue). */
 NSArray<WSFrameItem *> *WSWindowSnapshot(void);
 /* The cursor's position; YES when it shows (IPC queue). */
-BOOL WSCursorSnapshot(SLSPoint *position);
+BOOL WSCursorSnapshot(SLSPoint *position, WSCursorShape **shape);
 /* Counts a surface commit in the statistics. */
 void WSStatsCountCommit(void);
 /* The window list: the on-screen window at a point (front most), or nil;
@@ -69,6 +99,10 @@ WSWindow *WSWindowFrontmostOf(WSConnection *connection);
 /* The cursor: where it is, and a move by input (kept on the displays). */
 SLSPoint WSCursorPosition(void);
 void WSCursorMoveTo(double x, double y);
+/* The box the cursor stays in: around the displays (IPC queue). */
+void WSCursorSetBounds(double minX, double minY, double maxX, double maxY);
+/* The on-screen windows, front to back (IPC queue). */
+NSArray<WSWindow *> *WSWindowStack(void);
 /* Counts an input event in the statistics. */
 void WSStatsCountEvent(void);
 /* Queues an event for a connection (WSEvents.m). */
@@ -81,7 +115,8 @@ BOOL WSMayControlInput(WSConnection *connection);
  * up are not delivered). keyTarget is the key window, for hotkeys owned by
  * the front app. */
 void WSHotKeysStart(void);
-BOOL WSHotKeysHandle(const SLSEvent *event, WSWindow *keyTarget);
+BOOL WSHotKeysHandle(const SLSEvent *event, WSConnection *keyOwner, SLSWindowID keyWindow,
+    WSConnection *front);
 /* Tells the HID system where a warp put the cursor (WSInput.m). */
 void WSInputSetCursor(double x, double y);
 /* A posted key event without characters gets the keymap's (WSInput.m). */

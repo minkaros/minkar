@@ -99,9 +99,8 @@ extern const CFStringRef kCGDisplayStreamYCbCrMatrix_SMPTE_240M_1995;
 
 typedef struct CGDisplayStream *CGDisplayStreamRef;
 typedef struct CGDisplayStreamUpdate *CGDisplayStreamUpdateRef;
+#include <IOSurface/IOSurfaceRef.h>
 #if __BLOCKS__
-// oh great, we're dragging in IOKit now... fake it for now
-typedef void *IOSurfaceRef;
 typedef void (^CGDisplayStreamFrameAvailableHandler)(CGDisplayStreamFrameStatus status,
         uint64_t displayTime, IOSurfaceRef frameSurface, CGDisplayStreamUpdateRef updateRef);
 #endif

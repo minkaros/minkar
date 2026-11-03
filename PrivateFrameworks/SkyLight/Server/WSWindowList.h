@@ -46,6 +46,17 @@
 @property (readonly, strong) id surface;
 /* A capture's shielding window: drawn opaque black. */
 @property BOOL shield;
+/* Minimized (SLSSetWindowMinimized): out of the screen, kept by the Dock. */
+@property BOOL minimized;
+/* It has a shadow (SLSSetWindowShadow). */
+@property BOOL hasShadow;
+/* Child windows (SLSSetWindowParent): the parent, the children in the
+ * order they were attached, which side of the parent the window goes, and
+ * whether it is out of the screen only because its parent is. */
+@property (weak) WSWindow *parent;
+@property (readonly) NSMutableArray<WSWindow *> *children;
+@property int32_t childPlace;
+@property BOOL hiddenWithParent;
 /* Its drag regions (SLSIntRect arrays, window coordinates). */
 @property (copy) NSData *dragRects;
 @property (copy) NSData *dragExcludes;

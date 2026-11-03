@@ -12,6 +12,7 @@ SRCS= \
 	CGDataConsumer.m \
 	CGDataProvider.m \
 	CGDirectDisplay.m \
+	CGDisplayStream.m \
 	CGEvent.m \
 	CGFont.m \
 	CGFunction.m \
@@ -31,7 +32,6 @@ SRCS= \
 	CGPattern.m \
 	CGShading.m \
 	CGWindowList.m \
-	CGWindowListFilter.c
 
 HEADERS= \
 	CGAffineTransform.h \
@@ -73,7 +73,8 @@ CFLAGS+= -I${.CURDIR:H}/OpenGL -I${.CURDIR:H} -I${.OBJDIR:H} -fblocks \
 	-I${ROOT_SOURCE_DIR}/CoreServices -Wno-implicit-function-declaration \
 	-F${MINKAR_SDKROOT}/System/Library/PrivateFrameworks
 LDFLAGS+= -framework Onyx2D -framework CoreFoundation -framework OpenGL \
-	-F${MINKAR_SDKROOT}/System/Library/PrivateFrameworks -framework SkyLight
+	-F${MINKAR_SDKROOT}/System/Library/PrivateFrameworks -framework SkyLight \
+	-framework IOSurface
 
 all: copy-headers libCoreGraphics.a
 
