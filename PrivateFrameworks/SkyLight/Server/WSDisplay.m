@@ -63,8 +63,13 @@ static const double kPixelsPerMM = 72.0 / 25.4;
 	uint32_t _currentModeID;
 	BOOL _noFlush;		/* the driver does not take flushes */
 	io_connect_t _gpu;	/* the companion GPU's user client */
-	uint64_t _gpuShadow;	/* the shadow, imported, or the frame: its buffer */
-	mach_vm_address_t _gpuFrameCPU;	/* the shared frame's CPU mapping */
+	uint64_t _gpuShadow;	/* the shadow, imported: its buffer */
+	/* A GPU compositor's frames: shared VRAM buffers, their CPU mappings;
+	 * which one the display shows (-1: its framebuffer). */
+	uint64_t _gpuFrames[2];
+	mach_vm_address_t _gpuFrameCPU[2];
+	unsigned _gpuFrameCount;
+	int _gpuShown;
 	uint32_t _gpuRenderMinor;
 	uint64_t _gpuEntryID;
 	float _transfer[3 * kSLSGammaTableCapacity];
@@ -440,27 +445,57 @@ openAccelerator(io_service_t framebuffer, uint32_t *minor, uint64_t *entryID)
 	return YES;
 }
 
-- (BOOL)setUpGPUFrame:(size_t)bytes globalID:(uint32_t *)globalID cpu:(uint8_t **)cpu
+- (BOOL)setUpGPUFrames:(unsigned)count bytes:(size_t)bytes globalIDs:(uint32_t *)globalIDs
+    cpu:(uint8_t **)cpu
 {
 	[self tearDownGPUPresent];
 	if (_gpu == IO_OBJECT_NULL)
 		_gpu = openAccelerator(_service, &_gpuRenderMinor, &_gpuEntryID);
-	if (_gpu == IO_OBJECT_NULL)
+	if (_gpu == IO_OBJECT_NULL || count == 0 || count > 2)
 		return NO;
-	uint64_t in = bytes, out[3] = { 0, 0, 0 };
-	uint32_t n = 3;
-	if (IOConnectCallScalarMethod(_gpu, kMinkarAMDGPUCreateSharedBuffer, &in, 1, out, &n) !=
-	    KERN_SUCCESS)
-		return NO;
-	_gpuShadow = out[0];
-	mach_vm_size_t size = 0;
-	if (IOConnectMapMemory64(_gpu, (uint32_t)_gpuShadow, mach_task_self(), &_gpuFrameCPU, &size,
-	    kIOMapAnywhere) != KERN_SUCCESS) {
-		[self tearDownGPUPresent];
-		return NO;
+	for (unsigned i = 0; i < count; i++) {
+		uint64_t in = bytes, out[3] = { 0, 0, 0 };
+		uint32_t n = 3;
+		mach_vm_size_t size = 0;
+		if (IOConnectCallScalarMethod(_gpu, kMinkarAMDGPUCreateSharedBuffer, &in, 1, out, &n) !=
+		    KERN_SUCCESS) {
+			[self tearDownGPUPresent];
+			return NO;
+		}
+		_gpuFrames[i] = out[0];
+		_gpuFrameCount = i + 1;
+		if (IOConnectMapMemory64(_gpu, (uint32_t)out[0], mach_task_self(), &_gpuFrameCPU[i],
+		    &size, kIOMapAnywhere) != KERN_SUCCESS) {
+			[self tearDownGPUPresent];
+			return NO;
+		}
+		globalIDs[i] = (uint32_t)out[2];
+		cpu[i] = (uint8_t *)(uintptr_t)_gpuFrameCPU[i];
 	}
-	*globalID = (uint32_t)out[2];
-	*cpu = (uint8_t *)(uintptr_t)_gpuFrameCPU;
+	_gpuShown = -1;
+	return YES;
+}
+
+- (BOOL)gpuPresentFrame:(unsigned)index offset:(size_t)offset bytes:(size_t)bytes
+{
+	uint64_t in[4] = { index < _gpuFrameCount ? _gpuFrames[index] : 0, offset, offset, bytes };
+	uint64_t ns;
+	uint32_t n = 1;
+
+	return in[0] != 0 && IOConnectCallScalarMethod(_gpu, kMinkarAMDGPUCopyToScanout, in, 4,
+	    &ns, &n) == KERN_SUCCESS;
+}
+
+- (BOOL)flipToGPUFrame:(int)index
+{
+	uint64_t in = index >= 0 && (unsigned)index < _gpuFrameCount ? _gpuFrames[index] : 0, ns;
+	uint32_t n = 1;
+
+	if (index >= 0 && in == 0)
+		return NO;
+	if (IOConnectCallScalarMethod(_gpu, kMinkarAMDGPUFlip, &in, 1, &ns, &n) != KERN_SUCCESS)
+		return NO;
+	_gpuShown = index;
 	return YES;
 }
 
@@ -480,10 +515,19 @@ openAccelerator(io_service_t framebuffer, uint32_t *minor, uint64_t *entryID)
 
 - (void)tearDownGPUPresent
 {
-	if (_gpuFrameCPU != 0) {
-		IOConnectUnmapMemory64(_gpu, (uint32_t)_gpuShadow, mach_task_self(), _gpuFrameCPU);
-		_gpuFrameCPU = 0;
+	/* The display shows its framebuffer again before the frames go. */
+	if (_gpuFrameCount > 0 && _gpuShown >= 0)
+		[self flipToGPUFrame:-1];
+	for (unsigned i = 0; i < _gpuFrameCount; i++) {
+		uint64_t h = _gpuFrames[i];
+		if (_gpuFrameCPU[i] != 0)
+			IOConnectUnmapMemory64(_gpu, (uint32_t)h, mach_task_self(), _gpuFrameCPU[i]);
+		IOConnectCallScalarMethod(_gpu, kMinkarAMDGPUDestroyBuffer, &h, 1, NULL, NULL);
+		_gpuFrames[i] = 0;
+		_gpuFrameCPU[i] = 0;
 	}
+	_gpuFrameCount = 0;
+	_gpuShown = -1;
 	if (_gpuShadow != 0) {
 		uint64_t h = _gpuShadow;
 		IOConnectCallScalarMethod(_gpu, kMinkarAMDGPUDestroyBuffer, &h, 1, NULL, NULL);

@@ -180,9 +180,20 @@ loadVulkan(void)
 	BOOL _importTaken;	/* the last import's handle is Vulkan's now */
 
 	/* The frame: VRAM shared with the display's GPU, mapped for the CPU. */
-	WSVulkanBuffer *_frame;
+	WSVulkanBuffer *_frame;		/* the one being drawn, of: */
 	uint8_t *_frameCPU;
 	pixman_image_t *_frameImage;
+	/* Two frames shown in turn by page flips (one if flips are off):
+	 * what each lacks of the picture (drawn since in the other, or under
+	 * the cursor it keeps), and which is drawn now. */
+	WSVulkanBuffer *_frames[2];
+	uint8_t *_frameCPUs[2];
+	pixman_image_t *_frameImages[2];
+	pixman_region32_t _stale[2];
+	unsigned _frameCount, _current;
+	BOOL _flips;		/* frames shown by page flips */
+	int _shown;		/* the frame shown, or -1: the framebuffer */
+	BOOL _framebufferCurrent;	/* the framebuffer holds the picture */
 	uint32_t _width, _height, _rowBytes;
 	BOOL _gpuPresent;
 	uint8_t *_vram;
@@ -205,6 +216,9 @@ loadVulkan(void)
 	if ((self = [super init]) == nil)
 		return nil;
 	pixman_region32_init(&_clip);
+	pixman_region32_init(&_stale[0]);
+	pixman_region32_init(&_stale[1]);
+	_shown = -1;
 	_locked = [NSMutableArray array];
 	_uploads = [NSMutableArray array];
 	return self;
@@ -213,14 +227,18 @@ loadVulkan(void)
 - (void)dealloc
 {
 	pixman_region32_fini(&_clip);
-	if (_frameImage != NULL)
-		pixman_image_unref(_frameImage);
+	pixman_region32_fini(&_stale[0]);
+	pixman_region32_fini(&_stale[1]);
+	for (unsigned i = 0; i < 2; i++)
+		if (_frameImages[i] != NULL)
+			pixman_image_unref(_frameImages[i]);
 }
 
 - (NSString *)backendDescription
 {
-	return [NSString stringWithFormat:@"Vulkan on %s (render node %u), presented by %@",
-	    _deviceName, _deviceMinor, _gpuPresent ? @"the GPU's DMA engine" : @"the CPU"];
+	return [NSString stringWithFormat:@"Vulkan on %s (render node %u), %@", _deviceName,
+	    _deviceMinor, _flips ? @"shown by page flips at the vertical blank" :
+	    _gpuPresent ? @"presented by the GPU's DMA engine" : @"presented by the CPU"];
 }
 
 - (uint32_t)frameWidth
@@ -446,11 +464,19 @@ hasExtension(const VkExtensionProperties *list, uint32_t n, const char *name)
 {
 	if (_device != VK_NULL_HANDLE)
 		vkDeviceWaitIdle(_device);
-	if (_frameImage != NULL)
-		pixman_image_unref(_frameImage);
+	for (unsigned i = 0; i < 2; i++) {
+		if (_frameImages[i] != NULL)
+			pixman_image_unref(_frameImages[i]);
+		_frameImages[i] = NULL;
+		_frames[i] = nil;
+		_frameCPUs[i] = NULL;
+	}
 	_frameImage = NULL;
 	_frame = nil;
 	_frameCPU = NULL;
+	_frameCount = 0;
+	_flips = NO;
+	_shown = -1;
 	[_uploads removeAllObjects];
 	[_display tearDownGPUPresent];
 }
@@ -458,7 +484,7 @@ hasExtension(const VkExtensionProperties *list, uint32_t n, const char *name)
 - (BOOL)setUpForDisplay:(WSDisplay *)display width:(uint32_t)width height:(uint32_t)height
 {
 	uint8_t *vram = NULL;
-	uint32_t rowBytes = 0, globalID = 0;
+	uint32_t rowBytes = 0, globalIDs[2] = { 0, 0 };
 
 	[self releaseFrame];
 	_display = display;
@@ -473,21 +499,36 @@ hasExtension(const VkExtensionProperties *list, uint32_t n, const char *name)
 	if (rowBytes < width * 4)
 		rowBytes = width * 4;
 	size_t bytes = ((size_t)rowBytes * height + 4095) & ~(size_t)4095;
-	uint8_t *cpu = NULL;
-	if (![display setUpGPUFrame:bytes globalID:&globalID cpu:&cpu]) {
+	/* Two, shown in turn by page flips; one if the GPU has room for no
+	 * more, or WSNoFlip asks (it is then copied into the framebuffer). */
+	uint8_t *cpu[2] = { NULL, NULL };
+	unsigned count = getenv("WSNoFlip") != NULL ? 1 : 2;
+	while (count > 0 && ![display setUpGPUFrames:count bytes:bytes globalIDs:globalIDs cpu:cpu])
+		count--;
+	if (count == 0) {
 		fprintf(stderr, "WindowServer: Vulkan: the GPU made no frame of %zu bytes\n", bytes);
 		return NO;
 	}
-	_frame = [self importShared:globalID size:bytes];
-	if (_frame == nil) {
-		fprintf(stderr, "WindowServer: Vulkan: the frame cannot be imported\n");
-		[display tearDownGPUPresent];
-		return NO;
+	for (unsigned i = 0; i < count; i++) {
+		_frames[i] = [self importShared:globalIDs[i] size:bytes];
+		if (_frames[i] == nil) {
+			fprintf(stderr, "WindowServer: Vulkan: the frame cannot be imported\n");
+			[self releaseFrame];
+			return NO;
+		}
+		memset(cpu[i], 0, bytes);
+		_frameCPUs[i] = cpu[i];
+		_frameImages[i] = pixman_image_create_bits(PIXMAN_x8r8g8b8, width, height,
+		    (uint32_t *)cpu[i], rowBytes);
+		/* Nothing is drawn in it yet. */
+		pixman_region32_fini(&_stale[i]);
+		pixman_region32_init_rect(&_stale[i], 0, 0, width, height);
 	}
-	memset(cpu, 0, bytes);
-	_frameCPU = cpu;
-	_frameImage = pixman_image_create_bits(PIXMAN_x8r8g8b8, width, height, (uint32_t *)cpu,
-	    rowBytes);
+	_frameCount = count;
+	_flips = count == 2;
+	_shown = -1;
+	_framebufferCurrent = NO;
+	[self drawInto:0];
 	_width = width;
 	_height = height;
 	_rowBytes = rowBytes;
@@ -687,14 +728,29 @@ hasExtension(const VkExtensionProperties *list, uint32_t n, const char *name)
 	return b->_failed ? nil : b;
 }
 
+- (void)drawInto:(unsigned)index
+{
+	_current = index;
+	_frame = _frames[index];
+	_frameCPU = _frameCPUs[index];
+	_frameImage = _frameImages[index];
+}
+
 - (void)beginFrame:(pixman_region32_t *)damage
 {
 	for (WSVulkanBuffer *b in _uploads)
 		b->_used = 0;
-	pixman_region32_copy(&_clip, damage);
+	/* With flips, the frame not shown; it lacks what changed since it
+	 * was drawn, as well as this frame's damage. */
+	if (_flips && _shown >= 0)
+		[self drawInto:_shown == 0 ? 1 : 0];
+	for (unsigned i = 0; i < _frameCount; i++)
+		pixman_region32_union(&_stale[i], &_stale[i], damage);
+	pixman_region32_intersect_rect(&_clip, &_stale[_current], 0, 0, _width, _height);
+	pixman_region32_clear(&_stale[_current]);
 	_clipped = NO;
 	int n = 0;
-	pixman_box32_t *boxes = pixman_region32_rectangles(damage, &n);
+	pixman_box32_t *boxes = pixman_region32_rectangles(&_clip, &n);
 	for (int i = 0; i < n; i++)
 		[self fillBlackX:boxes[i].x1 y:boxes[i].y1 width:boxes[i].x2 - boxes[i].x1
 		    height:boxes[i].y2 - boxes[i].y1];
@@ -790,6 +846,10 @@ alpha8(double alpha)
 	    .alpha = 255 };
 	[self run:over];
 	[self submit];
+	/* A frame shown keeps its cursor: the next time it is drawn, there
+	 * is to be drawn again. */
+	if (_flips)
+		pixman_region32_union_rect(&_stale[_current], &_stale[_current], x, y, w, h);
 	_under = under;
 	_cx = x;
 	_cy = y;
@@ -801,6 +861,10 @@ alpha8(double alpha)
 {
 	if (_under == 0)
 		return;
+	if (_shown == (int)_current) {	/* on the screen: it stays */
+		_under = 0;
+		return;
+	}
 	WSComposeOp put = { .dst = _frame->_address, .src = _under, .rect = { _cx, _cy, _cw, _ch },
 	    .srcOrigin = { _cx, _cy }, .dstStride = _rowBytes / 4, .srcStride = _cw, .mode = kCopy };
 	[self run:put];
@@ -808,22 +872,48 @@ alpha8(double alpha)
 	_under = 0;
 }
 
+/*
+ * The frame drawn, shown: by a page flip at the next vertical blank,
+ * waited for; or, through a colour table or without flips, copied into the
+ * framebuffer (all of it if the framebuffer was not current), by the GPU's
+ * DMA engine in bands of rows or by the CPU, and the framebuffer shown
+ * again.
+ */
 - (uint64_t)present:(pixman_region32_t *)damage colors:(NSData *)colors
 {
 	int nboxes = 0;
 	pixman_box32_t *boxes = pixman_region32_rectangles(damage, &nboxes);
 	const uint8_t *lut = colors.bytes;	/* red, green, blue */
 	uint64_t area = 0;
-	BOOL presented = NO;
 
 	if (_lost)
 		return 0;
+	for (int i = 0; i < nboxes; i++)
+		area += (uint64_t)(boxes[i].x2 - boxes[i].x1) * (boxes[i].y2 - boxes[i].y1);
+	if (_flips && lut == NULL) {
+		if ([_display flipToGPUFrame:(int)_current]) {
+			_shown = (int)_current;
+			_framebufferCurrent = NO;
+			return area;
+		}
+		fprintf(stderr, "WindowServer: display 0x%x: the display took no page flip; "
+		    "frames are copied from now on\n", _display.displayID);
+		_flips = NO;
+	}
+
+	pixman_box32_t whole = { 0, 0, (int32_t)_width, (int32_t)_height };
+	if (!_framebufferCurrent) {
+		boxes = &whole;
+		nboxes = 1;
+	}
+	BOOL presented = NO;
 	if (_gpuPresent && lut == NULL && _rowBytes == _vramRowBytes) {
 		int32_t bands[2 * kWSMaxRowBands];
 		int nbands = WSRowBands(boxes, nboxes, bands);
 		presented = YES;
 		for (int j = 0; j < nbands && presented; j++)
-			presented = [_display gpuPresentOffset:(size_t)bands[2 * j] * _rowBytes
+			presented = [_display gpuPresentFrame:_current
+			    offset:(size_t)bands[2 * j] * _rowBytes
 			    bytes:(size_t)(bands[2 * j + 1] - bands[2 * j]) * _rowBytes];
 		if (!presented) {
 			fprintf(stderr, "WindowServer: display 0x%x: the GPU did not take a frame; "
@@ -832,10 +922,7 @@ alpha8(double alpha)
 		}
 	}
 	/* The CPU: from the frame's mapping, through the colour table. */
-	for (int i = 0; i < nboxes; i++) {
-		area += (uint64_t)(boxes[i].x2 - boxes[i].x1) * (boxes[i].y2 - boxes[i].y1);
-		if (presented)
-			continue;
+	for (int i = 0; i < nboxes && !presented; i++) {
 		size_t bytes = (size_t)(boxes[i].x2 - boxes[i].x1) * 4;
 		for (int y = boxes[i].y1; y < boxes[i].y2; y++) {
 			uint8_t *to = _vram + (size_t)y * _vramRowBytes + (size_t)boxes[i].x1 * 4;
@@ -852,6 +939,9 @@ alpha8(double alpha)
 			}
 		}
 	}
+	_framebufferCurrent = YES;
+	if (_shown >= 0 && [_display flipToGPUFrame:-1])
+		_shown = -1;
 	return area;
 }
 

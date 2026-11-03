@@ -84,12 +84,18 @@
 - (void)tearDownGPUPresent;
 - (BOOL)gpuPresentOffset:(size_t)offset bytes:(size_t)bytes;
 /*
- * For a compositor that draws on the GPU (G4): a frame of bytes in VRAM,
- * shared (its global ID, for Vulkan to import), mapped for the CPU (for
- * display streams), presented as the shadow is by gpuPresentOffset. NO
- * when there is no such GPU or it refuses.
+ * For a compositor that draws on the GPU (G4): count frames (1 or 2) of
+ * bytes in VRAM, shared (their global IDs, for Vulkan to import), mapped
+ * for the CPU (for display streams). NO when there is no such GPU or it
+ * refuses. A frame is presented by copying ranges of it into the
+ * framebuffer (gpuPresentFrame:), or shown as it is from the next vertical
+ * blank (flipToGPUFrame:, which returns once it is; -1 shows the
+ * framebuffer again, as tearDownGPUPresent does).
  */
-- (BOOL)setUpGPUFrame:(size_t)bytes globalID:(uint32_t *)globalID cpu:(uint8_t **)cpu;
+- (BOOL)setUpGPUFrames:(unsigned)count bytes:(size_t)bytes globalIDs:(uint32_t *)globalIDs
+    cpu:(uint8_t **)cpu;
+- (BOOL)gpuPresentFrame:(unsigned)index offset:(size_t)offset bytes:(size_t)bytes;
+- (BOOL)flipToGPUFrame:(int)index;
 /* The companion GPU's render node (/dev/dri/renderD<n>), or 0. */
 @property (readonly) uint32_t gpuRenderMinor;
 /* Its registry entry ID (IOSurfaces in its memory name it), or 0. */
