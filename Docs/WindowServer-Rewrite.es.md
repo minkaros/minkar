@@ -614,6 +614,7 @@ display streams no informan de rectángulos movidos (solo de los sucios).
 ### WS6 — Composición por GPU
 
 - `WSVulkanBackend` (frente de GPU, G4), elegido por pantalla.
+- Presentación sin copias, como en el sistema de referencia (añadido el 3 nov 2026): los drawables de `CAMetalLayer` son IOSurfaces en VRAM en las que renderiza la GPU, que se entregan al servidor y compone la GPU, al ritmo de la pantalla (sincronía vertical, `displaySyncEnabled`). Hasta entonces (G3) la CPU copia cada frame al buffer de la ventana.
 - Gate de rendimiento de composición en el PC de referencia, requisito de
   Minkar 21.0: la frecuencia de refresco de la pantalla sin frames perdidos
   con varias ventanas animadas, y un consumo de CPU de WindowServer no mayor

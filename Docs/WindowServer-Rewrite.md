@@ -565,6 +565,7 @@ rects of display streams are not reported (only dirty rects).
 ### WS6 — GPU compositing
 
 - `WSVulkanBackend` (GPU track G4), selected per display.
+- Presentation without copies, as on the reference system (added 2026-11-03): `CAMetalLayer`'s drawables are IOSurfaces in VRAM that the GPU renders into, handed to the server and composited by the GPU, paced by the display (vertical sync, `displaySyncEnabled`). Until then (G3) a frame is copied by the CPU into the window's buffer.
 - Compositing performance gate on the reference PC, required for
   Minkar 21.0: display refresh rate without dropped frames with several
   animated windows, and WindowServer CPU no higher than the reference.

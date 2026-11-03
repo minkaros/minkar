@@ -250,7 +250,7 @@ line = "ws"
 
 [[board.now]]
 title = "G3 — Mesa's RADV on the D500s"
-note = "Vulkan 1.3; compute and a triangle drawn off the screen · next: WSI into a window"
+note = "Vulkan 1.3; a triangle presented in a window (CAMetalLayer) · next: conformance subset"
 line = "gpu"
 
 [[board.now]]
