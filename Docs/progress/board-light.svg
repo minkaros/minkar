@@ -1,74 +1,75 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1120" height="971" viewBox="0 0 1120 971" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif" role="img" aria-label="Minkar work board, 2026-11-03">
+<svg xmlns="http://www.w3.org/2000/svg" width="1120" height="969" viewBox="0 0 1120 969" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif" role="img" aria-label="Minkar work board, 2026-11-03">
 <title>Minkar work board, 2026-11-03</title>
-<rect width="1120" height="971" fill="#ffffff"/>
+<rect width="1120" height="969" fill="#ffffff"/>
 <text x="16" y="30" font-size="20" font-weight="700" fill="#1f2328" text-anchor="start">Minkar work board</text>
 <text x="16" y="52" font-size="13" font-weight="400" fill="#59636e" text-anchor="start">2026-11-03 · devel c536c7dbe9</text>
-<rect x="16" y="70" width="261.5" height="893" rx="10" fill="#f6f8fa"/>
+<rect x="16" y="70" width="261.5" height="891" rx="10" fill="#f6f8fa"/>
 <text x="30" y="96" font-size="13" font-weight="700" fill="#59636e" text-anchor="start" letter-spacing=".08em">DONE · LATEST</text>
-<rect x="26" y="114" width="241.5" height="146" rx="8" fill="#ffffff" stroke="#d1d9e0" stroke-width="1"/><rect x="26" y="114" width="5" height="146" rx="2" fill="#9a6700"/>
-<text x="42" y="138" font-size="15" font-weight="650" fill="#1f2328" text-anchor="start">Copy and paste: pboard,</text>
-<text x="42" y="159" font-size="15" font-weight="650" fill="#1f2328" text-anchor="start">pbcopy, pbpaste</text>
-<text x="42" y="180" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">NSPasteboard on a server,</text>
-<text x="42" y="199" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">each user&#x27;s own;</text>
-<text x="42" y="218" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">screencapture to PNG/TIFF · 3</text>
-<text x="42" y="237" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">nov</text>
-<rect x="26" y="270" width="241.5" height="127" rx="8" fill="#ffffff" stroke="#d1d9e0" stroke-width="1"/><rect x="26" y="270" width="5" height="127" rx="2" fill="#cf222e"/>
-<text x="42" y="294" font-size="15" font-weight="650" fill="#1f2328" text-anchor="start">G4 done: the window</text>
-<text x="42" y="315" font-size="15" font-weight="650" fill="#1f2328" text-anchor="start">server on Vulkan</text>
-<text x="42" y="336" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">G4.6 measured: Vulkan apps</text>
-<text x="42" y="355" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">14x cheaper, 60 Hz, flips at</text>
-<text x="42" y="374" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">vblank · 3 nov</text>
-<rect x="26" y="407" width="241.5" height="127" rx="8" fill="#ffffff" stroke="#d1d9e0" stroke-width="1"/><rect x="26" y="407" width="5" height="127" rx="2" fill="#0969da"/>
-<text x="42" y="431" font-size="15" font-weight="650" fill="#1f2328" text-anchor="start">Mac Pro mouse and</text>
-<text x="42" y="452" font-size="15" font-weight="650" fill="#1f2328" text-anchor="start">keyboard</text>
-<text x="42" y="473" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">xHCI interrupt intervals per</text>
-<text x="42" y="492" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">speed; works through a KVM ·</text>
-<text x="42" y="511" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">3 nov</text>
-<rect x="26" y="544" width="241.5" height="127" rx="8" fill="#ffffff" stroke="#d1d9e0" stroke-width="1"/><rect x="26" y="544" width="5" height="127" rx="2" fill="#cf222e"/>
-<text x="42" y="568" font-size="15" font-weight="650" fill="#1f2328" text-anchor="start">G4.5: Vulkan apps&#x27; frames</text>
-<text x="42" y="589" font-size="15" font-weight="650" fill="#1f2328" text-anchor="start">stay in VRAM</text>
-<text x="42" y="610" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">CAMetalLayer drawables as</text>
-<text x="42" y="629" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">window layers, GPU copy,</text>
-<text x="42" y="648" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">paced at 60 Hz · 3 nov</text>
-<rect x="26" y="681" width="241.5" height="127" rx="8" fill="#ffffff" stroke="#d1d9e0" stroke-width="1"/><rect x="26" y="681" width="5" height="127" rx="2" fill="#cf222e"/>
-<text x="42" y="705" font-size="15" font-weight="650" fill="#1f2328" text-anchor="start">G4.4: page flips at the</text>
-<text x="42" y="726" font-size="15" font-weight="650" fill="#1f2328" text-anchor="start">vertical blank</text>
-<text x="42" y="747" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">two frames in VRAM, no</text>
-<text x="42" y="766" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">tearing, one per refresh · 3</text>
-<text x="42" y="785" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">nov</text>
-<rect x="26" y="818" width="241.5" height="127" rx="8" fill="#ffffff" stroke="#d1d9e0" stroke-width="1"/><rect x="26" y="818" width="5" height="127" rx="2" fill="#cf222e"/>
-<text x="42" y="842" font-size="15" font-weight="650" fill="#1f2328" text-anchor="start">Security: GPU buffers and</text>
-<text x="42" y="863" font-size="15" font-weight="650" fill="#1f2328" text-anchor="start">IOSurfaces</text>
-<text x="42" y="884" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">unguessable buffer names; an</text>
-<text x="42" y="903" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">IOSurface ID alone finds</text>
-<text x="42" y="922" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">nothing · 3 nov</text>
-<rect x="291.5" y="70" width="261.5" height="893" rx="10" fill="#f6f8fa"/>
+<rect x="26" y="114" width="241.5" height="125" rx="8" fill="#ffffff" stroke="#d1d9e0" stroke-width="1"/><rect x="26" y="114" width="5" height="125" rx="2" fill="#0969da"/>
+<text x="42" y="138" font-size="15" font-weight="650" fill="#1f2328" text-anchor="start">Several displays</text>
+<text x="42" y="159" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">one desktop, the pointer</text>
+<text x="42" y="178" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">across them, capture,</text>
+<text x="42" y="197" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">arrangement, mirroring · 3</text>
+<text x="42" y="216" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">nov</text>
+<rect x="26" y="249" width="241.5" height="146" rx="8" fill="#ffffff" stroke="#d1d9e0" stroke-width="1"/><rect x="26" y="249" width="5" height="146" rx="2" fill="#9a6700"/>
+<text x="42" y="273" font-size="15" font-weight="650" fill="#1f2328" text-anchor="start">Copy and paste: pboard,</text>
+<text x="42" y="294" font-size="15" font-weight="650" fill="#1f2328" text-anchor="start">pbcopy, pbpaste</text>
+<text x="42" y="315" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">NSPasteboard on a server,</text>
+<text x="42" y="334" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">each user&#x27;s own;</text>
+<text x="42" y="353" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">screencapture to PNG/TIFF · 3</text>
+<text x="42" y="372" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">nov</text>
+<rect x="26" y="405" width="241.5" height="127" rx="8" fill="#ffffff" stroke="#d1d9e0" stroke-width="1"/><rect x="26" y="405" width="5" height="127" rx="2" fill="#cf222e"/>
+<text x="42" y="429" font-size="15" font-weight="650" fill="#1f2328" text-anchor="start">G4 done: the window</text>
+<text x="42" y="450" font-size="15" font-weight="650" fill="#1f2328" text-anchor="start">server on Vulkan</text>
+<text x="42" y="471" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">G4.6 measured: Vulkan apps</text>
+<text x="42" y="490" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">14x cheaper, 60 Hz, flips at</text>
+<text x="42" y="509" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">vblank · 3 nov</text>
+<rect x="26" y="542" width="241.5" height="127" rx="8" fill="#ffffff" stroke="#d1d9e0" stroke-width="1"/><rect x="26" y="542" width="5" height="127" rx="2" fill="#0969da"/>
+<text x="42" y="566" font-size="15" font-weight="650" fill="#1f2328" text-anchor="start">Mac Pro mouse and</text>
+<text x="42" y="587" font-size="15" font-weight="650" fill="#1f2328" text-anchor="start">keyboard</text>
+<text x="42" y="608" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">xHCI interrupt intervals per</text>
+<text x="42" y="627" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">speed; works through a KVM ·</text>
+<text x="42" y="646" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">3 nov</text>
+<rect x="26" y="679" width="241.5" height="127" rx="8" fill="#ffffff" stroke="#d1d9e0" stroke-width="1"/><rect x="26" y="679" width="5" height="127" rx="2" fill="#cf222e"/>
+<text x="42" y="703" font-size="15" font-weight="650" fill="#1f2328" text-anchor="start">G4.5: Vulkan apps&#x27; frames</text>
+<text x="42" y="724" font-size="15" font-weight="650" fill="#1f2328" text-anchor="start">stay in VRAM</text>
+<text x="42" y="745" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">CAMetalLayer drawables as</text>
+<text x="42" y="764" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">window layers, GPU copy,</text>
+<text x="42" y="783" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">paced at 60 Hz · 3 nov</text>
+<rect x="26" y="816" width="241.5" height="127" rx="8" fill="#ffffff" stroke="#d1d9e0" stroke-width="1"/><rect x="26" y="816" width="5" height="127" rx="2" fill="#cf222e"/>
+<text x="42" y="840" font-size="15" font-weight="650" fill="#1f2328" text-anchor="start">G4.4: page flips at the</text>
+<text x="42" y="861" font-size="15" font-weight="650" fill="#1f2328" text-anchor="start">vertical blank</text>
+<text x="42" y="882" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">two frames in VRAM, no</text>
+<text x="42" y="901" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">tearing, one per refresh · 3</text>
+<text x="42" y="920" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">nov</text>
+<rect x="291.5" y="70" width="261.5" height="891" rx="10" fill="#f6f8fa"/>
 <text x="305.5" y="96" font-size="13" font-weight="700" fill="#59636e" text-anchor="start" letter-spacing=".08em">NOW</text>
-<rect x="301.5" y="114" width="241.5" height="127" rx="8" fill="#ffffff" stroke="#0969da" stroke-width="2"/><rect x="301.5" y="114" width="5" height="127" rx="2" fill="#0969da"/>
-<text x="317.5" y="138" font-size="15" font-weight="650" fill="#1f2328" text-anchor="start">Mac Pro: shutdown hang,</text>
-<text x="317.5" y="159" font-size="15" font-weight="650" fill="#1f2328" text-anchor="start">EDID native mode, USB MSI</text>
-<text x="317.5" y="180" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">the display&#x27;s own size when</text>
-<text x="317.5" y="199" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">the firmware booted smaller;</text>
-<text x="317.5" y="218" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">then Phase 4&#x27;s loose ends</text>
-<rect x="301.5" y="251" width="241.5" height="128" rx="8" fill="#ffffff" stroke="#d1d9e0" stroke-width="1"/><rect x="301.5" y="251" width="5" height="128" rx="2" fill="#0969da"/>
-<text x="317.5" y="275" font-size="15" font-weight="650" fill="#1f2328" text-anchor="start">WS6 — GPU compositing</text>
-<text x="317.5" y="296" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">Vulkan compositing (opt-in),</text>
-<text x="317.5" y="315" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">flips, Vulkan apps in VRAM;</text>
-<text x="317.5" y="334" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">the performance gate left</text>
-<rect x="317.5" y="349" width="171.5" height="7" rx="3.5" fill="#0969da" fill-opacity=".2"/><rect x="317.5" y="349" width="114" height="7" rx="3.5" fill="#0969da"/>
-<text x="495" y="356" font-size="12" font-weight="600" fill="#59636e" text-anchor="start">2/3</text>
-<rect x="301.5" y="389" width="241.5" height="87" rx="8" fill="#ffffff" stroke="#d1d9e0" stroke-width="1"/><rect x="301.5" y="389" width="5" height="87" rx="2" fill="#9a6700"/>
-<text x="317.5" y="413" font-size="15" font-weight="650" fill="#1f2328" text-anchor="start">Foundation audit</text>
-<text x="317.5" y="434" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">NSURLSession cache and</text>
-<text x="317.5" y="453" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">metrics left</text>
-<rect x="479" y="399" width="54" height="18" rx="9" fill="#9a6700" fill-opacity=".15"/>
-<text x="506" y="412" font-size="11" font-weight="600" fill="#9a6700" text-anchor="middle">partial</text>
-<rect x="301.5" y="486" width="241.5" height="68" rx="8" fill="#ffffff" stroke="#d1d9e0" stroke-width="1"/><rect x="301.5" y="486" width="5" height="68" rx="2" fill="#9a6700"/>
-<text x="317.5" y="510" font-size="15" font-weight="650" fill="#1f2328" text-anchor="start">Noisy stubs</text>
-<text x="317.5" y="531" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">mechanism done, 887 sites</text>
-<rect x="479" y="496" width="54" height="18" rx="9" fill="#9a6700" fill-opacity=".15"/>
-<text x="506" y="509" font-size="11" font-weight="600" fill="#9a6700" text-anchor="middle">partial</text>
-<rect x="567" y="70" width="261.5" height="893" rx="10" fill="#f6f8fa"/>
+<rect x="301.5" y="114" width="241.5" height="146" rx="8" fill="#ffffff" stroke="#0969da" stroke-width="2"/><rect x="301.5" y="114" width="5" height="146" rx="2" fill="#0969da"/>
+<text x="317.5" y="138" font-size="15" font-weight="650" fill="#1f2328" text-anchor="start">M4 on the Mac Pro and PC</text>
+<text x="317.5" y="159" font-size="15" font-weight="650" fill="#1f2328" text-anchor="start">1</text>
+<text x="317.5" y="180" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">Phase 4&#x27;s gate on real</text>
+<text x="317.5" y="199" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">machines · deferred: shutdown</text>
+<text x="317.5" y="218" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">hang, a monitor plugged in</text>
+<text x="317.5" y="237" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">after boot, USB MSI</text>
+<rect x="301.5" y="270" width="241.5" height="128" rx="8" fill="#ffffff" stroke="#d1d9e0" stroke-width="1"/><rect x="301.5" y="270" width="5" height="128" rx="2" fill="#0969da"/>
+<text x="317.5" y="294" font-size="15" font-weight="650" fill="#1f2328" text-anchor="start">WS6 — GPU compositing</text>
+<text x="317.5" y="315" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">Vulkan compositing (opt-in),</text>
+<text x="317.5" y="334" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">flips, Vulkan apps in VRAM;</text>
+<text x="317.5" y="353" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">the performance gate left</text>
+<rect x="317.5" y="368" width="171.5" height="7" rx="3.5" fill="#0969da" fill-opacity=".2"/><rect x="317.5" y="368" width="114" height="7" rx="3.5" fill="#0969da"/>
+<text x="495" y="375" font-size="12" font-weight="600" fill="#59636e" text-anchor="start">2/3</text>
+<rect x="301.5" y="408" width="241.5" height="87" rx="8" fill="#ffffff" stroke="#d1d9e0" stroke-width="1"/><rect x="301.5" y="408" width="5" height="87" rx="2" fill="#9a6700"/>
+<text x="317.5" y="432" font-size="15" font-weight="650" fill="#1f2328" text-anchor="start">Foundation audit</text>
+<text x="317.5" y="453" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">NSURLSession cache and</text>
+<text x="317.5" y="472" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">metrics left</text>
+<rect x="479" y="418" width="54" height="18" rx="9" fill="#9a6700" fill-opacity=".15"/>
+<text x="506" y="431" font-size="11" font-weight="600" fill="#9a6700" text-anchor="middle">partial</text>
+<rect x="301.5" y="505" width="241.5" height="68" rx="8" fill="#ffffff" stroke="#d1d9e0" stroke-width="1"/><rect x="301.5" y="505" width="5" height="68" rx="2" fill="#9a6700"/>
+<text x="317.5" y="529" font-size="15" font-weight="650" fill="#1f2328" text-anchor="start">Noisy stubs</text>
+<text x="317.5" y="550" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">mechanism done, 887 sites</text>
+<rect x="479" y="515" width="54" height="18" rx="9" fill="#9a6700" fill-opacity=".15"/>
+<text x="506" y="528" font-size="11" font-weight="600" fill="#9a6700" text-anchor="middle">partial</text>
+<rect x="567" y="70" width="261.5" height="891" rx="10" fill="#f6f8fa"/>
 <text x="581" y="96" font-size="13" font-weight="700" fill="#59636e" text-anchor="start" letter-spacing=".08em">NEXT</text>
 <rect x="577" y="114" width="241.5" height="89" rx="8" fill="#ffffff" stroke="#d1d9e0" stroke-width="1"/><rect x="577" y="114" width="5" height="89" rx="2" fill="#bc4c00"/>
 <text x="593" y="138" font-size="15" font-weight="650" fill="#1f2328" text-anchor="start">D0 · K0 — Dock and Kraz</text>
@@ -84,7 +85,7 @@
 <text x="593" y="376" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">measurements again ·</text>
 <text x="593" y="395" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">DisplayPort link training</text>
 <text x="593" y="414" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">waits</text>
-<rect x="842.5" y="70" width="261.5" height="893" rx="10" fill="#f6f8fa"/>
+<rect x="842.5" y="70" width="261.5" height="891" rx="10" fill="#f6f8fa"/>
 <text x="856.5" y="96" font-size="13" font-weight="700" fill="#59636e" text-anchor="start" letter-spacing=".08em">LATER</text>
 <text x="856.5" y="128" font-size="14.5" font-weight="700" fill="#1f2328" text-anchor="start">→ M5 Gienah session</text>
 <circle cx="862.5" cy="147" r="4.5" fill="#8250df"/>

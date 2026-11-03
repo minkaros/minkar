@@ -223,6 +223,11 @@ stations = [["x86-64 apps", 1082, "todo"], ["arm64", 1150, "todo"]]
 here = "G4–G5"
 
 [[board.done]]
+title = "Several displays"
+note = "one desktop, the pointer across them, capture, arrangement, mirroring · 3 nov"
+line = "ws"
+
+[[board.done]]
 title = "Copy and paste: pboard, pbcopy, pbpaste"
 note = "NSPasteboard on a server, each user's own; screencapture to PNG/TIFF · 3 nov"
 line = "fw"
@@ -247,16 +252,12 @@ title = "G4.4: page flips at the vertical blank"
 note = "two frames in VRAM, no tearing, one per refresh · 3 nov"
 line = "gpu"
 
-[[board.done]]
-title = "Security: GPU buffers and IOSurfaces"
-note = "unguessable buffer names; an IOSurface ID alone finds nothing · 3 nov"
-line = "gpu"
 
 
 
 [[board.now]]
-title = "Mac Pro: shutdown hang, EDID native mode, USB MSI"
-note = "the display's own size when the firmware booted smaller; then Phase 4's loose ends"
+title = "M4 on the Mac Pro and PC 1"
+note = "Phase 4's gate on real machines · deferred: shutdown hang, a monitor plugged in after boot, USB MSI"
 line = "ws"
 
 [[board.now]]
