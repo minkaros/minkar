@@ -24,6 +24,8 @@ SUBDIR += launchservicesd launchservicesd/tests
 SUBDIR += loginwindow
 # The IOSurface registry (roadmap step 4).
 SUBDIR += iosurfaced ../Frameworks/IOSurface/tests
+# The pasteboard server (Phase 4).
+SUBDIR += pboard pboard/tests
 # The code integrity policy's test program (it needs IOKit).
 SUBDIR += ../Kernel/Extensions/MinkarCodeIntegrity/tests
 # IOHIDSystem's event queue reader, for the input tests (it needs IOKit).
