@@ -1,0 +1,8 @@
+# libdrm (MIT), fetched at build time for its headers only (xf86drm.h,
+# amdgpu.h and the kernel interface headers), checked against this SHA-256
+# (the maintainer's choice, 2026-11-03: Minkar's own libdrm, over
+# MinkarAMDUserClient, with libdrm's interface). Mesa 26.2 wants libdrm and
+# libdrm_amdgpu 2.4.133 or later.
+url https://dri.freedesktop.org/libdrm/libdrm-2.4.134.tar.xz
+sha256 ac5e74d157830eb8bee44c6a6bf3ad49774ef0dd2a72bdad74a8f20308b52a95
+version 2.4.134
