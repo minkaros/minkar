@@ -805,6 +805,9 @@ static const uint32_t si_rlc_save_restore[] = {
 };
 
 /* Registers (dword indices), fields and values (gfx_v6_0.c's headers). */
+#define SI_mmCC_DRM_ID_STRAPS	0x1559
+#define SI_CC_DRM_ID_STRAPS__ATI_REV_ID_MASK	0xf0000000
+#define SI_CC_DRM_ID_STRAPS__ATI_REV_ID__SHIFT	0x1c
 #define SI_mmGRBM_CNTL	0x2000
 #define SI_GRBM_CNTL__READ_TIMEOUT__SHIFT	0x0
 #define SI_mmMC_ARB_RAMCFG	0x9d8

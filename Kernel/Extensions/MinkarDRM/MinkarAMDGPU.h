@@ -99,7 +99,8 @@ public:
 	IOReturn createVM(unsigned *vmid);
 	void destroyVM(unsigned vmid);
 	IOReturn vmMapVRAM(unsigned vmid, uint64_t va, uint64_t offset, uint64_t bytes);
-	IOReturn vmMapSystem(unsigned vmid, uint64_t va, IOMemoryDescriptor *memory, uint64_t bytes);
+	IOReturn vmMapSystem(unsigned vmid, uint64_t va, IOMemoryDescriptor *memory, uint64_t offset,
+	    uint64_t bytes);
 	void vmUnmap(unsigned vmid, uint64_t va, uint64_t bytes);
 	/* Into the framebuffer the display shows, at offset. */
 	IOReturn copyToScanout(uint64_t src, uint64_t offset, uint64_t bytes, uint64_t *ns);

@@ -88,8 +88,9 @@
  *			only: the buffer runs in the kernel's GPU address
  *			space and may write any register, until clients have
  *			address spaces of their own.
- *   MapBuffer		in: buffer, address. The whole of a buffer (VRAM, system
- *			or imported memory) at that address (page aligned) of
+ *   MapBuffer		in: buffer, address, offset, bytes. That part of a
+ *			buffer (VRAM, system or imported memory; bytes 0: all
+ *			of it from offset; page aligned) at that address of
  *			the client's own GPU address space (64 GB, made at the
  *			first mapping; with the GART on); mappings do not
  *			overlap. A buffer's mappings go with it.
@@ -137,8 +138,8 @@ enum {
 #define kMinkarGPUClientEntitlement	"org.minkar.gpu-client"
 
 /* The most buffers a client holds at once. */
-#define kMinkarAMDGPUMaxBuffers	64
+#define kMinkarAMDGPUMaxBuffers	4096
 /* The most mappings in a client's GPU address space. */
-#define kMinkarAMDGPUMaxMappings	64
+#define kMinkarAMDGPUMaxMappings	4096
 
 #endif

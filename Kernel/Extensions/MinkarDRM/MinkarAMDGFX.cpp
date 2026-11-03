@@ -426,8 +426,11 @@ MinkarAMDGFXIBTest(struct MinkarAMDGFX *g, OSDictionary *results)
 void
 MinkarAMDGFXReset(struct MinkarAMDRegs *r)
 {
+	/* The command processor and the pipeline behind it: a wave that never
+	 * ends holds the shader blocks, and the processor cannot start again
+	 * while they are busy. */
 	const uint32_t mask = SI_SOFT_RESET_CP | SI_SOFT_RESET_GFX | SI_SOFT_RESET_CPF |
-	    SI_SOFT_RESET_CPC | SI_SOFT_RESET_CPG;
+	    SI_SOFT_RESET_CPC | SI_SOFT_RESET_CPG | SI_SOFT_RESET_PIPELINE;
 
 	enable(r, false);
 	wr(r, mmSI_GRBM_SOFT_RESET, rd(r, mmSI_GRBM_SOFT_RESET) | mask);

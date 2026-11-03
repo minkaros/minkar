@@ -1080,10 +1080,15 @@ MinkarAMDGPU::initEngine(bool dryRun)
 		static const char *const keys[] = { "RowKB", "AddrConfig", "BackendMask", "Backends",
 		    "RasterConfig", "ComputeUnits", "GoldenSet", "GoldenSkipped", "MCArbRamcfg",
 		    "ShaderEngines", "ShaderArraysPerEngine", "ComputeUnitsPerArray", "BackendsPerEngine",
-		    "TilePipes" };
+		    "TilePipes", "RevisionID" };
+		/* The chip's own revision (amdgpu's rev_id), from its straps, not
+		 * the PCI one: clients' drivers tell steppings apart by it. */
+		uint32_t revision = (readReg(SI_mmCC_DRM_ID_STRAPS) & SI_CC_DRM_ID_STRAPS__ATI_REV_ID_MASK) >>
+		    SI_CC_DRM_ID_STRAPS__ATI_REV_ID__SHIFT;
 		const uint64_t values[] = { info.rowKB, info.addrConfig, info.backendMask, info.backends,
 		    fRasterConfig, info.cus, info.goldenSet, info.goldenSkipped, info.mcArbRamcfg,
-		    chip->shaderEngines, chip->shsPerSE, chip->cusPerSH, chip->rbsPerSE, chip->tilePipes };
+		    chip->shaderEngines, chip->shsPerSE, chip->cusPerSH, chip->rbsPerSE, chip->tilePipes,
+		    revision };
 		for (size_t i = 0; i < sizeof(keys) / sizeof(keys[0]); i++) {
 			OSNumber *n = OSNumber::withNumber((unsigned long long)values[i], 32);
 			if (n != NULL) {
@@ -1264,16 +1269,18 @@ MinkarAMDGPU::vmMapVRAM(unsigned vmid, uint64_t va, uint64_t offset, uint64_t by
 	return vmMap(vmid, va, bytes, offset, NULL);
 }
 
-/* Prepared (wired) system memory, bytes of it from its start, at va. */
+/* Prepared (wired) system memory, bytes of it from offset, at va. */
 IOReturn
-MinkarAMDGPU::vmMapSystem(unsigned vmid, uint64_t va, IOMemoryDescriptor *memory, uint64_t bytes)
+MinkarAMDGPU::vmMapSystem(unsigned vmid, uint64_t va, IOMemoryDescriptor *memory, uint64_t offset,
+    uint64_t bytes)
 {
-	if (memory == NULL || bytes > memory->getLength())
+	if (memory == NULL || offset > memory->getLength() || bytes > memory->getLength() - offset)
 		return kIOReturnBadArgument;
-	return vmMap(vmid, va, bytes, 0, memory);
+	return vmMap(vmid, va, bytes, offset, memory);
 }
 
-/* Pages at va: VRAM from offset, or memory's pages when it is given. */
+/* Pages at va: VRAM from offset, or memory's pages from offset when it is
+ * given. */
 IOReturn
 MinkarAMDGPU::vmMap(unsigned vmid, uint64_t va, uint64_t bytes, uint64_t offset,
     IOMemoryDescriptor *memory)
@@ -1312,7 +1319,7 @@ MinkarAMDGPU::vmMap(unsigned vmid, uint64_t va, uint64_t bytes, uint64_t offset,
 		uint64_t pte;
 		if (memory != NULL) {
 			IOByteCount segment = 0;
-			addr64_t phys = memory->getPhysicalSegment((IOByteCount)done, &segment,
+			addr64_t phys = memory->getPhysicalSegment((IOByteCount)(offset + done), &segment,
 			    kIOMemoryMapperNone);
 			if (phys == 0 || (phys & (kSIGPUPage - 1)) != 0) {
 				err = kIOReturnVMError;

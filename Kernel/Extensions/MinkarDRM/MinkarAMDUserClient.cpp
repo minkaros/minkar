@@ -157,7 +157,7 @@ MinkarAMDUserClient::externalMethod(uint32_t selector, IOExternalMethodArguments
 		{ (IOExternalMethodAction)&sI2C, 4, 0, 3, 0 },
 		{ (IOExternalMethodAction)&sModeSet, 2, 0, 6, 0 },
 		{ (IOExternalMethodAction)&sSubmitGFX, 3, 0, 1, 0 },
-		{ (IOExternalMethodAction)&sMapBuffer, 2, 0, 0, 0 },
+		{ (IOExternalMethodAction)&sMapBuffer, 4, 0, 0, 0 },
 		{ (IOExternalMethodAction)&sUnmapBuffer, 1, 0, 0, 0 },
 		{ (IOExternalMethodAction)&sSubmitGFXVM, 2, 0, 2, 0 },
 	};
@@ -268,8 +268,8 @@ MinkarAMDUserClient::sSubmitGFX(OSObject *target, void *, IOExternalMethodArgume
 	return err;
 }
 
-/* buffer, va: the whole of a VRAM buffer at va in the client's address
- * space, made at the first. */
+/* buffer, va, offset, bytes: that part of a buffer at va in the client's
+ * address space, made at the first. */
 IOReturn
 MinkarAMDUserClient::sMapBuffer(OSObject *target, void *, IOExternalMethodArguments *args)
 {
@@ -279,8 +279,12 @@ MinkarAMDUserClient::sMapBuffer(OSObject *target, void *, IOExternalMethodArgume
 
 	IOLockLock(me->fLock);
 	Buffer *b = me->buffer(in[0]);
-	uint64_t va = in[1];
-	if (b == NULL || !si_vm_range_ok(va, b->size))
+	uint64_t va = in[1], offset = in[2], bytes = in[3];
+	/* bytes 0: the whole buffer from offset; page aligned, inside it. */
+	if (b != NULL && bytes == 0 && offset <= b->size)
+		bytes = b->size - offset;
+	if (b == NULL || (offset & 4095) != 0 || offset > b->size || bytes > b->size - offset ||
+	    !si_vm_range_ok(va, bytes))
 		err = kIOReturnBadArgument;
 	Mapping *slot = NULL;
 	for (unsigned i = 0; err == kIOReturnSuccess && i < kMinkarAMDGPUMaxMappings; i++) {
@@ -288,7 +292,7 @@ MinkarAMDUserClient::sMapBuffer(OSObject *target, void *, IOExternalMethodArgume
 		if (m->bytes == 0) {
 			if (slot == NULL)
 				slot = m;
-		} else if (va < m->va + m->bytes && m->va < va + b->size)
+		} else if (va < m->va + m->bytes && m->va < va + bytes)
 			err = kIOReturnExclusiveAccess;	/* overlaps one */
 	}
 	if (err == kIOReturnSuccess && slot == NULL)
@@ -298,12 +302,12 @@ MinkarAMDUserClient::sMapBuffer(OSObject *target, void *, IOExternalMethodArgume
 	/* System and imported buffers by their pages; VRAM ones (shared ones
 	 * too) by their offset. */
 	if (err == kIOReturnSuccess)
-		err = b->system != NULL ? me->fGPU->vmMapSystem(me->fVMID, va, b->system, b->size) :
-		    b->imported != NULL ? me->fGPU->vmMapSystem(me->fVMID, va, b->imported, b->size) :
-		    me->fGPU->vmMapVRAM(me->fVMID, va, b->offset, b->size);
+		err = b->system != NULL ? me->fGPU->vmMapSystem(me->fVMID, va, b->system, offset, bytes) :
+		    b->imported != NULL ? me->fGPU->vmMapSystem(me->fVMID, va, b->imported, offset, bytes) :
+		    me->fGPU->vmMapVRAM(me->fVMID, va, b->offset + offset, bytes);
 	if (err == kIOReturnSuccess) {
 		slot->va = va;
-		slot->bytes = b->size;
+		slot->bytes = bytes;
 		slot->buffer = b;
 	}
 	IOLockUnlock(me->fLock);

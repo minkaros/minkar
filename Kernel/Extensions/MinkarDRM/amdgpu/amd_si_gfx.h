@@ -48,6 +48,11 @@
 #define   SI_SOFT_RESET_CPF		(1u << 17)
 #define   SI_SOFT_RESET_CPC		(1u << 18)
 #define   SI_SOFT_RESET_CPG		(1u << 19)
+/* The graphics pipeline's blocks (sid.h), reset with the command processor
+ * when a shader never finished (radeon's si_gpu_soft_reset, RESET_GFX). */
+#define   SI_SOFT_RESET_PIPELINE	((1u << 1) | (1u << 3) | (1u << 4) | (1u << 5) | \
+					 (1u << 6) | (1u << 7) | (1u << 8) | (1u << 10) | \
+					 (1u << 11) | (1u << 12) | (1u << 14) | (1u << 15))
 #define mmSI_CP_STAT			0x21a0
 #define mmSI_CP_COHER_CNTL2		0x217a
 #define mmSI_CP_ME_CNTL			0x21b6
