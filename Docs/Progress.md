@@ -18,7 +18,7 @@ _Updated 2026-11-03, devel `76e14432ee`_
 | [Kraz](Dock-Kraz.md) | ⬜⬜⬜⬜⬜ | 0 / 5 | — | K0 |
 | [Gienah](ROADMAP.md#phase-5--gienah-desktop) | ⬜⬜⬜ | 0 / 3 | — | LoginWindow |
 | [Apps · DMG](ROADMAP.md#phase-6--applications-and-distribution) | ⬜⬜⬜⬜ | 0 / 4 | — | DiskImages |
-| [GPU track](ROADMAP.md#graphics-stack-components-and-sequence) | 🟩🟨🟦⬜ | 1 / 4 | G3 Mesa | G4–G5 |
+| [GPU track](ROADMAP.md#graphics-stack-components-and-sequence) | 🟩🟨🟩🟦 | 2 / 4 | G4–G5 | — |
 | [Compat · arm64](ROADMAP.md#phase-7--binary-compatibility-and-arm64) | ⬜⬜ | 0 / 2 | — | x86-64 apps |
 
 🟩 done · 🟦 in progress · 🟨 partial · ⬜ to do
