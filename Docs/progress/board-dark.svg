@@ -41,9 +41,9 @@
 <rect x="301.5" y="114" width="241.5" height="127" rx="8" fill="#0d1117" stroke="#f85149" stroke-width="2"/><rect x="301.5" y="114" width="5" height="127" rx="2" fill="#f85149"/>
 <text x="317.5" y="138" font-size="15" font-weight="650" fill="#e6edf3" text-anchor="start">G3 — Mesa&#x27;s RADV on the</text>
 <text x="317.5" y="159" font-size="15" font-weight="650" fill="#e6edf3" text-anchor="start">D500s</text>
-<text x="317.5" y="180" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">Vulkan 1.3 devices; copies,</text>
-<text x="317.5" y="199" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">fills and compute run · next:</text>
-<text x="317.5" y="218" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">Mesa&#x27;s build, a triangle, WSI</text>
+<text x="317.5" y="180" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">Vulkan 1.3; compute and a</text>
+<text x="317.5" y="199" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">triangle drawn off the screen</text>
+<text x="317.5" y="218" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">· next: WSI into a window</text>
 <rect x="301.5" y="251" width="241.5" height="128" rx="8" fill="#0d1117" stroke="#3d444d" stroke-width="1"/><rect x="301.5" y="251" width="5" height="128" rx="2" fill="#4493f8"/>
 <text x="317.5" y="275" font-size="15" font-weight="650" fill="#e6edf3" text-anchor="start">WS6 — GPU compositing</text>
 <text x="317.5" y="296" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">frames presented by the GPU&#x27;s</text>
