@@ -595,3 +595,28 @@ routine display_stream_stop(
 	ServerAuditToken token	: audit_token_t;
 	stream			: uint32_t;
 	out result		: int32_t);
+
+/* ---- Layer surfaces (interface version 16) ---- */
+
+/* A layer of the window: an IOSurface of its app (BGRA, the rectangle's
+ * size) over the window's content in the rectangle (window coordinates),
+ * shown from the next frame; surface 0 takes it away. */
+routine window_set_layer_iosurface(
+	server			: mach_port_t;
+	ServerAuditToken token	: audit_token_t;
+	window			: uint32_t;
+	surface			: uint32_t;
+	x			: int32_t;
+	y			: int32_t;
+	width			: int32_t;
+	height			: int32_t;
+	out result		: int32_t);
+
+/* Where the server says a frame with the window's last layer surface is
+ * on the screen (an SLSLayerShown message); MACH_PORT_NULL: nowhere. */
+routine window_set_layer_notify(
+	server			: mach_port_t;
+	ServerAuditToken token	: audit_token_t;
+	window			: uint32_t;
+	notify			: mach_port_make_send_t;
+	out result		: int32_t);

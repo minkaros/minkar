@@ -48,7 +48,7 @@ extern "C" {
 #define kSLSServiceName		"org.minkar.WindowServer"
 
 /* The interface version both sides are built for. */
-#define kSLSInterfaceVersion	15
+#define kSLSInterfaceVersion	16
 
 typedef int32_t SLSConnectionID;
 
@@ -466,6 +466,31 @@ int SLSWindowFlushPixels(SLSWindowID window, const void *pixels, uint32_t rowByt
  * of its own again (interface version 15).
  */
 int SLSWindowSetIOSurface(SLSWindowID window, uint32_t surfaceID);
+
+/*
+ * A layer of the window (CAMetalLayer's): an IOSurface of this process
+ * (BGRA, 4 bytes per pixel, rect's size) shown over the window's own
+ * content in rect (window coordinates, inside the window), until another
+ * is set; it moves, orders and fades with the window, and events in it go
+ * to the window. Each call shows the surface at the next frame (a
+ * present); surface 0 takes the layer away (interface version 16).
+ */
+int SLSWindowSetLayerIOSurface(SLSWindowID window, uint32_t surfaceID, SLSIntRect rect);
+
+/*
+ * Pacing a layer by the display: once a frame that shows the window's
+ * last layer surface is on the screen (after its vertical blank where the
+ * display flips), the server sends notify an SLSLayerShown, without
+ * waiting (a full queue drops it). MACH_PORT_NULL stops it.
+ */
+#define kSLSLayerShownMessageID	0x534c4c53	/* 'SLLS' */
+typedef struct SLSLayerShown {
+	mach_msg_header_t	header;
+	uint32_t		window;
+	uint32_t		surface;	/* the layer surface shown */
+	uint64_t		time;		/* mach_absolute_time, once shown */
+} SLSLayerShown;
+int SLSWindowSetLayerNotifyPort(SLSWindowID window, mach_port_t notify);
 
 #define kSLSMaxSurfaceSide	16384
 #define kSLSMaxDamageRects	64

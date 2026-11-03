@@ -274,6 +274,31 @@ SLSWindowFlushPixels(SLSWindowID window, const void *pixels, uint32_t rowBytes,
 }
 
 int
+SLSWindowSetLayerIOSurface(SLSWindowID window, uint32_t surfaceID, SLSIntRect rect)
+{
+	int32_t result = kSLSErrorFailure;
+	mach_port_t server = SLSServerPort();
+
+	if (server == MACH_PORT_NULL ||
+	    ws_window_set_layer_iosurface(server, window, surfaceID, rect.x, rect.y, rect.width,
+	    rect.height, &result) != KERN_SUCCESS)
+		return kSLSErrorFailure;
+	return result;
+}
+
+int
+SLSWindowSetLayerNotifyPort(SLSWindowID window, mach_port_t notify)
+{
+	int32_t result = kSLSErrorFailure;
+	mach_port_t server = SLSServerPort();
+
+	if (server == MACH_PORT_NULL ||
+	    ws_window_set_layer_notify(server, window, notify, &result) != KERN_SUCCESS)
+		return kSLSErrorFailure;
+	return result;
+}
+
+int
 SLSWindowSetIOSurface(SLSWindowID window, uint32_t surfaceID)
 {
 	int32_t result = kSLSErrorFailure;

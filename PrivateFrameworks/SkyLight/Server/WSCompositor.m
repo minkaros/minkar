@@ -38,6 +38,11 @@
 #import "WSSurface.h"
 
 @implementation WSFrameItem
+- (void)dealloc
+{
+	if (_layerNotify != MACH_PORT_NULL)
+		mach_port_deallocate(mach_task_self(), _layerNotify);
+}
 @end
 
 /* ---- The cursor: an arrow drawn here, hot spot at its tip ---- */
@@ -418,6 +423,12 @@ backendClass(void)
 			pixman_region32_union_rect(&_live, &_live, x, y, surface.width,
 			    surface.height);
 		[_backend drawSurface:surface x:x y:y alpha:item.alpha];
+		/* Its layer over it (a CAMetalLayer's drawable); each present
+		 * damages it, so it is not drawn again at every frame. */
+		WSSurface *layer = item.layerSurface;
+		if (layer != nil)
+			[_backend drawSurface:layer x:x + item.layerRect.x y:y + item.layerRect.y
+			    alpha:item.alpha];
 	}
 	[_backend endWindows];
 
@@ -465,6 +476,23 @@ backendClass(void)
 		for (int i = 0; i < nboxes; i++)
 			[_display flushX:boxes[i].x1 y:boxes[i].y1 width:boxes[i].x2 - boxes[i].x1
 			    height:boxes[i].y2 - boxes[i].y1];
+
+	/* Layers set since the last frame are on the screen now (a flip
+	 * returns once the display took the frame): their apps pace by it. */
+	for (WSFrameItem *item in items)
+		if (item.layerFresh && item.layerNotify != MACH_PORT_NULL) {
+			SLSLayerShown m;
+			memset(&m, 0, sizeof(m));
+			m.header.msgh_bits = MACH_MSGH_BITS(MACH_MSG_TYPE_COPY_SEND, 0);
+			m.header.msgh_size = sizeof(m);
+			m.header.msgh_remote_port = item.layerNotify;
+			m.header.msgh_id = kSLSLayerShownMessageID;
+			m.window = item.windowID;
+			m.surface = [(WSIOSurfaceBacking *)item.layerSurface surfaceID];
+			m.time = mach_absolute_time();
+			mach_msg(&m.header, MACH_SEND_MSG | MACH_SEND_TIMEOUT, sizeof(m), 0,
+			    MACH_PORT_NULL, 0, MACH_PORT_NULL);
+		}
 
 	/* Streams with the cursor; then the frame without it again. What a
 	 * stream could not take yet is drawn again at the next tick. */

@@ -45,6 +45,15 @@
 @property double alpha;
 @property BOOL solid;			/* a shielding window: opaque black */
 @property BOOL shadow;			/* drawn with a shadow */
+/* A layer over the window's content (SLSWindowSetLayerIOSurface): its
+ * surface and where, in window coordinates. */
+@property (strong) id layerSurface;
+@property SLSIntRect layerRect;
+/* Set since the last frame: once this frame is on the screen, the window
+ * (windowID) is told so at layerNotify, a send right of the item's. */
+@property BOOL layerFresh;
+@property uint32_t windowID;
+@property mach_port_t layerNotify;
 @end
 
 @interface WSCompositor : NSObject
