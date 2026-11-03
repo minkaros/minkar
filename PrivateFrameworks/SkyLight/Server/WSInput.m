@@ -34,6 +34,8 @@
 #include <unistd.h>
 #import "WSInput.h"
 #import "WSEvents.h"
+#import "WSDisplay.h"
+#import "WSServer.h"
 #include "WSKeymap.h"
 
 /* Modifier keys' codes and the flag each one sets. */
@@ -73,7 +75,16 @@ struct mouseLocation {
 	int32_t pid;
 } __attribute__((packed));
 
+/* The server connection's virtual displays (IOHIDSystem methods 7, 8 and
+ * 9): register one, unregister it, set its bounds. */
+enum {
+	kHIDRegisterVirtualDisplay = 7,
+	kHIDUnregisterVirtualDisplay = 8,
+	kHIDSetVirtualDisplayBounds = 9,
+};
+
 @implementation WSInput {
+	NSMutableArray<NSNumber *> *_screenTokens;	/* one per display */
 	io_connect_t _connect;
 	volatile EvGlobals *_evg;
 	mach_port_t _port;
@@ -130,10 +141,51 @@ struct mouseLocation {
 	__unsafe_unretained WSInput *me = self;	/* lives as long as the server */
 	dispatch_source_set_event_handler(_source, ^{ [me readQueue]; });
 	dispatch_resume(_source);
+	[self publishDisplays];
 	fprintf(stderr, "WindowServer: reading input from IOHIDSystem\n");
 	/* Events queued before we listened. */
 	dispatch_async(queue, ^{ [me readQueue]; });
 	return YES;
+}
+
+/* Tells IOHIDSystem where each display is on the desktop: the pointer
+ * moves over them and only them. Without this it would move over the boot
+ * framebuffer alone. */
+- (void)publishDisplays
+{
+	NSArray<WSDisplay *> *displays = WSDisplays;
+
+	if (_screenTokens == nil)
+		_screenTokens = [NSMutableArray array];
+	while (_screenTokens.count < displays.count) {
+		uint64_t token = 0;
+		uint32_t n = 1;
+		if (IOConnectCallScalarMethod(_connect, kHIDRegisterVirtualDisplay, NULL, 0, &token,
+		    &n) != KERN_SUCCESS || token == 0) {
+			fprintf(stderr, "WindowServer: IOHIDSystem refused a display\n");
+			break;
+		}
+		[_screenTokens addObject:@(token)];
+	}
+	while (_screenTokens.count > displays.count) {
+		uint64_t token = _screenTokens.lastObject.unsignedLongLongValue;
+		IOConnectCallScalarMethod(_connect, kHIDUnregisterVirtualDisplay, &token, 1, NULL, NULL);
+		[_screenTokens removeLastObject];
+	}
+	for (NSUInteger i = 0; i < _screenTokens.count; i++) {
+		WSDisplay *d = displays[i];
+		/* Token, then min x, max x, min y, max y (16-bit, may be < 0). */
+		uint64_t in[5] = {
+			_screenTokens[i].unsignedLongLongValue,
+			(uint64_t)(int64_t)d.x, (uint64_t)(int64_t)(d.x + d.width),
+			(uint64_t)(int64_t)d.y, (uint64_t)(int64_t)(d.y + d.height),
+		};
+		kern_return_t kr = IOConnectCallScalarMethod(_connect, kHIDSetVirtualDisplayBounds,
+		    in, 5, NULL, NULL);
+		if (kr != KERN_SUCCESS)
+			fprintf(stderr, "WindowServer: IOHIDSystem refused display 0x%x's bounds "
+			    "(0x%x)\n", d.displayID, kr);
+	}
 }
 
 - (void)setLocationX:(double)x y:(double)y
@@ -236,6 +288,12 @@ struct mouseLocation {
 }
 
 @end
+
+void
+WSInputDisplaysChanged(void)
+{
+	[theInput publishDisplays];
+}
 
 void
 WSInputSetCursor(double x, double y)

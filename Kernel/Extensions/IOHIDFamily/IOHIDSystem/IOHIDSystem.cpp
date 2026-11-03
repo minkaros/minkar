@@ -4493,28 +4493,43 @@ IOReturn IOHIDSystem::doPointerEvent(IOHIDSystem * self, void * args)
     return kIOReturnSuccess;
 }
 
+/* A registered screen's place on the desktop: a video driver's, or one
+ * the window server registered and placed (a virtual display; until it
+ * sets the bounds they are far off the desktop and too small to count). */
+IOGBounds * IOHIDSystem::pointerScreen(int i)
+{
+    EvScreen * screen = (EvScreen *)evScreen;
+
+    if (!evScreen || i < 0 || i >= EV_MAX_SCREENS)
+        return NULL;
+    if ((!screen[i].instance && !screen[i].creator_pid) || !screen[i].desktopBounds)
+        return NULL;
+    IOGBounds * b = screen[i].desktopBounds;
+    if (b->maxx - b->minx < 16 || b->maxy - b->miny < 16)
+        return NULL;
+    return b;
+}
+
 /* The desktop the cursor moves on: the registered screens, or the boot
- * framebuffer before any screen is registered. */
+ * framebuffer before any screen is registered. Every slot is looked at:
+ * unregistering one before the last leaves a gap. */
 void IOHIDSystem::pointerBounds(IOGBounds * bounds)
 {
     bool found = false;
 
-    if (evScreen) {
-        EvScreen * screen = (EvScreen *)evScreen;
-        for (int i = 0; i < screens; i++) {
-            if (!screen[i].instance || !screen[i].desktopBounds)
-                continue;
-            IOGBounds * b = screen[i].desktopBounds;
-            if (!found) {
-                *bounds = *b;
-                found = true;
-                continue;
-            }
-            if (b->minx < bounds->minx) bounds->minx = b->minx;
-            if (b->miny < bounds->miny) bounds->miny = b->miny;
-            if (b->maxx > bounds->maxx) bounds->maxx = b->maxx;
-            if (b->maxy > bounds->maxy) bounds->maxy = b->maxy;
+    for (int i = 0; i < EV_MAX_SCREENS; i++) {
+        IOGBounds * b = pointerScreen(i);
+        if (!b)
+            continue;
+        if (!found) {
+            *bounds = *b;
+            found = true;
+            continue;
         }
+        if (b->minx < bounds->minx) bounds->minx = b->minx;
+        if (b->miny < bounds->miny) bounds->miny = b->miny;
+        if (b->maxx > bounds->maxx) bounds->maxx = b->maxx;
+        if (b->maxy > bounds->maxy) bounds->maxy = b->maxy;
     }
     if (!found) {
         bounds->minx = 0;
@@ -4522,6 +4537,53 @@ void IOHIDSystem::pointerBounds(IOGBounds * bounds)
         bounds->maxx = PE_state.video.v_width ? (SInt16)PE_state.video.v_width : 1024;
         bounds->maxy = PE_state.video.v_height ? (SInt16)PE_state.video.v_height : 768;
     }
+}
+
+/* Displays of different sizes leave parts of the desktop's rectangle on no
+ * screen: a point there goes to the nearest edge of the screen the cursor
+ * was on (or of the first screen), so the cursor slides along it. */
+void IOHIDSystem::pointerOntoScreen(SInt32 * x, SInt32 * y, IOGPoint from)
+{
+    IOGBounds * pin = NULL;
+
+    for (int i = 0; i < EV_MAX_SCREENS; i++) {
+        IOGBounds * b = pointerScreen(i);
+        if (!b)
+            continue;
+        if (*x >= b->minx && *x < b->maxx && *y >= b->miny && *y < b->maxy)
+            return;
+        if (from.x >= b->minx && from.x < b->maxx && from.y >= b->miny && from.y < b->maxy)
+            pin = b;
+        else if (!pin)
+            pin = b;
+    }
+    if (!pin)
+        return;
+    if (*x < pin->minx) *x = pin->minx;
+    if (*x > pin->maxx - 1) *x = pin->maxx - 1;
+    if (*y < pin->miny) *y = pin->miny;
+    if (*y > pin->maxy - 1) *y = pin->maxy - 1;
+}
+
+/* The screens a process registered (the window server's), gone with it. */
+void IOHIDSystem::unregisterScreensOf(pid_t pid)
+{
+    if (!cmdGate || pid <= 0)
+        return;
+    cmdGate->runAction(OSMemberFunctionCast(IOCommandGate::Action, this,
+        &IOHIDSystem::unregisterScreensOfGated), (void *)(uintptr_t)pid);
+}
+
+IOReturn IOHIDSystem::unregisterScreensOfGated(void * pid)
+{
+    EvScreen * screen = (EvScreen *)evScreen;
+
+    if (!evScreen)
+        return kIOReturnSuccess;
+    for (int i = 0; i < EV_MAX_SCREENS; i++)
+        if (!screen[i].instance && screen[i].creator_pid == (pid_t)(uintptr_t)pid)
+            unregisterScreenGated(i);
+    return kIOReturnSuccess;
 }
 
 /* IOHIPointing's button bits (EV_LB left, EV_RB right, 0x2 middle, the
@@ -4611,6 +4673,7 @@ void IOHIDSystem::pointerEventGated(void * p)
     if (x > desk.maxx - 1) x = desk.maxx - 1;
     if (y < desk.miny) y = desk.miny;
     if (y > desk.maxy - 1) y = desk.maxy - 1;
+    pointerOntoScreen(&x, &y, before);
     after.x = (SInt16)x;
     after.y = (SInt16)y;
 

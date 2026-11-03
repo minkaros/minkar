@@ -171,6 +171,7 @@ notifyReconfigured(void)
 
 	if (notified == nil)
 		notified = [NSMutableDictionary dictionary];
+	WSInputDisplaysChanged();
 	for (WSDisplay *d in WSDisplays) {
 		NSNumber *key = @(d.displayID);
 		NSArray<NSNumber *> *now = @[ @(d.currentMode->modeID), @(d.x), @(d.y),

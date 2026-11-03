@@ -47,6 +47,7 @@ private:
 
     IOHIDSystem     *owner;
     int             _screenTokens[MAX_SCREENS];
+    pid_t           _pid;           /* its virtual displays go with it */
 
 public:
     // IOUserClient methods

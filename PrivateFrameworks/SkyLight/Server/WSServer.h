@@ -120,6 +120,8 @@ BOOL WSMayControlInput(WSConnection *connection);
 void WSHotKeysStart(void);
 BOOL WSHotKeysHandle(const SLSEvent *event, WSConnection *keyOwner, SLSWindowID keyWindow,
     WSConnection *front);
+/* Tells the HID system where the displays are now (WSInput.m). */
+void WSInputDisplaysChanged(void);
 /* Tells the HID system where a warp put the cursor (WSInput.m). */
 void WSInputSetCursor(double x, double y);
 /* A posted key event without characters gets the keymap's (WSInput.m). */

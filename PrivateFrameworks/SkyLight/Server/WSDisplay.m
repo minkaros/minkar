@@ -76,6 +76,24 @@ static const double kPixelsPerMM = 72.0 / 25.4;
 	float _transfer[3 * kSLSGammaTableCapacity];
 }
 
+/* Sorts a display whose device is marked AAPL,boot-display (the property
+ * IOGraphics knows the boot display by) before the others, and those by
+ * their registry path: their PCI places, the same from boot to boot.
+ * TODO(Phase 4): mark the device that holds the firmware's framebuffer. */
+static NSString *
+displayOrderKey(io_service_t framebuffer)
+{
+	CFTypeRef boot = IORegistryEntrySearchCFProperty(framebuffer, kIOServicePlane,
+	    CFSTR("AAPL,boot-display"), kCFAllocatorDefault,
+	    kIORegistryIterateRecursively | kIORegistryIterateParents);
+	io_string_t path = "";
+
+	if (boot != NULL)
+		CFRelease(boot);
+	IORegistryEntryGetPath(framebuffer, kIOServicePlane, path);
+	return [NSString stringWithFormat:@"%d %s", boot != NULL ? 0 : 1, path];
+}
+
 + (NSArray<WSDisplay *> *)availableDisplays
 {
 	NSMutableArray *displays = [NSMutableArray array];
@@ -85,17 +103,36 @@ static const double kPixelsPerMM = 72.0 / 25.4;
 	if (IOServiceGetMatchingServices(kIOMasterPortDefault, IOServiceMatching("IOFramebuffer"),
 	    &iter) != KERN_SUCCESS)
 		return displays;
+	NSMutableDictionary<NSValue *, NSString *> *order = [NSMutableDictionary dictionary];
 	while ((service = IOIteratorNext(iter)) != IO_OBJECT_NULL) {
 		WSDisplay *d = [[WSDisplay alloc] initWithService:service];
-		IOObjectRelease(service);	/* the display holds its own reference */
 		if (d != nil) {
-			d.unit = (uint32_t)displays.count;
+			order[[NSValue valueWithNonretainedObject:d]] = displayOrderKey(service);
 			[displays addObject:d];
 		}
+		IOObjectRelease(service);	/* the display holds its own reference */
 	}
 	IOObjectRelease(iter);
-	/* The first is the main display, at the origin. */
+	/* The registry lists the framebuffers in the order their drivers
+	 * started, which changes from boot to boot: the boot display first,
+	 * then the others by their place in the registry. */
+	[displays sortUsingComparator:^NSComparisonResult(WSDisplay *a, WSDisplay *b) {
+		return [order[[NSValue valueWithNonretainedObject:a]]
+		    compare:order[[NSValue valueWithNonretainedObject:b]]];
+	}];
+	for (NSUInteger i = 0; i < displays.count; i++)
+		((WSDisplay *)displays[i]).unit = (uint32_t)i;
+	/* The first is the main display, at the origin; each other one to the
+	 * right of the one before, their tops aligned: one desktop across
+	 * them, as a display joins it on the reference platform. A saved
+	 * configuration (WSDisplayServices) places them otherwise. */
 	[[displays firstObject] markAsMain];
+	double x = 0;
+	for (WSDisplay *d in displays) {
+		d.x = x;
+		d.y = 0;
+		x += d.width;
+	}
 	return displays;
 }
 
