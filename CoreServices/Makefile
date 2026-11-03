@@ -26,6 +26,8 @@ SUBDIR += loginwindow
 SUBDIR += iosurfaced ../Frameworks/IOSurface/tests
 # The pasteboard server (Phase 4).
 SUBDIR += pboard pboard/tests
+# os_log's messages kept (Phase 3).
+SUBDIR += logd
 # The code integrity policy's test program (it needs IOKit).
 SUBDIR += ../Kernel/Extensions/MinkarCodeIntegrity/tests
 # IOHIDSystem's event queue reader, for the input tests (it needs IOKit).

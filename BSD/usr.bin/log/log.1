@@ -1,0 +1,111 @@
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\" Copyright (c) 2026 The Minkar contributors
+.\" Part of Minkar.
+.Dd November 3, 2026
+.Dt LOG 1
+.Os Minkar
+.Sh NAME
+.Nm log
+.Nd show, stream and configure the system log
+.Sh SYNOPSIS
+.Nm
+.Cm show
+.Op Fl -last Ar time | Fl -start Ar date
+.Op Fl -end Ar date
+.Op Fl -info
+.Op Fl -debug
+.Op Fl -predicate Ar predicate
+.Op Fl -style Ar style
+.Nm
+.Cm stream
+.Op Fl -level Ar default | info | debug
+.Op Fl -predicate Ar predicate
+.Op Fl -style Ar style
+.Op Fl -timeout Ar seconds
+.Nm
+.Cm config
+.Fl -subsystem Ar name
+.Fl -mode Ar level:default | level:info | level:debug
+.Nm
+.Cm config
+.Fl -subsystem Ar name
+.Fl -reset
+.Nm
+.Cm config
+.Fl -status
+.Nm
+.Cm erase
+.Fl -all
+.Sh DESCRIPTION
+.Nm
+reads the messages that programs send with
+.Xr os_log 3 ,
+as
+.Nm logd
+keeps them.
+Default, error and fault messages are kept on disk, in
+.Pa /var/db/diagnostics ;
+info messages are kept in memory, and debug messages only for subsystems
+whose level is debug.
+Users other than root see only their own processes' messages.
+.Bl -tag -width indent
+.It Cm show
+Prints the kept messages, oldest first.
+.Fl -last
+takes a time such as 30s, 5m, 2h or 1d;
+.Fl -start
+and
+.Fl -end
+take a local date, as
+.Dq 2026-11-03 23:40:01 .
+Info messages are shown with
+.Fl -info ,
+info and debug with
+.Fl -debug .
+.It Cm stream
+Prints messages as they arrive, until interrupted or for
+.Fl -timeout
+seconds.
+.It Cm config
+Sets a subsystem's level (root only): which of the info and debug
+messages it keeps.
+.Fl -reset
+gives it the system's level again (info);
+.Fl -status
+lists the subsystems with a level of their own.
+.It Cm erase
+Removes every kept message (root only).
+.El
+.Pp
+A
+.Ar predicate
+is an
+.Vt NSPredicate
+over
+.Va process ,
+.Va processIdentifier ,
+.Va userIdentifier ,
+.Va subsystem ,
+.Va category ,
+.Va messageType
+(default, info, debug, error or fault),
+.Va eventMessage ,
+.Va threadIdentifier ,
+.Va activityIdentifier
+and
+.Va timestamp ,
+for example
+.Dq subsystem == \e"org.example\e" AND messageType == error .
+A
+.Ar style
+is default, compact, syslog or json.
+.Sh FILES
+.Bl -tag -width "/var/db/diagnostics" -compact
+.It Pa /var/db/diagnostics
+the messages kept on disk
+.It Pa /var/db/logd/levels
+the subsystems' levels
+.El
+.Sh SEE ALSO
+.Xr os_log 3 ,
+.Xr syslog 1
