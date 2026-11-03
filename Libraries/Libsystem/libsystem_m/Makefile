@@ -2,7 +2,8 @@
 # BSD-3, MIT and Sun's "freely granted" notice), with the amd64 assembly
 # and 80-bit long double sources, FreeBSD headers it needs (include/:
 # complex.h, ieeefp.h, fpmath.h, x86 fpu; from git history, BSD), and glue.c (original, BSD-2) for the
-# names Minkar's <math.h> and Darwin have that msun does not. The
+# names Minkar's <math.h> and Darwin have that msun does not, and
+# fenv_darwin.c (original, BSD-2) for <fenv.h> with macOS's fenv_t. The
 # previous implementation called itself for most functions.
 # msun_compat.h and include/machine/asm.h supply FreeBSD's cdefs and asm
 # macros; the assembly loses its ELF-only .note.GNU-stack section here.
@@ -29,7 +30,7 @@ SRCS =	b_tgamma.c b_tgammal.c catrig.c catrigf.c catrigl.c e_acos.c \
 	e_lgammal.c e_lgammal_r.c e_log.c e_log10.c e_log10f.c e_log2.c \
 	e_log2f.c e_logf.c e_pow.c e_powf.c e_powl.c e_rem_pio2.c \
 	e_rem_pio2f.c e_scalb.c e_scalbf.c e_sinh.c e_sinhf.c e_sinhl.c \
-	fenv.c invtrig.c k_cos.c k_cosf.c k_cosl.c k_exp.c \
+	fenv_darwin.c invtrig.c k_cos.c k_cosf.c k_cosl.c k_exp.c \
 	k_expf.c k_rem_pio2.c k_sin.c k_sinf.c k_sinl.c k_tan.c \
 	k_tanf.c k_tanl.c s_asinh.c s_asinhf.c s_asinhl.c s_atan.c \
 	s_atanf.c s_atanl.c s_carg.c s_cargf.c s_cargl.c s_cbrt.c \
