@@ -4,6 +4,7 @@
 #
 # minkar-vktest: Vulkan through RADV, loaded as the Vulkan loader loads a
 # driver; minkar-vkinfo: Vulkan through the loader, as apps use it;
+# minkar-vkshared: a shared VRAM buffer imported into Vulkan;
 # minkar-vkwindow: frames presented in an AppKit window through a
 # CAMetalLayer (VK_EXT_metal_surface); minkar-vkdraw: a triangle drawn off
 # the screen, its shaders
@@ -36,19 +37,25 @@ minkar-vkdraw: ${.CURDIR}/vkdraw.c triangle_vert.h triangle_frag.h
 minkar-vkinfo: ${.CURDIR}/vkinfo.c
 	${CC} ${CFLAGS} ${LDFLAGS} -o ${.TARGET} ${.CURDIR}/vkinfo.c -L${MINKAR_SDKROOT}/usr/lib -lvulkan
 
+minkar-vkshared: ${.CURDIR}/vkshared.c
+	${CC} ${CFLAGS} -I${ROOT_SOURCE_DIR}/Kernel/Extensions/MinkarDRM ${LDFLAGS} -o ${.TARGET} \
+	    ${.CURDIR}/vkshared.c -L${MINKAR_SDKROOT}/usr/lib -lvulkan -ldrm_amdgpu -framework IOKit \
+	    -framework CoreFoundation
+
 minkar-vkwindow: ${.CURDIR}/vkwindow.m triangle_vert.h triangle_frag.h
 	${CC} ${CFLAGS} -I${.OBJDIR} -I${ROOT_SOURCE_DIR}/Frameworks \
 	    -F${MINKAR_SDKROOT}/System/Library/PrivateFrameworks ${LDFLAGS} -o ${.TARGET} \
 	    ${.CURDIR}/vkwindow.m -framework AppKit -framework QuartzCore -framework Foundation \
 	    -framework SkyLight -framework IOSurface -lobjc
 
-to-sysroot: ${PROG} minkar-vkdraw minkar-vkwindow minkar-vkinfo
+to-sysroot: ${PROG} minkar-vkdraw minkar-vkwindow minkar-vkinfo minkar-vkshared
 	mkdir -p ${SYSROOT_DIR}/usr/local/bin
 	install -m 0555 -o 0 -g 0 ${PROG} ${SYSROOT_DIR}/usr/local/bin/minkar-vktest
 	install -m 0555 -o 0 -g 0 minkar-vkdraw ${SYSROOT_DIR}/usr/local/bin/minkar-vkdraw
 	install -m 0555 -o 0 -g 0 minkar-vkwindow ${SYSROOT_DIR}/usr/local/bin/minkar-vkwindow
 	install -m 0555 -o 0 -g 0 minkar-vkinfo ${SYSROOT_DIR}/usr/local/bin/minkar-vkinfo
+	install -m 0555 -o 0 -g 0 minkar-vkshared ${SYSROOT_DIR}/usr/local/bin/minkar-vkshared
 
-CLEANFILES +=	minkar-vkdraw minkar-vkwindow minkar-vkinfo triangle_vert.h triangle_frag.h
+CLEANFILES +=	minkar-vkdraw minkar-vkwindow minkar-vkinfo minkar-vkshared triangle_vert.h triangle_frag.h
 
 .include <bsd.prog.mk>

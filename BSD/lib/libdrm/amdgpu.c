@@ -44,6 +44,7 @@
 #include <time.h>
 #include <mach/mach.h>
 #include <xf86drm.h>
+#include "minkar_drm.h"
 #include <amdgpu.h>
 #include <amdgpu_drm.h>
 #include "MinkarAMDGPUInterface.h"
@@ -78,6 +79,7 @@ struct amdgpu_bo {
 	void *cpu;
 	unsigned maps;
 	bool imported;
+	uint32_t shared;		/* a shared buffer's global ID, or 0 */
 };
 
 static pthread_mutex_t sDevicesLock = PTHREAD_MUTEX_INITIALIZER;
@@ -329,21 +331,88 @@ amdgpu_bo_free(amdgpu_bo_handle bo)
 int
 amdgpu_bo_export(amdgpu_bo_handle bo, enum amdgpu_bo_handle_type type, uint32_t *shared_handle)
 {
+	if (type == amdgpu_bo_handle_type_dma_buf_fd) {
+		/* Shared buffers only: a descriptor for their global ID. */
+		if (bo->shared == 0)
+			return -ENOTSUP;
+		int f = minkar_drm_shared_buffer_fd(bo->shared);
+		if (f < 0)
+			return -errno;
+		*shared_handle = (uint32_t)f;
+		return 0;
+	}
 	if (type != amdgpu_bo_handle_type_kms && type != amdgpu_bo_handle_type_kms_noimport)
-		return -ENOTSUP;	/* across processes: IOSurfaces, later */
+		return -ENOTSUP;
 	*shared_handle = bo->handle;
 	return 0;
+}
+
+/*
+ * Descriptors for shared buffers (minkar_drm.h): /dev/null's, each marked
+ * here with the global ID it stands for. A descriptor closed and reused
+ * is marked again when it is made again.
+ */
+#define MINKAR_SHARED_FDS	1024
+static pthread_mutex_t sSharedLock = PTHREAD_MUTEX_INITIALIZER;
+static uint32_t sSharedFds[MINKAR_SHARED_FDS];
+
+int
+minkar_drm_shared_buffer_fd(uint32_t global_id)
+{
+	if (global_id == 0) {
+		errno = EINVAL;
+		return -1;
+	}
+	int f = open("/dev/null", O_RDONLY | O_CLOEXEC);
+	if (f < 0)
+		return -1;
+	if (f >= MINKAR_SHARED_FDS) {
+		close(f);
+		errno = EMFILE;
+		return -1;
+	}
+	pthread_mutex_lock(&sSharedLock);
+	sSharedFds[f] = global_id;
+	pthread_mutex_unlock(&sSharedLock);
+	return f;
 }
 
 int
 amdgpu_bo_import(amdgpu_device_handle d, enum amdgpu_bo_handle_type type, uint32_t shared_handle,
     struct amdgpu_bo_import_result *output)
 {
-	(void)d;
-	(void)type;
-	(void)shared_handle;
-	(void)output;
-	return -ENOTSUP;
+	/* A shared buffer's descriptor (minkar_drm_shared_buffer_fd): the
+	 * buffer held by this device's connection too. */
+	if (type != amdgpu_bo_handle_type_dma_buf_fd)
+		return -ENOTSUP;
+	uint32_t id = 0;
+	pthread_mutex_lock(&sSharedLock);
+	if (shared_handle < MINKAR_SHARED_FDS)
+		id = sSharedFds[shared_handle];
+	pthread_mutex_unlock(&sSharedLock);
+	if (id == 0)
+		return -EINVAL;
+	uint64_t in = id, out[3] = { 0, 0, 0 };
+	uint32_t n = 3;
+	kern_return_t kr = IOConnectCallScalarMethod(d->conn, kMinkarAMDGPURetainSharedBuffer, &in, 1,
+	    out, &n);
+	if (kr != KERN_SUCCESS)
+		return kernError(kr);
+	struct amdgpu_bo *bo = calloc(1, sizeof(*bo));
+	if (bo == NULL) {
+		IOConnectCallScalarMethod(d->conn, kMinkarAMDGPUDestroyBuffer, &out[0], 1, NULL, NULL);
+		return -ENOMEM;
+	}
+	bo->dev = d;
+	bo->handle = (uint32_t)out[0];
+	bo->gpu = out[1];
+	bo->size = out[2];
+	bo->shared = id;
+	minkar_drm_bo_add(bo->handle, bo->size, 4096, AMDGPU_GEM_DOMAIN_VRAM, 0);
+	memset(output, 0, sizeof(*output));
+	output->buf_handle = bo;
+	output->alloc_size = bo->size;
+	return 0;
 }
 
 /* ---- The client's GPU virtual addresses ---- */

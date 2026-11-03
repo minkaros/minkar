@@ -27,7 +27,8 @@ install-headers: .PHONY
 	mkdir -p ${INC} ${PKG} && \
 	install -m 0444 $$src/xf86drm.h $$src/libsync.h $$src/amdgpu/amdgpu.h ${INC}/ && \
 	install -m 0444 $$src/include/drm/drm.h $$src/include/drm/drm_mode.h \
-	    $$src/include/drm/drm_fourcc.h $$src/include/drm/amdgpu_drm.h ${INC}/
+	    $$src/include/drm/drm_fourcc.h $$src/include/drm/amdgpu_drm.h ${INC}/ && \
+	install -m 0444 ${.CURDIR}/minkar_drm.h ${INC}/
 .for p in libdrm libdrm_amdgpu
 	sed -e 's|@SDK@|${MINKAR_SDKROOT}|' -e 's|@VERSION@|${VERSION}|' \
 	    ${.CURDIR}/${p}.pc.in > ${PKG}/${p}.pc
@@ -36,7 +37,7 @@ install-headers: .PHONY
 drm.o: ${.CURDIR}/drm.c ${.CURDIR}/minkar_drm_private.h install-headers
 	${CC} ${DRM_CFLAGS} -c ${.CURDIR}/drm.c -o ${.TARGET}
 
-amdgpu.o: ${.CURDIR}/amdgpu.c ${.CURDIR}/minkar_drm_private.h install-headers
+amdgpu.o: ${.CURDIR}/amdgpu.c ${.CURDIR}/minkar_drm_private.h ${.CURDIR}/minkar_drm.h install-headers
 	${CC} ${DRM_CFLAGS} -c ${.CURDIR}/amdgpu.c -o ${.TARGET}
 
 amdgpu_info.o: ${.CURDIR}/amdgpu_info.c ${.CURDIR}/minkar_drm_private.h install-headers
