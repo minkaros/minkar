@@ -787,6 +787,12 @@ MinkarAMDGPU::startGFXTest(const char *family)
 	UInt32 mode = 0;
 	thread_t thread;
 
+	/* The microcode's files are named after the chip, in lower case. */
+	size_t n = 0;
+	for (; family[n] != '\0' && family[n] != ' ' && n < sizeof(fMicrocodePrefix) - 1; n++)
+		fMicrocodePrefix[n] = (char)(family[n] >= 'A' && family[n] <= 'Z' ?
+		    family[n] - 'A' + 'a' : family[n]);
+	fMicrocodePrefix[n] = '\0';
 	if (!PE_parse_boot_argn("minkaramd_gfxtest", &mode, sizeof(mode)) || mode == 0 ||
 	    fVRAMLock == NULL || fDMALock == NULL || fWindow == NULL)
 		return;
@@ -794,12 +800,6 @@ MinkarAMDGPU::startGFXTest(const char *family)
 		LOG("GFX test: skipped on the GPU that lights the display");
 		return;
 	}
-	/* The microcode's files are named after the chip, in lower case. */
-	size_t n = 0;
-	for (; family[n] != '\0' && family[n] != ' ' && n < sizeof(fMicrocodePrefix) - 1; n++)
-		fMicrocodePrefix[n] = (char)(family[n] >= 'A' && family[n] <= 'Z' ?
-		    family[n] - 'A' + 'a' : family[n]);
-	fMicrocodePrefix[n] = '\0';
 	retain();
 	if (kernel_thread_start(&MinkarAMDGPU::gfxTestThread, this, &thread) != KERN_SUCCESS) {
 		release();
@@ -817,32 +817,58 @@ MinkarAMDGPU::gfxTestThread(void *gpu, wait_result_t)
 	thread_terminate(current_thread());
 }
 
+/* The command processor's three microcodes (prefetch parser, micro
+ * engine, constant engine), read and parsed. */
+bool
+MinkarAMDGPU::readMicrocode(uint8_t *file[3], size_t bytes[3], struct amd_ucode code[3])
+{
+	static const char *const parts[3] = { "pfp", "me", "ce" };
+	char name[40];
+
+	for (int i = 0; i < 3; i++) {
+		file[i] = NULL;
+		bytes[i] = 0;
+	}
+	for (int i = 0; i < 3; i++) {
+		snprintf(name, sizeof(name), "%s_%s.bin", fMicrocodePrefix, parts[i]);
+		if (!MinkarAMDReadFirmware(name, &file[i], &bytes[i]) ||
+		    amd_ucode_parse(file[i], bytes[i], &code[i]) != 0) {
+			freeMicrocode(file, bytes);
+			return false;
+		}
+	}
+	return true;
+}
+
+void
+MinkarAMDGPU::freeMicrocode(uint8_t *file[3], size_t bytes[3])
+{
+	for (int i = 0; i < 3; i++) {
+		MinkarAMDFreeFirmware(file[i], bytes[i]);
+		file[i] = NULL;
+		bytes[i] = 0;
+	}
+}
+
 void
 MinkarAMDGPU::gfxSelfTest()
 {
-	static const char *const parts[3] = { "pfp", "me", "ce" };
-	uint8_t *file[3] = { NULL, NULL, NULL };
-	size_t bytes[3] = { 0, 0, 0 };
+	uint8_t *file[3];
+	size_t bytes[3];
 	struct amd_ucode code[3];
 	char name[40];
 	bool have = false;
 
-	for (int tries = 0; tries < 150 && !have; tries++) {
-		have = true;
-		for (int i = 0; i < 3 && have; i++) {
-			snprintf(name, sizeof(name), "%s_%s.bin", fMicrocodePrefix, parts[i]);
-			have = file[i] != NULL || MinkarAMDReadFirmware(name, &file[i], &bytes[i]);
-		}
-		if (!have)
-			IOSleep(2000);
+	for (int tries = 0; tries < 150 && !(have = readMicrocode(file, bytes, code)); tries++)
+		IOSleep(2000);
+	if (!have) {
+		LOG("GFX test: no microcode (%s_*.bin)", fMicrocodePrefix);
+		return;
 	}
 	OSDictionary *results = OSDictionary::withCapacity(24);
-	bool parsed = have;
-	for (int i = 0; i < 3 && parsed; i++)
-		parsed = amd_ucode_parse(file[i], bytes[i], &code[i]) == 0;
-	if (!have || !parsed || results == NULL) {
-		LOG("GFX test: %s microcode (%s_*.bin)", !have ? "no" : "bad", fMicrocodePrefix);
-		goto out;
+	if (results == NULL) {
+		freeMicrocode(file, bytes);
+		return;
 	}
 	for (int i = 0; i < 3; i++) {
 		snprintf(name, sizeof(name), "Microcode%sVersion", i == 0 ? "PFP" : i == 1 ? "ME" : "CE");
@@ -855,20 +881,25 @@ MinkarAMDGPU::gfxSelfTest()
 	{
 		uint64_t offset = 0;
 		IOLockLock(fVRAMLock);
-		bool ring = minkar_vram_alloc(&fVRAM, kMinkarAMDGFXRingBytes, 64 * 1024, &offset) == 0;
+		bool ring = minkar_vram_alloc(&fVRAM, kMinkarAMDGFXRegionBytes, 64 * 1024, &offset) == 0;
 		IOLockUnlock(fVRAMLock);
-		IODeviceMemory *region = ring && offset + kMinkarAMDGFXRingBytes <= fWindow->getLength() ?
-		    IODeviceMemory::withSubRange(fWindow, offset, kMinkarAMDGFXRingBytes) : NULL;
+		IODeviceMemory *region = ring && offset + kMinkarAMDGFXRegionBytes <= fWindow->getLength() ?
+		    IODeviceMemory::withSubRange(fWindow, offset, kMinkarAMDGFXRegionBytes) : NULL;
 		IOMemoryMap *map = region != NULL ? region->map(kIOMapWriteCombineCache) : NULL;
 		if (map != NULL) {
 			struct MinkarAMDGFX gfx;
 			uint64_t ns = 0;
+			bool started = false, passed = false, ib = false;
 			IOLockLock(fDMALock);
-			MinkarAMDGFXLoadMicrocode(&fRegs, &code[0], &code[1], &code[2]);
-			bool started = MinkarAMDGFXStart(&gfx, &fRegs, fVRAMStart + offset,
-			    (volatile uint8_t *)map->getVirtualAddress(), results);
-			bool passed = started && MinkarAMDGFXRingTest(&gfx, &ns, results);
-			MinkarAMDGFXStop(&gfx);
+			/* Not over the processor clients use. */
+			if (!fGFXStarted) {
+				MinkarAMDGFXLoadMicrocode(&fRegs, &code[0], &code[1], &code[2]);
+				started = MinkarAMDGFXStart(&gfx, &fRegs, fVRAMStart + offset,
+				    (volatile uint8_t *)map->getVirtualAddress(), results);
+				passed = started && MinkarAMDGFXRingTest(&gfx, &ns, results);
+				ib = passed && MinkarAMDGFXIBTest(&gfx, results);
+				MinkarAMDGFXStop(&gfx);
+			}
 			IOLockUnlock(fDMALock);
 			results->setObject("Started", started ? kOSBooleanTrue : kOSBooleanFalse);
 			results->setObject("Passed", passed ? kOSBooleanTrue : kOSBooleanFalse);
@@ -877,25 +908,88 @@ MinkarAMDGPU::gfxSelfTest()
 				results->setObject("RingTestNanoseconds", t);
 				t->release();
 			}
-			LOG("GFX test: microcode %u/%u/%u, %s, ring test %s in %llu ns",
-			    code[0].version, code[1].version, code[2].version,
-			    started ? "started" : "not started", passed ? "passed" : "failed",
-			    (unsigned long long)ns);
+			LOG("GFX test: microcode %u/%u/%u, %s, ring test %s in %llu ns, "
+			    "indirect buffer and fence %s", code[0].version, code[1].version,
+			    code[2].version, started ? "started" : "not started",
+			    passed ? "passed" : "failed", (unsigned long long)ns,
+			    ib ? "passed" : "failed");
 		} else
 			LOG("GFX test: cannot map the ring");
 		OSSafeReleaseNULL(map);
 		OSSafeReleaseNULL(region);
 		if (ring) {
 			IOLockLock(fVRAMLock);
-			minkar_vram_free(&fVRAM, offset, kMinkarAMDGFXRingBytes);
+			minkar_vram_free(&fVRAM, offset, kMinkarAMDGFXRegionBytes);
 			IOLockUnlock(fVRAMLock);
 		}
 	}
 	setProperty("MinkarGFXTest", results);
-out:
-	OSSafeReleaseNULL(results);
-	for (int i = 0; i < 3; i++)
-		MinkarAMDFreeFirmware(file[i], bytes[i]);
+	results->release();
+	freeMicrocode(file, bytes);
+}
+
+/*
+ * The command processor for clients' indirect buffers, started at the
+ * first: its microcode from the files, its ring and write-back in VRAM
+ * from the allocator, a ring test before it is used. Called locked.
+ */
+bool
+MinkarAMDGPU::startGFX()
+{
+	uint8_t *file[3];
+	size_t bytes[3];
+	struct amd_ucode code[3];
+
+	if (fGFXStarted)
+		return true;
+	if (!readMicrocode(file, bytes, code)) {
+		LOG("no microcode for the command processor (%s_*.bin)", fMicrocodePrefix);
+		return false;
+	}
+	IOLockLock(fVRAMLock);
+	bool have = minkar_vram_alloc(&fVRAM, kMinkarAMDGFXRegionBytes, 64 * 1024, &fGFXOffset) == 0;
+	IOLockUnlock(fVRAMLock);
+	IODeviceMemory *region = have && fGFXOffset + kMinkarAMDGFXRegionBytes <= fWindow->getLength() ?
+	    IODeviceMemory::withSubRange(fWindow, fGFXOffset, kMinkarAMDGFXRegionBytes) : NULL;
+	fGFXMap = region != NULL ? region->map(kIOMapWriteCombineCache) : NULL;
+	OSSafeReleaseNULL(region);
+	if (fGFXMap != NULL) {
+		uint64_t ns = 0;
+		MinkarAMDGFXLoadMicrocode(&fRegs, &code[0], &code[1], &code[2]);
+		fGFXStarted = MinkarAMDGFXStart(&fGFX, &fRegs, fVRAMStart + fGFXOffset,
+		    (volatile uint8_t *)fGFXMap->getVirtualAddress(), NULL) &&
+		    MinkarAMDGFXRingTest(&fGFX, &ns, NULL);
+		if (!fGFXStarted)
+			MinkarAMDGFXStop(&fGFX);
+	}
+	freeMicrocode(file, bytes);
+	if (!fGFXStarted) {
+		LOG("the command processor did not start");
+		OSSafeReleaseNULL(fGFXMap);
+		if (have) {
+			IOLockLock(fVRAMLock);
+			minkar_vram_free(&fVRAM, fGFXOffset, kMinkarAMDGFXRegionBytes);
+			IOLockUnlock(fVRAMLock);
+		}
+		return false;
+	}
+	setProperty("MinkarGFXStarted", true);
+	LOG("the command processor runs clients' command buffers");
+	return true;
+}
+
+IOReturn
+MinkarAMDGPU::runGFX(uint64_t address, uint32_t dwords, uint64_t *ns)
+{
+	if (fDMALock == NULL || fWindow == NULL || fVRAMLock == NULL)
+		return kIOReturnNotReady;
+	IOLockLock(fDMALock);
+	IOReturn err = kIOReturnNotReady;
+	if (startGFX())
+		err = MinkarAMDGFXRunCommands(&fGFX, address, dwords, ns) ?
+		    kIOReturnSuccess : kIOReturnTimeout;
+	IOLockUnlock(fDMALock);
+	return err;
 }
 
 /*
@@ -1009,6 +1103,9 @@ MinkarAMDGPU::free()
 	MinkarAMDFreeVBIOS(fBIOS);
 	if (fDMAStarted)
 		MinkarAMDDMAStop(&fDMA);
+	if (fGFXStarted)
+		MinkarAMDGFXStop(&fGFX);
+	OSSafeReleaseNULL(fGFXMap);
 	stopInterrupts();
 	MinkarAMDGARTDisable(&fGART);
 	OSSafeReleaseNULL(fDMAMap);

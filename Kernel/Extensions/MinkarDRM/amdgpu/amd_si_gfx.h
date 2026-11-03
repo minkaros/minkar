@@ -43,6 +43,7 @@
 /* Register dword indices (gca/gfx_6_0_d.h). */
 #define mmSI_GRBM_STATUS		0x2004
 #define mmSI_CP_STAT			0x21a0
+#define mmSI_CP_COHER_CNTL2		0x217a
 #define mmSI_CP_ME_CNTL			0x21b6
 #define   SI_CP_CE_HALT			(1u << 24)
 #define   SI_CP_PFP_HALT		(1u << 26)
@@ -78,7 +79,9 @@ enum {
 	kSIPacket3SetBase		= 0x11,
 	kSIPacket3WriteData		= 0x37,
 	kSIPacket3IndirectBuffer	= 0x3f,
+	kSIPacket3SurfaceSync		= 0x43,
 	kSIPacket3MEInitialize		= 0x44,
+	kSIPacket3EventWriteEOP		= 0x47,
 	kSIPacket3SetConfigReg		= 0x68,
 };
 #define kSIConfigRegStart		0x2000
@@ -173,6 +176,61 @@ amd_si_gfx_emit_set_config(uint32_t *p, uint32_t reg, uint32_t value)
 	p[1] = reg - kSIConfigRegStart;
 	p[2] = value;
 	return 3;
+}
+
+/*
+ * A fence: the read caches flushed (over the GART too), then, once all
+ * before it is done and the caches are written back, seq written to addr
+ * (32 bits, dword aligned), with an interrupt if asked; 14 dwords.
+ */
+#define kSIFenceDwords		14
+static inline unsigned
+amd_si_gfx_emit_fence(uint32_t *p, uint64_t addr, uint32_t seq, int interrupt)
+{
+	unsigned n = 0;
+	p[n++] = SI_PACKET3(kSIPacket3SetConfigReg, 1);
+	p[n++] = mmSI_CP_COHER_CNTL2 - kSIConfigRegStart;
+	p[n++] = 0;
+	p[n++] = SI_PACKET3(kSIPacket3SurfaceSync, 3);
+	p[n++] = (1u << 22) | (1u << 23) | (1u << 27) | (1u << 29);	/* TCL1, TC, K$, I$ */
+	p[n++] = 0xffffffff;
+	p[n++] = 0;
+	p[n++] = 10;			/* poll interval */
+	p[n++] = SI_PACKET3(kSIPacket3EventWriteEOP, 4);
+	p[n++] = 20 | 5u << 8;		/* CACHE_FLUSH_AND_INV_TS_EVENT, index 5 */
+	p[n++] = (uint32_t)addr & 0xfffffffc;
+	p[n++] = ((uint32_t)(addr >> 32) & 0xffff) | 1u << 29 |	/* 32-bit data */
+	    (interrupt ? 2u << 24 : 0);
+	p[n++] = seq;
+	p[n++] = 0;
+	return n;
+}
+
+/* count dwords written to memory at addr (dword aligned) by the micro
+ * engine, the write confirmed before the next packet; 4 + count dwords. */
+static inline unsigned
+amd_si_gfx_emit_write_data(uint32_t *p, uint64_t addr, const uint32_t *values, unsigned count)
+{
+	unsigned n = 0;
+	p[n++] = SI_PACKET3(kSIPacket3WriteData, 2 + count);
+	p[n++] = 5u << 8 | 1u << 20;	/* memory, direct; confirmed */
+	p[n++] = (uint32_t)addr & 0xfffffffc;
+	p[n++] = (uint32_t)(addr >> 32);
+	for (unsigned i = 0; i < count; i++)
+		p[n++] = values[i];
+	return n;
+}
+
+/* An indirect buffer of dwords at addr (dword aligned) run in vmid's
+ * address space; 4 dwords. */
+static inline unsigned
+amd_si_gfx_emit_ib(uint32_t *p, uint64_t addr, uint32_t dwords, unsigned vmid)
+{
+	p[0] = SI_PACKET3(kSIPacket3IndirectBuffer, 2);
+	p[1] = (uint32_t)addr & 0xfffffffc;
+	p[2] = (uint32_t)(addr >> 32) & 0xffff;
+	p[3] = (dwords & 0xfffff) | (uint32_t)(vmid & 0xf) << 24;
+	return 4;
 }
 
 #endif

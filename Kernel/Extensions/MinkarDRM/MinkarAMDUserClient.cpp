@@ -137,6 +137,7 @@ MinkarAMDUserClient::externalMethod(uint32_t selector, IOExternalMethodArguments
 		{ (IOExternalMethodAction)&sAUX, 5, 0, 6, kIOUCVariableStructureSize },
 		{ (IOExternalMethodAction)&sI2C, 4, 0, 3, 0 },
 		{ (IOExternalMethodAction)&sModeSet, 2, 0, 6, 0 },
+		{ (IOExternalMethodAction)&sSubmitGFX, 3, 0, 1, 0 },
 	};
 
 	(void)dispatch; (void)target;
@@ -216,6 +217,29 @@ MinkarAMDUserClient::sCopy(OSObject *target, void *, IOExternalMethodArguments *
 	uint64_t dst = good ? d->gpu + in[1] : 0, src = good ? s->gpu + in[3] : 0;
 	/* Held over the copy: the buffers cannot go while the engine uses them. */
 	IOReturn err = good ? me->fGPU->copy(dst, src, bytes, &ns) : kIOReturnBadArgument;
+	IOLockUnlock(me->fLock);
+	if (err == kIOReturnSuccess)
+		args->scalarOutput[0] = ns;
+	return err;
+}
+
+/* buffer, offset, dwords: an indirect buffer inside the buffer. */
+IOReturn
+MinkarAMDUserClient::sSubmitGFX(OSObject *target, void *, IOExternalMethodArguments *args)
+{
+	MinkarAMDUserClient *me = (MinkarAMDUserClient *)target;
+	const uint64_t *in = args->scalarInput;
+	uint64_t ns = 0;
+
+	if (clientHasPrivilege(me->fTask, kIOClientPrivilegeAdministrator) != kIOReturnSuccess)
+		return kIOReturnNotPrivileged;
+	IOLockLock(me->fLock);
+	Buffer *b = me->buffer(in[0]);
+	bool good = b != NULL && in[2] > 0 && in[2] <= 0xfffff && (in[1] & 3) == 0 &&
+	    in[1] <= b->size && in[2] * 4 <= b->size - in[1];
+	/* Held over the run: the buffer cannot go while the processor reads it. */
+	IOReturn err = good ? me->fGPU->runGFX(b->gpu + in[1], (uint32_t)in[2], &ns) :
+	    kIOReturnBadArgument;
 	IOLockUnlock(me->fLock);
 	if (err == kIOReturnSuccess)
 		args->scalarOutput[0] = ns;

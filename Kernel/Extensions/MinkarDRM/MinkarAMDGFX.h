@@ -47,19 +47,30 @@ struct MinkarAMDGFX {
 	volatile uint32_t *	ring;		/* and through the VRAM window */
 	uint32_t		ringDwords;
 	uint32_t		wptr;		/* in dwords */
+	volatile uint32_t *	writeBack;	/* [0] the last fence */
+	uint32_t		seq;		/* the last fence emitted */
 };
 
-#define kMinkarAMDGFXRingBytes	(64 * 1024)
+/* The region the processor needs: its ring, then a page for write-back
+ * (fences) and the self-test's indirect buffer. */
+#define kMinkarAMDGFXRingBytes		(64 * 1024)
+#define kMinkarAMDGFXRegionBytes	(kMinkarAMDGFXRingBytes + 4096)
 
 /* Halts the processor and loads its three microcodes. */
 void MinkarAMDGFXLoadMicrocode(struct MinkarAMDRegs *regs, const struct amd_ucode *pfp,
     const struct amd_ucode *me, const struct amd_ucode *ce);
-/* Sets up ring 0 at gpuBase (kMinkarAMDGFXRingBytes, mapped at cpuBase) and
+/* Sets up ring 0 at gpuBase (kMinkarAMDGFXRegionBytes, mapped at cpuBase) and
  * starts the processor on it; false if it does not take its start. */
 bool MinkarAMDGFXStart(struct MinkarAMDGFX *gfx, struct MinkarAMDRegs *regs, uint64_t gpuBase,
     volatile uint8_t *cpuBase, OSDictionary *results);
 /* A scratch register written through the ring; the time it took. */
 bool MinkarAMDGFXRingTest(struct MinkarAMDGFX *gfx, uint64_t *ns, OSDictionary *results);
+/* An indirect buffer at a GPU address (VRAM or the GART) run, then a
+ * fence waited for; the time it took. */
+bool MinkarAMDGFXRunCommands(struct MinkarAMDGFX *gfx, uint64_t address, uint32_t dwords,
+    uint64_t *ns);
+/* An indirect buffer that writes a scratch register, run with its fence. */
+bool MinkarAMDGFXIBTest(struct MinkarAMDGFX *gfx, OSDictionary *results);
 /* Halts the processor. */
 void MinkarAMDGFXStop(struct MinkarAMDGFX *gfx);
 

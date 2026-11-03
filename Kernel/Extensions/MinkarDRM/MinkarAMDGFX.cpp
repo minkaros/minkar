@@ -123,6 +123,26 @@ commit(struct MinkarAMDGFX *g)
 	(void)rd(g->regs, mmSI_CP_RB0_WPTR);
 }
 
+#define kWriteBackOffset	kMinkarAMDGFXRingBytes
+#define kTestIBOffset		(kWriteBackOffset + 256)
+
+/* Room for n more dwords: the processor is waited for when the ring would
+ * catch up with its read pointer. */
+static bool
+room(struct MinkarAMDGFX *g, unsigned n)
+{
+	uint64_t end = nowNS() + kTimeoutNS;
+	for (;;) {
+		uint32_t rptr = rd(g->regs, mmSI_CP_RB0_RPTR) & (g->ringDwords - 1);
+		uint32_t used = (g->wptr - rptr) & (g->ringDwords - 1);
+		if (g->ringDwords - 1 - used >= n)
+			return true;
+		if (nowNS() >= end)
+			return false;
+		IODelay(10);
+	}
+}
+
 static void
 emit(struct MinkarAMDGFX *g, const uint32_t *p, unsigned n)
 {
@@ -156,6 +176,9 @@ MinkarAMDGFXStart(struct MinkarAMDGFX *g, struct MinkarAMDRegs *r, uint64_t gpuB
 	g->ring = (volatile uint32_t *)(uintptr_t)cpuBase;	/* page aligned */
 	g->ringDwords = kMinkarAMDGFXRingBytes / 4;
 	g->wptr = 0;
+	g->writeBack = (volatile uint32_t *)(uintptr_t)(cpuBase + kWriteBackOffset);
+	g->writeBack[0] = 0;
+	g->seq = 0;
 	for (uint32_t i = 0; i < g->ringDwords; i++)
 		g->ring[i] = 0x80000000;	/* type 2 packets: padding */
 	noteState(r, results, "Before");
@@ -195,6 +218,8 @@ MinkarAMDGFXRingTest(struct MinkarAMDGFX *g, uint64_t *ns, OSDictionary *results
 
 	wr(g->regs, mmSI_SCRATCH_REG0, 0xcafedead);
 	uint64_t start = nowNS();
+	if (!room(g, 3))
+		return false;
 	emit(g, p, amd_si_gfx_emit_set_config(p, mmSI_SCRATCH_REG0, 0xdeadbeef));
 	commit(g);
 	uint32_t value = 0;
@@ -214,6 +239,79 @@ MinkarAMDGFXRingTest(struct MinkarAMDGFX *g, uint64_t *ns, OSDictionary *results
 		return false;
 	}
 	return true;
+}
+
+/* The GPU's writes reach what the CPU reads through the window. */
+static void
+invalidateHDP(struct MinkarAMDGFX *g)
+{
+	wr(g->regs, mmSI_HDP_DEBUG0, 1);
+	(void)rd(g->regs, mmSI_HDP_DEBUG0);
+}
+
+/* Fences count up; one is passed when the written value has reached it. */
+static bool
+fenceWait(struct MinkarAMDGFX *g, uint32_t seq)
+{
+	uint64_t end = nowNS() + kTimeoutNS;
+	for (;;) {
+		invalidateHDP(g);
+		if ((int32_t)(g->writeBack[0] - seq) >= 0)
+			return true;
+		if (nowNS() >= end)
+			return false;
+		IODelay(2);
+	}
+}
+
+bool
+MinkarAMDGFXRunCommands(struct MinkarAMDGFX *g, uint64_t address, uint32_t dwords, uint64_t *ns)
+{
+	uint32_t p[kSIFenceDwords + 4];
+	unsigned n;
+
+	if (dwords == 0 || dwords > 0xfffff || (address & 3) != 0)
+		return false;
+	if (!room(g, kSIFenceDwords + 4))
+		return false;
+	uint64_t start = nowNS();
+	n = amd_si_gfx_emit_ib(p, address, dwords, 0);
+	n += amd_si_gfx_emit_fence(p + n, g->gpuBase + kWriteBackOffset, ++g->seq, 0);
+	emit(g, p, n);
+	commit(g);
+	bool ok = fenceWait(g, g->seq);
+	if (ns != NULL)
+		*ns = nowNS() - start;
+	if (!ok)
+		LOG("fence %u not passed (at %u; CP_STAT 0x%08x, GRBM_STATUS 0x%08x, rptr %u, wptr %u)",
+		    g->seq, g->writeBack[0], rd(g->regs, mmSI_CP_STAT), rd(g->regs, mmSI_GRBM_STATUS),
+		    rd(g->regs, mmSI_CP_RB0_RPTR), g->wptr);
+	return ok;
+}
+
+bool
+MinkarAMDGFXIBTest(struct MinkarAMDGFX *g, OSDictionary *results)
+{
+	volatile uint32_t *ib = (volatile uint32_t *)(uintptr_t)((volatile uint8_t *)g->ring +
+	    kTestIBOffset);
+	uint32_t p[4];
+	uint64_t ns = 0;
+
+	wr(g->regs, mmSI_SCRATCH_REG0, 0xcafedead);
+	unsigned n = amd_si_gfx_emit_set_config(p, mmSI_SCRATCH_REG0, 0x600dcafe);
+	for (unsigned i = 0; i < n; i++)
+		ib[i] = p[i];
+	bool fenced = MinkarAMDGFXRunCommands(g, g->gpuBase + kTestIBOffset, n, &ns);
+	uint32_t value = rd(g->regs, mmSI_SCRATCH_REG0);
+	setNumber(results, "IBScratchValue", value, 32);
+	setNumber(results, "IBFenceValue", g->writeBack[0], 32);
+	setNumber(results, "IBTestNanoseconds", ns, 64);
+	bool ok = fenced && value == 0x600dcafe;
+	if (results != NULL)
+		results->setObject("IBPassed", ok ? kOSBooleanTrue : kOSBooleanFalse);
+	if (!ok)
+		LOG("IB test: fence %s, scratch 0x%08x", fenced ? "passed" : "not passed", value);
+	return ok;
 }
 
 void

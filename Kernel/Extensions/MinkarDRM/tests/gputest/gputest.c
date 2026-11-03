@@ -55,6 +55,11 @@
  *					one DDC (I2C) read (hex), for bring-up
  *   minkar-gputest [-g GPU] -s STAGE,INDEX
  *					a mode set through the VBIOS (bring-up)
+ *   minkar-gputest [-g GPU] -c		the graphics command processor: an
+ *					indirect buffer that sets a scratch
+ *					register and writes to VRAM, run with
+ *					its fence, then 100 more timed
+ *					(administrators)
  *   minkar-gputest [-g GPU] -e		whether VRAM mapped from the user
  *					client can be shared as a Mach memory
  *					entry (IOSurfaces in VRAM)
@@ -73,6 +78,7 @@
 #include <sys/wait.h>
 
 #include "MinkarAMDGPUInterface.h"
+#include "amdgpu/amd_si_gfx.h"
 
 static int failures;
 
@@ -222,13 +228,13 @@ int
 main(int argc, char **argv)
 {
 	unsigned gpu = 0, megabytes = 8;
-	int list = 0, entry = 0, vram = 0, c;
+	int list = 0, entry = 0, vram = 0, gfx = 0, c;
 	unsigned childID = 0;
 	int childFD = -1;
 	const char *regs = NULL, *auxSpec = NULL, *i2cSpec = NULL, *modeSpec = NULL;
 	char detail[256];
 
-	while ((c = getopt(argc, argv, "g:m:lr:evV:F:a:i:s:")) != -1)
+	while ((c = getopt(argc, argv, "g:m:lr:evV:F:a:i:s:c")) != -1)
 		switch (c) {
 		case 'g': gpu = (unsigned)strtoul(optarg, NULL, 0); break;
 		case 'm': megabytes = (unsigned)strtoul(optarg, NULL, 0); break;
@@ -238,6 +244,7 @@ main(int argc, char **argv)
 		case 'i': i2cSpec = optarg; break;
 		case 's': modeSpec = optarg; break;
 		case 'e': entry = 1; break;
+		case 'c': gfx = 1; break;
 		case 'v': vram = 1; break;
 		case 'V': childID = (unsigned)strtoul(optarg, NULL, 0); break;
 		case 'F': childFD = (int)strtol(optarg, NULL, 0); break;
@@ -367,6 +374,64 @@ main(int argc, char **argv)
 
 	uint64_t bytes = (uint64_t)megabytes << 20, handle[2] = { 0, 0 }, gpuAddr[2] = { 0, 0 };
 	uint64_t freeWithBuffers = 0;	/* before the gotos: read at out */
+	if (gfx) {
+		/* A VRAM buffer, mapped: an indirect buffer at its start, the
+		 * words it writes 4 KB in. */
+		uint64_t in = 1 << 20, h, gpu;
+		n = 2;
+		kr = IOConnectCallScalarMethod(conn, kMinkarAMDGPUCreateBuffer, &in, 1, out, &n);
+		check(kr == KERN_SUCCESS, "create a 1 MB VRAM buffer", "");
+		if (kr != KERN_SUCCESS)
+			return failures;
+		h = out[0];
+		gpu = out[1];
+		mach_vm_address_t a = 0;
+		mach_vm_size_t as = 0;
+		kr = IOConnectMapMemory64(conn, (uint32_t)h, mach_task_self(), &a, &as, kIOMapAnywhere);
+		check(kr == KERN_SUCCESS, "map it", "");
+		if (kr != KERN_SUCCESS)
+			return failures;
+		volatile uint32_t *p = (volatile uint32_t *)(uintptr_t)a;
+		uint32_t ib[32], values[4] = { 0x0badf00d, 0x1, 0x2, 0xfeedface };
+		unsigned k = amd_si_gfx_emit_set_config(ib, mmSI_SCRATCH_REG0, 0x5ca1ab1e);
+		k += amd_si_gfx_emit_write_data(ib + k, gpu + 4096, values, 4);
+		for (unsigned i = 0; i < k; i++)
+			p[i] = ib[i];
+		for (unsigned i = 0; i < 4; i++)
+			p[1024 + i] = 0;
+		__sync_synchronize();
+		uint64_t sin[3] = { h, 0, k }, ns = 0;
+		uint32_t sn = 1;
+		kr = IOConnectCallScalarMethod(conn, kMinkarAMDGPUSubmitGFX, sin, 3, &ns, &sn);
+		snprintf(detail, sizeof(detail), "0x%x, %llu ns", kr, (unsigned long long)ns);
+		check(kr == KERN_SUCCESS, "the command processor runs it and its fence signals", detail);
+		uint64_t reg = mmSI_SCRATCH_REG0, scratch = 0;
+		n = 1;
+		IOConnectCallScalarMethod(conn, kMinkarAMDGPUReadRegister, &reg, 1, &scratch, &n);
+		snprintf(detail, sizeof(detail), "0x%08llx", (unsigned long long)scratch);
+		check(scratch == 0x5ca1ab1e, "it set the scratch register", detail);
+		snprintf(detail, sizeof(detail), "%08x %08x %08x %08x", p[1024], p[1025], p[1026], p[1027]);
+		check(p[1024] == values[0] && p[1025] == values[1] && p[1026] == values[2] &&
+		    p[1027] == values[3], "it wrote the words to VRAM", detail);
+		/* 100 more, timed: the submission's cost, the fence's wait. */
+		uint64_t total = 0, worst = 0;
+		int bad = 0;
+		for (int i = 0; i < 100; i++) {
+			sn = 1;
+			if (IOConnectCallScalarMethod(conn, kMinkarAMDGPUSubmitGFX, sin, 3, &ns, &sn) !=
+			    KERN_SUCCESS)
+				bad++;
+			total += ns;
+			worst = ns > worst ? ns : worst;
+		}
+		snprintf(detail, sizeof(detail), "mean %llu ns, worst %llu ns",
+		    (unsigned long long)(total / 100), (unsigned long long)worst);
+		check(bad == 0, "100 more, each with its fence", detail);
+		IOConnectUnmapMemory64(conn, (uint32_t)h, mach_task_self(), a);
+		IOConnectCallScalarMethod(conn, kMinkarAMDGPUDestroyBuffer, &h, 1, NULL, NULL);
+		IOServiceClose(conn);
+		return failures;
+	}
 	if (entry) {
 		/* A VRAM buffer, mapped; a memory entry of that mapping, mapped
 		 * again: do both see the same VRAM, the GPU's writes too? */

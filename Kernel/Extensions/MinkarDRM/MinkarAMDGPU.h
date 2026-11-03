@@ -46,6 +46,7 @@
 #include "MinkarAMDDevice.h"
 #include "minkar_vram.h"
 #include "MinkarAMDDMA.h"
+#include "MinkarAMDGFX.h"
 #include "MinkarAMDGART.h"
 
 struct minkar_atom;
@@ -89,6 +90,9 @@ public:
 	IOReturn createShared(uint64_t size, uint32_t *id, uint64_t *offset, uint64_t *rounded);
 	IOReturn retainShared(uint32_t id, uint64_t *offset, uint64_t *size);
 	void releaseShared(uint32_t id);
+	/* An indirect buffer of the graphics command processor at a GPU
+	 * address, run and its fence waited for. */
+	IOReturn runGFX(uint64_t address, uint32_t dwords, uint64_t *ns);
 	/* Into the framebuffer the display shows, at offset. */
 	IOReturn copyToScanout(uint64_t src, uint64_t offset, uint64_t bytes, uint64_t *ns);
 
@@ -97,6 +101,9 @@ private:
 	void startGFXTest(const char *family);
 	static void gfxTestThread(void *gpu, wait_result_t);
 	void gfxSelfTest();
+	bool readMicrocode(uint8_t *file[3], size_t bytes[3], struct amd_ucode code[3]);
+	void freeMicrocode(uint8_t *file[3], size_t bytes[3]);
+	bool startGFX();
 	void gartSelfTest(struct MinkarAMDDMA *dma, IODeviceMemory *window, uint64_t region,
 	    uint64_t vramStart);
 	void setUpVRAM(uint32_t megabytes);
@@ -124,6 +131,10 @@ private:
 	uint64_t		fVRAMStart;	/* VRAM in the GPU's space */
 	IOLock *		fDMALock;	/* one submission at a time */
 	char			fMicrocodePrefix[16];	/* "tahiti", for its files */
+	struct MinkarAMDGFX	fGFX;		/* started at the first submission */
+	bool			fGFXStarted;
+	IOMemoryMap *		fGFXMap;	/* its ring and write-back */
+	uint64_t		fGFXOffset;
 	struct MinkarAMDDMA	fDMA;
 	bool			fDMAStarted;
 	IOMemoryMap *		fDMAMap;	/* its ring and write-back */

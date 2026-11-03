@@ -76,6 +76,14 @@
  *			size); out: result, dividers, the PLL's three
  *			registers, the refresh rate (mHz). Bring-up,
  *			administrators only.
+ *   SubmitGFX		in: buffer, offset, dwords; out: nanoseconds from the
+ *			submission to the fence. The graphics command processor
+ *			runs the PM4 indirect buffer at that offset of the
+ *			buffer (dword aligned, inside it), then the call
+ *			returns once its fence has signalled. Administrators
+ *			only: the buffer runs in the kernel's GPU address
+ *			space and may write any register, until clients have
+ *			address spaces of their own.
  *   ReadRegister	in: dword index; out: its value. For bring-up: the
  *			register window only, reading only (no indexed
  *			registers, which take two writes).
@@ -100,6 +108,7 @@ enum {
 	kMinkarAMDGPUAUXTransaction,
 	kMinkarAMDGPUI2CRead,
 	kMinkarAMDGPUModeSet,
+	kMinkarAMDGPUSubmitGFX,
 	kMinkarAMDGPUMethodCount
 };
 
