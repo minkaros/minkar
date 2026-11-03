@@ -56,8 +56,11 @@ static pthread_mutex_t sLock = PTHREAD_MUTEX_INITIALIZER;
 static CAMetalLayer *sLayers[64];	/* not retained: a layer leaves at dealloc */
 static unsigned sLayerCount;
 
+/* Drawables in the GPU's memory, until the GPU refuses one (no GPU). */
+static BOOL sGPUSurfaces = YES;
+
 static IOSurfaceRef
-newSurface(size_t width, size_t height)
+newSurface(size_t width, size_t height, BOOL gpu)
 {
 	int w = (int)width, h = (int)height, bpe = 4;
 	uint32_t format = 'BGRA';
@@ -65,11 +68,13 @@ newSurface(size_t width, size_t height)
 	CFNumberRef nh = CFNumberCreate(NULL, kCFNumberIntType, &h);
 	CFNumberRef nb = CFNumberCreate(NULL, kCFNumberIntType, &bpe);
 	CFNumberRef nf = CFNumberCreate(NULL, kCFNumberSInt32Type, &format);
+	/* IOSurfaceMinkarGPUMemory: in VRAM, where the window server's
+	 * compositor reads it in place. */
 	const void *keys[] = { kIOSurfaceWidth, kIOSurfaceHeight, kIOSurfaceBytesPerElement,
-	    kIOSurfacePixelFormat };
-	const void *values[] = { nw, nh, nb, nf };
-	CFDictionaryRef props = CFDictionaryCreate(NULL, keys, values, 4, &kCFTypeDictionaryKeyCallBacks,
-	    &kCFTypeDictionaryValueCallBacks);
+	    kIOSurfacePixelFormat, CFSTR("IOSurfaceMinkarGPUMemory") };
+	const void *values[] = { nw, nh, nb, nf, kCFBooleanTrue };
+	CFDictionaryRef props = CFDictionaryCreate(NULL, keys, values, gpu ? 5 : 4,
+	    &kCFTypeDictionaryKeyCallBacks, &kCFTypeDictionaryValueCallBacks);
 	IOSurfaceRef s = IOSurfaceCreate(props);
 	CFRelease(props);
 	CFRelease(nw);
@@ -162,6 +167,12 @@ newSurface(size_t width, size_t height)
 			break;
 		}
 	pthread_mutex_unlock(&sLock);
+	if (_layerWindow != 0)
+		SLSWindowSetLayerIOSurface(_layerWindow, 0, (SLSIntRect){ 0, 0, 0, 0 });
+	if (_shownWindow != 0)
+		SLSWindowSetLayerNotifyPort(_shownWindow, MACH_PORT_NULL);
+	if (_shownPort != MACH_PORT_NULL)
+		mach_port_mod_refs(mach_task_self(), _shownPort, MACH_PORT_RIGHT_RECEIVE, -1);
 	for (CAMetalDrawableMinkar *d in _drawables)
 		[d _detach];
 	[_drawables release];
@@ -257,7 +268,11 @@ newSurface(size_t width, size_t height)
 			_next = 0;
 		}
 		if ([_drawables count] < _maximumDrawableCount) {
-			IOSurfaceRef s = newSurface(w, h);
+			IOSurfaceRef s = sGPUSurfaces ? newSurface(w, h, YES) : NULL;
+			if (s == NULL) {
+				sGPUSurfaces = NO;
+				s = newSurface(w, h, NO);
+			}
 			if (s == NULL)
 				return nil;
 			CAMetalDrawableMinkar *d = [[CAMetalDrawableMinkar alloc] initWithLayer:self surface:s
@@ -265,23 +280,29 @@ newSurface(size_t width, size_t height)
 			[_drawables addObject:d];
 			[d release];
 		}
-		/* Presenting copies the drawable at once, so the next in turn
-		 * is free. */
+		/* The window shows the last one presented; the next in turn is
+		 * free (two at least). */
 		CAMetalDrawableMinkar *d = [_drawables objectAtIndex:_next % [_drawables count]];
 		_next++;
 		return [[d retain] autorelease];
 	}
 }
 
-/* Shows the drawable in the view's rectangle of its window. */
+/*
+ * Shows the drawable in the view's rectangle of its window: as the
+ * window's layer (SLSWindowSetLayerIOSurface), which the compositor draws
+ * over the window from the IOSurface itself, when the drawable is the
+ * rectangle's size; else copied into the window's pixels.
+ */
 - (void)_minkarShow:(CAMetalDrawableMinkar *)drawable
 {
-	uint32_t window;
+	uint32_t window, layerWindow;
 	CGRect rect;
 
 	@synchronized(self) {
 		window = _window;
 		rect = _windowRect;
+		layerWindow = _layerWindow;
 	}
 	IOSurfaceRef s = [drawable _minkarIOSurface];
 	if (window == 0 || s == NULL)
@@ -289,6 +310,34 @@ newSurface(size_t width, size_t height)
 	size_t w = IOSurfaceGetWidth(s), h = IOSurfaceGetHeight(s), rowBytes = IOSurfaceGetBytesPerRow(s);
 	int32_t x = (int32_t)rect.origin.x, y = (int32_t)rect.origin.y;
 	int32_t cw = (int32_t)rect.size.width, ch = (int32_t)rect.size.height;
+	if (cw == (int32_t)w && ch == (int32_t)h && x >= 0 && y >= 0 &&
+	    SLSWindowSetLayerIOSurface(window, IOSurfaceGetID(s), (SLSIntRect){ x, y, cw, ch }) ==
+	    kSLSErrorSuccess) {
+		BOOL tell = NO;
+		mach_port_t port;
+		@synchronized(self) {
+			_layerWindow = window;
+			_awaitingShown = YES;
+			/* The window says when each frame is on the screen. */
+			if (_shownPort == MACH_PORT_NULL &&
+			    mach_port_allocate(mach_task_self(), MACH_PORT_RIGHT_RECEIVE, &_shownPort) !=
+			    KERN_SUCCESS)
+				_shownPort = MACH_PORT_NULL;
+			tell = _shownPort != MACH_PORT_NULL && _shownWindow != window;
+			if (tell)
+				_shownWindow = window;
+			port = _shownPort;
+		}
+		if (tell)
+			SLSWindowSetLayerNotifyPort(window, port);
+		return;
+	}
+	if (layerWindow != 0) {		/* copied from now on: no layer */
+		SLSWindowSetLayerIOSurface(layerWindow, 0, (SLSIntRect){ 0, 0, 0, 0 });
+		@synchronized(self) {
+			_layerWindow = 0;
+		}
+	}
 	if (cw > (int32_t)w)
 		cw = (int32_t)w;
 	if (ch > (int32_t)h)
@@ -305,8 +354,38 @@ newSurface(size_t width, size_t height)
 	IOSurfaceUnlock(s, kIOSurfaceLockReadOnly, NULL);
 }
 
+/*
+ * displaySyncEnabled: one frame on its way at a time. The last one set is
+ * waited for until the server says it is on the screen (after the
+ * display's vertical blank), so presents come at the display's rate.
+ * Without word in 100 ms (the window off the screen) it goes on.
+ */
+- (void)_minkarWaitForShown
+{
+	mach_port_t port;
+	BOOL waiting;
+
+	@synchronized(self) {
+		port = _shownPort;
+		waiting = _awaitingShown && _displaySyncEnabled && _layerWindow != 0;
+		_awaitingShown = NO;
+	}
+	if (!waiting || port == MACH_PORT_NULL)
+		return;
+	struct {
+		SLSLayerShown m;
+		mach_msg_trailer_t trailer;
+	} r;
+	mach_msg_timeout_t timeout = 100;
+	/* The one awaited, and any that came before it. */
+	while (mach_msg(&r.m.header, MACH_RCV_MSG | MACH_RCV_TIMEOUT, 0, sizeof(r), port, timeout,
+	    MACH_PORT_NULL) == MACH_MSG_SUCCESS)
+		timeout = 0;
+}
+
 - (void)_minkarPresentDrawable:(CAMetalDrawableMinkar *)drawable
 {
+	[self _minkarWaitForShown];
 	@synchronized(self) {
 		if (_lastPresented != drawable) {
 			[_lastPresented release];
@@ -318,10 +397,26 @@ newSurface(size_t width, size_t height)
 
 - (void)_minkarSetWindow:(uint32_t)window rect:(CGRect)rect
 {
+	uint32_t oldLayer = 0;
+	BOOL moved;
+	id last;
+
 	@synchronized(self) {
+		moved = window != _window || !CGRectEqualToRect(rect, _windowRect);
+		if (_layerWindow != 0 && _layerWindow != window) {
+			oldLayer = _layerWindow;
+			_layerWindow = 0;
+		}
 		_window = window;
 		_windowRect = rect;
+		last = _layerWindow != 0 && moved ? [_lastPresented retain] : nil;
 	}
+	/* The layer leaves the window it was in, or follows the view. */
+	if (oldLayer != 0)
+		SLSWindowSetLayerIOSurface(oldLayer, 0, (SLSIntRect){ 0, 0, 0, 0 });
+	if (last != nil)
+		[self _minkarShow:last];
+	[last release];
 	pthread_mutex_lock(&sLock);
 	unsigned i;
 	for (i = 0; i < sLayerCount && sLayers[i] != self; i++)
@@ -345,6 +440,9 @@ newSurface(size_t width, size_t height)
 	id last;
 
 	@synchronized(self) {
+		/* As the window's layer it stays over what the window draws. */
+		if (_layerWindow != 0)
+			return;
 		last = [_lastPresented retain];
 	}
 	if (last != nil)

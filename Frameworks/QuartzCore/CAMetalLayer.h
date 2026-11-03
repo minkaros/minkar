@@ -85,6 +85,10 @@ typedef NS_ENUM(NSUInteger, MTLPixelFormat) {
 	id _lastPresented;		/* shown again when the window is redrawn */
 	uint32_t _window;		/* the SkyLight window of the layer's view */
 	CGRect _windowRect;		/* the view's rectangle there, from its top left */
+	uint32_t _layerWindow;		/* the window showing it as its layer, or 0 */
+	uint32_t _shownWindow;		/* the window that tells _shownPort */
+	mach_port_t _shownPort;		/* where the server says a frame is shown */
+	BOOL _awaitingShown;		/* a frame set, not on the screen yet */
 }
 
 @property(retain) id<MTLDevice> device;
