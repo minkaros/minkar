@@ -201,7 +201,8 @@ doc_es = "ROADMAP.es.md#pila-gráfica-componentes-y-secuencia"
 # On the Mac Pro 6,1: G1 done (2026-11-02); G2's gate met, the GPU's clocks
 # (deferred) and DisplayPort link training (no display to test it) left;
 # G3 done (2026-11-03): RADV on Minkar, a triangle in a window, the
-# conformance subset with no failure; G4 (WS6's Vulkan backend) is next.
+# conformance subset with no failure. G4 under way (2026-11-03): the Vulkan
+# backend composes on the Mac Pro (G4.2); zero-copy IOSurfaces next.
 stations = [["G1 KMS", 700, "done"], ["G2 rings", 760, "partial"], ["G3 Mesa", 820, "done"],
   ["G4–G5", 1060, "current"]]
 
@@ -252,12 +253,14 @@ line = "ws"
 
 [[board.now]]
 title = "G4 — the window server on Vulkan"
-note = "WSVulkanBackend, drawables in VRAM without copies, paced by the display"
+note = "WSVulkanBackend composes, frames match pixman's; zero-copy IOSurfaces next"
 line = "gpu"
+done = 2
+total = 6
 
 [[board.now]]
 title = "WS6 — GPU compositing"
-note = "frames presented by the GPU's DMA engine; the Vulkan backend (G4) next"
+note = "frames composed by Vulkan on the Mac Pro (opt-in); zero-copy next"
 line = "ws"
 done = 0
 total = 3
