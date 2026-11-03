@@ -366,7 +366,8 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    while((key=[state nextObject])!=nil){
     id check=[self objectForKey:key];
 
-    if(check==object)
+    /* Equal objects, as the API documents (isEqual:), not the same one. */
+    if(check==object || [check isEqual:object])
      [result addObject:key];
    }
 
