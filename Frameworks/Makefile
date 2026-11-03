@@ -35,7 +35,7 @@ CoreServices: CoreServices/LaunchServices
 SystemConfiguration: CoreFoundation
 DiskArbitration: CoreFoundation
 CoreData: Foundation
-QuartzCore: OpenGL
+QuartzCore: OpenGL IOSurface ../PrivateFrameworks/SkyLight
 AppKit: CoreData QuartzCore
 
 .include <bsd.subdir.mk>
