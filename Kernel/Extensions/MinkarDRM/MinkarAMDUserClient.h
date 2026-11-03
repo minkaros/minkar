@@ -95,6 +95,8 @@ private:
 
 	MinkarAMDGPU *		fGPU;
 	task_t			fTask;		/* the client's, for ImportMemory */
+	bool			fAdministrator;
+	bool			fEntitled;	/* gpu-client, or an administrator */
 	IOLock *		fLock;
 	Buffer			fBuffers[kMinkarAMDGPUMaxBuffers];
 	unsigned		fVMID;		/* its address space's context, or 0 */

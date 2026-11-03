@@ -30,9 +30,11 @@
 /*
  * MinkarAMDGPU's user client (ADR 0002, G2): what a program asks of an AMD
  * GPU through IOServiceOpen and IOConnectCall*. Shared by the driver and
- * its tools; the selectors and their scalars are the interface. For
- * administrators, and for programs signed with the org.minkar.gpu-client
- * entitlement (restricted: in the trust cache only), the window server.
+ * its tools; the selectors and their scalars are the interface. Any
+ * program opens it and works in its own buffers and GPU address space;
+ * the selectors that reach past them say who may use them: administrators,
+ * or programs signed with the org.minkar.gpu-client entitlement
+ * (restricted: in the trust cache only), the window server.
  *
  *   Info		out: VRAM, free VRAM, the CPU's window on it (bytes)
  *   CreateBuffer	in: size; out: buffer (1 and up), its GPU address
@@ -55,7 +57,8 @@
  *   CopyToScanout	in: source buffer and offset, offset into the
  *			framebuffer the display shows, bytes; out: nanoseconds.
  *			The DMA engine copies into the scanout (the window
- *			server's present); the range must lie in it.
+ *			server's present); the range must lie in it. With
+ *			the gpu-client entitlement (or as an administrator).
  *   CreateSharedBuffer	in: size; out: buffer, its GPU address, its global ID.
  *			A VRAM buffer other clients may hold too: its VRAM is
  *			freed when the last holder lets it go (IOSurfaces in
@@ -69,7 +72,8 @@
  *			table read and wrote: pairs of (reg | write << 31, value).
  *   I2CRead		in: DDC line, slave (7-bit), offset, count (<= 16);
  *			out: 0 or a negative errno, the first 8 and next 8
- *			bytes. Writes the offset, then reads. For bring-up.
+ *			bytes. Writes the offset, then reads. For bring-up
+ *			(administrators).
  *   ModeSet		in: stage (0 dividers, 1 PLL, 2 timing, 3 all; 4
  *			what a plug does: the EDID read again, the mode in use
  *			set again), the EDID mode's index (of the current
@@ -97,9 +101,9 @@
  *			one of its mappings) in that space: what it reads and
  *			writes is what the client mapped; anything else faults
  *			to a scratch page.
- *   ReadRegister	in: dword index; out: its value. For bring-up: the
- *			register window only, reading only (no indexed
- *			registers, which take two writes).
+ *   ReadRegister	in: dword index; out: its value. For bring-up
+ *			(administrators): the register window only, reading
+ *			only (no indexed registers, which take two writes).
  *
  * A client's buffers are freed when it closes or exits.
  */
@@ -128,8 +132,8 @@ enum {
 	kMinkarAMDGPUMethodCount
 };
 
-/* The entitlement that opens the user client without administrator
- * rights. */
+/* The entitlement that lets a program present into the display's
+ * framebuffer (CopyToScanout) without administrator rights. */
 #define kMinkarGPUClientEntitlement	"org.minkar.gpu-client"
 
 /* The most buffers a client holds at once. */

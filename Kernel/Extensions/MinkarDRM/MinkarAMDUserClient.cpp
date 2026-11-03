@@ -41,15 +41,17 @@ MinkarAMDUserClient::initWithTask(task_t owningTask, void *securityID, UInt32 ty
 {
 	if (!super::initWithTask(owningTask, securityID, type))
 		return false;
-	/* The GPU's memory and engines: administrators, and programs signed
-	 * with the restricted gpu-client entitlement (the window server). */
-	if (clientHasPrivilege(securityID, kIOClientPrivilegeAdministrator) != kIOReturnSuccess) {
-		OSObject *e = copyClientEntitlement(owningTask, kMinkarGPUClientEntitlement);
-		bool allowed = e == kOSBooleanTrue;
-		OSSafeReleaseNULL(e);
-		if (!allowed)
-			return false;
-	}
+	/* Any program: each works in its own buffers and its own GPU address
+	 * space (the maintainer's choice, 2026-11-03). What reaches past them
+	 * is for administrators (the kernel's GPU space, registers, the
+	 * display's AUX and DDC lines, mode setting), and the display's
+	 * framebuffer for programs signed with the restricted gpu-client
+	 * entitlement (the window server). */
+	fAdministrator = clientHasPrivilege(securityID, kIOClientPrivilegeAdministrator) ==
+	    kIOReturnSuccess;
+	OSObject *e = copyClientEntitlement(owningTask, kMinkarGPUClientEntitlement);
+	fEntitled = fAdministrator || e == kOSBooleanTrue;
+	OSSafeReleaseNULL(e);
 	fTask = owningTask;
 	fLock = IOLockAlloc();
 	return fLock != NULL;
@@ -251,7 +253,7 @@ MinkarAMDUserClient::sSubmitGFX(OSObject *target, void *, IOExternalMethodArgume
 	const uint64_t *in = args->scalarInput;
 	uint64_t ns = 0;
 
-	if (clientHasPrivilege(me->fTask, kIOClientPrivilegeAdministrator) != kIOReturnSuccess)
+	if (!me->fAdministrator)
 		return kIOReturnNotPrivileged;
 	IOLockLock(me->fLock);
 	Buffer *b = me->buffer(in[0]);
@@ -364,6 +366,8 @@ MinkarAMDUserClient::sReadRegister(OSObject *target, void *, IOExternalMethodArg
 	MinkarAMDUserClient *me = (MinkarAMDUserClient *)target;
 	uint32_t value = 0;
 
+	if (!me->fAdministrator)
+		return kIOReturnNotPrivileged;
 	if (args->scalarInput[0] > UINT32_MAX)
 		return kIOReturnBadArgument;
 	IOReturn err = me->fGPU->readWindowRegister((uint32_t)args->scalarInput[0], &value);
@@ -451,6 +455,9 @@ MinkarAMDUserClient::sCopyToScanout(OSObject *target, void *, IOExternalMethodAr
 	const uint64_t *in = args->scalarInput;
 	uint64_t ns = 0;
 
+	if (!me->fEntitled)
+		return kIOReturnNotPrivileged;
+
 	IOLockLock(me->fLock);
 	Buffer *s = me->buffer(in[0]);
 	bool good = s != NULL && in[3] > 0 && in[1] <= s->size && in[3] <= s->size - in[1];
@@ -529,7 +536,7 @@ MinkarAMDUserClient::sAUX(OSObject *target, void *, IOExternalMethodArguments *a
 	MinkarAMDUserClient *me = (MinkarAMDUserClient *)target;
 
 	/* Administrators only: it drives the display's link. */
-	if (clientHasPrivilege(me->fTask, kIOClientPrivilegeAdministrator) != kIOReturnSuccess)
+	if (!me->fAdministrator)
 		return kIOReturnNotPrivileged;
 	uint32_t *trace = (uint32_t *)args->structureOutput;
 	uint32_t bytes = args->structureOutputSize;
@@ -546,7 +553,7 @@ MinkarAMDUserClient::sI2C(OSObject *target, void *, IOExternalMethodArguments *a
 {
 	MinkarAMDUserClient *me = (MinkarAMDUserClient *)target;
 
-	if (clientHasPrivilege(me->fTask, kIOClientPrivilegeAdministrator) != kIOReturnSuccess)
+	if (!me->fAdministrator)
 		return kIOReturnNotPrivileged;
 	return me->fGPU->i2cRead(args->scalarInput, args->scalarOutput);
 }
@@ -556,7 +563,7 @@ MinkarAMDUserClient::sModeSet(OSObject *target, void *, IOExternalMethodArgument
 {
 	MinkarAMDUserClient *me = (MinkarAMDUserClient *)target;
 
-	if (clientHasPrivilege(me->fTask, kIOClientPrivilegeAdministrator) != kIOReturnSuccess)
+	if (!me->fAdministrator)
 		return kIOReturnNotPrivileged;
 	return me->fGPU->modeSet(args->scalarInput, args->scalarOutput);
 }
