@@ -33,7 +33,7 @@
 # "bmake progress" (Docs/CONTRIBUTING.md).
 
 updated = "2026-11-03"
-commit  = "0822411404"
+commit  = "e487b84770"
 
 deps = [["ws", 555, "dock"], ["fw", 535, "kraz"]]
 
@@ -204,7 +204,8 @@ doc_es = "ROADMAP.es.md#pila-gráfica-componentes-y-secuencia"
 # conformance subset with no failure. G4 under way (2026-11-03): the Vulkan
 # backend composes on the Mac Pro (G4.2), IOSurfaces in VRAM without
 # copies (G4.3), page flips at the vertical blank (G4.4), CAMetalLayer's
-# drawables in VRAM, paced by the display (G4.5); measurements (G4.6) next.
+# drawables in VRAM, paced by the display (G4.5); G4 done with G4.6's
+# measurements (Docs/Measurements.md). Next: the GPU's clocks, then G5.
 stations = [["G1 KMS", 700, "done"], ["G2 rings", 760, "partial"], ["G3 Mesa", 820, "done"],
   ["G4–G5", 1060, "current"]]
 
@@ -220,6 +221,16 @@ stations = [["x86-64 apps", 1082, "todo"], ["arm64", 1150, "todo"]]
 # the metro map as where work is.
 [board]
 here = "G4–G5"
+
+[[board.done]]
+title = "G4 done: the window server on Vulkan"
+note = "G4.6 measured: Vulkan apps 14x cheaper, 60 Hz, flips at vblank · 3 nov"
+line = "gpu"
+
+[[board.done]]
+title = "Mac Pro mouse and keyboard"
+note = "xHCI interrupt intervals per speed; works through a KVM · 3 nov"
+line = "ws"
 
 [[board.done]]
 title = "G4.5: Vulkan apps' frames stay in VRAM"
@@ -241,30 +252,18 @@ title = "G4.2–G4.3: the compositor on Vulkan"
 note = "compute shaders, frames as pixman's bit for bit, IOSurfaces read in place · 3 nov"
 line = "gpu"
 
-[[board.done]]
-title = "G3 done: Vulkan on the D500s"
-note = "RADV, a triangle in a window, conformance subset 1,887/1,992, 0 failed · 3 nov"
-line = "gpu"
-
-[[board.done]]
-title = "G2 on the Mac Pro: rings, GART, clients' spaces"
-note = "DMA and GFX rings, fences, IOSurfaces in VRAM, a GPU space per program · 3 nov"
-line = "gpu"
-
 
 
 [[board.now]]
-title = "G4 — the window server on Vulkan"
-note = "Vulkan composes, zero-copy IOSurfaces, flips at vblank, drawables in VRAM; G4.6 measurements next"
-line = "gpu"
-done = 5
-total = 6
+title = "Mac Pro: shutdown hang, EDID native mode, USB MSI"
+note = "the display's own size when the firmware booted smaller; then Phase 4's loose ends"
+line = "ws"
 
 [[board.now]]
 title = "WS6 — GPU compositing"
-note = "Vulkan compositing on the Mac Pro (opt-in), page flips, Vulkan apps in VRAM"
+note = "Vulkan compositing (opt-in), flips, Vulkan apps in VRAM; the performance gate left"
 line = "ws"
-done = 0
+done = 2
 total = 3
 
 [[board.now]]
@@ -290,8 +289,8 @@ note = "swiftc, libswiftCore → M3"
 line = "fw"
 
 [[board.next]]
-title = "G2 leftovers"
-note = "GPU clocks (deferred), DisplayPort link training (needs a DP display)"
+title = "The GPU's clocks (si_dpm and the SMC)"
+note = "this weekend; then G4.6's measurements again · DisplayPort link training waits"
 line = "gpu"
 
 [[board.later]]
