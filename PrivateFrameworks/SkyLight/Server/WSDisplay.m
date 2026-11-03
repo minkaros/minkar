@@ -30,6 +30,7 @@
 #include <IOKit/graphics/IOGraphicsTypes.h>
 #include <math.h>
 #include <stdio.h>
+#include <unistd.h>
 #import "WSDisplay.h"
 #include "MinkarAMDGPUInterface.h"
 
@@ -155,7 +156,14 @@ displayInfoNumber(io_service_t framebuffer, CFStringRef key)
 	_displayID = displayIDForService(service);
 	_menuBarHeight = kSLSMenuBarHeight;
 
+	/* The framebuffer takes one server at a time: a window server that
+	 * just quit may still hold it for a moment (launchd starts the next
+	 * one at once), so it is asked again for a few seconds. */
 	kr = IOServiceOpen(service, mach_task_self(), kIOFBServerConnectType, &_connect);
+	for (int tries = 0; kr == kIOReturnUnsupported && tries < 50; tries++) {
+		usleep(100000);
+		kr = IOServiceOpen(service, mach_task_self(), kIOFBServerConnectType, &_connect);
+	}
 	if (kr != KERN_SUCCESS) {
 		fprintf(stderr, "WindowServer: framebuffer 0x%x: no server connection (0x%x)\n",
 		    _displayID, kr);
