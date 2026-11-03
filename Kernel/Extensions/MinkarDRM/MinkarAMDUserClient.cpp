@@ -278,8 +278,7 @@ MinkarAMDUserClient::sMapBuffer(OSObject *target, void *, IOExternalMethodArgume
 	IOLockLock(me->fLock);
 	Buffer *b = me->buffer(in[0]);
 	uint64_t va = in[1];
-	/* VRAM buffers only, so far (not system or imported memory). */
-	if (b == NULL || b->system != NULL || b->imported != NULL || !si_vm_range_ok(va, b->size))
+	if (b == NULL || !si_vm_range_ok(va, b->size))
 		err = kIOReturnBadArgument;
 	Mapping *slot = NULL;
 	for (unsigned i = 0; err == kIOReturnSuccess && i < kMinkarAMDGPUMaxMappings; i++) {
@@ -294,8 +293,12 @@ MinkarAMDUserClient::sMapBuffer(OSObject *target, void *, IOExternalMethodArgume
 		err = kIOReturnNoResources;
 	if (err == kIOReturnSuccess && me->fVMID == 0)
 		err = me->fGPU->createVM(&me->fVMID);
+	/* System and imported buffers by their pages; VRAM ones (shared ones
+	 * too) by their offset. */
 	if (err == kIOReturnSuccess)
-		err = me->fGPU->vmMapVRAM(me->fVMID, va, b->offset, b->size);
+		err = b->system != NULL ? me->fGPU->vmMapSystem(me->fVMID, va, b->system, b->size) :
+		    b->imported != NULL ? me->fGPU->vmMapSystem(me->fVMID, va, b->imported, b->size) :
+		    me->fGPU->vmMapVRAM(me->fVMID, va, b->offset, b->size);
 	if (err == kIOReturnSuccess) {
 		slot->va = va;
 		slot->bytes = b->size;

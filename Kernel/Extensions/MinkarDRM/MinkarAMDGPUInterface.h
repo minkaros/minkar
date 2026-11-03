@@ -84,11 +84,11 @@
  *			only: the buffer runs in the kernel's GPU address
  *			space and may write any register, until clients have
  *			address spaces of their own.
- *   MapBuffer		in: buffer, address. The whole of a VRAM buffer at that
- *			address (page aligned) of the client's own GPU address
- *			space (64 GB, made at the first mapping; with the GART
- *			on); mappings do not overlap. A buffer's mappings go
- *			with it.
+ *   MapBuffer		in: buffer, address. The whole of a buffer (VRAM, system
+ *			or imported memory) at that address (page aligned) of
+ *			the client's own GPU address space (64 GB, made at the
+ *			first mapping; with the GART on); mappings do not
+ *			overlap. A buffer's mappings go with it.
  *   UnmapBuffer	in: the address a mapping starts at.
  *   SubmitGFXVM	in: address, dwords; out: nanoseconds, the protection
  *			fault status (0: it touched only what the client maps).

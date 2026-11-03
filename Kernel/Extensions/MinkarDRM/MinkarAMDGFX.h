@@ -72,6 +72,10 @@ bool MinkarAMDGFXRunCommands(struct MinkarAMDGFX *gfx, uint64_t address, uint32_
     unsigned vmid, uint64_t *ns);
 /* An indirect buffer that writes a scratch register, run with its fence. */
 bool MinkarAMDGFXIBTest(struct MinkarAMDGFX *gfx, OSDictionary *results);
+/* After a command buffer that did not finish: the processor halted and
+ * the graphics block reset (CP and the GFX pipeline); it starts again
+ * with MinkarAMDGFXLoadMicrocode and MinkarAMDGFXStart. */
+void MinkarAMDGFXReset(struct MinkarAMDRegs *regs);
 /* Halts the processor. */
 void MinkarAMDGFXStop(struct MinkarAMDGFX *gfx);
 

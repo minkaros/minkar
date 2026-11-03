@@ -316,6 +316,22 @@ MinkarAMDGFXIBTest(struct MinkarAMDGFX *g, OSDictionary *results)
 }
 
 void
+MinkarAMDGFXReset(struct MinkarAMDRegs *r)
+{
+	const uint32_t mask = SI_SOFT_RESET_CP | SI_SOFT_RESET_GFX | SI_SOFT_RESET_CPF |
+	    SI_SOFT_RESET_CPC | SI_SOFT_RESET_CPG;
+
+	enable(r, false);
+	wr(r, mmSI_GRBM_SOFT_RESET, rd(r, mmSI_GRBM_SOFT_RESET) | mask);
+	(void)rd(r, mmSI_GRBM_SOFT_RESET);
+	IODelay(50);
+	wr(r, mmSI_GRBM_SOFT_RESET, rd(r, mmSI_GRBM_SOFT_RESET) & ~mask);
+	(void)rd(r, mmSI_GRBM_SOFT_RESET);
+	IODelay(50);
+	LOG("reset: GRBM_STATUS 0x%08x, CP_STAT 0x%08x", rd(r, mmSI_GRBM_STATUS), rd(r, mmSI_CP_STAT));
+}
+
+void
 MinkarAMDGFXStop(struct MinkarAMDGFX *g)
 {
 	enable(g->regs, false);

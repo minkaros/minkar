@@ -42,6 +42,12 @@
 
 /* Register dword indices (gca/gfx_6_0_d.h). */
 #define mmSI_GRBM_STATUS		0x2004
+#define mmSI_GRBM_SOFT_RESET		0x2008
+#define   SI_SOFT_RESET_CP		(1u << 0)
+#define   SI_SOFT_RESET_GFX		(1u << 16)
+#define   SI_SOFT_RESET_CPF		(1u << 17)
+#define   SI_SOFT_RESET_CPC		(1u << 18)
+#define   SI_SOFT_RESET_CPG		(1u << 19)
 #define mmSI_CP_STAT			0x21a0
 #define mmSI_CP_COHER_CNTL2		0x217a
 #define mmSI_CP_ME_CNTL			0x21b6
@@ -78,6 +84,7 @@ enum {
 	kSIPacket3NOP			= 0x10,
 	kSIPacket3SetBase		= 0x11,
 	kSIPacket3WriteData		= 0x37,
+	kSIPacket3WaitRegMem		= 0x3c,
 	kSIPacket3IndirectBuffer	= 0x3f,
 	kSIPacket3SurfaceSync		= 0x43,
 	kSIPacket3MEInitialize		= 0x44,
@@ -219,6 +226,21 @@ amd_si_gfx_emit_write_data(uint32_t *p, uint64_t addr, const uint32_t *values, u
 	for (unsigned i = 0; i < count; i++)
 		p[n++] = values[i];
 	return n;
+}
+
+/* A wait, by the micro engine, until the dword at addr (dword aligned)
+ * masked equals ref; 7 dwords. */
+static inline unsigned
+amd_si_gfx_emit_wait_mem(uint32_t *p, uint64_t addr, uint32_t ref, uint32_t mask)
+{
+	p[0] = SI_PACKET3(kSIPacket3WaitRegMem, 5);
+	p[1] = 3u << 0 | 1u << 4;	/* equal; memory; the micro engine */
+	p[2] = (uint32_t)addr & 0xfffffffc;
+	p[3] = (uint32_t)(addr >> 32);
+	p[4] = ref;
+	p[5] = mask;
+	p[6] = 4;			/* poll interval */
+	return 7;
 }
 
 /* An indirect buffer of dwords at addr (dword aligned) run in vmid's

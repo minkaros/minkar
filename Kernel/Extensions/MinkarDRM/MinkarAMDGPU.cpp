@@ -980,6 +980,23 @@ MinkarAMDGPU::startGFX()
 	return true;
 }
 
+/* Called locked. */
+void
+MinkarAMDGPU::resetGFX()
+{
+	MinkarAMDGFXReset(&fRegs);
+	fGFXStarted = false;
+	OSSafeReleaseNULL(fGFXMap);
+	IOLockLock(fVRAMLock);
+	minkar_vram_free(&fVRAM, fGFXOffset, kMinkarAMDGFXRegionBytes);
+	IOLockUnlock(fVRAMLock);
+	fGFXResets++;
+	setProperty("MinkarGFXStarted", false);
+	setProperty("MinkarGFXResets", fGFXResets, 32);
+	LOG("a command buffer did not finish: the command processor was reset (%u so far)",
+	    fGFXResets);
+}
+
 IOReturn
 MinkarAMDGPU::runGFX(uint64_t address, uint32_t dwords, unsigned vmid, uint64_t *ns,
     uint32_t *fault)
@@ -993,6 +1010,10 @@ MinkarAMDGPU::runGFX(uint64_t address, uint32_t dwords, unsigned vmid, uint64_t 
 	else if (startGFX()) {
 		err = MinkarAMDGFXRunCommands(&fGFX, address, dwords, vmid, ns) ?
 		    kIOReturnSuccess : kIOReturnTimeout;
+		/* A command buffer that never finished: the processor reset
+		 * and stopped; the next submission starts it again. */
+		if (err == kIOReturnTimeout)
+			resetGFX();
 		/* A client's stray access: said, and cleared for the next. */
 		uint32_t status = vmid != 0 ? readReg(mmSI_VM_CONTEXT1_PROTECTION_FAULT_STATUS) : 0;
 		if (status != 0) {
@@ -1101,8 +1122,26 @@ MinkarAMDGPU::destroyVM(unsigned vmid)
 IOReturn
 MinkarAMDGPU::vmMapVRAM(unsigned vmid, uint64_t va, uint64_t offset, uint64_t bytes)
 {
-	if (vmid == 0 || vmid >= kSIVMContexts || !si_vm_range_ok(va, bytes) ||
-	    (offset & (kSIGPUPage - 1)) != 0)
+	if ((offset & (kSIGPUPage - 1)) != 0)
+		return kIOReturnBadArgument;
+	return vmMap(vmid, va, bytes, offset, NULL);
+}
+
+/* Prepared (wired) system memory, bytes of it from its start, at va. */
+IOReturn
+MinkarAMDGPU::vmMapSystem(unsigned vmid, uint64_t va, IOMemoryDescriptor *memory, uint64_t bytes)
+{
+	if (memory == NULL || bytes > memory->getLength())
+		return kIOReturnBadArgument;
+	return vmMap(vmid, va, bytes, 0, memory);
+}
+
+/* Pages at va: VRAM from offset, or memory's pages when it is given. */
+IOReturn
+MinkarAMDGPU::vmMap(unsigned vmid, uint64_t va, uint64_t bytes, uint64_t offset,
+    IOMemoryDescriptor *memory)
+{
+	if (vmid == 0 || vmid >= kSIVMContexts || !si_vm_range_ok(va, bytes))
 		return kIOReturnBadArgument;
 	IOLockLock(fDMALock);
 	uint64_t pd = fVMDirectory[vmid];
@@ -1133,8 +1172,20 @@ MinkarAMDGPU::vmMapVRAM(unsigned vmid, uint64_t va, uint64_t offset, uint64_t by
 			table = fVRAMStart + pt;
 			dir[d] = si_vm_pde(table);
 		}
+		uint64_t pte;
+		if (memory != NULL) {
+			IOByteCount segment = 0;
+			addr64_t phys = memory->getPhysicalSegment((IOByteCount)done, &segment,
+			    kIOMemoryMapperNone);
+			if (phys == 0 || (phys & (kSIGPUPage - 1)) != 0) {
+				err = kIOReturnVMError;
+				break;
+			}
+			pte = si_vm_pte_system(phys);
+		} else
+			pte = si_vm_pte_vram(offset + done);
 		volatile uint64_t *ptes = vramPointer(table - fVRAMStart, kSIVMPTBytes);
-		ptes[t] = si_vm_pte_vram(offset + done);
+		ptes[t] = pte;
 	}
 	if (dir != NULL)
 		vmFlush(vmid);

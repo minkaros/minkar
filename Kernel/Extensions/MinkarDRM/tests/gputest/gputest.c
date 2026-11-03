@@ -66,6 +66,13 @@
  *					write to an address it does not map
  *					faults and leaves another buffer
  *					alone; unmapped, the address faults
+ *   minkar-gputest [-g GPU] -p		whether the hardware keeps a client's
+ *					command buffer (in its own space)
+ *					from writing registers: a scratch
+ *					register through SET_CONFIG_REG, a
+ *					memory controller register through
+ *					WRITE_DATA (put back after); reports
+ *					what changed (administrators)
  *   minkar-gputest [-g GPU] -e		whether VRAM mapped from the user
  *					client can be shared as a Mach memory
  *					entry (IOSurfaces in VRAM)
@@ -234,13 +241,13 @@ int
 main(int argc, char **argv)
 {
 	unsigned gpu = 0, megabytes = 8;
-	int list = 0, entry = 0, vram = 0, gfx = 0, vm = 0, c;
+	int list = 0, entry = 0, vram = 0, gfx = 0, vm = 0, priv = 0, c;
 	unsigned childID = 0;
 	int childFD = -1;
 	const char *regs = NULL, *auxSpec = NULL, *i2cSpec = NULL, *modeSpec = NULL;
 	char detail[256];
 
-	while ((c = getopt(argc, argv, "g:m:lr:evV:F:a:i:s:cu")) != -1)
+	while ((c = getopt(argc, argv, "g:m:lr:evV:F:a:i:s:cup")) != -1)
 		switch (c) {
 		case 'g': gpu = (unsigned)strtoul(optarg, NULL, 0); break;
 		case 'm': megabytes = (unsigned)strtoul(optarg, NULL, 0); break;
@@ -252,6 +259,7 @@ main(int argc, char **argv)
 		case 'e': entry = 1; break;
 		case 'c': gfx = 1; break;
 		case 'u': vm = 1; break;
+		case 'p': priv = 1; break;
 		case 'v': vram = 1; break;
 		case 'V': childID = (unsigned)strtoul(optarg, NULL, 0); break;
 		case 'F': childFD = (int)strtol(optarg, NULL, 0); break;
@@ -381,6 +389,92 @@ main(int argc, char **argv)
 
 	uint64_t bytes = (uint64_t)megabytes << 20, handle[2] = { 0, 0 }, gpuAddr[2] = { 0, 0 };
 	uint64_t freeWithBuffers = 0;	/* before the gotos: read at out */
+	if (priv) {
+		/* One VRAM buffer, mapped at 1 MB of the client's space; its
+		 * command buffers try two registers. */
+		const uint32_t scratch = 0x2141;	/* SCRATCH_REG1 */
+		const uint32_t mcReg = 0x0547;		/* VM_CONTEXT1_PROTECTION_FAULT_DEFAULT_ADDR */
+		uint64_t in = 1 << 20, h, gpu, va = 1 << 20;
+		n = 2;
+		kr = IOConnectCallScalarMethod(conn, kMinkarAMDGPUCreateBuffer, &in, 1, out, &n);
+		h = out[0];
+		gpu = out[1];
+		mach_vm_address_t a = 0;
+		mach_vm_size_t as = 0;
+		if (kr == KERN_SUCCESS)
+			kr = IOConnectMapMemory64(conn, (uint32_t)h, mach_task_self(), &a, &as, kIOMapAnywhere);
+		uint64_t min[2] = { h, va };
+		if (kr == KERN_SUCCESS)
+			kr = IOConnectCallScalarMethod(conn, kMinkarAMDGPUMapBuffer, min, 2, NULL, NULL);
+		check(kr == KERN_SUCCESS, "a buffer in the client's space", "");
+		if (kr != KERN_SUCCESS)
+			return failures;
+		volatile uint32_t *p = (volatile uint32_t *)(uintptr_t)a;
+		uint64_t reg, before[2], after[2];
+		n = 1;
+		reg = scratch;
+		IOConnectCallScalarMethod(conn, kMinkarAMDGPUReadRegister, &reg, 1, &before[0], &n);
+		n = 1;
+		reg = mcReg;
+		IOConnectCallScalarMethod(conn, kMinkarAMDGPUReadRegister, &reg, 1, &before[1], &n);
+
+		/* The client's: SET_CONFIG_REG to the scratch register, then
+		 * WRITE_DATA (to a register) to the memory controller's. */
+		uint32_t ib[16];
+		unsigned k = amd_si_gfx_emit_set_config(ib, scratch, (uint32_t)before[0] ^ 0x5a5a5a5a);
+		ib[k++] = SI_PACKET3(kSIPacket3WriteData, 3);
+		ib[k++] = 0u << 8 | 1u << 20;	/* a register; confirmed */
+		ib[k++] = mcReg;
+		ib[k++] = 0;
+		ib[k++] = (uint32_t)before[1] ^ 0x1;
+		for (unsigned i = 0; i < k; i++)
+			p[i] = ib[i];
+		__sync_synchronize();
+		uint64_t sin[2] = { va, k }, sout[2] = { 0, 0 };
+		uint32_t sn = 2;
+		kr = IOConnectCallScalarMethod(conn, kMinkarAMDGPUSubmitGFXVM, sin, 2, sout, &sn);
+		snprintf(detail, sizeof(detail), "0x%x, fault 0x%llx", kr, (unsigned long long)sout[1]);
+		check(kr == KERN_SUCCESS, "the client's command buffer ran", detail);
+		n = 1;
+		reg = scratch;
+		IOConnectCallScalarMethod(conn, kMinkarAMDGPUReadRegister, &reg, 1, &after[0], &n);
+		n = 1;
+		reg = mcReg;
+		IOConnectCallScalarMethod(conn, kMinkarAMDGPUReadRegister, &reg, 1, &after[1], &n);
+		printf("info scratch (SET_CONFIG_REG) 0x%08llx -> 0x%08llx: %s\n",
+		    (unsigned long long)before[0], (unsigned long long)after[0],
+		    after[0] != before[0] ? "written" : "kept");
+		printf("info memory controller (WRITE_DATA) 0x%08llx -> 0x%08llx: %s\n",
+		    (unsigned long long)before[1], (unsigned long long)after[1],
+		    after[1] != before[1] ? "written" : "kept");
+
+		/* Put the memory controller's register back, from the kernel's
+		 * space (SubmitGFX), and check. */
+		if (after[1] != before[1]) {
+			k = 0;
+			ib[k++] = SI_PACKET3(kSIPacket3WriteData, 3);
+			ib[k++] = 0u << 8 | 1u << 20;
+			ib[k++] = mcReg;
+			ib[k++] = 0;
+			ib[k++] = (uint32_t)before[1];
+			for (unsigned i = 0; i < k; i++)
+				p[512 + i] = ib[i];
+			__sync_synchronize();
+			uint64_t kin[3] = { h, 2048, k }, ns = 0;
+			sn = 1;
+			IOConnectCallScalarMethod(conn, kMinkarAMDGPUSubmitGFX, kin, 3, &ns, &sn);
+			n = 1;
+			IOConnectCallScalarMethod(conn, kMinkarAMDGPUReadRegister, &reg, 1, &after[1], &n);
+			snprintf(detail, sizeof(detail), "0x%08llx", (unsigned long long)after[1]);
+			check(after[1] == before[1], "the memory controller's register put back", detail);
+		}
+		IOConnectCallScalarMethod(conn, kMinkarAMDGPUUnmapBuffer, &min[1], 1, NULL, NULL);
+		IOConnectUnmapMemory64(conn, (uint32_t)h, mach_task_self(), a);
+		IOConnectCallScalarMethod(conn, kMinkarAMDGPUDestroyBuffer, &h, 1, NULL, NULL);
+		IOServiceClose(conn);
+		(void)gpu;
+		return failures;
+	}
 	if (vm) {
 		/* Two VRAM buffers: A mapped in the client's address space at
 		 * 1 MB, B not (its VRAM is another's, as far as A knows). */
@@ -433,6 +527,67 @@ main(int argc, char **argv)
 		check(pa[1024] == values[0] && pa[1027] == values[3],
 		    "it wrote through the client's addresses into A", detail);
 
+		/* System memory in the client's space: a system buffer at 16 MB
+		 * and the client's own pages, imported, at 32 MB; A's
+		 * indirect buffer writes to both. */
+		uint64_t one = 4096, hs = 0, hi = 0;
+		n = 2;
+		kr = IOConnectCallScalarMethod(conn, kMinkarAMDGPUCreateSystemBuffer, &one, 1, out, &n);
+		hs = out[0];
+		mach_vm_address_t sa = 0;
+		mach_vm_size_t ss = 0;
+		if (kr == KERN_SUCCESS)
+			kr = IOConnectMapMemory64(conn, (uint32_t)hs, mach_task_self(), &sa, &ss,
+			    kIOMapAnywhere);
+		volatile uint32_t *ps = (volatile uint32_t *)(uintptr_t)sa;
+		void *own = NULL;
+		if (kr == KERN_SUCCESS && posix_memalign(&own, 4096, 4096) != 0)
+			kr = KERN_NO_SPACE;
+		volatile uint32_t *po = (volatile uint32_t *)own;
+		uint64_t imp[2] = { (uint64_t)(uintptr_t)own, 4096 };
+		n = 2;
+		if (kr == KERN_SUCCESS) {
+			po[0] = po[1] = 0;
+			kr = IOConnectCallScalarMethod(conn, kMinkarAMDGPUImportMemory, imp, 2, out, &n);
+		}
+		hi = out[0];
+		snprintf(detail, sizeof(detail), "0x%x", kr);
+		check(kr == KERN_SUCCESS, "a system buffer and the client's own memory, imported", detail);
+		uint64_t ms[2] = { hs, 16ull << 20 }, mi[2] = { hi, 32ull << 20 };
+		if (kr == KERN_SUCCESS)
+			kr = IOConnectCallScalarMethod(conn, kMinkarAMDGPUMapBuffer, ms, 2, NULL, NULL);
+		if (kr == KERN_SUCCESS)
+			kr = IOConnectCallScalarMethod(conn, kMinkarAMDGPUMapBuffer, mi, 2, NULL, NULL);
+		snprintf(detail, sizeof(detail), "0x%x", kr);
+		check(kr == KERN_SUCCESS, "both mapped in the client's space, at 16 MB and 32 MB", detail);
+		if (kr == KERN_SUCCESS) {
+			uint32_t sv[2] = { 0x5157e3ee, 0x0000c0de }, iv[2] = { 0x1d0d0000, 0x00000042 };
+			ps[0] = ps[1] = 0;
+			k = amd_si_gfx_emit_write_data(ib, 16ull << 20, sv, 2);
+			k += amd_si_gfx_emit_write_data(ib + k, 32ull << 20, iv, 2);
+			for (unsigned i = 0; i < k; i++)
+				pa[i] = ib[i];
+			__sync_synchronize();
+			sin[1] = k;
+			sn = 2;
+			kr = IOConnectCallScalarMethod(conn, kMinkarAMDGPUSubmitGFXVM, sin, 2, sout, &sn);
+			snprintf(detail, sizeof(detail), "0x%x, fault 0x%llx", kr, (unsigned long long)sout[1]);
+			check(kr == KERN_SUCCESS && sout[1] == 0, "a command buffer writes to both, no fault",
+			    detail);
+			__sync_synchronize();
+			snprintf(detail, sizeof(detail), "%08x %08x", ps[0], ps[1]);
+			check(ps[0] == sv[0] && ps[1] == sv[1], "the system buffer has the words", detail);
+			snprintf(detail, sizeof(detail), "%08x %08x", po[0], po[1]);
+			check(po[0] == iv[0] && po[1] == iv[1], "and so does the client's own memory", detail);
+		}
+		if (hs != 0) {
+			IOConnectUnmapMemory64(conn, (uint32_t)hs, mach_task_self(), sa);
+			IOConnectCallScalarMethod(conn, kMinkarAMDGPUDestroyBuffer, &hs, 1, NULL, NULL);
+		}
+		if (hi != 0)
+			IOConnectCallScalarMethod(conn, kMinkarAMDGPUDestroyBuffer, &hi, 1, NULL, NULL);
+		free(own);
+
 		/* B's VRAM, by its kernel-space address, from A's space: not
 		 * there for the client; a fault, and B as it was. */
 		for (unsigned i = 0; i < 4; i++)
@@ -441,6 +596,7 @@ main(int argc, char **argv)
 		k = amd_si_gfx_emit_write_data(ib, gpuB, values, 4);
 		for (unsigned i = 0; i < k; i++)
 			pa[i] = ib[i];
+		sin[1] = k;
 		__sync_synchronize();
 		sn = 2;
 		kr = IOConnectCallScalarMethod(conn, kMinkarAMDGPUSubmitGFXVM, sin, 2, sout, &sn);
@@ -453,6 +609,7 @@ main(int argc, char **argv)
 		k = amd_si_gfx_emit_write_data(ib, 64ull << 20, values, 4);
 		for (unsigned i = 0; i < k; i++)
 			pa[i] = ib[i];
+		sin[1] = k;
 		__sync_synchronize();
 		sn = 2;
 		kr = IOConnectCallScalarMethod(conn, kMinkarAMDGPUSubmitGFXVM, sin, 2, sout, &sn);
@@ -464,6 +621,7 @@ main(int argc, char **argv)
 		k = amd_si_gfx_emit_write_data(ib, va + 4096, values, 4);
 		for (unsigned i = 0; i < k; i++)
 			pa[i] = ib[i];
+		sin[1] = k;
 		__sync_synchronize();
 		uint64_t total = 0, worst = 0;
 		int bad = 0;
@@ -478,6 +636,32 @@ main(int argc, char **argv)
 		snprintf(detail, sizeof(detail), "mean %llu ns, worst %llu ns",
 		    (unsigned long long)(total / 100), (unsigned long long)worst);
 		check(bad == 0, "100 more in the client's space, no fault", detail);
+
+		/* A command buffer that never finishes (it waits for a value
+		 * A will not hold): the submission times out, the processor
+		 * is reset, and the next one runs. */
+		pa[1024 + 8] = 0;
+		k = amd_si_gfx_emit_wait_mem(ib, va + 4096 + 32, 0xdeadbeef, 0xffffffff);
+		for (unsigned i = 0; i < k; i++)
+			pa[i] = ib[i];
+		__sync_synchronize();
+		sin[1] = k;
+		sn = 2;
+		kr = IOConnectCallScalarMethod(conn, kMinkarAMDGPUSubmitGFXVM, sin, 2, sout, &sn);
+		snprintf(detail, sizeof(detail), "0x%x", kr);
+		check(kr != KERN_SUCCESS, "a command buffer that never finishes times out", detail);
+		k = amd_si_gfx_emit_write_data(ib, va + 4096, values, 4);
+		for (unsigned i = 0; i < k; i++)
+			pa[i] = ib[i];
+		for (unsigned i = 0; i < 4; i++)
+			pa[1024 + i] = 0;
+		__sync_synchronize();
+		sin[1] = k;
+		sn = 2;
+		kr = IOConnectCallScalarMethod(conn, kMinkarAMDGPUSubmitGFXVM, sin, 2, sout, &sn);
+		snprintf(detail, sizeof(detail), "0x%x, %08x", kr, pa[1024]);
+		check(kr == KERN_SUCCESS && pa[1024] == values[0],
+		    "the processor is reset and the next one runs", detail);
 
 		/* Unmapped: running from it is refused. */
 		kr = IOConnectCallScalarMethod(conn, kMinkarAMDGPUUnmapBuffer, &min[1], 1, NULL, NULL);

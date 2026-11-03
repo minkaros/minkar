@@ -99,6 +99,7 @@ public:
 	IOReturn createVM(unsigned *vmid);
 	void destroyVM(unsigned vmid);
 	IOReturn vmMapVRAM(unsigned vmid, uint64_t va, uint64_t offset, uint64_t bytes);
+	IOReturn vmMapSystem(unsigned vmid, uint64_t va, IOMemoryDescriptor *memory, uint64_t bytes);
 	void vmUnmap(unsigned vmid, uint64_t va, uint64_t bytes);
 	/* Into the framebuffer the display shows, at offset. */
 	IOReturn copyToScanout(uint64_t src, uint64_t offset, uint64_t bytes, uint64_t *ns);
@@ -111,8 +112,11 @@ private:
 	bool readMicrocode(uint8_t *file[3], size_t bytes[3], struct amd_ucode code[3]);
 	void freeMicrocode(uint8_t *file[3], size_t bytes[3]);
 	bool startGFX();
+	void resetGFX();
 	volatile uint64_t *vramPointer(uint64_t offset, uint64_t bytes);
 	void vmFlush(unsigned vmid);
+	IOReturn vmMap(unsigned vmid, uint64_t va, uint64_t bytes, uint64_t offset,
+	    IOMemoryDescriptor *memory);
 	void gartSelfTest(struct MinkarAMDDMA *dma, IODeviceMemory *window, uint64_t region,
 	    uint64_t vramStart);
 	void setUpVRAM(uint32_t megabytes);
@@ -144,6 +148,7 @@ private:
 	bool			fGFXStarted;
 	IOMemoryMap *		fGFXMap;	/* its ring and write-back */
 	uint64_t		fGFXOffset;
+	uint32_t		fGFXResets;
 	/* Clients' address spaces: each context's page directory in VRAM
 	 * (0: the context is free); written through all of the VRAM window,
 	 * mapped once. */
