@@ -33,7 +33,7 @@
 # "bmake progress" (Docs/CONTRIBUTING.md).
 
 updated = "2026-11-03"
-commit  = "c536c7dbe9"
+commit  = "9b6a9a3a2d"
 
 deps = [["ws", 555, "dock"], ["fw", 535, "kraz"]]
 
@@ -223,6 +223,11 @@ stations = [["x86-64 apps", 1082, "todo"], ["arm64", 1150, "todo"]]
 here = "G4–G5"
 
 [[board.done]]
+title = "M4 met: QEMU and the Mac Pro"
+note = "AppKit windows dragged and typed into at 3440x1440, no flicker; two apps · 3 nov"
+line = "ws"
+
+[[board.done]]
 title = "Several displays"
 note = "one desktop, the pointer across them, capture, arrangement, mirroring · 3 nov"
 line = "ws"
@@ -247,17 +252,12 @@ title = "G4.5: Vulkan apps' frames stay in VRAM"
 note = "CAMetalLayer drawables as window layers, GPU copy, paced at 60 Hz · 3 nov"
 line = "gpu"
 
-[[board.done]]
-title = "G4.4: page flips at the vertical blank"
-note = "two frames in VRAM, no tearing, one per refresh · 3 nov"
-line = "gpu"
-
 
 
 
 [[board.now]]
-title = "M4 on the Mac Pro and PC 1"
-note = "Phase 4's gate on real machines · deferred: shutdown hang, a monitor plugged in after boot, USB MSI"
+title = "M3: libSystem, logd, Swift 6.0"
+note = "next block · deferred until the desktop: a monitor plugged in after boot, shutdown hang, USB MSI"
 line = "ws"
 
 [[board.now]]

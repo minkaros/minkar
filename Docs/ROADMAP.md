@@ -301,6 +301,8 @@ The WindowServer itself is rewritten in milestones WS0 to WS6, as decided on 202
 
 **Exit gate (M4):** in QEMU and on a reference PC, several AppKit apps open windows, are dragged, take keyboard input and redraw without artifacts.
 
+**Status (2026-11-03): M4 met.** In QEMU, `boottest GATE=M4` sees its 54 markers with both the standard and the virtio VGA. On the Mac Pro 6,1 (PC 2), with today's tree (`c6d74fc756`) at 3440x1440 and 60 Hz, composited by the Vulkan backend: the demo's two AppKit windows took clicks and keys from the USB keyboard and mouse (through a KVM) and were dragged by their title bars, with no flicker or leftovers seen by the maintainer and none in the screen's capture (frames p95 17.3 ms); a second app launched, came to the front and quit, seen by the first through NSWorkspace. Left for Minkar 21.0: the compositing performance gate.
+
 ## Graphics stack: components and sequence
 
 Of the graphical environment, the drawing base exists (Core Graphics with FreeType, and pixman, libpng, libjpeg and libtiff in `BSD/lib`), as do the GOP console and USB input. The compositing server, IOSurface and everything that depends on the GPU are missing. State verified on `devel` (`cce7da92bc`, 2026-10-31): WS0 is done, the current WindowServer draws AppKit windows with input (gate `M4-draw`); WS1 too (`030dba37c7`): the new core's interface and server, tested by `skylight-test`; WS2 (`8512fe60ba`): it composites AppKit windows (gate `M4-compose`); and WS3 (`98237bf14e`): input and event taps.
