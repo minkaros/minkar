@@ -105,6 +105,9 @@ public:
 	void vmUnmap(unsigned vmid, uint64_t va, uint64_t bytes);
 	/* Into the framebuffer the display shows, at offset. */
 	IOReturn copyToScanout(uint64_t src, uint64_t offset, uint64_t bytes, uint64_t *ns);
+	/* The display shows bytes of VRAM at offset from its next vertical
+	 * blank (0, 0: its framebuffer again); ns: how long it took. */
+	IOReturn flip(uint64_t offset, uint64_t bytes, uint64_t *ns);
 
 private:
 	void dmaSelfTest();

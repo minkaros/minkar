@@ -107,6 +107,13 @@
  *			VRAM the CPU does not reach (whole pages), anywhere in
  *			VRAM rather than in the CPU's window: it cannot be
  *			mapped for the CPU (Vulkan's device-local memory).
+ *   Flip		in: buffer, or 0; out: nanoseconds waited. The
+ *			display shows the buffer (VRAM, at least the current
+ *			mode's rows of the framebuffer's pitch) from its next
+ *			vertical blank, and the call returns once it does: the
+ *			window server's page flip. 0 shows the framebuffer
+ *			again, as does closing the client. With the gpu-client
+ *			entitlement (or as an administrator).
  *   ReadRegister	in: dword index; out: its value. For bring-up
  *			(administrators): the register window only, reading
  *			only (no indexed registers, which take two writes).
@@ -136,11 +143,12 @@ enum {
 	kMinkarAMDGPUUnmapBuffer,
 	kMinkarAMDGPUSubmitGFXVM,
 	kMinkarAMDGPUCreateHiddenBuffer,
+	kMinkarAMDGPUFlip,
 	kMinkarAMDGPUMethodCount
 };
 
 /* The entitlement that lets a program present into the display's
- * framebuffer (CopyToScanout) without administrator rights. */
+ * framebuffer (CopyToScanout, Flip) without administrator rights. */
 #define kMinkarGPUClientEntitlement	"org.minkar.gpu-client"
 
 /* The most buffers a client holds at once (its tables grow up to it). */

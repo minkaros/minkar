@@ -665,6 +665,25 @@ MinkarAMDGPU::copyToScanout(uint64_t src, uint64_t offset, uint64_t bytes, uint6
 }
 
 IOReturn
+MinkarAMDGPU::flip(uint64_t offset, uint64_t bytes, uint64_t *ns)
+{
+	IOReturn err = kIOReturnNotFound;
+	uint64_t start = mach_absolute_time(), elapsed;
+
+	OSIterator *it = fPCI->getClientIterator();
+	OSObject *o;
+	while (err == kIOReturnNotFound && it != NULL && (o = it->getNextObject()) != NULL) {
+		MinkarAMDFramebuffer *f = OSDynamicCast(MinkarAMDFramebuffer, o);
+		if (f != NULL)
+			err = f->flip(offset, bytes) ? kIOReturnSuccess : kIOReturnNotReady;
+	}
+	OSSafeReleaseNULL(it);
+	absolutetime_to_nanoseconds(mach_absolute_time() - start, &elapsed);
+	*ns = elapsed;
+	return err;
+}
+
+IOReturn
 MinkarAMDGPU::modeSet(const uint64_t *in, uint64_t *out)
 {
 	IOReturn err = kIOReturnNotFound;

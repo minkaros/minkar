@@ -69,6 +69,7 @@ private:
 	static IOReturn sInfo(OSObject *target, void *reference, IOExternalMethodArguments *args);
 	static IOReturn sCreate(OSObject *target, void *reference, IOExternalMethodArguments *args);
 	static IOReturn sCreateHidden(OSObject *target, void *reference, IOExternalMethodArguments *args);
+	static IOReturn sFlip(OSObject *target, void *reference, IOExternalMethodArguments *args);
 	static IOReturn create(MinkarAMDUserClient *me, IOExternalMethodArguments *args, bool hidden);
 	static IOReturn sDestroy(OSObject *target, void *reference, IOExternalMethodArguments *args);
 	static IOReturn sCopy(OSObject *target, void *reference, IOExternalMethodArguments *args);
@@ -103,6 +104,8 @@ private:
 	task_t			fTask;		/* the client's, for ImportMemory */
 	bool			fAdministrator;
 	bool			fEntitled;	/* gpu-client, or an administrator */
+	bool			fFlipped;	/* the display shows one of its buffers, */
+	uint64_t		fFlipOffset;	/* this one */
 	IOLock *		fLock;
 	/* Grown as needed, up to the interface's limits (an app makes
 	 * thousands of buffers; most make few). */

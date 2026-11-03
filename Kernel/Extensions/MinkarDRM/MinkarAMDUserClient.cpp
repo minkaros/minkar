@@ -104,6 +104,12 @@ MinkarAMDUserClient::releaseAll()
 	if (fGPU == NULL || fLock == NULL)
 		return;
 	IOLockLock(fLock);
+	/* The display shows the framebuffer again before its buffers go. */
+	if (fFlipped) {
+		uint64_t ns;
+		fGPU->flip(0, 0, &ns);
+		fFlipped = false;
+	}
 	for (unsigned i = 0; i < fBufferCap; i++)
 		if (fBuffers[i].size != 0)
 			destroy(&fBuffers[i]);
@@ -211,6 +217,7 @@ MinkarAMDUserClient::externalMethod(uint32_t selector, IOExternalMethodArguments
 		{ (IOExternalMethodAction)&sUnmapBuffer, 1, 0, 0, 0 },
 		{ (IOExternalMethodAction)&sSubmitGFXVM, 2, 0, 2, 0 },
 		{ (IOExternalMethodAction)&sCreateHidden, 1, 0, 2, 0 },
+		{ (IOExternalMethodAction)&sFlip, 1, 0, 1, 0 },
 	};
 
 	(void)dispatch; (void)target;
@@ -289,6 +296,12 @@ MinkarAMDUserClient::sDestroy(OSObject *target, void *, IOExternalMethodArgument
 
 	IOLockLock(me->fLock);
 	Buffer *b = me->buffer(args->scalarInput[0]);
+	/* The one the display shows: the framebuffer first. */
+	if (b != NULL && me->fFlipped && b->offset == me->fFlipOffset) {
+		uint64_t ns;
+		me->fGPU->flip(0, 0, &ns);
+		me->fFlipped = false;
+	}
 	if (b != NULL)
 		me->destroy(b);
 	IOLockUnlock(me->fLock);
@@ -520,6 +533,36 @@ MinkarAMDUserClient::sImport(OSObject *target, void *, IOExternalMethodArguments
 		m->complete();
 		m->release();
 	}
+	return err;
+}
+
+/* buffer (0: the framebuffer again). */
+IOReturn
+MinkarAMDUserClient::sFlip(OSObject *target, void *, IOExternalMethodArguments *args)
+{
+	MinkarAMDUserClient *me = (MinkarAMDUserClient *)target;
+	uint64_t ns = 0;
+	IOReturn err;
+
+	if (!me->fEntitled)
+		return kIOReturnNotPrivileged;
+	IOLockLock(me->fLock);
+	if (args->scalarInput[0] == 0) {
+		err = me->fGPU->flip(0, 0, &ns);
+		if (err == kIOReturnSuccess)
+			me->fFlipped = false;
+	} else {
+		Buffer *b = me->buffer(args->scalarInput[0]);
+		/* VRAM only: neither system memory nor another task's pages. */
+		err = b == NULL || b->system != NULL || b->imported != NULL ? kIOReturnBadArgument :
+		    me->fGPU->flip(b->offset, b->size, &ns);
+		if (err == kIOReturnSuccess) {
+			me->fFlipped = true;
+			me->fFlipOffset = b->offset;
+		}
+	}
+	IOLockUnlock(me->fLock);
+	args->scalarOutput[0] = ns;
 	return err;
 }
 
