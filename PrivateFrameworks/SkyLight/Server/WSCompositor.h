@@ -78,6 +78,7 @@
 
 /* Every compositor's counts together. */
 + (void)getStats:(SLSServerStats *)stats;
++ (void)resetStats;
 
 @end
 

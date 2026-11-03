@@ -168,6 +168,11 @@ struct mouseLocation {
 
 	memset(&e, 0, sizeof(e));
 	e.timestamp = WSNanoseconds();
+	/* The pointer's moves always bring a frame: they measure the
+	 * input-to-present latency. */
+	if (nx->type == NX_MOUSEMOVED || nx->type == NX_LMOUSEDRAGGED ||
+	    nx->type == NX_RMOUSEDRAGGED || nx->type == NX_OMOUSEDRAGGED)
+		WSStatsNoteInput(nx->time);
 	e.x = nx->location.x;	/* IOHIDSystem's desktop: the main display's pixels */
 	e.y = nx->location.y;
 	switch (nx->type) {

@@ -48,7 +48,7 @@ extern "C" {
 #define kSLSServiceName		"org.minkar.WindowServer"
 
 /* The interface version both sides are built for. */
-#define kSLSInterfaceVersion	16
+#define kSLSInterfaceVersion	17
 
 typedef int32_t SLSConnectionID;
 
@@ -792,14 +792,29 @@ typedef struct SLSServerStats {
 	uint64_t	lastFrameMicros;	/* compositing and present, last frame */
 	uint64_t	totalFrameMicros;
 	uint64_t	events;			/* input events read from the HID system */
+	/* Interface version 17, for measurements (GPU track G4.6): over the
+	 * last 1,024 frames, compositing and present; from the first damage
+	 * after a frame to its present (lateFrames: over two refreshes); and
+	 * from an input event (IOHIDSystem's time) to the present of the
+	 * frame after it, the pointer's input-to-present latency. */
+	uint64_t	frameMicrosP50, frameMicrosP95, frameMicrosP99, frameMicrosMax;
+	uint64_t	damageMicrosP50, damageMicrosP95;
+	uint64_t	lateFrames;
+	uint64_t	inputMicrosP50, inputMicrosP95, inputSamples;
+	uint64_t	refreshMicros;		/* the main display's refresh period */
+	/* Compositing alone (the frame drawn, before its present, which with
+	 * page flips waits for the vertical blank). */
+	uint64_t	composeMicrosP50, composeMicrosP95;
 } SLSServerStats;
 
-#define kSLSServerStatsWords	16
+#define kSLSServerStatsWords	42
 #ifndef __cplusplus
 _Static_assert(sizeof(SLSServerStats) == kSLSServerStatsWords * 4, "SLSServerStats size");
 #endif
 
 int SLSGetServerStats(SLSServerStats *stats);
+/* All counters and samples back to zero (for a measurement's start). */
+int SLSResetServerStats(void);
 
 #ifdef __cplusplus
 }

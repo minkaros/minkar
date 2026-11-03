@@ -92,6 +92,46 @@ cursorImage(void)
 static pthread_mutex_t statsLock = PTHREAD_MUTEX_INITIALIZER;
 static SLSServerStats stats;
 
+/* The last samples of each measurement (G4.6), for their percentiles. */
+enum { kSamples = 1024 };
+typedef struct {
+	uint32_t us[kSamples];
+	unsigned count, next;
+} Samples;
+static Samples frameSamples, composeSamples, damageSamples, inputSamples;
+static uint64_t pendingInput;	/* the oldest input not yet shown (mach time) */
+static uint64_t mainRefreshMicros;
+
+static void
+addSample(Samples *s, uint64_t us)
+{
+	s->us[s->next] = us > UINT32_MAX ? UINT32_MAX : (uint32_t)us;
+	s->next = (s->next + 1) % kSamples;
+	if (s->count < kSamples)
+		s->count++;
+}
+
+static int
+compareUInt32(const void *a, const void *b)
+{
+	uint32_t x = *(const uint32_t *)a, y = *(const uint32_t *)b;
+	return x < y ? -1 : x > y;
+}
+
+/* The pth percentile (0-100) of the samples kept, 0 without any. */
+static uint64_t
+percentile(const Samples *s, unsigned p)
+{
+	uint32_t sorted[kSamples];
+
+	if (s->count == 0)
+		return 0;
+	memcpy(sorted, s->us, s->count * sizeof(sorted[0]));
+	qsort(sorted, s->count, sizeof(sorted[0]), compareUInt32);
+	unsigned i = (s->count * p + 99) / 100;
+	return sorted[i == 0 ? 0 : i - 1];
+}
+
 static uint64_t
 micros(uint64_t ticks)
 {
@@ -120,6 +160,8 @@ static const unsigned kIdleTicks = 2;
 	dispatch_source_t _link;
 	pthread_mutex_t _lock;		/* _damage, _pending, _sleeping, the origin */
 	pixman_region32_t _damage;
+	uint64_t _damageSince;		/* when _damage stopped being empty */
+	uint64_t _periodMicros;		/* the display link's */
 	BOOL _pending;			/* a frame is on its way */
 	BOOL _sleeping;			/* the link is suspended */
 	unsigned _idle;			/* ticks in a row with nothing to do */
@@ -135,6 +177,30 @@ static const unsigned kIdleTicks = 2;
 {
 	pthread_mutex_lock(&statsLock);
 	*out = stats;
+	out->frameMicrosP50 = percentile(&frameSamples, 50);
+	out->frameMicrosP95 = percentile(&frameSamples, 95);
+	out->frameMicrosP99 = percentile(&frameSamples, 99);
+	out->frameMicrosMax = percentile(&frameSamples, 100);
+	out->damageMicrosP50 = percentile(&damageSamples, 50);
+	out->damageMicrosP95 = percentile(&damageSamples, 95);
+	out->inputMicrosP50 = percentile(&inputSamples, 50);
+	out->inputMicrosP95 = percentile(&inputSamples, 95);
+	out->inputSamples = inputSamples.count;
+	out->refreshMicros = mainRefreshMicros;
+	out->composeMicrosP50 = percentile(&composeSamples, 50);
+	out->composeMicrosP95 = percentile(&composeSamples, 95);
+	pthread_mutex_unlock(&statsLock);
+}
+
++ (void)resetStats
+{
+	pthread_mutex_lock(&statsLock);
+	memset(&stats, 0, sizeof(stats));
+	memset(&frameSamples, 0, sizeof(frameSamples));
+	memset(&composeSamples, 0, sizeof(composeSamples));
+	memset(&damageSamples, 0, sizeof(damageSamples));
+	memset(&inputSamples, 0, sizeof(inputSamples));
+	pendingInput = 0;
 	pthread_mutex_unlock(&statsLock);
 }
 
@@ -178,8 +244,9 @@ backendClass(void)
 		if (value != NULL)
 			CFRelease(value);
 	}
-	return [name caseInsensitiveCompare:@"vulkan"] == NSOrderedSame ? [WSVulkanBackend class] :
-	    [WSPixmanBackend class];
+	/* name may be nil, whose compare: answers 0, NSOrderedSame. */
+	return name != nil && [name caseInsensitiveCompare:@"vulkan"] == NSOrderedSame ?
+	    [WSVulkanBackend class] : [WSPixmanBackend class];
 }
 
 /* The backend's buffers, for the current mode. */
@@ -221,6 +288,12 @@ backendClass(void)
 	const SLSDisplayMode *mode = [_display currentMode];
 	double hz = (mode != NULL && mode->refreshRate >= 20) ? mode->refreshRate : 60;
 	uint64_t interval = (uint64_t)(NSEC_PER_SEC / hz);
+	_periodMicros = interval / 1000;
+	if (_display.flags & kSLSDisplayMain) {
+		pthread_mutex_lock(&statsLock);
+		mainRefreshMicros = _periodMicros;
+		pthread_mutex_unlock(&statsLock);
+	}
 
 	dispatch_source_set_timer(_link, dispatch_time(DISPATCH_TIME_NOW, interval), interval,
 	    interval / 10);
@@ -256,6 +329,8 @@ backendClass(void)
 	if (x1 > _width) x1 = _width;
 	if (y1 > _height) y1 = _height;
 	if (x1 > x0 && y1 > y0) {
+		if (!pixman_region32_not_empty(&_damage))
+			_damageSince = mach_absolute_time();
 		pixman_region32_union_rect(&_damage, &_damage, (int)x0, (int)y0,
 		    (unsigned)(x1 - x0), (unsigned)(y1 - y0));
 		[self wakeLink];
@@ -266,6 +341,8 @@ backendClass(void)
 - (void)damageAll
 {
 	pthread_mutex_lock(&_lock);
+	if (!pixman_region32_not_empty(&_damage))
+		_damageSince = mach_absolute_time();
 	pixman_region32_union_rect(&_damage, &_damage, 0, 0, _width, _height);
 	[self wakeLink];
 	pthread_mutex_unlock(&_lock);
@@ -373,11 +450,19 @@ backendClass(void)
 		pthread_mutex_lock(&self->_lock);
 		pixman_region32_copy(damage, &self->_damage);
 		pixman_region32_clear(&self->_damage);
+		uint64_t damageSince = self->_damageSince;
+		self->_damageSince = 0;
 		double ox = self->_originX, oy = self->_originY;
 		pthread_mutex_unlock(&self->_lock);
+		/* The inputs this frame answers (the pointer's moves). */
+		pthread_mutex_lock(&statsLock);
+		uint64_t input = pendingInput;
+		pendingInput = 0;
+		pthread_mutex_unlock(&statsLock);
 		dispatch_async(self->_render, ^{
 			[self composite:items damage:damage cursor:cursor shape:shape
 			    visible:cursorVisible colors:colors originX:ox originY:oy];
+			[self measureDamageSince:damageSince input:input];
 			pixman_region32_fini(damage);
 			free(damage);
 			pthread_mutex_lock(&self->_lock);
@@ -466,6 +551,7 @@ backendClass(void)
 
 	/* Present: the damaged area, through the display's colour table
 	 * (transfer table and fade) when it has one. */
+	uint64_t composed = mach_absolute_time();
 	uint64_t area = [_backend present:damage colors:colors];
 	/* Devices that show only what they are told: each box, or with many
 	 * the box around them all. */
@@ -509,6 +595,8 @@ backendClass(void)
 
 	uint64_t us = micros(mach_absolute_time() - start);
 	pthread_mutex_lock(&statsLock);
+	addSample(&frameSamples, us);
+	addSample(&composeSamples, micros(composed - start));
 	stats.frames++;
 	stats.damagedPixels += area;
 	stats.lastDamagedPixels = area;
@@ -517,7 +605,37 @@ backendClass(void)
 	pthread_mutex_unlock(&statsLock);
 }
 
+/* Render queue, after a frame is presented: how long its damage and its
+ * input waited for the screen. */
+- (void)measureDamageSince:(uint64_t)since input:(uint64_t)input
+{
+	uint64_t now = mach_absolute_time();
+
+	pthread_mutex_lock(&statsLock);
+	if (since != 0 && since <= now) {
+		uint64_t us = micros(now - since);
+		addSample(&damageSamples, us);
+		if (_periodMicros != 0 && us > 2 * _periodMicros)
+			stats.lateFrames++;
+	}
+	/* IOHIDSystem's time, if it is a time of this boot's clock. */
+	if (input != 0 && input <= now && micros(now - input) < 1000000)
+		addSample(&inputSamples, micros(now - input));
+	pthread_mutex_unlock(&statsLock);
+}
+
 @end
+
+void
+WSStatsNoteInput(uint64_t when)
+{
+	if (when == 0)
+		when = mach_absolute_time();
+	pthread_mutex_lock(&statsLock);
+	if (pendingInput == 0)
+		pendingInput = when;
+	pthread_mutex_unlock(&statsLock);
+}
 
 void
 WSStatsCountCommit(void)

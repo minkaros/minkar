@@ -155,6 +155,16 @@ SLSSetWindowAlpha(SLSWindowID window, double alpha)
 }
 
 int
+SLSResetServerStats(void)
+{
+	mach_port_t server = SLSServerPort();
+
+	if (server == MACH_PORT_NULL || ws_server_stats_reset(server) != KERN_SUCCESS)
+		return kSLSErrorFailure;
+	return kSLSErrorSuccess;
+}
+
+int
 SLSGetServerStats(SLSServerStats *stats)
 {
 	mach_port_t server = SLSServerPort();

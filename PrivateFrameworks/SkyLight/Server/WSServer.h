@@ -105,6 +105,9 @@ void WSCursorSetBounds(double minX, double minY, double maxX, double maxY);
 NSArray<WSWindow *> *WSWindowStack(void);
 /* Counts an input event in the statistics. */
 void WSStatsCountEvent(void);
+/* An input event, at mach_absolute_time when (IOHIDSystem's time): the
+ * next frame's present measures the input-to-present latency from it. */
+void WSStatsNoteInput(uint64_t when);
 /* Queues an event for a connection (WSEvents.m). */
 void WSEventsEnqueue(WSConnection *connection, const SLSEvent *event);
 /* Whether a connection may control input: post, filter, listen to keys,

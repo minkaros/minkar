@@ -64,7 +64,7 @@ type ws_int_rect_t = struct[4] of int32_t
 	ctype: SLSIntRect;
 type ws_damage_t = array[*:64] of ws_int_rect_t;
 type ws_region_t = array[*:64] of ws_int_rect_t;
-type ws_server_stats_t = struct[16] of uint32_t
+type ws_server_stats_t = struct[42] of uint32_t
 	ctype: SLSServerStats;
 type ws_display_stream_options_t = struct[10] of uint32_t
 	ctype: SLSDisplayStreamOptions;
@@ -620,3 +620,9 @@ routine window_set_layer_notify(
 	window			: uint32_t;
 	notify			: mach_port_make_send_t;
 	out result		: int32_t);
+
+/* ---- Measurements (interface version 17) ---- */
+
+/* The statistics back to zero. */
+routine server_stats_reset(
+	server			: mach_port_t);

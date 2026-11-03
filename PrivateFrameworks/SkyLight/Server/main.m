@@ -153,3 +153,10 @@ wss_server_stats(mach_port_t server, SLSServerStats *stats)
 	[WSCompositor getStats:stats];
 	return KERN_SUCCESS;
 }
+
+kern_return_t
+wss_server_stats_reset(mach_port_t server)
+{
+	[WSCompositor resetStats];
+	return KERN_SUCCESS;
+}

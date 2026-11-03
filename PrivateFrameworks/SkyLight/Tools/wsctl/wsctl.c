@@ -30,7 +30,7 @@
  * wsctl: what the new window server is doing (WindowServer plan, section
  * 4, Debug/, and section 6). Through SkyLight, as any client.
  *
- *   wsctl stats      frames, idle display link ticks, commits, input
+ *   wsctl stats [reset]  frames, idle display link ticks, commits, input
  *                    events, damaged area and frame times
  *   wsctl windows    the window list, front to back
  *   wsctl displays   each display's bounds, mode and state
@@ -66,6 +66,29 @@ stats(void)
 	printf("last_frame_us %llu\n", (unsigned long long)st.lastFrameMicros);
 	printf("mean_frame_us %llu\n",
 	    (unsigned long long)(st.frames ? st.totalFrameMicros / st.frames : 0));
+	printf("frame_us_p50 %llu\n", (unsigned long long)st.frameMicrosP50);
+	printf("frame_us_p95 %llu\n", (unsigned long long)st.frameMicrosP95);
+	printf("frame_us_p99 %llu\n", (unsigned long long)st.frameMicrosP99);
+	printf("frame_us_max %llu\n", (unsigned long long)st.frameMicrosMax);
+	printf("damage_to_present_us_p50 %llu\n", (unsigned long long)st.damageMicrosP50);
+	printf("damage_to_present_us_p95 %llu\n", (unsigned long long)st.damageMicrosP95);
+	printf("late_frames %llu\n", (unsigned long long)st.lateFrames);
+	printf("input_to_present_us_p50 %llu\n", (unsigned long long)st.inputMicrosP50);
+	printf("input_to_present_us_p95 %llu\n", (unsigned long long)st.inputMicrosP95);
+	printf("input_samples %llu\n", (unsigned long long)st.inputSamples);
+	printf("refresh_us %llu\n", (unsigned long long)st.refreshMicros);
+	printf("compose_us_p50 %llu\n", (unsigned long long)st.composeMicrosP50);
+	printf("compose_us_p95 %llu\n", (unsigned long long)st.composeMicrosP95);
+	return 0;
+}
+
+static int
+resetStats(void)
+{
+	if (SLSResetServerStats() != kSLSErrorSuccess) {
+		fprintf(stderr, "wsctl: no window server\n");
+		return 1;
+	}
 	return 0;
 }
 
@@ -190,6 +213,8 @@ main(int argc, char *argv[])
 {
 	if (argc == 2 && strcmp(argv[1], "stats") == 0)
 		return stats();
+	if (argc == 3 && strcmp(argv[1], "stats") == 0 && strcmp(argv[2], "reset") == 0)
+		return resetStats();
 	if (argc == 2 && strcmp(argv[1], "windows") == 0)
 		return windows();
 	if (argc == 2 && strcmp(argv[1], "displays") == 0)
@@ -208,6 +233,6 @@ main(int argc, char *argv[])
 	}
 	if (argc == 2 && strcmp(argv[1], "front") == 0)
 		return front();
-	fprintf(stderr, "usage: wsctl stats | windows | displays | modes | mode ID [permanent] | restore | front\n");
+	fprintf(stderr, "usage: wsctl stats [reset] | windows | displays | modes | mode ID [permanent] | restore | front\n");
 	return 2;
 }
