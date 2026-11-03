@@ -1,7 +1,0 @@
-# Vulkan-Headers (Apache-2.0, some MIT; Khronos), the loader's version:
-# the headers and registry the loader builds against, and the SDK's
-# /usr/include/vulkan and vk_video for programs that use Vulkan.
-url https://github.com/KhronosGroup/Vulkan-Headers/archive/refs/tags/v1.4.357.tar.gz
-file Vulkan-Headers-1.4.357.tar.gz
-sha256 7dc0dbcf1d49dd3d7da3761c251c6097dfbaac475321a4a8a99269d3d5abecdc
-version 1.4.357

@@ -6,9 +6,8 @@
 # /usr/lib/libvulkan.1.dylib (and libvulkan.dylib), which loads the drivers
 # /usr/share/vulkan/icd.d names (RADV, BSD/lib/mesa). Built with CMake
 # through minkar-toolchain.cmake.in, against Khronos's Vulkan-Headers at
-# the same version (MANIFEST.headers), whose headers, with their licenses,
-# also go to the SDK's /usr/include/vulkan and vk_video. Both are fetched
-# at build time and checked against their SHA-256.
+# the same version (../vulkan-headers, which also installs them in the
+# SDK). Both are fetched at build time and checked against their SHA-256.
 
 SUBDIR =
 FETCH =		sh ${.CURDIR}/../libdrm/fetch.sh
@@ -31,8 +30,8 @@ ${TOOLFILE}: ${.CURDIR}/minkar-toolchain.cmake.in
 
 # Vulkan-Headers installed in the object directory, for the loader's CMake
 # (its VulkanHeaders package and registry).
-${HEADERS}/.minkar-installed: ${.CURDIR}/MANIFEST.headers ${TOOLFILE}
-	src=$$(${FETCH} ${.CURDIR}/MANIFEST.headers ${FW_CACHE}) && \
+${HEADERS}/.minkar-installed: ${.CURDIR}/../vulkan-headers/MANIFEST ${TOOLFILE}
+	src=$$(${FETCH} ${.CURDIR}/../vulkan-headers/MANIFEST ${FW_CACHE}) && \
 	rm -rf ${.OBJDIR}/headers-build ${HEADERS} && \
 	${TOOLENV} cmake -G Ninja -S $$src -B ${.OBJDIR}/headers-build \
 	    -DCMAKE_TOOLCHAIN_FILE=${TOOLFILE} -DCMAKE_INSTALL_PREFIX=${HEADERS} > /dev/null && \
@@ -55,7 +54,7 @@ build-loader: .PHONY ${BUILD}/.minkar-setup
 
 install-loader: .PHONY build-loader
 	mkdir -p ${SYSROOT_DIR}/usr/lib ${SYSROOT_DIR}/usr/share/vulkan/icd.d \
-	    ${MINKAR_SDKROOT}/usr/lib ${MINKAR_SDKROOT}/usr/include
+	    ${MINKAR_SDKROOT}/usr/lib
 	cp -f ${LOADER} ${.OBJDIR}/libvulkan.1.dylib
 	${TC}/install_name_tool -id /usr/lib/libvulkan.1.dylib ${.OBJDIR}/libvulkan.1.dylib
 	install -m 0755 ${.OBJDIR}/libvulkan.1.dylib ${SYSROOT_DIR}/usr/lib/libvulkan.1.dylib
@@ -65,10 +64,6 @@ install-loader: .PHONY build-loader
 .endfor
 	src=$$(${FETCH} ${.CURDIR}/MANIFEST ${FW_CACHE}) && \
 	    install -m 0444 $$src/LICENSE.txt ${SYSROOT_DIR}/usr/share/vulkan/LICENSE.loader.txt
-	rm -rf ${MINKAR_SDKROOT}/usr/include/vulkan ${MINKAR_SDKROOT}/usr/include/vk_video
-	cp -R ${HEADERS}/include/vulkan ${HEADERS}/include/vk_video ${MINKAR_SDKROOT}/usr/include/
-	install -m 0444 ${HEADERS}/LICENSE.md ${MINKAR_SDKROOT}/usr/include/vulkan/LICENSE.md
-	cp -R ${HEADERS}/LICENSES ${MINKAR_SDKROOT}/usr/include/vulkan/
 
 clean: .PHONY
 	rm -rf ${BUILD} ${HEADERS} ${.OBJDIR}/headers-build ${TOOLFILE} ${.OBJDIR}/cmake-setup.log

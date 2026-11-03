@@ -16,6 +16,9 @@ SUBDIR += CoreServices
 # IOSurface (roadmap step 4): pixel buffers shared across processes.
 SUBDIR += IOSurface
 SUBDIR += Onyx2D
+# Khronos's Vulkan headers, for the window server's Vulkan compositor
+# (GPU track G4); the loader and Mesa come with BSD/lib.
+SUBDIR += ../BSD/lib/vulkan-headers
 # SkyLight (the window server's client side) comes before CoreGraphics,
 # which is to re-export it (WindowServer plan).
 SUBDIR += ../PrivateFrameworks/SkyLight
