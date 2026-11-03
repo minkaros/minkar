@@ -203,7 +203,8 @@ doc_es = "ROADMAP.es.md#pila-gráfica-componentes-y-secuencia"
 # G3 done (2026-11-03): RADV on Minkar, a triangle in a window, the
 # conformance subset with no failure. G4 under way (2026-11-03): the Vulkan
 # backend composes on the Mac Pro (G4.2), IOSurfaces in VRAM without
-# copies (G4.3); page flips paced by the display next.
+# copies (G4.3), page flips at the vertical blank (G4.4); CAMetalLayer's
+# drawables in VRAM next.
 stations = [["G1 KMS", 700, "done"], ["G2 rings", 760, "partial"], ["G3 Mesa", 820, "done"],
   ["G4–G5", 1060, "current"]]
 
@@ -254,14 +255,14 @@ line = "ws"
 
 [[board.now]]
 title = "G4 — the window server on Vulkan"
-note = "Vulkan composes, VRAM IOSurfaces read in place; page flips next"
+note = "Vulkan composes, zero-copy IOSurfaces, page flips at vblank; drawables in VRAM next"
 line = "gpu"
-done = 3
+done = 4
 total = 6
 
 [[board.now]]
 title = "WS6 — GPU compositing"
-note = "Vulkan compositing on the Mac Pro (opt-in), VRAM IOSurfaces without copies"
+note = "Vulkan compositing on the Mac Pro (opt-in), no copies, page flips at vblank"
 line = "ws"
 done = 0
 total = 3
