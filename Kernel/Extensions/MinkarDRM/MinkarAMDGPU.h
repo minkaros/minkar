@@ -88,9 +88,9 @@ public:
 	IOReturn auxTransaction(const uint64_t *in, uint64_t *out, uint32_t *trace,
 	    uint32_t *traceBytes);
 	/* Shared VRAM buffers, by global ID, freed with their last holder. */
-	IOReturn createShared(uint64_t size, uint32_t *id, uint64_t *offset, uint64_t *rounded);
-	IOReturn retainShared(uint32_t id, uint64_t *offset, uint64_t *size);
-	void releaseShared(uint32_t id);
+	IOReturn createShared(uint64_t size, uint64_t *name, uint64_t *offset, uint64_t *rounded);
+	IOReturn retainShared(uint64_t name, uint64_t *offset, uint64_t *size);
+	void releaseShared(uint64_t name);
 	/* An indirect buffer of the graphics command processor at a GPU
 	 * address, run and its fence waited for. */
 	IOReturn runGFX(uint64_t address, uint32_t dwords, unsigned vmid, uint64_t *ns,
@@ -138,7 +138,8 @@ private:
 
 	enum { kVRAMRanges = 16384, kGARTRanges = 16384, kSharedBuffers = 512 };
 	struct Shared {
-		uint32_t id, holders;	/* holders 0: the slot is empty */
+		uint64_t name;		/* random: whoever holds it was given it */
+		uint32_t holders;	/* 0: the slot is empty */
 		uint64_t offset, size;
 	};
 
@@ -174,7 +175,6 @@ private:
 	struct minkar_vram_range *fGARTRanges;	/* kGARTRanges of them */
 	IOLock *		fVRAMLock;	/* the VRAM's and the GART's allocators */
 	Shared			fShared[kSharedBuffers];	/* under fVRAMLock */
-	uint32_t		fNextSharedID;
 
 	/* Interrupts: the IH ring and its write-back in system memory. */
 	IOWorkLoop *		fWorkLoop;

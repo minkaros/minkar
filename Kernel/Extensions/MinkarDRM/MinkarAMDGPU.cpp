@@ -29,6 +29,7 @@
 #include <IOKit/IOLib.h>
 #include <IOKit/IOPlatformExpert.h>
 #include <kern/clock.h>
+#include <sys/random.h>
 #include <pexpert/pexpert.h>
 #include "MinkarAMDGPU.h"
 #include "MinkarAMDFramebuffer.h"
@@ -576,7 +577,7 @@ MinkarAMDGPU::destroySystemBuffer(IOBufferMemoryDescriptor *m, uint64_t gpuAddre
 /* ---- Shared buffers ---- */
 
 IOReturn
-MinkarAMDGPU::createShared(uint64_t size, uint32_t *id, uint64_t *offset, uint64_t *rounded)
+MinkarAMDGPU::createShared(uint64_t size, uint64_t *name, uint64_t *offset, uint64_t *rounded)
 {
 	const uint64_t unit = kBufferUnit;
 	IOReturn err = createBuffer(size, offset);
@@ -589,13 +590,22 @@ MinkarAMDGPU::createShared(uint64_t size, uint32_t *id, uint64_t *offset, uint64
 	for (slot = 0; slot < kSharedBuffers && fShared[slot].holders != 0; slot++)
 		;
 	if (slot < kSharedBuffers) {
-		if (++fNextSharedID == 0)
-			fNextSharedID = 1;
-		fShared[slot].id = fNextSharedID;
+		/* A name no other program can guess: 64 random bits, not 0 and
+		 * not another buffer's. Only those its maker gives it to can
+		 * hold the buffer (iosurfaced, the window server). */
+		uint64_t n;
+		bool taken;
+		do {
+			read_random(&n, sizeof(n));
+			taken = n == 0;
+			for (unsigned i = 0; i < kSharedBuffers && !taken; i++)
+				taken = fShared[i].holders != 0 && fShared[i].name == n;
+		} while (taken);
+		fShared[slot].name = n;
 		fShared[slot].holders = 1;
 		fShared[slot].offset = *offset;
 		fShared[slot].size = *rounded;
-		*id = fNextSharedID;
+		*name = n;
 	}
 	IOLockUnlock(fVRAMLock);
 	if (slot == kSharedBuffers) {
@@ -606,13 +616,13 @@ MinkarAMDGPU::createShared(uint64_t size, uint32_t *id, uint64_t *offset, uint64
 }
 
 IOReturn
-MinkarAMDGPU::retainShared(uint32_t id, uint64_t *offset, uint64_t *size)
+MinkarAMDGPU::retainShared(uint64_t name, uint64_t *offset, uint64_t *size)
 {
 	IOReturn err = kIOReturnNotFound;
 
 	IOLockLock(fVRAMLock);
 	for (unsigned i = 0; i < kSharedBuffers; i++)
-		if (fShared[i].holders != 0 && fShared[i].id == id) {
+		if (fShared[i].holders != 0 && fShared[i].name == name) {
 			fShared[i].holders++;
 			*offset = fShared[i].offset;
 			*size = fShared[i].size;
@@ -624,13 +634,13 @@ MinkarAMDGPU::retainShared(uint32_t id, uint64_t *offset, uint64_t *size)
 }
 
 void
-MinkarAMDGPU::releaseShared(uint32_t id)
+MinkarAMDGPU::releaseShared(uint64_t name)
 {
 	uint64_t offset = 0, size = 0;
 
 	IOLockLock(fVRAMLock);
 	for (unsigned i = 0; i < kSharedBuffers; i++)
-		if (fShared[i].holders != 0 && fShared[i].id == id) {
+		if (fShared[i].holders != 0 && fShared[i].name == name) {
 			if (--fShared[i].holders == 0) {
 				offset = fShared[i].offset;
 				size = fShared[i].size;

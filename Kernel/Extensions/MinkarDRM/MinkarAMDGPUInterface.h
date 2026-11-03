@@ -60,11 +60,13 @@
  *			The DMA engine copies into the scanout (the window
  *			server's present); the range must lie in it. With
  *			the gpu-client entitlement (or as an administrator).
- *   CreateSharedBuffer	in: size; out: buffer, its GPU address, its global ID.
+ *   CreateSharedBuffer	in: size; out: buffer, its GPU address, its name.
  *			A VRAM buffer other clients may hold too: its VRAM is
  *			freed when the last holder lets it go (IOSurfaces in
- *			VRAM: iosurfaced holds one for each).
- *   RetainSharedBuffer	in: global ID; out: buffer, its GPU address, size.
+ *			VRAM: iosurfaced holds one for each). The name is 64
+ *			random bits: a client holds the buffer only if its
+ *			maker gave it the name (no one can guess it).
+ *   RetainSharedBuffer	in: name; out: buffer, its GPU address, size.
  *   AUXTransaction	in: AUX channel, HPD (0-5), request, address, size;
  *			out: bytes or a negative errno, the reply byte, the
  *			interpreter's result, the data length, the first 8

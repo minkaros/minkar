@@ -445,7 +445,7 @@ openAccelerator(io_service_t framebuffer, uint32_t *minor, uint64_t *entryID)
 	return YES;
 }
 
-- (BOOL)setUpGPUFrames:(unsigned)count bytes:(size_t)bytes globalIDs:(uint32_t *)globalIDs
+- (BOOL)setUpGPUFrames:(unsigned)count bytes:(size_t)bytes names:(uint64_t *)names
     cpu:(uint8_t **)cpu
 {
 	[self tearDownGPUPresent];
@@ -469,7 +469,7 @@ openAccelerator(io_service_t framebuffer, uint32_t *minor, uint64_t *entryID)
 			[self tearDownGPUPresent];
 			return NO;
 		}
-		globalIDs[i] = (uint32_t)out[2];
+		names[i] = out[2];
 		cpu[i] = (uint8_t *)(uintptr_t)_gpuFrameCPU[i];
 	}
 	_gpuShown = -1;

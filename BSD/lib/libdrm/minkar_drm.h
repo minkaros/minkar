@@ -30,9 +30,10 @@
  * Minkar's additions to libdrm's interface.
  *
  * Buffers shared across processes (MinkarAMDUserClient's shared buffers,
- * known by a global ID: IOSurfaces in VRAM, the window server's frame) are
- * imported into a driver as dma-bufs are on Linux: by a descriptor, which
- * minkar_drm_shared_buffer_fd (in libdrm_amdgpu) makes for a global ID.
+ * known by a name of 64 random bits that their maker hands out: IOSurfaces
+ * in VRAM, the window server's frames) are imported into a driver as
+ * dma-bufs are on Linux: by a descriptor, which minkar_drm_shared_buffer_fd
+ * (in libdrm_amdgpu) makes for a name.
  * Such a descriptor is this process's (it means nothing to another one);
  * Vulkan's import (VkImportMemoryFdInfoKHR, a dma-buf) takes it, and
  * closes it.
@@ -47,8 +48,8 @@
 extern "C" {
 #endif
 
-/* A descriptor for the shared buffer with this global ID, or -1 (errno). */
-int minkar_drm_shared_buffer_fd(uint32_t global_id);
+/* A descriptor for the shared buffer with this name, or -1 (errno). */
+int minkar_drm_shared_buffer_fd(uint64_t name);
 
 #ifdef __cplusplus
 }

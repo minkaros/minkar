@@ -85,7 +85,7 @@ enum { kFillBlack = 0, kOver = 1, kShadow = 2, kCopy = 3, kCopyTable = 4 };
 #define WS_VK_DECLARE(f) static PFN_##f f;
 WS_VK_FUNCTIONS(WS_VK_DECLARE)
 static VkInstance sInstance;
-static int (*sSharedBufferFD)(uint32_t);
+static int (*sSharedBufferFD)(uint64_t);
 
 /* The loader, an instance and the functions; NO when there is no Vulkan. */
 static BOOL
@@ -103,7 +103,7 @@ loadVulkan(void)
 			fprintf(stderr, "WindowServer: Vulkan: %s\n", dlerror());
 			return;
 		}
-		sSharedBufferFD = (int (*)(uint32_t))dlsym(drm, "minkar_drm_shared_buffer_fd");
+		sSharedBufferFD = (int (*)(uint64_t))dlsym(drm, "minkar_drm_shared_buffer_fd");
 		PFN_vkGetInstanceProcAddr gipa = (PFN_vkGetInstanceProcAddr)dlsym(vk,
 		    "vkGetInstanceProcAddr");
 		if (gipa == NULL || sSharedBufferFD == NULL)
@@ -437,11 +437,11 @@ hasExtension(const VkExtensionProperties *list, uint32_t n, const char *name)
 	return b;
 }
 
-/* A shared VRAM buffer of the display's GPU, by its global ID, as the GPU
+/* A shared VRAM buffer of the display's GPU, by its name, as the GPU
  * sees it (size bytes from its start); nil if refused. */
-- (WSVulkanBuffer *)importShared:(uint32_t)globalID size:(VkDeviceSize)size
+- (WSVulkanBuffer *)importShared:(uint64_t)name size:(VkDeviceSize)size
 {
-	int fd = sSharedBufferFD(globalID);
+	int fd = sSharedBufferFD(name);
 	VkMemoryFdPropertiesKHR fdProps = { .sType = VK_STRUCTURE_TYPE_MEMORY_FD_PROPERTIES_KHR };
 
 	if (fd < 0)
@@ -484,7 +484,8 @@ hasExtension(const VkExtensionProperties *list, uint32_t n, const char *name)
 - (BOOL)setUpForDisplay:(WSDisplay *)display width:(uint32_t)width height:(uint32_t)height
 {
 	uint8_t *vram = NULL;
-	uint32_t rowBytes = 0, globalIDs[2] = { 0, 0 };
+	uint32_t rowBytes = 0;
+	uint64_t names[2] = { 0, 0 };
 
 	[self releaseFrame];
 	_display = display;
@@ -503,14 +504,14 @@ hasExtension(const VkExtensionProperties *list, uint32_t n, const char *name)
 	 * more, or WSNoFlip asks (it is then copied into the framebuffer). */
 	uint8_t *cpu[2] = { NULL, NULL };
 	unsigned count = getenv("WSNoFlip") != NULL ? 1 : 2;
-	while (count > 0 && ![display setUpGPUFrames:count bytes:bytes globalIDs:globalIDs cpu:cpu])
+	while (count > 0 && ![display setUpGPUFrames:count bytes:bytes names:names cpu:cpu])
 		count--;
 	if (count == 0) {
 		fprintf(stderr, "WindowServer: Vulkan: the GPU made no frame of %zu bytes\n", bytes);
 		return NO;
 	}
 	for (unsigned i = 0; i < count; i++) {
-		_frames[i] = [self importShared:globalIDs[i] size:bytes];
+		_frames[i] = [self importShared:names[i] size:bytes];
 		if (_frames[i] == nil) {
 			fprintf(stderr, "WindowServer: Vulkan: the frame cannot be imported\n");
 			[self releaseFrame];

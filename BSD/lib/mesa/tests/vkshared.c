@@ -125,7 +125,7 @@ main(void)
 	mach_vm_size_t cpuSize = 0;
 	if (kr == KERN_SUCCESS)
 		kr = IOConnectMapMemory64(conn, (uint32_t)out[0], mach_task_self(), &cpu, &cpuSize, kIOMapAnywhere);
-	snprintf(detail, sizeof(detail), "0x%x, global ID %llu", kr, (unsigned long long)out[2]);
+	snprintf(detail, sizeof(detail), "0x%x, name 0x%016llx", kr, (unsigned long long)out[2]);
 	check(kr == KERN_SUCCESS, "a shared VRAM buffer, mapped for the CPU", detail);
 	if (kr != KERN_SUCCESS)
 		return failures;
@@ -146,7 +146,39 @@ main(void)
 		return failures;
 	PFN_vkGetMemoryFdPropertiesKHR getFdProps =
 	    (PFN_vkGetMemoryFdPropertiesKHR)vkGetDeviceProcAddr(dev, "vkGetMemoryFdPropertiesKHR");
-	int fd = minkar_drm_shared_buffer_fd((uint32_t)out[2]);
+	/* Its name cannot be guessed: no small number (the IDs that were
+	 * handed out in turn before) names a buffer, and a second buffer's
+	 * name is nothing like the first's. */
+	unsigned held = 0;
+	for (uint64_t guess = 1; guess <= 4096; guess++) {
+		uint64_t gout[3];
+		uint32_t gn = 3;
+		if (IOConnectCallScalarMethod(conn, kMinkarAMDGPURetainSharedBuffer, &guess, 1, gout, &gn) ==
+		    KERN_SUCCESS) {
+			held++;
+			IOConnectCallScalarMethod(conn, kMinkarAMDGPUDestroyBuffer, &gout[0], 1, NULL, NULL);
+		}
+	}
+	snprintf(detail, sizeof(detail), "%u of 4096 held", held);
+	check(held == 0, "no shared buffer is held by guessing names 1 to 4096", detail);
+	uint64_t in2 = 4096, out2[3] = { 0, 0, 0 };
+	uint32_t on2 = 3;
+	kr = IOConnectCallScalarMethod(conn, kMinkarAMDGPUCreateSharedBuffer, &in2, 1, out2, &on2);
+	uint64_t apart = out2[2] > out[2] ? out2[2] - out[2] : out[2] - out2[2];
+	snprintf(detail, sizeof(detail), "0x%016llx and 0x%016llx", (unsigned long long)out[2],
+	    (unsigned long long)out2[2]);
+	check(kr == KERN_SUCCESS && apart > 0xffffffffull, "two buffers' names are random, not in turn",
+	    detail);
+	if (kr == KERN_SUCCESS)
+		IOConnectCallScalarMethod(conn, kMinkarAMDGPUDestroyBuffer, &out2[0], 1, NULL, NULL);
+	uint64_t rin = out[2], rout[3];
+	uint32_t rn = 3;
+	kr = IOConnectCallScalarMethod(conn, kMinkarAMDGPURetainSharedBuffer, &rin, 1, rout, &rn);
+	check(kr == KERN_SUCCESS, "the name its maker gives out holds it", "");
+	if (kr == KERN_SUCCESS)
+		IOConnectCallScalarMethod(conn, kMinkarAMDGPUDestroyBuffer, &rout[0], 1, NULL, NULL);
+
+	int fd = minkar_drm_shared_buffer_fd(out[2]);
 	VkMemoryFdPropertiesKHR fdProps = { .sType = VK_STRUCTURE_TYPE_MEMORY_FD_PROPERTIES_KHR };
 	r = getFdProps(dev, VK_EXTERNAL_MEMORY_HANDLE_TYPE_DMA_BUF_BIT_EXT, fd, &fdProps);
 	snprintf(detail, sizeof(detail), "descriptor %d, %d, memory types 0x%x", fd, r, fdProps.memoryTypeBits);

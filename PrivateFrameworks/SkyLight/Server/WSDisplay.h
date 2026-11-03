@@ -85,14 +85,14 @@
 - (BOOL)gpuPresentOffset:(size_t)offset bytes:(size_t)bytes;
 /*
  * For a compositor that draws on the GPU (G4): count frames (1 or 2) of
- * bytes in VRAM, shared (their global IDs, for Vulkan to import), mapped
+ * bytes in VRAM, shared (their names, for Vulkan to import), mapped
  * for the CPU (for display streams). NO when there is no such GPU or it
  * refuses. A frame is presented by copying ranges of it into the
  * framebuffer (gpuPresentFrame:), or shown as it is from the next vertical
  * blank (flipToGPUFrame:, which returns once it is; -1 shows the
  * framebuffer again, as tearDownGPUPresent does).
  */
-- (BOOL)setUpGPUFrames:(unsigned)count bytes:(size_t)bytes globalIDs:(uint32_t *)globalIDs
+- (BOOL)setUpGPUFrames:(unsigned)count bytes:(size_t)bytes names:(uint64_t *)names
     cpu:(uint8_t **)cpu;
 - (BOOL)gpuPresentFrame:(unsigned)index offset:(size_t)offset bytes:(size_t)bytes;
 - (BOOL)flipToGPUFrame:(int)index;

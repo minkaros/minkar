@@ -93,10 +93,10 @@
 @property (readonly) BOOL committed;		/* always YES */
 @property (readonly) BOOL live;			/* always YES */
 /* In a GPU's memory (IOSurfaceMinkarGPUMemory): the GPU's registry entry
- * ID and the shared buffer's global ID, else 0; its pixels start at the
+ * ID and the shared buffer's name, else 0; its pixels start at the
  * buffer's start and take allocSize bytes. */
 @property (readonly) uint64_t gpuEntryID;
-@property (readonly) uint32_t gpuBuffer;
+@property (readonly) uint64_t gpuBuffer;
 @property (readonly) size_t allocSize;
 
 - (BOOL)commitBuffer:(uint32_t)buffer;

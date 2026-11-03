@@ -119,7 +119,7 @@ pattern(uint64_t i)
 	return (uint32_t)(i * 2654435761u) ^ 0xa5a5a5a5u;
 }
 
-extern uint32_t IOSurfaceGetMinkarGPUBuffer(IOSurfaceRef buffer);
+extern uint64_t IOSurfaceGetMinkarGPUBuffer(IOSurfaceRef buffer);
 
 /* The VRAM free on the GPU IOSurface uses, through a client of our own. */
 static uint64_t
@@ -202,8 +202,9 @@ surfaceInVRAM(const char *self, unsigned childID, int childFD)
 	CFDictionarySetValue(props, CFSTR("IOSurfaceMinkarGPUMemory"), kCFBooleanTrue);
 	IOSurfaceRef s = IOSurfaceCreate(props);
 	CFRelease(props);
-	uint32_t buffer = s ? IOSurfaceGetMinkarGPUBuffer(s) : 0;
-	snprintf(detail, sizeof(detail), "surface %u, GPU buffer %u", s ? IOSurfaceGetID(s) : 0, buffer);
+	uint64_t buffer = s ? IOSurfaceGetMinkarGPUBuffer(s) : 0;
+	snprintf(detail, sizeof(detail), "surface %u, GPU buffer 0x%016llx", s ? IOSurfaceGetID(s) : 0,
+	    (unsigned long long)buffer);
 	check(s != NULL && buffer != 0 && IOSurfaceGetID(s) != 0, "make an IOSurface in VRAM", detail);
 	if (s == NULL || buffer == 0)
 		return failures;

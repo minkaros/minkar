@@ -62,7 +62,7 @@ private:
 		uint64_t gpu;		/* its GPU address */
 		IOBufferMemoryDescriptor *system;	/* a system buffer's memory */
 		IOMemoryDescriptor *imported;		/* the client's own, wired */
-		uint32_t shared;			/* a shared buffer's global ID */
+		uint64_t shared;			/* a shared buffer's name */
 		bool hidden;				/* VRAM the CPU does not reach */
 	};
 

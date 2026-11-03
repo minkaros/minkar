@@ -594,13 +594,13 @@ MinkarAMDUserClient::sCreateShared(OSObject *target, void *, IOExternalMethodArg
 {
 	MinkarAMDUserClient *me = (MinkarAMDUserClient *)target;
 	uint64_t offset = 0, size = 0;
-	uint32_t id = 0;
+	uint64_t name = 0;
 	unsigned slot;
 
 	IOLockLock(me->fLock);
 	slot = me->bufferSlot();
 	IOReturn err = slot == kNoSlot ? kIOReturnNoResources :
-	    me->fGPU->createShared(args->scalarInput[0], &id, &offset, &size);
+	    me->fGPU->createShared(args->scalarInput[0], &name, &offset, &size);
 	if (err == kIOReturnSuccess) {
 		Buffer *b = &me->fBuffers[slot];
 		b->offset = offset;
@@ -608,16 +608,16 @@ MinkarAMDUserClient::sCreateShared(OSObject *target, void *, IOExternalMethodArg
 		b->gpu = me->fGPU->gpuAddress(offset);
 		b->system = NULL;
 		b->imported = NULL;
-		b->shared = id;
+		b->shared = name;
 		args->scalarOutput[0] = slot + 1;
 		args->scalarOutput[1] = b->gpu;
-		args->scalarOutput[2] = id;
+		args->scalarOutput[2] = name;
 	}
 	IOLockUnlock(me->fLock);
 	return err;
 }
 
-/* Another client's shared buffer, by its global ID: held by this one too. */
+/* Another client's shared buffer, by its name: held by this one too. */
 IOReturn
 MinkarAMDUserClient::sRetainShared(OSObject *target, void *, IOExternalMethodArguments *args)
 {
@@ -625,12 +625,12 @@ MinkarAMDUserClient::sRetainShared(OSObject *target, void *, IOExternalMethodArg
 	uint64_t offset = 0, size = 0;
 	unsigned slot;
 
-	if (args->scalarInput[0] == 0 || args->scalarInput[0] > UINT32_MAX)
+	if (args->scalarInput[0] == 0)
 		return kIOReturnBadArgument;
 	IOLockLock(me->fLock);
 	slot = me->bufferSlot();
 	IOReturn err = slot == kNoSlot ? kIOReturnNoResources :
-	    me->fGPU->retainShared((uint32_t)args->scalarInput[0], &offset, &size);
+	    me->fGPU->retainShared(args->scalarInput[0], &offset, &size);
 	if (err == kIOReturnSuccess) {
 		Buffer *b = &me->fBuffers[slot];
 		b->offset = offset;
@@ -638,7 +638,7 @@ MinkarAMDUserClient::sRetainShared(OSObject *target, void *, IOExternalMethodArg
 		b->gpu = me->fGPU->gpuAddress(offset);
 		b->system = NULL;
 		b->imported = NULL;
-		b->shared = (uint32_t)args->scalarInput[0];
+		b->shared = args->scalarInput[0];
 		args->scalarOutput[0] = slot + 1;
 		args->scalarOutput[1] = b->gpu;
 		args->scalarOutput[2] = size;

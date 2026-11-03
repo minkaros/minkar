@@ -130,7 +130,7 @@ static uint32_t nextSurfaceID = 1;
 @end
 
 /* IOSurface's own, for surfaces in GPU memory (Frameworks/IOSurface). */
-extern uint32_t IOSurfaceGetMinkarGPUBuffer(IOSurfaceRef buffer);
+extern uint64_t IOSurfaceGetMinkarGPUBuffer(IOSurfaceRef buffer);
 extern uint64_t IOSurfaceGetMinkarGPU(IOSurfaceRef buffer);
 
 @implementation WSIOSurfaceBacking {
