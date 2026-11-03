@@ -37,6 +37,7 @@
 #include "MinkarAMDGFX.h"
 #include "amd_si_gfx.h"
 #include "amd_si_vm.h"
+#include "amd_si_gfx_init.h"
 #include "amd_si_dma.h"
 #include "MinkarAMDGART.h"
 #include "amd_si_ih.h"
@@ -789,6 +790,7 @@ MinkarAMDGPU::startGFXTest(const char *family)
 	UInt32 mode = 0;
 	thread_t thread;
 
+	fFamily = family;
 	/* The microcode's files are named after the chip, in lower case. */
 	size_t n = 0;
 	for (; family[n] != '\0' && family[n] != ' ' && n < sizeof(fMicrocodePrefix) - 1; n++)
@@ -957,6 +959,7 @@ MinkarAMDGPU::startGFX()
 	OSSafeReleaseNULL(region);
 	if (fGFXMap != NULL) {
 		uint64_t ns = 0;
+		initEngine();
 		MinkarAMDGFXLoadMicrocode(&fRegs, &code[0], &code[1], &code[2]);
 		fGFXStarted = MinkarAMDGFXStart(&fGFX, &fRegs, fVRAMStart + fGFXOffset,
 		    (volatile uint8_t *)fGFXMap->getVirtualAddress(), NULL) &&
@@ -978,6 +981,66 @@ MinkarAMDGPU::startGFX()
 	setProperty("MinkarGFXStarted", true);
 	LOG("the command processor runs clients' command buffers");
 	return true;
+}
+
+static uint32_t
+engineRead(void *gpu, uint32_t reg)
+{
+	return ((MinkarAMDGPU *)gpu)->readReg(reg);
+}
+
+static void
+engineWrite(void *gpu, uint32_t reg, uint32_t value)
+{
+	((MinkarAMDGPU *)gpu)->writeReg(reg, value);
+}
+
+/*
+ * The graphics block's start (amd_si_gfx_init.h, gfx_v6_0_constants_init),
+ * before the command processor's: what it found and set goes to
+ * MinkarGFXConfig, for the clients' drivers. Called locked.
+ */
+void
+MinkarAMDGPU::initEngine()
+{
+	struct amd_si_regs_io io = { engineRead, engineWrite, this };
+	struct amd_si_gfx_info info;
+	const struct amd_si_chip *chip = amd_si_chip_named(fFamily != NULL ? fFamily : "");
+
+	if (amd_si_gfx_init_engine(chip, &io, &info) != 0) {
+		LOG("no graphics block settings for %s", fFamily != NULL ? fFamily : "this chip");
+		return;
+	}
+	OSDictionary *d = OSDictionary::withCapacity(12);
+	if (d != NULL) {
+		static const char *const keys[] = { "RowKB", "AddrConfig", "BackendMask", "Backends",
+		    "RasterConfig", "ComputeUnits", "GoldenSet", "GoldenSkipped" };
+		const uint64_t values[] = { info.rowKB, info.addrConfig, info.backendMask, info.backends,
+		    info.rasterConfig, info.cus, info.goldenSet, info.goldenSkipped };
+		for (size_t i = 0; i < sizeof(keys) / sizeof(keys[0]); i++) {
+			OSNumber *n = OSNumber::withNumber((unsigned long long)values[i], 32);
+			if (n != NULL) {
+				d->setObject(keys[i], n);
+				n->release();
+			}
+		}
+		OSData *t = OSData::withBytes(info.tiling, sizeof(info.tiling));
+		if (t != NULL) {
+			d->setObject("TileModes", t);
+			t->release();
+		}
+		OSData *cu = OSData::withBytes(info.cuMask, sizeof(info.cuMask));
+		if (cu != NULL) {
+			d->setObject("ComputeUnitMasks", cu);
+			cu->release();
+		}
+		setProperty("MinkarGFXConfig", d);
+		d->release();
+	}
+	LOG("graphics block: %s, %u KB rows, GB_ADDR_CONFIG 0x%08x, %u render backends (0x%x), "
+	    "%u compute units, %u golden settings (%u left outside it)", chip->name, info.rowKB,
+	    info.addrConfig, info.backends, info.backendMask, info.cus, info.goldenSet,
+	    info.goldenSkipped);
 }
 
 /* Called locked. */

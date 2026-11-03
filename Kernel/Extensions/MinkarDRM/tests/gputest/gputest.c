@@ -73,6 +73,11 @@
  *					memory controller register through
  *					WRITE_DATA (put back after); reports
  *					what changed (administrators)
+ *   minkar-gputest [-g GPU] -w REG=VALUE,...
+ *					registers (dword indices, hex) written
+ *					by the command processor (WRITE_DATA,
+ *					the kernel's space), each read back:
+ *					for bring-up (administrators)
  *   minkar-gputest [-g GPU] -e		whether VRAM mapped from the user
  *					client can be shared as a Mach memory
  *					entry (IOSurfaces in VRAM)
@@ -244,10 +249,10 @@ main(int argc, char **argv)
 	int list = 0, entry = 0, vram = 0, gfx = 0, vm = 0, priv = 0, c;
 	unsigned childID = 0;
 	int childFD = -1;
-	const char *regs = NULL, *auxSpec = NULL, *i2cSpec = NULL, *modeSpec = NULL;
+	const char *regs = NULL, *auxSpec = NULL, *i2cSpec = NULL, *modeSpec = NULL, *writes = NULL;
 	char detail[256];
 
-	while ((c = getopt(argc, argv, "g:m:lr:evV:F:a:i:s:cup")) != -1)
+	while ((c = getopt(argc, argv, "g:m:lr:evV:F:a:i:s:cupw:")) != -1)
 		switch (c) {
 		case 'g': gpu = (unsigned)strtoul(optarg, NULL, 0); break;
 		case 'm': megabytes = (unsigned)strtoul(optarg, NULL, 0); break;
@@ -260,6 +265,7 @@ main(int argc, char **argv)
 		case 'c': gfx = 1; break;
 		case 'u': vm = 1; break;
 		case 'p': priv = 1; break;
+		case 'w': writes = optarg; break;
 		case 'v': vram = 1; break;
 		case 'V': childID = (unsigned)strtoul(optarg, NULL, 0); break;
 		case 'F': childFD = (int)strtol(optarg, NULL, 0); break;
@@ -389,6 +395,47 @@ main(int argc, char **argv)
 
 	uint64_t bytes = (uint64_t)megabytes << 20, handle[2] = { 0, 0 }, gpuAddr[2] = { 0, 0 };
 	uint64_t freeWithBuffers = 0;	/* before the gotos: read at out */
+	if (writes != NULL) {
+		uint64_t in = 1 << 20, h;
+		n = 2;
+		kr = IOConnectCallScalarMethod(conn, kMinkarAMDGPUCreateBuffer, &in, 1, out, &n);
+		h = out[0];
+		mach_vm_address_t a = 0;
+		mach_vm_size_t as = 0;
+		if (kr == KERN_SUCCESS)
+			kr = IOConnectMapMemory64(conn, (uint32_t)h, mach_task_self(), &a, &as, kIOMapAnywhere);
+		check(kr == KERN_SUCCESS, "a buffer for the command buffer", "");
+		if (kr != KERN_SUCCESS)
+			return failures;
+		volatile uint32_t *p = (volatile uint32_t *)(uintptr_t)a;
+		char *list = strdup(writes), *save = NULL;
+		for (char *t = strtok_r(list, ",", &save); t != NULL; t = strtok_r(NULL, ",", &save)) {
+			unsigned long reg = strtoul(t, NULL, 16);
+			char *eq = strchr(t, '=');
+			unsigned long value = eq != NULL ? strtoul(eq + 1, NULL, 16) : 0;
+			uint64_t r = reg, before = 0, after = 0, ns = 0;
+			n = 1;
+			IOConnectCallScalarMethod(conn, kMinkarAMDGPUReadRegister, &r, 1, &before, &n);
+			p[0] = SI_PACKET3(kSIPacket3WriteData, 3);
+			p[1] = 0u << 8 | 1u << 20;	/* a register; confirmed */
+			p[2] = (uint32_t)reg;
+			p[3] = 0;
+			p[4] = (uint32_t)value;
+			__sync_synchronize();
+			uint64_t kin[3] = { h, 0, 5 };
+			uint32_t sn = 1;
+			kr = IOConnectCallScalarMethod(conn, kMinkarAMDGPUSubmitGFX, kin, 3, &ns, &sn);
+			n = 1;
+			IOConnectCallScalarMethod(conn, kMinkarAMDGPUReadRegister, &r, 1, &after, &n);
+			printf("0x%lx 0x%08llx -> wrote 0x%08lx (0x%x) -> 0x%08llx\n", reg,
+			    (unsigned long long)before, value, kr, (unsigned long long)after);
+		}
+		free(list);
+		IOConnectUnmapMemory64(conn, (uint32_t)h, mach_task_self(), a);
+		IOConnectCallScalarMethod(conn, kMinkarAMDGPUDestroyBuffer, &h, 1, NULL, NULL);
+		IOServiceClose(conn);
+		return failures;
+	}
 	if (priv) {
 		/* One VRAM buffer, mapped at 1 MB of the client's space; its
 		 * command buffers try two registers. */

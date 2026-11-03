@@ -113,6 +113,7 @@ private:
 	void freeMicrocode(uint8_t *file[3], size_t bytes[3]);
 	bool startGFX();
 	void resetGFX();
+	void initEngine();
 	volatile uint64_t *vramPointer(uint64_t offset, uint64_t bytes);
 	void vmFlush(unsigned vmid);
 	IOReturn vmMap(unsigned vmid, uint64_t va, uint64_t bytes, uint64_t offset,
@@ -144,6 +145,7 @@ private:
 	uint64_t		fVRAMStart;	/* VRAM in the GPU's space */
 	IOLock *		fDMALock;	/* one submission at a time */
 	char			fMicrocodePrefix[16];	/* "tahiti", for its files */
+	const char *		fFamily;		/* "Tahiti" */
 	struct MinkarAMDGFX	fGFX;		/* started at the first submission */
 	bool			fGFXStarted;
 	IOMemoryMap *		fGFXMap;	/* its ring and write-back */
