@@ -70,10 +70,12 @@
  *   I2CRead		in: DDC line, slave (7-bit), offset, count (<= 16);
  *			out: 0 or a negative errno, the first 8 and next 8
  *			bytes. Writes the offset, then reads. For bring-up.
- *   ModeSet		in: stage (0 dividers, 1 PLL, 2 timing, 3 all), the
- *			EDID mode's index (of the current size); out: result,
- *			dividers, the PLL's three registers, the refresh rate
- *			(mHz). Bring-up, administrators only.
+ *   ModeSet		in: stage (0 dividers, 1 PLL, 2 timing, 3 all; 4
+ *			what a plug does: the EDID read again, the mode in use
+ *			set again), the EDID mode's index (of the current
+ *			size); out: result, dividers, the PLL's three
+ *			registers, the refresh rate (mHz). Bring-up,
+ *			administrators only.
  *   ReadRegister	in: dword index; out: its value. For bring-up: the
  *			register window only, reading only (no indexed
  *			registers, which take two writes).

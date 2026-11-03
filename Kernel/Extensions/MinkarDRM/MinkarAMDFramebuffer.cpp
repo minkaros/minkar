@@ -29,6 +29,7 @@
 
 #include <IOKit/IOLib.h>
 #include <IOKit/IOPlatformExpert.h>
+#include <IOKit/IOTimerEventSource.h>
 #include <kern/clock.h>
 #include <pexpert/pexpert.h>
 #include "MinkarAMDFramebuffer.h"
@@ -287,9 +288,6 @@ bool
 MinkarAMDFramebuffer::showMode(unsigned index)
 {
 	const Mode &m = fModes[index];
-	const Mode &n = fModes[0];
-	int left = 0, right = 0, top = 0, bottom = 0;
-	bool scaled = index != 0 && m.timing < 0;
 
 	/* Another refresh rate: the display's timing changes. */
 	if (m.timing >= 0 && m.timing != fTiming) {
@@ -311,6 +309,29 @@ MinkarAMDFramebuffer::showMode(unsigned index)
 		return true;
 	}
 
+	/* Black first: the window server draws the new mode in full. */
+	bzero((void *)fMap->getVirtualAddress(), (size_t)pitchFor(m.width) * 4 * m.height);
+	if (!scaleTo(index))
+		return false;
+	fCurrent = index;
+	setConsole();
+	publishTimings();
+	LOG("%ux%u%s", m.width, m.height, index != 0 && m.timing < 0 ? ", scaled" : "");
+	return true;
+}
+
+/*
+ * The framebuffer at mode index's size, shown through the scaler at the
+ * timing in use (or passed through at the native size), the picture kept.
+ */
+bool
+MinkarAMDFramebuffer::scaleTo(unsigned index)
+{
+	const Mode &m = fModes[index];
+	const Mode &n = fModes[0];
+	int left = 0, right = 0, top = 0, bottom = 0;
+	bool scaled = index != 0 && m.timing < 0;
+
 	if (scaled) {
 		uint64_t a1 = (uint64_t)m.height * n.width, a2 = (uint64_t)n.height * m.width;
 		if (a1 > a2)
@@ -318,8 +339,6 @@ MinkarAMDFramebuffer::showMode(unsigned index)
 		else if (a2 > a1)
 			top = bottom = (int)(n.height - a1 / m.width) / 2;
 	}
-	/* Black first: the window server draws the new mode in full. */
-	bzero((void *)fMap->getVirtualAddress(), (size_t)pitchFor(m.width) * 4 * m.height);
 
 	/* Held while it changes, so it all takes effect in one frame; the
 	 * surface is checked once released. */
@@ -335,15 +354,9 @@ MinkarAMDFramebuffer::showMode(unsigned index)
 	}
 	if (!surfaceTaken(fOffset))
 		ok = false;
-	if (!ok) {
+	if (!ok)
 		LOG("%ux%u: the display engine did not take it", m.width, m.height);
-		return false;
-	}
-	fCurrent = index;
-	setConsole();
-	publishTimings();
-	LOG("%ux%u%s", m.width, m.height, scaled ? ", scaled" : "");
-	return true;
+	return ok;
 }
 
 /* ---- The display, over AUX ---- */
@@ -419,14 +432,7 @@ MinkarAMDFramebuffer::readSink()
 	 * DVI sink on a dual-mode port (the Mac Pro 6,1's HDMI port). */
 	bool dp = fDPCD[0] != 0;
 	if (!dp) {
-		for (unsigned block = 0; block < 2; block++) {
-			if (minkar_atom_i2c(fAtom, fAUX, 0x50, 0, (uint8_t)(block * 128), NULL, 0,
-			    fEDID + block * 128, 128) != 0)
-				break;
-			fEDIDBytes = (block + 1) * 128;
-			if (block == 0 && fEDID[126] == 0)
-				break;
-		}
+		readEDID(fEDID, &fEDIDBytes);
 		setProperty("MinkarSinkType", "HDMI or DVI (DDC)");
 	} else
 		setProperty("MinkarSinkType", "DisplayPort");
@@ -454,6 +460,122 @@ MinkarAMDFramebuffer::readSink()
 		LOG("no EDID from the display");
 		fEDIDBytes = 0;
 	}
+}
+
+/* The EDID on the DDC line (an HDMI or DVI sink): its base block and its
+ * first extension, 256 bytes at most; true when the base block is one. */
+bool
+MinkarAMDFramebuffer::readEDID(uint8_t *edid, unsigned *bytes)
+{
+	*bytes = 0;
+	for (unsigned block = 0; block < 2; block++) {
+		if (minkar_atom_i2c(fAtom, fAUX, 0x50, 0, (uint8_t)(block * 128), NULL, 0,
+		    edid + block * 128, 128) != 0)
+			break;
+		*bytes = (block + 1) * 128;
+		if (block == 0 && edid[126] == 0)
+			break;
+	}
+	return *bytes >= 128 && edid[0] == 0x00 && edid[1] == 0xff && edid[7] == 0x00;
+}
+
+/* ---- Hot plug ---- */
+
+enum {
+	kHPDPollMS = 250,
+	kHPDSettle = 2,		/* samples at the new level: half a second */
+	kRecoverTries = 8,	/* polls the display has to answer after a plug */
+};
+
+void
+MinkarAMDFramebuffer::hpdTimer(OSObject *owner, IOTimerEventSource *)
+{
+	((MinkarAMDFramebuffer *)owner)->pollHPD();
+}
+
+/*
+ * The display's HPD line, and after a plug the mode in use set again once
+ * the display gives its EDID (a sink that was away may not have locked on
+ * the signal it came back to).
+ */
+void
+MinkarAMDFramebuffer::pollHPD()
+{
+	int sense = (readReg(mmDC_HPD1_INT_STATUS + 3 * fHPD) & DC_HPD_SENSE) != 0;
+
+	switch (amd_hpd_sample(&fHPDState, sense, kHPDSettle)) {
+	case AMD_HPD_UNPLUGGED:
+		fUnplugs++;
+		fRecoverTries = 0;
+		setProperty("MinkarDisplayConnected", false);
+		setProperty("MinkarUnplugs", fUnplugs, 32);
+		LOG("the display was unplugged");
+		break;
+	case AMD_HPD_PLUGGED:
+		fPlugs++;
+		fRecoverTries = kRecoverTries;
+		setProperty("MinkarDisplayConnected", true);
+		setProperty("MinkarPlugs", fPlugs, 32);
+		LOG("a display was plugged in");
+		break;
+	default:
+		break;
+	}
+	if (fRecoverTries > 0 && fHPDState.connected) {
+		/* With the framebuffer's gate held, as a mode change is. */
+		IOWorkLoop *wl = getWorkLoop();
+		IOReturn err = wl != NULL ? wl->runAction(OSMemberFunctionCast(IOWorkLoop::Action,
+		    this, &MinkarAMDFramebuffer::recoverGated), this) : recoverDisplay();
+		if (err != kIOReturnNotReady || --fRecoverTries == 0)
+			fRecoverTries = 0;
+		if (err == kIOReturnNotReady && fRecoverTries == 0)
+			LOG("the display gave no EDID: the mode stays as it was");
+	}
+	fHPDTimer->setTimeoutMS(kHPDPollMS);
+}
+
+/*
+ * After a plug: the EDID read again (it may be another display) and the
+ * timing in use set again, then the scaler as the mode wants it; the
+ * framebuffer and its picture stay. kIOReturnNotReady while the display
+ * does not answer yet.
+ */
+IOReturn
+MinkarAMDFramebuffer::recoverDisplay()
+{
+	uint8_t edid[256];
+	unsigned bytes;
+
+	if (fAtom == NULL || fConnector < 0)
+		return kIOReturnNotFound;
+	if (fDPCD[0] != 0)
+		return kIOReturnUnsupported;	/* DisplayPort: link training, not yet */
+	if (!readEDID(edid, &bytes))
+		return kIOReturnNotReady;
+	if (bytes != fEDIDBytes || memcmp(edid, fEDID, bytes) != 0) {
+		bcopy(edid, fEDID, bytes);
+		fEDIDBytes = bytes;
+		setProperty("MinkarEDID", fEDID, fEDIDBytes);
+		/* Its modes are listed at the next start; the one in use is
+		 * kept, which it may not show. */
+		LOG("another display: vendor %c%c%c, product 0x%04x; the mode in use stays",
+		    '@' + ((fEDID[8] >> 2) & 0x1f), '@' + (((fEDID[8] & 3) << 3) | (fEDID[9] >> 5)),
+		    '@' + (fEDID[9] & 0x1f), fEDID[10] | (fEDID[11] << 8));
+	}
+	if (fTiming < 0) {
+		LOG("the firmware's timing is not one of ours: left as it is");
+		return kIOReturnSuccess;
+	}
+	if (setTiming(&fTimings[fTiming], 3, NULL) != kIOReturnSuccess) {
+		LOG("the mode in use was not set again");
+		return kIOReturnIOError;
+	}
+	if (fModes[fCurrent].timing < 0 && !scaleTo(fCurrent))
+		return kIOReturnIOError;
+	publishTimings();
+	LOG("the display is back at %ux%u, %u.%03u Hz", fModes[fCurrent].width,
+	    fModes[fCurrent].height, fRefreshMilliHz / 1000, fRefreshMilliHz % 1000);
+	return kIOReturnSuccess;
 }
 
 /*
@@ -629,6 +751,18 @@ MinkarAMDFramebuffer::bringUpModeSet(uint32_t stage, uint32_t edidIndex, uint64_
 	struct edid_mode modes[32];
 	unsigned n = fEDIDBytes >= 128 ? edid_modes(fEDID, fEDIDBytes, modes, 32) : 0;
 
+	if (stage == 4) {	/* as after a plug */
+		IOWorkLoop *wl = getWorkLoop();
+		if (wl == NULL)
+			return kIOReturnNotReady;
+		IOReturn err = wl->runAction(OSMemberFunctionCast(IOWorkLoop::Action, this,
+		    &MinkarAMDFramebuffer::recoverGated), this);
+		if (out != NULL) {
+			out[0] = (uint64_t)(int64_t)err;
+			out[5] = fRefreshMilliHz;
+		}
+		return kIOReturnSuccess;
+	}
 	if (edidIndex >= n)
 		return kIOReturnBadArgument;
 	if (fCurrent != 0 && fModes[fCurrent].timing < 0)
@@ -898,12 +1032,37 @@ MinkarAMDFramebuffer::start(IOService *provider)
 
 	setupForCurrentConfig();
 	registerService();
+
+	/* Watch the display's HPD line (an HDMI or DVI sink: DisplayPort
+	 * would need link training after a plug), on a work loop of its own:
+	 * the framebuffer's comes later, when it is opened. */
+	if (fConnector >= 0 && fDPCD[0] == 0) {
+		fHPDLoop = IOWorkLoop::workLoop();
+		fHPDTimer = fHPDLoop != NULL ?
+		    IOTimerEventSource::timerEventSource(this, &MinkarAMDFramebuffer::hpdTimer) : NULL;
+		if (fHPDTimer != NULL && fHPDLoop->addEventSource(fHPDTimer) == kIOReturnSuccess) {
+			amd_hpd_init(&fHPDState, 1);
+			setProperty("MinkarDisplayConnected", true);
+			fHPDTimer->setTimeoutMS(kHPDPollMS);
+		} else {
+			OSSafeReleaseNULL(fHPDTimer);
+			OSSafeReleaseNULL(fHPDLoop);
+			LOG("cannot watch the display's HPD line");
+		}
+	}
 	return true;
 }
 
 void
 MinkarAMDFramebuffer::free()
 {
+	if (fHPDTimer != NULL) {
+		fHPDTimer->cancelTimeout();
+		if (fHPDTimer->getWorkLoop() != NULL)
+			fHPDTimer->getWorkLoop()->removeEventSource(fHPDTimer);
+		OSSafeReleaseNULL(fHPDTimer);
+	}
+	OSSafeReleaseNULL(fHPDLoop);
 	minkar_atom_close(fAtom);
 	MinkarAMDFreeVBIOS(fBIOS);
 	OSSafeReleaseNULL(fMap);

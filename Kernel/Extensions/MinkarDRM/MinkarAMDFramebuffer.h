@@ -44,6 +44,9 @@
 #include <IOKit/pci/IOPCIDevice.h>
 #include "MinkarAMDDevice.h"
 #include "edid.h"
+#include "amd_hpd.h"
+
+class IOTimerEventSource;
 
 struct minkar_atom;
 
@@ -82,9 +85,13 @@ public:
 	bool scanout(uint64_t *offset, uint64_t *bytes);
 	/* Bring-up (G2): sets one of the EDID's modes of the current size
 	 * through the VBIOS's tables, by stages (0 dividers only, 1 the PLL,
-	 * 2 the timing, 3 all of it); out: result, dividers, the PLL's
-	 * registers, the refresh rate measured after. */
+	 * 2 the timing, 3 all of it; 4 as after a plug); out: result,
+	 * dividers, the PLL's registers, the refresh rate measured after. */
 	IOReturn bringUpModeSet(uint32_t stage, uint32_t edidIndex, uint64_t *out);
+	/* What a plug does (stage 4 of the above): the EDID read again, the
+	 * mode in use set again. */
+	IOReturn recoverDisplay();
+	IOReturn recoverGated(void *, void *, void *, void *) { return recoverDisplay(); }
 
 	uint32_t readReg(uint32_t reg) { return MinkarAMDRead(&fRegs, reg); }
 	void writeReg(uint32_t reg, uint32_t value) { MinkarAMDWrite(&fRegs, reg, value); }
@@ -114,6 +121,10 @@ private:
 	    bool wait);
 	bool surfaceTaken(uint64_t offset);
 	bool showMode(unsigned index);
+	bool scaleTo(unsigned index);
+	bool readEDID(uint8_t *edid, unsigned *bytes);
+	static void hpdTimer(OSObject *owner, IOTimerEventSource *sender);
+	void pollHPD();
 	void setConsole();
 	const Mode *modeFor(IODisplayModeID id);
 	UInt32 pitchFor(UInt32 width) { return (width + 63) & ~63U; }
@@ -152,6 +163,14 @@ private:
 	struct edid_mode	fTimings[kMaxTimings];
 	unsigned		fTimingCount;
 	int			fTiming;
+
+	/* The display's hot-plug detect line, polled; a plug sets the mode
+	 * in use again once the display answers. */
+	IOWorkLoop *		fHPDLoop;
+	IOTimerEventSource *	fHPDTimer;
+	struct amd_hpd		fHPDState;
+	unsigned		fRecoverTries;	/* left, after a plug */
+	UInt32			fPlugs, fUnplugs;
 };
 
 #endif
