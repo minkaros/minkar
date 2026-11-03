@@ -38,7 +38,8 @@
  *
  *   Info		out: VRAM, free VRAM, the CPU's window on it (bytes)
  *   CreateBuffer	in: size; out: buffer (1 and up), its GPU address
- *			A buffer in VRAM the CPU can reach: IOConnectMapMemory64
+ *			A buffer in VRAM the CPU can reach, its size rounded up
+ *			to whole pages (as clients map it): IOConnectMapMemory64
  *			with the buffer as the memory type maps it.
  *   DestroyBuffer	in: buffer
  *   Copy		in: destination buffer and offset, source buffer and
@@ -46,7 +47,7 @@
  *			to the fence. The DMA engine copies; the call returns
  *			once the fence has signalled.
  *   CreateSystemBuffer	in: size; out: buffer, its GPU address. A buffer in
- *			system memory the GPU reaches through the GART (when
+ *			system memory (whole pages) the GPU reaches through the GART (when
  *			the driver turned it on: minkaramd_gart); mapped the
  *			same way, cached.
  *   ImportMemory	in: address, size (page-aligned, the caller's own
@@ -102,6 +103,10 @@
  *			one of its mappings) in that space: what it reads and
  *			writes is what the client mapped; anything else faults
  *			to a scratch page.
+ *   CreateHiddenBuffer	in: size; out: buffer, its GPU address. A buffer in
+ *			VRAM the CPU does not reach (whole pages), anywhere in
+ *			VRAM rather than in the CPU's window: it cannot be
+ *			mapped for the CPU (Vulkan's device-local memory).
  *   ReadRegister	in: dword index; out: its value. For bring-up
  *			(administrators): the register window only, reading
  *			only (no indexed registers, which take two writes).
@@ -130,6 +135,7 @@ enum {
 	kMinkarAMDGPUMapBuffer,
 	kMinkarAMDGPUUnmapBuffer,
 	kMinkarAMDGPUSubmitGFXVM,
+	kMinkarAMDGPUCreateHiddenBuffer,
 	kMinkarAMDGPUMethodCount
 };
 
@@ -137,9 +143,9 @@ enum {
  * framebuffer (CopyToScanout) without administrator rights. */
 #define kMinkarGPUClientEntitlement	"org.minkar.gpu-client"
 
-/* The most buffers a client holds at once. */
-#define kMinkarAMDGPUMaxBuffers	4096
+/* The most buffers a client holds at once (its tables grow up to it). */
+#define kMinkarAMDGPUMaxBuffers	16384
 /* The most mappings in a client's GPU address space. */
-#define kMinkarAMDGPUMaxMappings	4096
+#define kMinkarAMDGPUMaxMappings	32768
 
 #endif

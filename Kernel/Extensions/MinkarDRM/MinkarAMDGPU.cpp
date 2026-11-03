@@ -158,6 +158,12 @@ void
 MinkarAMDGPU::setUpVRAM(uint32_t megabytes)
 {
 	fVRAMLock = IOLockAlloc();
+	/* Room for many buffers (a Vulkan app makes thousands). */
+	fVRAMRanges = (struct minkar_vram_range *)IOMallocZero(kVRAMRanges * sizeof(*fVRAMRanges));
+	if (fVRAMRanges == NULL) {
+		LOG("VRAM allocator not set up: no memory for its ranges");
+		return;
+	}
 	minkar_vram_init(&fVRAM, (uint64_t)megabytes << 20, fVRAMRanges, kVRAMRanges);
 	if (fVRAMLock == NULL || megabytes == 0 ||
 	    minkar_vram_reserve(&fVRAM, 0, kVRAMReservedLow) != 0) {
@@ -214,7 +220,10 @@ MinkarAMDGPU::startGART(bool display)
 		}
 		return;
 	}
-	minkar_vram_init(&fGARTPages, size, fGARTRanges, kGARTRanges);
+	if (fGARTRanges == NULL)
+		fGARTRanges = (struct minkar_vram_range *)IOMallocZero(kGARTRanges * sizeof(*fGARTRanges));
+	minkar_vram_init(&fGARTPages, fGARTRanges != NULL ? size : 0, fGARTRanges,
+	    fGARTRanges != NULL ? kGARTRanges : 0);
 	setProperty("MinkarGARTMegabytes", (unsigned long long)(size >> 20), 32);
 }
 
@@ -429,20 +438,27 @@ MinkarAMDGPU::vramInfo(uint64_t *total, uint64_t *available, uint64_t *window)
 	return kIOReturnSuccess;
 }
 
-/* In 64 KB units, inside the CPU's window. */
-IOReturn
-MinkarAMDGPU::createBuffer(uint64_t size, uint64_t *offset)
-{
-	const uint64_t unit = 64 * 1024;
+/* Clients' buffers are whole pages, as amdgpu's: a Vulkan app makes
+ * thousands of small ones. */
+#define kBufferUnit	4096ull
 
-	if (fWindow == NULL || fVRAMLock == NULL)
+/* In pages: inside the CPU's window, or anywhere (cpuVisible false). */
+IOReturn
+MinkarAMDGPU::createBuffer(uint64_t size, uint64_t *offset, bool cpuVisible)
+{
+	const uint64_t unit = kBufferUnit;
+
+	if (fWindow == NULL || fVRAMLock == NULL || fVRAMRanges == NULL)
 		return kIOReturnNotReady;
-	if (size == 0 || size > fWindow->getLength())
+	if (size == 0 || size > (cpuVisible ? fWindow->getLength() : fVRAM.size))
 		return kIOReturnBadArgument;
 	size = (size + unit - 1) & ~(unit - 1);
 	IOLockLock(fVRAMLock);
-	int err = minkar_vram_alloc(&fVRAM, size, unit, offset);
-	if (err == 0 && *offset + size > fWindow->getLength()) {
+	/* The CPU's window from the bottom; the rest from the top, above the
+	 * window, so that it stays for buffers the CPU maps. */
+	int err = cpuVisible ? minkar_vram_alloc(&fVRAM, size, unit, offset) :
+	    minkar_vram_alloc_top(&fVRAM, size, unit, fWindow->getLength(), offset);
+	if (err == 0 && cpuVisible && *offset + size > fWindow->getLength()) {
 		minkar_vram_free(&fVRAM, *offset, size);
 		err = -1;
 	}
@@ -453,7 +469,7 @@ MinkarAMDGPU::createBuffer(uint64_t size, uint64_t *offset)
 void
 MinkarAMDGPU::destroyBuffer(uint64_t offset, uint64_t size)
 {
-	const uint64_t unit = 64 * 1024;
+	const uint64_t unit = kBufferUnit;
 
 	IOLockLock(fVRAMLock);
 	minkar_vram_free(&fVRAM, offset, (size + unit - 1) & ~(unit - 1));
@@ -562,7 +578,7 @@ MinkarAMDGPU::destroySystemBuffer(IOBufferMemoryDescriptor *m, uint64_t gpuAddre
 IOReturn
 MinkarAMDGPU::createShared(uint64_t size, uint32_t *id, uint64_t *offset, uint64_t *rounded)
 {
-	const uint64_t unit = 64 * 1024;
+	const uint64_t unit = kBufferUnit;
 	IOReturn err = createBuffer(size, offset);
 
 	if (err != kIOReturnSuccess)
@@ -1483,6 +1499,10 @@ MinkarAMDGPU::free()
 	MinkarAMDUnmapRegisters(&fRegs);
 	if (fVRAMLock != NULL)
 		IOLockFree(fVRAMLock);
+	if (fVRAMRanges != NULL)
+		IOFree(fVRAMRanges, kVRAMRanges * sizeof(*fVRAMRanges));
+	if (fGARTRanges != NULL)
+		IOFree(fGARTRanges, kGARTRanges * sizeof(*fGARTRanges));
 	if (fDMALock != NULL)
 		IOLockFree(fDMALock);
 	OSSafeReleaseNULL(fPCI);

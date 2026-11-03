@@ -69,6 +69,11 @@ int minkar_vram_reserve(struct minkar_vram *v, uint64_t start, uint64_t size);
 /* The lowest free range of size bytes at a multiple of align (a power of
  * two): its offset in *offset. 0, or -1 if there is none. */
 int minkar_vram_alloc(struct minkar_vram *v, uint64_t size, uint64_t align, uint64_t *offset);
+/* The highest free range of size bytes at a multiple of align, at or
+ * above floor (buffers the CPU does not reach, kept clear of the low part
+ * the CPU's window shows): its offset in *offset. 0, or -1 if none. */
+int minkar_vram_alloc_top(struct minkar_vram *v, uint64_t size, uint64_t align, uint64_t floor,
+    uint64_t *offset);
 /* Gives a range back. 0, or -1 if it overlaps a free one, lies outside
  * VRAM, or the ranges are full. */
 int minkar_vram_free(struct minkar_vram *v, uint64_t offset, uint64_t size);

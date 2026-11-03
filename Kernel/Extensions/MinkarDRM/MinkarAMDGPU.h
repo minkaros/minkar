@@ -67,7 +67,8 @@ public:
 	/* For the user client (MinkarAMDGPUInterface.h). Buffers are VRAM
 	 * offsets the CPU's window reaches. */
 	IOReturn vramInfo(uint64_t *total, uint64_t *available, uint64_t *window);
-	IOReturn createBuffer(uint64_t size, uint64_t *offset);
+	/* cpuVisible: in the CPU's window on VRAM; else anywhere, from the top. */
+	IOReturn createBuffer(uint64_t size, uint64_t *offset, bool cpuVisible = true);
 	void destroyBuffer(uint64_t offset, uint64_t size);
 	IODeviceMemory *bufferMemory(uint64_t offset, uint64_t size);
 	uint64_t gpuAddress(uint64_t offset) { return fVRAMStart + offset; }
@@ -132,7 +133,7 @@ private:
 	static void sleepForTrap(void *gpu);
 	bool lightsDisplay();
 
-	enum { kVRAMRanges = 1024, kGARTRanges = 1024, kSharedBuffers = 512 };
+	enum { kVRAMRanges = 16384, kGARTRanges = 16384, kSharedBuffers = 512 };
 	struct Shared {
 		uint32_t id, holders;	/* holders 0: the slot is empty */
 		uint64_t offset, size;
@@ -167,7 +168,7 @@ private:
 	struct MinkarAMDGART	fGART;		/* on while the driver runs */
 	uint64_t		fGARTTable, fGARTScratch;	/* its VRAM */
 	struct minkar_vram	fGARTPages;	/* what is free of it, by offset */
-	struct minkar_vram_range fGARTRanges[kGARTRanges];
+	struct minkar_vram_range *fGARTRanges;	/* kGARTRanges of them */
 	IOLock *		fVRAMLock;	/* the VRAM's and the GART's allocators */
 	Shared			fShared[kSharedBuffers];	/* under fVRAMLock */
 	uint32_t		fNextSharedID;
@@ -182,7 +183,7 @@ private:
 	IOLock *		fTrapLock;	/* traps, and waits for them */
 	uint64_t		fInterrupts, fDMATraps, fIHOverflows;
 	struct minkar_vram	fVRAM;		/* what is free of VRAM */
-	struct minkar_vram_range fVRAMRanges[kVRAMRanges];
+	struct minkar_vram_range *fVRAMRanges;	/* kVRAMRanges of them */
 };
 
 #endif

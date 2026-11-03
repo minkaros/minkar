@@ -63,10 +63,13 @@ private:
 		IOBufferMemoryDescriptor *system;	/* a system buffer's memory */
 		IOMemoryDescriptor *imported;		/* the client's own, wired */
 		uint32_t shared;			/* a shared buffer's global ID */
+		bool hidden;				/* VRAM the CPU does not reach */
 	};
 
 	static IOReturn sInfo(OSObject *target, void *reference, IOExternalMethodArguments *args);
 	static IOReturn sCreate(OSObject *target, void *reference, IOExternalMethodArguments *args);
+	static IOReturn sCreateHidden(OSObject *target, void *reference, IOExternalMethodArguments *args);
+	static IOReturn create(MinkarAMDUserClient *me, IOExternalMethodArguments *args, bool hidden);
 	static IOReturn sDestroy(OSObject *target, void *reference, IOExternalMethodArguments *args);
 	static IOReturn sCopy(OSObject *target, void *reference, IOExternalMethodArguments *args);
 	static IOReturn sReadRegister(OSObject *target, void *reference, IOExternalMethodArguments *args);
@@ -85,12 +88,15 @@ private:
 	/* A buffer at an address of the client's GPU address space. */
 	struct Mapping {
 		uint64_t va, bytes;	/* bytes 0: the slot is empty */
-		Buffer *buffer;
+		uint32_t buffer;	/* its buffer's handle */
 	};
+	enum { kNoSlot = ~0u };
 
 	void destroy(Buffer *b);
 	void unmapAll(Buffer *b);
 	Buffer *buffer(uint64_t handle);
+	unsigned bufferSlot();
+	unsigned growMappings();
 	void releaseAll();
 
 	MinkarAMDGPU *		fGPU;
@@ -98,9 +104,13 @@ private:
 	bool			fAdministrator;
 	bool			fEntitled;	/* gpu-client, or an administrator */
 	IOLock *		fLock;
-	Buffer			fBuffers[kMinkarAMDGPUMaxBuffers];
+	/* Grown as needed, up to the interface's limits (an app makes
+	 * thousands of buffers; most make few). */
+	Buffer *		fBuffers;
+	unsigned		fBufferCap;
 	unsigned		fVMID;		/* its address space's context, or 0 */
-	Mapping			fMappings[kMinkarAMDGPUMaxMappings];
+	Mapping *		fMappings;
+	unsigned		fMappingCap;
 };
 
 #endif
