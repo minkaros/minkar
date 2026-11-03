@@ -488,17 +488,21 @@ MinkarAMDFramebuffer::addScaledModes()
 #define mmCRTC0_PIXEL_RATE_CNTL	0x0140	/* CRTCn's at 4 dwords apart */
 #define mmPLL_REF_DIV		0x1700	/* PPLL0's; PPLL1 0x1710, PPLL2 0x1720 */
 
+/*
+ * Sets one of the EDID's modes of the current size through the VBIOS's
+ * tables, by stages (0 the dividers only, 1 the PLL, 2 the timing, 3 all
+ * of it), as DRM's helpers and amdgpu's dce_v6_0.c and atombios_*.c do
+ * for a TMDS sink. out, if given: result, dividers, the PLL's registers,
+ * the refresh rate measured after.
+ */
 IOReturn
-MinkarAMDFramebuffer::bringUpModeSet(uint32_t stage, uint32_t edidIndex, uint64_t *out)
+MinkarAMDFramebuffer::setTiming(const struct edid_mode *m, uint32_t stage, uint64_t *out)
 {
-	struct edid_mode modes[32];
-	unsigned n = fEDIDBytes >= 128 ? edid_modes(fEDID, fEDIDBytes, modes, 32) : 0;
 	struct amd_pll_limits l;
 	struct amd_pll_dividers d;
 
-	if (fAtom == NULL || fConnector < 0 || edidIndex >= n || stage > 3)
+	if (fAtom == NULL || fConnector < 0 || stage > 3)
 		return kIOReturnBadArgument;
-	const struct edid_mode *m = &modes[edidIndex];
 	if (m->hactive != fModes[fCurrent].width || m->vactive != fModes[fCurrent].height ||
 	    fCurrent != 0)
 		return kIOReturnUnsupported;	/* the framebuffer stays as it is */
@@ -529,30 +533,33 @@ MinkarAMDFramebuffer::bringUpModeSet(uint32_t stage, uint32_t edidIndex, uint64_
 	o.connectorID = (uint8_t)ATOM_OBJECT_ID(c[fConnector].object);
 	o.hpd = fHPD;
 	o.hdmi = fDPCD[0] == 0 && fEDIDBytes > 128;
+	/* A single TMDS link: 340 MHz for HDMI 1.4, 165 MHz for DVI. */
+	if (m->clock > (o.hdmi ? 340000u : 165000u))
+		return kIOReturnUnsupported;
+	/* A DisplayPort sink needs link training: not yet. */
+	if (fDPCD[0] != 0)
+		return kIOReturnUnsupported;
 	struct minkar_atom_timing t = {
 		m->clock, m->hactive, m->hfront, m->hsync, m->hback,
 		m->vactive, m->vfront, m->vsync, m->vback, m->hpositive, m->vpositive,
 		(uint16_t)d.refDiv, (uint16_t)d.fbDiv, (uint16_t)d.fbFrac, (uint16_t)d.postDiv,
 	};
-	/* A single TMDS link: 340 MHz for HDMI 1.4, 165 MHz for DVI. */
-	if (m->clock > (o.hdmi ? 340000u : 165000u))
-		return kIOReturnUnsupported;
 	int rc = 0;
-	LOG("bring-up mode set, stage %u: %ux%u, %u kHz: crtc %u, PPLL index %u, dividers %u %u.%u %u, "
+	LOG("mode set, stage %u: %ux%u, %u kHz: crtc %u, PPLL index %u, dividers %u %u.%u %u, "
 	    "encoder 0x%02x%s, DIG %d, %s", stage, m->hactive, m->vactive, m->clock, o.crtc, o.pll,
 	    d.refDiv, d.fbDiv, d.fbFrac, d.postDiv, o.encoderID, o.linkB ? " link B" : "",
 	    minkar_atom_dig_for(&o), o.hdmi ? "HDMI" : "DVI");
 
 	switch (stage) {
 	case 1:
-		rc = minkar_atom_set_pixel_clock(fAtom, &o, &t);
+		rc = minkar_atom_set_pixel_clock(fAtom, &o, &t);	/* turns the crtc off */
 		break;
 	case 2:
 		rc = minkar_atom_set_timing(fAtom, (int)o.crtc, &t);
 		break;
 	case 3:
-		/* As DRM's helpers do: the encoder off, the crtc off, the mode,
-		 * the crtc on, the encoder on (dce_v6_0.c, atombios_*.c). */
+		/* The encoder off, the crtc off, the mode, the crtc on, the
+		 * encoder on. */
 		rc |= minkar_atom_transmitter(fAtom, &o, 0, t.clock);
 		rc |= minkar_atom_crtc_lock(fAtom, (int)o.crtc, 1);
 		rc |= minkar_atom_crtc_blank(fAtom, (int)o.crtc, 1);
@@ -579,15 +586,59 @@ MinkarAMDFramebuffer::bringUpModeSet(uint32_t stage, uint32_t edidIndex, uint64_
 		publishTimings();
 	}
 	uint32_t pll = mmPLL_REF_DIV + (o.pll == 2 ? 0 : 0x10 * (o.pll + 1));
-	out[0] = (uint64_t)(int64_t)rc;
-	out[1] = (uint64_t)d.refDiv << 24 | (uint64_t)d.fbDiv << 12 | (uint64_t)d.fbFrac << 8 | d.postDiv;
-	out[2] = readReg(pll);
-	out[3] = readReg(pll + 1);
-	out[4] = readReg(pll + 2);
-	out[5] = stage != 0 ? fRefreshMilliHz : (uint64_t)edid_refresh_mhz(m);
-	LOG("bring-up mode set, stage %u: result %d, PLL 0x%08x 0x%08x 0x%08x, %u mHz", stage, rc,
-	    (uint32_t)out[2], (uint32_t)out[3], (uint32_t)out[4], (uint32_t)out[5]);
-	return kIOReturnSuccess;
+	if (out != NULL) {
+		out[0] = (uint64_t)(int64_t)rc;
+		out[1] = (uint64_t)d.refDiv << 24 | (uint64_t)d.fbDiv << 12 | (uint64_t)d.fbFrac << 8 |
+		    d.postDiv;
+		out[2] = readReg(pll);
+		out[3] = readReg(pll + 1);
+		out[4] = readReg(pll + 2);
+		out[5] = stage != 0 ? fRefreshMilliHz : (uint64_t)edid_refresh_mhz(m);
+	}
+	LOG("mode set, stage %u: result %d, %u mHz", stage, rc, stage != 0 ? fRefreshMilliHz : 0);
+	return rc == 0 ? kIOReturnSuccess : kIOReturnIOError;
+}
+
+IOReturn
+MinkarAMDFramebuffer::bringUpModeSet(uint32_t stage, uint32_t edidIndex, uint64_t *out)
+{
+	struct edid_mode modes[32];
+	unsigned n = fEDIDBytes >= 128 ? edid_modes(fEDID, fEDIDBytes, modes, 32) : 0;
+
+	if (edidIndex >= n)
+		return kIOReturnBadArgument;
+	IOReturn err = setTiming(&modes[edidIndex], stage, out);
+	return err == kIOReturnIOError ? kIOReturnSuccess : err;	/* out says how it went */
+}
+
+/*
+ * The native size at the highest refresh rate the link carries (the
+ * maintainer's choice, over the firmware's preferred mode), set at start;
+ * "minkaramd_native=0" keeps the firmware's mode.
+ */
+void
+MinkarAMDFramebuffer::setBestNativeMode()
+{
+	struct edid_mode modes[32];
+	unsigned n = fEDIDBytes >= 128 ? edid_modes(fEDID, fEDIDBytes, modes, 32) : 0;
+	UInt32 enabled = 1;
+	int best = -1;
+
+	if (PE_parse_boot_argn("minkaramd_native", &enabled, sizeof(enabled)) && enabled == 0)
+		return;
+	if (fConnector < 0 || fDPCD[0] != 0 || n == 0)
+		return;
+	uint32_t limit = fEDIDBytes > 128 ? 340000u : 165000u;
+	for (unsigned i = 0; i < n; i++)
+		if (modes[i].hactive == fModes[0].width && modes[i].vactive == fModes[0].height &&
+		    modes[i].clock <= limit &&
+		    (best < 0 || edid_refresh_mhz(&modes[i]) > edid_refresh_mhz(&modes[best])))
+			best = (int)i;
+	/* Only when it is faster than what the firmware set. */
+	if (best < 0 || edid_refresh_mhz(&modes[best]) <= fRefreshMilliHz + 500)
+		return;
+	if (setTiming(&modes[best], 3, NULL) != kIOReturnSuccess)
+		LOG("the faster native mode was not set; the firmware's stays");
 }
 
 bool
@@ -741,6 +792,7 @@ MinkarAMDFramebuffer::start(IOService *provider)
 	}
 	fCurrent = 0;
 	setConsole();
+	setBestNativeMode();
 	publishTimings();
 
 	setProperty("MinkarDisplayCRTC", fCRTC, 32);

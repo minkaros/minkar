@@ -45,6 +45,7 @@
 #include "MinkarAMDDevice.h"
 
 struct minkar_atom;
+struct edid_mode;
 
 class MinkarAMDFramebuffer : public IOFramebuffer
 {
@@ -96,6 +97,8 @@ private:
 
 	bool findDisplay(uint64_t bootAddress);
 	void readSink();
+	IOReturn setTiming(const struct edid_mode *m, uint32_t stage, uint64_t *out);
+	void setBestNativeMode();
 	void addScaledModes();
 	int aux(uint8_t request, uint32_t address, uint8_t *buffer, uint8_t size);
 	void measureRefresh();
