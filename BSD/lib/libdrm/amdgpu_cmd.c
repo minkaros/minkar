@@ -231,6 +231,10 @@ gemVA(int fd, struct drm_amdgpu_gem_va *va)
 	default:
 		err = -EINVAL;
 	}
+	if (err != 0 && getenv("MINKAR_DRM_DEBUG") != NULL)
+		fprintf(stderr, "libdrm: GEM_VA op %u of buffer %u at 0x%llx, %llu bytes from %llu: %d\n",
+		    va->operation, va->handle, (unsigned long long)va->va_address,
+		    (unsigned long long)va->map_size, (unsigned long long)va->offset_in_bo, err);
 	/* Mapping is done when the call returns. */
 	if (err == 0 && va->vm_timeline_syncobj_out != 0)
 		minkar_drm_syncobj_signal(va->vm_timeline_syncobj_out, va->vm_timeline_point);

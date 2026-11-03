@@ -356,6 +356,14 @@ info(int fd, struct drm_amdgpu_info *req)
 			err = readRegisters(&v, req->read_mmr_reg.dword_offset, req->read_mmr_reg.count,
 			    req->read_mmr_reg.instance, ret);
 		break;
+	case AMDGPU_INFO_GPUVM_FAULT: {
+		/* The last fault: none kept yet (each submission's fault is
+		 * reported with it, and a faulting access reads the scratch page). */
+		struct drm_amdgpu_info_gpuvm_fault f;
+		memset(&f, 0, sizeof(f));
+		memcpy(ret, &f, size < sizeof(f) ? size : sizeof(f));
+		break;
+	}
 	case AMDGPU_INFO_MAX_IBS: {
 		uint32_t ibs[AMDGPU_HW_IP_NUM];
 		memset(ibs, 0, sizeof(ibs));

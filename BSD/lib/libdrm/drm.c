@@ -29,10 +29,12 @@
 /* xf86drm.h's functions that Mesa's RADV and its Vulkan runtime use. */
 
 #include <errno.h>
+#include <fcntl.h>
 #include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <CoreFoundation/CoreFoundation.h>
@@ -398,22 +400,32 @@ drmIoctl(int fd, unsigned long request, void *arg)
 	return 0;
 }
 
+/* libdrm's: -errno, with errno set. */
+static int
+command(int fd, unsigned long index, void *data, unsigned long size)
+{
+	int err = minkar_drm_command(fd, index, data, size);
+	if (err < 0)
+		errno = -err;
+	return err;
+}
+
 int
 drmCommandWriteRead(int fd, unsigned long index, void *data, unsigned long size)
 {
-	return minkar_drm_command(fd, index, data, size);
+	return command(fd, index, data, size);
 }
 
 int
 drmCommandWrite(int fd, unsigned long index, void *data, unsigned long size)
 {
-	return minkar_drm_command(fd, index, data, size);
+	return command(fd, index, data, size);
 }
 
 int
 drmCommandRead(int fd, unsigned long index, void *data, unsigned long size)
 {
-	return minkar_drm_command(fd, index, data, size);
+	return command(fd, index, data, size);
 }
 
 /* ---- Sync objects ----
@@ -428,20 +440,51 @@ drmCommandRead(int fd, unsigned long index, void *data, unsigned long size)
 
 #include <time.h>
 
-#define MINKAR_SYNCOBJS	4096
+/* The table grows as needed (Vulkan's tests chain tens of thousands). */
+#define MINKAR_SYNCOBJS_MAX	(1u << 20)
 
 static pthread_mutex_t sSyncLock = PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t sSyncCond = PTHREAD_COND_INITIALIZER;
 static struct syncobj {
 	bool used, signaled;
 	uint64_t point;
-} sSyncobjs[MINKAR_SYNCOBJS];
+} *sSyncobjs;
+static uint32_t sSyncobjCap, sSyncobjHint = 1;
 
+/* Called locked. */
 static struct syncobj *
 syncobj(uint32_t handle)
 {
-	return handle > 0 && handle < MINKAR_SYNCOBJS && sSyncobjs[handle].used ?
+	return handle > 0 && handle < sSyncobjCap && sSyncobjs[handle].used ?
 	    &sSyncobjs[handle] : NULL;
+}
+
+/* MINKAR_DRM_DEBUG=1: a sync object call that failed (not a timeout). */
+static int
+syncobjResult(const char *call, uint32_t handle, int err)
+{
+	static int trace = -1;
+	if (trace < 0)
+		trace = getenv("MINKAR_DRM_DEBUG") != NULL;
+	if (trace && err != 0 && err != -ETIME)
+		fprintf(stderr, "libdrm: %s of sync object %u: %d\n", call, handle, err);
+	return err;
+}
+
+/* Twice the room (4096 at first); called locked. */
+static bool
+growSyncobjs(void)
+{
+	uint32_t n = sSyncobjCap == 0 ? 4096 : sSyncobjCap * 2;
+	if (n > MINKAR_SYNCOBJS_MAX || n <= sSyncobjCap)
+		return false;
+	struct syncobj *t = realloc(sSyncobjs, n * sizeof(*t));
+	if (t == NULL)
+		return false;
+	memset(t + sSyncobjCap, 0, (n - sSyncobjCap) * sizeof(*t));
+	sSyncobjs = t;
+	sSyncobjCap = n;
+	return true;
 }
 
 int
@@ -449,17 +492,25 @@ drmSyncobjCreate(int fd, uint32_t flags, uint32_t *handle)
 {
 	(void)fd;
 	pthread_mutex_lock(&sSyncLock);
-	for (uint32_t h = 1; h < MINKAR_SYNCOBJS; h++)
-		if (!sSyncobjs[h].used) {
-			sSyncobjs[h].used = true;
-			sSyncobjs[h].signaled = (flags & DRM_SYNCOBJ_CREATE_SIGNALED) != 0;
-			sSyncobjs[h].point = 0;
-			*handle = h;
-			pthread_mutex_unlock(&sSyncLock);
-			return 0;
+	for (;;) {
+		/* From the last one taken or freed, then from the start. */
+		for (uint32_t k = 0; k + 1 < sSyncobjCap; k++) {
+			uint32_t h = 1 + (sSyncobjHint - 1 + k) % (sSyncobjCap - 1);
+			if (!sSyncobjs[h].used) {
+				sSyncobjs[h].used = true;
+				sSyncobjs[h].signaled = (flags & DRM_SYNCOBJ_CREATE_SIGNALED) != 0;
+				sSyncobjs[h].point = 0;
+				sSyncobjHint = h + 1 < sSyncobjCap ? h + 1 : 1;
+				*handle = h;
+				pthread_mutex_unlock(&sSyncLock);
+				return 0;
+			}
 		}
+		if (!growSyncobjs())
+			break;
+	}
 	pthread_mutex_unlock(&sSyncLock);
-	return -ENOMEM;
+	return syncobjResult("create", 0, -ENOMEM);
 }
 
 int
@@ -471,7 +522,7 @@ drmSyncobjDestroy(int fd, uint32_t handle)
 	if (o != NULL)
 		memset(o, 0, sizeof(*o));
 	pthread_mutex_unlock(&sSyncLock);
-	return o != NULL ? 0 : -EINVAL;
+	return syncobjResult("destroy", handle, o != NULL ? 0 : -EINVAL);
 }
 
 /* For submissions: signaled, or the timeline at point (0: binary). */
@@ -542,6 +593,9 @@ waitFor(uint32_t *handles, const uint64_t *points, unsigned n, int64_t deadline,
 	}
 out:
 	pthread_mutex_unlock(&sSyncLock);
+	/* As libdrm's ioctl wrappers: errno too (Mesa reads ETIME there). */
+	if (err != 0)
+		errno = -err;
 	return err;
 }
 
@@ -550,7 +604,8 @@ drmSyncobjWait(int fd, uint32_t *handles, unsigned num_handles, int64_t timeout_
     uint32_t *first_signaled)
 {
 	(void)fd;
-	return waitFor(handles, NULL, num_handles, timeout_nsec, flags, first_signaled);
+	return syncobjResult("wait", num_handles ? handles[0] : 0,
+	    waitFor(handles, NULL, num_handles, timeout_nsec, flags, first_signaled));
 }
 
 int
@@ -558,7 +613,8 @@ drmSyncobjTimelineWait(int fd, uint32_t *handles, uint64_t *points, unsigned num
     int64_t timeout_nsec, unsigned flags, uint32_t *first_signaled)
 {
 	(void)fd;
-	return waitFor(handles, points, num_handles, timeout_nsec, flags, first_signaled);
+	return syncobjResult("timeline wait", num_handles ? handles[0] : 0,
+	    waitFor(handles, points, num_handles, timeout_nsec, flags, first_signaled));
 }
 
 int
@@ -608,7 +664,7 @@ drmSyncobjQuery2(int fd, uint32_t *handles, uint64_t *points, uint32_t handle_co
 			points[i] = o->point;
 	}
 	pthread_mutex_unlock(&sSyncLock);
-	return err;
+	return syncobjResult("query", handle_count ? handles[0] : 0, err);
 }
 
 int
@@ -629,7 +685,7 @@ drmSyncobjTransfer(int fd, uint32_t dst_handle, uint64_t dst_point, uint32_t src
 	bool done = s != NULL && reached(s, src_point);
 	pthread_mutex_unlock(&sSyncLock);
 	if (s == NULL || d == NULL)
-		return -EINVAL;
+		return syncobjResult("transfer", s == NULL ? src_handle : dst_handle, -EINVAL);
 	if (done)
 		minkar_drm_syncobj_signal(dst_handle, dst_point);
 	else if (dst_point == 0) {
@@ -641,7 +697,53 @@ drmSyncobjTransfer(int fd, uint32_t dst_handle, uint64_t dst_point, uint32_t src
 }
 
 /* Across processes (file descriptors, sync files): not yet. */
-int drmSyncobjHandleToFD(int fd, uint32_t handle, int *obj_fd) { (void)fd; (void)handle; (void)obj_fd; return -ENOSYS; }
-int drmSyncobjFDToHandle(int fd, int obj_fd, uint32_t *handle) { (void)fd; (void)obj_fd; (void)handle; return -ENOSYS; }
-int drmSyncobjImportSyncFile(int fd, uint32_t handle, int sync_file_fd) { (void)fd; (void)handle; (void)sync_file_fd; return -ENOSYS; }
-int drmSyncobjExportSyncFile(int fd, uint32_t handle, int *sync_file_fd) { (void)fd; (void)handle; (void)sync_file_fd; return -ENOSYS; }
+int drmSyncobjHandleToFD(int fd, uint32_t handle, int *obj_fd) { (void)fd; (void)handle; (void)obj_fd; return syncobjResult("HandleToFD", 0, -ENOSYS); }
+int drmSyncobjFDToHandle(int fd, int obj_fd, uint32_t *handle) { (void)fd; (void)obj_fd; (void)handle; return syncobjResult("FDToHandle", 0, -ENOSYS); }
+
+/*
+ * Sync files: a descriptor holding a sync object's fence. Every submission
+ * here has finished when it returns, so a fence that exists has signaled:
+ * a sync file is a descriptor of this process (/dev/null's) that the table
+ * below marks as one. Exporting an object without a fence (never signaled)
+ * fails, as with the kernel; importing one signals the object.
+ */
+#define MINKAR_SYNC_FILES	1024
+static bool sSyncFiles[MINKAR_SYNC_FILES];	/* by descriptor */
+
+int
+drmSyncobjExportSyncFile(int fd, uint32_t handle, int *sync_file_fd)
+{
+	(void)fd;
+	pthread_mutex_lock(&sSyncLock);
+	struct syncobj *o = syncobj(handle);
+	bool fence = o != NULL && (o->signaled || o->point > 0);
+	pthread_mutex_unlock(&sSyncLock);
+	if (o == NULL || !fence)
+		return syncobjResult("sync file export", handle, -EINVAL);
+	int f = open("/dev/null", O_RDONLY | O_CLOEXEC);
+	if (f < 0)
+		return syncobjResult("sync file export", handle, -errno);
+	if (f >= MINKAR_SYNC_FILES) {
+		close(f);
+		return syncobjResult("sync file export", handle, -EMFILE);
+	}
+	pthread_mutex_lock(&sSyncLock);
+	sSyncFiles[f] = true;
+	pthread_mutex_unlock(&sSyncLock);
+	*sync_file_fd = f;
+	return 0;
+}
+
+int
+drmSyncobjImportSyncFile(int fd, uint32_t handle, int sync_file_fd)
+{
+	(void)fd;
+	pthread_mutex_lock(&sSyncLock);
+	bool known = sync_file_fd >= 0 && sync_file_fd < MINKAR_SYNC_FILES && sSyncFiles[sync_file_fd];
+	bool there = syncobj(handle) != NULL;
+	pthread_mutex_unlock(&sSyncLock);
+	if (!known || !there)
+		return syncobjResult("sync file import", handle, -EINVAL);
+	minkar_drm_syncobj_signal(handle, 0);
+	return 0;
+}

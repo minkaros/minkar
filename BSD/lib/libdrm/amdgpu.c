@@ -38,6 +38,7 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <pthread.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
@@ -216,17 +217,26 @@ int
 amdgpu_bo_alloc(amdgpu_device_handle d, struct amdgpu_bo_alloc_request *req,
     amdgpu_bo_handle *buf_handle)
 {
-	uint64_t in = req->alloc_size, out[2] = { 0, 0 };
+	/* Whole pages, as amdgpu makes buffers: they are mapped by the page. */
+	uint64_t in = (req->alloc_size + 4095) & ~4095ull, out[2] = { 0, 0 };
 	uint32_t n = 2;
 	bool vram = (req->preferred_heap & AMDGPU_GEM_DOMAIN_VRAM) != 0;
 
 	*buf_handle = NULL;
-	if (req->alloc_size == 0)
+	if (req->alloc_size == 0 || in < req->alloc_size)
 		return -EINVAL;
-	kern_return_t kr = IOConnectCallScalarMethod(d->conn, vram ? kMinkarAMDGPUCreateBuffer :
-	    kMinkarAMDGPUCreateSystemBuffer, &in, 1, out, &n);
-	if (kr != KERN_SUCCESS)
+	/* VRAM the CPU never maps can lie anywhere in VRAM, beyond the CPU's
+	 * window (Vulkan's device-local memory). */
+	bool hidden = vram && (req->flags & AMDGPU_GEM_CREATE_NO_CPU_ACCESS) != 0;
+	kern_return_t kr = IOConnectCallScalarMethod(d->conn, hidden ? kMinkarAMDGPUCreateHiddenBuffer :
+	    vram ? kMinkarAMDGPUCreateBuffer : kMinkarAMDGPUCreateSystemBuffer, &in, 1, out, &n);
+	if (kr != KERN_SUCCESS) {
+		if (getenv("MINKAR_DRM_DEBUG") != NULL)
+			fprintf(stderr, "libdrm: a %s buffer of %llu bytes: 0x%x\n",
+			    hidden ? "hidden VRAM" : vram ? "VRAM" : "system",
+			    (unsigned long long)in, kr);
 		return kernError(kr);
+	}
 	struct amdgpu_bo *bo = calloc(1, sizeof(*bo));
 	if (bo == NULL) {
 		IOConnectCallScalarMethod(d->conn, kMinkarAMDGPUDestroyBuffer, &out[0], 1, NULL, NULL);
@@ -386,6 +396,10 @@ amdgpu_va_range_alloc(amdgpu_device_handle d, enum amdgpu_gpu_va_range type, uin
 	if (at == 0 || at < lo || at + size > hi || at + size < at) {
 		pthread_mutex_unlock(&d->lock);
 		free(r);
+		if (getenv("MINKAR_DRM_DEBUG") != NULL)
+			fprintf(stderr, "libdrm: no GPU address range of %llu bytes (align %llu, at 0x%llx, flags 0x%llx)\n",
+			    (unsigned long long)size, (unsigned long long)align, (unsigned long long)required,
+			    (unsigned long long)flags);
 		return -ENOMEM;
 	}
 	r->dev = d;
