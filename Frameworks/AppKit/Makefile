@@ -144,6 +144,7 @@ SRCS = \
     NSPanel.m \
     NSParagraphStyle.m \
     NSPasteboard.m \
+    PasteboardUser.c \
     NSPathCell.m \
     NSPathComponentCell.m \
     NSPathControl.m \
@@ -585,7 +586,7 @@ RESOURCES_FILES = Info.plist \
 CFLAGS = --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
     -F${.OBJDIR} -I${.CURDIR:H} -I${.CURDIR}/Headers -I${.CURDIR:H}/Foundation/Headers \
     -I${.CURDIR:H}/Foundation/platform_posix \
-    -I${.CURDIR} -I${.OBJDIR} -I${ROOT_SOURCE_DIR}/CoreServices \
+    -I${.CURDIR} -I${.OBJDIR} -I${.CURDIR}/Pasteboard -I${ROOT_SOURCE_DIR}/CoreServices \
 	-I${ROOT_SOURCE_DIR}/Frameworks/Onyx2D/freetype/include \
 	-I${ROOT_SOURCE_DIR}/Frameworks/CoreText/fontconfig/include \
 	-I${ROOT_SOURCE_DIR}/Frameworks/CoreText/fontconfig/fontconfig \
@@ -626,6 +627,16 @@ DIRS = \
 	NSDrawer.subproj \
 	UNIDATA \
 	NSEvent.subproj
+
+# The pasteboard server's interface, its client side (NSPasteboard).
+CLEANFILES += PasteboardUser.c Pasteboard.h
+PasteboardUser.c Pasteboard.h: ${.CURDIR}/Pasteboard/Pasteboard.defs
+	${MIG} -cc ${CC} -novouchers -mmacos-version-min=${MACOS_VERSION_MIN} \
+	    -isysroot ${MINKAR_SDKROOT} -I${.CURDIR}/Pasteboard \
+	    -user PasteboardUser.c -header Pasteboard.h \
+	    -server /dev/null -sheader /dev/null ${.ALLSRC}
+
+NSPasteboard.o: Pasteboard.h
 
 make-obj-dirs: .PHONY
 	echo ${FRAMEWORK} ${TARGET} in ${.OBJDIR}
