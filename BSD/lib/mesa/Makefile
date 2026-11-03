@@ -23,7 +23,8 @@ PYTHON3 ?=	python3
 PATCHES =	0001-darwin-libdrm.patch \
 		0002-radv-darwin-weak-entrypoints.patch \
 		0003-darwin-drm-ioctl.patch \
-		0004-darwin-bo-map.patch
+		0004-darwin-bo-map.patch \
+		0005-minkar-metal-wsi.patch
 
 PIP_WHEEL =	pip-25.0.1-py3-none-any.whl
 PIP_URL =	https://files.pythonhosted.org/packages/c9/bc/b7db44f5f39f9d0494071bddae6880eb645970366d0a200022a1a93d57f5/${PIP_WHEEL}
@@ -44,9 +45,9 @@ TOOLENV =	env -u MACOSX_DEPLOYMENT_TARGET -u IPHONEOS_DEPLOYMENT_TARGET \
 		-u XROS_DEPLOYMENT_TARGET -u DRIVERKIT_DEPLOYMENT_TARGET \
 		PATH=${VENV}/bin:${HOST}/bin:$${PATH}
 
-# Only RADV, without LLVM (ACO compiles the shaders), display WSI or other
-# APIs for now.
-MESON_OPTIONS =	-Dbuildtype=release -Dprefix=/usr -Dplatforms= -Dgallium-drivers= \
+# Only RADV, without LLVM (ACO compiles the shaders), with the Metal
+# surface WSI (CAMetalLayer), no other APIs for now.
+MESON_OPTIONS =	-Dbuildtype=release -Dprefix=/usr -Dplatforms=macos -Dgallium-drivers= \
 		-Dvulkan-drivers=amd -Dllvm=disabled -Dglx=disabled -Degl=disabled \
 		-Dgbm=disabled -Dopengl=false -Dgles1=disabled -Dgles2=disabled \
 		-Dexpat=disabled -Dzstd=disabled -Dvalgrind=disabled -Dlibunwind=disabled \

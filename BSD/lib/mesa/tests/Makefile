@@ -3,7 +3,9 @@
 # Part of Minkar.
 #
 # minkar-vktest: Vulkan through RADV, loaded as the Vulkan loader loads a
-# driver; minkar-vkdraw: a triangle drawn off the screen, its shaders
+# driver; minkar-vkwindow: frames presented in an AppKit window through a
+# CAMetalLayer (VK_EXT_metal_surface); minkar-vkdraw: a triangle drawn off
+# the screen, its shaders
 # (shaders/) made SPIR-V by the glslang ../ builds. In /usr/local/bin with
 # the test tools; the Vulkan headers come from the SDK (../ installs them).
 
@@ -29,11 +31,18 @@ triangle_${s}.h: ${.CURDIR}/shaders/triangle.${s}
 minkar-vkdraw: ${.CURDIR}/vkdraw.c triangle_vert.h triangle_frag.h
 	${CC} ${CFLAGS} -I${.OBJDIR} ${LDFLAGS} -o ${.TARGET} ${.CURDIR}/vkdraw.c
 
-to-sysroot: ${PROG} minkar-vkdraw
+minkar-vkwindow: ${.CURDIR}/vkwindow.m triangle_vert.h triangle_frag.h
+	${CC} ${CFLAGS} -I${.OBJDIR} -I${ROOT_SOURCE_DIR}/Frameworks \
+	    -F${MINKAR_SDKROOT}/System/Library/PrivateFrameworks ${LDFLAGS} -o ${.TARGET} \
+	    ${.CURDIR}/vkwindow.m -framework AppKit -framework QuartzCore -framework Foundation \
+	    -framework SkyLight -framework IOSurface -lobjc
+
+to-sysroot: ${PROG} minkar-vkdraw minkar-vkwindow
 	mkdir -p ${SYSROOT_DIR}/usr/local/bin
 	install -m 0555 -o 0 -g 0 ${PROG} ${SYSROOT_DIR}/usr/local/bin/minkar-vktest
 	install -m 0555 -o 0 -g 0 minkar-vkdraw ${SYSROOT_DIR}/usr/local/bin/minkar-vkdraw
+	install -m 0555 -o 0 -g 0 minkar-vkwindow ${SYSROOT_DIR}/usr/local/bin/minkar-vkwindow
 
-CLEANFILES +=	minkar-vkdraw triangle_vert.h triangle_frag.h
+CLEANFILES +=	minkar-vkdraw minkar-vkwindow triangle_vert.h triangle_frag.h
 
 .include <bsd.prog.mk>

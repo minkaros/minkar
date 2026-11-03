@@ -1,0 +1,325 @@
+Mesa's Metal WSI on Minkar, without Metal: VK_EXT_metal_surface presents
+through CAMetalLayer, whose drawables are IOSurfaces. Every driver takes
+the software drivers' path (the image copied to a host-visible buffer,
+the CPU copying that into the drawable), after the GPU's copy finishes;
+wsi_common_minkar_layer.m stands in for the Metal layer code; BGRA8 only.
+RADV lists VK_EXT_metal_surface, and its WSI extensions, where the
+platform has it. Chosen when
+<Metal/Metal.h> is missing.
+
+--- a/src/amd/vulkan/radv_instance.c
++++ b/src/amd/vulkan/radv_instance.c
+@@ -248,6 +248,9 @@
+ #ifndef VK_USE_PLATFORM_WIN32_KHR
+    .EXT_headless_surface = true,
+ #endif
++#ifdef VK_USE_PLATFORM_METAL_EXT
++   .EXT_metal_surface = true,
++#endif
+ };
+ 
+ static enum radeon_ctx_pstate
+--- a/src/amd/vulkan/radv_wsi.h
++++ b/src/amd/vulkan/radv_wsi.h
+@@ -14,7 +14,7 @@
+ #include "radv_physical_device.h"
+ 
+ #if defined(VK_USE_PLATFORM_WAYLAND_KHR) || defined(VK_USE_PLATFORM_XCB_KHR) || defined(VK_USE_PLATFORM_XLIB_KHR) ||   \
+-   defined(VK_USE_PLATFORM_DISPLAY_KHR)
++   defined(VK_USE_PLATFORM_DISPLAY_KHR) || defined(VK_USE_PLATFORM_METAL_EXT)
+ #define RADV_USE_WSI_PLATFORM
+ #endif
+ 
+--- a/src/vulkan/meson.build
++++ b/src/vulkan/meson.build
+@@ -71,10 +71,20 @@
+ if with_platform_macos
+   vulkan_wsi_list += '-DVK_USE_PLATFORM_MACOS_MVK'
+   vulkan_wsi_list += '-DVK_USE_PLATFORM_METAL_EXT'
+-  vulkan_wsi_deps += dependency(
+-    'appleframeworks',
+-    modules : ['QuartzCore', 'Metal']
+-  )
++  if cc.has_header('Metal/Metal.h')
++    vulkan_wsi_deps += dependency(
++      'appleframeworks',
++      modules : ['QuartzCore', 'Metal']
++    )
++  else
++    # Without Metal (Minkar), the WSI presents through CAMetalLayer, whose
++    # drawables are IOSurfaces.
++    vulkan_wsi_deps += dependency(
++      'appleframeworks',
++      modules : ['QuartzCore', 'IOSurface']
++    )
++    vulkan_wsi_deps += cc.find_library('objc')
++  endif
+ endif
+ 
+ idep_vulkan_wsi_defines = declare_dependency(
+--- a/src/vulkan/wsi/meson.build
++++ b/src/vulkan/wsi/meson.build
+@@ -35,7 +35,12 @@
+ endif
+ 
+ if with_platform_macos
+-  files_vulkan_wsi += files('wsi_common_metal.c', 'wsi_common_metal_layer.m')
++  if cc.has_header('Metal/Metal.h')
++    files_vulkan_wsi += files('wsi_common_metal.c', 'wsi_common_metal_layer.m')
++  else
++    # Minkar: CAMetalLayer's drawables are IOSurfaces, filled by the CPU.
++    files_vulkan_wsi += files('wsi_common_metal.c', 'wsi_common_minkar_layer.m')
++  endif
+ endif
+ 
+ if system_has_kms_drm and not with_platform_android
+--- a/src/vulkan/wsi/wsi_common_metal.c
++++ b/src/vulkan/wsi/wsi_common_metal.c
+@@ -15,6 +15,21 @@
+ #include "wsi_common_private.h"
+ #include "wsi_common_metal_layer.h"
+ 
++/* Without Metal (Minkar), every driver presents as the software ones do:
++ * its image is copied to a host-visible buffer, which the CPU copies into
++ * the layer's drawable. */
++#if __has_include(<Metal/Metal.h>)
++#define WSI_METAL_HAS_METAL true
++#else
++#define WSI_METAL_HAS_METAL false
++#endif
++
++static inline bool
++wsi_metal_cpu_present(const struct wsi_device *wsi)
++{
++   return wsi->sw || !WSI_METAL_HAS_METAL;
++}
++
+ #include "vulkan/vulkan_core.h"
+ 
+ #include <assert.h>
+@@ -173,9 +188,11 @@
+ static const VkFormat available_surface_formats[] = {
+    VK_FORMAT_B8G8R8A8_SRGB,
+    VK_FORMAT_B8G8R8A8_UNORM,
++#if __has_include(<Metal/Metal.h>)  /* Minkar's drawables are BGRA8 */
+    VK_FORMAT_R16G16B16A16_SFLOAT,
+    VK_FORMAT_A2R10G10B10_UNORM_PACK32,
+    VK_FORMAT_A2B10G10R10_UNORM_PACK32,
++#endif
+ };
+ 
+ static const VkColorSpaceKHR available_surface_color_spaces[] = {
+@@ -340,7 +357,7 @@
+                             struct wsi_image *image)
+ {
+    /* Should only be called from non-software backends */
+-   assert(!chain->wsi->sw);
++   assert(!wsi_metal_cpu_present(chain->wsi));
+    
+    const struct wsi_device *wsi = chain->wsi;
+    struct wsi_metal_image *metal_image = container_of(image, struct wsi_metal_image, base);
+@@ -500,7 +517,7 @@
+          struct wsi_metal_image *image = &chain->images[i];
+          *image_index = i;
+          image->drawable = drawable;
+-         if (!wsi_chain->wsi->sw) {
++         if (!wsi_metal_cpu_present(wsi_chain->wsi)) {
+             chain->base.wsi->metal.bind_drawable_to_vkimage(image->base.blit.image,
+                                                             image->drawable);
+             /* Since present images will only be backed by MTLTextures after acquisition,
+@@ -531,7 +548,7 @@
+    for (uint32_t idx = 0; idx < count; idx++) {
+       struct wsi_metal_image *image = &chain->images[indices[idx]];
+ 
+-      if (wsi->sw) {
++      if (wsi_metal_cpu_present(wsi)) {
+          /* Directly release drawable */
+          if (image->drawable) {
+             wsi_metal_release_drawable(image->drawable);
+@@ -574,7 +591,12 @@
+ 
+    struct wsi_metal_image *image = &chain->images[image_index];
+ 
+-   if (wsi_chain->wsi->sw) {
++   if (wsi_metal_cpu_present(wsi_chain->wsi)) {
++      /* A GPU's copy to the buffer finishes first (software drivers'
++       * are waited for by the common code). */
++      if (!wsi_chain->wsi->sw)
++         wsi_chain->wsi->WaitForFences(wsi_chain->device, 1, &wsi_chain->fences[image_index],
++                                       true, ~0ull);
+       wsi_metal_layer_blit_and_present(chain->blit_context,
+          &image->drawable,
+          image->base.cpu_map,
+@@ -606,7 +628,7 @@
+    struct wsi_image *image = &metal_image->base;
+ 
+    /* Software backends can just call common and return */
+-   if (wsi->sw) {
++   if (wsi_metal_cpu_present(wsi)) {
+       wsi_destroy_image(chain, image);
+       return;
+    }
+@@ -647,7 +669,7 @@
+    VkResult result = wsi_create_image(chain, info, image);
+ 
+    /* Software backends can just call common and return */
+-   if (wsi->sw || result != VK_SUCCESS)
++   if (wsi_metal_cpu_present(wsi) || result != VK_SUCCESS)
+       return result;
+ 
+    /* Create VkImages to handle binding at acquisition. */
+@@ -677,7 +699,7 @@
+          wsi_metal_destroy_image(chain, image);
+    }
+ 
+-   if (chain->base.wsi->sw)
++   if (wsi_metal_cpu_present(chain->base.wsi))
+       wsi_destroy_metal_layer_blit_context(chain->blit_context);
+ 
+    wsi_swapchain_finish(&chain->base);
+@@ -724,7 +746,7 @@
+     * Metal backend that uses MTLTexture as render target. The software path
+     * will render to a CPU texture, and blit it to the presentation MTLTexture
+     * at the last moment. */
+-   const bool is_sw_driver = wsi_device->sw;
++   const bool is_sw_driver = wsi_metal_cpu_present(wsi_device);
+    struct wsi_cpu_image_params cpu_params = {
+       .base.image_type = WSI_IMAGE_TYPE_CPU,
+    };
+--- /dev/null
++++ b/src/vulkan/wsi/wsi_common_minkar_layer.m
+@@ -0,0 +1,134 @@
++/*
++ * Copyright (c) 2026 The Minkar contributors
++ *
++ * SPDX-License-Identifier: BSD-2-Clause
++ */
++
++/*
++ * The Metal WSI's layer functions (wsi_common_metal_layer.h) without Metal,
++ * for Minkar: CAMetalLayer's drawables are IOSurfaces (BGRA8), and a
++ * presented frame is the CPU's copy of the swapchain image's buffer into
++ * one, which the layer then shows in its view.
++ */
++
++#include "wsi_common_metal_layer.h"
++
++#import <QuartzCore/CAMetalLayer.h>
++#import <IOSurface/IOSurfaceRef.h>
++#include <string.h>
++
++/* CAMetalLayer's IOSurface behind a drawable (QuartzCore's private
++ * interface). */
++@interface NSObject (CAMetalDrawableMinkar)
++- (IOSurfaceRef)_minkarIOSurface;
++@end
++
++void
++wsi_metal_layer_size(const CAMetalLayer *metal_layer, uint32_t *width, uint32_t *height)
++{
++   @autoreleasepool {
++      CGSize size = [(CAMetalLayer *)metal_layer drawableSize];
++      *width = (uint32_t)size.width;
++      *height = (uint32_t)size.height;
++   }
++}
++
++void
++wsi_metal_layer_set_immediate(const CAMetalLayer *metal_layer, bool enable_immediate)
++{
++   @autoreleasepool {
++      [(CAMetalLayer *)metal_layer setDisplaySyncEnabled:!enable_immediate];
++   }
++}
++
++VkResult
++wsi_metal_layer_configure(const CAMetalLayer *metal_layer, uint32_t width, uint32_t height,
++                          uint32_t image_count, VkFormat format, VkColorSpaceKHR color_space,
++                          bool enable_opaque, bool enable_immediate)
++{
++   @autoreleasepool {
++      CAMetalLayer *layer = (CAMetalLayer *)metal_layer;
++      MTLPixelFormat pixel_format;
++
++      switch (format) {
++      case VK_FORMAT_B8G8R8A8_UNORM:
++         pixel_format = MTLPixelFormatBGRA8Unorm;
++         break;
++      case VK_FORMAT_B8G8R8A8_SRGB:
++         pixel_format = MTLPixelFormatBGRA8Unorm_sRGB;
++         break;
++      default:
++         return VK_ERROR_FORMAT_NOT_SUPPORTED;
++      }
++      [layer setPixelFormat:pixel_format];
++      [layer setDrawableSize:CGSizeMake(width, height)];
++      [layer setMaximumDrawableCount:image_count < 2 ? 2 : image_count > 3 ? 3 : image_count];
++      [layer setOpaque:enable_opaque];
++      [layer setDisplaySyncEnabled:!enable_immediate];
++      return VK_SUCCESS;
++   }
++}
++
++void
++wsi_metal_layer_set_hdr_metadata(const CAMetalLayer *metal_layer, const VkHdrMetadataEXT *metadata)
++{
++   /* BGRA8 only: no HDR. */
++}
++
++CAMetalDrawable *
++wsi_metal_layer_acquire_drawable(const CAMetalLayer *metal_layer)
++{
++   @autoreleasepool {
++      id<CAMetalDrawable> drawable = [(CAMetalLayer *)metal_layer nextDrawable];
++      return (CAMetalDrawable *)[drawable retain];
++   }
++}
++
++void
++wsi_metal_release_drawable(CAMetalDrawable *drawable_ptr)
++{
++   [(id)drawable_ptr release];
++}
++
++/* Nothing to keep between frames: the copy is the CPU's. */
++struct wsi_metal_layer_blit_context {
++   int unused;
++};
++
++struct wsi_metal_layer_blit_context *
++wsi_create_metal_layer_blit_context()
++{
++   return calloc(1, sizeof(struct wsi_metal_layer_blit_context));
++}
++
++void
++wsi_destroy_metal_layer_blit_context(struct wsi_metal_layer_blit_context *context)
++{
++   free(context);
++}
++
++void
++wsi_metal_layer_blit_and_present(struct wsi_metal_layer_blit_context *context,
++                                 CAMetalDrawable **drawable_ptr, void *buffer,
++                                 uint32_t width, uint32_t height, uint32_t row_pitch)
++{
++   @autoreleasepool {
++      id drawable = (id)*drawable_ptr;
++      if (drawable == nil)
++         return;
++      IOSurfaceRef surface = [drawable _minkarIOSurface];
++      if (surface != NULL && buffer != NULL) {
++         IOSurfaceLock(surface, 0, NULL);
++         uint8_t *dst = IOSurfaceGetBaseAddress(surface);
++         size_t dst_pitch = IOSurfaceGetBytesPerRow(surface);
++         size_t rows = height < IOSurfaceGetHeight(surface) ? height : IOSurfaceGetHeight(surface);
++         size_t w = width < IOSurfaceGetWidth(surface) ? width : IOSurfaceGetWidth(surface);
++         for (size_t y = 0; y < rows; y++)
++            memcpy(dst + y * dst_pitch, (const uint8_t *)buffer + y * row_pitch, w * 4);
++         IOSurfaceUnlock(surface, 0, NULL);
++      }
++      [(id<CAMetalDrawable>)drawable present];
++      [drawable release];
++      *drawable_ptr = NULL;
++   }
++}
