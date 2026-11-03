@@ -663,14 +663,23 @@ xpc_main(xpc_connection_handler_t handler)
 	dispatch_main();
 }
 
+/* liblaunch's transactions: while one is open, the process is dirty, and
+ * launchd neither stops it as idle nor kills it at shutdown before it is
+ * done (EnableTransactions). */
+void _vproc_transaction_begin(void);
+void _vproc_transaction_end(void);
+int64_t _vproc_transaction_count(void);
+
 void
 xpc_transaction_begin(void)
 {
+	_vproc_transaction_begin();
 }
 
 void
 xpc_transaction_end(void)
 {
+	_vproc_transaction_end();
 }
 
 #pragma mark Receiving
