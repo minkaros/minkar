@@ -5,7 +5,7 @@ This page is generated from [progress/status.toml](progress/status.toml) by
 [Progress.es.md](Progress.es.md).
 
 <!-- progress:summary:begin -->
-_Updated 2026-11-02, devel `9a472063c1`_
+_Updated 2026-11-03, devel `ee1c6210c9`_
 
 | Plan | Progress |  | Now | Next |
 | --- | --- | --- | --- | --- |
@@ -18,7 +18,7 @@ _Updated 2026-11-02, devel `9a472063c1`_
 | [Kraz](Dock-Kraz.md) | ⬜⬜⬜⬜⬜ | 0 / 5 | — | K0 |
 | [Gienah](ROADMAP.md#phase-5--gienah-desktop) | ⬜⬜⬜ | 0 / 3 | — | LoginWindow |
 | [Apps · DMG](ROADMAP.md#phase-6--applications-and-distribution) | ⬜⬜⬜⬜ | 0 / 4 | — | DiskImages |
-| [GPU track](ROADMAP.md#graphics-stack-components-and-sequence) | ⬜⬜ | 0 / 2 | — | G1 ADR |
+| [GPU track](ROADMAP.md#graphics-stack-components-and-sequence) | 🟩🟨🟦⬜ | 1 / 4 | G3 Mesa | G4–G5 |
 | [Compat · arm64](ROADMAP.md#phase-7--binary-compatibility-and-arm64) | ⬜⬜ | 0 / 2 | — | x86-64 apps |
 
 🟩 done · 🟦 in progress · 🟨 partial · ⬜ to do

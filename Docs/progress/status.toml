@@ -32,8 +32,8 @@
 # commit that closes a milestone updates this file and runs
 # "bmake progress" (Docs/CONTRIBUTING.md).
 
-updated = "2026-11-02"
-commit  = "9a472063c1"
+updated = "2026-11-03"
+commit  = "ee1c6210c9"
 
 deps = [["ws", 555, "dock"], ["fw", 535, "kraz"]]
 
@@ -198,8 +198,11 @@ name = "GPU track"
 color = "red"
 doc = "ROADMAP.md#graphics-stack-components-and-sequence"
 doc_es = "ROADMAP.es.md#pila-gráfica-componentes-y-secuencia"
-# G1 done on the Mac Pro 6,1 (2026-11-02); one station for G2 to G5.
-stations = [["G1 KMS", 700, "done"], ["G2–G5", 1060, "todo"]]
+# On the Mac Pro 6,1: G1 done (2026-11-02); G2's gate met, the GPU's clocks
+# (deferred) and DisplayPort link training (no display to test it) left;
+# G3 started with the graphics block's start (2026-11-03).
+stations = [["G1 KMS", 700, "done"], ["G2 rings", 760, "partial"], ["G3 Mesa", 820, "current"],
+  ["G4–G5", 1060, "todo"]]
 
 [[line]]
 id = "compat"
@@ -212,7 +215,22 @@ stations = [["x86-64 apps", 1082, "todo"], ["arm64", 1150, "todo"]]
 # The work board. "line" picks a card's colour; "here" marks a station of
 # the metro map as where work is.
 [board]
-here = "WS6"
+here = "G3 Mesa"
+
+[[board.done]]
+title = "G2 on the Mac Pro: rings, GART, clients' spaces"
+note = "DMA and GFX rings, fences, IOSurfaces in VRAM, a GPU space per program · 3 nov"
+line = "gpu"
+
+[[board.done]]
+title = "Display modes over HDMI"
+note = "EDID, VBIOS mode set, 60 Hz, back after a replug · G2 · 2 nov"
+line = "gpu"
+
+[[board.done]]
+title = "G1 done: the FirePro's display driver"
+note = "native mode, scaled modes, the window server on it · 2 nov"
+line = "gpu"
 
 [[board.done]]
 title = "WS5 closed: IOSurface and virtio-gpu"
@@ -229,25 +247,15 @@ title = "IOSurface"
 note = "Mach memory, iosurfaced; AppKit damage · WS5 · 2 nov"
 line = "ws"
 
-[[board.done]]
-title = "Gate M4 met (in QEMU)"
-note = "54 markers, the menus in the app · 2 nov"
-line = "ws"
 
-[[board.done]]
-title = "WS4b closed: the switch"
-note = "new server by default, legacy removed · 2 nov"
-line = "ws"
-
-[[board.done]]
-title = "Minimal loginwindow"
-note = "Log Out, Restart, Shut Down · WS4b · 2 nov"
-line = "ws"
-
+[[board.now]]
+title = "G3 — the graphics block for Mesa"
+note = "tiling, render backends done; RLC and clear state next, then the winsys"
+line = "gpu"
 
 [[board.now]]
 title = "WS6 — GPU compositing"
-note = "G1 done (FirePro display driver); G2: GPU memory and rings"
+note = "frames presented by the GPU's DMA engine; Vulkan backend waits for G3"
 line = "ws"
 done = 0
 total = 3
@@ -275,8 +283,8 @@ note = "swiftc, libswiftCore → M3"
 line = "fw"
 
 [[board.next]]
-title = "G2 — GPU memory, rings, fences"
-note = "gate met on the Mac Pro: DMA, fences, GART; IOSurfaces in VRAM next"
+title = "G2 leftovers"
+note = "GPU clocks (deferred), DisplayPort link training (needs a DP display)"
 line = "gpu"
 
 [[board.later]]

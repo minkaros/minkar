@@ -6,7 +6,7 @@ Esta página se genera desde [progress/status.toml](progress/status.toml) con
 [Progress.md](Progress.md).
 
 <!-- progress:summary:begin -->
-_Actualizado el 2026-11-02, devel `9a472063c1`_
+_Actualizado el 2026-11-03, devel `ee1c6210c9`_
 
 | Plan | Avance |  | Ahora | Siguiente |
 | --- | --- | --- | --- | --- |
@@ -19,7 +19,7 @@ _Actualizado el 2026-11-02, devel `9a472063c1`_
 | [Kraz](Dock-Kraz.es.md) | ⬜⬜⬜⬜⬜ | 0 / 5 | — | K0 |
 | [Gienah](ROADMAP.es.md#fase-5--escritorio-gienah) | ⬜⬜⬜ | 0 / 3 | — | LoginWindow |
 | [Apps · DMG](ROADMAP.es.md#fase-6--aplicaciones-y-distribución) | ⬜⬜⬜⬜ | 0 / 4 | — | DiskImages |
-| [GPU track](ROADMAP.es.md#pila-gráfica-componentes-y-secuencia) | ⬜⬜ | 0 / 2 | — | G1 ADR |
+| [GPU track](ROADMAP.es.md#pila-gráfica-componentes-y-secuencia) | 🟩🟨🟦⬜ | 1 / 4 | G3 Mesa | G4–G5 |
 | [Compat · arm64](ROADMAP.es.md#fase-7--compatibilidad-binaria-y-arm64) | ⬜⬜ | 0 / 2 | — | x86-64 apps |
 
 🟩 hecho · 🟦 en curso · 🟨 parcial · ⬜ por hacer
