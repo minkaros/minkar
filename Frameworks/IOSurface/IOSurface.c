@@ -110,7 +110,7 @@ struct __IOSurface {
 	/* In GPU memory, in the process that made it: the GPU's buffer,
 	 * mapped from the GPU's user client (the others map the entry). */
 	uint64_t		gpuHandle;
-	uint32_t		gpuBuffer;	/* its global ID */
+	uint64_t		gpuBuffer;	/* its name */
 	uint64_t		gpuEntryID;	/* its GPU's registry entry */
 	/* Elsewhere: whether the registry was asked for the two above. */
 	_Atomic Boolean		gpuAsked;
@@ -294,7 +294,7 @@ static Boolean allocateInGPU(IOSurfaceRef s) {
 	    IOConnectCallScalarMethod(gpu, kMinkarAMDGPUCreateSharedBuffer, &in, 1, out, &n) != KERN_SUCCESS)
 		return false;
 	s->gpuHandle = out[0];
-	s->gpuBuffer = (uint32_t)out[2];
+	s->gpuBuffer = out[2];
 	s->gpuEntryID = gpuEntryID;
 	s->gpuAsked = true;
 	if (IOConnectMapMemory64(gpu, (uint32_t)s->gpuHandle, mach_task_self(), &s->address, &size,
@@ -308,23 +308,22 @@ static Boolean allocateInGPU(IOSurfaceRef s) {
 /* A surface looked up: the registry knows its GPU buffer, once its maker
  * attached it. */
 static void askGPUBuffer(IOSurfaceRef s) {
-	uint64_t entryID = 0;
-	uint32_t global = 0;
+	uint64_t entryID = 0, name = 0;
 	int32_t result = -1;
 
 	if (s->gpuAsked || s->surfaceID == 0 || registry == MACH_PORT_NULL)
 		return;
-	if (iosr_gpu_buffer(registry, s->surfaceID, &entryID, &global, &result) != KERN_SUCCESS ||
+	if (iosr_gpu_buffer(registry, s->surfaceID, &entryID, &name, &result) != KERN_SUCCESS ||
 	    result != 0)
 		return;
 	s->gpuEntryID = entryID;
-	s->gpuBuffer = global;
+	s->gpuBuffer = name;
 	s->gpuAsked = true;
 }
 
-/* The GPU's buffer behind a surface: its global ID, 0 for system memory.
- * In any process that holds the surface. */
-uint32_t IOSurfaceGetMinkarGPUBuffer(IOSurfaceRef buffer) {
+/* The GPU's buffer behind a surface: its name, 0 for system memory. In
+ * any process that holds the surface. */
+uint64_t IOSurfaceGetMinkarGPUBuffer(IOSurfaceRef buffer) {
 	if (buffer == NULL)
 		return 0;
 	askGPUBuffer(buffer);
