@@ -1,0 +1,76 @@
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\" Copyright (c) 2026 The Minkar contributors
+.\" Part of Minkar.
+.Dd November 3, 2026
+.Dt PBCOPY 1
+.Os
+.Sh NAME
+.Nm pbcopy ,
+.Nm pbpaste
+.Nd copy to and paste from the pasteboard
+.Sh SYNOPSIS
+.Nm pbcopy
+.Op Fl help
+.Op Fl pboard Ar general | ruler | find | font
+.Nm pbpaste
+.Op Fl help
+.Op Fl pboard Ar general | ruler | find | font
+.Op Fl Prefer Ar txt | rtf | ps
+.Sh DESCRIPTION
+.Nm pbcopy
+reads its standard input to the end and puts it on a pasteboard,
+replacing what was there.
+Input that starts as an RTF document
+.Pq Ql {\ertf
+goes in as RTF; anything else as plain text, which is taken to be UTF-8.
+.Pp
+.Nm pbpaste
+writes a pasteboard's plain text to its standard output.
+.Bl -tag -width "-pboard name"
+.It Fl pboard Ar name
+The pasteboard to use:
+.Cm general
+(the default, the one copy and paste use),
+.Cm ruler ,
+.Cm find
+or
+.Cm font .
+.It Fl Prefer Ar type
+For
+.Nm pbpaste :
+the type to write when the pasteboard has it,
+.Cm rtf
+or
+.Cm ps
+(PostScript), else its plain text;
+.Cm txt ,
+the default, is plain text.
+.It Fl help
+Prints the usage and exits.
+.El
+.Pp
+The pasteboards belong to the user running the command: other users,
+.Xr sudo 8
+included, do not see them.
+They are kept by the pasteboard server,
+.Pa /usr/libexec/pboard ,
+which
+.Xr launchd 8
+starts on demand, and are lost when it stops.
+.Sh EXIT STATUS
+.Ex -std pbcopy
+.Nm pbpaste
+exits 0 also when the pasteboard holds nothing it can write.
+.Sh EXAMPLES
+Copy a file's text, and paste it into another:
+.Bd -literal -offset indent
+pbcopy < notes.txt
+pbpaste > copy.txt
+.Ed
+.Sh SEE ALSO
+.Xr launchd 8
+.Sh HISTORY
+.Nm pbcopy
+and
+.Nm pbpaste
+first appeared in Minkar 19.6.
