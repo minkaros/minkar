@@ -114,7 +114,7 @@ private:
 	void freeMicrocode(uint8_t *file[4], size_t bytes[4]);
 	bool startGFX();
 	void resetGFX();
-	void initEngine();
+	void initEngine(bool dryRun);
 	volatile uint64_t *vramPointer(uint64_t offset, uint64_t bytes);
 	void vmFlush(unsigned vmid);
 	IOReturn vmMap(unsigned vmid, uint64_t va, uint64_t bytes, uint64_t offset,
@@ -158,6 +158,7 @@ private:
 	 * mapped once. */
 	uint64_t		fVMDirectory[16];
 	IOMemoryMap *		fWindowMap;
+	void *			fNode;		/* its DRM render node (devfs) */
 	struct MinkarAMDDMA	fDMA;
 	bool			fDMAStarted;
 	IOMemoryMap *		fDMAMap;	/* its ring and write-back */

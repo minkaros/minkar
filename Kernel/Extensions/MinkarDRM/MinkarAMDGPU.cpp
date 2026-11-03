@@ -35,6 +35,7 @@
 #include "MinkarAMDDMA.h"
 #include "MinkarAMDFirmware.h"
 #include "MinkarAMDGFX.h"
+#include "MinkarAMDNode.h"
 #include "amd_si_gfx.h"
 #include "amd_si_vm.h"
 #include "amd_si_gfx_init.h"
@@ -137,9 +138,17 @@ MinkarAMDGPU::start(IOService *provider)
 		startGART(display);
 		startInterrupts(display);
 		startGFXTest(name);
+		/* What the graphics block's start will set, published now for
+		 * the clients' drivers (Minkar's libdrm reads it). */
+		initEngine(true);
 	}
 
 	registerService();
+
+	/* The render node Minkar's libdrm (Mesa) opens: with the user client. */
+	unsigned drmMinor = 0;
+	if (getProperty("IOUserClientClass") != NULL && MinkarAMDNodeCreate(&drmMinor, &fNode))
+		setProperty("MinkarDRMMinor", drmMinor, 32);
 	return true;
 }
 
@@ -961,7 +970,7 @@ MinkarAMDGPU::startGFX()
 		uint64_t ns = 0;
 		/* As gfx_v6_0_hw_init: the graphics block, the RLC with the clear
 		 * state, then the command processor with it. */
-		initEngine();
+		initEngine(false);
 		MinkarAMDGFXStartRLC(&fRegs, &code[3], fVRAMStart + fGFXOffset,
 		    (volatile uint8_t *)fGFXMap->getVirtualAddress(), fRasterConfig);
 		MinkarAMDGFXLoadMicrocode(&fRegs, &code[0], &code[1], &code[2]);
@@ -999,32 +1008,82 @@ engineWrite(void *gpu, uint32_t reg, uint32_t value)
 	((MinkarAMDGPU *)gpu)->writeReg(reg, value);
 }
 
+/* A dry run: the registers read, the writes kept here (and read back from
+ * here) instead of made. */
+struct DryRun {
+	MinkarAMDGPU *gpu;
+	unsigned n;
+	struct { uint32_t reg, value; } w[256];
+};
+
+static uint32_t
+dryRead(void *ctx, uint32_t reg)
+{
+	DryRun *d = (DryRun *)ctx;
+	for (unsigned i = d->n; i > 0; i--)
+		if (d->w[i - 1].reg == reg)
+			return d->w[i - 1].value;
+	/* GRBM_GFX_INDEX's selection is not made: every copy reads as the
+	 * broadcast one. */
+	return d->gpu->readReg(reg);
+}
+
+static void
+dryWrite(void *ctx, uint32_t reg, uint32_t value)
+{
+	DryRun *d = (DryRun *)ctx;
+	if (reg == SI_mmGRBM_GFX_INDEX)
+		return;
+	if (d->n < sizeof(d->w) / sizeof(d->w[0])) {
+		d->w[d->n].reg = reg;
+		d->w[d->n].value = value;
+		d->n++;
+	}
+}
+
 /*
  * The graphics block's start (amd_si_gfx_init.h, gfx_v6_0_constants_init),
  * before the command processor's: what it found and set goes to
  * MinkarGFXConfig, for the clients' drivers. Called locked.
  */
 void
-MinkarAMDGPU::initEngine()
+MinkarAMDGPU::initEngine(bool dryRun)
 {
+	DryRun *dry = dryRun ? (DryRun *)IOMallocZero(sizeof(DryRun)) : NULL;
 	struct amd_si_regs_io io = { engineRead, engineWrite, this };
 	struct amd_si_gfx_info info;
 	const struct amd_si_chip *chip = amd_si_chip_named(fFamily != NULL ? fFamily : "");
 
+	if (dryRun) {
+		if (dry == NULL)
+			return;
+		dry->gpu = this;
+		io.rd = dryRead;
+		io.wr = dryWrite;
+		io.ctx = dry;
+	}
 	if (amd_si_gfx_init_engine(chip, &io, &info) != 0) {
 		LOG("no graphics block settings for %s", fFamily != NULL ? fFamily : "this chip");
 		fRasterConfig = readReg(SI_mmPA_SC_RASTER_CONFIG);
+		if (dry != NULL)
+			IOFree(dry, sizeof(DryRun));
 		return;
 	}
-	/* The rasterizer's configuration, for the clear state: as set, or the
-	 * golden one when it was left. */
-	fRasterConfig = info.rasterConfig != 0 ? info.rasterConfig : readReg(SI_mmPA_SC_RASTER_CONFIG);
-	OSDictionary *d = OSDictionary::withCapacity(12);
+	/* The rasterizer's configuration, for the clear state and for the
+	 * clients: as set, or the golden one when it was left. */
+	uint32_t raster = io.rd(io.ctx, SI_mmPA_SC_RASTER_CONFIG);
+	fRasterConfig = info.rasterConfig != 0 ? info.rasterConfig : raster;
+	if (dry != NULL)
+		IOFree(dry, sizeof(DryRun));
+	OSDictionary *d = OSDictionary::withCapacity(16);
 	if (d != NULL) {
 		static const char *const keys[] = { "RowKB", "AddrConfig", "BackendMask", "Backends",
-		    "RasterConfig", "ComputeUnits", "GoldenSet", "GoldenSkipped" };
+		    "RasterConfig", "ComputeUnits", "GoldenSet", "GoldenSkipped", "MCArbRamcfg",
+		    "ShaderEngines", "ShaderArraysPerEngine", "ComputeUnitsPerArray", "BackendsPerEngine",
+		    "TilePipes" };
 		const uint64_t values[] = { info.rowKB, info.addrConfig, info.backendMask, info.backends,
-		    info.rasterConfig, info.cus, info.goldenSet, info.goldenSkipped };
+		    fRasterConfig, info.cus, info.goldenSet, info.goldenSkipped, info.mcArbRamcfg,
+		    chip->shaderEngines, chip->shsPerSE, chip->cusPerSH, chip->rbsPerSE, chip->tilePipes };
 		for (size_t i = 0; i < sizeof(keys) / sizeof(keys[0]); i++) {
 			OSNumber *n = OSNumber::withNumber((unsigned long long)values[i], 32);
 			if (n != NULL) {
@@ -1042,9 +1101,16 @@ MinkarAMDGPU::initEngine()
 			d->setObject("ComputeUnitMasks", cu);
 			cu->release();
 		}
+		OSData *rb = OSData::withBytes(info.rbDisable, sizeof(info.rbDisable));
+		if (rb != NULL) {
+			d->setObject("BackendDisable", rb);
+			rb->release();
+		}
 		setProperty("MinkarGFXConfig", d);
 		d->release();
 	}
+	if (dryRun)
+		return;		/* what it will set, for the clients, before it does */
 	LOG("graphics block: %s, %u KB rows, GB_ADDR_CONFIG 0x%08x, %u render backends (0x%x), "
 	    "%u compute units, %u golden settings (%u left outside it)", chip->name, info.rowKB,
 	    info.addrConfig, info.backends, info.backendMask, info.cus, info.goldenSet,
@@ -1402,6 +1468,7 @@ MinkarAMDGPU::free()
 		MinkarAMDGFXStop(&fGFX);
 	OSSafeReleaseNULL(fGFXMap);
 	OSSafeReleaseNULL(fWindowMap);
+	MinkarAMDNodeRemove(fNode);
 	stopInterrupts();
 	MinkarAMDGARTDisable(&fGART);
 	OSSafeReleaseNULL(fDMAMap);
