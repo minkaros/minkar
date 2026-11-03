@@ -1,0 +1,8 @@
+# glslang (BSD-3 and others; Khronos), fetched at build time and built for
+# the build host: Mesa's build runs glslangValidator on RADV's own GLSL
+# shaders. 14.3.0 is the last that builds with CMake 3.22 (the build host's;
+# 15.x wants 3.27); Mesa wants 12.2 or later.
+url https://github.com/KhronosGroup/glslang/archive/refs/tags/14.3.0.tar.gz
+file glslang-14.3.0.tar.gz
+sha256 be6339048e20280938d9cb399fcdd06e04f8654d43e170e8cce5a56c9a754284
+version 14.3.0

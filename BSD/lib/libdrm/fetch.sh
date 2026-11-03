@@ -6,12 +6,15 @@
 # fetch.sh MANIFEST CACHE: the tarball MANIFEST names, into CACHE (kept:
 # fetched once), checked against its SHA-256 and unpacked next to it;
 # prints the unpacked directory. Exit status 1 if it is missing or differs.
+# MANIFEST's "file" line, if any, names the cached file (for a URL whose own
+# name does not say what it is).
 set -eu
 manifest=$1
 cache=$2
 url=$(awk '$1 == "url" { print $2 }' "$manifest")
 sum=$(awk '$1 == "sha256" { print $2 }' "$manifest")
-file=$cache/$(basename "$url")
+name=$(awk '$1 == "file" { print $2 }' "$manifest")
+file=$cache/${name:-$(basename "$url")}
 dir=${file%.tar.*}
 mkdir -p "$cache"
 if [ ! -f "$file" ]; then

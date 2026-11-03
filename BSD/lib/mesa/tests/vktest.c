@@ -190,7 +190,9 @@ main(int argc, char **argv)
 	VkResult ra = type != UINT32_MAX ? vkAllocateMemory(dev, &mai, NULL, &mem) : VK_ERROR_OUT_OF_DEVICE_MEMORY;
 	VkResult rb = ra == VK_SUCCESS ? vkBindBufferMemory(dev, buf, mem, 0) : ra;
 	volatile uint32_t *p = NULL;
-	VkResult rm = rb == VK_SUCCESS ? vkMapMemory(dev, mem, 0, VK_WHOLE_SIZE, 0, (void **)&p) : rb;
+	void *map = NULL;
+	VkResult rm = rb == VK_SUCCESS ? vkMapMemory(dev, mem, 0, VK_WHOLE_SIZE, 0, &map) : rb;
+	p = map;
 	snprintf(detail, sizeof(detail), "%d %d %d %d, memory type %u", r, ra, rb, rm, type);
 	check(r == VK_SUCCESS && rm == VK_SUCCESS, "a 64 KB host-visible buffer, mapped", detail);
 	if (rm != VK_SUCCESS)
@@ -216,7 +218,8 @@ main(int argc, char **argv)
 	volatile uint32_t *vp = NULL;
 	ra = vtype != UINT32_MAX ? vkAllocateMemory(dev, &vai, NULL, &vmem) : VK_ERROR_OUT_OF_DEVICE_MEMORY;
 	rb = ra == VK_SUCCESS ? vkBindBufferMemory(dev, vbuf, vmem, 0) : ra;
-	rm = rb == VK_SUCCESS ? vkMapMemory(dev, vmem, 0, VK_WHOLE_SIZE, 0, (void **)&vp) : rb;
+	rm = rb == VK_SUCCESS ? vkMapMemory(dev, vmem, 0, VK_WHOLE_SIZE, 0, &map) : rb;
+	vp = map;
 	snprintf(detail, sizeof(detail), "%d %d %d, memory type %u", ra, rb, rm, vtype);
 	check(rm == VK_SUCCESS, "a 4 KB device-local buffer, mapped", detail);
 	if (rm != VK_SUCCESS)
