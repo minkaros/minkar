@@ -1,0 +1,8 @@
+# Vulkan-Loader (Apache-2.0; Khronos), fetched at build time and checked
+# against this SHA-256 (the maintainer's approval of Vulkan's license,
+# 2026-11-03): /usr/lib/libvulkan.1.dylib, which apps and the conformance
+# tests load, and which finds the drivers by /usr/share/vulkan/icd.d.
+url https://github.com/KhronosGroup/Vulkan-Loader/archive/refs/tags/vulkan-sdk-1.4.357.0.tar.gz
+file Vulkan-Loader-1.4.357.0.tar.gz
+sha256 54f2537df22313768da0317dda2abdaaab7711b4081c48c869a79db343d0ae70
+version 1.4.357

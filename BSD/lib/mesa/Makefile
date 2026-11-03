@@ -9,10 +9,8 @@
 # with Meson (minkar-cross.ini.in). The build tools come pinned too:
 # glslang (MANIFEST.glslang), built for the build host, and Meson and Mako
 # in a venv (requirements.txt, with their hashes; pip from its own pinned
-# wheel, so the host needs no pip). The Vulkan headers Mesa carries
-# (Khronos, Apache-2.0; the maintainer's approval, 2026-11-03) go to the
-# SDK's /usr/include/vulkan and vk_video with their license, for programs
-# that use Vulkan; Mesa's license goes with the driver.
+# wheel, so the host needs no pip). Mesa's license goes with the driver;
+# the SDK's Vulkan headers come from ../vulkan-loader (Khronos's own).
 
 SUBDIR =
 FETCH =		sh ${.CURDIR}/../libdrm/fetch.sh
@@ -105,16 +103,12 @@ build-radv: .PHONY ${BUILD}/.minkar-setup
 	    src/amd/vulkan/radeon_icd.x86_64.json
 
 install-radv: .PHONY build-radv
-	mkdir -p ${SYSROOT_DIR}/usr/lib ${SYSROOT_DIR}/usr/share/vulkan/icd.d \
-	    ${MINKAR_SDKROOT}/usr/include/vulkan ${MINKAR_SDKROOT}/usr/include/vk_video
+	mkdir -p ${SYSROOT_DIR}/usr/lib ${SYSROOT_DIR}/usr/share/vulkan/icd.d
 	cp -f ${RADV} ${.OBJDIR}/libvulkan_radeon.dylib
 	${TC}/install_name_tool -id /usr/lib/libvulkan_radeon.dylib ${.OBJDIR}/libvulkan_radeon.dylib
 	install -m 0755 ${.OBJDIR}/libvulkan_radeon.dylib ${SYSROOT_DIR}/usr/lib/
 	install -m 0444 ${BUILD}/src/amd/vulkan/radeon_icd.x86_64.json ${SYSROOT_DIR}/usr/share/vulkan/icd.d/
 	install -m 0444 ${SRC}/licenses/MIT ${SYSROOT_DIR}/usr/share/vulkan/LICENSE.mesa
-	install -m 0444 ${SRC}/include/vulkan/*.h ${MINKAR_SDKROOT}/usr/include/vulkan/
-	install -m 0444 ${SRC}/include/vk_video/*.h ${MINKAR_SDKROOT}/usr/include/vk_video/
-	install -m 0444 ${SRC}/licenses/Apache-2.0 ${MINKAR_SDKROOT}/usr/include/vulkan/LICENSE.Apache-2.0
 
 clean: .PHONY
 	rm -rf ${SRC} ${BUILD} ${VENV} ${HOST} ${.OBJDIR}/glslang-build ${CROSS} ${LDWRAP} \

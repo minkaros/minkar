@@ -1,9 +1,9 @@
 SUBDIR_PARALLEL =
-SUBDIR = bzip2 libsqlite3 libxar libcompression ncurses libedit libutil libxo libbsdcompat libmd libarchive libfetch libmagic libpw libdqfile libuv liburcu libdrm libdrm/tests mesa mesa/tests
+SUBDIR = bzip2 libsqlite3 libxar libcompression ncurses libedit libutil libxo libbsdcompat libmd libarchive libfetch libmagic libpw libdqfile libuv liburcu libdrm libdrm/tests vulkan-loader mesa mesa/tests
 SUBDIR_DEPEND_libedit =	ncurses
 SUBDIR_DEPEND_libdrm/tests =	libdrm
 SUBDIR_DEPEND_mesa =	libdrm
-SUBDIR_DEPEND_mesa/tests =	mesa
+SUBDIR_DEPEND_mesa/tests =	mesa vulkan-loader
 SUBDIR_DEPEND_libxar =	bzip2
 SUBDIR_DEPEND_libxo =	libutil
 
