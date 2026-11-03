@@ -1,0 +1,7 @@
+# Mesa (MIT), fetched at build time and checked against this SHA-256 (the
+# maintainer's choice, 2026-11-03: a pinned download, our patches and
+# files in this directory). No official checksum file is published next
+# to the tarball; this sum was taken at the first fetch.
+url https://archive.mesa3d.org/mesa-26.2.6.tar.xz
+sha256 b9436b3e1a8be76fbd4823dc884f90596ab7c6ac5e1867a305e66ffccfb31a92
+version 26.2.6

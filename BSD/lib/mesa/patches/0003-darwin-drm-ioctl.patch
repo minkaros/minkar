@@ -1,0 +1,30 @@
+Mesa on Darwin with Minkar's libdrm: the driver's commands through libdrm's
+drmIoctl, which talks to the GPU driver's user client.
+
+--- a/src/util/os_drm.h
++++ b/src/util/os_drm.h
+@@ -18,13 +18,24 @@
+ #include <errno.h>
+ #include <xf86drm.h>
+ 
++#if defined(__APPLE__) && defined(HAVE_LIBDRM)
++/* Darwin with Minkar's libdrm: the driver's commands go through libdrm,
++ * which talks to the GPU driver's user client (its render nodes only
++ * open and close). */
++#include <xf86drm.h>
++#endif
++
+ static inline int
+ drm_ioctl(int fd, uint32_t request, void *arg)
+ {
+    int ret;
+ 
+    do {
++#if defined(__APPLE__) && defined(HAVE_LIBDRM)
++      ret = drmIoctl(fd, request, arg);
++#else
+       ret = ioctl(fd, request, arg);
++#endif
+    } while (ret == -1 && (errno == EINTR || errno == EAGAIN));
+ 
+    return ret ? -errno : 0;

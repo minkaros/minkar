@@ -1,0 +1,10 @@
+#!/bin/bash
+# SPDX-License-Identifier: BSD-2-Clause
+# Copyright (c) 2026 The Minkar contributors
+# Part of Minkar.
+#
+# Meson knows Darwin's linker by the "PROJECT:ld64" line of its -v output;
+# ours says "pdcctools". The same linker, with that line as Meson wants it,
+# and the linker's own exit status.
+set -o pipefail
+"@TC@/ld64" "$@" 2> >(sed 's/PROJECT:pdcctools/PROJECT:ld64-951.9/' >&2) | sed 's/PROJECT:pdcctools/PROJECT:ld64-951.9/'

@@ -1,0 +1,29 @@
+# Meson's cross file for Minkar (x86-64): the toolchain and the SDK, with
+# pkg-config on the SDK only. @TC@, @SDK@ and @LD@ are set by the Makefile.
+
+[binaries]
+c = '@TC@/clang'
+cpp = '@TC@/clang++'
+objc = '@TC@/clang'
+ar = '@TC@/llvm-ar'
+strip = '@TC@/llvm-strip'
+pkg-config = '/usr/bin/pkg-config'
+
+[built-in options]
+c_args = ['-DHAVE_TSERVER', '-target', 'x86_64-apple-macosx10.15', '--sysroot=@SDK@', '-mmacos-version-min=10.15', '-Wno-nullability-completeness', '-Wno-incompatible-sysroot']
+objc_args = ['-DHAVE_TSERVER', '-target', 'x86_64-apple-macosx10.15', '--sysroot=@SDK@', '-mmacos-version-min=10.15', '-Wno-nullability-completeness', '-Wno-incompatible-sysroot']
+cpp_args = ['-DHAVE_TSERVER', '-target', 'x86_64-apple-macosx10.15', '--sysroot=@SDK@', '-mmacos-version-min=10.15', '-Wno-nullability-completeness', '-Wno-incompatible-sysroot']
+c_link_args = ['-target', 'x86_64-apple-macosx10.15', '--sysroot=@SDK@', '-mmacos-version-min=10.15', '-fuse-ld=@LD@']
+objc_link_args = ['-target', 'x86_64-apple-macosx10.15', '--sysroot=@SDK@', '-mmacos-version-min=10.15', '-fuse-ld=@LD@']
+cpp_link_args = ['-target', 'x86_64-apple-macosx10.15', '--sysroot=@SDK@', '-mmacos-version-min=10.15', '-fuse-ld=@LD@']
+
+[host_machine]
+system = 'darwin'
+subsystem = 'macos'
+kernel = 'xnu'
+cpu_family = 'x86_64'
+cpu = 'x86_64'
+endian = 'little'
+
+[properties]
+pkg_config_libdir = ['@SDK@/usr/lib/pkgconfig']

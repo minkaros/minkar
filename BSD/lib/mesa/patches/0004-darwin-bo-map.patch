@@ -1,0 +1,46 @@
+Mesa on Darwin with Minkar's libdrm: buffers mapped for the CPU through
+libdrm (the GPU driver's user client), as the render node has no mmap.
+
+--- a/src/amd/vulkan/winsys/amdgpu/radv_amdgpu_bo.c
++++ b/src/amd/vulkan/winsys/amdgpu/radv_amdgpu_bo.c
+@@ -740,6 +740,24 @@
+    }
+ #endif
+ 
++#ifdef __APPLE__
++   /* Darwin: the render node has no mmap; libdrm maps the buffer through
++    * the GPU driver's user client, where it chooses. A placed map
++    * (use_fixed_addr) is not supported there yet.
++    */
++   {
++      struct radv_amdgpu_winsys *ws = radv_amdgpu_winsys(_ws);
++      void *data = NULL;
++
++      if (use_fixed_addr)
++         return NULL;
++      if (ac_drm_bo_cpu_map(ws->dev, bo->bo, &data))
++         return NULL;
++      bo->cpu_map = data;
++      return data;
++   }
++#endif
++
+    union drm_amdgpu_gem_mmap args;
+    memset(&args, 0, sizeof(args));
+    args.in.handle = bo->bo_handle;
+@@ -767,6 +785,15 @@
+       return;
+ 
+    assert(bo->cpu_map);
++#ifdef __APPLE__
++   /* Darwin: libdrm made the map (radv_amdgpu_winsys_bo_map); the range
++    * stays reserved, without access, when it is replaced. */
++   ac_drm_bo_cpu_unmap(radv_amdgpu_winsys(_ws)->dev, bo->bo);
++   if (replace)
++      (void)mmap(bo->cpu_map, bo->base.size, PROT_NONE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED, -1, 0);
++   bo->cpu_map = NULL;
++   return;
++#endif
+    if (replace) {
+       (void)mmap(bo->cpu_map, bo->base.size, PROT_NONE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED, -1, 0);
+    } else {
