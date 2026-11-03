@@ -19,7 +19,8 @@ AMD = ${.CURDIR}/dist/drm-kmod/drivers/gpu/drm/amd
 .PATH: ${.CURDIR}/linuxkpi/xnu ${.CURDIR}/amdgpu ${AMD}/amdgpu
 
 SRCS = lkpi_xnu.cpp atom_glue.c atom.c MinkarAMDDevice.cpp MinkarAMDGPU.cpp \
-	MinkarAMDFramebuffer.cpp MinkarAMDDMA.cpp MinkarAMDGART.cpp MinkarAMDUserClient.cpp minkar_vram.c
+	MinkarAMDFramebuffer.cpp MinkarAMDDMA.cpp MinkarAMDGART.cpp MinkarAMDUserClient.cpp minkar_vram.c \
+	MinkarAMDFirmware.cpp MinkarAMDGFX.cpp
 
 CFLAGS = -Wno-implicit-int-conversion -Wno-sign-conversion -Wno-format-zero-length \
 	-Wno-pointer-sign -Wno-unused-parameter -Wno-missing-prototypes \

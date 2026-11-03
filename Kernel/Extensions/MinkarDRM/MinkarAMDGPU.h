@@ -94,6 +94,9 @@ public:
 
 private:
 	void dmaSelfTest();
+	void startGFXTest(const char *family);
+	static void gfxTestThread(void *gpu, wait_result_t);
+	void gfxSelfTest();
 	void gartSelfTest(struct MinkarAMDDMA *dma, IODeviceMemory *window, uint64_t region,
 	    uint64_t vramStart);
 	void setUpVRAM(uint32_t megabytes);
@@ -120,6 +123,7 @@ private:
 	IODeviceMemory *	fWindow;	/* VRAM through BAR 0 */
 	uint64_t		fVRAMStart;	/* VRAM in the GPU's space */
 	IOLock *		fDMALock;	/* one submission at a time */
+	char			fMicrocodePrefix[16];	/* "tahiti", for its files */
 	struct MinkarAMDDMA	fDMA;
 	bool			fDMAStarted;
 	IOMemoryMap *		fDMAMap;	/* its ring and write-back */
