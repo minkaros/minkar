@@ -65,10 +65,11 @@ bool MinkarAMDGFXStart(struct MinkarAMDGFX *gfx, struct MinkarAMDRegs *regs, uin
     volatile uint8_t *cpuBase, OSDictionary *results);
 /* A scratch register written through the ring; the time it took. */
 bool MinkarAMDGFXRingTest(struct MinkarAMDGFX *gfx, uint64_t *ns, OSDictionary *results);
-/* An indirect buffer at a GPU address (VRAM or the GART) run, then a
- * fence waited for; the time it took. */
+/* An indirect buffer at a GPU address (VRAM or the GART in context 0, a
+ * client's address in its context vmid) run, then a fence waited for;
+ * the time it took. */
 bool MinkarAMDGFXRunCommands(struct MinkarAMDGFX *gfx, uint64_t address, uint32_t dwords,
-    uint64_t *ns);
+    unsigned vmid, uint64_t *ns);
 /* An indirect buffer that writes a scratch register, run with its fence. */
 bool MinkarAMDGFXIBTest(struct MinkarAMDGFX *gfx, OSDictionary *results);
 /* Halts the processor. */

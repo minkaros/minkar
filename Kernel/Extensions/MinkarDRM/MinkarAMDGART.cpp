@@ -31,6 +31,7 @@
 #include <libkern/OSAtomic.h>
 #include "MinkarAMDGART.h"
 #include "amd_si_gart.h"
+#include "amd_si_vm.h"
 #include "amd_si_dma.h"
 
 #define LOG(fmt, ...)	IOLog("MinkarAMDGART: " fmt "\n", ##__VA_ARGS__)
@@ -104,7 +105,19 @@ MinkarAMDGARTEnable(struct MinkarAMDGART *g, struct MinkarAMDRegs *regs, IODevic
 	    (uint32_t)((vramStart + scratchOffset) >> 12));
 	wr(g, mmSI_VM_CONTEXT0_CNTL2, 0);
 	wr(g, mmSI_VM_CONTEXT0_CNTL, si_context0_cntl());
+	/* Contexts 1-15, for clients' address spaces: their range, every
+	 * directory at something valid until a client's takes its place,
+	 * faults to the scratch page. */
+	wr(g, mmSI_VM_CONTEXT1_PAGE_TABLE_START_ADDR, 0);
+	wr(g, mmSI_VM_CONTEXT1_PAGE_TABLE_END_ADDR, (uint32_t)(kSIVMPages - 1));
+	for (unsigned vmid = 1; vmid < kSIVMContexts; vmid++)
+		wr(g, si_vm_base_reg(vmid), (uint32_t)((vramStart + tableOffset) >> 12));
+	wr(g, mmSI_VM_CONTEXT1_PROTECTION_FAULT_DEFAULT_ADDR,
+	    (uint32_t)((vramStart + scratchOffset) >> 12));
+	wr(g, mmSI_VM_CONTEXT1_CNTL2, 4);
+	wr(g, mmSI_VM_CONTEXT1_CNTL, si_vm_context1_cntl());
 	flush(g);
+	wr(g, mmSI_VM_INVALIDATE_REQUEST, 0xffffu);	/* every context */
 	g->on = true;
 	LOG("%llu MB at 0x%llx, table at VRAM 0x%llx", (unsigned long long)size >> 20,
 	    (unsigned long long)g->start, (unsigned long long)tableOffset);
@@ -117,6 +130,7 @@ MinkarAMDGARTDisable(struct MinkarAMDGART *g)
 	if (!g->on)
 		return;
 	/* Context 0 off first, then the rest as it was. */
+	wr(g, mmSI_VM_CONTEXT1_CNTL, 0);
 	wr(g, mmSI_VM_CONTEXT0_CNTL, g->saved[11]);
 	for (unsigned i = 0; i < sizeof(kSaved) / sizeof(kSaved[0]); i++)
 		wr(g, kSaved[i], g->saved[i]);

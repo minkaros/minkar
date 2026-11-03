@@ -265,7 +265,8 @@ fenceWait(struct MinkarAMDGFX *g, uint32_t seq)
 }
 
 bool
-MinkarAMDGFXRunCommands(struct MinkarAMDGFX *g, uint64_t address, uint32_t dwords, uint64_t *ns)
+MinkarAMDGFXRunCommands(struct MinkarAMDGFX *g, uint64_t address, uint32_t dwords, unsigned vmid,
+    uint64_t *ns)
 {
 	uint32_t p[kSIFenceDwords + 4];
 	unsigned n;
@@ -275,7 +276,7 @@ MinkarAMDGFXRunCommands(struct MinkarAMDGFX *g, uint64_t address, uint32_t dword
 	if (!room(g, kSIFenceDwords + 4))
 		return false;
 	uint64_t start = nowNS();
-	n = amd_si_gfx_emit_ib(p, address, dwords, 0);
+	n = amd_si_gfx_emit_ib(p, address, dwords, vmid);
 	n += amd_si_gfx_emit_fence(p + n, g->gpuBase + kWriteBackOffset, ++g->seq, 0);
 	emit(g, p, n);
 	commit(g);
@@ -301,7 +302,7 @@ MinkarAMDGFXIBTest(struct MinkarAMDGFX *g, OSDictionary *results)
 	unsigned n = amd_si_gfx_emit_set_config(p, mmSI_SCRATCH_REG0, 0x600dcafe);
 	for (unsigned i = 0; i < n; i++)
 		ib[i] = p[i];
-	bool fenced = MinkarAMDGFXRunCommands(g, g->gpuBase + kTestIBOffset, n, &ns);
+	bool fenced = MinkarAMDGFXRunCommands(g, g->gpuBase + kTestIBOffset, n, 0, &ns);
 	uint32_t value = rd(g->regs, mmSI_SCRATCH_REG0);
 	setNumber(results, "IBScratchValue", value, 32);
 	setNumber(results, "IBFenceValue", g->writeBack[0], 32);

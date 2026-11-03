@@ -92,7 +92,14 @@ public:
 	void releaseShared(uint32_t id);
 	/* An indirect buffer of the graphics command processor at a GPU
 	 * address, run and its fence waited for. */
-	IOReturn runGFX(uint64_t address, uint32_t dwords, uint64_t *ns);
+	IOReturn runGFX(uint64_t address, uint32_t dwords, unsigned vmid, uint64_t *ns,
+	    uint32_t *fault = NULL);
+	/* Clients' GPU address spaces (VM contexts 1-15; with the GART on):
+	 * one made, VRAM mapped into it and out, and gone. */
+	IOReturn createVM(unsigned *vmid);
+	void destroyVM(unsigned vmid);
+	IOReturn vmMapVRAM(unsigned vmid, uint64_t va, uint64_t offset, uint64_t bytes);
+	void vmUnmap(unsigned vmid, uint64_t va, uint64_t bytes);
 	/* Into the framebuffer the display shows, at offset. */
 	IOReturn copyToScanout(uint64_t src, uint64_t offset, uint64_t bytes, uint64_t *ns);
 
@@ -104,6 +111,8 @@ private:
 	bool readMicrocode(uint8_t *file[3], size_t bytes[3], struct amd_ucode code[3]);
 	void freeMicrocode(uint8_t *file[3], size_t bytes[3]);
 	bool startGFX();
+	volatile uint64_t *vramPointer(uint64_t offset, uint64_t bytes);
+	void vmFlush(unsigned vmid);
 	void gartSelfTest(struct MinkarAMDDMA *dma, IODeviceMemory *window, uint64_t region,
 	    uint64_t vramStart);
 	void setUpVRAM(uint32_t megabytes);
@@ -135,6 +144,11 @@ private:
 	bool			fGFXStarted;
 	IOMemoryMap *		fGFXMap;	/* its ring and write-back */
 	uint64_t		fGFXOffset;
+	/* Clients' address spaces: each context's page directory in VRAM
+	 * (0: the context is free); written through all of the VRAM window,
+	 * mapped once. */
+	uint64_t		fVMDirectory[16];
+	IOMemoryMap *		fWindowMap;
 	struct MinkarAMDDMA	fDMA;
 	bool			fDMAStarted;
 	IOMemoryMap *		fDMAMap;	/* its ring and write-back */

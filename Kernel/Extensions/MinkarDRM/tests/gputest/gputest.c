@@ -60,6 +60,12 @@
  *					register and writes to VRAM, run with
  *					its fence, then 100 more timed
  *					(administrators)
+ *   minkar-gputest [-g GPU] -u		the client's own GPU address space:
+ *					a buffer mapped in it, an indirect
+ *					buffer run there writing to it; a
+ *					write to an address it does not map
+ *					faults and leaves another buffer
+ *					alone; unmapped, the address faults
  *   minkar-gputest [-g GPU] -e		whether VRAM mapped from the user
  *					client can be shared as a Mach memory
  *					entry (IOSurfaces in VRAM)
@@ -228,13 +234,13 @@ int
 main(int argc, char **argv)
 {
 	unsigned gpu = 0, megabytes = 8;
-	int list = 0, entry = 0, vram = 0, gfx = 0, c;
+	int list = 0, entry = 0, vram = 0, gfx = 0, vm = 0, c;
 	unsigned childID = 0;
 	int childFD = -1;
 	const char *regs = NULL, *auxSpec = NULL, *i2cSpec = NULL, *modeSpec = NULL;
 	char detail[256];
 
-	while ((c = getopt(argc, argv, "g:m:lr:evV:F:a:i:s:c")) != -1)
+	while ((c = getopt(argc, argv, "g:m:lr:evV:F:a:i:s:cu")) != -1)
 		switch (c) {
 		case 'g': gpu = (unsigned)strtoul(optarg, NULL, 0); break;
 		case 'm': megabytes = (unsigned)strtoul(optarg, NULL, 0); break;
@@ -245,6 +251,7 @@ main(int argc, char **argv)
 		case 's': modeSpec = optarg; break;
 		case 'e': entry = 1; break;
 		case 'c': gfx = 1; break;
+		case 'u': vm = 1; break;
 		case 'v': vram = 1; break;
 		case 'V': childID = (unsigned)strtoul(optarg, NULL, 0); break;
 		case 'F': childFD = (int)strtol(optarg, NULL, 0); break;
@@ -374,6 +381,117 @@ main(int argc, char **argv)
 
 	uint64_t bytes = (uint64_t)megabytes << 20, handle[2] = { 0, 0 }, gpuAddr[2] = { 0, 0 };
 	uint64_t freeWithBuffers = 0;	/* before the gotos: read at out */
+	if (vm) {
+		/* Two VRAM buffers: A mapped in the client's address space at
+		 * 1 MB, B not (its VRAM is another's, as far as A knows). */
+		uint64_t in = 1 << 20, ha, hb, gpuB;
+		n = 2;
+		kr = IOConnectCallScalarMethod(conn, kMinkarAMDGPUCreateBuffer, &in, 1, out, &n);
+		ha = out[0];
+		n = 2;
+		if (kr == KERN_SUCCESS)
+			kr = IOConnectCallScalarMethod(conn, kMinkarAMDGPUCreateBuffer, &in, 1, out, &n);
+		hb = out[0];
+		gpuB = out[1];
+		check(kr == KERN_SUCCESS, "create two 1 MB VRAM buffers", "");
+		if (kr != KERN_SUCCESS)
+			return failures;
+		mach_vm_address_t a = 0, b = 0;
+		mach_vm_size_t as = 0, bs = 0;
+		kr = IOConnectMapMemory64(conn, (uint32_t)ha, mach_task_self(), &a, &as, kIOMapAnywhere);
+		if (kr == KERN_SUCCESS)
+			kr = IOConnectMapMemory64(conn, (uint32_t)hb, mach_task_self(), &b, &bs, kIOMapAnywhere);
+		check(kr == KERN_SUCCESS, "map them for the CPU", "");
+		if (kr != KERN_SUCCESS)
+			return failures;
+		volatile uint32_t *pa = (volatile uint32_t *)(uintptr_t)a;
+		volatile uint32_t *pb = (volatile uint32_t *)(uintptr_t)b;
+		const uint64_t va = 1 << 20;
+		uint64_t min[2] = { ha, va };
+		kr = IOConnectCallScalarMethod(conn, kMinkarAMDGPUMapBuffer, min, 2, NULL, NULL);
+		snprintf(detail, sizeof(detail), "0x%x", kr);
+		check(kr == KERN_SUCCESS, "map A at 1 MB of the client's GPU address space", detail);
+		uint64_t overlap[2] = { hb, va + 4096 };
+		kr = IOConnectCallScalarMethod(conn, kMinkarAMDGPUMapBuffer, overlap, 2, NULL, NULL);
+		check(kr != KERN_SUCCESS, "B over A's range is refused", "");
+
+		/* In A: an indirect buffer that writes 4 words at va + 4 KB. */
+		uint32_t ib[32], values[4] = { 0x11112222, 0x33334444, 0x55556666, 0x77778888 };
+		unsigned k = amd_si_gfx_emit_write_data(ib, va + 4096, values, 4);
+		for (unsigned i = 0; i < k; i++)
+			pa[i] = ib[i];
+		for (unsigned i = 0; i < 4; i++)
+			pa[1024 + i] = 0;
+		__sync_synchronize();
+		uint64_t sin[2] = { va, k }, sout[2] = { 0, 0 };
+		uint32_t sn = 2;
+		kr = IOConnectCallScalarMethod(conn, kMinkarAMDGPUSubmitGFXVM, sin, 2, sout, &sn);
+		snprintf(detail, sizeof(detail), "0x%x, %llu ns, fault 0x%llx", kr,
+		    (unsigned long long)sout[0], (unsigned long long)sout[1]);
+		check(kr == KERN_SUCCESS && sout[1] == 0, "it runs in the client's space, no fault", detail);
+		snprintf(detail, sizeof(detail), "%08x %08x %08x %08x", pa[1024], pa[1025], pa[1026], pa[1027]);
+		check(pa[1024] == values[0] && pa[1027] == values[3],
+		    "it wrote through the client's addresses into A", detail);
+
+		/* B's VRAM, by its kernel-space address, from A's space: not
+		 * there for the client; a fault, and B as it was. */
+		for (unsigned i = 0; i < 4; i++)
+			pb[i] = 0xb0b0b0b0;
+		__sync_synchronize();
+		k = amd_si_gfx_emit_write_data(ib, gpuB, values, 4);
+		for (unsigned i = 0; i < k; i++)
+			pa[i] = ib[i];
+		__sync_synchronize();
+		sn = 2;
+		kr = IOConnectCallScalarMethod(conn, kMinkarAMDGPUSubmitGFXVM, sin, 2, sout, &sn);
+		snprintf(detail, sizeof(detail), "0x%x, fault 0x%llx", kr, (unsigned long long)sout[1]);
+		check(kr == KERN_SUCCESS && sout[1] != 0, "a write to another's VRAM address faults", detail);
+		snprintf(detail, sizeof(detail), "%08x %08x %08x %08x", pb[0], pb[1], pb[2], pb[3]);
+		check(pb[0] == 0xb0b0b0b0 && pb[3] == 0xb0b0b0b0, "and B is left alone", detail);
+
+		/* An address of the space the client never mapped. */
+		k = amd_si_gfx_emit_write_data(ib, 64ull << 20, values, 4);
+		for (unsigned i = 0; i < k; i++)
+			pa[i] = ib[i];
+		__sync_synchronize();
+		sn = 2;
+		kr = IOConnectCallScalarMethod(conn, kMinkarAMDGPUSubmitGFXVM, sin, 2, sout, &sn);
+		snprintf(detail, sizeof(detail), "0x%x, fault 0x%llx", kr, (unsigned long long)sout[1]);
+		check(kr == KERN_SUCCESS && sout[1] != 0, "a write to an address it does not map faults",
+		    detail);
+
+		/* 100 timed runs in the client's space (the first write again). */
+		k = amd_si_gfx_emit_write_data(ib, va + 4096, values, 4);
+		for (unsigned i = 0; i < k; i++)
+			pa[i] = ib[i];
+		__sync_synchronize();
+		uint64_t total = 0, worst = 0;
+		int bad = 0;
+		for (int i = 0; i < 100; i++) {
+			sn = 2;
+			if (IOConnectCallScalarMethod(conn, kMinkarAMDGPUSubmitGFXVM, sin, 2, sout, &sn) !=
+			    KERN_SUCCESS || sout[1] != 0)
+				bad++;
+			total += sout[0];
+			worst = sout[0] > worst ? sout[0] : worst;
+		}
+		snprintf(detail, sizeof(detail), "mean %llu ns, worst %llu ns",
+		    (unsigned long long)(total / 100), (unsigned long long)worst);
+		check(bad == 0, "100 more in the client's space, no fault", detail);
+
+		/* Unmapped: running from it is refused. */
+		kr = IOConnectCallScalarMethod(conn, kMinkarAMDGPUUnmapBuffer, &min[1], 1, NULL, NULL);
+		check(kr == KERN_SUCCESS, "unmap A", "");
+		sn = 2;
+		kr = IOConnectCallScalarMethod(conn, kMinkarAMDGPUSubmitGFXVM, sin, 2, sout, &sn);
+		check(kr != KERN_SUCCESS, "an indirect buffer at an unmapped address is refused", "");
+		IOConnectUnmapMemory64(conn, (uint32_t)ha, mach_task_self(), a);
+		IOConnectUnmapMemory64(conn, (uint32_t)hb, mach_task_self(), b);
+		IOConnectCallScalarMethod(conn, kMinkarAMDGPUDestroyBuffer, &ha, 1, NULL, NULL);
+		IOConnectCallScalarMethod(conn, kMinkarAMDGPUDestroyBuffer, &hb, 1, NULL, NULL);
+		IOServiceClose(conn);
+		return failures;
+	}
 	if (gfx) {
 		/* A VRAM buffer, mapped: an indirect buffer at its start, the
 		 * words it writes 4 KB in. */

@@ -29,6 +29,7 @@
 
 #include <IOKit/IOLib.h>
 #include "MinkarAMDUserClient.h"
+#include "amd_si_vm.h"
 #include "MinkarAMDGPU.h"
 #include "atom_glue.h"
 
@@ -61,10 +62,22 @@ MinkarAMDUserClient::start(IOService *provider)
 	return fGPU != NULL && super::start(provider);
 }
 
+/* Called locked: the buffer's mappings in the client's address space. */
+void
+MinkarAMDUserClient::unmapAll(Buffer *b)
+{
+	for (unsigned i = 0; i < kMinkarAMDGPUMaxMappings; i++)
+		if (fMappings[i].bytes != 0 && (b == NULL || fMappings[i].buffer == b)) {
+			fGPU->vmUnmap(fVMID, fMappings[i].va, fMappings[i].bytes);
+			fMappings[i].bytes = 0;
+		}
+}
+
 /* Called locked. */
 void
 MinkarAMDUserClient::destroy(Buffer *b)
 {
+	unmapAll(b);
 	if (b->shared != 0)
 		fGPU->releaseShared(b->shared);
 	else if (b->system != NULL)
@@ -90,6 +103,10 @@ MinkarAMDUserClient::releaseAll()
 	for (unsigned i = 0; i < kMinkarAMDGPUMaxBuffers; i++)
 		if (fBuffers[i].size != 0)
 			destroy(&fBuffers[i]);
+	if (fVMID != 0) {
+		fGPU->destroyVM(fVMID);
+		fVMID = 0;
+	}
 	IOLockUnlock(fLock);
 }
 
@@ -138,6 +155,9 @@ MinkarAMDUserClient::externalMethod(uint32_t selector, IOExternalMethodArguments
 		{ (IOExternalMethodAction)&sI2C, 4, 0, 3, 0 },
 		{ (IOExternalMethodAction)&sModeSet, 2, 0, 6, 0 },
 		{ (IOExternalMethodAction)&sSubmitGFX, 3, 0, 1, 0 },
+		{ (IOExternalMethodAction)&sMapBuffer, 2, 0, 0, 0 },
+		{ (IOExternalMethodAction)&sUnmapBuffer, 1, 0, 0, 0 },
+		{ (IOExternalMethodAction)&sSubmitGFXVM, 2, 0, 2, 0 },
 	};
 
 	(void)dispatch; (void)target;
@@ -238,11 +258,100 @@ MinkarAMDUserClient::sSubmitGFX(OSObject *target, void *, IOExternalMethodArgume
 	bool good = b != NULL && in[2] > 0 && in[2] <= 0xfffff && (in[1] & 3) == 0 &&
 	    in[1] <= b->size && in[2] * 4 <= b->size - in[1];
 	/* Held over the run: the buffer cannot go while the processor reads it. */
-	IOReturn err = good ? me->fGPU->runGFX(b->gpu + in[1], (uint32_t)in[2], &ns) :
+	IOReturn err = good ? me->fGPU->runGFX(b->gpu + in[1], (uint32_t)in[2], 0, &ns) :
 	    kIOReturnBadArgument;
 	IOLockUnlock(me->fLock);
 	if (err == kIOReturnSuccess)
 		args->scalarOutput[0] = ns;
+	return err;
+}
+
+/* buffer, va: the whole of a VRAM buffer at va in the client's address
+ * space, made at the first. */
+IOReturn
+MinkarAMDUserClient::sMapBuffer(OSObject *target, void *, IOExternalMethodArguments *args)
+{
+	MinkarAMDUserClient *me = (MinkarAMDUserClient *)target;
+	const uint64_t *in = args->scalarInput;
+	IOReturn err = kIOReturnSuccess;
+
+	IOLockLock(me->fLock);
+	Buffer *b = me->buffer(in[0]);
+	uint64_t va = in[1];
+	/* VRAM buffers only, so far (not system or imported memory). */
+	if (b == NULL || b->system != NULL || b->imported != NULL || !si_vm_range_ok(va, b->size))
+		err = kIOReturnBadArgument;
+	Mapping *slot = NULL;
+	for (unsigned i = 0; err == kIOReturnSuccess && i < kMinkarAMDGPUMaxMappings; i++) {
+		Mapping *m = &me->fMappings[i];
+		if (m->bytes == 0) {
+			if (slot == NULL)
+				slot = m;
+		} else if (va < m->va + m->bytes && m->va < va + b->size)
+			err = kIOReturnExclusiveAccess;	/* overlaps one */
+	}
+	if (err == kIOReturnSuccess && slot == NULL)
+		err = kIOReturnNoResources;
+	if (err == kIOReturnSuccess && me->fVMID == 0)
+		err = me->fGPU->createVM(&me->fVMID);
+	if (err == kIOReturnSuccess)
+		err = me->fGPU->vmMapVRAM(me->fVMID, va, b->offset, b->size);
+	if (err == kIOReturnSuccess) {
+		slot->va = va;
+		slot->bytes = b->size;
+		slot->buffer = b;
+	}
+	IOLockUnlock(me->fLock);
+	return err;
+}
+
+/* va: the mapping that starts there. */
+IOReturn
+MinkarAMDUserClient::sUnmapBuffer(OSObject *target, void *, IOExternalMethodArguments *args)
+{
+	MinkarAMDUserClient *me = (MinkarAMDUserClient *)target;
+	IOReturn err = kIOReturnNotFound;
+
+	IOLockLock(me->fLock);
+	for (unsigned i = 0; i < kMinkarAMDGPUMaxMappings; i++) {
+		Mapping *m = &me->fMappings[i];
+		if (m->bytes != 0 && m->va == args->scalarInput[0]) {
+			me->fGPU->vmUnmap(me->fVMID, m->va, m->bytes);
+			m->bytes = 0;
+			err = kIOReturnSuccess;
+			break;
+		}
+	}
+	IOLockUnlock(me->fLock);
+	return err;
+}
+
+/* va, dwords: an indirect buffer inside one of the client's mappings, run
+ * in its address space; out: nanoseconds, the protection fault status (0
+ * when it touched only what it maps). */
+IOReturn
+MinkarAMDUserClient::sSubmitGFXVM(OSObject *target, void *, IOExternalMethodArguments *args)
+{
+	MinkarAMDUserClient *me = (MinkarAMDUserClient *)target;
+	const uint64_t *in = args->scalarInput;
+	uint64_t ns = 0;
+	uint32_t fault = 0;
+	bool inside = false;
+
+	IOLockLock(me->fLock);
+	for (unsigned i = 0; i < kMinkarAMDGPUMaxMappings && !inside; i++) {
+		Mapping *m = &me->fMappings[i];
+		inside = m->bytes != 0 && in[1] > 0 && in[1] <= 0xfffff && (in[0] & 3) == 0 &&
+		    in[0] >= m->va && in[0] - m->va < m->bytes && in[1] * 4 <= m->bytes - (in[0] - m->va);
+	}
+	/* Held over the run: the mapping cannot go while the processor reads it. */
+	IOReturn err = inside && me->fVMID != 0 ?
+	    me->fGPU->runGFX(in[0], (uint32_t)in[1], me->fVMID, &ns, &fault) : kIOReturnBadArgument;
+	IOLockUnlock(me->fLock);
+	if (err == kIOReturnSuccess) {
+		args->scalarOutput[0] = ns;
+		args->scalarOutput[1] = fault;
+	}
 	return err;
 }
 

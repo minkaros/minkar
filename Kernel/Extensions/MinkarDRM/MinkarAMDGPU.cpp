@@ -36,6 +36,8 @@
 #include "MinkarAMDFirmware.h"
 #include "MinkarAMDGFX.h"
 #include "amd_si_gfx.h"
+#include "amd_si_vm.h"
+#include "amd_si_dma.h"
 #include "MinkarAMDGART.h"
 #include "amd_si_ih.h"
 
@@ -979,17 +981,188 @@ MinkarAMDGPU::startGFX()
 }
 
 IOReturn
-MinkarAMDGPU::runGFX(uint64_t address, uint32_t dwords, uint64_t *ns)
+MinkarAMDGPU::runGFX(uint64_t address, uint32_t dwords, unsigned vmid, uint64_t *ns,
+    uint32_t *fault)
 {
-	if (fDMALock == NULL || fWindow == NULL || fVRAMLock == NULL)
+	if (fDMALock == NULL || fWindow == NULL || fVRAMLock == NULL || vmid >= kSIVMContexts)
 		return kIOReturnNotReady;
 	IOLockLock(fDMALock);
 	IOReturn err = kIOReturnNotReady;
-	if (startGFX())
-		err = MinkarAMDGFXRunCommands(&fGFX, address, dwords, ns) ?
+	if (vmid != 0 && fVMDirectory[vmid] == 0)
+		err = kIOReturnBadArgument;
+	else if (startGFX()) {
+		err = MinkarAMDGFXRunCommands(&fGFX, address, dwords, vmid, ns) ?
 		    kIOReturnSuccess : kIOReturnTimeout;
+		/* A client's stray access: said, and cleared for the next. */
+		uint32_t status = vmid != 0 ? readReg(mmSI_VM_CONTEXT1_PROTECTION_FAULT_STATUS) : 0;
+		if (status != 0) {
+			LOG("context %u: protection fault 0x%08x at page 0x%08x", si_vm_fault_vmid(status),
+			    status, readReg(mmSI_VM_CONTEXT1_PROTECTION_FAULT_ADDR));
+			writeReg(mmSI_VM_CONTEXT1_CNTL2, readReg(mmSI_VM_CONTEXT1_CNTL2) | 1);
+			writeReg(mmSI_VM_CONTEXT1_CNTL2, readReg(mmSI_VM_CONTEXT1_CNTL2) & ~1u);
+		}
+		if (fault != NULL)
+			*fault = status;
+	}
 	IOLockUnlock(fDMALock);
 	return err;
+}
+
+/* ---- Clients' GPU address spaces ---- */
+
+/* VRAM through the window, for the page tables; NULL outside it. */
+volatile uint64_t *
+MinkarAMDGPU::vramPointer(uint64_t offset, uint64_t bytes)
+{
+	if (fWindowMap == NULL)
+		fWindowMap = fWindow->map(kIOMapWriteCombineCache);
+	if (fWindowMap == NULL || offset + bytes > fWindow->getLength())
+		return NULL;
+	return (volatile uint64_t *)(uintptr_t)(fWindowMap->getVirtualAddress() + offset);
+}
+
+/* The tables' writes reach VRAM, then the context's TLBs are dropped.
+ * Called with fDMALock held: no command buffer runs meanwhile. */
+void
+MinkarAMDGPU::vmFlush(unsigned vmid)
+{
+	OSSynchronizeIO();
+	writeReg(mmSI_HDP_MEM_COHERENCY_FLUSH_CNTL, 1);
+	(void)readReg(mmSI_HDP_MEM_COHERENCY_FLUSH_CNTL);
+	writeReg(mmSI_VM_INVALIDATE_REQUEST, 1u << vmid);
+	(void)readReg(mmSI_VM_INVALIDATE_REQUEST);
+}
+
+IOReturn
+MinkarAMDGPU::createVM(unsigned *vmid)
+{
+	if (fDMALock == NULL || fVRAMLock == NULL || fWindow == NULL || !fGART.on)
+		return kIOReturnNotReady;
+	IOLockLock(fDMALock);
+	unsigned id = 1;
+	while (id < kSIVMContexts && fVMDirectory[id] != 0)
+		id++;
+	if (id == kSIVMContexts) {
+		IOLockUnlock(fDMALock);
+		return kIOReturnNoResources;
+	}
+	uint64_t pd = 0;
+	IOLockLock(fVRAMLock);
+	bool have = minkar_vram_alloc(&fVRAM, kSIVMPDBytes, 64 * 1024, &pd) == 0;
+	IOLockUnlock(fVRAMLock);
+	volatile uint64_t *p = have ? vramPointer(pd, kSIVMPDBytes) : NULL;
+	if (p == NULL) {
+		if (have) {
+			IOLockLock(fVRAMLock);
+			minkar_vram_free(&fVRAM, pd, kSIVMPDBytes);
+			IOLockUnlock(fVRAMLock);
+		}
+		IOLockUnlock(fDMALock);
+		return kIOReturnNoMemory;
+	}
+	for (uint32_t i = 0; i < kSIVMPDEntries; i++)
+		p[i] = 0;		/* nothing mapped: faults, to the scratch page */
+	fVMDirectory[id] = pd;
+	writeReg(si_vm_base_reg(id), (uint32_t)((fVRAMStart + pd) >> 12));
+	vmFlush(id);
+	IOLockUnlock(fDMALock);
+	*vmid = id;
+	return kIOReturnSuccess;
+}
+
+void
+MinkarAMDGPU::destroyVM(unsigned vmid)
+{
+	if (vmid == 0 || vmid >= kSIVMContexts || fDMALock == NULL)
+		return;
+	IOLockLock(fDMALock);
+	uint64_t pd = fVMDirectory[vmid];
+	volatile uint64_t *p = pd != 0 ? vramPointer(pd, kSIVMPDBytes) : NULL;
+	if (p != NULL) {
+		/* Its tables, then its directory; the context back at the
+		 * GART's table, as at start. */
+		IOLockLock(fVRAMLock);
+		for (uint32_t i = 0; i < kSIVMPDEntries; i++) {
+			uint64_t table = si_vm_pde_table(p[i]);
+			if (table != 0)
+				minkar_vram_free(&fVRAM, table - fVRAMStart, kSIVMPTBytes);
+			p[i] = 0;
+		}
+		minkar_vram_free(&fVRAM, pd, kSIVMPDBytes);
+		IOLockUnlock(fVRAMLock);
+		writeReg(si_vm_base_reg(vmid), (uint32_t)((fVRAMStart + fGARTTable) >> 12));
+		vmFlush(vmid);
+	}
+	fVMDirectory[vmid] = 0;
+	IOLockUnlock(fDMALock);
+}
+
+/* VRAM at offset (page aligned, bytes of it) at va in the context. */
+IOReturn
+MinkarAMDGPU::vmMapVRAM(unsigned vmid, uint64_t va, uint64_t offset, uint64_t bytes)
+{
+	if (vmid == 0 || vmid >= kSIVMContexts || !si_vm_range_ok(va, bytes) ||
+	    (offset & (kSIGPUPage - 1)) != 0)
+		return kIOReturnBadArgument;
+	IOLockLock(fDMALock);
+	uint64_t pd = fVMDirectory[vmid];
+	volatile uint64_t *dir = pd != 0 ? vramPointer(pd, kSIVMPDBytes) : NULL;
+	IOReturn err = dir != NULL ? kIOReturnSuccess : kIOReturnNotReady;
+	for (uint64_t done = 0; err == kIOReturnSuccess && done < bytes; done += kSIGPUPage) {
+		uint32_t d, t;
+		si_vm_index(va + done, &d, &t);
+		uint64_t table = si_vm_pde_table(dir[d]);
+		if (table == 0) {
+			/* A new table, empty. */
+			uint64_t pt = 0;
+			IOLockLock(fVRAMLock);
+			bool have = minkar_vram_alloc(&fVRAM, kSIVMPTBytes, kSIVMPTBytes, &pt) == 0;
+			IOLockUnlock(fVRAMLock);
+			volatile uint64_t *q = have ? vramPointer(pt, kSIVMPTBytes) : NULL;
+			if (q == NULL) {
+				if (have) {
+					IOLockLock(fVRAMLock);
+					minkar_vram_free(&fVRAM, pt, kSIVMPTBytes);
+					IOLockUnlock(fVRAMLock);
+				}
+				err = kIOReturnNoMemory;
+				break;
+			}
+			for (uint32_t i = 0; i < kSIVMPTEntries; i++)
+				q[i] = 0;
+			table = fVRAMStart + pt;
+			dir[d] = si_vm_pde(table);
+		}
+		volatile uint64_t *ptes = vramPointer(table - fVRAMStart, kSIVMPTBytes);
+		ptes[t] = si_vm_pte_vram(offset + done);
+	}
+	if (dir != NULL)
+		vmFlush(vmid);
+	IOLockUnlock(fDMALock);
+	if (err != kIOReturnSuccess)
+		vmUnmap(vmid, va, bytes);	/* what was mapped of it */
+	return err;
+}
+
+/* The range's PTEs cleared (its tables stay until the context goes). */
+void
+MinkarAMDGPU::vmUnmap(unsigned vmid, uint64_t va, uint64_t bytes)
+{
+	if (vmid == 0 || vmid >= kSIVMContexts || !si_vm_range_ok(va, bytes))
+		return;
+	IOLockLock(fDMALock);
+	uint64_t pd = fVMDirectory[vmid];
+	volatile uint64_t *dir = pd != 0 ? vramPointer(pd, kSIVMPDBytes) : NULL;
+	for (uint64_t done = 0; dir != NULL && done < bytes; done += kSIGPUPage) {
+		uint32_t d, t;
+		si_vm_index(va + done, &d, &t);
+		uint64_t table = si_vm_pde_table(dir[d]);
+		if (table != 0)
+			vramPointer(table - fVRAMStart, kSIVMPTBytes)[t] = 0;
+	}
+	if (dir != NULL)
+		vmFlush(vmid);
+	IOLockUnlock(fDMALock);
 }
 
 /*
@@ -1106,6 +1279,7 @@ MinkarAMDGPU::free()
 	if (fGFXStarted)
 		MinkarAMDGFXStop(&fGFX);
 	OSSafeReleaseNULL(fGFXMap);
+	OSSafeReleaseNULL(fWindowMap);
 	stopInterrupts();
 	MinkarAMDGARTDisable(&fGART);
 	OSSafeReleaseNULL(fDMAMap);

@@ -84,6 +84,19 @@
  *			only: the buffer runs in the kernel's GPU address
  *			space and may write any register, until clients have
  *			address spaces of their own.
+ *   MapBuffer		in: buffer, address. The whole of a VRAM buffer at that
+ *			address (page aligned) of the client's own GPU address
+ *			space (64 GB, made at the first mapping; with the GART
+ *			on); mappings do not overlap. A buffer's mappings go
+ *			with it.
+ *   UnmapBuffer	in: the address a mapping starts at.
+ *   SubmitGFXVM	in: address, dwords; out: nanoseconds, the protection
+ *			fault status (0: it touched only what the client maps).
+ *			The graphics command processor runs the indirect buffer
+ *			at that address of the client's address space (inside
+ *			one of its mappings) in that space: what it reads and
+ *			writes is what the client mapped; anything else faults
+ *			to a scratch page.
  *   ReadRegister	in: dword index; out: its value. For bring-up: the
  *			register window only, reading only (no indexed
  *			registers, which take two writes).
@@ -109,6 +122,9 @@ enum {
 	kMinkarAMDGPUI2CRead,
 	kMinkarAMDGPUModeSet,
 	kMinkarAMDGPUSubmitGFX,
+	kMinkarAMDGPUMapBuffer,
+	kMinkarAMDGPUUnmapBuffer,
+	kMinkarAMDGPUSubmitGFXVM,
 	kMinkarAMDGPUMethodCount
 };
 
@@ -118,5 +134,7 @@ enum {
 
 /* The most buffers a client holds at once. */
 #define kMinkarAMDGPUMaxBuffers	64
+/* The most mappings in a client's GPU address space. */
+#define kMinkarAMDGPUMaxMappings	64
 
 #endif

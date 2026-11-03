@@ -79,7 +79,17 @@ private:
 	static IOReturn sI2C(OSObject *target, void *reference, IOExternalMethodArguments *args);
 	static IOReturn sModeSet(OSObject *target, void *reference, IOExternalMethodArguments *args);
 	static IOReturn sSubmitGFX(OSObject *target, void *reference, IOExternalMethodArguments *args);
+	static IOReturn sMapBuffer(OSObject *target, void *reference, IOExternalMethodArguments *args);
+	static IOReturn sUnmapBuffer(OSObject *target, void *reference, IOExternalMethodArguments *args);
+	static IOReturn sSubmitGFXVM(OSObject *target, void *reference, IOExternalMethodArguments *args);
+	/* A buffer at an address of the client's GPU address space. */
+	struct Mapping {
+		uint64_t va, bytes;	/* bytes 0: the slot is empty */
+		Buffer *buffer;
+	};
+
 	void destroy(Buffer *b);
+	void unmapAll(Buffer *b);
 	Buffer *buffer(uint64_t handle);
 	void releaseAll();
 
@@ -87,6 +97,8 @@ private:
 	task_t			fTask;		/* the client's, for ImportMemory */
 	IOLock *		fLock;
 	Buffer			fBuffers[kMinkarAMDGPUMaxBuffers];
+	unsigned		fVMID;		/* its address space's context, or 0 */
+	Mapping			fMappings[kMinkarAMDGPUMaxMappings];
 };
 
 #endif
