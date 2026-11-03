@@ -371,8 +371,11 @@ CGContextRef CGDisplayGetDrawingContext(CGDirectDisplayID display) {
 
 // Creating Images from the Display
 CGImageRef CGDisplayCreateImage(CGDirectDisplayID display) {
-    CGRect rect = CGDisplayBounds(display);
-    return CGDisplayCreateImageForRect(display, rect);
+    /* All of it, in the display's own coordinates (ForRect's): its global
+       bounds are elsewhere for any display but the main one. */
+    CGRect bounds = CGDisplayBounds(display);
+    return CGDisplayCreateImageForRect(display,
+        CGRectMake(0, 0, bounds.size.width, bounds.size.height));
 }
 
 CGImageRef CGDisplayCreateImageForRect(CGDirectDisplayID display, CGRect rect) {
