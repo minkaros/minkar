@@ -129,6 +129,10 @@ static uint32_t nextSurfaceID = 1;
 
 @end
 
+/* IOSurface's own, for surfaces in GPU memory (Frameworks/IOSurface). */
+extern uint32_t IOSurfaceGetMinkarGPUBuffer(IOSurfaceRef buffer);
+extern uint64_t IOSurfaceGetMinkarGPU(IOSurfaceRef buffer);
+
 @implementation WSIOSurfaceBacking {
 	IOSurfaceRef _surface;
 }
@@ -149,6 +153,9 @@ static uint32_t nextSurfaceID = 1;
 	_width = width;
 	_height = height;
 	_rowBytes = (uint32_t)IOSurfaceGetBytesPerRow(_surface);
+	_gpuBuffer = IOSurfaceGetMinkarGPUBuffer(_surface);
+	_gpuEntryID = _gpuBuffer != 0 ? IOSurfaceGetMinkarGPU(_surface) : 0;
+	_allocSize = IOSurfaceGetAllocSize(_surface);
 	return self;
 }
 

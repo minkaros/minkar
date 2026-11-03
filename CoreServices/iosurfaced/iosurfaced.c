@@ -65,7 +65,9 @@ typedef struct Surface {
 	mach_port_t	port;		/* receive right, made_port's; or null */
 	Hold		*holds;
 	io_connect_t	gpu;		/* a surface in GPU memory: its GPU, */
-	uint64_t	gpuBuffer;	/* and the buffer held there */
+	uint64_t	gpuBuffer;	/* and the buffer held there; */
+	uint64_t	gpuEntryID;	/* the GPU's registry entry, */
+	uint32_t	gpuGlobalID;	/* and the buffer's global ID */
 	struct Surface	*next;
 } Surface;
 
@@ -318,9 +320,29 @@ iosd_attach_gpu_buffer(mach_port_t server, audit_token_t token, uint32_t surface
 	if (c == IO_OBJECT_NULL ||
 	    IOConnectCallScalarMethod(c, kMinkarAMDGPURetainSharedBuffer, &in, 1, out, &n) != KERN_SUCCESS)
 		return KERN_SUCCESS;
+	/* It must hold the whole surface: who draws it reads that much. */
+	if (out[2] < s->allocSize) {
+		uint64_t b = out[0];
+		IOConnectCallScalarMethod(c, kMinkarAMDGPUDestroyBuffer, &b, 1, NULL, NULL);
+		return KERN_SUCCESS;
+	}
 	s->gpu = c;
 	s->gpuBuffer = out[0];
+	s->gpuEntryID = gpu;
+	s->gpuGlobalID = buffer;
 	*result = 0;
+	return KERN_SUCCESS;
+}
+
+kern_return_t
+iosd_gpu_buffer(mach_port_t server, uint32_t surfaceID, uint64_t *gpu, uint32_t *buffer,
+    int32_t *result)
+{
+	Surface *s = find(surfaceID);
+
+	*gpu = s != NULL ? s->gpuEntryID : 0;
+	*buffer = s != NULL ? s->gpuGlobalID : 0;
+	*result = s != NULL ? 0 : -1;
 	return KERN_SUCCESS;
 }
 

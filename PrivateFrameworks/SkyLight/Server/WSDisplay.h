@@ -92,6 +92,8 @@
 - (BOOL)setUpGPUFrame:(size_t)bytes globalID:(uint32_t *)globalID cpu:(uint8_t **)cpu;
 /* The companion GPU's render node (/dev/dri/renderD<n>), or 0. */
 @property (readonly) uint32_t gpuRenderMinor;
+/* Its registry entry ID (IOSurfaces in its memory name it), or 0. */
+@property (readonly) uint64_t gpuEntryID;
 
 /* The display's compositor (WSCompositor), made at startup. */
 @property (strong) id compositor;

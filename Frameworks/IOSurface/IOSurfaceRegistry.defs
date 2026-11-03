@@ -89,3 +89,16 @@ routine attach_gpu_buffer(
 	gpu			: uint64_t;
 	buffer			: uint32_t;
 	out result		: int32_t);
+
+/*
+ * The GPU's shared buffer behind a surface, as attach_gpu_buffer gave it:
+ * the GPU's registry entry ID and the buffer's global ID (0 and 0 for a
+ * surface in system memory). For a process that looked the surface up and
+ * draws it on that GPU (the window server).
+ */
+routine gpu_buffer(
+	server			: mach_port_t;
+	surfaceID		: uint32_t;
+	out gpu			: uint64_t;
+	out buffer		: uint32_t;
+	out result		: int32_t);

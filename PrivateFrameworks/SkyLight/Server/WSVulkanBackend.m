@@ -32,13 +32,14 @@
  * Vulkan by its descriptor; one compute shader (shaders/compose.comp)
  * draws into it a rectangle at a time, reaching every buffer by its GPU
  * address. A window's surface is the server's own memory, imported once
- * (VK_EXT_external_memory_host) and read in place; an IOSurface the app
- * made goes through an upload buffer for now (zero-copy IOSurfaces are
- * G4.3). The frame is presented as pixman's shadow is, by the GPU's DMA
- * engine in bands of rows, or by the CPU through the display's colour
- * table. Each part of a frame (the windows, the cursor, the cursor taken
- * away) is one submission, waited for before the frame is presented or
- * read by display streams.
+ * (VK_EXT_external_memory_host) and read in place; so is an IOSurface the
+ * app made in the same GPU's memory (G4.3), imported by its shared buffer's
+ * descriptor. Other IOSurfaces go through an upload buffer. The frame is
+ * presented as pixman's shadow is, by the GPU's DMA engine in bands of
+ * rows, or by the CPU through the display's colour table. Each part of a
+ * frame (the windows, the cursor, the cursor taken away) is one
+ * submission, waited for before the frame is presented or read by display
+ * streams.
  */
 
 #include <dlfcn.h>
@@ -176,6 +177,7 @@ loadVulkan(void)
 	PFN_vkGetMemoryFdPropertiesKHR _getMemoryFdProperties;
 	PFN_vkGetMemoryHostPointerPropertiesEXT _getHostPointerProperties;
 	VkDeviceSize _hostAlignment;	/* 0: surfaces cannot be imported */
+	BOOL _importTaken;	/* the last import's handle is Vulkan's now */
 
 	/* The frame: VRAM shared with the display's GPU, mapped for the CPU. */
 	WSVulkanBuffer *_frame;
@@ -383,6 +385,7 @@ hasExtension(const VkExtensionProperties *list, uint32_t n, const char *name)
 	    0, size, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
 	    VK_SHARING_MODE_EXCLUSIVE, 0, NULL };
 
+	_importTaken = NO;
 	b->_device = _device;
 	b->_size = size;
 	if (vkCreateBuffer(_device, &bci, NULL, &b->_buffer) != VK_SUCCESS) {
@@ -404,6 +407,7 @@ hasExtension(const VkExtensionProperties *list, uint32_t n, const char *name)
 		b->_memory = VK_NULL_HANDLE;
 		return nil;
 	}
+	_importTaken = import != NULL;
 	if (vkBindBufferMemory(_device, b->_buffer, b->_memory, 0) != VK_SUCCESS)
 		return nil;
 	if (import == NULL && vkMapMemory(_device, b->_memory, 0, VK_WHOLE_SIZE, 0,
@@ -412,6 +416,29 @@ hasExtension(const VkExtensionProperties *list, uint32_t n, const char *name)
 	VkBufferDeviceAddressInfo bdai = { VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO, NULL,
 	    b->_buffer };
 	b->_address = vkGetBufferDeviceAddress(_device, &bdai);
+	return b;
+}
+
+/* A shared VRAM buffer of the display's GPU, by its global ID, as the GPU
+ * sees it (size bytes from its start); nil if refused. */
+- (WSVulkanBuffer *)importShared:(uint32_t)globalID size:(VkDeviceSize)size
+{
+	int fd = sSharedBufferFD(globalID);
+	VkMemoryFdPropertiesKHR fdProps = { .sType = VK_STRUCTURE_TYPE_MEMORY_FD_PROPERTIES_KHR };
+
+	if (fd < 0)
+		return nil;
+	if (_getMemoryFdProperties(_device, VK_EXTERNAL_MEMORY_HANDLE_TYPE_DMA_BUF_BIT_EXT, fd,
+	    &fdProps) != VK_SUCCESS) {
+		close(fd);
+		return nil;
+	}
+	VkImportMemoryFdInfoKHR import = { VK_STRUCTURE_TYPE_IMPORT_MEMORY_FD_INFO_KHR, NULL,
+	    VK_EXTERNAL_MEMORY_HANDLE_TYPE_DMA_BUF_BIT_EXT, fd };
+	WSVulkanBuffer *b = [self bufferOfSize:size import:&import
+	    handleType:VK_EXTERNAL_MEMORY_HANDLE_TYPE_DMA_BUF_BIT_EXT typeBits:fdProps.memoryTypeBits];
+	if (!_importTaken)
+		close(fd);	/* Vulkan owns it once its memory is made */
 	return b;
 }
 
@@ -451,23 +478,9 @@ hasExtension(const VkExtensionProperties *list, uint32_t n, const char *name)
 		fprintf(stderr, "WindowServer: Vulkan: the GPU made no frame of %zu bytes\n", bytes);
 		return NO;
 	}
-	int fd = sSharedBufferFD(globalID);
-	VkMemoryFdPropertiesKHR fdProps = { .sType = VK_STRUCTURE_TYPE_MEMORY_FD_PROPERTIES_KHR };
-	if (fd < 0 || _getMemoryFdProperties(_device, VK_EXTERNAL_MEMORY_HANDLE_TYPE_DMA_BUF_BIT_EXT,
-	    fd, &fdProps) != VK_SUCCESS) {
-		fprintf(stderr, "WindowServer: Vulkan: the frame's descriptor (%d) is refused\n", fd);
-		if (fd >= 0)
-			close(fd);
-		[display tearDownGPUPresent];
-		return NO;
-	}
-	VkImportMemoryFdInfoKHR import = { VK_STRUCTURE_TYPE_IMPORT_MEMORY_FD_INFO_KHR, NULL,
-	    VK_EXTERNAL_MEMORY_HANDLE_TYPE_DMA_BUF_BIT_EXT, fd };
-	_frame = [self bufferOfSize:bytes import:&import
-	    handleType:VK_EXTERNAL_MEMORY_HANDLE_TYPE_DMA_BUF_BIT_EXT typeBits:fdProps.memoryTypeBits];
+	_frame = [self importShared:globalID size:bytes];
 	if (_frame == nil) {
 		fprintf(stderr, "WindowServer: Vulkan: the frame cannot be imported\n");
-		close(fd);	/* Vulkan owns it only once imported */
 		[display tearDownGPUPresent];
 		return NO;
 	}
@@ -646,6 +659,34 @@ hasExtension(const VkExtensionProperties *list, uint32_t n, const char *name)
 	return b->_failed ? nil : b;
 }
 
+/* An app's IOSurface in this GPU's memory, imported at its first frame
+ * and kept as long as the surface: the compositor reads it where the app
+ * draws (G4.3). nil for other surfaces. */
+- (WSVulkanBuffer *)importIOSurface:(WSIOSurfaceBacking *)surface
+{
+	const void *key = (__bridge const void *)self;
+	WSVulkanBuffer *b = objc_getAssociatedObject(surface, key);
+
+	if (b != nil)
+		return b->_failed ? nil : b;
+	if (surface.gpuBuffer == 0 || surface.gpuEntryID != _display.gpuEntryID)
+		return nil;
+	VkDeviceSize size = ((VkDeviceSize)surface.allocSize + 4095) & ~(VkDeviceSize)4095;
+	if ((VkDeviceSize)surface.rowBytes * surface.height > size)
+		return nil;
+	b = [self importShared:surface.gpuBuffer size:size];
+	if (b == nil) {
+		fprintf(stderr, "WindowServer: Vulkan: IOSurface %u's VRAM cannot be imported; "
+		    "it is uploaded\n", surface.surfaceID);
+		b = [[WSVulkanBuffer alloc] init];
+		b->_failed = YES;
+	} else
+		fprintf(stderr, "WindowServer: Vulkan: IOSurface %u is read in place, in VRAM\n",
+		    surface.surfaceID);
+	objc_setAssociatedObject(surface, key, b, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+	return b->_failed ? nil : b;
+}
+
 - (void)beginFrame:(pixman_region32_t *)damage
 {
 	for (WSVulkanBuffer *b in _uploads)
@@ -689,7 +730,8 @@ alpha8(double alpha)
 	    .srcOrigin = { x, y }, .dstStride = _rowBytes / 4, .srcStride = surface.rowBytes / 4,
 	    .mode = kOver, .alpha = alpha8(alpha) };
 	WSVulkanBuffer *memory = [surface isKindOfClass:[WSSurface class]] ?
-	    [self importSurface:surface] : nil;
+	    [self importSurface:surface] : [surface isKindOfClass:[WSIOSurfaceBacking class]] ?
+	    [self importIOSurface:(WSIOSurfaceBacking *)surface] : nil;
 	/* Shown twice in one frame: what is recorded runs first, for its lock
 	 * is not taken twice. */
 	if ([_locked indexOfObjectIdenticalTo:surface] != NSNotFound)
@@ -698,7 +740,9 @@ alpha8(double alpha)
 
 	if (memory != nil) {
 		/* Read in place: locked until the GPU is done. */
-		op.src = memory->_address + (uint64_t)((uintptr_t)pixels - surface.memoryBase);
+		uint64_t start = [surface isKindOfClass:[WSSurface class]] ? surface.memoryBase :
+		    (uintptr_t)pixels;	/* an IOSurface's pixels start its buffer */
+		op.src = memory->_address + (uint64_t)((uintptr_t)pixels - start);
 		[_locked addObject:surface];
 	} else {
 		op.src = [self uploadPixels:pixels rowBytes:surface.rowBytes width:surface.width
