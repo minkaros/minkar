@@ -809,10 +809,3 @@ xpc_connection_destroy_peer(void *context __unused)
 {
 }
 
-/* No entitlements on Minkar (no code signing yet): every peer has none. */
-xpc_object_t
-xpc_connection_copy_entitlement_value(xpc_connection_t connection __unused,
-    const char *entitlement __unused)
-{
-	return (NULL);
-}
