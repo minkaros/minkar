@@ -34,7 +34,8 @@
  *                    events, damaged area and frame times
  *   wsctl windows    the window list, front to back
  *   wsctl displays   each display's bounds, mode and state
- *   wsctl modes      the main display's modes, the current one marked *
+ *   wsctl modes      the main display's modes (size, refresh rate), the
+ *                    current one marked *
  *   wsctl mode ID [permanent]
  *                    sets the main display's mode for the session, or
  *                    saves it for the next ones too
@@ -146,9 +147,13 @@ modes(void)
 		fprintf(stderr, "wsctl: no window server\n");
 		return 1;
 	}
-	for (uint32_t i = 0; i < count; i++)
-		printf("%c %u %ux%u\n", list[i].modeID == current.modeID ? '*' : ' ',
+	for (uint32_t i = 0; i < count; i++) {
+		printf("%c %u %ux%u", list[i].modeID == current.modeID ? '*' : ' ',
 		    list[i].modeID, list[i].pixelWidth, list[i].pixelHeight);
+		if (list[i].refreshRate > 0)
+			printf(" %.2f Hz", list[i].refreshRate);
+		printf("\n");
+	}
 	return 0;
 }
 

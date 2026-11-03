@@ -202,21 +202,29 @@ static const unsigned kIdleTicks = 2;
 	_originX = _display.x;
 	_originY = _display.y;
 	pthread_mutex_unlock(&_lock);
+	if (_link != NULL)	/* a new mode may run at another rate */
+		[self followRefreshRate];
 	[self damageAll];
 	return YES;
 }
 
-- (void)start
+/* The display link's period: the current mode's refresh rate. */
+- (void)followRefreshRate
 {
 	const SLSDisplayMode *mode = [_display currentMode];
 	double hz = (mode != NULL && mode->refreshRate >= 20) ? mode->refreshRate : 60;
 	uint64_t interval = (uint64_t)(NSEC_PER_SEC / hz);
 
+	dispatch_source_set_timer(_link, dispatch_time(DISPATCH_TIME_NOW, interval), interval,
+	    interval / 10);
+}
+
+- (void)start
+{
 	/* The display link ticks at the refresh rate while there is work, and
 	 * sleeps after kIdleTicks ticks with none; damage wakes it. */
 	_link = dispatch_source_create(DISPATCH_SOURCE_TYPE_TIMER, 0, 0, _render);
-	dispatch_source_set_timer(_link, dispatch_time(DISPATCH_TIME_NOW, interval), interval,
-	    interval / 10);
+	[self followRefreshRate];
 	__unsafe_unretained WSCompositor *me = self;	/* compositors live for good */
 	dispatch_source_set_event_handler(_link, ^{ [me tick]; });
 	dispatch_resume(_link);

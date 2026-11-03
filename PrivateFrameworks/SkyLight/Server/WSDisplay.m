@@ -273,6 +273,9 @@ displayInfoNumber(io_service_t framebuffer, CFStringRef key)
 	_currentModeID = modeID;
 	_width = mode->pixelWidth;
 	_height = mode->pixelHeight;
+	/* Again: a scaled mode runs at the refresh rate of the timing in use,
+	 * which may have changed with this one. */
+	[self loadModes];
 	return kSLSErrorSuccess;
 }
 
