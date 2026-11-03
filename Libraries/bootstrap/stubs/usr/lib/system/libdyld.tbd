@@ -82,6 +82,7 @@
             "__dyld_present",
             "_NSLookupAndBindSymbolWithHint",
             "__dyld_images_for_addresses",
+            "__availability_version_check",
             "__dyld_register_func_for_add_image",
             "_dyld_image_path_containing_address",
             "_dlsym",
