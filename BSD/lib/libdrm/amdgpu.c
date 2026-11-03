@@ -35,6 +35,8 @@
  */
 
 #include <errno.h>
+#include <fcntl.h>
+#include <unistd.h>
 #include <pthread.h>
 #include <stdlib.h>
 #include <string.h>
@@ -59,7 +61,8 @@ struct amdgpu_va {
 };
 
 struct amdgpu_device {
-	int fd;
+	int fd;				/* our own copy of the caller's */
+	int minor;			/* the render node: one device per GPU */
 	io_connect_t conn;
 	unsigned refs;
 	pthread_mutex_t lock;
@@ -85,20 +88,32 @@ amdgpu_device_initialize(int fd, uint32_t *major_version, uint32_t *minor_versio
 {
 	struct amdgpu_device *d;
 
+	/* As libdrm does: one device per GPU, however many times its node is
+	 * opened, on a descriptor of its own (callers close theirs after,
+	 * as RADV does). */
 	*device_handle = NULL;
+	int minor = minkar_drm_fd_minor(fd);
+	if (minor < 0)
+		return -ENODEV;
 	pthread_mutex_lock(&sDevicesLock);
-	for (d = sDevices; d != NULL && d->fd != fd; d = d->next)
+	for (d = sDevices; d != NULL && d->minor != minor; d = d->next)
 		;
 	if (d != NULL)
 		d->refs++;
 	else {
-		io_connect_t conn = minkar_drm_connection(fd);
+		int own = fcntl(fd, F_DUPFD_CLOEXEC, 0);
+		io_connect_t conn = own >= 0 ? minkar_drm_connection(own) : IO_OBJECT_NULL;
 		d = conn != IO_OBJECT_NULL ? calloc(1, sizeof(*d)) : NULL;
 		if (d == NULL) {
+			if (conn != IO_OBJECT_NULL)
+				minkar_drm_close(own);
+			if (own >= 0)
+				close(own);
 			pthread_mutex_unlock(&sDevicesLock);
 			return conn == IO_OBJECT_NULL ? -ENODEV : -ENOMEM;
 		}
-		d->fd = fd;
+		d->fd = own;
+		d->minor = minor;
 		d->conn = conn;
 		d->refs = 1;
 		pthread_mutex_init(&d->lock, NULL);
@@ -125,6 +140,7 @@ amdgpu_device_deinitialize(amdgpu_device_handle d)
 				break;
 			}
 		minkar_drm_close(d->fd);
+		close(d->fd);
 		while (d->ranges != NULL) {
 			struct amdgpu_va *r = d->ranges;
 			d->ranges = r->next;
