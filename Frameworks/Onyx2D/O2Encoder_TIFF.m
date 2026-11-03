@@ -150,7 +150,7 @@ static void encodeRationalAtPosition(O2TIFFEncoderRef self,double value,uint32_t
 }
 
 static void encodeUnsigned16OrUnsigned32(O2TIFFEncoderRef self,uint32_t value){
-   if((value&0xFFFF)==0)
+   if((value&0xFFFF0000)==0)	/* it fits in 16 bits */
     encodeUnsigned16(self,value);
    else
     encodeUnsigned32(self,value);
@@ -339,10 +339,6 @@ void O2TIFFEncoderWriteImage(O2TIFFEncoderRef self,O2ImageRef image,CFDictionary
   uint32_t bpsPosition=reserveArrayOfUnsigned16(self);
   putUnsigned16(self,NSTIFFTagCompression);
   encodeUnsigned16(self,NSTIFFCompression_none);
-  if(imageHasAlpha){
-   putUnsigned16(self,NSTIFFTagExtraSamples);
-   encodeUnsigned16(self,NSTIFFExtraSamples_associatedAlpha);
-  }
   putUnsigned16(self,NSTIFFTagPhotometricInterpretation);
   encodeUnsigned16(self,NSTIFFPhotometricInterpretationRGB);
   putUnsigned16(self,NSTIFFTagStripOffsets);
@@ -359,6 +355,12 @@ void O2TIFFEncoderWriteImage(O2TIFFEncoderRef self,O2ImageRef image,CFDictionary
   uint32_t yResolutionPosition=reserveRational(self);
   putUnsigned16(self,NSTIFFTagResolutionUnit);
   encodeUnsigned16(self,NSTIFFResolutionUnit_inch);
+  /* A directory's tags in ascending order (TIFF 6.0, section 2): ExtraSamples
+   * (338) comes last. */
+  if(imageHasAlpha){
+   putUnsigned16(self,NSTIFFTagExtraSamples);
+   encodeUnsigned16(self,NSTIFFExtraSamples_associatedAlpha);
+  }
   
   uint32_t nextEntryOffsetPosition=currentPosition(self);
   putUnsigned32(self,0);

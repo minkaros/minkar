@@ -65,7 +65,27 @@ O2ImageDestinationRef O2ImageDestinationCreateWithData(CFMutableDataRef data,CFS
    return self;
 }
 
+/* Whether there is an encoder for the type: a destination of another
+ * type is NULL, as CGImageDestinationCreateWith* answers, rather than one
+ * that writes nothing. */
+static bool canEncode(O2ImageFileType type) {
+   switch(type){
+    case O2ImageFileTIFF:
+    case O2ImageFilePNG:
+     return true;
+#ifdef LIBJPEG_PRESENT
+    case O2ImageFileJPEG:
+     return true;
+#endif
+    default:
+     return false;
+   }
+}
+
 O2ImageDestinationRef O2ImageDestinationCreateWithDataConsumer(O2DataConsumerRef dataConsumer,CFStringRef type,size_t imageCount,CFDictionaryRef options) {
+   if(dataConsumer==NULL || type==NULL || !canEncode(fileTypeForUTI(type)))
+    return NULL;
+
    O2ImageDestinationRef self=NSAllocateObject([O2ImageDestination class],0,NULL);
 
     if (self) {

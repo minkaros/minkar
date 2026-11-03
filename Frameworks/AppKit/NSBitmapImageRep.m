@@ -619,6 +619,9 @@ NSString* NSImageCompressionFactor = @"NSImageCompressionFactor";
     }
    CGImageDestinationRef dest=CGImageDestinationCreateWithData((CFMutableDataRef)result,uti,1,(CFDictionaryRef)CGProperties);
 
+   /* A format there is no encoder for: nil. */
+   if(dest==NULL)
+    return nil;
    CGImageDestinationAddImage(dest,[self CGImage],(CFDictionaryRef)CGProperties);
 
    CGImageDestinationFinalize(dest);
