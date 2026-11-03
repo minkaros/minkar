@@ -33,7 +33,7 @@
 # "bmake progress" (Docs/CONTRIBUTING.md).
 
 updated = "2026-11-03"
-commit  = "76e14432ee"
+commit  = "0822411404"
 
 deps = [["ws", 555, "dock"], ["fw", 535, "kraz"]]
 
@@ -203,8 +203,8 @@ doc_es = "ROADMAP.es.md#pila-gráfica-componentes-y-secuencia"
 # G3 done (2026-11-03): RADV on Minkar, a triangle in a window, the
 # conformance subset with no failure. G4 under way (2026-11-03): the Vulkan
 # backend composes on the Mac Pro (G4.2), IOSurfaces in VRAM without
-# copies (G4.3), page flips at the vertical blank (G4.4); CAMetalLayer's
-# drawables in VRAM next.
+# copies (G4.3), page flips at the vertical blank (G4.4), CAMetalLayer's
+# drawables in VRAM, paced by the display (G4.5); measurements (G4.6) next.
 stations = [["G1 KMS", 700, "done"], ["G2 rings", 760, "partial"], ["G3 Mesa", 820, "done"],
   ["G4–G5", 1060, "current"]]
 
@@ -222,6 +222,26 @@ stations = [["x86-64 apps", 1082, "todo"], ["arm64", 1150, "todo"]]
 here = "G4–G5"
 
 [[board.done]]
+title = "G4.5: Vulkan apps' frames stay in VRAM"
+note = "CAMetalLayer drawables as window layers, GPU copy, paced at 60 Hz · 3 nov"
+line = "gpu"
+
+[[board.done]]
+title = "G4.4: page flips at the vertical blank"
+note = "two frames in VRAM, no tearing, one per refresh · 3 nov"
+line = "gpu"
+
+[[board.done]]
+title = "Security: GPU buffers and IOSurfaces"
+note = "unguessable buffer names; an IOSurface ID alone finds nothing · 3 nov"
+line = "gpu"
+
+[[board.done]]
+title = "G4.2–G4.3: the compositor on Vulkan"
+note = "compute shaders, frames as pixman's bit for bit, IOSurfaces read in place · 3 nov"
+line = "gpu"
+
+[[board.done]]
 title = "G3 done: Vulkan on the D500s"
 note = "RADV, a triangle in a window, conformance subset 1,887/1,992, 0 failed · 3 nov"
 line = "gpu"
@@ -231,38 +251,18 @@ title = "G2 on the Mac Pro: rings, GART, clients' spaces"
 note = "DMA and GFX rings, fences, IOSurfaces in VRAM, a GPU space per program · 3 nov"
 line = "gpu"
 
-[[board.done]]
-title = "Display modes over HDMI"
-note = "EDID, VBIOS mode set, 60 Hz, back after a replug · G2 · 2 nov"
-line = "gpu"
-
-[[board.done]]
-title = "G1 done: the FirePro's display driver"
-note = "native mode, scaled modes, the window server on it · 2 nov"
-line = "gpu"
-
-[[board.done]]
-title = "WS5 closed: IOSurface and virtio-gpu"
-note = "display streams, captured displays, saved configs · 2 nov"
-line = "ws"
-
-[[board.done]]
-title = "virtio-gpu 2D display"
-note = "per-frame flushes, mode changes · WS5 · 2 nov"
-line = "ws"
-
 
 
 [[board.now]]
 title = "G4 — the window server on Vulkan"
-note = "Vulkan composes, zero-copy IOSurfaces, page flips at vblank; drawables in VRAM next"
+note = "Vulkan composes, zero-copy IOSurfaces, flips at vblank, drawables in VRAM; G4.6 measurements next"
 line = "gpu"
-done = 4
+done = 5
 total = 6
 
 [[board.now]]
 title = "WS6 — GPU compositing"
-note = "Vulkan compositing on the Mac Pro (opt-in), no copies, page flips at vblank"
+note = "Vulkan compositing on the Mac Pro (opt-in), page flips, Vulkan apps in VRAM"
 line = "ws"
 done = 0
 total = 3

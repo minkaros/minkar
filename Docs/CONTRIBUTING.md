@@ -65,5 +65,8 @@ that closes a milestone also updates `status.toml` and runs
 `bmake progress`, which rewrites the pages' summary table and the SVGs in
 `Docs/progress`; the work board keeps the six most recent done items. CI
 fails when the committed pages are not what `bmake progress` writes.
+`status.toml`'s `commit` and `updated` name the tree the pages summarize:
+the last commit outside `Docs/` and its date. `bmake progress` warns when
+`commit` is older, as the page header would otherwise lag behind.
 
 Have fun and do great things!

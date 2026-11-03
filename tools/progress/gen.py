@@ -46,6 +46,7 @@ check that the committed files are current.
 import argparse
 import ast
 import os
+import subprocess
 import re
 import sys
 from html import escape
@@ -503,6 +504,22 @@ def check(d):
         sys.exit('gen.py: ' + '\ngen.py: '.join(problems))
 
 
+def warn_if_stale(d, status):
+    """Says so when status.toml's commit is not the last change outside
+    Docs/: the page would claim to summarize an older tree. Only a warning
+    (the CI's shallow clone may not know the history)."""
+    top = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(status))))
+    try:
+        last = subprocess.run(['git', '-C', top, 'log', '-1', '--format=%h', '--abbrev=10',
+                               '--', '.', ':(exclude)Docs'],
+                              capture_output=True, text=True, check=True).stdout.strip()
+    except (OSError, subprocess.CalledProcessError):
+        return
+    if last and not (last.startswith(d['commit']) or d['commit'].startswith(last)):
+        print('progress: status.toml names devel %s, but the last change outside Docs/ is '
+              '%s: set "commit" (and "updated") to it' % (d['commit'], last), file=sys.stderr)
+
+
 def main():
     p = argparse.ArgumentParser(description='Writes the progress views from status.toml.')
     p.add_argument('--lang', choices=('auto', 'en', 'es'), default='auto',
@@ -513,6 +530,7 @@ def main():
     args = p.parse_args()
     d = read_toml(args.status)
     check(d)
+    warn_if_stale(d, args.status)
     for name, theme in THEMES.items():
         for view, draw in (('metro', metro), ('board', board)):
             out = os.path.join(args.outdir, '%s-%s.svg' % (view, name))
