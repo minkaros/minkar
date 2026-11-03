@@ -2,7 +2,7 @@
 <title>Minkar work board, 2026-11-03</title>
 <rect width="1120" height="851" fill="#0d1117"/>
 <text x="16" y="30" font-size="20" font-weight="700" fill="#e6edf3" text-anchor="start">Minkar work board</text>
-<text x="16" y="52" font-size="13" font-weight="400" fill="#9198a1" text-anchor="start">2026-11-03 · devel ee1c6210c9</text>
+<text x="16" y="52" font-size="13" font-weight="400" fill="#9198a1" text-anchor="start">2026-11-03 · devel 76e14432ee</text>
 <rect x="16" y="70" width="261.5" height="773" rx="10" fill="#151b23"/>
 <text x="30" y="96" font-size="13" font-weight="700" fill="#9198a1" text-anchor="start" letter-spacing=".08em">DONE · LATEST</text>
 <rect x="26" y="114" width="241.5" height="127" rx="8" fill="#0d1117" stroke="#3d444d" stroke-width="1"/><rect x="26" y="114" width="5" height="127" rx="2" fill="#f85149"/>
@@ -41,9 +41,9 @@
 <rect x="301.5" y="114" width="241.5" height="127" rx="8" fill="#0d1117" stroke="#f85149" stroke-width="2"/><rect x="301.5" y="114" width="5" height="127" rx="2" fill="#f85149"/>
 <text x="317.5" y="138" font-size="15" font-weight="650" fill="#e6edf3" text-anchor="start">G3 — the graphics block</text>
 <text x="317.5" y="159" font-size="15" font-weight="650" fill="#e6edf3" text-anchor="start">for Mesa</text>
-<text x="317.5" y="180" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">tiling, render backends done;</text>
-<text x="317.5" y="199" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">RLC and clear state next,</text>
-<text x="317.5" y="218" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">then the winsys</text>
+<text x="317.5" y="180" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">tiling, render backends, RLC</text>
+<text x="317.5" y="199" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">and clear state done; Mesa&#x27;s</text>
+<text x="317.5" y="218" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">winsys next</text>
 <rect x="301.5" y="251" width="241.5" height="128" rx="8" fill="#0d1117" stroke="#3d444d" stroke-width="1"/><rect x="301.5" y="251" width="5" height="128" rx="2" fill="#4493f8"/>
 <text x="317.5" y="275" font-size="15" font-weight="650" fill="#e6edf3" text-anchor="start">WS6 — GPU compositing</text>
 <text x="317.5" y="296" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">frames presented by the GPU&#x27;s</text>

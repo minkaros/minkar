@@ -33,7 +33,7 @@
 # "bmake progress" (Docs/CONTRIBUTING.md).
 
 updated = "2026-11-03"
-commit  = "ee1c6210c9"
+commit  = "76e14432ee"
 
 deps = [["ws", 555, "dock"], ["fw", 535, "kraz"]]
 
@@ -250,7 +250,7 @@ line = "ws"
 
 [[board.now]]
 title = "G3 — the graphics block for Mesa"
-note = "tiling, render backends done; RLC and clear state next, then the winsys"
+note = "tiling, render backends, RLC and clear state done; Mesa's winsys next"
 line = "gpu"
 
 [[board.now]]
