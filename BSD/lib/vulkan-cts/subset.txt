@@ -1,6 +1,6 @@
 # The Vulkan conformance subset of the GPU track's G3 gate (Minkar), as
 # prefixes of Khronos's mustpass list for this CTS version: packaging
-# keeps the mustpass cases under them (caselist.txt). About 2,300 cases:
+# keeps the mustpass cases under them (caselist.txt). About 2,000 cases:
 # the API's basics, memory, compute, synchronization, drawing, render
 # passes and buffer layouts.
 dEQP-VK.info.

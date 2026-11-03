@@ -1,8 +1,10 @@
-# Khronos's Vulkan conformance test suite, VK-GL-CTS (Apache-2.0), at the
-# version RADV reports as its conformance version (1.4.5.3), fetched and
-# checked against this SHA-256; its own fetch_sources.py then fetches the
-# sources it builds with, each pinned by commit or SHA-256.
-url https://github.com/KhronosGroup/VK-GL-CTS/archive/refs/tags/vulkan-cts-1.4.5.3.tar.gz
-file VK-GL-CTS-1.4.5.3.tar.gz
-sha256 69458393d131823cce7435e7ee8fea15ccd9094af3bbb85bae7c896d844b6d74
-version 1.4.5.3
+# Khronos's Vulkan conformance test suite, VK-GL-CTS (Apache-2.0), fetched
+# and checked against this SHA-256; its own fetch_sources.py then fetches
+# the sources it builds with, each pinned by commit or SHA-256. 1.4.7.1:
+# RADV (Mesa 26.2.6) reports conformance version 1.4.5.3 but lists newer
+# extensions (VK_KHR_device_address_commands), which 1.4.5.3's
+# dEQP-VK.info.device_extensions does not know; 1.4.6.2 and later do.
+url https://github.com/KhronosGroup/VK-GL-CTS/archive/refs/tags/vulkan-cts-1.4.7.1.tar.gz
+file VK-GL-CTS-1.4.7.1.tar.gz
+sha256 2071468a8509528b030c5fc54dbad7f4645bb95c4ccda198e01c722372793462
+version 1.4.7.1
