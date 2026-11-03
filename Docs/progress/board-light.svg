@@ -39,11 +39,11 @@
 <rect x="291.5" y="70" width="261.5" height="773" rx="10" fill="#f6f8fa"/>
 <text x="305.5" y="96" font-size="13" font-weight="700" fill="#59636e" text-anchor="start" letter-spacing=".08em">NOW</text>
 <rect x="301.5" y="114" width="241.5" height="127" rx="8" fill="#ffffff" stroke="#cf222e" stroke-width="2"/><rect x="301.5" y="114" width="5" height="127" rx="2" fill="#cf222e"/>
-<text x="317.5" y="138" font-size="15" font-weight="650" fill="#1f2328" text-anchor="start">G3 — the graphics block</text>
-<text x="317.5" y="159" font-size="15" font-weight="650" fill="#1f2328" text-anchor="start">for Mesa</text>
-<text x="317.5" y="180" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">tiling, render backends, RLC</text>
-<text x="317.5" y="199" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">and clear state done; Mesa&#x27;s</text>
-<text x="317.5" y="218" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">winsys next</text>
+<text x="317.5" y="138" font-size="15" font-weight="650" fill="#1f2328" text-anchor="start">G3 — Mesa&#x27;s RADV on the</text>
+<text x="317.5" y="159" font-size="15" font-weight="650" fill="#1f2328" text-anchor="start">D500s</text>
+<text x="317.5" y="180" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">Vulkan 1.3 devices; copies,</text>
+<text x="317.5" y="199" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">fills and compute run · next:</text>
+<text x="317.5" y="218" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">Mesa&#x27;s build, a triangle, WSI</text>
 <rect x="301.5" y="251" width="241.5" height="128" rx="8" fill="#ffffff" stroke="#d1d9e0" stroke-width="1"/><rect x="301.5" y="251" width="5" height="128" rx="2" fill="#0969da"/>
 <text x="317.5" y="275" font-size="15" font-weight="650" fill="#1f2328" text-anchor="start">WS6 — GPU compositing</text>
 <text x="317.5" y="296" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">frames presented by the GPU&#x27;s</text>
