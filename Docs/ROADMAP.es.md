@@ -292,7 +292,7 @@ El propio WindowServer se reescribe en los hitos WS0 a WS6, según lo decidido e
   - [x] Driver `ApplePS2Mouse` sobre `ApplePS2MouseDevice` (31 oct 2026, `2aa9a1da6e`): movimiento, tres botones y rueda (IntelliMouse); prueba `ps2-mouse` 12/0.
   - [x] Headers `IOKit/hidsystem` en el SDK.
   - [x] xHCI + HID (`MinkarUSB`), probado en QEMU y en el PC 1.
-- [ ] Retirar `libinput`, `libevdev` y `mtdev` del árbol.
+- [x] Retirar `libinput`, `libevdev` y `mtdev` del árbol (con el servidor anterior, WS4b, `c192d0dc42`).
 - [x] virtio-gpu 2D como subclase de `IOFramebuffer` (`MinkarVirtioGPU`, 2 nov 2026, `3e73fce129`, `1f58b3fb44`).
 - [ ] `pbcopy` y `pbpaste` sobre el servidor de pasteboard, y `screencapture` sobre la captura de WindowServer (movidos desde la Fase 2).
 - [ ] Multi-monitor y cambio de resolución, después de M4.
