@@ -10,9 +10,9 @@ Each command comes from FreeBSD main where FreeBSD has it, and behaves as on the
 |---|---:|
 | `/bin` | 42 |
 | `/sbin` | 47 |
-| `/usr/bin` | 286 |
-| `/usr/sbin` | 53 |
-| **Total** | **428** |
+| `/usr/bin` | 289 |
+| `/usr/sbin` | 54 |
+| **Total** | **432** |
 
 ## In the source tree
 
@@ -22,18 +22,18 @@ Command directories under `BSD/`, at commit `60aa4ff4b1` (where Minkar started f
 |---|---:|---:|
 | `BSD/bin` | 30 | 35 |
 | `BSD/sbin` | 4 | 35 |
-| `BSD/usr.bin` | 55 | 183 |
-| `BSD/usr.sbin` | 7 | 51 |
-| **Total** | **96** | **304** |
+| `BSD/usr.bin` | 55 | 185 |
+| `BSD/usr.sbin` | 7 | 53 |
+| **Total** | **96** | **308** |
 
 ## Against the reference system
 
-337 of the 354 reference commands are in the image; 17 are missing.
+340 of the 354 reference commands are in the image; 14 are missing.
 
 | Kind | In the image | Missing | What it takes |
 |---|---:|---:|---|
 | BSD and other portable tools | 273 | 0 | Ported from FreeBSD main (or their own upstream), as the ones before. |
-| The reference system's own tools | 33 | 13 | Written for Minkar; many need the graphical system or frameworks of later phases. |
+| The reference system's own tools | 36 | 10 | Written for Minkar; many need the graphical system or frameworks of later phases. |
 | Darwin's own components | 15 | 0 | Kept from the original open source (launchd, configd, syslogd...). |
 | File system tools | 6 | 4 | Need the file system (APFS, exFAT, FAT, NFS, SMB) in the kernel first. |
 | Licence to approve | 5 | 0 | Their licence (GPL, Vim, CDDL...) needs the project's approval first. |
@@ -41,6 +41,6 @@ Command directories under `BSD/`, at commit `60aa4ff4b1` (where Minkar started f
 
 ### Missing
 
-- **The reference system's own tools** (13): `fdesctl`, `lsappinfo`, `mdfind`, `mdls`, `mdutil`, `open`, `opendiff`, `osascript`, `pbcopy`, `pbpaste`, `say`, `screencapture`, `tmutil`
+- **The reference system's own tools** (10): `fdesctl`, `lsappinfo`, `mdfind`, `mdls`, `mdutil`, `open`, `opendiff`, `osascript`, `say`, `tmutil`
 - **File system tools** (4): `fsck_apfs`, `mount_apfs`, `mount_smbfs`, `newfs_apfs`
 

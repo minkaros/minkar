@@ -294,7 +294,7 @@ The WindowServer itself is rewritten in milestones WS0 to WS6, as decided on 202
   - [x] xHCI + HID (`MinkarUSB`), tested in QEMU and on PC 1.
 - [x] Remove `libinput`, `libevdev` and `mtdev` from the tree (with the legacy server, WS4b, `c192d0dc42`).
 - [x] virtio-gpu 2D as an `IOFramebuffer` subclass (`MinkarVirtioGPU`, 2026-11-02, `3e73fce129`, `1f58b3fb44`).
-- [ ] `pbcopy` and `pbpaste` on the pasteboard server, and `screencapture` on WindowServer's capture (moved from Phase 2).
+- [x] `pbcopy` and `pbpaste` on the pasteboard server, and `screencapture` on WindowServer's capture (moved from Phase 2; 2026-11-03): the pasteboard server `pboard` (`dd06e82755`), AppKit's `NSPasteboard` on it with the API of 10.6 and later (`fec8a72732`), `pbcopy` and `pbpaste` (`a5ced9833e`), `screencapture` to PNG, TIFF or the pasteboard (`c536c7dbe9`). Left for later: promised data across processes, interactive selection, the cursor and JPEG in `screencapture`.
 - [ ] Multiple displays and resolution changes, after M4.
 - [x] GPU ADR: the family, licenses (only drm-kmod's MIT/BSD parts), a LinuxKPI-style layer for XNU and a KMS prototype on the reference machine (ADR 0002 and G1, 2026-11-02, `a42a1800b1`, `050acdb1ee`).
 - [ ] Compositing performance gate on the reference PC (a Minkar 21.0 requirement).

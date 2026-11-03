@@ -33,7 +33,7 @@
 # "bmake progress" (Docs/CONTRIBUTING.md).
 
 updated = "2026-11-03"
-commit  = "e487b84770"
+commit  = "c536c7dbe9"
 
 deps = [["ws", 555, "dock"], ["fw", 535, "kraz"]]
 
@@ -223,6 +223,11 @@ stations = [["x86-64 apps", 1082, "todo"], ["arm64", 1150, "todo"]]
 here = "G4–G5"
 
 [[board.done]]
+title = "Copy and paste: pboard, pbcopy, pbpaste"
+note = "NSPasteboard on a server, each user's own; screencapture to PNG/TIFF · 3 nov"
+line = "fw"
+
+[[board.done]]
 title = "G4 done: the window server on Vulkan"
 note = "G4.6 measured: Vulkan apps 14x cheaper, 60 Hz, flips at vblank · 3 nov"
 line = "gpu"
@@ -245,11 +250,6 @@ line = "gpu"
 [[board.done]]
 title = "Security: GPU buffers and IOSurfaces"
 note = "unguessable buffer names; an IOSurface ID alone finds nothing · 3 nov"
-line = "gpu"
-
-[[board.done]]
-title = "G4.2–G4.3: the compositor on Vulkan"
-note = "compute shaders, frames as pixman's bit for bit, IOSurfaces read in place · 3 nov"
 line = "gpu"
 
 
