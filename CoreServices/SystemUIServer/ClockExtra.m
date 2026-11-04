@@ -8,6 +8,8 @@
  */
 
 #import "ClockExtra.h"
+#include <notify.h>
+#include <unistd.h>
 
 static NSString *const kDomain = @"org.minkar.menuextra.clock";
 #define kDefaultFormat NSLocalizedString(@"EEE d MMM  HH:mm", @"the clock in the menu bar")
@@ -66,7 +68,29 @@ static NSString *clockFormat(void)
     _timer = [[NSTimer alloc] initWithFireDate:next interval:60 target:self
                                       selector:@selector(tick:) userInfo:nil repeats:YES];
     [[NSRunLoop currentRunLoop] addTimer:_timer forMode:NSDefaultRunLoopMode];
+    [self watch:"org.minkar.menuextra.clock"];   /* its format changed */
+    [self watch:"org.minkar.timezone"];          /* the time zone changed */
     return self;
+}
+
+/* A notify(3) name, read on a thread of its own: the clock again. */
+- (void)watch:(const char *)name
+{
+    int fd = -1, token;
+
+    if (notify_register_file_descriptor(name, &fd, 0, &token) != NOTIFY_STATUS_OK)
+        return;
+    [NSThread detachNewThreadWithBlock:^{
+        int value;
+        while (read(fd, &value, sizeof(value)) == sizeof(value))
+            [self performSelectorOnMainThread:@selector(changed) withObject:nil waitUntilDone:NO];
+    }];
+}
+
+- (void)changed
+{
+    [NSTimeZone resetSystemTimeZone];
+    [self tick:nil];
 }
 
 /* Shows the time. */
