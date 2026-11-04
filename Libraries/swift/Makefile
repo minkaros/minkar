@@ -27,7 +27,9 @@ SRC =		${.OBJDIR}/swift-src
 BUILD =		${.OBJDIR}/build
 SHIMS =		${.OBJDIR}/shims
 CROSS =		${.OBJDIR}/darwin-toolchain.cmake
-CORE =		${BUILD}/lib/swift/macosx/x86_64/libswiftCore.dylib
+LIBDIR =	${BUILD}/lib/swift/macosx/x86_64
+LIBS =		libswiftCore.dylib libswiftDarwin.dylib libswift_Concurrency.dylib
+TARGETS =	swiftCore-macosx-x86_64 swiftDarwin-macosx-x86_64 swift_Concurrency-macosx-x86_64
 
 TOOLENV =	env -u MACOSX_DEPLOYMENT_TARGET PATH=${SHIMS}:$${PATH}
 
@@ -52,7 +54,9 @@ ${CROSS}: ${.CURDIR}/darwin-toolchain.cmake.in ${.CURDIR}/shims/xcrun.in
 	sed -e 's|@TC@|${TC}|g' -e 's|@SDK@|${MINKAR_SDKROOT}|g' \
 	    ${.CURDIR}/darwin-toolchain.cmake.in > ${.TARGET}
 
-# Only the core for now (no Concurrency, overlays or Foundation yet).
+# The core and the Darwin overlay (on the SDK's Darwin module).
+# Concurrency (async/await, tasks, actors) on the system's libdispatch:
+# it needs the compiler built with swift-syntax (#isolation).
 # objc_setHook_lazyClassNamer is API 20: weakly imported, left undefined.
 ${BUILD}/.minkar-setup: ${SRC}/.minkar-patches ${CROSS} ${.CURDIR}/Makefile
 	rm -rf ${BUILD}
@@ -62,7 +66,7 @@ ${BUILD}/.minkar-setup: ${SRC}/.minkar-patches ${CROSS} ${.CURDIR}/Makefile
 	    -DLLVM_DIR=${LLVM_HOST}/lib/cmake/llvm -DClang_DIR=${LLVM_HOST}/lib/cmake/clang \
 	    -DSWIFT_PATH_TO_LLVM_SOURCE=${LLVM_SRC}/llvm \
 	    -DSWIFT_PATH_TO_CLANG_SOURCE=${LLVM_SRC}/clang \
-	    -DSWIFT_INCLUDE_TOOLS=OFF -DSWIFT_BUILD_STDLIB=ON -DSWIFT_BUILD_SDK_OVERLAY=OFF \
+	    -DSWIFT_INCLUDE_TOOLS=OFF -DSWIFT_BUILD_STDLIB=ON -DSWIFT_BUILD_SDK_OVERLAY=ON \
 	    -DSWIFT_BUILD_DYNAMIC_STDLIB=ON -DSWIFT_BUILD_STATIC_STDLIB=OFF \
 	    -DSWIFT_INCLUDE_TESTS=OFF -DSWIFT_INCLUDE_DOCS=OFF -DSWIFT_BUILD_REMOTE_MIRROR=OFF \
 	    -DSWIFT_BUILD_SOURCEKIT=OFF \
@@ -73,7 +77,8 @@ ${BUILD}/.minkar-setup: ${SRC}/.minkar-patches ${CROSS} ${.CURDIR}/Makefile
 	    -DSWIFT_NATIVE_SWIFT_TOOLS_PATH=${TC} -DSWIFT_NATIVE_CLANG_TOOLS_PATH=${TC} \
 	    -DSWIFT_NATIVE_LLVM_TOOLS_PATH=${TC} \
 	    -DBOOTSTRAPPING_MODE=OFF -DSWIFT_BUILD_SWIFT_SYNTAX=OFF \
-	    -DSWIFT_ENABLE_EXPERIMENTAL_CONCURRENCY=OFF -DSWIFT_ENABLE_DISPATCH=OFF \
+	    -DSWIFT_ENABLE_EXPERIMENTAL_CONCURRENCY=ON -DSWIFT_ENABLE_DISPATCH=ON \
+	    -DSWIFT_CONCURRENCY_GLOBAL_EXECUTOR=dispatch \
 	    -DSWIFT_ENABLE_EXPERIMENTAL_DISTRIBUTED=OFF \
 	    -DSWIFT_ENABLE_EXPERIMENTAL_STRING_PROCESSING=OFF \
 	    -DSWIFT_ENABLE_EXPERIMENTAL_OBSERVATION=OFF -DSWIFT_ENABLE_SYNCHRONIZATION=OFF \
@@ -84,17 +89,22 @@ ${BUILD}/.minkar-setup: ${SRC}/.minkar-patches ${CROSS} ${.CURDIR}/Makefile
 	touch ${.TARGET}
 
 build-swift-runtime: .PHONY ${BUILD}/.minkar-setup
-	${TOOLENV} ninja -j${JOBS:U10} -C ${BUILD} swiftCore-macosx-x86_64 \
+	${TOOLENV} ninja -j${JOBS:U10} -C ${BUILD} ${TARGETS} \
 	    > ${.OBJDIR}/stdlib-build.log 2>&1 || \
 	    { grep -A8 FAILED ${.OBJDIR}/stdlib-build.log | head -40; exit 1; }
 
 install-swift-runtime: .PHONY build-swift-runtime
 	mkdir -p ${SYSROOT_DIR}/usr/lib/swift ${MINKAR_SDKROOT}/usr/lib/swift \
 	    ${TOOLCHAIN}/usr/lib/swift ${SYSROOT_DIR}/usr/share/swift
-	install -m 0755 ${CORE} ${SYSROOT_DIR}/usr/lib/swift/libswiftCore.dylib
-	install -m 0755 ${CORE} ${MINKAR_SDKROOT}/usr/lib/swift/libswiftCore.dylib
+.for l in ${LIBS}
+	install -m 0755 ${LIBDIR}/${l} ${SYSROOT_DIR}/usr/lib/swift/${l}
+	install -m 0755 ${LIBDIR}/${l} ${MINKAR_SDKROOT}/usr/lib/swift/${l}
+.endfor
 	# The modules and shims the compiler imports, in its resource directory.
 	cp -R ${BUILD}/lib/swift/. ${TOOLCHAIN}/usr/lib/swift/
+	# Swift's own API notes (Dispatch, os), in the compiler's resource directory.
+	mkdir -p ${TOOLCHAIN}/usr/lib/swift/apinotes
+	cp -f ${SRC}/apinotes/*.apinotes ${TOOLCHAIN}/usr/lib/swift/apinotes/
 	install -m 0444 ${SRC}/LICENSE.txt ${SYSROOT_DIR}/usr/share/swift/LICENSE.txt
 
 clean: .PHONY
