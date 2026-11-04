@@ -348,9 +348,14 @@ static NSUserDefaults* stdUserDefaults = nil;
 
 -(BOOL)synchronize {
    NSMutableDictionary *p = [self persistantDomain];
-   if(p)
+   if(p) {
       [p synchronize];
-   return 0;
+      @synchronized(self) {
+         [_dictionaryRep autorelease];
+         _dictionaryRep=nil;
+      }
+   }
+   return YES;
 }
 
 -(NSMutableDictionary *)persistantDomain {

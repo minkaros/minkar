@@ -12,6 +12,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <Foundation/NSFileManager.h>
 #import <Foundation/NSException.h>
 #import <Foundation/NSArray.h>
+#import <Foundation/NSSet.h>
 #import "NSPersistantDomain_posix.h"
 #import "../NSPropertyList/NSPropertyListWriter_vintage.h"
 
@@ -30,12 +31,14 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
         _mutableDomain = [serializedDictionary mutableCopy];
     else
         _mutableDomain = [[NSMutableDictionary alloc] init];
+    _changedKeys = [[NSMutableSet alloc] init];
 
     return self;
 }
 
 -(void)dealloc {
     [_mutableDomain release];
+    [_changedKeys release];
     [_path release];
     
     [super dealloc];
@@ -59,10 +62,12 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 -(void)setObject:object forKey:(NSString *)key {
     [_mutableDomain setObject:object forKey:key];
+    [_changedKeys addObject:key];
 }
 
 -(void)removeObjectForKey:(NSString *)key {
     [_mutableDomain removeObjectForKey:key];
+    [_changedKeys addObject:key];
 }
 
 -(void)createUserDefaultsDirectoryIfNeeded {
@@ -71,11 +76,32 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
                              withIntermediateDirectories:YES attributes:nil error:NULL];
 }
 
+/* As on the reference platform, both ways: what other processes wrote
+   (defaults(1), a preference pane) is read, and the keys this process
+   set or removed since the last time are written over it. It used to
+   write this process's copy alone, losing the others' changes. */
 -(void)synchronize {
-   [self createUserDefaultsDirectoryIfNeeded];
-    if ([NSPropertyListWriter_vintage writePropertyList:_mutableDomain toFile:_path atomically:YES] == NO)
-        [NSException raise:NSInternalInconsistencyException
-                    format:@"Cannot synchronize NSUserDefaults to %@", _path];
+    NSDictionary *onDisk = [NSPropertyListReader dictionaryWithContentsOfFile:_path];
+    NSMutableDictionary *merged = onDisk ? [onDisk mutableCopy] : [[NSMutableDictionary alloc] init];
+
+    for (NSString *key in _changedKeys) {
+        id value = [_mutableDomain objectForKey:key];
+        if (value != nil)
+            [merged setObject:value forKey:key];
+        else
+            [merged removeObjectForKey:key];
+    }
+    if ([_changedKeys count] > 0) {
+        [self createUserDefaultsDirectoryIfNeeded];
+        if ([NSPropertyListWriter_vintage writePropertyList:merged toFile:_path atomically:YES] == NO) {
+            [merged release];
+            [NSException raise:NSInternalInconsistencyException
+                        format:@"Cannot synchronize NSUserDefaults to %@", _path];
+        }
+        [_changedKeys removeAllObjects];
+    }
+    [_mutableDomain release];
+    _mutableDomain = merged;
 }
 
 @end
