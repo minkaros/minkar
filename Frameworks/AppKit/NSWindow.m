@@ -1152,6 +1152,8 @@ NSArray *_NSWindowNumbersFromWindowInfo(CFArrayRef info,BOOL allApps) {
         winTitle = _title;
 
     [self _updateWSState];
+    /* The frame draws the title: the bar again. */
+    [_backgroundView setNeedsDisplay:YES];
 
     if ([self _isApplicationWindow])
         [NSApp changeWindowsItem:self title:title filename:NO];
