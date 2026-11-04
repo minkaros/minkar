@@ -224,3 +224,12 @@ LSSessionOpen(const char *appPath, const char *urls, uint32_t length, uint32_t f
 		*running = isRunning;
 	return result;
 }
+
+int
+LSSessionSetHidden(pid_t pid, int hidden)
+{
+	int32_t result = kLSSessionSuccess;
+
+	LSS_CALL(lss_set_hidden(s, pid, hidden != 0, &result));
+	return result;
+}

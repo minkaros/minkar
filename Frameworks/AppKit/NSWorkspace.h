@@ -20,6 +20,8 @@ APPKIT_EXPORT NSString *const NSWorkspaceDidLaunchApplicationNotification;
 APPKIT_EXPORT NSString *const NSWorkspaceDidTerminateApplicationNotification;
 APPKIT_EXPORT NSString *const NSWorkspaceDidActivateApplicationNotification;
 APPKIT_EXPORT NSString *const NSWorkspaceDidDeactivateApplicationNotification;
+APPKIT_EXPORT NSString *const NSWorkspaceDidHideApplicationNotification;
+APPKIT_EXPORT NSString *const NSWorkspaceDidUnhideApplicationNotification;
 APPKIT_EXPORT NSString *const NSWorkspaceApplicationKey;
 
 APPKIT_EXPORT NSString *const NSWorkspaceRecycleOperation;

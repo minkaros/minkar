@@ -25,6 +25,8 @@ NSString * const NSWorkspaceDidLaunchApplicationNotification=@"NSWorkspaceDidLau
 NSString * const NSWorkspaceDidTerminateApplicationNotification=@"NSWorkspaceDidTerminateApplicationNotification";
 NSString * const NSWorkspaceDidActivateApplicationNotification=@"NSWorkspaceDidActivateApplicationNotification";
 NSString * const NSWorkspaceDidDeactivateApplicationNotification=@"NSWorkspaceDidDeactivateApplicationNotification";
+NSString * const NSWorkspaceDidHideApplicationNotification=@"NSWorkspaceDidHideApplicationNotification";
+NSString * const NSWorkspaceDidUnhideApplicationNotification=@"NSWorkspaceDidUnhideApplicationNotification";
 NSString * const NSWorkspaceApplicationKey=@"NSWorkspaceApplicationKey";
 
 NSString * const NSWorkspaceRecycleOperation=@"NSWorkspaceRecycleOperation";

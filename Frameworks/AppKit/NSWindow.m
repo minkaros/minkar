@@ -2777,10 +2777,31 @@ NSArray *_NSWindowNumbersFromWindowInfo(CFArrayRef info,BOOL allApps) {
    }
 }
 
+/* Hide and unhide (NSApplication): the windows Hide took off the screen,
+ * which Unhide brings back. The menu bar and status items stay (they are
+ * not the app's windows to hide). */
+static NSMutableSet *hiddenByHide;
+
 -(void)_forcedHideForDeactivation {
+    if([self level]==NSMainMenuWindowLevel || [self level]==NSStatusWindowLevel ||
+       [self level]==NSPopUpMenuWindowLevel)
+        return;
     if([self isVisible]){
-        _hiddenForDeactivate=YES;
-        //_hiddenKeyWindow=[self isKeyWindow];
+        if(hiddenByHide==nil)
+            hiddenByHide=[NSMutableSet new];
+        [hiddenByHide addObject:[NSNumber numberWithInt:_number]];
+        /* Off the screen without orderOut: (the app would end with no
+           window visible). */
+        [self hideWindow];
+    }
+}
+
+-(void)_showAfterHide {
+    NSNumber *key=[NSNumber numberWithInt:_number];
+
+    if([hiddenByHide containsObject:key]) {
+        [hiddenByHide removeObject:key];
+        [self orderWindow:NSWindowAbove relativeTo:0];
     }
 }
 

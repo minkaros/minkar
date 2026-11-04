@@ -58,7 +58,7 @@ extern "C" {
 #endif
 
 #define kLSSessionServiceName		"org.minkar.coreservices.launchservicesd"
-#define kLSSessionInterfaceVersion	3
+#define kLSSessionInterfaceVersion	4
 
 /* An application, as the daemon keeps it. */
 typedef struct LSSessionApp {
@@ -79,6 +79,7 @@ _Static_assert(sizeof(LSSessionApp) == kLSSessionAppWords * 4, "LSSessionApp siz
 
 enum {
 	kLSSessionAppActive = 1 << 0,
+	kLSSessionAppHiddenState = 1 << 1,	/* its windows hidden (Hide) */
 };
 
 #define kLSSessionMaxApps	64
@@ -93,6 +94,10 @@ enum {
 	kLSSessionQuitRequest		= 6,	/* to the app itself: quit, as Quit does */
 	kLSSessionOpenRequest		= 7,	/* to the app itself: open documents
 						   (an LSSessionOpenMessage) */
+	kLSSessionHideRequest		= 8,	/* to the app itself: hide, as Hide does */
+	kLSSessionUnhideRequest		= 9,	/* to the app itself: show again */
+	kLSSessionAppDidHide		= 10,	/* an app hid its windows */
+	kLSSessionAppDidUnhide		= 11,	/* and showed them again */
 };
 
 #define kLSSessionMessageID	0x4c534e54	/* 'LSNT' */
@@ -176,6 +181,9 @@ int LSSessionCopyHandlers(const LSSessionFile *file, LSSessionPath **apps, uint3
 int LSSessionCopyAppForBundleIdentifier(const char *bundleIdentifier, LSSessionPath *app);
 /* Reads an application again, or adds one from elsewhere. */
 int LSSessionRegister(const char *path);
+/* An app says it hid or showed its windows (pid: its own), or asks
+ * another to (root and the app's user may), interface version 4. */
+int LSSessionSetHidden(pid_t pid, int hidden);
 /* Hands URLs to the application at appPath, of the caller's user: now if
  * it runs (and it is asked to activate), else when it checks in within a
  * minute (the caller launches it). *running says which. */

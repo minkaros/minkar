@@ -218,6 +218,8 @@ lsd_check_in(mach_port_t server, audit_token_t token, mach_port_t port,
 		mach_port_deallocate(mach_task_self(), port);
 	}
 	c->uid = audit_token_to_euid(token);
+	/* The hidden state is the daemon's (set_hidden), not the record's. */
+	app.flags = (app.flags & ~kLSSessionAppHiddenState) | (c->app.flags & kLSSessionAppHiddenState);
 	app.pid = pid;
 	app.serial = c->app.serial;
 	app.launchTime = c->app.launchTime;
@@ -351,6 +353,39 @@ lsd_quit(mach_port_t server, audit_token_t token, int32_t pid, int32_t *result)
 		return KERN_SUCCESS;
 	}
 	sendMessage(c, kLSSessionQuitRequest, 0, &c->app);
+	*result = kLSSessionSuccess;
+	return KERN_SUCCESS;
+}
+
+/* Interface version 4: the app itself says it hid or showed its windows
+ * (everyone hears it); anyone else asks it to, if root or its user. */
+kern_return_t
+lsd_set_hidden(mach_port_t server, audit_token_t token, int32_t pid, int32_t hidden,
+    int32_t *result)
+{
+	Client *c = clientForPID(pid);
+	uid_t uid = audit_token_to_euid(token);
+
+	if (c == NULL) {
+		*result = kLSSessionNoSuchApp;
+		return KERN_SUCCESS;
+	}
+	if (audit_token_to_pid(token) == pid) {
+		uint32_t was = c->app.flags & kLSSessionAppHiddenState;
+		if (hidden)
+			c->app.flags |= kLSSessionAppHiddenState;
+		else
+			c->app.flags &= ~kLSSessionAppHiddenState;
+		if (was != (c->app.flags & kLSSessionAppHiddenState))
+			broadcast(hidden ? kLSSessionAppDidHide : kLSSessionAppDidUnhide, &c->app, 0);
+		*result = kLSSessionSuccess;
+		return KERN_SUCCESS;
+	}
+	if (uid != 0 && uid != c->uid) {
+		*result = kLSSessionNotAllowed;
+		return KERN_SUCCESS;
+	}
+	sendMessage(c, hidden ? kLSSessionHideRequest : kLSSessionUnhideRequest, 0, &c->app);
 	*result = kLSSessionSuccess;
 	return KERN_SUCCESS;
 }

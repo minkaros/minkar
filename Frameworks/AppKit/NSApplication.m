@@ -1347,6 +1347,12 @@ static NSArray *urlsFromOpenMessage(const LSSessionOpenMessage *msg, NSUInteger 
                /* As the Quit item: the delegate may refuse. */
                [self terminate:self];
                break;
+           case kLSSessionHideRequest:
+               [self hide:self];
+               break;
+           case kLSSessionUnhideRequest:
+               [self unhide:self];
+               break;
        }
    }
    _NSRunningApplicationSessionMessage(msg);
@@ -1588,6 +1594,8 @@ typedef void (*endfunction_t)(id, SEL, id, NSInteger, void *);
     {
         [[NSNotificationCenter defaultCenter]postNotificationName:NSApplicationWillHideNotification object:self];
         [_windows makeObjectsPerformSelector:@selector(_forcedHideForDeactivation)];//do no use orderOut here ist causes the application to quit if no window is visible
+        _isHidden=YES;
+        LSSessionSetHidden(getpid(), 1);	/* NSRunningApplication's isHidden */
         [[NSNotificationCenter defaultCenter]postNotificationName:NSApplicationDidHideNotification object:self];
     }
     _isHidden=YES;
@@ -1604,7 +1612,9 @@ typedef void (*endfunction_t)(id, SEL, id, NSInteger, void *);
     if (_isHidden)
     {
         [[NSNotificationCenter defaultCenter]postNotificationName:NSApplicationWillUnhideNotification object:self];
-        [_windows makeObjectsPerformSelector:@selector(_showForActivation)];//only shows previously hidden windows
+        [_windows makeObjectsPerformSelector:@selector(_showAfterHide)];//only shows the windows Hide took off
+        _isHidden=NO;
+        LSSessionSetHidden(getpid(), 0);
         [[NSNotificationCenter defaultCenter]postNotificationName:NSApplicationDidUnhideNotification object:self];
     }
     _isHidden=NO;
@@ -1621,7 +1631,9 @@ typedef void (*endfunction_t)(id, SEL, id, NSInteger, void *);
     {
 
         [[NSNotificationCenter defaultCenter]postNotificationName:NSApplicationWillUnhideNotification object:self];
-        [_windows makeObjectsPerformSelector:@selector(_showForActivation)];//only shows previously hidden windows
+        [_windows makeObjectsPerformSelector:@selector(_showAfterHide)];//only shows the windows Hide took off
+        _isHidden=NO;
+        LSSessionSetHidden(getpid(), 0);
         [[NSNotificationCenter defaultCenter]postNotificationName:NSApplicationDidUnhideNotification object:self];
     }
     _isHidden=NO;

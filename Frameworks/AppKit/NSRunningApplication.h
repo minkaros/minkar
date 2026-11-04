@@ -49,6 +49,7 @@ typedef NS_OPTIONS(NSUInteger, NSApplicationActivationOptions) {
     NSApplicationActivationPolicy _activationPolicy;
     BOOL _active;
     BOOL _terminated;
+    BOOL _hidden;
 }
 
 @property(readonly, getter=isTerminated) BOOL terminated;
@@ -69,6 +70,8 @@ typedef NS_OPTIONS(NSUInteger, NSApplicationActivationOptions) {
 + (instancetype)currentApplication;
 
 - (BOOL)activateWithOptions:(NSApplicationActivationOptions)options;
+- (BOOL)hide;
+- (BOOL)unhide;
 - (BOOL)terminate;
 - (BOOL)forceTerminate;
 

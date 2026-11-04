@@ -87,3 +87,11 @@ routine open_urls(
 	flags			: uint32_t;
 	out result		: int32_t;
 	out running		: int32_t);
+
+/* Interface version 4: hiding. */
+routine set_hidden(
+	server			: mach_port_t;
+	ServerAuditToken token	: audit_token_t;
+	pid			: int32_t;
+	hidden			: int32_t;
+	out result		: int32_t);
