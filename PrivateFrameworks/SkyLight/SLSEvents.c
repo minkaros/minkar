@@ -66,7 +66,10 @@ SLSReceiveEvents(SLSEvent *events, uint32_t max, uint32_t *count, int wait)
 	if (server == MACH_PORT_NULL || port == MACH_PORT_NULL)
 		return kSLSErrorFailure;
 	takePending(port, wait);
-	if (ws_next_events(server, list, &n) != KERN_SUCCESS)
+	kern_return_t kr = ws_next_events(server, list, &n);
+	if (kr == MACH_SEND_INVALID_DEST || kr == MIG_SERVER_DIED)
+		return kSLSErrorInvalidConnection;	/* the server is gone */
+	if (kr != KERN_SUCCESS)
 		return kSLSErrorFailure;
 	if (n > max)
 		n = max;	/* the rest are lost: callers pass kSLSMaxEvents */

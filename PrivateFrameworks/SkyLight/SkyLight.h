@@ -612,7 +612,8 @@ _Static_assert(sizeof(SLSEvent) == kSLSEventWords * 4, "SLSEvent size");
  * This connection's events. The server keeps a bounded queue per
  * connection, mouse moves coalesced, and sends a message to SLSEventPort
  * when the queue stops being empty; SLSReceiveEvents empties the queue,
- * after waiting for that message when wait is set.
+ * after waiting for that message when wait is set. When the server goes
+ * away it returns kSLSErrorInvalidConnection (the wait ends too).
  */
 mach_port_t SLSEventPort(void);
 int SLSReceiveEvents(SLSEvent *events, uint32_t max, uint32_t *count, int wait);

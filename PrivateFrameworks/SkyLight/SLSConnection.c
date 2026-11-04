@@ -58,6 +58,14 @@ openMainConnection(void)
 	    version != kSLSInterfaceVersion)
 		return;
 	mainConnection = connection;
+	/* The event port also hears when the server goes away, so a process
+	 * waiting for events wakes and SLSReceiveEvents says the connection
+	 * is gone. */
+	mach_port_t previous = MACH_PORT_NULL;
+	if (mach_port_request_notification(mach_task_self(), serverPort, MACH_NOTIFY_DEAD_NAME, 1,
+	    clientPort, MACH_MSG_TYPE_MAKE_SEND_ONCE, &previous) == KERN_SUCCESS &&
+	    previous != MACH_PORT_NULL)
+		mach_port_deallocate(mach_task_self(), previous);
 }
 
 SLSConnectionID
