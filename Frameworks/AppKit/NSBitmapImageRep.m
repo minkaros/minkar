@@ -706,6 +706,13 @@ NSString* NSImageCompressionFactor = @"NSImageCompressionFactor";
    }
    if(_bitmapFormat&NSFloatingPointSamplesBitmapFormat)
     result|=kCGBitmapFloatComponents;
+   /* The samples are in memory in their order (R, G, B, A), as the
+      reference platform's bitmap reps keep them: say so, since Onyx2D
+      takes the default byte order as the host's (B, G, R, A here), and
+      red and blue were swapped in the images made from a rep (written
+      PNGs, drawn bitmaps). */
+   else if(_bitsPerSample==8 && _bitsPerPixel==32)
+    result|=kCGBitmapByteOrder32Big;
 
    return result;
 }
