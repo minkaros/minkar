@@ -67,6 +67,9 @@ static NSDictionary<NSString *, NSArray<NSString *> *> *zonesByRegion(void)
         if ([cities count] > 0)
             regions[region] = [cities sortedArrayUsingSelector:@selector(compare:)];
     }
+    /* UTC: a region of its own, without cities. */
+    if ([fm fileExistsAtPath:[ZONEINFO stringByAppendingPathComponent:@"UTC"]])
+        regions[@"UTC"] = @[];
     return regions;
 }
 
@@ -194,6 +197,7 @@ static NSString *currentZone(void)
         return;
     for (NSString *c in _zones[_regions[(NSUInteger)r]])
         [_city addItemWithTitle:[c stringByReplacingOccurrencesOfString:@"_" withString:@" "]];
+    [_city setHidden:[_city numberOfItems] == 0];
 }
 
 - (void)chooseRegion:(id)sender
@@ -206,10 +210,14 @@ static NSString *currentZone(void)
 {
     NSInteger r = [_region indexOfSelectedItem], c = [_city indexOfSelectedItem];
 
-    if (r < 0 || c < 0)
+    if (r < 0)
         return;
     NSString *region = _regions[(NSUInteger)r];
-    NSString *zone = [region stringByAppendingPathComponent:_zones[region][(NSUInteger)c]];
+    NSArray<NSString *> *cities = _zones[region];
+    if (c < 0 && [cities count] > 0)
+        return;
+    /* A region without cities (UTC) is the zone itself. */
+    NSString *zone = [cities count] > 0 ? [region stringByAppendingPathComponent:cities[(NSUInteger)c]] : region;
     NSString *target = [ZONEINFO stringByAppendingPathComponent:zone];
 
     /* As systemsetup -settimezone: /etc/localtime points at the zone. */
