@@ -275,6 +275,8 @@ int SLSDisplayCapturedBy(SLSDisplayID display, int32_t *pid);
 uint32_t SLSShieldingWindowID(SLSDisplayID display);
 /* The menu levels, as the public kCGMainMenuWindowLevel,
  * kCGStatusWindowLevel and kCGPopUpMenuWindowLevel. */
+/* The Dock's level, as the public kCGDockWindowLevel. */
+#define kSLSDockWindowLevel		20
 #define kSLSMainMenuWindowLevel		24
 #define kSLSStatusWindowLevel		25
 #define kSLSPopUpMenuWindowLevel	101
