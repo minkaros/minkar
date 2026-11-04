@@ -130,7 +130,15 @@ static O2Image *wsZoom, *wsZoomUp, *wsZoomDown;
     [[[self window] backgroundColor] getRed:&r green:&g blue:&b alpha:&a];
     O2ContextSetRGBStrokeColor(_context, r, g, b, a);
     O2ContextSetRGBFillColor(_context, r, g, b, a);
-    O2ContextFillRect(_context, bounds);
+    /* A see-through background replaces what was drawn before (copy),
+       or an updated status item showed its old title under the new one. */
+    if(a < 1) {
+        O2ContextSaveGState(_context);
+        O2ContextSetBlendMode(_context, kO2BlendModeCopy);
+        O2ContextFillRect(_context, bounds);
+        O2ContextRestoreGState(_context);
+    } else
+        O2ContextFillRect(_context, bounds);
 
     if([[self window] styleMask] == NSBorderlessWindowMask)
         return;
