@@ -518,6 +518,42 @@ APPKIT_EXPORT NSString *const NSWindowDidEndLiveResizeNotification;
 
 @end
 
+/* The window's delegate (API 19: a formal protocol, every method optional). */
+@protocol NSWindowDelegate <NSObject>
+
+@optional
+
+- (void)windowWillBeginSheet:(NSNotification *)note;
+- (void)windowDidEndSheet:(NSNotification *)note;
+- (NSRect)window:(NSWindow *)window willPositionSheet:(NSWindow *)sheet usingRect:(NSRect)rect;
+
+- (void)windowDidChangeScreen:(NSNotification *)note;
+- (void)windowDidChangeScreenProfile:(NSNotification *)note;
+- (void)windowDidExpose:(NSNotification *)note;
+- (BOOL)windowShouldZoom:(NSWindow *)sender toFrame:(NSRect)frame;
+
+- windowWillReturnFieldEditor:(NSWindow *)sender toObject:object;
+
+- (NSRect)windowWillUseStandardFrame:(NSWindow *)sender defaultFrame:(NSRect)frame;
+
+- (NSUndoManager *)windowWillReturnUndoManager:(NSWindow *)window;
+- (void)windowDidBecomeKey:(NSNotification *)note;
+- (void)windowDidResignKey:(NSNotification *)note;
+- (void)windowDidBecomeMain:(NSNotification *)note;
+- (void)windowDidResignMain:(NSNotification *)note;
+- (void)windowWillMiniaturize:(NSNotification *)note;
+- (void)windowDidMiniaturize:(NSNotification *)note;
+- (void)windowDidDeminiaturize:(NSNotification *)note;
+- (void)windowWillMove:(NSNotification *)note;
+- (void)windowDidMove:(NSNotification *)note;
+- (NSSize)windowWillResize:(NSWindow *)sender toSize:(NSSize)size;
+- (void)windowDidResize:(NSNotification *)note;
+- (void)windowDidUpdate:(NSNotification *)note;
+- (BOOL)windowShouldClose:sender;
+- (void)windowWillClose:(NSNotification *)note;
+
+@end
+
 @interface NSObject (NSWindow_delegate)
 
 - (void)windowWillBeginSheet:(NSNotification *)note;

@@ -296,10 +296,9 @@ typedef enum {
 
 @end
 
-@protocol NSApplicationDelegate
+@protocol NSApplicationDelegate <NSObject>
 
-// FIXME: @optional is broken in compiler
-//@optional
+@optional
 
 - (BOOL)application:(NSApplication *)theApplication openFile:(NSString *)filename;
 - (void)application:(NSApplication *)sender openFiles:(NSArray *)filenames;
