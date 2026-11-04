@@ -186,16 +186,17 @@ evidencia.
 
 ### Dock
 
-- [ ] **D0 — Requisitos previos.** El resto de `NSRunningApplication` (icono,
+- [x] **D0 — Requisitos previos.** El resto de `NSRunningApplication` (icono,
   fecha de arranque, ocultar y mostrar, `activationPolicy`, terminar) sobre la
   lista que guarda el servicio de sesión de LaunchServices desde WS4a, y la API
   del fondo de escritorio. Las notificaciones de apps lanzadas, cerradas y
   activadas y el `NSRunningApplication` básico llegan con WS4a. Pruebas: se
   leen el icono y la fecha de arranque de una app de prueba; ocultarla,
   mostrarla y terminarla con `NSRunningApplication` funciona; la elección del
-  fondo de escritorio se guarda. *Parcial (4 nov 2026):* icono, fecha de
+  fondo de escritorio se guarda. *Hecho (4 nov 2026):* icono, fecha de
   arranque, `activationPolicy`, terminar y la API del fondo de escritorio
-  (`cf62bba724`, `41cf45da95`); faltan ocultar y mostrar.
+  (`cf62bba724`, `41cf45da95`); ocultar y mostrar a través de
+  launchservicesd (`606d680705`); prueba local `desktop` (34 comprobaciones).
 - [x] **D1 — Núcleo nuevo.** `DockModel`, preferencias con las claves de la
   referencia, tiles de apps fijas y en ejecución, lanzar y activar,
   indicadores de ejecución, fondos de escritorio por pantalla. Se va el
@@ -211,8 +212,8 @@ evidencia.
   magnificación, orientación; la animación de minimizar y restaurar
   (`mineffect`) para `miniaturize:`. *Parcial (4 nov 2026, `5c083e0b97`):*
   arrastrar, los menús de los tiles, ocultación automática, magnificación y
-  orientación; faltan Abrir al iniciar sesión, Mostrar en Argos y la
-  animación de minimizar.
+  orientación; Mostrar en Argos (`7e7ea6dfbb`); faltan Abrir al iniciar
+  sesión y la animación de minimizar.
 - [ ] **D3 — Servicio de tiles, ventanas minimizadas y selector de apps.**
   `org.minkar.dock.server`: insignias, contenido, rebote de atención;
   ventanas minimizadas con miniaturas (después de WS4a); el selector de apps

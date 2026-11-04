@@ -178,16 +178,16 @@ exists, gate M4) still green, and the roadmap updated with the evidence.
 
 ### Dock
 
-- [ ] **D0 — Prerequisites.** The rest of `NSRunningApplication` (icon, launch
+- [x] **D0 — Prerequisites.** The rest of `NSRunningApplication` (icon, launch
   date, hide and unhide, `activationPolicy`, terminate) on the list that
   LaunchServices' session service keeps from WS4a, and the desktop picture
   API. The launch, terminate and activate notifications and the basic
   `NSRunningApplication` come with WS4a. Tests: a test app's icon and launch
   date are read; hiding, unhiding and terminating it through
   `NSRunningApplication` work; the desktop picture choice is stored.
-  *Partial (4 Nov 2026):* icon, launch date, `activationPolicy`, terminate
+  *Done (4 Nov 2026):* icon, launch date, `activationPolicy`, terminate
   and the desktop picture API (`cf62bba724`, `41cf45da95`); hide and unhide
-  are missing.
+  through launchservicesd (`606d680705`); local test `desktop` (34 checks).
 - [x] **D1 — New core.** `DockModel`, preferences in the reference keys,
   persistent and running app tiles, launch and activate, running indicators,
   desktop pictures per display. The old code goes: `Trash.app`,
@@ -200,8 +200,9 @@ exists, gate M4) still green, and the roadmap updated with the evidence.
   (Keep in Dock, Open at Login, Show in Argos, Quit) and the app's dock menu;
   autohide, magnification, orientation; the minimize and restore animation
   (`mineffect`) for `miniaturize:`. *Partial (4 Nov 2026, `5c083e0b97`):*
-  dragging, the tile menus, autohide, magnification and orientation; Open
-  at Login, Show in Argos and the minimize animation are missing.
+  dragging, the tile menus, autohide, magnification and orientation; Show
+  in Argos (`7e7ea6dfbb`); Open at Login and the minimize animation are
+  missing.
 - [ ] **D3 — Dock tile service, minimized windows and the app switcher.**
   `org.minkar.dock.server`: badges, content, attention bounce; minimized
   windows with thumbnails (after WS4a); the app switcher in the Dock, which

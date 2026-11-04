@@ -33,7 +33,7 @@
 # "bmake progress" (Docs/CONTRIBUTING.md).
 
 updated = "2026-11-04"
-commit  = "e7ae74a2e5"
+commit  = "7e7ea6dfbb"
 
 deps = [["ws", 555, "dock"], ["fw", 535, "argos"]]
 
@@ -158,7 +158,7 @@ color = "orange"
 doc = "Dock-Argos.md"
 doc_es = "Dock-Argos.es.md"
 stations = [
-  ["D0", 700, "partial"], ["D1", 760, "done"], ["D2", 865, "partial"], ["D3", 970, "todo"],
+  ["D0", 700, "done"], ["D1", 760, "done"], ["D2", 865, "partial"], ["D3", 970, "todo"],
   ["D4", 1025, "todo"],
 ]
 

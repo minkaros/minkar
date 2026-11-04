@@ -5,7 +5,7 @@ This page is generated from [progress/status.toml](progress/status.toml) by
 [Progress.es.md](Progress.es.md).
 
 <!-- progress:summary:begin -->
-_Updated 2026-11-04, devel `e7ae74a2e5`_
+_Updated 2026-11-04, devel `7e7ea6dfbb`_
 
 | Plan | Progress |  | Now | Next |
 | --- | --- | --- | --- | --- |
@@ -14,7 +14,7 @@ _Updated 2026-11-04, devel `e7ae74a2e5`_
 | [Frameworks](ROADMAP.md#phase-3--base-frameworks-and-swift) | 🟩🟨🟨🟨⬜🟩⬜ | 2 / 7 | libSystem, Foundation, CF-Lite | Security |
 | [WindowServer](WindowServer-Rewrite.md) | 🟩🟩🟩🟩🟩🟩🟩🟩🟦 | 8 / 9 | WS6 | — |
 | [Menus](Menus.md) | 🟩🟨⬜⬜⬜ | 1 / 5 | MB1 | MB2 |
-| [Dock](Dock-Argos.md) | 🟨🟩🟨⬜⬜ | 1 / 5 | D0, D2 | D3 |
+| [Dock](Dock-Argos.md) | 🟩🟩🟨⬜⬜ | 2 / 5 | D2 | D3 |
 | [Argos](Dock-Argos.md) | 🟨🟩⬜⬜⬜ | 1 / 5 | K0 | K2 |
 | [Atlas](ROADMAP.md#phase-5--atlas-desktop) | ⬜🟨⬜ | 0 / 3 | Preferences | LoginWindow |
 | [Apps · DMG](ROADMAP.md#phase-6--applications-and-distribution) | ⬜⬜⬜⬜ | 0 / 4 | — | DiskImages |

@@ -6,7 +6,7 @@ Esta página se genera desde [progress/status.toml](progress/status.toml) con
 [Progress.md](Progress.md).
 
 <!-- progress:summary:begin -->
-_Actualizado el 2026-11-04, devel `e7ae74a2e5`_
+_Actualizado el 2026-11-04, devel `7e7ea6dfbb`_
 
 | Plan | Avance |  | Ahora | Siguiente |
 | --- | --- | --- | --- | --- |
@@ -15,7 +15,7 @@ _Actualizado el 2026-11-04, devel `e7ae74a2e5`_
 | [Frameworks](ROADMAP.es.md#fase-3--frameworks-base-y-swift) | 🟩🟨🟨🟨⬜🟩⬜ | 2 / 7 | libSystem, Foundation, CF-Lite | Security |
 | [WindowServer](WindowServer-Rewrite.es.md) | 🟩🟩🟩🟩🟩🟩🟩🟩🟦 | 8 / 9 | WS6 | — |
 | [Menus](Menus.es.md) | 🟩🟨⬜⬜⬜ | 1 / 5 | MB1 | MB2 |
-| [Dock](Dock-Argos.es.md) | 🟨🟩🟨⬜⬜ | 1 / 5 | D0, D2 | D3 |
+| [Dock](Dock-Argos.es.md) | 🟩🟩🟨⬜⬜ | 2 / 5 | D2 | D3 |
 | [Argos](Dock-Argos.es.md) | 🟨🟩⬜⬜⬜ | 1 / 5 | K0 | K2 |
 | [Atlas](ROADMAP.es.md#fase-5--escritorio-atlas) | ⬜🟨⬜ | 0 / 3 | Preferences | LoginWindow |
 | [Apps · DMG](ROADMAP.es.md#fase-6--aplicaciones-y-distribución) | ⬜⬜⬜⬜ | 0 / 4 | — | DiskImages |
