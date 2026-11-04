@@ -117,6 +117,9 @@ typedef enum {
 
 - (void)drawAtPoint:(NSPoint)point fromRect:(NSRect)source operation:(NSCompositingOperation)operation fraction:(float)fraction;
 - (void)drawInRect:(NSRect)rect fromRect:(NSRect)source operation:(NSCompositingOperation)operation fraction:(float)fraction;
+/* API 19: with respectFlipped, the image is upright in a flipped view. */
+- (void)drawInRect:(NSRect)rect fromRect:(NSRect)source operation:(NSCompositingOperation)operation fraction:(CGFloat)fraction respectFlipped:(BOOL)respectFlipped hints:(NSDictionary *)hints;
+- (void)drawInRect:(NSRect)rect;
 
 @end
 

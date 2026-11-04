@@ -786,6 +786,27 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    [self drawInRect:NSMakeRect(point.x,point.y,size.width,size.height) fromRect:source operation:operation fraction:fraction];
 }
 
+/* Upright in a flipped context: flipped about the rect's middle, drawn,
+   and the transform put back. Hints are not used. */
+-(void)drawInRect:(NSRect)rect fromRect:(NSRect)source operation:(NSCompositingOperation)operation fraction:(CGFloat)fraction respectFlipped:(BOOL)respectFlipped hints:(NSDictionary *)hints {
+   NSGraphicsContext *graphics=[NSGraphicsContext currentContext];
+
+   if(!respectFlipped || ![graphics isFlipped]) {
+      [self drawInRect:rect fromRect:source operation:operation fraction:fraction];
+      return;
+   }
+   CGContextRef context=[graphics graphicsPort];
+   CGContextSaveGState(context);
+   CGContextTranslateCTM(context,0,NSMaxY(rect)+NSMinY(rect));
+   CGContextScaleCTM(context,1,-1);
+   [self drawInRect:rect fromRect:source operation:operation fraction:fraction];
+   CGContextRestoreGState(context);
+}
+
+-(void)drawInRect:(NSRect)rect {
+   [self drawInRect:rect fromRect:NSZeroRect operation:NSCompositeSourceOver fraction:1 respectFlipped:YES hints:nil];
+}
+
 -(void)drawInRect:(NSRect)rect fromRect:(NSRect)source operation:(NSCompositingOperation)operation fraction:(float)fraction {
 
         // Keep a lid on any intermediate allocations while producing caches
