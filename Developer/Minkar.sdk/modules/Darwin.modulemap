@@ -1,0 +1,113 @@
+// SPDX-License-Identifier: BSD-2-Clause
+// Copyright (c) 2026 The Minkar contributors
+// Part of Minkar.
+//
+// The C library and the system interfaces as a module, for Swift's
+// "import Darwin" (the overlay in Libraries/swift adds to it) and for
+// clang modules: usr/include/module.modulemap in the SDK.
+module Darwin [system] [extern_c] {
+  // The headers that define one type each (included by many others): a
+  // submodule each, so a type is visible wherever a header that uses it is.
+  module _types_sys { umbrella "sys/_types" module * { export * } }
+  module _types_pthread { umbrella "sys/_pthread" module * { export * } }
+  module _types { umbrella "_types" module * { export * } }
+  module C {
+    module assert { textual header "assert.h" export * }
+    module ctype { header "ctype.h" export * }
+    module errno { header "errno.h" export * }
+    module fenv { header "fenv.h" export * }
+    module inttypes { header "inttypes.h" export * }
+    module iso646 { header "iso646.h" export * }
+    module locale { header "locale.h" export * }
+    module math { header "math.h" export * }
+    module setjmp { header "setjmp.h" export * }
+    module signal { header "signal.h" export * }
+    module stdio { header "stdio.h" export * }
+    module stdlib { header "stdlib.h" export * }
+    module string { header "string.h" export * }
+    module time { header "time.h" export * }
+    module wchar { header "wchar.h" export * }
+    module wctype { header "wctype.h" export * }
+    export *
+  }
+  module POSIX {
+    module strings { header "strings.h" export * }
+    module unistd { header "unistd.h" export * }
+    module fcntl { header "fcntl.h" export * }
+    module dirent { header "dirent.h" export * }
+    module dlfcn { header "dlfcn.h" export * }
+    module fnmatch { header "fnmatch.h" export * }
+    module glob { header "glob.h" export * }
+    module grp { header "grp.h" export * }
+    module pwd { header "pwd.h" export * }
+    module libgen { header "libgen.h" export * }
+    module poll { header "poll.h" export * }
+    module pthread { header "pthread.h" export * }
+    module sched { header "sched.h" export * }
+    module semaphore { header "semaphore.h" export * }
+    module spawn { header "spawn.h" export * }
+    module syslog { header "syslog.h" export * }
+    module termios { header "termios.h" export * }
+    module utime { header "utime.h" export * }
+    module utmpx { header "utmpx.h" export * }
+    module netdb { header "netdb.h" export * }
+    module ifaddrs { header "ifaddrs.h" export * }
+    module regex { header "regex.h" export * }
+    module search { header "search.h" export * }
+    module sys {
+      module types { header "sys/types.h" export * }
+      module stat { header "sys/stat.h" export * }
+      module time { header "sys/time.h" export * }
+      module socket { header "sys/socket.h" export * }
+      module mman { header "sys/mman.h" export * }
+      module wait { header "sys/wait.h" export * }
+      module ioctl { header "sys/ioctl.h" export * }
+      module select { header "sys/select.h" export * }
+      module resource { header "sys/resource.h" export * }
+      module uio { header "sys/uio.h" export * }
+      module un { header "sys/un.h" export * }
+      module utsname { header "sys/utsname.h" export * }
+      module file { header "sys/file.h" export * }
+      export *
+    }
+    module netinet { header "netinet/in.h" header "netinet/tcp.h" export * }
+    module arpa { header "arpa/inet.h" export * }
+    module net { header "net/if.h" export * }
+    export *
+  }
+  module sys {
+    module sysctl { header "sys/sysctl.h" export * }
+    module event { header "sys/event.h" export * }
+    module param { header "sys/param.h" export * }
+    module mount { header "sys/mount.h" export * }
+    module xattr { header "sys/xattr.h" export * }
+    module attr { header "sys/attr.h" export * }
+    export *
+  }
+  module Mach { header "mach/mach.h" header "mach/mach_time.h" export * }
+  module MachO { header "mach-o/dyld.h" header "mach-o/loader.h" export * }
+  module malloc { header "malloc/malloc.h" export * }
+  module os_lock { header "os/lock.h" export * }
+  module libkern { header "libkern/OSAtomic.h" export * }
+  module err { header "err.h" export * }
+  module getopt { header "getopt.h" export * }
+  module sysexits { header "sysexits.h" export * }
+  module util { header "util.h" export * }
+  module xlocale { header "xlocale.h" export * }
+  module libproc { header "libproc.h" export * }
+  module copyfile { header "copyfile.h" export * }
+  module asl { header "asl.h" export * }
+  export *
+}
+
+// notify(3) uses Dispatch (notify_register_dispatch), which uses
+// Objective-C: a module of its own, outside the C library's.
+module notify [system] [extern_c] {
+  header "notify.h"
+  export *
+}
+
+// Modules whose directory is not named after them: found from here too
+// (on a case-sensitive file system "Dispatch" is not "dispatch").
+extern module ObjectiveC "objc/module.modulemap"
+extern module Dispatch "dispatch/module.modulemap"

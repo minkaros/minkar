@@ -58,6 +58,7 @@ all: ${PLATFORM_DIR} ${TOOLS}/unifdef .EXEC
 		${objc_path}/runtime/objc-auto.h ${objc_path}/runtime/objc-api.h \
 		${objc_path}/runtime/message.h ${objc_path}/runtime/NSObject.h \
 		${objc_path}/runtime/NSObjCRuntime.h ${objc_path}/runtime/objc-runtime.h \
+		${objc_path}/runtime/Object.h ${objc_path}/runtime/Protocol.h \
 		${objc_path}/runtime/Module \
 		${MINKAR_SDKROOT}/usr/include/objc/
 	mkdir -p ${MINKAR_SDKROOT}/usr/local/include/objc
@@ -67,6 +68,19 @@ all: ${PLATFORM_DIR} ${TOOLS}/unifdef .EXEC
 		${objc_path}/runtime/objc-ptrauth.h ${objc_path}/runtime/hashtable.h \
 		${objc_path}/runtime/hashtable2.h ${objc_path}/runtime/objc-class.h \
 		${MINKAR_SDKROOT}/usr/local/include/objc/
+	# Clang modules, for Swift's imports: the C library (Darwin, ours),
+	# ObjectiveC (objc4's, as objc4's own build makes it), Dispatch
+	# (libdispatch's for Darwin) and os.
+	cp -f ${.CURDIR}/modules/Darwin.modulemap ${MINKAR_SDKROOT}/usr/include/module.modulemap
+	# (objc4 here has no List.h: its List submodule is left out.)
+	${TOOLS}/unifdef -DBUILD_FOR_OSX ${objc_path}/runtime/Module/module.modulemap | \
+		awk '/^  module List \{/ { skip = 1 } !skip { print } skip && /^  \}/ { skip = 0 }' \
+		> ${MINKAR_SDKROOT}/usr/include/objc/module.modulemap
+	cp -f ${objc_path}/runtime/Module/ObjectiveC.apinotes ${MINKAR_SDKROOT}/usr/include/objc/
+	mkdir -p ${MINKAR_SDKROOT}/usr/include/dispatch ${MINKAR_SDKROOT}/usr/include/os
+	cp -f ${.CURDIR}/usr/include/dispatch/darwin/module.modulemap \
+		${MINKAR_SDKROOT}/usr/include/dispatch/module.modulemap
+	cp -f ${.CURDIR}/modules/os.modulemap ${MINKAR_SDKROOT}/usr/include/os/module.modulemap
 
 SUBDIR = rpcsvc
 
