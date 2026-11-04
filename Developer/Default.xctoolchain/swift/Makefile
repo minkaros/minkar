@@ -75,12 +75,28 @@ build-swift: .PHONY ${BUILD}/.minkar-setup
 	ninja -j${JOBS:U10} -C ${BUILD} swift-frontend > ${.OBJDIR}/swift-build.log 2>&1 || \
 	    { grep -A5 FAILED ${.OBJDIR}/swift-build.log | head -40; exit 1; }
 
-install-swift: .PHONY build-swift
+# Built again only when what it is built from changes: its manifests,
+# patches and this Makefile, by content (a restored cache keeps the
+# compiler, not its build tree, and file times are not to be trusted).
+STAMP =		${TOOLCHAIN}/usr/share/swift/.minkar-built
+SUM_CMD =	cat ${.CURDIR}/MANIFEST ${.CURDIR}/MANIFEST.cmark ${.CURDIR}/Makefile \
+		    ${PATCHES:S,^,${.CURDIR}/patches/,} | cksum
+
+install-swift: .PHONY
+	@if [ -x ${TOOLCHAIN}/usr/bin/swift-frontend ] && [ -f ${STAMP} ] && \
+	    [ "$$(${SUM_CMD})" = "$$(cat ${STAMP})" ]; then \
+		echo "swift: the toolchain's compiler is current"; \
+	else \
+		${MAKE} -C ${.CURDIR} install-swift-now; \
+	fi
+
+install-swift-now: .PHONY build-swift
 	mkdir -p ${TOOLCHAIN}/usr/bin ${TOOLCHAIN}/usr/share/swift
 	install -m 0755 ${BUILD}/bin/swift-frontend ${TOOLCHAIN}/usr/bin/swift-frontend
 	ln -sf swift-frontend ${TOOLCHAIN}/usr/bin/swiftc
 	ln -sf swift-frontend ${TOOLCHAIN}/usr/bin/swift
 	install -m 0444 ${SRC}/LICENSE.txt ${TOOLCHAIN}/usr/share/swift/LICENSE.txt
+	${SUM_CMD} > ${STAMP}
 
 clean: .PHONY
 	rm -rf ${SRC} ${CMARK} ${BUILD} ${.OBJDIR}/*.log

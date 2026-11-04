@@ -11,7 +11,8 @@
 # directories, without LLVM's build tree (llvm_host, about 2 GB): the
 # object files keep bmake from rebuilding mig, which LLVM's rule depends
 # on. The key is the git tree of Developer/Default.xctoolchain, so any
-# change there builds the toolchain again.
+# change there builds the toolchain again. The Swift compiler is rebuilt
+# only when its sources change (swift/Makefile's stamp).
 
 set -eu
 
@@ -27,4 +28,11 @@ echo "paths<<EOF_PATHS"
 echo "$BUILD_DIR/Developer/Platforms/Minkar.platform/Developer/Toolchains"
 echo "$OBJ"
 echo "!$OBJ/llvm_host"
+# What Libraries/swift's CMake reads of LLVM's build tree (its CMake
+# configuration and headers, about 20 MB), but not Swift's own build tree.
+echo "$OBJ/llvm_host/lib/cmake"
+echo "$OBJ/llvm_host/include"
+echo "$OBJ/llvm_host/tools/clang/include"
+echo "!$OBJ/swift/build"
+echo "!$OBJ/swift/swift-src"
 echo "EOF_PATHS"

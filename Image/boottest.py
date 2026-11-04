@@ -45,6 +45,8 @@ Gates from the architecture plan:
       host's name through DNS, and the code integrity policy marks a
       binary of the trust cache as a platform binary and refuses a copy
       re-signed outside it                         (--gate M2)
+  M3-swift  M2, then a Swift program in the image runs on the Swift
+      runtime in /usr/lib/swift                    (--gate M3-swift)
   M4  M2, then the window server (started at boot, as _windowserver),
       the minimal loginwindow and the demo's two overlapping AppKit
       windows: the screen matches reference images, again after a window
@@ -150,6 +152,12 @@ CODESIGN_INPUT = [SSH('dmesg | grep "MinkarCodeIntegrity: trust cache loaded"; '
                   'valid=1 adhoc=0 signed=1 platform=1',
                   'boottest: resigned rc=137', 'refused']
 GATES['M2'] = GATES['M2-login'] + SSH_INPUT + CODESIGN_INPUT
+# Gate M3-swift (Phase 3): a Swift program in the image (swift-hello, built
+# with the toolchain's swiftc) runs on /usr/lib/swift's runtime.
+GATES['M3-swift'] = GATES['M2'] + [
+    SSH('ls /usr/lib/swift/libswiftCore.dylib; /usr/local/bin/swift-hello'),
+    '/usr/lib/swift/libswiftCore.dylib',
+    'swift-hello: Swift 6.0 on Minkar, 3 checks passed']
 
 # The window server starts at boot, as _windowserver. The screen is
 # compared with reference images (--update-reference writes them from a
