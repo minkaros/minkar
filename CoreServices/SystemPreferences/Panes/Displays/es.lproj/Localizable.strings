@@ -1,0 +1,8 @@
+/* SPDX-License-Identifier: BSD-2-Clause
+   Copyright (c) 2026 The Minkar contributors
+   The Displays pane, in Spanish. The keys are the English texts. */
+
+"Main Display" = "Pantalla principal";
+"Display %u" = "Pantalla %u";
+"Resolution:" = "Resolución:";
+"No display" = "Ninguna pantalla";

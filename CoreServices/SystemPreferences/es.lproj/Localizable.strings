@@ -1,0 +1,10 @@
+/* SPDX-License-Identifier: BSD-2-Clause
+   Copyright (c) 2026 The Minkar contributors
+   System Preferences, in Spanish. The keys are the English texts. */
+
+"System Preferences" = "Preferencias del Sistema";
+"Show All" = "Mostrar todo";
+"View" = "Visualización";
+"Show All Preferences" = "Mostrar todas las preferencias";
+"Back" = "Atrás";
+"Forward" = "Adelante";
