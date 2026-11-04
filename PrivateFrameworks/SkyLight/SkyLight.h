@@ -48,7 +48,7 @@ extern "C" {
 #define kSLSServiceName		"org.minkar.WindowServer"
 
 /* The interface version both sides are built for. */
-#define kSLSInterfaceVersion	17
+#define kSLSInterfaceVersion	18
 
 typedef int32_t SLSConnectionID;
 
@@ -818,6 +818,24 @@ _Static_assert(sizeof(SLSServerStats) == kSLSServerStatsWords * 4, "SLSServerSta
 int SLSGetServerStats(SLSServerStats *stats);
 /* All counters and samples back to zero (for a measurement's start). */
 int SLSResetServerStats(void);
+
+/* ---- The keyboard (interface version 18) ----
+ * Its layout (XKB names: "us", "es", "latam"; a variant, "" for none) and
+ * how a held key repeats: the delay before the first repeat and the
+ * interval between the next ones, in milliseconds. The server keeps them
+ * (/var/db/WindowServer/Keyboard.plist). Root or the console's user may
+ * set them; kSLSErrorIllegalArgument for a layout the server cannot load
+ * or times out of 15..2000 ms. System Preferences' Keyboard pane sets
+ * them. */
+typedef struct {
+	char layout[32];
+	char variant[32];
+	uint32_t initialRepeat;
+	uint32_t repeatInterval;
+} SLSKeyboardSettings;
+
+int SLSSetKeyboardSettings(const SLSKeyboardSettings *settings);
+int SLSGetKeyboardSettings(SLSKeyboardSettings *settings);
 
 #ifdef __cplusplus
 }

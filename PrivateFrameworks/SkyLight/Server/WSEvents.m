@@ -52,8 +52,17 @@ dispatch_queue_t WSInputQueue;
 
 /* A connection's queue holds at most this many events; more are dropped. */
 enum { kQueueLimit = 256 };
-/* Key repeat: the first after 500 ms, then every 33 ms. */
-static const uint64_t kRepeatDelay = 500000000, kRepeatInterval = 33000000;
+/* Key repeat: by default the first after 500 ms, then every 33 ms. */
+static uint64_t kRepeatDelay = 500000000, kRepeatInterval = 33000000;
+
+/* The repeat's timing (SLSSetKeyboardSettings, through WSInput). */
+void
+WSEventsSetKeyRepeat(uint64_t delayNanos, uint64_t intervalNanos)
+{
+	kRepeatDelay = delayNanos;
+	kRepeatInterval = intervalNanos;
+}
+
 /* A second click within 500 ms and 4 pixels of the first counts double. */
 static const uint64_t kClickInterval = 500000000;
 static const double kClickSlop = 4;

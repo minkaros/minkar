@@ -37,6 +37,8 @@
 #import "WSDisplay.h"
 #import "WSServer.h"
 #include "WSKeymap.h"
+#import "WSConnection.h"
+#include "WindowServerServer.h"
 
 /* Modifier keys' codes and the flag each one sets. */
 static uint32_t
@@ -83,6 +85,39 @@ enum {
 	kHIDSetVirtualDisplayBounds = 9,
 };
 
+/* ---- The keyboard's settings (SLSSetKeyboardSettings) ---- */
+
+static NSString *const kKeyboardPath = @"/var/db/WindowServer/Keyboard.plist";
+static SLSKeyboardSettings keyboard = { "us", "", 500, 33 };
+
+/* The keymap of the saved settings (the default, us, if there are none or
+ * they do not load), and their repeat; at start, on the input queue. */
+static WSKeymap *
+WSInputLoadKeyboard(void)
+{
+	NSDictionary *saved = [NSDictionary dictionaryWithContentsOfFile:kKeyboardPath];
+	NSString *layout = saved[@"Layout"], *variant = saved[@"Variant"];
+	WSKeymap *km = NULL;
+
+	if ([layout isKindOfClass:[NSString class]] && [layout length] < sizeof(keyboard.layout)) {
+		NSString *v = [variant isKindOfClass:[NSString class]] ? variant : @"";
+		km = WSKeymapCreate(NULL, NULL, NULL, [layout UTF8String], [v UTF8String], NULL);
+		if (km != NULL) {
+			strlcpy(keyboard.layout, [layout UTF8String], sizeof(keyboard.layout));
+			strlcpy(keyboard.variant, [v UTF8String], sizeof(keyboard.variant));
+		}
+	}
+	if (km == NULL)
+		km = WSKeymapCreate(NULL, NULL, NULL, NULL, NULL, NULL);
+	uint32_t initial = [saved[@"InitialRepeat"] unsignedIntValue], interval = [saved[@"RepeatInterval"] unsignedIntValue];
+	if (initial >= 15 && initial <= 2000 && interval >= 15 && interval <= 2000) {
+		keyboard.initialRepeat = initial;
+		keyboard.repeatInterval = interval;
+	}
+	WSEventsSetKeyRepeat((uint64_t)keyboard.initialRepeat * 1000000, (uint64_t)keyboard.repeatInterval * 1000000);
+	return km;
+}
+
 @implementation WSInput {
 	NSMutableArray<NSNumber *> *_screenTokens;	/* one per display */
 	io_connect_t _connect;
@@ -102,6 +137,16 @@ enum {
 	return input;
 }
 
+/* A new keymap, on the input queue: the old one goes. */
+- (void)replaceKeymap:(WSKeymap *)keymap
+{
+	WSKeymap *old = _keymap;
+
+	_keymap = keymap;
+	if (old != NULL)
+		WSKeymapDestroy(old);
+}
+
 - (BOOL)openOnQueue:(dispatch_queue_t)queue
 {
 	io_service_t service = IOServiceGetMatchingService(kIOMasterPortDefault,
@@ -111,7 +156,7 @@ enum {
 	mach_vm_size_t size = 0;
 	kern_return_t kr;
 
-	_keymap = WSKeymapCreate(NULL, NULL, NULL, NULL, NULL, NULL);
+	_keymap = WSInputLoadKeyboard();
 	if (_keymap == NULL)
 		fprintf(stderr, "WindowServer: no keyboard layout: keys are not delivered\n");
 	if (service == IO_OBJECT_NULL) {
@@ -305,4 +350,58 @@ void
 WSInputTranslatePosted(SLSEvent *e)
 {
 	[theInput translateKey:e->keyCode down:e->type == kSLSEventKeyDown into:e];
+}
+
+/* The keyboard's layout and repeat, for root or the console's user: a
+ * new keymap made on the input queue (the old one goes there too). */
+kern_return_t
+wss_keyboard_settings_set(mach_port_t server, audit_token_t token, SLSKeyboardSettings settings,
+    int32_t *result)
+{
+	WSConnection *connection = [WSConnection connectionForToken:token];
+
+	(void)server;
+	settings.layout[sizeof(settings.layout) - 1] = '\0';
+	settings.variant[sizeof(settings.variant) - 1] = '\0';
+	if (connection == nil || !WSMayControlInput(connection)) {
+		*result = connection == nil ? kSLSErrorInvalidConnection : kSLSErrorCannotComplete;
+		return KERN_SUCCESS;
+	}
+	if (settings.layout[0] == '\0' || settings.initialRepeat < 15 || settings.initialRepeat > 2000 ||
+	    settings.repeatInterval < 15 || settings.repeatInterval > 2000) {
+		*result = kSLSErrorIllegalArgument;
+		return KERN_SUCCESS;
+	}
+	WSKeymap *km = WSKeymapCreate(NULL, NULL, NULL, settings.layout, settings.variant, NULL);
+	if (km == NULL) {
+		*result = kSLSErrorIllegalArgument;
+		return KERN_SUCCESS;
+	}
+	dispatch_sync(WSInputQueue, ^{
+		[theInput replaceKeymap:km];
+		keyboard = settings;
+		WSEventsSetKeyRepeat((uint64_t)settings.initialRepeat * 1000000,
+		    (uint64_t)settings.repeatInterval * 1000000);
+	});
+	NSDictionary *saved = @{ @"Layout": @(settings.layout), @"Variant": @(settings.variant),
+				 @"InitialRepeat": @(settings.initialRepeat),
+				 @"RepeatInterval": @(settings.repeatInterval) };
+	[[NSFileManager defaultManager] createDirectoryAtPath:[kKeyboardPath stringByDeletingLastPathComponent]
+	    withIntermediateDirectories:YES attributes:nil error:NULL];
+	[saved writeToFile:kKeyboardPath atomically:YES];
+	fprintf(stderr, "WindowServer: keyboard layout %s%s%s, repeat %u ms then every %u ms\n",
+	    settings.layout, settings.variant[0] ? " " : "", settings.variant,
+	    settings.initialRepeat, settings.repeatInterval);
+	*result = kSLSErrorSuccess;
+	return KERN_SUCCESS;
+}
+
+kern_return_t
+wss_keyboard_settings_get(mach_port_t server, SLSKeyboardSettings *settings)
+{
+	(void)server;
+	dispatch_sync(WSInputQueue, ^{
+		*settings = keyboard;
+	});
+	return KERN_SUCCESS;
 }

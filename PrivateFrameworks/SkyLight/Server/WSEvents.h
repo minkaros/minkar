@@ -39,6 +39,8 @@
 
 #import "WSServer.h"
 
+/* Key repeat timing (SLSSetKeyboardSettings). */
+void WSEventsSetKeyRepeat(uint64_t delayNanos, uint64_t intervalNanos);
 /* An event read from the HID system, to pass the taps and route (both on
  * WSInputQueue). */
 void WSRouteEvent(SLSEvent *event);

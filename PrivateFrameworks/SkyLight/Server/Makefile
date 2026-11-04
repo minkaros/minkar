@@ -48,7 +48,7 @@ WindowServerServer.c WindowServerServer.h: ${SKYLIGHT}/IPC/WindowServer.defs
 	    -header /dev/null -user /dev/null -server WindowServerServer.c \
 	    -sheader WindowServerServer.h ${.ALLSRC}
 
-main.o WSDisplayServices.o WSWindowList.o WSCompositor.o WSEvents.o WSTaps.o WSHotKeys.o: WindowServerServer.h
+main.o WSDisplayServices.o WSWindowList.o WSCompositor.o WSEvents.o WSTaps.o WSHotKeys.o WSInput.o: WindowServerServer.h
 
 # Signed with its entitlements; the image build puts it in the trust cache
 # (Docs/ADR/0001-Kernel-Entitlements.md).

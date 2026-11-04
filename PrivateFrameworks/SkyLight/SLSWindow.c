@@ -269,3 +269,29 @@ SLSSetWindowShadow(SLSWindowID window, int hasShadow)
 		return kSLSErrorFailure;
 	return result;
 }
+
+int
+SLSSetKeyboardSettings(const SLSKeyboardSettings *settings)
+{
+	int32_t result = kSLSErrorFailure;
+	mach_port_t server = SLSServerPort();
+
+	if (settings == NULL)
+		return kSLSErrorIllegalArgument;
+	if (server == MACH_PORT_NULL ||
+	    ws_keyboard_settings_set(server, *settings, &result) != KERN_SUCCESS)
+		return kSLSErrorFailure;
+	return result;
+}
+
+int
+SLSGetKeyboardSettings(SLSKeyboardSettings *settings)
+{
+	mach_port_t server = SLSServerPort();
+
+	if (settings == NULL)
+		return kSLSErrorIllegalArgument;
+	if (server == MACH_PORT_NULL || ws_keyboard_settings_get(server, settings) != KERN_SUCCESS)
+		return kSLSErrorFailure;
+	return kSLSErrorSuccess;
+}
