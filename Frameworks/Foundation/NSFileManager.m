@@ -41,6 +41,13 @@ NSString * const NSFileHFSCreatorCode = @"NSFileHFSCreatorCode";
 NSString * const NSFileHFSTypeCode = @"NSFileHFSTypeCode";
 
 NSString * const NSFileSystemNumber=@"NSFileSystemNumber";
+NSString * const NSFileSystemFileNumber=@"NSFileSystemFileNumber";
+NSString * const NSFileOwnerAccountID=@"NSFileOwnerAccountID";
+NSString * const NSFileGroupOwnerAccountID=@"NSFileGroupOwnerAccountID";
+NSString * const NSFileExtensionHidden=@"NSFileExtensionHidden";
+NSString * const NSFileImmutable=@"NSFileImmutable";
+NSString * const NSFileAppendOnly=@"NSFileAppendOnly";
+NSString * const NSFileBusy=@"NSFileBusy";
 NSString * const NSFileSystemSize=@"NSFileSystemSize";
 NSString * const NSFileSystemFreeSize=@"NSFileSystemFreeSize";
 
@@ -344,6 +351,47 @@ stringByAppendingPathComponent:[files objectAtIndex:x]] paths:paths];
 
 -(NSDate *)fileModificationDate {
    return [self objectForKey:NSFileModificationDate];
+}
+
+/* The rest of the file attribute accessors (API 19). */
+-(NSDate *)fileCreationDate {
+   return [self objectForKey:NSFileCreationDate];
+}
+
+-(NSNumber *)fileOwnerAccountID {
+   return [self objectForKey:NSFileOwnerAccountID];
+}
+
+-(NSNumber *)fileGroupOwnerAccountID {
+   return [self objectForKey:NSFileGroupOwnerAccountID];
+}
+
+-(NSInteger)fileSystemNumber {
+   return [[self objectForKey:NSFileSystemNumber] integerValue];
+}
+
+-(NSUInteger)fileSystemFileNumber {
+   return [[self objectForKey:NSFileSystemFileNumber] unsignedIntegerValue];
+}
+
+-(BOOL)fileExtensionHidden {
+   return [[self objectForKey:NSFileExtensionHidden] boolValue];
+}
+
+-(BOOL)fileIsImmutable {
+   return [[self objectForKey:NSFileImmutable] boolValue];
+}
+
+-(BOOL)fileIsAppendOnly {
+   return [[self objectForKey:NSFileAppendOnly] boolValue];
+}
+
+-(OSType)fileHFSCreatorCode {
+   return (OSType)[[self objectForKey:NSFileHFSCreatorCode] unsignedIntValue];
+}
+
+-(OSType)fileHFSTypeCode {
+   return (OSType)[[self objectForKey:NSFileHFSTypeCode] unsignedIntValue];
 }
 
 -(NSUInteger)filePosixPermissions {

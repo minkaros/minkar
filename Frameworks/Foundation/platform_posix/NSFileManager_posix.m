@@ -28,6 +28,13 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #include <fcntl.h>
 #include <pwd.h>
 #include <grp.h>
+#include <errno.h>
+#include <string.h>
+#include <sys/mount.h>
+#include <dirent.h>
+#import <Foundation/NSError.h>
+#import <Foundation/FoundationErrors.h>
+#import <objc/runtime.h>
 #include <time.h>
 #include <dirent.h>
 #include <errno.h>
@@ -39,6 +46,8 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 }
 
 @end
+
+static NSError *fileError(int code, NSString *path, BOOL writing);
 
 @implementation NSFileManager_posix
 
@@ -213,13 +222,26 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
      */
 
     BOOL isDirectory;
-    
-//TODO fill error
-    
-    if ([self fileExistsAtPath:srcPath isDirectory:&isDirectory] == NO)
+
+    if ([self fileExistsAtPath:srcPath isDirectory:&isDirectory] == NO) {
+        if (error != NULL)
+            *error = fileError(ENOENT, srcPath, NO);
         return NO;
-    if ([self fileExistsAtPath:dstPath isDirectory:&isDirectory] == YES)
+    }
+    if ([self fileExistsAtPath:dstPath isDirectory:&isDirectory] == YES) {
+        if (error != NULL)
+            *error = fileError(EEXIST, dstPath, YES);
         return NO;
+    }
+    /* On the same volume, rename(2) (atomic, keeps the item); across
+       volumes, a copy then the original removed. */
+    if (rename([srcPath fileSystemRepresentation], [dstPath fileSystemRepresentation]) == 0)
+        return YES;
+    if (errno != EXDEV) {
+        if (error != NULL)
+            *error = fileError(errno, srcPath, YES);
+        return NO;
+    }
     
     if ([self copyPath:srcPath toPath:dstPath handler:nil] == NO) {
         [self removeFileAtPath:dstPath handler:nil];
@@ -376,8 +398,20 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
     [result setObject:[NSNumber numberWithUnsignedLong:statBuf.st_size]
                forKey:NSFileSize];
-    [result setObject:[NSDate dateWithTimeIntervalSince1970:statBuf.st_mtime]
+    [result setObject:[NSDate dateWithTimeIntervalSince1970:statBuf.st_mtimespec.tv_sec +
+                           statBuf.st_mtimespec.tv_nsec / 1e9]
                forKey:NSFileModificationDate];
+    /* Darwin keeps the creation (birth) time. */
+    [result setObject:[NSDate dateWithTimeIntervalSince1970:statBuf.st_birthtimespec.tv_sec +
+                           statBuf.st_birthtimespec.tv_nsec / 1e9]
+               forKey:NSFileCreationDate];
+    [result setObject:[NSNumber numberWithUnsignedInt:statBuf.st_uid] forKey:NSFileOwnerAccountID];
+    [result setObject:[NSNumber numberWithUnsignedInt:statBuf.st_gid] forKey:NSFileGroupOwnerAccountID];
+    [result setObject:[NSNumber numberWithBool:(statBuf.st_flags & (UF_IMMUTABLE | SF_IMMUTABLE)) != 0]
+               forKey:NSFileImmutable];
+    [result setObject:[NSNumber numberWithBool:(statBuf.st_flags & (UF_APPEND | SF_APPEND)) != 0]
+               forKey:NSFileAppendOnly];
+    [result setObject:[NSNumber numberWithBool:NO] forKey:NSFileExtensionHidden];
 
     // User/group names don't always exist for the IDs in the filesystem.
     // If we don't check for NULLs, we'll segfault.
@@ -397,8 +431,13 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
                forKey:NSFileIdentifier];
     [result setObject:[NSNumber numberWithUnsignedLong:statBuf.st_dev]
                forKey:NSFileDeviceIdentifier];
-    [result setObject:[NSNumber numberWithUnsignedLong:statBuf.st_mode]
+    [result setObject:[NSNumber numberWithInt:statBuf.st_dev] forKey:NSFileSystemNumber];
+    /* The permission bits alone, as on the reference platform (it was
+       the whole mode, type bits too). */
+    [result setObject:[NSNumber numberWithUnsignedLong:statBuf.st_mode & 07777]
                forKey:NSFilePosixPermissions];
+    [result setObject:[NSNumber numberWithUnsignedLongLong:statBuf.st_ino]
+               forKey:NSFileSystemFileNumber];
 
     // ugh.. skip this if we can
     if (!S_ISREG(statBuf.st_mode)) {
@@ -419,6 +458,157 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
         [result setObject:NSFileTypeRegular forKey:NSFileType];
 
     return result;
+}
+
+/* ---- The path-based API of the reference platform (API 19) ----
+ * Cocoa errors from errno, with the path and the POSIX error beneath. */
+
+static NSError *fileError(int code, NSString *path, BOOL writing) {
+   NSInteger cocoa;
+
+   switch(code) {
+   case ENOENT: cocoa=NSFileNoSuchFileError; break;
+   case EEXIST: cocoa=NSFileWriteFileExistsError; break;
+   case EACCES: case EPERM: cocoa=writing ? NSFileWriteNoPermissionError : NSFileReadNoPermissionError; break;
+   default: cocoa=writing ? NSFileWriteUnknownError : NSFileReadUnknownError; break;
+   }
+   NSError *posix=[NSError errorWithDomain:NSPOSIXErrorDomain code:code userInfo:nil];
+   NSMutableDictionary *info=[NSMutableDictionary dictionaryWithObject:posix forKey:NSUnderlyingErrorKey];
+   if(path!=nil)
+      [info setObject:path forKey:NSFilePathErrorKey];
+   return [NSError errorWithDomain:NSCocoaErrorDomain code:cocoa userInfo:info];
+}
+
+/* The item itself: a symbolic link's attributes, not its destination's. */
+-(NSDictionary *)attributesOfItemAtPath:(NSString *)path error:(NSError **)error {
+   struct stat st;
+
+   if(path==nil || lstat([path fileSystemRepresentation],&st)!=0) {
+      if(error!=NULL)
+         *error=fileError(path ? errno : ENOENT,path,NO);
+      return nil;
+   }
+   return [self fileAttributesAtPath:path traverseLink:NO];
+}
+
+-(NSDictionary *)attributesOfFileSystemForPath:(NSString *)path error:(NSError **)error {
+   struct statfs fs;
+
+   if(path==nil || statfs([path fileSystemRepresentation],&fs)!=0) {
+      if(error!=NULL)
+         *error=fileError(path ? errno : ENOENT,path,NO);
+      return nil;
+   }
+   return [NSDictionary dictionaryWithObjectsAndKeys:
+      [NSNumber numberWithUnsignedLongLong:(unsigned long long)fs.f_blocks*fs.f_bsize],NSFileSystemSize,
+      [NSNumber numberWithUnsignedLongLong:(unsigned long long)fs.f_bavail*fs.f_bsize],NSFileSystemFreeSize,
+      [NSNumber numberWithUnsignedLongLong:fs.f_files],@"NSFileSystemNodes",
+      [NSNumber numberWithUnsignedLongLong:fs.f_ffree],@"NSFileSystemFreeNodes",
+      [NSNumber numberWithInt:fs.f_fsid.val[0]],NSFileSystemNumber,nil];
+}
+
+-(BOOL)changeCurrentDirectoryPath:(NSString *)path {
+   return path!=nil && chdir([path fileSystemRepresentation])==0;
+}
+
+-(BOOL)createSymbolicLinkAtPath:(NSString *)path withDestinationPath:(NSString *)destination error:(NSError **)error {
+   if(symlink([destination fileSystemRepresentation],[path fileSystemRepresentation])!=0) {
+      if(error!=NULL)
+         *error=fileError(errno,path,YES);
+      return NO;
+   }
+   return YES;
+}
+
+-(BOOL)linkItemAtPath:(NSString *)fromPath toPath:(NSString *)toPath error:(NSError **)error {
+   if(link([fromPath fileSystemRepresentation],[toPath fileSystemRepresentation])!=0) {
+      if(error!=NULL)
+         *error=fileError(errno,toPath,YES);
+      return NO;
+   }
+   return YES;
+}
+
+-(BOOL)linkPath:(NSString *)source toPath:(NSString *)destination handler:handler {
+   NSError *error=nil;
+
+   if(![self linkItemAtPath:source toPath:destination error:&error]) {
+      if(handler!=nil)
+         [self _errorHandler:handler src:source dest:destination operation:[error description]];
+      return NO;
+   }
+   return YES;
+}
+
+/* Deletable: its directory is writable (and, sticky, the item is ours). */
+-(BOOL)isDeletableFileAtPath:(NSString *)path {
+   NSString *parent=[path stringByDeletingLastPathComponent];
+   struct stat dir,item;
+
+   if([parent length]==0)
+      parent=@".";
+   if(access([parent fileSystemRepresentation],W_OK|X_OK)!=0)
+      return NO;
+   if(stat([parent fileSystemRepresentation],&dir)==0 && (dir.st_mode&S_ISVTX) &&
+      lstat([path fileSystemRepresentation],&item)==0 && geteuid()!=0 &&
+      item.st_uid!=geteuid() && dir.st_uid!=geteuid())
+      return NO;
+   return YES;
+}
+
+-(BOOL)contentsEqualAtPath:(NSString *)path1 andPath:(NSString *)path2 {
+   BOOL dir1,dir2;
+
+   if(![self fileExistsAtPath:path1 isDirectory:&dir1] || ![self fileExistsAtPath:path2 isDirectory:&dir2] || dir1!=dir2)
+      return NO;
+   if(!dir1)
+      return [[NSData dataWithContentsOfFile:path1] isEqual:[NSData dataWithContentsOfFile:path2]];
+   NSArray *a=[[self contentsOfDirectoryAtPath:path1 error:NULL] sortedArrayUsingSelector:@selector(compare:)];
+   NSArray *b=[[self contentsOfDirectoryAtPath:path2 error:NULL] sortedArrayUsingSelector:@selector(compare:)];
+   if(![a isEqual:b])
+      return NO;
+   for(NSString *name in a)
+      if(![self contentsEqualAtPath:[path1 stringByAppendingPathComponent:name]
+                            andPath:[path2 stringByAppendingPathComponent:name]])
+         return NO;
+   return YES;
+}
+
+-(NSArray *)subpathsOfDirectoryAtPath:(NSString *)path error:(NSError **)error {
+   BOOL isDirectory;
+
+   if(![self fileExistsAtPath:path isDirectory:&isDirectory] || !isDirectory) {
+      if(error!=NULL)
+         *error=fileError(ENOENT,path,NO);
+      return nil;
+   }
+   return [self subpathsAtPath:path];
+}
+
+-(NSArray *)componentsToDisplayForPath:(NSString *)path {
+   NSMutableArray *result=[NSMutableArray array];
+   NSString *partial=@"/";
+
+   if(![path isAbsolutePath] || ![self fileExistsAtPath:path])
+      return nil;
+   [result addObject:[self displayNameAtPath:@"/"]];
+   for(NSString *component in [path pathComponents]) {
+      if([component isEqualToString:@"/"])
+         continue;
+      partial=[partial stringByAppendingPathComponent:component];
+      [result addObject:[self displayNameAtPath:partial]];
+   }
+   return result;
+}
+
+static char delegateKey;
+
+-delegate {
+   return objc_getAssociatedObject(self,&delegateKey);
+}
+
+-(void)setDelegate:delegate {
+   objc_setAssociatedObject(self,&delegateKey,delegate,OBJC_ASSOCIATION_ASSIGN);
 }
 
 -(BOOL)isReadableFileAtPath:(NSString *)path {

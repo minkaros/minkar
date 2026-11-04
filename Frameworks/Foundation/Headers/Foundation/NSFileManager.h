@@ -37,6 +37,13 @@ FOUNDATION_EXPORT NSString *const NSFileIdentifier;
 FOUNDATION_EXPORT NSString *const NSFileDeviceIdentifier;
 
 FOUNDATION_EXPORT NSString *const NSFileSystemNumber;
+FOUNDATION_EXPORT NSString *const NSFileSystemFileNumber;
+FOUNDATION_EXPORT NSString *const NSFileOwnerAccountID;
+FOUNDATION_EXPORT NSString *const NSFileGroupOwnerAccountID;
+FOUNDATION_EXPORT NSString *const NSFileExtensionHidden;
+FOUNDATION_EXPORT NSString *const NSFileImmutable;
+FOUNDATION_EXPORT NSString *const NSFileAppendOnly;
+FOUNDATION_EXPORT NSString *const NSFileBusy;
 FOUNDATION_EXPORT NSString *const NSFileSystemSize;
 FOUNDATION_EXPORT NSString *const NSFileSystemFreeSize;
 
@@ -188,6 +195,16 @@ typedef NS_ENUM(NSInteger, NSURLRelationship) {
 
 @interface NSDictionary (NSFileManager_fileAttributes)
 - (NSDate *)fileModificationDate;
+- (NSDate *)fileCreationDate;
+- (NSNumber *)fileOwnerAccountID;
+- (NSNumber *)fileGroupOwnerAccountID;
+- (NSInteger)fileSystemNumber;
+- (NSUInteger)fileSystemFileNumber;
+- (BOOL)fileExtensionHidden;
+- (BOOL)fileIsImmutable;
+- (BOOL)fileIsAppendOnly;
+- (OSType)fileHFSCreatorCode;
+- (OSType)fileHFSTypeCode;
 - (NSUInteger)filePosixPermissions;
 - (NSString *)fileOwnerAccountName;
 - (NSString *)fileGroupOwnerAccountName;
