@@ -338,7 +338,7 @@ Goal: a complete graphical session in the Atlas visual language, with login, a g
 3. **Basic Menu Extras:** volume, displays, network, clock, notifications. Each one a loadable bundle, not built into SystemUIServer. Plan: [Menus.md](Menus.md) (MB1).
 4. **Dock:** launcher, open apps, minimizing and wallpaper, on LaunchServices. Plan: [Dock-Argos.md](Dock-Argos.md) (D0–D4).
 5. **Argos:** a new pure Cocoa app. Browsing with LaunchServices, mounting through DiskArbitration, desktop icons, Trash and "Open With". Plan: [Dock-Argos.md](Dock-Argos.md) (K0–K4).
-6. **System Preferences:** host app + `.prefPane` bundle loader (`NSPreferencePane`). First panes: Displays, Keyboard, Users, Network, Date & Time.
+6. **System Preferences:** host app + `.prefPane` bundle loader (`NSPreferencePane`). First panes: Displays, Keyboard, Users, Network, Dock, Date & Time.
 7. **AppKit:** complete the missing controls and give the whole system the Atlas visual language (our own design, no third-party artwork), prioritized by what Argos and System Preferences use.
 
 Across all of it: these are ordinary Cocoa apps or bundles, so they double as a continuous AppKit test.
