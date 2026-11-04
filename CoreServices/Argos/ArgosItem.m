@@ -9,6 +9,11 @@
 #import "ArgosItem.h"
 #import "ArgosIcons.h"
 
+NSLocale *ArgosDisplayLocale(void)
+{
+    return [NSLocale localeWithLocaleIdentifier:[[[NSBundle mainBundle] preferredLocalizations] firstObject]];
+}
+
 NSString *ArgosSizeString(unsigned long long size)
 {
     if (size < 1000)
@@ -47,14 +52,14 @@ NSString *ArgosSizeString(unsigned long long size)
         NSString *display = [[NSBundle bundleWithURL:url] objectForInfoDictionaryKey:@"CFBundleName"];
         if ([display length])
             _name = [display copy];
-        _kind = @"Application";
+        _kind = NSLocalizedString(@"Application", nil);
         _icon = [[NSWorkspace sharedWorkspace] iconForFile:[url path]];
     } else if (_isFolder) {
-        _kind = @"Folder";
+        _kind = NSLocalizedString(@"Folder", nil);
         _icon = ArgosFolderIcon();
     } else {
         NSString *extension = [[url pathExtension] uppercaseString];
-        _kind = [extension length] ? [NSString stringWithFormat:@"%@ File", extension] : @"Document";
+        _kind = [extension length] ? [NSString stringWithFormat:NSLocalizedString(@"%@ File", nil), extension] : NSLocalizedString(@"Document", nil);
         _icon = ArgosDocumentIcon();
     }
     return self;

@@ -18,5 +18,7 @@ MK_WERROR =	no
 CFLAGS +=	-fobjc-arc -g -std=gnu17 -Wno-incompatible-sysroot \
 		-Wno-nullability-completeness -I${ROOT_SOURCE_DIR}/Frameworks
 LDFLAGS +=	-lobjc
+# The Spanish texts (the English ones are the keys).
+RESOURCES =	${.CURDIR}/es.lproj
 
 .include <minkar.app.mk>

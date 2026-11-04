@@ -80,8 +80,8 @@ static NSTextField *label(CGFloat size, BOOL bold)
 
     _backButton = barButton(@"‹", self, @selector(goBack:));
     _forwardButton = barButton(@"›", self, @selector(goForward:));
-    _iconsButton = barButton(@"Icons", self, @selector(showAsIcons:));
-    _listButton = barButton(@"List", self, @selector(showAsList:));
+    _iconsButton = barButton(NSLocalizedString(@"Icons", nil), self, @selector(showAsIcons:));
+    _listButton = barButton(NSLocalizedString(@"List", nil), self, @selector(showAsList:));
     _title = label(13, YES);
     _status = label(11, NO);
     [_status setAlignment:NSCenterTextAlignment];
@@ -257,10 +257,11 @@ static void folderEvents(ConstFSEventStreamRef stream, void *info, size_t count,
     NSString *available = @"";
 
     if (statfs([[_folder path] fileSystemRepresentation], &fs) == 0)
-        available = [NSString stringWithFormat:@", %@ available",
+        available = [NSString stringWithFormat:NSLocalizedString(@", %@ available", nil),
                      ArgosSizeString((unsigned long long)fs.f_bavail * fs.f_bsize)];
-    [_status setStringValue:[NSString stringWithFormat:@"%lu item%@%@", (unsigned long)count,
-                             count == 1 ? @"" : @"s", available]];
+    NSString *items = count == 1 ? NSLocalizedString(@"1 item", nil) :
+        [NSString stringWithFormat:NSLocalizedString(@"%lu items", nil), (unsigned long)count];
+    [_status setStringValue:[items stringByAppendingString:available]];
 }
 
 - (IBAction)goBack:(id)sender

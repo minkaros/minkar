@@ -635,7 +635,7 @@ static CGFloat separatorSpace(CGFloat tile) { return round(tile / 4); }
     DockModel *model = self.model;
     DockTile *tile = model.tiles[index];
     NSMenu *menu = [[NSMenu alloc] initWithTitle:tile.label];
-    NSMenu *options = [[NSMenu alloc] initWithTitle:@"Options"];
+    NSMenu *options = [[NSMenu alloc] initWithTitle:NSLocalizedString(@"Options", nil)];
     NSMenuItem *item;
 
     [_pressTimer invalidate];
@@ -643,28 +643,28 @@ static CGFloat separatorSpace(CGFloat tile) { return round(tile / 4); }
     [menu setAutoenablesItems:NO];
     [options setAutoenablesItems:NO];
 
-    item = [options addItemWithTitle:@"Keep in Dock" action:@selector(toggleKeep:) keyEquivalent:@""];
+    item = [options addItemWithTitle:NSLocalizedString(@"Keep in Dock", nil) action:@selector(toggleKeep:) keyEquivalent:@""];
     [item setTarget:self];
     [item setRepresentedObject:tile];
     [item setState:[model isKept:tile] ? NSOnState : NSOffState];
-    item = [options addItemWithTitle:@"Open at Login" action:NULL keyEquivalent:@""];
+    item = [options addItemWithTitle:NSLocalizedString(@"Open at Login", nil) action:NULL keyEquivalent:@""];
     [item setEnabled:NO];           /* with the login items (MB3) */
-    item = [options addItemWithTitle:@"Show in Argos" action:NULL keyEquivalent:@""];
+    item = [options addItemWithTitle:NSLocalizedString(@"Show in Argos", nil) action:NULL keyEquivalent:@""];
     [item setEnabled:NO];           /* with Argos (K1) */
-    item = [menu addItemWithTitle:@"Options" action:NULL keyEquivalent:@""];
+    item = [menu addItemWithTitle:NSLocalizedString(@"Options", nil) action:NULL keyEquivalent:@""];
     [menu setSubmenu:options forItem:item];
     [menu addItem:[NSMenuItem separatorItem]];
 
     if (tile.application != nil) {
-        item = [menu addItemWithTitle:@"Show All Windows" action:@selector(openTileItem:) keyEquivalent:@""];
+        item = [menu addItemWithTitle:NSLocalizedString(@"Show All Windows", nil) action:@selector(openTileItem:) keyEquivalent:@""];
         [item setTarget:self];
         [item setRepresentedObject:tile];
         [menu addItem:[NSMenuItem separatorItem]];
-        item = [menu addItemWithTitle:@"Quit" action:@selector(quitTileItem:) keyEquivalent:@""];
+        item = [menu addItemWithTitle:NSLocalizedString(@"Quit", nil) action:@selector(quitTileItem:) keyEquivalent:@""];
         [item setTarget:self];
         [item setRepresentedObject:tile];
     } else {
-        item = [menu addItemWithTitle:@"Open" action:@selector(openTileItem:) keyEquivalent:@""];
+        item = [menu addItemWithTitle:NSLocalizedString(@"Open", nil) action:@selector(openTileItem:) keyEquivalent:@""];
         [item setTarget:self];
         [item setRepresentedObject:tile];
     }

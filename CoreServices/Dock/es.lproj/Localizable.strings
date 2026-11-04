@@ -1,0 +1,11 @@
+/* SPDX-License-Identifier: BSD-2-Clause
+   Copyright (c) 2026 The Minkar contributors
+   The Dock, in Spanish. The keys are the English texts. */
+
+"Options" = "Opciones";
+"Keep in Dock" = "Mantener en el Dock";
+"Open at Login" = "Abrir al iniciar sesión";
+"Show in Argos" = "Mostrar en Argos";
+"Show All Windows" = "Mostrar todas las ventanas";
+"Quit" = "Salir";
+"Open" = "Abrir";

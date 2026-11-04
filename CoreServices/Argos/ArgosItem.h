@@ -24,6 +24,9 @@ NS_ASSUME_NONNULL_BEGIN
 + (NSArray<ArgosItem *> *)itemsInFolder:(NSURL *)folder error:(NSError **)error;
 @end
 
+/* The locale of the language Argos's texts are shown in (dates). */
+NSLocale *ArgosDisplayLocale(void);
+
 /* "12 KB", "1.4 MB": sizes in the reference platform's style (1000-based). */
 NSString *ArgosSizeString(unsigned long long size);
 

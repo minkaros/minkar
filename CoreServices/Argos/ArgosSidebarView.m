@@ -19,16 +19,16 @@ static const CGFloat kRow = 24, kSection = 26;
 {
     if ((self = [super initWithFrame:frame]) != nil) {
         NSString *home = NSHomeDirectory();
-        NSMutableArray *rows = [NSMutableArray arrayWithObject:@{ @"section": @"Favorites" }];
-        NSArray *favorites = @[ @[ @"Applications", @"/Applications" ],
-                                @[ @"Desktop", [home stringByAppendingPathComponent:@"Desktop"] ],
-                                @[ @"Documents", [home stringByAppendingPathComponent:@"Documents"] ],
-                                @[ @"Downloads", [home stringByAppendingPathComponent:@"Downloads"] ],
+        NSMutableArray *rows = [NSMutableArray arrayWithObject:@{ @"section": NSLocalizedString(@"Favorites", nil) }];
+        NSArray *favorites = @[ @[ NSLocalizedString(@"Applications", nil), @"/Applications" ],
+                                @[ NSLocalizedString(@"Desktop", nil), [home stringByAppendingPathComponent:@"Desktop"] ],
+                                @[ NSLocalizedString(@"Documents", nil), [home stringByAppendingPathComponent:@"Documents"] ],
+                                @[ NSLocalizedString(@"Downloads", nil), [home stringByAppendingPathComponent:@"Downloads"] ],
                                 @[ [home lastPathComponent], home ] ];
         for (NSArray *f in favorites)
             if ([[NSFileManager defaultManager] fileExistsAtPath:f[1]])
                 [rows addObject:@{ @"title": f[0], @"url": [NSURL fileURLWithPath:f[1]] }];
-        [rows addObject:@{ @"section": @"Locations" }];
+        [rows addObject:@{ @"section": NSLocalizedString(@"Locations", nil) }];
         [rows addObject:@{ @"title": @"Minkar", @"url": [NSURL fileURLWithPath:@"/"] }];
         _rows = rows;
     }

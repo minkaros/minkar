@@ -30,7 +30,8 @@ static NSColor *selectionColor(void)
         _selected = -1;
         _items = @[];
         _dateFormatter = [[NSDateFormatter alloc] init];
-        [_dateFormatter setDateFormat:@"d MMM yyyy 'at' HH:mm"];
+        [_dateFormatter setLocale:ArgosDisplayLocale()];
+        [_dateFormatter setDateFormat:NSLocalizedString(@"d MMM yyyy 'at' HH:mm", @"Date Modified column")];
     }
     return self;
 }
@@ -173,10 +174,10 @@ static void drawText(NSString *text, NSRect rect, NSDictionary *attributes)
         NSRectFill(NSMakeRect(0, 0, NSWidth([self bounds]), kHeaderHeight));
         [[NSColor colorWithCalibratedWhite:0.85 alpha:1] set];
         NSRectFill(NSMakeRect(0, kHeaderHeight - 1, NSWidth([self bounds]), 1));
-        drawText(@"Name", NSMakeRect(name, 0, date - name - 8, kHeaderHeight), header);
-        drawText(@"Date Modified", NSMakeRect(date, 0, size - date - 8, kHeaderHeight), header);
-        drawText(@"Size", NSMakeRect(size, 0, kind - size - 8, kHeaderHeight), header);
-        drawText(@"Kind", NSMakeRect(kind, 0, NSWidth([self bounds]) - kind - 8, kHeaderHeight), header);
+        drawText(NSLocalizedString(@"Name", nil), NSMakeRect(name, 0, date - name - 8, kHeaderHeight), header);
+        drawText(NSLocalizedString(@"Date Modified", nil), NSMakeRect(date, 0, size - date - 8, kHeaderHeight), header);
+        drawText(NSLocalizedString(@"Size", nil), NSMakeRect(size, 0, kind - size - 8, kHeaderHeight), header);
+        drawText(NSLocalizedString(@"Kind", nil), NSMakeRect(kind, 0, NSWidth([self bounds]) - kind - 8, kHeaderHeight), header);
 
         for (NSUInteger i = 0; i < [_items count]; i++) {
             NSRect row = [self rectForIndex:i];

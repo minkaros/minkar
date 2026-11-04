@@ -55,31 +55,31 @@ static void addMenu(NSString *title, NSMenu *menu)
     NSUInteger cmd = NSCommandKeyMask, shift = NSCommandKeyMask | NSShiftKeyMask;
     NSString *up = [NSString stringWithFormat:@"%C", (unichar)NSUpArrowFunctionKey];
 
-    NSMenu *file = [[NSMenu alloc] initWithTitle:@"File"];
-    item(file, @"New Window", self, @selector(newWindow:), @"n", cmd);
-    item(file, @"Open", self, @selector(openSelection:), @"o", cmd);
-    item(file, @"Get Info", self, @selector(getInfo:), @"i", cmd);
+    NSMenu *file = [[NSMenu alloc] initWithTitle:NSLocalizedString(@"File", nil)];
+    item(file, NSLocalizedString(@"New Window", nil), self, @selector(newWindow:), @"n", cmd);
+    item(file, NSLocalizedString(@"Open", nil), self, @selector(openSelection:), @"o", cmd);
+    item(file, NSLocalizedString(@"Get Info", nil), self, @selector(getInfo:), @"i", cmd);
     [file addItem:[NSMenuItem separatorItem]];
-    item(file, @"Close Window", self, @selector(closeWindow:), @"w", cmd);
-    addMenu(@"File", file);
+    item(file, NSLocalizedString(@"Close Window", nil), self, @selector(closeWindow:), @"w", cmd);
+    addMenu(NSLocalizedString(@"File", nil), file);
 
-    NSMenu *view = [[NSMenu alloc] initWithTitle:@"View"];
-    item(view, @"as Icons", self, @selector(showAsIcons:), @"1", cmd);
-    item(view, @"as List", self, @selector(showAsList:), @"2", cmd);
-    addMenu(@"View", view);
+    NSMenu *view = [[NSMenu alloc] initWithTitle:NSLocalizedString(@"View", nil)];
+    item(view, NSLocalizedString(@"as Icons", nil), self, @selector(showAsIcons:), @"1", cmd);
+    item(view, NSLocalizedString(@"as List", nil), self, @selector(showAsList:), @"2", cmd);
+    addMenu(NSLocalizedString(@"View", nil), view);
 
-    NSMenu *go = [[NSMenu alloc] initWithTitle:@"Go"];
-    item(go, @"Back", self, @selector(goBack:), @"[", cmd);
-    item(go, @"Forward", self, @selector(goForward:), @"]", cmd);
-    item(go, @"Enclosing Folder", self, @selector(goToEnclosingFolder:), up, cmd);
+    NSMenu *go = [[NSMenu alloc] initWithTitle:NSLocalizedString(@"Go", nil)];
+    item(go, NSLocalizedString(@"Back", nil), self, @selector(goBack:), @"[", cmd);
+    item(go, NSLocalizedString(@"Forward", nil), self, @selector(goForward:), @"]", cmd);
+    item(go, NSLocalizedString(@"Enclosing Folder", nil), self, @selector(goToEnclosingFolder:), up, cmd);
     [go addItem:[NSMenuItem separatorItem]];
-    item(go, @"Computer", self, @selector(goComputer:), @"c", shift);
-    item(go, @"Home", self, @selector(goHome:), @"h", shift);
-    item(go, @"Desktop", self, @selector(goDesktop:), @"d", shift);
-    item(go, @"Documents", self, @selector(goDocuments:), @"o", shift);
-    item(go, @"Applications", self, @selector(goApplications:), @"a", shift);
-    item(go, @"Utilities", self, @selector(goUtilities:), @"u", shift);
-    addMenu(@"Go", go);
+    item(go, NSLocalizedString(@"Computer", nil), self, @selector(goComputer:), @"c", shift);
+    item(go, NSLocalizedString(@"Home", nil), self, @selector(goHome:), @"h", shift);
+    item(go, NSLocalizedString(@"Desktop", nil), self, @selector(goDesktop:), @"d", shift);
+    item(go, NSLocalizedString(@"Documents", nil), self, @selector(goDocuments:), @"o", shift);
+    item(go, NSLocalizedString(@"Applications", nil), self, @selector(goApplications:), @"a", shift);
+    item(go, NSLocalizedString(@"Utilities", nil), self, @selector(goUtilities:), @"u", shift);
+    addMenu(NSLocalizedString(@"Go", nil), go);
 }
 
 - (void)applicationDidFinishLaunching:(NSNotification *)note

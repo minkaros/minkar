@@ -10,7 +10,13 @@
 #import "ClockExtra.h"
 
 static NSString *const kDomain = @"org.minkar.menuextra.clock";
-static NSString *const kDefaultFormat = @"EEE d MMM  HH:mm";
+#define kDefaultFormat NSLocalizedString(@"EEE d MMM  HH:mm", @"the clock in the menu bar")
+
+/* Day and month names in the language the texts are shown in. */
+static NSLocale *displayLocale(void)
+{
+    return [NSLocale localeWithLocaleIdentifier:[[[NSBundle mainBundle] preferredLocalizations] firstObject]];
+}
 
 static NSString *clockFormat(void)
 {
@@ -30,6 +36,7 @@ static NSString *clockFormat(void)
 {
     NSDateFormatter *formatter = [[NSDateFormatter alloc] init];
 
+    [formatter setLocale:displayLocale()];
     [formatter setDateFormat:clockFormat()];
     return [formatter stringFromDate:date];
 }
@@ -45,7 +52,7 @@ static NSString *clockFormat(void)
     [_dateItem setEnabled:NO];
     [menu addItem:_dateItem];
     [menu addItem:[NSMenuItem separatorItem]];
-    NSMenuItem *prefs = [[NSMenuItem alloc] initWithTitle:@"Open Date & Time Preferences…"
+    NSMenuItem *prefs = [[NSMenuItem alloc] initWithTitle:NSLocalizedString(@"Open Date & Time Preferences…", nil)
                                                    action:NULL keyEquivalent:@""];
     [prefs setEnabled:NO];   /* with System Preferences (MB3) */
     [menu addItem:prefs];
@@ -68,7 +75,8 @@ static NSString *clockFormat(void)
     NSDate *now = [NSDate date];
     NSDateFormatter *full = [[NSDateFormatter alloc] init];
 
-    [full setDateFormat:@"EEEE d MMMM yyyy"];
+    [full setLocale:displayLocale()];
+    [full setDateFormat:NSLocalizedString(@"EEEE d MMMM yyyy", @"the date in the clock's menu")];
     [_item setTitle:[ClockExtra titleForDate:now]];
     [_dateItem setTitle:[full stringFromDate:now]];
 }

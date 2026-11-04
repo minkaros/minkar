@@ -63,28 +63,29 @@ static NSMutableArray<ArgosInfoWindow *> *openWindows;
     ArgosInfoWindow *window = [[ArgosInfoWindow alloc] initWithContentRect:NSMakeRect(220, 200, 320, 280)
         styleMask:NSTitledWindowMask | NSClosableWindowMask | NSMiniaturizableWindowMask
           backing:NSBackingStoreBuffered defer:NO];
-    [window setTitle:[NSString stringWithFormat:@"%@ Info", item.name]];
+    [window setTitle:[NSString stringWithFormat:NSLocalizedString(@"%@ Info", nil), item.name]];
     [window setReleasedWhenClosed:NO];
 
     NSDictionary *attributes = [[NSFileManager defaultManager] attributesOfItemAtPath:[item.URL path] error:NULL];
     NSDateFormatter *dates = [[NSDateFormatter alloc] init];
-    [dates setDateFormat:@"EEEE, d MMMM yyyy 'at' HH:mm"];
+    [dates setLocale:ArgosDisplayLocale()];
+    [dates setDateFormat:NSLocalizedString(@"EEEE, d MMMM yyyy 'at' HH:mm", @"Get Info dates")];
     NSString *size;
     if (item.isFolder)
-        size = [NSString stringWithFormat:@"%lu items",
+        size = [NSString stringWithFormat:NSLocalizedString(@"%lu items", nil),
                 (unsigned long)[[[NSFileManager defaultManager] contentsOfDirectoryAtPath:[item.URL path] error:NULL] count]];
     else
-        size = [NSString stringWithFormat:@"%llu bytes (%@ on disk)", item.size, ArgosSizeString(item.size)];
+        size = [NSString stringWithFormat:NSLocalizedString(@"%llu bytes (%@ on disk)", nil), item.size, ArgosSizeString(item.size)];
     NSDate *created = [attributes fileCreationDate], *modified = [attributes fileModificationDate];
 
     ArgosInfoView *view = [[ArgosInfoView alloc] initWithFrame:NSMakeRect(0, 0, 320, 280)];
     view.item = item;
-    view.rows = @[ @[ @"Kind:", item.kind ],
-                   @[ @"Size:", size ],
-                   @[ @"Where:", [[item.URL path] stringByDeletingLastPathComponent] ],
-                   @[ @"Created:", created ? [dates stringFromDate:created] : @"--" ],
-                   @[ @"Modified:", modified ? [dates stringFromDate:modified] : @"--" ],
-                   @[ @"Owner:", [attributes fileOwnerAccountName] ?: @"--" ] ];
+    view.rows = @[ @[ NSLocalizedString(@"Kind:", nil), item.kind ],
+                   @[ NSLocalizedString(@"Size:", nil), size ],
+                   @[ NSLocalizedString(@"Where:", nil), [[item.URL path] stringByDeletingLastPathComponent] ],
+                   @[ NSLocalizedString(@"Created:", nil), created ? [dates stringFromDate:created] : @"--" ],
+                   @[ NSLocalizedString(@"Modified:", nil), modified ? [dates stringFromDate:modified] : @"--" ],
+                   @[ NSLocalizedString(@"Owner:", nil), [attributes fileOwnerAccountName] ?: @"--" ] ];
     [view setAutoresizingMask:NSViewWidthSizable | NSViewHeightSizable];
     [window setContentView:view];
     [openWindows addObject:window];

@@ -1,0 +1,7 @@
+/* SPDX-License-Identifier: BSD-2-Clause
+   Copyright (c) 2026 The Minkar contributors
+   SystemUIServer, in Spanish. The keys are the English texts. */
+
+"Open Date & Time Preferences…" = "Abrir preferencias de Fecha y hora…";
+"EEE d MMM  HH:mm" = "EEE d MMM  HH:mm";
+"EEEE d MMMM yyyy" = "EEEE, d 'de' MMMM 'de' yyyy";

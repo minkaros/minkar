@@ -1,0 +1,59 @@
+/* SPDX-License-Identifier: BSD-2-Clause
+   Copyright (c) 2026 The Minkar contributors
+   Argos, in Spanish. The keys are the English texts. */
+
+/* Menus */
+"File" = "Archivo";
+"New Window" = "Nueva ventana";
+"Open" = "Abrir";
+"Get Info" = "Obtener información";
+"Close Window" = "Cerrar ventana";
+"View" = "Visualización";
+"as Icons" = "como iconos";
+"as List" = "como lista";
+"Go" = "Ir";
+"Back" = "Atrás";
+"Forward" = "Adelante";
+"Enclosing Folder" = "Carpeta contenedora";
+"Computer" = "Equipo";
+"Home" = "Inicio";
+"Desktop" = "Escritorio";
+"Documents" = "Documentos";
+"Downloads" = "Descargas";
+"Applications" = "Aplicaciones";
+"Utilities" = "Utilidades";
+
+/* Sidebar */
+"Favorites" = "Favoritos";
+"Locations" = "Ubicaciones";
+
+/* Window */
+"Icons" = "Iconos";
+"List" = "Lista";
+"1 item" = "1 ítem";
+"%lu items" = "%lu ítems";
+", %@ available" = ", %@ disponibles";
+
+/* List view */
+"Name" = "Nombre";
+"Date Modified" = "Fecha de modificación";
+"Size" = "Tamaño";
+"Kind" = "Clase";
+"d MMM yyyy 'at' HH:mm" = "d MMM yyyy, HH:mm";
+
+/* Kinds */
+"Application" = "Aplicación";
+"Folder" = "Carpeta";
+"Document" = "Documento";
+"%@ File" = "Archivo %@";
+
+/* Get Info */
+"%@ Info" = "Información de %@";
+"Kind:" = "Clase:";
+"Size:" = "Tamaño:";
+"Where:" = "Ubicación:";
+"Created:" = "Creado:";
+"Modified:" = "Modificado:";
+"Owner:" = "Propietario:";
+"%llu bytes (%@ on disk)" = "%llu bytes (%@ en disco)";
+"EEEE, d MMMM yyyy 'at' HH:mm" = "EEEE, d 'de' MMMM 'de' yyyy, HH:mm";
