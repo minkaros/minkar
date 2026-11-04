@@ -13,6 +13,7 @@ NS_ASSUME_NONNULL_BEGIN
 @interface ArgosWindowController : NSObject
 @property (nonatomic, readonly) NSWindow *window;
 @property (nonatomic, readonly) NSURL *folder;
+@property (nonatomic, readonly, nullable) ArgosItem *selectedItem;
 - (instancetype)initWithFolder:(NSURL *)folder;
 - (void)goToFolder:(NSURL *)folder;
 - (IBAction)goBack:(nullable id)sender;

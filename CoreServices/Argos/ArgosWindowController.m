@@ -12,6 +12,7 @@
 #import "ArgosSidebarView.h"
 #include <sys/mount.h>
 #include <os/log.h>
+#include <CoreServices/CoreServices.h>
 
 static const CGFloat kBarHeight = 38, kStatusHeight = 22, kSidebarWidth = 170;
 
@@ -32,6 +33,8 @@ static const CGFloat kBarHeight = 38, kStatusHeight = 22, kSidebarWidth = 170;
     ArgosBrowserView *_browser;
     NSButton *_backButton, *_forwardButton, *_iconsButton, *_listButton;
     NSTextField *_title, *_status;
+    FSEventStreamRef _watch;      /* the folder shown, while it changes */
+    dispatch_queue_t _watchQueue;
 }
 
 static NSButton *barButton(NSString *title, id target, SEL action)
@@ -112,6 +115,11 @@ static NSTextField *label(CGFloat size, BOOL bold)
     return _folder;
 }
 
+- (ArgosItem *)selectedItem
+{
+    return _browser.selectedItem;
+}
+
 - (void)layout
 {
     NSRect b = [[_window contentView] bounds];
@@ -145,6 +153,7 @@ static NSTextField *label(CGFloat size, BOOL bold)
         [_forward removeAllObjects];
     }
     _folder = [folder copy];
+    [self watchFolder];
     os_log_info(OS_LOG_DEFAULT, "folder %{public}s", [[folder path] fileSystemRepresentation]);
     _browser.items = items;
     _sidebar.currentURL = folder;
@@ -158,6 +167,79 @@ static NSTextField *label(CGFloat size, BOOL bold)
 - (void)goToFolder:(NSURL *)folder
 {
     [self goToFolder:folder remember:YES];
+}
+
+/* The folder shown is read again when it changes (an item made, removed
+ * or renamed in it), keeping the selection: an FSEvents stream on it,
+ * whose events name the folders changed (a subfolder's change is not this
+ * folder's). */
+static void folderEvents(ConstFSEventStreamRef stream, void *info, size_t count, void *paths,
+    const FSEventStreamEventFlags flags[], const FSEventStreamEventId ids[])
+{
+    ArgosWindowController *self = (__bridge ArgosWindowController *)info;
+    char resolved[PATH_MAX];
+    const char *folder = realpath([[self->_folder path] fileSystemRepresentation], resolved);
+
+    (void)stream; (void)ids;
+    for (size_t i = 0; i < count; i++) {
+        const char *path = ((char **)paths)[i];
+        size_t n = folder ? strlen(folder) : 0;
+        BOOL here = folder && strncmp(path, folder, n) == 0 &&
+            (strcmp(path + n, "/") == 0 || (strcmp(folder, "/") == 0 && strcmp(path, "/") == 0));
+        if (here || (flags[i] & kFSEventStreamEventFlagMustScanSubDirs)) {
+            [self performSelectorOnMainThread:@selector(folderChanged) withObject:nil waitUntilDone:NO];
+            return;
+        }
+    }
+}
+
+- (void)watchFolder
+{
+    if (_watch != NULL) {
+        FSEventStreamStop(_watch);
+        FSEventStreamInvalidate(_watch);
+        FSEventStreamRelease(_watch);
+        _watch = NULL;
+    }
+    if (_watchQueue == nil)
+        _watchQueue = dispatch_queue_create("org.minkar.argos.folder", NULL);
+    FSEventStreamContext context = { 0, (__bridge void *)self, NULL, NULL, NULL };
+    _watch = FSEventStreamCreate(NULL, folderEvents, &context, (__bridge CFArrayRef)@[ [_folder path] ],
+                                 kFSEventStreamEventIdSinceNow, 0.3, kFSEventStreamCreateFlagNone);
+    if (_watch == NULL)
+        return;
+    FSEventStreamSetDispatchQueue(_watch, _watchQueue);
+    if (!FSEventStreamStart(_watch)) {
+        FSEventStreamInvalidate(_watch);
+        FSEventStreamRelease(_watch);
+        _watch = NULL;
+    }
+}
+
+- (void)folderChanged
+{
+    NSString *selected = [_browser.selectedItem.URL lastPathComponent];
+    NSArray *items = [ArgosItem itemsInFolder:_folder error:NULL];
+
+    if (items == nil) {
+        /* Gone: its enclosing folder. */
+        [self goToEnclosingFolder:nil];
+        return;
+    }
+    os_log_info(OS_LOG_DEFAULT, "reload %{public}s", [[_folder path] fileSystemRepresentation]);
+    _browser.items = items;
+    if (selected != nil)
+        [_browser selectItemNamed:selected];
+    [self updateStatus];
+}
+
+- (void)dealloc
+{
+    if (_watch != NULL) {
+        FSEventStreamStop(_watch);
+        FSEventStreamInvalidate(_watch);
+        FSEventStreamRelease(_watch);
+    }
 }
 
 - (void)updateButtons

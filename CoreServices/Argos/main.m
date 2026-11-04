@@ -10,6 +10,7 @@
  */
 
 #import "ArgosWindowController.h"
+#import "ArgosInfoWindow.h"
 
 @interface ArgosApplication : NSObject <NSApplicationDelegate>
 @end
@@ -57,6 +58,7 @@ static void addMenu(NSString *title, NSMenu *menu)
     NSMenu *file = [[NSMenu alloc] initWithTitle:@"File"];
     item(file, @"New Window", self, @selector(newWindow:), @"n", cmd);
     item(file, @"Open", self, @selector(openSelection:), @"o", cmd);
+    item(file, @"Get Info", self, @selector(getInfo:), @"i", cmd);
     [file addItem:[NSMenuItem separatorItem]];
     item(file, @"Close Window", self, @selector(closeWindow:), @"w", cmd);
     addMenu(@"File", file);
@@ -118,6 +120,14 @@ static void addMenu(NSString *title, NSMenu *menu)
 }
 
 - (void)openSelection:(id)sender { [[self front] openSelection:sender]; }
+- (void)getInfo:(id)sender
+{
+    ArgosItem *item = [[self front] selectedItem];
+    if (item == nil && [self front] != nil)
+        item = [[ArgosItem alloc] initWithURL:[[self front] folder]];
+    if (item != nil)
+        [ArgosInfoWindow showForItem:item];
+}
 - (void)showAsIcons:(id)sender { [[self front] showAsIcons:sender]; }
 - (void)showAsList:(id)sender { [[self front] showAsList:sender]; }
 - (void)goBack:(id)sender { [[self front] goBack:sender]; }

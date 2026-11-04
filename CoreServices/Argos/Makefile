@@ -10,11 +10,11 @@ SUBDIR =
 APP =		Argos
 APP_INSTALL_DIR = /System/Library/CoreServices
 SRCS =		main.m ArgosItem.m ArgosIcons.m ArgosBrowserView.m ArgosSidebarView.m \
-		ArgosWindowController.m
-FRAMEWORKS =	Cocoa
+		ArgosWindowController.m ArgosInfoWindow.m
+FRAMEWORKS =	Cocoa CoreServices
 MK_WERROR =	no
 CFLAGS +=	-fobjc-arc -g -std=gnu17 -Wno-incompatible-sysroot \
-		-Wno-nullability-completeness -I${ROOT_SOURCE_DIR}/Frameworks
+		-Wno-nullability-completeness
 LDFLAGS +=	-lobjc
 
 .include <minkar.app.mk>
