@@ -16,6 +16,8 @@ NS_ASSUME_NONNULL_BEGIN
 @property (nonatomic, readonly, nullable) ArgosItem *selectedItem;
 - (instancetype)initWithFolder:(NSURL *)folder;
 - (void)goToFolder:(NSURL *)folder;
+/* Selects an item of the folder shown, in any view. */
+- (void)selectItemNamed:(NSString *)name;
 - (IBAction)goBack:(nullable id)sender;
 - (IBAction)goForward:(nullable id)sender;
 - (IBAction)goToEnclosingFolder:(nullable id)sender;

@@ -11,6 +11,7 @@
 
 #import "ArgosWindowController.h"
 #import "ArgosInfoWindow.h"
+#include <os/log.h>
 
 @interface ArgosApplication : NSObject <NSApplicationDelegate>
 @end
@@ -27,11 +28,66 @@
     return [_windows lastObject];
 }
 
-- (void)openWindowAt:(NSURL *)folder
+- (ArgosWindowController *)openWindowAt:(NSURL *)folder
 {
+    if (_windows == nil)
+        _windows = [NSMutableArray array];
     ArgosWindowController *c = [[ArgosWindowController alloc] initWithFolder:folder];
     [_windows addObject:c];
     [c.window makeKeyAndOrderFront:nil];
+    return c;
+}
+
+/* A window on the folder: one showing it already, else a new one. */
+- (ArgosWindowController *)windowFor:(NSURL *)folder
+{
+    NSString *path = [[folder path] stringByStandardizingPath];
+
+    for (ArgosWindowController *c in _windows)
+        if ([[[c.folder path] stringByStandardizingPath] isEqualToString:path]) {
+            [c.window makeKeyAndOrderFront:nil];
+            return c;
+        }
+    return [self openWindowAt:folder];
+}
+
+/* LaunchServices: folders to open (Argos opens public.folder). */
+- (void)application:(NSApplication *)app openURLs:(NSArray<NSURL *> *)urls
+{
+    for (NSURL *url in urls) {
+        BOOL dir = NO;
+        if (![url isFileURL] || ![[NSFileManager defaultManager] fileExistsAtPath:[url path] isDirectory:&dir])
+            continue;
+        os_log_info(OS_LOG_DEFAULT, "open request %{public}s", [[url path] fileSystemRepresentation]);
+        if (dir)
+            [self windowFor:url];
+        else
+            [self revealURL:url];
+    }
+}
+
+/* LSRevealInArgos (open -R, NSWorkspace's reveal methods): each item
+ * selected in a window on its folder. */
+- (void)application:(NSApplication *)app revealURLs:(NSArray<NSURL *> *)urls
+{
+    for (NSURL *url in urls)
+        if ([url isFileURL])
+            [self revealURL:url];
+}
+
+- (void)revealURL:(NSURL *)url
+{
+    NSString *path = [[url path] stringByStandardizingPath];
+
+    if (![[NSFileManager defaultManager] fileExistsAtPath:path])
+        return;
+    os_log_info(OS_LOG_DEFAULT, "reveal %{public}s", [path fileSystemRepresentation]);
+    if ([path isEqualToString:@"/"]) {
+        [self windowFor:[NSURL fileURLWithPath:@"/"]];
+        return;
+    }
+    ArgosWindowController *c = [self windowFor:[NSURL fileURLWithPath:[path stringByDeletingLastPathComponent]]];
+    [c selectItemNamed:[path lastPathComponent]];
 }
 
 static NSMenuItem *item(NSMenu *menu, NSString *title, id target, SEL action, NSString *key, NSUInteger modifiers)
@@ -85,9 +141,10 @@ static void addMenu(NSString *title, NSMenu *menu)
 
 - (void)applicationDidFinishLaunching:(NSNotification *)note
 {
-    _windows = [NSMutableArray array];
     [self buildMenus];
-    [self openWindowAt:[NSURL fileURLWithPath:NSHomeDirectory()]];
+    /* Launched to open or show something: those windows only. */
+    if ([_windows count] == 0)
+        [self openWindowAt:[NSURL fileURLWithPath:NSHomeDirectory()]];
 }
 
 /* Argos stays when its last window closes, as the reference platform's

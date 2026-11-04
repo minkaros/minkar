@@ -195,6 +195,14 @@ static NSTextField *label(CGFloat size, BOOL bold)
     [self goToFolder:folder remember:YES];
 }
 
+- (void)selectItemNamed:(NSString *)name
+{
+    if (_browser.mode == ArgosViewModeColumns)
+        [_columns selectItemNamed:name];
+    else
+        [_browser selectItemNamed:name];
+}
+
 /* The folder shown is read again when it changes (an item made, removed
  * or renamed in it), keeping the selection: an FSEvents stream on it,
  * whose events name the folders changed (a subfolder's change is not this
