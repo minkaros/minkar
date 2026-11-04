@@ -6,9 +6,9 @@
 # plan); WindowServer/Demo is its demo client. The keymap (WSKeymap and
 # libxkbcommon) lives in PrivateFrameworks/SkyLight/Keymap.
 #
-# FIXME: Dock, Filer, DMIHelper, SystemUIServer and the login window of
-# ravynOS (loginwindow/LoginWindow.m, LoadingWindow) still use the old
-# build rules and are not built yet.
+# FIXME: Filer, DMIHelper and the login window of ravynOS
+# (loginwindow/LoginWindow.m, LoadingWindow) still use the old build rules
+# and are not built yet.
 
 SUBDIR = ../PrivateFrameworks/SkyLight/Keymap/libxkbcommon .WAIT WindowServer/Demo
 # The window server and its test client (SkyLight.framework is built
@@ -28,6 +28,9 @@ SUBDIR += iosurfaced ../Frameworks/IOSurface/tests
 SUBDIR += pboard pboard/tests
 # os_log's messages kept (Phase 3).
 SUBDIR += logd
+# The desktop session apps loginwindow starts (Phase 5): the Dock and
+# the desktop (Dock-Kraz.md, D1), and the Menu Extras (Menus.md, MB1).
+SUBDIR += Dock SystemUIServer
 # The code integrity policy's test program (it needs IOKit).
 SUBDIR += ../Kernel/Extensions/MinkarCodeIntegrity/tests
 # IOHIDSystem's event queue reader, for the input tests (it needs IOKit).

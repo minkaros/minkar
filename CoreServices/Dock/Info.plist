@@ -2,26 +2,24 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-	<key>CFBundleName</key>
-	<string>Dock.app</string>
-	<key>CFBundleDisplayName</key>
-	<string>Dock</string>
-	<key>CFBundleIdentifier</key>
-	<string>org.minkar.Dock</string>
-	<key>CFBundleVersion</key>
-	<string>1.0</string>
-	<key>CFBundlePackageType</key>
-	<string>APPL</string>
-	<key>CFBundleSignature</key>
-	<string>OBJC</string>
+	<key>CFBundleDevelopmentRegion</key>
+	<string>en</string>
 	<key>CFBundleExecutable</key>
 	<string>Dock</string>
+	<key>CFBundleIdentifier</key>
+	<string>org.minkar.dock</string>
+	<key>CFBundleName</key>
+	<string>Dock</string>
+	<key>CFBundlePackageType</key>
+	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
-	<string>1.0.0</string>
+	<string>19.6.0</string>
+	<key>CFBundleVersion</key>
+	<string>1</string>
+	<key>LSUIElement</key>
+	<true/>
 	<key>NSHumanReadableCopyright</key>
-	<string>Copyright (C) 2021-2024 Zoe Knox</string>
-	<key>CFBundleIconFile</key>
-	<string>Dock.png</string>
+	<string>Copyright (c) 2026 The Minkar contributors</string>
 	<key>NSPrincipalClass</key>
 	<string>NSApplication</string>
 </dict>
