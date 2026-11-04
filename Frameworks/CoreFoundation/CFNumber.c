@@ -27,6 +27,7 @@
 */
 
 #include <CoreFoundation/CFNumber.h>
+#define CF_OBJC_DISPATCH 1	/* Minkar: toll-free bridging (CFInternal.h) */
 #include "CFInternal.h"
 #include <CoreFoundation/CFPriv.h>
 #include <math.h>

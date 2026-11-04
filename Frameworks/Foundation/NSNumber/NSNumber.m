@@ -534,6 +534,57 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 @end
 
+#import <CoreFoundation/CFNumber.h>
+
+/* What CF's number functions ask of an NSNumber that is not a CF number
+ * (CF_OBJC_FUNCDISPATCHV in CFNumber.c): its type, its value as one of
+ * CF's canonical types, and comparisons. Without them CF read Foundation's
+ * numbers as its own and got 0 (a number written to the preferences or a
+ * property list through CF was lost). */
+@implementation NSNumber (CFNumberBridge)
+
+- (CFNumberType)_cfNumberType {
+   switch ([self objCType][0]) {
+   case 'c': case 'B': return kCFNumberCharType;
+   case 's': return kCFNumberShortType;
+   case 'i': return kCFNumberIntType;
+   case 'l': return kCFNumberLongType;
+   case 'f': return kCFNumberFloatType;
+   case 'd': return kCFNumberDoubleType;
+   case 'C': return kCFNumberShortType;     /* fits, as CF keeps it */
+   case 'S': return kCFNumberIntType;
+   default: return kCFNumberLongLongType;   /* q, I, L, Q */
+   }
+}
+
+- (BOOL)_getValue:(void *)value forType:(CFNumberType)type {
+   switch (type) {
+   case kCFNumberSInt8Type: *(int8_t *)value = (int8_t)[self longLongValue]; break;
+   case kCFNumberSInt16Type: *(int16_t *)value = (int16_t)[self longLongValue]; break;
+   case kCFNumberSInt32Type: *(int32_t *)value = (int32_t)[self longLongValue]; break;
+   case kCFNumberSInt64Type: *(int64_t *)value = (int64_t)[self longLongValue]; break;
+   case kCFNumberFloat32Type: *(float *)value = [self floatValue]; break;
+   case kCFNumberFloat64Type: *(double *)value = [self doubleValue]; break;
+   default: {
+      /* CF's private 128-bit type: high word, then low word. */
+      int64_t low = [self longLongValue];
+      ((int64_t *)value)[0] = low < 0 ? -1 : 0;
+      ((uint64_t *)value)[1] = (uint64_t)low;
+      break;
+   }
+   }
+   return YES;
+}
+
+- (NSComparisonResult)_reverseCompare:(NSNumber *)other {
+   NSComparisonResult result = [other compare:self];
+
+   return result == NSOrderedAscending ? NSOrderedDescending :
+          result == NSOrderedDescending ? NSOrderedAscending : NSOrderedSame;
+}
+
+@end
+
 #import <Foundation/NSCFTypeID.h>
 
 @implementation NSNumber (CFTypeID)

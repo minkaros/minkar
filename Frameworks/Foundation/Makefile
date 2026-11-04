@@ -137,6 +137,7 @@ SRCS = 	NSFormatter.m \
 	NSString/NSStringCFBridging.m \
 	NSCFCollections.m \
 	NSCFData.m \
+	NSCFNumber.m \
 	NSString/NSDarwinString.m \
 	NSString/NSStringUTF8.m \
 	NSString/NSString_placeholder.m \

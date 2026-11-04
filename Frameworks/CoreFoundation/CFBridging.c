@@ -88,6 +88,21 @@ CF_EXPORT void CFSetupFoundationBridging(void)
      * taken as an NSData crashed); and CF's data functions send
      * Foundation's NSData and NSMutableData the message
      * (CF_OBJC_FUNCDISPATCHV in CFData.c). */
+    /* Minkar: numbers are NSNumbers (__NSCFNumber, NSCFNumber.m): CF made
+     * them with no Objective-C class, and the first message to one (a
+     * number from a property list or the preferences) crashed. Those made
+     * before Foundation loaded (the infinities, NaN) get the class now. */
+    uintptr_t numberClass = (uintptr_t)objc_lookUpClass("__NSCFNumber");
+    if (numberClass != 0) {
+        _CFRuntimeRegisterObjCClass(CFNumberGetTypeID(), numberClass);
+        ((CFRuntimeBase *)kCFNumberNaN)->_cfisa = numberClass;
+        ((CFRuntimeBase *)kCFNumberPositiveInfinity)->_cfisa = numberClass;
+        ((CFRuntimeBase *)kCFNumberNegativeInfinity)->_cfisa = numberClass;
+    }
+    /* And CF's number functions send Foundation's own NSNumbers the
+     * message (_cfNumberType, _getValue:forType:, NSNumber.m). */
+    _CFRuntimeBridgeObjCDispatch(CFNumberGetTypeID());
+
     uintptr_t dataClass = (uintptr_t)objc_lookUpClass("__NSCFData");
     if (dataClass != 0)
         _CFRuntimeRegisterObjCClass(CFDataGetTypeID(), dataClass);
