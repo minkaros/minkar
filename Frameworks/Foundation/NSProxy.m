@@ -45,9 +45,8 @@ extern id _objc_rootAutorelease(id object);
  */
 
 +allocWithZone:(NSZone *)zone {
-   /* Minkar: not NSAllocateObject, which stores the CF type in the word
-    * after isa (NSObject's cfinfo): a proxy has no such field, and that
-    * word is its subclass's first instance variable. */
+   /* Minkar: not NSAllocateObject, which asks the new object its CF
+    * type (-_cfTypeID): a proxy would forward it to nothing yet. */
    return class_createInstance(self, 0);
 }
 

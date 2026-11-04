@@ -44,7 +44,6 @@ OBJC_ROOT_CLASS
 @interface Object
 {
 	Class isa;	/* A pointer to the instance's class structure */
-        uintptr_t bits;
 }
 
 /* Initializing classes and instances */

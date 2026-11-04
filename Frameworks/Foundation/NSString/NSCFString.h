@@ -86,6 +86,9 @@ NSUInteger NSGetCFStringWithMaxLength(const unichar *characters,
         NSUInteger maxLength, BOOL lossy);
 
 @interface NSCFString : NSString {
+    /* CF's header after isa (CFRuntimeBase): NSObject has only isa. */
+    unsigned char cfinfo[4];
+    unsigned int rc;
     CF_STRING_VARIANTS;
     unsigned char bytes[];
 }

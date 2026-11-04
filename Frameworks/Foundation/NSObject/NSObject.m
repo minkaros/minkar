@@ -154,10 +154,6 @@ extern void NSInvocationForward_stret(void);
     [pool release];
 }
 
--(uint32_t *)cfinfo {
-   return (uint32_t *)(self->cfinfo);
-}
-
 -(Class)classForCoder {
    return object_getClass(self);
 }
