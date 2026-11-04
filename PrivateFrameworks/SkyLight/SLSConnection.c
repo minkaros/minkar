@@ -88,6 +88,14 @@ openMainConnection(void)
 	    clientPort, MACH_MSG_TYPE_MAKE_SEND_ONCE, &previous) == KERN_SUCCESS &&
 	    previous != MACH_PORT_NULL)
 		mach_port_deallocate(mach_task_self(), previous);
+	/* launchd keeps the service's port across a restart of the server, so
+	 * that port does not die: the server's send right to this port, the
+	 * only one, goes with it (no more senders). */
+	previous = MACH_PORT_NULL;
+	if (mach_port_request_notification(mach_task_self(), clientPort, MACH_NOTIFY_NO_SENDERS, 1,
+	    clientPort, MACH_MSG_TYPE_MAKE_SEND_ONCE, &previous) == KERN_SUCCESS &&
+	    previous != MACH_PORT_NULL)
+		mach_port_deallocate(mach_task_self(), previous);
 }
 
 SLSConnectionID
