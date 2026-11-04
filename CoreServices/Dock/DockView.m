@@ -649,8 +649,10 @@ static CGFloat separatorSpace(CGFloat tile) { return round(tile / 4); }
     [item setState:[model isKept:tile] ? NSOnState : NSOffState];
     item = [options addItemWithTitle:NSLocalizedString(@"Open at Login", nil) action:NULL keyEquivalent:@""];
     [item setEnabled:NO];           /* with the login items (MB3) */
-    item = [options addItemWithTitle:NSLocalizedString(@"Show in Argos", nil) action:NULL keyEquivalent:@""];
-    [item setEnabled:NO];           /* with Argos (K1) */
+    item = [options addItemWithTitle:NSLocalizedString(@"Show in Argos", nil) action:@selector(showInArgos:) keyEquivalent:@""];
+    [item setTarget:self];
+    [item setRepresentedObject:tile];
+    [item setEnabled:tile.URL != nil];
     item = [menu addItemWithTitle:NSLocalizedString(@"Options", nil) action:NULL keyEquivalent:@""];
     [menu setSubmenu:options forItem:item];
     [menu addItem:[NSMenuItem separatorItem]];
@@ -686,6 +688,15 @@ static CGFloat separatorSpace(CGFloat tile) { return round(tile / 4); }
 - (void)openTileItem:(NSMenuItem *)sender
 {
     [self.model openTile:[sender representedObject]];
+}
+
+/* The application selected in a window on its folder (LSRevealInArgos). */
+- (void)showInArgos:(NSMenuItem *)sender
+{
+    NSURL *url = [(DockTile *)[sender representedObject] URL];
+
+    if (url != nil)
+        [[NSWorkspace sharedWorkspace] activateFileViewerSelectingURLs:@[ url ]];
 }
 
 - (void)quitTileItem:(NSMenuItem *)sender
