@@ -50,6 +50,7 @@ FOUNDATION_EXPORT NSString *const NSCurrentLocaleDidChangeNotification;
 
 + (NSArray *)preferredLanguages;
 
++ (instancetype)localeWithLocaleIdentifier:(NSString *)identifier;
 - initWithLocaleIdentifier:(NSString *)identifier;
 
 - (NSString *)localeIdentifier;

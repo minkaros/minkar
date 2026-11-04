@@ -545,13 +545,57 @@ static NSMapTable *pathToObject=NULL;
 +(NSArray *)pathsForResourcesOfType:(NSString *)type inDirectory:(NSString *)path {
 	return [[NSBundle bundleWithPath: path] pathsForResourcesOfType:type inDirectory: nil];
 }
-+(NSArray *)preferredLocalizationsFromArray:(NSArray *)localizations {
-   NSUnimplementedMethod();
-   return 0;
+/* The user's languages, the preferred first (AppleLanguages), or the
+   current locale's language. */
+static NSArray *userLanguages(void) {
+   id languages=nil;
+
+   if([NSUserDefaults standardUserDefaultsAvailable])
+      languages=[[NSUserDefaults standardUserDefaults] objectForKey:@"AppleLanguages"];
+   if([languages isKindOfClass:[NSString class]])
+      languages=[NSArray arrayWithObject:languages];
+   if([languages isKindOfClass:[NSArray class]] && [languages count]>0)
+      return languages;
+   NSString *language=[[NSLocale currentLocale] objectForKey:NSLocaleLanguageCode];
+   return [NSArray arrayWithObject:[language length] ? language : @"en"];
 }
+
+/* "es-ES", "es_ES" and "Spanish"-style names to their language, "es". */
+static NSString *baseLanguage(NSString *name) {
+   static NSDictionary *names;
+
+   if(names==nil)
+      names=[[NSDictionary alloc] initWithObjectsAndKeys:@"en",@"English",@"es",@"Spanish",
+         @"fr",@"French",@"de",@"German",@"it",@"Italian",@"ja",@"Japanese",nil];
+   if([names objectForKey:name]!=nil)
+      return [names objectForKey:name];
+   NSRange separator=[name rangeOfCharacterFromSet:[NSCharacterSet characterSetWithCharactersInString:@"-_"]];
+   return [[separator.location==NSNotFound ? name : [name substringToIndex:separator.location] lowercaseString] copy];
+}
+
+/* The localizations to use, of those a bundle has, for the preferences:
+   the first preference the bundle has (exactly, then by language). */
 +(NSArray *)preferredLocalizationsFromArray:(NSArray *)localizations forPreferences:(NSArray *)preferences {
-   NSUnimplementedMethod();
-   return 0;
+   if([localizations count]==0)
+      return [NSArray array];
+   if(preferences==nil)
+      preferences=userLanguages();
+   for(NSString *preference in preferences) {
+      for(NSString *localization in localizations)
+         if([localization caseInsensitiveCompare:preference]==NSOrderedSame)
+            return [NSArray arrayWithObject:localization];
+      for(NSString *localization in localizations)
+         if([baseLanguage(localization) isEqualToString:baseLanguage(preference)])
+            return [NSArray arrayWithObject:localization];
+   }
+   for(NSString *localization in localizations)
+      if([baseLanguage(localization) isEqualToString:@"en"])
+         return [NSArray arrayWithObject:localization];
+   return [NSArray arrayWithObject:[localizations objectAtIndex:0]];
+}
+
++(NSArray *)preferredLocalizationsFromArray:(NSArray *)localizations {
+   return [self preferredLocalizationsFromArray:localizations forPreferences:nil];
 }
 
 -(NSString *)bundlePath {
@@ -604,21 +648,34 @@ static NSMapTable *pathToObject=NULL;
 }
 
 -(NSString *)developmentLocalization {
-   NSUnimplementedMethod();
-   return 0;
+   NSString *region=[[self infoDictionary] objectForKey:@"CFBundleDevelopmentRegion"];
+
+   return [region length] ? region : @"en";
 }
 -(NSArray *)executableArchitectures {
    NSUnimplementedMethod();
    return 0;
 }
 
+/* The bundle's .lproj folders (Base is not a localization). */
 -(NSArray *)localizations {
-   NSUnimplementedMethod();
-   return 0;
+   NSMutableArray *result=[NSMutableArray array];
+
+   for(NSString *name in [[NSFileManager defaultManager] contentsOfDirectoryAtPath:[self resourcePath] error:NULL])
+      if([[name pathExtension] isEqualToString:@"lproj"] && ![name isEqualToString:@"Base.lproj"])
+         [result addObject:[name stringByDeletingPathExtension]];
+   return result;
 }
+
+/* The localization the user's languages choose among the bundle's; the
+   development one (the keys' language) when it has none of them. */
 -(NSArray *)preferredLocalizations {
-   NSUnimplementedMethod();
-   return 0;
+   NSMutableArray *available=[NSMutableArray arrayWithArray:[self localizations]];
+   NSString *development=[self developmentLocalization];
+
+   if(![available containsObject:development])
+      [available addObject:development];
+   return [NSBundle preferredLocalizationsFromArray:available];
 }
 -(NSString *)privateFrameworksPath {
    NSUnimplementedMethod();
@@ -776,8 +833,28 @@ static NSMapTable *pathToObject=NULL;
 
             // NSUserDefaults uses the NSBundle system during initialization so to avoid a recursion
             // of doom we'll only check the preferred language once the defaults are available.
-            if ([NSUserDefaults standardUserDefaultsAvailable])
-                language = [[NSUserDefaults standardUserDefaults] objectForKey: @"PreferredLanguage"];
+            if ([NSUserDefaults standardUserDefaultsAvailable]) {
+                /* The user's languages, first the preferred, as on the
+                 * reference platform (AppleLanguages: the global domain,
+                 * or -AppleLanguages "(es)" for one run); "es-ES" and
+                 * "es_ES" look in es-ES.lproj or es_ES.lproj, then es.lproj. */
+                id languages = [[NSUserDefaults standardUserDefaults] objectForKey:@"AppleLanguages"];
+                if ([languages isKindOfClass:[NSString class]])
+                    languages = [NSArray arrayWithObject:languages];
+                if ([languages isKindOfClass:[NSArray class]] && [languages count] > 0 &&
+                    [[languages objectAtIndex:0] isKindOfClass:[NSString class]]) {
+                    NSString *preferred = [languages objectAtIndex:0];
+                    NSRange separator = [preferred rangeOfCharacterFromSet:
+                        [NSCharacterSet characterSetWithCharactersInString:@"-_"]];
+                    if (separator.location != NSNotFound) {
+                        localeid = [preferred stringByAppendingPathExtension:@"lproj"];
+                        language = [preferred substringToIndex:separator.location];
+                    } else
+                        language = preferred;
+                }
+                if (language == nil)
+                    language = [[NSUserDefaults standardUserDefaults] objectForKey: @"PreferredLanguage"];
+            }
             
             if (language == nil || [language isEqualToString: @""]) {
                 // FIXME: This should be based on language preference order, and tested for presence in bundle before adding
@@ -946,8 +1023,24 @@ static NSMapTable *pathToObject=NULL;
      if(_localizedTables==nil)
       _localizedTables=[[NSMutableDictionary alloc] init];
 
-     if((path=[self pathForResource:table ofType:@"strings"])!=nil)
-      if((contents=[NSString stringWithContentsOfFile:path])!=nil){
+     /* A strings file is UTF-16 (with its byte order mark) or UTF-8, as on
+        the reference platform; it was read in the default C string
+        encoding, and accented letters came out wrong. */
+     if((path=[self pathForResource:table ofType:@"strings"])!=nil) {
+      NSData *data=[NSData dataWithContentsOfFile:path];
+      const unsigned char *bytes=[data bytes];
+      NSUInteger length=[data length];
+
+      if(length>=2 && ((bytes[0]==0xFF && bytes[1]==0xFE) || (bytes[0]==0xFE && bytes[1]==0xFF)))
+       contents=[[[NSString alloc] initWithData:data encoding:NSUnicodeStringEncoding] autorelease];
+      else if(data!=nil) {
+       contents=[[[NSString alloc] initWithData:data encoding:NSUTF8StringEncoding] autorelease];
+       if(contents==nil)
+        contents=[[[NSString alloc] initWithData:data encoding:NSMacOSRomanStringEncoding] autorelease];
+      }
+     }
+     if(path!=nil)
+      if(contents!=nil){
        NS_DURING
         dictionary=[contents propertyListFromStringsFileFormat];
        NS_HANDLER

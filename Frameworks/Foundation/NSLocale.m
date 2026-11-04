@@ -124,6 +124,10 @@ static NSLocale *_sharedCurrentLocale = nil;
    return 0;
 }
 
++(instancetype)localeWithLocaleIdentifier:(NSString *)identifier {
+   return [[[self alloc] initWithLocaleIdentifier:identifier] autorelease];
+}
+
 -initWithLocaleIdentifier:(NSString *)identifier {
    [super init];
 

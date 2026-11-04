@@ -46,13 +46,16 @@ NSString * const NSUserDefaultsDidChangeNotification=@"NSUserDefaultsDidChangeNo
    NSArray             *args=[[NSProcessInfo processInfo] arguments];
    NSInteger                  i,count=[args count];
 
-   for(i=1;i<count-1;i+=2){
+   /* Each "-name value" pair, wherever it is among the arguments, as on
+      the reference platform (it stopped at the first other argument). */
+   for(i=1;i<count-1;i++){
     NSString *key=[args objectAtIndex:i];
     NSString *val=[args objectAtIndex:i+1];
     NSString *pval;
 
-    if([key length]==0 || [key characterAtIndex:0]!='-')
-     break;
+    if([key length]<2 || [key characterAtIndex:0]!='-')
+     continue;
+    i++;
 
     key=[key substringFromIndex:1];
 
@@ -125,6 +128,15 @@ NSString * const NSUserDefaultsDidChangeNotification=@"NSUserDefaultsDidChangeNo
     NSMutableDictionary *dict = [NSMutableDictionary new];
     // Minkar: was addEntriesWithDictionary:, which does not exist.
     [dict addEntriesFromDictionary:[_domains objectForKey:NSGlobalDomain]];
+    // The user's global preferences (defaults -g: AppleLanguages, ...),
+    // in the reference platform's file, .GlobalPreferences.plist.
+    NSPersistantDomain *global = [[[NSPlatform currentPlatform] persistantDomainClass]
+        persistantDomainWithName:@".GlobalPreferences"];
+    for (NSString *key in [global allKeys]) {
+        id value = [global objectForKey:key];
+        if (value != nil)
+            [dict setObject:value forKey:key];
+    }
     [_domains setObject:dict forKey:NSGlobalDomain];
     
     // Minkar: the names come from the user's locale through nl_langinfo_l,
@@ -218,10 +230,16 @@ NSString * const NSUserDefaultsDidChangeNotification=@"NSUserDefaultsDidChangeNo
 
 static NSUserDefaults* stdUserDefaults = nil;
 
+/* Set while the standard defaults are made: what they read then (NSBundle
+   resources) must not ask for them. */
+static BOOL creatingStandardDefaults;
+
 +(NSUserDefaults *)standardUserDefaults {
 	@synchronized(self) {
-		if (nil == stdUserDefaults) {
+		if (nil == stdUserDefaults && !creatingStandardDefaults) {
+			creatingStandardDefaults = YES;
 			stdUserDefaults = [[NSUserDefaults alloc] init];
+			creatingStandardDefaults = NO;
 		}
 	}
 	return stdUserDefaults;
@@ -231,9 +249,12 @@ static NSUserDefaults* stdUserDefaults = nil;
    NSUnimplementedMethod();
 }
 
+/* Whether +standardUserDefaults may be asked: always, but while they are
+   being made (it was only once made, so the first lookups ignored the
+   user's languages). */
 + (BOOL)standardUserDefaultsAvailable
 {
-    return stdUserDefaults != nil;
+    return stdUserDefaults != nil || !creatingStandardDefaults;
 }
 
 -(void)addSuiteNamed:(NSString *)name {
