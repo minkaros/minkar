@@ -25,27 +25,32 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    return self;
 }
 
+/* An offscreen cache (as the reference platform's image caches are now):
+   a bitmap context, with no window in the window server. It held a
+   private window, which the server listed and composited. */
 -initWithSize:(NSSize)size depth:(NSWindowDepth)windowDepth separate:(BOOL)separateWindow alpha:(BOOL)hasAlpha {
-// FIXME: Implement shared caches, but also update NSImage to handle caching in them
+   size_t width=(size_t)MAX(ceil(size.width),1),height=(size_t)MAX(ceil(size.height),1);
+   CGColorSpaceRef colorSpace=CGColorSpaceCreateDeviceRGB();
 
-	int styleMask = NSBorderlessWindowMask;
-	if([[NSUserDefaults standardUserDefaults] boolForKey:@"NSShowAllWindows"] == NO) {
-		styleMask |= NSAppKitPrivateWindow;
-	}
-	NSWindow *window=[[NSWindow alloc] initWithContentRect:NSMakeRect(0,0,size.width,size.height) styleMask:styleMask backing:NSBackingStoreBuffered defer:NO];
-
-   NSDictionary *entries=[NSDictionary dictionaryWithObject:@"Onyx" forKey:@"CGContext"];
-   
-   [window addEntriesToDeviceDictionary:entries];
-   
-   [self initWithWindow:window rect:NSMakeRect(0,0,size.width,size.height)];
-   
-   [window release];
-   
+   _bitmapContext=CGBitmapContextCreate(NULL,width,height,8,0,colorSpace,
+      kCGImageAlphaPremultipliedFirst|kCGBitmapByteOrder32Little);
+   CGColorSpaceRelease(colorSpace);
+   if(_bitmapContext==NULL){
+      [self release];
+      return nil;
+   }
+   _size=size;
+   _origin=NSZeroPoint;
    return self;
 }
 
+-(CGContextRef)_graphicsPort {
+   return _bitmapContext!=NULL ? _bitmapContext : [_window cgContext];
+}
+
 -(void)dealloc {
+   if(_bitmapContext!=NULL)
+      CGContextRelease(_bitmapContext);
    [_window release];
    [super dealloc];
 }
@@ -60,7 +65,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 -(BOOL)drawAtPoint:(NSPoint)point {
    NSRect     rect={point,_size};
-   CGImageRef imageRef=CGBitmapContextCreateImage([[_window graphicsContext] graphicsPort]);
+   CGImageRef imageRef=CGBitmapContextCreateImage([self _graphicsPort]);
    
    CGContextDrawImage(NSCurrentGraphicsPort(),rect,imageRef);
    
@@ -70,7 +75,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 }
 
 -(BOOL)drawInRect:(NSRect)rect {
-   CGImageRef imageRef=CGBitmapContextCreateImage([[_window graphicsContext] graphicsPort]);
+   CGImageRef imageRef=CGBitmapContextCreateImage([self _graphicsPort]);
    
    CGContextDrawImage(NSCurrentGraphicsPort(),rect,imageRef);
    

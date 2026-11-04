@@ -687,8 +687,11 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
       _cacheIsValid=YES;
    }
 
-   if([representation isKindOfClass:[NSCachedImageRep class]])
-    context=[NSGraphicsContext graphicsContextWithWindow:[(NSCachedImageRep *)representation window]];
+   if([representation isKindOfClass:[NSCachedImageRep class]]) {
+    NSWindow *window=[(NSCachedImageRep *)representation window];
+    context=window!=nil ? [NSGraphicsContext graphicsContextWithWindow:window] :
+       [NSGraphicsContext graphicsContextWithGraphicsPort:[(NSCachedImageRep *)representation _graphicsPort] flipped:NO];
+   }
    else if([representation isKindOfClass:[NSBitmapImageRep class]])
     context=[NSGraphicsContext graphicsContextWithBitmapImageRep:(NSBitmapImageRep *)representation];
 
