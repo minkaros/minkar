@@ -185,17 +185,23 @@ exists, gate M4) still green, and the roadmap updated with the evidence.
   `NSRunningApplication` come with WS4a. Tests: a test app's icon and launch
   date are read; hiding, unhiding and terminating it through
   `NSRunningApplication` work; the desktop picture choice is stored.
-- [ ] **D1 — New core.** `DockModel`, preferences in the reference keys,
+  *Partial (4 Nov 2026):* icon, launch date, `activationPolicy`, terminate
+  and the desktop picture API (`cf62bba724`, `41cf45da95`); hide and unhide
+  are missing.
+- [x] **D1 — New core.** `DockModel`, preferences in the reference keys,
   persistent and running app tiles, launch and activate, running indicators,
   desktop pictures per display. The old code goes: `Trash.app`,
   `Downloads.app`, `AppDir`, the relayed notifications. Tests: model tests;
   launching an app shows its tile and indicator, quitting removes it; the
   preferences round-trip; `screendump` shows the Dock and the desktop
-  picture; the Dock uses no CPU while idle.
+  picture; the Dock uses no CPU while idle. *Done (4 Nov 2026):*
+  `8cfe7115db`, `f6c2d254be`; local test `desktop` (27 checks).
 - [ ] **D2 — Interaction.** Drag to reorder, add and remove; context menus
   (Keep in Dock, Open at Login, Show in Argos, Quit) and the app's dock menu;
   autohide, magnification, orientation; the minimize and restore animation
-  (`mineffect`) for `miniaturize:`.
+  (`mineffect`) for `miniaturize:`. *Partial (4 Nov 2026, `5c083e0b97`):*
+  dragging, the tile menus, autohide, magnification and orientation; Open
+  at Login, Show in Argos and the minimize animation are missing.
 - [ ] **D3 — Dock tile service, minimized windows and the app switcher.**
   `org.minkar.dock.server`: badges, content, attention bounce; minimized
   windows with thumbnails (after WS4a); the app switcher in the Dock, which
@@ -207,11 +213,17 @@ exists, gate M4) still green, and the roadmap updated with the evidence.
 
 - [ ] **K0 — Prerequisites.** File system events daemon and API; LaunchServices
   open and "Open With"; the AppKit views checked with test apps.
-- [ ] **K1 — Browsing.** Windows with sidebar, icon, list and column views,
+  *Partial (4 Nov 2026):* fseventsd and FSEvents (`a2a333d45f`, test
+  `fsevents`), LaunchServices' opening and the applications for a file
+  (`0331f57894`, test `launchservices`); the AppKit views are not checked
+  yet (Argos draws its own).
+- [x] **K1 — Browsing.** Windows with sidebar, icon, list and column views,
   navigation, opening files and apps, basic Get Info. Filer becomes Argos:
   bundle ID, `LSRevealInFiler` kept as a deprecated alias of the new name for
   one release, `open -R`, the Dock's default tiles. This is the "Argos
-  browses" part of gate M5.
+  browses" part of gate M5. *Done (4 Nov 2026):* `896749b380`,
+  `c9f602b43c`, `45c2c1ad9e`, `788fe67376`, `906f12eae4`; local tests
+  `argos` (16) and `launchservices` (24).
 - [ ] **K2 — File operations.** Copy, move, rename, duplicate with progress and
   undo; drag and drop between windows and onto the Dock; Trash with Put Back;
   "Open With".

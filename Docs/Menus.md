@@ -259,7 +259,10 @@ them apart from the gates M*n*.
   notifications (Phase 5, item 3); `visible`, `autosaveName`, `behavior`;
   Command-drag reorders and the order is kept. Tests: two apps and the
   clock appear in order and open their menus; the order survives a
-  restart. Gate M5 needs MB1.
+  restart. Gate M5 needs MB1. *Partial (4 Nov 2026):* a new SystemUIServer
+  with the clock, built in, which follows the 24-hour setting and the time
+  zone at once (`0fa453aa16`, `61f9c7ae99`); the `.menu` bundles and the
+  rest of the status item API are missing.
 - [ ] **MB2 — Standard menus and details.** Window menu, Open Recent, Help menu
   search over menu items, alternates with Option, long menus scrolling,
   type-select, Control-F2, the View menu's full screen item, accessibility

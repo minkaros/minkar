@@ -274,7 +274,10 @@ distinguirlos de los gates M*n*.
   notificaciones (Fase 5, punto 3); `visible`, `autosaveName`, `behavior`;
   Comando-arrastrar los reordena y el orden se conserva. Pruebas: dos apps y
   el reloj aparecen en orden y abren sus menús; el orden se mantiene tras
-  reiniciar. El gate M5 necesita MB1.
+  reiniciar. El gate M5 necesita MB1. *Parcial (4 nov 2026):* un
+  SystemUIServer nuevo con el reloj integrado, que sigue al momento el
+  formato de 24 horas y la zona horaria (`0fa453aa16`, `61f9c7ae99`); faltan
+  los bundles `.menu` y el resto de la API de status items.
 - [ ] **MB2 — Menús estándar y detalles.** Menú Ventana, Abrir recientes,
   búsqueda del menú Ayuda sobre los elementos de menú, alternativos con
   Opción, desplazamiento de menús largos, búsqueda por escritura,

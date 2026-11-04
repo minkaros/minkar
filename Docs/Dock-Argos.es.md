@@ -193,20 +193,26 @@ evidencia.
   activadas y el `NSRunningApplication` básico llegan con WS4a. Pruebas: se
   leen el icono y la fecha de arranque de una app de prueba; ocultarla,
   mostrarla y terminarla con `NSRunningApplication` funciona; la elección del
-  fondo de escritorio se guarda.
-- [ ] **D1 — Núcleo nuevo.** `DockModel`, preferencias con las claves de la
+  fondo de escritorio se guarda. *Parcial (4 nov 2026):* icono, fecha de
+  arranque, `activationPolicy`, terminar y la API del fondo de escritorio
+  (`cf62bba724`, `41cf45da95`); faltan ocultar y mostrar.
+- [x] **D1 — Núcleo nuevo.** `DockModel`, preferencias con las claves de la
   referencia, tiles de apps fijas y en ejecución, lanzar y activar,
   indicadores de ejecución, fondos de escritorio por pantalla. Se va el
   código anterior: `Trash.app`, `Downloads.app`, `AppDir`, las
   notificaciones reenviadas. Pruebas: pruebas del modelo; lanzar una app
   muestra su tile y su indicador, cerrarla lo quita; las preferencias se
   guardan y se leen igual; `screendump` muestra el Dock y el fondo; el Dock
-  no consume CPU en reposo.
+  no consume CPU en reposo. *Hecho (4 nov 2026):* `8cfe7115db`,
+  `f6c2d254be`; prueba local `desktop` (27 comprobaciones).
 - [ ] **D2 — Interacción.** Arrastrar para reordenar, añadir y quitar; menús
   contextuales (Mantener en el Dock, Abrir al iniciar sesión, Mostrar en
   Argos, Salir) y el menú de la propia app; ocultación automática,
   magnificación, orientación; la animación de minimizar y restaurar
-  (`mineffect`) para `miniaturize:`.
+  (`mineffect`) para `miniaturize:`. *Parcial (4 nov 2026, `5c083e0b97`):*
+  arrastrar, los menús de los tiles, ocultación automática, magnificación y
+  orientación; faltan Abrir al iniciar sesión, Mostrar en Argos y la
+  animación de minimizar.
 - [ ] **D3 — Servicio de tiles, ventanas minimizadas y selector de apps.**
   `org.minkar.dock.server`: insignias, contenido, rebote de atención;
   ventanas minimizadas con miniaturas (después de WS4a); el selector de apps
@@ -219,12 +225,17 @@ evidencia.
 
 - [ ] **K0 — Requisitos previos.** Daemon y API de eventos del sistema de
   archivos; abrir y «Abrir con» de LaunchServices; las vistas de AppKit
-  comprobadas con apps de prueba.
-- [ ] **K1 — Navegación.** Ventanas con barra lateral, vistas de iconos, lista y
+  comprobadas con apps de prueba. *Parcial (4 nov 2026):* fseventsd y
+  FSEvents (`a2a333d45f`, prueba `fsevents`), abrir con LaunchServices y las
+  apps de un archivo (`0331f57894`, prueba `launchservices`); faltan las
+  vistas de AppKit (Argos dibuja las suyas).
+- [x] **K1 — Navegación.** Ventanas con barra lateral, vistas de iconos, lista y
   columnas, navegación, abrir archivos y apps, Obtener información básico.
   Filer pasa a ser Argos: bundle ID, `LSRevealInFiler` como alias obsoleto del
   nombre nuevo durante una versión, `open -R`, los tiles predeterminados del
-  Dock. Es la parte «Argos navega» del gate M5.
+  Dock. Es la parte «Argos navega» del gate M5. *Hecho (4 nov 2026):*
+  `896749b380`, `c9f602b43c`, `45c2c1ad9e`, `788fe67376`, `906f12eae4`;
+  pruebas locales `argos` (16) y `launchservices` (24).
 - [ ] **K2 — Operaciones con archivos.** Copiar, mover, renombrar y duplicar con
   progreso y deshacer; arrastrar y soltar entre ventanas y sobre el Dock;
   papelera con «Devolver»; «Abrir con».

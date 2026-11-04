@@ -6,18 +6,18 @@ Esta página se genera desde [progress/status.toml](progress/status.toml) con
 [Progress.md](Progress.md).
 
 <!-- progress:summary:begin -->
-_Actualizado el 2026-11-03, devel `1d2b7e8d9d`_
+_Actualizado el 2026-11-04, devel `e7ae74a2e5`_
 
 | Plan | Avance |  | Ahora | Siguiente |
 | --- | --- | --- | --- | --- |
 | **Gates** | 🟩🟩🟩⬜🟩⬜⬜⬜⬜ | 4 / 9 | — | M3 Frameworks and Swift |
 | [Phases 0–2](ROADMAP.es.md) | 🟩🟩🟩 | 3 / 3 | — | — |
-| [Frameworks](ROADMAP.es.md#fase-3--frameworks-base-y-swift) | 🟩🟨🟨🟨⬜🟨⬜ | 1 / 7 | libSystem, Foundation, CF-Lite, LaunchServices | Security |
+| [Frameworks](ROADMAP.es.md#fase-3--frameworks-base-y-swift) | 🟩🟨🟨🟨⬜🟩⬜ | 2 / 7 | libSystem, Foundation, CF-Lite | Security |
 | [WindowServer](WindowServer-Rewrite.es.md) | 🟩🟩🟩🟩🟩🟩🟩🟩🟦 | 8 / 9 | WS6 | — |
-| [Menus](Menus.es.md) | 🟩⬜⬜⬜⬜ | 1 / 5 | — | MB1 |
-| [Dock](Dock-Argos.es.md) | ⬜⬜⬜⬜⬜ | 0 / 5 | — | D0 |
-| [Argos](Dock-Argos.es.md) | ⬜⬜⬜⬜⬜ | 0 / 5 | — | K0 |
-| [Atlas](ROADMAP.es.md#fase-5--escritorio-atlas) | ⬜⬜⬜ | 0 / 3 | — | LoginWindow |
+| [Menus](Menus.es.md) | 🟩🟨⬜⬜⬜ | 1 / 5 | MB1 | MB2 |
+| [Dock](Dock-Argos.es.md) | 🟨🟩🟨⬜⬜ | 1 / 5 | D0, D2 | D3 |
+| [Argos](Dock-Argos.es.md) | 🟨🟩⬜⬜⬜ | 1 / 5 | K0 | K2 |
+| [Atlas](ROADMAP.es.md#fase-5--escritorio-atlas) | ⬜🟨⬜ | 0 / 3 | Preferences | LoginWindow |
 | [Apps · DMG](ROADMAP.es.md#fase-6--aplicaciones-y-distribución) | ⬜⬜⬜⬜ | 0 / 4 | — | DiskImages |
 | [GPU track](ROADMAP.es.md#pila-gráfica-componentes-y-secuencia) | 🟩🟨🟩🟦 | 2 / 4 | G4–G5 | — |
 | [Compat · arm64](ROADMAP.es.md#fase-7--compatibilidad-binaria-y-arm64) | ⬜⬜ | 0 / 2 | — | x86-64 apps |

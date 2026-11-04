@@ -32,8 +32,8 @@
 # commit that closes a milestone updates this file and runs
 # "bmake progress" (Docs/CONTRIBUTING.md).
 
-updated = "2026-11-03"
-commit  = "1d2b7e8d9d"
+updated = "2026-11-04"
+commit  = "e7ae74a2e5"
 
 deps = [["ws", 555, "dock"], ["fw", 535, "argos"]]
 
@@ -124,7 +124,7 @@ doc = "ROADMAP.md#phase-3--base-frameworks-and-swift"
 doc_es = "ROADMAP.es.md#fase-3--frameworks-base-y-swift"
 stations = [
   ["XPC", 270, "done"], ["libSystem", 325, "partial"], ["Foundation", 380, "partial"],
-  ["CF-Lite", 435, "partial"], ["Security", 485, "todo"], ["LaunchServices", 535, "partial"],
+  ["CF-Lite", 435, "partial"], ["Security", 485, "todo"], ["LaunchServices", 535, "done"],
   ["Swift 6", 590, "todo"],
 ]
 
@@ -147,7 +147,7 @@ color = "purple"
 doc = "Menus.md"
 doc_es = "Menus.es.md"
 stations = [
-  ["MB0", 650, "done"], ["MB1", 760, "todo"], ["MB2", 865, "todo"], ["MB3", 970, "todo"],
+  ["MB0", 650, "done"], ["MB1", 760, "partial"], ["MB2", 865, "todo"], ["MB3", 970, "todo"],
   ["MB4", 1025, "todo"],
 ]
 
@@ -158,7 +158,7 @@ color = "orange"
 doc = "Dock-Argos.md"
 doc_es = "Dock-Argos.es.md"
 stations = [
-  ["D0", 700, "todo"], ["D1", 760, "todo"], ["D2", 865, "todo"], ["D3", 970, "todo"],
+  ["D0", 700, "partial"], ["D1", 760, "done"], ["D2", 865, "partial"], ["D3", 970, "todo"],
   ["D4", 1025, "todo"],
 ]
 
@@ -169,7 +169,7 @@ color = "teal"
 doc = "Dock-Argos.md"
 doc_es = "Dock-Argos.es.md"
 stations = [
-  ["K0", 700, "todo"], ["K1", 760, "todo"], ["K2", 865, "todo"], ["K3", 970, "todo"],
+  ["K0", 700, "partial"], ["K1", 760, "done"], ["K2", 865, "todo"], ["K3", 970, "todo"],
   ["K4", 1025, "todo"],
 ]
 
@@ -179,7 +179,7 @@ name = "Atlas"
 color = "pink"
 doc = "ROADMAP.md#phase-5--atlas-desktop"
 doc_es = "ROADMAP.es.md#fase-5--escritorio-atlas"
-stations = [["LoginWindow", 570, "todo"], ["Preferences", 660, "todo"], ["Visual design", 760, "todo"]]
+stations = [["LoginWindow", 570, "todo"], ["Preferences", 660, "partial"], ["Visual design", 760, "todo"]]
 
 [[line]]
 id = "apps"
@@ -220,7 +220,22 @@ stations = [["x86-64 apps", 1082, "todo"], ["arm64", 1150, "todo"]]
 # The work board. "line" picks a card's colour; "here" marks a station of
 # the metro map as where work is.
 [board]
-here = "G4–G5"
+here = "MB1 · K2"
+
+[[board.done]]
+title = "Argos K1: columns, opening, open -R"
+note = "LaunchServices opens documents; Alcor, the text editor; the save panel · 4 nov"
+line = "argos"
+
+[[board.done]]
+title = "System Preferences: five panes"
+note = "Displays, Dock, Date & Time, Keyboard, Network; English and Spanish · 4 nov"
+line = "atlas"
+
+[[board.done]]
+title = "Dock D1: the new Dock and desktop"
+note = "tiles, indicators, desktop pictures; magnification, menus, dragging · 4 nov"
+line = "dock"
 
 [[board.done]]
 title = "M4 met: QEMU and the Mac Pro"
@@ -236,80 +251,3 @@ line = "ws"
 title = "Copy and paste: pboard, pbcopy, pbpaste"
 note = "NSPasteboard on a server, each user's own; screencapture to PNG/TIFF · 3 nov"
 line = "fw"
-
-[[board.done]]
-title = "G4 done: the window server on Vulkan"
-note = "G4.6 measured: Vulkan apps 14x cheaper, 60 Hz, flips at vblank · 3 nov"
-line = "gpu"
-
-[[board.done]]
-title = "Mac Pro mouse and keyboard"
-note = "xHCI interrupt intervals per speed; works through a KVM · 3 nov"
-line = "ws"
-
-[[board.done]]
-title = "G4.5: Vulkan apps' frames stay in VRAM"
-note = "CAMetalLayer drawables as window layers, GPU copy, paced at 60 Hz · 3 nov"
-line = "gpu"
-
-
-
-
-[[board.now]]
-title = "M3: libSystem, logd, Swift 6.0"
-note = "next block · deferred until the desktop: a monitor plugged in after boot, shutdown hang, USB MSI"
-line = "ws"
-
-[[board.now]]
-title = "WS6 — GPU compositing"
-note = "Vulkan compositing (opt-in), flips, Vulkan apps in VRAM; the performance gate left"
-line = "ws"
-done = 2
-total = 3
-
-[[board.now]]
-title = "Foundation audit"
-note = "NSURLSession cache and metrics left"
-line = "fw"
-partial = true
-
-[[board.now]]
-title = "Noisy stubs"
-note = "mechanism done, 887 sites"
-line = "fw"
-partial = true
-
-[[board.next]]
-title = "D0 · K0 — Dock and Argos prerequisites"
-note = "can start: WS4a is done"
-line = "dock"
-
-[[board.next]]
-title = "Swift prototypes 1 and 2"
-note = "swiftc, libswiftCore → M3"
-line = "fw"
-
-[[board.next]]
-title = "The GPU's clocks (si_dpm and the SMC)"
-note = "this weekend; then G4.6's measurements again · DisplayPort link training waits"
-line = "gpu"
-
-[[board.later]]
-group = "→ M5 Atlas session"
-items = [["MB1 Menu Extras", "mb"], ["D1 Dock core", "dock"], ["K1 Argos browsing", "argos"], ["LoginWindow, Preferences", "atlas"]]
-
-[[board.later]]
-group = "→ M6 · Minkar 19.6.0"
-items = [["MB2–MB3 menus for daily use", "mb"], ["D2–D3 Dock, with the app switcher", "dock"], ["K2–K3 Argos, with DMG double-click", "argos"], ["DiskImages (hdiutil attach already mounts)", "apps"], ["Terminal, TextEdit, Browser", "apps"]]
-
-[[board.later]]
-group = "→ 19.6.x"
-items = [["MB4 Services, D4 stacks and Trash, K4 search and tags", "mb"]]
-
-[[board.later]]
-group = "→ Minkar 21.0"
-items = [["WS6 performance gate", "ws"], ["G2–G5 driver, Mesa, Metal", "gpu"]]
-
-[[board.later]]
-group = "→ M7"
-items = [["x86-64 apps, arm64", "compat"]]
