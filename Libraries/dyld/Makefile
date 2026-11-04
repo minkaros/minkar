@@ -27,7 +27,8 @@ SRCS = ./src/start_glue.s \
 	./dyld3/PathOverrides.cpp \
 	./dyld3/ClosureBuilder.cpp \
 	./dyld3/ClosureWriter.cpp \
-	./dyld3/libdyldEntryVector.cpp
+	./dyld3/libdyldEntryVector.cpp \
+	./src/objc_constants.c
 
 COMMONFLAGS = -w --target=${CpuArch}-apple-darwin -dylib \
 	-mmacos-version-min=${MACOS_VERSION_MIN} \

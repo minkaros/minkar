@@ -28,60 +28,68 @@
  * THE SOFTWARE.
  */
 
-/* NOTE! This is all placeholder for now */
+/*
+ * Signposts (API 19, os_signpost): intervals and events for performance
+ * tools. Minkar has no tool that records them yet: os_signpost_enabled
+ * says no, and the emitting functions do nothing, as on the reference
+ * system when nobody is recording. The IDs are real.
+ *
+ * Installed as <os/signpost.h>.
+ */
 
-#ifndef SIGNPOST_H_
-#define SIGNPOST_H_
+#ifndef __OS_SIGNPOST_H__
+#define __OS_SIGNPOST_H__
 
 #include <Availability.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <sys/cdefs.h>
 #include <os/log.h>
 
-typedef uint8_t os_signpost_type_t; // FIXME: probably wrong
-typedef uint8_t os_signpost_id_t;   // FIXME: probably wrong
+__BEGIN_DECLS
 
-void __os_signpost_emit_impl(os_log_t log,
-    os_signpost_type_t type,
-    os_signpost_id_t spid,
-    const char *name,
-    const char *format,
-    ...);
+typedef uint64_t os_signpost_id_t;
 
-void __os_signpost_emit_with_name_impl(os_log_t log,
-    os_signpost_type_t type,
-    os_signpost_id_t spid,
-    const char *name,
-    const char *format,
-    ...);
+#define OS_SIGNPOST_ID_NULL		((os_signpost_id_t)0)
+#define OS_SIGNPOST_ID_INVALID		((os_signpost_id_t)~0)
+#define OS_SIGNPOST_ID_EXCLUSIVE	((os_signpost_id_t)0xeeeeb0b5b2b2eeee)
 
-void __os_signpost_emit_unreliably_impl(os_log_t log,
-    os_signpost_type_t type,
-    os_signpost_id_t spid,
-    const char *name,
-    const char *format,
-    ...);
+typedef uint8_t os_signpost_type_t;
+#define OS_SIGNPOST_EVENT		((os_signpost_type_t)0x00)
+#define OS_SIGNPOST_INTERVAL_BEGIN	((os_signpost_type_t)0x01)
+#define OS_SIGNPOST_INTERVAL_END	((os_signpost_type_t)0x02)
 
-bool os_signpost_enabled(os_log_t log);
+/* A new ID, unique in the process. */
+__OSX_AVAILABLE(10.14)
 os_signpost_id_t os_signpost_id_generate(os_log_t log);
-os_signpost_id_t os_signpost_id_make_with_pointer(os_log_t log,
-    const void *ptr);
 
-void os_signpost_interval_begin(os_log_t log,
-    os_signpost_id_t spid,
-    const char *name,
-    const char *format,
-    ...);
+/* An ID derived from a pointer, the same for the same pointer. */
+__OSX_AVAILABLE(10.14)
+os_signpost_id_t os_signpost_id_make_with_pointer(os_log_t log, const void *ptr);
 
-void os_signpost_interval_end(os_log_t log,
-    os_signpost_id_t spid,
-    const char *name,
-    const char *format,
-    ...);
+/* Whether signposts on this log are recorded: no tool records them. */
+__OSX_AVAILABLE(10.14)
+bool os_signpost_enabled(os_log_t log);
 
-void os_signpost_event_emit(os_log_t log,
-    os_signpost_id_t spid,
-    const char *name,
-    const char *format,
-    ...);
+__OSX_AVAILABLE(10.14)
+void os_signpost_event_emit(os_log_t log, os_signpost_id_t spid, const char *name,
+    const char *format, ...);
 
+__OSX_AVAILABLE(10.14)
+void os_signpost_interval_begin(os_log_t log, os_signpost_id_t spid, const char *name,
+    const char *format, ...);
 
-#endif // SIGNPOST_H_
+__OSX_AVAILABLE(10.14)
+void os_signpost_interval_end(os_log_t log, os_signpost_id_t spid, const char *name,
+    const char *format, ...);
+
+void __os_signpost_emit_impl(os_log_t log, os_signpost_type_t type, os_signpost_id_t spid,
+    const char *name, const char *format, ...);
+void __os_signpost_emit_with_name_impl(os_log_t log, os_signpost_type_t type,
+    os_signpost_id_t spid, const char *name, const char *format, ...);
+void __os_signpost_emit_unreliably_impl(os_log_t log, os_signpost_type_t type,
+    os_signpost_id_t spid, const char *name, const char *format, ...);
+
+__END_DECLS
+
+#endif /* __OS_SIGNPOST_H__ */

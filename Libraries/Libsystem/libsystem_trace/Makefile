@@ -34,6 +34,7 @@ ${.OBJDIR}/lib${LIB}.dylib: lib${LIB}.a
 	# library's own log.h only adds to it, for its own build.
 	cp -f ${ROOT_SOURCE_DIR}/Kernel/xnu/libkern/os/log.h ${MINKAR_SDKROOT}/usr/include/os
 	cp -f ${.CURDIR}/activity.h ${MINKAR_SDKROOT}/usr/include/os
+	cp -f ${.CURDIR}/signpost.h ${MINKAR_SDKROOT}/usr/include/os/signpost.h
 	mkdir -p ${MINKAR_SDKROOT}/usr/local/include/minkar
 	cp -f ${.CURDIR}/stub.h ${MINKAR_SDKROOT}/usr/local/include/minkar
 	cp -f ${.CURDIR}/logd_message.h ${MINKAR_SDKROOT}/usr/local/include/minkar
