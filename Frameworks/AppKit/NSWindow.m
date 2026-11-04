@@ -1145,18 +1145,17 @@ NSArray *_NSWindowNumbersFromWindowInfo(CFArrayRef info,BOOL allApps) {
     [_miniwindowTitle release];
     _miniwindowTitle=[title copy];
 
-    NSString *winTitle;
-    if(_isDocumentEdited)
-        winTitle=[@"* " stringByAppendingString:_title];
-    else
-        winTitle = _title;
-
-    [self _updateWSState];
-    /* The frame draws the title: the bar again. */
-    [_backgroundView setNeedsDisplay:YES];
+    [self _updatePlatformWindowTitle];
 
     if ([self _isApplicationWindow])
         [NSApp changeWindowsItem:self title:title filename:NO];
+}
+
+/* The title (and the edited mark, which the frame draws) to the window
+ * server and on the bar again. */
+-(void)_updatePlatformWindowTitle {
+    [self _updateWSState];
+    [_backgroundView setNeedsDisplay:YES];
 }
 
 -(void)setTitleWithRepresentedFilename:(NSString *)filename {
@@ -2435,6 +2434,15 @@ NSArray *_NSWindowNumbersFromWindowInfo(CFArrayRef info,BOOL allApps) {
      break;
 
     case NSKeyDown:
+     /* Return, Enter and Escape go to the window's buttons first (the
+        default button, a Cancel button), as on the reference platform:
+        a text field being edited would take them otherwise. */
+     if(!([event modifierFlags]&(NSCommandKeyMask|NSAlternateKeyMask|NSControlKeyMask))) {
+      NSString *keys=[event charactersIgnoringModifiers];
+      unichar key=[keys length] ? [keys characterAtIndex:0] : 0;
+      if((key=='\r' || key==3 || key==27) && [self performKeyEquivalent:event])
+       break;
+     }
      [_firstResponder keyDown:event];
      break;
 
