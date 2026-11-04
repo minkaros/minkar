@@ -36,7 +36,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
    NSDictionary *entries=[NSDictionary dictionaryWithObject:@"Onyx" forKey:@"CGContext"];
    
-   [[window platformWindow] addEntriesToDeviceDictionary:entries];
+   [window addEntriesToDeviceDictionary:entries];
    
    [self initWithWindow:window rect:NSMakeRect(0,0,size.width,size.height)];
    

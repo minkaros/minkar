@@ -24,7 +24,8 @@ APPKIT_EXPORT NSArray *_NSWindowNumbersFromWindowInfo(CFArrayRef info,BOOL allAp
 /* Notes a rect drawn (in the window's base coordinates), sent to the
  * window server at the next flush. */
 - (void)_addDamageRect:(NSRect)rect;
-- (CGWindow *)platformWindow;
+/* Entries for the window's device description (an image cache's context). */
+- (void)addEntriesToDeviceDictionary:(NSDictionary *)entries;
 - (CGContextRef)cgContext;
 - (BOOL)_isActive;
 - (void)_setVisible:(BOOL)visible;
