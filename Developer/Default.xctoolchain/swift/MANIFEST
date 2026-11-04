@@ -1,0 +1,9 @@
+# Swift 6.0 (Apache-2.0 with the Runtime Library Exception), fetched at
+# build time and checked against this SHA-256: the compiler (built here,
+# for the build host) and its runtime and standard library (built in
+# Libraries/swift, for Minkar). The release tag matches the toolchain's
+# LLVM (swiftlang's swift-6.0-RELEASE). Our patches are in patches/.
+url https://github.com/swiftlang/swift/archive/refs/tags/swift-6.0-RELEASE.tar.gz
+file swift-6.0-RELEASE.tar.gz
+sha256 314c964b21cabe6a8fe513eca6be609d5b0d13340dd967e316db2e0330804b40
+version 6.0

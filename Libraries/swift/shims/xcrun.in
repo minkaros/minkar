@@ -1,0 +1,16 @@
+#!/bin/sh
+# SPDX-License-Identifier: BSD-2-Clause
+# Copyright (c) 2026 The Minkar contributors
+# Part of Minkar.
+#
+# xcrun, as Swift's CMake uses it on the Linux build host: the Minkar SDK's
+# path and version, and the toolchain's tools.
+case "$1" in
+--sdk) shift 2 ;;
+esac
+case "$1" in
+--show-sdk-path) echo @SDK@ ;;
+--show-sdk-version|--show-sdk-platform-version) echo 10.15 ;;
+-f|--find) echo @TC@/$2 ;;
+*) exec @TC@/"$@" ;;
+esac
