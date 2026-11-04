@@ -32,6 +32,10 @@
  * asks every application to quit (LaunchServices' session), waits for them
  * and starts the session again; Restart and Shut Down do the same, then
  * call reboot(2). An application that does not quit cancels the request.
+ * A session application that exits is started again, as launchd keeps the
+ * reference platform's Dock alive (so "killall Dock" applies its
+ * preferences); one that exits within RESPAWN_THROTTLE seconds of its start
+ * waits that long first. Not while the session ends.
  *
  * SHORTCUT(Phase 5): no login window, no user but root, no confirmation of
  * its own (the app asking shows one) and no session for other users: the
@@ -46,6 +50,7 @@
 #include <fcntl.h>
 #include <mach/mach.h>
 #include <servers/bootstrap.h>
+#include <pthread.h>
 #include <spawn.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -53,6 +58,8 @@
 #include <sys/reboot.h>
 #include <sys/stat.h>
 #include <sys/sysctl.h>
+#include <sys/wait.h>
+#include <time.h>
 #include <unistd.h>
 #include <LaunchServices/LSSession.h>
 #include "LoginWindowRequest.h"
@@ -66,6 +73,18 @@ extern char **environ;
 #define QUIT_TIMEOUT	30
 
 static int dryRun;
+
+/* The session applications started, to start again when they exit. */
+#define MAX_SESSION_APPS	16
+#define RESPAWN_THROTTLE	10
+static struct {
+	char exe[1200];
+	pid_t pid;
+	time_t started;
+} sessionApps[MAX_SESSION_APPS];
+static int sessionAppCount;
+static int sessionEnding;
+static pthread_mutex_t sessionLock = PTHREAD_MUTEX_INITIALIZER;
 
 static const char *
 requestName(uint32_t request)
@@ -92,6 +111,9 @@ executableFor(const char *path, char *out, size_t size)
 		snprintf(out, size, "%s", path);
 }
 
+static void startApp(int i);
+
+/* Starts the session's applications; called with sessionLock held. */
 static void
 startSession(void)
 {
@@ -102,6 +124,8 @@ startSession(void)
 	setenv("HOME", "/var/root", 1);
 	setenv("USER", "root", 1);
 	setenv("LOGNAME", "root", 1);
+	sessionAppCount = 0;
+	sessionEnding = 0;
 	if (list == NULL)
 		return;
 	while (fgets(line, sizeof(line), list) != NULL) {
@@ -109,17 +133,66 @@ startSession(void)
 		if (line[0] == '\0' || line[0] == '#')
 			continue;
 		executableFor(line, exe, sizeof(exe));
-		if (access(exe, X_OK) != 0)
+		if (access(exe, X_OK) != 0 || sessionAppCount == MAX_SESSION_APPS)
 			continue;
-		char *argv[] = { exe, NULL };
-		pid_t pid;
-		int err = posix_spawn(&pid, exe, NULL, NULL, argv, environ);
-		if (err != 0)
-			fprintf(stderr, "loginwindow: cannot start %s: %s\n", exe, strerror(err));
-		else
-			fprintf(stderr, "loginwindow: started %s (pid %d)\n", exe, pid);
+		snprintf(sessionApps[sessionAppCount].exe, sizeof(sessionApps[0].exe), "%s", exe);
+		startApp(sessionAppCount++);
 	}
 	fclose(list);
+}
+
+/* Starts a session application; called with sessionLock held. */
+static void
+startApp(int i)
+{
+	char *argv[] = { sessionApps[i].exe, NULL };
+	pid_t pid;
+	int err = posix_spawn(&pid, sessionApps[i].exe, NULL, NULL, argv, environ);
+
+	sessionApps[i].pid = err == 0 ? pid : 0;
+	sessionApps[i].started = time(NULL);
+	if (err != 0)
+		fprintf(stderr, "loginwindow: cannot start %s: %s\n", sessionApps[i].exe, strerror(err));
+	else
+		fprintf(stderr, "loginwindow: started %s (pid %d)\n", sessionApps[i].exe, pid);
+}
+
+/* Reaps the children; a session application that exits is started again. */
+static void *
+respawn(void *unused)
+{
+	(void)unused;
+	for (;;) {
+		int status;
+		pid_t pid = waitpid(-1, &status, 0);
+
+		if (pid < 0) {
+			sleep(1);
+			continue;
+		}
+		pthread_mutex_lock(&sessionLock);
+		for (int i = 0; i < sessionAppCount; i++) {
+			if (sessionApps[i].pid != pid)
+				continue;
+			sessionApps[i].pid = 0;
+			if (sessionEnding)
+				break;
+			fprintf(stderr, "loginwindow: %s (pid %d) exited (%d): starting it again\n",
+			    sessionApps[i].exe, pid, WIFEXITED(status) ? WEXITSTATUS(status) :
+			    128 + WTERMSIG(status));
+			if (time(NULL) - sessionApps[i].started < RESPAWN_THROTTLE) {
+				pthread_mutex_unlock(&sessionLock);
+				sleep(RESPAWN_THROTTLE);
+				pthread_mutex_lock(&sessionLock);
+				if (sessionEnding || sessionApps[i].pid != 0)
+					break;
+			}
+			startApp(i);
+			break;
+		}
+		pthread_mutex_unlock(&sessionLock);
+	}
+	return NULL;
 }
 
 /* The applications still running, but this process. */
@@ -174,12 +247,25 @@ serve(uint32_t request)
 	const char *what = requestName(request);
 
 	fprintf(stderr, "loginwindow: %s requested\n", what);
-	if (!quitApplications(what))
+	pthread_mutex_lock(&sessionLock);
+	sessionEnding = 1;
+	pthread_mutex_unlock(&sessionLock);
+	if (!quitApplications(what)) {
+		/* Cancelled: the session goes on, and its apps are kept alive. */
+		pthread_mutex_lock(&sessionLock);
+		sessionEnding = 0;
+		for (int i = 0; i < sessionAppCount; i++)
+			if (sessionApps[i].pid == 0)
+				startApp(i);
+		pthread_mutex_unlock(&sessionLock);
 		return;
+	}
 	switch (request) {
 	case kLoginWindowLogOut:
 		fprintf(stderr, "loginwindow: session ended\n");
+		pthread_mutex_lock(&sessionLock);
 		startSession();
+		pthread_mutex_unlock(&sessionLock);
 		break;
 	case kLoginWindowRestart:
 	case kLoginWindowShutDown:
@@ -187,7 +273,9 @@ serve(uint32_t request)
 		    request == kLoginWindowRestart ? "restarting" : "shutting down",
 		    dryRun ? " (not: -n)" : "");
 		if (dryRun) {
+			pthread_mutex_lock(&sessionLock);
 			startSession();
+			pthread_mutex_unlock(&sessionLock);
 			break;
 		}
 		sync();
@@ -242,7 +330,11 @@ main(int argc, char *argv[])
 	}
 	fprintf(stderr, "loginwindow: serving %s%s\n", kLoginWindowServiceName,
 	    dryRun ? " (trying out: no restart or shut down)" : "");
+	pthread_mutex_lock(&sessionLock);
 	startSession();
+	pthread_mutex_unlock(&sessionLock);
+	pthread_t reaper;
+	pthread_create(&reaper, NULL, respawn, NULL);
 
 	for (;;) {
 		union {
