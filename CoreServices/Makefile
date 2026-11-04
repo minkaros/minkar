@@ -27,6 +27,8 @@ SUBDIR += iosurfaced ../Frameworks/IOSurface/tests
 SUBDIR += pboard pboard/tests
 # os_log's messages kept (Phase 3).
 SUBDIR += logd
+# The file system's events for FSEvents (Dock-Argos.md, K0).
+SUBDIR += fseventsd
 # The desktop session apps loginwindow starts (Phase 5): the Dock and
 # the desktop (Dock-Argos.md, D1), Argos (K1), and the Menu Extras
 # (Menus.md, MB1).

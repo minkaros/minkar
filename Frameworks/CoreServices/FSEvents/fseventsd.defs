@@ -1,0 +1,40 @@
+/*
+ * SPDX-License-Identifier: BSD-2-Clause
+ * Copyright (c) 2026 The Minkar contributors
+ * Part of Minkar.
+ *
+ * FSEvents' requests to fseventsd (Dock-Argos.md, K0). A client registers
+ * a stream (its port, its flags and the paths it watches, NUL-separated)
+ * and gets the stream's number and the current event ID; fseventsd then
+ * sends the port an FSEventsMessage (FSEventsMessage.h) per event.
+ */
+
+subsystem fseventsd 29500;
+
+#include <mach/std_types.defs>
+#include <mach/mach_types.defs>
+
+userprefix fsed_;
+serverprefix fsedsrv_;
+
+import "fseventsdTypes.h";
+
+type fsed_paths_t = array[*:32768] of char;
+
+routine register_stream(
+	server			: mach_port_t;
+	ServerAuditToken token	: audit_token_t;
+	port			: mach_port_make_send_t;
+	flags			: uint32_t;
+	paths			: fsed_paths_t;
+	out stream		: uint32_t;
+	out current		: uint64_t);
+
+simpleroutine unregister_stream(
+	server			: mach_port_t;
+	ServerAuditToken token	: audit_token_t;
+	stream			: uint32_t);
+
+routine current_event_id(
+	server			: mach_port_t;
+	out current		: uint64_t);

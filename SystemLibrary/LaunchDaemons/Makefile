@@ -15,7 +15,7 @@ SYSDAEMONS =	com.apple.configd.plist com.apple.mDNSResponder.plist com.apple.not
 		org.minkar.coreservices.launchservicesd.plist \
 		org.minkar.WindowServer.plist \
 		org.minkar.loginwindow.plist org.minkar.iosurfaced.plist org.minkar.pboard.plist \
-		org.minkar.logd.plist
+		org.minkar.logd.plist org.minkar.fseventsd.plist
 DIR =		${SYSROOT_DIR}/System/Library/LaunchDaemons
 
 all: install-daemons

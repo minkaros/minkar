@@ -7,12 +7,13 @@ HEADERS = CoreServices.h
 
 RESOURCES=Info.plist English.lproj
 
-CFLAGS = -I${.CURDIR:H}
+CFLAGS = -I${.CURDIR:H} -F${MINKAR_SDKROOT}/System/Library/Frameworks/CoreServices.framework/Frameworks
 SUBDIR =
-# LaunchServices (built before this one, in Frameworks/Makefile) lives in
-# this framework's Frameworks directory, and CoreServices re-exports it.
+# LaunchServices and FSEvents (built before this one, in Frameworks/Makefile)
+# live in this framework's Frameworks directory; CoreServices re-exports them.
 LS_DYLIB = ${MINKAR_SDKROOT}/System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/LaunchServices.framework/Versions/A/LaunchServices
-LDFLAGS += -Wl,-reexport_library,${LS_DYLIB}
+FSE_DYLIB = ${MINKAR_SDKROOT}/System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/FSEvents.framework/Versions/A/FSEvents
+LDFLAGS += -Wl,-reexport_library,${LS_DYLIB} -Wl,-reexport_library,${FSE_DYLIB}
 
 fmwk-install-hook:
 	mkdir -p ${MINKAR_SDKROOT}/System/Library/Frameworks \

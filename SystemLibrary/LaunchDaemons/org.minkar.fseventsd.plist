@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+ SPDX-License-Identifier: BSD-2-Clause
+ Copyright (c) 2026 The Minkar contributors
+ Part of Minkar.
+
+ fseventsd (Dock-Argos.md, K0): the file system's events for FSEvents.
+ Started at boot and kept running, so the event IDs keep growing.
+-->
+<plist version="1.0">
+<dict>
+	<key>Label</key>
+	<string>org.minkar.fseventsd</string>
+	<key>ProgramArguments</key>
+	<array>
+		<string>/usr/libexec/fseventsd</string>
+	</array>
+	<key>MachServices</key>
+	<dict>
+		<key>org.minkar.fseventsd</key>
+		<true/>
+	</dict>
+	<key>RunAtLoad</key>
+	<true/>
+	<key>KeepAlive</key>
+	<true/>
+	<key>StandardErrorPath</key>
+	<string>/var/log/fseventsd.log</string>
+</dict>
+</plist>

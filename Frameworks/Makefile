@@ -12,6 +12,7 @@ SUBDIR += DiskArbitration
 SUBDIR += Foundation
 # LaunchServices is inside CoreServices, which re-exports it.
 SUBDIR += CoreServices/LaunchServices
+SUBDIR += CoreServices/FSEvents
 SUBDIR += CoreServices
 # IOSurface (roadmap step 4): pixel buffers shared across processes.
 SUBDIR += IOSurface
@@ -38,7 +39,8 @@ all: ${SUBDIR}
 
 Foundation: CoreFoundation
 IOSurface: CoreFoundation ../Kernel/IOKitUser
-CoreServices: CoreServices/LaunchServices
+CoreServices: CoreServices/LaunchServices CoreServices/FSEvents
+CoreServices/FSEvents: CoreFoundation
 SystemConfiguration: CoreFoundation
 DiskArbitration: CoreFoundation
 CoreData: Foundation
