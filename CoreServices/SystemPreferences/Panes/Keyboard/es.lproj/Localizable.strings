@@ -1,0 +1,19 @@
+/* SPDX-License-Identifier: BSD-2-Clause
+   Copyright (c) 2026 The Minkar contributors
+   The Keyboard pane, in Spanish. The keys are the English texts. */
+
+"Key Repeat" = "Repetición de teclas";
+"Delay Until Repeat" = "Retardo hasta repetición";
+"Slow" = "Lenta";
+"Fast" = "Rápida";
+"Long" = "Largo";
+"Short" = "Corto";
+"Keyboard layout:" = "Distribución del teclado:";
+"English (US)" = "Inglés (EE. UU.)";
+"English (UK)" = "Inglés (Reino Unido)";
+"Spanish" = "Español";
+"Spanish (Latin American)" = "Español (Latinoamérica)";
+"Portuguese (Brazil)" = "Portugués (Brasil)";
+"French" = "Francés";
+"German" = "Alemán";
+"Italian" = "Italiano";

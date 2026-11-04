@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CFBundleDevelopmentRegion</key>
+	<string>en</string>
+	<key>CFBundleExecutable</key>
+	<string>DateTime</string>
+	<key>CFBundleIdentifier</key>
+	<string>org.minkar.preference.datetime</string>
+	<key>CFBundleName</key>
+	<string>DateTime</string>
+	<key>CFBundlePackageType</key>
+	<string>BNDL</string>
+	<key>CFBundleShortVersionString</key>
+	<string>19.6.0</string>
+	<key>CFBundleVersion</key>
+	<string>1</string>
+	<key>NSPrefPaneIconLabel</key>
+	<string>Date &amp; Time</string>
+	<key>MinkarPrefPaneIconColor</key>
+	<string>0.85 0.35 0.30</string>
+	<key>NSPrincipalClass</key>
+	<string>DateTimePane</string>
+	<key>NSHumanReadableCopyright</key>
+	<string>Copyright (c) 2026 The Minkar contributors</string>
+</dict>
+</plist>

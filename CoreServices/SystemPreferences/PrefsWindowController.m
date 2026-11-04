@@ -243,6 +243,9 @@ static NSButton *barButton(NSString *title, id target, SEL action, CGFloat width
           backing:NSBackingStoreBuffered defer:NO];
     [_window setReleasedWhenClosed:NO];
     [_window setDelegate:self];
+    /* Near the top of the screen: the panes grow downward. */
+    NSRect visible = [[NSScreen mainScreen] visibleFrame];
+    [_window setFrameTopLeftPoint:NSMakePoint(NSMinX(visible) + 180, NSMaxY(visible) - 40)];
     NSView *root = [[NSView alloc] initWithFrame:[[_window contentView] frame]];
     [_window setContentView:root];
 
@@ -277,8 +280,13 @@ static NSButton *barButton(NSString *title, id target, SEL action, CGFloat width
 {
     NSRect frame = [_window frame];
     NSRect content = [_window contentRectForFrameRect:frame];
+    NSRect visible = [[_window screen] ?: [NSScreen mainScreen] visibleFrame];
     CGFloat top = NSMaxY(content);
     NSRect newContent = NSMakeRect(NSMinX(content), top - size.height - kBarHeight, size.width, size.height + kBarHeight);
+    /* Never past the bottom of the screen's usable area (above the Dock). */
+    NSRect newFrame = [_window frameRectForContentRect:newContent];
+    if (NSMinY(newFrame) < NSMinY(visible) + 80)
+        newContent.origin.y += NSMinY(visible) + 80 - NSMinY(newFrame);
 
     [_content removeFromSuperview];
     _content = view;
