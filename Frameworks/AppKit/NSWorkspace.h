@@ -9,7 +9,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <Foundation/Foundation.h>
 #import <AppKit/AppKitExport.h>
 
-@class NSImage, NSView, NSRunningApplication;
+@class NSImage, NSView, NSRunningApplication, NSScreen;
 
 APPKIT_EXPORT NSString *const NSWorkspaceWillPowerOffNotification;
 
@@ -22,6 +22,11 @@ APPKIT_EXPORT NSString *const NSWorkspaceDidDeactivateApplicationNotification;
 APPKIT_EXPORT NSString *const NSWorkspaceApplicationKey;
 
 APPKIT_EXPORT NSString *const NSWorkspaceRecycleOperation;
+
+/* The desktop picture's options (API 19). */
+APPKIT_EXPORT NSString *const NSWorkspaceDesktopImageScalingKey;      /* NSNumber of NSImageScaling */
+APPKIT_EXPORT NSString *const NSWorkspaceDesktopImageAllowClippingKey; /* NSNumber of BOOL */
+APPKIT_EXPORT NSString *const NSWorkspaceDesktopImageFillColorKey;    /* NSColor */
 
 @interface NSWorkspace : NSObject {
     NSNotificationCenter *_notificationCenter;
@@ -74,6 +79,11 @@ APPKIT_EXPORT NSString *const NSWorkspaceRecycleOperation;
 - (NSString *)pathForApplication:(NSString *)application;
 - (NSArray *)launchedApplications;
 - (NSArray *)runningApplications;
+
+/* The desktop picture of each screen (API 19). */
+-(BOOL)setDesktopImageURL:(NSURL *)url forScreen:(NSScreen *)screen options:(NSDictionary *)options error:(NSError **)error;
+-(NSURL *)desktopImageURLForScreen:(NSScreen *)screen;
+-(NSDictionary *)desktopImageOptionsForScreen:(NSScreen *)screen;
 - (NSRunningApplication *)frontmostApplication;
 - (BOOL)launchApplication:(NSString *)application;
 - (BOOL)launchApplication:(NSString *)application showIcon:(BOOL)showIcon autolaunch:(BOOL)autolaunch;

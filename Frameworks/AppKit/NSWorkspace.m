@@ -10,6 +10,10 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <AppKit/NSRunningApplication.h>
 #import "NSRunningApplication_private.h"
 #import <AppKit/NSImage.h>
+#import <AppKit/NSScreen.h>
+#import <AppKit/NSColor.h>
+#import <AppKit/NSCell.h>
+#include <notify.h>
 #include <spawn.h>
 #include <crt_externs.h>
 #include <dispatch/dispatch.h>
@@ -22,6 +26,10 @@ NSString * const NSWorkspaceDidDeactivateApplicationNotification=@"NSWorkspaceDi
 NSString * const NSWorkspaceApplicationKey=@"NSWorkspaceApplicationKey";
 
 NSString * const NSWorkspaceRecycleOperation=@"NSWorkspaceRecycleOperation";
+
+NSString * const NSWorkspaceDesktopImageScalingKey=@"NSWorkspaceDesktopImageScalingKey";
+NSString * const NSWorkspaceDesktopImageAllowClippingKey=@"NSWorkspaceDesktopImageAllowClippingKey";
+NSString * const NSWorkspaceDesktopImageFillColorKey=@"NSWorkspaceDesktopImageFillColorKey";
 
 @implementation NSWorkspace
 
@@ -262,6 +270,88 @@ static NSImage *bundleIcon(NSString *path) {
          return candidate;
    }
    return nil;
+}
+
+/*
+ * Desktop pictures: in the domain org.minkar.desktop, key "screens", one
+ * entry per display (its NSScreenNumber) with the picture's URL and the
+ * options; notify(3) posts org.minkar.desktop.changed, and the Dock, which
+ * draws the desktop, follows. The fill color is kept as calibrated RGBA.
+ */
+#define kDesktopDomain CFSTR("org.minkar.desktop")
+
+static NSString *screenKey(NSScreen *screen) {
+   NSNumber *number=[[screen deviceDescription] objectForKey:@"NSScreenNumber"];
+
+   return number ? [number stringValue] : @"0";
+}
+
+static NSDictionary *desktopEntries(void) {
+   CFPreferencesAppSynchronize(kDesktopDomain);
+   id screens=[(id)CFPreferencesCopyAppValue(CFSTR("screens"),kDesktopDomain) autorelease];
+
+   return [screens isKindOfClass:[NSDictionary class]] ? screens : [NSDictionary dictionary];
+}
+
+-(BOOL)setDesktopImageURL:(NSURL *)url forScreen:(NSScreen *)screen options:(NSDictionary *)options error:(NSError **)error {
+   if(url==nil || ![url isFileURL] || screen==nil ||
+      ![[NSFileManager defaultManager] fileExistsAtPath:[url path]]) {
+      if(error!=NULL)
+         *error=[NSError errorWithDomain:NSCocoaErrorDomain code:NSFileNoSuchFileError
+            userInfo:url ? [NSDictionary dictionaryWithObject:url forKey:NSURLErrorKey] : nil];
+      return NO;
+   }
+
+   NSMutableDictionary *entry=[NSMutableDictionary dictionaryWithObject:[url absoluteString] forKey:@"url"];
+   NSNumber *scaling=[options objectForKey:NSWorkspaceDesktopImageScalingKey];
+   NSNumber *clipping=[options objectForKey:NSWorkspaceDesktopImageAllowClippingKey];
+   NSColor *color=[[options objectForKey:NSWorkspaceDesktopImageFillColorKey]
+      colorUsingColorSpaceName:NSCalibratedRGBColorSpace];
+
+   if(scaling!=nil)
+      [entry setObject:scaling forKey:@"scaling"];
+   if(clipping!=nil)
+      [entry setObject:clipping forKey:@"clipping"];
+   if(color!=nil) {
+      CGFloat r,g,b,a;
+      [color getRed:&r green:&g blue:&b alpha:&a];
+      [entry setObject:[NSArray arrayWithObjects:[NSNumber numberWithDouble:r],
+         [NSNumber numberWithDouble:g],[NSNumber numberWithDouble:b],
+         [NSNumber numberWithDouble:a],nil] forKey:@"color"];
+   }
+
+   NSMutableDictionary *screens=[[desktopEntries() mutableCopy] autorelease];
+   [screens setObject:entry forKey:screenKey(screen)];
+   CFPreferencesSetAppValue(CFSTR("screens"),(CFPropertyListRef)screens,kDesktopDomain);
+   if(!CFPreferencesAppSynchronize(kDesktopDomain)) {
+      if(error!=NULL)
+         *error=[NSError errorWithDomain:NSCocoaErrorDomain code:NSFileWriteUnknownError userInfo:nil];
+      return NO;
+   }
+   notify_post("org.minkar.desktop.changed");
+   return YES;
+}
+
+-(NSURL *)desktopImageURLForScreen:(NSScreen *)screen {
+   NSString *string=[[desktopEntries() objectForKey:screenKey(screen)] objectForKey:@"url"];
+
+   return [string isKindOfClass:[NSString class]] ? [NSURL URLWithString:string] : nil;
+}
+
+-(NSDictionary *)desktopImageOptionsForScreen:(NSScreen *)screen {
+   NSDictionary *entry=[desktopEntries() objectForKey:screenKey(screen)];
+   NSMutableDictionary *result=[NSMutableDictionary dictionary];
+   NSArray *rgba=[entry objectForKey:@"color"];
+
+   [result setObject:[entry objectForKey:@"scaling"] ? [entry objectForKey:@"scaling"] :
+      [NSNumber numberWithInteger:NSImageScaleProportionallyUpOrDown] forKey:NSWorkspaceDesktopImageScalingKey];
+   [result setObject:[entry objectForKey:@"clipping"] ? [entry objectForKey:@"clipping"] :
+      [NSNumber numberWithBool:YES] forKey:NSWorkspaceDesktopImageAllowClippingKey];
+   if([rgba isKindOfClass:[NSArray class]] && [rgba count]==4)
+      [result setObject:[NSColor colorWithCalibratedRed:[[rgba objectAtIndex:0] doubleValue]
+         green:[[rgba objectAtIndex:1] doubleValue] blue:[[rgba objectAtIndex:2] doubleValue]
+         alpha:[[rgba objectAtIndex:3] doubleValue]] forKey:NSWorkspaceDesktopImageFillColorKey];
+   return result;
 }
 
 -(NSArray *)runningApplications {
