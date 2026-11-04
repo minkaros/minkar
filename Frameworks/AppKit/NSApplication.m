@@ -798,18 +798,28 @@ extern void _CGDisplayReconfigured(CGDirectDisplayID display, CGDisplayChangeSum
 }
 }
 
+/* As on the reference platform: when the last window closes, the app
+   quits only if its delegate's applicationShouldTerminateAfterLastWindowClosed:
+   says so. An app with no window (an agent with status items) runs on. */
 -(void)_checkForTerminate {
+   static BOOL hadWindow=NO;
    int  count=[_windows count];
 
    while(--count>=0){
     NSWindow *check=[_windows objectAtIndex:count];
 
     if(![check isKindOfClass:[NSPanel class]] && [check isVisible]){
+     hadWindow=YES;
      return;
     }
    }
 
-   [self terminate:self];
+   if(!hadWindow)
+      return;
+   hadWindow=NO;
+   if([_delegate respondsToSelector:@selector(applicationShouldTerminateAfterLastWindowClosed:)] &&
+      [_delegate applicationShouldTerminateAfterLastWindowClosed:self])
+      [self terminate:self];
 }
 
 -(void)_checkForAppActivation {
