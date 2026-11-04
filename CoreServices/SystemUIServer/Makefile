@@ -1,71 +1,22 @@
-APP=	        SystemUIServer
-SRCS=           SystemUIServer.m \
-                AppDelegate.m \
-                ClockView.m \
-                MenuView.m \
-                ExtrasView.m \
-                MenuBarWindow.m \
-		NSMenuWindow.m \
-		NSMainMenuView.m \
-		SubmenuView.m \
-                Label.m \
-                AboutWindow.m
-RELEASE_LOGO=	Minkar-256
-RESOURCES=	${.CURDIR}/../WindowServer/Legacy/Icon.png \
-		${SRCTOP}/Logo_Assets/Minkar/MenuBar/MinkarMenu-Black-64.png \
-		${SRCTOP}/Logo_Assets/Minkar/PNG/${RELEASE_LOGO}.png \
-		${.CURDIR}/kickSession
+# SPDX-License-Identifier: BSD-2-Clause
+# Copyright (c) 2026 The Minkar contributors
+# Part of Minkar.
+#
+# SystemUIServer (Menus.md, MB1): the Menu Extras on the right of the menu
+# bar, as status items of this agent app. loginwindow starts it
+# (SessionApplications).
+#
+# SHORTCUT(MB1): the extras are built in; MB1 moves each one to a .menu
+# bundle that SystemUIServer loads.
 
-MK_WERROR=	no
-MK_PIE=		no
-WARNS=	        1
-OBJCFLAGS= -fobjc-runtime=gnustep-2.0 -fobjc-nonfragile-abi -fPIC \
-	   -Wno-missing-method-return-type -Wno-macro-redefined
-CFLAGS+=	-g -fobjc-arc ${OBJCFLAGS} -D__MINKAR__ -D__MACH__ \
-		--sysroot=${OBJTOP}/tmp -B${OBJTOP}/tmp/usr/bin \
-		-B${OBJTOP}/tmp/legacy/bin -I${SRCTOP}/gnu/lib/libobjc2 \
-		-I${.CURDIR} -I${MAKEOBJDIR} -I${SRCTOP}/include \
-		-I${SRCTOP}/Frameworks/AppKit/Headers -I${.CURDIR}/../.. \
-		-I${TOPDIR}/CoreServices -I${OBJTOP}/Frameworks/Foundation/Headers \
-		-I${SRCTOP}/Frameworks -I${OBJTOP}/tmp/usr/include \
-		-I${OBJTOP}/Frameworks/CoreServices/CoreServices.framework/Headers \
-		-I${OBJTOP}/Frameworks/CFNetwork/CFNetwork.framework/Headers \
-		-I${OBJTOP}/Frameworks/OpenGL/OpenGL.framework/Headers \
-		-I${OBJTOP}/Frameworks/ApplicationServices/ApplicationServices.framework/Headers \
-		-I${OBJTOP}/Frameworks/CoreGraphics/CoreGraphics.framework/Headers \
-		-I${OBJTOP}/Frameworks/CoreText/CoreText.framework/Headers \
-		-I${OBJTOP}/Frameworks/QuartzCore/QuartzCore.framework/Headers \
-		-I${OBJTOP}/Frameworks/AppKit \
-		-I${OBJTOP}/Frameworks/Onyx2D/Onyx2D.framework/Headers \
-		-DRELEASE_LOGO="@\"${RELEASE_LOGO}\""
-LDFLAGS+=	-Wl,-R'$$ORIGIN/../Resources' -L${OBJTOP}/tmp/usr/lib \
-		-L${OBJTOP}/Frameworks/Foundation/Foundation.framework \
-		-L${OBJTOP}/Frameworks/CoreGraphics/CoreGraphics.framework \
-		-L${OBJTOP}/Frameworks/AppKit/AppKit.framework \
-		-L${OBJTOP}/Frameworks/LaunchServices/LaunchServices.framework \
-		-Wl,-R/System/Library/Frameworks/Foundation.framework/Versions/A \
-		-Wl,-R/System/Library/Frameworks/AppKit.framework/Versions/A \
-		-Wl,-R/System/Library/Frameworks/CoreGraphics.framework/Versions/A \
-		-Wl,-R/System/Library/Frameworks/LaunchServices.framework/Versions/A \
-                -lAppKit -lCoreGraphics -lLaunchServices -lFoundation -lobjc -lSystem -lm
-
-# Need this to find gl.h before toolchain supports -framework
-${MAKEOBJDIR}/OpenGL:
-	ln -sf ${SRCTOP}/Frameworks/OpenGL/include ${.TARGET}
-
-${.CURDIR}/kickSession: kickSession.m
-	${CC} -D__MINKAR__ -D__MACH__ -o ${.TARGET} ${.ALLSRC} \
-		--sysroot=${OBJTOP}/tmp -B${OBJTOP}/tmp/usr/bin \
-		${OBJCFLAGS} -I${SRCTOP}/Frameworks -I${MAKEOBJDIR} \
-		-F${OBJTOP}/Frameworks/Foundation \
-		-I${SRCTOP}/Frameworks/AppKit/Headers \
-		-I${OBJTOP}/Frameworks/Foundation/Headers \
-		-L${OBJTOP}/Frameworks/AppKit/AppKit.framework \
-		-L${OBJTOP}/Frameworks/Foundation/Foundation.framework \
-		-Wl,-R/System/Library/Frameworks/AppKit.framework/Versions/A \
-		-Wl,-R/System/Library/Frameworks/Foundation.framework/Versions/A \
-		-lAppKit -lFoundation -lSystem -lobjc
+SUBDIR =
+APP =		SystemUIServer
+APP_INSTALL_DIR = /System/Library/CoreServices
+SRCS =		main.m ClockExtra.m
+FRAMEWORKS =	AppKit Foundation
+MK_WERROR =	no
+CFLAGS +=	-fobjc-arc -g -std=gnu17 -Wno-incompatible-sysroot \
+		-Wno-nullability-completeness -I${ROOT_SOURCE_DIR}/Frameworks
+LDFLAGS +=	-lobjc
 
 .include <minkar.app.mk>
-
-${OBJS}: ${MAKEOBJDIR}/OpenGL
