@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2006-2007 Christopher J. W. Lloyd
+ * Modifications Copyright (c) 2026 The Minkar contributors
  * Copyright (C) 2021-2024 Zoe Knox <zoe@ravynsoft.com>
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -302,6 +303,10 @@ typedef enum {
 
 - (BOOL)application:(NSApplication *)theApplication openFile:(NSString *)filename;
 - (void)application:(NSApplication *)sender openFiles:(NSArray *)filenames;
+/* Asked first, with every URL (API 19; files and others). */
+- (void)application:(NSApplication *)application openURLs:(NSArray<NSURL *> *)urls;
+/* Minkar: the items to show in a file manager (LSRevealInArgos). */
+- (void)application:(NSApplication *)application revealURLs:(NSArray<NSURL *> *)urls;
 - (BOOL)application:(id)sender openFileWithoutUI:(NSString *)filename;
 - (BOOL)application:(NSApplication *)theApplication openTempFile:(NSString *)filename;
 - (BOOL)application:(NSApplication *)theApplication printFile:(NSString *)filename;

@@ -1,4 +1,5 @@
 /* Copyright (c) 2006-2007 Christopher J. W. Lloyd
+   Modifications Copyright (c) 2026 The Minkar contributors
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
 
@@ -53,6 +54,9 @@ APPKIT_EXPORT NSString *const NSWorkspaceDesktopImageFillColorKey;    /* NSColor
 - (BOOL)openURL:(NSURL *)url;
 
 - (BOOL)selectFile:(NSString *)path inFileViewerRootedAtPath:(NSString *)rootedAtPath;
+- (void)activateFileViewerSelectingURLs:(NSArray<NSURL *> *)fileURLs;
+- (NSURL *)URLForApplicationToOpenURL:(NSURL *)url;
+- (NSURL *)URLForApplicationWithBundleIdentifier:(NSString *)bundleIdentifier;
 - (void)slideImage:(NSImage *)image from:(NSPoint)from to:(NSPoint)to;
 - (BOOL)performFileOperation:(NSString *)operation source:(NSString *)source destination:(NSString *)destination files:(NSArray *)files tag:(int *)tag;
 
@@ -77,6 +81,7 @@ APPKIT_EXPORT NSString *const NSWorkspaceDesktopImageFillColorKey;    /* NSColor
 - (BOOL)isFilePackageAtPath:(NSString *)path;
 - (NSString *)absolutePathForAppBundleWithIdentifier:(NSString *)identifier;
 - (NSString *)pathForApplication:(NSString *)application;
+- (NSString *)fullPathForApplication:(NSString *)application;
 - (NSArray *)launchedApplications;
 - (NSArray *)runningApplications;
 

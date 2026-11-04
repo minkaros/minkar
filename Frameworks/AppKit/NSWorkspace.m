@@ -1,4 +1,5 @@
 /* Copyright (c) 2006-2007 Christopher J. W. Lloyd <cjwl@objc.net>
+   Modifications Copyright (c) 2026 The Minkar contributors
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
 
@@ -17,6 +18,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #include <spawn.h>
 #include <crt_externs.h>
 #include <dispatch/dispatch.h>
+#include <LaunchServices/LaunchServices.h>
 
 NSString * const NSWorkspaceWillPowerOffNotification=@"NSWorkspaceWillPowerOffNotification";
 NSString * const NSWorkspaceDidLaunchApplicationNotification=@"NSWorkspaceDidLaunchApplicationNotification";
@@ -58,21 +60,6 @@ NSString * const NSWorkspaceDesktopImageFillColorKey=@"NSWorkspaceDesktopImageFi
  * LaunchServices' open code is built (Phase 3, item 4), only application
  * bundles open, by running their executable; documents and other URLs
  * do not. An app that is already running is activated instead. */
-static BOOL launchBundle(NSString *path) {
-   NSBundle *bundle=[NSBundle bundleWithPath:path];
-   NSString *executable=[bundle executablePath];
-
-   if(executable==nil)
-      return NO;
-   for(NSRunningApplication *app in [NSRunningApplication _runningApplications])
-      if([[[app bundleURL] path] isEqualToString:[bundle bundlePath]])
-         return [app activateWithOptions:NSApplicationActivateIgnoringOtherApps];
-
-   const char *argv[]={[executable fileSystemRepresentation],NULL};
-   pid_t pid;
-   return posix_spawn(&pid,argv[0],NULL,NULL,(char *const *)argv,*_NSGetEnviron())==0;
-}
-
 /* An application's icon: CFBundleIconFile in its Resources, tried as
  * named and with the image types NSImage reads. Others get the generic
  * application icon (applications) or nil. */
@@ -145,9 +132,45 @@ static NSImage *bundleIcon(NSString *path) {
    return [self openURL:[NSURL fileURLWithPath:path]];
 }
 
+/* CF objects for LaunchServices: Foundation's are not CF ones here (the
+ * bridge goes from CF to Objective-C only). */
+static CFURLRef copyCFURL(NSURL *url) {
+   const char *path=[[url path] fileSystemRepresentation];
+
+   if(![url isFileURL] || path==NULL)
+      return NULL;
+   return CFURLCreateFromFileSystemRepresentation(NULL,(const UInt8 *)path,strlen(path),url.hasDirectoryPath);
+}
+
+static CFArrayRef copyCFURLs(NSArray *urls) {
+   CFMutableArrayRef list=CFArrayCreateMutable(NULL,[urls count],&kCFTypeArrayCallBacks);
+
+   for(NSURL *url in urls) {
+      CFURLRef cf=copyCFURL(url);
+      if(cf!=NULL) {
+         CFArrayAppendValue(list,cf);
+         CFRelease(cf);
+      }
+   }
+   return list;
+}
+
+/* Opening goes through LaunchServices: each item's application, which
+ * gets it on its session port (application:openURLs: and the like). */
 -(BOOL)openFile:(NSString *)path withApplication:(NSString *)application {
-   NSInvalidAbstractInvocation();
-   return 0;
+   if(application==nil)
+      return [self openFile:path];
+   NSString *app=[self pathForApplication:application];
+   if(app==nil || path==nil)
+      return NO;
+   CFArrayRef items=copyCFURLs([NSArray arrayWithObject:[NSURL fileURLWithPath:path]]);
+   CFURLRef appURL=copyCFURL([NSURL fileURLWithPath:app]);
+   LSLaunchURLSpec spec={ appURL, items, NULL, kLSLaunchDefaults, NULL };
+   OSStatus status=LSOpenFromURLSpec(&spec, NULL);
+   CFRelease(items);
+   if(appURL!=NULL)
+      CFRelease(appURL);
+   return status==noErr;
 }
 
 -(BOOL)openTempFile:(NSString *)path {
@@ -161,19 +184,71 @@ static NSImage *bundleIcon(NSString *path) {
 }
 
 -(BOOL)openFile:(NSString *)path withApplication:(NSString *)application andDeactivate:(BOOL)deactivate {
-   NSInvalidAbstractInvocation();
-   return 0;
+   return [self openFile:path withApplication:application];
 }
 
 -(BOOL)openURL:(NSURL *)url {
-   if(url==nil || ![url isFileURL])
+   CFURLRef cf=url ? copyCFURL(url) : NULL;	/* other schemes: with URL handlers */
+
+   if(cf==NULL)
       return NO;
-   return launchBundle([url path]);
+   OSStatus status=LSOpenCFURLRef(cf, NULL);
+   CFRelease(cf);
+   return status==noErr;
 }
 
+/* Argos shows the file selected (the folder alone with no file). */
 -(BOOL)selectFile:(NSString *)path inFileViewerRootedAtPath:(NSString *)rootedAtPath {
-   NSInvalidAbstractInvocation();
-   return 0;
+   NSString *item=[path length] ? path : rootedAtPath;
+
+   if([item length]==0)
+      return NO;
+   CFArrayRef items=copyCFURLs([NSArray arrayWithObject:[NSURL fileURLWithPath:item]]);
+   OSStatus status=LSRevealInArgos(items);
+   CFRelease(items);
+   return status==noErr;
+}
+
+-(void)activateFileViewerSelectingURLs:(NSArray *)fileURLs {
+   if([fileURLs count]>0) {
+      CFArrayRef items=copyCFURLs(fileURLs);
+      LSRevealInArgos(items);
+      CFRelease(items);
+   }
+}
+
+-(NSURL *)URLForApplicationToOpenURL:(NSURL *)url {
+   if(url==nil)
+      return nil;
+   CFURLRef cf=copyCFURL(url);
+   CFURLRef app=cf ? LSCopyDefaultApplicationURLForURL(cf, kLSRolesAll, NULL) : NULL;
+   if(cf!=NULL)
+      CFRelease(cf);
+   NSURL *result=nil;
+   char path[1024];
+   if(app!=NULL && CFURLGetFileSystemRepresentation(app,true,(UInt8 *)path,sizeof(path)))
+      result=[NSURL fileURLWithPath:[NSString stringWithUTF8String:path]];
+   if(app!=NULL)
+      CFRelease(app);
+   return result;
+}
+
+-(NSURL *)URLForApplicationWithBundleIdentifier:(NSString *)bundleIdentifier {
+   if(bundleIdentifier==nil)
+      return nil;
+   CFStringRef id=CFStringCreateWithCString(NULL,[bundleIdentifier UTF8String],kCFStringEncodingUTF8);
+   CFArrayRef apps=id ? LSCopyApplicationURLsForBundleIdentifier(id, NULL) : NULL;
+   NSURL *app=nil;
+   if(apps!=NULL && CFArrayGetCount(apps)>0) {
+      char path[1024];
+      if(CFURLGetFileSystemRepresentation(CFArrayGetValueAtIndex(apps,0),true,(UInt8 *)path,sizeof(path)))
+         app=[NSURL fileURLWithPath:[NSString stringWithUTF8String:path]];
+   }
+   if(apps!=NULL)
+      CFRelease(apps);
+   if(id!=NULL)
+      CFRelease(id);
+   return app;
 }
 
 -(void)slideImage:(NSImage *)image from:(NSPoint)from to:(NSPoint)to {
@@ -247,8 +322,11 @@ static NSImage *bundleIcon(NSString *path) {
 }
 
 -(NSString *)absolutePathForAppBundleWithIdentifier:(NSString *)identifier {
-   NSInvalidAbstractInvocation();
-   return 0;
+   return [[self URLForApplicationWithBundleIdentifier:identifier] path];
+}
+
+-(NSString *)fullPathForApplication:(NSString *)application {
+   return [self pathForApplication:application];
 }
 
 -(NSString *)pathForApplication:(NSString *)application {
