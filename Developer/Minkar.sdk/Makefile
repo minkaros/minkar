@@ -81,6 +81,10 @@ all: ${PLATFORM_DIR} ${TOOLS}/unifdef .EXEC
 	cp -f ${.CURDIR}/usr/include/dispatch/darwin/module.modulemap \
 		${MINKAR_SDKROOT}/usr/include/dispatch/module.modulemap
 	cp -f ${.CURDIR}/modules/os.modulemap ${MINKAR_SDKROOT}/usr/include/os/module.modulemap
+	# XPC's API notes for Swift (the frameworks install their own:
+	# apinotes/README.md).
+	mkdir -p ${MINKAR_SDKROOT}/usr/include/xpc
+	cp -f ${.CURDIR}/apinotes/XPC.apinotes ${MINKAR_SDKROOT}/usr/include/xpc/
 
 SUBDIR = rpcsvc
 

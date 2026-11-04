@@ -82,10 +82,13 @@ module Darwin [system] [extern_c] {
     module mount { header "sys/mount.h" export * }
     module xattr { header "sys/xattr.h" export * }
     module attr { header "sys/attr.h" export * }
+    module qos { header "sys/qos.h" export * }
     export *
   }
   module Mach { header "mach/mach.h" header "mach/mach_time.h" export * }
   module MachO { header "mach-o/dyld.h" header "mach-o/loader.h" export * }
+  module MacTypes { header "MacTypes.h" export * }
+  module uuid { header "uuid/uuid.h" export * }
   module malloc { header "malloc/malloc.h" export * }
   module os_lock { header "os/lock.h" export * }
   module libkern { header "libkern/OSAtomic.h" export * }
