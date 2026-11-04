@@ -9,6 +9,8 @@
 
 #import "DesktopWindow.h"
 #import "DockView.h"
+#include <notify.h>
+#include <unistd.h>
 
 @interface DockController : NSObject <NSApplicationDelegate>
 @end
@@ -31,9 +33,30 @@
     }
 }
 
+/* NSWorkspace posts org.minkar.desktop.changed when a picture is set. */
+- (void)watchDesktopPictures
+{
+    int fd = -1, token;
+
+    if (notify_register_file_descriptor("org.minkar.desktop.changed", &fd, 0, &token) != NOTIFY_STATUS_OK)
+        return;
+    [NSThread detachNewThreadWithBlock:^{
+        int value;
+        while (read(fd, &value, sizeof(value)) == sizeof(value))
+            [self performSelectorOnMainThread:@selector(desktopPicturesChanged) withObject:nil waitUntilDone:NO];
+    }];
+}
+
+- (void)desktopPicturesChanged
+{
+    for (DesktopWindow *window in _desktops)
+        [window reload];
+}
+
 - (void)applicationDidFinishLaunching:(NSNotification *)note
 {
     [self showDesktops];
+    [self watchDesktopPictures];
     _model = [[DockModel alloc] init];
     _dock = [[DockWindow alloc] initWithModel:_model];
     [_dock orderFront:nil];
