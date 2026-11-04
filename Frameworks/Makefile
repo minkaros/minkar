@@ -34,6 +34,8 @@ SUBDIR += QuartzCore
 SUBDIR += AppKit
 # The umbrella apps import and link.
 SUBDIR += Cocoa
+# System Preferences' panes.
+SUBDIR += PreferencePanes
 
 all: ${SUBDIR}
 
@@ -48,5 +50,6 @@ QuartzCore: OpenGL IOSurface ../PrivateFrameworks/SkyLight
 AppKit: CoreData QuartzCore ApplicationServices
 ApplicationServices: CoreGraphics CoreText
 Cocoa: AppKit CoreData
+PreferencePanes: AppKit
 
 .include <bsd.subdir.mk>
