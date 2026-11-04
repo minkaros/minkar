@@ -116,10 +116,13 @@ typedef struct OpaqueLSSharedFileListItemRef *LSSharedFileListItemRef;
 #ifdef __cplusplus
 extern "C" {
 #endif
-void LSRevealInFiler(CFArrayRef inItemURLs);
+/* Shows the items in Argos, the file manager. */
+void LSRevealInArgos(CFArrayRef inItemURLs);
+/* The old name, kept for one release (19.6.0). */
+void LSRevealInFiler(CFArrayRef inItemURLs) __attribute__((deprecated("use LSRevealInArgos")));
 
 //------------------------------------------------------------------------
-// These two functions are used by Filer but are otherwise internal only
+// These two functions are used by Argos but are otherwise internal only
 //------------------------------------------------------------------------
 
 Boolean LSIsNSBundle(CFURLRef url);

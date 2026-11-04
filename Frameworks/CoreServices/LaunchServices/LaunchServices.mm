@@ -428,7 +428,7 @@ static void PostXEvent(Display *display, Window window, Atom messageType, long d
 }
 #endif // _X11_
 
-void LSRevealInFiler(CFArrayRef inItemURLs)
+void LSRevealInArgos(CFArrayRef inItemURLs)
 {
 #ifdef _REWRITE_ME_
     QDBusConnection dbus = QDBusConnection::sessionBus();
@@ -448,9 +448,14 @@ void LSRevealInFiler(CFArrayRef inItemURLs)
         }
         filerIface.call("ShowItems", uriList, "0");
     } else {
-        fprintf(stderr, "Unable to connect to Filer!\n");
+        fprintf(stderr, "Unable to connect to Argos!\n");
     }
 #endif // _REWRITE_ME_
+}
+
+void LSRevealInFiler(CFArrayRef inItemURLs)
+{
+    LSRevealInArgos(inItemURLs);
 }
 
 /* from xpc_type.c */

@@ -157,7 +157,7 @@ int main(int argc, const char **argv)
     // now we are ready to launch!
 
     if(revealInFiler) {
-        LSRevealInFiler((CFArrayRef)itemURLs);
+        LSRevealInArgos((CFArrayRef)itemURLs);
         return 0;
     }
 
@@ -214,7 +214,7 @@ void showHelpAndExit(void)
     fprintf(stderr,"\t-t               Opens with the default text editor\n");
     fprintf(stderr,"\t-f               Reads input from stdin and opens it in the default text editor\n");
     fprintf(stderr,"\t-F --fresh       Launches a 'fresh' application, without restoring windows\n");
-    fprintf(stderr,"\t-R --reveal      Show files in Filer instead of opening\n");
+    fprintf(stderr,"\t-R --reveal      Show files in Argos instead of opening\n");
     fprintf(stderr,"\t-W --wait-apps   Wait for started applications to exit\n");
     fprintf(stderr,"\t-n --new         Start a new copy of the application even if one is running\n");
     fprintf(stderr,"\t-j --hide        Launch the application hidden\n");

@@ -16,5 +16,5 @@ The boot screens show the intended look; the progress bar must follow the
 actual boot progress. Rebuild an `.icns` on macOS with
 `iconutil --convert icns --output Minkar.icns Minkar.iconset`.
 
-Filer, System Preferences and the Installer use the system icon until they
+Argos, System Preferences and the Installer use the system icon until they
 get icons of their own.

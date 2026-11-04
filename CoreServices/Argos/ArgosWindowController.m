@@ -1,0 +1,271 @@
+/*
+ * SPDX-License-Identifier: BSD-2-Clause
+ * Copyright (c) 2026 The Minkar contributors
+ * Part of Minkar.
+ *
+ * Argos's browser window (Dock-Argos.md, K1): navigation with history,
+ * the sidebar and the browser, opening folders here and applications with
+ * NSWorkspace. Atlas's provisional look.
+ */
+
+#import "ArgosWindowController.h"
+#import "ArgosSidebarView.h"
+#include <sys/mount.h>
+#include <os/log.h>
+
+static const CGFloat kBarHeight = 38, kStatusHeight = 22, kSidebarWidth = 170;
+
+@interface ArgosWindowController () <ArgosBrowserViewDelegate, ArgosSidebarViewDelegate, NSWindowDelegate>
+@end
+
+/* The window's content: it lays out its parts when resized. */
+@interface ArgosContentView : NSView
+@property (nonatomic, weak) ArgosWindowController *controller;
+@end
+
+@implementation ArgosWindowController {
+    NSWindow *_window;
+    NSURL *_folder;
+    NSMutableArray<NSURL *> *_back, *_forward;
+    ArgosSidebarView *_sidebar;
+    NSScrollView *_scroll;
+    ArgosBrowserView *_browser;
+    NSButton *_backButton, *_forwardButton, *_iconsButton, *_listButton;
+    NSTextField *_title, *_status;
+}
+
+static NSButton *barButton(NSString *title, id target, SEL action)
+{
+    NSButton *button = [[NSButton alloc] initWithFrame:NSMakeRect(0, 0, 30, 24)];
+
+    [button setTitle:title];
+    [button setBezelStyle:NSRoundedBezelStyle];
+    [button setTarget:target];
+    [button setAction:action];
+    return button;
+}
+
+static NSTextField *label(CGFloat size, BOOL bold)
+{
+    NSTextField *field = [[NSTextField alloc] initWithFrame:NSMakeRect(0, 0, 100, 20)];
+
+    [field setEditable:NO];
+    [field setSelectable:NO];
+    [field setBordered:NO];
+    [field setDrawsBackground:NO];
+    [field setFont:bold ? [NSFont boldSystemFontOfSize:size] : [NSFont systemFontOfSize:size]];
+    return field;
+}
+
+- (instancetype)initWithFolder:(NSURL *)folder
+{
+    if ((self = [super init]) == nil)
+        return nil;
+    _back = [NSMutableArray array];
+    _forward = [NSMutableArray array];
+
+    _window = [[NSWindow alloc] initWithContentRect:NSMakeRect(160, 140, 860, 520)
+        styleMask:NSTitledWindowMask | NSClosableWindowMask | NSMiniaturizableWindowMask | NSResizableWindowMask
+          backing:NSBackingStoreBuffered defer:NO];
+    [_window setReleasedWhenClosed:NO];
+    [_window setMinSize:NSMakeSize(480, 280)];
+    [_window setDelegate:self];
+
+    ArgosContentView *content = [[ArgosContentView alloc] initWithFrame:[[_window contentView] frame]];
+    content.controller = self;
+    [_window setContentView:content];
+
+    _backButton = barButton(@"‹", self, @selector(goBack:));
+    _forwardButton = barButton(@"›", self, @selector(goForward:));
+    _iconsButton = barButton(@"Icons", self, @selector(showAsIcons:));
+    _listButton = barButton(@"List", self, @selector(showAsList:));
+    _title = label(13, YES);
+    _status = label(11, NO);
+    [_status setAlignment:NSCenterTextAlignment];
+    [_status setTextColor:[NSColor colorWithCalibratedWhite:0.35 alpha:1]];
+
+    _sidebar = [[ArgosSidebarView alloc] initWithFrame:NSMakeRect(0, 0, kSidebarWidth, 100)];
+    _sidebar.delegate = self;
+    _scroll = [[NSScrollView alloc] initWithFrame:NSMakeRect(0, 0, 100, 100)];
+    [_scroll setHasVerticalScroller:YES];
+    [_scroll setAutohidesScrollers:YES];
+    [_scroll setBorderType:NSNoBorder];
+    _browser = [[ArgosBrowserView alloc] initWithFrame:NSMakeRect(0, 0, 100, 100)];
+    _browser.delegate = self;
+    [_scroll setDocumentView:_browser];
+
+    for (NSView *view in @[ _backButton, _forwardButton, _title, _iconsButton, _listButton, _sidebar, _scroll, _status ])
+        [content addSubview:view];
+    [self layout];
+    [self goToFolder:folder remember:NO];
+    [_window makeFirstResponder:_browser];
+    return self;
+}
+
+- (NSWindow *)window
+{
+    return _window;
+}
+
+- (NSURL *)folder
+{
+    return _folder;
+}
+
+- (void)layout
+{
+    NSRect b = [[_window contentView] bounds];
+    CGFloat top = NSMaxY(b) - kBarHeight;
+
+    [_backButton setFrame:NSMakeRect(kSidebarWidth + 8, top + 7, 30, 24)];
+    [_forwardButton setFrame:NSMakeRect(kSidebarWidth + 40, top + 7, 30, 24)];
+    [_title setFrame:NSMakeRect(kSidebarWidth + 80, top + 9, NSWidth(b) - kSidebarWidth - 220, 20)];
+    [_iconsButton setFrame:NSMakeRect(NSWidth(b) - 124, top + 7, 56, 24)];
+    [_listButton setFrame:NSMakeRect(NSWidth(b) - 64, top + 7, 56, 24)];
+    [_sidebar setFrame:NSMakeRect(0, 0, kSidebarWidth, NSHeight(b))];
+    [_scroll setFrame:NSMakeRect(kSidebarWidth, kStatusHeight, NSWidth(b) - kSidebarWidth,
+                                 NSHeight(b) - kBarHeight - kStatusHeight)];
+    [_status setFrame:NSMakeRect(kSidebarWidth, 3, NSWidth(b) - kSidebarWidth, 16)];
+    [_browser relayout];
+}
+
+/* -- Navigation -- */
+
+- (void)goToFolder:(NSURL *)folder remember:(BOOL)remember
+{
+    NSError *error = nil;
+    NSArray *items = [ArgosItem itemsInFolder:folder error:&error];
+
+    if (items == nil) {
+        NSBeep();
+        return;
+    }
+    if (remember && _folder != nil) {
+        [_back addObject:_folder];
+        [_forward removeAllObjects];
+    }
+    _folder = [folder copy];
+    os_log_info(OS_LOG_DEFAULT, "folder %{public}s", [[folder path] fileSystemRepresentation]);
+    _browser.items = items;
+    _sidebar.currentURL = folder;
+    NSString *name = [[folder path] isEqualToString:@"/"] ? @"Minkar" : [folder lastPathComponent];
+    [_title setStringValue:name];
+    [_window setTitle:name];
+    [self updateButtons];
+    [self updateStatus];
+}
+
+- (void)goToFolder:(NSURL *)folder
+{
+    [self goToFolder:folder remember:YES];
+}
+
+- (void)updateButtons
+{
+    [_backButton setEnabled:[_back count] > 0];
+    [_forwardButton setEnabled:[_forward count] > 0];
+    [_iconsButton setState:_browser.mode == ArgosViewModeIcons ? NSOnState : NSOffState];
+    [_listButton setState:_browser.mode == ArgosViewModeList ? NSOnState : NSOffState];
+}
+
+- (void)updateStatus
+{
+    NSUInteger count = [_browser.items count];
+    struct statfs fs;
+    NSString *available = @"";
+
+    if (statfs([[_folder path] fileSystemRepresentation], &fs) == 0)
+        available = [NSString stringWithFormat:@", %@ available",
+                     ArgosSizeString((unsigned long long)fs.f_bavail * fs.f_bsize)];
+    [_status setStringValue:[NSString stringWithFormat:@"%lu item%@%@", (unsigned long)count,
+                             count == 1 ? @"" : @"s", available]];
+}
+
+- (IBAction)goBack:(id)sender
+{
+    if ([_back count] == 0)
+        return;
+    NSURL *to = [_back lastObject];
+    [_back removeLastObject];
+    [_forward addObject:_folder];
+    [self goToFolder:to remember:NO];
+}
+
+- (IBAction)goForward:(id)sender
+{
+    if ([_forward count] == 0)
+        return;
+    NSURL *to = [_forward lastObject];
+    [_forward removeLastObject];
+    [_back addObject:_folder];
+    [self goToFolder:to remember:NO];
+}
+
+- (IBAction)goToEnclosingFolder:(id)sender
+{
+    if ([[_folder path] isEqualToString:@"/"])
+        return;
+    NSString *child = [_folder lastPathComponent];
+    [self goToFolder:[_folder URLByDeletingLastPathComponent]];
+    [_browser selectItemNamed:child];
+}
+
+- (IBAction)openSelection:(id)sender
+{
+    if (_browser.selectedItem != nil)
+        [self browserView:_browser openItem:_browser.selectedItem];
+}
+
+- (IBAction)showAsIcons:(id)sender
+{
+    _browser.mode = ArgosViewModeIcons;
+    [self updateButtons];
+}
+
+- (IBAction)showAsList:(id)sender
+{
+    _browser.mode = ArgosViewModeList;
+    [self updateButtons];
+}
+
+/* -- Delegates -- */
+
+- (void)browserView:(ArgosBrowserView *)view openItem:(ArgosItem *)item
+{
+    os_log_info(OS_LOG_DEFAULT, "open %{public}s", [[item.URL path] fileSystemRepresentation]);
+    if (item.isFolder)
+        [self goToFolder:item.URL];
+    else if (![[NSWorkspace sharedWorkspace] openFile:[item.URL path]])
+        NSBeep();   /* documents open with LaunchServices' open code (Phase 3, item 4) */
+}
+
+- (void)browserViewSelectionChanged:(ArgosBrowserView *)view
+{
+}
+
+- (void)sidebarView:(ArgosSidebarView *)view chooseURL:(NSURL *)url
+{
+    [self goToFolder:url];
+}
+
+- (void)windowDidResize:(NSNotification *)note
+{
+    [self layout];
+}
+
+@end
+
+@implementation ArgosContentView
+
+- (void)drawRect:(NSRect)dirty
+{
+    NSRect b = [self bounds];
+
+    [[NSColor colorWithCalibratedWhite:0.97 alpha:1] set];
+    NSRectFill(dirty);
+    [[NSColor colorWithCalibratedWhite:0.82 alpha:1] set];
+    NSRectFill(NSMakeRect(0, NSMaxY(b) - 38, NSWidth(b), 1));
+    NSRectFill(NSMakeRect(0, 21, NSWidth(b), 1));
+}
+
+@end
