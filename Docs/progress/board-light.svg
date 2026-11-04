@@ -72,7 +72,7 @@
 <rect x="567" y="70" width="261.5" height="891" rx="10" fill="#f6f8fa"/>
 <text x="581" y="96" font-size="13" font-weight="700" fill="#59636e" text-anchor="start" letter-spacing=".08em">NEXT</text>
 <rect x="577" y="114" width="241.5" height="89" rx="8" fill="#ffffff" stroke="#d1d9e0" stroke-width="1"/><rect x="577" y="114" width="5" height="89" rx="2" fill="#bc4c00"/>
-<text x="593" y="138" font-size="15" font-weight="650" fill="#1f2328" text-anchor="start">D0 · K0 — Dock and Kraz</text>
+<text x="593" y="138" font-size="15" font-weight="650" fill="#1f2328" text-anchor="start">D0 · K0 — Dock and Argos</text>
 <text x="593" y="159" font-size="15" font-weight="650" fill="#1f2328" text-anchor="start">prerequisites</text>
 <text x="593" y="180" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">can start: WS4a is done</text>
 <rect x="577" y="213" width="241.5" height="68" rx="8" fill="#ffffff" stroke="#d1d9e0" stroke-width="1"/><rect x="577" y="213" width="5" height="68" rx="2" fill="#9a6700"/>
@@ -87,13 +87,13 @@
 <text x="593" y="414" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">waits</text>
 <rect x="842.5" y="70" width="261.5" height="891" rx="10" fill="#f6f8fa"/>
 <text x="856.5" y="96" font-size="13" font-weight="700" fill="#59636e" text-anchor="start" letter-spacing=".08em">LATER</text>
-<text x="856.5" y="128" font-size="14.5" font-weight="700" fill="#1f2328" text-anchor="start">→ M5 Gienah session</text>
+<text x="856.5" y="128" font-size="14.5" font-weight="700" fill="#1f2328" text-anchor="start">→ M5 Atlas session</text>
 <circle cx="862.5" cy="147" r="4.5" fill="#8250df"/>
 <text x="874.5" y="152" font-size="14" font-weight="400" fill="#59636e" text-anchor="start">MB1 Menu Extras</text>
 <circle cx="862.5" cy="171" r="4.5" fill="#bc4c00"/>
 <text x="874.5" y="176" font-size="14" font-weight="400" fill="#59636e" text-anchor="start">D1 Dock core</text>
 <circle cx="862.5" cy="195" r="4.5" fill="#0f7b6f"/>
-<text x="874.5" y="200" font-size="14" font-weight="400" fill="#59636e" text-anchor="start">K1 Kraz browsing</text>
+<text x="874.5" y="200" font-size="14" font-weight="400" fill="#59636e" text-anchor="start">K1 Argos browsing</text>
 <circle cx="862.5" cy="219" r="4.5" fill="#bf3989"/>
 <text x="874.5" y="224" font-size="14" font-weight="400" fill="#59636e" text-anchor="start">LoginWindow, Preferences</text>
 <text x="856.5" y="262" font-size="14.5" font-weight="700" fill="#1f2328" text-anchor="start">→ M6 · Minkar 19.6.0</text>
@@ -103,7 +103,7 @@
 <text x="874.5" y="310" font-size="14" font-weight="400" fill="#59636e" text-anchor="start">D2–D3 Dock, with the app</text>
 <text x="874.5" y="330" font-size="14" font-weight="400" fill="#59636e" text-anchor="start">switcher</text>
 <circle cx="862.5" cy="349" r="4.5" fill="#0f7b6f"/>
-<text x="874.5" y="354" font-size="14" font-weight="400" fill="#59636e" text-anchor="start">K2–K3 Kraz, with DMG</text>
+<text x="874.5" y="354" font-size="14" font-weight="400" fill="#59636e" text-anchor="start">K2–K3 Argos, with DMG</text>
 <text x="874.5" y="374" font-size="14" font-weight="400" fill="#59636e" text-anchor="start">double-click</text>
 <circle cx="862.5" cy="393" r="4.5" fill="#1a7f37"/>
 <text x="874.5" y="398" font-size="14" font-weight="400" fill="#59636e" text-anchor="start">DiskImages (hdiutil attach</text>

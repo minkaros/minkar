@@ -99,7 +99,7 @@ Lo que vale la pena conservar:
 Cada parte de la barra es su propia ventana sin borde, y el servidor de
 ventanas las compone en una sola franja. Cuando cambia la app del frente, el
 servidor de ventanas retira la ventana de barra de menús de la app anterior y
-muestra la de la nueva; las ventanas de los status items no se mueven. Kraz
+muestra la de la nueva; las ventanas de los status items no se mueven. Argos
 siempre está en ejecución, así que es la app del frente cuando no hay otra.
 
 Como los menús corren en el proceso de la app, una app colgada no puede abrir
@@ -181,7 +181,7 @@ disponible.
 - Botones emergentes (`NSPopUpButton`) con las mismas ventanas de menú y el
   mismo seguimiento.
 - Menús del Dock (`applicationDockMenu:`) a través del servicio de tiles de
-  [Dock-Kraz.es.md](Dock-Kraz.es.md) (D2).
+  [Dock-Argos.es.md](Dock-Argos.es.md) (D2).
 
 ### Status items
 
@@ -244,8 +244,8 @@ accesibilidad puedan leerlos y pulsarlos.
 | MB3 | El LoginWindow completo (reposo, forzar salida, bloquear pantalla) | Fase 5, punto 1 |
 | MB3 | App Preferencias del Sistema | Fase 5, punto 6 |
 | MB4 | Daemon de servicios | Fase 5 |
-| Todos | El lenguaje visual Gienah (tipografías, medidas y colores de los menús) | Fase 5, punto 7 |
-| Menús del Dock | Servicio de tiles del Dock | [Dock-Kraz.es.md](Dock-Kraz.es.md), D2 |
+| Todos | El lenguaje visual Atlas (tipografías, medidas y colores de los menús) | Fase 5, punto 7 |
+| Menús del Dock | Servicio de tiles del Dock | [Dock-Argos.es.md](Dock-Argos.es.md), D2 |
 
 ## 7. Hitos
 
@@ -316,13 +316,13 @@ del roadmap.
 | Quién dibuja y sigue los menús de la app | La app (AppKit), en su propio proceso | Ninguno: SystemUIServer dibujaba una copia, y no se compila | MB0 |
 | Menú del sistema | Logo de Minkar, los elementos de la plataforma de referencia, acciones a través de loginwindow | Reiniciar, Apagar y Cerrar sesión a través del `loginwindow` mínimo; Reposo, Forzar salida, Bloquear pantalla y Preferencias del Sistema desactivados | MB3 |
 | Confirmar Reiniciar, Apagar y Cerrar sesión | El panel de `loginwindow`, con su cuenta atrás | La app que lo pide muestra una alerta; con Opción pulsada no se muestra (`SHORTCUT(Phase 5)` en `NSMenuBarWindow.m`) | Fase 5 (LoginWindow) |
-| Acerca de este equipo | La ventana propia de Gienah | Una alerta sencilla con el nombre y la versión del sistema, el kernel, el procesador, la memoria y la pantalla (`SHORTCUT(Phase 5)` en `NSMenuBarWindow.m`) | Fase 5 |
+| Acerca de este equipo | La ventana propia de Atlas | Una alerta sencilla con el nombre y la versión del sistema, el kernel, el procesador, la memoria y la pantalla (`SHORTCUT(Phase 5)` en `NSMenuBarWindow.m`) | Fase 5 |
 | Status items | Ventanas de sus apps, dispuestas por el servidor de ventanas | Solo la API básica | MB1 |
 | Menu Extras | Bundles en SystemUIServer | Ninguno hasta que SystemUIServer se compile | MB1 |
 | Documentos recientes | Listas compartidas de archivos de LaunchServices | Guardados por app por `NSDocumentController` en sus preferencias | MB2 |
 | Menú Servicios | Daemon de servicios y pasteboard | Menú Servicios vacío | MB4 |
 | Grupo de estado del sistema | API 19: Menu Extras en SystemUIServer; API 20: una app de centro de control aparte | Ninguno | Minkar 20.0 |
-| Aspecto | Lenguaje visual Gienah | El aspecto que tenía SystemUIServer: elementos de 22 puntos, tipografía y colores del sistema (`SHORTCUT(Phase 5)` en `NSMenuView.h`) | Fase 5, punto 7 |
+| Aspecto | Lenguaje visual Atlas | El aspecto que tenía SystemUIServer: elementos de 22 puntos, tipografía y colores del sistema (`SHORTCUT(Phase 5)` en `NSMenuView.h`) | Fase 5, punto 7 |
 
 Cada atajo queda marcado en el código con `// SHORTCUT(MBn):` y el hito que lo
 elimina.

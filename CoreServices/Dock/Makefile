@@ -2,7 +2,7 @@
 # Copyright (c) 2026 The Minkar contributors
 # Part of Minkar.
 #
-# The Dock (Dock-Kraz.md, D1): the desktop picture behind every window and
+# The Dock (Dock-Argos.md, D1): the desktop picture behind every window and
 # the Dock at the bottom of the main display, with the persistent apps and
 # the running ones. loginwindow starts it (SessionApplications).
 

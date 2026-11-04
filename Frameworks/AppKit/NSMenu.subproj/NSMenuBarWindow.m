@@ -62,7 +62,7 @@ static BOOL updating;	/* setting the bars up changes the main menu too */
 
 @implementation NSSystemMenuActions
 
-/* SHORTCUT(Phase 5): a plain alert shows the computer; Gienah has its own
+/* SHORTCUT(Phase 5): a plain alert shows the computer; Atlas has its own
    About This Computer; taken in WS4b. */
 - (void)aboutThisComputer:(id)sender {
     NSDictionary *version = [NSDictionary dictionaryWithContentsOfFile:

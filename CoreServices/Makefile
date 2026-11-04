@@ -29,7 +29,7 @@ SUBDIR += pboard pboard/tests
 # os_log's messages kept (Phase 3).
 SUBDIR += logd
 # The desktop session apps loginwindow starts (Phase 5): the Dock and
-# the desktop (Dock-Kraz.md, D1), and the Menu Extras (Menus.md, MB1).
+# the desktop (Dock-Argos.md, D1), and the Menu Extras (Menus.md, MB1).
 SUBDIR += Dock SystemUIServer
 # The code integrity policy's test program (it needs IOKit).
 SUBDIR += ../Kernel/Extensions/MinkarCodeIntegrity/tests

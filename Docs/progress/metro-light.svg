@@ -118,7 +118,7 @@
 <text x="970" y="407" font-size="13.5" font-weight="500" fill="#59636e" text-anchor="middle">D3</text>
 <circle cx="1025" cy="378" r="8" fill="#ffffff" stroke="#bc4c00" stroke-opacity=".7" stroke-width="2.5"/>
 <text x="1025" y="407" font-size="13.5" font-weight="500" fill="#59636e" text-anchor="middle">D4</text>
-<text x="20" y="447" font-size="15" font-weight="700" fill="#0f7b6f" text-anchor="start">Kraz</text>
+<text x="20" y="447" font-size="15" font-weight="700" fill="#0f7b6f" text-anchor="start">Argos</text>
 <line x1="700" y1="442" x2="1025" y2="442" stroke="#0f7b6f" stroke-opacity=".22" stroke-width="8" stroke-linecap="round"/>
 <circle cx="700" cy="442" r="8" fill="#ffffff" stroke="#0f7b6f" stroke-opacity=".7" stroke-width="2.5"/>
 <text x="700" y="471" font-size="13.5" font-weight="500" fill="#59636e" text-anchor="middle">K0</text>
@@ -130,7 +130,7 @@
 <text x="970" y="471" font-size="13.5" font-weight="500" fill="#59636e" text-anchor="middle">K3</text>
 <circle cx="1025" cy="442" r="8" fill="#ffffff" stroke="#0f7b6f" stroke-opacity=".7" stroke-width="2.5"/>
 <text x="1025" y="471" font-size="13.5" font-weight="500" fill="#59636e" text-anchor="middle">K4</text>
-<text x="20" y="511" font-size="15" font-weight="700" fill="#bf3989" text-anchor="start">Gienah</text>
+<text x="20" y="511" font-size="15" font-weight="700" fill="#bf3989" text-anchor="start">Atlas</text>
 <line x1="570" y1="506" x2="760" y2="506" stroke="#bf3989" stroke-opacity=".22" stroke-width="8" stroke-linecap="round"/>
 <circle cx="570" cy="506" r="8" fill="#ffffff" stroke="#bf3989" stroke-opacity=".7" stroke-width="2.5"/>
 <text x="570" y="535" font-size="13.5" font-weight="500" fill="#59636e" text-anchor="middle">LoginWindow</text>

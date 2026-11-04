@@ -1,23 +1,23 @@
-# Dock and Kraz plan
+# Dock and Argos plan
 
 Status: **accepted** (2026-10-31). Phase 5 of [ROADMAP.md](ROADMAP.md).
-Spanish version: [Dock-Kraz.es.md](Dock-Kraz.es.md).
+Spanish version: [Dock-Argos.es.md](Dock-Argos.es.md).
 Checked against `devel` at `8dab4060c`.
 
 This document is the decision record and the work plan for the Dock and for
-Kraz, the file manager that replaces Filer. It follows the same rules as
+Argos, the file manager that replaces Filer. It follows the same rules as
 [WindowServer-Rewrite.md](WindowServer-Rewrite.md).
 
 ## 1. Decision
 
-- **Kraz is written new.** Nothing of Filer is kept.
+- **Argos is written new.** Nothing of Filer is kept.
 - **The Dock gets a new core**, and three parts of the current one are
   ported: the preference keys and tile data format, the desktop picture
   window, and the tile layout arithmetic as a reference.
 
 **Guiding rule**, as for WindowServer: where the reference platform has a
 known design (which process does what, preference keys, public APIs), the
-Dock and Kraz follow it. A shortcut is allowed during development only when
+Dock and Argos follow it. A shortcut is allowed during development only when
 section 10 lists it with the milestone that removes it.
 
 ## 2. Why: findings in the current code
@@ -72,8 +72,8 @@ Worth keeping:
 | Dock tiles, running-app indicators, minimized windows, stacks, Trash tile | Dock |
 | Desktop picture, one window per display at `kCGDesktopWindowLevel` | Dock |
 | App switcher (Command-Tab) | Dock, which gets Command-Tab from the window server's symbolic hotkey table (today the legacy WindowServer draws one in `WSInput.m`; it goes away with `Legacy/` in WS4b) |
-| File browser windows, desktop icons at `kCGDesktopIconWindowLevel`, Trash contents and emptying, "Open With", Get Info | Kraz |
-| Starting the Dock and Kraz at login, and again if they exit | loginwindow (Phase 5; launchd until then) |
+| File browser windows, desktop icons at `kCGDesktopIconWindowLevel`, Trash contents and emptying, "Open With", Get Info | Argos |
+| Starting the Dock and Argos at login, and again if they exit | loginwindow (Phase 5; launchd until then) |
 
 Spaces, an overview of windows and an app launcher grid are out of scope for
 this plan; the Dock's model keeps room for them.
@@ -86,7 +86,7 @@ this plan; the Dock's model keeps room for them.
   Views only display the model.
 - **Views.** One Dock window per display that shows it, laid out by the model;
   tiles as Core Animation layers (bounce, magnification, autohide slide), so
-  nothing is redrawn while nothing changes. The look follows the Gienah
+  nothing is redrawn while nothing changes. The look follows the Atlas
   visual language guide.
 - **Data sources.** `NSWorkspace` notifications
   (`NSWorkspaceDidLaunchApplicationNotification`,
@@ -124,10 +124,10 @@ this plan; the Dock's model keeps room for them.
   switcher (`WSInput.m`) goes away with `Legacy/` in WS4b, so until D3 there
   is none.
 
-## 5. Kraz architecture
+## 5. Argos architecture
 
-- **App.** Bundle ID `org.minkar.Kraz`, installed as
-  `/System/Library/CoreServices/Kraz.app`; always running in a session
+- **App.** Bundle ID `org.minkar.Argos`, installed as
+  `/System/Library/CoreServices/Argos.app`; always running in a session
   (loginwindow starts it and starts it again if it exits).
 - **Windows.** Toolbar, sidebar (favorites; volumes from DiskArbitration;
   locations), path bar, and three views: icons (`NSCollectionView`), list
@@ -147,7 +147,7 @@ this plan; the Dock's model keeps room for them.
 - **Live updates.** Folder windows follow changes through file system
   events (see dependencies).
 - **Reveal.** `open -R`, `-[NSWorkspace activateFileViewerSelectingURLs:]`
-  and `selectFile:inFileViewerRootedAtPath:` open a Kraz window with the
+  and `selectFile:inFileViewerRootedAtPath:` open a Argos window with the
   item selected.
 - **DMG double-click** (Phase 6): mounts the image and opens its volume
   (K3, for gate M6).
@@ -164,12 +164,12 @@ this plan; the Dock's model keeps room for them.
 | Dock | Relayed messages removed, `kWSApplicationActivate` gone | Planned | WindowServer plan, section 10.2 (WS4b) |
 | Dock | `NSDockTile` sending its state | Keeps values, sends nothing | AppKit, D3 |
 | Dock | `setDesktopImageURL:forScreen:options:error:` | To check | AppKit, D1 |
-| Kraz | LaunchServices bundle and UTI database, default apps, "Open With" | Phase 3, item 4 | Frameworks |
-| Kraz | File system events: XNU's `/dev/fsevents` exists (`vfs_fsevents.c`); a daemon and the FSEvents API are missing | Missing | CoreServices, before K1 |
-| Kraz | `NSCollectionView`, `NSOutlineView`, `NSBrowser` working well | Present, partly stubbed | AppKit, with K1 |
-| Kraz | `NSWorkspace` icons, recycle, reveal | Partial | AppKit, K1-K2 |
+| Argos | LaunchServices bundle and UTI database, default apps, "Open With" | Phase 3, item 4 | Frameworks |
+| Argos | File system events: XNU's `/dev/fsevents` exists (`vfs_fsevents.c`); a daemon and the FSEvents API are missing | Missing | CoreServices, before K1 |
+| Argos | `NSCollectionView`, `NSOutlineView`, `NSBrowser` working well | Present, partly stubbed | AppKit, with K1 |
+| Argos | `NSWorkspace` icons, recycle, reveal | Partial | AppKit, K1-K2 |
 | Both | loginwindow starting them at login | Phase 5 | loginwindow |
-| Both | The Gienah visual language guide | Missing | Design, before D2 and K1 |
+| Both | The Atlas visual language guide | Missing | Design, before D2 and K1 |
 
 ## 7. Milestones
 
@@ -193,7 +193,7 @@ exists, gate M4) still green, and the roadmap updated with the evidence.
   preferences round-trip; `screendump` shows the Dock and the desktop
   picture; the Dock uses no CPU while idle.
 - [ ] **D2 — Interaction.** Drag to reorder, add and remove; context menus
-  (Keep in Dock, Open at Login, Show in Kraz, Quit) and the app's dock menu;
+  (Keep in Dock, Open at Login, Show in Argos, Quit) and the app's dock menu;
   autohide, magnification, orientation; the minimize and restore animation
   (`mineffect`) for `miniaturize:`.
 - [ ] **D3 — Dock tile service, minimized windows and the app switcher.**
@@ -201,16 +201,16 @@ exists, gate M4) still green, and the roadmap updated with the evidence.
   windows with thumbnails (after WS4a); the app switcher in the Dock, which
   gets Command-Tab from the window server's symbolic hotkey table.
 - [ ] **D4 — Stacks and Trash.** Downloads and folder stacks; Trash tile
-  (empty or full, drop to trash, empty through Kraz).
+  (empty or full, drop to trash, empty through Argos).
 
-### Kraz
+### Argos
 
 - [ ] **K0 — Prerequisites.** File system events daemon and API; LaunchServices
   open and "Open With"; the AppKit views checked with test apps.
 - [ ] **K1 — Browsing.** Windows with sidebar, icon, list and column views,
-  navigation, opening files and apps, basic Get Info. Filer becomes Kraz:
+  navigation, opening files and apps, basic Get Info. Filer becomes Argos:
   bundle ID, `LSRevealInFiler` kept as a deprecated alias of the new name for
-  one release, `open -R`, the Dock's default tiles. This is the "Kraz
+  one release, `open -R`, the Dock's default tiles. This is the "Argos
   browses" part of gate M5.
 - [ ] **K2 — File operations.** Copy, move, rename, duplicate with progress and
   undo; drag and drop between windows and onto the Dock; Trash with Put Back;
@@ -220,7 +220,7 @@ exists, gate M4) still green, and the roadmap updated with the evidence.
   DMG step 3).
 - [ ] **K4 — Later work.** Search on the metadata index, tags, previews.
 
-Gate M5 ("a graphical session starts, an app opens from the Dock, Kraz
+Gate M5 ("a graphical session starts, an app opens from the Dock, Argos
 browses, and the resolution changes from System Preferences") needs D1 and
 K1, besides loginwindow and System Preferences.
 
@@ -229,12 +229,12 @@ and K3. D4 and K4 come in 19.6.x.
 
 ## 8. Tests and measurements
 
-- Model tests (Dock sections and tile order, preference round-trip; Kraz
+- Model tests (Dock sections and tile order, preference round-trip; Argos
   file operations and Trash records) as command-line programs in the test
   suite.
 - `boottest` with QMP: `screendump` comparisons and injected clicks (open an
-  app from the Dock; navigate a folder in Kraz).
-- Idle CPU of the Dock and of Kraz near zero; time from a Dock click to the
+  app from the Dock; navigate a folder in Argos).
+- Idle CPU of the Dock and of Argos near zero; time from a Dock click to the
   app's first window, measured the same way in the VM and on the physical
   machines.
 
@@ -251,11 +251,11 @@ commits with the diff shown first; evidence for every roadmap item; no
 | Question | Decision (target) | Development shortcut | Removed by |
 | --- | --- | --- | --- |
 | Dock preferences | Domain `org.minkar.dock`, reference keys and tile data format | — | — |
-| Who draws the desktop | Dock: pictures; Kraz: icons | Desktop without icons until K3 | K3 |
+| Who draws the desktop | Dock: pictures; Argos: icons | Desktop without icons until K3 | K3 |
 | App switcher | Dock, Command-Tab from the window server's hotkey table | Legacy window server (`WSInput.m`) until WS4b; then none: apps are switched by clicking their windows (`SHORTCUT(D3)`) | D3 |
 | Minimized windows | Thumbnails from the window server's capture | Generic window icon | D3 (after WS4a) |
-| Starting the Dock and Kraz | loginwindow, restarting them if they exit | launchd agents | Phase 5 (loginwindow) |
-| Look | Gienah visual language guide | Plain system controls and colors | Guide available |
+| Starting the Dock and Argos | loginwindow, restarting them if they exit | launchd agents | Phase 5 (loginwindow) |
+| Look | Atlas visual language guide | Plain system controls and colors | Guide available |
 
 Every shortcut is marked in the code with `// SHORTCUT(Dn):` or
 `// SHORTCUT(Kn):` and the milestone that removes it.

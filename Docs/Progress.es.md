@@ -15,9 +15,9 @@ _Actualizado el 2026-11-03, devel `1d2b7e8d9d`_
 | [Frameworks](ROADMAP.es.md#fase-3--frameworks-base-y-swift) | 🟩🟨🟨🟨⬜🟨⬜ | 1 / 7 | libSystem, Foundation, CF-Lite, LaunchServices | Security |
 | [WindowServer](WindowServer-Rewrite.es.md) | 🟩🟩🟩🟩🟩🟩🟩🟩🟦 | 8 / 9 | WS6 | — |
 | [Menus](Menus.es.md) | 🟩⬜⬜⬜⬜ | 1 / 5 | — | MB1 |
-| [Dock](Dock-Kraz.es.md) | ⬜⬜⬜⬜⬜ | 0 / 5 | — | D0 |
-| [Kraz](Dock-Kraz.es.md) | ⬜⬜⬜⬜⬜ | 0 / 5 | — | K0 |
-| [Gienah](ROADMAP.es.md#fase-5--escritorio-gienah) | ⬜⬜⬜ | 0 / 3 | — | LoginWindow |
+| [Dock](Dock-Argos.es.md) | ⬜⬜⬜⬜⬜ | 0 / 5 | — | D0 |
+| [Argos](Dock-Argos.es.md) | ⬜⬜⬜⬜⬜ | 0 / 5 | — | K0 |
+| [Atlas](ROADMAP.es.md#fase-5--escritorio-atlas) | ⬜⬜⬜ | 0 / 3 | — | LoginWindow |
 | [Apps · DMG](ROADMAP.es.md#fase-6--aplicaciones-y-distribución) | ⬜⬜⬜⬜ | 0 / 4 | — | DiskImages |
 | [GPU track](ROADMAP.es.md#pila-gráfica-componentes-y-secuencia) | 🟩🟨🟩🟦 | 2 / 4 | G4–G5 | — |
 | [Compat · arm64](ROADMAP.es.md#fase-7--compatibilidad-binaria-y-arm64) | ⬜⬜ | 0 / 2 | — | x86-64 apps |
@@ -33,7 +33,7 @@ _Actualizado el 2026-11-03, devel `1d2b7e8d9d`_
 </picture>
 
 Planes: [ROADMAP.es.md](ROADMAP.es.md) · [WindowServer-Rewrite.es.md](WindowServer-Rewrite.es.md) ·
-[Menus.es.md](Menus.es.md) · [Dock-Kraz.es.md](Dock-Kraz.es.md)
+[Menus.es.md](Menus.es.md) · [Dock-Argos.es.md](Dock-Argos.es.md)
 
 ## Tablero de trabajo
 

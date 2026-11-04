@@ -35,7 +35,7 @@
  *
  * SHORTCUT(Phase 5): no login window, no user but root, no confirmation of
  * its own (the app asking shows one) and no session for other users: the
- * full login window of Phase 5 (Gienah) replaces this; taken in WS4b.
+ * full login window of Phase 5 (Atlas) replaces this; taken in WS4b.
  *
  *	loginwindow [-n]	-n: try it out, without restarting or
  *				shutting down (for the tests)

@@ -96,7 +96,7 @@ Worth keeping:
 Each part of the bar is its own borderless window, and the window server
 composites them into one strip. When the front app changes, the window
 server orders out the old app's menu bar window and orders in the new one's;
-status item windows stay where they are. Kraz is always running, so it is
+status item windows stay where they are. Argos is always running, so it is
 the front app whenever no other app is.
 
 Because menus run in the app's process, a hung app cannot open its menus,
@@ -171,7 +171,7 @@ it, and Force Quit (loginwindow) remains available.
   `-popUpMenuPositioningItem:atLocation:inView:`.
 - Pop-up buttons (`NSPopUpButton`) with the same menu windows and tracking.
 - Dock menus (`applicationDockMenu:`) through the Dock tile service of
-  [Dock-Kraz.md](Dock-Kraz.md) (D2).
+  [Dock-Argos.md](Dock-Argos.md) (D2).
 
 ### Status items
 
@@ -230,8 +230,8 @@ tools and the accessibility API can read and press them.
 | MB3 | The full LoginWindow (sleep, force quit, lock screen) | Phase 5, item 1 |
 | MB3 | System Preferences app | Phase 5, item 6 |
 | MB4 | Services daemon | Phase 5 |
-| All | The Gienah visual language (menu fonts, metrics, colors) | Phase 5, item 7 |
-| Dock menus | Dock tile service | [Dock-Kraz.md](Dock-Kraz.md), D2 |
+| All | The Atlas visual language (menu fonts, metrics, colors) | Phase 5, item 7 |
+| Dock menus | Dock tile service | [Dock-Argos.md](Dock-Argos.md), D2 |
 
 ## 7. Milestones
 
@@ -297,13 +297,13 @@ commits with the diff shown first; evidence for every roadmap item.
 | Who draws and tracks the app's menus | The app (AppKit), in its own process | None: SystemUIServer drew a copy, and it is not built | MB0 |
 | System menu | Minkar logo, the reference platform's items, actions through loginwindow | Restart, Shut Down and Log Out through the minimal `loginwindow`; Sleep, Force Quit, Lock Screen and System Preferences disabled | MB3 |
 | Confirming Restart, Shut Down and Log Out | `loginwindow`'s panel, with its countdown | The app that asks shows an alert; Option held skips it (`SHORTCUT(Phase 5)` in `NSMenuBarWindow.m`) | Phase 5 (LoginWindow) |
-| About This Computer | Gienah's own window | A plain alert with the system's name and version, kernel, processor, memory and display (`SHORTCUT(Phase 5)` in `NSMenuBarWindow.m`) | Phase 5 |
+| About This Computer | Atlas's own window | A plain alert with the system's name and version, kernel, processor, memory and display (`SHORTCUT(Phase 5)` in `NSMenuBarWindow.m`) | Phase 5 |
 | Status items | Windows of their apps, laid out by the window server | Basic API only | MB1 |
 | Menu Extras | Bundles in SystemUIServer | None until SystemUIServer is built | MB1 |
 | Recent items | LaunchServices' shared file lists | Kept per app by `NSDocumentController` in its preferences | MB2 |
 | Services menu | Services daemon and pasteboard | Empty Services menu | MB4 |
 | System status cluster | API 19: Menu Extras in SystemUIServer; API 20: a separate control-center app | None | Minkar 20.0 |
-| Look | Gienah visual language | SystemUIServer's former look: 22-point items, the system font and colors (`SHORTCUT(Phase 5)` in `NSMenuView.h`) | Phase 5, item 7 |
+| Look | Atlas visual language | SystemUIServer's former look: 22-point items, the system font and colors (`SHORTCUT(Phase 5)` in `NSMenuView.h`) | Phase 5, item 7 |
 
 Every shortcut is marked in the code with `// SHORTCUT(MBn):` and the
 milestone that removes it.

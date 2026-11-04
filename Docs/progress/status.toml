@@ -35,7 +35,7 @@
 updated = "2026-11-03"
 commit  = "1d2b7e8d9d"
 
-deps = [["ws", 555, "dock"], ["fw", 535, "kraz"]]
+deps = [["ws", 555, "dock"], ["fw", 535, "argos"]]
 
 [[gate]]
 id = "M0"
@@ -76,11 +76,11 @@ rows = ["ws", "mb"]
 
 [[gate]]
 id = "M5"
-title = "M5 Gienah desktop"
+title = "M5 Atlas desktop"
 label = "M5"
 state = "todo"
 x = 760
-rows = ["mb", "dock", "kraz", "gienah"]
+rows = ["mb", "dock", "argos", "atlas"]
 
 [[gate]]
 id = "M6"
@@ -88,7 +88,7 @@ title = "M6 Minkar 19.6.0"
 label = "M6 · 19.6.0"
 state = "todo"
 x = 970
-rows = ["mb", "dock", "kraz", "apps"]
+rows = ["mb", "dock", "argos", "apps"]
 
 [[gate]]
 id = "R21"
@@ -155,30 +155,30 @@ stations = [
 id = "dock"
 name = "Dock"
 color = "orange"
-doc = "Dock-Kraz.md"
-doc_es = "Dock-Kraz.es.md"
+doc = "Dock-Argos.md"
+doc_es = "Dock-Argos.es.md"
 stations = [
   ["D0", 700, "todo"], ["D1", 760, "todo"], ["D2", 865, "todo"], ["D3", 970, "todo"],
   ["D4", 1025, "todo"],
 ]
 
 [[line]]
-id = "kraz"
-name = "Kraz"
+id = "argos"
+name = "Argos"
 color = "teal"
-doc = "Dock-Kraz.md"
-doc_es = "Dock-Kraz.es.md"
+doc = "Dock-Argos.md"
+doc_es = "Dock-Argos.es.md"
 stations = [
   ["K0", 700, "todo"], ["K1", 760, "todo"], ["K2", 865, "todo"], ["K3", 970, "todo"],
   ["K4", 1025, "todo"],
 ]
 
 [[line]]
-id = "gienah"
-name = "Gienah"
+id = "atlas"
+name = "Atlas"
 color = "pink"
-doc = "ROADMAP.md#phase-5--gienah-desktop"
-doc_es = "ROADMAP.es.md#fase-5--escritorio-gienah"
+doc = "ROADMAP.md#phase-5--atlas-desktop"
+doc_es = "ROADMAP.es.md#fase-5--escritorio-atlas"
 stations = [["LoginWindow", 570, "todo"], ["Preferences", 660, "todo"], ["Visual design", 760, "todo"]]
 
 [[line]]
@@ -280,7 +280,7 @@ line = "fw"
 partial = true
 
 [[board.next]]
-title = "D0 · K0 — Dock and Kraz prerequisites"
+title = "D0 · K0 — Dock and Argos prerequisites"
 note = "can start: WS4a is done"
 line = "dock"
 
@@ -295,12 +295,12 @@ note = "this weekend; then G4.6's measurements again · DisplayPort link trainin
 line = "gpu"
 
 [[board.later]]
-group = "→ M5 Gienah session"
-items = [["MB1 Menu Extras", "mb"], ["D1 Dock core", "dock"], ["K1 Kraz browsing", "kraz"], ["LoginWindow, Preferences", "gienah"]]
+group = "→ M5 Atlas session"
+items = [["MB1 Menu Extras", "mb"], ["D1 Dock core", "dock"], ["K1 Argos browsing", "argos"], ["LoginWindow, Preferences", "atlas"]]
 
 [[board.later]]
 group = "→ M6 · Minkar 19.6.0"
-items = [["MB2–MB3 menus for daily use", "mb"], ["D2–D3 Dock, with the app switcher", "dock"], ["K2–K3 Kraz, with DMG double-click", "kraz"], ["DiskImages (hdiutil attach already mounts)", "apps"], ["Terminal, TextEdit, Browser", "apps"]]
+items = [["MB2–MB3 menus for daily use", "mb"], ["D2–D3 Dock, with the app switcher", "dock"], ["K2–K3 Argos, with DMG double-click", "argos"], ["DiskImages (hdiutil attach already mounts)", "apps"], ["Terminal, TextEdit, Browser", "apps"]]
 
 [[board.later]]
 group = "→ 19.6.x"

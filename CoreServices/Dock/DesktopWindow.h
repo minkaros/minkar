@@ -13,7 +13,7 @@ NS_ASSUME_NONNULL_BEGIN
 - (instancetype)initWithScreen:(NSScreen *)screen;
 @end
 
-/* The desktop's color until desktop pictures come (D1): Gienah's
+/* The desktop's color until desktop pictures come (D1): Atlas's
    provisional solid background, RGB(99, 130, 145). */
 NSColor *DesktopDefaultColor(void);
 

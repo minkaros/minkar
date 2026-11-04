@@ -259,12 +259,12 @@ legacy server's threads get 4 MB stacks for its 128 KB messages
 (a WS4b shortcut, gone with that server); the launchd job ran the compositor
 only (`-x`), since LoginWindow was not built (a WS4b shortcut, gone with the
 switch);
-Inter is the provisional system font until Gienah has its own
+Inter is the provisional system font until Atlas has its own
 (`SHORTCUT(Phase 5)` in `SystemLibrary/Fonts/Makefile`).
 
 Known issues left for later milestones: the window decorations are the
 images inherited from ravynOS, which look like the reference platform's
-(Gienah replaces them); POSIX shared memory objects ignore `fchown`, so a
+(Atlas replaces them); POSIX shared memory objects ignore `fchown`, so a
 surface is the server's user's only (the surfaces become memory entries
 in WS2); an `NSEvent` is over-released when an app without windows
 exits; `CGLayer.h` cannot be included from C.
@@ -403,7 +403,7 @@ server's, linked from there until WS4a moves them to SkyLight (then a
   sends each one to its owner instead of delivering it as a key event:
   Command-Tab to the Dock, Command-Option-Escape to loginwindow, Control-F2
   to the front app's AppKit (focus to the menu bar). The server draws no
-  app switcher; the Dock does (D3 of [Dock-Kraz.md](Dock-Kraz.md)).
+  app switcher; the Dock does (D3 of [Dock-Argos.md](Dock-Argos.md)).
 - **Running applications through LaunchServices:** a LaunchServices session
   service keeps the list of running apps; each app checks in from
   `NSApplication` at launch, its exit is noticed when it happens, and the
@@ -414,13 +414,13 @@ server's, linked from there until WS4a moves them to SkyLight (then a
   `NSRunningApplication` reads the same list: `runningApplications`,
   `currentApplication`, `processIdentifier`, `bundleIdentifier`,
   `localizedName`, `isActive`, `activateWithOptions:`. The rest of
-  `NSRunningApplication` comes with D0 of [Dock-Kraz.md](Dock-Kraz.md).
+  `NSRunningApplication` comes with D0 of [Dock-Argos.md](Dock-Argos.md).
 - **What MB0 needs** ([Menus.md](Menus.md)): the menu bar's place and
   height on each display (`NSScreen` `visibleFrame` leaves it out), notices
   to each app when it becomes or stops being the front app, the status area
   layout (status item windows and Menu Extras, order kept), and pointer
   capture while a menu is open.
-- **What the Dock needs** ([Dock-Kraz.md](Dock-Kraz.md)): as on the
+- **What the Dock needs** ([Dock-Argos.md](Dock-Argos.md)): as on the
   reference platform the Dock owns minimized windows. AppKit's
   `miniaturize:` asks the Dock, which runs the animation and keeps the
   tile; the window server orders the window out and back in, tells the Dock
@@ -611,7 +611,7 @@ displays, Spaces, hardware cursor.
   `// SHORTCUT(<removed by>): <what and why>; taken in <milestone>.`
   (for example `SHORTCUT(WS4a)`, `SHORTCUT(Phase 5)`, `SHORTCUT(D3)`), and
   each one has a row in its plan's shortcut table (section 9 here, section
-  10 of [Menus.md](Menus.md) and of [Dock-Kraz.md](Dock-Kraz.md)). A
+  10 of [Menus.md](Menus.md) and of [Dock-Argos.md](Dock-Argos.md)). A
   milestone closes only when `git grep -n 'SHORTCUT(<milestone>)'` finds
   nothing.
 - The commit that closes a milestone also updates
@@ -630,17 +630,17 @@ Decided 2026-10-31, following the guiding rule in section 1:
 | Moving windows | Server-side moves from client-declared drag regions, plus `performWindowDragWithEvent:` | Title bar region only | Removed 2026-11-01 (`f03d8ddc9d`, `5df94c8821`) |
 | Keyboard layouts | The server delivers hardware key codes; the client turns them into characters from the current layout (layout data and a `UCKeyTranslate`-style call in the app), with Text Input Sources | `WSKeymap` and libxkbcommon in SkyLight, from WS4a (`SHORTCUT(Phase 5)`) | Phase 5 (Text Input Sources and our own layout files) |
 | Ending the session | The login window asks apps to quit, ends the session and then restarts or shuts down | A minimal `loginwindow` that only ends the session and calls `reboot(2)` | Phase 5 (LoginWindow) |
-| App switcher (Command-Tab) | The Dock draws it; the window server's symbolic hotkey table delivers Command-Tab to it | No switcher after the legacy server goes (WS4b): apps are switched by clicking their windows (`SHORTCUT(D3)`) | D3 ([Dock-Kraz.md](Dock-Kraz.md)) |
+| App switcher (Command-Tab) | The Dock draws it; the window server's symbolic hotkey table delivers Command-Tab to it | No switcher after the legacy server goes (WS4b): apps are switched by clicking their windows (`SHORTCUT(D3)`) | D3 ([Dock-Argos.md](Dock-Argos.md)) |
 | Legacy server's thread stacks | Gone with the legacy server and `message.h` | 4 MB stacks for its 128 KB messages (taken in WS0) | Removed 2026-11-02, in WS4b, with the legacy server and `message.h` |
 | What WindowServer's launchd job starts | The window server only; the session starts elsewhere (section 10.3) | The compositor only (`-x`), since LoginWindow is not built (taken in WS0) | Removed 2026-11-02, in WS4b: the new server's job starts it alone, `loginwindow` the session |
-| System font | Gienah's own font | Inter (SIL OFL 1.1), four faces (`SHORTCUT(Phase 5)` in `SystemLibrary/Fonts/Makefile`, taken in WS0) | Phase 5 (Gienah) |
+| System font | Atlas's own font | Inter (SIL OFL 1.1), four faces (`SHORTCUT(Phase 5)` in `SystemLibrary/Fonts/Makefile`, taken in WS0) | Phase 5 (Atlas) |
 | Permanent display configurations | Stored and applied again at the next session | They last for the session (taken in WS1) | Removed 2026-11-02, in WS5: saved in `/var/db/WindowServer/Displays.plist` and applied at startup; `CGRestorePermanentDisplayConfiguration` goes back to them |
 | Transfer tables and fades | Applied to the screen by the compositor, and by gamma hardware where there is some | Kept and returned, not applied (taken in WS1) | Removed 2026-11-01, in WS4a |
 | Display link while idle | Frames paced by the display's flips; nothing wakes while nothing changes | A timer at the refresh rate ticks even when idle, drawing nothing (taken in WS2) | Removed 2026-11-02, in WS5: the link sleeps after two idle ticks and damage wakes it |
 | AppKit's damage | AppKit sends the rects it redrew | The whole window at each flush (taken in WS2) | Removed 2026-11-02, in WS5: views note what they draw, the window sends those rects |
 | virtio-gpu flushes | The window server's damage goes with each frame; only those rects are transferred and flushed | The whole screen transferred and flushed at 60 Hz (taken in WS5) | Removed 2026-11-02, in WS5: the window server sends each frame's rects; the timer runs only for the console |
 | Front app | The window server keeps the front app, which may have no window (its menus are in the menu bar), and tells LaunchServices' session | The key window's owner: an app with no window to show could not be activated (taken in WS4a, `3be3e23e16`) | Removed 2026-11-01, in WS4a |
-| Standard cursors | Gienah's cursor set (I-beam, hands, crosshair, resize, not allowed...), each app's AppKit setting them | Plain black shapes with a white outline drawn in `NSCursorImage.m`, the arrow for the ones without a shape (`SHORTCUT(Phase 5)`, taken in WS4a) | Phase 5 (Gienah) |
+| Standard cursors | Atlas's cursor set (I-beam, hands, crosshair, resize, not allowed...), each app's AppKit setting them | Plain black shapes with a white outline drawn in `NSCursorImage.m`, the arrow for the ones without a shape (`SHORTCUT(Phase 5)`, taken in WS4a) | Phase 5 (Atlas) |
 | A captured display's drawing context | The app draws into the surface that is scanned out (IOSurface) | `CGDisplayGetDrawingContext` draws into the app's memory, copied to the shielding window at the refresh rate when it changed, a frame behind (taken in WS4a) | Removed 2026-11-02, in WS5: the context draws into an IOSurface the shielding window shows at every frame |
 | Input queue | Input read and routed on its own high-priority queue, over a model snapshot | On the IPC queue (taken in WS3) | Removed 2026-11-01, in WS4a |
 | `CGEventSource` HID state | Asked of the window server | Not asked: buttons, keys and flags read as up (taken in WS3) | Removed 2026-11-01, in WS4a |

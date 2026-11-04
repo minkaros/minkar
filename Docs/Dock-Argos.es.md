@@ -1,16 +1,16 @@
-# Plan del Dock y de Kraz
+# Plan del Dock y de Argos
 
 Estado: **aceptado** (31 oct 2026). Fase 5 de [ROADMAP.es.md](ROADMAP.es.md).
-Versión en inglés: [Dock-Kraz.md](Dock-Kraz.md).
+Versión en inglés: [Dock-Argos.md](Dock-Argos.md).
 Verificado contra `devel` en `8dab4060c`.
 
 Este documento es el registro de la decisión y el plan de trabajo del Dock y
-de Kraz, el gestor de archivos que reemplaza a Filer. Sigue las mismas reglas
+de Argos, el gestor de archivos que reemplaza a Filer. Sigue las mismas reglas
 que [WindowServer-Rewrite.es.md](WindowServer-Rewrite.es.md).
 
 ## 1. Decisión
 
-- **Kraz se escribe nuevo.** No se conserva nada de Filer.
+- **Argos se escribe nuevo.** No se conserva nada de Filer.
 - **El Dock recibe un núcleo nuevo** y se portan tres partes del actual: las
   claves de preferencias y el formato de los datos de tiles, la ventana del
   fondo de escritorio, y el cálculo de disposición de los tiles como
@@ -18,7 +18,7 @@ que [WindowServer-Rewrite.es.md](WindowServer-Rewrite.es.md).
 
 **Regla general**, como en WindowServer: donde la plataforma de referencia
 tiene un diseño conocido (qué proceso hace qué, claves de preferencias, API
-públicas), el Dock y Kraz lo siguen. Un atajo solo se permite durante el
+públicas), el Dock y Argos lo siguen. Un atajo solo se permite durante el
 desarrollo si la sección 10 lo registra con el hito que lo elimina.
 
 ## 2. Por qué: hallazgos en el código actual
@@ -76,8 +76,8 @@ Lo que vale la pena conservar:
 | Tiles del Dock, indicadores de apps en ejecución, ventanas minimizadas, pilas, tile de la papelera | Dock |
 | Fondo de escritorio, una ventana por pantalla en `kCGDesktopWindowLevel` | Dock |
 | Selector de apps (Comando-Tab) | Dock, que recibe Comando-Tab de la tabla de atajos simbólicos del servidor de ventanas (hoy dibuja uno el WindowServer anterior en `WSInput.m`; desaparece con `Legacy/` en WS4b) |
-| Ventanas del navegador de archivos, iconos del escritorio en `kCGDesktopIconWindowLevel`, contenido y vaciado de la papelera, «Abrir con», Obtener información | Kraz |
-| Arrancar el Dock y Kraz al iniciar sesión, y de nuevo si terminan | loginwindow (Fase 5; launchd hasta entonces) |
+| Ventanas del navegador de archivos, iconos del escritorio en `kCGDesktopIconWindowLevel`, contenido y vaciado de la papelera, «Abrir con», Obtener información | Argos |
+| Arrancar el Dock y Argos al iniciar sesión, y de nuevo si terminan | loginwindow (Fase 5; launchd hasta entonces) |
 
 Spaces, una vista general de ventanas y una cuadrícula para lanzar apps
 quedan fuera de este plan; el modelo del Dock les deja sitio.
@@ -91,7 +91,7 @@ quedan fuera de este plan; el modelo del Dock les deja sitio.
 - **Vistas.** Una ventana del Dock por pantalla donde se muestre, dispuesta
   según el modelo; los tiles como capas de Core Animation (rebote,
   magnificación, deslizamiento al ocultarse), así que no se redibuja nada
-  mientras nada cambia. El aspecto sigue la guía del lenguaje visual Gienah.
+  mientras nada cambia. El aspecto sigue la guía del lenguaje visual Atlas.
 - **Orígenes de datos.** Las notificaciones de `NSWorkspace`
   (`NSWorkspaceDidLaunchApplicationNotification`,
   `NSWorkspaceDidTerminateApplicationNotification`,
@@ -130,10 +130,10 @@ quedan fuera de este plan; el modelo del Dock les deja sitio.
   selector del servidor anterior (`WSInput.m`) desaparece con `Legacy/` en
   WS4b, así que hasta D3 no hay ninguno.
 
-## 5. Arquitectura de Kraz
+## 5. Arquitectura de Argos
 
-- **App.** Bundle ID `org.minkar.Kraz`, instalada como
-  `/System/Library/CoreServices/Kraz.app`; siempre en marcha en una sesión
+- **App.** Bundle ID `org.minkar.Argos`, instalada como
+  `/System/Library/CoreServices/Argos.app`; siempre en marcha en una sesión
   (loginwindow la arranca y la vuelve a arrancar si termina).
 - **Ventanas.** Barra de herramientas, barra lateral (favoritos; volúmenes de
   DiskArbitration; ubicaciones), barra de ruta y tres vistas: iconos
@@ -152,9 +152,9 @@ quedan fuera de este plan; el modelo del Dock les deja sitio.
   con el contenido de `~/Desktop` y los volúmenes montados (con expulsar).
 - **Actualización en vivo.** Las ventanas de carpetas siguen los cambios
   mediante los eventos del sistema de archivos (ver dependencias).
-- **Mostrar en Kraz.** `open -R`,
+- **Mostrar en Argos.** `open -R`,
   `-[NSWorkspace activateFileViewerSelectingURLs:]` y
-  `selectFile:inFileViewerRootedAtPath:` abren una ventana de Kraz con el
+  `selectFile:inFileViewerRootedAtPath:` abren una ventana de Argos con el
   elemento seleccionado.
 - **Doble clic en un DMG** (Fase 6): monta la imagen y abre su volumen
   (K3, para el gate M6).
@@ -171,12 +171,12 @@ quedan fuera de este plan; el modelo del Dock les deja sitio.
 | Dock | Relevos eliminados, `kWSApplicationActivate` retirado | Planeado | Plan de WindowServer, sección 10.2 (WS4b) |
 | Dock | `NSDockTile` enviando su estado | Guarda valores, no envía nada | AppKit, D3 |
 | Dock | `setDesktopImageURL:forScreen:options:error:` | Por comprobar | AppKit, D1 |
-| Kraz | Base de datos de bundles y UTI de LaunchServices, apps predeterminadas, «Abrir con» | Fase 3, punto 4 | Frameworks |
-| Kraz | Eventos del sistema de archivos: existe el `/dev/fsevents` de XNU (`vfs_fsevents.c`); faltan un daemon y la API FSEvents | Faltan | CoreServices, antes de K1 |
-| Kraz | `NSCollectionView`, `NSOutlineView`, `NSBrowser` funcionando bien | Presentes, en parte con stubs | AppKit, con K1 |
-| Kraz | Iconos, papelera y «mostrar» de `NSWorkspace` | Parciales | AppKit, K1–K2 |
+| Argos | Base de datos de bundles y UTI de LaunchServices, apps predeterminadas, «Abrir con» | Fase 3, punto 4 | Frameworks |
+| Argos | Eventos del sistema de archivos: existe el `/dev/fsevents` de XNU (`vfs_fsevents.c`); faltan un daemon y la API FSEvents | Faltan | CoreServices, antes de K1 |
+| Argos | `NSCollectionView`, `NSOutlineView`, `NSBrowser` funcionando bien | Presentes, en parte con stubs | AppKit, con K1 |
+| Argos | Iconos, papelera y «mostrar» de `NSWorkspace` | Parciales | AppKit, K1–K2 |
 | Ambos | loginwindow arrancándolos al iniciar sesión | Fase 5 | loginwindow |
-| Ambos | La guía del lenguaje visual Gienah | Falta | Diseño, antes de D2 y K1 |
+| Ambos | La guía del lenguaje visual Atlas | Falta | Diseño, antes de D2 y K1 |
 
 ## 7. Hitos
 
@@ -204,7 +204,7 @@ evidencia.
   no consume CPU en reposo.
 - [ ] **D2 — Interacción.** Arrastrar para reordenar, añadir y quitar; menús
   contextuales (Mantener en el Dock, Abrir al iniciar sesión, Mostrar en
-  Kraz, Salir) y el menú de la propia app; ocultación automática,
+  Argos, Salir) y el menú de la propia app; ocultación automática,
   magnificación, orientación; la animación de minimizar y restaurar
   (`mineffect`) para `miniaturize:`.
 - [ ] **D3 — Servicio de tiles, ventanas minimizadas y selector de apps.**
@@ -213,29 +213,29 @@ evidencia.
   en el Dock, que recibe Comando-Tab de la tabla de atajos simbólicos del
   servidor de ventanas.
 - [ ] **D4 — Pilas y papelera.** Pilas de Descargas y de carpetas; tile de la
-  papelera (vacía o llena, soltar para tirar, vaciar a través de Kraz).
+  papelera (vacía o llena, soltar para tirar, vaciar a través de Argos).
 
-### Kraz
+### Argos
 
 - [ ] **K0 — Requisitos previos.** Daemon y API de eventos del sistema de
   archivos; abrir y «Abrir con» de LaunchServices; las vistas de AppKit
   comprobadas con apps de prueba.
 - [ ] **K1 — Navegación.** Ventanas con barra lateral, vistas de iconos, lista y
   columnas, navegación, abrir archivos y apps, Obtener información básico.
-  Filer pasa a ser Kraz: bundle ID, `LSRevealInFiler` como alias obsoleto del
+  Filer pasa a ser Argos: bundle ID, `LSRevealInFiler` como alias obsoleto del
   nombre nuevo durante una versión, `open -R`, los tiles predeterminados del
-  Dock. Es la parte «Kraz navega» del gate M5.
+  Dock. Es la parte «Argos navega» del gate M5.
 - [ ] **K2 — Operaciones con archivos.** Copiar, mover, renombrar y duplicar con
   progreso y deshacer; arrastrar y soltar entre ventanas y sobre el Dock;
   papelera con «Devolver»; «Abrir con».
 - [ ] **K3 — Escritorio y sesión.** Iconos del escritorio y volúmenes con
-  expulsar; API para mostrar en Kraz; arranque y rearranque por loginwindow;
+  expulsar; API para mostrar en Argos; arranque y rearranque por loginwindow;
   doble clic en un DMG (Fase 6, paso 3 de DMG).
 - [ ] **K4 — Trabajo posterior.** Búsqueda sobre el índice de metadatos,
   etiquetas, vistas previas.
 
 El gate M5 («desde el arranque se llega a una sesión gráfica, se abre una app
-desde el Dock, se navega con Kraz y se cambia la resolución desde
+desde el Dock, se navega con Argos y se cambia la resolución desde
 Preferencias») necesita D1 y K1, además de loginwindow y Preferencias del
 Sistema.
 
@@ -245,11 +245,11 @@ D3, y K2 y K3. D4 y K4 llegan en 19.6.x.
 ## 8. Pruebas y mediciones
 
 - Pruebas del modelo (secciones y orden de tiles del Dock, ida y vuelta de
-  preferencias; operaciones con archivos y registros de la papelera de Kraz)
+  preferencias; operaciones con archivos y registros de la papelera de Argos)
   como programas de línea de comandos en la suite de pruebas.
 - `boottest` con QMP: comparaciones de `screendump` y clics inyectados (abrir
-  una app desde el Dock; navegar una carpeta en Kraz).
-- CPU en reposo del Dock y de Kraz cercana a cero; tiempo desde un clic en el
+  una app desde el Dock; navegar una carpeta en Argos).
+- CPU en reposo del Dock y de Argos cercana a cero; tiempo desde un clic en el
   Dock hasta la primera ventana de la app, medido igual en la VM y en los
   equipos físicos.
 
@@ -266,11 +266,11 @@ del roadmap; sin líneas `Co-Authored-By`.
 | Pregunta | Decisión (objetivo) | Atajo de desarrollo | Se quita en |
 | --- | --- | --- | --- |
 | Preferencias del Dock | Dominio `org.minkar.dock`, claves y formato de datos de tiles de la referencia | — | — |
-| Quién dibuja el escritorio | Dock: fondos; Kraz: iconos | Escritorio sin iconos hasta K3 | K3 |
+| Quién dibuja el escritorio | Dock: fondos; Argos: iconos | Escritorio sin iconos hasta K3 | K3 |
 | Selector de apps | Dock, con Comando-Tab de la tabla de atajos del servidor de ventanas | Servidor de ventanas anterior (`WSInput.m`) hasta WS4b; después ninguno: se cambia de app con clic en sus ventanas (`SHORTCUT(D3)`) | D3 |
 | Ventanas minimizadas | Miniaturas desde la captura del servidor de ventanas | Icono de ventana genérico | D3 (después de WS4a) |
-| Arranque del Dock y de Kraz | loginwindow, que los rearranca si terminan | Agentes de launchd | Fase 5 (loginwindow) |
-| Aspecto | Guía del lenguaje visual Gienah | Controles y colores del sistema, sin estilo propio | Cuando exista la guía |
+| Arranque del Dock y de Argos | loginwindow, que los rearranca si terminan | Agentes de launchd | Fase 5 (loginwindow) |
+| Aspecto | Guía del lenguaje visual Atlas | Controles y colores del sistema, sin estilo propio | Cuando exista la guía |
 
 Cada atajo queda marcado en el código con `// SHORTCUT(Dn):` o
 `// SHORTCUT(Kn):` y el hito que lo elimina.

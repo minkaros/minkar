@@ -3,7 +3,7 @@
  * Copyright (c) 2026 The Minkar contributors
  * Part of Minkar.
  *
- * The Dock's model (Dock-Kraz.md, section 4): its tiles, as plain data.
+ * The Dock's model (Dock-Argos.md, section 4): its tiles, as plain data.
  * Views only display it.
  */
 

@@ -76,15 +76,15 @@ NSDictionary *DockPersistentAppEntry(NSURL *url)
     };
 }
 
-/* With no preference yet: Kraz, then the installed applications. */
+/* With no preference yet: Argos, then the installed applications. */
 static NSArray<NSURL *> *defaultPersistentApps(void)
 {
     NSFileManager *fm = [NSFileManager defaultManager];
     NSMutableArray<NSURL *> *urls = [NSMutableArray array];
-    NSString *kraz = @"/System/Library/CoreServices/Kraz.app";
+    NSString *argos = @"/System/Library/CoreServices/Argos.app";
 
-    if ([fm fileExistsAtPath:kraz])
-        [urls addObject:[NSURL fileURLWithPath:kraz]];
+    if ([fm fileExistsAtPath:argos])
+        [urls addObject:[NSURL fileURLWithPath:argos]];
     for (NSString *dir in @[ @"/System/Applications", @"/Applications" ]) {
         NSArray *names = [[fm contentsOfDirectoryAtPath:dir error:NULL]
             sortedArrayUsingSelector:@selector(caseInsensitiveCompare:)];

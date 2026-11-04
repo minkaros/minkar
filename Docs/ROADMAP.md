@@ -4,7 +4,7 @@
 
 ## Summary
 
-Minkar's goal is a system on Darwin 19.6.0 that builds and runs Cocoa apps. The first release, **Minkar 19.6.0**, delivers API 19 with the Gienah desktop and its own visual language; Minkar 20.0 and 21.0 complete API 20 and API 21 without changing the kernel. The critical path goes strictly bottom-up: Darwin boot → launchd → userland → frameworks → WindowServer → Gienah → apps. Full Objective-C and Swift, DMG, binary compatibility and arm64 run in parallel or are deferred so they do not block that path.
+Minkar's goal is a system on Darwin 19.6.0 that builds and runs Cocoa apps. The first release, **Minkar 19.6.0**, delivers API 19 with the Atlas desktop and its own visual language; Minkar 20.0 and 21.0 complete API 20 and API 21 without changing the kernel. The critical path goes strictly bottom-up: Darwin boot → launchd → userland → frameworks → WindowServer → Atlas → apps. Full Objective-C and Swift, DMG, binary compatibility and arm64 run in parallel or are deferred so they do not block that path.
 
 The plan has 8 phases (0–7), each with deliverables and an exit gate that CI can check. No phase is closed while the one below it fails its gate. Since 2026-10-29 there is also a performance requirement: equal to or better than the reference system on the same physical machine, required from Minkar 21.0 on (see Performance requirements).
 
@@ -27,7 +27,7 @@ Minkar separates three layers that go together on the reference platform. The ke
 | --- | --- | --- |
 | Kernel and BSD base | Darwin 19.6.0 | Touched only when a new API needs a kernel interface |
 | API | API 19 first; then API 20 and API 21 | Each API driven by the reference apps' imports |
-| Look | The Gienah visual language from Phase 5 | Our own design and guide; no third-party icons, fonts or artwork |
+| Look | The Atlas visual language from Phase 5 | Our own design and guide; no third-party icons, fonts or artwork |
 
 **API numbers (decided 2026-10-30).** "API N" names the public Cocoa API of Darwin N; it is not the kernel, which stays Darwin 19.6.0. Code, plists and availability macros use the version number in the table; prose says "API N".
 
@@ -42,7 +42,7 @@ Minkar separates three layers that go together on the reference platform. The ke
 
 | Minkar | Delivers | Kernel (`uname -r`) | `ProductVersion` |
 | --- | --- | --- | --- |
-| 19.6.0 | API 19, the Gienah desktop complete for daily use (MB2–MB3, D2–D3, K2–K3) and DMG; functional gates M0–M6 on physical hardware | 19.6.0 | 10.15 |
+| 19.6.0 | API 19, the Atlas desktop complete for daily use (MB2–MB3, D2–D3, K2–K3) and DMG; functional gates M0–M6 on physical hardware | 19.6.0 | 10.15 |
 | 19.6.x | Fixes, and MB4, D4 and K4; may carry parts of API 20 | 19.6.0 | 10.15 |
 | 20.0 | API 20 complete and tested | 19.6.0 | 11.0 |
 | 21.0 | API 21 complete and tested, plus the performance gates | 19.6.0 | 12.0 |
@@ -102,8 +102,8 @@ Minkar boots on Darwin with its own EFI loader, the whole system builds as Mach-
 | WindowServer | The new core is the window server (WS4b done 2026-11-02, gate `M4`): its interface in `SkyLight.framework`, its server started at boot as `_windowserver` with the minimal `loginwindow`; it composites AppKit windows with pixman, routes input from IOHIDSystem with event taps, and each app draws its own menus (MB0). The legacy server is gone. WS5 done (2026-11-02): IOSurface with its registry `iosurfaced`, IOSurface windows, a virtio-gpu 2D driver flushed per frame with mode changes, permanent display configurations, `CGDisplayStream` | The GPU (WS6): G1 done on the Mac Pro (display driver); G2 under way (its gate met) | 4 |
 | GPU acceleration | None; without it the display cannot be turned off either | The whole track (performance requirement) | 4 and Minkar 21.0 |
 | SystemUIServer, Dock | Partial, not built | Almost everything | 5 |
-| Kraz, System Preferences | Do not exist | New Cocoa apps | 5 |
-| AppKit | Partial (Cocotron) | The API's recent pieces and the Gienah visual language | 5 |
+| Argos, System Preferences | Do not exist | New Cocoa apps | 5 |
+| AppKit | Partial (Cocotron) | The API's recent pieces and the Atlas visual language | 5 |
 | DMG, base apps | `hdiutil attach` already mounts through DiskArbitration | `DiskImages.framework` (UDIF), apps | 6 |
 | Binary compatibility, arm64 | Future; install names already the same as the originals | The rest | 7 |
 
@@ -154,7 +154,7 @@ Goal: XNU boots on a generic x86-64 PC up to PID 1 with the root disk mounted. I
 
 ## Phase 2 — Base userland
 
-Goal: a complete multi-user Unix system on Darwin, managed by launchd, with the services Gienah and the apps will need later.
+Goal: a complete multi-user Unix system on Darwin, managed by launchd, with the services Atlas and the apps will need later.
 
 **libSystem and dyld**
 
@@ -232,7 +232,7 @@ Decision order: CoreFoundation constrains Foundation for Swift, which constrains
    - [x] `CFArray` and `CFDictionary` are toll-free bridged to `NSArray` and `NSDictionary`, both ways: CF's objects take Objective-C messages (`__NSCFArray`, `__NSCFDictionary`) and CF's functions take Foundation's collections. Evidence: commit "CoreFoundation and Foundation: arrays and dictionaries bridged both ways", test `foundation-cf-bridging` (13/0), full suite 2761/0, M2 PASS.
 2. Audit Foundation against API 19, starting with what the reference apps import. *Done (2026-10-25/26):* `NSException`, `NSUUID`, `NSSecureCoding`, `NSRegularExpression`, `NSJSONSerialization` (with JSON5), `NSCache`, `NSInvocation` with the System V calling convention, weak `NSHashTable` and `NSMapTable`, binary property lists byte for byte as the reference writes them, `NSProgress` and the modern `NSString` API, plus dozens of bugs found while testing. *Done (2026-10-31):* `NSProcessInfo` with `operatingSystemVersion` (10.15.0), `isOperatingSystemAtLeastVersion:`, `operatingSystemVersionString`, processors, memory and `systemUptime` (`fb6e25b877`). *Done (2026-10-31):* `NSURLSession` on libcurl: configuration, data, upload and download tasks, delegate and completion handlers, redirects and authentication challenges through the delegate, resume data, `file:` and `data:` URLs (`00617d5f6c`); the main thread's run loop runs dispatch's main queue, which never ran in a program driven by `NSRunLoop` (`c88f713757`); `NSOperation`, `NSBlockOperation` and `NSOperationQueue` rewritten on dispatch, with `mainQueue`, `currentQueue`, concurrency limits, asynchronous operations and barriers (`3f886f812e`); `NSData` Base64 and `rangeOfData:options:range:`, `NSHTTPURLResponse` (MIME type, charset, unknown length), four `NSError` keys that did not link, relative URLs that lost their port, `MIN`/`MAX`/`ABS` (`81d2593fb7`). Tests `foundation-url-session` (30/0, HTTPS included), `foundation-operation-queue`, `foundation-main-queue`, `foundation-url-support`; full suite 2826/0, M2 PASS. Then (`b48794b0dc`, `dc214ec2ce`, `852676bdeb`, `5671610ec9`): HTTP cookies (`NSHTTPCookie` and `NSHTTPCookieStorage` were empty), sent and stored by `NSURLSession`; `pathComponents` kept no `/`, so `createDirectoryAtPath:withIntermediateDirectories:` made absolute paths relative; `addObserverForName:object:queue:usingBlock:`; `NSDateFormatter`'s default behavior on CFDateFormatter (Unicode patterns, styles, locales; only `%Y` formats worked). Tests `foundation-cookies`, `foundation-paths-blocks`, `foundation-date-formatter`; full suite 2871/1 (an intermittent test, passed again), M2 PASS. Then the URL API of files (`8b9592659f`, `4738af30ea`, `e2ebc901c5`): every standard directory in `NSSearchPathForDirectoriesInDomains` (it knew three), file URLs as the API makes them (`file:///a%20b/`, `path` decoded), NSURL's resource values and bookmarks, NSFileManager's and NSBundle's URL methods; test `foundation-file-urls`; full suite 2907/0, M2 PASS. `tools/symbols/selector-inventory.py` (`093bf4113e`) lists the Objective-C messages the reference apps send that no Minkar class implements: 80.0% of 3305 are there on 2026-10-31 (77.9% before the file URLs). Then processes, files and formatters (`2ebf423f7b` to `15c3a8fd96`, 9 commits): NSTask on posix_spawn with its modern API (it closed the child's standard output when not set and reaped every child of the process); NSFileHandle's error methods and readability handlers; block timers; the file manager freed while in use (its isa was written by hand) and writes that did not truncate; NSURLComponents and NSURLQueryItem; NSDateInterval; NSByteCountFormatter, NSDateComponentsFormatter, and on ICU NSRelativeDateTimeFormatter, NSDateIntervalFormatter and NSListFormatter; NSDateComponentUndefined as NSIntegerMax. Tests `foundation-process-io`, `foundation-components-formatters`; full suite 2943/0, M2 PASS; selectors 81.2%. *Left in `NSURLSession`:* the URL cache, task metrics (needs `NSDateInterval`), stream and WebSocket tasks, server trust challenges (needs Security). *Known bug:* `NSKeyedUnarchiver` cannot read the XML property list `NSKeyedArchiver` writes. Untested: locale-dependent behaviour (UTF-8 locale data is in the image since 2026-10-27).
 3. Security (APSL) for certificates and a basic keychain. TLS in `NSURLSession` works without it (libcurl with mbedTLS and `/etc/ssl/cert.pem`); `SecTrust` server trust challenges and client certificates need it.
-4. LaunchServices: bundle database and UTI types; `open` and Kraz depend on it. *Done in WS4a:* the session service, which keeps the running applications (`launchservicesd` and the session client in `LaunchServices.framework`, `996178d949`).
+4. LaunchServices: bundle database and UTI types; `open` and Argos depend on it. *Done in WS4a:* the session service, which keeps the running applications (`launchservicesd` and the session client in `LaunchServices.framework`, `996178d949`).
 5. CoreText and CoreData: a minimal implementation driven by real use (see the graphics stack's technical guide).
 6. Swift 6: full stdlib and runtime, with concurrency in the system, and module maps for the frameworks.
 7. API 19 → 20 → 21, raising `ProductVersion` (10.15 → 11.0 → 12.0) as each one closes; each close is a Minkar release (19.6.0, 20.0, 21.0).
@@ -329,28 +329,28 @@ In parallel, the GPU track G1–G5: from the first driver's family and the KMS p
 
 Step 1 was done on 2026-10-31 (`e2df542919`, `2aa9a1da6e`), and step 2's first milestones, WS0 (gate `M4-draw`, `cce7da92bc`) WS1 (the new core's interface, `030dba37c7`) WS2 (its compositor, gate `M4-compose`, `8512fe60ba`) and WS3 (input and event taps, `98237bf14e`); ADR 0001's entitlement check is done (`8366b8d0f6`), WS4a too (the server's behavior, 2026-11-01, `e31dd0ef53`), and WS4b too (the switch, gate `M4`, 2026-11-02, `9d510ec6c2`); and WS5 too (2026-11-02, `9a472063c1`): steps 3 and 4 are done (virtio-gpu 2D, `3e73fce129` and `1f58b3fb44`; IOSurface, `b28eb5f413`). WS6 is next. G1 is done (2026-11-02, ADR 0002, `a42a1800b1` and `050acdb1ee`): on the Mac Pro 6,1, `MinkarAMDFramebuffer` takes the FirePro's display from the firmware at the display's native mode (3440x1440 at 50 Hz), scans out its own framebuffer in VRAM, and `wsctl mode` changes the mode through the scaler, with the VBIOS's tables run by the AtomBIOS interpreter. Modes with timings of their own (pixel clock and DisplayPort link set by the driver) come with G2. G2 is under way, and its gate is met on the Mac Pro (2026-11-02): the DMA engine runs a command buffer and its fence signals, and it copies between surfaces in VRAM (`6be0dcb84c`, `b9ac2e1f36`); a VRAM allocator (`dfee0c87f3`), a user client with `minkar-gputest` (`d405ae35bf`), and the GART with system buffers on both GPUs, the display's too (`34f7974d13`, `2b11571625`). Since then (2026-11-02): IOSurfaces reach the GPU through the GART (`e92fe4b7ff`), interrupts with fence waits that sleep (`7e6621a639`), the window server presents its frames by the GPU's DMA engine (`38e8875af1`), IOSurfaces in VRAM shared across processes (`f13053f237`); and the modes with their own timings over HDMI: the EDID over DDC (`4dcbddbf47`, `de0233a02d`), the mode set through the VBIOS's tables (`8677a3bb9b`), the native size at its fastest refresh rate at start, 60 Hz on the Mac Pro (`59e0165082`), each refresh rate a mode of its own (`e14a3fc4b6`, `e86385a4f3`), and the display back by itself after its cable is unplugged and plugged in (`6999c389ad`). Left of G2: the GFX ring (the command processor, with AMD's microcode); the GPU's clocks (deferred by the maintainer: the boot clocks are kept); and DisplayPort link training, waiting for a DisplayPort display to test it on. Since then G2 also gives every program a GPU address space of its own (VM contexts 1 to 15, `1910d34651`, `78d6f046a3`): any program may use the GPU there, and what reaches past it stays for administrators or the window server (`84a8e4139b`); a command buffer that never finishes resets the command processor. G3 has started (2026-11-03): the graphics block's start (tiling, render backends, compute units, `ee1c6210c9`) and the RLC with the clear state (`76e14432ee`), on both D500s; and Mesa's RADV runs on it (2026-11-03): our libdrm takes its contexts, submissions, GPU mappings and sync objects to the user client (`3ef2fd2de9`), and Mesa 26.2.6 with four patches of ours (`8d911e7e1e`) finds both GPUs as Vulkan 1.3 devices and runs buffer updates, DMA fills and copies and compute shaders on them (`minkar-vktest`, 17 of 17). Since then Mesa is built in the tree with its tools pinned (`f31988bb0b`), and RADV draws: a triangle through a graphics pipeline with SPIR-V shaders, off the screen, checked pixel by pixel (`minkar-vkdraw`, `7b62c1005e`). And it presents in windows (2026-11-03): `VK_EXT_metal_surface` over our own `CAMetalLayer`, whose drawables are IOSurfaces, as Vulkan apps on the reference system present (`66db104abc`, `197aff60d2`, `80f271c9b8`, `1be99a691e`); the triangle was seen in its window on the Mac Pro's display. That presentation still copies through the CPU and has no vertical sync: drawables in VRAM shown by the GPU compositor without copies, paced by the display, are WS6's. G3 is done (2026-11-03): its gate is met with the triangle presented in a window and Khronos's conformance tests (CTS 1.4.7.1, through Khronos's Vulkan loader, `18629db65a`, `b9eacfef5d`) passing a subset of 1,992 cases of the mustpass list on the Mac Pro with no failure (1,887 passed, 105 not supported); on the way they found what the driver and libdrm lacked: page-sized buffers, VRAM beyond the CPU's window, room for thousands of buffers and mappings, fence timeouts and sync files (`f96d6be9cb`, `9981d713a5`). OpenGL comes later. G4 has started (2026-11-03): the compositor draws through a backend interface (`4979a11f03`), and `WSVulkanBackend` composes with a compute shader into a frame in VRAM shared with the display's GPU, presented by its DMA engine; on the Mac Pro its frames match pixman's bit for bit (G4.2, `c32fe22c13`). IOSurfaces an app makes in VRAM are composited in place, without copies (G4.3, `7d973f778a`). And frames are shown by page flips at the display's vertical blank, one per refresh, without tearing (G4.4, `f103270509`, `1601b4934e`). CAMetalLayer's drawables are IOSurfaces in VRAM shown as their window's layer, composited where they are, and Vulkan apps present at the display's rate; the CPU no longer copies frames (G4.5, `9e74fdc214`, `58ab118eed`, `0822411404`). One copy is left, by the GPU inside VRAM, from the swapchain image to the drawable, as Mesa's Metal path has it: 2.65 ms a frame at 3440x1440 as measured in G4.6 with the GPU at its boot clocks (about 0.3 ms expected at its full clocks), kept for now; removing it is pending work for Minkar 21.0's performance gate. G4 is done (2026-11-03): G4.6 measured the window server on both backends (wsctl stats, `bfb9e26e4d`; minkar-vkcopy, `e487b84770`; the figures in [Measurements.md](Measurements.md)): Vulkan apps are composited 14 times cheaper, with a tenth of the server's CPU, at the display's rate; page flips cost one refresh of latency (28 ms from the mouse to the screen). The GPU still runs at the clocks the firmware leaves it (memory at 150 MHz of 1,270), so these figures are a baseline. The Mac Pro's USB mouse and keyboard work, through a KVM switch, since the xHCI driver encodes interrupt intervals for the device's speed (`8f22e24b9a`). Next on the GPU track: the GPU's clocks (si_dpm and its SMC), then the measurements again; then G5. The GPU track reuses steps 4 and 5.
 
-## Phase 5 — Gienah desktop
+## Phase 5 — Atlas desktop
 
-Goal: a complete graphical session in the Gienah visual language, with login, a global menu bar, Dock, desktop icons and preferences. The order follows what the user sees at boot.
+Goal: a complete graphical session in the Atlas visual language, with login, a global menu bar, Dock, desktop icons and preferences. The order follows what the user sees at boot.
 
 1. **LoginWindow:** authentication against this phase's user service (Directory Services, below) and session start (the user's `LaunchAgents`).
 2. **Menu bar and SystemUIServer:** each app's AppKit draws its own menu bar and menus; status items are windows of their apps; SystemUIServer hosts the Menu Extras. Plan: [Menus.md](Menus.md) (MB0 in WS4b, MB1 to MB4 here).
 3. **Basic Menu Extras:** volume, displays, network, clock, notifications. Each one a loadable bundle, not built into SystemUIServer. Plan: [Menus.md](Menus.md) (MB1).
-4. **Dock:** launcher, open apps, minimizing and wallpaper, on LaunchServices. Plan: [Dock-Kraz.md](Dock-Kraz.md) (D0–D4).
-5. **Kraz:** a new pure Cocoa app. Browsing with LaunchServices, mounting through DiskArbitration, desktop icons, Trash and "Open With". Plan: [Dock-Kraz.md](Dock-Kraz.md) (K0–K4).
+4. **Dock:** launcher, open apps, minimizing and wallpaper, on LaunchServices. Plan: [Dock-Argos.md](Dock-Argos.md) (D0–D4).
+5. **Argos:** a new pure Cocoa app. Browsing with LaunchServices, mounting through DiskArbitration, desktop icons, Trash and "Open With". Plan: [Dock-Argos.md](Dock-Argos.md) (K0–K4).
 6. **System Preferences:** host app + `.prefPane` bundle loader (`NSPreferencePane`). First panes: Displays, Keyboard, Users, Network, Date & Time.
-7. **AppKit:** complete the missing controls and give the whole system the Gienah visual language (our own design, no third-party artwork), prioritized by what Kraz and System Preferences use.
+7. **AppKit:** complete the missing controls and give the whole system the Atlas visual language (our own design, no third-party artwork), prioritized by what Argos and System Preferences use.
 
 Across all of it: these are ordinary Cocoa apps or bundles, so they double as a continuous AppKit test.
 
 Commands that come with this phase (moved from Phase 2):
 
 - [ ] `open` and `lsappinfo`, on LaunchServices.
-- [ ] `mdfind`, `mdls` and `mdutil`, with a metadata index for Kraz's search.
+- [ ] `mdfind`, `mdls` and `mdutil`, with a metadata index for Argos's search.
 - [ ] Directory Services–style user management, for LoginWindow and the Users pane (moved from Phase 2 on 2026-10-31).
 - [ ] `say`, with an audio driver and speech synthesis.
 
-**Exit gate (M5):** from boot, a graphical session starts, an app opens from the Dock, Kraz browses, and the resolution changes from Preferences, with the Gienah visual language K1 needs ([Dock-Kraz.md](Dock-Kraz.md)).
+**Exit gate (M5):** from boot, a graphical session starts, an app opens from the Dock, Argos browses, and the resolution changes from Preferences, with the Atlas visual language K1 needs ([Dock-Argos.md](Dock-Argos.md)).
 
 ## Phase 6 — Applications and distribution
 
@@ -360,7 +360,7 @@ Goal: install software by dragging the app from a disk image to `/Applications`,
 
 1. Our own `DiskImages.framework` (MIT/BSD): read the UDIF format with its usual compressions, then write it.
 2. Mount through DiskArbitration at `/Volumes/<label>`, using Phase 1's HFS+ driver.
-3. A minimal `hdiutil` (`attach`, `detach`, `create`) on the framework, and double-click in Kraz.
+3. A minimal `hdiutil` (`attach`, `detach`, `create`) on the framework, and double-click in Argos.
 
 **Applications**
 
@@ -382,7 +382,7 @@ Commands that come with this phase (moved from Phase 2):
 
 Ahead of time: `hdiutil attach` already mounts images in `/Volumes` through DiskArbitration (2026-10-30); reading the DMGs' UDIF format is missing.
 
-**Exit gate (M6):** a DMG is downloaded, mounted, the app copied to `/Applications` and run; Terminal, TextEdit and the browser are used daily on the development machine itself; and the Gienah desktop is complete for daily use: MB2 and MB3 of [Menus.md](Menus.md), D2 and D3 and K2 and K3 of [Dock-Kraz.md](Dock-Kraz.md); MB4, D4 and K4 follow in 19.6.x.
+**Exit gate (M6):** a DMG is downloaded, mounted, the app copied to `/Applications` and run; Terminal, TextEdit and the browser are used daily on the development machine itself; and the Atlas desktop is complete for daily use: MB2 and MB3 of [Menus.md](Menus.md), D2 and D3 and K2 and K3 of [Dock-Argos.md](Dock-Argos.md); MB4, D4 and K4 follow in 19.6.x.
 
 ## Phase 7 — Binary compatibility and arm64
 
@@ -407,14 +407,14 @@ Goal after Minkar 19.6.0: run x86-64 binaries built for the reference platform w
 
 Critical path: Phase 0 (M0) → Phase 1 (M1) → Phase 2 (M2) → Phase 3 (M3) → Phase 4 (M4) → Phase 5 (M5) → Phase 6 (M6, Minkar 19.6.0); Phase 7 (M7) and Minkar 21.0's performance run apart.
 
-M0, M1 and M2 are met (M1 on 2026-11-01, with the Mac Pro 6,1 as PC 2), and Phase 2 is closed (2026-10-31). Active work is in Phases 3 and 4, which must close before Gienah. The GPU track starts in parallel and feeds Minkar 21.0's performance requirement: equal to or better than the reference system on the same machine. Phase 7 comes after Minkar 19.6.0.
+M0, M1 and M2 are met (M1 on 2026-11-01, with the Mac Pro 6,1 as PC 2), and Phase 2 is closed (2026-10-31). Active work is in Phases 3 and 4, which must close before Atlas. The GPU track starts in parallel and feeds Minkar 21.0's performance requirement: equal to or better than the reference system on the same machine. Phase 7 comes after Minkar 19.6.0.
 
 - [x] M0 — Build, toolchain, CI
 - [x] M1 — Darwin boot
 - [x] M2 — Base userland
 - [ ] M3 — Frameworks and Swift
 - [ ] M4 — Graphics and WindowServer (WS0 to WS3 done)
-- [ ] M5 — Gienah desktop
+- [ ] M5 — Atlas desktop
 - [ ] M6 — Apps and distribution (Minkar 19.6.0)
 - [ ] Minkar 21.0 — API 21 complete and performance
 - [ ] M7 — Binary compatibility, arm64
@@ -426,7 +426,7 @@ M0, M1 and M2 are met (M1 on 2026-11-01, with the Mac Pro 6,1 as PC 2), and Phas
 | M2 | Base userland | Met (`boottest GATE=M2`, 17 markers since 2026-11-01, with the code integrity check); Phase 2 closed on 2026-10-31 |
 | M3 | Frameworks and Swift | Not started; prior work in Foundation and libSystem |
 | M4 | Graphics and WindowServer | Met in QEMU (`boottest GATE=M4`, 54 markers, 2026-11-02, `9d510ec6c2`): WS0 to WS4b done (the new core is the window server, the menus in each app with MB0, the minimal `loginwindow`; the legacy server removed). WS5 done too (IOSurface and virtio-gpu, 2026-11-02, `9a472063c1`; M4 passes on virtio-vga and on the standard VGA). Phase 4 goes on with the GPU (WS6) and on physical hardware |
-| M5 | Gienah desktop | Not started |
+| M5 | Atlas desktop | Not started |
 | M6 (Minkar 19.6.0) | Apps and distribution, and the desktop complete for daily use (MB2–MB3, D2–D3, K2–K3) | Not started; `hdiutil attach` already mounts |
 | Minkar 21.0 | API 21 complete and performance ≥ the reference system on a physical machine | Not started; depends on the GPU track |
 | M7 | Binary compatibility, arm64 | After Minkar 19.6.0 |
@@ -461,7 +461,7 @@ In critical-path order:
 What this plan adds, and its state:
 
 - [x] **Versions (2026-10-31):** `PROD_VERSION = 19.6.0` for `ProductUserVisibleVersion`, `PROD_COMPAT_VERSION = 10.15` for `ProductVersion`, and `sw_vers` showing "Minkar 19.6.0 (kernel Darwin 19.6.0)", with its manual page (`d2b559759f`). Tested in QEMU: `@available(10.15)` true and `(11.0)` false, `operatingSystemVersion` 10.15.0, `uname -r` 19.6.0. `libsystem_info` and the pthread kext keep their own versions. In the same work: `launch_activate_socket` (`5051c781b4`), `os_log` and `os_activity` (`0709544df7`), `_availability_version_check` (`c0923c1bc7`) and `NSProcessInfo` (`fb6e25b877`).
-- [x] **This roadmap up to date (2026-10-31):** rewritten from the plan, with Gienah and Kraz, the API 19/20/21 → Minkar 19.6.0/20.0/21.0 scheme, the GPU track and the performance requirement.
+- [x] **This roadmap up to date (2026-10-31):** rewritten from the plan, with Atlas and Argos, the API 19/20/21 → Minkar 19.6.0/20.0/21.0 scheme, the GPU track and the performance requirement.
 - [ ] **Version compatibility:** a `SystemVersionCompat.plist`-style mechanism and `SYSTEM_VERSION_COMPAT=1` for binaries linked against an older SDK.
 - [ ] **Decide the first GPU driver's family** and write the ADR with the KMS prototype. It is also needed to turn the display off, which the GOP framebuffer cannot do.
 - [ ] **Measurement:** measure the reference system on original hardware (Mac Pro 6,1) and keep the values out of the public repository, for Minkar 21.0's performance gates.

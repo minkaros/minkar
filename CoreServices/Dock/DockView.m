@@ -7,8 +7,8 @@
  * under the running ones and a separator before the apps that are not
  * kept. It draws only when the model changes or a tile is pressed.
  *
- * Gienah's provisional look: the layout follows the reference platform's
- * Dock; sizes and colors are Gienah's own and will change with its visual
+ * Atlas's provisional look: the layout follows the reference platform's
+ * Dock; sizes and colors are Atlas's own and will change with its visual
  * language guide.
  */
 
