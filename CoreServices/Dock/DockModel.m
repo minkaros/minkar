@@ -9,6 +9,8 @@
  */
 
 #import "DockModel.h"
+#include <notify.h>
+#include <unistd.h>
 
 NSNotificationName const DockModelDidChangeNotification = @"DockModelDidChangeNotification";
 
@@ -95,15 +97,109 @@ static NSArray<NSURL *> *defaultPersistentApps(void)
     return urls;
 }
 
+static CGFloat sizePreference(NSUserDefaults *defaults, NSString *key, CGFloat fallback)
+{
+    id value = [defaults objectForKey:key];
+
+    if (![value respondsToSelector:@selector(doubleValue)])
+        return fallback;
+    return MIN(MAX([value doubleValue], 16), 128);
+}
+
 @implementation DockModel {
     NSArray<DockTile *> *_persistent;
     NSArray<DockTile *> *_tiles;
+}
+
+- (void)reloadPreferences
+{
+    NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
+    NSString *orientation;
+
+    [defaults synchronize];
+    _tileSize = sizePreference(defaults, @"tilesize", 48);
+    _largeSize = sizePreference(defaults, @"largesize", 64);
+    _magnification = [defaults boolForKey:@"magnification"];
+    _autohide = [defaults boolForKey:@"autohide"];
+    orientation = [defaults stringForKey:@"orientation"];
+    if ([orientation isEqualToString:@"left"])
+        _orientation = DockOrientationLeft;
+    else if ([orientation isEqualToString:@"right"])
+        _orientation = DockOrientationRight;
+    else
+        _orientation = DockOrientationBottom;
+}
+
+/* notify(3)'s name, read on a thread of its own; the main thread reloads. */
+- (void)watchPreferences
+{
+    int fd = -1, token;
+
+    if (notify_register_file_descriptor(kDockPreferencesChangedNotifyName, &fd, 0, &token) != NOTIFY_STATUS_OK)
+        return;
+    [NSThread detachNewThreadWithBlock:^{
+        int value;
+        while (read(fd, &value, sizeof(value)) == sizeof(value))
+            [self performSelectorOnMainThread:@selector(preferencesChanged) withObject:nil waitUntilDone:NO];
+    }];
+}
+
+- (void)preferencesChanged
+{
+    [self reloadPreferences];
+    [[NSNotificationCenter defaultCenter] postNotificationName:DockModelDidChangeNotification object:self];
+}
+
+- (void)savePersistent
+{
+    NSMutableArray *entries = [NSMutableArray array];
+
+    for (DockTile *tile in _persistent)
+        [entries addObject:DockPersistentAppEntry(tile.URL)];
+    [[NSUserDefaults standardUserDefaults] setObject:entries forKey:kPersistentApps];
+    [[NSUserDefaults standardUserDefaults] synchronize];
+}
+
+- (BOOL)isKept:(DockTile *)tile
+{
+    return [_persistent indexOfObjectIdenticalTo:tile] != NSNotFound;
+}
+
+- (void)keepTile:(DockTile *)tile atIndex:(NSUInteger)index
+{
+    NSMutableArray *persistent = [_persistent mutableCopy];
+    NSUInteger old = [persistent indexOfObjectIdenticalTo:tile];
+    DockTile *kept = tile;
+
+    if (old != NSNotFound) {
+        [persistent removeObjectAtIndex:old];
+        if (index > old)
+            index--;
+    } else {
+        kept = [[DockTile alloc] initWithKind:DockTileKindPersistentApp URL:tile.URL];
+    }
+    [persistent insertObject:kept atIndex:MIN(index, [persistent count])];
+    _persistent = [persistent copy];
+    [self savePersistent];
+    [self applicationsChanged:nil];
+}
+
+- (void)removeTile:(DockTile *)tile
+{
+    NSMutableArray *persistent = [_persistent mutableCopy];
+
+    [persistent removeObjectIdenticalTo:tile];
+    _persistent = [persistent copy];
+    [self savePersistent];
+    [self applicationsChanged:nil];
 }
 
 - (instancetype)init
 {
     if ((self = [super init]) == nil)
         return nil;
+    [self reloadPreferences];
+    [self watchPreferences];
 
     NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
     NSArray *preference = [defaults arrayForKey:kPersistentApps];
