@@ -29,16 +29,18 @@
    [super dealloc];
 }
 
-/*
+/* Wakes the run loop: empties the socket and lets cancel write again.
+   Without it the first wake-up was the last, and an idle main thread never
+   ran what other threads sent it (performSelectorOnMainThread:). */
 -(NSUInteger)processImmediateEvents:(NSUInteger)selectEvent {
    if(selectEvent & NSSelectReadEvent) {
       uint8_t buf[256];
-      [_cancelRead read:buf maxLength:256];
       _hasCanceled=NO;
+      [_cancelRead read:buf maxLength:sizeof(buf)];
       return NSSelectReadEvent;
    }
    return 0;
-}*/
+}
 
 -(void)cancel {
    if(!_hasCanceled) {
