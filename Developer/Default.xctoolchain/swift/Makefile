@@ -9,9 +9,16 @@
 # built against the toolchain's LLVM and clang (../llvm, built for the
 # host in ../llvm_host), the same swift-6.0-RELEASE.
 #
-# Without swift-syntax (no macros) and without the compiler's own Swift
-# modules (no host Swift to build them with). The runtime and standard
-# library are built for Minkar in Libraries/swift.
+# With swift-syntax (MANIFEST.swift-syntax: macros, #isolation among them)
+# and the regex parser of swift-experimental-string-processing
+# (MANIFEST.string-processing)
+# and the compiler's own Swift modules, built by a Swift for the build
+# host (MANIFEST.host-swift, swift.org's release: a build tool only). Their
+# C++ interoperation uses the old std::string ABI, as the rest of the
+# compiler and the host LLVM do.
+# The compiler then loads swift-syntax's libraries and that Swift's Linux
+# runtime: both go in the toolchain's lib/swift (host, linux). The runtime
+# and standard library for Minkar are built in Libraries/swift.
 
 SUBDIR =
 FETCH =		sh ${ROOT_SOURCE_DIR}/BSD/lib/libdrm/fetch.sh
@@ -49,11 +56,20 @@ ${CMARK}/.minkar-built: ${.CURDIR}/MANIFEST.cmark
 	ninja -j${JOBS:U10} -C ${CMARK} > ${.OBJDIR}/cmark-build.log 2>&1
 	touch ${.TARGET}
 
-${BUILD}/.minkar-setup: ${SRC}/.minkar-patches ${CMARK}/.minkar-built ${.CURDIR}/Makefile
+${BUILD}/.minkar-setup: ${SRC}/.minkar-patches ${CMARK}/.minkar-built ${.CURDIR}/Makefile \
+    ${.CURDIR}/MANIFEST.host-swift ${.CURDIR}/MANIFEST.swift-syntax ${.CURDIR}/MANIFEST.string-processing
 	rm -rf ${BUILD}
+	hostswift=$$(${FETCH} ${.CURDIR}/MANIFEST.host-swift ${CACHE}) && \
+	syntax=$$(${FETCH} ${.CURDIR}/MANIFEST.swift-syntax ${CACHE}) && \
+	regex=$$(${FETCH} ${.CURDIR}/MANIFEST.string-processing ${CACHE}) && \
 	cmake -G Ninja -S ${SRC} -B ${BUILD} -DCMAKE_BUILD_TYPE=Release \
+	    -DCMAKE_Swift_COMPILER=$$hostswift/usr/bin/swiftc \
+	    -DSWIFT_PATH_TO_SWIFT_SYNTAX_SOURCE=$$syntax \
+	    -DSWIFT_PATH_TO_STRING_PROCESSING_SOURCE=$$regex \
 	    -DCMAKE_C_COMPILER=${HOST_CC:Uclang} -DCMAKE_CXX_COMPILER=${HOST_CXX:Uclang++} \
 	    -DCMAKE_CXX_FLAGS="${HOSTFLAGS}" \
+	    -DCMAKE_Swift_FLAGS="-Xcc -D_GLIBCXX_USE_CXX11_ABI=0" \
+	    -DSWIFT_COMPILER_SOURCES_SDK_FLAGS="-Xcc;-D_GLIBCXX_USE_CXX11_ABI=0" \
 	    -DLLVM_DIR=${LLVM_HOST}/lib/cmake/llvm -DClang_DIR=${LLVM_HOST}/lib/cmake/clang \
 	    -DSWIFT_PATH_TO_LLVM_SOURCE=${LLVM_SRC}/llvm \
 	    -DSWIFT_PATH_TO_CLANG_SOURCE=${LLVM_SRC}/clang \
@@ -65,7 +81,7 @@ ${BUILD}/.minkar-setup: ${SRC}/.minkar-patches ${CMARK}/.minkar-built ${.CURDIR}
 	    -DSWIFT_BUILD_STDLIB_EXTRA_TOOLCHAIN_CONTENT=OFF -DSWIFT_BUILD_STDLIB_CXX_MODULE=OFF \
 	    -DSWIFT_BUILD_REMOTE_MIRROR=OFF -DSWIFT_INCLUDE_TESTS=OFF -DSWIFT_INCLUDE_DOCS=OFF \
 	    -DSWIFT_BUILD_SOURCEKIT=OFF -DSWIFT_ENABLE_SOURCEKIT_TESTS=OFF \
-	    -DBOOTSTRAPPING_MODE=OFF -DSWIFT_BUILD_SWIFT_SYNTAX=OFF \
+	    -DBOOTSTRAPPING_MODE=HOSTTOOLS -DSWIFT_BUILD_SWIFT_SYNTAX=ON \
 	    -DSWIFT_ENABLE_EXPERIMENTAL_CONCURRENCY=OFF -DSWIFT_ENABLE_DISPATCH=OFF \
 	    -DLLVM_ENABLE_ASSERTIONS=OFF > ${.OBJDIR}/swift-config.log 2>&1 || \
 	    { tail -30 ${.OBJDIR}/swift-config.log; exit 1; }
@@ -79,7 +95,8 @@ build-swift: .PHONY ${BUILD}/.minkar-setup
 # patches and this Makefile, by content (a restored cache keeps the
 # compiler, not its build tree, and file times are not to be trusted).
 STAMP =		${TOOLCHAIN}/usr/share/swift/.minkar-built
-SUM_CMD =	cat ${.CURDIR}/MANIFEST ${.CURDIR}/MANIFEST.cmark ${.CURDIR}/Makefile \
+SUM_CMD =	cat ${.CURDIR}/MANIFEST ${.CURDIR}/MANIFEST.cmark ${.CURDIR}/MANIFEST.host-swift \
+		    ${.CURDIR}/MANIFEST.swift-syntax ${.CURDIR}/MANIFEST.string-processing ${.CURDIR}/Makefile \
 		    ${PATCHES:S,^,${.CURDIR}/patches/,} | cksum
 
 install-swift: .PHONY
@@ -95,6 +112,12 @@ install-swift-now: .PHONY build-swift
 	install -m 0755 ${BUILD}/bin/swift-frontend ${TOOLCHAIN}/usr/bin/swift-frontend
 	ln -sf swift-frontend ${TOOLCHAIN}/usr/bin/swiftc
 	ln -sf swift-frontend ${TOOLCHAIN}/usr/bin/swift
+	# What the compiler loads: swift-syntax's libraries, and the Linux Swift
+	# runtime they and the compiler's Swift parts were built against.
+	mkdir -p ${TOOLCHAIN}/usr/lib/swift/host ${TOOLCHAIN}/usr/lib/swift/linux
+	cp -f ${BUILD}/lib/swift/host/*.so ${TOOLCHAIN}/usr/lib/swift/host/
+	hostswift=$$(${FETCH} ${.CURDIR}/MANIFEST.host-swift ${CACHE}) && \
+	cp -f $$hostswift/usr/lib/swift/linux/*.so ${TOOLCHAIN}/usr/lib/swift/linux/
 	install -m 0444 ${SRC}/LICENSE.txt ${TOOLCHAIN}/usr/share/swift/LICENSE.txt
 	${SUM_CMD} > ${STAMP}
 

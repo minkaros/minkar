@@ -1,0 +1,8 @@
+# Swift 6.0 for the build host (Ubuntu 22.04, x86_64), the swift.org
+# release (Apache-2.0 with the Runtime Library Exception): only a build
+# tool. It builds swift-syntax and the compiler's own Swift parts (macros,
+# the optimizer's passes in Swift); nothing of it goes into Minkar but the
+# Linux Swift runtime libraries the toolchain's compiler then loads.
+url https://download.swift.org/swift-6.0-release/ubuntu2204/swift-6.0-RELEASE/swift-6.0-RELEASE-ubuntu22.04.tar.gz
+sha256 cdd0ebb5023dbae57f068b241758c04de6040885cdbabe6a576d8b8d8708ff33
+version 6.0
