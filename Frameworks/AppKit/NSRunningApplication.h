@@ -37,6 +37,8 @@ typedef NS_OPTIONS(NSUInteger, NSApplicationActivationOptions) {
 };
 
 /* A running application, as LaunchServices' session knows it. */
+@class NSImage;
+
 @interface NSRunningApplication : NSObject {
     pid_t _processIdentifier;
     NSString *_bundleIdentifier;
@@ -60,6 +62,7 @@ typedef NS_OPTIONS(NSUInteger, NSApplicationActivationOptions) {
 @property(readonly, copy) NSURL *executableURL;
 @property(readonly) pid_t processIdentifier;
 @property(readonly, copy) NSDate *launchDate;
+@property(readonly, retain) NSImage *icon;
 
 + (instancetype)runningApplicationWithProcessIdentifier:(pid_t)pid;
 + (NSArray *)runningApplicationsWithBundleIdentifier:(NSString *)bundleIdentifier;

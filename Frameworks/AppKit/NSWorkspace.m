@@ -9,6 +9,9 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <AppKit/NSRaise.h>
 #import <AppKit/NSRunningApplication.h>
 #import "NSRunningApplication_private.h"
+#import <AppKit/NSImage.h>
+#include <spawn.h>
+#include <crt_externs.h>
 #include <dispatch/dispatch.h>
 
 NSString * const NSWorkspaceWillPowerOffNotification=@"NSWorkspaceWillPowerOffNotification";
@@ -43,9 +46,56 @@ NSString * const NSWorkspaceRecycleOperation=@"NSWorkspaceRecycleOperation";
    return _notificationCenter;
 }
 
+/* Starts an application bundle's executable. SHORTCUT(LS-open): until
+ * LaunchServices' open code is built (Phase 3, item 4), only application
+ * bundles open, by running their executable; documents and other URLs
+ * do not. An app that is already running is activated instead. */
+static BOOL launchBundle(NSString *path) {
+   NSBundle *bundle=[NSBundle bundleWithPath:path];
+   NSString *executable=[bundle executablePath];
+
+   if(executable==nil)
+      return NO;
+   for(NSRunningApplication *app in [NSRunningApplication _runningApplications])
+      if([[[app bundleURL] path] isEqualToString:[bundle bundlePath]])
+         return [app activateWithOptions:NSApplicationActivateIgnoringOtherApps];
+
+   const char *argv[]={[executable fileSystemRepresentation],NULL};
+   pid_t pid;
+   return posix_spawn(&pid,argv[0],NULL,NULL,(char *const *)argv,*_NSGetEnviron())==0;
+}
+
+/* An application's icon: CFBundleIconFile in its Resources, tried as
+ * named and with the image types NSImage reads. Others get the generic
+ * application icon (applications) or nil. */
+static NSImage *bundleIcon(NSString *path) {
+   NSBundle *bundle=[NSBundle bundleWithPath:path];
+   NSString *name=[[bundle infoDictionary] objectForKey:@"CFBundleIconFile"];
+
+   if([name length]==0)
+      return nil;
+   NSString *resources=[bundle resourcePath];
+   NSArray *candidates=[NSArray arrayWithObjects:name,
+      [[name stringByDeletingPathExtension] stringByAppendingPathExtension:@"png"],
+      [[name stringByDeletingPathExtension] stringByAppendingPathExtension:@"tiff"],nil];
+
+   for(NSString *candidate in candidates) {
+      NSString *file=[resources stringByAppendingPathComponent:candidate];
+      if([[NSFileManager defaultManager] fileExistsAtPath:file]) {
+         NSImage *image=[[NSImage alloc] initWithContentsOfFile:file];
+         if(image!=nil)
+            return [image autorelease];
+      }
+   }
+   return nil;
+}
+
 -(NSImage *)iconForFile:(NSString *)path {
-   NSInvalidAbstractInvocation();
-   return 0;
+   if([[path pathExtension] isEqualToString:@"app"]) {
+      NSImage *icon=bundleIcon(path);
+      return icon!=nil ? icon : [NSImage imageNamed:@"NSApplicationIcon"];
+   }
+   return nil;
 }
 
 -(NSImage *)iconForFiles:(NSArray *)array {
@@ -84,8 +134,7 @@ NSString * const NSWorkspaceRecycleOperation=@"NSWorkspaceRecycleOperation";
 }
 
 -(BOOL)openFile:(NSString *)path {
-   NSInvalidAbstractInvocation();
-   return 0;
+   return [self openURL:[NSURL fileURLWithPath:path]];
 }
 
 -(BOOL)openFile:(NSString *)path withApplication:(NSString *)application {
@@ -109,8 +158,9 @@ NSString * const NSWorkspaceRecycleOperation=@"NSWorkspaceRecycleOperation";
 }
 
 -(BOOL)openURL:(NSURL *)url {
-   NSInvalidAbstractInvocation();
-   return 0;
+   if(url==nil || ![url isFileURL])
+      return NO;
+   return launchBundle([url path]);
 }
 
 -(BOOL)selectFile:(NSString *)path inFileViewerRootedAtPath:(NSString *)rootedAtPath {
@@ -194,8 +244,24 @@ NSString * const NSWorkspaceRecycleOperation=@"NSWorkspaceRecycleOperation";
 }
 
 -(NSString *)pathForApplication:(NSString *)application {
-   NSInvalidAbstractInvocation();
-   return 0;
+   NSFileManager *fm=[NSFileManager defaultManager];
+   NSString *name=[application lastPathComponent];
+
+   if([application isAbsolutePath])
+      return [fm fileExistsAtPath:application] ? application : nil;
+   if(![[name pathExtension] isEqualToString:@"app"])
+      name=[name stringByAppendingPathExtension:@"app"];
+
+   NSArray *dirs=[NSArray arrayWithObjects:[@"~/Applications" stringByExpandingTildeInPath],
+      @"/Applications",@"/Applications/Utilities",@"/System/Applications",
+      @"/System/Applications/Utilities",@"/System/Library/CoreServices",nil];
+
+   for(NSString *dir in dirs) {
+      NSString *candidate=[dir stringByAppendingPathComponent:name];
+      if([fm fileExistsAtPath:candidate])
+         return candidate;
+   }
+   return nil;
 }
 
 -(NSArray *)runningApplications {
@@ -235,13 +301,13 @@ static NSDictionary *applicationDictionary(NSRunningApplication *app) {
 }
 
 -(BOOL)launchApplication:(NSString *)application {
-   NSInvalidAbstractInvocation();
-   return 0;
+   NSString *path=[self pathForApplication:application];
+
+   return path!=nil && [self openFile:path];
 }
 
 -(BOOL)launchApplication:(NSString *)application showIcon:(BOOL)showIcon autolaunch:(BOOL)autolaunch {
-   NSInvalidAbstractInvocation();
-   return 0;
+   return [self launchApplication:application];
 }
 
 -(void)findApplications {

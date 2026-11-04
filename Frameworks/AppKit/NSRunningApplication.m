@@ -37,6 +37,7 @@
 #include <signal.h>
 #import <AppKit/NSRunningApplication.h>
 #import <AppKit/NSWorkspace.h>
+#import <AppKit/NSImage.h>
 #import "NSRunningApplication_private.h"
 #include <LaunchServices/LSSession.h>
 #include <unistd.h>
@@ -201,6 +202,15 @@ static NSLock *applicationsLock;
 
 - (NSDate *)launchDate {
     return _launchDate;
+}
+
+/* The bundle's icon, or the generic application icon. */
+- (NSImage *)icon {
+    NSString *path = _bundleURL ? [_bundleURL path] : nil;
+
+    if(path != nil)
+        return [[NSWorkspace sharedWorkspace] iconForFile:path];
+    return [NSImage imageNamed:@"NSApplicationIcon"];
 }
 
 - (BOOL)activateWithOptions:(NSApplicationActivationOptions)options {
