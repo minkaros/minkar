@@ -74,8 +74,19 @@ static NSThread* mainThread = nil;
    return self;
 }
 
+/* A block's thread (API 19): the block is kept as the argument, with no
+   target or selector. */
+- (instancetype)initWithBlock:(void (^)(void))block {
+   [self init];
+   _argument = [block copy];
+   return self;
+}
+
 - (void) main {
-	[_target performSelector: _selector withObject: _argument];
+	if (_target == nil && _selector == NULL && _argument != nil)
+		((void (^)(void))_argument)();
+	else
+		[_target performSelector: _selector withObject: _argument];
 }
 
 #ifdef WINDOWS
@@ -108,6 +119,12 @@ static void *nsThreadStartThread(void* t)
 	[pool drain];
 	
 	return 0;
+}
+
++(void)detachNewThreadWithBlock:(void (^)(void))block {
+	NSThread *newThread = [[self alloc] initWithBlock:block];
+	[newThread start];
+	[newThread release];
 }
 
 +(void)detachNewThreadSelector:(SEL)selector toTarget:target withObject:argument {

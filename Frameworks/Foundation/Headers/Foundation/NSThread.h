@@ -37,6 +37,7 @@ FOUNDATION_EXPORT NSString *const NSThreadWillExitNotification;
 
 + (void)detachNewThreadSelector:(SEL)selector toTarget:target
                      withObject:argument;
++ (void)detachNewThreadWithBlock:(void (^)(void))block;
 
 + (NSThread *)currentThread;
 + (NSArray *)callStackReturnAddresses;
@@ -52,6 +53,7 @@ FOUNDATION_EXPORT NSString *const NSThreadWillExitNotification;
 
 - init;
 - initWithTarget:target selector:(SEL)selector object:argument;
+- (instancetype)initWithBlock:(void (^)(void))block;
 
 - (BOOL)isMainThread;
 - (BOOL)isCancelled;
