@@ -12,6 +12,7 @@
 "Documents" = "Documentos";
 "Desktop" = "Escritorio";
 "Downloads" = "Descargas";
+"Applications" = "Aplicaciones";
 "Replace" = "Reemplazar";
 "“%@” already exists. Do you want to replace it?" = "“%@” ya existe. ¿Quieres reemplazarlo?";
 "Replacing it will overwrite its current contents." = "Si lo reemplazas, se sobrescribirá su contenido actual.";

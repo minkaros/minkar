@@ -162,7 +162,7 @@ static NSString *panelText(NSString *english) {
    NSView *content=[[[NSView alloc] initWithFrame:NSMakeRect(0,0,width,height)] autorelease];
    CGFloat top=height-20;
 
-   [super setTitle:[_dialogTitle length] ? _dialogTitle : panelText(@"Save")];
+   [self _setPanelTitle:[_dialogTitle length] ? _dialogTitle : panelText(@"Save")];
    if([_message length]) {
       NSTextField *message=[[[NSTextField alloc] initWithFrame:NSMakeRect(20,top-18,width-40,18)] autorelease];
       [message setStringValue:_message];
@@ -221,6 +221,11 @@ static NSString *panelText(NSString *english) {
    [self setContentView:content];
    [self setContentSize:NSMakeSize(width,height)];
    [self center];
+}
+
+/* The window's own title (setTitle: keeps the dialog's, as the API has it). */
+-(void)_setPanelTitle:(NSString *)title {
+   [super setTitle:title];
 }
 
 -(int)_runSavePanel {
