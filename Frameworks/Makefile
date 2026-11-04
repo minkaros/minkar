@@ -26,9 +26,13 @@ SUBDIR += ../PrivateFrameworks/SkyLight
 SUBDIR += OpenGL
 SUBDIR += CoreGraphics
 SUBDIR += CoreText
+# The umbrella of CoreGraphics and CoreText (AppKit's headers import it).
+SUBDIR += ApplicationServices
 SUBDIR += CoreData
 SUBDIR += QuartzCore
 SUBDIR += AppKit
+# The umbrella apps import and link.
+SUBDIR += Cocoa
 
 all: ${SUBDIR}
 
@@ -39,6 +43,8 @@ SystemConfiguration: CoreFoundation
 DiskArbitration: CoreFoundation
 CoreData: Foundation
 QuartzCore: OpenGL IOSurface ../PrivateFrameworks/SkyLight
-AppKit: CoreData QuartzCore
+AppKit: CoreData QuartzCore ApplicationServices
+ApplicationServices: CoreGraphics CoreText
+Cocoa: AppKit CoreData
 
 .include <bsd.subdir.mk>
