@@ -147,3 +147,80 @@ LSSessionQuit(pid_t pid)
 	LSS_CALL(lss_quit(s, pid, &result));
 	return result;
 }
+
+/* -- Interface version 3: the applications installed and opening -- */
+
+int
+LSSessionCopyHandlers(const LSSessionFile *file, LSSessionPath **apps, uint32_t *count,
+    char uti[128])
+{
+	LSSessionPath list[kLSSessionMaxHandlers];
+	mach_msg_type_number_t n = kLSSessionMaxHandlers;
+	ls_uti_t type;
+	int32_t result = kLSSessionSuccess;
+
+	if (file == NULL || apps == NULL || count == NULL)
+		return kLSSessionIllegalArgument;
+	memset(&type, 0, sizeof(type));
+	LSS_CALL(lss_copy_handlers(s, *file, &result, &type, list, &n));
+	if (uti != NULL) {
+		memcpy(uti, type.uti, sizeof(type.uti));
+		uti[127] = '\0';
+	}
+	*apps = malloc((n ? n : 1) * sizeof(LSSessionPath));
+	if (*apps == NULL)
+		return kLSSessionNoService;
+	memcpy(*apps, list, n * sizeof(LSSessionPath));
+	for (mach_msg_type_number_t i = 0; i < n; i++)
+		(*apps)[i].path[sizeof((*apps)[i].path) - 1] = '\0';
+	*count = n;
+	return result;
+}
+
+int
+LSSessionCopyAppForBundleIdentifier(const char *bundleIdentifier, LSSessionPath *app)
+{
+	LSSessionPath id;
+	int32_t result = kLSSessionSuccess;
+
+	if (bundleIdentifier == NULL || app == NULL ||
+	    strlen(bundleIdentifier) >= sizeof(id.path))
+		return kLSSessionIllegalArgument;
+	memset(&id, 0, sizeof(id));
+	strlcpy(id.path, bundleIdentifier, sizeof(id.path));
+	LSS_CALL(lss_copy_app_for_bundle_id(s, id, &result, app));
+	app->path[sizeof(app->path) - 1] = '\0';
+	return result;
+}
+
+int
+LSSessionRegister(const char *path)
+{
+	LSSessionPath p;
+	int32_t result = kLSSessionSuccess;
+
+	if (path == NULL || strlen(path) >= sizeof(p.path))
+		return kLSSessionIllegalArgument;
+	memset(&p, 0, sizeof(p));
+	strlcpy(p.path, path, sizeof(p.path));
+	LSS_CALL(lss_register_app(s, p, &result));
+	return result;
+}
+
+int
+LSSessionOpen(const char *appPath, const char *urls, uint32_t length, uint32_t flags,
+    int *running)
+{
+	LSSessionPath app;
+	int32_t result = kLSSessionSuccess, isRunning = 0;
+
+	if (appPath == NULL || strlen(appPath) >= sizeof(app.path) ||
+	    (urls == NULL && length != 0) || length > kLSSessionMaxURLBytes)
+		return kLSSessionIllegalArgument;
+	memset(&app, 0, sizeof(app));
+	strlcpy(app.path, appPath, sizeof(app.path));
+	LSS_CALL(lss_open_urls(s, app, (char *)urls, length, flags, &result, &isRunning));
+	if (running != NULL)
+		*running = isRunning;
+	return result;
+}

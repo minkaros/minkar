@@ -2,3 +2,4 @@
 #import <CFNetwork/CFNetwork.h>
 #endif
 #include <FSEvents/FSEvents.h>
+#include <LaunchServices/LaunchServices.h>

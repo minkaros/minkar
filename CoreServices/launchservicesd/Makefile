@@ -13,14 +13,14 @@ WARNS ?= 2
 MK_PIE = no
 MK_DEBUG_FILES = no
 PROG =	launchservicesd
-SRCS =	launchservicesd.c LSSessionServer.c
+SRCS =	launchservicesd.c LSDatabase.c LSSessionServer.c
 MAN =
 LS = ${ROOT_SOURCE_DIR}/Frameworks/CoreServices/LaunchServices
 CFLAGS += --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
-	-Wno-incompatible-sysroot -I${.OBJDIR} -I${LS}
+	-Wno-incompatible-sysroot -Wno-nullability-completeness -I${.OBJDIR} -I${LS}
 LDFLAGS += --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
 	-fuse-ld=${LD}
-LDADD += -lbsm
+LDADD += -lbsm -framework CoreFoundation
 CLEANFILES += LSSessionServer.c LSSessionServer.h
 
 # The server side of the MIG interface.
@@ -30,7 +30,7 @@ LSSessionServer.c LSSessionServer.h: ${LS}/LSSession.defs
 	    -header /dev/null -user /dev/null -server LSSessionServer.c \
 	    -sheader LSSessionServer.h ${.ALLSRC}
 
-launchservicesd.o: LSSessionServer.h
+launchservicesd.o LSDatabase.o: LSSessionServer.h
 
 all: to-sysroot
 
