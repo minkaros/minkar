@@ -541,7 +541,7 @@ HEADERS = \
     O2Context_builtin_FT.h \
     O2Font_FT.h
 
-RESOURCES_DIRS = en.lproj de.lproj fr.lproj
+RESOURCES_DIRS = en.lproj de.lproj fr.lproj es.lproj
 RESOURCES_FILES = Info.plist \
 	NSMenu.subproj/NSMenuArrow.tiff \
 	../../Logo_Assets/Minkar/MenuBar/MinkarMenu-Black-18.png \
@@ -614,6 +614,7 @@ DIRS = \
 	en.lproj \
 	de.lproj \
 	fr.lproj \
+	es.lproj \
 	NSTextTable \
 	NSToolbar.subproj \
 	NSKeyValueBinding \
