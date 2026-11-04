@@ -573,7 +573,14 @@ extern void _CGDisplayReconfigured(CGDirectDisplayID display, CGDisplayChangeSum
 
    // ensure we have an "Apple" (application) menu
    if([_mainMenu _menuWithName:@"NSAppleMenu"] == nil) {
-     NSString *appName = [[NSProcessInfo processInfo] processName];
+     /* The app's name as the reference platform shows it: its bundle's
+        CFBundleName (localized), else the process name. */
+     NSBundle *main = [NSBundle mainBundle];
+     NSString *appName = [main objectForInfoDictionaryKey:@"CFBundleName"];
+     if([appName length] == 0)
+      appName = [[NSProcessInfo processInfo] processName];
+     else
+      appName = [main localizedStringForKey:@"CFBundleName" value:appName table:@"InfoPlist"];
      NSMenuItem *appleMenuItem = [[NSMenuItem new] retain];
      [appleMenuItem setTitle:appName];
      NSMenu *appleMenu = [[[NSMenu alloc] initApplicationMenu:appName] retain];
