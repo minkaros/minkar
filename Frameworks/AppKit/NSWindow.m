@@ -825,8 +825,11 @@ NSArray *_NSWindowNumbersFromWindowInfo(CFArrayRef info,BOOL allApps) {
     [self addObserver:notes[i].name selector:notes[i].selector];
 }
 
+/* A titled window keeps 20 points on a screen, so its title bar can be
+   reached; a borderless one (the Dock, its edge, menus) stays where its
+   app puts it, as on the reference platform. */
 -(void)_makeSureIsOnAScreen {
-   if(_makeSureIsOnAScreen && [self isVisible] && ![self isMiniaturized]){
+   if(_makeSureIsOnAScreen && (_styleMask & NSTitledWindowMask) && [self isVisible] && ![self isMiniaturized]){
     NSRect   frame=_frame;
     NSArray *screens=[NSScreen screens];
     int      i,count=[screens count];
