@@ -589,12 +589,18 @@ extern uintptr_t __CFRuntimeObjCClassTable[__CFRuntimeClassTableSize];
 extern uint8_t __CFRuntimeObjCDispatch[__CFRuntimeClassTableSize];
 CF_EXPORT void _CFRuntimeBridgeObjCDispatch(CFTypeID typeID);
 extern int __CFConstantStringClassReference[];
+/* Minkar: Foundation's generic class of CF's objects (__NSCFType), the
+ * isa of the instances of the types with no class of their own, as on the
+ * reference platform: they can be sent retain, release, isEqual: and the
+ * rest. 0 until Foundation is loaded. */
+extern uintptr_t __CFRuntimeDefaultObjCClass;
 CF_INLINE Boolean __CFIsForeignObjCForType(CFTypeID typeID, const void *cf) {
     if (cf == NULL || typeID >= __CFRuntimeClassTableSize ||
         !__CFRuntimeObjCDispatch[typeID])
         return false;
     uintptr_t isa = *(const uintptr_t *)cf;
-    if (isa == 0 || isa == (uintptr_t)__CFConstantStringClassReference)
+    if (isa == 0 || isa == (uintptr_t)__CFConstantStringClassReference ||
+        (isa == __CFRuntimeDefaultObjCClass && isa != 0))
         return false;
     return isa != (uintptr_t)_CFRuntimeGetClassWithTypeID(typeID) &&
         isa != __CFRuntimeObjCClassTable[typeID];
@@ -614,6 +620,12 @@ CF_INLINE Boolean __CFIsForeignObjCForType(CFTypeID typeID, const void *cf) {
         ? (uintptr_t)__CFRuntimeObjCClassTable[t] \
         : (uintptr_t)_CFRuntimeGetClassWithTypeID(t) \
     : 0)
+CF_INLINE uintptr_t __CFInstanceISAForTypeID(CFTypeID typeID) {
+    if (typeID < __CFRuntimeClassTableSize && __CFRuntimeObjCClassTable[typeID] == 0 &&
+        __CFRuntimeDefaultObjCClass != 0)
+        return __CFRuntimeDefaultObjCClass;
+    return __CFISAForTypeID(typeID);
+}
 
 /* See comments in CFBase.c
 */

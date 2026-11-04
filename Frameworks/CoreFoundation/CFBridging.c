@@ -50,6 +50,12 @@ CF_EXPORT int _CFRuntimeRegisterObjCClass(CFTypeID typeID, uintptr_t cls)
 CF_EXPORT void CFSetupFoundationBridging(void)
 {
     TRACE("Setting up bridging\n");
+    /* Minkar: the instances of CF's other types, made from now on, are
+     * Foundation's generic __NSCFType (NSCFType.m), as on the reference
+     * platform: Objective-C can retain, release and compare them (a
+     * CGDisplayModeRef put in an NSArray crashed). */
+    __CFRuntimeDefaultObjCClass = (uintptr_t)objc_lookUpClass("__NSCFType");
+
     _CFRuntimeRegisterObjCClass(kNSCFTypeString, (uintptr_t)objc_lookUpClass("NSCFString"));
     /* Minkar: CF's string functions take Foundation's own strings too
      * (NSMutableString's, NSString_unicode...): CFString.c sends them the
