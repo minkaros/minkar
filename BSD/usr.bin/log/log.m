@@ -38,6 +38,9 @@
  *   log config --status
  *   log erase --all
  *
+ * syslog(3)'s messages (ASL's, kept by syslogd) are shown with logd's, by
+ * time, without a subsystem.
+ *
  * Predicates are NSPredicate's, over process, processIdentifier,
  * subsystem, category, messageType, eventMessage (composedMessage),
  * threadIdentifier, activityIdentifier, userIdentifier and timestamp;
@@ -45,6 +48,7 @@
  */
 
 #import <Foundation/Foundation.h>
+#include <asl.h>
 #include <mach/mach.h>
 #include <servers/bootstrap.h>
 #include <stdio.h>
@@ -229,6 +233,96 @@ print(const logd_record_t *r)
 	fflush(stdout);
 }
 
+/* Records to print together, sorted by time (log show), or as they come
+ * (log stream, collect == nil). */
+static NSMutableArray<NSData *> *collect;
+
+static void
+emit(const logd_record_t *r)
+{
+	if (collect != nil)
+		[collect addObject:[NSData dataWithBytes:r length:r->size]];
+	else
+		print(r);
+}
+
+/* ASL's levels as os_log's types. */
+static uint32_t
+aslType(int level)
+{
+	if (level <= ASL_LEVEL_CRIT)
+		return (LOGD_TYPE_FAULT);
+	if (level == ASL_LEVEL_ERR)
+		return (LOGD_TYPE_ERROR);
+	if (level == ASL_LEVEL_INFO)
+		return (LOGD_TYPE_INFO);
+	if (level >= ASL_LEVEL_DEBUG)
+		return (LOGD_TYPE_DEBUG);
+	return (LOGD_TYPE_DEFAULT);
+}
+
+static const char *
+aslValue(asl_object_t m, const char *key)
+{
+	const char *v = asl_get(m, key);
+	return (v != NULL ? v : "");
+}
+
+/* syslog(3)'s messages from ASL's store after message ID after (and from
+ * start, nanoseconds, when not 0); returns the last ID. ASL itself keeps
+ * other users' messages from a caller that may not read them. */
+static uint64_t
+fetchASL(uint64_t after, uint64_t start, uint64_t end, uint32_t types)
+{
+	asl_object_t q = asl_new(ASL_TYPE_QUERY);
+	char buf[32];
+
+	if (q == NULL)
+		return (after);
+	snprintf(buf, sizeof(buf), "%llu", (unsigned long long)after);
+	asl_set_query(q, ASL_KEY_MSG_ID, buf, ASL_QUERY_OP_GREATER | ASL_QUERY_OP_NUMERIC);
+	if (start != 0) {
+		snprintf(buf, sizeof(buf), "%llu", (unsigned long long)(start / 1000000000ULL));
+		asl_set_query(q, ASL_KEY_TIME, buf, ASL_QUERY_OP_GREATER_EQUAL | ASL_QUERY_OP_NUMERIC);
+	}
+	asl_object_t found = asl_search(NULL, q);
+	asl_release(q);
+	if (found == NULL)
+		return (after);
+	for (asl_object_t m = asl_next(found); m != NULL; m = asl_next(found)) {
+		uint64_t id = strtoull(aslValue(m, ASL_KEY_MSG_ID), NULL, 10);
+		if (id > after)
+			after = id;
+		uint32_t type = aslType(atoi(aslValue(m, ASL_KEY_LEVEL)));
+		uint64_t time = strtoull(aslValue(m, ASL_KEY_TIME), NULL, 10) * 1000000000ULL +
+		    strtoull(aslValue(m, ASL_KEY_TIME_NSEC), NULL, 10);
+		if (!(types & LOGD_MASK(type)) || (end && time > end) || (start && time < start))
+			continue;
+		const char *process = aslValue(m, ASL_KEY_SENDER), *text = aslValue(m, ASL_KEY_MSG);
+		size_t plen = strnlen(process, 255) + 1, tlen = strnlen(text, 4095) + 1;
+		size_t size = (sizeof(logd_record_t) + plen + 1 + 1 + tlen + 7) & ~(size_t)7;
+		logd_record_t *r = calloc(1, size);
+		if (r == NULL)
+			continue;
+		r->size = (uint32_t)size;
+		r->type = type;
+		r->time = time;
+		r->pid = atoi(aslValue(m, ASL_KEY_PID));
+		r->uid = (uint32_t)strtoul(aslValue(m, ASL_KEY_UID), NULL, 10);
+		r->process_len = (uint16_t)plen;
+		r->subsystem_len = 1;
+		r->category_len = 1;
+		r->text_len = (uint16_t)tlen;
+		char *p = (char *)(r + 1);
+		memcpy(p, process, plen - 1);
+		memcpy(p + plen + 2, text, tlen - 1);
+		emit(r);
+		free(r);
+	}
+	asl_release(found);
+	return (after);
+}
+
 /* The records after seq after; returns the last one's sequence number. */
 static uint64_t
 fetch(uint64_t after, uint64_t start, uint64_t end, uint32_t types, BOOL *any)
@@ -249,7 +343,7 @@ fetch(uint64_t after, uint64_t start, uint64_t end, uint32_t types, BOOL *any)
 				break;
 			if (any != NULL)
 				*any = YES;
-			print(r);
+			emit(r);
 			off += r->size;
 		}
 		if (bytes != NULL)
@@ -349,7 +443,18 @@ show(int argc, char **argv)
 	if (strcmp(style, "default") == 0)
 		printf("%-31s %-10s %-8s %-10s %-6s %s\n", "Timestamp", "Thread", "Type",
 		    "Activity", "PID", "Message");
+	collect = [NSMutableArray array];
 	fetch(0, start, end, types, NULL);
+	fetchASL(0, start, end, types);
+	[collect sortWithOptions:NSSortStable usingComparator:^NSComparisonResult(NSData *a, NSData *b) {
+		uint64_t ta = ((const logd_record_t *)a.bytes)->time;
+		uint64_t tb = ((const logd_record_t *)b.bytes)->time;
+		return ta < tb ? NSOrderedAscending : ta > tb ? NSOrderedDescending : NSOrderedSame;
+	}];
+	NSArray<NSData *> *all = collect;
+	collect = nil;
+	for (NSData *d in all)
+		print((const logd_record_t *)d.bytes);
 	if (strcmp(style, "json") == 0)
 		puts(jsonFirst ? "[]" : "]");
 	return (0);
@@ -383,6 +488,8 @@ stream(int argc, char **argv)
 	connectLogd();
 	/* From now on: the newest record's number first. */
 	uint64_t last = fetch(UINT64_MAX - 1, 0, 0, 0, NULL);
+	/* syslog(3)'s messages from now on. */
+	uint64_t since = now(), lastASL = 0;
 	uint64_t stop = timeout > 0 ? now() + (uint64_t)(timeout * 1e9) : 0;
 	if (strcmp(style, "default") == 0)
 		printf("Filtering the log data using \"%s\"\n",
@@ -390,6 +497,7 @@ stream(int argc, char **argv)
 	fflush(stdout);
 	while (stop == 0 || now() < stop) {
 		last = fetch(last, 0, 0, types, NULL);
+		lastASL = fetchASL(lastASL, since, 0, types);
 		usleep(200000);
 	}
 	if (strcmp(style, "json") == 0)
