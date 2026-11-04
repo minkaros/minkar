@@ -246,9 +246,9 @@ Llegan de la Fase 2 (31 oct 2026):
 
 **Toolchain Swift** (el prototipo es gate antes del resto del trabajo de Swift)
 
-- [x] Prototipo 1: compilar `swiftc` (`swiftlang/swift`, rama `release/6.0`) en el host Ubuntu como compilador cruzado, contra el LLVM `swift-6.0-release` del árbol. *Hecho (3 nov 2026, `1d2b7e8d9d`):* `Developer/Default.xctoolchain/swift` compila `swift-frontend` (`swiftc`, `swift`) para el host contra el LLVM y el clang de la cadena de herramientas, desde el tarball de la versión de Swift fijado por SHA-256 (un parche: sin ASTGen cuando no hay swift-syntax); aún sin macros.
+- [x] Prototipo 1: compilar `swiftc` (`swiftlang/swift`, rama `release/6.0`) en el host Ubuntu como compilador cruzado, contra el LLVM `swift-6.0-release` del árbol. *Hecho (3 nov 2026, `1d2b7e8d9d`):* `Developer/Default.xctoolchain/swift` compila `swift-frontend` (`swiftc`, `swift`) para el host contra el LLVM y el clang de la cadena de herramientas, desde el tarball de la versión de Swift fijado por SHA-256 (un parche: sin ASTGen cuando no hay swift-syntax); aún sin macros. Desde el 4 nov 2026, con swift-syntax y macros (`bf2464179d`).
 - [x] Prototipo 2: compilar `libswiftCore` para `x86_64-apple-macosx10.15` contra `Minkar.sdk` y ejecutar un "hello world" de Swift (no Embedded) en QEMU. *Hecho (3 nov 2026, `1d2b7e8d9d`):* `Libraries/swift` compila el runtime y la biblioteca estándar desde Linux en `/usr/lib/swift`; hizo falta NSObject con el tamaño de referencia (`a3a9d005fc`) y algunas piezas del SDK (`2f0c5038af`). Prueba `swift` 10/0: cadenas, protocolos, clases, genéricos, errores y colecciones.
-- [ ] `libswift_Concurrency` y overlays de sistema: `Darwin`, `ObjectiveC`, `CoreFoundation` y `Dispatch` (desde `libdispatch/src/swift`).
+- [ ] `libswift_Concurrency` y overlays de sistema: `Darwin`, `ObjectiveC`, `CoreFoundation` y `Dispatch` (desde `libdispatch/src/swift`). *Parcial (4 nov 2026, `283d9da3e1`):* Concurrency sobre libdispatch y el overlay `Darwin`; prueba `swift` 19/0 (main asíncrono, grupos de tareas, actores, cancelación, AsyncStream). Faltan `ObjectiveC`, `CoreFoundation` y `Dispatch`.
 - [ ] Overlay `libswiftFoundation` a partir de la última versión abierta, actualizado a Swift 6.0.
 - [ ] Instalar todo en `/usr/lib/swift` dentro de la imagen y añadir un gate de `boottest` que ejecute un binario Swift.
 

@@ -246,9 +246,9 @@ From Phase 2 (2026-10-31):
 
 **Swift toolchain** (the prototype gates the rest of the Swift work)
 
-- [x] Prototype 1: build `swiftc` (`swiftlang/swift`, branch `release/6.0`) on the Ubuntu host as a cross compiler, against the tree's `swift-6.0-release` LLVM. *Done (2026-11-03, `1d2b7e8d9d`):* `Developer/Default.xctoolchain/swift` builds `swift-frontend` (`swiftc`, `swift`) for the host against the toolchain's LLVM and clang, from Swift's release tarball pinned by SHA-256 (one patch: no ASTGen without swift-syntax); no macros yet.
+- [x] Prototype 1: build `swiftc` (`swiftlang/swift`, branch `release/6.0`) on the Ubuntu host as a cross compiler, against the tree's `swift-6.0-release` LLVM. *Done (2026-11-03, `1d2b7e8d9d`):* `Developer/Default.xctoolchain/swift` builds `swift-frontend` (`swiftc`, `swift`) for the host against the toolchain's LLVM and clang, from Swift's release tarball pinned by SHA-256 (one patch: no ASTGen without swift-syntax); no macros yet. Since 4 Nov 2026 with swift-syntax and macros (`bf2464179d`).
 - [x] Prototype 2: build `libswiftCore` for `x86_64-apple-macosx10.15` against `Minkar.sdk` and run a (non-Embedded) Swift "hello world" in QEMU. *Done (2026-11-03, `1d2b7e8d9d`):* `Libraries/swift` cross-compiles the runtime and standard library from Linux into `/usr/lib/swift`; it needed NSObject at the reference size (`a3a9d005fc`) and a few SDK pieces (`2f0c5038af`). Test `swift` 10/0: strings, protocols, classes, generics, errors and collections.
-- [ ] `libswift_Concurrency` and the system overlays: `Darwin`, `ObjectiveC`, `CoreFoundation` and `Dispatch` (from `libdispatch/src/swift`).
+- [ ] `libswift_Concurrency` and the system overlays: `Darwin`, `ObjectiveC`, `CoreFoundation` and `Dispatch` (from `libdispatch/src/swift`). *Partial (4 Nov 2026, `283d9da3e1`):* Concurrency on libdispatch and the `Darwin` overlay; test `swift` 19/0 (async main, task groups, actors, cancellation, AsyncStream). `ObjectiveC`, `CoreFoundation` and `Dispatch` are missing.
 - [ ] The `libswiftFoundation` overlay from its last open version, updated to Swift 6.0.
 - [ ] Install everything in `/usr/lib/swift` in the image and add a `boottest` gate that runs a Swift binary.
 
