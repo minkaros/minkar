@@ -36,7 +36,9 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 - (NSEnumerator<KeyType> *)keyEnumerator;
 - (NSEnumerator<ObjectType> *)objectEnumerator;
 
-- (void)getObjects:(id *)objects andKeys:(id *)keys;
+- (void)getObjects:(__unsafe_unretained id *)objects andKeys:(__unsafe_unretained id *)keys;
+/* At most count pairs; either array may be NULL (10.7). */
+- (void)getObjects:(__unsafe_unretained id *)objects andKeys:(__unsafe_unretained id *)keys count:(NSUInteger)count;
 
 - (BOOL)isEqualToDictionary:(NSDictionary<KeyType, ObjectType> *)dictionary;
 

@@ -84,6 +84,13 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 - decodeObjectForKey:(NSString *)key;
 - (id)decodeObjectOfClass:(Class)cls forKey:(NSString *)key;
 - (id)decodeObjectOfClasses:(NSSet *)classes forKey:(NSString *)key;
+
+/* The top-level object: nil and an NSError, rather than an exception,
+ * when it cannot be decoded (10.11). */
+- (id)decodeTopLevelObjectAndReturnError:(NSError **)error;
+- (id)decodeTopLevelObjectForKey:(NSString *)key error:(NSError **)error;
+- (id)decodeTopLevelObjectOfClass:(Class)cls forKey:(NSString *)key error:(NSError **)error;
+- (id)decodeTopLevelObjectOfClasses:(NSSet *)classes forKey:(NSString *)key error:(NSError **)error;
 @property (readonly) BOOL requiresSecureCoding;
 
 - (int32_t)decodeInt32ForKey:(NSString *)key;

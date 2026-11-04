@@ -12,7 +12,23 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <Foundation/NSRaise.h>
 #import <Foundation/NSDateFormatter.h>
 
-NSString * const NSGregorianCalendar=@"NSGregorianCalendar";
+NSString * const NSCalendarIdentifierGregorian=@"gregorian";
+NSString * const NSCalendarIdentifierBuddhist=@"buddhist";
+NSString * const NSCalendarIdentifierChinese=@"chinese";
+NSString * const NSCalendarIdentifierCoptic=@"coptic";
+NSString * const NSCalendarIdentifierEthiopicAmeteMihret=@"ethiopic";
+NSString * const NSCalendarIdentifierEthiopicAmeteAlem=@"ethiopic-amete-alem";
+NSString * const NSCalendarIdentifierHebrew=@"hebrew";
+NSString * const NSCalendarIdentifierISO8601=@"iso8601";
+NSString * const NSCalendarIdentifierIndian=@"indian";
+NSString * const NSCalendarIdentifierIslamic=@"islamic";
+NSString * const NSCalendarIdentifierIslamicCivil=@"islamic-civil";
+NSString * const NSCalendarIdentifierJapanese=@"japanese";
+NSString * const NSCalendarIdentifierPersian=@"persian";
+NSString * const NSCalendarIdentifierRepublicOfChina=@"roc";
+NSString * const NSCalendarIdentifierIslamicTabular=@"islamic-tbla";
+NSString * const NSCalendarIdentifierIslamicUmmAlQura=@"islamic-umalqura";
+NSString * const NSGregorianCalendar=@"gregorian";
 
 @implementation NSCalendar 
 
@@ -27,12 +43,27 @@ NSString * const NSGregorianCalendar=@"NSGregorianCalendar";
 }
 
 +currentCalendar {
-   return [[[self alloc] initWithCalendarIdentifier:NSGregorianCalendar] autorelease];
+   return [[[self alloc] initWithCalendarIdentifier:NSCalendarIdentifierGregorian] autorelease];
+}
+
++(NSCalendar *)autoupdatingCurrentCalendar {
+   return [self currentCalendar];
+}
+
++(NSCalendar *)calendarWithIdentifier:(NSCalendarIdentifier)identifier {
+   return [[[self alloc] initWithCalendarIdentifier:identifier] autorelease];
 }
 
 -initWithCalendarIdentifier:(NSString *)identifier {
+   if (identifier == nil) {
+      [self release];
+      return nil;
+   }
    _identifier=[identifier copy];
    _timeZone=[[NSTimeZone defaultTimeZone] copy];
+   /* Sunday first, a week of one day or more: the CLDR default. */
+   _firstWeekday=1;
+   _minimumDaysInFirstWeek=1;
    return self;
 }
 

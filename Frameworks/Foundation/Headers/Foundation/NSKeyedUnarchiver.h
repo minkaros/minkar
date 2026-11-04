@@ -45,8 +45,6 @@ FOUNDATION_EXPORT NSString *NSInvalidUnarchiveOperationException;
 + (id)unarchiveTopLevelObjectWithData:(NSData *)data error:(NSError **)error;
 - (id)decodeObjectOfClass:(Class)cls forKey:(NSString *)key;
 - (id)decodeObjectOfClasses:(NSSet *)classes forKey:(NSString *)key;
-- (id)decodeTopLevelObjectForKey:(NSString *)key error:(NSError **)error;
-- (id)decodeTopLevelObjectOfClass:(Class)cls forKey:(NSString *)key error:(NSError **)error;
 @property (readwrite) BOOL requiresSecureCoding;
 @property (readwrite) NSDecodingFailurePolicy decodingFailurePolicy;
 @property (readonly, copy) NSError *error;

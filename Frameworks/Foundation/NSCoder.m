@@ -11,6 +11,10 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <Foundation/NSSet.h>
 #import <Foundation/NSObjCRuntime.h>
 #import <Foundation/NSRaise.h>
+#import <Foundation/NSError.h>
+#import <Foundation/NSDictionary.h>
+#import <Foundation/NSException.h>
+#import <Foundation/FoundationErrors.h>
 #include <string.h>
 #include <stdio.h>
 
@@ -319,6 +323,49 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
     if([object isKindOfClass:cls])
      return object;
    return nil;
+}
+
+/* The top-level object, its decoding failures as an NSError (any coder;
+ * keyed unarchivers have their own). */
+static id NSCoderDecodeTopLevel(NSCoder *coder, NSSet *classes, NSString *key, NSError **error) {
+   id result=nil;
+   NSString *reason=nil;
+
+   @try {
+    if(key==nil)
+     result=[coder decodeObject];
+    else if(classes!=nil)
+     result=[coder decodeObjectOfClasses:classes forKey:key];
+    else
+     result=[coder decodeObjectForKey:key];
+   } @catch(NSException *exception) {
+    reason=[exception reason];
+    result=nil;
+   }
+   if(result==nil && error!=NULL)
+    *error=[NSError errorWithDomain:NSCocoaErrorDomain
+                               code:(reason!=nil)?NSCoderReadCorruptError:NSCoderValueNotFoundError
+                           userInfo:(reason!=nil)?[NSDictionary dictionaryWithObject:reason
+                                     forKey:NSDebugDescriptionErrorKey]:nil];
+   return result;
+}
+
+-(id)decodeTopLevelObjectAndReturnError:(NSError **)error {
+   return [self allowsKeyedCoding]
+      ? [self decodeTopLevelObjectForKey:@"root" error:error]
+      : NSCoderDecodeTopLevel(self, nil, nil, error);
+}
+
+-(id)decodeTopLevelObjectForKey:(NSString *)key error:(NSError **)error {
+   return NSCoderDecodeTopLevel(self, nil, key, error);
+}
+
+-(id)decodeTopLevelObjectOfClass:(Class)cls forKey:(NSString *)key error:(NSError **)error {
+   return NSCoderDecodeTopLevel(self, (cls!=Nil)?[NSSet setWithObject:cls]:nil, key, error);
+}
+
+-(id)decodeTopLevelObjectOfClasses:(NSSet *)classes forKey:(NSString *)key error:(NSError **)error {
+   return NSCoderDecodeTopLevel(self, classes, key, error);
 }
 
 -(BOOL)requiresSecureCoding {

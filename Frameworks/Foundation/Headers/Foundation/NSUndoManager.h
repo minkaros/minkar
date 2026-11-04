@@ -66,6 +66,8 @@ FOUNDATION_EXPORT NSString *const NSUndoManagerDidRedoChangeNotification;
 - (BOOL)isRedoing;
 
 - (void)registerUndoWithTarget:(id)target selector:(SEL)selector object:(id)object;
+/* The handler is called with the target to undo (10.11). */
+- (void)registerUndoWithTarget:(id)target handler:(void (^)(id target))undoHandler;
 
 - (void)removeAllActions;
 - (void)removeAllActionsWithTarget:(id)target;

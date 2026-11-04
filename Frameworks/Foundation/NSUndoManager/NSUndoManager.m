@@ -300,6 +300,16 @@ NSString * const NSUndoManagerDidRedoChangeNotification=@"NSUndoManagerDidRedoCh
     return (_state == NSUndoManagerRedoing);
 }
 
+/* The invocation's target stays the object, so that removeAllActionsWithTarget:
+ * finds it; the handler goes as its argument. */
+- (void)registerUndoWithTarget:(id)target handler:(void (^)(id))undoHandler
+{
+    id handler = [[undoHandler copy] autorelease];
+
+    [self registerUndoWithTarget:target selector:@selector(_NSUndoManagerRunHandler:)
+                          object:handler];
+}
+
 - (void)registerUndoWithTarget:(id)target selector:(SEL)selector object:(id)object
 {
     NSInvocation *invocation;
@@ -466,3 +476,11 @@ NSString * const NSUndoManagerDidRedoChangeNotification=@"NSUndoManagerDidRedoCh
 
 @end
 
+@implementation NSObject (NSUndoManagerHandler)
+
+- (void)_NSUndoManagerRunHandler:(void (^)(id))handler
+{
+    handler(self);
+}
+
+@end

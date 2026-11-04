@@ -49,6 +49,26 @@ enum {
     NSCalendarUnitTimeZone = (1UL << 21),
 };
 
+/* Calendars by their CLDR identifier (10.6; a type of its own since 10.12). */
+typedef NSString *NSCalendarIdentifier NS_TYPED_ENUM;
+FOUNDATION_EXPORT NSCalendarIdentifier const NSCalendarIdentifierGregorian;
+FOUNDATION_EXPORT NSCalendarIdentifier const NSCalendarIdentifierBuddhist;
+FOUNDATION_EXPORT NSCalendarIdentifier const NSCalendarIdentifierChinese;
+FOUNDATION_EXPORT NSCalendarIdentifier const NSCalendarIdentifierCoptic;
+FOUNDATION_EXPORT NSCalendarIdentifier const NSCalendarIdentifierEthiopicAmeteMihret;
+FOUNDATION_EXPORT NSCalendarIdentifier const NSCalendarIdentifierEthiopicAmeteAlem;
+FOUNDATION_EXPORT NSCalendarIdentifier const NSCalendarIdentifierHebrew;
+FOUNDATION_EXPORT NSCalendarIdentifier const NSCalendarIdentifierISO8601;
+FOUNDATION_EXPORT NSCalendarIdentifier const NSCalendarIdentifierIndian;
+FOUNDATION_EXPORT NSCalendarIdentifier const NSCalendarIdentifierIslamic;
+FOUNDATION_EXPORT NSCalendarIdentifier const NSCalendarIdentifierIslamicCivil;
+FOUNDATION_EXPORT NSCalendarIdentifier const NSCalendarIdentifierJapanese;
+FOUNDATION_EXPORT NSCalendarIdentifier const NSCalendarIdentifierPersian;
+FOUNDATION_EXPORT NSCalendarIdentifier const NSCalendarIdentifierRepublicOfChina;
+FOUNDATION_EXPORT NSCalendarIdentifier const NSCalendarIdentifierIslamicTabular;
+FOUNDATION_EXPORT NSCalendarIdentifier const NSCalendarIdentifierIslamicUmmAlQura;
+
+/* The older name of NSCalendarIdentifierGregorian. */
 FOUNDATION_EXPORT NSString *const NSGregorianCalendar;
 
 @interface NSCalendar : NSObject <NSCopying> {
@@ -60,10 +80,14 @@ FOUNDATION_EXPORT NSString *const NSGregorianCalendar;
 }
 
 + currentCalendar;
+/* The current calendar; it does not follow later changes of the user's
+ * settings yet (no locale change notification). */
++ (NSCalendar *)autoupdatingCurrentCalendar;
++ (NSCalendar *)calendarWithIdentifier:(NSCalendarIdentifier)identifier;
 
-- initWithCalendarIdentifier:(NSString *)identifier;
+- initWithCalendarIdentifier:(NSCalendarIdentifier)identifier;
 
-- (NSString *)calendarIdentifier;
+- (NSCalendarIdentifier)calendarIdentifier;
 - (NSUInteger)firstWeekday;
 - (NSUInteger)minimumDaysInFirstWeek;
 - (NSTimeZone *)timeZone;
