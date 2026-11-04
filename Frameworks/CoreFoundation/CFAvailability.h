@@ -229,11 +229,16 @@
 
 // Enums and Options
 #if (__cplusplus && __cplusplus >= 201103L && (__has_extension(cxx_strong_enums) || __has_feature(objc_fixed_enum))) || (!__cplusplus && __has_feature(objc_fixed_enum))
-#define CF_ENUM(_type, _name) enum _name : _type _name; enum _name : _type
+/* Minkar: enums Swift imports as its own enums (open: more cases may come)
+ * and options as OptionSets, as the reference SDK declares them. */
+#define __CF_ENUM_ATTRIBUTES __attribute__((enum_extensibility(open)))
+#define __CF_CLOSED_ENUM_ATTRIBUTES __attribute__((enum_extensibility(closed)))
+#define __CF_OPTIONS_ATTRIBUTES __attribute__((flag_enum, enum_extensibility(open)))
+#define CF_ENUM(_type, _name) enum __CF_ENUM_ATTRIBUTES _name : _type _name; enum _name : _type
 #if (__cplusplus)
-#define CF_OPTIONS(_type, _name) _type _name; enum : _type
+#define CF_OPTIONS(_type, _name) _type _name; enum __CF_OPTIONS_ATTRIBUTES : _type
 #else
-#define CF_OPTIONS(_type, _name) enum _name : _type _name; enum _name : _type
+#define CF_OPTIONS(_type, _name) enum __CF_OPTIONS_ATTRIBUTES _name : _type _name; enum _name : _type
 #endif
 #else
 #define CF_ENUM(_type, _name) _type _name; enum
@@ -244,5 +249,33 @@
 #define CF_EXTENSION_UNAVAILABLE(_msg)      __OS_EXTENSION_UNAVAILABLE(_msg)
 #define CF_EXTENSION_UNAVAILABLE_MAC(_msg)  __OSX_EXTENSION_UNAVAILABLE(_msg)
 #define CF_EXTENSION_UNAVAILABLE_IOS(_msg)  __IOS_EXTENSION_UNAVAILABLE(_msg)
+
+
+/* Minkar: how Swift sees the API (clang's attributes). */
+#if __has_attribute(swift_wrapper)
+#define _CF_TYPED_ENUM __attribute__((swift_wrapper(enum)))
+#define _CF_TYPED_EXTENSIBLE_ENUM __attribute__((swift_wrapper(struct)))
+#else
+#define _CF_TYPED_ENUM
+#define _CF_TYPED_EXTENSIBLE_ENUM
+#endif
+#ifndef CF_STRING_ENUM
+#define CF_STRING_ENUM _CF_TYPED_ENUM
+#endif
+#ifndef CF_EXTENSIBLE_STRING_ENUM
+#define CF_EXTENSIBLE_STRING_ENUM _CF_TYPED_EXTENSIBLE_ENUM
+#endif
+#ifndef CF_TYPED_ENUM
+#define CF_TYPED_ENUM _CF_TYPED_ENUM
+#endif
+#ifndef CF_TYPED_EXTENSIBLE_ENUM
+#define CF_TYPED_EXTENSIBLE_ENUM _CF_TYPED_EXTENSIBLE_ENUM
+#endif
+#ifndef CF_REFINED_FOR_SWIFT
+#define CF_REFINED_FOR_SWIFT __attribute__((swift_private))
+#endif
+#ifndef CF_SWIFT_BRIDGED_TYPEDEF
+#define CF_SWIFT_BRIDGED_TYPEDEF __attribute__((swift_bridged_typedef))
+#endif
 
 #endif // __COREFOUNDATION_CFAVAILABILITY__

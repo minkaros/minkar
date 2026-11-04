@@ -39,7 +39,9 @@
 #include <float.h>
 #include <limits.h>
 #include <locale.h>
-//#include <math.h>
+#if !defined(KERNEL)
+#include <math.h>  /* as the reference umbrella header: programs rely on it */
+#endif
 #include <setjmp.h>
 #include <signal.h>
 #include <stddef.h>
