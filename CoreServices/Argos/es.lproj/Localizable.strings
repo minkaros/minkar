@@ -11,6 +11,7 @@
 "View" = "Visualización";
 "as Icons" = "como iconos";
 "as List" = "como lista";
+"as Columns" = "como columnas";
 "Go" = "Ir";
 "Back" = "Atrás";
 "Forward" = "Adelante";
@@ -30,6 +31,7 @@
 /* Window */
 "Icons" = "Iconos";
 "List" = "Lista";
+"Columns" = "Columnas";
 "1 item" = "1 ítem";
 "%lu items" = "%lu ítems";
 ", %@ available" = ", %@ disponibles";

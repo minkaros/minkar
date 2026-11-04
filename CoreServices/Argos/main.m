@@ -5,7 +5,7 @@
  *
  * Argos (Dock-Argos.md, K1): the file manager. Its menus have the
  * reference platform's commands and keys: File (New Window, Open, Close
- * Window), View (as Icons, as List), Go (Back, Forward, Enclosing Folder,
+ * Window), View (as Icons, as List, as Columns), Go (Back, Forward, Enclosing Folder,
  * the usual folders).
  */
 
@@ -66,6 +66,7 @@ static void addMenu(NSString *title, NSMenu *menu)
     NSMenu *view = [[NSMenu alloc] initWithTitle:NSLocalizedString(@"View", nil)];
     item(view, NSLocalizedString(@"as Icons", nil), self, @selector(showAsIcons:), @"1", cmd);
     item(view, NSLocalizedString(@"as List", nil), self, @selector(showAsList:), @"2", cmd);
+    item(view, NSLocalizedString(@"as Columns", nil), self, @selector(showAsColumns:), @"3", cmd);
     addMenu(NSLocalizedString(@"View", nil), view);
 
     NSMenu *go = [[NSMenu alloc] initWithTitle:NSLocalizedString(@"Go", nil)];
@@ -130,6 +131,7 @@ static void addMenu(NSString *title, NSMenu *menu)
 }
 - (void)showAsIcons:(id)sender { [[self front] showAsIcons:sender]; }
 - (void)showAsList:(id)sender { [[self front] showAsList:sender]; }
+- (void)showAsColumns:(id)sender { [[self front] showAsColumns:sender]; }
 - (void)goBack:(id)sender { [[self front] goBack:sender]; }
 - (void)goForward:(id)sender { [[self front] goForward:sender]; }
 - (void)goToEnclosingFolder:(id)sender { [[self front] goToEnclosingFolder:sender]; }

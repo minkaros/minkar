@@ -5,18 +5,20 @@
  *
  * Argos's browser window (Dock-Argos.md, K1): navigation with history,
  * the sidebar and the browser, opening folders here and applications with
- * NSWorkspace. Atlas's provisional look.
+ * NSWorkspace; icons, a list or columns. Atlas's provisional look.
  */
 
 #import "ArgosWindowController.h"
 #import "ArgosSidebarView.h"
+#import "ArgosColumnView.h"
 #include <sys/mount.h>
 #include <os/log.h>
 #include <CoreServices/CoreServices.h>
 
 static const CGFloat kBarHeight = 38, kStatusHeight = 22, kSidebarWidth = 170;
 
-@interface ArgosWindowController () <ArgosBrowserViewDelegate, ArgosSidebarViewDelegate, NSWindowDelegate>
+@interface ArgosWindowController () <ArgosBrowserViewDelegate, ArgosColumnViewDelegate, ArgosSidebarViewDelegate,
+                                     NSWindowDelegate>
 @end
 
 /* The window's content: it lays out its parts when resized. */
@@ -29,9 +31,10 @@ static const CGFloat kBarHeight = 38, kStatusHeight = 22, kSidebarWidth = 170;
     NSURL *_folder;
     NSMutableArray<NSURL *> *_back, *_forward;
     ArgosSidebarView *_sidebar;
-    NSScrollView *_scroll;
+    NSScrollView *_scroll, *_columnScroll;
     ArgosBrowserView *_browser;
-    NSButton *_backButton, *_forwardButton, *_iconsButton, *_listButton;
+    ArgosColumnView *_columns;
+    NSButton *_backButton, *_forwardButton, *_iconsButton, *_listButton, *_columnsButton;
     NSTextField *_title, *_status;
     FSEventStreamRef _watch;      /* the folder shown, while it changes */
     dispatch_queue_t _watchQueue;
@@ -82,6 +85,7 @@ static NSTextField *label(CGFloat size, BOOL bold)
     _forwardButton = barButton(@"›", self, @selector(goForward:));
     _iconsButton = barButton(NSLocalizedString(@"Icons", nil), self, @selector(showAsIcons:));
     _listButton = barButton(NSLocalizedString(@"List", nil), self, @selector(showAsList:));
+    _columnsButton = barButton(NSLocalizedString(@"Columns", nil), self, @selector(showAsColumns:));
     _title = label(13, YES);
     _status = label(11, NO);
     [_status setAlignment:NSCenterTextAlignment];
@@ -96,8 +100,18 @@ static NSTextField *label(CGFloat size, BOOL bold)
     _browser = [[ArgosBrowserView alloc] initWithFrame:NSMakeRect(0, 0, 100, 100)];
     _browser.delegate = self;
     [_scroll setDocumentView:_browser];
+    _columnScroll = [[NSScrollView alloc] initWithFrame:NSMakeRect(0, 0, 100, 100)];
+    [_columnScroll setHasVerticalScroller:YES];
+    [_columnScroll setHasHorizontalScroller:YES];
+    [_columnScroll setAutohidesScrollers:YES];
+    [_columnScroll setBorderType:NSNoBorder];
+    _columns = [[ArgosColumnView alloc] initWithFrame:NSMakeRect(0, 0, 100, 100)];
+    _columns.delegate = self;
+    [_columnScroll setDocumentView:_columns];
+    [_columnScroll setHidden:YES];
 
-    for (NSView *view in @[ _backButton, _forwardButton, _title, _iconsButton, _listButton, _sidebar, _scroll, _status ])
+    for (NSView *view in @[ _backButton, _forwardButton, _title, _iconsButton, _listButton, _columnsButton,
+                            _sidebar, _scroll, _columnScroll, _status ])
         [content addSubview:view];
     [self layout];
     [self goToFolder:folder remember:NO];
@@ -117,7 +131,7 @@ static NSTextField *label(CGFloat size, BOOL bold)
 
 - (ArgosItem *)selectedItem
 {
-    return _browser.selectedItem;
+    return _browser.mode == ArgosViewModeColumns ? _columns.selectedItem : _browser.selectedItem;
 }
 
 - (void)layout
@@ -127,14 +141,18 @@ static NSTextField *label(CGFloat size, BOOL bold)
 
     [_backButton setFrame:NSMakeRect(kSidebarWidth + 8, top + 7, 30, 24)];
     [_forwardButton setFrame:NSMakeRect(kSidebarWidth + 40, top + 7, 30, 24)];
-    [_title setFrame:NSMakeRect(kSidebarWidth + 80, top + 9, NSWidth(b) - kSidebarWidth - 220, 20)];
-    [_iconsButton setFrame:NSMakeRect(NSWidth(b) - 124, top + 7, 56, 24)];
-    [_listButton setFrame:NSMakeRect(NSWidth(b) - 64, top + 7, 56, 24)];
+    [_title setFrame:NSMakeRect(kSidebarWidth + 80, top + 9, NSWidth(b) - kSidebarWidth - 300, 20)];
+    [_iconsButton setFrame:NSMakeRect(NSWidth(b) - 212, top + 7, 64, 24)];
+    [_listButton setFrame:NSMakeRect(NSWidth(b) - 144, top + 7, 64, 24)];
+    [_columnsButton setFrame:NSMakeRect(NSWidth(b) - 76, top + 7, 68, 24)];
     [_sidebar setFrame:NSMakeRect(0, 0, kSidebarWidth, NSHeight(b))];
-    [_scroll setFrame:NSMakeRect(kSidebarWidth, kStatusHeight, NSWidth(b) - kSidebarWidth,
-                                 NSHeight(b) - kBarHeight - kStatusHeight)];
+    NSRect content = NSMakeRect(kSidebarWidth, kStatusHeight, NSWidth(b) - kSidebarWidth,
+                                NSHeight(b) - kBarHeight - kStatusHeight);
+    [_scroll setFrame:content];
+    [_columnScroll setFrame:content];
     [_status setFrame:NSMakeRect(kSidebarWidth, 3, NSWidth(b) - kSidebarWidth, 16)];
     [_browser relayout];
+    [_columns relayout];
 }
 
 /* -- Navigation -- */
@@ -152,10 +170,18 @@ static NSTextField *label(CGFloat size, BOOL bold)
         [_back addObject:_folder];
         [_forward removeAllObjects];
     }
+    _browser.items = items;
+    if (_browser.mode == ArgosViewModeColumns)
+        [_columns showRootFolder:folder];
+    [self showFolder:folder];
+}
+
+/* The window shows the folder: its name, the sidebar, the watch. */
+- (void)showFolder:(NSURL *)folder
+{
     _folder = [folder copy];
     [self watchFolder];
     os_log_info(OS_LOG_DEFAULT, "folder %{public}s", [[folder path] fileSystemRepresentation]);
-    _browser.items = items;
     _sidebar.currentURL = folder;
     NSString *name = [[folder path] isEqualToString:@"/"] ? @"Minkar" : [folder lastPathComponent];
     [_title setStringValue:name];
@@ -221,6 +247,17 @@ static void folderEvents(ConstFSEventStreamRef stream, void *info, size_t count,
     NSString *selected = [_browser.selectedItem.URL lastPathComponent];
     NSArray *items = [ArgosItem itemsInFolder:_folder error:NULL];
 
+    if (_browser.mode == ArgosViewModeColumns) {
+        /* Columns read again; a folder gone takes its columns with it. */
+        [_columns reload];
+        os_log_info(OS_LOG_DEFAULT, "reload %{public}s", [[_folder path] fileSystemRepresentation]);
+        if (![_columns.deepestFolder isEqual:_folder])
+            [self showFolder:_columns.deepestFolder];
+        else
+            [self updateStatus];
+        return;
+    }
+
     if (items == nil) {
         /* Gone: its enclosing folder. */
         [self goToEnclosingFolder:nil];
@@ -248,11 +285,12 @@ static void folderEvents(ConstFSEventStreamRef stream, void *info, size_t count,
     [_forwardButton setEnabled:[_forward count] > 0];
     [_iconsButton setState:_browser.mode == ArgosViewModeIcons ? NSOnState : NSOffState];
     [_listButton setState:_browser.mode == ArgosViewModeList ? NSOnState : NSOffState];
+    [_columnsButton setState:_browser.mode == ArgosViewModeColumns ? NSOnState : NSOffState];
 }
 
 - (void)updateStatus
 {
-    NSUInteger count = [_browser.items count];
+    NSUInteger count = _browser.mode == ArgosViewModeColumns ? _columns.deepestItemCount : [_browser.items count];
     struct statfs fs;
     NSString *available = @"";
 
@@ -290,40 +328,86 @@ static void folderEvents(ConstFSEventStreamRef stream, void *info, size_t count,
         return;
     NSString *child = [_folder lastPathComponent];
     [self goToFolder:[_folder URLByDeletingLastPathComponent]];
-    [_browser selectItemNamed:child];
+    if (_browser.mode == ArgosViewModeColumns)
+        [_columns selectItemNamed:child];
+    else
+        [_browser selectItemNamed:child];
 }
 
 - (IBAction)openSelection:(id)sender
 {
-    if (_browser.selectedItem != nil)
-        [self browserView:_browser openItem:_browser.selectedItem];
+    if (self.selectedItem != nil)
+        [self openItem:self.selectedItem];
+}
+
+- (void)setMode:(ArgosViewMode)mode
+{
+    BOOL columns = mode == ArgosViewModeColumns;
+
+    if (columns && _browser.mode != ArgosViewModeColumns)
+        [_columns showRootFolder:_folder];
+    _browser.mode = mode;
+    [_scroll setHidden:columns];
+    [_columnScroll setHidden:!columns];
+    [_columns relayout];
+    [_window makeFirstResponder:columns ? (NSView *)_columns : (NSView *)_browser];
+    os_log_info(OS_LOG_DEFAULT, "view %{public}s", columns ? "columns" : mode == ArgosViewModeList ? "list" : "icons");
+    [self updateButtons];
+    [self updateStatus];
 }
 
 - (IBAction)showAsIcons:(id)sender
 {
-    _browser.mode = ArgosViewModeIcons;
-    [self updateButtons];
+    [self setMode:ArgosViewModeIcons];
 }
 
 - (IBAction)showAsList:(id)sender
 {
-    _browser.mode = ArgosViewModeList;
-    [self updateButtons];
+    [self setMode:ArgosViewModeList];
+}
+
+- (IBAction)showAsColumns:(id)sender
+{
+    [self setMode:ArgosViewModeColumns];
+}
+
+/* Folders here; applications and documents with NSWorkspace. */
+- (void)openItem:(ArgosItem *)item
+{
+    os_log_info(OS_LOG_DEFAULT, "open %{public}s", [[item.URL path] fileSystemRepresentation]);
+    if (item.isFolder && _browser.mode == ArgosViewModeColumns) {
+        /* Its column is already shown, next to it. */
+        [_window makeFirstResponder:_columns];
+    } else if (item.isFolder)
+        [self goToFolder:item.URL];
+    else if (![[NSWorkspace sharedWorkspace] openFile:[item.URL path]])
+        NSBeep();   /* documents open with LaunchServices' open code (Phase 3, item 4) */
 }
 
 /* -- Delegates -- */
 
 - (void)browserView:(ArgosBrowserView *)view openItem:(ArgosItem *)item
 {
-    os_log_info(OS_LOG_DEFAULT, "open %{public}s", [[item.URL path] fileSystemRepresentation]);
-    if (item.isFolder)
-        [self goToFolder:item.URL];
-    else if (![[NSWorkspace sharedWorkspace] openFile:[item.URL path]])
-        NSBeep();   /* documents open with LaunchServices' open code (Phase 3, item 4) */
+    [self openItem:item];
 }
 
 - (void)browserViewSelectionChanged:(ArgosBrowserView *)view
 {
+}
+
+- (void)columnView:(ArgosColumnView *)view openItem:(ArgosItem *)item
+{
+    [self openItem:item];
+}
+
+/* A folder chosen in the columns: the window's folder, kept in Back. */
+- (void)columnView:(ArgosColumnView *)view showsFolder:(NSURL *)folder
+{
+    if (_folder != nil && ![_folder isEqual:folder]) {
+        [_back addObject:_folder];
+        [_forward removeAllObjects];
+    }
+    [self showFolder:folder];
 }
 
 - (void)sidebarView:(ArgosSidebarView *)view chooseURL:(NSURL *)url

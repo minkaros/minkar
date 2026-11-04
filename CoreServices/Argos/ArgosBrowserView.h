@@ -11,6 +11,7 @@ NS_ASSUME_NONNULL_BEGIN
 typedef NS_ENUM(NSInteger, ArgosViewMode) {
     ArgosViewModeIcons,
     ArgosViewModeList,
+    ArgosViewModeColumns,   /* shown by ArgosColumnView */
 };
 
 @class ArgosBrowserView;

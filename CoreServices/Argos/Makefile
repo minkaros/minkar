@@ -3,13 +3,13 @@
 # Part of Minkar.
 #
 # Argos, the file manager (Dock-Argos.md, K1): windows that browse the file
-# system with a sidebar, icon and list views, navigation and opening.
+# system with a sidebar, icon, list and column views, navigation and opening.
 # loginwindow starts it (SessionApplications).
 
 SUBDIR =
 APP =		Argos
 APP_INSTALL_DIR = /System/Library/CoreServices
-SRCS =		main.m ArgosItem.m ArgosIcons.m ArgosBrowserView.m ArgosSidebarView.m \
+SRCS =		main.m ArgosItem.m ArgosIcons.m ArgosBrowserView.m ArgosColumnView.m ArgosSidebarView.m \
 		ArgosWindowController.m ArgosInfoWindow.m
 FRAMEWORKS =	Cocoa CoreServices
 MK_WERROR =	no

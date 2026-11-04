@@ -22,6 +22,7 @@ NS_ASSUME_NONNULL_BEGIN
 - (IBAction)openSelection:(nullable id)sender;
 - (IBAction)showAsIcons:(nullable id)sender;
 - (IBAction)showAsList:(nullable id)sender;
+- (IBAction)showAsColumns:(nullable id)sender;
 @end
 
 NS_ASSUME_NONNULL_END
