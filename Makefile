@@ -229,4 +229,13 @@ layers-check: .PHONY ${LAYERS:S/$/-check/}
 image-check: .PHONY
 	${MAKE} -C ${.CURDIR}/Image boottest GATE=M2
 
+# Gate M3: the tools of Tests/M3, built on the host with their tests and
+# installed in the sysroot ('m3-tools', then 'image'); 'm3-check' boots
+# the image and runs their tests in it.
+m3-tools: .PHONY
+	${MAKE} -m ${ROOT_SOURCE_DIR}/BSD/share/mk ONLY_STAGE=Tests/M3 Tests/M3
+
+m3-check: .PHONY
+	${MAKE} -C ${.CURDIR}/Image boottest GATE=M3
+
 .include "./BSD/share/mk/bsd.subdir.mk"

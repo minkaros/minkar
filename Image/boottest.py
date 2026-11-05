@@ -159,6 +159,14 @@ GATES['M3-swift'] = GATES['M2'] + [
     '/usr/lib/swift/libswiftCore.dylib',
     'swift-hello: Swift 6.0 on Minkar, 3 checks passed']
 
+# Gate M3 (Phase 3): open source command-line tools written for the
+# Cocoa API pass their own tests (Tests/M3, in /usr/local/tests/m3 with
+# 'bmake m3-tools' before the image): run.sh runs every suite.
+GATES['M3'] = GATES['M2'] + [
+    SSH('/usr/local/tests/m3/run.sh 2>&1 | grep "^m3: "'),
+    'm3: argument-parser/ArgumentParserUnitTests passed',
+    'm3: every suite passed']
+
 # The window server starts at boot, as _windowserver. The screen is
 # compared with reference images (--update-reference writes them from a
 # good run).
