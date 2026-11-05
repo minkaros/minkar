@@ -6,6 +6,12 @@
 # Gate M3: runs the test programs of every tool in /usr/local/tests/m3
 # (each executable ending in Tests) from its own directory, and says how
 # each went; the last line says whether all passed.
+# A home of their own, as a user's: CFFIXED_USER_HOME and HOME, with the
+# folders a user's home has (root's is under a symbolic link, /var).
+home=/Users/m3-tests
+rm -rf "$home"
+mkdir -p "$home/Documents" "$home/Desktop" "$home/Library"
+export CFFIXED_USER_HOME=$home HOME=$home
 cd /usr/local/tests/m3 || exit 1
 failed=0
 for pkg in */; do
@@ -24,6 +30,7 @@ for pkg in */; do
 		fi
 	done
 done
+rm -rf "$home"
 if [ $failed -eq 0 ]; then
 	echo "m3: every suite passed"
 else

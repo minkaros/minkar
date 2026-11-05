@@ -1,0 +1,6 @@
+# Files 4.3.0 (MIT), for gate M3: files and folders over FileManager,
+# and its tests.
+url https://github.com/JohnSundell/Files/archive/refs/tags/4.3.0.tar.gz
+file Files-4.3.0.tar.gz
+sha256 ab593360f2796f66db8044655f59c422e328eb7c17e83aca23e4cf81e0158b0c
+version 4.3.0
