@@ -155,8 +155,8 @@ stations = [
 id = "dock"
 name = "Dock"
 color = "orange"
-doc = "Atlas.md#4-dock-and-argos"
-doc_es = "Atlas.es.md#4-dock-y-argos"
+doc = "Atlas.md#4-dock-and-files"
+doc_es = "Atlas.es.md#4-dock-y-files"
 stations = [
   ["D0", 700, "done"], ["D1", 760, "done"], ["D2", 865, "partial"], ["D3", 970, "todo"],
   ["D4", 1025, "todo"],
@@ -164,10 +164,10 @@ stations = [
 
 [[line]]
 id = "argos"
-name = "Argos"
+name = "Files"
 color = "teal"
-doc = "Atlas.md#4-dock-and-argos"
-doc_es = "Atlas.es.md#4-dock-y-argos"
+doc = "Atlas.md#4-dock-and-files"
+doc_es = "Atlas.es.md#4-dock-y-files"
 stations = [
   ["K0", 700, "partial"], ["K1", 760, "done"], ["K2", 865, "todo"], ["K3", 970, "todo"],
   ["K4", 1025, "todo"],
@@ -223,8 +223,8 @@ stations = [["x86-64 apps", 1082, "todo"], ["arm64", 1150, "todo"]]
 here = "MB1 · K2"
 
 [[board.done]]
-title = "Argos K1: columns, opening, open -R"
-note = "LaunchServices opens documents; Alcor, the text editor; the save panel · 4 nov"
+title = "Files K1: columns, opening, open -R"
+note = "LaunchServices opens documents; Text Editor, the text editor; the save panel · 4 nov"
 line = "argos"
 
 [[board.done]]

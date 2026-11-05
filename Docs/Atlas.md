@@ -3,11 +3,11 @@
 Status: **accepted** (2026-11-05). Phases 5 and 6 of [ROADMAP.md](ROADMAP.md).
 Spanish version: [Atlas.es.md](Atlas.es.md).
 
-Atlas is Minkar's desktop: the session (login, menu bar, Dock, Argos,
+Atlas is Minkar's desktop: the session (login, menu bar, Dock, Files,
 System Preferences) and the applications a person needs every day. This
 document is the single decision record and work plan for all of it. It
 takes in the former menus plan (chapter 3, milestones MB0–MB4) and Dock
-and Argos plan (chapter 4, D0–D4 and K0–K4), whose milestones keep their
+and Files plan (chapter 4, D0–D4 and K0–K4), whose milestones keep their
 names, and adds the applications (chapter 5, A0–A10). It follows the same
 rules as [WindowServer-Rewrite.md](WindowServer-Rewrite.md).
 
@@ -22,10 +22,15 @@ rules as [WindowServer-Rewrite.md](WindowServer-Rewrite.md).
   until then an app has a test icon or the generic one, and a test icon is
   marked as such in its Makefile. The interface font is Inter and the
   fixed-pitch font Agave (both SIL OFL 1.1).
-- **Generic names.** An app is named for what it does (Terminal, Console,
-  Calculator), never with the name of a reference-platform app that is not
-  a common word; the file manager (Argos) and the text editor (Alcor) keep
-  the names already given. Bundle identifiers are `org.minkar.<Name>`.
+- **Generic names.** The only proper names are Minkar, the system, and
+  Atlas, its desktop (decided 2026-11-05). Every app is named for what it
+  does, with the common words other free desktops use (Files, Text Editor,
+  System Monitor, Logs), never with another project's own names nor with a
+  reference-platform app's name that is not a common word. The bundle is
+  named without spaces (`TextEditor.app`), its identifier is
+  `org.minkar.<Name>`, and the Spanish name comes with the app's
+  translation (Archivos, Editor de texto). Files and Text Editor were
+  Argos and Alcor until then.
 - **On the command-line tools.** Where Minkar has the command
   (`top`, `log`, `screencapture`, `diskutil`, `hdiutil`,
   `system_profiler`, `tar`), the app is its interface and shares its code
@@ -42,8 +47,8 @@ rules as [WindowServer-Rewrite.md](WindowServer-Rewrite.md).
 | --- | --- | --- | --- | --- |
 | Menus | 3 | MB0–MB4 | MB0 | MB1 (partial), MB2 |
 | Dock | 4 | D0–D4 | D0, D1 | D2 |
-| Argos | 4 | K0–K4 | K1 (K0 partial) | K0, K2 |
-| Applications | 5 | A0–A10 | — (Alcor started) | A0, A1 |
+| Files | 4 | K0–K4 | K1 (K0 partial) | K0, K2 |
+| Applications | 5 | A0–A10 | — (Text Editor started) | A0, A1 |
 
 The session's other parts (LoginWindow, System Preferences, the visual
 language) are items of Phase 5 in [ROADMAP.md](ROADMAP.md).
@@ -136,7 +141,7 @@ Worth keeping:
 Each part of the bar is its own borderless window, and the window server
 composites them into one strip. When the front app changes, the window
 server orders out the old app's menu bar window and orders in the new one's;
-status item windows stay where they are. Argos is always running, so it is
+status item windows stay where they are. Files is always running, so it is
 the front app whenever no other app is.
 
 Because menus run in the app's process, a hung app cannot open its menus,
@@ -362,18 +367,18 @@ binaries (clean room).
   `NSMenuDelegate`, `NSStatusBar`, `NSStatusItem`, `NSMenuItemValidation` and
   `NSServices`.
 
-## 4. Dock and Argos
+## 4. Dock and Files
 
 ### 4.1 Decision
 
-- **Argos is written new.** Nothing of Filer is kept.
+- **Files is written new.** Nothing of Filer is kept.
 - **The Dock gets a new core**, and three parts of the current one are
   ported: the preference keys and tile data format, the desktop picture
   window, and the tile layout arithmetic as a reference.
 
 **Guiding rule**, as for WindowServer: where the reference platform has a
 known design (which process does what, preference keys, public APIs), the
-Dock and Argos follow it. A shortcut is allowed during development only when
+Dock and Files follow it. A shortcut is allowed during development only when
 section 4.10 lists it with the milestone that removes it.
 
 ### 4.2 Why: findings in the current code
@@ -428,8 +433,8 @@ Worth keeping:
 | Dock tiles, running-app indicators, minimized windows, stacks, Trash tile | Dock |
 | Desktop picture, one window per display at `kCGDesktopWindowLevel` | Dock |
 | App switcher (Command-Tab) | Dock, which gets Command-Tab from the window server's symbolic hotkey table (today the legacy WindowServer draws one in `WSInput.m`; it goes away with `Legacy/` in WS4b) |
-| File browser windows, desktop icons at `kCGDesktopIconWindowLevel`, Trash contents and emptying, "Open With", Get Info | Argos |
-| Starting the Dock and Argos at login, and again if they exit | loginwindow (Phase 5; launchd until then) |
+| File browser windows, desktop icons at `kCGDesktopIconWindowLevel`, Trash contents and emptying, "Open With", Get Info | Files |
+| Starting the Dock and Files at login, and again if they exit | loginwindow (Phase 5; launchd until then) |
 
 Spaces, an overview of windows and an app launcher grid are out of scope for
 this plan; the Dock's model keeps room for them.
@@ -480,10 +485,10 @@ this plan; the Dock's model keeps room for them.
   switcher (`WSInput.m`) goes away with `Legacy/` in WS4b, so until D3 there
   is none.
 
-### 4.5 Argos architecture
+### 4.5 Files architecture
 
-- **App.** Bundle ID `org.minkar.Argos`, installed as
-  `/System/Library/CoreServices/Argos.app`; always running in a session
+- **App.** Bundle ID `org.minkar.Files`, installed as
+  `/System/Library/CoreServices/Files.app`; always running in a session
   (loginwindow starts it and starts it again if it exits).
 - **Windows.** Toolbar, sidebar (favorites; volumes from DiskArbitration;
   locations), path bar, and three views: icons (`NSCollectionView`), list
@@ -503,7 +508,7 @@ this plan; the Dock's model keeps room for them.
 - **Live updates.** Folder windows follow changes through file system
   events (see dependencies).
 - **Reveal.** `open -R`, `-[NSWorkspace activateFileViewerSelectingURLs:]`
-  and `selectFile:inFileViewerRootedAtPath:` open a Argos window with the
+  and `selectFile:inFileViewerRootedAtPath:` open a Files window with the
   item selected.
 - **DMG double-click** (Phase 6): mounts the image and opens its volume
   (K3, for gate M6).
@@ -520,10 +525,10 @@ this plan; the Dock's model keeps room for them.
 | Dock | Relayed messages removed, `kWSApplicationActivate` gone | Planned | WindowServer plan, section 10.2 (WS4b) |
 | Dock | `NSDockTile` sending its state | Keeps values, sends nothing | AppKit, D3 |
 | Dock | `setDesktopImageURL:forScreen:options:error:` | To check | AppKit, D1 |
-| Argos | LaunchServices bundle and UTI database, default apps, "Open With" | Phase 3, item 4 | Frameworks |
-| Argos | File system events: XNU's `/dev/fsevents` exists (`vfs_fsevents.c`); a daemon and the FSEvents API are missing | Missing | CoreServices, before K1 |
-| Argos | `NSCollectionView`, `NSOutlineView`, `NSBrowser` working well | Present, partly stubbed | AppKit, with K1 |
-| Argos | `NSWorkspace` icons, recycle, reveal | Partial | AppKit, K1-K2 |
+| Files | LaunchServices bundle and UTI database, default apps, "Open With" | Phase 3, item 4 | Frameworks |
+| Files | File system events: XNU's `/dev/fsevents` exists (`vfs_fsevents.c`); a daemon and the FSEvents API are missing | Missing | CoreServices, before K1 |
+| Files | `NSCollectionView`, `NSOutlineView`, `NSBrowser` working well | Present, partly stubbed | AppKit, with K1 |
+| Files | `NSWorkspace` icons, recycle, reveal | Partial | AppKit, K1-K2 |
 | Both | loginwindow starting them at login | Phase 5 | loginwindow |
 | Both | The Atlas visual language guide | Missing | Design, before D2 and K1 |
 
@@ -553,31 +558,31 @@ exists, gate M4) still green, and the roadmap updated with the evidence.
   picture; the Dock uses no CPU while idle. *Done (4 Nov 2026):*
   `8cfe7115db`, `f6c2d254be`; local test `desktop` (27 checks).
 - [ ] **D2 — Interaction.** Drag to reorder, add and remove; context menus
-  (Keep in Dock, Open at Login, Show in Argos, Quit) and the app's dock menu;
+  (Keep in Dock, Open at Login, Show in Files, Quit) and the app's dock menu;
   autohide, magnification, orientation; the minimize and restore animation
   (`mineffect`) for `miniaturize:`. *Partial (4 Nov 2026, `5c083e0b97`):*
   dragging, the tile menus, autohide, magnification and orientation; Show
-  in Argos (`7e7ea6dfbb`); Open at Login and the minimize animation are
+  in Files (`7e7ea6dfbb`); Open at Login and the minimize animation are
   missing.
 - [ ] **D3 — Dock tile service, minimized windows and the app switcher.**
   `org.minkar.dock.server`: badges, content, attention bounce; minimized
   windows with thumbnails (after WS4a); the app switcher in the Dock, which
   gets Command-Tab from the window server's symbolic hotkey table.
 - [ ] **D4 — Stacks and Trash.** Downloads and folder stacks; Trash tile
-  (empty or full, drop to trash, empty through Argos).
+  (empty or full, drop to trash, empty through Files).
 
-#### Argos
+#### Files
 
 - [ ] **K0 — Prerequisites.** File system events daemon and API; LaunchServices
   open and "Open With"; the AppKit views checked with test apps.
   *Partial (4 Nov 2026):* fseventsd and FSEvents (`a2a333d45f`, test
   `fsevents`), LaunchServices' opening and the applications for a file
   (`0331f57894`, test `launchservices`); the AppKit views are not checked
-  yet (Argos draws its own).
+  yet (Files draws its own).
 - [x] **K1 — Browsing.** Windows with sidebar, icon, list and column views,
-  navigation, opening files and apps, basic Get Info. Filer becomes Argos:
+  navigation, opening files and apps, basic Get Info. Filer becomes Files:
   bundle ID, `LSRevealInFiler` kept as a deprecated alias of the new name for
-  one release, `open -R`, the Dock's default tiles. This is the "Argos
+  one release, `open -R`, the Dock's default tiles. This is the "Files
   browses" part of gate M5. *Done (4 Nov 2026):* `896749b380`,
   `c9f602b43c`, `45c2c1ad9e`, `788fe67376`, `906f12eae4`; local tests
   `argos` (16) and `launchservices` (24).
@@ -589,7 +594,7 @@ exists, gate M4) still green, and the roadmap updated with the evidence.
   DMG step 3).
 - [ ] **K4 — Later work.** Search on the metadata index, tags, previews.
 
-Gate M5 ("a graphical session starts, an app opens from the Dock, Argos
+Gate M5 ("a graphical session starts, an app opens from the Dock, Files
 browses, and the resolution changes from System Preferences") needs D1 and
 K1, besides loginwindow and System Preferences.
 
@@ -598,12 +603,12 @@ and K3. D4 and K4 come in 19.6.x.
 
 ### 4.8 Tests and measurements
 
-- Model tests (Dock sections and tile order, preference round-trip; Argos
+- Model tests (Dock sections and tile order, preference round-trip; Files
   file operations and Trash records) as command-line programs in the test
   suite.
 - `boottest` with QMP: `screendump` comparisons and injected clicks (open an
-  app from the Dock; navigate a folder in Argos).
-- Idle CPU of the Dock and of Argos near zero; time from a Dock click to the
+  app from the Dock; navigate a folder in Files).
+- Idle CPU of the Dock and of Files near zero; time from a Dock click to the
   app's first window, measured the same way in the VM and on the physical
   machines.
 
@@ -620,10 +625,10 @@ commits with the diff shown first; evidence for every roadmap item; no
 | Question | Decision (target) | Development shortcut | Removed by |
 | --- | --- | --- | --- |
 | Dock preferences | Domain `org.minkar.dock`, reference keys and tile data format | — | — |
-| Who draws the desktop | Dock: pictures; Argos: icons | Desktop without icons until K3 | K3 |
+| Who draws the desktop | Dock: pictures; Files: icons | Desktop without icons until K3 | K3 |
 | App switcher | Dock, Command-Tab from the window server's hotkey table | Legacy window server (`WSInput.m`) until WS4b; then none: apps are switched by clicking their windows (`SHORTCUT(D3)`) | D3 |
 | Minimized windows | Thumbnails from the window server's capture | Generic window icon | D3 (after WS4a) |
-| Starting the Dock and Argos | loginwindow, restarting them if they exit | launchd agents | Phase 5 (loginwindow) |
+| Starting the Dock and Files | loginwindow, restarting them if they exit | launchd agents | Phase 5 (loginwindow) |
 | Look | Atlas visual language guide | Plain system controls and colors | Guide available |
 
 Every shortcut is marked in the code with `// SHORTCUT(Dn):` or
@@ -643,31 +648,33 @@ Every shortcut is marked in the code with `// SHORTCUT(Dn):` or
 
 ### 5.2 The apps
 
-Names are generic and proposed (to be confirmed by the maintainer).
+The names, confirmed on 2026-11-05 (English, then Spanish):
 
 | Milestone | App | What it does | Built on |
 | --- | --- | --- | --- |
 | A0 | (foundations) | The app template: About window, Preferences window, Help menu, Spanish and English, `NSDocument` | AppKit |
-| A1 | Terminal | Shells in windows and tabs: a VT100/xterm emulator over a pty, scrollback, selection and copy, Agave | pty, `NSTextView` or a text grid view, CoreText |
-| A2 | Alcor (text editor) | Plain text and RTF documents, find and replace, encodings, line endings, printing | `NSDocument`, Cocoa Text System |
-| A3 | System Monitor | Processes (CPU, memory, energy, disk, network), quit and force quit, sample; graphs | libproc, `sysctl`, `top`'s data |
-| A4 | Console | The system's and the user's logs, live and past, with searches; crash and panic reports | `logd`, `log`, `os_log` |
-| A5 | Screenshot | The screen, a window or a selection, to a file or the pasteboard; timer; the system shortcuts | `screencapture`, `CGWindowList` |
-| A6 | Viewer | Images and PDF documents: pages, zoom, rotation, export | ImageIO, PDFKit (both to be written) |
-| A7 | Disks | Disks, partitions and volumes: mount, eject, erase, check, disk images | DiskArbitration, `diskutil`, `hdiutil` |
-| A8 | System Information | Hardware and software report, as `system_profiler` | `system_profiler`, IOKit |
-| A9 | Calculator | Basic, scientific and programmer modes | AppKit |
-| A10 | Archives | Opens and makes zip, tar and xz archives from Argos | `tar` (libarchive), `ditto` |
+| A1 | Terminal (Terminal) | Shells in windows and tabs: a VT100/xterm emulator over a pty, scrollback, selection and copy, Agave | pty, `NSTextView` or a text grid view, CoreText |
+| A2 | Text Editor (Editor de texto) | Plain text and RTF documents, find and replace, encodings, line endings, printing | `NSDocument`, Cocoa Text System |
+| A3 | System Monitor (Monitor del sistema) | Processes (CPU, memory, energy, disk, network), quit and force quit, sample; graphs | libproc, `sysctl`, `top`'s data |
+| A4 | Logs (Registros) | The system's and the user's logs, live and past, with searches; crash and panic reports | `logd`, `log`, `os_log` |
+| A5 | Screenshot (Captura de pantalla) | The screen, a window or a selection, to a file or the pasteboard; timer; the system shortcuts | `screencapture`, `CGWindowList` |
+| A6a | Image Viewer (Visor de imágenes) | Images: zoom, rotation, slideshow, export | ImageIO (to be written) |
+| A6b | Document Viewer (Visor de documentos) | PDF documents: pages, zoom, search, export | PDFKit (to be written) |
+| A7 | Disks (Discos) | Disks, partitions and volumes: mount, eject, erase, check, disk images | DiskArbitration, `diskutil`, `hdiutil` |
+| A8 | System Information (Información del sistema) | Hardware and software report, as `system_profiler` | `system_profiler`, IOKit |
+| A9 | Calculator (Calculadora) | Basic, scientific and programmer modes | AppKit |
+| A10 | Archive Manager (Gestor de archivadores) | Opens and makes zip, tar and xz archives from Files | `tar` (libarchive), `ditto` |
 
 After 19.6.0 (19.6.x):
 
 | App | What it does | Waits for |
 | --- | --- | --- |
-| Fonts | Installs, previews and turns off fonts | CoreText font management |
-| Keychain | Passwords and certificates | Security (Phase 3, item 3) |
-| Color Meter | The color under the pointer, in several spaces | ColorSync (Little CMS) |
-| Script Editor | Writes and runs scripts | Open Scripting Architecture (`osascript`) |
-| Help Viewer | Apps' help books | the Help menu (MB2) |
+| Fonts (Tipografías) | Installs, previews and turns off fonts | CoreText font management |
+| Passwords and Keys (Contraseñas y claves) | Passwords and certificates | Security (Phase 3, item 3) |
+| Color Picker (Selector de color) | The color under the pointer, in several spaces | ColorSync (Little CMS) |
+| Script Editor (Editor de scripts) | Writes and runs scripts | Open Scripting Architecture (`osascript`) |
+| Help (Ayuda) | Apps' help books | the Help menu (MB2) |
+| Characters (Caracteres) | Finds and inserts any character | Unicode data (ICU) |
 
 Long term, outside the 19.6.0 gate: a web browser (Ladybird, BSD-2,
 already with its own AppKit interface) and an IDE (CodeEdit depends on
@@ -685,7 +692,7 @@ SwiftUI, outside API 19–21).
   selection, copy and paste, Agave and its size, several windows and tabs,
   `open -a Terminal`. Tests: `vttest`'s basic screens, a `vim` session
   driven through QMP, `screendump` comparisons.
-- [ ] **A2 — Alcor for daily use.** Started 4 Nov 2026 (plain text, open
+- [ ] **A2 — Text Editor for daily use.** Started 4 Nov 2026 (plain text, open
   and save, `open -t`). Missing: RTF, find and replace, encodings and line
   endings, printing, the ruler. Tests: a file round trip in each encoding,
   find and replace, an RTF document reopened.
@@ -693,16 +700,19 @@ SwiftUI, outside API 19–21).
   memory, disk and network tabs with graphs, process info, quit and force
   quit. Tests: a test process appears with its PID and is ended from the
   app.
-- [ ] **A4 — Console.** `log show` and `log stream` in a window, filters by
+- [ ] **A4 — Logs.** `log show` and `log stream` in a window, filters by
   process, subsystem and level, crash reports from `/Library/Logs`. Tests:
   an `os_log` message from a test program appears with its subsystem.
 - [ ] **A5 — Screenshot.** Whole screen, window and selection,
   Command-Shift-3 and Command-Shift-4 through the symbolic hotkey table,
   files on the desktop named by date, the pasteboard. Tests: the shortcut
   makes a PNG that matches `screendump`.
-- [ ] **A6 — Viewer.** Images through ImageIO (PNG, JPEG, TIFF, GIF, WebP)
-  and PDF through PDFKit, written for it. Tests: each format opens; a PDF
-  page renders against a reference image.
+- [ ] **A6a — Image Viewer.** Images through ImageIO (PNG, JPEG, TIFF,
+  GIF, WebP), written for it. Tests: each format opens and matches a
+  reference image.
+- [ ] **A6b — Document Viewer.** PDF through PDFKit, written for it: pages,
+  zoom, search, selection and copy. Tests: a PDF page renders against a
+  reference image; a word is found.
 - [ ] **A7 — Disks.** Volumes and partitions, mount and eject, erase (HFS+,
   FAT, exFAT), check, create and attach disk images. Tests: an image is
   created, erased, mounted and ejected from the app.
@@ -710,9 +720,9 @@ SwiftUI, outside API 19–21).
   browsable. Tests: the hardware overview matches `system_profiler`.
 - [ ] **A9 — Calculator.** Basic, scientific and programmer modes, paper
   tape, keyboard entry. Tests: a set of calculations through QMP keys.
-- [ ] **A10 — Archives.** Expand zip, tar, gzip and xz archives from Argos
+- [ ] **A10 — Archive Manager.** Expand zip, tar, gzip and xz archives from Files
   (double-click) and compress a selection. Tests: an archive made and
-  expanded from Argos.
+  expanded from Files.
 
 ### 5.4 Dependencies
 
@@ -723,7 +733,7 @@ SwiftUI, outside API 19–21).
 | A3 | Per-process CPU, memory, disk and network figures | libproc and `sysctl` (Phase 2) |
 | A4 | Reading the log store from a program | `logd` (done 3 Nov 2026) |
 | A5 | Window images; the system shortcuts | `CGWindowListCreateImage`; WindowServer's symbolic hotkeys |
-| A6 | ImageIO and PDFKit | to be written (Phase 4 graphics stack) |
+| A6a, A6b | ImageIO and PDFKit | to be written (Phase 4 graphics stack) |
 | A7 | Erase and check from a program | DiskArbitration, `newfs_*`, `fsck_*` |
 | All | Icons | the maintainer's designs (1) |
 
@@ -737,7 +747,7 @@ by the M6 gate.
 ## 6. Gates
 
 - **M5** (Phase 5, unchanged): from boot, a graphical session starts, an
-  app opens from the Dock, Argos browses, and the resolution changes from
+  app opens from the Dock, Files browses, and the resolution changes from
   Preferences, with the visual language K1 needs; MB1 is part of it.
 - **M6 and Minkar 19.6.0** (a desktop for daily use): MB2 and MB3, D2 and
   D3, K2 and K3, and the essential apps A0–A10; the browser is not

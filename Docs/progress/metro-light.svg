@@ -120,7 +120,7 @@
 <text x="970" y="407" font-size="13.5" font-weight="500" fill="#59636e" text-anchor="middle">D3</text>
 <circle cx="1025" cy="378" r="8" fill="#ffffff" stroke="#bc4c00" stroke-opacity=".7" stroke-width="2.5"/>
 <text x="1025" y="407" font-size="13.5" font-weight="500" fill="#59636e" text-anchor="middle">D4</text>
-<text x="20" y="447" font-size="15" font-weight="700" fill="#0f7b6f" text-anchor="start">Argos</text>
+<text x="20" y="447" font-size="15" font-weight="700" fill="#0f7b6f" text-anchor="start">Files</text>
 <line x1="700" y1="442" x2="1025" y2="442" stroke="#0f7b6f" stroke-opacity=".22" stroke-width="8" stroke-linecap="round"/>
 <line x1="700" y1="442" x2="760" y2="442" stroke="#0f7b6f" stroke-opacity=".55" stroke-width="8" stroke-linecap="round"/>
 <line x1="700" y1="442" x2="760" y2="442" stroke="#0f7b6f" stroke-opacity="1" stroke-width="8" stroke-linecap="round"/>

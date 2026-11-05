@@ -15,8 +15,8 @@ _Actualizado el 2026-11-05, devel `7d07cc60c5`_
 | [Frameworks](ROADMAP.es.md#fase-3--frameworks-base-y-swift) | 🟩🟨🟨🟨⬜🟩🟨 | 2 / 7 | libSystem, Foundation, CF-Lite, Swift 6 | Security |
 | [WindowServer](WindowServer-Rewrite.es.md) | 🟩🟩🟩🟩🟩🟩🟩🟩🟦 | 8 / 9 | WS6 | — |
 | [Menus](Atlas.es.md#3-menús) | 🟩🟨⬜⬜⬜ | 1 / 5 | MB1 | MB2 |
-| [Dock](Atlas.es.md#4-dock-y-argos) | 🟩🟩🟨⬜⬜ | 2 / 5 | D2 | D3 |
-| [Argos](Atlas.es.md#4-dock-y-argos) | 🟨🟩⬜⬜⬜ | 1 / 5 | K0 | K2 |
+| [Dock](Atlas.es.md#4-dock-y-files) | 🟩🟩🟨⬜⬜ | 2 / 5 | D2 | D3 |
+| [Files](Atlas.es.md#4-dock-y-files) | 🟨🟩⬜⬜⬜ | 1 / 5 | K0 | K2 |
 | [Atlas](ROADMAP.es.md#fase-5--escritorio-atlas) | ⬜🟨⬜ | 0 / 3 | Preferences | LoginWindow |
 | [Apps · DMG](ROADMAP.es.md#fase-6--aplicaciones-y-distribución) | ⬜⬜⬜⬜ | 0 / 4 | — | DiskImages |
 | [GPU track](ROADMAP.es.md#pila-gráfica-componentes-y-secuencia) | 🟩🟨🟩🟦 | 2 / 4 | G4–G5 | — |

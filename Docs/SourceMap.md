@@ -97,4 +97,4 @@ The Minkar implementation of Cocoa, Quartz, and Core APIs in various frameworks 
 
 ### CoreServices
 
-`CoreServices` mostly contains core system services above the BSD layer, such as the Dock, the window server, the desktop shell, and Argos, the file manager.
+`CoreServices` mostly contains core system services above the BSD layer, such as the Dock, the window server, the desktop shell, and Files, the file manager.
