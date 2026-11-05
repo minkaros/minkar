@@ -179,8 +179,13 @@ static CFTypeRef copyCFValue(id value) {
     CFLocaleRef      locale;
     CFDateFormatterRef formatter;
 
-    if(_calendar!=nil && [_calendar calendarIdentifier]!=nil && [full rangeOfString:@"@calendar="].location==NSNotFound)
-     [full appendFormat:@"@calendar=%@",[_calendar calendarIdentifier]];
+    if(_calendar!=nil && [_calendar calendarIdentifier]!=nil && [full rangeOfString:@"@calendar="].location==NSNotFound){
+     NSString *calendarID=[_calendar calendarIdentifier];
+     // ICU names the ISO 8601 calendar's months and days as Gregorian.
+     if([calendarID isEqualToString:NSCalendarIdentifierISO8601])
+      calendarID=NSCalendarIdentifierGregorian;
+     [full appendFormat:@"@calendar=%@",calendarID];
+    }
     CFStringRef localeName=copyCFString(full);
     locale=CFLocaleCreate(NULL,localeName);
     CFRelease(localeName);
