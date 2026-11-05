@@ -30,6 +30,8 @@ SUBDIR += CoreText
 # The umbrella of CoreGraphics and CoreText (AppKit's headers import it).
 SUBDIR += ApplicationServices
 SUBDIR += CoreData
+# CoreVideo (CVDisplayLink, CVTimeStamp): QuartzCore's headers import it.
+SUBDIR += CoreVideo
 SUBDIR += QuartzCore
 SUBDIR += AppKit
 # The umbrella apps import and link.
@@ -55,7 +57,8 @@ CoreServices/FSEvents: CoreFoundation
 SystemConfiguration: CoreFoundation
 DiskArbitration: CoreFoundation
 CoreData: Foundation
-QuartzCore: OpenGL IOSurface ../PrivateFrameworks/SkyLight
+QuartzCore: OpenGL IOSurface ../PrivateFrameworks/SkyLight CoreVideo
+CoreVideo: OpenGL Foundation
 AppKit: CoreData QuartzCore ApplicationServices
 ApplicationServices: CoreGraphics CoreText
 Cocoa: AppKit CoreData

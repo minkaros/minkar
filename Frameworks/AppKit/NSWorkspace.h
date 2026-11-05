@@ -35,7 +35,7 @@ APPKIT_EXPORT NSString *const NSWorkspaceDesktopImageFillColorKey;    /* NSColor
     NSNotificationCenter *_notificationCenter;
 }
 
-+ (NSWorkspace *)sharedWorkspace;
+@property (class, readonly, strong) NSWorkspace *sharedWorkspace;
 
 - (NSNotificationCenter *)notificationCenter;
 
