@@ -6,6 +6,9 @@ typedef struct O2ImageDestination *CGImageDestinationRef;
 #import <CoreGraphics/CGDataConsumer.h>
 #import <CoreFoundation/CFURL.h>
 
+/* CF's naming rules for what the functions return (Create, Copy). */
+CF_IMPLICIT_BRIDGING_ENABLED
+
 COREGRAPHICS_EXPORT const CFStringRef kCGImageDestinationLossyCompressionQuality;
 COREGRAPHICS_EXPORT const CFStringRef kCGImageDestinationBackgroundColor;
 COREGRAPHICS_EXPORT const CFStringRef kCGImageDestinationDPI;
@@ -24,3 +27,6 @@ COREGRAPHICS_EXPORT void CGImageDestinationAddImage(CGImageDestinationRef self, 
 COREGRAPHICS_EXPORT void CGImageDestinationAddImageFromSource(CGImageDestinationRef self, CGImageSourceRef imageSource, size_t index, CFDictionaryRef properties);
 
 COREGRAPHICS_EXPORT bool CGImageDestinationFinalize(CGImageDestinationRef self);
+
+
+CF_IMPLICIT_BRIDGING_DISABLED

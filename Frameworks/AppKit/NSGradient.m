@@ -15,7 +15,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 @implementation NSGradient
 
-static void evaluate(void *info,float const *input,float *output) {
+static void evaluate(void *info,CGFloat const *input,CGFloat *output) {
    NSGradient *self=(NSGradient *)info;
    CGFloat   **components=self->_components;
    CGFloat    *locations=self->_locations;
@@ -47,11 +47,11 @@ static void evaluate(void *info,float const *input,float *output) {
     // Now here's the tricky part, we need to find out the ratio between the two colors.
     // This means figuring out the distance between the two and then figuring out how far along we
     // are between them
-    float start = locations[startColorIndex];
-    float length = locations[endColorIndex] - locations[startColorIndex];
-    float offset = input[0] - start;
+    CGFloat start = locations[startColorIndex];
+    CGFloat length = locations[endColorIndex] - locations[startColorIndex];
+    CGFloat offset = input[0] - start;
 
-    float ratio = 0;
+    CGFloat ratio = 0;
     // Make sure we don't divide by 0!
     if (length > 0) {
         ratio = offset/length;
@@ -80,7 +80,7 @@ static void evaluate(void *info,float const *input,float *output) {
    NSInteger i;
    
    for (i = 0; i < count; i++)
-    locations[i]=i/(float)(count-1);
+    locations[i]=i/(CGFloat)(count-1);
 
    return [self initWithColors:colors atLocations:locations colorSpace:[NSColorSpace deviceRGBColorSpace]];
 }
@@ -243,8 +243,8 @@ static void evaluate(void *info,float const *input,float *output) {
 }
 
 -(NSColor *)interpolatedColorAtLocation:(CGFloat)location {
-   float input[1]={location};
-   float output[4];
+   CGFloat input[1]={location};
+   CGFloat output[4];
    
    evaluate(self,input,output);
 

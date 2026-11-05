@@ -10,6 +10,9 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <CoreGraphics/CoreGraphicsExport.h>
 #import <CoreGraphics/CGGeometry.h>
 
+/* CF's naming rules for what the functions return (Create, Copy). */
+CF_IMPLICIT_BRIDGING_ENABLED
+
 typedef struct {
     CGFloat a;
     CGFloat b;
@@ -37,3 +40,6 @@ COREGRAPHICS_EXPORT CGAffineTransform CGAffineTransformTranslate(CGAffineTransfo
 
 COREGRAPHICS_EXPORT CGPoint CGPointApplyAffineTransform(CGPoint point, CGAffineTransform xform);
 COREGRAPHICS_EXPORT CGSize CGSizeApplyAffineTransform(CGSize size, CGAffineTransform xform);
+
+
+CF_IMPLICIT_BRIDGING_DISABLED

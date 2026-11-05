@@ -12,10 +12,21 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #include <stdbool.h>
 #include <math.h>
 
+/* As on the reference platform: double on 64-bit, float on 32-bit. */
+#if defined(__LP64__) && __LP64__
+typedef double CGFloat;
+#define CGFLOAT_IS_DOUBLE 1
+#define CGFLOAT_MIN DBL_MIN
+#define CGFLOAT_MAX DBL_MAX
+#define CGFLOAT_SCAN "%lg"
+#else
 typedef float CGFloat;
+#define CGFLOAT_IS_DOUBLE 0
 #define CGFLOAT_MIN FLT_MIN
 #define CGFLOAT_MAX FLT_MAX
 #define CGFLOAT_SCAN "%g"
+#endif
+#define CGFLOAT_DEFINED 1
 
 typedef struct CGPoint {
     CGFloat x;

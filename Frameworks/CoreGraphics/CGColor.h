@@ -14,6 +14,9 @@ typedef struct O2Color *CGColorRef;
 #import "CGColorSpace.h"
 #import "CGPattern.h"
 
+/* CF's naming rules for what the functions return (Create, Copy). */
+CF_IMPLICIT_BRIDGING_ENABLED
+
 COREGRAPHICS_EXPORT CGColorRef CGColorRetain(CGColorRef self);
 COREGRAPHICS_EXPORT void CGColorRelease(CGColorRef self);
 
@@ -34,3 +37,6 @@ COREGRAPHICS_EXPORT const CGFloat *CGColorGetComponents(CGColorRef self);
 COREGRAPHICS_EXPORT CGFloat CGColorGetAlpha(CGColorRef self);
 
 COREGRAPHICS_EXPORT CGPatternRef CGColorGetPattern(CGColorRef self);
+
+
+CF_IMPLICIT_BRIDGING_DISABLED

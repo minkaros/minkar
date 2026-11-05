@@ -8,6 +8,9 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 #import "CoreGraphicsExport.h"
 
+/* CF's naming rules for what the functions return (Create, Copy). */
+CF_IMPLICIT_BRIDGING_ENABLED
+
 COREGRAPHICS_EXPORT const CFStringRef kCGImagePropertyDPIWidth;
 COREGRAPHICS_EXPORT const CFStringRef kCGImagePropertyDPIHeight;
 COREGRAPHICS_EXPORT const CFStringRef kCGImagePropertyPixelHeight;
@@ -20,3 +23,6 @@ COREGRAPHICS_EXPORT const CFStringRef kCGImagePropertyExifDictionary;
 COREGRAPHICS_EXPORT const CFStringRef kCGImagePropertyTIFFXResolution;
 COREGRAPHICS_EXPORT const CFStringRef kCGImagePropertyTIFFYResolution;
 COREGRAPHICS_EXPORT const CFStringRef kCGImagePropertyTIFFOrientation;
+
+
+CF_IMPLICIT_BRIDGING_DISABLED

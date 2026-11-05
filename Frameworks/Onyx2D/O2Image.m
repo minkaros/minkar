@@ -346,7 +346,7 @@ renderingIntent:(O2ColorRenderingIntent)renderingIntent {
    return nil;
 }
 
--initMaskWithWidth:(size_t)width height:(size_t)height bitsPerComponent:(size_t)bitsPerComponent bitsPerPixel:(size_t)bitsPerPixel bytesPerRow:(size_t)bytesPerRow provider:(O2DataProvider *)provider decode:(const float *)decode interpolate:(BOOL)interpolate {
+-initMaskWithWidth:(size_t)width height:(size_t)height bitsPerComponent:(size_t)bitsPerComponent bitsPerPixel:(size_t)bitsPerPixel bytesPerRow:(size_t)bytesPerRow provider:(O2DataProvider *)provider decode:(const O2Float *)decode interpolate:(BOOL)interpolate {
    O2ColorSpaceRef gray=O2ColorSpaceCreateDeviceGray();
    
     if((self=[self initWithWidth:width height:height bitsPerComponent:bitsPerComponent bitsPerPixel:bitsPerPixel bytesPerRow:bytesPerRow colorSpace:gray bitmapInfo:kO2ImageAlphaNone decoder:NULL provider:provider decode:decode interpolate:interpolate renderingIntent:kO2RenderingIntentDefault])==nil){

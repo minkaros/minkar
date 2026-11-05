@@ -15,7 +15,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 @implementation O2PDFFunction_Type0
 
-static void evaluate(void *info,const float *input,float *output) {
+static void evaluate(void *info,const O2Float *input,O2Float *output) {
    O2PDFFunction_Type0 *self=info;
 
    if(self->_sizeCount!=1){

@@ -8,6 +8,9 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <CoreGraphics/CGGeometry.h>
 #import <CoreGraphics/CGAffineTransform.h>
 
+/* CF's naming rules for what the functions return (Create, Copy). */
+CF_IMPLICIT_BRIDGING_ENABLED
+
 typedef struct O2PDFPage *CGPDFPageRef;
 
 typedef enum {
@@ -22,3 +25,6 @@ COREGRAPHICS_EXPORT CGPDFPageRef CGPDFPageRetain(CGPDFPageRef self);
 COREGRAPHICS_EXPORT void CGPDFPageRelease(CGPDFPageRef self);
 COREGRAPHICS_EXPORT CGRect CGPDFPageGetBoxRect(CGPDFPageRef self, CGPDFBox box);
 COREGRAPHICS_EXPORT CGAffineTransform CGPDFPageGetDrawingTransform(CGPDFPageRef self, CGPDFBox box, CGRect rect, int clockwiseDegrees, bool preserveAspectRatio);
+
+
+CF_IMPLICIT_BRIDGING_DISABLED

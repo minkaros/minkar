@@ -260,7 +260,7 @@ static void runBlock(NSMutableArray *stack,O2PDFBlock *block){
    }
 }
 
-static void evaluate(void *info,const float *input,float *output) {
+static void evaluate(void *info,const O2Float *input,O2Float *output) {
    O2PDFFunction_Type4 *self=info;
    float                x=input[0];
    NSMutableArray      *stack=[NSMutableArray array];

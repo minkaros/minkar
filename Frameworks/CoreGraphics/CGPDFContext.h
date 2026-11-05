@@ -9,6 +9,9 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <CoreGraphics/CGContext.h>
 #import <CoreGraphics/CGDataConsumer.h>
 
+/* CF's naming rules for what the functions return (Create, Copy). */
+CF_IMPLICIT_BRIDGING_ENABLED
+
 typedef struct O2PDFContext *CGPDFContextRef;
 
 COREGRAPHICS_EXPORT const CFStringRef kCGPDFContextTitle;
@@ -16,3 +19,6 @@ COREGRAPHICS_EXPORT const CFStringRef kCGPDFContextTitle;
 COREGRAPHICS_EXPORT CGContextRef CGPDFContextCreate(CGDataConsumerRef consumer, const CGRect *mediaBox, CFDictionaryRef auxiliaryInfo);
 
 COREGRAPHICS_EXPORT void CGPDFContextClose(CGContextRef self);
+
+
+CF_IMPLICIT_BRIDGING_DISABLED

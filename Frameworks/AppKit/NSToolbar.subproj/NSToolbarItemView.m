@@ -85,7 +85,7 @@ typedef struct {
  CGFloat _C1[4];
 } gradientColors;
 
-static void evaluate(void *info,const float *in, float *output) {
+static void evaluate(void *info,const CGFloat *in,CGFloat *output) {
    float         x=in[0];
    gradientColors *colors=info;
    int           i;

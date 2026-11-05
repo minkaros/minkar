@@ -13,6 +13,9 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <CoreFoundation/CFArray.h>
 #import <CoreFoundation/CFDictionary.h>
 
+/* CF's naming rules for what the functions return (Create, Copy). */
+CF_IMPLICIT_BRIDGING_ENABLED
+
 #ifdef __OBJC__
 @class O2Context, CGEvent;
 #endif
@@ -95,3 +98,6 @@ COREGRAPHICS_EXPORT CGImageRef CGWindowListCreateImage(CGRect screenBounds,
 
 CGRect CGInsetRectForNativeWindowBorder(CGRect frame, unsigned styleMask);
 CGRect CGOutsetRectForNativeWindowBorder(CGRect frame, unsigned styleMask);
+
+
+CF_IMPLICIT_BRIDGING_DISABLED

@@ -23,22 +23,22 @@ typedef O2Shading *O2ShadingRef;
     BOOL _extendStart;
     BOOL _extendEnd;
     BOOL _isRadial;
-    float _startRadius;
-    float _endRadius;
-    float _domain[2];
+    O2Float _startRadius;
+    O2Float _endRadius;
+    O2Float _domain[2];
 }
 
-- initWithColorSpace:(O2ColorSpaceRef)colorSpace startPoint:(O2Point)startPoint endPoint:(O2Point)endPoint function:(O2Function *)function extendStart:(BOOL)extendStart extendEnd:(BOOL)extendEnd domain:(float[2])domain;
+- initWithColorSpace:(O2ColorSpaceRef)colorSpace startPoint:(O2Point)startPoint endPoint:(O2Point)endPoint function:(O2Function *)function extendStart:(BOOL)extendStart extendEnd:(BOOL)extendEnd domain:(O2Float[2])domain;
 
-- initWithColorSpace:(O2ColorSpaceRef)colorSpace startPoint:(O2Point)startPoint startRadius:(float)startRadius endPoint:(O2Point)endPoint endRadius:(float)endRadius function:(O2Function *)function extendStart:(BOOL)extendStart extendEnd:(BOOL)extendEnd domain:(float[2])domain;
+- initWithColorSpace:(O2ColorSpaceRef)colorSpace startPoint:(O2Point)startPoint startRadius:(O2Float)startRadius endPoint:(O2Point)endPoint endRadius:(O2Float)endRadius function:(O2Function *)function extendStart:(BOOL)extendStart extendEnd:(BOOL)extendEnd domain:(O2Float[2])domain;
 
 O2ColorSpaceRef O2ShadingColorSpace(O2Shading *self);
 
 - (O2Point)startPoint;
 - (O2Point)endPoint;
 
-- (float)startRadius;
-- (float)endRadius;
+- (O2Float)startRadius;
+- (O2Float)endRadius;
 
 - (BOOL)extendStart;
 - (BOOL)extendEnd;

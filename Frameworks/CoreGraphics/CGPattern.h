@@ -13,6 +13,9 @@ typedef struct O2Pattern *CGPatternRef;
 #import <CoreGraphics/CGGeometry.h>
 #import <CoreGraphics/CGContext.h>
 
+/* CF's naming rules for what the functions return (Create, Copy). */
+CF_IMPLICIT_BRIDGING_ENABLED
+
 typedef void (*CGPatternReleaseInfoCallback)(void *);
 
 typedef struct {
@@ -31,3 +34,6 @@ COREGRAPHICS_EXPORT CGPatternRef CGPatternRetain(CGPatternRef self);
 COREGRAPHICS_EXPORT void CGPatternRelease(CGPatternRef self);
 
 COREGRAPHICS_EXPORT CGPatternRef CGPatternCreate(void *info, CGRect bounds, CGAffineTransform matrix, CGFloat xstep, CGFloat ystep, CGPatternTiling tiling, bool isColored, const CGPatternCallbacks *callbacks);
+
+
+CF_IMPLICIT_BRIDGING_DISABLED

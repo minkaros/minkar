@@ -11,6 +11,9 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <CoreGraphics/CGDataProvider.h>
 #import <CoreGraphics/CGGeometry.h>
 
+/* CF's naming rules for what the functions return (Create, Copy). */
+CF_IMPLICIT_BRIDGING_ENABLED
+
 #define kCGBitmapAlphaInfoMask 0x1F
 
 typedef enum {
@@ -83,3 +86,6 @@ COREGRAPHICS_EXPORT CGColorRenderingIntent CGImageGetRenderingIntent(CGImageRef 
 
 COREGRAPHICS_EXPORT bool CGImageIsMask(CGImageRef self);
 COREGRAPHICS_EXPORT CGImageAlphaInfo CGImageGetAlphaInfo(CGImageRef self);
+
+
+CF_IMPLICIT_BRIDGING_DISABLED

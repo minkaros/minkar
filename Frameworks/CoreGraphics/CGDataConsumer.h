@@ -10,6 +10,9 @@
 #import <CoreFoundation/CFData.h>
 #import <CoreFoundation/CFURL.h>
 
+/* CF's naming rules for what the functions return (Create, Copy). */
+CF_IMPLICIT_BRIDGING_ENABLED
+
 typedef struct O2DataConsumer *CGDataConsumerRef;
 
 typedef size_t (*CGDataConsumerPutBytesCallback)(void *info, const void *buffer, size_t count);
@@ -26,3 +29,6 @@ COREGRAPHICS_EXPORT CGDataConsumerRef CGDataConsumerCreate(void *info, const CGD
 COREGRAPHICS_EXPORT CGDataConsumerRef CGDataConsumerCreateWithURL(CFURLRef url);
 
 COREGRAPHICS_EXPORT void CGDataConsumerRelease(CGDataConsumerRef self);
+
+
+CF_IMPLICIT_BRIDGING_DISABLED

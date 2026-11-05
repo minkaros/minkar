@@ -14,6 +14,9 @@ typedef struct _O2ImageSource *CGImageSourceRef;
 
 #import "CGImage.h"
 
+/* CF's naming rules for what the functions return (Create, Copy). */
+CF_IMPLICIT_BRIDGING_ENABLED
+
 COREGRAPHICS_EXPORT CGImageSourceRef CGImageSourceCreateWithData(CFDataRef data, CFDictionaryRef options);
 COREGRAPHICS_EXPORT CGImageSourceRef CGImageSourceCreateWithURL(CFURLRef url, CFDictionaryRef options);
 
@@ -23,3 +26,6 @@ COREGRAPHICS_EXPORT size_t CGImageSourceGetCount(CGImageSourceRef self);
 
 COREGRAPHICS_EXPORT CGImageRef CGImageSourceCreateImageAtIndex(CGImageSourceRef self, size_t index, CFDictionaryRef options);
 COREGRAPHICS_EXPORT CFDictionaryRef CGImageSourceCopyPropertiesAtIndex(CGImageSourceRef self, size_t index, CFDictionaryRef options);
+
+
+CF_IMPLICIT_BRIDGING_DISABLED

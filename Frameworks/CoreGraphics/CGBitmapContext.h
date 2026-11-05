@@ -9,6 +9,9 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <CoreGraphics/CGContext.h>
 #import <CoreGraphics/CGImage.h>
 
+/* CF's naming rules for what the functions return (Create, Copy). */
+CF_IMPLICIT_BRIDGING_ENABLED
+
 typedef void (*CGBitmapContextReleaseDataCallback)(void *userInfo, void *data);
 
 COREGRAPHICS_EXPORT CGContextRef CGBitmapContextCreate(void *data, size_t width, size_t height, size_t bitsPerComponent, size_t bytesPerRow, CGColorSpaceRef colorSpace, CGBitmapInfo bitmapInfo);
@@ -24,3 +27,6 @@ COREGRAPHICS_EXPORT CGBitmapInfo CGBitmapContextGetBitmapInfo(CGContextRef self)
 COREGRAPHICS_EXPORT size_t CGBitmapContextGetBitsPerPixel(CGContextRef self);
 COREGRAPHICS_EXPORT CGImageAlphaInfo CGBitmapContextGetAlphaInfo(CGContextRef self);
 COREGRAPHICS_EXPORT CGImageRef CGBitmapContextCreateImage(CGContextRef self);
+
+
+CF_IMPLICIT_BRIDGING_DISABLED

@@ -26,7 +26,7 @@
 
 static O2Paint *paintFromColor(O2ColorRef color) {
    size_t count = O2ColorGetNumberOfComponents(color);
-   const float *components = O2ColorGetComponents(color);
+   const O2Float *components = O2ColorGetComponents(color);
 
    if(count==2)
        return [[O2Paint_color alloc] initWithGray:components[0] alpha:components[1] surfaceToPaintTransform:O2AffineTransformIdentity];

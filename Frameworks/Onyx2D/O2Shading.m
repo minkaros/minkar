@@ -13,7 +13,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 @implementation O2Shading
 
--initWithColorSpace:(O2ColorSpaceRef)colorSpace startPoint:(O2Point)startPoint endPoint:(O2Point)endPoint function:(O2Function *)function extendStart:(BOOL)extendStart extendEnd:(BOOL)extendEnd domain:(float[])domain {
+-initWithColorSpace:(O2ColorSpaceRef)colorSpace startPoint:(O2Point)startPoint endPoint:(O2Point)endPoint function:(O2Function *)function extendStart:(BOOL)extendStart extendEnd:(BOOL)extendEnd domain:(O2Float[])domain {
    _colorSpace=[colorSpace retain];
    _startPoint=startPoint;
    _endPoint=endPoint;
@@ -26,7 +26,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    return self;
 }
 
--initWithColorSpace:(O2ColorSpaceRef)colorSpace startPoint:(O2Point)startPoint startRadius:(float)startRadius endPoint:(O2Point)endPoint endRadius:(float)endRadius function:(O2Function *)function extendStart:(BOOL)extendStart extendEnd:(BOOL)extendEnd domain:(float[])domain {
+-initWithColorSpace:(O2ColorSpaceRef)colorSpace startPoint:(O2Point)startPoint startRadius:(O2Float)startRadius endPoint:(O2Point)endPoint endRadius:(O2Float)endRadius function:(O2Function *)function extendStart:(BOOL)extendStart extendEnd:(BOOL)extendEnd domain:(O2Float[])domain {
    _colorSpace=[colorSpace retain];
    _startPoint=startPoint;
    _endPoint=endPoint;
@@ -59,11 +59,11 @@ O2ColorSpaceRef O2ShadingColorSpace(O2Shading *self) {
    return _endPoint;
 }
 
--(float)startRadius {
+-(O2Float)startRadius {
    return _startRadius;
 }
 
--(float)endRadius {
+-(O2Float)endRadius {
    return _endRadius;
 }
 
