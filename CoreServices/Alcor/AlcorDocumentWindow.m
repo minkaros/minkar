@@ -60,8 +60,8 @@ static NSPoint nextOrigin;
     [[_text textContainer] setWidthTracksTextView:YES];
     [_text setRichText:NO];
     [_text setAllowsUndo:YES];
-    /* The system's font: no fixed-pitch one is installed yet. */
-    [_text setFont:[NSFont systemFontOfSize:13]];
+    /* Plain text in the user's fixed-pitch font (NSFixedPitchFont). */
+    [_text setFont:[NSFont userFixedPitchFontOfSize:13]];
     [_text setString:text];
     [_text setDelegate:self];
     [scroll setDocumentView:_text];

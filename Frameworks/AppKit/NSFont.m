@@ -38,7 +38,7 @@ FOUNDATION_EXPORT char *NSUnicodeToSymbol(const unichar *characters,unsigned len
 
         if([displayName isEqual:@"Nimbus Roman-Regular"])
                 return @"Times-Roman";
-        if([displayName isEqual:@"Source Code Pro-Regular"])
+        if([displayName isEqual:@"Agave-Regular"])
                 return @"Courier";
 
         return name;
@@ -59,9 +59,9 @@ FOUNDATION_EXPORT char *NSUnicodeToSymbol(const unichar *characters,unsigned len
         if([name isEqual:@"Times-Roman"])
                 return [O2Font postscriptNameForDisplayName:@"Nimbus Roman-Regular"];
         if([name isEqual:@"Ohlfs"])
-                return [O2Font postscriptNameForDisplayName:@"Nimbus Mono PS-Regular"];
+                return [O2Font postscriptNameForDisplayName:@"Agave-Regular"];
         if([name isEqual:@"Courier"])
-                return [O2Font postscriptNameForDisplayName:@"Source Code Pro-Regular"];
+                return [O2Font postscriptNameForDisplayName:@"Agave-Regular"];
 
         if([name isEqual:@"LucidaGrande"])
                 return [O2Font postscriptNameForDisplayName:@"URW Bookman-Light"];
@@ -253,8 +253,26 @@ static NSLock *_cacheLock=nil;
    return [NSFont fontWithName:[O2Font postscriptNameForDisplayName:@"Inter-Regular"] size:(size==0)?10.0:size];
 }
 
+/* The user's fixed-pitch font: the NSFixedPitchFont default (a
+ * PostScript name) at NSFixedPitchFontSize when size is 0, as on the
+ * reference platform; without them, Agave, the system's fixed-pitch
+ * font (/System/Library/Fonts), and the system font if neither is
+ * installed. */
 +(NSFont *)userFixedPitchFontOfSize:(float)size {
-   return [NSFont fontWithName:[O2Font postscriptNameForDisplayName:@"Source Code Pro-Regular"] size:(size==0)?12.0:size];
+   NSUserDefaults *defaults=[NSUserDefaults standardUserDefaults];
+   NSString *name=[defaults stringForKey:@"NSFixedPitchFont"];
+   NSFont *font=nil;
+
+   if(size==0) {
+      float saved=[defaults floatForKey:@"NSFixedPitchFontSize"];
+      size=(saved>0)?saved:12.0;
+   }
+   if([name length]==0)
+      name=@"Agave-Regular";
+   font=[NSFont fontWithName:[O2Font postscriptNameForDisplayName:name] size:size];
+   if(font==nil)
+      font=[NSFont fontWithName:[O2Font postscriptNameForDisplayName:@"Inter-Regular"] size:size];
+   return font;
 }
 
 +(void)setUserFont:(NSFont *)value {
@@ -262,7 +280,15 @@ static NSLock *_cacheLock=nil;
 }
 
 +(void)setUserFixedPitchFont:(NSFont *)value {
-   NSUnimplementedMethod();
+   NSUserDefaults *defaults=[NSUserDefaults standardUserDefaults];
+
+   if(value==nil) {
+      [defaults removeObjectForKey:@"NSFixedPitchFont"];
+      [defaults removeObjectForKey:@"NSFixedPitchFontSize"];
+   } else {
+      [defaults setObject:[value fontName] forKey:@"NSFixedPitchFont"];
+      [defaults setFloat:[value pointSize] forKey:@"NSFixedPitchFontSize"];
+   }
 }
 
 +(NSArray *)preferredFontNames

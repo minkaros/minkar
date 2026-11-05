@@ -53,8 +53,36 @@ FcConfig *O2FontSharedFontConfig() {
    return fontConfig;
 }
 
+/* Minkar: a PostScript name is looked up as one first: a family whose
+ * name has spaces ("Monaspace Neon", MonaspaceNeon-Regular) is not the
+ * part before the hyphen, which matched no font and gave the first one. */
+static NSString *filenameForPostScriptName(NSString *name) {
+   FcPattern *pat=FcPatternCreate();
+   FcObjectSet *props=FcObjectSetBuild(FC_FILE, NULL);
+   NSString *ret=nil;
+
+   FcPatternAddString(pat, FC_POSTSCRIPT_NAME, (const FcChar8 *)[name UTF8String]);
+   FcFontSet *set=FcFontList(O2FontSharedFontConfig(), pat, props);
+   if(set!=NULL) {
+      FcChar8 *filename;
+
+      if(set->nfont>0 && FcPatternGetString(set->fonts[0], FC_FILE, 0, &filename)==FcResultMatch)
+         ret=[NSString stringWithUTF8String:(char *)filename];
+      FcFontSetDestroy(set);
+   }
+   FcPatternDestroy(pat);
+   FcObjectSetDestroy(props);
+   return ret;
+}
+
 +(NSString*)filenameForPattern:(NSString *)pattern {
    int i;
+   if([pattern length]>0 && [pattern rangeOfString:@":"].location==NSNotFound) {
+      NSString *file=filenameForPostScriptName(pattern);
+
+      if(file!=nil)
+         return file;
+   }
    pattern = [self nativeFontNameForPostscriptName:pattern];
    FcPattern *pat=FcNameParse((unsigned char*)[pattern UTF8String]);
 
