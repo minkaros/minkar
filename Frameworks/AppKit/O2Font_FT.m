@@ -108,6 +108,11 @@ static NSString *filenameForPostScriptName(NSString *name) {
    self = [super initWithFontName:name];
 
    NSString *filename=[[self class] filenameForPattern:name];
+   /* Minkar: a font that is not installed is drawn in the system font,
+    * not in whichever font fontconfig lists first (Agave, once it was
+    * installed). */
+   if(filename==nil)
+    filename=filenameForPostScriptName(@"Inter-Regular");
    if(filename==nil) {
     filename=[[self class] filenameForPattern:@""];
 
@@ -177,16 +182,19 @@ static NSString *filenameForPostScriptName(NSString *name) {
         NSMutableCharacterSet *set = [[NSMutableCharacterSet alloc] init];
         uint32_t code, first, last, index;
 
-        code = first = FT_Get_First_Char(_face, &index);
+        /* Minkar: the ranges are first..last inclusive. They were one
+         * short, so the last character of each run (U+21E7, Shift's
+         * arrow, in Inter) seemed missing and was drawn from another
+         * font. */
+        code = first = last = FT_Get_First_Char(_face, &index);
         while(index != 0) {
             last = code;
             code = FT_Get_Next_Char(_face, code, &index);
-            if(code > (last+1)) {
-                [set addCharactersInRange:NSMakeRange(first, last - first)];
+            if(index == 0 || code > (last+1)) {
+                [set addCharactersInRange:NSMakeRange(first, last - first + 1)];
                 first = code;
             }
         }
-        [set addCharactersInRange: NSMakeRange(first, last - first)];
         _coveredCharSet = set;
     }
     return _coveredCharSet;
