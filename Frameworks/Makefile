@@ -36,8 +36,12 @@ SUBDIR += AppKit
 SUBDIR += Cocoa
 # System Preferences' panes.
 SUBDIR += PreferencePanes
-# Swift's overlays for ObjectiveC, Dispatch and CoreFoundation (in
-# Libraries/swift: built here, after the CoreFoundation they extend).
+# Combine, from OpenCombine (Swift; Dispatch's and Foundation's overlays
+# extend it).
+SUBDIR += Combine
+# Swift's overlays for ObjectiveC, Dispatch, CoreFoundation, CoreGraphics and
+# Foundation (in Libraries/swift: built here, after the frameworks they
+# extend).
 SUBDIR += ../Libraries/swift/overlays
 
 all: ${SUBDIR}
@@ -54,6 +58,6 @@ AppKit: CoreData QuartzCore ApplicationServices
 ApplicationServices: CoreGraphics CoreText
 Cocoa: AppKit CoreData
 PreferencePanes: AppKit
-../Libraries/swift/overlays: CoreFoundation CoreGraphics
+../Libraries/swift/overlays: CoreFoundation CoreGraphics Foundation Combine
 
 .include <bsd.subdir.mk>

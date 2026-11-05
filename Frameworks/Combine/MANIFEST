@@ -1,0 +1,7 @@
+# OpenCombine 0.14.0 (MIT), Combine's API in the open: its OpenCombine
+# module (Sources/OpenCombine) and the C++ helpers it uses
+# (Sources/COpenCombineHelpers) are built as Combine.framework.
+url https://github.com/OpenCombine/OpenCombine/archive/refs/tags/0.14.0.tar.gz
+file OpenCombine-0.14.0.tar.gz
+sha256 a5384b3f26e37099011b836e042e706412c56c39811d5a21bd0fa6855a8f718c
+version 0.14.0
