@@ -1,0 +1,6 @@
+# mogenerator 1.32 (MIT), for gate M3: CoreData model classes generated
+# from a data model, which it compiles itself (momcom), and its tests.
+url https://github.com/rentzsch/mogenerator/archive/refs/tags/1.32.tar.gz
+file mogenerator-1.32.tar.gz
+sha256 4fa660a19934d94d7ef35626d68ada9912d925416395a6bf4497bd7df35d7a8b
+version 1.32

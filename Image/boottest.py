@@ -165,6 +165,7 @@ GATES['M3-swift'] = GATES['M2'] + [
 GATES['M3'] = GATES['M2'] + [
     SSH('/usr/local/tests/m3/run.sh 2>&1 | grep "^m3: "'),
     'm3: argument-parser/ArgumentParserUnitTests passed',
+    'm3: mogenerator/mogeneratorTests passed',
     'm3: every suite passed']
 
 # The window server starts at boot, as _windowserver. The screen is
