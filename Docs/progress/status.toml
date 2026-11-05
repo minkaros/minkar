@@ -33,9 +33,9 @@
 # "bmake progress" (Docs/CONTRIBUTING.md).
 
 updated = "2026-11-05"
-commit  = "11604bfcb9"
+commit  = "d2eda99167"
 
-deps = [["ws", 555, "dock"], ["fw", 535, "argos"]]
+deps = [["ws", 555, "dock"], ["fw", 490, "argos"]]
 
 [[gate]]
 id = "M0"
@@ -62,7 +62,7 @@ x = 310
 id = "M3"
 title = "M3 Frameworks and Swift"
 label = "M3"
-state = "todo"
+state = "current"
 x = 590
 rows = ["fw"]
 
@@ -122,10 +122,11 @@ name = "Frameworks"
 color = "brown"
 doc = "ROADMAP.md#phase-3--base-frameworks-and-swift"
 doc_es = "ROADMAP.es.md#fase-3--frameworks-base-y-swift"
+# CLI tools: gate M3's seven open source tools (Tests/M3); 4 pass (5 Nov).
 stations = [
-  ["XPC", 270, "done"], ["libSystem", 325, "partial"], ["Foundation", 380, "partial"],
-  ["CF-Lite", 435, "partial"], ["Security", 485, "todo"], ["LaunchServices", 535, "done"],
-  ["Swift 6", 590, "partial"],
+  ["XPC", 250, "done"], ["libSystem", 300, "partial"], ["Foundation", 350, "partial"],
+  ["CF-Lite", 400, "partial"], ["Security", 445, "todo"], ["LaunchServices", 490, "done"],
+  ["Swift 6", 540, "partial"], ["CLI tools", 590, "current"],
 ]
 
 [[line]]
@@ -185,11 +186,12 @@ stations = [["LoginWindow", 570, "todo"], ["Preferences", 660, "partial"], ["Vis
 id = "apps"
 name = "Apps · DMG"
 color = "green"
-doc = "ROADMAP.md#phase-6--applications-and-distribution"
-doc_es = "ROADMAP.es.md#fase-6--aplicaciones-y-distribución"
+doc = "Atlas.md#5-applications"
+doc_es = "Atlas.es.md#5-aplicaciones"
+# Atlas's essential apps (A0 to A10, chapter 5) and DMG installs (Phase 6).
 stations = [
-  ["DiskImages", 805, "todo"], ["Terminal", 860, "todo"], ["TextEdit", 915, "todo"],
-  ["Browser", 970, "todo"],
+  ["A0 base", 805, "todo"], ["A1 Terminal", 860, "todo"], ["A2 Text Editor", 915, "partial"],
+  ["A3–A10 · DMG", 970, "todo"],
 ]
 
 [[line]]
@@ -220,7 +222,58 @@ stations = [["x86-64 apps", 1082, "todo"], ["arm64", 1150, "todo"]]
 # The work board. "line" picks a card's colour; "here" marks a station of
 # the metro map as where work is.
 [board]
-here = "MB1 · K2"
+here = "CLI tools"
+
+[[board.now]]
+title = "M3: the tools left"
+note = "SwiftFormat, mogenerator (CoreData), tag (NSURL tags); each finds Foundation's gaps"
+line = "fw"
+done = 4
+total = 7
+
+[[board.now]]
+title = "GPU: clocks, then G5"
+note = "G4 measured on the Mac Pro; its clocks, then the 3D path, for 21.0's performance gate"
+line = "gpu"
+
+[[board.next]]
+title = "Desktop design and icons"
+note = "the maintainer's review, the weekend of 7–8 Nov"
+line = "atlas"
+
+[[board.next]]
+title = "M5: MB1, D2, K2, LoginWindow"
+note = "Menu Extras as bundles, Dock dragging, file operations, the full login"
+line = "mb"
+
+[[board.next]]
+title = "A0 app base, A1 Terminal"
+note = "About, Preferences and Help for every app; a VT100/xterm terminal in Agave"
+line = "apps"
+
+[[board.later]]
+group = "Minkar 19.6.0"
+items = [["Apps A2–A10: editor, monitor, logs, viewers, disks…", "apps"],
+  ["MB2–MB3, D3, K3: the desktop for daily use", "mb"], ["Security: certificates, keychain", "fw"],
+  ["DMG installs", "apps"]]
+
+[[board.later]]
+group = "Minkar 21.0"
+items = [["API 20 and 21", "fw"], ["Performance ≥ the reference system", "gpu"]]
+
+[[board.later]]
+group = "After 19.6.0"
+items = [["x86-64 binaries, arm64", "compat"]]
+
+[[board.done]]
+title = "M3: 4 of 7 tools pass their tests"
+note = "swift-argument-parser, Rainbow, Files, Yams, xcbeautify; XCTest on Minkar · 5 nov"
+line = "fw"
+
+[[board.done]]
+title = "Atlas plan; generic app names"
+note = "menus, Dock, Files and the apps A0–A10 in one plan; Files and Text Editor · 5 nov"
+line = "atlas"
 
 [[board.done]]
 title = "Files K1: columns, opening, open -R"
@@ -242,12 +295,4 @@ title = "M4 met: QEMU and the Mac Pro"
 note = "AppKit windows dragged and typed into at 3440x1440, no flicker; two apps · 3 nov"
 line = "ws"
 
-[[board.done]]
-title = "Several displays"
-note = "one desktop, the pointer across them, capture, arrangement, mirroring · 3 nov"
-line = "ws"
 
-[[board.done]]
-title = "Copy and paste: pboard, pbcopy, pbpaste"
-note = "NSPasteboard on a server, each user's own; screencapture to PNG/TIFF · 3 nov"
-line = "fw"
