@@ -82,7 +82,9 @@ typedef NS_OPTIONS(NSUInteger, NSSearchPathDomainMask) {
     NSAllDomainsMask = 0x0ffff
 };
 
-FOUNDATION_EXPORT NSArray *NSSearchPathForDirectoriesInDomains(NSSearchPathDirectory d, NSSearchPathDomainMask mask, BOOL expand);
+NS_ASSUME_NONNULL_BEGIN
+
+FOUNDATION_EXPORT NSArray<NSString *> *NSSearchPathForDirectoriesInDomains(NSSearchPathDirectory d, NSSearchPathDomainMask mask, BOOL expand);
 
 FOUNDATION_EXPORT NSString *NSHomeDirectory(void);
 
@@ -90,3 +92,5 @@ FOUNDATION_EXPORT NSString *NSTemporaryDirectory(void);
 
 FOUNDATION_EXPORT NSString *NSUserName(void);
 FOUNDATION_EXPORT NSString *NSFullUserName(void);
+
+NS_ASSUME_NONNULL_END

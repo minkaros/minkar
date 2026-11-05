@@ -9,47 +9,49 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <Foundation/NSObject.h>
 #import <Foundation/NSDictionary.h>
 #import <Foundation/NSDirectoryEnumerator.h>
-
-@class NSData, NSDate, NSError;
-
-FOUNDATION_EXPORT NSString *const NSFileType;
-FOUNDATION_EXPORT NSString *const NSFileTypeRegular;
-FOUNDATION_EXPORT NSString *const NSFileTypeDirectory;
-FOUNDATION_EXPORT NSString *const NSFileTypeSymbolicLink;
-
-FOUNDATION_EXPORT NSString *const NSFileTypeCharacterSpecial;
-FOUNDATION_EXPORT NSString *const NSFileTypeBlockSpecial;
-FOUNDATION_EXPORT NSString *const NSFileTypeFIFO;
-
-FOUNDATION_EXPORT NSString *const NSFileTypeSocket;
-
-FOUNDATION_EXPORT NSString *const NSFileTypeUnknown;
-
-FOUNDATION_EXPORT NSString *const NSFileSize;
-FOUNDATION_EXPORT NSString *const NSFileModificationDate;
-FOUNDATION_EXPORT NSString *const NSFileCreationDate;
-FOUNDATION_EXPORT NSString *const NSFileOwnerAccountName;
-FOUNDATION_EXPORT NSString *const NSFileGroupOwnerAccountName;
-
-FOUNDATION_EXPORT NSString *const NSFilePosixPermissions;
-FOUNDATION_EXPORT NSString *const NSFileReferenceCount;
-FOUNDATION_EXPORT NSString *const NSFileIdentifier;
-FOUNDATION_EXPORT NSString *const NSFileDeviceIdentifier;
-
-FOUNDATION_EXPORT NSString *const NSFileSystemNumber;
-FOUNDATION_EXPORT NSString *const NSFileSystemFileNumber;
-FOUNDATION_EXPORT NSString *const NSFileOwnerAccountID;
-FOUNDATION_EXPORT NSString *const NSFileGroupOwnerAccountID;
-FOUNDATION_EXPORT NSString *const NSFileExtensionHidden;
-FOUNDATION_EXPORT NSString *const NSFileImmutable;
-FOUNDATION_EXPORT NSString *const NSFileAppendOnly;
-FOUNDATION_EXPORT NSString *const NSFileBusy;
-FOUNDATION_EXPORT NSString *const NSFileSystemSize;
-FOUNDATION_EXPORT NSString *const NSFileSystemFreeSize;
-
 #import <Foundation/NSPathUtilities.h>
+#import <Foundation/NSURL.h>
 
-@class NSURL;
+@class NSData, NSDate, NSError, NSNumber, NSURL;
+
+NS_ASSUME_NONNULL_BEGIN
+
+typedef NSString *NSFileAttributeKey NS_TYPED_EXTENSIBLE_ENUM;
+typedef NSString *NSFileAttributeType NS_TYPED_ENUM;
+
+FOUNDATION_EXPORT NSFileAttributeKey const NSFileType;
+FOUNDATION_EXPORT NSFileAttributeType const NSFileTypeDirectory;
+FOUNDATION_EXPORT NSFileAttributeType const NSFileTypeRegular;
+FOUNDATION_EXPORT NSFileAttributeType const NSFileTypeSymbolicLink;
+FOUNDATION_EXPORT NSFileAttributeType const NSFileTypeSocket;
+FOUNDATION_EXPORT NSFileAttributeType const NSFileTypeCharacterSpecial;
+FOUNDATION_EXPORT NSFileAttributeType const NSFileTypeBlockSpecial;
+FOUNDATION_EXPORT NSFileAttributeType const NSFileTypeFIFO;
+FOUNDATION_EXPORT NSFileAttributeType const NSFileTypeUnknown;
+
+FOUNDATION_EXPORT NSFileAttributeKey const NSFileSize;
+FOUNDATION_EXPORT NSFileAttributeKey const NSFileModificationDate;
+FOUNDATION_EXPORT NSFileAttributeKey const NSFileReferenceCount;
+FOUNDATION_EXPORT NSFileAttributeKey const NSFileDeviceIdentifier;
+FOUNDATION_EXPORT NSFileAttributeKey const NSFileOwnerAccountName;
+FOUNDATION_EXPORT NSFileAttributeKey const NSFileGroupOwnerAccountName;
+FOUNDATION_EXPORT NSFileAttributeKey const NSFilePosixPermissions;
+FOUNDATION_EXPORT NSFileAttributeKey const NSFileSystemNumber;
+FOUNDATION_EXPORT NSFileAttributeKey const NSFileSystemFileNumber;
+FOUNDATION_EXPORT NSFileAttributeKey const NSFileExtensionHidden;
+FOUNDATION_EXPORT NSFileAttributeKey const NSFileHFSCreatorCode;
+FOUNDATION_EXPORT NSFileAttributeKey const NSFileHFSTypeCode;
+FOUNDATION_EXPORT NSFileAttributeKey const NSFileImmutable;
+FOUNDATION_EXPORT NSFileAttributeKey const NSFileAppendOnly;
+FOUNDATION_EXPORT NSFileAttributeKey const NSFileCreationDate;
+FOUNDATION_EXPORT NSFileAttributeKey const NSFileOwnerAccountID;
+FOUNDATION_EXPORT NSFileAttributeKey const NSFileGroupOwnerAccountID;
+FOUNDATION_EXPORT NSFileAttributeKey const NSFileBusy;
+// Minkar's own.
+FOUNDATION_EXPORT NSFileAttributeKey const NSFileIdentifier;
+
+FOUNDATION_EXPORT NSFileAttributeKey const NSFileSystemSize;
+FOUNDATION_EXPORT NSFileAttributeKey const NSFileSystemFreeSize;
 
 typedef NS_OPTIONS(NSUInteger, NSDirectoryEnumerationOptions) {
     NSDirectoryEnumerationSkipsSubdirectoryDescendants = 1UL << 0,
@@ -74,25 +76,25 @@ typedef NS_ENUM(NSInteger, NSURLRelationship) {
 
 @property (class, readonly, strong) NSFileManager *defaultManager;
 
-@property (assign) id delegate;
+@property (nullable, assign) id delegate;
 
-- (NSDictionary *)attributesOfFileSystemForPath:(NSString *)path error:(NSError **)errorp;
-- (NSDictionary *)attributesOfItemAtPath:(NSString *)path error:(NSError **)error;
+- (nullable NSDictionary<NSFileAttributeKey, id> *)attributesOfFileSystemForPath:(NSString *)path error:(NSError **)errorp;
+- (nullable NSDictionary<NSFileAttributeKey, id> *)attributesOfItemAtPath:(NSString *)path error:(NSError **)error;
 - (BOOL)changeCurrentDirectoryPath:(NSString *)path;
-- (NSArray *)componentsToDisplayForPath:(NSString *)path;
+- (nullable NSArray<NSString *> *)componentsToDisplayForPath:(NSString *)path;
 - (BOOL)contentsEqualAtPath:(NSString *)path1 andPath:(NSString *)path2;
-- (NSArray *)contentsOfDirectoryAtPath:(NSString *)path error:(NSError **)error;
+- (nullable NSArray<NSString *> *)contentsOfDirectoryAtPath:(NSString *)path error:(NSError **)error;
 - (BOOL)copyItemAtPath:(NSString *)fromPath toPath:(NSString *)toPath error:(NSError **)error;
-- (NSString *)destinationOfSymbolicLinkAtPath:(NSString *)path error:(NSError **)error;
+- (nullable NSString *)destinationOfSymbolicLinkAtPath:(NSString *)path error:(NSError **)error;
 
 - (NSString *)displayNameAtPath:(NSString *)path;
 
-- (NSDictionary *)fileSystemAttributesAtPath:(NSString *)path;
+- (nullable NSDictionary *)fileSystemAttributesAtPath:(NSString *)path;
 
 - (BOOL)isDeletableFileAtPath:(NSString *)path;
 
 - (BOOL)linkItemAtPath:(NSString *)fromPath toPath:(NSString *)toPath error:(NSError **)error;
-- (BOOL)linkPath:(NSString *)source toPath:(NSString *)destination handler:handler;
+- (BOOL)linkPath:(NSString *)source toPath:(NSString *)destination handler:(nullable id)handler;
 - (BOOL)moveItemAtPath:(NSString *)fromPath toPath:(NSString *)toPath error:(NSError **)error;
 - (BOOL)removeItemAtPath:(NSString *)path error:(NSError **)error;
 
@@ -101,41 +103,41 @@ typedef NS_ENUM(NSInteger, NSURLRelationship) {
 - (BOOL)linkItemAtURL:(NSURL *)srcURL toURL:(NSURL *)dstURL error:(NSError **)error;
 - (BOOL)removeItemAtURL:(NSURL *)URL error:(NSError **)error;
 
-- (BOOL)setAttributes:(NSDictionary *)attributes ofItemAtPath:(NSString *)path error:(NSError **)error;
+- (BOOL)setAttributes:(NSDictionary<NSFileAttributeKey, id> *)attributes ofItemAtPath:(NSString *)path error:(NSError **)error;
 
 - (NSString *)stringWithFileSystemRepresentation:(const char *)string length:(NSUInteger)length;
 
-- (NSArray *)subpathsAtPath:(NSString *)path;
-- (NSArray *)subpathsOfDirectoryAtPath:(NSString *)path error:(NSError **)error;
+- (nullable NSArray<NSString *> *)subpathsAtPath:(NSString *)path;
+- (nullable NSArray<NSString *> *)subpathsOfDirectoryAtPath:(NSString *)path error:(NSError **)error;
 
-- (NSData *)contentsAtPath:(NSString *)path;
+- (nullable NSData *)contentsAtPath:(NSString *)path;
 
-- (BOOL)createFileAtPath:(NSString *)path contents:(NSData *)data attributes:(NSDictionary *)attributes;
+- (BOOL)createFileAtPath:(NSString *)path contents:(nullable NSData *)data attributes:(nullable NSDictionary<NSFileAttributeKey, id> *)attributes;
 
-- (NSArray *)directoryContentsAtPath:(NSString *)path;
-- (NSDirectoryEnumerator *)enumeratorAtPath:(NSString *)path;
+- (nullable NSArray *)directoryContentsAtPath:(NSString *)path;
+- (nullable NSDirectoryEnumerator<NSString *> *)enumeratorAtPath:(NSString *)path;
 
-- (BOOL)createDirectoryAtPath:(NSString *)path attributes:(NSDictionary *)attributes;
-- (BOOL)createDirectoryAtPath:(NSString *)path withIntermediateDirectories:(BOOL)intermediates attributes:(NSDictionary *)attributes error:(NSError **)error;
+- (BOOL)createDirectoryAtPath:(NSString *)path attributes:(nullable NSDictionary *)attributes;
+- (BOOL)createDirectoryAtPath:(NSString *)path withIntermediateDirectories:(BOOL)intermediates attributes:(nullable NSDictionary<NSFileAttributeKey, id> *)attributes error:(NSError **)error;
 
-- (BOOL)createDirectoryAtURL:(NSURL *)url withIntermediateDirectories:(BOOL)intermediates attributes:(NSDictionary *)attributes error:(NSError **)error;
+- (BOOL)createDirectoryAtURL:(NSURL *)url withIntermediateDirectories:(BOOL)intermediates attributes:(nullable NSDictionary<NSFileAttributeKey, id> *)attributes error:(NSError **)error;
 
 - (BOOL)createSymbolicLinkAtPath:(NSString *)path pathContent:(NSString *)destination;
 - (BOOL)createSymbolicLinkAtPath:(NSString *)path withDestinationPath:(NSString *)toPath error:(NSError **)error;
 
-- (NSString *)pathContentOfSymbolicLinkAtPath:(NSString *)path;
+- (nullable NSString *)pathContentOfSymbolicLinkAtPath:(NSString *)path;
 
 - (BOOL)fileExistsAtPath:(NSString *)path;
-- (BOOL)fileExistsAtPath:(NSString *)path isDirectory:(BOOL *)isDirectory;
+- (BOOL)fileExistsAtPath:(NSString *)path isDirectory:(nullable BOOL *)isDirectory;
 
-- (BOOL)removeFileAtPath:(NSString *)path handler:handler;
+- (BOOL)removeFileAtPath:(NSString *)path handler:(nullable id)handler;
 
-- (BOOL)movePath:(NSString *)src toPath:(NSString *)dest handler:handler;
-- (BOOL)copyPath:(NSString *)src toPath:(NSString *)dest handler:handler;
+- (BOOL)movePath:(NSString *)src toPath:(NSString *)dest handler:(nullable id)handler;
+- (BOOL)copyPath:(NSString *)src toPath:(NSString *)dest handler:(nullable id)handler;
 
-@property (readonly, copy) NSString *_Nonnull currentDirectoryPath;
+@property (readonly, copy) NSString *currentDirectoryPath;
 
-- (NSDictionary *)fileAttributesAtPath:(NSString *)path traverseLink:(BOOL)traverse;
+- (nullable NSDictionary *)fileAttributesAtPath:(NSString *)path traverseLink:(BOOL)traverse;
 
 - (BOOL)isReadableFileAtPath:(NSString *)path;
 - (BOOL)isWritableFileAtPath:(NSString *)path;
@@ -143,34 +145,34 @@ typedef NS_ENUM(NSInteger, NSURLRelationship) {
 
 - (BOOL)changeFileAttributes:(NSDictionary *)attributes atPath:(NSString *)path;
 
-- (const char *)fileSystemRepresentationWithPath:(NSString *)path;
-- (const uint16_t *)fileSystemRepresentationWithPathW:(NSString *)path;
+- (const char *)fileSystemRepresentationWithPath:(NSString *)path NS_RETURNS_INNER_POINTER;
+- (const uint16_t *)fileSystemRepresentationWithPathW:(NSString *)path NS_RETURNS_INNER_POINTER;
 
 @end
 
 @interface NSFileManager (NSURLResources)
 - (NSArray<NSURL *> *)URLsForDirectory:(NSSearchPathDirectory)directory inDomains:(NSSearchPathDomainMask)domainMask;
-- (NSURL *)URLForDirectory:(NSSearchPathDirectory)directory inDomain:(NSSearchPathDomainMask)domain
-         appropriateForURL:(NSURL *)url create:(BOOL)shouldCreate error:(NSError **)error;
+- (nullable NSURL *)URLForDirectory:(NSSearchPathDirectory)directory inDomain:(NSSearchPathDomainMask)domain
+                  appropriateForURL:(nullable NSURL *)url create:(BOOL)shouldCreate error:(NSError **)error;
 @property (readonly, copy) NSURL *homeDirectoryForCurrentUser;
 @property (readonly, copy) NSURL *temporaryDirectory;
-- (NSURL *)homeDirectoryForUser:(NSString *)userName;
-- (NSArray<NSURL *> *)contentsOfDirectoryAtURL:(NSURL *)url includingPropertiesForKeys:(NSArray<NSString *> *)keys
-                                       options:(NSDirectoryEnumerationOptions)mask error:(NSError **)error;
-- (NSDirectoryEnumerator<NSURL *> *)enumeratorAtURL:(NSURL *)url includingPropertiesForKeys:(NSArray<NSString *> *)keys
-                                            options:(NSDirectoryEnumerationOptions)mask
-                                       errorHandler:(BOOL (^)(NSURL *url, NSError *error))handler;
+- (nullable NSURL *)homeDirectoryForUser:(NSString *)userName;
+- (nullable NSArray<NSURL *> *)contentsOfDirectoryAtURL:(NSURL *)url includingPropertiesForKeys:(nullable NSArray<NSURLResourceKey> *)keys
+                                                options:(NSDirectoryEnumerationOptions)mask error:(NSError **)error;
+- (nullable NSDirectoryEnumerator<NSURL *> *)enumeratorAtURL:(NSURL *)url includingPropertiesForKeys:(nullable NSArray<NSURLResourceKey> *)keys
+                                                     options:(NSDirectoryEnumerationOptions)mask
+                                                errorHandler:(nullable BOOL (^)(NSURL *url, NSError *error))handler;
 - (BOOL)replaceItemAtURL:(NSURL *)originalItemURL withItemAtURL:(NSURL *)newItemURL
-          backupItemName:(NSString *)backupItemName options:(NSFileManagerItemReplacementOptions)options
-        resultingItemURL:(NSURL **)resultingURL error:(NSError **)error;
-- (BOOL)trashItemAtURL:(NSURL *)url resultingItemURL:(NSURL **)outResultingURL error:(NSError **)error;
+          backupItemName:(nullable NSString *)backupItemName options:(NSFileManagerItemReplacementOptions)options
+        resultingItemURL:(NSURL *_Nullable *_Nullable)resultingURL error:(NSError **)error;
+- (BOOL)trashItemAtURL:(NSURL *)url resultingItemURL:(NSURL *_Nullable *_Nullable)outResultingURL error:(NSError **)error;
 - (BOOL)createSymbolicLinkAtURL:(NSURL *)url withDestinationURL:(NSURL *)destURL error:(NSError **)error;
 - (BOOL)getRelationship:(NSURLRelationship *)outRelationship ofDirectoryAtURL:(NSURL *)directoryURL
            toItemAtURL:(NSURL *)otherURL error:(NSError **)error;
 - (BOOL)getRelationship:(NSURLRelationship *)outRelationship ofDirectory:(NSSearchPathDirectory)directory
               inDomain:(NSSearchPathDomainMask)domainMask toItemAtURL:(NSURL *)url error:(NSError **)error;
-- (NSURL *)URLForUbiquityContainerIdentifier:(NSString *)containerIdentifier;
-@property (readonly, copy) id ubiquityIdentityToken;
+- (nullable NSURL *)URLForUbiquityContainerIdentifier:(nullable NSString *)containerIdentifier;
+@property (nullable, readonly, copy) id ubiquityIdentityToken;
 @end
 
 
@@ -192,21 +194,23 @@ typedef NS_ENUM(NSInteger, NSURLRelationship) {
 
 @end
 
-@interface NSDictionary (NSFileManager_fileAttributes)
-- (NSDate *)fileModificationDate;
-- (NSDate *)fileCreationDate;
-- (NSNumber *)fileOwnerAccountID;
-- (NSNumber *)fileGroupOwnerAccountID;
+@interface NSDictionary<KeyType, ObjectType> (NSFileManager_fileAttributes)
+- (unsigned long long)fileSize;
+- (nullable NSDate *)fileModificationDate;
+- (nullable NSString *)fileType;
+- (NSUInteger)filePosixPermissions;
+- (nullable NSString *)fileOwnerAccountName;
+- (nullable NSString *)fileGroupOwnerAccountName;
 - (NSInteger)fileSystemNumber;
 - (NSUInteger)fileSystemFileNumber;
 - (BOOL)fileExtensionHidden;
-- (BOOL)fileIsImmutable;
-- (BOOL)fileIsAppendOnly;
 - (OSType)fileHFSCreatorCode;
 - (OSType)fileHFSTypeCode;
-- (NSUInteger)filePosixPermissions;
-- (NSString *)fileOwnerAccountName;
-- (NSString *)fileGroupOwnerAccountName;
-- (NSString *)fileType;
-- (uint64_t)fileSize;
+- (BOOL)fileIsImmutable;
+- (BOOL)fileIsAppendOnly;
+- (nullable NSDate *)fileCreationDate;
+- (nullable NSNumber *)fileOwnerAccountID;
+- (nullable NSNumber *)fileGroupOwnerAccountID;
 @end
+
+NS_ASSUME_NONNULL_END

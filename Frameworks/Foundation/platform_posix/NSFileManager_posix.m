@@ -18,7 +18,6 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <Foundation/NSRaiseException.h>
 #import <Foundation/NSPlatform_posix.h>
 
-#import "NSFileManager_posix.h"
 #import "../NSString/NSString_cString.h"
 
 #include <sys/types.h>
@@ -39,17 +38,13 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #include <dirent.h>
 #include <errno.h>
 
-@implementation NSFileManager(posix)
-
-+allocWithZone:(NSZone *)zone {
-   return NSAllocateObject([NSFileManager_posix class],0,NULL);
-}
-
-@end
-
 static NSError *fileError(int code, NSString *path, BOOL writing);
 
-@implementation NSFileManager_posix
+/* Minkar: the file system operations are NSFileManager's own (a
+ * category), so that NSFileManager is concrete and can be subclassed, as
+ * on the reference platform: a Swift subclass of FileManager was given
+ * NSFileManager_posix instead, and super reached empty methods. */
+@implementation NSFileManager (posix)
 
 -(BOOL)createFileAtPath:(NSString *)path contents:(NSData *)data
              attributes:(NSDictionary *)attributes {

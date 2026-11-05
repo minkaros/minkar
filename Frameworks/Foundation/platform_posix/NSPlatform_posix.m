@@ -14,7 +14,6 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <Foundation/NSRaiseException.h>
 
 #import "NSFileHandle_posix.h"
-#import "NSFileManager_posix.h"
 #import "NSLock_posix.h"
 #import "NSRecursiveLock_posix.h"
 #import "NSCondition_posix.h"
@@ -102,7 +101,13 @@ static struct passwd *pwent = NULL;
     return [NSString stringWithCString:pwent->pw_gecos];
 }
 
+// Minkar: CFFIXED_USER_HOME, when set (and the process is not setuid),
+// is the home directory, as for CoreFoundation (CFPlatform.c).
 -(NSString *)homeDirectory {
+    const char *fixed = issetugid() ? NULL : getenv("CFFIXED_USER_HOME");
+
+    if (fixed != NULL && fixed[0] != '\0')
+        return [NSString stringWithUTF8String:fixed];
     [self _checkAndGetPWEnt];
     return [NSString stringWithCString:pwent->pw_dir];
 }

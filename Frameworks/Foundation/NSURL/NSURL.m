@@ -475,12 +475,31 @@ static BOOL scanURL(urlScanner *scanner,NSURL *url){
 // Minkar: as the API makes them: "file:///a%20b/" (no "localhost"), the
 // path percent-encoded, a directory's ending with "/", and a relative path
 // taken from the current directory (it was made absolute by a "/").
+// A relative path resolved against a directory as a relative URL is (RFC
+// 3986): "." and ".." segments removed, symbolic links left as they are.
+static NSString *resolveRelativePath(NSString *directory, NSString *relative) {
+   NSMutableArray *parts = [NSMutableArray array];
+   NSString       *joined = [NSString stringWithFormat:@"%@/%@", directory, relative];
+
+   for (NSString *part in [joined componentsSeparatedByString:@"/"]) {
+    if ([part length] == 0 || [part isEqualToString:@"."])
+     continue;
+    if ([part isEqualToString:@".."]) {
+     if ([parts count] > 0)
+      [parts removeLastObject];
+     continue;
+    }
+    [parts addObject:part];
+   }
+   return [@"/" stringByAppendingString:[parts componentsJoinedByString:@"/"]];
+}
+
 -initFileURLWithPath:(NSString *)path isDirectory:(BOOL)isDirectory {
    if (path == nil)
     [NSException raise:NSInvalidArgumentException format:@"-[%@ %s] nil path",object_getClass(self),sel_getName(_cmd)];
    if (![path hasPrefix:@"/"]) {
     NSString *cwd = [[NSFileManager defaultManager] currentDirectoryPath];
-    path = [path length] ? [cwd stringByAppendingPathComponent:path] : cwd;
+    path = [path length] ? resolveRelativePath(cwd, path) : cwd;
    }
    if (isDirectory && ![path hasSuffix:@"/"])
     path = [path stringByAppendingString:@"/"];
@@ -493,7 +512,7 @@ static BOOL scanURL(urlScanner *scanner,NSURL *url){
    BOOL isDirectory = NO;
    NSString *absolute = path;
    if (path != nil && ![path hasPrefix:@"/"])
-    absolute = [[[NSFileManager defaultManager] currentDirectoryPath] stringByAppendingPathComponent:path];
+    absolute = resolveRelativePath([[NSFileManager defaultManager] currentDirectoryPath], path);
    if (path != nil && ![path hasSuffix:@"/"] &&
        ![[NSFileManager defaultManager] fileExistsAtPath:absolute isDirectory:&isDirectory])
     isDirectory = NO;
