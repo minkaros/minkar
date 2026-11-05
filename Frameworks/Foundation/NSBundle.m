@@ -343,8 +343,14 @@ static NSMapTable *pathToObject=NULL;
             
             if ([[NSFileManager defaultManager] fileExistsAtPath:check]) {
                 result = check;
-            } else {
+            } else if ([[directory lastPathComponent] isEqualToString:@"MacOS"] &&
+                       [[[directory stringByDeletingLastPathComponent] lastPathComponent] isEqualToString:@"Contents"]) {
+                // X.app/Contents/MacOS/X
                 result = [[directory stringByDeletingLastPathComponent] stringByDeletingLastPathComponent];
+            } else {
+                // Minkar: a command-line tool's bundle is its directory, as
+                // on the reference platform (it was two directories up).
+                result = directory;
             }
         }
     } else {

@@ -35,8 +35,9 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
         
     }
     @catch (NSException *exception) {
-        // Don't use NSLog here as we might be called from some early NSLog, when formating the timestamp...
-        fprintf(stderr, "propertyListFromData: error while decoding plist content : %s\n", [[exception description] UTF8String]);
+        /* Minkar: text that is not a property list gives nil, silently, as
+         * on the reference platform: NSUserDefaults tries every
+         * command-line value as one, and a tool's output had the message. */
         result = nil;
     }
     @finally {

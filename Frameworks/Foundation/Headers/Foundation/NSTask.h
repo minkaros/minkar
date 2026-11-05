@@ -10,6 +10,8 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 @class NSArray<ObjectType>, NSDictionary<KeyType, ObjectType>;
 
+NS_ASSUME_NONNULL_BEGIN
+
 FOUNDATION_EXPORT NSString *const NSTaskDidTerminateNotification;
 
 @class NSURL, NSError;
@@ -30,51 +32,49 @@ typedef NS_ENUM(NSInteger, NSTaskTerminationReason) {
     id standardError;
 }
 
-+ (NSTask *)launchedTaskWithLaunchPath:(NSString *)path arguments:(NSArray *)arguments;
+- (instancetype)init;
 
-- init;
+@property (nullable, copy) NSURL *executableURL;
+@property (nullable, copy) NSArray<NSString *> *arguments;
+@property (nullable, copy) NSDictionary<NSString *, NSString *> *environment;
+@property (nullable, copy) NSURL *currentDirectoryURL;
 
-- (NSString *)currentDirectoryPath;
-- (NSString *)launchPath;
-- (NSArray *)arguments;
-- (NSDictionary *)environment;
+@property (nullable, retain) id standardInput;
+@property (nullable, retain) id standardOutput;
+@property (nullable, retain) id standardError;
 
-- (id)standardError;
-- (id)standardInput;
-- (id)standardOutput;
-
-- (void)setCurrentDirectoryPath:(NSString *)path;
-- (void)setLaunchPath:(NSString *)path;
-- (void)setArguments:(NSArray *)arguments;
-- (void)setEnvironment:(NSDictionary *)values;
-
-- (void)setStandardInput:(id)input;
-- (void)setStandardOutput:(id)output;
-- (void)setStandardError:(id)error;
-
-- (void)launch;
-- (BOOL)isRunning;
+- (BOOL)launchAndReturnError:(out NSError **_Nullable)error NS_SWIFT_NAME(run());
 
 - (void)interrupt;
+- (void)terminate;
 
 - (BOOL)suspend;
 - (BOOL)resume;
 
-- (void)terminate;
-- (int)terminationStatus;
+@property (readonly) int processIdentifier;
+@property (readonly, getter=isRunning) BOOL running;
+
+@property (readonly) int terminationStatus;
+@property (readonly) NSTaskTerminationReason terminationReason;
+
+@property (nullable, copy) void (^terminationHandler)(NSTask *);
+
+@property NSQualityOfService qualityOfService;
+
++ (nullable NSTask *)launchedTaskWithExecutableURL:(NSURL *)url arguments:(NSArray<NSString *> *)arguments error:(out NSError **_Nullable)error
+                                terminationHandler:(void (^_Nullable)(NSTask *))terminationHandler
+    NS_SWIFT_NAME(run(_:arguments:terminationHandler:));
 
 - (void)waitUntilExit;
 - (void)blockAndWaitUntilExit;
 
-- (int)processIdentifier;
-
-+ (NSTask *)launchedTaskWithExecutableURL:(NSURL *)url arguments:(NSArray *)arguments error:(NSError **)error
-                       terminationHandler:(void (^)(NSTask *))terminationHandler;
-- (BOOL)launchAndReturnError:(NSError **)error;
-@property (copy) NSURL *executableURL;
-@property (copy) NSURL *currentDirectoryURL;
-@property (readonly) NSTaskTerminationReason terminationReason;
-@property (copy) void (^terminationHandler)(NSTask *);
-@property NSQualityOfService qualityOfService;
-
 @end
+
+@interface NSTask (NSDeprecated)
+@property (nullable, copy) NSString *launchPath;
+@property (copy) NSString *currentDirectoryPath;
+- (void)launch;
++ (NSTask *)launchedTaskWithLaunchPath:(NSString *)path arguments:(NSArray<NSString *> *)arguments;
+@end
+
+NS_ASSUME_NONNULL_END

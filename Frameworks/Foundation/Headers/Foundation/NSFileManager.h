@@ -72,10 +72,9 @@ typedef NS_ENUM(NSInteger, NSURLRelationship) {
 
 @interface NSFileManager : NSObject
 
-+ (NSFileManager *)defaultManager;
+@property (class, readonly, strong) NSFileManager *defaultManager;
 
-- delegate;
-- (void)setDelegate:delegate;
+@property (assign) id delegate;
 
 - (NSDictionary *)attributesOfFileSystemForPath:(NSString *)path error:(NSError **)errorp;
 - (NSDictionary *)attributesOfItemAtPath:(NSString *)path error:(NSError **)error;
@@ -134,7 +133,7 @@ typedef NS_ENUM(NSInteger, NSURLRelationship) {
 - (BOOL)movePath:(NSString *)src toPath:(NSString *)dest handler:handler;
 - (BOOL)copyPath:(NSString *)src toPath:(NSString *)dest handler:handler;
 
-- (NSString *)currentDirectoryPath;
+@property (readonly, copy) NSString *_Nonnull currentDirectoryPath;
 
 - (NSDictionary *)fileAttributesAtPath:(NSString *)path traverseLink:(BOOL)traverse;
 

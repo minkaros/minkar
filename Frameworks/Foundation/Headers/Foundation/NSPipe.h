@@ -10,12 +10,16 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 @class NSFileHandle;
 
+NS_ASSUME_NONNULL_BEGIN
+
 @interface NSPipe : NSObject
 
-- (nonnull instancetype)init;
-+ pipe;
+- (instancetype)init;
++ (NSPipe *)pipe;
 
-- (NSFileHandle *)fileHandleForReading;
-- (NSFileHandle *)fileHandleForWriting;
+@property (readonly, retain) NSFileHandle *fileHandleForReading;
+@property (readonly, retain) NSFileHandle *fileHandleForWriting;
 
 @end
+
+NS_ASSUME_NONNULL_END

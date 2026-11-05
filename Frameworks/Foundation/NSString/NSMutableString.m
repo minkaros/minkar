@@ -15,6 +15,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <Foundation/NSRaiseException.h>
 
 #import "NSMutableString_unicodePtr.h"
+#import <Foundation/NSRegularExpression.h>
 
 @implementation NSMutableString : NSString
 
@@ -163,6 +164,21 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
     }
     if (searchRange.location+searchRange.length > [self length]){
         NSRaiseException(NSRangeException,self,_cmd,@"end of search range %d beyond length %d", searchRange.location+searchRange.length, [self length]);
+    }
+
+    /* Minkar: with NSRegularExpressionSearch the replacement is a
+     * template ($0, $1..., \\ for a backslash), as on the reference
+     * platform; it was inserted as written. */
+    if (opts & NSRegularExpressionSearch) {
+        NSRegularExpressionOptions reOptions = (opts & NSCaseInsensitiveSearch) ? NSRegularExpressionCaseInsensitive : 0;
+        NSRegularExpression *re = [NSRegularExpression regularExpressionWithPattern:target options:reOptions error:NULL];
+
+        if (re == nil)
+            return 0;
+        return [re replaceMatchesInString:self
+                                  options:(opts & NSAnchoredSearch) ? NSMatchingAnchored : 0
+                                    range:searchRange
+                             withTemplate:replacement];
     }
 
     const BOOL isBackwards = (opts & NSBackwardsSearch) ? YES : NO;
