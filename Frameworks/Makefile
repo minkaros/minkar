@@ -43,6 +43,8 @@ SUBDIR += Combine
 # Foundation (in Libraries/swift: built here, after the frameworks they
 # extend).
 SUBDIR += ../Libraries/swift/overlays
+# XCTest, for test programs (Swift; on the Foundation overlay).
+SUBDIR += XCTest
 
 all: ${SUBDIR}
 
@@ -59,5 +61,6 @@ ApplicationServices: CoreGraphics CoreText
 Cocoa: AppKit CoreData
 PreferencePanes: AppKit
 ../Libraries/swift/overlays: CoreFoundation CoreGraphics Foundation Combine
+XCTest: ../Libraries/swift/overlays
 
 .include <bsd.subdir.mk>
