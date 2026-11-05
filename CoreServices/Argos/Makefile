@@ -16,7 +16,8 @@ MK_WERROR =	no
 CFLAGS +=	-fobjc-arc -g -std=gnu17 -Wno-incompatible-sysroot \
 		-Wno-nullability-completeness
 LDFLAGS +=	-lobjc
-# The Spanish texts (the English ones are the keys).
-RESOURCES =	${.CURDIR}/es.lproj
+# The Spanish texts (the English ones are the keys), and the icon
+# (CFBundleIconFile). Argos.png is a test icon, not the final one.
+RESOURCES =	${.CURDIR}/es.lproj ${.CURDIR}/Argos.png
 
 .include <minkar.app.mk>
