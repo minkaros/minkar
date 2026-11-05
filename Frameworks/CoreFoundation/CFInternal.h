@@ -594,13 +594,17 @@ extern int __CFConstantStringClassReference[];
  * reference platform: they can be sent retain, release, isEqual: and the
  * rest. 0 until Foundation is loaded. */
 extern uintptr_t __CFRuntimeDefaultObjCClass;
+/* CF's own generic class (CFObjCClasses.c), the default before Foundation
+ * loads: instances made then keep it. */
+extern uintptr_t __CFRuntimeCoreObjCClass;
 CF_INLINE Boolean __CFIsForeignObjCForType(CFTypeID typeID, const void *cf) {
     if (cf == NULL || typeID >= __CFRuntimeClassTableSize ||
         !__CFRuntimeObjCDispatch[typeID])
         return false;
     uintptr_t isa = *(const uintptr_t *)cf;
     if (isa == 0 || isa == (uintptr_t)__CFConstantStringClassReference ||
-        (isa == __CFRuntimeDefaultObjCClass && isa != 0))
+        (isa == __CFRuntimeDefaultObjCClass && isa != 0) ||
+        (isa == __CFRuntimeCoreObjCClass && isa != 0))
         return false;
     return isa != (uintptr_t)_CFRuntimeGetClassWithTypeID(typeID) &&
         isa != __CFRuntimeObjCClassTable[typeID];

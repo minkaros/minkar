@@ -995,6 +995,7 @@ pthread_t _CF_pthread_main_thread_np(void) {
 #endif
 
 #if DEPLOYMENT_TARGET_LINUX || DEPLOYMENT_TARGET_FREEBSD
+CF_PRIVATE void __CFMakeObjCClasses(void);
 static void __CFInitialize(void) __attribute__ ((constructor));
 static
 #endif
@@ -1198,6 +1199,8 @@ void __CFInitialize(void) {
 #endif
 
         __CFProphylacticAutofsAccess = false;
+        /* Blocks and CF's objects as Objective-C objects (CFObjCClasses.c). */
+        __CFMakeObjCClasses();
         __CFInitializing = 0;
         __CFInitialized = 1;
     }

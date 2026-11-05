@@ -27,6 +27,7 @@ INSTALL_NAME_DIR = ${SLF}/${FRAMEWORK}.framework/Versions/${FMWK_VERSION}
 .include "MakefileVersion"
 
 SRCS = CFApplicationPreferences.c \
+	CFObjCClasses.c \
 	CFArray.c \
 	CFBag.c \
 	CFBase.c \

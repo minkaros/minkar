@@ -84,7 +84,6 @@ SRCS = 	NSFormatter.m \
 	NSEmptyCollections.m \
 	NSSecureCodingSupport.m \
 	NSProgress.m \
-	NSBlock.m \
 	NSDirectoryEnumerator.m \
 	NSProcessInfo.m \
 	NSData/NSData.m \
