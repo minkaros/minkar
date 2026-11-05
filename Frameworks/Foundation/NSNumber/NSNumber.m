@@ -29,6 +29,10 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import "NSNumber_placeholder.h"
 
 
+FOUNDATION_EXPORT void _NSDecimalFromUnsignedLongLong(NSDecimal *d, unsigned long long value, BOOL negative);
+FOUNDATION_EXPORT void _NSDecimalFromLongLong(NSDecimal *d, long long value);
+FOUNDATION_EXPORT void _NSDecimalFromDouble(NSDecimal *d, double value);
+
 @implementation NSNumber
 
 +allocWithZone:(NSZone *)zone {
@@ -478,9 +482,22 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    return 0;
 }
 
+/* Integers exactly; floating point from its 17 significant digits. */
 -(NSDecimal)decimalValue {
-   NSDecimal result = {0};
-   NSInvalidAbstractInvocation();
+   NSDecimal result;
+   const char *type=[self objCType];
+
+   switch(type!=NULL ? type[0] : 'd'){
+    case 'f': case 'd':
+     _NSDecimalFromDouble(&result,[self doubleValue]);
+     break;
+    case 'C': case 'S': case 'I': case 'L': case 'Q':
+     _NSDecimalFromUnsignedLongLong(&result,[self unsignedLongLongValue],NO);
+     break;
+    default:
+     _NSDecimalFromLongLong(&result,[self longLongValue]);
+     break;
+   }
    return result;
 }
 

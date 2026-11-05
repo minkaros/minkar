@@ -9,26 +9,28 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <Foundation/NSValue.h>
 #import <Foundation/NSDecimal.h>
 
-@class NSDictionary;
+@class NSDictionary<KeyType, ObjectType>;
+
+NS_ASSUME_NONNULL_BEGIN
 
 @interface NSNumber : NSValue
 
-- initWithBool:(BOOL)value;
-- initWithChar:(char)value;
-- initWithShort:(short)value;
-- initWithInt:(int)value;
-- initWithLong:(long)value;
-- initWithLongLong:(long long)value;
-- initWithFloat:(float)value;
-- initWithDouble:(double)value;
-- initWithInteger:(NSInteger)value;
+- (NSNumber *)initWithBool:(BOOL)value;
+- (NSNumber *)initWithChar:(char)value;
+- (NSNumber *)initWithShort:(short)value;
+- (NSNumber *)initWithInt:(int)value;
+- (NSNumber *)initWithLong:(long)value;
+- (NSNumber *)initWithLongLong:(long long)value;
+- (NSNumber *)initWithFloat:(float)value;
+- (NSNumber *)initWithDouble:(double)value;
+- (NSNumber *)initWithInteger:(NSInteger)value;
 
-- initWithUnsignedChar:(unsigned char)value;
-- initWithUnsignedShort:(unsigned short)value;
-- initWithUnsignedInt:(unsigned int)value;
-- initWithUnsignedLong:(unsigned long)value;
-- initWithUnsignedLongLong:(unsigned long long)value;
-- initWithUnsignedInteger:(NSUInteger)value;
+- (NSNumber *)initWithUnsignedChar:(unsigned char)value;
+- (NSNumber *)initWithUnsignedShort:(unsigned short)value;
+- (NSNumber *)initWithUnsignedInt:(unsigned int)value;
+- (NSNumber *)initWithUnsignedLong:(unsigned long)value;
+- (NSNumber *)initWithUnsignedLongLong:(unsigned long long)value;
+- (NSNumber *)initWithUnsignedInteger:(NSUInteger)value;
 
 + (NSNumber *)numberWithBool:(BOOL)value;
 + (NSNumber *)numberWithChar:(char)value;
@@ -51,25 +53,27 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 - (BOOL)isEqualToNumber:(NSNumber *)other;
 
-- (char)charValue;
-- (short)shortValue;
-- (int)intValue;
-- (long)longValue;
-- (long long)longLongValue;
-- (float)floatValue;
-- (double)doubleValue;
-- (BOOL)boolValue;
-- (NSDecimal)decimalValue;
-- (NSInteger)integerValue;
-- (unsigned char)unsignedCharValue;
-- (unsigned short)unsignedShortValue;
-- (unsigned int)unsignedIntValue;
-- (unsigned long)unsignedLongValue;
-- (unsigned long long)unsignedLongLongValue;
-- (NSUInteger)unsignedIntegerValue;
+@property (readonly) char charValue;
+@property (readonly) short shortValue;
+@property (readonly) int intValue;
+@property (readonly) long longValue;
+@property (readonly) long long longLongValue;
+@property (readonly) float floatValue;
+@property (readonly) double doubleValue;
+@property (readonly) BOOL boolValue;
+@property (readonly) NSDecimal decimalValue;
+@property (readonly) NSInteger integerValue;
+@property (readonly) unsigned char unsignedCharValue;
+@property (readonly) unsigned short unsignedShortValue;
+@property (readonly) unsigned int unsignedIntValue;
+@property (readonly) unsigned long unsignedLongValue;
+@property (readonly) unsigned long long unsignedLongLongValue;
+@property (readonly) NSUInteger unsignedIntegerValue;
 
-- (NSString *)stringValue;
+@property (readonly, copy) NSString *stringValue;
 
-- (NSString *)descriptionWithLocale:(NSDictionary *)locale;
+- (NSString *)descriptionWithLocale:(nullable id)locale;
 
 @end
+
+NS_ASSUME_NONNULL_END

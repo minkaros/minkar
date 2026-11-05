@@ -9,7 +9,9 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <Foundation/NSObject.h>
 #include <setjmp.h>
 
-@class NSDictionary, NSArray;
+@class NSDictionary<KeyType, ObjectType>, NSArray<ObjectType>;
+
+typedef NSString *NSExceptionName NS_TYPED_EXTENSIBLE_ENUM;
 
 FOUNDATION_EXPORT NSString *const NSGenericException;
 FOUNDATION_EXPORT NSString *const NSInvalidArgumentException;
