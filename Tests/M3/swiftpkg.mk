@@ -11,6 +11,8 @@
 # A tool's Makefile sets, then includes this file:
 #   PKG             its name (the directory in /usr/local/tests/m3)
 #   MANIFEST        the pinned tarball (fetch.sh)
+#   DEPPKGS         packages it depends on, each with MANIFEST_<p>: put in
+#                   .deps/<p>, their targets named with DIR_<t>
 #   CLIBS           C library targets (their headers and module map in
 #                   include/, as the package manager finds them)
 #   LIBS            library targets, in dependency order
@@ -43,8 +45,11 @@ MODS =		${.OBJDIR}/modules
 OUT =		${.OBJDIR}/out
 DEST =		${SYSROOT_DIR}/usr/local/tests/m3/${PKG}
 TOOLENV =	env -u MACOSX_DEPLOYMENT_TARGET
-# Built as the package manager builds a package (SWIFT_PACKAGE).
-SWIFTC =	${TOOLENV} ${TC}/swiftc -frontend -c -O -target ${TRIPLE} -D SWIFT_PACKAGE \
+# Built as the package manager builds a package for its tests: debug
+# configuration (DEBUG, optimized all the same), SWIFT_PACKAGE, and the
+# package name for `package` declarations.
+SWIFTC =	${TOOLENV} ${TC}/swiftc -frontend -c -O -target ${TRIPLE} -D SWIFT_PACKAGE -D DEBUG \
+		-package-name ${PKG:S/-/_/g} \
 		-sdk ${MINKAR_SDKROOT} -runtime-compatibility-version none \
 		-module-cache-path ${.OBJDIR}/module-cache -I ${MODS} -F ${XCTEST_FMWKS}
 LINK =		${TOOLENV} ${TC}/clang -target ${TRIPLE} -isysroot ${MINKAR_SDKROOT} \
@@ -53,9 +58,15 @@ LINK =		${TOOLENV} ${TC}/clang -target ${TRIPLE} -isysroot ${MINKAR_SDKROOT} \
 
 all: install-pkg
 
-${SRC}/.minkar-patches: ${PATCHES:S,^,${.CURDIR}/patches/,} ${MANIFEST} ${.CURDIR}/Makefile
+${SRC}/.minkar-patches: ${PATCHES:S,^,${.CURDIR}/patches/,} ${MANIFEST} ${.CURDIR}/Makefile \
+	    ${.CURDIR}/../swiftpkg.mk \
+	    ${DEPPKGS:@d@${.CURDIR}/${MANIFEST_${d}}@}
 	pristine=$$(${FETCH} ${MANIFEST} ${CACHE}) && \
-	rm -rf ${SRC} ${SRC}.part && cp -a $$pristine ${SRC}.part && \
+	rm -rf ${SRC} ${SRC}.part && cp -a $$pristine ${SRC}.part
+.for d in ${DEPPKGS}
+	dep=$$(${FETCH} ${.CURDIR}/${MANIFEST_${d}} ${CACHE}) && \
+	mkdir -p ${SRC}.part/.deps && cp -a $$dep ${SRC}.part/.deps/${d}
+.endfor
 	for p in ${PATCHES}; do \
 		patch -s -p1 -d ${SRC}.part < ${.CURDIR}/patches/$$p || exit 1; \
 	done && \
