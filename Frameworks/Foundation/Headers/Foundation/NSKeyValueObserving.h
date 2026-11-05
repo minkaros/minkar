@@ -8,67 +8,75 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 #import <Foundation/NSObject.h>
 #import <Foundation/NSArray.h>
-@class NSDictionary, NSSet;
+@class NSDictionary<KeyType, ObjectType>, NSSet<ObjectType>, NSIndexSet, NSString;
 
-FOUNDATION_EXPORT NSString *const NSKeyValueChangeKindKey;
-FOUNDATION_EXPORT NSString *const NSKeyValueChangeNewKey;
-FOUNDATION_EXPORT NSString *const NSKeyValueChangeOldKey;
-FOUNDATION_EXPORT NSString *const NSKeyValueChangeIndexesKey;
-FOUNDATION_EXPORT NSString *const NSKeyValueChangeNotificationIsPriorKey;
-
-enum {
+typedef NS_OPTIONS(NSUInteger, NSKeyValueObservingOptions) {
     NSKeyValueObservingOptionNew = 0x01,
     NSKeyValueObservingOptionOld = 0x02,
     NSKeyValueObservingOptionInitial = 0x04,
     NSKeyValueObservingOptionPrior = 0x08
 };
-typedef NSUInteger NSKeyValueObservingOptions;
 
-enum {
+typedef NS_ENUM(NSUInteger, NSKeyValueChange) {
     NSKeyValueChangeSetting = 1,
     NSKeyValueChangeInsertion = 2,
     NSKeyValueChangeRemoval = 3,
     NSKeyValueChangeReplacement = 4,
 };
-typedef NSUInteger NSKeyValueChange;
 
-enum {
+typedef NS_ENUM(NSUInteger, NSKeyValueSetMutationKind) {
     NSKeyValueUnionSetMutation = 1,
     NSKeyValueMinusSetMutation = 2,
     NSKeyValueIntersectSetMutation = 3,
     NSKeyValueSetSetMutation = 4
-
 };
-typedef NSUInteger NSKeyValueSetMutationKind;
+
+typedef NSString *NSKeyValueChangeKey NS_TYPED_ENUM;
+
+NS_ASSUME_NONNULL_BEGIN
+
+FOUNDATION_EXPORT NSKeyValueChangeKey const NSKeyValueChangeKindKey;
+FOUNDATION_EXPORT NSKeyValueChangeKey const NSKeyValueChangeNewKey;
+FOUNDATION_EXPORT NSKeyValueChangeKey const NSKeyValueChangeOldKey;
+FOUNDATION_EXPORT NSKeyValueChangeKey const NSKeyValueChangeIndexesKey;
+FOUNDATION_EXPORT NSKeyValueChangeKey const NSKeyValueChangeNotificationIsPriorKey;
 
 @interface NSObject (NSKeyValueObserving)
-+ (BOOL)automaticallyNotifiesObserversForKey:(NSString *)key;
-+ (NSSet *)keyPathsForValuesAffectingValueForKey:(NSString *)key;
-+ (void)setKeys:(NSArray *)keys triggerChangeNotificationsForDependentKey:(NSString *)dependentKey;
-
-- (void)observeValueForKeyPath:(NSString *)keyPath ofObject:(id)object change:(NSDictionary *)changeDict context:(void *)context;
-- (void)addObserver:(id)observer forKeyPath:(NSString *)keyPath options:(NSKeyValueObservingOptions)options context:(void *)context;
-- (void)removeObserver:(id)observer forKeyPath:(NSString *)keyPath;
-
-- (void)willChangeValueForKey:(NSString *)key;
-- (void)didChangeValueForKey:(NSString *)key;
-- (void)willChange:(NSKeyValueChange)change valuesAtIndexes:(NSIndexSet *)indexes forKey:(NSString *)key;
-- (void)didChange:(NSKeyValueChange)change valuesAtIndexes:(NSIndexSet *)indexes forKey:(NSString *)key;
-- (void)willChangeValueForKey:(NSString *)key withSetMutation:(NSKeyValueSetMutationKind)mutation usingObjects:(NSSet *)objects;
-- (void)didChangeValueForKey:(NSString *)key withSetMutation:(NSKeyValueSetMutationKind)mutation usingObjects:(NSSet *)objects;
-
-- (void)setObservationInfo:(void *)newInfo;
-- (void *)observationInfo;
+- (void)observeValueForKeyPath:(nullable NSString *)keyPath ofObject:(nullable id)object change:(nullable NSDictionary<NSKeyValueChangeKey, id> *)change context:(nullable void *)context;
 @end
 
-@interface NSArray (KeyValueObserving)
-- (void)addObserver:(NSObject *)observer toObjectsAtIndexes:(NSIndexSet *)indexes forKeyPath:(NSString *)keyPath options:(NSKeyValueObservingOptions)options context:(void *)context;
+@interface NSObject (NSKeyValueObserverRegistration)
+- (void)addObserver:(NSObject *)observer forKeyPath:(NSString *)keyPath options:(NSKeyValueObservingOptions)options context:(nullable void *)context;
+- (void)removeObserver:(NSObject *)observer forKeyPath:(NSString *)keyPath context:(nullable void *)context;
+- (void)removeObserver:(NSObject *)observer forKeyPath:(NSString *)keyPath;
+@end
+
+@interface NSArray<ObjectType> (NSKeyValueObserverRegistration)
+- (void)addObserver:(NSObject *)observer toObjectsAtIndexes:(NSIndexSet *)indexes forKeyPath:(NSString *)keyPath options:(NSKeyValueObservingOptions)options context:(nullable void *)context;
 - (void)removeObserver:(NSObject *)observer fromObjectsAtIndexes:(NSIndexSet *)indexes forKeyPath:(NSString *)keyPath;
+@end
+
+@interface NSObject (NSKeyValueObserverNotification)
+- (void)willChangeValueForKey:(NSString *)key;
+- (void)didChangeValueForKey:(NSString *)key;
+- (void)willChange:(NSKeyValueChange)changeKind valuesAtIndexes:(NSIndexSet *)indexes forKey:(NSString *)key;
+- (void)didChange:(NSKeyValueChange)changeKind valuesAtIndexes:(NSIndexSet *)indexes forKey:(NSString *)key;
+- (void)willChangeValueForKey:(NSString *)key withSetMutation:(NSKeyValueSetMutationKind)mutationKind usingObjects:(NSSet *)objects;
+- (void)didChangeValueForKey:(NSString *)key withSetMutation:(NSKeyValueSetMutationKind)mutationKind usingObjects:(NSSet *)objects;
+@end
+
+@interface NSObject (NSKeyValueObservingCustomization)
++ (NSSet<NSString *> *)keyPathsForValuesAffectingValueForKey:(NSString *)key;
++ (BOOL)automaticallyNotifiesObserversForKey:(NSString *)key;
+@property (nullable) void *observationInfo NS_RETURNS_INNER_POINTER;
++ (void)setKeys:(NSArray *)keys triggerChangeNotificationsForDependentKey:(NSString *)dependentKey;
 @end
 
 @protocol NSKeyValueObserver
 - (void)observeValueForKeyPath:(NSString *)keyPath ofObject:(id)object change:(NSDictionary *)change context:(void *)context;
 @end
+
+NS_ASSUME_NONNULL_END
 
 enum {
     kNSKeyValueDebugLevel1 = 1, // public method calls
