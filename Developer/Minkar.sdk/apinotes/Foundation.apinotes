@@ -1,6 +1,12 @@
 ---
 Name: Foundation
 Classes:
+# Minkar: classes after Swift 4.0.3 that Swift imports as not generic
+# (headers cannot say so).
+- Name: NSOrderedCollectionDifference
+  SwiftImportAsNonGeneric: true
+- Name: NSOrderedCollectionChange
+  SwiftImportAsNonGeneric: true
 - Name: NSAffineTransform
   SwiftBridge: AffineTransform
 - Name: NSArray
@@ -1355,8 +1361,9 @@ Typedefs:
   SwiftName: URLUbiquitousItemDownloadingStatus
 - Name: NSURLBookmarkFileCreationOptions
   SwiftName: NSURL.BookmarkFileCreationOptions
+# Minkar: RunLoop.Mode, Swift's name for it since Swift 4.2.
 - Name: NSRunLoopMode
-  SwiftName: RunLoopMode
+  SwiftName: RunLoop.Mode
 Globals:
 - Name: NSAppleScriptErrorMessage
   SwiftName: NSAppleScript.errorMessage

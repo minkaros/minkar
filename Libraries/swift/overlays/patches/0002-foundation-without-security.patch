@@ -1,0 +1,20 @@
+# Foundation without Security, which Minkar does not have yet: URLError's
+# peer trust comes back when it is built.
+--- a/stdlib/public/Darwin/Foundation/NSError.swift
++++ b/stdlib/public/Darwin/Foundation/NSError.swift
+@@ -2012,6 +2012,7 @@
+     return _nsUserInfo[NSURLErrorFailingURLStringErrorKey as NSString] as? String
+   }
+ 
++#if canImport(Security)
+   /// The state of a failed SSL handshake.
+   public var failureURLPeerTrust: SecTrust? {
+     if let secTrust = _nsUserInfo[NSURLErrorFailingURLPeerTrustErrorKey as NSString] {
+@@ -2020,6 +2021,7 @@
+ 
+     return nil
+   }
++#endif
+ 
+   /// The reason why a background URLSessionTask was cancelled.
+   @available(macOS 10.15, iOS 13.0, watchOS 6.0, tvOS 13.0, *)
