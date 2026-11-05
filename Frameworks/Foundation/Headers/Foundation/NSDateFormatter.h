@@ -28,6 +28,8 @@ typedef NS_ENUM(NSUInteger, NSDateFormatterStyle) {
 
 @class NSArray<ObjectType>, NSCalendar, NSLocale, NSTimeZone;
 
+NS_ASSUME_NONNULL_BEGIN
+
 @interface NSDateFormatter : NSFormatter {
     NSDateFormatterBehavior _behavior;
     NSDateFormatterStyle _dateStyle;
@@ -49,58 +51,60 @@ typedef NS_ENUM(NSUInteger, NSDateFormatterStyle) {
 }
 
 + (NSString *)localizedStringFromDate:(NSDate *)date dateStyle:(NSDateFormatterStyle)dstyle timeStyle:(NSDateFormatterStyle)tstyle;
-+ (NSString *)dateFormatFromTemplate:(NSString *)tmplate options:(NSUInteger)opts locale:(NSLocale *)locale;
++ (nullable NSString *)dateFormatFromTemplate:(NSString *)tmplate options:(NSUInteger)opts locale:(nullable NSLocale *)locale;
 + (NSDateFormatterBehavior)defaultFormatterBehavior;
 + (void)setDefaultFormatterBehavior:(NSDateFormatterBehavior)behavior;
 
-- (nonnull instancetype)init;
+- (instancetype)init;
 - initWithDateFormat:(NSString *)format allowNaturalLanguage:(BOOL)flag;
 // The backend of NSCalendarDate's initWithString:calendarFormat:locale:.
-- initWithDateFormat:(NSString *)format allowNaturalLanguage:(BOOL)flag locale:(NSDictionary *)locale;
+- initWithDateFormat:(NSString *)format allowNaturalLanguage:(BOOL)flag locale:(nullable NSDictionary *)locale;
 
 - (BOOL)allowsNaturalLanguage;
 - (void)setLocalizedDateFormatFromTemplate:(NSString *)dateFormatTemplate;
 
-@property (copy) NSString *dateFormat;
+@property (null_resettable, copy) NSString *dateFormat;
 @property NSDateFormatterStyle dateStyle;
 @property NSDateFormatterStyle timeStyle;
-@property (copy) NSLocale *locale;
+@property (null_resettable, copy) NSLocale *locale;
 @property BOOL generatesCalendarDates;
 @property NSDateFormatterBehavior formatterBehavior;
-@property (copy) NSTimeZone *timeZone;
-@property (copy) NSCalendar *calendar;
+@property (null_resettable, copy) NSTimeZone *timeZone;
+@property (null_resettable, copy) NSCalendar *calendar;
 @property (getter=isLenient) BOOL lenient;
-@property (copy) NSDate *twoDigitStartDate;
-@property (copy) NSDate *defaultDate;
-@property (copy) NSArray<NSString *> *eraSymbols;
-@property (copy) NSArray<NSString *> *monthSymbols;
-@property (copy) NSArray<NSString *> *shortMonthSymbols;
-@property (copy) NSArray<NSString *> *weekdaySymbols;
-@property (copy) NSArray<NSString *> *shortWeekdaySymbols;
-@property (copy) NSString *AMSymbol;
-@property (copy) NSString *PMSymbol;
-@property (copy) NSArray<NSString *> *longEraSymbols;
-@property (copy) NSArray<NSString *> *veryShortMonthSymbols;
-@property (copy) NSArray<NSString *> *standaloneMonthSymbols;
-@property (copy) NSArray<NSString *> *shortStandaloneMonthSymbols;
-@property (copy) NSArray<NSString *> *veryShortStandaloneMonthSymbols;
-@property (copy) NSArray<NSString *> *veryShortWeekdaySymbols;
-@property (copy) NSArray<NSString *> *standaloneWeekdaySymbols;
-@property (copy) NSArray<NSString *> *shortStandaloneWeekdaySymbols;
-@property (copy) NSArray<NSString *> *veryShortStandaloneWeekdaySymbols;
-@property (copy) NSArray<NSString *> *quarterSymbols;
-@property (copy) NSArray<NSString *> *shortQuarterSymbols;
-@property (copy) NSArray<NSString *> *standaloneQuarterSymbols;
-@property (copy) NSArray<NSString *> *shortStandaloneQuarterSymbols;
-@property (copy) NSDate *gregorianStartDate;
+@property (nullable, copy) NSDate *twoDigitStartDate;
+@property (nullable, copy) NSDate *defaultDate;
+@property (null_resettable, copy) NSArray<NSString *> *eraSymbols;
+@property (null_resettable, copy) NSArray<NSString *> *monthSymbols;
+@property (null_resettable, copy) NSArray<NSString *> *shortMonthSymbols;
+@property (null_resettable, copy) NSArray<NSString *> *weekdaySymbols;
+@property (null_resettable, copy) NSArray<NSString *> *shortWeekdaySymbols;
+@property (null_resettable, copy) NSString *AMSymbol;
+@property (null_resettable, copy) NSString *PMSymbol;
+@property (null_resettable, copy) NSArray<NSString *> *longEraSymbols;
+@property (null_resettable, copy) NSArray<NSString *> *veryShortMonthSymbols;
+@property (null_resettable, copy) NSArray<NSString *> *standaloneMonthSymbols;
+@property (null_resettable, copy) NSArray<NSString *> *shortStandaloneMonthSymbols;
+@property (null_resettable, copy) NSArray<NSString *> *veryShortStandaloneMonthSymbols;
+@property (null_resettable, copy) NSArray<NSString *> *veryShortWeekdaySymbols;
+@property (null_resettable, copy) NSArray<NSString *> *standaloneWeekdaySymbols;
+@property (null_resettable, copy) NSArray<NSString *> *shortStandaloneWeekdaySymbols;
+@property (null_resettable, copy) NSArray<NSString *> *veryShortStandaloneWeekdaySymbols;
+@property (null_resettable, copy) NSArray<NSString *> *quarterSymbols;
+@property (null_resettable, copy) NSArray<NSString *> *shortQuarterSymbols;
+@property (null_resettable, copy) NSArray<NSString *> *standaloneQuarterSymbols;
+@property (null_resettable, copy) NSArray<NSString *> *shortStandaloneQuarterSymbols;
+@property (nullable, copy) NSDate *gregorianStartDate;
 @property BOOL doesRelativeDateFormatting;
 @property NSFormattingContext formattingContext;
 
 - (NSString *)stringFromDate:(NSDate *)date;
-- (NSDate *)dateFromString:(NSString *)string;
-- (BOOL)getObjectValue:(out id *)obj forString:(NSString *)string range:(inout NSRange *)rangep error:(out NSError **)error;
+- (nullable NSDate *)dateFromString:(NSString *)string;
+- (BOOL)getObjectValue:(out id _Nullable * _Nullable)obj forString:(NSString *)string range:(inout nullable NSRange *)rangep error:(out NSError **)error;
 
 @end
+
+NS_ASSUME_NONNULL_END
 
 // internal use
 

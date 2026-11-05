@@ -7,6 +7,7 @@ The above copyright notice and this permission notice shall be included in all c
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE. */
 
 #import <Foundation/NSObject.h>
+#import <Foundation/NSRunLoop.h>
 
 @class NSData, NSArray<ObjectType>;
 
@@ -22,47 +23,49 @@ FOUNDATION_EXPORT NSString *const NSFileHandleNotificationMonitorModes;
 
 FOUNDATION_EXPORT NSString *const NSFileHandleOperationException;
 
+NS_ASSUME_NONNULL_BEGIN
+
 @interface NSFileHandle : NSObject
 
-+ fileHandleForReadingAtPath:(NSString *)path;
-+ fileHandleForWritingAtPath:(NSString *)path;
-+ fileHandleForUpdatingAtPath:(NSString *)path;
++ (nullable instancetype)fileHandleForReadingAtPath:(NSString *)path;
++ (nullable instancetype)fileHandleForWritingAtPath:(NSString *)path;
++ (nullable instancetype)fileHandleForUpdatingAtPath:(NSString *)path;
 
-+ fileHandleWithNullDevice;
-+ fileHandleWithStandardInput;
-+ fileHandleWithStandardOutput;
-+ fileHandleWithStandardError;
+@property(class, readonly, strong) NSFileHandle *fileHandleWithStandardInput;
+@property(class, readonly, strong) NSFileHandle *fileHandleWithStandardOutput;
+@property(class, readonly, strong) NSFileHandle *fileHandleWithStandardError;
+@property(class, readonly, strong) NSFileHandle *fileHandleWithNullDevice;
 
 - (instancetype)initWithFileDescriptor:(int)descriptor;
 - (instancetype)initWithFileDescriptor:(int)descriptor closeOnDealloc:(BOOL)closeOnDealloc;
 
-- (int)fileDescriptor;
+@property(readonly) int fileDescriptor;
 
 - (void)closeFile;
 - (void)synchronizeFile;
 
-- (uint64_t)offsetInFile;
-- (void)seekToFileOffset:(uint64_t)offset;
-- (uint64_t)seekToEndOfFile;
+@property(readonly) unsigned long long offsetInFile;
+- (void)seekToFileOffset:(unsigned long long)offset;
+- (unsigned long long)seekToEndOfFile;
 
 - (NSData *)readDataOfLength:(NSUInteger)length;
 - (NSData *)readDataToEndOfFile;
-- (NSData *)availableData;
+@property(readonly, copy) NSData *availableData;
 
 - (void)writeData:(NSData *)data;
 
-- (void)truncateFileAtOffset:(uint64_t)offset;
+- (void)truncateFileAtOffset:(unsigned long long)offset;
 
-- (void)readInBackgroundAndNotifyForModes:(NSArray *)modes;
+- (void)readInBackgroundAndNotifyForModes:(nullable NSArray<NSRunLoopMode> *)modes;
 - (void)readInBackgroundAndNotify;
 
-- (void)readToEndOfFileInBackgroundAndNotifyForModes:(NSArray *)modes;
+- (void)readToEndOfFileInBackgroundAndNotifyForModes:(nullable NSArray<NSRunLoopMode> *)modes;
 - (void)readToEndOfFileInBackgroundAndNotify;
 
-- (void)acceptConnectionInBackgroundAndNotifyForModes:(NSArray *)modes;
+- (void)acceptConnectionInBackgroundAndNotifyForModes:(nullable NSArray<NSRunLoopMode> *)modes;
 - (void)acceptConnectionInBackgroundAndNotify;
 
-- (void)waitForDataInBackgroundAndNotifyForModes:(NSArray *)modes;
+- (void)waitForDataInBackgroundAndNotifyForModes:(nullable NSArray<NSRunLoopMode> *)modes;
 - (void)waitForDataInBackgroundAndNotify;
 
 @end
@@ -70,19 +73,20 @@ FOUNDATION_EXPORT NSString *const NSFileHandleOperationException;
 @class NSURL, NSError;
 
 @interface NSFileHandle (NSFileHandleErrors)
-+ (instancetype)fileHandleForReadingFromURL:(NSURL *)url error:(NSError **)error;
-+ (instancetype)fileHandleForWritingToURL:(NSURL *)url error:(NSError **)error;
-+ (instancetype)fileHandleForUpdatingURL:(NSURL *)url error:(NSError **)error;
-- (NSData *)readDataToEndOfFileAndReturnError:(NSError **)error;
-- (NSData *)readDataUpToLength:(NSUInteger)length error:(NSError **)error;
++ (nullable instancetype)fileHandleForReadingFromURL:(NSURL *)url error:(NSError **)error;
++ (nullable instancetype)fileHandleForWritingToURL:(NSURL *)url error:(NSError **)error;
++ (nullable instancetype)fileHandleForUpdatingURL:(NSURL *)url error:(NSError **)error;
+- (nullable NSData *)readDataToEndOfFileAndReturnError:(NSError **)error;
+- (nullable NSData *)readDataUpToLength:(NSUInteger)length error:(NSError **)error;
 - (BOOL)writeData:(NSData *)data error:(NSError **)error;
-- (BOOL)getOffset:(unsigned long long *)offsetInFile error:(NSError **)error;
-- (BOOL)seekToEndReturningOffset:(unsigned long long *)offsetInFile error:(NSError **)error;
+- (BOOL)getOffset:(out unsigned long long *)offsetInFile error:(NSError **)error;
+- (BOOL)seekToEndReturningOffset:(out unsigned long long *_Nullable)offsetInFile error:(NSError **)error;
 - (BOOL)seekToOffset:(unsigned long long)offset error:(NSError **)error;
 - (BOOL)truncateAtOffset:(unsigned long long)offset error:(NSError **)error;
 - (BOOL)synchronizeAndReturnError:(NSError **)error;
 - (BOOL)closeAndReturnError:(NSError **)error;
-@property (copy) void (^readabilityHandler)(NSFileHandle *);
-@property (copy) void (^writeabilityHandler)(NSFileHandle *);
+@property(nullable, copy) void (^readabilityHandler)(NSFileHandle *);
+@property(nullable, copy) void (^writeabilityHandler)(NSFileHandle *);
 @end
 
+NS_ASSUME_NONNULL_END

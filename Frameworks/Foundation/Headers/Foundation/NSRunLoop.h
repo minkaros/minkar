@@ -25,6 +25,7 @@ FOUNDATION_EXPORT NSRunLoopMode const NSRunLoopCommonModes NS_SWIFT_NAME(common)
     NSString *_currentMode;
     NSMutableArray *_continue;
     NSMutableArray *_orderedPerforms;
+    void *_cfRunLoop;
 }
 
 @property (class, readonly, strong) NSRunLoop *currentRunLoop;
