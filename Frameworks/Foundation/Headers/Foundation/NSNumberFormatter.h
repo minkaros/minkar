@@ -9,35 +9,38 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <Foundation/NSFormatter.h>
 #import <CoreFoundation/CFNumberFormatter.h>
 
-@class NSLocale, NSDecimalNumberHandler;
+@class NSLocale, NSDecimalNumberHandler, NSAttributedString, NSNumber, NSError;
+@class NSDictionary<KeyType, ObjectType>;
 
-enum {
+NS_ASSUME_NONNULL_BEGIN
+
+typedef NS_ENUM(NSUInteger, NSNumberFormatterBehavior) {
     NSNumberFormatterBehaviorDefault = 0,
     NSNumberFormatterBehavior10_0 = 1000,
     NSNumberFormatterBehavior10_4 = 1040,
 };
 
-typedef NSUInteger NSNumberFormatterBehavior;
-
-enum {
+typedef NS_ENUM(NSUInteger, NSNumberFormatterStyle) {
     NSNumberFormatterNoStyle = kCFNumberFormatterNoStyle,
     NSNumberFormatterDecimalStyle = kCFNumberFormatterDecimalStyle,
     NSNumberFormatterCurrencyStyle = kCFNumberFormatterCurrencyStyle,
     NSNumberFormatterPercentStyle = kCFNumberFormatterPercentStyle,
     NSNumberFormatterScientificStyle = kCFNumberFormatterScientificStyle,
     NSNumberFormatterSpellOutStyle = kCFNumberFormatterSpellOutStyle,
+    NSNumberFormatterOrdinalStyle = 6,
+    NSNumberFormatterCurrencyISOCodeStyle = 8,
+    NSNumberFormatterCurrencyPluralStyle = 9,
+    NSNumberFormatterCurrencyAccountingStyle = 10,
 };
-typedef NSUInteger NSNumberFormatterStyle;
 
-enum {
+typedef NS_ENUM(NSUInteger, NSNumberFormatterPadPosition) {
     NSNumberFormatterPadBeforePrefix = kCFNumberFormatterPadBeforePrefix,
     NSNumberFormatterPadAfterPrefix = kCFNumberFormatterPadAfterPrefix,
     NSNumberFormatterPadBeforeSuffix = kCFNumberFormatterPadBeforeSuffix,
     NSNumberFormatterPadAfterSuffix = kCFNumberFormatterPadAfterSuffix,
 };
-typedef NSUInteger NSNumberFormatterPadPosition;
 
-enum {
+typedef NS_ENUM(NSUInteger, NSNumberFormatterRoundingMode) {
     NSNumberFormatterRoundCeiling = kCFNumberFormatterRoundCeiling,
     NSNumberFormatterRoundFloor = kCFNumberFormatterRoundFloor,
     NSNumberFormatterRoundDown = kCFNumberFormatterRoundDown,
@@ -46,7 +49,6 @@ enum {
     NSNumberFormatterRoundHalfDown = kCFNumberFormatterRoundHalfDown,
     NSNumberFormatterRoundHalfUp = kCFNumberFormatterRoundHalfUp,
 };
-typedef NSUInteger NSNumberFormatterRoundingMode;
 
 @interface NSNumberFormatter : NSFormatter {
     NSNumberFormatterBehavior _behavior;
@@ -127,157 +129,84 @@ typedef NSUInteger NSNumberFormatterRoundingMode;
 + (NSNumberFormatterBehavior)defaultFormatterBehavior;
 + (void)setDefaultFormatterBehavior:(NSNumberFormatterBehavior)value;
 
-- (NSNumberFormatterBehavior)formatterBehavior;
-- (NSNumberFormatterStyle)numberStyle;
-
-- (NSUInteger)formatWidth;
-- (NSLocale *)locale;
-- (NSNumber *)multiplier;
-
-- (BOOL)allowsFloats;
-- (BOOL)alwaysShowsDecimalSeparator;
-- (BOOL)isLenient;
-- (BOOL)isPartialStringValidationEnabled;
-- (BOOL)generatesDecimalNumbers;
-- (BOOL)usesGroupingSeparator;
-- (BOOL)usesSignificantDigits;
-
-- (NSUInteger)minimumIntegerDigits;
-- (NSUInteger)minimumFractionDigits;
-- (NSUInteger)minimumSignificantDigits;
-
-- (NSUInteger)maximumIntegerDigits;
-- (NSUInteger)maximumFractionDigits;
-- (NSUInteger)maximumSignificantDigits;
-
-- (NSNumber *)minimum;
-- (NSNumber *)maximum;
-
-- (void)setMinimum:(NSNumber *)value;
-- (void)setMaximum:(NSNumber *)value;
-
-- (NSString *)nilSymbol;
-- (NSString *)notANumberSymbol;
-- (NSString *)zeroSymbol;
-- (NSString *)plusSign;
-- (NSString *)minusSign;
-- (NSString *)negativePrefix;
-- (NSString *)negativeSuffix;
-- (NSString *)positivePrefix;
-- (NSString *)positiveSuffix;
-- (NSString *)negativeInfinitySymbol;
-- (NSString *)positiveInfinitySymbol;
-- (NSString *)decimalSeparator;
-- (NSString *)exponentSymbol;
-- (NSString *)currencyCode;
-- (NSString *)currencySymbol;
-- (NSString *)internationalCurrencySymbol;
-- (NSString *)currencyDecimalSeparator;
-- (NSString *)currencyGroupingSeparator;
-- (NSString *)groupingSeparator;
-- (NSUInteger)groupingSize;
-- (NSUInteger)secondaryGroupingSize;
-- (NSString *)paddingCharacter;
-- (NSNumberFormatterPadPosition)paddingPosition;
-- (NSString *)percentSymbol;
-- (NSString *)perMillSymbol;
-- (NSNumber *)roundingIncrement;
-- (NSNumberFormatterRoundingMode)roundingMode;
-
-- (NSString *)positiveFormat;
-- (NSString *)negativeFormat;
-- (NSDictionary *)textAttributesForPositiveValues;
-- (NSDictionary *)textAttributesForNegativeValues;
-- (NSDictionary *)textAttributesForNegativeInfinity;
-- (NSDictionary *)textAttributesForNil;
-- (NSDictionary *)textAttributesForNotANumber;
-- (NSDictionary *)textAttributesForPositiveInfinity;
-- (NSDictionary *)textAttributesForZero;
-
-- (void)setAllowsFloats:(BOOL)flag;
-
-- (void)setCurrencyCode:(NSString *)value;
-- (void)setCurrencyDecimalSeparator:(NSString *)value;
-- (void)setCurrencyGroupingSeparator:(NSString *)value;
-- (void)setCurrencySymbol:(NSString *)value;
-- (void)setDecimalSeparator:(NSString *)value;
-- (void)setExponentSymbol:(NSString *)value;
-- (void)setFormatterBehavior:(NSNumberFormatterBehavior)value;
-- (void)setFormatWidth:(NSUInteger)value;
-- (void)setGeneratesDecimalNumbers:(BOOL)value;
-- (void)setGroupingSeparator:(NSString *)value;
-- (void)setGroupingSize:(NSUInteger)value;
-- (void)setInternationalCurrencySymbol:(NSString *)value;
-- (void)setLenient:(BOOL)value;
-- (void)setLocale:(NSLocale *)value;
-- (void)setMaximumFractionDigits:(NSUInteger)value;
-- (void)setMaximumIntegerDigits:(NSUInteger)value;
-- (void)setMaximumSignificantDigits:(NSUInteger)value;
-- (void)setMinimumFractionDigits:(NSUInteger)value;
-- (void)setMinimumIntegerDigits:(NSUInteger)value;
-- (void)setMinimumSignificantDigits:(NSUInteger)value;
-- (void)setMinusSign:(NSString *)value;
-- (void)setMultiplier:(NSNumber *)value;
-- (void)setNegativeInfinitySymbol:(NSString *)value;
-- (void)setNegativePrefix:(NSString *)value;
-- (void)setNegativeSuffix:(NSString *)value;
-- (void)setNilSymbol:(NSString *)value;
-- (void)setNotANumberSymbol:(NSString *)value;
-- (void)setNumberStyle:(NSNumberFormatterStyle)value;
-- (void)setPaddingCharacter:(NSString *)value;
-- (void)setPaddingPosition:(NSNumberFormatterPadPosition)value;
-- (void)setPartialStringValidationEnabled:(BOOL)value;
-- (void)setPercentSymbol:(NSString *)value;
-- (void)setPerMillSymbol:(NSString *)value;
-- (void)setPlusSign:(NSString *)value;
-- (void)setPositiveInfinitySymbol:(NSString *)value;
-- (void)setPositivePrefix:(NSString *)value;
-- (void)setPositiveSuffix:(NSString *)value;
-- (void)setRoundingIncrement:(NSNumber *)value;
-- (void)setRoundingMode:(NSNumberFormatterRoundingMode)value;
-- (void)setSecondaryGroupingSize:(NSUInteger)value;
-- (void)setTextAttributesForNegativeInfinity:(NSDictionary *)value;
-- (void)setTextAttributesForNil:(NSDictionary *)value;
-- (void)setTextAttributesForNotANumber:(NSDictionary *)value;
-- (void)setTextAttributesForPositiveInfinity:(NSDictionary *)value;
-- (void)setTextAttributesForZero:(NSDictionary *)value;
-- (void)setUsesGroupingSeparator:(BOOL)value;
-- (void)setUsesSignificantDigits:(BOOL)value;
-- (void)setZeroSymbol:(NSString *)value;
-
-- (void)setAlwaysShowsDecimalSeparator:(BOOL)value;
-
-- (void)setPositiveFormat:(NSString *)format;
-- (void)setNegativeFormat:(NSString *)format;
-
-- (void)setTextAttributesForNegativeValues:(NSDictionary *)attributes;
-- (void)setTextAttributesForPositiveValues:(NSDictionary *)attributes;
-
-- (NSString *)stringFromNumber:(NSNumber *)number;
-- (NSNumber *)numberFromString:(NSString *)string;
-
-- (BOOL)getObjectValue:(id *)valuep forString:(NSString *)string range:(NSRange *)rangep error:(NSError **)errorp;
-
-// 10.0 behavior methods
-
-- (BOOL)hasThousandSeparators;
-- (BOOL)localizesFormat;
-- (NSString *)thousandSeparator;
-
-- (NSString *)format;
-- (NSAttributedString *)attributedStringForZero;
-- (NSAttributedString *)attributedStringForNil;
-- (NSAttributedString *)attributedStringForNotANumber;
-- (NSDecimalNumberHandler *)roundingBehavior;
-
-- (void)setHasThousandSeparators:(BOOL)value;
-- (void)setLocalizesFormat:(BOOL)flag;
-- (void)setThousandSeparator:(NSString *)value;
-- (void)setFormat:(NSString *)format;
-- (void)setAttributedStringForZero:(NSAttributedString *)attributedString;
-- (void)setAttributedStringForNil:(NSAttributedString *)attributedString;
-- (void)setAttributedStringForNotANumber:(NSAttributedString *)attributedString;
-- (void)setRoundingBehavior:(NSDecimalNumberHandler *)value;
-
 + (NSString *)localizedStringFromNumber:(NSNumber *)num numberStyle:(NSNumberFormatterStyle)nstyle;
+
+- (nullable NSString *)stringFromNumber:(NSNumber *)number;
+- (nullable NSNumber *)numberFromString:(NSString *)string;
+- (BOOL)getObjectValue:(out id _Nullable * _Nullable)valuep forString:(NSString *)string range:(inout nullable NSRange *)rangep error:(out NSError **)errorp;
+
+@property NSNumberFormatterBehavior formatterBehavior;
+@property NSNumberFormatterStyle numberStyle;
+@property (null_resettable, copy) NSLocale *locale;
+@property BOOL generatesDecimalNumbers;
+
+@property (null_resettable, copy) NSString *negativeFormat;
+@property (nullable, copy) NSDictionary<NSString *, id> *textAttributesForNegativeValues;
+@property (null_resettable, copy) NSString *positiveFormat;
+@property (nullable, copy) NSDictionary<NSString *, id> *textAttributesForPositiveValues;
+@property BOOL allowsFloats;
+@property (null_resettable, copy) NSString *decimalSeparator;
+@property BOOL alwaysShowsDecimalSeparator;
+@property (null_resettable, copy) NSString *currencyDecimalSeparator;
+@property BOOL usesGroupingSeparator;
+@property (null_resettable, copy) NSString *groupingSeparator;
+
+@property (nullable, copy) NSString *zeroSymbol;
+@property (nullable, copy) NSDictionary<NSString *, id> *textAttributesForZero;
+@property (copy) NSString *nilSymbol;
+@property (nullable, copy) NSDictionary<NSString *, id> *textAttributesForNil;
+@property (null_resettable, copy) NSString *notANumberSymbol;
+@property (nullable, copy) NSDictionary<NSString *, id> *textAttributesForNotANumber;
+@property (copy) NSString *positiveInfinitySymbol;
+@property (nullable, copy) NSDictionary<NSString *, id> *textAttributesForPositiveInfinity;
+@property (copy) NSString *negativeInfinitySymbol;
+@property (nullable, copy) NSDictionary<NSString *, id> *textAttributesForNegativeInfinity;
+
+@property (null_resettable, copy) NSString *positivePrefix;
+@property (null_resettable, copy) NSString *positiveSuffix;
+@property (null_resettable, copy) NSString *negativePrefix;
+@property (null_resettable, copy) NSString *negativeSuffix;
+@property (null_resettable, copy) NSString *currencyCode;
+@property (null_resettable, copy) NSString *currencySymbol;
+@property (null_resettable, copy) NSString *internationalCurrencySymbol;
+@property (null_resettable, copy) NSString *percentSymbol;
+@property (null_resettable, copy) NSString *perMillSymbol;
+@property (null_resettable, copy) NSString *minusSign;
+@property (null_resettable, copy) NSString *plusSign;
+@property (null_resettable, copy) NSString *exponentSymbol;
+
+@property NSUInteger groupingSize;
+@property NSUInteger secondaryGroupingSize;
+@property (nullable, copy) NSNumber *multiplier;
+@property NSUInteger formatWidth;
+@property (null_resettable, copy) NSString *paddingCharacter;
+@property NSNumberFormatterPadPosition paddingPosition;
+@property NSNumberFormatterRoundingMode roundingMode;
+@property (null_resettable, copy) NSNumber *roundingIncrement;
+@property NSUInteger minimumIntegerDigits;
+@property NSUInteger maximumIntegerDigits;
+@property NSUInteger minimumFractionDigits;
+@property NSUInteger maximumFractionDigits;
+@property (nullable, copy) NSNumber *minimum;
+@property (nullable, copy) NSNumber *maximum;
+@property (null_resettable, copy) NSString *currencyGroupingSeparator;
+@property (getter=isLenient) BOOL lenient;
+@property BOOL usesSignificantDigits;
+@property NSUInteger minimumSignificantDigits;
+@property NSUInteger maximumSignificantDigits;
+@property (getter=isPartialStringValidationEnabled) BOOL partialStringValidationEnabled;
+
+// 10.0 behavior
+@property BOOL hasThousandSeparators;
+@property (null_resettable, copy) NSString *thousandSeparator;
+@property BOOL localizesFormat;
+@property (copy) NSString *format;
+@property (copy) NSAttributedString *attributedStringForZero;
+@property (copy) NSAttributedString *attributedStringForNil;
+@property (copy) NSAttributedString *attributedStringForNotANumber;
+@property (strong) NSDecimalNumberHandler *roundingBehavior;
+
 @end
+
+NS_ASSUME_NONNULL_END
+

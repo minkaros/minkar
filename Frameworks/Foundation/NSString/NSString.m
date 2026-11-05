@@ -376,8 +376,16 @@ extern unichar *NSBytesToUnicode(const char *, NSUInteger, NSStringEncoding,
     return stringEncodings;
 }
 
+// Minkar: CoreFoundation's name for it ("Unicode (UTF-8)"); the
+// hexadecimal number only for an encoding neither table knows.
 +(NSString *)localizedNameOfStringEncoding:(NSStringEncoding)encoding {
-   NSString *result=[NSString stringWithFormat:@"0x%08X",encoding];
+   CFStringEncoding cfEncoding=CFStringConvertNSStringEncodingToEncoding(encoding);
+   CFStringRef      cfName=(cfEncoding!=kCFStringEncodingInvalidId)?CFStringGetNameOfEncoding(cfEncoding):NULL;
+
+   if(cfName!=NULL)
+    return [NSString stringWithString:(NSString *)cfName];
+
+   NSString *result=[NSString stringWithFormat:@"0x%08X",(unsigned)encoding];
    NSString *path=[[NSBundle bundleForClass:self] pathForResource:@"NSStringEncodingNames" ofType:@"plist"];
 
    if(path!=nil){
@@ -1042,11 +1050,10 @@ static inline void reverseString(unichar *buf, NSUInteger len) {
 
 -(void)getLineStart:(NSUInteger *)startp end:(NSUInteger *)endp contentsEnd:(NSUInteger *)contentsEndp forRange:(NSRange)range {
     NSUInteger start=range.location;
-    NSUInteger maxRange = NSMaxRange(range);
-    if (maxRange == 0) {
-        maxRange = 1;
-    }
-    NSUInteger end=maxRange - 1;
+    /* Minkar: the line that holds the range's last character, or for an
+     * empty range the one that holds its location (it was the line before
+     * it, so code walking lines with empty ranges never moved on). */
+    NSUInteger end=(range.length>0)?NSMaxRange(range)-1:range.location;
     NSUInteger contentsEnd=end;
     NSUInteger length=[self length];
     unichar  *buffer = NSZoneMalloc(NULL, sizeof(unichar) * length);
@@ -1065,10 +1072,10 @@ static inline void reverseString(unichar *buf, NSUInteger len) {
     for(;start!=0;start--) {
         unichar check=buffer[start-1];
         
-        if(check==0x2028 || check==0x000A || check==0x2029)
+        if(check==0x2028 || check==0x000A || check==0x2029 || check==0x0085)
             break;
         
-        if(check==0x000D && buffer[start]!=0x000A)
+        if(check==0x000D && (start>=length || buffer[start]!=0x000A))
             break;
     }
     
@@ -1126,11 +1133,8 @@ static inline void reverseString(unichar *buf, NSUInteger len) {
  The difference is that getParagraphStart: does not delimit on line terminators 0x0085 and 0x2028
  */
     NSUInteger start=range.location;
-    NSUInteger maxRange = NSMaxRange(range);
-    if (maxRange == 0) {
-        maxRange = 1;
-    }
-    NSUInteger end=maxRange - 1;
+    // As in getLineStart: an empty range's paragraph holds its location.
+    NSUInteger end=(range.length>0)?NSMaxRange(range)-1:range.location;
     NSUInteger contentsEnd=end;
     NSUInteger length=[self length];
     unichar  *buffer = NSZoneMalloc(NULL, sizeof(unichar) * length);
@@ -1147,7 +1151,7 @@ static inline void reverseString(unichar *buf, NSUInteger len) {
         if(check==0x2028 || check==0x000A || check==0x2029)
             break;
         
-        if(check==0x000D && buffer[start]!=0x000A)
+        if(check==0x000D && (start>=length || buffer[start]!=0x000A))
             break;
     }
     

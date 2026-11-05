@@ -15,7 +15,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 @interface NSDictionary<__covariant KeyType, __covariant ObjectType> : NSObject <NSCoding, NSCopying, NSMutableCopying, NSFastEnumeration>
 
 - (instancetype)initWithObjects:(const ObjectType _Nonnull [_Nullable])objects forKeys:(const KeyType <NSCopying> _Nonnull [_Nullable])keys count:(NSUInteger)count;
-- (instancetype)initWithObjects:(NSArray<ObjectType> *)objects forKeys:(NSArray<KeyType> *)keys;
+- (instancetype)initWithObjects:(NSArray<ObjectType> *)objects forKeys:(NSArray<KeyType <NSCopying>> *)keys;
 - (instancetype)initWithDictionary:(NSDictionary<KeyType, ObjectType> *)dictionary;
 - (instancetype)initWithDictionary:(NSDictionary<KeyType, ObjectType> *)dictionary copyItems:(BOOL)copyItems;
 - (instancetype)initWithObjectsAndKeys:object, ...;
@@ -24,7 +24,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 + (instancetype)dictionary;
 + (instancetype)dictionaryWithObjects:(const ObjectType _Nonnull [_Nullable])objects forKeys:(const KeyType <NSCopying> _Nonnull [_Nullable])keys count:(NSUInteger)count;
-+ (instancetype)dictionaryWithObjects:(NSArray<ObjectType> *)objects forKeys:(NSArray<KeyType> *)keys;
++ (instancetype)dictionaryWithObjects:(NSArray<ObjectType> *)objects forKeys:(NSArray<KeyType <NSCopying>> *)keys;
 + (instancetype)dictionaryWithDictionary:(NSDictionary<KeyType, ObjectType> *)other;
 + (instancetype)dictionaryWithObjectsAndKeys:first, ...;
 + (instancetype)dictionaryWithObject:(ObjectType)object forKey:(KeyType)key;
