@@ -10,7 +10,7 @@ NS_ASSUME_NONNULL_BEGIN
 
 /* Atlas's provisional generic icons, drawn: a folder and a document. They
    give way to the artwork of the visual language guide. */
-NSImage *ArgosFolderIcon(void);
-NSImage *ArgosDocumentIcon(void);
+NSImage *FilesFolderIcon(void);
+NSImage *FilesDocumentIcon(void);
 
 NS_ASSUME_NONNULL_END

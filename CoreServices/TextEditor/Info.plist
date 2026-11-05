@@ -2,31 +2,31 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<key>CFBundleDevelopmentRegion</key>
+	<string>en</string>
 	<key>CFBundleDocumentTypes</key>
 	<array>
 		<dict>
 			<key>CFBundleTypeName</key>
-			<string>Folder</string>
+			<string>Plain Text</string>
 			<key>CFBundleTypeRole</key>
-			<string>Viewer</string>
+			<string>Editor</string>
 			<key>LSHandlerRank</key>
 			<string>Default</string>
 			<key>LSItemContentTypes</key>
 			<array>
-				<string>public.folder</string>
+				<string>public.plain-text</string>
 			</array>
 		</dict>
 	</array>
-	<key>CFBundleDevelopmentRegion</key>
-	<string>en</string>
 	<key>CFBundleExecutable</key>
-	<string>Argos</string>
-	<key>CFBundleIconFile</key>
-	<string>Argos</string>
+	<string>TextEditor</string>
 	<key>CFBundleIdentifier</key>
-	<string>org.minkar.argos</string>
+	<string>org.minkar.TextEditor</string>
+	<key>CFBundleDisplayName</key>
+	<string>Text Editor</string>
 	<key>CFBundleName</key>
-	<string>Argos</string>
+	<string>Text Editor</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>

@@ -3,7 +3,7 @@
 # Part of Minkar.
 #
 # open: our own, in /usr/bin as on the reference platform, over
-# LaunchServices (LSOpenFromURLSpec, LSRevealInArgos).
+# LaunchServices (LSOpenFromURLSpec, LSRevealInFiles).
 
 SUBDIR =
 WARNS ?= 2

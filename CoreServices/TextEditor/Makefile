@@ -2,14 +2,14 @@
 # Copyright (c) 2026 The Minkar contributors
 # Part of Minkar.
 #
-# Alcor, Atlas's text editor: plain text documents in windows, opened
-# from Argos or `open` through LaunchServices (it declares plain text).
-# Installed as /System/Applications/Alcor.app.
+# Text Editor, Atlas's text editor: plain text documents in windows, opened
+# from Files or `open` through LaunchServices (it declares plain text).
+# Installed as /System/Applications/TextEditor.app.
 
 SUBDIR =
-APP =		Alcor
+APP =		TextEditor
 APP_INSTALL_DIR = /System/Applications
-SRCS =		main.m AlcorDocumentWindow.m
+SRCS =		main.m EditorDocumentWindow.m
 FRAMEWORKS =	Cocoa
 MK_WERROR =	no
 CFLAGS +=	-fobjc-arc -g -std=gnu17 -Wno-incompatible-sysroot -Wno-nullability-completeness

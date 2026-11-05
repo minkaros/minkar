@@ -3,47 +3,47 @@
  * Copyright (c) 2026 The Minkar contributors
  * Part of Minkar.
  *
- * Argos (Atlas.md, K1): the file manager. Its menus have the
+ * Files (Atlas.md, K1): the file manager. Its menus have the
  * reference platform's commands and keys: File (New Window, Open, Close
  * Window), View (as Icons, as List, as Columns), Go (Back, Forward, Enclosing Folder,
  * the usual folders).
  */
 
-#import "ArgosWindowController.h"
-#import "ArgosInfoWindow.h"
+#import "FilesWindowController.h"
+#import "FilesInfoWindow.h"
 #include <os/log.h>
 
-@interface ArgosApplication : NSObject <NSApplicationDelegate>
+@interface FilesApplication : NSObject <NSApplicationDelegate>
 @end
 
-@implementation ArgosApplication {
-    NSMutableArray<ArgosWindowController *> *_windows;
+@implementation FilesApplication {
+    NSMutableArray<FilesWindowController *> *_windows;
 }
 
-- (ArgosWindowController *)front
+- (FilesWindowController *)front
 {
-    for (ArgosWindowController *c in _windows)
+    for (FilesWindowController *c in _windows)
         if ([c.window isKeyWindow] || [c.window isMainWindow])
             return c;
     return [_windows lastObject];
 }
 
-- (ArgosWindowController *)openWindowAt:(NSURL *)folder
+- (FilesWindowController *)openWindowAt:(NSURL *)folder
 {
     if (_windows == nil)
         _windows = [NSMutableArray array];
-    ArgosWindowController *c = [[ArgosWindowController alloc] initWithFolder:folder];
+    FilesWindowController *c = [[FilesWindowController alloc] initWithFolder:folder];
     [_windows addObject:c];
     [c.window makeKeyAndOrderFront:nil];
     return c;
 }
 
 /* A window on the folder: one showing it already, else a new one. */
-- (ArgosWindowController *)windowFor:(NSURL *)folder
+- (FilesWindowController *)windowFor:(NSURL *)folder
 {
     NSString *path = [[folder path] stringByStandardizingPath];
 
-    for (ArgosWindowController *c in _windows)
+    for (FilesWindowController *c in _windows)
         if ([[[c.folder path] stringByStandardizingPath] isEqualToString:path]) {
             [c.window makeKeyAndOrderFront:nil];
             return c;
@@ -51,7 +51,7 @@
     return [self openWindowAt:folder];
 }
 
-/* LaunchServices: folders to open (Argos opens public.folder). */
+/* LaunchServices: folders to open (Files opens public.folder). */
 - (void)application:(NSApplication *)app openURLs:(NSArray<NSURL *> *)urls
 {
     for (NSURL *url in urls) {
@@ -66,7 +66,7 @@
     }
 }
 
-/* LSRevealInArgos (open -R, NSWorkspace's reveal methods): each item
+/* LSRevealInFiles (open -R, NSWorkspace's reveal methods): each item
  * selected in a window on its folder. */
 - (void)application:(NSApplication *)app revealURLs:(NSArray<NSURL *> *)urls
 {
@@ -86,7 +86,7 @@
         [self windowFor:[NSURL fileURLWithPath:@"/"]];
         return;
     }
-    ArgosWindowController *c = [self windowFor:[NSURL fileURLWithPath:[path stringByDeletingLastPathComponent]]];
+    FilesWindowController *c = [self windowFor:[NSURL fileURLWithPath:[path stringByDeletingLastPathComponent]]];
     [c selectItemNamed:[path lastPathComponent]];
 }
 
@@ -147,7 +147,7 @@ static void addMenu(NSString *title, NSMenu *menu)
         [self openWindowAt:[NSURL fileURLWithPath:NSHomeDirectory()]];
 }
 
-/* Argos stays when its last window closes, as the reference platform's
+/* Files stays when its last window closes, as the reference platform's
    file manager does. */
 - (BOOL)applicationShouldTerminateAfterLastWindowClosed:(NSApplication *)app
 {
@@ -157,7 +157,7 @@ static void addMenu(NSString *title, NSMenu *menu)
 - (void)applicationDidBecomeActive:(NSNotification *)note
 {
     BOOL visible = NO;
-    for (ArgosWindowController *c in _windows)
+    for (FilesWindowController *c in _windows)
         visible |= [c.window isVisible];
     if (!visible && [_windows count] == 0)
         [self openWindowAt:[NSURL fileURLWithPath:NSHomeDirectory()]];
@@ -170,7 +170,7 @@ static void addMenu(NSString *title, NSMenu *menu)
 
 - (void)closeWindow:(id)sender
 {
-    ArgosWindowController *c = [self front];
+    FilesWindowController *c = [self front];
     if (c == nil)
         return;
     [c.window orderOut:nil];
@@ -180,11 +180,11 @@ static void addMenu(NSString *title, NSMenu *menu)
 - (void)openSelection:(id)sender { [[self front] openSelection:sender]; }
 - (void)getInfo:(id)sender
 {
-    ArgosItem *item = [[self front] selectedItem];
+    FilesItem *item = [[self front] selectedItem];
     if (item == nil && [self front] != nil)
-        item = [[ArgosItem alloc] initWithURL:[[self front] folder]];
+        item = [[FilesItem alloc] initWithURL:[[self front] folder]];
     if (item != nil)
-        [ArgosInfoWindow showForItem:item];
+        [FilesInfoWindow showForItem:item];
 }
 - (void)showAsIcons:(id)sender { [[self front] showAsIcons:sender]; }
 - (void)showAsList:(id)sender { [[self front] showAsList:sender]; }
@@ -214,7 +214,7 @@ int main(void)
 {
     @autoreleasepool {
         NSApplication *app = [NSApplication sharedApplication];
-        ArgosApplication *delegate = [[ArgosApplication alloc] init];
+        FilesApplication *delegate = [[FilesApplication alloc] init];
 
         [app setDelegate:delegate];
         [app run];

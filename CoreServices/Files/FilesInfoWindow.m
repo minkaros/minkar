@@ -3,18 +3,18 @@
  * Copyright (c) 2026 The Minkar contributors
  * Part of Minkar.
  *
- * Argos's Get Info window. Atlas's provisional look.
+ * The file manager's Get Info window. Atlas's provisional look.
  */
 
-#import "ArgosInfoWindow.h"
+#import "FilesInfoWindow.h"
 #include <os/log.h>
 
-@interface ArgosInfoView : NSView
-@property (nonatomic, strong) ArgosItem *item;
+@interface FilesInfoView : NSView
+@property (nonatomic, strong) FilesItem *item;
 @property (nonatomic, copy) NSArray<NSArray<NSString *> *> *rows;
 @end
 
-@implementation ArgosInfoView
+@implementation FilesInfoView
 
 - (BOOL)isFlipped
 {
@@ -50,17 +50,17 @@
 
 @end
 
-@implementation ArgosInfoWindow
+@implementation FilesInfoWindow
 
-static NSMutableArray<ArgosInfoWindow *> *openWindows;
+static NSMutableArray<FilesInfoWindow *> *openWindows;
 
-+ (void)showForItem:(ArgosItem *)item
++ (void)showForItem:(FilesItem *)item
 {
     if (openWindows == nil)
         openWindows = [NSMutableArray array];
     os_log_info(OS_LOG_DEFAULT, "info %{public}s", [[item.URL path] fileSystemRepresentation]);
 
-    ArgosInfoWindow *window = [[ArgosInfoWindow alloc] initWithContentRect:NSMakeRect(220, 200, 320, 280)
+    FilesInfoWindow *window = [[FilesInfoWindow alloc] initWithContentRect:NSMakeRect(220, 200, 320, 280)
         styleMask:NSTitledWindowMask | NSClosableWindowMask | NSMiniaturizableWindowMask
           backing:NSBackingStoreBuffered defer:NO];
     [window setTitle:[NSString stringWithFormat:NSLocalizedString(@"%@ Info", nil), item.name]];
@@ -68,17 +68,17 @@ static NSMutableArray<ArgosInfoWindow *> *openWindows;
 
     NSDictionary *attributes = [[NSFileManager defaultManager] attributesOfItemAtPath:[item.URL path] error:NULL];
     NSDateFormatter *dates = [[NSDateFormatter alloc] init];
-    [dates setLocale:ArgosDisplayLocale()];
+    [dates setLocale:FilesDisplayLocale()];
     [dates setDateFormat:NSLocalizedString(@"EEEE, d MMMM yyyy 'at' HH:mm", @"Get Info dates")];
     NSString *size;
     if (item.isFolder)
         size = [NSString stringWithFormat:NSLocalizedString(@"%lu items", nil),
                 (unsigned long)[[[NSFileManager defaultManager] contentsOfDirectoryAtPath:[item.URL path] error:NULL] count]];
     else
-        size = [NSString stringWithFormat:NSLocalizedString(@"%llu bytes (%@ on disk)", nil), item.size, ArgosSizeString(item.size)];
+        size = [NSString stringWithFormat:NSLocalizedString(@"%llu bytes (%@ on disk)", nil), item.size, FilesSizeString(item.size)];
     NSDate *created = [attributes fileCreationDate], *modified = [attributes fileModificationDate];
 
-    ArgosInfoView *view = [[ArgosInfoView alloc] initWithFrame:NSMakeRect(0, 0, 320, 280)];
+    FilesInfoView *view = [[FilesInfoView alloc] initWithFrame:NSMakeRect(0, 0, 320, 280)];
     view.item = item;
     view.rows = @[ @[ NSLocalizedString(@"Kind:", nil), item.kind ],
                    @[ NSLocalizedString(@"Size:", nil), size ],

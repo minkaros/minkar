@@ -3,9 +3,9 @@
  * Copyright (c) 2026 The Minkar contributors
  * Part of Minkar.
  *
- * open: opens files, folders and applications as a double click in Argos
+ * open: opens files, folders and applications as a double click in the file manager
  * does, through LaunchServices. -a and -b name the application, -e and
- * -t open with the text editor, -R shows the items in Argos instead, -n
+ * -t open with the text editor, -R shows the items in the file manager instead, -n
  * starts a new instance of the application.
  */
 
@@ -20,7 +20,7 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
-#define TEXT_EDITOR_ID	"org.minkar.Alcor"
+#define TEXT_EDITOR_ID	"org.minkar.TextEditor"
 
 static void
 usage(void)
@@ -32,7 +32,7 @@ usage(void)
 	    "  -a application  open with this application (a name or a path)\n"
 	    "  -b bundle-id    open with the application with this identifier\n"
 	    "  -e, -t          open with the text editor\n"
-	    "  -R, --reveal    show the files in Argos instead of opening them\n"
+	    "  -R, --reveal    show the files in the file manager instead of opening them\n"
 	    "  -n              open a new instance of the application\n"
 	    "  -h, --help      show this help\n");
 	exit(1);
@@ -45,7 +45,7 @@ fileURL(const char *path, Boolean isDirectory)
 	    (CFIndex)strlen(path), isDirectory);
 }
 
-/* An application by name ("Alcor", "Alcor.app") or path. */
+/* An application by name ("TextEditor", "TextEditor.app") or path. */
 static CFURLRef
 applicationNamed(const char *name)
 {
@@ -147,7 +147,7 @@ main(int argc, char *argv[])
 
 	OSStatus status;
 	if (reveal)
-		status = LSRevealInArgos(items);
+		status = LSRevealInFiles(items);
 	else {
 		LSLaunchURLSpec spec = { app, CFArrayGetCount(items) ? items : NULL, NULL,
 		    kLSLaunchDefaults | (newInstance ? kLSLaunchNewInstance : 0), NULL };

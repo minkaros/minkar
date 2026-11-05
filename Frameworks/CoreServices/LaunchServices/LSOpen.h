@@ -45,12 +45,14 @@ OSStatus LSOpenCFURLRef(CFURLRef inURL, CFURLRef _Nullable *_Nullable outLaunche
 OSStatus LSOpenFromURLSpec(const LSLaunchURLSpec *inLaunchSpec,
     CFURLRef _Nullable *_Nullable outLaunchedURL);
 
-/* Minkar: shows items in Argos, each selected in its folder's window
- * (what `open -R` and NSWorkspace's reveal methods do). */
-OSStatus LSRevealInArgos(CFArrayRef inItemURLs);
-/* The name of the file manager before Argos; kept for one release. */
+/* Minkar: shows items in Files, the file manager, each selected in its
+ * folder's window (what `open -R` and NSWorkspace's reveal methods do). */
+OSStatus LSRevealInFiles(CFArrayRef inItemURLs);
+/* The file manager's former names; kept for one release. */
+OSStatus LSRevealInArgos(CFArrayRef inItemURLs)
+    __attribute__((deprecated("use LSRevealInFiles")));
 OSStatus LSRevealInFiler(CFArrayRef inItemURLs)
-    __attribute__((deprecated("use LSRevealInArgos")));
+    __attribute__((deprecated("use LSRevealInFiles")));
 
 CF_EXTERN_C_END
 CF_ASSUME_NONNULL_END

@@ -6,7 +6,7 @@
 # font. Only the four faces AppKit names are installed; the other fonts
 # under TTF/ are not; taken in WS0.
 #
-# The fixed-pitch font (NSFont's userFixedPitchFont, Alcor's plain text)
+# The fixed-pitch font (NSFont's userFixedPitchFont, Text Editor's plain text)
 # is Agave (OFL 1.1, chosen 2026-11-05), fetched at the version
 # MANIFEST.agave pins and installed unchanged, with its license as
 # Agave-LICENSE.txt.

@@ -3,7 +3,7 @@
  * Copyright (c) 2026 The Minkar contributors
  * Part of Minkar.
  *
- * Alcor, Atlas's text editor. Plain text documents, each in a window;
+ * Text Editor, Atlas's text editor. Plain text documents, each in a window;
  * LaunchServices hands it the files to open (it declares
  * public.plain-text), and with none it starts with an untitled one. Its
  * menus have the reference platform's commands and keys: File (New,
@@ -11,14 +11,14 @@
  * All) and Window (Minimize). English and Spanish.
  */
 
-#import "AlcorDocumentWindow.h"
+#import "EditorDocumentWindow.h"
 #include <os/log.h>
 
-@interface AlcorApplication : NSObject <NSApplicationDelegate, AlcorDocumentWindowDelegate>
+@interface EditorApplication : NSObject <NSApplicationDelegate, EditorDocumentWindowDelegate>
 @end
 
-@implementation AlcorApplication {
-    NSMutableArray<AlcorDocumentWindow *> *_documents;
+@implementation EditorApplication {
+    NSMutableArray<EditorDocumentWindow *> *_documents;
     NSUInteger _untitled;
 }
 
@@ -99,13 +99,13 @@ static void addMenu(NSString *title, NSMenu *menu)
 {
     NSString *path = [[url path] stringByStandardizingPath];
 
-    for (AlcorDocumentWindow *d in _documents)
+    for (EditorDocumentWindow *d in _documents)
         if ([[[d.fileURL path] stringByStandardizingPath] isEqualToString:path]) {
             [d show];
             return;
         }
     NSError *error = nil;
-    AlcorDocumentWindow *d = [[AlcorDocumentWindow alloc] initWithURL:url error:&error];
+    EditorDocumentWindow *d = [[EditorDocumentWindow alloc] initWithURL:url error:&error];
     if (d == nil) {
         NSAlert *alert = [[NSAlert alloc] init];
         [alert setMessageText:[NSString stringWithFormat:NSLocalizedString(@"The document “%@” could not be opened.", nil),
@@ -117,21 +117,21 @@ static void addMenu(NSString *title, NSMenu *menu)
     [self add:d];
 }
 
-- (void)add:(AlcorDocumentWindow *)document
+- (void)add:(EditorDocumentWindow *)document
 {
     document.delegate = self;
     [_documents addObject:document];
     [document show];
 }
 
-- (void)documentWindowDidClose:(AlcorDocumentWindow *)document
+- (void)documentWindowDidClose:(EditorDocumentWindow *)document
 {
     [_documents removeObject:document];
 }
 
-- (AlcorDocumentWindow *)front
+- (EditorDocumentWindow *)front
 {
-    for (AlcorDocumentWindow *d in _documents)
+    for (EditorDocumentWindow *d in _documents)
         if ([d.window isKeyWindow] || [d.window isMainWindow])
             return d;
     return nil;
@@ -139,7 +139,7 @@ static void addMenu(NSString *title, NSMenu *menu)
 
 - (void)newDocument:(id)sender
 {
-    [self add:[[AlcorDocumentWindow alloc] initUntitled:++_untitled]];
+    [self add:[[EditorDocumentWindow alloc] initUntitled:++_untitled]];
 }
 
 - (void)openDocument:(id)sender
@@ -179,7 +179,7 @@ static void addMenu(NSString *title, NSMenu *menu)
 /* Unsaved documents: each asked about before quitting. */
 - (NSApplicationTerminateReply)applicationShouldTerminate:(NSApplication *)app
 {
-    for (AlcorDocumentWindow *d in [_documents copy])
+    for (EditorDocumentWindow *d in [_documents copy])
         if (d.edited && ![d close])
             return NSTerminateCancel;
     return NSTerminateNow;
@@ -191,7 +191,7 @@ int main(void)
 {
     @autoreleasepool {
         NSApplication *app = [NSApplication sharedApplication];
-        AlcorApplication *delegate = [[AlcorApplication alloc] init];
+        EditorApplication *delegate = [[EditorApplication alloc] init];
 
         [app setDelegate:delegate];
         [app run];

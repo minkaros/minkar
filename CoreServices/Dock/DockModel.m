@@ -78,15 +78,15 @@ NSDictionary *DockPersistentAppEntry(NSURL *url)
     };
 }
 
-/* With no preference yet: Argos, then the installed applications. */
+/* With no preference yet: the file manager, then the installed applications. */
 static NSArray<NSURL *> *defaultPersistentApps(void)
 {
     NSFileManager *fm = [NSFileManager defaultManager];
     NSMutableArray<NSURL *> *urls = [NSMutableArray array];
-    NSString *argos = @"/System/Library/CoreServices/Argos.app";
+    NSString *files = @"/System/Library/CoreServices/Files.app";
 
-    if ([fm fileExistsAtPath:argos])
-        [urls addObject:[NSURL fileURLWithPath:argos]];
+    if ([fm fileExistsAtPath:files])
+        [urls addObject:[NSURL fileURLWithPath:files]];
     for (NSString *dir in @[ @"/System/Applications", @"/Applications" ]) {
         NSArray *names = [[fm contentsOfDirectoryAtPath:dir error:NULL]
             sortedArrayUsingSelector:@selector(caseInsensitiveCompare:)];

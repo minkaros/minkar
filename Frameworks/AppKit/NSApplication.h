@@ -305,7 +305,7 @@ typedef enum {
 - (void)application:(NSApplication *)sender openFiles:(NSArray *)filenames;
 /* Asked first, with every URL (API 19; files and others). */
 - (void)application:(NSApplication *)application openURLs:(NSArray<NSURL *> *)urls;
-/* Minkar: the items to show in a file manager (LSRevealInArgos). */
+/* Minkar: the items to show in a file manager (LSRevealInFiles). */
 - (void)application:(NSApplication *)application revealURLs:(NSArray<NSURL *> *)urls;
 - (BOOL)application:(id)sender openFileWithoutUI:(NSString *)filename;
 - (BOOL)application:(NSApplication *)theApplication openTempFile:(NSString *)filename;

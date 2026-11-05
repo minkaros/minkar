@@ -3,37 +3,37 @@
  * Copyright (c) 2026 The Minkar contributors
  * Part of Minkar.
  *
- * Argos's browser window (Atlas.md, K1): navigation with history,
+ * The file manager's browser window (Atlas.md, K1): navigation with history,
  * the sidebar and the browser, opening folders here and applications with
  * NSWorkspace; icons, a list or columns. Atlas's provisional look.
  */
 
-#import "ArgosWindowController.h"
-#import "ArgosSidebarView.h"
-#import "ArgosColumnView.h"
+#import "FilesWindowController.h"
+#import "FilesSidebarView.h"
+#import "FilesColumnView.h"
 #include <sys/mount.h>
 #include <os/log.h>
 #include <CoreServices/CoreServices.h>
 
 static const CGFloat kBarHeight = 38, kStatusHeight = 22, kSidebarWidth = 170;
 
-@interface ArgosWindowController () <ArgosBrowserViewDelegate, ArgosColumnViewDelegate, ArgosSidebarViewDelegate,
+@interface FilesWindowController () <FilesBrowserViewDelegate, FilesColumnViewDelegate, FilesSidebarViewDelegate,
                                      NSWindowDelegate>
 @end
 
 /* The window's content: it lays out its parts when resized. */
-@interface ArgosContentView : NSView
-@property (nonatomic, weak) ArgosWindowController *controller;
+@interface FilesContentView : NSView
+@property (nonatomic, weak) FilesWindowController *controller;
 @end
 
-@implementation ArgosWindowController {
+@implementation FilesWindowController {
     NSWindow *_window;
     NSURL *_folder;
     NSMutableArray<NSURL *> *_back, *_forward;
-    ArgosSidebarView *_sidebar;
+    FilesSidebarView *_sidebar;
     NSScrollView *_scroll, *_columnScroll;
-    ArgosBrowserView *_browser;
-    ArgosColumnView *_columns;
+    FilesBrowserView *_browser;
+    FilesColumnView *_columns;
     NSButton *_backButton, *_forwardButton, *_iconsButton, *_listButton, *_columnsButton;
     NSTextField *_title, *_status;
     FSEventStreamRef _watch;      /* the folder shown, while it changes */
@@ -77,7 +77,7 @@ static NSTextField *label(CGFloat size, BOOL bold)
     [_window setMinSize:NSMakeSize(480, 280)];
     [_window setDelegate:self];
 
-    ArgosContentView *content = [[ArgosContentView alloc] initWithFrame:[[_window contentView] frame]];
+    FilesContentView *content = [[FilesContentView alloc] initWithFrame:[[_window contentView] frame]];
     content.controller = self;
     [_window setContentView:content];
 
@@ -91,13 +91,13 @@ static NSTextField *label(CGFloat size, BOOL bold)
     [_status setAlignment:NSCenterTextAlignment];
     [_status setTextColor:[NSColor colorWithCalibratedWhite:0.35 alpha:1]];
 
-    _sidebar = [[ArgosSidebarView alloc] initWithFrame:NSMakeRect(0, 0, kSidebarWidth, 100)];
+    _sidebar = [[FilesSidebarView alloc] initWithFrame:NSMakeRect(0, 0, kSidebarWidth, 100)];
     _sidebar.delegate = self;
     _scroll = [[NSScrollView alloc] initWithFrame:NSMakeRect(0, 0, 100, 100)];
     [_scroll setHasVerticalScroller:YES];
     [_scroll setAutohidesScrollers:YES];
     [_scroll setBorderType:NSNoBorder];
-    _browser = [[ArgosBrowserView alloc] initWithFrame:NSMakeRect(0, 0, 100, 100)];
+    _browser = [[FilesBrowserView alloc] initWithFrame:NSMakeRect(0, 0, 100, 100)];
     _browser.delegate = self;
     [_scroll setDocumentView:_browser];
     _columnScroll = [[NSScrollView alloc] initWithFrame:NSMakeRect(0, 0, 100, 100)];
@@ -105,7 +105,7 @@ static NSTextField *label(CGFloat size, BOOL bold)
     [_columnScroll setHasHorizontalScroller:YES];
     [_columnScroll setAutohidesScrollers:YES];
     [_columnScroll setBorderType:NSNoBorder];
-    _columns = [[ArgosColumnView alloc] initWithFrame:NSMakeRect(0, 0, 100, 100)];
+    _columns = [[FilesColumnView alloc] initWithFrame:NSMakeRect(0, 0, 100, 100)];
     _columns.delegate = self;
     [_columnScroll setDocumentView:_columns];
     [_columnScroll setHidden:YES];
@@ -129,9 +129,9 @@ static NSTextField *label(CGFloat size, BOOL bold)
     return _folder;
 }
 
-- (ArgosItem *)selectedItem
+- (FilesItem *)selectedItem
 {
-    return _browser.mode == ArgosViewModeColumns ? _columns.selectedItem : _browser.selectedItem;
+    return _browser.mode == FilesViewModeColumns ? _columns.selectedItem : _browser.selectedItem;
 }
 
 - (void)layout
@@ -160,7 +160,7 @@ static NSTextField *label(CGFloat size, BOOL bold)
 - (void)goToFolder:(NSURL *)folder remember:(BOOL)remember
 {
     NSError *error = nil;
-    NSArray *items = [ArgosItem itemsInFolder:folder error:&error];
+    NSArray *items = [FilesItem itemsInFolder:folder error:&error];
 
     if (items == nil) {
         NSBeep();
@@ -171,7 +171,7 @@ static NSTextField *label(CGFloat size, BOOL bold)
         [_forward removeAllObjects];
     }
     _browser.items = items;
-    if (_browser.mode == ArgosViewModeColumns)
+    if (_browser.mode == FilesViewModeColumns)
         [_columns showRootFolder:folder];
     [self showFolder:folder];
 }
@@ -197,7 +197,7 @@ static NSTextField *label(CGFloat size, BOOL bold)
 
 - (void)selectItemNamed:(NSString *)name
 {
-    if (_browser.mode == ArgosViewModeColumns)
+    if (_browser.mode == FilesViewModeColumns)
         [_columns selectItemNamed:name];
     else
         [_browser selectItemNamed:name];
@@ -210,7 +210,7 @@ static NSTextField *label(CGFloat size, BOOL bold)
 static void folderEvents(ConstFSEventStreamRef stream, void *info, size_t count, void *paths,
     const FSEventStreamEventFlags flags[], const FSEventStreamEventId ids[])
 {
-    ArgosWindowController *self = (__bridge ArgosWindowController *)info;
+    FilesWindowController *self = (__bridge FilesWindowController *)info;
     char resolved[PATH_MAX];
     const char *folder = realpath([[self->_folder path] fileSystemRepresentation], resolved);
 
@@ -236,7 +236,7 @@ static void folderEvents(ConstFSEventStreamRef stream, void *info, size_t count,
         _watch = NULL;
     }
     if (_watchQueue == nil)
-        _watchQueue = dispatch_queue_create("org.minkar.argos.folder", NULL);
+        _watchQueue = dispatch_queue_create("org.minkar.Files.folder", NULL);
     FSEventStreamContext context = { 0, (__bridge void *)self, NULL, NULL, NULL };
     _watch = FSEventStreamCreate(NULL, folderEvents, &context, (__bridge CFArrayRef)@[ [_folder path] ],
                                  kFSEventStreamEventIdSinceNow, 0.3, kFSEventStreamCreateFlagNone);
@@ -253,9 +253,9 @@ static void folderEvents(ConstFSEventStreamRef stream, void *info, size_t count,
 - (void)folderChanged
 {
     NSString *selected = [_browser.selectedItem.URL lastPathComponent];
-    NSArray *items = [ArgosItem itemsInFolder:_folder error:NULL];
+    NSArray *items = [FilesItem itemsInFolder:_folder error:NULL];
 
-    if (_browser.mode == ArgosViewModeColumns) {
+    if (_browser.mode == FilesViewModeColumns) {
         /* Columns read again; a folder gone takes its columns with it. */
         [_columns reload];
         os_log_info(OS_LOG_DEFAULT, "reload %{public}s", [[_folder path] fileSystemRepresentation]);
@@ -291,20 +291,20 @@ static void folderEvents(ConstFSEventStreamRef stream, void *info, size_t count,
 {
     [_backButton setEnabled:[_back count] > 0];
     [_forwardButton setEnabled:[_forward count] > 0];
-    [_iconsButton setState:_browser.mode == ArgosViewModeIcons ? NSOnState : NSOffState];
-    [_listButton setState:_browser.mode == ArgosViewModeList ? NSOnState : NSOffState];
-    [_columnsButton setState:_browser.mode == ArgosViewModeColumns ? NSOnState : NSOffState];
+    [_iconsButton setState:_browser.mode == FilesViewModeIcons ? NSOnState : NSOffState];
+    [_listButton setState:_browser.mode == FilesViewModeList ? NSOnState : NSOffState];
+    [_columnsButton setState:_browser.mode == FilesViewModeColumns ? NSOnState : NSOffState];
 }
 
 - (void)updateStatus
 {
-    NSUInteger count = _browser.mode == ArgosViewModeColumns ? _columns.deepestItemCount : [_browser.items count];
+    NSUInteger count = _browser.mode == FilesViewModeColumns ? _columns.deepestItemCount : [_browser.items count];
     struct statfs fs;
     NSString *available = @"";
 
     if (statfs([[_folder path] fileSystemRepresentation], &fs) == 0)
         available = [NSString stringWithFormat:NSLocalizedString(@", %@ available", nil),
-                     ArgosSizeString((unsigned long long)fs.f_bavail * fs.f_bsize)];
+                     FilesSizeString((unsigned long long)fs.f_bavail * fs.f_bsize)];
     NSString *items = count == 1 ? NSLocalizedString(@"1 item", nil) :
         [NSString stringWithFormat:NSLocalizedString(@"%lu items", nil), (unsigned long)count];
     [_status setStringValue:[items stringByAppendingString:available]];
@@ -336,7 +336,7 @@ static void folderEvents(ConstFSEventStreamRef stream, void *info, size_t count,
         return;
     NSString *child = [_folder lastPathComponent];
     [self goToFolder:[_folder URLByDeletingLastPathComponent]];
-    if (_browser.mode == ArgosViewModeColumns)
+    if (_browser.mode == FilesViewModeColumns)
         [_columns selectItemNamed:child];
     else
         [_browser selectItemNamed:child];
@@ -348,42 +348,42 @@ static void folderEvents(ConstFSEventStreamRef stream, void *info, size_t count,
         [self openItem:self.selectedItem];
 }
 
-- (void)setMode:(ArgosViewMode)mode
+- (void)setMode:(FilesViewMode)mode
 {
-    BOOL columns = mode == ArgosViewModeColumns;
+    BOOL columns = mode == FilesViewModeColumns;
 
-    if (columns && _browser.mode != ArgosViewModeColumns)
+    if (columns && _browser.mode != FilesViewModeColumns)
         [_columns showRootFolder:_folder];
     _browser.mode = mode;
     [_scroll setHidden:columns];
     [_columnScroll setHidden:!columns];
     [_columns relayout];
     [_window makeFirstResponder:columns ? (NSView *)_columns : (NSView *)_browser];
-    os_log_info(OS_LOG_DEFAULT, "view %{public}s", columns ? "columns" : mode == ArgosViewModeList ? "list" : "icons");
+    os_log_info(OS_LOG_DEFAULT, "view %{public}s", columns ? "columns" : mode == FilesViewModeList ? "list" : "icons");
     [self updateButtons];
     [self updateStatus];
 }
 
 - (IBAction)showAsIcons:(id)sender
 {
-    [self setMode:ArgosViewModeIcons];
+    [self setMode:FilesViewModeIcons];
 }
 
 - (IBAction)showAsList:(id)sender
 {
-    [self setMode:ArgosViewModeList];
+    [self setMode:FilesViewModeList];
 }
 
 - (IBAction)showAsColumns:(id)sender
 {
-    [self setMode:ArgosViewModeColumns];
+    [self setMode:FilesViewModeColumns];
 }
 
 /* Folders here; applications and documents with NSWorkspace. */
-- (void)openItem:(ArgosItem *)item
+- (void)openItem:(FilesItem *)item
 {
     os_log_info(OS_LOG_DEFAULT, "open %{public}s", [[item.URL path] fileSystemRepresentation]);
-    if (item.isFolder && _browser.mode == ArgosViewModeColumns) {
+    if (item.isFolder && _browser.mode == FilesViewModeColumns) {
         /* Its column is already shown, next to it. */
         [_window makeFirstResponder:_columns];
     } else if (item.isFolder)
@@ -394,22 +394,22 @@ static void folderEvents(ConstFSEventStreamRef stream, void *info, size_t count,
 
 /* -- Delegates -- */
 
-- (void)browserView:(ArgosBrowserView *)view openItem:(ArgosItem *)item
+- (void)browserView:(FilesBrowserView *)view openItem:(FilesItem *)item
 {
     [self openItem:item];
 }
 
-- (void)browserViewSelectionChanged:(ArgosBrowserView *)view
+- (void)browserViewSelectionChanged:(FilesBrowserView *)view
 {
 }
 
-- (void)columnView:(ArgosColumnView *)view openItem:(ArgosItem *)item
+- (void)columnView:(FilesColumnView *)view openItem:(FilesItem *)item
 {
     [self openItem:item];
 }
 
 /* A folder chosen in the columns: the window's folder, kept in Back. */
-- (void)columnView:(ArgosColumnView *)view showsFolder:(NSURL *)folder
+- (void)columnView:(FilesColumnView *)view showsFolder:(NSURL *)folder
 {
     if (_folder != nil && ![_folder isEqual:folder]) {
         [_back addObject:_folder];
@@ -418,7 +418,7 @@ static void folderEvents(ConstFSEventStreamRef stream, void *info, size_t count,
     [self showFolder:folder];
 }
 
-- (void)sidebarView:(ArgosSidebarView *)view chooseURL:(NSURL *)url
+- (void)sidebarView:(FilesSidebarView *)view chooseURL:(NSURL *)url
 {
     [self goToFolder:url];
 }
@@ -430,7 +430,7 @@ static void folderEvents(ConstFSEventStreamRef stream, void *info, size_t count,
 
 @end
 
-@implementation ArgosContentView
+@implementation FilesContentView
 
 - (void)drawRect:(NSRect)dirty
 {

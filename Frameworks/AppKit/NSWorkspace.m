@@ -199,14 +199,14 @@ static CFArrayRef copyCFURLs(NSArray *urls) {
    return status==noErr;
 }
 
-/* Argos shows the file selected (the folder alone with no file). */
+/* The file manager shows the file selected (the folder alone with no file). */
 -(BOOL)selectFile:(NSString *)path inFileViewerRootedAtPath:(NSString *)rootedAtPath {
    NSString *item=[path length] ? path : rootedAtPath;
 
    if([item length]==0)
       return NO;
    CFArrayRef items=copyCFURLs([NSArray arrayWithObject:[NSURL fileURLWithPath:item]]);
-   OSStatus status=LSRevealInArgos(items);
+   OSStatus status=LSRevealInFiles(items);
    CFRelease(items);
    return status==noErr;
 }
@@ -214,7 +214,7 @@ static CFArrayRef copyCFURLs(NSArray *urls) {
 -(void)activateFileViewerSelectingURLs:(NSArray *)fileURLs {
    if([fileURLs count]>0) {
       CFArrayRef items=copyCFURLs(fileURLs);
-      LSRevealInArgos(items);
+      LSRevealInFiles(items);
       CFRelease(items);
    }
 }

@@ -30,11 +30,11 @@ SUBDIR += logd
 # The file system's events for FSEvents (Atlas.md, K0).
 SUBDIR += fseventsd
 # The desktop session apps loginwindow starts (Phase 5): the Dock and
-# the desktop (Atlas.md, D1), Argos (K1), and the Menu Extras
+# the desktop (Atlas.md, D1), Files, the file manager (K1), and the Menu Extras
 # (Atlas.md, MB1).
-SUBDIR += Dock Argos SystemUIServer
-# Alcor, the text editor (opens plain text through LaunchServices).
-SUBDIR += Alcor
+SUBDIR += Dock Files SystemUIServer
+# Text Editor (opens plain text through LaunchServices).
+SUBDIR += TextEditor
 # System Preferences and its panes (Phase 5, item 6).
 SUBDIR += SystemPreferences SystemPreferences/Panes/Displays SystemPreferences/Panes/Dock \
 	SystemPreferences/Panes/DateTime SystemPreferences/Panes/Keyboard SystemPreferences/Panes/Network

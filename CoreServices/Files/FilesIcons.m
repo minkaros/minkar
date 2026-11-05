@@ -3,10 +3,10 @@
  * Copyright (c) 2026 The Minkar contributors
  * Part of Minkar.
  *
- * Argos's generic icons, drawn once at 128 points and scaled when drawn.
+ * The file manager's generic icons, drawn once at 128 points and scaled when drawn.
  */
 
-#import "ArgosIcons.h"
+#import "FilesIcons.h"
 
 static NSImage *drawnIcon(void (^draw)(NSRect bounds))
 {
@@ -18,7 +18,7 @@ static NSImage *drawnIcon(void (^draw)(NSRect bounds))
     return image;
 }
 
-NSImage *ArgosFolderIcon(void)
+NSImage *FilesFolderIcon(void)
 {
     static NSImage *icon;
 
@@ -37,7 +37,7 @@ NSImage *ArgosFolderIcon(void)
     return icon;
 }
 
-NSImage *ArgosDocumentIcon(void)
+NSImage *FilesDocumentIcon(void)
 {
     static NSImage *icon;
 

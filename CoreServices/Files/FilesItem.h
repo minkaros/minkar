@@ -9,7 +9,7 @@
 NS_ASSUME_NONNULL_BEGIN
 
 /* One entry of a folder, as plain data. */
-@interface ArgosItem : NSObject
+@interface FilesItem : NSObject
 @property (nonatomic, readonly, copy) NSURL *URL;
 @property (nonatomic, readonly, copy) NSString *name;
 @property (nonatomic, readonly) BOOL isFolder;       /* a folder browsed into */
@@ -21,13 +21,13 @@ NS_ASSUME_NONNULL_BEGIN
 
 - (instancetype)initWithURL:(NSURL *)url;
 /* A folder's entries, folders first then by name; hidden ones left out. */
-+ (NSArray<ArgosItem *> *)itemsInFolder:(NSURL *)folder error:(NSError **)error;
++ (NSArray<FilesItem *> *)itemsInFolder:(NSURL *)folder error:(NSError **)error;
 @end
 
-/* The locale of the language Argos's texts are shown in (dates). */
-NSLocale *ArgosDisplayLocale(void);
+/* The locale of the language the file manager's texts are shown in (dates). */
+NSLocale *FilesDisplayLocale(void);
 
 /* "12 KB", "1.4 MB": sizes in the reference platform's style (1000-based). */
-NSString *ArgosSizeString(unsigned long long size);
+NSString *FilesSizeString(unsigned long long size);
 
 NS_ASSUME_NONNULL_END

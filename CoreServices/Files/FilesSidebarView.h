@@ -8,17 +8,17 @@
 
 NS_ASSUME_NONNULL_BEGIN
 
-@class ArgosSidebarView;
+@class FilesSidebarView;
 
-@protocol ArgosSidebarViewDelegate <NSObject>
-- (void)sidebarView:(ArgosSidebarView *)view chooseURL:(NSURL *)url;
+@protocol FilesSidebarViewDelegate <NSObject>
+- (void)sidebarView:(FilesSidebarView *)view chooseURL:(NSURL *)url;
 @end
 
 /* The sidebar: Favorites (Applications, Desktop, Documents, Downloads, the
    home folder) and Locations (the system volume), as on the reference
    platform. The folder shown is marked. */
-@interface ArgosSidebarView : NSView
-@property (nonatomic, weak, nullable) id<ArgosSidebarViewDelegate> delegate;
+@interface FilesSidebarView : NSView
+@property (nonatomic, weak, nullable) id<FilesSidebarViewDelegate> delegate;
 @property (nonatomic, copy, nullable) NSURL *currentURL;
 @end
 

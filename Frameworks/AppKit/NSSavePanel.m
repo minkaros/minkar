@@ -23,7 +23,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
  * name, where it goes (the folder given, the usual ones and the
  * computer), Cancel and Save. Return saves, Escape cancels; a file that
  * exists is replaced only when the user says so. Atlas's provisional
- * look; folders are browsed in Argos's way later.
+ * look; folders are browsed as in the file manager later.
  */
 static NSString *panelText(NSString *english) {
    return NSLocalizedStringFromTableInBundle(english, nil, [NSBundle bundleForClass:[NSSavePanel class]], nil);

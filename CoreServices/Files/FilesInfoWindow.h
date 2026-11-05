@@ -4,14 +4,14 @@
  * Part of Minkar.
  */
 
-#import "ArgosItem.h"
+#import "FilesItem.h"
 
 NS_ASSUME_NONNULL_BEGIN
 
 /* Get Info: a window with an item's icon, name, kind, size, place and
    dates (Atlas.md, K1: basic Get Info). One per item. */
-@interface ArgosInfoWindow : NSWindow
-+ (void)showForItem:(ArgosItem *)item;
+@interface FilesInfoWindow : NSWindow
++ (void)showForItem:(FilesItem *)item;
 @end
 
 NS_ASSUME_NONNULL_END

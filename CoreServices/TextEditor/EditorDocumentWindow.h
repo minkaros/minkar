@@ -8,18 +8,18 @@
 
 NS_ASSUME_NONNULL_BEGIN
 
-@class AlcorDocumentWindow;
+@class EditorDocumentWindow;
 
-@protocol AlcorDocumentWindowDelegate <NSObject>
-- (void)documentWindowDidClose:(AlcorDocumentWindow *)document;
+@protocol EditorDocumentWindowDelegate <NSObject>
+- (void)documentWindowDidClose:(EditorDocumentWindow *)document;
 @end
 
 /* One document: a text file (or a new one) in a window. */
-@interface AlcorDocumentWindow : NSObject
+@interface EditorDocumentWindow : NSObject
 @property (nonatomic, readonly) NSWindow *window;
 @property (nonatomic, readonly, nullable, copy) NSURL *fileURL;
 @property (nonatomic, readonly, getter=isEdited) BOOL edited;
-@property (nonatomic, weak, nullable) id<AlcorDocumentWindowDelegate> delegate;
+@property (nonatomic, weak, nullable) id<EditorDocumentWindowDelegate> delegate;
 
 /* A new, untitled document (numbered). */
 - (instancetype)initUntitled:(NSUInteger)number;

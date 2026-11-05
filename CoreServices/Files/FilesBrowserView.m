@@ -3,13 +3,13 @@
  * Copyright (c) 2026 The Minkar contributors
  * Part of Minkar.
  *
- * Argos's browser: icons in a grid (as the reference platform's icon view)
+ * The file manager's browser: icons in a grid (as the reference platform's icon view)
  * or rows with Name, Date Modified, Size and Kind (its list view). A click
  * selects, a double click opens, the arrow keys move the selection,
  * Command-Down opens. Atlas's provisional look.
  */
 
-#import "ArgosBrowserView.h"
+#import "FilesBrowserView.h"
 
 static const CGFloat kIconCellWidth = 104, kIconCellHeight = 96, kIconSize = 56;
 static const CGFloat kRowHeight = 22, kHeaderHeight = 24;
@@ -19,7 +19,7 @@ static NSColor *selectionColor(void)
     return [NSColor colorWithCalibratedRed:0.25 green:0.50 blue:0.85 alpha:1];
 }
 
-@implementation ArgosBrowserView {
+@implementation FilesBrowserView {
     NSInteger _selected;
     NSDateFormatter *_dateFormatter;
 }
@@ -30,7 +30,7 @@ static NSColor *selectionColor(void)
         _selected = -1;
         _items = @[];
         _dateFormatter = [[NSDateFormatter alloc] init];
-        [_dateFormatter setLocale:ArgosDisplayLocale()];
+        [_dateFormatter setLocale:FilesDisplayLocale()];
         [_dateFormatter setDateFormat:NSLocalizedString(@"d MMM yyyy 'at' HH:mm", @"Date Modified column")];
     }
     return self;
@@ -51,7 +51,7 @@ static NSColor *selectionColor(void)
     return YES;
 }
 
-- (void)setItems:(NSArray<ArgosItem *> *)items
+- (void)setItems:(NSArray<FilesItem *> *)items
 {
     _items = [items copy];
     _selected = -1;
@@ -59,13 +59,13 @@ static NSColor *selectionColor(void)
     [self.delegate browserViewSelectionChanged:self];
 }
 
-- (void)setMode:(ArgosViewMode)mode
+- (void)setMode:(FilesViewMode)mode
 {
     _mode = mode;
     [self relayout];
 }
 
-- (ArgosItem *)selectedItem
+- (FilesItem *)selectedItem
 {
     return _selected >= 0 && (NSUInteger)_selected < [_items count] ? _items[(NSUInteger)_selected] : nil;
 }
@@ -96,7 +96,7 @@ static NSColor *selectionColor(void)
     CGFloat width = [self availableWidth], height;
     NSUInteger count = [_items count];
 
-    if (_mode == ArgosViewModeIcons)
+    if (_mode == FilesViewModeIcons)
         height = ceil((double)count / [self columns]) * kIconCellHeight + 12;
     else
         height = kHeaderHeight + count * kRowHeight;
@@ -109,7 +109,7 @@ static NSColor *selectionColor(void)
 
 - (NSRect)rectForIndex:(NSUInteger)i
 {
-    if (_mode == ArgosViewModeIcons) {
+    if (_mode == FilesViewModeIcons) {
         NSUInteger columns = [self columns];
         CGFloat margin = floor(([self availableWidth] - columns * kIconCellWidth) / 2);
         return NSMakeRect(margin + (i % columns) * kIconCellWidth, 6 + (i / columns) * kIconCellHeight,
@@ -165,7 +165,7 @@ static void drawText(NSString *text, NSRect rect, NSDictionary *attributes)
     [[NSColor whiteColor] set];
     NSRectFill(dirty);
 
-    if (_mode == ArgosViewModeList) {
+    if (_mode == FilesViewModeList) {
         CGFloat name, date, size, kind;
         [self columnsName:&name date:&date size:&size kind:&kind];
         NSDictionary *header = @{ NSFontAttributeName: [NSFont boldSystemFontOfSize:11],
@@ -183,7 +183,7 @@ static void drawText(NSString *text, NSRect rect, NSDictionary *attributes)
             NSRect row = [self rectForIndex:i];
             if (!NSIntersectsRect(row, dirty))
                 continue;
-            ArgosItem *item = _items[i];
+            FilesItem *item = _items[i];
             BOOL isSelected = (NSInteger)i == _selected;
             if (isSelected) {
                 [selectionColor() set];
@@ -198,7 +198,7 @@ static void drawText(NSString *text, NSRect rect, NSDictionary *attributes)
             drawText(item.name, NSMakeRect(name, NSMinY(row), date - name - 8, kRowHeight), text);
             drawText(item.modified ? [_dateFormatter stringFromDate:item.modified] : @"--",
                      NSMakeRect(date, NSMinY(row), size - date - 8, kRowHeight), dim);
-            drawText(item.isFolder || item.isApplication ? @"--" : ArgosSizeString(item.size),
+            drawText(item.isFolder || item.isApplication ? @"--" : FilesSizeString(item.size),
                      NSMakeRect(size, NSMinY(row), kind - size - 8, kRowHeight), dim);
             drawText(item.kind, NSMakeRect(kind, NSMinY(row), NSWidth(row) - kind - 8, kRowHeight), dim);
         }
@@ -209,7 +209,7 @@ static void drawText(NSString *text, NSRect rect, NSDictionary *attributes)
         NSRect cell = [self rectForIndex:i];
         if (!NSIntersectsRect(cell, dirty))
             continue;
-        ArgosItem *item = _items[i];
+        FilesItem *item = _items[i];
         BOOL isSelected = (NSInteger)i == _selected;
         NSRect icon = NSMakeRect(NSMidX(cell) - kIconSize / 2, NSMinY(cell) + 6, kIconSize, kIconSize);
         if (isSelected) {
@@ -257,7 +257,7 @@ static void drawText(NSString *text, NSRect rect, NSDictionary *attributes)
 {
     NSString *chars = [event charactersIgnoringModifiers];
     unichar c = [chars length] ? [chars characterAtIndex:0] : 0;
-    NSInteger count = (NSInteger)[_items count], step = _mode == ArgosViewModeIcons ? (NSInteger)[self columns] : 1;
+    NSInteger count = (NSInteger)[_items count], step = _mode == FilesViewModeIcons ? (NSInteger)[self columns] : 1;
     NSInteger next = _selected;
 
     if (count == 0)
@@ -279,12 +279,12 @@ static void drawText(NSString *text, NSRect rect, NSDictionary *attributes)
         next = _selected < 0 ? 0 : MAX(_selected - step, 0);
         break;
     case NSRightArrowFunctionKey:
-        if (_mode != ArgosViewModeIcons)
+        if (_mode != FilesViewModeIcons)
             return;
         next = _selected < 0 ? 0 : MIN(_selected + 1, count - 1);
         break;
     case NSLeftArrowFunctionKey:
-        if (_mode != ArgosViewModeIcons)
+        if (_mode != FilesViewModeIcons)
             return;
         next = _selected < 0 ? 0 : MAX(_selected - 1, 0);
         break;

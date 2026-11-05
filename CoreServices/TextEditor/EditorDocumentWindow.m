@@ -3,19 +3,19 @@
  * Copyright (c) 2026 The Minkar contributors
  * Part of Minkar.
  *
- * Alcor's document window: the text in a scrolling text view, the file's
+ * The text editor's document window: the text in a scrolling text view, the file's
  * name as the title (with a mark while there are unsaved changes), saving
  * as UTF-8 in place, and a question before unsaved changes are lost.
  * Atlas's provisional look.
  */
 
-#import "AlcorDocumentWindow.h"
+#import "EditorDocumentWindow.h"
 #include <os/log.h>
 
-@interface AlcorDocumentWindow () <NSTextViewDelegate, NSWindowDelegate>
+@interface EditorDocumentWindow () <NSTextViewDelegate, NSWindowDelegate>
 @end
 
-@implementation AlcorDocumentWindow {
+@implementation EditorDocumentWindow {
     NSWindow *_window;
     NSTextView *_text;
     NSURL *_fileURL;

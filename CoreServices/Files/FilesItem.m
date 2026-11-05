@@ -3,18 +3,18 @@
  * Copyright (c) 2026 The Minkar contributors
  * Part of Minkar.
  *
- * Argos's items: a folder's entries read with NSFileManager.
+ * The file manager's items: a folder's entries read with NSFileManager.
  */
 
-#import "ArgosItem.h"
-#import "ArgosIcons.h"
+#import "FilesItem.h"
+#import "FilesIcons.h"
 
-NSLocale *ArgosDisplayLocale(void)
+NSLocale *FilesDisplayLocale(void)
 {
     return [NSLocale localeWithLocaleIdentifier:[[[NSBundle mainBundle] preferredLocalizations] firstObject]];
 }
 
-NSString *ArgosSizeString(unsigned long long size)
+NSString *FilesSizeString(unsigned long long size)
 {
     if (size < 1000)
         return [NSString stringWithFormat:@"%llu bytes", size];
@@ -29,7 +29,7 @@ NSString *ArgosSizeString(unsigned long long size)
     return [NSString stringWithFormat:value < 10 ? @"%.1f %@" : @"%.0f %@", value, units[unit]];
 }
 
-@implementation ArgosItem
+@implementation FilesItem
 
 - (instancetype)initWithURL:(NSURL *)url
 {
@@ -56,16 +56,16 @@ NSString *ArgosSizeString(unsigned long long size)
         _icon = [[NSWorkspace sharedWorkspace] iconForFile:[url path]];
     } else if (_isFolder) {
         _kind = NSLocalizedString(@"Folder", nil);
-        _icon = ArgosFolderIcon();
+        _icon = FilesFolderIcon();
     } else {
         NSString *extension = [[url pathExtension] uppercaseString];
         _kind = [extension length] ? [NSString stringWithFormat:NSLocalizedString(@"%@ File", nil), extension] : NSLocalizedString(@"Document", nil);
-        _icon = ArgosDocumentIcon();
+        _icon = FilesDocumentIcon();
     }
     return self;
 }
 
-+ (NSArray<ArgosItem *> *)itemsInFolder:(NSURL *)folder error:(NSError **)error
++ (NSArray<FilesItem *> *)itemsInFolder:(NSURL *)folder error:(NSError **)error
 {
     NSArray *names = [[NSFileManager defaultManager] contentsOfDirectoryAtPath:[folder path] error:error];
     NSMutableArray *items = [NSMutableArray array];
@@ -75,9 +75,9 @@ NSString *ArgosSizeString(unsigned long long size)
     for (NSString *name in names) {
         if ([name hasPrefix:@"."])
             continue;
-        [items addObject:[[ArgosItem alloc] initWithURL:[folder URLByAppendingPathComponent:name]]];
+        [items addObject:[[FilesItem alloc] initWithURL:[folder URLByAppendingPathComponent:name]]];
     }
-    [items sortUsingComparator:^NSComparisonResult(ArgosItem *a, ArgosItem *b) {
+    [items sortUsingComparator:^NSComparisonResult(FilesItem *a, FilesItem *b) {
         if (a.isFolder != b.isFolder)
             return a.isFolder ? NSOrderedAscending : NSOrderedDescending;
         return [a.name localizedStandardCompare:b.name];

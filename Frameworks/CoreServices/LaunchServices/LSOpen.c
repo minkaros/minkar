@@ -26,7 +26,7 @@
 
 extern char **environ;
 
-#define ARGOS_ID	"org.minkar.argos"
+#define FILES_ID	"org.minkar.Files"
 
 /* -- What a file is -- */
 
@@ -424,20 +424,27 @@ LSOpenCFURLRef(CFURLRef inURL, CFURLRef *outLaunchedURL)
 }
 
 OSStatus
-LSRevealInArgos(CFArrayRef inItemURLs)
+LSRevealInFiles(CFArrayRef inItemURLs)
 {
-	LSSessionPath argos;
+	LSSessionPath files;
 
 	if (inItemURLs == NULL || CFArrayGetCount(inItemURLs) == 0)
 		return kLSDataErr;
-	OSStatus status = statusFor(LSSessionCopyAppForBundleIdentifier(ARGOS_ID, &argos));
+	OSStatus status = statusFor(LSSessionCopyAppForBundleIdentifier(FILES_ID, &files));
 	if (status != noErr)
 		return status;
-	return openWith(argos.path, inItemURLs, kLSSessionOpenReveal, kLSLaunchDefaults, NULL);
+	return openWith(files.path, inItemURLs, kLSSessionOpenReveal, kLSLaunchDefaults, NULL);
+}
+
+/* The file manager's former names, kept for one release. */
+OSStatus
+LSRevealInArgos(CFArrayRef inItemURLs)
+{
+	return LSRevealInFiles(inItemURLs);
 }
 
 OSStatus
 LSRevealInFiler(CFArrayRef inItemURLs)
 {
-	return LSRevealInArgos(inItemURLs);
+	return LSRevealInFiles(inItemURLs);
 }

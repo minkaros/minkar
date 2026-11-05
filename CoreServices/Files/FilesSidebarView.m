@@ -3,15 +3,15 @@
  * Copyright (c) 2026 The Minkar contributors
  * Part of Minkar.
  *
- * Argos's sidebar. Atlas's provisional look.
+ * The file manager's sidebar. Atlas's provisional look.
  */
 
-#import "ArgosSidebarView.h"
-#import "ArgosIcons.h"
+#import "FilesSidebarView.h"
+#import "FilesIcons.h"
 
 static const CGFloat kRow = 24, kSection = 26;
 
-@implementation ArgosSidebarView {
+@implementation FilesSidebarView {
     NSArray<NSDictionary *> *_rows;   /* title, url, or section */
 }
 
@@ -78,7 +78,7 @@ static const CGFloat kRow = 24, kSection = 26;
             [[NSColor colorWithCalibratedWhite:0.82 alpha:1] setFill];
             [[NSBezierPath bezierPathWithRoundedRect:NSInsetRect(r, 8, 1) xRadius:5 yRadius:5] fill];
         }
-        [ArgosFolderIcon() drawInRect:NSMakeRect(16, NSMinY(r) + 4, 16, 16) fromRect:NSZeroRect
+        [FilesFolderIcon() drawInRect:NSMakeRect(16, NSMinY(r) + 4, 16, 16) fromRect:NSZeroRect
                             operation:NSCompositeSourceOver fraction:1 respectFlipped:YES hints:nil];
         [row[@"title"] drawAtPoint:NSMakePoint(38, NSMinY(r) + 4) withAttributes:plain];
     }

@@ -4,16 +4,16 @@
  * Part of Minkar.
  */
 
-#import "ArgosBrowserView.h"
+#import "FilesBrowserView.h"
 
 NS_ASSUME_NONNULL_BEGIN
 
 /* One browser window: a bar with Back, Forward, the folder's name and
    the view buttons; the sidebar; the folder's items; a status line. */
-@interface ArgosWindowController : NSObject
+@interface FilesWindowController : NSObject
 @property (nonatomic, readonly) NSWindow *window;
 @property (nonatomic, readonly) NSURL *folder;
-@property (nonatomic, readonly, nullable) ArgosItem *selectedItem;
+@property (nonatomic, readonly, nullable) FilesItem *selectedItem;
 - (instancetype)initWithFolder:(NSURL *)folder;
 - (void)goToFolder:(NSURL *)folder;
 /* Selects an item of the folder shown, in any view. */
