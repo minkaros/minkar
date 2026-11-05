@@ -269,6 +269,8 @@ From Phase 2 (2026-10-31):
 
 Left out: tools without a license or with an unclear one, and tools that use private API.
 
+*Progress (5 Nov 2026):* the gate runs (`bmake m3-tools`, then `bmake m3-check`: `Tests/M3` builds each tool and its tests without the package manager, `/usr/local/tests/m3/run.sh` runs them, `96f5f65249`). swift-argument-parser passes its five suites, 493 tests. What it needed: `NSTask`, `NSPipe` and `NSFileManager` as Swift reads them, a command-line tool's bundle (it was two directories up), regular expression templates, command-line values that are not property lists without a parse error (`f21472a91d`); character sets bridged to CF both ways (`13a6cebd3d`); the ISO 8601 calendar (`5694846076`); FileHandle's throwing API, and API 21's `FileHandle.bytes`, `lines` and URLSession's async loads (`89b9375fa7`). Local tests `swift` 81/0.
+
 ## Phase 4 — Graphics and WindowServer
 
 Goal: WindowServer draws AppKit windows and receives keyboard and mouse. In the VM the software path is enough; on physical machines the goal is GPU compositing, as the performance requirement demands it.
@@ -439,7 +441,7 @@ M0, M1 and M2 are met (M1 on 2026-11-01, with the Mac Pro 6,1 as PC 2), and Phas
 | M0 | Build, toolchain, CI | Met (CI green since `05fa75cb65`) |
 | M1 | Darwin boot | Met in QEMU, on PC 1 (SATA, NVMe, SMP) and on PC 2, a Mac Pro 6,1 (NVMe, 24 threads; 2026-11-01) |
 | M2 | Base userland | Met (`boottest GATE=M2`, 17 markers since 2026-11-01, with the code integrity check); Phase 2 closed on 2026-10-31 |
-| M3 | Frameworks and Swift | In progress: the Swift toolchain, runtime, overlays (Foundation included), Combine and XCTest are done; the gate's tool list is fixed |
+| M3 | Frameworks and Swift | In progress: the Swift toolchain, runtime, overlays (Foundation included), Combine and XCTest are done; gate M3 runs, 1 of 7 tools passes |
 | M4 | Graphics and WindowServer | Met in QEMU (`boottest GATE=M4`, 54 markers, 2026-11-02, `9d510ec6c2`): WS0 to WS4b done (the new core is the window server, the menus in each app with MB0, the minimal `loginwindow`; the legacy server removed). WS5 done too (IOSurface and virtio-gpu, 2026-11-02, `9a472063c1`; M4 passes on virtio-vga and on the standard VGA). Phase 4 goes on with the GPU (WS6) and on physical hardware |
 | M5 | Atlas desktop | Not started |
 | M6 (Minkar 19.6.0) | Apps and distribution, and the desktop complete for daily use (MB2–MB3, D2–D3, K2–K3) | Not started; `hdiutil attach` already mounts |

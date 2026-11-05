@@ -6,7 +6,7 @@ Esta página se genera desde [progress/status.toml](progress/status.toml) con
 [Progress.md](Progress.md).
 
 <!-- progress:summary:begin -->
-_Actualizado el 2026-11-05, devel `5e51bdc6ba`_
+_Actualizado el 2026-11-05, devel `96f5f65249`_
 
 | Plan | Avance |  | Ahora | Siguiente |
 | --- | --- | --- | --- | --- |
