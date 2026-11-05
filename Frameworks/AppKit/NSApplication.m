@@ -600,7 +600,7 @@ extern void _CGDisplayReconfigured(CGDirectDisplayID display, CGDisplayChangeSum
 }
 
 /* SHORTCUT(MB2): NSDocumentController keeps the recent items in the app's
-   preferences; LaunchServices' shared file lists come in MB2 (Menus.md). */
+   preferences; LaunchServices' shared file lists come in MB2 (Atlas.md). */
 - (void)addRecentItem:(NSURL *)url {
 }
 

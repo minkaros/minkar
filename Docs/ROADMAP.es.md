@@ -42,7 +42,7 @@ Minkar separa tres capas que en la plataforma de referencia van juntas. El kerne
 
 | Minkar | Entrega | Kernel (`uname -r`) | `ProductVersion` |
 | --- | --- | --- | --- |
-| 19.6.0 | API 19, escritorio Atlas completo para el uso diario (MB2–MB3, D2–D3, K2–K3) y DMG; gates funcionales M0–M6 en equipo físico | 19.6.0 | 10.15 |
+| 19.6.0 | API 19, escritorio Atlas completo para el uso diario (MB2–MB3, D2–D3, K2–K3, apps A0–A10) y DMG; gates funcionales M0–M6 en equipo físico | 19.6.0 | 10.15 |
 | 19.6.x | Correcciones, y MB4, D4 y K4; pueden traer partes de API 20 | 19.6.0 | 10.15 |
 | 20.0 | API 20 completa y probada | 19.6.0 | 11.0 |
 | 21.0 | API 21 completa y probada, más los gates de rendimiento | 19.6.0 | 12.0 |
@@ -269,7 +269,7 @@ Llegan de la Fase 2 (31 oct 2026):
 
 Fuera: herramientas sin licencia o con una dudosa, y las que usan API privada.
 
-*Avance (5 nov 2026):* el criterio se ejecuta (`bmake m3-tools` y después `bmake m3-check`: `Tests/M3` compila cada herramienta y sus tests sin el gestor de paquetes, `/usr/local/tests/m3/run.sh` los ejecuta, `96f5f65249`). swift-argument-parser pasa sus cinco suites, 493 tests. Lo que necesitó: `NSTask`, `NSPipe` y `NSFileManager` tal como los lee Swift, el bundle de una herramienta de línea de comandos (apuntaba dos directorios más arriba), plantillas de expresiones regulares, valores de la línea de comandos que no son listas de propiedades sin error de análisis (`f21472a91d`); conjuntos de caracteres con puente a CF en ambos sentidos (`13a6cebd3d`); el calendario ISO 8601 (`5694846076`); la API con errores de FileHandle, y de la API 21 `FileHandle.bytes`, `lines` y las cargas asíncronas de URLSession (`89b9375fa7`). Pruebas locales `swift` 81/0.
+*Avance (5 nov 2026):* el criterio se ejecuta (`bmake m3-tools` y después `bmake m3-check`: `Tests/M3` compila cada herramienta y sus tests sin el gestor de paquetes, `/usr/local/tests/m3/run.sh` los ejecuta, `96f5f65249`). swift-argument-parser pasa sus cinco suites, 493 tests. Lo que necesitó: `NSTask`, `NSPipe` y `NSFileManager` tal como los lee Swift, el bundle de una herramienta de línea de comandos (apuntaba dos directorios más arriba), plantillas de expresiones regulares, valores de la línea de comandos que no son listas de propiedades sin error de análisis (`f21472a91d`); conjuntos de caracteres con puente a CF en ambos sentidos (`13a6cebd3d`); el calendario ISO 8601 (`5694846076`); la API con errores de FileHandle, y de la API 21 `FileHandle.bytes`, `lines` y las cargas asíncronas de URLSession (`89b9375fa7`). Pruebas locales `swift` 81/0. Después pasan Rainbow (139 tests) y Files (66 tests) (`7d07cc60c5`): AppKit no se podía importar desde Swift, porque CoreVideo, que importan las cabeceras de QuartzCore, nunca se compilaba (`d3ee485fac`); NSFileManager no se podía subclasificar (sus operaciones estaban en una subclase privada que devolvía toda reserva), a su cabecera le faltaba `NSFileAttributeKey`, una URL de fichero relativa conservaba sus segmentos `.`, y se ignoraba `CFFIXED_USER_HOME` (`987a49fad0`). Pruebas locales `swift` 86/0.
 
 ## Fase 4 — Gráficos y WindowServer
 
@@ -348,13 +348,13 @@ El paso 1 se completó el 31 oct 2026 (`e2df542919`, `2aa9a1da6e`), y también l
 
 ## Fase 5 — Escritorio Atlas
 
-Objetivo: una sesión gráfica completa con el lenguaje visual Atlas, con login, barra de menús global, Dock, escritorio con iconos y preferencias. El orden sigue lo que el usuario ve al arrancar.
+Objetivo: una sesión gráfica completa con el lenguaje visual Atlas, con login, barra de menús global, Dock, escritorio con iconos y preferencias. El orden sigue lo que el usuario ve al arrancar. Plan del escritorio y sus apps: [Atlas.es.md](Atlas.es.md).
 
 1. **LoginWindow:** autenticación contra el servicio de usuarios de esta fase (Directory Services, más abajo) y arranque de la sesión (`LaunchAgents` del usuario).
-2. **Barra de menús y SystemUIServer:** el AppKit de cada app dibuja su propia barra de menús y sus menús; los status items son ventanas de sus apps; SystemUIServer aloja los Menu Extras. Plan: [Menus.es.md](Menus.es.md) (MB0 en WS4b, MB1 a MB4 aquí).
-3. **Menu Extras básicos:** volumen, pantallas, red, reloj, notificaciones. Cada uno como bundle cargable, no compilado dentro de SystemUIServer. Plan: [Menus.es.md](Menus.es.md) (MB1).
-4. **Dock:** lanzador, apps abiertas, minimizado y gestión del fondo de pantalla, sobre LaunchServices. Plan: [Dock-Argos.es.md](Dock-Argos.es.md) (D0–D4).
-5. **Argos:** app nueva en Cocoa puro. Navegación con LaunchServices, montaje vía DiskArbitration, iconos de escritorio, papelera y "Abrir con". Plan: [Dock-Argos.es.md](Dock-Argos.es.md) (K0–K4).
+2. **Barra de menús y SystemUIServer:** el AppKit de cada app dibuja su propia barra de menús y sus menús; los status items son ventanas de sus apps; SystemUIServer aloja los Menu Extras. Plan: [Atlas.es.md](Atlas.es.md), capítulo 3 (MB0 en WS4b, MB1 a MB4 aquí).
+3. **Menu Extras básicos:** volumen, pantallas, red, reloj, notificaciones. Cada uno como bundle cargable, no compilado dentro de SystemUIServer. Plan: [Atlas.es.md](Atlas.es.md), capítulo 3 (MB1).
+4. **Dock:** lanzador, apps abiertas, minimizado y gestión del fondo de pantalla, sobre LaunchServices. Plan: [Atlas.es.md](Atlas.es.md), capítulo 4 (D0–D4).
+5. **Argos:** app nueva en Cocoa puro. Navegación con LaunchServices, montaje vía DiskArbitration, iconos de escritorio, papelera y "Abrir con". Plan: [Atlas.es.md](Atlas.es.md), capítulo 4 (K0–K4).
 6. **System Preferences:** app contenedora + cargador de bundles `.prefPane` (`NSPreferencePane`). Paneles iniciales: Pantallas, Teclado, Usuarios, Red, Dock, Fecha y hora. *Parcial (4 nov 2026):* la app, `PreferencePanes.framework` y cinco paneles, Pantallas, Dock, Fecha y hora, Teclado y Red (`948e15445f`, `f5f26fc193`, `7c5f6cda8b`; prueba local `system-preferences` 12/0); Usuarios espera a Directory Services.
 7. **AppKit:** completar controles faltantes y dar a todo el sistema el lenguaje visual Atlas (diseño propio, sin recursos de terceros), priorizado por lo que usan Argos y System Preferences. *4 nov 2026:* un panel de guardar (`1e4869b895`); la fuente del sistema, Inter, es también la del editor de texto hasta elegir una de ancho fijo (por revisar). *5 nov 2026:* la fuente de ancho fijo es Agave (SIL OFL 1.1), descargada en una versión fijada e instalada sin cambios; `userFixedPitchFont` sigue a `NSFixedPitchFont` y Alcor muestra el texto plano con ella; las fuentes cuya familia lleva espacios se encuentran por su nombre PostScript (`642e6a1cda`), y los caracteres que cubre una fuente perdían el último de cada tramo, que el texto dibujaba entonces con otra fuente (`5e51bdc6ba`). Argos tiene un icono de prueba, no el definitivo (`2194ff5695`); las imágenes dibujadas a menos de la mitad de su tamaño se promedian en lugar de muestrearse (`f474cc75a0`). Prueba local `fixed-pitch` 14/0.
 
@@ -367,7 +367,7 @@ Comandos que llegan con esta fase (movidos desde la Fase 2):
 - [ ] Gestión de usuarios estilo Directory Services, para LoginWindow y el panel Usuarios (movida de la Fase 2 el 31 oct).
 - [ ] `say`, con un driver de audio y síntesis de voz.
 
-**Criterio de salida (M5):** desde el arranque se llega a una sesión gráfica, se abre una app desde el Dock, se navega con Argos y se cambia la resolución desde Preferencias, con el lenguaje visual de Atlas que necesita K1 ([Dock-Argos.es.md](Dock-Argos.es.md)).
+**Criterio de salida (M5):** desde el arranque se llega a una sesión gráfica, se abre una app desde el Dock, se navega con Argos y se cambia la resolución desde Preferencias, con el lenguaje visual de Atlas que necesita K1 ([Atlas.es.md](Atlas.es.md), capítulo 4).
 
 ## Fase 6 — Aplicaciones y distribución
 
@@ -381,12 +381,7 @@ Objetivo: instalar software arrastrando la app desde una imagen de disco a `/App
 
 **Aplicaciones**
 
-| App | Opción recomendada | Por qué | Dependencia crítica |
-| --- | --- | --- | --- |
-| Terminal | Escribir en Cocoa | Ejercita `NSTextView`, pty y fuentes | AppKit texto, CoreText |
-| TextEdit | Escribir en Cocoa | Ejercita documentos, RTF y Cocoa Text System | `NSDocument`, CoreText |
-| Navegador | Ladybird (BSD-2) | Ya tiene interfaz AppKit propia | Foundation de red, AppKit |
-| IDE | CodeEdit, a largo plazo | Depende de SwiftUI, excluido de las API 19–21 | SwiftUI |
+Las apps de uso diario se planifican en [Atlas.es.md](Atlas.es.md), capítulo 5: una base común (A0), y después Terminal, el editor de texto (Alcor), Monitor del sistema, Consola, Captura, Visor, Discos, Información del sistema, Calculadora y Archivos comprimidos (A1–A10), obligatorias para Minkar 19.6.0; Tipografías, Llavero, Medidor de color, Editor de scripts y Visor de ayuda en 19.6.x; el navegador (Ladybird) y un IDE a largo plazo.
 
 Riesgo a señalar: muchas apps Cocoa actuales usan SwiftUI, que no figura en el roadmap. Conviene registrarlo como decisión abierta en lugar de descubrirlo tarde.
 
@@ -399,7 +394,7 @@ Comandos que llegan con esta fase (movidos desde la Fase 2):
 
 Adelanto: `hdiutil attach` ya monta imágenes en `/Volumes` a través de DiskArbitration (30 oct 2026); falta leer el formato UDIF de los DMG.
 
-**Criterio de salida (M6):** se descarga un DMG, se monta, se copia la app a `/Applications` y corre; Terminal, TextEdit y el navegador se usan a diario en la propia máquina de desarrollo; y el escritorio Atlas está completo para el uso diario: MB2 y MB3 de [Menus.es.md](Menus.es.md), D2 y D3 y K2 y K3 de [Dock-Argos.es.md](Dock-Argos.es.md); MB4, D4 y K4 llegan en 19.6.x.
+**Criterio de salida (M6):** se descarga un DMG, se monta, se copia la app a `/Applications` y corre; y el escritorio Atlas está completo para el uso diario, tal como lo fija la sección 6 de [Atlas.es.md](Atlas.es.md): MB2 y MB3, D2 y D3, K2 y K3, y las apps esenciales A0–A10, usadas a diario en la propia máquina de desarrollo; MB4, D4, K4 y las demás apps llegan en 19.6.x.
 
 ## Fase 7 — Compatibilidad binaria y arm64
 
@@ -441,10 +436,10 @@ M0, M1 y M2 están cumplidos (M1 el 1 nov, con el Mac Pro 6,1 como PC 2) y la Fa
 | M0 | Build, toolchain, CI | Cumplido (CI verde desde `05fa75cb65`) |
 | M1 | Arranque Darwin | Cumplido en QEMU, en el PC 1 (SATA, NVMe, SMP) y en el PC 2, un Mac Pro 6,1 (NVMe, 24 hilos; 1 nov 2026) |
 | M2 | Userland base | Cumplido (`boottest GATE=M2`, 17 marcadores desde el 1 nov 2026, con la comprobación de integridad de código); Fase 2 cerrada el 31 oct |
-| M3 | Frameworks y Swift | En curso: toolchain, runtime, overlays de Swift (Foundation incluido), Combine y XCTest hechos; el criterio M3 se ejecuta, 1 de 7 herramientas pasa |
+| M3 | Frameworks y Swift | En curso: toolchain, runtime, overlays de Swift (Foundation incluido), Combine y XCTest hechos; el criterio M3 se ejecuta, pasan 2 de 7 herramientas (swift-argument-parser; Rainbow y Files) |
 | M4 | Gráficos y WindowServer | Cumplido en QEMU (`boottest GATE=M4`, 54 marcadores, 2 nov 2026, `9d510ec6c2`): WS0 a WS4b hechos (el núcleo nuevo es el servidor de ventanas, los menús en cada app con MB0, el `loginwindow` mínimo; el servidor anterior borrado). También WS5 (IOSurface y virtio-gpu, 2 nov 2026, `9a472063c1`; M4 pasa con virtio-vga y con la VGA estándar). La Fase 4 sigue con la GPU (WS6) y en hardware físico |
 | M5 | Escritorio Atlas | Sin empezar |
-| M6 (Minkar 19.6.0) | Apps y distribución, y el escritorio completo para el uso diario (MB2–MB3, D2–D3, K2–K3) | Sin empezar; `hdiutil attach` ya monta |
+| M6 (Minkar 19.6.0) | Apps y distribución, y el escritorio completo para el uso diario (MB2–MB3, D2–D3, K2–K3, apps A0–A10) | Sin empezar; `hdiutil attach` ya monta |
 | Minkar 21.0 | API 21 completa y rendimiento ≥ sistema de referencia en equipo físico | Sin empezar; depende del frente de GPU |
 | M7 | Compatibilidad binaria, arm64 | Después de Minkar 19.6.0 |
 

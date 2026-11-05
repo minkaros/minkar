@@ -27,7 +27,7 @@
  */
 
 /*
- * The menu bar (WindowServer plan, WS4b; Menus.md, MB0): as on the
+ * The menu bar (WindowServer plan, WS4b; Atlas.md, MB0): as on the
  * reference platform each app's AppKit draws its own, in a window at the
  * main menu level on every display, shown while the app is in front. It
  * holds the system menu (the Minkar mark) and the app's menus, the app

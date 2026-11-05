@@ -3,7 +3,7 @@
  * Copyright (c) 2026 The Minkar contributors
  * Part of Minkar.
  *
- * FSEvents' requests to fseventsd (Dock-Argos.md, K0). A client registers
+ * FSEvents' requests to fseventsd (Atlas.md, K0). A client registers
  * a stream (its port, its flags and the paths it watches, NUL-separated)
  * and gets the stream's number and the current event ID; fseventsd then
  * sends the port an FSEventsMessage (FSEventsMessage.h) per event.

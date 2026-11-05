@@ -3,7 +3,7 @@
  * Copyright (c) 2026 The Minkar contributors
  * Part of Minkar.
  *
- * Argos (Dock-Argos.md, K1): the file manager. Its menus have the
+ * Argos (Atlas.md, K1): the file manager. Its menus have the
  * reference platform's commands and keys: File (New Window, Open, Close
  * Window), View (as Icons, as List, as Columns), Go (Back, Forward, Enclosing Folder,
  * the usual folders).

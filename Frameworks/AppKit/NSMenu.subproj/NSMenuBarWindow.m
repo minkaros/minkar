@@ -52,7 +52,7 @@ static BOOL shown;
 static BOOL updating;	/* setting the bars up changes the main menu too */
 
 /*
- * The system menu, the same in every app (Menus.md, MB0): About This
+ * The system menu, the same in every app (Atlas.md, MB0): About This
  * Computer, and Restart, Shut Down and Log Out as requests to the minimal
  * loginwindow (WindowServer plan, section 10.3). The other items act from
  * MB3; until then they are listed, disabled.

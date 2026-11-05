@@ -33,7 +33,7 @@
 # "bmake progress" (Docs/CONTRIBUTING.md).
 
 updated = "2026-11-05"
-commit  = "96f5f65249"
+commit  = "7d07cc60c5"
 
 deps = [["ws", 555, "dock"], ["fw", 535, "argos"]]
 
@@ -144,8 +144,8 @@ stations = [
 id = "mb"
 name = "Menus"
 color = "purple"
-doc = "Menus.md"
-doc_es = "Menus.es.md"
+doc = "Atlas.md#3-menus"
+doc_es = "Atlas.es.md#3-menús"
 stations = [
   ["MB0", 650, "done"], ["MB1", 760, "partial"], ["MB2", 865, "todo"], ["MB3", 970, "todo"],
   ["MB4", 1025, "todo"],
@@ -155,8 +155,8 @@ stations = [
 id = "dock"
 name = "Dock"
 color = "orange"
-doc = "Dock-Argos.md"
-doc_es = "Dock-Argos.es.md"
+doc = "Atlas.md#4-dock-and-argos"
+doc_es = "Atlas.es.md#4-dock-y-argos"
 stations = [
   ["D0", 700, "done"], ["D1", 760, "done"], ["D2", 865, "partial"], ["D3", 970, "todo"],
   ["D4", 1025, "todo"],
@@ -166,8 +166,8 @@ stations = [
 id = "argos"
 name = "Argos"
 color = "teal"
-doc = "Dock-Argos.md"
-doc_es = "Dock-Argos.es.md"
+doc = "Atlas.md#4-dock-and-argos"
+doc_es = "Atlas.es.md#4-dock-y-argos"
 stations = [
   ["K0", 700, "partial"], ["K1", 760, "done"], ["K2", 865, "todo"], ["K3", 970, "todo"],
   ["K4", 1025, "todo"],

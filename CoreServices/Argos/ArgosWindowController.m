@@ -3,7 +3,7 @@
  * Copyright (c) 2026 The Minkar contributors
  * Part of Minkar.
  *
- * Argos's browser window (Dock-Argos.md, K1): navigation with history,
+ * Argos's browser window (Atlas.md, K1): navigation with history,
  * the sidebar and the browser, opening folders here and applications with
  * NSWorkspace; icons, a list or columns. Atlas's provisional look.
  */

@@ -2,7 +2,7 @@
 # Copyright (c) 2026 The Minkar contributors
 # Part of Minkar.
 #
-# FSEvents.framework (Dock-Argos.md, K0), inside CoreServices.framework as
+# FSEvents.framework (Atlas.md, K0), inside CoreServices.framework as
 # on the reference platform (CoreServices re-exports it): the client of
 # fseventsd (CoreServices/fseventsd), through fseventsd.defs.
 

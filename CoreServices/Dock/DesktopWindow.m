@@ -3,7 +3,7 @@
  * Copyright (c) 2026 The Minkar contributors
  * Part of Minkar.
  *
- * The desktop (Dock-Argos.md, D1): one window per display at the desktop
+ * The desktop (Atlas.md, D1): one window per display at the desktop
  * level, with the display's picture (NSWorkspace's desktop image API) over
  * its fill color. It takes no clicks: they reach whatever is below.
  */

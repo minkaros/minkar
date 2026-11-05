@@ -9,7 +9,7 @@
 NS_ASSUME_NONNULL_BEGIN
 
 /* Get Info: a window with an item's icon, name, kind, size, place and
-   dates (Dock-Argos.md, K1: basic Get Info). One per item. */
+   dates (Atlas.md, K1: basic Get Info). One per item. */
 @interface ArgosInfoWindow : NSWindow
 + (void)showForItem:(ArgosItem *)item;
 @end

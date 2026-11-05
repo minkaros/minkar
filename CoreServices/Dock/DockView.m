@@ -3,7 +3,7 @@
  * Copyright (c) 2026 The Minkar contributors
  * Part of Minkar.
  *
- * The Dock's view and window (Dock-Argos.md, D1 and D2): a translucent bar
+ * The Dock's view and window (Atlas.md, D1 and D2): a translucent bar
  * along the bottom, left or right edge of the main display with one tile
  * per app, a dot under the running ones and a separator before those not
  * kept. Pointing at a tile shows its name (and magnifies the tiles near it

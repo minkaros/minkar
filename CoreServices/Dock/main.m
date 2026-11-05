@@ -3,7 +3,7 @@
  * Copyright (c) 2026 The Minkar contributors
  * Part of Minkar.
  *
- * The Dock (Dock-Argos.md, D1): the desktop on every display and the Dock
+ * The Dock (Atlas.md, D1): the desktop on every display and the Dock
  * on the main one. An agent app (LSUIElement): no menu bar of its own.
  */
 

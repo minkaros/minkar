@@ -3,7 +3,7 @@
  * Copyright (c) 2026 The Minkar contributors
  * Part of Minkar.
  *
- * SystemUIServer (Menus.md, MB1): an agent app (LSUIElement) whose status
+ * SystemUIServer (Atlas.md, MB1): an agent app (LSUIElement) whose status
  * items are the Menu Extras, laid out by the window server at the right of
  * the menu bar.
  */

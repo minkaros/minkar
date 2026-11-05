@@ -2,7 +2,7 @@
 # Copyright (c) 2026 The Minkar contributors
 # Part of Minkar.
 #
-# fseventsd (Dock-Argos.md, K0): the file system's events, from the
+# fseventsd (Atlas.md, K0): the file system's events, from the
 # kernel's /dev/fsevents, for FSEvents' streams (fseventsd.defs in
 # Frameworks/CoreServices/FSEvents).
 

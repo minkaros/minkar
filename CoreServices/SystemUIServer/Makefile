@@ -2,7 +2,7 @@
 # Copyright (c) 2026 The Minkar contributors
 # Part of Minkar.
 #
-# SystemUIServer (Menus.md, MB1): the Menu Extras on the right of the menu
+# SystemUIServer (Atlas.md, MB1): the Menu Extras on the right of the menu
 # bar, as status items of this agent app. loginwindow starts it
 # (SessionApplications).
 #

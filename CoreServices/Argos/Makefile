@@ -2,7 +2,7 @@
 # Copyright (c) 2026 The Minkar contributors
 # Part of Minkar.
 #
-# Argos, the file manager (Dock-Argos.md, K1): windows that browse the file
+# Argos, the file manager (Atlas.md, K1): windows that browse the file
 # system with a sidebar, icon, list and column views, navigation and opening.
 # loginwindow starts it (SessionApplications).
 

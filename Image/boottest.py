@@ -251,7 +251,7 @@ GATES['M4'] = GATES['M2'] + [
         'echo "boottest: A saw B terminate"'),
     'boottest: A saw B terminate',
 ] + [
-    # The menus in the app (Menus.md, MB0): the front app (A) shows its
+    # The menus in the app (Atlas.md, MB0): the front app (A) shows its
     # menu bar, alone at the menu bar level.
     SSH('/usr/local/bin/wsctl windows | awk \'$3 == 24 && $4 == "yes" { print $2 }\' | '
         'tr "\\n" " "; a=$(pgrep -o -x WindowServerDemo); '

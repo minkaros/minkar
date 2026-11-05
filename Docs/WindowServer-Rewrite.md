@@ -208,7 +208,7 @@ Progress:
 - [x] WS3 — Input (2026-11-01)
 - [x] ADR 0001 — Kernel entitlement validation, needed by WS4a (2026-11-01)
 - [x] WS4a — Server behavior (2026-11-01)
-- [x] WS4b — The switch (with MB0 of [Menus.md](Menus.md); 2026-11-02)
+- [x] WS4b — The switch (with MB0 of [Atlas.md](Atlas.md), chapter 3; 2026-11-02)
 - [x] WS5 — IOSurface and virtio-gpu (2026-11-02)
 - [ ] WS6 — GPU compositing
 
@@ -403,7 +403,7 @@ server's, linked from there until WS4a moves them to SkyLight (then a
   sends each one to its owner instead of delivering it as a key event:
   Command-Tab to the Dock, Command-Option-Escape to loginwindow, Control-F2
   to the front app's AppKit (focus to the menu bar). The server draws no
-  app switcher; the Dock does (D3 of [Dock-Argos.md](Dock-Argos.md)).
+  app switcher; the Dock does (D3 of [Atlas.md](Atlas.md), chapter 4).
 - **Running applications through LaunchServices:** a LaunchServices session
   service keeps the list of running apps; each app checks in from
   `NSApplication` at launch, its exit is noticed when it happens, and the
@@ -414,13 +414,13 @@ server's, linked from there until WS4a moves them to SkyLight (then a
   `NSRunningApplication` reads the same list: `runningApplications`,
   `currentApplication`, `processIdentifier`, `bundleIdentifier`,
   `localizedName`, `isActive`, `activateWithOptions:`. The rest of
-  `NSRunningApplication` comes with D0 of [Dock-Argos.md](Dock-Argos.md).
-- **What MB0 needs** ([Menus.md](Menus.md)): the menu bar's place and
+  `NSRunningApplication` comes with D0 of [Atlas.md](Atlas.md), chapter 4.
+- **What MB0 needs** ([Atlas.md](Atlas.md), chapter 3): the menu bar's place and
   height on each display (`NSScreen` `visibleFrame` leaves it out), notices
   to each app when it becomes or stops being the front app, the status area
   layout (status item windows and Menu Extras, order kept), and pointer
   capture while a menu is open.
-- **What the Dock needs** ([Dock-Argos.md](Dock-Argos.md)): as on the
+- **What the Dock needs** ([Atlas.md](Atlas.md), chapter 4): as on the
   reference platform the Dock owns minimized windows. AppKit's
   `miniaturize:` asks the Dock, which runs the animation and keeps the
   tile; the window server orders the window out and back in, tells the Dock
@@ -514,7 +514,7 @@ State on 2026-11-01:
 
 ### WS4b — The switch
 
-- **MB0** of [Menus.md](Menus.md): menus and status items drawn by each
+- **MB0** of [Atlas.md](Atlas.md), chapter 3: menus and status items drawn by each
   app's AppKit (section 10.2). WS4b closes only when MB0 passes.
 - The relay codes removed from `message.h` (section 10.2).
 - Session start moved out of WindowServer.
@@ -610,8 +610,8 @@ displays, Spaces, hardware cursor.
   removes them:
   `// SHORTCUT(<removed by>): <what and why>; taken in <milestone>.`
   (for example `SHORTCUT(WS4a)`, `SHORTCUT(Phase 5)`, `SHORTCUT(D3)`), and
-  each one has a row in its plan's shortcut table (section 9 here, section
-  10 of [Menus.md](Menus.md) and of [Dock-Argos.md](Dock-Argos.md)). A
+  each one has a row in its plan's shortcut table (section 9 here, sections 3.10
+  and 4.10 of [Atlas.md](Atlas.md)). A
   milestone closes only when `git grep -n 'SHORTCUT(<milestone>)'` finds
   nothing.
 - The commit that closes a milestone also updates
@@ -630,7 +630,7 @@ Decided 2026-10-31, following the guiding rule in section 1:
 | Moving windows | Server-side moves from client-declared drag regions, plus `performWindowDragWithEvent:` | Title bar region only | Removed 2026-11-01 (`f03d8ddc9d`, `5df94c8821`) |
 | Keyboard layouts | The server delivers hardware key codes; the client turns them into characters from the current layout (layout data and a `UCKeyTranslate`-style call in the app), with Text Input Sources | `WSKeymap` and libxkbcommon in SkyLight, from WS4a (`SHORTCUT(Phase 5)`) | Phase 5 (Text Input Sources and our own layout files) |
 | Ending the session | The login window asks apps to quit, ends the session and then restarts or shuts down | A minimal `loginwindow` that only ends the session and calls `reboot(2)` | Phase 5 (LoginWindow) |
-| App switcher (Command-Tab) | The Dock draws it; the window server's symbolic hotkey table delivers Command-Tab to it | No switcher after the legacy server goes (WS4b): apps are switched by clicking their windows (`SHORTCUT(D3)`) | D3 ([Dock-Argos.md](Dock-Argos.md)) |
+| App switcher (Command-Tab) | The Dock draws it; the window server's symbolic hotkey table delivers Command-Tab to it | No switcher after the legacy server goes (WS4b): apps are switched by clicking their windows (`SHORTCUT(D3)`) | D3 ([Atlas.md](Atlas.md), chapter 4) |
 | Legacy server's thread stacks | Gone with the legacy server and `message.h` | 4 MB stacks for its 128 KB messages (taken in WS0) | Removed 2026-11-02, in WS4b, with the legacy server and `message.h` |
 | What WindowServer's launchd job starts | The window server only; the session starts elsewhere (section 10.3) | The compositor only (`-x`), since LoginWindow is not built (taken in WS0) | Removed 2026-11-02, in WS4b: the new server's job starts it alone, `loginwindow` the session |
 | System font | Atlas's own font | Inter (SIL OFL 1.1), four faces (`SHORTCUT(Phase 5)` in `SystemLibrary/Fonts/Makefile`, taken in WS0) | Phase 5 (Atlas) |
@@ -711,7 +711,7 @@ to where the reference platform keeps it:
 | Recent items (`CODE_ADD_RECENT_ITEM`) | LaunchServices' shared file lists, through `NSDocumentController` |
 
 The menu, status item and recent item rows are planned in detail in
-[Menus.md](Menus.md).
+[Atlas.md](Atlas.md), chapter 3.
 
 WindowServer keeps only what is its own: the front app, activation order,
 key and main windows, and the menu bar's place on screen. In WS4b the
@@ -739,5 +739,5 @@ Phase 4 only needs the minimal `loginwindow` of section 9 (session end and
 `reboot(2)`), marked `// SHORTCUT(Phase 5):`, the milestone that removes
 it; the full login window is Phase 5.
 
-The system menu that sends these requests is planned in [Menus.md](Menus.md)
+The system menu that sends these requests is planned in [Atlas.md](Atlas.md), chapter 3
 (MB0 and MB3).

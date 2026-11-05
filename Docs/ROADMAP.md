@@ -42,7 +42,7 @@ Minkar separates three layers that go together on the reference platform. The ke
 
 | Minkar | Delivers | Kernel (`uname -r`) | `ProductVersion` |
 | --- | --- | --- | --- |
-| 19.6.0 | API 19, the Atlas desktop complete for daily use (MB2–MB3, D2–D3, K2–K3) and DMG; functional gates M0–M6 on physical hardware | 19.6.0 | 10.15 |
+| 19.6.0 | API 19, the Atlas desktop complete for daily use (MB2–MB3, D2–D3, K2–K3, apps A0–A10) and DMG; functional gates M0–M6 on physical hardware | 19.6.0 | 10.15 |
 | 19.6.x | Fixes, and MB4, D4 and K4; may carry parts of API 20 | 19.6.0 | 10.15 |
 | 20.0 | API 20 complete and tested | 19.6.0 | 11.0 |
 | 21.0 | API 21 complete and tested, plus the performance gates | 19.6.0 | 12.0 |
@@ -269,7 +269,7 @@ From Phase 2 (2026-10-31):
 
 Left out: tools without a license or with an unclear one, and tools that use private API.
 
-*Progress (5 Nov 2026):* the gate runs (`bmake m3-tools`, then `bmake m3-check`: `Tests/M3` builds each tool and its tests without the package manager, `/usr/local/tests/m3/run.sh` runs them, `96f5f65249`). swift-argument-parser passes its five suites, 493 tests. What it needed: `NSTask`, `NSPipe` and `NSFileManager` as Swift reads them, a command-line tool's bundle (it was two directories up), regular expression templates, command-line values that are not property lists without a parse error (`f21472a91d`); character sets bridged to CF both ways (`13a6cebd3d`); the ISO 8601 calendar (`5694846076`); FileHandle's throwing API, and API 21's `FileHandle.bytes`, `lines` and URLSession's async loads (`89b9375fa7`). Local tests `swift` 81/0.
+*Progress (5 Nov 2026):* the gate runs (`bmake m3-tools`, then `bmake m3-check`: `Tests/M3` builds each tool and its tests without the package manager, `/usr/local/tests/m3/run.sh` runs them, `96f5f65249`). swift-argument-parser passes its five suites, 493 tests. What it needed: `NSTask`, `NSPipe` and `NSFileManager` as Swift reads them, a command-line tool's bundle (it was two directories up), regular expression templates, command-line values that are not property lists without a parse error (`f21472a91d`); character sets bridged to CF both ways (`13a6cebd3d`); the ISO 8601 calendar (`5694846076`); FileHandle's throwing API, and API 21's `FileHandle.bytes`, `lines` and URLSession's async loads (`89b9375fa7`). Local tests `swift` 81/0. Then Rainbow (139 tests) and Files (66 tests) pass (`7d07cc60c5`): AppKit could not be imported from Swift, as CoreVideo, which QuartzCore's headers import, was never built (`d3ee485fac`); NSFileManager could not be subclassed (its operations were in a private subclass that every allocation returned), its header lacked `NSFileAttributeKey`, a relative file URL kept its `.` segments, and `CFFIXED_USER_HOME` was ignored (`987a49fad0`). Local tests `swift` 86/0.
 
 ## Phase 4 — Graphics and WindowServer
 
@@ -348,13 +348,13 @@ Step 1 was done on 2026-10-31 (`e2df542919`, `2aa9a1da6e`), and step 2's first m
 
 ## Phase 5 — Atlas desktop
 
-Goal: a complete graphical session in the Atlas visual language, with login, a global menu bar, Dock, desktop icons and preferences. The order follows what the user sees at boot.
+Goal: a complete graphical session in the Atlas visual language, with login, a global menu bar, Dock, desktop icons and preferences. The order follows what the user sees at boot. Plan for the desktop and its apps: [Atlas.md](Atlas.md).
 
 1. **LoginWindow:** authentication against this phase's user service (Directory Services, below) and session start (the user's `LaunchAgents`).
-2. **Menu bar and SystemUIServer:** each app's AppKit draws its own menu bar and menus; status items are windows of their apps; SystemUIServer hosts the Menu Extras. Plan: [Menus.md](Menus.md) (MB0 in WS4b, MB1 to MB4 here).
-3. **Basic Menu Extras:** volume, displays, network, clock, notifications. Each one a loadable bundle, not built into SystemUIServer. Plan: [Menus.md](Menus.md) (MB1).
-4. **Dock:** launcher, open apps, minimizing and wallpaper, on LaunchServices. Plan: [Dock-Argos.md](Dock-Argos.md) (D0–D4).
-5. **Argos:** a new pure Cocoa app. Browsing with LaunchServices, mounting through DiskArbitration, desktop icons, Trash and "Open With". Plan: [Dock-Argos.md](Dock-Argos.md) (K0–K4).
+2. **Menu bar and SystemUIServer:** each app's AppKit draws its own menu bar and menus; status items are windows of their apps; SystemUIServer hosts the Menu Extras. Plan: [Atlas.md](Atlas.md), chapter 3 (MB0 in WS4b, MB1 to MB4 here).
+3. **Basic Menu Extras:** volume, displays, network, clock, notifications. Each one a loadable bundle, not built into SystemUIServer. Plan: [Atlas.md](Atlas.md), chapter 3 (MB1).
+4. **Dock:** launcher, open apps, minimizing and wallpaper, on LaunchServices. Plan: [Atlas.md](Atlas.md), chapter 4 (D0–D4).
+5. **Argos:** a new pure Cocoa app. Browsing with LaunchServices, mounting through DiskArbitration, desktop icons, Trash and "Open With". Plan: [Atlas.md](Atlas.md), chapter 4 (K0–K4).
 6. **System Preferences:** host app + `.prefPane` bundle loader (`NSPreferencePane`). First panes: Displays, Keyboard, Users, Network, Dock, Date & Time. *Partial (4 Nov 2026):* the app, `PreferencePanes.framework` and five panes, Displays, Dock, Date & Time, Keyboard and Network (`948e15445f`, `f5f26fc193`, `7c5f6cda8b`; local test `system-preferences` 12/0); Users waits for Directory Services.
 7. **AppKit:** complete the missing controls and give the whole system the Atlas visual language (our own design, no third-party artwork), prioritized by what Argos and System Preferences use. *4 Nov 2026:* a save panel (`1e4869b895`); the system font, Inter, is also the text editor's until a fixed-pitch font is chosen (to review). *5 Nov 2026:* the fixed-pitch font is Agave (SIL OFL 1.1), fetched at a pinned version and installed unchanged; `userFixedPitchFont` follows `NSFixedPitchFont` and Alcor shows plain text in it; fonts whose family has spaces are found by PostScript name (`642e6a1cda`), and a font's covered characters lost the last of each run, which text then drew from another font (`5e51bdc6ba`). Argos has a test icon, not the final one (`2194ff5695`); images drawn at less than half their size are averaged, not sampled (`f474cc75a0`). Local test `fixed-pitch` 14/0.
 
@@ -367,7 +367,7 @@ Commands that come with this phase (moved from Phase 2):
 - [ ] Directory Services–style user management, for LoginWindow and the Users pane (moved from Phase 2 on 2026-10-31).
 - [ ] `say`, with an audio driver and speech synthesis.
 
-**Exit gate (M5):** from boot, a graphical session starts, an app opens from the Dock, Argos browses, and the resolution changes from Preferences, with the Atlas visual language K1 needs ([Dock-Argos.md](Dock-Argos.md)).
+**Exit gate (M5):** from boot, a graphical session starts, an app opens from the Dock, Argos browses, and the resolution changes from Preferences, with the Atlas visual language K1 needs ([Atlas.md](Atlas.md), chapter 4).
 
 ## Phase 6 — Applications and distribution
 
@@ -381,12 +381,7 @@ Goal: install software by dragging the app from a disk image to `/Applications`,
 
 **Applications**
 
-| App | Recommended option | Why | Critical dependency |
-| --- | --- | --- | --- |
-| Terminal | Write in Cocoa | Exercises `NSTextView`, pty and fonts | AppKit text, CoreText |
-| TextEdit | Write in Cocoa | Exercises documents, RTF and the Cocoa Text System | `NSDocument`, CoreText |
-| Browser | Ladybird (BSD-2) | Already has its own AppKit UI | Foundation networking, AppKit |
-| IDE | CodeEdit, in the long term | Depends on SwiftUI, excluded from API 19–21 | SwiftUI |
+The everyday apps are planned in [Atlas.md](Atlas.md), chapter 5: an app foundation (A0), then Terminal, the text editor (Alcor), System Monitor, Console, Screenshot, Viewer, Disks, System Information, Calculator and Archives (A1–A10), required for Minkar 19.6.0; Fonts, Keychain, Color Meter, Script Editor and Help Viewer in 19.6.x; the browser (Ladybird) and an IDE in the long term.
 
 A risk to flag: many current Cocoa apps use SwiftUI, which is not on the roadmap. It is better tracked as an open decision than found out late.
 
@@ -399,7 +394,7 @@ Commands that come with this phase (moved from Phase 2):
 
 Ahead of time: `hdiutil attach` already mounts images in `/Volumes` through DiskArbitration (2026-10-30); reading the DMGs' UDIF format is missing.
 
-**Exit gate (M6):** a DMG is downloaded, mounted, the app copied to `/Applications` and run; Terminal, TextEdit and the browser are used daily on the development machine itself; and the Atlas desktop is complete for daily use: MB2 and MB3 of [Menus.md](Menus.md), D2 and D3 and K2 and K3 of [Dock-Argos.md](Dock-Argos.md); MB4, D4 and K4 follow in 19.6.x.
+**Exit gate (M6):** a DMG is downloaded, mounted, the app copied to `/Applications` and run; and the Atlas desktop is complete for daily use, as section 6 of [Atlas.md](Atlas.md) sets it: MB2 and MB3, D2 and D3, K2 and K3, and the essential apps A0–A10, used daily on the development machine itself; MB4, D4, K4 and the other apps follow in 19.6.x.
 
 ## Phase 7 — Binary compatibility and arm64
 
@@ -441,10 +436,10 @@ M0, M1 and M2 are met (M1 on 2026-11-01, with the Mac Pro 6,1 as PC 2), and Phas
 | M0 | Build, toolchain, CI | Met (CI green since `05fa75cb65`) |
 | M1 | Darwin boot | Met in QEMU, on PC 1 (SATA, NVMe, SMP) and on PC 2, a Mac Pro 6,1 (NVMe, 24 threads; 2026-11-01) |
 | M2 | Base userland | Met (`boottest GATE=M2`, 17 markers since 2026-11-01, with the code integrity check); Phase 2 closed on 2026-10-31 |
-| M3 | Frameworks and Swift | In progress: the Swift toolchain, runtime, overlays (Foundation included), Combine and XCTest are done; gate M3 runs, 1 of 7 tools passes |
+| M3 | Frameworks and Swift | In progress: the Swift toolchain, runtime, overlays (Foundation included), Combine and XCTest are done; gate M3 runs, 2 of 7 tools pass (swift-argument-parser; Rainbow and Files) |
 | M4 | Graphics and WindowServer | Met in QEMU (`boottest GATE=M4`, 54 markers, 2026-11-02, `9d510ec6c2`): WS0 to WS4b done (the new core is the window server, the menus in each app with MB0, the minimal `loginwindow`; the legacy server removed). WS5 done too (IOSurface and virtio-gpu, 2026-11-02, `9a472063c1`; M4 passes on virtio-vga and on the standard VGA). Phase 4 goes on with the GPU (WS6) and on physical hardware |
 | M5 | Atlas desktop | Not started |
-| M6 (Minkar 19.6.0) | Apps and distribution, and the desktop complete for daily use (MB2–MB3, D2–D3, K2–K3) | Not started; `hdiutil attach` already mounts |
+| M6 (Minkar 19.6.0) | Apps and distribution, and the desktop complete for daily use (MB2–MB3, D2–D3, K2–K3, apps A0–A10) | Not started; `hdiutil attach` already mounts |
 | Minkar 21.0 | API 21 complete and performance ≥ the reference system on a physical machine | Not started; depends on the GPU track |
 | M7 | Binary compatibility, arm64 | After Minkar 19.6.0 |
 

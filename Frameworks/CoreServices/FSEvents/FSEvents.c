@@ -3,7 +3,7 @@
  * Copyright (c) 2026 The Minkar contributors
  * Part of Minkar.
  *
- * FSEvents (Dock-Argos.md, K0): a stream registers its paths with
+ * FSEvents (Atlas.md, K0): a stream registers its paths with
  * fseventsd (fseventsd.defs) and gets an FSEventsMessage per event on a
  * port of its own, read by a thread of its own. The events wait for the
  * stream's latency (or go at once with kFSEventStreamCreateFlagNoDefer

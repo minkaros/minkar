@@ -5,7 +5,7 @@
  Copyright (c) 2026 The Minkar contributors
  Part of Minkar.
 
- fseventsd (Dock-Argos.md, K0): the file system's events for FSEvents.
+ fseventsd (Atlas.md, K0): the file system's events for FSEvents.
  Started at boot and kept running, so the event IDs keep growing.
 -->
 <plist version="1.0">

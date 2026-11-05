@@ -53,8 +53,8 @@ the milestone that removes it:
 
 For example `SHORTCUT(WS4a)`, `SHORTCUT(Phase 5)` or `SHORTCUT(D3)`. Each
 shortcut also has a row in its plan's shortcut table (section 9 of
-[WindowServer-Rewrite.md](WindowServer-Rewrite.md), section 10 of
-[Menus.md](Menus.md) and of [Dock-Argos.md](Dock-Argos.md)). A milestone
+[WindowServer-Rewrite.md](WindowServer-Rewrite.md), sections 3.10 and 4.10 of
+[Atlas.md](Atlas.md)). A milestone
 closes only when `git grep -n 'SHORTCUT(<milestone>)'` finds nothing.
 
 ### Progress pages

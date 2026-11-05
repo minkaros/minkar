@@ -3,7 +3,7 @@
  * Copyright (c) 2026 The Minkar contributors
  * Part of Minkar.
  *
- * FSEvents (Dock-Argos.md, K0): streams of the changes in the file system
+ * FSEvents (Atlas.md, K0): streams of the changes in the file system
  * under some paths, from fseventsd, delivered to a callback on a dispatch
  * queue or a run loop, as on the reference platform.
  */

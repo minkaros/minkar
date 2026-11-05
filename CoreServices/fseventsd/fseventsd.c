@@ -3,7 +3,7 @@
  * Copyright (c) 2026 The Minkar contributors
  * Part of Minkar.
  *
- * fseventsd (Dock-Argos.md, K0): the file system's events for FSEvents.
+ * fseventsd (Atlas.md, K0): the file system's events for FSEvents.
  * It reads the kernel's events from /dev/fsevents (a clone of it, every
  * event type), gives each an ID (they keep growing across restarts:
  * /var/db/fseventsd/last-id), and sends each stream registered through

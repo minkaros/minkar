@@ -3,7 +3,7 @@
  * Copyright (c) 2026 The Minkar contributors
  * Part of Minkar.
  *
- * Argos's column view (Dock-Argos.md, K1): a folder's items in a column,
+ * Argos's column view (Atlas.md, K1): a folder's items in a column,
  * the chosen folder's in the next one, and so on to the right. A click
  * chooses, a double click opens; Up and Down move in a column, Right goes
  * into the chosen folder's column, Left back to the one before;

@@ -6,7 +6,7 @@ Esta página se genera desde [progress/status.toml](progress/status.toml) con
 [Progress.md](Progress.md).
 
 <!-- progress:summary:begin -->
-_Actualizado el 2026-11-05, devel `96f5f65249`_
+_Actualizado el 2026-11-05, devel `7d07cc60c5`_
 
 | Plan | Avance |  | Ahora | Siguiente |
 | --- | --- | --- | --- | --- |
@@ -14,9 +14,9 @@ _Actualizado el 2026-11-05, devel `96f5f65249`_
 | [Phases 0–2](ROADMAP.es.md) | 🟩🟩🟩 | 3 / 3 | — | — |
 | [Frameworks](ROADMAP.es.md#fase-3--frameworks-base-y-swift) | 🟩🟨🟨🟨⬜🟩🟨 | 2 / 7 | libSystem, Foundation, CF-Lite, Swift 6 | Security |
 | [WindowServer](WindowServer-Rewrite.es.md) | 🟩🟩🟩🟩🟩🟩🟩🟩🟦 | 8 / 9 | WS6 | — |
-| [Menus](Menus.es.md) | 🟩🟨⬜⬜⬜ | 1 / 5 | MB1 | MB2 |
-| [Dock](Dock-Argos.es.md) | 🟩🟩🟨⬜⬜ | 2 / 5 | D2 | D3 |
-| [Argos](Dock-Argos.es.md) | 🟨🟩⬜⬜⬜ | 1 / 5 | K0 | K2 |
+| [Menus](Atlas.es.md#3-menús) | 🟩🟨⬜⬜⬜ | 1 / 5 | MB1 | MB2 |
+| [Dock](Atlas.es.md#4-dock-y-argos) | 🟩🟩🟨⬜⬜ | 2 / 5 | D2 | D3 |
+| [Argos](Atlas.es.md#4-dock-y-argos) | 🟨🟩⬜⬜⬜ | 1 / 5 | K0 | K2 |
 | [Atlas](ROADMAP.es.md#fase-5--escritorio-atlas) | ⬜🟨⬜ | 0 / 3 | Preferences | LoginWindow |
 | [Apps · DMG](ROADMAP.es.md#fase-6--aplicaciones-y-distribución) | ⬜⬜⬜⬜ | 0 / 4 | — | DiskImages |
 | [GPU track](ROADMAP.es.md#pila-gráfica-componentes-y-secuencia) | 🟩🟨🟩🟦 | 2 / 4 | G4–G5 | — |
@@ -33,7 +33,7 @@ _Actualizado el 2026-11-05, devel `96f5f65249`_
 </picture>
 
 Planes: [ROADMAP.es.md](ROADMAP.es.md) · [WindowServer-Rewrite.es.md](WindowServer-Rewrite.es.md) ·
-[Menus.es.md](Menus.es.md) · [Dock-Argos.es.md](Dock-Argos.es.md)
+[Atlas.es.md](Atlas.es.md)
 
 ## Tablero de trabajo
 
