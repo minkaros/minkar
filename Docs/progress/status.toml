@@ -32,8 +32,8 @@
 # commit that closes a milestone updates this file and runs
 # "bmake progress" (Docs/CONTRIBUTING.md).
 
-updated = "2026-11-04"
-commit  = "7e7ea6dfbb"
+updated = "2026-11-05"
+commit  = "7093882f38"
 
 deps = [["ws", 555, "dock"], ["fw", 535, "argos"]]
 
@@ -125,7 +125,7 @@ doc_es = "ROADMAP.es.md#fase-3--frameworks-base-y-swift"
 stations = [
   ["XPC", 270, "done"], ["libSystem", 325, "partial"], ["Foundation", 380, "partial"],
   ["CF-Lite", 435, "partial"], ["Security", 485, "todo"], ["LaunchServices", 535, "done"],
-  ["Swift 6", 590, "todo"],
+  ["Swift 6", 590, "partial"],
 ]
 
 [[line]]
