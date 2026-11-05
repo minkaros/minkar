@@ -33,7 +33,7 @@
 # "bmake progress" (Docs/CONTRIBUTING.md).
 
 updated = "2026-11-05"
-commit  = "d2eda99167"
+commit  = "0c036fd389"
 
 deps = [["ws", 555, "dock"], ["fw", 490, "argos"]]
 
@@ -122,7 +122,7 @@ name = "Frameworks"
 color = "brown"
 doc = "ROADMAP.md#phase-3--base-frameworks-and-swift"
 doc_es = "ROADMAP.es.md#fase-3--frameworks-base-y-swift"
-# CLI tools: gate M3's seven open source tools (Tests/M3); 4 pass (5 Nov).
+# CLI tools: gate M3's seven open source tools (Tests/M3); 5 pass (5 Nov).
 stations = [
   ["XPC", 250, "done"], ["libSystem", 300, "partial"], ["Foundation", 350, "partial"],
   ["CF-Lite", 400, "partial"], ["Security", 445, "todo"], ["LaunchServices", 490, "done"],
@@ -226,9 +226,9 @@ here = "CLI tools"
 
 [[board.now]]
 title = "M3: the tools left"
-note = "SwiftFormat, mogenerator (CoreData), tag (NSURL tags); each finds Foundation's gaps"
+note = "tag (NSURL tags, metadata queries), then SwiftFormat; then Cocoa coverage"
 line = "fw"
-done = 4
+done = 5
 total = 7
 
 [[board.now]]
@@ -266,6 +266,11 @@ group = "After 19.6.0"
 items = [["x86-64 binaries, arm64", "compat"]]
 
 [[board.done]]
+title = "M3: mogenerator, the first Objective-C tool"
+note = "CoreData's models in code and archives, predicates, KVC set proxies · 5 nov"
+line = "fw"
+
+[[board.done]]
 title = "M3: 4 of 7 tools pass their tests"
 note = "swift-argument-parser, Rainbow, Files, Yams, xcbeautify; XCTest on Minkar · 5 nov"
 line = "fw"
@@ -289,10 +294,3 @@ line = "atlas"
 title = "Dock D1: the new Dock and desktop"
 note = "tiles, indicators, desktop pictures; magnification, menus, dragging · 4 nov"
 line = "dock"
-
-[[board.done]]
-title = "M4 met: QEMU and the Mac Pro"
-note = "AppKit windows dragged and typed into at 3440x1440, no flicker; two apps · 3 nov"
-line = "ws"
-
-
