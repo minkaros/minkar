@@ -1346,6 +1346,52 @@ void O2ImageBilinear_largb32f_PRE(O2Image *self,int x, int y,O2argb32f *span,int
    }
 }
 
+/* Minkar: an image drawn smaller than half its size, without rotation:
+ * each pixel is the mean of the image's pixels under it (a box filter).
+ * Bilinear sampling reads four of them and skips the rest, which breaks
+ * thin lines into steps (an app's 512-pixel icon in a 48-point Dock). */
+void O2ImageArea_largb8u_PRE(O2Image *self,int x, int y,O2argb8u *span,int length, O2AffineTransform surfaceToImage){
+   double su=fabs(surfaceToImage.a);
+   double sv=fabs(surfaceToImage.d);
+   double du=(x+0.5)*surfaceToImage.a+(y+0.5)*surfaceToImage.c+surfaceToImage.tx;
+   double dv=(x+0.5)*surfaceToImage.b+(y+0.5)*surfaceToImage.d+surfaceToImage.ty;
+   int v0=RI_FLOOR_TO_INT(dv-sv/2+0.5);
+   int v1=RI_FLOOR_TO_INT(dv+sv/2+0.5);
+   int i;
+
+   if(v1<=v0)
+    v1=v0+1;
+   for(i=0;i<length;i++){
+    int u0=RI_FLOOR_TO_INT(du-su/2+0.5);
+    int u1=RI_FLOOR_TO_INT(du+su/2+0.5);
+    int w,v,k;
+    uint32_t sa=0,sr=0,sg=0,sb=0,n;
+
+    if(u1<=u0)
+     u1=u0+1;
+    w=u1-u0;
+    {
+     O2argb8u row[w];
+
+     for(v=v0;v<v1;v++){
+      O2ImageReadTileSpanExtendEdge_largb8u_PRE(self,u0,v,row,w);
+      for(k=0;k<w;k++){
+       sa+=row[k].a;
+       sr+=row[k].r;
+       sg+=row[k].g;
+       sb+=row[k].b;
+      }
+     }
+    }
+    n=w*(v1-v0);
+    span[i].a=(sa+n/2)/n;
+    span[i].r=(sr+n/2)/n;
+    span[i].g=(sg+n/2)/n;
+    span[i].b=(sb+n/2)/n;
+    du+=surfaceToImage.a;
+   }
+}
+
 void O2ImagePointSampling_largb8u_PRE(O2Image *self,int x, int y,O2argb8u *span,int length, O2AffineTransform surfaceToImage){
    double du=(x+0.5) * surfaceToImage.a+(y+0.5)* surfaceToImage.c+surfaceToImage.tx;
    double dv=(x+0.5) * surfaceToImage.b+(y+0.5)* surfaceToImage.d+surfaceToImage.ty;

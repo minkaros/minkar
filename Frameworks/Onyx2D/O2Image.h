@@ -229,6 +229,7 @@ void O2ImageReadTileSpanExtendEdge_largb32f_PRE(O2Image *self, int u, int v, O2a
 void O2ImageBicubic_largb8u_PRE(O2Image *self, int x, int y, O2argb8u *span, int length, O2AffineTransform surfaceToImage);
 void O2ImageBicubic_largb32f_PRE(O2Image *self, int x, int y, O2argb32f *span, int length, O2AffineTransform surfaceToImage);
 void O2ImageBilinear_largb8u_PRE(O2Image *self, int x, int y, O2argb8u *span, int length, O2AffineTransform surfaceToImage);
+void O2ImageArea_largb8u_PRE(O2Image *self, int x, int y, O2argb8u *span, int length, O2AffineTransform surfaceToImage);
 void O2ImageBilinear_largb32f_PRE(O2Image *self, int x, int y, O2argb32f *span, int length, O2AffineTransform surfaceToImage);
 void O2ImagePointSampling_largb8u_PRE(O2Image *self, int x, int y, O2argb8u *span, int length, O2AffineTransform surfaceToImage);
 void O2ImagePointSampling_largb32f_PRE(O2Image *self, int x, int y, O2argb32f *span, int length, O2AffineTransform surfaceToImage);
