@@ -134,6 +134,7 @@ SRCS = 	NSFormatter.m \
 	NSOrthography.m \
 	NSString/NSCFString.m \
 	NSString/NSStringCFBridging.m \
+	NSCFCharacterSet.m \
 	NSCFCollections.m \
 	NSCFData.m \
 	NSCFNumber.m \

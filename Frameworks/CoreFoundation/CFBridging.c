@@ -24,6 +24,7 @@
 
 #include "CFBridging.h"
 #include "CFInternal.h"
+#include <CoreFoundation/CFCharacterSet.h>
 #include <Foundation/NSCFTypeID.h>
 
 #define DEBUG 0
@@ -86,6 +87,15 @@ CF_EXPORT void CFSetupFoundationBridging(void)
     if (dictionaryClass != 0) {
         _CFRuntimeRegisterObjCClass(CFDictionaryGetTypeID(), dictionaryClass);
         _CFRuntimeBridgeObjCDispatch(CFDictionaryGetTypeID());
+    }
+    /* Minkar: character sets too (__NSCFCharacterSet, NSCFCharacterSet.m):
+     * Swift's CharacterSet is a CFCharacterSet, and Foundation sent it
+     * NSCharacterSet's messages. CF's character set functions send
+     * Foundation's own sets the message (CFCharacterSet.c). */
+    uintptr_t characterSetClass = (uintptr_t)objc_lookUpClass("__NSCFCharacterSet");
+    if (characterSetClass != 0) {
+        _CFRuntimeRegisterObjCClass(CFCharacterSetGetTypeID(), characterSetClass);
+        _CFRuntimeBridgeObjCDispatch(CFCharacterSetGetTypeID());
     }
 
     /* Minkar: data is toll-free bridged both ways, as arrays are. CF's
