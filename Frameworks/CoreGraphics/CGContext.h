@@ -24,6 +24,7 @@ typedef struct O2Context *CGContextRef;
 
 /* CF's naming rules for what the functions return (Create, Copy). */
 CF_IMPLICIT_BRIDGING_ENABLED
+CF_ASSUME_NONNULL_BEGIN
 
 typedef enum {
     kCGEncodingFontSpecific,
@@ -81,14 +82,14 @@ typedef enum {
 
 typedef int CGTextDrawingMode;
 
-COREGRAPHICS_EXPORT CGContextRef CGContextRetain(CGContextRef context);
-COREGRAPHICS_EXPORT void CGContextRelease(CGContextRef context);
+COREGRAPHICS_EXPORT CGContextRef _Nullable CGContextRetain(CGContextRef _Nullable context);
+COREGRAPHICS_EXPORT void CGContextRelease(CGContextRef _Nullable context);
 
 // context state
 COREGRAPHICS_EXPORT void CGContextSetAllowsAntialiasing(CGContextRef context, bool yesOrNo);
 
 // layers
-COREGRAPHICS_EXPORT void CGContextBeginTransparencyLayer(CGContextRef context, CFDictionaryRef unused);
+COREGRAPHICS_EXPORT void CGContextBeginTransparencyLayer(CGContextRef context, CFDictionaryRef _Nullable unused);
 COREGRAPHICS_EXPORT void CGContextEndTransparencyLayer(CGContextRef context);
 
 // path
@@ -115,7 +116,7 @@ COREGRAPHICS_EXPORT void CGContextAddEllipseInRect(CGContextRef context, CGRect 
 COREGRAPHICS_EXPORT void CGContextAddPath(CGContextRef context, CGPathRef path);
 
 COREGRAPHICS_EXPORT void CGContextReplacePathWithStrokedPath(CGContextRef context);
-COREGRAPHICS_EXPORT CGPathRef CGContextCopyPath(CGContextRef context);
+COREGRAPHICS_EXPORT CGPathRef _Nullable CGContextCopyPath(CGContextRef context);
 
 // gstate
 
@@ -151,7 +152,7 @@ COREGRAPHICS_EXPORT void CGContextSetStrokeColorSpace(CGContextRef context, CGCo
 COREGRAPHICS_EXPORT void CGContextSetFillColorSpace(CGContextRef context, CGColorSpaceRef colorSpace);
 
 COREGRAPHICS_EXPORT void CGContextSetStrokeColor(CGContextRef context, const CGFloat *components);
-COREGRAPHICS_EXPORT void CGContextSetStrokeColorWithColor(CGContextRef context, CGColorRef color);
+COREGRAPHICS_EXPORT void CGContextSetStrokeColorWithColor(CGContextRef context, CGColorRef _Nullable color);
 COREGRAPHICS_EXPORT void CGContextSetGrayStrokeColor(CGContextRef context, CGFloat gray, CGFloat alpha);
 COREGRAPHICS_EXPORT void CGContextSetRGBStrokeColor(CGContextRef context, CGFloat r, CGFloat g, CGFloat b, CGFloat alpha);
 COREGRAPHICS_EXPORT void CGContextSetCMYKStrokeColor(CGContextRef context, CGFloat c, CGFloat m, CGFloat y, CGFloat k, CGFloat alpha);
@@ -159,7 +160,7 @@ COREGRAPHICS_EXPORT void CGContextSetCalibratedRGBStrokeColor(CGContextRef conte
 COREGRAPHICS_EXPORT void CGContextSetCalibratedGrayStrokeColor(CGContextRef context, CGFloat gray, CGFloat alpha);
 
 COREGRAPHICS_EXPORT void CGContextSetFillColor(CGContextRef context, const CGFloat *components);
-COREGRAPHICS_EXPORT void CGContextSetFillColorWithColor(CGContextRef context, CGColorRef color);
+COREGRAPHICS_EXPORT void CGContextSetFillColorWithColor(CGContextRef context, CGColorRef _Nullable color);
 COREGRAPHICS_EXPORT void CGContextSetGrayFillColor(CGContextRef context, CGFloat gray, CGFloat alpha);
 COREGRAPHICS_EXPORT void CGContextSetRGBFillColor(CGContextRef context, CGFloat r, CGFloat g, CGFloat b, CGFloat alpha);
 COREGRAPHICS_EXPORT void CGContextSetCMYKFillColor(CGContextRef context, CGFloat c, CGFloat m, CGFloat y, CGFloat k, CGFloat alpha);
@@ -178,7 +179,7 @@ COREGRAPHICS_EXPORT void CGContextSetTextPosition(CGContextRef context, CGFloat 
 COREGRAPHICS_EXPORT void CGContextSetCharacterSpacing(CGContextRef context, CGFloat spacing);
 COREGRAPHICS_EXPORT void CGContextSetTextDrawingMode(CGContextRef context, CGTextDrawingMode textMode);
 
-COREGRAPHICS_EXPORT void CGContextSetFont(CGContextRef context, CGFontRef font);
+COREGRAPHICS_EXPORT void CGContextSetFont(CGContextRef context, CGFontRef _Nullable font);
 COREGRAPHICS_EXPORT void CGContextSetFontSize(CGContextRef context, CGFloat size);
 COREGRAPHICS_EXPORT void CGContextSelectFont(CGContextRef context, const char *name, CGFloat size, CGTextEncoding encoding);
 COREGRAPHICS_EXPORT void CGContextSetShouldSmoothFonts(CGContextRef context, bool yesOrNo);
@@ -187,7 +188,7 @@ COREGRAPHICS_EXPORT void CGContextSetLineWidth(CGContextRef context, CGFloat wid
 COREGRAPHICS_EXPORT void CGContextSetLineCap(CGContextRef context, CGLineCap lineCap);
 COREGRAPHICS_EXPORT void CGContextSetLineJoin(CGContextRef context, CGLineJoin lineJoin);
 COREGRAPHICS_EXPORT void CGContextSetMiterLimit(CGContextRef context, CGFloat miterLimit);
-COREGRAPHICS_EXPORT void CGContextSetLineDash(CGContextRef context, CGFloat phase, const CGFloat *lengths, size_t count);
+COREGRAPHICS_EXPORT void CGContextSetLineDash(CGContextRef context, CGFloat phase, const CGFloat * _Nullable lengths, size_t count);
 
 COREGRAPHICS_EXPORT void CGContextSetRenderingIntent(CGContextRef context, CGColorRenderingIntent renderingIntent);
 COREGRAPHICS_EXPORT void CGContextSetBlendMode(CGContextRef context, CGBlendMode blendMode);
@@ -196,7 +197,7 @@ COREGRAPHICS_EXPORT void CGContextSetFlatness(CGContextRef context, CGFloat flat
 
 COREGRAPHICS_EXPORT void CGContextSetInterpolationQuality(CGContextRef context, CGInterpolationQuality quality);
 
-COREGRAPHICS_EXPORT void CGContextSetShadowWithColor(CGContextRef context, CGSize offset, CGFloat blur, CGColorRef color);
+COREGRAPHICS_EXPORT void CGContextSetShadowWithColor(CGContextRef context, CGSize offset, CGFloat blur, CGColorRef _Nullable color);
 COREGRAPHICS_EXPORT void CGContextSetShadow(CGContextRef context, CGSize offset, CGFloat blur);
 
 COREGRAPHICS_EXPORT void CGContextSetShouldAntialias(CGContextRef context, bool yesOrNo);
@@ -228,20 +229,20 @@ COREGRAPHICS_EXPORT void CGContextShowText(CGContextRef context, const char *tex
 COREGRAPHICS_EXPORT void CGContextShowTextAtPoint(CGContextRef context, CGFloat x, CGFloat y, const char *text, size_t count);
 
 COREGRAPHICS_EXPORT void CGContextDrawShading(CGContextRef context, CGShadingRef shading);
-COREGRAPHICS_EXPORT void CGContextDrawImage(CGContextRef context, CGRect rect, CGImageRef image);
+COREGRAPHICS_EXPORT void CGContextDrawImage(CGContextRef context, CGRect rect, CGImageRef _Nullable image);
 /* The image repeated in tiles of rect's size, from rect's origin, over the
  * clip. */
 COREGRAPHICS_EXPORT void CGContextDrawTiledImage(CGContextRef context, CGRect rect, CGImageRef image);
 COREGRAPHICS_EXPORT void CGContextDrawLayerAtPoint(CGContextRef context, CGPoint point, CGLayerRef layer);
 COREGRAPHICS_EXPORT void CGContextDrawLayerInRect(CGContextRef context, CGRect rect, CGLayerRef layer);
-COREGRAPHICS_EXPORT void CGContextDrawPDFPage(CGContextRef context, CGPDFPageRef page);
+COREGRAPHICS_EXPORT void CGContextDrawPDFPage(CGContextRef context, CGPDFPageRef _Nullable page);
 
 COREGRAPHICS_EXPORT void CGContextFlush(CGContextRef context);
 COREGRAPHICS_EXPORT void CGContextSynchronize(CGContextRef context);
 
 // pagination
 
-COREGRAPHICS_EXPORT void CGContextBeginPage(CGContextRef context, const CGRect *mediaBox);
+COREGRAPHICS_EXPORT void CGContextBeginPage(CGContextRef context, const CGRect * _Nullable mediaBox);
 COREGRAPHICS_EXPORT void CGContextEndPage(CGContextRef context);
 
 // **PRIVATE** These are private in Apple's implementation as well as ours.
@@ -251,10 +252,11 @@ COREGRAPHICS_EXPORT void CGContextResetClip(CGContextRef context);
 
 // Temporary hacks
 
-COREGRAPHICS_EXPORT CFDataRef CGContextCaptureBitmap(CGContextRef context, CGRect rect);
+COREGRAPHICS_EXPORT CFDataRef _Nullable CGContextCaptureBitmap(CGContextRef context, CGRect rect);
 COREGRAPHICS_EXPORT void CGContextCopyBits(CGContextRef context, CGRect rect, CGPoint point, int gState);
 COREGRAPHICS_EXPORT bool CGContextSupportsGlobalAlpha(CGContextRef context);
 COREGRAPHICS_EXPORT bool CGContextIsBitmapContext(CGContextRef context);
 
 
+CF_ASSUME_NONNULL_END
 CF_IMPLICIT_BRIDGING_DISABLED

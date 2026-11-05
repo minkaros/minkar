@@ -9,6 +9,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 #import <CoreGraphics/CoreGraphicsExport.h>
 #import <CoreFoundation/CFBase.h>
+#import <CoreFoundation/CFDictionary.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <math.h>
@@ -180,6 +181,8 @@ typedef CF_ENUM(uint32_t, CGRectEdge) {
     CGRectMaxYEdge,
 };
 
+CF_ASSUME_NONNULL_BEGIN
+
 /* Splits rect at amount from edge: slice is that part, remainder the rest. */
 COREGRAPHICS_EXPORT void CGRectDivide(CGRect rect, CGRect *slice, CGRect *remainder, CGFloat amount, CGRectEdge edge);
 
@@ -188,13 +191,14 @@ COREGRAPHICS_EXPORT CGRect CGRectIntersection(CGRect a, CGRect b);
 COREGRAPHICS_EXPORT CGRect CGRectIntegral(CGRect rect);
 
 /* Dictionary representations (keys "X", "Y", "Width", "Height"). */
-#import <CoreFoundation/CFDictionary.h>
 COREGRAPHICS_EXPORT CFDictionaryRef CGPointCreateDictionaryRepresentation(CGPoint point);
-COREGRAPHICS_EXPORT bool CGPointMakeWithDictionaryRepresentation(CFDictionaryRef dict, CGPoint *point);
+COREGRAPHICS_EXPORT bool CGPointMakeWithDictionaryRepresentation(CFDictionaryRef _Nullable dict, CGPoint * _Nullable point);
 COREGRAPHICS_EXPORT CFDictionaryRef CGSizeCreateDictionaryRepresentation(CGSize size);
-COREGRAPHICS_EXPORT bool CGSizeMakeWithDictionaryRepresentation(CFDictionaryRef dict, CGSize *size);
+COREGRAPHICS_EXPORT bool CGSizeMakeWithDictionaryRepresentation(CFDictionaryRef _Nullable dict, CGSize * _Nullable size);
 COREGRAPHICS_EXPORT CFDictionaryRef CGRectCreateDictionaryRepresentation(CGRect rect);
-COREGRAPHICS_EXPORT bool CGRectMakeWithDictionaryRepresentation(CFDictionaryRef dict, CGRect *rect);
+COREGRAPHICS_EXPORT bool CGRectMakeWithDictionaryRepresentation(CFDictionaryRef _Nullable dict, CGRect * _Nullable rect);
+
+CF_ASSUME_NONNULL_END
 
 static inline bool CGRectContainsRect(CGRect a, CGRect b) {
     return (CGRectGetMinX(b) >= CGRectGetMinX(a) &&

@@ -11,19 +11,21 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 /* CF's naming rules for what the functions return (Create, Copy). */
 CF_IMPLICIT_BRIDGING_ENABLED
+CF_ASSUME_NONNULL_BEGIN
 
 typedef struct O2DataProvider *CGDataProviderRef;
 
-typedef void (*CGDataProviderReleaseDataCallback)(void *info, const void *data, size_t size);
+typedef void (*CGDataProviderReleaseDataCallback)(void * _Nullable info, const void *data, size_t size);
 
-COREGRAPHICS_EXPORT CGDataProviderRef CGDataProviderRetain(CGDataProviderRef provider);
-COREGRAPHICS_EXPORT void CGDataProviderRelease(CGDataProviderRef provider);
+COREGRAPHICS_EXPORT CGDataProviderRef _Nullable CGDataProviderRetain(CGDataProviderRef _Nullable provider);
+COREGRAPHICS_EXPORT void CGDataProviderRelease(CGDataProviderRef _Nullable provider);
 
-COREGRAPHICS_EXPORT CGDataProviderRef CGDataProviderCreateWithCFData(CFDataRef data);
+COREGRAPHICS_EXPORT CGDataProviderRef _Nullable CGDataProviderCreateWithCFData(CFDataRef _Nullable data);
 
-COREGRAPHICS_EXPORT CGDataProviderRef CGDataProviderCreateWithData(void *info, const void *data, size_t size, CGDataProviderReleaseDataCallback releaseCallback);
+COREGRAPHICS_EXPORT CGDataProviderRef _Nullable CGDataProviderCreateWithData(void * _Nullable info, const void * _Nullable data, size_t size, CGDataProviderReleaseDataCallback _Nullable releaseCallback);
 
-COREGRAPHICS_EXPORT CFDataRef CGDataProviderCopyData(CGDataProviderRef self);
+COREGRAPHICS_EXPORT CFDataRef _Nullable CGDataProviderCopyData(CGDataProviderRef self);
 
 
+CF_ASSUME_NONNULL_END
 CF_IMPLICIT_BRIDGING_DISABLED

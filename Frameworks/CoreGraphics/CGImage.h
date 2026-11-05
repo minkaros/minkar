@@ -13,6 +13,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 /* CF's naming rules for what the functions return (Create, Copy). */
 CF_IMPLICIT_BRIDGING_ENABLED
+CF_ASSUME_NONNULL_BEGIN
 
 typedef CF_ENUM(uint32_t, CGImageAlphaInfo) {
     kCGImageAlphaNone,
@@ -48,32 +49,32 @@ typedef CF_OPTIONS(uint32_t, CGBitmapInfo) {
 
 typedef struct O2Image *CGImageRef;
 
-COREGRAPHICS_EXPORT CGImageRef CGImageRetain(CGImageRef image);
-COREGRAPHICS_EXPORT void CGImageRelease(CGImageRef image);
+COREGRAPHICS_EXPORT CGImageRef _Nullable CGImageRetain(CGImageRef _Nullable image);
+COREGRAPHICS_EXPORT void CGImageRelease(CGImageRef _Nullable image);
 
-COREGRAPHICS_EXPORT CGImageRef CGImageCreate(size_t width, size_t height, size_t bitsPerComponent, size_t bitsPerPixel, size_t bytesPerRow, CGColorSpaceRef colorSpace, CGBitmapInfo bitmapInfo, CGDataProviderRef dataProvider, const CGFloat *decode, bool interpolate, CGColorRenderingIntent renderingIntent);
-COREGRAPHICS_EXPORT CGImageRef CGImageMaskCreate(size_t width, size_t height, size_t bitsPerComponent, size_t bitsPerPixel, size_t bytesPerRow, CGDataProviderRef dataProvider, const CGFloat *decode, bool interpolate);
+COREGRAPHICS_EXPORT CGImageRef _Nullable CGImageCreate(size_t width, size_t height, size_t bitsPerComponent, size_t bitsPerPixel, size_t bytesPerRow, CGColorSpaceRef colorSpace, CGBitmapInfo bitmapInfo, CGDataProviderRef dataProvider, const CGFloat * _Nullable decode, bool interpolate, CGColorRenderingIntent renderingIntent);
+COREGRAPHICS_EXPORT CGImageRef CGImageMaskCreate(size_t width, size_t height, size_t bitsPerComponent, size_t bitsPerPixel, size_t bytesPerRow, CGDataProviderRef dataProvider, const CGFloat * _Nullable decode, bool interpolate);
 
-COREGRAPHICS_EXPORT CGImageRef CGImageCreateCopy(CGImageRef self);
-COREGRAPHICS_EXPORT CGImageRef CGImageCreateCopyWithColorSpace(CGImageRef self, CGColorSpaceRef colorSpace);
+COREGRAPHICS_EXPORT CGImageRef _Nullable CGImageCreateCopy(CGImageRef _Nullable self);
+COREGRAPHICS_EXPORT CGImageRef _Nullable CGImageCreateCopyWithColorSpace(CGImageRef _Nullable self, CGColorSpaceRef colorSpace);
 
-COREGRAPHICS_EXPORT CGImageRef CGImageCreateWithImageInRect(CGImageRef self, CGRect rect);
+COREGRAPHICS_EXPORT CGImageRef _Nullable CGImageCreateWithImageInRect(CGImageRef _Nullable self, CGRect rect);
 
-COREGRAPHICS_EXPORT CGImageRef CGImageCreateWithJPEGDataProvider(CGDataProviderRef jpegProvider, const CGFloat *decode, bool interpolate, CGColorRenderingIntent renderingIntent);
-COREGRAPHICS_EXPORT CGImageRef CGImageCreateWithPNGDataProvider(CGDataProviderRef pngProvider, const CGFloat *decode, bool interpolate, CGColorRenderingIntent renderingIntent);
+COREGRAPHICS_EXPORT CGImageRef _Nullable CGImageCreateWithJPEGDataProvider(CGDataProviderRef jpegProvider, const CGFloat * _Nullable decode, bool interpolate, CGColorRenderingIntent renderingIntent);
+COREGRAPHICS_EXPORT CGImageRef _Nullable CGImageCreateWithPNGDataProvider(CGDataProviderRef pngProvider, const CGFloat * _Nullable decode, bool interpolate, CGColorRenderingIntent renderingIntent);
 
-COREGRAPHICS_EXPORT CGImageRef CGImageCreateWithMask(CGImageRef self, CGImageRef mask);
-COREGRAPHICS_EXPORT CGImageRef CGImageCreateWithMaskingColors(CGImageRef self, const CGFloat *components);
+COREGRAPHICS_EXPORT CGImageRef _Nullable CGImageCreateWithMask(CGImageRef _Nullable self, CGImageRef mask);
+COREGRAPHICS_EXPORT CGImageRef _Nullable CGImageCreateWithMaskingColors(CGImageRef _Nullable self, const CGFloat *components);
 
 COREGRAPHICS_EXPORT size_t CGImageGetWidth(CGImageRef self);
 COREGRAPHICS_EXPORT size_t CGImageGetHeight(CGImageRef self);
 COREGRAPHICS_EXPORT size_t CGImageGetBitsPerComponent(CGImageRef self);
 COREGRAPHICS_EXPORT size_t CGImageGetBitsPerPixel(CGImageRef self);
 COREGRAPHICS_EXPORT size_t CGImageGetBytesPerRow(CGImageRef self);
-COREGRAPHICS_EXPORT CGColorSpaceRef CGImageGetColorSpace(CGImageRef self);
+COREGRAPHICS_EXPORT CGColorSpaceRef _Nullable CGImageGetColorSpace(CGImageRef self);
 COREGRAPHICS_EXPORT CGBitmapInfo CGImageGetBitmapInfo(CGImageRef self);
-COREGRAPHICS_EXPORT CGDataProviderRef CGImageGetDataProvider(CGImageRef self);
-COREGRAPHICS_EXPORT const CGFloat *CGImageGetDecode(CGImageRef self);
+COREGRAPHICS_EXPORT CGDataProviderRef _Nullable CGImageGetDataProvider(CGImageRef self);
+COREGRAPHICS_EXPORT const CGFloat * _Nullable CGImageGetDecode(CGImageRef self);
 COREGRAPHICS_EXPORT bool CGImageGetShouldInterpolate(CGImageRef self);
 COREGRAPHICS_EXPORT CGColorRenderingIntent CGImageGetRenderingIntent(CGImageRef self);
 
@@ -81,4 +82,5 @@ COREGRAPHICS_EXPORT bool CGImageIsMask(CGImageRef self);
 COREGRAPHICS_EXPORT CGImageAlphaInfo CGImageGetAlphaInfo(CGImageRef self);
 
 
+CF_ASSUME_NONNULL_END
 CF_IMPLICIT_BRIDGING_DISABLED
