@@ -9,15 +9,23 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 @class NSArray<ObjectType>, NSMutableDictionary<KeyType, ObjectType>, NSDictionary<KeyType, ObjectType>;
 
-typedef enum {
-    NSConstantValueExpressionType,
+typedef NS_ENUM(NSUInteger, NSExpressionType) {
+    NSConstantValueExpressionType = 0,
     NSEvaluatedObjectExpressionType,
     NSVariableExpressionType,
     NSKeyPathExpressionType,
-    NSFunctionExpressionType
-} NSExpressionType;
+    NSFunctionExpressionType,
+    NSUnionSetExpressionType,
+    NSIntersectSetExpressionType,
+    NSMinusSetExpressionType,
+    NSSubqueryExpressionType = 13,
+    NSAggregateExpressionType,
+    NSAnyKeyExpressionType = 15,
+    NSBlockExpressionType = 19,
+    NSConditionalExpressionType = 20,
+};
 
-@interface NSExpression : NSObject <NSCoding, NSCopying> {
+@interface NSExpression : NSObject <NSSecureCoding, NSCopying> {
     NSExpressionType _type;
 }
 
@@ -41,6 +49,7 @@ typedef enum {
 @property (readonly) NSString *function;
 @property (readonly) NSArray *arguments;
 @property (readonly) NSExpression *operand;
+@property (readonly, retain) id collection;
 
 - expressionValueWithObject:object context:(NSMutableDictionary *)context;
 

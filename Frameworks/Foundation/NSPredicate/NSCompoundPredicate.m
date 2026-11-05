@@ -1,4 +1,5 @@
 /* Copyright (c) 2006-2007 Christopher J. W. Lloyd
+Modifications Copyright (c) 2026 The Minkar contributors
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
 
@@ -8,13 +9,20 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <Foundation/NSCompoundPredicate.h>
 #import <Foundation/NSArray.h>
 #import <Foundation/NSString.h>
+#import <Foundation/NSRaise.h>
 
 @implementation NSCompoundPredicate
 
 -initWithType:(NSCompoundPredicateType)type subpredicates:(NSArray *)predicates {
+   if(type==NSNotPredicateType && [predicates count]!=1)
+    [NSException raise:NSInvalidArgumentException format:@"A NOT predicate takes one subpredicate, not %lu",(unsigned long)[predicates count]];
    _type=type;
-   _predicates=[predicates retain];
+   _predicates=[predicates copy];
    return self;
+}
+
+-initWithCoder:(NSCoder *)coder {
+   return [super initWithCoder:coder];
 }
 
 -(void)dealloc {
@@ -22,50 +30,63 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    [super dealloc];
 }
 
-+(NSPredicate *)notPredicateWithSubpredicate:(NSPredicate *)predicate {
+-copyWithZone:(NSZone *)zone {
+   return [self retain];
+}
+
++(NSCompoundPredicate *)notPredicateWithSubpredicate:(NSPredicate *)predicate {
    return [[[self alloc] initWithType:NSNotPredicateType subpredicates:[NSArray arrayWithObject:predicate]] autorelease];
 }
 
-
-+(NSPredicate *)andPredicateWithSubpredicates:(NSArray *)predicates {
++(NSCompoundPredicate *)andPredicateWithSubpredicates:(NSArray *)predicates {
    return [[[self alloc] initWithType:NSAndPredicateType subpredicates:predicates] autorelease];
 }
 
-+(NSPredicate *)orPredicateWithSubpredicates:(NSArray *)predicates {
++(NSCompoundPredicate *)orPredicateWithSubpredicates:(NSArray *)predicates {
    return [[[self alloc] initWithType:NSOrPredicateType subpredicates:predicates] autorelease];
 }
 
+// A subpredicate of another kind of compound is parenthesized.
+-(NSString *)_formatOf:(NSPredicate *)check {
+   NSString *format=[check predicateFormat];
+
+   if([check isKindOfClass:[NSCompoundPredicate class]] &&
+      ([(NSCompoundPredicate *)check compoundPredicateType]!=_type || _type==NSNotPredicateType) &&
+      [[(NSCompoundPredicate *)check subpredicates] count]>1)
+    format=[NSString stringWithFormat:@"(%@)",format];
+   return format;
+}
+
 -(NSString *)predicateFormat {
-   NSMutableString *result=[NSMutableString string];
-   NSMutableArray  *args=[NSMutableArray array];
-   NSInteger              i,count=[_predicates count];
-   
-   for(i=0;i<count;i++){
-    NSPredicate *check=[_predicates objectAtIndex:i];
-    NSString    *precedence=[check predicateFormat];
-    
-    if([check isKindOfClass:[NSCompoundPredicate class]])
-     if([(NSCompoundPredicate *)check compoundPredicateType]!=_type)
-      precedence=[NSString stringWithFormat:@"(%@)",precedence];
-     
-    [args addObject:precedence];
-   }
-   
+   NSMutableArray *args=[NSMutableArray array];
+
+   for(NSPredicate *check in _predicates)
+    [args addObject:[self _formatOf:check]];
+
    switch(_type){
     case NSNotPredicateType:
-     [result appendFormat:@"NOT %@",[args objectAtIndex:0]];
-     break;
-     
+     return [NSString stringWithFormat:@"NOT %@",[args objectAtIndex:0]];
+
     case NSAndPredicateType:
-     [result appendFormat:@"%@ AND %@",[args objectAtIndex:0],[args objectAtIndex:1]];
-     break;
+     if([args count]==0)
+      return @"TRUEPREDICATE";
+     return [args componentsJoinedByString:@" AND "];
 
     case NSOrPredicateType:
-     [result appendFormat:@"%@ OR %@",[args objectAtIndex:0],[args objectAtIndex:1]];
-     break;
-    }
-   
-   return result;
+     if([args count]==0)
+      return @"FALSEPREDICATE";
+     return [args componentsJoinedByString:@" OR "];
+   }
+   return nil;
+}
+
+-(NSPredicate *)predicateWithSubstitutionVariables:(NSDictionary *)variables {
+   NSMutableArray *predicates=[NSMutableArray arrayWithCapacity:[_predicates count]];
+
+   for(NSPredicate *check in _predicates)
+    [predicates addObject:[check predicateWithSubstitutionVariables:variables]];
+
+   return [[[NSCompoundPredicate alloc] initWithType:_type subpredicates:predicates] autorelease];
 }
 
 -(NSCompoundPredicateType)compoundPredicateType {
@@ -76,32 +97,24 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    return _predicates;
 }
 
--(BOOL)evaluateWithObject:object {
-   BOOL result=NO;
-   NSInteger  i,count=[_predicates count];
-   
-   for(i=0;i<count;i++){
-    NSPredicate *predicate=[_predicates objectAtIndex:i];
-    
-    switch(_type){
-     case NSNotPredicateType:
-      return ![predicate evaluateWithObject:object];
+-(BOOL)evaluateWithObject:object substitutionVariables:(NSDictionary *)bindings {
+   switch(_type){
+    case NSNotPredicateType:
+     return ![[_predicates objectAtIndex:0] evaluateWithObject:object substitutionVariables:bindings];
 
-     case NSAndPredicateType:
-      if(i==0)
-       result=[predicate evaluateWithObject:object];
-      else
-       result=result && [predicate evaluateWithObject:object];
-      break;
-      
-     case NSOrPredicateType:
-      if([predicate evaluateWithObject:object])
+    case NSAndPredicateType:
+     for(NSPredicate *predicate in _predicates)
+      if(![predicate evaluateWithObject:object substitutionVariables:bindings])
+       return NO;
+     return YES;
+
+    case NSOrPredicateType:
+     for(NSPredicate *predicate in _predicates)
+      if([predicate evaluateWithObject:object substitutionVariables:bindings])
        return YES;
-      break;
-    }
+     return NO;
    }
-   
-   return result;
+   return NO;
 }
 
 @end

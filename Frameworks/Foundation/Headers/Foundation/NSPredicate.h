@@ -9,20 +9,28 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 @class NSArray<ObjectType>, NSDictionary<KeyType, ObjectType>;
 
-@interface NSPredicate : NSObject <NSCoding, NSCopying> {
+NS_ASSUME_NONNULL_BEGIN
+
+@interface NSPredicate : NSObject <NSSecureCoding, NSCopying> {
     NSString *_format;
     NSPredicate *_predicate;
 }
 
 + (NSPredicate *)predicateWithFormat:(NSString *)format arguments:(va_list)arguments;
 + (NSPredicate *)predicateWithFormat:(NSString *)format, ...;
-+ (NSPredicate *)predicateWithFormat:(NSString *)format argumentArray:(NSArray *)arguments;
++ (NSPredicate *)predicateWithFormat:(NSString *)format argumentArray:(nullable NSArray *)arguments;
 + (NSPredicate *)predicateWithValue:(BOOL)value;
++ (NSPredicate *)predicateWithBlock:(BOOL (^)(id _Nullable evaluatedObject, NSDictionary<NSString *, id> * _Nullable bindings))block;
 
-- (NSString *)predicateFormat;
+@property (readonly, copy) NSString *predicateFormat;
 
-- (NSPredicate *)predicateWithSubstitutionVariables:(NSDictionary *)variables;
+- (instancetype)predicateWithSubstitutionVariables:(NSDictionary<NSString *, id> *)variables;
 
-- (BOOL)evaluateWithObject:object;
+- (BOOL)evaluateWithObject:(nullable id)object;
+- (BOOL)evaluateWithObject:(nullable id)object substitutionVariables:(nullable NSDictionary<NSString *, id> *)bindings;
+
+- (void)allowEvaluation;
 
 @end
+
+NS_ASSUME_NONNULL_END

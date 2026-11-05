@@ -158,6 +158,8 @@
 #import <Foundation/NSPort.h>
 #import <Foundation/NSPortCoder.h>
 #import <Foundation/NSPredicate.h>
+#import <Foundation/NSComparisonPredicate.h>
+#import <Foundation/NSCompoundPredicate.h>
 #import <Foundation/NSExpression.h>
 #import <Foundation/NSProcessInfo.h>
 #import <Foundation/NSProxy.h>
