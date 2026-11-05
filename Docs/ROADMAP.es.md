@@ -252,9 +252,22 @@ Llegan de la Fase 2 (31 oct 2026):
 - [x] Overlay `CoreGraphics`. *Hecho (4 nov 2026, `dc69c6b38f`):* de Swift 5.4 como los demás, con `CGFloat` generado por su plantilla gyb. Antes CoreGraphics pasó a los tipos de referencia: `CGFloat` es `double` en 64 bits y `CGContextRef` un tipo CF (`29f392e725`), los contadores son `size_t`, las enumeraciones tienen tipo, y se añadió la API que usa el overlay con sus nombres de Swift en las cabeceras (`f61dfd5b34`). Prueba `swift` 34/0 (geometría, transformaciones, colores, rutas, dibujo en un mapa de bits). Falta: nombres de Swift para el resto de CG y la nulabilidad de las cabeceras.
 - [x] Overlay `libswiftFoundation` a partir de la última versión abierta, actualizado a Swift 6.0. *Hecho (5 nov 2026, `7093882f38`):* el overlay de Swift 5.4 compilado con Swift 6.0 contra la Foundation de Minkar, con sus planificadores y publicadores de Combine (run loop, cola de operaciones, temporizador, notificaciones, KVO, sesión de URL; el de DispatchQueue en el overlay de Dispatch). Antes Foundation recibió lo que Swift lee de ella y lo que le faltaba (`a3b073f23b`): los tipos de referencia (`NSStringEncoding`, `NSComparisonResult`, `NSRectEdge`), enumeraciones de cadenas con tipo, propiedades, genéricos y nulabilidad en las cabeceras, y la API 19 que llama el overlay: NSCalendar y NSLocale sobre CF (`16ab71b9a3`), la aritmética de NSDecimal y NSDecimalNumber (`e25e40ac29`), NSOrderedSet, las diferencias de colecciones, unidades y medidas, NSPersonNameComponents, NSLinguisticTagger, NSISO8601DateFormatter y NSItemProvider (`df5cbb9610`). KVO entraba en recursión infinita en un setter observado y no tenía notificaciones iniciales (`7233b00fcd`). Pruebas `swift` 71/0 (Foundation y Combine desde Swift), `foundation-api19` 49/0; suite completa 3783/1 (una prueba de cursores intermitente, pasa sola), M2 PASS. *Falta:* la confianza del servidor en URLError y en las sesiones (necesitan Security); `URLSessionWebSocketTask` es un stub que falla como no soportado.
 - [x] Combine (API 19) desde OpenCombine. *Hecho (5 nov 2026, `7b305aa383`):* OpenCombine 0.14.0 (MIT) compilado como `Combine.framework`, un módulo con evolución de biblioteca que los programas enlazan como framework; `Optional.Publisher` y `Result.Publisher` anidados como en Combine. Probado con sujetos, operadores, `@Published`/`ObservableObject`, `Future`, `Zip`, decodificación, y los planificadores y publicadores de Foundation y Dispatch.
+- [x] XCTest, para las suites de tests del criterio. *Hecho (5 nov 2026, `78caf199df`):* swift-corelibs-xctest (Apache-2.0) en la versión de la toolchain, compilado sobre la Foundation de Minkar como `XCTest.framework` (en `Developer/Library/Frameworks` de la plataforma para compilar, en `/Library/Developer/Frameworks` de la imagen). Sin gestor de paquetes, `xctest-discover` escribe el main de un programa de tests a partir de sus fuentes (subclases, tests heredados, extensiones, tests asíncronos). Hizo falta `NSProcessInfo`, `NSFileHandle` y `NSDateFormatter` con la forma de la referencia, y `getCFRunLoop`, que devolvía el propio NSRunLoop (`bf327957e7`). Prueba local `xctest` 15/0.
 - [ ] Instalar todo en `/usr/lib/swift` dentro de la imagen y añadir un gate de `boottest` que ejecute un binario Swift.
 
-**Criterio de salida (M3):** un conjunto fijo de herramientas CLI de código abierto escritas para la API Cocoa (ObjC y Swift) compila y pasa sus tests en Minkar.
+**Criterio de salida (M3):** un conjunto fijo de herramientas CLI de código abierto escritas para la API Cocoa (ObjC y Swift) compila y pasa sus tests en Minkar. El conjunto (fijado el 5 nov 2026), compilado en el host y con sus tests ejecutados en la imagen (gate M3 de `boottest`):
+
+| Herramienta | Lenguaje | Licencia | Qué ejercita |
+|---|---|---|---|
+| swift-argument-parser, con sus ejemplos | Swift | Apache-2.0 | La base de casi todas las herramientas CLI en Swift |
+| SwiftFormat | Swift | MIT | Foundation a fondo; una suite de tests grande |
+| xcbeautify | Swift | MIT | Expresiones regulares, cadenas, Foundation |
+| Yams | Swift | MIT | Codable, y una biblioteca en C enlazada |
+| Rainbow y Files | Swift | MIT | Ficheros, rutas y la terminal |
+| mogenerator | Objective-C | MIT | CoreData y Foundation |
+| tag | Objective-C | MIT | Valores de recursos de NSURL y etiquetas de ficheros |
+
+Fuera: herramientas sin licencia o con una dudosa, y las que usan API privada.
 
 ## Fase 4 — Gráficos y WindowServer
 
@@ -341,7 +354,7 @@ Objetivo: una sesión gráfica completa con el lenguaje visual Atlas, con login,
 4. **Dock:** lanzador, apps abiertas, minimizado y gestión del fondo de pantalla, sobre LaunchServices. Plan: [Dock-Argos.es.md](Dock-Argos.es.md) (D0–D4).
 5. **Argos:** app nueva en Cocoa puro. Navegación con LaunchServices, montaje vía DiskArbitration, iconos de escritorio, papelera y "Abrir con". Plan: [Dock-Argos.es.md](Dock-Argos.es.md) (K0–K4).
 6. **System Preferences:** app contenedora + cargador de bundles `.prefPane` (`NSPreferencePane`). Paneles iniciales: Pantallas, Teclado, Usuarios, Red, Dock, Fecha y hora. *Parcial (4 nov 2026):* la app, `PreferencePanes.framework` y cinco paneles, Pantallas, Dock, Fecha y hora, Teclado y Red (`948e15445f`, `f5f26fc193`, `7c5f6cda8b`; prueba local `system-preferences` 12/0); Usuarios espera a Directory Services.
-7. **AppKit:** completar controles faltantes y dar a todo el sistema el lenguaje visual Atlas (diseño propio, sin recursos de terceros), priorizado por lo que usan Argos y System Preferences. *4 nov 2026:* un panel de guardar (`1e4869b895`); la fuente del sistema, Inter, es también la del editor de texto hasta elegir una de ancho fijo (por revisar).
+7. **AppKit:** completar controles faltantes y dar a todo el sistema el lenguaje visual Atlas (diseño propio, sin recursos de terceros), priorizado por lo que usan Argos y System Preferences. *4 nov 2026:* un panel de guardar (`1e4869b895`); la fuente del sistema, Inter, es también la del editor de texto hasta elegir una de ancho fijo (por revisar). *5 nov 2026:* la fuente de ancho fijo es Agave (SIL OFL 1.1), descargada en una versión fijada e instalada sin cambios; `userFixedPitchFont` sigue a `NSFixedPitchFont` y Alcor muestra el texto plano con ella; las fuentes cuya familia lleva espacios se encuentran por su nombre PostScript (`642e6a1cda`), y los caracteres que cubre una fuente perdían el último de cada tramo, que el texto dibujaba entonces con otra fuente (`5e51bdc6ba`). Argos tiene un icono de prueba, no el definitivo (`2194ff5695`); las imágenes dibujadas a menos de la mitad de su tamaño se promedian en lugar de muestrearse (`f474cc75a0`). Prueba local `fixed-pitch` 14/0.
 
 Criterio transversal: todos estos componentes son apps o bundles Cocoa normales. Así funcionan como prueba continua de AppKit.
 
@@ -426,7 +439,7 @@ M0, M1 y M2 están cumplidos (M1 el 1 nov, con el Mac Pro 6,1 como PC 2) y la Fa
 | M0 | Build, toolchain, CI | Cumplido (CI verde desde `05fa75cb65`) |
 | M1 | Arranque Darwin | Cumplido en QEMU, en el PC 1 (SATA, NVMe, SMP) y en el PC 2, un Mac Pro 6,1 (NVMe, 24 hilos; 1 nov 2026) |
 | M2 | Userland base | Cumplido (`boottest GATE=M2`, 17 marcadores desde el 1 nov 2026, con la comprobación de integridad de código); Fase 2 cerrada el 31 oct |
-| M3 | Frameworks y Swift | En curso: toolchain, runtime, overlays de Swift (Foundation incluido) y Combine hechos; falta fijar la lista de herramientas del criterio |
+| M3 | Frameworks y Swift | En curso: toolchain, runtime, overlays de Swift (Foundation incluido), Combine y XCTest hechos; la lista de herramientas del criterio está fijada |
 | M4 | Gráficos y WindowServer | Cumplido en QEMU (`boottest GATE=M4`, 54 marcadores, 2 nov 2026, `9d510ec6c2`): WS0 a WS4b hechos (el núcleo nuevo es el servidor de ventanas, los menús en cada app con MB0, el `loginwindow` mínimo; el servidor anterior borrado). También WS5 (IOSurface y virtio-gpu, 2 nov 2026, `9a472063c1`; M4 pasa con virtio-vga y con la VGA estándar). La Fase 4 sigue con la GPU (WS6) y en hardware físico |
 | M5 | Escritorio Atlas | Sin empezar |
 | M6 (Minkar 19.6.0) | Apps y distribución, y el escritorio completo para el uso diario (MB2–MB3, D2–D3, K2–K3) | Sin empezar; `hdiutil attach` ya monta |
