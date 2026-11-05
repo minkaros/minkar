@@ -65,6 +65,9 @@ SOURCES_Foundation =	AffineTransform.swift Boxing.swift Calendar.swift \
 			String.swift TimeZone.swift URL.swift URLCache.swift \
 			URLComponents.swift URLRequest.swift URLSession.swift UUID.swift
 GENERATED_Foundation =	${OUT}/NSValue.swift
+# Minkar's own Swift in an overlay (in ${.CURDIR}/<overlay>): API the
+# header cannot name, and API 21's asynchronous API.
+MINKAR_Foundation =	FileHandle.swift AsyncBytes.swift URLSession+Async.swift
 OBJC_Foundation =	DataThunks.m
 # Dispatch.mm is written for ARC, DataThunks.m for manual retain and release.
 OBJCFLAGS_Dispatch =	-fobjc-arc
@@ -121,7 +124,8 @@ ${OUT}/NSValue.swift: ${SRC}/.minkar-patches
 	    --line-directive '' -o ${.TARGET} ${DARWIN}/Foundation/NSValue.swift.gyb
 
 .for o in ${OVERLAYS}
-${OUT}/${o}.o: ${SHIMS}/module.modulemap ${SOURCES_${o}:S,^,${DARWIN}/${o}/,} ${GENERATED_${o}} ${.CURDIR}/Makefile
+${OUT}/${o}.o: ${SHIMS}/module.modulemap ${SOURCES_${o}:S,^,${DARWIN}/${o}/,} ${GENERATED_${o}} ${.CURDIR}/Makefile \
+	    ${MINKAR_${o}:S,^,${.CURDIR}/${o}/,}
 	mkdir -p ${OUT}/${o}.swiftmodule
 	${TOOLENV} ${TC}/swiftc -frontend -c -O -parse-as-library -enable-library-evolution \
 	    -module-name ${o} -module-link-name swift${o} -target ${TRIPLE} \
@@ -130,7 +134,8 @@ ${OUT}/${o}.o: ${SHIMS}/module.modulemap ${SOURCES_${o}:S,^,${DARWIN}/${o}/,} ${
 	    -emit-module-path ${OUT}/${o}.swiftmodule/${MODTRIPLE}.swiftmodule \
 	    -emit-module-interface-path ${OUT}/${o}.swiftmodule/${MODTRIPLE}.swiftinterface \
 	    -emit-module-doc-path ${OUT}/${o}.swiftmodule/${MODTRIPLE}.swiftdoc \
-	    ${SOURCES_${o}:S,^,${DARWIN}/${o}/,} ${GENERATED_${o}} -o ${.TARGET}
+	    ${SOURCES_${o}:S,^,${DARWIN}/${o}/,} ${GENERATED_${o}} \
+	    ${MINKAR_${o}:S,^,${.CURDIR}/${o}/,} -o ${.TARGET}
 
 ${OUT}/libswift${o}.dylib: ${OUT}/${o}.o ${.CURDIR}/Makefile
 	cd ${OUT} && for m in ${OBJC_${o}}; do \

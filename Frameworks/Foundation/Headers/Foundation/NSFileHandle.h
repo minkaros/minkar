@@ -76,15 +76,15 @@ NS_ASSUME_NONNULL_BEGIN
 + (nullable instancetype)fileHandleForReadingFromURL:(NSURL *)url error:(NSError **)error;
 + (nullable instancetype)fileHandleForWritingToURL:(NSURL *)url error:(NSError **)error;
 + (nullable instancetype)fileHandleForUpdatingURL:(NSURL *)url error:(NSError **)error;
-- (nullable NSData *)readDataToEndOfFileAndReturnError:(NSError **)error;
-- (nullable NSData *)readDataUpToLength:(NSUInteger)length error:(NSError **)error;
-- (BOOL)writeData:(NSData *)data error:(NSError **)error;
-- (BOOL)getOffset:(out unsigned long long *)offsetInFile error:(NSError **)error;
-- (BOOL)seekToEndReturningOffset:(out unsigned long long *_Nullable)offsetInFile error:(NSError **)error;
-- (BOOL)seekToOffset:(unsigned long long)offset error:(NSError **)error;
-- (BOOL)truncateAtOffset:(unsigned long long)offset error:(NSError **)error;
-- (BOOL)synchronizeAndReturnError:(NSError **)error;
-- (BOOL)closeAndReturnError:(NSError **)error;
+- (nullable NSData *)readDataToEndOfFileAndReturnError:(out NSError **)error NS_SWIFT_NAME(readToEnd());
+- (nullable NSData *)readDataUpToLength:(NSUInteger)length error:(out NSError **)error NS_SWIFT_NAME(read(upToCount:));
+- (BOOL)writeData:(NSData *)data error:(out NSError **)error NS_SWIFT_NAME(__write(contentsOf:));
+- (BOOL)getOffset:(out unsigned long long *)offsetInFile error:(out NSError **)error NS_REFINED_FOR_SWIFT;
+- (BOOL)seekToEndReturningOffset:(out unsigned long long *_Nullable)offsetInFile error:(out NSError **)error NS_REFINED_FOR_SWIFT;
+- (BOOL)seekToOffset:(unsigned long long)offset error:(out NSError **)error NS_SWIFT_NAME(seek(toOffset:));
+- (BOOL)truncateAtOffset:(unsigned long long)offset error:(out NSError **)error NS_SWIFT_NAME(truncate(atOffset:));
+- (BOOL)synchronizeAndReturnError:(out NSError **)error NS_SWIFT_NAME(synchronize());
+- (BOOL)closeAndReturnError:(out NSError **)error NS_SWIFT_NAME(close());
 @property(nullable, copy) void (^readabilityHandler)(NSFileHandle *);
 @property(nullable, copy) void (^writeabilityHandler)(NSFileHandle *);
 @end
