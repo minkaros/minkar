@@ -229,12 +229,14 @@ static CGFloat separatorSpace(CGFloat tile) { return round(tile / 4); }
     NSTimer *_pressTimer;
     NSTrackingArea *_tracking;
     DockDragWindow *_dragWindow;
+    NSInteger _labelled;      /* the tile whose label shows, or -1 */
 }
 
 - (instancetype)initWithFrame:(NSRect)frame
 {
     if ((self = [super initWithFrame:frame]) != nil) {
         _pressed = -1;
+        _labelled = -1;
         _pointerMain = NAN;
     }
     return self;
@@ -406,12 +408,11 @@ static CGFloat separatorSpace(CGFloat tile) { return round(tile / 4); }
 - (NSInteger)tileIndexAtPoint:(NSPoint)point
 {
     NSUInteger count = [self.model.tiles count];
-    CGFloat gap = gapFor(self.model.tileSize);
 
     for (NSUInteger i = 0; i < count; i++) {
-        NSRect r = [self rectForTileAtIndex:i];
-        /* The tile and half the gaps beside it, down to the edge. */
-        NSRect hit = NSInsetRect(r, -gap / 2, -gap / 2);
+        /* The icon along the Dock (not the gaps beside it), and across
+         * it down to the screen's edge. */
+        NSRect hit = [self rectForTileAtIndex:i];
         switch ([self orientation]) {
         case DockOrientationLeft: hit.size.width += hit.origin.x; hit.origin.x = 0; break;
         case DockOrientationRight: hit.size.width = NSWidth([self bounds]) - hit.origin.x; break;
@@ -473,15 +474,47 @@ static CGFloat separatorSpace(CGFloat tile) { return round(tile / 4); }
 
 /* -- The pointer -- */
 
+/* Whether point is in the gap between the tile at index and a neighbour,
+ * along the Dock: there a label already shown stays, rather than going
+ * and coming back as the pointer crosses. */
+- (BOOL)point:(NSPoint)point inGapBesideTile:(NSInteger)index
+{
+    NSUInteger count = [self.model.tiles count];
+
+    if (index < 0 || (NSUInteger)index >= count)
+        return NO;
+    NSRect r = [self rectForTileAtIndex:(NSUInteger)index];
+    BOOL vertical = [self orientation] != DockOrientationBottom;
+    CGFloat p = vertical ? point.y : point.x;
+    CGFloat lo = vertical ? NSMinY(r) : NSMinX(r), hi = vertical ? NSMaxY(r) : NSMaxX(r);
+    for (int side = -1; side <= 1; side += 2) {
+        NSInteger n = index + side;
+        if (n < 0 || (NSUInteger)n >= count)
+            continue;
+        NSRect o = [self rectForTileAtIndex:(NSUInteger)n];
+        CGFloat olo = vertical ? NSMinY(o) : NSMinX(o), ohi = vertical ? NSMaxY(o) : NSMaxX(o);
+        CGFloat a = MIN(hi, ohi), b = MAX(lo, olo);	/* the gap between them */
+        if (a < b && p >= a && p <= b)
+            return YES;
+    }
+    return NO;
+}
+
 - (void)showLabelForPoint:(NSPoint)point
 {
     NSInteger index = _dragging ? -1 : [self tileIndexAtPoint:point];
     DockLabelWindow *label = [self.dockWindow label];
 
+    if (index < 0 && !_dragging && [self point:point inGapBesideTile:_labelled])
+        return;
     if (index < 0) {
+        _labelled = -1;
         [label orderOut:nil];
         return;
     }
+    if (index == _labelled && [label isVisible])
+        return;
+    _labelled = index;
     NSRect rect = [self rectForTileAtIndex:(NSUInteger)index];
     NSRect onScreen = rect;
     onScreen.origin.x += NSMinX([[self window] frame]);
