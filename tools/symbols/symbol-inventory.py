@@ -195,7 +195,7 @@ def scan_sysroot(tools, sysroot):
             continue
         libs[install] = {
             'file': os.path.relpath(path, sysroot),
-            'installed': install_exists(sysroot, install),
+            'installed': install_exists(sysroot, install, path),
             'exports': tools.exports(path),
             'reexports': [d for c, d in dylibs if c == 'LC_REEXPORT_DYLIB'],
         }
@@ -219,7 +219,12 @@ def resolve_in_sysroot(sysroot, install):
     return None
 
 
-def install_exists(sysroot, install):
+def install_exists(sysroot, install, path):
+    """dyld finds the library by its install name: a path in the sysroot,
+    or @rpath/X, found through the programs' rpaths when the library's
+    path ends in X (XCTest.framework, in /Library/Developer/Frameworks)."""
+    if install.startswith('@rpath/'):
+        return path.endswith('/' + install[len('@rpath/'):])
     return resolve_in_sysroot(sysroot, install) is not None
 
 
