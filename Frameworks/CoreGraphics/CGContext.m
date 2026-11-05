@@ -79,7 +79,7 @@ void CGContextAddQuadCurveToPoint(CGContextRef context,CGFloat cx1,CGFloat cy1,C
    O2ContextAddQuadCurveToPoint(context,cx1,cy1,x,y);
 }
 
-void CGContextAddLines(CGContextRef context,const CGPoint *points,unsigned count) {
+void CGContextAddLines(CGContextRef context,const CGPoint *points,size_t count) {
    O2ContextAddLines(context,points,count);
 }
 
@@ -87,11 +87,11 @@ void CGContextAddRect(CGContextRef context,CGRect rect) {
    O2ContextAddRect(context,rect);
 }
 
-void CGContextAddRects(CGContextRef context,const CGRect *rects,unsigned count) {
+void CGContextAddRects(CGContextRef context,const CGRect *rects,size_t count) {
    O2ContextAddRects(context,rects,count);
 }
 
-void CGContextAddArc(CGContextRef context,CGFloat x,CGFloat y,CGFloat radius,CGFloat startRadian,CGFloat endRadian,bool clockwise) {
+void CGContextAddArc(CGContextRef context,CGFloat x,CGFloat y,CGFloat radius,CGFloat startRadian,CGFloat endRadian,int clockwise) {
    O2ContextAddArc(context,x,y,radius,startRadian,endRadian,clockwise);
 }
 
@@ -208,7 +208,7 @@ void CGContextClipToRect(CGContextRef context,CGRect rect){
    O2ContextClipToRect(context,rect);
 }
 
-void CGContextClipToRects(CGContextRef context,const CGRect *rects,unsigned count) {
+void CGContextClipToRects(CGContextRef context,const CGRect *rects,size_t count) {
    O2ContextClipToRects(context,rects,count);
 }
 
@@ -324,7 +324,7 @@ void CGContextSetMiterLimit(CGContextRef context,CGFloat miterLimit) {
    O2ContextSetMiterLimit(context,miterLimit);
 }
 
-void CGContextSetLineDash(CGContextRef context,CGFloat phase,const CGFloat *lengths,unsigned count) {
+void CGContextSetLineDash(CGContextRef context,CGFloat phase,const CGFloat *lengths,size_t count) {
    O2ContextSetLineDash(context,phase,lengths,count);
 }
 
@@ -356,7 +356,7 @@ void CGContextSetShouldAntialias(CGContextRef context,bool yesOrNo) {
    O2ContextSetShouldAntialias(context,yesOrNo);
 }
 
-void CGContextStrokeLineSegments(CGContextRef context,const CGPoint *points,unsigned count) {
+void CGContextStrokeLineSegments(CGContextRef context,const CGPoint *points,size_t count) {
    O2ContextStrokeLineSegments(context,points,count);
 }
 
@@ -376,7 +376,7 @@ void CGContextFillRect(CGContextRef context,CGRect rect) {
    O2ContextFillRect(context,rect);
 }
 
-void CGContextFillRects(CGContextRef context,const CGRect *rects,unsigned count) {
+void CGContextFillRects(CGContextRef context,const CGRect *rects,size_t count) {
    O2ContextFillRects(context,rects,count);
 }
 
@@ -404,23 +404,23 @@ void CGContextClearRect(CGContextRef context,CGRect rect) {
    O2ContextClearRect(context,rect);
 }
 
-void CGContextShowGlyphs(CGContextRef context,const CGGlyph *glyphs,unsigned count) {
+void CGContextShowGlyphs(CGContextRef context,const CGGlyph *glyphs,size_t count) {
    O2ContextShowGlyphs(context,glyphs,count);
 }
 
-void CGContextShowGlyphsAtPoint(CGContextRef context,CGFloat x,CGFloat y,const CGGlyph *glyphs,unsigned count) {
+void CGContextShowGlyphsAtPoint(CGContextRef context,CGFloat x,CGFloat y,const CGGlyph *glyphs,size_t count) {
    O2ContextShowGlyphsAtPoint(context,x,y,glyphs,count);
 }
 
-void CGContextShowGlyphsWithAdvances(CGContextRef context,const CGGlyph *glyphs,const CGSize *advances,unsigned count) {
+void CGContextShowGlyphsWithAdvances(CGContextRef context,const CGGlyph *glyphs,const CGSize *advances,size_t count) {
    O2ContextShowGlyphsWithAdvances(context,glyphs,advances,count);
 }
 
-void CGContextShowText(CGContextRef context,const char *text,unsigned count) {
+void CGContextShowText(CGContextRef context,const char *text,size_t count) {
    O2ContextShowText(context,text,count);
 }
 
-void CGContextShowTextAtPoint(CGContextRef context,CGFloat x,CGFloat y,const char *text,unsigned count) {
+void CGContextShowTextAtPoint(CGContextRef context,CGFloat x,CGFloat y,const char *text,size_t count) {
    O2ContextShowTextAtPoint(context,x,y,text,count);
 }
 
@@ -472,4 +472,24 @@ void CGContextCopyBits(CGContextRef context,CGRect rect,CGPoint point,int gState
 
 CFDataRef CGContextCaptureBitmap(CGContextRef context,CGRect rect) {
    return (CFDataRef)O2ContextCaptureBitmap(context,rect);
+}
+
+void CGContextShowGlyphsAtPositions(CGContextRef context, const CGGlyph *glyphs, const CGPoint *positions, size_t count) {
+    for (size_t i = 0; i < count; i++) {
+        CGContextSetTextPosition(context, positions[i].x, positions[i].y);
+        CGContextShowGlyphs(context, &glyphs[i], 1);
+    }
+}
+
+void CGContextDrawTiledImage(CGContextRef context, CGRect rect, CGImageRef image) {
+    CGRect area = CGContextGetClipBoundingBox(context);
+    CGFloat w = rect.size.width, h = rect.size.height;
+
+    if (image == NULL || w <= 0 || h <= 0 || CGRectIsEmpty(area))
+        return;
+    CGFloat x0 = rect.origin.x + floor((CGRectGetMinX(area) - rect.origin.x) / w) * w;
+    CGFloat y0 = rect.origin.y + floor((CGRectGetMinY(area) - rect.origin.y) / h) * h;
+    for (CGFloat y = y0; y < CGRectGetMaxY(area); y += h)
+        for (CGFloat x = x0; x < CGRectGetMaxX(area); x += w)
+            CGContextDrawImage(context, CGRectMake(x, y, w, h), image);
 }

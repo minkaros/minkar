@@ -9,6 +9,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <CoreGraphics/CGColor.h>
 #import <Onyx2D/O2Color.h>
 #import <Onyx2D/O2ColorSpace.h>
+#include <dispatch/dispatch.h>
 
 CGColorRef CGColorRetain(CGColorRef self) {
    return O2ColorRetain(self);
@@ -68,4 +69,28 @@ CGFloat CGColorGetAlpha(CGColorRef self) {
 
 CGPatternRef CGColorGetPattern(CGColorRef self) {
    return O2ColorGetPattern(self);
+}
+
+const CFStringRef kCGColorWhite = CFSTR("kCGColorWhite");
+const CFStringRef kCGColorBlack = CFSTR("kCGColorBlack");
+const CFStringRef kCGColorClear = CFSTR("kCGColorClear");
+
+CGColorRef CGColorGetConstantColor(CFStringRef colorName) {
+    static CGColorRef white, black, clear;
+    static dispatch_once_t once;
+
+    dispatch_once(&once, ^{
+        white = CGColorCreateGenericGray(1, 1);
+        black = CGColorCreateGenericGray(0, 1);
+        clear = CGColorCreateGenericGray(0, 0);
+    });
+    if (colorName == NULL)
+        return NULL;
+    if (CFEqual(colorName, kCGColorWhite))
+        return white;
+    if (CFEqual(colorName, kCGColorBlack))
+        return black;
+    if (CFEqual(colorName, kCGColorClear))
+        return clear;
+    return NULL;
 }

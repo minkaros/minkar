@@ -13,15 +13,15 @@ CF_IMPLICIT_BRIDGING_ENABLED
 
 typedef struct O2ColorSpace *CGColorSpaceRef;
 
-typedef enum {
+typedef CF_ENUM(int32_t, CGColorRenderingIntent) {
     kCGRenderingIntentDefault,
     kCGRenderingIntentAbsoluteColorimetric,
     kCGRenderingIntentRelativeColorimetric,
     kCGRenderingIntentSaturation,
     kCGRenderingIntentPerceptual,
-} CGColorRenderingIntent;
+};
 
-typedef enum {
+typedef CF_ENUM(int32_t, CGColorSpaceModel) {
     kCGColorSpaceModelUnknown = -1,
     kCGColorSpaceModelMonochrome,
     kCGColorSpaceModelRGB,
@@ -30,7 +30,7 @@ typedef enum {
     kCGColorSpaceModelDeviceN,
     kCGColorSpaceModelIndexed,
     kCGColorSpaceModelPattern,
-} CGColorSpaceModel;
+};
 
 COREGRAPHICS_EXPORT CGColorSpaceRef CGColorSpaceRetain(CGColorSpaceRef colorSpace);
 COREGRAPHICS_EXPORT void CGColorSpaceRelease(CGColorSpaceRef colorSpace);
@@ -40,8 +40,17 @@ COREGRAPHICS_EXPORT CGColorSpaceRef CGColorSpaceCreateDeviceGray(void);
 COREGRAPHICS_EXPORT CGColorSpaceRef CGColorSpaceCreateDeviceCMYK(void);
 COREGRAPHICS_EXPORT CGColorSpaceRef CGColorSpaceCreatePattern(CGColorSpaceRef baseSpace);
 
-COREGRAPHICS_EXPORT CGColorSpaceModel CGColorSpaceGetModel(CGColorSpaceRef self);
-COREGRAPHICS_EXPORT size_t CGColorSpaceGetNumberOfComponents(CGColorSpaceRef self);
+COREGRAPHICS_EXPORT CGColorSpaceModel CGColorSpaceGetModel(CGColorSpaceRef self)
+    CF_SWIFT_NAME(getter:CGColorSpace.model(self:));
+/* An indexed or pattern space's base space; NULL for the others. */
+COREGRAPHICS_EXPORT CGColorSpaceRef CGColorSpaceGetBaseColorSpace(CGColorSpaceRef space)
+    CF_SWIFT_NAME(getter:CGColorSpace.baseColorSpace(self:));
+/* An indexed space's colors: how many, and their bytes (count times the
+ * base space's components). */
+COREGRAPHICS_EXPORT size_t CGColorSpaceGetColorTableCount(CGColorSpaceRef space);
+COREGRAPHICS_EXPORT void CGColorSpaceGetColorTable(CGColorSpaceRef space, uint8_t *table);
+COREGRAPHICS_EXPORT size_t CGColorSpaceGetNumberOfComponents(CGColorSpaceRef self)
+    CF_SWIFT_NAME(getter:CGColorSpace.numberOfComponents(self:));
 
 
 CF_IMPLICIT_BRIDGING_DISABLED

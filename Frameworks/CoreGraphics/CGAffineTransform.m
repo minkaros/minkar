@@ -99,3 +99,7 @@ CGSize CGSizeApplyAffineTransform(CGSize size,CGAffineTransform xform){
 
     return s;
 }
+
+bool CGAffineTransformEqualToTransform(CGAffineTransform t1, CGAffineTransform t2) {
+    return t1.a == t2.a && t1.b == t2.b && t1.c == t2.c && t1.d == t2.d && t1.tx == t2.tx && t1.ty == t2.ty;
+}

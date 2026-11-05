@@ -69,3 +69,46 @@ CGRect CGRectUnion(CGRect a, CGRect b) {
 	float maxY = MAX(CGRectGetMaxY(a), CGRectGetMaxY(b));
 	return CGRectMake(minX, minY, maxX - minX, maxY - minY);
 }
+
+void CGRectDivide(CGRect rect, CGRect *slice, CGRect *remainder, CGFloat amount, CGRectEdge edge) {
+    CGRect s, r;
+
+    if (rect.size.width < 0) {
+        rect.origin.x += rect.size.width;
+        rect.size.width = -rect.size.width;
+    }
+    if (rect.size.height < 0) {
+        rect.origin.y += rect.size.height;
+        rect.size.height = -rect.size.height;
+    }
+    if (amount < 0)
+        amount = 0;
+    s = r = rect;
+    switch (edge) {
+    case CGRectMinXEdge:
+    case CGRectMaxXEdge:
+        if (amount > rect.size.width)
+            amount = rect.size.width;
+        s.size.width = amount;
+        r.size.width = rect.size.width - amount;
+        if (edge == CGRectMinXEdge)
+            r.origin.x += amount;
+        else
+            s.origin.x += rect.size.width - amount;
+        break;
+    default:
+        if (amount > rect.size.height)
+            amount = rect.size.height;
+        s.size.height = amount;
+        r.size.height = rect.size.height - amount;
+        if (edge == CGRectMinYEdge)
+            r.origin.y += amount;
+        else
+            s.origin.y += rect.size.height - amount;
+        break;
+    }
+    if (slice != NULL)
+        *slice = s;
+    if (remainder != NULL)
+        *remainder = r;
+}

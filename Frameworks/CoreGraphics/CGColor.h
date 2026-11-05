@@ -23,6 +23,12 @@ COREGRAPHICS_EXPORT void CGColorRelease(CGColorRef self);
 COREGRAPHICS_EXPORT CGColorRef CGColorCreate(CGColorSpaceRef colorSpace, const CGFloat *components);
 COREGRAPHICS_EXPORT CGColorRef CGColorCreateGenericGray(CGFloat gray, CGFloat a);
 COREGRAPHICS_EXPORT CGColorRef CGColorCreateGenericRGB(CGFloat r, CGFloat g, CGFloat b, CGFloat a);
+
+/* The constant colors, by name (not to be released). */
+COREGRAPHICS_EXPORT const CFStringRef kCGColorWhite;
+COREGRAPHICS_EXPORT const CFStringRef kCGColorBlack;
+COREGRAPHICS_EXPORT const CFStringRef kCGColorClear;
+COREGRAPHICS_EXPORT CGColorRef CGColorGetConstantColor(CFStringRef colorName);
 COREGRAPHICS_EXPORT CGColorRef CGColorCreateGenericCMYK(CGFloat c, CGFloat m, CGFloat y, CGFloat k, CGFloat a);
 COREGRAPHICS_EXPORT CGColorRef CGColorCreateWithPattern(CGColorSpaceRef colorSpace, CGPatternRef pattern, const CGFloat *components);
 
@@ -31,10 +37,13 @@ COREGRAPHICS_EXPORT CGColorRef CGColorCreateCopyWithAlpha(CGColorRef self, CGFlo
 
 COREGRAPHICS_EXPORT bool CGColorEqualToColor(CGColorRef self, CGColorRef other);
 
-COREGRAPHICS_EXPORT CGColorSpaceRef CGColorGetColorSpace(CGColorRef self);
-COREGRAPHICS_EXPORT size_t CGColorGetNumberOfComponents(CGColorRef self);
+COREGRAPHICS_EXPORT CGColorSpaceRef CGColorGetColorSpace(CGColorRef self)
+    CF_SWIFT_NAME(getter:CGColor.colorSpace(self:));
+COREGRAPHICS_EXPORT size_t CGColorGetNumberOfComponents(CGColorRef self)
+    CF_SWIFT_NAME(getter:CGColor.numberOfComponents(self:));
 COREGRAPHICS_EXPORT const CGFloat *CGColorGetComponents(CGColorRef self);
-COREGRAPHICS_EXPORT CGFloat CGColorGetAlpha(CGColorRef self);
+COREGRAPHICS_EXPORT CGFloat CGColorGetAlpha(CGColorRef self)
+    CF_SWIFT_NAME(getter:CGColor.alpha(self:));
 
 COREGRAPHICS_EXPORT CGPatternRef CGColorGetPattern(CGColorRef self);
 

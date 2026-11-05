@@ -25,6 +25,7 @@ typedef struct {
 COREGRAPHICS_EXPORT const CGAffineTransform CGAffineTransformIdentity;
 
 COREGRAPHICS_EXPORT bool CGAffineTransformIsIdentity(CGAffineTransform xform);
+COREGRAPHICS_EXPORT bool CGAffineTransformEqualToTransform(CGAffineTransform t1, CGAffineTransform t2);
 
 COREGRAPHICS_EXPORT CGAffineTransform CGAffineTransformMake(CGFloat a, CGFloat b, CGFloat c, CGFloat d, CGFloat tx, CGFloat ty);
 COREGRAPHICS_EXPORT CGAffineTransform CGAffineTransformMakeRotation(CGFloat radians);

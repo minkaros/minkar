@@ -31,18 +31,6 @@ typedef enum {
 } CGTextEncoding;
 
 typedef enum {
-    kCGLineCapButt,
-    kCGLineCapRound,
-    kCGLineCapSquare,
-} CGLineCap;
-
-typedef enum {
-    kCGLineJoinMiter,
-    kCGLineJoinRound,
-    kCGLineJoinBevel,
-} CGLineJoin;
-
-typedef enum {
     kCGPathFill,
     kCGPathEOFill,
     kCGPathStroke,
@@ -116,11 +104,11 @@ COREGRAPHICS_EXPORT void CGContextAddLineToPoint(CGContextRef context, CGFloat x
 COREGRAPHICS_EXPORT void CGContextAddCurveToPoint(CGContextRef context, CGFloat cx1, CGFloat cy1, CGFloat cx2, CGFloat cy2, CGFloat x, CGFloat y);
 COREGRAPHICS_EXPORT void CGContextAddQuadCurveToPoint(CGContextRef context, CGFloat cx1, CGFloat cy1, CGFloat x, CGFloat y);
 
-COREGRAPHICS_EXPORT void CGContextAddLines(CGContextRef context, const CGPoint *points, unsigned count);
+COREGRAPHICS_EXPORT void CGContextAddLines(CGContextRef context, const CGPoint *points, size_t count);
 COREGRAPHICS_EXPORT void CGContextAddRect(CGContextRef context, CGRect rect);
-COREGRAPHICS_EXPORT void CGContextAddRects(CGContextRef context, const CGRect *rects, unsigned count);
+COREGRAPHICS_EXPORT void CGContextAddRects(CGContextRef context, const CGRect *rects, size_t count);
 
-COREGRAPHICS_EXPORT void CGContextAddArc(CGContextRef context, CGFloat x, CGFloat y, CGFloat radius, CGFloat startRadian, CGFloat endRadian, bool clockwise);
+COREGRAPHICS_EXPORT void CGContextAddArc(CGContextRef context, CGFloat x, CGFloat y, CGFloat radius, CGFloat startRadian, CGFloat endRadian, int clockwise);
 COREGRAPHICS_EXPORT void CGContextAddArcToPoint(CGContextRef context, CGFloat x1, CGFloat y1, CGFloat x2, CGFloat y2, CGFloat radius);
 COREGRAPHICS_EXPORT void CGContextAddEllipseInRect(CGContextRef context, CGRect rect);
 
@@ -157,7 +145,7 @@ COREGRAPHICS_EXPORT void CGContextClip(CGContextRef context);
 COREGRAPHICS_EXPORT void CGContextEOClip(CGContextRef context);
 COREGRAPHICS_EXPORT void CGContextClipToMask(CGContextRef context, CGRect rect, CGImageRef image);
 COREGRAPHICS_EXPORT void CGContextClipToRect(CGContextRef context, CGRect rect);
-COREGRAPHICS_EXPORT void CGContextClipToRects(CGContextRef context, const CGRect *rects, unsigned count);
+COREGRAPHICS_EXPORT void CGContextClipToRects(CGContextRef context, const CGRect *rects, size_t count);
 
 COREGRAPHICS_EXPORT void CGContextSetStrokeColorSpace(CGContextRef context, CGColorSpaceRef colorSpace);
 COREGRAPHICS_EXPORT void CGContextSetFillColorSpace(CGContextRef context, CGColorSpaceRef colorSpace);
@@ -199,7 +187,7 @@ COREGRAPHICS_EXPORT void CGContextSetLineWidth(CGContextRef context, CGFloat wid
 COREGRAPHICS_EXPORT void CGContextSetLineCap(CGContextRef context, CGLineCap lineCap);
 COREGRAPHICS_EXPORT void CGContextSetLineJoin(CGContextRef context, CGLineJoin lineJoin);
 COREGRAPHICS_EXPORT void CGContextSetMiterLimit(CGContextRef context, CGFloat miterLimit);
-COREGRAPHICS_EXPORT void CGContextSetLineDash(CGContextRef context, CGFloat phase, const CGFloat *lengths, unsigned count);
+COREGRAPHICS_EXPORT void CGContextSetLineDash(CGContextRef context, CGFloat phase, const CGFloat *lengths, size_t count);
 
 COREGRAPHICS_EXPORT void CGContextSetRenderingIntent(CGContextRef context, CGColorRenderingIntent renderingIntent);
 COREGRAPHICS_EXPORT void CGContextSetBlendMode(CGContextRef context, CGBlendMode blendMode);
@@ -214,14 +202,14 @@ COREGRAPHICS_EXPORT void CGContextSetShadow(CGContextRef context, CGSize offset,
 COREGRAPHICS_EXPORT void CGContextSetShouldAntialias(CGContextRef context, bool yesOrNo);
 
 // drawing
-COREGRAPHICS_EXPORT void CGContextStrokeLineSegments(CGContextRef context, const CGPoint *points, unsigned count);
+COREGRAPHICS_EXPORT void CGContextStrokeLineSegments(CGContextRef context, const CGPoint *points, size_t count);
 
 COREGRAPHICS_EXPORT void CGContextStrokeRect(CGContextRef context, CGRect rect);
 COREGRAPHICS_EXPORT void CGContextStrokeRectWithWidth(CGContextRef context, CGRect rect, CGFloat width);
 COREGRAPHICS_EXPORT void CGContextStrokeEllipseInRect(CGContextRef context, CGRect rect);
 
 COREGRAPHICS_EXPORT void CGContextFillRect(CGContextRef context, CGRect rect);
-COREGRAPHICS_EXPORT void CGContextFillRects(CGContextRef context, const CGRect *rects, unsigned count);
+COREGRAPHICS_EXPORT void CGContextFillRects(CGContextRef context, const CGRect *rects, size_t count);
 COREGRAPHICS_EXPORT void CGContextFillEllipseInRect(CGContextRef context, CGRect rect);
 
 COREGRAPHICS_EXPORT void CGContextDrawPath(CGContextRef context, CGPathDrawingMode pathMode);
@@ -231,15 +219,19 @@ COREGRAPHICS_EXPORT void CGContextEOFillPath(CGContextRef context);
 
 COREGRAPHICS_EXPORT void CGContextClearRect(CGContextRef context, CGRect rect);
 
-COREGRAPHICS_EXPORT void CGContextShowGlyphs(CGContextRef context, const CGGlyph *glyphs, unsigned count);
-COREGRAPHICS_EXPORT void CGContextShowGlyphsAtPoint(CGContextRef context, CGFloat x, CGFloat y, const CGGlyph *glyphs, unsigned count);
-COREGRAPHICS_EXPORT void CGContextShowGlyphsWithAdvances(CGContextRef context, const CGGlyph *glyphs, const CGSize *advances, unsigned count);
+COREGRAPHICS_EXPORT void CGContextShowGlyphs(CGContextRef context, const CGGlyph *glyphs, size_t count);
+COREGRAPHICS_EXPORT void CGContextShowGlyphsAtPositions(CGContextRef context, const CGGlyph *glyphs, const CGPoint *positions, size_t count);
+COREGRAPHICS_EXPORT void CGContextShowGlyphsAtPoint(CGContextRef context, CGFloat x, CGFloat y, const CGGlyph *glyphs, size_t count);
+COREGRAPHICS_EXPORT void CGContextShowGlyphsWithAdvances(CGContextRef context, const CGGlyph *glyphs, const CGSize *advances, size_t count);
 
-COREGRAPHICS_EXPORT void CGContextShowText(CGContextRef context, const char *text, unsigned count);
-COREGRAPHICS_EXPORT void CGContextShowTextAtPoint(CGContextRef context, CGFloat x, CGFloat y, const char *text, unsigned count);
+COREGRAPHICS_EXPORT void CGContextShowText(CGContextRef context, const char *text, size_t count);
+COREGRAPHICS_EXPORT void CGContextShowTextAtPoint(CGContextRef context, CGFloat x, CGFloat y, const char *text, size_t count);
 
 COREGRAPHICS_EXPORT void CGContextDrawShading(CGContextRef context, CGShadingRef shading);
 COREGRAPHICS_EXPORT void CGContextDrawImage(CGContextRef context, CGRect rect, CGImageRef image);
+/* The image repeated in tiles of rect's size, from rect's origin, over the
+ * clip. */
+COREGRAPHICS_EXPORT void CGContextDrawTiledImage(CGContextRef context, CGRect rect, CGImageRef image);
 COREGRAPHICS_EXPORT void CGContextDrawLayerAtPoint(CGContextRef context, CGPoint point, CGLayerRef layer);
 COREGRAPHICS_EXPORT void CGContextDrawLayerInRect(CGContextRef context, CGRect rect, CGLayerRef layer);
 COREGRAPHICS_EXPORT void CGContextDrawPDFPage(CGContextRef context, CGPDFPageRef page);

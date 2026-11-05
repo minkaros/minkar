@@ -10,6 +10,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <CoreGraphics/CoreGraphicsExport.h>
 #import <CoreFoundation/CFBase.h>
 #include <stdbool.h>
+#include <stdint.h>
 #include <math.h>
 
 /* As on the reference platform: double on 64-bit, float on 32-bit. */
@@ -67,34 +68,42 @@ static bool CGSizeEqualToSize(CGSize a, CGSize b) {
     return a.width == b.width && a.height == b.height;
 }
 
+CF_SWIFT_NAME(getter:CGRect.minX(self:))
 static inline CGFloat CGRectGetMinX(CGRect rect) {
     return rect.origin.x;
 }
 
+CF_SWIFT_NAME(getter:CGRect.maxX(self:))
 static inline CGFloat CGRectGetMaxX(CGRect rect) {
     return rect.origin.x + rect.size.width;
 }
 
+CF_SWIFT_NAME(getter:CGRect.midX(self:))
 static inline CGFloat CGRectGetMidX(CGRect rect) {
     return CGRectGetMinX(rect) + ((CGRectGetMaxX(rect) - CGRectGetMinX(rect)) / 2.f);
 }
 
+CF_SWIFT_NAME(getter:CGRect.minY(self:))
 static inline CGFloat CGRectGetMinY(CGRect rect) {
     return rect.origin.y;
 }
 
+CF_SWIFT_NAME(getter:CGRect.maxY(self:))
 static inline CGFloat CGRectGetMaxY(CGRect rect) {
     return rect.origin.y + rect.size.height;
 }
 
+CF_SWIFT_NAME(getter:CGRect.midY(self:))
 static inline CGFloat CGRectGetMidY(CGRect rect) {
     return CGRectGetMinY(rect) + ((CGRectGetMaxY(rect) - CGRectGetMinY(rect)) / 2.f);
 }
 
+CF_SWIFT_NAME(getter:CGRect.width(self:))
 static inline CGFloat CGRectGetWidth(CGRect rect) {
     return rect.size.width;
 }
 
+CF_SWIFT_NAME(getter:CGRect.height(self:))
 static inline CGFloat CGRectGetHeight(CGRect rect) {
     return rect.size.height;
 }
@@ -151,6 +160,28 @@ static inline bool CGRectIsInfinite(CGRect rect) {
 static inline bool CGRectIsNull(CGRect rect) {
     return CGRectEqualToRect(rect, CGRectNull);
 }
+
+/* A vector (API 19). */
+typedef struct CGVector {
+    CGFloat dx;
+    CGFloat dy;
+} CGVector;
+
+static inline CGVector CGVectorMake(CGFloat dx, CGFloat dy) {
+    CGVector result = {dx, dy};
+    return result;
+}
+
+/* The edges of a rectangle, for CGRectDivide. */
+typedef CF_ENUM(uint32_t, CGRectEdge) {
+    CGRectMinXEdge,
+    CGRectMinYEdge,
+    CGRectMaxXEdge,
+    CGRectMaxYEdge,
+};
+
+/* Splits rect at amount from edge: slice is that part, remainder the rest. */
+COREGRAPHICS_EXPORT void CGRectDivide(CGRect rect, CGRect *slice, CGRect *remainder, CGFloat amount, CGRectEdge edge);
 
 COREGRAPHICS_EXPORT CGRect CGRectUnion(CGRect a, CGRect b);
 COREGRAPHICS_EXPORT CGRect CGRectIntersection(CGRect a, CGRect b);

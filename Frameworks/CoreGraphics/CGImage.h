@@ -14,9 +14,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 /* CF's naming rules for what the functions return (Create, Copy). */
 CF_IMPLICIT_BRIDGING_ENABLED
 
-#define kCGBitmapAlphaInfoMask 0x1F
-
-typedef enum {
+typedef CF_ENUM(uint32_t, CGImageAlphaInfo) {
     kCGImageAlphaNone,
     kCGImageAlphaPremultipliedLast,
     kCGImageAlphaPremultipliedFirst,
@@ -25,33 +23,28 @@ typedef enum {
     kCGImageAlphaNoneSkipLast,
     kCGImageAlphaNoneSkipFirst,
     kCGImageAlphaOnly,
-} CGImageAlphaInfo;
-
-enum {
-    kCGBitmapFloatComponents = 0x100,
 };
 
-#define kCGBitmapByteOrderMask 0x7000
-
-enum {
+/* As on the reference platform: options, the alpha info in the low bits. */
+typedef CF_OPTIONS(uint32_t, CGBitmapInfo) {
+    kCGBitmapAlphaInfoMask = 0x1F,
+    kCGBitmapFloatInfoMask = 0xF00,
+    kCGBitmapFloatComponents = 0x100,
+    kCGBitmapByteOrderMask = 0x7000,
     kCGBitmapByteOrderDefault = 0,
     kCGBitmapByteOrder16Little = 0x1000,
     kCGBitmapByteOrder32Little = 0x2000,
     kCGBitmapByteOrder16Big = 0x3000,
     kCGBitmapByteOrder32Big = 0x4000,
-
-#ifdef __BIG_ENDIAN__
-    kCGBitmapByteOrder16Host = kCGBitmapByteOrder16Big,
-    kCGBitmapByteOrder32Host = kCGBitmapByteOrder32Big,
-#endif
-
-#ifdef __LITTLE_ENDIAN__
-    kCGBitmapByteOrder16Host = kCGBitmapByteOrder16Little,
-    kCGBitmapByteOrder32Host = kCGBitmapByteOrder32Little,
-#endif
 };
 
-typedef unsigned CGBitmapInfo;
+#ifdef __BIG_ENDIAN__
+#define kCGBitmapByteOrder16Host kCGBitmapByteOrder16Big
+#define kCGBitmapByteOrder32Host kCGBitmapByteOrder32Big
+#else
+#define kCGBitmapByteOrder16Host kCGBitmapByteOrder16Little
+#define kCGBitmapByteOrder32Host kCGBitmapByteOrder32Little
+#endif
 
 typedef struct O2Image *CGImageRef;
 

@@ -14,7 +14,7 @@ CF_IMPLICIT_BRIDGING_ENABLED
 
 typedef void (*CGBitmapContextReleaseDataCallback)(void *userInfo, void *data);
 
-COREGRAPHICS_EXPORT CGContextRef CGBitmapContextCreate(void *data, size_t width, size_t height, size_t bitsPerComponent, size_t bytesPerRow, CGColorSpaceRef colorSpace, CGBitmapInfo bitmapInfo);
+COREGRAPHICS_EXPORT CGContextRef CGBitmapContextCreate(void *data, size_t width, size_t height, size_t bitsPerComponent, size_t bytesPerRow, CGColorSpaceRef colorSpace, uint32_t bitmapInfo);
 
 COREGRAPHICS_EXPORT void *CGBitmapContextGetData(CGContextRef self);
 COREGRAPHICS_EXPORT size_t CGBitmapContextGetWidth(CGContextRef self);
