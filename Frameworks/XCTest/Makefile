@@ -16,7 +16,9 @@
 # (installed in the toolchain as xctest-discover).
 #
 # On the sources: the concurrency they mark as API 21 (12.0) is in
-# the system's Swift runtime, so the marks go.
+# the system's Swift runtime, so the marks go. Minkar adds the reference
+# platform's measuring API (Sources/XCTMetric.swift, and
+# patches/0001-measure-api.patch for XCTestCase's open methods).
 
 SUBDIR =
 FETCH =		sh ${ROOT_SOURCE_DIR}/BSD/lib/libdrm/fetch.sh
@@ -25,6 +27,7 @@ TC =		${TOOLCHAIN}/usr/bin
 TRIPLE =	x86_64-apple-macosx10.15
 MODTRIPLE =	x86_64-apple-macos
 
+PATCHES =	0001-measure-api.patch
 SRC =		${.OBJDIR}/xctest
 FMWK =		${.OBJDIR}/XCTest.framework
 VERS =		${FMWK}/Versions/A
@@ -36,10 +39,16 @@ TOOLENV =	env -u MACOSX_DEPLOYMENT_TARGET
 
 all: install-xctest
 
-${SRC}/.minkar-patches: ${.CURDIR}/MANIFEST ${.CURDIR}/Makefile
+${SRC}/.minkar-patches: ${.CURDIR}/MANIFEST ${.CURDIR}/Makefile \
+	    ${PATCHES:S,^,${.CURDIR}/patches/,} ${.CURDIR}/Sources/XCTMetric.swift
 	pristine=$$(${FETCH} ${.CURDIR}/MANIFEST ${CACHE}) && \
 	rm -rf ${SRC} ${SRC}.part && mkdir -p ${SRC}.part && \
 	cp -a $$pristine/Sources $$pristine/LICENSE ${SRC}.part/ && \
+	chmod -R u+w ${SRC}.part && \
+	for p in ${PATCHES}; do \
+		patch -s -p1 -d ${SRC}.part < ${.CURDIR}/patches/$$p || exit 1; \
+	done && \
+	cp ${.CURDIR}/Sources/XCTMetric.swift ${SRC}.part/Sources/XCTest/Public/ && \
 	find ${SRC}.part/Sources -name '*.swift' -exec sed -i -E \
 	    -e '/^ *@available\(macOS 12\.0, \*\) *$$/d' {} + && \
 	mv ${SRC}.part ${SRC}

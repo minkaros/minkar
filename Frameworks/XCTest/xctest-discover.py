@@ -110,7 +110,9 @@ TEST = re.compile(r'((?:@' + IDENT + r'(?:\([^)]*\))?\s+|' + IDENT + r'\s+)*)'
 
 
 def scan(code):
-    """(classes, tests): classes maps a name to (superclass, usable),
+    """(classes, tests): classes maps a name to (superclass, usable,
+    availability: the arguments of its @available(platform version...),
+    or None),
     tests maps a type name to its test methods (name, is_async)."""
     classes, tests = {}, {}
     level = top_level(code, 0, len(code))
@@ -122,7 +124,8 @@ def scan(code):
             if kind == 'class':
                 first = (inherits or '').split(',')[0].strip()
                 usable = not generic and not ({'private', 'fileprivate'} & set(mods.split()))
-                classes[name] = (first, usable)
+                avail = re.search(r'@available\(([A-Za-z]+ [0-9][^)]*)\)', mods)
+                classes[name] = (first, usable, avail.group(1) if avail else None)
             body = top_level(code, start + 1, end - 1)
             for t in TEST.finditer(body):
                 tmods = set(t.group(1).split())
@@ -151,10 +154,17 @@ def main(argv):
             tests.setdefault(k, []).extend(v)
 
     def is_test_class(name, seen=()):
-        sup = classes.get(name, ('', False))[0]
+        sup = classes.get(name, ('', False, None))[0]
         if sup in ('XCTestCase', 'XCTest.XCTestCase'):
             return True
         return sup in classes and sup not in seen and is_test_class(sup, seen + (name,))
+
+    def availability(name, seen=()):
+        own = classes[name][2]
+        sup = classes[name][0]
+        if own or sup not in classes or sup in seen:
+            return own
+        return availability(sup, seen + (name,))
 
     def all_tests(name):
         own = list(tests.get(name, []))
@@ -173,16 +183,23 @@ def main(argv):
         found = sorted(all_tests(name))
         if not found:
             continue
-        lines.append('extension %s {' % name)
+        avail = availability(name)
+        lines.append(('@available(%s)\n' % avail if avail else '') + 'extension %s {' % name)
         lines.append('    static let __discoveredTests_%s: [(String, (%s) -> () throws -> Void)] = ['
                      % (name, name))
         lines += ['        ("%s", %s),' % (t, 'asyncTest(%s)' % t if a else t) for t, a in found]
         lines.append('    ]')
         lines.append('}')
-        entries.append('testCase(%s.__discoveredTests_%s)' % (name, name))
-    lines.append('XCTMain([')
-    lines += ['    %s,' % e for e in entries]
-    lines.append('])')
+        entries.append(('testCase(%s.__discoveredTests_%s)' % (name, name), avail))
+    # A class available from a later system runs only there, as XCTest
+    # runs it on the reference platform.
+    lines.append('var __discoveredEntries: [XCTestCaseEntry] = [')
+    lines += ['    %s,' % e for e, a in entries if not a]
+    lines.append(']')
+    for e, a in entries:
+        if a:
+            lines.append('if #available(%s) { __discoveredEntries.append(%s) }' % (a, e))
+    lines.append('XCTMain(__discoveredEntries)')
     text = '\n'.join(lines) + '\n'
     if args.output == '-':
         sys.stdout.write(text)
