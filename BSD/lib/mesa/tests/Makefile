@@ -47,7 +47,9 @@ minkar-vkshared: ${.CURDIR}/vkshared.c
 minkar-vkcopy: ${.CURDIR}/vkcopy.c
 	${CC} ${CFLAGS} ${LDFLAGS} -o ${.TARGET} ${.CURDIR}/vkcopy.c -L${MINKAR_SDKROOT}/usr/lib -lvulkan
 
-minkar-vkwindow: ${.CURDIR}/vkwindow.m triangle_vert.h triangle_frag.h
+# Again when AppKit changes: its headers change the binary interface.
+minkar-vkwindow: ${.CURDIR}/vkwindow.m triangle_vert.h triangle_frag.h \
+    ${MINKAR_SDKROOT}/System/Library/Frameworks/AppKit.framework/Versions/C/AppKit
 	${CC} ${CFLAGS} -I${.OBJDIR} -I${ROOT_SOURCE_DIR}/Frameworks \
 	    -F${MINKAR_SDKROOT}/System/Library/PrivateFrameworks ${LDFLAGS} -o ${.TARGET} \
 	    ${.CURDIR}/vkwindow.m -framework AppKit -framework QuartzCore -framework Foundation \
