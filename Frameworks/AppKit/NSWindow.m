@@ -2373,9 +2373,13 @@ NSArray *_NSWindowNumbersFromWindowInfo(CFArrayRef info,BOOL allApps) {
         }
 
         /* A click in a window that is not key makes it key and brings it
-         * to the front (the window server does not reorder windows). */
+         * to the front (the window server does not reorder windows). A
+         * key window comes to the front too: it may be behind another
+         * app's windows, each app keeping its own key window. */
         if(![self isKeyWindow] && [self canBecomeKeyWindow])
             [self makeKeyAndOrderFront:self];
+        else if([self isVisible])
+            [self orderFront:self];
 
         if([view acceptsFirstResponder]){
             if([view needsPanelToBecomeKey]) {
