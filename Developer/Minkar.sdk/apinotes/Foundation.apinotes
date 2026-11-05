@@ -613,6 +613,13 @@ Classes:
     MethodKind: Class
 - Name: NSDateIntervalFormatter
   SwiftName: DateIntervalFormatter
+# Minkar: classes of API 19 newer than these notes, with their Swift names.
+- Name: NSListFormatter
+  SwiftName: ListFormatter
+- Name: NSRelativeDateTimeFormatter
+  SwiftName: RelativeDateTimeFormatter
+- Name: NSUnitInformationStorage
+  SwiftName: UnitInformationStorage
 - Name: NSEnergyFormatter
   SwiftName: EnergyFormatter
 - Name: NSObject
