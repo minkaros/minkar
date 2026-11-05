@@ -1,3 +1,4 @@
+#import <CoreData/CoreDataErrors.h>
 #import <CoreData/NSAttributeDescription.h>
 #import <CoreData/NSEntityDescription.h>
 #import <CoreData/NSFetchRequest.h>
@@ -6,6 +7,9 @@
 #import <CoreData/NSManagedObjectContext.h>
 #import <CoreData/NSManagedObjectID.h>
 #import <CoreData/NSManagedObjectModel.h>
+#import <CoreData/NSPersistentStore.h>
+#import <CoreData/NSAtomicStore.h>
+#import <CoreData/NSAtomicStoreCacheNode.h>
 #import <CoreData/NSPersistentStoreCoordinator.h>
 #import <CoreData/NSPropertyDescription.h>
 #import <CoreData/NSRelationshipDescription.h>

@@ -5,13 +5,10 @@ Permission is hereby granted, free of charge, to any person obtaining a copy of 
 The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
 
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE. */
-#import <Foundation/NSObject.h>
-#import <Foundation/NSString.h>
-#import <Foundation/NSDate.h>
-#import <Foundation/NSLock.h>
+#import <Foundation/Foundation.h>
+#import <dispatch/dispatch.h>
 #import <CoreData/CoreDataExports.h>
 
-@class NSSet, NSMutableSet, NSNotification, NSUndoManager, NSMapTable;
 @class NSManagedObject, NSManagedObjectID, NSFetchRequest, NSPersistentStore, NSPersistentStoreCoordinator;
 
 COREDATA_EXPORT NSString *const NSManagedObjectContextWillSaveNotification;
@@ -23,6 +20,15 @@ COREDATA_EXPORT NSString *const NSDeletedObjectsKey;
 COREDATA_EXPORT NSString *const NSRefreshedObjectsKey;
 COREDATA_EXPORT NSString *const NSInvalidatedObjectsKey;
 COREDATA_EXPORT NSString *const NSInvalidatedAllObjectsKey;
+
+
+typedef NS_ENUM(NSUInteger, NSManagedObjectContextConcurrencyType) {
+    NSConfinementConcurrencyType = 0x00,
+    NSPrivateQueueConcurrencyType = 0x01,
+    NSMainQueueConcurrencyType = 0x02,
+};
+
+NS_ASSUME_NONNULL_BEGIN
 
 @interface NSManagedObjectContext : NSObject <NSLocking> {
     NSLock *_lock;
@@ -45,28 +51,30 @@ COREDATA_EXPORT NSString *const NSInvalidatedAllObjectsKey;
 
     //
     BOOL _requestedProcessPendingChanges;
+    NSManagedObjectContextConcurrencyType _concurrencyType;
+    dispatch_queue_t _queue;
+    NSString *_name;
 }
 
-- (NSPersistentStoreCoordinator *)persistentStoreCoordinator;
-- (NSUndoManager *)undoManager;
-- (BOOL)retainsRegisteredObjects;
-- (BOOL)propagatesDeletesAtEndOfEvent;
-- (NSTimeInterval)stalenessInterval;
-- (id)mergePolicy;
+- (instancetype)initWithConcurrencyType:(NSManagedObjectContextConcurrencyType)type;
+@property (readonly) NSManagedObjectContextConcurrencyType concurrencyType;
+- (void)performBlock:(void (^)(void))block;
+- (void)performBlockAndWait:(void (NS_NOESCAPE ^)(void))block;
+@property (nullable, copy) NSString *name;
 
-- (void)setPersistentStoreCoordinator:(NSPersistentStoreCoordinator *)value;
-- (void)setUndoManager:(NSUndoManager *)value;
-- (void)setRetainsRegisteredObjects:(BOOL)value;
-- (void)setPropagatesDeletesAtEndOfEvent:(BOOL)value;
-- (void)setStalenessInterval:(NSTimeInterval)value;
-- (void)setMergePolicy:(id)value;
 
-- (NSSet *)registeredObjects;
-- (NSSet *)insertedObjects;
-- (NSSet *)updatedObjects;
-- (NSSet *)deletedObjects;
+@property (nullable, strong) NSPersistentStoreCoordinator *persistentStoreCoordinator;
+@property (nullable, nonatomic, strong) NSUndoManager *undoManager;
+@property (nonatomic) BOOL retainsRegisteredObjects;
+@property BOOL propagatesDeletesAtEndOfEvent;
+@property NSTimeInterval stalenessInterval;
+@property (strong) id mergePolicy;
 
-- (BOOL)hasChanges;
+@property (nonatomic, readonly, strong) NSSet<__kindof NSManagedObject *> *registeredObjects;
+@property (nonatomic, readonly, strong) NSSet<__kindof NSManagedObject *> *insertedObjects;
+@property (nonatomic, readonly, strong) NSSet<__kindof NSManagedObject *> *updatedObjects;
+@property (nonatomic, readonly, strong) NSSet<__kindof NSManagedObject *> *deletedObjects;
+@property (nonatomic, readonly) BOOL hasChanges;
 
 - (void)lock;
 - (void)unlock;
@@ -77,17 +85,17 @@ COREDATA_EXPORT NSString *const NSInvalidatedAllObjectsKey;
 - (void)reset;
 - (void)rollback;
 
-- (NSManagedObject *)objectRegisteredForID:(NSManagedObjectID *)objectID;
+- (nullable __kindof NSManagedObject *)objectRegisteredForID:(NSManagedObjectID *)objectID;
 
-- (NSManagedObject *)objectWithID:(NSManagedObjectID *)objectID;
+- (__kindof NSManagedObject *)objectWithID:(NSManagedObjectID *)objectID;
 
-- (NSArray *)executeFetchRequest:(NSFetchRequest *)request error:(NSError **)error;
-- (NSUInteger)countForFetchRequest:(NSFetchRequest *)request error:(NSError **)error;
+- (nullable NSArray *)executeFetchRequest:(NSFetchRequest *)request error:(NSError **)error;
+- (NSUInteger)countForFetchRequest:(NSFetchRequest *)request error:(NSError **)error __attribute__((swift_error(nonnull_error)));
 
 - (void)insertObject:(NSManagedObject *)object;
 - (void)deleteObject:(NSManagedObject *)object;
 
-- (void)assignObject:object toPersistentStore:(NSPersistentStore *)store;
+- (void)assignObject:(id)object toPersistentStore:(NSPersistentStore *)store;
 
 - (void)detectConflictsForObject:(NSManagedObject *)object;
 
@@ -95,14 +103,16 @@ COREDATA_EXPORT NSString *const NSInvalidatedAllObjectsKey;
 
 - (void)processPendingChanges;
 
-- (BOOL)obtainPermanentIDsForObjects:(NSArray *)objects error:(NSError **)error;
+- (BOOL)obtainPermanentIDsForObjects:(NSArray<NSManagedObject *> *)objects error:(NSError **)error;
 - (BOOL)save:(NSError **)error;
 - (void)mergeChangesFromContextDidSaveNotification:(NSNotification *)notification;
 
 - (BOOL)commitEditing;
-- (void)commitEditingWithDelegate:(id)delegate didCommitSelector:(SEL)didCommitSelector contextInfo:(void *)contextInfo;
+- (void)commitEditingWithDelegate:(nullable id)delegate didCommitSelector:(nullable SEL)didCommitSelector contextInfo:(nullable void *)contextInfo;
 - (void)discardEditing;
 - (void)objectDidBeginEditing:(id)editor;
 - (void)objectDidEndEditing:(id)editor;
 
 @end
+
+NS_ASSUME_NONNULL_END

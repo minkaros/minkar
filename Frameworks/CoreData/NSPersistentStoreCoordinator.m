@@ -7,6 +7,10 @@ The above copyright notice and this permission notice shall be included in all c
 
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE. */
 #import <CoreData/NSPersistentStoreCoordinator.h>
+#import "NSManagedObjectModel-Private.h"
+#import "NSManagedObject-Private.h"
+#import <CoreData/NSManagedObject.h>
+#import <CoreData/NSEntityDescription.h>
 #import "NSXMLPersistentStore.h"
 #import "NSManagedObjectModel.h"
 #import "NSManagedObject.h"
@@ -16,6 +20,8 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 NSString * const NSStoreTypeKey=@"NSStoreTypeKey";
 NSString * const NSStoreUUIDKey=@"NSStoreUUIDKey";
+NSString * const NSStoreModelVersionHashesKey=@"NSStoreModelVersionHashesKey";
+NSString * const NSStoreModelVersionIdentifiersKey=@"NSStoreModelVersionIdentifiersKey";
 
 NSString * const NSXMLStoreType=@"NSXMLStoreType";
 NSString * const NSInMemoryStoreType=@"NSInMemoryStoreType";
@@ -46,9 +52,14 @@ static NSMutableDictionary *_storeTypes=nil;
    [_storeTypes setObject:storeClass forKey:storeType];
 }
 
+// The model can't change once a coordinator uses it; its classes get the
+// accessors of their entities' properties.
 -initWithManagedObjectModel:(NSManagedObjectModel *)model {
    _lock=[[NSLock alloc] init];
    _model=[model retain];
+   [_model _setImmutable];
+   for(NSEntityDescription *entity in [_model entities])
+    [NSManagedObject _registerEntity:entity];
    _stores=[[NSMutableArray alloc] init];
    return self;
 }
@@ -209,7 +220,7 @@ static NSMutableDictionary *_storeTypes=nil;
    NSString             *referenceObject=[path lastPathComponent];
    NSString             *entityName=[[path stringByDeletingLastPathComponent] lastPathComponent];
    NSManagedObjectModel *model=[self managedObjectModel];
-   NSEntityDescription  *entity=[[model entitiesByName] objectForKey:entityName];
+   NSEntityDescription  *entity=[model _entityForStoreName:entityName];
    
    return [(NSAtomicStore *)[self _persistentStoreWithIdentifier:host] objectIDForEntity:entity referenceObject:referenceObject];
 }
