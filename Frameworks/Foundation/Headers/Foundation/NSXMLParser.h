@@ -12,32 +12,35 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 @class NSURL, NSData, NSError, NSXMLParser, NSDictionary<KeyType, ObjectType>, NSMutableArray<ObjectType>, NSMutableDictionary<KeyType, ObjectType>;
 
-@protocol NSXMLParserDelegate
+NS_ASSUME_NONNULL_BEGIN
+
+@protocol NSXMLParserDelegate <NSObject>
+@optional
 
 - (void)parserDidStartDocument:(NSXMLParser *)parser;
 - (void)parserDidEndDocument:(NSXMLParser *)parser;
 
+- (void)parser:(NSXMLParser *)parser foundNotationDeclarationWithName:(NSString *)name publicID:(nullable NSString *)publicID systemID:(nullable NSString *)systemID;
+- (void)parser:(NSXMLParser *)parser foundUnparsedEntityDeclarationWithName:(NSString *)name publicID:(nullable NSString *)publicID systemID:(nullable NSString *)systemID notationName:(nullable NSString *)notationName;
+- (void)parser:(NSXMLParser *)parser foundAttributeDeclarationWithName:(NSString *)attributeName forElement:(NSString *)elementName type:(nullable NSString *)type defaultValue:(nullable NSString *)defaultValue;
 - (void)parser:(NSXMLParser *)parser foundElementDeclarationWithName:(NSString *)elementName model:(NSString *)model;
-- (void)parser:(NSXMLParser *)parser didStartElement:(NSString *)elementName namespaceURI:(NSString *)namespaceURI qualifiedName:(NSString *)qualifiedName attributes:(NSDictionary *)attributes;
-- (void)parser:(NSXMLParser *)parser didEndElement:(NSString *)elementName namespaceURI:(NSString *)namespaceURI qualifiedName:(NSString *)qualifiedName;
+- (void)parser:(NSXMLParser *)parser foundInternalEntityDeclarationWithName:(NSString *)name value:(nullable NSString *)value;
+- (void)parser:(NSXMLParser *)parser foundExternalEntityDeclarationWithName:(NSString *)name publicID:(nullable NSString *)publicID systemID:(nullable NSString *)systemID;
 
-- (void)parser:(NSXMLParser *)parser foundAttributeDeclarationWithName:(NSString *)attributeName forElement:(NSString *)elementName type:(NSString *)type defaultValue:(NSString *)defaultValue;
+- (void)parser:(NSXMLParser *)parser didStartElement:(NSString *)elementName namespaceURI:(nullable NSString *)namespaceURI qualifiedName:(nullable NSString *)qName attributes:(NSDictionary<NSString *, NSString *> *)attributeDict;
+- (void)parser:(NSXMLParser *)parser didEndElement:(NSString *)elementName namespaceURI:(nullable NSString *)namespaceURI qualifiedName:(nullable NSString *)qName;
 
-- (void)parser:(NSXMLParser *)parser didStartMappingPrefix:(NSString *)prefix toURI:(NSString *)uri;
+- (void)parser:(NSXMLParser *)parser didStartMappingPrefix:(NSString *)prefix toURI:(NSString *)namespaceURI;
 - (void)parser:(NSXMLParser *)parser didEndMappingPrefix:(NSString *)prefix;
 
-- (void)parser:(NSXMLParser *)parser foundCDATA:(NSData *)cdata;
 - (void)parser:(NSXMLParser *)parser foundCharacters:(NSString *)string;
+- (void)parser:(NSXMLParser *)parser foundIgnorableWhitespace:(NSString *)whitespaceString;
+- (void)parser:(NSXMLParser *)parser foundProcessingInstructionWithTarget:(NSString *)target data:(nullable NSString *)data;
 - (void)parser:(NSXMLParser *)parser foundComment:(NSString *)comment;
-- (void)parser:(NSXMLParser *)parser foundIgnorableWhitespace:(NSString *)whitespace;
+- (void)parser:(NSXMLParser *)parser foundCDATA:(NSData *)CDATABlock;
+- (nullable NSData *)parser:(NSXMLParser *)parser resolveExternalEntityName:(NSString *)name systemID:(nullable NSString *)systemID;
 
-- (void)parser:(NSXMLParser *)parser foundExternalEntityDeclarationWithName:(NSString *)entityName publicID:(NSString *)publicID systemID:(NSString *)systemID;
-- (void)parser:(NSXMLParser *)parser foundInternalEntityDeclarationWithName:(NSString *)entityName value:(NSString *)value;
-- (void)parser:(NSXMLParser *)parser foundNotationDeclarationWithName:(NSString *)name publicID:(NSString *)publicID systemID:(NSString *)systemID;
-- (void)parser:(NSXMLParser *)parser foundProcessingInstructionWithTarget:(NSString *)target data:(NSString *)data;
-- (void)parser:(NSXMLParser *)parser foundUnparsedEntityDeclarationWithName:(NSString *)name publicID:(NSString *)publicID systemID:(NSString *)systemID notationName:(NSString *)notationName;
 - (void)parser:(NSXMLParser *)parser parseErrorOccurred:(NSError *)parseError;
-- (NSData *)parser:(NSXMLParser *)parser resolveExternalEntityName:(NSString *)entityName systemID:(NSString *)systemID;
 - (void)parser:(NSXMLParser *)parser validationErrorOccurred:(NSError *)validationError;
 
 @end
@@ -68,26 +71,26 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
     NSMutableDictionary *_currentAttributes;
 }
 
-- (NSXMLParser *)initWithData:(NSData *)data;
-- (NSXMLParser *)initWithContentsofURL:(NSURL *)url;
+- (nullable instancetype)initWithContentsOfURL:(NSURL *)url;
+- (instancetype)initWithData:(NSData *)data;
+// The former misspelled name, kept for the code that used it.
+- (nullable instancetype)initWithContentsofURL:(NSURL *)url;
 
-- (id)delegate;
-- (BOOL)shouldProcessNamespaces;
-- (BOOL)shouldReportNamespacePrefixes;
-- (BOOL)shouldResolveExternalEntities;
-
-- (void)setDelegate:delegate;
-- (void)setShouldProcessNamespaces:(BOOL)flag;
-- (void)setShouldReportNamespacePrefixes:(BOOL)flag;
-- (void)setShouldResolveExternalEntities:(BOOL)flag;
+@property (nullable, assign) id<NSXMLParserDelegate> delegate;
+@property BOOL shouldProcessNamespaces;
+@property BOOL shouldReportNamespacePrefixes;
+@property BOOL shouldResolveExternalEntities;
 
 - (BOOL)parse;
 - (void)abortParsing;
-- (NSError *)parserError;
 
-- (NSString *)systemID;
-- (NSString *)publicID;
-- (NSInteger)columnNumber;
-- (NSInteger)lineNumber;
+@property (nullable, readonly, copy) NSError *parserError;
+
+@property (nullable, readonly, copy) NSString *publicID;
+@property (nullable, readonly, copy) NSString *systemID;
+@property (readonly) NSInteger lineNumber;
+@property (readonly) NSInteger columnNumber;
 
 @end
+
+NS_ASSUME_NONNULL_END

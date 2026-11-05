@@ -67,9 +67,13 @@ enum {
    if(data==nil){
     [self dealloc];
     return nil;
-}
+   }
 
    return [self initWithData:data];
+}
+
+-initWithContentsOfURL:(NSURL *)url {
+   return [self initWithContentsofURL:url];
 }
 
 -(void)dealloc {
@@ -161,7 +165,10 @@ enum {
 
 -(void)didEndElement {
    NSString *elementName=[_elementNameStack lastObject];
-   [_delegate parser:self didEndElement:elementName namespaceURI:nil qualifiedName:nil];
+   // Minkar: a delegate's methods are all optional (a Swift delegate
+   // without this one stopped the parse with an unrecognized selector).
+   if([_delegate respondsToSelector:@selector(parser:didEndElement:namespaceURI:qualifiedName:)])
+    [_delegate parser:self didEndElement:elementName namespaceURI:nil qualifiedName:nil];
    [_elementNameStack removeLastObject];
 }
 

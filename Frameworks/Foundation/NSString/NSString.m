@@ -184,13 +184,28 @@ extern unichar *NSBytesToUnicode(const char *, NSUInteger, NSStringEncoding,
    const unsigned char *bytes=[data bytes];
    NSUInteger length=[data length];
 
-   // guess encoding
-   if((length>=2) && ((bytes[0]==0xFE && bytes[1]==0xFF) || (bytes[0]==0xFF && bytes[1]==0xFE)))
-    // UTF16 BOM
+   /* Minkar: a byte order mark says the encoding; without one, UTF-8
+    * when the bytes are UTF-8, as on the reference platform, and NEXTSTEP
+    * only when they are not (it was always NEXTSTEP: UTF-8 text with
+    * characters beyond ASCII came out garbled). */
+   if(length>=4 && ((bytes[0]==0x00 && bytes[1]==0x00 && bytes[2]==0xFE && bytes[3]==0xFF) ||
+                    (bytes[0]==0xFF && bytes[1]==0xFE && bytes[2]==0x00 && bytes[3]==0x00)))
+    encoding=NSUTF32StringEncoding;
+   else if((length>=2) && ((bytes[0]==0xFE && bytes[1]==0xFF) || (bytes[0]==0xFF && bytes[1]==0xFE)))
     encoding=NSUnicodeStringEncoding;
+   else if(length>=3 && bytes[0]==0xEF && bytes[1]==0xBB && bytes[2]==0xBF){
+    encoding=NSUTF8StringEncoding;
+    bytes+=3;
+    length-=3;
+   }
+   else {
+    CFStringRef check=CFStringCreateWithBytes(NULL, bytes, (CFIndex)length, kCFStringEncodingUTF8, false);
 
-   // No BOM, (probably wrongly) assume NEXTSTEP encoding
-   // TODO: check for UTF8, or assume UTF8 but use another one if it fails
+    if(check!=NULL){
+     encoding=NSUTF8StringEncoding;
+     CFRelease(check);
+    }
+   }
 
    string=[self initWithBytes:bytes length:length encoding:encoding];
    if (string==nil){

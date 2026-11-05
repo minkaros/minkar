@@ -507,9 +507,16 @@ static NSMapTable *pathToObject=NULL;
     }
 
     _path = [[path stringByStandardizingPath] retain];
+    /* Minkar: Contents/Resources (an application), Resources (a
+     * framework), or else the bundle itself: a flat bundle keeps its
+     * resources at its top, as the package manager's resource bundles do
+     * (it was taken as having a Resources folder it lacked). */
     _resourcePath = [[_path stringByAppendingPathComponent:@"Contents"] stringByAppendingPathComponent:@"Resources"];
     if (![[NSFileManager defaultManager] fileExistsAtPath:_resourcePath]) {
-        _resourcePath = [_path stringByAppendingPathComponent:@"Resources"]; 
+        _resourcePath = [_path stringByAppendingPathComponent:@"Resources"];
+        if (![[NSFileManager defaultManager] fileExistsAtPath:_resourcePath] &&
+            ![[NSFileManager defaultManager] fileExistsAtPath:[_path stringByAppendingPathComponent:@"Contents"]])
+            _resourcePath = _path;
     }
     [_resourcePath retain];
 
