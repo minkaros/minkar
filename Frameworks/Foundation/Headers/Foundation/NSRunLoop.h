@@ -10,10 +10,14 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <Foundation/NSMapTable.h>
 #import <CoreFoundation/CFRunLoop.h>
 
-@class NSTimer, NSDate, NSMutableArray, NSInputSource, NSPort, NSPipe;
+@class NSTimer, NSDate, NSArray<ObjectType>, NSMutableArray<ObjectType>, NSInputSource, NSPort, NSPipe;
 
-FOUNDATION_EXPORT NSString *const NSDefaultRunLoopMode;
-FOUNDATION_EXPORT NSString *const NSRunLoopCommonModes;
+NS_ASSUME_NONNULL_BEGIN
+
+typedef NSString *NSRunLoopMode NS_TYPED_EXTENSIBLE_ENUM NS_SWIFT_NAME(RunLoop.Mode);
+
+FOUNDATION_EXPORT NSRunLoopMode const NSDefaultRunLoopMode NS_SWIFT_NAME(default);
+FOUNDATION_EXPORT NSRunLoopMode const NSRunLoopCommonModes NS_SWIFT_NAME(common);
 
 @interface NSRunLoop : NSObject {
     NSMapTable *_modes;
@@ -23,40 +27,39 @@ FOUNDATION_EXPORT NSString *const NSRunLoopCommonModes;
     NSMutableArray *_orderedPerforms;
 }
 
-+ (NSRunLoop *)currentRunLoop;
-+ (NSRunLoop *)mainRunLoop;
+@property (class, readonly, strong) NSRunLoop *currentRunLoop;
+@property (class, readonly, strong) NSRunLoop *mainRunLoop;
 
-- (NSString *)currentMode;
-- (CFRunLoopRef)getCFRunLoop;
+@property (nullable, readonly, copy) NSRunLoopMode currentMode;
+- (CFRunLoopRef)getCFRunLoop CF_RETURNS_NOT_RETAINED;
 
-- (NSDate *)limitDateForMode:(NSString *)mode;
-- (void)acceptInputForMode:(NSString *)mode beforeDate:(NSDate *)date;
-
-- (BOOL)runMode:(NSString *)mode beforeDate:(NSDate *)date;
-- (void)runUntilDate:(NSDate *)date;
+- (nullable NSDate *)limitDateForMode:(NSRunLoopMode)mode;
+- (void)acceptInputForMode:(NSRunLoopMode)mode beforeDate:(NSDate *)limitDate;
+- (BOOL)runMode:(NSRunLoopMode)mode beforeDate:(NSDate *)limitDate;
+- (void)runUntilDate:(NSDate *)limitDate;
 - (void)run;
 
-- (void)addPort:(NSPort *)port forMode:(NSString *)mode;
-- (void)removePort:(NSPort *)port forMode:(NSString *)mode;
+- (void)addPort:(NSPort *)aPort forMode:(NSRunLoopMode)mode;
+- (void)removePort:(NSPort *)aPort forMode:(NSRunLoopMode)mode;
+- (void)addInputSource:(NSInputSource *)source forMode:(NSRunLoopMode)mode;
+- (void)removeInputSource:(NSInputSource *)source forMode:(NSRunLoopMode)mode;
+- (void)addTimer:(NSTimer *)timer forMode:(NSRunLoopMode)mode;
 
-- (void)addInputSource:(NSInputSource *)source forMode:(NSString *)mode;
-- (void)removeInputSource:(NSInputSource *)source forMode:(NSString *)mode;
+- (void)performSelector:(SEL)aSelector target:(id)target argument:(nullable id)arg order:(NSUInteger)order modes:(NSArray<NSRunLoopMode> *)modes;
+- (void)cancelPerformSelector:(SEL)aSelector target:(id)target argument:(nullable id)arg;
+- (void)cancelPerformSelectorsWithTarget:(id)target;
 
-- (void)addTimer:(NSTimer *)timer forMode:(NSString *)mode;
-
-- (void)performSelector:(SEL)selector target:target argument:argument order:(NSUInteger)order modes:(NSArray *)modes;
-
-- (void)cancelPerformSelector:(SEL)selector target:target argument:argument;
-- (void)cancelPerformSelectorsWithTarget:target;
-
-@end
-
-@interface NSObject (NSRunLoop_delayedPerform)
-
-- (void)performSelector:(SEL)selector withObject:object afterDelay:(NSTimeInterval)delay;
-- (void)performSelector:(SEL)selector withObject:object afterDelay:(NSTimeInterval)delay inModes:(NSArray *)modes;
-
-+ (void)cancelPreviousPerformRequestsWithTarget:target selector:(SEL)selector object:object;
-+ (void)cancelPreviousPerformRequestsWithTarget:target;
+/* A block run once, at the run loop's next pass in one of the modes. */
+- (void)performInModes:(NSArray<NSRunLoopMode> *)modes block:(void (^)(void))block;
+- (void)performBlock:(void (^)(void))block;
 
 @end
+
+@interface NSObject (NSDelayedPerforming)
+- (void)performSelector:(SEL)aSelector withObject:(nullable id)anArgument afterDelay:(NSTimeInterval)delay;
+- (void)performSelector:(SEL)aSelector withObject:(nullable id)anArgument afterDelay:(NSTimeInterval)delay inModes:(NSArray<NSRunLoopMode> *)modes;
++ (void)cancelPreviousPerformRequestsWithTarget:(id)aTarget selector:(SEL)aSelector object:(nullable id)anArgument;
++ (void)cancelPreviousPerformRequestsWithTarget:(id)aTarget;
+@end
+
+NS_ASSUME_NONNULL_END

@@ -9,7 +9,9 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <Foundation/NSObject.h>
 #import <Foundation/NSArray.h>
 
-@class NSDictionary, NSString, NSError, NSMutableDictionary, NSURL;
+@class NSDictionary<KeyType, ObjectType>, NSString, NSError, NSMutableDictionary<KeyType, ObjectType>, NSURL, NSNumber;
+
+NS_ASSUME_NONNULL_BEGIN
 
 FOUNDATION_EXPORT NSString *const NSBundleDidLoadNotification;
 FOUNDATION_EXPORT NSString *const NSLoadedClasses;
@@ -25,87 +27,89 @@ FOUNDATION_EXPORT NSString *const NSLoadedClasses;
     BOOL _isLoaded;
 }
 
-+ (NSArray *)allBundles;
-+ (NSArray *)allFrameworks;
+@property (class, readonly, copy) NSArray<NSBundle *> *allBundles;
+@property (class, readonly, copy) NSArray<NSBundle *> *allFrameworks;
 
-+ (NSBundle *)mainBundle;
+@property (class, readonly, strong) NSBundle *mainBundle;
 
 + (NSBundle *)bundleForClass:(Class)aClass;
-+ (NSBundle *)bundleWithIdentifier:(NSString *)identifier;
-+ (NSBundle *)bundleWithPath:(NSString *)path;
-+ (NSBundle *)bundleWithModulePath:(NSString *)path;
++ (nullable NSBundle *)bundleWithIdentifier:(NSString *)identifier;
++ (nullable instancetype)bundleWithPath:(NSString *)path;
++ (nullable NSBundle *)bundleWithModulePath:(NSString *)path;
 
-+ (NSString *)pathForResource:(NSString *)name ofType:(NSString *)type inDirectory:(NSString *)path;
-+ (NSArray *)pathsForResourcesOfType:(NSString *)type inDirectory:(NSString *)path;
-+ (NSArray *)preferredLocalizationsFromArray:(NSArray *)localizations;
-+ (NSArray *)preferredLocalizationsFromArray:(NSArray *)localizations forPreferences:(NSArray *)preferences;
++ (nullable NSString *)pathForResource:(nullable NSString *)name ofType:(nullable NSString *)type inDirectory:(NSString *)path;
++ (NSArray<NSString *> *)pathsForResourcesOfType:(nullable NSString *)type inDirectory:(NSString *)path;
++ (NSArray<NSString *> *)preferredLocalizationsFromArray:(NSArray<NSString *> *)localizations;
++ (NSArray<NSString *> *)preferredLocalizationsFromArray:(NSArray<NSString *> *)localizations forPreferences:(nullable NSArray<NSString *> *)preferences;
 
-- initWithPath:(NSString *)path;
+- (nullable instancetype)initWithPath:(NSString *)path;
 
-- (NSString *)bundlePath;
-- (NSString *)resourcePath;
-- (NSString *)builtInPlugInsPath;
-- (NSDictionary *)infoDictionary;
-- (NSDictionary *)localizedInfoDictionary;
-- objectForInfoDictionaryKey:(NSString *)key;
-- (NSString *)bundleIdentifier;
-- (NSString *)developmentLocalization;
-- (NSArray *)executableArchitectures;
-- (NSString *)executablePath;
-- (NSArray *)localizations;
-- (NSArray *)preferredLocalizations;
-- (NSString *)privateFrameworksPath;
-- (NSString *)sharedFrameworksPath;
-- (NSString *)sharedSupportPath;
+@property (readonly, copy) NSString *bundlePath;
+@property (nullable, readonly, copy) NSString *resourcePath;
+@property (nullable, readonly, copy) NSString *builtInPlugInsPath;
+@property (nullable, readonly, copy) NSDictionary<NSString *, id> *infoDictionary;
+@property (nullable, readonly, copy) NSDictionary<NSString *, id> *localizedInfoDictionary;
+- (nullable id)objectForInfoDictionaryKey:(NSString *)key;
+@property (nullable, readonly, copy) NSString *bundleIdentifier;
+@property (nullable, readonly, copy) NSString *developmentLocalization;
+@property (nullable, readonly, copy) NSArray<NSNumber *> *executableArchitectures;
+@property (nullable, readonly, copy) NSString *executablePath;
+@property (readonly, copy) NSArray<NSString *> *localizations;
+@property (readonly, copy) NSArray<NSString *> *preferredLocalizations;
+@property (nullable, readonly, copy) NSString *privateFrameworksPath;
+@property (nullable, readonly, copy) NSString *sharedFrameworksPath;
+@property (nullable, readonly, copy) NSString *sharedSupportPath;
 
-- (NSString *)pathForAuxiliaryExecutable:(NSString *)executable;
+- (nullable NSString *)pathForAuxiliaryExecutable:(NSString *)executable;
 
-- (Class)principalClass;
-- (Class)classNamed:(NSString *)className;
+@property (nullable, readonly) Class principalClass;
+- (nullable Class)classNamed:(NSString *)className;
 
-- (BOOL)isLoaded;
+@property (readonly, getter=isLoaded) BOOL loaded;
 - (BOOL)preflightAndReturnError:(NSError **)error;
 
 - (BOOL)load;
 - (BOOL)loadAndReturnError:(NSError **)error;
 - (BOOL)unload;
 
-- (NSURL *)URLForResource:(NSString *)name withExtension:(NSString *)ext;
-- (NSURL *)URLForResource:(NSString *)name withExtension:(NSString *)ext subdirectory:(NSString *)subpath;
-- (NSURL *)URLForResource:(NSString *)name withExtension:(NSString *)ext subdirectory:(NSString *)subpath localization:(NSString *)localizationName;
+- (nullable NSURL *)URLForResource:(nullable NSString *)name withExtension:(nullable NSString *)ext;
+- (nullable NSURL *)URLForResource:(nullable NSString *)name withExtension:(nullable NSString *)ext subdirectory:(nullable NSString *)subpath;
+- (nullable NSURL *)URLForResource:(nullable NSString *)name withExtension:(nullable NSString *)ext subdirectory:(nullable NSString *)subpath localization:(nullable NSString *)localizationName;
 
-- (NSString *)pathForResource:(NSString *)name ofType:(NSString *)type;
-- (NSString *)pathForResource:(NSString *)name ofType:(NSString *)type inDirectory:(NSString *)path;
-- (NSString *)pathForResource:(NSString *)name ofType:(NSString *)type inDirectory:(NSString *)path forLocalization:(NSString *)localization;
+- (nullable NSString *)pathForResource:(nullable NSString *)name ofType:(nullable NSString *)type;
+- (nullable NSString *)pathForResource:(nullable NSString *)name ofType:(nullable NSString *)type inDirectory:(nullable NSString *)path;
+- (nullable NSString *)pathForResource:(nullable NSString *)name ofType:(nullable NSString *)type inDirectory:(nullable NSString *)path forLocalization:(nullable NSString *)localization;
 
-- (NSArray *)pathsForResourcesOfType:(NSString *)type inDirectory:(NSString *)path;
-- (NSArray *)pathsForResourcesOfType:(NSString *)type inDirectory:(NSString *)path forLocalization:(NSString *)localization;
+- (NSArray<NSString *> *)pathsForResourcesOfType:(nullable NSString *)type inDirectory:(nullable NSString *)path;
+- (NSArray<NSString *> *)pathsForResourcesOfType:(nullable NSString *)type inDirectory:(nullable NSString *)path forLocalization:(nullable NSString *)localization;
 
-- (NSString *)localizedStringForKey:(NSString *)key value:(NSString *)value table:(NSString *)table;
+- (NSString *)localizedStringForKey:(NSString *)key value:(nullable NSString *)value table:(nullable NSString *)table;
 
 @end
 
 @interface NSBundle (NSURLResources)
-+ (instancetype)bundleWithURL:(NSURL *)url;
-- (instancetype)initWithURL:(NSURL *)url;
++ (nullable instancetype)bundleWithURL:(NSURL *)url;
+- (nullable instancetype)initWithURL:(NSURL *)url;
 @property (readonly, copy) NSURL *bundleURL;
-@property (readonly, copy) NSURL *resourceURL;
-@property (readonly, copy) NSURL *executableURL;
-@property (readonly, copy) NSURL *privateFrameworksURL;
-@property (readonly, copy) NSURL *sharedFrameworksURL;
-@property (readonly, copy) NSURL *sharedSupportURL;
-@property (readonly, copy) NSURL *builtInPlugInsURL;
-@property (readonly, copy) NSURL *appStoreReceiptURL;
-- (NSURL *)URLForAuxiliaryExecutable:(NSString *)executableName;
-- (NSArray<NSURL *> *)URLsForResourcesWithExtension:(NSString *)ext subdirectory:(NSString *)subpath;
-- (NSArray<NSURL *> *)URLsForResourcesWithExtension:(NSString *)ext subdirectory:(NSString *)subpath
-                                       localization:(NSString *)localizationName;
-+ (NSURL *)URLForResource:(NSString *)name withExtension:(NSString *)ext subdirectory:(NSString *)subpath
+@property (nullable, readonly, copy) NSURL *resourceURL;
+@property (nullable, readonly, copy) NSURL *executableURL;
+@property (nullable, readonly, copy) NSURL *privateFrameworksURL;
+@property (nullable, readonly, copy) NSURL *sharedFrameworksURL;
+@property (nullable, readonly, copy) NSURL *sharedSupportURL;
+@property (nullable, readonly, copy) NSURL *builtInPlugInsURL;
+@property (nullable, readonly, copy) NSURL *appStoreReceiptURL;
+- (nullable NSURL *)URLForAuxiliaryExecutable:(NSString *)executableName;
+- (nullable NSArray<NSURL *> *)URLsForResourcesWithExtension:(nullable NSString *)ext subdirectory:(nullable NSString *)subpath;
+- (nullable NSArray<NSURL *> *)URLsForResourcesWithExtension:(nullable NSString *)ext subdirectory:(nullable NSString *)subpath
+                                       localization:(nullable NSString *)localizationName;
++ (nullable NSURL *)URLForResource:(nullable NSString *)name withExtension:(nullable NSString *)ext subdirectory:(nullable NSString *)subpath
           inBundleWithURL:(NSURL *)bundleURL;
-+ (NSArray<NSURL *> *)URLsForResourcesWithExtension:(NSString *)ext subdirectory:(NSString *)subpath
++ (nullable NSArray<NSURL *> *)URLsForResourcesWithExtension:(nullable NSString *)ext subdirectory:(nullable NSString *)subpath
                                     inBundleWithURL:(NSURL *)bundleURL;
 @end
 
+
+NS_ASSUME_NONNULL_END
 
 FOUNDATION_EXPORT NSString *NSLocalizedString(NSString *key, NSString *comment);
 FOUNDATION_EXPORT NSString *NSLocalizedStringFromTable(NSString *key, NSString *table, NSString *comment);

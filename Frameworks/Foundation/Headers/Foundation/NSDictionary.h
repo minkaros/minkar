@@ -14,25 +14,25 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 @interface NSDictionary<__covariant KeyType, __covariant ObjectType> : NSObject <NSCoding, NSCopying, NSMutableCopying, NSFastEnumeration>
 
-- initWithObjects:(id *)objects forKeys:(id *)keys count:(NSUInteger)count;
-- initWithObjects:(NSArray<ObjectType> *)objects forKeys:(NSArray<KeyType> *)keys;
-- initWithDictionary:(NSDictionary<KeyType, ObjectType> *)dictionary;
-- initWithDictionary:(NSDictionary<KeyType, ObjectType> *)dictionary copyItems:(BOOL)copyItems;
-- initWithObjectsAndKeys:object, ...;
-- initWithContentsOfFile:(NSString *)path;
-- initWithContentsOfURL:(NSURL *)url;
+- (instancetype)initWithObjects:(const ObjectType _Nonnull [_Nullable])objects forKeys:(const KeyType <NSCopying> _Nonnull [_Nullable])keys count:(NSUInteger)count;
+- (instancetype)initWithObjects:(NSArray<ObjectType> *)objects forKeys:(NSArray<KeyType> *)keys;
+- (instancetype)initWithDictionary:(NSDictionary<KeyType, ObjectType> *)dictionary;
+- (instancetype)initWithDictionary:(NSDictionary<KeyType, ObjectType> *)dictionary copyItems:(BOOL)copyItems;
+- (instancetype)initWithObjectsAndKeys:object, ...;
+- (instancetype)initWithContentsOfFile:(NSString *)path;
+- (instancetype)initWithContentsOfURL:(NSURL *)url;
 
-+ dictionary;
-+ dictionaryWithObjects:(id *)objects forKeys:(id *)keys count:(NSUInteger)count;
-+ dictionaryWithObjects:(NSArray<ObjectType> *)objects forKeys:(NSArray<KeyType> *)keys;
-+ dictionaryWithDictionary:(NSDictionary<KeyType, ObjectType> *)other;
-+ dictionaryWithObjectsAndKeys:first, ...;
-+ dictionaryWithObject:(ObjectType)object forKey:(KeyType)key;
-+ dictionaryWithContentsOfFile:(NSString *)path;
-+ dictionaryWithContentsOfURL:(NSURL *)url;
++ (instancetype)dictionary;
++ (instancetype)dictionaryWithObjects:(const ObjectType _Nonnull [_Nullable])objects forKeys:(const KeyType <NSCopying> _Nonnull [_Nullable])keys count:(NSUInteger)count;
++ (instancetype)dictionaryWithObjects:(NSArray<ObjectType> *)objects forKeys:(NSArray<KeyType> *)keys;
++ (instancetype)dictionaryWithDictionary:(NSDictionary<KeyType, ObjectType> *)other;
++ (instancetype)dictionaryWithObjectsAndKeys:first, ...;
++ (instancetype)dictionaryWithObject:(ObjectType)object forKey:(KeyType)key;
++ (instancetype)dictionaryWithContentsOfFile:(NSString *)path;
++ (instancetype)dictionaryWithContentsOfURL:(NSURL *)url;
 
 - (ObjectType)objectForKey:(KeyType)key;
-- (NSUInteger)count;
+@property (readonly) NSUInteger count;
 - (NSEnumerator<KeyType> *)keyEnumerator;
 - (NSEnumerator<ObjectType> *)objectEnumerator;
 
@@ -42,11 +42,11 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 - (BOOL)isEqualToDictionary:(NSDictionary<KeyType, ObjectType> *)dictionary;
 
-- (NSArray<KeyType> *)allKeys;
+@property (readonly) NSArray<KeyType> *allKeys;
 - (NSArray<KeyType> *)allKeysForObject:(ObjectType)object;
 - (NSArray<KeyType> *)keysSortedByValueUsingSelector:(SEL)selector;
 
-- (NSArray<ObjectType> *)allValues;
+@property (readonly) NSArray<ObjectType> *allValues;
 - (NSArray<ObjectType> *)objectsForKeys:(NSArray<KeyType> *)keys notFoundMarker:(ObjectType)marker;
 
 - (BOOL)writeToFile:(NSString *)path atomically:(BOOL)atomically;

@@ -9,7 +9,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <Foundation/NSObject.h>
 #import <Foundation/NSObjCRuntime.h>
 
-@class NSString, NSArray, NSDictionary, NSCalendarDate, NSTimeZone;
+@class NSString, NSArray<ObjectType>, NSDictionary<KeyType, ObjectType>, NSCalendarDate, NSTimeZone;
 
 typedef double NSTimeInterval;
 
@@ -17,29 +17,29 @@ FOUNDATION_EXPORT const NSTimeInterval NSTimeIntervalSince1970;
 
 @interface NSDate : NSObject <NSCopying, NSCoding>
 
-+ (NSTimeInterval)timeIntervalSinceReferenceDate;
+@property (class, readonly) NSTimeInterval timeIntervalSinceReferenceDate;
 
-+ distantPast;
-+ distantFuture;
+@property (class, readonly, copy) NSDate *distantPast;
+@property (class, readonly, copy) NSDate *distantFuture;
 
-- init;
-- initWithString:(NSString *)string;
-- initWithTimeIntervalSinceReferenceDate:(NSTimeInterval)seconds;
-- initWithTimeIntervalSinceNow:(NSTimeInterval)seconds;
-- initWithTimeIntervalSince1970:(NSTimeInterval)seconds;
-- initWithTimeInterval:(NSTimeInterval)seconds sinceDate:(NSDate *)date;
+- (nonnull instancetype)init;
+- (instancetype)initWithString:(NSString *)string;
+- (instancetype)initWithTimeIntervalSinceReferenceDate:(NSTimeInterval)seconds;
+- (instancetype)initWithTimeIntervalSinceNow:(NSTimeInterval)seconds;
+- (instancetype)initWithTimeIntervalSince1970:(NSTimeInterval)seconds;
+- (instancetype)initWithTimeInterval:(NSTimeInterval)seconds sinceDate:(NSDate *)date;
 
-+ date;
-+ dateWithString:(NSString *)string;
-+ dateWithTimeIntervalSinceReferenceDate:(NSTimeInterval)seconds;
-+ dateWithTimeIntervalSinceNow:(NSTimeInterval)seconds;
-+ dateWithTimeIntervalSince1970:(NSTimeInterval)seconds;
++ (instancetype)date;
++ (instancetype)dateWithString:(NSString *)string;
++ (instancetype)dateWithTimeIntervalSinceReferenceDate:(NSTimeInterval)seconds;
++ (instancetype)dateWithTimeIntervalSinceNow:(NSTimeInterval)seconds;
++ (instancetype)dateWithTimeIntervalSince1970:(NSTimeInterval)seconds;
 
-- (NSTimeInterval)timeIntervalSinceReferenceDate;
+@property (readonly) NSTimeInterval timeIntervalSinceReferenceDate;
 
 - (NSTimeInterval)timeIntervalSinceDate:(NSDate *)date;
-- (NSTimeInterval)timeIntervalSinceNow;
-- (NSTimeInterval)timeIntervalSince1970;
+@property (readonly) NSTimeInterval timeIntervalSinceNow;
+@property (readonly) NSTimeInterval timeIntervalSince1970;
 
 - (BOOL)isEqualToDate:(NSDate *)date;
 
@@ -47,13 +47,13 @@ FOUNDATION_EXPORT const NSTimeInterval NSTimeIntervalSince1970;
 - (NSDate *)earlierDate:(NSDate *)date;
 - (NSDate *)laterDate:(NSDate *)date;
 
-- addTimeInterval:(NSTimeInterval)seconds;
-- dateByAddingTimeInterval:(NSTimeInterval)seconds;
+- (id)addTimeInterval:(NSTimeInterval)seconds;
+- (instancetype)dateByAddingTimeInterval:(NSTimeInterval)seconds;
 
 - (NSCalendarDate *)dateWithCalendarFormat:(NSString *)format
                                   timeZone:(NSTimeZone *)timeZone;
 
-- (NSString *)descriptionWithLocale:(NSDictionary *)locale;
+- (NSString *)descriptionWithLocale:(id)locale;
 - (NSString *)descriptionWithCalendarFormat:(NSString *)format
                                    timeZone:(NSTimeZone *)timeZone
                                      locale:(NSDictionary *)locale;

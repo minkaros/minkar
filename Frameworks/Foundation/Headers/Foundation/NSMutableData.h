@@ -8,26 +8,29 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 #import <Foundation/NSData.h>
 
+NS_ASSUME_NONNULL_BEGIN
+
 @interface NSMutableData : NSData
 
-- initWithCapacity:(NSUInteger)capacity;
-- initWithLength:(NSUInteger)length;
-
-+ dataWithCapacity:(NSUInteger)capacity;
-+ dataWithLength:(NSUInteger)length;
-
-- (void *)mutableBytes;
-
-- (void)setLength:(NSUInteger)length;
-- (void)increaseLengthBy:(NSUInteger)delta;
+@property (readonly) void *mutableBytes NS_RETURNS_INNER_POINTER;
+@property NSUInteger length;
 
 - (void)appendBytes:(const void *)bytes length:(NSUInteger)length;
-- (void)appendData:(NSData *)data;
-
+- (void)appendData:(NSData *)other;
+- (void)increaseLengthBy:(NSUInteger)extraLength;
 - (void)replaceBytesInRange:(NSRange)range withBytes:(const void *)bytes;
-- (void)replaceBytesInRange:(NSRange)range withBytes:(const void *)bytes length:(NSUInteger)bytesLength;
-- (void)setData:(NSData *)data;
-
 - (void)resetBytesInRange:(NSRange)range;
+- (void)setData:(NSData *)data;
+- (void)replaceBytesInRange:(NSRange)range withBytes:(nullable const void *)replacementBytes length:(NSUInteger)replacementLength;
+
++ (nullable instancetype)dataWithCapacity:(NSUInteger)aNumItems;
++ (nullable instancetype)dataWithLength:(NSUInteger)length;
+- (nullable instancetype)initWithCapacity:(NSUInteger)capacity;
+- (nullable instancetype)initWithLength:(NSUInteger)length;
+
+- (BOOL)decompressUsingAlgorithm:(NSDataCompressionAlgorithm)algorithm error:(NSError **)error;
+- (BOOL)compressUsingAlgorithm:(NSDataCompressionAlgorithm)algorithm error:(NSError **)error;
 
 @end
+
+NS_ASSUME_NONNULL_END

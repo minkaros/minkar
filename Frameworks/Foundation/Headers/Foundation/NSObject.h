@@ -30,15 +30,16 @@
 #include <limits.h>
 #include <sys/types.h>
 
-typedef enum NSComparisonResult {
+#include <Foundation/NSObjCRuntime.h>
+
+typedef NS_ENUM(NSInteger, NSComparisonResult) {
     NSOrderedAscending = -1,
     NSOrderedSame = 0,
     NSOrderedDescending = 1
-} NSComparisonResult;
+};
 
 #define NSNotFound NSIntegerMax
 
-#include <Foundation/NSObjCRuntime.h>
 #include <objc/NSObject.h>
 
 /* Blocks and options of the collections' block methods. */

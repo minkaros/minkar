@@ -325,6 +325,20 @@ NSString * const NSRunLoopCommonModes=@"kCFRunLoopCommonModes";
    [self _wakeUp];
 }
 
+-(void)_runBlock:(void (^)(void))block {
+   block();
+}
+
+-(void)performInModes:(NSArray *)modes block:(void (^)(void))block {
+   id copy=[[block copy] autorelease];
+
+   [self performSelector:@selector(_runBlock:) target:self argument:copy order:0 modes:modes];
+}
+
+-(void)performBlock:(void (^)(void))block {
+   [self performInModes:[NSArray arrayWithObject:NSRunLoopCommonModes] block:block];
+}
+
 -(void)cancelPerformSelector:(SEL)selector target:target argument:argument {
 	@synchronized(_orderedPerforms)
 	{

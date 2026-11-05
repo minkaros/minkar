@@ -9,11 +9,13 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 #import <Foundation/NSDictionary.h>
 
+NS_ASSUME_NONNULL_BEGIN
+
 @interface NSMutableDictionary<KeyType, ObjectType> : NSDictionary<KeyType, ObjectType>
 
-- initWithCapacity:(NSUInteger)capacity;
+- (instancetype)initWithCapacity:(NSUInteger)capacity;
 
-+ dictionaryWithCapacity:(NSUInteger)capacity;
++ (instancetype)dictionaryWithCapacity:(NSUInteger)capacity;
 
 - (void)setObject:(ObjectType)object forKey:(KeyType)key;
 - (void)addEntriesFromDictionary:(NSDictionary<KeyType, ObjectType> *)dictionary;
@@ -27,5 +29,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 @interface NSMutableDictionary<KeyType, ObjectType> (NSSubscripting)
 // Subscripting: dictionary[key] = object; a nil object removes the key
 // (macOS 10.8).
-- (void)setObject:(ObjectType)object forKeyedSubscript:(KeyType <NSCopying>)key;
+- (void)setObject:(nullable ObjectType)object forKeyedSubscript:(KeyType <NSCopying>)key;
 @end
+
+NS_ASSUME_NONNULL_END

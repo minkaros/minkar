@@ -9,7 +9,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <Foundation/NSDate.h>
 #import <Foundation/NSMapTable.h>
 
-@class NSPortNameServer, NSPort, NSRunLoop, NSDistantObject, NSMutableArray, NSMutableDictionary;
+@class NSPortNameServer, NSPort, NSRunLoop, NSDistantObject, NSMutableArray<ObjectType>, NSMutableDictionary<KeyType, ObjectType>;
 
 FOUNDATION_EXPORT NSString *const NSConnectionReplyMode;
 

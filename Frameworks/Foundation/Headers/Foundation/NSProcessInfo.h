@@ -9,7 +9,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <Foundation/NSObject.h>
 #import <Foundation/NSDate.h>
 
-@class NSArray, NSDictionary, NSLock;
+@class NSArray<ObjectType>, NSDictionary<KeyType, ObjectType>, NSLock;
 
 typedef struct {
     NSInteger majorVersion;

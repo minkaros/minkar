@@ -7,7 +7,7 @@ The above copyright notice and this permission notice shall be included in all c
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE. */
 #import <Foundation/NSObject.h>
 
-@class NSArray, NSMutableDictionary, NSDictionary;
+@class NSArray<ObjectType>, NSMutableDictionary<KeyType, ObjectType>, NSDictionary<KeyType, ObjectType>;
 
 typedef enum {
     NSConstantValueExpressionType,
@@ -21,7 +21,11 @@ typedef enum {
     NSExpressionType _type;
 }
 
-- initWithExpressionType:(NSExpressionType)type;
+- (instancetype)initWithExpressionType:(NSExpressionType)type;
+
++ (NSExpression *)expressionWithFormat:(NSString *)expressionFormat argumentArray:(NSArray *)arguments;
++ (NSExpression *)expressionWithFormat:(NSString *)expressionFormat, ...;
++ (NSExpression *)expressionWithFormat:(NSString *)expressionFormat arguments:(va_list)argList;
 
 + (NSExpression *)expressionForConstantValue:value;
 + (NSExpression *)expressionForEvaluatedObject;
@@ -29,14 +33,14 @@ typedef enum {
 + (NSExpression *)expressionForKeyPath:(NSString *)keyPath;
 + (NSExpression *)expressionForFunction:(NSString *)name arguments:(NSArray *)arguments;
 
-- (NSExpressionType)expressionType;
+@property (readonly) NSExpressionType expressionType;
 
 - constantValue;
-- (NSString *)variable;
-- (NSString *)keyPath;
-- (NSString *)function;
-- (NSArray *)arguments;
-- (NSExpression *)operand;
+@property (readonly) NSString *variable;
+@property (readonly) NSString *keyPath;
+@property (readonly) NSString *function;
+@property (readonly) NSArray *arguments;
+@property (readonly) NSExpression *operand;
 
 - expressionValueWithObject:object context:(NSMutableDictionary *)context;
 

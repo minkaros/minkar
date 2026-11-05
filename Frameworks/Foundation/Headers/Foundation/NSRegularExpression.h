@@ -30,7 +30,7 @@
 #import <Foundation/NSRange.h>
 #import <Foundation/NSTextCheckingResult.h>
 
-@class NSArray, NSError, NSMutableString, NSString;
+@class NSArray<ObjectType>, NSError, NSMutableString, NSString;
 
 NS_ASSUME_NONNULL_BEGIN
 

@@ -12,6 +12,8 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 @class NSURLHandle, NSNumber, NSData, NSError;
 
+NS_ASSUME_NONNULL_BEGIN
+
 FOUNDATION_EXPORT NSString *const NSURLFileScheme;
 
 @interface NSURL : NSObject <NSCopying, NSCoding> {
@@ -28,55 +30,59 @@ FOUNDATION_EXPORT NSString *const NSURLFileScheme;
     NSString *_fragment;
 }
 
-- initWithScheme:(NSString *)scheme host:(NSString *)host path:(NSString *)path;
-- initFileURLWithPath:(NSString *)path;
-- initWithString:(NSString *)string;
-- initWithString:(NSString *)string relativeToURL:(NSURL *)parent;
+- (nullable instancetype)initWithScheme:(NSString *)scheme host:(nullable NSString *)host path:(NSString *)path;
+- (instancetype)initFileURLWithPath:(NSString *)path;
+- (nullable instancetype)initWithString:(NSString *)string;
+- (nullable instancetype)initWithString:(NSString *)string relativeToURL:(nullable NSURL *)parent;
+- (instancetype)initWithDataRepresentation:(NSData *)data relativeToURL:(nullable NSURL *)baseURL;
+- (instancetype)initAbsoluteURLWithDataRepresentation:(NSData *)data relativeToURL:(nullable NSURL *)baseURL;
 
-+ fileURLWithPath:(NSString *)path;
-+ URLWithString:(NSString *)string;
-+ URLWithString:(NSString *)string relativeToURL:(NSURL *)parent;
++ (NSURL *)fileURLWithPath:(NSString *)path;
++ (nullable instancetype)URLWithString:(NSString *)string;
++ (nullable instancetype)URLWithString:(NSString *)string relativeToURL:(nullable NSURL *)parent;
++ (NSURL *)URLWithDataRepresentation:(NSData *)data relativeToURL:(nullable NSURL *)baseURL;
++ (NSURL *)absoluteURLWithDataRepresentation:(NSData *)data relativeToURL:(nullable NSURL *)baseURL;
 
-- (NSString *)absoluteString;
-- (NSString *)parameterString;
+@property (readonly, copy) NSData *dataRepresentation;
+
+@property (nullable, readonly, copy) NSString *absoluteString;
+@property (nullable, readonly, copy) NSString *parameterString;
 - propertyForKey:(NSString *)key;
 
-- (NSString *)scheme;
-- (NSString *)host;
-- (NSString *)user;
-- (NSString *)password;
-- (NSString *)fragment;
-- (NSString *)path;
-- (NSNumber *)port;
-- (NSString *)query;
-- (NSString *)relativePath;
-- (NSString *)relativeString;
-- (NSString *)resourceSpecifier;
+@property (nullable, readonly, copy) NSString *scheme;
+@property (nullable, readonly, copy) NSString *host;
+@property (nullable, readonly, copy) NSString *user;
+@property (nullable, readonly, copy) NSString *password;
+@property (nullable, readonly, copy) NSString *fragment;
+@property (nullable, readonly, copy) NSString *path;
+@property (nullable, readonly, copy) NSNumber *port;
+@property (nullable, readonly, copy) NSString *query;
+@property (nullable, readonly, copy) NSString *relativePath;
+@property (readonly, copy) NSString *relativeString;
+@property (nullable, readonly, copy) NSString *resourceSpecifier;
 
-- (BOOL)isFileURL;
+@property (readonly, getter=isFileURL) BOOL fileURL;
 
-- (NSURL *)standardizedURL;
-- (NSURL *)absoluteURL;
-- (NSURL *)baseURL;
+@property (nullable, readonly, copy) NSURL *standardizedURL;
+@property (nullable, readonly, copy) NSURL *absoluteURL;
+@property (nullable, readonly, copy) NSURL *baseURL;
 
-- (NSURL *)URLByAppendingPathComponent:(NSString *)pathComponent;
-- (NSURL *)URLByAppendingPathExtension:(NSString *)pathExtension;
-- (NSURL *)URLByDeletingLastPathComponent;
-- (NSURL *)URLByDeletingPathExtension;
-- (NSString *)lastPathComponent;
-- (NSString *)pathExtension;
+- (nullable NSURL *)URLByAppendingPathComponent:(NSString *)pathComponent;
+@property (nullable, readonly, copy) NSURL *URLByDeletingLastPathComponent;
+@property (nullable, readonly, copy) NSString *lastPathComponent;
+@property (nullable, readonly, copy) NSString *pathExtension;
 
-- (BOOL)setProperty:property forKey:(NSString *)key;
+- (BOOL)setProperty:(id)property forKey:(NSString *)key;
 
 - (BOOL)setResourceData:(NSData *)data;
 
-- (NSData *)resourceDataUsingCache:(BOOL)useCache;
-- (NSURLHandle *)URLHandleUsingCache:(BOOL)useCache;
-- (void)loadResourceDataNotifyingClient:client usingCache:(BOOL)useCache;
+- (nullable NSData *)resourceDataUsingCache:(BOOL)useCache;
+- (nullable NSURLHandle *)URLHandleUsingCache:(BOOL)useCache;
+- (void)loadResourceDataNotifyingClient:(id)client usingCache:(BOOL)useCache;
 
 @end
 
-typedef NSString *NSURLResourceKey;
+typedef NSString *NSURLResourceKey NS_TYPED_EXTENSIBLE_ENUM;
 FOUNDATION_EXPORT NSURLResourceKey const NSURLNameKey;
 FOUNDATION_EXPORT NSURLResourceKey const NSURLLocalizedNameKey;
 FOUNDATION_EXPORT NSURLResourceKey const NSURLIsRegularFileKey;
@@ -169,7 +175,40 @@ FOUNDATION_EXPORT NSURLResourceKey const NSURLVolumeSupportsAccessPermissionsKey
 FOUNDATION_EXPORT NSURLResourceKey const NSURLVolumeAvailableCapacityForImportantUsageKey;
 FOUNDATION_EXPORT NSURLResourceKey const NSURLVolumeAvailableCapacityForOpportunisticUsageKey;
 
-typedef NSString *NSURLFileResourceType;
+/* iCloud's keys: no item is ubiquitous on Minkar. */
+FOUNDATION_EXPORT NSURLResourceKey const NSURLIsUbiquitousItemKey;
+FOUNDATION_EXPORT NSURLResourceKey const NSURLUbiquitousItemHasUnresolvedConflictsKey;
+FOUNDATION_EXPORT NSURLResourceKey const NSURLUbiquitousItemIsDownloadingKey;
+FOUNDATION_EXPORT NSURLResourceKey const NSURLUbiquitousItemIsUploadedKey;
+FOUNDATION_EXPORT NSURLResourceKey const NSURLUbiquitousItemIsUploadingKey;
+FOUNDATION_EXPORT NSURLResourceKey const NSURLUbiquitousItemDownloadingStatusKey;
+FOUNDATION_EXPORT NSURLResourceKey const NSURLUbiquitousItemDownloadingErrorKey;
+FOUNDATION_EXPORT NSURLResourceKey const NSURLUbiquitousItemUploadingErrorKey;
+FOUNDATION_EXPORT NSURLResourceKey const NSURLUbiquitousItemDownloadRequestedKey;
+FOUNDATION_EXPORT NSURLResourceKey const NSURLUbiquitousItemContainerDisplayNameKey;
+FOUNDATION_EXPORT NSURLResourceKey const NSURLUbiquitousItemIsSharedKey;
+FOUNDATION_EXPORT NSURLResourceKey const NSURLUbiquitousSharedItemCurrentUserRoleKey;
+FOUNDATION_EXPORT NSURLResourceKey const NSURLUbiquitousSharedItemCurrentUserPermissionsKey;
+FOUNDATION_EXPORT NSURLResourceKey const NSURLUbiquitousSharedItemOwnerNameComponentsKey;
+FOUNDATION_EXPORT NSURLResourceKey const NSURLUbiquitousSharedItemMostRecentEditorNameComponentsKey;
+
+typedef NSString *NSURLUbiquitousItemDownloadingStatus NS_TYPED_ENUM;
+FOUNDATION_EXPORT NSURLUbiquitousItemDownloadingStatus const NSURLUbiquitousItemDownloadingStatusNotDownloaded;
+FOUNDATION_EXPORT NSURLUbiquitousItemDownloadingStatus const NSURLUbiquitousItemDownloadingStatusDownloaded;
+FOUNDATION_EXPORT NSURLUbiquitousItemDownloadingStatus const NSURLUbiquitousItemDownloadingStatusCurrent;
+typedef NSString *NSURLUbiquitousSharedItemRole NS_TYPED_ENUM NS_SWIFT_NAME(URLUbiquitousSharedItemRole);
+FOUNDATION_EXPORT NSURLUbiquitousSharedItemRole const NSURLUbiquitousSharedItemRoleOwner;
+FOUNDATION_EXPORT NSURLUbiquitousSharedItemRole const NSURLUbiquitousSharedItemRoleParticipant;
+typedef NSString *NSURLUbiquitousSharedItemPermissions NS_TYPED_ENUM NS_SWIFT_NAME(URLUbiquitousSharedItemPermissions);
+FOUNDATION_EXPORT NSURLUbiquitousSharedItemPermissions const NSURLUbiquitousSharedItemPermissionsReadOnly;
+FOUNDATION_EXPORT NSURLUbiquitousSharedItemPermissions const NSURLUbiquitousSharedItemPermissionsReadWrite;
+
+/* A file's owner, group and access control list (NSURLFileSecurityKey). */
+@interface NSFileSecurity : NSObject <NSCopying, NSSecureCoding>
+- (nullable instancetype)initWithCoder:(NSCoder *)coder NS_DESIGNATED_INITIALIZER;
+@end
+
+typedef NSString *NSURLFileResourceType NS_TYPED_ENUM;
 FOUNDATION_EXPORT NSURLFileResourceType const NSURLFileResourceTypeNamedPipe;
 FOUNDATION_EXPORT NSURLFileResourceType const NSURLFileResourceTypeCharacterSpecial;
 FOUNDATION_EXPORT NSURLFileResourceType const NSURLFileResourceTypeDirectory;
@@ -198,60 +237,69 @@ typedef NSUInteger NSURLBookmarkFileCreationOptions;
 @interface NSURL (NSURLResources)
 
 + (NSURL *)fileURLWithPath:(NSString *)path isDirectory:(BOOL)isDir;
-+ (NSURL *)fileURLWithPath:(NSString *)path relativeToURL:(NSURL *)baseURL;
-+ (NSURL *)fileURLWithPath:(NSString *)path isDirectory:(BOOL)isDir relativeToURL:(NSURL *)baseURL;
-+ (NSURL *)fileURLWithFileSystemRepresentation:(const char *)path isDirectory:(BOOL)isDir relativeToURL:(NSURL *)baseURL;
++ (NSURL *)fileURLWithPath:(NSString *)path relativeToURL:(nullable NSURL *)baseURL;
++ (NSURL *)fileURLWithPath:(NSString *)path isDirectory:(BOOL)isDir relativeToURL:(nullable NSURL *)baseURL;
++ (NSURL *)fileURLWithFileSystemRepresentation:(const char *)path isDirectory:(BOOL)isDir relativeToURL:(nullable NSURL *)baseURL;
 - (instancetype)initFileURLWithPath:(NSString *)path isDirectory:(BOOL)isDir;
-- (instancetype)initFileURLWithPath:(NSString *)path relativeToURL:(NSURL *)baseURL;
-- (instancetype)initFileURLWithPath:(NSString *)path isDirectory:(BOOL)isDir relativeToURL:(NSURL *)baseURL;
-- (instancetype)initFileURLWithFileSystemRepresentation:(const char *)path isDirectory:(BOOL)isDir relativeToURL:(NSURL *)baseURL;
+- (instancetype)initFileURLWithPath:(NSString *)path relativeToURL:(nullable NSURL *)baseURL;
+- (instancetype)initFileURLWithPath:(NSString *)path isDirectory:(BOOL)isDir relativeToURL:(nullable NSURL *)baseURL;
+- (instancetype)initFileURLWithFileSystemRepresentation:(const char *)path isDirectory:(BOOL)isDir relativeToURL:(nullable NSURL *)baseURL;
 
 - (BOOL)getFileSystemRepresentation:(char *)buffer maxLength:(NSUInteger)maxBufferLength;
 @property (readonly) const char *fileSystemRepresentation;
 @property (readonly) BOOL hasDirectoryPath;
 - (BOOL)isFileReferenceURL;
-- (NSURL *)fileReferenceURL;
-@property (readonly, copy) NSURL *filePathURL;
+- (nullable NSURL *)fileReferenceURL;
+@property (nullable, readonly, copy) NSURL *filePathURL;
 
-- (BOOL)getResourceValue:(out id *)value forKey:(NSURLResourceKey)key error:(out NSError **)error;
-- (NSDictionary<NSURLResourceKey, id> *)resourceValuesForKeys:(NSArray<NSURLResourceKey> *)keys error:(NSError **)error;
-- (BOOL)setResourceValue:(id)value forKey:(NSURLResourceKey)key error:(NSError **)error;
+- (BOOL)getResourceValue:(out id _Nullable * _Nonnull)value forKey:(NSURLResourceKey)key error:(out NSError **)error NS_REFINED_FOR_SWIFT;
+- (nullable NSDictionary<NSURLResourceKey, id> *)resourceValuesForKeys:(NSArray<NSURLResourceKey> *)keys error:(NSError **)error;
+- (BOOL)setResourceValue:(nullable id)value forKey:(NSURLResourceKey)key error:(NSError **)error;
 - (BOOL)setResourceValues:(NSDictionary<NSURLResourceKey, id> *)keyedValues error:(NSError **)error;
 - (void)removeCachedResourceValueForKey:(NSURLResourceKey)key;
 - (void)removeAllCachedResourceValues;
-- (void)setTemporaryResourceValue:(id)value forKey:(NSURLResourceKey)key;
-- (BOOL)checkResourceIsReachableAndReturnError:(NSError **)error;
+- (void)setTemporaryResourceValue:(nullable id)value forKey:(NSURLResourceKey)key;
+- (BOOL)checkResourceIsReachableAndReturnError:(NSError **)error NS_SWIFT_NOTHROW;
 
-- (NSData *)bookmarkDataWithOptions:(NSURLBookmarkCreationOptions)options
-     includingResourceValuesForKeys:(NSArray<NSURLResourceKey> *)keys
-                      relativeToURL:(NSURL *)relativeURL error:(NSError **)error;
-- (instancetype)initByResolvingBookmarkData:(NSData *)bookmarkData options:(NSURLBookmarkResolutionOptions)options
-                              relativeToURL:(NSURL *)relativeURL bookmarkDataIsStale:(BOOL *)isStale
+- (nullable NSData *)bookmarkDataWithOptions:(NSURLBookmarkCreationOptions)options
+     includingResourceValuesForKeys:(nullable NSArray<NSURLResourceKey> *)keys
+                      relativeToURL:(nullable NSURL *)relativeURL error:(NSError **)error;
+- (nullable instancetype)initByResolvingBookmarkData:(NSData *)bookmarkData options:(NSURLBookmarkResolutionOptions)options
+                              relativeToURL:(nullable NSURL *)relativeURL bookmarkDataIsStale:(nullable BOOL *)isStale
                                       error:(NSError **)error;
-+ (instancetype)URLByResolvingBookmarkData:(NSData *)bookmarkData options:(NSURLBookmarkResolutionOptions)options
-                             relativeToURL:(NSURL *)relativeURL bookmarkDataIsStale:(BOOL *)isStale
++ (nullable instancetype)URLByResolvingBookmarkData:(NSData *)bookmarkData options:(NSURLBookmarkResolutionOptions)options
+                             relativeToURL:(nullable NSURL *)relativeURL bookmarkDataIsStale:(nullable BOOL *)isStale
                                      error:(NSError **)error;
-+ (NSDictionary<NSURLResourceKey, id> *)resourceValuesForKeys:(NSArray<NSURLResourceKey> *)keys
++ (nullable NSDictionary<NSURLResourceKey, id> *)resourceValuesForKeys:(NSArray<NSURLResourceKey> *)keys
                                              fromBookmarkData:(NSData *)bookmarkData;
 + (BOOL)writeBookmarkData:(NSData *)bookmarkData toURL:(NSURL *)bookmarkFileURL
                   options:(NSURLBookmarkFileCreationOptions)options error:(NSError **)error;
-+ (NSData *)bookmarkDataWithContentsOfURL:(NSURL *)bookmarkFileURL error:(NSError **)error;
-+ (instancetype)URLByResolvingAliasFileAtURL:(NSURL *)url options:(NSURLBookmarkResolutionOptions)options
++ (nullable NSData *)bookmarkDataWithContentsOfURL:(NSURL *)bookmarkFileURL error:(NSError **)error;
++ (nullable instancetype)URLByResolvingAliasFileAtURL:(NSURL *)url options:(NSURLBookmarkResolutionOptions)options
                                        error:(NSError **)error;
 - (BOOL)startAccessingSecurityScopedResource;
 - (void)stopAccessingSecurityScopedResource;
 
 @end
 
+/* Items promised by a file provider: none on Minkar, so the item itself. */
+@interface NSURL (NSPromisedItems)
+- (BOOL)getPromisedItemResourceValue:(id _Nullable * _Nonnull)value forKey:(NSURLResourceKey)key error:(NSError **)error NS_REFINED_FOR_SWIFT;
+- (nullable NSDictionary<NSURLResourceKey, id> *)promisedItemResourceValuesForKeys:(NSArray<NSURLResourceKey> *)keys error:(NSError **)error;
+- (BOOL)checkPromisedItemIsReachableAndReturnError:(NSError **)error NS_SWIFT_NOTHROW;
+@end
+
 @interface NSURL (NSURLPathUtilities)
 
-+ (NSURL *)fileURLWithPathComponents:(NSArray *)components;
-- (NSArray *)pathComponents;
-- (NSURL *)URLByAppendingPathComponent:(NSString *)pathComponent isDirectory:(BOOL)isDirectory;
-- (NSURL *)URLByAppendingPathExtension:(NSString *)pathExtension;
-- (NSURL *)URLByDeletingPathExtension;
++ (nullable NSURL *)fileURLWithPathComponents:(NSArray<NSString *> *)components;
+@property (nullable, readonly, copy) NSArray<NSString *> *pathComponents;
+- (nullable NSURL *)URLByAppendingPathComponent:(NSString *)pathComponent isDirectory:(BOOL)isDirectory;
+- (nullable NSURL *)URLByAppendingPathExtension:(NSString *)pathExtension;
+@property (nullable, readonly, copy) NSURL *URLByDeletingPathExtension;
 
-- (NSURL *)URLByStandardizingPath;
-- (NSURL *)URLByResolvingSymlinksInPath;
+@property (nullable, readonly, copy) NSURL *URLByStandardizingPath;
+@property (nullable, readonly, copy) NSURL *URLByResolvingSymlinksInPath;
 
 @end
+
+NS_ASSUME_NONNULL_END

@@ -9,9 +9,16 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <Foundation/NSObject.h>
 #import <Foundation/NSDate.h>
 
-@class NSArray, NSDate, NSData, NSDictionary, NSLocale, NSString, NSMutableArray;
+@class NSArray<ObjectType>, NSDate, NSData, NSDictionary<KeyType, ObjectType>, NSLocale, NSString, NSMutableArray<ObjectType>;
 
-typedef NSInteger NSTimeZoneNameStyle;
+typedef NS_ENUM(NSInteger, NSTimeZoneNameStyle) {
+    NSTimeZoneNameStyleStandard,
+    NSTimeZoneNameStyleShortStandard,
+    NSTimeZoneNameStyleDaylightSaving,
+    NSTimeZoneNameStyleShortDaylightSaving,
+    NSTimeZoneNameStyleGeneric,
+    NSTimeZoneNameStyleShortGeneric
+};
 
 FOUNDATION_EXPORT NSString *const NSSystemTimeZoneDidChangeNotification;
 
@@ -20,20 +27,20 @@ FOUNDATION_EXPORT NSString *const NSSystemTimeZoneDidChangeNotification;
     NSData *_data;
 }
 
-+ (NSTimeZone *)localTimeZone;
-+ (NSTimeZone *)systemTimeZone;
-+ (NSTimeZone *)defaultTimeZone;
+@property (class, readonly) NSTimeZone *localTimeZone;
+@property (class, readonly) NSTimeZone *systemTimeZone;
+@property (class, retain) NSTimeZone *defaultTimeZone;
 
 + (void)resetSystemTimeZone;
 
-+ (void)setDefaultTimeZone:(NSTimeZone *)timeZone;
 
-+ (NSArray *)knownTimeZoneNames;
+@property (class, readonly, copy) NSArray<NSString *> *knownTimeZoneNames;
 
-+ (NSDictionary *)abbreviationDictionary;
+@property (class, copy) NSDictionary<NSString *, NSString *> *abbreviationDictionary;
+@property (class, readonly, copy) NSString *timeZoneDataVersion;
 
-- initWithName:(NSString *)name data:(NSData *)data;
-- initWithName:(NSString *)name;
+- (instancetype)initWithName:(NSString *)name data:(NSData *)data;
+- (instancetype)initWithName:(NSString *)name;
 
 + (NSTimeZone *)timeZoneWithName:(NSString *)name data:(NSData *)data;
 + (NSTimeZone *)timeZoneWithName:(NSString *)name;
@@ -41,16 +48,16 @@ FOUNDATION_EXPORT NSString *const NSSystemTimeZoneDidChangeNotification;
 + (NSTimeZone *)timeZoneForSecondsFromGMT:(NSInteger)seconds;
 + (NSTimeZone *)timeZoneWithAbbreviation:(NSString *)abbreviation;
 
-- (NSString *)name;
-- (NSData *)data;
+@property (readonly) NSString *name;
+@property (readonly) NSData *data;
 
 - (BOOL)isEqualToTimeZone:(NSTimeZone *)timeZone;
 
-- (NSInteger)secondsFromGMT;
-- (NSString *)abbreviation;
-- (BOOL)isDaylightSavingTime;
-- (NSTimeInterval)daylightSavingTimeOffset;
-- (NSDate *)nextDaylightSavingTimeTransition;
+@property (readonly) NSInteger secondsFromGMT;
+@property (readonly) NSString *abbreviation;
+@property (readonly, getter=isDaylightSavingTime) BOOL daylightSavingTime;
+@property (readonly) NSTimeInterval daylightSavingTimeOffset;
+@property (readonly) NSDate *nextDaylightSavingTimeTransition;
 
 - (NSInteger)secondsFromGMTForDate:(NSDate *)date;
 - (NSString *)abbreviationForDate:(NSDate *)date;
@@ -60,6 +67,6 @@ FOUNDATION_EXPORT NSString *const NSSystemTimeZoneDidChangeNotification;
 
 - (NSString *)localizedName:(NSTimeZoneNameStyle)style locale:(NSLocale *)locale;
 
-- (NSString *)description;
+@property (readonly) NSString *description;
 
 @end

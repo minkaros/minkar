@@ -86,6 +86,26 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    _handleCookies=value;
 }
 
+-(void)setHTTPShouldUsePipelining:(BOOL)value {
+   _usePipelining=value;
+}
+
+-(void)setNetworkServiceType:(NSURLRequestNetworkServiceType)value {
+   _serviceType=value;
+}
+
+-(void)setAllowsCellularAccess:(BOOL)value {
+   _allowsCellular=value;
+}
+
+-(void)setAllowsExpensiveNetworkAccess:(BOOL)value {
+   _allowsExpensive=value;
+}
+
+-(void)setAllowsConstrainedNetworkAccess:(BOOL)value {
+   _allowsConstrained=value;
+}
+
 -(void)setMainDocumentURL:(NSURL *)value {
    value=[value copy];
    [_mainDocumentURL release];

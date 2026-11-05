@@ -34,11 +34,8 @@
 #import <Foundation/NSHTTPCookieStorage.h>
 #import <Foundation/NSProgress.h>
 
-@class NSCachedURLResponse, NSData, NSError, NSHTTPURLResponse, NSInputStream, NSOperationQueue,
-    NSURL, NSURLAuthenticationChallenge, NSURLCache, NSURLCredential, NSURLCredentialStorage,
-    NSURLProtectionSpace, NSURLResponse;
-@class NSURLSession, NSURLSessionConfiguration, NSURLSessionDataTask, NSURLSessionDownloadTask,
-    NSURLSessionTask, NSURLSessionUploadTask;
+@class NSCachedURLResponse, NSData, NSError, NSHTTPURLResponse, NSInputStream, NSOperationQueue, NSURL, NSURLAuthenticationChallenge, NSURLCache, NSURLCredential, NSURLCredentialStorage, NSURLProtectionSpace, NSURLResponse;
+@class NSURLSession, NSURLSessionConfiguration, NSURLSessionDataTask, NSURLSessionDownloadTask, NSURLSessionTask, NSURLSessionUploadTask;
 @protocol NSURLSessionDelegate;
 
 FOUNDATION_EXPORT const int64_t NSURLSessionTransferSizeUnknown;
@@ -270,3 +267,128 @@ totalBytesExpectedToWrite:(int64_t)totalBytesExpectedToWrite;
 @end
 
 FOUNDATION_EXPORT NSString *const NSURLSessionDownloadTaskResumeData;
+
+NS_ASSUME_NONNULL_BEGIN
+
+/* -- Metrics (API 19): what a task's transactions took. -- */
+
+typedef NS_ENUM(uint16_t, tls_ciphersuite_t) {
+    tls_ciphersuite_RSA_WITH_AES_128_GCM_SHA256 = 0x009C,
+    tls_ciphersuite_RSA_WITH_AES_256_GCM_SHA384 = 0x009D,
+    tls_ciphersuite_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256 = 0xC02B,
+    tls_ciphersuite_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384 = 0xC02C,
+    tls_ciphersuite_ECDHE_RSA_WITH_AES_128_GCM_SHA256 = 0xC02F,
+    tls_ciphersuite_ECDHE_RSA_WITH_AES_256_GCM_SHA384 = 0xC030,
+    tls_ciphersuite_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256 = 0xCCA9,
+    tls_ciphersuite_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256 = 0xCCA8,
+    tls_ciphersuite_AES_128_GCM_SHA256 = 0x1301,
+    tls_ciphersuite_AES_256_GCM_SHA384 = 0x1302,
+    tls_ciphersuite_CHACHA20_POLY1305_SHA256 = 0x1303,
+};
+
+typedef NS_ENUM(NSInteger, NSURLSessionTaskMetricsResourceFetchType) {
+    NSURLSessionTaskMetricsResourceFetchTypeUnknown,
+    NSURLSessionTaskMetricsResourceFetchTypeNetworkLoad,
+    NSURLSessionTaskMetricsResourceFetchTypeServerPush,
+    NSURLSessionTaskMetricsResourceFetchTypeLocalCache,
+};
+
+@class NSDateInterval;
+
+@interface NSURLSessionTaskTransactionMetrics : NSObject
+@property (copy, readonly) NSURLRequest *request;
+@property (nullable, copy, readonly) NSURLResponse *response;
+@property (nullable, copy, readonly) NSDate *fetchStartDate;
+@property (nullable, copy, readonly) NSDate *domainLookupStartDate;
+@property (nullable, copy, readonly) NSDate *domainLookupEndDate;
+@property (nullable, copy, readonly) NSDate *connectStartDate;
+@property (nullable, copy, readonly) NSDate *secureConnectionStartDate;
+@property (nullable, copy, readonly) NSDate *secureConnectionEndDate;
+@property (nullable, copy, readonly) NSDate *connectEndDate;
+@property (nullable, copy, readonly) NSDate *requestStartDate;
+@property (nullable, copy, readonly) NSDate *requestEndDate;
+@property (nullable, copy, readonly) NSDate *responseStartDate;
+@property (nullable, copy, readonly) NSDate *responseEndDate;
+@property (nullable, copy, readonly) NSString *networkProtocolName;
+@property (assign, readonly, getter=isProxyConnection) BOOL proxyConnection;
+@property (assign, readonly, getter=isReusedConnection) BOOL reusedConnection;
+@property (assign, readonly) NSURLSessionTaskMetricsResourceFetchType resourceFetchType;
+@property (readonly) int64_t countOfRequestHeaderBytesSent;
+@property (readonly) int64_t countOfRequestBodyBytesSent;
+@property (readonly) int64_t countOfRequestBodyBytesBeforeEncoding;
+@property (readonly) int64_t countOfResponseHeaderBytesReceived;
+@property (readonly) int64_t countOfResponseBodyBytesReceived;
+@property (readonly) int64_t countOfResponseBodyBytesAfterDecoding;
+@property (nullable, copy, readonly) NSString *localAddress;
+@property (nullable, copy, readonly) NSNumber *localPort NS_REFINED_FOR_SWIFT;
+@property (nullable, copy, readonly) NSString *remoteAddress;
+@property (nullable, copy, readonly) NSNumber *remotePort NS_REFINED_FOR_SWIFT;
+@property (nullable, copy, readonly) NSNumber *negotiatedTLSProtocolVersion NS_REFINED_FOR_SWIFT;
+@property (nullable, copy, readonly) NSNumber *negotiatedTLSCipherSuite NS_REFINED_FOR_SWIFT;
+@property (readonly, getter=isCellular) BOOL cellular;
+@property (readonly, getter=isExpensive) BOOL expensive;
+@property (readonly, getter=isConstrained) BOOL constrained;
+@property (readonly, getter=isMultipath) BOOL multipath;
+@end
+
+@interface NSURLSessionTaskMetrics : NSObject
+@property (copy, readonly) NSArray<NSURLSessionTaskTransactionMetrics *> *transactionMetrics;
+@property (copy, readonly) NSDateInterval *taskInterval;
+@property (assign, readonly) NSUInteger redirectCount;
+@end
+
+/* -- WebSockets (API 19). Minkar's sessions have no WebSocket transport
+ * yet: such a task fails, as an unsupported URL would. -- */
+
+typedef NS_ENUM(NSInteger, NSURLSessionWebSocketMessageType) {
+    NSURLSessionWebSocketMessageTypeData = 0,
+    NSURLSessionWebSocketMessageTypeString = 1,
+};
+
+NS_REFINED_FOR_SWIFT
+@interface NSURLSessionWebSocketMessage : NSObject {
+    NSURLSessionWebSocketMessageType _type;
+    NSData *_data;
+    NSString *_string;
+}
+- (instancetype)initWithData:(NSData *)data;
+- (instancetype)initWithString:(NSString *)string;
+@property (readonly) NSURLSessionWebSocketMessageType type;
+@property (nullable, readonly, copy) NSData *data;
+@property (nullable, readonly, copy) NSString *string;
+@end
+
+typedef NS_ENUM(NSInteger, NSURLSessionWebSocketCloseCode) {
+    NSURLSessionWebSocketCloseCodeInvalid = 0,
+    NSURLSessionWebSocketCloseCodeNormalClosure = 1000,
+    NSURLSessionWebSocketCloseCodeGoingAway = 1001,
+    NSURLSessionWebSocketCloseCodeProtocolError = 1002,
+    NSURLSessionWebSocketCloseCodeUnsupportedData = 1003,
+    NSURLSessionWebSocketCloseCodeNoStatusReceived = 1005,
+    NSURLSessionWebSocketCloseCodeAbnormalClosure = 1006,
+    NSURLSessionWebSocketCloseCodeInvalidFramePayloadData = 1007,
+    NSURLSessionWebSocketCloseCodePolicyViolation = 1008,
+    NSURLSessionWebSocketCloseCodeMessageTooBig = 1009,
+    NSURLSessionWebSocketCloseCodeMandatoryExtensionMissing = 1010,
+    NSURLSessionWebSocketCloseCodeInternalServerError = 1011,
+    NSURLSessionWebSocketCloseCodeTLSHandshakeFailure = 1015,
+};
+
+NS_SWIFT_NAME(URLSessionWebSocketTask)
+@interface NSURLSessionWebSocketTask : NSURLSessionTask
+- (void)sendMessage:(NSURLSessionWebSocketMessage *)message completionHandler:(void (^)(NSError * _Nullable error))completionHandler NS_REFINED_FOR_SWIFT;
+- (void)receiveMessageWithCompletionHandler:(void (^)(NSURLSessionWebSocketMessage * _Nullable message, NSError * _Nullable error))completionHandler NS_REFINED_FOR_SWIFT;
+- (void)sendPingWithPongReceiveHandler:(void (^)(NSError * _Nullable error))pongReceiveHandler;
+- (void)cancelWithCloseCode:(NSURLSessionWebSocketCloseCode)closeCode reason:(nullable NSData *)reason;
+@property NSInteger maximumMessageSize;
+@property (readonly) NSURLSessionWebSocketCloseCode closeCode;
+@property (nullable, readonly, copy) NSData *closeReason;
+@end
+
+@interface NSURLSession (NSURLSessionWebSocket)
+- (NSURLSessionWebSocketTask *)webSocketTaskWithURL:(NSURL *)url;
+- (NSURLSessionWebSocketTask *)webSocketTaskWithURL:(NSURL *)url protocols:(NSArray<NSString *> *)protocols;
+- (NSURLSessionWebSocketTask *)webSocketTaskWithRequest:(NSURLRequest *)request;
+@end
+
+NS_ASSUME_NONNULL_END

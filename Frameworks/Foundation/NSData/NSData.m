@@ -25,6 +25,13 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 #import "NSString_cString.h"
 #import "NSData_concrete.h"
+#import <Foundation/NSMutableData.h>
+#import <Foundation/NSError.h>
+#import <Foundation/FoundationErrors.h>
+#include <stdlib.h>
+#include <sys/mman.h>
+#include <mach/mach.h>
+#include <compression.h>
 
 @implementation NSData
 
@@ -360,3 +367,163 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 }
 
 @end
+
+/* -- Bytes freed by a block of the caller's -- */
+
+@interface _NSDataWithDeallocator : NSData {
+    void *_bytes;
+    NSUInteger _length;
+    void (^_deallocator)(void *, NSUInteger);
+}
+- (instancetype)_initWithBytes:(void *)bytes length:(NSUInteger)length deallocator:(void (^)(void *, NSUInteger))deallocator;
+@end
+
+@implementation _NSDataWithDeallocator
+
++ allocWithZone:(NSZone *)zone {
+    return NSAllocateObject(self, 0, zone);
+}
+
+- (instancetype)_initWithBytes:(void *)bytes length:(NSUInteger)length deallocator:(void (^)(void *, NSUInteger))deallocator {
+    _bytes = bytes;
+    _length = length;
+    _deallocator = [deallocator copy];
+    return self;
+}
+
+- (void)dealloc {
+    if (_deallocator != nil) {
+        _deallocator(_bytes, _length);
+        [_deallocator release];
+    }
+    [super dealloc];
+}
+
+- (const void *)bytes {
+    return _bytes;
+}
+
+- (NSUInteger)length {
+    return _length;
+}
+
+@end
+
+@implementation NSData (NSDataModern)
+
+- (instancetype)initWithBytesNoCopy:(void *)bytes length:(NSUInteger)length deallocator:(void (^)(void *, NSUInteger))deallocator {
+    /* A mutable data keeps bytes of its own: the caller's go now. */
+    if ([self isKindOfClass:[NSMutableData class]]) {
+        self = [self initWithBytes:bytes length:length];
+        if (deallocator != nil)
+            deallocator(bytes, length);
+        return self;
+    }
+    [self release];
+    return [[_NSDataWithDeallocator allocWithZone:NULL] _initWithBytes:bytes length:length deallocator:deallocator];
+}
+
+/* The bytes are one range: Minkar's data are contiguous. */
+- (void)enumerateByteRangesUsingBlock:(void (^)(const void *bytes, NSRange byteRange, BOOL *stop))block {
+    BOOL stop = NO;
+    if ([self length] > 0)
+        block([self bytes], NSMakeRange(0, [self length]), &stop);
+}
+
+static compression_algorithm compressionAlgorithm(NSDataCompressionAlgorithm algorithm) {
+    switch (algorithm) {
+    case NSDataCompressionAlgorithmLZ4: return COMPRESSION_LZ4;
+    case NSDataCompressionAlgorithmLZMA: return COMPRESSION_LZMA;
+    case NSDataCompressionAlgorithmZlib: return COMPRESSION_ZLIB;
+    default: return COMPRESSION_LZFSE;
+    }
+}
+
+/* The data through a compression stream, whatever size comes out. */
+static NSData *runCompression(NSData *input, compression_stream_operation operation,
+    NSDataCompressionAlgorithm algorithm, NSError **error) {
+    compression_stream stream;
+    NSMutableData *output = [NSMutableData data];
+    uint8_t buffer[65536];
+
+    if (compression_stream_init(&stream, operation, compressionAlgorithm(algorithm)) != COMPRESSION_STATUS_OK)
+        goto fail;
+    stream.src_ptr = [input bytes];
+    stream.src_size = [input length];
+    for (;;) {
+        stream.dst_ptr = buffer;
+        stream.dst_size = sizeof(buffer);
+        compression_status status = compression_stream_process(&stream, COMPRESSION_STREAM_FINALIZE);
+        if (status == COMPRESSION_STATUS_ERROR) {
+            compression_stream_destroy(&stream);
+            goto fail;
+        }
+        [output appendBytes:buffer length:sizeof(buffer) - stream.dst_size];
+        if (status == COMPRESSION_STATUS_END)
+            break;
+        if (stream.dst_size == sizeof(buffer) && stream.src_size == 0) {
+            /* No progress and nothing left: truncated input. */
+            compression_stream_destroy(&stream);
+            goto fail;
+        }
+    }
+    compression_stream_destroy(&stream);
+    return output;
+fail:
+    if (error != NULL)
+        *error = [NSError errorWithDomain:NSCocoaErrorDomain code:NSFileReadCorruptFileError userInfo:nil];
+    return nil;
+}
+
+- (instancetype)compressedDataUsingAlgorithm:(NSDataCompressionAlgorithm)algorithm error:(NSError **)error {
+    NSData *result = runCompression(self, COMPRESSION_STREAM_ENCODE, algorithm, error);
+    return result != nil ? [[self class] dataWithData:result] : nil;
+}
+
+- (instancetype)decompressedDataUsingAlgorithm:(NSDataCompressionAlgorithm)algorithm error:(NSError **)error {
+    NSData *result = runCompression(self, COMPRESSION_STREAM_DECODE, algorithm, error);
+    return result != nil ? [[self class] dataWithData:result] : nil;
+}
+
+@end
+
+@implementation NSMutableData (NSDataModern)
+
+- (BOOL)compressUsingAlgorithm:(NSDataCompressionAlgorithm)algorithm error:(NSError **)error {
+    NSData *result = runCompression(self, COMPRESSION_STREAM_ENCODE, algorithm, error);
+    if (result == nil)
+        return NO;
+    [self setData:result];
+    return YES;
+}
+
+- (BOOL)decompressUsingAlgorithm:(NSDataCompressionAlgorithm)algorithm error:(NSError **)error {
+    NSData *result = runCompression(self, COMPRESSION_STREAM_DECODE, algorithm, error);
+    if (result == nil)
+        return NO;
+    [self setData:result];
+    return YES;
+}
+
+@end
+
+// The deallocators of the reference's Foundation for its own buffers, which
+// Swift's Data hands to -initWithBytesNoCopy:length:deallocator: (its
+// overlay's NSDataShims.h declares them).
+typedef void (^NSDataDeallocator)(void *, NSUInteger);
+FOUNDATION_EXPORT const NSDataDeallocator NSDataDeallocatorVM;
+FOUNDATION_EXPORT const NSDataDeallocator NSDataDeallocatorUnmap;
+FOUNDATION_EXPORT const NSDataDeallocator NSDataDeallocatorFree;
+FOUNDATION_EXPORT const NSDataDeallocator NSDataDeallocatorNone;
+
+const NSDataDeallocator NSDataDeallocatorVM = ^(void *bytes, NSUInteger length) {
+    vm_deallocate(mach_task_self(), (vm_address_t)bytes, length);
+};
+const NSDataDeallocator NSDataDeallocatorUnmap = ^(void *bytes, NSUInteger length) {
+    munmap(bytes, length);
+};
+const NSDataDeallocator NSDataDeallocatorFree = ^(void *bytes, NSUInteger length) {
+    free(bytes);
+};
+const NSDataDeallocator NSDataDeallocatorNone = ^(void *bytes, NSUInteger length) {
+};

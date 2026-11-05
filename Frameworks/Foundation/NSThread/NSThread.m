@@ -208,9 +208,31 @@ static void *nsThreadStartThread(void* t)
 -init {
    _dictionary=[NSMutableDictionary new];
    _sharedObjects=[NSMutableDictionary new];
+   _priority=0.5;
+   _qualityOfService=NSQualityOfServiceDefault;
    if(isMultiThreaded)
       _sharedObjectLock=[NSLock new];
    return self;
+}
+
+/* A thread's priority and service class, kept for when it starts (the
+ * scheduler takes the class's priority from the current thread). */
+-(double)threadPriority {
+   return _priority;
+}
+
+-(void)setThreadPriority:(double)value {
+   _priority=value;
+   if(self==[NSThread currentThread])
+    [NSThread setThreadPriority:value];
+}
+
+-(NSQualityOfService)qualityOfService {
+   return _qualityOfService;
+}
+
+-(void)setQualityOfService:(NSQualityOfService)value {
+   _qualityOfService=value;
 }
 
 - (void) dealloc {

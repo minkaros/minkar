@@ -222,6 +222,13 @@ static inline int integerFromCFUID(id object){
 -(NSError *)error { return [[_error retain] autorelease]; }
 -(NSSet *)allowedClasses { return [[_allowedClasses retain] autorelease]; }
 
+-(void)failWithError:(NSError *)error {
+   if(_decodingFailurePolicy==NSDecodingFailurePolicyRaiseException)
+    [NSException raise:NSInvalidUnarchiveOperationException format:@"%@", [error localizedDescription]];
+   if(_error==nil)
+    _error=[error copy];
+}
+
 -(void)_failWith:(NSException *)exception code:(NSInteger)code {
    [_error release];
    _error=[[NSError errorWithDomain:NSCocoaErrorDomain code:code

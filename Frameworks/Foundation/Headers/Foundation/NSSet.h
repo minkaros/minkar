@@ -12,32 +12,34 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 @class NSArray<ObjectType>, NSDictionary<KeyType, ObjectType>, NSString, NSPredicate;
 
+NS_ASSUME_NONNULL_BEGIN
+
 @interface NSSet<__covariant ObjectType> : NSObject <NSCoding, NSCopying, NSMutableCopying, NSFastEnumeration>
 
-- initWithObjects:(id *)objects count:(NSUInteger)count;
-- initWithArray:(NSArray<ObjectType> *)array;
-- initWithSet:(NSSet<ObjectType> *)set;
-- initWithSet:(NSSet<ObjectType> *)set copyItems:(BOOL)copyItems;
-- initWithObjects:(ObjectType)first, ...;
+- (instancetype)initWithObjects:(const ObjectType _Nonnull [_Nullable])objects count:(NSUInteger)count;
+- (instancetype)initWithArray:(NSArray<ObjectType> *)array;
+- (instancetype)initWithSet:(NSSet<ObjectType> *)set;
+- (instancetype)initWithSet:(NSSet<ObjectType> *)set copyItems:(BOOL)copyItems;
+- (instancetype)initWithObjects:(ObjectType)first, ... NS_REQUIRES_NIL_TERMINATION;
 
-+ set;
-+ setWithArray:(NSArray<ObjectType> *)array;
-+ setWithSet:(NSSet<ObjectType> *)set;
-+ setWithObject:(ObjectType)object;
-+ setWithObjects:(ObjectType)first, ...;
-+ setWithObjects:(id *)objects count:(NSUInteger)count;
++ (instancetype)set;
++ (instancetype)setWithArray:(NSArray<ObjectType> *)array;
++ (instancetype)setWithSet:(NSSet<ObjectType> *)set;
++ (instancetype)setWithObject:(ObjectType)object;
++ (instancetype)setWithObjects:(ObjectType)first, ... NS_REQUIRES_NIL_TERMINATION;
++ (instancetype)setWithObjects:(const ObjectType _Nonnull [_Nonnull])objects count:(NSUInteger)count;
 
 - (NSSet<ObjectType> *)setByAddingObject:(ObjectType)object;
 - (NSSet<ObjectType> *)setByAddingObjectsFromSet:(NSSet<ObjectType> *)other;
 - (NSSet<ObjectType> *)setByAddingObjectsFromArray:(NSArray<ObjectType> *)array;
 
-- (ObjectType)member:(ObjectType)object;
-- (NSUInteger)count;
+- (nullable ObjectType)member:(ObjectType)object;
+@property (readonly) NSUInteger count;
 - (NSEnumerator<ObjectType> *)objectEnumerator;
 
 - (BOOL)isEqualToSet:(NSSet<ObjectType> *)set;
 
-- (NSArray<ObjectType> *)allObjects;
+@property (readonly) NSArray<ObjectType> *allObjects;
 
 - (BOOL)containsObject:(ObjectType)object;
 - (BOOL)isSubsetOfSet:(NSSet<ObjectType> *)set;
@@ -45,11 +47,11 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 - (BOOL)intersectsSet:(NSSet<ObjectType> *)set;
 
 - (void)makeObjectsPerformSelector:(SEL)selector;
-- (void)makeObjectsPerformSelector:(SEL)selector withObject:(id)argument;
+- (void)makeObjectsPerformSelector:(SEL)selector withObject:(nullable id)argument;
 
-- (ObjectType)anyObject;
+@property (nullable, readonly) ObjectType anyObject;
 
-- (NSString *)descriptionWithLocale:(NSDictionary *)locale;
+- (NSString *)descriptionWithLocale:(nullable id)locale;
 
 - (NSSet<ObjectType> *)filteredSetUsingPredicate:(NSPredicate *)predicate;
 
@@ -64,6 +66,8 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 - (NSSet<ObjectType> *)objectsWithOptions:(NSEnumerationOptions)opts
                   passingTest:(BOOL (NS_NOESCAPE ^)(ObjectType obj, BOOL *stop))predicate;
 @end
+
+NS_ASSUME_NONNULL_END
 #endif
 
 #import <Foundation/NSMutableSet.h>

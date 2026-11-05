@@ -12,19 +12,25 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
     NSString *_key;
     BOOL _ascending;
     SEL _selector;
+    NSComparator _comparator;
 }
 
-+ sortDescriptorWithKey:(NSString *)key ascending:(BOOL)ascending;
-+ sortDescriptorWithKey:(NSString *)key ascending:(BOOL)ascending selector:(SEL)selector;
++ (instancetype)sortDescriptorWithKey:(NSString *)key ascending:(BOOL)ascending;
++ (instancetype)sortDescriptorWithKey:(NSString *)key ascending:(BOOL)ascending selector:(SEL)selector;
 
-- initWithKey:(NSString *)key ascending:(BOOL)ascending;
-- initWithKey:(NSString *)key ascending:(BOOL)ascending selector:(SEL)selector;
+- (instancetype)initWithKey:(NSString *)key ascending:(BOOL)ascending;
+- (instancetype)initWithKey:(NSString *)key ascending:(BOOL)ascending selector:(SEL)selector;
 
-- (NSString *)key;
-- (BOOL)ascending;
-- (SEL)selector;
++ (instancetype)sortDescriptorWithKey:(NSString *)key ascending:(BOOL)ascending comparator:(NSComparator)cmptr;
+- (instancetype)initWithKey:(NSString *)key ascending:(BOOL)ascending comparator:(NSComparator)cmptr;
 
-- (NSComparisonResult)compareObject:first toObject:second;
-- reversedSortDescriptor;
+@property (readonly, copy) NSString *key;
+@property (readonly) BOOL ascending;
+@property (readonly) SEL selector;
+@property (readonly) NSComparator comparator;
+
+- (void)allowEvaluation;
+- (NSComparisonResult)compareObject:(id)object1 toObject:(id)object2;
+@property (readonly, retain) id reversedSortDescriptor;
 
 @end

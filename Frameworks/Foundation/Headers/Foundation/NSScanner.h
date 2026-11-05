@@ -9,42 +9,43 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <Foundation/NSObject.h>
 #import <Foundation/NSDecimal.h>
 
-@class NSDictionary, NSCharacterSet;
+@class NSDictionary<KeyType, ObjectType>, NSCharacterSet, NSString;
+
+NS_ASSUME_NONNULL_BEGIN
 
 @interface NSScanner : NSObject <NSCopying>
 
-+ scannerWithString:(NSString *)string;
-+ localizedScannerWithString:(NSString *)string;
++ (instancetype)scannerWithString:(NSString *)string;
++ (id)localizedScannerWithString:(NSString *)string;
 
-- initWithString:(NSString *)string;
+- (instancetype)initWithString:(NSString *)string;
 
-- (NSString *)string;
+@property (readonly, copy) NSString *string;
+@property NSUInteger scanLocation;
+@property (nullable, copy) NSCharacterSet *charactersToBeSkipped;
+@property BOOL caseSensitive;
+@property (nullable, retain) id locale;
 
-- (NSCharacterSet *)charactersToBeSkipped;
-- (BOOL)caseSensitive;
-- (NSDictionary *)locale;
+@property (readonly, getter=isAtEnd) BOOL atEnd;
 
-- (void)setCharactersToBeSkipped:(NSCharacterSet *)set;
-- (void)setCaseSensitive:(BOOL)flag;
-- (void)setLocale:(NSDictionary *)locale;
+- (BOOL)scanInt:(nullable int *)result;
+- (BOOL)scanInteger:(nullable NSInteger *)result;
+- (BOOL)scanLongLong:(nullable long long *)result;
+- (BOOL)scanUnsignedLongLong:(nullable unsigned long long *)result;
+- (BOOL)scanFloat:(nullable float *)result;
+- (BOOL)scanDouble:(nullable double *)result;
+- (BOOL)scanDecimal:(nullable NSDecimal *)dcm;
+- (BOOL)scanHexInt:(nullable unsigned *)result;
+- (BOOL)scanHexLongLong:(nullable unsigned long long *)result;
+- (BOOL)scanHexFloat:(nullable float *)result;
+- (BOOL)scanHexDouble:(nullable double *)result;
 
-- (BOOL)isAtEnd;
-- (NSUInteger)scanLocation;
-- (void)setScanLocation:(NSUInteger)location;
+- (BOOL)scanString:(NSString *)string intoString:(NSString * _Nullable * _Nullable)result;
+- (BOOL)scanUpToString:(NSString *)string intoString:(NSString * _Nullable * _Nullable)result;
 
-- (BOOL)scanInt:(int *)valuep;
-- (BOOL)scanInteger:(NSInteger *)valuep;
-- (BOOL)scanLongLong:(long long *)valuep;
-- (BOOL)scanFloat:(float *)valuep;
-- (BOOL)scanDouble:(double *)valuep;
-- (BOOL)scanDecimal:(NSDecimal *)valuep;
-- (BOOL)scanHexInt:(unsigned *)valuep;
-- (BOOL)scanHexLongLong:(unsigned long long *)valuep;
-
-- (BOOL)scanString:(NSString *)string intoString:(NSString **)stringp;
-- (BOOL)scanUpToString:(NSString *)string intoString:(NSString **)stringp;
-
-- (BOOL)scanCharactersFromSet:(NSCharacterSet *)charset intoString:(NSString **)stringp;
-- (BOOL)scanUpToCharactersFromSet:(NSCharacterSet *)charset intoString:(NSString **)stringp;
+- (BOOL)scanCharactersFromSet:(NSCharacterSet *)set intoString:(NSString * _Nullable * _Nullable)result;
+- (BOOL)scanUpToCharactersFromSet:(NSCharacterSet *)set intoString:(NSString * _Nullable * _Nullable)result;
 
 @end
+
+NS_ASSUME_NONNULL_END

@@ -408,4 +408,17 @@ static id NSCoderDecodeTopLevel(NSCoder *coder, NSSet *classes, NSString *key, N
    return result;
 }
 
+/* A coder that keeps no error raises it. */
+-(void)failWithError:(NSError *)error {
+   [NSException raise:@"NSInvalidUnarchiveOperationException" format:@"%@", [error localizedDescription]];
+}
+
+-(NSDecodingFailurePolicy)decodingFailurePolicy {
+   return NSDecodingFailurePolicyRaiseException;
+}
+
+-(NSError *)error {
+   return nil;
+}
+
 @end

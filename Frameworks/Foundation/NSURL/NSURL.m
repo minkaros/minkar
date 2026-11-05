@@ -504,6 +504,49 @@ static BOOL scanURL(urlScanner *scanner,NSURL *url){
    return [self initWithString:string relativeToURL:nil];
 }
 
+/* The URL's string as bytes: UTF-8, else ISO Latin 1 for bytes that are
+ * not UTF-8. */
+static NSString *stringFromRepresentation(NSData *data) {
+   NSString *string=[[NSString alloc] initWithData:data encoding:NSUTF8StringEncoding];
+
+   if(string==nil)
+    string=[[NSString alloc] initWithData:data encoding:NSISOLatin1StringEncoding];
+   return [string autorelease];
+}
+
+-(instancetype)initWithDataRepresentation:(NSData *)data relativeToURL:(NSURL *)baseURL {
+   NSString *string=stringFromRepresentation(data);
+   NSURL *url;
+
+   if(string==nil)
+    string=@"";
+   url=[self initWithString:string relativeToURL:baseURL];
+   if(url==nil)
+    url=[[NSURL alloc] initWithString:[string stringByAddingPercentEscapesUsingEncoding:NSUTF8StringEncoding] relativeToURL:baseURL];
+   return url;
+}
+
+-(instancetype)initAbsoluteURLWithDataRepresentation:(NSData *)data relativeToURL:(NSURL *)baseURL {
+   NSURL *relative=[[NSURL alloc] initWithDataRepresentation:data relativeToURL:baseURL];
+   NSURL *absolute=[[relative absoluteURL] retain];
+
+   [relative release];
+   [self release];
+   return absolute;
+}
+
++(NSURL *)URLWithDataRepresentation:(NSData *)data relativeToURL:(NSURL *)baseURL {
+   return [[[self alloc] initWithDataRepresentation:data relativeToURL:baseURL] autorelease];
+}
+
++(NSURL *)absoluteURLWithDataRepresentation:(NSData *)data relativeToURL:(NSURL *)baseURL {
+   return [[[self alloc] initAbsoluteURLWithDataRepresentation:data relativeToURL:baseURL] autorelease];
+}
+
+-(NSData *)dataRepresentation {
+   return [_string dataUsingEncoding:NSUTF8StringEncoding];
+}
+
 -initWithString:(NSString *)string relativeToURL:(NSURL *)parent {
    urlScanner scannerStruct,*scanner=&scannerStruct;
 

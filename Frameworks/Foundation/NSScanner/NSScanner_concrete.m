@@ -20,6 +20,8 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #include <ctype.h>
 #include <wctype.h>
 
+FOUNDATION_EXPORT BOOL _NSDecimalFromString(NSDecimal *d, NSString *string, NSString *separator, NSUInteger *consumed);
+
 @implementation NSScanner_concrete
 
 -initWithString:(NSString *)string {
@@ -55,7 +57,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
     return _isCaseSensitive;
 }
 
--(NSDictionary *)locale {
+-(id)locale {
     return _locale;
 }
 
@@ -68,7 +70,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
     _isCaseSensitive = flag;
 }
 
--(void)setLocale:(NSDictionary *)locale {
+-(void)setLocale:(id)locale {
     [_locale autorelease];
     _locale = [locale retain];
 }
@@ -335,9 +337,26 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 */
 }
 
+/* A decimal after the characters skipped, with the locale's separator. */
 -(BOOL)scanDecimal:(NSDecimal *)valuep {
-    NSUnimplementedMethod();
-    return NO;
+    NSUInteger start=_location,length=[_string length],consumed=0;
+    NSDecimal value;
+    NSString *separator=@".";
+
+    while(_location<length && [_skipSet characterIsMember:[_string characterAtIndex:_location]])
+     _location++;
+    if([_locale isKindOfClass:[NSLocale class]])
+     separator=[_locale decimalSeparator];
+    else if([_locale isKindOfClass:[NSDictionary class]])
+     separator=[_locale objectForKey:NSLocaleDecimalSeparator] ?: @".";
+    if(!_NSDecimalFromString(&value,[_string substringFromIndex:_location],separator,&consumed) || consumed==0){
+     _location=start;
+     return NO;
+    }
+    _location+=consumed;
+    if(valuep!=NULL)
+     *valuep=value;
+    return YES;
 }
 
 // The documentation appears to be wrong, it returns -1 on overflow.

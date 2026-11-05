@@ -7,27 +7,32 @@ The above copyright notice and this permission notice shall be included in all c
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE. */
 
 #import <Foundation/NSObject.h>
+#import <Foundation/NSRange.h>
 
-@interface NSIndexPath : NSObject <NSCopying, NSCoding> {
+NS_ASSUME_NONNULL_BEGIN
+
+@interface NSIndexPath : NSObject <NSCopying, NSSecureCoding> {
     NSUInteger _length;
     NSUInteger *_indexes;
 }
 
-+ (NSIndexPath *)indexPathWithIndex:(NSUInteger)index;
-+ (NSIndexPath *)indexPathWithIndexes:(NSUInteger *)indexes length:(NSUInteger)length;
++ (instancetype)indexPathWithIndex:(NSUInteger)index;
++ (instancetype)indexPathWithIndexes:(const NSUInteger [_Nullable])indexes length:(NSUInteger)length;
 
-- (id)initWithIndex:(NSUInteger)index;
-- (id)initWithIndexes:(NSUInteger *)indexes length:(NSUInteger)length; // designated initializer
+- (instancetype)initWithIndexes:(const NSUInteger [_Nullable])indexes length:(NSUInteger)length NS_DESIGNATED_INITIALIZER;
+- (instancetype)initWithIndex:(NSUInteger)index;
 
 - (NSIndexPath *)indexPathByAddingIndex:(NSUInteger)index;
 - (NSIndexPath *)indexPathByRemovingLastIndex;
 
 - (NSUInteger)indexAtPosition:(NSUInteger)position;
-- (NSUInteger)length;
+@property (readonly) NSUInteger length;
 
+- (void)getIndexes:(NSUInteger *)indexes range:(NSRange)positionRange;
 - (void)getIndexes:(NSUInteger *)indexes;
 
-// comparison support
-- (NSComparisonResult)compare:(NSIndexPath *)otherObject; // sorting an array of indexPaths using this comparison results in an array representing nodes in depth-first traversal order
+- (NSComparisonResult)compare:(NSIndexPath *)otherObject;
 
 @end
+
+NS_ASSUME_NONNULL_END

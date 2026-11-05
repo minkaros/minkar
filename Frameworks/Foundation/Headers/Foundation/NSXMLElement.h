@@ -8,7 +8,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 #import <Foundation/NSXMLNode.h>
 
-@class NSXMLNode, NSArray, NSError, NSDictionary, NSMutableDictionary, NSMutableArray;
+@class NSXMLNode, NSArray<ObjectType>, NSError, NSDictionary<KeyType, ObjectType>, NSMutableDictionary<KeyType, ObjectType>, NSMutableArray<ObjectType>;
 
 @interface NSXMLElement : NSXMLNode <NSCopying> {
     NSMutableDictionary *_attributes;

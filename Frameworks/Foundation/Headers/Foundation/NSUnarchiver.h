@@ -9,7 +9,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <Foundation/NSCoder.h>
 #import <Foundation/NSMapTable.h>
 
-@class NSMutableArray;
+@class NSMutableArray<ObjectType>;
 
 @interface NSUnarchiver : NSCoder {
     NSData *_data;

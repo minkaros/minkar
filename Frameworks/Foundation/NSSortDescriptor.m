@@ -41,6 +41,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 -(void)dealloc {
    [_key release];
+   [_comparator release];
    [super dealloc];
 }
 
@@ -60,11 +61,32 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    return _selector;
 }
 
++(instancetype)sortDescriptorWithKey:(NSString *)key ascending:(BOOL)ascending comparator:(NSComparator)cmptr {
+   return [[[self alloc] initWithKey:key ascending:ascending comparator:cmptr] autorelease];
+}
+
+/* Ordered by a block of the caller's instead of a selector. */
+-(instancetype)initWithKey:(NSString *)key ascending:(BOOL)ascending comparator:(NSComparator)cmptr {
+   self=[self initWithKey:key ascending:ascending selector:@selector(compare:)];
+   _comparator=[cmptr copy];
+   return self;
+}
+
+-(NSComparator)comparator {
+   return _comparator;
+}
+
+/* Archived descriptors may be evaluated: nothing to allow here. */
+-(void)allowEvaluation {
+}
+
 -(NSComparisonResult)compareObject:first toObject:second {
-   id checkFirst=[first valueForKeyPath:_key];
-   id checkSecond=[second valueForKeyPath:_key];
+   id checkFirst=_key!=nil ? [first valueForKeyPath:_key] : first;
+   id checkSecond=_key!=nil ? [second valueForKeyPath:_key] : second;
    NSComparisonResult result;
 
+   if(_comparator!=nil)
+    return _ascending ? _comparator(checkFirst,checkSecond) : _comparator(checkSecond,checkFirst);
    if(_ascending)
     result=(NSComparisonResult)[checkFirst performSelector:_selector withObject:checkSecond];
    else
@@ -74,6 +96,8 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 }
 
 -reversedSortDescriptor {
+   if(_comparator!=nil)
+    return [[[object_getClass(self) alloc] initWithKey:_key ascending:!_ascending comparator:_comparator] autorelease];
    return [[[object_getClass(self) alloc] initWithKey:_key ascending:!_ascending selector:_selector] autorelease];
 }
 

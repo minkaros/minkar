@@ -35,12 +35,16 @@ typedef NSPoint *NSPointPointer;
 typedef NSSize *NSSizeArray;
 typedef NSSize *NSSizePointer;
 
-typedef enum {
-    NSMinXEdge,
-    NSMinYEdge,
-    NSMaxXEdge,
-    NSMaxYEdge
-} NSRectEdge;
+typedef NS_ENUM(NSUInteger, NSRectEdge) {
+    NSRectEdgeMinX = 0,
+    NSRectEdgeMinY = 1,
+    NSRectEdgeMaxX = 2,
+    NSRectEdgeMaxY = 3,
+    NSMinXEdge = NSRectEdgeMinX,
+    NSMinYEdge = NSRectEdgeMinY,
+    NSMaxXEdge = NSRectEdgeMaxX,
+    NSMaxYEdge = NSRectEdgeMaxY,
+};
 
 typedef NSRect *NSRectArray;
 typedef NSRect *NSRectPointer;

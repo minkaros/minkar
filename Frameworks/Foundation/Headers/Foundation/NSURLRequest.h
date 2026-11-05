@@ -8,14 +8,19 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <Foundation/NSObject.h>
 #import <Foundation/NSDate.h>
 
-@class NSURL, NSInputStream, NSMutableDictionary;
+@class NSURL, NSInputStream, NSData, NSString, NSDictionary<KeyType, ObjectType>, NSMutableDictionary<KeyType, ObjectType>;
 
-typedef enum {
-    NSURLRequestUseProtocolCachePolicy,
-    NSURLRequestReloadIgnoringCacheData,
-    NSURLRequestReturnCacheDataElseLoad,
-    NSURLRequestReturnCacheDataDontLoad
-} NSURLRequestCachePolicy;
+NS_ASSUME_NONNULL_BEGIN
+
+typedef NS_ENUM(NSUInteger, NSURLRequestCachePolicy) {
+    NSURLRequestUseProtocolCachePolicy = 0,
+    NSURLRequestReloadIgnoringLocalCacheData = 1,
+    NSURLRequestReloadIgnoringLocalAndRemoteCacheData = 4,
+    NSURLRequestReloadIgnoringCacheData = NSURLRequestReloadIgnoringLocalCacheData,
+    NSURLRequestReturnCacheDataElseLoad = 2,
+    NSURLRequestReturnCacheDataDontLoad = 3,
+    NSURLRequestReloadRevalidatingCacheData = 5,
+};
 
 typedef NS_ENUM(NSUInteger, NSURLRequestNetworkServiceType) {
     NSURLNetworkServiceTypeDefault = 0,
@@ -29,7 +34,7 @@ typedef NS_ENUM(NSUInteger, NSURLRequestNetworkServiceType) {
     NSURLNetworkServiceTypeCallSignaling = 11,
 };
 
-@interface NSURLRequest : NSObject <NSCopying, NSMutableCopying> {
+@interface NSURLRequest : NSObject <NSSecureCoding, NSCopying, NSMutableCopying> {
     NSURL *_url;
     NSURLRequestCachePolicy _cachePolicy;
     NSTimeInterval _timeoutInterval;
@@ -38,27 +43,38 @@ typedef NS_ENUM(NSUInteger, NSURLRequestNetworkServiceType) {
     NSMutableDictionary *_headerFields;
     NSURL *_mainDocumentURL;
     BOOL _handleCookies;
+    BOOL _usePipelining;
+    BOOL _allowsCellular;
+    BOOL _allowsExpensive;
+    BOOL _allowsConstrained;
+    NSURLRequestNetworkServiceType _serviceType;
 }
 
-- initWithURL:(NSURL *)url;
-- initWithURL:(NSURL *)url cachePolicy:(NSURLRequestCachePolicy)cachePolicy timeoutInterval:(NSTimeInterval)timeout;
++ (instancetype)requestWithURL:(NSURL *)URL;
+@property (class, readonly) BOOL supportsSecureCoding;
++ (instancetype)requestWithURL:(NSURL *)URL cachePolicy:(NSURLRequestCachePolicy)cachePolicy timeoutInterval:(NSTimeInterval)timeoutInterval;
+- (instancetype)initWithURL:(NSURL *)URL;
+- (instancetype)initWithURL:(NSURL *)URL cachePolicy:(NSURLRequestCachePolicy)cachePolicy timeoutInterval:(NSTimeInterval)timeoutInterval NS_DESIGNATED_INITIALIZER;
 
-+ requestWithURL:(NSURL *)url;
-+ requestWithURL:(NSURL *)url cachePolicy:(NSURLRequestCachePolicy)cachePolicy timeoutInterval:(NSTimeInterval)timeout;
-
-- (NSURL *)URL;
-- (NSURLRequestCachePolicy)cachePolicy;
-- (NSTimeInterval)timeoutInterval;
-
-- (NSString *)HTTPMethod;
-- (NSData *)HTTPBody;
-- (NSInputStream *)HTTPBodyStream;
-
-- (NSDictionary *)allHTTPHeaderFields;
-- (NSString *)valueForHTTPHeaderField:(NSString *)field;
-
-- (NSURL *)mainDocumentURL;
-
-- (BOOL)HTTPShouldHandleCookies;
+@property (nullable, readonly, copy) NSURL *URL;
+@property (readonly) NSURLRequestCachePolicy cachePolicy;
+@property (readonly) NSTimeInterval timeoutInterval;
+@property (nullable, readonly, copy) NSURL *mainDocumentURL;
+@property (readonly) NSURLRequestNetworkServiceType networkServiceType;
+@property (readonly) BOOL allowsCellularAccess;
+@property (readonly) BOOL allowsExpensiveNetworkAccess;
+@property (readonly) BOOL allowsConstrainedNetworkAccess;
 
 @end
+
+@interface NSURLRequest (NSHTTPURLRequest)
+@property (nullable, readonly, copy) NSString *HTTPMethod;
+@property (nullable, readonly, copy) NSDictionary<NSString *, NSString *> *allHTTPHeaderFields;
+- (nullable NSString *)valueForHTTPHeaderField:(NSString *)field;
+@property (nullable, readonly, copy) NSData *HTTPBody;
+@property (nullable, readonly, retain) NSInputStream *HTTPBodyStream;
+@property (readonly) BOOL HTTPShouldHandleCookies;
+@property (readonly) BOOL HTTPShouldUsePipelining;
+@end
+
+NS_ASSUME_NONNULL_END

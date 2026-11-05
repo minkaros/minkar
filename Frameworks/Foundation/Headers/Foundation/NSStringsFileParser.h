@@ -8,7 +8,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 #import <Foundation/NSObject.h>
 
-@class NSDictionary;
+@class NSDictionary<KeyType, ObjectType>;
 
 NSDictionary *NSDictionaryFromStringsFormatString(NSString *string);
 NSDictionary *NSDictionaryFromStringsFormatFile(NSString *path);

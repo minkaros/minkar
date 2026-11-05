@@ -8,7 +8,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 #import <Foundation/NSInputSourceSet.h>
 
-@class NSMutableSet;
+@class NSMutableSet<ObjectType>;
 @class NSHandleMonitor_win32;
 
 @interface NSHandleMonitorSet_win32 : NSInputSourceSet {

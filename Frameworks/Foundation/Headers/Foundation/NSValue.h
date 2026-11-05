@@ -10,14 +10,16 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <Foundation/NSGeometry.h>
 #import <Foundation/NSRange.h>
 
+NS_ASSUME_NONNULL_BEGIN
+
 @interface NSValue : NSObject <NSCopying, NSCoding>
 
-- initWithBytes:(const void *)value objCType:(const char *)type;
+- (instancetype)initWithBytes:(const void *)value objCType:(const char *)type;
 + (NSValue *)valueWithBytes:(const void *)value objCType:(const char *)type;
 + (NSValue *)value:(const void *)value withObjCType:(const char *)type;
 
-+ (NSValue *)valueWithNonretainedObject:object;
-+ (NSValue *)valueWithPointer:(const void *)pointer;
++ (NSValue *)valueWithNonretainedObject:(nullable id)object;
++ (NSValue *)valueWithPointer:(nullable const void *)pointer;
 + (NSValue *)valueWithPoint:(NSPoint)point;
 + (NSValue *)valueWithSize:(NSSize)size;
 + (NSValue *)valueWithRect:(NSRect)rect;
@@ -26,17 +28,20 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 - (BOOL)isEqualToValue:(NSValue *)other;
 
 - (void)getValue:(void *)value;
-- (const char *)objCType;
+- (void)getValue:(void *)value size:(NSUInteger)size;
+@property (readonly) const char *objCType;
 
-- nonretainedObjectValue;
+@property (nullable, readonly) id nonretainedObjectValue;
 
-- (void *)pointerValue;
+@property (nullable, readonly) void *pointerValue;
 
-- (NSPoint)pointValue;
-- (NSSize)sizeValue;
-- (NSRect)rectValue;
-- (NSRange)rangeValue;
+@property (readonly) NSPoint pointValue;
+@property (readonly) NSSize sizeValue;
+@property (readonly) NSRect rectValue;
+@property (readonly) NSRange rangeValue;
 
 @end
+
+NS_ASSUME_NONNULL_END
 
 #import <Foundation/NSNumber.h>

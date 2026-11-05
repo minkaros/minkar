@@ -10,12 +10,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <Foundation/NSCoder.h>
 #import <Foundation/NSMapTable.h>
 
-@class NSData, NSDictionary, NSError, NSMutableArray, NSMutableDictionary, NSSet;
-
-typedef NS_ENUM(NSInteger, NSDecodingFailurePolicy) {
-    NSDecodingFailurePolicyRaiseException = 0,
-    NSDecodingFailurePolicySetErrorAndReturn = 1,
-};
+@class NSData, NSDictionary<KeyType, ObjectType>, NSError, NSMutableArray<ObjectType>, NSMutableDictionary<KeyType, ObjectType>, NSSet<ObjectType>;
 
 FOUNDATION_EXPORT NSString *NSInvalidUnarchiveOperationException;
 

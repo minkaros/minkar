@@ -14,10 +14,10 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 @interface NSCharacterSet : NSObject <NSCopying, NSMutableCopying, NSCoding>
 
-+ characterSetWithBitmapRepresentation:(NSData *)data;
-+ characterSetWithCharactersInString:(NSString *)string;
-+ characterSetWithContentsOfFile:(NSString *)path;
-+ characterSetWithRange:(NSRange)range;
++ (instancetype)characterSetWithBitmapRepresentation:(NSData *)data;
++ (instancetype)characterSetWithCharactersInString:(NSString *)string;
++ (instancetype)characterSetWithContentsOfFile:(NSString *)path;
++ (instancetype)characterSetWithRange:(NSRange)range;
 
 + alphanumericCharacterSet;
 + controlCharacterSet;

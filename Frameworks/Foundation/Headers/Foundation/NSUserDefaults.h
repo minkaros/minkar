@@ -8,7 +8,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 #import <Foundation/NSObject.h>
 
-@class NSArray, NSData, NSMutableDictionary, NSDictionary, NSMutableArray;
+@class NSArray<ObjectType>, NSData, NSMutableDictionary<KeyType, ObjectType>, NSDictionary<KeyType, ObjectType>, NSMutableArray<ObjectType>;
 
 FOUNDATION_EXPORT NSString *const NSGlobalDomain;
 FOUNDATION_EXPORT NSString *const NSArgumentDomain;
@@ -33,8 +33,8 @@ FOUNDATION_EXPORT NSString *const NSUserDefaultsDidChangeNotification;
     NSDictionary *_dictionaryRep;
 }
 
-- init;
-- initWithUser:(NSString *)user;
+- (nonnull instancetype)init;
+- (instancetype)initWithUser:(NSString *)user;
 
 + (NSUserDefaults *)standardUserDefaults;
 + (void)resetStandardUserDefaults;

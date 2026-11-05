@@ -10,7 +10,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <Foundation/NSPersistantDomain.h>
 #include <windows.h>
 
-@class NSArray, NSDictionary;
+@class NSArray<ObjectType>, NSDictionary<KeyType, ObjectType>;
 
 @interface NSPersistantDomain_win32 : NSPersistantDomain {
     NSArray *_path;

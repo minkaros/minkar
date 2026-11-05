@@ -8,12 +8,14 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 #import <Foundation/NSString.h>
 
+NS_ASSUME_NONNULL_BEGIN
+
 @interface NSMutableString : NSString
 
-- initWithCapacity:(NSUInteger)capacity;
+- (NSMutableString *)initWithCapacity:(NSUInteger)capacity;
 
-+ string;
-+ stringWithCapacity:(NSUInteger)capacity;
++ (instancetype)string;
++ (NSMutableString *)stringWithCapacity:(NSUInteger)capacity;
 
 - (void)appendString:(NSString *)string;
 - (void)appendFormat:(NSString *)format, ...;
@@ -28,3 +30,5 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 - (NSUInteger)replaceOccurrencesOfString:(NSString *)target withString:(NSString *)replacement options:(NSStringCompareOptions)opts range:(NSRange)searchRange;
 
 @end
+
+NS_ASSUME_NONNULL_END

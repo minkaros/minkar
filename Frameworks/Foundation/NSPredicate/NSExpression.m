@@ -5,6 +5,7 @@ Permission is hereby granted, free of charge, to any person obtaining a copy of 
 The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
 
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE. */
+#import <Foundation/NSComparisonPredicate.h>
 #import <Foundation/NSExpression.h>
 #import <Foundation/NSException.h>
 #import <Foundation/NSString.h>
@@ -19,6 +20,30 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import "NSExpression_keypath.h"
 
 @implementation NSExpression
+
+/* An expression from its format: the left side of a comparison with nil,
+ * read by the predicate parser. */
+static NSExpression *leftOf(NSPredicate *predicate) {
+   if(![predicate isKindOfClass:[NSComparisonPredicate class]])
+    [NSException raise:NSInvalidArgumentException format:@"not an expression"];
+   return [(NSComparisonPredicate *)predicate leftExpression];
+}
+
++(NSExpression *)expressionWithFormat:(NSString *)format argumentArray:(NSArray *)arguments {
+   return leftOf([NSPredicate predicateWithFormat:[format stringByAppendingString:@" == nil"] argumentArray:arguments]);
+}
+
++(NSExpression *)expressionWithFormat:(NSString *)format arguments:(va_list)arguments {
+   return leftOf([NSPredicate predicateWithFormat:[format stringByAppendingString:@" == nil"] arguments:arguments]);
+}
+
++(NSExpression *)expressionWithFormat:(NSString *)format, ... {
+   va_list arguments;
+   va_start(arguments,format);
+   NSExpression *result=[self expressionWithFormat:format arguments:arguments];
+   va_end(arguments);
+   return result;
+}
 
 -initWithExpressionType:(NSExpressionType)type {
    _type=type;

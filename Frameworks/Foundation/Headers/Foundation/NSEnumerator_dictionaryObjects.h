@@ -8,7 +8,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 #import <Foundation/NSEnumerator.h>
 
-@class NSDictionary;
+@class NSDictionary<KeyType, ObjectType>;
 
 @interface NSEnumerator_dictionaryObjects : NSEnumerator {
     NSEnumerator *_keyEnumerator;

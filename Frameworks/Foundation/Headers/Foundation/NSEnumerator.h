@@ -26,6 +26,6 @@ typedef struct
 @interface NSEnumerator<ObjectType> : NSObject <NSFastEnumeration>
 
 - (ObjectType)nextObject;
-- (NSArray<ObjectType> *)allObjects;
+@property (readonly) NSArray<ObjectType> *allObjects;
 
 @end

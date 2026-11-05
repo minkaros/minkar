@@ -9,26 +9,28 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <Foundation/NSObject.h>
 #import <Foundation/NSRange.h>
 
+NS_ASSUME_NONNULL_BEGIN
+
 @interface NSIndexSet : NSObject <NSCoding, NSCopying, NSMutableCopying> {
     NSUInteger _length;
     NSRange *_ranges;
 }
 
-+ indexSetWithIndexesInRange:(NSRange)range;
-+ indexSetWithIndex:(NSUInteger)index;
-+ indexSet;
++ (instancetype)indexSetWithIndexesInRange:(NSRange)range;
++ (instancetype)indexSetWithIndex:(NSUInteger)index;
++ (instancetype)indexSet;
 
-- initWithIndexSet:(NSIndexSet *)other;
-- initWithIndexesInRange:(NSRange)range;
-- initWithIndex:(NSUInteger)index;
-- init;
+- (instancetype)initWithIndexSet:(NSIndexSet *)other;
+- (instancetype)initWithIndexesInRange:(NSRange)range;
+- (instancetype)initWithIndex:(NSUInteger)index;
+- (nonnull instancetype)init;
 
 - (BOOL)isEqualToIndexSet:(NSIndexSet *)other;
 
-- (NSUInteger)count;
-- (NSUInteger)firstIndex;
-- (NSUInteger)lastIndex;
-- (NSUInteger)getIndexes:(NSUInteger *)buffer maxCount:(NSUInteger)capacity inIndexRange:(NSRange *)range;
+@property (readonly) NSUInteger count;
+@property (readonly) NSUInteger firstIndex;
+@property (readonly) NSUInteger lastIndex;
+- (NSUInteger)getIndexes:(NSUInteger *)buffer maxCount:(NSUInteger)capacity inIndexRange:(nullable NSRangePointer)range;
 
 - (BOOL)containsIndexesInRange:(NSRange)range;
 - (BOOL)containsIndexes:(NSIndexSet *)other;
@@ -42,7 +44,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 - (BOOL)intersectsIndexesInRange:(NSRange)range;
 
 - (void)encodeWithCoder:(NSCoder *)encoder;
-- (id)initWithCoder:(NSCoder *)decoder;
+- (nullable id)initWithCoder:(NSCoder *)decoder;
 
 @end
 
@@ -54,7 +56,17 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 - (void)enumerateRangesUsingBlock:(void (NS_NOESCAPE ^)(NSRange range, BOOL *stop))block;
 - (NSUInteger)indexPassingTest:(BOOL (NS_NOESCAPE ^)(NSUInteger idx, BOOL *stop))predicate;
 - (NSIndexSet *)indexesPassingTest:(BOOL (NS_NOESCAPE ^)(NSUInteger idx, BOOL *stop))predicate;
+- (NSUInteger)countOfIndexesInRange:(NSRange)range;
+- (void)enumerateIndexesInRange:(NSRange)range options:(NSEnumerationOptions)opts usingBlock:(void (NS_NOESCAPE ^)(NSUInteger idx, BOOL *stop))block;
+- (void)enumerateRangesWithOptions:(NSEnumerationOptions)opts usingBlock:(void (NS_NOESCAPE ^)(NSRange range, BOOL *stop))block;
+- (void)enumerateRangesInRange:(NSRange)range options:(NSEnumerationOptions)opts usingBlock:(void (NS_NOESCAPE ^)(NSRange range, BOOL *stop))block;
+- (NSUInteger)indexWithOptions:(NSEnumerationOptions)opts passingTest:(BOOL (NS_NOESCAPE ^)(NSUInteger idx, BOOL *stop))predicate;
+- (NSUInteger)indexInRange:(NSRange)range options:(NSEnumerationOptions)opts passingTest:(BOOL (NS_NOESCAPE ^)(NSUInteger idx, BOOL *stop))predicate;
+- (NSIndexSet *)indexesWithOptions:(NSEnumerationOptions)opts passingTest:(BOOL (NS_NOESCAPE ^)(NSUInteger idx, BOOL *stop))predicate;
+- (NSIndexSet *)indexesInRange:(NSRange)range options:(NSEnumerationOptions)opts passingTest:(BOOL (NS_NOESCAPE ^)(NSUInteger idx, BOOL *stop))predicate;
 @end
+
+NS_ASSUME_NONNULL_END
 #endif
 
 #import <Foundation/NSMutableIndexSet.h>

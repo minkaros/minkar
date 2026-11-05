@@ -8,7 +8,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 #import <Foundation/NSObject.h>
 
-@class NSData, NSArray;
+@class NSData, NSArray<ObjectType>;
 
 FOUNDATION_EXPORT NSString *const NSFileHandleConnectionAcceptedNotification;
 FOUNDATION_EXPORT NSString *const NSFileHandleDataAvailableNotification;
@@ -33,8 +33,8 @@ FOUNDATION_EXPORT NSString *const NSFileHandleOperationException;
 + fileHandleWithStandardOutput;
 + fileHandleWithStandardError;
 
-- initWithFileDescriptor:(int)descriptor;
-- initWithFileDescriptor:(int)descriptor closeOnDealloc:(BOOL)closeOnDealloc;
+- (instancetype)initWithFileDescriptor:(int)descriptor;
+- (instancetype)initWithFileDescriptor:(int)descriptor closeOnDealloc:(BOOL)closeOnDealloc;
 
 - (int)fileDescriptor;
 

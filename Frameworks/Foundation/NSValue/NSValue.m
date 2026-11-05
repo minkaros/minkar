@@ -12,6 +12,8 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <Foundation/NSRaise.h>
 #import <Foundation/NSAutoreleasePool-private.h>
 #import <Foundation/NSObjCRuntime.h>
+#import <Foundation/NSException.h>
+#import <objc/runtime.h>
 
 #import "NSValue_concrete.h"
 #import "NSValue_placeholder.h"
@@ -103,6 +105,18 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 -(void)getValue:(void *)value {
    NSInvalidAbstractInvocation();
+}
+
+// The value, into a buffer of the given size: it must be the size of the
+// value's type.
+-(void)getValue:(void *)value size:(NSUInteger)size {
+   NSUInteger actual,alignment;
+
+   NSGetSizeAndAlignment([self objCType],&actual,&alignment);
+   if(size!=actual)
+    [NSException raise:NSInvalidArgumentException format:@"-[%@ %s]: size %lu, the value's is %lu",[self class],sel_getName(_cmd),(unsigned long)size,(unsigned long)actual];
+
+   [self getValue:value];
 }
 
 -(const char *)objCType {

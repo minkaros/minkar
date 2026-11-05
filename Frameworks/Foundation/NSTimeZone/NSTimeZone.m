@@ -6,6 +6,7 @@ The above copyright notice and this permission notice shall be included in all c
 
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE. */
 
+#include <unicode/ucal.h>
 #import <Foundation/NSTimeZone.h>
 #import <Foundation/NSTimeZone_absolute.h>
 #import <Foundation/NSString.h>
@@ -79,8 +80,22 @@ static NSTimeZone *_localTimeZone=nil;
     return [_regionsDictionary allKeys];*/
 }
 
+static NSDictionary *_abbreviationDictionary = nil;
+
++(void)setAbbreviationDictionary:(NSDictionary *)dictionary {
+   dictionary=[dictionary copy];
+   [_abbreviationDictionary release];
+   _abbreviationDictionary=dictionary;
+}
+
+/* The time zone data's version, as ICU has it (2019c and the like). */
++(NSString *)timeZoneDataVersion {
+   UErrorCode status=U_ZERO_ERROR;
+   const char *version=ucal_getTZDataVersion(&status);
+   return (U_SUCCESS(status) && version!=NULL) ? [NSString stringWithUTF8String:version] : @"";
+}
+
 +(NSDictionary *)abbreviationDictionary {
-   static NSDictionary *_abbreviationDictionary = nil;
     if (_abbreviationDictionary == nil) {
         NSString *pathToPlist = [[NSBundle bundleForClass:self] pathForResource:@"NSTimeZoneAbbreviations"
                                                                          ofType:@"plist"];

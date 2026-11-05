@@ -10,7 +10,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <Foundation/NSString.h>
 #import <Foundation/NSHashTable.h>
 
-@class NSURL, NSData, NSError, NSXMLParser, NSDictionary, NSMutableArray, NSMutableDictionary;
+@class NSURL, NSData, NSError, NSXMLParser, NSDictionary<KeyType, ObjectType>, NSMutableArray<ObjectType>, NSMutableDictionary<KeyType, ObjectType>;
 
 @protocol NSXMLParserDelegate
 

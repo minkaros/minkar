@@ -32,7 +32,7 @@
 #import <xpc/xpc.h>
 #import <bsm/audit.h>
 
-@class NSError, NSSet, NSString;
+@class NSError, NSSet<ObjectType>, NSString;
 @class NSXPCInterface, NSXPCListener, NSXPCListenerEndpoint;
 @protocol NSXPCListenerDelegate;
 

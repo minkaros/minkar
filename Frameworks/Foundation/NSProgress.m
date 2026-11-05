@@ -38,6 +38,8 @@
 // sent to key-value observers by hand (automatic notification is off).
 
 #import <Foundation/NSProgress.h>
+#import <Foundation/NSURL.h>
+#import <Foundation/NSValue.h>
 #import <Foundation/NSArray.h>
 #import <Foundation/NSDictionary.h>
 #import <Foundation/NSKeyValueObserving.h>
@@ -49,6 +51,14 @@
 NSProgressKind const NSProgressKindFile = @"NSProgressKindFile";
 NSProgressUserInfoKey const NSProgressEstimatedTimeRemainingKey = @"NSProgressEstimatedTimeRemainingKey";
 NSProgressUserInfoKey const NSProgressThroughputKey = @"NSProgressThroughputKey";
+NSProgressUserInfoKey const NSProgressFileOperationKindKey = @"NSProgressFileOperationKindKey";
+NSProgressFileOperationKind const NSProgressFileOperationKindDownloading = @"NSProgressFileOperationKindDownloading";
+NSProgressFileOperationKind const NSProgressFileOperationKindDecompressingAfterDownloading = @"NSProgressFileOperationKindDecompressingAfterDownloading";
+NSProgressFileOperationKind const NSProgressFileOperationKindReceiving = @"NSProgressFileOperationKindReceiving";
+NSProgressFileOperationKind const NSProgressFileOperationKindCopying = @"NSProgressFileOperationKindCopying";
+NSProgressUserInfoKey const NSProgressFileURLKey = @"NSProgressFileURLKey";
+NSProgressUserInfoKey const NSProgressFileTotalCountKey = @"NSProgressFileTotalCountKey";
+NSProgressUserInfoKey const NSProgressFileCompletedCountKey = @"NSProgressFileCompletedCountKey";
 
 static NSString *const kCurrentStackKey = @"NSProgressCurrentStack";
 
@@ -381,6 +391,26 @@ static NSMutableArray *currentStack(BOOL create) {
         [_userInfo setObject:object forKey:key];
     [_lock unlock];
     [self didChangeValueForKey:@"userInfo"];
+}
+
+#define USERINFO(get, set, key, type) \
+- (type)get { return [self userInfo][key]; } \
+- (void)set:(type)value { [self setUserInfoObject:[value copy] forKey:key]; }
+USERINFO(estimatedTimeRemaining, setEstimatedTimeRemaining, NSProgressEstimatedTimeRemainingKey, NSNumber *)
+USERINFO(throughput, setThroughput, NSProgressThroughputKey, NSNumber *)
+USERINFO(fileOperationKind, setFileOperationKind, NSProgressFileOperationKindKey, NSProgressFileOperationKind)
+USERINFO(fileURL, setFileURL, NSProgressFileURLKey, NSURL *)
+USERINFO(fileTotalCount, setFileTotalCount, NSProgressFileTotalCountKey, NSNumber *)
+USERINFO(fileCompletedCount, setFileCompletedCount, NSProgressFileCompletedCountKey, NSNumber *)
+#undef USERINFO
+
+- (void)performAsCurrentWithPendingUnitCount:(int64_t)unitCount usingBlock:(void (^)(void))work {
+    [self becomeCurrentWithPendingUnitCount:unitCount];
+    @try {
+        work();
+    } @finally {
+        [self resignCurrent];
+    }
 }
 
 - (NSString *)description {

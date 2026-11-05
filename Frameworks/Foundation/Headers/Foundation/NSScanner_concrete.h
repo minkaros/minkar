@@ -13,7 +13,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
     NSUInteger _location;
     NSCharacterSet *_skipSet;
     BOOL _isCaseSensitive;
-    NSDictionary *_locale;
+    id _locale;
 }
 
 @end

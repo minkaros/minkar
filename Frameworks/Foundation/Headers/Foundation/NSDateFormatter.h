@@ -26,16 +26,7 @@ typedef NS_ENUM(NSUInteger, NSDateFormatterStyle) {
     NSDateFormatterFullStyle = kCFDateFormatterFullStyle
 };
 
-typedef NS_ENUM(NSInteger, NSFormattingContext) {
-    NSFormattingContextUnknown = 0,
-    NSFormattingContextDynamic = 1,
-    NSFormattingContextStandalone = 2,
-    NSFormattingContextListItem = 3,
-    NSFormattingContextBeginningOfSentence = 4,
-    NSFormattingContextMiddleOfSentence = 5,
-};
-
-@class NSArray, NSCalendar, NSLocale, NSTimeZone;
+@class NSArray<ObjectType>, NSCalendar, NSLocale, NSTimeZone;
 
 @interface NSDateFormatter : NSFormatter {
     NSDateFormatterBehavior _behavior;
@@ -62,7 +53,7 @@ typedef NS_ENUM(NSInteger, NSFormattingContext) {
 + (NSDateFormatterBehavior)defaultFormatterBehavior;
 + (void)setDefaultFormatterBehavior:(NSDateFormatterBehavior)behavior;
 
-- (instancetype)init;
+- (nonnull instancetype)init;
 - initWithDateFormat:(NSString *)format allowNaturalLanguage:(BOOL)flag;
 // The backend of NSCalendarDate's initWithString:calendarFormat:locale:.
 - initWithDateFormat:(NSString *)format allowNaturalLanguage:(BOOL)flag locale:(NSDictionary *)locale;

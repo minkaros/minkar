@@ -28,16 +28,26 @@
 
 #import <Foundation/NSObject.h>
 
-@class NSDictionary, NSString;
+@class NSDictionary<KeyType, ObjectType>, NSString, NSNumber, NSURL;
 
 NS_ASSUME_NONNULL_BEGIN
 
 typedef NSString *NSProgressKind;
 typedef NSString *NSProgressUserInfoKey;
 
+typedef NSString *NSProgressFileOperationKind;
+
 FOUNDATION_EXPORT NSProgressKind const NSProgressKindFile;
 FOUNDATION_EXPORT NSProgressUserInfoKey const NSProgressEstimatedTimeRemainingKey;
 FOUNDATION_EXPORT NSProgressUserInfoKey const NSProgressThroughputKey;
+FOUNDATION_EXPORT NSProgressUserInfoKey const NSProgressFileOperationKindKey;
+FOUNDATION_EXPORT NSProgressFileOperationKind const NSProgressFileOperationKindDownloading;
+FOUNDATION_EXPORT NSProgressFileOperationKind const NSProgressFileOperationKindDecompressingAfterDownloading;
+FOUNDATION_EXPORT NSProgressFileOperationKind const NSProgressFileOperationKindReceiving;
+FOUNDATION_EXPORT NSProgressFileOperationKind const NSProgressFileOperationKindCopying;
+FOUNDATION_EXPORT NSProgressUserInfoKey const NSProgressFileURLKey;
+FOUNDATION_EXPORT NSProgressUserInfoKey const NSProgressFileTotalCountKey;
+FOUNDATION_EXPORT NSProgressUserInfoKey const NSProgressFileCompletedCountKey;
 
 // Progress of a task: units done out of a total, in a tree whose parents
 // count their children's progress as pending units. Changes to
@@ -81,6 +91,16 @@ FOUNDATION_EXPORT NSProgressUserInfoKey const NSProgressThroughputKey;
 @property (nullable, copy) NSProgressKind kind;
 @property (readonly, copy) NSDictionary *userInfo;
 - (void)setUserInfoObject:(nullable id)objectOrNil forKey:(NSProgressUserInfoKey)key;
+
+/* The user info's values, as properties. */
+@property (nullable, copy) NSNumber *estimatedTimeRemaining NS_REFINED_FOR_SWIFT;
+@property (nullable, copy) NSNumber *throughput NS_REFINED_FOR_SWIFT;
+@property (nullable, copy) NSProgressFileOperationKind fileOperationKind;
+@property (nullable, copy) NSURL *fileURL;
+@property (nullable, copy) NSNumber *fileTotalCount NS_REFINED_FOR_SWIFT;
+@property (nullable, copy) NSNumber *fileCompletedCount NS_REFINED_FOR_SWIFT;
+
+- (void)performAsCurrentWithPendingUnitCount:(int64_t)unitCount usingBlock:(void (NS_NOESCAPE ^)(void))work;
 
 @end
 

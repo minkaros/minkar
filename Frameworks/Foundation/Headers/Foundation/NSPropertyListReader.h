@@ -8,7 +8,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 #import <Foundation/NSObject.h>
 
-@class NSDictionary, NSArray, NSData;
+@class NSDictionary<KeyType, ObjectType>, NSArray<ObjectType>, NSData;
 
 @interface NSPropertyListReader : NSObject
 

@@ -99,9 +99,8 @@
 #ifndef NS_RELEASES_ARGUMENT
 #define NS_RELEASES_ARGUMENT __attribute__((ns_consumed))
 #endif
-/* A type Swift should not bridge (it stays the Objective-C class). */
-#ifndef NS_NON_BRIDGED
-#define NS_NON_BRIDGED(type) type
+#ifndef NS_REQUIRES_NIL_TERMINATION
+#define NS_REQUIRES_NIL_TERMINATION __attribute__((sentinel(0,1)))
 #endif
 #ifndef NS_NOESCAPE
 #define NS_NOESCAPE __attribute__((noescape))
@@ -129,6 +128,24 @@
 
 /* The quality of service of work (NSOperation, NSOperationQueue, NSThread):
  * the same values as dispatch's QOS_CLASS_* classes. */
+/* Foundation's version (the library's current version), and the version
+ * numbers of earlier releases that programs compare it with. */
+FOUNDATION_EXPORT double NSFoundationVersionNumber;
+#define NSFoundationVersionNumber10_0 397.40
+#define NSFoundationVersionNumber10_1 425.00
+#define NSFoundationVersionNumber10_2 462.00
+#define NSFoundationVersionNumber10_3 500.00
+#define NSFoundationVersionNumber10_4 567.00
+#define NSFoundationVersionNumber10_5 677.00
+#define NSFoundationVersionNumber10_6 751.00
+#define NSFoundationVersionNumber10_7 833.10
+#define NSFoundationVersionNumber10_8 945.00
+#define NSFoundationVersionNumber10_9 1056
+#define NSFoundationVersionNumber10_10 1151.16
+#define NSFoundationVersionNumber10_10_Max 1199
+#define NSFoundationVersionNumber10_11 1252
+#define NSFoundationVersionNumber10_11_Max 1299
+
 typedef NS_ENUM(NSInteger, NSQualityOfService) {
     NSQualityOfServiceUserInteractive = 0x21,
     NSQualityOfServiceUserInitiated = 0x19,
