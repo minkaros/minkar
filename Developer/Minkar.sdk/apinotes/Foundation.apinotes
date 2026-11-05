@@ -797,8 +797,9 @@ Classes:
   SwiftName: Stream
 - Name: NSTextCheckingResult
   Methods:
+  # Minkar: range(at:), Swift's name for it since Swift 4.2.
   - Selector: 'rangeAtIndex:'
-    SwiftName: rangeAt(_:)
+    SwiftName: range(at:)
     MethodKind: Instance
   - Selector: 'resultByAdjustingRangesWithOffset:'
     SwiftName: resultByAdjustingRangesWithOffset(_:)

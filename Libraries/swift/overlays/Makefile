@@ -67,7 +67,8 @@ SOURCES_Foundation =	AffineTransform.swift Boxing.swift Calendar.swift \
 GENERATED_Foundation =	${OUT}/NSValue.swift
 # Minkar's own Swift in an overlay (in ${.CURDIR}/<overlay>): API the
 # header cannot name, and API 21's asynchronous API.
-MINKAR_Foundation =	FileHandle.swift AsyncBytes.swift URLSession+Async.swift
+MINKAR_Foundation =	FileHandle.swift AsyncBytes.swift URLSession+Async.swift \
+			CodableWithConfiguration.swift
 OBJC_Foundation =	DataThunks.m
 # Dispatch.mm is written for ARC, DataThunks.m for manual retain and release.
 OBJCFLAGS_Dispatch =	-fobjc-arc
