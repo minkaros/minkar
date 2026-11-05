@@ -3,14 +3,15 @@
 # Part of Minkar.
 #
 # Swift's overlays for the system's C and Objective-C modules (Phase 3):
-# ObjectiveC, Dispatch and CoreFoundation, from Swift 5.4, the last
+# ObjectiveC, Dispatch, CoreFoundation and CoreGraphics, from Swift 5.4, the last
 # release that has them in the open (MANIFEST; our patches in patches/),
 # built with the toolchain's Swift 6.0. Each is a library evolution
 # module (its .swiftinterface beside the .swiftmodule) next to Darwin's
 # in the compiler's resource directory, and a /usr/lib/swift dylib that
 # programs link through the module's link name. Built from
-# Frameworks/Makefile, after CoreFoundation, whose module the
-# CoreFoundation overlay extends.
+# Frameworks/Makefile, after the frameworks whose modules they extend.
+# CoreGraphics's CGFloat comes from a gyb template (Swift's gyb, from the
+# same release).
 
 SUBDIR =
 FETCH =		sh ${ROOT_SOURCE_DIR}/BSD/lib/libdrm/fetch.sh
@@ -27,28 +28,33 @@ OUT =		${.OBJDIR}/out
 SHIMS =		${.OBJDIR}/overlay-shims
 
 # In dependency order. Dispatch's Combine schedulers wait for Combine.
-OVERLAYS =	ObjectiveC Dispatch CoreFoundation
+OVERLAYS =	ObjectiveC Dispatch CoreFoundation CoreGraphics
 SOURCES_ObjectiveC =	ObjectiveC.swift
 SOURCES_Dispatch =	Dispatch.swift Block.swift Data.swift IO.swift Private.swift \
 			Queue.swift Source.swift Time.swift
 OBJC_Dispatch =		Dispatch.mm
 SOURCES_CoreFoundation = CoreFoundation.swift
+SOURCES_CoreGraphics =	CoreGraphics.swift Private.swift
+GENERATED_CoreGraphics = ${OUT}/CGFloat.swift
 FLAGS_ObjectiveC =	-disable-objc-attr-requires-foundation-module
 LIBS_ObjectiveC =	-lobjc
 # Dispatch retains the blocks it is given: CoreFoundation makes them
-# Objective-C objects (NSBlock.m).
+# Objective-C objects (CFObjCClasses.c).
 LIBS_Dispatch =		-lobjc -framework CoreFoundation
 LIBS_CoreFoundation =	-framework CoreFoundation
+LIBS_CoreGraphics =	-framework CoreGraphics -framework CoreFoundation
 
 TOOLENV =	env -u MACOSX_DEPLOYMENT_TARGET
 
 all: install-overlays
 
-${SRC}/.minkar-patches: ${PATCHES:S,^,${.CURDIR}/patches/,} ${.CURDIR}/MANIFEST
+${SRC}/.minkar-patches: ${PATCHES:S,^,${.CURDIR}/patches/,} ${.CURDIR}/MANIFEST ${.CURDIR}/Makefile
 	pristine=$$(${FETCH} ${.CURDIR}/MANIFEST ${CACHE}) && \
 	rm -rf ${SRC} ${SRC}.part && mkdir -p ${SRC}.part/stdlib/public && \
 	cp -a $$pristine/stdlib/public/Darwin $$pristine/stdlib/public/SwiftShims \
 	    ${SRC}.part/stdlib/public/ && \
+	mkdir -p ${SRC}.part/utils && \
+	cp -a $$pristine/utils/gyb.py $$pristine/utils/SwiftIntTypes.py ${SRC}.part/utils/ && \
 	for p in ${PATCHES}; do \
 		patch -s -p1 -d ${SRC}.part < ${.CURDIR}/patches/$$p || exit 1; \
 	done && \
@@ -65,8 +71,13 @@ ${SHIMS}/module.modulemap: ${SRC}/.minkar-patches
 	awk '/^module _Swift[A-Za-z]*OverlayShims/,/^}/' \
 	    ${SRC}/stdlib/public/SwiftShims/module.modulemap > ${.TARGET}
 
+${OUT}/CGFloat.swift: ${SRC}/.minkar-patches
+	mkdir -p ${OUT}
+	PYTHONPATH=${SRC}/utils python3 ${SRC}/utils/gyb.py -DCMAKE_SIZEOF_VOID_P=8 \
+	    --line-directive '' -o ${.TARGET} ${DARWIN}/CoreGraphics/CGFloat.swift.gyb
+
 .for o in ${OVERLAYS}
-${OUT}/${o}.o: ${SHIMS}/module.modulemap ${SOURCES_${o}:S,^,${DARWIN}/${o}/,} ${.CURDIR}/Makefile
+${OUT}/${o}.o: ${SHIMS}/module.modulemap ${SOURCES_${o}:S,^,${DARWIN}/${o}/,} ${GENERATED_${o}} ${.CURDIR}/Makefile
 	mkdir -p ${OUT}/${o}.swiftmodule
 	${TOOLENV} ${TC}/swiftc -frontend -c -O -parse-as-library -enable-library-evolution \
 	    -module-name ${o} -module-link-name swift${o} -target ${TRIPLE} \
@@ -75,7 +86,7 @@ ${OUT}/${o}.o: ${SHIMS}/module.modulemap ${SOURCES_${o}:S,^,${DARWIN}/${o}/,} ${
 	    -emit-module-path ${OUT}/${o}.swiftmodule/${MODTRIPLE}.swiftmodule \
 	    -emit-module-interface-path ${OUT}/${o}.swiftmodule/${MODTRIPLE}.swiftinterface \
 	    -emit-module-doc-path ${OUT}/${o}.swiftmodule/${MODTRIPLE}.swiftdoc \
-	    ${SOURCES_${o}:S,^,${DARWIN}/${o}/,} -o ${.TARGET}
+	    ${SOURCES_${o}:S,^,${DARWIN}/${o}/,} ${GENERATED_${o}} -o ${.TARGET}
 
 ${OUT}/libswift${o}.dylib: ${OUT}/${o}.o ${.CURDIR}/Makefile
 	cd ${OUT} && for m in ${OBJC_${o}}; do \

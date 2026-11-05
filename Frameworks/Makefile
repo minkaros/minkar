@@ -54,6 +54,6 @@ AppKit: CoreData QuartzCore ApplicationServices
 ApplicationServices: CoreGraphics CoreText
 Cocoa: AppKit CoreData
 PreferencePanes: AppKit
-../Libraries/swift/overlays: CoreFoundation
+../Libraries/swift/overlays: CoreFoundation CoreGraphics
 
 .include <bsd.subdir.mk>
