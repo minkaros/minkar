@@ -123,6 +123,7 @@ SRCS = 	NSFormatter.m \
 	xml/NSXMLElement.m \
 	NSKeyValueCoding/NSDictionary+KVC.m \
 	NSKeyValueCoding/NSKVCMutableArray.m \
+	NSKeyValueCoding/NSKVCCollectionProxy.m \
 	NSKeyValueCoding/NSKVOInfoPerObject.m \
 	NSKeyValueCoding/NSString+KVCAdditions.m \
 	NSKeyValueCoding/NSKeyValueCoding.m \

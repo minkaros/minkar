@@ -10,6 +10,8 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <objc/runtime.h>
 #import <Foundation/Foundation.h>
 #import <Foundation/NSSelectInputSourceSet.h>
+#include <stdlib.h>
+#include <string.h>
 #import <Foundation/NSPlatform_posix.h>
 #import <Foundation/NSRaiseException.h>
 
@@ -116,7 +118,13 @@ static struct passwd *pwent = NULL;
     return [[self homeDirectory] stringByAppendingPathComponent:@"Library"];
 }
 
+// TMPDIR when it names a directory, else /tmp.
 -(NSString *)temporaryDirectory {
+   const char *tmpdir=getenv("TMPDIR");
+   struct stat st;
+
+   if(tmpdir!=NULL && tmpdir[0]=='/' && stat(tmpdir,&st)==0 && S_ISDIR(st.st_mode))
+    return [[NSFileManager defaultManager] stringWithFileSystemRepresentation:tmpdir length:strlen(tmpdir)];
    return @"/tmp";
 }
 

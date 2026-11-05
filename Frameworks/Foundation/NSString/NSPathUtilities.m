@@ -9,6 +9,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <Foundation/NSPathUtilities.h>
 #import <Foundation/NSFileManager.h>
 #import <Foundation/NSArray.h>
+#import <Foundation/NSSet.h>
 #import <Foundation/NSProcessInfo.h>
 #import <Foundation/NSPlatform.h>
 #import <Foundation/NSRaise.h>
@@ -457,3 +458,17 @@ NSString *NSFullUserName(void) {
    return [[NSPlatform currentPlatform] fullUserName];
 }
 
+@implementation NSArray (NSArrayPathExtensions)
+
+// The paths whose extension is one of the filter's.
+-(NSArray *)pathsMatchingExtensions:(NSArray *)filterTypes {
+   NSMutableArray *result=[NSMutableArray array];
+   NSSet          *extensions=[NSSet setWithArray:filterTypes];
+
+   for(id path in self)
+    if([path isKindOfClass:[NSString class]] && [extensions containsObject:[path pathExtension]])
+     [result addObject:path];
+   return result;
+}
+
+@end

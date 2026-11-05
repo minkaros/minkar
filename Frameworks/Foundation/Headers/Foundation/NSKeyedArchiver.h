@@ -26,6 +26,7 @@ FOUNDATION_EXPORT NSString *const NSKeyedArchiveRootObjectKey;
     NSMapTable *_nameToClass;
     NSUInteger _pass;
     NSMapTable *_objectToUid;
+    NSMapTable *_conditionalReferences;
     BOOL _requiresSecureCoding;
     BOOL _finished;
 }

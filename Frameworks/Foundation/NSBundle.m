@@ -8,6 +8,9 @@ The above copyright notice and this permission notice shall be included in all c
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE. */
 
 #import <Foundation/NSBundle.h>
+#import <Foundation/NSPropertyList.h>
+#import <mach-o/getsect.h>
+#import <mach-o/dyld.h>
 #import <Foundation/NSLocale.h>
 #import <Foundation/NSMapTable.h>
 #import <Foundation/NSString.h>
@@ -638,6 +641,21 @@ static NSString *baseLanguage(NSString *name) {
         path=[[_path stringByAppendingPathComponent:@"Info"] stringByAppendingPathExtension:@"plist"];
 
     _infoDictionary=[[NSDictionary allocWithZone:NULL] initWithContentsOfFile:path];
+
+    // A command-line tool may carry its Info.plist in the executable, in
+    // its __TEXT,__info_plist section.
+    if(_infoDictionary==nil && self==[NSBundle mainBundle]){
+     unsigned long size=0;
+     uint8_t      *bytes=getsectiondata((const struct mach_header_64 *)_dyld_get_image_header(0),"__TEXT","__info_plist",&size);
+
+     if(bytes!=NULL && size>0){
+      NSData *data=[NSData dataWithBytesNoCopy:bytes length:size freeWhenDone:NO];
+      id      plist=[NSPropertyListSerialization propertyListWithData:data options:NSPropertyListImmutable format:NULL error:NULL];
+
+      if([plist isKindOfClass:[NSDictionary class]])
+       _infoDictionary=[plist retain];
+     }
+    }
 
     if(_infoDictionary==nil)
      _infoDictionary=[NSDictionary new];
