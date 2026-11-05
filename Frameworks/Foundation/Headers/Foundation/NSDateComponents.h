@@ -7,15 +7,22 @@ The above copyright notice and this permission notice shall be included in all c
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE. */
 
 #import <Foundation/NSObject.h>
+#import <Foundation/NSCalendar.h>
 
 // Minkar: NSIntegerMax, as the API has it (it was 0x7fffffff, which
 // programs built for the reference system do not compare with).
-enum {
+enum : NSInteger {
     NSDateComponentUndefined = NSIntegerMax,
     NSUndefinedDateComponent = NSDateComponentUndefined
 };
 
-@interface NSDateComponents : NSObject {
+@class NSCalendar, NSTimeZone, NSDate;
+
+NS_ASSUME_NONNULL_BEGIN
+
+@interface NSDateComponents : NSObject <NSCopying, NSSecureCoding> {
+    NSCalendar *_calendar;
+    NSTimeZone *_timeZone;
     NSInteger _era;
     NSInteger _year;
     NSInteger _quarter;
@@ -31,34 +38,37 @@ enum {
     NSInteger _weekOfYear;
     NSInteger _yearForWeekOfYear;
     NSInteger _nanosecond;
+    NSInteger _leapMonth;	/* -1 unset, 0 no, 1 yes */
 }
 
-- (NSInteger)era;
-- (NSInteger)year;
-- (NSInteger)quarter;
-- (NSInteger)month;
-- (NSInteger)week;
-- (NSInteger)weekday;
-- (NSInteger)weekdayOrdinal;
-- (NSInteger)day;
-- (NSInteger)hour;
-- (NSInteger)minute;
-- (NSInteger)second;
-
-- (void)setEra:(NSInteger)value;
-- (void)setYear:(NSInteger)value;
-- (void)setQuarter:(NSInteger)value;
-- (void)setMonth:(NSInteger)value;
-- (void)setWeek:(NSInteger)value;
-- (void)setWeekday:(NSInteger)value;
-- (void)setWeekdayOrdinal:(NSInteger)value;
-- (void)setDay:(NSInteger)value;
-- (void)setHour:(NSInteger)value;
-- (void)setMinute:(NSInteger)value;
-- (void)setSecond:(NSInteger)value;
-
+@property (nullable, copy) NSCalendar *calendar;
+@property (nullable, copy) NSTimeZone *timeZone;
+@property NSInteger era;
+@property NSInteger year;
+@property NSInteger month;
+@property NSInteger day;
+@property NSInteger hour;
+@property NSInteger minute;
+@property NSInteger second;
+@property NSInteger nanosecond;
+@property NSInteger weekday;
+@property NSInteger weekdayOrdinal;
+@property NSInteger quarter;
 @property NSInteger weekOfMonth;
 @property NSInteger weekOfYear;
 @property NSInteger yearForWeekOfYear;
-@property NSInteger nanosecond;
+@property (getter=isLeapMonth) BOOL leapMonth;
+@property (nullable, readonly, copy) NSDate *date;
+
+- (NSInteger)week;
+- (void)setWeek:(NSInteger)value;
+
+- (void)setValue:(NSInteger)value forComponent:(NSCalendarUnit)unit;
+- (NSInteger)valueForComponent:(NSCalendarUnit)unit;
+
+@property (readonly, getter=isValidDate) BOOL validDate;
+- (BOOL)isValidDateInCalendar:(NSCalendar *)calendar;
+
 @end
+
+NS_ASSUME_NONNULL_END
