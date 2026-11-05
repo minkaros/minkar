@@ -11,6 +11,8 @@
 # A tool's Makefile sets, then includes this file:
 #   PKG             its name (the directory in /usr/local/tests/m3)
 #   MANIFEST        the pinned tarball (fetch.sh)
+#   CLIBS           C library targets (their headers and module map in
+#                   include/, as the package manager finds them)
 #   LIBS            library targets, in dependency order
 #   PROGS           executable targets
 #   TESTS           test targets
@@ -18,9 +20,14 @@
 #                   Tests/<t> for tests)
 #   DEPS_<t>        the libraries it imports, in dependency order
 #   FLAGS_<t>       more swiftc flags for it
+#   CFLAGS_<t>      more C compiler flags for a C target
 #   RES_<t>         resources of a target, in the package: copied into
 #                   <PKG>_<t>.bundle next to the programs, and Bundle.module
 #                   (as the package manager writes it) finds them there
+#   DATA            files or folders of the package the tests read by
+#                   their path in it, installed at the same path
+#   RUN_ENV         VAR=value words the tests run with (run.env, read by
+#                   run.sh)
 #   PATCHES         patches/ files applied to the package
 # Programs and test programs are installed together, so tests that run
 # the package's programs find them next to themselves.
@@ -36,7 +43,8 @@ MODS =		${.OBJDIR}/modules
 OUT =		${.OBJDIR}/out
 DEST =		${SYSROOT_DIR}/usr/local/tests/m3/${PKG}
 TOOLENV =	env -u MACOSX_DEPLOYMENT_TARGET
-SWIFTC =	${TOOLENV} ${TC}/swiftc -frontend -c -O -target ${TRIPLE} \
+# Built as the package manager builds a package (SWIFT_PACKAGE).
+SWIFTC =	${TOOLENV} ${TC}/swiftc -frontend -c -O -target ${TRIPLE} -D SWIFT_PACKAGE \
 		-sdk ${MINKAR_SDKROOT} -runtime-compatibility-version none \
 		-module-cache-path ${.OBJDIR}/module-cache -I ${MODS} -F ${XCTEST_FMWKS}
 LINK =		${TOOLENV} ${TC}/clang -target ${TRIPLE} -isysroot ${MINKAR_SDKROOT} \
@@ -54,8 +62,29 @@ ${SRC}/.minkar-patches: ${PATCHES:S,^,${.CURDIR}/patches/,} ${MANIFEST} ${.CURDI
 	mv ${SRC}.part ${SRC}
 	cat ${.ALLSRC} | cksum > ${.TARGET}
 
-.for t in ${LIBS} ${PROGS}
+.for t in ${CLIBS} ${LIBS} ${PROGS}
 DIR_${t} ?=	Sources/${t}
+.endfor
+# What a dependency gives the targets that use it: the object (or the C
+# library) linked in, and a C target's headers.
+.for t in ${LIBS}
+OBJ_${t} =	${OUT}/${t}.o
+.endfor
+.for t in ${CLIBS}
+OBJ_${t} =	${OUT}/lib${t}.a
+INC_${t} =	-I ${SRC}/${DIR_${t}}/include
+.endfor
+
+# C libraries: each source compiled, the objects in a static library.
+.for t in ${CLIBS}
+${OUT}/lib${t}.a: ${SRC}/.minkar-patches
+	rm -rf ${OUT}/${t}.c && mkdir -p ${OUT}/${t}.c
+	for f in $$(find ${SRC}/${DIR_${t}} -name '*.c' | sort); do \
+		${TOOLENV} ${TC}/clang -c -O2 -target ${TRIPLE} -isysroot ${MINKAR_SDKROOT} \
+		    -Wno-incompatible-sysroot ${INC_${t}} -I $$(dirname $$f) ${CFLAGS_${t}} \
+		    $$f -o ${OUT}/${t}.c/$$(basename $$f .c).o || exit 1; \
+	done
+	rm -f ${.TARGET} && ${TC}/llvm-ar rcs ${.TARGET} ${OUT}/${t}.c/*.o
 .endfor
 .for t in ${TESTS}
 DIR_${t} ?=	Tests/${t}
@@ -63,27 +92,28 @@ DIR_${t} ?=	Tests/${t}
 
 # Libraries: a module and an object each, built for @testable import.
 .for t in ${LIBS}
-${OUT}/${t}.o: ${SRC}/.minkar-patches ${DEPS_${t}:S,^,${OUT}/,:S,$,.o,}
+${OUT}/${t}.o: ${SRC}/.minkar-patches ${DEPS_${t}:@d@${OBJ_${d}}@}
 	mkdir -p ${MODS} ${OUT}
 	find ${SRC}/${DIR_${t}} -name '*.swift' -print0 | sort -z | xargs -0 \
 	    ${SWIFTC} -parse-as-library -enable-testing -module-name ${t} ${FLAGS_${t}} \
+	    ${DEPS_${t}:@d@${INC_${d}}@} \
 	    -emit-module-path ${MODS}/${t}.swiftmodule -o ${.TARGET}
 .endfor
 
 # Programs: a main.swift is top-level code; without one, @main.
 .for t in ${PROGS}
-${OUT}/${t}: ${SRC}/.minkar-patches ${DEPS_${t}:S,^,${OUT}/,:S,$,.o,}
+${OUT}/${t}: ${SRC}/.minkar-patches ${DEPS_${t}:@d@${OBJ_${d}}@}
 	mkdir -p ${OUT}
 	lib=-parse-as-library; \
 	[ -n "$$(find ${SRC}/${DIR_${t}} -name main.swift)" ] && lib=; \
 	find ${SRC}/${DIR_${t}} -name '*.swift' -print0 | sort -z | xargs -0 \
-	    ${SWIFTC} $$lib -module-name ${t:S/-/_/g} ${FLAGS_${t}} -o ${.TARGET}.o
-	${LINK} ${.TARGET}.o ${DEPS_${t}:S,^,${OUT}/,:S,$,.o,} -o ${.TARGET}
+	    ${SWIFTC} $$lib -module-name ${t:S/-/_/g} ${FLAGS_${t}} ${DEPS_${t}:@d@${INC_${d}}@} -o ${.TARGET}.o
+	${LINK} ${.TARGET}.o ${DEPS_${t}:@d@${OBJ_${d}}@} -o ${.TARGET}
 .endfor
 
 # Test programs: XCTMain over the tests xctest-discover finds.
 .for t in ${TESTS}
-${OUT}/${t}: ${SRC}/.minkar-patches ${DEPS_${t}:S,^,${OUT}/,:S,$,.o,}
+${OUT}/${t}: ${SRC}/.minkar-patches ${DEPS_${t}:@d@${OBJ_${d}}@}
 	mkdir -p ${OUT}/${t}.main
 .if !empty(RES_${t})
 	rm -rf ${OUT}/${PKG}_${t}.bundle && mkdir -p ${OUT}/${PKG}_${t}.bundle
@@ -96,8 +126,8 @@ ${OUT}/${t}: ${SRC}/.minkar-patches ${DEPS_${t}:S,^,${OUT}/,:S,$,.o,}
 	    ${TC}/xctest-discover -o ${OUT}/${t}.main/main.swift
 	{ find ${OUT}/${t}.main -name '*.swift' -print0; \
 	  find ${SRC}/${DIR_${t}} -name '*.swift' -print0 | sort -z; } | xargs -0 \
-	    ${SWIFTC} -module-name ${t} ${FLAGS_${t}} -o ${.TARGET}.o
-	${LINK} ${.TARGET}.o ${DEPS_${t}:S,^,${OUT}/,:S,$,.o,} -F ${XCTEST_FMWKS} \
+	    ${SWIFTC} -module-name ${t} ${FLAGS_${t}} ${DEPS_${t}:@d@${INC_${d}}@} -o ${.TARGET}.o
+	${LINK} ${.TARGET}.o ${DEPS_${t}:@d@${OBJ_${d}}@} -F ${XCTEST_FMWKS} \
 	    -Wl,-rpath,/Library/Developer/Frameworks -o ${.TARGET}
 .endfor
 
@@ -110,6 +140,13 @@ install-pkg: .PHONY ${PROGS:S,^,${OUT}/,} ${TESTS:S,^,${OUT}/,}
 .endif
 .endfor
 	cp ${SRC}/LICENSE* ${DEST}/ 2>/dev/null || true
+.for d in ${DATA}
+	mkdir -p ${DEST}/${d:H}
+	cp -R ${SRC}/${d} ${DEST}/${d:H}/
+.endfor
+.if !empty(RUN_ENV)
+	printf '%s\n' ${RUN_ENV} > ${DEST}/run.env
+.endif
 
 clean: .PHONY
 	rm -rf ${SRC} ${MODS} ${OUT} ${.OBJDIR}/module-cache

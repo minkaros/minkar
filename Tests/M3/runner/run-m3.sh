@@ -17,8 +17,9 @@ failed=0
 for pkg in */; do
 	pkg=${pkg%/}
 	for t in "$pkg"/*Tests; do
-		[ -x "$t" ] || continue
-		out=$(cd "$pkg" && timeout 600 "./${t##*/}" 2>&1)
+		[ -f "$t" ] && [ -x "$t" ] || continue
+		out=$(cd "$pkg" && { [ -f run.env ] && set -a && . ./run.env && set +a; true; } &&
+		    timeout 600 "./${t##*/}" 2>&1)
 		rc=$?
 		summary=$(printf '%s\n' "$out" | grep -E "Executed [0-9]+ tests?" | tail -1 | sed 's/^[[:space:]]*//')
 		if [ $rc -eq 0 ]; then
