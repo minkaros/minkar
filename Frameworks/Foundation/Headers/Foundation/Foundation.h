@@ -83,6 +83,18 @@
 #import <Foundation/NSData.h>
 #import <Foundation/NSDate.h>
 #import <Foundation/NSDateComponents.h>
+#import <Foundation/NSOrderedSet.h>
+#import <Foundation/NSOrderedCollectionDifference.h>
+#import <Foundation/NSOrderedCollectionChange.h>
+#import <Foundation/NSUnit.h>
+#import <Foundation/NSMeasurement.h>
+#import <Foundation/NSPersonNameComponents.h>
+#import <Foundation/NSPersonNameComponentsFormatter.h>
+#import <Foundation/NSOrthography.h>
+#import <Foundation/NSLinguisticTagger.h>
+#import <Foundation/NSISO8601DateFormatter.h>
+#import <Foundation/NSItemProvider.h>
+#import <Foundation/NSMeasurementFormatter.h>
 #import <Foundation/NSDateFormatter.h>
 #import <Foundation/NSDateInterval.h>
 #import <Foundation/NSDateIntervalFormatter.h>
@@ -146,6 +158,7 @@
 #import <Foundation/NSPort.h>
 #import <Foundation/NSPortCoder.h>
 #import <Foundation/NSPredicate.h>
+#import <Foundation/NSExpression.h>
 #import <Foundation/NSProcessInfo.h>
 #import <Foundation/NSProxy.h>
 #import <Foundation/NSRange.h>

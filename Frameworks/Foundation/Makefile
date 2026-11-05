@@ -328,6 +328,15 @@ SRCS = 	NSFormatter.m \
 	NSDate/NSDateComponents.m \
 	NSDate/NSDateFormatter.m \
 	NSDate/NSDateInterval.m \
+	NSOrderedSet.m \
+	NSOrderedCollectionDifference.m \
+	NSUnit.m \
+	NSMeasurement.m \
+	NSPersonNameComponents.m \
+	NSLinguisticTagger.m \
+	NSISO8601DateFormatter.m \
+	NSItemProvider.m \
+	NSMeasurementFormatter.m \
 	platform_darwin/DarwinMemoryFunctions.m \
 	platform_darwin/NSPlatform_darwin.m \
 	platform_darwin/NSDispatchMainQueueSource.m \
@@ -385,7 +394,7 @@ LDFLAGS = --sysroot=${MINKAR_SDKROOT} -Wl,-current_version,1677.104.0 \
 	-Wl,-compatibility_version,300.0.0 -Xlinker -reexport-lobjc \
 	-F${MINKAR_SDKROOT}/System/Library/Frameworks \
 	-Wl,-reexport_framework,CoreFoundation \
-	-lSystem -licucore \
+	-lSystem -licucore -lcompression \
 	${CF_CONSTANTS_KEPT_PRIVATE:S/^/-Wl,-unexported_symbol,/}
 
 .for file in NSProcessInfo NSStringsFileParser NSData NSNumberFormatter
@@ -405,6 +414,15 @@ CFLAGS.NSFileHandleErrors.m = -fobjc-arc
 CFLAGS.NSURLResources.m = -fobjc-arc
 CFLAGS.NSURLComponents.m = -fobjc-arc
 CFLAGS.NSDateInterval.m = -fobjc-arc
+CFLAGS.NSOrderedSet.m = -fobjc-arc
+CFLAGS.NSOrderedCollectionDifference.m = -fobjc-arc
+CFLAGS.NSUnit.m = -fobjc-arc
+CFLAGS.NSMeasurement.m = -fobjc-arc
+CFLAGS.NSPersonNameComponents.m = -fobjc-arc
+CFLAGS.NSLinguisticTagger.m = -fobjc-arc
+CFLAGS.NSISO8601DateFormatter.m = -fobjc-arc
+CFLAGS.NSItemProvider.m = -fobjc-arc
+CFLAGS.NSMeasurementFormatter.m = -fobjc-arc
 CFLAGS.NSModernFormatters.m = -fobjc-arc -DU_DISABLE_RENAMING=1 \
 	-I${ROOT_SOURCE_DIR}/Libraries/ICU/source/common \
 	-I${ROOT_SOURCE_DIR}/Libraries/ICU/source/i18n
@@ -414,6 +432,10 @@ CFLAGS.NSXPCConnection.m = -fobjc-arc -DOS_OBJECT_USE_OBJC=0
 CFLAGS.NSURLSession.m = -fobjc-arc -I${ROOT_SOURCE_DIR}/BSD/usr.bin/curl/include
 CFLAGS.NSOperationQueue.m = -fobjc-arc
 CFLAGS.NSStringModern.m = -fobjc-arc -DU_DISABLE_RENAMING=1 \
+	-I${ROOT_SOURCE_DIR}/Libraries/ICU/source/common \
+	-I${ROOT_SOURCE_DIR}/Libraries/ICU/source/i18n
+# ICU's time zone data version (+[NSTimeZone timeZoneDataVersion]).
+CFLAGS.NSTimeZone.m = -DU_DISABLE_RENAMING=1 \
 	-I${ROOT_SOURCE_DIR}/Libraries/ICU/source/common \
 	-I${ROOT_SOURCE_DIR}/Libraries/ICU/source/i18n
 # ICU's regular expressions, by their plain names as libicucore exports them.

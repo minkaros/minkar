@@ -8,7 +8,22 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <Foundation/NSObject.h>
 #import <Foundation/NSRange.h>
 
-@class NSAttributedString, NSDictionary;
+@class NSAttributedString, NSDictionary<KeyType, ObjectType>;
+
+typedef NS_ENUM(NSInteger, NSFormattingContext) {
+    NSFormattingContextUnknown = 0,
+    NSFormattingContextDynamic = 1,
+    NSFormattingContextStandalone = 2,
+    NSFormattingContextListItem = 3,
+    NSFormattingContextBeginningOfSentence = 4,
+    NSFormattingContextMiddleOfSentence = 5,
+};
+
+typedef NS_ENUM(NSInteger, NSFormattingUnitStyle) {
+    NSFormattingUnitStyleShort = 1,
+    NSFormattingUnitStyleMedium,
+    NSFormattingUnitStyleLong,
+};
 
 @interface NSFormatter : NSObject <NSCoding>
 
