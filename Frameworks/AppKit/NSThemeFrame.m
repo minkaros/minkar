@@ -43,31 +43,55 @@ const float NSWindowCornerRadius = 8;
 const float NSWindowControlDiameter = 14;
 const float NSWindowControlSpacing = 10;
 
-static O2Image *wsClose, *wsCloseHover, *wsMini, *wsMiniHover;
-static O2Image *wsZoom, *wsZoomUp, *wsZoomDown;
+enum { kControlClose, kControlMini, kControlZoom };
+
+/* Atlas's window controls, drawn (no artwork): grey discs with their
+ * sign, close rightmost, then zoom and minimize; close turns red under
+ * the pointer; a control the window lacks is faint and has no sign. */
+static void drawControl(O2Context *context, NSRect rect, int kind, BOOL enabled, BOOL hover) {
+    O2ContextSaveGState(context);
+    if(!enabled)
+        O2ContextSetGrayFillColor(context, 0.86, 1);
+    else if(hover && kind == kControlClose)
+        O2ContextSetRGBFillColor(context, 0.86, 0.33, 0.29, 1);
+    else
+        O2ContextSetGrayFillColor(context, hover ? 0.62 : 0.72, 1);
+    O2ContextFillEllipseInRect(context, rect);
+    if(enabled) {
+        CGFloat inset = 4, midX = NSMidX(rect), midY = NSMidY(rect);
+        CGFloat lo = NSMinX(rect) + inset, hi = NSMaxX(rect) - inset;
+        CGFloat bottom = NSMinY(rect) + inset, top = NSMaxY(rect) - inset;
+        O2Point lines[4];
+        unsigned count = 0;
+
+        O2ContextSetGrayStrokeColor(context, (hover && kind == kControlClose) ? 1 : 0.22, 1);
+        O2ContextSetLineWidth(context, 1.5);
+        O2ContextSetLineCap(context, kO2LineCapRound);
+        switch(kind) {
+            case kControlClose:
+                lines[0] = O2PointMake(lo, bottom); lines[1] = O2PointMake(hi, top);
+                lines[2] = O2PointMake(lo, top); lines[3] = O2PointMake(hi, bottom);
+                count = 4;
+                break;
+            case kControlMini:
+                lines[0] = O2PointMake(lo, midY); lines[1] = O2PointMake(hi, midY);
+                count = 2;
+                break;
+            case kControlZoom:
+                lines[0] = O2PointMake(lo, midY); lines[1] = O2PointMake(hi, midY);
+                lines[2] = O2PointMake(midX, bottom); lines[3] = O2PointMake(midX, top);
+                count = 4;
+                break;
+        }
+        O2ContextStrokeLineSegments(context, lines, count);
+    }
+    O2ContextRestoreGState(context);
+}
 
 -initWithFrame:(NSRect)frame {
     self = [super initWithFrame:frame];
     pointer = NSZeroPoint;
 
-    // use singleton traffic light images
-    if(wsClose == nil) {
-        NSString *basepath = @"/System/Library/CoreServices/WindowServer.app/Contents/Resources";
-        NSString *path = [NSString stringWithFormat:@"%@/close.png", basepath];
-        wsClose = [[[NSBitmapImageRep alloc] initWithContentsOfFile:path] CGImage];
-        path = [NSString stringWithFormat:@"%@/closeHover.png", basepath];
-        wsCloseHover = [[[NSBitmapImageRep alloc] initWithContentsOfFile:path] CGImage];
-        path = [NSString stringWithFormat:@"%@/mini.png", basepath];
-        wsMini = [[[NSBitmapImageRep alloc] initWithContentsOfFile:path] CGImage];
-        path = [NSString stringWithFormat:@"%@/miniHover.png", basepath];
-        wsMiniHover = [[[NSBitmapImageRep alloc] initWithContentsOfFile:path] CGImage];
-        path = [NSString stringWithFormat:@"%@/zoom.png", basepath];
-        wsZoom = [[[NSBitmapImageRep alloc] initWithContentsOfFile:path] CGImage];
-        path = [NSString stringWithFormat:@"%@/zoomUpHover.png", basepath];
-        wsZoomUp = [[[NSBitmapImageRep alloc] initWithContentsOfFile:path] CGImage];
-        path = [NSString stringWithFormat:@"%@/zoomDownHover.png", basepath];
-        wsZoomDown = [[[NSBitmapImageRep alloc] initWithContentsOfFile:path] CGImage];
-    }
     return self;
 }
 
@@ -75,20 +99,19 @@ static O2Image *wsZoom, *wsZoomUp, *wsZoomDown;
    return YES;
 }
 
+/* Which control is under point: 1 close, 2 zoom, 3 minimize, 0 none. */
+-(int)_controlAtPoint:(NSPoint)point {
+    if(NSPointInRect(point, _closeButtonRect)) return 1;
+    if(NSPointInRect(point, _zoomButtonRect)) return 2;
+    if(NSPointInRect(point, _miniButtonRect)) return 3;
+    return 0;
+}
+
 -(NSView *)hitTest:(NSPoint)point {
-    static BOOL inRect = NO;
-
+    /* The controls are drawn again when the one under the pointer changes. */
+    if([self _controlAtPoint:point] != [self _controlAtPoint:pointer])
+        [self setNeedsDisplayInRect:NSInsetRect(controls, -2, -2)];
     pointer = point;
-    if(NSPointInRect(pointer, controls)) {
-        if(!inRect) {
-            [self setNeedsDisplay:YES]; // highlight controls if mouse has gone into them
-            inRect = YES;
-        }
-    } else if(inRect) { // we left the control zone
-            [self setNeedsDisplay:YES];
-            inRect = NO;
-    }
-
     return [super hitTest:point];
 }
 
@@ -172,28 +195,16 @@ static O2Image *wsZoom, *wsZoomUp, *wsZoomDown;
     O2ContextClosePath(_context);
     O2ContextFillPath(_context);
 
-    // window controls
-    CGRect button = NSMakeRect(NSWindowControlSpacing,
-        _frame.size.height - NSWindowTitleHeight / 2 - NSWindowControlDiameter / 2,
-        NSWindowControlDiameter, NSWindowControlDiameter);
-    _closeButtonRect = button;
-    button.origin.x += NSWindowControlSpacing + NSWindowControlDiameter;
-    _miniButtonRect = button;
-    button.origin.x += NSWindowControlSpacing + NSWindowControlDiameter;
-    _zoomButtonRect = button;
-
-    controls = NSMakeRect(_closeButtonRect.origin.x, _closeButtonRect.origin.y,
-            3*NSWindowControlSpacing + 3*NSWindowControlDiameter, NSWindowControlDiameter);
-
-    if(NSPointInRect(pointer, controls)) {
-        [_context drawImage:wsCloseHover inRect:_closeButtonRect];
-        [_context drawImage:wsMiniHover inRect:_miniButtonRect];
-        [_context drawImage:wsZoomUp inRect:_zoomButtonRect];
-    } else {
-        [_context drawImage:wsClose inRect:_closeButtonRect];
-        [_context drawImage:wsMini inRect:_miniButtonRect];
-        [_context drawImage:wsZoom inRect:_zoomButtonRect];
-    }
+    // window controls, at the right of the title bar
+    [self _layoutControls];
+    NSUInteger mask = [window styleMask];
+    BOOL over = NSPointInRect(pointer, controls);
+    drawControl(_context, _closeButtonRect, kControlClose, (mask & NSClosableWindowMask) != 0,
+        over && NSPointInRect(pointer, _closeButtonRect));
+    drawControl(_context, _zoomButtonRect, kControlZoom, (mask & NSResizableWindowMask) != 0,
+        over && NSPointInRect(pointer, _zoomButtonRect));
+    drawControl(_context, _miniButtonRect, kControlMini, (mask & NSMiniaturizableWindowMask) != 0,
+        over && NSPointInRect(pointer, _miniButtonRect));
 
     NSString *t = [[self window] title];
     if(t) {
@@ -236,6 +247,20 @@ static O2Image *wsZoom, *wsZoomUp, *wsZoomDown;
    [contentView setFrame:contentFrame];
 }
 
+/* Close at the right of the title bar, zoom and minimize left of it. */
+-(void)_layoutControls {
+    NSRect bounds = [self bounds];
+    NSRect button = NSMakeRect(NSWidth(bounds) - NSWindowControlSpacing - NSWindowControlDiameter,
+        NSHeight(bounds) - NSWindowTitleHeight / 2 - NSWindowControlDiameter / 2,
+        NSWindowControlDiameter, NSWindowControlDiameter);
+    _closeButtonRect = button;
+    button.origin.x -= NSWindowControlSpacing + NSWindowControlDiameter;
+    _zoomButtonRect = button;
+    button.origin.x -= NSWindowControlSpacing + NSWindowControlDiameter;
+    _miniButtonRect = button;
+    controls = NSUnionRect(NSUnionRect(_closeButtonRect, _miniButtonRect), _zoomButtonRect);
+}
+
 -(NSRect)_windowControlsRect {
     return NSUnionRect(NSUnionRect(_closeButtonRect, _miniButtonRect), _zoomButtonRect);
 }
@@ -244,13 +269,17 @@ static O2Image *wsZoom, *wsZoomUp, *wsZoomDown;
     CGFloat top, left, right, bottom;
     CGNativeBorderFrameWidthsForStyle([[self window] styleMask], &top, &left, &bottom, &right);
     NSPoint pos = [event locationInWindow];
+    NSUInteger mask = [[self window] styleMask];
 
-    if(NSPointInRect(pos, _closeButtonRect))
-        [[self window] performClose:self];
-    else if(NSPointInRect(pos, _miniButtonRect))
-        [[self window] performMiniaturize:self];
-    else if(NSPointInRect(pos, _zoomButtonRect))
-        [[self window] performZoom:self];
+    [self _layoutControls];
+    if(NSPointInRect(pos, controls)) {
+        if(NSPointInRect(pos, _closeButtonRect) && (mask & NSClosableWindowMask))
+            [[self window] performClose:self];
+        else if(NSPointInRect(pos, _miniButtonRect) && (mask & NSMiniaturizableWindowMask))
+            [[self window] performMiniaturize:self];
+        else if(NSPointInRect(pos, _zoomButtonRect) && (mask & NSResizableWindowMask))
+            [[self window] performZoom:self];
+    }
     else if(pos.y > (NSMaxY(_frame) - top)) // in titlebar?
         [[self window] requestMove:event];
     else if([[self window] isMovableByWindowBackground])
