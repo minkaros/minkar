@@ -56,7 +56,7 @@ NSString *FilesSizeString(unsigned long long size)
         _icon = [[NSWorkspace sharedWorkspace] iconForFile:[url path]];
     } else if (_isFolder) {
         _kind = NSLocalizedString(@"Folder", nil);
-        _icon = FilesFolderIcon();
+        _icon = FilesFolderIconForURL(url);
     } else {
         NSString *extension = [[url pathExtension] uppercaseString];
         _kind = [extension length] ? [NSString stringWithFormat:NSLocalizedString(@"%@ File", nil), extension] : NSLocalizedString(@"Document", nil);

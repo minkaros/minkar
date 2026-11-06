@@ -18,10 +18,55 @@ static NSImage *drawnIcon(void (^draw)(NSRect bounds))
     return image;
 }
 
+/* An icon of Atlas's set, loaded once. */
+static NSImage *systemIcon(NSString *group, NSString *name)
+{
+    static NSMutableDictionary<NSString *, NSImage *> *cache;
+    NSString *path = [NSString stringWithFormat:@"/System/Library/Icons/%@/%@.png", group, name];
+    NSImage *icon;
+
+    if (cache == nil)
+        cache = [NSMutableDictionary dictionary];
+    icon = cache[path];
+    if (icon == nil) {
+        icon = [[NSImage alloc] initWithContentsOfFile:path];
+        if (icon == nil)
+            return nil;
+        cache[path] = icon;
+    }
+    return icon;
+}
+
+NSImage *FilesFolderIconForURL(NSURL *url)
+{
+    /* Resolved both: /var is a link to /private/var. */
+    NSString *home = [NSHomeDirectory() stringByResolvingSymlinksInPath];
+    NSString *path = [[url path] stringByResolvingSymlinksInPath];
+    NSDictionary<NSString *, NSString *> *known = @{
+        @"Desktop": @"user-desktop", @"Documents": @"folder-documents", @"Downloads": @"folder-downloads",
+        @"Music": @"folder-music", @"Pictures": @"folder-pictures", @"Movies": @"folder-videos",
+        @"Public": @"folder-publicshare", @"Library": @"folder-system", @".Trash": @"user-trash",
+    };
+    NSString *name = nil, *group = @"places";
+
+    if ([path isEqualToString:home])
+        name = @"folder-home";
+    else if ([[path stringByDeletingLastPathComponent] isEqualToString:home])
+        name = known[[path lastPathComponent]];
+    else if ([path isEqualToString:@"/System"] || [path isEqualToString:@"/Library"])
+        name = @"folder-system";
+    if ([name isEqualToString:@"user-desktop"] || [name isEqualToString:@"user-trash"])
+        group = @"system";
+    NSImage *icon = name ? systemIcon(group, name) : nil;
+    return icon ? icon : FilesFolderIcon();
+}
+
 NSImage *FilesFolderIcon(void)
 {
     static NSImage *icon;
 
+    if (icon == nil)
+        icon = systemIcon(@"places", @"folder");
     if (icon == nil)
         icon = drawnIcon(^(NSRect b) {
             (void)b;
@@ -41,6 +86,8 @@ NSImage *FilesDocumentIcon(void)
 {
     static NSImage *icon;
 
+    if (icon == nil)
+        icon = systemIcon(@"system", @"text-x-generic");
     if (icon == nil)
         icon = drawnIcon(^(NSRect b) {
             (void)b;

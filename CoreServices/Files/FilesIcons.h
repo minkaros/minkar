@@ -8,9 +8,12 @@
 
 NS_ASSUME_NONNULL_BEGIN
 
-/* Atlas's provisional generic icons, drawn: a folder and a document. They
-   give way to the artwork of the visual language guide. */
+/* The generic icons: Atlas's (/System/Library/Icons, blue folders), or
+   drawn ones when those are missing. */
 NSImage *FilesFolderIcon(void);
 NSImage *FilesDocumentIcon(void);
+/* A folder's icon: its own for the home folder and the known folders in
+   it (Documents, Downloads, Music...), else the generic one. */
+NSImage *FilesFolderIconForURL(NSURL *url);
 
 NS_ASSUME_NONNULL_END

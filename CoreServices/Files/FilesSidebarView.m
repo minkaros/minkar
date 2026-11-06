@@ -78,7 +78,7 @@ static const CGFloat kRow = 24, kSection = 26;
             [[NSColor colorWithCalibratedWhite:0.82 alpha:1] setFill];
             [[NSBezierPath bezierPathWithRoundedRect:NSInsetRect(r, 8, 1) xRadius:5 yRadius:5] fill];
         }
-        [FilesFolderIcon() drawInRect:NSMakeRect(16, NSMinY(r) + 4, 16, 16) fromRect:NSZeroRect
+        [FilesFolderIconForURL(row[@"url"]) drawInRect:NSMakeRect(16, NSMinY(r) + 4, 16, 16) fromRect:NSZeroRect
                             operation:NSCompositeSourceOver fraction:1 respectFlipped:YES hints:nil];
         [row[@"title"] drawAtPoint:NSMakePoint(38, NSMinY(r) + 4) withAttributes:plain];
     }
