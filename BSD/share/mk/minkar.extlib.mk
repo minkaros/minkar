@@ -51,6 +51,9 @@
 #                       with ${.CURDIR}/run.sh; the libraries they use are
 #                       the system's (their @rpath references become
 #                       /usr/lib), nothing else is installed
+#   EXTLIB_TEST_BUILD   a command that builds the tests after the library
+#                       (autotools: gmake -C ${BUILD}/tests check TESTS=,
+#                       which builds them without running them)
 #   EXTLIB_TEST_FILES   what to install for the tests: paths in the staging
 #                       root or, with build/ or src/ before them, in the
 #                       build or source directory (a directory is copied
@@ -290,6 +293,9 @@ ${BUILD}/.minkar-setup: ${SRC}/.minkar-patches ${SETUP_DEPS} ${.CURDIR}/Makefile
 
 build-extlib: .PHONY ${BUILD}/.minkar-setup
 	${TOOLENV} sh -c '${BUILD_CMD}'
+.if defined(EXTLIB_TEST_BUILD)
+	${TOOLENV} ${AUTOTOOLS_ENV} sh -c '${EXTLIB_TEST_BUILD}'
+.endif
 
 .if defined(EXTLIB_TEST) && ${EXTLIB_TEST} == "yes"
 TEST_DIR =	${SYSROOT_DIR}/usr/local/tests/w0/${EXTLIB}
@@ -309,9 +315,11 @@ install-extlib: .PHONY build-extlib
 	# has it, else a copy beside the tests.
 	find ${TEST_DIR} -type f | while read -r f; do \
 		${TC}/otool -L "$$f" 2>/dev/null | \
-		    awk '$$1 ~ /^@rpath\// || index($$1, "${.OBJDIR}/") == 1 { print $$1 }' | \
+		    awk 'NR > 1 && ($$1 ~ /^@rpath\// || $$1 ~ /^\/usr\/lib\/[^\/]*$$/ || \
+		        index($$1, "${.OBJDIR}/") == 1) { print $$1 }' | \
 		while read -r dep; do \
 			name=$${dep##*/}; \
+			case $$dep in /usr/lib/*) [ -e ${SYSROOT_DIR}$$dep ] && continue;; esac; \
 			here=$$(find ${TEST_DIR} \( -name $$name -o -name $${name%.dylib}.so \) | head -1); \
 			if [ -e ${SYSROOT_DIR}${PRIVATE_LIB}/$$name ]; then new=${PRIVATE_LIB}/$$name; \
 			elif [ -e ${SYSROOT_DIR}/usr/lib/$$name ]; then new=/usr/lib/$$name; \
@@ -326,7 +334,7 @@ install-extlib: .PHONY build-extlib
 		done; \
 	done; true
 	# Libraries among the tests answer to where they are now.
-	find ${TEST_DIR} -name '*.dylib' -type f | while read -r f; do \
+	find ${TEST_DIR} \( -name '*.dylib' -o -name '*.so' \) -type f | while read -r f; do \
 		${TC}/install_name_tool -id /usr/local/tests/w0/${EXTLIB}/$${f#${TEST_DIR}/} "$$f"; \
 		${TC}/otool -L "$$f" | awk '$$1 ~ /^@rpath\// || index($$1, "${.OBJDIR}/") == 1 { print $$1 }' | \
 		while read -r dep; do \
@@ -337,6 +345,8 @@ install-extlib: .PHONY build-extlib
 		done; \
 	done; true
 	install -m 0755 ${.CURDIR}/run.sh ${TEST_DIR}/run.sh
+	# What is left out, and why (if anything is).
+	if [ -f ${.CURDIR}/skip.txt ]; then install -m 0644 ${.CURDIR}/skip.txt ${TEST_DIR}/; fi
 .elif defined(EXTLIB_HOST) && ${EXTLIB_HOST} == "yes"
 install-extlib: .PHONY build-extlib
 	mkdir -p ${HOST_PREFIX}

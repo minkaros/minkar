@@ -18,7 +18,8 @@ EXTLIB_OPTIONS = -Dnls=disabled -Dselinux=disabled -Dxattr=false -Dlibmount=disa
 		-Ddocumentation=false -Ddtrace=disabled -Dsystemtap=disabled \
 		-Dsysprof=disabled -Dglib_debug=disabled -Dglib_assert=true \
 		-Doss_fuzz=disabled -Dbsymbolic_functions=false \
-		--force-fallback-for=intl -Dproxy-libintl:default_library=static
+		--force-fallback-for=intl -Dproxy-libintl:default_library=static \
+		-Dgio_module_dir=/usr/lib/webkit/gio/modules
 EXTLIB_TEST_FILES = usr/libexec/installed-tests/glib usr/share/installed-tests/glib
 
 .include <minkar.extlib.mk>

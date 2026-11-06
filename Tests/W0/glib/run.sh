@@ -14,6 +14,10 @@ for t in "$dir"/*.test; do
 		skipped=$((skipped + 1)); continue
 	fi
 	cmd=$(sed -n 's/^Exec=//p' "$t" | sed "s|/usr/libexec/installed-tests/glib/|$dir/|g")
+	# Single tests left out of this program.
+	for path in $(sed -n "s|^$name:\(/[^ ]*\) .*|\1|p" "$here/skip.txt" 2>/dev/null); do
+		cmd="$cmd -s $path"; skipped=$((skipped + 1))
+	done
 	(cd "$dir" && eval "timeout ${GLIB_TEST_TIMEOUT:-120} $cmd") > "$here/$name.log" 2>&1
 	rc=$?
 	if [ $rc -eq 0 ]; then
