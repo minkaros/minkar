@@ -293,6 +293,7 @@ SRCS = 	NSFormatter.m \
 	NSObject/NSZombieObject.m \
 	NSDistributedLock.m \
 	NSMetadata/NSMetadata.m \
+	NSUserNotification/NSUserNotification.m \
 	NSPlatform.m \
 	NSPropertyList/NSOldXMLAttribute.m \
 	NSPropertyList/NSOldXMLElement.m \
@@ -405,6 +406,7 @@ CFLAGS.NSAutoreleasePool.o = -I${ROOT_SOURCE_DIR}/Libraries/objc4
 CFLAGS.NSUUID.m = -fobjc-arc
 CFLAGS.NSSubscripting.m = -fobjc-arc
 CFLAGS.NSCollectionBlocks.m = -fobjc-arc
+CFLAGS.NSUserNotification.m = -fobjc-arc
 CFLAGS.NSJSONSerialization.m = -fobjc-arc
 CFLAGS.NSCache.m = -fobjc-arc
 CFLAGS.NSProgress.m = -fobjc-arc

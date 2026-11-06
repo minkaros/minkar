@@ -133,6 +133,7 @@
 #import <Foundation/NSMetadataQuery.h>
 #import <Foundation/NSMetadataQueryAttributeValueTuple.h>
 #import <Foundation/NSMetadataQueryResultGroup.h>
+#import <Foundation/NSUserNotification.h>
 #import <Foundation/NSMethodSignature.h>
 #import <Foundation/NSMutableArray.h>
 #import <Foundation/NSMutableAttributedString.h>
