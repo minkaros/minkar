@@ -260,7 +260,7 @@ STAGE_CMD =	DESTDIR=${STAGE} ninja -C ${BUILD} install
 SETUP_DEPS =	${CMAKE_TC}
 SETUP_CMD =	cmake -G Ninja -S ${EXTLIB_TOP} -B ${BUILD} -DCMAKE_TOOLCHAIN_FILE=${CMAKE_TC} \
 		-DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_INSTALL_LIBDIR=lib \
-		-DCMAKE_INSTALL_NAME_DIR=/usr/lib -DBUILD_SHARED_LIBS=ON ${EXTLIB_OPTIONS}
+		-DCMAKE_INSTALL_NAME_DIR=${LIB_DEST} -DBUILD_SHARED_LIBS=ON ${EXTLIB_OPTIONS}
 BUILD_CMD =	ninja -C ${BUILD} ${EXTLIB_TARGETS}
 STAGE_CMD =	DESTDIR=${STAGE} ninja -C ${BUILD} install
 .elif ${EXTLIB_SYSTEM} == "autotools"
@@ -378,8 +378,11 @@ install-extlib: .PHONY build-extlib
 	cd ${STAGE}/usr/lib && for lib in ${EXTLIB_LIBS}; do \
 		test -f $$lib || { echo "minkar.extlib.mk: $$lib not built" >&2; exit 1; }; \
 		${TC}/install_name_tool -id ${LIB_DEST}/$$lib $$lib 2>/dev/null; \
-		for dep in $$(${TC}/otool -L $$lib | awk '$$1 ~ /^@rpath\// { print $$1 }'); do \
-			${TC}/install_name_tool -change $$dep ${LIB_DEST}/$${dep#@rpath/} $$lib || exit 1; \
+		for dep in $$(${TC}/otool -L $$lib | awk 'NR > 1 { print $$1 }'); do \
+			n=$${dep##*/}; \
+			case $$dep in @rpath/*|/usr/lib/*) ;; *) continue;; esac; \
+			[ -e ${STAGE}/usr/lib/$$n ] && [ $$dep != ${LIB_DEST}/$$n ] || continue; \
+			${TC}/install_name_tool -change $$dep ${LIB_DEST}/$$n $$lib || exit 1; \
 		done; \
 		base=$${lib%%.*}; \
 		for f in $$base.*dylib; do \
