@@ -847,6 +847,10 @@ extern CFAllocatorRef __CFAllocatorGetAllocator(CFTypeRef);
 
 CFAllocatorRef CFGetAllocator(CFTypeRef cf) {
     if (NULL == cf) return kCFAllocatorSystemDefault;
+    /* Minkar: a Foundation object (an NSURL handed to CF's URL functions)
+     * has no CF header to read the allocator from: the system's, as a
+     * bridged object's on the reference platform. */
+    if (__CFIsForeignObjC(cf)) return kCFAllocatorSystemDefault;
     if (__kCFAllocatorTypeID_CONST == __CFGenericTypeID_inline(cf)) {
 	return __CFAllocatorGetAllocator(cf);
     }
