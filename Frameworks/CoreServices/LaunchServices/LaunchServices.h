@@ -11,5 +11,7 @@
 
 #include "LSInfo.h"
 #include "LSOpen.h"
+#include "UTType.h"
+#include "UTCoreTypes.h"
 
 #endif
