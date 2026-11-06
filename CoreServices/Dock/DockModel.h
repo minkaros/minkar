@@ -14,6 +14,7 @@ NS_ASSUME_NONNULL_BEGIN
 typedef NS_ENUM(NSInteger, DockTileKind) {
     DockTileKindPersistentApp,   /* kept in the Dock (persistent-apps) */
     DockTileKindRunningApp,      /* running, not kept */
+    DockTileKindTrash,           /* the Trash, always last */
 };
 
 @interface DockTile : NSObject
@@ -49,8 +50,14 @@ extern NSNotificationName const DockModelDidChangeNotification;
 
 /* Persistent tiles first, then the running apps that are not kept. */
 @property (nonatomic, readonly, copy) NSArray<DockTile *> *tiles;
-/* Index of the first running-only tile (the separator goes before it). */
+/* Index of the first running-only tile (the separator goes before it);
+   the Trash's index when none runs. */
 @property (nonatomic, readonly) NSUInteger firstRunningIndex;
+/* The Trash: the last tile, after a separator of its own. */
+@property (nonatomic, readonly) NSUInteger trashIndex;
+@property (nonatomic, readonly) DockTile *trashTile;
+/* Whether the Trash holds anything (its icon shows it). */
+@property (nonatomic, readonly) BOOL trashIsFull;
 
 - (instancetype)init NS_DESIGNATED_INITIALIZER;
 /* Launches the tile's app, or activates it when it runs. */
@@ -61,11 +68,15 @@ extern NSNotificationName const DockModelDidChangeNotification;
 - (void)removeTile:(DockTile *)tile;
 /* The preferences again, from the domain. */
 - (void)reloadPreferences;
+/* Erases what the Trash holds. */
+- (void)emptyTrash;
 @end
 
 /* The persistent-apps preference, in the reference format: tile-data with
    file-data's _CFURLString. Exposed for the tests. */
 NSArray<NSURL *> *DockPersistentAppURLs(NSArray *_Nullable preference);
 NSDictionary *DockPersistentAppEntry(NSURL *url);
+/* The user's Trash folder (~/.Trash). */
+NSURL *DockTrashURL(void);
 
 NS_ASSUME_NONNULL_END

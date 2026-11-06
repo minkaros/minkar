@@ -41,6 +41,25 @@ static CGFloat gapFor(CGFloat tile) { return round(tile / 6); }
 static CGFloat indicatorSpace(CGFloat tile) { return round(tile / 6); }
 static CGFloat separatorSpace(CGFloat tile) { return round(tile / 4); }
 
+/* A separator goes before the first running-only tile and before the Trash. */
+static BOOL separatorBefore(DockModel *model, NSUInteger i)
+{
+    NSUInteger first = model.firstRunningIndex, trash = model.trashIndex;
+
+    if (i == 0)
+        return NO;
+    return (i == first && first < trash) || (i == trash && trash < [model.tiles count]);
+}
+
+static NSUInteger separatorCount(DockModel *model)
+{
+    NSUInteger n = 0, count = [model.tiles count];
+
+    for (NSUInteger i = 0; i < count; i++)
+        n += separatorBefore(model, i);
+    return n;
+}
+
 /* ---- The tile's name, in a small window beside it ---- */
 
 @interface DockLabelView : NSView
@@ -314,8 +333,7 @@ static CGFloat separatorSpace(CGFloat tile) { return round(tile / 4); }
     NSUInteger count = [model.tiles count];
     CGFloat length = 2 * padding(tile) + count * tile + (count ? count - 1 : 0) * gapFor(tile);
 
-    if (model.firstRunningIndex > 0 && model.firstRunningIndex < count)
-        length += separatorSpace(tile);
+    length += separatorCount(model) * separatorSpace(tile);
     return MAX(length, 2 * padding(tile) + tile);
 }
 
@@ -363,29 +381,27 @@ static CGFloat separatorSpace(CGFloat tile) { return round(tile / 4); }
     CGFloat tile = model.tileSize, gap = gapFor(tile), sep = separatorSpace(tile);
     CGFloat base = [DockView baseLengthForModel:model];
     CGFloat baseStart = round(([self mainLength] - base) / 2);
-    NSUInteger first = model.firstRunningIndex;
     CGFloat x, total;
 
     /* The base centers, to measure the pointer against. */
     x = baseStart + padding(tile);
     total = 0;
     for (NSUInteger i = 0; i < count; i++) {
-        if (i == first && first > 0)
+        if (separatorBefore(model, i))
             x += sep;
         sizes[i] = [self sizeOfTileAtIndex:i baseCenter:x + tile / 2];
         x += tile + gap;
         total += sizes[i];
     }
     total += 2 * padding(tile) + (count ? count - 1 : 0) * gap;
-    if (first > 0 && first < count)
-        total += sep;
+    total += separatorCount(model) * sep;
     total = MAX(total, 2 * padding(tile) + tile);
 
     *barLength = total;
     *barStart = round(([self mainLength] - total) / 2);
     x = *barStart + padding(tile);
     for (NSUInteger i = 0; i < count; i++) {
-        if (i == first && first > 0)
+        if (separatorBefore(model, i))
             x += sep;
         mains[i] = x;
         x += sizes[i] + gap;
@@ -463,9 +479,10 @@ static CGFloat separatorSpace(CGFloat tile) { return round(tile / 4); }
         }
     }
 
-    NSUInteger first = model.firstRunningIndex;
-    if (first > 0 && first < count) {
-        CGFloat at = mains[first - 1] + sizes[first - 1] + (gapFor(tile) + separatorSpace(tile)) / 2;
+    for (NSUInteger i = 1; i < count; i++) {
+        if (!separatorBefore(model, i))
+            continue;
+        CGFloat at = mains[i - 1] + sizes[i - 1] + (gapFor(tile) + separatorSpace(tile)) / 2;
         DockSpan s = { floor(at), pad, 1, [DockView barThicknessForModel:model] - 2 * pad };
         [[NSColor colorWithCalibratedWhite:0.2 alpha:0.35] setFill];
         NSRectFill([self rectForSpan:s]);
@@ -592,7 +609,7 @@ static CGFloat separatorSpace(CGFloat tile) { return round(tile / 4); }
     NSPoint p = [self convertPoint:[event locationInWindow] fromView:nil];
     DockModel *model = self.model;
 
-    if (_pressed < 0)
+    if (_pressed < 0 || (NSUInteger)_pressed == model.trashIndex)
         return;
     if (!_dragging && hypot(p.x - _downPoint.x, p.y - _downPoint.y) < kDragThreshold)
         return;
@@ -635,13 +652,14 @@ static CGFloat separatorSpace(CGFloat tile) { return round(tile / 4); }
     if (_pressed >= 0 && (NSUInteger)_pressed < [tiles count]) {
         DockTile *tile = tiles[(NSUInteger)_pressed];
         if (_dragging) {
-            if (_dropRemoves) {
+            if (_dropRemoves || [self tileIndexAtPoint:p] == (NSInteger)model.trashIndex) {
+                /* Off the Dock, or onto the Trash: no longer kept. */
                 if ([model isKept:tile])
                     [model removeTile:tile];
             } else {
                 /* Dropped in the kept part, or moved within it. */
                 CGFloat main = [self mainOfPoint:p];
-                BOOL inKept = model.firstRunningIndex == 0 || [tiles count] == model.firstRunningIndex;
+                BOOL inKept = model.firstRunningIndex == 0 || model.trashIndex == model.firstRunningIndex;
                 if (!inKept) {
                     NSRect sep = [self rectForTileAtIndex:model.firstRunningIndex];
                     CGFloat start = [self orientation] == DockOrientationBottom ? NSMinX(sep) : NSHeight([self bounds]) - NSMaxY(sep);
@@ -667,6 +685,10 @@ static CGFloat separatorSpace(CGFloat tile) { return round(tile / 4); }
 {
     DockModel *model = self.model;
     DockTile *tile = model.tiles[index];
+    if (tile.kind == DockTileKindTrash) {
+        [self showTrashMenuWithEvent:event];
+        return;
+    }
     NSMenu *menu = [[NSMenu alloc] initWithTitle:tile.label];
     NSMenu *options = [[NSMenu alloc] initWithTitle:NSLocalizedString(@"Options", nil)];
     NSMenuItem *item;
@@ -706,6 +728,42 @@ static CGFloat separatorSpace(CGFloat tile) { return round(tile / 4); }
     [NSMenu popUpContextMenu:menu withEvent:event forView:self];
     _pressed = -1;
     [self setNeedsDisplay:YES];
+}
+
+/* The Trash's menu: open it, or empty it. */
+- (void)showTrashMenuWithEvent:(NSEvent *)event
+{
+    DockModel *model = self.model;
+    NSMenu *menu = [[NSMenu alloc] initWithTitle:model.trashTile.label];
+    NSMenuItem *item;
+
+    [_pressTimer invalidate];
+    _pressTimer = nil;
+    [menu setAutoenablesItems:NO];
+    item = [menu addItemWithTitle:NSLocalizedString(@"Open", nil) action:@selector(openTileItem:) keyEquivalent:@""];
+    [item setTarget:self];
+    [item setRepresentedObject:model.trashTile];
+    [menu addItem:[NSMenuItem separatorItem]];
+    item = [menu addItemWithTitle:NSLocalizedString(@"Empty Trash", nil) action:@selector(emptyTrash:) keyEquivalent:@""];
+    [item setTarget:self];
+    [item setEnabled:model.trashIsFull];
+    [NSMenu popUpContextMenu:menu withEvent:event forView:self];
+    _pressed = -1;
+    [self setNeedsDisplay:YES];
+}
+
+/* Asks first: what the Trash holds is erased for good. */
+- (void)emptyTrash:(NSMenuItem *)sender
+{
+    NSAlert *alert = [[NSAlert alloc] init];
+
+    [alert setMessageText:NSLocalizedString(@"Are you sure you want to permanently erase the items in the Trash?", nil)];
+    [alert setInformativeText:NSLocalizedString(@"You can't undo this action.", nil)];
+    [alert addButtonWithTitle:NSLocalizedString(@"Empty Trash", nil)];
+    [alert addButtonWithTitle:NSLocalizedString(@"Cancel", nil)];
+    [NSApp activateIgnoringOtherApps:YES];
+    if ([alert runModal] == NSAlertFirstButtonReturn)
+        [self.model emptyTrash];
 }
 
 - (void)toggleKeep:(NSMenuItem *)sender

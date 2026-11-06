@@ -9,12 +9,23 @@
  */
 
 #import "DockModel.h"
+#include <fcntl.h>
 #include <notify.h>
+#include <dispatch/dispatch.h>
 #include <unistd.h>
 
 NSNotificationName const DockModelDidChangeNotification = @"DockModelDidChangeNotification";
 
 static NSString *const kPersistentApps = @"persistent-apps";
+
+/* Atlas's icons (SystemLibrary/Icons). */
+static NSString *const kTrashIcon = @"/System/Library/Icons/system/user-trash.png";
+static NSString *const kTrashFullIcon = @"/System/Library/Icons/system/user-trash-full.png";
+
+@interface DockTile ()
+@property (nonatomic, strong) NSImage *icon;
+- (instancetype)initTrash;
+@end
 
 @implementation DockTile
 
@@ -37,8 +48,23 @@ static NSString *const kPersistentApps = @"persistent-apps";
     return self;
 }
 
+- (instancetype)initTrash
+{
+    if ((self = [super init]) != nil) {
+        _kind = DockTileKindTrash;
+        _URL = [DockTrashURL() copy];
+        _label = [NSLocalizedString(@"Trash", nil) copy];
+        _icon = [[NSImage alloc] initWithContentsOfFile:kTrashIcon];
+        if (_icon == nil)
+            _icon = [[NSWorkspace sharedWorkspace] iconForFile:[_URL path]];
+    }
+    return self;
+}
+
 - (BOOL)matchesApplication:(NSRunningApplication *)app
 {
+    if (_kind == DockTileKindTrash)
+        return NO;
     if (_bundleIdentifier != nil && [app bundleIdentifier] != nil)
         return [_bundleIdentifier isEqualToString:[app bundleIdentifier]];
     return [[[app bundleURL] path] isEqualToString:[_URL path]];
@@ -62,6 +88,11 @@ NSArray<NSURL *> *DockPersistentAppURLs(NSArray *preference)
             [urls addObject:url];
     }
     return urls;
+}
+
+NSURL *DockTrashURL(void)
+{
+    return [NSURL fileURLWithPath:[NSHomeDirectory() stringByAppendingPathComponent:@".Trash"] isDirectory:YES];
 }
 
 NSDictionary *DockPersistentAppEntry(NSURL *url)
@@ -109,6 +140,7 @@ static CGFloat sizePreference(NSUserDefaults *defaults, NSString *key, CGFloat f
 @implementation DockModel {
     NSArray<DockTile *> *_persistent;
     NSArray<DockTile *> *_tiles;
+    dispatch_source_t _trashWatch;
 }
 
 - (void)reloadPreferences
@@ -226,12 +258,70 @@ static CGFloat sizePreference(NSUserDefaults *defaults, NSString *key, CGFloat f
                                        NSWorkspaceDidTerminateApplicationNotification,
                                        NSWorkspaceDidActivateApplicationNotification ])
         [center addObserver:self selector:@selector(applicationsChanged:) name:name object:nil];
+    _trashTile = [[DockTile alloc] initTrash];
+    [self watchTrash];
     [self rebuild];
     return self;
 }
 
+/* -- The Trash -- */
+
+- (void)updateTrashIcon
+{
+    NSArray *names = [[NSFileManager defaultManager] contentsOfDirectoryAtPath:[DockTrashURL() path] error:NULL];
+    BOOL full = NO;
+
+    for (NSString *name in names)
+        if (![name isEqualToString:@".DS_Store"]) {
+            full = YES;
+            break;
+        }
+    if (full == _trashIsFull && _trashTile.icon != nil)
+        return;
+    _trashIsFull = full;
+    NSImage *icon = [[NSImage alloc] initWithContentsOfFile:full ? kTrashFullIcon : kTrashIcon];
+    if (icon != nil)
+        _trashTile.icon = icon;
+    [[NSNotificationCenter defaultCenter] postNotificationName:DockModelDidChangeNotification object:self];
+}
+
+/* The folder's changes, from the kernel (no polling). */
+- (void)watchTrash
+{
+    NSString *path = [DockTrashURL() path];
+
+    [[NSFileManager defaultManager] createDirectoryAtPath:path withIntermediateDirectories:YES
+                                               attributes:@{ NSFilePosixPermissions: @0700 } error:NULL];
+    int fd = open([path fileSystemRepresentation], O_EVTONLY);
+    if (fd < 0)
+        return;
+    _trashWatch = dispatch_source_create(DISPATCH_SOURCE_TYPE_VNODE, (uintptr_t)fd,
+        DISPATCH_VNODE_WRITE | DISPATCH_VNODE_DELETE | DISPATCH_VNODE_RENAME, dispatch_get_main_queue());
+    __weak DockModel *weakSelf = self;
+    dispatch_source_set_event_handler(_trashWatch, ^{
+        [weakSelf updateTrashIcon];
+    });
+    dispatch_source_set_cancel_handler(_trashWatch, ^{
+        close(fd);
+    });
+    dispatch_resume(_trashWatch);
+    [self updateTrashIcon];
+}
+
+- (void)emptyTrash
+{
+    NSFileManager *fm = [NSFileManager defaultManager];
+    NSString *path = [DockTrashURL() path];
+
+    for (NSString *name in [fm contentsOfDirectoryAtPath:path error:NULL])
+        [fm removeItemAtPath:[path stringByAppendingPathComponent:name] error:NULL];
+    [self updateTrashIcon];
+}
+
 - (void)dealloc
 {
+    if (_trashWatch != nil)
+        dispatch_source_cancel(_trashWatch);
     [[[NSWorkspace sharedWorkspace] notificationCenter] removeObserver:self];
 }
 
@@ -269,6 +359,9 @@ static CGFloat sizePreference(NSUserDefaults *defaults, NSString *key, CGFloat f
     }
     _firstRunningIndex = [tiles count];
     [tiles addObjectsFromArray:running];
+    _trashIndex = [tiles count];
+    if (_trashTile != nil)
+        [tiles addObject:_trashTile];
     _tiles = [tiles copy];
 }
 
@@ -280,6 +373,8 @@ static CGFloat sizePreference(NSUserDefaults *defaults, NSString *key, CGFloat f
 
 - (BOOL)openTile:(DockTile *)tile
 {
+    if (tile.kind == DockTileKindTrash)
+        return [[NSWorkspace sharedWorkspace] openFile:[tile.URL path]];
     if (tile.application != nil && ![tile.application isTerminated])
         return [tile.application activateWithOptions:NSApplicationActivateIgnoringOtherApps];
     return [[NSWorkspace sharedWorkspace] openFile:[tile.URL path]];

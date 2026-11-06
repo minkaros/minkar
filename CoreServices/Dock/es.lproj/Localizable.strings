@@ -9,3 +9,8 @@
 "Show All Windows" = "Mostrar todas las ventanas";
 "Quit" = "Salir";
 "Open" = "Abrir";
+"Trash" = "Papelera";
+"Empty Trash" = "Vaciar la Papelera";
+"Cancel" = "Cancelar";
+"Are you sure you want to permanently erase the items in the Trash?" = "¿Seguro que quieres borrar para siempre los elementos de la Papelera?";
+"You can't undo this action." = "Esta acción no se puede deshacer.";
