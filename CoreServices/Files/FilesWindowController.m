@@ -9,6 +9,7 @@
  */
 
 #import "FilesWindowController.h"
+#import "FilesSegmentedControl.h"
 #import "FilesSidebarView.h"
 #import "FilesColumnView.h"
 #include <sys/mount.h>
@@ -34,21 +35,10 @@ static const CGFloat kBarHeight = 38, kStatusHeight = 22, kSidebarWidth = 170;
     NSScrollView *_scroll, *_columnScroll;
     FilesBrowserView *_browser;
     FilesColumnView *_columns;
-    NSButton *_backButton, *_forwardButton, *_iconsButton, *_listButton, *_columnsButton;
+    FilesSegmentedControl *_navigation, *_viewModes;
     NSTextField *_title, *_status;
     FSEventStreamRef _watch;      /* the folder shown, while it changes */
     dispatch_queue_t _watchQueue;
-}
-
-static NSButton *barButton(NSString *title, id target, SEL action)
-{
-    NSButton *button = [[NSButton alloc] initWithFrame:NSMakeRect(0, 0, 30, 24)];
-
-    [button setTitle:title];
-    [button setBezelStyle:NSRoundedBezelStyle];
-    [button setTarget:target];
-    [button setAction:action];
-    return button;
 }
 
 static NSTextField *label(CGFloat size, BOOL bold)
@@ -81,11 +71,16 @@ static NSTextField *label(CGFloat size, BOOL bold)
     content.controller = self;
     [_window setContentView:content];
 
-    _backButton = barButton(@"‹", self, @selector(goBack:));
-    _forwardButton = barButton(@"›", self, @selector(goForward:));
-    _iconsButton = barButton(NSLocalizedString(@"Icons", nil), self, @selector(showAsIcons:));
-    _listButton = barButton(NSLocalizedString(@"List", nil), self, @selector(showAsList:));
-    _columnsButton = barButton(NSLocalizedString(@"Columns", nil), self, @selector(showAsColumns:));
+    _navigation = [[FilesSegmentedControl alloc] initWithGlyphs:@[ @(FilesGlyphBack), @(FilesGlyphForward) ]
+        actions:@[ @"goBack:", @"goForward:" ] target:self];
+    [_navigation setLabel:NSLocalizedString(@"Back", nil) forSegment:0];
+    [_navigation setLabel:NSLocalizedString(@"Forward", nil) forSegment:1];
+    _viewModes = [[FilesSegmentedControl alloc]
+        initWithGlyphs:@[ @(FilesGlyphIcons), @(FilesGlyphList), @(FilesGlyphColumns) ]
+               actions:@[ @"showAsIcons:", @"showAsList:", @"showAsColumns:" ] target:self];
+    [_viewModes setLabel:NSLocalizedString(@"Icons", nil) forSegment:0];
+    [_viewModes setLabel:NSLocalizedString(@"List", nil) forSegment:1];
+    [_viewModes setLabel:NSLocalizedString(@"Columns", nil) forSegment:2];
     _title = label(13, YES);
     _status = label(11, NO);
     [_status setAlignment:NSCenterTextAlignment];
@@ -110,7 +105,7 @@ static NSTextField *label(CGFloat size, BOOL bold)
     [_columnScroll setDocumentView:_columns];
     [_columnScroll setHidden:YES];
 
-    for (NSView *view in @[ _backButton, _forwardButton, _title, _iconsButton, _listButton, _columnsButton,
+    for (NSView *view in @[ _navigation, _title, _viewModes,
                             _sidebar, _scroll, _columnScroll, _status ])
         [content addSubview:view];
     [self layout];
@@ -139,12 +134,11 @@ static NSTextField *label(CGFloat size, BOOL bold)
     NSRect b = [[_window contentView] bounds];
     CGFloat top = NSMaxY(b) - kBarHeight;
 
-    [_backButton setFrame:NSMakeRect(kSidebarWidth + 8, top + 7, 30, 24)];
-    [_forwardButton setFrame:NSMakeRect(kSidebarWidth + 40, top + 7, 30, 24)];
-    [_title setFrame:NSMakeRect(kSidebarWidth + 80, top + 9, NSWidth(b) - kSidebarWidth - 300, 20)];
-    [_iconsButton setFrame:NSMakeRect(NSWidth(b) - 212, top + 7, 64, 24)];
-    [_listButton setFrame:NSMakeRect(NSWidth(b) - 144, top + 7, 64, 24)];
-    [_columnsButton setFrame:NSMakeRect(NSWidth(b) - 76, top + 7, 68, 24)];
+    NSSize nav = [_navigation naturalSize], modes = [_viewModes naturalSize];
+    [_navigation setFrame:NSMakeRect(kSidebarWidth + 10, top + 7, nav.width, nav.height)];
+    [_title setFrame:NSMakeRect(kSidebarWidth + 20 + nav.width, top + 9,
+                                NSWidth(b) - kSidebarWidth - nav.width - modes.width - 50, 20)];
+    [_viewModes setFrame:NSMakeRect(NSWidth(b) - modes.width - 10, top + 7, modes.width, modes.height)];
     [_sidebar setFrame:NSMakeRect(0, 0, kSidebarWidth, NSHeight(b))];
     NSRect content = NSMakeRect(kSidebarWidth, kStatusHeight, NSWidth(b) - kSidebarWidth,
                                 NSHeight(b) - kBarHeight - kStatusHeight);
@@ -289,11 +283,10 @@ static void folderEvents(ConstFSEventStreamRef stream, void *info, size_t count,
 
 - (void)updateButtons
 {
-    [_backButton setEnabled:[_back count] > 0];
-    [_forwardButton setEnabled:[_forward count] > 0];
-    [_iconsButton setState:_browser.mode == FilesViewModeIcons ? NSOnState : NSOffState];
-    [_listButton setState:_browser.mode == FilesViewModeList ? NSOnState : NSOffState];
-    [_columnsButton setState:_browser.mode == FilesViewModeColumns ? NSOnState : NSOffState];
+    [_navigation setEnabled:[_back count] > 0 forSegment:0];
+    [_navigation setEnabled:[_forward count] > 0 forSegment:1];
+    [_viewModes setSelectedSegment:_browser.mode == FilesViewModeIcons ? 0
+                                 : _browser.mode == FilesViewModeList ? 1 : 2];
 }
 
 - (void)updateStatus
