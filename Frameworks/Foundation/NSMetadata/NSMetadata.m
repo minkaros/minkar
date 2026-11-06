@@ -446,6 +446,8 @@ static NSDictionary *valueListsFor(NSArray *attributes,NSArray *results) {
    _stopped=NO;
    [_thread release];
    _thread=[[NSThread currentThread] retain];
+   // The results come back on this thread's run loop: it must have one.
+   [NSRunLoop currentRunLoop];
 
    roots=[rootsForScopes(_searchScopes) retain];
    predicate=[_predicate retain];
