@@ -13,6 +13,7 @@ SUBDIR =
 EXTLIB =	glib
 EXTLIB_SYSTEM =	meson
 EXTLIB_PATCHES = 0001-gio-link-coreservices.patch
+EXTLIB_SUBPROJECTS = proxy-libintl
 EXTLIB_OPTIONS = -Dnls=disabled -Dselinux=disabled -Dxattr=false -Dlibmount=disabled \
 		-Dintrospection=disabled -Dtests=false -Dman-pages=disabled \
 		-Ddocumentation=false -Ddtrace=disabled -Dsystemtap=disabled \

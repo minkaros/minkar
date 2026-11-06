@@ -22,6 +22,12 @@
 #                       /usr/share/licenses/${EXTLIB}
 #   EXTLIB_SUBDIR       the source tree's subdirectory to build, if not the top
 #   EXTLIB_ENV          more environment for every step
+#   EXTLIB_SUBPROJECTS  Meson subprojects to put in the tree, each fetched by
+#                       ${.CURDIR}/MANIFEST.<name> (Meson itself downloads
+#                       nothing: --wrap-mode=nodownload)
+#   EXTLIB_HOST         yes: built for the build host instead, into
+#                       ${HOST_PREFIX} (the tools other libraries' builds
+#                       run, as GLib's), with nothing in the SDK or sysroot
 #   EXTLIB_STAGE_REMOVE files the project installs that are not published,
 #                       relative to the staging prefix (e.g. include/libintl.h)
 #
@@ -41,6 +47,7 @@ EXTLIB_LIBS ?=
 EXTLIB_LICENSES ?=
 EXTLIB_ENV ?=
 EXTLIB_STAGE_REMOVE ?=
+EXTLIB_SUBPROJECTS ?=
 
 MK_DIR :=		${.PARSEDIR}
 FETCH =			sh ${ROOT_SOURCE_DIR}/BSD/lib/libdrm/fetch.sh
@@ -55,6 +62,12 @@ STAGE =			${.OBJDIR}/stage
 CROSS =			${.OBJDIR}/minkar-cross.ini
 CMAKE_TC =		${.OBJDIR}/minkar-toolchain.cmake
 LDWRAP =		${.OBJDIR}/ld64-meson
+# What external libraries built for the build host install: their tools
+# are on every external library's PATH, and named to Meson.
+HOST_PREFIX =		${ROOT_BINARY_DIR:U${.OBJDIR}}/extlib-host
+HOST_TOOLS =		glib-mkenums glib-genmarshal glib-compile-resources \
+			glib-compile-schemas gdbus-codegen
+HOST_INI =		${.OBJDIR}/host-tools.ini
 # Meson, shared by every external library (the pinned one Mesa uses).
 VENV =			${ROOT_BINARY_DIR:U${.OBJDIR}}/extlib-venv
 REQUIREMENTS =		${ROOT_SOURCE_DIR}/BSD/lib/mesa/requirements.txt
@@ -71,16 +84,27 @@ WARN_FLAGS =		-Wno-nullability-completeness -Wno-incompatible-sysroot
 TOOLENV =	env -u MACOSX_DEPLOYMENT_TARGET -u IPHONEOS_DEPLOYMENT_TARGET \
 		-u TVOS_DEPLOYMENT_TARGET -u WATCHOS_DEPLOYMENT_TARGET \
 		-u XROS_DEPLOYMENT_TARGET -u DRIVERKIT_DEPLOYMENT_TARGET \
-		PATH=${VENV}/bin:$${PATH} \
+		PATH=${VENV}/bin:${HOST_PREFIX}/bin:$${PATH} \
 		PKG_CONFIG_LIBDIR=${SDK}/usr/lib/pkgconfig PKG_CONFIG_PATH= \
 		PKG_CONFIG_SYSROOT_DIR=${SDK} ${EXTLIB_ENV}
+.if defined(EXTLIB_HOST) && ${EXTLIB_HOST} == "yes"
+# For the build host: its compilers, and the libraries built for it before.
+TOOLENV =	env -u MACOSX_DEPLOYMENT_TARGET PATH=${VENV}/bin:${HOST_PREFIX}/bin:$${PATH} \
+		PKG_CONFIG_PATH=${HOST_PREFIX}/lib/pkgconfig \
+		LDFLAGS="-Wl,-rpath,${HOST_PREFIX}/lib" ${EXTLIB_ENV}
+.endif
 
 all: install-extlib
 
 # The tree with our patches, made again when they or the manifest change.
-${SRC}/.minkar-patches: ${EXTLIB_PATCHES:@p@${.CURDIR}/patches/${p}@} ${EXTLIB_MANIFEST}
+${SRC}/.minkar-patches: ${EXTLIB_PATCHES:@p@${.CURDIR}/patches/${p}@} ${EXTLIB_MANIFEST} \
+    ${EXTLIB_SUBPROJECTS:@p@${.CURDIR}/MANIFEST.${p}@}
 	pristine=$$(${FETCH} ${EXTLIB_MANIFEST} ${EXTLIB_CACHE}) && \
 	rm -rf ${SRC} ${SRC}.part && cp -a $$pristine ${SRC}.part && \
+	for sp in ${EXTLIB_SUBPROJECTS}; do \
+		dir=$$(${FETCH} ${.CURDIR}/MANIFEST.$$sp ${EXTLIB_CACHE}) || exit 1; \
+		rm -rf ${SRC}.part/subprojects/$$sp && cp -a $$dir ${SRC}.part/subprojects/$$sp || exit 1; \
+	done && \
 	for p in ${EXTLIB_PATCHES}; do \
 		patch -s -p1 -d ${SRC}.part < ${.CURDIR}/patches/$$p || exit 1; \
 	done && \
@@ -95,6 +119,17 @@ ${CROSS}: ${ROOT_SOURCE_DIR}/BSD/lib/mesa/minkar-cross.ini.in ${ROOT_SOURCE_DIR}
 	sed -e 's|@TC@|${TC}|g' -e 's|@SDK@|${SDK}|g' -e 's|@LD@|${LDWRAP}|g' \
 	    ${ROOT_SOURCE_DIR}/BSD/lib/mesa/minkar-cross.ini.in > ${.TARGET}
 	echo "sys_root = '${SDK}'" >> ${.TARGET}
+
+# The build host's tools, as a second cross file: written when the
+# Makefile is read, and only when it changes (Meson is set up again then).
+.if !(defined(EXTLIB_HOST) && ${EXTLIB_HOST} == "yes")
+_HOST_INI != mkdir -p ${.OBJDIR} && { echo '[binaries]'; \
+	for t in ${HOST_TOOLS}; do \
+		[ -x ${HOST_PREFIX}/bin/$$t ] && echo "$$t = '${HOST_PREFIX}/bin/$$t'"; \
+	done; true; } > ${HOST_INI}.new && \
+	{ cmp -s ${HOST_INI}.new ${HOST_INI} || mv ${HOST_INI}.new ${HOST_INI}; } && \
+	rm -f ${HOST_INI}.new; echo
+.endif
 
 ${CMAKE_TC}: ${MK_DIR}/minkar.extlib.mk
 	{ echo 'set(CMAKE_SYSTEM_NAME Darwin)'; \
@@ -139,9 +174,24 @@ ${VENV}/.minkar-requirements: ${REQUIREMENTS}
 EXTLIB_TOP =	${SRC}${EXTLIB_SUBDIR:D/${EXTLIB_SUBDIR}}
 
 # Configure again when the tree, the build files or the Makefile change.
+.if defined(EXTLIB_HOST) && ${EXTLIB_HOST} == "yes"
 .if ${EXTLIB_SYSTEM} == "meson"
-SETUP_DEPS =	${CROSS} ${VENV}/.minkar-requirements
-SETUP_CMD =	meson setup ${BUILD} ${EXTLIB_TOP} --cross-file=${CROSS} \
+SETUP_DEPS =	${VENV}/.minkar-requirements
+SETUP_CMD =	meson setup ${BUILD} ${EXTLIB_TOP} --wrap-mode=nodownload -Dbuildtype=release \
+		-Dprefix=${HOST_PREFIX} -Dlibdir=lib ${EXTLIB_OPTIONS}
+.elif ${EXTLIB_SYSTEM} == "cmake"
+SETUP_DEPS =
+SETUP_CMD =	cmake -G Ninja -S ${EXTLIB_TOP} -B ${BUILD} -DCMAKE_BUILD_TYPE=Release \
+		-DCMAKE_INSTALL_PREFIX=${HOST_PREFIX} -DCMAKE_INSTALL_LIBDIR=lib \
+		-DCMAKE_INSTALL_RPATH=${HOST_PREFIX}/lib ${EXTLIB_OPTIONS}
+.else
+.error minkar.extlib.mk: EXTLIB_HOST builds with meson or cmake
+.endif
+BUILD_CMD =	ninja -C ${BUILD} ${EXTLIB_TARGETS}
+.elif ${EXTLIB_SYSTEM} == "meson"
+SETUP_DEPS =	${CROSS} ${HOST_INI} ${VENV}/.minkar-requirements
+SETUP_CMD =	meson setup ${BUILD} ${EXTLIB_TOP} --cross-file=${CROSS} --cross-file=${HOST_INI} \
+		--wrap-mode=nodownload \
 		-Dbuildtype=release -Dprefix=/usr -Dlibdir=lib -Ddefault_library=shared ${EXTLIB_OPTIONS}
 BUILD_CMD =	ninja -C ${BUILD} ${EXTLIB_TARGETS}
 STAGE_CMD =	DESTDIR=${STAGE} ninja -C ${BUILD} install
@@ -162,7 +212,7 @@ STAGE_CMD =	gmake -C ${BUILD} DESTDIR=${STAGE} install
 .else
 .error minkar.extlib.mk: EXTLIB_SYSTEM ${EXTLIB_SYSTEM}: meson, cmake or autotools
 .endif
-.if ${EXTLIB_SYSTEM} == "autotools"
+.if ${EXTLIB_SYSTEM} == "autotools" && !(defined(EXTLIB_HOST) && ${EXTLIB_HOST} == "yes")
 BUILD_CMD =	gmake -C ${BUILD} -j${.MAKE.JOBS:U1} ${EXTLIB_TARGETS}
 .endif
 
@@ -175,6 +225,12 @@ ${BUILD}/.minkar-setup: ${SRC}/.minkar-patches ${SETUP_DEPS} ${.CURDIR}/Makefile
 build-extlib: .PHONY ${BUILD}/.minkar-setup
 	${TOOLENV} sh -c '${BUILD_CMD}'
 
+.if defined(EXTLIB_HOST) && ${EXTLIB_HOST} == "yes"
+install-extlib: .PHONY build-extlib
+	mkdir -p ${HOST_PREFIX}
+	${TOOLENV} ninja -C ${BUILD} install > ${.OBJDIR}/stage.log 2>&1 || \
+	    { tail -40 ${.OBJDIR}/stage.log; exit 1; }
+.else
 # Staged, then copied: headers, libraries and pkg-config files to the SDK
 # (pkg-config's sysroot makes their /usr paths the SDK's), the libraries
 # to the sysroot. Each library's install name is /usr/lib/<its name>.
@@ -206,6 +262,7 @@ install-extlib: .PHONY build-extlib
 .if !empty(EXTLIB_LICENSES)
 	mkdir -p ${SYSROOT_DIR}/usr/share/licenses/${EXTLIB}
 	cd ${SRC} && install -m 0444 ${EXTLIB_LICENSES} ${SYSROOT_DIR}/usr/share/licenses/${EXTLIB}/
+.endif
 .endif
 
 clean: .PHONY
