@@ -24,6 +24,7 @@ NS_ASSUME_NONNULL_BEGIN
 + (NSValue *)valueWithSize:(NSSize)size;
 + (NSValue *)valueWithRect:(NSRect)rect;
 + (NSValue *)valueWithRange:(NSRange)range;
++ (NSValue *)valueWithEdgeInsets:(NSEdgeInsets)insets;
 
 - (BOOL)isEqualToValue:(NSValue *)other;
 
@@ -39,6 +40,7 @@ NS_ASSUME_NONNULL_BEGIN
 @property (readonly) NSSize sizeValue;
 @property (readonly) NSRect rectValue;
 @property (readonly) NSRange rangeValue;
+@property (readonly) NSEdgeInsets edgeInsetsValue;
 
 @end
 

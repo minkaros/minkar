@@ -46,6 +46,27 @@ typedef NS_ENUM(NSUInteger, NSRectEdge) {
     NSMaxYEdge = NSRectEdgeMaxY,
 };
 
+// Distances in from a rectangle's edges (API 10.10).
+typedef struct NSEdgeInsets {
+    CGFloat top;
+    CGFloat left;
+    CGFloat bottom;
+    CGFloat right;
+} NSEdgeInsets;
+
+FOUNDATION_EXPORT const NSEdgeInsets NSEdgeInsetsZero;
+
+static inline NSEdgeInsets NSEdgeInsetsMake(CGFloat top, CGFloat left, CGFloat bottom, CGFloat right) {
+    NSEdgeInsets e;
+    e.top = top;
+    e.left = left;
+    e.bottom = bottom;
+    e.right = right;
+    return e;
+}
+
+FOUNDATION_EXPORT BOOL NSEdgeInsetsEqual(NSEdgeInsets aInsets, NSEdgeInsets bInsets);
+
 typedef NSRect *NSRectArray;
 typedef NSRect *NSRectPointer;
 

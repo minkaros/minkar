@@ -77,6 +77,11 @@ NSSize NSSizeFromString(NSString *string)
 
 //
 const NSRect NSZeroRect={{0,0},{0,0}};
+const NSEdgeInsets NSEdgeInsetsZero={0,0,0,0};
+
+BOOL NSEdgeInsetsEqual(NSEdgeInsets a,NSEdgeInsets b) {
+   return a.top==b.top && a.left==b.left && a.bottom==b.bottom && a.right==b.right;
+}
 
 BOOL NSEqualRects(NSRect rect0,NSRect rect1) {
    return NSEqualPoints(rect0.origin,rect1.origin) && NSEqualSizes(rect0.size,rect1.size);

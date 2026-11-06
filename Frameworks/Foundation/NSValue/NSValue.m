@@ -75,6 +75,10 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    return [NSValue value:&range withObjCType:@encode(NSRange)];
 }
 
++(NSValue *)valueWithEdgeInsets:(NSEdgeInsets)insets {
+   return [NSValue value:&insets withObjCType:@encode(NSEdgeInsets)];
+}
+
 -(BOOL)isEqual:other {
    if(![other isKindOfClass:[NSValue class]])
     return NO;
@@ -189,6 +193,12 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    NSRect rect;
    [self getValue:&rect];
    return rect;
+}
+
+-(NSEdgeInsets)edgeInsetsValue {
+   NSEdgeInsets insets;
+   [self getValue:&insets];
+   return insets;
 }
 
 -(id)descriptionWithLocale:(id)locale
