@@ -56,16 +56,28 @@ static-link needs a C compiler and pkg-config in the image
 # of scope until after Minkar 19.6.0).
 g-file-info:/g-file-info/set-modified-date-time-precision needs file times finer than a second (HFS+)
 g-file-info:/g-file-info/test_g_file_info/modification-time needs file times finer than a second (HFS+)
-#
-# GLib on Darwin emulates poll() with select() (BROKEN_POLL, its meson.build,
-# as on the reference platform), and select() fails a closed descriptor
-# with EBADF where poll() would mark it POLLNVAL (Minkar's poll() does).
-socket:/socket/source-postmortem needs poll() itself; GLib uses select() on Darwin
-gdbus-auth:/gdbus/auth/client/EXTERNAL needs poll() itself; GLib uses select() on Darwin
+g-file-info:/g-file-info/test_g_file_info/access-time needs file times finer than a second (HFS+)
 #
 # The test expects no peer PID on Darwin (G_CREDENTIALS_HAS_PID 0), but
 # GLib reads it with LOCAL_PEERPID there, as on the reference platform.
 gdbus-peer:/gdbus/peer-to-peer expects no peer PID on Darwin, which GLib gets anyway
+gdbus-peer:/gdbus/peer-to-peer/signals expects no peer PID on Darwin, which GLib gets anyway
 #
 # The tests run as root, which deletes a directory it made unreadable.
 utils-isolated:/utils-isolated/cleanup/handles-errors needs a user without root's rights
+#
+# A file's changes-done-hint comes from kqueue's NOTE_CLOSE_WRITE, which
+# Darwin's kqueue does not have (the reference platform's neither); GLib
+# then sends it 2 seconds later, after the test's next step. GLib marks
+# testfilemonitor as allowed to fail on Darwin (its issue 1392). The other
+# six tests of the program pass.
+testfilemonitor:/monitor/file-changes expects NOTE_CLOSE_WRITE, which Darwin's kqueue lacks
+testfilemonitor:/monitor/file/hard-links expects NOTE_CLOSE_WRITE, which Darwin's kqueue lacks
+#
+# getenv("foo=bar") looks up "foo": the reference platform's Libc, which
+# Minkar's is, ends a name at '='. The test expects NULL or the value of a
+# variable named "foo=bar"; GLib marks it as allowed to fail on Darwin.
+environment:/environ/getenv expects getenv() to keep '=' in a name, as the reference platform's Libc does not
+#
+# D-Bus's machine ID (/etc/machine-id): Minkar has no D-Bus.
+gdbus-peer:/gdbus/codegen-peer-to-peer needs D-Bus's /etc/machine-id
