@@ -1,0 +1,5 @@
+# Expat (MIT), fetched at build time and checked against this SHA-256,
+# taken at the first fetch.
+url https://github.com/libexpat/libexpat/releases/download/R_2_7_1/expat-2.7.1.tar.xz
+sha256 354552544b8f99012e5062f7d570ec77f14b412a3ff5c7d8d0dae62c0d217c30
+version 2.7.1

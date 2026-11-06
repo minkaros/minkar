@@ -1,31 +1,17 @@
-.include <bsd.lib.mk>
+# SPDX-License-Identifier: BSD-2-Clause
+# Copyright (c) 2026 The Minkar contributors
+# Part of Minkar.
+#
+# libpng 1.6.43 (libpng license, LICENSE), the copy in this directory:
+# Onyx2D builds it statically from here (Frameworks/Onyx2D/Makefile), and
+# this Makefile builds it as /usr/lib/libpng16.16.dylib for WebKit (W0).
 
-CMAKE=	${OBJTOP}/usr.bin/cmake/bin/cmake
-.if ${MACHINE} == "amd64"
-CMAKE_ARGS+=    -DCMAKE_SYSTEM_PROCESSOR=x86_64
-.endif
+SUBDIR =
+EXTLIB =	libpng
+EXTLIB_SOURCE =	${.CURDIR}
+EXTLIB_SYSTEM =	cmake
+EXTLIB_OPTIONS = -DPNG_STATIC=OFF -DPNG_TESTS=OFF -DPNG_TOOLS=OFF -DPNG_FRAMEWORK=OFF
+EXTLIB_LIBS =	libpng16.16.dylib
+EXTLIB_LICENSES = LICENSE
 
-CPPFLAGS= --sysroot=${OBJTOP} ${CFLAGS:M-I*}
-CFLAGS+= -Wno-error=unused-but-set-variable
-CFLAGS+= -Wno-error=null-pointer-subtraction
-CFLAGS+= -Wno-error=missing-variable-declarations
-CFLAGS+= -Wno-error=cast-align
-CFLAGS+= -Wno-error=cast-qual
-LDFLAGS+= -lz -llzma -lprivatezstd
-
-all: build
-build:
-	${CMAKE} -S ${.CURDIR} -B ${MAKEOBJDIR} \
-		-DCMAKE_C_FLAGS="${CFLAGS:N-I*}" \
-		-DCMAKE_SHARED_LINKER_FLAGS="${LDFLAGS}" \
-		-DPNG_BUILD_ZLIB=off \
-		-DZLIB_INCLUDE_DIR="${OBJTOP}/tmp/usr/include" \
-		-DZLIB_ROOT="${OBJTOP}/tmp" \
-		-DCMAKE_INSTALL_PREFIX=${PREFIX} \
-                ${CMAKE_ARGS}
-	${MAKE} -C ${MAKEOBJDIR}
-	${MAKE} -C ${MAKEOBJDIR} DESTDIR=${DESTDIR} install
-
-install:
-	${MAKE} -C ${MAKEOBJDIR} DESTDIR=${DESTDIR} install
-
+.include <minkar.extlib.mk>

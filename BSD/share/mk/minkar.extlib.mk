@@ -11,10 +11,14 @@
 #   EXTLIB              the project's name (required)
 #   EXTLIB_MANIFEST     url, sha256 and version (default ${.CURDIR}/MANIFEST;
 #                       see BSD/lib/libdrm/fetch.sh)
+#   EXTLIB_SOURCE       a source tree already in the repository, instead of
+#                       a fetched one (no manifest)
 #   EXTLIB_PATCHES      patches in ${.CURDIR}/patches, applied in order
 #   EXTLIB_SYSTEM       meson, cmake or autotools (required)
 #   EXTLIB_OPTIONS      options for its configure step
 #   EXTLIB_TARGETS      what to build (default: everything)
+#   EXTLIB_STAGE_CMD    how to install into ${STAGE} (default: the whole
+#                       project's install)
 #   EXTLIB_LIBS         the dylibs to install, as found in the staging
 #                       prefix's lib directory (e.g. libpcre2-8.0.dylib);
 #                       their links (libpcre2-8.dylib) come along
@@ -101,9 +105,16 @@ TOOLENV =	env -u MACOSX_DEPLOYMENT_TARGET PATH=${VENV}/bin:${HOST_PREFIX}/bin:$$
 all: install-extlib
 
 # The tree with our patches, made again when they or the manifest change.
-${SRC}/.minkar-patches: ${EXTLIB_PATCHES:@p@${.CURDIR}/patches/${p}@} ${EXTLIB_MANIFEST} \
+.if defined(EXTLIB_SOURCE)
+_EXTLIB_ORIGIN =	${.CURDIR}/Makefile
+_EXTLIB_PRISTINE =	echo ${EXTLIB_SOURCE}
+.else
+_EXTLIB_ORIGIN =	${EXTLIB_MANIFEST}
+_EXTLIB_PRISTINE =	${FETCH} ${EXTLIB_MANIFEST} ${EXTLIB_CACHE}
+.endif
+${SRC}/.minkar-patches: ${EXTLIB_PATCHES:@p@${.CURDIR}/patches/${p}@} ${_EXTLIB_ORIGIN} \
     ${EXTLIB_SUBPROJECTS:@p@${.CURDIR}/MANIFEST.${p}@}
-	pristine=$$(${FETCH} ${EXTLIB_MANIFEST} ${EXTLIB_CACHE}) && \
+	pristine=$$(${_EXTLIB_PRISTINE}) && \
 	rm -rf ${SRC} ${SRC}.part && cp -a $$pristine ${SRC}.part && \
 	for sp in ${EXTLIB_SUBPROJECTS}; do \
 		dir=$$(${FETCH} ${.CURDIR}/MANIFEST.$$sp ${EXTLIB_CACHE}) || exit 1; \
@@ -219,6 +230,10 @@ STAGE_CMD =	gmake -C ${BUILD} DESTDIR=${STAGE} install
 .endif
 .if ${EXTLIB_SYSTEM} == "autotools" && !(defined(EXTLIB_HOST) && ${EXTLIB_HOST} == "yes")
 BUILD_CMD =	gmake -C ${BUILD} -j${.MAKE.JOBS:U1} ${EXTLIB_TARGETS}
+.endif
+
+.if defined(EXTLIB_STAGE_CMD)
+STAGE_CMD =	${EXTLIB_STAGE_CMD}
 .endif
 
 ${BUILD}/.minkar-setup: ${SRC}/.minkar-patches ${SETUP_DEPS} ${.CURDIR}/Makefile ${MK_DIR}/minkar.extlib.mk
