@@ -172,7 +172,7 @@ static NSMenuItem *systemMenuItem(void) {
     }
     item = [[NSMenuItem alloc] initWithTitle:@"" action:NULL keyEquivalent:@""];
     NSString *path = [[NSBundle bundleForClass:[NSMenuBarWindow class]]
-        pathForResource:@"MinkarMenu-Black-18" ofType:@"png"];
+        pathForResource:@"MinkarMenu-White-18" ofType:@"png"];
     NSImage *mark = path ? [[NSImage alloc] initWithContentsOfFile:path] : nil;
     if(mark != nil) {
         [mark setScalesWhenResized:YES];

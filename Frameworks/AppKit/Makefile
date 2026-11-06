@@ -558,6 +558,8 @@ RESOURCES_FILES = Info.plist \
 	NSMenu.subproj/NSMenuArrow.tiff \
 	../../Logo_Assets/Minkar/MenuBar/MinkarMenu-Black-18.png \
 	../../Logo_Assets/Minkar/MenuBar/MinkarMenu-Black-36.png \
+	../../Logo_Assets/Minkar/MenuBar/MinkarMenu-White-18.png \
+	../../Logo_Assets/Minkar/MenuBar/MinkarMenu-White-36.png \
 	NSMenu.subproj/NSMenuViewDoubleRightArrow.tiff \
 	NSMenu.subproj/NSMenuViewDoubleRightArrowGray.tiff \
 	NSToolbar.subproj/NSToolbarPrintItem.tiff \
