@@ -12,7 +12,9 @@
 # which this build does not use. Built with its own Configure
 # (darwin64-x86_64, cross-compiling) in a copy in the object folder; the
 # headers and libraries also stay in ${.OBJDIR}/stage for the ports that
-# use them (BIND's dig), outside the SDK. The manuals of openssl and its
+# use them (BIND's dig), outside the SDK's public headers; the external
+# libraries built on it (glib-networking) find them in the SDK's
+# usr/local, with pkg-config files there. The manuals of openssl and its
 # commands (openssl-req...), as section 1.
 
 all: ${.OBJDIR}/.installed
@@ -50,5 +52,16 @@ ${.OBJDIR}/.installed: ${.OBJDIR}/build/apps/openssl
 	install -m 0644 ${STAGE}/private/etc/ssl/openssl.cnf ${SYSROOT_DIR}/private/etc/ssl/
 	for m in ${STAGE}/usr/share/man/man1/openssl*.1ossl; do \
 	    b=$${m##*/}; install -m 0444 $$m ${SYSROOT_DIR}/usr/share/man/man1/$${b%ossl}; \
+	done
+	mkdir -p ${MINKAR_SDKROOT}/usr/local/include ${MINKAR_SDKROOT}/usr/local/lib/pkgconfig
+	rm -rf ${MINKAR_SDKROOT}/usr/local/include/openssl
+	cp -R ${STAGE}/usr/include/openssl ${MINKAR_SDKROOT}/usr/local/include/
+.for l in libcrypto libssl
+	cp -f ${STAGE}/usr/lib/${l}.3.dylib ${MINKAR_SDKROOT}/usr/local/lib/
+	ln -sf ${l}.3.dylib ${MINKAR_SDKROOT}/usr/local/lib/${l}.dylib
+.endfor
+	for p in openssl libssl libcrypto; do \
+	    sed -e 's|^prefix=.*|prefix=/usr/local|' -e 's|^libdir=.*|libdir=$${exec_prefix}/lib|' \
+		${STAGE}/usr/lib/pkgconfig/$$p.pc > ${MINKAR_SDKROOT}/usr/local/lib/pkgconfig/$$p.pc; \
 	done
 	touch ${.TARGET}
