@@ -63,3 +63,20 @@ libicucore.A.dylib: lib${LIB}.a
 	cp -Rf ${.CURDIR}/source/i18n/unicode ${.CURDIR}/source/i18n/*.h \
 	  ${dir}/usr/include
 .endfor
+	# All of ICU's headers (common, i18n, io) for the external libraries
+	# built on it (HarfBuzz, WebKit), in the SDK's usr/local: symbols
+	# without the version suffix, as libicucore exports them
+	# (U_DISABLE_RENAMING 1), with pkg-config files for icu-uc, icu-i18n,
+	# icu-io and icu-data, all of them libicucore.
+	rm -rf ${MINKAR_SDKROOT}/usr/local/include/unicode
+	mkdir -p ${MINKAR_SDKROOT}/usr/local/include/unicode ${MINKAR_SDKROOT}/usr/local/lib/pkgconfig
+	cp -f ${.CURDIR}/source/common/unicode/*.h ${.CURDIR}/source/i18n/unicode/*.h \
+	  ${.CURDIR}/source/io/unicode/*.h ${MINKAR_SDKROOT}/usr/local/include/unicode/
+	sed -i -e 's|^#define U_DISABLE_RENAMING 0$$|#define U_DISABLE_RENAMING 1|' \
+	  ${MINKAR_SDKROOT}/usr/local/include/unicode/uconfig.h
+	for pc in uc i18n io data; do \
+	  { echo 'prefix=/usr/local'; echo 'includedir=$${prefix}/include'; echo 'libdir=/usr/lib'; echo; \
+	    echo "Name: icu-$$pc"; echo "Description: ICU ($$pc), in libicucore"; echo 'Version: 78.3'; \
+	    echo 'Cflags: -I$${includedir}'; echo 'Libs: -L$${libdir} -licucore'; \
+	  } > ${MINKAR_SDKROOT}/usr/local/lib/pkgconfig/icu-$$pc.pc; \
+	done
