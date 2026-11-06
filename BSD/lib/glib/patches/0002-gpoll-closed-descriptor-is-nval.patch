@@ -1,0 +1,45 @@
+On Darwin GLib polls with select() (BROKEN_POLL). A descriptor closed while
+its source is still attached made select() fail with EBADF, and g_poll()
+with it, every time, until the source went: report it as G_IO_NVAL, as
+poll() does, and the others as not ready.
+
+--- a/glib/gpoll.c	2026-11-06 15:52:36.537979145 -0500
++++ b/glib/gpoll.c	2026-11-06 15:52:36.565977980 -0500
+@@ -539,6 +539,7 @@
+ #ifdef HAVE_SYS_SELECT_H
+ #include <sys/select.h>
+ #endif /* HAVE_SYS_SELECT_H */
++#include <fcntl.h>
+ 
+ gint
+ g_poll (GPollFD *fds,
+@@ -573,6 +574,29 @@
+ 
+   ready = select (maxfd + 1, &rset, &wset, &xset,
+ 		  timeout == -1 ? NULL : &tv);
++  /* A descriptor closed while it is still watched fails the whole select()
++   * with EBADF, where poll() marks only that one (POLLNVAL) and the others
++   * still count. Report it as poll() does, so that its source is removed. */
++  if (ready < 0 && errno == EBADF)
++    {
++      ready = 0;
++      for (f = fds; f < &fds[nfds]; ++f)
++        {
++          f->revents = 0;
++          if (f->fd >= 0 && (f->events & (G_IO_IN|G_IO_OUT|G_IO_PRI)) &&
++              fcntl (f->fd, F_GETFD) < 0 && errno == EBADF)
++            {
++              f->revents = G_IO_NVAL;
++              ready++;
++            }
++        }
++      if (ready == 0)
++        {
++          errno = EBADF;
++          ready = -1;
++        }
++      return ready;
++    }
+   if (ready > 0)
+     for (f = fds; f < &fds[nfds]; ++f)
+       {
