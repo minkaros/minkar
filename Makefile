@@ -235,7 +235,8 @@ image-check: .PHONY
 m3-tools: .PHONY
 	${MAKE} -m ${ROOT_SOURCE_DIR}/BSD/share/mk ONLY_STAGE=Tests/M3 Tests/M3
 
+# SwiftFormat's suite alone takes about half an hour in a VM.
 m3-check: .PHONY
-	${MAKE} -C ${.CURDIR}/Image boottest GATE=M3
+	${MAKE} -C ${.CURDIR}/Image boottest GATE=M3 BOOTTEST_TIMEOUT=${M3_BOOTTEST_TIMEOUT:U5400}
 
 .include "./BSD/share/mk/bsd.subdir.mk"

@@ -1,0 +1,6 @@
+# SwiftFormat 0.58.7 (MIT), for gate M3: a Swift tokenizer and formatter
+# that uses Foundation at length, and its large test suite.
+url https://github.com/nicklockwood/SwiftFormat/archive/refs/tags/0.58.7.tar.gz
+file SwiftFormat-0.58.7.tar.gz
+sha256 5b89d0bb827c8207ee5de77d20f9faa63b7514417ec31eabf4949929967f06f6
+version 0.58.7

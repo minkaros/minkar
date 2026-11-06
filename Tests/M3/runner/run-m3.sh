@@ -6,6 +6,7 @@
 # Gate M3: runs the test programs of every tool in /usr/local/tests/m3
 # (each executable ending in Tests) from its own directory, and says how
 # each went; the last line says whether all passed.
+# A suite may take longer than 600 seconds: M3_TIMEOUT in its run.env.
 # A home of their own, as a user's: CFFIXED_USER_HOME and HOME, with the
 # folders a user's home has (root's is under a symbolic link, /var).
 home=/Users/m3-tests
@@ -19,7 +20,7 @@ for pkg in */; do
 	for t in "$pkg"/*Tests; do
 		[ -f "$t" ] && [ -x "$t" ] || continue
 		out=$(cd "$pkg" && { [ -f run.env ] && set -a && . ./run.env && set +a; true; } &&
-		    timeout 600 "./${t##*/}" 2>&1)
+		    timeout "${M3_TIMEOUT:-600}" "./${t##*/}" 2>&1)
 		rc=$?
 		summary=$(printf '%s\n' "$out" | grep -E "Executed [0-9]+ tests?" | tail -1 | sed 's/^[[:space:]]*//')
 		if [ $rc -eq 0 ]; then

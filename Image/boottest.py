@@ -166,6 +166,8 @@ GATES['M3'] = GATES['M2'] + [
     SSH('/usr/local/tests/m3/run.sh 2>&1 | grep "^m3: "'),
     'm3: argument-parser/ArgumentParserUnitTests passed',
     'm3: mogenerator/mogeneratorTests passed',
+    'm3: swiftformat/SwiftFormatTests passed',
+    'm3: tag/tagTests passed',
     'm3: every suite passed']
 
 # The window server starts at boot, as _windowserver. The screen is
@@ -726,8 +728,10 @@ def main(argv=None):
     p.add_argument('--verbose', action='store_true', help='echo the console')
     p.add_argument('--qemu', default='qemu-system-x86_64')
     # Not "max": under TCG it reports an AMD family the kernel panics on.
-    # Westmere is fully emulated by TCG (SSE4.2, POPCNT, no AVX).
-    p.add_argument('--cpu', default='Westmere')
+    # Westmere is fully emulated by TCG (SSE4.2, POPCNT, no AVX). With the
+    # TSC deadline timer, as the PCs Minkar runs on have: without it the
+    # kernel's local APIC timer fires short timers three times late.
+    p.add_argument('--cpu', default='Westmere,+tsc-deadline')
     # TCG by default: on CI runners /dev/kvm opens too, and the kernel
     # does not boot under their KVM yet (it does under KVM nested in
     # VMware); ask for kvm or auto where it is known to work.

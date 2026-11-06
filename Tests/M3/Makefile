@@ -8,6 +8,6 @@
 # Not part of "world": 'bmake m3-tools' before 'bmake image', then
 # 'bmake m3-check'.
 
-SUBDIR =	runner argument-parser rainbow files yams xcbeautify mogenerator
+SUBDIR =	runner argument-parser rainbow files yams xcbeautify mogenerator tag swiftformat
 
 .include <bsd.subdir.mk>

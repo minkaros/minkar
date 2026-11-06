@@ -30,7 +30,15 @@
 #                   their path in it, installed at the same path
 #   RUN_ENV         VAR=value words the tests run with (run.env, read by
 #                   run.sh)
+#   RELATIVE_<t>    compile a test target's sources by their paths in the
+#                   package, so that #file is relative: tests that find the
+#                   package's files from it find them in the installed copy
+#                   (run.sh runs tests from their package's directory)
 #   PATCHES         patches/ files applied to the package
+#   PROGNAME_<t>    the name a program is installed under (default <t>)
+#   GIT_REPO        yes: the package is made a git repository (one commit,
+#                   with its own user name and e-mail), for tests that ask
+#                   git about its files
 # Programs and test programs are installed together, so tests that run
 # the package's programs find them next to themselves.
 
@@ -48,6 +56,7 @@ TOOLENV =	env -u MACOSX_DEPLOYMENT_TARGET
 # Built as the package manager builds a package for its tests: debug
 # configuration (DEBUG, optimized all the same), SWIFT_PACKAGE, and the
 # package name for `package` declarations.
+SWIFT_THREADS ?= 4
 SWIFTC =	${TOOLENV} ${TC}/swiftc -frontend -c -O -target ${TRIPLE} -D SWIFT_PACKAGE -D DEBUG \
 		-package-name ${PKG:S/-/_/g} \
 		-sdk ${MINKAR_SDKROOT} -runtime-compatibility-version none \
@@ -69,7 +78,13 @@ ${SRC}/.minkar-patches: ${PATCHES:S,^,${.CURDIR}/patches/,} ${MANIFEST} ${.CURDI
 .endfor
 	for p in ${PATCHES}; do \
 		patch -s -p1 -d ${SRC}.part < ${.CURDIR}/patches/$$p || exit 1; \
-	done && \
+	done
+.if defined(GIT_REPO)
+	cd ${SRC}.part && git init -q && git config user.name Minkar && \
+	    git config user.email minkar@localhost && git add -A && \
+	    GIT_AUTHOR_DATE=2026-01-01T00:00:00Z GIT_COMMITTER_DATE=2026-01-01T00:00:00Z \
+	    git -c user.name=Minkar -c user.email=minkar@localhost commit -q -m "${PKG} as fetched"
+.endif
 	mv ${SRC}.part ${SRC}
 	cat ${.ALLSRC} | cksum > ${.TARGET}
 
@@ -103,12 +118,19 @@ DIR_${t} ?=	Tests/${t}
 
 # Libraries: a module and an object each, built for @testable import.
 .for t in ${LIBS}
+# Its code is generated on SWIFT_THREADS threads, an object for each
+# source (the whole module is one job: SwiftFormat's took seven minutes on
+# one), then joined into one.
 ${OUT}/${t}.o: ${SRC}/.minkar-patches ${DEPS_${t}:@d@${OBJ_${d}}@}
 	mkdir -p ${MODS} ${OUT}
-	find ${SRC}/${DIR_${t}} -name '*.swift' -print0 | sort -z | xargs -0 \
-	    ${SWIFTC} -parse-as-library -enable-testing -module-name ${t} ${FLAGS_${t}} \
+	rm -rf ${OUT}/${t}.parts && mkdir -p ${OUT}/${t}.parts
+	find ${SRC}/${DIR_${t}} -name '*.swift' -print0 | sort -z | xargs -0 sh -c \
+	    'i=0; for f in "$$@"; do case $$f in *.swift) set -- "$$@" -o ${OUT}/${t}.parts/$$i.o; i=$$((i + 1));; esac; done; \
+	     exec "$$@"' sh \
+	    ${SWIFTC} -num-threads ${SWIFT_THREADS} -parse-as-library -enable-testing -module-name ${t} ${FLAGS_${t}} \
 	    ${DEPS_${t}:@d@${INC_${d}}@} \
-	    -emit-module-path ${MODS}/${t}.swiftmodule -o ${.TARGET}
+	    -emit-module-path ${MODS}/${t}.swiftmodule
+	${TOOLENV} ${TC}/ld64 -r -arch x86_64 ${OUT}/${t}.parts/*.o -o ${.TARGET}
 .endfor
 
 # Programs: a main.swift is top-level code; without one, @main.
@@ -135,9 +157,15 @@ ${OUT}/${t}: ${SRC}/.minkar-patches ${DEPS_${t}:@d@${OBJ_${d}}@}
 .endif
 	find ${SRC}/${DIR_${t}} -name '*.swift' -print0 | sort -z | xargs -0 \
 	    ${TC}/xctest-discover -o ${OUT}/${t}.main/main.swift
+.if defined(RELATIVE_${t})
+	cd ${SRC} && { find ${OUT}/${t}.main -name '*.swift' -print0; \
+	  find ${DIR_${t}} -name '*.swift' -print0 | sort -z; } | xargs -0 \
+	    ${SWIFTC} -module-name ${t} ${FLAGS_${t}} ${DEPS_${t}:@d@${INC_${d}}@} -o ${.TARGET}.o
+.else
 	{ find ${OUT}/${t}.main -name '*.swift' -print0; \
 	  find ${SRC}/${DIR_${t}} -name '*.swift' -print0 | sort -z; } | xargs -0 \
 	    ${SWIFTC} -module-name ${t} ${FLAGS_${t}} ${DEPS_${t}:@d@${INC_${d}}@} -o ${.TARGET}.o
+.endif
 	${LINK} ${.TARGET}.o ${DEPS_${t}:@d@${OBJ_${d}}@} -F ${XCTEST_FMWKS} \
 	    -Wl,-rpath,/Library/Developer/Frameworks -o ${.TARGET}
 .endfor
@@ -145,7 +173,7 @@ ${OUT}/${t}: ${SRC}/.minkar-patches ${DEPS_${t}:@d@${OBJ_${d}}@}
 install-pkg: .PHONY ${PROGS:S,^,${OUT}/,} ${TESTS:S,^,${OUT}/,}
 	rm -rf ${DEST} && mkdir -p ${DEST}
 .for t in ${PROGS} ${TESTS}
-	install -m 0755 ${OUT}/${t} ${DEST}/
+	install -m 0755 ${OUT}/${t} ${DEST}/${PROGNAME_${t}:U${t}}
 .if !empty(RES_${t})
 	cp -R ${OUT}/${PKG}_${t}.bundle ${DEST}/
 .endif

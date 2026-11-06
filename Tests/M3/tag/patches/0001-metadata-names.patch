@@ -1,0 +1,14 @@
+Minkar: the kMDItem names (kMDItemPath, kMDItemDisplayName) are in
+CoreServices, which tag links; Minkar's Foundation.h does not bring in
+CoreServices, so import it where they are used.
+
+--- a/Tag/Tag.m
++++ b/Tag/Tag.m
+@@ -50,6 +50,7 @@
+ 
+ #import "Tag.h"
+ #import "TagName.h"
++#import <CoreServices/CoreServices.h>
+ #import <getopt.h>
+ 
+ NSString* const version = @"0.10.0";
