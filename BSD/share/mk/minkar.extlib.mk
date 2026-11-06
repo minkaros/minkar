@@ -22,6 +22,12 @@
 #   EXTLIB_LIBS         the dylibs to install, as found in the staging
 #                       prefix's lib directory (e.g. libpcre2-8.0.dylib);
 #                       their links (libpcre2-8.dylib) come along
+#   EXTLIB_PUBLIC       yes: a library the reference platform has in
+#                       /usr/lib too (libxml2, libxslt, Expat), installed
+#                       there with its headers and pkg-config file in the
+#                       SDK's usr. Otherwise it is WebKit's alone: in
+#                       /usr/lib/webkit, its headers and pkg-config file in
+#                       the SDK's usr/local/webkit, out of the public API
 #   EXTLIB_MODULES      loadable modules to install, relative to the staging
 #                       prefix (lib/gio/modules/libgioopenssl.so), at the
 #                       same place in the sysroot
@@ -76,6 +82,18 @@ EXTLIB_SUBPROJECTS ?=
 # directory (a test build in Tests/W0 names it).
 EXTLIB_DIR ?=		${.CURDIR}
 
+# Where a library goes: /usr/lib and the SDK's usr (public), or WebKit's
+# private /usr/lib/webkit and usr/local/webkit.
+PRIVATE_LIB =		/usr/lib/webkit
+PRIVATE_DEV =		/usr/local/webkit
+.if defined(EXTLIB_PUBLIC) && ${EXTLIB_PUBLIC} == "yes"
+LIB_DEST =		/usr/lib
+DEV_DEST =		/usr
+.else
+LIB_DEST =		${PRIVATE_LIB}
+DEV_DEST =		${PRIVATE_DEV}
+.endif
+
 MK_DIR :=		${.PARSEDIR}
 FETCH =			sh ${ROOT_SOURCE_DIR}/BSD/lib/libdrm/fetch.sh
 EXTLIB_CACHE ?=		${ROOT_BINARY_DIR:U${.OBJDIR}}/src-cache
@@ -93,7 +111,7 @@ LDWRAP =		${.OBJDIR}/ld64-meson
 # are on every external library's PATH, and named to Meson.
 HOST_PREFIX =		${ROOT_BINARY_DIR:U${.OBJDIR}}/extlib-host
 HOST_TOOLS =		glib-mkenums glib-genmarshal glib-compile-resources \
-			glib-compile-schemas gdbus-codegen
+			glib-compile-schemas gdbus-codegen gio-querymodules
 HOST_INI =		${.OBJDIR}/host-tools.ini
 # Meson, shared by every external library (the pinned one Mesa uses).
 VENV =			${ROOT_BINARY_DIR:U${.OBJDIR}}/extlib-venv
@@ -113,7 +131,8 @@ TOOLENV =	env -u MACOSX_DEPLOYMENT_TARGET -u IPHONEOS_DEPLOYMENT_TARGET \
 		-u TVOS_DEPLOYMENT_TARGET -u WATCHOS_DEPLOYMENT_TARGET \
 		-u XROS_DEPLOYMENT_TARGET -u DRIVERKIT_DEPLOYMENT_TARGET \
 		PATH=${VENV}/bin:${HOST_PREFIX}/bin:$${PATH} \
-		PKG_CONFIG_LIBDIR=${SDK}/usr/lib/pkgconfig:${SDK}/usr/local/lib/pkgconfig PKG_CONFIG_PATH= \
+		PKG_CONFIG_LIBDIR=${SDK}/usr/lib/pkgconfig:${SDK}/usr/local/lib/pkgconfig:${SDK}${PRIVATE_DEV}/lib/pkgconfig \
+		PKG_CONFIG_PATH= \
 		PKG_CONFIG_SYSROOT_DIR=${SDK} ${EXTLIB_ENV}
 .if defined(EXTLIB_HOST) && ${EXTLIB_HOST} == "yes"
 # For the build host: its compilers, and the libraries built for it before.
@@ -148,13 +167,14 @@ ${SRC}/.minkar-patches: ${EXTLIB_PATCHES:@p@${EXTLIB_DIR}/patches/${p}@} ${_EXTL
 
 # The build files for each system: Meson's cross file (with its linker
 # wrapper), a CMake toolchain file, or the environment autotools takes.
-${CROSS}: ${ROOT_SOURCE_DIR}/BSD/lib/mesa/minkar-cross.ini.in ${ROOT_SOURCE_DIR}/BSD/lib/mesa/ld64-meson.in
+${CROSS}: ${ROOT_SOURCE_DIR}/BSD/lib/mesa/minkar-cross.ini.in ${ROOT_SOURCE_DIR}/BSD/lib/mesa/ld64-meson.in \
+    ${MK_DIR}/minkar.extlib.mk
 	sed -e 's|@TC@|${TC}|g' ${ROOT_SOURCE_DIR}/BSD/lib/mesa/ld64-meson.in > ${LDWRAP}
 	chmod 0755 ${LDWRAP}
 	sed -e 's|@TC@|${TC}|g' -e 's|@SDK@|${SDK}|g' -e 's|@LD@|${LDWRAP}|g' \
 	    ${ROOT_SOURCE_DIR}/BSD/lib/mesa/minkar-cross.ini.in > ${.TARGET}
 	echo "sys_root = '${SDK}'" >> ${.TARGET}
-	sed -i "s|^pkg_config_libdir = .*|pkg_config_libdir = ['${SDK}/usr/lib/pkgconfig', '${SDK}/usr/local/lib/pkgconfig']|" ${.TARGET}
+	sed -i "s|^pkg_config_libdir = .*|pkg_config_libdir = ['${SDK}/usr/lib/pkgconfig', '${SDK}/usr/local/lib/pkgconfig', '${SDK}${PRIVATE_DEV}/lib/pkgconfig']|" ${.TARGET}
 
 # The build host's tools, as a second cross file: written when the
 # Makefile is read, and only when it changes (Meson is set up again then).
@@ -293,7 +313,8 @@ install-extlib: .PHONY build-extlib
 		while read -r dep; do \
 			name=$${dep##*/}; \
 			here=$$(find ${TEST_DIR} \( -name $$name -o -name $${name%.dylib}.so \) | head -1); \
-			if [ -e ${SYSROOT_DIR}/usr/lib/$$name ]; then new=/usr/lib/$$name; \
+			if [ -e ${SYSROOT_DIR}${PRIVATE_LIB}/$$name ]; then new=${PRIVATE_LIB}/$$name; \
+			elif [ -e ${SYSROOT_DIR}/usr/lib/$$name ]; then new=/usr/lib/$$name; \
 			elif [ -n "$$here" ]; then new=/usr/local/tests/w0/${EXTLIB}/$${here#${TEST_DIR}/}; \
 			else \
 				built=$$(find ${BUILD} -name $$name | head -1); \
@@ -310,7 +331,8 @@ install-extlib: .PHONY build-extlib
 		${TC}/otool -L "$$f" | awk '$$1 ~ /^@rpath\// || index($$1, "${.OBJDIR}/") == 1 { print $$1 }' | \
 		while read -r dep; do \
 			n=$${dep##*/}; \
-			if [ -e ${TEST_DIR}/$$n ]; then n=/usr/local/tests/w0/${EXTLIB}/$$n; else n=/usr/lib/$$n; fi; \
+			if [ -e ${TEST_DIR}/$$n ]; then n=/usr/local/tests/w0/${EXTLIB}/$$n; \
+			elif [ -e ${SYSROOT_DIR}${PRIVATE_LIB}/$$n ]; then n=${PRIVATE_LIB}/$$n; else n=/usr/lib/$$n; fi; \
 			${TC}/install_name_tool -change $$dep $$n "$$f"; \
 		done; \
 	done; true
@@ -322,8 +344,18 @@ install-extlib: .PHONY build-extlib
 	    { tail -40 ${.OBJDIR}/stage.log; exit 1; }
 .else
 # Staged, then copied: headers, libraries and pkg-config files to the SDK
-# (pkg-config's sysroot makes their /usr paths the SDK's), the libraries
-# to the sysroot. Each library's install name is /usr/lib/<its name>.
+# (pkg-config's sysroot makes their paths the SDK's), the libraries to the
+# sysroot, at LIB_DEST and DEV_DEST. Each library's install name is
+# LIB_DEST/<its name>; a private library's pkg-config file says where it
+# is. A reference to another library of the build (@rpath) is to it at
+# LIB_DEST.
+PC_FIX =	-e 's|^prefix=.*|prefix=${DEV_DEST}|' -e 's|^libdir=.*|libdir=${LIB_DEST}|' \
+		-e 's|^includedir=/usr/include|includedir=${DEV_DEST}/include|'
+.if ${DEV_DEST} != "/usr"
+# Out of the default paths: the -I and -L a file written for /usr leaves out.
+PC_FIX +=	-e '/^Cflags:/{/-I/!s|^Cflags:|Cflags: -I$${includedir}|;}' \
+		-e '/^Libs:/{/-L/!s|^Libs:|Libs: -L$${libdir}|;}'
+.endif
 install-extlib: .PHONY build-extlib
 	rm -rf ${STAGE}
 	${TOOLENV} sh -c '${STAGE_CMD}' > ${.OBJDIR}/stage.log 2>&1 || \
@@ -331,33 +363,39 @@ install-extlib: .PHONY build-extlib
 .for f in ${EXTLIB_STAGE_REMOVE}
 	rm -f ${STAGE}/usr/${f}
 .endfor
-	mkdir -p ${SDK}/usr/include ${SDK}/usr/lib/pkgconfig ${SYSROOT_DIR}/usr/lib
-	if [ -d ${STAGE}/usr/include ]; then cp -R ${STAGE}/usr/include/. ${SDK}/usr/include/; fi
-	if [ -d ${STAGE}/usr/lib/pkgconfig ]; then cp -R ${STAGE}/usr/lib/pkgconfig/. ${SDK}/usr/lib/pkgconfig/; fi
+	mkdir -p ${SDK}${DEV_DEST}/include ${SDK}${DEV_DEST}/lib/pkgconfig ${SDK}${LIB_DEST} \
+	    ${SYSROOT_DIR}${LIB_DEST}
+	if [ -d ${STAGE}/usr/include ]; then cp -R ${STAGE}/usr/include/. ${SDK}${DEV_DEST}/include/; fi
+	if [ -d ${STAGE}/usr/lib/pkgconfig ]; then \
+		for pc in ${STAGE}/usr/lib/pkgconfig/*.pc; do \
+			sed ${PC_FIX} $$pc > ${SDK}${DEV_DEST}/lib/pkgconfig/$${pc##*/} || exit 1; \
+		done; \
+	fi
 	# Other directories of lib (configuration headers: glib-2.0/include).
 	for d in ${STAGE}/usr/lib/*/; do \
-		case $$d in */pkgconfig/) ;; *) [ -d "$$d" ] && cp -R "$$d" ${SDK}/usr/lib/ ;; esac; \
+		case $$d in */pkgconfig/|*/webkit/) ;; *) [ -d "$$d" ] && cp -R "$$d" ${SDK}${LIB_DEST}/ ;; esac; \
 	done
 	cd ${STAGE}/usr/lib && for lib in ${EXTLIB_LIBS}; do \
 		test -f $$lib || { echo "minkar.extlib.mk: $$lib not built" >&2; exit 1; }; \
-		${TC}/install_name_tool -id /usr/lib/$$lib $$lib 2>/dev/null; \
+		${TC}/install_name_tool -id ${LIB_DEST}/$$lib $$lib 2>/dev/null; \
 		for dep in $$(${TC}/otool -L $$lib | awk '$$1 ~ /^@rpath\// { print $$1 }'); do \
-			${TC}/install_name_tool -change $$dep /usr/lib/$${dep#@rpath/} $$lib || exit 1; \
+			${TC}/install_name_tool -change $$dep ${LIB_DEST}/$${dep#@rpath/} $$lib || exit 1; \
 		done; \
 		base=$${lib%%.*}; \
 		for f in $$base.*dylib; do \
-			cp -P $$f ${SDK}/usr/lib/ && cp -P $$f ${SYSROOT_DIR}/usr/lib/ || exit 1; \
+			cp -P $$f ${SDK}${LIB_DEST}/ && cp -P $$f ${SYSROOT_DIR}${LIB_DEST}/ || exit 1; \
 		done; \
 	done
 	for m in ${EXTLIB_MODULES}; do \
 		f=${STAGE}/usr/$$m; test -f $$f || { echo "minkar.extlib.mk: $$m not built" >&2; exit 1; }; \
 		for dep in $$(${TC}/otool -L $$f | awk '$$1 ~ /^@rpath\// { print $$1 }'); do \
-			${TC}/install_name_tool -change $$dep /usr/lib/$${dep#@rpath/} $$f || exit 1; \
+			${TC}/install_name_tool -change $$dep ${LIB_DEST}/$${dep#@rpath/} $$f || exit 1; \
 		done; \
 		mkdir -p ${SYSROOT_DIR}/usr/$${m%/*} && cp -f $$f ${SYSROOT_DIR}/usr/$$m || exit 1; \
 	done
 	for f in ${EXTLIB_SDK_FILES}; do \
-		mkdir -p ${SDK}/$${f%/*} && cp -f ${STAGE}/$$f ${SDK}/$$f || exit 1; \
+		d=${SDK}${DEV_DEST}/$${f#usr/}; \
+		mkdir -p $${d%/*} && cp -f ${STAGE}/$$f $$d || exit 1; \
 	done
 	for d in ${EXTLIB_DATA}; do \
 		test -e ${STAGE}/$$d || { echo "minkar.extlib.mk: $$d not installed" >&2; exit 1; }; \

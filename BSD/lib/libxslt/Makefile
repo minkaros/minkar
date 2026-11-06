@@ -7,6 +7,7 @@
 
 SUBDIR =
 EXTLIB =	libxslt
+EXTLIB_PUBLIC =	yes
 EXTLIB_SYSTEM =	autotools
 EXTLIB_OPTIONS = --without-python --without-crypto --without-debugger --without-profiler
 EXTLIB_LIBS =	libxslt.1.dylib libexslt.0.dylib

@@ -9,7 +9,7 @@ SUBDIR =
 EXTLIB =	libgcrypt
 EXTLIB_SYSTEM =	autotools
 # libgpg-error's gpgrt-config, in the SDK (it finds gpg-error.pc beside it).
-EXTLIB_ENV =	GPGRT_CONFIG=${SDK}/usr/bin/gpgrt-config
+EXTLIB_ENV =	GPGRT_CONFIG=${SDK}/usr/local/webkit/bin/gpgrt-config
 # The C versions of the multi-precision routines (their assembly is not
 # assembled for this target).
 EXTLIB_OPTIONS = --disable-doc --disable-asm

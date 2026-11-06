@@ -19,7 +19,8 @@ EXTLIB_OPTIONS = -Dnls=disabled -Dselinux=disabled -Dxattr=false -Dlibmount=disa
 		-Ddocumentation=false -Ddtrace=disabled -Dsystemtap=disabled \
 		-Dsysprof=disabled -Dglib_debug=disabled -Dglib_assert=true \
 		-Doss_fuzz=disabled -Dbsymbolic_functions=false \
-		--force-fallback-for=intl -Dproxy-libintl:default_library=static
+		--force-fallback-for=intl -Dproxy-libintl:default_library=static \
+		-Dgio_module_dir=/usr/lib/webkit/gio/modules
 EXTLIB_STAGE_REMOVE = include/libintl.h lib/libintl.a lib/pkgconfig/intl.pc
 EXTLIB_LIBS =	libglib-2.0.0.dylib libgobject-2.0.0.dylib libgio-2.0.0.dylib \
 		libgmodule-2.0.0.dylib libgthread-2.0.0.dylib libgirepository-2.0.0.dylib
