@@ -17,7 +17,8 @@ CFLAGS +=	-fobjc-arc -g -std=gnu17 -Wno-incompatible-sysroot \
 		-Wno-nullability-completeness
 LDFLAGS +=	-lobjc
 # The Spanish texts (the English ones are the keys), and the icon
-# (CFBundleIconFile). Files.png is a test icon, not the final one.
+# (CFBundleIconFile), from the Faience icon theme (GPL-3; its source is
+# in SystemLibrary/Icons).
 RESOURCES =	${.CURDIR}/es.lproj ${.CURDIR}/Files.png
 
 .include <minkar.app.mk>

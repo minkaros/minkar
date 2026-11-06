@@ -6,6 +6,8 @@
 	<string>en</string>
 	<key>CFBundleExecutable</key>
 	<string>SystemPreferences</string>
+	<key>CFBundleIconFile</key>
+	<string>SystemPreferences</string>
 	<key>CFBundleIdentifier</key>
 	<string>org.minkar.systempreferences</string>
 	<key>CFBundleName</key>

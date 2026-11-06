@@ -21,6 +21,8 @@
 	</array>
 	<key>CFBundleExecutable</key>
 	<string>TextEditor</string>
+	<key>CFBundleIconFile</key>
+	<string>TextEditor</string>
 	<key>CFBundleIdentifier</key>
 	<string>org.minkar.TextEditor</string>
 	<key>CFBundleDisplayName</key>

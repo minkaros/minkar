@@ -15,6 +15,8 @@ MK_WERROR =	no
 CFLAGS +=	-fobjc-arc -g -std=gnu17 -Wno-incompatible-sysroot -Wno-nullability-completeness
 LDFLAGS +=	-lobjc
 # The Spanish texts (the English ones are the keys).
-RESOURCES =	${.CURDIR}/es.lproj
+# The icon (CFBundleIconFile), from the Faience icon theme (GPL-3;
+# its source is in SystemLibrary/Icons).
+RESOURCES =	${.CURDIR}/es.lproj ${.CURDIR}/TextEditor.png
 
 .include <minkar.app.mk>
