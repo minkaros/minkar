@@ -416,6 +416,74 @@ lsd_copy_app_for_bundle_id(mach_port_t server, LSSessionPath bundleID, int32_t *
 	return KERN_SUCCESS;
 }
 
+/* -- Interface version 5: types and URL schemes -- */
+
+kern_return_t
+lsd_copy_handlers_for_type(mach_port_t server, LSSessionPath type, uint32_t roles,
+    int32_t *result, ls_path_list_t apps, mach_msg_type_number_t *count)
+{
+	type.path[sizeof(type.path) - 1] = '\0';
+	LSDBRefresh();
+	*count = LSDBCopyHandlersForType(type.path, roles, apps, kLSSessionMaxHandlers);
+	*result = kLSSessionSuccess;
+	return KERN_SUCCESS;
+}
+
+kern_return_t
+lsd_copy_handlers_for_scheme(mach_port_t server, LSSessionPath scheme, int32_t *result,
+    ls_path_list_t apps, mach_msg_type_number_t *count)
+{
+	scheme.path[sizeof(scheme.path) - 1] = '\0';
+	LSDBRefresh();
+	*count = LSDBCopyHandlersForScheme(scheme.path, apps, kLSSessionMaxHandlers);
+	*result = kLSSessionSuccess;
+	return KERN_SUCCESS;
+}
+
+kern_return_t
+lsd_conforms_to(mach_port_t server, LSSessionPath type, LSSessionPath other, int32_t *result)
+{
+	type.path[sizeof(type.path) - 1] = '\0';
+	other.path[sizeof(other.path) - 1] = '\0';
+	LSDBRefresh();
+	*result = LSDBConformsTo(type.path, other.path);
+	return KERN_SUCCESS;
+}
+
+kern_return_t
+lsd_copy_declaration(mach_port_t server, LSSessionPath type, int32_t *result, ls_bytes_t text,
+    mach_msg_type_number_t *length)
+{
+	type.path[sizeof(type.path) - 1] = '\0';
+	LSDBRefresh();
+	if (LSDBCopyDeclaration(type.path, text, kLSSessionMaxURLBytes) != 0) {
+		*result = kLSSessionIllegalArgument;
+		*length = 0;
+		return KERN_SUCCESS;
+	}
+	*result = kLSSessionSuccess;
+	*length = (mach_msg_type_number_t)strlen(text);
+	return KERN_SUCCESS;
+}
+
+kern_return_t
+lsd_copy_types_for_tag(mach_port_t server, uint32_t tagClass, LSSessionPath tag,
+    LSSessionPath conforming, int32_t *result, ls_bytes_t text, mach_msg_type_number_t *length)
+{
+	tag.path[sizeof(tag.path) - 1] = '\0';
+	conforming.path[sizeof(conforming.path) - 1] = '\0';
+	LSDBRefresh();
+	if (tagClass > 1 || LSDBCopyTypesForTag(tagClass, tag.path, conforming.path, text,
+	    kLSSessionMaxURLBytes) != 0) {
+		*result = kLSSessionIllegalArgument;
+		*length = 0;
+		return KERN_SUCCESS;
+	}
+	*result = kLSSessionSuccess;
+	*length = (mach_msg_type_number_t)strlen(text);
+	return KERN_SUCCESS;
+}
+
 kern_return_t
 lsd_register_app(mach_port_t server, LSSessionPath path, int32_t *result)
 {

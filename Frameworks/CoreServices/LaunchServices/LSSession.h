@@ -58,7 +58,7 @@ extern "C" {
 #endif
 
 #define kLSSessionServiceName		"org.minkar.coreservices.launchservicesd"
-#define kLSSessionInterfaceVersion	4
+#define kLSSessionInterfaceVersion	5
 
 /* An application, as the daemon keeps it. */
 typedef struct LSSessionApp {
@@ -189,6 +189,21 @@ int LSSessionSetHidden(pid_t pid, int hidden);
  * minute (the caller launches it). *running says which. */
 int LSSessionOpen(const char *appPath, const char *urls, uint32_t length, uint32_t flags,
     int *running);
+
+/* Interface version 5: the applications for a type identifier with the
+ * roles (0: any) or for a URL scheme, best first (free(*apps) when done);
+ * whether a type conforms to another (1, 0, or an error below 0); a
+ * type's declaration (four lines: conforms to, extensions, MIME types,
+ * description; free(*text)); the types with a tag of a class (0: filename
+ * extension, 1: MIME type) that conform to a type (NULL: any), one per
+ * line, built-in first (free(*text)). */
+int LSSessionCopyHandlersForType(const char *uti, uint32_t roles, LSSessionPath **apps,
+    uint32_t *count);
+int LSSessionCopyHandlersForScheme(const char *scheme, LSSessionPath **apps, uint32_t *count);
+int LSSessionConformsTo(const char *uti, const char *other);
+int LSSessionCopyDeclaration(const char *uti, char **text);
+int LSSessionCopyTypesForTag(uint32_t tagClass, const char *tag, const char *conforming,
+    char **text);
 
 #ifdef __cplusplus
 }

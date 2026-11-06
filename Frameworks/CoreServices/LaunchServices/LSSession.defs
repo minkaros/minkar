@@ -95,3 +95,37 @@ routine set_hidden(
 	pid			: int32_t;
 	hidden			: int32_t;
 	out result		: int32_t);
+
+/* Interface version 5: types and URL schemes. */
+routine copy_handlers_for_type(
+	server			: mach_port_t;
+	uti			: ls_path_t;
+	roles			: uint32_t;
+	out result		: int32_t;
+	out apps		: ls_path_list_t);
+
+routine copy_handlers_for_scheme(
+	server			: mach_port_t;
+	scheme			: ls_path_t;
+	out result		: int32_t;
+	out apps		: ls_path_list_t);
+
+routine conforms_to(
+	server			: mach_port_t;
+	uti			: ls_path_t;
+	other			: ls_path_t;
+	out result		: int32_t);
+
+routine copy_declaration(
+	server			: mach_port_t;
+	uti			: ls_path_t;
+	out result		: int32_t;
+	out declaration		: ls_bytes_t);
+
+routine copy_types_for_tag(
+	server			: mach_port_t;
+	tag_class		: uint32_t;
+	tag			: ls_path_t;
+	conforming		: ls_path_t;
+	out result		: int32_t;
+	out types		: ls_bytes_t);

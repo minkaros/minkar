@@ -33,11 +33,13 @@ enum { kRankNone = 0, kRankAlternate = 1, kRankDefault = 2, kRankOwner = 3 };
 
 #define MAX_LIST	32	/* types or extensions in one declaration */
 
-/* A type identifier: what it conforms to and its extensions. */
+/* A type identifier: what it conforms to, its tags and its description. */
 typedef struct {
 	char	*uti;
 	char	*conforms[MAX_LIST];
 	char	*extensions[MAX_LIST];
+	char	*mimeTypes[MAX_LIST];
+	char	*description;
 } Type;
 
 typedef struct {
@@ -55,6 +57,7 @@ typedef struct {
 	unsigned docTypeCount;
 	Type	*declared;	/* exported, then imported */
 	unsigned declaredCount;
+	char	*schemes[MAX_LIST];	/* CFBundleURLTypes' schemes, lower case */
 } App;
 
 /* The folders, in the order their applications are preferred. */
@@ -77,66 +80,87 @@ static char **registered;
 static unsigned registeredCount;
 
 /* The types it knows by itself: identifier, what it conforms to, its
- * extensions. Applications may declare more. */
-static const struct { const char *uti, *conforms, *extensions; } kTypes[] = {
-	{ "public.item", "", "" },
-	{ "public.content", "", "" },
-	{ "public.data", "public.item", "" },
-	{ "public.directory", "public.item", "" },
-	{ "public.folder", "public.directory", "" },
-	{ "com.apple.package", "public.directory", "" },
-	{ "com.apple.bundle", "public.directory", "" },
-	{ "com.apple.application", "public.data", "" },
-	{ "com.apple.application-bundle", "com.apple.application com.apple.bundle com.apple.package", "app" },
-	{ "public.executable", "public.item", "" },
-	{ "public.unix-executable", "public.data public.executable", "" },
-	{ "public.text", "public.data public.content", "" },
-	{ "public.plain-text", "public.text", "txt text" },
-	{ "public.utf8-plain-text", "public.plain-text", "" },
-	{ "public.source-code", "public.plain-text", "" },
-	{ "public.c-source", "public.source-code", "c" },
-	{ "public.c-header", "public.source-code", "h" },
-	{ "public.objective-c-source", "public.source-code", "m" },
-	{ "public.c-plus-plus-source", "public.source-code", "cpp cc cxx c++" },
-	{ "public.c-plus-plus-header", "public.source-code", "hpp hh hxx" },
-	{ "public.objective-c-plus-plus-source", "public.source-code", "mm" },
-	{ "public.swift-source", "public.source-code", "swift" },
-	{ "public.assembly-source", "public.source-code", "s" },
-	{ "public.script", "public.source-code", "" },
-	{ "public.shell-script", "public.script", "sh bash zsh csh ksh command" },
-	{ "public.python-script", "public.script", "py" },
-	{ "public.perl-script", "public.script", "pl pm" },
-	{ "public.ruby-script", "public.script", "rb" },
-	{ "com.netscape.javascript-source", "public.script", "js mjs" },
-	{ "public.log", "public.plain-text", "log" },
-	{ "public.comma-separated-values-text", "public.plain-text", "csv" },
-	{ "public.tab-separated-values-text", "public.plain-text", "tsv" },
-	{ "public.json", "public.text", "json" },
-	{ "public.yaml", "public.plain-text", "yaml yml" },
-	{ "net.daringfireball.markdown", "public.plain-text", "md markdown" },
-	{ "public.xml", "public.text", "xml" },
-	{ "com.apple.property-list", "public.data", "plist" },
-	{ "public.html", "public.text", "html htm" },
-	{ "public.css", "public.plain-text", "css" },
-	{ "public.rtf", "public.text", "rtf" },
-	{ "public.image", "public.data public.content", "" },
-	{ "public.png", "public.image", "png" },
-	{ "public.jpeg", "public.image", "jpg jpeg" },
-	{ "com.compuserve.gif", "public.image", "gif" },
-	{ "public.tiff", "public.image", "tif tiff" },
-	{ "com.microsoft.bmp", "public.image", "bmp" },
-	{ "org.webmproject.webp", "public.image", "webp" },
-	{ "public.svg-image", "public.image public.xml", "svg" },
-	{ "com.adobe.pdf", "public.data public.content", "pdf" },
-	{ "public.audio", "public.data public.content", "" },
-	{ "public.movie", "public.data public.content", "" },
-	{ "public.archive", "public.data", "" },
-	{ "public.zip-archive", "public.archive", "zip" },
-	{ "org.gnu.gnu-zip-archive", "public.archive", "gz tgz" },
-	{ "public.tar-archive", "public.archive", "tar" },
-	{ "public.bzip2-archive", "public.archive", "bz2" },
-	{ "org.tukaani.xz-archive", "public.archive", "xz" },
-	{ "com.apple.disk-image", "public.data", "dmg" },
+ * extensions, its MIME types and its description. Applications may
+ * declare more. */
+static const struct {
+	const char *uti, *conforms, *extensions, *mimeTypes, *description;
+} kTypes[] = {
+	{ "public.item", "", "", "", "item" },
+	{ "public.content", "", "", "", "content" },
+	{ "public.data", "public.item", "", "application/octet-stream", "data" },
+	{ "public.directory", "public.item", "", "", "directory" },
+	{ "public.folder", "public.directory", "", "inode/directory", "folder" },
+	{ "public.volume", "public.folder", "", "", "volume" },
+	{ "public.symlink", "public.item", "", "inode/symlink", "symbolic link" },
+	{ "com.apple.alias-file", "public.data", "", "", "alias" },
+	{ "public.url", "public.data", "", "", "URL" },
+	{ "public.file-url", "public.url", "", "", "file URL" },
+	{ "com.apple.package", "public.directory", "", "", "package" },
+	{ "com.apple.bundle", "public.directory", "", "", "bundle" },
+	{ "com.apple.application", "public.data", "", "", "application" },
+	{ "com.apple.application-bundle", "com.apple.application com.apple.bundle com.apple.package", "app", "", "application" },
+	{ "public.executable", "public.item", "", "", "executable" },
+	{ "public.unix-executable", "public.data public.executable", "", "application/x-executable", "Unix executable" },
+	{ "public.text", "public.data public.content", "", "text/plain", "text" },
+	{ "public.plain-text", "public.text", "txt text", "text/plain", "plain text document" },
+	{ "public.utf8-plain-text", "public.plain-text", "", "", "Unicode text document" },
+	{ "public.source-code", "public.plain-text", "", "", "source code" },
+	{ "public.c-source", "public.source-code", "c", "text/x-csrc", "C source" },
+	{ "public.c-header", "public.source-code", "h", "text/x-chdr", "C header" },
+	{ "public.objective-c-source", "public.source-code", "m", "text/x-objcsrc", "Objective-C source" },
+	{ "public.c-plus-plus-source", "public.source-code", "cpp cc cxx c++", "text/x-c++src", "C++ source" },
+	{ "public.c-plus-plus-header", "public.source-code", "hpp hh hxx", "text/x-c++hdr", "C++ header" },
+	{ "public.objective-c-plus-plus-source", "public.source-code", "mm", "text/x-objc++src", "Objective-C++ source" },
+	{ "public.swift-source", "public.source-code", "swift", "text/x-swift", "Swift source" },
+	{ "public.assembly-source", "public.source-code", "s", "text/x-asm", "assembly source" },
+	{ "public.script", "public.source-code", "", "", "script" },
+	{ "public.shell-script", "public.script", "sh bash zsh csh ksh command", "application/x-sh", "shell script" },
+	{ "public.python-script", "public.script", "py", "text/x-python", "Python script" },
+	{ "public.perl-script", "public.script", "pl pm", "text/x-perl", "Perl script" },
+	{ "public.ruby-script", "public.script", "rb", "text/x-ruby", "Ruby script" },
+	{ "com.netscape.javascript-source", "public.script", "js mjs", "text/javascript", "JavaScript script" },
+	{ "public.log", "public.plain-text", "log", "text/x-log", "log file" },
+	{ "public.comma-separated-values-text", "public.plain-text", "csv", "text/csv", "comma-separated values" },
+	{ "public.tab-separated-values-text", "public.plain-text", "tsv", "text/tab-separated-values", "tab-separated values" },
+	{ "public.json", "public.text", "json", "application/json", "JSON document" },
+	{ "public.yaml", "public.plain-text", "yaml yml", "application/x-yaml", "YAML document" },
+	{ "net.daringfireball.markdown", "public.plain-text", "md markdown", "text/markdown", "Markdown document" },
+	{ "public.xml", "public.text", "xml", "application/xml", "XML document" },
+	{ "com.apple.property-list", "public.data", "plist", "application/x-plist", "property list" },
+	{ "public.html", "public.text", "html htm", "text/html", "HTML document" },
+	{ "public.css", "public.plain-text", "css", "text/css", "CSS style sheet" },
+	{ "public.rtf", "public.text", "rtf", "text/rtf", "RTF document" },
+	{ "public.image", "public.data public.content", "", "", "image" },
+	{ "public.png", "public.image", "png", "image/png", "PNG image" },
+	{ "public.jpeg", "public.image", "jpg jpeg", "image/jpeg", "JPEG image" },
+	{ "com.compuserve.gif", "public.image", "gif", "image/gif", "GIF image" },
+	{ "public.tiff", "public.image", "tif tiff", "image/tiff", "TIFF image" },
+	{ "com.microsoft.bmp", "public.image", "bmp", "image/bmp", "BMP image" },
+	{ "org.webmproject.webp", "public.image", "webp", "image/webp", "WebP image" },
+	{ "public.svg-image", "public.image public.xml", "svg", "image/svg+xml", "SVG image" },
+	{ "com.adobe.pdf", "public.data public.content", "pdf", "application/pdf", "PDF document" },
+	{ "public.font", "public.data", "", "", "font" },
+	{ "public.truetype-ttf-font", "public.font", "ttf", "font/ttf", "TrueType font" },
+	{ "public.opentype-font", "public.font", "otf", "font/otf", "OpenType font" },
+	{ "org.w3.woff", "public.font", "woff", "font/woff", "WOFF font" },
+	{ "org.w3.woff2", "public.font", "woff2", "font/woff2", "WOFF2 font" },
+	{ "public.audio", "public.data public.content", "", "", "audio" },
+	{ "public.mp3", "public.audio", "mp3", "audio/mpeg", "MP3 audio" },
+	{ "com.microsoft.waveform-audio", "public.audio", "wav wave", "audio/wav", "Waveform audio" },
+	{ "public.aiff-audio", "public.audio", "aif aiff", "audio/aiff", "AIFF audio" },
+	{ "org.xiph.ogg-audio", "public.audio", "ogg oga", "audio/ogg", "Ogg audio" },
+	{ "public.movie", "public.data public.content", "", "", "movie" },
+	{ "public.mpeg-4", "public.movie", "mp4", "video/mp4", "MPEG-4 movie" },
+	{ "com.apple.quicktime-movie", "public.movie", "mov qt", "video/quicktime", "QuickTime movie" },
+	{ "org.webmproject.webm", "public.movie", "webm", "video/webm", "WebM movie" },
+	{ "public.archive", "public.data", "", "", "archive" },
+	{ "public.zip-archive", "public.archive", "zip", "application/zip", "ZIP archive" },
+	{ "org.gnu.gnu-zip-archive", "public.archive", "gz tgz", "application/gzip", "gzip archive" },
+	{ "public.tar-archive", "public.archive", "tar", "application/x-tar", "tar archive" },
+	{ "public.bzip2-archive", "public.archive", "bz2", "application/x-bzip2", "bzip2 archive" },
+	{ "org.tukaani.xz-archive", "public.archive", "xz", "application/x-xz", "xz archive" },
+	{ "com.apple.disk-image", "public.data", "dmg", "application/x-apple-diskimage", "disk image" },
+	{ "public.iso-image", "public.data", "iso", "application/x-iso9660-image", "disc image" },
 };
 #define TYPE_COUNT	(sizeof(kTypes) / sizeof(kTypes[0]))
 
@@ -163,6 +187,8 @@ loadBuiltin(void)
 		builtin[i].uti = (char *)kTypes[i].uti;
 		splitWords(kTypes[i].conforms, builtin[i].conforms);
 		splitWords(kTypes[i].extensions, builtin[i].extensions);
+		splitWords(kTypes[i].mimeTypes, builtin[i].mimeTypes);
+		builtin[i].description = (char *)kTypes[i].description;
 	}
 }
 
@@ -300,9 +326,12 @@ readDeclarations(App *app, CFTypeRef list)
 		t->uti = uti;
 		copyList(CFDictionaryGetValue(d, CFSTR("UTTypeConformsTo")), t->conforms, 0);
 		CFDictionaryRef tags = CFDictionaryGetValue(d, CFSTR("UTTypeTagSpecification"));
-		copyList(tags && CFGetTypeID(tags) == CFDictionaryGetTypeID() ?
-		    CFDictionaryGetValue(tags, CFSTR("public.filename-extension")) : NULL,
+		int hasTags = tags != NULL && CFGetTypeID(tags) == CFDictionaryGetTypeID();
+		copyList(hasTags ? CFDictionaryGetValue(tags, CFSTR("public.filename-extension")) : NULL,
 		    t->extensions, 1);
+		copyList(hasTags ? CFDictionaryGetValue(tags, CFSTR("public.mime-type")) : NULL,
+		    t->mimeTypes, 1);
+		t->description = copyCString(CFDictionaryGetValue(d, CFSTR("UTTypeDescription")));
 	}
 }
 
@@ -333,6 +362,22 @@ readApp(App *app, const char *path, int folder)
 			copyList(CFDictionaryGetValue(d, CFSTR("CFBundleTypeExtensions")), t->extensions, 1);
 		}
 	}
+	CFArrayRef urlTypes = CFDictionaryGetValue(info, CFSTR("CFBundleURLTypes"));
+	unsigned schemes = 0;
+	if (urlTypes != NULL && CFGetTypeID(urlTypes) == CFArrayGetTypeID())
+		for (CFIndex i = 0; i < CFArrayGetCount(urlTypes); i++) {
+			CFDictionaryRef u = CFArrayGetValueAtIndex(urlTypes, i);
+			char *list[MAX_LIST];
+			if (CFGetTypeID(u) != CFDictionaryGetTypeID())
+				continue;
+			copyList(CFDictionaryGetValue(u, CFSTR("CFBundleURLSchemes")), list, 1);
+			for (unsigned j = 0; list[j] != NULL; j++)
+				if (schemes < MAX_LIST - 1)
+					app->schemes[schemes++] = list[j];
+				else
+					free(list[j]);
+		}
+	app->schemes[schemes] = NULL;
 	readDeclarations(app, CFDictionaryGetValue(info, CFSTR("UTExportedTypeDeclarations")));
 	readDeclarations(app, CFDictionaryGetValue(info, CFSTR("UTImportedTypeDeclarations")));
 	CFRelease(info);
@@ -348,10 +393,13 @@ freeApp(App *app)
 		freeList(app->docTypes[i].extensions);
 	}
 	free(app->docTypes);
+	freeList(app->schemes);
 	for (unsigned i = 0; i < app->declaredCount; i++) {
 		free(app->declared[i].uti);
 		freeList(app->declared[i].conforms);
 		freeList(app->declared[i].extensions);
+		freeList(app->declared[i].mimeTypes);
+		free(app->declared[i].description);
 	}
 	free(app->declared);
 }
@@ -533,18 +581,16 @@ better(const Candidate *a, const Candidate *b)
 	return strcmp(apps[a->app].path, apps[b->app].path) < 0;
 }
 
-unsigned
-LSDBCopyHandlers(const LSSessionFile *file, char uti[128], LSSessionPath *out, unsigned max)
+/* The applications for a type (and the extension and flags of the file,
+ * if there is one), best first. */
+static unsigned
+handlersFor(const char *type, const char *extension, uint32_t flags, unsigned roles,
+    LSSessionPath *out, unsigned max)
 {
 	const char *chain[MAX_CHAIN];
 	int distance[MAX_CHAIN];
 	Candidate found[64];
-	unsigned n = 0, roles = file->roles ? file->roles : ~0u;
-	char extension[sizeof(file->extension)];
-
-	strlcpy(extension, file->extension, sizeof(extension));
-	const char *type = typeForFile(file);
-	strlcpy(uti, type, 128);
+	unsigned n = 0;
 	unsigned links = conformance(type, chain, distance);
 
 	for (unsigned a = 0; a < appCount && n < 64; a++) {
@@ -562,7 +608,7 @@ LSDBCopyHandlers(const LSSessionFile *file, char uti[128], LSSessionPath *out, u
 			if (extension[0] != '\0' && listHas(t->extensions, extension))
 				c.distance = 0;
 			else if (c.distance == 1000 && listHas(t->extensions, "*") &&
-			    !(file->flags & kLSSessionFileIsDirectory))
+			    !(flags & kLSSessionFileIsDirectory))
 				c.distance = 100;
 			if (c.distance < 1000 && better(&c, &best))
 				best = c;
@@ -584,6 +630,138 @@ LSDBCopyHandlers(const LSSessionFile *file, char uti[128], LSSessionPath *out, u
 		strlcpy(out[i].path, apps[found[i].app].path, sizeof(out[i].path));
 	}
 	return n;
+}
+
+unsigned
+LSDBCopyHandlers(const LSSessionFile *file, char uti[128], LSSessionPath *out, unsigned max)
+{
+	const char *type = typeForFile(file);
+
+	strlcpy(uti, type, 128);
+	return handlersFor(type, file->extension, file->flags, file->roles ? file->roles : ~0u,
+	    out, max);
+}
+
+unsigned
+LSDBCopyHandlersForType(const char *uti, unsigned roles, LSSessionPath *out, unsigned max)
+{
+	uint32_t flags = LSDBConformsTo(uti, "public.directory") ? kLSSessionFileIsDirectory : 0;
+
+	return handlersFor(uti, "", flags, roles ? roles : ~0u, out, max);
+}
+
+/* The applications whose CFBundleURLTypes name a scheme: by folder, then
+ * by path. */
+unsigned
+LSDBCopyHandlersForScheme(const char *scheme, LSSessionPath *out, unsigned max)
+{
+	unsigned found[64], n = 0;
+	char lower[256];
+
+	strlcpy(lower, scheme, sizeof(lower));
+	for (char *c = lower; *c; c++)
+		if (*c >= 'A' && *c <= 'Z')
+			*c += 'a' - 'A';
+	for (unsigned a = 0; a < appCount && n < 64; a++)
+		if (listHas(apps[a].schemes, lower))
+			found[n++] = a;
+	for (unsigned i = 1; i < n; i++)
+		for (unsigned j = i; j > 0; j--) {
+			const App *x = &apps[found[j]], *y = &apps[found[j - 1]];
+			if (x->folder > y->folder || (x->folder == y->folder && strcmp(x->path, y->path) >= 0))
+				break;
+			unsigned t = found[j];
+			found[j] = found[j - 1];
+			found[j - 1] = t;
+		}
+	if (n > max)
+		n = max;
+	for (unsigned i = 0; i < n; i++) {
+		memset(&out[i], 0, sizeof(out[i]));
+		strlcpy(out[i].path, apps[found[i]].path, sizeof(out[i].path));
+	}
+	return n;
+}
+
+int
+LSDBConformsTo(const char *uti, const char *other)
+{
+	const char *chain[MAX_CHAIN];
+	int distance[MAX_CHAIN];
+	unsigned links = conformance(uti, chain, distance);
+
+	for (unsigned i = 0; i < links; i++)
+		if (strcasecmp(chain[i], other) == 0)
+			return 1;
+	return 0;
+}
+
+static void
+appendList(char *buffer, size_t size, char *const *list)
+{
+	for (unsigned i = 0; list[i] != NULL; i++) {
+		if (i > 0)
+			strlcat(buffer, " ", size);
+		strlcat(buffer, list[i], size);
+	}
+	strlcat(buffer, "\n", size);
+}
+
+int
+LSDBCopyDeclaration(const char *uti, char *buffer, size_t size)
+{
+	const Type *t = findType(uti);
+
+	if (t == NULL)
+		return -1;
+	buffer[0] = '\0';
+	appendList(buffer, size, t->conforms);
+	appendList(buffer, size, t->extensions);
+	appendList(buffer, size, t->mimeTypes);
+	strlcat(buffer, t->description ? t->description : "", size);
+	strlcat(buffer, "\n", size);
+	return 0;
+}
+
+/* One type's tags of a class: extensions (0) or MIME types (1). */
+static char *const *
+tagsOf(const Type *t, unsigned tagClass)
+{
+	return tagClass == 0 ? t->extensions : t->mimeTypes;
+}
+
+static void
+addTypeForTag(const Type *t, unsigned tagClass, const char *tag, const char *conforming,
+    char *buffer, size_t size)
+{
+	char line[160];
+
+	if (!listHas(tagsOf(t, tagClass), tag))
+		return;
+	if (conforming[0] != '\0' && !LSDBConformsTo(t->uti, conforming))
+		return;
+	snprintf(line, sizeof(line), "%s\n", t->uti);
+	if (strstr(buffer, line) == NULL)
+		strlcat(buffer, line, size);
+}
+
+int
+LSDBCopyTypesForTag(unsigned tagClass, const char *tag, const char *conforming, char *buffer,
+    size_t size)
+{
+	char lower[256];
+
+	strlcpy(lower, tag, sizeof(lower));
+	for (char *c = lower; *c; c++)
+		if (*c >= 'A' && *c <= 'Z')
+			*c += 'a' - 'A';
+	buffer[0] = '\0';
+	for (unsigned i = 0; i < TYPE_COUNT; i++)
+		addTypeForTag(&builtin[i], tagClass, lower, conforming, buffer, size);
+	for (unsigned a = 0; a < appCount; a++)
+		for (unsigned i = 0; i < apps[a].declaredCount; i++)
+			addTypeForTag(&apps[a].declared[i], tagClass, lower, conforming, buffer, size);
+	return buffer[0] != '\0' ? 0 : -1;
 }
 
 int
