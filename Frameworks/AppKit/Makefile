@@ -140,6 +140,14 @@ SRCS = \
     NSOpenPanel.m \
     NSOutlineView.m \
     NSPDFImageRep.m \
+    NSLayout/NSLayoutAnchor.m \
+    NSLayout/NSLayoutConstraint.m \
+    NSLayout/NSLayoutEngine.m \
+    NSLayout/NSLayoutSolver.mm \
+    NSLayout/NSLayoutGuide.m \
+    NSLayout/NSLayoutVisualFormat.m \
+    NSLayout/NSStackView.m \
+    NSLayout/NSViewLayout.m \
     NSPageLayout.m \
     NSPanel.m \
     NSParagraphStyle.m \
@@ -407,6 +415,9 @@ HEADERS = \
     NSOpenPanel.h \
     NSOutlineView.h \
     NSPDFImageRep.h \
+    NSLayoutAnchor.h \
+    NSLayoutConstraint.h \
+    NSLayoutGuide.h \
     NSPageLayout.h \
     NSPanel.h \
     NSParagraphStyle.h \
@@ -453,6 +464,7 @@ HEADERS = \
     NSSpellProtocol.h \
     NSSpellingViewController.h \
     NSSplitView.h \
+    NSStackView.h \
     NSStatusBar.h \
     NSStatusItem.h \
     NSStatusBarButton.h \
@@ -592,9 +604,10 @@ CFLAGS = --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
 	-I${ROOT_SOURCE_DIR}/Frameworks/CoreText/fontconfig/fontconfig \
 	-D_BuildingFramework -DFREETYPE_PRESENT -pthread \
 	-F${MINKAR_SDKROOT}/System/Library/PrivateFrameworks \
-	-F${MINKAR_SDKROOT}/System/Library/Frameworks/CoreServices.framework/Frameworks
+	-F${MINKAR_SDKROOT}/System/Library/Frameworks/CoreServices.framework/Frameworks \
+	-I${KIWI_DIR}
 
-LDFLAGS = -pthread -framework Foundation -framework CoreFoundation \
+LDFLAGS = -lc++ -pthread -framework Foundation -framework CoreFoundation \
     -framework CoreGraphics -framework CoreText -framework CoreData \
     -framework QuartzCore -framework OpenGL -framework Onyx2D \
 	-F${MINKAR_SDKROOT}/System/Library/PrivateFrameworks -framework SkyLight \
@@ -602,6 +615,7 @@ LDFLAGS = -pthread -framework Foundation -framework CoreFoundation \
 	-lobjc -lSystem
 
 DIRS = \
+	NSLayout \
 	NSMenu.subproj \
 	NSColorPicker.subproj \
 	WindowServer.backend \
@@ -628,6 +642,16 @@ DIRS = \
 	NSDrawer.subproj \
 	UNIDATA \
 	NSEvent.subproj
+
+# kiwi (MANIFEST.kiwi), the constraint solver's headers, fetched at a
+# pinned version and checked.
+FETCH =		sh ${ROOT_SOURCE_DIR}/BSD/lib/libdrm/fetch.sh
+CACHE ?=	${ROOT_BINARY_DIR:U${.OBJDIR}}/src-cache
+KIWI_DIR =	${.OBJDIR}/kiwi
+${KIWI_DIR}/kiwi/kiwi.h: ${.CURDIR}/MANIFEST.kiwi
+	dir=$$(${FETCH} ${.CURDIR}/MANIFEST.kiwi ${CACHE}) && \
+	rm -rf ${KIWI_DIR} && cp -a $$dir ${KIWI_DIR} && touch ${.TARGET}
+NSLayout/NSLayoutSolver.o: ${KIWI_DIR}/kiwi/kiwi.h
 
 # The pasteboard server's interface, its client side (NSPasteboard).
 CLEANFILES += PasteboardUser.c Pasteboard.h
