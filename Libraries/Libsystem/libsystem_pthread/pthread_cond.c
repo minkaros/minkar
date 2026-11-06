@@ -521,7 +521,13 @@ _pthread_cond_wait(pthread_cond_t *ocond,
 		}
 	}
 
-	if (cond->busy != NULL && cond->busy != mutex) {
+	/*
+	 * Minkar: read busy once. A waiter returning from the kernel clears it
+	 * without holding the mutex, so two reads can see the mutex and then
+	 * NULL, and a wait with the right mutex failed with EINVAL.
+	 */
+	_pthread_mutex *busy = os_atomic_load(&cond->busy, relaxed);
+	if (busy != NULL && busy != mutex) {
 		return EINVAL;
 	}
 
