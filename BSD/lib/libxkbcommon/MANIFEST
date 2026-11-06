@@ -1,0 +1,6 @@
+# libxkbcommon (MIT), fetched at build time and checked against this
+# SHA-256, taken at the first fetch.
+url https://github.com/xkbcommon/libxkbcommon/archive/refs/tags/xkbcommon-1.9.2.tar.gz
+file libxkbcommon-1.9.2.tar.gz
+sha256 8d68a8b45796f34f7cace357b9f89b8c92b158557274fef5889b03648b55fe59
+version 1.9.2

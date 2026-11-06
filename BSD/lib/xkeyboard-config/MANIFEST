@@ -1,0 +1,5 @@
+# xkeyboard-config (MIT and others; COPYING), fetched at build time and
+# checked against this SHA-256, taken at the first fetch.
+url https://www.x.org/releases/individual/data/xkeyboard-config/xkeyboard-config-2.44.tar.xz
+sha256 54d2c33eeebb031d48fa590c543e54c9bcbd0f00386ebc6489b2f47a0da4342a
+version 2.44
