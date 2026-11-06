@@ -291,10 +291,7 @@ SRCS = 	NSFormatter.m \
 	NSObject/objc_size_alignment.m \
 	NSObject/NSZombieObject.m \
 	NSDistributedLock.m \
-	NSMetadata/NSMetadataQuery.m \
-	NSMetadata/NSMetadataQueryResultGroup.m \
-	NSMetadata/NSMetadataItem.m \
-	NSMetadata/NSMetadataQueryAttributeValueTuple.m \
+	NSMetadata/NSMetadata.m \
 	NSPlatform.m \
 	NSPropertyList/NSOldXMLAttribute.m \
 	NSPropertyList/NSOldXMLElement.m \

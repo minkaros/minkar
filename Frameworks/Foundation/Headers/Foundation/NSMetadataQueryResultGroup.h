@@ -1,7 +1,27 @@
-/* Copyright (c) 2007 Christopher J. W. Lloyd
+/* SPDX-License-Identifier: BSD-2-Clause
+ * Copyright (c) 2026 The Minkar contributors
+ * Part of Minkar.
+ */
+#import <Foundation/NSObject.h>
 
-Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+@class NSString, NSArray<ObjectType>;
 
-The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+NS_ASSUME_NONNULL_BEGIN
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE. */
+// The results that have one value of a grouping attribute.
+@interface NSMetadataQueryResultGroup : NSObject {
+    NSString *_attribute;
+    id _value;
+    NSArray *_results;
+}
+
+@property (readonly, copy) NSString *attribute;
+@property (readonly, retain) id value;
+@property (nullable, readonly, copy) NSArray<NSMetadataQueryResultGroup *> *subgroups;
+@property (readonly) NSUInteger resultCount;
+- (id)resultAtIndex:(NSUInteger)idx;
+@property (readonly, copy) NSArray *results;
+
+@end
+
+NS_ASSUME_NONNULL_END
