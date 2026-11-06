@@ -6,13 +6,13 @@ Esta página se genera desde [progress/status.toml](progress/status.toml) con
 [Progress.md](Progress.md).
 
 <!-- progress:summary:begin -->
-_Actualizado el 2026-11-05, devel `0c036fd389`_
+_Actualizado el 2026-11-05, devel `22a0e67f0d`_
 
 | Plan | Avance |  | Ahora | Siguiente |
 | --- | --- | --- | --- | --- |
-| **Gates** | 🟩🟩🟩🟦🟩⬜⬜⬜⬜ | 4 / 9 | M3 Frameworks and Swift | M5 Atlas desktop |
+| **Gates** | 🟩🟩🟩🟩🟩⬜⬜⬜⬜ | 5 / 9 | — | M5 Atlas desktop |
 | [Phases 0–2](ROADMAP.es.md) | 🟩🟩🟩 | 3 / 3 | — | — |
-| [Frameworks](ROADMAP.es.md#fase-3--frameworks-base-y-swift) | 🟩🟨🟨🟨⬜🟩🟨🟦 | 2 / 8 | CLI tools | Security |
+| [Frameworks](ROADMAP.es.md#fase-3--frameworks-base-y-swift) | 🟩🟨🟨🟨⬜🟩🟨🟩🟦 | 3 / 9 | Cocoa coverage | Security |
 | [WindowServer](WindowServer-Rewrite.es.md) | 🟩🟩🟩🟩🟩🟩🟩🟩🟦 | 8 / 9 | WS6 | — |
 | [Menus](Atlas.es.md#3-menús) | 🟩🟨⬜⬜⬜ | 1 / 5 | MB1 | MB2 |
 | [Dock](Atlas.es.md#4-dock-y-files) | 🟩🟩🟨⬜⬜ | 2 / 5 | D2 | D3 |

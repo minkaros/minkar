@@ -33,7 +33,7 @@
 # "bmake progress" (Docs/CONTRIBUTING.md).
 
 updated = "2026-11-05"
-commit  = "0c036fd389"
+commit  = "22a0e67f0d"
 
 deps = [["ws", 555, "dock"], ["fw", 490, "argos"]]
 
@@ -62,7 +62,7 @@ x = 310
 id = "M3"
 title = "M3 Frameworks and Swift"
 label = "M3"
-state = "current"
+state = "done"
 x = 590
 rows = ["fw"]
 
@@ -122,11 +122,12 @@ name = "Frameworks"
 color = "brown"
 doc = "ROADMAP.md#phase-3--base-frameworks-and-swift"
 doc_es = "ROADMAP.es.md#fase-3--frameworks-base-y-swift"
-# CLI tools: gate M3's seven open source tools (Tests/M3); 5 pass (5 Nov).
+# CLI tools: gate M3's seven open source tools (Tests/M3), all pass (5 Nov).
+# Cocoa coverage: the block after M3 (AppKit, CF, Security from the inventory).
 stations = [
   ["XPC", 250, "done"], ["libSystem", 300, "partial"], ["Foundation", 350, "partial"],
   ["CF-Lite", 400, "partial"], ["Security", 445, "todo"], ["LaunchServices", 490, "done"],
-  ["Swift 6", 540, "partial"], ["CLI tools", 590, "current"],
+  ["Swift 6", 540, "partial"], ["CLI tools", 590, "done"], ["Cocoa coverage", 620, "current"],
 ]
 
 [[line]]
@@ -222,14 +223,12 @@ stations = [["x86-64 apps", 1082, "todo"], ["arm64", 1150, "todo"]]
 # The work board. "line" picks a card's colour; "here" marks a station of
 # the metro map as where work is.
 [board]
-here = "CLI tools"
+here = "Cocoa coverage"
 
 [[board.now]]
-title = "M3: the tools left"
-note = "tag (NSURL tags, metadata queries), then SwiftFormat; then Cocoa coverage"
+title = "Cocoa coverage: Auto Layout first"
+note = "NSLayoutConstraint, anchors, guides, visual format (kiwi), NSStackView; then tables"
 line = "fw"
-done = 5
-total = 7
 
 [[board.now]]
 title = "GPU: clocks, then G5"
@@ -266,6 +265,11 @@ group = "After 19.6.0"
 items = [["x86-64 binaries, arm64", "compat"]]
 
 [[board.done]]
+title = "M3 met: seven tools pass"
+note = "tag and SwiftFormat too; NSMetadataQuery; the kernel at -O2 · 5 nov"
+line = "fw"
+
+[[board.done]]
 title = "M3: mogenerator, the first Objective-C tool"
 note = "CoreData's models in code and archives, predicates, KVC set proxies · 5 nov"
 line = "fw"
@@ -289,8 +293,3 @@ line = "argos"
 title = "System Preferences: five panes"
 note = "Displays, Dock, Date & Time, Keyboard, Network; English and Spanish · 4 nov"
 line = "atlas"
-
-[[board.done]]
-title = "Dock D1: the new Dock and desktop"
-note = "tiles, indicators, desktop pictures; magnification, menus, dragging · 4 nov"
-line = "dock"
