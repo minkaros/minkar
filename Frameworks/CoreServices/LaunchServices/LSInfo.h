@@ -51,6 +51,19 @@ CFArrayRef _Nullable LSCopyApplicationURLsForBundleIdentifier(CFStringRef inBund
 /* Reads an application bundle again, or adds one from another folder. */
 OSStatus LSRegisterURL(CFURLRef inURL, Boolean inUpdate);
 
+/* By type identifier: the bundle identifiers of the applications that
+ * open a type in a role, best first; the best one; its URL. */
+CFArrayRef _Nullable LSCopyAllRoleHandlersForContentType(CFStringRef inContentType,
+    LSRolesMask inRole) CF_RETURNS_RETAINED;
+CFStringRef _Nullable LSCopyDefaultRoleHandlerForContentType(CFStringRef inContentType,
+    LSRolesMask inRole) CF_RETURNS_RETAINED;
+CFURLRef _Nullable LSCopyDefaultApplicationURLForContentType(CFStringRef inContentType,
+    LSRolesMask inRoleMask, CFErrorRef _Nullable *_Nullable outError) CF_RETURNS_RETAINED;
+/* By URL scheme (CFBundleURLTypes): the bundle identifiers of the
+ * applications that open it, and the preferred one. */
+CFArrayRef _Nullable LSCopyAllHandlersForURLScheme(CFStringRef inURLScheme) CF_RETURNS_RETAINED;
+CFStringRef _Nullable LSCopyDefaultHandlerForURLScheme(CFStringRef inURLScheme) CF_RETURNS_RETAINED;
+
 CF_EXTERN_C_END
 CF_ASSUME_NONNULL_END
 

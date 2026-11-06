@@ -205,6 +205,143 @@ LSCopyApplicationURLsForBundleIdentifier(CFStringRef inBundleIdentifier, CFError
 	return list;
 }
 
+/* -- By type identifier and by URL scheme -- */
+
+static Boolean
+cString(CFStringRef string, char buffer[1024])
+{
+	return string != NULL && CFStringGetCString(string, buffer, 1024, kCFStringEncodingUTF8);
+}
+
+/* The bundle identifiers of applications, in order (those without one
+ * left out). */
+static CFArrayRef
+createBundleIdentifiers(const LSSessionPath *apps, uint32_t count)
+{
+	CFMutableArrayRef list = CFArrayCreateMutable(NULL, count, &kCFTypeArrayCallBacks);
+
+	for (uint32_t i = 0; i < count; i++) {
+		CFURLRef url = urlForPath(apps[i].path, true);
+		CFBundleRef bundle = url ? CFBundleCreate(NULL, url) : NULL;
+		CFStringRef id = bundle ? CFBundleGetIdentifier(bundle) : NULL;
+		if (id != NULL && !CFArrayContainsValue(list, CFRangeMake(0, CFArrayGetCount(list)), id))
+			CFArrayAppendValue(list, id);
+		if (bundle != NULL)
+			CFRelease(bundle);
+		if (url != NULL)
+			CFRelease(url);
+	}
+	if (CFArrayGetCount(list) == 0) {
+		CFRelease(list);
+		return NULL;
+	}
+	return list;
+}
+
+static LSSessionPath *
+copyTypeHandlers(CFStringRef type, LSRolesMask roles, uint32_t *count, OSStatus *status)
+{
+	char uti[1024];
+	LSSessionPath *apps = NULL;
+
+	*count = 0;
+	if (!cString(type, uti)) {
+		*status = kLSDataErr;
+		return NULL;
+	}
+	*status = statusFor(LSSessionCopyHandlersForType(uti, roles == kLSRolesAll ? 0 : roles,
+	    &apps, count));
+	if (*status == noErr && *count == 0)
+		*status = kLSApplicationNotFoundErr;
+	if (*status != noErr) {
+		free(apps);
+		return NULL;
+	}
+	return apps;
+}
+
+static LSSessionPath *
+copySchemeHandlers(CFStringRef scheme, uint32_t *count, OSStatus *status)
+{
+	char name[1024];
+	LSSessionPath *apps = NULL;
+
+	*count = 0;
+	if (!cString(scheme, name)) {
+		*status = kLSDataErr;
+		return NULL;
+	}
+	*status = statusFor(LSSessionCopyHandlersForScheme(name, &apps, count));
+	if (*status == noErr && *count == 0)
+		*status = kLSApplicationNotFoundErr;
+	if (*status != noErr) {
+		free(apps);
+		return NULL;
+	}
+	return apps;
+}
+
+CFArrayRef
+LSCopyAllRoleHandlersForContentType(CFStringRef inContentType, LSRolesMask inRole)
+{
+	uint32_t count;
+	OSStatus status;
+	LSSessionPath *apps = copyTypeHandlers(inContentType, inRole, &count, &status);
+	CFArrayRef list = apps ? createBundleIdentifiers(apps, count) : NULL;
+
+	free(apps);
+	return list;
+}
+
+CFStringRef
+LSCopyDefaultRoleHandlerForContentType(CFStringRef inContentType, LSRolesMask inRole)
+{
+	CFArrayRef list = LSCopyAllRoleHandlersForContentType(inContentType, inRole);
+	CFStringRef id = list ? CFRetain(CFArrayGetValueAtIndex(list, 0)) : NULL;
+
+	if (list != NULL)
+		CFRelease(list);
+	return id;
+}
+
+CFURLRef
+LSCopyDefaultApplicationURLForContentType(CFStringRef inContentType, LSRolesMask inRoleMask,
+    CFErrorRef *outError)
+{
+	uint32_t count;
+	OSStatus status;
+	LSSessionPath *apps = copyTypeHandlers(inContentType, inRoleMask, &count, &status);
+	CFURLRef app = apps ? urlForPath(apps[0].path, true) : NULL;
+
+	if (app == NULL)
+		setError(outError, status);
+	free(apps);
+	return app;
+}
+
+CFArrayRef
+LSCopyAllHandlersForURLScheme(CFStringRef inURLScheme)
+{
+	uint32_t count;
+	OSStatus status;
+	LSSessionPath *apps = copySchemeHandlers(inURLScheme, &count, &status);
+	CFArrayRef list = apps ? createBundleIdentifiers(apps, count) : NULL;
+
+	free(apps);
+	return list;
+}
+
+CFStringRef
+LSCopyDefaultHandlerForURLScheme(CFStringRef inURLScheme)
+{
+	CFArrayRef list = LSCopyAllHandlersForURLScheme(inURLScheme);
+	CFStringRef id = list ? CFRetain(CFArrayGetValueAtIndex(list, 0)) : NULL;
+
+	if (list != NULL)
+		CFRelease(list);
+	return id;
+}
+
 OSStatus
 LSRegisterURL(CFURLRef inURL, Boolean inUpdate)
 {
@@ -388,9 +525,24 @@ LSOpenFromURLSpec(const LSLaunchURLSpec *inLaunchSpec, CFURLRef *outLaunchedURL)
 	for (CFIndex i = 0; i < count; i++) {
 		CFURLRef item = CFArrayGetValueAtIndex(items, i);
 		OSStatus one;
-		if (!copyPath(item, path))
-			one = kLSDataErr;
-		else if (isApplication(path))
+		if (!copyPath(item, path)) {
+			/* Not a file: the application of its scheme. */
+			CFStringRef scheme = CFURLCopyScheme(item);
+			uint32_t n;
+			LSSessionPath *apps = scheme ? copySchemeHandlers(scheme, &n, &one) : NULL;
+			if (scheme == NULL)
+				one = kLSDataErr;
+			if (apps != NULL) {
+				CFArrayRef one_item = CFArrayCreate(NULL, (const void **)&item, 1,
+				    &kCFTypeArrayCallBacks);
+				one = openWith(apps[0].path, one_item, 0, inLaunchSpec->launchFlags,
+				    i == 0 ? outLaunchedURL : NULL);
+				CFRelease(one_item);
+			}
+			free(apps);
+			if (scheme != NULL)
+				CFRelease(scheme);
+		} else if (isApplication(path))
 			one = openWith(path, NULL, 0, inLaunchSpec->launchFlags,
 			    i == 0 ? outLaunchedURL : NULL);
 		else {
