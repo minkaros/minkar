@@ -663,6 +663,19 @@ static NSString *stringFromRepresentation(NSData *data) {
 
 // Minkar: two URLs are equal when their strings are (fields compared one
 // by one told "file:///x" made from a path from the same URL read back).
+/* Toll-free bridging: CF's URL functions take an NSURL through the CF URL
+ * this gives them (CFURL.c), with the same string and base. */
+-(CFURLRef)_cfurl {
+   CFURLRef base=(_baseURL!=nil)?[_baseURL _cfurl]:NULL;
+   CFURLRef url=CFURLCreateWithString(NULL,(CFStringRef)[self relativeString],base);
+
+   return url ? (CFURLRef)[(id)url autorelease] : NULL;
+}
+
+-(NSURL *)_nsurl {
+   return self;
+}
+
 -(NSUInteger)hash {
 	return [[self absoluteString] hash];
 }

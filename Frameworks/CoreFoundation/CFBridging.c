@@ -108,6 +108,15 @@ CF_EXPORT void CFSetupFoundationBridging(void)
      * them with no Objective-C class, and the first message to one (a
      * number from a property list or the preferences) crashed. Those made
      * before Foundation loaded (the infinities, NaN) get the class now. */
+    /* Minkar: URLs are toll-free bridged both ways. CF's URLs made from
+     * now on are __NSCFURL (NSCFURL.m), which pass NSURL's messages to an
+     * NSURL of the same string; CF's URL functions take Foundation's NSURL
+     * through its -_cfurl (CFURL.c). */
+    uintptr_t urlClass = (uintptr_t)objc_lookUpClass("__NSCFURL");
+    if (urlClass != 0) {
+        _CFRuntimeRegisterObjCClass(CFURLGetTypeID(), urlClass);
+        _CFRuntimeBridgeObjCDispatch(CFURLGetTypeID());
+    }
     uintptr_t numberClass = (uintptr_t)objc_lookUpClass("__NSCFNumber");
     if (numberClass != 0) {
         _CFRuntimeRegisterObjCClass(CFNumberGetTypeID(), numberClass);

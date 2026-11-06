@@ -30,7 +30,11 @@
 #include <CoreFoundation/CFPriv.h>
 #include <CoreFoundation/CFCharacterSetPriv.h>
 #include <CoreFoundation/CFNumber.h>
+#define CF_OBJC_DISPATCH 1	/* Minkar: toll-free bridging (CFInternal.h) */
 #include "CFInternal.h"
+#if INCLUDE_OBJC
+@class NSURL, NSNumber;
+#endif
 #include <CoreFoundation/CFStringEncodingConverter.h>
 #include <limits.h>
 #include <stdlib.h>
