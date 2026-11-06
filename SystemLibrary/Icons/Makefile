@@ -20,7 +20,7 @@ install-icons: .PHONY
 	mkdir -p ${DIR}/Sources
 	cd ${.CURDIR}/svg && for g in *; do \
 		mkdir -p ${DIR}/Sources/$$g && \
-		install -o 0 -g 0 -m 0644 $$g/*.svg ${DIR}/Sources/$$g/ || exit 1; \
+		install -o 0 -g 0 -m 0644 $$g/*.svgz ${DIR}/Sources/$$g/ || exit 1; \
 	done
 	install -o 0 -g 0 -m 0644 ${.CURDIR}/COPYING ${.CURDIR}/AUTHORS ${.CURDIR}/README.md ${DIR}/
 

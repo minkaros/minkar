@@ -3,8 +3,8 @@
 # Copyright (c) 2026 The Minkar contributors
 # Part of Minkar.
 #
-# Copies the SVG sources that pack.txt names from the icon themes and
-# renders them to the PNGs the system installs. Run by hand when pack.txt
+# Copies the SVG sources that pack.txt names from the icon themes
+# (compressed, as .svgz) and renders them to the PNGs the system installs. Run by hand when pack.txt
 # changes; both results are kept in the repository (the build needs no SVG
 # renderer).
 #
@@ -22,6 +22,6 @@ size=256
 grep -v '^#' "$here/pack.txt" | while read -r group name source; do
 	[ -n "$group" ] || continue
 	mkdir -p "$here/svg/$group" "$here/png/$group"
-	cp -L "$themes/$source" "$here/svg/$group/$name.svg"
-	rsvg-convert -w $size -h $size "$here/svg/$group/$name.svg" -o "$here/png/$group/$name.png"
+	gzip -9nc "$themes/$source" > "$here/svg/$group/$name.svgz"
+	rsvg-convert -w $size -h $size "$here/svg/$group/$name.svgz" -o "$here/png/$group/$name.png"
 done
