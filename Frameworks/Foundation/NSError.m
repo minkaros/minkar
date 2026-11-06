@@ -164,12 +164,13 @@ static NSDictionary *NSErrorArchivableUserInfo(NSDictionary *userInfo) {
    return provider;
 }
 
-/* A value of the user info's, else its domain's provider's. */
+/* A value of the user info's, else its domain's provider's. Through the
+ * accessors: an error bridged from Swift has its own. */
 -(id)_valueForUserInfoKey:(NSString *)key {
-   id value=[_userInfo objectForKey:key];
+   id value=[[self userInfo] objectForKey:key];
 
    if(value==nil){
-    id (^provider)(NSError *, NSString *)=[NSError userInfoValueProviderForDomain:_domain];
+    id (^provider)(NSError *, NSString *)=[NSError userInfoValueProviderForDomain:[self domain]];
     if(provider!=nil)
      value=provider(self,key);
    }
@@ -182,8 +183,8 @@ static NSDictionary *NSErrorArchivableUserInfo(NSDictionary *userInfo) {
 
 -(NSArray *)underlyingErrors {
    NSMutableArray *errors=[NSMutableArray array];
-   id underlying=[_userInfo objectForKey:NSUnderlyingErrorKey];
-   id multiple=[_userInfo objectForKey:NSMultipleUnderlyingErrorsKey];
+   id underlying=[[self userInfo] objectForKey:NSUnderlyingErrorKey];
+   id multiple=[[self userInfo] objectForKey:NSMultipleUnderlyingErrorsKey];
 
    if([underlying isKindOfClass:[NSError class]])
     [errors addObject:underlying];
@@ -203,7 +204,7 @@ static NSDictionary *NSErrorArchivableUserInfo(NSDictionary *userInfo) {
     if (localizedDescription) {
         return [NSString stringWithFormat:@"%@ %@", NSLocalizedString(@"The operation could not be completed.", @"Default NSError description"), localizedDescription];        
     } else {
-        return [NSString stringWithFormat:@"%@ (%@ error %d)", NSLocalizedString(@"The operation could not be completed.", @"Default NSError description"), _domain, _code];
+        return [NSString stringWithFormat:@"%@ (%@ error %ld)", NSLocalizedString(@"The operation could not be completed.", @"Default NSError description"), [self domain], (long)[self code]];
     }
 }
 
@@ -224,7 +225,11 @@ static NSDictionary *NSErrorArchivableUserInfo(NSDictionary *userInfo) {
 }
 
 -(id)description {
-   return [NSString stringWithFormat:@"Error Domain=%@ Code=%d UserInfo=%p %@", _domain, _code, _userInfo, [self localizedDescription]];
+   NSDictionary *userInfo=[self userInfo];
+
+   if([userInfo count]==0)
+    return [NSString stringWithFormat:@"Error Domain=%@ Code=%ld \"%@\"", [self domain], (long)[self code], [self localizedDescription]];
+   return [NSString stringWithFormat:@"Error Domain=%@ Code=%ld \"%@\" UserInfo=%@", [self domain], (long)[self code], [self localizedDescription], userInfo];
 }
 
 @end

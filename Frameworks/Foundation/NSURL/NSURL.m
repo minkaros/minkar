@@ -135,7 +135,8 @@ static BOOL consume_safe(urlScanner *scanner){
    while(more_characters(scanner)){
     unichar check=peekCharacter(scanner);
     
-    if((check=='$') || (check=='-') || (check=='_') || (check=='.') || (check=='+')){
+    // '~' is unreserved too (RFC 3986).
+    if((check=='$') || (check=='-') || (check=='_') || (check=='.') || (check=='+') || (check=='~')){
      result=YES;
      consume_next(scanner);
     }
@@ -497,10 +498,21 @@ static NSString *resolveRelativePath(NSString *directory, NSString *relative) {
 -initFileURLWithPath:(NSString *)path isDirectory:(BOOL)isDirectory {
    if (path == nil)
     [NSException raise:NSInvalidArgumentException format:@"-[%@ %s] nil path",object_getClass(self),sel_getName(_cmd)];
-   if (![path hasPrefix:@"/"]) {
-    NSString *cwd = [[NSFileManager defaultManager] currentDirectoryPath];
-    path = [path length] ? resolveRelativePath(cwd, path) : cwd;
+   // A relative path is relative to the current directory, which is the
+   // URL's base: relativePath is the path as given.
+   if (![path hasPrefix:@"/"] && [path length] > 0) {
+    NSURL    *base = [[NSURL alloc] initFileURLWithPath:[[NSFileManager defaultManager] currentDirectoryPath] isDirectory:YES];
+    NSString *relative = path;
+
+    if (isDirectory && ![relative hasSuffix:@"/"])
+     relative = [relative stringByAppendingString:@"/"];
+    NSString *encoded = [relative stringByAddingPercentEncodingWithAllowedCharacters:[NSCharacterSet URLPathAllowedCharacterSet]];
+    self = [self initWithString:encoded ? encoded : relative relativeToURL:base];
+    [base release];
+    return self;
    }
+   if (![path hasPrefix:@"/"])
+    path = [[NSFileManager defaultManager] currentDirectoryPath];
    if (isDirectory && ![path hasSuffix:@"/"])
     path = [path stringByAppendingString:@"/"];
    NSString *encoded = [path stringByAddingPercentEncodingWithAllowedCharacters:[NSCharacterSet URLPathAllowedCharacterSet]];
@@ -874,8 +886,9 @@ static NSMutableString *AssembleResourceSpecifier( NSMutableString *result, NSSt
    return result;
 }
 
+// A URL made from its parts has no string of its own: its absolute one.
 -(NSString *)relativeString {
-   return _string;
+   return (_string!=nil)?_string:[self absoluteString];
 }
 
 -(NSString *)resourceSpecifier 
@@ -884,8 +897,9 @@ static NSMutableString *AssembleResourceSpecifier( NSMutableString *result, NSSt
    else return [self _buildResourceSpecifier];
 }
 
+// A relative URL is a file URL when its base is.
 -(BOOL)isFileURL {
-   return [_scheme isEqualToString:NSURLFileScheme];
+   return [[self scheme] isEqualToString:NSURLFileScheme];
 }
 
 -(NSURL *)standardizedURL {
@@ -938,6 +952,22 @@ static NSMutableString *AssembleResourceSpecifier( NSMutableString *result, NSSt
 // and percent escapes included), and keep the rest of the URL.
 - (NSURL *)_URLWithPath:(NSString *)path isDirectory:(BOOL)isDirectory
 {
+    // A relative file URL stays relative to its base when the new path is
+    // in the base's directory.
+    if ([self isFileURL] && _baseURL != nil && _scheme == nil) {
+        NSString *basePath = [[_baseURL path] stringByAppendingString:@"/"];
+
+        if ([basePath isEqualToString:@"//"])
+            basePath = @"/";
+        if ([path isEqualToString:[_baseURL path]] || [path hasPrefix:basePath]) {
+            NSString *relative = [path length] > [basePath length] ? [path substringFromIndex:[basePath length]] : @".";
+
+            if (isDirectory && ![relative hasSuffix:@"/"])
+                relative = [relative stringByAppendingString:@"/"];
+            NSString *encoded = [relative stringByAddingPercentEncodingWithAllowedCharacters:[NSCharacterSet URLPathAllowedCharacterSet]];
+            return [NSURL URLWithString:encoded ? encoded : relative relativeToURL:_baseURL];
+        }
+    }
     if ([self isFileURL])
         return [NSURL fileURLWithPath:path isDirectory:isDirectory];
 
