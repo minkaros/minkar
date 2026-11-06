@@ -13,7 +13,7 @@
 #                       see BSD/lib/libdrm/fetch.sh)
 #   EXTLIB_SOURCE       a source tree already in the repository, instead of
 #                       a fetched one (no manifest)
-#   EXTLIB_PATCHES      patches in ${.CURDIR}/patches, applied in order
+#   EXTLIB_PATCHES      patches in ${EXTLIB_DIR}/patches, applied in order
 #   EXTLIB_SYSTEM       meson, cmake or autotools (required)
 #   EXTLIB_OPTIONS      options for its configure step
 #   EXTLIB_TARGETS      what to build (default: everything)
@@ -35,11 +35,20 @@
 #   EXTLIB_SUBDIR       the source tree's subdirectory to build, if not the top
 #   EXTLIB_ENV          more environment for every step
 #   EXTLIB_SUBPROJECTS  Meson subprojects to put in the tree, each fetched by
-#                       ${.CURDIR}/MANIFEST.<name> (Meson itself downloads
+#                       ${EXTLIB_DIR}/MANIFEST.<name> (Meson itself downloads
 #                       nothing: --wrap-mode=nodownload)
 #   EXTLIB_HOST         yes: built for the build host instead, into
 #                       ${HOST_PREFIX} (the tools other libraries' builds
 #                       run, as GLib's), with nothing in the SDK or sysroot
+#   EXTLIB_TEST         yes: built again with its own tests (gate W0, in
+#                       Tests/W0), which go to /usr/local/tests/w0/${EXTLIB}
+#                       with ${.CURDIR}/run.sh; the libraries they use are
+#                       the system's (their @rpath references become
+#                       /usr/lib), nothing else is installed
+#   EXTLIB_TEST_FILES   what to install for the tests: paths in the staging
+#                       root or, with build/ or src/ before them, in the
+#                       build or source directory (a directory is copied
+#                       whole)
 #   EXTLIB_STAGE_REMOVE files the project installs that are not published,
 #                       relative to the staging prefix (e.g. include/libintl.h)
 #
@@ -63,6 +72,9 @@ EXTLIB_LICENSES ?=
 EXTLIB_ENV ?=
 EXTLIB_STAGE_REMOVE ?=
 EXTLIB_SUBPROJECTS ?=
+# Where patches/ and the subprojects' manifests are: the library's own
+# directory (a test build in Tests/W0 names it).
+EXTLIB_DIR ?=		${.CURDIR}
 
 MK_DIR :=		${.PARSEDIR}
 FETCH =			sh ${ROOT_SOURCE_DIR}/BSD/lib/libdrm/fetch.sh
@@ -120,16 +132,16 @@ _EXTLIB_PRISTINE =	echo ${EXTLIB_SOURCE}
 _EXTLIB_ORIGIN =	${EXTLIB_MANIFEST}
 _EXTLIB_PRISTINE =	${FETCH} ${EXTLIB_MANIFEST} ${EXTLIB_CACHE}
 .endif
-${SRC}/.minkar-patches: ${EXTLIB_PATCHES:@p@${.CURDIR}/patches/${p}@} ${_EXTLIB_ORIGIN} \
-    ${EXTLIB_SUBPROJECTS:@p@${.CURDIR}/MANIFEST.${p}@}
+${SRC}/.minkar-patches: ${EXTLIB_PATCHES:@p@${EXTLIB_DIR}/patches/${p}@} ${_EXTLIB_ORIGIN} \
+    ${EXTLIB_SUBPROJECTS:@p@${EXTLIB_DIR}/MANIFEST.${p}@}
 	pristine=$$(${_EXTLIB_PRISTINE}) && \
 	rm -rf ${SRC} ${SRC}.part && cp -a $$pristine ${SRC}.part && \
 	for sp in ${EXTLIB_SUBPROJECTS}; do \
-		dir=$$(${FETCH} ${.CURDIR}/MANIFEST.$$sp ${EXTLIB_CACHE}) || exit 1; \
+		dir=$$(${FETCH} ${EXTLIB_DIR}/MANIFEST.$$sp ${EXTLIB_CACHE}) || exit 1; \
 		rm -rf ${SRC}.part/subprojects/$$sp && cp -a $$dir ${SRC}.part/subprojects/$$sp || exit 1; \
 	done && \
 	for p in ${EXTLIB_PATCHES}; do \
-		patch -s -p1 -d ${SRC}.part < ${.CURDIR}/patches/$$p || exit 1; \
+		patch -s -p1 -d ${SRC}.part < ${EXTLIB_DIR}/patches/$$p || exit 1; \
 	done && \
 	mv ${SRC}.part ${SRC}
 	cat ${.ALLSRC} | cksum > ${.TARGET}
@@ -259,7 +271,51 @@ ${BUILD}/.minkar-setup: ${SRC}/.minkar-patches ${SETUP_DEPS} ${.CURDIR}/Makefile
 build-extlib: .PHONY ${BUILD}/.minkar-setup
 	${TOOLENV} sh -c '${BUILD_CMD}'
 
-.if defined(EXTLIB_HOST) && ${EXTLIB_HOST} == "yes"
+.if defined(EXTLIB_TEST) && ${EXTLIB_TEST} == "yes"
+TEST_DIR =	${SYSROOT_DIR}/usr/local/tests/w0/${EXTLIB}
+install-extlib: .PHONY build-extlib
+	rm -rf ${STAGE} ${TEST_DIR}
+	${TOOLENV} sh -c '${STAGE_CMD}' > ${.OBJDIR}/stage.log 2>&1 || \
+	    { tail -40 ${.OBJDIR}/stage.log; exit 1; }
+	mkdir -p ${TEST_DIR}
+	for f in ${EXTLIB_TEST_FILES}; do \
+		case $$f in build/*) src=${BUILD}/$${f#build/};; src/*) src=${SRC}/$${f#src/};; \
+		    *) src=${STAGE}/$$f;; esac; \
+		test -e $$src || { echo "minkar.extlib.mk: $$f not built" >&2; exit 1; }; \
+		cp -RL $$src ${TEST_DIR}/ || exit 1; \
+	done
+	# The system's libraries, not the test build's own: a library of the
+	# build (@rpath, or a path in the build) is /usr/lib's when the system
+	# has it, else a copy beside the tests.
+	find ${TEST_DIR} -type f | while read -r f; do \
+		${TC}/otool -L "$$f" 2>/dev/null | \
+		    awk '$$1 ~ /^@rpath\// || index($$1, "${.OBJDIR}/") == 1 { print $$1 }' | \
+		while read -r dep; do \
+			name=$${dep##*/}; \
+			here=$$(find ${TEST_DIR} \( -name $$name -o -name $${name%.dylib}.so \) | head -1); \
+			if [ -e ${SYSROOT_DIR}/usr/lib/$$name ]; then new=/usr/lib/$$name; \
+			elif [ -n "$$here" ]; then new=/usr/local/tests/w0/${EXTLIB}/$${here#${TEST_DIR}/}; \
+			else \
+				built=$$(find ${BUILD} -name $$name | head -1); \
+				[ -n "$$built" ] || { echo "minkar.extlib.mk: $$name not found" >&2; exit 1; }; \
+				cp -L $$built ${TEST_DIR}/ || exit 1; \
+				new=/usr/local/tests/w0/${EXTLIB}/$$name; \
+			fi; \
+			${TC}/install_name_tool -change $$dep $$new "$$f" 2>/dev/null; \
+		done; \
+	done; true
+	# Libraries among the tests answer to where they are now.
+	find ${TEST_DIR} -name '*.dylib' -type f | while read -r f; do \
+		${TC}/install_name_tool -id /usr/local/tests/w0/${EXTLIB}/$${f#${TEST_DIR}/} "$$f"; \
+		${TC}/otool -L "$$f" | awk '$$1 ~ /^@rpath\// || index($$1, "${.OBJDIR}/") == 1 { print $$1 }' | \
+		while read -r dep; do \
+			n=$${dep##*/}; \
+			if [ -e ${TEST_DIR}/$$n ]; then n=/usr/local/tests/w0/${EXTLIB}/$$n; else n=/usr/lib/$$n; fi; \
+			${TC}/install_name_tool -change $$dep $$n "$$f"; \
+		done; \
+	done; true
+	install -m 0755 ${.CURDIR}/run.sh ${TEST_DIR}/run.sh
+.elif defined(EXTLIB_HOST) && ${EXTLIB_HOST} == "yes"
 install-extlib: .PHONY build-extlib
 	mkdir -p ${HOST_PREFIX}
 	${TOOLENV} ninja -C ${BUILD} install > ${.OBJDIR}/stage.log 2>&1 || \

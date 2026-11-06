@@ -47,6 +47,8 @@ Gates from the architecture plan:
       re-signed outside it                         (--gate M2)
   M3-swift  M2, then a Swift program in the image runs on the Swift
       runtime in /usr/lib/swift                    (--gate M3-swift)
+  W0  M2, then WebKit's dependencies pass their own tests
+      (/usr/local/tests/w0, 'bmake w0-tests')    (--gate W0)
   M4  M2, then the window server (started at boot, as _windowserver),
       the minimal loginwindow and the demo's two overlapping AppKit
       windows: the screen matches reference images, again after a window
@@ -169,6 +171,16 @@ GATES['M3'] = GATES['M2'] + [
     'm3: swiftformat/SwiftFormatTests passed',
     'm3: tag/tagTests passed',
     'm3: every suite passed']
+
+# Gate W0 (WebKit, Cocoa coverage): WebKit's dependencies pass their own
+# tests (Tests/W0, in /usr/local/tests/w0 with 'bmake w0-tests' before the
+# image): run.sh runs every library's.
+GATES['W0'] = GATES['M2'] + [
+    SSH('/usr/local/tests/w0/run.sh 2>&1 | grep "^w0: "'),
+    'w0: expat passed',
+    'w0: glib passed',
+    'w0: pcre2 passed',
+    'w0: every library passed']
 
 # The window server starts at boot, as _windowserver. The screen is
 # compared with reference images (--update-reference writes them from a

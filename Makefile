@@ -239,4 +239,13 @@ m3-tools: .PHONY
 m3-check: .PHONY
 	${MAKE} -C ${.CURDIR}/Image boottest GATE=M3 BOOTTEST_TIMEOUT=${M3_BOOTTEST_TIMEOUT:U5400}
 
+# Gate W0: WebKit's dependencies (BSD/lib) pass their own tests: each one
+# built again with them into /usr/local/tests/w0 ('w0-tests', then
+# 'image'); 'w0-check' boots the image and runs them.
+w0-tests: .PHONY
+	${MAKE} -m ${ROOT_SOURCE_DIR}/BSD/share/mk ONLY_STAGE=Tests/W0 Tests/W0
+
+w0-check: .PHONY
+	${MAKE} -C ${.CURDIR}/Image boottest GATE=W0 BOOTTEST_TIMEOUT=${W0_BOOTTEST_TIMEOUT:U5400}
+
 .include "./BSD/share/mk/bsd.subdir.mk"
