@@ -18,6 +18,9 @@
 #   EXTLIB_LIBS         the dylibs to install, as found in the staging
 #                       prefix's lib directory (e.g. libpcre2-8.0.dylib);
 #                       their links (libpcre2-8.dylib) come along
+#   EXTLIB_MODULES      loadable modules to install, relative to the staging
+#                       prefix (lib/gio/modules/libgioopenssl.so), at the
+#                       same place in the sysroot
 #   EXTLIB_LICENSES     license files in the source tree, installed in
 #                       /usr/share/licenses/${EXTLIB}
 #   EXTLIB_SUBDIR       the source tree's subdirectory to build, if not the top
@@ -44,6 +47,7 @@ EXTLIB_PATCHES ?=
 EXTLIB_OPTIONS ?=
 EXTLIB_TARGETS ?=
 EXTLIB_LIBS ?=
+EXTLIB_MODULES ?=
 EXTLIB_LICENSES ?=
 EXTLIB_ENV ?=
 EXTLIB_STAGE_REMOVE ?=
@@ -85,7 +89,7 @@ TOOLENV =	env -u MACOSX_DEPLOYMENT_TARGET -u IPHONEOS_DEPLOYMENT_TARGET \
 		-u TVOS_DEPLOYMENT_TARGET -u WATCHOS_DEPLOYMENT_TARGET \
 		-u XROS_DEPLOYMENT_TARGET -u DRIVERKIT_DEPLOYMENT_TARGET \
 		PATH=${VENV}/bin:${HOST_PREFIX}/bin:$${PATH} \
-		PKG_CONFIG_LIBDIR=${SDK}/usr/lib/pkgconfig PKG_CONFIG_PATH= \
+		PKG_CONFIG_LIBDIR=${SDK}/usr/lib/pkgconfig:${SDK}/usr/local/lib/pkgconfig PKG_CONFIG_PATH= \
 		PKG_CONFIG_SYSROOT_DIR=${SDK} ${EXTLIB_ENV}
 .if defined(EXTLIB_HOST) && ${EXTLIB_HOST} == "yes"
 # For the build host: its compilers, and the libraries built for it before.
@@ -119,6 +123,7 @@ ${CROSS}: ${ROOT_SOURCE_DIR}/BSD/lib/mesa/minkar-cross.ini.in ${ROOT_SOURCE_DIR}
 	sed -e 's|@TC@|${TC}|g' -e 's|@SDK@|${SDK}|g' -e 's|@LD@|${LDWRAP}|g' \
 	    ${ROOT_SOURCE_DIR}/BSD/lib/mesa/minkar-cross.ini.in > ${.TARGET}
 	echo "sys_root = '${SDK}'" >> ${.TARGET}
+	sed -i "s|^pkg_config_libdir = .*|pkg_config_libdir = ['${SDK}/usr/lib/pkgconfig', '${SDK}/usr/local/lib/pkgconfig']|" ${.TARGET}
 
 # The build host's tools, as a second cross file: written when the
 # Makefile is read, and only when it changes (Meson is set up again then).
@@ -258,6 +263,13 @@ install-extlib: .PHONY build-extlib
 		for f in $$base.*dylib; do \
 			cp -P $$f ${SDK}/usr/lib/ && cp -P $$f ${SYSROOT_DIR}/usr/lib/ || exit 1; \
 		done; \
+	done
+	for m in ${EXTLIB_MODULES}; do \
+		f=${STAGE}/usr/$$m; test -f $$f || { echo "minkar.extlib.mk: $$m not built" >&2; exit 1; }; \
+		for dep in $$(${TC}/otool -L $$f | awk '$$1 ~ /^@rpath\// { print $$1 }'); do \
+			${TC}/install_name_tool -change $$dep /usr/lib/$${dep#@rpath/} $$f || exit 1; \
+		done; \
+		mkdir -p ${SYSROOT_DIR}/usr/$${m%/*} && cp -f $$f ${SYSROOT_DIR}/usr/$$m || exit 1; \
 	done
 .if !empty(EXTLIB_LICENSES)
 	mkdir -p ${SYSROOT_DIR}/usr/share/licenses/${EXTLIB}

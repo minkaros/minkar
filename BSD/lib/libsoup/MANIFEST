@@ -1,0 +1,5 @@
+# libsoup (LGPL-2.0-or-later), fetched at build time and checked against
+# this SHA-256, the one GNOME publishes next to the tarball.
+url https://download.gnome.org/sources/libsoup/3.6/libsoup-3.6.5.tar.xz
+sha256 6891765aac3e949017945c3eaebd8cc8216df772456dc9f460976fbdb7ada234
+version 3.6.5

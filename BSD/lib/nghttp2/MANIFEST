@@ -1,0 +1,5 @@
+# nghttp2 (MIT), fetched at build time and checked against this SHA-256,
+# taken at the first fetch.
+url https://github.com/nghttp2/nghttp2/releases/download/v1.66.0/nghttp2-1.66.0.tar.xz
+sha256 00ba1bdf0ba2c74b2a4fe6c8b1069dc9d82f82608af24442d430df97c6f9e631
+version 1.66.0
