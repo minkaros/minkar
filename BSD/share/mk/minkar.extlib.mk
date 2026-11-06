@@ -25,6 +25,11 @@
 #   EXTLIB_MODULES      loadable modules to install, relative to the staging
 #                       prefix (lib/gio/modules/libgioopenssl.so), at the
 #                       same place in the sysroot
+#   EXTLIB_SDK_FILES    files for the SDK only, relative to the staging root
+#                       (libgpg-error's usr/bin/gpgrt-config, which other
+#                       libraries' configure scripts run)
+#   EXTLIB_DATA         data the project installs, relative to the staging
+#                       root (usr/share/X11/xkb), copied to the sysroot
 #   EXTLIB_LICENSES     license files in the source tree, installed in
 #                       /usr/share/licenses/${EXTLIB}
 #   EXTLIB_SUBDIR       the source tree's subdirectory to build, if not the top
@@ -52,6 +57,8 @@ EXTLIB_OPTIONS ?=
 EXTLIB_TARGETS ?=
 EXTLIB_LIBS ?=
 EXTLIB_MODULES ?=
+EXTLIB_DATA ?=
+EXTLIB_SDK_FILES ?=
 EXTLIB_LICENSES ?=
 EXTLIB_ENV ?=
 EXTLIB_STAGE_REMOVE ?=
@@ -78,7 +85,8 @@ HOST_TOOLS =		glib-mkenums glib-genmarshal glib-compile-resources \
 HOST_INI =		${.OBJDIR}/host-tools.ini
 # Meson, shared by every external library (the pinned one Mesa uses).
 VENV =			${ROOT_BINARY_DIR:U${.OBJDIR}}/extlib-venv
-REQUIREMENTS =		${ROOT_SOURCE_DIR}/BSD/lib/mesa/requirements.txt
+REQUIREMENTS =		${ROOT_SOURCE_DIR}/BSD/lib/mesa/requirements.txt \
+			${ROOT_SOURCE_DIR}/BSD/lib/extlib-requirements.txt
 PIP_WHEEL =		pip-25.0.1-py3-none-any.whl
 PIP_URL =		https://files.pythonhosted.org/packages/c9/bc/b7db44f5f39f9d0494071bddae6880eb645970366d0a200022a1a93d57f5/${PIP_WHEEL}
 PIP_SHA256 =		c46efd13b6aa8279f33f2864459c8ce587ea6a1a59ee20de055868d8f7688f7f
@@ -170,11 +178,16 @@ ${CMAKE_TC}: ${MK_DIR}/minkar.extlib.mk
 	  echo 'set(CMAKE_FIND_ROOT_PATH_MODE_PACKAGE ONLY)'; \
 	} > ${.TARGET}
 
-AUTOTOOLS_ENV =	CC="${TC}/clang ${TARGET_FLAGS}" CXX="${TC}/clang++ ${TARGET_FLAGS}" \
+# The linker in CC itself (libtool drops LDFLAGS when it links a library),
+# unused when CC only compiles. Libtool links a library with undefined
+# symbols allowed unless the deployment target says a recent system.
+AUTOTOOLS_ENV =	CC="${TC}/clang ${TARGET_FLAGS} -fuse-ld=${TC}/ld64 -Qunused-arguments" \
+		CXX="${TC}/clang++ ${TARGET_FLAGS} -fuse-ld=${TC}/ld64 -Qunused-arguments" \
 		CFLAGS="-O2 ${WARN_FLAGS}" CXXFLAGS="-O2 ${WARN_FLAGS}" \
 		LDFLAGS="-fuse-ld=${TC}/ld64" AR=${TC}/llvm-ar RANLIB=${TC}/llvm-ranlib \
 		NM=${TC}/llvm-nm STRIP=${TC}/llvm-strip LD=${TC}/ld64 \
-		OTOOL=${TC}/otool OTOOL64=${TC}/otool lt_cv_prog_gnu_ld=no
+		OTOOL=${TC}/otool OTOOL64=${TC}/otool lt_cv_prog_gnu_ld=no \
+		MACOSX_DEPLOYMENT_TARGET=10.15
 
 # Meson, pinned, in a venv shared by the external libraries.
 ${VENV}/.minkar-requirements: ${REQUIREMENTS}
@@ -184,8 +197,8 @@ ${VENV}/.minkar-requirements: ${REQUIREMENTS}
 	echo "${PIP_SHA256}  ${EXTLIB_CACHE}/${PIP_WHEEL}" | sha256sum -c --quiet
 	rm -rf ${VENV} && ${PYTHON3} -m venv --without-pip ${VENV}
 	${VENV}/bin/python ${EXTLIB_CACHE}/${PIP_WHEEL}/pip install -q --disable-pip-version-check \
-	    --require-hashes -r ${REQUIREMENTS}
-	cksum < ${REQUIREMENTS} > ${.TARGET}
+	    --require-hashes ${REQUIREMENTS:@r@-r ${r}@}
+	cat ${REQUIREMENTS} | cksum > ${.TARGET}
 
 EXTLIB_TOP =	${SRC}${EXTLIB_SUBDIR:D/${EXTLIB_SUBDIR}}
 
@@ -221,7 +234,8 @@ STAGE_CMD =	DESTDIR=${STAGE} ninja -C ${BUILD} install
 .elif ${EXTLIB_SYSTEM} == "autotools"
 SETUP_DEPS =
 SETUP_CMD =	mkdir -p ${BUILD} && cd ${BUILD} && ${AUTOTOOLS_ENV} ${EXTLIB_TOP}/configure \
-		--host=x86_64-apple-darwin19 --build=$$(sh ${EXTLIB_TOP}/config.guess) \
+		--host=x86_64-apple-darwin19 \
+		--build=$$(sh $$(ls ${EXTLIB_TOP}/config.guess ${EXTLIB_TOP}/build-aux/config.guess 2>/dev/null | head -1)) \
 		--prefix=/usr --libdir=/usr/lib --enable-shared --disable-static ${EXTLIB_OPTIONS}
 BUILD_CMD =	gmake -C ${BUILD} ${EXTLIB_TARGETS}
 STAGE_CMD =	gmake -C ${BUILD} DESTDIR=${STAGE} install
@@ -285,6 +299,14 @@ install-extlib: .PHONY build-extlib
 			${TC}/install_name_tool -change $$dep /usr/lib/$${dep#@rpath/} $$f || exit 1; \
 		done; \
 		mkdir -p ${SYSROOT_DIR}/usr/$${m%/*} && cp -f $$f ${SYSROOT_DIR}/usr/$$m || exit 1; \
+	done
+	for f in ${EXTLIB_SDK_FILES}; do \
+		mkdir -p ${SDK}/$${f%/*} && cp -f ${STAGE}/$$f ${SDK}/$$f || exit 1; \
+	done
+	for d in ${EXTLIB_DATA}; do \
+		test -e ${STAGE}/$$d || { echo "minkar.extlib.mk: $$d not installed" >&2; exit 1; }; \
+		rm -rf ${SYSROOT_DIR}/$$d && mkdir -p ${SYSROOT_DIR}/$${d%/*} && \
+		cp -R ${STAGE}/$$d ${SYSROOT_DIR}/$${d%/*}/ || exit 1; \
 	done
 .if !empty(EXTLIB_LICENSES)
 	mkdir -p ${SYSROOT_DIR}/usr/share/licenses/${EXTLIB}
