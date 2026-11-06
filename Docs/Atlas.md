@@ -17,11 +17,15 @@ rules as [WindowServer-Rewrite.md](WindowServer-Rewrite.md).
   written against the public Cocoa API, so they double as a continuous
   test of AppKit and Foundation; what one needs that the frameworks lack is
   added to the frameworks, never worked around in the app.
-- **Our own visual language.** No third-party icons, fonts, sounds or
-  artwork. The maintainer designs the icons (PNG 512×512 RGBA or SVG);
-  until then an app has a test icon or the generic one, and a test icon is
-  marked as such in its Makefile. The interface font is Inter and the
-  fixed-pitch font Agave (both SIL OFL 1.1).
+- **Our own visual language.** No third-party fonts, sounds or artwork,
+  with one exception for icons (decided 2026-11-05): the icon themes
+  Faience and Faenza by Matthieu James (GPL-3), kept as separate data files
+  with their license, authors and SVG sources in `SystemLibrary/Icons`
+  (installed in `/System/Library/Icons`), and without brand icons. Folders
+  are blue by default (Faience-Azur), with sand and orange as
+  alternatives. App icons are 512×512 PNG in the bundle (AppKit reads no
+  `.icns` yet). The menu bar is dark (charcoal, light text). The interface
+  font is Inter and the fixed-pitch font Agave (both SIL OFL 1.1).
 - **Generic names.** The only proper names are Minkar, the system, and
   Atlas, its desktop (decided 2026-11-05). Every app is named for what it
   does, with the common words other free desktops use (Files, Text Editor,
@@ -570,6 +574,12 @@ exists, gate M4) still green, and the roadmap updated with the evidence.
   gets Command-Tab from the window server's symbolic hotkey table.
 - [ ] **D4 — Stacks and Trash.** Downloads and folder stacks; Trash tile
   (empty or full, drop to trash, empty through Files).
+  *Partial (6 Nov 2026):* the Trash tile, last after a separator of its
+  own: its icon follows `~/.Trash` through a vnode watch (no polling), a
+  click opens it, its menu opens or empties it (asked first), and an app
+  tile dropped on it leaves the Dock; tested in the `desktop` image test.
+  Missing: stacks, files dropped on it, Put Back, other volumes'
+  `.Trashes`.
 
 #### Files
 

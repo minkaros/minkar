@@ -18,11 +18,16 @@ K0–K4), cuyos hitos conservan sus nombres, y añade las aplicaciones
   escriben sobre la API pública de Cocoa, así que sirven también de prueba
   continua de AppKit y Foundation; lo que una necesite y les falte a los
   frameworks se añade a los frameworks, nunca se rodea en la app.
-- **Lenguaje visual propio.** Sin iconos, fuentes, sonidos ni arte de
-  terceros. Los iconos los diseña el mantenedor (PNG 512×512 RGBA o SVG);
-  mientras tanto una app tiene un icono de prueba o el genérico, y el de
-  prueba se marca como tal en su Makefile. La fuente de la interfaz es
-  Inter y la de ancho fijo Agave (ambas SIL OFL 1.1).
+- **Lenguaje visual propio.** Sin fuentes, sonidos ni arte de terceros,
+  con una excepción para los iconos (decidida el 2026-11-05): los temas de
+  iconos Faience y Faenza de Matthieu James (GPL-3), como ficheros de datos
+  aparte con su licencia, autores y fuentes SVG en `SystemLibrary/Icons`
+  (instalados en `/System/Library/Icons`), y sin iconos de marcas. Las
+  carpetas son azules por defecto (Faience-Azur), con arena y naranja como
+  alternativas. Los iconos de las apps son PNG de 512×512 en el bundle
+  (AppKit aún no lee `.icns`). La barra de menús es oscura (gris carbón,
+  texto claro). La fuente de la interfaz es Inter y la de ancho fijo Agave
+  (ambas SIL OFL 1.1).
 - **Nombres genéricos.** Los únicos nombres propios son Minkar, el
   sistema, y Atlas, su escritorio (decidido el 5 nov 2026). Cada app se
   llama por lo que hace, con las palabras comunes que usan otros
@@ -603,6 +608,12 @@ evidencia.
   servidor de ventanas.
 - [ ] **D4 — Pilas y papelera.** Pilas de Descargas y de carpetas; tile de la
   papelera (vacía o llena, soltar para tirar, vaciar a través de Files).
+  *Parcial (6 nov 2026):* el tile de la papelera, el último tras un
+  separador propio: su icono sigue a `~/.Trash` con una vigilancia vnode
+  (sin sondeo), un clic la abre, su menú la abre o la vacía (preguntando
+  antes) y un tile de app soltado encima sale del Dock; probado en la
+  prueba de imagen `desktop`. Falta: pilas, soltar archivos, Devolver y
+  las `.Trashes` de otros volúmenes.
 
 #### Files
 
