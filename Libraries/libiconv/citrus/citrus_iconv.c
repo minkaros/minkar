@@ -146,6 +146,16 @@ open_shared(struct _citrus_iconv_shared * __restrict * __restrict rci,
 	}
 	ci->ci_convname = (void *)&ci[1];
 	memcpy(ci->ci_convname, convname, len_convname + 1);
+	/*
+	 * Minkar: a character the target set lacks is an error (EILSEQ,
+	 * the input left at it), as GNU libiconv, which the reference
+	 * platform had up to API 19, makes it, and as programs that convert
+	 * with a fallback expect (GLib's g_convert_with_fallback). FreeBSD's
+	 * default writes '?' and counts an irreversible conversion; iconvctl
+	 * (ICONV_SET_ILSEQ_INVALID, 0) still asks for that, and //IGNORE
+	 * (or ICONV_SET_DISCARD_ILSEQ) still skips the character.
+	 */
+	ci->ci_ilseq_invalid = true;
 
 	/* load module */
 	ret = _citrus_load_module(&ci->ci_module, module);
