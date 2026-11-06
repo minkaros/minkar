@@ -54,6 +54,7 @@ libintl: ${.CURDIR:H}/gettext-tiny/Makefile
 	CFLAGS="--sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN}" \
 	MAKEFLAGS="" ${GMAKE} LIBINTL=1 -C ${GT_OBJDIR}
 	cp -fv ${GT_OBJDIR}/libintl.a ${MINKAR_SDKROOT}/usr/lib
+	cp -fv ${GT_OBJDIR}/include/libintl.h ${MINKAR_SDKROOT}/usr/include
 	cp -fv ${GT_OBJDIR}/msgfmt ${GT_OBJDIR}/msgmerge \
 		${SYSROOT_DIR}/usr/bin/
 
