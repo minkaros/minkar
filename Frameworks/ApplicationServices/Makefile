@@ -15,7 +15,8 @@ HEADERS = ApplicationServices.h
 SUBDIR =
 
 FMWKS = ${MINKAR_SDKROOT}/System/Library/Frameworks
-LDFLAGS += -F${FMWKS} -Wl,-reexport_framework,CoreGraphics -Wl,-reexport_framework,CoreText
+LDFLAGS += -F${FMWKS} -Wl,-reexport_framework,CoreServices -Wl,-reexport_framework,CoreGraphics \
+	-Wl,-reexport_framework,CoreText
 
 fmwk-install-hook:
 	mkdir -p ${MINKAR_SDKROOT}/System/Library/Frameworks \
