@@ -29,6 +29,7 @@
 #include <mach/mach_init.h>
 #include <mach/mach_vm.h>
 #include <stdio.h>
+#include <math.h>
 #include <stdlib.h>
 #import "WSCompositorBackend.h"
 #import "WSDisplay.h"
@@ -139,13 +140,31 @@ WSRowBands(const pixman_box32_t *boxes, int n, int32_t *bands)
 
 /*
  * A window's shadow mask, kWSShadowRadius wider on each side: dark under
- * the window, fading out to nothing at the radius. Separable, from one
- * falloff per axis.
+ * the window, fading out to nothing at the radius, by the distance to the
+ * window with its corners rounded (kWSShadowCornerRadius), so the corners'
+ * shadow is round as they are. The Vulkan backend's shader (shadowMask in
+ * shaders/compose.comp) computes the same, in the same float operations.
  */
+static float
+shadowMask(int x, int y, int w, int h)
+{
+	const int R = kWSShadowRadius, rc = kWSShadowCornerRadius;
+	/* From the window's own pixel coordinates, how far beyond the inner
+	   rectangle (the window less its corners' radius) on each axis. */
+	int px = x - R, py = y - R;
+	int ux = px < rc ? rc - px : (px > w - 1 - rc ? px - (w - 1 - rc) : 0);
+	int uy = py < rc ? rc - py : (py > h - 1 - rc ? py - (h - 1 - rc) : 0);
+	float d = sqrtf((float)(ux * ux + uy * uy)) - (float)rc;
+	if (d < 0.0f)
+		d = 0.0f;
+	float t = d >= (float)R ? 0.0f : 1.0f - d / (float)R;
+	return t * t;
+}
+
 - (NSData *)shadowMaskForWidth:(int)w height:(int)h stride:(int *)stride
 {
 	const int R = kWSShadowRadius;
-	const double maxAlpha = 0.35;
+	const float maxAlpha = 0.35f;
 	int mw = w + 2 * R, mh = h + 2 * R;
 	NSString *key = [NSString stringWithFormat:@"%dx%d", w, h];
 	NSData *mask = _shadowMasks[key];
@@ -157,22 +176,9 @@ WSRowBands(const pixman_box32_t *boxes, int n, int32_t *bands)
 		_shadowMasks = [NSMutableDictionary dictionary];
 	NSMutableData *data = [NSMutableData dataWithLength:(NSUInteger)*stride * mh];
 	uint8_t *bytes = data.mutableBytes;
-	double *fx = calloc(mw, sizeof(double)), *fy = calloc(mh, sizeof(double));
-	for (int pass = 0; pass < 2; pass++) {
-		int len = pass ? h : w, n = pass ? mh : mw;
-		double *f = pass ? fy : fx;
-		for (int i = 0; i < n; i++) {
-			int p = i - R;	/* from the window's edge */
-			double d = p < 0 ? -p : (p >= len ? p - len + 1 : 0);
-			double t = d >= R ? 0 : 1 - d / R;
-			f[i] = t * t;
-		}
-	}
 	for (int y = 0; y < mh; y++)
 		for (int x = 0; x < mw; x++)
-			bytes[y * *stride + x] = (uint8_t)(255 * maxAlpha * fx[x] * fy[y] + 0.5);
-	free(fx);
-	free(fy);
+			bytes[y * *stride + x] = (uint8_t)(255.0f * maxAlpha * shadowMask(x, y, w, h) + 0.5f);
 	_shadowMasks[key] = data;
 	return data;
 }

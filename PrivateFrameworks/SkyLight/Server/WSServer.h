@@ -61,7 +61,9 @@ void WSDisplaysRestoreSaved(void);
 
 /* Window shadows: how far they reach out of the window, and how far
  * down they are; the compositor draws them, the window list damages them. */
-enum { kWSShadowRadius = 16, kWSShadowOffsetY = 6 };
+/* Window shadows: how far they fade out, how far down they fall, and the
+   window corners' radius they follow (AppKit's NSWindowCornerRadius). */
+enum { kWSShadowRadius = 16, kWSShadowOffsetY = 6, kWSShadowCornerRadius = 8 };
 
 /* Windows (WSWindowList.m). */
 WSWindow *WSWindowCreate(WSConnection *owner, int32_t level, SLSRect frame);

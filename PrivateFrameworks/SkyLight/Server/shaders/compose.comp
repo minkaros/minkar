@@ -59,11 +59,17 @@ uint scale(uint v, uint a)
 	return r;
 }
 
-// The shadow mask's falloff along one axis (pixman backend's formula).
-float falloff(int i, int len)
+// The shadow mask (pixman backend's shadowMask, in the same float
+// operations): by the distance to the window with its corners rounded.
+const int kCornerRadius = 8;	// kWSShadowCornerRadius
+float shadowMask(ivec2 m, ivec2 size)
 {
-	int p = i - kRadius;
-	float d = p < 0 ? float(-p) : (p >= len ? float(p - len + 1) : 0.0);
+	int px = m.x - kRadius, py = m.y - kRadius, rc = kCornerRadius;
+	int ux = px < rc ? rc - px : (px > size.x - 1 - rc ? px - (size.x - 1 - rc) : 0);
+	int uy = py < rc ? rc - py : (py > size.y - 1 - rc ? py - (size.y - 1 - rc) : 0);
+	float d = sqrt(float(ux * ux + uy * uy)) - float(rc);
+	if (d < 0.0)
+		d = 0.0;
 	float t = d >= float(kRadius) ? 0.0 : 1.0 - d / float(kRadius);
 	return t * t;
 }
@@ -90,7 +96,7 @@ void main()
 		// The mask's pixel: its origin is the window's less the radius,
 		// lowered by the offset.
 		ivec2 m = at - (op.srcOrigin - ivec2(kRadius, kRadius - kOffsetY));
-		uint mask = uint(255.0 * 0.35 * falloff(m.x, op.size.x) * falloff(m.y, op.size.y) + 0.5);
+		uint mask = uint(255.0 * 0.35 * shadowMask(m, op.size) + 0.5);
 		uint a = mul8(mask, op.alpha);		// black, a's alpha: dst * (255 - a)
 		uint d = dst.p[di], r = 0u;
 		for (uint i = 0u; i < 4u; i++)
