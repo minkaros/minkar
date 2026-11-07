@@ -82,7 +82,7 @@ en un MSR que lee el kernel).
 | Disco | SATA a través de AHCI (`MinkarAHCIPort`) | Sistema de archivos raíz, fsck |
 | Disco | NVMe (M.2), "SK 256GB" (Silicon Motion, PCI 126f:2263) | Sistema de archivos raíz: arranca desde él (`MinkarNVMe`, 29 oct 2026), finalizaciones por interrupción |
 | USB | xHCI (`MinkarXHCIPort`), hub USB 2 de un conmutador KVM | Teclado y ratón, directamente y a través del conmutador |
-| Pantalla | Framebuffer GOP, ultrapanorámica Xiaomi de 34" | Consola de texto nativa a 3440x1440 |
+| Pantalla | AMD Radeon RX 6600 (Navi 23, RDNA2, PCI 1002:73ff); framebuffer GOP, ultrapanorámica Xiaomi de 34" | Consola de texto nativa a 3440x1440, con el framebuffer del firmware (aún sin driver para la tarjeta; la HD 630 del i7-7700 no se usa) |
 | Red | Intel I219-V (LAN del PCH) | ping en la LAN (`MinkarE1000`) |
 | Red | Intel I211 | DHCP y ping en la LAN (`MinkarE1000`) |
 | Wi-Fi | Intel (M.2) | Sin driver |

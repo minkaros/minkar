@@ -82,7 +82,7 @@ El rendimiento de Minkar debe ser igual o mejor que el del sistema de referencia
 
 - **Cómo se mide:** Minkar y el sistema de referencia en el mismo equipo (arranque dual), con los mismos benchmarks ejecutados por SSH. El sistema de referencia solo se mide en hardware original de su fabricante (candidato: PC 2), porque su licencia no permite otro, y sus valores se guardan fuera del repo público.
 - **Consecuencia:** si la referencia solo se mide en el PC 2, Minkar también debe medirse ahí, y sus GPU (dos AMD FirePro D500: Tahiti, GCN 1.0, PCI 1002:679e; la familia más antigua que tenemos y con soporte menos maduro) pasan a ser las del primer driver de alto rendimiento. La otra configuración del modelo, la FirePro D300, es Pitcairn: otro chip con su propio firmware, nunca probado (el driver conoce sus tablas y toma su microcódigo, `pitcairn_*.bin`; pendiente hasta tener una D300).
-- **Decisión abierta — familia del primer driver de GPU:** PC 1 usa la gráfica integrada Intel HD 630 (Gen9) salvo que tenga una tarjeta dedicada; otro equipo disponible tiene AMD RX 6600 (RDNA2), útil como equipo de pruebas de Minkar sin publicar mediciones del sistema de referencia en él. Hay que elegir entre empezar por la GPU del PC 1 (desarrollo más rápido) o por la del PC 2 (donde se puede comparar).
+- **Familias de GPU (decidido el 2026-11-01, [ADR 0002](ADR/0002-GPU-First-Family.es.md)):** primero GCN 1.0, la FirePro D500 (Tahiti) del PC 2, donde se mide la referencia; luego RDNA2, la tarjeta RX 6600 del PC 1 (Navi 23, que hoy lleva su pantalla con el framebuffer del firmware); luego Intel Gen9, la HD 630 integrada en el i7-7700 del PC 1.
 
 ## Línea base
 
@@ -510,7 +510,7 @@ Además, lo que este plan añade y aún no está en el repo:
 - [x] **Versiones (31 oct):** `PROD_VERSION = 19.6.0` para `ProductUserVisibleVersion`, `PROD_COMPAT_VERSION = 10.15` para `ProductVersion`, y `sw_vers` mostrando «Minkar 19.6.0 (kernel Darwin 19.6.0)», con su manual (`d2b559759f`). Probado en QEMU: `@available(10.15)` verdadero y `(11.0)` falso, `operatingSystemVersion` 10.15.0, `uname -r` 19.6.0. `libsystem_info` y el kext de pthread conservan sus propias versiones. En el mismo trabajo: `launch_activate_socket` (`5051c781b4`), `os_log` y `os_activity` (`0709544df7`), `_availability_version_check` (`c0923c1bc7`) y `NSProcessInfo` (`fb6e25b877`).
 - [x] **`Docs/ROADMAP.md` al día (31 oct):** reescrito desde este plan, con Atlas y Files, el esquema API 19/20/21 → Minkar 19.6.0/20.0/21.0, el frente de GPU y el requisito de rendimiento.
 - [ ] **Compatibilidad de versión:** mecanismo tipo `SystemVersionCompat.plist` y `SYSTEM_VERSION_COMPAT=1` para binarios enlazados con un SDK anterior.
-- [ ] **Decidir la familia del primer driver de GPU** y escribir el ADR con el prototipo KMS. También hace falta para apagar la pantalla, que el framebuffer GOP no permite.
+- [x] **Decidir la familia del primer driver de GPU** y escribir el ADR: GCN 1.0, luego RDNA2, luego Gen9 ([ADR 0002](ADR/0002-GPU-First-Family.es.md), `69fed7cb81`). Un driver de pantalla es también lo que apaga la pantalla, que el framebuffer GOP no permite: hecho para GCN 1.0 con G1; la RX 6600 del PC 1 es la siguiente.
 - [ ] **Medición:** medir el sistema de referencia en hardware original (PC 2) y guardar los valores fuera del repo público, para los gates de rendimiento de Minkar 21.0.
 - [ ] **Rendimiento NVMe en QEMU:** las lecturas por el dispositivo de bloques van a 1 MB/s.
 

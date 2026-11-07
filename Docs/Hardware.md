@@ -77,7 +77,7 @@ requirement above; it was `-cpu Westmere` until 7 Nov 2026; with
 | Disk | SATA through AHCI (`MinkarAHCIPort`) | Root file system, fsck |
 | Disk | NVMe (M.2), "SK 256GB" (Silicon Motion, PCI 126f:2263) | Root file system: boots from it (`MinkarNVMe`, 2026-10-29), completions by interrupt |
 | USB | xHCI (`MinkarXHCIPort`), USB 2 hub of a KVM switch | Keyboard and mouse, directly and through the switch |
-| Display | GOP framebuffer, Xiaomi 34" ultrawide | Native 3440x1440 text console |
+| Display | AMD Radeon RX 6600 (Navi 23, RDNA2, PCI 1002:73ff); GOP framebuffer, Xiaomi 34" ultrawide | Native 3440x1440 text console, through the firmware's framebuffer (no driver for the card yet; the i7-7700's HD 630 is unused) |
 | Network | Intel I219-V (PCH LAN) | ping on the LAN (`MinkarE1000`) |
 | Network | Intel I211 | DHCP and ping on the LAN (`MinkarE1000`) |
 | Wi-Fi | Intel (M.2) | No driver |

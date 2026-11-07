@@ -20,9 +20,10 @@ requirements). It is the first step of the GPU track (G1) and of WS6 in
   DCE 6. It is the oldest of the three families we have, and the one with
   the least mature open drivers.
 - PC 2 will be available for a short time only.
-- The other machines: an AMD Radeon RX 6600 (RDNA2, Navi 23, GFX10.3,
-  display engine DCN 3.0.x), usable to test Minkar but not to publish
-  reference measurements; and PC 1's Intel HD 630 (Gen9).
+- PC 1 has the other two: an AMD Radeon RX 6600 card (RDNA2, Navi 23,
+  GFX10.3, display engine DCN 3.0.x, PCI 1002:73ff), which drives its
+  display, and its i7-7700's integrated Intel HD 630 (Gen9). It can test
+  Minkar but not publish reference measurements.
 - Today Minkar draws through IOFramebuffer drivers without acceleration:
   `IOGOPFramebuffer` (the firmware's framebuffer) and `MinkarVirtioGPU`
   (virtio-gpu 2D in VMs, WS5). The window server composites with pixman
@@ -41,7 +42,7 @@ requirements). It is the first step of the GPU track (G1) and of WS6 in
 1. **AMD GCN 1.0 (GFX6, DCE 6)**, PC 2's FirePro: first,
    because the reference is measured there and the machine will not be
    available for long.
-2. **AMD RDNA2 (GFX10.3, DCN 3.0.x)**, the RX 6600: second. It shares the
+2. **AMD RDNA2 (GFX10.3, DCN 3.0.x)**, PC 1's RX 6600: second. It shares the
    kernel driver (`amdgpu`) and Mesa's RADV with the first, and becomes the
    AMD development machine when PC 2 is gone.
 3. **Intel Gen9**, PC 1's HD 630: third, with `i915` and ANV/iris.

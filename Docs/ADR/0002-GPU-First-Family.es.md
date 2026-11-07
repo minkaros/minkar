@@ -20,9 +20,10 @@ WS6 en `Docs/WindowServer-Rewrite.es.md`.
   DCE 6. Es la más antigua de las tres familias que tenemos, y la de
   drivers abiertos menos maduros.
 - El PC 2 estará disponible poco tiempo.
-- Las otras máquinas: una AMD Radeon RX 6600 (RDNA2, Navi 23, GFX10.3,
-  motor de pantalla DCN 3.0.x), útil para probar Minkar pero no para
-  publicar mediciones de referencia; y la Intel HD 630 (Gen9) del PC 1.
+- El PC 1 tiene las otras dos: una tarjeta AMD Radeon RX 6600 (RDNA2,
+  Navi 23, GFX10.3, motor de pantalla DCN 3.0.x, PCI 1002:73ff), que lleva
+  su pantalla, y la Intel HD 630 (Gen9) integrada en su i7-7700. Sirve
+  para probar Minkar, no para publicar mediciones de referencia.
 - Hoy Minkar dibuja con drivers IOFramebuffer sin aceleración:
   `IOGOPFramebuffer` (el framebuffer del firmware) y `MinkarVirtioGPU`
   (virtio-gpu 2D en VMs, WS5). El servidor de ventanas compone con pixman
@@ -42,7 +43,7 @@ WS6 en `Docs/WindowServer-Rewrite.es.md`.
 1. **AMD GCN 1.0 (GFX6, DCE 6)**, las FirePro del PC 2: primero,
    porque la referencia se mide ahí y la máquina no estará disponible mucho
    tiempo.
-2. **AMD RDNA2 (GFX10.3, DCN 3.0.x)**, la RX 6600: segundo. Comparte con la
+2. **AMD RDNA2 (GFX10.3, DCN 3.0.x)**, la RX 6600 del PC 1: segundo. Comparte con la
    primera el driver del kernel (`amdgpu`) y RADV de Mesa, y pasa a ser la
    máquina de desarrollo de AMD cuando no esté el PC 2.
 3. **Intel Gen9**, la HD 630 del PC 1: tercero, con `i915` y ANV/iris.
