@@ -29,7 +29,8 @@ GitHub's Ubuntu 22.04 runners. Package names are Debian/Ubuntu ones;
   has no `tzfile.h`; then `make && make install`).
 * System build: `bmake make csh bison flex time`, and `byacc` (Berkeley
   yacc, public domain: libxkbcommon's parser is generated with it, not
-  bison)
+  bison), and `ruby` (2.5 or later: JavaScriptCore's build generates code
+  with it)
 * Bootable image and boot test: `nasm gdisk dosfstools hfsprogs`,
   `qemu-system-x86 ovmf` (the boot test runs QEMU without KVM, under TCG),
   `openssh-client openssl` for gate M2, and the kernel's `hfsplus` module

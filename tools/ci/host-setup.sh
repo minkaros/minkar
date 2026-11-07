@@ -23,7 +23,7 @@ libxml2-dev libpng-dev uuid-dev libssl-dev zlib1g-dev libbsd-dev \
 libacl1-dev libc++-dev libc++abi-dev llvm-14-dev libedit-dev libffi-dev \
 libdispatch-dev libblocksruntime-dev libkqueue-dev libpthread-workqueue-dev \
 libicu-dev autoconf automake libtool pkg-config \
-bmake make csh bison flex byacc time"
+bmake make csh bison flex byacc time ruby"
 # Open CF-lite (APSL, host only): plktool and xcbuild link it.
 OPENCFLITE_REPO=https://github.com/gerickson/opencflite.git
 OPENCFLITE_TAG=opencflite-635.21.8
