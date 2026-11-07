@@ -906,6 +906,13 @@ MinkarE1000::start(IOService *provider)
 	    fMAC.bytes[0], fMAC.bytes[1], fMAC.bytes[2], fMAC.bytes[3],
 	    fMAC.bytes[4], fMAC.bytes[5]);
 
+	/* IONetworkController::start published the model before the chip was
+	 * known (as the default 82540EM): again, now that it is. */
+	if (const OSString *model = newModelString()) {
+		setProperty(kIOModel, const_cast<OSString *>(model));
+		model->release();
+	}
+
 	if (!attachInterface((IONetworkInterface **)&fNetif, false))
 		return false;
 	fNetStats = fNetif->getNetworkStats();
