@@ -21,7 +21,10 @@ rules as [WindowServer-Rewrite.md](WindowServer-Rewrite.md).
   with one exception for icons (decided 2026-11-05): the icon themes
   Faience and Faenza by Matthieu James (GPL-3), kept as separate data files
   with their license, authors and SVG sources in `SystemLibrary/Icons`
-  (installed in `/System/Library/Icons`), and without brand icons. Folders
+  (installed in `/System/Library/Icons`), and without brand icons. They
+  keep their GPL-3 license; no code links with them, and the rest of the
+  rule stands (accepted by the maintainer: no icon set of the same scope
+  exists under BSD or MIT). Folders
   are blue by default (Faience-Azur), with sand and orange as
   alternatives. App icons are 512×512 PNG in the bundle (AppKit reads no
   `.icns` yet). The menu bar is dark (charcoal, light text). The interface

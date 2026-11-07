@@ -22,7 +22,10 @@ K0–K4), cuyos hitos conservan sus nombres, y añade las aplicaciones
   con una excepción para los iconos (decidida el 2026-11-05): los temas de
   iconos Faience y Faenza de Matthieu James (GPL-3), como ficheros de datos
   aparte con su licencia, autores y fuentes SVG en `SystemLibrary/Icons`
-  (instalados en `/System/Library/Icons`), y sin iconos de marcas. Las
+  (instalados en `/System/Library/Icons`), y sin iconos de marcas.
+  Conservan su licencia GPL-3; ningún código se enlaza con ellos y el resto
+  de la regla sigue igual (aceptado por el mantenedor: no existe un juego
+  de iconos del mismo alcance con licencia BSD o MIT). Las
   carpetas son azules por defecto (Faience-Azur), con arena y naranja como
   alternativas. Los iconos de las apps son PNG de 512×512 en el bundle
   (AppKit aún no lee `.icns`). La barra de menús es oscura (gris carbón,

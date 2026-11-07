@@ -16,7 +16,7 @@ The plan has 8 phases (0–7), each with deliverables and an exit gate that CI c
 2. **The contract is the public Cocoa API, by API number.** API 19 first, then API 20 and API 21. Every symbol is classified as implemented, stub or missing, and measured.
 3. **Noisy stubs.** Every stub logs its first call to the system log, so real apps tell us what is missing, in the order they use it.
 4. **Reuse before writing.** Open source APSL code first (xnu, dyld, launchd, hfs), then swift-corelibs, then FreeBSD's userland. New code only for the gaps.
-5. **Clean licenses.** New code under MIT or BSD-2, nothing GPL in base components (DMG, for one), and a clean-room rule: no one who has seen the reference platform's closed source contributes code. Third-party trademarks are not used in names, icons or public text; a single TRADEMARKS.md declares them.
+5. **Clean licenses.** New code under MIT or BSD-2, nothing GPL in base components (DMG, for one), and a clean-room rule: no one who has seen the reference platform's closed source contributes code. Third-party trademarks are not used in names, icons or public text; a single TRADEMARKS.md declares them. One exception, accepted by the maintainer because no icon set of the same scope exists under BSD or MIT: Atlas's icons are the Faience and Faenza themes (GPL-3), separate data files in `SystemLibrary/Icons` that keep their GPL-3 license; no code links with them, and the rest of this rule stands.
 6. **Reference apps as acceptance tests.** A fixed set of open source apps written for the Cocoa API is built at each milestone; the symbols they import set the order of the framework work.
 
 ## Version decision
