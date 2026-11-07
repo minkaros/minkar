@@ -260,4 +260,19 @@ w0-check: .PHONY
 w0-check-vm: .PHONY
 	${MAKE} -C ${.CURDIR}/Image boottest GATE=W0 BOOTTEST_TIMEOUT=${W0_BOOTTEST_TIMEOUT:U5400}
 
+# Gate W1: JavaScriptCore passes JSTests' suites (Tests/W1/check-host.sh,
+# WebKit's own runner over ssh) on a machine running Minkar: W1_HOST=
+# user@address[:port], W1_SSH_KEY the key to log in with, W1_SUITES some
+# suites only (es6.yaml stress ...). The results go to W1_OUT.
+W1_OUT ?=	${ROOT_BINARY_DIR:U${.OBJDIR}}/w1-results
+w1-check: .PHONY
+.if !defined(W1_HOST)
+	@echo "w1-check: W1_HOST=user@address[:port] (a machine running Minkar) is required" >&2; false
+.else
+	webkit=$$(sh ${.CURDIR}/BSD/lib/libdrm/fetch.sh ${.CURDIR}/BSD/lib/javascriptcore/MANIFEST \
+	    ${ROOT_BINARY_DIR:U${.OBJDIR}}/src-cache) && \
+	sh ${.CURDIR}/Tests/W1/check-host.sh ${SYSROOT_DIR} $$webkit ${W1_HOST} "${W1_SSH_KEY:U}" \
+	    ${W1_OUT} ${W1_SUITES:U}
+.endif
+
 .include "./BSD/share/mk/bsd.subdir.mk"

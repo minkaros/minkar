@@ -1,0 +1,2 @@
+# Tests that fail on Minkar for a known reason, one a line: the test's
+# name as the runner's failed list gives it (suite/file.js.mode), then why.
