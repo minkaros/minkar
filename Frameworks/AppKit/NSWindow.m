@@ -1174,6 +1174,17 @@ NSArray *_NSWindowNumbersFromWindowInfo(CFArrayRef info,BOOL allApps) {
     [_backgroundView setNeedsDisplay:YES];
 }
 
+-(CGFloat)_titlebarHeight {
+    return _titlebarHeight;
+}
+
+-(void)_setTitlebarHeight:(CGFloat)height {
+    _titlebarHeight=height;
+    [_backgroundView setNeedsDisplay:YES];
+    /* The bar the window moves by is that tall too. */
+    [self _syncSkyLightDragRegion];
+}
+
 /* The title (and the edited mark, which the frame draws) to the window
  * server and on the bar again. */
 -(void)_updatePlatformWindowTitle {
@@ -3417,13 +3428,18 @@ static void slsCollectExcluded(NSView *view, NSSize size, SLSIntRect *rects, uin
     CGFloat top, left, bottom, right;
 
     CGNativeBorderFrameWidthsForStyle(_styleMask, &top, &left, &bottom, &right);
+    /* A full-size content view's own bar may be taller than the title
+       bar (_setTitlebarHeight:): the window moves by all of it. */
+    CGFloat bar = top;
+    if((_styleMask & NSWindowStyleMaskFullSizeContentView) && _titlebarHeight > bar)
+        bar = _titlebarHeight;
     if([self isMovable]) {
         if([self isMovableByWindowBackground]) {
             if(slsWindowRect(NSMakeRect(0, 0, size.width, size.height), size, &drag[dragCount]))
                 dragCount++;
             slsCollectExcluded(_contentView, size, exclude, &excludeCount);
         } else if(top > 0 &&
-            slsWindowRect(NSMakeRect(0, size.height - top, size.width, top), size, &drag[dragCount])) {
+            slsWindowRect(NSMakeRect(0, size.height - bar, size.width, bar), size, &drag[dragCount])) {
             dragCount++;
             /* A full-size content view's controls in the title bar take
                their own clicks; the rest of the bar moves the window. */
@@ -3522,8 +3538,10 @@ static void slsCollectExcluded(NSView *view, NSSize size, SLSIntRect *rects, uin
 void CGNativeBorderFrameWidthsForStyle(unsigned styleMask,CGFloat *top,CGFloat *left,
                                        CGFloat *bottom,CGFloat *right);
 
-/* A full-size content view covers the title bar: the content rectangle
-   is the frame without its other borders. */
+/* The content rectangle is the frame without its borders, each side's
+   (it used to subtract one border a side, so the content reached 3
+   points over the frame's top and 2 past its right). A full-size content
+   view covers the title bar: no top border then. */
 CGRect CGInsetRectForNativeWindowBorder(CGRect frame,unsigned styleMask) {
     CGFloat top, left, bottom, right;
     CGNativeBorderFrameWidthsForStyle(styleMask, &top, &left, &bottom, &right);
@@ -3531,8 +3549,8 @@ CGRect CGInsetRectForNativeWindowBorder(CGRect frame,unsigned styleMask) {
         top=0;
     frame.origin.x += left;
     frame.origin.y += bottom;
-    frame.size.width -= right;
-    frame.size.height -= top;
+    frame.size.width -= left + right;
+    frame.size.height -= top + bottom;
     return frame;
 }
 
@@ -3543,8 +3561,8 @@ CGRect CGOutsetRectForNativeWindowBorder(CGRect frame,unsigned styleMask) {
         top=0;
     frame.origin.x -= left;
     frame.origin.y -= bottom;
-    frame.size.width += right;
-    frame.size.height += top;
+    frame.size.width += left + right;
+    frame.size.height += top + bottom;
     return frame;
 }
 
