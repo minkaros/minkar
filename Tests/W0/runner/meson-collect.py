@@ -9,7 +9,9 @@
 # @S@ for the source one and @HERE@ for w0. Usage:
 #   meson-collect.py BUILD SRC DIR [RUNNER=SCRIPT]... [DATA]...
 # The programs the tests run are copied; DATA are source directories the
-# tests read. Minkar has no Python: a test run by the Python script RUNNER
+# tests read, or build:PATH for a file the build made. The tests' programs
+# and what they depend on are built first (some are not by default).
+# Minkar has no Python: a test run by the Python script RUNNER
 # runs DIR's sh SCRIPT instead (copied to w0), and the other Python tests
 # go to skipped.txt.
 import json, os, shlex, shutil, subprocess, sys
@@ -21,6 +23,17 @@ out = os.path.join(build, 'w0')
 shutil.rmtree(out, ignore_errors=True)
 os.makedirs(out)
 tests = json.loads(subprocess.check_output(['meson', 'introspect', '--tests', build]))
+targets = json.loads(subprocess.check_output(['meson', 'introspect', '--targets', build]))
+files = {t['id']: t['filename'] for t in targets}
+want = set()
+for t in tests:
+    for d in t.get('depends', []):
+        want.update(files.get(d, []))
+    if t['cmd'][0].startswith(build + '/'):
+        want.add(t['cmd'][0])
+want = sorted(os.path.relpath(f, build) for f in want)
+if want:
+    subprocess.check_call(['ninja', '-C', build] + want, stdout=subprocess.DEVNULL)
 
 def mark(s):
     if not s.startswith('/') and not s.startswith('-') and os.path.exists(os.path.join(build, s)):
@@ -60,7 +73,12 @@ for t in tests:
     lines.append('\t'.join([t['name'], wd, ' '.join(shlex.quote(c) for c in env + cmd)]))
 
 for d in data:
-    shutil.copytree(os.path.join(src, d), os.path.join(out, 'src', d), symlinks=False)
+    if d.startswith('build:'):
+        d = d[len('build:'):]
+        os.makedirs(os.path.dirname(os.path.join(out, 'build', d)), exist_ok=True)
+        shutil.copy2(os.path.join(build, d), os.path.join(out, 'build', d))
+    else:
+        shutil.copytree(os.path.join(src, d), os.path.join(out, 'src', d), symlinks=False)
 for sh in set(runners.values()):
     shutil.copy2(os.path.join(here, sh), out)
 with open(os.path.join(out, 'tests.txt'), 'w') as f:
