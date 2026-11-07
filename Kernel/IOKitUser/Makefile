@@ -160,7 +160,7 @@ CFLAGS.IOHIDConnectionObjc.o = -include${MINKAR_SDKROOT}/usr/local/include/kerne
 CFLAGS.HIDEventBase.o = -include${MINKAR_SDKROOT}/usr/include/i386/endian.h \
 	-include${MINKAR_SDKROOT}/usr/local/include/kernel/os/object.h \
 	-include${MINKAR_SDKROOT}${SLF}/IOKit.framework/PrivateHeaders/hidobjc/hidobjcbase.h \
-	-Ddouble_t=double -I${ROOT_SOURCE_DIR}/Kernel/xnu/libkern
+	-I${ROOT_SOURCE_DIR}/Kernel/xnu/libkern
 CFLAGS.HIDServiceBase.o = -include${MINKAR_SDKROOT}/usr/include/i386/endian.h \
 	-include${MINKAR_SDKROOT}/usr/local/include/kernel/os/object.h \
 	-include${MINKAR_SDKROOT}${SLF}/IOKit.framework/PrivateHeaders/hidobjc/hidobjcbase.h
@@ -176,7 +176,7 @@ CFLAGS.HIDServiceClientBase.o = -include${MINKAR_SDKROOT}/usr/include/i386/endia
 CFLAGS.HIDDeviceBase.o = -include${MINKAR_SDKROOT}/usr/include/i386/endian.h \
 	-include${MINKAR_SDKROOT}/usr/local/include/kernel/os/object.h \
 	-include${MINKAR_SDKROOT}${SLF}/IOKit.framework/PrivateHeaders/hidobjc/hidobjcbase.h \
-	-Ddouble_t=double -I${ROOT_SOURCE_DIR}/Kernel/xnu/libkern
+	-I${ROOT_SOURCE_DIR}/Kernel/xnu/libkern
 CFLAGS.IOPMLib.o = -I${.CURDIR}
 CFLAGS.IOPMAutoWake.o = -I${.CURDIR} \
 	-I${MINKAR_SDKROOT}${SLF}/IOKit.framework/Headers/pwr_mgt
@@ -194,7 +194,7 @@ CFLAGS.IOEventStatusAPI.o = -std=gnu++11 -I${.CURDIR} -I${.CURDIR}/hid.subproj \
 	-include${MINKAR_SDKROOT}${SLF}/IOKit.framework/PrivateHeaders/hidobjc/hidobjcbase.h \
 	-include${MINKAR_SDKROOT}${SLF}/IOKit.framework/Headers/hid/IOHIDEventSystemClientPrivate.h
 CFLAGS.AdjustForNewSegmentLocation.o = -Wno-elaborated-enum-base
-CFLAGS.IOHIDLib.o = -Ddouble_t=double -Wno-elaborated-enum-base \
+CFLAGS.IOHIDLib.o = -Wno-elaborated-enum-base \
 	-std=gnu++03 -I${.CURDIR:H}/xnu/libkern -I${.OBJDIR} \
 	-I${ROOT_SOURCE_DIR}/Libraries/Libsystem/liblaunch \
 	-I${.CURDIR}/hidsystem.subproj -I${.CURDIR}/hid.subproj \

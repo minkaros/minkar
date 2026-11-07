@@ -9,6 +9,10 @@ SUBDIR += ../Kernel/IOKitUser
 SUBDIR += SystemConfiguration
 # DiskArbitration links IOKit; diskarbitrationd (BSD) links SystemConfiguration.
 SUBDIR += DiskArbitration
+# libcompression (from BSD/lib) and the liblzma it links (CoreText's xz):
+# Foundation's NSData includes <compression.h> and links it.
+SUBDIR += CoreText/xz
+SUBDIR += ../BSD/lib/libcompression
 SUBDIR += Foundation
 # LaunchServices is inside CoreServices, which re-exports it.
 SUBDIR += CoreServices/LaunchServices
@@ -38,6 +42,11 @@ SUBDIR += AppKit
 SUBDIR += Cocoa
 # System Preferences' panes.
 SUBDIR += PreferencePanes
+# Swift's runtime (/usr/lib/swift) and its test program, from Libraries/swift:
+# built here because its Objective-C parts include Foundation's headers
+# (and through NSGeometry.h, CoreGraphics').
+SUBDIR += ../Libraries/swift
+SUBDIR += ../Libraries/swift/tests
 # Combine, from OpenCombine (Swift; Dispatch's and Foundation's overlays
 # extend it).
 SUBDIR += Combine
@@ -50,20 +59,31 @@ SUBDIR += XCTest
 
 all: ${SUBDIR}
 
-Foundation: CoreFoundation
+# What each one links (or includes) is built before it: the stage runs
+# them in parallel.
+Foundation: CoreFoundation ../BSD/lib/libcompression
+../BSD/lib/libcompression: CoreText/xz
+CoreText: CoreText/xz CoreGraphics Foundation Onyx2D
 IOSurface: CoreFoundation ../Kernel/IOKitUser
+../Kernel/IOKitUser: CoreFoundation
+CoreServices/LaunchServices: CoreFoundation
+Onyx2D: CoreFoundation Foundation
+CoreGraphics: CoreFoundation IOSurface Onyx2D OpenGL ../PrivateFrameworks/SkyLight
 CoreServices: CoreServices/LaunchServices CoreServices/FSEvents
 CoreServices/FSEvents: CoreFoundation
-SystemConfiguration: CoreFoundation
-DiskArbitration: CoreFoundation
+SystemConfiguration: CoreFoundation ../Kernel/IOKitUser
+DiskArbitration: CoreFoundation ../Kernel/IOKitUser
 CoreData: Foundation
-QuartzCore: OpenGL IOSurface ../PrivateFrameworks/SkyLight CoreVideo
+QuartzCore: OpenGL IOSurface ../PrivateFrameworks/SkyLight CoreVideo CoreGraphics Onyx2D
 CoreVideo: OpenGL Foundation
-AppKit: CoreData QuartzCore ApplicationServices
+AppKit: CoreData QuartzCore ApplicationServices CoreServices
 ApplicationServices: CoreGraphics CoreText
 Cocoa: AppKit CoreData
 PreferencePanes: AppKit
-../Libraries/swift/overlays: CoreFoundation CoreGraphics Foundation Combine
+../Libraries/swift: CoreFoundation CoreGraphics Foundation
+../Libraries/swift/tests: ../Libraries/swift
+Combine: ../Libraries/swift
+../Libraries/swift/overlays: ../Libraries/swift CoreFoundation CoreGraphics Foundation Combine
 XCTest: ../Libraries/swift/overlays
 
 .include <bsd.subdir.mk>

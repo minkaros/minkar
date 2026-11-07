@@ -323,6 +323,11 @@
 /* The provided buffer is of insufficient size for the requested data.
  */
 
+#define KERN_NOT_FOUND                  56
+/* The requested property cannot be found (API 20; Minkar's kernel does
+ * not return it yet).
+ */
+
 #define KERN_RETURN_MAX                 0x100
 /* Maximum return value allowable
  */

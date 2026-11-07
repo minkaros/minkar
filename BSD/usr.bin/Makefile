@@ -9,6 +9,8 @@ LDFLAGS = --sysroot=${MINKAR_SDKROOT} -mmacos-version-min=${MACOS_VERSION_MIN} \
 SUBDIR_PARALLEL =
 # BIND links the OpenSSL that is staged there.
 SUBDIR_DEPEND_bind =	openssl
+# git links libcurl and includes its headers, which curl installs.
+SUBDIR_DEPEND_git =	curl
 SUBDIR = apply basename chroot cut dirname env false find getopt grep 
 SUBDIR += head killall login make patch pfetch printf sed sw_vers 
 SUBDIR += tail tee time touch true uname users whereis which xargs yes

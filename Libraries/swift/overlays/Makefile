@@ -102,6 +102,21 @@ ${SRC}/.minkar-patches: ${PATCHES:S,^,${.CURDIR}/patches/,} ${.CURDIR}/MANIFEST 
 	mv ${SRC}.part ${SRC}
 	cat ${.ALLSRC} | cksum > ${.TARGET}
 
+# The overlays' sources come from the fetched and patched tree above.
+.for o in ${OVERLAYS}
+${SOURCES_${o}:S,^,${DARWIN}/${o}/,}: ${SRC}/.minkar-patches
+.endfor
+
+# Each overlay imports the ones before it in OVERLAYS (Foundation uses
+# CoreGraphics's CGFloat), also with -j.
+_prev =
+.for o in ${OVERLAYS}
+.if !empty(_prev)
+${OUT}/${o}.o: ${OUT}/${_prev}.o
+.endif
+_prev := ${o}
+.endfor
+
 # The overlays' own C headers (imported @_implementationOnly: only for
 # building them). System modules, as in Swift's resource directory: their
 # NSUInteger is Swift's Int.
