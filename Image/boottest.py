@@ -178,7 +178,16 @@ GATES['M3'] = GATES['M2'] + [
 GATES['W0'] = GATES['M2'] + [
     SSH('/usr/local/tests/w0/run.sh 2>&1 | grep "^w0: "'),
     'w0: expat passed',
+    'w0: fontconfig passed',
     'w0: glib passed',
+    'w0: harfbuzz passed',
+    'w0: libgcrypt passed',
+    'w0: libgpg-error passed',
+    'w0: libpng passed',
+    'w0: libsoup passed',
+    'w0: libtasn1 passed',
+    'w0: libxkbcommon passed',
+    'w0: libxml2 passed',
     'w0: pcre2 passed',
     'w0: every library passed']
 
