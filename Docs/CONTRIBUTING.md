@@ -44,6 +44,16 @@ New code is licensed under the BSD 2-clause license.
 
 If you have _ever_ seen the reference platform's proprietary code (not APSL-licensed or other open-source stuff) then you may *not* contribute code to Minkar. Sorry :( However, you may be able to contribute in other ways!
 
+### Language
+
+Everything committed is in English: code, comments, commit messages and
+user interface strings. The interface is translated through `*.lproj`
+bundles (English is the development language, and the base for tests and
+screenshots); a translation never replaces the English strings in the
+code. Documentation is written in English; a document may also have a
+Spanish copy next to it as `<name>.es.md`, which says that the English one
+is the reference and is updated in the same commit.
+
 ### Development shortcuts
 
 A temporary solution taken during development is marked in the code with
