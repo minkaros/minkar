@@ -68,6 +68,8 @@ Other components
 - sudo - ISC (BSD/usr.bin/sudo/LICENSE.md)
 - bzip2 - bzip2 License (BSD/lib/bzip2/src/LICENSE)
 - libffi - MIT (BSD/lib/libffi/LICENSE)
+- Arm optimized-routines pow, via musl 1.2.5 - MIT
+  (Libraries/Libsystem/libsystem_m/arm/LICENSE)
 - libjpeg-turbo - IJG, BSD-3-Clause and zlib (BSD/lib/libjpeg/LICENSE.md)
 - libpng - libpng License v2 (BSD/lib/libpng/LICENSE)
 - LibTIFF - libtiff License (BSD/lib/libtiff/LICENSE.md)

@@ -7,13 +7,16 @@
 # previous implementation called itself for most functions.
 # msun_compat.h and include/machine/asm.h supply FreeBSD's cdefs and asm
 # macros; the assembly loses its ELF-only .note.GNU-stack section here.
+# pow is Arm's (arm/: from musl 1.2.5, MIT; at most 0.52 ULP off where
+# msun's e_pow.c could be a whole ULP off), with libm.h, features.h and
+# math_err.c (original, BSD-2) for the musl internals it uses.
 
 SUBDIR =
 MK_WERROR = no
 LIB = system_m
 MSUN = ${ROOT_SOURCE_DIR}/BSD/lib/msun
 
-.PATH: ${.OBJDIR} ${MSUN}/amd64 ${MSUN}/x86 ${MSUN}/ld80 ${MSUN}/bsdsrc ${MSUN}/src
+.PATH: ${.OBJDIR} ${.CURDIR}/arm ${MSUN}/amd64 ${MSUN}/x86 ${MSUN}/ld80 ${MSUN}/bsdsrc ${MSUN}/src
 
 MSUN_ASM = e_fmod.S e_fmodf.S e_fmodl.S e_remainder.S e_remainderf.S e_remainderl.S \
 	e_sqrt.S e_sqrtf.S e_sqrtl.S s_llrint.S s_llrintf.S s_llrintl.S \
@@ -28,7 +31,7 @@ SRCS =	b_tgamma.c b_tgammal.c catrig.c catrigf.c catrigl.c e_acos.c \
 	e_hypotf.c e_hypotl.c e_j0.c e_j0f.c e_j1.c e_j1f.c \
 	e_jn.c e_jnf.c e_lgamma.c e_lgamma_r.c e_lgammaf.c e_lgammaf_r.c \
 	e_lgammal.c e_lgammal_r.c e_log.c e_log10.c e_log10f.c e_log2.c \
-	e_log2f.c e_logf.c e_pow.c e_powf.c e_powl.c e_rem_pio2.c \
+	e_log2f.c e_logf.c e_powf.c e_powl.c e_rem_pio2.c \
 	e_rem_pio2f.c e_scalb.c e_scalbf.c e_sinh.c e_sinhf.c e_sinhl.c \
 	fenv_darwin.c invtrig.c k_cos.c k_cosf.c k_cosl.c k_exp.c \
 	k_expf.c k_rem_pio2.c k_sin.c k_sinf.c k_sinl.c k_tan.c \
@@ -58,7 +61,13 @@ SRCS =	b_tgamma.c b_tgammal.c catrig.c catrigf.c catrigl.c e_acos.c \
 	s_tanl.c s_tanpi.c s_tanpif.c s_tanpil.c s_tgammaf.c s_trunc.c \
 	s_truncf.c s_truncl.c w_cabs.c w_cabsf.c w_cabsl.c w_drem.c \
 	w_dremf.c \
-	${MSUN_ASM:S/^/rv_/} glue.c
+	${MSUN_ASM:S/^/rv_/} glue.c \
+	${ARM_SRCS}
+
+ARM_SRCS = pow.c pow_data.c exp_data.c math_err.c
+.for s in ${ARM_SRCS}
+CFLAGS.${s} = -I${.CURDIR}/arm
+.endfor
 
 CFLAGS = -mmacos-version-min=${MACOS_VERSION_MIN} --sysroot=${MINKAR_SDKROOT} \
 	-Wno-nullability-completeness -fno-math-errno -fno-builtin \
