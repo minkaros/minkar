@@ -42,7 +42,7 @@ Minkar separa tres capas que en la plataforma de referencia van juntas. El kerne
 
 | Minkar | Entrega | Kernel (`uname -r`) | `ProductVersion` |
 | --- | --- | --- | --- |
-| 19.6.0 | API 19, escritorio Atlas completo para el uso diario (MB2–MB3, D2–D3, K2–K3, apps A0–A10) y DMG; gates funcionales M0–M6 en equipo físico | 19.6.0 | 10.15 |
+| 19.6.0 | API 19, escritorio Atlas completo para el uso diario (MB2–MB3, D2–D3, K2–K3, apps A0–A10), WebKit (W0–W5) y DMG; gates funcionales M0–M6 en equipo físico | 19.6.0 | 10.15 |
 | 19.6.x | Correcciones, y MB4, D4 y K4; pueden traer partes de API 20 | 19.6.0 | 10.15 |
 | 20.0 | API 20 completa y probada | 19.6.0 | 11.0 |
 | 21.0 | API 21 completa y probada, más los gates de rendimiento | 19.6.0 | 12.0 |
@@ -429,7 +429,7 @@ Comandos que llegan con esta fase (movidos desde la Fase 2):
 
 Adelanto: `hdiutil attach` ya monta imágenes en `/Volumes` a través de DiskArbitration (30 oct 2026); falta leer el formato UDIF de los DMG.
 
-**Criterio de salida (M6):** se descarga un DMG, se monta, se copia la app a `/Applications` y corre; y el escritorio Atlas está completo para el uso diario, tal como lo fija la sección 6 de [Atlas.es.md](Atlas.es.md): MB2 y MB3, D2 y D3, K2 y K3, y las apps esenciales A0–A10, usadas a diario en la propia máquina de desarrollo; MB4, D4, K4 y las demás apps llegan en 19.6.x.
+**Criterio de salida (M6):** se descarga un DMG, se monta, se copia la app a `/Applications` y corre; y el escritorio Atlas está completo para el uso diario, tal como lo fija la sección 6 de [Atlas.es.md](Atlas.es.md): MB2 y MB3, D2 y D3, K2 y K3, y las apps esenciales A0–A10, usadas a diario en la propia máquina de desarrollo; y WebKit hasta W5, con las vistas web de las apps de referencia funcionando. MB4, D4, K4 y las demás apps llegan en 19.6.x; el navegador web no hace falta.
 
 ## Fase 7 — Compatibilidad binaria y arm64
 
@@ -474,7 +474,7 @@ M0, M1 y M2 están cumplidos (M1 el 1 nov, con el PC 2) y la Fase 2 está cerrad
 | M3 | Frameworks y Swift | Cumplido (5 nov 2026): toolchain, runtime, overlays de Swift, Combine y XCTest; el gate M3 pasa con las siete herramientas (swift-argument-parser; Rainbow y Files; Yams; xcbeautify; mogenerator; tag; SwiftFormat) |
 | M4 | Gráficos y WindowServer | Cumplido en QEMU (`boottest GATE=M4`, 54 marcadores, 2 nov 2026, `9d510ec6c2`): WS0 a WS4b hechos (el núcleo nuevo es el servidor de ventanas, los menús en cada app con MB0, el `loginwindow` mínimo; el servidor anterior borrado). También WS5 (IOSurface y virtio-gpu, 2 nov 2026, `9a472063c1`; M4 pasa con virtio-vga y con la VGA estándar). La Fase 4 sigue con la GPU (WS6) y en hardware físico |
 | M5 | Escritorio Atlas | Sin empezar |
-| M6 (Minkar 19.6.0) | Apps y distribución, y el escritorio completo para el uso diario (MB2–MB3, D2–D3, K2–K3, apps A0–A10) | Sin empezar; `hdiutil attach` ya monta |
+| M6 (Minkar 19.6.0) | Apps y distribución, el escritorio completo para el uso diario (MB2–MB3, D2–D3, K2–K3, apps A0–A10) y WebKit (W0–W5) | Sin empezar; `hdiutil attach` ya monta |
 | Minkar 21.0 | API 21 completa y rendimiento ≥ sistema de referencia en equipo físico | Sin empezar; depende del frente de GPU |
 | M7 | Compatibilidad binaria, arm64 | Después de Minkar 19.6.0 |
 
