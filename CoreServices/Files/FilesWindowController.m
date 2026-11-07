@@ -12,13 +12,19 @@
 #import "FilesSegmentedControl.h"
 #import "FilesSidebarView.h"
 #import "FilesColumnView.h"
+
+/* AppKit's (Minkar): the window's buttons centered in a full-size content
+   view's own bar, until unified toolbars exist. */
+@interface NSWindow (FilesTitlebarHeight)
+- (void)_setTitlebarHeight:(CGFloat)height;
+@end
 #include <sys/mount.h>
 #include <os/log.h>
 #include <CoreServices/CoreServices.h>
 
 /* The bar is the title bar too (a full-size content view): as high as the
    window's own, its controls in line with the window's buttons. */
-static const CGFloat kBarHeight = 32, kStatusHeight = 22, kSidebarWidth = 170;
+static const CGFloat kBarHeight = 40, kStatusHeight = 22, kSidebarWidth = 170;
 
 @interface FilesWindowController () <FilesBrowserViewDelegate, FilesColumnViewDelegate, FilesSidebarViewDelegate,
                                      NSWindowDelegate>
@@ -68,6 +74,8 @@ static NSTextField *label(CGFloat size, BOOL bold)
           backing:NSBackingStoreBuffered defer:NO];
     [_window setTitleVisibility:NSWindowTitleHidden];
     [_window setTitlebarAppearsTransparent:YES];
+    if ([_window respondsToSelector:@selector(_setTitlebarHeight:)])
+        [_window _setTitlebarHeight:kBarHeight];
     [_window setReleasedWhenClosed:NO];
     [_window setMinSize:NSMakeSize(480, 280)];
     [_window setDelegate:self];
@@ -438,10 +446,15 @@ static void folderEvents(ConstFSEventStreamRef stream, void *info, size_t count,
 {
     NSRect b = [self bounds];
 
-    [[NSColor colorWithCalibratedWhite:0.97 alpha:1] set];
+    /* White under the folder's items; the bar across the top in gray,
+       with a line under it. */
+    [[NSColor whiteColor] set];
     NSRectFill(dirty);
     [[NSColor colorWithCalibratedWhite:0.82 alpha:1] set];
+    NSRectFill(NSIntersectionRect(dirty, NSMakeRect(0, NSMaxY(b) - kBarHeight, NSWidth(b), kBarHeight)));
+    [[NSColor colorWithCalibratedWhite:0.74 alpha:1] set];
     NSRectFill(NSMakeRect(0, NSMaxY(b) - kBarHeight, NSWidth(b), 1));
+    [[NSColor colorWithCalibratedWhite:0.85 alpha:1] set];
     NSRectFill(NSMakeRect(0, 21, NSWidth(b), 1));
 }
 
