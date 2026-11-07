@@ -39,8 +39,8 @@ K0–K4), cuyos hitos conservan sus nombres, y añade las aplicaciones
   plataforma de referencia que no sea una palabra común. El bundle se
   nombra sin espacios (`TextEditor.app`), su identificador es
   `org.minkar.<Nombre>`, y el nombre en español llega con la traducción de
-  la app (Archivos, Editor de texto). Files y Text Editor se llamaban Argos
-  y Alcor hasta entonces.
+  la app (Archivos, Editor de texto). Files y Text Editor se llamaban antes
+  Argos y Alcor.
 - **Sobre los comandos.** Donde Minkar tiene el comando (`top`, `log`,
   `screencapture`, `diskutil`, `hdiutil`, `system_profiler`, `tar`), la
   app es su interfaz y comparte su código o su salida, de modo que ambos se
@@ -90,8 +90,9 @@ desarrollo si la sección 3.10 lo registra con el hito que lo elimina.
 ### 3.2 Por qué: hallazgos en el código actual
 
 1. **Hoy no hay barra de menús.** SystemUIServer, que la dibuja, no se
-   compila (`CoreServices/Makefile`: «FIXME: Dock, Filer, DMIHelper,
-   SystemUIServer and loginwindow ... are not built yet»).
+   compila (`CoreServices/Makefile` tenía un FIXME: el Dock, el antiguo
+   explorador de archivos (antes Filer), DMIHelper, SystemUIServer y
+   loginwindow aún no se compilaban).
 2. **Menús dibujados en otro proceso.** `-[NSApplication
    sendMenusToWindowServer]` copia todo el menú principal, le quita targets y
    delegados (`_menuEnumerateAndChange:`), lo archiva con `NSKeyedArchiver` y
@@ -400,7 +401,8 @@ cabeceras ni binarios del fabricante (sala limpia).
 
 ### 4.1 Decisión
 
-- **Files se escribe nuevo.** No se conserva nada de Filer.
+- **Files se escribe nuevo.** No se conserva nada del antiguo explorador
+  de archivos (antes Filer).
 - **El Dock recibe un núcleo nuevo** y se portan tres partes del actual: las
   claves de preferencias y el formato de los datos de tiles, la ventana del
   fondo de escritorio, y el cálculo de disposición de los tiles como
@@ -413,9 +415,9 @@ desarrollo si la sección 4.10 lo registra con el hito que lo elimina.
 
 ### 4.2 Por qué: hallazgos en el código actual
 
-#### Filer (`CoreServices/Filer/FilerMain.m`, 94 líneas)
+#### El antiguo explorador de archivos (antes Filer; 94 líneas)
 
-Una ventana titulada «Filer - /Applications» sin ninguna vista. Los archivos
+Una ventana titulada con su nombre y «/Applications», sin ninguna vista. Los archivos
 que se sueltan sobre ella se copian a la carpeta, borrando antes lo que había
 sin preguntar; solo sabe abrir bundles `.app` (`LSOpenCFURLRef`). No hay
 navegación, vista de iconos, lista o columnas, papelera ni «Abrir con». No hay
@@ -628,7 +630,8 @@ evidencia.
   vistas de AppKit (Files dibuja las suyas).
 - [x] **K1 — Navegación.** Ventanas con barra lateral, vistas de iconos, lista y
   columnas, navegación, abrir archivos y apps, Obtener información básico.
-  Filer pasa a ser Files: bundle ID, `LSRevealInFiler` como alias obsoleto del
+  Files ocupa el lugar del antiguo explorador de archivos (antes Filer):
+  bundle ID, `LSRevealInFiler` como alias obsoleto del
   nombre nuevo durante una versión, `open -R`, los tiles predeterminados del
   Dock. Es la parte «Files navega» del gate M5. *Hecho (4 nov 2026):*
   `896749b380`, `c9f602b43c`, `45c2c1ad9e`, `788fe67376`, `906f12eae4`;

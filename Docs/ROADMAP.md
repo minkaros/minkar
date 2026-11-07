@@ -375,7 +375,7 @@ Across all of it: these are ordinary Cocoa apps or bundles, so they double as a 
 
 Commands that come with this phase (moved from Phase 2):
 
-- [ ] `open` and `lsappinfo`, on LaunchServices. *Partial (4 Nov 2026):* `open` with `-a`, `-b`, `-e`, `-t`, `-R` and `-n` (`906f12eae4`); `lsappinfo` is missing. With it came the text editor, Text Editor (named Alcor until 5 Nov 2026, `b8b8906ab9`).
+- [ ] `open` and `lsappinfo`, on LaunchServices. *Partial (4 Nov 2026):* `open` with `-a`, `-b`, `-e`, `-t`, `-R` and `-n` (`906f12eae4`); `lsappinfo` is missing. With it came the text editor, Text Editor (`b8b8906ab9`).
 - [ ] `mdfind`, `mdls` and `mdutil`, with a metadata index for Files' search.
 - [ ] Directory Services–style user management, for LoginWindow and the Users pane (moved from Phase 2 on 2026-10-31).
 - [ ] `say`, with an audio driver and speech synthesis.

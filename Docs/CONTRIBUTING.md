@@ -15,7 +15,7 @@ As an open-source project, we love receiving contributions from our community - 
 As of October 2025, these are the top priorities:
 * System build wrangling - bringing in third-party sources to the system tree, packaging stuff into Frameworks, etc
 * Getting Darwin code to build/boot
-* Ongoing work on the desktop shell: WindowServer, LoginWindow, SystemUIServer (implementing MenuExtras, StatusItems), Dock, Filer
+* Ongoing work on the desktop shell: WindowServer, LoginWindow, SystemUIServer (implementing MenuExtras, StatusItems), Dock, Files
 * Continue updating the Cocoa frameworks to add missing features and update existing ones
 * Replace CoreFoundation with the one from Swift 
 

@@ -37,7 +37,7 @@ rules as [WindowServer-Rewrite.md](WindowServer-Rewrite.md).
   named without spaces (`TextEditor.app`), its identifier is
   `org.minkar.<Name>`, and the Spanish name comes with the app's
   translation (Archivos, Editor de texto). Files and Text Editor were
-  Argos and Alcor until then.
+  formerly named Argos and Alcor.
 - **On the command-line tools.** Where Minkar has the command
   (`top`, `log`, `screencapture`, `diskutil`, `hdiutil`,
   `system_profiler`, `tar`), the app is its interface and shares its code
@@ -86,8 +86,9 @@ menus follow it. A shortcut is allowed during development only when section
 ### 3.2 Why: findings in the current code
 
 1. **There is no menu bar today.** SystemUIServer, which draws it, is not
-   built (`CoreServices/Makefile`: "FIXME: Dock, Filer, DMIHelper,
-   SystemUIServer and loginwindow ... are not built yet").
+   built (`CoreServices/Makefile` had a FIXME: the Dock, the old file
+   browser (formerly Filer), DMIHelper, SystemUIServer and loginwindow were
+   not built yet).
 2. **Menus drawn in another process.** `-[NSApplication
    sendMenusToWindowServer]` copies the whole main menu, strips targets and
    delegates (`_menuEnumerateAndChange:`), archives it with
@@ -378,7 +379,8 @@ binaries (clean room).
 
 ### 4.1 Decision
 
-- **Files is written new.** Nothing of Filer is kept.
+- **Files is written new.** Nothing of the old file browser (formerly
+  Filer) is kept.
 - **The Dock gets a new core**, and three parts of the current one are
   ported: the preference keys and tile data format, the desktop picture
   window, and the tile layout arithmetic as a reference.
@@ -390,9 +392,9 @@ section 4.10 lists it with the milestone that removes it.
 
 ### 4.2 Why: findings in the current code
 
-#### Filer (`CoreServices/Filer/FilerMain.m`, 94 lines)
+#### The old file browser (formerly Filer; 94 lines)
 
-A window titled "Filer - /Applications" with no view in it. Files dropped on
+A window titled with its name and "/Applications", with no view in it. Files dropped on
 it are copied into the folder, deleting what was there first without asking;
 it can only open `.app` bundles (`LSOpenCFURLRef`). There is no browsing,
 icon, list or column view, Trash or "Open With". Nothing to keep.
@@ -593,7 +595,8 @@ exists, gate M4) still green, and the roadmap updated with the evidence.
   (`0331f57894`, test `launchservices`); the AppKit views are not checked
   yet (Files draws its own).
 - [x] **K1 — Browsing.** Windows with sidebar, icon, list and column views,
-  navigation, opening files and apps, basic Get Info. Filer becomes Files:
+  navigation, opening files and apps, basic Get Info. Files takes the old
+  file browser's place (formerly Filer):
   bundle ID, `LSRevealInFiler` kept as a deprecated alias of the new name for
   one release, `open -R`, the Dock's default tiles. This is the "Files
   browses" part of gate M5. *Done (4 Nov 2026):* `896749b380`,

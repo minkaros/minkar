@@ -375,7 +375,7 @@ Criterio transversal: todos estos componentes son apps o bundles Cocoa normales.
 
 Comandos que llegan con esta fase (movidos desde la Fase 2):
 
-- [ ] `open` y `lsappinfo`, sobre LaunchServices. *Parcial (4 nov 2026):* `open` con `-a`, `-b`, `-e`, `-t`, `-R` y `-n` (`906f12eae4`); falta `lsappinfo`. Con él llegó el editor de texto, Text Editor (llamado Alcor hasta el 5 nov 2026, `b8b8906ab9`).
+- [ ] `open` y `lsappinfo`, sobre LaunchServices. *Parcial (4 nov 2026):* `open` con `-a`, `-b`, `-e`, `-t`, `-R` y `-n` (`906f12eae4`); falta `lsappinfo`. Con él llegó el editor de texto, Text Editor (`b8b8906ab9`).
 - [ ] `mdfind`, `mdls` y `mdutil`, con un índice de metadatos para la búsqueda de Files.
 - [ ] Gestión de usuarios estilo Directory Services, para LoginWindow y el panel Usuarios (movida de la Fase 2 el 31 oct).
 - [ ] `say`, con un driver de audio y síntesis de voz.
