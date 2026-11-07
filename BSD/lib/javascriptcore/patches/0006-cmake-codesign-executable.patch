@@ -1,7 +1,9 @@
 CMake: WEBKIT_CODESIGN_EXECUTABLE, the codesign to sign with
 
 /usr/bin/codesign was built in; a build for Darwin on another system
-has its toolchain's (the default stays /usr/bin/codesign).
+has its toolchain's (the default stays /usr/bin/codesign). And without
+`set -o pipefail`, which the build host's /bin/sh may not know (dash):
+codesign runs unfiltered, so its own status stops the build.
 
 --- a/Source/cmake/WebKitMacros.cmake	2026-11-07 01:48:04.462569506 -0500
 +++ b/Source/cmake/WebKitMacros.cmake	2026-11-07 01:48:04.494568736 -0500
@@ -16,12 +18,14 @@ has its toolchain's (the default stays /usr/bin/codesign).
      set(_identity ${WEBKIT_CODE_SIGN_IDENTITY})
      if (NOT _identity)
          set(_identity "-")
-@@ -619,7 +623,7 @@
+@@ -619,7 +623,6 @@
          COMMAND rm -f ${_cstemp_path}
-         COMMAND set -o pipefail &&
-             ${WEBKITADDITIONS_CODESIGN_PRELUDE}
+-        COMMAND set -o pipefail &&
+-            ${WEBKITADDITIONS_CODESIGN_PRELUDE}
 -            /usr/bin/codesign --force --sign ${_identity} ${_entitlements} ${_sign_path} 2>&1 |
-+            ${WEBKIT_CODESIGN_EXECUTABLE} --force --sign ${_identity} ${_entitlements} ${_sign_path} 2>&1 |
-             sed "/replacing existing signature/d"
+-            sed "/replacing existing signature/d"
++        # No pipefail in every /bin/sh: codesign's own status, unfiltered.
++        COMMAND ${WEBKITADDITIONS_CODESIGN_PRELUDE}
++            ${WEBKIT_CODESIGN_EXECUTABLE} --force --sign ${_identity} ${_entitlements} ${_sign_path}
          COMMAND ${CMAKE_COMMAND} -E touch ${_stamp}
          VERBATIM

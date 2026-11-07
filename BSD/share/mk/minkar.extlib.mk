@@ -139,14 +139,16 @@ WARN_FLAGS =		-Wno-nullability-completeness -Wno-incompatible-sysroot
 
 # The toolchain's clang refuses more than one *_DEPLOYMENT_TARGET in the
 # environment; the flags set the target already. pkg-config sees the SDK
-# only.
+# only, and puts the SDK before -I and -L only, not before variables such
+# as giomoduledir (pkgconf, Ubuntu 24.04's, does so unless told to follow
+# freedesktop.org pkg-config's rules).
 TOOLENV =	env -u MACOSX_DEPLOYMENT_TARGET -u IPHONEOS_DEPLOYMENT_TARGET \
 		-u TVOS_DEPLOYMENT_TARGET -u WATCHOS_DEPLOYMENT_TARGET \
 		-u XROS_DEPLOYMENT_TARGET -u DRIVERKIT_DEPLOYMENT_TARGET \
 		PATH=${VENV}/bin:${HOST_PREFIX}/bin:$${PATH} \
 		PKG_CONFIG_LIBDIR=${SDK}/usr/lib/pkgconfig:${SDK}/usr/local/lib/pkgconfig:${SDK}${PRIVATE_DEV}/lib/pkgconfig \
 		PKG_CONFIG_PATH= \
-		PKG_CONFIG_SYSROOT_DIR=${SDK} ${EXTLIB_ENV}
+		PKG_CONFIG_SYSROOT_DIR=${SDK} PKG_CONFIG_FDO_SYSROOT_RULES=1 ${EXTLIB_ENV}
 .if defined(EXTLIB_HOST) && ${EXTLIB_HOST} == "yes"
 # For the build host: its compilers, and the libraries built for it before.
 TOOLENV =	env -u MACOSX_DEPLOYMENT_TARGET PATH=${VENV}/bin:${HOST_PREFIX}/bin:$${PATH} \
@@ -237,15 +239,21 @@ AUTOTOOLS_ENV =	CC="${TC}/clang ${TARGET_FLAGS} -fuse-ld=${TC}/ld64 -Qunused-arg
 		OTOOL=${TC}/otool OTOOL64=${TC}/otool lt_cv_prog_gnu_ld=no \
 		MACOSX_DEPLOYMENT_TARGET=10.15
 
-# Meson, pinned, in a venv shared by the external libraries.
+# Meson, pinned, in a venv shared by the external libraries. They build in
+# parallel: under a lock, the first one makes it and the others wait and
+# find it made (a second one would remove it while the first runs Meson).
 ${VENV}/.minkar-requirements: ${REQUIREMENTS}
-	mkdir -p ${EXTLIB_CACHE}
-	test -f ${EXTLIB_CACHE}/${PIP_WHEEL} || \
-	    curl -sfL -o ${EXTLIB_CACHE}/${PIP_WHEEL} ${PIP_URL}
-	echo "${PIP_SHA256}  ${EXTLIB_CACHE}/${PIP_WHEEL}" | sha256sum -c --quiet
-	rm -rf ${VENV} && ${PYTHON3} -m venv --without-pip ${VENV}
+	mkdir -p ${EXTLIB_CACHE} ${VENV:H}
+	exec 9> ${VENV}.lock && flock 9 && \
+	if [ -f ${.TARGET} ] && [ -z "$$(find ${REQUIREMENTS} -newer ${.TARGET})" ]; then \
+		exit 0; \
+	fi && \
+	{ test -f ${EXTLIB_CACHE}/${PIP_WHEEL} || \
+	    curl -sfL -o ${EXTLIB_CACHE}/${PIP_WHEEL} ${PIP_URL}; } && \
+	echo "${PIP_SHA256}  ${EXTLIB_CACHE}/${PIP_WHEEL}" | sha256sum -c --quiet && \
+	rm -rf ${VENV} && ${PYTHON3} -m venv --without-pip ${VENV} && \
 	${VENV}/bin/python ${EXTLIB_CACHE}/${PIP_WHEEL}/pip install -q --disable-pip-version-check \
-	    --require-hashes ${REQUIREMENTS:@r@-r ${r}@}
+	    --require-hashes ${REQUIREMENTS:@r@-r ${r}@} && \
 	cat ${REQUIREMENTS} | cksum > ${.TARGET}
 
 EXTLIB_TOP =	${SRC}${EXTLIB_SUBDIR:D/${EXTLIB_SUBDIR}}
@@ -397,9 +405,11 @@ install-extlib: .PHONY build-extlib
 	fi
 	# Other directories of lib (configuration headers: glib-2.0/include).
 	for d in ${STAGE}/usr/lib/*/; do \
-		case $$d in */pkgconfig/|*/webkit/) ;; *) [ -d "$$d" ] && cp -R "$$d" ${SDK}${LIB_DEST}/ ;; esac; \
+		case $$d in */pkgconfig/|*/webkit/) ;; \
+		*) if [ -d "$$d" ]; then cp -R "$$d" ${SDK}${LIB_DEST}/ || exit 1; fi ;; esac; \
 	done
-	cd ${STAGE}/usr/lib && for lib in ${EXTLIB_LIBS}; do \
+	# A library with no dylibs (only data, as xkeyboard-config) has no lib.
+	[ -z "${EXTLIB_LIBS}" ] || cd ${STAGE}/usr/lib && for lib in ${EXTLIB_LIBS}; do \
 		test -f $$lib || { echo "minkar.extlib.mk: $$lib not built" >&2; exit 1; }; \
 		${TC}/install_name_tool -id ${LIB_DEST}/$$lib $$lib 2>/dev/null; \
 		for dep in $$(${TC}/otool -L $$lib | awk 'NR > 1 { print $$1 }'); do \
