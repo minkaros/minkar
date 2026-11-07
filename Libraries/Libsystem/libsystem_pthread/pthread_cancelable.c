@@ -204,14 +204,25 @@ _pthread_markcancel_if_canceled(pthread_t thread, mach_port_t kport)
 	}
 }
 
-/* When a thread exits set the cancellation state to DISABLE and DEFERRED */
+/* When a thread exits set the cancellation state to DISABLE and DEFERRED,
+ * and note that it is exiting (pthread_self_is_exiting_np). */
 PTHREAD_NOEXPORT
 void
 _pthread_setcancelstate_exit(pthread_t thread, void *value_ptr)
 {
 	_pthread_update_cancel_state(thread,
-			_PTHREAD_CANCEL_STATE_MASK | _PTHREAD_CANCEL_TYPE_MASK,
-			PTHREAD_CANCEL_DISABLE | PTHREAD_CANCEL_DEFERRED);
+			_PTHREAD_CANCEL_STATE_MASK | _PTHREAD_CANCEL_TYPE_MASK | _PTHREAD_CANCEL_EXITING,
+			PTHREAD_CANCEL_DISABLE | PTHREAD_CANCEL_DEFERRED | _PTHREAD_CANCEL_EXITING);
+}
+
+/* Minkar (API 20): whether the calling thread is in pthread_exit(), for
+ * what its thread-specific data destructors call (a thread-local cache
+ * should not be made again then). */
+int
+pthread_self_is_exiting_np(void)
+{
+	return (os_atomic_load2o(pthread_self(), cancel_state, relaxed) &
+			_PTHREAD_CANCEL_EXITING) != 0;
 }
 
 #endif /* !BUILDING_VARIANT ] */
