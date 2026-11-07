@@ -103,6 +103,7 @@
 
 #if (TARGET_OS_MAC && !(TARGET_OS_EMBEDDED || TARGET_OS_IPHONE))
 #include <CoreFoundation/CFUserNotification.h>
+#include <CoreFoundation/CFNotificationCenter.h>
 #include <CoreFoundation/CFXMLNode.h>
 #include <CoreFoundation/CFXMLParser.h>
 #endif
