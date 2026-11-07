@@ -1,0 +1,51 @@
+Tests: the CGL tests without Carbon and CGLContext.h
+
+cgl_core.c and cgl_epoxy_api.c include <Carbon/Carbon.h> and
+<OpenGL/CGLContext.h> for nothing but the <stdio.h> Carbon brings in;
+Minkar has no Carbon framework and no CGLContext.h yet. Only the tests
+change (Tests/W0/libepoxy).
+
+diff -ru a/test/cgl_core.c b/test/cgl_core.c
+--- a/test/cgl_core.c
++++ b/test/cgl_core.c
+@@ -28,11 +28,10 @@
+  */
+ 
+ #include <epoxy/gl.h>
+-#include <Carbon/Carbon.h>
++#include <stdio.h>
+ #include <OpenGL/OpenGL.h>
+ #include <OpenGL/CGLTypes.h>
+ #include <OpenGL/CGLCurrent.h>
+-#include <OpenGL/CGLContext.h>
+ 
+ int
+ main (void)
+diff -ru a/test/cgl_epoxy_api.c b/test/cgl_epoxy_api.c
+--- a/test/cgl_epoxy_api.c
++++ b/test/cgl_epoxy_api.c
+@@ -28,11 +28,10 @@
+  */
+ 
+ #include <epoxy/gl.h>
+-#include <Carbon/Carbon.h>
++#include <stdio.h>
+ #include <OpenGL/OpenGL.h>
+ #include <OpenGL/CGLTypes.h>
+ #include <OpenGL/CGLCurrent.h>
+-#include <OpenGL/CGLContext.h>
+ 
+ int
+ main (void)
+diff -ru a/test/meson.build b/test/meson.build
+--- a/test/meson.build
++++ b/test/meson.build
+@@ -161,7 +161,7 @@
+ 
+ # Apple
+ if host_machine.system().contains('darwin')
+-  opengl_dep = dependency('appleframeworks', modules: ['OpenGL', 'Carbon'], required: true)
++  opengl_dep = dependency('appleframeworks', modules: ['OpenGL'], required: true)
+ 
+   cgl_tests = [
+     [ 'cgl_core', [ 'cgl_core.c' ] ],
