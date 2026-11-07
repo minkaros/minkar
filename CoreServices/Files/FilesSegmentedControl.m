@@ -55,6 +55,12 @@ static const CGFloat kHeight = 24;
     return YES;
 }
 
+/* It takes its own clicks: in the title bar, the window does not move. */
+- (BOOL)mouseDownCanMoveWindow
+{
+    return NO;
+}
+
 - (void)setSelectedSegment:(NSInteger)segment
 {
     _selectedSegment = segment;

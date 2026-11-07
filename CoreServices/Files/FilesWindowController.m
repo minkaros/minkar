@@ -16,7 +16,9 @@
 #include <os/log.h>
 #include <CoreServices/CoreServices.h>
 
-static const CGFloat kBarHeight = 38, kStatusHeight = 22, kSidebarWidth = 170;
+/* The bar is the title bar too (a full-size content view): as high as the
+   window's own, its controls in line with the window's buttons. */
+static const CGFloat kBarHeight = 32, kStatusHeight = 22, kSidebarWidth = 170;
 
 @interface FilesWindowController () <FilesBrowserViewDelegate, FilesColumnViewDelegate, FilesSidebarViewDelegate,
                                      NSWindowDelegate>
@@ -60,9 +62,12 @@ static NSTextField *label(CGFloat size, BOOL bold)
     _back = [NSMutableArray array];
     _forward = [NSMutableArray array];
 
-    _window = [[NSWindow alloc] initWithContentRect:NSMakeRect(160, 140, 860, 520)
-        styleMask:NSTitledWindowMask | NSClosableWindowMask | NSMiniaturizableWindowMask | NSResizableWindowMask
+    _window = [[NSWindow alloc] initWithContentRect:NSMakeRect(160, 140, 860, 552)
+        styleMask:NSWindowStyleMaskTitled | NSWindowStyleMaskClosable | NSWindowStyleMaskMiniaturizable |
+                  NSWindowStyleMaskResizable | NSWindowStyleMaskFullSizeContentView
           backing:NSBackingStoreBuffered defer:NO];
+    [_window setTitleVisibility:NSWindowTitleHidden];
+    [_window setTitlebarAppearsTransparent:YES];
     [_window setReleasedWhenClosed:NO];
     [_window setMinSize:NSMakeSize(480, 280)];
     [_window setDelegate:self];
@@ -82,6 +87,7 @@ static NSTextField *label(CGFloat size, BOOL bold)
     [_viewModes setLabel:NSLocalizedString(@"List", nil) forSegment:1];
     [_viewModes setLabel:NSLocalizedString(@"Columns", nil) forSegment:2];
     _title = label(13, YES);
+    [_title setAlignment:NSCenterTextAlignment];
     _status = label(11, NO);
     [_status setAlignment:NSCenterTextAlignment];
     [_status setTextColor:[NSColor colorWithCalibratedWhite:0.35 alpha:1]];
@@ -134,12 +140,15 @@ static NSTextField *label(CGFloat size, BOOL bold)
     NSRect b = [[_window contentView] bounds];
     CGFloat top = NSMaxY(b) - kBarHeight;
 
+    /* The bar spans the window, above the sidebar: the view modes, then
+       back and forward, at its left; the folder's name in its middle. */
     NSSize nav = [_navigation naturalSize], modes = [_viewModes naturalSize];
-    [_navigation setFrame:NSMakeRect(kSidebarWidth + 10, top + 7, nav.width, nav.height)];
-    [_title setFrame:NSMakeRect(kSidebarWidth + 20 + nav.width, top + 9,
-                                NSWidth(b) - kSidebarWidth - nav.width - modes.width - 50, 20)];
-    [_viewModes setFrame:NSMakeRect(NSWidth(b) - modes.width - 10, top + 7, modes.width, modes.height)];
-    [_sidebar setFrame:NSMakeRect(0, 0, kSidebarWidth, NSHeight(b))];
+    CGFloat mid = top + kBarHeight / 2;
+    [_viewModes setFrame:NSMakeRect(10, floor(mid - modes.height / 2), modes.width, modes.height)];
+    [_navigation setFrame:NSMakeRect(20 + modes.width, floor(mid - nav.height / 2), nav.width, nav.height)];
+    CGFloat side = 30 + modes.width + nav.width;
+    [_title setFrame:NSMakeRect(side, floor(mid - 10), MAX(NSWidth(b) - 2 * side, 0), 20)];
+    [_sidebar setFrame:NSMakeRect(0, 0, kSidebarWidth, NSHeight(b) - kBarHeight)];
     NSRect content = NSMakeRect(kSidebarWidth, kStatusHeight, NSWidth(b) - kSidebarWidth,
                                 NSHeight(b) - kBarHeight - kStatusHeight);
     [_scroll setFrame:content];
@@ -432,7 +441,7 @@ static void folderEvents(ConstFSEventStreamRef stream, void *info, size_t count,
     [[NSColor colorWithCalibratedWhite:0.97 alpha:1] set];
     NSRectFill(dirty);
     [[NSColor colorWithCalibratedWhite:0.82 alpha:1] set];
-    NSRectFill(NSMakeRect(0, NSMaxY(b) - 38, NSWidth(b), 1));
+    NSRectFill(NSMakeRect(0, NSMaxY(b) - kBarHeight, NSWidth(b), 1));
     NSRectFill(NSMakeRect(0, 21, NSWidth(b), 1));
 }
 
