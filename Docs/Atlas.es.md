@@ -631,8 +631,7 @@ evidencia.
 - [x] **K1 — Navegación.** Ventanas con barra lateral, vistas de iconos, lista y
   columnas, navegación, abrir archivos y apps, Obtener información básico.
   Files ocupa el lugar del antiguo explorador de archivos (antes Filer):
-  bundle ID, `LSRevealInFiler` como alias obsoleto del
-  nombre nuevo durante una versión, `open -R`, los tiles predeterminados del
+  bundle ID, `open -R`, los tiles predeterminados del
   Dock. Es la parte «Files navega» del gate M5. *Hecho (4 nov 2026):*
   `896749b380`, `c9f602b43c`, `45c2c1ad9e`, `788fe67376`, `906f12eae4`;
   pruebas locales `argos` (16) y `launchservices` (24).

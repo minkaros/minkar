@@ -48,11 +48,6 @@ OSStatus LSOpenFromURLSpec(const LSLaunchURLSpec *inLaunchSpec,
 /* Minkar: shows items in Files, the file manager, each selected in its
  * folder's window (what `open -R` and NSWorkspace's reveal methods do). */
 OSStatus LSRevealInFiles(CFArrayRef inItemURLs);
-/* The file manager's former names; kept for one release. */
-OSStatus LSRevealInArgos(CFArrayRef inItemURLs)
-    __attribute__((deprecated("use LSRevealInFiles")));
-OSStatus LSRevealInFiler(CFArrayRef inItemURLs)
-    __attribute__((deprecated("use LSRevealInFiles")));
 
 CF_EXTERN_C_END
 CF_ASSUME_NONNULL_END

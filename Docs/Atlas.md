@@ -597,8 +597,7 @@ exists, gate M4) still green, and the roadmap updated with the evidence.
 - [x] **K1 — Browsing.** Windows with sidebar, icon, list and column views,
   navigation, opening files and apps, basic Get Info. Files takes the old
   file browser's place (formerly Filer):
-  bundle ID, `LSRevealInFiler` kept as a deprecated alias of the new name for
-  one release, `open -R`, the Dock's default tiles. This is the "Files
+  bundle ID, `open -R`, the Dock's default tiles. This is the "Files
   browses" part of gate M5. *Done (4 Nov 2026):* `896749b380`,
   `c9f602b43c`, `45c2c1ad9e`, `788fe67376`, `906f12eae4`; local tests
   `argos` (16) and `launchservices` (24).

@@ -1,5 +1,5 @@
 
-unix		?=	ravynOS
+unix		?=	Minkar
 .FreeBSD	?=	false
 
 .if !defined(%POSIX)

@@ -19,7 +19,7 @@
 
 /* Target triple LLVM will generate code for by default */
 /* Doesn't use `cmakedefine` because it is allowed to be empty. */
-#define LLVM_DEFAULT_TARGET_TRIPLE "x86_64-ravynOS-darwin-macho"
+#define LLVM_DEFAULT_TARGET_TRIPLE "x86_64-minkarOS-darwin-macho"
 
 /* Define if threads enabled */
 #define LLVM_ENABLE_THREADS 1

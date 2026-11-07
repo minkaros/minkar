@@ -587,16 +587,3 @@ LSRevealInFiles(CFArrayRef inItemURLs)
 		return status;
 	return openWith(files.path, inItemURLs, kLSSessionOpenReveal, kLSLaunchDefaults, NULL);
 }
-
-/* The file manager's former names, kept for one release. */
-OSStatus
-LSRevealInArgos(CFArrayRef inItemURLs)
-{
-	return LSRevealInFiles(inItemURLs);
-}
-
-OSStatus
-LSRevealInFiler(CFArrayRef inItemURLs)
-{
-	return LSRevealInFiles(inItemURLs);
-}
