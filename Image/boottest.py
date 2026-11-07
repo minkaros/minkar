@@ -770,10 +770,11 @@ def main(argv=None):
     p.add_argument('--verbose', action='store_true', help='echo the console')
     p.add_argument('--qemu', default='qemu-system-x86_64')
     # Not "max": under TCG it reports an AMD family the kernel panics on.
-    # Westmere is fully emulated by TCG (SSE4.2, POPCNT, no AVX). With the
+    # Ivy Bridge: Minkar requires AVX (Docs/Hardware.md); TCG emulates it
+    # from QEMU 7.2 on, an older one drops it with a warning. With the
     # TSC deadline timer, as the PCs Minkar runs on have: without it the
     # kernel's local APIC timer fires short timers three times late.
-    p.add_argument('--cpu', default='Westmere,+tsc-deadline')
+    p.add_argument('--cpu', default='IvyBridge,+tsc-deadline')
     # TCG by default: on CI runners /dev/kvm opens too, and the kernel
     # does not boot under their KVM yet (it does under KVM nested in
     # VMware); ask for kvm or auto where it is known to work.
