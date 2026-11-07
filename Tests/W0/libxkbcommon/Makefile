@@ -11,10 +11,11 @@ EXTLIB =	libxkbcommon
 EXTLIB_TEST =	yes
 EXTLIB_DIR =	${ROOT_SOURCE_DIR}/BSD/lib/libxkbcommon
 EXTLIB_MANIFEST = ${EXTLIB_DIR}/MANIFEST
-EXTLIB_PATCHES = 0001-tests-rules-file-includes-data-from-top-srcdir.patch
+EXTLIB_PATCHES = 0001-tests-test-data-dir-option.patch
 EXTLIB_SYSTEM =	meson
 EXTLIB_OPTIONS = -Denable-x11=false -Denable-wayland=false -Denable-docs=false \
-		-Denable-tools=false -Denable-xkbregistry=false -Dxkb-config-root=/usr/share/X11/xkb
+		-Denable-tools=false -Denable-xkbregistry=false -Dxkb-config-root=/usr/share/X11/xkb \
+		-Dtest-data-dir=/usr/local/tests/w0/libxkbcommon/w0/src/test/data
 EXTLIB_TEST_BUILD = python3 ${.CURDIR}/../runner/meson-collect.py ${BUILD} ${SRC} ${.CURDIR} test
 EXTLIB_TEST_FILES = build/w0
 
