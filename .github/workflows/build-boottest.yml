@@ -11,12 +11,11 @@
 # toolchain plus its object directories (not LLVM's build tree). Bump
 # CACHE_VERSION to throw it away.
 #
-# The repository is private on a free account, whose Actions minutes a
-# run of more than an hour each uses up quickly: the CI runs on pushes and
-# pull requests to main and when started by hand (Actions > build and
-# boottest > Run workflow, on any branch). devel's batches are verified
-# locally before they are pushed (component tests, gate M2, the full
-# suite when shared parts change).
+# The repository is public. A run takes more than an hour, so the CI runs
+# only on pushes and pull requests to main and when started by hand
+# (Actions > build and boottest > Run workflow, on any branch). devel's
+# batches are verified locally before they are pushed (component tests,
+# gate M2, the full suite when shared parts change).
 
 name: build and boottest
 
@@ -27,8 +26,8 @@ on:
     branches: [main]
   workflow_dispatch:
 
-# A newer run on the same branch replaces one still going: minutes are
-# counted.
+# A newer run on the same branch replaces one still going: there is no
+# point in finishing a run of a commit that is no longer the newest.
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
