@@ -10,6 +10,7 @@
 # run.sh, with the reason.
 
 SUBDIR =	runner pcre2 expat glib libgpg-error libgcrypt libtasn1 libsoup harfbuzz libxml2 \
+		libpng libxkbcommon fontconfig libpsl brotli nghttp2 glib-networking
 		libpng libxkbcommon fontconfig libpsl brotli nghttp2
 		libpng libxkbcommon fontconfig libpsl brotli nghttp2 glib-networking
 
