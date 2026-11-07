@@ -245,7 +245,19 @@ m3-check: .PHONY
 w0-tests: .PHONY
 	${MAKE} -m ${ROOT_SOURCE_DIR}/BSD/share/mk ONLY_STAGE=Tests/W0 Tests/W0
 
+# Gate W0 runs on a physical machine running Minkar (W0_HOST=root@address,
+# W0_SSH_KEY: the key to log in with): in nested VMs GLib's lock tests do
+# not finish. w0-check-vm is the same in boottest's VM, for development.
+# Every library of Tests/W0 (a directory with a run.sh; httpd is a tool).
+W0_LIBS !=	cd ${.CURDIR}/Tests/W0 && ls */run.sh | sed 's|/run.sh||'
 w0-check: .PHONY
+.if !defined(W0_HOST)
+	@echo "w0-check: W0_HOST=root@address (a physical machine running Minkar) is required" >&2; false
+.else
+	sh ${.CURDIR}/Tests/W0/runner/check-host.sh ${SYSROOT_DIR} ${W0_HOST} "${W0_SSH_KEY:U}" ${W0_LIBS}
+.endif
+
+w0-check-vm: .PHONY
 	${MAKE} -C ${.CURDIR}/Image boottest GATE=W0 BOOTTEST_TIMEOUT=${W0_BOOTTEST_TIMEOUT:U5400}
 
 .include "./BSD/share/mk/bsd.subdir.mk"

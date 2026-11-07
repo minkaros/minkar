@@ -180,6 +180,7 @@ GATES['W0'] = GATES['M2'] + [
     'w0: brotli passed',
     'w0: expat passed',
     'w0: fontconfig passed',
+    'w0: glib-networking passed',
     'w0: glib passed',
     'w0: harfbuzz passed',
     'w0: libgcrypt passed',
@@ -190,6 +191,7 @@ GATES['W0'] = GATES['M2'] + [
     'w0: libtasn1 passed',
     'w0: libxkbcommon passed',
     'w0: libxml2 passed',
+    'w0: nghttp2 passed',
     'w0: pcre2 passed',
     'w0: every library passed']
 
