@@ -39,6 +39,12 @@
 #   EXTLIB_LICENSES     license files in the source tree, installed in
 #                       /usr/share/licenses/${EXTLIB}
 #   EXTLIB_SUBDIR       the source tree's subdirectory to build, if not the top
+#   EXTLIB_FRAMEWORKS   frameworks the project installs in lib (names without
+#                       .framework), copied to LIB_DEST with their install
+#                       names there
+#   EXTLIB_HELPERS      programs of the build directory put in a framework,
+#                       as PATH:FRAMEWORK (e.g. bin/jsc:JavaScriptCore): in
+#                       its Versions/Current/Helpers, using it from LIB_DEST
 #   EXTLIB_ENV          more environment for every step
 #   EXTLIB_SUBPROJECTS  Meson subprojects to put in the tree, each fetched by
 #                       ${EXTLIB_DIR}/MANIFEST.<name> (Meson itself downloads
@@ -404,6 +410,25 @@ install-extlib: .PHONY build-extlib
 		for f in $$base.*dylib; do \
 			cp -P $$f ${SDK}${LIB_DEST}/ && cp -P $$f ${SYSROOT_DIR}${LIB_DEST}/ || exit 1; \
 		done; \
+	done
+	for fw in ${EXTLIB_FRAMEWORKS}; do \
+		d=${STAGE}/usr/lib/$$fw.framework; \
+		test -d $$d || { echo "minkar.extlib.mk: $$fw.framework not built" >&2; exit 1; }; \
+		v=$$(readlink $$d/Versions/Current); \
+		${TC}/install_name_tool -id ${LIB_DEST}/$$fw.framework/Versions/$$v/$$fw $$d/Versions/$$v/$$fw || exit 1; \
+		for dest in ${SDK}${LIB_DEST} ${SYSROOT_DIR}${LIB_DEST}; do \
+			rm -rf $$dest/$$fw.framework && cp -R $$d $$dest/ || exit 1; \
+		done; \
+	done
+	for h in ${EXTLIB_HELPERS}; do \
+		prog=${BUILD}/$${h%%:*}; fw=$${h##*:}; \
+		test -f $$prog || { echo "minkar.extlib.mk: $${h%%:*} not built" >&2; exit 1; }; \
+		v=$$(readlink ${SYSROOT_DIR}${LIB_DEST}/$$fw.framework/Versions/Current); \
+		dir=${SYSROOT_DIR}${LIB_DEST}/$$fw.framework/Versions/$$v/Helpers; \
+		mkdir -p $$dir && cp -f $$prog $$dir/ || exit 1; \
+		old=$$(${TC}/otool -L $$prog | awk -v f="/$$fw.framework/" 'NR > 1 && index($$1, f) { print $$1 }'); \
+		[ -z "$$old" ] || ${TC}/install_name_tool -change $$old \
+		    ${LIB_DEST}/$$fw.framework/Versions/$$v/$$fw $$dir/$${prog##*/} || exit 1; \
 	done
 	for m in ${EXTLIB_MODULES}; do \
 		f=${STAGE}/usr/$$m; test -f $$f || { echo "minkar.extlib.mk: $$m not built" >&2; exit 1; }; \
