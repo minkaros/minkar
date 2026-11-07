@@ -184,6 +184,7 @@ GATES['W0'] = GATES['M2'] + [
     'w0: libgcrypt passed',
     'w0: libgpg-error passed',
     'w0: libpng passed',
+    'w0: libpsl passed',
     'w0: libsoup passed',
     'w0: libtasn1 passed',
     'w0: libxkbcommon passed',
