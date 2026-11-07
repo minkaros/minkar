@@ -5,7 +5,7 @@
 # Part of Minkar.
 #
 # Host preparation steps for the CI workflow (.github/workflows), on an
-# Ubuntu 22.04 runner. Run from the top of the source tree.
+# Ubuntu 24.04 runner (and for a development host with Ubuntu 24.04). Run from the top of the source tree.
 #
 #   host-setup.sh free-disk           remove preinstalled SDKs we never use
 #   host-setup.sh packages [image]    build packages and Open CF-lite;
@@ -18,11 +18,10 @@ set -eu
 
 # Docs/BUILDING.md, "Host requirements". "time" is /usr/bin/time, for
 # build-stages.sh.
-BUILD_PACKAGES="clang lld cmake ninja-build python3 git curl \
+BUILD_PACKAGES="clang lld cmake ninja-build python3 python3-venv git curl \
 libxml2-dev libpng-dev uuid-dev libssl-dev zlib1g-dev libbsd-dev \
-libacl1-dev libc++-dev libc++abi-dev llvm-14-dev libedit-dev libffi-dev \
-libdispatch-dev libblocksruntime-dev libkqueue-dev libpthread-workqueue-dev \
-libicu-dev autoconf automake libtool pkg-config \
+libacl1-dev libc++-dev libc++abi-dev libedit-dev libffi-dev \
+libicu-dev libkqueue-dev autoconf automake libtool pkg-config \
 bmake make csh bison flex byacc time ruby"
 # Open CF-lite (APSL, host only): plktool and xcbuild link it.
 OPENCFLITE_REPO=https://github.com/gerickson/opencflite.git

@@ -11,17 +11,18 @@ Building LLVM the first time takes a __long__ time.
 
 ## Host requirements
 
-Tested on Ubuntu 22.04 (x86-64) with 10 CPUs and 16 GB of RAM; the CI uses
-GitHub's Ubuntu 22.04 runners. Package names are Debian/Ubuntu ones;
+Tested on Ubuntu 24.04 (x86-64; clang 18, QEMU 8.2, Python 3.12) with 24
+CPUs and 32 GB of RAM; the CI uses GitHub's Ubuntu 24.04 runners. (Until
+7 Nov 2026 it was Ubuntu 22.04.) Package names are Debian/Ubuntu ones;
 `tools/ci/host-setup.sh packages image` installs all of them.
 
-* Toolchain build: `clang lld cmake ninja-build python3 git curl`,
-  `libxml2-dev libpng-dev uuid-dev libssl-dev zlib1g-dev libbsd-dev`,
-  `libacl1-dev` (xar), `libc++-dev libc++abi-dev` (plktool),
-  `llvm-14-dev libedit-dev libffi-dev libdispatch-dev libblocksruntime-dev
-  libkqueue-dev libpthread-workqueue-dev` (the CTF tools link the host's
-  LLVM 14 and libdispatch), and `libicu-dev autoconf automake libtool
-  pkg-config` for Open CF-lite.
+* Toolchain build: `clang lld cmake ninja-build python3 python3-venv git
+  curl`, `libxml2-dev libpng-dev uuid-dev libssl-dev zlib1g-dev
+  libbsd-dev`, `libacl1-dev` (xar), `libc++-dev libc++abi-dev` (plktool),
+  `libedit-dev libffi-dev`, and `libicu-dev libkqueue-dev autoconf
+  automake libtool pkg-config` for Open CF-lite (its run loop includes
+  `sys/event.h`, which libkqueue gives). (The CTF tools no longer link the host's
+  LLVM or libdispatch: they build with the toolchain's LLVM sources.)
 * Open CF-lite 635.21.8 (gerickson/opencflite, APSL) in `/usr/local`:
   plktool and xcbuild link a host CoreFoundation. It is a build tool only
   and nothing of it goes into Minkar. `tools/ci/host-setup.sh packages`
@@ -279,7 +280,7 @@ to `main` and by hand (Actions > build and boottest > Run workflow, on
 any branch): the repository is private on a free account, whose Actions
 minutes runs of over an hour use up, so `devel`'s batches are verified
 locally. Changes go to `devel` first. On a
-GitHub-hosted Ubuntu 22.04 runner it:
+GitHub-hosted Ubuntu 24.04 runner it:
 
 1. builds the toolchain (`Developer`), or takes it from the cache;
 2. builds the rest of the system with `tools/ci/build-stages.sh`, and
