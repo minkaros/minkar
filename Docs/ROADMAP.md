@@ -16,7 +16,7 @@ The plan has 8 phases (0–7), each with deliverables and an exit gate that CI c
 2. **The contract is the public Cocoa API, by API number.** API 19 first, then API 20 and API 21. Every symbol is classified as implemented, stub or missing, and measured.
 3. **Noisy stubs.** Every stub logs its first call to the system log, so real apps tell us what is missing, in the order they use it.
 4. **Reuse before writing.** Open source APSL code first (xnu, dyld, launchd, hfs), then swift-corelibs, then FreeBSD's userland. New code only for the gaps.
-5. **Clean licenses.** New code under MIT or BSD-2, nothing GPL in base components (DMG, for one), and a clean-room rule: no one who has seen the reference platform's closed source contributes code. Third-party trademarks are not used in names, icons or public text; a single TRADEMARKS.md declares them. One exception, accepted by the maintainer because no icon set of the same scope exists under BSD or MIT: Atlas's icons are the Faience and Faenza themes (GPL-3), separate data files in `SystemLibrary/Icons` that keep their GPL-3 license; no code links with them, and the rest of this rule stands.
+5. **Clean licenses.** Code written from scratch for Minkar is under BSD-2-Clause or MIT; the third-party libraries and frameworks we modify keep their original licenses. A clean-room rule: no one who has seen the reference platform's closed source contributes code. Third-party trademarks are not used in names, icons or public text; a single TRADEMARKS.md declares them. One exception, accepted by the maintainer because no icon set of the same scope exists under BSD or MIT: Atlas's icons are the Faience and Faenza themes (GPL-3), separate data files in `SystemLibrary/Icons` that keep their GPL-3 license; no code links with them, and the rest of this rule stands.
 6. **Reference apps as acceptance tests.** A fixed set of open source apps written for the Cocoa API is built at each milestone; the symbols they import set the order of the framework work.
 
 ## Version decision
@@ -98,11 +98,33 @@ Minkar boots on Darwin with its own EFI loader, the whole system builds as Mach-
 | DiskArbitration | The original framework and `diskarbitrationd` (APSL); our own `diskutil` and `hdiutil`; mounts HFS+, FAT and exFAT | — | 2 (closed) |
 | CoreFoundation | CF-Lite (APSL) | The APIs missing up to API 21 | 3 |
 | Foundation | Three batches of fixes (2026-10-26); `NSProcessInfo` with `operatingSystemVersion`; re-exports CoreFoundation; `NSURLSession` on libcurl, with cookies; `NSOperationQueue` on dispatch; the main run loop runs dispatch's main queue; `NSDateFormatter` on ICU (2026-10-31); `NSXPCConnection` over libxpc, with the XPC services inside app bundles (2026-10-31) | URL cache and task metrics in `NSURLSession`; the API 19 audit | 3 |
-| Swift 6 | Nothing in the tree | Compiler, stdlib, overlays | 3 |
+| Swift 6 | The Swift 6.0 runtime and standard library in `/usr/lib/swift`, built from `swift-6.0-RELEASE` by the toolchain's own Swift compiler; the overlays (Foundation, Dispatch, ObjectiveC...), OpenCombine as Combine and XCTest; gate M3 met (5 Nov 2026: seven open source command-line tools pass their own tests) | Swift Concurrency on the main actor in apps, SwiftUI (out of scope until API 21) | 3 (M3 met) |
 | WindowServer | The new core is the window server (WS4b done 2026-11-02, gate `M4`): its interface in `SkyLight.framework`, its server started at boot as `_windowserver` with the minimal `loginwindow`; it composites AppKit windows with pixman, routes input from IOHIDSystem with event taps, and each app draws its own menus (MB0). The legacy server is gone. WS5 done (2026-11-02): IOSurface with its registry `iosurfaced`, IOSurface windows, a virtio-gpu 2D driver flushed per frame with mode changes, permanent display configurations, `CGDisplayStream` | The GPU (WS6): G1 done on the Mac Pro (display driver); G2 under way (its gate met) | 4 |
-| GPU acceleration | None; without it the display cannot be turned off either | The whole track (performance requirement) | 4 and Minkar 21.0 |
-| SystemUIServer, Dock | Partial, not built | Almost everything | 5 |
-| Files, System Preferences | Do not exist | New Cocoa apps | 5 |
+| GPU acceleration | On PC 2's AMD FirePro D500 (Tahiti, GCN 1.0, PCI 1002:679e): the display at its native mode, DMA and the command processor, Mesa's RADV (Vulkan 1.3, a CTS subset with no failure), and the window server composites on the GPU (G1 to G4) | The GPU's clocks, Pitcairn (FirePro D300) and other families, OpenGL, the measurements against the reference | 4 and Minkar 21.0 |
+| loginwindow | partial: the graphical login box and the desktop picture, a session per user | Authentication through Directory Services, the user's LaunchAgents, the full Phase 5 LoginWindow | 5 |
+| SystemUIServer (menu bar) | partial: each app draws its menu bar (MB0); SystemUIServer is built and shows the clock | Menu Extras and the full status item API (MB1), standard menus (MB2), the full system menu (MB3), Services (MB4, 19.6.x) | 5 |
+| Dock | partial: the new core with the reference's preference keys, launching and the running apps (D0, D1) | Interaction: reorder, add, remove, context menus (D2); tile service, minimized windows, app switcher (D3); stacks and Trash (D4, 19.6.x) | 5 |
+| Files | partial: browsing with sidebar, icon, list and column views, opening files and apps, basic Get Info (K1) | The rest of K0 (AppKit views checked), file operations (K2), desktop icons and volumes (K3); search, tags and previews (K4, 19.6.x) | 5 |
+| Text Editor | partial: plain text documents, open and save (through the save panel), `open -e` | RTF, find and replace, encodings, line endings, printing (A2) | 5 and 6 |
+| System Preferences | partial: the app, `PreferencePanes.framework` and five panes (Displays, Dock, Date & Time, Keyboard, Network) | The Users pane (waits for Directory Services), the rest of the panes | 5 |
+| A0 App foundations | missing | The app template: About and Preferences windows, Help menu, Spanish and English, `NSDocument` | 6 |
+| Terminal (A1) | missing | The whole app: a VT100/xterm emulator over a pty, tabs, scrollback, Agave | 6 |
+| System Monitor (A3) | missing | The whole app: processes, CPU, memory, energy, disk, network, quit and force quit | 6 |
+| Logs (A4) | missing | The whole app, on `logd` and `os_log`; crash and panic reports | 6 |
+| Screenshot (A5) | missing | The whole app, on `screencapture` and the window list; the system shortcuts | 6 |
+| Image Viewer (A6a) | missing | The whole app, and ImageIO | 6 |
+| Document Viewer (A6b) | missing | The whole app, and PDFKit | 6 |
+| Disks (A7) | missing | The whole app, on DiskArbitration, `diskutil` and `hdiutil` | 6 |
+| System Information (A8) | missing | The whole app, as `system_profiler` | 6 |
+| Calculator (A9) | missing | The whole app: basic, scientific and programmer modes | 6 |
+| Archive Manager (A10) | missing | The whole app, on libarchive and `ditto` | 6 |
+| Fonts (19.6.x) | missing | The whole app | 19.6.x |
+| Passwords and Keys (19.6.x) | missing | The whole app, and the Keychain it shows | 19.6.x |
+| Color Picker (19.6.x) | missing | The whole app, and `NSColorPanel`'s pickers | 19.6.x |
+| Script Editor (19.6.x) | missing | The whole app, and a scripting runtime | 19.6.x |
+| Help (19.6.x) | missing | The whole app, and the Help menu's search | 19.6.x |
+| Characters (19.6.x) | missing | The whole app, and the character palette | 19.6.x |
+| WebKit (W0–W5) | partial: W0's libraries built and their own tests passing on PC 2 (21 of 23); JavaScriptCore with its JIT, gate W1 running (es6 605 of 605) | FreeType's and WOFF2's own tests; W1's other suites; WebCore and the processes (W2), `WebKit.framework` (W3, W4), the reference apps' web views (W5) | 3 and Minkar 19.6.0 |
 | AppKit | Partial (Cocotron) | The API's recent pieces and the Atlas visual language | 5 |
 | DMG, base apps | `hdiutil attach` already mounts through DiskArbitration | `DiskImages.framework` (UDIF), apps | 6 |
 | Binary compatibility, arm64 | Future; install names already the same as the originals | The rest | 7 |

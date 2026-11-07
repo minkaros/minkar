@@ -6,7 +6,7 @@ Esta página se genera desde [progress/status.toml](progress/status.toml) con
 [Progress.md](Progress.md).
 
 <!-- progress:summary:begin -->
-_Actualizado el 2026-11-05, devel `22a0e67f0d`_
+_Actualizado el 2026-11-07, devel `54607f290f`_
 
 | Plan | Avance |  | Ahora | Siguiente |
 | --- | --- | --- | --- | --- |
@@ -19,6 +19,7 @@ _Actualizado el 2026-11-05, devel `22a0e67f0d`_
 | [Files](Atlas.es.md#4-dock-y-files) | 🟨🟩⬜⬜⬜ | 1 / 5 | K0 | K2 |
 | [Atlas](ROADMAP.es.md#fase-5--escritorio-atlas) | ⬜🟨⬜ | 0 / 3 | Preferences | LoginWindow |
 | [Apps · DMG](Atlas.es.md#5-aplicaciones) | ⬜⬜🟨⬜ | 0 / 4 | A2 Text Editor | A0 base |
+| [WebKit](ROADMAP.es.md#fase-3--frameworks-base-y-swift) | 🟨🟦⬜⬜⬜⬜ | 0 / 6 | W1 JSC | W2 WebCore |
 | [GPU track](ROADMAP.es.md#pila-gráfica-componentes-y-secuencia) | 🟩🟨🟩🟦 | 2 / 4 | G4–G5 | — |
 | [Compat · arm64](ROADMAP.es.md#fase-7--compatibilidad-binaria-y-arm64) | ⬜⬜ | 0 / 2 | — | x86-64 apps |
 

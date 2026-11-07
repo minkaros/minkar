@@ -5,7 +5,7 @@ This page is generated from [progress/status.toml](progress/status.toml) by
 [Progress.es.md](Progress.es.md).
 
 <!-- progress:summary:begin -->
-_Updated 2026-11-05, devel `22a0e67f0d`_
+_Updated 2026-11-07, devel `54607f290f`_
 
 | Plan | Progress |  | Now | Next |
 | --- | --- | --- | --- | --- |
@@ -18,6 +18,7 @@ _Updated 2026-11-05, devel `22a0e67f0d`_
 | [Files](Atlas.md#4-dock-and-files) | 🟨🟩⬜⬜⬜ | 1 / 5 | K0 | K2 |
 | [Atlas](ROADMAP.md#phase-5--atlas-desktop) | ⬜🟨⬜ | 0 / 3 | Preferences | LoginWindow |
 | [Apps · DMG](Atlas.md#5-applications) | ⬜⬜🟨⬜ | 0 / 4 | A2 Text Editor | A0 base |
+| [WebKit](ROADMAP.md#phase-3--base-frameworks-and-swift) | 🟨🟦⬜⬜⬜⬜ | 0 / 6 | W1 JSC | W2 WebCore |
 | [GPU track](ROADMAP.md#graphics-stack-components-and-sequence) | 🟩🟨🟩🟦 | 2 / 4 | G4–G5 | — |
 | [Compat · arm64](ROADMAP.md#phase-7--binary-compatibility-and-arm64) | ⬜⬜ | 0 / 2 | — | x86-64 apps |
 

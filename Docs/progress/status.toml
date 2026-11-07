@@ -32,10 +32,10 @@
 # commit that closes a milestone updates this file and runs
 # "bmake progress" (Docs/CONTRIBUTING.md).
 
-updated = "2026-11-05"
-commit  = "22a0e67f0d"
+updated = "2026-11-07"
+commit  = "54607f290f"
 
-deps = [["ws", 555, "dock"], ["fw", 490, "argos"]]
+deps = [["ws", 555, "dock"], ["fw", 490, "files"], ["fw", 590, "webkit"]]
 
 [[gate]]
 id = "M0"
@@ -80,7 +80,7 @@ title = "M5 Atlas desktop"
 label = "M5"
 state = "todo"
 x = 760
-rows = ["mb", "dock", "argos", "atlas"]
+rows = ["mb", "dock", "files", "atlas"]
 
 [[gate]]
 id = "M6"
@@ -88,7 +88,7 @@ title = "M6 Minkar 19.6.0"
 label = "M6 · 19.6.0"
 state = "todo"
 x = 970
-rows = ["mb", "dock", "argos", "apps"]
+rows = ["mb", "dock", "files", "apps", "webkit"]
 
 [[gate]]
 id = "R21"
@@ -165,7 +165,7 @@ stations = [
 ]
 
 [[line]]
-id = "argos"
+id = "files"
 name = "Files"
 color = "teal"
 doc = "Atlas.md#4-dock-and-files"
@@ -193,6 +193,20 @@ doc_es = "Atlas.es.md#5-aplicaciones"
 stations = [
   ["A0 base", 805, "todo"], ["A1 Terminal", 860, "todo"], ["A2 Text Editor", 915, "partial"],
   ["A3–A10 · DMG", 970, "todo"],
+]
+
+[[line]]
+id = "webkit"
+name = "WebKit"
+color = "blue"
+doc = "ROADMAP.md#phase-3--base-frameworks-and-swift"
+doc_es = "ROADMAP.es.md#fase-3--frameworks-base-y-swift"
+# Part of Minkar 19.6.0 (W0 to W5). W0: its libraries in, 21 of 23 pass
+# their own tests on PC 2 (FreeType and WOFF2 have none that run offline).
+# W1: JavaScriptCore with its JIT, gate w1-check (es6 605 of 605).
+stations = [
+  ["W0 deps", 650, "partial"], ["W1 JSC", 710, "current"], ["W2 WebCore", 770, "todo"],
+  ["W3 WKWebView", 830, "todo"], ["W4 WebView", 890, "todo"], ["W5 apps", 970, "todo"],
 ]
 
 [[line]]
@@ -287,7 +301,7 @@ line = "atlas"
 [[board.done]]
 title = "Files K1: columns, opening, open -R"
 note = "LaunchServices opens documents; Text Editor, the text editor; the save panel · 4 nov"
-line = "argos"
+line = "files"
 
 [[board.done]]
 title = "System Preferences: five panes"
