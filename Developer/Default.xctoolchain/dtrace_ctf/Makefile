@@ -26,8 +26,14 @@ CTF_INC =	-I${HOST} -I${DT}/compat/opensolaris/sys \
 		-I${DT}/compat/opensolaris -I${DT}/lib/libelf -I${DT}/lib/libdwarf \
 		-I${DT}/lib/libctf/common -I${DT}/tools/ctfconvert \
 		-I${.CURDIR}/../include
+# Newer host compilers (clang 15 and later, as Ubuntu 24.04's 18) make
+# errors of what older ones only warned about; dist/'s C relies on them
+# (a void * returned as an integer), so they stay warnings, as -w hides.
 CTF_DEFS =	-w -O2 -D__APPLE__ -D__APPLE_CPP__ -D__LITTLE_ENDIAN__ \
 		-DDWARF_SIMPLE_MALLOC -DCTF_OLD_VERSIONS \
+		-Wno-error=int-conversion -Wno-error=incompatible-pointer-types \
+		-Wno-error=incompatible-function-pointer-types \
+		-Wno-error=implicit-function-declaration -Wno-error=implicit-int \
 		-include ${HOST}/host_prelude.h
 CTF_CFLAGS =	${CTF_DEFS} ${CTF_INC} -I${DT}/include
 CTF_CXXFLAGS =	${CTF_DEFS} -D__unused= -std=c++17 ${CTF_INC} \

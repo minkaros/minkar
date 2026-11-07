@@ -1,6 +1,7 @@
 /* -*- mode: C++; c-basic-offset: 4; tab-width: 4 -*-
  *
  * Copyright (c) 2005-2011 Apple Inc. All rights reserved.
+ * Modifications Copyright (c) 2026 The Minkar contributors
  *
  * @APPLE_LICENSE_HEADER_START@
  *
@@ -28,6 +29,7 @@ namespace {
 	typedef long double max_align_t;
 }
 #endif
+#include <stdarg.h>
 #include <stdint.h>
 #include <math.h>
 #include <unistd.h>
