@@ -6,6 +6,10 @@
 # "PASS name" or "FAIL name (exit N)"; the last line the totals.
 here=$(pwd)
 dir=$here/glib
+# spawn-multithreaded spawns from two threads a processor (64 at most),
+# several descriptors each: on 24 processors more than the default soft
+# limit of 256. The hard limit allows more.
+ulimit -n 1024 2>/dev/null
 export G_TEST_SRCDIR=$dir G_TEST_BUILDDIR=$dir G_DEBUG=
 passed=0 failed=0 skipped=0
 for t in "$dir"/*.test; do

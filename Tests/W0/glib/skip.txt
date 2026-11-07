@@ -63,9 +63,6 @@ g-file-info:/g-file-info/test_g_file_info/access-time needs file times finer tha
 gdbus-peer:/gdbus/peer-to-peer expects no peer PID on Darwin, which GLib gets anyway
 gdbus-peer:/gdbus/peer-to-peer/signals expects no peer PID on Darwin, which GLib gets anyway
 #
-# The tests run as root, which deletes a directory it made unreadable.
-utils-isolated:/utils-isolated/cleanup/handles-errors needs a user without root's rights
-#
 # A file's changes-done-hint comes from kqueue's NOTE_CLOSE_WRITE, which
 # Darwin's kqueue does not have (the reference platform's neither); GLib
 # then sends it 2 seconds later, after the test's next step. GLib marks
