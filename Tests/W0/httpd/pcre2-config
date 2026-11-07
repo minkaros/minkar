@@ -1,0 +1,10 @@
+#!/bin/sh
+# pcre2-config for httpd's configure, from PCRE2's pkg-config file in the
+# SDK (WebKit's private PCRE2 has no config script there).
+case $1 in
+--version) exec pkg-config --modversion libpcre2-8;;
+--cflags) exec pkg-config --cflags libpcre2-8;;
+--libs8|--libs) exec pkg-config --libs libpcre2-8;;
+--prefix) echo /usr;;
+*) exit 1;;
+esac

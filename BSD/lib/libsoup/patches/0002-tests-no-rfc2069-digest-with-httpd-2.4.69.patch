@@ -1,0 +1,33 @@
+Tests: no RFC 2069 Digest with httpd 2.4.69 and later
+
+libsoup's commit e0b88b75 (25 Oct 2026), unchanged: httpd 2.4.69 dropped
+RFC 2069 Digest, so it rejects "AuthDigestQop none" and does not start.
+
+diff --git a/meson.build b/meson.build
+index 03418985f98996a59570600c164e278e35cd1717..7970e0c0ff8dc172fb349b8e52837d3784d3e824 100644
+--- a/meson.build
++++ b/meson.build
+@@ -296,6 +296,8 @@ if have_apache
+     message('Apache HTTP/2 module directory: ' + apache_modules_dirs[3])
+     cdata.set('IF_HAVE_MOD_HTTP2', apache_modules_dirs[3] != '' ? '' : '#')
+     cdata.set('APACHE_HTTP2_MODULE_DIR', apache_modules_dirs[3])
++    # httpd 2.4.69 dropped RFC 2069 Digest support, so it rejects "AuthDigestQop none"
++    cdata.set('IF_HAVE_RFC2069_DIGEST', apache_httpd2_version.version_compare('<2.4.69') ? '' : '#')
+     cdata.set('HAVE_APACHE', have_apache)
+   else
+     message('Failed to locate necessary Apache modules for full test coverage')
+diff --git a/tests/httpd.conf.in b/tests/httpd.conf.in
+index cc0a116ec95eada2db0cb18ded626e51840b36cb..53a70f976b5a21c4a55b5f1a55360734be4a49a0 100644
+--- a/tests/httpd.conf.in
++++ b/tests/httpd.conf.in
+@@ -282,8 +282,8 @@ Alias /Digest .
+   AuthUserFile ./htdigest
+   AuthDigestDomain /Digest/realm3
+   Require valid-user
+-  # test RFC2069-style Digest
+-  AuthDigestQop none
++  # test RFC2069-style Digest, where httpd still supports it (before 2.4.69)
++  @IF_HAVE_RFC2069_DIGEST@AuthDigestQop none
+ </Location>
+ 
+ <Location /client-cert>

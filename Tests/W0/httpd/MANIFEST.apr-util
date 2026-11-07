@@ -1,0 +1,5 @@
+# APR-util (Apache-2.0), built inside httpd (srclib/apr-util); SHA-256 as
+# Apache publishes it.
+url https://archive.apache.org/dist/apr/apr-util-1.6.6.tar.bz2
+sha256 aa77dd25f036731b7246abbfbebe6cc813b42799b62c874bc82bd4e1f90f2918
+version 1.6.6

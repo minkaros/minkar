@@ -9,9 +9,7 @@
 # Minkar does not have (a network, a D-Bus session) is left out in each
 # run.sh, with the reason.
 
-SUBDIR =	runner pcre2 expat glib libgpg-error libgcrypt libtasn1 libsoup harfbuzz libxml2 \
-		libpng libxkbcommon fontconfig libpsl brotli nghttp2 glib-networking
-		libpng libxkbcommon fontconfig libpsl brotli nghttp2
+SUBDIR =	runner pcre2 expat glib libgpg-error libgcrypt libtasn1 httpd libsoup harfbuzz libxml2 \
 		libpng libxkbcommon fontconfig libpsl brotli nghttp2 glib-networking
 
 .include <bsd.subdir.mk>
