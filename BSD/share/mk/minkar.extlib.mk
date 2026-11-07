@@ -43,12 +43,15 @@
 #   EXTLIB_SUBPROJECTS  Meson subprojects to put in the tree, each fetched by
 #                       ${EXTLIB_DIR}/MANIFEST.<name> (Meson itself downloads
 #                       nothing: --wrap-mode=nodownload)
+#   EXTLIB_SUBPROJECTS_DIR where in the tree they go (default subprojects;
+#                       e.g. srclib, for the libraries httpd builds with it)
 #   EXTLIB_HOST         yes: built for the build host instead, into
 #                       ${HOST_PREFIX} (the tools other libraries' builds
 #                       run, as GLib's), with nothing in the SDK or sysroot
 #   EXTLIB_TEST         yes: built again with its own tests (gate W0, in
-#                       Tests/W0), which go to /usr/local/tests/w0/${EXTLIB}
-#                       with ${.CURDIR}/run.sh; the libraries they use are
+#                       Tests/W0), which go to EXTLIB_TEST_PATH (default
+#                       /usr/local/tests/w0/${EXTLIB}) with ${.CURDIR}/run.sh
+#                       if there is one; the libraries they use are
 #                       the system's (their @rpath references become
 #                       /usr/lib), nothing else is installed
 #   EXTLIB_TEST_BUILD   a command that builds the tests after the library
@@ -81,6 +84,7 @@ EXTLIB_LICENSES ?=
 EXTLIB_ENV ?=
 EXTLIB_STAGE_REMOVE ?=
 EXTLIB_SUBPROJECTS ?=
+EXTLIB_SUBPROJECTS_DIR ?= subprojects
 # Where patches/ and the subprojects' manifests are: the library's own
 # directory (a test build in Tests/W0 names it).
 EXTLIB_DIR ?=		${.CURDIR}
@@ -160,7 +164,8 @@ ${SRC}/.minkar-patches: ${EXTLIB_PATCHES:@p@${EXTLIB_DIR}/patches/${p}@} ${_EXTL
 	rm -rf ${SRC} ${SRC}.part && cp -a $$pristine ${SRC}.part && \
 	for sp in ${EXTLIB_SUBPROJECTS}; do \
 		dir=$$(${FETCH} ${EXTLIB_DIR}/MANIFEST.$$sp ${EXTLIB_CACHE}) || exit 1; \
-		rm -rf ${SRC}.part/subprojects/$$sp && cp -a $$dir ${SRC}.part/subprojects/$$sp || exit 1; \
+		mkdir -p ${SRC}.part/${EXTLIB_SUBPROJECTS_DIR} && rm -rf ${SRC}.part/${EXTLIB_SUBPROJECTS_DIR}/$$sp && \
+		    cp -a $$dir ${SRC}.part/${EXTLIB_SUBPROJECTS_DIR}/$$sp || exit 1; \
 	done && \
 	for p in ${EXTLIB_PATCHES}; do \
 		patch -s -p1 -d ${SRC}.part < ${EXTLIB_DIR}/patches/$$p || exit 1; \
@@ -298,7 +303,8 @@ build-extlib: .PHONY ${BUILD}/.minkar-setup
 .endif
 
 .if defined(EXTLIB_TEST) && ${EXTLIB_TEST} == "yes"
-TEST_DIR =	${SYSROOT_DIR}/usr/local/tests/w0/${EXTLIB}
+EXTLIB_TEST_PATH ?= /usr/local/tests/w0/${EXTLIB}
+TEST_DIR =	${SYSROOT_DIR}${EXTLIB_TEST_PATH}
 install-extlib: .PHONY build-extlib
 	rm -rf ${STAGE} ${TEST_DIR}
 	${TOOLENV} sh -c '${STAGE_CMD}' > ${.OBJDIR}/stage.log 2>&1 || \
@@ -323,28 +329,28 @@ install-extlib: .PHONY build-extlib
 			here=$$(find ${TEST_DIR} \( -name $$name -o -name $${name%.dylib}.so \) | head -1); \
 			if [ -e ${SYSROOT_DIR}${PRIVATE_LIB}/$$name ]; then new=${PRIVATE_LIB}/$$name; \
 			elif [ -e ${SYSROOT_DIR}/usr/lib/$$name ]; then new=/usr/lib/$$name; \
-			elif [ -n "$$here" ]; then new=/usr/local/tests/w0/${EXTLIB}/$${here#${TEST_DIR}/}; \
+			elif [ -n "$$here" ]; then new=${EXTLIB_TEST_PATH}/$${here#${TEST_DIR}/}; \
 			else \
 				built=$$(find ${BUILD} -name $$name | head -1); \
 				[ -n "$$built" ] || { echo "minkar.extlib.mk: $$name not found" >&2; exit 1; }; \
 				cp -L $$built ${TEST_DIR}/ || exit 1; \
-				new=/usr/local/tests/w0/${EXTLIB}/$$name; \
+				new=${EXTLIB_TEST_PATH}/$$name; \
 			fi; \
 			${TC}/install_name_tool -change $$dep $$new "$$f" 2>/dev/null; \
 		done; \
 	done; true
 	# Libraries among the tests answer to where they are now.
 	find ${TEST_DIR} \( -name '*.dylib' -o -name '*.so' \) -type f | while read -r f; do \
-		${TC}/install_name_tool -id /usr/local/tests/w0/${EXTLIB}/$${f#${TEST_DIR}/} "$$f"; \
+		${TC}/install_name_tool -id ${EXTLIB_TEST_PATH}/$${f#${TEST_DIR}/} "$$f"; \
 		${TC}/otool -L "$$f" | awk '$$1 ~ /^@rpath\// || index($$1, "${.OBJDIR}/") == 1 { print $$1 }' | \
 		while read -r dep; do \
 			n=$${dep##*/}; \
-			if [ -e ${TEST_DIR}/$$n ]; then n=/usr/local/tests/w0/${EXTLIB}/$$n; \
+			if [ -e ${TEST_DIR}/$$n ]; then n=${EXTLIB_TEST_PATH}/$$n; \
 			elif [ -e ${SYSROOT_DIR}${PRIVATE_LIB}/$$n ]; then n=${PRIVATE_LIB}/$$n; else n=/usr/lib/$$n; fi; \
 			${TC}/install_name_tool -change $$dep $$n "$$f"; \
 		done; \
 	done; true
-	install -m 0755 ${.CURDIR}/run.sh ${TEST_DIR}/run.sh
+	if [ -f ${.CURDIR}/run.sh ]; then install -m 0755 ${.CURDIR}/run.sh ${TEST_DIR}/run.sh; fi
 	# What is left out, and why (if anything is).
 	if [ -f ${.CURDIR}/skip.txt ]; then install -m 0644 ${.CURDIR}/skip.txt ${TEST_DIR}/; fi
 .elif defined(EXTLIB_HOST) && ${EXTLIB_HOST} == "yes"
