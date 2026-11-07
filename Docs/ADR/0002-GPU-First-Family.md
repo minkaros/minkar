@@ -13,8 +13,10 @@ requirements). It is the first step of the GPU track (G1) and of WS6 in
   (`Docs/ROADMAP.md`, Performance requirements). The reference system may
   only be measured on its vendor's own hardware; the machine we have for
   that is the Mac Pro 6,1 (PC 2).
-- The Mac Pro 6,1's GPUs are FirePro D300 (Pitcairn) or D500/D700
-  (Tahiti): GCN 1.0, "Southern Islands", graphics IP GFX6, display engine
+- The Mac Pro 6,1 model comes with FirePro D300 (Pitcairn) or D500/D700
+  (Tahiti), two of them: different chips, each with its own firmware. PC 2
+  has two FirePro D500 (Tahiti, PCI 1002:679e), the GPU tested and
+  measured; Pitcairn has never been tested. Both are GCN 1.0, "Southern Islands", graphics IP GFX6, display engine
   DCE 6. It is the oldest of the three families we have, and the one with
   the least mature open drivers.
 - The Mac Pro will be available for a short time only.

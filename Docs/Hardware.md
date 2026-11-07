@@ -238,7 +238,7 @@ minutes and no error.
 | Disk | NVMe, Samsung MZVLB256HAHQ (PCI 144d:a808) | Root file system (`MinkarNVMe`) |
 | USB | Fresco Logic FL1100 xHCI (1b73:1100) | Keyboards, directly and through a KVM switch's hub; card reader |
 | USB | Intel USB 2 EHCI (8086:1d26) | No driver |
-| Display | Two AMD FirePro (1002:679e); GOP framebuffer, Xiaomi 34" ultrawide | Native 3440x1440 text console on the card that drives it |
+| Display | Two AMD FirePro D500 (Tahiti, GCN 1.0, PCI 1002:679e); GOP framebuffer, Xiaomi 34" ultrawide | Native 3440x1440 text console on the card that drives it |
 | Network | Two Broadcom BCM57762 (14e4:1682) | DHCP, ssh (`MinkarBGE`); 100 Mb/s on a 100 Mb/s switch |
 
 Images for it are the usual test images; `minkar-hwcheck --display`

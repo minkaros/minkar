@@ -81,7 +81,7 @@ Minkar's performance must be equal to or better than the reference system's on t
 | PC 2 | Mac Pro 6,1 (2026-11-01): Minkar's second PC (gate M1), and the vendor's original hardware to measure the reference | Same |
 
 - **How it is measured:** Minkar and the reference system on the same machine (dual boot), with the same benchmarks run over SSH. The reference system is measured only on its vendor's original hardware (candidate: Mac Pro 6,1), as its license allows no other, and its values are kept out of the public repository.
-- **Consequence:** if the reference is measured only on the Mac Pro 6,1, Minkar must be measured there too, and its GPU (FirePro D300, GCN 1.0, the oldest and least maturely supported) becomes the first high-performance driver's.
+- **Consequence:** if the reference is measured only on the Mac Pro 6,1, Minkar must be measured there too, and its GPUs (two AMD FirePro D500: Tahiti, GCN 1.0, PCI 1002:679e; the oldest family we have and the least maturely supported) become the first high-performance driver's. The model's other configuration, the FirePro D300, is Pitcairn: another chip with its own firmware, never tested (the driver knows its tables and takes its microcode, `pitcairn_*.bin`; pending until a D300 is at hand).
 - **Open decision — the first GPU driver's family:** PC 1 uses Intel HD 630 (Gen9) integrated graphics unless it has a discrete card; another available machine has an AMD RX 6600 (RDNA2), useful as a Minkar test machine without publishing reference measurements on it. The choice is between starting with PC 1's GPU (faster development) and the Mac Pro 6,1's (where it can be compared).
 
 ## Baseline

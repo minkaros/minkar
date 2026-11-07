@@ -27,7 +27,7 @@ vendor's hardware, kept outside the repository). Spanish:
 
 ## G4.6 — the window server on Vulkan (2026-11-03)
 
-Mac Pro 6,1, FirePro D500 (Tahiti), one display at 3440x1440 and 60 Hz
+Mac Pro 6,1, AMD FirePro D500 (Tahiti, PCI 1002:679e; the one driving the display), one display at 3440x1440 and 60 Hz
 (the mouse scene at 1152x864, 75 Hz), mouse and keyboard through a KVM
 switch at about 690 pointer events a second. **The GPU runs at the clocks
 the firmware leaves it** (memory 150 MHz, engine 450 MHz, of 1,270 and 725
