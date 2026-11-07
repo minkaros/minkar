@@ -355,6 +355,18 @@ def accel(args):
     return 'kvm' if os.access('/dev/kvm', os.R_OK | os.W_OK) else 'tcg'
 
 
+# One VM under KVM gets most of the host, so a gate takes as little time
+# as it can: 8 processors and 12 GiB (the development host has 12 and 30
+# GiB). Under TCG (CI) more processors only slow the emulation down: 2 and
+# 4 GiB. --smp, --memory, $BOOTTEST_SMP and $BOOTTEST_MEMORY override.
+def vm_smp(args):
+    return str(args.smp or ('8' if accel(args) == 'kvm' else '2'))
+
+
+def vm_memory(args):
+    return args.memory or (12288 if accel(args) == 'kvm' else 4096)
+
+
 def qemu_command(args, vars_copy):
     # Disks before the image (--extra-disk) take the first AHCI ports, as
     # other operating systems' disks do on a PC: the firmware finds their
@@ -366,7 +378,7 @@ def qemu_command(args, vars_copy):
     port = len(args.extra_disk or [])
     return [
         args.qemu, '-machine', 'q35', '-accel', accel(args), '-cpu', args.cpu,
-        '-smp', str(args.smp), '-m', str(args.memory),
+        '-smp', vm_smp(args), '-m', str(vm_memory(args)),
         '-drive', 'if=pflash,format=raw,readonly=on,file=%s' % args.ovmf_code,
         '-drive', 'if=pflash,format=raw,file=%s' % vars_copy,
         '-device', 'ahci,id=ahci',
@@ -771,8 +783,10 @@ def main(argv=None):
     p.add_argument('--no-rng', action='store_true',
                    help='no virtio-rng: firmware without EFI_RNG_PROTOCOL')
     # A count, or a QEMU topology (e.g. 24,sockets=1,cores=12,threads=2).
-    p.add_argument('--smp', default='2')
-    p.add_argument('--memory', type=int, default=4096, help='MiB')
+    p.add_argument('--smp', default=os.environ.get('BOOTTEST_SMP'),
+                   help='processors (default: $BOOTTEST_SMP, or 8 under KVM, 2 under TCG)')
+    p.add_argument('--memory', type=int, default=int(os.environ.get('BOOTTEST_MEMORY', 0)),
+                   help='MiB (default: $BOOTTEST_MEMORY, or 12288 under KVM, 4096 under TCG)')
     p.add_argument('--ssh-key', default=os.environ.get('BOOTTEST_SSH_KEY'),
                    help='private key ssh steps log in with (default: $BOOTTEST_SSH_KEY)')
     p.add_argument('--vga', choices=['std', 'virtio'],
