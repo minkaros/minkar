@@ -42,10 +42,14 @@
  *	diskutil rename disk name
  *	diskutil verifyVolume | repairVolume disk | mount point
  *	diskutil eraseVolume format name disk
+ *	diskutil enableJournal disk | mount point
+ *	diskutil resizeVolume disk size | limit
  *	diskutil listFilesystems
  */
 
 #include <sys/param.h>
+#include <sys/disk.h>
+#include <sys/ioctl.h>
 #include <sys/mount.h>
 #include <sys/stat.h>
 #include <sys/wait.h>
@@ -53,6 +57,7 @@
 #include <ctype.h>
 #include <err.h>
 #include <errno.h>
+#include <fcntl.h>
 #include <spawn.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -65,6 +70,12 @@
 #include <IOKit/IOKitLib.h>
 #include <IOKit/IOBSD.h>
 #include <IOKit/storage/IOMedia.h>
+#include <IOKit/storage/IOPartitionScheme.h>
+
+/* hfs_fsctl.h: extends (or shrinks) a mounted HFS Plus volume. */
+#ifndef HFSIOC_RESIZE_VOLUME
+#define HFSIOC_RESIZE_VOLUME	_IOW('h', 2, u_int64_t)
+#endif
 
 extern char **environ;
 
@@ -86,6 +97,8 @@ usage(void)
 	    "       diskutil rename disk name\n"
 	    "       diskutil verifyVolume | repairVolume disk | mountPoint\n"
 	    "       diskutil eraseVolume format name disk\n"
+	    "       diskutil enableJournal disk | mountPoint\n"
+	    "       diskutil resizeVolume disk size | limit\n"
 	    "       diskutil listFilesystems\n");
 	exit(1);
 }
@@ -1013,6 +1026,351 @@ cmd_listfs(void)
 	return (0);
 }
 
+/* ---- journaling and resizing ----------------------------------------------- */
+
+#define HFS_UTIL "/System/Library/Filesystems/hfs.fs/Contents/Resources/hfs.util"
+
+/* The mount point of a mounted HFS Plus volume given as disk or mount point. */
+static void
+hfs_mount_point(const char *arg, char *bsd, size_t blen, char *mp, size_t mlen)
+{
+	struct statfs sf;
+	char kind[64];
+	DADiskRef disk = disk_arg(arg);
+
+	bsd_name(arg, bsd, blen);
+	description(disk, kind, sizeof(kind), mp, mlen);
+	CFRelease(disk);
+	if (mp[0] == '\0')
+		errx(1, "%s is not mounted", bsd);
+	if (statfs(mp, &sf) != 0)
+		err(1, "%s", mp);
+	if (strcmp(sf.f_fstypename, "hfs") != 0)
+		errx(1, "%s is not an HFS Plus volume", bsd);
+}
+
+static int
+cmd_enable_journal(int argc, char **argv)
+{
+	char bsd[64], mp[MAXPATHLEN];
+	const char *args[4];
+
+	if (argc != 1)
+		usage();
+	hfs_mount_point(argv[0], bsd, sizeof(bsd), mp, sizeof(mp));
+	args[0] = HFS_UTIL;
+	args[1] = "-J";
+	args[2] = mp;
+	args[3] = NULL;
+	if (run(args) != 0)
+		errx(1, "Could not enable journaling on %s", bsd);
+	printf("Journaling has been enabled for volume %s on %s\n", mp, bsd);
+	return (0);
+}
+
+/*
+ * The GUID partition table, as the UEFI specification lays it out (all
+ * fields little endian; Minkar runs on little endian machines only).
+ */
+struct gpt_header {
+	char		signature[8];	/* "EFI PART" */
+	uint32_t	revision;
+	uint32_t	header_size;
+	uint32_t	header_crc;
+	uint32_t	reserved;
+	uint64_t	my_lba;
+	uint64_t	alternate_lba;
+	uint64_t	first_usable;
+	uint64_t	last_usable;
+	uint8_t		disk_guid[16];
+	uint64_t	entries_lba;
+	uint32_t	entry_count;
+	uint32_t	entry_size;
+	uint32_t	entries_crc;
+} __attribute__((packed));
+
+struct gpt_entry {
+	uint8_t		type[16];
+	uint8_t		guid[16];
+	uint64_t	first_lba;
+	uint64_t	last_lba;
+	uint64_t	attributes;
+	uint16_t	name[36];
+} __attribute__((packed));
+
+/* CRC-32 (IEEE 802.3), as the GPT uses it. */
+static uint32_t
+crc32_ieee(const void *buf, size_t len)
+{
+	const uint8_t *p = buf;
+	uint32_t crc = 0xffffffff;
+	int k;
+
+	while (len-- > 0) {
+		crc ^= *p++;
+		for (k = 0; k < 8; k++)
+			crc = (crc >> 1) ^ (0xedb88320 & -(crc & 1));
+	}
+	return (~crc);
+}
+
+static void
+pread_all(int fd, void *buf, size_t len, off_t off)
+{
+	if (pread(fd, buf, len, off) != (ssize_t)len)
+		err(1, "read at %lld", (long long)off);
+}
+
+static void
+pwrite_all(int fd, const void *buf, size_t len, off_t off)
+{
+	if (pwrite(fd, buf, len, off) != (ssize_t)len)
+		err(1, "write at %lld", (long long)off);
+}
+
+/* "limit", or a size: bytes, or a number with B, K, M, G or T (powers of
+ * 1000, as the reference diskutil counts). 0 for "limit". */
+static uint64_t
+parse_size(const char *s)
+{
+	char *end;
+	double v;
+	uint64_t mult = 1;
+
+	if (strcasecmp(s, "limit") == 0 || strcasecmp(s, "R") == 0)
+		return (0);
+	v = strtod(s, &end);
+	if (end == s || v <= 0)
+		errx(1, "Invalid size: %s", s);
+	switch (toupper((unsigned char)*end)) {
+	case '\0': case 'B':	mult = 1; break;
+	case 'K':		mult = 1000ULL; break;
+	case 'M':		mult = 1000ULL * 1000; break;
+	case 'G':		mult = 1000ULL * 1000 * 1000; break;
+	case 'T':		mult = 1000ULL * 1000 * 1000 * 1000; break;
+	default:		errx(1, "Invalid size: %s", s);
+	}
+	return ((uint64_t)(v * (double)mult));
+}
+
+/* An IOMedia's number property (Base, Size), by BSD name. */
+static uint64_t
+media_number(const char *bsd, const char *key, io_service_t *service)
+{
+	io_service_t media;
+	CFTypeRef v;
+	uint64_t n = 0;
+
+	media = IOServiceGetMatchingService(kIOMasterPortDefault,
+	    IOBSDNameMatching(kIOMasterPortDefault, 0, bsd));
+	if (media == IO_OBJECT_NULL)
+		errx(1, "Could not find the media of %s", bsd);
+	v = IORegistryEntryCreateCFProperty(media,
+	    CFStringCreateWithCString(NULL, key, kCFStringEncodingUTF8), NULL, 0);
+	if (v == NULL || CFGetTypeID(v) != CFNumberGetTypeID() ||
+	    !CFNumberGetValue(v, kCFNumberSInt64Type, &n))
+		errx(1, "%s has no %s", bsd, key);
+	CFRelease(v);
+	if (service != NULL)
+		*service = media;
+	else
+		IOObjectRelease(media);
+	return (n);
+}
+
+/*
+ * Grows a mounted, journaled HFS Plus volume and its GPT partition into
+ * the free space after it, live: the partition's entry is extended (and
+ * the table's backup moved to the end of the disk, where a smaller disk
+ * image written to a bigger disk left it elsewhere), the partition scheme
+ * reads the table again, which gives the partition its new size, and the
+ * file system is extended to it. Shrinking is not supported.
+ */
+static int
+cmd_resize(int argc, char **argv)
+{
+	char bsd[64], whole[64], mp[MAXPATHLEN], dev[80], h1[32], h2[32];
+	struct gpt_header *hdr, *bak;
+	struct gpt_entry *ent = NULL;
+	uint8_t *mbr, *hbuf, *bbuf, *table;
+	uint64_t want, base, blocks, last, last_usable, end, limit;
+	uint64_t newsize, align, tblocks, cur, fsold;
+	uint32_t bs, i, idx = UINT32_MAX, check;
+	size_t tsize;
+	io_service_t media, scheme;
+	int fd, tries;
+
+	if (argc != 2)
+		usage();
+	hfs_mount_point(argv[0], bsd, sizeof(bsd), mp, sizeof(mp));
+	whole_of(bsd, whole, sizeof(whole));
+	if (strcmp(whole, bsd) == 0)
+		errx(1, "%s is a whole disk, not a partition", bsd);
+	want = parse_size(argv[1]);
+	{
+		struct statfs sf;
+
+		/* The file system grows only with a journal: say so before the
+		 * partition table is touched. */
+		if (statfs(mp, &sf) != 0)
+			err(1, "%s", mp);
+		if ((sf.f_flags & MNT_JOURNALED) == 0)
+			errx(1, "%s is not journaled: run diskutil enableJournal "
+			    "%s first", mp, mp);
+		fsold = (uint64_t)sf.f_blocks * sf.f_bsize;
+	}
+
+	base = media_number(bsd, kIOMediaBaseKey, NULL);
+	(void)media_number(bsd, kIOMediaSizeKey, &media);
+
+	/* A shared writer: the partition scheme stays (an exclusive one would
+	 * tear it down, and cannot while the partition is mounted). */
+	snprintf(dev, sizeof(dev), "/dev/r%s", whole);
+	if ((fd = open(dev, O_RDWR | O_SHLOCK)) < 0)
+		err(1, "%s", dev);
+	if (ioctl(fd, DKIOCGETBLOCKSIZE, &bs) != 0 ||
+	    ioctl(fd, DKIOCGETBLOCKCOUNT, &blocks) != 0)
+		err(1, "%s: size", dev);
+	last = blocks - 1;
+
+	/* The protective map, the primary header and its table. */
+	mbr = malloc(bs);
+	hbuf = malloc(bs);
+	bbuf = calloc(1, bs);
+	if (mbr == NULL || hbuf == NULL || bbuf == NULL)
+		err(1, NULL);
+	pread_all(fd, mbr, bs, 0);
+	pread_all(fd, hbuf, bs, (off_t)bs);
+	hdr = (struct gpt_header *)hbuf;
+	if (memcmp(hdr->signature, "EFI PART", 8) != 0 ||
+	    hdr->header_size < 92 || hdr->header_size > bs)
+		errx(1, "%s has no GUID partition table", whole);
+	check = hdr->header_crc;
+	hdr->header_crc = 0;
+	if (crc32_ieee(hdr, hdr->header_size) != check)
+		errx(1, "%s: the partition table header is damaged", whole);
+	if (hdr->entry_size < sizeof(struct gpt_entry) || hdr->entry_count == 0 ||
+	    hdr->entry_count > 1024)
+		errx(1, "%s: unexpected partition table layout", whole);
+	tsize = (size_t)hdr->entry_count * hdr->entry_size;
+	tblocks = (tsize + bs - 1) / bs;
+	if ((table = calloc(tblocks, bs)) == NULL)
+		err(1, NULL);
+	pread_all(fd, table, tblocks * bs, (off_t)(hdr->entries_lba * bs));
+	if (crc32_ieee(table, tsize) != hdr->entries_crc)
+		errx(1, "%s: the partition table is damaged", whole);
+
+	/* This partition's entry: the one that starts where the media does. */
+	for (i = 0; i < hdr->entry_count; i++) {
+		struct gpt_entry *e = (struct gpt_entry *)(table + (size_t)i * hdr->entry_size);
+		static const uint8_t unused[16];
+
+		if (memcmp(e->type, unused, 16) != 0 && e->first_lba * bs == base) {
+			ent = e;
+			idx = i;
+		}
+	}
+	if (ent == NULL)
+		errx(1, "%s: no partition table entry at its offset", bsd);
+
+	/* The free space after it: up to the next partition, or to the backup
+	 * table at the end of the disk. */
+	last_usable = last - 1 - tblocks;
+	limit = last_usable;
+	for (i = 0; i < hdr->entry_count; i++) {
+		struct gpt_entry *e = (struct gpt_entry *)(table + (size_t)i * hdr->entry_size);
+		static const uint8_t unused[16];
+
+		if (i != idx && memcmp(e->type, unused, 16) != 0 &&
+		    e->first_lba > ent->first_lba && e->first_lba - 1 < limit)
+			limit = e->first_lba - 1;
+	}
+	if (want == 0)
+		end = limit;
+	else
+		end = ent->first_lba + want / bs - 1;
+	/* Whole 4 KB units, as the file system's physical blocks may be. */
+	align = 4096 / bs > 0 ? 4096 / bs : 1;
+	end = ent->first_lba + ((end - ent->first_lba + 1) / align) * align - 1;
+	if (end > limit) {
+		human((limit - ent->first_lba + 1) * bs, h1, sizeof(h1));
+		errx(1, "Not enough free space after %s: at most %s", bsd, h1);
+	}
+	if (end < ent->last_lba)
+		errx(1, "Shrinking a volume is not supported");
+	newsize = (end - ent->first_lba + 1) * bs;
+
+	/* The table: the entry, and both headers at the disk's real ends. */
+	ent->last_lba = end;
+	hdr->entries_crc = crc32_ieee(table, tsize);
+	hdr->alternate_lba = last;
+	hdr->last_usable = last_usable;
+	hdr->header_crc = 0;
+	hdr->header_crc = crc32_ieee(hdr, hdr->header_size);
+	memcpy(bbuf, hbuf, bs);
+	bak = (struct gpt_header *)bbuf;
+	bak->my_lba = last;
+	bak->alternate_lba = 1;
+	bak->entries_lba = last - tblocks;
+	bak->header_crc = 0;
+	bak->header_crc = crc32_ieee(bak, bak->header_size);
+
+	/* The protective map covers the whole disk (or 2 TB). */
+	for (i = 0; i < 4; i++) {
+		uint8_t *p = mbr + 446 + i * 16;
+
+		if (p[4] == 0xee) {
+			uint32_t first, size;
+
+			memcpy(&first, p + 8, 4);
+			size = last - first + 1 > 0xffffffffULL ?
+			    0xffffffff : (uint32_t)(last - first + 1);
+			memcpy(p + 12, &size, 4);
+		}
+	}
+
+	/* The backup first, then the primary: a table is valid at each step. */
+	pwrite_all(fd, table, tblocks * bs, (off_t)(bak->entries_lba * bs));
+	pwrite_all(fd, bbuf, bs, (off_t)(last * bs));
+	pwrite_all(fd, table, tblocks * bs, (off_t)(hdr->entries_lba * bs));
+	pwrite_all(fd, hbuf, bs, (off_t)bs);
+	pwrite_all(fd, mbr, bs, 0);
+	(void)ioctl(fd, DKIOCSYNCHRONIZECACHE);
+	close(fd);
+
+	/* The partition scheme reads the table again: the partition grows. */
+	if (IORegistryEntryGetParentEntry(media, kIOServicePlane, &scheme) != KERN_SUCCESS)
+		errx(1, "%s: no partition scheme", bsd);
+	if (IOServiceRequestProbe(scheme, 0) != KERN_SUCCESS)
+		errx(1, "%s: the partition scheme did not read the table again", whole);
+	IOObjectRelease(scheme);
+	IOObjectRelease(media);
+	for (tries = 0; tries < 50; tries++) {
+		cur = media_number(bsd, kIOMediaSizeKey, NULL);
+		if (cur == newsize)
+			break;
+		usleep(100000);
+	}
+	if (cur != newsize)
+		errx(1, "%s: the partition kept its size", bsd);
+
+	/* The file system, to the partition's new size. */
+	{
+		struct statfs sf;
+
+		if (statfs(mp, &sf) != 0)
+			err(1, "%s", mp);
+		if ((uint64_t)sf.f_blocks * sf.f_bsize < newsize &&
+		    fsctl(mp, HFSIOC_RESIZE_VOLUME, &newsize, 0) != 0) {
+			err(1, "Could not resize the file system on %s", bsd);
+		}
+	}
+	human(fsold, h1, sizeof(h1));
+	human(newsize, h2, sizeof(h2));
+	printf("Resized %s (%s) from %s to %s\n", bsd, mp, h1, h2);
+	return (0);
+}
+
 int
 main(int argc, char **argv)
 {
@@ -1054,5 +1412,9 @@ main(int argc, char **argv)
 		return (cmd_fsck(argc, argv, true));
 	if (strcasecmp(verb, "eraseVolume") == 0)
 		return (cmd_erase(argc, argv));
+	if (strcasecmp(verb, "enableJournal") == 0)
+		return (cmd_enable_journal(argc, argv));
+	if (strcasecmp(verb, "resizeVolume") == 0)
+		return (cmd_resize(argc, argv));
 	usage();
 }
