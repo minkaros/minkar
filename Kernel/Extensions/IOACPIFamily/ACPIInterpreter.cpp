@@ -334,7 +334,7 @@ ACPIInterpreterPowerOff(void)
 	if (ACPI_FAILURE(st = AcpiEnterSleepStatePrep(ACPI_STATE_S5))) {
 		/*
 		 * Minkar: _PTS failing does not stop the power off. On the
-		 * Mac Pro 6,1 it touches the embedded controller, which has no
+		 * PC 2 it touches the embedded controller, which has no
 		 * handler here (AE_NOT_EXIST), and the machine stayed on. The
 		 * sleep type was read before _PTS ran, so S5 can still be
 		 * entered.

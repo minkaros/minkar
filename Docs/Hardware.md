@@ -10,7 +10,7 @@ tracks the list as a whole.
 |---|---|---|
 | QEMU VM | Every change: `boottest`, the local test suite, the CI | Boots to login under TCG and KVM |
 | PC 1: Gigabyte H270N-WIFI | First physical PC | Boots to login from SATA; display, keyboard and network work |
-| PC 2: Mac Pro 6,1 | Second physical PC (gate M1); the vendor's original hardware, to measure the reference | Boots to login from NVMe; 24 threads, display, keyboard and network work |
+| PC 2: Intel Xeon E5-2697 v2 | Second physical PC (gate M1); the vendor's original hardware, to measure the reference | Boots to login from NVMe; 24 threads, display, keyboard and network work |
 | AMD PC | An AMD processor | Pending: no hardware yet (see below) |
 
 **Requirement (decided 7 Nov 2026): an x86-64 processor with AVX** (Intel from Sandy Bridge, 2011; AMD from Bulldozer and Jaguar, 2011 and 2013). Software built for the reference platform may use AVX without asking, and JavaScriptCore's JIT does, as every machine the reference system runs on has it; older processors are left to more generic operating systems. The VMs emulate an Ivy Bridge (`-cpu IvyBridge`). Under TCG, QEMU emulates AVX from 7.2 on (Ubuntu 24.04 has 8.2); with an older QEMU the VM boots, but code that uses AVX stops on an illegal instruction.
@@ -221,7 +221,7 @@ slow only while the network was misconfigured.
 elements and Braille dots, so btop shows its boxes and graphs as on a
 terminal emulator instead of `+ - | #`.
 
-## PC 2: Mac Pro 6,1
+## PC 2: Intel Xeon E5-2697 v2, AMD FirePro D500
 
 Chosen on 2026-11-01. Gate M1 passed on it that day: `minkar-hwcheck`
 ran unattended with 20 checks passing (boot from the internal NVMe, the
@@ -232,7 +232,7 @@ minutes and no error.
 
 | Part | Device | State |
 |---|---|---|
-| Board | Mac Pro 6,1, the vendor's EFI firmware | Boots the Minkar loader from the internal disk |
+| Board | The vendor's board and EFI firmware | Boots the Minkar loader from the internal disk |
 | CPU | Intel Xeon E5-2697 v2 (12 cores, 24 threads) | All 24 run (SMP) |
 | Memory | 40 GB | Full size seen, round trip checked |
 | Disk | NVMe, Samsung MZVLB256HAHQ (PCI 144d:a808) | Root file system (`MinkarNVMe`) |

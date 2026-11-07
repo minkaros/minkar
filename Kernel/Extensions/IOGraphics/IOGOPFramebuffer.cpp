@@ -36,7 +36,7 @@ OSDefineMetaClassAndStructors(IOGOPFramebuffer, IOFramebuffer);
 
 /*
  * Minkar: only the card whose memory window holds the firmware's
- * framebuffer drives it. A machine with two GPUs (a Mac Pro 6,1) matched
+ * framebuffer drives it. A machine with two GPUs (PC 2, two FirePro D500) matched
  * one IOGOPFramebuffer on each, both claiming the same framebuffer.
  * A window's base is read from the card's BAR; its size from "reg", which
  * PCI configuration publishes even when it leaves the firmware's

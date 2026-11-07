@@ -12,14 +12,14 @@ requirements). It is the first step of the GPU track (G1) and of WS6 in
   system on the same physical machine, 3D and compositing included
   (`Docs/ROADMAP.md`, Performance requirements). The reference system may
   only be measured on its vendor's own hardware; the machine we have for
-  that is the Mac Pro 6,1 (PC 2).
-- The Mac Pro 6,1 model comes with FirePro D300 (Pitcairn) or D500/D700
+  that is PC 2 (Intel Xeon E5-2697 v2 (12 cores, 24 threads), 40 GB, Samsung NVMe, Fresco Logic FL1100 xHCI, Broadcom BCM57762, two AMD FirePro D500 (Tahiti)).
+- PC 2's model comes with FirePro D300 (Pitcairn) or D500/D700
   (Tahiti), two of them: different chips, each with its own firmware. PC 2
   has two FirePro D500 (Tahiti, PCI 1002:679e), the GPU tested and
   measured; Pitcairn has never been tested. Both are GCN 1.0, "Southern Islands", graphics IP GFX6, display engine
   DCE 6. It is the oldest of the three families we have, and the one with
   the least mature open drivers.
-- The Mac Pro will be available for a short time only.
+- PC 2 will be available for a short time only.
 - The other machines: an AMD Radeon RX 6600 (RDNA2, Navi 23, GFX10.3,
   display engine DCN 3.0.x), usable to test Minkar but not to publish
   reference measurements; and PC 1's Intel HD 630 (Gen9).
@@ -38,12 +38,12 @@ requirements). It is the first step of the GPU track (G1) and of WS6 in
 
 ### 1. Order of families
 
-1. **AMD GCN 1.0 (GFX6, DCE 6)**, the Mac Pro 6,1's FirePro: first,
+1. **AMD GCN 1.0 (GFX6, DCE 6)**, PC 2's FirePro: first,
    because the reference is measured there and the machine will not be
    available for long.
 2. **AMD RDNA2 (GFX10.3, DCN 3.0.x)**, the RX 6600: second. It shares the
    kernel driver (`amdgpu`) and Mesa's RADV with the first, and becomes the
-   AMD development machine when the Mac Pro is gone.
+   AMD development machine when PC 2 is gone.
 3. **Intel Gen9**, PC 1's HD 630: third, with `i915` and ANV/iris.
 
 ### 2. How the drivers come in
@@ -73,16 +73,16 @@ requirements). It is the first step of the GPU track (G1) and of WS6 in
 
 | Milestone | What | Gate |
 | --- | --- | --- |
-| G1 | This ADR; the LinuxKPI layer's first part; a KMS prototype: `MinkarAMDGPU` sets a mode through DCE 6 and scans out a buffer in VRAM as an `IOFramebuffer` | The Mac Pro boots to the login window on it at the display's native mode; `wsctl mode` changes the mode |
+| G1 | This ADR; the LinuxKPI layer's first part; a KMS prototype: `MinkarAMDGPU` sets a mode through DCE 6 and scans out a buffer in VRAM as an `IOFramebuffer` | PC 2 boots to the login window on it at the display's native mode; `wsctl mode` changes the mode |
 | G2 | Memory manager (VRAM and GTT, GPU virtual memory), rings (GFX, SDMA), fences, command submission through the user client; IOSurfaces in GPU memory | A command buffer runs and its fence signals; a copy between surfaces by SDMA |
 | G3 | Mesa RADV on G2; Vulkan WSI into IOSurfaces; OpenGL after | Vulkan conformance subset; a triangle presented in a window |
-| G4 | `WSVulkanBackend` in the window server (WS6), flips paced by the display | The compositing performance gate of Minkar 21.0 on the Mac Pro |
+| G4 | `WSVulkanBackend` in the window server (WS6), flips paced by the display | The compositing performance gate of Minkar 21.0 on PC 2 |
 | G5 | Metal on Vulkan (darling-metal and Indium, MPL-2.0) | A Metal sample app renders |
 
 The RX 6600 follows G1–G4 with DCN 3.0.x and GFX10.3; Intel Gen9 after,
 with its own kernel port (`i915`) on the same LinuxKPI layer.
 
-### 4. While the Mac Pro is here
+### 4. While PC 2 is here
 
 The machine's time goes first to what cannot be done later: the reference
 measurements (kept out of the repository), and dumps for development
@@ -98,7 +98,7 @@ it exists.
   in G1 and G2 (display through DC on DCE 6, power management, the
   Vulkan level RADV reaches on GFX6). If `amdgpu` cannot drive it, the
   fallback is `radeon` for the display (G1) with the same LinuxKPI layer.
-- When the Mac Pro is gone, GCN 1.0 work goes on only with the dumps; the
+- When PC 2 is gone, GCN 1.0 work goes on only with the dumps; the
   RX 6600 carries the AMD track, and the performance gate on GCN 1.0 waits
   until a machine with that GPU is available again.
 - The LinuxKPI layer is shared by every family, so its first part is

@@ -429,7 +429,7 @@ MinkarAMDFramebuffer::readSink()
 
 	/* The EDID: over AUX (I2C over AUX) to a DisplayPort sink; on the
 	 * DDC line itself (hardware I2C) when there is no DPCD: an HDMI or
-	 * DVI sink on a dual-mode port (the Mac Pro 6,1's HDMI port). */
+	 * DVI sink on a dual-mode port (PC 2's HDMI port). */
 	bool dp = fDPCD[0] != 0;
 	if (!dp) {
 		readEDID(fEDID, &fEDIDBytes);

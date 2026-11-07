@@ -192,7 +192,7 @@ IONetworkStack::free()
  * No namer in time (configd not running), or one that left interfaces
  * unnamed: name the rest in order of appearance, and later ones as they
  * come. Minkar: the timer stays armed when the namer connects; on the
- * Mac Pro 6,1 its Broadcom interfaces were published, never named, and
+ * PC 2 its Broadcom interfaces were published, never named, and
  * with the timer cancelled they stayed without a BSD interface.
  */
 void

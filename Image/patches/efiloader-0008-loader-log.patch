@@ -8,7 +8,7 @@
 +/*
 + * Minkar: everything the loader prints is kept and written to
 + * \Minkar\loader.log on its own volume before the kernel starts. Some
-+ * firmware (a Mac Pro's) never shows the loader's text on the screen;
++ * firmware (PC 2's) never shows the loader's text on the screen;
 + * the log says which graphics mode was chosen and what the kernel got.
 + */
 +STATIC CHAR8 gLog[16384];

@@ -3,7 +3,7 @@
 # Part of Minkar.
 #
 # MinkarBGE: driver for the Broadcom NetXtreme 57765 family (BCM57762 in
-# the Mac Pro 6,1, and its siblings), on our IONetworkingFamily. The chip
+# PC 2's BCM57762, and its siblings), on our IONetworkingFamily. The chip
 # setup is FreeBSD's bge(4) for this family (BSD-4-Clause, Bill Paul and
 # Wind River Systems); bge/ holds FreeBSD's register definitions
 # (if_bgereg.h, trimmed to the hardware part, and brgphyreg.h).
