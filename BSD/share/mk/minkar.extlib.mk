@@ -156,7 +156,9 @@ TOOLENV =	env -u MACOSX_DEPLOYMENT_TARGET PATH=${VENV}/bin:${HOST_PREFIX}/bin:$$
 
 all: install-extlib
 
-# The tree with our patches, made again when they or the manifest change.
+# The tree with our patches, made again when they or the manifest change,
+# or the recipe (where EXTLIB_PATCHES is: a patch taken off the list
+# changes no file the tree depends on otherwise).
 .if defined(EXTLIB_SOURCE)
 _EXTLIB_ORIGIN =	${.CURDIR}/Makefile
 _EXTLIB_PRISTINE =	echo ${EXTLIB_SOURCE}
@@ -165,7 +167,7 @@ _EXTLIB_ORIGIN =	${EXTLIB_MANIFEST}
 _EXTLIB_PRISTINE =	${FETCH} ${EXTLIB_MANIFEST} ${EXTLIB_CACHE}
 .endif
 ${SRC}/.minkar-patches: ${EXTLIB_PATCHES:@p@${EXTLIB_DIR}/patches/${p}@} ${_EXTLIB_ORIGIN} \
-    ${EXTLIB_SUBPROJECTS:@p@${EXTLIB_DIR}/MANIFEST.${p}@}
+    ${EXTLIB_SUBPROJECTS:@p@${EXTLIB_DIR}/MANIFEST.${p}@} ${.CURDIR}/Makefile
 	pristine=$$(${_EXTLIB_PRISTINE}) && \
 	rm -rf ${SRC} ${SRC}.part && cp -a $$pristine ${SRC}.part && \
 	for sp in ${EXTLIB_SUBPROJECTS}; do \
