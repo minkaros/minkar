@@ -1,0 +1,18 @@
+JSCOnly: on Darwin, the build directory is a framework search path
+
+On Darwin the headers go to JavaScriptCore.framework, framework style,
+and LLIntSettingsExtractor includes <JavaScriptCore/...> from there;
+the Mac port adds -F<build directory>, the JSCOnly port did not.
+
+--- a/Source/cmake/OptionsJSCOnly.cmake	2026-11-07 01:23:31.420091357 -0500
++++ b/Source/cmake/OptionsJSCOnly.cmake	2026-11-07 01:23:31.448090548 -0500
+@@ -117,6 +117,9 @@
+ find_package(ICU 70.1 REQUIRED COMPONENTS data i18n uc)
+ if (APPLE)
+     add_definitions(-DU_DISABLE_RENAMING=1)
++    # The frameworks this build makes (their headers, framework style), as
++    # the Mac port finds them.
++    add_compile_options(-F${CMAKE_BINARY_DIR})
+ endif ()
+ 
+ if (USE_LIBBACKTRACE)

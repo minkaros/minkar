@@ -1,0 +1,17 @@
+libpas: os_unfair_lock_lock_with_flags only where it is public API
+
+It is public from macOS 15 on (__MAC_OS_X_VERSION_MIN_REQUIRED); built
+for an older system (Minkar is API 19, 10.15), libpas takes the plain
+os_unfair_lock_lock, as it does where the flags are not available.
+
+--- a/Source/bmalloc/libpas/src/libpas/pas_lock.h	2026-11-07 01:12:26.241844759 -0500
++++ b/Source/bmalloc/libpas/src/libpas/pas_lock.h	2026-11-07 01:12:26.269844182 -0500
+@@ -69,7 +69,7 @@
+ #define OS_UNFAIR_LOCK_DATA_SYNCHRONIZATION 0x00010000
+ #define OS_UNFAIR_LOCK_ADAPTIVE_SPIN 0x00040000
+ 
+-#if PAS_PLATFORM(COCOA)
++#if PAS_PLATFORM(COCOA) && defined(__MAC_OS_X_VERSION_MIN_REQUIRED) && __MAC_OS_X_VERSION_MIN_REQUIRED >= 150000
+ /* After this version, OS_UNFAIR_LOCK_DATA_SYNCHRONIZATION etc. are public API */
+ #define PAS_USE_ULOCK_FLAGS_API 1
+ #else

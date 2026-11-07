@@ -1,0 +1,21 @@
+WTF: MPO_EXCEPTION_PORT only where the kernel has that option
+
+mach_port_construct's MPO_EXCEPTION_PORT is newer than Darwin 19 (Minkar's
+kernel); without it the exception port is an ordinary receive right,
+as it was before the option existed.
+
+--- a/Source/WTF/wtf/threads/Signals.cpp	2026-11-07 01:19:27.924919030 -0500
++++ b/Source/WTF/wtf/threads/Signals.cpp	2026-11-07 01:19:27.956918339 -0500
+@@ -131,7 +131,11 @@
+     if (!handlers.addedExceptions)
+         return;
+ 
+-    uint16_t flags = MPO_INSERT_SEND_RIGHT | MPO_EXCEPTION_PORT;
++    uint16_t flags = MPO_INSERT_SEND_RIGHT;
++#if defined(MPO_EXCEPTION_PORT)
++    // A port made only for exceptions, where the kernel has that option.
++    flags |= MPO_EXCEPTION_PORT;
++#endif
+ 
+     mach_port_options_t options { };
+     options.flags = flags;

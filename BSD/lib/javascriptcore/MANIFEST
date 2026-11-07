@@ -1,0 +1,20 @@
+# JavaScriptCore (LGPL-2.1-or-later and BSD-2-Clause) from WebKit's
+# repository at the commit WPE WebKit 2.54.2 was made from (its tag
+# wpewebkit-2.54.2): that release's tarball leaves out what is particular
+# to Apple's systems (mac/, cocoa/, cf/, .mm) and the JavaScript tests,
+# which a Darwin build of JavaScriptCore and W1 need. Only these parts of
+# the tree are fetched; git checks every object against the commit.
+git https://github.com/WebKit/WebKit.git
+commit 32717fabcb9dcad9aa00a54ef1f23e41ee64e849
+name webkit
+path CMakeLists.txt
+path Source/CMakeLists.txt
+path Source/cmake
+path Source/WTF
+path Source/bmalloc
+path Source/JavaScriptCore
+path Source/ThirdParty/unifdef
+path Source/ThirdParty/gtest
+path JSTests
+path Tools/Scripts
+version 2.54.2
