@@ -960,8 +960,14 @@ si_module_static_search(void)
 #ifdef DS_AVAILABLE
 			"ds",
 #endif
-			"mdns",
+			/*
+			 * Minkar: the flat files before mDNSResponder. Its POSIX
+			 * build does not read /etc/hosts (only the reference
+			 * platform's does), so a name or address in it went to
+			 * DNS first: getnameinfo of 127.0.0.1 took 30 s.
+			 */
 			"file",
+			"mdns",
 		};
 
 		int count = sizeof(modules) / sizeof(char *);
