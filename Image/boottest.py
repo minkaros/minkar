@@ -177,6 +177,7 @@ GATES['M3'] = GATES['M2'] + [
 # image): run.sh runs every library's.
 GATES['W0'] = GATES['M2'] + [
     SSH('/usr/local/tests/w0/run.sh 2>&1 | grep "^w0: "'),
+    'w0: brotli passed',
     'w0: expat passed',
     'w0: fontconfig passed',
     'w0: glib passed',
