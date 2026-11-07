@@ -5,16 +5,30 @@ Permission is hereby granted, free of charge, to any person obtaining a copy of 
 The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
 
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE. */
+/* Minkar: C can include it too (ApplicationServices.h does): the same
+   types as opaque pointers and CF types there. */
+#ifdef __OBJC__
 #import <Foundation/NSObject.h>
 #import <Foundation/NSString.h>
+#else
+#include <CoreFoundation/CoreFoundation.h>
+#endif
 #import <CoreText/CoreTextExport.h>
 #import <CoreGraphics/CGAffineTransform.h>
 #import <CoreGraphics/CGFont.h>
 #import <CoreGraphics/CGPath.h>
 
+#ifdef __OBJC__
 @class KTFont;
 
 typedef KTFont *CTFontRef;
+#define CT_FONT_ATTRIBUTES id
+#define CT_FONT_LANGUAGE NSString *
+#else
+typedef const struct __CTFont *CTFontRef;
+#define CT_FONT_ATTRIBUTES CFTypeRef
+#define CT_FONT_LANGUAGE CFStringRef
+#endif
 
 typedef enum {
     kCTFontSystemFontType = 2,
@@ -44,12 +58,12 @@ typedef enum {
     kCTFontControlContentFontType = 26
 } CTFontUIFontType;
 
-CORETEXT_EXPORT CTFontRef CTFontCreateWithGraphicsFont(CGFontRef cgFont, CGFloat size, CGAffineTransform *xform, id attributes);
-CORETEXT_EXPORT CTFontRef CTFontCreateUIFontForLanguage(CTFontUIFontType uiFontType, CGFloat size, NSString *language);
+CORETEXT_EXPORT CTFontRef CTFontCreateWithGraphicsFont(CGFontRef cgFont, CGFloat size, CGAffineTransform *xform, CT_FONT_ATTRIBUTES attributes);
+CORETEXT_EXPORT CTFontRef CTFontCreateUIFontForLanguage(CTFontUIFontType uiFontType, CGFloat size, CT_FONT_LANGUAGE language);
 CORETEXT_EXPORT CFStringRef CTFontCopyFullName(CTFontRef self);
 CORETEXT_EXPORT CGFloat CTFontGetSize(CTFontRef self);
 CORETEXT_EXPORT size_t CTFontGetGlyphCount(CTFontRef self);
-CORETEXT_EXPORT BOOL CTFontGetGlyphsForCharacters(CTFontRef self, const unichar *characters, CGGlyph *glyphs, size_t count);
+CORETEXT_EXPORT bool CTFontGetGlyphsForCharacters(CTFontRef self, const UniChar *characters, CGGlyph *glyphs, size_t count);
 CORETEXT_EXPORT CGRect CTFontGetBoundingBox(CTFontRef self);
 CORETEXT_EXPORT void CTFontGetAdvancesForGlyphs(CTFontRef self, int orientation, const CGGlyph *glyphs, CGSize *advances, size_t count);
 CORETEXT_EXPORT CGFloat CTFontGetUnderlinePosition(CTFontRef self);
