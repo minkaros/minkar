@@ -927,6 +927,9 @@ static inline void buildTransformsIfNeeded(NSView *self) {
 
    if(_wantsLayer)
     [view setWantsLayer:YES];
+
+   /* As documented: told after every subview added (it was never sent). */
+   [self didAddSubview:view];
 }
 
 -(void)addSubview:(NSView *)view {
