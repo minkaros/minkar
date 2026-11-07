@@ -1,0 +1,7 @@
+# xcbeautify 2.30.1 (MIT), for gate M3: a formatter for build and test
+# logs, and its tests. The last version for Swift 6.0 (later ones need
+# 6.1 and API 23).
+url https://github.com/cpisciotta/xcbeautify/archive/refs/tags/2.30.1.tar.gz
+file xcbeautify-2.30.1.tar.gz
+sha256 6cc64ef9167a02b1c097f995941e93d756e27c570006ad6f9e9c83db83ed2603
+version 2.30.1

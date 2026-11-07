@@ -5945,6 +5945,8 @@ sogetoptlock(struct socket *so, struct sockopt *sopt, int dolock)
 		case SO_WANTOOBFLAG:
 		case SO_NOWAKEFROMSLEEP:
 		case SO_NOAPNFALLBK:
+		/* Minkar: POSIX's read-only option, set by listen(). */
+		case SO_ACCEPTCONN:
 			optval = so->so_options & sopt->sopt_name;
 integer:
 			error = sooptcopyout(sopt, &optval, sizeof(optval));

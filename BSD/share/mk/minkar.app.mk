@@ -9,6 +9,8 @@
 # Variables:
 #   APP                 bundle and executable name (required)
 #   APP_INSTALL_DIR     install location in the sysroot (default /Applications)
+#   APP_INSTALL_NAME    the installed bundle's name, if not ${APP} (it may
+#                       have spaces: "System Preferences")
 #   APP_EXEC_DIR        executable directory (default MacOS, as on macOS)
 #   INFO_PLIST          Info.plist source (default Info.plist, if present)
 #   FRAMEWORKS          frameworks to link with, by name
@@ -70,9 +72,10 @@ app-bundle: .PHONY
 	${CODESIGN} -f -s - ${_CODESIGN_FLAGS} \
 	    ${APP_DIR}/Contents/${APP_EXEC_DIR}/${APP}
 
+APP_INSTALL_NAME ?= ${APP}
 app-install-hook: .PHONY
 	mkdir -p ${SYSROOT_DIR}${APP_INSTALL_DIR}
-	rm -rf ${SYSROOT_DIR}${APP_INSTALL_DIR}/${APP}.app
-	cp -Rf ${APP_DIR} ${SYSROOT_DIR}${APP_INSTALL_DIR}/
+	rm -rf "${SYSROOT_DIR}${APP_INSTALL_DIR}/${APP_INSTALL_NAME}.app"
+	cp -Rf ${APP_DIR} "${SYSROOT_DIR}${APP_INSTALL_DIR}/${APP_INSTALL_NAME}.app"
 
 .include <bsd.prog.mk>

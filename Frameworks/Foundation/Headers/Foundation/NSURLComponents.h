@@ -41,7 +41,7 @@
 
 @interface NSURLComponents : NSObject <NSCopying>
 
-- (instancetype)init;
+- (nonnull instancetype)init;
 - (instancetype)initWithURL:(NSURL *)url resolvingAgainstBaseURL:(BOOL)resolve;
 + (instancetype)componentsWithURL:(NSURL *)url resolvingAgainstBaseURL:(BOOL)resolve;
 - (instancetype)initWithString:(NSString *)URLString;

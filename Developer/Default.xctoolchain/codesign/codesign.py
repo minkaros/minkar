@@ -343,8 +343,33 @@ def display_entitlements(path):
         sys.stdout.buffer.write(ent[8:])
 
 
+def main_executable(path):
+    """The Mach-O a path names: the file itself, or a bundle's executable
+    (a framework's Versions/Current/<name>; an application's or plug-in's
+    Contents/MacOS/<CFBundleExecutable>), as codesign signs a bundle."""
+    if not os.path.isdir(path):
+        return path
+    bundle = path.rstrip('/')
+    name, ext = os.path.splitext(os.path.basename(bundle))
+    if ext == '.framework':
+        for candidate in (os.path.join(bundle, 'Versions', 'Current', name), os.path.join(bundle, name)):
+            if os.path.isfile(candidate):
+                return os.path.realpath(candidate)
+        raise SignError('%s: no executable in the framework' % path)
+    info = os.path.join(bundle, 'Contents', 'Info.plist')
+    try:
+        with open(info, 'rb') as f:
+            executable = plistlib.load(f).get('CFBundleExecutable') or name
+    except (OSError, plistlib.InvalidFileException):
+        executable = name
+    candidate = os.path.join(bundle, 'Contents', 'MacOS', executable)
+    if not os.path.isfile(candidate):
+        raise SignError('%s: no executable in the bundle' % path)
+    return candidate
+
+
 def usage():
-    print('usage: codesign -s - [-f] [-i identifier] [--entitlements file] file...\n'
+    print('usage: codesign -s - [-f] [-i identifier] [--entitlements file] file|bundle...\n'
           '       codesign --verify [-v] file...\n'
           '       codesign -d --entitlements - file', file=sys.stderr)
     sys.exit(2)
@@ -385,10 +410,10 @@ def main(argv):
     try:
         if display:
             for f in files:
-                display_entitlements(f)
+                display_entitlements(main_executable(f))
         elif verify_mode:
             for f in files:
-                verify(f, verbose)
+                verify(main_executable(f), verbose)
         elif identity is not None:
             if identity != '-':
                 raise SignError('only ad-hoc signing (-s -) is supported')
@@ -397,7 +422,7 @@ def main(argv):
                 with open(entitlements, 'rb') as f:
                     ents = f.read()
             for f in files:
-                sign(f, identifier, ents, force)
+                sign(main_executable(f), identifier, ents, force)
                 if verbose:
                     print('%s: signed Mach-O thin (x86_64)' % f, file=sys.stderr)
         else:

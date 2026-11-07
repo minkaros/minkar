@@ -69,6 +69,7 @@ bool IOHIDUserClient::initWithTask(task_t owningTask, void *security_id, UInt32 
     
     require_action(super::initWithTask(owningTask, security_id, type), exit, HIDLogError("failed"));
     
+    _pid = proc_pid((proc_t)get_bsdtask_info(owningTask));
     entitlement = copyClientEntitlement(owningTask, kIOHIDSystemServerAccessEntitlement);
     if (entitlement) {
         result = (entitlement == kOSBooleanTrue);
@@ -118,6 +119,7 @@ IOReturn IOHIDUserClient::close( void )
                 _screenTokens[i] = 0;
             }
         }
+        owner->unregisterScreensOf(_pid);
         owner->evClose();
         owner = NULL;
     }

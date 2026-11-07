@@ -10,7 +10,7 @@ SRCS = \
 SLF = /System/Library/Frameworks
 SYSPRIVHDR = System.framework/Versions/B/PrivateHeaders
 LIBSYSBIN = ${ROOT_BINARY_DIR}/Libraries/Libsystem
-CFLAGS = --sysroot=${MINKAR_SDKROOT} -momit-leaf-frame-pointer \
+CFLAGS = --sysroot=${MINKAR_SDKROOT} -Os -momit-leaf-frame-pointer \
         -mmacos-version-min=${MACOS_VERSION_MIN} \
 	-fno-stack-protector -fno-stack-check -fno-builtin \
 	-Wno-implicit-function-declaration -Wno-nullability-completeness \

@@ -160,6 +160,29 @@ NSURLResourceKey const NSURLVolumeSupportsImmutableFilesKey = @"NSURLVolumeSuppo
 NSURLResourceKey const NSURLVolumeSupportsAccessPermissionsKey = @"NSURLVolumeSupportsAccessPermissionsKey";
 NSURLResourceKey const NSURLVolumeAvailableCapacityForImportantUsageKey = @"NSURLVolumeAvailableCapacityForImportantUsageKey";
 NSURLResourceKey const NSURLVolumeAvailableCapacityForOpportunisticUsageKey = @"NSURLVolumeAvailableCapacityForOpportunisticUsageKey";
+NSURLResourceKey const NSURLIsUbiquitousItemKey = @"NSURLIsUbiquitousItemKey";
+NSURLResourceKey const NSURLUbiquitousItemHasUnresolvedConflictsKey = @"NSURLUbiquitousItemHasUnresolvedConflictsKey";
+NSURLResourceKey const NSURLUbiquitousItemIsDownloadingKey = @"NSURLUbiquitousItemIsDownloadingKey";
+NSURLResourceKey const NSURLUbiquitousItemIsUploadedKey = @"NSURLUbiquitousItemIsUploadedKey";
+NSURLResourceKey const NSURLUbiquitousItemIsUploadingKey = @"NSURLUbiquitousItemIsUploadingKey";
+NSURLResourceKey const NSURLUbiquitousItemDownloadingStatusKey = @"NSURLUbiquitousItemDownloadingStatusKey";
+NSURLResourceKey const NSURLUbiquitousItemDownloadingErrorKey = @"NSURLUbiquitousItemDownloadingErrorKey";
+NSURLResourceKey const NSURLUbiquitousItemUploadingErrorKey = @"NSURLUbiquitousItemUploadingErrorKey";
+NSURLResourceKey const NSURLUbiquitousItemDownloadRequestedKey = @"NSURLUbiquitousItemDownloadRequestedKey";
+NSURLResourceKey const NSURLUbiquitousItemContainerDisplayNameKey = @"NSURLUbiquitousItemContainerDisplayNameKey";
+NSURLResourceKey const NSURLUbiquitousItemIsSharedKey = @"NSURLUbiquitousItemIsSharedKey";
+NSURLResourceKey const NSURLUbiquitousSharedItemCurrentUserRoleKey = @"NSURLUbiquitousSharedItemCurrentUserRoleKey";
+NSURLResourceKey const NSURLUbiquitousSharedItemCurrentUserPermissionsKey = @"NSURLUbiquitousSharedItemCurrentUserPermissionsKey";
+NSURLResourceKey const NSURLUbiquitousSharedItemOwnerNameComponentsKey = @"NSURLUbiquitousSharedItemOwnerNameComponentsKey";
+NSURLResourceKey const NSURLUbiquitousSharedItemMostRecentEditorNameComponentsKey = @"NSURLUbiquitousSharedItemMostRecentEditorNameComponentsKey";
+NSURLUbiquitousItemDownloadingStatus const NSURLUbiquitousItemDownloadingStatusNotDownloaded = @"NSURLUbiquitousItemDownloadingStatusNotDownloaded";
+NSURLUbiquitousItemDownloadingStatus const NSURLUbiquitousItemDownloadingStatusDownloaded = @"NSURLUbiquitousItemDownloadingStatusDownloaded";
+NSURLUbiquitousItemDownloadingStatus const NSURLUbiquitousItemDownloadingStatusCurrent = @"NSURLUbiquitousItemDownloadingStatusCurrent";
+NSURLUbiquitousSharedItemRole const NSURLUbiquitousSharedItemRoleOwner = @"NSURLUbiquitousSharedItemRoleOwner";
+NSURLUbiquitousSharedItemRole const NSURLUbiquitousSharedItemRoleParticipant = @"NSURLUbiquitousSharedItemRoleParticipant";
+NSURLUbiquitousSharedItemPermissions const NSURLUbiquitousSharedItemPermissionsReadOnly = @"NSURLUbiquitousSharedItemPermissionsReadOnly";
+NSURLUbiquitousSharedItemPermissions const NSURLUbiquitousSharedItemPermissionsReadWrite = @"NSURLUbiquitousSharedItemPermissionsReadWrite";
+
 NSURLFileResourceType const NSURLFileResourceTypeNamedPipe = @"NSURLFileResourceTypeNamedPipe";
 NSURLFileResourceType const NSURLFileResourceTypeCharacterSpecial = @"NSURLFileResourceTypeCharacterSpecial";
 NSURLFileResourceType const NSURLFileResourceTypeDirectory = @"NSURLFileResourceTypeDirectory";
@@ -1167,6 +1190,45 @@ static NSURL *fileURL(NSString *path) {
 + (NSArray *)URLsForResourcesWithExtension:(NSString *)ext subdirectory:(NSString *)subpath
                           inBundleWithURL:(NSURL *)bundleURL {
     return [[self bundleWithURL:bundleURL] URLsForResourcesWithExtension:ext subdirectory:subpath];
+}
+
+@end
+
+/* Items promised by a file provider: Minkar has none, so a URL's item is
+ * the file itself. */
+@implementation NSURL (NSPromisedItems)
+
+- (BOOL)getPromisedItemResourceValue:(id *)value forKey:(NSURLResourceKey)key error:(NSError **)error {
+    return [self getResourceValue:value forKey:key error:error];
+}
+
+- (NSDictionary *)promisedItemResourceValuesForKeys:(NSArray *)keys error:(NSError **)error {
+    return [self resourceValuesForKeys:keys error:error];
+}
+
+- (BOOL)checkPromisedItemIsReachableAndReturnError:(NSError **)error {
+    return [self checkResourceIsReachableAndReturnError:error];
+}
+
+@end
+
+/* A file's security as a value: the owner, group and mode are read from
+ * the file again when needed, so this keeps nothing of its own yet. */
+@implementation NSFileSecurity
+
++ (BOOL)supportsSecureCoding {
+    return YES;
+}
+
+- (instancetype)initWithCoder:(NSCoder *)coder {
+    return [super init];
+}
+
+- (void)encodeWithCoder:(NSCoder *)coder {
+}
+
+- (id)copyWithZone:(NSZone *)zone {
+    return self;
 }
 
 @end

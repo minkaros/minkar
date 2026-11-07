@@ -90,7 +90,7 @@ O2GState *O2GStateCopyWithZone(O2GState *self,NSZone *zone) {
    if(self->_dashLengths!=NULL){
     int i;
     
-    copy->_dashLengths=NSZoneMalloc(zone,sizeof(float)*self->_dashLengthsCount);
+    copy->_dashLengths=NSZoneMalloc(zone,sizeof(O2Float)*self->_dashLengthsCount);
     for(i=0;i<self->_dashLengthsCount;i++)
      copy->_dashLengths[i]=self->_dashLengths[i];
    }
@@ -212,10 +212,10 @@ void O2GStateSetPatternPhase(O2GState *self,O2Size value) {
    self->_patternPhase=value;
 }
 
--(void)setStrokePattern:(O2Pattern *)pattern components:(const float *)components {
+-(void)setStrokePattern:(O2Pattern *)pattern components:(const O2Float *)components {
 }
 
--(void)setFillPattern:(O2Pattern *)pattern components:(const float *)components {
+-(void)setFillPattern:(O2Pattern *)pattern components:(const O2Float *)components {
 }
 
 -(void)setTextDrawingMode:(int)textMode {
@@ -280,7 +280,7 @@ void O2GStateSetFont(O2GState *self,O2Font *font) {
    }
 }
 
-void O2GStateSetFontSize(O2GState *self,float size) {
+void O2GStateSetFontSize(O2GState *self,O2Float size) {
    if(self->_pointSize!=size){
     self->_pointSize=size;
     self->_fontIsDirty=YES;
@@ -293,7 +293,7 @@ void O2GStateSetFontEncoding(O2GState *self,O2Encoding *encoding){
    self->_encoding=encoding;
 }
 
--(void)selectFontWithName:(const char *)name size:(float)size encoding:(O2TextEncoding)textEncoding {
+-(void)selectFontWithName:(const char *)name size:(O2Float)size encoding:(O2TextEncoding)textEncoding {
    O2Font *font=O2FontCreateWithFontName([NSString stringWithCString:name encoding:NSUTF8StringEncoding]);
    
    O2GStateSetFont(self,font);
@@ -348,7 +348,7 @@ void O2GStateSetTextHorizontalScaling(O2GState *self,CGFloat value) {
    _fontIsDirty=YES;
 }
 
-void O2GStateSetLineWidth(O2GState *self,float width){
+void O2GStateSetLineWidth(O2GState *self,O2Float width){
    self->_lineWidth=width;
 }
 
@@ -360,11 +360,11 @@ void O2GStateSetLineJoin(O2GState *self,int lineJoin) {
    self->_lineJoin=lineJoin;
 }
 
-void O2GStateSetMiterLimit(O2GState *self,float limit) {
+void O2GStateSetMiterLimit(O2GState *self,O2Float limit) {
    self->_miterLimit=limit;
 }
 
-void O2GStateSetLineDash(O2GState *self,float phase,const float *lengths,unsigned count){
+void O2GStateSetLineDash(O2GState *self,O2Float phase,const O2Float *lengths,unsigned count){
    self->_dashPhase=phase;
    self->_dashLengthsCount=count;
    
@@ -376,7 +376,7 @@ void O2GStateSetLineDash(O2GState *self,float phase,const float *lengths,unsigne
    else {
     int i;
     
-    self->_dashLengths=NSZoneMalloc(NULL,sizeof(float)*count);
+    self->_dashLengths=NSZoneMalloc(NULL,sizeof(O2Float)*count);
     for(i=0;i<count;i++)
      self->_dashLengths[i]=lengths[i];
    }
@@ -394,15 +394,15 @@ void O2GStateSetBlendMode(O2GState *self,O2BlendMode mode){
 	self->_blendMode=mode;
 }
 
-float O2GStateAlpha(O2GState *self) {
+O2Float O2GStateAlpha(O2GState *self) {
 	return self->_alpha;
 }
 
-void O2GStateSetAlpha(O2GState *self,float alpha){
+void O2GStateSetAlpha(O2GState *self,O2Float alpha){
 	self->_alpha=alpha;
 }
 
--(void)setFlatness:(float)flatness {
+-(void)setFlatness:(O2Float)flatness {
    _flatness=flatness;
 }
 
@@ -410,7 +410,7 @@ void O2GStateSetAlpha(O2GState *self,float alpha){
    _interpolationQuality=quality;
 }
 
--(void)setShadowOffset:(O2Size)offset blur:(float)blur color:(O2ColorRef )color {
+-(void)setShadowOffset:(O2Size)offset blur:(O2Float)blur color:(O2ColorRef )color {
    _shadowOffset=offset;
    _shadowBlur=blur;
    color=[color retain];
@@ -420,9 +420,9 @@ void O2GStateSetAlpha(O2GState *self,float alpha){
    _shadowKernel=(_shadowColor==nil)?NULL:O2CreateGaussianKernelWithDeviation(blur);
 }
 
--(void)setShadowOffset:(O2Size)offset blur:(float)blur {
+-(void)setShadowOffset:(O2Size)offset blur:(O2Float)blur {
    O2ColorSpaceRef colorSpace=O2ColorSpaceCreateDeviceRGB();
-   float         components[4]={0,0,0,1.0/3.0};
+   O2Float         components[4]={0,0,0,1.0/3.0};
    O2ColorRef color=O2ColorCreate(colorSpace,components);
 
    [self setShadowOffset:offset blur:blur color:color];

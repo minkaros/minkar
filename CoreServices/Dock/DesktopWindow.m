@@ -1,111 +1,123 @@
 /*
- * Copyright (C) 2022-2024 Zoe Knox <zoe@pixin.net>
- * Modifications Copyright (c) 2026 The Minkar contributors
- * 
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
+ * SPDX-License-Identifier: BSD-2-Clause
+ * Copyright (c) 2026 The Minkar contributors
+ * Part of Minkar.
  *
- * The above copyright notice and this permission notice shall be included in
- * all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
- * THE SOFTWARE.
+ * The desktop (Atlas.md, D1): one window per display at the desktop
+ * level, with the display's picture (NSWorkspace's desktop image API) over
+ * its fill color. It takes no clicks: they reach whatever is below.
  */
 
-#import <AppKit/AppKit.h>
-#import <CoreGraphics/CGWindowLevel.h>
-#import "Dock.h"
 #import "DesktopWindow.h"
 
-@interface DesktopView : NSImageView
+NSColor *DesktopDefaultColor(void)
+{
+    return [NSColor colorWithCalibratedRed:99 / 255.0 green:130 / 255.0 blue:145 / 255.0 alpha:1];
+}
+
+NSRect DesktopImageRect(NSSize image, NSRect bounds, NSImageScaling scaling, BOOL clipping)
+{
+    NSSize size = image;
+
+    if (image.width <= 0 || image.height <= 0)
+        return bounds;
+    switch (scaling) {
+    case NSImageScaleAxesIndependently:
+        return bounds;
+    case NSImageScaleNone:
+        break;
+    case NSImageScaleProportionallyDown:
+    case NSImageScaleProportionallyUpOrDown:
+    default: {
+        CGFloat sx = NSWidth(bounds) / image.width, sy = NSHeight(bounds) / image.height;
+        /* Clipping allowed: it fills the desktop; otherwise it fits. */
+        CGFloat scale = clipping ? MAX(sx, sy) : MIN(sx, sy);
+        if (scaling == NSImageScaleProportionallyDown)
+            scale = MIN(scale, 1);
+        size = NSMakeSize(image.width * scale, image.height * scale);
+        break;
+    }
+    }
+    return NSMakeRect(NSMidX(bounds) - size.width / 2, NSMidY(bounds) - size.height / 2,
+                      size.width, size.height);
+}
+
+@interface DesktopView : NSView
+@property (nonatomic, strong, nullable) NSImage *image;
+@property (nonatomic, strong) NSColor *color;
+@property (nonatomic) NSImageScaling scaling;
+@property (nonatomic) BOOL clipping;
 @end
 
 @implementation DesktopView
-// Block any clicks on the wallpaper so it doesn't flicker on redraw
-// This should just activate Finder eventually
--(void)mouseDown:(NSEvent *)event {
-    NSLog(@"clickity click");
-}
-@end
 
-@implementation DesktopWindow
-- initForScreen:(NSScreen *)screen {
-    _screen = screen;
-    NSRect frame = [screen frame];
-
-    self = [super initWithContentRect:frame
-                            styleMask:NSBorderlessWindowMask
-                              backing:NSBackingStoreBuffered
-                                defer:NO
-                               screen:screen];
-    [self setLevel:kCGDesktopWindowLevelKey];
-    [self setMovableByWindowBackground:NO];
-
-    frame.origin = NSZeroPoint;
-    view = [[DesktopView alloc] initWithFrame:frame];
-    [view setAutoresizingMask:0];
-    [view setImageScaling:NSImageScaleAxesIndependently];
-    [view setImageAlignment:NSImageAlignCenter];
-    [_contentView addSubview:view];
-    [self updateBackground];
-
-    return self;
-}
-
--(BOOL)acceptsFirstResponder {
-    return NO;
-}
-
--(BOOL)refusesFirstResponder {
+- (BOOL)isOpaque
+{
     return YES;
 }
 
--(BOOL)canBecomeKeyWindow {
-    return NO;
-}
-
--(BOOL)canBecomeMainWindow {
-    return NO;
-}
-
-- (void)updateBackground {
-    NSUserDefaults *prefs = [NSUserDefaults standardUserDefaults];
-    NSDictionary *dict = [prefs objectForKey:INFOKEY_WALLPAPER];
-    _wallpaperPath = [dict objectForKey:@"NSMainScreen"]; // FIXME: use CGDisplayID from NSScreen deviceDescription
-    if(!_wallpaperPath)
-        _wallpaperPath = @"/System/Library/Desktop Pictures/Minkar-Blue-Daylight.png";
-
-    NSImage *image = [[NSImage alloc] initWithContentsOfFile:_wallpaperPath];
-    [image setScalesWhenResized:YES];
-    [view setImage:image];
-    [view setNeedsDisplay:YES];
-}
-
-- (NSString *)wallpaperPath {
-    return _wallpaperPath;
-}
-
-- (NSScreen *)screen {
-    return _screen;
-}
-
-- (NSDictionary *)properties {
-    return nil; // FIXME
-}
-
-// Don't let NSWindow constrain us to the visibleFrame, because it excludes the menu bar!
--(NSRect)constrainFrameRect:(NSRect)rect toScreen:(NSScreen *)screen {
-    return rect;
+- (void)drawRect:(NSRect)dirty
+{
+    [self.color set];
+    NSRectFill([self bounds]);
+    if (self.image != nil)
+        [self.image drawInRect:DesktopImageRect([self.image size], [self bounds], self.scaling, self.clipping)
+                      fromRect:NSZeroRect operation:NSCompositeSourceOver fraction:1];
 }
 
 @end
 
+@implementation DesktopWindow {
+    NSScreen *_screen;
+    DesktopView *_view;
+}
+
+- (instancetype)initWithScreen:(NSScreen *)screen
+{
+    self = [super initWithContentRect:[screen frame]
+                            styleMask:NSBorderlessWindowMask
+                              backing:NSBackingStoreBuffered
+                                defer:NO];
+    if (self == nil)
+        return nil;
+    _screen = screen;
+    _view = [[DesktopView alloc] initWithFrame:NSMakeRect(0, 0, NSWidth([screen frame]), NSHeight([screen frame]))];
+    [_view setAutoresizingMask:NSViewWidthSizable | NSViewHeightSizable];
+    [self setContentView:_view];
+    [self setLevel:kCGDesktopWindowLevelKey];
+    [self setBackgroundColor:DesktopDefaultColor()];
+    [self setOpaque:YES];
+    [self setHasShadow:NO];
+    [self setHidesOnDeactivate:NO];
+    [self setExcludedFromWindowsMenu:YES];
+    [self setReleasedWhenClosed:NO];
+    [self setIgnoresMouseEvents:YES];
+    [self reload];
+    return self;
+}
+
+- (void)reload
+{
+    NSWorkspace *workspace = [NSWorkspace sharedWorkspace];
+    NSURL *url = [workspace desktopImageURLForScreen:_screen];
+    NSDictionary *options = [workspace desktopImageOptionsForScreen:_screen];
+    NSColor *color = options[NSWorkspaceDesktopImageFillColorKey];
+
+    _view.image = url != nil ? [[NSImage alloc] initWithContentsOfURL:url] : nil;
+    _view.color = color != nil ? color : DesktopDefaultColor();
+    _view.scaling = (NSImageScaling)[options[NSWorkspaceDesktopImageScalingKey] integerValue];
+    _view.clipping = [options[NSWorkspaceDesktopImageAllowClippingKey] boolValue];
+    [_view setNeedsDisplay:YES];
+}
+
+- (BOOL)canBecomeKeyWindow
+{
+    return NO;
+}
+
+- (BOOL)canBecomeMainWindow
+{
+    return NO;
+}
+
+@end

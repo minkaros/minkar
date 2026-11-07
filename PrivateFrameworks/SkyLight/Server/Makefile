@@ -14,7 +14,8 @@ MK_PIE = no
 MK_DEBUG_FILES = no
 PROG =	WindowServer
 SRCS =	main.m WSConnection.m WSDisplay.m WSDisplayServices.m WSWindowList.m \
-	WSSurface.m WSDisplayStream.m WSCompositor.m WSInput.m WSEvents.m WSTaps.m WSHotKeys.m WSKeymap.c \
+	WSSurface.m WSDisplayStream.m WSCompositor.m WSPixmanBackend.m WSVulkanBackend.m \
+	WSInput.m WSEvents.m WSTaps.m WSHotKeys.m WSKeymap.c \
 	WindowServerServer.c
 MAN =
 SKYLIGHT = ${.CURDIR}/..
@@ -47,7 +48,7 @@ WindowServerServer.c WindowServerServer.h: ${SKYLIGHT}/IPC/WindowServer.defs
 	    -header /dev/null -user /dev/null -server WindowServerServer.c \
 	    -sheader WindowServerServer.h ${.ALLSRC}
 
-main.o WSDisplayServices.o WSWindowList.o WSCompositor.o WSEvents.o WSTaps.o WSHotKeys.o: WindowServerServer.h
+main.o WSDisplayServices.o WSWindowList.o WSCompositor.o WSEvents.o WSTaps.o WSHotKeys.o WSInput.o: WindowServerServer.h
 
 # Signed with its entitlements; the image build puts it in the trust cache
 # (Docs/ADR/0001-Kernel-Entitlements.md).

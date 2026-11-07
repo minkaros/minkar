@@ -1,0 +1,18 @@
+/* SPDX-License-Identifier: BSD-2-Clause
+   Copyright (c) 2026 The Minkar contributors
+   AppKit's texts in Spanish. The keys are the English texts. */
+
+/* The save and open panels */
+"Save" = "Guardar";
+"Save As:" = "Guardar como:";
+"Where:" = "Ubicación:";
+"Cancel" = "Cancelar";
+"Open" = "Abrir";
+"Computer" = "Equipo";
+"Documents" = "Documentos";
+"Desktop" = "Escritorio";
+"Downloads" = "Descargas";
+"Applications" = "Aplicaciones";
+"Replace" = "Reemplazar";
+"“%@” already exists. Do you want to replace it?" = "“%@” ya existe. ¿Quieres reemplazarlo?";
+"Replacing it will overwrite its current contents." = "Si lo reemplazas, se sobrescribirá su contenido actual.";

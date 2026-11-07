@@ -79,6 +79,11 @@ OBJCFLAGS = ${COMMONFLAGS} -std=gnu11 \
 	    -fno-objc-convert-messages-to-runtime-calls
 OBJCXXFLAGS = ${COMMONFLAGS} -std=gnu++14 \
 	      -fno-objc-convert-messages-to-runtime-calls
+# The .m and .mm rules do not use CFLAGS: their header dependencies
+# (bsd.dep.mk's DEPEND_CFLAGS) are added here, or a changed header (such
+# as NSObject.h) leaves stale objects behind.
+OBJCFLAGS += ${${DEPEND_CFLAGS_CONDITION}:?${DEPEND_CFLAGS}:}
+OBJCXXFLAGS += ${${DEPEND_CFLAGS_CONDITION}:?${DEPEND_CFLAGS}:}
 CXXFLAGS = ${COMMONFLAGS} -std=gnu++14 -D_LIBCPP_VISIBLE=""
 ACFLAGS = ${COMMONFLAGS}
 

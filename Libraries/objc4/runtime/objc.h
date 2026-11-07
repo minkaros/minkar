@@ -40,7 +40,6 @@ typedef struct objc_class *Class;
 /// Represents an instance of a class.
 struct objc_object {
     Class _Nonnull isa  OBJC_ISA_AVAILABILITY;
-    uintptr_t bits;
 };
 
 /// A pointer to an instance of a class.

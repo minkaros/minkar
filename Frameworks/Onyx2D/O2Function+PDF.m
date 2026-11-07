@@ -36,8 +36,8 @@
    [dictionary setIntegerForKey:"BitsPerSample" value:8];
    [dictionary setIntegerForKey:"Order" value:1];
    for(i=0;i<numberOfSamples;i++){
-    float x=_domain[0]+((float)i/(float)numberOfSamples)*(_domain[1]-_domain[0]);
-    float output[numberOfChannels];
+    O2Float x=_domain[0]+((O2Float)i/(O2Float)numberOfSamples)*(_domain[1]-_domain[0]);
+    O2Float output[numberOfChannels];
     int   j;
     
     O2FunctionEvaluate(self,x,output);

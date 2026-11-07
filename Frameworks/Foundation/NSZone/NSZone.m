@@ -27,6 +27,7 @@
 #import <Foundation/NSRaise.h>
 #import <Foundation/NSZombieObject.h>
 #import <Foundation/NSDebug.h>
+#import <objc/runtime.h>
 #include <string.h>
 #ifdef WIN32
 #include <windows.h>
@@ -65,6 +66,23 @@ void NSSetAllocateObjectHook(void (*hook)(id object))
 }
 
 
+/* The classes whose instances carry CF's header after isa: NSCFString's
+ * and NSNumber_CF's (not every class with a CF type: NSDictionary's own
+ * classes, for one, have their first field there). */
+static BOOL hasCFHeader(Class class)
+{
+    static Class string, number;
+
+    if (string == Nil)
+        string = objc_lookUpClass("NSCFString");
+    if (number == Nil)
+        number = objc_lookUpClass("NSNumber_CF");
+    for (Class c = class; c != Nil; c = class_getSuperclass(c))
+        if (c == string || c == number)
+            return YES;
+    return NO;
+}
+
 id NSAllocateObject(Class class, NSUInteger extraBytes, NSZone *zone)
 {
     id result;
@@ -76,9 +94,12 @@ id NSAllocateObject(Class class, NSUInteger extraBytes, NSZone *zone)
         }
     }
 
-    /* Make sure our type is aligned with CoreFoundation */
-    struct objc_object *base = (struct objc_object *)result;
-    base->bits = (uintptr_t)([result _cfTypeID]) << 8;
+    /* A toll-free bridged class has CF's header after isa (its own
+     * cfinfo and rc fields): its CF type goes there, as CF keeps it. The
+     * word after isa of any other object is its own first field. */
+    if (result != nil && hasCFHeader(class))
+        ((struct { Class isa; uintptr_t cfinfo; } *)result)->cfinfo =
+            (uintptr_t)[result _cfTypeID] << 8;
     return result;
 }
 

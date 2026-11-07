@@ -52,6 +52,7 @@
 #include <os/log_encode.h>
 #include "init.h"
 #include "format.h"
+#include "logd_client.h"
 
 
 /*
@@ -64,6 +65,8 @@ extern const char OS_os_log_class[] __asm__("_OBJC_CLASS_$_OS_os_log");
 struct os_log_s _os_log_default = { .isa = OS_os_log_class };
 struct os_log_s _os_log_disabled = { .isa = OS_os_log_class };
 struct os_log_s _os_log_null = { .isa = OS_os_log_class };
+
+static bool _log_names(os_log_t log, const char** subsystem, const char** category);
 
 __BEGIN_DECLS
 
@@ -103,9 +106,15 @@ os_log_shim_enabled(os_log_t log, os_log_type_t type)
     return false;
 }
 
+/* Default, error and fault always; info and debug as the subsystem's
+ * level in logd says (log config). */
 bool os_log_type_enabled(os_log_t log, os_log_type_t type)
 {
-    return true; // FIXME
+    const char *subsystem, *category;
+
+    if (!_log_names(log, &subsystem, &category))
+        return false;
+    return _logd_keeps(subsystem, type);
 }
 
 bool

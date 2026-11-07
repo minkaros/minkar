@@ -52,7 +52,7 @@ static BOOL shown;
 static BOOL updating;	/* setting the bars up changes the main menu too */
 
 /*
- * The system menu, the same in every app (Menus.md, MB0): About This
+ * The system menu, the same in every app (Atlas.md, MB0): About This
  * Computer, and Restart, Shut Down and Log Out as requests to the minimal
  * loginwindow (WindowServer plan, section 10.3). The other items act from
  * MB3; until then they are listed, disabled.
@@ -62,7 +62,7 @@ static BOOL updating;	/* setting the bars up changes the main menu too */
 
 @implementation NSSystemMenuActions
 
-/* SHORTCUT(Phase 5): a plain alert shows the computer; Gienah has its own
+/* SHORTCUT(Phase 5): a plain alert shows the computer; Atlas has its own
    About This Computer; taken in WS4b. */
 - (void)aboutThisComputer:(id)sender {
     NSDictionary *version = [NSDictionary dictionaryWithContentsOfFile:
@@ -172,7 +172,7 @@ static NSMenuItem *systemMenuItem(void) {
     }
     item = [[NSMenuItem alloc] initWithTitle:@"" action:NULL keyEquivalent:@""];
     NSString *path = [[NSBundle bundleForClass:[NSMenuBarWindow class]]
-        pathForResource:@"MinkarMenu-Black-18" ofType:@"png"];
+        pathForResource:@"MinkarMenu-White-18" ofType:@"png"];
     NSImage *mark = path ? [[NSImage alloc] initWithContentsOfFile:path] : nil;
     if(mark != nil) {
         [mark setScalesWhenResized:YES];

@@ -10,7 +10,7 @@
 -(O2PDFObject *)encodeReferenceWithContext:(O2PDFContext *)context {
    O2PDFDictionary *result=[O2PDFDictionary pdfDictionary];
    int              type;
-   float            coords[6];
+   O2Float          coords[6];
    int              coordsCount;
    
    if([self isAxial]){
@@ -50,7 +50,7 @@
 O2Shading *axialShading(O2PDFDictionary *dictionary,O2ColorSpaceRef colorSpace){
    O2PDFArray *coordsArray;
    O2PDFArray *domainArray;
-   float       domain[2]={0,1};
+   O2Float     domain[2]={0,1};
    O2PDFDictionary *fnDictionary;
    O2PDFArray *extendArray;
    O2Point     start;
@@ -121,7 +121,7 @@ O2Shading *axialShading(O2PDFDictionary *dictionary,O2ColorSpaceRef colorSpace){
 O2Shading *radialShading(O2PDFDictionary *dictionary,O2ColorSpaceRef colorSpace){
    O2PDFArray *coordsArray;
    O2PDFArray *domainArray;
-   float       domain[2]={0,1};
+   O2Float     domain[2]={0,1};
    O2PDFDictionary *fnDictionary;
    O2PDFArray *extendArray;
    O2Point     start;

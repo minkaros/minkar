@@ -34,6 +34,11 @@
  * launched, terminates, or becomes or stops being the front one, and an
  * app asked to activate hears it there too (LaunchServices/LSSession.h).
  *
+ * Since interface version 3 it also keeps the applications installed
+ * (LSDatabase.c), says which open a file, and hands documents to an
+ * application: at once if it runs, else when it checks in after its
+ * launch (the caller launches it; the request waits a minute).
+ *
  * One session, the console's: the daemon runs as root. Sessions per user
  * come with the login window (Phase 5).
  */
@@ -43,9 +48,12 @@
 #include <mach/mach.h>
 #include <mach/notify.h>
 #include <servers/bootstrap.h>
+#include <stddef.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include "LSDatabase.h"
 #include "LSSession.h"
 #include "LSSessionServer.h"	/* MIG, generated */
 
@@ -63,6 +71,20 @@ static unsigned clientCount;
 static uint32_t nextSerial = 1;
 static pid_t frontPID;
 static mach_port_t notifyPort = MACH_PORT_NULL;
+
+/* Documents for an application being launched, until it checks in. */
+#define MAX_PENDING	16
+#define PENDING_SECONDS	60
+typedef struct {
+	char		path[1024];	/* the application, resolved */
+	uid_t		uid;		/* who asked */
+	uint32_t	flags;
+	uint32_t	length;
+	time_t		when;
+	char		urls[kLSSessionMaxURLBytes];
+} Pending;
+
+static Pending *pending[MAX_PENDING];
 
 static Client *
 clientForPID(pid_t pid)
@@ -100,6 +122,37 @@ sendMessage(Client *to, uint32_t kind, uint32_t options, const LSSessionApp *app
 	fillFlags(&msg.app);
 	mach_msg(&msg.header, MACH_SEND_MSG | MACH_SEND_TIMEOUT, sizeof(msg), 0,
 	    MACH_PORT_NULL, 0, MACH_PORT_NULL);
+}
+
+/* Documents to an app, and the request to come to the front. */
+static void
+sendOpen(Client *to, uint32_t flags, const char *urls, uint32_t length)
+{
+	LSSessionOpenMessage *msg = calloc(1, sizeof(*msg));
+
+	if (msg == NULL)
+		return;
+	msg->header.msgh_bits = MACH_MSGH_BITS(MACH_MSG_TYPE_COPY_SEND, 0);
+	msg->header.msgh_size = (mach_msg_size_t)((offsetof(LSSessionOpenMessage, urls) + length + 3) & ~3u);
+	msg->header.msgh_remote_port = to->port;
+	msg->header.msgh_id = kLSSessionMessageID;
+	msg->kind = kLSSessionOpenRequest;
+	msg->flags = flags;
+	msg->length = length;
+	memcpy(msg->urls, urls, length);
+	mach_msg(&msg->header, MACH_SEND_MSG | MACH_SEND_TIMEOUT, msg->header.msgh_size, 0,
+	    MACH_PORT_NULL, 100, MACH_PORT_NULL);
+	free(msg);
+	/* NSApplicationActivateIgnoringOtherApps */
+	sendMessage(to, kLSSessionActivateRequest, 2, &to->app);
+}
+
+/* An app's bundle (or executable) resolved, to compare paths. */
+static void
+resolve(const char *path, char out[1024])
+{
+	if (realpath(path, out) == NULL)
+		strlcpy(out, path, 1024);
 }
 
 static void
@@ -165,6 +218,8 @@ lsd_check_in(mach_port_t server, audit_token_t token, mach_port_t port,
 		mach_port_deallocate(mach_task_self(), port);
 	}
 	c->uid = audit_token_to_euid(token);
+	/* The hidden state is the daemon's (set_hidden), not the record's. */
+	app.flags = (app.flags & ~kLSSessionAppHiddenState) | (c->app.flags & kLSSessionAppHiddenState);
 	app.pid = pid;
 	app.serial = c->app.serial;
 	app.launchTime = c->app.launchTime;
@@ -196,6 +251,23 @@ lsd_check_in(mach_port_t server, audit_token_t token, mach_port_t port,
 		/* It may already be in front: the window server can say so first. */
 		if (pid == frontPID)
 			broadcast(kLSSessionAppActivated, &c->app, 0);
+	}
+	/* Documents waiting for it (asked by its own user, or root). */
+	char path[1024];
+	resolve(c->app.path, path);
+	for (unsigned i = 0; i < MAX_PENDING; i++) {
+		Pending *p = pending[i];
+		if (p == NULL)
+			continue;
+		if (time(NULL) - p->when > PENDING_SECONDS) {
+			free(p);
+			pending[i] = NULL;
+		} else if (strcmp(p->path, path) == 0 && (p->uid == 0 || p->uid == c->uid)) {
+			fprintf(stderr, "launchservicesd: documents to pid %d\n", pid);
+			sendOpen(c, p->flags, p->urls, p->length);
+			free(p);
+			pending[i] = NULL;
+		}
 	}
 	return KERN_SUCCESS;
 }
@@ -281,6 +353,193 @@ lsd_quit(mach_port_t server, audit_token_t token, int32_t pid, int32_t *result)
 		return KERN_SUCCESS;
 	}
 	sendMessage(c, kLSSessionQuitRequest, 0, &c->app);
+	*result = kLSSessionSuccess;
+	return KERN_SUCCESS;
+}
+
+/* Interface version 4: the app itself says it hid or showed its windows
+ * (everyone hears it); anyone else asks it to, if root or its user. */
+kern_return_t
+lsd_set_hidden(mach_port_t server, audit_token_t token, int32_t pid, int32_t hidden,
+    int32_t *result)
+{
+	Client *c = clientForPID(pid);
+	uid_t uid = audit_token_to_euid(token);
+
+	if (c == NULL) {
+		*result = kLSSessionNoSuchApp;
+		return KERN_SUCCESS;
+	}
+	if (audit_token_to_pid(token) == pid) {
+		uint32_t was = c->app.flags & kLSSessionAppHiddenState;
+		if (hidden)
+			c->app.flags |= kLSSessionAppHiddenState;
+		else
+			c->app.flags &= ~kLSSessionAppHiddenState;
+		if (was != (c->app.flags & kLSSessionAppHiddenState))
+			broadcast(hidden ? kLSSessionAppDidHide : kLSSessionAppDidUnhide, &c->app, 0);
+		*result = kLSSessionSuccess;
+		return KERN_SUCCESS;
+	}
+	if (uid != 0 && uid != c->uid) {
+		*result = kLSSessionNotAllowed;
+		return KERN_SUCCESS;
+	}
+	sendMessage(c, hidden ? kLSSessionHideRequest : kLSSessionUnhideRequest, 0, &c->app);
+	*result = kLSSessionSuccess;
+	return KERN_SUCCESS;
+}
+
+/* -- Interface version 3: the applications installed and opening -- */
+
+kern_return_t
+lsd_copy_handlers(mach_port_t server, LSSessionFile file, int32_t *result, ls_uti_t *uti,
+    ls_path_list_t apps, mach_msg_type_number_t *count)
+{
+	file.extension[sizeof(file.extension) - 1] = '\0';
+	LSDBRefresh();
+	memset(uti, 0, sizeof(*uti));
+	*count = LSDBCopyHandlers(&file, uti->uti, apps, kLSSessionMaxHandlers);
+	*result = kLSSessionSuccess;
+	return KERN_SUCCESS;
+}
+
+kern_return_t
+lsd_copy_app_for_bundle_id(mach_port_t server, LSSessionPath bundleID, int32_t *result,
+    LSSessionPath *app)
+{
+	bundleID.path[sizeof(bundleID.path) - 1] = '\0';
+	memset(app, 0, sizeof(*app));
+	LSDBRefresh();
+	*result = LSDBAppForBundleIdentifier(bundleID.path, app->path) == 0 ?
+	    kLSSessionSuccess : kLSSessionNoSuchApp;
+	return KERN_SUCCESS;
+}
+
+/* -- Interface version 5: types and URL schemes -- */
+
+kern_return_t
+lsd_copy_handlers_for_type(mach_port_t server, LSSessionPath type, uint32_t roles,
+    int32_t *result, ls_path_list_t apps, mach_msg_type_number_t *count)
+{
+	type.path[sizeof(type.path) - 1] = '\0';
+	LSDBRefresh();
+	*count = LSDBCopyHandlersForType(type.path, roles, apps, kLSSessionMaxHandlers);
+	*result = kLSSessionSuccess;
+	return KERN_SUCCESS;
+}
+
+kern_return_t
+lsd_copy_handlers_for_scheme(mach_port_t server, LSSessionPath scheme, int32_t *result,
+    ls_path_list_t apps, mach_msg_type_number_t *count)
+{
+	scheme.path[sizeof(scheme.path) - 1] = '\0';
+	LSDBRefresh();
+	*count = LSDBCopyHandlersForScheme(scheme.path, apps, kLSSessionMaxHandlers);
+	*result = kLSSessionSuccess;
+	return KERN_SUCCESS;
+}
+
+kern_return_t
+lsd_conforms_to(mach_port_t server, LSSessionPath type, LSSessionPath other, int32_t *result)
+{
+	type.path[sizeof(type.path) - 1] = '\0';
+	other.path[sizeof(other.path) - 1] = '\0';
+	LSDBRefresh();
+	*result = LSDBConformsTo(type.path, other.path);
+	return KERN_SUCCESS;
+}
+
+kern_return_t
+lsd_copy_declaration(mach_port_t server, LSSessionPath type, int32_t *result, ls_bytes_t text,
+    mach_msg_type_number_t *length)
+{
+	type.path[sizeof(type.path) - 1] = '\0';
+	LSDBRefresh();
+	if (LSDBCopyDeclaration(type.path, text, kLSSessionMaxURLBytes) != 0) {
+		*result = kLSSessionIllegalArgument;
+		*length = 0;
+		return KERN_SUCCESS;
+	}
+	*result = kLSSessionSuccess;
+	*length = (mach_msg_type_number_t)strlen(text);
+	return KERN_SUCCESS;
+}
+
+kern_return_t
+lsd_copy_types_for_tag(mach_port_t server, uint32_t tagClass, LSSessionPath tag,
+    LSSessionPath conforming, int32_t *result, ls_bytes_t text, mach_msg_type_number_t *length)
+{
+	tag.path[sizeof(tag.path) - 1] = '\0';
+	conforming.path[sizeof(conforming.path) - 1] = '\0';
+	LSDBRefresh();
+	if (tagClass > 1 || LSDBCopyTypesForTag(tagClass, tag.path, conforming.path, text,
+	    kLSSessionMaxURLBytes) != 0) {
+		*result = kLSSessionIllegalArgument;
+		*length = 0;
+		return KERN_SUCCESS;
+	}
+	*result = kLSSessionSuccess;
+	*length = (mach_msg_type_number_t)strlen(text);
+	return KERN_SUCCESS;
+}
+
+kern_return_t
+lsd_register_app(mach_port_t server, LSSessionPath path, int32_t *result)
+{
+	path.path[sizeof(path.path) - 1] = '\0';
+	LSDBRefresh();
+	*result = LSDBRegister(path.path) == 0 ? kLSSessionSuccess : kLSSessionIllegalArgument;
+	return KERN_SUCCESS;
+}
+
+kern_return_t
+lsd_open_urls(mach_port_t server, audit_token_t token, LSSessionPath app, ls_bytes_t urls,
+    mach_msg_type_number_t length, uint32_t flags, int32_t *result, int32_t *running)
+{
+	uid_t uid = audit_token_to_euid(token);
+	char path[1024];
+
+	app.path[sizeof(app.path) - 1] = '\0';
+	*running = 0;
+	if (length > kLSSessionMaxURLBytes || (length > 0 && urls[length - 1] != '\0')) {
+		*result = kLSSessionIllegalArgument;
+		return KERN_SUCCESS;
+	}
+	resolve(app.path, path);
+	/* Running for that user: now. */
+	for (unsigned i = 0; i < clientCount; i++) {
+		char running_path[1024];
+		resolve(clients[i].app.path, running_path);
+		if (strcmp(running_path, path) == 0 && (uid == 0 || clients[i].uid == uid)) {
+			sendOpen(&clients[i], flags, urls, length);
+			*running = 1;
+			*result = kLSSessionSuccess;
+			return KERN_SUCCESS;
+		}
+	}
+	/* Else when it checks in: the oldest request makes room. */
+	unsigned slot = 0;
+	for (unsigned i = 0; i < MAX_PENDING; i++) {
+		if (pending[i] == NULL) {
+			slot = i;
+			break;
+		}
+		if (pending[i]->when < pending[slot]->when)
+			slot = i;
+	}
+	free(pending[slot]);
+	pending[slot] = calloc(1, sizeof(Pending));
+	if (pending[slot] == NULL) {
+		*result = kLSSessionNoService;
+		return KERN_SUCCESS;
+	}
+	strlcpy(pending[slot]->path, path, sizeof(pending[slot]->path));
+	pending[slot]->uid = uid;
+	pending[slot]->flags = flags;
+	pending[slot]->length = length;
+	pending[slot]->when = time(NULL);
+	memcpy(pending[slot]->urls, urls, length);
 	*result = kLSSessionSuccess;
 	return KERN_SUCCESS;
 }

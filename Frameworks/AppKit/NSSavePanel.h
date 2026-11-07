@@ -1,4 +1,5 @@
 /* Copyright (c) 2006-2007 Christopher J. W. Lloyd <cjwl@objc.net>
+   Modifications Copyright (c) 2026 The Minkar contributors
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
 
@@ -8,7 +9,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 #import <AppKit/NSPanel.h>
 
-@class NSView;
+@class NSView, NSTextField, NSPopUpButton, NSButton;
 
 enum {
     NSFileHandlingPanelCancelButton = NSCancelButton,
@@ -26,6 +27,15 @@ enum {
 
     BOOL _treatsFilePackagesAsDirectories;
     NSView *_accessoryView;
+
+    /* Minkar's panel: built when it runs. */
+    NSArray *_allowedFileTypes;
+    BOOL _canCreateDirectories;
+    BOOL _allowsOtherFileTypes;
+    NSString *_nameFieldLabel;
+    NSTextField *_nameField;
+    NSPopUpButton *_wherePopUp;
+    NSArray *_whereFolders;
 }
 
 + (NSSavePanel *)savePanel;
@@ -51,6 +61,19 @@ enum {
 - (void)setCanCreateDirectories:(BOOL)value;
 - (void)setAllowedFileTypes:(NSArray *)value;
 - (void)setAllowsOtherFileTypes:(BOOL)value;
+
+- (NSString *)nameFieldStringValue;
+- (void)setNameFieldStringValue:(NSString *)value;
+- (NSString *)nameFieldLabel;
+- (void)setNameFieldLabel:(NSString *)value;
+- (NSURL *)directoryURL;
+- (void)setDirectoryURL:(NSURL *)url;
+- (NSArray *)allowedFileTypes;
+- (BOOL)canCreateDirectories;
+- (BOOL)allowsOtherFileTypes;
+
+- (void)beginSheetModalForWindow:(NSWindow *)window completionHandler:(void (^)(NSInteger result))handler;
+- (void)beginWithCompletionHandler:(void (^)(NSInteger result))handler;
 
 - (void)setMessage:(NSString *)message;
 - (NSString *)message;

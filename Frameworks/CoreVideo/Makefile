@@ -1,10 +1,29 @@
-FRAMEWORK=CoreVideo
+# CoreVideo: CVDisplayLink, on a 60 Hz timer for now, and the types
+# QuartzCore's headers use (CVTimeStamp). Installed in the SDK too:
+# QuartzCore.h imports it, so AppKit cannot be imported from Swift
+# without it.
+FRAMEWORK = CoreVideo
+FMWK_COMPAT_VERSION = 1.0.0
 
-SRCS= CVDisplayLink.m
-INCS= CVBase.h CVDisplayLink.h CVReturn.h CoreVideo.h
-RESOURCES=Info.plist 
-CFLAGS+= ${FMWK_CFLAGS} -F../OpenGL -framework OpenGL -I${.CURDIR}/.. \
-	-I../libobjc2 -I../Foundation/Headers
+SUBDIR =
+MK_INSTALLLIB = no
+MK_WERROR = no
+
+SRCS =		CVDisplayLink.m
+HEADERS =	CVBase.h CVDisplayLink.h CVReturn.h CoreVideo.h
+RESOURCES =	Info.plist
+
+# <CoreVideo/...> resolves to these sources.
+INCLUDE_ROOT != mkdir -p ${.OBJDIR}/include-root && \
+	ln -sfn ${.CURDIR} ${.OBJDIR}/include-root/CoreVideo && \
+	echo ${.OBJDIR}/include-root
+CFLAGS =	-I${INCLUDE_ROOT} -std=gnu17 -Wno-nullability-completeness
+LDFLAGS =	-framework OpenGL -framework Foundation -framework CoreFoundation -lobjc
+
+fmwk-install-hook:
+.for dir in ${MINKAR_SDKROOT}/System/Library/Frameworks/ ${SYSROOT_DIR}/System/Library/Frameworks/
+	mkdir -p ${dir}
+	cp -Rf ${.OBJDIR}/${FRAMEWORK}.framework ${dir}
+.endfor
 
 .include <minkar.framework.mk>
-

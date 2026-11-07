@@ -9,7 +9,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <Foundation/NSObject.h>
 #import <Foundation/NSDate.h>
 
-@class NSArray, NSDictionary, NSLock;
+@class NSArray<ObjectType>, NSDictionary<KeyType, ObjectType>, NSLock;
 
 typedef struct {
     NSInteger majorVersion;
@@ -24,6 +24,8 @@ enum {
     NSMACHOperatingSystem,
 };
 
+NS_ASSUME_NONNULL_BEGIN
+
 @interface NSProcessInfo : NSObject {
     NSDictionary *_environment;
     NSArray *_arguments;
@@ -33,33 +35,29 @@ enum {
     NSLock *_counterLock;
 }
 
-+ (NSProcessInfo *)processInfo;
+@property(class, readonly, strong) NSProcessInfo *processInfo;
 
-- (NSUInteger)processorCount;
-- (NSUInteger)activeProcessorCount;
-- (uint64_t)physicalMemory;
+@property(readonly, copy) NSDictionary<NSString *, NSString *> *environment;
+@property(readonly, copy) NSArray<NSString *> *arguments;
+@property(readonly, copy) NSString *hostName;
+@property(copy) NSString *processName;
+@property(readonly) int processIdentifier;
+@property(readonly, copy) NSString *globallyUniqueString;
 
 - (NSUInteger)operatingSystem;
 - (NSString *)operatingSystemName;
-- (NSString *)operatingSystemVersionString;
-- (NSOperatingSystemVersion)operatingSystemVersion;
+@property(readonly, copy) NSString *operatingSystemVersionString;
+@property(readonly) NSOperatingSystemVersion operatingSystemVersion;
 - (BOOL)isOperatingSystemAtLeastVersion:(NSOperatingSystemVersion)version;
-- (NSTimeInterval)systemUptime;
 
-- (NSString *)hostName;
-
-- (NSString *)processName;
-- (void)setProcessName:(NSString *)name;
-
-- (int)processIdentifier;
-
-- (NSArray *)arguments;
-
-- (NSDictionary *)environment;
-
-- (NSString *)globallyUniqueString;
+@property(readonly) NSUInteger processorCount;
+@property(readonly) NSUInteger activeProcessorCount;
+@property(readonly) unsigned long long physicalMemory;
+@property(readonly) NSTimeInterval systemUptime;
 
 @end
+
+NS_ASSUME_NONNULL_END
 
 #ifdef __cplusplus
 extern "C" {

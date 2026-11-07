@@ -66,6 +66,11 @@
  * into): the compositor shows it again at every frame. */
 @property (readonly) BOOL live;
 
+/* Both buffers' memory, whole pages, as long as the surface lives (for the
+ * GPU compositor to take once). */
+@property (readonly) mach_vm_address_t memoryBase;
+@property (readonly) mach_vm_size_t memorySize;
+
 @end
 
 /*
@@ -87,6 +92,12 @@
 @property (readonly) uint32_t backBuffer;	/* always 0 */
 @property (readonly) BOOL committed;		/* always YES */
 @property (readonly) BOOL live;			/* always YES */
+/* In a GPU's memory (IOSurfaceMinkarGPUMemory): the GPU's registry entry
+ * ID and the shared buffer's name, else 0; its pixels start at the
+ * buffer's start and take allocSize bytes. */
+@property (readonly) uint64_t gpuEntryID;
+@property (readonly) uint64_t gpuBuffer;
+@property (readonly) size_t allocSize;
 
 - (BOOL)commitBuffer:(uint32_t)buffer;
 - (const uint8_t *)lockFront;

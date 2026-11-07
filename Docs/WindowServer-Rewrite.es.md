@@ -224,7 +224,7 @@ Avance:
 - [x] WS3 — Entrada (1 nov 2026)
 - [x] ADR 0001 — Validación de entitlements en el kernel, necesaria para WS4a (1 nov 2026)
 - [x] WS4a — Comportamiento del servidor (1 nov 2026)
-- [x] WS4b — El cambio de servidor (con MB0 de [Menus.es.md](Menus.es.md); 2 nov 2026)
+- [x] WS4b — El cambio de servidor (con MB0 de [Atlas.es.md](Atlas.es.md), capítulo 3; 2 nov 2026)
 - [x] WS5 — IOSurface y virtio-gpu (2 nov 2026)
 - [ ] WS6 — Composición por GPU
 
@@ -281,12 +281,12 @@ código y ningún proceso tiene entitlements (`SHORTCUT(WS4a)` en
 para sus mensajes de 128 KB (un atajo de WS4b, ido con ese servidor); el job
 de launchd ejecutaba solo el compositor (`-x`), porque LoginWindow no se
 compilaba (un atajo de WS4b, ido con el cambio); Inter es la fuente provisional del sistema
-hasta que Gienah tenga la suya (`SHORTCUT(Phase 5)` en
+hasta que Atlas tenga la suya (`SHORTCUT(Phase 5)` en
 `SystemLibrary/Fonts/Makefile`).
 
 Problemas conocidos para hitos posteriores: las decoraciones de las ventanas
 son las imágenes heredadas de ravynOS, con el aspecto de la plataforma de
-referencia (Gienah las sustituye); los objetos de memoria compartida POSIX
+referencia (Atlas las sustituye); los objetos de memoria compartida POSIX
 ignoran `fchown`, así que una superficie es solo del usuario del servidor
 (las superficies pasan a ser memory entries en WS2); un `NSEvent` se libera
 de más al salir una app sin ventanas; `CGLayer.h` no se puede incluir desde
@@ -439,7 +439,7 @@ sección 9).
   uno a su dueño en lugar de entregarlo como evento de teclado: Comando-Tab
   al Dock, Comando-Opción-Escape a loginwindow, Control-F2 al AppKit de la
   app del frente (el foco a la barra de menús). El servidor no dibuja ningún
-  selector de apps; lo hace el Dock (D3 de [Dock-Kraz.es.md](Dock-Kraz.es.md)).
+  selector de apps; lo hace el Dock (D3 de [Atlas.es.md](Atlas.es.md), capítulo 4).
 - **Apps en ejecución a través de LaunchServices:** un servicio de sesión de
   LaunchServices guarda la lista de apps en ejecución; cada app se registra
   desde `NSApplication` al arrancar, su salida se detecta cuando ocurre, y el
@@ -450,14 +450,14 @@ sección 9).
   básico lee la misma lista: `runningApplications`, `currentApplication`,
   `processIdentifier`, `bundleIdentifier`, `localizedName`, `isActive`,
   `activateWithOptions:`. El resto de `NSRunningApplication` llega con D0 de
-  [Dock-Kraz.es.md](Dock-Kraz.es.md).
-- **Lo que necesita MB0** ([Menus.es.md](Menus.es.md)): el sitio y la altura
+  [Atlas.es.md](Atlas.es.md), capítulo 4.
+- **Lo que necesita MB0** ([Atlas.es.md](Atlas.es.md), capítulo 3): el sitio y la altura
   de la barra de menús en cada pantalla (el `visibleFrame` de `NSScreen` la
   excluye), avisos a cada app cuando pasa a estar o deja de estar al frente,
   la disposición de la zona de estado (ventanas de status items y Menu
   Extras, conservando el orden) y la captura del puntero mientras hay un
   menú abierto.
-- **Lo que necesita el Dock** ([Dock-Kraz.es.md](Dock-Kraz.es.md)): como en
+- **Lo que necesita el Dock** ([Atlas.es.md](Atlas.es.md), capítulo 4): como en
   la plataforma de referencia, el Dock es el dueño de las ventanas
   minimizadas. `miniaturize:` de AppKit se lo pide al Dock, que hace la
   animación y guarda el tile; el servidor de ventanas retira la ventana y la
@@ -559,7 +559,7 @@ Estado al 1 nov 2026:
 
 ### WS4b — El cambio de servidor
 
-- **MB0** de [Menus.es.md](Menus.es.md): menús y status items dibujados por
+- **MB0** de [Atlas.es.md](Atlas.es.md), capítulo 3: menús y status items dibujados por
   AppKit de cada app (sección 10.2). WS4b solo se cierra cuando pasa MB0.
 - Los códigos de relevo eliminados de `message.h` (sección 10.2).
 - El arranque de la sesión sale de WindowServer.
@@ -614,6 +614,7 @@ display streams no informan de rectángulos movidos (solo de los sucios).
 ### WS6 — Composición por GPU
 
 - `WSVulkanBackend` (frente de GPU, G4), elegido por pantalla.
+- Presentación sin copias, como en el sistema de referencia (añadido el 3 nov 2026): los drawables de `CAMetalLayer` son IOSurfaces en VRAM en las que renderiza la GPU, que se entregan al servidor y compone la GPU, al ritmo de la pantalla (sincronía vertical, `displaySyncEnabled`). Hasta entonces (G3) la CPU copia cada frame al buffer de la ventana.
 - Gate de rendimiento de composición en el PC de referencia, requisito de
   Minkar 21.0: la frecuencia de refresco de la pantalla sin frames perdidos
   con varias ventanas animadas, y un consumo de CPU de WindowServer no mayor
@@ -660,8 +661,8 @@ varias pantallas, Spaces, cursor por hardware.
   `// SHORTCUT(<se quita en>): <qué y por qué>; taken in <hito>.`
   (por ejemplo `SHORTCUT(WS4a)`, `SHORTCUT(Phase 5)`, `SHORTCUT(D3)`; el
   comentario va en inglés, como todo el código), y cada uno tiene una fila
-  en la tabla de atajos de su plan (aquí la sección 9; la sección 10 de
-  [Menus.es.md](Menus.es.md) y de [Dock-Kraz.es.md](Dock-Kraz.es.md)). Un
+  en la tabla de atajos de su plan (aquí la sección 9; las secciones 3.10 y 4.10 de
+  [Atlas.es.md](Atlas.es.md)). Un
   hito solo se cierra cuando `git grep -n 'SHORTCUT(<hito>)'` no encuentra
   nada.
 - El commit que cierra un hito también actualiza
@@ -681,17 +682,17 @@ Decidido el 31 oct 2026, según la regla general de la sección 1:
 | Mover ventanas | Movimientos en el servidor a partir de las zonas de arrastre que declara el cliente, más `performWindowDragWithEvent:` | Solo la zona de la barra de título | Se quitó el 1 nov 2026 (`f03d8ddc9d`, `5df94c8821`) |
 | Distribuciones de teclado | El servidor entrega códigos de tecla del hardware; el cliente los convierte en caracteres según la distribución actual (datos de la distribución y una llamada al estilo de `UCKeyTranslate` en la app), con Text Input Sources | `WSKeymap` y libxkbcommon en SkyLight, desde WS4a (`SHORTCUT(Phase 5)`) | Fase 5 (Text Input Sources y ficheros de distribución propios) |
 | Terminar la sesión | La ventana de login pide a las apps que terminen, cierra la sesión y después reinicia o apaga | Un `loginwindow` mínimo que solo cierra la sesión y llama a `reboot(2)` | Fase 5 (LoginWindow) |
-| Selector de apps (Comando-Tab) | Lo dibuja el Dock; la tabla de atajos simbólicos del servidor de ventanas le entrega Comando-Tab | Sin selector desde que se va el servidor anterior (WS4b): se cambia de app con clic en sus ventanas (`SHORTCUT(D3)`) | D3 ([Dock-Kraz.es.md](Dock-Kraz.es.md)) |
+| Selector de apps (Comando-Tab) | Lo dibuja el Dock; la tabla de atajos simbólicos del servidor de ventanas le entrega Comando-Tab | Sin selector desde que se va el servidor anterior (WS4b): se cambia de app con clic en sus ventanas (`SHORTCUT(D3)`) | D3 ([Atlas.es.md](Atlas.es.md), capítulo 4) |
 | Pilas de los hilos del servidor anterior | Desaparecen con el servidor anterior y `message.h` | Pilas de 4 MB para sus mensajes de 128 KB (tomado en WS0) | Quitado el 2 nov 2026, en WS4b, con el servidor anterior y `message.h` |
 | Qué arranca el job de launchd de WindowServer | Solo el servidor de ventanas; la sesión arranca en otro sitio (sección 10.3) | Solo el compositor (`-x`), porque LoginWindow no se compila (tomado en WS0) | Quitado el 2 nov 2026, en WS4b: el job del servidor nuevo solo lo arranca a él, y `loginwindow` arranca la sesión |
-| Fuente del sistema | La fuente propia de Gienah | Inter (SIL OFL 1.1), cuatro estilos (`SHORTCUT(Phase 5)` en `SystemLibrary/Fonts/Makefile`, tomado en WS0) | Fase 5 (Gienah) |
+| Fuente del sistema | La fuente propia de Atlas | Inter (SIL OFL 1.1), cuatro estilos (`SHORTCUT(Phase 5)` en `SystemLibrary/Fonts/Makefile`, tomado en WS0) | Fase 5 (Atlas) |
 | Configuraciones de pantalla permanentes | Se guardan y se vuelven a aplicar en la sesión siguiente | Duran la sesión (tomado en WS1) | Quitado el 2 nov 2026, en WS5: se guardan en `/var/db/WindowServer/Displays.plist` y se aplican al arrancar; `CGRestorePermanentDisplayConfiguration` vuelve a ellas |
 | Tablas de transferencia y fundidos | Los aplica a la pantalla el compositor, y el hardware de gamma donde lo haya | Se guardan y se devuelven, sin aplicarse (tomado en WS1) | Quitado el 2026-11-01, en WS4a |
 | Reloj de pantalla en reposo | Los flips de la pantalla marcan los frames; nada se despierta mientras nada cambia | Un temporizador a la frecuencia de refresco late también en reposo, sin dibujar nada (tomado en WS2) | Quitado el 2 nov 2026, en WS5: el reloj duerme tras dos ticks sin trabajo y el daño lo despierta |
 | Daño de AppKit | AppKit envía los rectángulos que redibujó | Toda la ventana en cada flush (tomado en WS2) | Quitado el 2 nov 2026, en WS5: las vistas anotan lo que dibujan y la ventana envía esos rectángulos |
 | Volcados de virtio-gpu | El daño del servidor de ventanas va con cada fotograma; solo esos rectángulos se transfieren y vuelcan | Toda la pantalla transferida y volcada a 60 Hz (tomado en WS5) | Quitado el 2 nov 2026, en WS5: el servidor de ventanas envía los rectángulos de cada fotograma; el temporizador solo trabaja para la consola |
 | App del frente | El servidor de ventanas guarda la app del frente, que puede no tener ventanas (sus menús están en la barra de menús), y se lo dice a la sesión de LaunchServices | La dueña de la ventana key: una app sin ventana que mostrar no se podía activar (tomado en WS4a, `3be3e23e16`) | Quitado el 2026-11-01, en WS4a |
-| Cursores estándar | El juego de cursores de Gienah (I-beam, manos, cruz, redimensionar, no permitido...), que fija el AppKit de cada app | Formas negras sencillas con borde blanco dibujadas en `NSCursorImage.m`, la flecha para las que no tienen forma (`SHORTCUT(Phase 5)`, tomado en WS4a) | Fase 5 (Gienah) |
+| Cursores estándar | El juego de cursores de Atlas (I-beam, manos, cruz, redimensionar, no permitido...), que fija el AppKit de cada app | Formas negras sencillas con borde blanco dibujadas en `NSCursorImage.m`, la flecha para las que no tienen forma (`SHORTCUT(Phase 5)`, tomado en WS4a) | Fase 5 (Atlas) |
 | Contexto de dibujo de una pantalla capturada | La app dibuja en la superficie que se muestra (IOSurface) | `CGDisplayGetDrawingContext` dibuja en memoria de la app, que se copia a la ventana de escudo a la frecuencia de refresco cuando cambia, con un fotograma de retraso (tomado en WS4a) | Quitado el 2 nov 2026, en WS5: el contexto dibuja en una IOSurface que la ventana protectora muestra en cada fotograma |
 | Cola de entrada | La entrada se lee y se reparte en su propia cola de alta prioridad, sobre una instantánea del modelo | En la cola IPC (tomado en WS3) | Quitado el 2026-11-01, en WS4a |
 | Estado HID de `CGEventSource` | Se pregunta al servidor de ventanas | No se pregunta: botones, teclas y modificadores se leen como no pulsados (tomado en WS3) | Quitado el 2026-11-01, en WS4a |
@@ -763,7 +764,7 @@ uno pasa a donde lo tiene la plataforma de referencia:
 | Elementos recientes (`CODE_ADD_RECENT_ITEM`) | Las listas de archivos compartidas de LaunchServices, a través de `NSDocumentController` |
 
 Las filas de menús, status items y elementos recientes se planifican en
-detalle en [Menus.es.md](Menus.es.md).
+detalle en [Atlas.es.md](Atlas.es.md), capítulo 3.
 
 WindowServer se queda solo con lo suyo: la app del frente, el orden de
 activación, las ventanas key y main, y el lugar de la barra de menús en la
@@ -792,4 +793,4 @@ sesión y `reboot(2)`), marcado `// SHORTCUT(Phase 5):`, el hito que lo quita; l
 completa es de la Fase 5.
 
 El menú del sistema que envía estas peticiones se planifica en
-[Menus.es.md](Menus.es.md) (MB0 y MB3).
+[Atlas.es.md](Atlas.es.md), capítulo 3 (MB0 y MB3).

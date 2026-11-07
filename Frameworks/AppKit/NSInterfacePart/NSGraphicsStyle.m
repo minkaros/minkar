@@ -9,6 +9,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <AppKit/NSInterfacePartAttributedString.h>
 #import <AppKit/NSInterfacePartDisabledAttributedString.h>
 #import <AppKit/NSColor.h>
+#import <AppKit/NSGradient.h>
 #import <AppKit/NSFont.h>
 #import <AppKit/NSImage.h>
 #import <AppKit/NSWindow.h>
@@ -344,9 +345,40 @@ static NSDictionary *sDimmedMenuTextShadowAttributes = nil;
 	}
 }
 
+/* Atlas's menu bar is dark: a charcoal gradient with a darker line at
+   its bottom edge, and light text. The menus it opens stay light. */
+NSColor *_NSMenuBarTextColor(void) {
+	return [NSColor colorWithCalibratedWhite:0.93 alpha:1];
+}
+
 -(void)drawMenuBarBackgroundInRect:(NSRect)rect {
-	[[NSColor mainMenuBarColor] setFill];
-	NSRectFill(rect);
+	NSGradient *gradient=[[NSGradient alloc] initWithStartingColor:[NSColor colorWithCalibratedWhite:0.17 alpha:1]
+		endingColor:[NSColor colorWithCalibratedWhite:0.25 alpha:1]];
+
+	[gradient drawInRect:rect angle:90];
+	[gradient release];
+	[[NSColor colorWithCalibratedWhite:0.08 alpha:1] setFill];
+	NSRectFill(NSMakeRect(NSMinX(rect),NSMinY(rect),NSWidth(rect),1));
+}
+
+-(void)drawMenuBarItemText:(NSString *)string inRect:(NSRect)rect enabled:(BOOL)enabled selected:(BOOL)selected {
+	[self drawAttributedMenuBarItemText:[[[NSAttributedString alloc] initWithString:string
+		attributes:sNormalMenuTextAttributes] autorelease] inRect:rect enabled:enabled selected:selected];
+}
+
+-(void)drawAttributedMenuBarItemText:(NSAttributedString *)string inRect:(NSRect)rect enabled:(BOOL)enabled selected:(BOOL)selected {
+	NSMutableAttributedString *text=[[string mutableCopy] autorelease];
+	NSColor *color=!enabled ? [NSColor colorWithCalibratedWhite:0.55 alpha:1]
+		: selected ? [NSColor selectedMenuItemTextColor] : _NSMenuBarTextColor();
+	Margins margins=[self menuItemTextMargins];
+
+	rect.size.width=ceilf(rect.size.width);
+	rect.origin.x+=margins.left;
+	rect.origin.y+=margins.top;
+	rect.size.width-=(margins.left+margins.right);
+	rect.size.height-=(margins.top+margins.bottom);
+	[text addAttribute:NSForegroundColorAttributeName value:color range:NSMakeRange(0,[text length])];
+	[text drawInRect:rect];
 }
 
 @end

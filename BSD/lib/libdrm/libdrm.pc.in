@@ -1,0 +1,9 @@
+prefix=@SDK@/usr
+libdir=${prefix}/lib
+includedir=${prefix}/include
+
+Name: libdrm
+Description: Minkar's libdrm, on MinkarAMDUserClient
+Version: @VERSION@
+Libs: -L${libdir} -ldrm
+Cflags: -I${includedir} -I${includedir}/libdrm

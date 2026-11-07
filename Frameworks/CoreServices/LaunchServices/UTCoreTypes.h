@@ -1,94 +1,105 @@
 /*
- * ravynOS LaunchServices - system core types
+ * SPDX-License-Identifier: BSD-2-Clause
+ * Copyright (c) 2026 The Minkar contributors
+ * Part of Minkar.
  *
- * Copyright (C) 2021 Zoe Knox <zoe@pixin.net>
- * 
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in
- * all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
- * THE SOFTWARE.
+ * The type identifiers of the system (the Cocoa API's UTCoreTypes.h).
  */
 
-#import <CoreFoundation/CFString.h>
+#ifndef LAUNCHSERVICES_UTCORETYPES_H
+#define LAUNCHSERVICES_UTCORETYPES_H
 
-const CFStringRef kUTTypeItem = CFSTR("public.item");
-const CFStringRef kUTTypeContent = CFSTR("public.content");
-const CFStringRef kUTTypeCompositeContent = CFSTR("public.composite-content");
-const CFStringRef kUTTypeData = CFSTR("public.data");
-const CFStringRef kUTTypeMessage = CFSTR("public.message");
-const CFStringRef kUTTypeContact = CFSTR("public.contact");
-const CFStringRef kUTTypeArchive = CFSTR("public.archive");
-const CFStringRef kUTTypeDiskImage = CFSTR("public.disk-image");
-const CFStringRef kUTTypeText = CFSTR("public.text");
-const CFStringRef kUTTypePlainText = CFSTR("public.plain-text");
-const CFStringRef kUTTypeUTF8PlainText = CFSTR("public.utf8-plain-text");
-const CFStringRef kUTTypeUTF16ExternalPlainText = CFSTR("public.utf16-plain-text");
-const CFStringRef kUTTypeUTF16PlainText = CFSTR("public.utf16-plain-text");
-const CFStringRef kUTTypeRTF = CFSTR("public.rtf");
-const CFStringRef kUTTypeInkText = CFSTR("com.apple.ink.inktext");
-const CFStringRef kUTTypeHTML = CFSTR("public.html");
-const CFStringRef kUTTypeXML = CFSTR("public.xml");
-const CFStringRef kUTTypeSourceCode = CFSTR("public.source");
-const CFStringRef kUTTypeCSourceCode = CFSTR("public.c-source");
-const CFStringRef kUTTypeObjectiveCSource = CFSTR("public.objective-c-source");
-const CFStringRef kUTTypeCPlusPlusSource = CFSTR("public.c-plus-plus-source");
-const CFStringRef kUTTypeObjectiveCPlusPlusSource = CFSTR("public.objective-c-plus-plus-source");
-const CFStringRef kUTTypeCHeader = CFSTR("public.c-header");
-const CFStringRef kUTTypeCPlusPlusHeader = CFSTR("public.c-plus-plus-header");
-const CFStringRef kUTTypeJavaSourceCode = CFSTR("public.java-source");
-const CFStringRef kUTTypeURL = CFSTR("public.url");
-const CFStringRef kUTTypeFileURL = CFSTR("public.file-url");
-const CFStringRef kUTTypeVCard = CFSTR("public.vcard");
-const CFStringRef kUTTypeImage = CFSTR("public.image");
-const CFStringRef kUTTypeJPEG = CFSTR("public.jpeg");
-const CFStringRef kUTTypeJPEG2000 = CFSTR("public.jpeg-2000");
-const CFStringRef kUTTypeTIFF = CFSTR("public.tiff");
-const CFStringRef kUTTypePICT = CFSTR("com.apple.pict");
-const CFStringRef kUTTypePNG = CFSTR("public.png");
-const CFStringRef kUTTypeQuickTimeImage = CFSTR("com.apple.quicktime-image");
-const CFStringRef kUTTypeICNS = CFSTR("com.apple.icns");
-const CFStringRef kUTTypeTXNTextAndMultimediaData = CFSTR("com.apple.txn.text-multimedia-data");
-const CFStringRef kUTTypeAudioVisualContent = CFSTR("public.audiovisual-content");
-const CFStringRef kUTTypeVideo = CFSTR("public.video");
-const CFStringRef kUTTypeQuickTimeMovie = CFSTR("com.apple.quicktime-movie");
-const CFStringRef kUTTypeMPEG = CFSTR("public.mpeg");
-const CFStringRef kUTTypeMPEG4 = CFSTR("public.mpeg-4");
-const CFStringRef kUTTypeAudio = CFSTR("public.audio");
-const CFStringRef kUTTypeMP3 = CFSTR("public.mp3");
-const CFStringRef kUTTypeMPEG4Audio = CFSTR("public.mpeg-4-audio");
-const CFStringRef kUTTypeAppleProtectedMPEG4Audio = CFSTR("com.apple.protected-mpeg-4-audio");
-const CFStringRef kUTTypeDirectory = CFSTR("public.directory");
-const CFStringRef kUTTypeFolder = CFSTR("public.folder");
-const CFStringRef kUTTypeVolume = CFSTR("public.volume");
-const CFStringRef kUTTypePackage = CFSTR("com.apple.package");
-const CFStringRef kUTTypeBundle = CFSTR("com.apple.bundle");
-const CFStringRef kUTTypeApplication = CFSTR("com.apple.application");
-const CFStringRef kUTTypeApplicationBundle = CFSTR("com.apple.application-bundle");
-const CFStringRef kUTTypeApplicationFile = CFSTR("com.apple.application-file");
-const CFStringRef kUTTypeWebArchive = CFSTR("com.apple.webarchive");
-const CFStringRef kUTTypeFramework = CFSTR("com.apple.framework");
-const CFStringRef kUTTypeRTFD = CFSTR("com.apple.rtfd");
-const CFStringRef kUTTypeFlatRTFD = CFSTR("com.apple.flat-rtfd");
-const CFStringRef kUTTypeResolvable = CFSTR("com.apple.resolvable");
-const CFStringRef kUTTypeSymLink = CFSTR("public.symlink");
-const CFStringRef kUTTypeMountPoint = CFSTR("com.apple.mount-point");
-const CFStringRef kUTTypeAliasRecord = CFSTR("com.apple.alias-record");
-const CFStringRef kUTTypeAliasFile = CFSTR("com.apple.alias-file");
-const CFStringRef kUTTypePDF = CFSTR("com.adobe.pdf");
-const CFStringRef kUTTypeGIF = CFSTR("com.compuserve.gif");
-const CFStringRef kUTTypeBMP = CFSTR("com.microsoft.bmp");
-const CFStringRef kUTTypeICO = CFSTR("com.microsoft.ico");
+#include <CoreFoundation/CoreFoundation.h>
 
+CF_EXTERN_C_BEGIN
+
+extern const CFStringRef kUTTypeItem;	/* public.item */
+extern const CFStringRef kUTTypeContent;	/* public.content */
+extern const CFStringRef kUTTypeCompositeContent;	/* public.composite-content */
+extern const CFStringRef kUTTypeMessage;	/* public.message */
+extern const CFStringRef kUTTypeContact;	/* public.contact */
+extern const CFStringRef kUTTypeArchive;	/* public.archive */
+extern const CFStringRef kUTTypeDiskImage;	/* public.disk-image */
+extern const CFStringRef kUTTypeData;	/* public.data */
+extern const CFStringRef kUTTypeDirectory;	/* public.directory */
+extern const CFStringRef kUTTypeResolvable;	/* com.apple.resolvable */
+extern const CFStringRef kUTTypeSymLink;	/* public.symlink */
+extern const CFStringRef kUTTypeExecutable;	/* public.executable */
+extern const CFStringRef kUTTypeMountPoint;	/* com.apple.mount-point */
+extern const CFStringRef kUTTypeAliasFile;	/* com.apple.alias-file */
+extern const CFStringRef kUTTypeURL;	/* public.url */
+extern const CFStringRef kUTTypeFileURL;	/* public.file-url */
+extern const CFStringRef kUTTypeText;	/* public.text */
+extern const CFStringRef kUTTypePlainText;	/* public.plain-text */
+extern const CFStringRef kUTTypeUTF8PlainText;	/* public.utf8-plain-text */
+extern const CFStringRef kUTTypeUTF16PlainText;	/* public.utf16-plain-text */
+extern const CFStringRef kUTTypeRTF;	/* public.rtf */
+extern const CFStringRef kUTTypeHTML;	/* public.html */
+extern const CFStringRef kUTTypeXML;	/* public.xml */
+extern const CFStringRef kUTTypeSourceCode;	/* public.source-code */
+extern const CFStringRef kUTTypeAssemblyLanguageSource;	/* public.assembly-source */
+extern const CFStringRef kUTTypeCSource;	/* public.c-source */
+extern const CFStringRef kUTTypeObjectiveCSource;	/* public.objective-c-source */
+extern const CFStringRef kUTTypeSwiftSource;	/* public.swift-source */
+extern const CFStringRef kUTTypeCPlusPlusSource;	/* public.c-plus-plus-source */
+extern const CFStringRef kUTTypeObjectiveCPlusPlusSource;	/* public.objective-c-plus-plus-source */
+extern const CFStringRef kUTTypeCHeader;	/* public.c-header */
+extern const CFStringRef kUTTypeCPlusPlusHeader;	/* public.c-plus-plus-header */
+extern const CFStringRef kUTTypeScript;	/* public.script */
+extern const CFStringRef kUTTypeShellScript;	/* public.shell-script */
+extern const CFStringRef kUTTypePythonScript;	/* public.python-script */
+extern const CFStringRef kUTTypePerlScript;	/* public.perl-script */
+extern const CFStringRef kUTTypeRubyScript;	/* public.ruby-script */
+extern const CFStringRef kUTTypeJavaScript;	/* com.netscape.javascript-source */
+extern const CFStringRef kUTTypeJSON;	/* public.json */
+extern const CFStringRef kUTTypePropertyList;	/* com.apple.property-list */
+extern const CFStringRef kUTTypeXMLPropertyList;	/* com.apple.xml-property-list */
+extern const CFStringRef kUTTypeBinaryPropertyList;	/* com.apple.binary-property-list */
+extern const CFStringRef kUTTypePDF;	/* com.adobe.pdf */
+extern const CFStringRef kUTTypeRTFD;	/* com.apple.rtfd */
+extern const CFStringRef kUTTypeLog;	/* public.log */
+extern const CFStringRef kUTTypeCommaSeparatedText;	/* public.comma-separated-values-text */
+extern const CFStringRef kUTTypeTabSeparatedText;	/* public.tab-separated-values-text */
+extern const CFStringRef kUTTypeURLBookmarkData;	/* com.apple.bookmark */
+extern const CFStringRef kUTTypeImage;	/* public.image */
+extern const CFStringRef kUTTypeJPEG;	/* public.jpeg */
+extern const CFStringRef kUTTypeTIFF;	/* public.tiff */
+extern const CFStringRef kUTTypeGIF;	/* com.compuserve.gif */
+extern const CFStringRef kUTTypePNG;	/* public.png */
+extern const CFStringRef kUTTypeBMP;	/* com.microsoft.bmp */
+extern const CFStringRef kUTTypeICO;	/* com.microsoft.ico */
+extern const CFStringRef kUTTypeAppleICNS;	/* com.apple.icns */
+extern const CFStringRef kUTTypeScalableVectorGraphics;	/* public.svg-image */
+extern const CFStringRef kUTTypeAudiovisualContent;	/* public.audiovisual-content */
+extern const CFStringRef kUTTypeMovie;	/* public.movie */
+extern const CFStringRef kUTTypeVideo;	/* public.video */
+extern const CFStringRef kUTTypeAudio;	/* public.audio */
+extern const CFStringRef kUTTypeQuickTimeMovie;	/* com.apple.quicktime-movie */
+extern const CFStringRef kUTTypeMPEG;	/* public.mpeg */
+extern const CFStringRef kUTTypeMPEG4;	/* public.mpeg-4 */
+extern const CFStringRef kUTTypeMP3;	/* public.mp3 */
+extern const CFStringRef kUTTypeMPEG4Audio;	/* public.mpeg-4-audio */
+extern const CFStringRef kUTTypeWaveformAudio;	/* com.microsoft.waveform-audio */
+extern const CFStringRef kUTTypeFolder;	/* public.folder */
+extern const CFStringRef kUTTypeVolume;	/* public.volume */
+extern const CFStringRef kUTTypePackage;	/* com.apple.package */
+extern const CFStringRef kUTTypeBundle;	/* com.apple.bundle */
+extern const CFStringRef kUTTypePluginBundle;	/* com.apple.plugin */
+extern const CFStringRef kUTTypeFramework;	/* com.apple.framework */
+extern const CFStringRef kUTTypeApplication;	/* com.apple.application */
+extern const CFStringRef kUTTypeApplicationBundle;	/* com.apple.application-bundle */
+extern const CFStringRef kUTTypeApplicationFile;	/* com.apple.application-file */
+extern const CFStringRef kUTTypeUnixExecutable;	/* public.unix-executable */
+extern const CFStringRef kUTTypeFont;	/* public.font */
+extern const CFStringRef kUTTypeVCard;	/* public.vcard */
+extern const CFStringRef kUTTypeGNUZipArchive;	/* org.gnu.gnu-zip-archive */
+extern const CFStringRef kUTTypeBzip2Archive;	/* public.bzip2-archive */
+extern const CFStringRef kUTTypeZipArchive;	/* public.zip-archive */
+extern const CFStringRef kUTTypeSpreadsheet;	/* public.spreadsheet */
+extern const CFStringRef kUTTypePresentation;	/* public.presentation */
+extern const CFStringRef kUTTypeDatabase;	/* public.database */
+extern const CFStringRef kUTTypeEmailMessage;	/* public.email-message */
+
+CF_EXTERN_C_END
+
+#endif

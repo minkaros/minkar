@@ -1,0 +1,5 @@
+# Libgcrypt (LGPL-2.1-or-later), fetched at build time and checked
+# against this SHA-256, taken at the first fetch.
+url https://gnupg.org/ftp/gcrypt/libgcrypt/libgcrypt-1.11.1.tar.bz2
+sha256 24e91c9123a46c54e8371f3a3a2502f1198f2893fbfbf59af95bc1c21499b00e
+version 1.11.1

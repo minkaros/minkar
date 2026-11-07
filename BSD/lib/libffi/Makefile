@@ -1,27 +1,14 @@
-CONFIGURE_ARGS= --disable-docs
-INSTALL=        ${OBJTOP}/tmp/legacy/bin/install
-RANLIB=		${OBJTOP}/gnu/usr.bin/binutils/binutils/ranlib
-AR=		${OBJTOP}/gnu/usr.bin/binutils/binutils/ar
+# SPDX-License-Identifier: BSD-2-Clause
+# Copyright (c) 2026 The Minkar contributors
+# Part of Minkar.
+#
+# libffi, calls built at run time, for glib's closures (WebKit W0).
 
-all: build
-build:
-	if [ ! -x ${AR} ]; then ${MAKE} -C ${SRCTOP}/gnu/usr.bin/binutils; fi
-	${.CURDIR}/configure --prefix=${PREFIX} ${CONFIGURE_ARGS}
-	${MAKE} -C ${MAKEOBJDIR}
+SUBDIR =
+EXTLIB =	libffi
+EXTLIB_SYSTEM =	autotools
+EXTLIB_OPTIONS = --disable-docs --disable-multi-os-directory
+EXTLIB_LIBS =	libffi.8.dylib
+EXTLIB_LICENSES = LICENSE
 
-install:
-	cp -f ${RANLIB} ${AR} ${OBJTOP}/tmp/usr/bin
-	${MAKE} -C ${MAKEOBJDIR} INSTALL=${INSTALL} DESTDIR=${DESTDIR} install
-
-installconfig: .PHONY
-includes: .PHONY
-installincludes: .PHONY
-cleandir: .PHONY
-cleandepend:
-	rm -f .depend .depend.*
-
-distribute:
-	${MAKE} -C ${MAKEOBJDIR} INSTALL=${OBJTOP}/tmp/legacy/bin/install \
-		DESTDIR=${OBJTOP}/release/dist/base install
-LD_ADD= 
-
+.include <minkar.extlib.mk>

@@ -16,23 +16,23 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 @interface NSArray<__covariant ObjectType> : NSObject <NSCopying, NSMutableCopying, NSCoding, NSFastEnumeration>
 
-- initWithArray:(NSArray<ObjectType> *)array;
-- initWithArray:(NSArray<ObjectType> *)array copyItems:(BOOL)copyItems;
-- initWithContentsOfFile:(NSString *)path;
-- initWithContentsOfURL:(NSURL *)url;
-- initWithObjects:(id *)objects count:(NSUInteger)count;
-- initWithObjects:(ObjectType)object, ...;
+- (instancetype)initWithArray:(NSArray<ObjectType> *)array;
+- (instancetype)initWithArray:(NSArray<ObjectType> *)array copyItems:(BOOL)copyItems;
+- (instancetype)initWithContentsOfFile:(NSString *)path;
+- (instancetype)initWithContentsOfURL:(NSURL *)url;
+- (instancetype)initWithObjects:(const ObjectType _Nonnull [_Nullable])objects count:(NSUInteger)count;
+- (instancetype)initWithObjects:(ObjectType)object, ...;
 
-+ array;
-+ arrayWithContentsOfFile:(NSString *)path;
-+ arrayWithContentsOfURL:(NSURL *)url;
-+ arrayWithObject:(ObjectType)object;
-+ arrayWithObjects:(ObjectType)object, ...;
++ (instancetype)array;
++ (instancetype)arrayWithContentsOfFile:(NSString *)path;
++ (instancetype)arrayWithContentsOfURL:(NSURL *)url;
++ (instancetype)arrayWithObject:(ObjectType)object;
++ (instancetype)arrayWithObjects:(ObjectType)object, ...;
 
-+ arrayWithArray:(NSArray<ObjectType> *)array;
-+ arrayWithObjects:(id *)objects count:(NSUInteger)count;
++ (instancetype)arrayWithArray:(NSArray<ObjectType> *)array;
++ (instancetype)arrayWithObjects:(const ObjectType _Nonnull [_Nonnull])objects count:(NSUInteger)count;
 
-- (NSUInteger)count;
+@property (readonly) NSUInteger count;
 - (ObjectType)objectAtIndex:(NSUInteger)index;
 
 - (void)getObjects:(id *)objects;
@@ -61,8 +61,8 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 - (ObjectType)firstObjectCommonWithArray:(NSArray<ObjectType> *)array;
 
-- (ObjectType)firstObject;
-- (ObjectType)lastObject;
+@property (readonly) ObjectType firstObject;
+@property (readonly) ObjectType lastObject;
 
 - (NSArray<ObjectType> *)sortedArrayUsingSelector:(SEL)selector;
 - (NSArray<ObjectType> *)sortedArrayUsingFunction:(NSInteger (*)(ObjectType, ObjectType, void *))function
@@ -117,3 +117,12 @@ typedef NS_OPTIONS(NSUInteger, NSBinarySearchingOptions) {
 @end
 
 #import <Foundation/NSMutableArray.h>
+
+#import <Foundation/NSOrderedCollectionDifference.h>
+
+@interface NSArray<ObjectType> (NSArrayDiffing)
+- (NSOrderedCollectionDifference<ObjectType> *)differenceFromArray:(NSArray<ObjectType> *)other withOptions:(NSOrderedCollectionDifferenceCalculationOptions)options usingEquivalenceTest:(BOOL (NS_NOESCAPE ^)(ObjectType obj1, ObjectType obj2))block;
+- (NSOrderedCollectionDifference<ObjectType> *)differenceFromArray:(NSArray<ObjectType> *)other withOptions:(NSOrderedCollectionDifferenceCalculationOptions)options;
+- (NSOrderedCollectionDifference<ObjectType> *)differenceFromArray:(NSArray<ObjectType> *)other;
+- (NSArray<ObjectType> *)arrayByApplyingDifference:(NSOrderedCollectionDifference<ObjectType> *)difference;
+@end

@@ -68,8 +68,9 @@ MinkarAMDUserClient::start(IOService *provider)
 void
 MinkarAMDUserClient::unmapAll(Buffer *b)
 {
-	for (unsigned i = 0; i < kMinkarAMDGPUMaxMappings; i++)
-		if (fMappings[i].bytes != 0 && (b == NULL || fMappings[i].buffer == b)) {
+	uint32_t handle = b != NULL ? (uint32_t)(b - fBuffers) + 1 : 0;
+	for (unsigned i = 0; i < fMappingCap; i++)
+		if (fMappings[i].bytes != 0 && (b == NULL || fMappings[i].buffer == handle)) {
 			fGPU->vmUnmap(fVMID, fMappings[i].va, fMappings[i].bytes);
 			fMappings[i].bytes = 0;
 		}
@@ -93,6 +94,7 @@ MinkarAMDUserClient::destroy(Buffer *b)
 	b->system = NULL;
 	b->imported = NULL;
 	b->shared = 0;
+	b->hidden = false;
 	b->size = 0;
 }
 
@@ -102,7 +104,13 @@ MinkarAMDUserClient::releaseAll()
 	if (fGPU == NULL || fLock == NULL)
 		return;
 	IOLockLock(fLock);
-	for (unsigned i = 0; i < kMinkarAMDGPUMaxBuffers; i++)
+	/* The display shows the framebuffer again before its buffers go. */
+	if (fFlipped) {
+		uint64_t ns;
+		fGPU->flip(0, 0, &ns);
+		fFlipped = false;
+	}
+	for (unsigned i = 0; i < fBufferCap; i++)
 		if (fBuffers[i].size != 0)
 			destroy(&fBuffers[i]);
 	if (fVMID != 0) {
@@ -124,6 +132,10 @@ void
 MinkarAMDUserClient::free()
 {
 	releaseAll();	/* a client that died without closing */
+	if (fBuffers != NULL)
+		IOFree(fBuffers, fBufferCap * sizeof(*fBuffers));
+	if (fMappings != NULL)
+		IOFree(fMappings, fMappingCap * sizeof(*fMappings));
 	if (fLock != NULL)
 		IOLockFree(fLock);
 	super::free();
@@ -133,9 +145,53 @@ MinkarAMDUserClient::free()
 MinkarAMDUserClient::Buffer *
 MinkarAMDUserClient::buffer(uint64_t handle)
 {
-	if (handle < 1 || handle > kMinkarAMDGPUMaxBuffers || fBuffers[handle - 1].size == 0)
+	if (handle < 1 || handle > fBufferCap || fBuffers[handle - 1].size == 0)
 		return NULL;
 	return &fBuffers[handle - 1];
+}
+
+/* A table twice as large (64 entries at first), up to max; the entries
+ * kept, the new ones zero. Called locked. */
+static bool
+grow(void **table, unsigned *cap, size_t entry, unsigned max)
+{
+	unsigned n = *cap == 0 ? 64 : *cap * 2;
+	if (n > max)
+		n = max;
+	if (n <= *cap)
+		return false;
+	void *t = IOMallocZero(n * entry);
+	if (t == NULL)
+		return false;
+	if (*table != NULL) {
+		memcpy(t, *table, *cap * entry);
+		IOFree(*table, *cap * entry);
+	}
+	*table = t;
+	*cap = n;
+	return true;
+}
+
+/* An empty buffer slot, the table grown if needed, or kNoSlot. Called
+ * locked. */
+unsigned
+MinkarAMDUserClient::bufferSlot()
+{
+	for (unsigned i = 0; i < fBufferCap; i++)
+		if (fBuffers[i].size == 0)
+			return i;
+	unsigned first = fBufferCap;
+	return grow((void **)&fBuffers, &fBufferCap, sizeof(*fBuffers), kMinkarAMDGPUMaxBuffers) ? first :
+	    kNoSlot;
+}
+
+/* The mapping table grown: its first new slot, or kNoSlot. Called locked. */
+unsigned
+MinkarAMDUserClient::growMappings()
+{
+	unsigned first = fMappingCap;
+	return grow((void **)&fMappings, &fMappingCap, sizeof(*fMappings), kMinkarAMDGPUMaxMappings) ? first :
+	    kNoSlot;
 }
 
 IOReturn
@@ -157,9 +213,11 @@ MinkarAMDUserClient::externalMethod(uint32_t selector, IOExternalMethodArguments
 		{ (IOExternalMethodAction)&sI2C, 4, 0, 3, 0 },
 		{ (IOExternalMethodAction)&sModeSet, 2, 0, 6, 0 },
 		{ (IOExternalMethodAction)&sSubmitGFX, 3, 0, 1, 0 },
-		{ (IOExternalMethodAction)&sMapBuffer, 2, 0, 0, 0 },
+		{ (IOExternalMethodAction)&sMapBuffer, 4, 0, 0, 0 },
 		{ (IOExternalMethodAction)&sUnmapBuffer, 1, 0, 0, 0 },
 		{ (IOExternalMethodAction)&sSubmitGFXVM, 2, 0, 2, 0 },
+		{ (IOExternalMethodAction)&sCreateHidden, 1, 0, 2, 0 },
+		{ (IOExternalMethodAction)&sFlip, 1, 0, 1, 0 },
 	};
 
 	(void)dispatch; (void)target;
@@ -183,21 +241,43 @@ MinkarAMDUserClient::sInfo(OSObject *target, void *, IOExternalMethodArguments *
 	return err;
 }
 
+/* A buffer's size in whole pages, as clients map them; 0 when it is 0 or
+ * too large to round. */
+static uint64_t
+pages(uint64_t bytes)
+{
+	return bytes == 0 || bytes > UINT64_MAX - 4095 ? 0 : (bytes + 4095) & ~4095ull;
+}
+
 IOReturn
 MinkarAMDUserClient::sCreate(OSObject *target, void *, IOExternalMethodArguments *args)
 {
-	MinkarAMDUserClient *me = (MinkarAMDUserClient *)target;
-	uint64_t size = args->scalarInput[0], offset;
+	return create((MinkarAMDUserClient *)target, args, false);
+}
+
+/* size: a buffer anywhere in VRAM, which the CPU cannot map. */
+IOReturn
+MinkarAMDUserClient::sCreateHidden(OSObject *target, void *, IOExternalMethodArguments *args)
+{
+	return create((MinkarAMDUserClient *)target, args, true);
+}
+
+IOReturn
+MinkarAMDUserClient::create(MinkarAMDUserClient *me, IOExternalMethodArguments *args, bool hidden)
+{
+	uint64_t size = pages(args->scalarInput[0]), offset;
 	unsigned slot;
 
+	if (size == 0)
+		return kIOReturnBadArgument;
 	IOLockLock(me->fLock);
-	for (slot = 0; slot < kMinkarAMDGPUMaxBuffers && me->fBuffers[slot].size != 0; slot++)
-		;
-	IOReturn err = slot == kMinkarAMDGPUMaxBuffers ? kIOReturnNoResources :
-	    me->fGPU->createBuffer(size, &offset);
+	slot = me->bufferSlot();
+	IOReturn err = slot == kNoSlot ? kIOReturnNoResources :
+	    me->fGPU->createBuffer(size, &offset, !hidden);
 	if (err == kIOReturnSuccess) {
 		me->fBuffers[slot].offset = offset;
 		me->fBuffers[slot].size = size;
+		me->fBuffers[slot].hidden = hidden;
 		me->fBuffers[slot].gpu = me->fGPU->gpuAddress(offset);
 		me->fBuffers[slot].system = NULL;
 		me->fBuffers[slot].imported = NULL;
@@ -216,6 +296,12 @@ MinkarAMDUserClient::sDestroy(OSObject *target, void *, IOExternalMethodArgument
 
 	IOLockLock(me->fLock);
 	Buffer *b = me->buffer(args->scalarInput[0]);
+	/* The one the display shows: the framebuffer first. */
+	if (b != NULL && me->fFlipped && b->offset == me->fFlipOffset) {
+		uint64_t ns;
+		me->fGPU->flip(0, 0, &ns);
+		me->fFlipped = false;
+	}
 	if (b != NULL)
 		me->destroy(b);
 	IOLockUnlock(me->fLock);
@@ -268,8 +354,8 @@ MinkarAMDUserClient::sSubmitGFX(OSObject *target, void *, IOExternalMethodArgume
 	return err;
 }
 
-/* buffer, va: the whole of a VRAM buffer at va in the client's address
- * space, made at the first. */
+/* buffer, va, offset, bytes: that part of a buffer at va in the client's
+ * address space, made at the first. */
 IOReturn
 MinkarAMDUserClient::sMapBuffer(OSObject *target, void *, IOExternalMethodArguments *args)
 {
@@ -279,32 +365,36 @@ MinkarAMDUserClient::sMapBuffer(OSObject *target, void *, IOExternalMethodArgume
 
 	IOLockLock(me->fLock);
 	Buffer *b = me->buffer(in[0]);
-	uint64_t va = in[1];
-	if (b == NULL || !si_vm_range_ok(va, b->size))
+	uint64_t va = in[1], offset = in[2], bytes = in[3];
+	/* bytes 0: the whole buffer from offset; page aligned, inside it. */
+	if (b != NULL && bytes == 0 && offset <= b->size)
+		bytes = b->size - offset;
+	if (b == NULL || (offset & 4095) != 0 || offset > b->size || bytes > b->size - offset ||
+	    !si_vm_range_ok(va, bytes))
 		err = kIOReturnBadArgument;
-	Mapping *slot = NULL;
-	for (unsigned i = 0; err == kIOReturnSuccess && i < kMinkarAMDGPUMaxMappings; i++) {
+	unsigned slot = kNoSlot;
+	for (unsigned i = 0; err == kIOReturnSuccess && i < me->fMappingCap; i++) {
 		Mapping *m = &me->fMappings[i];
 		if (m->bytes == 0) {
-			if (slot == NULL)
-				slot = m;
-		} else if (va < m->va + m->bytes && m->va < va + b->size)
+			if (slot == kNoSlot)
+				slot = i;
+		} else if (va < m->va + m->bytes && m->va < va + bytes)
 			err = kIOReturnExclusiveAccess;	/* overlaps one */
 	}
-	if (err == kIOReturnSuccess && slot == NULL)
+	if (err == kIOReturnSuccess && slot == kNoSlot && (slot = me->growMappings()) == kNoSlot)
 		err = kIOReturnNoResources;
 	if (err == kIOReturnSuccess && me->fVMID == 0)
 		err = me->fGPU->createVM(&me->fVMID);
 	/* System and imported buffers by their pages; VRAM ones (shared ones
 	 * too) by their offset. */
 	if (err == kIOReturnSuccess)
-		err = b->system != NULL ? me->fGPU->vmMapSystem(me->fVMID, va, b->system, b->size) :
-		    b->imported != NULL ? me->fGPU->vmMapSystem(me->fVMID, va, b->imported, b->size) :
-		    me->fGPU->vmMapVRAM(me->fVMID, va, b->offset, b->size);
+		err = b->system != NULL ? me->fGPU->vmMapSystem(me->fVMID, va, b->system, offset, bytes) :
+		    b->imported != NULL ? me->fGPU->vmMapSystem(me->fVMID, va, b->imported, offset, bytes) :
+		    me->fGPU->vmMapVRAM(me->fVMID, va, b->offset + offset, bytes);
 	if (err == kIOReturnSuccess) {
-		slot->va = va;
-		slot->bytes = b->size;
-		slot->buffer = b;
+		me->fMappings[slot].va = va;
+		me->fMappings[slot].bytes = bytes;
+		me->fMappings[slot].buffer = (uint32_t)(b - me->fBuffers) + 1;
 	}
 	IOLockUnlock(me->fLock);
 	return err;
@@ -318,7 +408,7 @@ MinkarAMDUserClient::sUnmapBuffer(OSObject *target, void *, IOExternalMethodArgu
 	IOReturn err = kIOReturnNotFound;
 
 	IOLockLock(me->fLock);
-	for (unsigned i = 0; i < kMinkarAMDGPUMaxMappings; i++) {
+	for (unsigned i = 0; i < me->fMappingCap; i++) {
 		Mapping *m = &me->fMappings[i];
 		if (m->bytes != 0 && m->va == args->scalarInput[0]) {
 			me->fGPU->vmUnmap(me->fVMID, m->va, m->bytes);
@@ -344,7 +434,7 @@ MinkarAMDUserClient::sSubmitGFXVM(OSObject *target, void *, IOExternalMethodArgu
 	bool inside = false;
 
 	IOLockLock(me->fLock);
-	for (unsigned i = 0; i < kMinkarAMDGPUMaxMappings && !inside; i++) {
+	for (unsigned i = 0; i < me->fMappingCap && !inside; i++) {
 		Mapping *m = &me->fMappings[i];
 		inside = m->bytes != 0 && in[1] > 0 && in[1] <= 0xfffff && (in[0] & 3) == 0 &&
 		    in[0] >= m->va && in[0] - m->va < m->bytes && in[1] * 4 <= m->bytes - (in[0] - m->va);
@@ -385,10 +475,10 @@ MinkarAMDUserClient::sCreateSystem(OSObject *target, void *, IOExternalMethodArg
 	unsigned slot;
 
 	IOLockLock(me->fLock);
-	for (slot = 0; slot < kMinkarAMDGPUMaxBuffers && me->fBuffers[slot].size != 0; slot++)
-		;
-	IOReturn err = slot == kMinkarAMDGPUMaxBuffers ? kIOReturnNoResources :
-	    me->fGPU->createSystemBuffer(args->scalarInput[0], &m, &gpu);
+	slot = me->bufferSlot();
+	uint64_t size = pages(args->scalarInput[0]);
+	IOReturn err = slot == kNoSlot ? kIOReturnNoResources :
+	    size == 0 ? kIOReturnBadArgument : me->fGPU->createSystemBuffer(size, &m, &gpu);
 	if (err == kIOReturnSuccess) {
 		me->fBuffers[slot].offset = 0;
 		me->fBuffers[slot].size = m->getLength();
@@ -425,9 +515,8 @@ MinkarAMDUserClient::sImport(OSObject *target, void *, IOExternalMethodArguments
 		return kIOReturnVMError;
 	}
 	IOLockLock(me->fLock);
-	for (slot = 0; slot < kMinkarAMDGPUMaxBuffers && me->fBuffers[slot].size != 0; slot++)
-		;
-	IOReturn err = slot == kMinkarAMDGPUMaxBuffers ? kIOReturnNoResources :
+	slot = me->bufferSlot();
+	IOReturn err = slot == kNoSlot ? kIOReturnNoResources :
 	    me->fGPU->mapSystemMemory(m, &gpu);
 	if (err == kIOReturnSuccess) {
 		me->fBuffers[slot].offset = 0;
@@ -444,6 +533,36 @@ MinkarAMDUserClient::sImport(OSObject *target, void *, IOExternalMethodArguments
 		m->complete();
 		m->release();
 	}
+	return err;
+}
+
+/* buffer (0: the framebuffer again). */
+IOReturn
+MinkarAMDUserClient::sFlip(OSObject *target, void *, IOExternalMethodArguments *args)
+{
+	MinkarAMDUserClient *me = (MinkarAMDUserClient *)target;
+	uint64_t ns = 0;
+	IOReturn err;
+
+	if (!me->fEntitled)
+		return kIOReturnNotPrivileged;
+	IOLockLock(me->fLock);
+	if (args->scalarInput[0] == 0) {
+		err = me->fGPU->flip(0, 0, &ns);
+		if (err == kIOReturnSuccess)
+			me->fFlipped = false;
+	} else {
+		Buffer *b = me->buffer(args->scalarInput[0]);
+		/* VRAM only: neither system memory nor another task's pages. */
+		err = b == NULL || b->system != NULL || b->imported != NULL ? kIOReturnBadArgument :
+		    me->fGPU->flip(b->offset, b->size, &ns);
+		if (err == kIOReturnSuccess) {
+			me->fFlipped = true;
+			me->fFlipOffset = b->offset;
+		}
+	}
+	IOLockUnlock(me->fLock);
+	args->scalarOutput[0] = ns;
 	return err;
 }
 
@@ -475,14 +594,13 @@ MinkarAMDUserClient::sCreateShared(OSObject *target, void *, IOExternalMethodArg
 {
 	MinkarAMDUserClient *me = (MinkarAMDUserClient *)target;
 	uint64_t offset = 0, size = 0;
-	uint32_t id = 0;
+	uint64_t name = 0;
 	unsigned slot;
 
 	IOLockLock(me->fLock);
-	for (slot = 0; slot < kMinkarAMDGPUMaxBuffers && me->fBuffers[slot].size != 0; slot++)
-		;
-	IOReturn err = slot == kMinkarAMDGPUMaxBuffers ? kIOReturnNoResources :
-	    me->fGPU->createShared(args->scalarInput[0], &id, &offset, &size);
+	slot = me->bufferSlot();
+	IOReturn err = slot == kNoSlot ? kIOReturnNoResources :
+	    me->fGPU->createShared(args->scalarInput[0], &name, &offset, &size);
 	if (err == kIOReturnSuccess) {
 		Buffer *b = &me->fBuffers[slot];
 		b->offset = offset;
@@ -490,16 +608,16 @@ MinkarAMDUserClient::sCreateShared(OSObject *target, void *, IOExternalMethodArg
 		b->gpu = me->fGPU->gpuAddress(offset);
 		b->system = NULL;
 		b->imported = NULL;
-		b->shared = id;
+		b->shared = name;
 		args->scalarOutput[0] = slot + 1;
 		args->scalarOutput[1] = b->gpu;
-		args->scalarOutput[2] = id;
+		args->scalarOutput[2] = name;
 	}
 	IOLockUnlock(me->fLock);
 	return err;
 }
 
-/* Another client's shared buffer, by its global ID: held by this one too. */
+/* Another client's shared buffer, by its name: held by this one too. */
 IOReturn
 MinkarAMDUserClient::sRetainShared(OSObject *target, void *, IOExternalMethodArguments *args)
 {
@@ -507,13 +625,12 @@ MinkarAMDUserClient::sRetainShared(OSObject *target, void *, IOExternalMethodArg
 	uint64_t offset = 0, size = 0;
 	unsigned slot;
 
-	if (args->scalarInput[0] == 0 || args->scalarInput[0] > UINT32_MAX)
+	if (args->scalarInput[0] == 0)
 		return kIOReturnBadArgument;
 	IOLockLock(me->fLock);
-	for (slot = 0; slot < kMinkarAMDGPUMaxBuffers && me->fBuffers[slot].size != 0; slot++)
-		;
-	IOReturn err = slot == kMinkarAMDGPUMaxBuffers ? kIOReturnNoResources :
-	    me->fGPU->retainShared((uint32_t)args->scalarInput[0], &offset, &size);
+	slot = me->bufferSlot();
+	IOReturn err = slot == kNoSlot ? kIOReturnNoResources :
+	    me->fGPU->retainShared(args->scalarInput[0], &offset, &size);
 	if (err == kIOReturnSuccess) {
 		Buffer *b = &me->fBuffers[slot];
 		b->offset = offset;
@@ -521,7 +638,7 @@ MinkarAMDUserClient::sRetainShared(OSObject *target, void *, IOExternalMethodArg
 		b->gpu = me->fGPU->gpuAddress(offset);
 		b->system = NULL;
 		b->imported = NULL;
-		b->shared = (uint32_t)args->scalarInput[0];
+		b->shared = args->scalarInput[0];
 		args->scalarOutput[0] = slot + 1;
 		args->scalarOutput[1] = b->gpu;
 		args->scalarOutput[2] = size;
@@ -584,7 +701,7 @@ MinkarAMDUserClient::clientMemoryForType(UInt32 type, IOOptionBits *options,
 		m = b->system;
 		m->retain();
 		*options = kIOMapDefaultCache;
-	} else if (b != NULL) {
+	} else if (b != NULL && !b->hidden) {
 		m = fGPU->bufferMemory(b->offset, b->size);
 		*options = kIOMapWriteCombineCache;
 	}

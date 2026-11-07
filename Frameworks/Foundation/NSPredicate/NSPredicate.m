@@ -1,4 +1,5 @@
 /* Copyright (c) 2006-2007 Christopher J. W. Lloyd
+Modifications Copyright (c) 2026 The Minkar contributors
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
 
@@ -16,6 +17,8 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <Foundation/NSArray.h>
 #import <Foundation/NSNull.h>
 #import <Foundation/NSRaise.h>
+#import <Foundation/NSCoder.h>
+#import <Foundation/NSDictionary.h>
 #import "NSPredicate_BOOL.h"
 #import "NSExpression_operator.h"
 #import "NSExpression_array.h"
@@ -1038,7 +1041,11 @@ static NSExpression *nextKeypathExpression(predicateScanner *scanner){
       if((right=nextPrimaryExpression(scanner))==nil)
        raiseError(scanner,@"Expecting expression after .");
 
-      left=[NSExpression_operator expressionForOperator:NSExpressionOperatorKeypath arguments:[NSArray arrayWithObjects:left,right,nil]];
+      // a.b of two key paths is the key path "a.b"
+      if([left expressionType]==NSKeyPathExpressionType && [right expressionType]==NSKeyPathExpressionType)
+       left=[NSExpression expressionForKeyPath:[NSString stringWithFormat:@"%@.%@",[left keyPath],[right keyPath]]];
+      else
+       left=[NSExpression_operator expressionForOperator:NSExpressionOperatorKeypath arguments:[NSArray arrayWithObjects:left,right,nil]];
       break;
 
      case predTokenLeftBracket:
@@ -1203,14 +1210,17 @@ static void nextOperationOption(predicateScanner *scanner,unsigned *options){
    if((tokenType=scanToken(scanner,&token))!=predTokenIdentifier)
     raiseError(scanner,@"Expecting identifier in options");
 
-   if([token isEqualToString:@"c"])
-    *options=NSCaseInsensitivePredicateOption;
-   else if([token isEqualToString:@"d"])
-    *options=NSDiacriticInsensitivePredicateOption;
-   else if([token isEqualToString:@"cd"])
-    *options=NSCaseInsensitivePredicateOption|NSDiacriticInsensitivePredicateOption;
-   else {
-    raiseError(scanner,@"Expecting c, d, or cd in string options");
+   {
+    NSUInteger i,length=[token length];
+
+    for(i=0;i<length;i++){
+     switch([token characterAtIndex:i]){
+      case 'c': *options|=NSCaseInsensitivePredicateOption; break;
+      case 'd': *options|=NSDiacriticInsensitivePredicateOption; break;
+      case 'n': *options|=NSNormalizedPredicateOption; break;
+      default: raiseError(scanner,@"Expecting c, d or n in string options");
+     }
+    }
    }
 
    expectTokenType(scanner,predTokenRightBracket);
@@ -1224,31 +1234,37 @@ static BOOL nextOperation(predicateScanner *scanner,NSPredicateOperatorType *typ
     case predTokenEqual:
      skipToken(scanner);
      *type=NSEqualToPredicateOperatorType;
+     nextOperationOption(scanner,options);
      return YES;
 
     case predTokenNotEqual:
      skipToken(scanner);
      *type=NSNotEqualToPredicateOperatorType;
+     nextOperationOption(scanner,options);
      return YES;
 
     case predTokenLessThan:
      skipToken(scanner);
      *type=NSLessThanPredicateOperatorType;
+     nextOperationOption(scanner,options);
      return YES;
 
     case predTokenGreaterThan:
      skipToken(scanner);
      *type=NSGreaterThanPredicateOperatorType;
+     nextOperationOption(scanner,options);
      return YES;
 
     case predTokenLessThanOrEqual:
      skipToken(scanner);
      *type=NSLessThanOrEqualToPredicateOperatorType;
+     nextOperationOption(scanner,options);
      return YES;
 
     case predTokenGreaterThanOrEqual:
      skipToken(scanner);
      *type=NSGreaterThanOrEqualToPredicateOperatorType;
+     nextOperationOption(scanner,options);
      return YES;
 
     case predToken_IN:
@@ -1315,29 +1331,22 @@ static NSPredicate *nextComparisonPredicate(predicateScanner *scanner){
    NSExpression *right;
    NSPredicate  *result;
    NSPredicateOperatorType type = 0;
-   unsigned options;
+   unsigned options=0;
 
    switch(peekTokenType(scanner)){
 
     case predToken_CONTAINS:
      skipToken(scanner);
+     options=0;
      nextOperationOption(scanner,&options);
      right=nextExpression(scanner);
-     result=[NSComparisonPredicate predicateWithLeftExpression:left rightExpression:right modifier:modifier type:NSInPredicateOperatorType options:options];
+     result=[NSComparisonPredicate predicateWithLeftExpression:left rightExpression:right modifier:modifier type:NSContainsPredicateOperatorType options:options];
      break;
 
     case predToken_BETWEEN:
      skipToken(scanner);
      right=nextExpression(scanner);
-     {
-      NSExpression *rightFirst=[NSExpression_operator expressionForOperator:NSExpressionOperatorIndexFirst arguments:[NSArray arrayWithObject:right]];
-      NSPredicate  *greaterOrEqual=[NSComparisonPredicate predicateWithLeftExpression:left rightExpression:rightFirst modifier:NSDirectPredicateModifier type:NSGreaterThanOrEqualToPredicateOperatorType options:0];
-
-      NSExpression *rightLast=[NSExpression_operator expressionForOperator:NSExpressionOperatorIndexLast arguments:[NSArray arrayWithObject:right]];
-      NSPredicate  *lessOrEqual=[NSComparisonPredicate predicateWithLeftExpression:left rightExpression:rightLast modifier:NSDirectPredicateModifier type:NSLessThanOrEqualToPredicateOperatorType options:0];
-
-      result=[NSCompoundPredicate andPredicateWithSubpredicates:[NSArray arrayWithObjects:greaterOrEqual,lessOrEqual,nil]];
-     }
+     result=[NSComparisonPredicate predicateWithLeftExpression:left rightExpression:right modifier:modifier type:NSBetweenPredicateOperatorType options:0];
      break;
 
     default:
@@ -1457,22 +1466,89 @@ static NSPredicate *nextTopLevelPredicate(predicateScanner *scanner){
    return result;
 }
 
-@implementation NSPredicate
+// A predicate whose test is a block.
+@interface NSPredicate_block : NSPredicate {
+   BOOL (^_block)(id,NSDictionary *);
+}
+@end
 
--initWithCoder:(NSCoder *)coder {
-   NSUnimplementedMethod();
+@implementation NSPredicate_block
+
+-initWithBlock:(BOOL (^)(id,NSDictionary *))block {
+   _block=[block copy];
    return self;
 }
 
+-(void)dealloc {
+   [_block release];
+   [super dealloc];
+}
+
+-(NSString *)predicateFormat {
+   return [NSString stringWithFormat:@"BLOCKPREDICATE(%p)",_block];
+}
+
 -(void)encodeWithCoder:(NSCoder *)coder {
-   NSUnimplementedMethod();
+   [NSException raise:NSInvalidArgumentException format:@"Can't encode a predicate whose test is a block"];
+}
+
+-(BOOL)evaluateWithObject:object substitutionVariables:(NSDictionary *)bindings {
+   return _block(object,bindings);
+}
+
+@end
+
+@implementation NSPredicate
+
++(BOOL)supportsSecureCoding {
+   return YES;
+}
+
+// Coded as its format, and read back by parsing it: the result is the
+// predicate the format makes, of whichever class.
+-initWithCoder:(NSCoder *)coder {
+   NSString *format=[coder allowsKeyedCoding]?[coder decodeObjectForKey:@"NSPredicateFormat"]:[coder decodeObject];
+
+   [self release];
+   if(format==nil)
+    return nil;
+   return [[NSPredicate predicateWithFormat:format argumentArray:nil] retain];
+}
+
+-(void)encodeWithCoder:(NSCoder *)coder {
+   if([coder allowsKeyedCoding])
+    [coder encodeObject:[self predicateFormat] forKey:@"NSPredicateFormat"];
+   else
+    [coder encodeObject:[self predicateFormat]];
 }
 
 -copyWithZone:(NSZone *)zone {
    return [self retain];
 }
 
+-(BOOL)isEqual:other {
+   if(other==self)
+    return YES;
+   if(![other isKindOfClass:[NSPredicate class]])
+    return NO;
+   return [[self predicateFormat] isEqualToString:[other predicateFormat]];
+}
+
+-(NSUInteger)hash {
+   return [[self predicateFormat] hash];
+}
+
++(NSPredicate *)predicateWithBlock:(BOOL (^)(id,NSDictionary *))block {
+   return [[[NSPredicate_block allocWithZone:NULL] initWithBlock:block] autorelease];
+}
+
+-(void)allowEvaluation {
+}
+
 +(NSPredicate *)predicateWithFormat:(NSString *)format arguments:(va_list)arguments {
+   if(format==nil)
+    return nil;
+
    predicateScanner scanner;
    NSUInteger         length=[format length];
    unichar          buffer[length];
@@ -1506,6 +1582,9 @@ static NSPredicate *nextTopLevelPredicate(predicateScanner *scanner){
 }
 
 +(NSPredicate *)predicateWithFormat:(NSString *)format argumentArray:(NSArray *)arguments {
+   if(format==nil)
+    return nil;
+
    predicateScanner scanner;
    NSUInteger         length=[format length];
    unichar          buffer[length];
@@ -1535,6 +1614,10 @@ static NSPredicate *nextTopLevelPredicate(predicateScanner *scanner){
 }
 
 -(BOOL)evaluateWithObject:object {
+   return [self evaluateWithObject:object substitutionVariables:nil];
+}
+
+-(BOOL)evaluateWithObject:object substitutionVariables:(NSDictionary *)bindings {
    return NO;
 }
 

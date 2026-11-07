@@ -91,9 +91,9 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 + (NSColor *)colorWithPatternImage:(NSImage *)image;
 
-- (NSString *)colorSpaceName;
+@property (readonly, copy) NSString *colorSpaceName;
 
-- (NSInteger)numberOfComponents;
+@property (readonly) NSInteger numberOfComponents;
 - (void)getComponents:(CGFloat *)components;
 
 - (void)getWhite:(CGFloat *)white alpha:(CGFloat *)alpha;
@@ -101,22 +101,22 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 - (void)getHue:(CGFloat *)hue saturation:(CGFloat *)saturation brightness:(CGFloat *)brightness alpha:(CGFloat *)alpha;
 - (void)getCyan:(CGFloat *)cyan magenta:(CGFloat *)magenta yellow:(CGFloat *)yellow black:(CGFloat *)black alpha:(CGFloat *)alpha;
 
-- (CGFloat)whiteComponent;
+@property (readonly) CGFloat whiteComponent;
 
-- (CGFloat)redComponent;
-- (CGFloat)greenComponent;
-- (CGFloat)blueComponent;
+@property (readonly) CGFloat redComponent;
+@property (readonly) CGFloat greenComponent;
+@property (readonly) CGFloat blueComponent;
 
-- (CGFloat)hueComponent;
-- (CGFloat)saturationComponent;
-- (CGFloat)brightnessComponent;
+@property (readonly) CGFloat hueComponent;
+@property (readonly) CGFloat saturationComponent;
+@property (readonly) CGFloat brightnessComponent;
 
-- (CGFloat)cyanComponent;
-- (CGFloat)magentaComponent;
-- (CGFloat)yellowComponent;
-- (CGFloat)blackComponent;
+@property (readonly) CGFloat cyanComponent;
+@property (readonly) CGFloat magentaComponent;
+@property (readonly) CGFloat yellowComponent;
+@property (readonly) CGFloat blackComponent;
 
-- (CGFloat)alphaComponent;
+@property (readonly) CGFloat alphaComponent;
 
 - (NSColor *)colorWithAlphaComponent:(CGFloat)alpha;
 

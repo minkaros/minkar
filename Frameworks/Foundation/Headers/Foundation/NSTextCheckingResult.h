@@ -3,7 +3,7 @@
 #import <Foundation/NSDate.h>
 
 @class NSRegularExpression;
-@class NSDictionary, NSURL, NSOrthography;
+@class NSDictionary<KeyType, ObjectType>, NSURL, NSOrthography;
 
 FOUNDATION_EXPORT NSString *const NSTextCheckingNameKey;
 FOUNDATION_EXPORT NSString *const NSTextCheckingJobTitleKey;
@@ -15,7 +15,7 @@ FOUNDATION_EXPORT NSString *const NSTextCheckingZIPKey;
 FOUNDATION_EXPORT NSString *const NSTextCheckingCountryKey;
 FOUNDATION_EXPORT NSString *const NSTextCheckingPhoneKey;
 
-enum {
+typedef NS_OPTIONS(uint64_t, NSTextCheckingType) {
     NSTextCheckingTypeOrthography = 1ULL << 0,
     NSTextCheckingTypeSpelling = 1ULL << 1,
     NSTextCheckingTypeGrammar = 1ULL << 2,
@@ -26,16 +26,17 @@ enum {
     NSTextCheckingTypeDash = 1ULL << 7,
     NSTextCheckingTypeReplacement = 1ULL << 8,
     NSTextCheckingTypeCorrection = 1ULL << 9,
-    NSTextCheckingTypeRegularExpression = 1ULL << 10,   // Minkar
+    NSTextCheckingTypeRegularExpression = 1ULL << 10,
+    NSTextCheckingTypePhoneNumber = 1ULL << 11,
+    NSTextCheckingTypeTransitInformation = 1ULL << 12,
 };
-typedef uint64_t NSTextCheckingType;
 
-enum {
+typedef uint64_t NSTextCheckingTypes;
+enum : NSTextCheckingTypes {
     NSTextCheckingAllSystemTypes = 0xffffffffULL,
     NSTextCheckingAllCustomTypes = 0xffffffffULL << 32,
     NSTextCheckingAllTypes = (NSTextCheckingAllSystemTypes | NSTextCheckingAllCustomTypes),
 };
-typedef uint64_t NSTextCheckingTypes;
 
 @interface NSTextCheckingResult : NSObject {
     NSTextCheckingType _resultType;

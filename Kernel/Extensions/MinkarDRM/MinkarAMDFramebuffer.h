@@ -83,6 +83,11 @@ public:
 	/* The framebuffer being shown: its VRAM offset and size (the current
 	 * mode's rows). */
 	bool scanout(uint64_t *offset, uint64_t *bytes);
+	/* A page flip: the display shows bytes of VRAM at offset, of the
+	 * current mode's size and the framebuffer's pitch, from the next
+	 * vertical blank; true once it does. flip(0, 0) shows the framebuffer
+	 * again. */
+	bool flip(uint64_t offset, uint64_t bytes);
 	/* Bring-up (G2): sets one of the EDID's modes of the current size
 	 * through the VBIOS's tables, by stages (0 dividers only, 1 the PLL,
 	 * 2 the timing, 3 all of it; 4 as after a plug); out: result,

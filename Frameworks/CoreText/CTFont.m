@@ -29,7 +29,7 @@ size_t CTFontGetGlyphCount(CTFontRef self) {
    return [self numberOfGlyphs];
 }
 
-BOOL CTFontGetGlyphsForCharacters(CTFontRef self,const unichar *characters,CGGlyph *glyphs,size_t count) {
+bool CTFontGetGlyphsForCharacters(CTFontRef self,const UniChar *characters,CGGlyph *glyphs,size_t count) {
    [self getGlyphs:glyphs forCharacters:characters length:count];
    // FIXME: change getGlyphs: to return a BOOL
    return YES;

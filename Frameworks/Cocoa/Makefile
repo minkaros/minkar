@@ -1,21 +1,30 @@
-FRAMEWORK=Cocoa
-.include "../framework.common.mk"
+# SPDX-License-Identifier: BSD-2-Clause
+# Copyright (c) 2026 The Minkar contributors
+# Part of Minkar.
+#
+# Cocoa.framework: the umbrella of AppKit, Foundation and CoreData that
+# apps import (Cocoa/Cocoa.h) and link (-framework Cocoa), as on the
+# reference platform. Its library re-exports theirs.
 
-SRCS=Cocoa.m
-INCS=Cocoa.h
+MK_WERROR = no
+FRAMEWORK = Cocoa
+FMWK_VERSION = A
+FMWK_COMPAT_VERSION = 1.0.0
+SRCS = Cocoa.c
+HEADERS = Cocoa.h
+SUBDIR =
 
-RESOURCES=Info.plist
-CFLAGS+= ${FMWK_CFLAGS} -I../Foundation/Headers \
-	-I${.CURDIR}/../AppKit/Headers -F../OpenGL \
-	-I${SRCTOP}/CoreServices -framework OpenGL
-LDFLAGS+= -L${OBJTOP}/Frameworks/AppKit/AppKit.framework \
-	-L${OBJTOP}/Frameworks/Foundation/Foundation.framework \
-	-L${OBJTOP}/Frameworks/CoreFoundation/CoreFoundation.framework \
-        -lAppKit -lFoundation -lCoreFoundation -lobjc -lmach \
-        -Wl,-R/System/Library/Frameworks/AppKit.framework/Versions/A \
-        -Wl,-R/System/Library/Frameworks/Foundation.framework/Versions/A \
-        -Wl,-R/System/Library/Frameworks/CoreFoundation.framework/Versions/A 
+FMWKS = ${MINKAR_SDKROOT}/System/Library/Frameworks
+
+LDFLAGS += -F${FMWKS} -Wl,-reexport_framework,AppKit -Wl,-reexport_framework,Foundation \
+	-Wl,-reexport_framework,CoreData
+
+fmwk-install-hook:
+	mkdir -p ${MINKAR_SDKROOT}/System/Library/Frameworks \
+	  ${SYSROOT_DIR}/System/Library/Frameworks
+	rm -rf ${MINKAR_SDKROOT}/System/Library/Frameworks/${FRAMEWORK}.framework \
+	  ${SYSROOT_DIR}/System/Library/Frameworks/${FRAMEWORK}.framework
+	cp -Rf ${.OBJDIR}/${FRAMEWORK}.framework ${MINKAR_SDKROOT}/System/Library/Frameworks
+	cp -Rf ${.OBJDIR}/${FRAMEWORK}.framework ${SYSROOT_DIR}/System/Library/Frameworks
 
 .include <minkar.framework.mk>
-
-installresources: std_install_hook

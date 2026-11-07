@@ -222,6 +222,13 @@ static inline int integerFromCFUID(id object){
 -(NSError *)error { return [[_error retain] autorelease]; }
 -(NSSet *)allowedClasses { return [[_allowedClasses retain] autorelease]; }
 
+-(void)failWithError:(NSError *)error {
+   if(_decodingFailurePolicy==NSDecodingFailurePolicyRaiseException)
+    [NSException raise:NSInvalidUnarchiveOperationException format:@"%@", [error localizedDescription]];
+   if(_error==nil)
+    _error=[error copy];
+}
+
 -(void)_failWith:(NSException *)exception code:(NSInteger)code {
    [_error release];
    _error=[[NSError errorWithDomain:NSCocoaErrorDomain code:code
@@ -257,14 +264,19 @@ static inline int integerFromCFUID(id object){
 }
 
 -(id)decodeTopLevelObjectOfClass:(Class)cls forKey:(NSString *)key error:(NSError **)error {
+   return [self decodeTopLevelObjectOfClasses:(cls!=Nil)?[NSSet setWithObject:cls]:nil
+                                       forKey:key error:error];
+}
+
+-(id)decodeTopLevelObjectOfClasses:(NSSet *)classes forKey:(NSString *)key error:(NSError **)error {
    NSDecodingFailurePolicy saved=_decodingFailurePolicy;
    id result;
 
    _decodingFailurePolicy=NSDecodingFailurePolicySetErrorAndReturn;
    [_error release];
    _error=nil;
-   result=(cls!=Nil)?[self decodeObjectOfClass:cls forKey:key]:nil;
-   if(cls==Nil){
+   result=(classes!=nil)?[self decodeObjectOfClasses:classes forKey:key]:nil;
+   if(classes==nil){
     @try {
      result=[self decodeObjectForKey:key];
     } @catch(NSException *exception) {

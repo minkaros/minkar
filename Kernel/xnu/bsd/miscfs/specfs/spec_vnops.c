@@ -230,6 +230,11 @@ struct _throttle_io_info_t {
 	int32_t throttle_alloc;
 	int32_t throttle_disabled;
 	int32_t throttle_is_fusion_with_priority;
+
+	/* For debug.lowpri_throttle_state (Minkar). */
+	uint32_t throttle_timer_fired;
+	int32_t throttle_timer_target_msecs;
+	uint64_t throttle_timer_deadline;
 };
 
 struct _throttle_io_info_t _throttle_io_info[LOWPRI_MAX_NUM_DEV];
@@ -934,6 +939,69 @@ SYSCTL_INT(_debug, OID_AUTO, lowpri_throttle_tier3_io_period_ssd_msecs, CTLFLAG_
 
 SYSCTL_INT(_debug, OID_AUTO, lowpri_throttle_enabled, CTLFLAG_RW | CTLFLAG_LOCKED, &lowpri_throttle_enabled, 0, "");
 
+/*
+ * debug.lowpri_throttle_state (Minkar): each device's throttle state
+ * while it has throttled threads or a timer: the threads waiting per
+ * tier, the timer and its last deadline, and the timestamps it is
+ * computed from, against the current uptime.
+ */
+static int
+sysctl_lowpri_throttle_state SYSCTL_HANDLER_ARGS
+{
+#pragma unused(oidp, arg1, arg2)
+	const size_t size = 8192;
+	char *buf;
+	size_t len = 0;
+	struct timeval now;
+	int error;
+
+	MALLOC(buf, char *, size, M_TEMP, M_WAITOK);
+	if (buf == NULL) {
+		return ENOMEM;
+	}
+	microuptime(&now);
+	len += scnprintf(buf + len, size - len, "now %ld.%06d abs %llu\n",
+	    (long)now.tv_sec, now.tv_usec, mach_absolute_time());
+	for (int i = 0; i < LOWPRI_MAX_NUM_DEV && len < size - 512; i++) {
+		struct _throttle_io_info_t *info = &_throttle_io_info[i];
+		int waiting[THROTTLE_LEVEL_END + 1] = { 0 };
+		uthread_t ut;
+
+		lck_mtx_lock(&info->throttle_lock);
+		for (int level = 0; level <= THROTTLE_LEVEL_END; level++) {
+			TAILQ_FOREACH(ut, &info->throttle_uthlist[level], uu_throttlelist) {
+				waiting[level]++;
+			}
+		}
+		if (waiting[1] + waiting[2] + waiting[3] != 0 || info->throttle_timer_active ||
+		    info->throttle_inflight_count[0] + info->throttle_inflight_count[1] + info->throttle_inflight_count[2] != 0) {
+			len += scnprintf(buf + len, size - len,
+			    "dev %d waiting %d/%d/%d timer active %d ref %d fired %u target %d ms deadline %llu"
+			    " period %u count %d begin %d next_wake %d\n",
+			    i, waiting[1], waiting[2], waiting[3], info->throttle_timer_active,
+			    info->throttle_timer_ref, info->throttle_timer_fired, info->throttle_timer_target_msecs,
+			    info->throttle_timer_deadline, info->throttle_io_period_num, info->throttle_io_count,
+			    info->throttle_io_count_begin, info->throttle_next_wake_level);
+			for (int level = 0; level <= THROTTLE_LEVEL_END; level++) {
+				len += scnprintf(buf + len, size - len,
+				    "  tier %d inflight %d period %d window_start %ld.%06d last_io %ld.%06d period_start %ld.%06d\n",
+				    level, info->throttle_inflight_count[level], info->throttle_io_periods ? info->throttle_io_periods[level] : -1,
+				    (long)info->throttle_window_start_timestamp[level].tv_sec, info->throttle_window_start_timestamp[level].tv_usec,
+				    (long)info->throttle_last_IO_timestamp[level].tv_sec, info->throttle_last_IO_timestamp[level].tv_usec,
+				    (long)info->throttle_start_IO_period_timestamp[level].tv_sec, info->throttle_start_IO_period_timestamp[level].tv_usec);
+			}
+			len += scnprintf(buf + len, size - len, "  min_deadline %ld.%06d\n",
+			    (long)info->throttle_min_timer_deadline.tv_sec, info->throttle_min_timer_deadline.tv_usec);
+		}
+		lck_mtx_unlock(&info->throttle_lock);
+	}
+	error = SYSCTL_OUT(req, buf, len + 1 < size ? len + 1 : size);
+	FREE(buf, M_TEMP);
+	return error;
+}
+SYSCTL_PROC(_debug, OID_AUTO, lowpri_throttle_state, CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_LOCKED,
+    0, 0, sysctl_lowpri_throttle_state, "A", "");
+
 
 static lck_grp_t        *throttle_lock_grp;
 static lck_attr_t       *throttle_lock_attr;
@@ -1164,6 +1232,8 @@ throttle_timer_start(struct _throttle_io_info_t *info, boolean_t update_io_count
 			}
 			clock_interval_to_deadline(target_msecs, 1000000, &deadline);
 
+			info->throttle_timer_target_msecs = target_msecs;
+			info->throttle_timer_deadline = deadline;
 			thread_call_enter_delayed(info->throttle_timer_call, deadline);
 			info->throttle_timer_active = 1;
 		}
@@ -1190,6 +1260,7 @@ throttle_timer(struct _throttle_io_info_t *info)
 	ut = NULL;
 	lck_mtx_lock(&info->throttle_lock);
 
+	info->throttle_timer_fired++;
 	info->throttle_timer_active = 0;
 	microuptime(&now);
 

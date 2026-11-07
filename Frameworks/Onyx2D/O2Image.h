@@ -134,7 +134,7 @@ typedef O2Float *(*O2ImageFunction_read_a32f)(O2Image *self, int x, int y, O2Flo
          interpolate:(BOOL)interpolate
      renderingIntent:(O2ColorRenderingIntent)renderingIntent;
 
-- initMaskWithWidth:(size_t)width height:(size_t)height bitsPerComponent:(size_t)bitsPerComponent bitsPerPixel:(size_t)bitsPerPixel bytesPerRow:(size_t)bytesPerRow provider:(O2DataProvider *)provider decode:(const float *)decode interpolate:(BOOL)interpolate;
+- initMaskWithWidth:(size_t)width height:(size_t)height bitsPerComponent:(size_t)bitsPerComponent bitsPerPixel:(size_t)bitsPerPixel bytesPerRow:(size_t)bytesPerRow provider:(O2DataProvider *)provider decode:(const O2Float *)decode interpolate:(BOOL)interpolate;
 
 - initWithJPEGDataProvider:(O2DataProvider *)jpegProvider decode:(const O2Float *)decode interpolate:(BOOL)interpolate renderingIntent:(O2ColorRenderingIntent)renderingIntent;
 - initWithPNGDataProvider:(O2DataProvider *)jpegProvider decode:(const O2Float *)decode interpolate:(BOOL)interpolate renderingIntent:(O2ColorRenderingIntent)renderingIntent;
@@ -229,6 +229,7 @@ void O2ImageReadTileSpanExtendEdge_largb32f_PRE(O2Image *self, int u, int v, O2a
 void O2ImageBicubic_largb8u_PRE(O2Image *self, int x, int y, O2argb8u *span, int length, O2AffineTransform surfaceToImage);
 void O2ImageBicubic_largb32f_PRE(O2Image *self, int x, int y, O2argb32f *span, int length, O2AffineTransform surfaceToImage);
 void O2ImageBilinear_largb8u_PRE(O2Image *self, int x, int y, O2argb8u *span, int length, O2AffineTransform surfaceToImage);
+void O2ImageArea_largb8u_PRE(O2Image *self, int x, int y, O2argb8u *span, int length, O2AffineTransform surfaceToImage);
 void O2ImageBilinear_largb32f_PRE(O2Image *self, int x, int y, O2argb32f *span, int length, O2AffineTransform surfaceToImage);
 void O2ImagePointSampling_largb8u_PRE(O2Image *self, int x, int y, O2argb8u *span, int length, O2AffineTransform surfaceToImage);
 void O2ImagePointSampling_largb32f_PRE(O2Image *self, int x, int y, O2argb32f *span, int length, O2AffineTransform surfaceToImage);

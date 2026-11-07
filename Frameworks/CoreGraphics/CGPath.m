@@ -10,6 +10,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <Onyx2D/O2Path.h>
 #import <Onyx2D/O2MutablePath.h>
 #import "CGConversions.h"
+#include <minkar/stub.h>
 
 void CGPathRelease(CGPathRef self) {
    O2PathRelease(self);
@@ -105,4 +106,71 @@ void CGPathAddEllipseInRect(CGMutablePathRef self,const CGAffineTransform *xform
 
 void CGPathAddPath(CGMutablePathRef self,const CGAffineTransform *xform,CGPathRef other) {
    O2PathAddPath(self,O2AffineTransformPtrFromCG(xform),other);
+}
+
+/* Rounded corners as elliptical quarter arcs (cubic curves, the usual
+ * 0.5523 control distance). */
+void CGPathAddRoundedRect(CGMutablePathRef self, const CGAffineTransform *xform, CGRect rect, CGFloat cornerWidth, CGFloat cornerHeight) {
+    const CGFloat k = 0.55228474983;
+    CGFloat minX = CGRectGetMinX(rect), maxX = CGRectGetMaxX(rect);
+    CGFloat minY = CGRectGetMinY(rect), maxY = CGRectGetMaxY(rect);
+    CGFloat rx = cornerWidth, ry = cornerHeight;
+
+    if (rx <= 0 || ry <= 0) {
+        CGPathAddRect(self, xform, rect);
+        return;
+    }
+    if (rx > rect.size.width / 2)
+        rx = rect.size.width / 2;
+    if (ry > rect.size.height / 2)
+        ry = rect.size.height / 2;
+    CGPathMoveToPoint(self, xform, minX + rx, minY);
+    CGPathAddLineToPoint(self, xform, maxX - rx, minY);
+    CGPathAddCurveToPoint(self, xform, maxX - rx + rx * k, minY, maxX, minY + ry - ry * k, maxX, minY + ry);
+    CGPathAddLineToPoint(self, xform, maxX, maxY - ry);
+    CGPathAddCurveToPoint(self, xform, maxX, maxY - ry + ry * k, maxX - rx + rx * k, maxY, maxX - rx, maxY);
+    CGPathAddLineToPoint(self, xform, minX + rx, maxY);
+    CGPathAddCurveToPoint(self, xform, minX + rx - rx * k, maxY, minX, maxY - ry + ry * k, minX, maxY - ry);
+    CGPathAddLineToPoint(self, xform, minX, minY + ry);
+    CGPathAddCurveToPoint(self, xform, minX, minY + ry - ry * k, minX + rx - rx * k, minY, minX + rx, minY);
+    CGPathCloseSubpath(self);
+}
+
+void CGPathAddRelativeArc(CGMutablePathRef self, const CGAffineTransform *xform, CGFloat x, CGFloat y, CGFloat radius, CGFloat startAngle, CGFloat delta) {
+    CGPathAddArc(self, xform, x, y, radius, startAngle, startAngle + delta, delta < 0);
+}
+
+CGPathRef CGPathCreateWithRect(CGRect rect, const CGAffineTransform *xform) {
+    CGMutablePathRef path = CGPathCreateMutable();
+
+    CGPathAddRect(path, xform, rect);
+    return path;
+}
+
+CGPathRef CGPathCreateWithEllipseInRect(CGRect rect, const CGAffineTransform *xform) {
+    CGMutablePathRef path = CGPathCreateMutable();
+
+    CGPathAddEllipseInRect(path, xform, rect);
+    return path;
+}
+
+CGPathRef CGPathCreateWithRoundedRect(CGRect rect, CGFloat cornerWidth, CGFloat cornerHeight, const CGAffineTransform *xform) {
+    CGMutablePathRef path = CGPathCreateMutable();
+
+    CGPathAddRoundedRect(path, xform, rect, cornerWidth, cornerHeight);
+    return path;
+}
+
+/* Not yet the dashed or stroked outline: a copy of the path (and a note in
+ * the log the first time). */
+CGPathRef CGPathCreateCopyByDashingPath(CGPathRef path, const CGAffineTransform *xform, CGFloat phase, const CGFloat *lengths, size_t count) {
+    (void)xform; (void)phase; (void)lengths; (void)count;
+    MINKAR_STUB();
+    return path ? CGPathCreateCopy(path) : NULL;
+}
+
+CGPathRef CGPathCreateCopyByStrokingPath(CGPathRef path, const CGAffineTransform *xform, CGFloat lineWidth, CGLineCap lineCap, CGLineJoin lineJoin, CGFloat miterLimit) {
+    (void)xform; (void)lineWidth; (void)lineCap; (void)lineJoin; (void)miterLimit;
+    MINKAR_STUB();
+    return path ? CGPathCreateCopy(path) : NULL;
 }

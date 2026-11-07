@@ -31,12 +31,12 @@
 
 @class NSDateComponents, NSLocale, NSCalendar;
 
-typedef NS_ENUM(NSInteger, NSRelativeDateTimeFormatterStyle) {
+typedef NS_ENUM(NSInteger, NSRelativeDateTimeFormatterStyle) NS_SWIFT_NAME(RelativeDateTimeFormatter.DateTimeStyle) {
     NSRelativeDateTimeFormatterStyleNumeric = 0,
     NSRelativeDateTimeFormatterStyleNamed,
 };
 
-typedef NS_ENUM(NSInteger, NSRelativeDateTimeFormatterUnitsStyle) {
+typedef NS_ENUM(NSInteger, NSRelativeDateTimeFormatterUnitsStyle) NS_SWIFT_NAME(RelativeDateTimeFormatter.UnitsStyle) {
     NSRelativeDateTimeFormatterUnitsStyleFull = 0,
     NSRelativeDateTimeFormatterUnitsStyleSpellOut,
     NSRelativeDateTimeFormatterUnitsStyleShort,

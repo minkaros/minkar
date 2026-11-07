@@ -1,0 +1,74 @@
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\" Copyright (c) 2026 The Minkar contributors
+.\" Part of Minkar.
+.Dd November 3, 2026
+.Dt SCREENCAPTURE 1
+.Os
+.Sh NAME
+.Nm screencapture
+.Nd capture the screen to image files or the pasteboard
+.Sh SYNOPSIS
+.Nm
+.Op Fl cmx
+.Op Fl D Ar display
+.Op Fl l Ar windowid
+.Op Fl R Ar x,y,w,h
+.Op Fl t Ar format
+.Op Fl T Ar seconds
+.Op Ar file ...
+.Sh DESCRIPTION
+.Nm
+captures what the window server shows: every active display, one of
+them, a rectangle of the desktop, or one window, and writes it to image
+files, one for each display captured, or to the general pasteboard.
+.Bl -tag -width "-R x,y,w,h"
+.It Fl c
+Puts the capture on the general pasteboard (PNG and TIFF) instead of
+writing files.
+.It Fl D Ar display
+Captures display number
+.Ar display
+only; 1 is the main display.
+.It Fl l Ar windowid
+Captures the window with this number only, as
+.Xr wsctl 8
+lists them.
+.It Fl m
+Captures the main display only.
+.It Fl R Ar x,y,w,h
+Captures a rectangle of the desktop, in points from the main display's
+top left corner.
+.It Fl t Ar format
+The files' format:
+.Cm png
+(the default) or
+.Cm tiff .
+.It Fl T Ar seconds
+Waits this long before capturing.
+.It Fl x
+Makes no sound (there is none yet).
+.El
+.Pp
+Capturing other programs' windows is for the console's user and root.
+.Sh EXIT STATUS
+.Ex -std
+.Sh EXAMPLES
+The main display to a PNG file, after three seconds:
+.Bd -literal -offset indent
+screencapture -m -T 3 desktop.png
+.Ed
+.Sh SEE ALSO
+.Xr pbcopy 1 ,
+.Xr wsctl 8
+.Sh HISTORY
+.Nm
+first appeared in Minkar 19.6.
+.Sh BUGS
+Interactive selection
+.Pq Fl i , Fl w
+and capturing the cursor
+.Pq Fl C
+are not available yet; those options are refused.
+JPEG files
+.Pq Fl t Cm jpg
+are not written yet: the JPEG encoder is not built.

@@ -9,10 +9,12 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 #import <Foundation/NSSet.h>
 
-@interface NSMutableSet<ObjectType> : NSSet<ObjectType>
-- initWithCapacity:(NSUInteger)capacity;
+NS_ASSUME_NONNULL_BEGIN
 
-+ setWithCapacity:(NSUInteger)capacity;
+@interface NSMutableSet<ObjectType> : NSSet<ObjectType>
+- (instancetype)initWithCapacity:(NSUInteger)capacity;
+
++ (instancetype)setWithCapacity:(NSUInteger)capacity;
 
 - (void)addObject:(ObjectType)object;
 - (void)addObjectsFromArray:(NSArray<ObjectType> *)array;
@@ -25,5 +27,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 - (void)intersectSet:(NSSet<ObjectType> *)other;
 
 @end
+
+NS_ASSUME_NONNULL_END
 
 #import <Foundation/NSCountedSet.h>

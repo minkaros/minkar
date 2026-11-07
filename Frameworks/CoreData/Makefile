@@ -44,6 +44,8 @@ NSManagedObjectContext-Private.h \
 NSManagedObjectContext.h \
 NSManagedObjectID-Private.h \
 NSManagedObjectID.h \
+NSManagedObjectModel-Private.h \
+NSPropertyDescription-Private.h \
 NSManagedObjectModel.h \
 NSManagedObjectMutableSet.h \
 NSManagedObjectSet.h \

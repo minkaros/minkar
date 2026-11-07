@@ -1,4 +1,5 @@
 /* Copyright (c) 2008 Dan Knapp
+Modifications Copyright (c) 2026 The Minkar contributors
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
 
@@ -10,46 +11,111 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <CoreData/NSManagedObjectContext.h>
 #import <CoreData/NSEntityDescription.h>
 #import <Foundation/NSRaise.h>
+#import <Foundation/Foundation.h>
 
 @implementation NSFetchRequest
 
 -init {
-   _entity=nil;
-   _predicate=nil;
-   _sortDescriptors=nil;
-   _affectedStores=nil;
-   _fetchLimit=0;
+   _includesPendingChanges=YES;
+   _includesPropertyValues=YES;
+   _includesSubentities=YES;
+   _returnsObjectsAsFaults=YES;
    return self;
 }
 
--initWithCoder: (NSCoder *) coder {
-   NSUnimplementedMethod();
-   return nil;
+-initWithEntityName:(NSString *)entityName {
+   if((self=[self init])==nil)
+    return nil;
+   _entityName=[entityName copy];
+   return self;
+}
+
++(instancetype)fetchRequestWithEntityName:(NSString *)entityName {
+   return [[[self alloc] initWithEntityName:entityName] autorelease];
+}
+
+-initWithCoder:(NSCoder *)coder {
+   if(![coder allowsKeyedCoding])
+    [NSException raise:NSInvalidArgumentException format:@"%@ can not initWithCoder:%@",[self class],[coder class]];
+
+   _entity=[[coder decodeObjectForKey:@"NSEntity"] retain];
+   _entityName=[[coder decodeObjectForKey:@"NSEntityName"] copy];
+   _predicate=[[coder decodeObjectForKey:@"NSPredicate"] retain];
+   _sortDescriptors=[[coder decodeObjectForKey:@"NSSortDescriptors"] copy];
+   _propertiesToFetch=[[coder decodeObjectForKey:@"NSPropertiesToFetch"] copy];
+   _relationshipKeyPathsForPrefetching=[[coder decodeObjectForKey:@"NSRelationshipKeyPathsForPrefetching"] copy];
+   _resultType=[coder decodeIntegerForKey:@"NSResultType"];
+   _fetchLimit=[coder decodeIntegerForKey:@"NSFetchLimit"];
+   _fetchBatchSize=[coder decodeIntegerForKey:@"NSFetchBatchSize"];
+   _fetchOffset=[coder decodeIntegerForKey:@"NSFetchOffset"];
+   _includesPendingChanges=![coder decodeBoolForKey:@"NSExcludesPendingChanges"];
+   _includesPropertyValues=![coder decodeBoolForKey:@"NSExcludesPropertyValues"];
+   _includesSubentities=![coder decodeBoolForKey:@"NSExcludesSubentities"];
+   _returnsDistinctResults=[coder decodeBoolForKey:@"NSReturnsDistinctResults"];
+   _returnsObjectsAsFaults=![coder decodeBoolForKey:@"NSReturnsObjectsAsValues"];
+   return self;
 }
 
 -(void)encodeWithCoder:(NSCoder *)coder {
-   NSUnimplementedMethod();
+   if(![coder allowsKeyedCoding])
+    [NSException raise:NSInvalidArgumentException format:@"%@ can not encodeWithCoder:%@",[self class],[coder class]];
+
+   [coder encodeObject:_entity forKey:@"NSEntity"];
+   [coder encodeObject:[self entityName] forKey:@"NSEntityName"];
+   [coder encodeObject:_predicate forKey:@"NSPredicate"];
+   [coder encodeObject:_sortDescriptors forKey:@"NSSortDescriptors"];
+   [coder encodeObject:_propertiesToFetch forKey:@"NSPropertiesToFetch"];
+   [coder encodeObject:_relationshipKeyPathsForPrefetching forKey:@"NSRelationshipKeyPathsForPrefetching"];
+   [coder encodeInteger:_resultType forKey:@"NSResultType"];
+   [coder encodeInteger:_fetchLimit forKey:@"NSFetchLimit"];
+   [coder encodeInteger:_fetchBatchSize forKey:@"NSFetchBatchSize"];
+   [coder encodeInteger:_fetchOffset forKey:@"NSFetchOffset"];
+   [coder encodeBool:!_includesPendingChanges forKey:@"NSExcludesPendingChanges"];
+   [coder encodeBool:!_includesPropertyValues forKey:@"NSExcludesPropertyValues"];
+   [coder encodeBool:!_includesSubentities forKey:@"NSExcludesSubentities"];
+   [coder encodeBool:_returnsDistinctResults forKey:@"NSReturnsDistinctResults"];
+   [coder encodeBool:!_returnsObjectsAsFaults forKey:@"NSReturnsObjectsAsValues"];
 }
 
 -copyWithZone:(NSZone *)zone {
-   NSFetchRequest *result=NSCopyObject(self,0,zone);
-   
+   NSFetchRequest *result=[[[self class] allocWithZone:zone] init];
+
+   result->_resultType=_resultType;
    result->_entity=[_entity retain];
+   result->_entityName=[_entityName copy];
    result->_predicate=[_predicate copy];
    result->_sortDescriptors=[_sortDescriptors copy];
    result->_affectedStores=[_affectedStores copy];
+   result->_fetchLimit=_fetchLimit;
+   result->_fetchBatchSize=_fetchBatchSize;
+   result->_fetchOffset=_fetchOffset;
+   result->_includesPendingChanges=_includesPendingChanges;
+   result->_includesPropertyValues=_includesPropertyValues;
+   result->_includesSubentities=_includesSubentities;
+   result->_returnsDistinctResults=_returnsDistinctResults;
+   result->_returnsObjectsAsFaults=_returnsObjectsAsFaults;
    result->_propertiesToFetch=[_propertiesToFetch copy];
    result->_relationshipKeyPathsForPrefetching=[_relationshipKeyPathsForPrefetching copy];
-
    return result;
 }
 
 -(void)dealloc {
    [_entity release];
+   [_entityName release];
    [_predicate release];
    [_sortDescriptors release];
    [_affectedStores release];
+   [_propertiesToFetch release];
+   [_relationshipKeyPathsForPrefetching release];
    [super dealloc];
+}
+
+-(NSString *)entityName {
+   return (_entity!=nil)?[_entity name]:_entityName;
+}
+
+-(NSString *)description {
+   return [NSString stringWithFormat:@"<%@: %p> (entity: %@; predicate: (%@); sortDescriptors: (%@); type: %lu; )",[self class],self,[self entityName],[_predicate predicateFormat],_sortDescriptors,(unsigned long)_resultType];
 }
 
 -(NSFetchRequestResultType)resultType {
@@ -184,4 +250,10 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    _relationshipKeyPathsForPrefetching=value;
 }
 
+@end
+
+@implementation NSNumber (NSFetchedResultSupport)
+@end
+
+@implementation NSDictionary (NSFetchedResultSupport)
 @end

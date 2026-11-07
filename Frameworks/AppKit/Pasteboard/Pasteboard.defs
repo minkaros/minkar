@@ -1,0 +1,73 @@
+/*
+ * SPDX-License-Identifier: BSD-2-Clause
+ * Copyright (c) 2026 The Minkar contributors
+ * Part of Minkar.
+ *
+ * The pasteboard server (pboard): named pasteboards (general, find, font,
+ * ruler, drag, or any other name), each a change count and data by type.
+ * A user's pasteboards are the user's own: the server keeps them by the
+ * caller's user ID (the message's audit token), so no user reads another's.
+ * Types are named as AppKit stores them (uniform type identifiers; AppKit
+ * maps the older NS*PboardType names to them).
+ */
+
+subsystem Pasteboard 29300;
+
+#include <mach/std_types.defs>
+#include <mach/mach_types.defs>
+
+userprefix pb_;
+serverprefix pbs_;
+
+import "PasteboardTypes.h";
+
+type pb_name_t = c_string[*:256];
+type pb_bytes_t = array[] of uint8_t;
+
+/* The pasteboard's change count (0 for one never written). */
+routine change_count(
+	server			: mach_port_t;
+	ServerAuditToken token	: audit_token_t;
+	name			: pb_name_t;
+	out count		: int32_t);
+
+/* Its contents dropped, for new ones: the new change count. */
+routine clear(
+	server			: mach_port_t;
+	ServerAuditToken token	: audit_token_t;
+	name			: pb_name_t;
+	out count		: int32_t);
+
+/* Data of a type, if the pasteboard still has change count count (a writer
+ * after another's clear loses: result -1). */
+routine set_data(
+	server			: mach_port_t;
+	ServerAuditToken token	: audit_token_t;
+	name			: pb_name_t;
+	count			: int32_t;
+	kind			: pb_name_t;
+	data			: pb_bytes_t;
+	out result		: int32_t);
+
+/* Its types, in the order they were written, each ended by a NUL. */
+routine types(
+	server			: mach_port_t;
+	ServerAuditToken token	: audit_token_t;
+	name			: pb_name_t;
+	out types		: pb_bytes_t, dealloc;
+	out count		: int32_t);
+
+/* A type's data: result 0, or -1 when the pasteboard has no such type. */
+routine get_data(
+	server			: mach_port_t;
+	ServerAuditToken token	: audit_token_t;
+	name			: pb_name_t;
+	kind			: pb_name_t;
+	out data		: pb_bytes_t, dealloc;
+	out result		: int32_t);
+
+/* The pasteboard gone (NSPasteboard releaseGlobally). */
+routine release(
+	server			: mach_port_t;
+	ServerAuditToken token	: audit_token_t;
+	name			: pb_name_t);

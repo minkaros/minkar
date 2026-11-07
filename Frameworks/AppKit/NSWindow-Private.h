@@ -24,7 +24,8 @@ APPKIT_EXPORT NSArray *_NSWindowNumbersFromWindowInfo(CFArrayRef info,BOOL allAp
 /* Notes a rect drawn (in the window's base coordinates), sent to the
  * window server at the next flush. */
 - (void)_addDamageRect:(NSRect)rect;
-- (CGWindow *)platformWindow;
+/* Entries for the window's device description (an image cache's context). */
+- (void)addEntriesToDeviceDictionary:(NSDictionary *)entries;
 - (CGContextRef)cgContext;
 - (BOOL)_isActive;
 - (void)_setVisible:(BOOL)visible;
@@ -51,4 +52,10 @@ APPKIT_EXPORT NSArray *_NSWindowNumbersFromWindowInfo(CFArrayRef info,BOOL allAp
 - (void)redo:sender;
 - (BOOL)validateMenuItem:(NSMenuItem *)item;
 - (void)dirtyRect:(NSRect)rect;
+/* Minkar: the height of the bar a full-size content view draws at its
+   top (NSWindowStyleMaskFullSizeContentView), where the window's buttons
+   are centered; 0 is the standard title bar's. Until unified toolbars and
+   titlebar accessories exist. */
+-(CGFloat)_titlebarHeight;
+-(void)_setTitlebarHeight:(CGFloat)height;
 @end

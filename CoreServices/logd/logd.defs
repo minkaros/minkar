@@ -1,0 +1,58 @@
+/*
+ * SPDX-License-Identifier: BSD-2-Clause
+ * Copyright (c) 2026 The Minkar contributors
+ * Part of Minkar.
+ *
+ * logd's interface for the log command (show, stream, config, erase).
+ * Messages come in by hand-written messages on the same port
+ * (libsystem_trace/logd_message.h). Callers other than root see only
+ * their own processes' messages, and only root changes levels or erases.
+ */
+
+subsystem logd 29400;
+
+#include <mach/std_types.defs>
+#include <mach/mach_types.defs>
+
+userprefix logd_;
+serverprefix logds_;
+
+import "logd_record.h";
+
+type logd_name_t = c_string[*:256];
+type logd_bytes_t = array[] of uint8_t;
+
+/* The records (logd_record_t, one after the other) after sequence number
+ * after, with times in [start, end] (0: no bound) and types in the mask
+ * (bit 1 << LOGD_RECORD_*), at most limit bytes of them. last: the
+ * sequence number of the last one sent, or the newest when none was. */
+routine query(
+	server			: mach_port_t;
+	ServerAuditToken token	: audit_token_t;
+	after			: uint64_t;
+	start			: uint64_t;
+	end			: uint64_t;
+	types			: uint32_t;
+	limit			: uint32_t;
+	out records		: logd_bytes_t, dealloc;
+	out last		: uint64_t);
+
+/* A subsystem's level (LOGD_LEVEL_*; -1 drops its setting). Root only:
+ * result 0, or an errno. */
+routine set_level(
+	server			: mach_port_t;
+	ServerAuditToken token	: audit_token_t;
+	name			: logd_name_t;
+	level			: int32_t;
+	out result		: int32_t);
+
+/* Every subsystem with a level of its own, "name level\n" each. */
+routine levels(
+	server			: mach_port_t;
+	out text		: logd_bytes_t, dealloc);
+
+/* Every message gone. Root only: result 0, or an errno. */
+routine erase(
+	server			: mach_port_t;
+	ServerAuditToken token	: audit_token_t;
+	out result		: int32_t);

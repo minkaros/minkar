@@ -33,10 +33,15 @@
 #include "MinkarAMDGFX.h"
 #include "amd_si_gfx.h"
 #include "amd_si_dma.h"
+#include "amd_si_gfx_tables.h"
 
 #define LOG(fmt, ...)	IOLog("MinkarAMDGFX: " fmt "\n", ##__VA_ARGS__)
 
 #define kTimeoutNS	(100ULL * 1000 * 1000)
+/* GRBM_GFX_INDEX: every shader engine, array and instance. */
+#define mmSI_GRBM_GFX_INDEX_BROADCAST_REG	SI_mmGRBM_GFX_INDEX
+#define mmSI_GRBM_GFX_INDEX_BROADCAST		(SI_GRBM_GFX_INDEX__INSTANCE_BROADCAST_WRITES_MASK | \
+	SI_GRBM_GFX_INDEX__SH_BROADCAST_WRITES_MASK | SI_GRBM_GFX_INDEX__SE_BROADCAST_WRITES_MASK)
 
 static inline uint32_t rd(struct MinkarAMDRegs *r, uint32_t reg) { return MinkarAMDRead(r, reg); }
 static inline void wr(struct MinkarAMDRegs *r, uint32_t reg, uint32_t v) { MinkarAMDWrite(r, reg, v); }
@@ -125,6 +130,8 @@ commit(struct MinkarAMDGFX *g)
 
 #define kWriteBackOffset	kMinkarAMDGFXRingBytes
 #define kTestIBOffset		(kWriteBackOffset + 256)
+#define kSaveRestoreOffset	(kWriteBackOffset + 4096)
+#define kClearStateOffset	(kSaveRestoreOffset + 4096)
 
 /* Room for n more dwords: the processor is waited for when the ring would
  * catch up with its read pointer. */
@@ -165,9 +172,98 @@ drained(struct MinkarAMDGFX *g)
 	return false;
 }
 
+/* Until RLC's serial buses are idle. */
+static void
+rlcSerdesIdle(struct MinkarAMDRegs *r)
+{
+	for (int i = 0; i < 100000 && rd(r, SI_mmRLC_SERDES_MASTER_BUSY_0) != 0; i++)
+		IODelay(1);
+	for (int i = 0; i < 100000 && rd(r, SI_mmRLC_SERDES_MASTER_BUSY_1) != 0; i++)
+		IODelay(1);
+}
+
+static void
+guiIdleInterrupt(struct MinkarAMDRegs *r, bool on)
+{
+	uint32_t v = rd(r, SI_mmCP_INT_CNTL_RING0);
+	uint32_t bits = SI_CP_INT_CNTL__CNTX_BUSY_INT_ENABLE_MASK | SI_CP_INT_CNTL__CNTX_EMPTY_INT_ENABLE_MASK;
+	wr(r, SI_mmCP_INT_CNTL_RING0, on ? v | bits : v & ~bits);
+	if (!on) {
+		/* A graphics register read, then the clocks and power up, the
+		 * RLC idle. */
+		(void)rd(r, SI_mmDB_DEPTH_INFO);
+		uint32_t mask = SI_RLC_BUSY_STATUS | SI_GFX_POWER_STATUS | SI_GFX_CLOCK_STATUS | SI_GFX_LS_STATUS;
+		for (int i = 0; i < 100000; i++) {
+			if ((rd(r, SI_mmRLC_STAT) & mask) == (SI_GFX_CLOCK_STATUS | SI_GFX_POWER_STATUS))
+				break;
+			IODelay(1);
+		}
+	}
+}
+
+void
+MinkarAMDGFXStartRLC(struct MinkarAMDRegs *r, const struct amd_ucode *rlc, uint64_t gpuBase,
+    volatile uint8_t *cpuBase, uint32_t rasterConfig)
+{
+	/* The save and restore list, and the clear state buffer: its
+	 * commands' address and size, then the commands. */
+	volatile uint32_t *sr = (volatile uint32_t *)(uintptr_t)(cpuBase + kSaveRestoreOffset);
+	for (size_t i = 0; i < sizeof(si_rlc_save_restore) / 4; i++)
+		sr[i] = si_rlc_save_restore[i];
+	volatile uint32_t *cs = (volatile uint32_t *)(uintptr_t)(cpuBase + kClearStateOffset);
+	uint64_t commands = gpuBase + kClearStateOffset + 256;
+	uint32_t count = (uint32_t)(sizeof(si_clear_state) / 4);
+	cs[0] = (uint32_t)(commands >> 32);
+	cs[1] = (uint32_t)commands;
+	cs[2] = count;
+	for (uint32_t i = 0; i < count; i++)
+		cs[64 + i] = i == SI_CLEAR_STATE_RASTER_INDEX ? rasterConfig : si_clear_state[i];
+	OSSynchronizeIO();
+	wr(r, mmSI_HDP_MEM_COHERENCY_FLUSH_CNTL, 1);
+	(void)rd(r, mmSI_HDP_MEM_COHERENCY_FLUSH_CNTL);
+
+	/* Stopped and reset (gfx_v6_0_rlc_stop, _rlc_reset). */
+	wr(r, SI_mmRLC_CNTL, 0);
+	guiIdleInterrupt(r, false);
+	rlcSerdesIdle(r);
+	wr(r, mmSI_GRBM_SOFT_RESET, rd(r, mmSI_GRBM_SOFT_RESET) | SI_GRBM_SOFT_RESET__SOFT_RESET_RLC_MASK);
+	IODelay(50);
+	wr(r, mmSI_GRBM_SOFT_RESET, rd(r, mmSI_GRBM_SOFT_RESET) & ~SI_GRBM_SOFT_RESET__SOFT_RESET_RLC_MASK);
+	IODelay(50);
+	/* Its buffers (gfx_v6_0_init_pg, no power gating). */
+	wr(r, SI_mmRLC_SAVE_AND_RESTORE_BASE, (uint32_t)((gpuBase + kSaveRestoreOffset) >> 8));
+	wr(r, SI_mmRLC_CLEAR_STATE_RESTORE_BASE, (uint32_t)((gpuBase + kClearStateOffset) >> 8));
+	wr(r, SI_mmRLC_RL_BASE, 0);
+	wr(r, SI_mmRLC_RL_SIZE, 0);
+	wr(r, SI_mmRLC_LB_CNTL, 0);
+	wr(r, SI_mmRLC_LB_CNTR_MAX, 0xffffffff);
+	wr(r, SI_mmRLC_LB_CNTR_INIT, 0);
+	wr(r, SI_mmRLC_LB_INIT_CU_MASK, 0xffffffff);
+	wr(r, SI_mmRLC_MC_CNTL, 0);
+	wr(r, SI_mmRLC_UCODE_CNTL, 0);
+	for (uint32_t i = 0; i < rlc->words; i++) {
+		wr(r, SI_mmRLC_UCODE_ADDR, i);
+		wr(r, SI_mmRLC_UCODE_DATA, amd_ucode_word(rlc, i));
+	}
+	wr(r, SI_mmRLC_UCODE_ADDR, 0);
+	/* Load balancing only with DDR3 (gfx_v6_0_lbpw_supported): off. */
+	if ((rd(r, SI_mmMC_SEQ_MISC0) & 0xf0000000) == 0xb0000000)
+		wr(r, SI_mmRLC_LB_CNTL, rd(r, SI_mmRLC_LB_CNTL) | SI_RLC_LB_CNTL__LOAD_BALANCE_ENABLE_MASK);
+	else {
+		wr(r, SI_mmRLC_LB_CNTL, rd(r, SI_mmRLC_LB_CNTL) & ~SI_RLC_LB_CNTL__LOAD_BALANCE_ENABLE_MASK);
+		wr(r, mmSI_GRBM_GFX_INDEX_BROADCAST_REG, mmSI_GRBM_GFX_INDEX_BROADCAST);
+		wr(r, SI_mmSPI_LB_CU_MASK, 0x00ff);
+	}
+	/* On (gfx_v6_0_rlc_start). */
+	wr(r, SI_mmRLC_CNTL, SI_RLC_CNTL__RLC_ENABLE_F32_MASK);
+	guiIdleInterrupt(r, true);
+	IODelay(50);
+	LOG("RLC started: microcode %u, clear state of %u dwords", rlc->version, count);
+}
+
 bool
 MinkarAMDGFXStart(struct MinkarAMDGFX *g, struct MinkarAMDRegs *r, uint64_t gpuBase,
-    volatile uint8_t *cpuBase, OSDictionary *results)
+    volatile uint8_t *cpuBase, bool clearState, OSDictionary *results)
 {
 	uint32_t p[16];
 
@@ -205,6 +301,18 @@ MinkarAMDGFXStart(struct MinkarAMDGFX *g, struct MinkarAMDRegs *r, uint64_t gpuB
 	commit(g);
 	enable(r, true);
 	bool ok = drained(g);
+	/* The context registers' clear state, as the RLC keeps it. */
+	if (ok && clearState) {
+		const unsigned n = sizeof(si_cp_start1) / 4;
+		if (room(g, n)) {
+			emit(g, si_cp_start1, n);
+			commit(g);
+			ok = drained(g);
+		} else
+			ok = false;
+		if (!ok)
+			LOG("the command processor did not take the clear state");
+	}
 	noteState(r, results, "Started");
 	if (!ok)
 		LOG("the command processor did not take its start");
@@ -318,8 +426,11 @@ MinkarAMDGFXIBTest(struct MinkarAMDGFX *g, OSDictionary *results)
 void
 MinkarAMDGFXReset(struct MinkarAMDRegs *r)
 {
+	/* The command processor and the pipeline behind it: a wave that never
+	 * ends holds the shader blocks, and the processor cannot start again
+	 * while they are busy. */
 	const uint32_t mask = SI_SOFT_RESET_CP | SI_SOFT_RESET_GFX | SI_SOFT_RESET_CPF |
-	    SI_SOFT_RESET_CPC | SI_SOFT_RESET_CPG;
+	    SI_SOFT_RESET_CPC | SI_SOFT_RESET_CPG | SI_SOFT_RESET_PIPELINE;
 
 	enable(r, false);
 	wr(r, mmSI_GRBM_SOFT_RESET, rd(r, mmSI_GRBM_SOFT_RESET) | mask);

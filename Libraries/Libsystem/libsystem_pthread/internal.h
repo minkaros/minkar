@@ -485,6 +485,7 @@ _pthread_selfid_direct(void)
 #define _PTHREAD_CANCEL_STATE_MASK   0x01
 #define _PTHREAD_CANCEL_TYPE_MASK    0x02
 #define _PTHREAD_CANCEL_PENDING	     0x10  /* pthread_cancel() has been called for this thread */
+#define _PTHREAD_CANCEL_EXITING      0x20  /* the thread is in pthread_exit() */
 
 extern boolean_t swtch_pri(int);
 

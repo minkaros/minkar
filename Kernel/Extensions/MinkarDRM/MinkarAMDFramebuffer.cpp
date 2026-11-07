@@ -1082,6 +1082,31 @@ MinkarAMDFramebuffer::scanout(uint64_t *offset, uint64_t *bytes)
 	return true;
 }
 
+bool
+MinkarAMDFramebuffer::flip(uint64_t offset, uint64_t bytes)
+{
+	uint64_t ours = 0, need = 0;
+
+	if (!scanout(&ours, &need))
+		return false;
+	if (offset == 0)
+		offset = ours;
+	else if (bytes < need || (offset & 0xFF) != 0)
+		return false;
+	/* Only the surface's address changes; the rest of the mode stays.
+	 * Taken at the vertical blank (GRPH_FLIP_CONTROL 0, as scanOut sets
+	 * it), the update lock held while both halves are written. */
+	uint32_t off = fCRTCOffset;
+	uint64_t address = fVRAMStart + offset;
+	writeReg(mmGRPH_UPDATE + off, readReg(mmGRPH_UPDATE + off) | GRPH_UPDATE_LOCK);
+	writeReg(mmGRPH_PRIMARY_SURFACE_ADDRESS_HIGH + off, (uint32_t)(address >> 32));
+	writeReg(mmGRPH_SECONDARY_SURFACE_ADDRESS_HIGH + off, (uint32_t)(address >> 32));
+	writeReg(mmGRPH_PRIMARY_SURFACE_ADDRESS + off, (uint32_t)address & ~0xFFU);
+	writeReg(mmGRPH_SECONDARY_SURFACE_ADDRESS + off, (uint32_t)address & ~0xFFU);
+	writeReg(mmGRPH_UPDATE + off, readReg(mmGRPH_UPDATE + off) & ~GRPH_UPDATE_LOCK);
+	return surfaceTaken(offset);
+}
+
 /* ---- IOFramebuffer ----------------------------------------------------- */
 
 IOReturn

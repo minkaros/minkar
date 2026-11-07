@@ -10,7 +10,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <Foundation/NSPropertyList.h>
 #import <Foundation/NSMapTable.h>
 
-@class NSData, NSError, NSMutableArray, NSMutableData, NSMutableDictionary;
+@class NSData, NSError, NSMutableArray<ObjectType>, NSMutableData, NSMutableDictionary<KeyType, ObjectType>;
 
 FOUNDATION_EXPORT NSString *const NSInvalidArchiveOperationException;
 // The key archivedDataWithRootObject: and the secure-coding methods use.
@@ -26,6 +26,7 @@ FOUNDATION_EXPORT NSString *const NSKeyedArchiveRootObjectKey;
     NSMapTable *_nameToClass;
     NSUInteger _pass;
     NSMapTable *_objectToUid;
+    NSMapTable *_conditionalReferences;
     BOOL _requiresSecureCoding;
     BOOL _finished;
 }

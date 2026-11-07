@@ -1,0 +1,16 @@
+Mesa on Darwin with Minkar's libdrm: its devices and sync objects, without KMS
+(no display WSI: the window server owns the display).
+
+--- a/meson.build
++++ b/meson.build
+@@ -1930,6 +1930,10 @@
+       'amdgpu' : _libdrm_checks[1][1] ? 'enabled' : 'disabled',
+     },
+   )
++elif host_machine.system() == 'darwin'
++  # Darwin with a libdrm of its own (Minkar's, over its GPU driver's user
++  # client): its devices and sync objects, without KMS.
++  dep_libdrm = dependency('libdrm', version : '>=' + _drm_ver, required : false)
+ else
+   # We should prevent libdrm from being available when the target doesn't have it to avoid transitive
+   # dependencies (such as vk-runtime) linking to it

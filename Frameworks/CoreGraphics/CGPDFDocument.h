@@ -13,6 +13,9 @@ typedef struct O2PDFDocument *CGPDFDocumentRef;
 #import <CoreGraphics/CGPDFPage.h>
 #import <CoreGraphics/CGDataProvider.h>
 
+/* CF's naming rules for what the functions return (Create, Copy). */
+CF_IMPLICIT_BRIDGING_ENABLED
+
 COREGRAPHICS_EXPORT CGPDFDocumentRef CGPDFDocumentRetain(CGPDFDocumentRef self);
 COREGRAPHICS_EXPORT void CGPDFDocumentRelease(CGPDFDocumentRef self);
 
@@ -20,3 +23,6 @@ COREGRAPHICS_EXPORT CGPDFDocumentRef CGPDFDocumentCreateWithProvider(CGDataProvi
 
 COREGRAPHICS_EXPORT size_t CGPDFDocumentGetNumberOfPages(CGPDFDocumentRef self);
 COREGRAPHICS_EXPORT CGPDFPageRef CGPDFDocumentGetPage(CGPDFDocumentRef self, size_t pageNumber);
+
+
+CF_IMPLICIT_BRIDGING_DISABLED

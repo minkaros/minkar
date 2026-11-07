@@ -20,6 +20,14 @@ import "LSSessionTypes.h";
 type ls_app_t = struct[182] of uint32_t
 	ctype: LSSessionApp;
 type ls_app_list_t = array[*:64] of ls_app_t;
+type ls_file_t = struct[18] of uint32_t
+	ctype: LSSessionFile;
+type ls_path_t = struct[256] of uint32_t
+	ctype: LSSessionPath;
+type ls_path_list_t = array[*:16] of ls_path_t;
+type ls_uti_t = struct[32] of uint32_t
+	ctype: ls_uti_t;
+type ls_bytes_t = array[*:16384] of char;
 
 routine check_in(
 	server			: mach_port_t;
@@ -51,3 +59,73 @@ routine quit(
 	ServerAuditToken token	: audit_token_t;
 	pid			: int32_t;
 	out result		: int32_t);
+
+/* Interface version 3: the applications installed and opening. */
+routine copy_handlers(
+	server			: mach_port_t;
+	file			: ls_file_t;
+	out result		: int32_t;
+	out uti			: ls_uti_t;
+	out apps		: ls_path_list_t);
+
+routine copy_app_for_bundle_id(
+	server			: mach_port_t;
+	bundle_id		: ls_path_t;
+	out result		: int32_t;
+	out app			: ls_path_t);
+
+routine register_app(
+	server			: mach_port_t;
+	path			: ls_path_t;
+	out result		: int32_t);
+
+routine open_urls(
+	server			: mach_port_t;
+	ServerAuditToken token	: audit_token_t;
+	app			: ls_path_t;
+	urls			: ls_bytes_t;
+	flags			: uint32_t;
+	out result		: int32_t;
+	out running		: int32_t);
+
+/* Interface version 4: hiding. */
+routine set_hidden(
+	server			: mach_port_t;
+	ServerAuditToken token	: audit_token_t;
+	pid			: int32_t;
+	hidden			: int32_t;
+	out result		: int32_t);
+
+/* Interface version 5: types and URL schemes. */
+routine copy_handlers_for_type(
+	server			: mach_port_t;
+	uti			: ls_path_t;
+	roles			: uint32_t;
+	out result		: int32_t;
+	out apps		: ls_path_list_t);
+
+routine copy_handlers_for_scheme(
+	server			: mach_port_t;
+	scheme			: ls_path_t;
+	out result		: int32_t;
+	out apps		: ls_path_list_t);
+
+routine conforms_to(
+	server			: mach_port_t;
+	uti			: ls_path_t;
+	other			: ls_path_t;
+	out result		: int32_t);
+
+routine copy_declaration(
+	server			: mach_port_t;
+	uti			: ls_path_t;
+	out result		: int32_t;
+	out declaration		: ls_bytes_t);
+
+routine copy_types_for_tag(
+	server			: mach_port_t;
+	tag_class		: uint32_t;
+	tag			: ls_path_t;
+	conforming		: ls_path_t;
+	out result		: int32_t;
+	out types		: ls_bytes_t);

@@ -1,4 +1,5 @@
 /* Copyright (c) 2006-2007 Christopher J. W. Lloyd
+   Modifications Copyright (c) 2026 The Minkar contributors
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
 
@@ -9,7 +10,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <Foundation/Foundation.h>
 #import <AppKit/AppKitExport.h>
 
-@class NSImage, NSView, NSRunningApplication;
+@class NSImage, NSView, NSRunningApplication, NSScreen;
 
 APPKIT_EXPORT NSString *const NSWorkspaceWillPowerOffNotification;
 
@@ -19,15 +20,22 @@ APPKIT_EXPORT NSString *const NSWorkspaceDidLaunchApplicationNotification;
 APPKIT_EXPORT NSString *const NSWorkspaceDidTerminateApplicationNotification;
 APPKIT_EXPORT NSString *const NSWorkspaceDidActivateApplicationNotification;
 APPKIT_EXPORT NSString *const NSWorkspaceDidDeactivateApplicationNotification;
+APPKIT_EXPORT NSString *const NSWorkspaceDidHideApplicationNotification;
+APPKIT_EXPORT NSString *const NSWorkspaceDidUnhideApplicationNotification;
 APPKIT_EXPORT NSString *const NSWorkspaceApplicationKey;
 
 APPKIT_EXPORT NSString *const NSWorkspaceRecycleOperation;
+
+/* The desktop picture's options (API 19). */
+APPKIT_EXPORT NSString *const NSWorkspaceDesktopImageScalingKey;      /* NSNumber of NSImageScaling */
+APPKIT_EXPORT NSString *const NSWorkspaceDesktopImageAllowClippingKey; /* NSNumber of BOOL */
+APPKIT_EXPORT NSString *const NSWorkspaceDesktopImageFillColorKey;    /* NSColor */
 
 @interface NSWorkspace : NSObject {
     NSNotificationCenter *_notificationCenter;
 }
 
-+ (NSWorkspace *)sharedWorkspace;
+@property (class, readonly, strong) NSWorkspace *sharedWorkspace;
 
 - (NSNotificationCenter *)notificationCenter;
 
@@ -48,6 +56,9 @@ APPKIT_EXPORT NSString *const NSWorkspaceRecycleOperation;
 - (BOOL)openURL:(NSURL *)url;
 
 - (BOOL)selectFile:(NSString *)path inFileViewerRootedAtPath:(NSString *)rootedAtPath;
+- (void)activateFileViewerSelectingURLs:(NSArray<NSURL *> *)fileURLs;
+- (NSURL *)URLForApplicationToOpenURL:(NSURL *)url;
+- (NSURL *)URLForApplicationWithBundleIdentifier:(NSString *)bundleIdentifier;
 - (void)slideImage:(NSImage *)image from:(NSPoint)from to:(NSPoint)to;
 - (BOOL)performFileOperation:(NSString *)operation source:(NSString *)source destination:(NSString *)destination files:(NSArray *)files tag:(int *)tag;
 
@@ -72,8 +83,14 @@ APPKIT_EXPORT NSString *const NSWorkspaceRecycleOperation;
 - (BOOL)isFilePackageAtPath:(NSString *)path;
 - (NSString *)absolutePathForAppBundleWithIdentifier:(NSString *)identifier;
 - (NSString *)pathForApplication:(NSString *)application;
+- (NSString *)fullPathForApplication:(NSString *)application;
 - (NSArray *)launchedApplications;
 - (NSArray *)runningApplications;
+
+/* The desktop picture of each screen (API 19). */
+-(BOOL)setDesktopImageURL:(NSURL *)url forScreen:(NSScreen *)screen options:(NSDictionary *)options error:(NSError **)error;
+-(NSURL *)desktopImageURLForScreen:(NSScreen *)screen;
+-(NSDictionary *)desktopImageOptionsForScreen:(NSScreen *)screen;
 - (NSRunningApplication *)frontmostApplication;
 - (BOOL)launchApplication:(NSString *)application;
 - (BOOL)launchApplication:(NSString *)application showIcon:(BOOL)showIcon autolaunch:(BOOL)autolaunch;

@@ -62,7 +62,7 @@ NSString *NSDarwinStringNewWithCharacters(NSZone *zone, const unichar *character
     NSUInteger bytesLength = sizeof(unichar) * length;
     NSString *string = NSDarwinStringNewWithBytes(zone, (const char *)characters, bytesLength);
     if (string) {
-        string->cfinfo[CF_INFO_BITS] |= 0x10; // is unicode string
+        ((NSDarwinString *)string)->cfinfo[CF_INFO_BITS] |= 0x10; // is unicode string
     }
     return string;
 }

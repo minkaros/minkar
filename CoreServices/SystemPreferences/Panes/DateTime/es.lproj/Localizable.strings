@@ -1,0 +1,9 @@
+/* SPDX-License-Identifier: BSD-2-Clause
+   Copyright (c) 2026 The Minkar contributors
+   The Date & Time pane, in Spanish. The keys are the English texts. */
+
+"Set date and time automatically" = "Ajustar fecha y hora automáticamente";
+"Time zone:" = "Zona horaria:";
+"Use a 24-hour clock" = "Usar el formato de 24 horas";
+"EEEE d MMMM yyyy, HH:mm:ss" = "EEEE, d 'de' MMMM 'de' yyyy, HH:mm:ss";
+"EEEE d MMMM yyyy, h:mm:ss a" = "EEEE, d 'de' MMMM 'de' yyyy, h:mm:ss a";

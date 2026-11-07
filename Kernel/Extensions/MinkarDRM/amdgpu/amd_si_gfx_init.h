@@ -119,6 +119,8 @@ struct amd_si_gfx_info {
 	unsigned	cus;
 	unsigned	goldenSet, goldenSkipped;	/* outside the graphics block */
 	uint32_t	tiling[32];
+	uint32_t	rbDisable[4];		/* CC_RB_BACKEND_DISABLE, by SE (array 0) */
+	uint32_t	mcArbRamcfg;		/* MC_ARB_RAMCFG */
 };
 
 struct amd_si_regs_io {
@@ -193,7 +195,8 @@ amd_si_gfx_init_engine(const struct amd_si_chip *c, const struct amd_si_regs_io 
 	io->wr(io->ctx, SI_mmGRBM_CNTL, 0xffu << SI_GRBM_CNTL__READ_TIMEOUT__SHIFT);
 
 	/* The DRAM's row: 4 bytes a column, 2^(8 + NOOFCOLS) columns; 4 KB at most. */
-	uint32_t cols = (io->rd(io->ctx, SI_mmMC_ARB_RAMCFG) & SI_MC_ARB_RAMCFG__NOOFCOLS_MASK) >>
+	info->mcArbRamcfg = io->rd(io->ctx, SI_mmMC_ARB_RAMCFG);
+	uint32_t cols = (info->mcArbRamcfg & SI_MC_ARB_RAMCFG__NOOFCOLS_MASK) >>
 	    SI_MC_ARB_RAMCFG__NOOFCOLS__SHIFT;
 	info->rowKB = (4u * (1u << (8 + cols))) / 1024;
 	if (info->rowKB > 4)
@@ -224,8 +227,10 @@ amd_si_gfx_init_engine(const struct amd_si_chip *c, const struct amd_si_regs_io 
 	for (unsigned se = 0; se < c->shaderEngines; se++)
 		for (unsigned sh = 0; sh < c->shsPerSE; sh++) {
 			amd_si_select_se_sh(io, se, sh);
-			uint32_t off = (io->rd(io->ctx, SI_mmCC_RB_BACKEND_DISABLE) |
-			    io->rd(io->ctx, SI_mmGC_USER_RB_BACKEND_DISABLE)) &
+			uint32_t cc = io->rd(io->ctx, SI_mmCC_RB_BACKEND_DISABLE);
+			if (sh == 0 && se < 4)
+				info->rbDisable[se] = cc;
+			uint32_t off = (cc | io->rd(io->ctx, SI_mmGC_USER_RB_BACKEND_DISABLE)) &
 			    SI_GC_USER_RB_BACKEND_DISABLE__BACKEND_DISABLE_MASK;
 			off >>= SI_GC_USER_RB_BACKEND_DISABLE__BACKEND_DISABLE__SHIFT;
 			info->backendMask |= (~off & amd_si_bitmask(perSH)) << ((se * c->shsPerSE + sh) * perSH);

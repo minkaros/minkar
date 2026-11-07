@@ -1,0 +1,10 @@
+prefix=@SDK@/usr
+libdir=${prefix}/lib
+includedir=${prefix}/include
+
+Name: libdrm_amdgpu
+Description: Minkar's libdrm_amdgpu, on MinkarAMDUserClient
+Version: @VERSION@
+Requires.private: libdrm
+Libs: -L${libdir} -ldrm_amdgpu -ldrm
+Cflags: -I${includedir} -I${includedir}/libdrm

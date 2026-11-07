@@ -8,7 +8,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 #import <Foundation/NSObject.h>
 
-@class NSDate, NSTimer, NSMutableArray, NSArray, NSDelayedPerform;
+@class NSDate, NSTimer, NSMutableArray<ObjectType>, NSArray<ObjectType>, NSDelayedPerform;
 @class NSInputSource, NSInputSourceSet;
 
 @interface NSRunLoopState : NSObject {

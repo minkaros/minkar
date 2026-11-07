@@ -171,6 +171,7 @@ notifyReconfigured(void)
 
 	if (notified == nil)
 		notified = [NSMutableDictionary dictionary];
+	WSInputDisplaysChanged();
 	for (WSDisplay *d in WSDisplays) {
 		NSNumber *key = @(d.displayID);
 		NSArray<NSNumber *> *now = @[ @(d.currentMode->modeID), @(d.x), @(d.y),
@@ -393,10 +394,20 @@ wss_display_configure(mach_port_t server, audit_token_t token, uint32_t option,
 		} else if (ops[i].kind == kSLSConfigOpMirror) {
 			/* A mirror shows its primary's area of the desktop. */
 			WSDisplay *primary = WSDisplayWithID(ops[i].mirrorOf);
+			BOOL wasMirror = d.mirrorOf != 0;
 			d.mirrorOf = ops[i].mirrorOf;
 			if (primary != nil) {
 				d.x = primary.x;
 				d.y = primary.y;
+			} else if (wasMirror) {
+				/* No longer a mirror: it joins the desktop to the right
+				 * of the others, tops aligned, not over its old primary. */
+				double right = 0;
+				for (WSDisplay *o in WSDisplays)
+					if (o != d && o.mirrorOf == 0)
+						right = MAX(right, o.x + o.width);
+				d.x = right;
+				d.y = 0;
 			}
 		} else {
 			d.x = ops[i].x;

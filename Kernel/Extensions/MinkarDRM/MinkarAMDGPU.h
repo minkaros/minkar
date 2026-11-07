@@ -67,7 +67,8 @@ public:
 	/* For the user client (MinkarAMDGPUInterface.h). Buffers are VRAM
 	 * offsets the CPU's window reaches. */
 	IOReturn vramInfo(uint64_t *total, uint64_t *available, uint64_t *window);
-	IOReturn createBuffer(uint64_t size, uint64_t *offset);
+	/* cpuVisible: in the CPU's window on VRAM; else anywhere, from the top. */
+	IOReturn createBuffer(uint64_t size, uint64_t *offset, bool cpuVisible = true);
 	void destroyBuffer(uint64_t offset, uint64_t size);
 	IODeviceMemory *bufferMemory(uint64_t offset, uint64_t size);
 	uint64_t gpuAddress(uint64_t offset) { return fVRAMStart + offset; }
@@ -87,9 +88,9 @@ public:
 	IOReturn auxTransaction(const uint64_t *in, uint64_t *out, uint32_t *trace,
 	    uint32_t *traceBytes);
 	/* Shared VRAM buffers, by global ID, freed with their last holder. */
-	IOReturn createShared(uint64_t size, uint32_t *id, uint64_t *offset, uint64_t *rounded);
-	IOReturn retainShared(uint32_t id, uint64_t *offset, uint64_t *size);
-	void releaseShared(uint32_t id);
+	IOReturn createShared(uint64_t size, uint64_t *name, uint64_t *offset, uint64_t *rounded);
+	IOReturn retainShared(uint64_t name, uint64_t *offset, uint64_t *size);
+	void releaseShared(uint64_t name);
 	/* An indirect buffer of the graphics command processor at a GPU
 	 * address, run and its fence waited for. */
 	IOReturn runGFX(uint64_t address, uint32_t dwords, unsigned vmid, uint64_t *ns,
@@ -99,21 +100,26 @@ public:
 	IOReturn createVM(unsigned *vmid);
 	void destroyVM(unsigned vmid);
 	IOReturn vmMapVRAM(unsigned vmid, uint64_t va, uint64_t offset, uint64_t bytes);
-	IOReturn vmMapSystem(unsigned vmid, uint64_t va, IOMemoryDescriptor *memory, uint64_t bytes);
+	IOReturn vmMapSystem(unsigned vmid, uint64_t va, IOMemoryDescriptor *memory, uint64_t offset,
+	    uint64_t bytes);
 	void vmUnmap(unsigned vmid, uint64_t va, uint64_t bytes);
 	/* Into the framebuffer the display shows, at offset. */
 	IOReturn copyToScanout(uint64_t src, uint64_t offset, uint64_t bytes, uint64_t *ns);
+	/* The display shows bytes of VRAM at offset from its next vertical
+	 * blank (0, 0: its framebuffer again); ns: how long it took. */
+	IOReturn flip(uint64_t offset, uint64_t bytes, uint64_t *ns);
 
 private:
 	void dmaSelfTest();
 	void startGFXTest(const char *family);
 	static void gfxTestThread(void *gpu, wait_result_t);
 	void gfxSelfTest();
-	bool readMicrocode(uint8_t *file[3], size_t bytes[3], struct amd_ucode code[3]);
-	void freeMicrocode(uint8_t *file[3], size_t bytes[3]);
+	/* pfp, me, ce, rlc */
+	bool readMicrocode(uint8_t *file[4], size_t bytes[4], struct amd_ucode code[4]);
+	void freeMicrocode(uint8_t *file[4], size_t bytes[4]);
 	bool startGFX();
 	void resetGFX();
-	void initEngine();
+	void initEngine(bool dryRun);
 	volatile uint64_t *vramPointer(uint64_t offset, uint64_t bytes);
 	void vmFlush(unsigned vmid);
 	IOReturn vmMap(unsigned vmid, uint64_t va, uint64_t bytes, uint64_t offset,
@@ -130,9 +136,10 @@ private:
 	static void sleepForTrap(void *gpu);
 	bool lightsDisplay();
 
-	enum { kVRAMRanges = 1024, kGARTRanges = 1024, kSharedBuffers = 512 };
+	enum { kVRAMRanges = 16384, kGARTRanges = 16384, kSharedBuffers = 512 };
 	struct Shared {
-		uint32_t id, holders;	/* holders 0: the slot is empty */
+		uint64_t name;		/* random: whoever holds it was given it */
+		uint32_t holders;	/* 0: the slot is empty */
 		uint64_t offset, size;
 	};
 
@@ -151,11 +158,13 @@ private:
 	IOMemoryMap *		fGFXMap;	/* its ring and write-back */
 	uint64_t		fGFXOffset;
 	uint32_t		fGFXResets;
+	uint32_t		fRasterConfig;	/* for the RLC's clear state */
 	/* Clients' address spaces: each context's page directory in VRAM
 	 * (0: the context is free); written through all of the VRAM window,
 	 * mapped once. */
 	uint64_t		fVMDirectory[16];
 	IOMemoryMap *		fWindowMap;
+	void *			fNode;		/* its DRM render node (devfs) */
 	struct MinkarAMDDMA	fDMA;
 	bool			fDMAStarted;
 	IOMemoryMap *		fDMAMap;	/* its ring and write-back */
@@ -163,10 +172,9 @@ private:
 	struct MinkarAMDGART	fGART;		/* on while the driver runs */
 	uint64_t		fGARTTable, fGARTScratch;	/* its VRAM */
 	struct minkar_vram	fGARTPages;	/* what is free of it, by offset */
-	struct minkar_vram_range fGARTRanges[kGARTRanges];
+	struct minkar_vram_range *fGARTRanges;	/* kGARTRanges of them */
 	IOLock *		fVRAMLock;	/* the VRAM's and the GART's allocators */
 	Shared			fShared[kSharedBuffers];	/* under fVRAMLock */
-	uint32_t		fNextSharedID;
 
 	/* Interrupts: the IH ring and its write-back in system memory. */
 	IOWorkLoop *		fWorkLoop;
@@ -178,7 +186,7 @@ private:
 	IOLock *		fTrapLock;	/* traps, and waits for them */
 	uint64_t		fInterrupts, fDMATraps, fIHOverflows;
 	struct minkar_vram	fVRAM;		/* what is free of VRAM */
-	struct minkar_vram_range fVRAMRanges[kVRAMRanges];
+	struct minkar_vram_range *fVRAMRanges;	/* kVRAMRanges of them */
 };
 
 #endif

@@ -1,0 +1,6 @@
+# WOFF2 (MIT), fetched at build time and checked against this SHA-256,
+# taken at the first fetch.
+url https://github.com/google/woff2/archive/refs/tags/v1.0.2.tar.gz
+file woff2-1.0.2.tar.gz
+sha256 add272bb09e6384a4833ffca4896350fdb16e0ca22df68c0384773c67a175594
+version 1.0.2

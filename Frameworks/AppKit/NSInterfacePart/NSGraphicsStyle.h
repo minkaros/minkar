@@ -25,6 +25,11 @@ typedef struct _Margins {
 
 @end
 
+@class NSColor;
+
+/* The menu bar's text color (Atlas: light on a dark bar). */
+APPKIT_EXPORT NSColor *_NSMenuBarTextColor(void);
+
 @interface NSGraphicsStyle (NSMenu)
 - (NSSize)menuItemSeparatorSize;
 - (NSSize)menuItemBranchArrowSize;
@@ -47,6 +52,8 @@ typedef struct _Margins {
 - (void)drawMenuBranchArrowInRect:(NSRect)rect enabled:(BOOL)enabled selected:(BOOL)selected;
 - (void)drawMenuWindowBackgroundInRect:(NSRect)rect;
 - (void)drawMenuBarBackgroundInRect:(NSRect)rect;
+- (void)drawMenuBarItemText:(NSString *)string inRect:(NSRect)rect enabled:(BOOL)enabled selected:(BOOL)selected;
+- (void)drawAttributedMenuBarItemText:(NSAttributedString *)string inRect:(NSRect)rect enabled:(BOOL)enabled selected:(BOOL)selected;
 - (void)drawMenuSelectionInRect:(NSRect)rect enabled:(BOOL)enabled;
 - (void)drawMenuBarItemBorderInRect:(NSRect)rect hover:(BOOL)hovering selected:(BOOL)selected;
 

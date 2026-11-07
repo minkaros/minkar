@@ -41,20 +41,20 @@ extern "C" {
     O2Size _patternPhase;
     int _textDrawingMode;
     BOOL _shouldSmoothFonts;
-    float _lineWidth;
+    O2Float _lineWidth;
     O2LineCap _lineCap;
     O2LineJoin _lineJoin;
-    float _miterLimit;
-    float _dashPhase;
+    O2Float _miterLimit;
+    O2Float _dashPhase;
     int _dashLengthsCount;
-    float *_dashLengths;
+    O2Float *_dashLengths;
     O2ColorRenderingIntent _renderingIntent;
     O2BlendMode _blendMode;
-    float _alpha;
-    float _flatness;
+    O2Float _alpha;
+    O2Float _flatness;
     O2InterpolationQuality _interpolationQuality;
     O2Size _shadowOffset;
-    float _shadowBlur;
+    O2Float _shadowBlur;
     O2ColorRef _shadowColor;
     void *_shadowKernel;
     BOOL _shouldAntialias;
@@ -99,8 +99,8 @@ void O2GStateSetFillColor(O2GState *self, O2ColorRef color);
 O2Size O2GStatePatternPhase(O2GState *self);
 void O2GStateSetPatternPhase(O2GState *self, O2Size value);
 
-- (void)setStrokePattern:(O2Pattern *)pattern components:(const float *)components;
-- (void)setFillPattern:(O2Pattern *)pattern components:(const float *)components;
+- (void)setStrokePattern:(O2Pattern *)pattern components:(const O2Float *)components;
+- (void)setFillPattern:(O2Pattern *)pattern components:(const O2Float *)components;
 
 - (void)setTextDrawingMode:(int)textMode;
 O2FontRef O2GStateFont(O2GState *self);
@@ -117,9 +117,9 @@ void O2GStateClearFontIsDirty(O2GState *self);
 - (id)fontState;
 - (void)setFontState:(id)fontState;
 void O2GStateSetFont(O2GState *self, O2Font *font);
-void O2GStateSetFontSize(O2GState *self, float size);
+void O2GStateSetFontSize(O2GState *self, O2Float size);
 void O2GStateSetFontEncoding(O2GState *self, O2Encoding *encoding);
-- (void)selectFontWithName:(const char *)name size:(float)size encoding:(O2TextEncoding)encoding;
+- (void)selectFontWithName:(const char *)name size:(O2Float)size encoding:(O2TextEncoding)encoding;
 
 CGFloat O2GStateCharacterSpacing(O2GState *self);
 CGFloat O2GStateWordSpacing(O2GState *self);
@@ -135,23 +135,23 @@ void O2GStateSetTextHorizontalScaling(O2GState *self, CGFloat value);
 
 - (void)setShouldSmoothFonts:(BOOL)yesOrNo;
 
-void O2GStateSetLineWidth(O2GState *self, float width);
+void O2GStateSetLineWidth(O2GState *self, O2Float width);
 void O2GStateSetLineCap(O2GState *self, int lineCap);
 void O2GStateSetLineJoin(O2GState *self, int lineJoin);
-void O2GStateSetMiterLimit(O2GState *self, float limit);
-void O2GStateSetLineDash(O2GState *self, float phase, const float *lengths, unsigned count);
+void O2GStateSetMiterLimit(O2GState *self, O2Float limit);
+void O2GStateSetLineDash(O2GState *self, O2Float phase, const O2Float *lengths, unsigned count);
 
 - (void)setRenderingIntent:(O2ColorRenderingIntent)intent;
 O2BlendMode O2GStateBlendMode(O2GState *self);
 void O2GStateSetBlendMode(O2GState *self, O2BlendMode mode);
-float O2GStateAlpha(O2GState *self);
-void O2GStateSetAlpha(O2GState *self, float alpha);
+O2Float O2GStateAlpha(O2GState *self);
+void O2GStateSetAlpha(O2GState *self, O2Float alpha);
 
-- (void)setFlatness:(float)flatness;
+- (void)setFlatness:(O2Float)flatness;
 - (void)setInterpolationQuality:(O2InterpolationQuality)quality;
 
-- (void)setShadowOffset:(O2Size)offset blur:(float)blur color:(O2ColorRef)color;
-- (void)setShadowOffset:(O2Size)offset blur:(float)blur;
+- (void)setShadowOffset:(O2Size)offset blur:(O2Float)blur color:(O2ColorRef)color;
+- (void)setShadowOffset:(O2Size)offset blur:(O2Float)blur;
 
 - (void)setShouldAntialias:(BOOL)flag;
 

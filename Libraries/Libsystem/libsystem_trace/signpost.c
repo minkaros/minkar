@@ -28,9 +28,12 @@
  * THE SOFTWARE.
  */
 
-/* NOTE! This is all placeholder for now */
+/* Signposts: real IDs; nothing records them yet (signpost.h). */
 
+#include <stdatomic.h>
 #include "signpost.h"
+
+static _Atomic uint64_t next_id = 1;
 
 void __os_signpost_emit_impl(os_log_t log,
     os_signpost_type_t type,
@@ -66,11 +69,23 @@ bool os_signpost_enabled(os_log_t log)
 
 os_signpost_id_t os_signpost_id_generate(os_log_t log)
 {
+    os_signpost_id_t id = atomic_fetch_add(&next_id, 1);
+
+    /* Never one of the special IDs. */
+    if (id == OS_SIGNPOST_ID_INVALID || id == OS_SIGNPOST_ID_EXCLUSIVE)
+        id = atomic_fetch_add(&next_id, 1);
+    return id;
 }
 
 os_signpost_id_t os_signpost_id_make_with_pointer(os_log_t log,
                                                   const void *ptr)
 {
+    os_signpost_id_t id = (os_signpost_id_t)(uintptr_t)ptr;
+
+    if (id == OS_SIGNPOST_ID_NULL || id == OS_SIGNPOST_ID_INVALID ||
+        id == OS_SIGNPOST_ID_EXCLUSIVE)
+        return OS_SIGNPOST_ID_INVALID;
+    return id;
 }
 
 void os_signpost_interval_begin(os_log_t log,

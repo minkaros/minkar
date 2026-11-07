@@ -27,6 +27,10 @@
  */
 
 #include <pthread.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <string.h>
+#include <sys/sysctl.h>
 #include <servers/bootstrap.h>
 #include "SkyLight.h"
 #include "WindowServer.h"	/* MIG user side */
@@ -41,15 +45,33 @@ static SLSConnectionID mainConnection = 0;
  */
 static mach_port_t clientPort = MACH_PORT_NULL;
 
+/* The -textconsole boot argument: no window server at all, so no wait. */
+static int
+textConsole(void)
+{
+	char args[1024] = "";
+	size_t len = sizeof(args);
+
+	if (sysctlbyname("kern.bootargs", args, &len, NULL, 0) != 0)
+		return 0;
+	return strstr(args, "-textconsole") != NULL;
+}
+
 static void
 openMainConnection(void)
 {
 	uint32_t version = 0;
 	int32_t connection = 0;
 
-	if (bootstrap_look_up(bootstrap_port, kSLSServiceName, &serverPort) != KERN_SUCCESS) {
+	/* The server may be starting (launchd restarting it): try for a
+	 * while, so an app started then does not run without one. */
+	for (int tries = 0; ; tries++) {
+		if (bootstrap_look_up(bootstrap_port, kSLSServiceName, &serverPort) == KERN_SUCCESS)
+			break;
 		serverPort = MACH_PORT_NULL;
-		return;
+		if (tries >= 40 || getenv("SLS_NO_WAIT") != NULL || textConsole())
+			return;
+		usleep(250000);
 	}
 	if (mach_port_allocate(mach_task_self(), MACH_PORT_RIGHT_RECEIVE, &clientPort) !=
 	    KERN_SUCCESS)
@@ -58,6 +80,22 @@ openMainConnection(void)
 	    version != kSLSInterfaceVersion)
 		return;
 	mainConnection = connection;
+	/* The event port also hears when the server goes away, so a process
+	 * waiting for events wakes and SLSReceiveEvents says the connection
+	 * is gone. */
+	mach_port_t previous = MACH_PORT_NULL;
+	if (mach_port_request_notification(mach_task_self(), serverPort, MACH_NOTIFY_DEAD_NAME, 1,
+	    clientPort, MACH_MSG_TYPE_MAKE_SEND_ONCE, &previous) == KERN_SUCCESS &&
+	    previous != MACH_PORT_NULL)
+		mach_port_deallocate(mach_task_self(), previous);
+	/* launchd keeps the service's port across a restart of the server, so
+	 * that port does not die: the server's send right to this port, the
+	 * only one, goes with it (no more senders). */
+	previous = MACH_PORT_NULL;
+	if (mach_port_request_notification(mach_task_self(), clientPort, MACH_NOTIFY_NO_SENDERS, 1,
+	    clientPort, MACH_MSG_TYPE_MAKE_SEND_ONCE, &previous) == KERN_SUCCESS &&
+	    previous != MACH_PORT_NULL)
+		mach_port_deallocate(mach_task_self(), previous);
 }
 
 SLSConnectionID

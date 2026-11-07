@@ -7,23 +7,28 @@ The above copyright notice and this permission notice shall be included in all c
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE. */
 #import <Foundation/NSURLRequest.h>
 
+NS_ASSUME_NONNULL_BEGIN
+
 @interface NSMutableURLRequest : NSURLRequest
-
-- (void)setURL:(NSURL *)value;
-- (void)setCachePolicy:(NSURLRequestCachePolicy)value;
-- (void)setTimeoutInterval:(NSTimeInterval)value;
-
-- (void)setHTTPMethod:(NSString *)value;
-
-- (void)setHTTPBody:(NSData *)value;
-- (void)setHTTPBodyStream:(NSInputStream *)value;
-
-- (void)setAllHTTPHeaderFields:(NSDictionary *)allValues;
-- (void)setValue:(NSString *)value forHTTPHeaderField:(NSString *)field;
-- (void)addValue:(NSString *)value forHTTPHeaderField:(NSString *)field;
-
-- (void)setHTTPShouldHandleCookies:(BOOL)value;
-
-- (void)setMainDocumentURL:(NSURL *)value;
-
+@property (nullable, copy) NSURL *URL;
+@property NSURLRequestCachePolicy cachePolicy;
+@property NSTimeInterval timeoutInterval;
+@property (nullable, copy) NSURL *mainDocumentURL;
+@property NSURLRequestNetworkServiceType networkServiceType;
+@property BOOL allowsCellularAccess;
+@property BOOL allowsExpensiveNetworkAccess;
+@property BOOL allowsConstrainedNetworkAccess;
 @end
+
+@interface NSMutableURLRequest (NSMutableHTTPURLRequest)
+@property (copy) NSString *HTTPMethod;
+@property (nullable, copy) NSDictionary<NSString *, NSString *> *allHTTPHeaderFields;
+- (void)setValue:(nullable NSString *)value forHTTPHeaderField:(NSString *)field;
+- (void)addValue:(NSString *)value forHTTPHeaderField:(NSString *)field;
+@property (nullable, copy) NSData *HTTPBody;
+@property (nullable, retain) NSInputStream *HTTPBodyStream;
+@property BOOL HTTPShouldHandleCookies;
+@property BOOL HTTPShouldUsePipelining;
+@end
+
+NS_ASSUME_NONNULL_END

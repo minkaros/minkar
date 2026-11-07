@@ -294,15 +294,19 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 }
 
 -(void)getObjects:(id *)objects andKeys:(id *)keys {
+   [self getObjects:objects andKeys:keys count:[self count]];
+}
+
+-(void)getObjects:(id *)objects andKeys:(id *)keys count:(NSUInteger)count {
    NSEnumerator *state=[self keyEnumerator];
    id            key;
-   NSInteger     i;
+   NSUInteger    i;
 
-   for(i=0;(key=[state nextObject])!=nil;i++){
-    id value=[self objectForKey:key];
-
-    objects[i]=value;
-    keys[i]=key;
+   for(i=0;i<count && (key=[state nextObject])!=nil;i++){
+    if(objects!=NULL)
+     objects[i]=[self objectForKey:key];
+    if(keys!=NULL)
+     keys[i]=key;
    }
 }
 
@@ -366,7 +370,8 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    while((key=[state nextObject])!=nil){
     id check=[self objectForKey:key];
 
-    if(check==object)
+    /* Equal objects, as the API documents (isEqual:), not the same one. */
+    if(check==object || [check isEqual:object])
      [result addObject:key];
    }
 

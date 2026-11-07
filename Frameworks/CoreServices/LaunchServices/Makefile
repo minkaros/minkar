@@ -3,20 +3,21 @@
 # Part of Minkar.
 #
 # LaunchServices.framework, inside CoreServices.framework as on the
-# reference platform (CoreServices re-exports it). For now only the
-# session: the client of launchservicesd (WindowServer plan, WS4a). The
-# database and the open code in this directory (LaunchServices.mm,
-# LSAppRecord.mm, UTTypes.mm, LSIPC.mm) are built with Phase 3, item 4.
+# reference platform (CoreServices re-exports it): the client of
+# launchservicesd, its session (WindowServer plan, WS4a) and, since
+# Phase 3 item 4, opening items and finding their applications (LSOpen.c,
+# on the daemon's database).
 
 FRAMEWORK = LaunchServices
 FMWK_VERSION = A
 FMWK_COMPAT_VERSION = 1.0.0
 FMWK_INSTALL_DIR = /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks
 # Only CoreServices links it; programs get it through CoreServices.
-LDFLAGS += -Wl,-umbrella,CoreServices
+LDFLAGS += -Wl,-umbrella,CoreServices -framework CoreFoundation
 MK_WERROR = no
 
-SRCS = LSSession.c LSSessionUser.c
+SRCS = LSSession.c LSSessionUser.c LSOpen.c UTType.c UTCoreTypes.c
+HEADERS = LaunchServices.h LSInfo.h LSOpen.h UTType.h UTCoreTypes.h
 PRIVATE_HEADERS = LSSession.h
 MODULEMAP = LaunchServices.modulemap
 CFLAGS += -I${.OBJDIR} -I${.CURDIR}

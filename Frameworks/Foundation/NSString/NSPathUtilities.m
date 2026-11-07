@@ -9,6 +9,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <Foundation/NSPathUtilities.h>
 #import <Foundation/NSFileManager.h>
 #import <Foundation/NSArray.h>
+#import <Foundation/NSSet.h>
 #import <Foundation/NSProcessInfo.h>
 #import <Foundation/NSPlatform.h>
 #import <Foundation/NSRaise.h>
@@ -28,11 +29,13 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
     and NSURL strings. If we accept \ in file system path strings at the Cocoa layer, you end up
     with broken URL's.
 
-    We understand \ when present in a string to be a /, but we don't put them in strings.
+    Minkar: only / separates a path's components, as on the reference
+    platform, where \ is an ordinary character of a file name ("My\ App"
+    lost "My" in lastPathComponent).
 
  */
 
-#define ISSLASH(X)  ((X)=='/' || (X)=='\\')
+#define ISSLASH(X)  ((X)=='/')
 
 #define SLASH '/'
 
@@ -455,3 +458,17 @@ NSString *NSFullUserName(void) {
    return [[NSPlatform currentPlatform] fullUserName];
 }
 
+@implementation NSArray (NSArrayPathExtensions)
+
+// The paths whose extension is one of the filter's.
+-(NSArray *)pathsMatchingExtensions:(NSArray *)filterTypes {
+   NSMutableArray *result=[NSMutableArray array];
+   NSSet          *extensions=[NSSet setWithArray:filterTypes];
+
+   for(id path in self)
+    if([path isKindOfClass:[NSString class]] && [extensions containsObject:[path pathExtension]])
+     [result addObject:path];
+   return result;
+}
+
+@end

@@ -2,5 +2,8 @@
 
 @interface NSEntityDescription (private)
 - (BOOL)_isKindOfEntity:(NSEntityDescription *)other;
-- (NSPropertyDescription *)_propertyForSelector:(SEL)selector;
+- (void)_checkMutable;
+- (void)_invalidateCaches;
+- (void)_setManagedObjectModel:(NSManagedObjectModel *)model;
+- (Class)_managedObjectClass;
 @end

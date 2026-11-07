@@ -30,9 +30,18 @@
  * surface's memory entry, properties and values under a global ID, and
  * which processes hold it; a process's holds go when it dies (its session
  * port goes dead), and a surface no process holds goes with them.
+ *
+ * A surface's ID is no secret (IDs are handed out in turn), so the ID alone
+ * gives nothing: a process finds a surface by ID only if it holds it
+ * already, if it was given the surface's port (IOSurfaceCreateMachPort,
+ * redeemed once by port_id), if the surface is global (kIOSurfaceIsGlobal),
+ * or if it is privileged: root, or a program with the gpu-client
+ * entitlement (the window server, which shows apps' surfaces). The same
+ * goes for a surface's values, its port and its GPU buffer.
  * Started on demand by launchd (org.minkar.iosurfaced).
  */
 
+#include <arpa/inet.h>
 #include <bsm/libbsm.h>
 #include <dispatch/dispatch.h>
 #include <mach/mach.h>
@@ -42,11 +51,17 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <CoreFoundation/CoreFoundation.h>
 #include <IOKit/IOKitLib.h>
 #include "IOSurfaceRegistryServer.h"	/* MIG, generated */
 #include "MinkarAMDGPUInterface.h"
 
 #define kService	"org.minkar.iosurfaced"
+
+/* sys/codesign.h (private): the kernel's copy of a process's entitlements. */
+#define CS_OPS_ENTITLEMENTS_BLOB	7
+int csops_audittoken(pid_t pid, unsigned int ops, void *useraddr, size_t usersize,
+    audit_token_t *token);
 
 typedef struct Hold {
 	pid_t		pid;
@@ -64,8 +79,12 @@ typedef struct Surface {
 	size_t		valuesLen;
 	mach_port_t	port;		/* receive right, made_port's; or null */
 	Hold		*holds;
+	Hold		*grants;	/* given its port: may look it up once */
+	Boolean		global;		/* kIOSurfaceIsGlobal: anyone finds it */
 	io_connect_t	gpu;		/* a surface in GPU memory: its GPU, */
-	uint64_t	gpuBuffer;	/* and the buffer held there */
+	uint64_t	gpuBuffer;	/* and the buffer held there; */
+	uint64_t	gpuEntryID;	/* the GPU's registry entry, */
+	uint64_t	gpuName;	/* and the buffer's name */
 	struct Surface	*next;
 } Surface;
 
@@ -138,6 +157,11 @@ static void destroy(Surface *s) {
 		s->holds = h->next;
 		free(h);
 	}
+	while (s->grants) {
+		Hold *h = s->grants;
+		s->grants = h->next;
+		free(h);
+	}
 	free(s->properties);
 	free(s->values);
 	free(s);
@@ -170,6 +194,93 @@ static int unhold(Surface *s, pid_t pid, int all) {
 	return s->holds == NULL;
 }
 
+static int holds(Surface *s, pid_t pid) {
+	for (Hold *h = s->holds; h; h = h->next)
+		if (h->pid == pid)
+			return 1;
+	return 0;
+}
+
+/* Takes pid's grant (port_id's); true if it had one. */
+static int takeGrant(Surface *s, pid_t pid) {
+	for (Hold **p = &s->grants; *p; p = &(*p)->next)
+		if ((*p)->pid == pid) {
+			Hold *g = *p;
+			*p = g->next;
+			free(g);
+			return 1;
+		}
+	return 0;
+}
+
+static void grant(Surface *s, pid_t pid) {
+	for (Hold *g = s->grants; g; g = g->next)
+		if (g->pid == pid)
+			return;
+	Hold *g = calloc(1, sizeof(*g));
+	g->pid = pid;
+	g->next = s->grants;
+	s->grants = g;
+}
+
+/*
+ * Root, or a program signed with the gpu-client entitlement: the window
+ * server. MinkarCodeIntegrity loads no program with that (restricted)
+ * entitlement unless the static trust cache has it, so the kernel's copy
+ * of its entitlements is to be believed.
+ */
+#define kGPUClientEntitlement	"org.minkar.gpu-client"
+
+static int privileged(audit_token_t token) {
+	if (audit_token_to_euid(token) == 0)
+		return 1;
+	struct { uint32_t magic, length; } header;
+	pid_t pid = audit_token_to_pid(token);
+	header.length = 0;
+	/* The blob's size first (ERANGE fills in the header), then all of it. */
+	csops_audittoken(pid, CS_OPS_ENTITLEMENTS_BLOB, &header, sizeof(header), &token);
+	uint32_t length = ntohl(header.length);
+	if (length <= sizeof(header) || length > 65536)
+		return 0;
+	char *blob = calloc(1, length + 1);
+	int yes = 0;
+	if (blob != NULL &&
+	    csops_audittoken(pid, CS_OPS_ENTITLEMENTS_BLOB, blob, length, &token) == 0) {
+		CFDataRef data = CFDataCreateWithBytesNoCopy(NULL, (const UInt8 *)blob + sizeof(header),
+		    length - sizeof(header), kCFAllocatorNull);
+		CFPropertyListRef plist = data ? CFPropertyListCreateWithData(NULL, data,
+		    kCFPropertyListImmutable, NULL, NULL) : NULL;
+		if (plist != NULL && CFGetTypeID(plist) == CFDictionaryGetTypeID())
+			yes = CFDictionaryGetValue(plist, CFSTR(kGPUClientEntitlement)) == kCFBooleanTrue;
+		if (plist != NULL)
+			CFRelease(plist);
+		if (data != NULL)
+			CFRelease(data);
+	}
+	free(blob);
+	return yes;
+}
+
+/* What a holder (or a privileged process) may do with a surface. */
+static int mayUse(Surface *s, audit_token_t token) {
+	return s != NULL && (holds(s, audit_token_to_pid(token)) || privileged(token));
+}
+
+/* Whether the properties (a binary property list) make it global. */
+static Boolean isGlobal(const void *bytes, size_t len) {
+	Boolean global = false;
+	CFDataRef data = CFDataCreateWithBytesNoCopy(NULL, bytes, (CFIndex)len, kCFAllocatorNull);
+	CFPropertyListRef p = data ? CFPropertyListCreateWithData(NULL, data, kCFPropertyListImmutable,
+	    NULL, NULL) : NULL;
+	if (p != NULL && CFGetTypeID(p) == CFDictionaryGetTypeID())
+		global = CFDictionaryGetValue(p, CFSTR("IOSurfaceIsGlobal")) == kCFBooleanTrue;
+	if (p != NULL)
+		CFRelease(p);
+	if (data != NULL)
+		CFRelease(data);
+	return global;
+}
+
 /* The caller's session: its port is watched for the process's death. */
 static void noteSession(pid_t pid, mach_port_t port) {
 	mach_port_t previous = MACH_PORT_NULL;
@@ -200,6 +311,8 @@ static void sessionDied(mach_port_t name) {
 			*p = gone->next;
 			for (Surface *s = surfaces, *next; s; s = next) {
 				next = s->next;
+				while (takeGrant(s, gone->pid))
+					;
 				if (unhold(s, gone->pid, 1))
 					destroy(s);
 			}
@@ -248,6 +361,7 @@ iosd_create(mach_port_t server, audit_token_t token, mach_port_t session, mach_p
 	s->allocSize = allocSize;
 	s->properties = copyBytes(properties, propertiesCnt);
 	s->propertiesLen = propertiesCnt;
+	s->global = isGlobal(properties, propertiesCnt);
 	s->next = surfaces;
 	surfaces = s;
 	hold(s, pid);
@@ -270,7 +384,8 @@ iosd_lookup(mach_port_t server, audit_token_t token, mach_port_t session, uint32
 	*allocSize = 0;
 	*properties = NULL;
 	*propertiesCnt = 0;
-	if (s == NULL) {
+	/* The ID alone is not enough (see the top of this file). */
+	if (s == NULL || !(s->global || holds(s, pid) || takeGrant(s, pid) || privileged(token))) {
 		*result = -1;
 		return KERN_SUCCESS;
 	}
@@ -299,7 +414,7 @@ iosd_release(mach_port_t server, audit_token_t token, uint32_t surfaceID)
 
 kern_return_t
 iosd_attach_gpu_buffer(mach_port_t server, audit_token_t token, uint32_t surfaceID, uint64_t gpu,
-    uint32_t buffer, int32_t *result)
+    uint64_t buffer, int32_t *result)
 {
 	pid_t pid = audit_token_to_pid(token);
 	Surface *s = find(surfaceID);
@@ -318,17 +433,43 @@ iosd_attach_gpu_buffer(mach_port_t server, audit_token_t token, uint32_t surface
 	if (c == IO_OBJECT_NULL ||
 	    IOConnectCallScalarMethod(c, kMinkarAMDGPURetainSharedBuffer, &in, 1, out, &n) != KERN_SUCCESS)
 		return KERN_SUCCESS;
+	/* It must hold the whole surface: who draws it reads that much. */
+	if (out[2] < s->allocSize) {
+		uint64_t b = out[0];
+		IOConnectCallScalarMethod(c, kMinkarAMDGPUDestroyBuffer, &b, 1, NULL, NULL);
+		return KERN_SUCCESS;
+	}
 	s->gpu = c;
 	s->gpuBuffer = out[0];
+	s->gpuEntryID = gpu;
+	s->gpuName = buffer;
 	*result = 0;
 	return KERN_SUCCESS;
 }
 
 kern_return_t
-iosd_set_values(mach_port_t server, uint32_t surfaceID, uint8_t *values,
+iosd_gpu_buffer(mach_port_t server, audit_token_t token, uint32_t surfaceID, uint64_t *gpu,
+    uint64_t *buffer, int32_t *result)
+{
+	Surface *s = find(surfaceID);
+
+	if (!mayUse(s, token))
+		s = NULL;
+
+	*gpu = s != NULL ? s->gpuEntryID : 0;
+	*buffer = s != NULL ? s->gpuName : 0;
+	*result = s != NULL ? 0 : -1;
+	return KERN_SUCCESS;
+}
+
+kern_return_t
+iosd_set_values(mach_port_t server, audit_token_t token, uint32_t surfaceID, uint8_t *values,
     mach_msg_type_number_t valuesCnt, int32_t *result)
 {
 	Surface *s = find(surfaceID);
+
+	if (!mayUse(s, token))
+		s = NULL;
 
 	if (s != NULL) {
 		free(s->values);
@@ -341,10 +482,13 @@ iosd_set_values(mach_port_t server, uint32_t surfaceID, uint8_t *values,
 }
 
 kern_return_t
-iosd_copy_values(mach_port_t server, uint32_t surfaceID, uint8_t **values,
+iosd_copy_values(mach_port_t server, audit_token_t token, uint32_t surfaceID, uint8_t **values,
     mach_msg_type_number_t *valuesCnt, int32_t *result)
 {
 	Surface *s = find(surfaceID);
+
+	if (!mayUse(s, token))
+		s = NULL;
 
 	*values = NULL;
 	*valuesCnt = 0;
@@ -358,9 +502,13 @@ iosd_copy_values(mach_port_t server, uint32_t surfaceID, uint8_t **values,
 }
 
 kern_return_t
-iosd_make_port(mach_port_t server, uint32_t surfaceID, mach_port_t *port, int32_t *result)
+iosd_make_port(mach_port_t server, audit_token_t token, uint32_t surfaceID, mach_port_t *port,
+    int32_t *result)
 {
 	Surface *s = find(surfaceID);
+
+	if (!mayUse(s, token))
+		s = NULL;
 
 	*port = MACH_PORT_NULL;
 	if (s == NULL) {
@@ -380,12 +528,15 @@ iosd_make_port(mach_port_t server, uint32_t surfaceID, mach_port_t *port, int32_
 
 /* A port sent back to us arrives as the name of our receive right. */
 kern_return_t
-iosd_port_id(mach_port_t server, mach_port_t port, uint32_t *surfaceID, int32_t *result)
+iosd_port_id(mach_port_t server, audit_token_t token, mach_port_t port, uint32_t *surfaceID,
+    int32_t *result)
 {
 	*surfaceID = 0;
 	*result = -1;
 	for (Surface *s = surfaces; s; s = s->next)
 		if (s->port != MACH_PORT_NULL && s->port == port) {
+			/* Who has the port may look the surface up, once. */
+			grant(s, audit_token_to_pid(token));
 			*surfaceID = s->surfaceID;
 			*result = 0;
 			return KERN_SUCCESS;

@@ -37,7 +37,7 @@ typedef NS_OPTIONS(NSUInteger, NSStatusItemBehavior) {
 };
 
 /*
- * A status item (Menus.md, MB0): a window of its app at the status window
+ * A status item (Atlas.md, MB0): a window of its app at the status window
  * level, which the window server lays out in the menu bar, right to left.
  * It shows its button, or a view of its own.
  */

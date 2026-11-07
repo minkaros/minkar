@@ -58,6 +58,7 @@
             "_bootstrap_look_up",
             "_bootstrap_check_in3",
             "__vproc_send_signal_by_label",
+            "_launch_activate_socket",
             "_vprocmgr_lookup_vproc",
             "_launchd_msg_send",
             "_launch_data_free",

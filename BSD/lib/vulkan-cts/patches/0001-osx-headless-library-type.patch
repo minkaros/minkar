@@ -1,0 +1,14 @@
+The headless target on Darwin (Minkar) builds the Linux platform code,
+whose VulkanPlatform takes a library type: say so for DE_OS_OSX too.
+
+--- a/framework/delibs/debase/deDefs.h
++++ b/framework/delibs/debase/deDefs.h
+@@ -101,7 +101,7 @@
+ #error Unknown operating system.
+ #endif
+ 
+-#if ((DE_OS == DE_OS_WIN32) || (DE_OS == DE_OS_UNIX)) && !defined(DEQP_SURFACELESS) && !defined(NULLWS)
++#if ((DE_OS == DE_OS_WIN32) || (DE_OS == DE_OS_UNIX) || (DE_OS == DE_OS_OSX)) && !defined(DEQP_SURFACELESS) && !defined(NULLWS)
+ #define DE_PLATFORM_USE_LIBRARY_TYPE 1
+ #else
+ #undef DE_PLATFORM_USE_LIBRARY_TYPE

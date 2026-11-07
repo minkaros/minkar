@@ -1,0 +1,7 @@
+# Swift 5.4 (Apache-2.0 with the Runtime Library Exception), the last
+# release with the Darwin overlays in the open: only stdlib/public/Darwin
+# and the overlays' shim headers (stdlib/public/SwiftShims) are used.
+url https://github.com/swiftlang/swift/archive/refs/tags/swift-5.4-RELEASE.tar.gz
+file swift-5.4-RELEASE.tar.gz
+sha256 421dafdb0dd4c55cdfed4d8736e965b42a0d97f690bb13528947f9cc3f7ddca9
+version 5.4

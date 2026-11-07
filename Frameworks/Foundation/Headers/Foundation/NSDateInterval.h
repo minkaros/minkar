@@ -33,7 +33,7 @@
 @property (readonly, copy) NSDate *startDate;
 @property (readonly, copy) NSDate *endDate;
 @property (readonly) NSTimeInterval duration;
-- (instancetype)init;
+- (nonnull instancetype)init;
 - (instancetype)initWithStartDate:(NSDate *)startDate duration:(NSTimeInterval)duration;
 - (instancetype)initWithStartDate:(NSDate *)startDate endDate:(NSDate *)endDate;
 - (NSComparisonResult)compare:(NSDateInterval *)dateInterval;

@@ -61,7 +61,9 @@ void WSDisplaysRestoreSaved(void);
 
 /* Window shadows: how far they reach out of the window, and how far
  * down they are; the compositor draws them, the window list damages them. */
-enum { kWSShadowRadius = 16, kWSShadowOffsetY = 6 };
+/* Window shadows: how far they fade out, how far down they fall, and the
+   window corners' radius they follow (AppKit's NSWindowCornerRadius). */
+enum { kWSShadowRadius = 16, kWSShadowOffsetY = 6, kWSShadowCornerRadius = 8 };
 
 /* Windows (WSWindowList.m). */
 WSWindow *WSWindowCreate(WSConnection *owner, int32_t level, SLSRect frame);
@@ -105,6 +107,9 @@ void WSCursorSetBounds(double minX, double minY, double maxX, double maxY);
 NSArray<WSWindow *> *WSWindowStack(void);
 /* Counts an input event in the statistics. */
 void WSStatsCountEvent(void);
+/* An input event, at mach_absolute_time when (IOHIDSystem's time): the
+ * next frame's present measures the input-to-present latency from it. */
+void WSStatsNoteInput(uint64_t when);
 /* Queues an event for a connection (WSEvents.m). */
 void WSEventsEnqueue(WSConnection *connection, const SLSEvent *event);
 /* Whether a connection may control input: post, filter, listen to keys,
@@ -117,6 +122,8 @@ BOOL WSMayControlInput(WSConnection *connection);
 void WSHotKeysStart(void);
 BOOL WSHotKeysHandle(const SLSEvent *event, WSConnection *keyOwner, SLSWindowID keyWindow,
     WSConnection *front);
+/* Tells the HID system where the displays are now (WSInput.m). */
+void WSInputDisplaysChanged(void);
 /* Tells the HID system where a warp put the cursor (WSInput.m). */
 void WSInputSetCursor(double x, double y);
 /* A posted key event without characters gets the keymap's (WSInput.m). */

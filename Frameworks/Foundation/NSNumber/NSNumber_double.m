@@ -181,8 +181,8 @@ NSNumber *NSNumber_doubleNew(NSZone *zone,double value) {
 NS_DECLARE_CLASS_SYMBOL(NSNumber_double_const);
 
 
-// The layout of an NSNumber_double: NSObject's isa, cfinfo and rc (the
-// CF-compatible header, 16 bytes), then NSNumber_CF's _type and the value.
+// The layout of an NSNumber_double: isa, then NSNumber_CF's cfinfo and rc
+// (the CF-compatible header, 16 bytes), _type and the value.
 // Minkar: without cfinfo and rc, _value sat 8 bytes before where
 // -doubleValue reads it, so 0.0, -0.0, 1.0, -1.0, the infinities and NaN
 // read back as garbage.

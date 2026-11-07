@@ -9,7 +9,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <Foundation/NSCoder.h>
 #import <Foundation/NSHashTable.h>
 
-@class NSMutableData, NSMutableDictionary;
+@class NSMutableData, NSMutableDictionary<KeyType, ObjectType>;
 
 @interface NSArchiver : NSCoder {
     NSMutableData *_data;

@@ -147,3 +147,205 @@ LSSessionQuit(pid_t pid)
 	LSS_CALL(lss_quit(s, pid, &result));
 	return result;
 }
+
+/* -- Interface version 3: the applications installed and opening -- */
+
+int
+LSSessionCopyHandlers(const LSSessionFile *file, LSSessionPath **apps, uint32_t *count,
+    char uti[128])
+{
+	LSSessionPath list[kLSSessionMaxHandlers];
+	mach_msg_type_number_t n = kLSSessionMaxHandlers;
+	ls_uti_t type;
+	int32_t result = kLSSessionSuccess;
+
+	if (file == NULL || apps == NULL || count == NULL)
+		return kLSSessionIllegalArgument;
+	memset(&type, 0, sizeof(type));
+	LSS_CALL(lss_copy_handlers(s, *file, &result, &type, list, &n));
+	if (uti != NULL) {
+		memcpy(uti, type.uti, sizeof(type.uti));
+		uti[127] = '\0';
+	}
+	*apps = malloc((n ? n : 1) * sizeof(LSSessionPath));
+	if (*apps == NULL)
+		return kLSSessionNoService;
+	memcpy(*apps, list, n * sizeof(LSSessionPath));
+	for (mach_msg_type_number_t i = 0; i < n; i++)
+		(*apps)[i].path[sizeof((*apps)[i].path) - 1] = '\0';
+	*count = n;
+	return result;
+}
+
+int
+LSSessionCopyAppForBundleIdentifier(const char *bundleIdentifier, LSSessionPath *app)
+{
+	LSSessionPath id;
+	int32_t result = kLSSessionSuccess;
+
+	if (bundleIdentifier == NULL || app == NULL ||
+	    strlen(bundleIdentifier) >= sizeof(id.path))
+		return kLSSessionIllegalArgument;
+	memset(&id, 0, sizeof(id));
+	strlcpy(id.path, bundleIdentifier, sizeof(id.path));
+	LSS_CALL(lss_copy_app_for_bundle_id(s, id, &result, app));
+	app->path[sizeof(app->path) - 1] = '\0';
+	return result;
+}
+
+int
+LSSessionRegister(const char *path)
+{
+	LSSessionPath p;
+	int32_t result = kLSSessionSuccess;
+
+	if (path == NULL || strlen(path) >= sizeof(p.path))
+		return kLSSessionIllegalArgument;
+	memset(&p, 0, sizeof(p));
+	strlcpy(p.path, path, sizeof(p.path));
+	LSS_CALL(lss_register_app(s, p, &result));
+	return result;
+}
+
+int
+LSSessionOpen(const char *appPath, const char *urls, uint32_t length, uint32_t flags,
+    int *running)
+{
+	LSSessionPath app;
+	int32_t result = kLSSessionSuccess, isRunning = 0;
+
+	if (appPath == NULL || strlen(appPath) >= sizeof(app.path) ||
+	    (urls == NULL && length != 0) || length > kLSSessionMaxURLBytes)
+		return kLSSessionIllegalArgument;
+	memset(&app, 0, sizeof(app));
+	strlcpy(app.path, appPath, sizeof(app.path));
+	LSS_CALL(lss_open_urls(s, app, (char *)urls, length, flags, &result, &isRunning));
+	if (running != NULL)
+		*running = isRunning;
+	return result;
+}
+
+int
+LSSessionSetHidden(pid_t pid, int hidden)
+{
+	int32_t result = kLSSessionSuccess;
+
+	LSS_CALL(lss_set_hidden(s, pid, hidden != 0, &result));
+	return result;
+}
+
+/* -- Interface version 5: types and URL schemes -- */
+
+static int
+toPath(const char *string, LSSessionPath *path)
+{
+	memset(path, 0, sizeof(*path));
+	if (string == NULL)
+		return 0;
+	if (strlen(string) >= sizeof(path->path))
+		return -1;
+	strlcpy(path->path, string, sizeof(path->path));
+	return 0;
+}
+
+static int
+copyList(LSSessionPath *list, mach_msg_type_number_t n, LSSessionPath **apps, uint32_t *count)
+{
+	*apps = malloc((n ? n : 1) * sizeof(LSSessionPath));
+	if (*apps == NULL)
+		return kLSSessionNoService;
+	memcpy(*apps, list, n * sizeof(LSSessionPath));
+	for (mach_msg_type_number_t i = 0; i < n; i++)
+		(*apps)[i].path[sizeof((*apps)[i].path) - 1] = '\0';
+	*count = n;
+	return kLSSessionSuccess;
+}
+
+int
+LSSessionCopyHandlersForType(const char *uti, uint32_t roles, LSSessionPath **apps,
+    uint32_t *count)
+{
+	LSSessionPath type, list[kLSSessionMaxHandlers];
+	mach_msg_type_number_t n = kLSSessionMaxHandlers;
+	int32_t result = kLSSessionSuccess;
+
+	if (uti == NULL || apps == NULL || count == NULL || toPath(uti, &type) != 0)
+		return kLSSessionIllegalArgument;
+	LSS_CALL(lss_copy_handlers_for_type(s, type, roles, &result, list, &n));
+	if (result != kLSSessionSuccess)
+		return result;
+	return copyList(list, n, apps, count);
+}
+
+int
+LSSessionCopyHandlersForScheme(const char *scheme, LSSessionPath **apps, uint32_t *count)
+{
+	LSSessionPath name, list[kLSSessionMaxHandlers];
+	mach_msg_type_number_t n = kLSSessionMaxHandlers;
+	int32_t result = kLSSessionSuccess;
+
+	if (scheme == NULL || apps == NULL || count == NULL || toPath(scheme, &name) != 0)
+		return kLSSessionIllegalArgument;
+	LSS_CALL(lss_copy_handlers_for_scheme(s, name, &result, list, &n));
+	if (result != kLSSessionSuccess)
+		return result;
+	return copyList(list, n, apps, count);
+}
+
+int
+LSSessionConformsTo(const char *uti, const char *other)
+{
+	LSSessionPath a, b;
+	int32_t result = 0;
+
+	if (uti == NULL || other == NULL || toPath(uti, &a) != 0 || toPath(other, &b) != 0)
+		return kLSSessionIllegalArgument;
+	LSS_CALL(lss_conforms_to(s, a, b, &result));
+	return result;
+}
+
+/* A text reply (lines, NUL-ended) into a string of its own. */
+static int
+copyText(const char *bytes, mach_msg_type_number_t n, char **text)
+{
+	*text = malloc(n + 1);
+	if (*text == NULL)
+		return kLSSessionNoService;
+	memcpy(*text, bytes, n);
+	(*text)[n] = '\0';
+	return kLSSessionSuccess;
+}
+
+int
+LSSessionCopyDeclaration(const char *uti, char **text)
+{
+	LSSessionPath type;
+	static __thread char bytes[kLSSessionMaxURLBytes];
+	mach_msg_type_number_t n = sizeof(bytes);
+	int32_t result = kLSSessionSuccess;
+
+	if (uti == NULL || text == NULL || toPath(uti, &type) != 0)
+		return kLSSessionIllegalArgument;
+	LSS_CALL(lss_copy_declaration(s, type, &result, bytes, &n));
+	if (result != kLSSessionSuccess)
+		return result;
+	return copyText(bytes, n, text);
+}
+
+int
+LSSessionCopyTypesForTag(uint32_t tagClass, const char *tag, const char *conforming,
+    char **text)
+{
+	LSSessionPath t, c;
+	static __thread char bytes[kLSSessionMaxURLBytes];
+	mach_msg_type_number_t n = sizeof(bytes);
+	int32_t result = kLSSessionSuccess;
+
+	if (tag == NULL || text == NULL || toPath(tag, &t) != 0 || toPath(conforming, &c) != 0)
+		return kLSSessionIllegalArgument;
+	LSS_CALL(lss_copy_types_for_tag(s, tagClass, t, c, &result, bytes, &n));
+	if (result != kLSSessionSuccess)
+		return result;
+	return copyText(bytes, n, text);
+}
+

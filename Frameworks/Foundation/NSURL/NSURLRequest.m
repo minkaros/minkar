@@ -12,6 +12,8 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <Foundation/NSStream.h>
 #import <Foundation/NSData.h>
 #import <Foundation/NSRaise.h>
+#import <Foundation/NSCoder.h>
+#import <Foundation/NSMutableDictionary.h>
 
 @implementation NSURLRequest
 
@@ -27,8 +29,14 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
     _bodyDataOrStream=[[other HTTPBodyStream] retain];
    
    _headerFields=[[other allHTTPHeaderFields] mutableCopy];
-   _method=[other HTTPMethod];
+   _method=[[other HTTPMethod] copy];
+   _mainDocumentURL=[[other mainDocumentURL] copy];
    _handleCookies=[other HTTPShouldHandleCookies];
+   _usePipelining=[other HTTPShouldUsePipelining];
+   _allowsCellular=[other allowsCellularAccess];
+   _allowsExpensive=[other allowsExpensiveNetworkAccess];
+   _allowsConstrained=[other allowsConstrainedNetworkAccess];
+   _serviceType=[other networkServiceType];
    return self;
 }
 
@@ -45,6 +53,9 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    _headerFields=[NSMutableDictionary new];
    _method=@"GET";
    _handleCookies=YES;
+   _allowsCellular=YES;
+   _allowsExpensive=YES;
+   _allowsConstrained=YES;
    return self;
 }
 
@@ -57,6 +68,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    [_bodyDataOrStream release];
    [_headerFields release];
    [_method release];
+   [_mainDocumentURL release];
    [super dealloc];
 }
 
@@ -122,6 +134,61 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 -(BOOL)HTTPShouldHandleCookies {
    return _handleCookies;
+}
+
++(BOOL)supportsSecureCoding {
+   return YES;
+}
+
+-(BOOL)HTTPShouldUsePipelining {
+   return _usePipelining;
+}
+
+-(NSURLRequestNetworkServiceType)networkServiceType {
+   return _serviceType;
+}
+
+-(BOOL)allowsCellularAccess {
+   return _allowsCellular;
+}
+
+-(BOOL)allowsExpensiveNetworkAccess {
+   return _allowsExpensive;
+}
+
+-(BOOL)allowsConstrainedNetworkAccess {
+   return _allowsConstrained;
+}
+
+/* Keyed coding of what makes the request. */
+-(void)encodeWithCoder:(NSCoder *)coder {
+   [coder encodeObject:_url forKey:@"NS.url"];
+   [coder encodeInteger:_cachePolicy forKey:@"NS.cachePolicy"];
+   [coder encodeDouble:_timeoutInterval forKey:@"NS.timeoutInterval"];
+   [coder encodeObject:_method forKey:@"NS.method"];
+   [coder encodeObject:_headerFields forKey:@"NS.headers"];
+   if([_bodyDataOrStream isKindOfClass:[NSData class]])
+    [coder encodeObject:_bodyDataOrStream forKey:@"NS.body"];
+   [coder encodeObject:_mainDocumentURL forKey:@"NS.mainDocumentURL"];
+   [coder encodeBool:_handleCookies forKey:@"NS.handleCookies"];
+}
+
+-initWithCoder:(NSCoder *)coder {
+   self=[self initWithURL:[coder decodeObjectOfClass:[NSURL class] forKey:@"NS.url"]
+            cachePolicy:[coder decodeIntegerForKey:@"NS.cachePolicy"]
+        timeoutInterval:[coder decodeDoubleForKey:@"NS.timeoutInterval"]];
+   NSString *method=[coder decodeObjectOfClass:[NSString class] forKey:@"NS.method"];
+   if(method!=nil){
+    [_method release];
+    _method=[method copy];
+   }
+   NSDictionary *headers=[coder decodeObjectOfClass:[NSDictionary class] forKey:@"NS.headers"];
+   if(headers!=nil)
+    [_headerFields setDictionary:headers];
+   _bodyDataOrStream=[[coder decodeObjectOfClass:[NSData class] forKey:@"NS.body"] copy];
+   _mainDocumentURL=[[coder decodeObjectOfClass:[NSURL class] forKey:@"NS.mainDocumentURL"] copy];
+   _handleCookies=[coder decodeBoolForKey:@"NS.handleCookies"];
+   return self;
 }
 
 -(NSString *)description {

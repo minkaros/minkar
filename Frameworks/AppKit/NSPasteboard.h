@@ -9,17 +9,27 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <Foundation/Foundation.h>
 #import <AppKit/AppKitExport.h>
 
-// New Pasteboard Types (added in 10.6) and interchangeable with the old pasteboard types in Cocotron
-APPKIT_EXPORT NSString *const NSPasteboardTypeString;
-APPKIT_EXPORT NSString *const NSPasteboardTypePDF;
-APPKIT_EXPORT NSString *const NSPasteboardTypeTIFF;
-APPKIT_EXPORT NSString *const NSPasteboardTypeRTF;
-APPKIT_EXPORT NSString *const NSPasteboardTypeRTFD;
-APPKIT_EXPORT NSString *const NSPasteboardTypeHTML;
-APPKIT_EXPORT NSString *const NSPasteboardTypeTabularText;
-APPKIT_EXPORT NSString *const NSPasteboardTypeFont;
-APPKIT_EXPORT NSString *const NSPasteboardTypeRuler;
-APPKIT_EXPORT NSString *const NSPasteboardTypeColor;
+typedef NSString *NSPasteboardType;
+typedef NSString *NSPasteboardName;
+
+// Pasteboard types: uniform type identifiers (10.6 and later); the older
+// NS*PboardType names below are taken as the same types.
+APPKIT_EXPORT NSPasteboardType const NSPasteboardTypeString;
+APPKIT_EXPORT NSPasteboardType const NSPasteboardTypePDF;
+APPKIT_EXPORT NSPasteboardType const NSPasteboardTypeTIFF;
+APPKIT_EXPORT NSPasteboardType const NSPasteboardTypePNG;
+APPKIT_EXPORT NSPasteboardType const NSPasteboardTypeRTF;
+APPKIT_EXPORT NSPasteboardType const NSPasteboardTypeRTFD;
+APPKIT_EXPORT NSPasteboardType const NSPasteboardTypeHTML;
+APPKIT_EXPORT NSPasteboardType const NSPasteboardTypeTabularText;
+APPKIT_EXPORT NSPasteboardType const NSPasteboardTypeFont;
+APPKIT_EXPORT NSPasteboardType const NSPasteboardTypeRuler;
+APPKIT_EXPORT NSPasteboardType const NSPasteboardTypeColor;
+APPKIT_EXPORT NSPasteboardType const NSPasteboardTypeSound;
+APPKIT_EXPORT NSPasteboardType const NSPasteboardTypeMultipleTextSelection;
+APPKIT_EXPORT NSPasteboardType const NSPasteboardTypeTextFinderOptions;
+APPKIT_EXPORT NSPasteboardType const NSPasteboardTypeURL;
+APPKIT_EXPORT NSPasteboardType const NSPasteboardTypeFileURL;
 
 // Old Pasteboard Types
 APPKIT_EXPORT NSString *const NSColorPboardType;
@@ -36,6 +46,13 @@ APPKIT_EXPORT NSString *const NSStringPboardType;
 APPKIT_EXPORT NSString *const NSTabularTextPboardType;
 APPKIT_EXPORT NSString *const NSTIFFPboardType;
 APPKIT_EXPORT NSString *const NSURLPboardType;
+APPKIT_EXPORT NSString *const NSHTMLPboardType;
+
+APPKIT_EXPORT NSPasteboardName const NSPasteboardNameGeneral;
+APPKIT_EXPORT NSPasteboardName const NSPasteboardNameFont;
+APPKIT_EXPORT NSPasteboardName const NSPasteboardNameRuler;
+APPKIT_EXPORT NSPasteboardName const NSPasteboardNameFind;
+APPKIT_EXPORT NSPasteboardName const NSPasteboardNameDrag;
 
 APPKIT_EXPORT NSString *const NSDragPboard;
 APPKIT_EXPORT NSString *const NSFindPboard;
@@ -43,30 +60,81 @@ APPKIT_EXPORT NSString *const NSFontPboard;
 APPKIT_EXPORT NSString *const NSGeneralPboard;
 APPKIT_EXPORT NSString *const NSRulerPboard;
 
-@interface NSPasteboard : NSObject
+typedef NSUInteger NSPasteboardWritingOptions;
+enum {
+    NSPasteboardWritingPromised = 1 << 9,
+};
+
+typedef NSUInteger NSPasteboardReadingOptions;
+enum {
+    NSPasteboardReadingAsData = 0,
+    NSPasteboardReadingAsString = 1 << 0,
+    NSPasteboardReadingAsPropertyList = 1 << 1,
+    NSPasteboardReadingAsKeyedArchive = 1 << 2,
+};
+
+@class NSPasteboard;
+
+@protocol NSPasteboardWriting <NSObject>
+- (NSArray *)writableTypesForPasteboard:(NSPasteboard *)pasteboard;
+- (id)pasteboardPropertyListForType:(NSPasteboardType)type;
+@optional
+- (NSPasteboardWritingOptions)writingOptionsForType:(NSPasteboardType)type
+    pasteboard:(NSPasteboard *)pasteboard;
+@end
+
+@protocol NSPasteboardReading <NSObject>
++ (NSArray *)readableTypesForPasteboard:(NSPasteboard *)pasteboard;
+@optional
++ (NSPasteboardReadingOptions)readingOptionsForType:(NSPasteboardType)type
+    pasteboard:(NSPasteboard *)pasteboard;
+- (id)initWithPasteboardPropertyList:(id)propertyList ofType:(NSPasteboardType)type;
+@end
+
+@interface NSPasteboard : NSObject {
+    NSString *_name;
+    NSInteger _changeCount;        /* of our last clear or declare */
+    id _owner;                     /* retained while it owns the pasteboard */
+    NSMutableArray *_declaredTypes;  /* declared, maybe not written yet */
+}
 
 + (NSPasteboard *)generalPasteboard;
-+ (NSPasteboard *)pasteboardWithName:(NSString *)name;
++ (NSPasteboard *)pasteboardWithName:(NSPasteboardName)name;
++ (NSPasteboard *)pasteboardWithUniqueName;
 
-- (int)changeCount;
+@property(readonly, copy) NSPasteboardName name;
+@property(readonly) NSInteger changeCount;
+
+- (void)releaseGlobally;
+
+- (NSInteger)clearContents;
+- (BOOL)writeObjects:(NSArray *)objects;
+- (NSArray *)readObjectsForClasses:(NSArray *)classArray options:(NSDictionary *)options;
+- (BOOL)canReadObjectForClasses:(NSArray *)classArray options:(NSDictionary *)options;
 
 - (NSArray *)types;
-- (NSString *)availableTypeFromArray:(NSArray *)types;
+- (NSPasteboardType)availableTypeFromArray:(NSArray *)types;
+- (NSData *)dataForType:(NSPasteboardType)type;
+- (NSString *)stringForType:(NSPasteboardType)type;
+- (id)propertyListForType:(NSPasteboardType)type;
 
-- (NSData *)dataForType:(NSString *)type;
-- (NSString *)stringForType:(NSString *)type;
-- propertyListForType:(NSString *)type;
-
-- (int)declareTypes:(NSArray *)types owner:owner;
-- (int)addTypes:(NSArray *)types owner:(id)owner;
-
-- (BOOL)setData:(NSData *)data forType:(NSString *)type;
-- (BOOL)setString:(NSString *)string forType:(NSString *)type;
-- (BOOL)setPropertyList:plist forType:(NSString *)type;
+- (NSInteger)declareTypes:(NSArray *)types owner:(id)owner;
+- (NSInteger)addTypes:(NSArray *)types owner:(id)owner;
+- (BOOL)setData:(NSData *)data forType:(NSPasteboardType)type;
+- (BOOL)setString:(NSString *)string forType:(NSPasteboardType)type;
+- (BOOL)setPropertyList:(id)plist forType:(NSPasteboardType)type;
 
 @end
 
 @interface NSObject (NSPasteboard)
-- (void)pasteboard:(NSPasteboard *)sender provideDataForType:(NSString *)type;
+- (void)pasteboard:(NSPasteboard *)sender provideDataForType:(NSPasteboardType)type;
 - (void)pasteboardChangedOwner:(NSPasteboard *)sender;
+@end
+
+@interface NSString (NSPasteboardSupport) <NSPasteboardWriting, NSPasteboardReading>
+@end
+
+@interface NSURL (NSPasteboardSupport) <NSPasteboardWriting, NSPasteboardReading>
++ (NSURL *)URLFromPasteboard:(NSPasteboard *)pasteboard;
+- (void)writeToPasteboard:(NSPasteboard *)pasteboard;
 @end

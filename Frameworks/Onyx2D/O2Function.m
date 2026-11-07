@@ -19,7 +19,7 @@ O2FunctionRef O2FunctionInit(O2FunctionRef self,void *info,size_t domainCount,co
    self->_info=info;
    
    self->_domainCount=domainCount*2;
-   self->_domain=NSZoneMalloc(NULL,sizeof(float)*self->_domainCount);
+   self->_domain=NSZoneMalloc(NULL,sizeof(O2Float)*self->_domainCount);
    if(domain==NULL){
     for(i=0;i<self->_domainCount;i++)
      self->_domain[i]=i%2;
@@ -30,7 +30,7 @@ O2FunctionRef O2FunctionInit(O2FunctionRef self,void *info,size_t domainCount,co
    }
    
    self->_rangeCount=rangeCount*2;
-   self->_range=NSZoneMalloc(NULL,sizeof(float)*self->_rangeCount);
+   self->_range=NSZoneMalloc(NULL,sizeof(O2Float)*self->_rangeCount);
    if(range==NULL){
     for(i=0;i<self->_rangeCount;i++)
      self->_range[i]=i%2;
@@ -60,7 +60,7 @@ void O2FunctionRelease(O2FunctionRef self) {
 }
 
 void O2FunctionEvaluate(O2FunctionRef self,O2Float x,O2Float *output){
-  float inputs[1];
+  O2Float inputs[1];
   int   i;
 
   if(x<self->_domain[0])
@@ -93,7 +93,7 @@ void O2FunctionEvaluate(O2FunctionRef self,O2Float x,O2Float *output){
    return _domainCount;
 }
 
--(const float *)domain {
+-(const O2Float *)domain {
    return _domain;
 }
 
@@ -101,7 +101,7 @@ void O2FunctionEvaluate(O2FunctionRef self,O2Float x,O2Float *output){
    return _rangeCount;
 }
 
--(const float *)range {
+-(const O2Float *)range {
    return _range;
 }
 

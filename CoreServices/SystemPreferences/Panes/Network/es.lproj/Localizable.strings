@@ -1,0 +1,16 @@
+/* SPDX-License-Identifier: BSD-2-Clause
+   Copyright (c) 2026 The Minkar contributors
+   The Network pane, in Spanish. The keys are the English texts. */
+
+"Connected" = "Conectado";
+"Not Connected" = "No conectado";
+"Configure IPv4:" = "Configurar IPv4:";
+"Using DHCP" = "Usando DHCP";
+"Manually" = "Manualmente";
+"IP Address:" = "Dirección IP:";
+"Subnet Mask:" = "Máscara de subred:";
+"Router:" = "Router:";
+"DNS Server:" = "Servidor DNS:";
+"Apply" = "Aplicar";
+"%@ is connected and has the IP address %@." = "%@ está conectado y tiene la dirección IP %@.";
+"%@ is not connected." = "%@ no está conectado.";

@@ -8,19 +8,27 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 #import <Foundation/NSObject.h>
 
-@class NSDictionary;
+@class NSDictionary<KeyType, ObjectType>;
+@class NSString;
+
+/* A notification's name (API 19). */
+typedef NSString *NSNotificationName NS_EXTENSIBLE_STRING_ENUM;
+
+NS_ASSUME_NONNULL_BEGIN
 
 @interface NSNotification : NSObject <NSCopying, NSCoding>
 
-+ (NSNotification *)notificationWithName:(NSString *)name object:object
-                                userInfo:(NSDictionary *)userInfo;
+@property (readonly, copy) NSNotificationName name;
+@property (nullable, readonly, retain) id object;
+@property (nullable, readonly, copy) NSDictionary *userInfo;
 
-+ (NSNotification *)notificationWithName:(NSString *)name object:object;
+- (instancetype)initWithName:(NSNotificationName)name object:(nullable id)object userInfo:(nullable NSDictionary *)userInfo;
 
-- (NSString *)name;
-- object;
-- (NSDictionary *)userInfo;
++ (instancetype)notificationWithName:(NSNotificationName)aName object:(nullable id)anObject;
++ (instancetype)notificationWithName:(NSNotificationName)aName object:(nullable id)anObject userInfo:(nullable NSDictionary *)aUserInfo;
 
 @end
+
+NS_ASSUME_NONNULL_END
 
 #import <Foundation/NSNotificationCenter.h>

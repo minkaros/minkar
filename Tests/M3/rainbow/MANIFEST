@@ -1,0 +1,6 @@
+# Rainbow 4.2.2 (MIT), for gate M3: terminal text colors and styles,
+# and its tests.
+url https://github.com/onevcat/Rainbow/archive/refs/tags/4.2.2.tar.gz
+file Rainbow-4.2.2.tar.gz
+sha256 f0d836ecdd20a511c07247af4b8ee5a979c27cd0d49a24b70d1101b80f8f1492
+version 4.2.2

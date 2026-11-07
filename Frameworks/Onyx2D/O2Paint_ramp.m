@@ -32,22 +32,22 @@
 
 @implementation O2Paint_ramp
 
-ONYX2D_STATIC_INLINE void GrayAToRGBA(float *input,float *output){
+ONYX2D_STATIC_INLINE void GrayAToRGBA(O2Float *input,O2Float *output){
    output[0]=input[0];
    output[1]=input[0];
    output[2]=input[0];
    output[3]=input[1];
 }
 
-ONYX2D_STATIC_INLINE void RGBAToRGBA(float *input,float *output){
+ONYX2D_STATIC_INLINE void RGBAToRGBA(O2Float *input,O2Float *output){
    output[0]=input[0];
    output[1]=input[1];
    output[2]=input[2];
    output[3]=input[3];
 }
 
-ONYX2D_STATIC_INLINE void CMYKAToRGBA(float *input,float *output){
-   float white=1-input[3];
+ONYX2D_STATIC_INLINE void CMYKAToRGBA(O2Float *input,O2Float *output){
+   O2Float white=1-input[3];
    
    output[0]=(input[0]>white)?0:white-input[0];
    output[1]=(input[1]>white)?0:white-input[1];
@@ -66,9 +66,9 @@ ONYX2D_STATIC_INLINE void CMYKAToRGBA(float *input,float *output){
    O2Function      *function=[shading function];
    O2ColorSpace    *colorSpace=O2ShadingColorSpace(shading);
    O2ColorSpaceModel colorSpaceType=[colorSpace type];
-   float            output[O2ColorSpaceGetNumberOfComponents(colorSpace)+1];
-   void           (*outputToRGBA)(float *,float *);
-   float            rgba[4];
+   O2Float            output[O2ColorSpaceGetNumberOfComponents(colorSpace)+1];
+   void           (*outputToRGBA)(O2Float *,O2Float *);
+   O2Float            rgba[4];
 
    switch(colorSpaceType){
 

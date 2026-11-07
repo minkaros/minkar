@@ -1,0 +1,6 @@
+# tag 0.10 (MIT), for gate M3: file tags through NSURL's resource values,
+# and finding tagged files with NSMetadataQuery.
+url https://github.com/jdberry/tag/archive/refs/tags/v0.10.tar.gz
+file tag-0.10.tar.gz
+sha256 5ab057d3e3f0dbb5c3be3970ffd90f69af4cb6201c18c1cbaa23ef367e5b071e
+version 0.10

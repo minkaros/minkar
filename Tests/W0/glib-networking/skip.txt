@@ -1,0 +1,5 @@
+# The test moves the clock 11 minutes on by defining clock_gettime in the
+# program, which replaces the C library's only with a flat namespace (ELF);
+# on Darwin, two-level, OpenSSL and GLib keep calling libSystem's, so the
+# session is not old enough (the reference platform alike).
+connection-openssl:/tls/openssl/connection/session/reuse_ten_minute_expiry needs clock_gettime replaced by the program, which Darwin's two-level namespace does not do

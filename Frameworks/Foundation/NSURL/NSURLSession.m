@@ -1984,3 +1984,103 @@ static NSURLRequest *requestForURL(NSURL *url) {
 }
 
 @end
+
+#pragma mark - Metrics and WebSockets (API 19)
+
+#import <Foundation/NSNull.h>
+#include <minkar/stub.h>
+
+@implementation NSURLSessionTaskTransactionMetrics
+@end
+
+@implementation NSURLSessionTaskMetrics
+- (NSArray *)transactionMetrics { return @[]; }
+@end
+
+@implementation NSURLSessionWebSocketMessage
+
+- (instancetype)initWithData:(NSData *)data {
+    if ((self = [super init]) == nil)
+        return nil;
+    _type = NSURLSessionWebSocketMessageTypeData;
+    _data = [data copy];
+    return self;
+}
+
+- (instancetype)initWithString:(NSString *)string {
+    if ((self = [super init]) == nil)
+        return nil;
+    _type = NSURLSessionWebSocketMessageTypeString;
+    _string = [string copy];
+    return self;
+}
+
+- (NSURLSessionWebSocketMessageType)type { return _type; }
+- (NSData *)data { return _data; }
+- (NSString *)string { return _string; }
+
+@end
+
+/* No WebSocket transport yet: the task fails when it starts, its sends and
+ * receives with it (an unsupported URL, as for a scheme Minkar lacks). */
+@implementation NSURLSessionWebSocketTask {
+    NSInteger _maximumMessageSize;
+}
+
+- (NSError *)_unsupported {
+    return [NSError errorWithDomain:NSURLErrorDomain code:NSURLErrorUnsupportedURL
+        userInfo:@{ NSLocalizedDescriptionKey: @"WebSocket connections are not supported yet",
+                    NSURLErrorFailingURLErrorKey: [[self originalRequest] URL] ?: [NSNull null] }];
+}
+
+- (void)resume {
+    MINKAR_STUB();
+    [super cancel];
+}
+
+- (void)sendMessage:(NSURLSessionWebSocketMessage *)message completionHandler:(void (^)(NSError *))completionHandler {
+    MINKAR_STUB();
+    NSError *error = [self _unsupported];
+    dispatch_async(dispatch_get_global_queue(0, 0), ^{ completionHandler(error); });
+}
+
+- (void)receiveMessageWithCompletionHandler:(void (^)(NSURLSessionWebSocketMessage *, NSError *))completionHandler {
+    MINKAR_STUB();
+    NSError *error = [self _unsupported];
+    dispatch_async(dispatch_get_global_queue(0, 0), ^{ completionHandler(nil, error); });
+}
+
+- (void)sendPingWithPongReceiveHandler:(void (^)(NSError *))pongReceiveHandler {
+    NSError *error = [self _unsupported];
+    dispatch_async(dispatch_get_global_queue(0, 0), ^{ pongReceiveHandler(error); });
+}
+
+- (void)cancelWithCloseCode:(NSURLSessionWebSocketCloseCode)closeCode reason:(NSData *)reason {
+    [self cancel];
+}
+
+- (NSInteger)maximumMessageSize { return _maximumMessageSize ?: 1048576; }
+- (void)setMaximumMessageSize:(NSInteger)size { _maximumMessageSize = size; }
+- (NSURLSessionWebSocketCloseCode)closeCode { return NSURLSessionWebSocketCloseCodeInvalid; }
+- (NSData *)closeReason { return nil; }
+
+@end
+
+@implementation NSURLSession (NSURLSessionWebSocket)
+
+- (NSURLSessionWebSocketTask *)webSocketTaskWithURL:(NSURL *)url {
+    return [self webSocketTaskWithRequest:[NSURLRequest requestWithURL:url]];
+}
+
+- (NSURLSessionWebSocketTask *)webSocketTaskWithURL:(NSURL *)url protocols:(NSArray<NSString *> *)protocols {
+    NSMutableURLRequest *request = [NSMutableURLRequest requestWithURL:url];
+    if ([protocols count] > 0)
+        [request setValue:[protocols componentsJoinedByString:@", "] forHTTPHeaderField:@"Sec-WebSocket-Protocol"];
+    return [self webSocketTaskWithRequest:request];
+}
+
+- (NSURLSessionWebSocketTask *)webSocketTaskWithRequest:(NSURLRequest *)request {
+    return [[NSURLSessionWebSocketTask alloc] _initWithSession:self request:request kind:NSURLSessionTaskKindData];
+}
+
+@end

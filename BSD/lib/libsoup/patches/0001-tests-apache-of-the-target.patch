@@ -1,0 +1,59 @@
+Tests: apache_httpd and apache_module_dir options
+
+libsoup looks for Apache where it is built and asks it where its modules
+are; built for another system, its tests need that system's Apache
+instead. With apache_httpd (and apache_module_dir) the tests use that.
+
+--- a/meson_options.txt	2026-11-06 22:39:49.286050878 -0500
++++ b/meson_options.txt	2026-11-06 22:39:49.294050779 -0500
+@@ -88,3 +88,15 @@
+   value: 'auto',
+   description: 'enable PKCS #11 tests depending on gnutls'
+ )
++
++option('apache_httpd',
++  type : 'string',
++  value : '',
++  description : 'Apache httpd on the system the tests run on, instead of looking for one where libsoup is built'
++)
++
++option('apache_module_dir',
++  type : 'string',
++  value : '',
++  description : 'Its modules directory (with apache_httpd)'
++)
+--- a/meson.build	2026-11-06 22:39:49.286050878 -0500
++++ b/meson.build	2026-11-06 22:42:56.272489665 -0500
+@@ -241,7 +241,8 @@
+              required : false)
+ have_apache=false
+ apache_httpd2_version = ''
+-if apache_httpd2.found() and apachectl.found()
++apache_httpd_option = get_option('apache_httpd')
++if apache_httpd_option == '' and apache_httpd2.found() and apachectl.found()
+   apache_httpd2_version_raw = run_command(apachectl.path(), '-v', check: false)
+   # It seems that from version 2.4.39 apachectl doesn't take arguments, fallback
+   # to calling apache directly just in case.
+@@ -260,7 +261,21 @@
+   endif
+ endif
+ 
+-if have_apache
++if apache_httpd_option != ''
++  # The system the tests run on has its own Apache (2.4, with mod_unixd
++  # and mod_http2, in one modules directory).
++  have_apache = true
++  apache_module_dir = get_option('apache_module_dir')
++  cdata.set_quoted('APACHE_HTTPD', apache_httpd_option)
++  cdata.set('APACHE_MODULE_DIR', apache_module_dir)
++  cdata.set('APACHE_SSL_MODULE_DIR', apache_module_dir)
++  cdata.set('IF_HAVE_MOD_UNIXD', '')
++  cdata.set('IF_HAVE_MOD_HTTP2', '')
++  cdata.set('APACHE_HTTP2_MODULE_DIR', apache_module_dir)
++  # Its httpd is 2.4.69 or later, without RFC 2069 Digest (see 0002).
++  cdata.set('IF_HAVE_RFC2069_DIGEST', '#')
++  cdata.set('HAVE_APACHE', have_apache)
++elif have_apache
+   apache_modules_dirs_out = run_command('get_apache_modules_dirs.py', apachectl.path(), check: false)
+   have_apache = (apache_modules_dirs_out.returncode() == 0)
+   # Same as above, using apachectl might fail, try apache directly.

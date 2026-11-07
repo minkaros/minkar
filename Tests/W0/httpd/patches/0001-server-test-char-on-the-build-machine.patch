@@ -1,0 +1,21 @@
+server: test_char.h made with the build machine's compiler
+
+gen_test_char was built for the target and run on the build machine,
+which cannot run it when httpd is built for another system.
+
+--- a/server/Makefile.in	2026-11-06 21:55:29.037196468 -0500
++++ b/server/Makefile.in	2026-11-06 21:55:29.061213313 -0500
+@@ -28,8 +28,11 @@
+ gen_test_char: $(gen_test_char_OBJECTS)
+ 	$(LINK) $(EXTRA_LDFLAGS) $(gen_test_char_OBJECTS) $(EXTRA_LIBS)
+ 
+-test_char.h: gen_test_char
+-	./gen_test_char > test_char.h
++# The table is made on the build machine, which may not run what is built
++# (gen_test_char.c builds without APR with CROSS_COMPILE).
++test_char.h: $(srcdir)/gen_test_char.c
++	$${CC_FOR_BUILD:-cc} -DCROSS_COMPILE -o gen_test_char_build $(srcdir)/gen_test_char.c
++	./gen_test_char_build > test_char.h
+ 
+ util.lo: test_char.h
+ 

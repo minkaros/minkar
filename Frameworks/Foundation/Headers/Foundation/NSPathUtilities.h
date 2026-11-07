@@ -7,38 +7,49 @@ The above copyright notice and this permission notice shall be included in all c
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE. */
 
 #import <Foundation/NSString.h>
+#import <Foundation/NSArray.h>
+
+NS_ASSUME_NONNULL_BEGIN
 
 @interface NSString (NSString_pathUtilities)
 
-+ (NSString *)pathWithComponents:(NSArray *)components;
-- (NSArray *)pathComponents;
++ (NSString *)pathWithComponents:(NSArray<NSString *> *)components;
+@property (readonly, copy) NSArray<NSString *> *pathComponents;
 
-- (NSString *)lastPathComponent;
+@property (readonly, copy) NSString *lastPathComponent;
 
-- (NSString *)pathExtension;
+@property (readonly, copy) NSString *pathExtension;
 
 - (NSString *)stringByAppendingPathComponent:(NSString *)string;
-- (NSString *)stringByAppendingPathExtension:(NSString *)string;
-- (NSArray *)stringsByAppendingPaths:(NSArray *)paths;
+- (nullable NSString *)stringByAppendingPathExtension:(NSString *)string;
+- (NSArray<NSString *> *)stringsByAppendingPaths:(NSArray<NSString *> *)paths;
 
-- (NSString *)stringByDeletingLastPathComponent;
-- (NSString *)stringByDeletingPathExtension;
+@property (readonly, copy) NSString *stringByDeletingLastPathComponent;
+@property (readonly, copy) NSString *stringByDeletingPathExtension;
 
-- (NSString *)stringByExpandingTildeInPath;
-- (NSString *)stringByAbbreviatingWithTildeInPath;
+@property (readonly, copy) NSString *stringByExpandingTildeInPath;
+@property (readonly, copy) NSString *stringByAbbreviatingWithTildeInPath;
 
-- (NSString *)stringByStandardizingPath;
-- (NSString *)stringByResolvingSymlinksInPath;
+@property (readonly, copy) NSString *stringByStandardizingPath;
+@property (readonly, copy) NSString *stringByResolvingSymlinksInPath;
 
-- (BOOL)isAbsolutePath;
+@property (readonly, getter=isAbsolutePath) BOOL absolutePath;
 
-- (const char *)fileSystemRepresentation;
+@property (readonly) const char *fileSystemRepresentation NS_RETURNS_INNER_POINTER;
 - (const uint16_t *)fileSystemRepresentationW;
-- (BOOL)getFileSystemRepresentation:(char *)bytes maxLength:(NSUInteger)maxLength;
+- (BOOL)getFileSystemRepresentation:(char *)cname maxLength:(NSUInteger)max;
 
-- (NSUInteger)completePathIntoString:(NSString **)string caseSensitive:(BOOL)caseSensitive matchesIntoArray:(NSArray **)array filterTypes:(NSArray *)types;
+- (NSUInteger)completePathIntoString:(NSString * _Nullable * _Nullable)outputName caseSensitive:(BOOL)flag matchesIntoArray:(NSArray<NSString *> * _Nullable * _Nullable)outputArray filterTypes:(nullable NSArray<NSString *> *)filterTypes;
 
 @end
+
+@interface NSArray<ObjectType> (NSArrayPathExtensions)
+
+- (NSArray<NSString *> *)pathsMatchingExtensions:(NSArray<NSString *> *)filterTypes;
+
+@end
+
+NS_ASSUME_NONNULL_END
 
 typedef NS_ENUM(NSUInteger, NSSearchPathDirectory) {
     NSApplicationDirectory = 1,
@@ -78,7 +89,9 @@ typedef NS_OPTIONS(NSUInteger, NSSearchPathDomainMask) {
     NSAllDomainsMask = 0x0ffff
 };
 
-FOUNDATION_EXPORT NSArray *NSSearchPathForDirectoriesInDomains(NSSearchPathDirectory d, NSSearchPathDomainMask mask, BOOL expand);
+NS_ASSUME_NONNULL_BEGIN
+
+FOUNDATION_EXPORT NSArray<NSString *> *NSSearchPathForDirectoriesInDomains(NSSearchPathDirectory d, NSSearchPathDomainMask mask, BOOL expand);
 
 FOUNDATION_EXPORT NSString *NSHomeDirectory(void);
 
@@ -86,3 +99,5 @@ FOUNDATION_EXPORT NSString *NSTemporaryDirectory(void);
 
 FOUNDATION_EXPORT NSString *NSUserName(void);
 FOUNDATION_EXPORT NSString *NSFullUserName(void);
+
+NS_ASSUME_NONNULL_END

@@ -85,6 +85,9 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <AppKit/NSOpenPanel.h>
 #import <AppKit/NSOpenGL.h>
 #import <AppKit/NSOutlineView.h>
+#import <AppKit/NSLayoutAnchor.h>
+#import <AppKit/NSLayoutConstraint.h>
+#import <AppKit/NSLayoutGuide.h>
 #import <AppKit/NSPageLayout.h>
 #import <AppKit/NSPanel.h>
 #import <AppKit/NSParagraphStyle.h>
@@ -153,6 +156,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <AppKit/NSTreeController.h>
 #import <AppKit/NSUserDefaultsController.h>
 #import <AppKit/NSView.h>
+#import <AppKit/NSStackView.h>
 #import <AppKit/NSViewController.h>
 #import <AppKit/NSWindow.h>
 #import <AppKit/NSWindowController.h>

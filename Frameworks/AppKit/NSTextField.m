@@ -31,6 +31,12 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 @implementation NSTextField
 
+/* A label (neither editable nor selectable) is part of what it sits on:
+   in a title bar, the window moves by it. */
+-(BOOL)mouseDownCanMoveWindow {
+   return ![self isEditable] && ![self isSelectable];
+}
+
 +(Class)cellClass {
    return [NSTextFieldCell class];
 }

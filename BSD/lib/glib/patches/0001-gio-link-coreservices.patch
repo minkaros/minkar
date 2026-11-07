@@ -1,0 +1,14 @@
+gio uses LaunchServices and UTType (gosxappinfo.m, gcontenttype-osx.m),
+which live in CoreServices: link it by name instead of through Carbon.
+
+--- a/gio/meson.build	2026-11-06 02:25:32.393295197 -0500
++++ b/gio/meson.build	2026-11-06 02:25:32.397295604 -0500
+@@ -404,7 +404,7 @@
+     settings_sources += files('gnextstepsettingsbackend.m')
+     contenttype_sources += files('gcontenttype-osx.m')
+     unix_sources += files('gosxappinfo.m')
+-    framework_dep = dependency('appleframeworks', modules : ['Foundation', 'CoreFoundation', 'AppKit'])
++    framework_dep = dependency('appleframeworks', modules : ['Foundation', 'CoreFoundation', 'AppKit', 'CoreServices'])
+     platform_deps += [framework_dep]
+     unix_sources += files('gcocoanotificationbackend.m')
+     unix_sources += files('gosxnetworkmonitor.c')

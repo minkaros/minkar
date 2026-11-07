@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+ SPDX-License-Identifier: BSD-2-Clause
+ Copyright (c) 2026 The Minkar contributors
+ Part of Minkar.
+
+ pboard, the pasteboard server (Phase 4): named pasteboards, each user's
+ their own. Started on demand, by the first use of its service; it keeps
+ data only, so it runs as nobody.
+-->
+<plist version="1.0">
+<dict>
+	<key>Label</key>
+	<string>org.minkar.pboard</string>
+	<key>ProgramArguments</key>
+	<array>
+		<string>/usr/libexec/pboard</string>
+	</array>
+	<key>UserName</key>
+	<string>nobody</string>
+	<key>MachServices</key>
+	<dict>
+		<key>org.minkar.pboard</key>
+		<true/>
+	</dict>
+	<key>StandardErrorPath</key>
+	<string>/var/log/pboard/pboard.log</string>
+	<key>KeepAlive</key>
+	<false/>
+</dict>
+</plist>

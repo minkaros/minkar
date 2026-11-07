@@ -1,103 +1,98 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1120" height="752" viewBox="0 0 1120 752" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif" role="img" aria-label="Minkar work board, 2026-11-02">
-<title>Minkar work board, 2026-11-02</title>
-<rect width="1120" height="752" fill="#ffffff"/>
+<svg xmlns="http://www.w3.org/2000/svg" width="1120" height="969" viewBox="0 0 1120 969" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif" role="img" aria-label="Minkar work board, 2026-11-05">
+<title>Minkar work board, 2026-11-05</title>
+<rect width="1120" height="969" fill="#ffffff"/>
 <text x="16" y="30" font-size="20" font-weight="700" fill="#1f2328" text-anchor="start">Minkar work board</text>
-<text x="16" y="52" font-size="13" font-weight="400" fill="#59636e" text-anchor="start">2026-11-02 · devel 9a472063c1</text>
-<rect x="16" y="70" width="261.5" height="674" rx="10" fill="#f6f8fa"/>
+<text x="16" y="52" font-size="13" font-weight="400" fill="#59636e" text-anchor="start">2026-11-05 · devel 22a0e67f0d</text>
+<rect x="16" y="70" width="261.5" height="891" rx="10" fill="#f6f8fa"/>
 <text x="30" y="96" font-size="13" font-weight="700" fill="#59636e" text-anchor="start" letter-spacing=".08em">DONE · LATEST</text>
-<rect x="26" y="114" width="241.5" height="127" rx="8" fill="#ffffff" stroke="#d1d9e0" stroke-width="1"/><rect x="26" y="114" width="5" height="127" rx="2" fill="#0969da"/>
-<text x="42" y="138" font-size="15" font-weight="650" fill="#1f2328" text-anchor="start">WS5 closed: IOSurface and</text>
-<text x="42" y="159" font-size="15" font-weight="650" fill="#1f2328" text-anchor="start">virtio-gpu</text>
-<text x="42" y="180" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">display streams, captured</text>
-<text x="42" y="199" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">displays, saved configs · 2</text>
-<text x="42" y="218" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">nov</text>
-<rect x="26" y="251" width="241.5" height="87" rx="8" fill="#ffffff" stroke="#d1d9e0" stroke-width="1"/><rect x="26" y="251" width="5" height="87" rx="2" fill="#0969da"/>
-<text x="42" y="275" font-size="15" font-weight="650" fill="#1f2328" text-anchor="start">virtio-gpu 2D display</text>
-<text x="42" y="296" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">per-frame flushes, mode</text>
-<text x="42" y="315" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">changes · WS5 · 2 nov</text>
-<rect x="26" y="348" width="241.5" height="87" rx="8" fill="#ffffff" stroke="#d1d9e0" stroke-width="1"/><rect x="26" y="348" width="5" height="87" rx="2" fill="#0969da"/>
-<text x="42" y="372" font-size="15" font-weight="650" fill="#1f2328" text-anchor="start">IOSurface</text>
-<text x="42" y="393" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">Mach memory, iosurfaced;</text>
-<text x="42" y="412" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">AppKit damage · WS5 · 2 nov</text>
-<rect x="26" y="445" width="241.5" height="87" rx="8" fill="#ffffff" stroke="#d1d9e0" stroke-width="1"/><rect x="26" y="445" width="5" height="87" rx="2" fill="#0969da"/>
-<text x="42" y="469" font-size="15" font-weight="650" fill="#1f2328" text-anchor="start">Gate M4 met (in QEMU)</text>
-<text x="42" y="490" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">54 markers, the menus in the</text>
-<text x="42" y="509" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">app · 2 nov</text>
-<rect x="26" y="542" width="241.5" height="87" rx="8" fill="#ffffff" stroke="#d1d9e0" stroke-width="1"/><rect x="26" y="542" width="5" height="87" rx="2" fill="#0969da"/>
-<text x="42" y="566" font-size="15" font-weight="650" fill="#1f2328" text-anchor="start">WS4b closed: the switch</text>
-<text x="42" y="587" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">new server by default, legacy</text>
-<text x="42" y="606" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">removed · 2 nov</text>
-<rect x="26" y="639" width="241.5" height="87" rx="8" fill="#ffffff" stroke="#d1d9e0" stroke-width="1"/><rect x="26" y="639" width="5" height="87" rx="2" fill="#0969da"/>
-<text x="42" y="663" font-size="15" font-weight="650" fill="#1f2328" text-anchor="start">Minimal loginwindow</text>
-<text x="42" y="684" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">Log Out, Restart, Shut Down ·</text>
-<text x="42" y="703" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">WS4b · 2 nov</text>
-<rect x="291.5" y="70" width="261.5" height="674" rx="10" fill="#f6f8fa"/>
+<rect x="26" y="114" width="241.5" height="106" rx="8" fill="#ffffff" stroke="#d1d9e0" stroke-width="1"/><rect x="26" y="114" width="5" height="106" rx="2" fill="#9a6700"/>
+<text x="42" y="138" font-size="15" font-weight="650" fill="#1f2328" text-anchor="start">M3 met: seven tools pass</text>
+<text x="42" y="159" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">tag and SwiftFormat too;</text>
+<text x="42" y="178" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">NSMetadataQuery; the kernel</text>
+<text x="42" y="197" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">at -O2 · 5 nov</text>
+<rect x="26" y="230" width="241.5" height="127" rx="8" fill="#ffffff" stroke="#d1d9e0" stroke-width="1"/><rect x="26" y="230" width="5" height="127" rx="2" fill="#9a6700"/>
+<text x="42" y="254" font-size="15" font-weight="650" fill="#1f2328" text-anchor="start">M3: mogenerator, the</text>
+<text x="42" y="275" font-size="15" font-weight="650" fill="#1f2328" text-anchor="start">first Objective-C tool</text>
+<text x="42" y="296" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">CoreData&#x27;s models in code and</text>
+<text x="42" y="315" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">archives, predicates, KVC set</text>
+<text x="42" y="334" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">proxies · 5 nov</text>
+<rect x="26" y="367" width="241.5" height="146" rx="8" fill="#ffffff" stroke="#d1d9e0" stroke-width="1"/><rect x="26" y="367" width="5" height="146" rx="2" fill="#9a6700"/>
+<text x="42" y="391" font-size="15" font-weight="650" fill="#1f2328" text-anchor="start">M3: 4 of 7 tools pass</text>
+<text x="42" y="412" font-size="15" font-weight="650" fill="#1f2328" text-anchor="start">their tests</text>
+<text x="42" y="433" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">swift-argument-parser,</text>
+<text x="42" y="452" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">Rainbow, Files, Yams,</text>
+<text x="42" y="471" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">xcbeautify; XCTest on Minkar</text>
+<text x="42" y="490" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">· 5 nov</text>
+<rect x="26" y="523" width="241.5" height="127" rx="8" fill="#ffffff" stroke="#d1d9e0" stroke-width="1"/><rect x="26" y="523" width="5" height="127" rx="2" fill="#bf3989"/>
+<text x="42" y="547" font-size="15" font-weight="650" fill="#1f2328" text-anchor="start">Atlas plan; generic app</text>
+<text x="42" y="568" font-size="15" font-weight="650" fill="#1f2328" text-anchor="start">names</text>
+<text x="42" y="589" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">menus, Dock, Files and the</text>
+<text x="42" y="608" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">apps A0–A10 in one plan;</text>
+<text x="42" y="627" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">Files and Text Editor · 5 nov</text>
+<rect x="26" y="660" width="241.5" height="146" rx="8" fill="#ffffff" stroke="#d1d9e0" stroke-width="1"/><rect x="26" y="660" width="5" height="146" rx="2" fill="#0f7b6f"/>
+<text x="42" y="684" font-size="15" font-weight="650" fill="#1f2328" text-anchor="start">Files K1: columns,</text>
+<text x="42" y="705" font-size="15" font-weight="650" fill="#1f2328" text-anchor="start">opening, open -R</text>
+<text x="42" y="726" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">LaunchServices opens</text>
+<text x="42" y="745" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">documents; Text Editor, the</text>
+<text x="42" y="764" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">text editor; the save panel ·</text>
+<text x="42" y="783" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">4 nov</text>
+<rect x="26" y="816" width="241.5" height="127" rx="8" fill="#ffffff" stroke="#d1d9e0" stroke-width="1"/><rect x="26" y="816" width="5" height="127" rx="2" fill="#bf3989"/>
+<text x="42" y="840" font-size="15" font-weight="650" fill="#1f2328" text-anchor="start">System Preferences: five</text>
+<text x="42" y="861" font-size="15" font-weight="650" fill="#1f2328" text-anchor="start">panes</text>
+<text x="42" y="882" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">Displays, Dock, Date &amp; Time,</text>
+<text x="42" y="901" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">Keyboard, Network; English</text>
+<text x="42" y="920" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">and Spanish · 4 nov</text>
+<rect x="291.5" y="70" width="261.5" height="891" rx="10" fill="#f6f8fa"/>
 <text x="305.5" y="96" font-size="13" font-weight="700" fill="#59636e" text-anchor="start" letter-spacing=".08em">NOW</text>
-<rect x="301.5" y="114" width="241.5" height="109" rx="8" fill="#ffffff" stroke="#0969da" stroke-width="2"/><rect x="301.5" y="114" width="5" height="109" rx="2" fill="#0969da"/>
-<text x="317.5" y="138" font-size="15" font-weight="650" fill="#1f2328" text-anchor="start">WS6 — GPU compositing</text>
-<text x="317.5" y="159" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">G1 ADR first: GCN 1.0, then</text>
-<text x="317.5" y="178" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">RX 6600, then Intel HD 630</text>
-<rect x="317.5" y="193" width="171.5" height="7" rx="3.5" fill="#0969da" fill-opacity=".2"/><rect x="317.5" y="193" width="0" height="7" rx="3.5" fill="#0969da"/>
-<text x="495" y="200" font-size="12" font-weight="600" fill="#59636e" text-anchor="start">0/3</text>
-<rect x="301.5" y="233" width="241.5" height="87" rx="8" fill="#ffffff" stroke="#d1d9e0" stroke-width="1"/><rect x="301.5" y="233" width="5" height="87" rx="2" fill="#9a6700"/>
-<text x="317.5" y="257" font-size="15" font-weight="650" fill="#1f2328" text-anchor="start">Foundation audit</text>
-<text x="317.5" y="278" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">NSURLSession cache and</text>
-<text x="317.5" y="297" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">metrics left</text>
-<rect x="479" y="243" width="54" height="18" rx="9" fill="#9a6700" fill-opacity=".15"/>
-<text x="506" y="256" font-size="11" font-weight="600" fill="#9a6700" text-anchor="middle">partial</text>
-<rect x="301.5" y="330" width="241.5" height="68" rx="8" fill="#ffffff" stroke="#d1d9e0" stroke-width="1"/><rect x="301.5" y="330" width="5" height="68" rx="2" fill="#9a6700"/>
-<text x="317.5" y="354" font-size="15" font-weight="650" fill="#1f2328" text-anchor="start">Noisy stubs</text>
-<text x="317.5" y="375" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">mechanism done, 887 sites</text>
-<rect x="479" y="340" width="54" height="18" rx="9" fill="#9a6700" fill-opacity=".15"/>
-<text x="506" y="353" font-size="11" font-weight="600" fill="#9a6700" text-anchor="middle">partial</text>
-<rect x="567" y="70" width="261.5" height="674" rx="10" fill="#f6f8fa"/>
+<rect x="301.5" y="114" width="241.5" height="127" rx="8" fill="#ffffff" stroke="#9a6700" stroke-width="2"/><rect x="301.5" y="114" width="5" height="127" rx="2" fill="#9a6700"/>
+<text x="317.5" y="138" font-size="15" font-weight="650" fill="#1f2328" text-anchor="start">Cocoa coverage: Auto</text>
+<text x="317.5" y="159" font-size="15" font-weight="650" fill="#1f2328" text-anchor="start">Layout first</text>
+<text x="317.5" y="180" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">NSLayoutConstraint, anchors,</text>
+<text x="317.5" y="199" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">guides, visual format (kiwi),</text>
+<text x="317.5" y="218" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">NSStackView; then tables</text>
+<rect x="301.5" y="251" width="241.5" height="106" rx="8" fill="#ffffff" stroke="#d1d9e0" stroke-width="1"/><rect x="301.5" y="251" width="5" height="106" rx="2" fill="#cf222e"/>
+<text x="317.5" y="275" font-size="15" font-weight="650" fill="#1f2328" text-anchor="start">GPU: clocks, then G5</text>
+<text x="317.5" y="296" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">G4 measured on the Mac Pro;</text>
+<text x="317.5" y="315" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">its clocks, then the 3D path,</text>
+<text x="317.5" y="334" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">for 21.0&#x27;s performance gate</text>
+<rect x="567" y="70" width="261.5" height="891" rx="10" fill="#f6f8fa"/>
 <text x="581" y="96" font-size="13" font-weight="700" fill="#59636e" text-anchor="start" letter-spacing=".08em">NEXT</text>
-<rect x="577" y="114" width="241.5" height="89" rx="8" fill="#ffffff" stroke="#d1d9e0" stroke-width="1"/><rect x="577" y="114" width="5" height="89" rx="2" fill="#bc4c00"/>
-<text x="593" y="138" font-size="15" font-weight="650" fill="#1f2328" text-anchor="start">D0 · K0 — Dock and Kraz</text>
-<text x="593" y="159" font-size="15" font-weight="650" fill="#1f2328" text-anchor="start">prerequisites</text>
-<text x="593" y="180" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">can start: WS4a is done</text>
-<rect x="577" y="213" width="241.5" height="68" rx="8" fill="#ffffff" stroke="#d1d9e0" stroke-width="1"/><rect x="577" y="213" width="5" height="68" rx="2" fill="#9a6700"/>
-<text x="593" y="237" font-size="15" font-weight="650" fill="#1f2328" text-anchor="start">Swift prototypes 1 and 2</text>
-<text x="593" y="258" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">swiftc, libswiftCore → M3</text>
-<rect x="577" y="291" width="241.5" height="87" rx="8" fill="#ffffff" stroke="#d1d9e0" stroke-width="1"/><rect x="577" y="291" width="5" height="87" rx="2" fill="#cf222e"/>
-<text x="593" y="315" font-size="15" font-weight="650" fill="#1f2328" text-anchor="start">GPU ADR (G1)</text>
-<text x="593" y="336" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">family decided; licenses, KMS</text>
-<text x="593" y="355" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">prototype</text>
-<rect x="842.5" y="70" width="261.5" height="674" rx="10" fill="#f6f8fa"/>
+<rect x="577" y="114" width="241.5" height="87" rx="8" fill="#ffffff" stroke="#d1d9e0" stroke-width="1"/><rect x="577" y="114" width="5" height="87" rx="2" fill="#bf3989"/>
+<text x="593" y="138" font-size="15" font-weight="650" fill="#1f2328" text-anchor="start">Desktop design and icons</text>
+<text x="593" y="159" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">the maintainer&#x27;s review, the</text>
+<text x="593" y="178" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">weekend of 7–8 Nov</text>
+<rect x="577" y="211" width="241.5" height="127" rx="8" fill="#ffffff" stroke="#d1d9e0" stroke-width="1"/><rect x="577" y="211" width="5" height="127" rx="2" fill="#8250df"/>
+<text x="593" y="235" font-size="15" font-weight="650" fill="#1f2328" text-anchor="start">M5: MB1, D2, K2,</text>
+<text x="593" y="256" font-size="15" font-weight="650" fill="#1f2328" text-anchor="start">LoginWindow</text>
+<text x="593" y="277" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">Menu Extras as bundles, Dock</text>
+<text x="593" y="296" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">dragging, file operations,</text>
+<text x="593" y="315" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">the full login</text>
+<rect x="577" y="348" width="241.5" height="106" rx="8" fill="#ffffff" stroke="#d1d9e0" stroke-width="1"/><rect x="577" y="348" width="5" height="106" rx="2" fill="#1a7f37"/>
+<text x="593" y="372" font-size="15" font-weight="650" fill="#1f2328" text-anchor="start">A0 app base, A1 Terminal</text>
+<text x="593" y="393" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">About, Preferences and Help</text>
+<text x="593" y="412" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">for every app; a VT100/xterm</text>
+<text x="593" y="431" font-size="13.5" font-weight="400" fill="#59636e" text-anchor="start">terminal in Agave</text>
+<rect x="842.5" y="70" width="261.5" height="891" rx="10" fill="#f6f8fa"/>
 <text x="856.5" y="96" font-size="13" font-weight="700" fill="#59636e" text-anchor="start" letter-spacing=".08em">LATER</text>
-<text x="856.5" y="128" font-size="14.5" font-weight="700" fill="#1f2328" text-anchor="start">→ M5 Gienah session</text>
-<circle cx="862.5" cy="147" r="4.5" fill="#8250df"/>
-<text x="874.5" y="152" font-size="14" font-weight="400" fill="#59636e" text-anchor="start">MB1 Menu Extras</text>
-<circle cx="862.5" cy="171" r="4.5" fill="#bc4c00"/>
-<text x="874.5" y="176" font-size="14" font-weight="400" fill="#59636e" text-anchor="start">D1 Dock core</text>
-<circle cx="862.5" cy="195" r="4.5" fill="#0f7b6f"/>
-<text x="874.5" y="200" font-size="14" font-weight="400" fill="#59636e" text-anchor="start">K1 Kraz browsing</text>
-<circle cx="862.5" cy="219" r="4.5" fill="#bf3989"/>
-<text x="874.5" y="224" font-size="14" font-weight="400" fill="#59636e" text-anchor="start">LoginWindow, Preferences</text>
-<text x="856.5" y="262" font-size="14.5" font-weight="700" fill="#1f2328" text-anchor="start">→ M6 · Minkar 19.6.0</text>
-<circle cx="862.5" cy="281" r="4.5" fill="#8250df"/>
-<text x="874.5" y="286" font-size="14" font-weight="400" fill="#59636e" text-anchor="start">MB2–MB3 menus for daily use</text>
-<circle cx="862.5" cy="305" r="4.5" fill="#bc4c00"/>
-<text x="874.5" y="310" font-size="14" font-weight="400" fill="#59636e" text-anchor="start">D2–D3 Dock, with the app</text>
-<text x="874.5" y="330" font-size="14" font-weight="400" fill="#59636e" text-anchor="start">switcher</text>
-<circle cx="862.5" cy="349" r="4.5" fill="#0f7b6f"/>
-<text x="874.5" y="354" font-size="14" font-weight="400" fill="#59636e" text-anchor="start">K2–K3 Kraz, with DMG</text>
-<text x="874.5" y="374" font-size="14" font-weight="400" fill="#59636e" text-anchor="start">double-click</text>
-<circle cx="862.5" cy="393" r="4.5" fill="#1a7f37"/>
-<text x="874.5" y="398" font-size="14" font-weight="400" fill="#59636e" text-anchor="start">DiskImages (hdiutil attach</text>
-<text x="874.5" y="418" font-size="14" font-weight="400" fill="#59636e" text-anchor="start">already mounts)</text>
-<circle cx="862.5" cy="437" r="4.5" fill="#1a7f37"/>
-<text x="874.5" y="442" font-size="14" font-weight="400" fill="#59636e" text-anchor="start">Terminal, TextEdit, Browser</text>
-<text x="856.5" y="480" font-size="14.5" font-weight="700" fill="#1f2328" text-anchor="start">→ 19.6.x</text>
-<circle cx="862.5" cy="499" r="4.5" fill="#8250df"/>
-<text x="874.5" y="504" font-size="14" font-weight="400" fill="#59636e" text-anchor="start">MB4 Services, D4 stacks and</text>
-<text x="874.5" y="524" font-size="14" font-weight="400" fill="#59636e" text-anchor="start">Trash, K4 search and tags</text>
-<text x="856.5" y="562" font-size="14.5" font-weight="700" fill="#1f2328" text-anchor="start">→ Minkar 21.0</text>
-<circle cx="862.5" cy="581" r="4.5" fill="#0969da"/>
-<text x="874.5" y="586" font-size="14" font-weight="400" fill="#59636e" text-anchor="start">WS6 performance gate</text>
-<circle cx="862.5" cy="605" r="4.5" fill="#cf222e"/>
-<text x="874.5" y="610" font-size="14" font-weight="400" fill="#59636e" text-anchor="start">G2–G5 driver, Mesa, Metal</text>
-<text x="856.5" y="648" font-size="14.5" font-weight="700" fill="#1f2328" text-anchor="start">→ M7</text>
-<circle cx="862.5" cy="667" r="4.5" fill="#6e7781"/>
-<text x="874.5" y="672" font-size="14" font-weight="400" fill="#59636e" text-anchor="start">x86-64 apps, arm64</text>
+<text x="856.5" y="128" font-size="14.5" font-weight="700" fill="#1f2328" text-anchor="start">Minkar 19.6.0</text>
+<circle cx="862.5" cy="147" r="4.5" fill="#1a7f37"/>
+<text x="874.5" y="152" font-size="14" font-weight="400" fill="#59636e" text-anchor="start">Apps A2–A10: editor, monitor,</text>
+<text x="874.5" y="172" font-size="14" font-weight="400" fill="#59636e" text-anchor="start">logs, viewers, disks…</text>
+<circle cx="862.5" cy="191" r="4.5" fill="#8250df"/>
+<text x="874.5" y="196" font-size="14" font-weight="400" fill="#59636e" text-anchor="start">MB2–MB3, D3, K3: the desktop</text>
+<text x="874.5" y="216" font-size="14" font-weight="400" fill="#59636e" text-anchor="start">for daily use</text>
+<circle cx="862.5" cy="235" r="4.5" fill="#9a6700"/>
+<text x="874.5" y="240" font-size="14" font-weight="400" fill="#59636e" text-anchor="start">Security: certificates,</text>
+<text x="874.5" y="260" font-size="14" font-weight="400" fill="#59636e" text-anchor="start">keychain</text>
+<circle cx="862.5" cy="279" r="4.5" fill="#1a7f37"/>
+<text x="874.5" y="284" font-size="14" font-weight="400" fill="#59636e" text-anchor="start">DMG installs</text>
+<text x="856.5" y="322" font-size="14.5" font-weight="700" fill="#1f2328" text-anchor="start">Minkar 21.0</text>
+<circle cx="862.5" cy="341" r="4.5" fill="#9a6700"/>
+<text x="874.5" y="346" font-size="14" font-weight="400" fill="#59636e" text-anchor="start">API 20 and 21</text>
+<circle cx="862.5" cy="365" r="4.5" fill="#cf222e"/>
+<text x="874.5" y="370" font-size="14" font-weight="400" fill="#59636e" text-anchor="start">Performance ≥ the reference</text>
+<text x="874.5" y="390" font-size="14" font-weight="400" fill="#59636e" text-anchor="start">system</text>
+<text x="856.5" y="428" font-size="14.5" font-weight="700" fill="#1f2328" text-anchor="start">After 19.6.0</text>
+<circle cx="862.5" cy="447" r="4.5" fill="#6e7781"/>
+<text x="874.5" y="452" font-size="14" font-weight="400" fill="#59636e" text-anchor="start">x86-64 binaries, arm64</text>
 </svg>

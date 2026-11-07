@@ -76,6 +76,18 @@ BOOL NSObjectIsKindOfClass(id object,Class kindOf) {
 
 
 @implementation NSObject (Foundation)
+
+/* objc4's root class answers nil here, for Foundation to replace (as CF
+ * does on the reference platform): a class's name, and "<Class: 0x...>"
+ * for an instance. Without them a class's description was nil, and
+ * NSControl, which keys its cell classes by it, crashed. */
++(NSString *)description {
+   return NSStringFromClass(self);
+}
+
+-(NSString *)description {
+   return [NSString stringWithFormat:@"<%@: %p>",NSStringFromClass([self class]),self];
+}
 +(NSObject *)allocWithZone: (NSZone *)zone {
    return NSAllocateObject(self, 0, zone);
 }
@@ -152,10 +164,6 @@ extern void NSInvocationForward_stret(void);
     NSAutoreleasePool * pool = [NSAutoreleasePool new];
     NSUnimplementedMethod();
     [pool release];
-}
-
--(uint32_t *)cfinfo {
-   return (uint32_t *)(self->cfinfo);
 }
 
 -(Class)classForCoder {

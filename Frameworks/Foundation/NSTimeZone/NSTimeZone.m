@@ -1,4 +1,5 @@
 /* Copyright (c) 2006-2007 Christopher J. W. Lloyd
+Modifications Copyright (c) 2026 The Minkar contributors
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
 
@@ -6,7 +7,9 @@ The above copyright notice and this permission notice shall be included in all c
 
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE. */
 
+#include <unicode/ucal.h>
 #import <Foundation/NSTimeZone.h>
+#import <CoreFoundation/CFTimeZone.h>
 #import <Foundation/NSTimeZone_absolute.h>
 #import <Foundation/NSString.h>
 #import <Foundation/NSRaise.h>
@@ -65,26 +68,40 @@ static NSTimeZone *_localTimeZone=nil;
     _defaultTimeZone = [timeZone retain];
 }
 
+// The names of the time zone data's zones, from CoreFoundation.
 +(NSArray *)knownTimeZoneNames {
-    
-    return nil;
+    CFArrayRef names=CFTimeZoneCopyKnownNames();
 
-  /* static NSDictionary *_regionsDictionary = nil;
-    if (_regionsDictionary == nil) {
-        NSString *pathToPlist = [[NSBundle bundleForClass:self] pathForResource:@"NSTimeZoneRegions"
-                                                                         ofType:@"plist"];
-        _regionsDictionary = [[NSDictionary allocWithZone:NULL] initWithContentsOfFile:pathToPlist];
-    }
+    if(names==NULL)
+        return [NSArray array];
+    return [(NSArray *)names autorelease];
+}
 
-    return [_regionsDictionary allKeys];*/
+static NSDictionary *_abbreviationDictionary = nil;
+
++(void)setAbbreviationDictionary:(NSDictionary *)dictionary {
+   dictionary=[dictionary copy];
+   [_abbreviationDictionary release];
+   _abbreviationDictionary=dictionary;
+}
+
+/* The time zone data's version, as ICU has it (2019c and the like). */
++(NSString *)timeZoneDataVersion {
+   UErrorCode status=U_ZERO_ERROR;
+   const char *version=ucal_getTZDataVersion(&status);
+   return (U_SUCCESS(status) && version!=NULL) ? [NSString stringWithUTF8String:version] : @"";
 }
 
 +(NSDictionary *)abbreviationDictionary {
-   static NSDictionary *_abbreviationDictionary = nil;
     if (_abbreviationDictionary == nil) {
         NSString *pathToPlist = [[NSBundle bundleForClass:self] pathForResource:@"NSTimeZoneAbbreviations"
                                                                          ofType:@"plist"];
         _abbreviationDictionary = [[NSDictionary allocWithZone:NULL] initWithContentsOfFile:pathToPlist];
+        // Without the resource, CoreFoundation's (the same defaults).
+        if (_abbreviationDictionary == nil)
+            _abbreviationDictionary = (NSDictionary *)CFTimeZoneCopyAbbreviationDictionary();
+        if (_abbreviationDictionary == nil)
+            _abbreviationDictionary = [[NSDictionary alloc] init];
     }
 
     return _abbreviationDictionary;

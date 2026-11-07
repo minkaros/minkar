@@ -15,14 +15,14 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 @implementation NSBezierPath
 
-static float           _defaultLineWidth=1.0;
-static float           _defaultMiterLimit=10.0;
-static float           _defaultFlatness=0.6;
+static CGFloat           _defaultLineWidth=1.0;
+static CGFloat           _defaultMiterLimit=10.0;
+static CGFloat           _defaultFlatness=0.6;
 static NSWindingRule   _defaultWindingRule=NSNonZeroWindingRule;
 static NSLineCapStyle  _defaultLineCapStyle=NSButtLineCapStyle;
 static NSLineJoinStyle _defaultLineJoinStyle=NSMiterLineJoinStyle;
 
-static BOOL curveIsFlat(float desiredFlatness, CGPoint start, CGPoint cp1, CGPoint cp2, CGPoint end)
+static BOOL curveIsFlat(CGFloat desiredFlatness, CGPoint start, CGPoint cp1, CGPoint cp2, CGPoint end)
 {
         // Roughly compute the furthest distance of the curved path from the line connecting start to end
         double ux = 3.0*cp1.x - 2.0*start.x - end.x; ux *= ux;
@@ -118,7 +118,7 @@ static void CGPathConverter( void* info, const CGPathElement* element )
    if(_dashCount>0){
     int i;
 
-    copy->_dashes=NSZoneMalloc(NULL,sizeof(float)*_dashCount);
+    copy->_dashes=NSZoneMalloc(NULL,sizeof(CGFloat)*_dashCount);
     for(i=0;i<_dashCount;i++)
      copy->_dashes[i]=_dashes[i];
    }
@@ -166,15 +166,15 @@ static void CGPathConverter( void* info, const CGPathElement* element )
    return result;
 }
 
-+(float)defaultLineWidth {
++(CGFloat)defaultLineWidth {
    return _defaultLineWidth;
 }
 
-+(float)defaultMiterLimit {
++(CGFloat)defaultMiterLimit {
    return _defaultMiterLimit;
 }
 
-+(float)defaultFlatness {
++(CGFloat)defaultFlatness {
    return _defaultFlatness;
 }
 
@@ -190,15 +190,15 @@ static void CGPathConverter( void* info, const CGPathElement* element )
    return _defaultLineJoinStyle;
 }
 
-+(void)setDefaultLineWidth:(float)width {
++(void)setDefaultLineWidth:(CGFloat)width {
    _defaultLineWidth=width;
 }
 
-+(void)setDefaultMiterLimit:(float)limit {
++(void)setDefaultMiterLimit:(CGFloat)limit {
    _defaultMiterLimit=limit;
 }
 
-+(void)setDefaultFlatness:(float)flatness {
++(void)setDefaultFlatness:(CGFloat)flatness {
    _defaultFlatness=flatness;
 }
 
@@ -262,21 +262,21 @@ static void CGPathConverter( void* info, const CGPathElement* element )
    CGContextClipToRect(context,rect);
 }
 
--(float)lineWidth {
+-(CGFloat)lineWidth {
    if(_lineWidthIsDefault)
     return _defaultLineWidth;
    else
     return _lineWidth;
 }
 
--(float)miterLimit {
+-(CGFloat)miterLimit {
    if(_miterLimitIsDefault)
     return _defaultMiterLimit;
    else
     return _miterLimit;
 }
 
--(float)flatness {
+-(CGFloat)flatness {
    if(_flatnessIsDefault)
     return _defaultFlatness;
    else
@@ -304,7 +304,7 @@ static void CGPathConverter( void* info, const CGPathElement* element )
     return _lineJoinStyle;
 }
 
--(void)getLineDash:(float *)dashes count:(int *)count phase:(float *)phase {
+-(void)getLineDash:(CGFloat *)dashes count:(int *)count phase:(CGFloat *)phase {
    if(dashes!=NULL){
     int i;
 
@@ -361,17 +361,17 @@ static int numberOfPointsForOperator(int op){
    return _elements[index];
 }
 
--(void)setLineWidth:(float)width {
+-(void)setLineWidth:(CGFloat)width {
    _lineWidth=width;
    _lineWidthIsDefault=NO;
 }
 
--(void)setMiterLimit:(float)limit {
+-(void)setMiterLimit:(CGFloat)limit {
    _miterLimit=limit;
    _miterLimitIsDefault=NO;
 }
 
--(void)setFlatness:(float)flatness {
+-(void)setFlatness:(CGFloat)flatness {
    _flatness=flatness;
    _flatnessIsDefault=NO;
 }
@@ -391,7 +391,7 @@ static int numberOfPointsForOperator(int op){
    _lineJoinStyleIsDefault=NO;
 }
 
--(void)setLineDash:(const float *)dashes count:(int)count phase:(float)phase {
+-(void)setLineDash:(const CGFloat *)dashes count:(int)count phase:(CGFloat)phase {
    if(_dashes!=NULL)
     NSZoneFree(NULL,_dashes);
 
@@ -401,7 +401,7 @@ static int numberOfPointsForOperator(int op){
    else {
     int i;
 
-    _dashes=NSZoneMalloc(NULL,sizeof(float)*_dashCount);
+    _dashes=NSZoneMalloc(NULL,sizeof(CGFloat)*_dashCount);
     for(i=0;i<_dashCount;i++)
      _dashes[i]=dashes[i];
    }
@@ -458,8 +458,8 @@ static int numberOfPointsForOperator(int op){
         int count = 0;
 
         // No need to test if there no chance of any crossing
-        float minY = MIN(MIN(fromPoint.y, toPoint.y), MIN(tan1.y, tan2.y));
-        float maxY = MAX(MAX(fromPoint.y, toPoint.y), MAX(tan1.y, tan2.y));
+        CGFloat minY = MIN(MIN(fromPoint.y, toPoint.y), MIN(tan1.y, tan2.y));
+        CGFloat maxY = MAX(MAX(fromPoint.y, toPoint.y), MAX(tan1.y, tan2.y));
         if (minY > point.y ||  maxY < point.y) {
                 return 0;
         }
@@ -469,7 +469,7 @@ static int numberOfPointsForOperator(int op){
                 if (((fromPoint.y <= point.y) && (toPoint.y > point.y))    // an upward crossing
                         || ((fromPoint.y > point.y) && (toPoint.y <= point.y))) { // a downward crossing
                         // compute the actual edge-ray intersect x-coordinate
-                        float vt = (float)(point.y - fromPoint.y) / (toPoint.y - fromPoint.y);
+                        CGFloat vt = (CGFloat)(point.y - fromPoint.y) / (toPoint.y - fromPoint.y);
                         if (point.x < fromPoint.x + vt * (toPoint.x - fromPoint.x)) // point.x < intersect
                                 ++count;   // a valid crossing of y=point.y right of point.x
                 }
@@ -525,7 +525,7 @@ static int numberOfPointsForOperator(int op){
                                 if (((currentPoint.y <= point.y) && (toPoint.y > point.y))    // an upward crossing
                                         || ((currentPoint.y > point.y) && (toPoint.y <= point.y))) { // a downward crossing
                                         // compute the actual edge-ray intersect x-coordinate
-                                        float vt = (float)(point.y - currentPoint.y) / (toPoint.y - currentPoint.y);
+                                        CGFloat vt = (CGFloat)(point.y - currentPoint.y) / (toPoint.y - currentPoint.y);
                                         if (point.x < currentPoint.x + vt * (toPoint.x - currentPoint.x)) // point.x < intersect
                                                 ++cn;   // a valid crossing of y=point.y right of point.x
                                 }
@@ -543,7 +543,7 @@ static int numberOfPointsForOperator(int op){
                                 if (((currentPoint.y <= point.y) && (toPoint.y > point.y))    // an upward crossing
                                         || ((currentPoint.y > point.y) && (toPoint.y <= point.y))) { // a downward crossing
                                         // compute the actual edge-ray intersect x-coordinate
-                                        float vt = (float)(point.y - currentPoint.y) / (toPoint.y - currentPoint.y);
+                                        CGFloat vt = (CGFloat)(point.y - currentPoint.y) / (toPoint.y - currentPoint.y);
                                         if (point.x < currentPoint.x + vt * (toPoint.x - currentPoint.x)) // point.x < intersect
                                                 ++cn;   // a valid crossing of y=point.y right of point.x
                                 }
@@ -755,7 +755,7 @@ static void cgArcFromApply(void *info,const CGPathElement *element) {
    CGPathRelease(path);
 }
 
--(void)appendBezierPathWithArcFromPoint:(NSPoint)point toPoint:(NSPoint)toPoint radius:(float)radius {
+-(void)appendBezierPathWithArcFromPoint:(NSPoint)point toPoint:(NSPoint)toPoint radius:(CGFloat)radius {
    if(_numberOfPoints==0){
     NSLog(@"-[%@ %s] no current point",[self class],_cmd);
     return;
@@ -783,11 +783,11 @@ static inline CGFloat degreesToRadians(CGFloat degrees){
    return degrees*M_PI/180.0;
 }
 
--(void)appendBezierPathWithArcWithCenter:(NSPoint)center radius:(float)radius startAngle:(float)startAngle endAngle:(float)endAngle {
+-(void)appendBezierPathWithArcWithCenter:(NSPoint)center radius:(CGFloat)radius startAngle:(CGFloat)startAngle endAngle:(CGFloat)endAngle {
    [self appendBezierPathWithArcWithCenter:center radius:radius startAngle:startAngle endAngle:endAngle clockwise:NO];
 }
 
--(void)appendBezierPathWithArcWithCenter:(NSPoint)center radius:(float)radius startAngle:(float)startAngle endAngle:(float)endAngle clockwise:(BOOL)clockwise {
+-(void)appendBezierPathWithArcWithCenter:(NSPoint)center radius:(CGFloat)radius startAngle:(CGFloat)startAngle endAngle:(CGFloat)endAngle clockwise:(BOOL)clockwise {
    CGMutablePathRef path=CGPathCreateMutable();
    CGPathAddArc(path,NULL,center.x,center.y,radius,degreesToRadians(startAngle),degreesToRadians(endAngle),clockwise);
    CGPathApply(path,self,cgArcApply);
@@ -897,7 +897,7 @@ static inline CGFloat degreesToRadians(CGFloat degrees){
     _points[pi+i]=points[i];
 }
 
-static NSUInteger doFlattenBezierCurve(float desiredFlatness, CGPoint start, CGPoint cp1, CGPoint cp2, CGPoint end, NSUInteger* index, CGPoint* points)
+static NSUInteger doFlattenBezierCurve(CGFloat desiredFlatness, CGPoint start, CGPoint cp1, CGPoint cp2, CGPoint end, NSUInteger* index, CGPoint* points)
 {
         int count = 0;
         if (curveIsFlat(desiredFlatness, start, cp1, cp2, end) == NO) {
@@ -927,7 +927,7 @@ static NSUInteger doFlattenBezierCurve(float desiredFlatness, CGPoint start, CGP
 }
 
 // pass nil for points to figure out how large the buffer should be
-static NSUInteger flattenBezierCurve(float desiredFlatness, CGPoint start, CGPoint cp1, CGPoint cp2, CGPoint end, CGPoint* points)
+static NSUInteger flattenBezierCurve(CGFloat desiredFlatness, CGPoint start, CGPoint cp1, CGPoint cp2, CGPoint end, CGPoint* points)
 {
         NSUInteger index = 0;
         return doFlattenBezierCurve( desiredFlatness, start, cp1, cp2, end, &index, points);

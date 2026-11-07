@@ -1,0 +1,21 @@
+# The Vulkan conformance subset of the GPU track's G3 gate (Minkar), as
+# prefixes of Khronos's mustpass list for this CTS version: packaging
+# keeps the mustpass cases under them (caselist.txt). About 2,000 cases:
+# the API's basics, memory, compute, synchronization, drawing, render
+# passes and buffer layouts.
+dEQP-VK.info.
+dEQP-VK.api.smoke.
+dEQP-VK.api.device_init.
+dEQP-VK.api.object_management.single.
+dEQP-VK.api.fill_and_update_buffer.
+dEQP-VK.api.copy_and_blit.core.buffer_to_buffer.
+dEQP-VK.memory.allocation.basic.
+dEQP-VK.memory.requirements.
+dEQP-VK.compute.pipeline.basic.
+dEQP-VK.compute.pipeline.builtin_var.
+dEQP-VK.synchronization.basic.
+dEQP-VK.draw.renderpass.simple_draw.
+dEQP-VK.draw.renderpass.basic_draw.
+dEQP-VK.renderpass.suballocation.simple.
+dEQP-VK.pipeline.monolithic.input_assembly.
+dEQP-VK.ssbo.layout.single_basic_type.

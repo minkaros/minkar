@@ -1,0 +1,5 @@
+# glib-networking (LGPL-2.1-or-later), fetched at build time and checked
+# against this SHA-256, the one GNOME publishes next to the tarball.
+url https://download.gnome.org/sources/glib-networking/2.90/glib-networking-2.90.1.tar.xz
+sha256 ea95636590098355a05e3027579dba1a9a950b05e456b2488ea03d82e4b6c18a
+version 2.90.1

@@ -73,10 +73,10 @@ argument).
 Most are stubs that answer without doing the work; some are empty by design
 (fork hooks, no-ops). The ones that are stubs become noisy stubs: they call
 `MINKAR_STUB()` (C) or `NSUnimplementedMethod()` (Objective-C), from
-`<minkar/stub.h>`, and their first call in a process is logged to syslogd
+`<minkar/stub.h>`, and their first call in a process is logged (logd)
 under the subsystem `org.minkar.stubs`:
 
-    syslog | grep org.minkar.stubs
+    log show --predicate 'subsystem == "org.minkar.stubs"'
 
 A stub answers as before; only the log line is new.
 

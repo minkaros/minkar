@@ -10,16 +10,23 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <Foundation/NSGeometry.h>
 #import <Foundation/NSZone.h>
 
-@class NSString, NSData, NSSet;
+@class NSString, NSData, NSSet<ObjectType>;
+
+typedef NS_ENUM(NSInteger, NSDecodingFailurePolicy) {
+    NSDecodingFailurePolicyRaiseException = 0,
+    NSDecodingFailurePolicySetErrorAndReturn = 1,
+};
+
+@class NSError;
 
 @interface NSCoder : NSObject
 
-- (unsigned)systemVersion;
+@property (readonly) unsigned systemVersion;
 
 - (void)setObjectZone:(NSZone *)zone;
 - (NSZone *)objectZone;
 
-- (BOOL)allowsKeyedCoding;
+@property (readonly) BOOL allowsKeyedCoding;
 
 - (void)encodeValueOfObjCType:(const char *)type at:(const void *)ptr;
 - (void)encodeDataObject:(NSData *)data;
@@ -84,10 +91,23 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 - decodeObjectForKey:(NSString *)key;
 - (id)decodeObjectOfClass:(Class)cls forKey:(NSString *)key;
 - (id)decodeObjectOfClasses:(NSSet *)classes forKey:(NSString *)key;
+
+/* The top-level object: nil and an NSError, rather than an exception,
+ * when it cannot be decoded (10.11). */
+- (id)decodeTopLevelObjectAndReturnError:(NSError **)error;
+- (id)decodeTopLevelObjectForKey:(NSString *)key error:(NSError **)error;
+- (id)decodeTopLevelObjectOfClass:(Class)cls forKey:(NSString *)key error:(NSError **)error;
+- (id)decodeTopLevelObjectOfClasses:(NSSet *)classes forKey:(NSString *)key error:(NSError **)error;
 @property (readonly) BOOL requiresSecureCoding;
 
 - (int32_t)decodeInt32ForKey:(NSString *)key;
 - (int64_t)decodeInt64ForKey:(NSString *)key;
 - (NSInteger)decodeIntegerForKey:(NSString *)key;
+
+/* A decoder's failure: raised, or kept in error when the policy says to
+ * return (NSKeyedUnarchiver). */
+- (void)failWithError:(NSError *)error;
+@property (readonly) NSDecodingFailurePolicy decodingFailurePolicy;
+@property (readonly, copy) NSError *error;
 
 @end

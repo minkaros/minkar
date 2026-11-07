@@ -16,6 +16,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 @interface NSPersistantDomain_posix : NSPersistantDomain {
     NSString *_path;
     NSMutableDictionary *_mutableDomain;
+    NSMutableSet *_changedKeys;   /* set or removed here since the last synchronize */
 }
 
 + (NSPersistantDomain_posix *)persistantDomainWithName:(NSString *)name;

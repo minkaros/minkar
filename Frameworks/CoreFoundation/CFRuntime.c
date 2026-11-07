@@ -385,7 +385,7 @@ CFTypeRef _CFRuntimeCreateInstance(CFAllocatorRef allocator, CFTypeID typeID, CF
 #endif
     uint32_t *cfinfop = (uint32_t *)&(memory->_cfinfo);
     *cfinfop = (uint32_t)((rc << 24) | (customRC ? 0x800000 : 0x0) | ((uint32_t)typeID << 8) | (usesSystemDefaultAllocator ? 0x80 : 0x00));
-    memory->_cfisa = __CFISAForTypeID(typeID);
+    memory->_cfisa = __CFInstanceISAForTypeID(typeID);
     if (NULL != cls->init) {
 	(cls->init)(memory);
     }
@@ -436,8 +436,9 @@ void _CFRuntimeSetInstanceTypeID(CFTypeRef cf, CFTypeID newTypeID) {
      * replaced: 0 (static instances) stays 0. */
     uintptr_t *isap = &((CFRuntimeBase *)cf)->_cfisa;
     if (*isap != 0 && currTypeID < __CFRuntimeClassTableSize &&
-        (*isap == (uintptr_t)currcfClass || *isap == __CFRuntimeObjCClassTable[currTypeID]))
-        *isap = __CFISAForTypeID(newTypeID);
+        (*isap == (uintptr_t)currcfClass || *isap == __CFRuntimeObjCClassTable[currTypeID] ||
+         *isap == __CFRuntimeDefaultObjCClass))
+        *isap = __CFInstanceISAForTypeID(newTypeID);
 }
 
 CF_PRIVATE void _CFRuntimeSetInstanceTypeIDAndIsa(CFTypeRef cf, CFTypeID newTypeID) {
@@ -538,9 +539,12 @@ CF_EXPORT Boolean _CFIsNativeCFObject(CFTypeRef cf) {
 extern int __CFConstantStringClassReference[];
 extern SEL sel_registerName(const char *);
 
+uintptr_t __CFRuntimeDefaultObjCClass = 0;
+
 static inline Boolean __CFIsForeignObjC(CFTypeRef cf) {
     uintptr_t isa = *(const uintptr_t *)cf;
-    if (isa == 0 || isa == (uintptr_t)__CFConstantStringClassReference)
+    if (isa == 0 || isa == (uintptr_t)__CFConstantStringClassReference ||
+        (isa == __CFRuntimeDefaultObjCClass && isa != 0))
         return false;
     CFTypeID t = __CFGenericTypeID_inline(cf);
     if (t < __CFRuntimeClassTableSize &&
@@ -843,6 +847,10 @@ extern CFAllocatorRef __CFAllocatorGetAllocator(CFTypeRef);
 
 CFAllocatorRef CFGetAllocator(CFTypeRef cf) {
     if (NULL == cf) return kCFAllocatorSystemDefault;
+    /* Minkar: a Foundation object (an NSURL handed to CF's URL functions)
+     * has no CF header to read the allocator from: the system's, as a
+     * bridged object's on the reference platform. */
+    if (__CFIsForeignObjC(cf)) return kCFAllocatorSystemDefault;
     if (__kCFAllocatorTypeID_CONST == __CFGenericTypeID_inline(cf)) {
 	return __CFAllocatorGetAllocator(cf);
     }
@@ -991,6 +999,7 @@ pthread_t _CF_pthread_main_thread_np(void) {
 #endif
 
 #if DEPLOYMENT_TARGET_LINUX || DEPLOYMENT_TARGET_FREEBSD
+CF_PRIVATE void __CFMakeObjCClasses(void);
 static void __CFInitialize(void) __attribute__ ((constructor));
 static
 #endif
@@ -1194,6 +1203,8 @@ void __CFInitialize(void) {
 #endif
 
         __CFProphylacticAutofsAccess = false;
+        /* Blocks and CF's objects as Objective-C objects (CFObjCClasses.c). */
+        __CFMakeObjCClasses();
         __CFInitializing = 0;
         __CFInitialized = 1;
     }

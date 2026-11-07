@@ -9,13 +9,26 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 #import <CoreGraphics/CoreGraphicsExport.h>
 #import <CoreFoundation/CFBase.h>
+#import <CoreFoundation/CFDictionary.h>
 #include <stdbool.h>
+#include <stdint.h>
 #include <math.h>
 
+/* As on the reference platform: double on 64-bit, float on 32-bit. */
+#if defined(__LP64__) && __LP64__
+typedef double CGFloat;
+#define CGFLOAT_IS_DOUBLE 1
+#define CGFLOAT_MIN DBL_MIN
+#define CGFLOAT_MAX DBL_MAX
+#define CGFLOAT_SCAN "%lg"
+#else
 typedef float CGFloat;
+#define CGFLOAT_IS_DOUBLE 0
 #define CGFLOAT_MIN FLT_MIN
 #define CGFLOAT_MAX FLT_MAX
 #define CGFLOAT_SCAN "%g"
+#endif
+#define CGFLOAT_DEFINED 1
 
 typedef struct CGPoint {
     CGFloat x;
@@ -56,34 +69,42 @@ static bool CGSizeEqualToSize(CGSize a, CGSize b) {
     return a.width == b.width && a.height == b.height;
 }
 
+CF_SWIFT_NAME(getter:CGRect.minX(self:))
 static inline CGFloat CGRectGetMinX(CGRect rect) {
     return rect.origin.x;
 }
 
+CF_SWIFT_NAME(getter:CGRect.maxX(self:))
 static inline CGFloat CGRectGetMaxX(CGRect rect) {
     return rect.origin.x + rect.size.width;
 }
 
+CF_SWIFT_NAME(getter:CGRect.midX(self:))
 static inline CGFloat CGRectGetMidX(CGRect rect) {
     return CGRectGetMinX(rect) + ((CGRectGetMaxX(rect) - CGRectGetMinX(rect)) / 2.f);
 }
 
+CF_SWIFT_NAME(getter:CGRect.minY(self:))
 static inline CGFloat CGRectGetMinY(CGRect rect) {
     return rect.origin.y;
 }
 
+CF_SWIFT_NAME(getter:CGRect.maxY(self:))
 static inline CGFloat CGRectGetMaxY(CGRect rect) {
     return rect.origin.y + rect.size.height;
 }
 
+CF_SWIFT_NAME(getter:CGRect.midY(self:))
 static inline CGFloat CGRectGetMidY(CGRect rect) {
     return CGRectGetMinY(rect) + ((CGRectGetMaxY(rect) - CGRectGetMinY(rect)) / 2.f);
 }
 
+CF_SWIFT_NAME(getter:CGRect.width(self:))
 static inline CGFloat CGRectGetWidth(CGRect rect) {
     return rect.size.width;
 }
 
+CF_SWIFT_NAME(getter:CGRect.height(self:))
 static inline CGFloat CGRectGetHeight(CGRect rect) {
     return rect.size.height;
 }
@@ -141,18 +162,43 @@ static inline bool CGRectIsNull(CGRect rect) {
     return CGRectEqualToRect(rect, CGRectNull);
 }
 
+/* A vector (API 19). */
+typedef struct CGVector {
+    CGFloat dx;
+    CGFloat dy;
+} CGVector;
+
+static inline CGVector CGVectorMake(CGFloat dx, CGFloat dy) {
+    CGVector result = {dx, dy};
+    return result;
+}
+
+/* The edges of a rectangle, for CGRectDivide. */
+typedef CF_ENUM(uint32_t, CGRectEdge) {
+    CGRectMinXEdge,
+    CGRectMinYEdge,
+    CGRectMaxXEdge,
+    CGRectMaxYEdge,
+};
+
+CF_ASSUME_NONNULL_BEGIN
+
+/* Splits rect at amount from edge: slice is that part, remainder the rest. */
+COREGRAPHICS_EXPORT void CGRectDivide(CGRect rect, CGRect *slice, CGRect *remainder, CGFloat amount, CGRectEdge edge);
+
 COREGRAPHICS_EXPORT CGRect CGRectUnion(CGRect a, CGRect b);
 COREGRAPHICS_EXPORT CGRect CGRectIntersection(CGRect a, CGRect b);
 COREGRAPHICS_EXPORT CGRect CGRectIntegral(CGRect rect);
 
 /* Dictionary representations (keys "X", "Y", "Width", "Height"). */
-#import <CoreFoundation/CFDictionary.h>
 COREGRAPHICS_EXPORT CFDictionaryRef CGPointCreateDictionaryRepresentation(CGPoint point);
-COREGRAPHICS_EXPORT bool CGPointMakeWithDictionaryRepresentation(CFDictionaryRef dict, CGPoint *point);
+COREGRAPHICS_EXPORT bool CGPointMakeWithDictionaryRepresentation(CFDictionaryRef _Nullable dict, CGPoint * _Nullable point);
 COREGRAPHICS_EXPORT CFDictionaryRef CGSizeCreateDictionaryRepresentation(CGSize size);
-COREGRAPHICS_EXPORT bool CGSizeMakeWithDictionaryRepresentation(CFDictionaryRef dict, CGSize *size);
+COREGRAPHICS_EXPORT bool CGSizeMakeWithDictionaryRepresentation(CFDictionaryRef _Nullable dict, CGSize * _Nullable size);
 COREGRAPHICS_EXPORT CFDictionaryRef CGRectCreateDictionaryRepresentation(CGRect rect);
-COREGRAPHICS_EXPORT bool CGRectMakeWithDictionaryRepresentation(CFDictionaryRef dict, CGRect *rect);
+COREGRAPHICS_EXPORT bool CGRectMakeWithDictionaryRepresentation(CFDictionaryRef _Nullable dict, CGRect * _Nullable rect);
+
+CF_ASSUME_NONNULL_END
 
 static inline bool CGRectContainsRect(CGRect a, CGRect b) {
     return (CGRectGetMinX(b) >= CGRectGetMinX(a) &&

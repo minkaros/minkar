@@ -9,7 +9,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <Foundation/NSObject.h>
 #include <windows.h>
 
-@class NSHandleMonitor_win32, NSFileHandle, NSArray;
+@class NSHandleMonitor_win32, NSFileHandle, NSArray<ObjectType>;
 
 @interface NSReadInBackground_win32 : NSObject {
     NSFileHandle *_fileHandle;

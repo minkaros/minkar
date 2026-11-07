@@ -36,17 +36,25 @@
 
 /* Takes the "events pending" messages off the port; waits for one first
  * when wait is set. */
+static volatile int serverGone;
+
 static void
 takePending(mach_port_t port, int wait)
 {
+	/* Room for the kernel's notifications too (no senders, dead name). */
 	struct {
 		mach_msg_header_t header;
+		uint8_t body[128];
 		mach_msg_trailer_t trailer;
 	} msg;
-	mach_msg_option_t options = MACH_RCV_MSG | (wait ? 0 : MACH_RCV_TIMEOUT);
+	mach_msg_option_t options = MACH_RCV_MSG | MACH_RCV_LARGE | (wait ? 0 : MACH_RCV_TIMEOUT);
 
 	while (mach_msg(&msg.header, options, 0, sizeof(msg), port, 0, MACH_PORT_NULL) ==
 	    MACH_MSG_SUCCESS) {
+		/* The server went away: it died, or launchd restarted it. */
+		if (msg.header.msgh_id == MACH_NOTIFY_NO_SENDERS ||
+		    msg.header.msgh_id == MACH_NOTIFY_DEAD_NAME)
+			serverGone = 1;
 		if (msg.header.msgh_bits & MACH_MSGH_BITS_COMPLEX)
 			mach_msg_destroy(&msg.header);
 		options = MACH_RCV_MSG | MACH_RCV_TIMEOUT;
@@ -66,7 +74,12 @@ SLSReceiveEvents(SLSEvent *events, uint32_t max, uint32_t *count, int wait)
 	if (server == MACH_PORT_NULL || port == MACH_PORT_NULL)
 		return kSLSErrorFailure;
 	takePending(port, wait);
-	if (ws_next_events(server, list, &n) != KERN_SUCCESS)
+	if (serverGone)
+		return kSLSErrorInvalidConnection;
+	kern_return_t kr = ws_next_events(server, list, &n);
+	if (kr == MACH_SEND_INVALID_DEST || kr == MIG_SERVER_DIED)
+		return kSLSErrorInvalidConnection;	/* the server is gone */
+	if (kr != KERN_SUCCESS)
 		return kSLSErrorFailure;
 	if (n > max)
 		n = max;	/* the rest are lost: callers pass kSLSMaxEvents */

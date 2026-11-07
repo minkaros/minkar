@@ -11,25 +11,25 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 // NSColorHSBToRGB, NSColorRGBToHSB
 // Algorithms derived from: http://en.wikipedia.org/wiki/HSL_and_HSV
 
-static inline void NSColorHSBToRGB(float hue, float saturation, float brightness, float *redp, float *greenp, float *bluep) {
-    float red = brightness, green = brightness, blue = brightness;
+static inline void NSColorHSBToRGB(CGFloat hue, CGFloat saturation, CGFloat brightness, CGFloat *redp, CGFloat *greenp, CGFloat *bluep) {
+    CGFloat red = brightness, green = brightness, blue = brightness;
 
-    float H = hue * 360.f; // convert to degrees
-    float S = saturation;
-    float V = brightness;
-    float m = 0; // the brightness delta.
+    CGFloat H = hue * 360.f; // convert to degrees
+    CGFloat S = saturation;
+    CGFloat V = brightness;
+    CGFloat m = 0; // the brightness delta.
 
     if(V != 0) {
         // We have enough color information to do a conversion
 
-        float C = V * S;
+        CGFloat C = V * S;
 
         H = fmod(H, 360.f);
         H /= 60.f; // convert to hexagonal segments
 
         int hueFace = H; // cube face index
 
-        float X = C * (1 - fabs(fmod(H, 2) - 1));
+        CGFloat X = C * (1 - fabs(fmod(H, 2) - 1));
 
         switch(hueFace) {
             case 0:
@@ -75,17 +75,17 @@ static inline void NSColorHSBToRGB(float hue, float saturation, float brightness
     //	NSLog(@"RGB(%f, %f, %f) <- HSB(%f, %f, %f)", *redp, *greenp, *bluep, hue, saturation, brightness);
 }
 
-static inline void NSColorRGBToHSB(float red, float green, float blue, float *huep, float *saturationp, float *brightnessp) {
+static inline void NSColorRGBToHSB(CGFloat red, CGFloat green, CGFloat blue, CGFloat *huep, CGFloat *saturationp, CGFloat *brightnessp) {
 
-    float M = MAX(red, MAX(green, blue));
-    float m = MIN(red, MIN(green, blue));
+    CGFloat M = MAX(red, MAX(green, blue));
+    CGFloat m = MIN(red, MIN(green, blue));
 
-    float H = 0;
-    float S = 0;
-    float V = M;
+    CGFloat H = 0;
+    CGFloat S = 0;
+    CGFloat V = M;
 
     if(V > 0) {
-        float C = M - m;
+        CGFloat C = M - m;
         S = C / V;
         if(C == 0) {
             H = 0;

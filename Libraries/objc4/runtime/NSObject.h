@@ -53,10 +53,10 @@ OBJC_EXPORT
 @interface NSObject <NSObject> {
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wobjc-interface-ivars"
-    /* Keep aligned with CFRuntimeBase */
+    /* Only isa, as the reference ABI has it (8 bytes): Swift's runtime
+     * and compiled subclasses rely on it. The toll-free bridged classes
+     * declare CF's header fields themselves (NSCFString, NSNumber_CF). */
     Class isa  OBJC_ISA_AVAILABILITY;
-    unsigned char cfinfo[4];
-    unsigned int rc;
 #pragma clang diagnostic pop
 }
 

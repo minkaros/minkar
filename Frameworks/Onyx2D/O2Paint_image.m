@@ -90,6 +90,21 @@ ONYX2D_STATIC int O2PaintReadResampledHighSpan_largb8u_PRE(O2Paint *selfX,int x,
 }
 #endif
 
+ONYX2D_STATIC int O2PaintReadAreaSpan_largb8u_PRE(O2Paint *selfX,int x,int y,O2argb8u *span,int length){
+   O2Paint_image *self=(O2Paint_image *)selfX;
+
+   O2ImageArea_largb8u_PRE(self->_image,x,y,span,length,self->m_surfaceToPaintMatrix);
+
+   if(self->_mask!=NULL){
+    O2argb8u maskSpan[length];
+
+    O2ImageBilinear_largb8u_PRE(self->_mask,x,y,maskSpan,length,self->_surfaceToMask);
+    O2PaintApplyMaskSpan(span,maskSpan,length);
+   }
+
+   return length;
+}
+
 ONYX2D_STATIC int O2PaintReadResampledLowSpan_largb8u_PRE(O2Paint *selfX,int x,int y,O2argb8u *span,int length){   
    O2Paint_image *self=(O2Paint_image *)selfX;
 
@@ -280,6 +295,9 @@ ONYX2D_STATIC int stencil(O2Paint *selfX,int x,int y,O2argb32f *span,int length)
         _paint_largb8u_PRE=O2PaintReadIntegerTranslateSpan_largb8u_PRE;
        else if(floatTranslate)
         _paint_largb8u_PRE=O2PaintReadResampledLowSpanFloatTranslate_largb8u_PRE;
+       else if(surfaceToImage.b==0.0f && surfaceToImage.c==0.0f &&
+               (ABS(surfaceToImage.a)>2.0f || ABS(surfaceToImage.d)>2.0f))
+        _paint_largb8u_PRE=O2PaintReadAreaSpan_largb8u_PRE;
        else
        _paint_largb8u_PRE=O2PaintReadResampledLowSpan_largb8u_PRE;
         

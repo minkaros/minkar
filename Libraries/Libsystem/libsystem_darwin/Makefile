@@ -2,6 +2,7 @@ SUBDIR =
 MK_WERROR = no
 LIB = system_darwin
 SRCS = bsd.c \
+	system_version.c \
 	ctl.c \
 	dirstat.c \
 	dirstat_collection.c \

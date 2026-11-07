@@ -1,0 +1,6 @@
+# kiwi 1.4.8 (Modified BSD), a Cassowary constraint solver, header-only
+# C++: the solver of constraint-based layout (NSLayout/NSLayoutEngine.mm).
+url https://github.com/nucleic/kiwi/archive/refs/tags/1.4.8.tar.gz
+file kiwi-1.4.8.tar.gz
+sha256 e8848589c1548a292e99eadc712f14d8924e77f390b7de0a4a5359ee8e4a480f
+version 1.4.8

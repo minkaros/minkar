@@ -1,0 +1,80 @@
+# GLib's installed tests left out of gate W0, each with the reason: what
+# they need that Minkar has not. "name reason" leaves a program out;
+# "name:/test/path reason" only that test of it (run with -s).
+#
+# A D-Bus session bus: Minkar's processes talk through Mach and XPC, as
+# the reference platform's do, and WebKit on Minkar needs no D-Bus.
+actions needs a D-Bus session bus
+appinfo needs a D-Bus session bus
+dbus-appinfo needs a D-Bus session bus
+debugcontroller needs a D-Bus session bus
+defaultvalue needs a D-Bus session bus
+desktop-app-info needs a D-Bus session bus
+fdo-notification-backend needs a D-Bus session bus
+gapplication needs a D-Bus session bus
+gdbus-address-get-session needs a D-Bus session bus
+gdbus-bz627724 needs a D-Bus session bus
+gdbus-close-pending needs a D-Bus session bus
+gdbus-connection needs a D-Bus session bus
+gdbus-connection-loss needs a D-Bus session bus
+gdbus-connection-slow needs a D-Bus session bus
+gdbus-exit-on-close needs a D-Bus session bus
+gdbus-export needs a D-Bus session bus
+gdbus-introspection needs a D-Bus session bus
+gdbus-method-invocation needs a D-Bus session bus
+gdbus-names needs a D-Bus session bus
+gdbus-proxy needs a D-Bus session bus
+gdbus-proxy-threads needs a D-Bus session bus
+gdbus-proxy-unique-name needs a D-Bus session bus
+gdbus-proxy-well-known-name needs a D-Bus session bus
+gdbus-subscribe needs a D-Bus session bus
+gdbus-test-codegen needs a D-Bus session bus
+gdbus-test-codegen-min-required-2-64 needs a D-Bus session bus
+gdbus-test-codegen-old needs a D-Bus session bus
+gdbus-threading needs a D-Bus session bus
+gmenumodel needs a D-Bus session bus
+gnotification needs a D-Bus session bus
+#
+# Python: these test GLib's build tools (run on the build host, not in
+# Minkar) or mock D-Bus services, with Python, which Minkar does not ship.
+assert-msg-test.py needs Python
+codegen.py needs Python
+genmarshal.py needs Python
+gio-tool.py needs Python
+gobject-query.py needs Python
+messages-low-memory.py needs Python
+mkenums.py needs Python
+memory-monitor-dbus needs Python and a D-Bus session bus
+memory-monitor-portal needs Python and a D-Bus session bus
+power-profile-monitor-dbus needs Python and a D-Bus session bus
+power-profile-monitor-portal needs Python and a D-Bus session bus
+#
+# A compiler in the image: it builds a program against the static GLib.
+static-link needs a C compiler and pkg-config in the image
+#
+# The root volume is HFS+, whose file times are whole seconds (APFS is out
+# of scope until after Minkar 19.6.0).
+g-file-info:/g-file-info/set-modified-date-time-precision needs file times finer than a second (HFS+)
+g-file-info:/g-file-info/test_g_file_info/modification-time needs file times finer than a second (HFS+)
+g-file-info:/g-file-info/test_g_file_info/access-time needs file times finer than a second (HFS+)
+#
+# The test expects no peer PID on Darwin (G_CREDENTIALS_HAS_PID 0), but
+# GLib reads it with LOCAL_PEERPID there, as on the reference platform.
+gdbus-peer:/gdbus/peer-to-peer expects no peer PID on Darwin, which GLib gets anyway
+gdbus-peer:/gdbus/peer-to-peer/signals expects no peer PID on Darwin, which GLib gets anyway
+#
+# A file's changes-done-hint comes from kqueue's NOTE_CLOSE_WRITE, which
+# Darwin's kqueue does not have (the reference platform's neither); GLib
+# then sends it 2 seconds later, after the test's next step. GLib marks
+# testfilemonitor as allowed to fail on Darwin (its issue 1392). The other
+# six tests of the program pass.
+testfilemonitor:/monitor/file-changes expects NOTE_CLOSE_WRITE, which Darwin's kqueue lacks
+testfilemonitor:/monitor/file/hard-links expects NOTE_CLOSE_WRITE, which Darwin's kqueue lacks
+#
+# getenv("foo=bar") looks up "foo": the reference platform's Libc, which
+# Minkar's is, ends a name at '='. The test expects NULL or the value of a
+# variable named "foo=bar"; GLib marks it as allowed to fail on Darwin.
+environment:/environ/getenv expects getenv() to keep '=' in a name, as the reference platform's Libc does not
+#
+# D-Bus's machine ID (/etc/machine-id): Minkar has no D-Bus.
+gdbus-peer:/gdbus/codegen-peer-to-peer needs D-Bus's /etc/machine-id

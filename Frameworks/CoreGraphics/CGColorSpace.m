@@ -7,6 +7,7 @@ The above copyright notice and this permission notice shall be included in all c
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE. */
 
 #import <CoreGraphics/CGColorSpace.h>
+#include <string.h>
 #import <Onyx2D/O2ColorSpace.h>
 
 CGColorSpaceRef CGColorSpaceRetain(CGColorSpaceRef colorSpace) {
@@ -39,4 +40,31 @@ CGColorSpaceModel CGColorSpaceGetModel(CGColorSpaceRef self) {
 
 size_t CGColorSpaceGetNumberOfComponents(CGColorSpaceRef self) {
    return O2ColorSpaceGetNumberOfComponents(self);
+}
+
+static O2ColorSpace_indexed *indexedSpace(CGColorSpaceRef space) {
+    O2ColorSpace *s = (O2ColorSpace *)space;
+
+    return [s isKindOfClass:[O2ColorSpace_indexed class]] ? (O2ColorSpace_indexed *)s : nil;
+}
+
+CGColorSpaceRef CGColorSpaceGetBaseColorSpace(CGColorSpaceRef space) {
+    O2ColorSpace_indexed *indexed = indexedSpace(space);
+
+    return indexed ? (CGColorSpaceRef)[indexed baseColorSpace] : NULL;
+}
+
+size_t CGColorSpaceGetColorTableCount(CGColorSpaceRef space) {
+    O2ColorSpace_indexed *indexed = indexedSpace(space);
+
+    return indexed ? (size_t)[indexed hival] + 1 : 0;
+}
+
+void CGColorSpaceGetColorTable(CGColorSpaceRef space, uint8_t *table) {
+    O2ColorSpace_indexed *indexed = indexedSpace(space);
+
+    if (indexed == nil || table == NULL)
+        return;
+    size_t perColor = O2ColorSpaceGetNumberOfComponents([indexed baseColorSpace]);
+    memcpy(table, [indexed paletteBytes], ((size_t)[indexed hival] + 1) * perColor);
 }

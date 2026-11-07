@@ -1,45 +1,21 @@
-APP=	Dock
-SRCS=	main.m Dock.m DockItem.m DesktopWindow.m DockTileData.m
-RESOURCES=	${.CURDIR}/Dock.png ${.CURDIR}/running.png \
-		${.CURDIR}/window.png Trash.app \
-		Downloads.app
+# SPDX-License-Identifier: BSD-2-Clause
+# Copyright (c) 2026 The Minkar contributors
+# Part of Minkar.
+#
+# The Dock (Atlas.md, D1): the desktop picture behind every window and
+# the Dock at the bottom of the main display, with the persistent apps and
+# the running ones. loginwindow starts it (SessionApplications).
 
-Dock.o: Dock.m Dock.h 
-DockItem.o: DockItem.m DockItem.h
-
-MK_WERROR=	no
-MK_PIE=		no
-WARNS=		1
-CFLAGS+=	-g -O0 -fobjc-arc --sysroot=${OBJTOP}/tmp -D__MACH__ -fPIC \
-		-B${OBJTOP}/tmp/usr/bin -D__MINKAR__ \
-		-Wno-missing-method-return-type -I${SRCTOP}/CoreServices \
-		-Wno-macro-redefined -I${SRCTOP}/Frameworks \
-		-I${SRCTOP}/Frameworks/AppKit/Headers -I${SRCTOP}/gnu/lib/libobjc2 \
-		-I${OBJTOP}/Frameworks/Foundation/Headers \
-		-I${MAKEOBJDIR}/../WindowServer/SystemUIServer
-
-LDFLAGS+=	-L${OBJTOP}/Frameworks/Foundation/Foundation.framework \
-		-L${OBJTOP}/Frameworks/LaunchServices/LaunchServices.framework \
-		-L${OBJTOP}/Frameworks/CoreGraphics/CoreGraphics.framework \
-		-L${OBJTOP}/Frameworks/AppKit/AppKit.framework \
-		-L${OBJTOP}/tmp/usr/lib \
-		-Wl,-R/System/Library/Frameworks/Foundation.framework/Versions/A \
-		-Wl,-R/System/Library/Frameworks/AppKit.framework/Versions/A \
-		-Wl,-R/System/Library/Frameworks/CoreGraphics.framework/Versions/A \
-		-Wl,-R/System/Library/Frameworks/LaunchServices.framework/Versions/A \
-                -lAppKit -lCoreGraphics -lLaunchServices -lFoundation -lobjc -lSystem
-
-Trash.app::
-	rm -rf ${.TARGET}
-	${MAKE} -C ${.CURDIR}/Trash
-	mv Trash/Trash.app .
-
-Downloads.app::
-	rm -rf ${.TARGET}
-	${MAKE} -C ${.CURDIR}/Downloads
-	mv Downloads/Downloads.app .
+SUBDIR =
+APP =		Dock
+APP_INSTALL_DIR = /System/Library/CoreServices
+SRCS =		main.m DockModel.m DockView.m DesktopWindow.m
+FRAMEWORKS =	AppKit CoreGraphics Foundation
+MK_WERROR =	no
+CFLAGS +=	-fobjc-arc -g -std=gnu17 -Wno-incompatible-sysroot \
+		-Wno-nullability-completeness -I${ROOT_SOURCE_DIR}/Frameworks
+LDFLAGS +=	-lobjc
+# The Spanish texts (the English ones are the keys).
+RESOURCES =	${.CURDIR}/es.lproj
 
 .include <minkar.app.mk>
-
-all: Trash.app Downloads.app
-	cp -fv ${.CURDIR}/Info.plist ${APP_DIR}/Contents/

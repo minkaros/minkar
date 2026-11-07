@@ -1,0 +1,60 @@
+Tests: a tests_data_dir option for where the tests run
+
+The tests and fuzzers have the source and build directories built in. With
+tests_data_dir, they find their data there instead (gate W0 runs them on
+the target, not where they were built).
+
+--- a/meson_options.txt	2026-11-06 20:13:00.537812101 -0500
++++ b/meson_options.txt	2026-11-06 20:13:00.545811308 -0500
+@@ -20,3 +20,6 @@
+ 
+ option('tests', type: 'boolean', value: true,
+   description: 'Build the tests and fuzzers')
++
++option('tests_data_dir', type : 'string', value : '',
++  description : 'Where the tests find their data when they run elsewhere than the build: DIR/src/tests, DIR/src/list and DIR/build/tests (the DAFSA files)')
+--- a/tests/meson.build	2026-11-06 20:13:00.533812497 -0500
++++ b/tests/meson.build	2026-11-06 20:13:00.573808533 -0500
+@@ -11,13 +11,27 @@
+   command : [python, psl_make_dafsa, '--output-format=binary', '--encoding=ascii', '@INPUT@', '@OUTPUT@'])
+ 
+ fsmod = import('fs')
++data_dir = get_option('tests_data_dir')
++if data_dir == ''
++  tests_srcdir = meson.current_source_dir()
++  tests_psl_file = psl_file
++  tests_psl_test_file = psl_test_file
++  tests_dafsa = fsmod.as_posix(psl_dafsa.full_path())
++  tests_ascii_dafsa = fsmod.as_posix(psl_ascii_dafsa.full_path())
++else
++  tests_srcdir = data_dir / 'src' / 'tests'
++  tests_psl_file = data_dir / 'src' / 'list' / 'public_suffix_list.dat'
++  tests_psl_test_file = data_dir / 'src' / 'list' / 'tests' / 'tests.txt'
++  tests_dafsa = data_dir / 'build' / 'tests' / 'psl.dafsa'
++  tests_ascii_dafsa = data_dir / 'build' / 'tests' / 'psl_ascii.dafsa'
++endif
+ tests_cargs = [
+   '-DHAVE_CONFIG_H',
+-  '-DSRCDIR="@0@"'.format(meson.current_source_dir()),
+-  '-DPSL_FILE="@0@"'.format(psl_file),
+-  '-DPSL_TESTFILE="@0@"'.format(psl_test_file),
+-  '-DPSL_DAFSA="@0@"'.format(fsmod.as_posix(psl_dafsa.full_path())),
+-  '-DPSL_ASCII_DAFSA="@0@"'.format(fsmod.as_posix(psl_ascii_dafsa.full_path())),
++  '-DSRCDIR="@0@"'.format(tests_srcdir),
++  '-DPSL_FILE="@0@"'.format(tests_psl_file),
++  '-DPSL_TESTFILE="@0@"'.format(tests_psl_test_file),
++  '-DPSL_DAFSA="@0@"'.format(tests_dafsa),
++  '-DPSL_ASCII_DAFSA="@0@"'.format(tests_ascii_dafsa),
+ ]
+ 
+ tests = [
+--- a/fuzz/meson.build	2026-11-06 20:14:08.428883373 -0500
++++ b/fuzz/meson.build	2026-11-06 20:14:08.460881131 -0500
+@@ -1,5 +1,6 @@
+ fuzzer_cargs = [
+-  '-DSRCDIR="@0@"'.format(meson.current_source_dir()),
++  '-DSRCDIR="@0@"'.format(get_option('tests_data_dir') == '' ?
++    meson.current_source_dir() : get_option('tests_data_dir') / 'src' / 'fuzz'),
+   '-DTEST_RUN',
+ ]
+ 

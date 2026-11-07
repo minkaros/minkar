@@ -204,6 +204,32 @@ class CodesignTests(unittest.TestCase):
         self.assertEqual(shown.stdout, ENTITLEMENTS)
         self.assertNotEqual(run('-s', 'Developer ID', self.path).returncode, 0)
 
+    def test_signs_a_bundles_executable(self):
+        # A framework (Versions/Current/<name>, linked from the top) and an
+        # application (its Info.plist's CFBundleExecutable).
+        fw = os.path.join(self.dir, 'Kit.framework')
+        os.makedirs(os.path.join(fw, 'Versions', '1.0'))
+        os.symlink('1.0', os.path.join(fw, 'Versions', 'Current'))
+        binary = os.path.join(fw, 'Versions', '1.0', 'Kit')
+        self.write(synthetic_macho(), binary)
+        os.symlink('Versions/Current/Kit', os.path.join(fw, 'Kit'))
+        self.assertEqual(codesign.main(['-s', '-', '-f', fw]), 0)
+        codesign.verify(binary)
+        self.assertEqual(codesign.main(['--verify', fw]), 0)
+
+        app = os.path.join(self.dir, 'Tool.app')
+        os.makedirs(os.path.join(app, 'Contents', 'MacOS'))
+        with open(os.path.join(app, 'Contents', 'Info.plist'), 'wb') as f:
+            plistlib.dump({'CFBundleExecutable': 'RealTool'}, f)
+        exe = os.path.join(app, 'Contents', 'MacOS', 'RealTool')
+        self.write(synthetic_macho(), exe)
+        self.assertEqual(codesign.main(['-s', '-', app]), 0)
+        codesign.verify(exe)
+
+        empty = os.path.join(self.dir, 'Empty.framework')
+        os.makedirs(empty)
+        self.assertEqual(codesign.main(['-s', '-', empty]), 1)
+
 
 if __name__ == '__main__':
     unittest.main()

@@ -1,0 +1,5 @@
+# GNU Libtasn1 (LGPL-2.1-or-later), fetched at build time and checked
+# against this SHA-256, taken at the first fetch.
+url https://ftp.gnu.org/gnu/libtasn1/libtasn1-4.20.0.tar.gz
+sha256 92e0e3bd4c02d4aeee76036b2ddd83f0c732ba4cda5cb71d583272b23587a76c
+version 4.20.0

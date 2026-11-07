@@ -34,6 +34,7 @@
 #include <string.h>
 #include <objc/NSObjCRuntime.h>
 #include <objc/runtime.h>
+#include <CoreFoundation/CFBase.h>
 #include <objc/objc.h>
 #include "objc_size_alignment.h"
 
@@ -49,11 +50,57 @@
 #define NS_ASSUME_NONNULL_BEGIN _Pragma("clang assume_nonnull begin")
 #define NS_ASSUME_NONNULL_END _Pragma("clang assume_nonnull end")
 #endif
+/* Minkar: as CF's, so that Swift sees enums as enums and options as
+ * OptionSets; and the annotations that name the API for Swift. */
 #ifndef NS_ENUM
-#define NS_ENUM(_type, _name) enum _name : _type _name; enum _name : _type
+#define NS_ENUM(_type, _name) CF_ENUM(_type, _name)
 #endif
 #ifndef NS_OPTIONS
-#define NS_OPTIONS(_type, _name) enum _name : _type _name; enum _name : _type
+#define NS_OPTIONS(_type, _name) CF_OPTIONS(_type, _name)
+#endif
+#ifndef NS_CLOSED_ENUM
+#define NS_CLOSED_ENUM(_type, _name) CF_CLOSED_ENUM(_type, _name)
+#endif
+#ifndef NS_ERROR_ENUM
+#define NS_ERROR_ENUM(_type, _name, _domain) \
+    enum __attribute__((ns_error_domain(_domain))) _name : _type _name; \
+    enum _name : _type
+#endif
+#ifndef NS_UNAVAILABLE
+#define NS_UNAVAILABLE __attribute__((unavailable))
+#endif
+#ifndef NS_SWIFT_NAME
+#define NS_SWIFT_NAME(_name) CF_SWIFT_NAME(_name)
+#endif
+#ifndef NS_SWIFT_UNAVAILABLE
+#define NS_SWIFT_UNAVAILABLE(_msg) CF_SWIFT_UNAVAILABLE(_msg)
+#endif
+#ifndef NS_REFINED_FOR_SWIFT
+#define NS_REFINED_FOR_SWIFT CF_REFINED_FOR_SWIFT
+#endif
+#ifndef NS_SWIFT_NOTHROW
+#define NS_SWIFT_NOTHROW __attribute__((swift_error(none)))
+#endif
+#ifndef NS_TYPED_ENUM
+#define NS_TYPED_ENUM _CF_TYPED_ENUM
+#endif
+#ifndef NS_TYPED_EXTENSIBLE_ENUM
+#define NS_TYPED_EXTENSIBLE_ENUM _CF_TYPED_EXTENSIBLE_ENUM
+#endif
+#ifndef NS_STRING_ENUM
+#define NS_STRING_ENUM _CF_TYPED_ENUM
+#endif
+#ifndef NS_EXTENSIBLE_STRING_ENUM
+#define NS_EXTENSIBLE_STRING_ENUM _CF_TYPED_EXTENSIBLE_ENUM
+#endif
+#ifndef NS_SWIFT_BRIDGED_TYPEDEF
+#define NS_SWIFT_BRIDGED_TYPEDEF CF_SWIFT_BRIDGED_TYPEDEF
+#endif
+#ifndef NS_RELEASES_ARGUMENT
+#define NS_RELEASES_ARGUMENT __attribute__((ns_consumed))
+#endif
+#ifndef NS_REQUIRES_NIL_TERMINATION
+#define NS_REQUIRES_NIL_TERMINATION __attribute__((sentinel(0,1)))
 #endif
 #ifndef NS_NOESCAPE
 #define NS_NOESCAPE __attribute__((noescape))
@@ -81,6 +128,24 @@
 
 /* The quality of service of work (NSOperation, NSOperationQueue, NSThread):
  * the same values as dispatch's QOS_CLASS_* classes. */
+/* Foundation's version (the library's current version), and the version
+ * numbers of earlier releases that programs compare it with. */
+FOUNDATION_EXPORT double NSFoundationVersionNumber;
+#define NSFoundationVersionNumber10_0 397.40
+#define NSFoundationVersionNumber10_1 425.00
+#define NSFoundationVersionNumber10_2 462.00
+#define NSFoundationVersionNumber10_3 500.00
+#define NSFoundationVersionNumber10_4 567.00
+#define NSFoundationVersionNumber10_5 677.00
+#define NSFoundationVersionNumber10_6 751.00
+#define NSFoundationVersionNumber10_7 833.10
+#define NSFoundationVersionNumber10_8 945.00
+#define NSFoundationVersionNumber10_9 1056
+#define NSFoundationVersionNumber10_10 1151.16
+#define NSFoundationVersionNumber10_10_Max 1199
+#define NSFoundationVersionNumber10_11 1252
+#define NSFoundationVersionNumber10_11_Max 1299
+
 typedef NS_ENUM(NSInteger, NSQualityOfService) {
     NSQualityOfServiceUserInteractive = 0x21,
     NSQualityOfServiceUserInitiated = 0x19,

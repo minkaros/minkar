@@ -25,8 +25,7 @@ typedef struct {
 
 + (NSAffineTransform *)transform;
 
-- (NSAffineTransformStruct)transformStruct;
-- (void)setTransformStruct:(NSAffineTransformStruct)matrix;
+@property () NSAffineTransformStruct transformStruct;
 
 - (void)invert;
 

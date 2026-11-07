@@ -1,0 +1,27 @@
+CMake: WEBKIT_CODESIGN_EXECUTABLE, the codesign to sign with
+
+/usr/bin/codesign was built in; a build for Darwin on another system
+has its toolchain's (the default stays /usr/bin/codesign).
+
+--- a/Source/cmake/WebKitMacros.cmake	2026-11-07 01:48:04.462569506 -0500
++++ b/Source/cmake/WebKitMacros.cmake	2026-11-07 01:48:04.494568736 -0500
+@@ -591,6 +591,10 @@
+     if (_skip_codesign)
+         return()
+     endif ()
++    # The codesign to use: a cross build has its toolchain's.
++    if (NOT WEBKIT_CODESIGN_EXECUTABLE)
++        set(WEBKIT_CODESIGN_EXECUTABLE /usr/bin/codesign)
++    endif ()
+     set(_identity ${WEBKIT_CODE_SIGN_IDENTITY})
+     if (NOT _identity)
+         set(_identity "-")
+@@ -619,7 +623,7 @@
+         COMMAND rm -f ${_cstemp_path}
+         COMMAND set -o pipefail &&
+             ${WEBKITADDITIONS_CODESIGN_PRELUDE}
+-            /usr/bin/codesign --force --sign ${_identity} ${_entitlements} ${_sign_path} 2>&1 |
++            ${WEBKIT_CODESIGN_EXECUTABLE} --force --sign ${_identity} ${_entitlements} ${_sign_path} 2>&1 |
+             sed "/replacing existing signature/d"
+         COMMAND ${CMAKE_COMMAND} -E touch ${_stamp}
+         VERBATIM

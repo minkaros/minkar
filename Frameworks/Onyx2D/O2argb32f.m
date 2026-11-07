@@ -393,8 +393,8 @@ void O2BlendSpanHue_ffff(O2argb32f *src,O2argb32f *dst,int length){
     O2argb32f d=dst[i];
     O2argb32f r;
     
-    O2Float sh,ss,sl;
-    O2Float dh,ds,dl;
+    O2Float32 sh,ss,sl;
+    O2Float32 dh,ds,dl;
         
     RGBToHSL(s.r,s.g,s.b,&sh,&ss,&sl);
     RGBToHSL(d.r,d.g,d.b,&dh,&ds,&dl);
@@ -412,8 +412,8 @@ void O2BlendSpanSaturation_ffff(O2argb32f *src,O2argb32f *dst,int length){
     O2argb32f d=dst[i];
     O2argb32f r;
     
-    O2Float sh,ss,sl;
-    O2Float dh,ds,dl;
+    O2Float32 sh,ss,sl;
+    O2Float32 dh,ds,dl;
         
     RGBToHSL(s.r,s.g,s.b,&sh,&ss,&sl);
     RGBToHSL(d.r,d.g,d.b,&dh,&ds,&dl);

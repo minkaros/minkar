@@ -1,55 +1,50 @@
-/* Copyright (c) 2008 Dan Knapp
-
-Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE. */
 #import <Foundation/Foundation.h>
+#import <CoreData/CoreDataExports.h>
 
-@class NSManagedObject, NSManagedObjectContext, NSManagedObjectModel, NSPropertyDescription, NSAttributeDescription;
+@class NSManagedObject, NSManagedObjectContext, NSManagedObjectModel, NSPropertyDescription, NSAttributeDescription, NSRelationshipDescription;
 
-@interface NSEntityDescription : NSObject {
+NS_ASSUME_NONNULL_BEGIN
+
+@interface NSEntityDescription : NSObject <NSCoding, NSCopying, NSFastEnumeration> {
     NSString *_className;
     NSString *_name;
     NSManagedObjectModel *_model;
-    NSMutableDictionary *_properties;
-    NSMutableDictionary *_subentities;
+    NSMutableArray *_properties;
+    NSMutableArray *_subentities;
     NSEntityDescription *_superentity;
     NSDictionary *_userInfo;
-    id _versionHashModifier;
-    NSMutableDictionary *_selectorPropertyMap;
+    NSString *_versionHashModifier;
+    NSString *_renamingIdentifier;
+    NSArray *_compoundIndexes;
+    NSArray *_uniquenessConstraints;
+    NSDictionary *_propertiesByName;
     BOOL _isAbstract;
-    BOOL _hasBeenInstantiated;
 }
 
-- (BOOL)_hasBeenInstantiated;
++ (nullable NSEntityDescription *)entityForName:(NSString *)entityName inManagedObjectContext:(NSManagedObjectContext *)context;
++ (__kindof NSManagedObject *)insertNewObjectForEntityForName:(NSString *)entityName inManagedObjectContext:(NSManagedObjectContext *)context;
 
-+ (NSEntityDescription *)entityForName:(NSString *)entityName inManagedObjectContext:(NSManagedObjectContext *)moc;
+@property (readonly, assign) NSManagedObjectModel *managedObjectModel;
+@property (null_resettable, copy) NSString *managedObjectClassName;
+@property (nullable, copy) NSString *name;
+@property (getter=isAbstract) BOOL abstract;
+@property (readonly, copy) NSDictionary<NSString *, NSEntityDescription *> *subentitiesByName;
+@property (strong) NSArray<NSEntityDescription *> *subentities;
+@property (nullable, readonly, assign) NSEntityDescription *superentity;
+@property (readonly, copy) NSDictionary<NSString *, __kindof NSPropertyDescription *> *propertiesByName;
+@property (strong) NSArray<__kindof NSPropertyDescription *> *properties;
+@property (nullable, nonatomic, strong) NSDictionary *userInfo;
+@property (readonly, copy) NSDictionary<NSString *, NSAttributeDescription *> *attributesByName;
+@property (readonly, copy) NSDictionary<NSString *, NSRelationshipDescription *> *relationshipsByName;
+@property (readonly, copy) NSData *versionHash;
+@property (nullable, copy) NSString *versionHashModifier;
+@property (nullable, copy) NSString *renamingIdentifier;
+@property (retain) NSArray<NSArray<id> *> *compoundIndexes API_DEPRECATED("Use NSEntityDescription.indexes instead", macos(10.5, 10.13));
+@property (strong) NSArray<NSArray<id> *> *uniquenessConstraints;
 
-+ insertNewObjectForEntityForName:(NSString *)entityName inManagedObjectContext:(NSManagedObjectContext *)moc;
-
-- (NSManagedObjectModel *)managedObjectModel;
-
-- (NSString *)name;
-- (BOOL)isAbstract;
-- (NSString *)managedObjectClassName;
-- (NSArray *)properties;
-- (NSArray *)subentities;
-- (NSDictionary *)userInfo;
-
-- (void)setName:(NSString *)value;
-- (void)setAbstract:(BOOL)value;
-- (void)setManagedObjectClassName:(NSString *)value;
-- (void)setProperties:(NSArray *)value;
-- (void)setSubentities:(NSArray *)value;
-- (void)setUserInfo:(NSDictionary *)value;
-
-- (NSEntityDescription *)superentity;
-- (NSDictionary *)subentitiesByName;
-- (NSDictionary *)attributesByName;
-- (NSDictionary *)propertiesByName;
-- (NSDictionary *)relationshipsByName;
-- (NSArray *)relationshipsWithDestinationEntity:(NSEntityDescription *)entity;
+- (NSArray<NSRelationshipDescription *> *)relationshipsWithDestinationEntity:(NSEntityDescription *)entity;
+- (BOOL)isKindOfEntity:(NSEntityDescription *)entity;
 
 @end
+
+NS_ASSUME_NONNULL_END

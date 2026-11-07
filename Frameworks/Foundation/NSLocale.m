@@ -1,4 +1,5 @@
 /* Copyright (c) 2006-2007 Christopher J. W. Lloyd
+   Modifications Copyright (c) 2026 The Minkar contributors
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
 
@@ -10,195 +11,371 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <Foundation/NSRaise.h>
 #import <Foundation/NSNumber.h>
 #import <Foundation/NSArray.h>
+#import <Foundation/NSDictionary.h>
+#import <Foundation/NSString.h>
+#import <Foundation/NSData.h>
+#import <Foundation/NSCoder.h>
+#import <Foundation/NSCharacterSet.h>
+#import <Foundation/NSCalendar.h>
+#import <CoreFoundation/CFLocale.h>
+#import <CoreFoundation/CFCharacterSet.h>
+#import <CoreFoundation/CFCalendar.h>
 
-#include <locale.h>
+/* The keys are CoreFoundation's own strings, as on the reference
+ * platform (NSLocaleCountryCode is kCFLocaleCountryCode). */
+NSLocaleKey const NSLocaleIdentifier = @"kCFLocaleIdentifierKey";
+NSLocaleKey const NSLocaleLanguageCode = @"kCFLocaleLanguageCodeKey";
+NSLocaleKey const NSLocaleCountryCode = @"kCFLocaleCountryCodeKey";
+NSLocaleKey const NSLocaleScriptCode = @"kCFLocaleScriptCodeKey";
+NSLocaleKey const NSLocaleVariantCode = @"kCFLocaleVariantCodeKey";
+NSLocaleKey const NSLocaleExemplarCharacterSet = @"kCFLocaleExemplarCharacterSetKey";
+NSLocaleKey const NSLocaleCalendar = @"kCFLocaleCalendarKey";
+NSLocaleKey const NSLocaleCollationIdentifier = @"collation";
+NSLocaleKey const NSLocaleUsesMetricSystem = @"kCFLocaleUsesMetricSystemKey";
+NSLocaleKey const NSLocaleMeasurementSystem = @"kCFLocaleMeasurementSystemKey";
+NSLocaleKey const NSLocaleDecimalSeparator = @"kCFLocaleDecimalSeparatorKey";
+NSLocaleKey const NSLocaleGroupingSeparator = @"kCFLocaleGroupingSeparatorKey";
+NSLocaleKey const NSLocaleCurrencySymbol = @"kCFLocaleCurrencySymbolKey";
+NSLocaleKey const NSLocaleCurrencyCode = @"currency";
+NSLocaleKey const NSLocaleCollatorIdentifier = @"kCFLocaleCollatorIdentifierKey";
+NSLocaleKey const NSLocaleQuotationBeginDelimiterKey = @"kCFLocaleQuotationBeginDelimiterKey";
+NSLocaleKey const NSLocaleQuotationEndDelimiterKey = @"kCFLocaleQuotationEndDelimiterKey";
+NSLocaleKey const NSLocaleAlternateQuotationBeginDelimiterKey = @"kCFLocaleAlternateQuotationBeginDelimiterKey";
+NSLocaleKey const NSLocaleAlternateQuotationEndDelimiterKey = @"kCFLocaleAlternateQuotationEndDelimiterKey";
 
-NSString * const NSLocaleCountryCode=@"NSLocaleCountryCode";
-NSString * const NSLocaleLanguageCode=@"NSLocaleLanguageCode";
-NSString * const NSLocaleVariantCode=@"NSLocaleVariantCode";
-NSString * const NSLocaleIdentifier=@"NSLocaleIdentifier";
+NSString * const NSCurrentLocaleDidChangeNotification = @"kCFLocaleCurrentLocaleDidChangeNotification";
 
-NSString * const NSLocaleGroupingSeparator=@"NSLocaleGroupingSeparator";
-NSString * const NSLocaleDecimalSeparator=@"NSLocaleDecimalSeparator";
-NSString * const NSLocaleCalendar=@"NSLocaleCalendar";
-NSString * const NSLocaleCurrencyCode=@"NSLocaleCurrencyCode";
-NSString * const NSLocaleCurrencySymbol=@"NSLocaleCurrencySymbol";
-NSString * const NSLocaleUsesMetricSystem=@"NSLocaleUsesMetricSystem";
-NSString * const NSLocaleMeasurementSystem=@"NSLocaleMeasurementSystem";
+#define CF(l) ((CFLocaleRef)(l)->_cf)
 
-NSString * const NSLocaleScriptCode=@"NSLocaleScriptCode";
-NSString * const NSLocaleExemplarCharacterSet=@"NSLocaleExemplarCharacterSet";
-NSString * const NSLocaleCollationIdentifier=@"NSLocaleCollationIdentifier";
+/* CF takes its own strings only. */
+static CFStringRef copyCFString(NSString *string) {
+    return string == nil ? NULL : CFStringCreateWithCString(NULL, [string UTF8String], kCFStringEncodingUTF8);
+}
 
-NSString * const NSCurrentLocaleDidChangeNotification=@"NSCurrentLocaleDidChangeNotification";
+/* A CF string as a Foundation string of its own. */
+static NSString *fromCFString(CFStringRef string) {
+    if (string == NULL)
+        return nil;
+    CFIndex length = CFStringGetLength(string);
+    unichar *buffer = malloc(sizeof(unichar) * (length + 1));
+    CFStringGetCharacters(string, CFRangeMake(0, length), buffer);
+    NSString *result = [NSString stringWithCharacters:buffer length:(NSUInteger)length];
+    free(buffer);
+    return result;
+}
 
-BOOL NSCurrentLocaleIsMetric();
+static NSArray *fromCFArrayOfStrings(CFArrayRef array) {
+    NSMutableArray *result = [NSMutableArray array];
+    if (array == NULL)
+        return result;
+    for (CFIndex i = 0; i < CFArrayGetCount(array); i++)
+        [result addObject:fromCFString(CFArrayGetValueAtIndex(array, i))];
+    return result;
+}
+
+/* The CF key a Foundation key stands for. */
+static CFStringRef cfKey(NSString *key) {
+    static const struct { NSString *const *ns; const CFStringRef *cf; } keys[] = {
+        { &NSLocaleIdentifier, &kCFLocaleIdentifier }, { &NSLocaleLanguageCode, &kCFLocaleLanguageCode },
+        { &NSLocaleCountryCode, &kCFLocaleCountryCode }, { &NSLocaleScriptCode, &kCFLocaleScriptCode },
+        { &NSLocaleVariantCode, &kCFLocaleVariantCode }, { &NSLocaleExemplarCharacterSet, &kCFLocaleExemplarCharacterSet },
+        { &NSLocaleCalendar, &kCFLocaleCalendar }, { &NSLocaleCollationIdentifier, &kCFLocaleCollationIdentifier },
+        { &NSLocaleUsesMetricSystem, &kCFLocaleUsesMetricSystem }, { &NSLocaleMeasurementSystem, &kCFLocaleMeasurementSystem },
+        { &NSLocaleDecimalSeparator, &kCFLocaleDecimalSeparator }, { &NSLocaleGroupingSeparator, &kCFLocaleGroupingSeparator },
+        { &NSLocaleCurrencySymbol, &kCFLocaleCurrencySymbol }, { &NSLocaleCurrencyCode, &kCFLocaleCurrencyCode },
+        { &NSLocaleCollatorIdentifier, &kCFLocaleCollatorIdentifier },
+        { &NSLocaleQuotationBeginDelimiterKey, &kCFLocaleQuotationBeginDelimiterKey },
+        { &NSLocaleQuotationEndDelimiterKey, &kCFLocaleQuotationEndDelimiterKey },
+        { &NSLocaleAlternateQuotationBeginDelimiterKey, &kCFLocaleAlternateQuotationBeginDelimiterKey },
+        { &NSLocaleAlternateQuotationEndDelimiterKey, &kCFLocaleAlternateQuotationEndDelimiterKey },
+    };
+    for (unsigned i = 0; i < sizeof(keys) / sizeof(keys[0]); i++)
+        if ([key isEqualToString:*keys[i].ns])
+            return *keys[i].cf;
+    return NULL;
+}
 
 @implementation NSLocale
 
-static NSLocale *_sharedSystemLocale  = nil;
-static NSLocale *_sharedCurrentLocale = nil;
+static NSLocale *systemLocale = nil;
+static NSLocale *currentLocale = nil;
 
--(NSDictionary *)_locale {
-   return _locale;
++ (BOOL)supportsSecureCoding {
+    return YES;
 }
 
-+systemLocale {
-   if (_sharedSystemLocale == nil)
-      _sharedSystemLocale = [[NSLocale alloc] initWithLocaleIdentifier:@"en_US"];
-   return _sharedSystemLocale;
++ (NSLocale *)systemLocale {
+    @synchronized(self) {
+        if (systemLocale == nil)
+            systemLocale = [[NSLocale alloc] initWithLocaleIdentifier:@""];
+    }
+    return systemLocale;
 }
 
-+currentLocale {
-   if (_sharedCurrentLocale == nil)
-   {
-      NSString *localeIdentifier;
-      
-      if([self respondsToSelector:@selector(_platformCurrentLocaleIdentifier)])
-       localeIdentifier=[self performSelector:@selector(_platformCurrentLocaleIdentifier)];
-      else
-       localeIdentifier=@"en_US";
-       
-      _sharedCurrentLocale = [[NSLocale alloc] initWithLocaleIdentifier:localeIdentifier];
-   }
-   return _sharedCurrentLocale;
++ (NSLocale *)currentLocale {
+    @synchronized(self) {
+        if (currentLocale == nil) {
+            NSString *identifier = @"en_US";
+            if ([self respondsToSelector:@selector(_platformCurrentLocaleIdentifier)])
+                identifier = [self performSelector:@selector(_platformCurrentLocaleIdentifier)] ?: identifier;
+            currentLocale = [[NSLocale alloc] initWithLocaleIdentifier:identifier];
+        }
+    }
+    return currentLocale;
 }
 
--(void)dealloc {
-   [_locale release];
-   [super dealloc];
+/* The current locale; the user's settings are read once (no change
+ * notification yet). */
++ (NSLocale *)autoupdatingCurrentLocale {
+    return [self currentLocale];
 }
 
-+autoupdatingCurrentLocale {
-   NSUnimplementedMethod();
-   return 0;
++ (instancetype)localeWithLocaleIdentifier:(NSString *)identifier {
+    return [[[self alloc] initWithLocaleIdentifier:identifier] autorelease];
 }
 
-+(NSArray *)availableLocaleIdentifiers {
-   NSUnimplementedMethod();
-   return 0;
+- (instancetype)init {
+    return [self initWithLocaleIdentifier:@""];
 }
 
-+(NSString *)canonicalLocaleIdentifierFromString:(NSString *)string {
-   NSUnimplementedMethod();
-   return 0;
+- (instancetype)initWithLocaleIdentifier:(NSString *)identifier {
+    if ((self = [super init]) == nil)
+        return nil;
+    if (identifier == nil)
+        identifier = @"";
+    CFStringRef cfIdentifier = copyCFString(identifier);
+    _cf = (void *)CFLocaleCreate(NULL, cfIdentifier);
+    CFRelease(cfIdentifier);
+    if (_cf == NULL) {
+        CFStringRef root = copyCFString(@"");
+        _cf = (void *)CFLocaleCreate(NULL, root);
+        CFRelease(root);
+    }
+    _identifier = [identifier copy];
+    return self;
 }
 
-+(NSDictionary *)componentsFromLocaleIdentifier:(NSString *)identifier {
-   if ([identifier isEqualToString:[[NSLocale currentLocale] localeIdentifier]])
-      return [_sharedCurrentLocale _locale];
-   else if ([identifier isEqualToString:[[NSLocale systemLocale] localeIdentifier]])
-      return [_sharedSystemLocale _locale];
-   else
-      return [[[[NSLocale alloc] initWithLocaleIdentifier:identifier] autorelease] _locale];
-   return 0;
+- (instancetype)initWithCoder:(NSCoder *)coder {
+    NSString *identifier = nil;
+    if ([coder allowsKeyedCoding])
+        identifier = [coder decodeObjectOfClass:[NSString class] forKey:@"NS.identifier"];
+    return [self initWithLocaleIdentifier:identifier ?: @""];
 }
 
-+(NSString *)localeIdentifierFromComponents:(NSDictionary *)components {
-   NSUnimplementedMethod();
-   return 0;
+- (void)encodeWithCoder:(NSCoder *)coder {
+    if ([coder allowsKeyedCoding])
+        [coder encodeObject:_identifier forKey:@"NS.identifier"];
 }
 
-+(NSArray *)ISOCountryCodes {
-   NSUnimplementedMethod();
-   return 0;
+- (void)dealloc {
+    if (_cf != NULL)
+        CFRelease((CFTypeRef)_cf);
+    [_identifier release];
+    [super dealloc];
 }
 
-+(NSArray *)ISOLanguageCodes {
-   NSUnimplementedMethod();
-   return 0;
+- (id)copyWithZone:(NSZone *)zone {
+    return [self retain];
 }
 
-+(NSArray *)ISOCurrencyCodes {
-   NSUnimplementedMethod();
-   return 0;
+- (BOOL)isEqual:(id)other {
+    return other == self || ([other isKindOfClass:[NSLocale class]] && [_identifier isEqualToString:[other localeIdentifier]]);
 }
 
-+(NSArray *)commonISOCurrencyCodes {
-   NSUnimplementedMethod();
-   return 0;
+- (NSUInteger)hash {
+    return [_identifier hash];
 }
 
-+(NSArray *)preferredLanguages {
-   NSUnimplementedMethod();
-   return 0;
+- (NSString *)description {
+    return [NSString stringWithFormat:@"%@ (fixed)", _identifier];
 }
 
--initWithLocaleIdentifier:(NSString *)identifier {
-   [super init];
-
-	NSArray *parts = [identifier componentsSeparatedByString:@"_"];
-	NSString *language = [parts objectAtIndex:0];
-	NSString *country = nil;
-	if (parts.count > 1) {
-		country = [parts objectAtIndex:1];
-	} else {
-		country = identifier;
-	}
-
-	NSMutableDictionary *localeInfo = [NSMutableDictionary dictionaryWithObjectsAndKeys:
-									   identifier, NSLocaleIdentifier,
-									   language, NSLocaleLanguageCode,
-									   country, NSLocaleCountryCode,
-									   nil
-									   ];
-	
-	if([[self class] respondsToSelector:@selector(_platformLocaleAdditionalDescriptionForIdentifier:)]) {
-		// Use any platform specific method to fill the locale info if one is defined
-		NSDictionary *info = [[self class] performSelector:@selector(_platformLocaleAdditionalDescriptionForIdentifier:) withObject:identifier];
-		[localeInfo addEntriesFromDictionary:info];
-	} else {
-		// Else use setlocale & localeconv to try to get some locale info
-		char *currentLocale = setlocale(LC_ALL, NULL);
-		if (setlocale(LC_ALL, [[identifier UTF8String]
-                    stringByAppendingString:@".UTF-8"]) == NULL) {
-			identifier = @"en_US";
-		}
-		struct lconv *conv = localeconv();
-		
-		// FIXME: This is wrong in that it is using the current locales value, not the identified one
-		NSNumber *usesMetric=[NSNumber numberWithBool:NSCurrentLocaleIsMetric(identifier)];
-		
-		[localeInfo setObject:[NSString stringWithUTF8String:conv->decimal_point] forKey: NSLocaleDecimalSeparator];
-		[localeInfo setObject:[NSString stringWithUTF8String:conv->currency_symbol] forKey: NSLocaleCurrencySymbol];
-		[localeInfo setObject:usesMetric forKey: NSLocaleUsesMetricSystem];
-		
-		// Restore the initial locale
-		setlocale(LC_ALL, currentLocale);
-	}
-	_locale = [[NSDictionary allocWithZone:NULL] initWithDictionary:localeInfo];
-	return self;
+- (NSString *)localeIdentifier {
+    return _identifier;
 }
 
--(void)encodeWithCoder:(NSCoder *)coder {
-   NSUnimplementedMethod();
+/* A value of the locale's, as a Foundation object. */
+- (id)objectForKey:(NSLocaleKey)key {
+    CFStringRef cf = cfKey(key);
+    if (cf == NULL)
+        return nil;
+    CFTypeRef value = CFLocaleGetValue(CF(self), cf);
+    if (value == NULL)
+        return nil;
+    CFTypeID type = CFGetTypeID(value);
+    if (type == CFStringGetTypeID())
+        return fromCFString(value);
+    if (type == CFBooleanGetTypeID())
+        return [NSNumber numberWithBool:CFBooleanGetValue(value)];
+    if (type == CFCharacterSetGetTypeID()) {
+        CFDataRef bitmap = CFCharacterSetCreateBitmapRepresentation(NULL, value);
+        NSData *data = [NSData dataWithBytes:CFDataGetBytePtr(bitmap) length:(NSUInteger)CFDataGetLength(bitmap)];
+        CFRelease(bitmap);
+        return [NSCharacterSet characterSetWithBitmapRepresentation:data];
+    }
+    if (type == CFCalendarGetTypeID()) {
+        NSString *identifier = fromCFString(CFCalendarGetIdentifier(value));
+        NSCalendar *calendar = [NSCalendar calendarWithIdentifier:identifier];
+        [calendar setLocale:self];
+        return calendar;
+    }
+    return nil;
 }
 
--initWithCoder:(NSCoder *)coder {
-	// A very basic implementation that handles Locale encoding in nib files
-	NSDeallocateObject(self);
-	return [[NSLocale systemLocale] retain];
+- (NSString *)displayNameForKey:(NSLocaleKey)key value:(id)value {
+    CFStringRef cf = cfKey(key);
+    if (cf == NULL || ![value isKindOfClass:[NSString class]])
+        return nil;
+    CFStringRef cfValue = copyCFString(value);
+    CFStringRef name = CFLocaleCopyDisplayNameForPropertyValue(CF(self), cf, cfValue);
+    CFRelease(cfValue);
+    NSString *result = fromCFString(name);
+    if (name != NULL)
+        CFRelease(name);
+    return result;
 }
 
--copyWithZone:(NSZone *)zone {
-   return [self retain];
+#define STRING(name, key) - (NSString *)name { return [self objectForKey:key]; }
+STRING(languageCode, NSLocaleLanguageCode)
+STRING(countryCode, NSLocaleCountryCode)
+STRING(scriptCode, NSLocaleScriptCode)
+STRING(variantCode, NSLocaleVariantCode)
+STRING(collationIdentifier, NSLocaleCollationIdentifier)
+STRING(currencyCode, NSLocaleCurrencyCode)
+#undef STRING
+#define STRING(name, key, fallback) - (NSString *)name { return [self objectForKey:key] ?: fallback; }
+STRING(decimalSeparator, NSLocaleDecimalSeparator, @".")
+STRING(groupingSeparator, NSLocaleGroupingSeparator, @",")
+STRING(currencySymbol, NSLocaleCurrencySymbol, @"¤")
+STRING(collatorIdentifier, NSLocaleCollatorIdentifier, _identifier)
+STRING(quotationBeginDelimiter, NSLocaleQuotationBeginDelimiterKey, @"“")
+STRING(quotationEndDelimiter, NSLocaleQuotationEndDelimiterKey, @"”")
+STRING(alternateQuotationBeginDelimiter, NSLocaleAlternateQuotationBeginDelimiterKey, @"‘")
+STRING(alternateQuotationEndDelimiter, NSLocaleAlternateQuotationEndDelimiterKey, @"’")
+#undef STRING
+
+- (NSCharacterSet *)exemplarCharacterSet {
+    return [self objectForKey:NSLocaleExemplarCharacterSet] ?: [NSCharacterSet characterSetWithRange:NSMakeRange(0x20, 0x5f)];
 }
 
--(NSString *)localeIdentifier {
-   return [_locale objectForKey:NSLocaleIdentifier];
+- (NSString *)calendarIdentifier {
+    return [[self objectForKey:NSLocaleCalendar] calendarIdentifier] ?: NSCalendarIdentifierGregorian;
 }
 
--objectForKey:key {
-   return [_locale objectForKey:key];
+- (BOOL)usesMetricSystem {
+    return [[self objectForKey:NSLocaleUsesMetricSystem] boolValue];
 }
 
--(NSString *)displayNameForKey:key value:value {
-   NSUnimplementedMethod();
-   return 0;
+#define LOCALIZED(name, key) - (NSString *)name:(NSString *)value { return [self displayNameForKey:key value:value]; }
+LOCALIZED(localizedStringForLocaleIdentifier, NSLocaleIdentifier)
+LOCALIZED(localizedStringForLanguageCode, NSLocaleLanguageCode)
+LOCALIZED(localizedStringForCountryCode, NSLocaleCountryCode)
+LOCALIZED(localizedStringForScriptCode, NSLocaleScriptCode)
+LOCALIZED(localizedStringForVariantCode, NSLocaleVariantCode)
+LOCALIZED(localizedStringForCalendarIdentifier, NSLocaleCalendar)
+LOCALIZED(localizedStringForCollationIdentifier, NSLocaleCollationIdentifier)
+LOCALIZED(localizedStringForCurrencyCode, NSLocaleCurrencyCode)
+LOCALIZED(localizedStringForCollatorIdentifier, NSLocaleCollatorIdentifier)
+#undef LOCALIZED
+
+/* -- The class's lists and identifiers -- */
+
+#define LIST(name, function) + (NSArray *)name { \
+    CFArrayRef array = function(); \
+    NSArray *result = fromCFArrayOfStrings(array); \
+    if (array != NULL) CFRelease(array); \
+    return result; }
+LIST(availableLocaleIdentifiers, CFLocaleCopyAvailableLocaleIdentifiers)
+LIST(ISOLanguageCodes, CFLocaleCopyISOLanguageCodes)
+LIST(ISOCountryCodes, CFLocaleCopyISOCountryCodes)
+LIST(ISOCurrencyCodes, CFLocaleCopyISOCurrencyCodes)
+LIST(commonISOCurrencyCodes, CFLocaleCopyCommonISOCurrencyCodes)
+#undef LIST
+
+/* The user's languages: the current locale's first, then English. */
++ (NSArray *)preferredLanguages {
+    NSString *language = [[self currentLocale] languageCode];
+    NSString *country = [[self currentLocale] countryCode];
+    NSMutableArray *result = [NSMutableArray array];
+    if (language != nil)
+        [result addObject:country != nil ? [NSString stringWithFormat:@"%@-%@", language, country] : language];
+    if (![language isEqualToString:@"en"])
+        [result addObject:@"en"];
+    return result;
 }
 
--(NSString *)description
-{
-	return [NSString stringWithFormat:@"<%@:%p %@>", [self class], self, _locale];
++ (NSDictionary *)componentsFromLocaleIdentifier:(NSString *)string {
+    CFStringRef cf = copyCFString(string);
+    CFDictionaryRef components = CFLocaleCreateComponentsFromLocaleIdentifier(NULL, cf);
+    NSMutableDictionary *result = [NSMutableDictionary dictionary];
+    CFRelease(cf);
+    if (components == NULL)
+        return result;
+    CFIndex count = CFDictionaryGetCount(components);
+    const void **keys = malloc(sizeof(void *) * count), **values = malloc(sizeof(void *) * count);
+    CFDictionaryGetKeysAndValues(components, keys, values);
+    for (CFIndex i = 0; i < count; i++)
+        [result setObject:fromCFString(values[i]) forKey:fromCFString(keys[i])];
+    free(keys);
+    free(values);
+    CFRelease(components);
+    return result;
 }
+
++ (NSString *)localeIdentifierFromComponents:(NSDictionary *)dict {
+    CFMutableDictionaryRef components = CFDictionaryCreateMutable(NULL, 0, &kCFTypeDictionaryKeyCallBacks, &kCFTypeDictionaryValueCallBacks);
+    for (NSString *key in dict) {
+        CFStringRef k = copyCFString(key), v = copyCFString([[dict objectForKey:key] description]);
+        CFDictionarySetValue(components, k, v);
+        CFRelease(k);
+        CFRelease(v);
+    }
+    CFStringRef identifier = CFLocaleCreateLocaleIdentifierFromComponents(NULL, components);
+    CFRelease(components);
+    NSString *result = fromCFString(identifier);
+    if (identifier != NULL)
+        CFRelease(identifier);
+    return result ?: @"";
+}
+
+#define CANONICAL(name, function) + (NSString *)name:(NSString *)string { \
+    CFStringRef cf = copyCFString(string); \
+    CFStringRef canonical = function(NULL, cf); \
+    NSString *result = fromCFString(canonical); \
+    CFRelease(cf); \
+    if (canonical != NULL) CFRelease(canonical); \
+    return result ?: string; }
+CANONICAL(canonicalLocaleIdentifierFromString, CFLocaleCreateCanonicalLocaleIdentifierFromString)
+CANONICAL(canonicalLanguageIdentifierFromString, CFLocaleCreateCanonicalLanguageIdentifierFromString)
+#undef CANONICAL
+
++ (NSString *)localeIdentifierFromWindowsLocaleCode:(uint32_t)lcid {
+    CFStringRef identifier = CFLocaleCreateLocaleIdentifierFromWindowsLocaleCode(NULL, lcid);
+    NSString *result = fromCFString(identifier);
+    if (identifier != NULL)
+        CFRelease(identifier);
+    return result;
+}
+
++ (uint32_t)windowsLocaleCodeFromLocaleIdentifier:(NSString *)localeIdentifier {
+    CFStringRef cf = copyCFString(localeIdentifier);
+    uint32_t code = CFLocaleGetWindowsLocaleCodeFromLocaleIdentifier(cf);
+    CFRelease(cf);
+    return code;
+}
+
++ (NSLocaleLanguageDirection)characterDirectionForLanguage:(NSString *)isoLangCode {
+    CFStringRef cf = copyCFString(isoLangCode);
+    CFLocaleLanguageDirection direction = CFLocaleGetLanguageCharacterDirection(cf);
+    CFRelease(cf);
+    return (NSLocaleLanguageDirection)direction;
+}
+
++ (NSLocaleLanguageDirection)lineDirectionForLanguage:(NSString *)isoLangCode {
+    CFStringRef cf = copyCFString(isoLangCode);
+    CFLocaleLanguageDirection direction = CFLocaleGetLanguageLineDirection(cf);
+    CFRelease(cf);
+    return (NSLocaleLanguageDirection)direction;
+}
+
 @end

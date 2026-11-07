@@ -34,7 +34,7 @@
 
 @class NSStatusItem;
 
-/* The system status bar: the right of the menu bar (Menus.md, MB0). */
+/* The system status bar: the right of the menu bar (Atlas.md, MB0). */
 @interface NSStatusBar : NSObject {
     NSMutableArray *_statusItems;
 }

@@ -3,6 +3,24 @@
 These arguments can be specified in `org.minkar.boot.plist` and on the booter
 (`efiloader`) command line.
 
+## Loader keys in `org.minkar.boot.plist`
+
+The loader (`\Minkar\org.minkar.boot.plist` on the EFI partition) reads
+these keys; any other key is ignored.
+
+| Key               | Type    | Description                                     |
+|-------------------|---------|-------------------------------------------------|
+| boot-args         | string  | The kernel's command line (the flags below)     |
+| boot-file         | string  | The kernelcache, by default `\Minkar\kernelcache` |
+| boot-uuid         | string  | The root volume's UUID                          |
+| platform-uuid     | string  | The machine's UUID                              |
+| csr-active-config | integer | The kernel's security restriction flags (CSR) |
+| graphics-mode     | string  | `native`, `max` or `WIDTHxHEIGHT`: the display mode the kernel gets; absent, the firmware's |
+| loader-pause      | integer | Seconds the loader's output stays on the screen (at most 120) |
+| startup-sound     | string  | `off` or `on`: the firmware's startup sound, on machines whose firmware plays one (it keeps its volume in the NVRAM variable `SystemAudioVolume`); takes effect at the next power-on. Absent, it is left as it is |
+
+## Kernel flags
+
 | Flag             | Description                                                |
 |------------------|------------------------------------------------------------|
 | -x               | "Safe mode" with minimal driver loading. (DEBUG/DEV)       |

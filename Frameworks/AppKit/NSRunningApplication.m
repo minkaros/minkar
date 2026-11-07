@@ -37,6 +37,7 @@
 #include <signal.h>
 #import <AppKit/NSRunningApplication.h>
 #import <AppKit/NSWorkspace.h>
+#import <AppKit/NSImage.h>
 #import "NSRunningApplication_private.h"
 #include <LaunchServices/LSSession.h>
 #include <unistd.h>
@@ -78,6 +79,7 @@ static NSLock *applicationsLock;
         _launchDate = [[NSDate alloc] initWithTimeIntervalSince1970:(NSTimeInterval)app->launchTime];
     _activationPolicy = app->activationPolicy;
     _active = (app->flags & kLSSessionAppActive) != 0;
+    _hidden = (app->flags & kLSSessionAppHiddenState) != 0;
 }
 
 /* The object for an app the daemon described, made or brought up to date. */
@@ -168,7 +170,20 @@ static NSLock *applicationsLock;
 }
 
 - (BOOL)isHidden {
-    return NO;
+    return _hidden;
+}
+
+/* Asks the app to hide or show its windows, as its Hide item does. */
+- (BOOL)hide {
+    if(_terminated)
+        return NO;
+    return LSSessionSetHidden(_processIdentifier, 1) == kLSSessionSuccess;
+}
+
+- (BOOL)unhide {
+    if(_terminated)
+        return NO;
+    return LSSessionSetHidden(_processIdentifier, 0) == kLSSessionSuccess;
 }
 
 - (BOOL)isActive {
@@ -201,6 +216,15 @@ static NSLock *applicationsLock;
 
 - (NSDate *)launchDate {
     return _launchDate;
+}
+
+/* The bundle's icon, or the generic application icon. */
+- (NSImage *)icon {
+    NSString *path = _bundleURL ? [_bundleURL path] : nil;
+
+    if(path != nil)
+        return [[NSWorkspace sharedWorkspace] iconForFile:path];
+    return [NSImage imageNamed:@"NSApplicationIcon"];
 }
 
 - (BOOL)activateWithOptions:(NSApplicationActivationOptions)options {
@@ -274,6 +298,14 @@ void _NSRunningApplicationSessionMessage(const LSSessionMessage *msg) {
         case kLSSessionAppDeactivated:
             app = [NSRunningApplication _applicationForSessionApp:&msg->app];
             name = NSWorkspaceDidDeactivateApplicationNotification;
+            break;
+        case kLSSessionAppDidHide:
+            app = [NSRunningApplication _applicationForSessionApp:&msg->app];
+            name = NSWorkspaceDidHideApplicationNotification;
+            break;
+        case kLSSessionAppDidUnhide:
+            app = [NSRunningApplication _applicationForSessionApp:&msg->app];
+            name = NSWorkspaceDidUnhideApplicationNotification;
             break;
         default:
             return;

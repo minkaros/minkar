@@ -38,7 +38,8 @@
  *
  *   Info		out: VRAM, free VRAM, the CPU's window on it (bytes)
  *   CreateBuffer	in: size; out: buffer (1 and up), its GPU address
- *			A buffer in VRAM the CPU can reach: IOConnectMapMemory64
+ *			A buffer in VRAM the CPU can reach, its size rounded up
+ *			to whole pages (as clients map it): IOConnectMapMemory64
  *			with the buffer as the memory type maps it.
  *   DestroyBuffer	in: buffer
  *   Copy		in: destination buffer and offset, source buffer and
@@ -46,7 +47,7 @@
  *			to the fence. The DMA engine copies; the call returns
  *			once the fence has signalled.
  *   CreateSystemBuffer	in: size; out: buffer, its GPU address. A buffer in
- *			system memory the GPU reaches through the GART (when
+ *			system memory (whole pages) the GPU reaches through the GART (when
  *			the driver turned it on: minkaramd_gart); mapped the
  *			same way, cached.
  *   ImportMemory	in: address, size (page-aligned, the caller's own
@@ -59,11 +60,13 @@
  *			The DMA engine copies into the scanout (the window
  *			server's present); the range must lie in it. With
  *			the gpu-client entitlement (or as an administrator).
- *   CreateSharedBuffer	in: size; out: buffer, its GPU address, its global ID.
+ *   CreateSharedBuffer	in: size; out: buffer, its GPU address, its name.
  *			A VRAM buffer other clients may hold too: its VRAM is
  *			freed when the last holder lets it go (IOSurfaces in
- *			VRAM: iosurfaced holds one for each).
- *   RetainSharedBuffer	in: global ID; out: buffer, its GPU address, size.
+ *			VRAM: iosurfaced holds one for each). The name is 64
+ *			random bits: a client holds the buffer only if its
+ *			maker gave it the name (no one can guess it).
+ *   RetainSharedBuffer	in: name; out: buffer, its GPU address, size.
  *   AUXTransaction	in: AUX channel, HPD (0-5), request, address, size;
  *			out: bytes or a negative errno, the reply byte, the
  *			interpreter's result, the data length, the first 8
@@ -88,8 +91,9 @@
  *			only: the buffer runs in the kernel's GPU address
  *			space and may write any register, until clients have
  *			address spaces of their own.
- *   MapBuffer		in: buffer, address. The whole of a buffer (VRAM, system
- *			or imported memory) at that address (page aligned) of
+ *   MapBuffer		in: buffer, address, offset, bytes. That part of a
+ *			buffer (VRAM, system or imported memory; bytes 0: all
+ *			of it from offset; page aligned) at that address of
  *			the client's own GPU address space (64 GB, made at the
  *			first mapping; with the GART on); mappings do not
  *			overlap. A buffer's mappings go with it.
@@ -101,6 +105,17 @@
  *			one of its mappings) in that space: what it reads and
  *			writes is what the client mapped; anything else faults
  *			to a scratch page.
+ *   CreateHiddenBuffer	in: size; out: buffer, its GPU address. A buffer in
+ *			VRAM the CPU does not reach (whole pages), anywhere in
+ *			VRAM rather than in the CPU's window: it cannot be
+ *			mapped for the CPU (Vulkan's device-local memory).
+ *   Flip		in: buffer, or 0; out: nanoseconds waited. The
+ *			display shows the buffer (VRAM, at least the current
+ *			mode's rows of the framebuffer's pitch) from its next
+ *			vertical blank, and the call returns once it does: the
+ *			window server's page flip. 0 shows the framebuffer
+ *			again, as does closing the client. With the gpu-client
+ *			entitlement (or as an administrator).
  *   ReadRegister	in: dword index; out: its value. For bring-up
  *			(administrators): the register window only, reading
  *			only (no indexed registers, which take two writes).
@@ -129,16 +144,18 @@ enum {
 	kMinkarAMDGPUMapBuffer,
 	kMinkarAMDGPUUnmapBuffer,
 	kMinkarAMDGPUSubmitGFXVM,
+	kMinkarAMDGPUCreateHiddenBuffer,
+	kMinkarAMDGPUFlip,
 	kMinkarAMDGPUMethodCount
 };
 
 /* The entitlement that lets a program present into the display's
- * framebuffer (CopyToScanout) without administrator rights. */
+ * framebuffer (CopyToScanout, Flip) without administrator rights. */
 #define kMinkarGPUClientEntitlement	"org.minkar.gpu-client"
 
-/* The most buffers a client holds at once. */
-#define kMinkarAMDGPUMaxBuffers	64
+/* The most buffers a client holds at once (its tables grow up to it). */
+#define kMinkarAMDGPUMaxBuffers	16384
 /* The most mappings in a client's GPU address space. */
-#define kMinkarAMDGPUMaxMappings	64
+#define kMinkarAMDGPUMaxMappings	32768
 
 #endif

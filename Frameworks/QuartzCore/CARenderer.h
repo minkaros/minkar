@@ -1,5 +1,5 @@
 #import <Foundation/NSObject.h>
-#import <ApplicationServices/ApplicationServices.h>
+#import <CoreGraphics/CoreGraphics.h>
 #import <CoreVideo/CoreVideo.h>
 
 @class CALayer, O2Surface;

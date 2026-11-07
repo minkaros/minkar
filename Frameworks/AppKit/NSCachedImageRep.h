@@ -12,6 +12,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 @interface NSCachedImageRep : NSImageRep {
     NSWindow *_window;
     NSPoint _origin;
+    CGContextRef _bitmapContext;   /* an offscreen cache, with no window */
 }
 
 - initWithWindow:(NSWindow *)window rect:(NSRect)rect;
@@ -19,5 +20,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 - (NSWindow *)window;
 - (NSRect)rect;
+/* Private: the context it caches into (its window's, or its bitmap's). */
+- (CGContextRef)_graphicsPort;
 
 @end

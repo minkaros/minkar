@@ -10,12 +10,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <Foundation/NSCoder.h>
 #import <Foundation/NSMapTable.h>
 
-@class NSData, NSDictionary, NSError, NSMutableArray, NSMutableDictionary, NSSet;
-
-typedef NS_ENUM(NSInteger, NSDecodingFailurePolicy) {
-    NSDecodingFailurePolicyRaiseException = 0,
-    NSDecodingFailurePolicySetErrorAndReturn = 1,
-};
+@class NSData, NSDictionary<KeyType, ObjectType>, NSError, NSMutableArray<ObjectType>, NSMutableDictionary<KeyType, ObjectType>, NSSet<ObjectType>;
 
 FOUNDATION_EXPORT NSString *NSInvalidUnarchiveOperationException;
 
@@ -45,8 +40,6 @@ FOUNDATION_EXPORT NSString *NSInvalidUnarchiveOperationException;
 + (id)unarchiveTopLevelObjectWithData:(NSData *)data error:(NSError **)error;
 - (id)decodeObjectOfClass:(Class)cls forKey:(NSString *)key;
 - (id)decodeObjectOfClasses:(NSSet *)classes forKey:(NSString *)key;
-- (id)decodeTopLevelObjectForKey:(NSString *)key error:(NSError **)error;
-- (id)decodeTopLevelObjectOfClass:(Class)cls forKey:(NSString *)key error:(NSError **)error;
 @property (readwrite) BOOL requiresSecureCoding;
 @property (readwrite) NSDecodingFailurePolicy decodingFailurePolicy;
 @property (readonly, copy) NSError *error;

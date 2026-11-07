@@ -32,10 +32,10 @@
 # commit that closes a milestone updates this file and runs
 # "bmake progress" (Docs/CONTRIBUTING.md).
 
-updated = "2026-11-02"
-commit  = "9a472063c1"
+updated = "2026-11-05"
+commit  = "22a0e67f0d"
 
-deps = [["ws", 555, "dock"], ["fw", 535, "kraz"]]
+deps = [["ws", 555, "dock"], ["fw", 490, "argos"]]
 
 [[gate]]
 id = "M0"
@@ -62,7 +62,7 @@ x = 310
 id = "M3"
 title = "M3 Frameworks and Swift"
 label = "M3"
-state = "todo"
+state = "done"
 x = 590
 rows = ["fw"]
 
@@ -76,11 +76,11 @@ rows = ["ws", "mb"]
 
 [[gate]]
 id = "M5"
-title = "M5 Gienah desktop"
+title = "M5 Atlas desktop"
 label = "M5"
 state = "todo"
 x = 760
-rows = ["mb", "dock", "kraz", "gienah"]
+rows = ["mb", "dock", "argos", "atlas"]
 
 [[gate]]
 id = "M6"
@@ -88,7 +88,7 @@ title = "M6 Minkar 19.6.0"
 label = "M6 · 19.6.0"
 state = "todo"
 x = 970
-rows = ["mb", "dock", "kraz", "apps"]
+rows = ["mb", "dock", "argos", "apps"]
 
 [[gate]]
 id = "R21"
@@ -122,10 +122,12 @@ name = "Frameworks"
 color = "brown"
 doc = "ROADMAP.md#phase-3--base-frameworks-and-swift"
 doc_es = "ROADMAP.es.md#fase-3--frameworks-base-y-swift"
+# CLI tools: gate M3's seven open source tools (Tests/M3), all pass (5 Nov).
+# Cocoa coverage: the block after M3 (AppKit, CF, Security from the inventory).
 stations = [
-  ["XPC", 270, "done"], ["libSystem", 325, "partial"], ["Foundation", 380, "partial"],
-  ["CF-Lite", 435, "partial"], ["Security", 485, "todo"], ["LaunchServices", 535, "partial"],
-  ["Swift 6", 590, "todo"],
+  ["XPC", 250, "done"], ["libSystem", 300, "partial"], ["Foundation", 350, "partial"],
+  ["CF-Lite", 400, "partial"], ["Security", 445, "todo"], ["LaunchServices", 490, "done"],
+  ["Swift 6", 540, "partial"], ["CLI tools", 590, "done"], ["Cocoa coverage", 620, "current"],
 ]
 
 [[line]]
@@ -144,10 +146,10 @@ stations = [
 id = "mb"
 name = "Menus"
 color = "purple"
-doc = "Menus.md"
-doc_es = "Menus.es.md"
+doc = "Atlas.md#3-menus"
+doc_es = "Atlas.es.md#3-menús"
 stations = [
-  ["MB0", 650, "done"], ["MB1", 760, "todo"], ["MB2", 865, "todo"], ["MB3", 970, "todo"],
+  ["MB0", 650, "done"], ["MB1", 760, "partial"], ["MB2", 865, "todo"], ["MB3", 970, "todo"],
   ["MB4", 1025, "todo"],
 ]
 
@@ -155,41 +157,42 @@ stations = [
 id = "dock"
 name = "Dock"
 color = "orange"
-doc = "Dock-Kraz.md"
-doc_es = "Dock-Kraz.es.md"
+doc = "Atlas.md#4-dock-and-files"
+doc_es = "Atlas.es.md#4-dock-y-files"
 stations = [
-  ["D0", 700, "todo"], ["D1", 760, "todo"], ["D2", 865, "todo"], ["D3", 970, "todo"],
+  ["D0", 700, "done"], ["D1", 760, "done"], ["D2", 865, "partial"], ["D3", 970, "todo"],
   ["D4", 1025, "todo"],
 ]
 
 [[line]]
-id = "kraz"
-name = "Kraz"
+id = "argos"
+name = "Files"
 color = "teal"
-doc = "Dock-Kraz.md"
-doc_es = "Dock-Kraz.es.md"
+doc = "Atlas.md#4-dock-and-files"
+doc_es = "Atlas.es.md#4-dock-y-files"
 stations = [
-  ["K0", 700, "todo"], ["K1", 760, "todo"], ["K2", 865, "todo"], ["K3", 970, "todo"],
+  ["K0", 700, "partial"], ["K1", 760, "done"], ["K2", 865, "todo"], ["K3", 970, "todo"],
   ["K4", 1025, "todo"],
 ]
 
 [[line]]
-id = "gienah"
-name = "Gienah"
+id = "atlas"
+name = "Atlas"
 color = "pink"
-doc = "ROADMAP.md#phase-5--gienah-desktop"
-doc_es = "ROADMAP.es.md#fase-5--escritorio-gienah"
-stations = [["LoginWindow", 570, "todo"], ["Preferences", 660, "todo"], ["Visual design", 760, "todo"]]
+doc = "ROADMAP.md#phase-5--atlas-desktop"
+doc_es = "ROADMAP.es.md#fase-5--escritorio-atlas"
+stations = [["LoginWindow", 570, "todo"], ["Preferences", 660, "partial"], ["Visual design", 760, "todo"]]
 
 [[line]]
 id = "apps"
 name = "Apps · DMG"
 color = "green"
-doc = "ROADMAP.md#phase-6--applications-and-distribution"
-doc_es = "ROADMAP.es.md#fase-6--aplicaciones-y-distribución"
+doc = "Atlas.md#5-applications"
+doc_es = "Atlas.es.md#5-aplicaciones"
+# Atlas's essential apps (A0 to A10, chapter 5) and DMG installs (Phase 6).
 stations = [
-  ["DiskImages", 805, "todo"], ["Terminal", 860, "todo"], ["TextEdit", 915, "todo"],
-  ["Browser", 970, "todo"],
+  ["A0 base", 805, "todo"], ["A1 Terminal", 860, "todo"], ["A2 Text Editor", 915, "partial"],
+  ["A3–A10 · DMG", 970, "todo"],
 ]
 
 [[line]]
@@ -198,8 +201,16 @@ name = "GPU track"
 color = "red"
 doc = "ROADMAP.md#graphics-stack-components-and-sequence"
 doc_es = "ROADMAP.es.md#pila-gráfica-componentes-y-secuencia"
-# G1 done on the Mac Pro 6,1 (2026-11-02); one station for G2 to G5.
-stations = [["G1 KMS", 700, "done"], ["G2–G5", 1060, "todo"]]
+# On the Mac Pro 6,1: G1 done (2026-11-02); G2's gate met, the GPU's clocks
+# (deferred) and DisplayPort link training (no display to test it) left;
+# G3 done (2026-11-03): RADV on Minkar, a triangle in a window, the
+# conformance subset with no failure. G4 under way (2026-11-03): the Vulkan
+# backend composes on the Mac Pro (G4.2), IOSurfaces in VRAM without
+# copies (G4.3), page flips at the vertical blank (G4.4), CAMetalLayer's
+# drawables in VRAM, paced by the display (G4.5); G4 done with G4.6's
+# measurements (Docs/Measurements.md). Next: the GPU's clocks, then G5.
+stations = [["G1 KMS", 700, "done"], ["G2 rings", 760, "partial"], ["G3 Mesa", 820, "done"],
+  ["G4–G5", 1060, "current"]]
 
 [[line]]
 id = "compat"
@@ -212,89 +223,73 @@ stations = [["x86-64 apps", 1082, "todo"], ["arm64", 1150, "todo"]]
 # The work board. "line" picks a card's colour; "here" marks a station of
 # the metro map as where work is.
 [board]
-here = "WS6"
-
-[[board.done]]
-title = "WS5 closed: IOSurface and virtio-gpu"
-note = "display streams, captured displays, saved configs · 2 nov"
-line = "ws"
-
-[[board.done]]
-title = "virtio-gpu 2D display"
-note = "per-frame flushes, mode changes · WS5 · 2 nov"
-line = "ws"
-
-[[board.done]]
-title = "IOSurface"
-note = "Mach memory, iosurfaced; AppKit damage · WS5 · 2 nov"
-line = "ws"
-
-[[board.done]]
-title = "Gate M4 met (in QEMU)"
-note = "54 markers, the menus in the app · 2 nov"
-line = "ws"
-
-[[board.done]]
-title = "WS4b closed: the switch"
-note = "new server by default, legacy removed · 2 nov"
-line = "ws"
-
-[[board.done]]
-title = "Minimal loginwindow"
-note = "Log Out, Restart, Shut Down · WS4b · 2 nov"
-line = "ws"
-
+here = "Cocoa coverage"
 
 [[board.now]]
-title = "WS6 — GPU compositing"
-note = "G1 done (FirePro display driver); G2: GPU memory and rings"
-line = "ws"
-done = 0
-total = 3
+title = "Cocoa coverage: Auto Layout first"
+note = "NSLayoutConstraint, anchors, guides, visual format (kiwi), NSStackView; then tables"
+line = "fw"
 
 [[board.now]]
-title = "Foundation audit"
-note = "NSURLSession cache and metrics left"
-line = "fw"
-partial = true
-
-[[board.now]]
-title = "Noisy stubs"
-note = "mechanism done, 887 sites"
-line = "fw"
-partial = true
-
-[[board.next]]
-title = "D0 · K0 — Dock and Kraz prerequisites"
-note = "can start: WS4a is done"
-line = "dock"
-
-[[board.next]]
-title = "Swift prototypes 1 and 2"
-note = "swiftc, libswiftCore → M3"
-line = "fw"
-
-[[board.next]]
-title = "G2 — GPU memory, rings, fences"
-note = "gate met on the Mac Pro: DMA, fences, GART; IOSurfaces in VRAM next"
+title = "GPU: clocks, then G5"
+note = "G4 measured on the Mac Pro; its clocks, then the 3D path, for 21.0's performance gate"
 line = "gpu"
 
-[[board.later]]
-group = "→ M5 Gienah session"
-items = [["MB1 Menu Extras", "mb"], ["D1 Dock core", "dock"], ["K1 Kraz browsing", "kraz"], ["LoginWindow, Preferences", "gienah"]]
+[[board.next]]
+title = "Desktop design and icons"
+note = "the maintainer's review, the weekend of 7–8 Nov"
+line = "atlas"
+
+[[board.next]]
+title = "M5: MB1, D2, K2, LoginWindow"
+note = "Menu Extras as bundles, Dock dragging, file operations, the full login"
+line = "mb"
+
+[[board.next]]
+title = "A0 app base, A1 Terminal"
+note = "About, Preferences and Help for every app; a VT100/xterm terminal in Agave"
+line = "apps"
 
 [[board.later]]
-group = "→ M6 · Minkar 19.6.0"
-items = [["MB2–MB3 menus for daily use", "mb"], ["D2–D3 Dock, with the app switcher", "dock"], ["K2–K3 Kraz, with DMG double-click", "kraz"], ["DiskImages (hdiutil attach already mounts)", "apps"], ["Terminal, TextEdit, Browser", "apps"]]
+group = "Minkar 19.6.0"
+items = [["Apps A2–A10: editor, monitor, logs, viewers, disks…", "apps"],
+  ["MB2–MB3, D3, K3: the desktop for daily use", "mb"], ["Security: certificates, keychain", "fw"],
+  ["DMG installs", "apps"]]
 
 [[board.later]]
-group = "→ 19.6.x"
-items = [["MB4 Services, D4 stacks and Trash, K4 search and tags", "mb"]]
+group = "Minkar 21.0"
+items = [["API 20 and 21", "fw"], ["Performance ≥ the reference system", "gpu"]]
 
 [[board.later]]
-group = "→ Minkar 21.0"
-items = [["WS6 performance gate", "ws"], ["G2–G5 driver, Mesa, Metal", "gpu"]]
+group = "After 19.6.0"
+items = [["x86-64 binaries, arm64", "compat"]]
 
-[[board.later]]
-group = "→ M7"
-items = [["x86-64 apps, arm64", "compat"]]
+[[board.done]]
+title = "M3 met: seven tools pass"
+note = "tag and SwiftFormat too; NSMetadataQuery; the kernel at -O2 · 5 nov"
+line = "fw"
+
+[[board.done]]
+title = "M3: mogenerator, the first Objective-C tool"
+note = "CoreData's models in code and archives, predicates, KVC set proxies · 5 nov"
+line = "fw"
+
+[[board.done]]
+title = "M3: 4 of 7 tools pass their tests"
+note = "swift-argument-parser, Rainbow, Files, Yams, xcbeautify; XCTest on Minkar · 5 nov"
+line = "fw"
+
+[[board.done]]
+title = "Atlas plan; generic app names"
+note = "menus, Dock, Files and the apps A0–A10 in one plan; Files and Text Editor · 5 nov"
+line = "atlas"
+
+[[board.done]]
+title = "Files K1: columns, opening, open -R"
+note = "LaunchServices opens documents; Text Editor, the text editor; the save panel · 4 nov"
+line = "argos"
+
+[[board.done]]
+title = "System Preferences: five panes"
+note = "Displays, Dock, Date & Time, Keyboard, Network; English and Spanish · 4 nov"
+line = "atlas"

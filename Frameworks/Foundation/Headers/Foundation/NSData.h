@@ -9,76 +9,34 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <Foundation/NSObject.h>
 #import <Foundation/NSRange.h>
 
-@class NSURL, NSError;
+@class NSURL, NSError, NSString;
 
-enum {
-    NSDataReadingMapped = 0x01,
-    NSDataReadingUncached = 0x02,
+NS_ASSUME_NONNULL_BEGIN
 
-    // deprecated
+typedef NS_OPTIONS(NSUInteger, NSDataReadingOptions) {
+    NSDataReadingMappedIfSafe = 1UL << 0,
+    NSDataReadingUncached = 1UL << 1,
+    NSDataReadingMappedAlways = 1UL << 3,
+    NSDataReadingMapped = NSDataReadingMappedIfSafe,
     NSMappedRead = NSDataReadingMapped,
     NSUncachedRead = NSDataReadingUncached,
 };
-typedef NSUInteger NSDataReadingOptions;
 
-enum {
-    NSDataWritingAtomic = 0x01,
-
-    // deprecated
+typedef NS_OPTIONS(NSUInteger, NSDataWritingOptions) {
+    NSDataWritingAtomic = 1UL << 0,
+    NSDataWritingWithoutOverwriting = 1UL << 1,
+    NSDataWritingFileProtectionNone = 0x10000000,
+    NSDataWritingFileProtectionComplete = 0x20000000,
+    NSDataWritingFileProtectionCompleteUnlessOpen = 0x30000000,
+    NSDataWritingFileProtectionCompleteUntilFirstUserAuthentication = 0x40000000,
+    NSDataWritingFileProtectionMask = 0xf0000000,
     NSAtomicWrite = NSDataWritingAtomic,
 };
 
-typedef NSUInteger NSDataWritingOptions;
-
-enum {
-    NSDataSearchBackwards = 0x01,
-    NSDataSearchAnchored = 0x02,
+typedef NS_OPTIONS(NSUInteger, NSDataSearchOptions) {
+    NSDataSearchBackwards = 1UL << 0,
+    NSDataSearchAnchored = 1UL << 1,
 };
-typedef NSUInteger NSDataSearchOptions;
-
-@interface NSData : NSObject <NSCopying, NSMutableCopying, NSCoding>
-
-- initWithBytesNoCopy:(void *)bytes length:(NSUInteger)length freeWhenDone:(BOOL)freeWhenDone;
-- initWithBytesNoCopy:(void *)bytes length:(NSUInteger)length;
-- initWithBytes:(const void *)bytes length:(NSUInteger)length;
-- initWithData:(NSData *)data;
-- initWithContentsOfFile:(NSString *)path;
-- initWithContentsOfMappedFile:(NSString *)path;
-- initWithContentsOfURL:(NSURL *)url;
-- initWithContentsOfFile:(NSString *)path options:(NSUInteger)options error:(NSError **)errorp;
-- initWithContentsOfURL:(NSURL *)url options:(NSUInteger)options error:(NSError **)errorp;
-
-+ data;
-+ dataWithBytesNoCopy:(void *)bytes length:(NSUInteger)length freeWhenDone:(BOOL)freeWhenDone;
-+ dataWithBytesNoCopy:(void *)bytes length:(NSUInteger)length;
-+ dataWithBytes:(const void *)bytes length:(NSUInteger)length;
-+ dataWithData:(NSData *)data;
-+ dataWithContentsOfFile:(NSString *)path;
-+ dataWithContentsOfMappedFile:(NSString *)path;
-+ dataWithContentsOfURL:(NSURL *)url;
-+ dataWithContentsOfFile:(NSString *)path options:(NSUInteger)options error:(NSError **)errorp;
-+ dataWithContentsOfURL:(NSURL *)url options:(NSUInteger)options error:(NSError **)errorp;
-
-- (const void *)bytes;
-- (NSUInteger)length;
-
-- (BOOL)isEqualToData:(NSData *)data;
-
-- (void)getBytes:(void *)result range:(NSRange)range;
-- (void)getBytes:(void *)result length:(NSUInteger)length;
-- (void)getBytes:(void *)result;
-
-- (NSData *)subdataWithRange:(NSRange)range;
-- (NSRange)rangeOfData:(NSData *)dataToFind options:(NSDataSearchOptions)mask range:(NSRange)searchRange;
-
-- (BOOL)writeToFile:(NSString *)path atomically:(BOOL)atomically;
-- (BOOL)writeToURL:(NSURL *)url atomically:(BOOL)atomically;
-- (BOOL)writeToFile:(NSString *)path options:(NSUInteger)options error:(NSError **)errorp;
-- (BOOL)writeToURL:(NSURL *)url options:(NSUInteger)options error:(NSError **)errorp;
-
-- (NSString *)description;
-
-@end
 
 typedef NS_OPTIONS(NSUInteger, NSDataBase64EncodingOptions) {
     NSDataBase64Encoding64CharacterLineLength = 1UL << 0,
@@ -91,11 +49,74 @@ typedef NS_OPTIONS(NSUInteger, NSDataBase64DecodingOptions) {
     NSDataBase64DecodingIgnoreUnknownCharacters = 1UL << 0
 };
 
+typedef NS_ENUM(NSInteger, NSDataCompressionAlgorithm) {
+    NSDataCompressionAlgorithmLZFSE = 0,
+    NSDataCompressionAlgorithmLZ4,
+    NSDataCompressionAlgorithmLZMA,
+    NSDataCompressionAlgorithmZlib,
+};
+
+@interface NSData : NSObject <NSCopying, NSMutableCopying, NSSecureCoding>
+
+@property (readonly) NSUInteger length;
+@property (readonly) const void *bytes NS_RETURNS_INNER_POINTER;
+
+@end
+
+@interface NSData (NSExtendedData)
+
+@property (readonly, copy) NSString *description;
+- (void)getBytes:(void *)buffer length:(NSUInteger)length;
+- (void)getBytes:(void *)buffer range:(NSRange)range;
+- (void)getBytes:(void *)buffer;
+- (BOOL)isEqualToData:(NSData *)other;
+- (NSData *)subdataWithRange:(NSRange)range;
+- (BOOL)writeToFile:(NSString *)path atomically:(BOOL)useAuxiliaryFile;
+- (BOOL)writeToURL:(NSURL *)url atomically:(BOOL)atomically;
+- (BOOL)writeToFile:(NSString *)path options:(NSDataWritingOptions)writeOptionsMask error:(NSError **)errorPtr;
+- (BOOL)writeToURL:(NSURL *)url options:(NSDataWritingOptions)writeOptionsMask error:(NSError **)errorPtr;
+- (NSRange)rangeOfData:(NSData *)dataToFind options:(NSDataSearchOptions)mask range:(NSRange)searchRange;
+- (void)enumerateByteRangesUsingBlock:(void (NS_NOESCAPE ^)(const void *bytes, NSRange byteRange, BOOL *stop))block;
+
+@end
+
+@interface NSData (NSDataCreation)
+
++ (instancetype)data;
++ (instancetype)dataWithBytes:(nullable const void *)bytes length:(NSUInteger)length;
++ (instancetype)dataWithBytesNoCopy:(void *)bytes length:(NSUInteger)length;
++ (instancetype)dataWithBytesNoCopy:(void *)bytes length:(NSUInteger)length freeWhenDone:(BOOL)b;
++ (nullable instancetype)dataWithContentsOfFile:(NSString *)path options:(NSDataReadingOptions)readOptionsMask error:(NSError **)errorPtr;
++ (nullable instancetype)dataWithContentsOfURL:(NSURL *)url options:(NSDataReadingOptions)readOptionsMask error:(NSError **)errorPtr;
++ (nullable instancetype)dataWithContentsOfFile:(NSString *)path;
++ (nullable instancetype)dataWithContentsOfURL:(NSURL *)url;
++ (nullable instancetype)dataWithContentsOfMappedFile:(NSString *)path;
+- (instancetype)initWithBytes:(nullable const void *)bytes length:(NSUInteger)length;
+- (instancetype)initWithBytesNoCopy:(void *)bytes length:(NSUInteger)length;
+- (instancetype)initWithBytesNoCopy:(void *)bytes length:(NSUInteger)length freeWhenDone:(BOOL)b;
+- (instancetype)initWithBytesNoCopy:(void *)bytes length:(NSUInteger)length deallocator:(nullable void (^)(void *bytes, NSUInteger length))deallocator;
+- (nullable instancetype)initWithContentsOfFile:(NSString *)path options:(NSDataReadingOptions)readOptionsMask error:(NSError **)errorPtr;
+- (nullable instancetype)initWithContentsOfURL:(NSURL *)url options:(NSDataReadingOptions)readOptionsMask error:(NSError **)errorPtr;
+- (nullable instancetype)initWithContentsOfFile:(NSString *)path;
+- (nullable instancetype)initWithContentsOfURL:(NSURL *)url;
+- (nullable instancetype)initWithContentsOfMappedFile:(NSString *)path;
+- (instancetype)initWithData:(NSData *)data;
++ (instancetype)dataWithData:(NSData *)data;
+
+@end
+
 @interface NSData (NSDataBase64Encoding)
-- (instancetype)initWithBase64EncodedString:(NSString *)base64String options:(NSDataBase64DecodingOptions)options;
+- (nullable instancetype)initWithBase64EncodedString:(NSString *)base64String options:(NSDataBase64DecodingOptions)options;
 - (NSString *)base64EncodedStringWithOptions:(NSDataBase64EncodingOptions)options;
-- (instancetype)initWithBase64EncodedData:(NSData *)base64Data options:(NSDataBase64DecodingOptions)options;
+- (nullable instancetype)initWithBase64EncodedData:(NSData *)base64Data options:(NSDataBase64DecodingOptions)options;
 - (NSData *)base64EncodedDataWithOptions:(NSDataBase64EncodingOptions)options;
 @end
+
+@interface NSData (NSDataCompression)
+- (nullable instancetype)decompressedDataUsingAlgorithm:(NSDataCompressionAlgorithm)algorithm error:(NSError **)error;
+- (nullable instancetype)compressedDataUsingAlgorithm:(NSDataCompressionAlgorithm)algorithm error:(NSError **)error;
+@end
+
+NS_ASSUME_NONNULL_END
 
 #import <Foundation/NSMutableData.h>

@@ -9,14 +9,22 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 @class NSExpression;
 
-typedef enum {
-    NSDirectPredicateModifier,
-    NSAllPredicateModifier,
-    NSAnyPredicateModifier
-} NSComparisonPredicateModifier;
+NS_ASSUME_NONNULL_BEGIN
 
-typedef enum {
-    NSLessThanPredicateOperatorType,
+typedef NS_OPTIONS(NSUInteger, NSComparisonPredicateOptions) {
+    NSCaseInsensitivePredicateOption = 0x01,
+    NSDiacriticInsensitivePredicateOption = 0x02,
+    NSNormalizedPredicateOption = 0x04,
+};
+
+typedef NS_ENUM(NSUInteger, NSComparisonPredicateModifier) {
+    NSDirectPredicateModifier = 0,
+    NSAllPredicateModifier,
+    NSAnyPredicateModifier,
+};
+
+typedef NS_ENUM(NSUInteger, NSPredicateOperatorType) {
+    NSLessThanPredicateOperatorType = 0,
     NSLessThanOrEqualToPredicateOperatorType,
     NSGreaterThanPredicateOperatorType,
     NSGreaterThanOrEqualToPredicateOperatorType,
@@ -27,15 +35,12 @@ typedef enum {
     NSBeginsWithPredicateOperatorType,
     NSEndsWithPredicateOperatorType,
     NSInPredicateOperatorType,
-    NSCustomSelectorPredicateOperatorType
-} NSPredicateOperatorType;
-
-enum {
-    NSCaseInsensitivePredicateOption = 0x01,
-    NSDiacriticInsensitivePredicateOption = 0x02
+    NSCustomSelectorPredicateOperatorType,
+    NSContainsPredicateOperatorType = 99,
+    NSBetweenPredicateOperatorType,
 };
 
-@interface NSComparisonPredicate : NSPredicate <NSCoding, NSCopying> {
+@interface NSComparisonPredicate : NSPredicate {
     NSExpression *_left;
     NSExpression *_right;
 
@@ -45,19 +50,20 @@ enum {
     SEL _customSelector;
 }
 
-- initWithLeftExpression:(NSExpression *)left rightExpression:(NSExpression *)right modifier:(NSComparisonPredicateModifier)modifier type:(NSPredicateOperatorType)type options:(NSUInteger)options;
-- initWithLeftExpression:(NSExpression *)left rightExpression:(NSExpression *)right customSelector:(SEL)selector;
++ (NSPredicate *)predicateWithLeftExpression:(NSExpression *)lhs rightExpression:(NSExpression *)rhs modifier:(NSComparisonPredicateModifier)modifier type:(NSPredicateOperatorType)type options:(NSComparisonPredicateOptions)options;
++ (NSPredicate *)predicateWithLeftExpression:(NSExpression *)lhs rightExpression:(NSExpression *)rhs customSelector:(SEL)selector;
 
-+ (NSPredicate *)predicateWithLeftExpression:(NSExpression *)left rightExpression:(NSExpression *)right modifier:(NSComparisonPredicateModifier)modifier type:(NSPredicateOperatorType)type options:(NSUInteger)options;
-+ (NSPredicate *)predicateWithLeftExpression:(NSExpression *)left rightExpression:(NSExpression *)right customSelector:(SEL)selector;
+- (instancetype)initWithLeftExpression:(NSExpression *)lhs rightExpression:(NSExpression *)rhs modifier:(NSComparisonPredicateModifier)modifier type:(NSPredicateOperatorType)type options:(NSComparisonPredicateOptions)options NS_DESIGNATED_INITIALIZER;
+- (instancetype)initWithLeftExpression:(NSExpression *)lhs rightExpression:(NSExpression *)rhs customSelector:(SEL)selector NS_DESIGNATED_INITIALIZER;
+- (nullable instancetype)initWithCoder:(NSCoder *)coder NS_DESIGNATED_INITIALIZER;
 
-- (NSExpression *)leftExpression;
-- (NSExpression *)rightExpression;
-- (NSPredicateOperatorType)predicateOperatorType;
-
-- (NSComparisonPredicateModifier)comparisonPredicateModifier;
-- (NSUInteger)options;
-
-- (SEL)customSelector;
+@property (readonly) NSPredicateOperatorType predicateOperatorType;
+@property (readonly) NSComparisonPredicateModifier comparisonPredicateModifier;
+@property (readonly, retain) NSExpression *leftExpression;
+@property (readonly, retain) NSExpression *rightExpression;
+@property (nullable, readonly) SEL customSelector;
+@property (readonly) NSComparisonPredicateOptions options;
 
 @end
+
+NS_ASSUME_NONNULL_END

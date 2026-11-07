@@ -8,7 +8,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 #import <Foundation/NSCoder.h>
 
-@class NSPort, NSConnection, NSArray;
+@class NSPort, NSConnection, NSArray<ObjectType>;
 
 @interface NSPortCoder : NSCoder
 

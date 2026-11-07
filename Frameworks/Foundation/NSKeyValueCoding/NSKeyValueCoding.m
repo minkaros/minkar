@@ -25,6 +25,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #include <ctype.h>
 
 #import "NSKVCMutableArray.h"
+#import "NSKVCCollectionProxy.h"
 #import "NSString+KVCAdditions.h"
 #import "NSKeyValueObserving-Private.h"
 
@@ -469,6 +470,34 @@ NSString *const NSUndefinedKeyException = @"NSUnknownKeyException";
 -(id)mutableArrayValueForKey:(id)key
 {
 	return [[[NSKVCMutableArray alloc] initWithKey:key forProxyObject:self] autorelease];
+}
+
+-(NSMutableSet *)mutableSetValueForKey:(NSString *)key
+{
+	return [[[NSKVCCollectionProxy alloc] initWithKey:key forProxyObject:self ordered:NO] autorelease];
+}
+
+-(NSMutableSet *)mutableSetValueForKeyPath:(NSString *)keyPath
+{
+	NSString* firstPart, *rest;
+	[keyPath _KVC_partBeforeDot:&firstPart afterDot:&rest];
+	if(rest)
+		return [[self valueForKey:firstPart] mutableSetValueForKeyPath:rest];
+	return [self mutableSetValueForKey:firstPart];
+}
+
+-(NSMutableOrderedSet *)mutableOrderedSetValueForKey:(NSString *)key
+{
+	return [[[NSKVCCollectionProxy alloc] initWithKey:key forProxyObject:self ordered:YES] autorelease];
+}
+
+-(NSMutableOrderedSet *)mutableOrderedSetValueForKeyPath:(NSString *)keyPath
+{
+	NSString* firstPart, *rest;
+	[keyPath _KVC_partBeforeDot:&firstPart afterDot:&rest];
+	if(rest)
+		return [[self valueForKey:firstPart] mutableOrderedSetValueForKeyPath:rest];
+	return [self mutableOrderedSetValueForKey:firstPart];
 }
 
 -(id)mutableArrayValueForKeyPath:(id)keyPath

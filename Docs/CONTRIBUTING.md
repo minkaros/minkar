@@ -53,8 +53,8 @@ the milestone that removes it:
 
 For example `SHORTCUT(WS4a)`, `SHORTCUT(Phase 5)` or `SHORTCUT(D3)`. Each
 shortcut also has a row in its plan's shortcut table (section 9 of
-[WindowServer-Rewrite.md](WindowServer-Rewrite.md), section 10 of
-[Menus.md](Menus.md) and of [Dock-Kraz.md](Dock-Kraz.md)). A milestone
+[WindowServer-Rewrite.md](WindowServer-Rewrite.md), sections 3.10 and 4.10 of
+[Atlas.md](Atlas.md)). A milestone
 closes only when `git grep -n 'SHORTCUT(<milestone>)'` finds nothing.
 
 ### Progress pages
@@ -65,5 +65,8 @@ that closes a milestone also updates `status.toml` and runs
 `bmake progress`, which rewrites the pages' summary table and the SVGs in
 `Docs/progress`; the work board keeps the six most recent done items. CI
 fails when the committed pages are not what `bmake progress` writes.
+`status.toml`'s `commit` and `updated` name the tree the pages summarize:
+the last commit outside `Docs/` and its date. `bmake progress` warns when
+`commit` is older, as the page header would otherwise lag behind.
 
 Have fun and do great things!

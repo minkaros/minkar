@@ -1,0 +1,19 @@
+# Dispatch.mm without the Swift runtime's headers: it declares the one
+# function it uses, swift_reportError, which libswiftCore exports.
+--- a/stdlib/public/Darwin/Dispatch/Dispatch.mm
++++ b/stdlib/public/Darwin/Dispatch/Dispatch.mm
+@@ -10,7 +10,13 @@
+ //
+ //===----------------------------------------------------------------------===//
+ 
+-#include <swift/Runtime/Debug.h>
++// The one entry of the Swift runtime used here; libswiftCore exports it
++// (the runtime's headers are not part of an overlay build).
++#include <stdint.h>
++#include <stdlib.h>
++namespace swift {
++extern "C" void swift_reportError(uint32_t flags, const char *message);
++}
+ #include <dispatch/dispatch.h>
+ #include <objc/runtime.h>
+ #include <stdio.h>

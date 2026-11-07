@@ -19,7 +19,9 @@ SUBDIR = CrashReporterClient .WAIT MiscLibs .WAIT objc4 .WAIT Libsystem .WAIT \
 	dyld libfirehose_kernel Libsystem/libresolv .WAIT \
 	openbsm/libbsm openbsm/libauditd \
 	openbsm/bin/auditd openbsm/bin/audit openbsm/bin/praudit openbsm/bin/auditreduce \
-	ICU zlib libiconv OpenPAM OpenSSH mbedtls .WAIT bootstrap
+	ICU zlib libiconv OpenPAM OpenSSH mbedtls swift .WAIT swift/tests bootstrap
+# Swift's runtime links libSystem, libobjc and dyld's.
+SUBDIR_DEPEND_swift =	dyld
 SUBDIR_DEPEND_openbsm/libauditd =	openbsm/libbsm
 .for p in auditd audit praudit auditreduce
 SUBDIR_DEPEND_openbsm/bin/${p} =	openbsm/libbsm openbsm/libauditd

@@ -33,7 +33,9 @@ routine create(
 	out surfaceID		: uint32_t;
 	out result		: int32_t);
 
-/* A surface by its ID: the caller holds it too. */
+/* A surface by its ID: the caller holds it too. Only for a surface made
+ * global (kIOSurfaceIsGlobal), one the caller holds already or was given
+ * a port for (port_id), or a privileged caller (root, the window server). */
 routine lookup(
 	server			: mach_port_t;
 	ServerAuditToken token	: audit_token_t;
@@ -53,12 +55,14 @@ routine release(
 /* Its values (IOSurfaceSetValue and the like), shared by every holder. */
 routine set_values(
 	server			: mach_port_t;
+	ServerAuditToken token	: audit_token_t;
 	surfaceID		: uint32_t;
 	values			: bytes_t;
 	out result		: int32_t);
 
 routine copy_values(
 	server			: mach_port_t;
+	ServerAuditToken token	: audit_token_t;
 	surfaceID		: uint32_t;
 	out values		: bytes_t, dealloc;
 	out result		: int32_t);
@@ -66,6 +70,7 @@ routine copy_values(
 /* A port standing for the surface (IOSurfaceCreateMachPort). */
 routine make_port(
 	server			: mach_port_t;
+	ServerAuditToken token	: audit_token_t;
 	surfaceID		: uint32_t;
 	out port		: mach_port_make_send_t;
 	out result		: int32_t);
@@ -73,19 +78,34 @@ routine make_port(
 /* The surface a port of make_port stands for. */
 routine port_id(
 	server			: mach_port_t;
+	ServerAuditToken token	: audit_token_t;
 	port			: mach_port_t;
 	out surfaceID		: uint32_t;
 	out result		: int32_t);
 
 /*
  * A surface in GPU memory: the GPU's shared buffer behind it (the GPU's
- * registry entry ID and the buffer's global ID), which the registry holds
- * while the surface lives. From a process holding the surface.
+ * registry entry ID and the buffer's name), which the registry holds while
+ * the surface lives. From a process holding the surface.
  */
 routine attach_gpu_buffer(
 	server			: mach_port_t;
 	ServerAuditToken token	: audit_token_t;
 	surfaceID		: uint32_t;
 	gpu			: uint64_t;
-	buffer			: uint32_t;
+	buffer			: uint64_t;
+	out result		: int32_t);
+
+/*
+ * The GPU's shared buffer behind a surface, as attach_gpu_buffer gave it:
+ * the GPU's registry entry ID and the buffer's name (0 and 0 for a
+ * surface in system memory). For a process that looked the surface up and
+ * draws it on that GPU (the window server).
+ */
+routine gpu_buffer(
+	server			: mach_port_t;
+	ServerAuditToken token	: audit_token_t;
+	surfaceID		: uint32_t;
+	out gpu			: uint64_t;
+	out buffer		: uint64_t;
 	out result		: int32_t);

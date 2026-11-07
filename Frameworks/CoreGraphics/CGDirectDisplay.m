@@ -28,6 +28,7 @@
 #import <CoreGraphics/CGError.h>
 #import <Onyx2D/O2Context_builtin.h>
 #import <CoreFoundation/CFMachPort.h>
+#import <CoreFoundation/CFRuntime.h>
 #include <SkyLight/SkyLight.h>
 #include <IOSurface/IOSurfaceRef.h>
 #include <dispatch/dispatch.h>
@@ -57,9 +58,10 @@ struct _CGDisplayConfig {
     float fadeColor[3];
 };
 
-/* A display mode, as the window server describes it, reference counted. */
+/* A display mode, as the window server describes it: a CF type, as on
+   the reference platform (CFRetain, CFEqual, Foundation's collections). */
 struct CGDisplayMode {
-    int refcount;
+    CFRuntimeBase base;
     uint32_t modeID;
     uint32_t flags;
     uint32_t width, height;		/* points */
@@ -68,12 +70,43 @@ struct CGDisplayMode {
     double refresh;			/* Hz, 0 when unknown */
 };
 
+static Boolean displayModeEqual(CFTypeRef a, CFTypeRef b) {
+    const struct CGDisplayMode *x = a, *y = b;
+    return x->modeID == y->modeID && x->width == y->width && x->height == y->height &&
+        x->pixelWidth == y->pixelWidth && x->pixelHeight == y->pixelHeight &&
+        x->depth == y->depth && x->refresh == y->refresh;
+}
+
+static CFHashCode displayModeHash(CFTypeRef cf) {
+    const struct CGDisplayMode *m = cf;
+    return (CFHashCode)m->modeID * 31 + m->width * 7 + m->height;
+}
+
+static CFStringRef displayModeDescription(CFTypeRef cf) {
+    const struct CGDisplayMode *m = cf;
+    return CFStringCreateWithFormat(NULL, NULL, CFSTR("<CGDisplayMode %p> %ux%u (%ux%u pixels), %u bits, %.2f Hz, mode %u"),
+        cf, m->width, m->height, m->pixelWidth, m->pixelHeight, m->depth, m->refresh, m->modeID);
+}
+
+static const CFRuntimeClass displayModeClass = {
+    0, "CGDisplayMode", NULL, NULL, NULL, displayModeEqual, displayModeHash, NULL, displayModeDescription
+};
+static CFTypeID displayModeTypeID;
+
+CFTypeID CGDisplayModeGetTypeID(void) {
+    static dispatch_once_t once;
+    dispatch_once(&once, ^{
+        displayModeTypeID = _CFRuntimeRegisterClass(&displayModeClass);
+    });
+    return displayModeTypeID;
+}
+
 static CGDisplayModeRef displayModeCreate(const SLSDisplayMode *m) {
-    struct CGDisplayMode *mode = calloc(sizeof(struct CGDisplayMode), 1);
+    struct CGDisplayMode *mode = (struct CGDisplayMode *)(uintptr_t)_CFRuntimeCreateInstance(
+        kCFAllocatorDefault, CGDisplayModeGetTypeID(), sizeof(struct CGDisplayMode) - sizeof(CFRuntimeBase), NULL);
 
     if(mode == NULL)
         return NULL;
-    mode->refcount = 1;
     mode->modeID = m->modeID;
     mode->flags = m->flags;
     mode->width = m->width;
@@ -85,18 +118,6 @@ static CGDisplayModeRef displayModeCreate(const SLSDisplayMode *m) {
     return mode;
 }
 
-static const void *displayModeArrayRetain(CFAllocatorRef allocator, const void *value) {
-    return CGDisplayModeRetain((CGDisplayModeRef)value);
-}
-
-static void displayModeArrayRelease(CFAllocatorRef allocator, const void *value) {
-    CGDisplayModeRelease((CGDisplayModeRef)value);
-}
-
-/* An array of modes holds them. */
-static const CFArrayCallBacks displayModeCallBacks = {
-    0, displayModeArrayRetain, displayModeArrayRelease, NULL, NULL
-};
 
 // dictionary of display contexts
 static CFMutableDictionaryRef __displayContexts = NULL;
@@ -371,8 +392,11 @@ CGContextRef CGDisplayGetDrawingContext(CGDirectDisplayID display) {
 
 // Creating Images from the Display
 CGImageRef CGDisplayCreateImage(CGDirectDisplayID display) {
-    CGRect rect = CGDisplayBounds(display);
-    return CGDisplayCreateImageForRect(display, rect);
+    /* All of it, in the display's own coordinates (ForRect's): its global
+       bounds are elsewhere for any display but the main one. */
+    CGRect bounds = CGDisplayBounds(display);
+    return CGDisplayCreateImageForRect(display,
+        CGRectMake(0, 0, bounds.size.width, bounds.size.height));
 }
 
 CGImageRef CGDisplayCreateImageForRect(CGDirectDisplayID display, CGRect rect) {
@@ -669,7 +693,7 @@ CFArrayRef CGDisplayCopyAllDisplayModes(CGDirectDisplayID display, CFDictionaryR
 
     if(SLSCopyDisplayModes(display, kSLSMaxDisplayModes, modes, &count) != kSLSErrorSuccess)
         return NULL;
-    CFMutableArrayRef result = CFArrayCreateMutable(NULL, count, &displayModeCallBacks);
+    CFMutableArrayRef result = CFArrayCreateMutable(NULL, count, &kCFTypeArrayCallBacks);
     for(uint32_t i = 0; i < count; i++) {
         CGDisplayModeRef mode = displayModeCreate(&modes[i]);
         if(mode != NULL) {
@@ -698,22 +722,14 @@ CGError CGDisplaySetDisplayMode(CGDirectDisplayID display, CGDisplayModeRef mode
 }
 
 CGDisplayModeRef CGDisplayModeRetain(CGDisplayModeRef mode) {
-    if(mode != NULL) {
-        int one = 1;
-        __sync_fetch_and_add(&(mode->refcount), one);
-    }
+    if(mode != NULL)
+        CFRetain(mode);
     return mode;
 }
 
 void CGDisplayModeRelease(CGDisplayModeRef mode) {
-    if(mode == NULL)
-        return;
-
-    int one = 1;
-    int count = __sync_fetch_and_sub(&(mode->refcount), one);
-
-    if(count == 1) // we just released the last ref
-        free(mode);
+    if(mode != NULL)
+        CFRelease(mode);
 }
 
 // Getting Information About a Display Mode
@@ -755,9 +771,6 @@ bool CGDisplayModeIsUsableForDesktopGUI(CGDisplayModeRef mode) {
     return false;
 }
 
-CFTypeID CGDisplayModeGetTypeID(void) {
-    return 0; // FIXME
-}
 
 // Adjusting the Display Gamma
 CGError CGSetDisplayTransferByFormula(CGDirectDisplayID display,

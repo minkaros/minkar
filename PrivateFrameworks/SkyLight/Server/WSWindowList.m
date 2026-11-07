@@ -34,6 +34,7 @@
 
 #include <libproc.h>
 #include <math.h>
+#include <pixman.h>
 #include <stdio.h>
 #include <string.h>
 #import "WSWindowList.h"
@@ -43,6 +44,10 @@
 #import "WSEvents.h"
 #include "WindowServerServer.h"	/* MIG server side */
 
+/* IOSurfaces kept per window: a CAMetalLayer's drawables, three, and one
+ * to spare. */
+enum { kRecentIOSurfaces = 4 };
+
 @interface WSWindow ()
 @property (readwrite) int32_t level;
 @property (readwrite) SLSRect frame;
@@ -51,6 +56,18 @@
 @property (readwrite, strong) id surface;
 /* A surface of the new size, given to the client but not committed yet. */
 @property (strong) WSSurface *pendingSurface;
+/* The IOSurfaces it showed last (SLSWindowSetIOSurface), most recent
+ * last: an app that shows a few in turn (a CAMetalLayer's drawables) gets
+ * the same backing again, and the compositor keeps what it took of it (a
+ * GPU import). */
+@property (strong) NSMutableArray<WSIOSurfaceBacking *> *recentIOSurfaces;
+/* Its layer (SLSWindowSetLayerIOSurface) and where it goes. */
+@property (strong) WSIOSurfaceBacking *layerSurface;
+@property SLSIntRect layerRect;
+/* Where to say its layer is shown (a send right), and which setting of
+ * the layer is the last and which was last put in a frame. */
+@property mach_port_t layerNotify;
+@property uint64_t layerSerial, layerSnapshotSerial;
 @end
 
 @implementation WSWindow
@@ -63,6 +80,12 @@
 		_children = [NSMutableArray array];
 	}
 	return self;
+}
+
+- (void)dealloc
+{
+	if (_layerNotify != MACH_PORT_NULL)
+		mach_port_deallocate(mach_task_self(), _layerNotify);
 }
 
 static BOOL
@@ -620,6 +643,20 @@ wss_window_image(mach_port_t server, audit_token_t token, uint32_t window, int32
 	}
 	memcpy((void *)copy, [s lockFront], size);
 	[s unlock];
+	/* With its layer over it, as on the screen. */
+	WSIOSurfaceBacking *layer = w.layerSurface;
+	if (layer != nil) {
+		SLSIntRect r = w.layerRect;
+		pixman_image_t *to = pixman_image_create_bits(PIXMAN_a8r8g8b8, s.width, s.height,
+		    (uint32_t *)copy, s.rowBytes);
+		pixman_image_t *from = pixman_image_create_bits(PIXMAN_a8r8g8b8, layer.width,
+		    layer.height, (uint32_t *)(uintptr_t)[layer lockFront], layer.rowBytes);
+		pixman_image_composite32(PIXMAN_OP_OVER, from, NULL, to, 0, 0, 0, 0, r.x, r.y, r.width,
+		    r.height);
+		pixman_image_unref(from);
+		pixman_image_unref(to);
+		[layer unlock];
+	}
 	/* MIG sends it out of line and deallocates it here (dealloc). */
 	*pixels = (ws_pixels_t)copy;
 	*count = (mach_msg_type_number_t)size;
@@ -746,6 +783,27 @@ wss_window_list(mach_port_t server, uint32_t option, uint32_t relativeTo,
 	return KERN_SUCCESS;
 }
 
+/*
+ * A process's name, for any process: its executable's file name, else its
+ * command name. Not proc_name, whose flavor (PROC_PIDTBSDINFO) the kernel
+ * gives only for processes of the caller's own user, and the server runs
+ * as _windowserver; the path and the short BSD info are for anyone.
+ */
+static void
+ownerName(pid_t pid, char *name, size_t size)
+{
+	char path[PROC_PIDPATHINFO_MAXSIZE];
+	struct proc_bsdshortinfo info;
+
+	name[0] = '\0';
+	if (proc_pidpath(pid, path, sizeof(path)) > 0) {
+		const char *slash = strrchr(path, '/');
+		strlcpy(name, slash != NULL ? slash + 1 : path, size);
+	} else if (proc_pidinfo(pid, PROC_PIDT_SHORTBSDINFO, 0, &info, sizeof(info)) ==
+	    (int)sizeof(info))
+		strlcpy(name, info.pbsi_comm, size);
+}
+
 kern_return_t
 wss_window_info(mach_port_t server, uint32_t window, int32_t *result, SLSWindowInfo *info)
 {
@@ -768,8 +826,7 @@ wss_window_info(mach_port_t server, uint32_t window, int32_t *result, SLSWindowI
 	info->flags = (w.onScreen ? kSLSWindowOnScreen : 0) |
 	    (w.minimized ? kSLSWindowMinimized : 0) | (w.hasShadow ? kSLSWindowHasShadow : 0);
 	info->sharingState = 1;		/* kCGWindowSharingReadOnly */
-	if (proc_name(w.owner.pid, info->ownerName, sizeof(info->ownerName)) <= 0)
-		info->ownerName[0] = '\0';
+	ownerName(w.owner.pid, info->ownerName, sizeof(info->ownerName));
 	*result = kSLSErrorSuccess;
 	return KERN_SUCCESS;
 }
@@ -878,6 +935,90 @@ wss_window_commit(mach_port_t server, audit_token_t token, uint32_t window, uint
 
 /* The window shows an IOSurface of its app, or again buffers of its own
  * (surface 0). */
+/* An IOSurface of the window's app, of this size: one it showed lately
+ * again (so what the compositor took of it is kept), else looked up. */
+static WSIOSurfaceBacking *
+recentIOSurface(WSWindow *w, uint32_t surfaceID, uint32_t width, uint32_t height)
+{
+	WSIOSurfaceBacking *backing = nil;
+
+	for (WSIOSurfaceBacking *b in w.recentIOSurfaces)
+		if (b.surfaceID == surfaceID && b.width == width && b.height == height)
+			backing = b;
+	if (backing == nil)
+		backing = [[WSIOSurfaceBacking alloc] initWithSurfaceID:surfaceID width:width
+		    height:height];
+	if (backing == nil)
+		return nil;
+	if (w.recentIOSurfaces == nil)
+		w.recentIOSurfaces = [NSMutableArray array];
+	[w.recentIOSurfaces removeObjectIdenticalTo:backing];
+	[w.recentIOSurfaces addObject:backing];
+	if (w.recentIOSurfaces.count > kRecentIOSurfaces)
+		[w.recentIOSurfaces removeObjectAtIndex:0];
+	return backing;
+}
+
+/* The window's layer, in global coordinates (for damage). */
+static void
+damageLayer(WSWindow *w)
+{
+	SLSIntRect r = w.layerRect;
+
+	if (w.onScreen && w.layerSurface != nil)
+		WSDamageGlobalRect((SLSRect){ w.frame.x + r.x, w.frame.y + r.y, r.width, r.height });
+}
+
+kern_return_t
+wss_window_set_layer_iosurface(mach_port_t server, audit_token_t token, uint32_t window,
+    uint32_t surfaceID, int32_t x, int32_t y, int32_t width, int32_t height, int32_t *result)
+{
+	WSWindow *w = ownWindow(token, window, result);
+
+	if (w == nil)
+		return KERN_SUCCESS;
+	if (surfaceID == 0) {
+		damageLayer(w);
+		w.layerSurface = nil;
+		return KERN_SUCCESS;
+	}
+	/* Inside the window. */
+	if (width <= 0 || height <= 0 || x < 0 || y < 0 || x + width > ceil(w.frame.width) ||
+	    y + height > ceil(w.frame.height)) {
+		*result = kSLSErrorIllegalArgument;
+		return KERN_SUCCESS;
+	}
+	WSIOSurfaceBacking *backing = recentIOSurface(w, surfaceID, (uint32_t)width,
+	    (uint32_t)height);
+	if (backing == nil) {
+		*result = kSLSErrorIllegalArgument;	/* none, or not BGRA of that size */
+		return KERN_SUCCESS;
+	}
+	damageLayer(w);		/* where it was */
+	w.layerSurface = backing;
+	w.layerRect = (SLSIntRect){ x, y, width, height };
+	w.layerSerial++;
+	damageLayer(w);
+	return KERN_SUCCESS;
+}
+
+kern_return_t
+wss_window_set_layer_notify(mach_port_t server, audit_token_t token, uint32_t window,
+    mach_port_t notify, int32_t *result)
+{
+	WSWindow *w = ownWindow(token, window, result);
+
+	if (w == nil) {
+		if (notify != MACH_PORT_NULL)
+			mach_port_deallocate(mach_task_self(), notify);
+		return KERN_SUCCESS;
+	}
+	if (w.layerNotify != MACH_PORT_NULL)
+		mach_port_deallocate(mach_task_self(), w.layerNotify);
+	w.layerNotify = notify;
+	return KERN_SUCCESS;
+}
+
 kern_return_t
 wss_window_set_iosurface(mach_port_t server, audit_token_t token, uint32_t window,
     uint32_t surfaceID, int32_t *result)
@@ -889,11 +1030,12 @@ wss_window_set_iosurface(mach_port_t server, audit_token_t token, uint32_t windo
 	if (surfaceID == 0) {
 		if ([w.surface isKindOfClass:[WSIOSurfaceBacking class]])
 			w.surface = nil;
+		w.recentIOSurfaces = nil;
 		damageWindow(w);
 		return KERN_SUCCESS;
 	}
-	WSIOSurfaceBacking *backing = [[WSIOSurfaceBacking alloc] initWithSurfaceID:surfaceID
-	    width:(uint32_t)ceil(w.frame.width) height:(uint32_t)ceil(w.frame.height)];
+	WSIOSurfaceBacking *backing = recentIOSurface(w, surfaceID, (uint32_t)ceil(w.frame.width),
+	    (uint32_t)ceil(w.frame.height));
 	if (backing == nil) {
 		*result = kSLSErrorIllegalArgument;	/* none, or not BGRA of its size */
 		return KERN_SUCCESS;
@@ -921,6 +1063,19 @@ WSWindowSnapshot(void)
 		WSSurface *surface = w.surface;
 		item.solid = w.shield && !(surface != nil && surface.committed);
 		item.shadow = w.hasShadow && !w.shield;
+		item.layerSurface = w.layerSurface;
+		item.layerRect = w.layerRect;
+		/* A layer set since the last frame: its app hears when this one
+		 * is on the screen. */
+		if (w.layerSurface != nil && w.layerNotify != MACH_PORT_NULL &&
+		    w.layerSerial != w.layerSnapshotSerial &&
+		    mach_port_mod_refs(mach_task_self(), w.layerNotify, MACH_PORT_RIGHT_SEND, 1) ==
+		    KERN_SUCCESS) {
+			item.layerFresh = YES;
+			item.windowID = w.windowID;
+			item.layerNotify = w.layerNotify;
+			w.layerSnapshotSerial = w.layerSerial;
+		}
 		[items addObject:item];
 	}
 	return items;

@@ -14,16 +14,16 @@ typedef O2Function *O2FunctionRef;
 
 typedef struct {
     unsigned version;
-    void (*evaluate)(void *, const float *, float *);
+    void (*evaluate)(void *, const O2Float *, O2Float *);
     void (*releaseInfo)(void *);
 } O2FunctionCallbacks;
 
 @interface O2Function : NSObject {
     void *_info;
     unsigned _domainCount;
-    float *_domain;
+    O2Float *_domain;
     unsigned _rangeCount;
-    float *_range;
+    O2Float *_range;
     O2FunctionCallbacks _callbacks;
 }
 
@@ -36,9 +36,9 @@ void O2FunctionRelease(O2FunctionRef self);
 void O2FunctionEvaluate(O2FunctionRef self, O2Float in, O2Float *out);
 
 - (unsigned)domainCount;
-- (const float *)domain;
+- (const O2Float *)domain;
 - (unsigned)rangeCount;
-- (const float *)range;
+- (const O2Float *)range;
 
 - (BOOL)isLinear;
 

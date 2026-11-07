@@ -95,12 +95,14 @@ static inline void byteZero(void *vsrc,size_t size){
 
 - initConnectedToSocket: (NSSocket **)otherX
 {
-    int pipes[2];
-    if (pipe(pipes) == 0) {
-        *otherX = [[[object_getClass(self) alloc] initWithDescriptor:pipes[0]] autorelease];
-        return [self initWithDescriptor:pipes[1]];
+    /* A connected pair of sockets: read: and write: are recv(2) and
+       send(2), which fail on a pipe's ends (ENOTSOCK). */
+    int pair[2];
+    if (socketpair(AF_UNIX, SOCK_STREAM, 0, pair) == 0) {
+        *otherX = [[[object_getClass(self) alloc] initWithDescriptor:pair[0]] autorelease];
+        return [self initWithDescriptor:pair[1]];
     } else {
-        NSLog(@"NSSocket: could not create pipe: (%d) %s", errno, strerror(errno));
+        NSLog(@"NSSocket: could not create a socket pair: (%d) %s", errno, strerror(errno));
         [self release];
         return nil;
     }

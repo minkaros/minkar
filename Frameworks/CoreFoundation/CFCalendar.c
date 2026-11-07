@@ -90,6 +90,10 @@ CFTypeID CFCalendarGetTypeID(void) {
 }
 
 CF_PRIVATE UCalendar *__CFCalendarCreateUCalendar(CFStringRef calendarID, CFStringRef localeID, CFTimeZoneRef tz) {
+    /* Minkar: the ISO 8601 calendar is the Gregorian one with ISO weeks:
+     * they start on Monday, and the first has at least four days. */
+    Boolean iso8601 = calendarID && CFEqual(calendarID, kCFISO8601Calendar);
+    if (iso8601) calendarID = kCFGregorianCalendar;
     if (calendarID) {
 	CFDictionaryRef components = CFLocaleCreateComponentsFromLocaleIdentifier(kCFAllocatorSystemDefault, localeID);
 	CFMutableDictionaryRef mcomponents = CFDictionaryCreateMutableCopy(kCFAllocatorSystemDefault, 0, components);
@@ -118,6 +122,10 @@ CF_PRIVATE UCalendar *__CFCalendarCreateUCalendar(CFStringRef calendarID, CFStri
     UErrorCode status = U_ZERO_ERROR;
     UCalendar *cal = ucal_open(ubuffer, cnt, cstr, UCAL_DEFAULT, &status);
     if (calendarID) CFRelease(localeID);
+    if (cal && iso8601) {
+	ucal_setAttribute(cal, UCAL_FIRST_DAY_OF_WEEK, UCAL_MONDAY);
+	ucal_setAttribute(cal, UCAL_MINIMAL_DAYS_IN_FIRST_WEEK, 4);
+    }
     return cal;
 }
 
@@ -155,6 +163,7 @@ CFCalendarRef CFCalendarCreateWithIdentifier(CFAllocatorRef allocator, CFStringR
 	else if (CFEqual(kCFIslamicCalendar, identifier)) identifier = kCFIslamicCalendar;
 	else if (CFEqual(kCFIslamicCivilCalendar, identifier)) identifier = kCFIslamicCivilCalendar;
 	else if (CFEqual(kCFHebrewCalendar, identifier)) identifier = kCFHebrewCalendar;
+	else if (CFEqual(kCFISO8601Calendar, identifier)) identifier = kCFISO8601Calendar;
 //	else if (CFEqual(kCFChineseCalendar, identifier)) identifier = kCFChineseCalendar;
 	else return NULL;
     }

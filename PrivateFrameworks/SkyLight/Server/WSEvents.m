@@ -52,8 +52,17 @@ dispatch_queue_t WSInputQueue;
 
 /* A connection's queue holds at most this many events; more are dropped. */
 enum { kQueueLimit = 256 };
-/* Key repeat: the first after 500 ms, then every 33 ms. */
-static const uint64_t kRepeatDelay = 500000000, kRepeatInterval = 33000000;
+/* Key repeat: by default the first after 500 ms, then every 33 ms. */
+static uint64_t kRepeatDelay = 500000000, kRepeatInterval = 33000000;
+
+/* The repeat's timing (SLSSetKeyboardSettings, through WSInput). */
+void
+WSEventsSetKeyRepeat(uint64_t delayNanos, uint64_t intervalNanos)
+{
+	kRepeatDelay = delayNanos;
+	kRepeatInterval = intervalNanos;
+}
+
 /* A second click within 500 ms and 4 pixels of the first counts double. */
 static const uint64_t kClickInterval = 500000000;
 static const double kClickSlop = 4;
@@ -597,9 +606,12 @@ routeMouse(WSInputModel *m, SLSEvent *e)
 		e->clickCount = clickCount;
 		target = windowWithID(m, captureID);
 		/* A click makes its window key; not a menu bar's, a menu's or a
-		 * status item's (the menu levels and above), as on the
-		 * reference platform. */
-		if (target != nil && e->buttonNumber == 0 && target.level < kSLSMainMenuWindowLevel)
+		 * status item's (the menu levels and above), nor the Dock's or
+		 * the desktop's (the Dock level, the desktop levels): the front
+		 * app keeps its key window and menu bar, as on the reference
+		 * platform. */
+		if (target != nil && e->buttonNumber == 0 && target.level < kSLSMainMenuWindowLevel &&
+		    target.level != kSLSDockWindowLevel && target.level > kSLSDesktopIconWindowLevel)
 			makeKey(m, target);
 		/* A left click in a drag region moves the window from now on,
 		 * whether or not its app answers (it still gets this click). */

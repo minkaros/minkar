@@ -156,13 +156,16 @@ CFStringRef CFLocaleGetIdentifier(CFLocaleRef locale);
 	// Returns the locale's identifier.  This may not be the same string
 	// that the locale was created with (CFLocale may canonicalize it).
 
+/* The keys of a locale's values (a type of their own for Swift). */
+typedef CFStringRef CFLocaleKey CF_STRING_ENUM;
+
 CF_EXPORT
-CFTypeRef CFLocaleGetValue(CFLocaleRef locale, CFStringRef key);
+CFTypeRef CFLocaleGetValue(CFLocaleRef locale, CFLocaleKey key);
 	// Returns the value for the given key.  This is how settings and state
 	// are accessed via a CFLocale.  Values might be of any CF type.
 
 CF_EXPORT
-CFStringRef CFLocaleCopyDisplayNameForPropertyValue(CFLocaleRef displayLocale, CFStringRef key, CFStringRef value);
+CFStringRef CFLocaleCopyDisplayNameForPropertyValue(CFLocaleRef displayLocale, CFLocaleKey key, CFStringRef value);
 	// Returns the display name for the given value.  The key tells what
 	// the value is, and is one of the usual locale property keys, though
 	// not all locale property keys have values with display name values.
@@ -172,27 +175,27 @@ CF_EXPORT const CFStringRef kCFLocaleCurrentLocaleDidChangeNotification CF_AVAIL
 
 
 // Locale Keys
-CF_EXPORT const CFStringRef kCFLocaleIdentifier;
-CF_EXPORT const CFStringRef kCFLocaleLanguageCode;
-CF_EXPORT const CFStringRef kCFLocaleCountryCode;
-CF_EXPORT const CFStringRef kCFLocaleScriptCode;
-CF_EXPORT const CFStringRef kCFLocaleVariantCode;
+CF_EXPORT const CFLocaleKey kCFLocaleIdentifier;
+CF_EXPORT const CFLocaleKey kCFLocaleLanguageCode;
+CF_EXPORT const CFLocaleKey kCFLocaleCountryCode;
+CF_EXPORT const CFLocaleKey kCFLocaleScriptCode;
+CF_EXPORT const CFLocaleKey kCFLocaleVariantCode;
 
-CF_EXPORT const CFStringRef kCFLocaleExemplarCharacterSet;
-CF_EXPORT const CFStringRef kCFLocaleCalendarIdentifier;
-CF_EXPORT const CFStringRef kCFLocaleCalendar;
-CF_EXPORT const CFStringRef kCFLocaleCollationIdentifier;
-CF_EXPORT const CFStringRef kCFLocaleUsesMetricSystem;
-CF_EXPORT const CFStringRef kCFLocaleMeasurementSystem; // "Metric" or "U.S."
-CF_EXPORT const CFStringRef kCFLocaleDecimalSeparator;
-CF_EXPORT const CFStringRef kCFLocaleGroupingSeparator;
-CF_EXPORT const CFStringRef kCFLocaleCurrencySymbol;
-CF_EXPORT const CFStringRef kCFLocaleCurrencyCode; // ISO 3-letter currency code
-CF_EXPORT const CFStringRef kCFLocaleCollatorIdentifier CF_AVAILABLE(10_6, 4_0);
-CF_EXPORT const CFStringRef kCFLocaleQuotationBeginDelimiterKey CF_AVAILABLE(10_6, 4_0);
-CF_EXPORT const CFStringRef kCFLocaleQuotationEndDelimiterKey CF_AVAILABLE(10_6, 4_0);
-CF_EXPORT const CFStringRef kCFLocaleAlternateQuotationBeginDelimiterKey CF_AVAILABLE(10_6, 4_0);
-CF_EXPORT const CFStringRef kCFLocaleAlternateQuotationEndDelimiterKey CF_AVAILABLE(10_6, 4_0);
+CF_EXPORT const CFLocaleKey kCFLocaleExemplarCharacterSet;
+CF_EXPORT const CFLocaleKey kCFLocaleCalendarIdentifier;
+CF_EXPORT const CFLocaleKey kCFLocaleCalendar;
+CF_EXPORT const CFLocaleKey kCFLocaleCollationIdentifier;
+CF_EXPORT const CFLocaleKey kCFLocaleUsesMetricSystem;
+CF_EXPORT const CFLocaleKey kCFLocaleMeasurementSystem; // "Metric" or "U.S."
+CF_EXPORT const CFLocaleKey kCFLocaleDecimalSeparator;
+CF_EXPORT const CFLocaleKey kCFLocaleGroupingSeparator;
+CF_EXPORT const CFLocaleKey kCFLocaleCurrencySymbol;
+CF_EXPORT const CFLocaleKey kCFLocaleCurrencyCode; // ISO 3-letter currency code
+CF_EXPORT const CFLocaleKey kCFLocaleCollatorIdentifier CF_AVAILABLE(10_6, 4_0);
+CF_EXPORT const CFLocaleKey kCFLocaleQuotationBeginDelimiterKey CF_AVAILABLE(10_6, 4_0);
+CF_EXPORT const CFLocaleKey kCFLocaleQuotationEndDelimiterKey CF_AVAILABLE(10_6, 4_0);
+CF_EXPORT const CFLocaleKey kCFLocaleAlternateQuotationBeginDelimiterKey CF_AVAILABLE(10_6, 4_0);
+CF_EXPORT const CFLocaleKey kCFLocaleAlternateQuotationEndDelimiterKey CF_AVAILABLE(10_6, 4_0);
 
 // Values for kCFLocaleCalendarIdentifier
 CF_EXPORT const CFStringRef kCFGregorianCalendar;

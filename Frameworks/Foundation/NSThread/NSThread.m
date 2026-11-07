@@ -1,4 +1,5 @@
 /* Copyright (c) 2006-2007 Christopher J. W. Lloyd, 2008 Johannes Fortmann
+Modifications Copyright (c) 2026 The Minkar contributors
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
 
@@ -74,8 +75,19 @@ static NSThread* mainThread = nil;
    return self;
 }
 
+/* A block's thread (API 19): the block is kept as the argument, with no
+   target or selector. */
+- (instancetype)initWithBlock:(void (^)(void))block {
+   [self init];
+   _argument = [block copy];
+   return self;
+}
+
 - (void) main {
-	[_target performSelector: _selector withObject: _argument];
+	if (_target == nil && _selector == NULL && _argument != nil)
+		((void (^)(void))_argument)();
+	else
+		[_target performSelector: _selector withObject: _argument];
 }
 
 #ifdef WINDOWS
@@ -108,6 +120,12 @@ static void *nsThreadStartThread(void* t)
 	[pool drain];
 	
 	return 0;
+}
+
++(void)detachNewThreadWithBlock:(void (^)(void))block {
+	NSThread *newThread = [[self alloc] initWithBlock:block];
+	[newThread start];
+	[newThread release];
 }
 
 +(void)detachNewThreadSelector:(SEL)selector toTarget:target withObject:argument {
@@ -191,9 +209,31 @@ static void *nsThreadStartThread(void* t)
 -init {
    _dictionary=[NSMutableDictionary new];
    _sharedObjects=[NSMutableDictionary new];
+   _priority=0.5;
+   _qualityOfService=NSQualityOfServiceDefault;
    if(isMultiThreaded)
       _sharedObjectLock=[NSLock new];
    return self;
+}
+
+/* A thread's priority and service class, kept for when it starts (the
+ * scheduler takes the class's priority from the current thread). */
+-(double)threadPriority {
+   return _priority;
+}
+
+-(void)setThreadPriority:(double)value {
+   _priority=value;
+   if(self==[NSThread currentThread])
+    [NSThread setThreadPriority:value];
+}
+
+-(NSQualityOfService)qualityOfService {
+   return _qualityOfService;
+}
+
+-(void)setQualityOfService:(NSQualityOfService)value {
+   _qualityOfService=value;
 }
 
 - (void) dealloc {
@@ -375,6 +415,9 @@ void NSThreadSetCurrentPool(NSAutoreleasePool *pool){
     return;
    }
 	id runloop=_NSThreadSharedInstance(thread, @"NSRunLoop", NO);
+	// The main thread always has a run loop, even before it asks for it.
+	if(runloop==nil && thread==[NSThread mainThread])
+		runloop=[NSRunLoop mainRunLoop];
 	if(waitUntilDone)
 	{
 		if(thread==[NSThread currentThread])

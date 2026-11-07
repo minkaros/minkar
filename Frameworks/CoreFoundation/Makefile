@@ -9,7 +9,7 @@ HEADERS = CFArray.h CFBag.h CFBase.h CFBinaryHeap.h CFBitVector.h CFBundle.h \
 	CFDateFormatter.h CFDictionary.h CFError.h CFLocale.h CFMessagePort.h \
 	CFMachPort.h CFNumber.h CFNumberFormatter.h CFPlugIn.h CFPlugInCOM.h \
 	CFPreferences.h CFPropertyList.h CFRunLoop.h CFSet.h CFSocket.h \
-	CFStream.h CFString.h CFStringEncodingExt.h CFTimeZone.h CFTree.h \
+	CFStream.h CFString.h CFStringEncodingExt.h CFTimeZone.h CFTree.h CFNotificationCenter.h \
 	CFURL.h CFURLAccess.h CFURLEnumerator.h CFUUID.h CFUserNotification.h \
 	CFXMLNode.h CFXMLParser.h CFXPCBridge.h CFAvailability.h CFUtilities.h \
 	CoreFoundation.h
@@ -27,6 +27,7 @@ INSTALL_NAME_DIR = ${SLF}/${FRAMEWORK}.framework/Versions/${FMWK_VERSION}
 .include "MakefileVersion"
 
 SRCS = CFApplicationPreferences.c \
+	CFObjCClasses.c \
 	CFArray.c \
 	CFBag.c \
 	CFBase.c \
@@ -96,7 +97,7 @@ SRCS = CFApplicationPreferences.c \
 	CFUniChar.c \
 	CFUnicodeDecomposition.c \
 	CFUnicodePrecomposition.c \
-	CFUserNotification.c \
+	CFUserNotification.c CFNotificationCenter.c \
 	CFUtilities.c \
 	CFVersion.c \
 	CFWindowsUtilities.c \

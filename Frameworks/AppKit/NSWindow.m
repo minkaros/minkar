@@ -32,9 +32,11 @@
 
 #import <CoreGraphics/CGDirectDisplay.h>
 #import <CoreGraphics/CGWindow.h>
+#import <QuartzCore/CAMetalLayerPrivate.h>
 #import <Onyx2D/O2Surface.h>
 #import <Onyx2D/O2GraphicsState.h>
 #import <AppKit/NSWindow.h>
+#import <AppKit/NSLayoutConstraint.h>
 #import <AppKit/NSWindow-Private.h>
 #import <AppKit/NSThemeFrame.h>
 #import <AppKit/NSSheetContext.h>
@@ -824,8 +826,11 @@ NSArray *_NSWindowNumbersFromWindowInfo(CFArrayRef info,BOOL allApps) {
     [self addObserver:notes[i].name selector:notes[i].selector];
 }
 
+/* A titled window keeps 20 points on a screen, so its title bar can be
+   reached; a borderless one (the Dock, its edge, menus) stays where its
+   app puts it, as on the reference platform. */
 -(void)_makeSureIsOnAScreen {
-   if(_makeSureIsOnAScreen && [self isVisible] && ![self isMiniaturized]){
+   if(_makeSureIsOnAScreen && (_styleMask & NSTitledWindowMask) && [self isVisible] && ![self isMiniaturized]){
     NSRect   frame=_frame;
     NSArray *screens=[NSScreen screens];
     int      i,count=[screens count];
@@ -1141,16 +1146,50 @@ NSArray *_NSWindowNumbersFromWindowInfo(CFArrayRef info,BOOL allApps) {
     [_miniwindowTitle release];
     _miniwindowTitle=[title copy];
 
-    NSString *winTitle;
-    if(_isDocumentEdited)
-        winTitle=[@"* " stringByAppendingString:_title];
-    else
-        winTitle = _title;
-
-    [self _updateWSState];
+    [self _updatePlatformWindowTitle];
 
     if ([self _isApplicationWindow])
         [NSApp changeWindowsItem:self title:title filename:NO];
+    [_backgroundView setNeedsDisplay:YES];
+}
+
+-(NSWindowTitleVisibility)titleVisibility {
+    return _titleVisibility;
+}
+
+-(void)setTitleVisibility:(NSWindowTitleVisibility)visibility {
+    _titleVisibility=visibility;
+    [_backgroundView setNeedsDisplay:YES];
+}
+
+/* The title bar's background is the window's own in Atlas's look, so a
+   transparent one differs only where the content view covers it
+   (NSWindowStyleMaskFullSizeContentView); kept for what asks it. */
+-(BOOL)titlebarAppearsTransparent {
+    return _titlebarAppearsTransparent;
+}
+
+-(void)setTitlebarAppearsTransparent:(BOOL)transparent {
+    _titlebarAppearsTransparent=transparent;
+    [_backgroundView setNeedsDisplay:YES];
+}
+
+-(CGFloat)_titlebarHeight {
+    return _titlebarHeight;
+}
+
+-(void)_setTitlebarHeight:(CGFloat)height {
+    _titlebarHeight=height;
+    [_backgroundView setNeedsDisplay:YES];
+    /* The bar the window moves by is that tall too. */
+    [self _syncSkyLightDragRegion];
+}
+
+/* The title (and the edited mark, which the frame draws) to the window
+ * server and on the bar again. */
+-(void)_updatePlatformWindowTitle {
+    [self _updateWSState];
+    [_backgroundView setNeedsDisplay:YES];
 }
 
 -(void)setTitleWithRepresentedFilename:(NSString *)filename {
@@ -1972,6 +2011,8 @@ NSArray *_NSWindowNumbersFromWindowInfo(CFArrayRef info,BOOL allApps) {
                     (const SLSIntRect *)_damage, _damageCount);
             _damageCount = 0;
             _damageAll = NO;
+            /* The window's drawing may have covered its Metal layers. */
+            _CAMetalLayersWindowFlushed(slsWindowFor(_number));
         }
     }
 }
@@ -2018,6 +2059,7 @@ NSArray *_NSWindowNumbersFromWindowInfo(CFArrayRef info,BOOL allApps) {
 }
 
 -(void)displayIfNeeded {
+   [self layoutIfNeeded];
    if([self isVisible] && ![self isMiniaturized] && [self viewsNeedDisplay]){
     NSAutoreleasePool *pool=[NSAutoreleasePool new];
 
@@ -2045,6 +2087,7 @@ NSArray *_NSWindowNumbersFromWindowInfo(CFArrayRef info,BOOL allApps) {
 -(void)display {
 /* FIXME: See Issue #405, display when the window is not visible causes layout problems (maybe the underlying Win32 window doesnt exist and we're not getting resize feedback messages?), so there is a problem. The fix is to not display when we aren't visible, displayIfNeeded does this already so it makes sense. The underlying problem should be fixed too though.
  */
+   [self layoutIfNeeded];
    if([self isVisible]){
     NSAutoreleasePool *pool=[NSAutoreleasePool new];
 
@@ -2366,9 +2409,13 @@ NSArray *_NSWindowNumbersFromWindowInfo(CFArrayRef info,BOOL allApps) {
         }
 
         /* A click in a window that is not key makes it key and brings it
-         * to the front (the window server does not reorder windows). */
+         * to the front (the window server does not reorder windows). A
+         * key window comes to the front too: it may be behind another
+         * app's windows, each app keeping its own key window. */
         if(![self isKeyWindow] && [self canBecomeKeyWindow])
             [self makeKeyAndOrderFront:self];
+        else if([self isVisible])
+            [self orderFront:self];
 
         if([view acceptsFirstResponder]){
             if([view needsPanelToBecomeKey]) {
@@ -2427,6 +2474,15 @@ NSArray *_NSWindowNumbersFromWindowInfo(CFArrayRef info,BOOL allApps) {
      break;
 
     case NSKeyDown:
+     /* Return, Enter and Escape go to the window's buttons first (the
+        default button, a Cancel button), as on the reference platform:
+        a text field being edited would take them otherwise. */
+     if(!([event modifierFlags]&(NSCommandKeyMask|NSAlternateKeyMask|NSControlKeyMask))) {
+      NSString *keys=[event charactersIgnoringModifiers];
+      unichar key=[keys length] ? [keys characterAtIndex:0] : 0;
+      if((key=='\r' || key==3 || key==27) && [self performKeyEquivalent:event])
+       break;
+     }
      [_firstResponder keyDown:event];
      break;
 
@@ -2761,10 +2817,31 @@ NSArray *_NSWindowNumbersFromWindowInfo(CFArrayRef info,BOOL allApps) {
    }
 }
 
+/* Hide and unhide (NSApplication): the windows Hide took off the screen,
+ * which Unhide brings back. The menu bar and status items stay (they are
+ * not the app's windows to hide). */
+static NSMutableSet *hiddenByHide;
+
 -(void)_forcedHideForDeactivation {
+    if([self level]==NSMainMenuWindowLevel || [self level]==NSStatusWindowLevel ||
+       [self level]==NSPopUpMenuWindowLevel)
+        return;
     if([self isVisible]){
-        _hiddenForDeactivate=YES;
-        //_hiddenKeyWindow=[self isKeyWindow];
+        if(hiddenByHide==nil)
+            hiddenByHide=[NSMutableSet new];
+        [hiddenByHide addObject:[NSNumber numberWithInt:_number]];
+        /* Off the screen without orderOut: (the app would end with no
+           window visible). */
+        [self hideWindow];
+    }
+}
+
+-(void)_showAfterHide {
+    NSNumber *key=[NSNumber numberWithInt:_number];
+
+    if([hiddenByHide containsObject:key]) {
+        [hiddenByHide removeObject:key];
+        [self orderWindow:NSWindowAbove relativeTo:0];
     }
 }
 
@@ -3351,14 +3428,24 @@ static void slsCollectExcluded(NSView *view, NSSize size, SLSIntRect *rects, uin
     CGFloat top, left, bottom, right;
 
     CGNativeBorderFrameWidthsForStyle(_styleMask, &top, &left, &bottom, &right);
+    /* A full-size content view's own bar may be taller than the title
+       bar (_setTitlebarHeight:): the window moves by all of it. */
+    CGFloat bar = top;
+    if((_styleMask & NSWindowStyleMaskFullSizeContentView) && _titlebarHeight > bar)
+        bar = _titlebarHeight;
     if([self isMovable]) {
         if([self isMovableByWindowBackground]) {
             if(slsWindowRect(NSMakeRect(0, 0, size.width, size.height), size, &drag[dragCount]))
                 dragCount++;
             slsCollectExcluded(_contentView, size, exclude, &excludeCount);
         } else if(top > 0 &&
-            slsWindowRect(NSMakeRect(0, size.height - top, size.width, top), size, &drag[dragCount]))
+            slsWindowRect(NSMakeRect(0, size.height - bar, size.width, bar), size, &drag[dragCount])) {
             dragCount++;
+            /* A full-size content view's controls in the title bar take
+               their own clicks; the rest of the bar moves the window. */
+            if(_styleMask & NSWindowStyleMaskFullSizeContentView)
+                slsCollectExcluded(_contentView, size, exclude, &excludeCount);
+        }
         if(dragCount > 0 && [_backgroundView isKindOfClass:[NSThemeFrame class]] &&
            excludeCount < kSLSMaxRegionRects &&
            slsWindowRect([(NSThemeFrame *)_backgroundView _windowControlsRect], size, &exclude[excludeCount]))
@@ -3451,23 +3538,31 @@ static void slsCollectExcluded(NSView *view, NSSize size, SLSIntRect *rects, uin
 void CGNativeBorderFrameWidthsForStyle(unsigned styleMask,CGFloat *top,CGFloat *left,
                                        CGFloat *bottom,CGFloat *right);
 
+/* The content rectangle is the frame without its borders, each side's
+   (it used to subtract one border a side, so the content reached 3
+   points over the frame's top and 2 past its right). A full-size content
+   view covers the title bar: no top border then. */
 CGRect CGInsetRectForNativeWindowBorder(CGRect frame,unsigned styleMask) {
     CGFloat top, left, bottom, right;
     CGNativeBorderFrameWidthsForStyle(styleMask, &top, &left, &bottom, &right);
+    if(styleMask & NSWindowStyleMaskFullSizeContentView)
+        top=0;
     frame.origin.x += left;
     frame.origin.y += bottom;
-    frame.size.width -= right;
-    frame.size.height -= top;
+    frame.size.width -= left + right;
+    frame.size.height -= top + bottom;
     return frame;
 }
 
 CGRect CGOutsetRectForNativeWindowBorder(CGRect frame,unsigned styleMask) {
     CGFloat top, left, bottom, right;
     CGNativeBorderFrameWidthsForStyle(styleMask, &top, &left, &bottom, &right);
+    if(styleMask & NSWindowStyleMaskFullSizeContentView)
+        top=0;
     frame.origin.x -= left;
     frame.origin.y -= bottom;
-    frame.size.width += right;
-    frame.size.height += top;
+    frame.size.width += left + right;
+    frame.size.height += top + bottom;
     return frame;
 }
 

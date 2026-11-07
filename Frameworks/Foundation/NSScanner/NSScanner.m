@@ -16,6 +16,11 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <Foundation/NSZone.h>
 #include <stdio.h>
 
+#include <errno.h>
+#include <limits.h>
+#include <stdlib.h>
+#include <string.h>
+
 @implementation NSScanner
 
 +allocWithZone:(NSZone *)zone {
@@ -68,7 +73,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
     return NO;
 }
 
--(NSDictionary *)locale {
+-(id)locale {
     NSInvalidAbstractInvocation();
     return nil;
 }
@@ -81,7 +86,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
     NSInvalidAbstractInvocation();
 }
 
--(void)setLocale:(NSDictionary *)locale {
+-(void)setLocale:(id)locale {
     NSInvalidAbstractInvocation();
 }
 
@@ -157,6 +162,81 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 -(BOOL)scanUpToCharactersFromSet:(NSCharacterSet *)charset intoString:(NSString **)stringp {
     NSInvalidAbstractInvocation();
     return NO;
+}
+
+/* The characters from the scan location on, after the ones skipped. */
+-(NSString *)_restAfterSkipping {
+    NSString *string=[self string];
+    NSCharacterSet *skip=[self charactersToBeSkipped];
+    NSUInteger location=[self scanLocation],length=[string length];
+
+    while(skip!=nil && location<length && [skip characterIsMember:[string characterAtIndex:location]])
+     location++;
+    [self setScanLocation:location];
+    return [string substringFromIndex:location];
+}
+
+-(BOOL)scanUnsignedLongLong:(unsigned long long *)result {
+    NSUInteger start=[self scanLocation];
+    NSString *rest=[self _restAfterSkipping];
+    const char *chars=[rest UTF8String];
+    char *end=NULL;
+
+    if(chars==NULL || !(chars[0]>='0' && chars[0]<='9')){
+     [self setScanLocation:start];
+     return NO;
+    }
+    errno=0;
+    unsigned long long value=strtoull(chars,&end,10);
+    if(errno==ERANGE)
+     value=ULLONG_MAX;
+    if(result!=NULL)
+     *result=value;
+    [self setScanLocation:[self scanLocation]+(NSUInteger)(end-chars)];
+    return YES;
+}
+
+/* A hexadecimal floating point number: 0x1.8p3 (the 0x is optional). */
+-(BOOL)scanHexDouble:(double *)result {
+    NSUInteger start=[self scanLocation];
+    NSString *rest=[self _restAfterSkipping];
+    const char *chars=[rest UTF8String];
+    char buffer[128];
+    size_t prefix=0,n=0;
+    char *end=NULL;
+
+    if(chars==NULL){
+     [self setScanLocation:start];
+     return NO;
+    }
+    /* The sign and an optional 0x, then the digits, as strtod reads them. */
+    if(chars[0]=='+' || chars[0]=='-')
+     buffer[n++]=chars[prefix++];
+    if(chars[prefix]=='0' && (chars[prefix+1]=='x' || chars[prefix+1]=='X'))
+     prefix+=2;
+    buffer[n++]='0';
+    buffer[n++]='x';
+    strncpy(buffer+n,chars+prefix,sizeof(buffer)-n-1);
+    buffer[sizeof(buffer)-1]=0;
+    double value=strtod(buffer,&end);
+    if(end==buffer+n){
+     [self setScanLocation:start];
+     return NO;
+    }
+    if(result!=NULL)
+     *result=value;
+    [self setScanLocation:[self scanLocation]+prefix+(NSUInteger)(end-(buffer+n))];
+    return YES;
+}
+
+-(BOOL)scanHexFloat:(float *)result {
+    double value;
+
+    if(![self scanHexDouble:&value])
+     return NO;
+    if(result!=NULL)
+     *result=(float)value;
+    return YES;
 }
 
 @end

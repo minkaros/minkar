@@ -6,9 +6,8 @@
 # plan); WindowServer/Demo is its demo client. The keymap (WSKeymap and
 # libxkbcommon) lives in PrivateFrameworks/SkyLight/Keymap.
 #
-# FIXME: Dock, Filer, DMIHelper, SystemUIServer and the login window of
-# ravynOS (loginwindow/LoginWindow.m, LoadingWindow) still use the old
-# build rules and are not built yet.
+# FIXME: DMIHelper and the login window of ravynOS (loginwindow/LoginWindow.m,
+# LoadingWindow) still use the old build rules and are not built yet.
 
 SUBDIR = ../PrivateFrameworks/SkyLight/Keymap/libxkbcommon .WAIT WindowServer/Demo
 # The window server and its test client (SkyLight.framework is built
@@ -24,6 +23,21 @@ SUBDIR += launchservicesd launchservicesd/tests
 SUBDIR += loginwindow
 # The IOSurface registry (roadmap step 4).
 SUBDIR += iosurfaced ../Frameworks/IOSurface/tests
+# The pasteboard server (Phase 4).
+SUBDIR += pboard pboard/tests
+# os_log's messages kept (Phase 3).
+SUBDIR += logd
+# The file system's events for FSEvents (Atlas.md, K0).
+SUBDIR += fseventsd
+# The desktop session apps loginwindow starts (Phase 5): the Dock and
+# the desktop (Atlas.md, D1), Files, the file manager (K1), and the Menu Extras
+# (Atlas.md, MB1).
+SUBDIR += Dock Files SystemUIServer
+# Text Editor (opens plain text through LaunchServices).
+SUBDIR += TextEditor
+# System Preferences and its panes (Phase 5, item 6).
+SUBDIR += SystemPreferences SystemPreferences/Panes/Displays SystemPreferences/Panes/Dock \
+	SystemPreferences/Panes/DateTime SystemPreferences/Panes/Keyboard SystemPreferences/Panes/Network
 # The code integrity policy's test program (it needs IOKit).
 SUBDIR += ../Kernel/Extensions/MinkarCodeIntegrity/tests
 # IOHIDSystem's event queue reader, for the input tests (it needs IOKit).

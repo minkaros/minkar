@@ -929,7 +929,7 @@ void O2PDF_render_SC(O2PDFScanner *scanner,void *info) {
    O2ColorSpaceRef colorSpace=O2ColorGetColorSpace(color);
    unsigned      numberOfComponents=O2ColorSpaceGetNumberOfComponents(colorSpace);
    int           count=numberOfComponents;
-   float         components[count+1];
+   O2Float       components[count+1];
    
    components[count]=O2ColorGetAlpha(color);
    while(--count>=0)
@@ -948,7 +948,7 @@ void O2PDF_render_sc(O2PDFScanner *scanner,void *info) {
    O2ColorSpaceRef colorSpace=O2ColorGetColorSpace(color);
    unsigned      numberOfComponents=O2ColorSpaceGetNumberOfComponents(colorSpace);
    int           count=numberOfComponents;
-   float         components[count+1];
+   O2Float       components[count+1];
    
    components[count]=O2ColorGetAlpha(color);
    while(--count>=0)
@@ -967,7 +967,7 @@ void O2PDF_render_SCN(O2PDFScanner *scanner,void *info) {
    O2ColorSpaceRef colorSpace=O2ColorGetColorSpace(color);
    unsigned      numberOfComponents=O2ColorSpaceGetNumberOfComponents(colorSpace);
    int           count=numberOfComponents;
-   float         components[count+1];
+   O2Float       components[count+1];
    
    components[count]=O2ColorGetAlpha(color);
    while(--count>=0)

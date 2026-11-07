@@ -1,4 +1,6 @@
 #import "NSXMLPersistentStore.h"
+#import <Foundation/Foundation.h>
+#import "NSManagedObjectModel-Private.h"
 #import <CoreData/NSPersistentStoreCoordinator.h>
 #import <CoreData/NSEntityDescription.h>
 #import <CoreData/NSRelationshipDescription.h>
@@ -17,6 +19,33 @@
    - binary data??
  */
  
+/* A transformable attribute's value as data, through its value transformer,
+ * or a keyed archive when it names none. */
+static NSValueTransformer *transformerFor(NSAttributeDescription *attribute) {
+   NSString *name=[attribute valueTransformerName];
+
+   return [NSValueTransformer valueTransformerForName:(name!=nil)?name:NSKeyedUnarchiveFromDataTransformerName];
+}
+
+static NSData *transformedValue(NSAttributeDescription *attribute,id value) {
+   NSValueTransformer *transformer=transformerFor(attribute);
+
+   if([attribute valueTransformerName]!=nil)
+    return [transformer transformedValue:value];
+   return [NSKeyedArchiver archivedDataWithRootObject:value];
+}
+
+static id reverseTransformedValue(NSAttributeDescription *attribute,NSData *data) {
+   NSValueTransformer *transformer=transformerFor(attribute);
+
+   if(data==nil)
+    return nil;
+   if([attribute valueTransformerName]!=nil)
+    return [transformer reverseTransformedValue:data];
+   return [NSKeyedUnarchiver unarchiveObjectWithData:data];
+}
+
+
 @implementation NSXMLPersistentStore
 
 +(NSDictionary *)metadataForPersistentStoreWithURL:(NSURL *)url error:(NSError **)error {
@@ -148,7 +177,7 @@
    NSArray   *attributeElements=[entityElement elementsForName:@"attribute"];
    NSArray   *relationshipElements=[entityElement elementsForName:@"relationship"];
 
-   NSEntityDescription *entity=[[model entitiesByName] objectForKey:entityName];
+   NSEntityDescription *entity=[model _entityForStoreName:entityName];
 
    if(entity==nil){
     NSLog(@"Unable to find entity %@ in model",entityName);
@@ -193,41 +222,49 @@
       break;
       
      case NSDecimalAttributeType:
-     // decimal types not supported right now, use double
-      objectValue=[NSNumber numberWithDouble:[stringValue doubleValue]];
-//      objectValue=[NSDecimalNumber decimalNumberWithString:stringValue];
+      objectValue=[NSDecimalNumber decimalNumberWithString:stringValue];
       break;
-      
+
      case NSDoubleAttributeType:
       objectValue=[NSNumber numberWithDouble:[stringValue doubleValue]];
       break;
-      
+
      case NSFloatAttributeType:
       objectValue=[NSNumber numberWithFloat:[stringValue floatValue]];
       break;
-      
+
      case NSStringAttributeType:
       objectValue=stringValue;
       break;
-      
+
      case NSBooleanAttributeType:
       objectValue=[NSNumber numberWithBool:[stringValue intValue]];
       break;
-      
+
+     // Seconds since the reference date.
      case NSDateAttributeType:
-      objectValue=nil;
-      // we don't want to use NSCalendarDate
-   //   objectValue=[NSCalendarDate dateWithNaturalLanguageString:stringValue];
+      objectValue=[NSDate dateWithTimeIntervalSinceReferenceDate:[stringValue doubleValue]];
       break;
-      
+
      case NSBinaryDataAttributeType:
-      NSLog(@"Unhandled attribute type NSBinaryDataAttributeType");
+      objectValue=[[[NSData alloc] initWithBase64EncodedString:stringValue options:NSDataBase64DecodingIgnoreUnknownCharacters] autorelease];
       break;
-      
+
      case NSTransformableAttributeType:
-      NSLog(@"Unhandled attribute type NSTransformableAttributeType");
+      objectValue=reverseTransformedValue(description,[[[NSData alloc] initWithBase64EncodedString:stringValue options:NSDataBase64DecodingIgnoreUnknownCharacters] autorelease]);
       break;
-      
+
+     case NSUUIDAttributeType:
+      objectValue=[[[NSUUID alloc] initWithUUIDString:stringValue] autorelease];
+      break;
+
+     case NSURIAttributeType:
+      objectValue=[NSURL URLWithString:stringValue];
+      break;
+
+     default:
+      NSLog(@"Can't read attribute %@ of type %lu",name,(unsigned long)[description attributeType]);
+      break;
     }
 
     if(objectValue!=nil)
@@ -246,7 +283,7 @@
     }
     
     NSString            *destinationEntityName=[[relationship attributeForName:@"destination"] stringValue];
-    NSEntityDescription *destinationEntity=[[model entitiesByName] objectForKey:destinationEntityName];
+    NSEntityDescription *destinationEntity=[model _entityForStoreName:destinationEntityName];
     NSString            *type=[[relationship attributeForName:@"type"] stringValue];
     NSString            *idrefsString=[[relationship attributeForName:@"idrefs"] stringValue];
     NSArray             *idrefs=[idrefsString length]?[idrefsString componentsSeparatedByString:@" "]:nil;
@@ -370,20 +407,40 @@
       
      case NSDateAttributeType:
       type=@"date";
-      stringValue=[value description];
+      stringValue=[NSString stringWithFormat:@"%.17g",[value timeIntervalSinceReferenceDate]];
       break;
-      
+
      case NSBinaryDataAttributeType:
-      type=@"bin";
-      NSLog(@"Unhandled attribute type NSBinaryDataAttributeType");
+      type=@"binary";
+      stringValue=[value base64EncodedStringWithOptions:0];
       break;
-      
+
      case NSTransformableAttributeType:
-      NSLog(@"Unhandled attribute type NSTransformableAttributeType");
+      type=@"transformable";
+      stringValue=[transformedValue(attributeDescription,value) base64EncodedStringWithOptions:0];
       break;
-      
+
+     case NSUUIDAttributeType:
+      type=@"uuid";
+      stringValue=[value UUIDString];
+      break;
+
+     case NSURIAttributeType:
+      type=@"uri";
+      stringValue=[value absoluteString];
+      break;
+
+     default:
+      NSLog(@"Can't write attribute %@ of type %lu",attributeName,(unsigned long)[attributeDescription attributeType]);
+      break;
     }
-    
+
+    // No value, no element: read back, it stays nil.
+    if(value==nil || stringValue==nil){
+     [node setValue:value forKey:attributeName];
+     continue;
+    }
+
     [attributeElement setStringValue:stringValue];
     [attributeElement addAttribute:[NSXMLNode attributeWithName:@"name" stringValue:attributeName]];
     [attributeElement addAttribute:[NSXMLNode attributeWithName:@"type" stringValue:type]];

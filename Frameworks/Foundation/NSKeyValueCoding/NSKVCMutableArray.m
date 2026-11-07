@@ -17,7 +17,8 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
     proxyObject = [object retain];
 	key = [theKey retain];
-	id ukey=[key capitalizedString];
+	// The key with its first letter in capitals: insertObject:inFooBarAtIndex:
+	id ukey=[key length]?[[[key substringToIndex:1] uppercaseString] stringByAppendingString:[key substringFromIndex:1]]:key;
 
 	insertSel = NSSelectorFromString([NSString stringWithFormat:@"insertObject:in%@AtIndex:", ukey]);
 	removeSel = NSSelectorFromString([NSString stringWithFormat:@"removeObjectFrom%@AtIndex:", ukey]);

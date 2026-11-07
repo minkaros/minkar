@@ -1,0 +1,6 @@
+# XMLCoder 0.17.1 (MIT), XML through Codable, for xcbeautify's JUnit
+# reports.
+url https://github.com/MaxDesiatov/XMLCoder/archive/refs/tags/0.17.1.tar.gz
+file XMLCoder-0.17.1.tar.gz
+sha256 2eec2558bc62fdf3aaaa14b632462234c8791d22f512f516334f394aa43bdae4
+version 0.17.1

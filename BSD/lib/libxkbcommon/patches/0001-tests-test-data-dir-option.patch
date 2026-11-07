@@ -1,0 +1,33 @@
+Tests: a test-data-dir option for where the tests run
+
+The tests have the source tree's test/data built in (TEST_XKB_CONFIG_ROOT),
+in their keymaps too. With test-data-dir they use that directory instead
+(gate W0 runs the tests on the target, not where they were built).
+
+--- a/meson_options.txt	2026-11-06 20:32:33.557925500 -0500
++++ b/meson_options.txt	2026-11-06 20:32:33.565924727 -0500
+@@ -100,3 +100,9 @@
+     value: true,
+     description: 'Enable installing bash completion scripts',
+ )
++option(
++    'test-data-dir',
++    type: 'string',
++    value: '',
++    description: 'Where the tests find test/data when they run elsewhere than the source tree',
++)
+--- a/meson.build	2026-11-06 20:32:33.557925500 -0500
++++ b/meson.build	2026-11-06 20:32:33.589922411 -0500
+@@ -877,7 +877,11 @@
+ test_env.set('HAVE_XKBCLI_LIST', configh_data.get('HAVE_XKBCLI_LIST', 0).to_string())
+ 
+ test_configh_data = configuration_data()
+-test_configh_data.set_quoted('TEST_XKB_CONFIG_ROOT', meson.current_source_dir()/'test'/'data')
++test_data_dir = get_option('test-data-dir')
++if test_data_dir == ''
++    test_data_dir = meson.current_source_dir()/'test'/'data'
++endif
++test_configh_data.set_quoted('TEST_XKB_CONFIG_ROOT', test_data_dir)
+ configure_file(output: 'test-config.h', configuration: test_configh_data)
+ 
+ m_dep = cc.find_library('m', required : false)

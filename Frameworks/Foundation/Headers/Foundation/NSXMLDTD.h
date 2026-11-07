@@ -8,7 +8,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 #import <Foundation/NSXMLNode.h>
 
-@class NSXMLDTDNode, NSURL, NSData, NSMutableArray;
+@class NSXMLDTDNode, NSURL, NSData, NSMutableArray<ObjectType>;
 
 @interface NSXMLDTD : NSXMLNode {
     NSString *_publicID;

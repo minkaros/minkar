@@ -1,0 +1,19 @@
+WTF: JSCOnly on Darwin uses time zone change notifications
+
+Its CMake files build cocoa/TimeZoneCocoa.cpp on Darwin, which defines
+listenForTimeZoneChangeNotifications(), but USE(TIME_ZONE_CHANGE_
+NOTIFICATIONS) was off there, so TimeZone.cpp defined it as well and
+the two clashed when JavaScriptCore was linked.
+
+--- a/Source/WTF/wtf/PlatformUse.h	2026-11-07 01:38:18.146833697 -0500
++++ b/Source/WTF/wtf/PlatformUse.h	2026-11-07 01:38:41.580228845 -0500
+@@ -70,7 +70,8 @@
+ #define USE_GLIB 1
+ #endif
+ 
+-#if PLATFORM(COCOA) || USE(GLIB)
++/* JSCOnly on Darwin builds cocoa/TimeZoneCocoa.cpp too. */
++#if PLATFORM(COCOA) || USE(GLIB) || (defined(BUILDING_JSCONLY__) && OS(DARWIN))
+ #define USE_TIME_ZONE_CHANGE_NOTIFICATIONS 1
+ #endif
+ 

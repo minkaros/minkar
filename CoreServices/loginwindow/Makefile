@@ -8,7 +8,7 @@
 #
 # The login window of ravynOS (LoginWindow.m, DesktopWindow.m, LoginBox.m,
 # Label.m, LoadingWindow/ and Makefile.LoginWindow-app) is not built: the
-# Phase 5 login window (Gienah) is written anew.
+# Phase 5 login window (Atlas) is written anew.
 
 SUBDIR =
 MK_WERROR = no

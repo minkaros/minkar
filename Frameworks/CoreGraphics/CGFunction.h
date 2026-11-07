@@ -8,11 +8,14 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 #import <CoreGraphics/CGGeometry.h>
 
+/* CF's naming rules for what the functions return (Create, Copy). */
+CF_IMPLICIT_BRIDGING_ENABLED
+
 typedef struct O2Function *CGFunctionRef;
 
 typedef struct {
     unsigned version;
-    void (*evaluate)(void *, const float *, float *);
+    void (*evaluate)(void *, const CGFloat *, CGFloat *);
     void (*releaseInfo)(void *);
 } CGFunctionCallbacks;
 
@@ -20,3 +23,6 @@ COREGRAPHICS_EXPORT CGFunctionRef CGFunctionRetain(CGFunctionRef self);
 COREGRAPHICS_EXPORT void CGFunctionRelease(CGFunctionRef self);
 
 COREGRAPHICS_EXPORT CGFunctionRef CGFunctionCreate(void *info, size_t domainDimension, const CGFloat *domain, size_t rangeDimension, const CGFloat *range, const CGFunctionCallbacks *callbacks);
+
+
+CF_IMPLICIT_BRIDGING_DISABLED

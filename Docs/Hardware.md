@@ -13,11 +13,14 @@ tracks the list as a whole.
 | PC 2: Mac Pro 6,1 | Second physical PC (gate M1); the vendor's original hardware, to measure the reference | Boots to login from NVMe; 24 threads, display, keyboard and network work |
 | AMD PC | An AMD processor | Pending: no hardware yet (see below) |
 
+**Requirement (decided 7 Nov 2026): an x86-64 processor with AVX** (Intel from Sandy Bridge, 2011; AMD from Bulldozer and Jaguar, 2011 and 2013). Software built for the reference platform may use AVX without asking, and JavaScriptCore's JIT does, as every machine the reference system runs on has it; older processors are left to more generic operating systems. The VMs emulate an Ivy Bridge (`-cpu IvyBridge`). Under TCG, QEMU emulates AVX from 7.2 on (Ubuntu 24.04 has 8.2); with an older QEMU the VM boots, but code that uses AVX stops on an illegal instruction.
+
 ## QEMU virtual machine
 
 `q35` machine, OVMF firmware, AHCI disk, `qemu-xhci` with a USB keyboard and
-tablet, e1000e or e1000 network card; `-cpu Westmere` (with `-cpu host`
-QEMU fails on an MSR the kernel reads).
+tablet, e1000e or e1000 network card; `-cpu IvyBridge` (AVX, the
+requirement above; it was `-cpu Westmere` until 7 Nov 2026; with
+`-cpu host` QEMU fails on an MSR the kernel reads).
 
 - **TCG and KVM** (2026-10-27): the kernel read two MSRs KVM does not have
   (core/thread count, flex ratio) before it could handle a fault; under a

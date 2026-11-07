@@ -1,4 +1,5 @@
 /* Copyright (c) 2007 Christopher J. W. Lloyd
+Modifications Copyright (c) 2026 The Minkar contributors
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
 
@@ -8,6 +9,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import "NSExpression_array.h"
 #import <Foundation/NSArray.h>
 #import <Foundation/NSString.h>
+#import <Foundation/NSNull.h>
 
 @implementation NSExpression_array
 
@@ -21,14 +23,27 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 }
 
 -(NSString *)description {
-   NSMutableString *result=[NSMutableString string];
-   NSInteger        i,count=[_array count];
-   
-   [result appendString:@"{"];
-   for(i=0;i<count;i++)
-    [result appendFormat:@"%@%@",[_array objectAtIndex:i],(i+1<count)?@",":@""];
-   [result appendString:@"}"];
+   NSMutableArray *elements=[NSMutableArray array];
+
+   for(NSExpression *element in _array)
+    [elements addObject:[element description]];
+   return [NSString stringWithFormat:@"{%@}",[elements componentsJoinedByString:@", "]];
+}
+
+// An aggregate's value: the values of its expressions.
+-expressionValueWithObject:object context:(NSMutableDictionary *)context {
+   NSMutableArray *result=[NSMutableArray arrayWithCapacity:[_array count]];
+
+   for(NSExpression *element in _array){
+    id value=[element expressionValueWithObject:object context:context];
+
+    [result addObject:(value!=nil)?value:(id)[NSNull null]];
+   }
    return result;
+}
+
+-(NSArray *)collection {
+   return _array;
 }
 
 -(NSExpression *)_expressionWithSubstitutionVariables:(NSDictionary *)variables {

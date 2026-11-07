@@ -12,6 +12,8 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <Foundation/NSMapTable.h>
 #import <Foundation/NSAutoreleasePool-private.h>
 #import <Foundation/NSRaise.h>
+#import <CoreFoundation/CFCharacterSet.h>
+#include <dispatch/dispatch.h>
 
 #import "NSCharacterSet_range.h"
 #import "NSCharacterSet_bitmap.h"
@@ -188,6 +190,22 @@ static NSCharacterSet *urlSet(NSString *extra) {
 }
 +(NSCharacterSet *)URLQueryAllowedCharacterSet { return urlSet(@":@/?"); }
 +(NSCharacterSet *)URLFragmentAllowedCharacterSet { return urlSet(@":@/?"); }
+
+// The same sets for CoreFoundation's callers (Swift's CharacterSet), kept
+// for the life of the process as the reference's are.
+#define URL_SET_FUNCTION(component) \
+CF_EXPORT CFCharacterSetRef _CFURLComponentsGetURL##component##AllowedCharacterSet(void) { \
+    static NSCharacterSet *set; \
+    static dispatch_once_t once; \
+    dispatch_once(&once, ^{ set = [[NSCharacterSet URL##component##AllowedCharacterSet] retain]; }); \
+    return (CFCharacterSetRef)set; \
+}
+URL_SET_FUNCTION(User)
+URL_SET_FUNCTION(Password)
+URL_SET_FUNCTION(Host)
+URL_SET_FUNCTION(Path)
+URL_SET_FUNCTION(Query)
+URL_SET_FUNCTION(Fragment)
 
 +whitespaceCharacterSet {
     static NSString *setName = @"whitespaceCharacterSet";

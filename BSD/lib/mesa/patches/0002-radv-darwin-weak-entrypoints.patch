@@ -1,0 +1,15 @@
+RADV on Darwin: the weak entrypoints nobody defines resolve to NULL at
+load time (-undefined dynamic_lookup), as kosmickrisp links its driver.
+
+--- a/src/amd/vulkan/meson.build
++++ b/src/amd/vulkan/meson.build
+@@ -297,6 +297,9 @@
+   cpp_args : [radv_flags, cpp_msvc_compat_args],
+   link_args : [
+     ld_args_build_id, ld_args_bsymbolic, ld_args_gc_sections, vulkan_icd_link_args,
++    # Darwin: the weak entrypoints nobody defines resolve to NULL at load
++    # time, as kosmickrisp links its driver.
++    host_machine.system() == 'darwin' ? ['-Wl,-undefined,dynamic_lookup'] : [],
+   ],
+   link_depends : vulkan_icd_link_depends,
+   gnu_symbol_visibility : 'hidden',

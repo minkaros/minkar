@@ -1,6 +1,6 @@
 #import <Foundation/NSObject.h>
 
-@class NSArray, NSDictionary;
+@class NSArray<ObjectType>, NSDictionary<KeyType, ObjectType>;
 
 @interface NSOrthography : NSObject {
     NSString *_dominantScript;

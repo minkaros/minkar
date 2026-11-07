@@ -41,7 +41,7 @@ NS_ASSUME_NONNULL_BEGIN
 + (instancetype)UUID;
 
 // A new random (version 4) UUID.
-- (instancetype)init;
+- (nonnull instancetype)init;
 
 // The UUID a string names, in either case; nil if the string is not a UUID.
 - (nullable instancetype)initWithUUIDString:(NSString *)string;

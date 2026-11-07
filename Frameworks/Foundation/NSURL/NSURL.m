@@ -135,7 +135,8 @@ static BOOL consume_safe(urlScanner *scanner){
    while(more_characters(scanner)){
     unichar check=peekCharacter(scanner);
     
-    if((check=='$') || (check=='-') || (check=='_') || (check=='.') || (check=='+')){
+    // '~' is unreserved too (RFC 3986).
+    if((check=='$') || (check=='-') || (check=='_') || (check=='.') || (check=='+') || (check=='~')){
      result=YES;
      consume_next(scanner);
     }
@@ -475,13 +476,43 @@ static BOOL scanURL(urlScanner *scanner,NSURL *url){
 // Minkar: as the API makes them: "file:///a%20b/" (no "localhost"), the
 // path percent-encoded, a directory's ending with "/", and a relative path
 // taken from the current directory (it was made absolute by a "/").
+// A relative path resolved against a directory as a relative URL is (RFC
+// 3986): "." and ".." segments removed, symbolic links left as they are.
+static NSString *resolveRelativePath(NSString *directory, NSString *relative) {
+   NSMutableArray *parts = [NSMutableArray array];
+   NSString       *joined = [NSString stringWithFormat:@"%@/%@", directory, relative];
+
+   for (NSString *part in [joined componentsSeparatedByString:@"/"]) {
+    if ([part length] == 0 || [part isEqualToString:@"."])
+     continue;
+    if ([part isEqualToString:@".."]) {
+     if ([parts count] > 0)
+      [parts removeLastObject];
+     continue;
+    }
+    [parts addObject:part];
+   }
+   return [@"/" stringByAppendingString:[parts componentsJoinedByString:@"/"]];
+}
+
 -initFileURLWithPath:(NSString *)path isDirectory:(BOOL)isDirectory {
    if (path == nil)
     [NSException raise:NSInvalidArgumentException format:@"-[%@ %s] nil path",object_getClass(self),sel_getName(_cmd)];
-   if (![path hasPrefix:@"/"]) {
-    NSString *cwd = [[NSFileManager defaultManager] currentDirectoryPath];
-    path = [path length] ? [cwd stringByAppendingPathComponent:path] : cwd;
+   // A relative path is relative to the current directory, which is the
+   // URL's base: relativePath is the path as given.
+   if (![path hasPrefix:@"/"] && [path length] > 0) {
+    NSURL    *base = [[NSURL alloc] initFileURLWithPath:[[NSFileManager defaultManager] currentDirectoryPath] isDirectory:YES];
+    NSString *relative = path;
+
+    if (isDirectory && ![relative hasSuffix:@"/"])
+     relative = [relative stringByAppendingString:@"/"];
+    NSString *encoded = [relative stringByAddingPercentEncodingWithAllowedCharacters:[NSCharacterSet URLPathAllowedCharacterSet]];
+    self = [self initWithString:encoded ? encoded : relative relativeToURL:base];
+    [base release];
+    return self;
    }
+   if (![path hasPrefix:@"/"])
+    path = [[NSFileManager defaultManager] currentDirectoryPath];
    if (isDirectory && ![path hasSuffix:@"/"])
     path = [path stringByAppendingString:@"/"];
    NSString *encoded = [path stringByAddingPercentEncodingWithAllowedCharacters:[NSCharacterSet URLPathAllowedCharacterSet]];
@@ -493,7 +524,7 @@ static BOOL scanURL(urlScanner *scanner,NSURL *url){
    BOOL isDirectory = NO;
    NSString *absolute = path;
    if (path != nil && ![path hasPrefix:@"/"])
-    absolute = [[[NSFileManager defaultManager] currentDirectoryPath] stringByAppendingPathComponent:path];
+    absolute = resolveRelativePath([[NSFileManager defaultManager] currentDirectoryPath], path);
    if (path != nil && ![path hasSuffix:@"/"] &&
        ![[NSFileManager defaultManager] fileExistsAtPath:absolute isDirectory:&isDirectory])
     isDirectory = NO;
@@ -502,6 +533,49 @@ static BOOL scanURL(urlScanner *scanner,NSURL *url){
 
 -initWithString:(NSString *)string {
    return [self initWithString:string relativeToURL:nil];
+}
+
+/* The URL's string as bytes: UTF-8, else ISO Latin 1 for bytes that are
+ * not UTF-8. */
+static NSString *stringFromRepresentation(NSData *data) {
+   NSString *string=[[NSString alloc] initWithData:data encoding:NSUTF8StringEncoding];
+
+   if(string==nil)
+    string=[[NSString alloc] initWithData:data encoding:NSISOLatin1StringEncoding];
+   return [string autorelease];
+}
+
+-(instancetype)initWithDataRepresentation:(NSData *)data relativeToURL:(NSURL *)baseURL {
+   NSString *string=stringFromRepresentation(data);
+   NSURL *url;
+
+   if(string==nil)
+    string=@"";
+   url=[self initWithString:string relativeToURL:baseURL];
+   if(url==nil)
+    url=[[NSURL alloc] initWithString:[string stringByAddingPercentEscapesUsingEncoding:NSUTF8StringEncoding] relativeToURL:baseURL];
+   return url;
+}
+
+-(instancetype)initAbsoluteURLWithDataRepresentation:(NSData *)data relativeToURL:(NSURL *)baseURL {
+   NSURL *relative=[[NSURL alloc] initWithDataRepresentation:data relativeToURL:baseURL];
+   NSURL *absolute=[[relative absoluteURL] retain];
+
+   [relative release];
+   [self release];
+   return absolute;
+}
+
++(NSURL *)URLWithDataRepresentation:(NSData *)data relativeToURL:(NSURL *)baseURL {
+   return [[[self alloc] initWithDataRepresentation:data relativeToURL:baseURL] autorelease];
+}
+
++(NSURL *)absoluteURLWithDataRepresentation:(NSData *)data relativeToURL:(NSURL *)baseURL {
+   return [[[self alloc] initAbsoluteURLWithDataRepresentation:data relativeToURL:baseURL] autorelease];
+}
+
+-(NSData *)dataRepresentation {
+   return [_string dataUsingEncoding:NSUTF8StringEncoding];
 }
 
 -initWithString:(NSString *)string relativeToURL:(NSURL *)parent {
@@ -589,6 +663,19 @@ static BOOL scanURL(urlScanner *scanner,NSURL *url){
 
 // Minkar: two URLs are equal when their strings are (fields compared one
 // by one told "file:///x" made from a path from the same URL read back).
+/* Toll-free bridging: CF's URL functions take an NSURL through the CF URL
+ * this gives them (CFURL.c), with the same string and base. */
+-(CFURLRef)_cfurl {
+   CFURLRef base=(_baseURL!=nil)?[_baseURL _cfurl]:NULL;
+   CFURLRef url=CFURLCreateWithString(NULL,(CFStringRef)[self relativeString],base);
+
+   return url ? (CFURLRef)[(id)url autorelease] : NULL;
+}
+
+-(NSURL *)_nsurl {
+   return self;
+}
+
 -(NSUInteger)hash {
 	return [[self absoluteString] hash];
 }
@@ -812,8 +899,9 @@ static NSMutableString *AssembleResourceSpecifier( NSMutableString *result, NSSt
    return result;
 }
 
+// A URL made from its parts has no string of its own: its absolute one.
 -(NSString *)relativeString {
-   return _string;
+   return (_string!=nil)?_string:[self absoluteString];
 }
 
 -(NSString *)resourceSpecifier 
@@ -822,8 +910,9 @@ static NSMutableString *AssembleResourceSpecifier( NSMutableString *result, NSSt
    else return [self _buildResourceSpecifier];
 }
 
+// A relative URL is a file URL when its base is.
 -(BOOL)isFileURL {
-   return [_scheme isEqualToString:NSURLFileScheme];
+   return [[self scheme] isEqualToString:NSURLFileScheme];
 }
 
 -(NSURL *)standardizedURL {
@@ -876,6 +965,22 @@ static NSMutableString *AssembleResourceSpecifier( NSMutableString *result, NSSt
 // and percent escapes included), and keep the rest of the URL.
 - (NSURL *)_URLWithPath:(NSString *)path isDirectory:(BOOL)isDirectory
 {
+    // A relative file URL stays relative to its base when the new path is
+    // in the base's directory.
+    if ([self isFileURL] && _baseURL != nil && _scheme == nil) {
+        NSString *basePath = [[_baseURL path] stringByAppendingString:@"/"];
+
+        if ([basePath isEqualToString:@"//"])
+            basePath = @"/";
+        if ([path isEqualToString:[_baseURL path]] || [path hasPrefix:basePath]) {
+            NSString *relative = [path length] > [basePath length] ? [path substringFromIndex:[basePath length]] : @".";
+
+            if (isDirectory && ![relative hasSuffix:@"/"])
+                relative = [relative stringByAppendingString:@"/"];
+            NSString *encoded = [relative stringByAddingPercentEncodingWithAllowedCharacters:[NSCharacterSet URLPathAllowedCharacterSet]];
+            return [NSURL URLWithString:encoded ? encoded : relative relativeToURL:_baseURL];
+        }
+    }
     if ([self isFileURL])
         return [NSURL fileURLWithPath:path isDirectory:isDirectory];
 

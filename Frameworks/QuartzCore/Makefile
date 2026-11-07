@@ -11,6 +11,7 @@ SRCS= \
 	CABasicAnimation.m \
 	CALayer.m \
 	CALayerContext.m \
+	CAMetalLayer.m \
 	CAMediaTimingFunction.m \
 	CAPropertyAnimation.m \
 	CARenderer.m \
@@ -38,6 +39,8 @@ HEADERS= \
 	CABasicAnimation.h \
 	CALayer.h \
 	CALayerContext.h \
+	CAMetalLayer.h \
+	CAMetalLayerPrivate.h \
 	CAMediaTiming.h \
 	CAMediaTimingFunction.h \
 	CAPropertyAnimation.h \
@@ -65,8 +68,10 @@ HEADERS= \
 RESOURCES_FILES = Info.plist
 RESOURCES_DIRS = English.lproj
 
-CFLAGS = -I${.CURDIR:H} -fblocks
-LDFLAGS = -framework OpenGL -framework Onyx2D -framework CoreGraphics \
+CFLAGS = -I${.CURDIR:H} -fblocks -F${MINKAR_SDKROOT}/System/Library/PrivateFrameworks
+LDFLAGS = -framework IOSurface \
+	-F${MINKAR_SDKROOT}/System/Library/PrivateFrameworks -framework SkyLight \
+	-framework OpenGL -framework Onyx2D -framework CoreGraphics \
 	-framework Foundation -framework CoreFoundation -lobjc
 
 fmwk-install-hook:

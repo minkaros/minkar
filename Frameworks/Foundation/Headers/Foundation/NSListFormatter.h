@@ -31,10 +31,14 @@
 
 @class NSLocale;
 
+NS_ASSUME_NONNULL_BEGIN
+
 @interface NSListFormatter : NSFormatter
-@property (copy) NSLocale *locale;
-@property (copy) NSFormatter *itemFormatter;
+@property (null_resettable, copy) NSLocale *locale;
+@property (nullable, copy) NSFormatter *itemFormatter;
 + (NSString *)localizedStringByJoiningStrings:(NSArray<NSString *> *)strings;
-- (NSString *)stringFromItems:(NSArray *)items;
-- (NSString *)stringForObjectValue:(id)obj;
+- (nullable NSString *)stringFromItems:(NSArray *)items;
+- (nullable NSString *)stringForObjectValue:(nullable id)obj;
 @end
+
+NS_ASSUME_NONNULL_END

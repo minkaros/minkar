@@ -100,6 +100,9 @@ extern const CFStringRef kCGDisplayStreamYCbCrMatrix_SMPTE_240M_1995;
 typedef struct CGDisplayStream *CGDisplayStreamRef;
 typedef struct CGDisplayStreamUpdate *CGDisplayStreamUpdateRef;
 #include <IOSurface/IOSurfaceRef.h>
+
+/* CF's naming rules for what the functions return (Create, Copy). */
+CF_IMPLICIT_BRIDGING_ENABLED
 #if __BLOCKS__
 typedef void (^CGDisplayStreamFrameAvailableHandler)(CGDisplayStreamFrameStatus status,
         uint64_t displayTime, IOSurfaceRef frameSurface, CGDisplayStreamUpdateRef updateRef);
@@ -270,3 +273,6 @@ COREGRAPHICS_EXPORT CFTypeID CGDisplayStreamGetTypeID(void);
 COREGRAPHICS_EXPORT CFTypeID CGDisplayStreamUpdateGetTypeID(void);
 
 
+
+
+CF_IMPLICIT_BRIDGING_DISABLED

@@ -46,6 +46,7 @@ NSString * const NSRunLoopCommonModes=@"kCFRunLoopCommonModes";
    _currentMode=NSDefaultRunLoopMode;
    _continue=[[NSMutableArray alloc] init];
    _orderedPerforms=[NSMutableArray new];
+   _cfRunLoop=[NSThread isMainThread]?CFRunLoopGetMain():CFRunLoopGetCurrent();
 
    if((parentDeath=[[NSPlatform currentPlatform] parentDeathInputSource])!=nil)
     [self addInputSource:parentDeath forMode:NSDefaultRunLoopMode];
@@ -152,8 +153,12 @@ NSString * const NSRunLoopCommonModes=@"kCFRunLoopCommonModes";
    return _currentMode;
 }
 
+/* Minkar: the CFRunLoop of the thread this run loop belongs to (this
+ * NSRunLoop is not one: CFRunLoopStop read it as CF's structure). */
 - (CFRunLoopRef)getCFRunLoop {
-	return (CFRunLoopRef)self;
+   if(self==[NSRunLoop mainRunLoop])
+      return CFRunLoopGetMain();
+   return (CFRunLoopRef)_cfRunLoop;
 }
 
 -(void)_wakeUp {
@@ -323,6 +328,20 @@ NSString * const NSRunLoopCommonModes=@"kCFRunLoopCommonModes";
 		[_orderedPerforms insertObject:perform atIndex:count+1];
 	}
    [self _wakeUp];
+}
+
+-(void)_runBlock:(void (^)(void))block {
+   block();
+}
+
+-(void)performInModes:(NSArray *)modes block:(void (^)(void))block {
+   id copy=[[block copy] autorelease];
+
+   [self performSelector:@selector(_runBlock:) target:self argument:copy order:0 modes:modes];
+}
+
+-(void)performBlock:(void (^)(void))block {
+   [self performInModes:[NSArray arrayWithObject:NSRunLoopCommonModes] block:block];
 }
 
 -(void)cancelPerformSelector:(SEL)selector target:target argument:argument {

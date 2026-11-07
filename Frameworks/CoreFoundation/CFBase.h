@@ -90,6 +90,13 @@
     #include <libkern/OSTypes.h>
   #endif
 
+/* Minkar: the classic types (Boolean, UInt32...) from <MacTypes.h>, as the
+ * reference SDK has them: in Darwin's module, where Swift's importer
+ * recognizes Boolean (a Bool to Swift). */
+#if defined(__APPLE__) && defined(__MACH__) && !defined(__MACTYPES__)
+#include <MacTypes.h>
+#endif
+
 #if !defined(__MACTYPES__)
 #if !defined(_OS_OSTYPES_H)
     typedef unsigned char           Boolean;
@@ -197,12 +204,11 @@ CF_EXTERN_C_BEGIN
 #endif
 
 #ifndef CF_SWIFT_NAME
-#define CF_SWIFT_NAME(_name)
+#define CF_SWIFT_NAME(_name) __attribute__((swift_name(#_name)))
 #endif
 
-/* No Swift here: an API Swift should not see is just declared. */
 #ifndef CF_SWIFT_UNAVAILABLE
-#define CF_SWIFT_UNAVAILABLE(_msg)
+#define CF_SWIFT_UNAVAILABLE(_msg) __attribute__((availability(swift, unavailable, message=_msg)))
 #endif
 
 #define CF_OPEN_ENUM(_type, _name) \

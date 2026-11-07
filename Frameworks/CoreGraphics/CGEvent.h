@@ -25,6 +25,9 @@
 #import <CoreGraphics/CoreGraphicsExport.h>
 #import <CoreGraphics/CGError.h>
 
+/* CF's naming rules for what the functions return (Create, Copy). */
+CF_IMPLICIT_BRIDGING_ENABLED
+
 #define CGEventMaskBit(eventType) ((CGEventMask)1 << (eventType))
 #define kCGAnyInputEventType (~(CGEventType)0)
 #define kCGEventMaskForAllEvents (~(CGEventMask)0)
@@ -295,3 +298,6 @@ COREGRAPHICS_EXPORT CFTimeInterval CGEventSourceGetLocalEventsSuppressionInterva
 COREGRAPHICS_EXPORT void CGEventSourceSetLocalEventsSuppressionInterval(CGEventSourceRef source, CFTimeInterval seconds);
 COREGRAPHICS_EXPORT double CGEventSourceGetPixelsPerLine(CGEventSourceRef source);
 COREGRAPHICS_EXPORT void CGEventSourceSetPixelsPerLine(CGEventSourceRef source, double pixelsPerLine);
+
+
+CF_IMPLICIT_BRIDGING_DISABLED

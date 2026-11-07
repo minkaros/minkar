@@ -9,10 +9,12 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 #import <Foundation/NSArray.h>
 
+NS_ASSUME_NONNULL_BEGIN
+
 @interface NSMutableArray<ObjectType> : NSArray<ObjectType>
 
-- initWithCapacity:(NSUInteger)capacity;
-+ arrayWithCapacity:(NSUInteger)capacity;
+- (instancetype)initWithCapacity:(NSUInteger)capacity;
++ (instancetype)arrayWithCapacity:(NSUInteger)capacity;
 
 - (void)addObject:(ObjectType)object;
 - (void)addObjectsFromArray:(NSArray<ObjectType> *)array;
@@ -40,7 +42,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 - (void)exchangeObjectAtIndex:(NSUInteger)index withObjectAtIndex:(NSUInteger)other;
 
 - (void)sortUsingSelector:(SEL)selector;
-- (void)sortUsingFunction:(NSComparisonResult (*)(ObjectType, ObjectType, void *))compare context:(void *)context;
+- (void)sortUsingFunction:(NSComparisonResult (*)(ObjectType, ObjectType, void *))compare context:(nullable void *)context;
 
 - (void)sortUsingDescriptors:(NSArray *)descriptors;
 - (void)filterUsingPredicate:(NSPredicate *)predicate;
@@ -58,3 +60,11 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 // (macOS 10.8).
 - (void)setObject:(ObjectType)object atIndexedSubscript:(NSUInteger)index;
 @end
+
+@class NSOrderedCollectionDifference<ObjectType>;
+
+@interface NSMutableArray<ObjectType> (NSMutableArrayDiffing)
+- (void)applyDifference:(NSOrderedCollectionDifference<ObjectType> *)difference;
+@end
+
+NS_ASSUME_NONNULL_END

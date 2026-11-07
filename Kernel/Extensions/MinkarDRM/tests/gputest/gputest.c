@@ -66,6 +66,11 @@
  *					write to an address it does not map
  *					faults and leaves another buffer
  *					alone; unmapped, the address faults
+ *   minkar-gputest [-g GPU] -k		a compute dispatch: one wave of a
+ *					shader that stores a word through a
+ *					buffer descriptor, run from the
+ *					kernel's space and from the client's
+ *					(administrators)
  *   minkar-gputest [-g GPU] -p		whether the hardware keeps a client's
  *					command buffer (in its own space)
  *					from writing registers: a scratch
@@ -114,7 +119,7 @@ pattern(uint64_t i)
 	return (uint32_t)(i * 2654435761u) ^ 0xa5a5a5a5u;
 }
 
-extern uint32_t IOSurfaceGetMinkarGPUBuffer(IOSurfaceRef buffer);
+extern uint64_t IOSurfaceGetMinkarGPUBuffer(IOSurfaceRef buffer);
 
 /* The VRAM free on the GPU IOSurface uses, through a client of our own. */
 static uint64_t
@@ -197,8 +202,9 @@ surfaceInVRAM(const char *self, unsigned childID, int childFD)
 	CFDictionarySetValue(props, CFSTR("IOSurfaceMinkarGPUMemory"), kCFBooleanTrue);
 	IOSurfaceRef s = IOSurfaceCreate(props);
 	CFRelease(props);
-	uint32_t buffer = s ? IOSurfaceGetMinkarGPUBuffer(s) : 0;
-	snprintf(detail, sizeof(detail), "surface %u, GPU buffer %u", s ? IOSurfaceGetID(s) : 0, buffer);
+	uint64_t buffer = s ? IOSurfaceGetMinkarGPUBuffer(s) : 0;
+	snprintf(detail, sizeof(detail), "surface %u, GPU buffer 0x%016llx", s ? IOSurfaceGetID(s) : 0,
+	    (unsigned long long)buffer);
 	check(s != NULL && buffer != 0 && IOSurfaceGetID(s) != 0, "make an IOSurface in VRAM", detail);
 	if (s == NULL || buffer == 0)
 		return failures;
@@ -242,17 +248,80 @@ surfaceInVRAM(const char *self, unsigned childID, int childFD)
 	return failures;
 }
 
+/*
+ * A compute dispatch, as a client driver makes one: the shader at base +
+ * 4 KB (GCN 1.0 code: each thread stores s4 at its index through the
+ * descriptor in s[0:3]; wait; end), its descriptor over base + 8 KB, one wave of 64
+ * threads, then a partial flush and the caches written back. Returns the
+ * command buffer's dwords; the shader goes in code.
+ */
+static const uint32_t kComputeShader[] = {
+	0x7E020204,		/* v_mov_b32 v1, s4 */
+	0x34000082,		/* v_lshlrev_b32 v0, 2, v0 (the thread's index, in bytes) */
+	0xE0701000, 0x80000100,	/* buffer_store_dword v1, v0, s[0:3], 0 offen */
+	0xBF8C0000,		/* s_waitcnt 0 */
+	0xBF810000,		/* s_endpgm */
+};
+
+static unsigned
+computeCommands(uint32_t *ib, uint64_t base, uint32_t value)
+{
+	const uint64_t code = base + 4096, data = base + 8192;
+	unsigned k = 0;
+#define SH(reg, n) ib[k++] = SI_PACKET3(0x76, n); ib[k++] = (reg) - 0x2c00
+	SH(0x2e16, 2);			/* COMPUTE_STATIC_THREAD_MGMT_SE0, SE1: every CU */
+	ib[k++] = 0xffffffff;
+	ib[k++] = 0xffffffff;
+	SH(0x2e0c, 2);			/* COMPUTE_PGM_LO, HI */
+	ib[k++] = (uint32_t)(code >> 8);
+	ib[k++] = (uint32_t)(code >> 40);
+	SH(0x2e12, 2);			/* COMPUTE_PGM_RSRC1: 4 VGPRs, 16 SGPRs; RSRC2: 5 user SGPRs */
+	ib[k++] = 0x00000040;
+	ib[k++] = 5u << 1;
+	SH(0x2e15, 1);			/* COMPUTE_RESOURCE_LIMITS */
+	ib[k++] = 0;
+	SH(0x2e18, 1);			/* COMPUTE_TMPRING_SIZE */
+	ib[k++] = 0;
+	SH(0x2e04, 6);			/* COMPUTE_START_X..Z, COMPUTE_NUM_THREAD_X..Z */
+	ib[k++] = 0;
+	ib[k++] = 0;
+	ib[k++] = 0;
+	ib[k++] = 64;
+	ib[k++] = 1;
+	ib[k++] = 1;
+	SH(0x2e40, 5);			/* COMPUTE_USER_DATA_0..4: the descriptor, the value */
+	ib[k++] = (uint32_t)data;
+	ib[k++] = (uint32_t)(data >> 32) & 0xffff;	/* stride 0 */
+	ib[k++] = 4096;					/* bytes */
+	ib[k++] = 4 | 5 << 3 | 6 << 6 | 7 << 9 | 7 << 12 | 4 << 15;	/* x y z w, float, 32 */
+	ib[k++] = value;
+#undef SH
+	ib[k++] = SI_PACKET3(0x15, 3) | 2;	/* DISPATCH_DIRECT (compute) 1, 1, 1; COMPUTE_SHADER_EN */
+	ib[k++] = 1;
+	ib[k++] = 1;
+	ib[k++] = 1;
+	ib[k++] = 1;
+	ib[k++] = SI_PACKET3(0x46, 0);	/* EVENT_WRITE: CS_PARTIAL_FLUSH */
+	ib[k++] = 7 | 4 << 8;
+	ib[k++] = SI_PACKET3(kSIPacket3SurfaceSync, 3);	/* TC L1 and L2, K cache */
+	ib[k++] = 1u << 22 | 1u << 23 | 1u << 27;
+	ib[k++] = 0xffffffff;
+	ib[k++] = 0;
+	ib[k++] = 10;
+	return k;
+}
+
 int
 main(int argc, char **argv)
 {
 	unsigned gpu = 0, megabytes = 8;
-	int list = 0, entry = 0, vram = 0, gfx = 0, vm = 0, priv = 0, c;
+	int list = 0, entry = 0, vram = 0, gfx = 0, vm = 0, priv = 0, compute = 0, c;
 	unsigned childID = 0;
 	int childFD = -1;
 	const char *regs = NULL, *auxSpec = NULL, *i2cSpec = NULL, *modeSpec = NULL, *writes = NULL;
 	char detail[256];
 
-	while ((c = getopt(argc, argv, "g:m:lr:evV:F:a:i:s:cupw:")) != -1)
+	while ((c = getopt(argc, argv, "g:m:lr:evV:F:a:i:s:cupkw:")) != -1)
 		switch (c) {
 		case 'g': gpu = (unsigned)strtoul(optarg, NULL, 0); break;
 		case 'm': megabytes = (unsigned)strtoul(optarg, NULL, 0); break;
@@ -265,6 +334,7 @@ main(int argc, char **argv)
 		case 'c': gfx = 1; break;
 		case 'u': vm = 1; break;
 		case 'p': priv = 1; break;
+		case 'k': compute = 1; break;
 		case 'w': writes = optarg; break;
 		case 'v': vram = 1; break;
 		case 'V': childID = (unsigned)strtoul(optarg, NULL, 0); break;
@@ -436,6 +506,63 @@ main(int argc, char **argv)
 		IOServiceClose(conn);
 		return failures;
 	}
+	if (compute) {
+		/* One VRAM buffer: the command buffer, the shader, the data. Run
+		 * from the kernel's space (its address in the GPU's) and from the
+		 * client's (mapped at 1 MB). */
+		uint64_t in = 1 << 20, h, gpu, va = 1 << 20;
+		n = 2;
+		kr = IOConnectCallScalarMethod(conn, kMinkarAMDGPUCreateBuffer, &in, 1, out, &n);
+		h = out[0];
+		gpu = out[1];
+		mach_vm_address_t a = 0;
+		mach_vm_size_t as = 0;
+		if (kr == KERN_SUCCESS)
+			kr = IOConnectMapMemory64(conn, (uint32_t)h, mach_task_self(), &a, &as, kIOMapAnywhere);
+		uint64_t min[4] = { h, va, 0, 0 };
+		if (kr == KERN_SUCCESS)
+			kr = IOConnectCallScalarMethod(conn, kMinkarAMDGPUMapBuffer, min, 4, NULL, NULL);
+		check(kr == KERN_SUCCESS, "a buffer, also in the client's space", "");
+		if (kr != KERN_SUCCESS)
+			return failures;
+		volatile uint32_t *p = (volatile uint32_t *)(uintptr_t)a;
+		for (unsigned i = 0; i < sizeof(kComputeShader) / 4; i++)
+			p[1024 + i] = kComputeShader[i];
+		for (unsigned pass = 0; pass < 2; pass++) {
+			const uint32_t value = pass == 0 ? 0xC0DE0001 : 0xC0DE0002;
+			uint32_t ib[128];
+			for (unsigned i = 0; i < 64; i++)
+				p[2048 + i] = 0;
+			unsigned k = computeCommands(ib, pass == 0 ? gpu : va, value);
+			for (unsigned i = 0; i < k; i++)
+				p[i] = ib[i];
+			__sync_synchronize();
+			uint64_t fault = 0, ns = 0;
+			if (pass == 0) {
+				uint64_t kin[3] = { h, 0, k };
+				uint32_t sn = 1;
+				kr = IOConnectCallScalarMethod(conn, kMinkarAMDGPUSubmitGFX, kin, 3, &ns, &sn);
+			} else {
+				uint64_t sin[2] = { va, k }, sout[2] = { 0, 0 };
+				uint32_t sn = 2;
+				kr = IOConnectCallScalarMethod(conn, kMinkarAMDGPUSubmitGFXVM, sin, 2, sout, &sn);
+				fault = sout[1];
+			}
+			unsigned good = 0;
+			for (unsigned i = 0; i < 64; i++)
+				good += p[2048 + i] == value;
+			snprintf(detail, sizeof(detail), "0x%x, fault 0x%llx, %u of 64 words; first 0x%08x", kr,
+			    (unsigned long long)fault, good, p[2048]);
+			check(kr == KERN_SUCCESS && good == 64,
+			    pass == 0 ? "a compute wave from the kernel's space" : "a compute wave from the client's",
+			    detail);
+		}
+		IOConnectCallScalarMethod(conn, kMinkarAMDGPUUnmapBuffer, &min[1], 1, NULL, NULL);
+		IOConnectUnmapMemory64(conn, (uint32_t)h, mach_task_self(), a);
+		IOConnectCallScalarMethod(conn, kMinkarAMDGPUDestroyBuffer, &h, 1, NULL, NULL);
+		IOServiceClose(conn);
+		return failures;
+	}
 	if (priv) {
 		/* One VRAM buffer, mapped at 1 MB of the client's space; its
 		 * command buffers try two registers. */
@@ -450,9 +577,9 @@ main(int argc, char **argv)
 		mach_vm_size_t as = 0;
 		if (kr == KERN_SUCCESS)
 			kr = IOConnectMapMemory64(conn, (uint32_t)h, mach_task_self(), &a, &as, kIOMapAnywhere);
-		uint64_t min[2] = { h, va };
+		uint64_t min[4] = { h, va, 0, 0 };
 		if (kr == KERN_SUCCESS)
-			kr = IOConnectCallScalarMethod(conn, kMinkarAMDGPUMapBuffer, min, 2, NULL, NULL);
+			kr = IOConnectCallScalarMethod(conn, kMinkarAMDGPUMapBuffer, min, 4, NULL, NULL);
 		check(kr == KERN_SUCCESS, "a buffer in the client's space", "");
 		if (kr != KERN_SUCCESS)
 			return failures;
@@ -548,12 +675,12 @@ main(int argc, char **argv)
 		volatile uint32_t *pa = (volatile uint32_t *)(uintptr_t)a;
 		volatile uint32_t *pb = (volatile uint32_t *)(uintptr_t)b;
 		const uint64_t va = 1 << 20;
-		uint64_t min[2] = { ha, va };
-		kr = IOConnectCallScalarMethod(conn, kMinkarAMDGPUMapBuffer, min, 2, NULL, NULL);
+		uint64_t min[4] = { ha, va, 0, 0 };
+		kr = IOConnectCallScalarMethod(conn, kMinkarAMDGPUMapBuffer, min, 4, NULL, NULL);
 		snprintf(detail, sizeof(detail), "0x%x", kr);
 		check(kr == KERN_SUCCESS, "map A at 1 MB of the client's GPU address space", detail);
-		uint64_t overlap[2] = { hb, va + 4096 };
-		kr = IOConnectCallScalarMethod(conn, kMinkarAMDGPUMapBuffer, overlap, 2, NULL, NULL);
+		uint64_t overlap[4] = { hb, va + 4096, 0, 0 };
+		kr = IOConnectCallScalarMethod(conn, kMinkarAMDGPUMapBuffer, overlap, 4, NULL, NULL);
 		check(kr != KERN_SUCCESS, "B over A's range is refused", "");
 
 		/* In A: an indirect buffer that writes 4 words at va + 4 KB. */
@@ -600,11 +727,11 @@ main(int argc, char **argv)
 		hi = out[0];
 		snprintf(detail, sizeof(detail), "0x%x", kr);
 		check(kr == KERN_SUCCESS, "a system buffer and the client's own memory, imported", detail);
-		uint64_t ms[2] = { hs, 16ull << 20 }, mi[2] = { hi, 32ull << 20 };
+		uint64_t ms[4] = { hs, 16ull << 20, 0, 0 }, mi[4] = { hi, 32ull << 20, 0, 0 };
 		if (kr == KERN_SUCCESS)
-			kr = IOConnectCallScalarMethod(conn, kMinkarAMDGPUMapBuffer, ms, 2, NULL, NULL);
+			kr = IOConnectCallScalarMethod(conn, kMinkarAMDGPUMapBuffer, ms, 4, NULL, NULL);
 		if (kr == KERN_SUCCESS)
-			kr = IOConnectCallScalarMethod(conn, kMinkarAMDGPUMapBuffer, mi, 2, NULL, NULL);
+			kr = IOConnectCallScalarMethod(conn, kMinkarAMDGPUMapBuffer, mi, 4, NULL, NULL);
 		snprintf(detail, sizeof(detail), "0x%x", kr);
 		check(kr == KERN_SUCCESS, "both mapped in the client's space, at 16 MB and 32 MB", detail);
 		if (kr == KERN_SUCCESS) {

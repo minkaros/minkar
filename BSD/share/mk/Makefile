@@ -14,6 +14,7 @@ PACKAGE= bmake
 FILES=	\
 	auto.obj.mk \
 	minkar.app.mk \
+	minkar.bundle.mk \
 	minkar.framework.mk \
 	minkar.kext.mk \
 	bsd.README \

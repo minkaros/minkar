@@ -8,7 +8,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 #import <Foundation/NSObject.h>
 
-@class NSArray, NSEnumerator;
+@class NSArray<ObjectType>, NSEnumerator;
 
 @interface NSPersistantDomain : NSObject
 

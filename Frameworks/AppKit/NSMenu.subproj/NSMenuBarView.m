@@ -195,10 +195,10 @@ SOFTWARE. */
                 }
 
                 if([item hasSubmenu] && [[[item submenu] _name] isEqualToString:@"NSAppleMenu"]) 
-                    [[self graphicsStyle] drawAttributedMenuItemText:[item attributedTitle]
+                    [[self graphicsStyle] drawAttributedMenuBarItemText:[item attributedTitle]
                         inRect:titleRect enabled:YES selected:(i==_selectedItemIndex)];
                 else
-                    [[self graphicsStyle] drawMenuItemText:title inRect:titleRect
+                    [[self graphicsStyle] drawMenuBarItemText:title inRect:titleRect
                         enabled:YES selected:(i==_selectedItemIndex)];
 		
 		previousBorderRect=borderRect;

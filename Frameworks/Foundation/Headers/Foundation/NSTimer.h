@@ -8,46 +8,33 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 #import <Foundation/NSDate.h>
 
+@class NSInvocation;
+
+NS_ASSUME_NONNULL_BEGIN
+
 @interface NSTimer : NSObject
 
-- initWithFireDate:(NSDate *)date interval:(NSTimeInterval)interval target:target selector:(SEL)selector userInfo:userInfo repeats:(BOOL)repeats;
-
-+ (NSTimer *)timerWithTimeInterval:(NSTimeInterval)timeInterval
-                        invocation:(NSInvocation *)invocation
-                           repeats:(BOOL)repeats;
-
-+ (NSTimer *)timerWithTimeInterval:(NSTimeInterval)timeInterval
-                            target:target
-                          selector:(SEL)selector
-                          userInfo:userInfo
-                           repeats:(BOOL)repeats;
-
-+ (NSTimer *)scheduledTimerWithTimeInterval:(NSTimeInterval)timeInterval
-                                 invocation:(NSInvocation *)invocation
-                                    repeats:(BOOL)repeats;
-
-+ (NSTimer *)scheduledTimerWithTimeInterval:(NSTimeInterval)timeInterval
-                                     target:target
-                                   selector:(SEL)selector
-                                   userInfo:userInfo
-                                    repeats:(BOOL)repeats;
-
++ (NSTimer *)timerWithTimeInterval:(NSTimeInterval)ti invocation:(NSInvocation *)invocation repeats:(BOOL)yesOrNo;
++ (NSTimer *)scheduledTimerWithTimeInterval:(NSTimeInterval)ti invocation:(NSInvocation *)invocation repeats:(BOOL)yesOrNo;
++ (NSTimer *)timerWithTimeInterval:(NSTimeInterval)ti target:(id)aTarget selector:(SEL)aSelector userInfo:(nullable id)userInfo repeats:(BOOL)yesOrNo;
++ (NSTimer *)scheduledTimerWithTimeInterval:(NSTimeInterval)ti target:(id)aTarget selector:(SEL)aSelector userInfo:(nullable id)userInfo repeats:(BOOL)yesOrNo;
 + (NSTimer *)timerWithTimeInterval:(NSTimeInterval)interval repeats:(BOOL)repeats block:(void (^)(NSTimer *timer))block;
 + (NSTimer *)scheduledTimerWithTimeInterval:(NSTimeInterval)interval repeats:(BOOL)repeats block:(void (^)(NSTimer *timer))block;
+
 - (instancetype)initWithFireDate:(NSDate *)date interval:(NSTimeInterval)interval repeats:(BOOL)repeats block:(void (^)(NSTimer *timer))block;
-@property NSTimeInterval tolerance;
-
-- (NSDate *)fireDate;
-
-- (NSTimeInterval)timeInterval;
-
-- userInfo;
-
-- (void)setFireDate:(NSDate *)date;
+- (instancetype)initWithFireDate:(NSDate *)date interval:(NSTimeInterval)ti target:(id)t selector:(SEL)s userInfo:(nullable id)ui repeats:(BOOL)rep;
 
 - (void)fire;
 
+@property (copy) NSDate *fireDate;
+@property (readonly) NSTimeInterval timeInterval;
+@property NSTimeInterval tolerance;
+
 - (void)invalidate;
-- (BOOL)isValid;
+@property (readonly, getter=isValid) BOOL valid;
+
+@property (nullable, readonly, retain) id userInfo;
 
 @end
+
+NS_ASSUME_NONNULL_END

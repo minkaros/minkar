@@ -1,0 +1,7 @@
+# XCTest from swift-corelibs-xctest (Apache-2.0 with the Runtime Library
+# Exception), at the release tag of the toolchain's Swift: its XCTest
+# module (Sources/XCTest) is built as XCTest.framework.
+url https://github.com/swiftlang/swift-corelibs-xctest/archive/refs/tags/swift-6.0-RELEASE.tar.gz
+file swift-corelibs-xctest-swift-6.0-RELEASE.tar.gz
+sha256 174bb6b8a0e9d0408084739e6b7933b9c43ad95547050828a256446d4b2bca36
+version 6.0

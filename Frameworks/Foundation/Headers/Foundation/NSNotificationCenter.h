@@ -8,26 +8,28 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 #import <Foundation/NSNotification.h>
 
-@class NSMutableDictionary, NSNotification, NSOperationQueue;
+@class NSMutableDictionary<KeyType, ObjectType>, NSNotification, NSOperationQueue;
+
+NS_ASSUME_NONNULL_BEGIN
 
 @interface NSNotificationCenter : NSObject {
     NSMutableDictionary *_nameToRegistry;
     id _noNameRegistry;
 }
 
-+ (NSNotificationCenter *)defaultCenter;
+@property (class, readonly, strong) NSNotificationCenter *defaultCenter;
 
-- (void)addObserver:observer selector:(SEL)selector name:(NSString *)name object:object;
+- (void)addObserver:(id)observer selector:(SEL)aSelector name:(nullable NSNotificationName)aName object:(nullable id)anObject;
 
-- (id)addObserverForName:(NSString *)name object:object queue:(NSOperationQueue *)queue usingBlock:(void (^)(NSNotification *note))block;
+- (void)postNotification:(NSNotification *)notification;
+- (void)postNotificationName:(NSNotificationName)aName object:(nullable id)anObject;
+- (void)postNotificationName:(NSNotificationName)aName object:(nullable id)anObject userInfo:(nullable NSDictionary *)aUserInfo;
 
-- (void)removeObserver:observer;
-- (void)removeObserver:observer name:(NSString *)name object:object;
+- (void)removeObserver:(id)observer;
+- (void)removeObserver:(id)observer name:(nullable NSNotificationName)aName object:(nullable id)anObject;
 
-- (void)postNotification:(NSNotification *)note;
-
-- (void)postNotificationName:(NSString *)name object:object userInfo:(NSDictionary *)userInfo;
-
-- (void)postNotificationName:(NSString *)name object:object;
+- (id<NSObject>)addObserverForName:(nullable NSNotificationName)name object:(nullable id)obj queue:(nullable NSOperationQueue *)queue usingBlock:(void (^)(NSNotification *note))block;
 
 @end
+
+NS_ASSUME_NONNULL_END

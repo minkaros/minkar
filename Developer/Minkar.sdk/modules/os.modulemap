@@ -1,0 +1,12 @@
+// SPDX-License-Identifier: BSD-2-Clause
+// Copyright (c) 2026 The Minkar contributors
+// Part of Minkar.
+//
+// os_log, os_activity and os_signpost (libsystem_trace) as a module:
+// usr/include/os/module.modulemap in the SDK.
+module os [system] [extern_c] {
+  header "log.h"
+  header "activity.h"
+  header "signpost.h"
+  export *
+}

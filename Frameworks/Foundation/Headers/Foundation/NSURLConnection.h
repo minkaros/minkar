@@ -8,7 +8,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <Foundation/NSObject.h>
 #import <Foundation/NSURLCache.h>
 
-@class NSInputStream, NSOutputStream, NSRunLoop, NSURLRequest, NSData, NSURLResponse, NSError, NSMutableArray, NSURLAuthenticationChallenge, NSCachedURLResponse, NSURLProtocol, NSMutableData;
+@class NSInputStream, NSOutputStream, NSRunLoop, NSURLRequest, NSData, NSURLResponse, NSError, NSMutableArray<ObjectType>, NSURLAuthenticationChallenge, NSCachedURLResponse, NSURLProtocol, NSMutableData;
 
 @interface NSURLConnection : NSObject {
     NSURLRequest *_request;

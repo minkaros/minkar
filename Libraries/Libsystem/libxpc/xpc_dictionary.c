@@ -734,13 +734,6 @@ xpc_dictionary_apply(xpc_object_t xdict, xpc_dictionary_applier_t applier)
 	return (true);
 }
 
-xpc_object_t
-xpc_create_from_plist(uint8_t *buf, size_t length)
-{
-    MINKAR_STUB();
-    return NULL;
-}
-
 int
 xpc_dictionary_dup_fd(xpc_object_t dictionary, const char *key)
 {

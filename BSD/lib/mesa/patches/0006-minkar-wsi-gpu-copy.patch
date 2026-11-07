@@ -1,0 +1,534 @@
+Mesa's Metal WSI on Minkar, the GPU's present: when the device is the GPU
+that holds CAMetalLayer's drawables (IOSurfaces in the display GPU's
+VRAM), the swapchain takes the Metal path's image blit, and the copy it
+records at each acquire goes from the image into the drawable's IOSurface
+itself: its VRAM imported by the shared buffer's name (a dma-buf
+descriptor, minkar_drm_shared_buffer_fd), or its memory in place when it
+is the system's (VK_EXT_external_memory_host); imports are kept by the
+surface's ID. The drawable is presented once the copy is done. No CPU
+copy is left. Other devices, software drivers and MINKAR_WSI_CPU keep
+patch 0005's CPU copy; MINKAR_WSI_DEBUG says which path a swapchain took.
+The WSI's dispatch gets vkGetMemoryFdPropertiesKHR and
+vkGetMemoryHostPointerPropertiesEXT; it links IOKit and CoreFoundation
+to find the display's GPU.
+
+--- a/src/vulkan/meson.build
++++ b/src/vulkan/meson.build
+@@ -81,7 +81,7 @@
+     # drawables are IOSurfaces.
+     vulkan_wsi_deps += dependency(
+       'appleframeworks',
+-      modules : ['QuartzCore', 'IOSurface']
++      modules : ['QuartzCore', 'IOSurface', 'IOKit', 'CoreFoundation']
+     )
+     vulkan_wsi_deps += cc.find_library('objc')
+   endif
+--- a/src/vulkan/wsi/wsi_common.h
++++ b/src/vulkan/wsi/wsi_common.h
+@@ -233,6 +233,8 @@
+    WSI_CB(GetImageMemoryRequirements);
+    WSI_CB(GetImageSubresourceLayout);
+    WSI_CB(GetMemoryFdKHR);
++   WSI_CB(GetMemoryFdPropertiesKHR);
++   WSI_CB(GetMemoryHostPointerPropertiesEXT);
+    WSI_CB(GetPhysicalDeviceCalibrateableTimeDomainsKHR);
+    WSI_CB(GetPhysicalDeviceProperties);
+    WSI_CB(GetPhysicalDeviceFormatProperties);
+--- a/src/vulkan/wsi/wsi_common.c
++++ b/src/vulkan/wsi/wsi_common.c
+@@ -220,6 +220,10 @@
+    WSI_GET_CB(GetImageSubresourceLayout);
+    if (!wsi->sw)
+       WSI_GET_CB(GetMemoryFdKHR);
++   if (!wsi->sw) {
++      WSI_GET_CB(GetMemoryFdPropertiesKHR);
++      WSI_GET_CB(GetMemoryHostPointerPropertiesEXT);
++   }
+    WSI_GET_CB(GetPhysicalDeviceCalibrateableTimeDomainsKHR);
+    WSI_GET_CB(GetPhysicalDeviceProperties);
+    WSI_GET_CB(GetPhysicalDeviceFormatProperties);
+--- a/src/vulkan/wsi/wsi_common_metal_layer.h
++++ b/src/vulkan/wsi/wsi_common_metal_layer.h
+@@ -52,4 +52,23 @@
+    CAMetalDrawable **drawable_ptr, void *buffer,
+    uint32_t width, uint32_t height, uint32_t row_pitch);
+ 
++/* Minkar: a drawable's IOSurface (its ID, its memory, its rows, and its
++ * VRAM buffer's name or 0), and the drawable shown once its pixels are
++ * there. */
++struct wsi_metal_layer_surface {
++   uint32_t surface_id;
++   void *base;
++   uint64_t size;
++   uint32_t width, height, row_bytes;
++   uint64_t gpu_name;
++};
++bool
++wsi_metal_layer_drawable_surface(CAMetalDrawable *drawable, struct wsi_metal_layer_surface *s);
++void
++wsi_metal_layer_present_drawable(CAMetalDrawable **drawable_ptr);
++/* Whether the GPU with this render node holds layers' drawables (IOSurfaces
++ * in VRAM are the display GPU's). */
++bool
++wsi_metal_layer_gpu_holds_drawables(int64_t render_minor);
++
+ #endif // WSI_COMMON_METAL_LAYER_H
+--- a/src/vulkan/wsi/wsi_common_metal.c
++++ b/src/vulkan/wsi/wsi_common_metal.c
+@@ -33,6 +33,10 @@
+ #include "vulkan/vulkan_core.h"
+ 
+ #include <assert.h>
++#include <stdio.h>
++#include <stdlib.h>
++#include <string.h>
++#include <unistd.h>
+ 
+ struct wsi_metal {
+    struct wsi_interface base;
+@@ -336,9 +340,31 @@
+ 
+    struct wsi_metal_layer_blit_context *blit_context;
+ 
++   /* The software drivers' path: the image copied to a host-visible
++    * buffer, then by the CPU into the drawable. On Minkar also when the
++    * device is not the GPU that holds the layer's drawables. */
++   bool cpu_present;
++
++#if !WSI_METAL_HAS_METAL
++   /* Minkar: drawables' IOSurfaces as Vulkan buffers, the GPU's copy's
++    * destinations, kept by the surface's ID (a layer reuses a few). */
++   struct wsi_minkar_import {
++      uint32_t surface_id;
++      VkBuffer buffer;
++      VkDeviceMemory memory;
++   } imports[6];
++   uint32_t import_next;
++#endif
++
+    uint32_t current_image_index;
+    struct wsi_metal_image images[0];
+ };
++
++static inline bool
++wsi_metal_chain_cpu_present(const struct wsi_swapchain *chain)
++{
++   return ((const struct wsi_metal_swapchain *)chain)->cpu_present;
++}
+ VK_DEFINE_NONDISP_HANDLE_CASTS(wsi_metal_swapchain, base.base, VkSwapchainKHR,
+                                VK_OBJECT_TYPE_SWAPCHAIN_KHR)
+ 
+@@ -357,7 +383,7 @@
+                             struct wsi_image *image)
+ {
+    /* Should only be called from non-software backends */
+-   assert(!wsi_metal_cpu_present(chain->wsi));
++   assert(!wsi_metal_chain_cpu_present(chain));
+    
+    const struct wsi_device *wsi = chain->wsi;
+    struct wsi_metal_image *metal_image = container_of(image, struct wsi_metal_image, base);
+@@ -494,6 +520,212 @@
+    return result;
+ }
+ 
++#if !WSI_METAL_HAS_METAL
++/* libdrm_amdgpu (Minkar): a descriptor for a shared VRAM buffer's name. */
++extern int minkar_drm_shared_buffer_fd(uint64_t name);
++
++static void
++wsi_minkar_forget_import(struct wsi_metal_swapchain *chain, struct wsi_minkar_import *import)
++{
++   const struct wsi_device *wsi = chain->base.wsi;
++
++   if (import->buffer != VK_NULL_HANDLE)
++      wsi->DestroyBuffer(chain->base.device, import->buffer, &chain->base.alloc);
++   if (import->memory != VK_NULL_HANDLE)
++      wsi->FreeMemory(chain->base.device, import->memory, &chain->base.alloc);
++   memset(import, 0, sizeof(*import));
++}
++
++/*
++ * A drawable's IOSurface as a buffer the GPU writes: its VRAM imported by
++ * the shared buffer's descriptor (a dma-buf), or its memory in place
++ * (VK_EXT_external_memory_host) when it is in the system's; kept for the
++ * next time the layer gives the same surface.
++ */
++static VkBuffer
++wsi_minkar_import(struct wsi_metal_swapchain *chain, CAMetalDrawable *drawable)
++{
++   const struct wsi_device *wsi = chain->base.wsi;
++   struct wsi_metal_layer_surface s;
++
++   if (!wsi_metal_layer_drawable_surface(drawable, &s))
++      return VK_NULL_HANDLE;
++   for (uint32_t i = 0; i < ARRAY_SIZE(chain->imports); i++)
++      if (chain->imports[i].surface_id == s.surface_id && chain->imports[i].buffer)
++         return chain->imports[i].buffer;
++
++   struct wsi_minkar_import *import =
++      &chain->imports[chain->import_next++ % ARRAY_SIZE(chain->imports)];
++   wsi_minkar_forget_import(chain, import);
++
++   const VkExternalMemoryHandleTypeFlagBits type = s.gpu_name ?
++      VK_EXTERNAL_MEMORY_HANDLE_TYPE_DMA_BUF_BIT_EXT :
++      VK_EXTERNAL_MEMORY_HANDLE_TYPE_HOST_ALLOCATION_BIT_EXT;
++   const VkExternalMemoryBufferCreateInfo external = {
++      .sType = VK_STRUCTURE_TYPE_EXTERNAL_MEMORY_BUFFER_CREATE_INFO,
++      .handleTypes = type,
++   };
++   const VkBufferCreateInfo buffer_info = {
++      .sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
++      .pNext = &external,
++      .size = s.size,
++      .usage = VK_BUFFER_USAGE_TRANSFER_DST_BIT,
++      .sharingMode = VK_SHARING_MODE_EXCLUSIVE,
++   };
++   if (wsi->CreateBuffer(chain->base.device, &buffer_info, &chain->base.alloc,
++                         &import->buffer) != VK_SUCCESS) {
++      import->buffer = VK_NULL_HANDLE;
++      return VK_NULL_HANDLE;
++   }
++   VkMemoryRequirements reqs;
++   wsi->GetBufferMemoryRequirements(chain->base.device, import->buffer, &reqs);
++
++   int fd = s.gpu_name ? minkar_drm_shared_buffer_fd(s.gpu_name) : -1;
++   /* The memory types the import may take. */
++   uint32_t type_bits = reqs.memoryTypeBits;
++   if (fd >= 0 && wsi->GetMemoryFdPropertiesKHR) {
++      VkMemoryFdPropertiesKHR fd_props = {
++         .sType = VK_STRUCTURE_TYPE_MEMORY_FD_PROPERTIES_KHR,
++      };
++      if (wsi->GetMemoryFdPropertiesKHR(chain->base.device, type, fd, &fd_props) == VK_SUCCESS)
++         type_bits &= fd_props.memoryTypeBits;
++   } else if (!s.gpu_name && wsi->GetMemoryHostPointerPropertiesEXT) {
++      VkMemoryHostPointerPropertiesEXT host_props = {
++         .sType = VK_STRUCTURE_TYPE_MEMORY_HOST_POINTER_PROPERTIES_EXT,
++      };
++      if (wsi->GetMemoryHostPointerPropertiesEXT(chain->base.device, type, s.base,
++                                                 &host_props) == VK_SUCCESS)
++         type_bits &= host_props.memoryTypeBits;
++   }
++   const VkImportMemoryFdInfoKHR fd_info = {
++      .sType = VK_STRUCTURE_TYPE_IMPORT_MEMORY_FD_INFO_KHR,
++      .handleType = VK_EXTERNAL_MEMORY_HANDLE_TYPE_DMA_BUF_BIT_EXT,
++      .fd = fd,
++   };
++   const VkImportMemoryHostPointerInfoEXT host_info = {
++      .sType = VK_STRUCTURE_TYPE_IMPORT_MEMORY_HOST_POINTER_INFO_EXT,
++      .handleType = VK_EXTERNAL_MEMORY_HANDLE_TYPE_HOST_ALLOCATION_BIT_EXT,
++      .pHostPointer = s.base,
++   };
++   const VkMemoryAllocateInfo alloc_info = {
++      .sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
++      .pNext = s.gpu_name ? (const void *)&fd_info : (const void *)&host_info,
++      .allocationSize = s.size,
++      .memoryTypeIndex = wsi_select_memory_type(wsi, 0, 0, type_bits),
++   };
++   if ((s.gpu_name && fd < 0) ||
++       wsi->AllocateMemory(chain->base.device, &alloc_info, &chain->base.alloc,
++                           &import->memory) != VK_SUCCESS) {
++      if (fd >= 0)
++         close(fd);      /* Vulkan owns it only once imported */
++      import->memory = VK_NULL_HANDLE;
++      wsi_minkar_forget_import(chain, import);
++      return VK_NULL_HANDLE;
++   }
++   if (wsi->BindBufferMemory(chain->base.device, import->buffer, import->memory, 0) !=
++       VK_SUCCESS) {
++      wsi_minkar_forget_import(chain, import);
++      return VK_NULL_HANDLE;
++   }
++   import->surface_id = s.surface_id;
++   return import->buffer;
++}
++
++/*
++ * The present's commands for this drawable: the image copied by the GPU
++ * into the drawable's IOSurface, rows as the surface lays them out. Two
++ * command buffers a queue in turn, as the Metal path keeps them.
++ */
++static VkResult
++wsi_minkar_record_copy(struct wsi_metal_swapchain *chain, struct wsi_metal_image *metal_image)
++{
++   const struct wsi_device *wsi = chain->base.wsi;
++   struct wsi_image *image = &metal_image->base;
++   struct wsi_metal_layer_surface s;
++   int queue_count = chain->base.blit.queue != NULL ? 1 : wsi->queue_family_count;
++   VkResult result = VK_SUCCESS;
++
++   VkBuffer buffer = wsi_minkar_import(chain, metal_image->drawable);
++   if (buffer == VK_NULL_HANDLE ||
++       !wsi_metal_layer_drawable_surface(metal_image->drawable, &s))
++      return VK_ERROR_OUT_OF_DATE_KHR;
++
++   for (int i = 0; i < queue_count; i++) {
++      if (!chain->base.cmd_pools[i])
++         continue;
++      wsi->FreeCommandBuffers(chain->base.device, chain->base.cmd_pools[i], 1,
++                              &image->blit.cmd_buffers[i + queue_count]);
++      image->blit.cmd_buffers[i + queue_count] = image->blit.cmd_buffers[i];
++      const VkCommandBufferAllocateInfo cmd_info = {
++         .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
++         .commandPool = chain->base.cmd_pools[i],
++         .level = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
++         .commandBufferCount = 1,
++      };
++      result = wsi->AllocateCommandBuffers(chain->base.device, &cmd_info,
++                                           &image->blit.cmd_buffers[i]);
++      if (result != VK_SUCCESS)
++         return result;
++      VkCommandBuffer cmd = image->blit.cmd_buffers[i];
++      const VkCommandBufferBeginInfo begin_info = {
++         .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
++      };
++      wsi->BeginCommandBuffer(cmd, &begin_info);
++
++      VkImageMemoryBarrier barrier = {
++         .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
++         .srcAccessMask = 0,
++         .dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT,
++         .oldLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
++         .newLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
++         .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
++         .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
++         .image = image->image,
++         .subresourceRange = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 },
++      };
++      wsi->CmdPipelineBarrier(cmd, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
++                              VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, NULL, 0, NULL, 1, &barrier);
++
++      const uint32_t width = MIN2(chain->extent.width, s.width);
++      const uint32_t height = MIN2(chain->extent.height, s.height);
++      const VkBufferImageCopy region = {
++         .bufferOffset = 0,
++         .bufferRowLength = s.row_bytes / 4,
++         .bufferImageHeight = s.height,
++         .imageSubresource = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1 },
++         .imageOffset = { 0, 0, 0 },
++         .imageExtent = { width, height, 1 },
++      };
++      wsi->CmdCopyImageToBuffer(cmd, image->image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
++                                buffer, 1, &region);
++
++      /* The image back for the app; the copy made visible to whoever
++       * reads the surface next (the window server's compositor). */
++      barrier.srcAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
++      barrier.dstAccessMask = 0;
++      barrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
++      barrier.newLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
++      const VkBufferMemoryBarrier written = {
++         .sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER,
++         .srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT,
++         .dstAccessMask = VK_ACCESS_MEMORY_READ_BIT | VK_ACCESS_HOST_READ_BIT,
++         .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
++         .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
++         .buffer = buffer,
++         .offset = 0,
++         .size = VK_WHOLE_SIZE,
++      };
++      wsi->CmdPipelineBarrier(cmd, VK_PIPELINE_STAGE_TRANSFER_BIT,
++                              VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT | VK_PIPELINE_STAGE_HOST_BIT,
++                              0, 0, NULL, 1, &written, 1, &barrier);
++      result = wsi->EndCommandBuffer(cmd);
++      if (result != VK_SUCCESS)
++         return result;
++   }
++   return VK_SUCCESS;
++}
++#endif
++
+ static VkResult
+ wsi_metal_swapchain_acquire_next_image(struct wsi_swapchain *wsi_chain,
+                                        const VkAcquireNextImageInfoKHR *info,
+@@ -517,12 +749,20 @@
+          struct wsi_metal_image *image = &chain->images[i];
+          *image_index = i;
+          image->drawable = drawable;
+-         if (!wsi_metal_cpu_present(wsi_chain->wsi)) {
++         if (!wsi_metal_chain_cpu_present(wsi_chain)) {
++#if WSI_METAL_HAS_METAL
+             chain->base.wsi->metal.bind_drawable_to_vkimage(image->base.blit.image,
+                                                             image->drawable);
+             /* Since present images will only be backed by MTLTextures after acquisition,
+              * we need to re-record the command buffer so it uses the new drawable. */
+             wsi_cmd_blit_image_to_image(wsi_chain, &wsi_chain->image_info, &image->base);
++#else
++            /* Minkar: the GPU copies the image into the drawable's
++             * IOSurface; recorded for this drawable. */
++            VkResult result = wsi_minkar_record_copy(chain, image);
++            if (result != VK_SUCCESS)
++               return result;
++#endif
+          }
+          return VK_SUCCESS;
+       }
+@@ -548,7 +788,7 @@
+    for (uint32_t idx = 0; idx < count; idx++) {
+       struct wsi_metal_image *image = &chain->images[indices[idx]];
+ 
+-      if (wsi_metal_cpu_present(wsi)) {
++      if (wsi_metal_chain_cpu_present(wsi_chain)) {
+          /* Directly release drawable */
+          if (image->drawable) {
+             wsi_metal_release_drawable(image->drawable);
+@@ -591,7 +831,16 @@
+ 
+    struct wsi_metal_image *image = &chain->images[image_index];
+ 
+-   if (wsi_metal_cpu_present(wsi_chain->wsi)) {
++#if !WSI_METAL_HAS_METAL
++   if (!wsi_metal_chain_cpu_present(wsi_chain)) {
++      /* Minkar: the GPU's copy into the drawable finishes, then the
++       * window shows it (from VRAM, as the window's layer). */
++      wsi_chain->wsi->WaitForFences(wsi_chain->device, 1, &wsi_chain->fences[image_index],
++                                    true, ~0ull);
++      wsi_metal_layer_present_drawable(&image->drawable);
++   }
++#endif
++   if (wsi_metal_chain_cpu_present(wsi_chain)) {
+       /* A GPU's copy to the buffer finishes first (software drivers'
+        * are waited for by the common code). */
+       if (!wsi_chain->wsi->sw)
+@@ -628,7 +877,7 @@
+    struct wsi_image *image = &metal_image->base;
+ 
+    /* Software backends can just call common and return */
+-   if (wsi_metal_cpu_present(wsi)) {
++   if (wsi_metal_chain_cpu_present(chain)) {
+       wsi_destroy_image(chain, image);
+       return;
+    }
+@@ -669,7 +918,7 @@
+    VkResult result = wsi_create_image(chain, info, image);
+ 
+    /* Software backends can just call common and return */
+-   if (wsi_metal_cpu_present(wsi) || result != VK_SUCCESS)
++   if (wsi_metal_chain_cpu_present(chain) || result != VK_SUCCESS)
+       return result;
+ 
+    /* Create VkImages to handle binding at acquisition. */
+@@ -699,8 +948,12 @@
+          wsi_metal_destroy_image(chain, image);
+    }
+ 
+-   if (wsi_metal_cpu_present(chain->base.wsi))
++   if (chain->cpu_present)
+       wsi_destroy_metal_layer_blit_context(chain->blit_context);
++#if !WSI_METAL_HAS_METAL
++   for (uint32_t i = 0; i < ARRAY_SIZE(chain->imports); i++)
++      wsi_minkar_forget_import(chain, &chain->imports[i]);
++#endif
+ 
+    wsi_swapchain_finish(&chain->base);
+ 
+@@ -746,7 +999,23 @@
+     * Metal backend that uses MTLTexture as render target. The software path
+     * will render to a CPU texture, and blit it to the presentation MTLTexture
+     * at the last moment. */
+-   const bool is_sw_driver = wsi_metal_cpu_present(wsi_device);
++   bool is_sw_driver = wsi_metal_cpu_present(wsi_device);
++#if !WSI_METAL_HAS_METAL
++   /* Minkar: the GPU copies straight into the drawables when it is the
++    * GPU whose VRAM holds them (the display's); else the CPU copies. */
++   is_sw_driver = wsi_device->sw;
++   if (!is_sw_driver)
++      is_sw_driver = !wsi_device->drm_info.hasRender ||
++                     !wsi_metal_layer_gpu_holds_drawables(wsi_device->drm_info.renderMinor);
++#endif
++   chain->cpu_present = is_sw_driver;
++#if !WSI_METAL_HAS_METAL
++   if (getenv("MINKAR_WSI_DEBUG"))
++      fprintf(stderr, "wsi: render node %lld: %s\n",
++              (long long)(wsi_device->drm_info.hasRender ? wsi_device->drm_info.renderMinor : -1),
++              is_sw_driver ? "the CPU copies into the drawables" :
++              "the GPU copies into the drawables' VRAM");
++#endif
+    struct wsi_cpu_image_params cpu_params = {
+       .base.image_type = WSI_IMAGE_TYPE_CPU,
+    };
+--- a/src/vulkan/wsi/wsi_common_minkar_layer.m
++++ b/src/vulkan/wsi/wsi_common_minkar_layer.m
+@@ -15,8 +15,13 @@
+ 
+ #import <QuartzCore/CAMetalLayer.h>
+ #import <IOSurface/IOSurfaceRef.h>
++#include <IOKit/IOKitLib.h>
++#include <stdlib.h>
+ #include <string.h>
+ 
++/* IOSurface's own (Minkar): an IOSurface's VRAM buffer's name, or 0. */
++extern uint64_t IOSurfaceGetMinkarGPUBuffer(IOSurfaceRef buffer);
++
+ /* CAMetalLayer's IOSurface behind a drawable (QuartzCore's private
+  * interface). */
+ @interface NSObject (CAMetalDrawableMinkar)
+@@ -132,3 +137,69 @@
+       *drawable_ptr = NULL;
+    }
+ }
++
++bool
++wsi_metal_layer_drawable_surface(CAMetalDrawable *drawable, struct wsi_metal_layer_surface *s)
++{
++   IOSurfaceRef surface = drawable ? [(id)drawable _minkarIOSurface] : NULL;
++
++   if (surface == NULL)
++      return false;
++   s->surface_id = IOSurfaceGetID(surface);
++   s->base = IOSurfaceGetBaseAddress(surface);
++   /* Whole pages: an import takes them so. */
++   s->size = (IOSurfaceGetAllocSize(surface) + 4095) & ~(uint64_t)4095;
++   s->width = (uint32_t)IOSurfaceGetWidth(surface);
++   s->height = (uint32_t)IOSurfaceGetHeight(surface);
++   s->row_bytes = (uint32_t)IOSurfaceGetBytesPerRow(surface);
++   s->gpu_name = IOSurfaceGetMinkarGPUBuffer(surface);
++   return s->row_bytes % 4 == 0;
++}
++
++void
++wsi_metal_layer_present_drawable(CAMetalDrawable **drawable_ptr)
++{
++   @autoreleasepool {
++      id drawable = (id)*drawable_ptr;
++      if (drawable == nil)
++         return;
++      [(id<CAMetalDrawable>)drawable present];
++      [drawable release];
++      *drawable_ptr = NULL;
++   }
++}
++
++/* IOSurfaces in VRAM go to the GPU that lights the display (IOSurface's
++ * choice): is that the GPU with this render node? MINKAR_WSI_CPU keeps
++ * the CPU's copy. */
++bool
++wsi_metal_layer_gpu_holds_drawables(int64_t render_minor)
++{
++   io_iterator_t it;
++   io_service_t s;
++   bool holds = false;
++
++   if (getenv("MINKAR_WSI_CPU") != NULL)
++      return false;
++   if (IOServiceGetMatchingServices(kIOMasterPortDefault, IOServiceMatching("MinkarAMDGPU"),
++                                    &it) != KERN_SUCCESS)
++      return false;
++   while ((s = IOIteratorNext(it)) != IO_OBJECT_NULL) {
++      int minor = -1;
++      CFTypeRef m = IORegistryEntryCreateCFProperty(s, CFSTR("MinkarDRMMinor"),
++                                                    kCFAllocatorDefault, 0);
++      CFTypeRef lights = IORegistryEntryCreateCFProperty(s, CFSTR("MinkarLightsDisplay"),
++                                                         kCFAllocatorDefault, 0);
++      if (m != NULL && CFGetTypeID(m) == CFNumberGetTypeID())
++         CFNumberGetValue(m, kCFNumberIntType, &minor);
++      if (minor == render_minor && lights == kCFBooleanTrue)
++         holds = true;
++      if (m != NULL)
++         CFRelease(m);
++      if (lights != NULL)
++         CFRelease(lights);
++      IOObjectRelease(s);
++   }
++   IOObjectRelease(it);
++   return holds;
++}

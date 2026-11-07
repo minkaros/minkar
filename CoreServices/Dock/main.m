@@ -1,43 +1,83 @@
 /*
- * Copyright (C) 2022-2024 Zoe Knox <zoe@pixin.net>
- * 
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
+ * SPDX-License-Identifier: BSD-2-Clause
+ * Copyright (c) 2026 The Minkar contributors
+ * Part of Minkar.
  *
- * The above copyright notice and this permission notice shall be included in
- * all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
- * THE SOFTWARE.
+ * The Dock (Atlas.md, D1): the desktop on every display and the Dock
+ * on the main one. An agent app (LSUIElement): no menu bar of its own.
  */
 
-#import <AppKit/AppKit.h>
-#import "Dock.h"
+#import "DesktopWindow.h"
+#import "DockView.h"
+#include <notify.h>
+#include <unistd.h>
 
-Dock *dock = nil;
+@interface DockController : NSObject <NSApplicationDelegate>
+@end
 
-int main(int argc, const char *argv[]) {
-    __NSInitializeProcess(argc, argv);
-
-    NSAutoreleasePool *pool = [NSAutoreleasePool new];
-    [NSApplication sharedApplication];
-
-    dock = [Dock new];
-    if(!dock)
-        exit(-1);
-    [pool drain];
-
-    [NSApp setDelegate:dock];
-    [NSApp run];
-    return 0;
+@implementation DockController {
+    DockModel *_model;
+    DockWindow *_dock;
+    NSMutableArray<DesktopWindow *> *_desktops;
 }
 
+- (void)showDesktops
+{
+    for (DesktopWindow *window in _desktops)
+        [window orderOut:nil];
+    _desktops = [NSMutableArray array];
+    for (NSScreen *screen in [NSScreen screens]) {
+        DesktopWindow *window = [[DesktopWindow alloc] initWithScreen:screen];
+        [window orderFront:nil];
+        [_desktops addObject:window];
+    }
+}
+
+/* NSWorkspace posts org.minkar.desktop.changed when a picture is set. */
+- (void)watchDesktopPictures
+{
+    int fd = -1, token;
+
+    if (notify_register_file_descriptor("org.minkar.desktop.changed", &fd, 0, &token) != NOTIFY_STATUS_OK)
+        return;
+    [NSThread detachNewThreadWithBlock:^{
+        int value;
+        while (read(fd, &value, sizeof(value)) == sizeof(value))
+            [self performSelectorOnMainThread:@selector(desktopPicturesChanged) withObject:nil waitUntilDone:NO];
+    }];
+}
+
+- (void)desktopPicturesChanged
+{
+    for (DesktopWindow *window in _desktops)
+        [window reload];
+}
+
+- (void)applicationDidFinishLaunching:(NSNotification *)note
+{
+    [self showDesktops];
+    [self watchDesktopPictures];
+    _model = [[DockModel alloc] init];
+    _dock = [[DockWindow alloc] initWithModel:_model];
+    [_dock orderFront:nil];
+}
+
+- (void)applicationDidChangeScreenParameters:(NSNotification *)note
+{
+    [self showDesktops];
+    [_dock layout];
+}
+
+@end
+
+int main(void)
+{
+    @autoreleasepool {
+        NSApplication *app = [NSApplication sharedApplication];
+        DockController *controller = [[DockController alloc] init];
+
+        [app setDelegate:controller];
+        [app run];
+    }
+    return 0;
+}

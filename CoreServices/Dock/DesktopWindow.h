@@ -1,37 +1,26 @@
 /*
- * Copyright (C) 2022-2024 Zoe Knox <zoe@pixin.net>
- * 
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in
- * all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
- * THE SOFTWARE.
+ * SPDX-License-Identifier: BSD-2-Clause
+ * Copyright (c) 2026 The Minkar contributors
+ * Part of Minkar.
  */
 
-#pragma once
+#import <AppKit/AppKit.h>
 
-@interface DesktopWindow: NSWindow {
-    NSScreen *_screen;
-    NSImageView *view;
-    NSString *_wallpaperPath;
-}
+NS_ASSUME_NONNULL_BEGIN
 
-- (DesktopWindow *)initForScreen:(NSScreen *)screen;
-- (void)updateBackground;
-- (NSString *)wallpaperPath;
-- (NSScreen *)screen;
-- (NSDictionary *)properties;
+/* The desktop of one display, behind every other window: its picture
+   from -[NSWorkspace desktopImageURLForScreen:], or its color. */
+@interface DesktopWindow : NSWindow
+- (instancetype)initWithScreen:(NSScreen *)screen;
+/* The picture and its options again (they changed). */
+- (void)reload;
 @end
 
+/* The desktop's color with no picture: Atlas's provisional solid
+   background, RGB(99, 130, 145). */
+NSColor *DesktopDefaultColor(void);
+
+/* Where an image goes in a desktop, for its scaling and clipping. */
+NSRect DesktopImageRect(NSSize image, NSRect bounds, NSImageScaling scaling, BOOL clipping);
+
+NS_ASSUME_NONNULL_END

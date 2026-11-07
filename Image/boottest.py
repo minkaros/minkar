@@ -45,6 +45,10 @@ Gates from the architecture plan:
       host's name through DNS, and the code integrity policy marks a
       binary of the trust cache as a platform binary and refuses a copy
       re-signed outside it                         (--gate M2)
+  M3-swift  M2, then a Swift program in the image runs on the Swift
+      runtime in /usr/lib/swift                    (--gate M3-swift)
+  W0  M2, then WebKit's dependencies pass their own tests
+      (/usr/local/tests/w0, 'bmake w0-tests')    (--gate W0)
   M4  M2, then the window server (started at boot, as _windowserver),
       the minimal loginwindow and the demo's two overlapping AppKit
       windows: the screen matches reference images, again after a window
@@ -150,6 +154,51 @@ CODESIGN_INPUT = [SSH('dmesg | grep "MinkarCodeIntegrity: trust cache loaded"; '
                   'valid=1 adhoc=0 signed=1 platform=1',
                   'boottest: resigned rc=137', 'refused']
 GATES['M2'] = GATES['M2-login'] + SSH_INPUT + CODESIGN_INPUT
+# Gate M3-swift (Phase 3): a Swift program in the image (swift-hello, built
+# with the toolchain's swiftc) runs on /usr/lib/swift's runtime.
+GATES['M3-swift'] = GATES['M2'] + [
+    SSH('ls /usr/lib/swift/libswiftCore.dylib; /usr/local/bin/swift-hello'),
+    '/usr/lib/swift/libswiftCore.dylib',
+    'swift-hello: Swift 6.0 on Minkar, 3 checks passed']
+
+# Gate M3 (Phase 3): open source command-line tools written for the
+# Cocoa API pass their own tests (Tests/M3, in /usr/local/tests/m3 with
+# 'bmake m3-tools' before the image): run.sh runs every suite.
+GATES['M3'] = GATES['M2'] + [
+    SSH('/usr/local/tests/m3/run.sh 2>&1 | grep "^m3: "'),
+    'm3: argument-parser/ArgumentParserUnitTests passed',
+    'm3: mogenerator/mogeneratorTests passed',
+    'm3: swiftformat/SwiftFormatTests passed',
+    'm3: tag/tagTests passed',
+    'm3: every suite passed']
+
+# Gate W0 (WebKit, Cocoa coverage): WebKit's dependencies pass their own
+# tests (Tests/W0, in /usr/local/tests/w0 with 'bmake w0-tests' before the
+# image): run.sh runs every library's.
+GATES['W0'] = GATES['M2'] + [
+    SSH('/usr/local/tests/w0/run.sh 2>&1 | grep "^w0: "'),
+    'w0: brotli passed',
+    'w0: expat passed',
+    'w0: fontconfig passed',
+    'w0: glib-networking passed',
+    'w0: glib passed',
+    'w0: harfbuzz passed',
+    'w0: libepoxy passed',
+    'w0: libffi passed',
+    'w0: libgcrypt passed',
+    'w0: libgpg-error passed',
+    'w0: libjpeg passed',
+    'w0: libpng passed',
+    'w0: libpsl passed',
+    'w0: libsoup passed',
+    'w0: libtasn1 passed',
+    'w0: libxkbcommon passed',
+    'w0: libwebp passed',
+    'w0: libxml2 passed',
+    'w0: libxslt passed',
+    'w0: nghttp2 passed',
+    'w0: pcre2 passed',
+    'w0: every library passed']
 
 # The window server starts at boot, as _windowserver. The screen is
 # compared with reference images (--update-reference writes them from a
@@ -235,7 +284,7 @@ GATES['M4'] = GATES['M2'] + [
         'echo "boottest: A saw B terminate"'),
     'boottest: A saw B terminate',
 ] + [
-    # The menus in the app (Menus.md, MB0): the front app (A) shows its
+    # The menus in the app (Atlas.md, MB0): the front app (A) shows its
     # menu bar, alone at the menu bar level.
     SSH('/usr/local/bin/wsctl windows | awk \'$3 == 24 && $4 == "yes" { print $2 }\' | '
         'tr "\\n" " "; a=$(pgrep -o -x WindowServerDemo); '
@@ -313,6 +362,18 @@ def accel(args):
     return 'kvm' if os.access('/dev/kvm', os.R_OK | os.W_OK) else 'tcg'
 
 
+# One VM under KVM gets most of the host, so a gate takes as little time
+# as it can: 8 processors and 12 GiB (the development host has 12 and 30
+# GiB). Under TCG (CI) more processors only slow the emulation down: 2 and
+# 4 GiB. --smp, --memory, $BOOTTEST_SMP and $BOOTTEST_MEMORY override.
+def vm_smp(args):
+    return str(args.smp or ('8' if accel(args) == 'kvm' else '2'))
+
+
+def vm_memory(args):
+    return args.memory or (12288 if accel(args) == 'kvm' else 4096)
+
+
 def qemu_command(args, vars_copy):
     # Disks before the image (--extra-disk) take the first AHCI ports, as
     # other operating systems' disks do on a PC: the firmware finds their
@@ -324,7 +385,7 @@ def qemu_command(args, vars_copy):
     port = len(args.extra_disk or [])
     return [
         args.qemu, '-machine', 'q35', '-accel', accel(args), '-cpu', args.cpu,
-        '-smp', str(args.smp), '-m', str(args.memory),
+        '-smp', vm_smp(args), '-m', str(vm_memory(args)),
         '-drive', 'if=pflash,format=raw,readonly=on,file=%s' % args.ovmf_code,
         '-drive', 'if=pflash,format=raw,file=%s' % vars_copy,
         '-device', 'ahci,id=ahci',
@@ -709,8 +770,11 @@ def main(argv=None):
     p.add_argument('--verbose', action='store_true', help='echo the console')
     p.add_argument('--qemu', default='qemu-system-x86_64')
     # Not "max": under TCG it reports an AMD family the kernel panics on.
-    # Westmere is fully emulated by TCG (SSE4.2, POPCNT, no AVX).
-    p.add_argument('--cpu', default='Westmere')
+    # Ivy Bridge: Minkar requires AVX (Docs/Hardware.md); TCG emulates it
+    # from QEMU 7.2 on, an older one drops it with a warning. With the
+    # TSC deadline timer, as the PCs Minkar runs on have: without it the
+    # kernel's local APIC timer fires short timers three times late.
+    p.add_argument('--cpu', default='IvyBridge,+tsc-deadline')
     # TCG by default: on CI runners /dev/kvm opens too, and the kernel
     # does not boot under their KVM yet (it does under KVM nested in
     # VMware); ask for kvm or auto where it is known to work.
@@ -727,8 +791,10 @@ def main(argv=None):
     p.add_argument('--no-rng', action='store_true',
                    help='no virtio-rng: firmware without EFI_RNG_PROTOCOL')
     # A count, or a QEMU topology (e.g. 24,sockets=1,cores=12,threads=2).
-    p.add_argument('--smp', default='2')
-    p.add_argument('--memory', type=int, default=4096, help='MiB')
+    p.add_argument('--smp', default=os.environ.get('BOOTTEST_SMP'),
+                   help='processors (default: $BOOTTEST_SMP, or 8 under KVM, 2 under TCG)')
+    p.add_argument('--memory', type=int, default=int(os.environ.get('BOOTTEST_MEMORY', 0)),
+                   help='MiB (default: $BOOTTEST_MEMORY, or 12288 under KVM, 4096 under TCG)')
     p.add_argument('--ssh-key', default=os.environ.get('BOOTTEST_SSH_KEY'),
                    help='private key ssh steps log in with (default: $BOOTTEST_SSH_KEY)')
     p.add_argument('--vga', choices=['std', 'virtio'],

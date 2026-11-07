@@ -8,13 +8,13 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 #import <Foundation/NSRange.h>
 
-@class NSDictionary;
+@class NSDictionary<KeyType, ObjectType>;
 
 @interface NSAttributedString : NSObject <NSCopying, NSCoding, NSMutableCopying>
 
-- initWithString:(NSString *)string;
-- initWithString:(NSString *)string attributes:(NSDictionary *)attributes;
-- initWithAttributedString:(NSAttributedString *)other;
+- (instancetype)initWithString:(NSString *)string;
+- (instancetype)initWithString:(NSString *)string attributes:(NSDictionary *)attributes;
+- (instancetype)initWithAttributedString:(NSAttributedString *)other;
 
 - (BOOL)isEqualToAttributedString:(NSAttributedString *)other;
 

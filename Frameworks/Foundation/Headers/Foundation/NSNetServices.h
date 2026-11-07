@@ -12,7 +12,7 @@
 #import <Foundation/NSDate.h>
 #import <Foundation/NSArray.h>
 
-@class NSInputStream, NSOutputStream, NSRunLoop, NSSelectInputSource, NSTimer, NSMutableDictionary;
+@class NSInputStream, NSOutputStream, NSRunLoop, NSSelectInputSource, NSTimer, NSMutableDictionary<KeyType, ObjectType>;
 
 typedef enum {
     NSNetServicesUnknownError = -72000L,
@@ -119,7 +119,7 @@ FOUNDATION_EXPORT NSString *const NSNetServicesErrorDomain;
 
 @end
 
-@class NSRunLoop, NSDictionary, NSNetService, NSSelectInputSource, NSMutableDictionary;
+@class NSRunLoop, NSDictionary<KeyType, ObjectType>, NSNetService, NSSelectInputSource, NSMutableDictionary<KeyType, ObjectType>;
 
 @interface NSNetServiceBrowser : NSObject {
   @private

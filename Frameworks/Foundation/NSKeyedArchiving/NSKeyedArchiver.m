@@ -74,6 +74,7 @@ NSString *const NSKeyedArchiveRootObjectKey=@"root";
    // object that returns YES to -isEqual with the mutable parent (and thus wouldn't get encoded at all without this change)
    
    _objectToUid=NSCreateMapTable(objectToUidKeyCb,NSObjectMapValueCallBacks,0);
+   _conditionalReferences=NSCreateMapTable(objectToUidKeyCb,NSObjectMapValueCallBacks,0);
 
    // Minkar: binary, as on macOS (it could not be written before).
    _outputFormat=NSPropertyListBinaryFormat_v1_0;
@@ -126,6 +127,7 @@ NSString *const NSKeyedArchiveRootObjectKey=@"root";
    [_plistStack release];
    NSFreeMapTable(_nameToClass);
    NSFreeMapTable(_objectToUid);
+   NSFreeMapTable(_conditionalReferences);
    [super dealloc];
 }
 
@@ -243,6 +245,19 @@ NSString *const NSKeyedArchiveRootObjectKey=@"root";
    if(uid==nil){
     uid=[NSNumber numberWithUnsignedInteger:[_objects count]];
     NSMapInsert(_objectToUid,object,uid);
+
+    // Conditional references made before: they point to it now.
+    if(object!=nil){
+     NSArray *references=NSMapGet(_conditionalReferences,object);
+
+     if(references!=nil){
+      NSDictionary *reference=[NSDictionary dictionaryWithObject:uid forKey:@"CF$UID"];
+
+      for(NSArray *pair in references)
+       [[pair objectAtIndex:0] setObject:reference forKey:[pair objectAtIndex:1]];
+      NSMapRemove(_conditionalReferences,object);
+     }
+    }
     
     NSString *archClass = NSStringFromClass([object classForKeyedArchiver]);
     
@@ -319,9 +334,19 @@ NSString *const NSKeyedArchiveRootObjectKey=@"root";
    if(_pass==0)
     return;
 	
-    // Only encode the object if it's already somewhere
-    if (NSMapGet(_objectToUid,object)) {
+    // The object is in the archive only when something encodes it
+    // unconditionally, before or after: until then the reference waits.
+    if (object == nil || NSMapGet(_objectToUid,object)) {
         [self encodeObject:object forKey:key];
+    }
+    else {
+        NSMutableArray *references=NSMapGet(_conditionalReferences,object);
+
+        if(references==nil){
+            references=[NSMutableArray array];
+            NSMapInsert(_conditionalReferences,object,references);
+        }
+        [references addObject:[NSArray arrayWithObjects:[_plistStack lastObject],key,nil]];
     }
 }
 

@@ -1768,6 +1768,32 @@ OBJC_EXPORT void objc_setHook_getClass(objc_hook_getClass _Nonnull newValue,
 #endif
 
 /**
+ * Function type for a hook that names a class whose name is computed
+ * lazily (a class made at run time, such as a Swift generic class).
+ *
+ * @param cls The class to name.
+ * @return The class's name, which stays valid as long as the class; or
+ *  NULL to let the previous hook name it.
+ *
+ * @see objc_setHook_lazyClassNamer
+ */
+typedef const char * _Nullable (*objc_hook_lazyClassNamer)(_Nonnull Class cls);
+
+/**
+ * Install a hook that names lazily named classes.
+ *
+ * API 20 (11.0): Minkar's runtime does not provide it yet. Callers that
+ * may run on API 19 check for it (it is weakly linked below 11.0).
+ *
+ * @param newValue The hook function to install.
+ * @param oldOutValue The address of a function pointer variable. On
+ *  return, the old hook function is stored in the variable.
+ */
+OBJC_EXPORT void objc_setHook_lazyClassNamer(_Nonnull objc_hook_lazyClassNamer newValue,
+                                             _Nonnull objc_hook_lazyClassNamer * _Nonnull oldOutValue)
+    OBJC_AVAILABLE(11.0, 14.0, 14.0, 7.0, 5.0);
+
+/**
  * Function type for a hook that assists objc_setAssociatedObject().
  *
  * @param object The source object for the association.

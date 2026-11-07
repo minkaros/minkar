@@ -39,6 +39,7 @@
 #import <Foundation/NSIndexSet.h>
 #import <Foundation/NSMutableIndexSet.h>
 #import <Foundation/NSException.h>
+#import <Foundation/NSValue.h>
 #include <stdlib.h>
 
 // Stable merge sort of objects[0..count) with cmp. scratch holds count
@@ -415,6 +416,84 @@ static void requireBlock(id block, SEL sel, id receiver)
     requireBlock(predicate, _cmd, self);
     NSMutableIndexSet *result = [NSMutableIndexSet indexSet];
     [self enumerateIndexesUsingBlock:^(NSUInteger idx, BOOL *stop) {
+        if (predicate(idx, stop))
+            [result addIndex:idx];
+    }];
+    return result;
+}
+
+@end
+
+/* The rest of the block API of index sets (API 19), on its ranges. */
+@implementation NSIndexSet (NSBlocksInRange)
+
+/* The set's ranges cut to range, in order (or reversed). */
+static NSArray *rangesIn(NSIndexSet *set, NSRange range, NSEnumerationOptions opts) {
+    NSMutableArray *ranges = [NSMutableArray array];
+    [set enumerateRangesUsingBlock:^(NSRange r, BOOL *stop) {
+        NSRange cut = NSIntersectionRange(r, range);
+        if (cut.length > 0)
+            [ranges addObject:[NSValue valueWithRange:cut]];
+    }];
+    return (opts & NSEnumerationReverse) ? [[ranges reverseObjectEnumerator] allObjects] : ranges;
+}
+
+- (NSUInteger)countOfIndexesInRange:(NSRange)range {
+    NSUInteger count = 0;
+    for (NSValue *v in rangesIn(self, range, 0))
+        count += [v rangeValue].length;
+    return count;
+}
+
+- (void)enumerateIndexesInRange:(NSRange)range options:(NSEnumerationOptions)opts usingBlock:(void (NS_NOESCAPE ^)(NSUInteger idx, BOOL *stop))block {
+    requireBlock(block, _cmd, self);
+    BOOL stop = NO;
+    BOOL reverse = (opts & NSEnumerationReverse) != 0;
+    for (NSValue *v in rangesIn(self, range, opts)) {
+        NSRange r = [v rangeValue];
+        for (NSUInteger i = 0; i < r.length && !stop; i++)
+            block(reverse ? NSMaxRange(r) - 1 - i : r.location + i, &stop);
+        if (stop)
+            break;
+    }
+}
+
+- (void)enumerateRangesWithOptions:(NSEnumerationOptions)opts usingBlock:(void (NS_NOESCAPE ^)(NSRange range, BOOL *stop))block {
+    [self enumerateRangesInRange:NSMakeRange(0, NSNotFound) options:opts usingBlock:block];
+}
+
+- (void)enumerateRangesInRange:(NSRange)range options:(NSEnumerationOptions)opts usingBlock:(void (NS_NOESCAPE ^)(NSRange range, BOOL *stop))block {
+    requireBlock(block, _cmd, self);
+    BOOL stop = NO;
+    for (NSValue *v in rangesIn(self, range, opts)) {
+        block([v rangeValue], &stop);
+        if (stop)
+            break;
+    }
+}
+
+- (NSUInteger)indexWithOptions:(NSEnumerationOptions)opts passingTest:(BOOL (NS_NOESCAPE ^)(NSUInteger idx, BOOL *stop))predicate {
+    return [self indexInRange:NSMakeRange(0, NSNotFound) options:opts passingTest:predicate];
+}
+
+- (NSUInteger)indexInRange:(NSRange)range options:(NSEnumerationOptions)opts passingTest:(BOOL (NS_NOESCAPE ^)(NSUInteger idx, BOOL *stop))predicate {
+    __block NSUInteger found = NSNotFound;
+    [self enumerateIndexesInRange:range options:opts usingBlock:^(NSUInteger idx, BOOL *stop) {
+        if (predicate(idx, stop)) {
+            found = idx;
+            *stop = YES;
+        }
+    }];
+    return found;
+}
+
+- (NSIndexSet *)indexesWithOptions:(NSEnumerationOptions)opts passingTest:(BOOL (NS_NOESCAPE ^)(NSUInteger idx, BOOL *stop))predicate {
+    return [self indexesInRange:NSMakeRange(0, NSNotFound) options:opts passingTest:predicate];
+}
+
+- (NSIndexSet *)indexesInRange:(NSRange)range options:(NSEnumerationOptions)opts passingTest:(BOOL (NS_NOESCAPE ^)(NSUInteger idx, BOOL *stop))predicate {
+    NSMutableIndexSet *result = [NSMutableIndexSet indexSet];
+    [self enumerateIndexesInRange:range options:opts usingBlock:^(NSUInteger idx, BOOL *stop) {
         if (predicate(idx, stop))
             [result addIndex:idx];
     }];

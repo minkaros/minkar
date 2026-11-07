@@ -1,5 +1,6 @@
 /* Copyright (c) 2006-2007 Christopher J. W. Lloyd
                  2009-2010 Markus Hitter <mah@jump-ing.de>
+Modifications Copyright (c) 2026 The Minkar contributors
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
 
@@ -8,6 +9,7 @@ The above copyright notice and this permission notice shall be included in all c
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE. */
 
 #import <AppKit/NSView.h>
+#import "NSLayout/NSLayoutInternal.h"
 #import <AppKit/NSApplication.h>
 #import <AppKit/NSEvent.h>
 #import <AppKit/NSWindow-Private.h>
@@ -33,6 +35,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <CoreGraphics/CGWindow.h>
 #import <QuartzCore/CALayerContext.h>
 #import <QuartzCore/CATransaction.h>
+#import <QuartzCore/CAMetalLayerPrivate.h>
 
 NSString * const NSViewFrameDidChangeNotification=@"NSViewFrameDidChangeNotification";
 NSString * const NSViewBoundsDidChangeNotification=@"NSViewBoundsDidChangeNotification";
@@ -286,6 +289,32 @@ static inline void configureLayerGeometry(NSView *self){
    [CATransaction commit];
 }
 
+/*
+  A CAMetalLayer shows its own drawables in its view's rectangle of the
+  window, with or without layer-backed views: it is told the window and the
+  rectangle (pixels from the window's top left) whenever they change.
+ */
+static BOOL isSurfaceLayer(CALayer *layer) {
+   return [layer isKindOfClass:[CAMetalLayer class]];
+}
+
+static void updateSurfaceLayer(NSView *self) {
+   CALayer *layer=self->_layer;
+
+   if(!isSurfaceLayer(layer))
+    return;
+   uint32_t window=0;
+   CGRect rect=CGRectZero;
+   if(self->_window!=nil && [self->_window respondsToSelector:@selector(_skyLightWindowID)]){
+    window=[(id)self->_window _skyLightWindowID];
+    NSRect r=[self convertRect:self->_bounds toView:nil];
+    CGFloat height=[self->_window frame].size.height;
+    rect=CGRectMake(r.origin.x,height-(r.origin.y+r.size.height),r.size.width,r.size.height);
+    rect=NSIntegralRect(rect);
+   }
+   [(CAMetalLayer *)layer _minkarSetWindow:window rect:rect];
+}
+
 static inline void buildTransformsIfNeeded(NSView *self) {
    if(!self->_validTransforms){
     self->_transformToWindow=[self createTransformToWindow];
@@ -295,6 +324,7 @@ static inline void buildTransformsIfNeeded(NSView *self) {
 
     self->_visibleRect=[self calculateVisibleRect];
     configureLayerGeometry(self);
+    updateSurfaceLayer(self);
    }
 }
 
@@ -496,6 +526,7 @@ static inline void buildTransformsIfNeeded(NSView *self) {
         }
 
         [[self superview] setNeedsDisplay:YES];
+        NSLayoutViewDidChangeVisibility(self);
 
         if(_isHidden)
             [self viewDidHide];
@@ -760,6 +791,10 @@ static inline void buildTransformsIfNeeded(NSView *self) {
 
    invalidateTransform(self);
 
+   // A new size may move what constraints hold inside the view.
+   if(!NSEqualSizes(oldSize,_bounds.size))
+    NSLayoutViewDidResize(self);
+
    if(_postsNotificationOnFrameChange)
     [[NSNotificationCenter defaultCenter] postNotificationName:NSViewFrameDidChangeNotification object:self];
 }
@@ -843,6 +878,14 @@ static inline void buildTransformsIfNeeded(NSView *self) {
         if (windowRecalulatesKeyViewLoop)
             [_window recalculateKeyViewLoop];
 
+        if(isSurfaceLayer(_layer)){
+            invalidateTransform(self);
+            if(_window==nil)
+                updateSurfaceLayer(self);
+            else
+                buildTransformsIfNeeded(self);
+        }
+
         [self viewDidMoveToWindow];
     }
 }
@@ -880,9 +923,13 @@ static inline void buildTransformsIfNeeded(NSView *self) {
    [self setNeedsDisplayInRect:[view frame]];
 
    [view viewDidMoveToSuperview];
+   NSLayoutViewDidMove(view);
 
    if(_wantsLayer)
     [view setWantsLayer:YES];
+
+   /* As documented: told after every subview added (it was never sent). */
+   [self didAddSubview:view];
 }
 
 -(void)addSubview:(NSView *)view {
@@ -1505,6 +1552,16 @@ static inline void buildTransformsIfNeeded(NSView *self) {
 }
 
 -(void)setWantsLayer:(BOOL)value {
+   /* Without layer-backed views, only a layer that shows its own surfaces. */
+   if(!NSViewLayersEnabled){
+    if(value && _layer==nil){
+     CALayer *layer=[self makeBackingLayer];
+     if(isSurfaceLayer(layer))
+      [self setLayer:layer];
+    }
+    _wantsLayer=value;
+    return;
+   }
    if(!value){
     if(_wantsLayer){
      _wantsLayer=NO;
@@ -1520,8 +1577,26 @@ static inline void buildTransformsIfNeeded(NSView *self) {
 }
 
 -(void)setLayer:(CALayer *)value {
-   if(!NSViewLayersEnabled)
+   if(!NSViewLayersEnabled){
+    /* Without layer-backed views, only a layer that shows its own
+       surfaces: kept, told its view's geometry, not composited. */
+    if(value!=_layer && (value==nil || isSurfaceLayer(value))){
+     if(isSurfaceLayer(_layer)){
+      [(CAMetalLayer *)_layer _minkarSetWindow:0 rect:CGRectZero];
+      if([_layer delegate]==self)
+       [_layer setDelegate:nil];
+     }
+     [value retain];
+     [_layer release];
+     _layer=value;
+     if(_layer!=nil){
+      [_layer setDelegate:self];
+      invalidateTransform(self);
+      buildTransformsIfNeeded(self);
+     }
+    }
     return;
+   }
 
    if(value!=_layer){
     [_subviews makeObjectsPerformSelector:@selector(_removeLayerFromSuperlayer)];

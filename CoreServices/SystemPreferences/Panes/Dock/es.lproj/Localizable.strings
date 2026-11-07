@@ -1,0 +1,11 @@
+/* SPDX-License-Identifier: BSD-2-Clause
+   Copyright (c) 2026 The Minkar contributors
+   The Dock pane, in Spanish. The keys are the English texts. */
+
+"Size:" = "Tamaño:";
+"Magnification:" = "Ampliación:";
+"Position on screen:" = "Posición en pantalla:";
+"Left" = "Izquierda";
+"Bottom" = "Abajo";
+"Right" = "Derecha";
+"Automatically hide and show the Dock" = "Ocultar y mostrar el Dock automáticamente";

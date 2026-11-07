@@ -34,7 +34,7 @@
  *
  * SHORTCUT(Phase 5): the standard cursors are plain shapes drawn here
  * (black, with a white outline added around them), and the ones without a
- * shape are the arrow, until Gienah's cursor set; taken in WS4a.
+ * shape are the arrow, until Atlas's cursor set; taken in WS4a.
  */
 
 #import <AppKit/NSCursor.h>

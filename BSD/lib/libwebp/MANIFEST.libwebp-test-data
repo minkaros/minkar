@@ -1,0 +1,10 @@
+# libwebp's test vectors (same terms as libwebp, BSD-3-Clause), for gate
+# W0 (Tests/W0/libwebp): files that dwebp must decode to the MD5 sums and
+# reference images they come with, and the scripts that check them. The
+# commit of 12 Jan 2022, the last before the PGM references were made
+# again for libwebp 1.6's chroma (26 Aug 2025); git checks every object
+# against it.
+git https://chromium.googlesource.com/webm/libwebp-test-data
+commit 260804d686f0491e0326a50eef491829dae09e9e
+name libwebp-test-data
+path *

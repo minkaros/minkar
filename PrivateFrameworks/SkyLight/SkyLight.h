@@ -48,7 +48,7 @@ extern "C" {
 #define kSLSServiceName		"org.minkar.WindowServer"
 
 /* The interface version both sides are built for. */
-#define kSLSInterfaceVersion	15
+#define kSLSInterfaceVersion	18
 
 typedef int32_t SLSConnectionID;
 
@@ -275,6 +275,8 @@ int SLSDisplayCapturedBy(SLSDisplayID display, int32_t *pid);
 uint32_t SLSShieldingWindowID(SLSDisplayID display);
 /* The menu levels, as the public kCGMainMenuWindowLevel,
  * kCGStatusWindowLevel and kCGPopUpMenuWindowLevel. */
+/* The Dock's level, as the public kCGDockWindowLevel. */
+#define kSLSDockWindowLevel		20
 #define kSLSMainMenuWindowLevel		24
 #define kSLSStatusWindowLevel		25
 #define kSLSPopUpMenuWindowLevel	101
@@ -467,6 +469,31 @@ int SLSWindowFlushPixels(SLSWindowID window, const void *pixels, uint32_t rowByt
  */
 int SLSWindowSetIOSurface(SLSWindowID window, uint32_t surfaceID);
 
+/*
+ * A layer of the window (CAMetalLayer's): an IOSurface of this process
+ * (BGRA, 4 bytes per pixel, rect's size) shown over the window's own
+ * content in rect (window coordinates, inside the window), until another
+ * is set; it moves, orders and fades with the window, and events in it go
+ * to the window. Each call shows the surface at the next frame (a
+ * present); surface 0 takes the layer away (interface version 16).
+ */
+int SLSWindowSetLayerIOSurface(SLSWindowID window, uint32_t surfaceID, SLSIntRect rect);
+
+/*
+ * Pacing a layer by the display: once a frame that shows the window's
+ * last layer surface is on the screen (after its vertical blank where the
+ * display flips), the server sends notify an SLSLayerShown, without
+ * waiting (a full queue drops it). MACH_PORT_NULL stops it.
+ */
+#define kSLSLayerShownMessageID	0x534c4c53	/* 'SLLS' */
+typedef struct SLSLayerShown {
+	mach_msg_header_t	header;
+	uint32_t		window;
+	uint32_t		surface;	/* the layer surface shown */
+	uint64_t		time;		/* mach_absolute_time, once shown */
+} SLSLayerShown;
+int SLSWindowSetLayerNotifyPort(SLSWindowID window, mach_port_t notify);
+
 #define kSLSMaxSurfaceSide	16384
 #define kSLSMaxDamageRects	64
 
@@ -585,7 +612,8 @@ _Static_assert(sizeof(SLSEvent) == kSLSEventWords * 4, "SLSEvent size");
  * This connection's events. The server keeps a bounded queue per
  * connection, mouse moves coalesced, and sends a message to SLSEventPort
  * when the queue stops being empty; SLSReceiveEvents empties the queue,
- * after waiting for that message when wait is set.
+ * after waiting for that message when wait is set. When the server goes
+ * away it returns kSLSErrorInvalidConnection (the wait ends too).
  */
 mach_port_t SLSEventPort(void);
 int SLSReceiveEvents(SLSEvent *events, uint32_t max, uint32_t *count, int wait);
@@ -767,14 +795,47 @@ typedef struct SLSServerStats {
 	uint64_t	lastFrameMicros;	/* compositing and present, last frame */
 	uint64_t	totalFrameMicros;
 	uint64_t	events;			/* input events read from the HID system */
+	/* Interface version 17, for measurements (GPU track G4.6): over the
+	 * last 1,024 frames, compositing and present; from the first damage
+	 * after a frame to its present (lateFrames: over two refreshes); and
+	 * from an input event (IOHIDSystem's time) to the present of the
+	 * frame after it, the pointer's input-to-present latency. */
+	uint64_t	frameMicrosP50, frameMicrosP95, frameMicrosP99, frameMicrosMax;
+	uint64_t	damageMicrosP50, damageMicrosP95;
+	uint64_t	lateFrames;
+	uint64_t	inputMicrosP50, inputMicrosP95, inputSamples;
+	uint64_t	refreshMicros;		/* the main display's refresh period */
+	/* Compositing alone (the frame drawn, before its present, which with
+	 * page flips waits for the vertical blank). */
+	uint64_t	composeMicrosP50, composeMicrosP95;
 } SLSServerStats;
 
-#define kSLSServerStatsWords	16
+#define kSLSServerStatsWords	42
 #ifndef __cplusplus
 _Static_assert(sizeof(SLSServerStats) == kSLSServerStatsWords * 4, "SLSServerStats size");
 #endif
 
 int SLSGetServerStats(SLSServerStats *stats);
+/* All counters and samples back to zero (for a measurement's start). */
+int SLSResetServerStats(void);
+
+/* ---- The keyboard (interface version 18) ----
+ * Its layout (XKB names: "us", "es", "latam"; a variant, "" for none) and
+ * how a held key repeats: the delay before the first repeat and the
+ * interval between the next ones, in milliseconds. The server keeps them
+ * (/var/db/WindowServer/Keyboard.plist). Root or the console's user may
+ * set them; kSLSErrorIllegalArgument for a layout the server cannot load
+ * or times out of 15..2000 ms. System Preferences' Keyboard pane sets
+ * them. */
+typedef struct {
+	char layout[32];
+	char variant[32];
+	uint32_t initialRepeat;
+	uint32_t repeatInterval;
+} SLSKeyboardSettings;
+
+int SLSSetKeyboardSettings(const SLSKeyboardSettings *settings);
+int SLSGetKeyboardSettings(SLSKeyboardSettings *settings);
 
 #ifdef __cplusplus
 }

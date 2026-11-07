@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+ SPDX-License-Identifier: BSD-2-Clause
+ Copyright (c) 2026 The Minkar contributors
+ Part of Minkar.
+
+ logd (Phase 3): keeps os_log's messages, for the log command. Started at
+ boot and kept running: processes send it their messages without waiting.
+-->
+<plist version="1.0">
+<dict>
+	<key>Label</key>
+	<string>org.minkar.logd</string>
+	<key>ProgramArguments</key>
+	<array>
+		<string>/usr/libexec/logd</string>
+	</array>
+	<key>MachServices</key>
+	<dict>
+		<key>org.minkar.logd</key>
+		<true/>
+	</dict>
+	<key>RunAtLoad</key>
+	<true/>
+	<key>KeepAlive</key>
+	<true/>
+	<key>StandardErrorPath</key>
+	<string>/var/log/logd/logd.log</string>
+</dict>
+</plist>

@@ -1,0 +1,7 @@
+# proxy-libintl (LGPL-2.0), GLib's stand-in for libintl, at the commit
+# GLib's proxy-libintl.wrap names; checked against this SHA-256, taken at
+# the first fetch.
+url https://github.com/frida/proxy-libintl/archive/33934de09af6a6627eb44e310a8079df009abdbb.tar.gz
+file proxy-libintl-33934de09af6a6627eb44e310a8079df009abdbb.tar.gz
+sha256 4ab5af85ec6124cb526a15c58bbc0877d241807e30855779808dbf9292d861aa
+version 33934de09af6a6627eb44e310a8079df009abdbb

@@ -82,6 +82,18 @@ static int hold(IOSurfaceID sid, int seconds) {
 	return 0;
 }
 
+/* A process with no privileges (nobody): 0 if it finds the surface by its
+ * ID, 2 if not. */
+static int stranger(IOSurfaceID sid) {
+	if (setgid((gid_t)-2) != 0 || setuid((uid_t)-2) != 0)
+		return 4;
+	IOSurfaceRef s = IOSurfaceLookup(sid);
+	if (s == NULL)
+		return 2;
+	CFRelease(s);
+	return 0;
+}
+
 static pid_t spawn(const char *self, char *const argv[], int *out) {
 	posix_spawn_file_actions_t actions;
 	int pipes[2];
@@ -104,6 +116,8 @@ int main(int argc, char *argv[]) {
 		return child((IOSurfaceID)strtoul(argv[2], NULL, 10));
 	if (argc == 4 && strcmp(argv[1], "hold") == 0)
 		return hold((IOSurfaceID)strtoul(argv[2], NULL, 10), atoi(argv[3]));
+	if (argc == 3 && strcmp(argv[1], "stranger") == 0)
+		return stranger((IOSurfaceID)strtoul(argv[2], NULL, 10));
 
 	CFMutableDictionaryRef p = properties(64, 32, 4);
 	IOSurfaceRef s = IOSurfaceCreate(p);
@@ -204,6 +218,31 @@ int main(int argc, char *argv[]) {
 	check(gone == NULL, "and goes with the last holder");
 	if (gone)
 		CFRelease(gone);
+
+	/* An ID is no secret: a process without privileges does not find
+	 * another's surface by it, unless the surface is global. */
+	for (int global = 0; global < 2; global++) {
+		CFMutableDictionaryRef gp = properties(16, 16, 4);
+		if (global)
+			CFDictionarySetValue(gp, kIOSurfaceIsGlobal, kCFBooleanTrue);
+		IOSurfaceRef g = IOSurfaceCreate(gp);
+		CFRelease(gp);
+		char gid[16];
+		snprintf(gid, sizeof(gid), "%u", g ? IOSurfaceGetID(g) : 0);
+		char *strangerArgs[] = { argv[0], "stranger", gid, NULL };
+		pid = spawn(argv[0], strangerArgs, &out);
+		status = 0;
+		waitpid(pid, &status, 0);
+		close(out);
+		if (global)
+			check(g != NULL && WIFEXITED(status) && WEXITSTATUS(status) == 0,
+			    "anyone finds a global surface by its ID");
+		else
+			check(g != NULL && WIFEXITED(status) && WEXITSTATUS(status) == 2,
+			    "a process without privileges does not find another's surface by its ID");
+		if (g)
+			CFRelease(g);
+	}
 
 	/* Planes: a 4:2:0 layout, luma then chroma. */
 	CFMutableDictionaryRef pp = properties(64, 32, 1);

@@ -36,6 +36,7 @@ typedef enum {
     NSRect _zoomButtonRect;
     NSPoint pointer;
     NSRect controls;
+    NSView *_titlebarOverlay; /* with a full-size content view */
 }
 
 - (NSWindowBorderType)windowBorderType;
@@ -43,5 +44,8 @@ typedef enum {
 /* The close, minimize and zoom buttons together, in the frame view's
  * coordinates (empty until the frame is drawn). */
 - (NSRect)_windowControlsRect;
+/* The window's buttons and title, in the frame view's coordinates: drawn
+ * by the frame, or above a full-size content view. */
+- (void)_drawTitlebarControls;
 
 @end

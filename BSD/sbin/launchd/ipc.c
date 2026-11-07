@@ -400,15 +400,18 @@ ipc_command(job_t caller, bool privileged, launch_data_t data, const char *cmd)
 				}
 				resp = launch_data_new_errno(errno);
 			} else if (!strcmp(cmd, LAUNCH_KEY_STOPJOB)) {
+				/* Minkar: the answer is the lookup's: job_stop() and
+				 * job_remove() leave errno to their own calls (an EIO
+				 * from a closed pipe), which was answered as a failure. */
 				if ((j = job_find(NULL, launch_data_get_string(data))) != NULL) {
-					errno = 0;
 					job_stop(j);
+					errno = 0;
 				}
 				resp = launch_data_new_errno(errno);
 			} else if (!strcmp(cmd, LAUNCH_KEY_REMOVEJOB)) {
 				if ((j = job_find(NULL, launch_data_get_string(data))) != NULL) {
-					errno = 0;
 					job_remove(j);
+					errno = 0;
 				}
 				resp = launch_data_new_errno(errno);
 			} else if (!strcmp(cmd, LAUNCH_KEY_SUBMITJOB)) {

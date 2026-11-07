@@ -34,5 +34,8 @@
 #include "LSSession.h"
 
 typedef LSSessionApp ls_app_list_t[kLSSessionMaxApps];
+typedef LSSessionPath ls_path_list_t[kLSSessionMaxHandlers];
+typedef struct { char uti[128]; } ls_uti_t;
+typedef char ls_bytes_t[kLSSessionMaxURLBytes];
 
 #endif

@@ -8,28 +8,35 @@ The above copyright notice and this permission notice shall be included in all c
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE. */
 #import <Foundation/NSObject.h>
 
-@class NSDictionary, NSArray;
+@class NSDictionary<KeyType, ObjectType>, NSArray<ObjectType>;
 
-FOUNDATION_EXPORT NSString *const NSPOSIXErrorDomain;
-FOUNDATION_EXPORT NSString *const NSOSStatusErrorDomain;
+typedef NSString *NSErrorDomain;
+typedef NSString *NSErrorUserInfoKey;
+
+NS_ASSUME_NONNULL_BEGIN
+
+FOUNDATION_EXPORT NSErrorDomain const NSCocoaErrorDomain;
+FOUNDATION_EXPORT NSErrorDomain const NSPOSIXErrorDomain;
+FOUNDATION_EXPORT NSErrorDomain const NSOSStatusErrorDomain;
+FOUNDATION_EXPORT NSErrorDomain const NSMachErrorDomain;
 // temporary until we can map it
-FOUNDATION_EXPORT NSString *const NSWINSOCKErrorDomain;
-FOUNDATION_EXPORT NSString *const NSWin32ErrorDomain;
+FOUNDATION_EXPORT NSErrorDomain const NSWINSOCKErrorDomain;
+FOUNDATION_EXPORT NSErrorDomain const NSWin32ErrorDomain;
 
-FOUNDATION_EXPORT NSString *const NSCocoaErrorDomain;
+FOUNDATION_EXPORT NSErrorUserInfoKey const NSUnderlyingErrorKey;
+FOUNDATION_EXPORT NSErrorUserInfoKey const NSLocalizedDescriptionKey;
+FOUNDATION_EXPORT NSErrorUserInfoKey const NSLocalizedFailureReasonErrorKey;
+FOUNDATION_EXPORT NSErrorUserInfoKey const NSLocalizedRecoverySuggestionErrorKey;
+FOUNDATION_EXPORT NSErrorUserInfoKey const NSLocalizedRecoveryOptionsErrorKey;
+FOUNDATION_EXPORT NSErrorUserInfoKey const NSRecoveryAttempterErrorKey;
+FOUNDATION_EXPORT NSErrorUserInfoKey const NSHelpAnchorErrorKey;
+FOUNDATION_EXPORT NSErrorUserInfoKey const NSDebugDescriptionErrorKey;
+FOUNDATION_EXPORT NSErrorUserInfoKey const NSLocalizedFailureErrorKey;
 
-FOUNDATION_EXPORT NSString *const NSUnderlyingErrorKey;
-FOUNDATION_EXPORT NSString *const NSLocalizedDescriptionKey;
-FOUNDATION_EXPORT NSString *const NSLocalizedFailureReasonErrorKey;
-FOUNDATION_EXPORT NSString *const NSLocalizedRecoveryOptionsErrorKey;
-FOUNDATION_EXPORT NSString *const NSLocalizedRecoverySuggestionErrorKey;
-FOUNDATION_EXPORT NSString *const NSRecoveryAttempterErrorKey;
-FOUNDATION_EXPORT NSString *const NSDebugDescriptionErrorKey;
-
-FOUNDATION_EXPORT NSString *const NSStringEncodingErrorKey;
-FOUNDATION_EXPORT NSString *const NSFilePathErrorKey;
-FOUNDATION_EXPORT NSString *const NSErrorFailingURLStringKey;
-FOUNDATION_EXPORT NSString *const NSURLErrorKey;
+FOUNDATION_EXPORT NSErrorUserInfoKey const NSStringEncodingErrorKey;
+FOUNDATION_EXPORT NSErrorUserInfoKey const NSURLErrorKey;
+FOUNDATION_EXPORT NSErrorUserInfoKey const NSFilePathErrorKey;
+FOUNDATION_EXPORT NSErrorUserInfoKey const NSErrorFailingURLStringKey;
 
 @interface NSError : NSObject <NSCopying, NSSecureCoding> {
     NSString *_domain;
@@ -37,26 +44,31 @@ FOUNDATION_EXPORT NSString *const NSURLErrorKey;
     NSDictionary *_userInfo;
 }
 
-- initWithDomain:(NSString *)domain code:(NSInteger)code userInfo:(NSDictionary *)userInfo;
+- (instancetype)initWithDomain:(NSErrorDomain)domain code:(NSInteger)code userInfo:(nullable NSDictionary<NSErrorUserInfoKey, id> *)dict NS_DESIGNATED_INITIALIZER;
++ (instancetype)errorWithDomain:(NSErrorDomain)domain code:(NSInteger)code userInfo:(nullable NSDictionary<NSErrorUserInfoKey, id> *)dict;
 
-+ errorWithDomain:(NSString *)domain code:(NSInteger)code userInfo:(NSDictionary *)userInfo;
+@property (readonly, copy) NSErrorDomain domain;
+@property (readonly) NSInteger code;
+@property (readonly, copy) NSDictionary<NSErrorUserInfoKey, id> *userInfo;
 
-- (NSString *)domain;
-- (NSInteger)code;
-- (NSDictionary *)userInfo;
+@property (readonly, copy) NSString *localizedDescription;
+@property (nullable, readonly, copy) NSString *localizedFailureReason;
+@property (nullable, readonly, copy) NSString *localizedRecoverySuggestion;
+@property (nullable, readonly, copy) NSArray<NSString *> *localizedRecoveryOptions;
+@property (nullable, readonly, strong) id recoveryAttempter;
+@property (nullable, readonly, copy) NSString *helpAnchor;
+@property (readonly, copy) NSArray<NSError *> *underlyingErrors;
 
-- (NSString *)localizedDescription;
-- (NSString *)localizedFailureReason;
-- (NSArray *)localizedRecoveryOptions;
-- (NSString *)localizedRecoverySuggestion;
-
-- recoveryAttempter;
++ (void)setUserInfoValueProviderForDomain:(NSErrorDomain)errorDomain provider:(id _Nullable (^ _Nullable)(NSError *err, NSErrorUserInfoKey userInfoKey))provider;
++ (id _Nullable (^ _Nullable)(NSError *err, NSErrorUserInfoKey userInfoKey))userInfoValueProviderForDomain:(NSErrorDomain)errorDomain;
 
 @end
 
 @interface NSObject (NSErrorRecoveryAttempting)
 
-- (void)attemptRecoveryFromError:(NSError *)error optionIndex:(NSUInteger)recoveryOptionIndex delegate:(id)delegate didRecoverSelector:(SEL)didRecoverSelector contextInfo:(void *)info;
+- (void)attemptRecoveryFromError:(NSError *)error optionIndex:(NSUInteger)recoveryOptionIndex delegate:(nullable id)delegate didRecoverSelector:(nullable SEL)didRecoverSelector contextInfo:(nullable void *)info;
 - (BOOL)attemptRecoveryFromError:(NSError *)error optionIndex:(NSUInteger)recoveryOptionIndex;
 
 @end
+
+NS_ASSUME_NONNULL_END

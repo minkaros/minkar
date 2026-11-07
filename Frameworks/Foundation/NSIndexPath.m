@@ -132,4 +132,16 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    return nil;
 }
 
+/* The indexes at these positions. */
+-(void)getIndexes:(NSUInteger *)indexes range:(NSRange)positionRange {
+   if(NSMaxRange(positionRange)>_length)
+    [NSException raise:NSRangeException format:@"-[NSIndexPath getIndexes:range:] range %@ beyond length %lu",
+     NSStringFromRange(positionRange),(unsigned long)_length];
+   memcpy(indexes,_indexes+positionRange.location,positionRange.length*sizeof(NSUInteger));
+}
+
++(BOOL)supportsSecureCoding {
+   return YES;
+}
+
 @end

@@ -9,7 +9,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <CoreGraphics/CGBitmapContext.h>
 #import <Onyx2D/O2BitmapContext.h>
 
-CGContextRef CGBitmapContextCreate(void *bytes,size_t width,size_t height,size_t bitsPerComponent,size_t bytesPerRow,CGColorSpaceRef colorSpace,CGBitmapInfo bitmapInfo) {
+CGContextRef CGBitmapContextCreate(void *bytes,size_t width,size_t height,size_t bitsPerComponent,size_t bytesPerRow,CGColorSpaceRef colorSpace,uint32_t bitmapInfo) {
    return O2BitmapContextCreate(bytes,width,height,bitsPerComponent,bytesPerRow,colorSpace,bitmapInfo);
 }
 

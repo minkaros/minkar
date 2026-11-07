@@ -30,7 +30,7 @@
 #import <Foundation/NSEnumerator.h>
 #import <Foundation/NSPointerFunctions.h>
 
-@class NSArray;
+@class NSArray<ObjectType>;
 
 NS_ASSUME_NONNULL_BEGIN
 

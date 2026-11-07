@@ -1,0 +1,6 @@
+# swift-cmark (BSD-2-Clause), the Markdown library the Swift compiler
+# links for its documentation comments; the same release tag.
+url https://github.com/swiftlang/swift-cmark/archive/refs/tags/swift-6.0-RELEASE.tar.gz
+file swift-cmark-6.0-RELEASE.tar.gz
+sha256 a1de29088d09896fb5d355506af69a5cbca13d5a413f2286e0380b6b3417b786
+version 6.0

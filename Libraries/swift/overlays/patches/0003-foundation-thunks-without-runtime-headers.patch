@@ -1,0 +1,15 @@
+# DataThunks.m without the Swift runtime's headers: the one macro it takes
+# from them marks __NSDataWriteToURL internal to the overlay.
+--- a/stdlib/public/Darwin/Foundation/DataThunks.m
++++ b/stdlib/public/Darwin/Foundation/DataThunks.m
+@@ -13,7 +13,9 @@
+ #import <Foundation/Foundation.h>
+ #import <sys/fcntl.h>
+ 
+-#include "swift/Runtime/Config.h"
++// Swift's SWIFT_RUNTIME_STDLIB_INTERNAL, for C (the runtime's headers are
++// not part of an overlay build).
++#define SWIFT_RUNTIME_STDLIB_INTERNAL __attribute__((__visibility__("hidden")))
+ 
+ #if TARGET_OS_IPHONE && !TARGET_OS_SIMULATOR
+ static int __NSFileProtectionClassForOptions(NSUInteger options) {

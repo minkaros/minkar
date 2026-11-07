@@ -61,14 +61,8 @@
 #import <CoreFoundation/CoreFoundation.h>
 /* Minkar: no CoreServices here, as on macOS; nothing in Foundation needs CFNetwork. */
 
-#ifndef NS_ENUM
-#define NS_ENUM(_type, _name) enum _name:_type _name; enum _name : _type
-#endif
-#define NS_UNAVAILABLE __attribute__((unavailable))
-
-#ifndef NS_SWIFT_NAME
-#define NS_SWIFT_NAME(_name)
-#endif
+/* NS_ENUM, NS_SWIFT_NAME and the rest: NSObjCRuntime.h. */
+#import <Foundation/NSObjCRuntime.h>
 
 #import <Foundation/FoundationErrors.h>
 #import <Foundation/NSAffineTransform.h>
@@ -89,6 +83,18 @@
 #import <Foundation/NSData.h>
 #import <Foundation/NSDate.h>
 #import <Foundation/NSDateComponents.h>
+#import <Foundation/NSOrderedSet.h>
+#import <Foundation/NSOrderedCollectionDifference.h>
+#import <Foundation/NSOrderedCollectionChange.h>
+#import <Foundation/NSUnit.h>
+#import <Foundation/NSMeasurement.h>
+#import <Foundation/NSPersonNameComponents.h>
+#import <Foundation/NSPersonNameComponentsFormatter.h>
+#import <Foundation/NSOrthography.h>
+#import <Foundation/NSLinguisticTagger.h>
+#import <Foundation/NSISO8601DateFormatter.h>
+#import <Foundation/NSItemProvider.h>
+#import <Foundation/NSMeasurementFormatter.h>
 #import <Foundation/NSDateFormatter.h>
 #import <Foundation/NSDateInterval.h>
 #import <Foundation/NSDateIntervalFormatter.h>
@@ -122,10 +128,12 @@
 #import <Foundation/NSLocale.h>
 #import <Foundation/NSLock.h>
 #import <Foundation/NSMapTable.h>
+#import <Foundation/NSMetadataAttributes.h>
 #import <Foundation/NSMetadataItem.h>
 #import <Foundation/NSMetadataQuery.h>
 #import <Foundation/NSMetadataQueryAttributeValueTuple.h>
 #import <Foundation/NSMetadataQueryResultGroup.h>
+#import <Foundation/NSUserNotification.h>
 #import <Foundation/NSMethodSignature.h>
 #import <Foundation/NSMutableArray.h>
 #import <Foundation/NSMutableAttributedString.h>
@@ -152,6 +160,9 @@
 #import <Foundation/NSPort.h>
 #import <Foundation/NSPortCoder.h>
 #import <Foundation/NSPredicate.h>
+#import <Foundation/NSComparisonPredicate.h>
+#import <Foundation/NSCompoundPredicate.h>
+#import <Foundation/NSExpression.h>
 #import <Foundation/NSProcessInfo.h>
 #import <Foundation/NSProxy.h>
 #import <Foundation/NSRange.h>

@@ -16,9 +16,9 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 @implementation O2PDFFunction_Type2
 
-static void evaluate(void *info,const float *input,float *output) {
+static void evaluate(void *info,const O2Float *input,O2Float *output) {
    O2PDFFunction_Type2 *self=info;
-   float x=input[0];
+   O2Float x=input[0];
    int i;
    
    if(self->_N==1.0){
@@ -57,7 +57,7 @@ static void evaluate(void *info,const float *input,float *output) {
     if(_range!=NULL)
      NSZoneFree(NULL,_range);
      
-    _range=NSZoneMalloc(NULL,sizeof(float)*_rangeCount);
+    _range=NSZoneMalloc(NULL,sizeof(O2Float)*_rangeCount);
     for(i=0;i<_rangeCount/2;i++){
      _range[i*2]=0;
      _range[i*2+1]=1;

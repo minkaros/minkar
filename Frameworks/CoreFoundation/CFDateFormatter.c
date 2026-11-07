@@ -1691,7 +1691,11 @@ static void __CFDateFormatterSetProperty(CFDateFormatterRef formatter, CFStringR
         CFStringRef localeName = CFLocaleGetIdentifier(formatter->_locale);
         CFDictionaryRef components = CFLocaleCreateComponentsFromLocaleIdentifier(kCFAllocatorSystemDefault, localeName);
         CFMutableDictionaryRef mcomponents = CFDictionaryCreateMutableCopy(kCFAllocatorSystemDefault, 0, components);
-        CFDictionarySetValue(mcomponents, kCFLocaleCalendarIdentifierKey, CFCalendarGetIdentifier((CFCalendarRef)value));
+        CFStringRef calendarID = CFCalendarGetIdentifier((CFCalendarRef)value);
+        /* Minkar: ICU formats the ISO 8601 calendar's dates as Gregorian
+         * ones (it has no names of its own for its months and days). */
+        if (CFEqual(calendarID, kCFISO8601Calendar)) calendarID = kCFGregorianCalendar;
+        CFDictionarySetValue(mcomponents, kCFLocaleCalendarIdentifierKey, calendarID);
         localeName = CFLocaleCreateLocaleIdentifierFromComponents(kCFAllocatorSystemDefault, mcomponents);
         CFRelease(mcomponents);
         CFRelease(components);
@@ -1713,7 +1717,8 @@ static void __CFDateFormatterSetProperty(CFDateFormatterRef formatter, CFStringR
         CFStringRef localeName = CFLocaleGetIdentifier(formatter->_locale);
         CFDictionaryRef components = CFLocaleCreateComponentsFromLocaleIdentifier(kCFAllocatorSystemDefault, localeName);
         CFMutableDictionaryRef mcomponents = CFDictionaryCreateMutableCopy(kCFAllocatorSystemDefault, 0, components);
-        CFDictionarySetValue(mcomponents, kCFLocaleCalendarIdentifierKey, value);
+        CFDictionarySetValue(mcomponents, kCFLocaleCalendarIdentifierKey,
+                             CFEqual(value, kCFISO8601Calendar) ? kCFGregorianCalendar : value);
         localeName = CFLocaleCreateLocaleIdentifierFromComponents(kCFAllocatorSystemDefault, mcomponents);
         CFRelease(mcomponents);
         CFRelease(components);

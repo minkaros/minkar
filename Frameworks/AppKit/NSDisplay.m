@@ -223,9 +223,19 @@ static NSRect screenFrame(CGDirectDisplayID display, CGFloat mainHeight, NSRect 
     else {
          result=[[check retain] autorelease];
 
-         NSEventType _type = [result type];
-         if(_type == NSMouseMoved || _type == NSLeftMouseDragged || _type == NSRightMouseDragged)
-             pointerPos = [result locationInWindow];
+         /* Where the pointer is on the screen (mouseLocation): an event's
+            location is its window's, so the window's origin is added. */
+         if(NSEventMaskFromType([result type]) & (NSMouseMovedMask | NSLeftMouseDraggedMask |
+            NSRightMouseDraggedMask | NSOtherMouseDraggedMask | NSLeftMouseDownMask |
+            NSLeftMouseUpMask | NSRightMouseDownMask | NSRightMouseUpMask)) {
+             NSPoint p = [result locationInWindow];
+             NSWindow *w = [result window];
+             if(w != nil) {
+                 p.x += NSMinX([w frame]);
+                 p.y += NSMinY([w frame]);
+             }
+             pointerPos = p;
+         }
 
         if(dequeue)
             [_eventQueue removeObjectAtIndex:0];

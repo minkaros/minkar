@@ -1,5 +1,5 @@
 # The applications loginwindow starts in a session, one path per line;
 # those not installed are left out (WindowServer plan, section 10.3).
 /System/Library/CoreServices/Dock.app
-/System/Library/CoreServices/Kraz.app
+/System/Library/CoreServices/Files.app
 /System/Library/CoreServices/SystemUIServer.app

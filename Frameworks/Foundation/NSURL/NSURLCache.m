@@ -50,6 +50,11 @@ static NSURLCache *shared=nil;
    shared=cache;
 }
 
+/* A directory instead of a path (10.15). */
+-(instancetype)initWithMemoryCapacity:(NSUInteger)memoryCapacity diskCapacity:(NSUInteger)diskCapacity directoryURL:(NSURL *)directoryURL {
+   return [self initWithMemoryCapacity:memoryCapacity diskCapacity:diskCapacity diskPath:[directoryURL path]];
+}
+
 -initWithMemoryCapacity:(NSUInteger)memoryCapacity diskCapacity:(NSUInteger)diskCapacity diskPath:(NSString *)diskPath {
    _path=[diskPath copy];
    _memoryCapacity=memoryCapacity;

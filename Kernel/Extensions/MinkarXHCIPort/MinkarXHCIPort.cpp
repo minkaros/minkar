@@ -1579,6 +1579,28 @@ void MinkarXHCIPort::releaseInterruptEndpoint(InterruptInEndpoint &intr)
     bzero(&intr, sizeof(intr));
 }
 
+/*
+ * An endpoint descriptor's bInterval as the xHCI endpoint context's
+ * Interval field, 2^Interval x 125 us (xHCI 1.2, 6.2.3.6): for a full- or
+ * low-speed device bInterval is in milliseconds, 1 to 255, so
+ * log2(bInterval x 8), 3 to 10; for a high- or SuperSpeed one it is
+ * already an exponent, 1 to 16, and the field is bInterval - 1. A raw
+ * bInterval of 1 on a full-speed device (250 us, below the 1 ms frame)
+ * configures without an error, yet real controllers never schedule it.
+ */
+static UInt32
+xhciInterval(UInt32 speed, UInt8 bInterval)
+{
+    if (speed == 1 || speed == 2) {
+        UInt32 frames = (bInterval ? bInterval : 1) * 8U, e = 0;
+        while ((2U << e) <= frames)
+            e++;
+        return e < 3 ? 3 : e > 10 ? 10 : e;
+    }
+    UInt32 b = bInterval < 1 ? 1 : bInterval > 16 ? 16 : bInterval;
+    return b - 1;
+}
+
 bool MinkarXHCIPort::configureInterruptInEndpoint(UInt32 slotId, UInt8 epNum,
                                                  UInt16 maxPkt, UInt8 interval)
 {
@@ -1606,11 +1628,14 @@ bool MinkarXHCIPort::configureInterruptInEndpoint(UInt32 slotId, UInt8 epNum,
     ring[kRingTRBs - 1].param = ringMem->getPhysicalAddress();
     ring[kRingTRBs - 1].control = TRB_SET_TYPE(TRB_TYPE_LINK) | TRB_TC | TRB_CYCLE;
 
-    /* EP Context dword0 bits 23:16 = Interval. For now pass through the
-     * endpoint descriptor value used by the existing path, but do provide
-     * Max ESIT Payload below; a periodic endpoint with zero ESIT payload can
-     * configure successfully yet never be scheduled by real controllers. */
-    ic->ep[inDCI - 1].dword0 = ((UInt32)interval << 16);
+    /* EP Context dword0 bits 23:16 = Interval, encoded for the device's
+     * speed (the slot context's); Max ESIT Payload is given below too: a
+     * periodic endpoint without it configures, yet is never scheduled. */
+    UInt32 speed = (ic->slot.dword0 >> SLOT_CTX_SPEED_SHIFT) & 0xF;
+    UInt32 encoded = xhciInterval(speed, interval);
+    XHCI_Log("intr-in: slot=%u ep=%u speed=%u bInterval=%u -> Interval=%u",
+            slotId, epNum, speed, interval, encoded);
+    ic->ep[inDCI - 1].dword0 = encoded << 16;
     ic->ep[inDCI - 1].dword1 = EP_CTX_CERR(3) | (EP_TYPE_INTERRUPT_IN << EP_CTX_TYPE_SHIFT) |
                                ((UInt32)maxPkt << EP_CTX_MAXPKT_SHIFT);
     ic->ep[inDCI - 1].trDequeuePtr = ringMem->getPhysicalAddress() | 1;
@@ -1793,7 +1818,8 @@ bool MinkarXHCIPort::markSlotAsHub(UInt32 slotId, UInt8 numPorts, bool multiTT,
         UInt32 intrDCI = intrEp * 2 + 1;
         ic->control.addFlags |= (1U << intrDCI);
         UInt16 maxPkt = intrMaxPkt ? intrMaxPkt : 8;
-        ic->ep[intrDCI - 1].dword0 = ((UInt32)(intrInterval ? intrInterval : 8) << 16);
+        ic->ep[intrDCI - 1].dword0 = xhciInterval((ic->slot.dword0 >> SLOT_CTX_SPEED_SHIFT) & 0xF,
+                                                  intrInterval ? intrInterval : 12) << 16;
         ic->ep[intrDCI - 1].dword1 = EP_CTX_CERR(3) | (3 /* interrupt */ << EP_CTX_TYPE_SHIFT) |
                                      ((UInt32)maxPkt << EP_CTX_MAXPKT_SHIFT);
         ic->ep[intrDCI - 1].trDequeuePtr = sr.bulkInRingMem->getPhysicalAddress() | 1;

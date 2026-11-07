@@ -8,7 +8,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 #import <Foundation/NSObject.h>
 
-@class NSDate, NSInputSource, NSSet, NSMutableSet;
+@class NSDate, NSInputSource, NSSet<ObjectType>, NSMutableSet<ObjectType>;
 
 @interface NSInputSourceSet : NSObject {
     NSMutableSet *_inputSources;

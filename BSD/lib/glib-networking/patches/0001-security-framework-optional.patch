@@ -1,0 +1,28 @@
+A system without Security.framework (Minkar, until it has one): the
+trust store is OpenSSL's own (/etc/ssl), as on other Unix systems.
+
+--- a/tls/meson.build	2026-11-06 03:32:49.202150623 -0500
++++ b/tls/meson.build	2026-11-06 03:32:49.234147762 -0500
+@@ -6,7 +6,10 @@
+ 
+ if backends.contains('openssl')
+   if ['darwin', 'ios'].contains(host_system)
+-    security_dep = dependency('appleframeworks', modules : ['Security'])
++    security_dep = dependency('appleframeworks', modules : ['Security'], required : false)
++    if security_dep.found()
++      add_project_arguments('-DHAVE_SECURITY_FRAMEWORK', language : 'c')
++    endif
+   elif ['windows'].contains(host_system)
+     crypt32_dep = cc.find_library('crypt32')
+   endif
+--- a/tls/openssl/gtlsdatabase-openssl.c	2026-11-06 03:32:49.206150265 -0500
++++ b/tls/openssl/gtlsdatabase-openssl.c	2026-11-06 03:32:49.234147762 -0500
+@@ -35,7 +35,7 @@
+  * SecTrustCopyAnchorCertificates is only available on macOS, so we check for
+  * SEC_OS_OSX: https://github.com/Apple-FOSS-Mirror/Security/blob/master/base/SecBase.h
+  */
+-#ifdef __APPLE__
++#if defined(__APPLE__) && defined(HAVE_SECURITY_FRAMEWORK)
+ #include <Security/Security.h>
+ #else
+ #define SEC_OS_OSX 0

@@ -134,6 +134,29 @@ minkar_vram_alloc(struct minkar_vram *v, uint64_t size, uint64_t align, uint64_t
 }
 
 int
+minkar_vram_alloc_top(struct minkar_vram *v, uint64_t size, uint64_t align, uint64_t floor,
+    uint64_t *offset)
+{
+	if (size == 0 || align == 0 || (align & (align - 1)) != 0 || full(v))
+		return -1;
+	for (unsigned i = v->count; i-- > 0;) {
+		struct minkar_vram_range r = v->free[i];
+		uint64_t end = r.start + r.size;
+		if (r.size < size || end - size < floor)
+			continue;
+		uint64_t start = (end - size) & ~(align - 1);
+		if (start < r.start || start < floor)
+			continue;
+		if (carve(v, i, start, size) != 0)
+			return -1;
+		v->taken++;
+		*offset = start;
+		return 0;
+	}
+	return -1;
+}
+
+int
 minkar_vram_free(struct minkar_vram *v, uint64_t offset, uint64_t size)
 {
 	unsigned i;

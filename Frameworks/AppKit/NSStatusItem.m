@@ -38,6 +38,9 @@
 #import <AppKit/NSPanel.h>
 #import <AppKit/NSBezierPath.h>
 #import <AppKit/NSWindow-Private.h>
+#import <AppKit/NSGraphicsStyle.h>
+#import <AppKit/NSParagraphStyle.h>
+#import <AppKit/NSAttributedString.h>
 #import "NSMenu.subproj/NSMenuView.h"
 #include <SkyLight/SkyLight.h>
 
@@ -114,8 +117,18 @@ static const CGFloat kItemPadding = 8;
     [super drawRect:rect];
 }
 
+/* A plain title in the menu bar's text color (the bar is dark). */
 - (void)setTitle:(NSString *)title {
-    [super setTitle:title];
+    NSMutableParagraphStyle *style = [[[NSParagraphStyle defaultParagraphStyle] mutableCopy] autorelease];
+    NSMutableDictionary *attributes = [NSMutableDictionary dictionary];
+
+    [style setAlignment:NSCenterTextAlignment];
+    if([self font] != nil)
+        [attributes setObject:[self font] forKey:NSFontAttributeName];
+    [attributes setObject:style forKey:NSParagraphStyleAttributeName];
+    [attributes setObject:_NSMenuBarTextColor() forKey:NSForegroundColorAttributeName];
+    [super setAttributedTitle:[[[NSAttributedString alloc] initWithString:title ? title : @""
+        attributes:attributes] autorelease]];
     [_statusItem _updateLength];
 }
 

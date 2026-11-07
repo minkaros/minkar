@@ -55,11 +55,13 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    [super dealloc];
 }
 
+/* Unquoted strings: letters, digits and _ $ + - . / : (as the reference
+   platform reads them; - + : were refused, so "(es-MX)" did not parse). */
 static BOOL _NSPropertyListNameSet[128]={
  NO, NO, NO, NO, NO, NO, NO, NO, NO, NO, NO, NO, NO, NO, NO, NO,// 0
  NO, NO, NO, NO, NO, NO, NO, NO, NO, NO, NO, NO, NO, NO, NO, NO,// 16
- NO, NO, NO, NO,YES, NO, NO, NO, NO, NO, NO, NO, NO, NO,YES,YES,// 32
-YES,YES,YES,YES,YES,YES,YES,YES,YES,YES, NO, NO, NO, NO, NO, NO,// 48
+ NO, NO, NO, NO,YES, NO, NO, NO, NO, NO, NO,YES, NO,YES,YES,YES,// 32: $ + - . /
+YES,YES,YES,YES,YES,YES,YES,YES,YES,YES,YES, NO, NO, NO, NO, NO,// 48: digits :
  NO,YES,YES,YES,YES,YES,YES,YES,YES,YES,YES,YES,YES,YES,YES,YES,// 64
 YES,YES,YES,YES,YES,YES,YES,YES,YES,YES,YES, NO, NO, NO, NO,YES,// 80
  NO,YES,YES,YES,YES,YES,YES,YES,YES,YES,YES,YES,YES,YES,YES,YES,// 96

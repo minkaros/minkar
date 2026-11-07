@@ -24,6 +24,7 @@
 
 #include "CFBridging.h"
 #include "CFInternal.h"
+#include <CoreFoundation/CFCharacterSet.h>
 #include <Foundation/NSCFTypeID.h>
 
 #define DEBUG 0
@@ -50,6 +51,12 @@ CF_EXPORT int _CFRuntimeRegisterObjCClass(CFTypeID typeID, uintptr_t cls)
 CF_EXPORT void CFSetupFoundationBridging(void)
 {
     TRACE("Setting up bridging\n");
+    /* Minkar: the instances of CF's other types, made from now on, are
+     * Foundation's generic __NSCFType (NSCFType.m), as on the reference
+     * platform: Objective-C can retain, release and compare them (a
+     * CGDisplayModeRef put in an NSArray crashed). */
+    __CFRuntimeDefaultObjCClass = (uintptr_t)objc_lookUpClass("__NSCFType");
+
     _CFRuntimeRegisterObjCClass(kNSCFTypeString, (uintptr_t)objc_lookUpClass("NSCFString"));
     /* Minkar: CF's string functions take Foundation's own strings too
      * (NSMutableString's, NSString_unicode...): CFString.c sends them the
@@ -81,6 +88,15 @@ CF_EXPORT void CFSetupFoundationBridging(void)
         _CFRuntimeRegisterObjCClass(CFDictionaryGetTypeID(), dictionaryClass);
         _CFRuntimeBridgeObjCDispatch(CFDictionaryGetTypeID());
     }
+    /* Minkar: character sets too (__NSCFCharacterSet, NSCFCharacterSet.m):
+     * Swift's CharacterSet is a CFCharacterSet, and Foundation sent it
+     * NSCharacterSet's messages. CF's character set functions send
+     * Foundation's own sets the message (CFCharacterSet.c). */
+    uintptr_t characterSetClass = (uintptr_t)objc_lookUpClass("__NSCFCharacterSet");
+    if (characterSetClass != 0) {
+        _CFRuntimeRegisterObjCClass(CFCharacterSetGetTypeID(), characterSetClass);
+        _CFRuntimeBridgeObjCDispatch(CFCharacterSetGetTypeID());
+    }
 
     /* Minkar: data is toll-free bridged both ways, as arrays are. CF's
      * data objects made from now on have Foundation's bridge class
@@ -88,6 +104,30 @@ CF_EXPORT void CFSetupFoundationBridging(void)
      * taken as an NSData crashed); and CF's data functions send
      * Foundation's NSData and NSMutableData the message
      * (CF_OBJC_FUNCDISPATCHV in CFData.c). */
+    /* Minkar: numbers are NSNumbers (__NSCFNumber, NSCFNumber.m): CF made
+     * them with no Objective-C class, and the first message to one (a
+     * number from a property list or the preferences) crashed. Those made
+     * before Foundation loaded (the infinities, NaN) get the class now. */
+    /* Minkar: URLs are toll-free bridged both ways. CF's URLs made from
+     * now on are __NSCFURL (NSCFURL.m), which pass NSURL's messages to an
+     * NSURL of the same string; CF's URL functions take Foundation's NSURL
+     * through its -_cfurl (CFURL.c). */
+    uintptr_t urlClass = (uintptr_t)objc_lookUpClass("__NSCFURL");
+    if (urlClass != 0) {
+        _CFRuntimeRegisterObjCClass(CFURLGetTypeID(), urlClass);
+        _CFRuntimeBridgeObjCDispatch(CFURLGetTypeID());
+    }
+    uintptr_t numberClass = (uintptr_t)objc_lookUpClass("__NSCFNumber");
+    if (numberClass != 0) {
+        _CFRuntimeRegisterObjCClass(CFNumberGetTypeID(), numberClass);
+        ((CFRuntimeBase *)kCFNumberNaN)->_cfisa = numberClass;
+        ((CFRuntimeBase *)kCFNumberPositiveInfinity)->_cfisa = numberClass;
+        ((CFRuntimeBase *)kCFNumberNegativeInfinity)->_cfisa = numberClass;
+    }
+    /* And CF's number functions send Foundation's own NSNumbers the
+     * message (_cfNumberType, _getValue:forType:, NSNumber.m). */
+    _CFRuntimeBridgeObjCDispatch(CFNumberGetTypeID());
+
     uintptr_t dataClass = (uintptr_t)objc_lookUpClass("__NSCFData");
     if (dataClass != 0)
         _CFRuntimeRegisterObjCClass(CFDataGetTypeID(), dataClass);

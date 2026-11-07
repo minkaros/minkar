@@ -27,6 +27,10 @@ ${.OBJDIR}/libz.1.dylib: lib${LIB}.a
 	cp -f ${.OBJDIR}/lib${LIB}.a ${MINKAR_SDKROOT}/usr/lib/
 	cp -f ${INCS:S,^,${.CURDIR}/,} ${MINKAR_SDKROOT}/usr/include/
 	cp -f ${.CURDIR}/zlib.3 ${MINKAR_SDKROOT}/usr/share/man/man3/
+	# For the external libraries that ask pkg-config for zlib (libpng).
+	mkdir -p ${MINKAR_SDKROOT}/usr/lib/pkgconfig
+	printf 'prefix=/usr\nlibdir=$${prefix}/lib\nincludedir=$${prefix}/include\n\nName: zlib\nDescription: zlib compression library\nVersion: 1.3.2\nLibs: -L$${libdir} -lz\nCflags: -I$${includedir}\n' \
+	    > ${MINKAR_SDKROOT}/usr/lib/pkgconfig/zlib.pc
 .for d in ${MINKAR_SDKROOT} ${SYSROOT_DIR}
 	mkdir -p ${d}/usr/lib
 	cp -f ${.TARGET} ${d}/usr/lib/

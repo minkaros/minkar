@@ -52,6 +52,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #include <sys/types.h>
 #include <sys/un.h>
 #include <sys/socket.h>
+#include <stddef.h>
 #include <stdlib.h>
 #include <unistd.h>
 
@@ -261,7 +262,14 @@ extern void _CGDisplayReconfigured(CGDirectDisplayID display, CGDisplayChangeSum
     for(;;) {
         uint32_t n = 0;
 
-        if(SLSReceiveEvents(events, kSLSMaxEvents, &n, 1) != kSLSErrorSuccess) {
+        int err = SLSReceiveEvents(events, kSLSMaxEvents, &n, 1);
+        /* The window server went away: as on the reference platform, the
+         * app ends with it (loginwindow starts the session's apps again). */
+        if(err == kSLSErrorInvalidConnection) {
+            fprintf(stderr, "%s: the window server went away; exiting\n", getprogname());
+            _exit(1);
+        }
+        if(err != kSLSErrorSuccess) {
             sleep(1);
             continue;
         }
@@ -566,7 +574,14 @@ extern void _CGDisplayReconfigured(CGDirectDisplayID display, CGDisplayChangeSum
 
    // ensure we have an "Apple" (application) menu
    if([_mainMenu _menuWithName:@"NSAppleMenu"] == nil) {
-     NSString *appName = [[NSProcessInfo processInfo] processName];
+     /* The app's name as the reference platform shows it: its bundle's
+        CFBundleName (localized), else the process name. */
+     NSBundle *main = [NSBundle mainBundle];
+     NSString *appName = [main objectForInfoDictionaryKey:@"CFBundleName"];
+     if([appName length] == 0)
+      appName = [[NSProcessInfo processInfo] processName];
+     else
+      appName = [main localizedStringForKey:@"CFBundleName" value:appName table:@"InfoPlist"];
      NSMenuItem *appleMenuItem = [[NSMenuItem new] retain];
      [appleMenuItem setTitle:appName];
      NSMenu *appleMenu = [[[NSMenu alloc] initApplicationMenu:appName] retain];
@@ -585,7 +600,7 @@ extern void _CGDisplayReconfigured(CGDirectDisplayID display, CGDisplayChangeSum
 }
 
 /* SHORTCUT(MB2): NSDocumentController keeps the recent items in the app's
-   preferences; LaunchServices' shared file lists come in MB2 (Menus.md). */
+   preferences; LaunchServices' shared file lists come in MB2 (Atlas.md). */
 - (void)addRecentItem:(NSURL *)url {
 }
 
@@ -671,9 +686,86 @@ extern void _CGDisplayReconfigured(CGDirectDisplayID display, CGDisplayChangeSum
     [NSMenuBarWindow _mainMenuChanged];
 }
 
+/* Open requests that came with the check-in (sent while the app was
+ * launching), delivered as it finishes launching. */
+static NSMutableArray *pendingOpenRequests;
+
+/* An open request's URLs: absolute strings, each with its NUL. */
+static NSArray *urlsFromOpenMessage(const LSSessionOpenMessage *msg, NSUInteger size) {
+   NSMutableArray *urls=[NSMutableArray array];
+   NSUInteger at=0, length=msg->length;
+
+   if(size<offsetof(LSSessionOpenMessage, urls))
+      return urls;
+   if(length>size-offsetof(LSSessionOpenMessage, urls))
+      length=size-offsetof(LSSessionOpenMessage, urls);
+   while(at<length) {
+      const char *s=msg->urls+at;
+      size_t n=strnlen(s, length-at);
+      if(n==length-at)
+         break;	/* no NUL: cut off */
+      NSString *string=[[[NSString alloc] initWithBytes:s length:n encoding:NSUTF8StringEncoding] autorelease];
+      NSURL *url=string ? [NSURL URLWithString:string] : nil;
+      if(url!=nil)
+         [urls addObject:url];
+      at+=n+1;
+   }
+   return urls;
+}
+
+/* URLs from LaunchServices: to the delegate as the reference platform
+ * does (openURLs:, else openFiles: or openFile:, else the document
+ * controller); YES when something took them. */
+-(BOOL)_openURLs:(NSArray *)urls reveal:(BOOL)reveal {
+   if([urls count]==0)
+      return NO;
+   if(reveal) {
+      if([_delegate respondsToSelector:@selector(application:revealURLs:)]) {
+         [_delegate application:self revealURLs:urls];
+         return YES;
+      }
+      return NO;
+   }
+   if([_delegate respondsToSelector:@selector(application:openURLs:)]) {
+      [_delegate application:self openURLs:urls];
+      return YES;
+   }
+   NSMutableArray *paths=[NSMutableArray array];
+   for(NSURL *url in urls)
+      if([url isFileURL])
+         [paths addObject:[url path]];
+   if([paths count]==0)
+      return NO;
+   if([_delegate respondsToSelector:@selector(application:openFiles:)]) {
+      [_delegate application:self openFiles:paths];
+      return YES;
+   }
+   if([_delegate respondsToSelector:@selector(application:openFile:)]) {
+      BOOL opened=NO;
+      for(NSString *path in paths)
+         opened|=[_delegate application:self openFile:path];
+      return opened;
+   }
+   id types=[[[NSBundle mainBundle] infoDictionary] objectForKey:@"CFBundleDocumentTypes"];
+   if([types count]>0) {
+      BOOL opened=NO;
+      for(NSString *path in paths)
+         opened|=[[NSDocumentController sharedDocumentController]
+            openDocumentWithContentsOfURL:[NSURL fileURLWithPath:path] display:YES error:NULL]!=nil;
+      return opened;
+   }
+   return NO;
+}
+
 -(BOOL)openFiles
 {
    BOOL opened = NO;
+
+   /* What LaunchServices sent as the app launched. */
+   for(NSDictionary *request in pendingOpenRequests)
+      opened|=[self _openURLs:[request objectForKey:@"urls"] reveal:[[request objectForKey:@"reveal"] boolValue]];
+   [pendingOpenRequests release];
+   pendingOpenRequests=nil;
    if(_delegate) {
       id nsOpen = [[NSUserDefaults standardUserDefaults] objectForKey:@"NSOpen"];
       NSArray *openFiles = nil;
@@ -798,18 +890,28 @@ extern void _CGDisplayReconfigured(CGDirectDisplayID display, CGDisplayChangeSum
 }
 }
 
+/* As on the reference platform: when the last window closes, the app
+   quits only if its delegate's applicationShouldTerminateAfterLastWindowClosed:
+   says so. An app with no window (an agent with status items) runs on. */
 -(void)_checkForTerminate {
+   static BOOL hadWindow=NO;
    int  count=[_windows count];
 
    while(--count>=0){
     NSWindow *check=[_windows objectAtIndex:count];
 
     if(![check isKindOfClass:[NSPanel class]] && [check isVisible]){
+     hadWindow=YES;
      return;
     }
    }
 
-   [self terminate:self];
+   if(!hadWindow)
+      return;
+   hadWindow=NO;
+   if([_delegate respondsToSelector:@selector(applicationShouldTerminateAfterLastWindowClosed:)] &&
+      [_delegate applicationShouldTerminateAfterLastWindowClosed:self])
+      [self terminate:self];
 }
 
 -(void)_checkForAppActivation {
@@ -1136,24 +1238,65 @@ extern void _CGDisplayReconfigured(CGDirectDisplayID display, CGDisplayChangeSum
    _NSRunningApplicationDescribeSelf(&app, _activationPolicy);
    if(LSSessionCheckIn(&app, &_lsPort, NULL)!=kLSSessionSuccess)
        return;
-   if(first)
+   if(first) {
+       /* Documents sent for this launch are on the port already (the
+        * daemon sends them as it answers the check-in): kept for
+        * finishLaunching, so no untitled document opens with them. */
+       for(;;) {
+           NSData *data=[self _receiveLaunchServicesMessage:YES];
+           if(data==nil)
+               break;
+           const LSSessionMessage *msg=[data bytes];
+           if(msg->kind==kLSSessionOpenRequest) {
+               const LSSessionOpenMessage *open=[data bytes];
+               if(pendingOpenRequests==nil)
+                   pendingOpenRequests=[NSMutableArray new];
+               [pendingOpenRequests addObject:[NSDictionary dictionaryWithObjectsAndKeys:
+                   urlsFromOpenMessage(open, [data length]), @"urls",
+                   [NSNumber numberWithBool:(open->flags & kLSSessionOpenReveal)!=0], @"reveal", nil]];
+           } else
+               [self performSelectorOnMainThread:@selector(_launchServicesMessage:) withObject:data
+                   waitUntilDone:NO];
+       }
        [NSThread detachNewThreadSelector:@selector(launchServicesLoop:) toTarget:self withObject:nil];
+   }
+}
+
+/* One message from the daemon, or nil (none waiting when poll is set). */
+-(NSData *)_receiveLaunchServicesMessage:(BOOL)poll {
+   union {
+       LSSessionMessage msg;
+       LSSessionOpenMessage open;
+       uint8_t bytes[sizeof(LSSessionOpenMessage) + MAX_TRAILER_SIZE];
+   } *buf=malloc(sizeof(*buf));
+   NSData *data=nil;
+
+   while(buf!=NULL) {
+       if(mach_msg(&buf->msg.header, MACH_RCV_MSG | (poll ? MACH_RCV_TIMEOUT : 0), 0, sizeof(*buf),
+           _lsPort, poll ? 0 : MACH_MSG_TIMEOUT_NONE, MACH_PORT_NULL)!=MACH_MSG_SUCCESS)
+           break;
+       if(buf->msg.header.msgh_id!=kLSSessionMessageID)
+           continue;
+       mach_msg_size_t size=buf->msg.header.msgh_size;
+       if(size<sizeof(mach_msg_header_t)+sizeof(uint32_t))
+           continue;
+       if(buf->msg.kind!=kLSSessionOpenRequest && size<sizeof(LSSessionMessage))
+           continue;
+       data=[NSData dataWithBytes:buf length:size];
+       break;
+   }
+   free(buf);
+   return data;
 }
 
 -(void)launchServicesLoop:(id)object {
-   union {
-       LSSessionMessage msg;
-       uint8_t bytes[sizeof(LSSessionMessage) + MAX_TRAILER_SIZE];
-   } buf;
-
    for(;;) {
-       if(mach_msg(&buf.msg.header, MACH_RCV_MSG, 0, sizeof(buf), _lsPort,
-           MACH_MSG_TIMEOUT_NONE, MACH_PORT_NULL)!=MACH_MSG_SUCCESS)
-           return;
-       if(buf.msg.header.msgh_id!=kLSSessionMessageID)
-           continue;
        NSAutoreleasePool *pool=[NSAutoreleasePool new];
-       NSData *data=[NSData dataWithBytes:&buf.msg length:sizeof(LSSessionMessage)];
+       NSData *data=[self _receiveLaunchServicesMessage:NO];
+       if(data==nil) {
+           [pool release];
+           return;
+       }
        [self performSelectorOnMainThread:@selector(_launchServicesMessage:) withObject:data
            waitUntilDone:NO];
        [pool release];
@@ -1183,6 +1326,12 @@ extern void _CGDisplayReconfigured(CGDirectDisplayID display, CGDisplayChangeSum
 -(void)_launchServicesMessage:(NSData *)data {
    const LSSessionMessage *msg=[data bytes];
 
+   if(msg->kind==kLSSessionOpenRequest) {
+       const LSSessionOpenMessage *open=[data bytes];
+       [self _openURLs:urlsFromOpenMessage(open, [data length]) reveal:(open->flags & kLSSessionOpenReveal)!=0];
+       return;
+   }
+
    if(msg->app.pid==getpid()) {
        switch(msg->kind) {
            case kLSSessionAppActivated:
@@ -1197,6 +1346,12 @@ extern void _CGDisplayReconfigured(CGDirectDisplayID display, CGDisplayChangeSum
            case kLSSessionQuitRequest:
                /* As the Quit item: the delegate may refuse. */
                [self terminate:self];
+               break;
+           case kLSSessionHideRequest:
+               [self hide:self];
+               break;
+           case kLSSessionUnhideRequest:
+               [self unhide:self];
                break;
        }
    }
@@ -1439,6 +1594,8 @@ typedef void (*endfunction_t)(id, SEL, id, NSInteger, void *);
     {
         [[NSNotificationCenter defaultCenter]postNotificationName:NSApplicationWillHideNotification object:self];
         [_windows makeObjectsPerformSelector:@selector(_forcedHideForDeactivation)];//do no use orderOut here ist causes the application to quit if no window is visible
+        _isHidden=YES;
+        LSSessionSetHidden(getpid(), 1);	/* NSRunningApplication's isHidden */
         [[NSNotificationCenter defaultCenter]postNotificationName:NSApplicationDidHideNotification object:self];
     }
     _isHidden=YES;
@@ -1455,7 +1612,9 @@ typedef void (*endfunction_t)(id, SEL, id, NSInteger, void *);
     if (_isHidden)
     {
         [[NSNotificationCenter defaultCenter]postNotificationName:NSApplicationWillUnhideNotification object:self];
-        [_windows makeObjectsPerformSelector:@selector(_showForActivation)];//only shows previously hidden windows
+        [_windows makeObjectsPerformSelector:@selector(_showAfterHide)];//only shows the windows Hide took off
+        _isHidden=NO;
+        LSSessionSetHidden(getpid(), 0);
         [[NSNotificationCenter defaultCenter]postNotificationName:NSApplicationDidUnhideNotification object:self];
     }
     _isHidden=NO;
@@ -1472,7 +1631,9 @@ typedef void (*endfunction_t)(id, SEL, id, NSInteger, void *);
     {
 
         [[NSNotificationCenter defaultCenter]postNotificationName:NSApplicationWillUnhideNotification object:self];
-        [_windows makeObjectsPerformSelector:@selector(_showForActivation)];//only shows previously hidden windows
+        [_windows makeObjectsPerformSelector:@selector(_showAfterHide)];//only shows the windows Hide took off
+        _isHidden=NO;
+        LSSessionSetHidden(getpid(), 0);
         [[NSNotificationCenter defaultCenter]postNotificationName:NSApplicationDidUnhideNotification object:self];
     }
     _isHidden=NO;

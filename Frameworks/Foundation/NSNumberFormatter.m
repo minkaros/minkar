@@ -46,6 +46,16 @@ static NSNumberFormatterBehavior _defaultFormatterBehavior=NSNumberFormatterBeha
     _defaultFormatterBehavior=value;
 }
 
+// Minkar: a number in a style, in the current locale.
++(NSString *)localizedStringFromNumber:(NSNumber *)number numberStyle:(NSNumberFormatterStyle)style {
+   NSNumberFormatter *formatter=[[[self alloc] init] autorelease];
+
+   [formatter setFormatterBehavior:NSNumberFormatterBehavior10_4];
+   [formatter setLocale:[NSLocale currentLocale]];
+   [formatter setNumberStyle:style];
+   return [formatter stringFromNumber:number];
+}
+
 -init {
    [super init];
    _behavior=_defaultFormatterBehavior;
@@ -1223,6 +1233,64 @@ static BOOL numberIsPositive(NSNumber *number){
    return [[self stringFromNumberNoStyle:number] stringByAppendingString:[self percentSymbol]];
 }
 
+static void setCFString(CFNumberFormatterRef formatter, CFStringRef key, NSString *value) {
+   if(value!=nil)
+    CFNumberFormatterSetProperty(formatter, key, (CFStringRef)value);
+}
+
+static void setCFInteger(CFNumberFormatterRef formatter, CFStringRef key, NSInteger value) {
+   CFNumberRef number=CFNumberCreate(NULL, kCFNumberNSIntegerType, &value);
+
+   CFNumberFormatterSetProperty(formatter, key, number);
+   CFRelease(number);
+}
+
+/* Minkar: the styles the formatter's own code has no rules for
+ * (scientific, currency, spelled out) go through CFNumberFormatter, that
+ * is ICU, with the symbols and digits the program set. */
+-(NSString *)_stringFromNumberThroughCF:(NSNumber *)number {
+   NSString *identifier=[_locale localeIdentifier];
+   CFLocaleRef locale=CFLocaleCreate(NULL, (CFStringRef)(identifier ? identifier : @"en_US_POSIX"));
+   CFNumberFormatterRef formatter=CFNumberFormatterCreate(NULL, locale, (CFNumberFormatterStyle)_numberStyle);
+   NSString *result=nil;
+
+   if(locale!=NULL)
+    CFRelease(locale);
+   if(formatter==NULL)
+    return [number description];
+
+   setCFString(formatter, kCFNumberFormatterInfinitySymbol, _positiveInfinitySymbol);
+   setCFString(formatter, kCFNumberFormatterNaNSymbol, _notANumberSymbol);
+   setCFString(formatter, kCFNumberFormatterExponentSymbol, _exponentSymbol);
+   setCFString(formatter, kCFNumberFormatterCurrencyCode, _currencyCode);
+   setCFString(formatter, kCFNumberFormatterCurrencySymbol, _currencySymbol);
+   setCFString(formatter, kCFNumberFormatterPlusSign, _plusSign);
+   setCFString(formatter, kCFNumberFormatterMinusSign, _minusSign);
+   if(_usesSignificantDigits){
+    CFNumberFormatterSetProperty(formatter, kCFNumberFormatterUseSignificantDigits, kCFBooleanTrue);
+    if(_minimumSignificantDigits>0)
+     setCFInteger(formatter, kCFNumberFormatterMinSignificantDigits, _minimumSignificantDigits);
+    if(_maximumSignificantDigits>0)
+     setCFInteger(formatter, kCFNumberFormatterMaxSignificantDigits, _maximumSignificantDigits);
+   }
+   else {
+    if(_minimumFractionDigits>0)
+     setCFInteger(formatter, kCFNumberFormatterMinFractionDigits, _minimumFractionDigits);
+    if(_customMaximumFractionDigits)
+     setCFInteger(formatter, kCFNumberFormatterMaxFractionDigits, _maximumFractionDigits);
+   }
+
+   // An infinity's sign is the formatter's minus sign: the negative
+   // infinity symbol stands for both when it is its own.
+   double value=[number doubleValue];
+   if(isinf(value) && value<0 && _negativeInfinitySymbol!=nil)
+    result=[[_negativeInfinitySymbol copy] autorelease];
+   else
+    result=[(NSString *)CFNumberFormatterCreateStringWithNumber(NULL, formatter, (CFNumberRef)number) autorelease];
+   CFRelease(formatter);
+   return result!=nil ? result : [number description];
+}
+
 -(NSString *)stringFromNumber10_4:(NSNumber *)number {
    switch(_numberStyle){
 
@@ -1232,19 +1300,15 @@ static BOOL numberIsPositive(NSNumber *number){
     case NSNumberFormatterDecimalStyle:
      return [self stringFromNumberNoStyle:number];
 
-    case NSNumberFormatterCurrencyStyle:
-     NSUnimplementedMethod();
-     break;
-
     case NSNumberFormatterPercentStyle:
      return [self stringFromNumberNoStyle:number];
 
+    case NSNumberFormatterCurrencyStyle:
     case NSNumberFormatterScientificStyle:
-     NSUnimplementedMethod();
-     break;
-
     case NSNumberFormatterSpellOutStyle:
-     NSUnimplementedMethod();
+     return [self _stringFromNumberThroughCF:number];
+
+    default:
      break;
    }
    return [number description];

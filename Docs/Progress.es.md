@@ -6,20 +6,20 @@ Esta página se genera desde [progress/status.toml](progress/status.toml) con
 [Progress.md](Progress.md).
 
 <!-- progress:summary:begin -->
-_Actualizado el 2026-11-02, devel `9a472063c1`_
+_Actualizado el 2026-11-05, devel `22a0e67f0d`_
 
 | Plan | Avance |  | Ahora | Siguiente |
 | --- | --- | --- | --- | --- |
-| **Gates** | 🟩🟩🟩⬜🟩⬜⬜⬜⬜ | 4 / 9 | — | M3 Frameworks and Swift |
+| **Gates** | 🟩🟩🟩🟩🟩⬜⬜⬜⬜ | 5 / 9 | — | M5 Atlas desktop |
 | [Phases 0–2](ROADMAP.es.md) | 🟩🟩🟩 | 3 / 3 | — | — |
-| [Frameworks](ROADMAP.es.md#fase-3--frameworks-base-y-swift) | 🟩🟨🟨🟨⬜🟨⬜ | 1 / 7 | libSystem, Foundation, CF-Lite, LaunchServices | Security |
+| [Frameworks](ROADMAP.es.md#fase-3--frameworks-base-y-swift) | 🟩🟨🟨🟨⬜🟩🟨🟩🟦 | 3 / 9 | Cocoa coverage | Security |
 | [WindowServer](WindowServer-Rewrite.es.md) | 🟩🟩🟩🟩🟩🟩🟩🟩🟦 | 8 / 9 | WS6 | — |
-| [Menus](Menus.es.md) | 🟩⬜⬜⬜⬜ | 1 / 5 | — | MB1 |
-| [Dock](Dock-Kraz.es.md) | ⬜⬜⬜⬜⬜ | 0 / 5 | — | D0 |
-| [Kraz](Dock-Kraz.es.md) | ⬜⬜⬜⬜⬜ | 0 / 5 | — | K0 |
-| [Gienah](ROADMAP.es.md#fase-5--escritorio-gienah) | ⬜⬜⬜ | 0 / 3 | — | LoginWindow |
-| [Apps · DMG](ROADMAP.es.md#fase-6--aplicaciones-y-distribución) | ⬜⬜⬜⬜ | 0 / 4 | — | DiskImages |
-| [GPU track](ROADMAP.es.md#pila-gráfica-componentes-y-secuencia) | ⬜⬜ | 0 / 2 | — | G1 ADR |
+| [Menus](Atlas.es.md#3-menús) | 🟩🟨⬜⬜⬜ | 1 / 5 | MB1 | MB2 |
+| [Dock](Atlas.es.md#4-dock-y-files) | 🟩🟩🟨⬜⬜ | 2 / 5 | D2 | D3 |
+| [Files](Atlas.es.md#4-dock-y-files) | 🟨🟩⬜⬜⬜ | 1 / 5 | K0 | K2 |
+| [Atlas](ROADMAP.es.md#fase-5--escritorio-atlas) | ⬜🟨⬜ | 0 / 3 | Preferences | LoginWindow |
+| [Apps · DMG](Atlas.es.md#5-aplicaciones) | ⬜⬜🟨⬜ | 0 / 4 | A2 Text Editor | A0 base |
+| [GPU track](ROADMAP.es.md#pila-gráfica-componentes-y-secuencia) | 🟩🟨🟩🟦 | 2 / 4 | G4–G5 | — |
 | [Compat · arm64](ROADMAP.es.md#fase-7--compatibilidad-binaria-y-arm64) | ⬜⬜ | 0 / 2 | — | x86-64 apps |
 
 🟩 hecho · 🟦 en curso · 🟨 parcial · ⬜ por hacer
@@ -33,7 +33,7 @@ _Actualizado el 2026-11-02, devel `9a472063c1`_
 </picture>
 
 Planes: [ROADMAP.es.md](ROADMAP.es.md) · [WindowServer-Rewrite.es.md](WindowServer-Rewrite.es.md) ·
-[Menus.es.md](Menus.es.md) · [Dock-Kraz.es.md](Dock-Kraz.es.md)
+[Atlas.es.md](Atlas.es.md)
 
 ## Tablero de trabajo
 

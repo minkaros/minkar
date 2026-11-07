@@ -435,6 +435,9 @@ private:
   static IOReturn doPointerEvent(IOHIDSystem * self, void * args);
   void     pointerEventGated(void * args);
   void     pointerBounds(IOGBounds * bounds);
+  IOGBounds * pointerScreen(int index);
+  void     pointerOntoScreen(SInt32 * x, SInt32 * y, IOGPoint from);
+  IOReturn unregisterScreensOfGated(void * pid);
   void     postPointerButtons(int buttons, AbsoluteTime ts, OSObject * sender);
   void     enqueueLowLevelEvent(const NXEvent * event);
   void     kickEventConsumer(void);
@@ -442,6 +445,7 @@ private:
   void     setEventPortGated(mach_port_t port);
 public:
   IOReturn setEventPort(mach_port_t port);
+  void     unregisterScreensOf(pid_t pid);
 private:
 
 

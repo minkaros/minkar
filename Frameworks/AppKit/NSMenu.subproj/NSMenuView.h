@@ -33,7 +33,7 @@
 @end
 
 /* An item's height in the menu bar and in menus. SHORTCUT(Phase 5): the
- * look of SystemUIServer's menus, kept until Gienah's design; taken in
+ * look of SystemUIServer's menus, kept until Atlas's design; taken in
  * WS4b. */
 #define kNSMenuItemHeight	22
 

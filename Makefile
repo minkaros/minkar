@@ -229,4 +229,50 @@ layers-check: .PHONY ${LAYERS:S/$/-check/}
 image-check: .PHONY
 	${MAKE} -C ${.CURDIR}/Image boottest GATE=M2
 
+# Gate M3: the tools of Tests/M3, built on the host with their tests and
+# installed in the sysroot ('m3-tools', then 'image'); 'm3-check' boots
+# the image and runs their tests in it.
+m3-tools: .PHONY
+	${MAKE} -m ${ROOT_SOURCE_DIR}/BSD/share/mk ONLY_STAGE=Tests/M3 Tests/M3
+
+# SwiftFormat's suite alone takes about half an hour in a VM.
+m3-check: .PHONY
+	${MAKE} -C ${.CURDIR}/Image boottest GATE=M3 BOOTTEST_TIMEOUT=${M3_BOOTTEST_TIMEOUT:U5400}
+
+# Gate W0: WebKit's dependencies (BSD/lib) pass their own tests: each one
+# built again with them into /usr/local/tests/w0 ('w0-tests', then
+# 'image'); 'w0-check' boots the image and runs them.
+w0-tests: .PHONY
+	${MAKE} -m ${ROOT_SOURCE_DIR}/BSD/share/mk ONLY_STAGE=Tests/W0 Tests/W0
+
+# Gate W0 runs on a physical machine running Minkar (W0_HOST=root@address,
+# W0_SSH_KEY: the key to log in with): in nested VMs GLib's lock tests do
+# not finish. w0-check-vm is the same in boottest's VM, for development.
+# Every library of Tests/W0 (a directory with a run.sh; httpd is a tool).
+W0_LIBS !=	cd ${.CURDIR}/Tests/W0 && ls */run.sh | sed 's|/run.sh||'
+w0-check: .PHONY
+.if !defined(W0_HOST)
+	@echo "w0-check: W0_HOST=root@address (a physical machine running Minkar) is required" >&2; false
+.else
+	sh ${.CURDIR}/Tests/W0/runner/check-host.sh ${SYSROOT_DIR} ${W0_HOST} "${W0_SSH_KEY:U}" ${W0_LIBS}
+.endif
+
+w0-check-vm: .PHONY
+	${MAKE} -C ${.CURDIR}/Image boottest GATE=W0 BOOTTEST_TIMEOUT=${W0_BOOTTEST_TIMEOUT:U5400}
+
+# Gate W1: JavaScriptCore passes JSTests' suites (Tests/W1/check-host.sh,
+# WebKit's own runner over ssh) on a machine running Minkar: W1_HOST=
+# user@address[:port], W1_SSH_KEY the key to log in with, W1_SUITES some
+# suites only (es6.yaml stress ...). The results go to W1_OUT.
+W1_OUT ?=	${ROOT_BINARY_DIR:U${.OBJDIR}}/w1-results
+w1-check: .PHONY
+.if !defined(W1_HOST)
+	@echo "w1-check: W1_HOST=user@address[:port] (a machine running Minkar) is required" >&2; false
+.else
+	webkit=$$(sh ${.CURDIR}/BSD/lib/libdrm/fetch.sh ${.CURDIR}/BSD/lib/javascriptcore/MANIFEST \
+	    ${ROOT_BINARY_DIR:U${.OBJDIR}}/src-cache) && \
+	sh ${.CURDIR}/Tests/W1/check-host.sh ${SYSROOT_DIR} $$webkit ${W1_HOST} "${W1_SSH_KEY:U}" \
+	    ${W1_OUT} ${W1_SUITES:U}
+.endif
+
 .include "./BSD/share/mk/bsd.subdir.mk"

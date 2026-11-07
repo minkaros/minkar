@@ -7,55 +7,104 @@ The above copyright notice and this permission notice shall be included in all c
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE. */
 #import <Foundation/NSObject.h>
 
-@class NSArray, NSDictionary;
+@class NSArray<ObjectType>, NSDictionary<KeyType, ObjectType>, NSString, NSCharacterSet;
 
-FOUNDATION_EXPORT NSString *const NSLocaleCountryCode;
-FOUNDATION_EXPORT NSString *const NSLocaleLanguageCode;
-FOUNDATION_EXPORT NSString *const NSLocaleVariantCode;
-FOUNDATION_EXPORT NSString *const NSLocaleIdentifier;
+typedef NSString *NSLocaleKey NS_TYPED_ENUM;
 
-FOUNDATION_EXPORT NSString *const NSLocaleGroupingSeparator;
-FOUNDATION_EXPORT NSString *const NSLocaleDecimalSeparator;
-FOUNDATION_EXPORT NSString *const NSLocaleCalendar;
-FOUNDATION_EXPORT NSString *const NSLocaleCurrencyCode;
-FOUNDATION_EXPORT NSString *const NSLocaleCurrencySymbol;
-FOUNDATION_EXPORT NSString *const NSLocaleUsesMetricSystem;
-FOUNDATION_EXPORT NSString *const NSLocaleMeasurementSystem;
+NS_ASSUME_NONNULL_BEGIN
 
-FOUNDATION_EXPORT NSString *const NSLocaleScriptCode;
-FOUNDATION_EXPORT NSString *const NSLocaleExemplarCharacterSet;
-FOUNDATION_EXPORT NSString *const NSLocaleCollationIdentifier;
+FOUNDATION_EXPORT NSLocaleKey const NSLocaleIdentifier;
+FOUNDATION_EXPORT NSLocaleKey const NSLocaleLanguageCode;
+FOUNDATION_EXPORT NSLocaleKey const NSLocaleCountryCode;
+FOUNDATION_EXPORT NSLocaleKey const NSLocaleScriptCode;
+FOUNDATION_EXPORT NSLocaleKey const NSLocaleVariantCode;
+FOUNDATION_EXPORT NSLocaleKey const NSLocaleExemplarCharacterSet;
+FOUNDATION_EXPORT NSLocaleKey const NSLocaleCalendar;
+FOUNDATION_EXPORT NSLocaleKey const NSLocaleCollationIdentifier;
+FOUNDATION_EXPORT NSLocaleKey const NSLocaleUsesMetricSystem;
+FOUNDATION_EXPORT NSLocaleKey const NSLocaleMeasurementSystem;
+FOUNDATION_EXPORT NSLocaleKey const NSLocaleDecimalSeparator;
+FOUNDATION_EXPORT NSLocaleKey const NSLocaleGroupingSeparator;
+FOUNDATION_EXPORT NSLocaleKey const NSLocaleCurrencySymbol;
+FOUNDATION_EXPORT NSLocaleKey const NSLocaleCurrencyCode;
+FOUNDATION_EXPORT NSLocaleKey const NSLocaleCollatorIdentifier;
+FOUNDATION_EXPORT NSLocaleKey const NSLocaleQuotationBeginDelimiterKey;
+FOUNDATION_EXPORT NSLocaleKey const NSLocaleQuotationEndDelimiterKey;
+FOUNDATION_EXPORT NSLocaleKey const NSLocaleAlternateQuotationBeginDelimiterKey;
+FOUNDATION_EXPORT NSLocaleKey const NSLocaleAlternateQuotationEndDelimiterKey;
 
 FOUNDATION_EXPORT NSString *const NSCurrentLocaleDidChangeNotification;
 
-@interface NSLocale : NSObject <NSCoding, NSCopying> {
-    NSDictionary *_locale;
+typedef NS_ENUM(NSUInteger, NSLocaleLanguageDirection) {
+    NSLocaleLanguageDirectionUnknown = 0,
+    NSLocaleLanguageDirectionLeftToRight = 1,
+    NSLocaleLanguageDirectionRightToLeft = 2,
+    NSLocaleLanguageDirectionTopToBottom = 3,
+    NSLocaleLanguageDirectionBottomToTop = 4,
+};
+
+/* A locale: CoreFoundation's (CFLocale, on ICU) under the Cocoa API. */
+@interface NSLocale : NSObject <NSCopying, NSSecureCoding> {
+    void *_cf;
+    NSString *_identifier;
 }
 
-+ systemLocale;
-+ currentLocale;
-+ autoupdatingCurrentLocale;
+- (nullable id)objectForKey:(NSLocaleKey)key;
+- (nullable NSString *)displayNameForKey:(NSLocaleKey)key value:(id)value;
 
-+ (NSArray *)availableLocaleIdentifiers;
+- (instancetype)initWithLocaleIdentifier:(NSString *)string NS_DESIGNATED_INITIALIZER;
+- (nullable instancetype)initWithCoder:(NSCoder *)coder NS_DESIGNATED_INITIALIZER;
++ (instancetype)localeWithLocaleIdentifier:(NSString *)ident;
+- (instancetype)init NS_UNAVAILABLE;
 
+@property (class, readonly, strong) NSLocale *autoupdatingCurrentLocale;
+@property (class, readonly, copy) NSLocale *currentLocale;
+@property (class, readonly, copy) NSLocale *systemLocale;
+
+@property (readonly, copy) NSString *localeIdentifier;
+- (nullable NSString *)localizedStringForLocaleIdentifier:(NSString *)localeIdentifier;
+@property (nullable, readonly, copy) NSString *languageCode;
+- (nullable NSString *)localizedStringForLanguageCode:(NSString *)languageCode;
+@property (nullable, readonly, copy) NSString *countryCode;
+- (nullable NSString *)localizedStringForCountryCode:(NSString *)countryCode;
+@property (nullable, readonly, copy) NSString *scriptCode;
+- (nullable NSString *)localizedStringForScriptCode:(NSString *)scriptCode;
+@property (nullable, readonly, copy) NSString *variantCode;
+- (nullable NSString *)localizedStringForVariantCode:(NSString *)variantCode;
+@property (readonly, copy) NSCharacterSet *exemplarCharacterSet;
+@property (readonly, copy) NSString *calendarIdentifier;
+- (nullable NSString *)localizedStringForCalendarIdentifier:(NSString *)calendarIdentifier;
+@property (nullable, readonly, copy) NSString *collationIdentifier;
+- (nullable NSString *)localizedStringForCollationIdentifier:(NSString *)collationIdentifier;
+@property (readonly) BOOL usesMetricSystem;
+@property (readonly, copy) NSString *decimalSeparator;
+@property (readonly, copy) NSString *groupingSeparator;
+@property (readonly, copy) NSString *currencySymbol;
+@property (nullable, readonly, copy) NSString *currencyCode;
+- (nullable NSString *)localizedStringForCurrencyCode:(NSString *)currencyCode;
+@property (readonly, copy) NSString *collatorIdentifier;
+- (nullable NSString *)localizedStringForCollatorIdentifier:(NSString *)collatorIdentifier;
+@property (readonly, copy) NSString *quotationBeginDelimiter;
+@property (readonly, copy) NSString *quotationEndDelimiter;
+@property (readonly, copy) NSString *alternateQuotationBeginDelimiter;
+@property (readonly, copy) NSString *alternateQuotationEndDelimiter;
+
+@property (class, readonly, copy) NSArray<NSString *> *availableLocaleIdentifiers;
+@property (class, readonly, copy) NSArray<NSString *> *ISOLanguageCodes;
+@property (class, readonly, copy) NSArray<NSString *> *ISOCountryCodes;
+@property (class, readonly, copy) NSArray<NSString *> *ISOCurrencyCodes;
+@property (class, readonly, copy) NSArray<NSString *> *commonISOCurrencyCodes;
+@property (class, readonly, copy) NSArray<NSString *> *preferredLanguages;
+
++ (NSDictionary<NSString *, NSString *> *)componentsFromLocaleIdentifier:(NSString *)string;
++ (NSString *)localeIdentifierFromComponents:(NSDictionary<NSString *, NSString *> *)dict;
 + (NSString *)canonicalLocaleIdentifierFromString:(NSString *)string;
-
-+ (NSDictionary *)componentsFromLocaleIdentifier:(NSString *)identifier;
-+ (NSString *)localeIdentifierFromComponents:(NSDictionary *)components;
-
-+ (NSArray *)ISOCountryCodes;
-+ (NSArray *)ISOLanguageCodes;
-+ (NSArray *)ISOCurrencyCodes;
-+ (NSArray *)commonISOCurrencyCodes;
-
-+ (NSArray *)preferredLanguages;
-
-- initWithLocaleIdentifier:(NSString *)identifier;
-
-- (NSString *)localeIdentifier;
-
-- objectForKey:key;
-
-- (NSString *)displayNameForKey:key value:value;
++ (NSString *)canonicalLanguageIdentifierFromString:(NSString *)string;
++ (nullable NSString *)localeIdentifierFromWindowsLocaleCode:(uint32_t)lcid;
++ (uint32_t)windowsLocaleCodeFromLocaleIdentifier:(NSString *)localeIdentifier;
++ (NSLocaleLanguageDirection)characterDirectionForLanguage:(NSString *)isoLangCode;
++ (NSLocaleLanguageDirection)lineDirectionForLanguage:(NSString *)isoLangCode;
 
 @end
+
+NS_ASSUME_NONNULL_END

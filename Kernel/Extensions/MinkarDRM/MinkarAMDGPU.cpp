@@ -29,12 +29,14 @@
 #include <IOKit/IOLib.h>
 #include <IOKit/IOPlatformExpert.h>
 #include <kern/clock.h>
+#include <sys/random.h>
 #include <pexpert/pexpert.h>
 #include "MinkarAMDGPU.h"
 #include "MinkarAMDFramebuffer.h"
 #include "MinkarAMDDMA.h"
 #include "MinkarAMDFirmware.h"
 #include "MinkarAMDGFX.h"
+#include "MinkarAMDNode.h"
 #include "amd_si_gfx.h"
 #include "amd_si_vm.h"
 #include "amd_si_gfx_init.h"
@@ -137,9 +139,17 @@ MinkarAMDGPU::start(IOService *provider)
 		startGART(display);
 		startInterrupts(display);
 		startGFXTest(name);
+		/* What the graphics block's start will set, published now for
+		 * the clients' drivers (Minkar's libdrm reads it). */
+		initEngine(true);
 	}
 
 	registerService();
+
+	/* The render node Minkar's libdrm (Mesa) opens: with the user client. */
+	unsigned drmMinor = 0;
+	if (getProperty("IOUserClientClass") != NULL && MinkarAMDNodeCreate(&drmMinor, &fNode))
+		setProperty("MinkarDRMMinor", drmMinor, 32);
 	return true;
 }
 
@@ -149,6 +159,12 @@ void
 MinkarAMDGPU::setUpVRAM(uint32_t megabytes)
 {
 	fVRAMLock = IOLockAlloc();
+	/* Room for many buffers (a Vulkan app makes thousands). */
+	fVRAMRanges = (struct minkar_vram_range *)IOMallocZero(kVRAMRanges * sizeof(*fVRAMRanges));
+	if (fVRAMRanges == NULL) {
+		LOG("VRAM allocator not set up: no memory for its ranges");
+		return;
+	}
 	minkar_vram_init(&fVRAM, (uint64_t)megabytes << 20, fVRAMRanges, kVRAMRanges);
 	if (fVRAMLock == NULL || megabytes == 0 ||
 	    minkar_vram_reserve(&fVRAM, 0, kVRAMReservedLow) != 0) {
@@ -205,7 +221,10 @@ MinkarAMDGPU::startGART(bool display)
 		}
 		return;
 	}
-	minkar_vram_init(&fGARTPages, size, fGARTRanges, kGARTRanges);
+	if (fGARTRanges == NULL)
+		fGARTRanges = (struct minkar_vram_range *)IOMallocZero(kGARTRanges * sizeof(*fGARTRanges));
+	minkar_vram_init(&fGARTPages, fGARTRanges != NULL ? size : 0, fGARTRanges,
+	    fGARTRanges != NULL ? kGARTRanges : 0);
 	setProperty("MinkarGARTMegabytes", (unsigned long long)(size >> 20), 32);
 }
 
@@ -420,20 +439,27 @@ MinkarAMDGPU::vramInfo(uint64_t *total, uint64_t *available, uint64_t *window)
 	return kIOReturnSuccess;
 }
 
-/* In 64 KB units, inside the CPU's window. */
-IOReturn
-MinkarAMDGPU::createBuffer(uint64_t size, uint64_t *offset)
-{
-	const uint64_t unit = 64 * 1024;
+/* Clients' buffers are whole pages, as amdgpu's: a Vulkan app makes
+ * thousands of small ones. */
+#define kBufferUnit	4096ull
 
-	if (fWindow == NULL || fVRAMLock == NULL)
+/* In pages: inside the CPU's window, or anywhere (cpuVisible false). */
+IOReturn
+MinkarAMDGPU::createBuffer(uint64_t size, uint64_t *offset, bool cpuVisible)
+{
+	const uint64_t unit = kBufferUnit;
+
+	if (fWindow == NULL || fVRAMLock == NULL || fVRAMRanges == NULL)
 		return kIOReturnNotReady;
-	if (size == 0 || size > fWindow->getLength())
+	if (size == 0 || size > (cpuVisible ? fWindow->getLength() : fVRAM.size))
 		return kIOReturnBadArgument;
 	size = (size + unit - 1) & ~(unit - 1);
 	IOLockLock(fVRAMLock);
-	int err = minkar_vram_alloc(&fVRAM, size, unit, offset);
-	if (err == 0 && *offset + size > fWindow->getLength()) {
+	/* The CPU's window from the bottom; the rest from the top, above the
+	 * window, so that it stays for buffers the CPU maps. */
+	int err = cpuVisible ? minkar_vram_alloc(&fVRAM, size, unit, offset) :
+	    minkar_vram_alloc_top(&fVRAM, size, unit, fWindow->getLength(), offset);
+	if (err == 0 && cpuVisible && *offset + size > fWindow->getLength()) {
 		minkar_vram_free(&fVRAM, *offset, size);
 		err = -1;
 	}
@@ -444,7 +470,7 @@ MinkarAMDGPU::createBuffer(uint64_t size, uint64_t *offset)
 void
 MinkarAMDGPU::destroyBuffer(uint64_t offset, uint64_t size)
 {
-	const uint64_t unit = 64 * 1024;
+	const uint64_t unit = kBufferUnit;
 
 	IOLockLock(fVRAMLock);
 	minkar_vram_free(&fVRAM, offset, (size + unit - 1) & ~(unit - 1));
@@ -551,9 +577,9 @@ MinkarAMDGPU::destroySystemBuffer(IOBufferMemoryDescriptor *m, uint64_t gpuAddre
 /* ---- Shared buffers ---- */
 
 IOReturn
-MinkarAMDGPU::createShared(uint64_t size, uint32_t *id, uint64_t *offset, uint64_t *rounded)
+MinkarAMDGPU::createShared(uint64_t size, uint64_t *name, uint64_t *offset, uint64_t *rounded)
 {
-	const uint64_t unit = 64 * 1024;
+	const uint64_t unit = kBufferUnit;
 	IOReturn err = createBuffer(size, offset);
 
 	if (err != kIOReturnSuccess)
@@ -564,13 +590,22 @@ MinkarAMDGPU::createShared(uint64_t size, uint32_t *id, uint64_t *offset, uint64
 	for (slot = 0; slot < kSharedBuffers && fShared[slot].holders != 0; slot++)
 		;
 	if (slot < kSharedBuffers) {
-		if (++fNextSharedID == 0)
-			fNextSharedID = 1;
-		fShared[slot].id = fNextSharedID;
+		/* A name no other program can guess: 64 random bits, not 0 and
+		 * not another buffer's. Only those its maker gives it to can
+		 * hold the buffer (iosurfaced, the window server). */
+		uint64_t n;
+		bool taken;
+		do {
+			read_random(&n, sizeof(n));
+			taken = n == 0;
+			for (unsigned i = 0; i < kSharedBuffers && !taken; i++)
+				taken = fShared[i].holders != 0 && fShared[i].name == n;
+		} while (taken);
+		fShared[slot].name = n;
 		fShared[slot].holders = 1;
 		fShared[slot].offset = *offset;
 		fShared[slot].size = *rounded;
-		*id = fNextSharedID;
+		*name = n;
 	}
 	IOLockUnlock(fVRAMLock);
 	if (slot == kSharedBuffers) {
@@ -581,13 +616,13 @@ MinkarAMDGPU::createShared(uint64_t size, uint32_t *id, uint64_t *offset, uint64
 }
 
 IOReturn
-MinkarAMDGPU::retainShared(uint32_t id, uint64_t *offset, uint64_t *size)
+MinkarAMDGPU::retainShared(uint64_t name, uint64_t *offset, uint64_t *size)
 {
 	IOReturn err = kIOReturnNotFound;
 
 	IOLockLock(fVRAMLock);
 	for (unsigned i = 0; i < kSharedBuffers; i++)
-		if (fShared[i].holders != 0 && fShared[i].id == id) {
+		if (fShared[i].holders != 0 && fShared[i].name == name) {
 			fShared[i].holders++;
 			*offset = fShared[i].offset;
 			*size = fShared[i].size;
@@ -599,13 +634,13 @@ MinkarAMDGPU::retainShared(uint32_t id, uint64_t *offset, uint64_t *size)
 }
 
 void
-MinkarAMDGPU::releaseShared(uint32_t id)
+MinkarAMDGPU::releaseShared(uint64_t name)
 {
 	uint64_t offset = 0, size = 0;
 
 	IOLockLock(fVRAMLock);
 	for (unsigned i = 0; i < kSharedBuffers; i++)
-		if (fShared[i].holders != 0 && fShared[i].id == id) {
+		if (fShared[i].holders != 0 && fShared[i].name == name) {
 			if (--fShared[i].holders == 0) {
 				offset = fShared[i].offset;
 				size = fShared[i].size;
@@ -637,6 +672,25 @@ MinkarAMDGPU::copyToScanout(uint64_t src, uint64_t offset, uint64_t bytes, uint6
 	if (bytes == 0 || offset > fbBytes || bytes > fbBytes - offset)
 		return kIOReturnBadArgument;
 	return copy(fVRAMStart + fb + offset, src, bytes, ns);
+}
+
+IOReturn
+MinkarAMDGPU::flip(uint64_t offset, uint64_t bytes, uint64_t *ns)
+{
+	IOReturn err = kIOReturnNotFound;
+	uint64_t start = mach_absolute_time(), elapsed;
+
+	OSIterator *it = fPCI->getClientIterator();
+	OSObject *o;
+	while (err == kIOReturnNotFound && it != NULL && (o = it->getNextObject()) != NULL) {
+		MinkarAMDFramebuffer *f = OSDynamicCast(MinkarAMDFramebuffer, o);
+		if (f != NULL)
+			err = f->flip(offset, bytes) ? kIOReturnSuccess : kIOReturnNotReady;
+	}
+	OSSafeReleaseNULL(it);
+	absolutetime_to_nanoseconds(mach_absolute_time() - start, &elapsed);
+	*ns = elapsed;
+	return err;
 }
 
 IOReturn
@@ -824,16 +878,16 @@ MinkarAMDGPU::gfxTestThread(void *gpu, wait_result_t)
 /* The command processor's three microcodes (prefetch parser, micro
  * engine, constant engine), read and parsed. */
 bool
-MinkarAMDGPU::readMicrocode(uint8_t *file[3], size_t bytes[3], struct amd_ucode code[3])
+MinkarAMDGPU::readMicrocode(uint8_t *file[4], size_t bytes[4], struct amd_ucode code[4])
 {
-	static const char *const parts[3] = { "pfp", "me", "ce" };
+	static const char *const parts[4] = { "pfp", "me", "ce", "rlc" };
 	char name[40];
 
-	for (int i = 0; i < 3; i++) {
+	for (int i = 0; i < 4; i++) {
 		file[i] = NULL;
 		bytes[i] = 0;
 	}
-	for (int i = 0; i < 3; i++) {
+	for (int i = 0; i < 4; i++) {
 		snprintf(name, sizeof(name), "%s_%s.bin", fMicrocodePrefix, parts[i]);
 		if (!MinkarAMDReadFirmware(name, &file[i], &bytes[i]) ||
 		    amd_ucode_parse(file[i], bytes[i], &code[i]) != 0) {
@@ -845,9 +899,9 @@ MinkarAMDGPU::readMicrocode(uint8_t *file[3], size_t bytes[3], struct amd_ucode 
 }
 
 void
-MinkarAMDGPU::freeMicrocode(uint8_t *file[3], size_t bytes[3])
+MinkarAMDGPU::freeMicrocode(uint8_t *file[4], size_t bytes[4])
 {
-	for (int i = 0; i < 3; i++) {
+	for (int i = 0; i < 4; i++) {
 		MinkarAMDFreeFirmware(file[i], bytes[i]);
 		file[i] = NULL;
 		bytes[i] = 0;
@@ -857,9 +911,9 @@ MinkarAMDGPU::freeMicrocode(uint8_t *file[3], size_t bytes[3])
 void
 MinkarAMDGPU::gfxSelfTest()
 {
-	uint8_t *file[3];
-	size_t bytes[3];
-	struct amd_ucode code[3];
+	uint8_t *file[4];
+	size_t bytes[4];
+	struct amd_ucode code[4];
 	char name[40];
 	bool have = false;
 
@@ -899,7 +953,7 @@ MinkarAMDGPU::gfxSelfTest()
 			if (!fGFXStarted) {
 				MinkarAMDGFXLoadMicrocode(&fRegs, &code[0], &code[1], &code[2]);
 				started = MinkarAMDGFXStart(&gfx, &fRegs, fVRAMStart + offset,
-				    (volatile uint8_t *)map->getVirtualAddress(), results);
+				    (volatile uint8_t *)map->getVirtualAddress(), false, results);
 				passed = started && MinkarAMDGFXRingTest(&gfx, &ns, results);
 				ib = passed && MinkarAMDGFXIBTest(&gfx, results);
 				MinkarAMDGFXStop(&gfx);
@@ -940,9 +994,9 @@ MinkarAMDGPU::gfxSelfTest()
 bool
 MinkarAMDGPU::startGFX()
 {
-	uint8_t *file[3];
-	size_t bytes[3];
-	struct amd_ucode code[3];
+	uint8_t *file[4];
+	size_t bytes[4];
+	struct amd_ucode code[4];
 
 	if (fGFXStarted)
 		return true;
@@ -959,10 +1013,14 @@ MinkarAMDGPU::startGFX()
 	OSSafeReleaseNULL(region);
 	if (fGFXMap != NULL) {
 		uint64_t ns = 0;
-		initEngine();
+		/* As gfx_v6_0_hw_init: the graphics block, the RLC with the clear
+		 * state, then the command processor with it. */
+		initEngine(false);
+		MinkarAMDGFXStartRLC(&fRegs, &code[3], fVRAMStart + fGFXOffset,
+		    (volatile uint8_t *)fGFXMap->getVirtualAddress(), fRasterConfig);
 		MinkarAMDGFXLoadMicrocode(&fRegs, &code[0], &code[1], &code[2]);
 		fGFXStarted = MinkarAMDGFXStart(&fGFX, &fRegs, fVRAMStart + fGFXOffset,
-		    (volatile uint8_t *)fGFXMap->getVirtualAddress(), NULL) &&
+		    (volatile uint8_t *)fGFXMap->getVirtualAddress(), true, NULL) &&
 		    MinkarAMDGFXRingTest(&fGFX, &ns, NULL);
 		if (!fGFXStarted)
 			MinkarAMDGFXStop(&fGFX);
@@ -995,28 +1053,87 @@ engineWrite(void *gpu, uint32_t reg, uint32_t value)
 	((MinkarAMDGPU *)gpu)->writeReg(reg, value);
 }
 
+/* A dry run: the registers read, the writes kept here (and read back from
+ * here) instead of made. */
+struct DryRun {
+	MinkarAMDGPU *gpu;
+	unsigned n;
+	struct { uint32_t reg, value; } w[256];
+};
+
+static uint32_t
+dryRead(void *ctx, uint32_t reg)
+{
+	DryRun *d = (DryRun *)ctx;
+	for (unsigned i = d->n; i > 0; i--)
+		if (d->w[i - 1].reg == reg)
+			return d->w[i - 1].value;
+	/* GRBM_GFX_INDEX's selection is not made: every copy reads as the
+	 * broadcast one. */
+	return d->gpu->readReg(reg);
+}
+
+static void
+dryWrite(void *ctx, uint32_t reg, uint32_t value)
+{
+	DryRun *d = (DryRun *)ctx;
+	if (reg == SI_mmGRBM_GFX_INDEX)
+		return;
+	if (d->n < sizeof(d->w) / sizeof(d->w[0])) {
+		d->w[d->n].reg = reg;
+		d->w[d->n].value = value;
+		d->n++;
+	}
+}
+
 /*
  * The graphics block's start (amd_si_gfx_init.h, gfx_v6_0_constants_init),
  * before the command processor's: what it found and set goes to
  * MinkarGFXConfig, for the clients' drivers. Called locked.
  */
 void
-MinkarAMDGPU::initEngine()
+MinkarAMDGPU::initEngine(bool dryRun)
 {
+	DryRun *dry = dryRun ? (DryRun *)IOMallocZero(sizeof(DryRun)) : NULL;
 	struct amd_si_regs_io io = { engineRead, engineWrite, this };
 	struct amd_si_gfx_info info;
 	const struct amd_si_chip *chip = amd_si_chip_named(fFamily != NULL ? fFamily : "");
 
+	if (dryRun) {
+		if (dry == NULL)
+			return;
+		dry->gpu = this;
+		io.rd = dryRead;
+		io.wr = dryWrite;
+		io.ctx = dry;
+	}
 	if (amd_si_gfx_init_engine(chip, &io, &info) != 0) {
 		LOG("no graphics block settings for %s", fFamily != NULL ? fFamily : "this chip");
+		fRasterConfig = readReg(SI_mmPA_SC_RASTER_CONFIG);
+		if (dry != NULL)
+			IOFree(dry, sizeof(DryRun));
 		return;
 	}
-	OSDictionary *d = OSDictionary::withCapacity(12);
+	/* The rasterizer's configuration, for the clear state and for the
+	 * clients: as set, or the golden one when it was left. */
+	uint32_t raster = io.rd(io.ctx, SI_mmPA_SC_RASTER_CONFIG);
+	fRasterConfig = info.rasterConfig != 0 ? info.rasterConfig : raster;
+	if (dry != NULL)
+		IOFree(dry, sizeof(DryRun));
+	OSDictionary *d = OSDictionary::withCapacity(16);
 	if (d != NULL) {
 		static const char *const keys[] = { "RowKB", "AddrConfig", "BackendMask", "Backends",
-		    "RasterConfig", "ComputeUnits", "GoldenSet", "GoldenSkipped" };
+		    "RasterConfig", "ComputeUnits", "GoldenSet", "GoldenSkipped", "MCArbRamcfg",
+		    "ShaderEngines", "ShaderArraysPerEngine", "ComputeUnitsPerArray", "BackendsPerEngine",
+		    "TilePipes", "RevisionID" };
+		/* The chip's own revision (amdgpu's rev_id), from its straps, not
+		 * the PCI one: clients' drivers tell steppings apart by it. */
+		uint32_t revision = (readReg(SI_mmCC_DRM_ID_STRAPS) & SI_CC_DRM_ID_STRAPS__ATI_REV_ID_MASK) >>
+		    SI_CC_DRM_ID_STRAPS__ATI_REV_ID__SHIFT;
 		const uint64_t values[] = { info.rowKB, info.addrConfig, info.backendMask, info.backends,
-		    info.rasterConfig, info.cus, info.goldenSet, info.goldenSkipped };
+		    fRasterConfig, info.cus, info.goldenSet, info.goldenSkipped, info.mcArbRamcfg,
+		    chip->shaderEngines, chip->shsPerSE, chip->cusPerSH, chip->rbsPerSE, chip->tilePipes,
+		    revision };
 		for (size_t i = 0; i < sizeof(keys) / sizeof(keys[0]); i++) {
 			OSNumber *n = OSNumber::withNumber((unsigned long long)values[i], 32);
 			if (n != NULL) {
@@ -1034,9 +1151,16 @@ MinkarAMDGPU::initEngine()
 			d->setObject("ComputeUnitMasks", cu);
 			cu->release();
 		}
+		OSData *rb = OSData::withBytes(info.rbDisable, sizeof(info.rbDisable));
+		if (rb != NULL) {
+			d->setObject("BackendDisable", rb);
+			rb->release();
+		}
 		setProperty("MinkarGFXConfig", d);
 		d->release();
 	}
+	if (dryRun)
+		return;		/* what it will set, for the clients, before it does */
 	LOG("graphics block: %s, %u KB rows, GB_ADDR_CONFIG 0x%08x, %u render backends (0x%x), "
 	    "%u compute units, %u golden settings (%u left outside it)", chip->name, info.rowKB,
 	    info.addrConfig, info.backends, info.backendMask, info.cus, info.goldenSet,
@@ -1190,16 +1314,18 @@ MinkarAMDGPU::vmMapVRAM(unsigned vmid, uint64_t va, uint64_t offset, uint64_t by
 	return vmMap(vmid, va, bytes, offset, NULL);
 }
 
-/* Prepared (wired) system memory, bytes of it from its start, at va. */
+/* Prepared (wired) system memory, bytes of it from offset, at va. */
 IOReturn
-MinkarAMDGPU::vmMapSystem(unsigned vmid, uint64_t va, IOMemoryDescriptor *memory, uint64_t bytes)
+MinkarAMDGPU::vmMapSystem(unsigned vmid, uint64_t va, IOMemoryDescriptor *memory, uint64_t offset,
+    uint64_t bytes)
 {
-	if (memory == NULL || bytes > memory->getLength())
+	if (memory == NULL || offset > memory->getLength() || bytes > memory->getLength() - offset)
 		return kIOReturnBadArgument;
-	return vmMap(vmid, va, bytes, 0, memory);
+	return vmMap(vmid, va, bytes, offset, memory);
 }
 
-/* Pages at va: VRAM from offset, or memory's pages when it is given. */
+/* Pages at va: VRAM from offset, or memory's pages from offset when it is
+ * given. */
 IOReturn
 MinkarAMDGPU::vmMap(unsigned vmid, uint64_t va, uint64_t bytes, uint64_t offset,
     IOMemoryDescriptor *memory)
@@ -1238,7 +1364,7 @@ MinkarAMDGPU::vmMap(unsigned vmid, uint64_t va, uint64_t bytes, uint64_t offset,
 		uint64_t pte;
 		if (memory != NULL) {
 			IOByteCount segment = 0;
-			addr64_t phys = memory->getPhysicalSegment((IOByteCount)done, &segment,
+			addr64_t phys = memory->getPhysicalSegment((IOByteCount)(offset + done), &segment,
 			    kIOMemoryMapperNone);
 			if (phys == 0 || (phys & (kSIGPUPage - 1)) != 0) {
 				err = kIOReturnVMError;
@@ -1394,6 +1520,7 @@ MinkarAMDGPU::free()
 		MinkarAMDGFXStop(&fGFX);
 	OSSafeReleaseNULL(fGFXMap);
 	OSSafeReleaseNULL(fWindowMap);
+	MinkarAMDNodeRemove(fNode);
 	stopInterrupts();
 	MinkarAMDGARTDisable(&fGART);
 	OSSafeReleaseNULL(fDMAMap);
@@ -1401,6 +1528,10 @@ MinkarAMDGPU::free()
 	MinkarAMDUnmapRegisters(&fRegs);
 	if (fVRAMLock != NULL)
 		IOLockFree(fVRAMLock);
+	if (fVRAMRanges != NULL)
+		IOFree(fVRAMRanges, kVRAMRanges * sizeof(*fVRAMRanges));
+	if (fGARTRanges != NULL)
+		IOFree(fGARTRanges, kGARTRanges * sizeof(*fGARTRanges));
 	if (fDMALock != NULL)
 		IOLockFree(fDMALock);
 	OSSafeReleaseNULL(fPCI);

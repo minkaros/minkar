@@ -2,7 +2,7 @@
 #import <Foundation/NSRange.h>
 #import <Foundation/NSTextCheckingResult.h>
 
-@class NSSpellServer, NSArray, NSDictionary, NSOrthography;
+@class NSSpellServer, NSArray<ObjectType>, NSDictionary<KeyType, ObjectType>, NSOrthography;
 
 FOUNDATION_EXPORT NSString *const NSGrammarRange;
 FOUNDATION_EXPORT NSString *const NSGrammarUserDescription;

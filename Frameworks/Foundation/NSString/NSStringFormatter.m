@@ -319,7 +319,7 @@ static inline void appendFloat(NSStringBuffer *buffer,double value,
 static inline void appendObject(NSStringBuffer *buffer,id object,
   unichar fillChar,BOOL leftAdj,int fieldWidth){
    if(object==nil)
-    appendCString(buffer,"*nil*",fillChar,leftAdj,fieldWidth);
+    appendCString(buffer,"(null)",fillChar,leftAdj,fieldWidth);
    else {
     NSString *string=[object description];
     unibuffer ubuffer=NewUnibufferWithString(string);

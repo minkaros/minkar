@@ -266,13 +266,17 @@ static NSKeyObserver *addKeyPathObserverToObject(id object,NSString *path,NSKeyP
 
    addKeyPathObserverToObject(self,keyPath,keyPathObserver);
 
+   // The observer told at once, before any change: a setting, with the
+   // current value if it asked for new values (NSNull for nil).
    if(options&NSKeyValueObservingOptionInitial){
-    NSUnimplementedMethod();
-#if 0
-// this is wrong, should generate a clean notification
-    [self willChangeValueForKey:key];
-    [self didChangeValueForKey:key];
-#endif
+    NSMutableDictionary *change=[NSMutableDictionary dictionaryWithObject:[NSNumber numberWithUnsignedInteger:NSKeyValueChangeSetting] forKey:NSKeyValueChangeKindKey];
+
+    if(options&NSKeyValueObservingOptionNew){
+     id value=[self valueForKeyPath:keyPath];
+
+     [change setObject:(value!=nil)?value:[NSNull null] forKey:NSKeyValueChangeNewKey];
+    }
+    [observer observeValueForKeyPath:keyPath ofObject:self change:change context:context];
    }
 	NSKeyValueDebugLog(kNSKeyValueDebugLevel2, @"self: %@ added keyPathObserver: %@ for observer: %@ keyPath: %@", self, keyPathObserver, observer, keyPath);
 }
@@ -304,6 +308,24 @@ static void pruneKeyObserver(NSKeyObserver *keyObserver){
    NSKeyObserver *keyObserver=keyObserverForObserverAndKeyPath(self,observer,keyPath);
 
    pruneKeyObserver(keyObserver);
+}
+
+/* The registration with this context: an observer may register for one
+ * key path more than once, with different contexts. */
+-(void)removeObserver:observer forKeyPath:(NSString *)keyPath context:(void *)context {
+   NSKVOInfoPerObject *observationInfo=[self observationInfo];
+   NSString *restOfPath;
+   NSString *key=_NSKVOSplitKeyPath(keyPath,&restOfPath);
+
+   for(NSKeyObserver *check in [NSArray arrayWithArray:[observationInfo keyObserversForKey:key]]){
+    NSKeyPathObserver *keyPathObserver=[check keyPathObserver];
+
+    if([keyPathObserver observer]==observer && [[keyPathObserver keyPath] isEqualToString:keyPath] &&
+       [keyPathObserver context]==context){
+     pruneKeyObserver(check);
+     return;
+    }
+   }
 }
 
 static void willChangeValueForKey(id object,NSString *key,NSDictionary *changeInfo) {
@@ -610,7 +632,7 @@ static SEL selectorForKeyPathsForValuesAffecting(NSString *key){
 	BOOL shouldNotify = [self _hasObserverForKey:key];\
 	if (shouldNotify) [self willChangeValueForKey:key]; \
 	typedef id (*sender)(id obj, SEL selector, type value); \
-	sender implementation=(sender)[[self superclass] instanceMethodForSelector:_cmd]; \
+	sender implementation=(sender)class_getMethodImplementation(class_getSuperclass(object_getClass(self)), _cmd); \
 	(void)*implementation(self, _cmd, value); \
 	if (shouldNotify) [self didChangeValueForKey:key]; \
 	[key release]; \
@@ -651,7 +673,7 @@ CHANGE_DECLARATION(SEL)
 		[self willChangeValueForKey:key];
 	}
 	typedef id (*sender)(id obj, SEL selector, id object, id key);
-	sender implementation=(sender)[[self superclass] instanceMethodForSelector:_cmd];
+	sender implementation=(sender)class_getMethodImplementation(class_getSuperclass(object_getClass(self)), _cmd);
 	implementation(self, _cmd, object, key);
 	if (shouldNotify) {
 		[self didChangeValueForKey:key];
@@ -664,7 +686,7 @@ CHANGE_DECLARATION(SEL)
 		[self willChangeValueForKey:key];
 	}
 	typedef id (*sender)(id obj, SEL selector, id key);
-	sender implementation=(sender)[[self superclass] instanceMethodForSelector:_cmd];
+	sender implementation=(sender)class_getMethodImplementation(class_getSuperclass(object_getClass(self)), _cmd);
 	implementation(self, _cmd, key);
 	if (shouldNotify) {
 		[self didChangeValueForKey:key];
@@ -687,7 +709,7 @@ CHANGE_DECLARATION(SEL)
 
 	[self willChange:NSKeyValueChangeInsertion valuesAtIndexes:[NSIndexSet indexSetWithIndex:index] forKey:key];
 	typedef id (*sender)(id obj, SEL selector, id value, NSInteger index);
-	sender implementation=(sender)[[self superclass] instanceMethodForSelector:_cmd];
+	sender implementation=(sender)class_getMethodImplementation(class_getSuperclass(object_getClass(self)), _cmd);
 	(void)*implementation(self, _cmd, object, index);
 	[self didChange:NSKeyValueChangeInsertion valuesAtIndexes:[NSIndexSet indexSetWithIndex:index] forKey:key];
 	[key release];
@@ -708,7 +730,7 @@ CHANGE_DECLARATION(SEL)
     
 	[self willChange:NSKeyValueChangeInsertion valuesAtIndexes:indexes forKey:key];
 	typedef id (*sender)(id obj, SEL selector, NSArray* value, NSIndexSet* indexes);
-	sender implementation=(sender)[[self superclass] instanceMethodForSelector:_cmd];
+	sender implementation=(sender)class_getMethodImplementation(class_getSuperclass(object_getClass(self)), _cmd);
 	(void)*implementation(self, _cmd, objects, indexes);
 	[self didChange:NSKeyValueChangeInsertion valuesAtIndexes:indexes forKey:key];
 	[key release];
@@ -735,7 +757,7 @@ CHANGE_DECLARATION(SEL)
     NSString *key=[[NSString allocWithZone:NULL] initWithCString:sel];
     [self willChange:NSKeyValueChangeInsertion valuesAtIndexes:[NSIndexSet indexSetWithIndex:idx] forKey:key];
     typedef id (*sender)(id obj, SEL selector, id value);
-    sender implementation=(sender)[[self superclass] instanceMethodForSelector:_cmd];
+    sender implementation=(sender)class_getMethodImplementation(class_getSuperclass(object_getClass(self)), _cmd);
     (void)*implementation(self, _cmd, object);
     [self didChange:NSKeyValueChangeInsertion valuesAtIndexes:[NSIndexSet indexSetWithIndex:idx] forKey:key];
     [key release];
@@ -756,7 +778,7 @@ CHANGE_DECLARATION(SEL)
     
     [self willChangeValueForKey:key withSetMutation:NSKeyValueUnionSetMutation usingObjects:objects];
 	typedef id (*sender)(id obj, SEL selector, NSSet* objects);
-	sender implementation=(sender)[[self superclass] instanceMethodForSelector:_cmd];
+	sender implementation=(sender)class_getMethodImplementation(class_getSuperclass(object_getClass(self)), _cmd);
 	(void)*implementation(self, _cmd, objects);
     [self didChangeValueForKey:key withSetMutation:NSKeyValueUnionSetMutation usingObjects:objects];
 	[key release];
@@ -783,7 +805,7 @@ CHANGE_DECLARATION(SEL)
     NSString *key=[[NSString allocWithZone:NULL] initWithCString:sel];
     [self willChange:NSKeyValueChangeRemoval valuesAtIndexes:[NSIndexSet indexSetWithIndex:idx] forKey:key];
     typedef id (*sender)(id obj, SEL selector, id value);
-    sender implementation=(sender)[[self superclass] instanceMethodForSelector:_cmd];
+    sender implementation=(sender)class_getMethodImplementation(class_getSuperclass(object_getClass(self)), _cmd);
     (void)*implementation(self, _cmd, object);
     [self didChange:NSKeyValueChangeRemoval valuesAtIndexes:[NSIndexSet indexSetWithIndex:idx] forKey:key];
     [key release];
@@ -804,7 +826,7 @@ CHANGE_DECLARATION(SEL)
     
     [self willChangeValueForKey:key withSetMutation:NSKeyValueMinusSetMutation usingObjects:objects];
 	typedef id (*sender)(id obj, SEL selector, NSSet* objects);
-	sender implementation=(sender)[[self superclass] instanceMethodForSelector:_cmd];
+	sender implementation=(sender)class_getMethodImplementation(class_getSuperclass(object_getClass(self)), _cmd);
 	(void)*implementation(self, _cmd, objects);
     [self didChangeValueForKey:key withSetMutation:NSKeyValueMinusSetMutation usingObjects:objects];
 	[key release];
@@ -823,7 +845,7 @@ CHANGE_DECLARATION(SEL)
 	NSString *key=[[NSString allocWithZone:NULL] initWithCString:sel];
 	[self willChange:NSKeyValueChangeRemoval valuesAtIndexes:[NSIndexSet indexSetWithIndex:index] forKey:key];
 	typedef id (*sender)(id obj, SEL selector, int index);
-	sender implementation=(sender)[[self superclass] instanceMethodForSelector:_cmd];
+	sender implementation=(sender)class_getMethodImplementation(class_getSuperclass(object_getClass(self)), _cmd);
 	(void)*implementation(self, _cmd, index);
 	[self didChange:NSKeyValueChangeRemoval valuesAtIndexes:[NSIndexSet indexSetWithIndex:index] forKey:key];
 	[key release];
@@ -842,7 +864,7 @@ CHANGE_DECLARATION(SEL)
 	NSString *key=[[NSString allocWithZone:NULL] initWithCString:sel];
 	[self willChange:NSKeyValueChangeRemoval valuesAtIndexes:indexes forKey:key];
 	typedef id (*sender)(id obj, SEL selector, NSIndexSet* indexes);
-	sender implementation=(sender)[[self superclass] instanceMethodForSelector:_cmd];
+	sender implementation=(sender)class_getMethodImplementation(class_getSuperclass(object_getClass(self)), _cmd);
 	(void)*implementation(self, _cmd, indexes);
 	[self didChange:NSKeyValueChangeRemoval valuesAtIndexes:indexes forKey:key];
 	[key release];
@@ -861,7 +883,7 @@ CHANGE_DECLARATION(SEL)
 	NSString *key=[[NSString allocWithZone:NULL] initWithCString:sel];
 	[self willChange:NSKeyValueChangeReplacement valuesAtIndexes:[NSIndexSet indexSetWithIndex:index] forKey:key];
 	typedef id (*sender)(id obj, SEL selector, int index, id object);
-	sender implementation=(sender)[[self superclass] instanceMethodForSelector:_cmd];
+	sender implementation=(sender)class_getMethodImplementation(class_getSuperclass(object_getClass(self)), _cmd);
 	(void)*implementation(self, _cmd, index, object);
 	[self didChange:NSKeyValueChangeReplacement valuesAtIndexes:[NSIndexSet indexSetWithIndex:index] forKey:key];
 	[key release];

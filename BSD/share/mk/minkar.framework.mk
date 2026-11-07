@@ -69,6 +69,10 @@ _copy_headers: ${HEADER_DIR}
 .for hdr in ${HEADERS}
 	cp -f ${.CURDIR}/${hdr} ${HEADER_DIR}/${hdr:T}
 .endfor
+.if exists(${ROOT_SOURCE_DIR}/Developer/Minkar.sdk/apinotes/${FRAMEWORK}.apinotes)
+	# How Swift sees this framework (Developer/Minkar.sdk/apinotes/README.md).
+	cp -f ${ROOT_SOURCE_DIR}/Developer/Minkar.sdk/apinotes/${FRAMEWORK}.apinotes ${HEADER_DIR}/
+.endif
 
 ${FRAMEWORK}: _copy_headers
 _fmwk_headers += _copy_headers

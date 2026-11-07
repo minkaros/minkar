@@ -4,6 +4,9 @@
 
 @interface NSNumber_CF : NSNumber {
   @public
+    /* CF's header after isa (CFRuntimeBase): NSObject has only isa. */
+    uint32_t _cfinfo;
+    uint32_t _rc;
     CFNumberType _type;
 }
 

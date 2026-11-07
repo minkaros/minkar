@@ -564,7 +564,8 @@ _citrus_iconv_std_iconv_convert(struct _citrus_iconv * __restrict cv,
 				 * Some software depends on this behavior
 				 * though this is against POSIX specification.
 				 */
-				if (cv->cv_shared->ci_ilseq_invalid != 0) {
+				if (cv->cv_shared->ci_ilseq_invalid != 0 &&
+				    !cv->cv_shared->ci_discard_ilseq) {
 					ret = EILSEQ;
 					goto err;
 				}

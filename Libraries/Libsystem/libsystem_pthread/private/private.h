@@ -45,6 +45,11 @@ _pthread_set_errno_direct(int value)
 __API_AVAILABLE(macos(10.9), ios(7.0))
 pthread_t pthread_main_thread_np(void);
 
+/* Whether the calling thread is in pthread_exit() (running its cleanup
+ * handlers or thread-specific data destructors). */
+__API_AVAILABLE(macos(11.0), ios(14.0))
+int pthread_self_is_exiting_np(void);
+
 struct _libpthread_functions {
 	unsigned long version;
 	void (*exit)(int); // added with version=1
