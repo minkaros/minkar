@@ -8,9 +8,34 @@
 # prints the unpacked directory. Exit status 1 if it is missing or differs.
 # MANIFEST's "file" line, if any, names the cached file (for a URL whose own
 # name does not say what it is).
+# Or a git source: "git URL", "commit SHA" (the commit, which git checks
+# every object it fetches against) and "path P" lines, the only parts of
+# the tree fetched (a partial, sparse clone at that commit); the checkout
+# goes to CACHE/<name>-<first 12 of SHA>, name from the "name" line.
 set -eu
 manifest=$1
 cache=$2
+git=$(awk '$1 == "git" { print $2 }' "$manifest")
+if [ -n "$git" ]; then
+	commit=$(awk '$1 == "commit" { print $2 }' "$manifest")
+	name=$(awk '$1 == "name" { print $2 }' "$manifest")
+	paths=$(awk '$1 == "path" { print $2 }' "$manifest")
+	dir=$cache/$name-$(printf %.12s "$commit")
+	if [ ! -d "$dir" ] || [ "$(cat "$dir/.minkar-paths" 2>/dev/null)" != "$paths" ]; then
+		rm -rf "$dir.part" && mkdir -p "$dir.part"
+		(cd "$dir.part" && git init -q && git remote add origin "$git" &&
+		    git sparse-checkout init --no-cone > /dev/null &&
+		    printf '%s\n' $paths | sed 's|^|/|' > .git/info/sparse-checkout &&
+		    git fetch -q --depth 1 --filter=blob:none origin "$commit" &&
+		    git checkout -q FETCH_HEAD &&
+		    [ "$(git rev-parse HEAD)" = "$commit" ]) ||
+		    { echo "fetch.sh: cannot fetch $commit from $git" >&2; exit 1; }
+		printf '%s\n' "$paths" > "$dir.part/.minkar-paths"
+		rm -rf "$dir" && mv "$dir.part" "$dir"
+	fi
+	echo "$dir"
+	exit 0
+fi
 url=$(awk '$1 == "url" { print $2 }' "$manifest")
 sum=$(awk '$1 == "sha256" { print $2 }' "$manifest")
 name=$(awk '$1 == "file" { print $2 }' "$manifest")
