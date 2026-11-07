@@ -37,6 +37,13 @@ extern void CGNativeBorderFrameWidthsForStyle(unsigned styleMask, CGFloat *top,
 /* Above a full-size content view (NSWindowStyleMaskFullSizeContentView):
  * the window's buttons and its title, drawn over the content; it takes
  * only the buttons' clicks. It covers the frame view, in its coordinates. */
+// all measurements in pixels
+const float NSWindowTitleHeight = 32;
+const float NSWindowEdgePad = 2;
+const float NSWindowCornerRadius = 8;
+const float NSWindowControlDiameter = 14;
+const float NSWindowControlSpacing = 10;
+
 @interface NSTitlebarOverlayView : NSView
 @end
 
@@ -52,6 +59,8 @@ extern void CGNativeBorderFrameWidthsForStyle(unsigned styleMask, CGFloat *top,
 
 -(NSView *)hitTest:(NSPoint)point {
     NSThemeFrame *frame = (NSThemeFrame *)[self superview];
+    if(!([[self window] styleMask] & NSWindowStyleMaskFullSizeContentView))
+        return nil;
     return NSPointInRect(point, NSInsetRect([frame _windowControlsRect], -2, -2)) ? self : nil;
 }
 
@@ -59,20 +68,50 @@ extern void CGNativeBorderFrameWidthsForStyle(unsigned styleMask, CGFloat *top,
     [[self superview] mouseDown:event];
 }
 
+/* The content view covers the window's corners: they are made round
+   again here (outside the curve, the window is clear; along it, the
+   frame's border), all four, and a full-size content view gets the
+   window's buttons and title drawn above it. */
 -(void)drawRect:(NSRect)rect {
-    [(NSThemeFrame *)[self superview] _drawTitlebarControls];
+    NSThemeFrame *frame = (NSThemeFrame *)[self superview];
+    O2Context *context = [[[self window] graphicsContext] graphicsPort];
+    NSRect b = [self bounds];
+    CGFloat r = NSWindowCornerRadius;
+
+    for(int corner = 0; corner < 4; corner++) {
+        BOOL right = (corner & 1) != 0, top = (corner & 2) != 0;
+        CGFloat edgeX = right ? NSMaxX(b) : NSMinX(b), edgeY = top ? NSMaxY(b) : NSMinY(b);
+        CGFloat cx = right ? edgeX - r : edgeX + r, cy = top ? edgeY - r : edgeY + r;
+        /* The arc from the corner's vertical edge to its horizontal one. */
+        CGFloat from = right ? 0 : 3.14159, to = top ? 1.5708 : 4.71239;
+        BOOL clockwise = (right == top) ? NO : YES;
+
+        O2ContextSaveGState(context);
+        O2ContextSetBlendMode(context, kO2BlendModeCopy);
+        O2ContextSetRGBFillColor(context, 0, 0, 0, 0);
+        O2ContextBeginPath(context);
+        O2ContextMoveToPoint(context, edgeX, cy);
+        O2ContextAddLineToPoint(context, edgeX, edgeY);
+        O2ContextAddLineToPoint(context, cx, edgeY);
+        O2ContextAddArc(context, cx, cy, r, to, from, !clockwise);
+        O2ContextClosePath(context);
+        O2ContextFillPath(context);
+        O2ContextRestoreGState(context);
+
+        O2ContextSetGrayStrokeColor(context, 0.8, 1);
+        O2ContextSetLineWidth(context, NSWindowEdgePad);
+        O2ContextBeginPath(context);
+        O2ContextAddArc(context, cx, cy, r - NSWindowEdgePad / 2, from, to, clockwise);
+        O2ContextStrokePath(context);
+    }
+    if([[self window] styleMask] & NSWindowStyleMaskFullSizeContentView)
+        [frame _drawTitlebarControls];
 }
 
 @end
 
 @implementation NSThemeFrame
 
-// all measurements in pixels
-const float NSWindowTitleHeight = 32;
-const float NSWindowEdgePad = 2;
-const float NSWindowCornerRadius = 8;
-const float NSWindowControlDiameter = 14;
-const float NSWindowControlSpacing = 10;
 
 enum { kControlClose, kControlMini, kControlZoom };
 
@@ -263,17 +302,19 @@ static void drawControl(O2Context *context, NSRect rect, int kind, BOOL enabled,
     }
 }
 
-/* A full-size content view has the window's buttons and title drawn above
-   it, by an overlay kept in front of the frame's other views. */
+/* An overlay kept in front of the frame's other views rounds the
+   window's corners over the content view, and draws the window's
+   buttons and title above a full-size content view. */
 -(void)_updateTitlebarOverlay {
-    BOOL full = ([[self window] styleMask] & NSWindowStyleMaskFullSizeContentView) != 0;
+    /* Every window with a frame (its corners), not only full-size ones. */
+    BOOL framed = [[self window] styleMask] != NSBorderlessWindowMask && ![[self window] isSheet];
 
-    if(full && _titlebarOverlay == nil) {
+    if(framed && _titlebarOverlay == nil) {
         _titlebarOverlay = [[NSTitlebarOverlayView alloc] initWithFrame:[self bounds]];
         [_titlebarOverlay setAutoresizingMask:NSViewWidthSizable | NSViewHeightSizable];
         [self addSubview:_titlebarOverlay];
         [_titlebarOverlay setNeedsDisplay:YES];
-    } else if(!full && _titlebarOverlay != nil) {
+    } else if(!framed && _titlebarOverlay != nil) {
         [_titlebarOverlay removeFromSuperview];
         [_titlebarOverlay release];
         _titlebarOverlay = nil;
@@ -324,8 +365,14 @@ static void drawControl(O2Context *context, NSRect rect, int kind, BOOL enabled,
 /* Close at the right of the title bar, zoom and minimize left of it. */
 -(void)_layoutControls {
     NSRect bounds = [self bounds];
+    NSWindow *window = [self window];
+    CGFloat bar = NSWindowTitleHeight;
+
+    /* A full-size content view may draw a taller bar: centered in it. */
+    if(([window styleMask] & NSWindowStyleMaskFullSizeContentView) && [window _titlebarHeight] > 0)
+        bar = [window _titlebarHeight];
     NSRect button = NSMakeRect(NSWidth(bounds) - NSWindowControlSpacing - NSWindowControlDiameter,
-        NSHeight(bounds) - NSWindowTitleHeight / 2 - NSWindowControlDiameter / 2,
+        floor(NSHeight(bounds) - bar / 2 - NSWindowControlDiameter / 2),
         NSWindowControlDiameter, NSWindowControlDiameter);
     _closeButtonRect = button;
     button.origin.x -= NSWindowControlSpacing + NSWindowControlDiameter;

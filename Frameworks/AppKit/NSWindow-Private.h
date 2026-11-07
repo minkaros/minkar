@@ -52,4 +52,10 @@ APPKIT_EXPORT NSArray *_NSWindowNumbersFromWindowInfo(CFArrayRef info,BOOL allAp
 - (void)redo:sender;
 - (BOOL)validateMenuItem:(NSMenuItem *)item;
 - (void)dirtyRect:(NSRect)rect;
+/* Minkar: the height of the bar a full-size content view draws at its
+   top (NSWindowStyleMaskFullSizeContentView), where the window's buttons
+   are centered; 0 is the standard title bar's. Until unified toolbars and
+   titlebar accessories exist. */
+-(CGFloat)_titlebarHeight;
+-(void)_setTitlebarHeight:(CGFloat)height;
 @end

@@ -146,6 +146,7 @@ APPKIT_EXPORT NSString *const NSWindowDidEndLiveResizeNotification;
     NSUInteger _styleMask;
     NSWindowTitleVisibility _titleVisibility;
     BOOL _titlebarAppearsTransparent;
+    CGFloat _titlebarHeight;
     NSBackingStoreType _backingType;
     NSInteger _level;
 
