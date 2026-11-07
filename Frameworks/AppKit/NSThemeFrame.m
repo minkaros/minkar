@@ -34,6 +34,37 @@
 extern void CGNativeBorderFrameWidthsForStyle(unsigned styleMask, CGFloat *top,
     CGFloat *left, CGFloat *bottom, CGFloat *right);
 
+/* Above a full-size content view (NSWindowStyleMaskFullSizeContentView):
+ * the window's buttons and its title, drawn over the content; it takes
+ * only the buttons' clicks. It covers the frame view, in its coordinates. */
+@interface NSTitlebarOverlayView : NSView
+@end
+
+@implementation NSTitlebarOverlayView
+
+-(BOOL)isOpaque {
+    return NO;
+}
+
+-(BOOL)mouseDownCanMoveWindow {
+    return YES;
+}
+
+-(NSView *)hitTest:(NSPoint)point {
+    NSThemeFrame *frame = (NSThemeFrame *)[self superview];
+    return NSPointInRect(point, NSInsetRect([frame _windowControlsRect], -2, -2)) ? self : nil;
+}
+
+-(void)mouseDown:(NSEvent *)event {
+    [[self superview] mouseDown:event];
+}
+
+-(void)drawRect:(NSRect)rect {
+    [(NSThemeFrame *)[self superview] _drawTitlebarControls];
+}
+
+@end
+
 @implementation NSThemeFrame
 
 // all measurements in pixels
@@ -195,7 +226,17 @@ static void drawControl(O2Context *context, NSRect rect, int kind, BOOL enabled,
     O2ContextClosePath(_context);
     O2ContextFillPath(_context);
 
-    // window controls, at the right of the title bar
+    // the window's buttons and title, unless drawn above the content
+    if(!([window styleMask] & NSWindowStyleMaskFullSizeContentView))
+        [self _drawTitlebarControls];
+}
+
+/* The window's buttons, at the right of the title bar, and its title in
+   the middle (unless hidden). */
+-(void)_drawTitlebarControls {
+    NSWindow *window = [self window];
+    O2Context *_context = [[window graphicsContext] graphicsPort];
+
     [self _layoutControls];
     NSUInteger mask = [window styleMask];
     BOOL over = NSPointInRect(pointer, controls);
@@ -206,13 +247,13 @@ static void drawControl(O2Context *context, NSRect rect, int kind, BOOL enabled,
     drawControl(_context, _miniButtonRect, kControlMini, (mask & NSMiniaturizableWindowMask) != 0,
         over && NSPointInRect(pointer, _miniButtonRect));
 
-    NSString *t = [[self window] title];
-    if(t) {
+    NSString *t = [window title];
+    if(t && [window titleVisibility] == NSWindowTitleVisible) {
         NSDictionary *attrs = @{
             NSFontAttributeName : [NSFont titleBarFontOfSize:15.0],
             NSForegroundColorAttributeName : [NSColor blackColor]
         };
-        NSAttributedString *title = [[NSAttributedString alloc] initWithString:t attributes:attrs];
+        NSAttributedString *title = [[[NSAttributedString alloc] initWithString:t attributes:attrs] autorelease];
         NSSize size = [title size];
         NSRect titleRect = NSMakeRect(
             _frame.size.width / 2 - size.width / 2,
@@ -222,12 +263,45 @@ static void drawControl(O2Context *context, NSRect rect, int kind, BOOL enabled,
     }
 }
 
+/* A full-size content view has the window's buttons and title drawn above
+   it, by an overlay kept in front of the frame's other views. */
+-(void)_updateTitlebarOverlay {
+    BOOL full = ([[self window] styleMask] & NSWindowStyleMaskFullSizeContentView) != 0;
+
+    if(full && _titlebarOverlay == nil) {
+        _titlebarOverlay = [[NSTitlebarOverlayView alloc] initWithFrame:[self bounds]];
+        [_titlebarOverlay setAutoresizingMask:NSViewWidthSizable | NSViewHeightSizable];
+        [self addSubview:_titlebarOverlay];
+        [_titlebarOverlay setNeedsDisplay:YES];
+    } else if(!full && _titlebarOverlay != nil) {
+        [_titlebarOverlay removeFromSuperview];
+        [_titlebarOverlay release];
+        _titlebarOverlay = nil;
+    }
+    [_titlebarOverlay setFrame:[self bounds]];
+}
+
+-(void)didAddSubview:(NSView *)subview {
+    [super didAddSubview:subview];
+    if(subview != _titlebarOverlay)
+        [self _updateTitlebarOverlay];
+    if(_titlebarOverlay != nil && subview != _titlebarOverlay &&
+       [[self subviews] lastObject] != _titlebarOverlay) {
+        NSView *overlay = _titlebarOverlay;
+        [overlay removeFromSuperview];
+        [self addSubview:overlay];
+    }
+}
+
 -(void)resizeSubviewsWithOldSize:(NSSize)oldSize {
    NSToolbarView *toolbarView=nil;
    NSView *contentView=nil;
 
 // tile the subviews, when/if we add titlebars and such do it here
+   [self _updateTitlebarOverlay];
    for(NSView *view in _subviews){
+    if(view == _titlebarOverlay)
+     continue;
     if([view isKindOfClass:[NSToolbarView class]])
      toolbarView=(NSToolbarView *)view;
     else

@@ -1150,6 +1150,28 @@ NSArray *_NSWindowNumbersFromWindowInfo(CFArrayRef info,BOOL allApps) {
 
     if ([self _isApplicationWindow])
         [NSApp changeWindowsItem:self title:title filename:NO];
+    [_backgroundView setNeedsDisplay:YES];
+}
+
+-(NSWindowTitleVisibility)titleVisibility {
+    return _titleVisibility;
+}
+
+-(void)setTitleVisibility:(NSWindowTitleVisibility)visibility {
+    _titleVisibility=visibility;
+    [_backgroundView setNeedsDisplay:YES];
+}
+
+/* The title bar's background is the window's own in Atlas's look, so a
+   transparent one differs only where the content view covers it
+   (NSWindowStyleMaskFullSizeContentView); kept for what asks it. */
+-(BOOL)titlebarAppearsTransparent {
+    return _titlebarAppearsTransparent;
+}
+
+-(void)setTitlebarAppearsTransparent:(BOOL)transparent {
+    _titlebarAppearsTransparent=transparent;
+    [_backgroundView setNeedsDisplay:YES];
 }
 
 /* The title (and the edited mark, which the frame draws) to the window
@@ -3401,8 +3423,13 @@ static void slsCollectExcluded(NSView *view, NSSize size, SLSIntRect *rects, uin
                 dragCount++;
             slsCollectExcluded(_contentView, size, exclude, &excludeCount);
         } else if(top > 0 &&
-            slsWindowRect(NSMakeRect(0, size.height - top, size.width, top), size, &drag[dragCount]))
+            slsWindowRect(NSMakeRect(0, size.height - top, size.width, top), size, &drag[dragCount])) {
             dragCount++;
+            /* A full-size content view's controls in the title bar take
+               their own clicks; the rest of the bar moves the window. */
+            if(_styleMask & NSWindowStyleMaskFullSizeContentView)
+                slsCollectExcluded(_contentView, size, exclude, &excludeCount);
+        }
         if(dragCount > 0 && [_backgroundView isKindOfClass:[NSThemeFrame class]] &&
            excludeCount < kSLSMaxRegionRects &&
            slsWindowRect([(NSThemeFrame *)_backgroundView _windowControlsRect], size, &exclude[excludeCount]))
@@ -3495,9 +3522,13 @@ static void slsCollectExcluded(NSView *view, NSSize size, SLSIntRect *rects, uin
 void CGNativeBorderFrameWidthsForStyle(unsigned styleMask,CGFloat *top,CGFloat *left,
                                        CGFloat *bottom,CGFloat *right);
 
+/* A full-size content view covers the title bar: the content rectangle
+   is the frame without its other borders. */
 CGRect CGInsetRectForNativeWindowBorder(CGRect frame,unsigned styleMask) {
     CGFloat top, left, bottom, right;
     CGNativeBorderFrameWidthsForStyle(styleMask, &top, &left, &bottom, &right);
+    if(styleMask & NSWindowStyleMaskFullSizeContentView)
+        top=0;
     frame.origin.x += left;
     frame.origin.y += bottom;
     frame.size.width -= right;
@@ -3508,6 +3539,8 @@ CGRect CGInsetRectForNativeWindowBorder(CGRect frame,unsigned styleMask) {
 CGRect CGOutsetRectForNativeWindowBorder(CGRect frame,unsigned styleMask) {
     CGFloat top, left, bottom, right;
     CGNativeBorderFrameWidthsForStyle(styleMask, &top, &left, &bottom, &right);
+    if(styleMask & NSWindowStyleMaskFullSizeContentView)
+        top=0;
     frame.origin.x -= left;
     frame.origin.y -= bottom;
     frame.size.width += right;

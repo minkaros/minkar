@@ -25,6 +25,31 @@ enum {
     NSMiniaturizableWindowMask = 0x04,
     NSResizableWindowMask = 0x08,
     NSTexturedBackgroundWindowMask = 0x100,
+    NSFullSizeContentViewWindowMask = 1 << 15,
+};
+
+/* The style mask's bits by the names API 19 gives them. */
+typedef NS_OPTIONS(NSUInteger, NSWindowStyleMask) {
+    NSWindowStyleMaskBorderless = 0,
+    NSWindowStyleMaskTitled = 1 << 0,
+    NSWindowStyleMaskClosable = 1 << 1,
+    NSWindowStyleMaskMiniaturizable = 1 << 2,
+    NSWindowStyleMaskResizable = 1 << 3,
+    NSWindowStyleMaskUtilityWindow = 1 << 4,
+    NSWindowStyleMaskDocModalWindow = 1 << 6,
+    NSWindowStyleMaskNonactivatingPanel = 1 << 7,
+    NSWindowStyleMaskTexturedBackground = 1 << 8,
+    NSWindowStyleMaskUnifiedTitleAndToolbar = 1 << 12,
+    NSWindowStyleMaskHUDWindow = 1 << 13,
+    NSWindowStyleMaskFullScreen = 1 << 14,
+    /* The content view covers the title bar too; the window's buttons
+       (and its title, unless hidden) are drawn above it. */
+    NSWindowStyleMaskFullSizeContentView = 1 << 15,
+};
+
+typedef NS_ENUM(NSInteger, NSWindowTitleVisibility) {
+    NSWindowTitleVisible = 0,
+    NSWindowTitleHidden = 1,
 };
 
 typedef enum {
@@ -119,6 +144,8 @@ APPKIT_EXPORT NSString *const NSWindowDidEndLiveResizeNotification;
 
     NSRect _frame;
     NSUInteger _styleMask;
+    NSWindowTitleVisibility _titleVisibility;
+    BOOL _titlebarAppearsTransparent;
     NSBackingStoreType _backingType;
     NSInteger _level;
 
@@ -329,6 +356,10 @@ APPKIT_EXPORT NSString *const NSWindowDidEndLiveResizeNotification;
 - (void)setAutodisplay:(BOOL)value;
 - (void)setAutorecalculatesContentBorderThickness:(BOOL)automatic forEdge:(NSRectEdge)edge;
 - (void)setTitle:(NSString *)title;
+- (NSWindowTitleVisibility)titleVisibility;
+- (void)setTitleVisibility:(NSWindowTitleVisibility)visibility;
+- (BOOL)titlebarAppearsTransparent;
+- (void)setTitlebarAppearsTransparent:(BOOL)transparent;
 - (void)setTitleWithRepresentedFilename:(NSString *)filename;
 - (void)setContentView:(NSView *)view;
 
