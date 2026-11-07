@@ -1,0 +1,22 @@
+Tests: rules-file-includes finds its data through top_srcdir
+
+It set XKB_CONFIG_ROOT to the source tree's test/data at build time, so
+the test failed wherever it ran from another place (gate W0 runs the
+tests on the target, not where they were built).
+
+--- a/test/rules-file-includes.c	2026-11-06 19:21:56.185335782 -0500
++++ b/test/rules-file-includes.c	2026-11-06 19:21:56.213333295 -0500
+@@ -80,7 +80,12 @@
+ 
+     test_init();
+ 
+-    setenv("XKB_CONFIG_ROOT", TEST_XKB_CONFIG_ROOT, 1);
++    /* The test data where the tests run, as test_get_path() finds it,
++     * not the source tree's at build time. */
++    char *root = test_get_path("");
++    assert(root);
++    setenv("XKB_CONFIG_ROOT", root, 1);
++    free(root);
+ 
+     ctx = test_get_context(0);
+     assert(ctx);

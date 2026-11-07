@@ -1,0 +1,1 @@
+keysym Its case-mapping check compares with the system's ICU: Minkar's is ICU 78 (Unicode 17), and libxkbcommon 1.9.2's tables are Unicode 16 (U+0295 became Lo in Unicode 17; the test allows an older ICU only). Back when libxkbcommon follows Unicode 17.
