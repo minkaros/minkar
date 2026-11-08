@@ -18,6 +18,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <AppKit/NSApplication.h>
 #import <AppKit/NSPanel.h>
 #import <AppKit/NSWindow-Private.h>
+#import <AppKit/NSWindow-Private.h>
 #import <AppKit/NSImageView.h>
 #import <AppKit/NSTextField.h>
 #import <AppKit/NSFont.h>
@@ -33,7 +34,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 -init {
    _style=NSWarningAlertStyle;
-   _icon=[[NSImage imageNamed:@"NSAlertPanelExclamation"] retain];
+   _icon=nil;   /* the style's icon: -icon */
    _messageText=[NSLocalizedStringFromTableInBundle(@"Alert", nil, [NSBundle bundleForClass: [NSAlert class]], @"Default message text for NSAlert") copy];
    _informativeText=@"";
    _accessoryView=nil;
@@ -110,8 +111,22 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    return _style;
 }
 
+/* Unless one was set: the app's icon, and for a critical alert the
+   caution sign (as the reference platform shows them), 64 points. */
 -(NSImage *)icon {
-   return _icon;
+   NSImage *icon=_icon;
+
+   if(icon==nil){
+    if(_style==NSCriticalAlertStyle)
+     icon=[NSImage imageNamed:NSImageNameCaution];
+    if(icon==nil)
+     icon=[NSApp applicationIconImage];
+    if(icon==nil)
+     icon=[NSImage imageNamed:NSImageNameCaution];
+    icon=[[icon copy] autorelease];
+    [icon setSize:NSMakeSize(64,64)];
+   }
+   return icon;
 }
 
 -(NSString *)messageText {
@@ -217,6 +232,17 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    [result setTarget:self];
    [result setAction:@selector(_alertButton:)];
    [result setTag:NSAlertFirstButtonReturn+[_buttons count]];
+   /* As the reference platform: Return for the first button, Escape for
+      one titled Cancel, Command-D for Don't Save. */
+   if([_buttons count]==0)
+    [result setKeyEquivalent:@"\r"];
+   else if([title isEqualToString:@"Cancel"] ||
+           [title isEqualToString:NSLocalizedStringFromTableInBundle(@"Cancel", nil, [NSBundle bundleForClass:[NSAlert class]], @"Cancel button title")])
+    [result setKeyEquivalent:@"\e"];
+   else if([title isEqualToString:@"Don't Save"] || [title isEqualToString:@"Don\u2019t Save"]){
+    [result setKeyEquivalent:@"d"];
+    [result setKeyEquivalentModifierMask:NSCommandKeyMask];
+   }
    [_buttons addObject:result];
    _needsLayout=YES;
    return result;
@@ -241,7 +267,8 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    NSSize screenSize=[[NSScreen mainScreen] visibleFrame].size;
    NSSize textSize=NSZeroSize;
    NSStringDrawer *drawer=[NSStringDrawer sharedStringDrawer];
-   NSSize iconSize=(_icon!=nil)?[_icon size]:NSZeroSize;
+   NSImage *icon=[self icon];
+   NSSize iconSize=(icon!=nil)?[icon size]:NSZeroSize;
    NSDictionary *messageAttributes=[NSDictionary dictionaryWithObjectsAndKeys:[NSFont boldSystemFontOfSize:0],NSFontAttributeName,nil];
    NSSize messageSize=NSZeroSize;
    NSDictionary *informativeAttributes=[NSDictionary dictionaryWithObjectsAndKeys:[NSFont systemFontOfSize:0],NSFontAttributeName,nil];
@@ -332,7 +359,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    panelSize.width=LEFT_MARGIN+mainSize.width+iconSize.width+ICON_MAIN_GAP+RIGHT_MARGIN;
    panelSize.height=TOP_MARGIN+MAX(mainSize.height,iconSize.height)+MAIN_BUTTON_GAP+allButtonsSize.height+BOTTOM_MARGIN;
 
-  if(_icon!=nil){
+  if(icon!=nil){
    NSRect       frame;
    NSImageView *imageView;
 
@@ -340,7 +367,8 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    frame.origin.y=panelSize.height-TOP_MARGIN-iconSize.height;
    frame.size=iconSize;
    imageView=[[[NSImageView alloc] initWithFrame:frame] autorelease];
-   [imageView setImage:_icon];
+   [imageView setImage:icon];
+   [imageView setImageScaling:NSImageScaleProportionallyUpOrDown];
    [[_window contentView] addSubview:imageView];
   }
 
@@ -454,6 +482,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 -(NSInteger)runModal {
    [_window setLevel: NSModalPanelWindowLevel];
    [_window setStyleMask:NSTitledWindowMask];
+   [_window _setHidesWindowControls:YES];
    [self layoutIfNeeded];
    [_window setDefaultButtonCell:[[_buttons objectAtIndex:0] cell]];
    return [NSApp runModalForWindow:_window];

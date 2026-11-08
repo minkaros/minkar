@@ -425,7 +425,11 @@ extern void _CGDisplayReconfigured(CGDirectDisplayID display, CGDisplayChangeSum
    _keyWindow=window;
 }
 
+/* An app without an icon of its own has the generic one, as on the
+   reference platform. */
 -(NSImage *)applicationIconImage {
+   if(_applicationIconImage==nil)
+    return [NSImage imageNamed:@"NSApplicationIcon"];
    return _applicationIconImage;
 }
 
