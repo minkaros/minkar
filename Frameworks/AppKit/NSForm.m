@@ -15,6 +15,20 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 @implementation NSForm
 
++(Class)cellClass {
+   return [NSFormCell class];
+}
+
+/* Rows of a text field's height with some room between them. */
+-initWithFrame:(NSRect)frame {
+   [super initWithFrame:frame];
+   [self setCellClass:[NSFormCell class]];
+   [self renewRows:0 columns:1];   /* one column of entries */
+   [self setCellSize:NSMakeSize(NSWidth(frame),22)];
+   [self setIntercellSpacing:NSMakeSize(0,8)];
+   return self;
+}
+
 -(void)resizeWithOldSuperviewSize:(NSSize)oldSize {
    [super resizeWithOldSuperviewSize:oldSize];
 
@@ -158,13 +172,17 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 -(NSFormCell *)addEntry:(NSString *)title {   
    [self addRow];
    [[[self cells] lastObject] setTitle:title];
-   
+   [self calcSize];
+   [self setNeedsDisplay:YES];
+
    return [[self cells] lastObject];
 }
 
 -(NSFormCell *)insertEntry:(NSString *)title atIndex:(int)index {
    [self insertRow:index];
    [[self cellAtRow:index column:0] setTitle:title];
+   [self calcSize];
+   [self setNeedsDisplay:YES];
    
    return [self cellAtRow:index column:0];
 }
