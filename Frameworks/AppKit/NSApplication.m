@@ -566,28 +566,67 @@ extern void _CGDisplayReconfigured(CGDirectDisplayID display, CGDisplayChangeSum
     }
 }
 
+/* The app's name as the reference platform shows it: its bundle's
+   CFBundleName (localized), else the process name. */
+static NSString *applicationMenuTitle(void) {
+   NSBundle *main = [NSBundle mainBundle];
+   NSString *appName = [main objectForInfoDictionaryKey:@"CFBundleName"];
+
+   if([appName length] == 0)
+    return [[NSProcessInfo processInfo] processName];
+   return [main localizedStringForKey:@"CFBundleName" value:appName table:@"InfoPlist"];
+}
+
+/* Marks the app menu AppKit adds to a main menu that has none. */
+static NSString * const NSAutomaticApplicationMenu = @"NSAutomaticApplicationMenu";
+
+/* The main menu's first item is the app menu, whatever its title, shown
+   as the app's name. A main menu with no items gets one with Quit; when
+   the app then adds its own items (a menu made in code, set while still
+   empty), that one goes and the app's first item takes its place. */
+-(void)_ensureApplicationMenu {
+   static BOOL busy;
+   NSMenuItem *first;
+
+   if(busy || _mainMenu == nil)
+    return;
+   busy = YES;
+
+   first = ([_mainMenu numberOfItems] > 0) ? [_mainMenu itemAtIndex:0] : nil;
+   if(first != nil && [first representedObject] == NSAutomaticApplicationMenu && [_mainMenu numberOfItems] > 1) {
+    [_mainMenu removeItemAtIndex:0];
+    first = [_mainMenu itemAtIndex:0];
+   }
+
+   if(first != nil && [[[first submenu] _name] isEqualToString:@"NSAppleMenu"])
+    ;
+   else if([first hasSubmenu] && [[first submenu] _name] == nil) {
+    [[first submenu] setValue:@"NSAppleMenu" forKey:@"name"];
+    [first setTitle:applicationMenuTitle()];
+   }
+   else if([_mainMenu _menuWithName:@"NSAppleMenu"] == nil) {
+    NSString   *appName = applicationMenuTitle();
+    NSMenuItem *appleMenuItem = [[NSMenuItem alloc] init];
+    NSMenu     *appleMenu = [[NSMenu alloc] initApplicationMenu:appName];
+
+    [appleMenuItem setTitle:appName];
+    [appleMenuItem setSubmenu:appleMenu];
+    [appleMenuItem setRepresentedObject:NSAutomaticApplicationMenu];
+    [_mainMenu insertItem:appleMenuItem atIndex:0];
+    [appleMenu release];
+    [appleMenuItem release];
+   }
+
+   busy = NO;
+}
+
 -(void)setMainMenu:(NSMenu *)menu {
    int i,count=[_windows count];
 
    [_mainMenu autorelease];
    _mainMenu=[menu retain];
 
-   // ensure we have an "Apple" (application) menu
-   if([_mainMenu _menuWithName:@"NSAppleMenu"] == nil) {
-     /* The app's name as the reference platform shows it: its bundle's
-        CFBundleName (localized), else the process name. */
-     NSBundle *main = [NSBundle mainBundle];
-     NSString *appName = [main objectForInfoDictionaryKey:@"CFBundleName"];
-     if([appName length] == 0)
-      appName = [[NSProcessInfo processInfo] processName];
-     else
-      appName = [main localizedStringForKey:@"CFBundleName" value:appName table:@"InfoPlist"];
-     NSMenuItem *appleMenuItem = [[NSMenuItem new] retain];
-     [appleMenuItem setTitle:appName];
-     NSMenu *appleMenu = [[[NSMenu alloc] initApplicationMenu:appName] retain];
-     [appleMenuItem setSubmenu:appleMenu];
-     [_mainMenu insertItem:appleMenuItem atIndex:0];
-   }
+   [self _ensureApplicationMenu];
 
    for(i=0;i<count;i++){
     NSWindow *window=[_windows objectAtIndex:i];
