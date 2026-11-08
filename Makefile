@@ -235,6 +235,12 @@ image-check: .PHONY
 m3-tools: .PHONY
 	${MAKE} -m ${ROOT_SOURCE_DIR}/BSD/share/mk ONLY_STAGE=Tests/M3 Tests/M3
 
+# Gallery (Tests/Gallery): a development app with every AppKit control and
+# a report of what AppKit lacks, for test images only: 'bmake gallery'
+# before 'bmake image' puts it in /Applications/Developer.
+gallery: .PHONY
+	${MAKE} -m ${ROOT_SOURCE_DIR}/BSD/share/mk ONLY_STAGE=Tests/Gallery Tests/Gallery
+
 # SwiftFormat's suite alone takes about half an hour in a VM.
 m3-check: .PHONY
 	${MAKE} -C ${.CURDIR}/Image boottest GATE=M3 BOOTTEST_TIMEOUT=${M3_BOOTTEST_TIMEOUT:U5400}
