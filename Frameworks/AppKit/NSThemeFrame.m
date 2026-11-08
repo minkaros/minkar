@@ -81,6 +81,11 @@ const float NSWindowControlSpacing = 10;
     for(int corner = 0; corner < 4; corner++) {
         BOOL right = (corner & 1) != 0, top = (corner & 2) != 0;
         CGFloat edgeX = right ? NSMaxX(b) : NSMinX(b), edgeY = top ? NSMaxY(b) : NSMinY(b);
+        /* Only the corners the rect being drawn reaches. */
+        NSRect cornerBox = NSMakeRect(right ? edgeX - r - NSWindowEdgePad : edgeX,
+            top ? edgeY - r - NSWindowEdgePad : edgeY, r + NSWindowEdgePad, r + NSWindowEdgePad);
+        if(!NSIntersectsRect(cornerBox, rect))
+            continue;
         CGFloat cx = right ? edgeX - r : edgeX + r, cy = top ? edgeY - r : edgeY + r;
         /* The arc from the corner's vertical edge to its horizontal one. */
         CGFloat from = right ? 0 : 3.14159, to = top ? 1.5708 : 4.71239;
@@ -104,7 +109,8 @@ const float NSWindowControlSpacing = 10;
         O2ContextAddArc(context, cx, cy, r - NSWindowEdgePad / 2, from, to, clockwise);
         O2ContextStrokePath(context);
     }
-    if([[self window] styleMask] & NSWindowStyleMaskFullSizeContentView)
+    if(([[self window] styleMask] & NSWindowStyleMaskFullSizeContentView) &&
+       NSIntersectsRect(rect, NSMakeRect(0, NSMaxY(b) - NSWindowTitleHeight, NSWidth(b), NSWindowTitleHeight)))
         [frame _drawTitlebarControls];
 }
 
@@ -244,6 +250,21 @@ static void drawControl(O2Context *context, NSRect rect, int kind, BOOL enabled,
 
     // let's round these corners
     float radius = NSWindowCornerRadius;
+    NSRect titlebar = NSMakeRect(0, NSMaxY([self bounds]) - NSWindowTitleHeight, NSWidth([self bounds]), NSWindowTitleHeight);
+
+    /* A rect inside the frame, away from its corners, is filled plainly and
+       has no title bar to draw: a small redraw in the content need not fill
+       the whole rounded frame and draw the title again. */
+    if(NSContainsRect(NSInsetRect([self bounds], 0, radius), rect) ||
+       NSContainsRect(NSInsetRect([self bounds], radius, 0), rect)) {
+        O2ContextFillRect(_context, rect);
+        if(!NSIntersectsRect(rect, titlebar))
+            return;
+        if(!([window styleMask] & NSWindowStyleMaskFullSizeContentView))
+            [self _drawTitlebarControls];
+        return;
+    }
+
     O2ContextBeginPath(_context);
     O2ContextMoveToPoint(_context, _frame.origin.x+radius, NSMaxY(_frame));
     O2ContextAddArc(_context, _frame.origin.x + _frame.size.width - radius,
@@ -266,7 +287,7 @@ static void drawControl(O2Context *context, NSRect rect, int kind, BOOL enabled,
     O2ContextFillPath(_context);
 
     // the window's buttons and title, unless drawn above the content
-    if(!([window styleMask] & NSWindowStyleMaskFullSizeContentView))
+    if(!([window styleMask] & NSWindowStyleMaskFullSizeContentView) && NSIntersectsRect(rect, titlebar))
         [self _drawTitlebarControls];
 }
 

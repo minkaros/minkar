@@ -431,6 +431,25 @@ static void atlasRounded(NSRect rect,CGFloat radius,NSColor *top,NSColor *bottom
    if(NSWidth(inner)<=0 || NSHeight(inner)<=0)
     return;
    radius=MIN(radius,MIN(NSWidth(inner),NSHeight(inner))/2);
+
+   /* Only what the clip shows: nothing when it misses the shape, and the
+      plain fill when it lies inside, away from the border and corners (a
+      small redraw inside a big pane or box need not stroke all of it). */
+   CGContextRef context=[[NSGraphicsContext currentContext] graphicsPort];
+   NSRect       clip=CGContextGetClipBoundingBox(context);
+
+   if(!NSIntersectsRect(NSInsetRect(rect,-1,-1),clip))
+    return;
+   if(NSContainsRect(NSInsetRect(inner,1.5,radius+1),clip) || NSContainsRect(NSInsetRect(inner,radius+1,1.5),clip)){
+    if(top!=nil){
+     NSGradient *gradient=[[NSGradient alloc] initWithStartingColor:bottom endingColor:top];
+
+     [gradient drawInRect:inner angle:atlasFlipped()?-90:90];
+     [gradient release];
+    }
+    return;
+   }
+
    path=[NSBezierPath bezierPathWithRoundedRect:inner xRadius:radius yRadius:radius];
    if(top!=nil){
     NSGradient *gradient=[[NSGradient alloc] initWithStartingColor:bottom endingColor:top];
