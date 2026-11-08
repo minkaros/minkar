@@ -48,6 +48,8 @@ struct MinkarAMDRegs {
 
 /* The family of a device ID (amdgpu's PCI ID table); *gcn1 if GCN 1.0. */
 const char *MinkarAMDFamily(UInt16 device, bool *gcn1);
+/* Navi 23 (RDNA2, display engine DCN 3.0.2). */
+static inline bool MinkarAMDIsNavi23(UInt16 device) { return device >= 0x73E0 && device <= 0x73FF; }
 
 /*
  * A memory BAR's window. The PCI family's IODeviceMemory when it made one;

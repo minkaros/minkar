@@ -111,6 +111,8 @@ public:
 
 private:
 	void dmaSelfTest();
+	/* Navi 23: what each display pipe shows, read only (MinkarAMDDCN.cpp). */
+	void describeDisplayDCN302();
 	void startGFXTest(const char *family);
 	static void gfxTestThread(void *gpu, wait_result_t);
 	void gfxSelfTest();

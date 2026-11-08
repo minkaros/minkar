@@ -56,6 +56,9 @@ MinkarAMDFamily(UInt16 d, bool *gcn1)
 			return si[i].name;
 		}
 	*gcn1 = false;
+	/* RDNA2, Navi 23 (dimgrey_cavefish): the RX 6600s, PC 1's card. */
+	if (d >= 0x73E0 && d <= 0x73FF)
+		return "Navi 23";
 	return "not GCN 1.0";
 }
 

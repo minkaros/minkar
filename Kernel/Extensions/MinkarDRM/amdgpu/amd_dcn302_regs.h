@@ -1,0 +1,89 @@
+/*
+ * Copyright (C) 2020  Advanced Micro Devices, Inc.
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a
+ * copy of this software and associated documentation files (the "Software"),
+ * to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense,
+ * and/or sell copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included
+ * in all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+ * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * THE COPYRIGHT HOLDER(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN
+ * AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+ * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ */
+
+/*
+ * Navi 23 (DCN 3.0.2) display engine registers, as numbers: generated
+ * by tools/drm-import/dcn302-regs.py from drm-kmod drm_v6.12.110_1
+ * (dimgrey_cavefish_ip_offset.h and dcn_3_0_2_offset.h: each one's
+ * dword index in the register window; dcn_3_0_2_sh_mask.h: the fields),
+ * under the notice above. Do not edit: run the tool again.
+ */
+
+#ifndef _MINKAR_AMD_DCN302_REGS_H
+#define _MINKAR_AMD_DCN302_REGS_H
+
+#include <stdint.h>
+
+#define DCN302_PIPES	4
+
+/* A pipe's registers, by pipe. */
+static const uint32_t dcn302_OTG_OTG_CONTROL[DCN302_PIPES] = { 0x05001, 0x05081, 0x05101, 0x05181 };
+static const uint32_t dcn302_OTG_OTG_H_TOTAL[DCN302_PIPES] = { 0x04fea, 0x0506a, 0x050ea, 0x0516a };
+static const uint32_t dcn302_OTG_OTG_V_TOTAL[DCN302_PIPES] = { 0x04fef, 0x0506f, 0x050ef, 0x0516f };
+static const uint32_t dcn302_OTG_OTG_H_BLANK_START_END[DCN302_PIPES] = { 0x04feb, 0x0506b, 0x050eb, 0x0516b };
+static const uint32_t dcn302_OTG_OTG_V_BLANK_START_END[DCN302_PIPES] = { 0x04ff6, 0x05076, 0x050f6, 0x05176 };
+static const uint32_t dcn302_HUBP_DCHUBP_CNTL[DCN302_PIPES] = { 0x03ab3, 0x03b8f, 0x03c6b, 0x03d47 };
+static const uint32_t dcn302_HUBP_DCSURF_SURFACE_CONFIG[DCN302_PIPES] = { 0x03aa5, 0x03b81, 0x03c5d, 0x03d39 };
+static const uint32_t dcn302_HUBP_DCSURF_PRI_VIEWPORT_DIMENSION[DCN302_PIPES] = { 0x03aaa, 0x03b86, 0x03c62, 0x03d3e };
+static const uint32_t dcn302_HUBPREQ_DCSURF_SURFACE_PITCH[DCN302_PIPES] = { 0x03ac7, 0x03ba3, 0x03c7f, 0x03d5b };
+static const uint32_t dcn302_HUBPREQ_DCSURF_PRIMARY_SURFACE_ADDRESS[DCN302_PIPES] = { 0x03aca, 0x03ba6, 0x03c82, 0x03d5e };
+static const uint32_t dcn302_HUBPREQ_DCSURF_PRIMARY_SURFACE_ADDRESS_HIGH[DCN302_PIPES] = { 0x03acb, 0x03ba7, 0x03c83, 0x03d5f };
+
+/* The engine's. */
+#define dcn302_DCN_VM_FB_LOCATION_BASE	0x03953
+#define dcn302_DCN_VM_FB_LOCATION_TOP	0x03954
+#define dcn302_DCN_VM_FB_OFFSET	0x03955
+
+/* Fields: shift and mask. */
+#define DCN302_OTG_OTG_CONTROL__OTG_MASTER_EN__SHIFT	0
+#define DCN302_OTG_OTG_CONTROL__OTG_MASTER_EN_MASK	0x00000001
+#define DCN302_OTG_OTG_H_TOTAL__OTG_H_TOTAL__SHIFT	0
+#define DCN302_OTG_OTG_H_TOTAL__OTG_H_TOTAL_MASK	0x00007fff
+#define DCN302_OTG_OTG_V_TOTAL__OTG_V_TOTAL__SHIFT	0
+#define DCN302_OTG_OTG_V_TOTAL__OTG_V_TOTAL_MASK	0x00007fff
+#define DCN302_OTG_OTG_H_BLANK_START_END__OTG_H_BLANK_START__SHIFT	0
+#define DCN302_OTG_OTG_H_BLANK_START_END__OTG_H_BLANK_START_MASK	0x00007fff
+#define DCN302_OTG_OTG_H_BLANK_START_END__OTG_H_BLANK_END__SHIFT	16
+#define DCN302_OTG_OTG_H_BLANK_START_END__OTG_H_BLANK_END_MASK	0x7fff0000
+#define DCN302_OTG_OTG_V_BLANK_START_END__OTG_V_BLANK_START__SHIFT	0
+#define DCN302_OTG_OTG_V_BLANK_START_END__OTG_V_BLANK_START_MASK	0x00007fff
+#define DCN302_OTG_OTG_V_BLANK_START_END__OTG_V_BLANK_END__SHIFT	16
+#define DCN302_OTG_OTG_V_BLANK_START_END__OTG_V_BLANK_END_MASK	0x7fff0000
+#define DCN302_HUBP_DCHUBP_CNTL__HUBP_BLANK_EN__SHIFT	0
+#define DCN302_HUBP_DCHUBP_CNTL__HUBP_BLANK_EN_MASK	0x00000001
+#define DCN302_HUBP_DCSURF_SURFACE_CONFIG__SURFACE_PIXEL_FORMAT__SHIFT	0
+#define DCN302_HUBP_DCSURF_SURFACE_CONFIG__SURFACE_PIXEL_FORMAT_MASK	0x0000007f
+#define DCN302_HUBP_DCSURF_PRI_VIEWPORT_DIMENSION__PRI_VIEWPORT_WIDTH__SHIFT	0
+#define DCN302_HUBP_DCSURF_PRI_VIEWPORT_DIMENSION__PRI_VIEWPORT_WIDTH_MASK	0x00003fff
+#define DCN302_HUBP_DCSURF_PRI_VIEWPORT_DIMENSION__PRI_VIEWPORT_HEIGHT__SHIFT	16
+#define DCN302_HUBP_DCSURF_PRI_VIEWPORT_DIMENSION__PRI_VIEWPORT_HEIGHT_MASK	0x3fff0000
+#define DCN302_HUBPREQ_DCSURF_SURFACE_PITCH__PITCH__SHIFT	0
+#define DCN302_HUBPREQ_DCSURF_SURFACE_PITCH__PITCH_MASK	0x00003fff
+#define DCN302_HUBPREQ_DCSURF_PRIMARY_SURFACE_ADDRESS_HIGH__PRIMARY_SURFACE_ADDRESS_HIGH__SHIFT	0
+#define DCN302_HUBPREQ_DCSURF_PRIMARY_SURFACE_ADDRESS_HIGH__PRIMARY_SURFACE_ADDRESS_HIGH_MASK	0x0000ffff
+#define DCN302_DCN_VM_FB_LOCATION_BASE__FB_BASE__SHIFT	0
+#define DCN302_DCN_VM_FB_LOCATION_BASE__FB_BASE_MASK	0x00ffffff
+#define DCN302_DCN_VM_FB_LOCATION_TOP__FB_TOP__SHIFT	0
+#define DCN302_DCN_VM_FB_LOCATION_TOP__FB_TOP_MASK	0x00ffffff
+#define DCN302_DCN_VM_FB_OFFSET__FB_OFFSET__SHIFT	0
+#define DCN302_DCN_VM_FB_OFFSET__FB_OFFSET_MASK	0x00ffffff
+
+#endif
