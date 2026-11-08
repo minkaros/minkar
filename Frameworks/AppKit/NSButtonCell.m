@@ -29,6 +29,9 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <AppKit/NSSound.h>
 #import <AppKit/NSRaise.h>
 
+/* NSGraphicsStyle.m: names the check box and radio button images it draws. */
+extern void _NSGraphicsStyleRegisterButtonImages(void);
+
 @implementation NSButtonCell
 
 // Margin between an image and the Button interior borders
@@ -485,6 +488,7 @@ static const float kImageMargin = 2.;
          break;
 
       case NSSwitchButton:
+          _NSGraphicsStyleRegisterButtonImages();
           _highlightsBy = NSContentsCellMask;
           _showsStateBy = NSContentsCellMask;
          _imagePosition = NSImageLeft;
@@ -497,6 +501,7 @@ static const float kImageMargin = 2.;
          break;
 
       case NSRadioButton:
+          _NSGraphicsStyleRegisterButtonImages();
           _highlightsBy = NSContentsCellMask;
           _showsStateBy = NSContentsCellMask;
          _imagePosition = NSImageLeft;
@@ -788,7 +793,9 @@ static void drawRoundedBezel(CGContextRef context,CGRect frame){
 }
 
 -(void)drawBezelWithFrame:(NSRect)frame inView:(NSView *)controlView {
-   BOOL defaulted=([[controlView window] defaultButtonCell] == self);
+   /* Return is the default button's key, whether or not the window was told. */
+   BOOL defaulted=([[controlView window] defaultButtonCell] == self) || [_keyEquivalent isEqualToString:@"\r"];
+   NSRect original=frame;
 
    NSRect adjustment = [self getControlSizeAdjustment:[controlView isFlipped] ];
    frame.size.width -= adjustment.size.width;
@@ -860,6 +867,15 @@ static void drawRoundedBezel(CGContextRef context,CGRect frame){
       [[_controlView graphicsStyle] drawUnborderedButtonInRect:frame defaulted:defaulted];
      }
      else {
+      /* Atlas's push buttons: a face of one height for each control size,
+         centered in the control, with no room kept for a shadow. */
+      if(_bezelStyle==NSRoundedBezelStyle){
+       CGFloat height=MIN(NSHeight(original),22-_controlSize*3);
+
+       frame=NSInsetRect(original,2,0);
+       frame.origin.y=floor(NSMidY(original)-height/2);
+       frame.size.height=height;
+      }
       if(([self highlightsBy]&NSPushInCellMask) && [self isHighlighted])
        [[_controlView graphicsStyle] drawPushButtonPressedInRect:frame];
       else if([self isVisuallyHighlighted])
