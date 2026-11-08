@@ -241,6 +241,12 @@ m3-tools: .PHONY
 gallery: .PHONY
 	${MAKE} -m ${ROOT_SOURCE_DIR}/BSD/share/mk ONLY_STAGE=Tests/Gallery Tests/Gallery
 
+# The template Atlas's apps start from (Developer/Templates/AtlasApp), for
+# test images: 'bmake atlas-app-template' before 'bmake image' puts it in
+# /Applications/Developer as Sample.app.
+atlas-app-template: .PHONY
+	${MAKE} -m ${ROOT_SOURCE_DIR}/BSD/share/mk ONLY_STAGE=Developer/Templates/AtlasApp Developer/Templates/AtlasApp
+
 # SwiftFormat's suite alone takes about half an hour in a VM.
 m3-check: .PHONY
 	${MAKE} -C ${.CURDIR}/Image boottest GATE=M3 BOOTTEST_TIMEOUT=${M3_BOOTTEST_TIMEOUT:U5400}
