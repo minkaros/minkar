@@ -22,6 +22,8 @@
 #                   Tests/<t> for tests)
 #   DEPS_<t>        the libraries it imports, in dependency order
 #   FLAGS_<t>       more swiftc flags for it
+#   SKIP_<t>        tests a test target leaves out (Class.testMethod), each
+#                   with its reason in the package's Makefile
 #   CFLAGS_<t>      more C compiler flags for a C target
 #   RES_<t>         resources of a target, in the package: copied into
 #                   <PKG>_<t>.bundle next to the programs, and Bundle.module
@@ -156,7 +158,7 @@ ${OUT}/${t}: ${SRC}/.minkar-patches ${DEPS_${t}:@d@${OBJ_${d}}@}
 	    '}' > ${OUT}/${t}.main/resource_bundle_accessor.swift
 .endif
 	find ${SRC}/${DIR_${t}} -name '*.swift' -print0 | sort -z | xargs -0 \
-	    ${TC}/xctest-discover -o ${OUT}/${t}.main/main.swift
+	    ${TC}/xctest-discover ${SKIP_${t}:@s@--skip ${s}@} -o ${OUT}/${t}.main/main.swift
 .if defined(RELATIVE_${t})
 	cd ${SRC} && { find ${OUT}/${t}.main -name '*.swift' -print0; \
 	  find ${DIR_${t}} -name '*.swift' -print0 | sort -z; } | xargs -0 \
