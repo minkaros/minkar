@@ -111,6 +111,7 @@
 #import <Foundation/NSException.h>
 #import <Foundation/NSFileHandle.h>
 #import <Foundation/NSFileManager.h>
+#import <Foundation/NSFileVersion.h>
 #import <Foundation/NSFormatter.h>
 #import <Foundation/NSGeometry.h>
 #import <Foundation/NSHashTable.h>

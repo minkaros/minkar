@@ -317,6 +317,7 @@ SRCS = 	NSFormatter.m \
 	NSRunLoop/NSInputSourceSet.m \
 	NSRunLoop/NSDelayedPerform.m \
 	NSFileManager.m \
+	NSFileVersion.m \
 	NSAffineTransform.m \
 	NSNotification/NSNotification_concrete.m \
 	NSNotification/NSNotification.m \
