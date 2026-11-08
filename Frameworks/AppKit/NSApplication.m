@@ -581,9 +581,11 @@ static NSString *applicationMenuTitle(void) {
 static NSString * const NSAutomaticApplicationMenu = @"NSAutomaticApplicationMenu";
 
 /* The main menu's first item is the app menu, whatever its title, shown
-   as the app's name. A main menu with no items gets one with Quit; when
-   the app then adds its own items (a menu made in code, set while still
-   empty), that one goes and the app's first item takes its place. */
+   as the app's name. A main menu the app sets with no items gets one with
+   Quit; when the app then adds its own items (a menu made in code, set
+   while still empty), that one goes and the app's first item takes its
+   place. The main menu AppKit makes for an app with none keeps its app
+   menu: the app's items come after it. */
 -(void)_ensureApplicationMenu {
    static BOOL busy;
    NSMenuItem *first;
@@ -860,8 +862,15 @@ static NSArray *urlsFromOpenMessage(const LSSessionOpenMessage *msg, NSUInteger 
     /* If there are no menus loaded (e.g. we have no nib), make sure we at least have
      * the application menu
      */
-    if([self mainMenu] == nil)
-        [self setMenu:[NSMenu new]];
+    if([self mainMenu] == nil) {
+        NSMenu *menu = [[NSMenu alloc] init];
+
+        [self setMenu:menu];
+        [menu release];
+        /* AppKit's own: the app adds its menus after this app menu. */
+        if([_mainMenu numberOfItems] > 0)
+            [[_mainMenu itemAtIndex:0] setRepresentedObject:nil];
+    }
 
 // Give us a first event
    [NSTimer scheduledTimerWithTimeInterval:0.1 target:nil
