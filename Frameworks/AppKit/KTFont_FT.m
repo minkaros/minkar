@@ -21,7 +21,9 @@
 }
 @end
 
-@implementation KTFont_FT
+@implementation KTFont_FT {
+   NSMutableDictionary *_advanceCache;
+}
 
 
 -initWithUIFontType:(CTFontUIFontType)uiFontType size:(CGFloat)size language:(NSString *)language {
@@ -63,43 +65,52 @@
    }
 }
 
--(void)getAdvancements:(CGSize *)advancements forGlyphs:(const CGGlyph *)glyphs count:(unsigned)count {
-   O2Font_FT *o2Font=(O2Font_FT *)_font;
-   FT_Face    face=[o2Font face];
+/* A glyph's advance at this size, loaded once: loading it runs the font's
+   hinting, and layout and drawing ask for it again and again. */
+static CGFloat cachedAdvance(KTFont_FT *self,CGGlyph glyph) {
+   NSNumber *key=[NSNumber numberWithUnsignedShort:glyph];
+   NSNumber *value;
 
-   int i;
-   FT_Set_Pixel_Sizes(face, _size, _size);
+   if(self->_advanceCache==nil)
+    self->_advanceCache=[[NSMutableDictionary alloc] init];
+   if((value=[self->_advanceCache objectForKey:key])==nil){
+    O2Font_FT *o2Font=(O2Font_FT *)self->_font;
+    FT_Face    face=[o2Font face];
+    CGFloat    advance=0;
 
-   /* The pen's advance (26.6 fixed point), not the bitmap's left side
-      bearing: a click in text was taken for its line's end. */
-   for(i=0;i<count;i++){
-    if(FT_Load_Glyph(face, glyphs[i], FT_LOAD_DEFAULT)!=0){
-     advancements[i]=CGSizeZero;
-     continue;
-    }
-    advancements[i]=CGSizeMake(face->glyph->advance.x/64.0,0);
+    [o2Font setPixelSize:self->_size];
+    /* The pen's advance (26.6 fixed point), not the bitmap's left side
+       bearing: a click in text was taken for its line's end. */
+    if(FT_Load_Glyph(face,glyph,FT_LOAD_DEFAULT)==0)
+     advance=face->glyph->advance.x/64.0;
+    value=[NSNumber numberWithDouble:advance];
+    [self->_advanceCache setObject:value forKey:key];
    }
+   return [value doubleValue];
+}
+
+-(void)getAdvancements:(CGSize *)advancements forGlyphs:(const CGGlyph *)glyphs count:(unsigned)count {
+   unsigned i;
+
+   for(i=0;i<count;i++)
+    advancements[i]=CGSizeMake(cachedAdvance(self,glyphs[i]),0);
 }
 
 -(NSSize)advancementForGlyph:(NSGlyph)glyph {
-   CGSize adv[1];
-   [self getAdvancements:&adv forGlyphs:(CGGlyph *)&glyph count:1];
-   return adv[0];
+   return NSMakeSize(cachedAdvance(self,(CGGlyph)glyph),0);
 }
 
 -(CGPoint)positionOfGlyph:(CGGlyph)current precededByGlyph:(CGGlyph)previous isNominal:(BOOL *)isNominalp {
-   O2Font_FT *o2Font=(O2Font_FT *)_font;
-   FT_Face    face=[o2Font face];
-
    *isNominalp=YES;
 
    if(!current)
       return NSZeroPoint;
+   return NSMakePoint(cachedAdvance(self,current),0);
+}
 
-   FT_Set_Pixel_Sizes(face, _size, _size);
-
-   FT_Load_Glyph(face, current, FT_LOAD_DEFAULT);
-   return NSMakePoint(face->glyph->advance.x/(float)(2<<5),face->glyph->advance.y/(float)(2<<5));
+-(void)dealloc {
+   [_advanceCache release];
+   [super dealloc];
 }
 
 -(NSString *)description {

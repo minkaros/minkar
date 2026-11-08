@@ -8,9 +8,13 @@
 
 @interface O2Font_FT : O2Font {
     FT_Face _face;
+    CGFloat _pixelSize;
 }
 
 - (FT_Face)face;
+/* Sets the face's size, only when it changes: FreeType runs the font's
+ * hinting program again on every change, the same size or not. */
+- (void)setPixelSize:(CGFloat)size;
 
 @end
 

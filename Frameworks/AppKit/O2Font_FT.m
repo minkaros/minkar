@@ -158,6 +158,13 @@ static NSString *filenameForPostScriptName(NSString *name) {
    return _face;
 }
 
+-(void)setPixelSize:(CGFloat)size {
+   if(size!=_pixelSize){
+    FT_Set_Char_Size(_face,0,(FT_F26Dot6)(size*64),72,72);
+    _pixelSize=size;
+   }
+}
+
 -(O2Glyph)glyphWithGlyphName:(NSString *)name {
 // FIXME: implement
    return 0;
@@ -166,7 +173,7 @@ static NSString *filenameForPostScriptName(NSString *name) {
 -(void)fetchAdvances {
    O2Glyph glyph;
 
-   FT_Set_Char_Size(_face,0,_unitsPerEm*64,72,72);
+   [self setPixelSize:_unitsPerEm];
 
    _advances=NSZoneMalloc(NULL,sizeof(int)*_numberOfGlyphs);
 

@@ -126,10 +126,7 @@ static void drawFreeTypeBitmap(O2Context_builtin_FT *self,O2Surface *surface,FT_
 
    FT_GlyphSlot slot=face->glyph;
 
-   if ((ftError = FT_Set_Char_Size(face,0,gState->_pointSize*64,72.0,72.0))) {
-    NSLog(@"FT_Set_Char_Size returned %d",ftError);
-    return;
-   }
+   [font setPixelSize:gState->_pointSize];
     
    for(i=0;i<count;i++){
 
