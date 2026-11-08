@@ -67,11 +67,11 @@ ${HEADER_DIR}:
 
 _copy_headers: ${HEADER_DIR}
 .for hdr in ${HEADERS}
-	cp -f ${.CURDIR}/${hdr} ${HEADER_DIR}/${hdr:T}
+	rsync -c ${.CURDIR}/${hdr} ${HEADER_DIR}/${hdr:T}
 .endfor
 .if exists(${ROOT_SOURCE_DIR}/Developer/Minkar.sdk/apinotes/${FRAMEWORK}.apinotes)
 	# How Swift sees this framework (Developer/Minkar.sdk/apinotes/README.md).
-	cp -f ${ROOT_SOURCE_DIR}/Developer/Minkar.sdk/apinotes/${FRAMEWORK}.apinotes ${HEADER_DIR}/
+	rsync -c ${ROOT_SOURCE_DIR}/Developer/Minkar.sdk/apinotes/${FRAMEWORK}.apinotes ${HEADER_DIR}/
 .endif
 
 ${FRAMEWORK}: _copy_headers
@@ -82,7 +82,7 @@ _fmwk_headers += _copy_headers
 _copy_private_headers: ${FRAMEWORK_DIR}
 	mkdir -p ${PRIVHDR_DIR}
 .for hdr in ${PRIVATE_HEADERS}
-	cp -f ${.CURDIR}/${hdr} ${PRIVHDR_DIR}/${hdr:T}
+	rsync -c ${.CURDIR}/${hdr} ${PRIVHDR_DIR}/${hdr:T}
 .endfor
 
 ${FRAMEWORK}: _copy_private_headers
@@ -104,7 +104,7 @@ ${FRAMEWORK}: _resource_dirs
 _resource_dirs: ${RESOURCES_DIR}
 .for rsc in ${RESOURCES_DIRS}
 	mkdir -p ${RESOURCES_DIR}/${rsc:H}
-	cp -fR ${.CURDIR}/${rsc} ${RESOURCES_DIR}/${rsc:H}
+	rsync -rlc ${.CURDIR}/${rsc} ${RESOURCES_DIR}/${rsc:H}
 .endfor
 .endif
 
@@ -113,7 +113,7 @@ ${FRAMEWORK}: _resource_files
 
 _resource_files: ${RESOURCES_DIR}
 .for rsc in ${RESOURCES_FILES}
-	cp -fv ${.CURDIR}/${rsc} ${RESOURCES_DIR}
+	rsync -c ${.CURDIR}/${rsc} ${RESOURCES_DIR}
 .endfor
 .endif
 
@@ -173,7 +173,7 @@ all: copy_modulemap
 copy_modulemap: ${.CURDIR}/${MODULEMAP} ${FRAMEWORK_DIR}
 	rm -f ${FRAMEWORK_DIR}/Modules
 	ln -sf Versions/${FMWK_VERSION}/Modules ${FRAMEWORK_DIR}/Modules
-	cp -f ${.CURDIR}/${MODULEMAP} \
+	rsync -c ${.CURDIR}/${MODULEMAP} \
 	  ${FRAMEWORK_DIR}/Versions/${FMWK_VERSION}/Modules/module.modulemap
 .else
 all: create_modulemap
@@ -189,7 +189,11 @@ create_modulemap: ${FRAMEWORK_DIR}
 	 echo '    umbrella header "${FRAMEWORK}.h"'; \
 	 echo '    export *'; \
 	 echo '    module * { export * }'; \
-	 echo '}') > ${FRAMEWORK_DIR}/Versions/${FMWK_VERSION}/Modules/module.modulemap
+	 echo '}') > ${FRAMEWORK_DIR}/Versions/${FMWK_VERSION}/Modules/module.modulemap.new
+	# Written again only when it changes: its date is the modules'.
+	cd ${FRAMEWORK_DIR}/Versions/${FMWK_VERSION}/Modules && \
+	  if cmp -s module.modulemap.new module.modulemap; then rm -f module.modulemap.new; \
+	  else mv -f module.modulemap.new module.modulemap; fi
 .endif
 
 # The install hook copies the bundle: after its module map is in place.

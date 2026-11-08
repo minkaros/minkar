@@ -397,16 +397,21 @@ install-extlib: .PHONY build-extlib
 .endfor
 	mkdir -p ${SDK}${DEV_DEST}/include ${SDK}${DEV_DEST}/lib/pkgconfig ${SDK}${LIB_DEST} \
 	    ${SYSROOT_DIR}${LIB_DEST}
-	if [ -d ${STAGE}/usr/include ]; then cp -R ${STAGE}/usr/include/. ${SDK}${DEV_DEST}/include/; fi
+	# Copied with rsync -c: a file whose contents are the same keeps its
+	# date, so what depends on it is not rebuilt (harfbuzz on freetype,
+	# libsoup on glib...) when this library is installed again unchanged.
+	if [ -d ${STAGE}/usr/include ]; then rsync -rlc ${STAGE}/usr/include/ ${SDK}${DEV_DEST}/include/ || exit 1; fi
 	if [ -d ${STAGE}/usr/lib/pkgconfig ]; then \
 		for pc in ${STAGE}/usr/lib/pkgconfig/*.pc; do \
-			sed ${PC_FIX} $$pc > ${SDK}${DEV_DEST}/lib/pkgconfig/$${pc##*/} || exit 1; \
+			out=${SDK}${DEV_DEST}/lib/pkgconfig/$${pc##*/}; \
+			sed ${PC_FIX} $$pc > $$out.new || exit 1; \
+			if cmp -s $$out.new $$out; then rm -f $$out.new; else mv -f $$out.new $$out; fi; \
 		done; \
 	fi
 	# Other directories of lib (configuration headers: glib-2.0/include).
 	for d in ${STAGE}/usr/lib/*/; do \
 		case $$d in */pkgconfig/|*/webkit/) ;; \
-		*) if [ -d "$$d" ]; then cp -R "$$d" ${SDK}${LIB_DEST}/ || exit 1; fi ;; esac; \
+		*) if [ -d "$$d" ]; then rsync -rlc "$${d%/}" ${SDK}${LIB_DEST}/ || exit 1; fi ;; esac; \
 	done
 	# A library with no dylibs (only data, as xkeyboard-config) has no lib.
 	[ -z "${EXTLIB_LIBS}" ] || cd ${STAGE}/usr/lib && for lib in ${EXTLIB_LIBS}; do \
@@ -420,7 +425,7 @@ install-extlib: .PHONY build-extlib
 		done; \
 		base=$${lib%%.*}; \
 		for f in $$base.*dylib; do \
-			cp -P $$f ${SDK}${LIB_DEST}/ && cp -P $$f ${SYSROOT_DIR}${LIB_DEST}/ || exit 1; \
+			rsync -lc $$f ${SDK}${LIB_DEST}/ && rsync -lc $$f ${SYSROOT_DIR}${LIB_DEST}/ || exit 1; \
 		done; \
 	done
 	for fw in ${EXTLIB_FRAMEWORKS}; do \
@@ -429,7 +434,7 @@ install-extlib: .PHONY build-extlib
 		v=$$(readlink $$d/Versions/Current); \
 		${TC}/install_name_tool -id ${LIB_DEST}/$$fw.framework/Versions/$$v/$$fw $$d/Versions/$$v/$$fw || exit 1; \
 		for dest in ${SDK}${LIB_DEST} ${SYSROOT_DIR}${LIB_DEST}; do \
-			rm -rf $$dest/$$fw.framework && cp -R $$d $$dest/ || exit 1; \
+			rsync -rlc --delete $$d $$dest/ || exit 1; \
 		done; \
 	done
 	for h in ${EXTLIB_HELPERS}; do \
@@ -447,16 +452,16 @@ install-extlib: .PHONY build-extlib
 		for dep in $$(${TC}/otool -L $$f | awk '$$1 ~ /^@rpath\// { print $$1 }'); do \
 			${TC}/install_name_tool -change $$dep ${LIB_DEST}/$${dep#@rpath/} $$f || exit 1; \
 		done; \
-		mkdir -p ${SYSROOT_DIR}/usr/$${m%/*} && cp -f $$f ${SYSROOT_DIR}/usr/$$m || exit 1; \
+		mkdir -p ${SYSROOT_DIR}/usr/$${m%/*} && rsync -c $$f ${SYSROOT_DIR}/usr/$$m || exit 1; \
 	done
 	for f in ${EXTLIB_SDK_FILES}; do \
 		d=${SDK}${DEV_DEST}/$${f#usr/}; \
-		mkdir -p $${d%/*} && cp -f ${STAGE}/$$f $$d || exit 1; \
+		mkdir -p $${d%/*} && rsync -c ${STAGE}/$$f $$d || exit 1; \
 	done
 	for d in ${EXTLIB_DATA}; do \
 		test -e ${STAGE}/$$d || { echo "minkar.extlib.mk: $$d not installed" >&2; exit 1; }; \
-		rm -rf ${SYSROOT_DIR}/$$d && mkdir -p ${SYSROOT_DIR}/$${d%/*} && \
-		cp -R ${STAGE}/$$d ${SYSROOT_DIR}/$${d%/*}/ || exit 1; \
+		mkdir -p ${SYSROOT_DIR}/$${d%/*} && \
+		rsync -rlc --delete ${STAGE}/$$d ${SYSROOT_DIR}/$${d%/*}/ || exit 1; \
 	done
 .if !empty(EXTLIB_LICENSES)
 	mkdir -p ${SYSROOT_DIR}/usr/share/licenses/${EXTLIB}

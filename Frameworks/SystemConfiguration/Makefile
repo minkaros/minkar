@@ -100,8 +100,8 @@ fmwk-install-hook:
 	sed -e 's/$$(PRODUCT_BUNDLE_IDENTIFIER)/com.apple.SystemConfiguration/' \
 		${.CURDIR}/Info.plist > ${RESOURCES_DIR}/Info.plist
 	mkdir -p ${MINKAR_SDKROOT}${SLF} ${SYSROOT_DIR}${SLF}
-	cp -Rf ${FRAMEWORK_DIR} ${MINKAR_SDKROOT}${SLF}/
-	cp -Rf ${FRAMEWORK_DIR} ${SYSROOT_DIR}${SLF}/
+	rsync -rlc ${FRAMEWORK_DIR} ${MINKAR_SDKROOT}${SLF}/
+	rsync -rlc ${FRAMEWORK_DIR} ${SYSROOT_DIR}${SLF}/
 
 .include <minkar.framework.mk>
 

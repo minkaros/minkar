@@ -162,12 +162,12 @@ ${FRAMEWORK}: ${.OBJDIR}/mach-o/arch.h
 FRAMEWORK_LIB = ${.OBJDIR}/${FRAMEWORK}.framework/Versions/${FMWK_VERSION}/${FRAMEWORK}
 ${FRAMEWORK}.framework.dSYM: ${FRAMEWORK}
 	${DSYMUTIL} ${FRAMEWORK_LIB} -o ${.TARGET}
-	cp -Rf ${.OBJDIR}/${.TARGET} ${MINKAR_SDKROOT}/System/Library/Frameworks/
+	rsync -rlc ${.OBJDIR}/${.TARGET} ${MINKAR_SDKROOT}/System/Library/Frameworks/
 
 fmwk-install-hook:
 	mkdir -p ${MINKAR_SDKROOT}/System/Library/Frameworks \
 	  ${SYSROOT_DIR}/System/Library/Frameworks
-	cp -Rf ${.OBJDIR}/${FRAMEWORK}.framework ${MINKAR_SDKROOT}/System/Library/Frameworks
-	cp -Rf ${.OBJDIR}/${FRAMEWORK}.framework ${SYSROOT_DIR}/System/Library/Frameworks
+	rsync -rlc ${.OBJDIR}/${FRAMEWORK}.framework ${MINKAR_SDKROOT}/System/Library/Frameworks
+	rsync -rlc ${.OBJDIR}/${FRAMEWORK}.framework ${SYSROOT_DIR}/System/Library/Frameworks
 
 .include <minkar.framework.mk>
