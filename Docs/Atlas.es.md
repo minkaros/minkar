@@ -58,7 +58,7 @@ K0–K4), cuyos hitos conservan sus nombres, y añade las aplicaciones
 | Menús | 3 | MB0–MB4 | MB0 | MB1 (parcial), MB2 |
 | Dock | 4 | D0–D4 | D0, D1 | D2 |
 | Files | 4 | K0–K4 | K1 (K0 parcial) | K0, K2 |
-| Aplicaciones | 5 | A0–A10 | — (Text Editor empezado) | A0, A1 |
+| Aplicaciones | 5 | A0–A10 | A0, A1, A3, A4 (A2 empezado) | A2, A5 |
 
 Las demás piezas de la sesión (LoginWindow, Preferencias del Sistema, el
 lenguaje visual) son puntos de la Fase 5 en [ROADMAP.es.md](ROADMAP.es.md).
@@ -746,12 +746,20 @@ SwiftUI, fuera de la API 19–21).
   `Developer/Templates/AtlasApp` (fbef0a5927) con su libro de ayuda y
   NSHelpManager (08a89e5a13, 63132864be); prueba `image/atlas-app` (26
   comprobaciones en inglés y español), lote del 8 nov (2181 pasan, M2 y M3).
-- [ ] **A1 — Terminal.** Secuencias VT100 y xterm (colores, movimiento del
+- [x] **A1 — Terminal.** Secuencias VT100 y xterm (colores, movimiento del
   cursor, pantalla alternativa), UTF-8, cambio de tamaño (`SIGWINCH`),
   historial, selección, copiar y pegar, Agave y su tamaño, varias ventanas
   y pestañas, `open -a Terminal`. Pruebas: las pantallas básicas de
   `vttest`, una sesión de `vim` dirigida por QMP, comparaciones con
-  `screendump`.
+  `screendump`. Hecho el 8 nov 2026: `CoreServices/Terminal` sobre
+  libvterm 0.3.3 (MIT) (d7b7c4f405, pestañas 14ee742f06), con
+  Preferencias (956eccef79) y los arreglos de AppKit y Foundation que
+  necesitaron (e9ef2c7dd3, d505c4adbe, d425816593); prueba
+  `image/terminal` (28 comprobaciones: colores, UTF-8, movimiento del
+  cursor, pantalla alternativa, historial, teclado, `SIGWINCH`, las
+  preferencias en inglés y español), lote del 8 nov (1805 pasan, M2 y
+  M3). `vi`, `top` y las pestañas se comprobaron en pantalla por QMP;
+  `vttest` y las comparaciones con `screendump` aún no están automatizadas.
 - [ ] **A2 — Text Editor para uso diario.** Empezado el 4 nov 2026 (texto plano,
   abrir y guardar, `open -t`). Falta: RTF, buscar y reemplazar,
   codificaciones y finales de línea, impresión, la regla. Pruebas: un

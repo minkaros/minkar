@@ -1,46 +1,45 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1120" height="925" viewBox="0 0 1120 925" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif" role="img" aria-label="Minkar work board, 2026-11-08">
+<svg xmlns="http://www.w3.org/2000/svg" width="1120" height="904" viewBox="0 0 1120 904" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif" role="img" aria-label="Minkar work board, 2026-11-08">
 <title>Minkar work board, 2026-11-08</title>
-<rect width="1120" height="925" fill="#0d1117"/>
+<rect width="1120" height="904" fill="#0d1117"/>
 <text x="16" y="30" font-size="20" font-weight="700" fill="#e6edf3" text-anchor="start">Minkar work board</text>
-<text x="16" y="52" font-size="13" font-weight="400" fill="#9198a1" text-anchor="start">2026-11-08 · devel 033761cf48</text>
-<rect x="16" y="70" width="261.5" height="847" rx="10" fill="#151b23"/>
+<text x="16" y="52" font-size="13" font-weight="400" fill="#9198a1" text-anchor="start">2026-11-08 · devel 956eccef79</text>
+<rect x="16" y="70" width="261.5" height="826" rx="10" fill="#151b23"/>
 <text x="30" y="96" font-size="13" font-weight="700" fill="#9198a1" text-anchor="start" letter-spacing=".08em">DONE · LATEST</text>
 <rect x="26" y="114" width="241.5" height="125" rx="8" fill="#0d1117" stroke="#3d444d" stroke-width="1"/><rect x="26" y="114" width="5" height="125" rx="2" fill="#3fb950"/>
-<text x="42" y="138" font-size="15" font-weight="650" fill="#e6edf3" text-anchor="start">A4: Logs</text>
-<text x="42" y="159" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">os_log&#x27;s messages live,</text>
-<text x="42" y="178" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">filtered by level, process</text>
-<text x="42" y="197" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">and subsystem; crash reports</text>
-<text x="42" y="216" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">and log files · 8 nov</text>
+<text x="42" y="138" font-size="15" font-weight="650" fill="#e6edf3" text-anchor="start">A1: Terminal</text>
+<text x="42" y="159" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">libvterm in Agave, tabs,</text>
+<text x="42" y="178" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">scrollback, colors;</text>
+<text x="42" y="197" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">Preferences with Light and</text>
+<text x="42" y="216" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">Dark schemes · 8 nov</text>
 <rect x="26" y="249" width="241.5" height="125" rx="8" fill="#0d1117" stroke="#3d444d" stroke-width="1"/><rect x="26" y="249" width="5" height="125" rx="2" fill="#3fb950"/>
-<text x="42" y="273" font-size="15" font-weight="650" fill="#e6edf3" text-anchor="start">A3: System Monitor</text>
-<text x="42" y="294" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">processes, CPU, memory, disk,</text>
-<text x="42" y="313" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">network; quit and force quit;</text>
-<text x="42" y="332" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">text drawing 5× faster · 8</text>
-<text x="42" y="351" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">nov</text>
-<rect x="26" y="384" width="241.5" height="106" rx="8" fill="#0d1117" stroke="#3d444d" stroke-width="1"/><rect x="26" y="384" width="5" height="106" rx="2" fill="#3fb950"/>
-<text x="42" y="408" font-size="15" font-weight="650" fill="#e6edf3" text-anchor="start">A0: the app base</text>
-<text x="42" y="429" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">Atlas&#x27;s About, help books,</text>
-<text x="42" y="448" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">documents with versions, the</text>
-<text x="42" y="467" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">app template · 8 nov</text>
-<rect x="26" y="500" width="241.5" height="106" rx="8" fill="#0d1117" stroke="#3d444d" stroke-width="1"/><rect x="26" y="500" width="5" height="106" rx="2" fill="#d29922"/>
-<text x="42" y="524" font-size="15" font-weight="650" fill="#e6edf3" text-anchor="start">M3 met: seven tools pass</text>
-<text x="42" y="545" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">tag and SwiftFormat too;</text>
-<text x="42" y="564" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">NSMetadataQuery; the kernel</text>
-<text x="42" y="583" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">at -O2 · 5 nov</text>
-<rect x="26" y="616" width="241.5" height="127" rx="8" fill="#0d1117" stroke="#3d444d" stroke-width="1"/><rect x="26" y="616" width="5" height="127" rx="2" fill="#d29922"/>
-<text x="42" y="640" font-size="15" font-weight="650" fill="#e6edf3" text-anchor="start">M3: mogenerator, the</text>
-<text x="42" y="661" font-size="15" font-weight="650" fill="#e6edf3" text-anchor="start">first Objective-C tool</text>
-<text x="42" y="682" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">CoreData&#x27;s models in code and</text>
-<text x="42" y="701" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">archives, predicates, KVC set</text>
-<text x="42" y="720" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">proxies · 5 nov</text>
-<rect x="26" y="753" width="241.5" height="146" rx="8" fill="#0d1117" stroke="#3d444d" stroke-width="1"/><rect x="26" y="753" width="5" height="146" rx="2" fill="#d29922"/>
-<text x="42" y="777" font-size="15" font-weight="650" fill="#e6edf3" text-anchor="start">M3: 4 of 7 tools pass</text>
-<text x="42" y="798" font-size="15" font-weight="650" fill="#e6edf3" text-anchor="start">their tests</text>
-<text x="42" y="819" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">swift-argument-parser,</text>
-<text x="42" y="838" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">Rainbow, Files, Yams,</text>
-<text x="42" y="857" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">xcbeautify; XCTest on Minkar</text>
-<text x="42" y="876" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">· 5 nov</text>
-<rect x="291.5" y="70" width="261.5" height="847" rx="10" fill="#151b23"/>
+<text x="42" y="273" font-size="15" font-weight="650" fill="#e6edf3" text-anchor="start">A4: Logs</text>
+<text x="42" y="294" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">os_log&#x27;s messages live,</text>
+<text x="42" y="313" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">filtered by level, process</text>
+<text x="42" y="332" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">and subsystem; crash reports</text>
+<text x="42" y="351" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">and log files · 8 nov</text>
+<rect x="26" y="384" width="241.5" height="125" rx="8" fill="#0d1117" stroke="#3d444d" stroke-width="1"/><rect x="26" y="384" width="5" height="125" rx="2" fill="#3fb950"/>
+<text x="42" y="408" font-size="15" font-weight="650" fill="#e6edf3" text-anchor="start">A3: System Monitor</text>
+<text x="42" y="429" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">processes, CPU, memory, disk,</text>
+<text x="42" y="448" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">network; quit and force quit;</text>
+<text x="42" y="467" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">text drawing 5× faster · 8</text>
+<text x="42" y="486" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">nov</text>
+<rect x="26" y="519" width="241.5" height="106" rx="8" fill="#0d1117" stroke="#3d444d" stroke-width="1"/><rect x="26" y="519" width="5" height="106" rx="2" fill="#3fb950"/>
+<text x="42" y="543" font-size="15" font-weight="650" fill="#e6edf3" text-anchor="start">A0: the app base</text>
+<text x="42" y="564" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">Atlas&#x27;s About, help books,</text>
+<text x="42" y="583" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">documents with versions, the</text>
+<text x="42" y="602" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">app template · 8 nov</text>
+<rect x="26" y="635" width="241.5" height="106" rx="8" fill="#0d1117" stroke="#3d444d" stroke-width="1"/><rect x="26" y="635" width="5" height="106" rx="2" fill="#d29922"/>
+<text x="42" y="659" font-size="15" font-weight="650" fill="#e6edf3" text-anchor="start">M3 met: seven tools pass</text>
+<text x="42" y="680" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">tag and SwiftFormat too;</text>
+<text x="42" y="699" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">NSMetadataQuery; the kernel</text>
+<text x="42" y="718" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">at -O2 · 5 nov</text>
+<rect x="26" y="751" width="241.5" height="127" rx="8" fill="#0d1117" stroke="#3d444d" stroke-width="1"/><rect x="26" y="751" width="5" height="127" rx="2" fill="#d29922"/>
+<text x="42" y="775" font-size="15" font-weight="650" fill="#e6edf3" text-anchor="start">M3: mogenerator, the</text>
+<text x="42" y="796" font-size="15" font-weight="650" fill="#e6edf3" text-anchor="start">first Objective-C tool</text>
+<text x="42" y="817" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">CoreData&#x27;s models in code and</text>
+<text x="42" y="836" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">archives, predicates, KVC set</text>
+<text x="42" y="855" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">proxies · 5 nov</text>
+<rect x="291.5" y="70" width="261.5" height="826" rx="10" fill="#151b23"/>
 <text x="305.5" y="96" font-size="13" font-weight="700" fill="#9198a1" text-anchor="start" letter-spacing=".08em">NOW</text>
 <rect x="301.5" y="114" width="241.5" height="127" rx="8" fill="#0d1117" stroke="#d29922" stroke-width="2"/><rect x="301.5" y="114" width="5" height="127" rx="2" fill="#d29922"/>
 <text x="317.5" y="138" font-size="15" font-weight="650" fill="#e6edf3" text-anchor="start">Cocoa coverage: Auto</text>
@@ -53,7 +52,7 @@
 <text x="317.5" y="296" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">G4 measured on PC 2; its</text>
 <text x="317.5" y="315" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">clocks, then the 3D path, for</text>
 <text x="317.5" y="334" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">21.0&#x27;s performance gate</text>
-<rect x="567" y="70" width="261.5" height="847" rx="10" fill="#151b23"/>
+<rect x="567" y="70" width="261.5" height="826" rx="10" fill="#151b23"/>
 <text x="581" y="96" font-size="13" font-weight="700" fill="#9198a1" text-anchor="start" letter-spacing=".08em">NEXT</text>
 <rect x="577" y="114" width="241.5" height="87" rx="8" fill="#0d1117" stroke="#3d444d" stroke-width="1"/><rect x="577" y="114" width="5" height="87" rx="2" fill="#f778ba"/>
 <text x="593" y="138" font-size="15" font-weight="650" fill="#e6edf3" text-anchor="start">Desktop design and icons</text>
@@ -65,17 +64,17 @@
 <text x="593" y="277" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">Menu Extras as bundles, Dock</text>
 <text x="593" y="296" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">dragging, file operations,</text>
 <text x="593" y="315" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">the full login</text>
-<rect x="577" y="348" width="241.5" height="106" rx="8" fill="#0d1117" stroke="#3d444d" stroke-width="1"/><rect x="577" y="348" width="5" height="106" rx="2" fill="#3fb950"/>
-<text x="593" y="372" font-size="15" font-weight="650" fill="#e6edf3" text-anchor="start">Apps: Terminal</text>
-<text x="593" y="393" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">A1: a VT100/xterm terminal in</text>
-<text x="593" y="412" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">Agave (libvterm), windows and</text>
-<text x="593" y="431" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">tabs</text>
-<rect x="842.5" y="70" width="261.5" height="847" rx="10" fill="#151b23"/>
+<rect x="577" y="348" width="241.5" height="106" rx="8" fill="#0d1117" stroke="#3d444d" stroke-width="1"/><rect x="577" y="348" width="5" height="106" rx="2" fill="#f85149"/>
+<text x="593" y="372" font-size="15" font-weight="650" fill="#e6edf3" text-anchor="start">GPU: PC 1&#x27;s RX 6600 (R1)</text>
+<text x="593" y="393" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">Navi 23&#x27;s display at its</text>
+<text x="593" y="412" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">native mode, as G1 did for</text>
+<text x="593" y="431" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">the FirePro</text>
+<rect x="842.5" y="70" width="261.5" height="826" rx="10" fill="#151b23"/>
 <text x="856.5" y="96" font-size="13" font-weight="700" fill="#9198a1" text-anchor="start" letter-spacing=".08em">LATER</text>
 <text x="856.5" y="128" font-size="14.5" font-weight="700" fill="#e6edf3" text-anchor="start">Minkar 19.6.0</text>
 <circle cx="862.5" cy="147" r="4.5" fill="#3fb950"/>
-<text x="874.5" y="152" font-size="14" font-weight="400" fill="#9198a1" text-anchor="start">Apps A2–A10: editor, monitor,</text>
-<text x="874.5" y="172" font-size="14" font-weight="400" fill="#9198a1" text-anchor="start">logs, viewers, disks…</text>
+<text x="874.5" y="152" font-size="14" font-weight="400" fill="#9198a1" text-anchor="start">Apps A2, A5–A10: editor,</text>
+<text x="874.5" y="172" font-size="14" font-weight="400" fill="#9198a1" text-anchor="start">screenshot, viewers, disks…</text>
 <circle cx="862.5" cy="191" r="4.5" fill="#ab7df8"/>
 <text x="874.5" y="196" font-size="14" font-weight="400" fill="#9198a1" text-anchor="start">MB2–MB3, D3, K3: the desktop</text>
 <text x="874.5" y="216" font-size="14" font-weight="400" fill="#9198a1" text-anchor="start">for daily use</text>

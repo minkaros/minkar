@@ -55,7 +55,7 @@ rules as [WindowServer-Rewrite.md](WindowServer-Rewrite.md).
 | Menus | 3 | MB0–MB4 | MB0 | MB1 (partial), MB2 |
 | Dock | 4 | D0–D4 | D0, D1 | D2 |
 | Files | 4 | K0–K4 | K1 (K0 partial) | K0, K2 |
-| Applications | 5 | A0–A10 | — (Text Editor started) | A0, A1 |
+| Applications | 5 | A0–A10 | A0, A1, A3, A4 (A2 started) | A2, A5 |
 
 The session's other parts (LoginWindow, System Preferences, the visual
 language) are items of Phase 5 in [ROADMAP.md](ROADMAP.md).
@@ -707,11 +707,19 @@ SwiftUI, outside API 19–21).
   `Developer/Templates/AtlasApp` (fbef0a5927) with its help book and
   NSHelpManager (08a89e5a13, 63132864be); test `image/atlas-app` (26
   checks in English and Spanish), batch of 8 Nov (2181 passed, M2 and M3).
-- [ ] **A1 — Terminal.** VT100 and xterm sequences (colors, cursor
+- [x] **A1 — Terminal.** VT100 and xterm sequences (colors, cursor
   movement, alternate screen), UTF-8, resizing (`SIGWINCH`), scrollback,
   selection, copy and paste, Agave and its size, several windows and tabs,
   `open -a Terminal`. Tests: `vttest`'s basic screens, a `vim` session
-  driven through QMP, `screendump` comparisons.
+  driven through QMP, `screendump` comparisons. Done 8 Nov 2026:
+  `CoreServices/Terminal` on libvterm 0.3.3 (MIT) (d7b7c4f405, tabs
+  14ee742f06), with Preferences (956eccef79) and the AppKit and Foundation
+  fixes they needed (e9ef2c7dd3, d505c4adbe, d425816593); test
+  `image/terminal` (28 checks: colors, UTF-8, cursor movement, the
+  alternate screen, scrollback, the keyboard, `SIGWINCH`, the preferences
+  in English and Spanish), batch of 8 Nov (1805 passed, M2 and M3).
+  `vi`, `top` and the tabs were checked on screen through QMP; `vttest`
+  and `screendump` comparisons are not automated yet.
 - [ ] **A2 — Text Editor for daily use.** Started 4 Nov 2026 (plain text, open
   and save, `open -t`). Missing: RTF, find and replace, encodings and line
   endings, printing, the ruler. Tests: a file round trip in each encoding,

@@ -33,7 +33,7 @@
 # "bmake progress" (Docs/CONTRIBUTING.md).
 
 updated = "2026-11-08"
-commit  = "033761cf48"
+commit  = "956eccef79"
 
 deps = [["ws", 555, "dock"], ["fw", 490, "files"], ["fw", 590, "webkit"]]
 
@@ -191,7 +191,7 @@ doc = "Atlas.md#5-applications"
 doc_es = "Atlas.es.md#5-aplicaciones"
 # Atlas's essential apps (A0 to A10, chapter 5) and DMG installs (Phase 6).
 stations = [
-  ["A0 base", 805, "done"], ["A1 Terminal", 860, "todo"], ["A2 Text Editor", 915, "partial"],
+  ["A0 base", 805, "done"], ["A1 Terminal", 860, "done"], ["A2 Text Editor", 915, "partial"],
   ["A3–A10 · DMG", 970, "partial"],
 ]
 
@@ -260,13 +260,13 @@ note = "Menu Extras as bundles, Dock dragging, file operations, the full login"
 line = "mb"
 
 [[board.next]]
-title = "Apps: Terminal"
-note = "A1: a VT100/xterm terminal in Agave (libvterm), windows and tabs"
-line = "apps"
+title = "GPU: PC 1's RX 6600 (R1)"
+note = "Navi 23's display at its native mode, as G1 did for the FirePro"
+line = "gpu"
 
 [[board.later]]
 group = "Minkar 19.6.0"
-items = [["Apps A2–A10: editor, monitor, logs, viewers, disks…", "apps"],
+items = [["Apps A2, A5–A10: editor, screenshot, viewers, disks…", "apps"],
   ["MB2–MB3, D3, K3: the desktop for daily use", "mb"], ["Security: certificates, keychain", "fw"],
   ["DMG installs", "apps"]]
 
@@ -277,6 +277,11 @@ items = [["API 20 and 21", "fw"], ["Performance ≥ the reference system", "gpu"
 [[board.later]]
 group = "After 19.6.0"
 items = [["x86-64 binaries, arm64", "compat"]]
+
+[[board.done]]
+title = "A1: Terminal"
+note = "libvterm in Agave, tabs, scrollback, colors; Preferences with Light and Dark schemes · 8 nov"
+line = "apps"
 
 [[board.done]]
 title = "A4: Logs"
@@ -301,9 +306,4 @@ line = "fw"
 [[board.done]]
 title = "M3: mogenerator, the first Objective-C tool"
 note = "CoreData's models in code and archives, predicates, KVC set proxies · 5 nov"
-line = "fw"
-
-[[board.done]]
-title = "M3: 4 of 7 tools pass their tests"
-note = "swift-argument-parser, Rainbow, Files, Yams, xcbeautify; XCTest on Minkar · 5 nov"
 line = "fw"

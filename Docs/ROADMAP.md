@@ -108,7 +108,7 @@ Minkar boots on Darwin with its own EFI loader, the whole system builds as Mach-
 | Text Editor | partial: plain text documents, open and save (through the save panel), `open -e` | RTF, find and replace, encodings, line endings, printing (A2) | 5 and 6 |
 | System Preferences | partial: the app, `PreferencePanes.framework` and five panes (Displays, Dock, Date & Time, Keyboard, Network) | The Users pane (waits for Directory Services), the rest of the panes | 5 |
 | A0 App foundations | done (8 Nov: About, help books, documents with versions, the template; Atlas.md 5.3) | The app template: About and Preferences windows, Help menu, Spanish and English, `NSDocument` | 6 |
-| Terminal (A1) | missing | The whole app: a VT100/xterm emulator over a pty, tabs, scrollback, Agave | 6 |
+| Terminal (A1) | done (8 Nov: libvterm, tabs, Preferences; `vttest` not automated yet) | The whole app: a VT100/xterm emulator over a pty, tabs, scrollback, Agave | 6 |
 | System Monitor (A3) | done but energy (8 Nov; per-process energy waits for the power driver's data) | The whole app: processes, CPU, memory, energy, disk, network, quit and force quit | 6 |
 | Logs (A4) | done but writing crash reports (8 Nov; the app shows them, a crash reporter is still to come) | The whole app, on `logd` and `os_log`; crash and panic reports | 6 |
 | Screenshot (A5) | missing | The whole app, on `screencapture` and the window list; the system shortcuts | 6 |
