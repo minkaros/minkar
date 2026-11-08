@@ -19,6 +19,10 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 APPKIT_EXPORT NSArray *_NSWindowNumbersFromWindowInfo(CFArrayRef info,BOOL allApps);
 
 @interface NSWindow (NSWindow_private)
+/* The title bar's close, minimize and zoom controls left out entirely (an
+ * alert's), not only shown faint for a style that lacks them. */
+- (void)_setHidesWindowControls:(BOOL)hides;
+- (BOOL)_hidesWindowControls;
 /* The new window server's ID for this window (0 with the legacy one). */
 - (uint32_t)_skyLightWindowID;
 /* Notes a rect drawn (in the window's base coordinates), sent to the

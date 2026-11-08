@@ -31,6 +31,7 @@
 #include <sys/mman.h>
 
 #import <CoreGraphics/CGDirectDisplay.h>
+#import <objc/runtime.h>
 #import <CoreGraphics/CGWindow.h>
 #import <QuartzCore/CAMetalLayerPrivate.h>
 #import <Onyx2D/O2Surface.h>
@@ -221,6 +222,17 @@ static SLSRect slsFrame(NSRect frame) {
 }
 
 @implementation NSWindow
+
+static char hidesWindowControlsKey;
+
+-(void)_setHidesWindowControls:(BOOL)hides {
+   objc_setAssociatedObject(self,&hidesWindowControlsKey,hides?(id)kCFBooleanTrue:nil,OBJC_ASSOCIATION_RETAIN);
+   [[self _backgroundView] setNeedsDisplay:YES];
+}
+
+-(BOOL)_hidesWindowControls {
+   return objc_getAssociatedObject(self,&hidesWindowControlsKey)!=nil;
+}
 
 +(NSWindowDepth)defaultDepthLimit {
    return 0;
@@ -2911,17 +2923,9 @@ static NSMutableSet *hiddenByHide;
    NSRect    content=[self contentRectForFrameRect:frame];
    NSPoint   origin;
 
+   /* The content rect is already below the toolbar. */
    origin.y=NSMaxY(content)-sheetFrame.size.height;
    origin.x=frame.origin.x+floor((frame.size.width-sheetFrame.size.width)/2);
-
-
-   if ([self toolbar] != nil) {
-       origin.y -= [[[self toolbar] _view] frame].size.height;
-
-       // Depending on the final border types used on the toolbar and the sheets, the sheet placement
-       // sometimes looks better with a little "adjustment"....
-       origin.y++;
-   }
 
    [sheet setFrameOrigin:origin];
 }
@@ -3569,6 +3573,14 @@ CGRect CGOutsetRectForNativeWindowBorder(CGRect frame,unsigned styleMask) {
 void CGNativeBorderFrameWidthsForStyle(unsigned styleMask,CGFloat *top,CGFloat *left,
                                        CGFloat *bottom,CGFloat *right)
 {
+    /* A sheet hangs under its window's title bar: no title bar of its own. */
+    if(styleMask & NSDocModalWindowMask) {
+        *top=0;
+        *left=1;
+        *bottom=1;
+        *right=1;
+        return;
+    }
     switch(styleMask & 0x0FFF) {
         case NSBorderlessWindowMask:
             *top=0;

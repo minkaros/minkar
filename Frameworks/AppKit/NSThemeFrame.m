@@ -177,6 +177,7 @@ static void drawControl(O2Context *context, NSRect rect, int kind, BOOL enabled,
 
 /* Which control is under point: 1 close, 2 zoom, 3 minimize, 0 none. */
 -(int)_controlAtPoint:(NSPoint)point {
+    if([[self window] _hidesWindowControls]) return 0;
     if(NSPointInRect(point, _closeButtonRect)) return 1;
     if(NSPointInRect(point, _zoomButtonRect)) return 2;
     if(NSPointInRect(point, _miniButtonRect)) return 3;
@@ -201,6 +202,16 @@ static void drawControl(O2Context *context, NSRect rect, int kind, BOOL enabled,
 }
 
 -(void)drawRect:(NSRect)rect {
+    /* A sheet: its background and a thin border, no title bar (it hangs
+       under its window's). */
+    if([[self window] isSheet]) {
+        [[[self window] backgroundColor] setFill];
+        NSRectFill(rect);
+        [[NSColor colorWithCalibratedWhite:0.70 alpha:1] set];
+        NSFrameRect([self bounds]);
+        return;
+    }
+
     NSRect bounds = [NSWindow contentRectForFrameRect:[self bounds]
         styleMask:[[self window] styleMask]];
     float cheatSheet = 0;
@@ -300,12 +311,14 @@ static void drawControl(O2Context *context, NSRect rect, int kind, BOOL enabled,
     [self _layoutControls];
     NSUInteger mask = [window styleMask];
     BOOL over = NSPointInRect(pointer, controls);
+    if(![window _hidesWindowControls]) {
     drawControl(_context, _closeButtonRect, kControlClose, (mask & NSClosableWindowMask) != 0,
         over && NSPointInRect(pointer, _closeButtonRect));
     drawControl(_context, _zoomButtonRect, kControlZoom, (mask & NSResizableWindowMask) != 0,
         over && NSPointInRect(pointer, _zoomButtonRect));
     drawControl(_context, _miniButtonRect, kControlMini, (mask & NSMiniaturizableWindowMask) != 0,
         over && NSPointInRect(pointer, _miniButtonRect));
+    }
 
     NSString *t = [window title];
     if(t && [window titleVisibility] == NSWindowTitleVisible) {
@@ -414,7 +427,7 @@ static void drawControl(O2Context *context, NSRect rect, int kind, BOOL enabled,
     NSUInteger mask = [[self window] styleMask];
 
     [self _layoutControls];
-    if(NSPointInRect(pos, controls)) {
+    if(NSPointInRect(pos, controls) && ![[self window] _hidesWindowControls]) {
         if(NSPointInRect(pos, _closeButtonRect) && (mask & NSClosableWindowMask))
             [[self window] performClose:self];
         else if(NSPointInRect(pos, _miniButtonRect) && (mask & NSMiniaturizableWindowMask))
