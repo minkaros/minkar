@@ -225,6 +225,106 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
     return [NSColor colorWithCatalogName:@"System" colorName:@"keyboardFocusIndicatorColor"];
 }
 
++(NSColor *)labelColor {
+    return [NSColor colorWithCatalogName:@"System" colorName:@"labelColor"];
+}
+
++(NSColor *)secondaryLabelColor {
+    return [NSColor colorWithCatalogName:@"System" colorName:@"secondaryLabelColor"];
+}
+
++(NSColor *)tertiaryLabelColor {
+    return [NSColor colorWithCatalogName:@"System" colorName:@"tertiaryLabelColor"];
+}
+
++(NSColor *)quaternaryLabelColor {
+    return [NSColor colorWithCatalogName:@"System" colorName:@"quaternaryLabelColor"];
+}
+
++(NSColor *)placeholderTextColor {
+    return [NSColor colorWithCatalogName:@"System" colorName:@"placeholderTextColor"];
+}
+
++(NSColor *)linkColor {
+    return [NSColor colorWithCatalogName:@"System" colorName:@"linkColor"];
+}
+
++(NSColor *)findHighlightColor {
+    return [NSColor colorWithCatalogName:@"System" colorName:@"findHighlightColor"];
+}
+
++(NSColor *)underPageBackgroundColor {
+    return [NSColor colorWithCatalogName:@"System" colorName:@"underPageBackgroundColor"];
+}
+
++(NSColor *)windowFrameTextColor {
+    return [NSColor colorWithCatalogName:@"System" colorName:@"windowFrameTextColor"];
+}
+
++(NSColor *)separatorColor {
+    return [NSColor colorWithCatalogName:@"System" colorName:@"separatorColor"];
+}
+
++(NSColor *)selectedContentBackgroundColor {
+    return [NSColor colorWithCatalogName:@"System" colorName:@"selectedContentBackgroundColor"];
+}
+
++(NSColor *)unemphasizedSelectedContentBackgroundColor {
+    return [NSColor colorWithCatalogName:@"System" colorName:@"unemphasizedSelectedContentBackgroundColor"];
+}
+
++(NSColor *)unemphasizedSelectedTextColor {
+    return [NSColor colorWithCatalogName:@"System" colorName:@"unemphasizedSelectedTextColor"];
+}
+
++(NSColor *)unemphasizedSelectedTextBackgroundColor {
+    return [NSColor colorWithCatalogName:@"System" colorName:@"unemphasizedSelectedTextBackgroundColor"];
+}
+
++(NSColor *)systemRedColor {
+    return [NSColor colorWithCatalogName:@"System" colorName:@"systemRedColor"];
+}
+
++(NSColor *)systemOrangeColor {
+    return [NSColor colorWithCatalogName:@"System" colorName:@"systemOrangeColor"];
+}
+
++(NSColor *)systemYellowColor {
+    return [NSColor colorWithCatalogName:@"System" colorName:@"systemYellowColor"];
+}
+
++(NSColor *)systemGreenColor {
+    return [NSColor colorWithCatalogName:@"System" colorName:@"systemGreenColor"];
+}
+
++(NSColor *)systemTealColor {
+    return [NSColor colorWithCatalogName:@"System" colorName:@"systemTealColor"];
+}
+
++(NSColor *)systemBlueColor {
+    return [NSColor colorWithCatalogName:@"System" colorName:@"systemBlueColor"];
+}
+
++(NSColor *)systemIndigoColor {
+    return [NSColor colorWithCatalogName:@"System" colorName:@"systemIndigoColor"];
+}
+
++(NSColor *)systemPurpleColor {
+    return [NSColor colorWithCatalogName:@"System" colorName:@"systemPurpleColor"];
+}
+
++(NSColor *)systemPinkColor {
+    return [NSColor colorWithCatalogName:@"System" colorName:@"systemPinkColor"];
+}
+
++(NSColor *)systemBrownColor {
+    return [NSColor colorWithCatalogName:@"System" colorName:@"systemBrownColor"];
+}
+
++(NSColor *)systemGrayColor {
+    return [NSColor colorWithCatalogName:@"System" colorName:@"systemGrayColor"];
+}
+
 +(NSColor *)controlAccentColor {
     return [NSColor colorWithCatalogName:@"System" colorName:@"controlAccentColor"];
 }

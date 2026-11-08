@@ -37,6 +37,33 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 + (NSColor *)keyboardFocusIndicatorColor;
 + (NSColor *)controlAccentColor;
 
+/* Colors of the system palette (System.clr), API 19 and before. */
++ (NSColor *)labelColor;
++ (NSColor *)secondaryLabelColor;
++ (NSColor *)tertiaryLabelColor;
++ (NSColor *)quaternaryLabelColor;
++ (NSColor *)placeholderTextColor;
++ (NSColor *)linkColor;
++ (NSColor *)findHighlightColor;
++ (NSColor *)underPageBackgroundColor;
++ (NSColor *)windowFrameTextColor;
++ (NSColor *)separatorColor;
++ (NSColor *)selectedContentBackgroundColor;
++ (NSColor *)unemphasizedSelectedContentBackgroundColor;
++ (NSColor *)unemphasizedSelectedTextColor;
++ (NSColor *)unemphasizedSelectedTextBackgroundColor;
++ (NSColor *)systemRedColor;
++ (NSColor *)systemOrangeColor;
++ (NSColor *)systemYellowColor;
++ (NSColor *)systemGreenColor;
++ (NSColor *)systemTealColor;
++ (NSColor *)systemBlueColor;
++ (NSColor *)systemIndigoColor;
++ (NSColor *)systemPurpleColor;
++ (NSColor *)systemPinkColor;
++ (NSColor *)systemBrownColor;
++ (NSColor *)systemGrayColor;
+
 + (NSColor *)textColor;
 + (NSColor *)textBackgroundColor;
 + (NSColor *)selectedTextColor;
