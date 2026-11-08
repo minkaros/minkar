@@ -170,6 +170,23 @@ static inline void appendHex(NSStringBuffer *buffer,unsigned long long value,
     appendReversed(buffer,characters,length,fillChar,leftAdj,fieldWidth);
 }
 
+/* %p as the reference platform's: 0x and the address in lowercase hex
+   (0x0 for NULL), padded with spaces to the field's width. */
+static inline void appendPointer(NSStringBuffer *buffer,unsigned long long value,
+  BOOL leftAdj,int fieldWidth){
+    unsigned length=0;
+    unichar  characters[100];
+
+    do {
+     characters[length++]="0123456789abcdef"[value&0x0F];
+     value>>=4;
+    } while(value);
+    characters[length++]='x';
+    characters[length++]='0';
+
+    appendReversed(buffer,characters,length,' ',leftAdj,fieldWidth);
+}
+
 static inline void appendUnsigned(NSStringBuffer *buffer,unsigned long long value,
   unichar fillChar,BOOL leftAdj,int fieldWidth,NSString *groupingSeparator,NSUInteger groupingSize){
     unsigned length=0,numberOfIntegralDigits=0;
@@ -611,7 +628,7 @@ unichar *NSCharactersNewWithFormatAndGrouping(NSString *format,NSDictionary *loc
         break;
 
        case 'p':
-        appendHex(&result,(long)va_arg(arguments,void *),fillChar,leftAdj,fieldWidth,"0123456789ABCDEF");
+        appendPointer(&result,(unsigned long long)(uintptr_t)va_arg(arguments,void *),leftAdj,fieldWidth);
         break;
 
        case 'n':
