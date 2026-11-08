@@ -752,11 +752,45 @@ void _NSGraphicsStyleRegisterButtonImages(void) {
    }
 }
 
-/* A round white knob with a light border. */
+/* A round white knob with a light border; with tick marks, a narrower
+   knob pointing at them. */
 -(void)drawSliderKnobInRect:(NSRect)rect vertical:(BOOL)vertical highlighted:(BOOL)highlighted hasTickMarks:(BOOL)hasTickMarks tickMarkPosition:(NSTickMarkPosition)tickMarkPosition {
    CGFloat       side=MIN(NSWidth(rect),NSHeight(rect));
    NSRect        knob=NSMakeRect(floor(NSMidX(rect)-side/2)+0.5,floor(NSMidY(rect)-side/2)+0.5,side-1,side-1);
    NSBezierPath *path=[NSBezierPath bezierPathWithOvalInRect:knob];
+
+   if(hasTickMarks){
+    BOOL    flipped=atlasFlipped();
+    CGFloat w=vertical?side-1:floor(side*0.62),h=vertical?floor(side*0.62):side-1;
+    NSRect  body=NSMakeRect(floor(NSMidX(rect)-w/2)+0.5,floor(NSMidY(rect)-h/2)+0.5,w,h);
+    CGFloat r=2.5,tip=floor(MIN(w,h)/2);
+
+    path=[NSBezierPath bezierPath];
+    if(!vertical){
+     /* The point toward the marks: below unless they are above. */
+     BOOL down=(tickMarkPosition!=NSTickMarkAbove)!=flipped;
+     CGFloat flat=down?NSMinY(body)+tip:NSMaxY(body)-tip,point=down?NSMinY(body):NSMaxY(body),end=down?NSMaxY(body):NSMinY(body);
+
+     [path moveToPoint:NSMakePoint(NSMidX(body),point)];
+     [path lineToPoint:NSMakePoint(NSMaxX(body),flat)];
+     [path lineToPoint:NSMakePoint(NSMaxX(body),end+(down?-r:r))];
+     [path lineToPoint:NSMakePoint(NSMaxX(body)-r,end)];
+     [path lineToPoint:NSMakePoint(NSMinX(body)+r,end)];
+     [path lineToPoint:NSMakePoint(NSMinX(body),end+(down?-r:r))];
+     [path lineToPoint:NSMakePoint(NSMinX(body),flat)];
+    }
+    else {
+     BOOL right=(tickMarkPosition==NSTickMarkRight);
+     CGFloat flat=right?NSMaxX(body)-tip:NSMinX(body)+tip,point=right?NSMaxX(body):NSMinX(body),end=right?NSMinX(body):NSMaxX(body);
+
+     [path moveToPoint:NSMakePoint(point,NSMidY(body))];
+     [path lineToPoint:NSMakePoint(flat,NSMaxY(body))];
+     [path lineToPoint:NSMakePoint(end,NSMaxY(body))];
+     [path lineToPoint:NSMakePoint(end,NSMinY(body))];
+     [path lineToPoint:NSMakePoint(flat,NSMinY(body))];
+    }
+    [path closePath];
+   }
 
    [(highlighted?atlasGray(0.92):atlasGray(1.0)) setFill];
    [path fill];

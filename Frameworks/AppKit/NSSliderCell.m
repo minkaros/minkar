@@ -273,6 +273,32 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    return knobRect;
 }
 
+/* Without tick marks, the groove from its start to the knob is filled
+   with the accent color, as the reference platform shows it. */
+-(void)_drawFilledPartFlipped:(BOOL)flipped {
+   NSRect bar=[self _sliderRect],knob=[self knobRectFlipped:flipped],fill;
+
+   if(_numberOfTickMarks>0 || ![self isEnabled])
+    return;
+   if([self isVertical]){
+    fill=NSMakeRect(floor(NSMidX(bar)-2),0,4,0);
+    if(flipped){
+     fill.origin.y=NSMidY(knob);
+     fill.size.height=NSMaxY(bar)-NSMidY(knob);
+    }
+    else {
+     fill.origin.y=NSMinY(bar);
+     fill.size.height=NSMidY(knob)-NSMinY(bar);
+    }
+   }
+   else
+    fill=NSMakeRect(NSMinX(bar),floor(NSMidY(bar)-2),NSMidX(knob)-NSMinX(bar),4);
+   if(NSWidth(fill)<=0 || NSHeight(fill)<=0)
+    return;
+   [[NSColor controlAccentColor] setFill];
+   [[NSBezierPath bezierPathWithRoundedRect:fill xRadius:2 yRadius:2] fill];
+}
+
 -(void)drawKnob {
    [self drawKnob:[self knobRectFlipped:[[self controlView] isFlipped]]];
 }
@@ -294,6 +320,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
     _isVertical = (frame.size.height>frame.size.width)?1:0;
 
     [self drawBarInside:[self _sliderRect] flipped:[controlView isFlipped]];
+    [self _drawFilledPartFlipped:[controlView isFlipped]];
     [self drawTickMarks];
     [self drawKnob];
 }
