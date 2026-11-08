@@ -70,10 +70,14 @@
    int i;
    FT_Set_Pixel_Sizes(face, _size, _size);
 
+   /* The pen's advance (26.6 fixed point), not the bitmap's left side
+      bearing: a click in text was taken for its line's end. */
    for(i=0;i<count;i++){
-    FT_Load_Glyph(face, glyphs[i], FT_LOAD_DEFAULT);
-      advancements[i]= CGSizeMake(face->glyph->bitmap_left,
-                                  0);
+    if(FT_Load_Glyph(face, glyphs[i], FT_LOAD_DEFAULT)!=0){
+     advancements[i]=CGSizeZero;
+     continue;
+    }
+    advancements[i]=CGSizeMake(face->glyph->advance.x/64.0,0);
    }
 }
 

@@ -916,6 +916,10 @@ static inline NSGlyphFragment *fragmentAtGlyphIndex(NSLayoutManager *self,unsign
 
       NSRect   glyphRect=fragment->usedRect;
       NSGlyph  glyphs[range.length];
+
+      /* The glyphs start where drawing puts them: the fragment's location,
+         after an indent or a tab, not the line's left edge. */
+      glyphRect.origin.x=MAX(NSMinX(glyphRect),fragment->location.x);
       NSUInteger  order[range.length];
       NSFont  *font=[self _fontForGlyphRange:range];
       unsigned i,length=[self getOrderedGlyphs:glyphs range:range baseLevel:0 order:order];
@@ -925,6 +929,30 @@ static inline NSGlyphFragment *fragmentAtGlyphIndex(NSLayoutManager *self,unsign
 
       for(i=0;i<length;i++){
        NSGlyph glyph=glyphs[i];
+
+       /* A tab moves to the paragraph's next tab stop, as layout puts the
+          text after it. */
+       if(glyph==NSControlGlyph){
+        unsigned character=[self characterIndexForGlyphAtIndex:range.location+order[i]];
+
+        if(character<[_textStorage length] && [[_textStorage string] characterAtIndex:character]=='\t'){
+         NSParagraphStyle *style=[_textStorage attribute:NSParagraphStyleAttributeName atIndex:character effectiveRange:NULL];
+         CGFloat           x=NSMinX(glyphRect)-NSMinX(fragment->rect),next=0;
+
+         for(NSTextTab *tab in [style tabStops])
+          if([tab location]>x+0.5){
+           next=[tab location];
+           break;
+          }
+         if(next==0){
+          CGFloat interval=([style defaultTabInterval]>0)?[style defaultTabInterval]:28;
+
+          next=(floor(x/interval)+1)*interval;
+         }
+         glyphRect.origin.x=NSMinX(fragment->rect)+next;
+        }
+        continue;
+       }
 
        if(glyph!=NSControlGlyph){
         NSSize  advancement=[font advancementForGlyph:glyph];
