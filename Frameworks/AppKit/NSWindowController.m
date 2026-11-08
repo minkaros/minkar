@@ -154,8 +154,11 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    [[self window] makeKeyAndOrderFront:sender];
 }
 
+/* The window's title follows the document's name from the start. */
 -(void)setDocument:(NSDocument *)document {
    _document=document;
+   if(_window!=nil)
+    [self synchronizeWindowTitleWithDocumentName];
 }
 
 -(id)document {
@@ -229,12 +232,9 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    }
 }
 
+/* The document's name, as the reference platform titles its windows. */
 -(NSString *)windowTitleForDocumentDisplayName:(NSString *)displayName {
-  NSString *appName = [[[NSBundle mainBundle] infoDictionary] objectForKey:@"CFBundleName"]; 
-  if (appName)
-    return [NSString stringWithFormat:@"%@ - %@", displayName, appName];
-  else
-    return displayName;
+   return displayName;
 }
 
 @end

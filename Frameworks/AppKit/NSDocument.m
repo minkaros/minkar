@@ -105,7 +105,6 @@ static int untitled_document_number = 0;
       _fileURL=nil;
       _fileType=nil;
       _changeCount=0;
-      _untitledNumber=untitled_document_number++;
       _hasUndoManager=YES;
       _activeEditors=[NSMutableArray new];
     }
@@ -114,6 +113,8 @@ static int untitled_document_number = 0;
 
 -initWithType:(NSString *)type error:(NSError **)error {
    [self init];
+   /* Only new documents count: "Untitled", then "Untitled 2", "Untitled 3". */
+   _untitledNumber=++untitled_document_number;
    [self setFileType:type];
    return self;
 }
@@ -480,8 +481,8 @@ static int untitled_document_number = 0;
   if(_fileURL==nil)
     {
         NSString* untitledName = NSLocalizedStringFromTableInBundle(@"Untitled", nil, [NSBundle bundleForClass: [NSDocument class]], @"The name of a untitled document");
-      if(_untitledNumber != 0)
-        return [NSString stringWithFormat:@"%@ %d", untitledName, _untitledNumber];
+      if(_untitledNumber > 1)
+        return [NSString stringWithFormat:@"%@ %u", untitledName, _untitledNumber];
       else
         return untitledName;
     }
