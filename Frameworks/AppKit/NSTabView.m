@@ -442,8 +442,8 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
             for(i=0;i<count;i++){
                 NSTabViewItem *item=[_items objectAtIndex:i];
 
-                // defer selected item for overlap
-                if (item != _selectedItem) {
+                // defer selected item for overlap; a tab outside the rect to draw is skipped
+                if (item != _selectedItem && NSIntersectsRect([self rectForItemBorderAtIndex:i],rect)) {
                     [style drawTabInRect:[self rectForItemBorderAtIndex:i] clipRect:rect color:[item color] selected:NO];
                     [item drawLabel:_allowsTruncatedLabels inRect:[self rectForItemLabelAtIndex:i]];
                 }
@@ -451,11 +451,13 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
             [style drawTabPaneInRect:[self rectForBorder]];
 
-            if((i=[_items indexOfObjectIdenticalTo:_selectedItem])!=NSNotFound) {
+            if((i=[_items indexOfObjectIdenticalTo:_selectedItem])!=NSNotFound &&
+               NSIntersectsRect([self rectForItemBorderAtIndex:i],rect)) {
                // now do selected item
                i = [_items indexOfObject:_selectedItem];
+               /* The item's view is drawn with the tab view as its subview; marking
+                  it dirty here redrew the whole tab after each small change in it. */
                [style drawTabInRect:[self rectForItemBorderAtIndex:i] clipRect:rect color:[_selectedItem color] selected:YES];
-               [[_selectedItem view] setNeedsDisplay:YES];
 
                NSRect labelRect=[self rectForItemLabelAtIndex:i];
                labelRect.origin.y+=2;
