@@ -132,7 +132,8 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #define REC601_LUMINANCE_B   0.114f
 
 static inline CGFloat calibratedWhiteFromRGB(CGFloat r, CGFloat g, CGFloat b) {
-   return (REC601_LUMINANCE_R*r, REC601_LUMINANCE_G*g, REC601_LUMINANCE_B*b);
+   /* The weighted sum (it was a comma expression: only the blue term). */
+   return REC601_LUMINANCE_R*r + REC601_LUMINANCE_G*g + REC601_LUMINANCE_B*b;
 }
 
 

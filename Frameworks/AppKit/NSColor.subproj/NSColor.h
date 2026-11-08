@@ -152,6 +152,8 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 - (NSColor *)colorUsingColorSpaceName:(NSString *)colorSpace device:(NSDictionary *)device;
 
 - (NSColor *)blendedColorWithFraction:(CGFloat)fraction ofColor:(NSColor *)color;
+- (NSColor *)shadowWithLevel:(CGFloat)level;
+- (NSColor *)highlightWithLevel:(CGFloat)level;
 
 - (void)set;
 - (void)setStroke;

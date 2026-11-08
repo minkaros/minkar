@@ -760,6 +760,15 @@ static void releasePatternInfo(void *info){
    return self;
 }
 
+/* The color blended toward black (shadow) or white (highlight). */
+-(NSColor *)shadowWithLevel:(CGFloat)level {
+   return [self blendedColorWithFraction:level ofColor:[NSColor blackColor]];
+}
+
+-(NSColor *)highlightWithLevel:(CGFloat)level {
+   return [self blendedColorWithFraction:level ofColor:[NSColor whiteColor]];
+}
+
 -(NSColor *)blendedColorWithFraction:(CGFloat)fraction ofColor:(NSColor *)color {
    NSColor *primary=[color colorUsingColorSpaceName:NSCalibratedRGBColorSpace];
    NSColor *secondary=[self colorUsingColorSpaceName:NSCalibratedRGBColorSpace];
