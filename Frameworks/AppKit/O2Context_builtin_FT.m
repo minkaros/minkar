@@ -50,52 +50,54 @@ static void applyCoverageToSpan_lRGBA8888_PRE(O2argb8u *dst,unsigned char *cover
 }
 
 
+/* A glyph's coverage, in the fill color, onto the surface: only what is
+   inside the clip's rectangle (the context's viewport, in the surface's
+   coordinates, as fills use it). Clipping paths beyond that rectangle are
+   not applied to text. */
 static void drawFreeTypeBitmap(O2Context_builtin_FT *self,O2Surface *surface,FT_Bitmap *bitmap,int x,int y,O2Paint *paint){
-// FIXME: clipping
    int            width=bitmap->width;
    int            row,height=bitmap->rows;
+   int            left=MAX(x,self->_vpx),right=MIN(x+width,self->_vpx+self->_vpwidth);
+   int            top=self->_vpy,bottom=self->_vpy+self->_vpheight;
    O2argb8u      *dstBuffer=__builtin_alloca(width*sizeof(O2argb8u));
    O2argb8u      *srcBuffer=__builtin_alloca(width*sizeof(O2argb8u));
-   unsigned char *coverage=bitmap->buffer;
-   
-   for(row=0;row<height;row++,y++){
-   int        length=width;
-    O2argb8u *dst=dstBuffer;
-    O2argb8u *src=srcBuffer;
-    
-    O2argb8u *direct=surface->_read_argb8u(surface,x,y,dst,length);
 
+   if(left>=right)
+    return;
+
+   for(row=0;row<height;row++,y++){
+    unsigned char *coverage=bitmap->buffer+row*bitmap->pitch+(left-x);
+    int            length=right-left;
+    int            column=left;
+    O2argb8u      *dst=dstBuffer;
+    O2argb8u      *src=srcBuffer;
+    O2argb8u      *direct;
+
+    if(y<top || y>=bottom)
+     continue;
+
+    direct=surface->_read_argb8u(surface,column,y,dst,length);
     if(direct!=NULL)
      dst=direct;
 
-    while(YES){
-     int chunk=O2PaintReadSpan_argb8u_PRE(paint,x,y,src,length);
-      
+    while(length>0){
+     int chunk=O2PaintReadSpan_argb8u_PRE(paint,column,y,src,length);
+
      if(chunk<0)
       chunk=-chunk;
      else {
-
       self->_blend_argb8u_PRE(src,dst,chunk);
-      
       applyCoverageToSpan_lRGBA8888_PRE(dst,coverage,src,chunk);
-
       if(direct==NULL)
-       O2SurfaceWriteSpan_argb8u_PRE(surface,x,y,dst,chunk);
+       O2SurfaceWriteSpan_argb8u_PRE(surface,column,y,dst,chunk);
      }
      coverage+=chunk;
-
-     length-=chunk;     
-     x+=chunk;
+     length-=chunk;
+     column+=chunk;
      src+=chunk;
      dst+=chunk;
-
-     if(length==0)
-      break;
-
     }
-    x-=width;
    }
-    
 }
 
 -(void)showGlyphs:(const O2Glyph *)glyphs advances:(const O2Size *)advances count:(unsigned)count {
