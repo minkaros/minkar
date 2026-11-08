@@ -120,6 +120,10 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
     NSPoint location = [self convertPoint:[theEvent locationInWindow] fromView:nil];
     int clickedColumn = [self columnAtPoint:location];
 
+    /* Right of the last column: nothing to click. */
+    if (clickedColumn < 0 || clickedColumn >= (int)[[_tableView tableColumns] count])
+        return;
+
     if ([[_tableView delegate] respondsToSelector:@selector(tableView:mouseDownInHeaderOfTableColumn:)])
         [[_tableView delegate] tableView:_tableView
           mouseDownInHeaderOfTableColumn:[[_tableView tableColumns] objectAtIndex:clickedColumn]];
@@ -206,6 +210,11 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
     }
 	
 	[[[_tableView tableColumns] objectAtIndex:clickedColumn] _sort];
+
+    /* A click (not a resize) on the header: the delegate hears of it. */
+    if ([[_tableView delegate] respondsToSelector:@selector(tableView:didClickTableColumn:)])
+        [[_tableView delegate] tableView:_tableView
+                     didClickTableColumn:[[_tableView tableColumns] objectAtIndex:clickedColumn]];
 }
 
 -(void)resetCursorRects {

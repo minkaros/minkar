@@ -222,6 +222,24 @@ typedef enum {
 - (void)setSortDescriptors:(NSArray *)value;
 @end
 
+/* The formal protocols of API 19 (all optional), beside the informal ones. */
+@protocol NSTableViewDataSource <NSObject>
+@optional
+- (NSInteger)numberOfRowsInTableView:(NSTableView *)tableView;
+- (id)tableView:(NSTableView *)tableView objectValueForTableColumn:(NSTableColumn *)tableColumn row:(NSInteger)row;
+- (void)tableView:(NSTableView *)tableView setObjectValue:(id)object forTableColumn:(NSTableColumn *)tableColumn row:(NSInteger)row;
+- (void)tableView:(NSTableView *)tableView sortDescriptorsDidChange:(NSArray *)oldDescriptors;
+@end
+
+@protocol NSTableViewDelegate <NSObject>
+@optional
+- (BOOL)tableView:(NSTableView *)tableView shouldSelectRow:(NSInteger)row;
+- (void)tableView:(NSTableView *)tableView willDisplayCell:(id)cell forTableColumn:(NSTableColumn *)tableColumn row:(NSInteger)row;
+- (void)tableView:(NSTableView *)tableView didClickTableColumn:(NSTableColumn *)tableColumn;
+- (void)tableView:(NSTableView *)tableView mouseDownInHeaderOfTableColumn:(NSTableColumn *)tableColumn;
+- (void)tableViewSelectionDidChange:(NSNotification *)notification;
+@end
+
 @interface NSObject (NSTableView_dataSource)
 - (int)numberOfRowsInTableView:(NSTableView *)tableView;
 - (id)tableView:(NSTableView *)tableView objectValueForTableColumn:(NSTableColumn *)tableColumn row:(int)row;

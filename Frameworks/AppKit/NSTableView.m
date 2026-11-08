@@ -39,6 +39,14 @@ const float NSTableViewDefaultRowHeight=16.0f;
 
 @implementation NSTableView
 
+/* The formal protocols exist at run time (objc_getProtocol, conformsToProtocol:). */
++(void)initialize {
+   if(self==[NSTableView class]){
+    (void)@protocol(NSTableViewDataSource);
+    (void)@protocol(NSTableViewDelegate);
+   }
+}
+
 -(id)_replacementKeyPathForBinding:(id)binding
 {
     if([binding isEqual:@"selectionIndexes"])
@@ -414,35 +422,25 @@ static float rowHeightAtIndex(NSTableView *self,int index){
     return range; // returns 0,0 if not found, not NSNotFound
 }
 
+/* The columns whose bands meet the rectangle. */
 -(NSRange)columnsInRect:(NSRect)rect {
-    NSRange range = NSMakeRange(0, 0);
     NSInteger numberOfColumns=[self numberOfColumns];
-    NSInteger i;
-    float width = 0.;
+    NSInteger i,first=-1,last=-1;
+    CGFloat   x=0.;
 
     for (i = 0; i < numberOfColumns; i++) {
-     width += [[_tableColumns objectAtIndex:i] width] + _intercellSpacing.width;
+        CGFloat width=[[_tableColumns objectAtIndex:i] width] + _intercellSpacing.width;
 
-        if (width > rect.origin.x)
-            break;
-
-    }
-    if (i < numberOfColumns) {
-        range.location = i;
-
-        for ( ; i < numberOfColumns; i++) {
-            if (width > rect.origin.x + rect.size.width)
-                break;
-
-                width += [[_tableColumns objectAtIndex:i] width] + _intercellSpacing.width;
+        if (x + width > NSMinX(rect) && x < NSMaxX(rect)) {
+            if (first < 0)
+                first = i;
+            last = i;
         }
-        if (i < numberOfColumns)
-            range.length = i - range.location + 1;
-        else
-            range.length = numberOfColumns - range.location;
+        x += width;
     }
-
-    return range; // returns 0,0 if not found, not NSNotFound
+    if (first < 0)
+        return NSMakeRange(0, 0);
+    return NSMakeRange(first, last - first + 1);
 }
 
 -(int)rowAtPoint:(NSPoint)point {
