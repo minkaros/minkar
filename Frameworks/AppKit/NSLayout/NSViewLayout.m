@@ -147,7 +147,7 @@ void NSLayoutViewDidMove(NSView *view) {
 -(void)updateConstraintsForSubtreeIfNeeded {
    for(NSView *subview in [self subviews])
     [subview updateConstraintsForSubtreeIfNeeded];
-   if(NSViewLayoutStateIfAny(self)->needsUpdateConstraints)
+   if([self needsUpdateConstraints])
     [self updateConstraints];
 }
 
