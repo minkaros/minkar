@@ -39,8 +39,27 @@ static NSString *const kShowsWelcome = @"SampleShowsWelcome";
     [welcome setTarget:self];
     [welcome setAction:@selector(showsWelcomeChanged:)];
     [[window contentView] addSubview:welcome];
+
+    /* Its context help, and the help button: the help book's page on the
+     * preferences, at its "welcome" anchor. */
+    [[NSHelpManager sharedHelpManager] setContextHelp:[[NSAttributedString alloc]
+        initWithString:NSLocalizedString(@"Opens a window with tips each time the app starts.", nil)]
+        forObject:welcome];
+    NSButton *help = [[NSButton alloc] initWithFrame:NSMakeRect(380, 12, 25, 25)];
+    [help setBezelStyle:NSHelpButtonBezelStyle];
+    [help setTitle:@""];
+    [help setTarget:self];
+    [help setAction:@selector(showHelp:)];
+    [[window contentView] addSubview:help];
     [window center];
     return self;
+}
+
+- (void)showHelp:(id)sender
+{
+    NSString *book = [[NSBundle mainBundle] objectForInfoDictionaryKey:@"CFBundleHelpBookName"];
+
+    [[NSHelpManager sharedHelpManager] openHelpAnchor:@"welcome" inBook:book];
 }
 
 - (void)showsWelcomeChanged:(NSButton *)sender

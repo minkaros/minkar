@@ -14,6 +14,6 @@ FRAMEWORKS =	Cocoa
 MK_WERROR =	no
 CFLAGS +=	-fobjc-arc -g -std=gnu17 -Wno-incompatible-sysroot -Wno-nullability-completeness
 LDFLAGS +=	-lobjc
-RESOURCES =	${.CURDIR}/en.lproj ${.CURDIR}/es.lproj ${.CURDIR}/Credits.rtf
+RESOURCES =	${.CURDIR}/en.lproj ${.CURDIR}/es.lproj ${.CURDIR}/Credits.rtf ${.CURDIR}/SampleHelp.help
 
 .include <minkar.app.mk>

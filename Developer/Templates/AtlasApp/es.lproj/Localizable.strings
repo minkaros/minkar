@@ -46,3 +46,4 @@
 /* Preferences */
 "Preferences" = "Preferencias";
 "Show the welcome window at startup" = "Mostrar la ventana de bienvenida al abrir";
+"Opens a window with tips each time the app starts." = "Abre una ventana con consejos cada vez que se abre la app.";

@@ -29,6 +29,10 @@
 	<string>Copyright © 2026 The Minkar contributors</string>
 	<key>NSPrincipalClass</key>
 	<string>NSApplication</string>
+	<key>CFBundleHelpBookFolder</key>
+	<string>SampleHelp.help</string>
+	<key>CFBundleHelpBookName</key>
+	<string>org.minkar.Sample.help</string>
 	<key>CFBundleDocumentTypes</key>
 	<array>
 		<dict>
