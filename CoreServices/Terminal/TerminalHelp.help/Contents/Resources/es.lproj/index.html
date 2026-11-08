@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<!-- SPDX-License-Identifier: BSD-2-Clause
+     Copyright (c) 2026 The Minkar contributors -->
+<html lang="es">
+<head><meta charset="utf-8"><title>Ayuda de Terminal</title></head>
+<body>
+<h1>Ayuda de Terminal</h1>
+<p>Terminal ejecuta tu shell, y los programas que arrancas desde él, en una
+ventana. Entiende los códigos de los terminales VT100 y xterm: colores,
+movimiento del cursor, programas de pantalla completa como <code>vi</code> y
+<code>top</code>, y texto UTF-8.</p>
+<h2 id="windows">Ventanas y pestañas</h2>
+<ul>
+<li><b>Shell &rarr; Nueva ventana</b> (<code>&#x2318;N</code>) y <b>Nueva
+pestaña</b> (<code>&#x2318;T</code>) arrancan otro shell.</li>
+<li><b>Shell &rarr; Cerrar pestaña</b> (<code>&#x2318;W</code>) termina el shell de
+la pestaña. Una pestaña se cierra sola cuando su shell termina (escribe
+<code>exit</code>).</li>
+<li>Cambia el tamaño de la ventana: el shell y sus programas reciben el nuevo
+tamaño.</li>
+</ul>
+<h2 id="text">Texto</h2>
+<ul>
+<li>Arrastra para seleccionar texto; el doble clic selecciona una palabra, el
+triple una línea. <b>Edición &rarr; Copiar</b> y <b>Pegar</b> funcionan como en
+todas partes.</li>
+<li>Desplázate hacia arriba para leer lo que salió por arriba; <b>Edición
+&rarr; Borrar historial</b> (<code>&#x2318;K</code>) lo olvida.</li>
+<li><b>Visualización &rarr; Más grande</b> y <b>Más pequeño</b> cambian el
+tamaño del texto.</li>
+</ul>
+<p>La emulación de Terminal es libvterm, de Paul Evans, con licencia MIT (en
+Resources/Licenses de la app).</p>
+</body>
+</html>

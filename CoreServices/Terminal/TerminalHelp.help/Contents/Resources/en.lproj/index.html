@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<!-- SPDX-License-Identifier: BSD-2-Clause
+     Copyright (c) 2026 The Minkar contributors -->
+<html lang="en">
+<head><meta charset="utf-8"><title>Terminal Help</title></head>
+<body>
+<h1>Terminal Help</h1>
+<p>Terminal runs your shell, and the programs you start from it, in a
+window. It understands the VT100 and xterm terminals&rsquo; codes: colors,
+cursor movement, full-screen programs such as <code>vi</code> and
+<code>top</code>, and UTF-8 text.</p>
+<h2 id="windows">Windows and tabs</h2>
+<ul>
+<li><b>Shell &rarr; New Window</b> (<code>&#x2318;N</code>) and <b>New Tab</b>
+(<code>&#x2318;T</code>) start another shell.</li>
+<li><b>Shell &rarr; Close Tab</b> (<code>&#x2318;W</code>) ends the tab&rsquo;s shell.
+A tab closes by itself when its shell ends (type <code>exit</code>).</li>
+<li>Resize the window: the shell and its programs get the new size.</li>
+</ul>
+<h2 id="text">Text</h2>
+<ul>
+<li>Drag to select text; double-click selects a word, triple-click a line.
+<b>Edit &rarr; Copy</b> and <b>Paste</b> work as everywhere.</li>
+<li>Scroll up to read what went off the top; <b>Edit &rarr; Clear
+Scrollback</b> (<code>&#x2318;K</code>) forgets it.</li>
+<li><b>View &rarr; Bigger</b> and <b>Smaller</b> change the text&rsquo;s size.</li>
+</ul>
+<p>Terminal&rsquo;s emulation is libvterm, by Paul Evans, under the MIT
+license (in the app&rsquo;s Resources/Licenses).</p>
+</body>
+</html>

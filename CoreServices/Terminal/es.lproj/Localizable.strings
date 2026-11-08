@@ -1,0 +1,32 @@
+/* SPDX-License-Identifier: BSD-2-Clause
+   Copyright (c) 2026 The Minkar contributors
+   Terminal's texts in Spanish. The keys are the English texts. */
+
+"About %@" = "Acerca de %@";
+"Services" = "Servicios";
+"Hide %@" = "Ocultar %@";
+"Hide Others" = "Ocultar otros";
+"Show All" = "Mostrar todo";
+"Quit %@" = "Salir de %@";
+"Shell" = "Shell";
+"New Window" = "Nueva ventana";
+"New Tab" = "Nueva pestaña";
+"Close Tab" = "Cerrar pestaña";
+"Close Window" = "Cerrar ventana";
+"Edit" = "Edición";
+"Copy" = "Copiar";
+"Paste" = "Pegar";
+"Select All" = "Seleccionar todo";
+"Clear Scrollback" = "Borrar historial";
+"View" = "Visualización";
+"Bigger" = "Más grande";
+"Smaller" = "Más pequeño";
+"Default Size" = "Tamaño predeterminado";
+"Window" = "Ventana";
+"Minimize" = "Minimizar";
+"Zoom" = "Zoom";
+"Show Previous Tab" = "Mostrar pestaña anterior";
+"Show Next Tab" = "Mostrar pestaña siguiente";
+"Bring All to Front" = "Traer todo al frente";
+"Help" = "Ayuda";
+"%@ Help" = "Ayuda de %@";
