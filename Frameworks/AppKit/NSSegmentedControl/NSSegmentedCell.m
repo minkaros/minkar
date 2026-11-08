@@ -12,10 +12,41 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import "NSSegmentItem.h"
 #import <AppKit/NSButtonCell.h>
 #import <AppKit/NSBezierPath.h>
+#import <AppKit/NSColor.h>
+#import <AppKit/NSFont.h>
+#import <AppKit/NSImage.h>
+#import <AppKit/NSGraphicsContext.h>
+#import <AppKit/NSStringDrawing.h>
+#import <AppKit/NSParagraphStyle.h>
+#import <AppKit/NSAttributedString.h>
 
 @interface NSSegmentedCell (Private)
 - (void)_recomputeSegmentWidths;
 @end
+
+
+/* A segment's shape in a rounded strip: its outer corners rounded at the
+   strip's ends, square inside (no clip to a curved path needed). */
+static NSBezierPath *_NSSegmentPath(NSRect r,CGFloat radius,BOOL left,BOOL right){
+   NSBezierPath *path=[NSBezierPath bezierPath];
+   CGFloat       rl=left?radius:0,rr=right?radius:0;
+
+   [path moveToPoint:NSMakePoint(NSMinX(r)+rl,NSMinY(r))];
+   [path lineToPoint:NSMakePoint(NSMaxX(r)-rr,NSMinY(r))];
+   if(rr>0)
+    [path appendBezierPathWithArcFromPoint:NSMakePoint(NSMaxX(r),NSMinY(r)) toPoint:NSMakePoint(NSMaxX(r),NSMinY(r)+rr) radius:rr];
+   [path lineToPoint:NSMakePoint(NSMaxX(r),NSMaxY(r)-rr)];
+   if(rr>0)
+    [path appendBezierPathWithArcFromPoint:NSMakePoint(NSMaxX(r),NSMaxY(r)) toPoint:NSMakePoint(NSMaxX(r)-rr,NSMaxY(r)) radius:rr];
+   [path lineToPoint:NSMakePoint(NSMinX(r)+rl,NSMaxY(r))];
+   if(rl>0)
+    [path appendBezierPathWithArcFromPoint:NSMakePoint(NSMinX(r),NSMaxY(r)) toPoint:NSMakePoint(NSMinX(r),NSMaxY(r)-rl) radius:rl];
+   [path lineToPoint:NSMakePoint(NSMinX(r),NSMinY(r)+rl)];
+   if(rl>0)
+    [path appendBezierPathWithArcFromPoint:NSMakePoint(NSMinX(r),NSMinY(r)) toPoint:NSMakePoint(NSMinX(r)+rl,NSMinY(r)) radius:rl];
+   [path closePath];
+   return path;
+}
 
 @implementation NSSegmentedCell
 
@@ -279,21 +310,89 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    }
 }
 
--(void)drawSegment:(NSInteger)idx inFrame:(NSRect)frame withView:(NSView *)view {
-   NSButtonCell *cell=[self _cellForSegment:idx];
+/* The system font at the control size's size unless one was set. */
+-(NSFont *)font {
+   NSFont *font=[super font];
 
-   [cell setControlView:view];
-   [cell drawWithFrame:frame inView:view];
+   if(font==nil || [font pointSize]>[NSFont systemFontSizeForControlSize:[self controlSize]]+0.5)
+    font=[NSFont systemFontOfSize:[NSFont systemFontSizeForControlSize:[self controlSize]]];
+   return font;
 }
 
-- (void)drawWithFrame:(NSRect)cellFrame inView:(NSView *)controlView {
+/* A segment's content: its image and label, centered; white on a
+   selected segment, grey when disabled. */
+-(void)drawSegment:(NSInteger)idx inFrame:(NSRect)frame withView:(NSView *)view {
+   NSSegmentItem *segment=[_segments objectAtIndex:idx];
+   BOOL           enabled=[self isEnabled] && [segment isEnabled];
+   NSColor       *color=!enabled ? [NSColor disabledControlTextColor] :
+      ([segment isSelected] ? [NSColor whiteColor] : [NSColor controlTextColor]);
+   NSDictionary  *attributes;
+   NSString      *label=[segment label];
+   NSImage       *image=[segment image];
+   NSSize         labelSize=NSZeroSize,imageSize=NSZeroSize;
+   CGFloat        gap=0,x;
 
-   int i=0, count=[self segmentCount];
-   NSRect segmentFrame=cellFrame;
+   attributes=[NSDictionary dictionaryWithObjectsAndKeys:[self font],NSFontAttributeName,color,NSForegroundColorAttributeName,nil];
+   if([label length])
+    labelSize=[label sizeWithAttributes:attributes];
+   if(image!=nil){
+    imageSize=[image size];
+    if(imageSize.height>NSHeight(frame)-4)
+     imageSize=NSMakeSize(imageSize.width*(NSHeight(frame)-4)/imageSize.height,NSHeight(frame)-4);
+    if([label length])
+     gap=4;
+   }
+   labelSize.width=MIN(labelSize.width,NSWidth(frame)-8-imageSize.width-gap);
+   x=floor(NSMidX(frame)-(imageSize.width+gap+labelSize.width)/2);
+   if(image!=nil){
+    NSRect imageRect=NSMakeRect(x,floor(NSMidY(frame)-imageSize.height/2),imageSize.width,imageSize.height);
+    [image drawInRect:imageRect fromRect:NSZeroRect operation:NSCompositeSourceOver fraction:enabled?1.0:0.5
+       respectFlipped:YES hints:nil];
+    x+=imageSize.width+gap;
+   }
+   if([label length]){
+    [NSGraphicsContext saveGraphicsState];
+    NSRectClip(NSMakeRect(x,NSMinY(frame),ceil(labelSize.width),NSHeight(frame)));
+    [label drawAtPoint:NSMakePoint(x,floor(NSMidY(frame)-labelSize.height/2)) withAttributes:attributes];
+    [NSGraphicsContext restoreGraphicsState];
+   }
+}
+
+/* One rounded white strip, as tall as the control size's push button,
+   its segments joined by thin separators; a selected segment is filled
+   with the accent color. */
+- (void)drawWithFrame:(NSRect)cellFrame inView:(NSView *)controlView {
+   int      i, count=[self segmentCount];
+   CGFloat  height=MIN(NSHeight(cellFrame),22-[self controlSize]*3),total=0;
+   NSRect   strip,segmentFrame;
 
    if ([_segmentComputedWidths count]!=count)
     [self _recomputeSegmentWidths];
+   for(i=0;i<count;i++)
+    total+=[[_segmentComputedWidths objectAtIndex:i] doubleValue];
+   strip=NSMakeRect(NSMinX(cellFrame),floor(NSMidY(cellFrame)-height/2),MIN(total,NSWidth(cellFrame)),height);
 
+   NSBezierPath *shape=[NSBezierPath bezierPathWithRoundedRect:NSInsetRect(strip,0.5,0.5) xRadius:5 yRadius:5];
+   [[NSColor whiteColor] setFill];
+   [shape fill];
+
+   segmentFrame=strip;
+   for(i=0;i<count;i++){
+    segmentFrame.size.width=[[_segmentComputedWidths objectAtIndex:i] doubleValue];
+    if([[_segments objectAtIndex:i] isSelected]){
+     [([self isEnabled] ? [NSColor controlAccentColor] : [NSColor colorWithCalibratedWhite:0.78 alpha:1]) setFill];
+     [_NSSegmentPath(NSInsetRect(segmentFrame,0,0.5),4.5,i==0,i==count-1) fill];
+    }
+    else if(i>0 && ![[_segments objectAtIndex:i-1] isSelected]){
+     [[NSColor colorWithCalibratedWhite:0.82 alpha:1] setFill];
+     NSRectFill(NSMakeRect(NSMinX(segmentFrame),NSMinY(segmentFrame)+4,1,NSHeight(segmentFrame)-8));
+    }
+    segmentFrame.origin.x+=segmentFrame.size.width;
+   }
+   [[NSColor colorWithCalibratedWhite:0.72 alpha:1] setStroke];
+   [shape stroke];
+
+   segmentFrame=strip;
    for(i=0; i<count; i++) {
       segmentFrame.size.width=[[_segmentComputedWidths objectAtIndex:i] doubleValue];
       [NSGraphicsContext saveGraphicsState];
