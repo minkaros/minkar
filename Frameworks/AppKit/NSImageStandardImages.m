@@ -315,6 +315,18 @@ static BOOL drawTemplate(NSString *name) {
    }
    else if([name isEqualToString:@"MenuMixedState"])
     line(4,8,12,8);
+   else if([name isEqualToString:@"SearchGlass"]){
+    NSBezierPath *lens=[NSBezierPath bezierPathWithOvalInRect:NSMakeRect(2,6,8,8)];
+
+    [lens setLineWidth:1.6];
+    [lens stroke];
+    NSBezierPath *handle=[NSBezierPath bezierPath];
+    [handle moveToPoint:NSMakePoint(8.8,7.2)];
+    [handle lineToPoint:NSMakePoint(13.5,2.5)];
+    [handle setLineWidth:1.8];
+    [handle setLineCapStyle:NSRoundLineCapStyle];
+    [handle stroke];
+   }
    else
     return NO;
    return YES;

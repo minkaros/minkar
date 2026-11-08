@@ -843,9 +843,15 @@ void _NSGraphicsStyleRegisterButtonImages(void) {
 
 @implementation NSGraphicsStyle (NSComboBox)
 
+/* The accent-colored button at a combo box's right, a white chevron in it. */
 -(void)drawComboBoxButtonInRect:(NSRect)rect enabled:(BOOL)enabled bordered:(BOOL)bordered pressed:(BOOL)pressed {
-   atlasButtonFace(rect,NO,pressed);
-   atlasChevron(rect,0,7,enabled?atlasGray(0.30):atlasGray(0.65));
+   NSColor *accent=enabled?atlasAccent():atlasGray(0.78);
+   NSRect   box=NSInsetRect(rect,0.5,0.5);
+
+   if(pressed)
+    accent=atlasDarker(accent,0.15);
+   atlasRounded(box,4,atlasLighter(accent,0.08),accent,atlasDarker(accent,0.15));
+   atlasChevron(box,0,7,[NSColor whiteColor]);
 }
 
 @end
@@ -873,10 +879,18 @@ void _NSGraphicsStyleRegisterButtonImages(void) {
 
 @implementation NSGraphicsStyle (NSTextField)
 
-/* A white field with a thin rounded border. */
+/* A white field with a thin square border, its top a little darker, as
+   the reference platform draws text fields. */
 -(void)drawTextFieldBorderInRect:(NSRect)rect bezeledNotLine:(BOOL)bezeledNotLine {
-   if(bezeledNotLine)
-    atlasRounded(rect,4,nil,nil,atlasGray(0.70));
+   if(bezeledNotLine){
+    NSRect inner=NSInsetRect(rect,0.5,0.5);
+
+    [atlasGray(0.74) setStroke];
+    [NSBezierPath strokeRect:inner];
+    [atlasGray(0.62) setStroke];
+    [NSBezierPath strokeLineFromPoint:NSMakePoint(NSMinX(inner),atlasFlipped()?NSMinY(inner):NSMaxY(inner))
+       toPoint:NSMakePoint(NSMaxX(inner),atlasFlipped()?NSMinY(inner):NSMaxY(inner))];
+   }
    else {
     [atlasGray(0.70) setStroke];
     NSFrameRect(rect);

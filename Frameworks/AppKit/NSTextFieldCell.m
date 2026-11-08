@@ -7,6 +7,7 @@ The above copyright notice and this permission notice shall be included in all c
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE. */
 
 #import <AppKit/NSTextFieldCell.h>
+#import <AppKit/NSBezierPath.h>
 #import <AppKit/NSApplication.h>
 #import <AppKit/NSAttributedString.h>
 #import <AppKit/NSStringDrawing.h>
@@ -288,21 +289,15 @@ static void drawRoundedBezel(CGContextRef context,CGRect frame){
     backRect=NSInsetRect(backRect,-1,-1);
       break;
 
-     case NSTextFieldRoundedBezel:;
-      CGContextRef context=[[NSGraphicsContext currentContext] graphicsPort];
-      NSRect roundedFrame=frame;
+     /* A white rounded field with a thin border (search fields). */
+     case NSTextFieldRoundedBezel:{
+      NSBezierPath *path=[NSBezierPath bezierPathWithRoundedRect:NSInsetRect(frame,0.5,0.5) xRadius:5 yRadius:5];
 
-      roundedFrame.size.height--;
-      [[NSColor darkGrayColor] setFill];
-      drawRoundedBezel(context,roundedFrame);
-
-      roundedFrame.origin.y+=1;
-      [[NSColor lightGrayColor] setFill];
-      drawRoundedBezel(context,roundedFrame);
-
-      roundedFrame=NSInsetRect(roundedFrame,1,1);
-      [[NSColor whiteColor] setFill];
-      drawRoundedBezel(context,roundedFrame);
+      [([self isEnabled]?[NSColor textBackgroundColor]:[NSColor colorWithCalibratedWhite:0.97 alpha:1]) setFill];
+      [path fill];
+      [[NSColor colorWithCalibratedWhite:0.74 alpha:1] setStroke];
+      [path stroke];
+     }
       break;
    }
 
