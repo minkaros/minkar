@@ -87,12 +87,33 @@ static NSImage *bundleIcon(NSString *path) {
    return nil;
 }
 
+/* An icon of the system's set (/System/Library/Icons). */
+static NSImage *systemIcon(NSString *relative) {
+   NSString *path=[@"/System/Library/Icons" stringByAppendingPathComponent:relative];
+
+   return [[[NSImage alloc] initWithContentsOfFile:path] autorelease];
+}
+
+/* An app's own icon; the startup disk's for "/"; a folder's; a file's
+   for its type (never nil, as on the reference platform). */
 -(NSImage *)iconForFile:(NSString *)path {
+   BOOL isDirectory=NO;
+
    if([[path pathExtension] isEqualToString:@"app"]) {
       NSImage *icon=bundleIcon(path);
       return icon!=nil ? icon : [NSImage imageNamed:@"NSApplicationIcon"];
    }
-   return nil;
+   if([[path stringByStandardizingPath] isEqualToString:@"/"]) {
+      NSImage *icon=systemIcon(@"devices/drive-harddisk.png");
+      if(icon!=nil)
+         return icon;
+   }
+   if([[NSFileManager defaultManager] fileExistsAtPath:path isDirectory:&isDirectory] && isDirectory) {
+      NSImage *icon=[NSImage imageNamed:@"NSFolder"];
+      if(icon!=nil)
+         return icon;
+   }
+   return [self iconForFileType:[path pathExtension]];
 }
 
 -(NSImage *)iconForFiles:(NSArray *)array {
@@ -100,9 +121,31 @@ static NSImage *bundleIcon(NSString *path) {
    return 0;
 }
 
+/* A file type's icon by its extension (a few kinds; the generic document
+   for the rest). It used to raise. */
 -(NSImage *)iconForFileType:(NSString *)type {
-   NSInvalidAbstractInvocation();
-   return 0;
+   static NSDictionary *kinds;
+   NSString *extension=[[type pathExtension] length] ? [type pathExtension] : type;
+   NSString *name;
+   NSImage  *icon;
+
+   if(kinds==nil)
+      kinds=[[NSDictionary alloc] initWithObjectsAndKeys:
+         @"text-plain",@"txt", @"text-x-csrc",@"c", @"text-x-csrc",@"m", @"text-x-chdr",@"h",
+         @"text-x-script",@"sh", @"text-x-script",@"command", @"text-html",@"html", @"text-html",@"htm",
+         @"application-xml",@"xml", @"application-xml",@"plist", @"application-zip",@"zip",
+         @"application-x-archive",@"tar", @"application-x-archive",@"gz", @"application-x-archive",@"xz",
+         @"application-x-cd-image",@"iso", @"application-x-cd-image",@"dmg",
+         @"image-x-generic",@"png", @"image-x-generic",@"jpg", @"image-x-generic",@"jpeg", @"image-x-generic",@"gif",
+         @"image-x-generic",@"tiff", @"image-x-generic",@"webp", @"audio-x-generic",@"mp3", @"audio-x-generic",@"wav",
+         @"audio-x-generic",@"aiff", @"video-x-generic",@"mp4", @"video-x-generic",@"mov",
+         @"font-x-generic",@"ttf", @"font-x-generic",@"otf", @"x-office-document",@"rtf", @"x-office-document",@"pdf",
+         @"package-x-generic",@"pkg", nil];
+   name=[kinds objectForKey:[extension lowercaseString]];
+   if([extension length]==0)
+      name=@"text-x-generic";
+   icon=systemIcon([NSString stringWithFormat:@"mimetypes/%@.png",name!=nil?name:@"text-x-generic"]);
+   return icon!=nil ? icon : [NSImage imageNamed:@"NSApplicationIcon"];
 }
 
 -(NSString *)localizedDescriptionForType:(NSString *)type {
