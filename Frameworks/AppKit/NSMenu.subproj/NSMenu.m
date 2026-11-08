@@ -429,7 +429,7 @@ BOOL itemIsEnabled(NSMenuItem *item) {
    (charactersIgnoringModifiers, which keeps Shift's effect) and the same
    Control, Option, Shift and Command. An uppercase letter as the key
    equivalent implies Shift. */
-static BOOL itemMatchesKeyEvent(NSMenuItem *item, NSString *characters, NSUInteger modifiers) {
+static BOOL itemMatchesKeyEvent(NSMenuItem *item, NSString *characters, NSString *typed, NSUInteger modifiers) {
     NSString  *key=[item keyEquivalent];
     NSUInteger relevant=NSControlKeyMask|NSAlternateKeyMask|NSShiftKeyMask|NSCommandKeyMask;
     NSUInteger itemModifiers=[item keyEquivalentModifierMask]&relevant;
@@ -439,10 +439,16 @@ static BOOL itemMatchesKeyEvent(NSMenuItem *item, NSString *characters, NSUInteg
     if(![key isEqualToString:[key lowercaseString]])
         itemModifiers|=NSShiftKeyMask;
     modifiers&=relevant;
+    /* A symbol (no upper and lower case: ?, +, :) is what Shift typed:
+       Shift is not one of its modifiers. */
+    if([key isEqualToString:characters] || [key isEqualToString:typed])
+        if([[key lowercaseString] isEqualToString:[key uppercaseString]])
+            return (modifiers&~NSShiftKeyMask)==(itemModifiers&~NSShiftKeyMask);
     if([[key lowercaseString] isEqualToString:[characters lowercaseString]])
         return modifiers==itemModifiers;
-    /* A key Shift makes (such as ? on most layouts) matches as typed. */
-    if([key isEqualToString:characters])
+    /* A key Shift makes (such as ? on most layouts) matches as typed: the
+       event's characters, when charactersIgnoringModifiers left Shift out. */
+    if([key isEqualToString:characters] || [key isEqualToString:typed])
         return (modifiers&~NSShiftKeyMask)==(itemModifiers&~NSShiftKeyMask);
     return NO;
 }
@@ -471,7 +477,7 @@ static BOOL itemMatchesKeyEvent(NSMenuItem *item, NSString *characters, NSUInteg
     for(i=0;i<count;i++){
         NSMenuItem *item=[_itemArray objectAtIndex:i];
 
-        if(itemMatchesKeyEvent(item,characters,modifiers)){
+        if(itemMatchesKeyEvent(item,characters,[event characters],modifiers)){
             /* This *must* accurately reflect menu validation when ignoring or processing
                 key equivalents. Relying on update to keep isEnabled in the proper state is
                 unfortunately too tenuous.
