@@ -8,8 +8,12 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 #import <AppKit/NSControl.h>
 #import <AppKit/NSSliderCell.h>
+#import <AppKit/NSLevelIndicatorCell.h>
 
 @interface NSLevelIndicator : NSControl
+
+- (NSLevelIndicatorStyle)levelIndicatorStyle;
+- (void)setLevelIndicatorStyle:(NSLevelIndicatorStyle)style;
 
 - (double)minValue;
 - (double)maxValue;

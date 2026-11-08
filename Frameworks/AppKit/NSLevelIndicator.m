@@ -21,6 +21,15 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    return [self cell];
 }
 
+-(NSLevelIndicatorStyle)levelIndicatorStyle {
+   return [[self _indicatorCell] levelIndicatorStyle];
+}
+
+-(void)setLevelIndicatorStyle:(NSLevelIndicatorStyle)style {
+   [[self _indicatorCell] setLevelIndicatorStyle:style];
+   [self setNeedsDisplay:YES];
+}
+
 -(double)minValue {
    return [[self _indicatorCell] minValue];
 }

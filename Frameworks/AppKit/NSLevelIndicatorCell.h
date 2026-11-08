@@ -9,12 +9,17 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <AppKit/NSActionCell.h>
 #import <AppKit/NSSliderCell.h>
 
-typedef enum {
-    NSRatingLevelIndicatorStyle,
-    NSDiscreteCapacityLevelIndicatorStyle,
-    NSContinuousCapacityLevelIndicatorStyle,
-    NSRelevancyLevelIndicatorStyle,
-} NSLevelIndicatorStyle;
+typedef NS_ENUM(NSUInteger, NSLevelIndicatorStyle) {
+    NSLevelIndicatorStyleRelevancy = 0,
+    NSLevelIndicatorStyleContinuousCapacity = 1,
+    NSLevelIndicatorStyleDiscreteCapacity = 2,
+    NSLevelIndicatorStyleRating = 3,
+
+    NSRelevancyLevelIndicatorStyle = NSLevelIndicatorStyleRelevancy,
+    NSContinuousCapacityLevelIndicatorStyle = NSLevelIndicatorStyleContinuousCapacity,
+    NSDiscreteCapacityLevelIndicatorStyle = NSLevelIndicatorStyleDiscreteCapacity,
+    NSRatingLevelIndicatorStyle = NSLevelIndicatorStyleRating,
+};
 
 @interface NSLevelIndicatorCell : NSActionCell {
     NSLevelIndicatorStyle _style;
@@ -25,6 +30,7 @@ typedef enum {
     int _numberOfTickMarks;
     int _numberOfMajorTickMarks;
     NSTickMarkPosition _tickMarkPosition;
+    NSRect _lastFrame;
 }
 
 - initWithLevelIndicatorStyle:(NSLevelIndicatorStyle)style;
