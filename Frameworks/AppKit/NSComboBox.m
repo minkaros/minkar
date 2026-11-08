@@ -19,6 +19,12 @@ NSString * const NSComboBoxWillPopUpNotification=@"NSComboBoxWillPopUpNotificati
 
 @implementation NSComboBox
 
+/* Its own cell when made in code (a nib names it): not its superclass's. */
++(Class)cellClass {
+   return [NSComboBoxCell class];
+}
+
+
 -dataSource {
    return [[self cell] dataSource];
 }

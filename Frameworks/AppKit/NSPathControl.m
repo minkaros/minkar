@@ -1,8 +1,15 @@
 #import <AppKit/NSPathControl.h>
+#import <AppKit/NSPathCell.h>
 
 #import "AppKit/NSRaise.h"
 
 @implementation NSPathControl
+
+/* Its own cell when made in code (a nib names it): not its superclass's. */
++(Class)cellClass {
+   return [NSPathCell class];
+}
+
 
 -(BOOL)isFlipped {
    return YES;
