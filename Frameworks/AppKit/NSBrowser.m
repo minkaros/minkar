@@ -57,6 +57,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
     _cellPrototype=nil;
 
     _numberOfVisibleColumns=[keyed decodeIntForKey:@"NSNumberOfVisibleColumns"];
+    _maxVisibleColumns=_numberOfVisibleColumns;   /* a nib's count stays */
     _selectedColumn=-1;
 
     _allowsMultipleSelection=(flags&0x80000000)?YES:NO;
@@ -96,12 +97,16 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    _cellClass=[[self class] cellClass];
    _cellPrototype=nil;
 
-   _numberOfVisibleColumns=1;
+   /* As the reference platform makes one in code: no titles, separated
+      columns, as many of about 120 points as fit (until
+      -setMaxVisibleColumns: says how many). */
+   _maxVisibleColumns=0;
+   _numberOfVisibleColumns=MAX(1,(NSInteger)floor(NSWidth(frame)/120));
    _allowsMultipleSelection=NO;
    _allowsEmptySelection=NO;
    _allowsBranchSelection=NO;
-   _separatesColumns=NO;
-   _isTitled=YES;
+   _separatesColumns=YES;
+   _isTitled=NO;
    _hasHorizontalScroller=NO;
 
    _takesTitleFromPreviousColumn=YES;
@@ -157,7 +162,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 }
 
 -(NSInteger)maxVisibleColumns {
-   return _maxVisibleColumns;
+   return _maxVisibleColumns?_maxVisibleColumns:_numberOfVisibleColumns;
 }
 
 -(BOOL)hasHorizontalScroller {
@@ -792,6 +797,9 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 -(void)tile {
    NSInteger i;
+
+   if(_maxVisibleColumns==0)
+    _numberOfVisibleColumns=MAX(1,(NSInteger)floor(NSWidth([self bounds])/120));
 
    for(i=0;i<_numberOfVisibleColumns;i++){
     NSInteger     column=_firstVisibleColumn+i;
