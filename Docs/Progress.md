@@ -5,7 +5,7 @@ This page is generated from [progress/status.toml](progress/status.toml) by
 [Progress.es.md](Progress.es.md).
 
 <!-- progress:summary:begin -->
-_Updated 2026-11-07, devel `54607f290f`_
+_Updated 2026-11-08, devel `73aecaee5d`_
 
 | Plan | Progress |  | Now | Next |
 | --- | --- | --- | --- | --- |
