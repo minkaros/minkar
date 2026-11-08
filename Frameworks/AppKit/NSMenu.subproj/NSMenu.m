@@ -149,8 +149,10 @@ static void postItemNotification(NSMenu *menu, NSString *name, NSUInteger index)
 
 -initApplicationMenu:(NSString*)appName {
    [self init];
-   NSMenuItem *quitItem = [[NSMenuItem alloc] initWithTitle:[@"Quit " stringByAppendingString:appName] action:@selector(terminate:) keyEquivalent:@"q"];
+   NSString   *format = [[NSBundle bundleForClass:[NSMenu class]] localizedStringForKey:@"Quit %@" value:@"Quit %@" table:nil];
+   NSMenuItem *quitItem = [[NSMenuItem alloc] initWithTitle:[NSString stringWithFormat:format, appName] action:@selector(terminate:) keyEquivalent:@"q"];
    [self addItem: quitItem];
+   [quitItem release];
    [self setValue:@"NSAppleMenu" forKey:@"name"];
    return self;
 }
