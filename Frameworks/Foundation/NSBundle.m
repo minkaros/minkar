@@ -463,14 +463,42 @@ static NSString *baseLanguage(NSString *name) {
    return _infoDictionary;
 }
 
+/* Info.plist with the values its InfoPlist.strings has for the preferred
+   localization (the app's name, its copyright) in place of its own. */
 -(NSDictionary *)localizedInfoDictionary {
-// FIXME: implement, dont uncomment NSUnimplementedMethod.
-  // NSUnimplementedMethod();
-   return [self infoDictionary];
+   static NSString *const cacheKey=@" NSLocalizedInfoDictionary";
+   static NSString *const missing=@" NSMissingLocalization";
+   NSDictionary        *cached;
+   NSMutableDictionary *result;
+   NSDictionary        *info=[self infoDictionary];
+
+   @synchronized(self){
+    cached=[[[_localizedTables objectForKey:cacheKey] retain] autorelease];
+   }
+   if(cached!=nil)
+    return cached;
+
+   result=[NSMutableDictionary dictionaryWithDictionary:(info!=nil)?info:[NSDictionary dictionary]];
+   for(NSString *key in info){
+    NSString *localized=[self localizedStringForKey:key value:missing table:@"InfoPlist"];
+
+    if(localized!=nil && localized!=missing && ![localized isEqualToString:missing])
+     [result setObject:localized forKey:key];
+   }
+   @synchronized(self){
+    if(_localizedTables==nil)
+     _localizedTables=[[NSMutableDictionary alloc] init];
+    [_localizedTables setObject:result forKey:cacheKey];
+   }
+   return result;
 }
 
+/* The localized value when the bundle has one (InfoPlist.strings), as
+   the reference platform gives it. */
 -objectForInfoDictionaryKey:(NSString *)key {
-   return [[self infoDictionary] objectForKey:key];
+   id value=[[self localizedInfoDictionary] objectForKey:key];
+
+   return (value!=nil)?value:[[self infoDictionary] objectForKey:key];
 }
 
 -(NSString *)bundleIdentifier {
