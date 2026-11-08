@@ -15,7 +15,7 @@ movimiento del cursor, programas de pantalla completa como <code>vi</code> y
 pestaña</b> (<code>&#x2318;T</code>) arrancan otro shell.</li>
 <li><b>Shell &rarr; Cerrar pestaña</b> (<code>&#x2318;W</code>) termina el shell de
 la pestaña. Una pestaña se cierra sola cuando su shell termina (escribe
-<code>exit</code>).</li>
+<code>exit</code>), salvo que las preferencias digan otra cosa.</li>
 <li>Cambia el tamaño de la ventana: el shell y sus programas reciben el nuevo
 tamaño.</li>
 </ul>
@@ -28,6 +28,17 @@ todas partes.</li>
 &rarr; Borrar historial</b> (<code>&#x2318;K</code>) lo olvida.</li>
 <li><b>Visualización &rarr; Más grande</b> y <b>Más pequeño</b> cambian el
 tamaño del texto.</li>
+</ul>
+<h2 id="preferences">Preferencias</h2>
+<p><b>Terminal &rarr; Preferencias…</b> (<code>&#x2318;,</code>). Los cambios se
+aplican al momento a las ventanas abiertas.</p>
+<ul>
+<li><b>General:</b> el shell (vacío: tu shell de inicio de sesión), qué hacer
+cuando termina, el tamaño de las ventanas nuevas en columnas y filas, las
+líneas de historial y la campana (un sonido, un destello o nada).</li>
+<li><b>Texto:</b> el tamaño del texto, el esquema de colores (Claro u Oscuro),
+el fondo, el texto, el cursor y los 16 colores ANSI.</li>
+<li><b>Restaurar valores predeterminados</b> vuelve a los valores de fábrica.</li>
 </ul>
 <p>La emulación de Terminal es libvterm, de Paul Evans, con licencia MIT (en
 Resources/Licenses de la app).</p>

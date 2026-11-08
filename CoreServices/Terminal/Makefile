@@ -18,6 +18,7 @@ VTERM_LICENSES != mkdir -p ${.OBJDIR}/Licenses && cp -f ${VTERM}/LICENSE ${.OBJD
 .PATH:		${VTERM}/src
 
 SRCS =		main.m TMAppDelegate.m TMWindowController.m TMTerminalView.m TMSession.m \
+		TMPreferences.m TMPreferencesController.m \
 		encoding.c keyboard.c mouse.c parser.c pen.c screen.c state.c unicode.c vterm.c
 FRAMEWORKS =	Cocoa
 MK_WERROR =	no

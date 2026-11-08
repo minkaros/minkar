@@ -5,10 +5,10 @@
  */
 
 #import "TMWindowController.h"
+#import "TMPreferences.h"
 #include <pwd.h>
+#include <sys/wait.h>
 #include <unistd.h>
-
-#define DEFAULT_SIZE 13.0
 
 @implementation TMWindowController {
     NSTabView *_tabs;
@@ -30,7 +30,16 @@
     [_tabs setAutoresizingMask:NSViewWidthSizable | NSViewHeightSizable];
     [_tabs setDelegate:self];
     [[window contentView] addSubview:_tabs];
-    [self addTabWithArguments:arguments];
+    TMTerminalView *first = [self addTabWithArguments:arguments];
+    if (first != nil) {
+        /* The size the preferences ask for, in rows and columns. */
+        TMPreferences *prefs = [TMPreferences sharedPreferences];
+        NSSize content = [first contentSizeForRows:prefs.rows columns:prefs.columns];
+        [window setContentSize:[NSScrollView frameSizeForContentSize:content hasHorizontalScroller:NO
+            hasVerticalScroller:YES borderType:NSNoBorder]];
+        [self updateTabBar];
+        [self updateTitles];
+    }
     [window cascadeTopLeftFromPoint:NSZeroPoint];
     [window center];
     return self;
@@ -56,7 +65,7 @@
         [weakSelf updateTitles];
     };
     terminal.exited = ^(TMTerminalView *view, int status) {
-        [weakSelf closeTerminal:view];
+        [weakSelf terminal:view exitedWithStatus:status];
     };
     [_tabs addTabViewItem:item];
     [_tabs selectTabViewItem:item];
@@ -97,7 +106,7 @@
     if ([s.title length])
         return s.title;
     return [NSString stringWithFormat:@"%s — %@ — %d×%d", pw ? pw->pw_name : "?",
-        [[NSString stringWithUTF8String:pw && pw->pw_shell ? pw->pw_shell : "sh"] lastPathComponent], s.columns, s.rows];
+        s.programName ?: @"sh", s.columns, s.rows];
 }
 
 - (void)updateTitles
@@ -106,6 +115,31 @@
         [item setLabel:[self titleOf:[item identifier]]];
     if ([self currentTerminal] != nil)
         [[self window] setTitle:[self titleOf:[self currentTerminal]]];
+}
+
+/* As the preferences say: close the tab, close it if the program ended
+ * well, or keep it with a line saying how it ended. */
+- (void)terminal:(TMTerminalView *)terminal exitedWithStatus:(int)status
+{
+    BOOL clean = WIFEXITED(status) && WEXITSTATUS(status) == 0;
+
+    switch ([TMPreferences sharedPreferences].shellExitAction) {
+    case TMShellExitClose:
+        [self closeTerminal:terminal];
+        return;
+    case TMShellExitCloseIfClean:
+        if (clean) {
+            [self closeTerminal:terminal];
+            return;
+        }
+        break;
+    case TMShellExitKeepOpen:
+        break;
+    }
+    [terminal.session showMessage:clean ? NSLocalizedString(@"[Process completed]", nil) :
+        [NSString stringWithFormat:NSLocalizedString(@"[Process exited with status %d]", nil),
+            WIFEXITED(status) ? WEXITSTATUS(status) : 128 + WTERMSIG(status)]];
+    [self updateTitles];
 }
 
 - (void)closeTerminal:(TMTerminalView *)terminal
@@ -170,12 +204,10 @@
     [_tabs selectTabViewItemAtIndex:(i - 1 + n) % n];
 }
 
+/* The preference: every window takes it. */
 - (void)setTextSize:(CGFloat)size
 {
-    for (TMTerminalView *terminal in [self terminals])
-        terminal.fontSize = MAX(8, MIN(36, size));
-    [[NSUserDefaults standardUserDefaults] setDouble:[self currentTerminal].fontSize forKey:@"FontSize"];
-    [self updateTitles];
+    [TMPreferences sharedPreferences].fontSize = size;
 }
 
 - (IBAction)biggerText:(id)sender
@@ -190,7 +222,8 @@
 
 - (IBAction)defaultTextSize:(id)sender
 {
-    [self setTextSize:DEFAULT_SIZE];
+    [[NSUserDefaults standardUserDefaults] removeObjectForKey:TMFontSizeKey];
+    [[NSNotificationCenter defaultCenter] postNotificationName:TMPreferencesDidChangeNotification object:nil];
 }
 
 @end

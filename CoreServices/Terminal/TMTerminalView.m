@@ -5,6 +5,7 @@
  */
 
 #import "TMTerminalView.h"
+#import "TMPreferences.h"
 
 #define INSET 6.0
 
@@ -23,20 +24,57 @@ static BOOL before(TMPoint a, TMPoint b)
     CGFloat _ascent;
     BOOL _hasSelection, _selecting;
     TMPoint _anchor, _head;
-    NSColor *_foreground, *_background;
+    NSColor *_foreground, *_background, *_cursorColor;
+    BOOL _flashing;
 }
 
 - (instancetype)initWithFrame:(NSRect)frame arguments:(NSArray<NSString *> *)arguments
 {
     if ((self = [super initWithFrame:frame]) == nil)
         return nil;
-    _foreground = [NSColor textColor];
-    _background = [NSColor textBackgroundColor];
-    [self setFontSize:13];
-    _session = [[TMSession alloc] initWithRows:24 columns:80 arguments:arguments directory:nil];
+    TMPreferences *prefs = [TMPreferences sharedPreferences];
+
+    [self setFontSize:prefs.fontSize];
+    [TMSession setDefaultShell:prefs.shell];
+    _session = [[TMSession alloc] initWithRows:prefs.rows columns:prefs.columns arguments:arguments directory:nil];
     _session.delegate = self;
-    [self applyDefaultColors];
+    [self applyPreferences];
+    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(preferencesDidChange:)
+        name:TMPreferencesDidChangeNotification object:nil];
     return self;
+}
+
+- (void)dealloc
+{
+    [[NSNotificationCenter defaultCenter] removeObserver:self];
+}
+
+/* Colors, palette, scrollback and size from the preferences, at once. */
+- (void)applyPreferences
+{
+    TMPreferences *prefs = [TMPreferences sharedPreferences];
+
+    _foreground = prefs.textColor;
+    _background = prefs.backgroundColor;
+    _cursorColor = prefs.cursorColor;
+    [self applyDefaultColors];
+    for (int i = 0; i < 16; i++) {
+        NSColor *c = [[prefs paletteColorAtIndex:i] colorUsingColorSpaceName:NSCalibratedRGBColorSpace];
+        [_session setPaletteIndex:i red:(uint8_t)lround([c redComponent] * 255)
+            green:(uint8_t)lround([c greenComponent] * 255) blue:(uint8_t)lround([c blueComponent] * 255)];
+    }
+    _session.scrollbackLimit = (NSUInteger)prefs.scrollbackLines;
+    if (prefs.fontSize != _fontSize)
+        [self setFontSize:prefs.fontSize];
+    [[self enclosingScrollView] setBackgroundColor:_background];
+    [self setNeedsDisplay:YES];
+}
+
+- (void)preferencesDidChange:(NSNotification *)note
+{
+    [self applyPreferences];
+    if (self.titleChanged)
+        self.titleChanged(self);
 }
 
 static VTermColor rgbOf(NSColor *color)
@@ -128,6 +166,12 @@ static VTermColor rgbOf(NSColor *color)
 - (NSColor *)colorOf:(VTermColor)color
 {
     uint8_t r, g, b;
+
+    /* The defaults are the view's own, so a new scheme reaches old text. */
+    if (VTERM_COLOR_IS_DEFAULT_FG(&color))
+        return _foreground;
+    if (VTERM_COLOR_IS_DEFAULT_BG(&color))
+        return _background;
 
     [_session getRed:&r green:&g blue:&b ofColor:color];
     return [NSColor colorWithCalibratedRed:r / 255.0 green:g / 255.0 blue:b / 255.0 alpha:1];
@@ -237,13 +281,18 @@ static BOOL sameStyle(const VTermScreenCell *a, const VTermScreenCell *b)
     NSRectFill(dirty);
     for (NSInteger line = first; line <= last; line++)
         [self drawLine:line];
+    /* The visual bell: the visible part, inverted for a moment. */
+    if (_flashing) {
+        [[_foreground colorWithAlphaComponent:0.35] setFill];
+        NSRectFillUsingOperation(dirty, NSCompositeSourceOver);
+    }
 
     /* The cursor: a block while the window is key, an outline otherwise. */
     if (_session.cursorVisible && !_session.exited) {
         VTermPos p = _session.cursor;
         NSRect r = NSMakeRect(INSET + p.col * _cellSize.width,
             INSET + ((NSInteger)_session.scrollbackCount + p.row) * _cellSize.height, _cellSize.width, _cellSize.height);
-        NSColor *accent = [NSColor controlAccentColor];
+        NSColor *accent = _cursorColor ?: [NSColor controlAccentColor];
         if ([[self window] isKeyWindow] && [[self window] firstResponder] == self) {
             [[accent colorWithAlphaComponent:0.55] setFill];
             NSRectFillUsingOperation(r, NSCompositeSourceOver);
@@ -282,7 +331,25 @@ static BOOL sameStyle(const VTermScreenCell *a, const VTermScreenCell *b)
 
 - (void)sessionDidRing:(TMSession *)session
 {
-    NSBeep();
+    switch ([TMPreferences sharedPreferences].bell) {
+    case TMBellSound:
+        NSBeep();
+        break;
+    case TMBellFlash:
+        _flashing = YES;
+        [self setNeedsDisplay:YES];
+        [self performSelector:@selector(endFlash) withObject:nil afterDelay:0.12];
+        break;
+    case TMBellNone:
+        break;
+    }
+    _bellCount++;
+}
+
+- (void)endFlash
+{
+    _flashing = NO;
+    [self setNeedsDisplay:YES];
 }
 
 - (void)sessionScrollbackDidChange:(TMSession *)session

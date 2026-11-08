@@ -9,6 +9,7 @@
  */
 
 #import "TMAppDelegate.h"
+#import "TMPreferencesController.h"
 
 static NSMenuItem *item(NSMenu *menu, NSString *title, SEL action, NSString *key, NSUInteger modifiers)
 {
@@ -55,6 +56,8 @@ static NSMenu *submenu(NSMenu *parent, NSString *title)
     NSMenu *app = submenu(main, name);
     item(app, [NSString stringWithFormat:NSLocalizedString(@"About %@", nil), name],
         @selector(orderFrontStandardAboutPanel:), nil, 0);
+    [app addItem:[NSMenuItem separatorItem]];
+    [item(app, NSLocalizedString(@"Preferences…", nil), @selector(showPreferences:), @",", cmd) setTarget:self];
     [app addItem:[NSMenuItem separatorItem]];
     [NSApp setServicesMenu:submenu(app, NSLocalizedString(@"Services", nil))];
     [app addItem:[NSMenuItem separatorItem]];
@@ -103,13 +106,9 @@ static NSMenu *submenu(NSMenu *parent, NSString *title)
 {
     TMWindowController *controller = [[TMWindowController alloc] initWithArguments:arguments];
     __weak TMAppDelegate *weakSelf = self;
-    double size = [[NSUserDefaults standardUserDefaults] doubleForKey:@"FontSize"];
 
     if (controller == nil)
         return nil;
-    if (size >= 8)
-        for (TMTerminalView *t in controller.terminals)
-            t.fontSize = size;
     controller.closed = ^(TMWindowController *c) {
         TMAppDelegate *me = weakSelf;
         if (me != nil)
@@ -118,6 +117,14 @@ static NSMenu *submenu(NSMenu *parent, NSString *title)
     [_controllers addObject:controller];
     [controller showWindow:nil];
     return controller;
+}
+
+- (IBAction)showPreferences:(id)sender
+{
+    TMPreferencesController *controller = [TMPreferencesController sharedController];
+
+    [controller updateControls];
+    [controller showWindow:sender];
 }
 
 - (IBAction)newWindow:(id)sender

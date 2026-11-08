@@ -19,6 +19,8 @@
 
 #define SCROLLBACK 10000
 
+static NSString *defaultShell;
+
 @implementation TMSession {
     VTerm *_vt;
     VTermScreen *_screen;
@@ -86,8 +88,8 @@ static int sb_pushline(int cols, const VTermScreenCell *cells, void *user)
     TMSession *self = (__bridge TMSession *)user;
 
     [self->_scrollback addObject:[NSData dataWithBytes:cells length:sizeof(VTermScreenCell) * cols]];
-    if ([self->_scrollback count] > SCROLLBACK)
-        [self->_scrollback removeObjectAtIndex:0];
+    if ([self->_scrollback count] > self->_scrollbackLimit)
+        [self->_scrollback removeObjectsInRange:NSMakeRange(0, [self->_scrollback count] - self->_scrollbackLimit)];
     [self.delegate sessionScrollbackDidChange:self];
     return 1;
 }
@@ -153,8 +155,21 @@ static void output(const char *bytes, size_t length, void *user)
 
 /* ---- The session ---- */
 
++ (void)setDefaultShell:(NSString *)path
+{
+    defaultShell = [path copy];
+}
+
++ (NSString *)defaultShell
+{
+    return defaultShell;
+}
+
 static NSString *loginShell(void)
 {
+    if ([defaultShell length] && access([defaultShell fileSystemRepresentation], X_OK) == 0)
+        return defaultShell;
+
     struct passwd *pw = getpwuid(getuid());
     const char *shell = (pw != NULL && pw->pw_shell != NULL && pw->pw_shell[0]) ? pw->pw_shell : NULL;
 
@@ -172,6 +187,7 @@ static NSString *loginShell(void)
     _rows = rows;
     _columns = columns;
     _scrollback = [NSMutableArray array];
+    _scrollbackLimit = SCROLLBACK;
     _cursorVisible = YES;
     _title = @"";
 
@@ -190,6 +206,7 @@ static NSString *loginShell(void)
     /* A login shell: "-zsh", as login(1) and the reference's Terminal start it. */
     NSString *zero = [arguments count] ? [program lastPathComponent] :
         [@"-" stringByAppendingString:[program lastPathComponent]];
+    _programName = [program lastPathComponent];
     NSArray *rest = [arguments count] > 1 ? [arguments subarrayWithRange:NSMakeRange(1, [arguments count] - 1)] : @[];
     const char *home = getenv("HOME");
     NSString *dir = directory ?: (home ? @(home) : @"/");
@@ -287,6 +304,15 @@ static NSString *loginShell(void)
     return vterm_screen_get_cell(_screen, (VTermPos){ .row = row, .col = column }, cell) != 0;
 }
 
+- (void)setScrollbackLimit:(NSUInteger)limit
+{
+    _scrollbackLimit = limit;
+    if ([_scrollback count] > limit) {
+        [_scrollback removeObjectsInRange:NSMakeRange(0, [_scrollback count] - limit)];
+        [self.delegate sessionScrollbackDidChange:self];
+    }
+}
+
 - (NSUInteger)scrollbackCount
 {
     return [_scrollback count];
@@ -322,6 +348,16 @@ static NSString *loginShell(void)
 - (void)setDefaultForeground:(VTermColor)fg background:(VTermColor)bg
 {
     vterm_screen_set_default_colors(_screen, &fg, &bg);
+}
+
+- (void)setPaletteIndex:(int)index red:(uint8_t)r green:(uint8_t)g blue:(uint8_t)b
+{
+    VTermColor color;
+
+    if (index < 0 || index > 15)
+        return;
+    vterm_color_rgb(&color, r, g, b);
+    vterm_state_set_palette_color(vterm_obtain_state(_vt), index, &color);
 }
 
 - (void)sendCharacter:(uint32_t)character modifiers:(VTermModifier)modifiers
@@ -401,6 +437,15 @@ static void appendCells(NSMutableString *text, VTermScreenCell *cells, int count
 {
     NSInteger first = (NSInteger)[_scrollback count];
     return [self textFromLine:first column:0 toLine:first + _rows - 1 column:_columns - 1];
+}
+
+- (void)showMessage:(NSString *)message
+{
+    NSString *line = [NSString stringWithFormat:@"\r\n%@\r\n", message];
+    NSData *data = [line dataUsingEncoding:NSUTF8StringEncoding];
+
+    vterm_input_write(_vt, [data bytes], [data length]);
+    vterm_screen_flush_damage(_screen);
 }
 
 - (void)terminate

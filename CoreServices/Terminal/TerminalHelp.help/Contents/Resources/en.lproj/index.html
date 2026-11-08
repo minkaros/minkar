@@ -14,7 +14,8 @@ cursor movement, full-screen programs such as <code>vi</code> and
 <li><b>Shell &rarr; New Window</b> (<code>&#x2318;N</code>) and <b>New Tab</b>
 (<code>&#x2318;T</code>) start another shell.</li>
 <li><b>Shell &rarr; Close Tab</b> (<code>&#x2318;W</code>) ends the tab&rsquo;s shell.
-A tab closes by itself when its shell ends (type <code>exit</code>).</li>
+A tab closes by itself when its shell ends (type <code>exit</code>),
+unless the preferences say otherwise.</li>
 <li>Resize the window: the shell and its programs get the new size.</li>
 </ul>
 <h2 id="text">Text</h2>
@@ -24,6 +25,17 @@ A tab closes by itself when its shell ends (type <code>exit</code>).</li>
 <li>Scroll up to read what went off the top; <b>Edit &rarr; Clear
 Scrollback</b> (<code>&#x2318;K</code>) forgets it.</li>
 <li><b>View &rarr; Bigger</b> and <b>Smaller</b> change the text&rsquo;s size.</li>
+</ul>
+<h2 id="preferences">Preferences</h2>
+<p><b>Terminal &rarr; Preferences…</b> (<code>&#x2318;,</code>). Changes reach
+the open windows at once.</p>
+<ul>
+<li><b>General:</b> the shell (empty: your login shell), what happens when it
+exits, the size of new windows in columns and rows, the lines of scrollback,
+and the bell (a sound, a flash or nothing).</li>
+<li><b>Text:</b> the text size, the color scheme (Light or Dark), the
+background, text and cursor colors, and the 16 ANSI colors.</li>
+<li><b>Restore Defaults</b> goes back to the values Terminal ships with.</li>
 </ul>
 <p>Terminal&rsquo;s emulation is libvterm, by Paul Evans, under the MIT
 license (in the app&rsquo;s Resources/Licenses).</p>
