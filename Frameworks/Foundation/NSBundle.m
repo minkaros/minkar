@@ -816,6 +816,13 @@ static NSString *baseLanguage(NSString *name) {
     return path;
 #endif
 
+   /* No name: the first resource of the type, as the reference does. */
+   if([name length]==0){
+    if([type length]==0)
+     return nil;
+    return [[self pathsForResourcesOfType:type inDirectory:directory] firstObject];
+   }
+
    if(type && [type length]!=0)
     file=[name stringByAppendingPathExtension:type];
    else
