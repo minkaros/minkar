@@ -98,7 +98,8 @@ for example
 .Dq subsystem == \e"org.example\e" AND messageType == error .
 A
 .Ar style
-is default, compact, syslog or json.
+is default, compact, syslog, json or ndjson
+(one JSON object a line, for a program that reads a stream).
 .Sh FILES
 .Bl -tag -width "/var/db/diagnostics" -compact
 .It Pa /var/db/diagnostics
