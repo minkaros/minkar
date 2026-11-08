@@ -47,7 +47,9 @@
 		frame.size.width -= iconRect.size.width + 2;
 		frame.origin.x += iconRect.size.width + 2;
 		
-		[icon drawInRect: iconRect fromRect: NSZeroRect operation: NSCompositeSourceOver fraction: 1.0];
+		/* Upright in a flipped control too. */
+		[icon drawInRect: iconRect fromRect: NSZeroRect operation: NSCompositeSourceOver fraction: 1.0
+		    respectFlipped: YES hints: nil];
 	}
 	
 	[title drawAtPoint: frame.origin withAttributes: [self textAttributes]];
