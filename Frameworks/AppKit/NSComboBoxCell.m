@@ -19,6 +19,22 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    NSUnimplementedMethod();
 }
 
+/* Made in code: an editable, bezeled field with an empty list (there
+   was no such initializer: the list stayed nil and items added were lost). */
+-initTextCell:(NSString *)string {
+   [super initTextCell:string];
+   _objectValues=[[NSMutableArray alloc] init];
+   _numberOfVisibleItems=5;
+   _hasVerticalScroller=YES;
+   _isButtonBordered=YES;
+   _buttonEnabled=NO;
+   _buttonPressed=NO;
+   [self setEditable:YES];
+   [self setBezeled:YES];
+   [self setDrawsBackground:YES];
+   return self;
+}
+
 -initWithCoder:(NSCoder *)coder {
    [super initWithCoder:coder];
 
@@ -42,8 +58,8 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    return self;
 }
 
+/* The data source is not retained (it is weak, as on the reference). */
 -(void)dealloc {
-   [_dataSource release];
    [_objectValues release];
    [super dealloc];
 }
@@ -51,7 +67,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 -copyWithZone:(NSZone *)zone {
     NSComboBoxCell *copy = [super copyWithZone:zone];
 
-    copy->_objectValues=[_objectValues copy];
+    copy->_objectValues=[_objectValues mutableCopy];
 
     return copy;
 }
