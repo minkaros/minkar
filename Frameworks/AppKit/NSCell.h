@@ -56,6 +56,12 @@ typedef enum {
     NSOnState = 1,
 } NSCellState;
 
+/* The names of API 19. */
+typedef NSInteger NSControlStateValue;
+static const NSControlStateValue NSControlStateValueMixed = -1;
+static const NSControlStateValue NSControlStateValueOff = 0;
+static const NSControlStateValue NSControlStateValueOn = 1;
+
 typedef enum {
     NSRegularControlSize,
     NSSmallControlSize,

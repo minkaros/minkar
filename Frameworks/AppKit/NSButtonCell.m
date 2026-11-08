@@ -690,99 +690,6 @@ static const float kImageMargin = 2.;
     return frame;
 }
 
-- (void)_drawTexturedBezelWithFrame:(NSRect)frame
-{
-    BOOL highlighted=[self isHighlighted];
-    BOOL pressed=[self state] && ([self showsStateBy] & NSChangeBackgroundCellMask);
-
-    BOOL renderDarkenBg=NO, renderOutlineShadow=NO;
-    //CGFloat topGray=0.76, bottomGray=0.98, strokeGray=0.4;
-    CGFloat topGray=0.98, bottomGray=0.76, strokeGray=0.4;
-    if (pressed) {
-        topGray=0.4;
-        bottomGray=0.30;
-    }
-    renderDarkenBg=highlighted;
-    renderOutlineShadow=highlighted || pressed;
-
-    CGContextRef ctx=[[NSGraphicsContext currentContext] graphicsPort];
-    CGContextSaveGState(ctx);
-
-    CGColorSpaceRef colorSpace = CGColorSpaceCreateDeviceRGB();
-    CGContextSetFillColorSpace(ctx, colorSpace);
-    CGContextSetStrokeColorSpace(ctx, colorSpace);
-    CGColorSpaceRelease(colorSpace);
-
-    frame = NSInsetRect(frame, 1.5, 1.5);
-    const CGFloat rounding=1.5;
-
-    const CGFloat baseY = floor(frame.origin.y);
-    const CGFloat maxY = baseY + frame.size.height - 1.0;
-    CGRect r = CGRectMake(floor(frame.origin.x), baseY, ceil(frame.size.width), 1.0);
-    while (r.origin.y <= maxY) {
-        CGFloat g = bottomGray + (topGray - bottomGray) * ((r.origin.y - baseY) / (maxY - baseY));
-        CGFloat components[4] = { g, g, g, 1.0 };
-        CGContextSetFillColor(ctx, components);
-
-        if (r.origin.y < baseY+1.0f || r.origin.y > maxY-1.0f) {
-            CGContextFillRect(ctx, CGRectMake(r.origin.x+1.0f, r.origin.y, r.size.width-2.0f, r.size.height));
-        } else {
-            CGContextFillRect(ctx, r);
-        }
-        r.origin.y += 1.0f;
-    }
-
-    const CGFloat lx = floor(frame.origin.x) + 0.5f;
-    const CGFloat rx = floor(frame.origin.x + frame.size.width) + 0.5f;
-    const CGFloat ty = floor(frame.origin.y) + 0.5f;
-    const CGFloat by = floor(frame.origin.y + frame.size.height) + 0.5f;
-    const CGFloat rlx = lx + rounding;
-    const CGFloat rrx = rx - rounding;
-    const CGFloat rty = ty + rounding;
-    const CGFloat rby = by - rounding;
-    CGContextBeginPath(ctx);
-    CGContextMoveToPoint(ctx, rlx, ty);
-    CGContextAddLineToPoint(ctx, rrx, ty);
-    CGContextAddLineToPoint(ctx, rx, rty);
-    CGContextAddLineToPoint(ctx, rx, rby);
-    CGContextAddLineToPoint(ctx, rrx, by);
-    CGContextAddLineToPoint(ctx, rlx, by);
-    CGContextAddLineToPoint(ctx, lx, rby);
-    CGContextAddLineToPoint(ctx, lx, rty);
-    CGContextClosePath(ctx);
-
-    CGFloat components[4] = { strokeGray, strokeGray, strokeGray, 1.0 };
-    CGContextSetStrokeColor(ctx, components);
-    CGContextSetLineWidth(ctx, 1.0);
-
-    if (renderDarkenBg) {
-        components[0] = components[1] = components[2] = 0.0;
-        components[3] = 0.15;
-        CGContextSetFillColor(ctx, components);
-        CGContextDrawPath(ctx, kCGPathFillStroke);
-    } else {
-        CGContextStrokePath(ctx);
-    }
-
-    if (renderOutlineShadow) {  // a small interior shadow within the button's outline
-        const CGFloat ins = 0.4f;
-        CGContextBeginPath(ctx);
-        CGContextMoveToPoint(ctx, lx+ins, ty+ins);
-        CGContextAddLineToPoint(ctx, rx-ins, ty+ins);
-        CGContextAddLineToPoint(ctx, rx-ins, by-ins);
-        CGContextAddLineToPoint(ctx, lx+ins, by-ins);
-        CGContextClosePath(ctx);
-
-        components[0] = components[1] = components[2] = 0.0;
-        components[3] = 0.3;
-        CGContextSetStrokeColor(ctx, components);
-        CGContextSetLineWidth(ctx, 0.9);
-        CGContextStrokePath(ctx);
-    }
-
-    CGContextRestoreGState(ctx);
-}
-
 static void drawRoundedBezel(CGContextRef context,CGRect frame){
    CGFloat radius=frame.size.height/2;
 
@@ -809,35 +716,33 @@ static void drawRoundedBezel(CGContextRef context,CGRect frame){
     case NSDisclosureBezelStyle:
      break;
 
+    /* Square, shadowless, textured and textured rounded: flat light faces
+       with a thin border, as the reference platform draws them now;
+       darker while pressed or on. */
     case NSRegularSquareBezelStyle:
-     if([self isBordered]){
-      BOOL  highlighted=(([self highlightsBy]&NSPushInCellMask) && [self isHighlighted]);
-      float topGray=highlighted?0.8:0.9;
-      float bottomGray=highlighted?0.7:0.8;
-
-      NSRect top=frame,bottom=frame;
-      top.size.height=floor(frame.size.height/2);
-      bottom.size.height=ceil(frame.size.height/2);
-      if([controlView isFlipped])
-       bottom.origin.y+=top.size.height;
-      else
-       top.origin.y+=bottom.size.height;
-
-      [[NSColor colorWithCalibratedWhite:topGray alpha:1] set];
-      NSRectFill(top);
-      [[NSColor colorWithCalibratedWhite:bottomGray alpha:1] set];
-      NSRectFill(bottom);
-      [[NSColor lightGrayColor] set];
-      NSFrameRectWithWidth(frame,1);
-     }
-     break;
-
+    case NSShadowlessSquareBezelStyle:
     case NSTexturedSquareBezelStyle:
     case NSTexturedRoundedBezelStyle:
-    case NSShadowlessSquareBezelStyle:
+     if([self isBordered]){
+      CGFloat radius=(_bezelStyle==NSShadowlessSquareBezelStyle)?0:(_bezelStyle==NSTexturedRoundedBezelStyle?5:4);
+      CGFloat fill=(_bezelStyle==NSShadowlessSquareBezelStyle)?0.92:0.99;
+      BOOL    pressed=([self highlightsBy]&(NSPushInCellMask|NSChangeGrayCellMask)) && [self isHighlighted];
+      BOOL    on=[self state] && ([self showsStateBy]&(NSChangeBackgroundCellMask|NSChangeGrayCellMask));
+      NSRect  face=NSInsetRect(original,1.5,1.5);
+      NSBezierPath *path=radius>0?[NSBezierPath bezierPathWithRoundedRect:face xRadius:radius yRadius:radius]:
+         [NSBezierPath bezierPathWithRect:face];
 
-     if ([self isBordered]) {
-      [self _drawTexturedBezelWithFrame:frame];
+      if(![self isEnabled])
+       fill=0.94;
+      else if(pressed)
+       fill=0.80;
+      else if(on)
+       fill=0.84;
+      [[NSColor colorWithCalibratedWhite:fill alpha:1] setFill];
+      [path fill];
+      [[NSColor colorWithCalibratedWhite:[self isEnabled]?0.66:0.82 alpha:1] setStroke];
+      [path setLineWidth:1];
+      [path stroke];
      }
      break;
 
@@ -862,25 +767,40 @@ static void drawRoundedBezel(CGContextRef context,CGRect frame){
      }
      break;
 
-    case NSRecessedBezelStyle:;
-     if([self isBordered] && [self isVisuallyHighlighted]){
-      CGContextRef context=[[NSGraphicsContext currentContext] graphicsPort];
+    /* Recessed: a grey rounded face while enabled, nothing when not;
+       inline: a dark grey pill with a white title; round rect: a light
+       grey face with a thin border (the reference platform's shades). */
+    case NSRecessedBezelStyle:
+     if([self isBordered] && [self isEnabled]){
+      CGFloat height=MIN(NSHeight(original),20-_controlSize*3);
+      NSRect  face=NSMakeRect(NSMinX(original)+2,floor(NSMidY(original)-height/2),NSWidth(original)-4,height);
 
-      frame.size.height--;
-      frame.origin.y+=[controlView isFlipped]?1:0;
-      [[NSColor lightGrayColor] setFill];
-      drawRoundedBezel(context,frame);
+      [[NSColor colorWithCalibratedWhite:[self isHighlighted]?0.47:0.57 alpha:1] setFill];
+      [[NSBezierPath bezierPathWithRoundedRect:face xRadius:4 yRadius:4] fill];
+     }
+     break;
 
-      frame.origin.y+=[controlView isFlipped]?-1:1;
-      [[NSColor darkGrayColor] setFill];
-      drawRoundedBezel(context,frame);
+    case NSInlineBezelStyle:
+     if([self isBordered]){
+      CGFloat height=MIN(NSHeight(original),22-_controlSize*3);
+      NSRect  face=NSMakeRect(NSMinX(original)+1,floor(NSMidY(original)-height/2),NSWidth(original)-2,height);
+      CGFloat gray=![self isEnabled]?0.62:([self isHighlighted]?0.30:0.40);
 
-      frame.origin.y+=[controlView isFlipped]?0:-1;
-      frame.size.height++;
+      [[NSColor colorWithCalibratedWhite:gray alpha:1] setFill];
+      [[NSBezierPath bezierPathWithRoundedRect:face xRadius:height/2 yRadius:height/2] fill];
+     }
+     break;
 
-      frame=CGRectInset(frame,1,1.5);
-      [[NSColor grayColor] setFill];
-      drawRoundedBezel(context,frame);
+    case NSRoundRectBezelStyle:
+     if([self isBordered]){
+      CGFloat height=MIN(NSHeight(original),18-_controlSize*2);
+      NSRect  face=NSInsetRect(NSMakeRect(NSMinX(original)+1,floor(NSMidY(original)-height/2),NSWidth(original)-2,height),0.5,0.5);
+      NSBezierPath *path=[NSBezierPath bezierPathWithRoundedRect:face xRadius:4 yRadius:4];
+
+      [[NSColor colorWithCalibratedWhite:[self isHighlighted]?0.78:0.87 alpha:1] setFill];
+      [path fill];
+      [[NSColor colorWithCalibratedWhite:[self isEnabled]?0.45:0.70 alpha:1] setStroke];
+      [path stroke];
      }
      break;
 
@@ -925,7 +845,16 @@ static void drawRoundedBezel(CGContextRef context,CGRect frame){
 }
 
 -(NSRect)drawTitle:(NSAttributedString *)title withFrame:(NSRect)titleRect inView:(NSView *)controlView {
+    BOOL defaulted=([[controlView window] defaultButtonCell]==self) || [_keyEquivalent isEqualToString:@"\r"];
 
+    /* White on the accent-colored default button and on an inline pill. */
+    if([title length] && [self isBordered] &&
+       (([self isEnabled] && _bezelStyle==NSRoundedBezelStyle && defaulted) || _bezelStyle==NSInlineBezelStyle)){
+     NSMutableAttributedString *white=[[title mutableCopy] autorelease];
+
+     [white addAttribute:NSForegroundColorAttributeName value:[NSColor whiteColor] range:NSMakeRange(0,[white length])];
+     title=white;
+    }
     [title _clipAndDrawInRect:titleRect];
 
     BOOL drawDottedRect=NO;

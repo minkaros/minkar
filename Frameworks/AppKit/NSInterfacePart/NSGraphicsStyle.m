@@ -595,6 +595,18 @@ void _NSGraphicsStyleRegisterButtonImages(void) {
 -(void)drawButtonImage:(NSImage *)image inRect:(NSRect)rect enabled:(BOOL)enabled mixed:(BOOL)mixed {
    float fraction=enabled?1.0:0.5;
 
+   /* A mixed check box: the accent box with a dash, no check mark. */
+   if(mixed && ([[image name] isEqualToString:@"NSSwitch"] || [[image name] isEqualToString:@"NSHighlightedSwitch"])){
+    NSColor *accent=atlasAccent();
+    NSRect   box=NSMakeRect(NSMidX(rect)-7,NSMidY(rect)-7,14,14);
+
+    if(!enabled)
+     accent=atlasGray(0.75);
+    atlasRounded(box,3.5,atlasLighter(accent,0.12),accent,atlasDarker(accent,0.20));
+    [[NSColor whiteColor] setFill];
+    [[NSBezierPath bezierPathWithRoundedRect:NSMakeRect(NSMinX(box)+3.5,NSMidY(box)-1,7,2) xRadius:1 yRadius:1] fill];
+    return;
+   }
    [image drawInRect:rect fromRect:NSZeroRect operation:NSCompositeSourceOver fraction:fraction];
    if(mixed){
     NSRect bar=NSMakeRect(NSMinX(rect)+3,NSMidY(rect)-1,NSWidth(rect)-6,2);

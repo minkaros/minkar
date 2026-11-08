@@ -48,6 +48,21 @@ typedef enum {
     NSRoundRectBezelStyle = 12,
     NSRecessedBezelStyle = 13,
     NSRoundedDisclosureBezelStyle = 14,
+    NSInlineBezelStyle = 15,
+    /* The names of API 19. */
+    NSBezelStyleRounded = 1,
+    NSBezelStyleRegularSquare = 2,
+    NSBezelStyleDisclosure = 5,
+    NSBezelStyleShadowlessSquare = 6,
+    NSBezelStyleCircular = 7,
+    NSBezelStyleTexturedSquare = 8,
+    NSBezelStyleHelpButton = 9,
+    NSBezelStyleSmallSquare = 10,
+    NSBezelStyleTexturedRounded = 11,
+    NSBezelStyleRoundRect = 12,
+    NSBezelStyleRecessed = 13,
+    NSBezelStyleRoundedDisclosure = 14,
+    NSBezelStyleInline = 15,
 } NSBezelStyle;
 
 typedef enum {
