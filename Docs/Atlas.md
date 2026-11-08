@@ -723,9 +723,13 @@ SwiftUI, outside API 19–21).
   faster text drawing (5d32298820) and full table columns (ecb4b53a0e);
   test `image/system-monitor` (12 checks). Energy (5.2) waits for the
   power driver to report each process's use.
-- [ ] **A4 — Logs.** `log show` and `log stream` in a window, filters by
+- [x] **A4 — Logs.** `log show` and `log stream` in a window, filters by
   process, subsystem and level, crash reports from `/Library/Logs`. Tests:
-  an `os_log` message from a test program appears with its subsystem.
+  an `os_log` message from a test program appears with its subsystem. Done
+  8 Nov 2026: `CoreServices/Logs` (033761cf48), on `log --style ndjson`
+  (2ffffb9625); test `image/logs` (8 checks), batch of 8 Nov (729 passed,
+  M2). Crash reports are shown where they go, but nothing writes them yet:
+  a crash reporter is still to come.
 - [ ] **A5 — Screenshot.** Whole screen, window and selection,
   Command-Shift-3 and Command-Shift-4 through the symbolic hotkey table,
   files on the desktop named by date, the pasteboard. Tests: the shortcut

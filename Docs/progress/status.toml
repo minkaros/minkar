@@ -33,7 +33,7 @@
 # "bmake progress" (Docs/CONTRIBUTING.md).
 
 updated = "2026-11-08"
-commit  = "5a1c89ed68"
+commit  = "033761cf48"
 
 deps = [["ws", 555, "dock"], ["fw", 490, "files"], ["fw", 590, "webkit"]]
 
@@ -260,8 +260,8 @@ note = "Menu Extras as bundles, Dock dragging, file operations, the full login"
 line = "mb"
 
 [[board.next]]
-title = "Apps: Logs, then Terminal"
-note = "A4: log show and log stream in a window; A1: a VT100/xterm terminal in Agave (libvterm)"
+title = "Apps: Terminal"
+note = "A1: a VT100/xterm terminal in Agave (libvterm), windows and tabs"
 line = "apps"
 
 [[board.later]]
@@ -277,6 +277,11 @@ items = [["API 20 and 21", "fw"], ["Performance ≥ the reference system", "gpu"
 [[board.later]]
 group = "After 19.6.0"
 items = [["x86-64 binaries, arm64", "compat"]]
+
+[[board.done]]
+title = "A4: Logs"
+note = "os_log's messages live, filtered by level, process and subsystem; crash reports and log files · 8 nov"
+line = "apps"
 
 [[board.done]]
 title = "A3: System Monitor"
@@ -302,8 +307,3 @@ line = "fw"
 title = "M3: 4 of 7 tools pass their tests"
 note = "swift-argument-parser, Rainbow, Files, Yams, xcbeautify; XCTest on Minkar · 5 nov"
 line = "fw"
-
-[[board.done]]
-title = "Atlas plan; generic app names"
-note = "menus, Dock, Files and the apps A0–A10 in one plan; Files and Text Editor · 5 nov"
-line = "atlas"

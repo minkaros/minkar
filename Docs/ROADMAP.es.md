@@ -110,7 +110,7 @@ Minkar arranca sobre Darwin con su propio cargador EFI, todo el sistema se compi
 | A0 Bases de las apps | hecho (8 nov: Acerca de, libros de ayuda, documentos con versiones, la plantilla; Atlas.es.md 5.3) | La plantilla de app: ventanas Acerca de y Preferencias, menú Ayuda, español e inglés, `NSDocument` | 6 |
 | Terminal (A1) | falta | Toda la app: un emulador VT100/xterm sobre un pty, pestañas, historial, Agave | 6 |
 | Monitor del sistema (A3) | hecho salvo energía (8 nov; la energía por proceso espera los datos del driver de energía) | Toda la app: procesos, CPU, memoria, energía, disco, red, salir y forzar salida | 6 |
-| Registros (A4) | falta | Toda la app, sobre `logd` y `os_log`; informes de fallos y de pánicos | 6 |
+| Registros (A4) | hecho salvo escribir informes de fallos (8 nov; la app los muestra, falta el generador de informes) | Toda la app, sobre `logd` y `os_log`; informes de fallos y de pánicos | 6 |
 | Captura de pantalla (A5) | falta | Toda la app, sobre `screencapture` y la lista de ventanas; los atajos del sistema | 6 |
 | Visor de imágenes (A6a) | falta | Toda la app, e ImageIO | 6 |
 | Visor de documentos (A6b) | falta | Toda la app, y PDFKit | 6 |

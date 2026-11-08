@@ -765,10 +765,13 @@ SwiftUI, fuera de la API 19–21).
   rápido (5d32298820) y las columnas de tabla completas (ecb4b53a0e);
   prueba `image/system-monitor` (12 comprobaciones). La energía (5.2)
   espera a que el driver de energía dé el uso de cada proceso.
-- [ ] **A4 — Logs (Registros).** `log show` y `log stream` en una ventana, filtros
+- [x] **A4 — Logs (Registros).** `log show` y `log stream` en una ventana, filtros
   por proceso, subsistema y nivel, informes de cuelgues de `/Library/Logs`.
   Pruebas: un mensaje `os_log` de un programa de prueba aparece con su
-  subsistema.
+  subsistema. Hecho el 8 nov 2026: `CoreServices/Logs` (033761cf48), sobre
+  `log --style ndjson` (2ffffb9625); prueba `image/logs` (8 comprobaciones),
+  lote del 8 nov (729 pasan, M2). Los informes de cuelgues se muestran
+  donde van, pero aún nada los escribe: falta un generador de informes.
 - [ ] **A5 — Captura.** Pantalla completa, ventana y selección,
   Comando-Mayúsculas-3 y Comando-Mayúsculas-4 por la tabla de atajos
   simbólicos, ficheros en el escritorio con la fecha como nombre, el
