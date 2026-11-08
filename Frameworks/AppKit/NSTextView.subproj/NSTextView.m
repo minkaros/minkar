@@ -8,6 +8,7 @@
 
 #import <sys/param.h>
 #import <AppKit/NSTextView.h>
+#import <AppKit/NSWorkspace.h>
 #import <AppKit/NSTextContainer.h>
 #import <AppKit/NSTextStorage.h>
 #import <AppKit/NSLayoutManager.h>
@@ -2731,6 +2732,21 @@ NSString * const NSOldSelectedCharacterRange=@"NSOldSelectedCharacterRange";
     }
 }
 
+-(void)clickedOnLink:(id)link atIndex:(NSUInteger)charIndex {
+    id delegate=[self delegate];
+    NSURL *url=nil;
+
+    if([delegate respondsToSelector:@selector(textView:clickedOnLink:atIndex:)] &&
+       [delegate textView:self clickedOnLink:link atIndex:charIndex])
+        return;
+    if([link isKindOfClass:[NSURL class]])
+        url=link;
+    else if([link isKindOfClass:[NSString class]])
+        url=[NSURL URLWithString:link];
+    if(url!=nil)
+        [[NSWorkspace sharedWorkspace] openURL:url];
+}
+
 -(void)mouseDown:(NSEvent *)event {
     NSEvent *lastDrag=event;
     NSPoint  point=[self convertPoint:[event locationInWindow] fromView:nil];
@@ -2738,6 +2754,25 @@ NSString * const NSOldSelectedCharacterRange=@"NSOldSelectedCharacterRange";
     NSRange  firstRange,lastRange,selection;
     NSSelectionAffinity affinity=NSSelectionAffinityUpstream;
     NSSelectionGranularity granularity = [event clickCount]-1;
+
+    /* A link under a single click is followed, editable text or not. */
+    if([event clickCount]==1 && [_textStorage length]>0){
+        float    linkFraction=0;
+        unsigned glyph=[self glyphIndexForPoint:point fractionOfDistanceThroughGlyph:&linkFraction];
+
+        if(glyph!=NSNotFound){
+            unsigned character=[[self layoutManager] characterIndexForGlyphAtIndex:glyph];
+
+            if(character<[_textStorage length]){
+                id link=[_textStorage attribute:NSLinkAttributeName atIndex:character effectiveRange:NULL];
+
+                if(link!=nil){
+                    [self clickedOnLink:link atIndex:character];
+                    return;
+                }
+            }
+        }
+    }
 
     if(![self isSelectable])
         return;

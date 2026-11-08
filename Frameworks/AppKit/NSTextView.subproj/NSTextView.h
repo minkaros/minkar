@@ -220,6 +220,9 @@ APPKIT_EXPORT NSString *const NSOldSelectedCharacterRange;
 
 @interface NSObject (NSTextView_undoManager)
 - (NSUndoManager *)undoManagerForTextView:(NSTextView *)textView;
+/* A click on a link: the delegate's, else NSWorkspace opens it. */
+- (void)clickedOnLink:(id)link atIndex:(NSUInteger)charIndex;
+
 @end
 
 /* The delegate, as a protocol (API 19 declares it so). */
@@ -230,6 +233,7 @@ APPKIT_EXPORT NSString *const NSOldSelectedCharacterRange;
 - (BOOL)textView:(NSTextView *)textView
     shouldChangeTextInRange:(NSRange)affectedCharRange
           replacementString:(NSString *)replacementString;
+- (BOOL)textView:(NSTextView *)textView clickedOnLink:(id)link atIndex:(NSUInteger)charIndex;
 @end
 
 @interface NSObject (NSTextView_delegate)
