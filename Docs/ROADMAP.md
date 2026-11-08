@@ -82,7 +82,7 @@ Minkar's performance must be equal to or better than the reference system's on t
 
 - **How it is measured:** Minkar and the reference system on the same machine (dual boot), with the same benchmarks run over SSH. The reference system is measured only on its vendor's original hardware (candidate: PC 2), as its license allows no other, and its values are kept out of the public repository.
 - **Consequence:** if the reference is measured only on PC 2, Minkar must be measured there too, and its GPUs (two AMD FirePro D500: Tahiti, GCN 1.0, PCI 1002:679e; the oldest family we have and the least maturely supported) become the first high-performance driver's. The model's other configuration, the FirePro D300, is Pitcairn: another chip with its own firmware, never tested (the driver knows its tables and takes its microcode, `pitcairn_*.bin`; pending until a D300 is at hand).
-- **GPU families (decided 2026-11-01, [ADR 0002](ADR/0002-GPU-First-Family.md)):** first GCN 1.0, PC 2's FirePro D500 (Tahiti), where the reference is measured; then RDNA2, PC 1's RX 6600 card (Navi 23, which drives its display today through the firmware's framebuffer); then Intel Gen9, the HD 630 integrated in PC 1's i7-7700.
+- **GPU families (decided 2026-11-01, [ADR 0002](ADR/0002-GPU-First-Family.md)):** first GCN 1.0, PC 2's FirePro D500 (Tahiti), where the reference is measured; then RDNA2, PC 1's RX 6600 card (Navi 23, which drives its display today through the firmware's framebuffer; its steps R0–R5 in [GPU-RDNA2.md](GPU-RDNA2.md), R0 done); then Intel Gen9, the HD 630 integrated in PC 1's i7-7700.
 
 ## Baseline
 
