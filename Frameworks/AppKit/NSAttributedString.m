@@ -7,6 +7,7 @@ The above copyright notice and this permission notice shall be included in all c
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE. */
 
 #import <AppKit/NSAttributedString.h>
+#import "NSHTMLReader.h"
 #import <AppKit/NSFont.h>
 #import <AppKit/NSColor.h>
 #import <AppKit/NSParagraphStyle.h>
@@ -38,6 +39,10 @@ NSString * const NSExpansionAttributeName=@"NSExpansionAttributeName";
 NSString * const NSCursorAttributeName=@"NSCursorAttributeName";
 NSString * const NSToolTipAttributeName=@"NSToolTipAttributeName";
 NSString * const NSBackgroundColorDocumentAttribute=@"NSBackgroundColorDocumentAttribute";
+NSString * const NSTitleDocumentAttribute=@"NSTitleDocumentAttribute";
+NSString * const NSDocumentTypeDocumentAttribute=@"DocumentType";
+NSString * const NSHTMLTextDocumentType=@"NSHTML";
+NSString * const NSBaseURLDocumentOption=@"BaseURL";
 NSString * const NSSpellingStateAttributeName=@"NSSpellingStateAttributeName"; // temporary attribute
 
 @implementation NSAttributedString(NSAttributedString_AppKit)
@@ -63,19 +68,23 @@ NSString * const NSSpellingStateAttributeName=@"NSSpellingStateAttributeName"; /
    return nil;
 }
 
+/* HTML: NSHTMLReader.m reads the part help books and credits use. */
 -initWithHTML:(NSData *)html baseURL:(NSURL *)url documentAttributes:(NSDictionary **)attributes {
-   NSUnimplementedMethod();
-   return nil;
+   NSAttributedString *string=[NSHTMLReader attributedStringWithHTML:html baseURL:url documentAttributes:attributes];
+
+   if(string==nil){
+    [self release];
+    return nil;
+   }
+   return [self initWithAttributedString:string];
 }
 
 -initWithHTML:(NSData *)html documentAttributes:(NSDictionary **)attributes {
-   NSUnimplementedMethod();
-   return nil;
+   return [self initWithHTML:html baseURL:nil documentAttributes:attributes];
 }
 
 -initWithHTML:(NSData *)html options:(NSDictionary *)options documentAttributes:(NSDictionary **)attributes {
-   NSUnimplementedMethod();
-   return nil;
+   return [self initWithHTML:html baseURL:[options objectForKey:NSBaseURLDocumentOption] documentAttributes:attributes];
 }
 
 -initWithPath:(NSString *)path documentAttributes:(NSDictionary **)attributes {
