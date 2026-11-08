@@ -7,6 +7,7 @@ The above copyright notice and this permission notice shall be included in all c
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE. */
 
 #import <AppKit/NSLevelIndicatorCell.h>
+#import <AppKit/NSGraphicsContext.h>
 #import <AppKit/NSRaise.h>
 #import <AppKit/NSColor.h>
 #import <AppKit/NSBezierPath.h>
@@ -257,63 +258,73 @@ static NSBezierPath *starPath(NSRect rect){
    [self setControlView:controlView];
    level=[self _levelRectForFrame:frame flipped:flipped];
 
+   /* As the reference platform draws them: the empty part light grey, the
+      level in its color; relevancy dark grey stripes on a grey track;
+      rating small stars, dark for the value and light for the rest. */
+   NSColor *empty=[NSColor colorWithCalibratedWhite:0.80 alpha:1];
+   NSColor *edge=[NSColor colorWithCalibratedWhite:0.72 alpha:1];
+
    switch(_style){
 
     case NSLevelIndicatorStyleContinuousCapacity:{
       NSRect bar=NSInsetRect(level,0,MAX(0,floor((NSHeight(level)-14)/2)));
       NSRect fill=bar;
 
-      fillRounded(bar,4,[NSColor whiteColor]);
+      fillRounded(bar,3,empty);
       fill.size.width=floor(NSWidth(bar)*fraction);
-      fillRounded(NSInsetRect(fill,1,1),3,enabled?[self _levelColor]:track);
-      strokeRounded(bar,4,border);
+      if(NSWidth(fill)>0){
+       [NSGraphicsContext saveGraphicsState];
+       NSRectClip(fill);
+       fillRounded(bar,3,enabled?[self _levelColor]:track);
+       [NSGraphicsContext restoreGraphicsState];
+      }
+      strokeRounded(bar,3,edge);
      }
      break;
 
     case NSLevelIndicatorStyleDiscreteCapacity:{
       NSRect  bar=NSInsetRect(level,0,MAX(0,floor((NSHeight(level)-14)/2)));
       int     count=MAX(1,(int)floor(_maxValue-_minValue));
-      CGFloat gap=2,width=(NSWidth(bar)-gap*(count-1))/count;
+      CGFloat gap=1,width=(NSWidth(bar)-gap*(count-1))/count;
       int     lit=(int)floor([self doubleValue]-_minValue+0.5);
       NSColor *color=[self _levelColor];
 
       for(i=0;i<count;i++){
        NSRect segment=NSMakeRect(floor(NSMinX(bar)+i*(width+gap)),NSMinY(bar),floor(width),NSHeight(bar));
 
-       fillRounded(segment,2,(i<lit && enabled)?color:[NSColor whiteColor]);
-       strokeRounded(segment,2,border);
+       fillRounded(segment,2,(i<lit && enabled)?color:empty);
+       strokeRounded(segment,2,edge);
       }
      }
      break;
 
     case NSLevelIndicatorStyleRelevancy:{
-      NSRect bar=NSInsetRect(level,0,MAX(0,floor((NSHeight(level)-12)/2)));
+      NSRect bar=NSInsetRect(level,0,MAX(0,floor((NSHeight(level)-10)/2)));
       int    width=(int)floor(NSWidth(bar)*fraction);
 
-      for(i=0;i<width;i+=3)
-       fillRounded(NSMakeRect(NSMinX(bar)+i,NSMinY(bar),2,NSHeight(bar)),0,
-          enabled?[NSColor secondaryLabelColor]:track);
+      [[NSColor colorWithCalibratedWhite:0.77 alpha:1] setFill];
+      NSRectFill(bar);
+      for(i=0;i<width;i+=2){
+       [[NSColor colorWithCalibratedWhite:(enabled?0.45:0.65) alpha:1] setFill];
+       NSRectFill(NSMakeRect(NSMinX(bar)+i,NSMinY(bar),1,NSHeight(bar)));
+       [[NSColor colorWithCalibratedWhite:(enabled?0.62:0.72) alpha:1] setFill];
+       NSRectFill(NSMakeRect(NSMinX(bar)+i+1,NSMinY(bar),1,NSHeight(bar)));
+      }
      }
      break;
 
     case NSLevelIndicatorStyleRating:{
       int     count=MAX(1,(int)floor(_maxValue-_minValue));
-      CGFloat side=MIN(NSHeight(level),15);
+      CGFloat side=MIN(NSHeight(level),12);
       double  value=[self doubleValue]-_minValue;
-      NSColor *filled=enabled?[NSColor systemOrangeColor]:[NSColor tertiaryLabelColor];
+      NSColor *filled=enabled?[NSColor colorWithCalibratedWhite:0.40 alpha:1]:[NSColor tertiaryLabelColor];
+      NSColor *unfilled=[NSColor colorWithCalibratedWhite:0.77 alpha:1];
 
       for(i=0;i<count;i++){
-       NSRect star=NSMakeRect(NSMinX(level)+i*(side+2),floor(NSMidY(level)-side/2),side,side);
+       NSRect star=NSMakeRect(NSMinX(level)+i*(side+1),floor(NSMidY(level)-side/2),side,side);
 
-       if(value>=i+0.5){
-        [filled setFill];
-        [starPath(star) fill];
-       }
-       else {
-        /* A dot where a star could be, as the reference platform shows. */
-        fillRounded(NSMakeRect(floor(NSMidX(star))-1.5,floor(NSMidY(star))-1.5,3,3),1.5,
-           [NSColor tertiaryLabelColor]);
-       }
+       [(value>=i+0.5?filled:unfilled) setFill];
+       [starPath(star) fill];
       }
      }
      break;
