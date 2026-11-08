@@ -255,19 +255,36 @@
    _delegate = delegate;
 }
 
--(void)drawWithFrame:(NSRect)frame inView:(NSView *)view {   
-	[_backgroundColor set];
-	[NSBezierPath fillRect: frame];
+/* A small chevron at the right end of a component, before the next one. */
+static void drawSeparator(NSRect rect){
+   NSBezierPath *path=[NSBezierPath bezierPath];
+   CGFloat       x=NSMaxX(rect)-8,y=NSMidY(rect);
 
-// Draw them last to first to get the proper overlapping arrows drawing
-	
-    NSInteger count=[_pathComponentCells count];
-    
-    while(--count>=0){
-     NSPathComponentCell *cell=[_pathComponentCells objectAtIndex:count];
-     NSRect cellFrame = [self rectOfPathComponentCell: cell withFrame: frame inView: view];
-     [cell drawWithFrame: cellFrame inView: view];
-	}
+   [path moveToPoint:NSMakePoint(x,y+4)];
+   [path lineToPoint:NSMakePoint(x+3.5,y)];
+   [path lineToPoint:NSMakePoint(x,y-4)];
+   [path setLineWidth:1.2];
+   [[NSColor secondaryLabelColor] setStroke];
+   [path stroke];
+}
+
+-(void)drawWithFrame:(NSRect)frame inView:(NSView *)view {
+   NSInteger count=[_pathComponentCells count];
+
+   if(_backgroundColor!=nil){
+    [_backgroundColor setFill];
+    NSRectFill(frame);
+   }
+
+   /* Last to first, so a component's chevron is not covered by the next. */
+   while(--count>=0){
+    NSPathComponentCell *cell=[_pathComponentCells objectAtIndex:count];
+    NSRect cellFrame = [self rectOfPathComponentCell: cell withFrame: frame inView: view];
+
+    [cell drawWithFrame: cellFrame inView: view];
+    if(_pathStyle==NSPathStyleStandard && count<(NSInteger)[_pathComponentCells count]-1)
+     drawSeparator(cellFrame);
+   }
 }
 
 @end
