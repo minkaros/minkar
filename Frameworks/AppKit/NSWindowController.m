@@ -104,10 +104,13 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
     [center addObserver:self selector:@selector(_windowWillClose:) name:NSWindowWillCloseNotification object:_window];
 }
 
+/* The controller keeps its window when it closes, so -showWindow: shows it
+   again. A document's controller lets it go first (closing the document
+   closes its controllers, and so this window again), then goes with it. */
 -(void)_windowWillClose:(NSNotification *)note {
-	[self setWindow:nil];
-
 	if (_document){
+   [self setWindow:nil];
+
    [[self retain] autorelease];
 
    if([self shouldCloseDocument] || [[_document windowControllers] count]==1)
@@ -194,6 +197,10 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
     return _nibPath;
    else {
     NSString *name=[self windowNibName];
+
+    /* A controller made with its window has no nib to load. */
+    if([name length]==0)
+     return nil;
     NSBundle *bundle=[NSBundle bundleForClass:[_owner class]];
     NSString *path=[bundle pathForResource:name ofType:@"nib"];
 
