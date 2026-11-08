@@ -29,6 +29,14 @@
 @class NSWindow, NSImage, NSMenu, NSPasteboard, NSDisplay, NSDockTile, DKConnection, DKMenu;
 
 APPKIT_EXPORT NSString *const NSModalPanelRunLoopMode;
+
+/* The About window's options (-orderFrontStandardAboutPanelWithOptions:). */
+typedef NSString *NSAboutPanelOptionKey;
+APPKIT_EXPORT NSAboutPanelOptionKey const NSAboutPanelOptionCredits;
+APPKIT_EXPORT NSAboutPanelOptionKey const NSAboutPanelOptionApplicationName;
+APPKIT_EXPORT NSAboutPanelOptionKey const NSAboutPanelOptionApplicationIcon;
+APPKIT_EXPORT NSAboutPanelOptionKey const NSAboutPanelOptionVersion;
+APPKIT_EXPORT NSAboutPanelOptionKey const NSAboutPanelOptionApplicationVersion;
 APPKIT_EXPORT NSString *const NSEventTrackingRunLoopMode;
 
 APPKIT_EXPORT NSString *const NSApplicationWillFinishLaunchingNotification;

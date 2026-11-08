@@ -30,7 +30,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <AppKit/NSImage.h>
 #import <AppKit/NSImageView.h>
 #import <AppKit/NSSheetContext.h>
-#import <AppKit/NSSystemInfoPanel.h>
+#import "NSAboutPanel.h"
 #import <AppKit/NSAlert.h>
 #import <AppKit/NSWorkspace.h>
 #import <AppKit/NSDockTile.h>
@@ -1797,10 +1797,7 @@ typedef void (*endfunction_t)(id, SEL, id, NSInteger, void *);
 }
 
 -(void)orderFrontStandardAboutPanelWithOptions:(NSDictionary *)options {
-    NSSystemInfoPanel *standardAboutPanel = [[NSSystemInfoPanel
-standardAboutPanel] retain];
-   [standardAboutPanel showInfoPanel:self withOptions:options];
-
+   [[NSAboutPanel sharedAboutPanel] orderFrontWithOptions:options];
 }
 
 -(void)activateContextHelpMode:sender {
@@ -1824,7 +1821,7 @@ standardAboutPanel] retain];
                 if(helpBookName != nil) {
                     NSString* helpFilePath = [helpBundle pathForResource: helpBookName ofType: nil];
                     if (helpFilePath) {
-                        if([[NSWorkspace sharedWorkspace] openFile:helpFilePath withApplication:@"Help Viewer"]==YES) {
+                        if([[NSWorkspace sharedWorkspace] openFile:helpFilePath]==YES) {
                             return;
                         }
                     }
@@ -1832,7 +1829,7 @@ standardAboutPanel] retain];
                 // Perhaps there's an index.html file that'll be usable?
                 NSString* helpFilePath = [helpBundle pathForResource: @"index" ofType: @"html"];
                 if (helpFilePath) {
-                    if([[NSWorkspace sharedWorkspace] openFile:helpFilePath withApplication:@"Help Viewer"]==YES) {
+                    if([[NSWorkspace sharedWorkspace] openFile:helpFilePath]==YES) {
                         return;
                     }
                 }
@@ -1840,10 +1837,10 @@ standardAboutPanel] retain];
         }
     }
 
-   NSString *processName = [[NSProcessInfo processInfo] processName];
+   /* No help book: say so, with the name the app shows. */
    NSAlert *alert = [[NSAlert alloc] init];
-   [alert setMessageText: NSLocalizedStringFromTableInBundle(@"Help", nil, [NSBundle bundleForClass: [NSApplication class]], @"Help alert title")];
-   [alert setInformativeText:[NSString stringWithFormat: NSLocalizedStringFromTableInBundle(@"Help isn't available for %@.", nil, [NSBundle bundleForClass: [NSApplication class]], @""), processName]];
+   [alert setMessageText:[NSString stringWithFormat: NSLocalizedStringFromTableInBundle(@"Help isn't available for %@.", nil, [NSBundle bundleForClass: [NSApplication class]], @""), applicationMenuTitle()]];
+   [alert setInformativeText:@""];
    [alert runModal];
    [alert release];
 }

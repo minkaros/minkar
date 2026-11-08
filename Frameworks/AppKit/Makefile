@@ -200,7 +200,7 @@ SRCS = \
     NSStepperCell.m \
     NSStringDrawer.m \
     NSStringDrawing.m \
-    NSSystemInfoPanel/NSSystemInfoPanel.m \
+    NSAboutPanel.m \
     NSTabView.m \
     NSTabViewItem.m \
     NSTableColumn.m \
@@ -473,7 +473,6 @@ HEADERS = \
     NSStepperCell.h \
     NSStringDrawer.h \
     NSStringDrawing.h \
-    NSSystemInfoPanel/NSSystemInfoPanel.h \
     NSTabView.h \
     NSTabViewItem.h \
     NSTableColumn.h \
@@ -581,7 +580,7 @@ RESOURCES_FILES = Info.plist \
 	NSButtonCell_disclosure_selected.tif \
 	NSButtonCell_disclosure_normal.tif \
 	NSButtonCell_disclosure_highlighted.tif \
-	NSSystemInfoPanel/NSApplicationIcon.tiff \
+	NSApplicationIcon.tiff \
 	NSPoof.png \
 	NSAlertPanelExclamation.tiff \
 	NSBrowserCellArrow.tiff \
@@ -624,7 +623,6 @@ DIRS = \
 	WindowServer.backend \
 	NSKeyboardBinding \
 	CoreData_ \
-	NSSystemInfoPanel \
 	NSOpenGL \
 	NSTextView.subproj \
 	NSAnimation \
@@ -681,8 +679,6 @@ clean-deps:
 
 fmwk-install-hook:
 .for lproj in en.lproj fr.lproj de.lproj
-	cp -Rf ${.CURDIR}/NSSystemInfoPanel/${lproj}/NSSystemInfoPanel.nib \
-		${RESOURCES_DIR}/${lproj}/
 	cp -Rf ${.CURDIR}/NSColorPicker.subproj/${lproj}/NSColorPickerWheel.nib \
 		${.CURDIR}/NSColorPicker.subproj/${lproj}/NSColorPickerSliders.nib \
 		${.CURDIR}/NSColorPicker.subproj/${lproj}/NSColorPickerColorList.nib \
