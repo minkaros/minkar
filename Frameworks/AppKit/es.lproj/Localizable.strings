@@ -77,3 +77,7 @@
 "%@ (last opened)" = "%@ (última apertura)";
 "Restore" = "Restaurar";
 "Done" = "Listo";
+"%@ Help" = "Ayuda de %@";
+"Search Results" = "Resultados de la búsqueda";
+"Search Results for “%@”" = "Resultados de la búsqueda de “%@”";
+"No pages contain “%@”." = "Ninguna página contiene “%@”.";

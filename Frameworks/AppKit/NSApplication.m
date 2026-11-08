@@ -31,6 +31,11 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <AppKit/NSImageView.h>
 #import <AppKit/NSSheetContext.h>
 #import "NSAboutPanel.h"
+#import <AppKit/NSHelpManager.h>
+
+@interface NSHelpManager (NSApplicationHelp)
+-(BOOL)_showApplicationHelp;
+@end
 #import <AppKit/NSAlert.h>
 #import <AppKit/NSWorkspace.h>
 #import <AppKit/NSDockTile.h>
@@ -1808,34 +1813,12 @@ typedef void (*endfunction_t)(id, SEL, id, NSInteger, void *);
     [[[NSSpellChecker sharedSpellChecker] spellingPanel] makeKeyAndOrderFront: self];
 }
 
+/* The app's help book from its start page (NSHelpManager.m), or an
+   alert that it has none. */
 -(void)showHelp:sender
 {
-    NSString *helpBookFolder = [[[NSBundle mainBundle] infoDictionary] objectForKey:@"CFBundleHelpBookFolder"];
-    if(helpBookFolder != nil) {
-        BOOL isDir;
-        NSString *folder = [[NSBundle mainBundle] pathForResource:helpBookFolder ofType:nil];
-        if(folder != nil && [[NSFileManager defaultManager] fileExistsAtPath:folder isDirectory:&isDir] && isDir) {
-            NSBundle* helpBundle = [NSBundle bundleWithPath: folder];
-            if (helpBundle) {
-                NSString *helpBookName = [[helpBundle infoDictionary] objectForKey:@"CFBundleHelpTOCFile"];
-                if(helpBookName != nil) {
-                    NSString* helpFilePath = [helpBundle pathForResource: helpBookName ofType: nil];
-                    if (helpFilePath) {
-                        if([[NSWorkspace sharedWorkspace] openFile:helpFilePath]==YES) {
-                            return;
-                        }
-                    }
-                }
-                // Perhaps there's an index.html file that'll be usable?
-                NSString* helpFilePath = [helpBundle pathForResource: @"index" ofType: @"html"];
-                if (helpFilePath) {
-                    if([[NSWorkspace sharedWorkspace] openFile:helpFilePath]==YES) {
-                        return;
-                    }
-                }
-            }
-        }
-    }
+    if ([[NSHelpManager sharedHelpManager] _showApplicationHelp])
+        return;
 
    /* No help book: say so, with the name the app shows. */
    NSAlert *alert = [[NSAlert alloc] init];

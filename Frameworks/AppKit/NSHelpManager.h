@@ -11,7 +11,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <Foundation/NSMapTable.h>
 #import <AppKit/AppKitExport.h>
 
-@class NSString, NSAttributedString;
+@class NSString, NSAttributedString, NSBundle;
 
 APPKIT_EXPORT NSString *const NSContextHelpModeDidActivateNotification;
 APPKIT_EXPORT NSString *const NSContextHelpModeDidDeactivateNotification;
@@ -29,9 +29,10 @@ APPKIT_EXPORT NSString *const NSContextHelpModeDidDeactivateNotification;
 - (void)setContextHelp:(NSAttributedString *)text forObject:object;
 - (void)removeContextHelpForObject:object;
 
-- (void)showContextHelpForObject:object locationHint:(NSPoint)hintPoint;
+- (BOOL)showContextHelpForObject:object locationHint:(NSPoint)hintPoint;
 
 - (void)findString:(NSString *)string inBook:(NSString *)bookName;
 - (void)openHelpAnchor:(NSString *)anchor inBook:(NSString *)bookName;
+- (BOOL)registerBooksInBundle:(NSBundle *)bundle;
 
 @end

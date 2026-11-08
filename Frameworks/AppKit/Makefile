@@ -201,6 +201,8 @@ SRCS = \
     NSStringDrawer.m \
     NSStringDrawing.m \
     NSAboutPanel.m \
+    NSHTMLReader.m \
+    NSHelpViewer.m \
     NSDocumentVersionsPanel.m \
     NSTabView.m \
     NSTabViewItem.m \
