@@ -260,7 +260,8 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
    for(i=0;i<count;i++){
     NSTabViewItem *item=[_items objectAtIndex:i];
-    NSRect         rect=[self rectForItemLabelAtIndex:i];
+    /* The whole tab as drawn, not only its label's text. */
+    NSRect         rect=[self rectForItemBorderAtIndex:i];
 
     if(NSMouseInRect(point,rect,[self isFlipped]))
      return item;
@@ -296,9 +297,10 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 }
 
 -(void)removeTabViewItem:(NSTabViewItem *)item {
-    int selectedIndex = [self indexOfTabViewItem:_selectedItem];
+    /* NSInteger: NSNotFound does not fit an int (removing the last item). */
+    NSInteger selectedIndex = [self indexOfTabViewItem:_selectedItem];
     if (item == _selectedItem) {
-        int newIndex = selectedIndex - 1;
+        NSInteger newIndex = selectedIndex - 1;
 
         if (newIndex < 0) {
             newIndex = selectedIndex + 1;
