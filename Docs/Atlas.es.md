@@ -735,12 +735,17 @@ SwiftUI, fuera de la API 19–21).
 
 ### 5.3 Hitos
 
-- [ ] **A0 — Base común de las apps.** Ventana Acerca de (la de Atlas, con
+- [x] **A0 — Base común de las apps.** Ventana Acerca de (la de Atlas, con
   icono, versión y copyright), menús estándar de Preferencias y Ayuda, los
   dos idiomas, `NSDocument` con autoguardado y versiones en el sistema de
   archivos, la plantilla de la que parten A1–A10. Pruebas: la ventana
   Acerca de de cada app, un menú traducido, un documento guardado y
-  reabierto.
+  reabierto. Hecho el 8 nov 2026: la ventana Acerca de (5a721456ef),
+  AppKit en español (17dde9f0bb), NSFileVersion y el autoguardado con
+  versiones (efa83788d8, aa4492475f), la plantilla
+  `Developer/Templates/AtlasApp` (fbef0a5927) con su libro de ayuda y
+  NSHelpManager (08a89e5a13, 63132864be); prueba `image/atlas-app` (26
+  comprobaciones en inglés y español), lote del 8 nov (2181 pasan, M2 y M3).
 - [ ] **A1 — Terminal.** Secuencias VT100 y xterm (colores, movimiento del
   cursor, pantalla alternativa), UTF-8, cambio de tamaño (`SIGWINCH`),
   historial, selección, copiar y pegar, Agave y su tamaño, varias ventanas
@@ -752,10 +757,14 @@ SwiftUI, fuera de la API 19–21).
   codificaciones y finales de línea, impresión, la regla. Pruebas: un
   fichero de ida y vuelta en cada codificación, buscar y reemplazar, un
   documento RTF reabierto.
-- [ ] **A3 — Monitor del sistema.** Lista de procesos con orden y búsqueda,
+- [x] **A3 — Monitor del sistema.** Lista de procesos con orden y búsqueda,
   pestañas de CPU, memoria, disco y red con gráficas, información de
   proceso, salir y forzar salida. Pruebas: un proceso de prueba aparece
-  con su PID y se termina desde la app.
+  con su PID y se termina desde la app. Hecho el 8 nov 2026:
+  `CoreServices/SystemMonitor` (5a1c89ed68), con el dibujo de texto más
+  rápido (5d32298820) y las columnas de tabla completas (ecb4b53a0e);
+  prueba `image/system-monitor` (12 comprobaciones). La energía (5.2)
+  espera a que el driver de energía dé el uso de cada proceso.
 - [ ] **A4 — Logs (Registros).** `log show` y `log stream` en una ventana, filtros
   por proceso, subsistema y nivel, informes de cuelgues de `/Library/Logs`.
   Pruebas: un mensaje `os_log` de un programa de prueba aparece con su

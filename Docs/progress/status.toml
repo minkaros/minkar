@@ -33,7 +33,7 @@
 # "bmake progress" (Docs/CONTRIBUTING.md).
 
 updated = "2026-11-08"
-commit  = "7431c9a136"
+commit  = "5a1c89ed68"
 
 deps = [["ws", 555, "dock"], ["fw", 490, "files"], ["fw", 590, "webkit"]]
 
@@ -191,8 +191,8 @@ doc = "Atlas.md#5-applications"
 doc_es = "Atlas.es.md#5-aplicaciones"
 # Atlas's essential apps (A0 to A10, chapter 5) and DMG installs (Phase 6).
 stations = [
-  ["A0 base", 805, "todo"], ["A1 Terminal", 860, "todo"], ["A2 Text Editor", 915, "partial"],
-  ["A3–A10 · DMG", 970, "todo"],
+  ["A0 base", 805, "done"], ["A1 Terminal", 860, "todo"], ["A2 Text Editor", 915, "partial"],
+  ["A3–A10 · DMG", 970, "partial"],
 ]
 
 [[line]]
@@ -260,8 +260,8 @@ note = "Menu Extras as bundles, Dock dragging, file operations, the full login"
 line = "mb"
 
 [[board.next]]
-title = "A0 app base, A1 Terminal"
-note = "About, Preferences and Help for every app; a VT100/xterm terminal in Agave"
+title = "Apps: Logs, then Terminal"
+note = "A4: log show and log stream in a window; A1: a VT100/xterm terminal in Agave (libvterm)"
 line = "apps"
 
 [[board.later]]
@@ -277,6 +277,16 @@ items = [["API 20 and 21", "fw"], ["Performance ≥ the reference system", "gpu"
 [[board.later]]
 group = "After 19.6.0"
 items = [["x86-64 binaries, arm64", "compat"]]
+
+[[board.done]]
+title = "A3: System Monitor"
+note = "processes, CPU, memory, disk, network; quit and force quit; text drawing 5× faster · 8 nov"
+line = "apps"
+
+[[board.done]]
+title = "A0: the app base"
+note = "Atlas's About, help books, documents with versions, the app template · 8 nov"
+line = "apps"
 
 [[board.done]]
 title = "M3 met: seven tools pass"
@@ -296,14 +306,4 @@ line = "fw"
 [[board.done]]
 title = "Atlas plan; generic app names"
 note = "menus, Dock, Files and the apps A0–A10 in one plan; Files and Text Editor · 5 nov"
-line = "atlas"
-
-[[board.done]]
-title = "Files K1: columns, opening, open -R"
-note = "LaunchServices opens documents; Text Editor, the text editor; the save panel · 4 nov"
-line = "files"
-
-[[board.done]]
-title = "System Preferences: five panes"
-note = "Displays, Dock, Date & Time, Keyboard, Network; English and Spanish · 4 nov"
 line = "atlas"

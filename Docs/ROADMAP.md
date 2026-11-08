@@ -107,9 +107,9 @@ Minkar boots on Darwin with its own EFI loader, the whole system builds as Mach-
 | Files | partial: browsing with sidebar, icon, list and column views, opening files and apps, basic Get Info (K1) | The rest of K0 (AppKit views checked), file operations (K2), desktop icons and volumes (K3); search, tags and previews (K4, 19.6.x) | 5 |
 | Text Editor | partial: plain text documents, open and save (through the save panel), `open -e` | RTF, find and replace, encodings, line endings, printing (A2) | 5 and 6 |
 | System Preferences | partial: the app, `PreferencePanes.framework` and five panes (Displays, Dock, Date & Time, Keyboard, Network) | The Users pane (waits for Directory Services), the rest of the panes | 5 |
-| A0 App foundations | missing | The app template: About and Preferences windows, Help menu, Spanish and English, `NSDocument` | 6 |
+| A0 App foundations | done (8 Nov: About, help books, documents with versions, the template; Atlas.md 5.3) | The app template: About and Preferences windows, Help menu, Spanish and English, `NSDocument` | 6 |
 | Terminal (A1) | missing | The whole app: a VT100/xterm emulator over a pty, tabs, scrollback, Agave | 6 |
-| System Monitor (A3) | missing | The whole app: processes, CPU, memory, energy, disk, network, quit and force quit | 6 |
+| System Monitor (A3) | done but energy (8 Nov; per-process energy waits for the power driver's data) | The whole app: processes, CPU, memory, energy, disk, network, quit and force quit | 6 |
 | Logs (A4) | missing | The whole app, on `logd` and `os_log`; crash and panic reports | 6 |
 | Screenshot (A5) | missing | The whole app, on `screencapture` and the window list; the system shortcuts | 6 |
 | Image Viewer (A6a) | missing | The whole app, and ImageIO | 6 |

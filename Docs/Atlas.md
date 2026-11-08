@@ -697,11 +697,16 @@ SwiftUI, outside API 19–21).
 
 ### 5.3 Milestones
 
-- [ ] **A0 — App foundations.** About window (Atlas's, with icon, version
+- [x] **A0 — App foundations.** About window (Atlas's, with icon, version
   and copyright), standard Preferences and Help menus, both languages,
   `NSDocument` with autosave and versions on the file system, the app
   template that A1–A10 start from. Tests: each app's About window, a
-  localized menu, a document saved and reopened.
+  localized menu, a document saved and reopened. Done 8 Nov 2026: the
+  About window (5a721456ef), AppKit in Spanish (17dde9f0bb), NSFileVersion
+  and autosave with versions (efa83788d8, aa4492475f), the template
+  `Developer/Templates/AtlasApp` (fbef0a5927) with its help book and
+  NSHelpManager (08a89e5a13, 63132864be); test `image/atlas-app` (26
+  checks in English and Spanish), batch of 8 Nov (2181 passed, M2 and M3).
 - [ ] **A1 — Terminal.** VT100 and xterm sequences (colors, cursor
   movement, alternate screen), UTF-8, resizing (`SIGWINCH`), scrollback,
   selection, copy and paste, Agave and its size, several windows and tabs,
@@ -711,10 +716,13 @@ SwiftUI, outside API 19–21).
   and save, `open -t`). Missing: RTF, find and replace, encodings and line
   endings, printing, the ruler. Tests: a file round trip in each encoding,
   find and replace, an RTF document reopened.
-- [ ] **A3 — System Monitor.** Process list with sorting and search, CPU,
+- [x] **A3 — System Monitor.** Process list with sorting and search, CPU,
   memory, disk and network tabs with graphs, process info, quit and force
   quit. Tests: a test process appears with its PID and is ended from the
-  app.
+  app. Done 8 Nov 2026: `CoreServices/SystemMonitor` (5a1c89ed68), with
+  faster text drawing (5d32298820) and full table columns (ecb4b53a0e);
+  test `image/system-monitor` (12 checks). Energy (5.2) waits for the
+  power driver to report each process's use.
 - [ ] **A4 — Logs.** `log show` and `log stream` in a window, filters by
   process, subsystem and level, crash reports from `/Library/Logs`. Tests:
   an `os_log` message from a test program appears with its subsystem.

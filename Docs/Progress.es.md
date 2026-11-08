@@ -6,7 +6,7 @@ Esta página se genera desde [progress/status.toml](progress/status.toml) con
 [Progress.md](Progress.md).
 
 <!-- progress:summary:begin -->
-_Actualizado el 2026-11-08, devel `7431c9a136`_
+_Actualizado el 2026-11-08, devel `5a1c89ed68`_
 
 | Plan | Avance |  | Ahora | Siguiente |
 | --- | --- | --- | --- | --- |
@@ -18,7 +18,7 @@ _Actualizado el 2026-11-08, devel `7431c9a136`_
 | [Dock](Atlas.es.md#4-dock-y-files) | 🟩🟩🟨⬜⬜ | 2 / 5 | D2 | D3 |
 | [Files](Atlas.es.md#4-dock-y-files) | 🟨🟩⬜⬜⬜ | 1 / 5 | K0 | K2 |
 | [Atlas](ROADMAP.es.md#fase-5--escritorio-atlas) | ⬜🟨⬜ | 0 / 3 | Preferences | LoginWindow |
-| [Apps · DMG](Atlas.es.md#5-aplicaciones) | ⬜⬜🟨⬜ | 0 / 4 | A2 Text Editor | A0 base |
+| [Apps · DMG](Atlas.es.md#5-aplicaciones) | 🟩⬜🟨🟨 | 1 / 4 | A2 Text Editor, A3–A10 · DMG | A1 Terminal |
 | [WebKit](ROADMAP.es.md#fase-3--frameworks-base-y-swift) | 🟨🟦⬜⬜⬜⬜ | 0 / 6 | W1 JSC | W2 WebCore |
 | [GPU track](ROADMAP.es.md#pila-gráfica-componentes-y-secuencia) | 🟩🟨🟩🟦 | 2 / 4 | G4–G5 | — |
 | [Compat · arm64](ROADMAP.es.md#fase-7--compatibilidad-binaria-y-arm64) | ⬜⬜ | 0 / 2 | — | x86-64 apps |
