@@ -225,6 +225,10 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
     return [NSColor colorWithCatalogName:@"System" colorName:@"keyboardFocusIndicatorColor"];
 }
 
++(NSColor *)controlAccentColor {
+    return [NSColor colorWithCatalogName:@"System" colorName:@"controlAccentColor"];
+}
+
 +(NSColor *)highlightColor {
    return [NSColor colorWithCatalogName:@"System" colorName:@"highlightColor"];
 }
@@ -360,15 +364,17 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 }
 
 +(NSColor *)darkGrayColor {
-   return [NSColor colorWithCatalogName:@"System" colorName:@"systemDarkGrayColor"];
+   return [NSColor colorWithCalibratedWhite:1.0/3.0 alpha:1.0];
 }
 
+/* The fixed colors are constants, as Cocoa documents them; the theme
+   changes the system colors (systemGrayColor and the others), not these. */
 +(NSColor *)grayColor {
-   return [NSColor colorWithCatalogName:@"System" colorName:@"systemGrayColor"];
+   return [NSColor colorWithCalibratedWhite:0.5 alpha:1.0];
 }
 
 +(NSColor *)lightGrayColor {
-   return [NSColor colorWithCatalogName:@"System" colorName:@"systemLightGrayColor"];
+   return [NSColor colorWithCalibratedWhite:2.0/3.0 alpha:1.0];
 }
 
 +(NSColor *)blackColor {
@@ -376,15 +382,15 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 }
 
 +(NSColor *)blueColor {
-   return [NSColor colorWithCatalogName:@"System" colorName:@"systemBlueColor"];
+   return [NSColor colorWithCalibratedRed:0 green:0 blue:1 alpha:1.0];
 }
 
 +(NSColor *)brownColor {
-   return [NSColor colorWithCatalogName:@"System" colorName:@"systemBrownColor"];
+   return [NSColor colorWithCalibratedRed:0.6 green:0.4 blue:0.2 alpha:1.0];
 }
 
 +(NSColor *)cyanColor {
-   return [NSColor colorWithCatalogName:@"Basic" colorName:@"Cyan"];
+   return [NSColor colorWithCalibratedRed:0 green:1 blue:1 alpha:1.0];
 }
 
 +(NSColor *)tealColor {
@@ -396,15 +402,15 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 }
 
 +(NSColor *)greenColor {
-   return [NSColor colorWithCatalogName:@"System" colorName:@"systemGreenColor"];
+   return [NSColor colorWithCalibratedRed:0 green:1 blue:0 alpha:1.0];
 }
 
 +(NSColor *)magentaColor {
-   return [NSColor colorWithCatalogName:@"Basic" colorName:@"Magenta"];
+   return [NSColor colorWithCalibratedRed:1 green:0 blue:1 alpha:1.0];
 }
 
 +(NSColor *)orangeColor {
-   return [NSColor colorWithCatalogName:@"System" colorName:@"systemOrangeColor"];
+   return [NSColor colorWithCalibratedRed:1 green:0.5 blue:0 alpha:1.0];
 }
 
 +(NSColor *)pinkColor {
@@ -412,15 +418,15 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 }
 
 +(NSColor *)purpleColor {
-   return [NSColor colorWithCatalogName:@"System" colorName:@"systemPurpleColor"];
+   return [NSColor colorWithCalibratedRed:0.5 green:0 blue:0.5 alpha:1.0];
 }
 
 +(NSColor *)redColor {
-   return [NSColor colorWithCatalogName:@"System" colorName:@"systemRedColor"];
+   return [NSColor colorWithCalibratedRed:1 green:0 blue:0 alpha:1.0];
 }
 
 +(NSColor *)yellowColor {
-   return [NSColor colorWithCatalogName:@"System" colorName:@"systemYellowColor"];
+   return [NSColor colorWithCalibratedRed:1 green:1 blue:0 alpha:1.0];
 }
 
 +(NSColor *)whiteColor {
