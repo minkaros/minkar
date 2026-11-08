@@ -152,6 +152,7 @@ SRCS = \
     NSPageLayout.m \
     NSPanel.m \
     NSPopover.m \
+    NSSwitch.m \
     NSParagraphStyle.m \
     NSPasteboard.m \
     PasteboardUser.c \
@@ -431,6 +432,7 @@ HEADERS = \
     NSPathComponentCell.h \
     NSPathControl.h \
     NSPopover.h \
+    NSSwitch.h \
     NSPoofAnimation.h \
     NSPopUpButton.h \
     NSPopUpButtonCell.h \
