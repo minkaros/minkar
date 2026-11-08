@@ -26,6 +26,10 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 - (void)selectText:sender;
 
+/* Shown, grey, while the field is empty (API 19's, from its cell). */
+@property(copy) NSString *placeholderString;
+@property(copy) NSAttributedString *placeholderAttributedString;
+
 - previousText;
 - nextText;
 

@@ -332,6 +332,26 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
   [_currentEditor setSelectable:[self isSelectable]];
 }
 
+-(NSString *)placeholderString {
+   return [[self cell] respondsToSelector:@selector(placeholderString)]?[[self cell] placeholderString]:nil;
+}
+
+-(void)setPlaceholderString:(NSString *)value {
+   if([[self cell] respondsToSelector:@selector(setPlaceholderString:)])
+    [[self cell] setPlaceholderString:value];
+   [self setNeedsDisplay:YES];
+}
+
+-(NSAttributedString *)placeholderAttributedString {
+   return [[self cell] respondsToSelector:@selector(placeholderAttributedString)]?[[self cell] placeholderAttributedString]:nil;
+}
+
+-(void)setPlaceholderAttributedString:(NSAttributedString *)value {
+   if([[self cell] respondsToSelector:@selector(setPlaceholderAttributedString:)])
+    [[self cell] setPlaceholderAttributedString:value];
+   [self setNeedsDisplay:YES];
+}
+
 -(void)setStringValue:(NSString *)value {
    if (!_currentEditor)
       [super setStringValue:value];
