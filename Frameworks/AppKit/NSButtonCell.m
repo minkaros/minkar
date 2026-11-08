@@ -14,6 +14,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <AppKit/NSStringDrawing.h>
 #import <AppKit/NSGraphicsContext.h>
 #import <AppKit/NSFont.h>
+#import <AppKit/NSBezierPath.h>
 #import <AppKit/NSColor.h>
 #import <AppKit/NSImage.h>
 #import <AppKit/NSParagraphStyle.h>
@@ -837,6 +838,27 @@ static void drawRoundedBezel(CGContextRef context,CGRect frame){
 
      if ([self isBordered]) {
       [self _drawTexturedBezelWithFrame:frame];
+     }
+     break;
+
+    /* The help button: a round face with a question mark, as Atlas draws
+       its controls (light, a thin border; darker while pressed). */
+    case NSHelpButtonBezelStyle:{
+      CGFloat       side=MIN(MIN(NSWidth(original),NSHeight(original)),22);
+      NSRect        face=NSMakeRect(floor(NSMidX(original)-side/2)+0.5,floor(NSMidY(original)-side/2)+0.5,side-1,side-1);
+      NSBezierPath *circle=[NSBezierPath bezierPathWithOvalInRect:face];
+      BOOL          pressed=[self isHighlighted];
+      NSDictionary *attributes=[NSDictionary dictionaryWithObjectsAndKeys:
+         [NSFont boldSystemFontOfSize:floor(side*0.6)],NSFontAttributeName,
+         [self isEnabled]?[NSColor controlTextColor]:[NSColor disabledControlTextColor],NSForegroundColorAttributeName,nil];
+      NSSize        mark=[@"?" sizeWithAttributes:attributes];
+
+      [[NSColor colorWithCalibratedWhite:pressed?0.84:1.0 alpha:1] setFill];
+      [circle fill];
+      [[NSColor colorWithCalibratedWhite:pressed?0.58:0.70 alpha:1] setStroke];
+      [circle setLineWidth:1];
+      [circle stroke];
+      [@"?" drawAtPoint:NSMakePoint(floor(NSMidX(face)-mark.width/2),floor(NSMidY(face)-mark.height/2)) withAttributes:attributes];
      }
      break;
 
