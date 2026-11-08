@@ -35,6 +35,8 @@ SUBDIR += fseventsd
 SUBDIR += Dock Files SystemUIServer
 # Text Editor (opens plain text through LaunchServices).
 SUBDIR += TextEditor
+# System Monitor (Atlas.md, A3).
+SUBDIR += SystemMonitor
 # System Preferences and its panes (Phase 5, item 6).
 SUBDIR += SystemPreferences SystemPreferences/Panes/Displays SystemPreferences/Panes/Dock \
 	SystemPreferences/Panes/DateTime SystemPreferences/Panes/Keyboard SystemPreferences/Panes/Network

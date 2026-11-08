@@ -1,0 +1,64 @@
+/* SPDX-License-Identifier: BSD-2-Clause
+   Copyright (c) 2026 The Minkar contributors
+   System Monitor's texts in Spanish. The keys are the English texts. */
+
+/* Menus */
+"About %@" = "Acerca de %@";
+"Services" = "Servicios";
+"Hide %@" = "Ocultar %@";
+"Hide Others" = "Ocultar otros";
+"Show All" = "Mostrar todo";
+"Quit %@" = "Salir de %@";
+"File" = "Archivo";
+"Close" = "Cerrar";
+"Edit" = "Edición";
+"Copy" = "Copiar";
+"Select All" = "Seleccionar todo";
+"View" = "Visualización";
+"Quit Process" = "Salir del proceso";
+"Get Info" = "Obtener información";
+"Window" = "Ventana";
+"Minimize" = "Minimizar";
+"Zoom" = "Zoom";
+"Help" = "Ayuda";
+"%@ Help" = "Ayuda de %@";
+"System Monitor" = "Monitor del sistema";
+
+/* The tabs and the table */
+"CPU" = "CPU";
+"Memory" = "Memoria";
+"Disk" = "Disco";
+"Network" = "Red";
+"Search" = "Buscar";
+"Process Name" = "Nombre del proceso";
+"PID" = "PID";
+"User" = "Usuario";
+"% CPU" = "% CPU";
+"CPU Time" = "Tiempo de CPU";
+"Threads" = "Hilos";
+"Bytes Written" = "Bytes escritos";
+"Bytes Read" = "Bytes leídos";
+"Interface" = "Interfaz";
+"Bytes Received" = "Bytes recibidos";
+"Bytes Sent" = "Bytes enviados";
+"Received/s" = "Recibidos/s";
+"Sent/s" = "Enviados/s";
+"bytes" = "bytes";
+"%@/s" = "%@/s";
+"Quit the selected process" = "Salir del proceso seleccionado";
+"Show information about the selected process" = "Mostrar información del proceso seleccionado";
+
+/* The totals */
+"System: %.1f %%\nUser: %.1f %%\nIdle: %.1f %%\nProcessors: %d\nProcesses: %lu" = "Sistema: %.1f %%\nUsuario: %.1f %%\nInactivo: %.1f %%\nProcesadores: %d\nProcesos: %lu";
+"Physical memory: %@\nMemory used: %@\nWired memory: %@\nFree memory: %@" = "Memoria física: %@\nMemoria usada: %@\nMemoria fija: %@\nMemoria libre: %@";
+"Data read: %@\nData written: %@" = "Datos leídos: %@\nDatos escritos: %@";
+"Data received: %@\nData sent: %@" = "Datos recibidos: %@\nDatos enviados: %@";
+
+/* Quitting and information */
+"Are you sure you want to quit “%@”?" = "¿Seguro que quieres salir de “%@”?";
+"Force Quit ends it at once: changes it has not saved are lost." = "Forzar salida lo termina al momento: se pierden los cambios que no haya guardado.";
+"Quit" = "Salir";
+"Cancel" = "Cancelar";
+"Force Quit" = "Forzar salida";
+"“%@” could not be quit." = "No se ha podido salir de “%@”.";
+"Process: %@ (%d)\nParent process: %@ (%d)\nUser: %@\nPath: %@\nStarted: %@\nCPU time: %.2f s\nMemory: %@\nThreads: %d\nData read: %@\nData written: %@" = "Proceso: %@ (%d)\nProceso padre: %@ (%d)\nUsuario: %@\nRuta: %@\nIniciado: %@\nTiempo de CPU: %.2f s\nMemoria: %@\nHilos: %d\nDatos leídos: %@\nDatos escritos: %@";
