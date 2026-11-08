@@ -1,6 +1,6 @@
 .\" SPDX-License-Identifier: BSD-2-Clause
 .\" Copyright (c) 2026 The Minkar contributors
-.Dd November 4, 2026
+.Dd November 8, 2026
 .Dt OPEN 1
 .Os Minkar
 .Sh NAME
@@ -12,6 +12,7 @@
 .Op Fl R
 .Op Fl n
 .Ar file ...
+.Op Fl -args Ar argument ...
 .Sh DESCRIPTION
 .Nm
 opens each
@@ -41,6 +42,12 @@ Show the files in the file manager, each selected in a window on its folder,
 instead of opening them.
 .It Fl n
 Start a new instance of the application even if one is running.
+.It Fl -args Ar argument ...
+Give the remaining arguments to the application as its own, after the
+path of its executable.
+They reach it only when
+.Nm
+launches it: an application already running gets none.
 .El
 .Sh EXIT STATUS
 .Ex -std

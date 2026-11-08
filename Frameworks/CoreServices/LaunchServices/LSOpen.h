@@ -45,6 +45,12 @@ OSStatus LSOpenCFURLRef(CFURLRef inURL, CFURLRef _Nullable *_Nullable outLaunche
 OSStatus LSOpenFromURLSpec(const LSLaunchURLSpec *inLaunchSpec,
     CFURLRef _Nullable *_Nullable outLaunchedURL);
 
+/* Minkar: as LSOpenFromURLSpec, and an application it launches gets these
+ * arguments (CFStrings) after its path, as `open --args` gives them. An
+ * application already running is not launched again, and gets none. */
+OSStatus LSOpenFromURLSpecWithArguments(const LSLaunchURLSpec *inLaunchSpec,
+    CFArrayRef _Nullable inArguments, CFURLRef _Nullable *_Nullable outLaunchedURL);
+
 /* Minkar: shows items in Files, the file manager, each selected in its
  * folder's window (what `open -R` and NSWorkspace's reveal methods do). */
 OSStatus LSRevealInFiles(CFArrayRef inItemURLs);

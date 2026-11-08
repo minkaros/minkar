@@ -403,13 +403,31 @@ runningPID(const char *app)
 	return pid;
 }
 
+/* Runs the executable, with these arguments after its path (strings). */
 static OSStatus
-spawn(const char *exe)
+spawn(const char *exe, CFArrayRef arguments)
 {
-	char *argv[] = { (char *)exe, NULL };
+	CFIndex count = arguments ? CFArrayGetCount(arguments) : 0;
+	char **argv = calloc((size_t)count + 2, sizeof(char *));
 	posix_spawnattr_t attr;
 	pid_t pid;
 	int error;
+
+	if (argv == NULL)
+		return kLSNoExecutableErr;
+	argv[0] = (char *)exe;
+	for (CFIndex i = 0; i < count; i++) {
+		CFStringRef string = CFArrayGetValueAtIndex(arguments, i);
+		CFIndex size = CFStringGetMaximumSizeForEncoding(CFStringGetLength(string),
+		    kCFStringEncodingUTF8) + 1;
+
+		argv[i + 1] = malloc((size_t)size);
+		if (argv[i + 1] == NULL || !CFStringGetCString(string, argv[i + 1], size,
+		    kCFStringEncodingUTF8)) {
+			free(argv[i + 1]);
+			argv[i + 1] = strdup("");
+		}
+	}
 
 	posix_spawnattr_init(&attr);
 	/* Its own process group: a signal to the caller's is not its own. */
@@ -417,6 +435,9 @@ spawn(const char *exe)
 	posix_spawnattr_setpgroup(&attr, 0);
 	error = posix_spawn(&pid, exe, NULL, &attr, argv, environ);
 	posix_spawnattr_destroy(&attr);
+	for (CFIndex i = 0; i < count; i++)
+		free(argv[i + 1]);
+	free(argv);
 	if (error != 0)
 		return kLSNoExecutableErr;
 	/* The child is collected when it exits (no zombie in the caller). */
@@ -465,7 +486,7 @@ packURLs(CFArrayRef urls, uint32_t *length)
 /* The application opens these items (or just runs, none given). */
 static OSStatus
 openWith(const char *app, CFArrayRef items, uint32_t flags, LSLaunchFlags launchFlags,
-    CFURLRef *outLaunchedURL)
+    CFArrayRef arguments, CFURLRef *outLaunchedURL)
 {
 	char exe[1024];
 	uint32_t length = 0;
@@ -490,7 +511,7 @@ openWith(const char *app, CFArrayRef items, uint32_t flags, LSLaunchFlags launch
 			LSSessionActivate(pid, 2 /* NSApplicationActivateIgnoringOtherApps */);
 		return noErr;
 	}
-	return spawn(exe);
+	return spawn(exe, arguments);
 }
 
 static int
@@ -508,6 +529,13 @@ isApplication(const char *path)
 OSStatus
 LSOpenFromURLSpec(const LSLaunchURLSpec *inLaunchSpec, CFURLRef *outLaunchedURL)
 {
+	return LSOpenFromURLSpecWithArguments(inLaunchSpec, NULL, outLaunchedURL);
+}
+
+OSStatus
+LSOpenFromURLSpecWithArguments(const LSLaunchURLSpec *inLaunchSpec, CFArrayRef inArguments,
+    CFURLRef *outLaunchedURL)
+{
 	char path[1024];
 
 	if (outLaunchedURL != NULL)
@@ -517,7 +545,8 @@ LSOpenFromURLSpec(const LSLaunchURLSpec *inLaunchSpec, CFURLRef *outLaunchedURL)
 	if (inLaunchSpec->appURL != NULL) {
 		if (!copyPath(inLaunchSpec->appURL, path))
 			return kLSDataErr;
-		return openWith(path, inLaunchSpec->itemURLs, 0, inLaunchSpec->launchFlags, outLaunchedURL);
+		return openWith(path, inLaunchSpec->itemURLs, 0, inLaunchSpec->launchFlags, inArguments,
+		    outLaunchedURL);
 	}
 	CFArrayRef items = inLaunchSpec->itemURLs;
 	CFIndex count = items ? CFArrayGetCount(items) : 0;
@@ -536,14 +565,14 @@ LSOpenFromURLSpec(const LSLaunchURLSpec *inLaunchSpec, CFURLRef *outLaunchedURL)
 				CFArrayRef one_item = CFArrayCreate(NULL, (const void **)&item, 1,
 				    &kCFTypeArrayCallBacks);
 				one = openWith(apps[0].path, one_item, 0, inLaunchSpec->launchFlags,
-				    i == 0 ? outLaunchedURL : NULL);
+				    inArguments, i == 0 ? outLaunchedURL : NULL);
 				CFRelease(one_item);
 			}
 			free(apps);
 			if (scheme != NULL)
 				CFRelease(scheme);
 		} else if (isApplication(path))
-			one = openWith(path, NULL, 0, inLaunchSpec->launchFlags,
+			one = openWith(path, NULL, 0, inLaunchSpec->launchFlags, inArguments,
 			    i == 0 ? outLaunchedURL : NULL);
 		else {
 			uint32_t n;
@@ -552,7 +581,7 @@ LSOpenFromURLSpec(const LSLaunchURLSpec *inLaunchSpec, CFURLRef *outLaunchedURL)
 				CFArrayRef one_item = CFArrayCreate(NULL, (const void **)&item, 1,
 				    &kCFTypeArrayCallBacks);
 				one = openWith(apps[0].path, one_item, 0, inLaunchSpec->launchFlags,
-				    i == 0 ? outLaunchedURL : NULL);
+				    inArguments, i == 0 ? outLaunchedURL : NULL);
 				CFRelease(one_item);
 			}
 			free(apps);
@@ -585,5 +614,5 @@ LSRevealInFiles(CFArrayRef inItemURLs)
 	OSStatus status = statusFor(LSSessionCopyAppForBundleIdentifier(FILES_ID, &files));
 	if (status != noErr)
 		return status;
-	return openWith(files.path, inItemURLs, kLSSessionOpenReveal, kLSLaunchDefaults, NULL);
+	return openWith(files.path, inItemURLs, kLSSessionOpenReveal, kLSLaunchDefaults, NULL, NULL);
 }

@@ -6,7 +6,8 @@
  * open: opens files, folders and applications as a double click in the file manager
  * does, through LaunchServices. -a and -b name the application, -e and
  * -t open with the text editor, -R shows the items in the file manager instead, -n
- * starts a new instance of the application.
+ * starts a new instance of the application, and what follows --args goes to
+ * the application it launches as its arguments.
  */
 
 #include <CoreFoundation/CoreFoundation.h>
@@ -27,13 +28,14 @@ usage(void)
 {
 	fprintf(stderr,
 	    "usage: open [-e | -t | -a application | -b bundle-id] [-R] [-n] file ...\n"
-	    "       open -a application\n"
-	    "       open -b bundle-id\n"
+	    "       open -a application [--args argument ...]\n"
+	    "       open -b bundle-id [--args argument ...]\n"
 	    "  -a application  open with this application (a name or a path)\n"
 	    "  -b bundle-id    open with the application with this identifier\n"
 	    "  -e, -t          open with the text editor\n"
 	    "  -R, --reveal    show the files in the file manager instead of opening them\n"
 	    "  -n              open a new instance of the application\n"
+	    "  --args ...      give the rest to the application it launches as its arguments\n"
 	    "  -h, --help      show this help\n");
 	exit(1);
 }
@@ -98,6 +100,25 @@ main(int argc, char *argv[])
 	const char *appName = NULL, *bundleID = NULL;
 	int reveal = 0, newInstance = 0, ch;
 	CFURLRef app = NULL;
+	CFMutableArrayRef arguments = NULL;
+
+	/* What follows --args is the application's, not open's. */
+	for (int i = 1; i < argc; i++) {
+		if (strcmp(argv[i], "--args") != 0)
+			continue;
+		arguments = CFArrayCreateMutable(NULL, argc - i - 1, &kCFTypeArrayCallBacks);
+		for (int j = i + 1; j < argc; j++) {
+			CFStringRef string = CFStringCreateWithCString(NULL, argv[j],
+			    kCFStringEncodingUTF8);
+			if (string == NULL)
+				errx(1, "The argument %s is not UTF-8.", argv[j]);
+			CFArrayAppendValue(arguments, string);
+			CFRelease(string);
+		}
+		argc = i;
+		argv[i] = NULL;
+		break;
+	}
 
 	while ((ch = getopt_long(argc, argv, "a:b:etRnh", longopts, NULL)) != -1) {
 		switch (ch) {
@@ -151,7 +172,7 @@ main(int argc, char *argv[])
 	else {
 		LSLaunchURLSpec spec = { app, CFArrayGetCount(items) ? items : NULL, NULL,
 		    kLSLaunchDefaults | (newInstance ? kLSLaunchNewInstance : 0), NULL };
-		status = LSOpenFromURLSpec(&spec, NULL);
+		status = LSOpenFromURLSpecWithArguments(&spec, arguments, NULL);
 	}
 	if (status == kLSApplicationNotFoundErr && argc > 0)
 		errx(1, "No application knows how to open %s.", argv[0]);
@@ -160,5 +181,7 @@ main(int argc, char *argv[])
 	CFRelease(items);
 	if (app != NULL)
 		CFRelease(app);
+	if (arguments != NULL)
+		CFRelease(arguments);
 	return 0;
 }
