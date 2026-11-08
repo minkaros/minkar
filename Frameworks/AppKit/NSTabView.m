@@ -16,6 +16,13 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <AppKit/NSPopUpButton.h>    // for indexOfSelectedItem definition
 #import <Foundation/NSKeyedArchiver.h>
 #import <AppKit/NSGraphicsStyle.h>
+#import <AppKit/NSBezierPath.h>
+#import <AppKit/NSStringDrawing.h>
+#import <AppKit/NSGraphicsContext.h>
+
+@interface NSTabViewItem (NSTabViewLabel)
+-(NSDictionary *)labelAttributes;
+@end
 #import <AppKit/NSRaise.h>
 
 @interface NSTabViewItem(NSTabViewItem_private)
@@ -44,7 +51,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
     _drawsBackground=[keyed decodeBoolForKey:@"NSDrawsBackground"];
     _controlSize=(flags&0x18000000)>>27;
     if (_font==nil)
-     _font=[[NSFont boldSystemFontOfSize:13-_controlSize*2] retain];
+     _font=[[NSFont systemFontOfSize:13-_controlSize*2] retain];
     _type=(flags&0x7);
 
    switch (_type) {
@@ -96,8 +103,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    [super initWithFrame:frame];
    _items=[NSMutableArray new];
    _selectedItem=nil;
-// should probably be boldUserFont
-   _font=[[NSFont boldSystemFontOfSize:0] retain];
+   _font=[[NSFont systemFontOfSize:0] retain];
    _type=NSTopTabsBezelBorder;
    _allowsTruncatedLabels=NO;
    return self;
@@ -148,6 +154,10 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
     switch (_type) {
         case NSTopTabsBezelBorder:
+            /* The pane's top runs through the middle of the tab strip. */
+            result.size.height-=floor([self _stripHeight]/2)+1;
+            break;
+
         case NSLeftTabsBezelBorder:
         case NSBottomTabsBezelBorder:
         case NSRightTabsBezelBorder:
@@ -169,6 +179,11 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
     switch (_type) {
         case NSTopTabsBezelBorder:
+            /* Below the strip's lower half. */
+            result=NSInsetRect(result,2,2);
+            result.size.height-=ceil([self _stripHeight]/2)+2;
+            return result;
+
         case NSLeftTabsBezelBorder:
         case NSBottomTabsBezelBorder:
         case NSRightTabsBezelBorder:
@@ -237,7 +252,66 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
     return [_items objectAtIndex:index];
 }
 
+/* A segment's shape in a rounded strip: its outer corners rounded at the
+   strip's ends, square inside (no clip to a curved path needed). */
+static NSBezierPath *_NSSegmentPath(NSRect r,CGFloat radius,BOOL left,BOOL right){
+   NSBezierPath *path=[NSBezierPath bezierPath];
+   CGFloat       rl=left?radius:0,rr=right?radius:0;
+
+   [path moveToPoint:NSMakePoint(NSMinX(r)+rl,NSMinY(r))];
+   [path lineToPoint:NSMakePoint(NSMaxX(r)-rr,NSMinY(r))];
+   if(rr>0)
+    [path appendBezierPathWithArcFromPoint:NSMakePoint(NSMaxX(r),NSMinY(r)) toPoint:NSMakePoint(NSMaxX(r),NSMinY(r)+rr) radius:rr];
+   [path lineToPoint:NSMakePoint(NSMaxX(r),NSMaxY(r)-rr)];
+   if(rr>0)
+    [path appendBezierPathWithArcFromPoint:NSMakePoint(NSMaxX(r),NSMaxY(r)) toPoint:NSMakePoint(NSMaxX(r)-rr,NSMaxY(r)) radius:rr];
+   [path lineToPoint:NSMakePoint(NSMinX(r)+rl,NSMaxY(r))];
+   if(rl>0)
+    [path appendBezierPathWithArcFromPoint:NSMakePoint(NSMinX(r),NSMaxY(r)) toPoint:NSMakePoint(NSMinX(r),NSMaxY(r)-rl) radius:rl];
+   [path lineToPoint:NSMakePoint(NSMinX(r),NSMinY(r)+rl)];
+   if(rl>0)
+    [path appendBezierPathWithArcFromPoint:NSMakePoint(NSMinX(r),NSMinY(r)) toPoint:NSMakePoint(NSMinX(r)+rl,NSMinY(r)) radius:rl];
+   [path closePath];
+   return path;
+}
+
+/* Top tabs are one strip of joined segments, centered on the pane's top
+   edge: each segment its label and 10 points each side. */
+#define TAB_PADDING 10.0
+
+-(CGFloat)_stripHeight {
+   return 22-_controlSize*2;
+}
+
+-(CGFloat)_segmentWidthAtIndex:(unsigned)index {
+   NSTabViewItem *item=[_items objectAtIndex:index];
+
+   return ceil([[item label] sizeWithAttributes:[item labelAttributes]].width)+2*TAB_PADDING;
+}
+
+-(NSRect)_segmentRectAtIndex:(unsigned)index {
+   unsigned i,count=[_items count];
+   CGFloat  total=0,x;
+
+   for(i=0;i<count;i++)
+    total+=[self _segmentWidthAtIndex:i];
+   x=MAX(0,floor((NSWidth([self bounds])-total)/2));
+   for(i=0;i<index;i++)
+    x+=[self _segmentWidthAtIndex:i];
+   return NSMakeRect(x,NSHeight([self bounds])-[self _stripHeight]-1,[self _segmentWidthAtIndex:index],[self _stripHeight]);
+}
+
 -(NSRect)rectForItemLabelAtIndex:(unsigned)index {
+   if(_type==NSTopTabsBezelBorder){
+    NSRect        segment=[self _segmentRectAtIndex:index];
+    NSTabViewItem *item=[_items objectAtIndex:index];
+    NSSize        size=[[item label] sizeWithAttributes:[item labelAttributes]];
+
+    /* -drawLabel:inRect: moves the label 2 points right. */
+    return NSMakeRect(floor(NSMidX(segment)-size.width/2)-2,floor(NSMidY(segment)-size.height/2),
+       ceil(size.width)+4,ceil(size.height));
+   }
+
    int            i,count=[_items count];
     NSPoint        base=NSMakePoint(0,[self bounds].size.height-22);
    NSSize         size;
@@ -420,6 +494,9 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 }
 
 -(NSRect)rectForItemBorderAtIndex:(unsigned)index {
+   if(_type==NSTopTabsBezelBorder)
+    return [self _segmentRectAtIndex:index];
+
    NSRect result=[self rectForItemLabelAtIndex:index];
 
    result=NSInsetRect(result,-4,0);
@@ -429,11 +506,48 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    return result;
 }
 
+/* The strip: white segments in one rounded outline, thin separators,
+   the selected one in the accent color with a white label. */
+-(void)_drawTabStripInRect:(NSRect)rect {
+   unsigned i,count=[_items count];
+   NSInteger selected=[_items indexOfObjectIdenticalTo:_selectedItem];
+
+   if(count==0)
+    return;
+   NSRect strip=NSUnionRect([self _segmentRectAtIndex:0],[self _segmentRectAtIndex:count-1]);
+   if(!NSIntersectsRect(NSInsetRect(strip,-1,-1),rect))
+    return;
+   NSBezierPath *shape=[NSBezierPath bezierPathWithRoundedRect:NSInsetRect(strip,0.5,0.5) xRadius:5 yRadius:5];
+
+   [[NSColor colorWithCalibratedWhite:1 alpha:1] setFill];
+   [shape fill];
+   if(selected!=NSNotFound){
+    [[NSColor controlAccentColor] setFill];
+    [_NSSegmentPath(NSInsetRect([self _segmentRectAtIndex:selected],0,0.5),4.5,selected==0,(unsigned)selected==count-1) fill];
+   }
+   [[NSColor colorWithCalibratedWhite:0.82 alpha:1] setFill];
+   for(i=1;i<count;i++){
+    if((NSInteger)i==selected || (NSInteger)i-1==selected)
+     continue;
+    NSRect segment=[self _segmentRectAtIndex:i];
+    NSRectFill(NSMakeRect(NSMinX(segment),NSMinY(segment)+4,1,NSHeight(segment)-8));
+   }
+   [[NSColor colorWithCalibratedWhite:0.72 alpha:1] setStroke];
+   [shape setLineWidth:1];
+   [shape stroke];
+   for(i=0;i<count;i++)
+    [[_items objectAtIndex:i] drawLabel:_allowsTruncatedLabels inRect:[self rectForItemLabelAtIndex:i]];
+}
+
 -(void)drawRect:(NSRect)rect {
     NSGraphicsStyle *style=[self graphicsStyle];
 
     switch (_type) {
         case NSTopTabsBezelBorder:
+            [style drawTabPaneInRect:[self rectForBorder]];
+            [self _drawTabStripInRect:rect];
+            break;
+
         case NSLeftTabsBezelBorder:
         case NSBottomTabsBezelBorder:
         case NSRightTabsBezelBorder: {

@@ -142,7 +142,10 @@ NSString *_NSTruncatedStringWithAttributesInRect(NSString *string, NSDictionary 
 }
 
 // This is private Apple API, BGHUDAppKit uses it, override for custom color
+/* White on the selected segment of a top tab strip. */
 -_labelColor {
+   if([_tabView tabViewType]==NSTopTabsBezelBorder && [_tabView selectedTabViewItem]==self)
+    return [NSColor whiteColor];
    return [NSColor blackColor];
 }
 
