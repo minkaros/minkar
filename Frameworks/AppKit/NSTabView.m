@@ -25,6 +25,12 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 @implementation NSTabView
 
+/* The formal protocol exists at run time. */
++(void)initialize {
+   if(self==[NSTabView class])
+    (void)@protocol(NSTabViewDelegate);
+}
+
 -initWithCoder:(NSCoder *)coder {
    [super initWithCoder:coder];
 

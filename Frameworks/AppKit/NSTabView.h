@@ -71,6 +71,15 @@ typedef enum {
 
 @end
 
+/* The formal protocol of API 19 (all optional), beside the informal one. */
+@protocol NSTabViewDelegate <NSObject>
+@optional
+- (BOOL)tabView:(NSTabView *)tabView shouldSelectTabViewItem:(NSTabViewItem *)item;
+- (void)tabView:(NSTabView *)tabView willSelectTabViewItem:(NSTabViewItem *)item;
+- (void)tabView:(NSTabView *)tabView didSelectTabViewItem:(NSTabViewItem *)item;
+- (void)tabViewDidChangeNumberOfTabViewItems:(NSTabView *)tabView;
+@end
+
 @interface NSObject (NSTabView_delegate)
 - (void)tabViewDidChangeNumberOfTabViewItems:(NSTabView *)tabView;
 
