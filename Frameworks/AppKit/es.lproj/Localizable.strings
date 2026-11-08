@@ -68,3 +68,12 @@
 "Flexible Space" = "Espacio flexible";
 "Separator" = "Separador";
 "Overflow" = "Más";
+
+/* A document's versions */
+"Versions of %@" = "Versiones de %@";
+"Choose a version to restore:" = "Elige la versión que quieres restaurar:";
+"There are no earlier versions of this document." = "No hay versiones anteriores de este documento.";
+"Saved" = "Guardada";
+"%@ (last opened)" = "%@ (última apertura)";
+"Restore" = "Restaurar";
+"Done" = "Listo";
