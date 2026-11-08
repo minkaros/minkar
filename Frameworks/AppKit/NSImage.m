@@ -29,6 +29,9 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 }
 - (id)initWithFlipped:(BOOL)flipped;
 @end
+/* NSImageStandardImages.m */
+NSImage *_NSStandardImageNamed(NSString *name);
+
 @implementation NSImageCacheView
 - (id)initWithFlipped:(BOOL)flipped
 {
@@ -118,6 +121,10 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
      }
     }
    }
+
+   /* The standard images (NSImageName*), when no bundle has one. */
+   if(image==nil)
+    image=_NSStandardImageNamed(name);
 
   // Cocoa AppKit always returns the same shared cached image
    return image;

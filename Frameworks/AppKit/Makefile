@@ -101,6 +101,7 @@ SRCS = \
     NSGraphicsContext.m \
     NSHelpManager.m \
     NSImage.m \
+    NSImageStandardImages.m \
     NSImageCell.m \
     NSImageRep.m \
     NSImageView.m \
