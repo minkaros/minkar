@@ -1005,7 +1005,6 @@ static NSArray *urlsFromOpenMessage(const LSSessionOpenMessage *msg, NSUInteger 
    NSAutoreleasePool *pool=[NSAutoreleasePool new];
 
    NS_DURING
-    //[NSClassFromString(@"Win32RunningCopyPipe") performSelector:@selector(createRunningCopyPipe)];
 
     // This should happen before _makeSureIsOnAScreen so we don't reposition done windows
     [self _checkForReleasedWindows];
@@ -1673,7 +1672,6 @@ typedef void (*endfunction_t)(id, SEL, id, NSInteger, void *);
     {
       [[NSNotificationCenter defaultCenter] postNotificationName:NSApplicationWillTerminateNotification object:self];
 
-      //[NSClassFromString(@"Win32RunningCopyPipe") performSelector:@selector(invalidateRunningCopyPipe)];
 
       exit(0);
     }
@@ -1893,7 +1891,6 @@ int NSApplicationMain(int argc, const char *argv[]) {
             [[NSUserDefaults standardUserDefaults] setObject:((argc == 1) ? [arguments lastObject] : arguments) forKey:@"NSOpen"];
     }
 
-//     [NSClassFromString(@"Win32RunningCopyPipe") performSelector:@selector(startRunningCopyPipe)];
 
     if(class==Nil)
         class=[NSApplication class];

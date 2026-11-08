@@ -39,14 +39,7 @@ struct __CFPlugInInstance {
     CFPlugInInstanceGetInterfaceFunction getInterfaceFunction;
     CFPlugInInstanceDeallocateInstanceDataFunction deallocateInstanceDataFunction;
 
-#ifdef _MSC_VER
-#pragma warning(push)
-#pragma warning(disable : 4200)
-#endif //_MSC_VER
     uint8_t _instanceData[0];
-#ifdef _MSC_VER
-#pragma warning(pop)
-#endif //_MSC_VER
 };
 
 static CFStringRef __CFPlugInInstanceCopyDescription(CFTypeRef cf) {

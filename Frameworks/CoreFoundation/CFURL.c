@@ -40,16 +40,12 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
-#if DEPLOYMENT_TARGET_MACOSX || DEPLOYMENT_TARGET_EMBEDDED || DEPLOYMENT_TARGET_EMBEDDED_MINI || DEPLOYMENT_TARGET_LINUX
-#if DEPLOYMENT_TARGET_MACOSX
 #include <CoreFoundation/CFNumberFormatter.h>
-#endif
 #include <unistd.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/syslog.h>
 #include <CoreFoundation/CFURLPriv.h>
-#endif
 
 #ifndef DEBUG_URL_MEMORY_USAGE
 // enables various statistical counters which can be displayed with __CFURLDumpMemRecord().
@@ -68,9 +64,7 @@ static CFStringRef POSIXPathToURLPath(CFStringRef path, CFAllocatorRef alloc, Bo
 static CFStringRef CreateStringFromFileSystemRepresentationByAddingPercentEscapes(CFAllocatorRef alloc, const UInt8 *bytes, CFIndex numBytes, Boolean isDirectory, Boolean isAbsolute, Boolean windowsPath, Boolean *addedPercentEncoding);
 CFStringRef CFURLCreateStringWithFileSystemPath(CFAllocatorRef allocator, CFURLRef anURL, CFURLPathStyle fsType, Boolean resolveAgainstBase);
 CF_EXPORT CFURLRef _CFURLCreateCurrentDirectoryURL(CFAllocatorRef allocator);
-#if DEPLOYMENT_TARGET_MACOSX
 static Boolean _CFURLHasFileURLScheme(CFURLRef url, Boolean *hasScheme);
-#endif
 
 
 
@@ -1930,16 +1924,9 @@ static Boolean _CFStringIsLegalURLString(CFStringRef string) {
                                 break;
                             }
                         }
-#if DEPLOYMENT_TARGET_WINDOWS
-                        // <rdar://problem/7134119> CF on Windows: CFURLCreateWithString should work with | in path on Windows
-                        if ( isURLLegalCharacter(*chPtr) || *chPtr == '|' ) {
-                            continue;
-                        }
-#else
                         if ( isURLLegalCharacter(*chPtr) ) {
                             continue;
                         }
-#endif
                         else {
                             result = false;
                             break;
@@ -2215,7 +2202,6 @@ static CFURLRef _CFURLCreateWithFileSystemRepresentation(CFAllocatorRef allocato
 #endif
     struct __CFURL *result = NULL;
     if (bufLen > 0) {
-#if DEPLOYMENT_TARGET_MACOSX || DEPLOYMENT_TARGET_EMBEDDED || DEPLOYMENT_TARGET_EMBEDDED_MINI || DEPLOYMENT_TARGET_LINUX
         Boolean isAbsolute = bufLen && (*buffer == '/');
         Boolean addedPercentEncoding;
         Boolean releaseBaseURL = false;
@@ -2266,13 +2252,6 @@ static CFURLRef _CFURLCreateWithFileSystemRepresentation(CFAllocatorRef allocato
             }
             CFRelease(urlString);
         }
-#elif DEPLOYMENT_TARGET_WINDOWS
-        CFStringRef filePath = CFStringCreateWithBytes(allocator, buffer, bufLen, CFStringFileSystemEncoding(), false);
-        if ( filePath ) {
-            result = _CFURLCreateWithFileSystemPath(allocator, filePath, kCFURLWindowsPathStyle, isDirectory, baseURL);
-            CFRelease(filePath);
-        }
-#endif
     }
     else if ( baseURL ) {
         result = (struct __CFURL *)CFRetain(baseURL);
@@ -2602,14 +2581,6 @@ static CFMutableStringRef resolveAbsoluteURLStringBuffer(CFAllocatorRef alloc, C
                 *end = 0;
                 newPath = _resolvedPath(newPathBuf, end, '/', false, false, alloc);
             }
-            /* Under Win32 absolute path can begin with letter
-             * so we have to add one '/' to the newString
-             * (Sergey Zubarev)
-             */
-            // No - the input strings here are URL path strings, not Win32 paths.
-            // Absolute paths should have had a '/' prepended before this point.
-            // I have removed Sergey Zubarev's change and left his comment (and
-            // this one) as a record. - REW, 1/5/2004
             
             // if the relative URL does not begin with a slash and
             // the base does not end with a slash, add a slash
@@ -2714,9 +2685,7 @@ CFURLRef CFURLCopyAbsoluteURL(CFURLRef  relativeURL) {
     uint8_t numberOfRanges;
     const CFRange *baseRanges;
     Boolean baseIsObjC;
-#if DEPLOYMENT_TARGET_MACOSX || DEPLOYMENT_TARGET_EMBEDDED
     Boolean filePathURLCreated = false;
-#endif
     
     CFAssert1(relativeURL != NULL, __kCFLogAssertion, "%s(): Cannot create an absolute URL from a NULL relative URL", __PRETTY_FUNCTION__);
     if (CF_IS_OBJC(CFURLGetTypeID(), relativeURL)) {
@@ -2731,7 +2700,6 @@ CFURLRef CFURLCopyAbsoluteURL(CFURLRef  relativeURL) {
     if (!base) {
         return (CFURLRef)CFRetain(relativeURL);
     }
-#if DEPLOYMENT_TARGET_MACOSX || DEPLOYMENT_TARGET_EMBEDDED
     else if ( CFURLIsFileReferenceURL(base) && !CFURLHasDirectoryPath(base) ) {
         // 16695827 - If the base URL is a file reference URL which doesn't end with a slash, we have to convert it to a file path URL before we can make it absolute.
         base = CFURLCreateFilePathURL(alloc, base, NULL);
@@ -2741,7 +2709,6 @@ CFURLRef CFURLCopyAbsoluteURL(CFURLRef  relativeURL) {
         }
         filePathURLCreated = true;
     }
-#endif
     
     baseIsObjC = CF_IS_OBJC(CFURLGetTypeID(), base);
 
@@ -2766,11 +2733,9 @@ CFURLRef CFURLCopyAbsoluteURL(CFURLRef  relativeURL) {
     }
 #endif
     
-#if DEPLOYMENT_TARGET_MACOSX || DEPLOYMENT_TARGET_EMBEDDED
     if ( filePathURLCreated ) {
         CFRelease(base);
     }
-#endif
     
     return anURL;
 }
@@ -3883,7 +3848,6 @@ static CFStringRef URLPathToPOSIXPath(CFStringRef path, CFAllocatorRef allocator
     return result;
 }
 
-#if DEPLOYMENT_TARGET_MACOSX || DEPLOYMENT_TARGET_EMBEDDED || DEPLOYMENT_TARGET_EMBEDDED_MINI || DEPLOYMENT_TARGET_LINUX
 static Boolean CanonicalFileURLStringToFileSystemRepresentation(CFStringRef str, UInt8 *inBuffer, CFIndex inBufferLen)
 {
     size_t fileURLPrefixLength;
@@ -4024,12 +3988,6 @@ static Boolean CanonicalFileURLStringToFileSystemRepresentation(CFStringRef str,
     
     return ( result );
 }
-#endif
-
-#if DEPLOYMENT_TARGET_WINDOWS
-// From CFPlatform.c
-extern CFStringRef CFCreateWindowsDrivePathFromVolumeName(CFStringRef volNameStr);
-#endif
 
 static CFStringRef URLPathToWindowsPath(CFStringRef path, CFAllocatorRef allocator, CFStringEncoding encoding) {
     // Check for a drive letter, then flip all the slashes
@@ -4063,29 +4021,6 @@ static CFStringRef URLPathToWindowsPath(CFStringRef path, CFAllocatorRef allocat
 			CFRelease(driveStr);
 		    }
 		}
-#if DEPLOYMENT_TARGET_WINDOWS
-		else {
-		    // From <rdar://problem/5623405> [DEFECT] CFURL returns a Windows path that contains volume name instead of a drive letter
-		    // we need to replace the volume name (it is not valid on Windows) with the drive mounting point path
-		    // remove the first component and set the component with the drive letter to be the first component
-		    CFStringRef driveRootPath = CFCreateWindowsDrivePathFromVolumeName(firstComponent);
-		    
-		    if (driveRootPath) {
-			// remove trailing slash
-			if (CFStringHasSuffix(driveRootPath, CFSTR("\\"))) {
-			    CFStringRef newDriveRootPath = CFStringCreateWithSubstring(kCFAllocatorSystemDefault, driveRootPath, CFRangeMake(0, CFStringGetLength(driveRootPath) - 1));
-			    CFRelease(driveRootPath);
-			    driveRootPath = newDriveRootPath;
-			}
-			
-			// replace the first component of the path with the drive path
-			CFArrayRemoveValueAtIndex(components, 0);
-			CFArraySetValueAtIndex(components, 0, driveRootPath);
-			
-			CFRelease(driveRootPath);
-		    }
-		}
-#endif
 	    }
         }
         if ( firstComponent ) {
@@ -4176,7 +4111,6 @@ CF_EXPORT CFStringRef CFURLCopyFileSystemPath(CFURLRef anURL, CFURLPathStyle pat
     
     CFStringRef result = NULL;
     CFAllocatorRef alloc = CFGetAllocator(anURL);
-#if DEPLOYMENT_TARGET_MACOSX || DEPLOYMENT_TARGET_EMBEDDED || DEPLOYMENT_TARGET_EMBEDDED_MINI || DEPLOYMENT_TARGET_LINUX
     Boolean isCanonicalFileURL = false;
     
     if ( (pathStyle == kCFURLPOSIXPathStyle) && (CFURLGetBaseURL(anURL) == NULL) ) {
@@ -4195,9 +4129,6 @@ CF_EXPORT CFStringRef CFURLCopyFileSystemPath(CFURLRef anURL, CFURLPathStyle pat
         // fall back to slower way.
         result = CFURLCreateStringWithFileSystemPath(alloc, anURL, pathStyle, false);
     }
-#else // !DEPLOYMENT_TARGET_MACOSX
-    result = CFURLCreateStringWithFileSystemPath(alloc, anURL, pathStyle, false);
-#endif // !DEPLOYMENT_TARGET_MACOSX
     
     return ( result );
 }
@@ -4281,13 +4212,10 @@ CFStringRef CFURLCreateStringWithFileSystemPath(CFAllocatorRef allocator, CFURLR
 }
 
 Boolean CFURLGetFileSystemRepresentation(CFURLRef url, Boolean resolveAgainstBase, uint8_t *buffer, CFIndex bufLen) {
-#if DEPLOYMENT_TARGET_MACOSX || DEPLOYMENT_TARGET_EMBEDDED || DEPLOYMENT_TARGET_EMBEDDED_MINI || DEPLOYMENT_TARGET_LINUX || DEPLOYMENT_TARGET_WINDOWS
     CFAllocatorRef alloc = CFGetAllocator(url);
     CFStringRef path;
 
     if (!url) return false;
-#endif
-#if DEPLOYMENT_TARGET_MACOSX || DEPLOYMENT_TARGET_EMBEDDED || DEPLOYMENT_TARGET_EMBEDDED_MINI || DEPLOYMENT_TARGET_LINUX
     if ( !resolveAgainstBase || (CFURLGetBaseURL(url) == NULL) ) {
         if (!CF_IS_OBJC(CFURLGetTypeID(), url)) {
             // We can grope the ivars
@@ -4303,44 +4231,8 @@ Boolean CFURLGetFileSystemRepresentation(CFURLRef url, Boolean resolveAgainstBas
         CFRelease(path);
         return convResult;
     }
-#elif DEPLOYMENT_TARGET_WINDOWS
-    path = CFURLCreateStringWithFileSystemPath(alloc, url, kCFURLWindowsPathStyle, resolveAgainstBase);
-    if (path) {
-        CFIndex usedLen;
-        CFIndex pathLen = CFStringGetLength(path);
-        CFIndex numConverted = CFStringGetBytes(path, CFRangeMake(0, pathLen), CFStringFileSystemEncoding(), 0, true, buffer, bufLen-1, &usedLen); // -1 because we need one byte to zero-terminate.
-        CFRelease(path);
-        if (numConverted == pathLen) {
-            buffer[usedLen] = '\0';
-            return true;
-        }
-    }
-#endif
     return false;
 }
-
-#if DEPLOYMENT_TARGET_WINDOWS
-CF_EXPORT Boolean _CFURLGetWideFileSystemRepresentation(CFURLRef url, Boolean resolveAgainstBase, wchar_t *buffer, CFIndex bufferLength) {
-	CFStringRef path = CFURLCreateStringWithFileSystemPath(CFGetAllocator(url), url, kCFURLWindowsPathStyle, resolveAgainstBase);
-	CFIndex pathLength, charsConverted, usedBufLen;
-	if (!path) return false;
-	pathLength = CFStringGetLength(path);
-	if (pathLength+1 > bufferLength) {
-		CFRelease(path);
-		return false;
-	}
-	charsConverted = CFStringGetBytes(path, CFRangeMake(0, pathLength), kCFStringEncodingUTF16, 0, false, (UInt8 *)buffer, bufferLength*sizeof(wchar_t), &usedBufLen);
-//	CFStringGetCharacters(path, CFRangeMake(0, pathLength), (UniChar *)buffer);
-	CFRelease(path);
-	if (charsConverted != pathLength || usedBufLen%sizeof(wchar_t) != 0) {
-		return false;
-	} else {
-		buffer[usedBufLen/sizeof(wchar_t)] = 0;
-//		buffer[pathLength] = 0;
-		return true;
-	}
-}
-#endif
 
 CFURLRef CFURLCreateFromFileSystemRepresentation(CFAllocatorRef allocator, const uint8_t *buffer, CFIndex bufLen, Boolean isDirectory) {
     CFURLRef result;
@@ -4421,7 +4313,6 @@ CFStringRef CFURLCopyLastPathComponent(CFURLRef url) {
         }
     } else {
         Boolean filePathURLCreated = false;
-#if DEPLOYMENT_TARGET_MACOSX || DEPLOYMENT_TARGET_EMBEDDED
         if ( CFURLIsFileReferenceURL(url) ) {
             // use a file path URL or fail
             CFURLRef filePathURL = CFURLCreateFilePathURL(CFGetAllocator(url), url, NULL);
@@ -4433,7 +4324,6 @@ CFStringRef CFURLCopyLastPathComponent(CFURLRef url) {
                 return NULL;
             }
         }
-#endif
         
         CFRange rg = _rangeOfLastPathComponent(url);
         if (rg.location == kCFNotFound || rg.length == 0) {
@@ -4494,7 +4384,6 @@ CFURLRef CFURLCreateCopyAppendingPathComponent(CFAllocatorRef allocator, CFURLRe
     CFAssert1(pathComponent != NULL, __kCFLogAssertion, "%s(): Cannot be called with a NULL component to append", __PRETTY_FUNCTION__);
 
     Boolean filePathURLCreated = false;
-#if DEPLOYMENT_TARGET_MACOSX || DEPLOYMENT_TARGET_EMBEDDED
     if ( CFURLIsFileReferenceURL(url) ) {
         // use a file path URL if possible (only because this is appending a path component)
         CFURLRef filePathURL = CFURLCreateFilePathURL(allocator, url, NULL);
@@ -4503,7 +4392,6 @@ CFURLRef CFURLCreateCopyAppendingPathComponent(CFAllocatorRef allocator, CFURLRe
             url = filePathURL;
         }
     }
-#endif
 
     CFMutableStringRef newString;
     CFStringRef newComp;
@@ -4544,7 +4432,6 @@ CFURLRef CFURLCreateCopyDeletingLastPathComponent(CFAllocatorRef allocator, CFUR
     __CFGenericValidateType(url, CFURLGetTypeID());
 
     Boolean filePathURLCreated = false;
-#if DEPLOYMENT_TARGET_MACOSX || DEPLOYMENT_TARGET_EMBEDDED
     if ( CFURLIsFileReferenceURL(url) ) {
         // use a file path URL or fail
         CFURLRef filePathURL = CFURLCreateFilePathURL(allocator, url, NULL);
@@ -4556,7 +4443,6 @@ CFURLRef CFURLCreateCopyDeletingLastPathComponent(CFAllocatorRef allocator, CFUR
             return NULL;
         }
     }
-#endif
     
     if (!(url->_flags & HAS_PATH)) {
         if ( filePathURLCreated ) {
@@ -4621,7 +4507,6 @@ CFURLRef CFURLCreateCopyAppendingPathExtension(CFAllocatorRef allocator, CFURLRe
     __CFGenericValidateType(extension, CFStringGetTypeID());
 
     Boolean filePathURLCreated = false;
-#if DEPLOYMENT_TARGET_MACOSX || DEPLOYMENT_TARGET_EMBEDDED
     if ( CFURLIsFileReferenceURL(url) ) {
         // use a file path URL or fail
         CFURLRef filePathURL = CFURLCreateFilePathURL(allocator, url, NULL);
@@ -4633,7 +4518,6 @@ CFURLRef CFURLCreateCopyAppendingPathExtension(CFAllocatorRef allocator, CFURLRe
             return NULL;
         }
     }
-#endif
     
     rg = _rangeOfLastPathComponent(url);
     if (rg.location < 0) {
@@ -4665,7 +4549,6 @@ CFURLRef CFURLCreateCopyDeletingPathExtension(CFAllocatorRef allocator, CFURLRef
     __CFGenericValidateType(url, CFURLGetTypeID());
     
     Boolean filePathURLCreated = false;
-#if DEPLOYMENT_TARGET_MACOSX || DEPLOYMENT_TARGET_EMBEDDED
     if ( CFURLIsFileReferenceURL(url) ) {
         // use a file path URL or fail
         CFURLRef filePathURL = CFURLCreateFilePathURL(allocator, url, NULL);
@@ -4677,7 +4560,6 @@ CFURLRef CFURLCreateCopyDeletingPathExtension(CFAllocatorRef allocator, CFURLRef
             return NULL;
         }
     }
-#endif
     
     rg = _rangeOfLastPathComponent(url);
     if (rg.location < 0) {
@@ -4820,7 +4702,6 @@ CFURLRef _CFURLCreateFromPropertyListRepresentation(CFAllocatorRef alloc, CFProp
     return url;
 }
 
-#if DEPLOYMENT_TARGET_MACOSX || DEPLOYMENT_TARGET_EMBEDDED
 Boolean _CFURLIsFileReferenceURL(CFURLRef url)
 {
     return ( CFURLIsFileReferenceURL(url) );
@@ -4962,8 +4843,6 @@ CFURLRef CFURLCreateFilePathURL(CFAllocatorRef alloc, CFURLRef url, CFErrorRef *
     }
     return result;
 }
-
-#endif
 
 
 CFURLRef CFURLCreateFileReferenceURL(CFAllocatorRef alloc, CFURLRef url, CFErrorRef *error) { return NULL; }

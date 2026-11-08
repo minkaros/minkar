@@ -36,8 +36,6 @@
 #include <CoreFoundation/CFPriv.h>
 #include "CFInternal.h"
 
-#if DEPLOYMENT_TARGET_MACOSX || DEPLOYMENT_TARGET_EMBEDDED
-
 /* We use the System framework implementation on Mach.
 */
 #include <libc.h>
@@ -63,10 +61,6 @@ CFSearchPathEnumerationState __CFGetNextSearchPathEnumeration(CFSearchPathEnumer
     return result;
 }
 
-#endif
-
-
-#if DEPLOYMENT_TARGET_MACOSX || DEPLOYMENT_TARGET_EMBEDDED || DEPLOYMENT_TARGET_WINDOWS
 
 CFArrayRef CFCopySearchPathForDirectoriesInDomains(CFSearchPathDirectory directory, CFSearchPathDomainMask domainMask, Boolean expandTilde) {
     CFMutableArrayRef array;
@@ -102,8 +96,6 @@ CFArrayRef CFCopySearchPathForDirectoriesInDomains(CFSearchPathDirectory directo
     }
     return array;
 }
-
-#endif
 
 
 #undef numDirs

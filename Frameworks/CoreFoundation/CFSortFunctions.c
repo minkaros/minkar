@@ -28,12 +28,8 @@
 
 #include <CoreFoundation/CFBase.h>
 #include "CFInternal.h"
-#if DEPLOYMENT_TARGET_MACOSX || DEPLOYMENT_TARGET_EMBEDDED || DEPLOYMENT_TARGET_WINDOWS
 #include <dispatch/dispatch.h>
-#endif
-#if DEPLOYMENT_TARGET_MACOSX || DEPLOYMENT_TARGET_EMBEDDED
 #include <dispatch/private.h>
-#endif
 
 enum {
     kCFSortConcurrent = (1 << 0),
@@ -133,7 +129,6 @@ static void __CFSimpleMergeSort(VALUE_TYPE listp[], INDEX_TYPE cnt, VALUE_TYPE t
     }
 }
 
-#if DEPLOYMENT_TARGET_MACOSX || DEPLOYMENT_TARGET_EMBEDDED || DEPLOYMENT_TARGET_WINDOWS
 // Excluded from linux for dispatch dependency
 
 // if !right, put the cnt1 smallest values in tmp, else put the cnt2 largest values in tmp
@@ -249,7 +244,6 @@ static void __CFSortIndexesN(VALUE_TYPE listp[], INDEX_TYPE count, int32_t ncore
         free(stack_tmps[idx]);
     }
 }
-#endif
 
 // fills an array of indexes (of length count) giving the indexes 0 - count-1, as sorted by the comparator block
 void CFSortIndexes(CFIndex *indexBuffer, CFIndex count, CFOptionFlags opts, CFComparisonResult (^cmp)(CFIndex, CFIndex)) {
@@ -271,7 +265,6 @@ void CFSortIndexes(CFIndex *indexBuffer, CFIndex count, CFOptionFlags opts, CFCo
             ncores = 16;
         }
     }
-#if DEPLOYMENT_TARGET_MACOSX || DEPLOYMENT_TARGET_EMBEDDED || DEPLOYMENT_TARGET_WINDOWS
     if (count <= 65536) {
         for (CFIndex idx = 0; idx < count; idx++) indexBuffer[idx] = idx;
     } else {
@@ -282,15 +275,10 @@ void CFSortIndexes(CFIndex *indexBuffer, CFIndex count, CFOptionFlags opts, CFCo
                 for (; idx < lim; idx++) indexBuffer[idx] = idx;
             });
     }
-#else
-    for (CFIndex idx = 0; idx < count; idx++) indexBuffer[idx] = idx;
-#endif
-#if DEPLOYMENT_TARGET_MACOSX || DEPLOYMENT_TARGET_EMBEDDED || DEPLOYMENT_TARGET_WINDOWS
     if (opts & kCFSortConcurrent) {
         __CFSortIndexesN(indexBuffer, count, ncores, cmp); // naturally stable
         return;
     }
-#endif
     STACK_BUFFER_DECL(VALUE_TYPE, local, count <= 4096 ? count : 1);
     VALUE_TYPE *tmp = (count <= 4096) ? local : (VALUE_TYPE *)malloc(count * sizeof(VALUE_TYPE));
     __CFSimpleMergeSort(indexBuffer, count, tmp, cmp); // naturally stable

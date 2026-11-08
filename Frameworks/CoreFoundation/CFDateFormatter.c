@@ -1328,7 +1328,6 @@ static UDate __CFDateFormatterCorrectTimeToARangeAroundCurrentDate(UCalendar *ca
     return __CFDateFormatterCorrectTimeWithTarget(calendar, at, currEraOrCentury+offset, isEra, status);
 }
 
-#if DEPLOYMENT_TARGET_MACOSX || DEPLOYMENT_TARGET_EMBEDDED || DEPLOYMENT_TARGET_EMBEDDED_MINI || DEPLOYMENT_TARGET_WINDOWS
 static int32_t __CFDateFormatterGetMaxYearGivenJapaneseEra(UCalendar *calendar, int32_t era, UErrorCode *status) {
     int32_t years = 0;
     __cficu_ucal_clear(calendar);
@@ -1338,7 +1337,6 @@ static int32_t __CFDateFormatterGetMaxYearGivenJapaneseEra(UCalendar *calendar, 
     years = __cficu_ucal_getFieldDifference(calendar, target, UCAL_YEAR, status);
     return years+1;
 }
-#endif
 
 static Boolean __CFDateFormatterHandleAmbiguousYear(CFDateFormatterRef formatter, CFStringRef calendar_id, UDateFormat *df, UCalendar *cal, UDate *at, const UChar *ustr, CFIndex length, UErrorCode *status) {
     Boolean success = true;
@@ -1381,7 +1379,6 @@ static Boolean __CFDateFormatterHandleAmbiguousYear(CFDateFormatterRef formatter
             }
         }
     } else if (calendar_id == kCFCalendarIdentifierJapanese) { // ??? need more work
-#if DEPLOYMENT_TARGET_MACOSX || DEPLOYMENT_TARGET_EMBEDDED || DEPLOYMENT_TARGET_EMBEDDED_MINI || DEPLOYMENT_TARGET_WINDOWS
         __cficu_ucal_clear(cal);
         __cficu_ucal_set(cal, UCAL_ERA, 1);
         __cficu_udat_parseCalendar(df, cal, ustr, length, NULL, status);
@@ -1454,9 +1451,6 @@ static Boolean __CFDateFormatterHandleAmbiguousYear(CFDateFormatterRef formatter
                     break; // do nothing
             }
         }
-#else
-        success = false;
-#endif
     } else { // calenders other than chinese and japanese
         int32_t parsedYear = __cficu_ucal_get(cal, UCAL_YEAR, status);
         if (parsedYear >= 12000 && parsedYear <= 12099) { // most likely that the parsed string had a 2-digits year

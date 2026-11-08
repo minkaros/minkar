@@ -76,13 +76,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
-#if DEPLOYMENT_TARGET_MACOSX || DEPLOYMENT_TARGET_EMBEDDED || DEPLOYMENT_TARGET_WINDOWS || DEPLOYMENT_TARGET_LINUX
 #include <unicode/uloc.h>
-#else
-#define ULOC_KEYWORD_SEPARATOR '@'
-#define ULOC_FULLNAME_CAPACITY 56
-#define ULOC_KEYWORD_AND_VALUES_CAPACITY 100
-#endif
 #include "CFInternal.h"
 #include "CFLocaleInternal.h"
 
@@ -1173,8 +1167,6 @@ enum {
 };
  */
 
-#if DEPLOYMENT_TARGET_MACOSX || DEPLOYMENT_TARGET_EMBEDDED || DEPLOYMENT_TARGET_WINDOWS || DEPLOYMENT_TARGET_LINUX
-
 struct LocaleToLegacyCodes {
     const char *        locale;	// reduced to language plus one other component (script, region, variant), separators normalized to'_'
     RegionCode		    regCode;
@@ -1352,8 +1344,6 @@ static const LocaleToLegacyCodes localeToLegacyCodes[] = {
 enum {
     kNumLocaleToLegacyCodes = sizeof(localeToLegacyCodes)/sizeof(localeToLegacyCodes[0])
 };
-
-#endif
 
 /*
 	For reference here is a list of ICU locales with variants and how some
@@ -1611,7 +1601,6 @@ static void _UpdateFullLocaleString(char inLocaleString[], int locStringMaxLen,
     // If so, copy the keywords to varKeyValueString and delete the variant tag
     // from the original string (but don't otherwise use the ICU canonicalization).
     varKeyValueString[0] = 0;
-#if DEPLOYMENT_TARGET_MACOSX || DEPLOYMENT_TARGET_EMBEDDED || DEPLOYMENT_TARGET_WINDOWS || DEPLOYMENT_TARGET_LINUX
     if (variantTag) {
 		UErrorCode	icuStatus;
 		int			icuCanonStringLen;
@@ -1640,7 +1629,6 @@ static void _UpdateFullLocaleString(char inLocaleString[], int locStringMaxLen,
 		*varKeyValueStringPtr = 0;
 		}
     }
-#endif
     
     // 4. Handle special cases of updating region codes, or updating language codes based on
     // region code.
@@ -1738,7 +1726,6 @@ static void _GetKeyValueString(char inLocaleString[], char keyValueString[]) {
 }
 
 static void _AppendKeyValueString(char inLocaleString[], int locStringMaxLen, char keyValueString[]) {
-#if DEPLOYMENT_TARGET_MACOSX || DEPLOYMENT_TARGET_EMBEDDED || DEPLOYMENT_TARGET_WINDOWS || DEPLOYMENT_TARGET_LINUX
 	if (keyValueString[0] != 0) {
 		UErrorCode		uerr = U_ZERO_ERROR;
 		UEnumeration *	uenum = uloc_openKeywords(keyValueString, &uerr);
@@ -1757,7 +1744,6 @@ static void _AppendKeyValueString(char inLocaleString[], int locStringMaxLen, ch
 			uenum_close(uenum);
 		}
 	}
-#endif
 }
 
 // __private_extern__ CFStringRef _CFLocaleCreateCanonicalLanguageIdentifierForCFBundle(CFAllocatorRef allocator, CFStringRef localeIdentifier) {}
@@ -1970,12 +1956,9 @@ SPI:  CFLocaleGetLanguageRegionEncodingForLocaleIdentifier gets the appropriate 
  preferred localization in the current context (this function returns NO for a NULL localeIdentifier); and in this function
  langCode, regCode, and scriptCode are all SInt16* (not SInt32* like the equivalent parameters in CFBundleGetLocalizationInfoForLocalization).
 */
-#if DEPLOYMENT_TARGET_MACOSX || DEPLOYMENT_TARGET_EMBEDDED || DEPLOYMENT_TARGET_WINDOWS || DEPLOYMENT_TARGET_LINUX
 static int CompareLocaleToLegacyCodesEntries( const void *entry1, const void *entry2 );
-#endif
 
 Boolean CFLocaleGetLanguageRegionEncodingForLocaleIdentifier(CFStringRef localeIdentifier, LangCode *langCode, RegionCode *regCode, ScriptCode *scriptCode, CFStringEncoding *stringEncoding) {
-#if DEPLOYMENT_TARGET_MACOSX || DEPLOYMENT_TARGET_EMBEDDED || DEPLOYMENT_TARGET_WINDOWS || DEPLOYMENT_TARGET_LINUX
 	Boolean		returnValue = false;
 	CFStringRef	canonicalIdentifier = CFLocaleCreateCanonicalLocaleIdentifierFromString(NULL, localeIdentifier);
 	if (canonicalIdentifier) {
@@ -2048,22 +2031,16 @@ Boolean CFLocaleGetLanguageRegionEncodingForLocaleIdentifier(CFStringRef localeI
 		CFRelease(canonicalIdentifier);
 	}
 	return returnValue;
-#else
-    return false;
-#endif
 }
 
-#if DEPLOYMENT_TARGET_MACOSX || DEPLOYMENT_TARGET_EMBEDDED || DEPLOYMENT_TARGET_WINDOWS || DEPLOYMENT_TARGET_LINUX
 static int CompareLocaleToLegacyCodesEntries( const void *entry1, const void *entry2 ) {
 	const char *	localeString1 = ((const LocaleToLegacyCodes *)entry1)->locale;
 	const char *	localeString2 = ((const LocaleToLegacyCodes *)entry2)->locale;
 	return strcmp(localeString1, localeString2);
 }
-#endif
 
 CFDictionaryRef CFLocaleCreateComponentsFromLocaleIdentifier(CFAllocatorRef allocator, CFStringRef localeID) {
     CFMutableDictionaryRef working = CFDictionaryCreateMutable(allocator, 10, &kCFTypeDictionaryKeyCallBacks, &kCFTypeDictionaryValueCallBacks);
-#if DEPLOYMENT_TARGET_MACOSX || DEPLOYMENT_TARGET_EMBEDDED || DEPLOYMENT_TARGET_WINDOWS || DEPLOYMENT_TARGET_LINUX
     char cLocaleID[ULOC_FULLNAME_CAPACITY+ULOC_KEYWORD_AND_VALUES_CAPACITY];
     char buffer[ULOC_FULLNAME_CAPACITY+ULOC_KEYWORD_AND_VALUES_CAPACITY];
 
@@ -2139,7 +2116,6 @@ CFDictionaryRef CFLocaleCreateComponentsFromLocaleIdentifier(CFAllocatorRef allo
     uenum_close(iter);
     
     out:;
-#endif
     // Convert to an immutable dictionary and return
     CFDictionaryRef result = CFDictionaryCreateCopy(allocator, working);
     CFRelease(working);
@@ -2193,7 +2169,6 @@ CFStringRef CFLocaleCreateLocaleIdentifierFromComponents(CFAllocatorRef allocato
     free(variant);
     free(buf1);
 
-#if DEPLOYMENT_TARGET_MACOSX || DEPLOYMENT_TARGET_EMBEDDED || DEPLOYMENT_TARGET_WINDOWS || DEPLOYMENT_TARGET_LINUX
     for (CFIndex idx = 0; idx < cnt; idx++) {
 	if (keys[idx]) {
 	    char *key = __CStringFromString(keys[idx]);
@@ -2217,7 +2192,6 @@ CFStringRef CFLocaleCreateLocaleIdentifierFromComponents(CFAllocatorRef allocato
 	    free(value);
 	}
     }
-#endif
     
     return CFStringCreateWithCString(allocator, cLocaleID, kCFStringEncodingASCII);
 }

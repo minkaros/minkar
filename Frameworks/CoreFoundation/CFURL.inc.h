@@ -268,10 +268,6 @@
                 } else if (!sawPercent) {
                     flags |= POSIX_AND_URL_PATHS_MATCH;
                 }
-#elif DEPLOYMENT_TARGET_LINUX || DEPLOYMENT_TARGET_WINDOWS
-                if (!sawPercent) {
-                    flags |= POSIX_AND_URL_PATHS_MATCH;
-                }
 #endif
                 
                 ch = characterArray[pathRg.location + pathRg.length - 1];

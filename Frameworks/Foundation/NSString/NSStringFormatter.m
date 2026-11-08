@@ -223,12 +223,8 @@ static inline void appendCStringChar(NSStringBuffer *buffer,char c,
 double roundDouble(double value) {
    char *p = (char *)&value;
 
-#ifdef WINDOWS
-   value = round(value);
-#else
 // some OS's don't have round(), Linux?
    value = (value < 0.0) ? ceil(value-0.5) : floor(value+0.5);
-#endif
 
 #ifdef __LITTLE_ENDIAN__
    p[0] |= 0x01;

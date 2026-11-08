@@ -995,9 +995,6 @@ CF_PRIVATE Boolean _CFStreamOpen(struct _CFStream *stream) {
             }
             _CFStreamScheduleEvent(stream, kCFStreamEventOpenCompleted);
         } else {
-#if DEPLOYMENT_TARGET_WINDOWS
-            _CFStreamClose(stream);
-#endif
             _CFStreamSetStatusCode(stream, kCFStreamStatusError);
             _CFStreamScheduleEvent(stream, kCFStreamEventErrorOccurred);
         }
@@ -2032,35 +2029,4 @@ Boolean _CFStreamRemoveRunLoopAndModeFromArray(CFMutableArrayRef runLoopsAndMode
 CF_EXPORT CFIndex _CFStreamInstanceSize(void) {
     return sizeof(struct _CFStream);
 }
-
-#if DEPLOYMENT_TARGET_WINDOWS
-void __CFStreamCleanup(void) {
-    __CFLock(&sSourceLock);
-    if (sSharedSources) {
-        CFIndex count = CFDictionaryGetCount(sSharedSources);
-        if (count == 0) {
-            // Only release if empty.  If it's still holding streams (which would be a client
-            // bug leak), freeing this dict would free the streams, which then need to access the
-            // dict to remove themselves, which leads to a deadlock.
-            CFRelease(sSharedSources);
-            sSharedSources = NULL;
-        } else {
-            const void ** keys = (const void **)malloc(sizeof(const void *) * count);
-#if defined(DEBUG)
-            int i;
-#endif
-            CFDictionaryGetKeysAndValues(sSharedSources, keys, NULL);
-             fprintf(stderr, "*** CFNetwork is shutting down, but %ld streams are still scheduled.\n", count);
-#if defined(DEBUG)
-            for (i = 0; i < count;i ++) {
-                if ((CFGetTypeID(keys[i]) == __kCFReadStreamTypeID) || (CFGetTypeID(keys[i]) == __kCFWriteStreamTypeID)) {
-                    CFShow(keys[i]);
-                }
-            }
-#endif
-        }
-    }
-    __CFUnlock(&sSourceLock);
-}
-#endif
 

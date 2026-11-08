@@ -8,11 +8,8 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 #import <Foundation/NSDebug.h>
 #import <Foundation/NSString.h>
-#ifdef WINDOWS
-#include <windows.h>
-#endif
 
-#if defined(LINUX) ||  defined(__APPLE__)  ||  defined(__FreeBSD__)
+#if defined(__APPLE__)
 #include <execinfo.h>
 #endif
 
@@ -27,36 +24,11 @@ const char* _NSPrintForDebugger(id object) {
 	return NULL;
 }
 
-#ifndef WINDOWS
 void NSCooperativeThreadBlocking() {
 }
 
 void NSCooperativeThreadWaiting() {
 }
-#else
-
-
-static HANDLE NSCooperativeEvent(){
-   static HANDLE handle=NULL;
-
-   if(handle==NULL)
-    handle=CreateEvent(NULL,FALSE,FALSE,NULL);
-
-   return handle;
-}
-
-void NSCooperativeThreadBlocking() {
-   if(NSCooperativeThreadsEnabled){
-    SetEvent(NSCooperativeEvent());
-   }
-}
-
-void NSCooperativeThreadWaiting() {
-   if(NSCooperativeThreadsEnabled){
-    WaitForSingleObject(NSCooperativeEvent(),0);
-   }
-}
-#endif
 
 #define _NS_RETURN_ADDRESS(x) case x: return __builtin_return_address(x + 1)
 

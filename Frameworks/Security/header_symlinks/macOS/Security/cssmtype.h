@@ -691,11 +691,7 @@ typedef struct DEPRECATED_IN_MAC_OS_X_VERSION_10_7_AND_LATER cssm_acl_edit {
     const CSSM_ACL_ENTRY_INPUT *NewEntry;
 } CSSM_ACL_EDIT DEPRECATED_IN_MAC_OS_X_VERSION_10_7_AND_LATER, *CSSM_ACL_EDIT_PTR DEPRECATED_IN_MAC_OS_X_VERSION_10_7_AND_LATER;
 
-#if defined(WIN32)
-typedef FARPROC CSSM_PROC_ADDR;
-#else
 typedef void (CSSMAPI *CSSM_PROC_ADDR) (void);
-#endif
 typedef CSSM_PROC_ADDR *CSSM_PROC_ADDR_PTR;
 
 typedef struct cssm_func_name_addr {

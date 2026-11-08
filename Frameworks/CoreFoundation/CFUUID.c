@@ -29,7 +29,6 @@
 #include <CoreFoundation/CFUUID.h>
 #include "CFInternal.h"
 
-#if DEPLOYMENT_TARGET_MACOSX || DEPLOYMENT_TARGET_EMBEDDED || DEPLOYMENT_TARGET_WINDOWS
 #include <dispatch/dispatch.h>
 
 static CFMutableDictionaryRef _uniquedUUIDs = NULL;
@@ -42,20 +41,6 @@ CF_INLINE void LOCKED(dispatch_block_t work) {
     });
     dispatch_sync(CFUUIDGlobalDataLock, work);
 }
-
-#else
-// Platforms without dispatch
-
-static CFMutableDictionaryRef _uniquedUUIDs = NULL;
-static CFLock_t _uniquedUUIDsLock = CFLockInit;
-
-CF_INLINE void LOCKED(void (^work)(void)) {
-    __CFLock(&_uniquedUUIDsLock);
-    work();
-    __CFUnlock(&_uniquedUUIDsLock);
-}
-
-#endif
 
 struct __CFUUID {
     CFRuntimeBase _base;
@@ -262,11 +247,7 @@ static CFUUIDRef __CFUUIDCreateWithBytesPrimitive(CFAllocatorRef allocator, CFUU
     return (CFUUIDRef)uuid;
 }
 
-#if DEPLOYMENT_TARGET_WINDOWS
-#include <Rpc.h>
-#elif DEPLOYMENT_TARGET_MACOSX || DEPLOYMENT_TARGET_EMBEDDED
 #include <uuid/uuid.h>
-#endif
 
 CFUUIDRef CFUUIDCreate(CFAllocatorRef alloc) {
     /* Create a new bytes struct and then call the primitive. */
@@ -274,12 +255,6 @@ CFUUIDRef CFUUIDCreate(CFAllocatorRef alloc) {
     __block uint32_t retval = 0;
     
     LOCKED(^{
-#if DEPLOYMENT_TARGET_WINDOWS
-        UUID u;
-        long rStatus = UuidCreate(&u);
-        if (RPC_S_OK != rStatus && RPC_S_UUID_LOCAL_ONLY != rStatus) retval = 1;
-        memmove(&bytes, &u, sizeof(bytes));
-#elif DEPLOYMENT_TARGET_MACOSX || DEPLOYMENT_TARGET_EMBEDDED
         static Boolean useV1UUIDs = false, checked = false;
         uuid_t uuid;
         if (!checked) {
@@ -291,9 +266,6 @@ CFUUIDRef CFUUIDCreate(CFAllocatorRef alloc) {
         }
         if (useV1UUIDs) uuid_generate_time(uuid); else uuid_generate_random(uuid);
         memcpy((void *)&bytes, uuid, sizeof(uuid));
-#else
-        retval = 1;
-#endif
     });
 
     return (retval == 0) ? __CFUUIDCreateWithBytesPrimitive(alloc, bytes, false) : NULL;

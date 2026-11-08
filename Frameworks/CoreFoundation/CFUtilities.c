@@ -30,27 +30,16 @@
 #include "CFInternal.h"
 #include "CFLocaleInternal.h"
 #include <CoreFoundation/CFPriv.h>
-#if DEPLOYMENT_TARGET_MACOSX || DEPLOYMENT_TARGET_EMBEDDED || DEPLOYMENT_TARGET_WINDOWS
 #include <CoreFoundation/CFBundle.h>
-#endif
 #include <CoreFoundation/CFURLAccess.h>
 #include <CoreFoundation/CFPropertyList.h>
-#if DEPLOYMENT_TARGET_WINDOWS
-#include <process.h>
-#endif
 #include <math.h>
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
-#if DEPLOYMENT_TARGET_MACOSX || DEPLOYMENT_TARGET_EMBEDDED || DEPLOYMENT_TARGET_WINDOWS
 #include <asl.h>
-#else
-#define ASL_LEVEL_EMERG 0
-#define ASL_LEVEL_DEBUG 7
-#endif
 
 
-#if DEPLOYMENT_TARGET_MACOSX || DEPLOYMENT_TARGET_EMBEDDED || DEPLOYMENT_TARGET_EMBEDDED_MINI
 #include <unistd.h>
 #include <sys/uio.h>
 #include <mach/mach.h>
@@ -70,12 +59,6 @@
 #include <sys/errno.h>
 #include <mach/mach_time.h>
 #include <Block.h>
-#endif
-#if DEPLOYMENT_TARGET_LINUX || DEPLOYMENT_TARGET_FREEBSD
-#include <string.h>
-#include <pthread.h>
-#include <sys/mman.h>
-#endif
 
 /* Comparator is passed the address of the values. */
 /* Binary searches a sorted-increasing array of some type.
@@ -143,7 +126,6 @@ CFHashCode CFHashBytes(uint8_t *bytes, CFIndex length) {
 #undef ELF_STEP
 
 
-#if DEPLOYMENT_TARGET_MACOSX || DEPLOYMENT_TARGET_EMBEDDED || DEPLOYMENT_TARGET_EMBEDDED_MINI
 CF_PRIVATE uintptr_t __CFFindPointer(uintptr_t ptr, uintptr_t start) {
     vm_map_t task = mach_task_self();
     mach_vm_address_t address = start;
@@ -177,12 +159,10 @@ CF_PRIVATE void __CFDumpAllPointerLocations(uintptr_t ptr) {
         printf("%p\n", (void *)addr);
     } while (addr != 0);
 }
-#endif
 
 // Looks for localized version of "nonLocalized" in the SystemVersion bundle
 // If not found, and returnNonLocalizedFlag == true, will return the non localized string (retained of course), otherwise NULL
 // If bundlePtr != NULL, will use *bundlePtr and will return the bundle in there; otherwise bundle is created and released
-#if DEPLOYMENT_TARGET_MACOSX || DEPLOYMENT_TARGET_EMBEDDED
 static CFStringRef _CFCopyLocalizedVersionKey(CFBundleRef *bundlePtr, CFStringRef nonLocalized) {
     CFStringRef localized = NULL;
     CFBundleRef locBundle = bundlePtr ? *bundlePtr : NULL;
@@ -199,12 +179,10 @@ static CFStringRef _CFCopyLocalizedVersionKey(CFBundleRef *bundlePtr, CFStringRe
     }
     return localized ? localized : (CFStringRef)CFRetain(nonLocalized);
 }
-#endif
 
 static CFDictionaryRef _CFCopyVersionDictionary(CFStringRef path) {
     CFPropertyListRef plist = NULL;
     
-#if DEPLOYMENT_TARGET_MACOSX || DEPLOYMENT_TARGET_EMBEDDED || DEPLOYMENT_TARGET_EMBEDDED_MINI
     CFDataRef data;
     CFURLRef url;
     
@@ -219,19 +197,12 @@ static CFDictionaryRef _CFCopyVersionDictionary(CFStringRef path) {
     if (url) CFRelease(url);
 
     if (plist) {
-#if DEPLOYMENT_TARGET_EMBEDDED_MINI
-	CFStringRef fullVersion, vers, versExtra, build;
-	CFStringRef versionString = CFRetain(_kCFSystemVersionProductVersionStringKey);
-	CFStringRef buildString = CFRetain(_kCFSystemVersionBuildStringKey);
-	CFStringRef fullVersionString = CFRetain(CFSTR("FullVersionString"));
-#else
 	CFBundleRef locBundle = NULL;
 	CFStringRef fullVersion, vers, versExtra, build;
 	CFStringRef versionString = _CFCopyLocalizedVersionKey(&locBundle, _kCFSystemVersionProductVersionStringKey);
 	CFStringRef buildString = _CFCopyLocalizedVersionKey(&locBundle, _kCFSystemVersionBuildStringKey);
 	CFStringRef fullVersionString = _CFCopyLocalizedVersionKey(&locBundle, CFSTR("FullVersionString"));
 	if (locBundle) CFRelease(locBundle);
-#endif
 
         // Now build the full version string
         if (CFEqual(fullVersionString, CFSTR("FullVersionString"))) {
@@ -253,28 +224,6 @@ static CFDictionaryRef _CFCopyVersionDictionary(CFStringRef path) {
 	CFRelease(fullVersionString);
         CFRelease(fullVersion);
     }
-#elif DEPLOYMENT_TARGET_WINDOWS
-    OSVERSIONINFOEX osvi;
-    ZeroMemory(&osvi, sizeof(OSVERSIONINFOEX));
-    osvi.dwOSVersionInfoSize = sizeof(OSVERSIONINFOEX);
-    BOOL result = GetVersionEx((OSVERSIONINFO *)&osvi);
-    if (!result) return NULL;
-
-    plist = CFDictionaryCreateMutable(kCFAllocatorSystemDefault, 10, &kCFTypeDictionaryKeyCallBacks, &kCFTypeDictionaryValueCallBacks);
-    
-    // e.g. 10.7
-    CFStringRef versionString = CFStringCreateWithFormat(kCFAllocatorSystemDefault, NULL, CFSTR("%ld.%ld(%ld,%ld)"), osvi.dwMajorVersion, osvi.dwMinorVersion, osvi.wServicePackMajor, osvi.wServicePackMinor);
-    
-    // e.g. 11A508
-    CFStringRef buildString = CFStringCreateWithFormat(kCFAllocatorSystemDefault, NULL, CFSTR("%ld"), osvi.dwBuildNumber);
-        
-    CFDictionarySetValue((CFMutableDictionaryRef)plist, _kCFSystemVersionProductVersionKey, versionString);
-    CFDictionarySetValue((CFMutableDictionaryRef)plist, _kCFSystemVersionBuildVersionKey, buildString);    
-    CFDictionarySetValue((CFMutableDictionaryRef)plist, _kCFSystemVersionProductNameKey, CFSTR("Windows")); // hard coded for now
-    
-    CFRelease(versionString);
-    CFRelease(buildString);
-#endif
     return (CFDictionaryRef)plist;
 }
 
@@ -338,7 +287,6 @@ CF_EXPORT Boolean _CFExecutableLinkedOnOrAfter(CFSystemVersion version) {
 
 
 
-#if DEPLOYMENT_TARGET_MACOSX
 CF_PRIVATE void *__CFLookupCarbonCoreFunction(const char *name) {
     static void *image = NULL;
     if (NULL == image) {
@@ -350,9 +298,7 @@ CF_PRIVATE void *__CFLookupCarbonCoreFunction(const char *name) {
     }
     return dyfunc;
 }
-#endif
 
-#if DEPLOYMENT_TARGET_MACOSX || DEPLOYMENT_TARGET_EMBEDDED
 CF_PRIVATE void *__CFLookupCoreServicesInternalFunction(const char *name) {
     static void *image = NULL;
     if (NULL == image) {
@@ -383,43 +329,25 @@ CF_PRIVATE void *__CFLookupCFNetworkFunction(const char *name) {
     }
     return dyfunc;
 }
-#endif
 
 CF_PRIVATE CFIndex __CFActiveProcessorCount() {
     int32_t pcnt;
-#if DEPLOYMENT_TARGET_WINDOWS
-    SYSTEM_INFO sysInfo;
-    GetSystemInfo(&sysInfo);
-    DWORD_PTR activeProcessorMask = sysInfo.dwActiveProcessorMask;
-    // assumes sizeof(DWORD_PTR) is 64 bits or less
-    uint64_t v = activeProcessorMask;
-    v = v - ((v >> 1) & 0x5555555555555555ULL);
-    v = (v & 0x3333333333333333ULL) + ((v >> 2) & 0x3333333333333333ULL);
-    v = (v + (v >> 4)) & 0xf0f0f0f0f0f0f0fULL;
-    pcnt = (v * 0x0101010101010101ULL) >> ((sizeof(v) - 1) * 8);
-#elif DEPLOYMENT_TARGET_MACOSX || DEPLOYMENT_TARGET_EMBEDDED || DEPLOYMENT_TARGET_EMBEDDED_MINI
     int32_t mib[] = {CTL_HW, HW_AVAILCPU};
     size_t len = sizeof(pcnt);
     int32_t result = sysctl(mib, sizeof(mib) / sizeof(int32_t), &pcnt, &len, NULL, 0);
     if (result != 0) {
         pcnt = 0;
     }
-#else
-    // Assume the worst
-    pcnt = 1;
-#endif
     return pcnt;
 }
 
 CF_PRIVATE void __CFGetUGIDs(uid_t *euid, gid_t *egid) {
-#if 1 && (DEPLOYMENT_TARGET_MACOSX || DEPLOYMENT_TARGET_EMBEDDED || DEPLOYMENT_TARGET_EMBEDDED_MINI)
     uid_t uid;
     gid_t gid;
     if (0 == pthread_getugid_np(&uid, &gid)) {
         if (euid) *euid = uid;
         if (egid) *egid = gid;
     } else
-#endif
     {
         if (euid) *euid = geteuid();
         if (egid) *egid = getegid();
@@ -477,23 +405,6 @@ static void _CFShowToFile(FILE *file, Boolean flush, const void *obj) {
      }
      cnt = CFStringGetLength(str);
 
-#if DEPLOYMENT_TARGET_WINDOWS
-    UniChar *ptr = (UniChar *)CFStringGetCharactersPtr(str);
-    BOOL freePtr = false;
-    if (!ptr) {
-	CFIndex strLen = CFStringGetLength(str);
-	// +2, 1 for newline, 1 for null
-	CFIndex bufSize = sizeof(UniChar *) * (CFStringGetMaximumSizeForEncoding(strLen, kCFStringEncodingUnicode) + 2);
-	CFIndex bytesUsed = 0;
-	ptr = (UniChar *)malloc(bufSize);
-	CFStringGetCharacters(str, CFRangeMake(0, strLen), ptr);
-	ptr[strLen] = L'\n';
-	ptr[strLen+1] = 0;
-	freePtr = true;
-    }
-    OutputDebugStringW((wchar_t *)ptr);
-    if (freePtr) free(ptr);
-#else
      CFStringInitInlineBuffer(str, &buffer, CFRangeMake(0, cnt));
      for (idx = 0; idx < cnt; idx++) {
          UniChar ch = __CFStringGetCharacterFromInlineBufferQuick(&buffer, idx);
@@ -505,14 +416,9 @@ static void _CFShowToFile(FILE *file, Boolean flush, const void *obj) {
          }
      }
      if (!lastNL) {
-#if DEPLOYMENT_TARGET_MACOSX || DEPLOYMENT_TARGET_EMBEDDED || DEPLOYMENT_TARGET_EMBEDDED_MINI
          fprintf_l(file, NULL, "\n");
-#else
-         fprintf(file, NULL, "\n");
-#endif
          if (flush) fflush(file);
      }
-#endif
 
      if (str) CFRelease(str);
 }
@@ -526,10 +432,6 @@ void CFShow(const void *obj) {
 typedef void (*CFLogFunc)(int32_t lev, const char *message, size_t length, char withBanner);
 
 static Boolean also_do_stderr() {
-#if DEPLOYMENT_TARGET_EMBEDDED_MINI
-    // just log to stderr, other logging facilities are out
-    return true;
-#elif DEPLOYMENT_TARGET_MACOSX || DEPLOYMENT_TARGET_EMBEDDED
     if (!issetugid() && __CFgetenv("CFLOG_FORCE_STDERR")) {
 	return true;
     }
@@ -546,7 +448,6 @@ static Boolean also_do_stderr() {
     vproc_swap_integer(NULL, VPROC_GSK_IS_MANAGED, NULL, &val);
     if (val) return false;
 #endif
-#endif
     return true;
 }
 
@@ -559,7 +460,6 @@ static void __CFLogCString(int32_t lev, const char *message, size_t length, char
     char *uid = NULL;
     int bannerLen;
     bannerLen = 0;
-#if DEPLOYMENT_TARGET_MACOSX || DEPLOYMENT_TARGET_EMBEDDED || DEPLOYMENT_TARGET_WINDOWS || DEPLOYMENT_TARGET_LINUX
     // The banner path may use CF functions, but the rest of this function should not. It may be called at times when CF is not fully setup or torn down.
     if (withBanner) {
 	double dummy;
@@ -574,22 +474,13 @@ static void __CFLogCString(int32_t lev, const char *message, size_t length, char
         int32_t minute = mine.tm_min;
         int32_t second = mine.tm_sec;
 	int32_t ms = (int32_t)floor(1000.0 * modf(at, &dummy));
-#if DEPLOYMENT_TARGET_MACOSX || DEPLOYMENT_TARGET_EMBEDDED
         uint64_t tid = 0;
         if (0 != pthread_threadid_np(NULL, &tid)) tid = pthread_mach_thread_np(pthread_self());
         asprintf(&banner, "%04d-%02d-%02d %02d:%02d:%02d.%03d %s[%d:%llu] ", year, month, day, hour, minute, second, ms, *_CFGetProgname(), getpid(), tid);
 	asprintf(&thread, "%x", pthread_mach_thread_np(pthread_self()));
-#elif DEPLOYMENT_TARGET_WINDOWS
-	bannerLen = asprintf(&banner, "%04d-%02d-%02d %02d:%02d:%02d.%03d %s[%d:%x] ", year, month, day, hour, minute, second, ms, *_CFGetProgname(), getpid(), GetCurrentThreadId());
-	asprintf(&thread, "%x", GetCurrentThreadId());
-#else
-	bannerLen = asprintf(&banner, "%04d-%02d-%02d %02d:%02d:%02d.%03d %s[%d:%x] ", year, month, day, hour, minute, second, ms, *_CFGetProgname(), getpid(), (unsigned int)pthread_self());
-	asprintf(&thread, "%lx", pthread_self());
-#endif
 	asprintf(&time, "%04d-%02d-%02d %02d:%02d:%02d.%03d", year, month, day, hour, minute, second, ms);
 
     }
-#if DEPLOYMENT_TARGET_MACOSX || DEPLOYMENT_TARGET_EMBEDDED || DEPLOYMENT_TARGET_WINDOWS
     uid_t euid;
     __CFGetUGIDs(&euid, NULL);
     asprintf(&uid, "%d", euid);
@@ -604,11 +495,8 @@ static void __CFLogCString(int32_t lev, const char *message, size_t length, char
     asl_send(asl, msg);
     asl_free(msg);
     asl_close(asl);
-#endif
-#endif // DEPLOYMENT_TARGET
 
     if (also_do_stderr()) {
-#if DEPLOYMENT_TARGET_MACOSX || DEPLOYMENT_TARGET_EMBEDDED || DEPLOYMENT_TARGET_EMBEDDED_MINI
 	struct iovec v[3];
 	v[0].iov_base = banner;
 	v[0].iov_len = banner ? strlen(banner) : 0;
@@ -621,39 +509,6 @@ static void __CFLogCString(int32_t lev, const char *message, size_t length, char
 	__CFLock(&lock);
 	writev(STDERR_FILENO, v[0].iov_base ? v : v + 1, nv);
 	__CFUnlock(&lock);
-#elif DEPLOYMENT_TARGET_WINDOWS
-        size_t bufLen = bannerLen + length + 1;
-        char *buf = (char *)malloc(sizeof(char) * bufLen);
-        if (banner) {
-            // Copy the banner into the debug string
-            memmove_s(buf, bufLen, banner, bannerLen);
-            
-            // Copy the message into the debug string
-            strcpy_s(buf + bannerLen, bufLen - bannerLen, message);
-        } else {
-            strcpy_s(buf, bufLen, message);
-        }
-        buf[bufLen - 1] = '\0';
-	fprintf_s(stderr, "%s\n", buf);
-	// This Win32 API call only prints when a debugger is active
-	// OutputDebugStringA(buf);
-        free(buf);
-#else
-        size_t bufLen = bannerLen + length + 1;
-        char *buf = (char *)malloc(sizeof(char) * bufLen);
-        if (banner) {
-            // Copy the banner into the debug string
-            memmove(buf, banner, bannerLen);
-            
-            // Copy the message into the debug string
-            strncpy(buf + bannerLen, message, bufLen - bannerLen);
-        } else {
-            strncpy(buf, message, bufLen);
-        }
-        buf[bufLen - 1] = '\0';
-        fprintf(stderr, "%s\n", buf);
-        free(buf);
-#endif
     }
     
     if (thread) free(thread);
@@ -663,11 +518,9 @@ static void __CFLogCString(int32_t lev, const char *message, size_t length, char
 }
     
 CF_EXPORT void _CFLogvEx2(CFLogFunc logit, CFStringRef (*copyDescFunc)(void *, const void *), CFStringRef (*contextDescFunc)(void *, const void *, const void *, bool, bool *), CFDictionaryRef formatOptions, int32_t lev, CFStringRef format, va_list args) {
-#if DEPLOYMENT_TARGET_MACOSX || DEPLOYMENT_TARGET_EMBEDDED || DEPLOYMENT_TARGET_EMBEDDED_MINI
     uintptr_t val = (uintptr_t)_CFGetTSD(__CFTSDKeyIsInCFLog);
     if (3 < val) return; // allow up to 4 nested invocations
     _CFSetTSD(__CFTSDKeyIsInCFLog, (void *)(val + 1), NULL);
-#endif
     CFStringRef str = format ? _CFStringCreateWithFormatAndArgumentsAux2(kCFAllocatorSystemDefault, copyDescFunc, contextDescFunc, formatOptions, (CFStringRef)format, args) : 0;
     CFIndex blen = str ? CFStringGetMaximumSizeForEncoding(CFStringGetLength(str), kCFStringEncodingUTF8) + 1 : 0;
     char *buf = str ? (char *)malloc(blen) : 0;
@@ -681,9 +534,7 @@ CF_EXPORT void _CFLogvEx2(CFLogFunc logit, CFStringRef (*copyDescFunc)(void *, c
     }
     if (buf) free(buf);
     if (str) CFRelease(str);
-#if DEPLOYMENT_TARGET_MACOSX || DEPLOYMENT_TARGET_EMBEDDED || DEPLOYMENT_TARGET_EMBEDDED_MINI
     _CFSetTSD(__CFTSDKeyIsInCFLog, (void *)val, NULL);
-#endif
 }
     
 CF_EXPORT void _CFLogvEx(CFLogFunc logit, CFStringRef (*copyDescFunc)(void *, const void *), CFDictionaryRef formatOptions, int32_t lev, CFStringRef format, va_list args) {
@@ -710,8 +561,6 @@ void CFLog(int32_t lev, CFStringRef format, ...) {
 }
 
 
-
-#if DEPLOYMENT_TARGET_MACOSX || DEPLOYMENT_TARGET_EMBEDDED
 
 kern_return_t _CFDiscorporateMemoryAllocate(CFDiscorporateMemory *hm, size_t size, bool purgeable) {
     kern_return_t ret = KERN_SUCCESS;
@@ -765,10 +614,6 @@ kern_return_t _CFDiscorporateMemoryMaterialize(CFDiscorporateMemory *hm) {
     if (KERN_SUCCESS == ret) if (VM_PURGABLE_EMPTY == state) ret = KERN_PROTECTION_FAILURE; // same as VM_PURGABLE_EMPTY
     return ret;
 }
-
-#endif
-
-#if DEPLOYMENT_TARGET_MACOSX
 
 #define SUDDEN_TERMINATION_ENABLE_VPROC 1
 
@@ -901,10 +746,7 @@ size_t _CFSuddenTerminationDisablingCount(void) {
 
 #endif
 
-#endif
-
 #if 0
-#if DEPLOYMENT_TARGET_MACOSX || DEPLOYMENT_TARGET_EMBEDDED || DEPLOYMENT_TARGET_EMBEDDED_MINI
 
 typedef void (^ThrottleTypeA)(void);		// allows calls per nanoseconds
 typedef void (^ThrottleTypeB)(uint64_t amt);	// allows amount per nanoseconds
@@ -956,29 +798,13 @@ CF_PRIVATE ThrottleTypeB __CFCreateThrottleTypeB(uint64_t amount, uint64_t nanos
 }
 
 #endif
-#endif
 
 #pragma mark File Reading
     
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <errno.h>
-#if DEPLOYMENT_TARGET_WINDOWS
-#include <io.h>
-#include <direct.h>
-#define close _close
-#define write _write
-#define read _read
-#define open _NS_open
-#define stat _NS_stat
-#define fstat _fstat
-#define statinfo _stat
-    
-#define mach_task_self() 0
-
-#else
 #define statinfo stat
-#endif
     
 static CFErrorRef _CFErrorWithFilePathCodeDomain(CFStringRef domain, CFIndex code, CFStringRef path) {
     CFStringRef key = CFSTR("NSFilePath");
@@ -1007,9 +833,7 @@ CF_PRIVATE Boolean _CFReadMappedFromFile(CFStringRef path, Boolean map, Boolean 
         if (errorPtr) *errorPtr = _CFErrorWithFilePathCodeDomain(kCFErrorDomainPOSIX, errno, path);
         return false;
     }
-#if DEPLOYMENT_TARGET_MACOSX || DEPLOYMENT_TARGET_EMBEDDED || DEPLOYMENT_TARGET_EMBEDDED_MINI    
     if (uncached) (void)fcntl(fd, F_NOCACHE, 1);  // Non-zero arg turns off caching; we ignore error as uncached is just a hint
-#endif
     if (fstat(fd, &statBuf) < 0) {
         int32_t savederrno = errno;
         close(fd);
@@ -1038,7 +862,6 @@ CF_PRIVATE Boolean _CFReadMappedFromFile(CFStringRef path, Boolean map, Boolean 
     if (0LL == statBuf.st_size) {
         bytes = malloc(8); // don't return constant string -- it's freed!
 	length = 0;
-#if DEPLOYMENT_TARGET_MACOSX || DEPLOYMENT_TARGET_EMBEDDED || DEPLOYMENT_TARGET_EMBEDDED_MINI || DEPLOYMENT_TARGET_LINUX
     } else if (map) {
         if((void *)-1 == (bytes = mmap(0, (size_t)statBuf.st_size, PROT_READ, MAP_PRIVATE, fd, 0))) {
 	    int32_t savederrno = errno;
@@ -1078,22 +901,6 @@ CF_PRIVATE Boolean _CFReadMappedFromFile(CFStringRef path, Boolean map, Boolean 
 	}
 	length = (unsigned long)statBuf.st_size - numBytesRemaining;
     }
-#elif DEPLOYMENT_TARGET_WINDOWS
-    } else {
-        bytes = malloc(statBuf.st_size);
-        DWORD numBytesRead;
-        if (!ReadFile((HANDLE)_get_osfhandle(fd), bytes, statBuf.st_size, &numBytesRead, NULL)) {
-            DWORD lastError = GetLastError();
-            if (errorPtr) *errorPtr = _CFErrorWithFilePathCodeDomain(kCFErrorDomainPOSIX, lastError, path);
-	    free(bytes);
-	    close(fd);
-	    errno = lastError;
-	    bytes = NULL;
-	    return false;
-        }
-	length = numBytesRead;
-    }
-#endif
     close(fd);
     *outBytes = bytes;
     *outLength = length;

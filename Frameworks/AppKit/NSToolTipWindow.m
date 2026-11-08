@@ -18,8 +18,6 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <AppKit/NSThemeFrame.h>
 #import <AppKit/NSTrackingArea.h>
 
-// Note: This file contains a few minor adjustments to get it pixel-accurate on Win32.
-//       Those occurences are marked with "Should...".
 #define TEXTFIELD_MARGIN     3.0
 
 @implementation NSToolTipWindow

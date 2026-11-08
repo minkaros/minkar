@@ -9,9 +9,6 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <Foundation/NSString.h>
 #import <objc/runtime.h>
 #include <stdio.h>
-#ifdef WINDOWS
-#include <windows.h>
-#endif
 
 // DO NOT USE IN NEW CODE AND REPLACE USAGE. Use NSAssert().
 void NSRaiseException(NSString *name,id self,SEL cmd,NSString *fmt,...) {
@@ -28,17 +25,10 @@ void NSRaiseException(NSString *name,id self,SEL cmd,NSString *fmt,...) {
 }
 
 void NSCLogThreadId(){
-#ifdef WINDOWS
-   fprintf(stderr,"threadId=%p:tick=%d:",GetCurrentThreadId(),GetTickCount());
-#endif
 }
 
 void NSCLogNewline(){
-#ifdef WINDOWS
-   fprintf(stderr,"\n",GetCurrentThreadId());
-#else
    fprintf(stderr,"\n");
-#endif
    fflush(stderr);
 }
 

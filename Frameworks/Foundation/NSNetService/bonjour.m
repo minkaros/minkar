@@ -3,48 +3,10 @@
 #import <Foundation/NSDebug.h>
 #import <Foundation/NSString.h>
 
-#ifdef WINDOWS
-#include <windows.h>
-
-HINSTANCE hDNSDLL = NULL;
-
-static void bonjourInitializeIfNeeded() {
-   static boolean initialized = 0;
-
-   if(!initialized){
-	if((hDNSDLL=LoadLibrary("dnssd.dll"))==NULL)
-     NSLog(@"dnssd.dll not present");
-   }
-   
-   initialized = 1;
-}
-
-static BOOL bonjourNotPresent() {
-   bonjourInitializeIfNeeded();
-        
-	return (hDNSDLL == NULL)?YES:NO;
-}
-
-static FARPROC bonjour_function(const char *name) {
-   if(bonjourNotPresent())
-    return NULL;
-   else {
-    FARPROC result=GetProcAddress(hDNSDLL, name);
-    
-    if(result==NULL)
-     NSLog(@"GetProcAddress(dnssd.dll,name) failed");
-     
-    return result;
-   }
-}
-#else
-
 static void *bonjour_function(const char *name) {
    NSLog(@"bonjour_%s",name);
    return NULL;
 }
-
-#endif
 
 int bonjour_DNSServiceRefSockFD(bonjour_DNSServiceRef service){
    BONJOUR_CALL typeof(bonjour_DNSServiceRefSockFD) *function=(typeof(function))bonjour_function("DNSServiceRefSockFD");

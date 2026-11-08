@@ -32,7 +32,6 @@
 #include "CFStringEncodingConverterExt.h"
 #include "CFUnicodeDecomposition.h"
 #include "CFUniCharPriv.h"
-#if DEPLOYMENT_TARGET_MACOSX || DEPLOYMENT_TARGET_EMBEDDED || DEPLOYMENT_TARGET_EMBEDDED_MINI || DEPLOYMENT_TARGET_LINUX || DEPLOYMENT_TARGET_FREEBSD
 #include <fcntl.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -40,26 +39,11 @@
 #include <sys/mman.h>
 #include <unistd.h>
 #include <stdlib.h>
-#endif
-#if DEPLOYMENT_TARGET_MACOSX || DEPLOYMENT_TARGET_EMBEDDED
 #include <mach/mach.h>
-#endif
 
-#if DEPLOYMENT_TARGET_WINDOWS
-extern void _CFGetFrameworkPath(wchar_t *path, int maxLength);
-#endif
-
-#if DEPLOYMENT_TARGET_MACOSX || DEPLOYMENT_TARGET_EMBEDDED
 #define __kCFCharacterSetDir "/System/Library/CoreServices"
-#elif DEPLOYMENT_TARGET_LINUX || DEPLOYMENT_TARGET_FREEBSD || DEPLOYMENT_TARGET_EMBEDDED_MINI
-#define __kCFCharacterSetDir "/usr/local/share/CoreFoundation"
-#elif DEPLOYMENT_TARGET_WINDOWS
-#define __kCFCharacterSetDir "\\Windows\\CoreFoundation"
-#endif
 
-#if DEPLOYMENT_TARGET_MACOSX || DEPLOYMENT_TARGET_EMBEDDED
 #define USE_MACHO_SEGMENT 1
-#endif
 
 enum {
     kCFUniCharLastExternalSet = kCFUniCharNewlineCharacterSet,
@@ -122,116 +106,11 @@ static const void *__CFGetSectDataPtr(const char *segname, const char *sectname,
 
 // Memory map the file
 
-#if DEPLOYMENT_TARGET_MACOSX || DEPLOYMENT_TARGET_EMBEDDED || DEPLOYMENT_TARGET_EMBEDDED_MINI || DEPLOYMENT_TARGET_LINUX
 CF_INLINE void __CFUniCharCharacterSetPath(char *cpath) {
-#elif DEPLOYMENT_TARGET_WINDOWS
-CF_INLINE void __CFUniCharCharacterSetPath(wchar_t *wpath) {
-#else
-#error Unknown or unspecified DEPLOYMENT_TARGET
-#endif
-#if DEPLOYMENT_TARGET_MACOSX || DEPLOYMENT_TARGET_EMBEDDED
     strlcpy(cpath, __kCFCharacterSetDir, MAXPATHLEN);
-#elif DEPLOYMENT_TARGET_LINUX
-    strlcpy(cpath, __kCFCharacterSetDir, MAXPATHLEN);
-#elif DEPLOYMENT_TARGET_WINDOWS
-    wchar_t frameworkPath[MAXPATHLEN];
-    _CFGetFrameworkPath(frameworkPath, MAXPATHLEN);
-    wcsncpy(wpath, frameworkPath, MAXPATHLEN);
-    wcsncat(wpath, L"\\CoreFoundation.resources\\", MAXPATHLEN - wcslen(wpath));
-#else
-    strlcpy(cpath, __kCFCharacterSetDir, MAXPATHLEN);
-    strlcat(cpath, "/CharacterSets/", MAXPATHLEN);
-#endif
 }
 
-#if DEPLOYMENT_TARGET_WINDOWS
-#define MAX_BITMAP_STATE 512
-//
-//  If a string is placed into this array, then it has been previously 
-//  determined that the bitmap-file cannot be found.  Thus, we make
-//  the assumption it won't be there in future calls and we avoid
-//  hitting the disk un-necessarily.  This assumption isn't 100%
-//  correct, as bitmap-files can be added.  We would have to re-start
-//  the application in order to pick-up the new bitmap info.  
-//
-//  We should probably re-visit this.
-//
-static wchar_t *mappedBitmapState[MAX_BITMAP_STATE];
-static int __nNumStateEntries = -1;
-CRITICAL_SECTION __bitmapStateLock = {0};
-
-bool __GetBitmapStateForName(const wchar_t *bitmapName) {
-    if (NULL == __bitmapStateLock.DebugInfo)
-        InitializeCriticalSection(&__bitmapStateLock);
-    EnterCriticalSection(&__bitmapStateLock);
-    if (__nNumStateEntries >= 0) {
-        for (int i = 0; i < __nNumStateEntries; i++) {
-            if (wcscmp(mappedBitmapState[i], bitmapName) == 0) {
-                LeaveCriticalSection(&__bitmapStateLock);
-                return true;
-            }
-        }
-    }
-    LeaveCriticalSection(&__bitmapStateLock);
-    return false;
-}
-void __AddBitmapStateForName(const wchar_t *bitmapName) {
-    if (NULL == __bitmapStateLock.DebugInfo)
-        InitializeCriticalSection(&__bitmapStateLock);
-    EnterCriticalSection(&__bitmapStateLock);
-    __nNumStateEntries++;
-    mappedBitmapState[__nNumStateEntries] = (wchar_t *)malloc((lstrlenW(bitmapName)+1) * sizeof(wchar_t));
-    lstrcpyW(mappedBitmapState[__nNumStateEntries], bitmapName);
-    LeaveCriticalSection(&__bitmapStateLock);
-}
-#endif
-
-#if DEPLOYMENT_TARGET_MACOSX || DEPLOYMENT_TARGET_EMBEDDED || DEPLOYMENT_TARGET_EMBEDDED_MINI || DEPLOYMENT_TARGET_LINUX
 static bool __CFUniCharLoadBytesFromFile(const char *fileName, const void **bytes, int64_t *fileSize) {
-#elif DEPLOYMENT_TARGET_WINDOWS
-static bool __CFUniCharLoadBytesFromFile(const wchar_t *fileName, const void **bytes, int64_t *fileSize) {
-#else
-#error Unknown or unspecified DEPLOYMENT_TARGET
-#endif
-#if DEPLOYMENT_TARGET_WINDOWS
-    HANDLE bitmapFileHandle = NULL;
-    HANDLE mappingHandle = NULL;
-    
-    if (__GetBitmapStateForName(fileName)) {
-        // The fileName has been tried in the past, so just return false
-        // and move on.
-        *bytes = NULL;
-        return false;
-    }
-    mappingHandle = OpenFileMappingW(FILE_MAP_READ, TRUE, fileName);
-    if (NULL == mappingHandle) {
-        if ((bitmapFileHandle = CreateFileW(fileName, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL)) == INVALID_HANDLE_VALUE) {
-            // We tried to get the bitmap file for mapping, but it's not there.  Add to list of non-existant bitmap-files so
-            // we don't have to try this again in the future.
-            __AddBitmapStateForName(fileName);
-            return false;
-        }
-        mappingHandle = CreateFileMapping(bitmapFileHandle, NULL, PAGE_READONLY, 0, 0, NULL);
-        CloseHandle(bitmapFileHandle);
-        if (!mappingHandle) return false;
-    }
-
-    *bytes = MapViewOfFileEx(mappingHandle, FILE_MAP_READ, 0, 0, 0, 0);
-
-    if (NULL != fileSize) {
-	MEMORY_BASIC_INFORMATION memoryInfo;
-
-	if (0 == VirtualQueryEx(mappingHandle, *bytes, &memoryInfo, sizeof(memoryInfo))) {
-	    *fileSize = 0; // This indicates no checking. Is it right ?
-	} else {
-	    *fileSize = memoryInfo.RegionSize;
-	}
-    }
-
-    CloseHandle(mappingHandle);
-
-    return (*bytes ? true : false);
-#else
     struct stat statBuf;
     int fd = -1;
 
@@ -247,18 +126,11 @@ static bool __CFUniCharLoadBytesFromFile(const wchar_t *fileName, const void **b
     if (NULL != fileSize) *fileSize = statBuf.st_size;
 
     return true;
-#endif
 }
 
 #endif // USE_MACHO_SEGMENT
 
-#if DEPLOYMENT_TARGET_MACOSX || DEPLOYMENT_TARGET_EMBEDDED || DEPLOYMENT_TARGET_EMBEDDED_MINI || DEPLOYMENT_TARGET_LINUX
 static bool __CFUniCharLoadFile(const char *bitmapName, const void **bytes, int64_t *fileSize) {
-#elif DEPLOYMENT_TARGET_WINDOWS
-static bool __CFUniCharLoadFile(const wchar_t *bitmapName, const void **bytes, int64_t *fileSize) {
-#else
-#error Unknown or unspecified DEPLOYMENT_TARGET
-#endif
 #if USE_MACHO_SEGMENT
 	*bytes = __CFGetSectDataPtr("__UNICODE", bitmapName, NULL);
 
@@ -266,7 +138,6 @@ static bool __CFUniCharLoadFile(const wchar_t *bitmapName, const void **bytes, i
 
     return *bytes ? true : false;
 #else
-#if DEPLOYMENT_TARGET_MACOSX || DEPLOYMENT_TARGET_EMBEDDED || DEPLOYMENT_TARGET_EMBEDDED_MINI || DEPLOYMENT_TARGET_LINUX
     char cpath[MAXPATHLEN];
     __CFUniCharCharacterSetPath(cpath);
     strlcat(cpath, bitmapName, MAXPATHLEN);
@@ -275,14 +146,6 @@ static bool __CFUniCharLoadFile(const wchar_t *bitmapName, const void **bytes, i
     bool result = __CFUniCharLoadBytesFromFile(possiblyFrameworkRootedCPath, bytes, fileSize);
     if (needToFree) free((void *)possiblyFrameworkRootedCPath);
     return result;
-#elif DEPLOYMENT_TARGET_WINDOWS
-    wchar_t wpath[MAXPATHLEN];
-    __CFUniCharCharacterSetPath(wpath);
-    wcsncat(wpath, bitmapName, MAXPATHLEN);
-    return __CFUniCharLoadBytesFromFile(wpath, bytes, fileSize);
-#else
-#error Unknown or unspecified DEPLOYMENT_TARGET
-#endif
 #endif
 }
 
@@ -348,20 +211,12 @@ static __CFUniCharBitmapData *__CFUniCharBitmapDataArray = NULL;
 
 static CFLock_t __CFUniCharBitmapLock = CFLockInit;
 
-#if DEPLOYMENT_TARGET_MACOSX || DEPLOYMENT_TARGET_EMBEDDED || DEPLOYMENT_TARGET_EMBEDDED_MINI || DEPLOYMENT_TARGET_LINUX
 #if !defined(CF_UNICHAR_BITMAP_FILE)
 #if USE_MACHO_SEGMENT
 #define CF_UNICHAR_BITMAP_FILE "__csbitmaps"
 #else
 #define CF_UNICHAR_BITMAP_FILE "/CFCharacterSetBitmaps.bitmap"
 #endif
-#endif
-#elif DEPLOYMENT_TARGET_WINDOWS
-#if !defined(CF_UNICHAR_BITMAP_FILE)
-#define CF_UNICHAR_BITMAP_FILE L"CFCharacterSetBitmaps.bitmap"
-#endif
-#else
-#error Unknown or unspecified DEPLOYMENT_TARGET
 #endif
 
 static bool __CFUniCharLoadBitmapData(void) {
@@ -653,7 +508,6 @@ static const void **__CFUniCharMappingTables = NULL;
 
 static CFLock_t __CFUniCharMappingTableLock = CFLockInit;
 
-#if DEPLOYMENT_TARGET_MACOSX || DEPLOYMENT_TARGET_EMBEDDED || DEPLOYMENT_TARGET_EMBEDDED_MINI || DEPLOYMENT_TARGET_LINUX
 #if __CF_BIG_ENDIAN__
 #if USE_MACHO_SEGMENT
 #define MAPPING_TABLE_FILE "__data"
@@ -666,23 +520,6 @@ static CFLock_t __CFUniCharMappingTableLock = CFLockInit;
 #else
 #define MAPPING_TABLE_FILE "/CFUnicodeData-L.mapping"
 #endif
-#endif
-#elif DEPLOYMENT_TARGET_WINDOWS
-#if __CF_BIG_ENDIAN__
-#if USE_MACHO_SEGMENT
-#define MAPPING_TABLE_FILE "__data"
-#else
-#define MAPPING_TABLE_FILE L"CFUnicodeData-B.mapping"
-#endif
-#else
-#if USE_MACHO_SEGMENT
-#define MAPPING_TABLE_FILE "__data"
-#else
-#define MAPPING_TABLE_FILE L"CFUnicodeData-L.mapping"
-#endif
-#endif
-#else
-#error Unknown or unspecified DEPLOYMENT_TARGET
 #endif
 
 CF_PRIVATE const void *CFUniCharGetMappingData(uint32_t type) {
@@ -1182,20 +1019,10 @@ static int __CFUniCharUnicodePropertyTableCount = 0;
 
 static CFLock_t __CFUniCharPropTableLock = CFLockInit;
 
-#if DEPLOYMENT_TARGET_MACOSX || DEPLOYMENT_TARGET_EMBEDDED || DEPLOYMENT_TARGET_EMBEDDED_MINI || DEPLOYMENT_TARGET_LINUX
 #if USE_MACHO_SEGMENT
 #define PROP_DB_FILE "__properties"
 #else
 #define PROP_DB_FILE "/CFUniCharPropertyDatabase.data"
-#endif
-#elif DEPLOYMENT_TARGET_WINDOWS
-#if USE_MACHO_SEGMENT
-#define PROP_DB_FILE "__properties"
-#else
-#define PROP_DB_FILE L"CFUniCharPropertyDatabase.data"
-#endif
-#else
-#error Unknown or unspecified DEPLOYMENT_TARGET
 #endif
 
 const void *CFUniCharGetUnicodePropertyDataForPlane(uint32_t propertyType, uint32_t plane) {
@@ -1401,64 +1228,6 @@ bool CFUniCharFillDestinationBuffer(const UTF32Char *src, CFIndex srcLength, voi
 
     return true;
 }
-
-#if DEPLOYMENT_TARGET_WINDOWS
-void __CFUniCharCleanup(void)
-{
-    int	idx;
-    
-    // cleanup memory allocated by __CFUniCharLoadBitmapData()
-    __CFLock(&__CFUniCharBitmapLock);
-    
-    if (__CFUniCharBitmapDataArray != NULL) {
-        for (idx = 0; idx < (int)__CFUniCharNumberOfBitmaps; idx++) {
-            CFAllocatorDeallocate(kCFAllocatorSystemDefault, __CFUniCharBitmapDataArray[idx]._planes);
-            __CFUniCharBitmapDataArray[idx]._planes = NULL;
-        }
-        
-        CFAllocatorDeallocate(kCFAllocatorSystemDefault, __CFUniCharBitmapDataArray);
-        __CFUniCharBitmapDataArray = NULL;
-        __CFUniCharNumberOfBitmaps = 0;
-    }
-    
-    __CFUnlock(&__CFUniCharBitmapLock);
-    
-    // cleanup memory allocated by CFUniCharGetMappingData()
-    __CFLock(&__CFUniCharMappingTableLock);
-    
-    if (__CFUniCharMappingTables != NULL) {
-        CFAllocatorDeallocate(kCFAllocatorSystemDefault, __CFUniCharMappingTables);
-        __CFUniCharMappingTables = NULL;
-    }
-    
-    // cleanup memory allocated by __CFUniCharLoadCaseMappingTable()
-    if (__CFUniCharCaseMappingTableCounts != NULL) {
-        CFAllocatorDeallocate(kCFAllocatorSystemDefault, __CFUniCharCaseMappingTableCounts);
-        __CFUniCharCaseMappingTableCounts = NULL;
-        
-        __CFUniCharCaseMappingTable = NULL;
-        __CFUniCharCaseMappingExtraTable = NULL;
-    }
-    
-    __CFUnlock(&__CFUniCharMappingTableLock);
-    
-    // cleanup memory allocated by CFUniCharGetUnicodePropertyDataForPlane()
-    __CFLock(&__CFUniCharPropTableLock);
-    
-    if (__CFUniCharUnicodePropertyTable != NULL) {
-        for (idx = 0; idx < __CFUniCharUnicodePropertyTableCount; idx++) {
-            CFAllocatorDeallocate(kCFAllocatorSystemDefault, __CFUniCharUnicodePropertyTable[idx]._planes);
-            __CFUniCharUnicodePropertyTable[idx]._planes = NULL;
-        }
-        
-        CFAllocatorDeallocate(kCFAllocatorSystemDefault, __CFUniCharUnicodePropertyTable);
-        __CFUniCharUnicodePropertyTable = NULL;
-        __CFUniCharUnicodePropertyTableCount = 0;
-    }
-    
-    __CFUnlock(&__CFUniCharPropTableLock);
-}
-#endif
 
 #undef USE_MACHO_SEGMENT
 

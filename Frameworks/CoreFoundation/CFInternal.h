@@ -91,7 +91,7 @@ CF_EXTERN_C_BEGIN
 #include <CoreFoundation/CFLogUtilities.h>
 #include <CoreFoundation/CFRuntime.h>
 #include <limits.h>
-#if DEPLOYMENT_TARGET_MACOSX || DEPLOYMENT_TARGET_EMBEDDED || DEPLOYMENT_TARGET_EMBEDDED_MINI || DEPLOYMENT_TARGET_LINUX
+#if DEPLOYMENT_TARGET_MACOSX || DEPLOYMENT_TARGET_EMBEDDED || DEPLOYMENT_TARGET_EMBEDDED_MINI
 #include <xlocale.h>
 #include <unistd.h>
 #include <sys/time.h>
@@ -139,15 +139,9 @@ CF_PRIVATE CFIndex __CFActiveProcessorCount();
 #endif
 #endif
 
-#if DEPLOYMENT_TARGET_WINDOWS
-#define __builtin_unreachable() do { } while (0)
-#endif
-
 #if defined(__i386__) || defined(__x86_64__)
     #if defined(__GNUC__)
         #define HALT do {asm __volatile__("int3"); kill(getpid(), 9); __builtin_unreachable(); } while (0)
-    #elif defined(_MSC_VER)
-        #define HALT do { DebugBreak(); abort(); __builtin_unreachable(); } while (0)
     #else
         #error Compiler not supported
     #endif
@@ -316,11 +310,7 @@ extern const char *__CFgetenv(const char *n);
 CF_PRIVATE Boolean __CFProcessIsRestricted();
 
 // This is really about the availability of C99. We don't have that on Windows, but we should everywhere else.
-#if DEPLOYMENT_TARGET_WINDOWS
-#define STACK_BUFFER_DECL(T, N, C) T *N = (T *)_alloca((C) * sizeof(T))
-#else
 #define STACK_BUFFER_DECL(T, N, C) T N[C]
-#endif
 
 
 CF_EXPORT void * __CFConstantStringClassReferencePtr;
@@ -421,48 +411,6 @@ typedef pthread_mutex_t CFLock_t;
 #define __CFLockTry(LP) ({ \
     pthread_mutex_trylock(LP) == 0; })
 
-#elif DEPLOYMENT_TARGET_WINDOWS
-
-typedef int32_t CFLock_t;
-#define CFLockInit 0
-#define CF_LOCK_INIT_FOR_STRUCTS(X) (X = CFLockInit)
-
-CF_INLINE void __CFLock(volatile CFLock_t *lock) {
-    while (InterlockedCompareExchange((LONG volatile *)lock, ~0, 0) != 0) {
-	Sleep(0);
-    }
-}
-
-CF_INLINE void __CFUnlock(volatile CFLock_t *lock) {
-    MemoryBarrier();
-    *lock = 0;
-}
-
-CF_INLINE Boolean __CFLockTry(volatile CFLock_t *lock) {
-    return (InterlockedCompareExchange((LONG volatile *)lock, ~0, 0) == 0);
-}
-
-#elif DEPLOYMENT_TARGET_LINUX
-
-typedef int32_t CFLock_t;
-#define CFLockInit 0
-#define CF_LOCK_INIT_FOR_STRUCTS(X) (X = CFLockInit)
-
-CF_INLINE void __CFLock(volatile CFLock_t *lock) {
-    while (__sync_val_compare_and_swap(lock, 0, ~0) != 0) {
-	sleep(0);
-    }
-}
-
-CF_INLINE void __CFUnlock(volatile CFLock_t *lock) {
-    __sync_synchronize();
-    *lock = 0;
-}
-
-CF_INLINE Boolean __CFLockTry(volatile CFLock_t *lock) {
-    return (__sync_val_compare_and_swap(lock, 0, ~0) == 0);
-}
-
 #else
 
 #warning CF locks not defined for this platform -- CF is not thread-safe
@@ -556,11 +504,6 @@ CF_PRIVATE CFIndex _CFStartOfPathExtension2(CFStringRef path);
 CF_EXPORT CFIndex _CFLengthAfterDeletingPathExtension(UniChar *unichars, CFIndex length);
 
 #if __BLOCKS__
-#if DEPLOYMENT_TARGET_WINDOWS
-#define	DT_DIR		 4
-#define	DT_REG		 8
-#define DT_LNK          10
-#endif
 
 // This function automatically skips '.' and '..', and '._' files
 CF_PRIVATE void _CFIterateDirectory(CFStringRef directoryPath, Boolean (^fileHandler)(CFStringRef fileName, uint8_t fileType));
@@ -748,52 +691,13 @@ struct __objcFastEnumerationStateEquivalent {
 #endif
 
 // Need to use the _O_BINARY flag on Windows to get the correct behavior
-#if DEPLOYMENT_TARGET_WINDOWS
-#define CF_OPENFLGS	(_O_BINARY|_O_NOINHERIT)
-#else
 #define CF_OPENFLGS	(0)
-#endif
-
-#if DEPLOYMENT_TARGET_WINDOWS
-
-// These are replacements for pthread calls on Windows
-CF_EXPORT int _NS_pthread_main_np();
-CF_EXPORT int _NS_pthread_setspecific(pthread_key_t key, const void *val);
-CF_EXPORT void* _NS_pthread_getspecific(pthread_key_t key);
-CF_EXPORT int _NS_pthread_key_init_np(int key, void (*destructor)(void *));
-CF_EXPORT void _NS_pthread_setname_np(const char *name);
-
-// map use of pthread_set/getspecific to internal API
-#define pthread_setspecific _NS_pthread_setspecific
-#define pthread_getspecific _NS_pthread_getspecific
-#define pthread_key_init_np _NS_pthread_key_init_np
-#define pthread_main_np _NS_pthread_main_np
-#define pthread_setname_np _NS_pthread_setname_np
-#endif
-
-#if DEPLOYMENT_TARGET_WINDOWS
-// replacement for DISPATCH_QUEUE_OVERCOMMIT until we get a bug fix in dispatch on Windows
-// <rdar://problem/7923891> dispatch on Windows: Need queue_private.h
-#define DISPATCH_QUEUE_OVERCOMMIT 2
-#endif
-
-#if DEPLOYMENT_TARGET_WINDOWS
-CF_PRIVATE const wchar_t *_CFDLLPath(void);
-#endif
 
 /* Buffer size for file pathname */
-#if DEPLOYMENT_TARGET_WINDOWS
-#define CFMaxPathSize ((CFIndex)262)
-#define CFMaxPathLength ((CFIndex)260)
-#define PATH_SEP '\\'
-#define PATH_SEP_STR CFSTR("\\")
-#define PATH_MAX MAX_PATH
-#else
 #define CFMaxPathSize ((CFIndex)1026)
 #define CFMaxPathLength ((CFIndex)1024)
 #define PATH_SEP '/'
 #define PATH_SEP_STR CFSTR("/")
-#endif
 
 CF_INLINE const char *CFPathRelativeToAppleFrameworksRoot(const char *path, Boolean *allocated) {
     if (path) {

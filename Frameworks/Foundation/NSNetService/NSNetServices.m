@@ -26,11 +26,7 @@
 #import <Foundation/NSHost.h>
 #import <Foundation/NSDebug.h>
 
-#ifdef WIN32
-#include <winsock2.h> // for ntohs
-#else
 #include <arpa/inet.h>
-#endif
 #include <string.h>
 
 #import "bonjour.h"

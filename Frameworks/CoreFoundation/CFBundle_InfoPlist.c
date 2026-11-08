@@ -35,11 +35,9 @@
 #include "CFByteOrder.h"
 #include "CFURLAccess.h"
 
-#if DEPLOYMENT_TARGET_MACOSX || DEPLOYMENT_TARGET_EMBEDDED || DEPLOYMENT_TARGET_LINUX || DEPLOYMENT_TARGET_EMBEDDED_MINI
 #include <dirent.h>
 #include <sys/sysctl.h>
 #include <sys/mman.h>
-#endif
 
 // The following strings are initialized 'later' (i.e., not at static initialization time) because static init time is too early for CFSTR to work, on platforms without constant CF strings
 #if !__CONSTANT_STRINGS__
@@ -66,15 +64,9 @@ CF_PRIVATE void _CFBundleResourcesInitialize() {
 
 #else
 
-#if DEPLOYMENT_TARGET_EMBEDDED || DEPLOYMENT_TARGET_EMBEDDED_MINI
-// On iOS, we only support one platform
-#define _CFBundleNumberOfPlatforms 1
-static CFStringRef _CFBundleSupportedPlatforms[_CFBundleNumberOfPlatforms] = { CFSTR("iphoneos") };
-#else
 // On other platforms, we support the following platforms
 #define _CFBundleNumberOfPlatforms 7
 static CFStringRef _CFBundleSupportedPlatforms[_CFBundleNumberOfPlatforms] = { CFSTR("iphoneos"), CFSTR("macos"), CFSTR("windows"), CFSTR("linux"), CFSTR("freebsd"), CFSTR("solaris"), CFSTR("hpux") };
-#endif
 
 #define _CFBundleNumberOfProducts 3
 static CFStringRef _CFBundleSupportedProducts[_CFBundleNumberOfProducts] = { CFSTR("iphone"), CFSTR("ipod"), CFSTR("ipad") };
@@ -101,77 +93,16 @@ CF_EXPORT void _CFSetProductName(CFStringRef str) {
 }
 
 CF_EXPORT CFStringRef _CFGetProductName(void) {
-#if DEPLOYMENT_TARGET_EMBEDDED || DEPLOYMENT_TARGET_EMBEDDED_MINI
-    if (!_cfBundlePlatform) {
-        const char *isClassic = __CFgetenv("CLASSIC");
-        if (isClassic && strnlen(isClassic, 1) >= 1 && isClassic[0] == '1') {
-            _cfBundlePlatform = CFSTR("iphone");
-        } else {
-            char buffer[256];
-            memset(buffer, 0, sizeof(buffer));
-            size_t buflen = sizeof(buffer);
-            int ret = sysctlbyname("hw.machine", buffer, &buflen, NULL, 0);
-            if (0 == ret || (-1 == ret && ENOMEM == errno)) {
-                if (6 <= buflen && 0 == memcmp(buffer, "iPhone", 6)) {
-                    _cfBundlePlatform = CFSTR("iphone");
-                } else if (4 <= buflen && 0 == memcmp(buffer, "iPod", 4)) {
-                    _cfBundlePlatform = CFSTR("ipod");
-                } else if (4 <= buflen && 0 == memcmp(buffer, "iPad", 4)) {
-                    _cfBundlePlatform = CFSTR("ipad");
-                } else {
-                    const char *env = __CFgetenv("IPHONE_SIMULATOR_DEVICE");
-                    if (env) {
-                        if (0 == strcmp(env, "iPhone")) {
-                            _cfBundlePlatform = CFSTR("iphone");
-                        } else if (0 == strcmp(env, "iPad")) {
-                            _cfBundlePlatform = CFSTR("ipad");
-                        } else {
-                            // fallback, unrecognized IPHONE_SIMULATOR_DEVICE
-                        }
-                    } else {
-                        // fallback, unrecognized hw.machine and no IPHONE_SIMULATOR_DEVICE
-                    }
-                }
-            }
-        }
-        if (!_cfBundlePlatform) _cfBundlePlatform = CFSTR("iphone"); // fallback
-    }
-    return _cfBundlePlatform;
-#endif
     return CFSTR("");
 }
 
 // All new-style bundles will have these extensions.
 CF_EXPORT CFStringRef _CFGetPlatformName(void) {
-#if DEPLOYMENT_TARGET_MACOSX 
     return _CFBundleMacOSXPlatformName;
-#elif DEPLOYMENT_TARGET_EMBEDDED || DEPLOYMENT_TARGET_EMBEDDED_MINI
-    return _CFBundleiPhoneOSPlatformName;
-#elif DEPLOYMENT_TARGET_WINDOWS
-    return _CFBundleWindowsPlatformName;
-#elif DEPLOYMENT_TARGET_SOLARIS
-    return _CFBundleSolarisPlatformName;
-#elif DEPLOYMENT_TARGET_HPUX
-    return _CFBundleHPUXPlatformName;
-#elif DEPLOYMENT_TARGET_LINUX
-    return _CFBundleLinuxPlatformName;
-#elif DEPLOYMENT_TARGET_FREEBSD
-    return _CFBundleFreeBSDPlatformName;
-#else
-#error Unknown or unspecified DEPLOYMENT_TARGET
-#endif
 }
 
 CF_EXPORT CFStringRef _CFGetAlternatePlatformName(void) {
-#if DEPLOYMENT_TARGET_MACOSX
     return _CFBundleAlternateMacOSXPlatformName;
-#elif DEPLOYMENT_TARGET_EMBEDDED || DEPLOYMENT_TARGET_EMBEDDED_MINI
-    return _CFBundleMacOSXPlatformName;
-#elif DEPLOYMENT_TARGET_WINDOWS
-    return CFSTR("");
-#else
-#error Unknown or unspecified DEPLOYMENT_TARGET
-#endif
 }
 
 #pragma mark -
@@ -876,11 +807,7 @@ static CFPropertyListRef _CFBundleCreateFilteredInfoPlistWithURL(CFURLRef infoPl
     
     void *bytes = NULL;
     CFIndex length = 0;
-#if DEPLOYMENT_TARGET_MACOSX || DEPLOYMENT_TARGET_EMBEDDED || DEPLOYMENT_TARGET_EMBEDDED_MINI
     Boolean mapped = options & _CFBundleFilteredPlistMemoryMapped ? true : false;
-#else
-    Boolean mapped = false;
-#endif
     Boolean success = _CFReadMappedFromFile(filePath, mapped, false, &bytes, &length, NULL);
     CFRelease(filePath);
     if (!success) return CFDictionaryCreate(kCFAllocatorSystemDefault, NULL, NULL, 0, &kCFTypeDictionaryKeyCallBacks, &kCFTypeDictionaryValueCallBacks);
@@ -901,9 +828,7 @@ static CFPropertyListRef _CFBundleCreateFilteredInfoPlistWithURL(CFURLRef infoPl
     CFRelease(newKeyPaths);
     CFRelease(infoPlistData);
     if (mapped) {
-#if DEPLOYMENT_TARGET_MACOSX || DEPLOYMENT_TARGET_EMBEDDED || DEPLOYMENT_TARGET_EMBEDDED_MINI
         munmap(bytes, length);
-#endif
     } else {
         free(bytes);
     }

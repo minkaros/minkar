@@ -36,9 +36,7 @@
 #include <math.h>
 #include <dispatch/dispatch.h>
 
-#if DEPLOYMENT_TARGET_MACOSX || DEPLOYMENT_TARGET_EMBEDDED || DEPLOYMENT_TARGET_EMBEDDED_MINI || DEPLOYMENT_TARGET_LINUX
 #include <sys/time.h>
-#endif
 
 #define DEFINE_CFDATE_FUNCTIONS 1
 
@@ -139,28 +137,10 @@ CFTypeID CFDateGetTypeID(void) {
     dispatch_once(&initOnce, ^{
         __kCFDateTypeID = _CFRuntimeRegisterClass(&__CFDateClass); 
 
-#if DEPLOYMENT_TARGET_MACOSX || DEPLOYMENT_TARGET_EMBEDDED || DEPLOYMENT_TARGET_EMBEDDED_MINI
     struct mach_timebase_info info;
     mach_timebase_info(&info);
     __CFTSRRate = (1.0E9 / (double)info.numer) * (double)info.denom;
     __CF1_TSRRate = 1.0 / __CFTSRRate;
-#elif DEPLOYMENT_TARGET_WINDOWS
-    LARGE_INTEGER freq;
-    if (!QueryPerformanceFrequency(&freq)) {
-        HALT;
-    }
-    __CFTSRRate = (double)freq.QuadPart;
-    __CF1_TSRRate = 1.0 / __CFTSRRate;
-#elif DEPLOYMENT_TARGET_LINUX
-    struct timespec res;
-    if (clock_getres(CLOCK_MONOTONIC, &res) != 0) {
-        HALT;
-    }
-    __CFTSRRate = res.tv_sec + (1000000000 * res.tv_nsec);
-    __CF1_TSRRate = 1.0 / __CFTSRRate;
-#else
-#error Unable to initialize date
-#endif
     });
     return __kCFDateTypeID;
 }
@@ -300,7 +280,6 @@ CFAbsoluteTime CFGregorianDateGetAbsoluteTime(CFGregorianDate gdate, CFTimeZoneR
     CFAbsoluteTime at;
     at = 86400.0 * __CFAbsoluteFromYMD(gdate.year - 2001, gdate.month, gdate.day);
     at += 3600.0 * gdate.hour + 60.0 * gdate.minute + gdate.second;
-#if DEPLOYMENT_TARGET_MACOSX || DEPLOYMENT_TARGET_EMBEDDED || DEPLOYMENT_TARGET_WINDOWS || DEPLOYMENT_TARGET_LINUX
     if (NULL != tz) {
 	__CFGenericValidateType(tz, CFTimeZoneGetTypeID());
     }
@@ -310,7 +289,6 @@ CFAbsoluteTime CFGregorianDateGetAbsoluteTime(CFGregorianDate gdate, CFTimeZoneR
 	offset1 = CFTimeZoneGetSecondsFromGMT(tz, at - offset0);
 	at -= offset1;
     }
-#endif
     return at;
 }
 
@@ -319,14 +297,10 @@ CFGregorianDate CFAbsoluteTimeGetGregorianDate(CFAbsoluteTime at, CFTimeZoneRef 
     int64_t absolute, year;
     int8_t month, day;
     CFAbsoluteTime fixedat;
-#if DEPLOYMENT_TARGET_MACOSX || DEPLOYMENT_TARGET_EMBEDDED || DEPLOYMENT_TARGET_WINDOWS || DEPLOYMENT_TARGET_LINUX
     if (NULL != tz) {
 	__CFGenericValidateType(tz, CFTimeZoneGetTypeID());
     }
     fixedat = at + (NULL != tz ? CFTimeZoneGetSecondsFromGMT(tz, at) : 0.0);
-#else
-    fixedat = at;
-#endif
     absolute = (int64_t)floor(fixedat / 86400.0);
     __CFYMDFromAbsolute(absolute, &year, &month, &day);
     if (INT32_MAX - 2001 < year) year = INT32_MAX - 2001;
@@ -347,11 +321,9 @@ CFAbsoluteTime CFAbsoluteTimeAddGregorianUnits(CFAbsoluteTime at, CFTimeZoneRef 
     CFAbsoluteTime candidate_at0, candidate_at1;
     uint8_t monthdays;
 
-#if DEPLOYMENT_TARGET_MACOSX || DEPLOYMENT_TARGET_EMBEDDED || DEPLOYMENT_TARGET_WINDOWS || DEPLOYMENT_TARGET_LINUX
     if (NULL != tz) {
 	__CFGenericValidateType(tz, CFTimeZoneGetTypeID());
     }
-#endif
     
     /* Most people seem to expect years, then months, then days, etc.
 	to be added in that order.  Thus, 27 April + (4 days, 1 month)
@@ -463,14 +435,10 @@ CFGregorianUnits CFAbsoluteTimeGetDifferenceAsGregorianUnits(CFAbsoluteTime at1,
 SInt32 CFAbsoluteTimeGetDayOfWeek(CFAbsoluteTime at, CFTimeZoneRef tz) {
     int64_t absolute;
     CFAbsoluteTime fixedat;
-#if DEPLOYMENT_TARGET_MACOSX || DEPLOYMENT_TARGET_EMBEDDED || DEPLOYMENT_TARGET_WINDOWS || DEPLOYMENT_TARGET_LINUX
     if (NULL != tz) {
 	__CFGenericValidateType(tz, CFTimeZoneGetTypeID());
     }
     fixedat = at + (NULL != tz ? CFTimeZoneGetSecondsFromGMT(tz, at) : 0.0);
-#else
-    fixedat = at;
-#endif
     absolute = (int64_t)floor(fixedat / 86400.0);
     return (absolute < 0) ? ((absolute + 1) % 7 + 7) : (absolute % 7 + 1); /* Monday = 1, etc. */
 }
@@ -479,14 +447,10 @@ SInt32 CFAbsoluteTimeGetDayOfYear(CFAbsoluteTime at, CFTimeZoneRef tz) {
     CFAbsoluteTime fixedat;
     int64_t absolute, year;
     int8_t month, day;
-#if DEPLOYMENT_TARGET_MACOSX || DEPLOYMENT_TARGET_EMBEDDED || DEPLOYMENT_TARGET_WINDOWS || DEPLOYMENT_TARGET_LINUX
     if (NULL != tz) {
 	__CFGenericValidateType(tz, CFTimeZoneGetTypeID());
     }
     fixedat = at + (NULL != tz ? CFTimeZoneGetSecondsFromGMT(tz, at) : 0.0);
-#else
-    fixedat = at;
-#endif
     absolute = (int64_t)floor(fixedat / 86400.0);
     __CFYMDFromAbsolute(absolute, &year, &month, &day);
     return __CFDaysBeforeMonth(month, year, isleap(year)) + day;
@@ -497,14 +461,10 @@ SInt32 CFAbsoluteTimeGetWeekOfYear(CFAbsoluteTime at, CFTimeZoneRef tz) {
     int64_t absolute, year;
     int8_t month, day;
     CFAbsoluteTime fixedat;
-#if DEPLOYMENT_TARGET_MACOSX || DEPLOYMENT_TARGET_EMBEDDED || DEPLOYMENT_TARGET_WINDOWS || DEPLOYMENT_TARGET_LINUX
     if (NULL != tz) {
 	__CFGenericValidateType(tz, CFTimeZoneGetTypeID());
     }
     fixedat = at + (NULL != tz ? CFTimeZoneGetSecondsFromGMT(tz, at) : 0.0);
-#else
-    fixedat = at;
-#endif
     absolute = (int64_t)floor(fixedat / 86400.0);
     __CFYMDFromAbsolute(absolute, &year, &month, &day);
     double absolute0101 = __CFAbsoluteFromYMD(year, 1, 1);

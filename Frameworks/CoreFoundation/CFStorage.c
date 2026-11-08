@@ -50,18 +50,7 @@
 
 #include <CoreFoundation/CFStorage.h>
 #include "CFInternal.h"
-#if DEPLOYMENT_TARGET_MACOSX || DEPLOYMENT_TARGET_EMBEDDED || DEPLOYMENT_TARGET_WINDOWS
 #include <dispatch/dispatch.h>
-#endif
-
-#if DEPLOYMENT_TARGET_WINDOWS
-// No C99 support
-#define restrict
-
-// Replace bzero
-#define bzero(dst, size)    ZeroMemory(dst, size)
-
-#endif
 
 #if !defined(PAGE_SIZE)
 #define PAGE_SIZE 4096
@@ -1005,7 +994,6 @@ static bool __CFStorageEnumerateNodesInByteRangeWithBlock(CFStorageRef storage, 
 	    const CFRange * overlapsPtr = overlaps; //blocks don't let us reference arrays :(
 	    const CFIndex * offsetsPtr = offsets;
 	    CFStorageNode ** childrenPtr = children;
-#if DEPLOYMENT_TARGET_MACOSX || DEPLOYMENT_TARGET_EMBEDDED || DEPLOYMENT_TARGET_WINDOWS
 	    __block bool blockStop = false;
 	    dispatch_apply(numChildren, __CFDispatchQueueGetGenericMatchingCurrent(), ^(size_t ind) {
 		if (! blockStop && overlapsPtr[ind].length > 0) {
@@ -1015,16 +1003,6 @@ static bool __CFStorageEnumerateNodesInByteRangeWithBlock(CFStorageRef storage, 
 		}
 	    });
 	    stop = blockStop;
-#else
-        for (CFIndex ind = 0; ind < numChildren; ind++) {
-            if (overlapsPtr[ind].length > 0) {
-                if (__CFStorageEnumerateNodesInByteRangeWithBlock(storage, childrenPtr[ind], globalOffsetOfNode + offsetsPtr[ind], CFRangeMake(overlapsPtr[ind].location - offsetsPtr[ind], overlapsPtr[ind].length), concurrencyToken, applier)) {
-                    stop = true;
-                    break;
-		        }
-		    }
-	    }
-#endif
 	} else {
 	    if (overlaps[0].length > 0) {
 		stop = stop || __CFStorageEnumerateNodesInByteRangeWithBlock(storage, children[0], globalOffsetOfNode + offsets[0], CFRangeMake(overlaps[0].location - offsets[0], overlaps[0].length), concurrencyToken, applier);
@@ -1117,16 +1095,7 @@ CFStorageRef CFStorageCreate(CFAllocatorRef allocator, CFIndex valueSize) {
     storage->valueSize = valueSize;
     /* if valueSize is a power of 2, then set the shifter to the log base 2 of valueSize.  Otherwise set it to NO_SHIFTER */
     if (valueSize > 0 && !(valueSize & (valueSize - 1))) {
-#if DEPLOYMENT_TARGET_MACOSX || DEPLOYMENT_TARGET_EMBEDDED
 	storage->byteToValueShifter = __builtin_ctzl(valueSize);
-#else
-	CFIndex tempSize = valueSize;
-	storage->byteToValueShifter = 0;
-	while (tempSize > 1) {
-	    storage->byteToValueShifter++;
-	    tempSize >>= 1;
-	}
-#endif
     }
     else {
 	storage->byteToValueShifter = NO_SHIFTER;

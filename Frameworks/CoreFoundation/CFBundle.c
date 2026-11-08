@@ -42,11 +42,6 @@
 #include <sys/stat.h>
 #include <stdlib.h>
 
-#if DEPLOYMENT_TARGET_MACOSX || DEPLOYMENT_TARGET_EMBEDDED || DEPLOYMENT_TARGET_EMBEDDED_MINI || DEPLOYMENT_TARGET_WINDOWS
-#else
-#error Unknown deployment target
-#endif
-
 #define AVOID_WEAK_COLLECTIONS 1
 
 #if !AVOID_WEAK_COLLECTIONS
@@ -66,12 +61,7 @@
 #include <dlfcn.h>
 #endif /* BINARY_SUPPORT_DLFCN */
 
-#if DEPLOYMENT_TARGET_MACOSX || DEPLOYMENT_TARGET_EMBEDDED || DEPLOYMENT_TARGET_EMBEDDED_MINI
 #include <fcntl.h>
-#elif DEPLOYMENT_TARGET_WINDOWS
-#include <fcntl.h>
-#include <io.h>
-#endif
 
 
 static void _CFBundleFlushBundleCachesAlreadyLocked(CFBundleRef bundle, Boolean alreadyLocked);
@@ -469,26 +459,6 @@ static CFURLRef _CFBundleCopyBundleURLForExecutablePath(CFStringRef str) {
     if (buffLen > CFMaxPathSize) buffLen = CFMaxPathSize;
     CFStringGetCharacters(str, CFRangeMake(0, buffLen), buff);
 
-#if DEPLOYMENT_TARGET_WINDOWS
-    // Is this a .dll or .exe?
-    if (buffLen >= 5 && (_wcsnicmp((wchar_t *)&(buff[buffLen-4]), L".dll", 4) == 0 || _wcsnicmp((wchar_t *)&(buff[buffLen-4]), L".exe", 4) == 0)) {
-        CFIndex extensionLength = CFStringGetLength(_CFBundleWindowsResourceDirectoryExtension);
-        buffLen -= 4;
-        // If this is an _debug, we should strip that before looking for the bundle
-        if (buffLen >= 7 && (_wcsnicmp((wchar_t *)&buff[buffLen-6], L"_debug", 6) == 0)) buffLen -= 6;
-
-        if (buffLen + 1 + extensionLength < CFMaxPathSize) {
-            buff[buffLen] = '.';
-            buffLen ++;
-            CFStringGetCharacters(_CFBundleWindowsResourceDirectoryExtension, CFRangeMake(0, extensionLength), buff + buffLen);
-            buffLen += extensionLength;
-            outstr = CFStringCreateWithCharactersNoCopy(kCFAllocatorSystemDefault, buff, buffLen, kCFAllocatorNull);
-            url = CFURLCreateWithFileSystemPath(kCFAllocatorSystemDefault, outstr, PLATFORM_PATH_STYLE, true);
-            CFRelease(outstr);
-        }
-    }
-#endif
-
     if (!url) {
         buffLen = _CFLengthAfterDeletingLastPathComponent(buff, buffLen);  // Remove exe name
 
@@ -546,12 +516,6 @@ static CFURLRef _CFBundleCopyResolvedURLForExecutableURL(CFURLRef url) {
         if (len1 > 0 && len1 + 1 < buffLen) {          
             str1 = CFStringCreateWithCharacters(kCFAllocatorSystemDefault, buff, len1);
             CFIndex skipSlashCount = 1;
-#if DEPLOYMENT_TARGET_WINDOWS
-            // On Windows, _CFLengthAfterDeletingLastPathComponent will return a value of 3 if the path is at the root (e.g. C:\). This includes the \, which is not the case for URLs with subdirectories
-            if (len1 == 3 && buff[1] == ':' && buff[2] == '\\') {
-                skipSlashCount = 0;
-            }
-#endif
             str2 = CFStringCreateWithCharacters(kCFAllocatorSystemDefault, buff + len1 + skipSlashCount, buffLen - len1 - skipSlashCount);
             if (str1 && str2) {
                 url1 = CFURLCreateWithFileSystemPath(kCFAllocatorSystemDefault, str1, PLATFORM_PATH_STYLE, true);
@@ -895,7 +859,6 @@ CFBundleRef CFBundleGetBundleWithIdentifier(CFStringRef bundleID) {
         pthread_mutex_lock(&CFBundleGlobalDataLock);
         (void)_CFBundleGetMainBundleAlreadyLocked();
         result = _CFBundlePrimitiveGetBundleWithIdentifierAlreadyLocked(bundleID);
-#if DEPLOYMENT_TARGET_MACOSX || DEPLOYMENT_TARGET_EMBEDDED || DEPLOYMENT_TARGET_EMBEDDED_MINI
         if (!result) {
             // Try to create the bundle for the caller and try again
             void *p = __builtin_return_address(0);
@@ -908,7 +871,6 @@ CFBundleRef CFBundleGetBundleWithIdentifier(CFStringRef bundleID) {
                 result = _CFBundlePrimitiveGetBundleWithIdentifierAlreadyLocked(bundleID);
             }
         }
-#endif
         if (!result) {
             // Try to guess the bundle from the identifier and try again
             _CFBundleEnsureBundlesUpToDateWithHintAlreadyLocked(bundleID);
@@ -1059,19 +1021,6 @@ static CFBundleRef _CFBundleCreate(CFAllocatorRef allocator, CFURLRef bundleURL,
     localVersion = _CFBundleGetBundleVersionForURL(newURL);
     if (localVersion == 3) {
         SInt32 res = _CFGetPathProperties(allocator, (char *)buff, &exists, &mode, NULL, NULL, NULL, NULL);
-#if DEPLOYMENT_TARGET_WINDOWS
-        if (!(res == 0 && exists && ((mode & S_IFMT) == S_IFDIR))) {
-            // 2nd chance at finding a bundle path - remove the last path component (e.g., mybundle.resources) and try again
-            if (modDate) {
-                CFRelease(modDate);
-                modDate = NULL;
-            }
-            CFURLRef shorterPath = CFURLCreateCopyDeletingLastPathComponent(allocator, newURL);
-            CFRelease(newURL);
-            newURL = shorterPath;
-            res = _CFGetFileProperties(allocator, newURL, &exists, &mode, NULL, NULL, NULL, NULL);
-        }
-#endif
         if (res == 0) {
             if (!exists || ((mode & S_IFMT) != S_IFDIR)) {
                 if (modDate) CFRelease(modDate);
@@ -1103,10 +1052,6 @@ static CFBundleRef _CFBundleCreate(CFAllocatorRef allocator, CFURLRef bundleURL,
 #if defined(BINARY_SUPPORT_DYLD)
     /* We'll have to figure it out later */
     bundle->_binaryType = __CFBundleUnknownBinary;
-#elif defined(BINARY_SUPPORT_DLL)
-    /* We support DLL only */
-    bundle->_binaryType = __CFBundleDLLBinary;
-    bundle->_hModule = NULL;
 #else
     /* We'll have to figure it out later */
     bundle->_binaryType = __CFBundleUnknownBinary;
@@ -1115,11 +1060,9 @@ static CFBundleRef _CFBundleCreate(CFAllocatorRef allocator, CFURLRef bundleURL,
     bundle->_isLoaded = false;
     bundle->_sharesStringsFiles = false;
     
-#if DEPLOYMENT_TARGET_MACOSX || DEPLOYMENT_TARGET_EMBEDDED || DEPLOYMENT_TARGET_EMBEDDED_MINI
     if (!__CFgetenv("CFBundleDisableStringsSharing") && 
         (strncmp(buff, "/System/Library/Frameworks", 26) == 0) && 
         (strncmp(buff + strlen(buff) - 10, ".framework", 10) == 0)) bundle->_sharesStringsFiles = true;
-#endif
 
     bundle->_connectionCookie = NULL;
     bundle->_handleCookie = NULL;
@@ -1466,14 +1409,6 @@ static Boolean _urlExists(CFURLRef url) {
 // See <rdar://problem/6956670>
 static Boolean _binaryLoadable(CFURLRef url) {
     Boolean loadable = _urlExists(url);
-#if DEPLOYMENT_TARGET_EMBEDDED || DEPLOYMENT_TARGET_EMBEDDED_MINI
-    if (!loadable) {
-	uint8_t path[PATH_MAX];
-	if (url && CFURLGetFileSystemRepresentation(url, true, path, sizeof(path))) {
-	    loadable = dlopen_preflight((char *)path);
-	}
-    }
-#endif
     return loadable;
 }
 
@@ -1534,11 +1469,10 @@ CFURLRef _CFBundleCopyAppStoreReceiptURL(CFBundleRef bundle) {
 }
         
 static CFURLRef _CFBundleCopyExecutableURLRaw(CFURLRef urlPath, CFStringRef exeName) {
-    // Given an url to a folder and a name, this returns the url to the executable in that folder with that name, if it exists, and NULL otherwise.  This function deals with appending the ".exe" or ".dll" on Windows.
+    // Given an url to a folder and a name, this returns the url to the executable in that folder with that name, if it exists, and NULL otherwise.
     CFURLRef executableURL = NULL;
     if (!urlPath || !exeName) return NULL;
     
-#if DEPLOYMENT_TARGET_MACOSX || DEPLOYMENT_TARGET_EMBEDDED || DEPLOYMENT_TARGET_EMBEDDED_MINI
     const uint8_t *image_suffix = (uint8_t *)__CFgetenv("DYLD_IMAGE_SUFFIX");
     if (image_suffix) {
         CFStringRef newExeName, imageSuffix;
@@ -1565,47 +1499,6 @@ static CFURLRef _CFBundleCopyExecutableURLRaw(CFURLRef urlPath, CFStringRef exeN
             executableURL = NULL;
         }
     }
-#elif DEPLOYMENT_TARGET_WINDOWS
-    if (!executableURL) {
-        executableURL = CFURLCreateWithFileSystemPathRelativeToBase(kCFAllocatorSystemDefault, exeName, kCFURLWindowsPathStyle, false, urlPath);
-        if (executableURL && !_urlExists(executableURL)) {
-            CFRelease(executableURL);
-            executableURL = NULL;
-        }
-    }
-    if (!executableURL) {
-        if (!CFStringFindWithOptions(exeName, CFSTR(".dll"), CFRangeMake(0, CFStringGetLength(exeName)), kCFCompareAnchored|kCFCompareBackwards|kCFCompareCaseInsensitive, NULL)) {
-#if defined(DEBUG)
-            CFStringRef extension = CFSTR("_debug.dll");
-#else
-            CFStringRef extension = CFSTR(".dll");
-#endif
-            CFStringRef newExeName = CFStringCreateWithFormat(kCFAllocatorSystemDefault, NULL, CFSTR("%@%@"), exeName, extension);
-            executableURL = CFURLCreateWithString(kCFAllocatorSystemDefault, newExeName, urlPath);
-            if (executableURL && !_binaryLoadable(executableURL)) {
-                CFRelease(executableURL);
-                executableURL = NULL;
-            }
-            CFRelease(newExeName);
-        }
-    }
-    if (!executableURL) {
-        if (!CFStringFindWithOptions(exeName, CFSTR(".exe"), CFRangeMake(0, CFStringGetLength(exeName)), kCFCompareAnchored|kCFCompareBackwards|kCFCompareCaseInsensitive, NULL)) {
-#if defined(DEBUG)
-            CFStringRef extension = CFSTR("_debug.exe");
-#else
-            CFStringRef extension = CFSTR(".exe");
-#endif
-            CFStringRef newExeName = CFStringCreateWithFormat(kCFAllocatorSystemDefault, NULL, CFSTR("%@%@"), exeName, extension);
-            executableURL = CFURLCreateWithString(kCFAllocatorSystemDefault, newExeName, urlPath);
-            if (executableURL && !_binaryLoadable(executableURL)) {
-                CFRelease(executableURL);
-                executableURL = NULL;
-            }
-            CFRelease(newExeName);
-        }
-    }
-#endif
     return executableURL;
 }
 
@@ -1669,11 +1562,7 @@ static CFURLRef _CFBundleCopyExecutableURLInDirectory2(CFBundleRef bundle, CFURL
         if (executablePath) CFRetain(executablePath);
         __CFUnlock(&bundle->_lock);
         if (executablePath) {
-#if DEPLOYMENT_TARGET_MACOSX || DEPLOYMENT_TARGET_EMBEDDED || DEPLOYMENT_TARGET_EMBEDDED_MINI
             executableURL = CFURLCreateWithFileSystemPath(kCFAllocatorSystemDefault, executablePath, kCFURLPOSIXPathStyle, false);
-#elif DEPLOYMENT_TARGET_WINDOWS
-            executableURL = CFURLCreateWithFileSystemPath(kCFAllocatorSystemDefault, executablePath, kCFURLWindowsPathStyle, false);
-#endif
             if (executableURL) {
                 foundIt = true;
             }
@@ -1684,11 +1573,7 @@ static CFURLRef _CFBundleCopyExecutableURLInDirectory2(CFBundleRef bundle, CFURL
     if (!foundIt) {
         if (lookupMainExe) executableName = _CFBundleCopyExecutableName(bundle, url, infoDict);
         if (executableName) {
-#if (DEPLOYMENT_TARGET_EMBEDDED && !TARGET_IPHONE_SIMULATOR)
-            Boolean doExecSearch = false;
-#else
             Boolean doExecSearch = true;
-#endif
             // Now, look for the executable inside the bundle.
             if (doExecSearch && 0 != version) {
                 CFURLRef exeDirURL = NULL;
@@ -1699,17 +1584,7 @@ static CFURLRef _CFBundleCopyExecutableURLInDirectory2(CFBundleRef bundle, CFURL
                 } else if (2 == version) {
                     exeDirURL = CFURLCreateWithString(kCFAllocatorSystemDefault, _CFBundleExecutablesURLFromBase2, url);
                 } else {
-#if DEPLOYMENT_TARGET_WINDOWS
-                    // On Windows, if the bundle URL is foo.resources, then the executable is at the same level as the .resources directory
-                    CFStringRef extension = CFURLCopyPathExtension(url);
-                    if (extension && CFEqual(extension, _CFBundleWindowsResourceDirectoryExtension)) {
-                        exeDirURL = CFURLCreateCopyDeletingLastPathComponent(kCFAllocatorSystemDefault, url);
-                    } else {
-                        exeDirURL = (CFURLRef)CFRetain(url);
-                    }
-#elif DEPLOYMENT_TARGET_MACOSX || DEPLOYMENT_TARGET_EMBEDDED || DEPLOYMENT_TARGET_EMBEDDED_MINI
                     exeDirURL = (CFURLRef)CFRetain(url);
-#endif
                 }
                 CFStringRef platformSubDir = useOtherPlatform ? _CFBundleGetOtherPlatformExecutablesSubdirectoryName() : _CFBundleGetPlatformExecutablesSubdirectoryName();
                 exeSubdirURL = CFURLCreateWithFileSystemPathRelativeToBase(kCFAllocatorSystemDefault, platformSubDir, kCFURLPOSIXPathStyle, true, exeDirURL);
@@ -1740,24 +1615,10 @@ static CFURLRef _CFBundleCopyExecutableURLInDirectory2(CFBundleRef bundle, CFURL
             // If this was an old bundle, or we did not find the executable in the Executables subdirectory, look directly in the bundle wrapper.
             if (!executableURL) executableURL = _CFBundleCopyExecutableURLRaw(url, executableName);
             
-#if DEPLOYMENT_TARGET_WINDOWS
-            // Windows only: If we still haven't found the exe, look in the Executables folder.
-            // But only for the main bundle exe
-            if (lookupMainExe && !executableURL) {
-                CFURLRef exeDirURL = CFURLCreateWithString(kCFAllocatorSystemDefault, CFSTR("../../Executables"), url);
-                executableURL = _CFBundleCopyExecutableURLRaw(exeDirURL, executableName);
-                CFRelease(exeDirURL);
-            }
-#endif
-            
             if (lookupMainExe && !ignoreCache && !useOtherPlatform && bundle && executableURL) {
                 // We found it.  Cache the path.
                 CFURLRef absURL = CFURLCopyAbsoluteURL(executableURL);
-#if DEPLOYMENT_TARGET_WINDOWS
-                executablePath = CFURLCopyFileSystemPath(absURL, kCFURLWindowsPathStyle);
-#elif DEPLOYMENT_TARGET_MACOSX || DEPLOYMENT_TARGET_EMBEDDED || DEPLOYMENT_TARGET_EMBEDDED_MINI
                 executablePath = CFURLCopyFileSystemPath(absURL, kCFURLPOSIXPathStyle);
-#endif
                 CFRelease(absURL);
                 __CFLock(&bundle->_lock);
                 bundle->_executablePath = (CFStringRef)CFRetain(executablePath);
@@ -2027,11 +1888,6 @@ Boolean _CFBundleLoadExecutableAndReturnError(CFBundleRef bundle, Boolean forceG
             result = _CFBundleDlfcnLoadBundle(bundle, forceGlobal, subError);
             break;
 #endif /* BINARY_SUPPORT_DLFCN */
-#if defined(BINARY_SUPPORT_DLL)
-        case __CFBundleDLLBinary:
-            result = _CFBundleDLLLoad(bundle, subError);
-            break;
-#endif /* BINARY_SUPPORT_DLL */
         case __CFBundleNoBinary:
             if (error) {
                 localError = _CFBundleCreateError(CFGetAllocator(bundle), bundle, CFBundleExecutableNotFoundError);
@@ -2120,11 +1976,6 @@ Boolean CFBundlePreflightExecutable(CFBundleRef bundle, CFErrorRef *error) {
             result = _CFBundleDlfcnPreflight(bundle, subError);
             break;
 #endif /* BINARY_SUPPORT_DLFCN */
-#if defined(BINARY_SUPPORT_DLL)
-        case __CFBundleDLLBinary:
-            result = true;
-            break;
-#endif /* BINARY_SUPPORT_DLL */
         case __CFBundleNoBinary:
             if (error) localError = _CFBundleCreateError(CFGetAllocator(bundle), bundle, CFBundleExecutableNotFoundError);
             break;     
@@ -2186,11 +2037,6 @@ void CFBundleUnloadExecutable(CFBundleRef bundle) {
 #endif /* BINARY_SUPPORT_DLFCN */
             break;
 #endif /* BINARY_SUPPORT_DYLD */
-#if defined(BINARY_SUPPORT_DLL)
-        case __CFBundleDLLBinary:
-            _CFBundleDLLUnload(bundle);
-            break;
-#endif /* BINARY_SUPPORT_DLL */
         default:
 #if defined(BINARY_SUPPORT_DLFCN)
             if (bundle->_handleCookie) _CFBundleDlfcnUnload(bundle);
@@ -2306,12 +2152,7 @@ CF_PRIVATE Boolean _CFBundleCouldBeBundle(CFURLRef url) {
         
 //If 'permissive' is set, we will maintain the historical behavior of returning frameworks with names that don't match, and frameworks for executables in Resources/
 static CFURLRef __CFBundleCopyFrameworkURLForExecutablePath(CFStringRef executablePath, Boolean permissive) {
-    // MF:!!! Implement me.  We need to be able to find the bundle from the exe, dealing with old vs. new as well as the Executables dir business on Windows.
-#if DEPLOYMENT_TARGET_WINDOWS
-    UniChar executablesToFrameworksPathBuff[] = {'.', '.', '\\', 'F', 'r', 'a', 'm', 'e', 'w', 'o', 'r', 'k', 's'};
-    UniChar executablesToPrivateFrameworksPathBuff[] = {'.', '.', '\\', 'P', 'r', 'i', 'v', 'a', 't', 'e', 'F', 'r', 'a', 'm', 'e', 'w', 'o', 'r', 'k', 's'};
-    UniChar frameworksExtension[] = {'f', 'r', 'a', 'm', 'e', 'w', 'o', 'r', 'k'};
-#endif
+    // MF:!!! Implement me.  We need to be able to find the bundle from the exe, dealing with old vs. new.
     UniChar pathBuff[CFMaxPathSize] = {0};
     UniChar nameBuff[CFMaxPathSize] = {0};
     CFIndex length, nameStart, nameLength, savedLength;
@@ -2332,29 +2173,6 @@ static CFURLRef __CFBundleCopyFrameworkURLForExecutablePath(CFStringRef executab
     length = _CFLengthAfterDeletingLastPathComponent(pathBuff, length);
     savedLength = length;
 
-#if DEPLOYMENT_TARGET_WINDOWS
-    // * (Windows-only) First check the "Executables" directory parallel to the "Frameworks" directory case.
-    if (_CFAppendPathComponent(pathBuff, &length, CFMaxPathSize, executablesToFrameworksPathBuff, LENGTH_OF(executablesToFrameworksPathBuff)) && _CFAppendPathComponent(pathBuff, &length, CFMaxPathSize, nameBuff, nameLength) && _CFAppendPathExtension(pathBuff, &length, CFMaxPathSize, frameworksExtension, LENGTH_OF(frameworksExtension))) {
-        CFStringSetExternalCharactersNoCopy(cheapStr, pathBuff, length, CFMaxPathSize);
-        bundleURL = CFURLCreateWithFileSystemPath(kCFAllocatorSystemDefault, cheapStr, PLATFORM_PATH_STYLE, true);
-        if (!_CFBundleCouldBeBundle(bundleURL)) {
-            CFRelease(bundleURL);
-            bundleURL = NULL;
-        }
-    }
-    // * (Windows-only) Next check the "Executables" directory parallel to the "PrivateFrameworks" directory case.
-    if (!bundleURL) {
-        length = savedLength;
-        if (_CFAppendPathComponent(pathBuff, &length, CFMaxPathSize, executablesToPrivateFrameworksPathBuff, LENGTH_OF(executablesToPrivateFrameworksPathBuff)) && _CFAppendPathComponent(pathBuff, &length, CFMaxPathSize, nameBuff, nameLength) && _CFAppendPathExtension(pathBuff, &length, CFMaxPathSize, frameworksExtension, LENGTH_OF(frameworksExtension))) {
-            CFStringSetExternalCharactersNoCopy(cheapStr, pathBuff, length, CFMaxPathSize);
-            bundleURL = CFURLCreateWithFileSystemPath(kCFAllocatorSystemDefault, cheapStr, PLATFORM_PATH_STYLE, true);
-            if (!_CFBundleCouldBeBundle(bundleURL)) {
-                CFRelease(bundleURL);
-                bundleURL = NULL;
-            }
-        }
-    }
-#endif
     // * Finally check the executable inside the framework case.
     if (!bundleURL) {        
         length = savedLength;
@@ -2483,10 +2301,6 @@ static void _CFBundleEnsureAllBundlesUpToDateAlreadyLocked(void) {
     CFArrayRef imagePaths = NULL;
     // Tickle the main bundle into existence
     (void)_CFBundleGetMainBundleAlreadyLocked();
-
-#if defined(BINARY_SUPPORT_DLL)
-// Dont know how to find static bundles for DLLs
-#endif /* BINARY_SUPPORT_DLL */
 
 #if defined(BINARY_SUPPORT_DYLD)
     imagePaths = _CFBundleDYLDCopyLoadedImagePathsIfChanged();

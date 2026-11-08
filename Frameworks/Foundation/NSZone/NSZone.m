@@ -29,11 +29,7 @@
 #import <Foundation/NSDebug.h>
 #import <objc/runtime.h>
 #include <string.h>
-#ifdef WIN32
-#include <windows.h>
-#else
 #include <unistd.h>
-#endif
 
 #include <CoreFoundation/CFRuntime.h>
 

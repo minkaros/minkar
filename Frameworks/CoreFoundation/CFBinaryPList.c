@@ -43,9 +43,7 @@
 #include <limits.h>
 #include <string.h>
 #include "CFInternal.h"
-#if DEPLOYMENT_TARGET_MACOSX || DEPLOYMENT_TARGET_EMBEDDED || DEPLOYMENT_TARGET_WINDOWS
 #include <CoreFoundation/CFStream.h>
-#endif
 
 typedef struct {
     int64_t high;
@@ -182,7 +180,6 @@ static void writeBytes(__CFBinaryPlistWriteBuffer *buf, const UInt8 *bytes, CFIn
         if (buf->stream) CFDataAppendBytes((CFMutableDataRef)buf->stream, bytes, length);
         buf->written += length;
     } else {
-#if DEPLOYMENT_TARGET_MACOSX || DEPLOYMENT_TARGET_EMBEDDED || DEPLOYMENT_TARGET_WINDOWS
 	while (0 < length) {
 	    CFIndex ret = buf->stream ? CFWriteStreamWrite((CFWriteStreamRef)buf->stream, bytes, length) : length;
             if (ret == 0) {
@@ -198,9 +195,6 @@ static void writeBytes(__CFBinaryPlistWriteBuffer *buf, const UInt8 *bytes, CFIn
 	    length -= ret;
 	    bytes += ret;
 	}
-#else
-        CFAssert(false, __kCFLogAssertion, "Streams are not supported on this platform");
-#endif
     }
 }
 
@@ -628,11 +622,9 @@ CFIndex __CFBinaryPlistWrite(CFPropertyListRef plist, CFTypeRef stream, uint64_t
     const CFSetCallBacks setCallbacks = {0, __CFTypeCollectionRetain, __CFTypeCollectionRelease, 0, 0, 0};
     uniquingset = CFSetCreateMutable(kCFAllocatorSystemDefault, 0, &setCallbacks);
 
-#if DEPLOYMENT_TARGET_MACOSX
     _CFDictionarySetCapacity(objtable, estimate ? estimate : 650);
     _CFArraySetCapacity(objlist, estimate ? estimate : 650);
     _CFSetSetCapacity(uniquingset, estimate ? estimate : 1000);
-#endif
 
     _flattenPlist(plist, objlist, objtable, uniquingset);
 

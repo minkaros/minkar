@@ -46,17 +46,6 @@
 #if DEPLOYMENT_TARGET_MACOSX || DEPLOYMENT_TARGET_EMBEDDED || DEPLOYMENT_TARGET_EMBEDDED_MINI
 #import <mach/mach.h>
 CF_INLINE unsigned long __CFPageSize() { return vm_page_size; }
-#elif DEPLOYMENT_TARGET_WINDOWS
-CF_INLINE unsigned long __CFPageSize() {
-    SYSTEM_INFO sysInfo;
-    GetSystemInfo(&sysInfo);
-    return sysInfo.dwPageSize;
-}
-#elif DEPLOYMENT_TARGET_LINUX
-#include <unistd.h>
-CF_INLINE unsigned long __CFPageSize() {
-    return (unsigned long)getpagesize();
-}
 #endif
 
 #define INLINE_BYTES_THRESHOLD ((4 * __CFPageSize()) - sizeof(struct __CFData) - 15)

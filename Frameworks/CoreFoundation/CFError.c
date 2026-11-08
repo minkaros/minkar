@@ -30,9 +30,7 @@
 #include <CoreFoundation/CFError_Private.h>
 #include "CFInternal.h"
 #include <CoreFoundation/CFPriv.h>
-#if DEPLOYMENT_TARGET_MACOSX || DEPLOYMENT_TARGET_EMBEDDED
 #include <mach/mach_error.h>
-#endif
 
 
 /* Pre-defined userInfo keys
@@ -227,12 +225,10 @@ CFStringRef _CFErrorCreateLocalizedDescription(CFErrorRef err) {
     if (localizedDesc) return localizedDesc;
 
 
-#if DEPLOYMENT_TARGET_MACOSX || DEPLOYMENT_TARGET_EMBEDDED || DEPLOYMENT_TARGET_WINDOWS
     // Cache the CF bundle since we will be using it for localized strings.
     CFBundleRef cfBundle = CFBundleGetBundleWithIdentifier(CFSTR("com.apple.CoreFoundation"));
     
     if (!cfBundle) {	// This should be rare, but has been observed in the wild, due to running out of file descriptors. Normally we might not go to such extremes, but since we want to be able to present reasonable errors even in the case of errors such as running out of file descriptors, why not. This is CFError after all. !!! Be sure to have the same logic here as below for going through various options for fetching the strings.
-#endif
     
 	CFStringRef result = NULL, reasonOrDesc;
 
@@ -245,11 +241,8 @@ CFStringRef _CFErrorCreateLocalizedDescription(CFErrorRef err) {
 	}
 	if (reasonOrDesc) CFRelease(reasonOrDesc);
 	return result;
-#if DEPLOYMENT_TARGET_MACOSX || DEPLOYMENT_TARGET_EMBEDDED || DEPLOYMENT_TARGET_WINDOWS
     }
-#endif
 
-#if DEPLOYMENT_TARGET_MACOSX || DEPLOYMENT_TARGET_EMBEDDED || DEPLOYMENT_TARGET_WINDOWS
     // Then look for kCFErrorLocalizedFailureReasonKey; if there, create a full sentence from that.
     CFStringRef reason = _CFErrorCopyUserInfoKey(err, kCFErrorLocalizedFailureReasonKey);
     if (reason) {
@@ -276,7 +269,6 @@ CFStringRef _CFErrorCreateLocalizedDescription(CFErrorRef err) {
     }
     CFRelease(localizedDomain);
     return result;
-#endif
 }
 
 /* The real guts of the failure reason creation functionality. This function can take a CF or NSError. It's called by NSError for the localizedFailureReason computation.
@@ -425,7 +417,6 @@ static CFTypeRef _CFErrorPOSIXCallBack(CFErrorRef err, CFStringRef key) {
     if (!errStr) return NULL;
     if (CFEqual(key, kCFErrorDescriptionKey)) return errStr;	// If all we wanted was the non-localized description, we're done
     
-#if DEPLOYMENT_TARGET_MACOSX || DEPLOYMENT_TARGET_EMBEDDED || DEPLOYMENT_TARGET_WINDOWS
     // We need a kCFErrorLocalizedFailureReasonKey, so look up a possible localization for the error message
     // Look for the bundle in /System/Library/CoreServices/CoreTypes.bundle
     CFArrayRef paths = CFCopySearchPathForDirectoriesInDomains(kCFLibraryDirectory, kCFSystemDomainMask, false);
@@ -458,12 +449,10 @@ static CFTypeRef _CFErrorPOSIXCallBack(CFErrorRef err, CFStringRef key) {
 	}
 	CFRelease(paths);
     }
-#endif
     
     return errStr;
 }
 
-#if DEPLOYMENT_TARGET_MACOSX || DEPLOYMENT_TARGET_EMBEDDED
 /* Built-in callback for Mach domain.
 */
 static CFTypeRef _CFErrorMachCallBack(CFErrorRef err, CFStringRef key) {
@@ -473,7 +462,6 @@ static CFTypeRef _CFErrorMachCallBack(CFErrorRef err, CFStringRef key) {
     }
     return NULL;
 }
-#endif
 
 
 /* This initialize function is meant to be called lazily, the first time a callback is registered or requested. It creates the table and registers the built-in callbacks. Clearly doing this non-lazily in _CFErrorInitialize() would be simpler, but this is a fine example of something that should not have to happen at launch time.
@@ -491,9 +479,7 @@ static void _CFErrorInitializeCallBackTable(void) {
         // Note, even though the table looks like it was initialized, we go on to register the items on this thread as well, since otherwise we might consult the table before the items are actually registered.
     }
     CFErrorSetCallBackForDomain(kCFErrorDomainPOSIX, _CFErrorPOSIXCallBack);
-#if DEPLOYMENT_TARGET_MACOSX || DEPLOYMENT_TARGET_EMBEDDED    
     CFErrorSetCallBackForDomain(kCFErrorDomainMach, _CFErrorMachCallBack);
-#endif
 }
 
 void CFErrorSetCallBackForDomain(CFStringRef domainName, CFErrorUserInfoKeyCallBack callBack) {

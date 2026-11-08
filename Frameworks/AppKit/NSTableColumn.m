@@ -51,7 +51,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    _identifier=[identifier retain];
    _width=100.0;
    _minWidth=10.0;
-   _maxWidth=FLT_MAX; // Doc.s say MAXFLOAT, mingw doesnt have MAXFLOAT yet
+   _maxWidth=FLT_MAX; // Doc.s say MAXFLOAT
 
         _headerCell = [[NSTableHeaderCell alloc] initTextCell:@""];
         _dataCell = [[NSTextFieldCell alloc] initTextCell:@""];

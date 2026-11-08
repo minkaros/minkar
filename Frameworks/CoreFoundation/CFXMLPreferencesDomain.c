@@ -34,13 +34,11 @@
 #include <CoreFoundation/CFDate.h>
 #include "CFInternal.h"
 #include <time.h>
-#if DEPLOYMENT_TARGET_MACOSX
 #include <unistd.h>
 #include <stdio.h>
 #include <sys/stat.h>
 #include <mach/mach.h>
 #include <mach/mach_syscalls.h>
-#endif
 
 Boolean __CFPreferencesShouldWriteXML(void);
 
@@ -66,17 +64,13 @@ CF_PRIVATE const _CFPreferencesDomainCallBacks __kCFXMLPropertyListDomainCallBac
 
 // Directly ripped from Foundation....
 static void __CFMilliSleep(uint32_t msecs) {
-#if DEPLOYMENT_TARGET_WINDOWS
-    SleepEx(msecs, false);
-#elif defined(__svr4__) || defined(__hpux__)
+#if   defined(__svr4__) || defined(__hpux__)
     sleep((msecs + 900) / 1000);
-#elif DEPLOYMENT_TARGET_MACOSX || DEPLOYMENT_TARGET_LINUX
+#else
     struct timespec input;
     input.tv_sec = msecs / 1000;
     input.tv_nsec = (msecs - input.tv_sec * 1000) * 1000000;
     nanosleep(&input, NULL);
-#else
-#error Dont know how to define sleep for this platform
 #endif
 }
 
@@ -120,11 +114,7 @@ static Boolean _createDirectory(CFURLRef dirURL, Boolean worldReadable) {
     if (parentURL) CFRelease(parentURL);
     if (!parentExists) return false;
 
-#if DEPLOYMENT_TARGET_MACOSX
     mode = worldReadable ? S_IRWXU|S_IRWXG|S_IROTH|S_IXOTH : S_IRWXU;
-#else
-    mode = 0666;
-#endif
 
     result = CFURLWriteDataAndPropertiesToResource(dirURL, (CFDataRef)dirURL, URLPropertyDictForPOSIXMode(mode), NULL);
     URLPropertyDictRelease();
@@ -228,7 +218,6 @@ static CFTypeRef fetchXMLValue(CFTypeRef context, void *xmlDomain, CFStringRef k
 }
 
 
-#if DEPLOYMENT_TARGET_MACOSX
 #include <sys/fcntl.h>
 
 /* __CFWriteBytesToFileWithAtomicity is a "safe save" facility. Write the bytes using the specified mode on the file to the provided URL. If the atomic flag is true, try to do it in a fashion that will enable a safe save.
@@ -303,7 +292,6 @@ static Boolean __CFWriteBytesToFileWithAtomicity(CFURLRef url, const void *bytes
     }
     return true;
 }
-#endif
 
 // domain should already be locked.
 static Boolean _writeXMLFile(CFURLRef url, CFMutableDictionaryRef dict, Boolean isWorldReadable, Boolean *tryAgain) {
@@ -324,12 +312,7 @@ static Boolean _writeXMLFile(CFURLRef url, CFMutableDictionaryRef dict, Boolean 
         CFDataRef data = CFPropertyListCreateData(alloc, dict, desiredFormat, 0, NULL);
         if (data) {
             SInt32 mode;
-#if DEPLOYMENT_TARGET_MACOSX
             mode = isWorldReadable ? S_IRUSR|S_IWUSR|S_IRGRP|S_IROTH : S_IRUSR|S_IWUSR;
-#else
-	    mode = 0666;
-#endif
-#if DEPLOYMENT_TARGET_MACOSX
             {	// Try quick atomic way first, then fallback to slower ways and error cases
                 CFStringRef scheme = CFURLCopyScheme(url);
                 if (!scheme) {
@@ -355,7 +338,6 @@ static Boolean _writeXMLFile(CFURLRef url, CFMutableDictionaryRef dict, Boolean 
                 }
                 CFRelease(scheme);
             }
-#endif
             success = CFURLWriteDataAndPropertiesToResource(url, data, URLPropertyDictForPOSIXMode(mode), NULL);
             URLPropertyDictRelease();
             if (success) {

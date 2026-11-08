@@ -14,9 +14,6 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <Foundation/NSRaise.h>
 #import <Foundation/NSThread-Private.h>
 #import <Foundation/NSPlatform.h>
-#ifdef __WINDOWS__
-#import <Foundation/NSPlatform_win32.h>
-#endif
 #import <objc/runtime.h>
 #import <Foundation/NSString.h>
 #import <sys/sysctl.h>
@@ -142,71 +139,12 @@ static void read_system_version(void) {
 }
 
 -(NSString *)operatingSystemVersionString {
-#ifdef __WINDOWS__
-	OSVERSIONINFOEX osVersion;
-	int systemVersion;
-	NSString* versionString;
-	NSString* servicePack;
-
-	osVersion.dwOSVersionInfoSize=sizeof(osVersion);
-	GetVersionEx((OSVERSIONINFO *)&osVersion);
-
-	// Switches aren't float-friendly, so let's get our major/minor version in
-	// some kind of combination that'll be easier for it to handle.  dwMajorVersion
-	// can live in the 10s digit, with dwMinorVersion living in the 1s digit.
-	// We'll also want to negate in the case we're not an NT_WORKSTATION productType - 
-	// this only matters for Vista and up
-	systemVersion =  osVersion.dwMajorVersion * 10 + osVersion.dwMinorVersion;
-	if(systemVersion >= 60 && osVersion.wProductType != VER_NT_WORKSTATION) {
-		systemVersion = -systemVersion;
-	}
-	
-	if (osVersion.szCSDVersion != '\0') {
-		servicePack = [NSString stringWithCString:osVersion.szCSDVersion];
-	} else {
-		servicePack = @"";
-	}
-		
-	switch (systemVersion) {
-		case 62:
-			return [NSString stringWithFormat: @"Windows 8 %@", servicePack];
-			break;
-		case -62:
-			return [NSString stringWithFormat: @"Windows Server 2012 %@", servicePack];
-			break;
-		case 61:
-			return [NSString stringWithFormat: @"Windows 7 %@", servicePack];
-			break;
-		case -61:
-			return [NSString stringWithFormat: @"Windows Server 2008 R2 %@", servicePack];
-			break;
-		case 60:
-			return [NSString stringWithFormat: @"Windows Vista %@", servicePack];
-			break;
-		case -60:
-			return [NSString stringWithFormat: @"Windows Server 2003 R2 %@", servicePack];
-			break;
-		case 52:
-			return [NSString stringWithFormat: @"Windows XP Professional x64 Edition %@", servicePack];
-			break;
-		case 51:
-			return [NSString stringWithFormat: @"Windows XP %@", servicePack];
-			break;
-		case 50:
-			return [NSString stringWithFormat: @"Windows 2000 %@", servicePack];
-			break;
-		default:
-			return [NSString stringWithFormat: @"%d.%d %d %d", osVersion.dwMajorVersion, osVersion.dwMinorVersion, osVersion.wServicePackMajor, osVersion.wServicePackMinor ];
-			break;
-	}
-#else
    NSOperatingSystemVersion v=[self operatingSystemVersion];
 
    /* As the reference system writes it: "Version 10.15 (Build 19G2021)". */
    if(v.patchVersion!=0)
     return [NSString stringWithFormat:@"Version %ld.%ld.%ld (Build %@)",(long)v.majorVersion,(long)v.minorVersion,(long)v.patchVersion,system_build?system_build:@""];
    return [NSString stringWithFormat:@"Version %ld.%ld (Build %@)",(long)v.majorVersion,(long)v.minorVersion,system_build?system_build:@""];
-#endif
 }
 
 -(NSString *)hostName {
