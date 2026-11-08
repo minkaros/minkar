@@ -18,6 +18,49 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 @implementation NSDatePickerCell
 
+/* A cell made in code (NSDatePicker's own, for one): today's date, shown as
+   a text field with a stepper, in the system's font and colors. */
+-initTextCell:(NSString *)string {
+   [super initTextCell:string];
+   _elements=NSYearMonthDayDatePickerElementFlag;
+   _style=NSTextFieldAndStepperDatePickerStyle;
+   _calendar=[[NSCalendar currentCalendar] copy];
+   _backgroundColor=[[NSColor controlBackgroundColor] copy];
+   _textColor=[[NSColor controlTextColor] copy];
+   _drawsBackground=YES;
+   [self setObjectValue:[NSDate date]];
+   [self setBezeled:YES];
+   return self;
+}
+
+-init {
+   return [self initTextCell:@""];
+}
+
+-copyWithZone:(NSZone *)zone {
+   NSDatePickerCell *copy=[super copyWithZone:zone];
+
+   copy->_calendar=[_calendar copy];
+   copy->_locale=[_locale copy];
+   copy->_minDate=[_minDate copy];
+   copy->_maxDate=[_maxDate copy];
+   copy->_timeZone=[_timeZone copy];
+   copy->_backgroundColor=[_backgroundColor copy];
+   copy->_textColor=[_textColor copy];
+   return copy;
+}
+
+-(void)dealloc {
+   [_calendar release];
+   [_locale release];
+   [_minDate release];
+   [_maxDate release];
+   [_timeZone release];
+   [_backgroundColor release];
+   [_textColor release];
+   [super dealloc];
+}
+
 -initWithCoder:(NSCoder *)coder {
    [super initWithCoder:coder];
 
