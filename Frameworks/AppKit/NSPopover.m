@@ -61,65 +61,34 @@ NSString *const NSPopoverDidCloseNotification = @"NSPopoverDidCloseNotification"
     return NSInsetRect(r, 0.5, 0.5);
 }
 
-- (NSBezierPath *)bubblePath {
-    NSRect b = [self bubbleRect];
-    NSBezierPath *path = [NSBezierPath bezierPathWithRoundedRect:b xRadius:RADIUS yRadius:RADIUS];
-    NSBezierPath *arrow = [NSBezierPath bezierPath];
-    CGFloat p = _arrowPosition;
-
-    switch(_arrowEdge) {
-        case NSMinYEdge:
-            [arrow moveToPoint:NSMakePoint(NSMinX(b) + p - ARROW_HALF, NSMinY(b) + 1)];
-            [arrow lineToPoint:NSMakePoint(NSMinX(b) + p, NSMinY(b) - ARROW + 0.5)];
-            [arrow lineToPoint:NSMakePoint(NSMinX(b) + p + ARROW_HALF, NSMinY(b) + 1)];
-            break;
-        case NSMaxYEdge:
-            [arrow moveToPoint:NSMakePoint(NSMinX(b) + p - ARROW_HALF, NSMaxY(b) - 1)];
-            [arrow lineToPoint:NSMakePoint(NSMinX(b) + p, NSMaxY(b) + ARROW - 0.5)];
-            [arrow lineToPoint:NSMakePoint(NSMinX(b) + p + ARROW_HALF, NSMaxY(b) - 1)];
-            break;
-        case NSMinXEdge:
-            [arrow moveToPoint:NSMakePoint(NSMinX(b) + 1, NSMinY(b) + p - ARROW_HALF)];
-            [arrow lineToPoint:NSMakePoint(NSMinX(b) - ARROW + 0.5, NSMinY(b) + p)];
-            [arrow lineToPoint:NSMakePoint(NSMinX(b) + 1, NSMinY(b) + p + ARROW_HALF)];
-            break;
-        case NSMaxXEdge:
-            [arrow moveToPoint:NSMakePoint(NSMaxX(b) - 1, NSMinY(b) + p - ARROW_HALF)];
-            [arrow lineToPoint:NSMakePoint(NSMaxX(b) + ARROW - 0.5, NSMinY(b) + p)];
-            [arrow lineToPoint:NSMakePoint(NSMaxX(b) - 1, NSMinY(b) + p + ARROW_HALF)];
-            break;
-    }
-    [arrow closePath];
-    [path appendBezierPath:arrow];
-    return path;
-}
-
-/* The arrow's two slanted sides (its base lies on the bubble). */
-- (NSBezierPath *)arrowSides {
+/* The arrow's two slanted sides, their base on the bubble's edge; with
+   inset the base moves that far into the bubble (to fill over its
+   outline) while the tip stays where it is. */
+- (NSBezierPath *)arrowSidesInset:(CGFloat)inset {
     NSRect b = [self bubbleRect];
     NSBezierPath *path = [NSBezierPath bezierPath];
     CGFloat p = _arrowPosition;
 
     switch(_arrowEdge) {
         case NSMinYEdge:
-            [path moveToPoint:NSMakePoint(NSMinX(b) + p - ARROW_HALF, NSMinY(b))];
+            [path moveToPoint:NSMakePoint(NSMinX(b) + p - ARROW_HALF, NSMinY(b) + inset)];
             [path lineToPoint:NSMakePoint(NSMinX(b) + p, NSMinY(b) - ARROW + 0.5)];
-            [path lineToPoint:NSMakePoint(NSMinX(b) + p + ARROW_HALF, NSMinY(b))];
+            [path lineToPoint:NSMakePoint(NSMinX(b) + p + ARROW_HALF, NSMinY(b) + inset)];
             break;
         case NSMaxYEdge:
-            [path moveToPoint:NSMakePoint(NSMinX(b) + p - ARROW_HALF, NSMaxY(b))];
+            [path moveToPoint:NSMakePoint(NSMinX(b) + p - ARROW_HALF, NSMaxY(b) - inset)];
             [path lineToPoint:NSMakePoint(NSMinX(b) + p, NSMaxY(b) + ARROW - 0.5)];
-            [path lineToPoint:NSMakePoint(NSMinX(b) + p + ARROW_HALF, NSMaxY(b))];
+            [path lineToPoint:NSMakePoint(NSMinX(b) + p + ARROW_HALF, NSMaxY(b) - inset)];
             break;
         case NSMinXEdge:
-            [path moveToPoint:NSMakePoint(NSMinX(b), NSMinY(b) + p - ARROW_HALF)];
+            [path moveToPoint:NSMakePoint(NSMinX(b) + inset, NSMinY(b) + p - ARROW_HALF)];
             [path lineToPoint:NSMakePoint(NSMinX(b) - ARROW + 0.5, NSMinY(b) + p)];
-            [path lineToPoint:NSMakePoint(NSMinX(b), NSMinY(b) + p + ARROW_HALF)];
+            [path lineToPoint:NSMakePoint(NSMinX(b) + inset, NSMinY(b) + p + ARROW_HALF)];
             break;
         case NSMaxXEdge:
-            [path moveToPoint:NSMakePoint(NSMaxX(b), NSMinY(b) + p - ARROW_HALF)];
+            [path moveToPoint:NSMakePoint(NSMaxX(b) - inset, NSMinY(b) + p - ARROW_HALF)];
             [path lineToPoint:NSMakePoint(NSMaxX(b) + ARROW - 0.5, NSMinY(b) + p)];
-            [path lineToPoint:NSMakePoint(NSMaxX(b), NSMinY(b) + p + ARROW_HALF)];
+            [path lineToPoint:NSMakePoint(NSMaxX(b) - inset, NSMinY(b) + p + ARROW_HALF)];
             break;
     }
     return path;
@@ -131,8 +100,9 @@ NSString *const NSPopoverDidCloseNotification = @"NSPopoverDidCloseNotification"
     NSColor *fill = [NSColor colorWithCalibratedWhite:0.99 alpha:1];
     NSColor *border = [NSColor colorWithCalibratedWhite:0.68 alpha:1];
     NSBezierPath *bubble = [NSBezierPath bezierPathWithRoundedRect:[self bubbleRect] xRadius:RADIUS yRadius:RADIUS];
-    NSBezierPath *sides = [self arrowSides];
-    NSBezierPath *arrow = [[sides copy] autorelease];
+    NSBezierPath *sides = [self arrowSidesInset:0];
+    /* Filled from 1.5 points inside the bubble: no outline left at its base. */
+    NSBezierPath *arrow = [self arrowSidesInset:1.5];
 
     [[NSColor clearColor] setFill];
     NSRectFillUsingOperation(rect, NSCompositeCopy);
