@@ -46,6 +46,8 @@ import shutil
 import stat
 import sys
 import tarfile
+import time
+import urllib.error
 import urllib.request
 import zipfile
 
@@ -76,11 +78,24 @@ def sha256(path):
     return h.hexdigest()
 
 
-def download(url, dest):
+def download(url, dest, attempts=4):
+    """Fetch url to dest. GitHub's release downloads answer 502, 503 and
+    504 now and then: those, and a dropped connection, are tried again
+    after 5, 10 and 20 seconds."""
     tmp = dest + '.part'
-    with urllib.request.urlopen(url, timeout=120) as r, open(tmp, 'wb') as f:
-        shutil.copyfileobj(r, f)
-    os.replace(tmp, dest)
+    for attempt in range(attempts):
+        try:
+            with urllib.request.urlopen(url, timeout=120) as r, open(tmp, 'wb') as f:
+                shutil.copyfileobj(r, f)
+            os.replace(tmp, dest)
+            return
+        except urllib.error.HTTPError as e:
+            if e.code not in (429, 500, 502, 503, 504) or attempt == attempts - 1:
+                raise
+        except (urllib.error.URLError, TimeoutError, ConnectionError):
+            if attempt == attempts - 1:
+                raise
+        time.sleep(5 * 2 ** attempt)
 
 
 def inside(root, path):
