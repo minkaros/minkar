@@ -47,9 +47,16 @@ Ptr NewPtrClear(Size byteCount);
 void DisposePtr(Ptr p);
 Size GetPtrSize(Ptr p);
 void SetPtrSize(Ptr p, Size newSize);
+/* Programs that define these as macros (for their own copies) keep them. */
+#ifndef BlockMove
 void BlockMove(const void *srcPtr, void *destPtr, Size byteCount);
+#endif
+#ifndef BlockMoveData
 void BlockMoveData(const void *srcPtr, void *destPtr, Size byteCount);
+#endif
+#ifndef BlockZero
 void BlockZero(void *destPtr, Size byteCount);
+#endif
 
 #ifdef __cplusplus
 }
