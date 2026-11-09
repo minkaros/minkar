@@ -18,7 +18,9 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #include <spawn.h>
 #include <crt_externs.h>
 #include <dispatch/dispatch.h>
+#include <unistd.h>
 #include <LaunchServices/LaunchServices.h>
+#include <DiskArbitration/DiskArbitration.h>
 
 NSString * const NSWorkspaceWillPowerOffNotification=@"NSWorkspaceWillPowerOffNotification";
 NSString * const NSWorkspaceDidLaunchApplicationNotification=@"NSWorkspaceDidLaunchApplicationNotification";
@@ -35,6 +37,99 @@ NSString * const NSWorkspaceDesktopImageScalingKey=@"NSWorkspaceDesktopImageScal
 NSString * const NSWorkspaceDesktopImageAllowClippingKey=@"NSWorkspaceDesktopImageAllowClippingKey";
 NSString * const NSWorkspaceDesktopImageFillColorKey=@"NSWorkspaceDesktopImageFillColorKey";
 
+
+NSString * const NSWorkspaceWillUnmountNotification=@"NSWorkspaceWillUnmountNotification";
+NSString * const NSWorkspaceDidMountNotification=@"NSWorkspaceDidMountNotification";
+NSString * const NSWorkspaceDidUnmountNotification=@"NSWorkspaceDidUnmountNotification";
+NSString * const NSWorkspaceDidRenameVolumeNotification=@"NSWorkspaceDidRenameVolumeNotification";
+NSString * const NSWorkspaceVolumeLocalizedNameKey=@"NSWorkspaceVolumeLocalizedNameKey";
+NSString * const NSWorkspaceVolumeURLKey=@"NSWorkspaceVolumeURLKey";
+NSString * const NSWorkspaceVolumeOldLocalizedNameKey=@"NSWorkspaceVolumeOldLocalizedNameKey";
+NSString * const NSWorkspaceVolumeOldURLKey=@"NSWorkspaceVolumeOldURLKey";
+NSString * const NSWorkspaceDidWakeNotification=@"NSWorkspaceDidWakeNotification";
+NSString * const NSWorkspaceWillSleepNotification=@"NSWorkspaceWillSleepNotification";
+NSString * const NSWorkspaceScreensDidSleepNotification=@"NSWorkspaceScreensDidSleepNotification";
+NSString * const NSWorkspaceScreensDidWakeNotification=@"NSWorkspaceScreensDidWakeNotification";
+NSString * const NSWorkspaceSessionDidBecomeActiveNotification=@"NSWorkspaceSessionDidBecomeActiveNotification";
+NSString * const NSWorkspaceSessionDidResignActiveNotification=@"NSWorkspaceSessionDidResignActiveNotification";
+NSString * const NSWorkspaceDidChangeFileLabelsNotification=@"NSWorkspaceDidChangeFileLabelsNotification";
+NSString * const NSWorkspaceActiveSpaceDidChangeNotification=@"NSWorkspaceActiveSpaceDidChangeNotification";
+NSString * const NSWorkspaceDidPerformFileOperationNotification=@"NSWorkspaceDidPerformFileOperationNotification";
+
+NSWorkspaceLaunchConfigurationKey const NSWorkspaceLaunchConfigurationAppleEvent=@"NSWorkspaceLaunchConfigurationAppleEvent";
+NSWorkspaceLaunchConfigurationKey const NSWorkspaceLaunchConfigurationArguments=@"NSWorkspaceLaunchConfigurationArguments";
+NSWorkspaceLaunchConfigurationKey const NSWorkspaceLaunchConfigurationEnvironment=@"NSWorkspaceLaunchConfigurationEnvironment";
+NSWorkspaceLaunchConfigurationKey const NSWorkspaceLaunchConfigurationArchitecture=@"NSWorkspaceLaunchConfigurationArchitecture";
+
+@implementation NSWorkspaceOpenConfiguration
+
++(instancetype)configuration {
+   return [[[self alloc] init] autorelease];
+}
+
+-init {
+   _promptsUserIfNeeded=YES;
+   _addsToRecentItems=YES;
+   _activates=YES;
+   _allowsRunningApplicationSubstitution=YES;
+   return self;
+}
+
+-(void)dealloc {
+   [_arguments release];
+   [_environment release];
+   [_appleEvent release];
+   [super dealloc];
+}
+
+-copyWithZone:(NSZone *)zone {
+   NSWorkspaceOpenConfiguration *copy=[[[self class] allocWithZone:zone] init];
+
+   copy->_promptsUserIfNeeded=_promptsUserIfNeeded;
+   copy->_addsToRecentItems=_addsToRecentItems;
+   copy->_activates=_activates;
+   copy->_hides=_hides;
+   copy->_hidesOthers=_hidesOthers;
+   copy->_forPrinting=_forPrinting;
+   copy->_createsNewApplicationInstance=_createsNewApplicationInstance;
+   copy->_allowsRunningApplicationSubstitution=_allowsRunningApplicationSubstitution;
+   copy->_requiresUniversalLinks=_requiresUniversalLinks;
+   copy->_arguments=[_arguments copy];
+   copy->_environment=[_environment copy];
+   copy->_appleEvent=[_appleEvent retain];
+   copy->_architecture=_architecture;
+   return copy;
+}
+
+-(BOOL)promptsUserIfNeeded { return _promptsUserIfNeeded; }
+-(void)setPromptsUserIfNeeded:(BOOL)flag { _promptsUserIfNeeded=flag; }
+-(BOOL)addsToRecentItems { return _addsToRecentItems; }
+-(void)setAddsToRecentItems:(BOOL)flag { _addsToRecentItems=flag; }
+-(BOOL)activates { return _activates; }
+-(void)setActivates:(BOOL)flag { _activates=flag; }
+-(BOOL)hides { return _hides; }
+-(void)setHides:(BOOL)flag { _hides=flag; }
+-(BOOL)hidesOthers { return _hidesOthers; }
+-(void)setHidesOthers:(BOOL)flag { _hidesOthers=flag; }
+-(BOOL)isForPrinting { return _forPrinting; }
+-(void)setForPrinting:(BOOL)flag { _forPrinting=flag; }
+-(BOOL)createsNewApplicationInstance { return _createsNewApplicationInstance; }
+-(void)setCreatesNewApplicationInstance:(BOOL)flag { _createsNewApplicationInstance=flag; }
+-(BOOL)allowsRunningApplicationSubstitution { return _allowsRunningApplicationSubstitution; }
+-(void)setAllowsRunningApplicationSubstitution:(BOOL)flag { _allowsRunningApplicationSubstitution=flag; }
+-(BOOL)requiresUniversalLinks { return _requiresUniversalLinks; }
+-(void)setRequiresUniversalLinks:(BOOL)flag { _requiresUniversalLinks=flag; }
+-(NSArray *)arguments { return _arguments; }
+-(void)setArguments:(NSArray *)arguments { arguments=[arguments copy]; [_arguments release]; _arguments=arguments; }
+-(NSDictionary *)environment { return _environment; }
+-(void)setEnvironment:(NSDictionary *)environment { environment=[environment copy]; [_environment release]; _environment=environment; }
+-(id)appleEvent { return _appleEvent; }
+-(void)setAppleEvent:(id)event { event=[event retain]; [_appleEvent release]; _appleEvent=event; }
+-(int)architecture { return _architecture; }
+-(void)setArchitecture:(int)value { _architecture=value; }
+
+@end
+
 @implementation NSWorkspace
 
 /* One per process: its notification center gets the session's notices
@@ -49,19 +144,108 @@ NSString * const NSWorkspaceDesktopImageFillColorKey=@"NSWorkspaceDesktopImageFi
    return shared;
 }
 
+/* Volumes mounted, unmounted or renamed, from DiskArbitration on the
+   main run loop, as notifications of the workspace's center. */
+static void volumePosted(NSString *name,NSDictionary *info){
+   [[[NSWorkspace sharedWorkspace] notificationCenter] postNotificationName:name object:[NSWorkspace sharedWorkspace] userInfo:info];
+}
+
+static NSDictionary *volumeInfo(NSURL *url,NSString *name){
+   NSMutableDictionary *info=[NSMutableDictionary dictionary];
+
+   if(url!=nil){
+    [info setObject:url forKey:NSWorkspaceVolumeURLKey];
+    [info setObject:[url path] forKey:@"NSDevicePath"];
+   }
+   if(name!=nil)
+    [info setObject:name forKey:NSWorkspaceVolumeLocalizedNameKey];
+   return info;
+}
+
+static NSMutableDictionary *volumesByDisk(void){
+   static NSMutableDictionary *volumes;
+
+   if(volumes==nil)
+    volumes=[[NSMutableDictionary alloc] init];
+   return volumes;
+}
+
+static void diskChanged(DADiskRef disk,CFArrayRef keys,void *context){
+   NSDictionary *description=[(NSDictionary *)DADiskCopyDescription(disk) autorelease];
+   NSString     *bsd=[NSString stringWithUTF8String:DADiskGetBSDName(disk)?:""];
+   NSURL        *url=[description objectForKey:(NSString *)kDADiskDescriptionVolumePathKey];
+   NSString     *name=[description objectForKey:(NSString *)kDADiskDescriptionVolumeNameKey];
+   NSDictionary *old=[volumesByDisk() objectForKey:bsd];
+
+   if(url!=nil && old==nil){
+    [volumesByDisk() setObject:volumeInfo(url,name) forKey:bsd];
+    volumePosted(NSWorkspaceDidMountNotification,volumeInfo(url,name));
+   }
+   else if(url==nil && old!=nil){
+    [volumesByDisk() removeObjectForKey:bsd];
+    volumePosted(NSWorkspaceDidUnmountNotification,old);
+   }
+   else if(url!=nil && old!=nil && (![url isEqual:[old objectForKey:NSWorkspaceVolumeURLKey]] || (name!=nil && ![name isEqual:[old objectForKey:NSWorkspaceVolumeLocalizedNameKey]]))){
+    NSMutableDictionary *info=[[volumeInfo(url,name) mutableCopy] autorelease];
+
+    [info setObject:[old objectForKey:NSWorkspaceVolumeURLKey] forKey:NSWorkspaceVolumeOldURLKey];
+    if([old objectForKey:NSWorkspaceVolumeLocalizedNameKey]!=nil)
+     [info setObject:[old objectForKey:NSWorkspaceVolumeLocalizedNameKey] forKey:NSWorkspaceVolumeOldLocalizedNameKey];
+    [volumesByDisk() setObject:volumeInfo(url,name) forKey:bsd];
+    volumePosted(NSWorkspaceDidRenameVolumeNotification,info);
+   }
+}
+
+static void diskAppeared(DADiskRef disk,void *context){
+   NSDictionary *description=[(NSDictionary *)DADiskCopyDescription(disk) autorelease];
+   NSURL        *url=[description objectForKey:(NSString *)kDADiskDescriptionVolumePathKey];
+
+   /* Volumes there when the process starts are known, not announced. */
+   if(url!=nil)
+    [volumesByDisk() setObject:volumeInfo(url,[description objectForKey:(NSString *)kDADiskDescriptionVolumeNameKey])
+       forKey:[NSString stringWithUTF8String:DADiskGetBSDName(disk)?:""]];
+}
+
+static void diskDisappeared(DADiskRef disk,void *context){
+   NSString     *bsd=[NSString stringWithUTF8String:DADiskGetBSDName(disk)?:""];
+   NSDictionary *old=[[[volumesByDisk() objectForKey:bsd] retain] autorelease];
+
+   if(old!=nil){
+    [volumesByDisk() removeObjectForKey:bsd];
+    volumePosted(NSWorkspaceDidUnmountNotification,old);
+   }
+}
+
 -init {
    _notificationCenter=[[NSNotificationCenter alloc] init];
    return self;
 }
 
+/* DiskArbitration is asked about volumes once something asks for the
+   center (that is, may observe it). */
+-(void)_watchVolumes {
+   static dispatch_once_t once;
+
+   dispatch_once(&once,^{
+      dispatch_async(dispatch_get_main_queue(),^{
+         DASessionRef session=DASessionCreate(kCFAllocatorDefault);
+
+         if(session==NULL)
+          return;
+         DARegisterDiskAppearedCallback(session,NULL,diskAppeared,NULL);
+         DARegisterDiskDisappearedCallback(session,NULL,diskDisappeared,NULL);
+         DARegisterDiskDescriptionChangedCallback(session,NULL,kDADiskDescriptionWatchVolumePath,diskChanged,NULL);
+         DARegisterDiskDescriptionChangedCallback(session,NULL,kDADiskDescriptionWatchVolumeName,diskChanged,NULL);
+         DASessionScheduleWithRunLoop(session,CFRunLoopGetMain(),kCFRunLoopCommonModes);
+      });
+   });
+}
+
 -(NSNotificationCenter *)notificationCenter {
+   [self _watchVolumes];
    return _notificationCenter;
 }
 
-/* Starts an application bundle's executable. SHORTCUT(LS-open): until
- * LaunchServices' open code is built (Phase 3, item 4), only application
- * bundles open, by running their executable; documents and other URLs
- * do not. An app that is already running is activated instead. */
 /* An application's icon: CFBundleIconFile in its Resources, tried as
  * named and with the image types NSImage reads. Others get the generic
  * application icon (applications) or nil. */
@@ -521,6 +705,132 @@ static NSDictionary *applicationDictionary(NSRunningApplication *app) {
 
 -(BOOL)launchApplication:(NSString *)application showIcon:(BOOL)showIcon autolaunch:(BOOL)autolaunch {
    return [self launchApplication:application];
+}
+
+/* The application at url once it runs: a launch may take a moment to
+   register it. */
+static NSRunningApplication *runningApplicationAtURL(NSURL *url,BOOL wait){
+   NSString *identifier=[[NSBundle bundleWithURL:url] bundleIdentifier];
+   int       tries=wait?40:1;
+
+   while(tries-->0){
+    for(NSRunningApplication *app in [[NSWorkspace sharedWorkspace] runningApplications])
+     if((identifier!=nil && [[app bundleIdentifier] isEqualToString:identifier]) ||
+        [[[app bundleURL] URLByStandardizingPath] isEqual:[url URLByStandardizingPath]])
+      return app;
+    if(tries>0)
+     usleep(50000);
+   }
+   return nil;
+}
+
+-(NSRunningApplication *)openURLs:(NSArray *)urls withApplicationAtURL:(NSURL *)applicationURL options:(NSWorkspaceLaunchOptions)options configuration:(NSDictionary *)configuration error:(NSError **)error {
+   LSLaunchFlags flags=kLSLaunchDefaults;
+   CFArrayRef    items=([urls count]>0)?copyCFURLs(urls):NULL;
+   CFURLRef      appURL=(applicationURL!=nil)?copyCFURL(applicationURL):NULL;
+   NSArray      *arguments=[configuration objectForKey:NSWorkspaceLaunchConfigurationArguments];
+   OSStatus      status;
+
+   if(options&NSWorkspaceLaunchAndHide) flags|=kLSLaunchAndHide;
+   if(options&NSWorkspaceLaunchAndHideOthers) flags|=kLSLaunchAndHideOthers;
+   if(options&NSWorkspaceLaunchNewInstance) flags|=kLSLaunchNewInstance;
+   if(options&NSWorkspaceLaunchWithoutActivation) flags|=kLSLaunchDontSwitch;
+   if(options&NSWorkspaceLaunchWithoutAddingToRecents) flags|=kLSLaunchDontAddToRecents;
+   if(options&NSWorkspaceLaunchAndPrint) flags|=kLSLaunchAndPrint;
+   if(options&NSWorkspaceLaunchAsync) flags|=kLSLaunchAsync;
+
+   LSLaunchURLSpec spec={ appURL, items, NULL, flags, NULL };
+
+   status=LSOpenFromURLSpecWithArguments(&spec,(CFArrayRef)arguments,NULL);
+   if(items!=NULL)
+    CFRelease(items);
+   if(appURL!=NULL)
+    CFRelease(appURL);
+   if(status!=noErr){
+    if(error!=NULL)
+     *error=[NSError errorWithDomain:NSOSStatusErrorDomain code:status userInfo:[NSDictionary dictionaryWithObject:
+        (applicationURL!=nil)?(id)applicationURL:(id)[urls firstObject] forKey:NSURLErrorKey]];
+    return nil;
+   }
+   if(applicationURL==nil && [urls count]>0)
+    applicationURL=[self URLForApplicationToOpenURL:[urls objectAtIndex:0]];
+   return (applicationURL!=nil)?runningApplicationAtURL(applicationURL,YES):nil;
+}
+
+-(NSRunningApplication *)launchApplicationAtURL:(NSURL *)url options:(NSWorkspaceLaunchOptions)options configuration:(NSDictionary *)configuration error:(NSError **)error {
+   return [self openURLs:[NSArray array] withApplicationAtURL:url options:options configuration:configuration error:error];
+}
+
+-(NSRunningApplication *)openURL:(NSURL *)url options:(NSWorkspaceLaunchOptions)options configuration:(NSDictionary *)configuration error:(NSError **)error {
+   if([url isFileURL] && [[[url path] pathExtension] isEqualToString:@"app"])
+    return [self launchApplicationAtURL:url options:options configuration:configuration error:error];
+   return [self openURLs:[NSArray arrayWithObject:url] withApplicationAtURL:[self URLForApplicationToOpenURL:url] options:options configuration:configuration error:error];
+}
+
+-(BOOL)launchAppWithBundleIdentifier:(NSString *)bundleIdentifier options:(NSWorkspaceLaunchOptions)options additionalEventParamDescriptor:(id)descriptor launchIdentifier:(NSNumber **)identifier {
+   NSURL *url=[self URLForApplicationWithBundleIdentifier:bundleIdentifier];
+   NSRunningApplication *app=(url!=nil)?[self launchApplicationAtURL:url options:options configuration:[NSDictionary dictionary] error:NULL]:nil;
+
+   if(identifier!=NULL)
+    *identifier=(app!=nil)?[NSNumber numberWithInt:[app processIdentifier]]:nil;
+   return app!=nil;
+}
+
+static NSWorkspaceLaunchOptions launchOptionsOfConfiguration(NSWorkspaceOpenConfiguration *configuration){
+   NSWorkspaceLaunchOptions options=NSWorkspaceLaunchAsync;
+
+   if(![configuration activates]) options|=NSWorkspaceLaunchWithoutActivation;
+   if([configuration hides]) options|=NSWorkspaceLaunchAndHide;
+   if([configuration hidesOthers]) options|=NSWorkspaceLaunchAndHideOthers;
+   if([configuration createsNewApplicationInstance]) options|=NSWorkspaceLaunchNewInstance;
+   if(![configuration addsToRecentItems]) options|=NSWorkspaceLaunchWithoutAddingToRecents;
+   if([configuration isForPrinting]) options|=NSWorkspaceLaunchAndPrint;
+   return options;
+}
+
+static NSDictionary *launchConfigurationOfConfiguration(NSWorkspaceOpenConfiguration *configuration){
+   NSMutableDictionary *result=[NSMutableDictionary dictionary];
+
+   if([configuration arguments]!=nil)
+    [result setObject:[configuration arguments] forKey:NSWorkspaceLaunchConfigurationArguments];
+   if([configuration environment]!=nil)
+    [result setObject:[configuration environment] forKey:NSWorkspaceLaunchConfigurationEnvironment];
+   return result;
+}
+
+-(void)openURLs:(NSArray *)urls withApplicationAtURL:(NSURL *)applicationURL configuration:(NSWorkspaceOpenConfiguration *)configuration completionHandler:(void (^)(NSRunningApplication *app, NSError *error))completionHandler {
+   NSWorkspaceOpenConfiguration *copy=[[(configuration!=nil)?configuration:[NSWorkspaceOpenConfiguration configuration] copy] autorelease];
+   void (^handler)(NSRunningApplication *,NSError *)=[[completionHandler copy] autorelease];
+
+   [urls retain];
+   [applicationURL retain];
+   [copy retain];
+   [handler retain];
+   dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT,0),^{
+      NSAutoreleasePool    *pool=[NSAutoreleasePool new];
+      NSError              *error=nil;
+      NSRunningApplication *app=[self openURLs:urls withApplicationAtURL:applicationURL options:launchOptionsOfConfiguration(copy)
+         configuration:launchConfigurationOfConfiguration(copy) error:&error];
+
+      if(handler!=NULL)
+       handler(app,error);
+      [urls release];
+      [applicationURL release];
+      [copy release];
+      [handler release];
+      [pool release];
+   });
+}
+
+-(void)openApplicationAtURL:(NSURL *)applicationURL configuration:(NSWorkspaceOpenConfiguration *)configuration completionHandler:(void (^)(NSRunningApplication *app, NSError *error))completionHandler {
+   [self openURLs:[NSArray array] withApplicationAtURL:applicationURL configuration:configuration completionHandler:completionHandler];
+}
+
+-(void)openURL:(NSURL *)url configuration:(NSWorkspaceOpenConfiguration *)configuration completionHandler:(void (^)(NSRunningApplication *app, NSError *error))completionHandler {
+   if([url isFileURL] && [[[url path] pathExtension] isEqualToString:@"app"])
+    [self openApplicationAtURL:url configuration:configuration completionHandler:completionHandler];
+   else
+    [self openURLs:[NSArray arrayWithObject:url] withApplicationAtURL:[self URLForApplicationToOpenURL:url] configuration:configuration completionHandler:completionHandler];
 }
 
 -(void)findApplications {
