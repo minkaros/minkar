@@ -219,6 +219,10 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    if(setFrame){
     NSRect frame=[self frame];
 
+    /* A toolbar of icons with labels is 56 points tall, as on the
+       reference platform. */
+    if(resultHeight>40 && resultHeight<56)
+     resultHeight=56;
     [self setFrame:NSMakeRect(frame.origin.x,frame.origin.y,desiredWidth,resultHeight)];
    }
 

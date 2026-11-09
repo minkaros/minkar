@@ -154,8 +154,11 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
     switch (_type) {
         case NSTopTabsBezelBorder:
-            /* The pane's top runs through the middle of the tab strip. */
-            result.size.height-=floor([self _stripHeight]/2)+1;
+            /* The pane's top runs through the middle of the tab strip; it
+               stands 7 points in from the sides and bottom. */
+            result=NSInsetRect(result,7,0);
+            result.origin.y+=7;
+            result.size.height-=7+floor([self _stripHeight]/2)+1;
             break;
 
         case NSLeftTabsBezelBorder:
@@ -179,10 +182,10 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
     switch (_type) {
         case NSTopTabsBezelBorder:
-            /* Below the strip's lower half. */
-            result=NSInsetRect(result,2,2);
-            result.size.height-=ceil([self _stripHeight]/2)+2;
-            return result;
+            /* As the reference platform's: 10 points in from the sides and
+               bottom, 36 below the top (a 760x564 tab view gives 740x518). */
+            result=[self bounds];
+            return NSMakeRect(NSMinX(result)+10,NSMinY(result)+10,NSWidth(result)-20,NSHeight(result)-46);
 
         case NSLeftTabsBezelBorder:
         case NSBottomTabsBezelBorder:
