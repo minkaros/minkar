@@ -86,7 +86,7 @@ enum {
 };
 
 @interface NSCell : NSObject <NSCopying, NSCoding> {
-    int _state;
+    NSInteger _state;
     NSFont *_font;
     int _entryType;
     id _objectValue;
@@ -116,6 +116,10 @@ enum {
     BOOL _allowsMixedState;
     BOOL _sendsActionOnEndEditing;
     BOOL _hasValidObjectValue;
+    BOOL _usesSingleLineMode;
+    BOOL _truncatesLastVisibleLine;
+    BOOL _allowsEditingTextAttributes;
+    BOOL _importsGraphics;
 }
 
 #pragma mark -
@@ -132,11 +136,11 @@ enum {
 
 - (NSView *)controlView;
 - (NSCellType)type;
-- (int)state;
+- (NSControlStateValue)state;
 
 - target;
 - (SEL)action;
-- (int)tag;
+- (NSInteger)tag;
 - (int)entryType;
 - (id)formatter;
 - (NSFont *)font;
@@ -174,7 +178,7 @@ enum {
 - (void)setControlView:(NSView *)view;
 - (void)setType:(NSCellType)type;
 
-- (void)setState:(int)value;
+- (void)setState:(NSControlStateValue)value;
 - (int)nextState;
 - (void)setNextState;
 - (BOOL)allowsMixedState;
@@ -182,7 +186,7 @@ enum {
 
 - (void)setTarget:target;
 - (void)setAction:(SEL)action;
-- (void)setTag:(int)tag;
+- (void)setTag:(NSInteger)tag;
 - (void)setEntryType:(int)type;
 - (void)setFormatter:(NSFormatter *)formatter;
 - (void)setFont:(NSFont *)font;
@@ -227,6 +231,11 @@ enum {
 
 - (NSSize)cellSize;
 - (NSSize)cellSizeForBounds:(NSRect)rect;
+
+@property BOOL usesSingleLineMode;
+@property BOOL truncatesLastVisibleLine;
+@property BOOL allowsEditingTextAttributes;
+@property BOOL importsGraphics;
 
 - (NSRect)imageRectForBounds:(NSRect)rect;
 - (NSRect)titleRectForBounds:(NSRect)rect;

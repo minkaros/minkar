@@ -8,6 +8,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 #import <Foundation/NSObject.h>
 #import <AppKit/NSUserInterfaceValidation.h>
+#import <AppKit/NSCell.h>
 
 @class NSMenu, NSImage, NSAttributedString;
 
@@ -22,11 +23,11 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
     NSString *_mnemonic;
     unsigned _mnemonicLocation;
     NSMenu *_submenu;
-    int _tag;
+    NSInteger _tag;
     NSInteger _indentationLevel;
     BOOL _enabled;
     BOOL _hidden;
-    int _state;
+    NSInteger _state;
     id _representedObject;
     NSImage *_image;
     NSImage *_onStateImage;
@@ -47,8 +48,8 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 - target;
 - (SEL)action;
 - (NSInteger)indentationLevel;
-- (int)tag;
-- (int)state;
+- (NSInteger)tag;
+- (NSControlStateValue)state;
 - (NSString *)keyEquivalent;
 - (unsigned)keyEquivalentModifierMask;
 - (NSImage *)image;
@@ -73,8 +74,8 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 - (void)setTarget:target;
 - (void)setAction:(SEL)action;
 - (void)setIndentationLevel:(NSInteger)indentationLevel;
-- (void)setTag:(int)tag;
-- (void)setState:(int)state;
+- (void)setTag:(NSInteger)tag;
+- (void)setState:(NSControlStateValue)state;
 - (void)setKeyEquivalent:(NSString *)keyEquivalent;
 - (void)setKeyEquivalentModifierMask:(unsigned)mask;
 - (void)setImage:(NSImage *)image;

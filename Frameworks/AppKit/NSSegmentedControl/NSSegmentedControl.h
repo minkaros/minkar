@@ -20,7 +20,20 @@ enum {
 };
 typedef NSInteger NSSegmentStyle;
 
+typedef NS_ENUM(NSUInteger, NSSegmentSwitchTracking) {
+    NSSegmentSwitchTrackingSelectOne = 0,
+    NSSegmentSwitchTrackingSelectAny = 1,
+    NSSegmentSwitchTrackingMomentary = 2,
+    NSSegmentSwitchTrackingMomentaryAccelerator = 3,
+};
+
 @interface NSSegmentedControl : NSControl
+
+/* A segment for each label or image, sized to fit. */
++ (instancetype)segmentedControlWithLabels:(NSArray<NSString *> *)labels trackingMode:(NSSegmentSwitchTracking)trackingMode target:(id)target action:(SEL)action;
++ (instancetype)segmentedControlWithImages:(NSArray<NSImage *> *)images trackingMode:(NSSegmentSwitchTracking)trackingMode target:(id)target action:(SEL)action;
+
+@property NSSegmentSwitchTracking trackingMode;
 
 - (NSInteger)segmentCount;
 - (NSSegmentStyle)segmentStyle;

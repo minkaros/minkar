@@ -221,7 +221,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    return _cellType;
 }
 
--(int)state {
+-(NSControlStateValue)state {
    if (_allowsMixedState) {
       if (_state < 0)
          return -1;
@@ -242,7 +242,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    return NULL;
 }
 
--(int)tag {
+-(NSInteger)tag {
    return -1;
 }
 
@@ -478,7 +478,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    }
 }
 
--(void)setState:(int)value {
+-(void)setState:(NSControlStateValue)value {
    if (_allowsMixedState) {
       if (value < 0)
          _state = -1;
@@ -523,7 +523,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
                format:@"-[%@ %s] Unimplemented",[self class],sel_getName(_cmd)];
 }
 
--(void)setTag:(int)tag {
+-(void)setTag:(NSInteger)tag {
    [NSException raise:NSInternalInconsistencyException
                format:@"-[%@ %s] Unimplemented",[self class],sel_getName(_cmd)];
 }
@@ -991,6 +991,43 @@ static NSString *NSStringFromCellType(NSCellType type) {
             _font,
             _objectValue];
 }
+-(BOOL)usesSingleLineMode {
+   return _usesSingleLineMode;
+}
+
+-(void)setUsesSingleLineMode:(BOOL)flag {
+   _usesSingleLineMode=flag;
+}
+
+-(BOOL)truncatesLastVisibleLine {
+   return _truncatesLastVisibleLine;
+}
+
+-(void)setTruncatesLastVisibleLine:(BOOL)flag {
+   _truncatesLastVisibleLine=flag;
+}
+
+/* Editing attributes needs rich text; importing graphics needs both. */
+-(BOOL)allowsEditingTextAttributes {
+   return _allowsEditingTextAttributes;
+}
+
+-(void)setAllowsEditingTextAttributes:(BOOL)flag {
+   _allowsEditingTextAttributes=flag;
+   if(!flag)
+    _importsGraphics=NO;
+}
+
+-(BOOL)importsGraphics {
+   return _importsGraphics;
+}
+
+-(void)setImportsGraphics:(BOOL)flag {
+   _importsGraphics=flag;
+   if(flag)
+    _allowsEditingTextAttributes=YES;
+}
+
 @end
 
 void NSDrawThreePartImage(NSRect frame,NSImage *startCap,NSImage *centerFill,NSImage *endCap,BOOL vertical,NSCompositingOperation operation,CGFloat alpha,BOOL flipped) {

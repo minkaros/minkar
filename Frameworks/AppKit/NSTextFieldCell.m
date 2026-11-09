@@ -238,6 +238,23 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
     return size;
 }
 
+/* A wrapping cell breaks its text at the width given, and is as tall as
+   that makes it. */
+-(NSSize)cellSizeForBounds:(NSRect)rect {
+   NSSize single=[self cellSize];
+
+   if(![self wraps] || [self usesSingleLineMode] || rect.size.width>=single.width)
+    return NSMakeSize(MIN(rect.size.width,single.width),MIN(rect.size.height,single.height));
+
+   NSSize padding=NSMakeSize(single.width-[[self attributedStringValue] size].width,
+                             single.height-[[self attributedStringValue] size].height);
+   NSRect text=[[self attributedStringValue] boundingRectWithSize:NSMakeSize(MAX(rect.size.width-padding.width,1),CGFLOAT_MAX)
+      options:NSStringDrawingUsesLineFragmentOrigin];
+
+   return NSMakeSize(MIN(rect.size.width,ceil(NSWidth(text))+padding.width),
+                     MIN(rect.size.height,ceil(NSHeight(text))+padding.height));
+}
+
 -(void)editWithFrame:(NSRect)frame inView:(NSView *)view editor:(NSText *)editor delegate:(id)delegate event:(NSEvent *)event {
    frame=[self titleRectForBounds:frame];
    [super editWithFrame:frame inView:view editor:editor delegate:delegate event:event];

@@ -62,7 +62,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    return [[self cells] objectAtIndex:index];
 }
 
--(int)indexOfCellWithTag:(int)tag {
+-(NSInteger)indexOfCellWithTag:(NSInteger)tag {
    NSArray *cells=[self cells];
    int      i,count=[cells count];
    

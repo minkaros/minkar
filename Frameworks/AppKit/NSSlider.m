@@ -127,4 +127,20 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
     [self setNeedsDisplay:YES];
 }
 
++(instancetype)sliderWithValue:(double)value minValue:(double)minValue maxValue:(double)maxValue target:(id)target action:(SEL)action {
+   NSSlider *result=[[[self alloc] initWithFrame:NSMakeRect(0,0,96,21)] autorelease];
+
+   [result setMinValue:minValue];
+   [result setMaxValue:maxValue];
+   [result setDoubleValue:value];
+   [result setContinuous:YES];
+   [result setTarget:target];
+   [result setAction:action];
+   return result;
+}
+
++(instancetype)sliderWithTarget:(id)target action:(SEL)action {
+   return [self sliderWithValue:0 minValue:0 maxValue:1 target:target action:action];
+}
+
 @end

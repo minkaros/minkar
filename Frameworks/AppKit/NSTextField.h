@@ -11,7 +11,28 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 @interface NSTextField : NSControl {
     id _delegate;
     SEL _errorAction;
+    CGFloat _preferredMaxLayoutWidth;
+    NSInteger _maximumNumberOfLines;
+    BOOL _allowsDefaultTighteningForTruncation;
 }
+
+/* A label: not editable nor selectable, without a bezel or background,
+   on one line. A wrapping label wraps its words and can be selected. A
+   text field is editable on one line. All in the system font, sized to
+   fit their text. */
++ (instancetype)labelWithString:(NSString *)stringValue;
++ (instancetype)wrappingLabelWithString:(NSString *)stringValue;
++ (instancetype)labelWithAttributedString:(NSAttributedString *)attributedStringValue;
++ (instancetype)textFieldWithString:(NSString *)stringValue;
+
+/* The width at which a wrapping field breaks its lines for its intrinsic
+   size; 0 for none. */
+@property CGFloat preferredMaxLayoutWidth;
+/* 0 for no limit. */
+@property NSInteger maximumNumberOfLines;
+@property BOOL allowsDefaultTighteningForTruncation;
+@property BOOL allowsEditingTextAttributes;
+@property BOOL importsGraphics;
 
 - delegate;
 - (void)setDelegate:delegate;

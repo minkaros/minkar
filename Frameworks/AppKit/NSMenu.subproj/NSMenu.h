@@ -48,11 +48,11 @@ APPKIT_EXPORT NSString *const NSMenuDidEndTrackingNotification;
 - (BOOL)autoenablesItems;
 
 - (NSMenuItem *)itemAtIndex:(int)index;
-- (NSMenuItem *)itemWithTag:(int)tag;
+- (NSMenuItem *)itemWithTag:(NSInteger)tag;
 - (NSMenuItem *)itemWithTitle:(NSString *)title;
 
 - (int)indexOfItem:(NSMenuItem *)item;
-- (int)indexOfItemWithTag:(int)tag;
+- (NSInteger)indexOfItemWithTag:(NSInteger)tag;
 - (int)indexOfItemWithTitle:(NSString *)title;
 - (int)indexOfItemWithRepresentedObject:object;
 - (int)indexOfItemWithTarget:(id)target andAction:(SEL)action;

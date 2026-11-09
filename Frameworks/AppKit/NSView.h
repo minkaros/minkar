@@ -81,7 +81,7 @@ APPKIT_EXPORT NSString *const NSViewFocusDidChangeNotification;
     BOOL _autoresizesSubviews;
     BOOL _inLiveResize;
     unsigned _autoresizingMask;
-    int _tag;
+    NSInteger _tag;
     NSArray *_draggedTypes;
     NSMutableArray *_trackingAreas;
     BOOL _needsDisplay;
@@ -145,7 +145,7 @@ APPKIT_EXPORT NSString *const NSViewFocusDidChangeNotification;
 - (unsigned)autoresizingMask;
 - (NSFocusRingType)focusRingType;
 
-- (int)tag;
+- (NSInteger)tag;
 - (BOOL)isFlipped;
 - (BOOL)isOpaque;
 - (CGFloat)alphaValue;
@@ -176,7 +176,7 @@ APPKIT_EXPORT NSString *const NSViewFocusDidChangeNotification;
 - (NSMenuItem *)enclosingMenuItem;
 - (NSString *)toolTip;
 
-- viewWithTag:(int)tag;
+- viewWithTag:(NSInteger)tag;
 - (NSView *)hitTest:(NSPoint)point;
 
 - (NSPoint)convertPoint:(NSPoint)point fromView:(NSView *)viewOrNil;

@@ -359,7 +359,7 @@ static const float kImageMargin = 2.;
    *interval=_periodicInterval;
 }
 
--(int)state {
+-(NSControlStateValue)state {
    return [self intValue];
 }
 
@@ -422,7 +422,7 @@ static const float kImageMargin = 2.;
    _keyEquivalentModifierMask=mask;
 }
 
--(void)setState:(int)value {
+-(void)setState:(NSControlStateValue)value {
    [self setIntValue:value];
 }
 

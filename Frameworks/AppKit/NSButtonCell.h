@@ -19,7 +19,17 @@ enum {
     NSChangeBackgroundCellMask = 0x08,
 };
 
-typedef enum {
+typedef NS_ENUM(NSUInteger, NSButtonType) {
+    NSButtonTypeMomentaryLight = 0,
+    NSButtonTypePushOnPushOff = 1,
+    NSButtonTypeToggle = 2,
+    NSButtonTypeSwitch = 3,
+    NSButtonTypeRadio = 4,
+    NSButtonTypeMomentaryChange = 5,
+    NSButtonTypeOnOff = 6,
+    NSButtonTypeMomentaryPushIn = 7,
+    NSButtonTypeAccelerator = 8,
+    NSButtonTypeMultiLevelAccelerator = 9,
     NSMomentaryLightButton = 0,
     NSPushOnPushOffButton = 1,
     NSToggleButton = 2,
@@ -31,7 +41,7 @@ typedef enum {
     // deprecated values
     NSMomentaryPushButton = 0,
     NSMomentaryLight = 7
-} NSButtonType;
+};
 
 typedef enum {
     NSRoundedBezelStyle = 1,

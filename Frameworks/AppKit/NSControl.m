@@ -97,7 +97,7 @@ static NSMutableDictionary *cellClassDictionary = nil;
    return [_cell action];
 }
 
--(int)tag {
+-(NSInteger)tag {
    return _tag;
 }
 
@@ -186,7 +186,7 @@ static NSMutableDictionary *cellClassDictionary = nil;
    return _cell;
 }
 
--(int)selectedTag {
+-(NSInteger)selectedTag {
    return [[self selectedCell] tag];
 }
 
@@ -204,7 +204,7 @@ static NSMutableDictionary *cellClassDictionary = nil;
    [_cell setAction:action];
 }
 
--(void)setTag:(int)tag {
+-(void)setTag:(NSInteger)tag {
    _tag=tag;
 }
 
@@ -579,6 +579,55 @@ static NSMutableDictionary *cellClassDictionary = nil;
 
 - (void)discardEditing {
   [self abortEditing];
+}
+
+-(NSSize)sizeThatFits:(NSSize)size {
+   if([self cell]==nil)
+    return [self frame].size;
+   return [[self cell] cellSizeForBounds:NSMakeRect(0,0,size.width,size.height)];
+}
+
+-(NSLineBreakMode)lineBreakMode {
+   return [[self cell] lineBreakMode];
+}
+
+-(void)setLineBreakMode:(NSLineBreakMode)mode {
+   [[self cell] setLineBreakMode:mode];
+   [self setNeedsDisplay:YES];
+}
+
+-(BOOL)usesSingleLineMode {
+   return [[self cell] usesSingleLineMode];
+}
+
+-(void)setUsesSingleLineMode:(BOOL)flag {
+   [[self cell] setUsesSingleLineMode:flag];
+}
+
+-(NSControlSize)controlSize {
+   return [[self cell] controlSize];
+}
+
+-(void)setControlSize:(NSControlSize)size {
+   [[self cell] setControlSize:size];
+   [self setNeedsDisplay:YES];
+}
+
+-(BOOL)isHighlighted {
+   return [[self cell] isHighlighted];
+}
+
+-(void)setHighlighted:(BOOL)flag {
+   [[self cell] setHighlighted:flag];
+   [self setNeedsDisplay:YES];
+}
+
+-(BOOL)allowsExpansionToolTips {
+   return _allowsExpansionToolTips;
+}
+
+-(void)setAllowsExpansionToolTips:(BOOL)flag {
+   _allowsExpansionToolTips=flag;
 }
 
 @end

@@ -461,7 +461,7 @@ static inline void buildTransformsIfNeeded(NSView *self) {
    return _focusRingType;
 }
 
--(int)tag {
+-(NSInteger)tag {
    return _tag;
 }
 
@@ -640,7 +640,7 @@ static inline void buildTransformsIfNeeded(NSView *self) {
    return toolTip;
 }
 
--viewWithTag:(int)tag {
+-viewWithTag:(NSInteger)tag {
    int i,count=[_subviews count];
 
    if(_tag==tag)
@@ -1002,7 +1002,7 @@ static inline void buildTransformsIfNeeded(NSView *self) {
    [self setNeedsDisplay:YES];
 }
 
--(void)setTag:(int)tag {
+-(void)setTag:(NSInteger)tag {
    _tag=tag;
 }
 

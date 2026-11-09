@@ -12,15 +12,15 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
     NSView *_controlView;
     id _target;
     SEL _action;
-    int _tag;
+    NSInteger _tag;
 }
 
 - target;
 - (SEL)action;
-- (int)tag;
+- (NSInteger)tag;
 
 - (void)setTarget:target;
 - (void)setAction:(SEL)action;
-- (void)setTag:(int)tag;
+- (void)setTag:(NSInteger)tag;
 
 @end

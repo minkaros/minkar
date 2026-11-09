@@ -11,13 +11,21 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 @interface NSButton : NSControl
 
+/* A push button (rounded bezel), with a title, an image, or both; a
+   checkbox; a radio button. Sized to fit. */
++ (instancetype)buttonWithTitle:(NSString *)title image:(NSImage *)image target:(id)target action:(SEL)action;
++ (instancetype)buttonWithTitle:(NSString *)title target:(id)target action:(SEL)action;
++ (instancetype)buttonWithImage:(NSImage *)image target:(id)target action:(SEL)action;
++ (instancetype)checkboxWithTitle:(NSString *)title target:(id)target action:(SEL)action;
++ (instancetype)radioButtonWithTitle:(NSString *)title target:(id)target action:(SEL)action;
+
 - (BOOL)isTransparent;
 - (NSString *)keyEquivalent;
 - (NSUInteger)keyEquivalentModifierMask;
 - (NSImage *)image;
 - (NSCellImagePosition)imagePosition;
 - (NSString *)title;
-- (NSInteger)state;
+- (NSControlStateValue)state;
 - (BOOL)allowsMixedState;
 - (NSSound *)sound;
 
@@ -35,7 +43,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 - (void)setImage:(NSImage *)value;
 - (void)setImagePosition:(NSCellImagePosition)value;
 - (void)setTitle:(NSString *)value;
-- (void)setState:(NSInteger)value;
+- (void)setState:(NSControlStateValue)value;
 - (void)setNextState;
 - (void)setAllowsMixedState:(BOOL)value;
 - (void)setSound:(NSSound *)value;

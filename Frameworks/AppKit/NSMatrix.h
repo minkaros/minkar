@@ -55,7 +55,7 @@ typedef enum {
 - prototype;
 
 - (NSArray *)cells;
-- cellWithTag:(int)tag;
+- cellWithTag:(NSInteger)tag;
 - cellAtRow:(int)row column:(int)column;
 - (NSRect)cellFrameAtRow:(int)row column:(int)column;
 - (BOOL)getRow:(int *)row column:(int *)column ofCell:(NSCell *)cell;
@@ -127,7 +127,7 @@ typedef enum {
 
 - (void)selectCellAtRow:(int)row column:(int)column;
 - (void)selectCell:(NSCell *)cell;
-- (BOOL)selectCellWithTag:(int)tag;
+- (BOOL)selectCellWithTag:(NSInteger)tag;
 - (void)selectAll:sender;
 - (void)setSelectionFrom:(int)from to:(int)to anchor:(int)anchor highlight:(BOOL)highlight;
 - (void)deselectAllCells;
@@ -135,7 +135,7 @@ typedef enum {
 
 - (void)sizeToCells;
 
-- (void)setState:(int)state atRow:(int)row column:(int)column;
+- (void)setState:(NSControlStateValue)state atRow:(int)row column:(int)column;
 - (void)highlightCell:(BOOL)highlight atRow:(int)row column:(int)column;
 
 - (void)drawCellAtRow:(int)row column:(int)column;

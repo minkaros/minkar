@@ -15,6 +15,10 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
     SEL _action;
 }
 
+/* An image view without a frame, scaled proportionally down, sized to
+   the image. */
++ (instancetype)imageViewWithImage:(NSImage *)image;
+
 - (BOOL)allowsCutCopyPaste;
 - (BOOL)animates;
 - (NSImage *)image;

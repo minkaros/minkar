@@ -239,7 +239,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    return _cells;
 }
 
--cellWithTag:(int)tag {
+-cellWithTag:(NSInteger)tag {
    int i,count=[_cells count];
 
    for(i=0;i<count;i++){
@@ -658,7 +658,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    [self _selectCell:select deselectOthers:YES];
 }
 
--(BOOL)selectCellWithTag:(int)tag {
+-(BOOL)selectCellWithTag:(NSInteger)tag {
    NSCell *cell=[self cellWithTag:tag];
 
    [self selectCell:cell];
@@ -741,7 +741,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    [self sizeToFit];
 }
 
--(void)setState:(int)state atRow:(int)row column:(int)column {
+-(void)setState:(NSControlStateValue)state atRow:(int)row column:(int)column {
    NSCell *cell=[self cellAtRow:row column:column];
 
    if(cell!=nil){
@@ -1353,7 +1353,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 - (int) _selectedTag {
     return [[self selectedCell] tag];
 }
-- (void) _setSelectedTag:(int)selectedTag {
+- (void) _setSelectedTag:(NSInteger)selectedTag {
     [self selectCellWithTag:selectedTag];
 }
 

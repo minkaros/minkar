@@ -195,4 +195,38 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 +(NSSet*)keyPathsForValuesAffectingSelectedIndex {
    return [NSSet setWithObject:@"cell.selectedSegment"];
 }
++(instancetype)_segmentedControlWithItems:(NSArray *)items images:(BOOL)images trackingMode:(NSSegmentSwitchTracking)trackingMode target:(id)target action:(SEL)action {
+   NSSegmentedControl *result=[[[self alloc] initWithFrame:NSMakeRect(0,0,100,24)] autorelease];
+   NSInteger           i,count=[items count];
+
+   [result setSegmentCount:count];
+   for(i=0;i<count;i++){
+    if(images)
+     [result setImage:[items objectAtIndex:i] forSegment:i];
+    else
+     [result setLabel:[items objectAtIndex:i] forSegment:i];
+   }
+   [result setTrackingMode:trackingMode];
+   [result setTarget:target];
+   [result setAction:action];
+   [result sizeToFit];
+   return result;
+}
+
++(instancetype)segmentedControlWithLabels:(NSArray *)labels trackingMode:(NSSegmentSwitchTracking)trackingMode target:(id)target action:(SEL)action {
+   return [self _segmentedControlWithItems:labels images:NO trackingMode:trackingMode target:target action:action];
+}
+
++(instancetype)segmentedControlWithImages:(NSArray *)images trackingMode:(NSSegmentSwitchTracking)trackingMode target:(id)target action:(SEL)action {
+   return [self _segmentedControlWithItems:images images:YES trackingMode:trackingMode target:target action:action];
+}
+
+-(NSSegmentSwitchTracking)trackingMode {
+   return [_cell trackingMode];
+}
+
+-(void)setTrackingMode:(NSSegmentSwitchTracking)mode {
+   [_cell setTrackingMode:mode];
+}
+
 @end

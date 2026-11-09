@@ -218,7 +218,7 @@ extern CGFloat _NSMenuBarHeightForDisplay(CGDirectDisplayID display);
    return [_itemArray objectAtIndex:index];
 }
 
--(NSMenuItem *)itemWithTag:(int)tag {
+-(NSMenuItem *)itemWithTag:(NSInteger)tag {
     int i,count=[_itemArray count];
 
     for(i=0;i<count;i++){
@@ -248,7 +248,7 @@ extern CGFloat _NSMenuBarHeightForDisplay(CGDirectDisplayID display);
     return [_itemArray indexOfObjectIdenticalTo:item];
 }
 
--(int)indexOfItemWithTag:(int)tag {
+-(NSInteger)indexOfItemWithTag:(NSInteger)tag {
     int i,count=[_itemArray count];
 
     for (i=0; i<count; ++i)
