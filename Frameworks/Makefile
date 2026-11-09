@@ -42,6 +42,9 @@ SUBDIR += CoreData
 SUBDIR += CoreVideo
 SUBDIR += QuartzCore
 SUBDIR += AppKit
+# Security: Minkar's own subset for now (the APSL sources beside it are
+# to replace it).
+SUBDIR += Security/minkar
 # Small frameworks binaries for the reference platform link.
 SUBDIR += UserNotifications
 SUBDIR += ServiceManagement
@@ -91,7 +94,8 @@ QuartzCore: OpenGL IOSurface ../PrivateFrameworks/SkyLight CoreVideo CoreGraphic
 CoreVideo: OpenGL Foundation
 AppKit: CoreData QuartzCore ApplicationServices CoreServices
 UserNotifications: Foundation
-ServiceManagement: CoreFoundation
+ServiceManagement: CoreFoundation Security/minkar
+Security/minkar: CoreFoundation
 AddressBook: Foundation
 AudioToolbox: CoreFoundation
 OSAKit: Foundation
