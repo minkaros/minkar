@@ -40,6 +40,7 @@
 #include <mach/mach_vm.h>
 #include <servers/bootstrap.h>
 #include <stdio.h>
+#include <sys/param.h>
 #include <stdlib.h>
 #include <string.h>
 #include "PasteboardServer.h"	/* MIG, generated */
@@ -275,9 +276,12 @@ main(int argc, char *argv[])
 	dispatch_source_t source = dispatch_source_create(DISPATCH_SOURCE_TYPE_MACH_RECV, service, 0,
 	    queue);
 	dispatch_source_set_event_handler(source, ^{
-		/* Room for the audit trailer too. */
+		/* Room for the largest request (the subsystem's maxsize is
+		   its largest reply: a request with long names did not fit,
+		   and was dropped), and for the audit trailer. */
 		mach_msg_server_once(Pasteboard_server,
-		    pbs_Pasteboard_subsystem.maxsize + MAX_TRAILER_SIZE, service,
+		    (mach_msg_size_t)MAX(sizeof(union __RequestUnion__pbs_Pasteboard_subsystem),
+		    pbs_Pasteboard_subsystem.maxsize) + MAX_TRAILER_SIZE, service,
 		    MACH_RCV_TRAILER_ELEMENTS(MACH_RCV_TRAILER_AUDIT) |
 		    MACH_RCV_TRAILER_TYPE(MACH_MSG_TRAILER_FORMAT_0));
 	});
