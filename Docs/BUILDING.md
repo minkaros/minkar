@@ -45,8 +45,9 @@ an x86-64 CPU with AVX if the boot test runs under KVM.
   has no `tzfile.h`; then `make && make install`).
 * System build: `bmake make csh bison flex time`, and `byacc` (Berkeley
   yacc, public domain: libxkbcommon's parser is generated with it, not
-  bison), and `ruby` (2.5 or later: JavaScriptCore's build generates code
-  with it)
+  bison), `ruby` (2.5 or later: JavaScriptCore's build generates code
+  with it), and `gperf` and `unifdef` (WebCore's build generates its
+  lookup tables and WebKit's GLib headers with them)
 * Bootable image and boot test: `nasm gdisk dosfstools hfsprogs`,
   `qemu-system-x86 ovmf` (the boot test runs QEMU under TCG unless
   `BOOTTEST_ACCEL=kvm`; its VM is an Ivy Bridge, `-cpu IvyBridge`, since
