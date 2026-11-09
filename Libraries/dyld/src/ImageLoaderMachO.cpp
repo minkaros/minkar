@@ -1939,6 +1939,30 @@ const char* ImageLoaderMachO::libPath(unsigned int index) const
 }
 
 
+/*
+ * Minkar: binaries built for the reference platform import Foundation's
+ * classes (NSArray, NSDictionary...) and some of its constants from
+ * CoreFoundation, where that platform keeps them. Minkar keeps them in
+ * Foundation: a symbol CoreFoundation does not export is looked up there.
+ */
+bool ImageLoaderMachO::findMovedFromCoreFoundation(const LinkContext& context, const char* symbolName, const ImageLoader* definedInImage,
+												   const ImageLoader* requestorImage, bool runResolver, const ImageLoader** foundIn, uintptr_t* address)
+{
+	static const char coreFoundation[] = "/System/Library/Frameworks/CoreFoundation.framework/Versions/A/CoreFoundation";
+	static const char foundation[] = "/System/Library/Frameworks/Foundation.framework/Versions/C/Foundation";
+	const char* path = definedInImage->getInstallPath();
+
+	if ( (path == NULL) || (strcmp(path, coreFoundation) != 0) )
+		return false;
+	for (uint32_t i = 0, count = dyld::getImageCount(); i < count; ++i) {
+		const ImageLoader* image = dyld::getIndexedImage(i);
+		const char* installPath = (image != NULL) ? image->getInstallPath() : NULL;
+		if ( (installPath != NULL) && (strcmp(installPath, foundation) == 0) )
+			return image->findExportedSymbolAddress(context, symbolName, requestorImage, 0, runResolver, foundIn, address);
+	}
+	return false;
+}
+
 void __attribute__((noreturn)) ImageLoaderMachO::throwSymbolNotFound(const LinkContext& context, const char* symbol, 
 																	const char* referencedFrom, const char* fromVersMismatch,
 																	const char* expectedIn)

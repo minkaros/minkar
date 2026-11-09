@@ -1106,6 +1106,8 @@ uintptr_t ImageLoaderMachOClassic::resolveUndefined(const LinkContext& context, 
 		uintptr_t address;
 		if ( target->findExportedSymbolAddress(context, symbolName, this, ord, runResolver, foundIn, &address) )
 			return address;
+		if ( findMovedFromCoreFoundation(context, symbolName, target, this, runResolver, foundIn, &address) )
+			return address;
 
 		if ( (undefinedSymbol->n_type & N_PEXT) != 0 ) {
 			// don't know why the static linker did not eliminate the internal reference to a private extern definition

@@ -236,6 +236,9 @@ protected:
 			void		mapSegments(int fd, uint64_t offsetInFat, uint64_t lenInFat, uint64_t fileLen, const LinkContext& context);
 			void		mapSegments(const void* memoryImage, uint64_t imageLen, const LinkContext& context);
 			void		UnmapSegments();
+			// Minkar: a symbol the reference platform's CoreFoundation exports and Minkar keeps in Foundation
+			static bool			findMovedFromCoreFoundation(const LinkContext& context, const char* symbolName, const ImageLoader* definedInImage,
+															const ImageLoader* requestorImage, bool runResolver, const ImageLoader** foundIn, uintptr_t* address);
 			void		__attribute__((noreturn)) throwSymbolNotFound(const LinkContext& context, const char* symbol, 
 																	const char* referencedFrom, const char* fromVersMismatch,
 																	const char* expectedIn);

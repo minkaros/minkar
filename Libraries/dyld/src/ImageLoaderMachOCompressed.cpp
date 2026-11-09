@@ -750,6 +750,8 @@ uintptr_t ImageLoaderMachOCompressed::resolveTwolevel(const LinkContext& context
 	uintptr_t address;
 	if ( definedInImage->findExportedSymbolAddress(context, symbolName, requestorImage, requestorOrdinalOfDef, runResolver, foundIn, &address) )
 		return address;
+	if ( findMovedFromCoreFoundation(context, symbolName, definedInImage, requestorImage, runResolver, foundIn, &address) )
+		return address;
 
 	if ( weak_import ) {
 		// definition can't be found anywhere, ok because it is weak, just return 0
