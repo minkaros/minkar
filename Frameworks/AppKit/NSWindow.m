@@ -2356,7 +2356,7 @@ NSArray *_NSWindowNumbersFromWindowInfo(CFArrayRef info,BOOL allApps) {
     return [NSApp currentEvent];
 }
 
--(NSEvent *)nextEventMatchingMask:(unsigned int)mask {
+-(NSEvent *)nextEventMatchingMask:(NSEventMask)mask {
    return [self nextEventMatchingMask:mask untilDate:[NSDate distantFuture]
       inMode:NSEventTrackingRunLoopMode dequeue:YES];
 }
@@ -2364,7 +2364,7 @@ NSArray *_NSWindowNumbersFromWindowInfo(CFArrayRef info,BOOL allApps) {
 -(void) captureEvents {
 }
 
--(NSEvent *)nextEventMatchingMask:(unsigned int)mask untilDate:(NSDate *)untilDate inMode:(NSString *)mode dequeue:(BOOL)dequeue {
+-(NSEvent *)nextEventMatchingMask:(NSEventMask)mask untilDate:(NSDate *)untilDate inMode:(NSString *)mode dequeue:(BOOL)dequeue {
    NSEvent *event;
 
 // this should get migrated down into event queue
@@ -2379,7 +2379,7 @@ NSArray *_NSWindowNumbersFromWindowInfo(CFArrayRef info,BOOL allApps) {
    return event;
 }
 
--(void)discardEventsMatchingMask:(unsigned)mask beforeEvent:(NSEvent *)event {
+-(void)discardEventsMatchingMask:(NSEventMask)mask beforeEvent:(NSEvent *)event {
    NSUnimplementedMethod();
 }
 

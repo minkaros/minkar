@@ -48,7 +48,7 @@ APPKIT_EXPORT NSArray *_NSWindowNumbersFromWindowInfo(CFArrayRef info,BOOL allAp
 - (void)_attachDrawer:(NSDrawer *)drawer;
 - (void)_detachDrawer:(NSDrawer *)drawer;
 - (NSView *)_backgroundView;
-- (void)_updateTrackingAreas;
+- (BOOL)_updateTrackingAreas;
 - (void)_invalidateTrackingAreas;
 - (void)_setFrameAutosaveNameNoIO:(NSString *)name;
 - (NSWindowAnimationContext *)_animationContext;

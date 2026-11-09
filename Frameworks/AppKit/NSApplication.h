@@ -178,9 +178,9 @@ typedef enum {
 
 - (void)sendEvent:(NSEvent *)event;
 
-- (NSEvent *)nextEventMatchingMask:(unsigned int)mask untilDate:(NSDate *)untilDate inMode:(NSString *)mode dequeue:(BOOL)dequeue;
+- (NSEvent *)nextEventMatchingMask:(NSEventMask)mask untilDate:(NSDate *)untilDate inMode:(NSString *)mode dequeue:(BOOL)dequeue;
 - (NSEvent *)currentEvent;
-- (void)discardEventsMatchingMask:(unsigned)mask beforeEvent:(NSEvent *)event;
+- (void)discardEventsMatchingMask:(NSEventMask)mask beforeEvent:(NSEvent *)event;
 - (void)postEvent:(NSEvent *)event atStart:(BOOL)atStart;
 
 - targetForAction:(SEL)action;

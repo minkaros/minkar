@@ -507,9 +507,9 @@ APPKIT_EXPORT NSString *const NSWindowDidEndLiveResizeNotification;
 - (NSPoint)mouseLocationOutsideOfEventStream;
 
 - (NSEvent *)currentEvent;
-- (NSEvent *)nextEventMatchingMask:(unsigned)mask;
-- (NSEvent *)nextEventMatchingMask:(unsigned)mask untilDate:(NSDate *)untilDate inMode:(NSString *)mode dequeue:(BOOL)dequeue;
-- (void)discardEventsMatchingMask:(unsigned)mask beforeEvent:(NSEvent *)event;
+- (NSEvent *)nextEventMatchingMask:(NSEventMask)mask;
+- (NSEvent *)nextEventMatchingMask:(NSEventMask)mask untilDate:(NSDate *)untilDate inMode:(NSString *)mode dequeue:(BOOL)dequeue;
+- (void)discardEventsMatchingMask:(NSEventMask)mask beforeEvent:(NSEvent *)event;
 
 - (void)sendEvent:(NSEvent *)event;
 - (void)postEvent:(NSEvent *)event atStart:(BOOL)atStart;

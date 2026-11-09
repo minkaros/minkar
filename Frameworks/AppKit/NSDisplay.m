@@ -204,7 +204,7 @@ static NSRect screenFrame(CGDirectDisplayID display, CGFloat mainHeight, NSRect 
    NSUnimplementedMethod();
 }
 
--(NSEvent *)nextEventMatchingMask:(unsigned)mask untilDate:(NSDate *)untilDate inMode:(NSString *)mode dequeue:(BOOL)dequeue {
+-(NSEvent *)nextEventMatchingMask:(NSEventMask)mask untilDate:(NSDate *)untilDate inMode:(NSString *)mode dequeue:(BOOL)dequeue {
     NSEvent *result=nil;
 
     if([_eventQueue count])
@@ -248,7 +248,7 @@ static NSRect screenFrame(CGDirectDisplayID display, CGFloat mainHeight, NSRect 
     return result;
 }
 
--(void)discardEventsMatchingMask:(unsigned)mask beforeEvent:(NSEvent *)event {
+-(void)discardEventsMatchingMask:(NSEventMask)mask beforeEvent:(NSEvent *)event {
    int count=[_eventQueue count];
 
    while(--count>=0){

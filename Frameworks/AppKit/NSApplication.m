@@ -1026,12 +1026,20 @@ static NSArray *urlsFromOpenMessage(const LSSessionOpenMessage *msg, NSUInteger 
    return NO;
 }
 
+extern void NSEventNoteMouseButtons(NSEvent *event);
+extern NSEvent *NSEventRunLocalMonitors(NSEvent *event);
+
 -(void)sendEvent:(NSEvent *)event {
+    if(event == nil)
+        return;
+    NSEventNoteMouseButtons(event);
+    /* Local monitors see what is sent, and may change or drop it. */
+    event = NSEventRunLocalMonitors(event);
     if(event == nil)
         return;
 
    if([event type]==NSKeyDown){
-    unsigned modifierFlags=[event modifierFlags];
+    NSEventModifierFlags modifierFlags=[event modifierFlags];
 
     if(modifierFlags&(NSCommandKeyMask|NSAlternateKeyMask|NSControlKeyMask))
      if([self _performKeyEquivalent:event])
@@ -1055,7 +1063,7 @@ static NSArray *urlsFromOpenMessage(const LSSessionOpenMessage *msg, NSUInteger 
    [[NSApp windows] makeObjectsPerformSelector:@selector(displayIfNeeded)];
 }
 
--(NSEvent *)nextEventMatchingMask:(unsigned int)mask untilDate:(NSDate *)untilDate inMode:(NSString *)mode dequeue:(BOOL)dequeue {
+-(NSEvent *)nextEventMatchingMask:(NSEventMask)mask untilDate:(NSDate *)untilDate inMode:(NSString *)mode dequeue:(BOOL)dequeue {
    NSEvent *nextEvent=nil;
 
    do {
@@ -1114,7 +1122,7 @@ static NSArray *urlsFromOpenMessage(const LSSessionOpenMessage *msg, NSUInteger 
    return [result autorelease];
 }
 
--(void)discardEventsMatchingMask:(unsigned)mask beforeEvent:(NSEvent *)event {
+-(void)discardEventsMatchingMask:(NSEventMask)mask beforeEvent:(NSEvent *)event {
    [_display discardEventsMatchingMask:mask beforeEvent:event];
 }
 
