@@ -149,8 +149,10 @@ static void postItemNotification(NSMenu *menu, NSString *name, NSUInteger index)
 
 -initApplicationMenu:(NSString*)appName {
    [self init];
-   NSMenuItem *quitItem = [[NSMenuItem alloc] initWithTitle:[@"Quit " stringByAppendingString:appName] action:@selector(terminate:) keyEquivalent:@"q"];
+   NSString   *format = [[NSBundle bundleForClass:[NSMenu class]] localizedStringForKey:@"Quit %@" value:@"Quit %@" table:nil];
+   NSMenuItem *quitItem = [[NSMenuItem alloc] initWithTitle:[NSString stringWithFormat:format, appName] action:@selector(terminate:) keyEquivalent:@"q"];
    [self addItem: quitItem];
+   [quitItem release];
    [self setValue:@"NSAppleMenu" forKey:@"name"];
    return self;
 }
@@ -192,7 +194,7 @@ extern CGFloat _NSMenuBarHeightForDisplay(CGDirectDisplayID display);
    return _title;
 }
 
--(int)numberOfItems {
+-(NSInteger)numberOfItems {
    return [_itemArray count];
 }
 
@@ -212,11 +214,11 @@ extern CGFloat _NSMenuBarHeightForDisplay(CGDirectDisplayID display);
    return _autoenablesItems;
 }
 
--(NSMenuItem *)itemAtIndex:(int)index {
+-(NSMenuItem *)itemAtIndex:(NSInteger)index {
    return [_itemArray objectAtIndex:index];
 }
 
--(NSMenuItem *)itemWithTag:(int)tag {
+-(NSMenuItem *)itemWithTag:(NSInteger)tag {
     int i,count=[_itemArray count];
 
     for(i=0;i<count;i++){
@@ -242,11 +244,11 @@ extern CGFloat _NSMenuBarHeightForDisplay(CGDirectDisplayID display);
    return nil;
 }
 
--(int)indexOfItem:(NSMenuItem *)item {
+-(NSInteger)indexOfItem:(NSMenuItem *)item {
     return [_itemArray indexOfObjectIdenticalTo:item];
 }
 
--(int)indexOfItemWithTag:(int)tag {
+-(NSInteger)indexOfItemWithTag:(NSInteger)tag {
     int i,count=[_itemArray count];
 
     for (i=0; i<count; ++i)
@@ -256,7 +258,7 @@ extern CGFloat _NSMenuBarHeightForDisplay(CGDirectDisplayID display);
     return -1;
 }
 
--(int)indexOfItemWithTitle:(NSString *)title {
+-(NSInteger)indexOfItemWithTitle:(NSString *)title {
     int i,count=[_itemArray count];
 
     for (i=0;i<count;i++)
@@ -266,7 +268,7 @@ extern CGFloat _NSMenuBarHeightForDisplay(CGDirectDisplayID display);
     return -1;
 }
 
--(int)indexOfItemWithRepresentedObject:object {
+-(NSInteger)indexOfItemWithRepresentedObject:object {
    int i,count=[_itemArray count];
    
    for(i=0;i<count;i++)
@@ -277,7 +279,7 @@ extern CGFloat _NSMenuBarHeightForDisplay(CGDirectDisplayID display);
 }
 
 // needed this for NSApplication windowsMenu stuff, so i did 'em all..
--(int)indexOfItemWithTarget:(id)target andAction:(SEL)action {
+-(NSInteger)indexOfItemWithTarget:(id)target andAction:(SEL)action {
     int i,count=[_itemArray count];
 
     for (i=0; i<count; ++i) {
@@ -294,7 +296,7 @@ extern CGFloat _NSMenuBarHeightForDisplay(CGDirectDisplayID display);
     return -1;
 }
 
--(int)indexOfItemWithSubmenu:(NSMenu *)submenu {
+-(NSInteger)indexOfItemWithSubmenu:(NSMenu *)submenu {
     int i, count=[_itemArray count];
 
     for (i = 0; i < count; ++i) 
@@ -349,17 +351,17 @@ extern CGFloat _NSMenuBarHeightForDisplay(CGDirectDisplayID display);
    [item release];
 }
 
--(void)removeItemAtIndex:(int)index {
+-(void)removeItemAtIndex:(NSInteger)index {
    [self removeItem:[_itemArray objectAtIndex:index]];
 }
 
--(void)insertItem:(NSMenuItem *)item atIndex:(int)index {
+-(void)insertItem:(NSMenuItem *)item atIndex:(NSInteger)index {
    [item performSelector:@selector(_setMenu:) withObject:self];
    [_itemArray insertObject:item atIndex:index];
    postItemNotification(self,NSMenuDidAddItemNotification,index);
 }
 
--(NSMenuItem *)insertItemWithTitle:(NSString *)title action:(SEL)action keyEquivalent:(NSString *)keyEquivalent atIndex:(int)index {
+-(NSMenuItem *)insertItemWithTitle:(NSString *)title action:(SEL)action keyEquivalent:(NSString *)keyEquivalent atIndex:(NSInteger)index {
    NSMenuItem *item=[[[NSMenuItem alloc] initWithTitle:title action:action keyEquivalent:keyEquivalent] autorelease];
 
    [self insertItem:item atIndex:index];
@@ -427,7 +429,7 @@ BOOL itemIsEnabled(NSMenuItem *item) {
    (charactersIgnoringModifiers, which keeps Shift's effect) and the same
    Control, Option, Shift and Command. An uppercase letter as the key
    equivalent implies Shift. */
-static BOOL itemMatchesKeyEvent(NSMenuItem *item, NSString *characters, NSUInteger modifiers) {
+static BOOL itemMatchesKeyEvent(NSMenuItem *item, NSString *characters, NSString *typed, NSUInteger modifiers) {
     NSString  *key=[item keyEquivalent];
     NSUInteger relevant=NSControlKeyMask|NSAlternateKeyMask|NSShiftKeyMask|NSCommandKeyMask;
     NSUInteger itemModifiers=[item keyEquivalentModifierMask]&relevant;
@@ -437,10 +439,16 @@ static BOOL itemMatchesKeyEvent(NSMenuItem *item, NSString *characters, NSUInteg
     if(![key isEqualToString:[key lowercaseString]])
         itemModifiers|=NSShiftKeyMask;
     modifiers&=relevant;
+    /* A symbol (no upper and lower case: ?, +, :) is what Shift typed:
+       Shift is not one of its modifiers. */
+    if([key isEqualToString:characters] || [key isEqualToString:typed])
+        if([[key lowercaseString] isEqualToString:[key uppercaseString]])
+            return (modifiers&~NSShiftKeyMask)==(itemModifiers&~NSShiftKeyMask);
     if([[key lowercaseString] isEqualToString:[characters lowercaseString]])
         return modifiers==itemModifiers;
-    /* A key Shift makes (such as ? on most layouts) matches as typed. */
-    if([key isEqualToString:characters])
+    /* A key Shift makes (such as ? on most layouts) matches as typed: the
+       event's characters, when charactersIgnoringModifiers left Shift out. */
+    if([key isEqualToString:characters] || [key isEqualToString:typed])
         return (modifiers&~NSShiftKeyMask)==(itemModifiers&~NSShiftKeyMask);
     return NO;
 }
@@ -469,7 +477,7 @@ static BOOL itemMatchesKeyEvent(NSMenuItem *item, NSString *characters, NSUInteg
     for(i=0;i<count;i++){
         NSMenuItem *item=[_itemArray objectAtIndex:i];
 
-        if(itemMatchesKeyEvent(item,characters,modifiers)){
+        if(itemMatchesKeyEvent(item,characters,[event characters],modifiers)){
             /* This *must* accurately reflect menu validation when ignoring or processing
                 key equivalents. Relying on update to keep isEnabled in the proper state is
                 unfortunately too tenuous.
@@ -551,5 +559,24 @@ static BOOL itemMatchesKeyEvent(NSMenuItem *item, NSString *characters, NSUInteg
     _DBusItemID=itemID;
 }
 
+
+
+/* Menus track in their own loop; one is ended when the user is done. */
+-(void)cancelTracking {
+}
+
+-(void)cancelTrackingWithoutAnimation {
+}
+
+-(void)performActionForItemAtIndex:(NSInteger)index {
+   NSMenuItem *item=[self itemAtIndex:index];
+
+   if(item!=nil && [item isEnabled] && [item action]!=NULL)
+    [NSApp sendAction:[item action] to:[item target] from:item];
+}
+
+/* The action of items with a submenu: opening it is the menu's. */
+-(void)submenuAction:(id)sender {
+}
 
 @end

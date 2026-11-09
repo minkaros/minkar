@@ -18,8 +18,6 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <AppKit/NSThemeFrame.h>
 #import <AppKit/NSTrackingArea.h>
 
-// Note: This file contains a few minor adjustments to get it pixel-accurate on Win32.
-//       Those occurences are marked with "Should...".
 #define TEXTFIELD_MARGIN     3.0
 
 @implementation NSToolTipWindow
@@ -36,7 +34,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
     return singleton;
 }
 
-- (id)initWithContentRect:(NSRect)contentRect styleMask:(unsigned int)styleMask backing:(unsigned)backing defer:(BOOL)defer
+- (id)initWithContentRect:(NSRect)contentRect styleMask:(NSWindowStyleMask)styleMask backing:(NSBackingStoreType)backing defer:(BOOL)defer
 {
     [super initWithContentRect:contentRect styleMask:styleMask backing:backing defer:defer];
     _textField = [[NSTextField alloc] initWithFrame:contentRect]; // Will be adjusted later.

@@ -14,7 +14,8 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <Foundation/NSArray.h>
 #import <Foundation/NSSet.h>
 #import "NSPersistantDomain_posix.h"
-#import "../NSPropertyList/NSPropertyListWriter_vintage.h"
+#import <Foundation/NSPropertyList.h>
+#import <Foundation/NSData.h>
 
 @implementation NSPersistantDomain_posix
 
@@ -93,7 +94,11 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
     }
     if ([_changedKeys count] > 0) {
         [self createUserDefaultsDirectoryIfNeeded];
-        if ([NSPropertyListWriter_vintage writePropertyList:merged toFile:_path atomically:YES] == NO) {
+        /* XML: the old text format wrote numbers, booleans and data as
+           strings, and a file with data in it did not read back. */
+        NSData *xml = [NSPropertyListSerialization dataWithPropertyList:merged format:NSPropertyListXMLFormat_v1_0
+                                                                options:0 error:NULL];
+        if (xml == nil || [xml writeToFile:_path atomically:YES] == NO) {
             [merged release];
             [NSException raise:NSInternalInconsistencyException
                         format:@"Cannot synchronize NSUserDefaults to %@", _path];

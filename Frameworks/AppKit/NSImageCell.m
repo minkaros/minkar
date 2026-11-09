@@ -8,6 +8,8 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 #import <sys/param.h>
 #import <AppKit/NSImageCell.h>
+#import <AppKit/NSBezierPath.h>
+#import <AppKit/NSGraphicsStyle.h>
 #import <AppKit/NSImage.h>
 #import <AppKit/NSGraphics.h>
 #import <AppKit/NSColor.h>
@@ -207,19 +209,32 @@ static NSSize scaledImageSizeInFrameSize(NSSize imageSize,NSSize frameSize,NSIma
      frame=NSInsetRect(frame,2,2);
      break;
 
-    case NSImageFrameGrayBezel:
-     NSDrawGrayBezel(frame,frame);
-     frame=NSInsetRect(frame,2,2);
+    /* A light grey rounded well with a thin border (gray bezel), a thin
+       rounded outline (groove) or a push button's face (button), as the
+       reference platform draws image frames now. */
+    case NSImageFrameGrayBezel:{
+     NSBezierPath *path=[NSBezierPath bezierPathWithRoundedRect:NSInsetRect(frame,0.5,0.5) xRadius:4 yRadius:4];
+
+     [[NSColor colorWithCalibratedWhite:0.84 alpha:1] setFill];
+     [path fill];
+     [[NSColor colorWithCalibratedWhite:0.76 alpha:1] setStroke];
+     [path stroke];
+     frame=NSInsetRect(frame,6,6);
+    }
      break;
 
-    case NSImageFrameGroove:
-     NSDrawGroove(frame,frame);
-     frame=NSInsetRect(frame,2,2);
+    case NSImageFrameGroove:{
+     NSBezierPath *path=[NSBezierPath bezierPathWithRoundedRect:NSInsetRect(frame,0.5,0.5) xRadius:4 yRadius:4];
+
+     [[NSColor colorWithCalibratedWhite:0.72 alpha:1] setStroke];
+     [path stroke];
+     frame=NSInsetRect(frame,4,4);
+    }
      break;
 
     case NSImageFrameButton:
-     NSDrawButton(frame,frame);
-     frame=NSInsetRect(frame,2,2);
+     [[control graphicsStyle] drawPushButtonNormalInRect:frame defaulted:NO];
+     frame=NSInsetRect(frame,4,4);
      break;
    }
 

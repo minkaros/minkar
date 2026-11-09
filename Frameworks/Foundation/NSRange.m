@@ -25,7 +25,7 @@ NSUInteger NSMaxRange(NSRange range){
 }
 
 NSString *NSStringFromRange(NSRange range){
-   return NSStringWithFormat(@"{%u, %u}",range.location,range.length);
+   return NSStringWithFormat(@"{%lu, %lu}",(unsigned long)range.location,(unsigned long)range.length);
 }
 
 NSRange NSRangeFromString(NSString * s) 
@@ -38,12 +38,12 @@ decimalDigitCharacterSet];
         [scanner scanUpToCharactersFromSet: digitSet intoString: (id *) nil]; 
         if(![scanner isAtEnd]) 
                 { 
-                [scanner scanInt: (int *) &result.location]; 
+                { NSInteger v=0; [scanner scanInteger:&v]; result.location=(NSUInteger)v; } 
                 [scanner scanUpToCharactersFromSet: digitSet intoString: (id *) 
 nil]; 
                 if(![scanner isAtEnd]) 
                         { 
-                        [scanner scanInt: (int *)&result.length]; 
+                        { NSInteger v=0; [scanner scanInteger:&v]; result.length=(NSUInteger)v; } 
                         } 
                 } 
         return result; 

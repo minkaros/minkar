@@ -40,18 +40,14 @@
 #include <CoreFoundation/CFNumberFormatter.h>
 #define CF_OBJC_DISPATCH 1	/* Minkar: toll-free bridging (CFInternal.h) */
 #include "CFInternal.h"
-#if DEPLOYMENT_TARGET_MACOSX || DEPLOYMENT_TARGET_EMBEDDED || DEPLOYMENT_TARGET_EMBEDDED_MINI || DEPLOYMENT_TARGET_WINDOWS || DEPLOYMENT_TARGET_LINUX
 #include "CFLocaleInternal.h"
-#endif
 #include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
 #if INCLUDE_OBJC
 #include <Foundation/NSMutableString.h>
 #endif
-#if DEPLOYMENT_TARGET_MACOSX || DEPLOYMENT_TARGET_EMBEDDED || DEPLOYMENT_TARGET_LINUX || DEPLOYMENT_TARGET_FREEBSD
 #include <unistd.h>
-#endif
 
 #if defined(__GNUC__)
 #define LONG_DOUBLE_SUPPORT 1
@@ -109,9 +105,7 @@ static void __CFRecordStringAllocationEvent(const char *encoding, const char *by
 
 typedef Boolean (*UNI_CHAR_FUNC)(UInt32 flags, UInt8 ch, UniChar *unicodeChar);
 
-#if DEPLOYMENT_TARGET_MACOSX || DEPLOYMENT_TARGET_EMBEDDED || DEPLOYMENT_TARGET_EMBEDDED_MINI
 extern size_t malloc_good_size(size_t size);
-#endif
 extern void __CFStrConvertBytesToUnicode(const uint8_t *bytes, UniChar *buffer, CFIndex numChars);
 
 static void __CFStringAppendFormatCore(CFMutableStringRef outputString, CFStringRef (*copyDescFunc)(void *, const void *), CFStringRef (*contextDescFunc)(void *, const void *, const void *, bool, bool *), CFDictionaryRef formatOptions, CFDictionaryRef stringsDictConfig, CFStringRef formatString, CFIndex initialArgPosition, const void *origValues, CFIndex originalValuesSize, va_list args);
@@ -424,14 +418,7 @@ static CFStringEncoding __CFDefaultFileSystemEncoding = kCFStringEncodingInvalid
 CFStringEncoding __CFDefaultEightBitStringEncoding = kCFStringEncodingInvalidId;
 
 
-#if DEPLOYMENT_TARGET_MACOSX || DEPLOYMENT_TARGET_EMBEDDED || DEPLOYMENT_TARGET_EMBEDDED_MINI || DEPLOYMENT_TARGET_LINUX
 #define __defaultEncoding kCFStringEncodingMacRoman
-#elif DEPLOYMENT_TARGET_WINDOWS
-#define __defaultEncoding kCFStringEncodingWindowsLatin1
-#else
-#warning This value must match __CFGetConverter condition in CFStringEncodingConverter.c
-#define __defaultEncoding kCFStringEncodingISOLatin1
-#endif
 
 CFStringEncoding CFStringGetSystemEncoding(void) {
     if (__CFDefaultSystemEncoding == kCFStringEncodingInvalidId) {
@@ -451,11 +438,7 @@ CF_INLINE CFStringEncoding __CFStringGetSystemEncoding(void) {
 
 CFStringEncoding CFStringFileSystemEncoding(void) {
     if (__CFDefaultFileSystemEncoding == kCFStringEncodingInvalidId) {
-#if DEPLOYMENT_TARGET_MACOSX || DEPLOYMENT_TARGET_EMBEDDED || DEPLOYMENT_TARGET_EMBEDDED_MINI || DEPLOYMENT_TARGET_WINDOWS
         __CFDefaultFileSystemEncoding = kCFStringEncodingUTF8;
-#else
-        __CFDefaultFileSystemEncoding = CFStringGetSystemEncoding();
-#endif
     }
 
     return __CFDefaultFileSystemEncoding;
@@ -653,10 +636,8 @@ CF_INLINE CFIndex __CFStrNewCapacity(CFMutableStringRef str, unsigned long reqCa
             }
 	    if (__CFStrHasContentsAllocator(str)) {	/* Also apply any preferred size from the allocator  */
                 newCapacity = CFAllocatorGetPreferredSizeForSize(__CFStrContentsAllocator(str), newCapacity, 0);
-#if DEPLOYMENT_TARGET_MACOSX || DEPLOYMENT_TARGET_EMBEDDED || DEPLOYMENT_TARGET_EMBEDDED_MINI
             } else {
                 newCapacity = malloc_good_size(newCapacity);
-#endif
             }
             return (newCapacity > LONG_MAX) ? -1 : (CFIndex)newCapacity; // If packing: __CFStrUnpackNumber(__CFStrPackNumber(newCapacity));
         }
@@ -1826,23 +1807,6 @@ static Boolean __CFStrIsConstantString(CFStringRef str) {
 	__CFUnlock(&_CFSTRLock);
     }
     return found;
-}
-#endif
-
-
-#if DEPLOYMENT_TARGET_WINDOWS
-void __CFStringCleanup (void) {
-    /* in case library is unloaded, release store for the constant string table */
-    if (constantStringTable != NULL) {
-#if defined(DEBUG)
-    	__CFConstantStringTableBeingFreed = true;
-        CFRelease(constantStringTable);
-        __CFConstantStringTableBeingFreed = false;
-#else 
-        CFRelease(constantStringTable);
-#endif
-        constantStringTable = NULL;
-    }
 }
 #endif
 
@@ -4193,12 +4157,10 @@ CFDataRef CFStringCreateExternalRepresentation(CFAllocatorRef alloc, CFStringRef
     if (((encoding & 0x0FFF) == kCFStringEncodingUnicode) && ((encoding == kCFStringEncodingUnicode) || ((encoding > kCFStringEncodingUTF8) && (encoding <= kCFStringEncodingUTF32LE)))) {
         guessedByteLength = (length + 1) * ((((encoding >> 26)  & 2) == 0) ? sizeof(UTF16Char) : sizeof(UTF32Char)); // UTF32 format has the bit set
     } else if (((guessedByteLength = CFStringGetMaximumSizeForEncoding(length, encoding)) > length) && !CF_IS_OBJC(__kCFStringTypeID, string)) { // Multi byte encoding
-#if DEPLOYMENT_TARGET_MACOSX || DEPLOYMENT_TARGET_EMBEDDED || DEPLOYMENT_TARGET_EMBEDDED_MINI || DEPLOYMENT_TARGET_LINUX || DEPLOYMENT_TARGET_FREEBSD
         if (__CFStrIsUnicode(string)) {
             CFIndex aLength = CFStringEncodingByteLengthForCharacters(encoding, kCFStringEncodingPrependBOM, __CFStrContents(string), __CFStrLength(string));
             if (aLength > 0) guessedByteLength = aLength;
         } else {
-#endif
         result = __CFStringEncodeByteStream(string, 0, length, true, encoding, lossByte, NULL, LONG_MAX, &guessedByteLength);
 	// if result == length, we always succeed
 	//   otherwise, if result == 0, we fail
@@ -4207,9 +4169,7 @@ CFDataRef CFStringCreateExternalRepresentation(CFAllocatorRef alloc, CFStringRef
         if (guessedByteLength == length && __CFStrIsEightBit(string) && __CFStringEncodingIsSupersetOfASCII(encoding)) { // It's all ASCII !!
             return CFDataCreate(alloc, ((uint8_t *)__CFStrContents(string) + __CFStrSkipAnyLengthByte(string)), __CFStrLength(string));
         }
-#if DEPLOYMENT_TARGET_MACOSX || DEPLOYMENT_TARGET_EMBEDDED || DEPLOYMENT_TARGET_EMBEDDED_MINI || DEPLOYMENT_TARGET_LINUX || DEPLOYMENT_TARGET_FREEBSD
         }
-#endif
     }
     bytes = (uint8_t *)CFAllocatorAllocate(alloc, guessedByteLength, 0);
     if (__CFOASafe) __CFSetLastAllocationEventName(bytes, "CFData (store)");
@@ -5499,7 +5459,6 @@ enum {
     CFFormatDummyPointerType = 42	/* special case for %n */
 };
 
-#if DEPLOYMENT_TARGET_MACOSX || DEPLOYMENT_TARGET_EMBEDDED || DEPLOYMENT_TARGET_WINDOWS
 /* Only come in here if spec->type is CFFormatLongType or CFFormatDoubleType. Pass in 0 for width or precision if not specified. Returns false if couldn't do the format (with the assumption the caller falls back to unlocalized).
 */
 static Boolean __CFStringFormatLocalizedNumber(CFMutableStringRef output, CFLocaleRef locale, const CFPrintValue *values, const CFFormatSpec *spec, SInt32 width, SInt32 precision, Boolean hasPrecision) {
@@ -5706,7 +5665,6 @@ static Boolean __CFStringFormatLocalizedNumber(CFMutableStringRef output, CFLoca
     }
     return false;
 }
-#endif
 
 CF_INLINE void __CFParseFormatSpec(const UniChar *uformat, const uint8_t *cformat, SInt32 *fmtIdx, SInt32 fmtLen, CFFormatSpec *spec, CFStringRef *configKeyPointer) {
     Boolean seenDot = false;
@@ -5912,7 +5870,6 @@ void CFStringAppendFormatAndArguments(CFMutableStringRef outputString, CFDiction
 // Length of the buffer to call sprintf() with
 #define BUFFER_LEN 512
 
-#if DEPLOYMENT_TARGET_MACOSX || DEPLOYMENT_TARGET_EMBEDDED || DEPLOYMENT_TARGET_EMBEDDED_MINI
 #define SNPRINTF(TYPE, WHAT) {				\
     TYPE value = (TYPE) WHAT;				\
     if (-1 != specs[curSpec].widthArgNum) {		\
@@ -5928,23 +5885,6 @@ void CFStringAppendFormatAndArguments(CFMutableStringRef outputString, CFDiction
 	    snprintf_l(buffer, BUFFER_LEN-1, NULL, formatBuffer, value);	\
 	}						\
     }}
-#else
-#define SNPRINTF(TYPE, WHAT) {				\
-    TYPE value = (TYPE) WHAT;				\
-    if (-1 != specs[curSpec].widthArgNum) {		\
-	if (-1 != specs[curSpec].precArgNum) {		\
-	    sprintf(buffer, formatBuffer, width, precision, value); \
-	} else {					\
-	    sprintf(buffer, formatBuffer, width, value); \
-	}						\
-    } else {						\
-	if (-1 != specs[curSpec].precArgNum) {		\
-	    sprintf(buffer, formatBuffer, precision, value); \
-        } else {					\
-	    sprintf(buffer, formatBuffer, value);	\
-	}						\
-    }}
-#endif
 
 void _CFStringAppendFormatAndArgumentsAux2(CFMutableStringRef outputString, CFStringRef (*copyDescFunc)(void *, const void *), CFStringRef (*contextDescFunc)(void *, const void *, const void *, bool, bool *), CFDictionaryRef formatOptions, CFStringRef formatString, va_list args) {
     __CFStringAppendFormatCore(outputString, copyDescFunc, contextDescFunc, formatOptions, NULL, formatString, 0, NULL, 0, args);
@@ -6060,11 +6000,9 @@ static void __CFStringAppendFormatCore(CFMutableStringRef outputString, CFString
     if (values != localValuesBuffer && __CFOASafe) __CFSetLastAllocationEventName(values, "CFString (temp)");
     memset(values, 0, sizeArgNum * sizeof(CFPrintValue));
 
-#if DEPLOYMENT_TARGET_MACOSX || DEPLOYMENT_TARGET_EMBEDDED || DEPLOYMENT_TARGET_EMBEDDED_MINI || DEPLOYMENT_TARGET_LINUX || DEPLOYMENT_TARGET_FREEBSD
     // va_copy is a C99 extension. No support on Windows
     va_list copiedArgs;
     if (numConfigs > 0) va_copy(copiedArgs, args); // we need to preserve the original state for passing down
-#endif
 
     /* Compute values array */
     argNum = initialArgPosition;
@@ -6197,12 +6135,10 @@ static void __CFStringAppendFormatCore(CFMutableStringRef outputString, CFString
 	switch (specs[curSpec].type) {
 	case CFFormatLongType:
 	case CFFormatDoubleType:
-#if DEPLOYMENT_TARGET_MACOSX || DEPLOYMENT_TARGET_EMBEDDED || DEPLOYMENT_TARGET_WINDOWS
             if (formatOptions && (specs[curSpec].flags & kCFStringFormatLocalizable) && (CFGetTypeID(formatOptions) == CFLocaleGetTypeID())) {    // We have a locale, so we do localized formatting
                 if (__CFStringFormatLocalizedNumber(outputString, (CFLocaleRef)formatOptions, values, &specs[curSpec], width, precision, hasPrecision)) break;
             }
             /* Otherwise fall-thru to the next case! */
-#endif
          case CFFormatPointerType: {
                 char formatBuffer[128];
 #if defined(__GNUC__)
@@ -6265,11 +6201,7 @@ static void __CFStringAppendFormatCore(CFMutableStringRef outputString, CFString
 			}
 			// See if we need to localize the decimal point
                         if (formatOptions) {	// We have localization info
-#if DEPLOYMENT_TARGET_MACOSX || DEPLOYMENT_TARGET_EMBEDDED || DEPLOYMENT_TARGET_EMBEDDED_MINI || DEPLOYMENT_TARGET_WINDOWS || DEPLOYMENT_TARGET_LINUX
 			    CFStringRef decimalSeparator = (CFGetTypeID(formatOptions) == CFLocaleGetTypeID()) ? (CFStringRef)CFLocaleGetValue((CFLocaleRef)formatOptions, kCFLocaleDecimalSeparatorKey) : (CFStringRef)CFDictionaryGetValue(formatOptions, CFSTR("NSDecimalSeparator"));
-#else
-                            CFStringRef decimalSeparator = CFSTR(".");
-#endif
                             if (decimalSeparator != NULL) {	// We have a decimal separator in there
                                 CFIndex decimalPointLoc = 0;
                                 while (buffer[decimalPointLoc] != 0 && buffer[decimalPointLoc] != '.') decimalPointLoc++;
@@ -6526,10 +6458,8 @@ static void __CFStringAppendFormatCore(CFMutableStringRef outputString, CFString
     
     free(specsContext);
 
-#if DEPLOYMENT_TARGET_MACOSX || DEPLOYMENT_TARGET_EMBEDDED || DEPLOYMENT_TARGET_EMBEDDED_MINI || DEPLOYMENT_TARGET_LINUX || DEPLOYMENT_TARGET_FREEBSD
     // va_copy is a C99 extension. No support on Windows
     if (numConfigs > 0) va_end(copiedArgs);
-#endif 
     if (specs != localSpecsBuffer) CFAllocatorDeallocate(tmpAlloc, specs);
     if (values != localValuesBuffer) CFAllocatorDeallocate(tmpAlloc, values);
     if (formatChars && (formatChars != localFormatBuffer)) CFAllocatorDeallocate(tmpAlloc, formatChars);

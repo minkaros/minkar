@@ -7,6 +7,9 @@ The above copyright notice and this permission notice shall be included in all c
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE. */
 #import <AppKit/NSTextField.h>
 #import <AppKit/NSTextFieldCell.h>
+#import <AppKit/NSLayoutConstraint.h>
+#import <AppKit/NSColor.h>
+#import <AppKit/NSFont.h>
 #import <AppKit/NSTextView.h>
 #import <AppKit/NSTextStorage.h>
 #import <AppKit/NSApplication.h>
@@ -252,6 +255,11 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 -(void)mouseDown:(NSEvent *)event {
    NSTextFieldCell *cell=[self selectedCell];
 
+   /* A label passes the click on (a table selects the row under it). */
+   if(![self isEditable] && ![self isSelectable]){
+    [[self nextResponder] mouseDown:event];
+    return;
+   }
    if(![cell isEnabled])
     return;
 
@@ -332,6 +340,26 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
   [_currentEditor setSelectable:[self isSelectable]];
 }
 
+-(NSString *)placeholderString {
+   return [[self cell] respondsToSelector:@selector(placeholderString)]?[[self cell] placeholderString]:nil;
+}
+
+-(void)setPlaceholderString:(NSString *)value {
+   if([[self cell] respondsToSelector:@selector(setPlaceholderString:)])
+    [[self cell] setPlaceholderString:value];
+   [self setNeedsDisplay:YES];
+}
+
+-(NSAttributedString *)placeholderAttributedString {
+   return [[self cell] respondsToSelector:@selector(placeholderAttributedString)]?[[self cell] placeholderAttributedString]:nil;
+}
+
+-(void)setPlaceholderAttributedString:(NSAttributedString *)value {
+   if([[self cell] respondsToSelector:@selector(setPlaceholderAttributedString:)])
+    [[self cell] setPlaceholderAttributedString:value];
+   [self setNeedsDisplay:YES];
+}
+
 -(void)setStringValue:(NSString *)value {
    if (!_currentEditor)
       [super setStringValue:value];
@@ -384,6 +412,127 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    
    if(!didSelector)
     [super doCommandBySelector:selector];
+}
+
++(instancetype)labelWithString:(NSString *)stringValue {
+   NSTextField *result=[[[self alloc] initWithFrame:NSZeroRect] autorelease];
+
+   [result setStringValue:(stringValue!=nil)?stringValue:@""];
+   [result setEditable:NO];
+   [result setSelectable:NO];
+   [result setBezeled:NO];
+   [result setBordered:NO];
+   [result setDrawsBackground:NO];
+   [result setFont:[NSFont systemFontOfSize:0]];
+   [result setTextColor:[NSColor labelColor]];
+   [result setLineBreakMode:NSLineBreakByClipping];
+   [result setUsesSingleLineMode:YES];
+   [result sizeToFit];
+   return result;
+}
+
++(instancetype)wrappingLabelWithString:(NSString *)stringValue {
+   NSTextField *result=[self labelWithString:stringValue];
+
+   [result setSelectable:YES];
+   [result setUsesSingleLineMode:NO];
+   [result setLineBreakMode:NSLineBreakByWordWrapping];
+   [[result cell] setWraps:YES];
+   [result sizeToFit];
+   return result;
+}
+
++(instancetype)labelWithAttributedString:(NSAttributedString *)attributedStringValue {
+   NSTextField *result=[self labelWithString:@""];
+
+   [result setAttributedStringValue:attributedStringValue];
+   [result sizeToFit];
+   return result;
+}
+
++(instancetype)textFieldWithString:(NSString *)stringValue {
+   NSTextField *result=[[[self alloc] initWithFrame:NSZeroRect] autorelease];
+
+   [result setStringValue:(stringValue!=nil)?stringValue:@""];
+   [result setFont:[NSFont systemFontOfSize:0]];
+   [result setLineBreakMode:NSLineBreakByClipping];
+   [result setUsesSingleLineMode:YES];
+   [result setScrollable:YES];
+   [result sizeToFit];
+   return result;
+}
+
+-(CGFloat)preferredMaxLayoutWidth {
+   return _preferredMaxLayoutWidth;
+}
+
+-(void)setPreferredMaxLayoutWidth:(CGFloat)width {
+   _preferredMaxLayoutWidth=width;
+   [self invalidateIntrinsicContentSize];
+}
+
+-(NSInteger)maximumNumberOfLines {
+   return _maximumNumberOfLines;
+}
+
+-(void)setMaximumNumberOfLines:(NSInteger)count {
+   _maximumNumberOfLines=count;
+   [self invalidateIntrinsicContentSize];
+   [self setNeedsDisplay:YES];
+}
+
+-(BOOL)allowsDefaultTighteningForTruncation {
+   return _allowsDefaultTighteningForTruncation;
+}
+
+-(void)setAllowsDefaultTighteningForTruncation:(BOOL)flag {
+   _allowsDefaultTighteningForTruncation=flag;
+}
+
+-(BOOL)allowsEditingTextAttributes {
+   return [_cell allowsEditingTextAttributes];
+}
+
+-(void)setAllowsEditingTextAttributes:(BOOL)flag {
+   [_cell setAllowsEditingTextAttributes:flag];
+}
+
+-(BOOL)importsGraphics {
+   return [_cell importsGraphics];
+}
+
+-(void)setImportsGraphics:(BOOL)flag {
+   [_cell setImportsGraphics:flag];
+}
+
+/* A wrapping field is as tall as its text broken at the preferred width,
+   up to its maximum number of lines. */
+-(NSSize)intrinsicContentSize {
+   NSSize size;
+
+   if(_cell==nil)
+    return NSMakeSize(NSViewNoIntrinsicMetric,NSViewNoIntrinsicMetric);
+   if(![_cell wraps] || [self usesSingleLineMode])
+    return [_cell cellSize];
+
+   CGFloat width=(_preferredMaxLayoutWidth>0)?_preferredMaxLayoutWidth:NSWidth([self bounds]);
+
+   if(width<=0)
+    return [_cell cellSize];
+   size=[_cell cellSizeForBounds:NSMakeRect(0,0,width,CGFLOAT_MAX)];
+   if(_maximumNumberOfLines>0){
+    /* A line's height and the cell's padding, from the same cell on one
+       line. */
+    NSCell  *oneLine=[[_cell copy] autorelease];
+    CGFloat  lineHeight,padding;
+
+    [oneLine setStringValue:@"X"];
+    lineHeight=[[self font] ascender]-[[self font] descender]+[[self font] leading];
+    padding=[oneLine cellSize].height-lineHeight;
+    if(lineHeight>0 && size.height>lineHeight*_maximumNumberOfLines+padding)
+     size.height=ceil(lineHeight*_maximumNumberOfLines+padding);
+   }
+   return NSMakeSize((_preferredMaxLayoutWidth>0)?NSViewNoIntrinsicMetric:size.width,size.height);
 }
 
 -(void)setTitleWithMnemonic:(NSString *)value {

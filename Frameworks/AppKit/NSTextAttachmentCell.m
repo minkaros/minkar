@@ -28,7 +28,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    return NSMakePoint(0,0);
 }
 
--(NSRect)cellFrameForTextContainer:(NSTextContainer *)textContainer proposedLineFragment:(NSRect)proposedRect glyphPosition:(NSPoint)glyphPoint characterIndex:(unsigned)characterIndex {
+-(NSRect)cellFrameForTextContainer:(NSTextContainer *)textContainer proposedLineFragment:(NSRect)proposedRect glyphPosition:(NSPoint)glyphPoint characterIndex:(NSUInteger)characterIndex {
    NSUnimplementedMethod();
    return NSMakeRect(0,0,0,0);
 }
@@ -37,11 +37,11 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    return YES;
 }
 
--(BOOL)wantsToTrackMouseForEvent:(NSEvent *)event inRect:(NSRect)rect ofView:(NSView *)view atCharacterIndex:(unsigned)characterIndex {
+-(BOOL)wantsToTrackMouseForEvent:(NSEvent *)event inRect:(NSRect)rect ofView:(NSView *)view atCharacterIndex:(NSUInteger)characterIndex {
    return [self wantsToTrackMouse];
 }
 
--(BOOL)trackMouse:(NSEvent *)event inRect:(NSRect)rect ofView:(NSView *)view atCharacterIndex:(unsigned)characterIndex untilMouseUp:(BOOL)untilMouseUp {
+-(BOOL)trackMouse:(NSEvent *)event inRect:(NSRect)rect ofView:(NSView *)view atCharacterIndex:(NSUInteger)characterIndex untilMouseUp:(BOOL)untilMouseUp {
    NSUnimplementedMethod();
    return NO;
 }
@@ -55,11 +55,11 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    NSUnimplementedMethod();
 }
 
--(void)drawWithFrame:(NSRect)frame inView:(NSView *)view characterIndex:(unsigned)characterIndex layoutManager:(NSLayoutManager *)layoutManager {
+-(void)drawWithFrame:(NSRect)frame inView:(NSView *)view characterIndex:(NSUInteger)characterIndex layoutManager:(NSLayoutManager *)layoutManager {
    NSUnimplementedMethod();
 }
 
--(void)drawWithFrame:(NSRect)frame inView:(NSView *)view characterIndex:(unsigned)characterIndex {
+-(void)drawWithFrame:(NSRect)frame inView:(NSView *)view characterIndex:(NSUInteger)characterIndex {
    NSUnimplementedMethod();
 }
 

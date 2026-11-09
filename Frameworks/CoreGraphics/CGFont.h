@@ -18,6 +18,7 @@ typedef struct O2Font *CGFontRef;
 
 typedef uint16_t CGGlyph;
 
+COREGRAPHICS_EXPORT CFTypeID CGFontGetTypeID(void);
 COREGRAPHICS_EXPORT CGFontRef CGFontCreateWithFontName(CFStringRef name);
 COREGRAPHICS_EXPORT CGFontRef CGFontRetain(CGFontRef self);
 COREGRAPHICS_EXPORT void CGFontRelease(CGFontRef self);

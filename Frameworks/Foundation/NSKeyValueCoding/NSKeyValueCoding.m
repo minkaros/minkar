@@ -34,6 +34,9 @@ NSString *const NSUndefinedKeyException = @"NSUnknownKeyException";
 
 @implementation NSObject (KeyValueCoding)
 
+/* The type without quoted names and offsets ("@\"NSString\"16" -> "@"). Never
+ * reads past the end: a type that ends in an offset, or in an unclosed
+ * quote, used to be followed past its terminator. */
 -(void)_demangleTypeEncoding:(const char*)type to:(char*)cleanType
 {
 	while(*type)
@@ -43,14 +46,18 @@ NSString *const NSUndefinedKeyException = @"NSUnknownKeyException";
 			type++;
 			while(*type && *type!='"')
 				type++;
-			type++;
+			if(*type)
+				type++;
+			continue;
 		}
-		while(isdigit(*type))
+		if(isdigit((unsigned char)*type))
+		{
 			type++;
-		*cleanType=*type;
-		type++; cleanType++;
-		*cleanType=0;
+			continue;
+		}
+		*cleanType++=*type++;
 	}
+	*cleanType=0;
 }
 
 -(id)_wrapValue:(void*)value ofType:(const char*)type

@@ -8,18 +8,38 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 #import <AppKit/NSPanel.h>
 
-@class NSTextField, NSMatrix, NSButton, NSFont;
+@class NSTextField, NSTableView, NSButton, NSFont, NSPopUpButton, NSColorWell, NSSlider, NSMutableArray, NSArray, NSDictionary;
 
+/* The font panel, as the reference platform lays it out: a row of text
+   effects (underline, strikethrough, text and document colors, shadow)
+   above four columns: Collection, Family, Typeface and Size. A choice is
+   applied at once (changeFont: and changeAttributes: down the responder
+   chain). Made in code. */
 @interface NSFontPanel : NSPanel {
-    NSTextField *_sampleTextField;
-    NSMatrix *_familyMatrix;
-    NSMatrix *_typefaceMatrix;
+    NSTableView *_collectionTable;
+    NSTableView *_familyTable;
+    NSTableView *_typefaceTable;
+    NSTableView *_sizeTable;
     NSTextField *_sizeTextField;
-    NSMatrix *_sizeMatrix;
-
-    NSButton *_setButton;
-    NSButton *_revertButton;
+    NSSlider *_sizeSlider;
+    NSPopUpButton *_actionPopUp;
+    NSPopUpButton *_underlinePopUp;
+    NSPopUpButton *_strikethroughPopUp;
+    NSColorWell *_textColorWell;
+    NSColorWell *_documentColorWell;
+    NSButton *_shadowButton;
+    NSSlider *_shadowOpacitySlider;
+    NSSlider *_shadowBlurSlider;
     NSView *_accessoryView;
+    NSArray *_collections;
+    NSArray *_families;
+    NSArray *_typefaces;  /* (fontName, traitName, weight, traits) */
+    NSArray *_sizes;
+    NSMutableArray *_favorites;
+    NSMutableArray *_recent;
+    NSDictionary *_pendingAttributes; /* key -> value, NSNull to remove */
+    BOOL _enabled;
+    CGFloat _pointSize;
 }
 
 + (BOOL)sharedFontPanelExists;

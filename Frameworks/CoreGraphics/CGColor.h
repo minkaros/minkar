@@ -18,6 +18,7 @@ typedef struct O2Color *CGColorRef;
 CF_IMPLICIT_BRIDGING_ENABLED
 CF_ASSUME_NONNULL_BEGIN
 
+COREGRAPHICS_EXPORT CFTypeID CGColorGetTypeID(void);
 COREGRAPHICS_EXPORT CGColorRef _Nullable CGColorRetain(CGColorRef _Nullable self);
 COREGRAPHICS_EXPORT void CGColorRelease(CGColorRef _Nullable self);
 

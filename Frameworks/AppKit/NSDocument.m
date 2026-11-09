@@ -19,6 +19,11 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <AppKit/NSRaise.h>
 #import "NSKeyValueBinding/NSObject+BindingSupport.h"
 
+/* NSDocumentVersionsPanel.m: the window that lists a document's versions. */
+@interface NSDocumentVersionsPanel : NSObject
++(void)runForDocument:(NSDocument *)document;
+@end
+
 @implementation NSDocument
 
 static int untitled_document_number = 0;
@@ -100,7 +105,6 @@ static int untitled_document_number = 0;
       _fileURL=nil;
       _fileType=nil;
       _changeCount=0;
-      _untitledNumber=untitled_document_number++;
       _hasUndoManager=YES;
       _activeEditors=[NSMutableArray new];
     }
@@ -109,6 +113,8 @@ static int untitled_document_number = 0;
 
 -initWithType:(NSString *)type error:(NSError **)error {
    [self init];
+   /* Only new documents count: "Untitled", then "Untitled 2", "Untitled 3". */
+   _untitledNumber=++untitled_document_number;
    [self setFileType:type];
    return self;
 }
@@ -166,6 +172,10 @@ static int untitled_document_number = 0;
   [_printInfo release];
   [_undoManager release];
   [_activeEditors release];
+  [_autosaveTimer invalidate];
+  [_autosaveTimer release];
+  [_lastVersionDate release];
+  [_openedVersionIdentifier release];
 
   [super dealloc];
 }
@@ -284,8 +294,131 @@ static int untitled_document_number = 0;
 }
 
 -(BOOL)hasUnautosavedChanges {
-   NSUnimplementedMethod();
-   return 0;
+   return _hasUnautosavedChanges;
+}
+
+/* ---- Autosaving and versions ------------------------------------------
+
+   A document autosaves a few seconds after a change: over its own file
+   when its class autosaves in place, else to a copy in ~/Library/Autosave
+   Information (it stays edited). A class that preserves versions keeps
+   its file's contents before each save as an NSFileVersion, and before
+   the first autosave in place after the document opens (the version
+   "Revert to Saved" goes back to), then at most one an hour. */
+
++(BOOL)autosavesInPlace {
+   return NO;
+}
+
++(BOOL)preservesVersions {
+   return [self autosavesInPlace];
+}
+
++(BOOL)autosavesDrafts {
+   return NO;
+}
+
+#define AUTOSAVE_IN_PLACE_DELAY 5.0
+#define VERSION_INTERVAL 3600.0
+
+-(void)_autosaveTimerFired:(NSTimer *)timer {
+   [_autosaveTimer release];
+   _autosaveTimer=nil;
+   [self autosaveWithImplicitCancellability:YES completionHandler:^(NSError *error){
+      if(error!=nil)
+       NSLog(@"%@: autosave failed: %@",[self displayName],error);
+   }];
+}
+
+-(void)scheduleAutosaving {
+   NSTimeInterval delay=[[NSDocumentController sharedDocumentController] autosavingDelay];
+
+   if(!_hasUnautosavedChanges || _autosaveTimer!=nil)
+    return;
+   if([[self class] autosavesInPlace] && _fileURL!=nil)
+    delay=(delay>0)?MIN(delay,AUTOSAVE_IN_PLACE_DELAY):AUTOSAVE_IN_PLACE_DELAY;
+   if(delay<=0)
+    return;
+   _autosaveTimer=[[NSTimer scheduledTimerWithTimeInterval:delay target:self
+      selector:@selector(_autosaveTimerFired:) userInfo:nil repeats:NO] retain];
+}
+
+/* ~/Library/Autosave Information/<name> (n).<extension>, made once. */
+-(NSURL *)_newAutosavedContentsFileURL {
+   NSString *folder=[NSHomeDirectory() stringByAppendingPathComponent:@"Library/Autosave Information"];
+   NSString *extension=[[[NSDocumentController sharedDocumentController] fileExtensionsFromType:[self autosavingFileType]] firstObject];
+   NSString *name=[self displayName];
+   NSString *path;
+   int       n=0;
+
+   [[NSFileManager defaultManager] createDirectoryAtPath:folder withIntermediateDirectories:YES attributes:nil error:NULL];
+   do {
+    NSString *file=(n==0)?name:[NSString stringWithFormat:@"%@ (%d)",name,n];
+
+    if([extension length]>0)
+     file=[file stringByAppendingPathExtension:extension];
+    path=[folder stringByAppendingPathComponent:file];
+    n++;
+   } while([[NSFileManager defaultManager] fileExistsAtPath:path]);
+   return [NSURL fileURLWithPath:path];
+}
+
+-(void)_removeAutosavedContents {
+   if(_autosavedContentsFileURL!=nil){
+    [[NSFileManager defaultManager] removeItemAtURL:_autosavedContentsFileURL error:NULL];
+    [self setAutosavedContentsFileURL:nil];
+   }
+}
+
+/* Keeps the file's contents as a version before they are overwritten. */
+-(void)_preserveVersionBeforeOperation:(NSSaveOperationType)operation ofURL:(NSURL *)url {
+   NSFileVersion *version;
+
+   if(![[self class] preservesVersions] || ![url isFileURL] || ![[NSFileManager defaultManager] fileExistsAtPath:[url path]])
+    return;
+   if(operation==NSAutosaveInPlaceOperation && _openedVersionIdentifier!=nil &&
+      _lastVersionDate!=nil && -[_lastVersionDate timeIntervalSinceNow]<VERSION_INTERVAL)
+    return;
+   if(operation!=NSSaveOperation && operation!=NSAutosaveInPlaceOperation)
+    return;
+
+   version=[NSFileVersion addVersionOfItemAtURL:url withContentsOfURL:url options:0 error:NULL];
+   if(version==nil)
+    return;
+   if(_openedVersionIdentifier==nil)
+    _openedVersionIdentifier=[(NSString *)[version persistentIdentifier] copy];
+   [_lastVersionDate release];
+   _lastVersionDate=[[NSDate date] retain];
+}
+
+-(void)autosaveWithImplicitCancellability:(BOOL)cancellable completionHandler:(void (^)(NSError *))completionHandler {
+   NSError *error=nil;
+   BOOL     done=YES;
+
+   [_autosaveTimer invalidate];
+   [_autosaveTimer release];
+   _autosaveTimer=nil;
+
+   if(_hasUnautosavedChanges){
+    if([[self class] autosavesInPlace] && _fileURL!=nil)
+     done=[self saveToURL:_fileURL ofType:[self fileType] forSaveOperation:NSAutosaveInPlaceOperation error:&error];
+    else {
+     if(_autosavedContentsFileURL==nil)
+      [self setAutosavedContentsFileURL:[self _newAutosavedContentsFileURL]];
+     done=[self saveToURL:_autosavedContentsFileURL ofType:[self autosavingFileType]
+        forSaveOperation:NSAutosaveElsewhereOperation error:&error];
+    }
+   }
+   if(completionHandler!=nil)
+    completionHandler(done?nil:error);
+}
+
+-(void)browseDocumentVersions:(id)sender {
+   [NSDocumentVersionsPanel runForDocument:self];
+}
+
+-(NSString *)_openedVersionIdentifier {
+   return _openedVersionIdentifier;
 }
 
 -(NSString *)autosavingFileType {
@@ -348,8 +481,8 @@ static int untitled_document_number = 0;
   if(_fileURL==nil)
     {
         NSString* untitledName = NSLocalizedStringFromTableInBundle(@"Untitled", nil, [NSBundle bundleForClass: [NSDocument class]], @"The name of a untitled document");
-      if(_untitledNumber != 0)
-        return [NSString stringWithFormat:@"%@ %d", untitledName, _untitledNumber];
+      if(_untitledNumber > 1)
+        return [NSString stringWithFormat:@"%@ %u", untitledName, _untitledNumber];
       else
         return untitledName;
     }
@@ -377,25 +510,35 @@ static int untitled_document_number = 0;
 -(void)updateChangeCount:(NSDocumentChangeType)changeType {
    int count=[_windowControllers count];
 
-   switch(changeType){
+   switch(changeType&~NSChangeDiscardable){
     case NSChangeDone:
+    case NSChangeRedone:
      _changeCount++;
+     _hasUnautosavedChanges=YES;
      break;
 
     case NSChangeUndone:
      _changeCount--;
+     _hasUnautosavedChanges=YES;
      break;
 
     case NSChangeCleared:
      _changeCount=0;
+     _hasUnautosavedChanges=NO;
      [self _updateFileModificationDate]; // Since file was just saved or reverted
      break;
 
     case NSChangeReadOtherContents:
+     _changeCount=0;
+     _hasUnautosavedChanges=NO;
+     break;
+
     case NSChangeAutosaved:
-     NSUnimplementedMethod();
+     _hasUnautosavedChanges=NO;
      break;
    }
+   if(_hasUnautosavedChanges)
+    [self scheduleAutosaving];
 
    BOOL edited = [self isDocumentEdited];
    while(--count>=0)
@@ -520,12 +663,13 @@ static int untitled_document_number = 0;
 }
 
 -(void)autosaveDocumentWithDelegate:delegate didAutosaveSelector:(SEL)selector contextInfo:(void *)info {
-   NSError *error;
+   [self autosaveWithImplicitCancellability:NO completionHandler:^(NSError *error){
+      if([delegate respondsToSelector:selector]){
+       void (*method)(id,SEL,id,BOOL,void *)=(void (*)(id,SEL,id,BOOL,void *))[delegate methodForSelector:selector];
 
-   if(![self writeToURL:[self autosavedContentsFileURL] ofType:[self autosavingFileType] forSaveOperation:NSAutosaveOperation originalContentsURL:[self fileURL] error:&error]){
-   }
-
-   NSUnimplementedMethod();
+       method(delegate,selector,self,(error==nil),info);
+      }
+   }];
 }
 
 
@@ -727,14 +871,24 @@ static int untitled_document_number = 0;
         return NO;
     }
     else {
-        BOOL success=[self writeSafelyToURL:url ofType:type forSaveOperation:operation error:error];
+        BOOL success;
+
+        [self _preserveVersionBeforeOperation:operation ofURL:url];
+        success=[self writeSafelyToURL:url ofType:type forSaveOperation:operation error:error];
 
         if(success){
+            if(operation==NSAutosaveElsewhereOperation) {
+                /* A copy: the document is still edited. */
+                [self updateChangeCount:NSChangeAutosaved];
+                return YES;
+            }
             if(operation!=NSSaveToOperation) {
                 [self setFileURL:url];
                 [self setFileType: type];
                 [self setFileModificationDate: [NSDate date]];
             }
+            if(operation!=NSSaveToOperation)
+                [self _removeAutosavedContents];
             [self updateChangeCount:NSChangeCleared];
         }
         return success;
@@ -813,6 +967,11 @@ forSaveOperation:(NSSaveOperationType)operation
 
 -(void)close {
    int count=[_windowControllers count];
+
+   [_autosaveTimer invalidate];
+   [_autosaveTimer release];
+   _autosaveTimer=nil;
+   [self _removeAutosavedContents];
 
    while(--count>=0)
     [[_windowControllers objectAtIndex:count] close];
@@ -896,9 +1055,21 @@ forSaveOperation:(NSSaveOperationType)operation
 
    if(result==NSAlertDefaultReturn)
      {
+       NSFileVersion *opened=nil;
+
        for (id editor in [[_activeEditors copy] autorelease])
          [editor discardEditing];
-       [self revertToSavedFromFile:[self fileName] ofType:[self fileType]];
+       if([[self class] autosavesInPlace] && _openedVersionIdentifier!=nil && _fileURL!=nil)
+         opened=[NSFileVersion versionOfItemAtURL:_fileURL forPersistentIdentifier:_openedVersionIdentifier];
+       if(opened!=nil){
+         NSError *error=nil;
+
+         if([opened replaceItemAtURL:_fileURL options:0 error:&error]==nil ||
+            ![self revertToContentsOfURL:_fileURL ofType:[self fileType] error:&error])
+           [self presentError:error];
+       }
+       else
+         [self revertToSavedFromFile:[self fileName] ofType:[self fileType]];
      }
 }
 
@@ -927,6 +1098,8 @@ forSaveOperation:(NSSaveOperationType)operation
 -(BOOL)validateUserInterfaceItem:(id <NSValidatedUserInterfaceItem>)item {
    if(sel_isEqual([item action],@selector(revertDocumentToSaved:)))
     return (_fileURL!=nil)?YES:NO;
+   if(sel_isEqual([item action],@selector(browseDocumentVersions:)))
+    return (_fileURL!=nil && [[self class] preservesVersions])?YES:NO;
    if(sel_isEqual([item action],@selector(saveDocument:)))
     return YES;
    if([self respondsToSelector:[item action]])
@@ -956,6 +1129,8 @@ forSaveOperation:(NSSaveOperationType)operation
 -(BOOL)validateMenuItem:(NSMenuItem *)item {
    if(sel_isEqual([item action],@selector(revertDocumentToSaved:)))
     return (_fileURL!=nil)?YES:NO;
+   if(sel_isEqual([item action],@selector(browseDocumentVersions:)))
+    return (_fileURL!=nil && [[self class] preservesVersions])?YES:NO;
    if(sel_isEqual([item action],@selector(saveDocument:)))
     return YES;
    if([self respondsToSelector:[item action]])
@@ -1094,12 +1269,12 @@ forSaveOperation:(NSSaveOperationType)operation
    return NO;
 }
 
--(int)runModalSavePanel:(NSSavePanel *)savePanel withAccessoryView:(NSView *)accessoryView {
+-(NSInteger)runModalSavePanel:(NSSavePanel *)savePanel withAccessoryView:(NSView *)accessoryView {
    NSUnimplementedMethod();
    return 0;
 }
 
--(int)runModalPageLayoutWithPrintInfo:(NSPrintInfo *)printInfo {
+-(NSInteger)runModalPageLayoutWithPrintInfo:(NSPrintInfo *)printInfo {
    return [[NSPageLayout pageLayout] runModalWithPrintInfo:printInfo];
 }
 
@@ -1171,7 +1346,7 @@ forSaveOperation:(NSSaveOperationType)operation
    return YES;
 }
 
--(void)_setUntitledNumber:(int)number {
+-(void)_setUntitledNumber:(NSInteger)number {
    _untitledNumber=number;
 }
 
@@ -1233,7 +1408,7 @@ forSaveOperation:(NSSaveOperationType)operation
 }
 
 -(void)didEndShouldCloseSheet:(NSWindow *)sheet
-        returnCode:(int)returnCode
+        returnCode:(NSInteger)returnCode
         contextInfo:(void *)contextInfo {
    NSWindow *window=(NSWindow *)contextInfo;
 

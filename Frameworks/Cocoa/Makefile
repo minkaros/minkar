@@ -22,9 +22,7 @@ LDFLAGS += -F${FMWKS} -Wl,-reexport_framework,AppKit -Wl,-reexport_framework,Fou
 fmwk-install-hook:
 	mkdir -p ${MINKAR_SDKROOT}/System/Library/Frameworks \
 	  ${SYSROOT_DIR}/System/Library/Frameworks
-	rm -rf ${MINKAR_SDKROOT}/System/Library/Frameworks/${FRAMEWORK}.framework \
-	  ${SYSROOT_DIR}/System/Library/Frameworks/${FRAMEWORK}.framework
-	cp -Rf ${.OBJDIR}/${FRAMEWORK}.framework ${MINKAR_SDKROOT}/System/Library/Frameworks
-	cp -Rf ${.OBJDIR}/${FRAMEWORK}.framework ${SYSROOT_DIR}/System/Library/Frameworks
+	rsync -rlc --delete ${.OBJDIR}/${FRAMEWORK}.framework ${MINKAR_SDKROOT}/System/Library/Frameworks
+	rsync -rlc --delete ${.OBJDIR}/${FRAMEWORK}.framework ${SYSROOT_DIR}/System/Library/Frameworks
 
 .include <minkar.framework.mk>

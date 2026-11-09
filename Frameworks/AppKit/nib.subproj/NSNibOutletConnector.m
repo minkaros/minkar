@@ -11,9 +11,17 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 @implementation NSNibOutletConnector
 
+/* As key-value coding sets it: through setOutlet: when the source has one
+   (the outlet's first letter made capital, the rest kept), else straight
+   into the instance variable, which gets the destination itself. */
 -(void)establishConnection {
-   NSString *methodName=[NSString stringWithFormat:@"set%@:",[_label capitalizedString]];
-   SEL       selector=NSSelectorFromString(methodName);
+   NSString *methodName=nil;
+   SEL       selector=NULL;
+
+   if([_label length]>0){
+    methodName=[NSString stringWithFormat:@"set%@%@:",[[_label substringToIndex:1] uppercaseString],[_label substringFromIndex:1]];
+    selector=NSSelectorFromString(methodName);
+   }
 
    if(selector!=NULL)
     if([_source respondsToSelector:selector]){
@@ -21,7 +29,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
      return;
     }
 
-   object_setInstanceVariable(_source,[_label UTF8String],&_destination);
+   object_setInstanceVariable(_source,[_label UTF8String],(void *)_destination);
 }
 
 @end

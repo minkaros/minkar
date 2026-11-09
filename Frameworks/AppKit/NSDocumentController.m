@@ -17,7 +17,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <AppKit/NSRaise.h>
 
 @interface NSDocument(private)
--(void)_setUntitledNumber:(int)number;
+-(void)_setUntitledNumber:(NSInteger)number;
 @end
 
 @interface NSDocumentController(forward)
@@ -450,7 +450,7 @@ static NSDocumentController *shared=nil;
 	[NSApp presentError:[self willPresentError:error] modalForWindow:window delegate:delegate didPresentSelector:selector contextInfo:info];
 }
 
--(int)runModalOpenPanel:(NSOpenPanel *)openPanel forTypes:(NSArray *)extensions {
+-(NSInteger)runModalOpenPanel:(NSOpenPanel *)openPanel forTypes:(NSArray *)extensions {
   int result = [openPanel runModalForDirectory:[self currentDirectory] file:nil types:extensions];
   if (result)
     [[NSUserDefaults standardUserDefaults] setObject:[openPanel directory] 
@@ -582,7 +582,7 @@ static NSDocumentController *shared=nil;
    return result;
 }
 
--(unsigned)maximumRecentDocumentCount {
+-(NSUInteger)maximumRecentDocumentCount {
    NSString *value=[[NSUserDefaults standardUserDefaults] stringForKey:@"NSRecentDocumentMaximum"];
    
    return (value==nil)?10:[value intValue];

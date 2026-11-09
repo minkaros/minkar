@@ -11,12 +11,13 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 // Reviewed for API completeness against 10.6.
 
 #import <AppKit/NSResponder.h>
+#import <AppKit/NSApplication.h>
 #import <AppKit/AppKitExport.h>
 #import <AppKit/NSView.h>
 #import <AppKit/NSDisplay.h>
 #import <ApplicationServices/ApplicationServices.h>
 
-@class NSView, NSEvent, NSColor, NSColorSpace, NSCursor, NSImage, NSScreen, NSText, NSTextView, CGWindow, NSPasteboard, NSSheetContext, NSUndoManager, NSButton, NSButtonCell, NSDrawer, NSDockTile, NSToolbar, NSWindowAnimationContext, NSTrackingArea, NSThemeFrame, NSWindowController, NSMenuItem, CARenderer;
+@class NSViewController, NSView, NSEvent, NSColor, NSColorSpace, NSCursor, NSImage, NSScreen, NSText, NSTextView, CGWindow, NSPasteboard, NSSheetContext, NSUndoManager, NSButton, NSButtonCell, NSDrawer, NSDockTile, NSToolbar, NSWindowAnimationContext, NSTrackingArea, NSThemeFrame, NSWindowController, NSMenuItem, CARenderer;
 
 enum {
     NSBorderlessWindowMask = 0x00,
@@ -52,11 +53,11 @@ typedef NS_ENUM(NSInteger, NSWindowTitleVisibility) {
     NSWindowTitleHidden = 1,
 };
 
-typedef enum {
+typedef NS_ENUM(NSUInteger, NSBackingStoreType) {
     NSBackingStoreRetained = 0,
     NSBackingStoreNonretained = 1,
     NSBackingStoreBuffered = 2,
-} NSBackingStoreType;
+};
 
 typedef enum {
     NSWindowCloseButton,
@@ -113,6 +114,7 @@ typedef NSUInteger NSWindowSharingType;
 typedef int NSSelectionDirection;
 
 APPKIT_EXPORT NSString *const NSWindowDidBecomeKeyNotification;
+APPKIT_EXPORT NSString *const NSWindowDidExposeNotification;
 APPKIT_EXPORT NSString *const NSWindowDidResignKeyNotification;
 APPKIT_EXPORT NSString *const NSWindowDidBecomeMainNotification;
 APPKIT_EXPORT NSString *const NSWindowDidResignMainNotification;
@@ -127,7 +129,15 @@ APPKIT_EXPORT NSString *const NSWindowWillCloseNotification;
 APPKIT_EXPORT NSString *const NSWindowWillStartLiveResizeNotification;
 APPKIT_EXPORT NSString *const NSWindowDidEndLiveResizeNotification;
 
-@interface NSWindow : NSResponder {
+typedef NS_ENUM(NSInteger, NSWindowAnimationBehavior) {
+    NSWindowAnimationBehaviorDefault = 0,
+    NSWindowAnimationBehaviorNone = 2,
+    NSWindowAnimationBehaviorDocumentWindow,
+    NSWindowAnimationBehaviorUtilityWindow,
+    NSWindowAnimationBehaviorAlertPanel
+};
+
+@interface NSWindow : NSResponder <NSAppearanceCustomization> {
     int _number;
     //CGLContextObj _cglContext;
     //CAWindowOpenGLContext *_caContext;
@@ -179,6 +189,8 @@ APPKIT_EXPORT NSString *const NSWindowDidEndLiveResizeNotification;
     NSMutableArray *_trackingAreas;
 
     NSSheetContext *_sheetContext;
+    NSViewController *_contentViewController;
+    NSWindow *_sheetParent;
 
     NSSize _resizeInfo;
 
@@ -251,18 +263,18 @@ APPKIT_EXPORT NSString *const NSWindowDidEndLiveResizeNotification;
 
 + (NSWindowDepth)defaultDepthLimit;
 
-+ (NSRect)frameRectForContentRect:(NSRect)contentRect styleMask:(unsigned)styleMask;
-+ (NSRect)contentRectForFrameRect:(NSRect)frameRect styleMask:(unsigned)styleMask;
-+ (float)minFrameWidthWithTitle:(NSString *)title styleMask:(unsigned)styleMask;
++ (NSRect)frameRectForContentRect:(NSRect)contentRect styleMask:(NSWindowStyleMask)styleMask;
++ (NSRect)contentRectForFrameRect:(NSRect)frameRect styleMask:(NSWindowStyleMask)styleMask;
++ (CGFloat)minFrameWidthWithTitle:(NSString *)title styleMask:(NSWindowStyleMask)styleMask;
 + (NSInteger)windowNumberAtPoint:(NSPoint)point belowWindowWithWindowNumber:(NSInteger)window;
 + (NSArray *)windowNumbersWithOptions:(NSWindowNumberListOptions)options;
 + (void)removeFrameUsingName:(NSString *)name;
 
-+ (NSButton *)standardWindowButton:(NSWindowButton)button forStyleMask:(unsigned)styleMask;
++ (NSButton *)standardWindowButton:(NSWindowButton)button forStyleMask:(NSWindowStyleMask)styleMask;
 + (void)menuChanged:(NSMenu *)menu;
 
-- initWithContentRect:(NSRect)contentRect styleMask:(unsigned)styleMask backing:(unsigned)backing defer:(BOOL)defer;
-- initWithContentRect:(NSRect)contentRect styleMask:(unsigned)styleMask backing:(unsigned)backing defer:(BOOL)defer screen:(NSScreen *)screen;
+- initWithContentRect:(NSRect)contentRect styleMask:(NSWindowStyleMask)styleMask backing:(NSBackingStoreType)backing defer:(BOOL)defer;
+- initWithContentRect:(NSRect)contentRect styleMask:(NSWindowStyleMask)styleMask backing:(NSBackingStoreType)backing defer:(BOOL)defer screen:(NSScreen *)screen;
 - (NSWindow *)initWithWindowRef:(void *)carbonRef;
 
 - (NSGraphicsContext *)graphicsContext;
@@ -272,6 +284,21 @@ APPKIT_EXPORT NSString *const NSWindowDidEndLiveResizeNotification;
 - (void)setAllowsConcurrentViewDrawing:(BOOL)allows;
 
 - (NSView *)contentView;
+
+/* A window showing a controller's view, titled with its title, sized to
+   its preferred content size or its view. */
++ (instancetype)windowWithContentViewController:(NSViewController *)contentViewController;
+@property (strong) NSViewController *contentViewController;
+
+/* Sheets: the handler runs with the code endSheet:returnCode: gives
+   (NSModalResponseStop for endSheet:). */
+- (void)beginSheet:(NSWindow *)sheetWindow completionHandler:(void (^)(NSModalResponse returnCode))handler;
+- (void)beginCriticalSheet:(NSWindow *)sheetWindow completionHandler:(void (^)(NSModalResponse returnCode))handler;
+- (void)endSheet:(NSWindow *)sheetWindow;
+- (void)endSheet:(NSWindow *)sheetWindow returnCode:(NSModalResponse)returnCode;
+@property (readonly, copy) NSArray<NSWindow *> *sheets;
+@property (readonly, assign) NSWindow *sheetParent;
+@property (readonly, getter=isSheet) BOOL sheet;
 - (id)delegate;
 
 - (NSString *)title;
@@ -280,7 +307,7 @@ APPKIT_EXPORT NSString *const NSWindowDidEndLiveResizeNotification;
 
 - (NSInteger)level;
 - (NSRect)frame;
-- (unsigned)styleMask;
+- (NSWindowStyleMask)styleMask;
 - (NSBackingStoreType)backingType;
 - (NSWindowBackingLocation)preferredBackingLocation;
 - (void)setPreferredBackingLocation:(NSWindowBackingLocation)location;
@@ -299,7 +326,6 @@ APPKIT_EXPORT NSString *const NSWindowDidEndLiveResizeNotification;
 - (void)setPreventsApplicationTerminationWhenModal:(BOOL)prevents;
 - (BOOL)hidesOnDeactivate;
 - (BOOL)worksWhenModal;
-- (BOOL)isSheet;
 - (BOOL)acceptsMouseMovedEvents;
 - (BOOL)isExcludedFromWindowsMenu;
 - (BOOL)isAutodisplay;
@@ -403,8 +429,8 @@ APPKIT_EXPORT NSString *const NSWindowDidEndLiveResizeNotification;
 - (void)setFrameFromString:(NSString *)value;
 - (NSString *)stringWithSavedFrame;
 
-- (int)resizeFlags;
-- (float)userSpaceScaleFactor;
+- (NSInteger)resizeFlags;
+- (CGFloat)userSpaceScaleFactor;
 - (NSResponder *)firstResponder;
 
 - (NSButton *)standardWindowButton:(NSWindowButton)value;
@@ -414,8 +440,8 @@ APPKIT_EXPORT NSString *const NSWindowDidEndLiveResizeNotification;
 - (id)windowController;
 - (NSArray *)drawers;
 
-- (int)windowNumber;
-- (int)gState;
+- (NSInteger)windowNumber;
+- (NSInteger)gState;
 - (NSScreen *)screen;
 - (NSScreen *)deepestScreen;
 - (NSColorSpace *)colorSpace;
@@ -501,15 +527,15 @@ APPKIT_EXPORT NSString *const NSWindowDidEndLiveResizeNotification;
 - (void)close;
 - (void)center;
 - (void)performWindowDragWithEvent:(NSEvent *)event;
-- (void)orderWindow:(NSWindowOrderingMode)place relativeTo:(int)relativeTo;
+- (void)orderWindow:(NSWindowOrderingMode)place relativeTo:(NSInteger)relativeTo;
 - (void)orderFrontRegardless;
 
 - (NSPoint)mouseLocationOutsideOfEventStream;
 
 - (NSEvent *)currentEvent;
-- (NSEvent *)nextEventMatchingMask:(unsigned)mask;
-- (NSEvent *)nextEventMatchingMask:(unsigned)mask untilDate:(NSDate *)untilDate inMode:(NSString *)mode dequeue:(BOOL)dequeue;
-- (void)discardEventsMatchingMask:(unsigned)mask beforeEvent:(NSEvent *)event;
+- (NSEvent *)nextEventMatchingMask:(NSEventMask)mask;
+- (NSEvent *)nextEventMatchingMask:(NSEventMask)mask untilDate:(NSDate *)untilDate inMode:(NSString *)mode dequeue:(BOOL)dequeue;
+- (void)discardEventsMatchingMask:(NSEventMask)mask beforeEvent:(NSEvent *)event;
 
 - (void)sendEvent:(NSEvent *)event;
 - (void)postEvent:(NSEvent *)event atStart:(BOOL)atStart;
@@ -547,6 +573,17 @@ APPKIT_EXPORT NSString *const NSWindowDidEndLiveResizeNotification;
 
 - (void)toggleToolbarShown:sender;
 - (void)runToolbarCustomizationPalette:sender;
+
+
+- (NSRect)convertRectToScreen:(NSRect)rect;
+- (NSRect)convertRectFromScreen:(NSRect)rect;
+- (NSPoint)convertPointToScreen:(NSPoint)point;
+- (NSPoint)convertPointFromScreen:(NSPoint)point;
+- (void)toggleFullScreen:(id)sender;
++ (BOOL)allowsAutomaticWindowTabbing;
++ (void)setAllowsAutomaticWindowTabbing:(BOOL)value;
+@property NSWindowAnimationBehavior animationBehavior;
+- (void)invalidateRestorableState;
 
 @end
 

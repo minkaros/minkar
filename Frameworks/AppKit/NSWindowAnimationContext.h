@@ -19,14 +19,14 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 + (NSWindowAnimationContext *)contextToTransformWindow:(id)window startRect:(NSRect)startRect targetRect:(NSRect)targetRect resizeTime:(NSTimeInterval)resizeTime display:(BOOL)display;
 
-- (id)initWithWindow:(id)window targetRect:(NSRect)targetRect stepRect:(NSRect)stepRect stepCount:(int)stepCount stepInterval:(NSTimeInterval)stepInterval display:(BOOL)display;
+- (id)initWithWindow:(id)window targetRect:(NSRect)targetRect stepRect:(NSRect)stepRect stepCount:(NSInteger)stepCount stepInterval:(NSTimeInterval)stepInterval display:(BOOL)display;
 
 - (id)window;
 
 - (NSRect)targetRect;
 - (NSRect)stepRect;
 
-- (int)stepCount;
+- (NSInteger)stepCount;
 - (NSTimeInterval)stepInterval;
 
 - (BOOL)display;

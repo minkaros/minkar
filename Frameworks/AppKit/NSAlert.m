@@ -18,6 +18,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <AppKit/NSApplication.h>
 #import <AppKit/NSPanel.h>
 #import <AppKit/NSWindow-Private.h>
+#import <AppKit/NSWindow-Private.h>
 #import <AppKit/NSImageView.h>
 #import <AppKit/NSTextField.h>
 #import <AppKit/NSFont.h>
@@ -33,7 +34,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 -init {
    _style=NSWarningAlertStyle;
-   _icon=[[NSImage imageNamed:@"NSAlertPanelExclamation"] retain];
+   _icon=nil;   /* the style's icon: -icon */
    _messageText=[NSLocalizedStringFromTableInBundle(@"Alert", nil, [NSBundle bundleForClass: [NSAlert class]], @"Default message text for NSAlert") copy];
    _informativeText=@"";
    _accessoryView=nil;
@@ -110,8 +111,22 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    return _style;
 }
 
+/* Unless one was set: the app's icon, and for a critical alert the
+   caution sign (as the reference platform shows them), 64 points. */
 -(NSImage *)icon {
-   return _icon;
+   NSImage *icon=_icon;
+
+   if(icon==nil){
+    if(_style==NSCriticalAlertStyle)
+     icon=[NSImage imageNamed:NSImageNameCaution];
+    if(icon==nil)
+     icon=[NSApp applicationIconImage];
+    if(icon==nil)
+     icon=[NSImage imageNamed:NSImageNameCaution];
+    icon=[[icon copy] autorelease];
+    [icon setSize:NSMakeSize(64,64)];
+   }
+   return icon;
 }
 
 -(NSString *)messageText {
@@ -217,34 +232,51 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    [result setTarget:self];
    [result setAction:@selector(_alertButton:)];
    [result setTag:NSAlertFirstButtonReturn+[_buttons count]];
+   /* As the reference platform: Return for the first button, Escape for
+      one titled Cancel, Command-D for Don't Save. */
+   if([_buttons count]==0)
+    [result setKeyEquivalent:@"\r"];
+   else if([title isEqualToString:@"Cancel"] ||
+           [title isEqualToString:NSLocalizedStringFromTableInBundle(@"Cancel", nil, [NSBundle bundleForClass:[NSAlert class]], @"Cancel button title")])
+    [result setKeyEquivalent:@"\e"];
+   else if([title isEqualToString:@"Don't Save"] || [title isEqualToString:@"Don\u2019t Save"]){
+    [result setKeyEquivalent:@"d"];
+    [result setKeyEquivalentModifierMask:NSCommandKeyMask];
+   }
    [_buttons addObject:result];
    _needsLayout=YES;
    return result;
 }
 
 -(void)layout {
-#define BOTTOM_MARGIN 16
-#define TOP_MARGIN 16
-#define LEFT_MARGIN 16
-#define RIGHT_MARGIN 16
+/* The reference platform's measures: about 420 points wide, a 64-point
+   icon, the message in bold 13, the informative text in 11, buttons of
+   13 at least 80 wide (the third and later ones at the text's left). */
+#define BOTTOM_MARGIN 18
+#define TOP_MARGIN 18
+#define LEFT_MARGIN 24
+#define RIGHT_MARGIN 20
 
 // A NSTextField adds a small margin around the text.
 #define TEXTFIELD_MARGIN 2.
 
-#define INTERTEXT_GAP 8.
-#define BUTTON_MARGIN 8
-#define INTERBUTTON_GAP 6
+#define INTERTEXT_GAP 6.
+#define BUTTON_MARGIN 16
+#define INTERBUTTON_GAP 12
 #define OTHER_GAP 20
-#define ICON_MAIN_GAP 20
-#define MAIN_BUTTON_GAP 20
+#define ICON_MAIN_GAP 18
+#define MAIN_BUTTON_GAP 18
+#define MIN_TEXT_WIDTH 290.
+#define MIN_BUTTON_WIDTH 80.
 
    NSSize screenSize=[[NSScreen mainScreen] visibleFrame].size;
    NSSize textSize=NSZeroSize;
    NSStringDrawer *drawer=[NSStringDrawer sharedStringDrawer];
-   NSSize iconSize=(_icon!=nil)?[_icon size]:NSZeroSize;
-   NSDictionary *messageAttributes=[NSDictionary dictionaryWithObjectsAndKeys:[NSFont boldSystemFontOfSize:0],NSFontAttributeName,nil];
+   NSImage *icon=[self icon];
+   NSSize iconSize=(icon!=nil)?[icon size]:NSZeroSize;
+   NSDictionary *messageAttributes=[NSDictionary dictionaryWithObjectsAndKeys:[NSFont boldSystemFontOfSize:13],NSFontAttributeName,nil];
    NSSize messageSize=NSZeroSize;
-   NSDictionary *informativeAttributes=[NSDictionary dictionaryWithObjectsAndKeys:[NSFont systemFontOfSize:0],NSFontAttributeName,nil];
+   NSDictionary *informativeAttributes=[NSDictionary dictionaryWithObjectsAndKeys:[NSFont systemFontOfSize:11],NSFontAttributeName,nil];
    NSSize informativeSize=NSZeroSize;
    float messageInformativeGap=0.;
    NSDictionary *suppressionAttributes=[NSDictionary dictionaryWithObjectsAndKeys:[NSFont systemFontOfSize:0],NSFontAttributeName,nil];
@@ -255,9 +287,12 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    NSSize mainSize=NSZeroSize;
    NSSize panelSize=NSZeroSize;
    int i,count=[_buttons count];
-   NSSize okCancelButtonSize=NSMakeSize(40,24);
+   NSSize okCancelButtonSize=NSMakeSize(MIN_BUTTON_WIDTH,24);
    NSSize otherButtonSize=okCancelButtonSize;
    NSSize allButtonsSize=NSZeroSize;
+
+   for(i=0;i<count;i++)
+    [[_buttons objectAtIndex:i] setFont:[NSFont systemFontOfSize:13]];
 
    // Size the buttons.
    for(i=0;i<count && i<2;i++){
@@ -296,7 +331,8 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    }
 
    // Size the main reasonable and at least wide enough to make all buttons fit.
-   mainSize.width=MAX(screenSize.width/3.,allButtonsSize.width-iconSize.width-ICON_MAIN_GAP);
+   mainSize.width=MAX(MIN_TEXT_WIDTH,allButtonsSize.width-iconSize.width-ICON_MAIN_GAP);
+   (void)screenSize;
    mainSize.width=MAX(mainSize.width,accessorySize.width);
 
    // Size the texts.
@@ -332,7 +368,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    panelSize.width=LEFT_MARGIN+mainSize.width+iconSize.width+ICON_MAIN_GAP+RIGHT_MARGIN;
    panelSize.height=TOP_MARGIN+MAX(mainSize.height,iconSize.height)+MAIN_BUTTON_GAP+allButtonsSize.height+BOTTOM_MARGIN;
 
-  if(_icon!=nil){
+  if(icon!=nil){
    NSRect       frame;
    NSImageView *imageView;
 
@@ -340,7 +376,8 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    frame.origin.y=panelSize.height-TOP_MARGIN-iconSize.height;
    frame.size=iconSize;
    imageView=[[[NSImageView alloc] initWithFrame:frame] autorelease];
-   [imageView setImage:_icon];
+   [imageView setImage:icon];
+   [imageView setImageScaling:NSImageScaleProportionallyUpOrDown];
    [[_window contentView] addSubview:imageView];
   }
 
@@ -393,16 +430,22 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
   }
 
   NSPoint origin={panelSize.width-RIGHT_MARGIN,BOTTOM_MARGIN};
+  CGFloat otherX=LEFT_MARGIN+iconSize.width+ICON_MAIN_GAP;
 
   for(i=0;i<count;i++){
    NSButton *button=[_buttons objectAtIndex:i];
    NSSize    bSize=[button frame].size;
 
-   origin.x-=bSize.width;
-   [button setFrameOrigin:origin];
-   origin.x-=INTERBUTTON_GAP;
-   if(i==1)
-    origin.x-=OTHER_GAP;
+   if(i<2){
+    origin.x-=bSize.width;
+    [button setFrameOrigin:origin];
+    origin.x-=INTERBUTTON_GAP;
+   }
+   else {
+    /* The third and later buttons from the text's left edge. */
+    [button setFrameOrigin:NSMakePoint(otherX,BOTTOM_MARGIN)];
+    otherX+=bSize.width+INTERBUTTON_GAP;
+   }
    [[_window contentView] addSubview:button];
   }
 
@@ -430,7 +473,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    }
 }
 
--(void)sheetDidEnd:(NSWindow *)sheet returnCode:(int)returnCode contextInfo:(void *)contextInfo {
+-(void)sheetDidEnd:(NSWindow *)sheet returnCode:(NSInteger)returnCode contextInfo:(void *)contextInfo {
    typedef void (*alertDidEnd)(id,SEL,NSAlert *,int,void *);
    if (_sheetDidEnd) {
     alertDidEnd endFunction=(alertDidEnd)[_sheetDelegate methodForSelector:_sheetDidEnd];
@@ -454,6 +497,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 -(NSInteger)runModal {
    [_window setLevel: NSModalPanelWindowLevel];
    [_window setStyleMask:NSTitledWindowMask];
+   [_window _setHidesWindowControls:YES];
    [self layoutIfNeeded];
    [_window setDefaultButtonCell:[[_buttons objectAtIndex:0] cell]];
    return [NSApp runModalForWindow:_window];

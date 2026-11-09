@@ -2,6 +2,11 @@
 #import <QuartzCore/CATransaction.h>
 #import <Foundation/NSRaise.h>
 
+NSString *const kCAFillModeForwards=@"forwards";
+NSString *const kCAFillModeBackwards=@"backwards";
+NSString *const kCAFillModeBoth=@"both";
+NSString *const kCAFillModeRemoved=@"removed";
+
 @implementation CAAnimation
 
 +animation {

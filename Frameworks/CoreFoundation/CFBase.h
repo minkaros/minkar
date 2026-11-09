@@ -31,22 +31,6 @@
 #include <TargetConditionals.h>
 #include <CoreFoundation/CFAvailability.h>
 
-#if (defined(__CYGWIN32__) || defined(_WIN32)) && !defined(__WIN32__)
-#define __WIN32__ 1
-#endif
-
-#if defined(_WIN64) && !defined(__WIN64__)
-#define __WIN64__ 1
-#endif
-
-#if defined(__WIN64__) && !defined(__LLP64__)
-#define __LLP64__ 1
-#endif
-
-#if defined(_MSC_VER) && defined(_M_IX86)
-#define __i386__ 1
-#endif
-
 #if (defined(__i386__) || defined(__x86_64__)) && !defined(__LITTLE_ENDIAN__)
 #define __LITTLE_ENDIAN__ 1
 #endif
@@ -77,7 +61,7 @@
 #define __has_extension(x) 0
 #endif
 
-#if defined(__GNUC__) || TARGET_OS_WIN32
+#if defined(__GNUC__)
 #include <stdint.h>
 #include <stdbool.h>
 #endif
@@ -143,23 +127,7 @@
 #endif
 #endif
 
-#if TARGET_OS_WIN32
-
-#if !defined(CF_EXPORT)
-#if defined(CF_BUILDING_CF) && defined(__cplusplus)
-#define CF_EXPORT extern "C" __declspec(dllexport) 
-#elif defined(CF_BUILDING_CF) && !defined(__cplusplus)
-#define CF_EXPORT extern __declspec(dllexport) 
-#elif defined(__cplusplus)
-#define CF_EXPORT extern "C" __declspec(dllimport) 
-#else
-#define CF_EXPORT extern __declspec(dllimport) 
-#endif
-#endif
-
-#else
 #define CF_EXPORT extern
-#endif
 
 CF_EXTERN_C_BEGIN
 
@@ -188,10 +156,6 @@ CF_EXTERN_C_BEGIN
         #define CF_INLINE static __inline__
     #elif defined(__cplusplus)
 	#define CF_INLINE static inline
-    #elif defined(_MSC_VER)
-        #define CF_INLINE static __inline
-    #elif TARGET_OS_WIN32
-	#define CF_INLINE static __inline__
     #endif
 #endif
 

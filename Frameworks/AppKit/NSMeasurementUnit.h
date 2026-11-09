@@ -7,6 +7,7 @@ The above copyright notice and this permission notice shall be included in all c
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE. */
 
 #import <Foundation/NSObject.h>
+#import <Foundation/NSGeometry.h>
 
 @class NSString, NSArray;
 
@@ -15,7 +16,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 @interface NSMeasurementUnit : NSObject {
     NSString *_name;
     NSString *_abbreviation;
-    float _pointsPerUnit;
+    CGFloat _pointsPerUnit;
     NSArray *_stepUpCycle;
     NSArray *_stepDownCycle;
 }
@@ -25,13 +26,13 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 + (NSMeasurementUnit *)pointsMeasurementUnit;
 + (NSMeasurementUnit *)picasMeasurementUnit;
 
-+ (NSMeasurementUnit *)measurementUnitWithName:(NSString *)name abbreviation:(NSString *)abbreviation pointsPerUnit:(float)points stepUpCycle:(NSArray *)upCycle stepDownCycle:(NSArray *)downCycle;
++ (NSMeasurementUnit *)measurementUnitWithName:(NSString *)name abbreviation:(NSString *)abbreviation pointsPerUnit:(CGFloat)points stepUpCycle:(NSArray *)upCycle stepDownCycle:(NSArray *)downCycle;
 
-- (id)initWithName:(NSString *)name abbreviation:(NSString *)abbreviation pointsPerUnit:(float)points stepUpCycle:(NSArray *)upCycle stepDownCycle:(NSArray *)downCycle;
+- (id)initWithName:(NSString *)name abbreviation:(NSString *)abbreviation pointsPerUnit:(CGFloat)points stepUpCycle:(NSArray *)upCycle stepDownCycle:(NSArray *)downCycle;
 
 - (NSString *)name;
 - (NSString *)abbreviation;
-- (float)pointsPerUnit;
+- (CGFloat)pointsPerUnit;
 - (NSArray *)stepUpCycle;
 - (NSArray *)stepDownCycle;
 

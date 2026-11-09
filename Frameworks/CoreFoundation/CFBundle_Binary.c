@@ -705,55 +705,6 @@ static CFStringRef _CFBundleDlfcnCopyLoadedImagePathForPointer(void *p) {
 #endif /* !BINARY_SUPPORT_DYLD */
 #endif /* BINARY_SUPPORT_DLFCN */
 
-#if defined(BINARY_SUPPORT_DLL)
-
-CF_PRIVATE Boolean _CFBundleDLLLoad(CFBundleRef bundle, CFErrorRef *error) {
-    CFErrorRef localError = NULL;
-    if (!bundle->_isLoaded) {
-        CFURLRef executableURL = CFBundleCopyExecutableURL(bundle);
-        wchar_t buff[CFMaxPathSize];
-
-        if (executableURL && _CFURLGetWideFileSystemRepresentation(executableURL, true, (wchar_t *)buff, CFMaxPathSize)) {
-            bundle->_hModule = LoadLibraryW(buff);
-            if (bundle->_hModule) {
-                bundle->_isLoaded = true;
-            } else {
-                if (error) {
-                    localError = _CFBundleCreateError(CFGetAllocator(bundle), bundle, CFBundleExecutableLinkError);
-                } else {
-                    CFLog(__kCFLogBundle, CFSTR("Failed to load bundle %@"), bundle);
-                }
-            }
-        } else {
-            if (error) {
-                localError = _CFBundleCreateError(CFGetAllocator(bundle), bundle, CFBundleExecutableNotFoundError);
-            } else {
-                CFLog(__kCFLogBundle, CFSTR("Cannot find executable for bundle %@"), bundle);
-            }
-        }
-        if (executableURL) CFRelease(executableURL);
-    }
-    if (!bundle->_isLoaded && error) *error = localError;
-    return bundle->_isLoaded;
-}
-
-CF_PRIVATE void _CFBundleDLLUnload(CFBundleRef bundle) {
-    if (bundle->_isLoaded) {
-       FreeLibrary(bundle->_hModule);
-       bundle->_hModule = NULL;
-       bundle->_isLoaded = false;
-    }
-}
-
-CF_PRIVATE void *_CFBundleDLLGetSymbolByName(CFBundleRef bundle, CFStringRef symbolName) {
-    void *result = NULL;
-    char buff[1024];
-    if (CFStringGetCString(symbolName, buff, 1024, kCFStringEncodingWindowsLatin1)) result = GetProcAddress(bundle->_hModule, buff);
-    return result;
-}
-
-#endif /* BINARY_SUPPORT_DLL */
-
 CF_PRIVATE CFStringRef _CFBundleCopyLoadedImagePathForPointer(void *p) {
     CFStringRef imagePath = NULL;
 #if defined(BINARY_SUPPORT_DYLD)
@@ -783,11 +734,6 @@ void *CFBundleGetFunctionPointerForName(CFBundleRef bundle, CFStringRef funcName
 #endif /* BINARY_SUPPORT_DLFCN */
             break;
 #endif /* BINARY_SUPPORT_DYLD */
-#if defined(BINARY_SUPPORT_DLL)
-        case __CFBundleDLLBinary:
-            tvp = _CFBundleDLLGetSymbolByName(bundle, funcName);
-            break;
-#endif /* BINARY_SUPPORT_DLL */
         default:
 #if defined(BINARY_SUPPORT_DLFCN)
             if (bundle->_handleCookie) return _CFBundleDlfcnGetSymbolByName(bundle, funcName);
@@ -861,11 +807,6 @@ void *CFBundleGetDataPointerForName(CFBundleRef bundle, CFStringRef symbolName) 
 #endif /* BINARY_SUPPORT_DLFCN */
             break;
 #endif /* BINARY_SUPPORT_DYLD */
-#if defined(BINARY_SUPPORT_DLL)
-        case __CFBundleDLLBinary:
-            /* MF:!!! Handle this someday */
-            break;
-#endif /* BINARY_SUPPORT_DLL */
         default:
 #if defined(BINARY_SUPPORT_DLFCN)
             if (bundle->_handleCookie) dp = _CFBundleDlfcnGetSymbolByName(bundle, symbolName);

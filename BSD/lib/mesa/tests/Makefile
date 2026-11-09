@@ -8,7 +8,8 @@
 # minkar-vkcopy: what presenting a frame costs, the GPU's and the CPU's
 # copies timed (G4.6);
 # minkar-vkwindow: frames presented in an AppKit window through a
-# CAMetalLayer (VK_EXT_metal_surface); minkar-vkdraw: a triangle drawn off
+# CAMetalLayer (VK_EXT_metal_surface); minkar-egltest: OpenGL ES through
+# EGL's surfaceless platform (../ builds them); minkar-vkdraw: a triangle drawn off
 # the screen, its shaders
 # (shaders/) made SPIR-V by the glslang ../ builds. In /usr/local/bin with
 # the test tools; the Vulkan headers come from the SDK (../../vulkan-loader
@@ -44,6 +45,9 @@ minkar-vkshared: ${.CURDIR}/vkshared.c
 	    ${.CURDIR}/vkshared.c -L${MINKAR_SDKROOT}/usr/lib -lvulkan -ldrm_amdgpu -framework IOKit \
 	    -framework CoreFoundation
 
+minkar-egltest: ${.CURDIR}/egltest.c
+	${CC} ${CFLAGS} ${LDFLAGS} -o ${.TARGET} ${.CURDIR}/egltest.c -L${MINKAR_SDKROOT}/usr/lib -lEGL -lGLESv2
+
 minkar-vkcopy: ${.CURDIR}/vkcopy.c
 	${CC} ${CFLAGS} ${LDFLAGS} -o ${.TARGET} ${.CURDIR}/vkcopy.c -L${MINKAR_SDKROOT}/usr/lib -lvulkan
 
@@ -55,7 +59,7 @@ minkar-vkwindow: ${.CURDIR}/vkwindow.m triangle_vert.h triangle_frag.h \
 	    ${.CURDIR}/vkwindow.m -framework AppKit -framework QuartzCore -framework Foundation \
 	    -framework SkyLight -framework IOSurface -lobjc
 
-to-sysroot: ${PROG} minkar-vkdraw minkar-vkwindow minkar-vkinfo minkar-vkshared minkar-vkcopy
+to-sysroot: ${PROG} minkar-vkdraw minkar-vkwindow minkar-vkinfo minkar-vkshared minkar-vkcopy minkar-egltest
 	mkdir -p ${SYSROOT_DIR}/usr/local/bin
 	install -m 0555 -o 0 -g 0 ${PROG} ${SYSROOT_DIR}/usr/local/bin/minkar-vktest
 	install -m 0555 -o 0 -g 0 minkar-vkdraw ${SYSROOT_DIR}/usr/local/bin/minkar-vkdraw
@@ -63,7 +67,8 @@ to-sysroot: ${PROG} minkar-vkdraw minkar-vkwindow minkar-vkinfo minkar-vkshared 
 	install -m 0555 -o 0 -g 0 minkar-vkinfo ${SYSROOT_DIR}/usr/local/bin/minkar-vkinfo
 	install -m 0555 -o 0 -g 0 minkar-vkshared ${SYSROOT_DIR}/usr/local/bin/minkar-vkshared
 	install -m 0555 -o 0 -g 0 minkar-vkcopy ${SYSROOT_DIR}/usr/local/bin/minkar-vkcopy
+	install -m 0555 -o 0 -g 0 minkar-egltest ${SYSROOT_DIR}/usr/local/bin/minkar-egltest
 
-CLEANFILES +=	minkar-vkdraw minkar-vkwindow minkar-vkinfo minkar-vkshared minkar-vkcopy triangle_vert.h triangle_frag.h
+CLEANFILES +=	minkar-vkdraw minkar-vkwindow minkar-vkinfo minkar-vkshared minkar-vkcopy minkar-egltest triangle_vert.h triangle_frag.h
 
 .include <bsd.prog.mk>

@@ -11,7 +11,11 @@
 # stands in for the package manager's test discovery, for test programs
 # built without it.
 #
-#   xctest-discover.py [-o main.swift] [--import Module] file.swift...
+#   xctest-discover.py [-o main.swift] [--import Module]
+#                      [--skip Class.testMethod]... file.swift...
+#
+# --skip leaves a test out of the program (one that measures the
+# machine rather than the code, say), as a test plan would.
 #
 # The sources are read as Swift tokens (comments and string literals
 # skipped), well enough to find declarations at the top level and in
@@ -142,8 +146,11 @@ def main(argv):
     p.add_argument('-o', '--output', default='-')
     p.add_argument('--import', dest='imports', action='append', default=[],
                    help='a module the tests are in (@testable import)')
+    p.add_argument('--skip', action='append', default=[],
+                   help='Class.testMethod to leave out (repeatable)')
     p.add_argument('sources', nargs='+')
     args = p.parse_args(argv)
+    skip = set(args.skip)
 
     classes, tests = {}, {}
     for path in args.sources:
@@ -180,7 +187,7 @@ def main(argv):
     for name in sorted(classes):
         if not classes[name][1] or not is_test_class(name):
             continue
-        found = sorted(all_tests(name))
+        found = sorted(t for t in all_tests(name) if '%s.%s' % (name, t[0]) not in skip)
         if not found:
             continue
         avail = availability(name)

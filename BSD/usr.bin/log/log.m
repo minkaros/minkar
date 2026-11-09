@@ -30,7 +30,7 @@
  * log: os_log's messages, as logd keeps them.
  *
  *   log show [--last TIME | --start DATE] [--end DATE] [--info] [--debug]
- *            [--predicate PREDICATE] [--style default|compact|syslog|json]
+ *            [--predicate PREDICATE] [--style default|compact|syslog|json|ndjson]
  *   log stream [--level default|info|debug] [--predicate PREDICATE]
  *            [--style ...] [--timeout SECONDS]
  *   log config --subsystem NAME --mode level:default|info|debug
@@ -71,9 +71,9 @@ usage(void)
 {
 	fprintf(stderr,
 	    "usage: log show [--last TIME | --start DATE] [--end DATE] [--info] [--debug]\n"
-	    "                [--predicate PREDICATE] [--style default|compact|syslog|json]\n"
+	    "                [--predicate PREDICATE] [--style default|compact|syslog|json|ndjson]\n"
 	    "       log stream [--level default|info|debug] [--predicate PREDICATE]\n"
-	    "                [--style default|compact|syslog|json] [--timeout SECONDS]\n"
+	    "                [--style default|compact|syslog|json|ndjson] [--timeout SECONDS]\n"
 	    "       log config --subsystem NAME --mode level:default|info|debug\n"
 	    "       log config --subsystem NAME --reset\n"
 	    "       log config --status\n"
@@ -201,7 +201,20 @@ print(const logd_record_t *r)
 	timestamp(r->time, when, sizeof(when));
 	if (*sub)
 		snprintf(scope, sizeof(scope), "[%s:%s] ", sub, cat);
-	if (strcmp(style, "json") == 0) {
+	if (strcmp(style, "ndjson") == 0) {
+		/* One object a line, for readers of a stream. */
+		printf("{\"timestamp\":\"%s\",\"messageType\":\"%s\",\"processID\":%d,\"userID\":%u,"
+		    "\"threadID\":%llu,\"activityIdentifier\":%llu,\"process\":", when, typeLabel(r->type),
+		    r->pid, r->uid, (unsigned long long)r->thread, (unsigned long long)r->activity);
+		printJSONString(logd_record_process(r));
+		fputs(",\"subsystem\":", stdout);
+		printJSONString(sub);
+		fputs(",\"category\":", stdout);
+		printJSONString(cat);
+		fputs(",\"eventMessage\":", stdout);
+		printJSONString(logd_record_text(r));
+		fputs("}\n", stdout);
+	} else if (strcmp(style, "json") == 0) {
 		printf("%s{\n  \"timestamp\" : \"%s\",\n  \"messageType\" : \"%s\",\n"
 		    "  \"processID\" : %d,\n  \"userID\" : %u,\n  \"threadID\" : %llu,\n"
 		    "  \"activityIdentifier\" : %llu,\n  \"process\" : ",

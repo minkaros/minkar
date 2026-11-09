@@ -40,52 +40,16 @@
 #include <string.h>
 #include <unicode/ucal.h>
 #include <CoreFoundation/CFDateFormatter.h>
-#if DEPLOYMENT_TARGET_MACOSX || DEPLOYMENT_TARGET_EMBEDDED || DEPLOYMENT_TARGET_LINUX
 #include <dirent.h>
 #include <unistd.h>
 #include <sys/fcntl.h>
 #if INCLUDE_OBJC
 #include <Foundation/NSTimeZone.h>
 #endif
-#endif
-#if DEPLOYMENT_TARGET_MACOSX || DEPLOYMENT_TARGET_EMBEDDED
 #include <tzfile.h>
-#elif DEPLOYMENT_TARGET_LINUX
-#ifndef TZDIR
-#define TZDIR	"/usr/share/zoneinfo" /* Time zone object file directory */
-#endif /* !defined TZDIR */
 
-#ifndef TZDEFAULT
-#define TZDEFAULT	"/etc/localtime"
-#endif /* !defined TZDEFAULT */
-
-struct tzhead {
-    char	tzh_magic[4];		/* TZ_MAGIC */
-    char	tzh_reserved[16];	/* reserved for future use */
-    char	tzh_ttisgmtcnt[4];	/* coded number of trans. time flags */
-    char	tzh_ttisstdcnt[4];	/* coded number of trans. time flags */
-    char	tzh_leapcnt[4];		/* coded number of leap seconds */
-    char	tzh_timecnt[4];		/* coded number of transition times */
-    char	tzh_typecnt[4];		/* coded number of local time types */
-    char	tzh_charcnt[4];		/* coded number of abbr. chars */
-};
-#endif
-
-#if DEPLOYMENT_TARGET_MACOSX || DEPLOYMENT_TARGET_EMBEDDED || DEPLOYMENT_TARGET_LINUX
 #define TZZONELINK	TZDEFAULT
 #define TZZONEINFO	TZDIR "/"
-#elif DEPLOYMENT_TARGET_WINDOWS
-static CFStringRef __tzZoneInfo = NULL;
-static char *__tzDir = NULL;
-static void __InitTZStrings(void);
-#else
-#error Unknown or unspecified DEPLOYMENT_TARGET
-#endif
-
-#if DEPLOYMENT_TARGET_LINUX
-// Symbol aliases
-CF_EXPORT CFStringRef const kCFDateFormatterTimeZone __attribute__((weak, alias ("kCFDateFormatterTimeZoneKey")));
-#endif
 
 CONST_STRING_DECL(kCFTimeZoneSystemTimeZoneDidChangeNotification, "kCFTimeZoneSystemTimeZoneDidChangeNotification")
 
@@ -98,11 +62,6 @@ static CFLock_t __CFTimeZoneCompatibilityMappingLock = CFLockInit;
 static CFArrayRef __CFKnownTimeZoneList = NULL;
 static CFMutableDictionaryRef __CFTimeZoneCache = NULL;
 static CFLock_t __CFTimeZoneGlobalLock = CFLockInit;
-
-#if DEPLOYMENT_TARGET_WINDOWS
-static CFDictionaryRef __CFTimeZoneWinToOlsonDict = NULL;
-static CFLock_t __CFTimeZoneWinToOlsonLock = CFLockInit;
-#endif
 
 CF_INLINE void __CFTimeZoneLockGlobal(void) {
     __CFLock(&__CFTimeZoneGlobalLock);
@@ -128,52 +87,9 @@ CF_INLINE void __CFTimeZoneUnlockCompatibilityMapping(void) {
     __CFUnlock(&__CFTimeZoneCompatibilityMappingLock);
 }
 
-#if DEPLOYMENT_TARGET_WINDOWS
-/* This function should be used for WIN32 instead of
- * __CFCopyRecursiveDirectoryList function.
- * It takes TimeZone names from the registry
- * (Aleksey Dukhnyakov)
- */
-static CFMutableArrayRef __CFCopyWindowsTimeZoneList() {
-    CFMutableArrayRef result = NULL;
-    HKEY hkResult;
-    TCHAR lpName[MAX_PATH+1];
-    DWORD dwIndex, retCode;
-
-    if (RegOpenKey(HKEY_LOCAL_MACHINE,_T(TZZONEINFO),&hkResult) !=
-        ERROR_SUCCESS )
-        return NULL;
-
-    result = CFArrayCreateMutable(kCFAllocatorSystemDefault, 0, &kCFTypeArrayCallBacks);
-    for (dwIndex=0; (retCode = RegEnumKey(hkResult,dwIndex,lpName,MAX_PATH)) != ERROR_NO_MORE_ITEMS ; dwIndex++) {
-        if (retCode != ERROR_SUCCESS) {
-            RegCloseKey(hkResult);
-            CFRelease(result);
-            return NULL;
-        } else {
-#if defined(UNICODE)
-	    CFStringRef string = CFStringCreateWithBytes(kCFAllocatorSystemDefault, (const UInt8 *)lpName, (_tcslen(lpName) * sizeof(UniChar)), kCFStringEncodingUnicode, false);
-#else
-	    CFStringRef string = CFStringCreateWithBytes(kCFAllocatorSystemDefault, lpName, _tcslen(lpName), CFStringGetSystemEncoding(), false);
-#endif
-	    CFArrayAppendValue(result, string);
-	    CFRelease(string);
-        }
-    }
-
-    RegCloseKey(hkResult);
-    return result;
-}
-#elif DEPLOYMENT_TARGET_MACOSX || DEPLOYMENT_TARGET_EMBEDDED || DEPLOYMENT_TARGET_WINDOWS || DEPLOYMENT_TARGET_LINUX
 static CFMutableArrayRef __CFCopyRecursiveDirectoryList() {
     CFMutableArrayRef result = CFArrayCreateMutable(kCFAllocatorSystemDefault, 0, &kCFTypeArrayCallBacks);
-#if DEPLOYMENT_TARGET_WINDOWS
-    if (!__tzDir) __InitTZStrings();
-    if (!__tzDir) return result;
-    int fd = open(__tzDir, O_RDONLY);
-#else
     int fd = open(TZDIR "/zone.tab", O_RDONLY);
-#endif
 
     for (; 0 <= fd;) {
         uint8_t buffer[4096];
@@ -225,9 +141,6 @@ static CFMutableArrayRef __CFCopyRecursiveDirectoryList() {
     close(fd);
     return result;
 }
-#else
-#error Unknown or unspecified DEPLOYMENT_TARGET
-#endif
 
 typedef struct _CFTZPeriod {
     int32_t startSec;
@@ -488,268 +401,9 @@ CFTypeID CFTimeZoneGetTypeID(void) {
     return __kCFTimeZoneTypeID;
 }
 
-#if DEPLOYMENT_TARGET_WINDOWS
-static const char *__CFTimeZoneWinToOlsonDefaults =
-/* Mappings to time zones in Windows Registry are best-guess */
-"<?xml version=\"1.0\" encoding=\"UTF-8\"?>"
-" <!DOCTYPE plist SYSTEM \"file://localhost/System/Library/DTDs/PropertyList.dtd\">"
-" <plist version=\"1.0\">"
-" <dict>"
-"    <key>Afghanistan</key>                 <string>Asia/Kabul</string>"
-"    <key>Afghanistan Standard Time</key>   <string>Asia/Kabul</string>"
-"    <key>Alaskan</key>                     <string>America/Anchorage</string>"
-"    <key>Alaskan Standard Time</key>       <string>America/Anchorage</string>"
-"    <key>Arab</key>                        <string>Asia/Riyadh</string>"
-"    <key>Arab Standard Time</key>          <string>Asia/Riyadh</string>"
-"    <key>Arabian</key>                     <string>Asia/Muscat</string>"
-"    <key>Arabian Standard Time</key>       <string>Asia/Muscat</string>"
-"    <key>Arabic Standard Time</key>        <string>Asia/Baghdad</string>"
-"    <key>Atlantic</key>                    <string>America/Halifax</string>"
-"    <key>Atlantic Standard Time</key>      <string>America/Halifax</string>"
-"    <key>AUS Central</key>                 <string>Australia/Darwin</string>"
-"    <key>AUS Central Standard Time</key>	<string>Australia/Darwin</string>"
-"    <key>AUS Eastern</key>                 <string>Australia/Sydney</string>"
-"    <key>AUS Eastern Standard Time</key>	<string>Australia/Sydney</string>"
-"    <key>Azerbaijan Standard Time</key>	<string>Asia/Baku</string>"
-"    <key>Azores</key>                      <string>Atlantic/Azores</string>"
-"    <key>Azores Standard Time</key>        <string>Atlantic/Azores</string>"
-"    <key>Bangkok</key>                     <string>Asia/Bangkok</string>"
-"    <key>Bangkok Standard Time</key>       <string>Asia/Bangkok</string>"
-"    <key>Beijing</key>                     <string>Asia/Shanghai</string>"
-"    <key>Canada Central</key>              <string>America/Regina</string>"
-"    <key>Canada Central Standard Time</key> <string>America/Regina</string>"
-"    <key>Cape Verde Standard Time</key>    <string>Atlantic/Cape_Verde</string>"
-"    <key>Caucasus</key>                    <string>Asia/Yerevan</string>"
-"    <key>Caucasus Standard Time</key>      <string>Asia/Yerevan</string>"
-"    <key>Cen. Australia</key>              <string>Australia/Adelaide</string>"
-"    <key>Cen. Australia Standard Time</key> <string>Australia/Adelaide</string>"
-"    <key>Central</key>                     <string>America/Chicago</string>"
-"    <key>Central America Standard Time</key> <string>America/Regina</string>"
-"    <key>Central Asia</key>                <string>Asia/Dhaka</string>"
-"    <key>Central Asia Standard Time</key>	<string>Asia/Dhaka</string>"
-"    <key>Central Brazilian Standard Time</key>	<string>America/Manaus</string>"
-"    <key>Central Europe</key>              <string>Europe/Prague</string>"
-"    <key>Central Europe Standard Time</key> <string>Europe/Prague</string>"
-"    <key>Central European</key>            <string>Europe/Belgrade</string>"
-"    <key>Central European Standard Time</key>	<string>Europe/Belgrade</string>"
-"    <key>Central Pacific</key>             <string>Pacific/Guadalcanal</string>"
-"    <key>Central Pacific Standard Time</key>	<string>Pacific/Guadalcanal</string>"
-"    <key>Central Standard Time</key>       <string>America/Chicago</string>"
-"    <key>Central Standard Time (Mexico)</key> <string>America/Mexico_City</string>"
-"    <key>China</key>                       <string>Asia/Shanghai</string>"
-"    <key>China Standard Time</key>         <string>Asia/Shanghai</string>"
-"    <key>Dateline</key>                    <string>GMT-1200</string>"
-"    <key>Dateline Standard Time</key>      <string>GMT-1200</string>"
-"    <key>E. Africa</key>                   <string>Africa/Nairobi</string>"
-"    <key>E. Africa Standard Time</key>     <string>Africa/Nairobi</string>"
-"    <key>E. Australia</key>                <string>Australia/Brisbane</string>"
-"    <key>E. Australia Standard Time</key>	<string>Australia/Brisbane</string>"
-"    <key>E. Europe</key>                   <string>Europe/Minsk</string>"
-"    <key>E. Europe Standard Time</key>     <string>Europe/Minsk</string>"
-"    <key>E. South America</key>            <string>America/Sao_Paulo</string>"
-"    <key>E. South America Standard Time</key>	<string>America/Sao_Paulo</string>"
-"    <key>Eastern</key>                     <string>America/New_York</string>"
-"    <key>Eastern Standard Time</key>       <string>America/New_York</string>"
-"    <key>Egypt</key>       <string>Africa/Cairo</string>"
-"    <key>Egypt Standard Time</key> <string>Africa/Cairo</string>"
-"    <key>Ekaterinburg</key>                <string>Asia/Yekaterinburg</string>"
-"    <key>Ekaterinburg Standard Time</key>	<string>Asia/Yekaterinburg</string>"
-"    <key>Fiji</key>	<string>Pacific/Fiji</string>"
-"    <key>Fiji Standard Time</key>	<string>Pacific/Fiji</string>"
-"    <key>FLE</key>	<string>Europe/Helsinki</string>"
-"    <key>FLE Standard Time</key>	<string>Europe/Helsinki</string>"
-"    <key>Georgian Standard Time</key>	<string>Asia/Tbilisi</string>"
-"    <key>GFT</key>	<string>Europe/Athens</string>"
-"    <key>GFT Standard Time</key>	<string>Europe/Athens</string>"
-"    <key>GMT</key>	<string>Europe/London</string>"
-"    <key>GMT Standard Time</key>	<string>Europe/London</string>"
-"    <key>Greenland Standard Time</key>	<string>America/Godthab</string>"
-"    <key>Greenwich</key>	<string>GMT</string>"
-"    <key>Greenwich Standard Time</key>	<string>GMT</string>"
-"    <key>GTB</key>	<string>Europe/Athens</string>"
-"    <key>GTB Standard Time</key>	<string>Europe/Athens</string>"
-"    <key>Hawaiian</key>	<string>Pacific/Honolulu</string>"
-"    <key>Hawaiian Standard Time</key>	<string>Pacific/Honolulu</string>"
-"    <key>India</key>	<string>Asia/Calcutta</string>"
-"    <key>India Standard Time</key>	<string>Asia/Calcutta</string>"
-"    <key>Iran</key>	<string>Asia/Tehran</string>"
-"    <key>Iran Standard Time</key>	<string>Asia/Tehran</string>"
-"    <key>Israel</key>	<string>Asia/Jerusalem</string>"
-"    <key>Israel Standard Time</key>	<string>Asia/Jerusalem</string>"
-"    <key>Jordan Standard Time</key>	<string>Asia/Amman</string>"
-"    <key>Korea</key>	<string>Asia/Seoul</string>"
-"    <key>Korea Standard Time</key>	<string>Asia/Seoul</string>"
-"    <key>Mexico</key>	<string>America/Mexico_City</string>"
-"    <key>Mexico Standard Time</key>	<string>America/Mexico_City</string>"
-"    <key>Mexico Standard Time 2</key>	<string>America/Chihuahua</string>"
-"    <key>Mid-Atlantic</key>	<string>Atlantic/South_Georgia</string>"
-"    <key>Mid-Atlantic Standard Time</key>	<string>Atlantic/South_Georgia</string>"
-"    <key>Middle East Standard Time</key>	<string>Asia/Beirut</string>"
-"    <key>Mountain</key>	<string>America/Denver</string>"
-"    <key>Mountain Standard Time</key>	<string>America/Denver</string>"
-"    <key>Mountain Standard Time (Mexico)</key>	<string>America/Chihuahua</string>"
-"    <key>Myanmar Standard Time</key>	<string>Asia/Rangoon</string>"
-"    <key>N. Central Asia Standard Time</key>   <string>Asia/Novosibirsk</string>"
-"    <key>Namibia Standard Time</key>   <string>Africa/Windhoek</string>"
-"    <key>Nepal Standard Time</key>	<string>Asia/Katmandu</string>"
-"    <key>New Zealand</key>	<string>Pacific/Auckland</string>"
-"    <key>New Zealand Standard Time</key>	<string>Pacific/Auckland</string>"
-"    <key>Newfoundland</key>	<string>America/St_Johns</string>"
-"    <key>Newfoundland Standard Time</key>	<string>America/St_Johns</string>"
-"    <key>North Asia East Standard Time</key>	<string>Asia/Ulaanbaatar</string>"
-"    <key>North Asia Standard Time</key>	<string>Asia/Krasnoyarsk</string>"
-"    <key>Pacific</key>	<string>America/Los_Angeles</string>"
-"    <key>Pacific SA</key>	<string>America/Santiago</string>"
-"    <key>Pacific SA Standard Time</key>	<string>America/Santiago</string>"
-"    <key>Pacific Standard Time</key>	<string>America/Los_Angeles</string>"
-"    <key>Pacific Standard Time (Mexico)</key>	<string>America/Tijuana</string>"
-"    <key>Prague Bratislava</key>	<string>Europe/Prague</string>"
-"    <key>Romance</key>	<string>Europe/Paris</string>"
-"    <key>Romance Standard Time</key>	<string>Europe/Paris</string>"
-"    <key>Russian</key>	<string>Europe/Moscow</string>"
-"    <key>Russian Standard Time</key>	<string>Europe/Moscow</string>"
-"    <key>SA Eastern</key>	<string>America/Buenos_Aires</string>"
-"    <key>SA Eastern Standard Time</key>	<string>America/Buenos_Aires</string>"
-"    <key>SA Pacific</key>	<string>America/Bogota</string>"
-"    <key>SA Pacific Standard Time</key>	<string>America/Bogota</string>"
-"    <key>SA Western</key>	<string>America/Caracas</string>"
-"    <key>SA Western Standard Time</key>	<string>America/Caracas</string>"
-"    <key>Samoa</key>	<string>Pacific/Apia</string>"
-"    <key>Samoa Standard Time</key>	<string>Pacific/Apia</string>"
-"    <key>Saudi Arabia</key>	<string>Asia/Riyadh</string>"
-"    <key>Saudi Arabia Standard Time</key>	<string>Asia/Riyadh</string>"
-"    <key>SE Asia Standard Time</key>	<string>Asia/Bangkok</string>"
-"    <key>Singapore</key>	<string>Asia/Singapore</string>"
-"    <key>Singapore Standard Time</key>	<string>Asia/Singapore</string>"
-"    <key>South Africa</key>	<string>Africa/Harare</string>"
-"    <key>South Africa Standard Time</key>	<string>Africa/Harare</string>"
-"    <key>Sri Lanka</key>	<string>Asia/Colombo</string>"
-"    <key>Sri Lanka Standard Time</key>	<string>Asia/Colombo</string>"
-"    <key>Sydney Standard Time</key>	<string>Australia/Sydney</string>"
-"    <key>Taipei</key>	<string>Asia/Taipei</string>"
-"    <key>Taipei Standard Time</key>	<string>Asia/Taipei</string>"
-"    <key>Tasmania</key>	<string>Australia/Hobart</string>"
-"    <key>Tasmania Standard Time</key>	<string>Australia/Hobart</string>"
-"    <key>Tasmania Standard Time</key>	<string>Australia/Hobart</string>"
-"    <key>Tokyo</key>	<string>Asia/Tokyo</string>"
-"    <key>Tokyo Standard Time</key>	<string>Asia/Tokyo</string>"
-"    <key>Tonga Standard Time</key>	<string>Pacific/Tongatapu</string>"
-"    <key>US Eastern</key>	<string>America/Indianapolis</string>"
-"    <key>US Eastern Standard Time</key>	<string>America/Indianapolis</string>"
-"    <key>US Mountain</key>	<string>America/Phoenix</string>"
-"    <key>US Mountain Standard Time</key>	<string>America/Phoenix</string>"
-"    <key>Vladivostok</key>	<string>Asia/Vladivostok</string>"
-"    <key>Vladivostok Standard Time</key>	<string>Asia/Vladivostok</string>"
-"    <key>W. Australia</key>	<string>Australia/Perth</string>"
-"    <key>W. Australia Standard Time</key>	<string>Australia/Perth</string>"
-"    <key>W. Central Africa Standard Time</key>	<string>Africa/Luanda</string>"
-"    <key>W. Europe</key>	<string>Europe/Berlin</string>"
-"    <key>W. Europe Standard Time</key>	<string>Europe/Berlin</string>"
-"    <key>Warsaw</key>	<string>Europe/Warsaw</string>"
-"    <key>West Asia</key>	<string>Asia/Karachi</string>"
-"    <key>West Asia Standard Time</key>	<string>Asia/Karachi</string>"
-"    <key>West Pacific</key>	<string>Pacific/Guam</string>"
-"    <key>West Pacific Standard Time</key>	<string>Pacific/Guam</string>"
-"    <key>Western Brazilian Standard Time</key>	<string>America/Rio_Branco</string>"
-"    <key>Yakutsk</key>	<string>Asia/Yakutsk</string>"
-" </dict>"
-" </plist>";
-
-CF_INLINE void __CFTimeZoneLockWinToOlson(void) {
-    __CFLock(&__CFTimeZoneWinToOlsonLock);
-}
-
-CF_INLINE void __CFTimeZoneUnlockWinToOlson(void) {
-    __CFUnlock(&__CFTimeZoneWinToOlsonLock);
-}
-
-CFDictionaryRef CFTimeZoneCopyWinToOlsonDictionary(void) {
-    CFDictionaryRef dict;
-    __CFTimeZoneLockWinToOlson();
-    if (NULL == __CFTimeZoneWinToOlsonDict) {
-        CFDataRef data = CFDataCreate(kCFAllocatorSystemDefault, (uint8_t *)__CFTimeZoneWinToOlsonDefaults, strlen(__CFTimeZoneWinToOlsonDefaults));
-        __CFTimeZoneWinToOlsonDict = (CFDictionaryRef)CFPropertyListCreateFromXMLData(kCFAllocatorSystemDefault, data, kCFPropertyListImmutable, NULL);
-        CFRelease(data);
-    }
-    if (NULL == __CFTimeZoneWinToOlsonDict) {
-        __CFTimeZoneWinToOlsonDict = CFDictionaryCreate(kCFAllocatorSystemDefault, NULL, NULL, 0, NULL, NULL);
-    }
-    dict = __CFTimeZoneWinToOlsonDict ? (CFDictionaryRef)CFRetain(__CFTimeZoneWinToOlsonDict) : NULL;
-    __CFTimeZoneUnlockWinToOlson();
-    return dict;
-}
-
-void CFTimeZoneSetWinToOlsonDictionary(CFDictionaryRef dict) {
-    __CFGenericValidateType(dict, CFDictionaryGetTypeID());
-    __CFTimeZoneLockWinToOlson();
-    if (dict != __CFTimeZoneWinToOlsonDict) {
-        if (dict) CFRetain(dict);
-        if (__CFTimeZoneWinToOlsonDict) CFRelease(__CFTimeZoneWinToOlsonDict);
-        __CFTimeZoneWinToOlsonDict = dict;
-    }
-    __CFTimeZoneUnlockWinToOlson();
-}
-
-CFTimeZoneRef CFTimeZoneCreateWithWindowsName(CFAllocatorRef allocator, CFStringRef winName) {
-    if (!winName) return NULL;
-    
-    CFDictionaryRef winToOlson = CFTimeZoneCopyWinToOlsonDictionary();
-    if (!winToOlson) return NULL;
-    
-    CFStringRef olsonName = CFDictionaryGetValue(winToOlson, winName);
-    CFTimeZoneRef retval = NULL;
-    if (olsonName) {
-         retval = CFTimeZoneCreateWithName(allocator, olsonName, false);
-    }
-    CFRelease(winToOlson);
-    return retval;
-}
-
-extern CFStringRef _CFGetWindowsAppleSystemLibraryDirectory(void);
-void __InitTZStrings(void) {
-    static CFLock_t __CFTZDirLock = CFLockInit;
-    __CFLock(&__CFTZDirLock);
-    if (!__tzZoneInfo) {
-        CFStringRef winDir = _CFGetWindowsAppleSystemLibraryDirectory();
-        __tzZoneInfo = CFStringCreateWithFormat(NULL, NULL, CFSTR("%@\\etc\\zoneinfo"), winDir);
-    }   
-    if (!__tzDir && __tzZoneInfo) {
-        int length = CFStringGetLength(__tzZoneInfo) + sizeof("\\zone.tab") + 1;
-        __tzDir = malloc(length); // If we don't use ascii, we'll need to malloc more space
-        if (!__tzDir || !CFStringGetCString(__tzZoneInfo, __tzDir, length, kCFStringEncodingASCII)) {
-            free(__tzDir);
-        } else {
-            strcat(__tzDir, "\\zone.tab");
-        }
-    }
-    __CFUnlock(&__CFTZDirLock);
-}
-#endif
-
 static CFTimeZoneRef __CFTimeZoneCreateSystem(void) {
     CFTimeZoneRef result = NULL;
     
-#if DEPLOYMENT_TARGET_WINDOWS
-    CFStringRef name = NULL;
-    TIME_ZONE_INFORMATION tzi = { 0 };
-    DWORD rval = GetTimeZoneInformation(&tzi);
-    if (rval != TIME_ZONE_ID_INVALID) {
-        LPWSTR standardName = (LPWSTR)&tzi.StandardName;
-        CFStringRef cfStandardName = CFStringCreateWithBytes(kCFAllocatorSystemDefault, (UInt8 *)standardName, wcslen(standardName)*sizeof(WCHAR), kCFStringEncodingUTF16LE, false);
-        if (cfStandardName) {
-            CFDictionaryRef winToOlson = CFTimeZoneCopyWinToOlsonDictionary();
-            if (winToOlson) {
-                name = CFDictionaryGetValue(winToOlson, cfStandardName);
-                if (name) CFRetain(name);
-                CFRelease(winToOlson);
-            }
-            CFRelease(cfStandardName);
-        }
-    } else {
-        CFLog(kCFLogLevelError, CFSTR("Couldn't get time zone information error %d"), GetLastError());
-    }
-    if (name) {
-#else
     const char *tzenv;
     int ret;
     char linkbuf[CFMaxPathSize];
@@ -777,7 +431,6 @@ static CFTimeZoneRef __CFTimeZoneCreateSystem(void) {
 	} else {
 	    name = CFStringCreateWithBytes(kCFAllocatorSystemDefault, (uint8_t *)linkbuf, strlen(linkbuf), kCFStringEncodingUTF8, false);
 	}
-#endif
 
 	result = CFTimeZoneCreateWithName(kCFAllocatorSystemDefault, name, false);
 	CFRelease(name);
@@ -858,9 +511,6 @@ CFArrayRef CFTimeZoneCopyKnownNames(void) {
     __CFTimeZoneLockGlobal();
     if (NULL == __CFKnownTimeZoneList) {
 	CFMutableArrayRef list;
-/* TimeZone information locate in the registry for Win32
- * (Aleksey Dukhnyakov)
- */
         list = __CFCopyRecursiveDirectoryList();
 	// Remove undesirable ancient cruft
 	CFDictionaryRef dict = __CFTimeZoneCopyCompatibilityDictionary();
@@ -1112,13 +762,7 @@ CFTimeZoneRef CFTimeZoneCreateWithName(CFAllocatorRef allocator, CFStringRef nam
     void *bytes;
     CFIndex length;
 
-#if DEPLOYMENT_TARGET_WINDOWS
-    if (!__tzZoneInfo) __InitTZStrings();
-    if (!__tzZoneInfo) return NULL;
-    baseURL = CFURLCreateWithFileSystemPath(kCFAllocatorSystemDefault, __tzZoneInfo, kCFURLWindowsPathStyle, true);
-#else
     baseURL = CFURLCreateWithFileSystemPath(kCFAllocatorSystemDefault, CFSTR(TZZONEINFO), kCFURLPOSIXPathStyle, true);
-#endif
     if (tryAbbrev) {
 	CFDictionaryRef abbrevs = CFTimeZoneCopyAbbreviationDictionary();
 	tzName = CFDictionaryGetValue(abbrevs, name);
@@ -1138,15 +782,9 @@ CFTimeZoneRef CFTimeZoneCreateWithName(CFAllocatorRef allocator, CFStringRef nam
 	CFStringRef mapping = CFDictionaryGetValue(dict, name);
 	if (mapping) {
 	    name = mapping;
-#if DEPLOYMENT_TARGET_WINDOWS
-	} else if (CFStringHasPrefix(name, __tzZoneInfo)) {
-	    CFMutableStringRef unprefixed = CFStringCreateMutableCopy(kCFAllocatorSystemDefault, CFStringGetLength(name), name);
-	    CFStringDelete(unprefixed, CFRangeMake(0, CFStringGetLength(__tzZoneInfo)));
-#else
 	} else if (CFStringHasPrefix(name, CFSTR(TZZONEINFO))) {
 	    CFMutableStringRef unprefixed = CFStringCreateMutableCopy(kCFAllocatorSystemDefault, CFStringGetLength(name), name);
 	    CFStringDelete(unprefixed, CFRangeMake(0, sizeof(TZZONEINFO)));
-#endif
 	    mapping = CFDictionaryGetValue(dict, unprefixed);
 	    if (mapping) {
 		name = mapping;
@@ -1194,27 +832,6 @@ CFDataRef CFTimeZoneGetData(CFTimeZoneRef tz) {
     __CFGenericValidateType(tz, CFTimeZoneGetTypeID());
     return tz->_data;
 }
-
-/* This function converts CFAbsoluteTime to (Win32) SYSTEMTIME
- * (Aleksey Dukhnyakov)
- */
-#if DEPLOYMENT_TARGET_WINDOWS
-BOOL __CFTimeZoneGetWin32SystemTime(SYSTEMTIME * sys_time, CFAbsoluteTime time)
-{
-    LONGLONG l;
-    FILETIME * ftime=(FILETIME*)&l;
-
-    /*  seconds between 1601 and 1970 : 11644473600,
-     *  seconds between 1970 and 2001 : 978307200,
-     *  FILETIME - number of 100-nanosecond intervals since January 1, 1601
-     */
-    l=(LONGLONG)(time+11644473600LL+978307200)*10000000;
-    if (FileTimeToSystemTime(ftime,sys_time))
-        return TRUE;
-    else
-        return FALSE;
-}
-#endif
 
 CFTimeInterval CFTimeZoneGetSecondsFromGMT(CFTimeZoneRef tz, CFAbsoluteTime at) {
     CFIndex idx;

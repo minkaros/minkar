@@ -76,4 +76,6 @@ typedef enum {
 
 - (void)synchronizeTitleAndSelectedItem;
 
+@property BOOL usesItemFromMenu;
+
 @end

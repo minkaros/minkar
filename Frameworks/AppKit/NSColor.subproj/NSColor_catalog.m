@@ -91,6 +91,14 @@ NSColor *NSColorGetCatalogColor(NSString *catalogName,NSString *colorName);
    return [_color CGColorRef];
 }
 
+-(CGColorRef)CGColor {
+   return [_color CGColor];
+}
+
+-(NSColorSpace *)colorSpace {
+   return [_color colorSpace];
+}
+
 -(void)setFill {
    if(_color==nil)
     [NSException raise:@"NSUnknownColor" format:@"Unknown color %@ in catalog %@",_colorName,_catalogName];
@@ -113,12 +121,16 @@ NSColor *NSColorGetCatalogColor(NSString *catalogName,NSString *colorName);
    [NSException raise:NSInvalidArgumentException format:@"-getComponents not valid for the NSColor Catalog color: %@ %@; need to first convert colorspace.",_catalogName,_colorName];
 }
 
+/* As on the reference platform, a catalog color has an alpha and makes a
+   translucent copy of itself (it raised: the font panel crashed drawing
+   a clip view with a catalog background). Its components still need a
+   conversion first. */
 -(CGFloat)alphaComponent {
-   [NSException raise:NSInvalidArgumentException format:@"-alphaComponent not valid for the NSColor Catalog color: %@ %@; need to first convert colorspace.",_catalogName,_colorName];
+   return (_color!=nil)?[_color alphaComponent]:1.0;
 }
 
 -(NSColor *)colorWithAlphaComponent:(CGFloat)alpha {
-   [NSException raise:NSInvalidArgumentException format:@"-colorWithAlphaComponent not valid for the NSColor Catalog color: %@ %@; need to first convert colorspace.",_catalogName,_colorName];
+   return (_color!=nil)?[_color colorWithAlphaComponent:alpha]:self;
 }
 
 -(void)getWhite:(CGFloat *)white alpha:(CGFloat *)alpha {

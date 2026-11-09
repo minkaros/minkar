@@ -44,30 +44,10 @@
 #include <sys/types.h>
 
 
-#if DEPLOYMENT_TARGET_MACOSX || DEPLOYMENT_TARGET_EMBEDDED || DEPLOYMENT_TARGET_EMBEDDED_MINI || DEPLOYMENT_TARGET_LINUX
 #include <unistd.h>
 #include <sys/sysctl.h>
 #include <sys/stat.h>
 #include <dirent.h>
-#endif
-
-#if DEPLOYMENT_TARGET_WINDOWS
-#include <io.h>
-#include <fcntl.h>
-#include <sys/stat.h>
-#include <errno.h>
-
-#define close _close
-#define write _write
-#define read _read
-#define open _NS_open
-#define stat _NS_stat
-#define fstat _fstat
-#define mkdir(a,b) _NS_mkdir(a)
-#define rmdir _NS_rmdir
-#define unlink _NS_unlink
-
-#endif
 
 #pragma mark -
 #pragma mark Directory Contents and Caches
@@ -205,7 +185,6 @@ CF_EXPORT CFArrayRef CFBundleCopyResourceURLsOfTypeInDirectory(CFURLRef bundleUR
 
 #pragma mark -
 
-#if DEPLOYMENT_TARGET_MACOSX || DEPLOYMENT_TARGET_WINDOWS
 // Note that subDirName is expected to be the string for a URL
 CF_INLINE Boolean _CFBundleURLHasSubDir(CFURLRef url, CFStringRef subDirName) {
     Boolean isDir = false, result = false;
@@ -216,7 +195,6 @@ CF_INLINE Boolean _CFBundleURLHasSubDir(CFURLRef url, CFStringRef subDirName) {
     }
     return result;
 }
-#endif
 
 CF_PRIVATE uint8_t _CFBundleGetBundleVersionForURL(CFURLRef url) {
     // check for existence of "Resources" or "Contents" or "Support Files"
@@ -232,9 +210,6 @@ CF_PRIVATE uint8_t _CFBundleGetBundleVersionForURL(CFURLRef url) {
     CFRelease(absoluteURL);
     
     Boolean hasFrameworkSuffix = CFStringHasSuffix(CFURLGetString(url), CFSTR(".framework/"));
-#if DEPLOYMENT_TARGET_WINDOWS
-    hasFrameworkSuffix = hasFrameworkSuffix || CFStringHasSuffix(CFURLGetString(url), CFSTR(".framework\\"));
-#endif
 
     /*
      #define _CFBundleSupportFilesDirectoryName1 CFSTR("Support Files")
@@ -287,7 +262,6 @@ CF_PRIVATE uint8_t _CFBundleGetBundleVersionForURL(CFURLRef url) {
         }
     }
     
-#if DEPLOYMENT_TARGET_MACOSX || DEPLOYMENT_TARGET_WINDOWS
     // Do a more substantial check for the subdirectories that make up version 0/1/2 bundles. These are sometimes symlinks (like in Frameworks) and they would have been missed by our check above. Perhaps we can do a check for DT_LNK there as well, if it's sufficient instead of looking at the actual contents.
     if (localVersion == 3) {
         if (hasFrameworkSuffix) {
@@ -300,7 +274,6 @@ CF_PRIVATE uint8_t _CFBundleGetBundleVersionForURL(CFURLRef url) {
             else if (_CFBundleURLHasSubDir(url, _CFBundleSupportFilesURLFromBase1)) localVersion = 1;
         }
     }
-#endif
 
     CFRelease(directoryPath);
     return localVersion;
@@ -315,95 +288,23 @@ CF_EXPORT CFArrayRef _CFBundleGetSupportedPlatforms(CFBundleRef bundle) {
 }
 
 CF_EXPORT CFStringRef _CFBundleGetCurrentPlatform(void) {
-#if DEPLOYMENT_TARGET_MACOSX
     return CFSTR("MacOS");
-#elif DEPLOYMENT_TARGET_EMBEDDED || DEPLOYMENT_TARGET_EMBEDDED_MINI
-    return CFSTR("iPhoneOS");
-#elif DEPLOYMENT_TARGET_WINDOWS
-    return CFSTR("Windows");
-#elif DEPLOYMENT_TARGET_SOLARIS
-    return CFSTR("Solaris");
-#elif DEPLOYMENT_TARGET_HPUX
-    return CFSTR("HPUX");
-#elif DEPLOYMENT_TARGET_LINUX
-    return CFSTR("Linux");
-#elif DEPLOYMENT_TARGET_FREEBSD
-    return CFSTR("FreeBSD");
-#else
-#error Unknown or unspecified DEPLOYMENT_TARGET
-#endif
 }
 
 CF_PRIVATE CFStringRef _CFBundleGetPlatformExecutablesSubdirectoryName(void) {
-#if DEPLOYMENT_TARGET_MACOSX || DEPLOYMENT_TARGET_EMBEDDED || DEPLOYMENT_TARGET_EMBEDDED_MINI
     return CFSTR("MacOS");
-#elif DEPLOYMENT_TARGET_WINDOWS
-    return CFSTR("Windows");
-#elif DEPLOYMENT_TARGET_SOLARIS
-    return CFSTR("Solaris");
-#elif DEPLOYMENT_TARGET_HPUX
-    return CFSTR("HPUX");
-#elif DEPLOYMENT_TARGET_LINUX
-    return CFSTR("Linux");
-#elif DEPLOYMENT_TARGET_FREEBSD
-    return CFSTR("FreeBSD");
-#else
-#error Unknown or unspecified DEPLOYMENT_TARGET
-#endif
 }
 
 CF_PRIVATE CFStringRef _CFBundleGetAlternatePlatformExecutablesSubdirectoryName(void) {
-#if DEPLOYMENT_TARGET_MACOSX || DEPLOYMENT_TARGET_EMBEDDED || DEPLOYMENT_TARGET_EMBEDDED_MINI
     return CFSTR("Mac OS X");
-#elif DEPLOYMENT_TARGET_WINDOWS
-    return CFSTR("WinNT");
-#elif DEPLOYMENT_TARGET_SOLARIS
-    return CFSTR("Solaris");
-#elif DEPLOYMENT_TARGET_HPUX
-    return CFSTR("HP-UX");
-#elif DEPLOYMENT_TARGET_LINUX
-    return CFSTR("Linux");
-#elif DEPLOYMENT_TARGET_FREEBSD
-    return CFSTR("FreeBSD");
-#else
-#error Unknown or unspecified DEPLOYMENT_TARGET
-#endif
 }
 
 CF_PRIVATE CFStringRef _CFBundleGetOtherPlatformExecutablesSubdirectoryName(void) {
-#if DEPLOYMENT_TARGET_MACOSX || DEPLOYMENT_TARGET_EMBEDDED || DEPLOYMENT_TARGET_EMBEDDED_MINI
     return CFSTR("MacOSClassic");
-#elif DEPLOYMENT_TARGET_WINDOWS
-    return CFSTR("Other");
-#elif DEPLOYMENT_TARGET_HPUX
-    return CFSTR("Other");
-#elif DEPLOYMENT_TARGET_SOLARIS
-    return CFSTR("Other");
-#elif DEPLOYMENT_TARGET_LINUX
-    return CFSTR("Other");
-#elif DEPLOYMENT_TARGET_FREEBSD
-    return CFSTR("Other");
-#else
-#error Unknown or unspecified DEPLOYMENT_TARGET
-#endif
 }
 
 CF_PRIVATE CFStringRef _CFBundleGetOtherAlternatePlatformExecutablesSubdirectoryName(void) {
-#if DEPLOYMENT_TARGET_MACOSX || DEPLOYMENT_TARGET_EMBEDDED || DEPLOYMENT_TARGET_EMBEDDED_MINI
     return CFSTR("Mac OS 8");
-#elif DEPLOYMENT_TARGET_WINDOWS
-    return CFSTR("Other");
-#elif DEPLOYMENT_TARGET_HPUX
-    return CFSTR("Other");
-#elif DEPLOYMENT_TARGET_SOLARIS
-    return CFSTR("Other");
-#elif DEPLOYMENT_TARGET_LINUX
-    return CFSTR("Other");
-#elif DEPLOYMENT_TARGET_FREEBSD
-    return CFSTR("Other");
-#else
-#error Unknown or unspecified DEPLOYMENT_TARGET
-#endif
 }
 
 CFArrayRef CFBundleCopyExecutableArchitecturesForURL(CFURLRef url) {
@@ -505,15 +406,6 @@ static _CFBundleFileVersion _CFBundleVersionForFileName(CFStringRef fileName, CF
         if (c == '.') {
             dotLocation = i;
         }
-#if DEPLOYMENT_TARGET_EMBEDDED
-        // Product names are only supported on iOS
-        // ref docs here: "iOS Supports Device-Specific Resources" in "Resource Programming Guide"
-        else if (c == '~' && !foundProduct) {
-            productRange = CFRangeMake(i, dotLocation - i);
-            foundProduct = (CFStringCompareWithOptions(fileName, expectedProduct, productRange, kCFCompareAnchored) == kCFCompareEqualTo);
-            if (foundProduct && outProductRange) *outProductRange = productRange;
-        }
-#endif
         else if (c == '-') {
             if (foundProduct) {
                 platformRange = CFRangeMake(i, productRange.location - i);
@@ -645,7 +537,6 @@ static Boolean _CFBundleReadDirectory(CFStringRef pathOfDir, CFStringRef subdire
         if (fileType == DT_DIR) {
             appendSlash = true;
         }
-#if DEPLOYMENT_TARGET_MACOSX || DEPLOYMENT_TARGET_EMBEDDED || DEPLOYMENT_TARGET_EMBEDDED_MINI || DEPLOYMENT_TARGET_LINUX || DEPLOYMENT_TARGET_FREEBSD
         else if (fileType == DT_UNKNOWN) {
             Boolean isDir = false;
             char subdirPath[CFMaxPathLength];
@@ -664,7 +555,6 @@ static Boolean _CFBundleReadDirectory(CFStringRef pathOfDir, CFStringRef subdire
                 }
             }
         }
-#endif
         if (appendSlash) {
             // This is fairly inefficient
             CFMutableStringRef tmp = CFStringCreateMutableCopy(kCFAllocatorSystemDefault, 0, pathToFile);

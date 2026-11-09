@@ -1,0 +1,65 @@
+Zink on Darwin without MoltenVK: Minkar has its own Vulkan loader and
+drivers (RADV), so MoltenVK's headers, layer and portability enumeration
+are used only when moltenvk-dir is given; zink's Objective-C mode links
+libobjc.
+
+--- a/src/gallium/drivers/zink/meson.build
++++ b/src/gallium/drivers/zink/meson.build
+@@ -76,12 +76,13 @@
+       endif
+     endif
+     inc_zink_vk += include_directories(moltenvk_includes)
+-  else
+-    error('moltenvk-dir is required but not set.')
++    zink_c_args += ['-DZINK_HAVE_MOLTENVK']
+   endif
+ 
+   zink_c_args += ['-x','objective-c'] # Put compiler into objective-C mode to allow for MacOS types, like IOSurface and CAMetalLayer
+   zink_c_args += ['-iframework' , 'Foundation']
++  # Objective-C mode needs its runtime (exception personality).
++  zink_link_args += ['-lobjc']
+ 
+   # zink dlopen()s the Vulkan loader (libvulkan.1.dylib) via a bare
+   # "@rpath/..." path at runtime (see VK_LIBNAME in zink_screen.c).  This linker
+--- a/src/gallium/drivers/zink/zink_instance.py
++++ b/src/gallium/drivers/zink/zink_instance.py
+@@ -81,7 +81,7 @@
+ 
+ #include <vulkan/vulkan_core.h>
+ 
+-#ifdef __APPLE__
++#if defined(__APPLE__) && defined(ZINK_HAVE_MOLTENVK)
+ #include "MoltenVK/mvk_vulkan.h"
+ // Source of MVK_VERSION
+ #include "MoltenVK/mvk_config.h"
+@@ -253,7 +253,7 @@
+ 
+    VkInstanceCreateInfo ici = {0};
+    ici.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
+-#ifdef __APPLE__
++#if defined(__APPLE__) && defined(ZINK_HAVE_MOLTENVK)
+    ici.flags = VK_INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR;
+ #endif
+    ici.pApplicationInfo = &ai;
+--- a/src/gallium/drivers/zink/zink_resource.c
++++ b/src/gallium/drivers/zink/zink_resource.c
+@@ -60,7 +60,7 @@
+ #define DRM_FORMAT_MOD_LINEAR 0
+ #endif
+ 
+-#ifdef __APPLE__
++#if defined(__APPLE__) && defined(ZINK_HAVE_MOLTENVK)
+ #include "MoltenVK/mvk_vulkan.h"
+ // Source of MVK_VERSION
+ #include "MoltenVK/mvk_config.h"
+--- a/src/gallium/drivers/zink/zink_screen.c
++++ b/src/gallium/drivers/zink/zink_screen.c
+@@ -80,7 +80,7 @@
+ #endif
+ #endif
+ 
+-#ifdef __APPLE__
++#if defined(__APPLE__) && defined(ZINK_HAVE_MOLTENVK)
+ #include "MoltenVK/mvk_vulkan.h"
+ // Source of MVK_VERSION
+ #include "MoltenVK/mvk_config.h"

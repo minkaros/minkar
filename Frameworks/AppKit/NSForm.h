@@ -12,15 +12,15 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 @interface NSForm : NSMatrix
 
-- cellAtIndex:(int)index;
-- (int)indexOfCellWithTag:(int)tag;
-- (int)indexOfSelectedItem;
+- cellAtIndex:(NSInteger)index;
+- (NSInteger)indexOfCellWithTag:(NSInteger)tag;
+- (NSInteger)indexOfSelectedItem;
 
 - (void)setBordered:(BOOL)value;
 - (void)setBezeled:(BOOL)value;
 
-- (void)setEntryWidth:(float)value;
-- (void)setInterlineSpacing:(float)value;
+- (void)setEntryWidth:(CGFloat)value;
+- (void)setInterlineSpacing:(CGFloat)value;
 
 - (void)setTitleAlignment:(NSTextAlignment)value;
 - (void)setTitleFont:(NSFont *)value;
@@ -31,11 +31,11 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 - (void)setTextBaseWritingDirection:(NSWritingDirection)value;
 
 - (NSFormCell *)addEntry:(NSString *)title;
-- (NSFormCell *)insertEntry:(NSString *)title atIndex:(int)index;
-- (void)removeEntryAtIndex:(int)index;
+- (NSFormCell *)insertEntry:(NSString *)title atIndex:(NSInteger)index;
+- (void)removeEntryAtIndex:(NSInteger)index;
 
-- (void)selectTextAtIndex:(int)index;
+- (void)selectTextAtIndex:(NSInteger)index;
 
-- (void)drawCellAtIndex:(int)index;
+- (void)drawCellAtIndex:(NSInteger)index;
 
 @end

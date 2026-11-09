@@ -144,7 +144,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    [self setNeedsDisplay:YES];
 }
 
--(void)setState:(NSInteger)value {
+-(void)setState:(NSControlStateValue)value {
    [_cell setState:value];
    [self setNeedsDisplay:YES];
 }
@@ -239,6 +239,44 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    [self sendAction:[self action] to:[self target]];
 
    [self highlight:NO];
+}
+
++(instancetype)_buttonWithTitle:(NSString *)title image:(NSImage *)image type:(NSButtonType)type target:(id)target action:(SEL)action {
+   NSButton *result=[[[self alloc] initWithFrame:NSMakeRect(0,0,80,32)] autorelease];
+
+   [result setButtonType:type];
+   if(type==NSButtonTypeMomentaryPushIn)
+    [result setBezelStyle:NSBezelStyleRounded];
+   [result setTitle:(title!=nil)?title:@""];
+   [result setFont:[NSFont systemFontOfSize:0]];
+   if(image!=nil){
+    [result setImage:image];
+    [result setImagePosition:([title length]>0)?NSImageLeft:NSImageOnly];
+   }
+   [result setTarget:target];
+   [result setAction:action];
+   [result sizeToFit];
+   return result;
+}
+
++(instancetype)buttonWithTitle:(NSString *)title image:(NSImage *)image target:(id)target action:(SEL)action {
+   return [self _buttonWithTitle:title image:image type:NSButtonTypeMomentaryPushIn target:target action:action];
+}
+
++(instancetype)buttonWithTitle:(NSString *)title target:(id)target action:(SEL)action {
+   return [self _buttonWithTitle:title image:nil type:NSButtonTypeMomentaryPushIn target:target action:action];
+}
+
++(instancetype)buttonWithImage:(NSImage *)image target:(id)target action:(SEL)action {
+   return [self _buttonWithTitle:@"" image:image type:NSButtonTypeMomentaryPushIn target:target action:action];
+}
+
++(instancetype)checkboxWithTitle:(NSString *)title target:(id)target action:(SEL)action {
+   return [self _buttonWithTitle:title image:nil type:NSButtonTypeSwitch target:target action:action];
+}
+
++(instancetype)radioButtonWithTitle:(NSString *)title target:(id)target action:(SEL)action {
+   return [self _buttonWithTitle:title image:nil type:NSButtonTypeRadio target:target action:action];
 }
 
 -(void)keyDown:(NSEvent *)event {

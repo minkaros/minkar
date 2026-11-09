@@ -53,7 +53,7 @@ ${CMARK}/.minkar-built: ${.CURDIR}/MANIFEST.cmark
 	cmake -G Ninja -S $$src -B ${CMARK} -DCMAKE_BUILD_TYPE=Release \
 	    -DCMAKE_C_COMPILER=${HOST_CC:Uclang} -DCMAKE_CXX_COMPILER=${HOST_CXX:Uclang++} \
 	    > ${.OBJDIR}/cmark-config.log 2>&1 && \
-	ninja -j${JOBS:U10} -C ${CMARK} > ${.OBJDIR}/cmark-build.log 2>&1
+	ninja -j${JOBS:U${.MAKE.JOBS:U10}} -C ${CMARK} > ${.OBJDIR}/cmark-build.log 2>&1
 	touch ${.TARGET}
 
 ${BUILD}/.minkar-setup: ${SRC}/.minkar-patches ${CMARK}/.minkar-built ${.CURDIR}/Makefile \
@@ -88,7 +88,7 @@ ${BUILD}/.minkar-setup: ${SRC}/.minkar-patches ${CMARK}/.minkar-built ${.CURDIR}
 	touch ${.TARGET}
 
 build-swift: .PHONY ${BUILD}/.minkar-setup
-	ninja -j${JOBS:U10} -C ${BUILD} swift-frontend > ${.OBJDIR}/swift-build.log 2>&1 || \
+	ninja -j${JOBS:U${.MAKE.JOBS:U10}} -C ${BUILD} swift-frontend > ${.OBJDIR}/swift-build.log 2>&1 || \
 	    { grep -A5 FAILED ${.OBJDIR}/swift-build.log | head -40; exit 1; }
 
 # Built again only when what it is built from changes: its manifests,

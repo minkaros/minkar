@@ -299,7 +299,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 	}
 }
 
--(BOOL)setSelectionIndex:(unsigned)index
+-(BOOL)setSelectionIndex:(NSUInteger)index
 {
 	return [self setSelectionIndexes:[NSIndexSet indexSetWithIndex:index]];
 }
@@ -516,7 +516,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 	}
 }
 
--(void)insertObject:object atArrangedObjectIndex:(unsigned)index
+-(void)insertObject:object atArrangedObjectIndex:(NSUInteger)index
 {
 	if(_flags.clearsFilterPredicateOnInsertion) {
 		[self setFilterPredicate:nil];
@@ -570,7 +570,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 	}
 }
 
--(void)removeObjectAtArrangedObjectIndex:(unsigned)index
+-(void)removeObjectAtArrangedObjectIndex:(NSUInteger)index
 {
 	[self removeSelectionIndexes: [NSIndexSet indexSetWithIndex: index]];
 	

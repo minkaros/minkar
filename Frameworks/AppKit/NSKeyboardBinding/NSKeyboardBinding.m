@@ -14,11 +14,11 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 @implementation NSKeyboardBinding
 
-+ (NSKeyboardBinding *)keyBindingWithString:(NSString *)string modifierMask:(int)mask selectorNames:(NSArray *)selNames {
++ (NSKeyboardBinding *)keyBindingWithString:(NSString *)string modifierMask:(NSInteger)mask selectorNames:(NSArray *)selNames {
     return [[[self alloc] initWithString:string modifierMask:mask selectorNames:selNames] autorelease];
 }
 
-- (id)initWithString:(NSString *)string modifierMask:(unsigned)mask selectorNames:(NSArray *)selNames {
+- (id)initWithString:(NSString *)string modifierMask:(NSEventModifierFlags)mask selectorNames:(NSArray *)selNames {
     [super init];
 
     _string = [string retain];
@@ -36,7 +36,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 }
 
 - (NSString *)string { return _string; }
-- (unsigned)modifierMask { return _modifierMask; }
+- (NSEventModifierFlags)modifierMask { return _modifierMask; }
 
 - (NSArray *)selectorNames { return _selectorNames; }
 

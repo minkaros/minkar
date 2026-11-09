@@ -427,9 +427,9 @@ static int ClassFromChWS(unichar ch)
 // === HELPER FUNCTIONS ================================================
 
 // reverse cch characters
-static void reverse(uint32_t * psz, unsigned long cch)
+static void reverse(NSUInteger * psz, unsigned long cch)
 {
-	uint32_t chTemp;
+	NSUInteger chTemp;
     
 	unsigned long ich;
     for (ich = 0; ich < --cch; ich++)
@@ -1332,7 +1332,7 @@ static void resolveWhitespace(int baselevel, const uint8_t *pcls, uint8_t *pleve
  
  Note: this should be applied a line at a time
  -------------------------------------------------------------------------*/
-static unsigned long reorderLevel(int level, uint32_t * pszText, const uint8_t * plevel, unsigned long cch,
+static unsigned long reorderLevel(int level, NSUInteger * pszText, const uint8_t * plevel, unsigned long cch,
                            bool fReverse)
 {
 	// true as soon as first odd level encountered
@@ -1358,7 +1358,7 @@ static unsigned long reorderLevel(int level, uint32_t * pszText, const uint8_t *
 	return ich;
 }
 
-static unsigned long reorder(int baselevel, uint32_t * pszText, const uint8_t * plevel, unsigned long cch)
+static unsigned long reorder(int baselevel, NSUInteger * pszText, const uint8_t * plevel, unsigned long cch)
 {
 	unsigned long ich = 0;
     
@@ -1410,7 +1410,7 @@ static void mirror(unichar * pszInput, const uint8_t * plevel, unsigned long cch
  
  Implements the Line-by-Line phases of the Unicode Bidi Algorithm
  ------------------------------------------------------------------------*/
-void NSBidiHelperProcessLine(int baselevel, uint32_t* pszLine, unichar *text, uint8_t * plevelLine, int fMirror, unsigned long length)
+void NSBidiHelperProcessLine(int baselevel, NSUInteger* pszLine, unichar *text, uint8_t * plevelLine, int fMirror, unsigned long length)
 {
     buildUnicharData();
 

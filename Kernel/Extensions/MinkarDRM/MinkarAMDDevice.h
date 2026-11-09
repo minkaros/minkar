@@ -48,10 +48,12 @@ struct MinkarAMDRegs {
 
 /* The family of a device ID (amdgpu's PCI ID table); *gcn1 if GCN 1.0. */
 const char *MinkarAMDFamily(UInt16 device, bool *gcn1);
+/* Navi 23 (RDNA2, display engine DCN 3.0.2). */
+static inline bool MinkarAMDIsNavi23(UInt16 device) { return device >= 0x73E0 && device <= 0x73FF; }
 
 /*
  * A memory BAR's window. The PCI family's IODeviceMemory when it made one;
- * else (a GPU behind the Mac Pro 6,1's bridges, where it does not) the
+ * else (a GPU behind PC 2's bridges, where it does not) the
  * firmware's address from the BAR and the size from "reg", without
  * sizing the BAR of a GPU that is lighting a display. Retained.
  */

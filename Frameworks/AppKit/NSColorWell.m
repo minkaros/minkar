@@ -67,10 +67,13 @@ NSString *_NSColorWellDidBecomeExclusiveNotification=@"_NSColorWellDidBecomeExcl
     _isBordered=YES;
     _color=[[NSColor whiteColor] copy];
 
+        /* Any window's close, the color panel's checked when it comes:
+         * asking for the shared panel here would make it (as Cocoa does
+         * not, until the panel is used). */
         [[NSNotificationCenter defaultCenter] addObserver:self
                                                  selector:@selector(colorPanelWillClose:)
                                                      name:NSWindowWillCloseNotification
-                                                   object:[NSColorPanel sharedColorPanel]];
+                                                   object:nil];
         [[NSNotificationCenter defaultCenter] addObserver:self
                                                  selector:@selector(colorWellDidBecomeExclusive:)
                                                      name:_NSColorWellDidBecomeExclusiveNotification
@@ -86,7 +89,7 @@ NSString *_NSColorWellDidBecomeExclusiveNotification=@"_NSColorWellDidBecomeExcl
     [[NSNotificationCenter defaultCenter] addObserver:self
                                              selector:@selector(colorPanelWillClose:)
                                                  name:NSWindowWillCloseNotification
-                                               object:[NSColorPanel sharedColorPanel]];
+                                               object:nil];
     [[NSNotificationCenter defaultCenter] addObserver:self
                                              selector:@selector(colorWellDidBecomeExclusive:)
                                                  name:_NSColorWellDidBecomeExclusiveNotification
@@ -106,6 +109,8 @@ NSString *_NSColorWellDidBecomeExclusiveNotification=@"_NSColorWellDidBecomeExcl
 }
 
 -(void)colorPanelWillClose:(NSNotification *)note {
+    if (![[note object] isKindOfClass:[NSColorPanel class]])
+        return;
     if ([self isActive])
         [self deactivate];
 }
@@ -320,15 +325,15 @@ NSString *_NSColorWellDidBecomeExclusiveNotification=@"_NSColorWellDidBecomeExcl
         [NSColorPanel dragColor:_color withEvent:event fromView:self];
 }
 
--(unsigned)draggingSourceOperationMaskForLocal:(BOOL)isLocal {
+-(NSDragOperation)draggingSourceOperationMaskForLocal:(BOOL)isLocal {
    return NSDragOperationCopy;
 }
 
--(unsigned)draggingEntered:(id <NSDraggingInfo>)sender {
+-(NSDragOperation)draggingEntered:(id <NSDraggingInfo>)sender {
    return NSDragOperationCopy;
 }
 
--(unsigned)draggingUpdated:(id <NSDraggingInfo>)sender {
+-(NSDragOperation)draggingUpdated:(id <NSDraggingInfo>)sender {
    return NSDragOperationCopy;
 }
 

@@ -7,6 +7,7 @@ The above copyright notice and this permission notice shall be included in all c
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE. */
 
 #import <AppKit/NSAttributedString.h>
+#import "NSHTMLReader.h"
 #import <AppKit/NSFont.h>
 #import <AppKit/NSColor.h>
 #import <AppKit/NSParagraphStyle.h>
@@ -23,6 +24,7 @@ NSString * const NSBackgroundColorAttributeName=@"NSBackgroundColorAttributeName
 NSString * const NSUnderlineStyleAttributeName=@"NSUnderlineStyleAttributeName";
 NSString * const NSUnderlineColorAttributeName=@"NSUnderlineColorAttributeName";
 NSString * const NSAttachmentAttributeName=@"NSAttachmentAttributeName";
+NSString * const NSGlyphInfoAttributeName=@"NSGlyphInfo";
 NSString * const NSKernAttributeName=@"NSKernAttributeName";
 NSString * const NSLigatureAttributeName=@"NSLigatureAttributeName";
 NSString * const NSStrikethroughStyleAttributeName=@"NSStrikethroughStyleAttributeName";
@@ -38,6 +40,10 @@ NSString * const NSExpansionAttributeName=@"NSExpansionAttributeName";
 NSString * const NSCursorAttributeName=@"NSCursorAttributeName";
 NSString * const NSToolTipAttributeName=@"NSToolTipAttributeName";
 NSString * const NSBackgroundColorDocumentAttribute=@"NSBackgroundColorDocumentAttribute";
+NSString * const NSTitleDocumentAttribute=@"NSTitleDocumentAttribute";
+NSString * const NSDocumentTypeDocumentAttribute=@"DocumentType";
+NSString * const NSHTMLTextDocumentType=@"NSHTML";
+NSString * const NSBaseURLDocumentOption=@"BaseURL";
 NSString * const NSSpellingStateAttributeName=@"NSSpellingStateAttributeName"; // temporary attribute
 
 @implementation NSAttributedString(NSAttributedString_AppKit)
@@ -63,19 +69,23 @@ NSString * const NSSpellingStateAttributeName=@"NSSpellingStateAttributeName"; /
    return nil;
 }
 
+/* HTML: NSHTMLReader.m reads the part help books and credits use. */
 -initWithHTML:(NSData *)html baseURL:(NSURL *)url documentAttributes:(NSDictionary **)attributes {
-   NSUnimplementedMethod();
-   return nil;
+   NSAttributedString *string=[NSHTMLReader attributedStringWithHTML:html baseURL:url documentAttributes:attributes];
+
+   if(string==nil){
+    [self release];
+    return nil;
+   }
+   return [self initWithAttributedString:string];
 }
 
 -initWithHTML:(NSData *)html documentAttributes:(NSDictionary **)attributes {
-   NSUnimplementedMethod();
-   return nil;
+   return [self initWithHTML:html baseURL:nil documentAttributes:attributes];
 }
 
 -initWithHTML:(NSData *)html options:(NSDictionary *)options documentAttributes:(NSDictionary **)attributes {
-   NSUnimplementedMethod();
-   return nil;
+   return [self initWithHTML:html baseURL:[options objectForKey:NSBaseURLDocumentOption] documentAttributes:attributes];
 }
 
 -initWithPath:(NSString *)path documentAttributes:(NSDictionary **)attributes {
@@ -137,7 +147,7 @@ NSString * const NSSpellingStateAttributeName=@"NSSpellingStateAttributeName"; /
 #pragma mark -
 #pragma mark Calculating Linguistic Units
 
--(NSRange)doubleClickAtIndex:(unsigned)location {
+-(NSRange)doubleClickAtIndex:(NSUInteger)location {
 	NSRange   result=NSMakeRange(location,0);
 	NSString *string=[self string];
 	unsigned  length=[string length];
@@ -171,18 +181,18 @@ NSString * const NSSpellingStateAttributeName=@"NSSpellingStateAttributeName"; /
 	return result;
 }
 
--(unsigned)lineBreakBeforeIndex:(unsigned)index withinRange:(NSRange)range {
+-(NSUInteger)lineBreakBeforeIndex:(NSUInteger)index withinRange:(NSRange)range {
 	NSUnimplementedMethod();
 	return 0;
 }
 
--(unsigned)lineBreakByHyphenatingBeforeIndex:(unsigned)index withinRange:(NSRange)range {
+-(NSUInteger)lineBreakByHyphenatingBeforeIndex:(NSUInteger)index withinRange:(NSRange)range {
 	NSUnimplementedMethod();
 	return 0;
 }
 
 /* as usual, the documentation says one thing and the system behaves differently, this is the way i think it should work... (dwy 5/11/2003) */
--(unsigned)nextWordFromIndex:(unsigned)location forward:(BOOL)forward {
+-(NSUInteger)nextWordFromIndex:(NSUInteger)location forward:(BOOL)forward {
     NSCharacterSet *alpha = [NSCharacterSet alphanumericCharacterSet];
     NSString *string = [self string];
     int i = location, length = [self length];
@@ -258,22 +268,22 @@ NSString * const NSSpellingStateAttributeName=@"NSSpellingStateAttributeName"; /
 #pragma mark -
 #pragma mark Calculating Ranges
 
--(int)itemNumberInTextList:(NSTextList *)list atIndex:(unsigned)index {
+-(NSInteger)itemNumberInTextList:(NSTextList *)list atIndex:(NSUInteger)index {
    NSUnimplementedMethod();
    return 0;
 }
 
--(NSRange)rangeOfTextBlock:(NSTextBlock *)block atIndex:(unsigned)index {
+-(NSRange)rangeOfTextBlock:(NSTextBlock *)block atIndex:(NSUInteger)index {
    NSUnimplementedMethod();
    return NSMakeRange(0,0);
 }
 
--(NSRange)rangeOfTextList:(NSTextList *)list atIndex:(unsigned)index {
+-(NSRange)rangeOfTextList:(NSTextList *)list atIndex:(NSUInteger)index {
    NSUnimplementedMethod();
    return NSMakeRange(0,0);
 }
 
--(NSRange)rangeOfTextTable:(NSTextTable *)table atIndex:(unsigned)index {
+-(NSRange)rangeOfTextTable:(NSTextTable *)table atIndex:(NSUInteger)index {
    NSUnimplementedMethod();
    return NSMakeRange(0,0);
 }
@@ -341,9 +351,29 @@ NSString * const NSSpellingStateAttributeName=@"NSSpellingStateAttributeName"; /
 #pragma mark -
 #pragma mark Getting the Bounding Rectangle of Rendered Strings
 
+/* With NSStringDrawingUsesLineFragmentOrigin, the text laid out in lines
+   of size's width (0: no limit), from the first line's top left;
+   without it, on one line, from the baseline's start: below the baseline
+   is negative. */
 -(NSRect)boundingRectWithSize:(NSSize)size options:(NSStringDrawingOptions)options {
-	NSUnimplementedMethod();
-	return NSMakeRect(0,0,0,0);
+	if([self length]==0)
+		return NSZeroRect;
+	if(options&NSStringDrawingUsesLineFragmentOrigin){
+		NSSize limit=NSMakeSize((size.width>0)?size.width:NSStringDrawerLargeDimension,
+		                        (size.height>0)?size.height:NSStringDrawerLargeDimension);
+		NSSize used=[[NSStringDrawer sharedStringDrawer] sizeOfAttributedString:self inSize:limit];
+
+		return NSMakeRect(0,0,used.width,used.height);
+	}
+
+	NSSize  line=[self size];
+	NSFont *font=[self attribute:NSFontAttributeName atIndex:0 effectiveRange:NULL];
+
+	if(font==nil)
+		font=[NSFont fontWithName:@"Helvetica" size:12];
+	if(font==nil)
+		font=[NSFont systemFontOfSize:12];
+	return NSMakeRect(0,[font descender],line.width,line.height);
 }
 
 #pragma mark -

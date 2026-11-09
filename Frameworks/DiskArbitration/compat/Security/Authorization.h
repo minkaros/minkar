@@ -27,12 +27,15 @@
  */
 
 /*
- * The Authorization types DiskArbitration's interface carries. Minkar has
- * no Security framework yet: a session sends no authorization, and
+ * The Authorization types DiskArbitration's interface carries: Security's
+ * own header once Security.framework is installed (it is built after
+ * DiskArbitration), else these. A session sends no authorization, and
  * diskarbitrationd decides a user's rights itself (see DASupport.c).
  */
 
-#ifndef _MINKAR_COMPAT_AUTHORIZATION_H
+#if __has_include_next(<Security/Authorization.h>)
+#include_next <Security/Authorization.h>
+#elif !defined(_MINKAR_COMPAT_AUTHORIZATION_H)
 #define _MINKAR_COMPAT_AUTHORIZATION_H
 
 #include <CoreFoundation/CoreFoundation.h>
@@ -54,4 +57,4 @@ typedef struct {
 	char	bytes[kAuthorizationExternalFormLength];
 } AuthorizationExternalForm;
 
-#endif /* !_MINKAR_COMPAT_AUTHORIZATION_H */
+#endif

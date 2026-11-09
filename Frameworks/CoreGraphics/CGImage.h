@@ -49,6 +49,7 @@ typedef CF_OPTIONS(uint32_t, CGBitmapInfo) {
 
 typedef struct O2Image *CGImageRef;
 
+COREGRAPHICS_EXPORT CFTypeID CGImageGetTypeID(void);
 COREGRAPHICS_EXPORT CGImageRef _Nullable CGImageRetain(CGImageRef _Nullable image);
 COREGRAPHICS_EXPORT void CGImageRelease(CGImageRef _Nullable image);
 

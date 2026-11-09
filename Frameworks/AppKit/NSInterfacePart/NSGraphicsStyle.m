@@ -10,6 +10,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <AppKit/NSInterfacePartDisabledAttributedString.h>
 #import <AppKit/NSColor.h>
 #import <AppKit/NSGradient.h>
+#import <AppKit/NSBezierPath.h>
 #import <AppKit/NSFont.h>
 #import <AppKit/NSImage.h>
 #import <AppKit/NSWindow.h>
@@ -167,12 +168,12 @@ static NSDictionary *sDimmedMenuTextShadowAttributes = nil;
 }
 
 // this is the in-window bar which we dropped
--(float)menuBarHeight
+-(CGFloat)menuBarHeight
 {
     return 0.0;
 }
 
--(float)menuItemGutterGap
+-(CGFloat)menuItemGutterGap
 {
 	return 0;
 }
@@ -383,31 +384,210 @@ NSColor *_NSMenuBarTextColor(void) {
 
 @end
 
+/* ---- Atlas's controls ----------------------------------------------------
+   Drawn here, without artwork, as Atlas's menu bar and window controls are:
+   rounded shapes in its palette (the system colors, System.clr), light
+   faces with a thin border, one accent color for what is chosen. */
+
+static BOOL atlasFlipped(void) {
+   return [[NSGraphicsContext currentContext] isFlipped];
+}
+
+static NSColor *atlasGray(CGFloat white) {
+   return [NSColor colorWithCalibratedWhite:white alpha:1];
+}
+
+static NSColor *atlasAccent(void) {
+   NSColor *accent=[NSColor controlAccentColor];
+
+   return (accent!=nil)?accent:[NSColor colorWithCalibratedRed:0.13 green:0.47 blue:0.95 alpha:1];
+}
+
+static NSColor *atlasDarker(NSColor *color,CGFloat fraction) {
+   NSColor *rgb=[color colorUsingColorSpaceName:NSCalibratedRGBColorSpace];
+
+   if(rgb==nil)
+    return color;
+   return [NSColor colorWithCalibratedRed:[rgb redComponent]*(1-fraction) green:[rgb greenComponent]*(1-fraction)
+      blue:[rgb blueComponent]*(1-fraction) alpha:[rgb alphaComponent]];
+}
+
+static NSColor *atlasLighter(NSColor *color,CGFloat fraction) {
+   NSColor *rgb=[color colorUsingColorSpaceName:NSCalibratedRGBColorSpace];
+
+   if(rgb==nil)
+    return color;
+   return [NSColor colorWithCalibratedRed:[rgb redComponent]+(1-[rgb redComponent])*fraction
+      green:[rgb greenComponent]+(1-[rgb greenComponent])*fraction
+      blue:[rgb blueComponent]+(1-[rgb blueComponent])*fraction alpha:[rgb alphaComponent]];
+}
+
+/* A rounded shape, its fill a gradient from its top to its bottom (in the
+   view's sense of up), and a one-point border on the pixel grid. */
+static void atlasRounded(NSRect rect,CGFloat radius,NSColor *top,NSColor *bottom,NSColor *border) {
+   NSRect       inner=NSInsetRect(rect,0.5,0.5);
+   NSBezierPath *path;
+
+   if(NSWidth(inner)<=0 || NSHeight(inner)<=0)
+    return;
+   radius=MIN(radius,MIN(NSWidth(inner),NSHeight(inner))/2);
+
+   /* Only what the clip shows: nothing when it misses the shape, and the
+      plain fill when it lies inside, away from the border and corners (a
+      small redraw inside a big pane or box need not stroke all of it). */
+   CGContextRef context=[[NSGraphicsContext currentContext] graphicsPort];
+   NSRect       clip=CGContextGetClipBoundingBox(context);
+
+   if(!NSIntersectsRect(NSInsetRect(rect,-1,-1),clip))
+    return;
+   if(NSContainsRect(NSInsetRect(inner,1.5,radius+1),clip) || NSContainsRect(NSInsetRect(inner,radius+1,1.5),clip)){
+    if(top!=nil){
+     NSGradient *gradient=[[NSGradient alloc] initWithStartingColor:bottom endingColor:top];
+
+     [gradient drawInRect:inner angle:atlasFlipped()?-90:90];
+     [gradient release];
+    }
+    return;
+   }
+
+   path=[NSBezierPath bezierPathWithRoundedRect:inner xRadius:radius yRadius:radius];
+   if(top!=nil){
+    NSGradient *gradient=[[NSGradient alloc] initWithStartingColor:bottom endingColor:top];
+
+    [gradient drawInBezierPath:path angle:atlasFlipped()?-90:90];
+    [gradient release];
+   }
+   if(border!=nil){
+    [border setStroke];
+    [path setLineWidth:1];
+    [path stroke];
+   }
+}
+
+/* A chevron (an open arrow), centered in rect, pointing down, up, left or
+   right: 0, 1, 2, 3. */
+static void atlasChevron(NSRect rect,int direction,CGFloat size,NSColor *color) {
+   NSPoint      c=NSMakePoint(NSMidX(rect),NSMidY(rect));
+   CGFloat      h=size/2,q=size/4;
+   BOOL         down=(direction==0)!=atlasFlipped();
+   NSBezierPath *path=[NSBezierPath bezierPath];
+
+   if(direction==0 || direction==1){
+    CGFloat dy=(down?1:-1)*q;
+    [path moveToPoint:NSMakePoint(c.x-h,c.y+dy)];
+    [path lineToPoint:NSMakePoint(c.x,c.y-dy)];
+    [path lineToPoint:NSMakePoint(c.x+h,c.y+dy)];
+   }
+   else {
+    CGFloat dx=(direction==2?1:-1)*q;
+    [path moveToPoint:NSMakePoint(c.x+dx,c.y-h)];
+    [path lineToPoint:NSMakePoint(c.x-dx,c.y)];
+    [path lineToPoint:NSMakePoint(c.x+dx,c.y+h)];
+   }
+   [color setStroke];
+   [path setLineWidth:1.5];
+   [path setLineCapStyle:NSRoundLineCapStyle];
+   [path setLineJoinStyle:NSRoundLineJoinStyle];
+   [path stroke];
+}
+
+/* The face of a push button: light, or the accent when it is the
+   default; darker while pressed. */
+static void atlasButtonFace(NSRect rect,BOOL defaulted,BOOL pressed) {
+   if(defaulted){
+    NSColor *accent=atlasAccent();
+
+    if(pressed)
+     atlasRounded(rect,5,atlasDarker(accent,0.15),atlasDarker(accent,0.22),atlasDarker(accent,0.35));
+    else
+     atlasRounded(rect,5,atlasLighter(accent,0.12),accent,atlasDarker(accent,0.20));
+   }
+   else if(pressed)
+    atlasRounded(rect,5,atlasGray(0.84),atlasGray(0.80),atlasGray(0.58));
+   else
+    atlasRounded(rect,5,atlasGray(1.0),atlasGray(0.96),atlasGray(0.70));
+}
+
+/* Check boxes and radio buttons: AppKit's NSSwitch, NSHighlightedSwitch,
+   NSRadioButton and NSHighlightedRadioButton images, made here and named
+   before anything loads the old artwork of the same names. */
+static NSImage *atlasToggleImage(NSString *name,BOOL radio,BOOL on) {
+   NSImage *image=[[NSImage alloc] initWithSize:NSMakeSize(14,14)];
+   NSRect   rect=NSMakeRect(0,0,14,14);
+
+   [image lockFocus];
+   if(on){
+    NSColor *accent=atlasAccent();
+
+    if(radio){
+     NSBezierPath *dot;
+     [accent setFill];
+     [[NSBezierPath bezierPathWithOvalInRect:NSInsetRect(rect,0.5,0.5)] fill];
+     [atlasDarker(accent,0.2) setStroke];
+     [[NSBezierPath bezierPathWithOvalInRect:NSInsetRect(rect,0.5,0.5)] stroke];
+     dot=[NSBezierPath bezierPathWithOvalInRect:NSInsetRect(rect,4.5,4.5)];
+     [[NSColor whiteColor] setFill];
+     [dot fill];
+    }
+    else {
+     NSBezierPath *check=[NSBezierPath bezierPath];
+
+     atlasRounded(rect,3.5,atlasLighter(accent,0.12),accent,atlasDarker(accent,0.20));
+     [check moveToPoint:NSMakePoint(3.5,7.5)];
+     [check lineToPoint:NSMakePoint(6,4.5)];
+     [check lineToPoint:NSMakePoint(10.5,10)];
+     [[NSColor whiteColor] setStroke];
+     [check setLineWidth:2];
+     [check setLineCapStyle:NSRoundLineCapStyle];
+     [check setLineJoinStyle:NSRoundLineJoinStyle];
+     [check stroke];
+    }
+   }
+   else if(radio){
+    NSBezierPath *ring=[NSBezierPath bezierPathWithOvalInRect:NSInsetRect(rect,0.5,0.5)];
+
+    [atlasGray(1.0) setFill];
+    [ring fill];
+    [atlasGray(0.62) setStroke];
+    [ring setLineWidth:1];
+    [ring stroke];
+   }
+   else
+    atlasRounded(rect,3.5,atlasGray(1.0),atlasGray(0.97),atlasGray(0.62));
+   [image unlockFocus];
+   [image setName:name];
+   return image;
+}
+
+void _NSGraphicsStyleRegisterButtonImages(void) {
+   static BOOL done=NO;
+
+   if(done)
+    return;
+   done=YES;
+   atlasToggleImage(@"NSSwitch",NO,NO);
+   atlasToggleImage(@"NSHighlightedSwitch",NO,YES);
+   atlasToggleImage(@"NSRadioButton",YES,NO);
+   atlasToggleImage(@"NSHighlightedRadioButton",YES,YES);
+}
+
 @implementation NSGraphicsStyle (NSButton)
 
 -(void)drawUnborderedButtonInRect:(NSRect)rect defaulted:(BOOL)defaulted {
-   if(defaulted){
-    [[NSColor blackColor] setFill];
-    NSRectFill(rect);
-   }
 }
 
 -(void)drawPushButtonNormalInRect:(NSRect)rect defaulted:(BOOL)defaulted {
-   if(defaulted){
-    [[NSColor blackColor] setFill];
-    NSRectFill(rect);
-    rect = NSInsetRect(rect,1,1);
-   }
-
-   NSDrawButton(rect,rect);
+   atlasButtonFace(rect,defaulted,NO);
 }
 
+/* Pressed, a push button turns the accent color (its title white), as on
+   the reference platform. */
 -(void)drawPushButtonPressedInRect:(NSRect)rect {
-   NSInterfaceDrawDepressedButton(rect,rect);
+   atlasButtonFace(rect,YES,NO);
 }
 
 -(void)drawPushButtonHighlightedInRect:(NSRect)rect {
-   NSInterfaceDrawHighlightedButton(rect,rect);
+   atlasButtonFace(rect,NO,YES);
 }
 
 -(NSSize)sizeOfButtonImage:(NSImage *)image enabled:(BOOL)enabled mixed:(BOOL)mixed {
@@ -416,8 +596,26 @@ NSColor *_NSMenuBarTextColor(void) {
 
 -(void)drawButtonImage:(NSImage *)image inRect:(NSRect)rect enabled:(BOOL)enabled mixed:(BOOL)mixed {
    float fraction=enabled?1.0:0.5;
-   
+
+   /* A mixed check box: the accent box with a dash, no check mark. */
+   if(mixed && ([[image name] isEqualToString:@"NSSwitch"] || [[image name] isEqualToString:@"NSHighlightedSwitch"])){
+    NSColor *accent=atlasAccent();
+    NSRect   box=NSMakeRect(NSMidX(rect)-7,NSMidY(rect)-7,14,14);
+
+    if(!enabled)
+     accent=atlasGray(0.75);
+    atlasRounded(box,3.5,atlasLighter(accent,0.12),accent,atlasDarker(accent,0.20));
+    [[NSColor whiteColor] setFill];
+    [[NSBezierPath bezierPathWithRoundedRect:NSMakeRect(NSMinX(box)+3.5,NSMidY(box)-1,7,2) xRadius:1 yRadius:1] fill];
+    return;
+   }
    [image drawInRect:rect fromRect:NSZeroRect operation:NSCompositeSourceOver fraction:fraction];
+   if(mixed){
+    NSRect bar=NSMakeRect(NSMinX(rect)+3,NSMidY(rect)-1,NSWidth(rect)-6,2);
+
+    [[NSColor whiteColor] setFill];
+    [[NSBezierPath bezierPathWithRoundedRect:bar xRadius:1 yRadius:1] fill];
+   }
 }
 
 @end
@@ -425,11 +623,12 @@ NSColor *_NSMenuBarTextColor(void) {
 @implementation NSGraphicsStyle (NSBrowser)
 
 -(void)drawBrowserTitleBackgroundInRect:(NSRect)rect {
-   NSInterfaceDrawBrowserHeader(rect,rect);
+   [self drawTableViewHeaderInRect:rect highlighted:NO];
 }
 
 -(void)drawBrowserHorizontalScrollerWellInRect:(NSRect)rect clipRect:(NSRect)clipRect {
-   NSDrawGrayBezel(rect,clipRect);
+   [atlasGray(0.96) setFill];
+   NSRectFill(rect);
 }
 
 @end
@@ -438,23 +637,11 @@ NSColor *_NSMenuBarTextColor(void) {
 
 -(NSRect)drawColorWellBorderInRect:(NSRect)rect enabled:(BOOL)enabled bordered:(BOOL)bordered active:(BOOL)active {
    if(bordered){
-    if(active)
-     NSInterfaceDrawHighlightedButton(rect,rect);
-    else
-     NSInterfaceDrawButton(rect,rect);
-    
-    rect=NSInsetRect(rect,6,6);
-     
-    if(enabled)
-     NSDrawGrayBezel(rect,rect);
+    atlasButtonFace(rect,NO,active);
+    rect=NSInsetRect(rect,5,5);
    }
-   else {
-    if(enabled){
-     NSDrawGrayBezel(rect,rect);
-    }
-   }
-   
-   return NSInsetRect(rect,2,2);
+   atlasRounded(rect,3,nil,nil,enabled?atlasGray(0.55):atlasGray(0.75));
+   return NSInsetRect(rect,1.5,1.5);
 }
 
 @end
@@ -462,10 +649,10 @@ NSColor *_NSMenuBarTextColor(void) {
 @implementation NSGraphicsStyle (NSPopUpButton)
 
 -(void)drawPopUpButtonWindowBackgroundInRect:(NSRect)rect {
-	[[NSColor menuBackgroundColor] setFill];
-	NSRectFill(rect);
-	[[NSColor blackColor] setStroke];
-	NSFrameRect(rect);
+   [[NSColor menuBackgroundColor] setFill];
+   NSRectFill(rect);
+   [atlasGray(0.70) setStroke];
+   NSFrameRect(rect);
 }
 
 @end
@@ -480,121 +667,68 @@ NSColor *_NSMenuBarTextColor(void) {
 
 @implementation NSGraphicsStyle (NSProgressIndicator)
 
+/* A rounded track, and the accent's bar in it. */
 -(NSRect)drawProgressIndicatorBackground:(NSRect)rect clipRect:(NSRect)clipRect bezeled:(BOOL)bezeled {
-   if(bezeled){
-    NSInterfaceDrawProgressIndicatorBezel(rect,clipRect);
-    return NSInsetRect(rect,2,2);
-   }
-   else {
-    [[[_view window] backgroundColor] setFill];
-    NSRectFill(rect);
-    return rect;
-   }
+   NSRect track=rect;
+
+   track.size.height=MIN(NSHeight(rect),6);
+   track.origin.y=floor(NSMidY(rect)-NSHeight(track)/2);
+   atlasRounded(track,3,atlasGray(0.86),atlasGray(0.88),atlasGray(0.78));
+   return track;
 }
 
 -(void)drawProgressIndicatorChunk:(NSRect)rect {
-   [[NSColor selectedControlColor] setFill];
-   NSRectFill(rect);
+   NSColor *accent=atlasAccent();
+
+   if(NSWidth(rect)<1)
+    return;
+   atlasRounded(rect,NSHeight(rect)/2,atlasLighter(accent,0.12),accent,nil);
 }
 
-// rough estimates
-#define BLOCK_WIDTH	8.0
-#define BLOCK_SPACING	2.0
-
 -(void)drawProgressIndicatorIndeterminate:(NSRect)rect clipRect:(NSRect)clipRect bezeled:(BOOL)bezeled animation:(double)animation {
-   if(bezeled)
-    rect=[self drawProgressIndicatorBackground:rect clipRect:clipRect bezeled:bezeled];
+   NSRect track=[self drawProgressIndicatorBackground:rect clipRect:clipRect bezeled:bezeled];
+   NSRect bar=track;
 
-    NSRect progressRect = rect;
-    NSRect blockRect = progressRect;
-    int numBlocks;
-
-    numBlocks = (animation * progressRect.size.width)/(BLOCK_WIDTH + BLOCK_SPACING);
-
-    if (numBlocks > 0)
-        numBlocks++;
-
-    while (numBlocks-->=0) {
-        blockRect.size.width = BLOCK_WIDTH;
-
-        if (NSMaxX(blockRect) > NSMaxX(progressRect))
-            blockRect.size.width -= (NSMaxX(blockRect) - NSMaxX(progressRect));
-
-        if (blockRect.size.width > 0) {
-            if (numBlocks < 2) {
-               [self drawProgressIndicatorChunk:blockRect];
-            }
-            blockRect.origin.x += BLOCK_WIDTH + BLOCK_SPACING;
-        }
-    }
+   /* A third of the track, sliding across it and back in. */
+   bar.size.width=floor(NSWidth(track)/3);
+   bar.origin.x=NSMinX(track)+floor((NSWidth(track)+NSWidth(bar))*animation)-NSWidth(bar);
+   bar=NSIntersectionRect(bar,track);
+   [self drawProgressIndicatorChunk:bar];
 }
 
 -(void)drawProgressIndicatorDeterminate:(NSRect)rect clipRect:(NSRect)clipRect bezeled:(BOOL)bezeled value:(double)value {
-   if(bezeled)
-    rect=[self drawProgressIndicatorBackground:rect clipRect:clipRect bezeled:bezeled];
+   NSRect track=[self drawProgressIndicatorBackground:rect clipRect:clipRect bezeled:bezeled];
+   NSRect bar=track;
 
-    NSRect progressRect = rect;
-    NSRect blockRect = progressRect;
-    int numBlocks;
-                
-    numBlocks = (value * progressRect.size.width)/(BLOCK_WIDTH + BLOCK_SPACING);
-    
-    if (numBlocks > 0)
-        numBlocks++;
-
-    while (numBlocks-->=0) {
-        blockRect.size.width = BLOCK_WIDTH;
-
-        if (NSMaxX(blockRect) > NSMaxX(progressRect))
-            blockRect.size.width -= (NSMaxX(blockRect) - NSMaxX(progressRect));
-
-        if (blockRect.size.width > 0) {
-            [self drawProgressIndicatorChunk:blockRect];
-            blockRect.origin.x += BLOCK_WIDTH + BLOCK_SPACING;
-        }
-    }
+   bar.size.width=floor(NSWidth(track)*MAX(0,MIN(1,value)));
+   [self drawProgressIndicatorChunk:bar];
 }
 
 @end
 
 @implementation NSGraphicsStyle (NSScroller)
 
+/* Thin and quiet: a light track, a rounded grey knob, small chevrons. */
 -(void)drawScrollerButtonInRect:(NSRect)rect enabled:(BOOL)enabled pressed:(BOOL)pressed vertical:(BOOL)vertical upOrLeft:(BOOL)upOrLeft {
-   unichar code=vertical?(upOrLeft?0xF0D8:0xF0D7):(upOrLeft?0xF0D9:0xF0DA);
-   Class   class;
-   NSInterfacePart *arrow;
-   
-   if(enabled)
-    class=[NSInterfacePartAttributedString class];
-   else
-    class=[NSInterfacePartDisabledAttributedString class];
+   int direction=vertical?(upOrLeft?1:0):(upOrLeft?2:3);
 
-   arrow=[[[class alloc] initWithFACharacter:code] autorelease];
-   
-   if(!NSIsEmptyRect(rect)){
-    NSSize arrowSize=[arrow size];
-
-    if(pressed)
-     NSInterfaceDrawDepressedScrollerButton(rect,rect);
-    else
-     NSInterfaceDrawScrollerButton(rect,rect);
-
-    if(rect.size.height>8 && rect.size.width>8){
-     NSPoint point=rect.origin;
-
-     point.x+=floor((rect.size.width-arrowSize.width)/2);
-     point.y+=floor((rect.size.height-arrowSize.height)/2);
-     [arrow drawAtPoint:point];
-    }
-   }
+   if(NSIsEmptyRect(rect))
+    return;
+   [atlasGray(pressed?0.88:0.96) setFill];
+   NSRectFill(rect);
+   if(NSWidth(rect)>8 && NSHeight(rect)>8)
+    atlasChevron(rect,direction,6,enabled?atlasGray(0.40):atlasGray(0.70));
 }
 
 -(void)drawScrollerKnobInRect:(NSRect)rect vertical:(BOOL)vertical highlight:(BOOL)highlight {
-   NSDrawButton(rect,rect);
+   NSRect knob=vertical?NSInsetRect(rect,3,2):NSInsetRect(rect,2,3);
+
+   atlasRounded(knob,MIN(NSWidth(knob),NSHeight(knob))/2,
+      highlight?atlasGray(0.45):atlasGray(0.62),highlight?atlasGray(0.45):atlasGray(0.62),nil);
 }
 
 -(void)drawScrollerTrackInRect:(NSRect)rect vertical:(BOOL)vertical upOrLeft:(BOOL)upOrLeft {
-   [[NSColor colorWithCalibratedWhite:0.9 alpha:1] setFill];
+   [atlasGray(0.96) setFill];
    NSRectFill(rect);
 }
 
@@ -607,47 +741,83 @@ NSColor *_NSMenuBarTextColor(void) {
 @implementation NSGraphicsStyle (NSSlider)
 
 -(NSSize)sliderKnobSizeForControlSize:(NSControlSize)controlSize {
-
    switch(controlSize){
     default:
-    case NSRegularControlSize: // aqua is 17x19
-      return NSMakeSize(12,15); // this is Windows specific, uxtheme part size request was failing, hardcoded, sigh
-     
-    case NSSmallControlSize: // aqua is 13x15
-      return NSMakeSize(9,13);
-     
-    case NSMiniControlSize: // aqua is 11x11
-      return NSMakeSize(11,11);
+    case NSRegularControlSize:
+     return NSMakeSize(16,16);
+
+    case NSSmallControlSize:
+     return NSMakeSize(12,12);
+
+    case NSMiniControlSize:
+     return NSMakeSize(10,10);
    }
-   
 }
 
+/* A round white knob with a light border; with tick marks, a narrower
+   knob pointing at them. */
 -(void)drawSliderKnobInRect:(NSRect)rect vertical:(BOOL)vertical highlighted:(BOOL)highlighted hasTickMarks:(BOOL)hasTickMarks tickMarkPosition:(NSTickMarkPosition)tickMarkPosition {
-   NSDrawButton(rect,rect);
+   CGFloat       side=MIN(NSWidth(rect),NSHeight(rect));
+   NSRect        knob=NSMakeRect(floor(NSMidX(rect)-side/2)+0.5,floor(NSMidY(rect)-side/2)+0.5,side-1,side-1);
+   NSBezierPath *path=[NSBezierPath bezierPathWithOvalInRect:knob];
 
-   if(highlighted) {
-    [[NSColor whiteColor] setFill];
-    NSRectFill(NSInsetRect(rect,1,1));
+   if(hasTickMarks){
+    BOOL    flipped=atlasFlipped();
+    CGFloat w=vertical?side-1:floor(side*0.62),h=vertical?floor(side*0.62):side-1;
+    NSRect  body=NSMakeRect(floor(NSMidX(rect)-w/2)+0.5,floor(NSMidY(rect)-h/2)+0.5,w,h);
+    CGFloat r=2.5,tip=floor(MIN(w,h)/2);
+
+    path=[NSBezierPath bezierPath];
+    if(!vertical){
+     /* The point toward the marks: below unless they are above. */
+     BOOL down=(tickMarkPosition!=NSTickMarkAbove)!=flipped;
+     CGFloat flat=down?NSMinY(body)+tip:NSMaxY(body)-tip,point=down?NSMinY(body):NSMaxY(body),end=down?NSMaxY(body):NSMinY(body);
+
+     [path moveToPoint:NSMakePoint(NSMidX(body),point)];
+     [path lineToPoint:NSMakePoint(NSMaxX(body),flat)];
+     [path lineToPoint:NSMakePoint(NSMaxX(body),end+(down?-r:r))];
+     [path lineToPoint:NSMakePoint(NSMaxX(body)-r,end)];
+     [path lineToPoint:NSMakePoint(NSMinX(body)+r,end)];
+     [path lineToPoint:NSMakePoint(NSMinX(body),end+(down?-r:r))];
+     [path lineToPoint:NSMakePoint(NSMinX(body),flat)];
+    }
+    else {
+     BOOL right=(tickMarkPosition==NSTickMarkRight);
+     CGFloat flat=right?NSMaxX(body)-tip:NSMinX(body)+tip,point=right?NSMaxX(body):NSMinX(body),end=right?NSMinX(body):NSMaxX(body);
+
+     [path moveToPoint:NSMakePoint(point,NSMidY(body))];
+     [path lineToPoint:NSMakePoint(flat,NSMaxY(body))];
+     [path lineToPoint:NSMakePoint(end,NSMaxY(body))];
+     [path lineToPoint:NSMakePoint(end,NSMinY(body))];
+     [path lineToPoint:NSMakePoint(flat,NSMinY(body))];
+    }
+    [path closePath];
    }
+
+   [(highlighted?atlasGray(0.92):atlasGray(1.0)) setFill];
+   [path fill];
+   [atlasGray(0.62) setStroke];
+   [path setLineWidth:1];
+   [path stroke];
 }
 
+/* A thin rounded groove. */
 -(void)drawSliderTrackInRect:(NSRect)rect vertical:(BOOL)vertical hasTickMarks:(BOOL)hasTickMarks {
    NSRect groove=rect;
 
    if(vertical){
     groove.size.width=4;
-    groove.origin.x=floor(rect.origin.x+(rect.size.width-4)/2);
+    groove.origin.x=floor(NSMidX(rect)-2);
    }
    else {
     groove.size.height=4;
-    groove.origin.y=floor(rect.origin.y+(rect.size.height-4)/2);
+    groove.origin.y=floor(NSMidY(rect)-2);
    }
-
-   NSDrawGrayBezel(groove, rect);
+   atlasRounded(groove,2,atlasGray(0.82),atlasGray(0.84),nil);
 }
 
 -(void)drawSliderTickInRect:(NSRect)rect {
-   [[NSColor blackColor] setFill];
+   [atlasGray(0.55) setFill];
    NSRectFill(rect);
 }
 
@@ -656,24 +826,9 @@ NSColor *_NSMenuBarTextColor(void) {
 @implementation NSGraphicsStyle (NSStepper)
 
 -(void)drawStepperButtonInRect:(NSRect)rect clipRect:(NSRect)clipRect enabled:(BOOL)enabled highlighted:(BOOL)highlighted upNotDown:(BOOL)upNotDown {
-   unichar         code=upNotDown?0xF0D8:0xF0D7;
-   NSInterfacePart *arrow;
-     
-   if(enabled)
-    arrow=[[[NSInterfacePartAttributedString alloc] initWithFACharacter:code] autorelease];
-   else
-    arrow=[[[NSInterfacePartDisabledAttributedString alloc] initWithFACharacter:code] autorelease];
-      
-   if(highlighted)
-    NSDrawWhiteBezel(rect,clipRect);
-   else
-    NSDrawButton(rect,clipRect);
-      
-   rect.origin.x += rect.size.width/2;
-   rect.origin.x -= [arrow size].width/2;
-   rect.origin.y += rect.size.height/2;
-   rect.origin.y -= [arrow size].height/2;
-   [arrow drawAtPoint:rect.origin];
+   atlasRounded(NSInsetRect(rect,0.5,0),3,highlighted?atlasGray(0.84):atlasGray(1.0),
+      highlighted?atlasGray(0.80):atlasGray(0.96),atlasGray(0.70));
+   atlasChevron(rect,upNotDown?1:0,6,enabled?atlasGray(0.30):atlasGray(0.65));
 }
 
 @end
@@ -681,16 +836,24 @@ NSColor *_NSMenuBarTextColor(void) {
 @implementation NSGraphicsStyle (NSTableView)
 
 -(void)drawTableViewHeaderInRect:(NSRect)rect highlighted:(BOOL)highlighted {
-   NSDrawButton(rect, rect);
-    
-   if(highlighted){
-    [[NSColor darkGrayColor] setFill];
-    NSRectFill(NSInsetRect(rect,2,2));
-   }
+   NSGradient *gradient=[[NSGradient alloc] initWithStartingColor:highlighted?atlasGray(0.88):atlasGray(0.95)
+      endingColor:highlighted?atlasGray(0.90):atlasGray(0.99)];
+   NSRect      line=rect;
+
+   [gradient drawInRect:rect angle:atlasFlipped()?-90:90];
+   [gradient release];
+   /* The separator on its right and the line under it. */
+   [atlasGray(0.82) setFill];
+   NSRectFill(NSMakeRect(NSMaxX(rect)-1,NSMinY(rect)+3,1,NSHeight(rect)-6));
+   line.size.height=1;
+   if(atlasFlipped())
+    line.origin.y=NSMaxY(rect)-1;
+   [atlasGray(0.78) setFill];
+   NSRectFill(line);
 }
 
 -(void)drawTableViewCornerInRect:(NSRect)rect {
-   NSDrawButton(rect,rect);
+   [self drawTableViewHeaderInRect:rect highlighted:NO];
 }
 
 @end
@@ -698,134 +861,74 @@ NSColor *_NSMenuBarTextColor(void) {
 @implementation NSGraphicsStyle (NSBox)
 
 -(void)drawBoxWithLineInRect:(NSRect)rect {
-   [[NSColor blackColor] setStroke];
+   [atlasGray(0.80) setStroke];
    NSFrameRect(rect);
 }
 
+/* Atlas's group box: a slightly darker rounded area with a light border. */
 -(void)drawBoxWithBezelInRect:(NSRect)rect clipRect:(NSRect)clipRect {
-   NSDrawGrayBezel(rect,clipRect);
+   atlasRounded(rect,6,[NSColor colorWithCalibratedWhite:0 alpha:0.035],
+      [NSColor colorWithCalibratedWhite:0 alpha:0.035],atlasGray(0.80));
 }
 
 -(void)drawBoxWithGrooveInRect:(NSRect)rect clipRect:(NSRect)clipRect {
-   NSDrawGroove(rect,clipRect);
+   [self drawBoxWithBezelInRect:rect clipRect:clipRect];
 }
 
 @end
 
 @implementation NSGraphicsStyle (NSComboBox)
 
+/* The accent-colored button at a combo box's right, a white chevron in it. */
 -(void)drawComboBoxButtonInRect:(NSRect)rect enabled:(BOOL)enabled bordered:(BOOL)bordered pressed:(BOOL)pressed {
-   NSImage *image=[NSImage imageNamed:@"NSComboBoxCellDown"];
-   NSSize   imageSize=[image size];
-   NSRect   imageRect;
-   
+   NSColor *accent=enabled?atlasAccent():atlasGray(0.78);
+   NSRect   box=NSInsetRect(rect,0.5,0.5);
+
    if(pressed)
-    NSInterfaceDrawDepressedButton(rect,rect);
-   else
-    NSDrawButton(rect,rect);
-    
-   imageRect.origin.x=rect.origin.x+(rect.size.width-imageSize.width)/2+(pressed?1:0);
-   imageRect.origin.y=rect.origin.y+(rect.size.height-imageSize.height)/2+(pressed?-1:0);
-   imageRect.size=imageSize;
-   
-   [self drawButtonImage:image inRect:imageRect enabled:enabled mixed:NO];
+    accent=atlasDarker(accent,0.15);
+   atlasRounded(box,4,atlasLighter(accent,0.08),accent,atlasDarker(accent,0.15));
+   atlasChevron(box,0,7,[NSColor whiteColor]);
 }
 
 @end
 
 @implementation NSGraphicsStyle (NSTabView)
 
+/* Tabs on the pane's top edge: the chosen one white and joined to it. */
 -(void)drawTabInRect:(NSRect)rect clipRect:(NSRect)clipRect color:(NSColor *)color selected:(BOOL)selected {
-    NSRect originalRect=rect;
-    NSRect rects[8];
-    NSColor *colors[8];
-    int i;
+   NSRect tab=NSInsetRect(rect,1,0);
 
-    if(selected){
-       rect.origin.x-=2;
-       rect.size.width+=3;
-    }
-    else {
-     rect.size.height-=2;
-    }
-
-    for(i=0; i<8; i++)
-        rects[i]=rect;
-
-    colors[0]=[NSColor controlColor];
-    if(selected){
-     rects[0].origin.y-=1;
-     rects[0].size.height+=1;
-    }
-    colors[1]=color;
-    rects[1]=NSInsetRect(rect,1,1);
-    colors[2]=[NSColor whiteColor];
-    rects[2].size.width=1;
-    rects[2].size.height-=2;
-    if(selected){
-     rects[2].origin.y-=1;
-     rects[2].size.height+=1;
-    }
-    colors[3]=[NSColor whiteColor];
-    rects[3].origin.x+=1;
-    rects[3].origin.y+=rect.size.height-2;
-    rects[3].size.width=1;
-    rects[3].size.height=1;
-    colors[4]=[NSColor whiteColor];
-    rects[4].origin.x+=2;
-    rects[4].origin.y+=rect.size.height-1;
-    rects[4].size.width=rect.size.width-4;
-    rects[4].size.height=1;
-    colors[5]=[NSColor blackColor];
-    rects[5].origin.x+=rect.size.width-2;
-    rects[5].origin.y+=rect.size.height-2;
-    rects[5].size.width=1;
-    rects[5].size.height=1;
-    colors[6]=[NSColor controlShadowColor];
-    rects[6].origin.x+=rect.size.width-2;
-    rects[6].size.width=1;
-    rects[6].size.height-=2;
-    colors[7]=[NSColor blackColor];
-    rects[7].origin.x+=rect.size.width-1;
-    rects[7].size.width=1;
-    rects[7].size.height-=2;
-    if(selected){
-     rects[7].origin.y-=1;
-     rects[7].size.height+=1;
-    }
-
-    for(i=0; i<8; i++) {
-        [colors[i] setFill];
-        NSRectFill(rects[i]);
-    }
-    
-    if(selected){ // cleanup
-     NSRect erase=originalRect;
-     
-     [[NSColor controlColor] setFill];
-     erase.size.height=2;
-     erase=NSInsetRect(erase,1,0);
-     NSRectFill(erase);
-    }
+   if(selected)
+    atlasRounded(tab,5,atlasGray(1.0),atlasGray(1.0),atlasGray(0.72));
+   else
+    atlasRounded(tab,5,atlasGray(0.92),atlasGray(0.88),atlasGray(0.74));
 }
 
 -(void)drawTabPaneInRect:(NSRect)rect {
-   NSDrawButton(rect,rect);
+   atlasRounded(rect,6,atlasGray(0.97),atlasGray(0.97),atlasGray(0.78));
 }
 
 -(void)drawTabViewBackgroundInRect:(NSRect)rect {
-   // do nothing
 }
 
 @end
 
 @implementation NSGraphicsStyle (NSTextField)
 
+/* A white field with a thin square border, its top a little darker, as
+   the reference platform draws text fields. */
 -(void)drawTextFieldBorderInRect:(NSRect)rect bezeledNotLine:(BOOL)bezeledNotLine {
-   if(bezeledNotLine)
-    NSDrawWhiteBezel(rect,rect);
+   if(bezeledNotLine){
+    NSRect inner=NSInsetRect(rect,0.5,0.5);
+
+    [atlasGray(0.74) setStroke];
+    [NSBezierPath strokeRect:inner];
+    [atlasGray(0.62) setStroke];
+    [NSBezierPath strokeLineFromPoint:NSMakePoint(NSMinX(inner),atlasFlipped()?NSMinY(inner):NSMaxY(inner))
+       toPoint:NSMakePoint(NSMaxX(inner),atlasFlipped()?NSMinY(inner):NSMaxY(inner))];
+   }
    else {
-    [[NSColor blackColor] setStroke];
+    [atlasGray(0.70) setStroke];
     NSFrameRect(rect);
    }
 }

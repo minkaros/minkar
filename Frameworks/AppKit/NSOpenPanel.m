@@ -232,7 +232,7 @@ static const CGFloat kOpenRowHeight=20;
    return result;
 }
 
--(int)runModalForDirectory:(NSString *)directory file:(NSString *)file types:(NSArray *)types {
+-(NSInteger)runModalForDirectory:(NSString *)directory file:(NSString *)file types:(NSArray *)types {
    BOOL isDir=NO;
 
    if(file!=nil)
@@ -317,7 +317,7 @@ static const CGFloat kOpenRowHeight=20;
    }
    [self setDirectory:[folder stringByStandardizingPath]];
    for(NSString *name in [names sortedArrayUsingSelector:@selector(localizedStandardCompare:)]) {
-      if([name hasPrefix:@"."])
+      if([name hasPrefix:@"."] && ![self showsHiddenFiles])
          continue;
       NSString *path=[folder stringByAppendingPathComponent:name];
       BOOL browse=[self _isFolderToBrowse:path];
@@ -456,7 +456,7 @@ static const CGFloat kOpenRowHeight=20;
    [self _goToFolder:[self directory]];
 }
 
--(int)_runOpenPanel {
+-(NSInteger)_runOpenPanel {
    [self _buildOpenPanel];
    [self makeKeyAndOrderFront:nil];
    [self makeFirstResponder:_fileList];
@@ -465,15 +465,15 @@ static const CGFloat kOpenRowHeight=20;
    return result;
 }
 
--(int)runModalForTypes:(NSArray *)types {
+-(NSInteger)runModalForTypes:(NSArray *)types {
    return [self runModalForDirectory:[self directory] file:nil types:types];
 }
 
--(int)runModalForDirectory:(NSString *)directory file:(NSString *)file {
+-(NSInteger)runModalForDirectory:(NSString *)directory file:(NSString *)file {
    return [self runModalForDirectory:directory file:file types:nil];
 }
 
--(int)runModal {
+-(NSInteger)runModal {
    return [self runModalForDirectory:nil file:nil types:nil];
 }
 

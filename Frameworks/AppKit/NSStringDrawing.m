@@ -9,8 +9,48 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 // Original - Christopher Lloyd <cjwl@objc.net>
 #import <AppKit/NSStringDrawing.h>
+#import <AppKit/NSAttributedString.h>
+#import <AppKit/NSFont.h>
+#import <AppKit/NSGraphicsContext.h>
 #import <AppKit/NSStringDrawer.h>
 #import <AppKit/NSRaise.h>
+
+@interface NSStringDrawingContext (Minkar)
+-(void)_setTotalBounds:(NSRect)bounds;
+@end
+
+/* Text is never scaled down to fit (actualScaleFactor stays 1). */
+@implementation NSStringDrawingContext
+
+-init {
+   _minimumScaleFactor=0;
+   _actualScaleFactor=1;
+   _totalBounds=NSZeroRect;
+   return self;
+}
+
+-(CGFloat)minimumScaleFactor {
+   return _minimumScaleFactor;
+}
+
+-(void)setMinimumScaleFactor:(CGFloat)value {
+   _minimumScaleFactor=value;
+}
+
+-(CGFloat)actualScaleFactor {
+   return _actualScaleFactor;
+}
+
+-(NSRect)totalBounds {
+   return _totalBounds;
+}
+
+-(void)_setTotalBounds:(NSRect)bounds {
+   _totalBounds=bounds;
+   _actualScaleFactor=1;
+}
+
+@end
 
 @implementation NSString(NSStringDrawing)
 
@@ -27,8 +67,27 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 }
 
 - (NSRect)boundingRectWithSize:(NSSize)size options:(NSStringDrawingOptions)options attributes:(NSDictionary *)attributes {
-	NSUnimplementedMethod();
-	return NSMakeRect(0,0,0,0);
+	NSAttributedString *string=[[[NSAttributedString alloc] initWithString:self attributes:attributes] autorelease];
+
+	return [string boundingRectWithSize:size options:options];
+}
+
+- (NSRect)boundingRectWithSize:(NSSize)size options:(NSStringDrawingOptions)options attributes:(NSDictionary *)attributes context:(NSStringDrawingContext *)context {
+	NSAttributedString *string=[[[NSAttributedString alloc] initWithString:self attributes:attributes] autorelease];
+
+	return [string boundingRectWithSize:size options:options context:context];
+}
+
+- (void)drawWithRect:(NSRect)rect options:(NSStringDrawingOptions)options attributes:(NSDictionary *)attributes context:(NSStringDrawingContext *)context {
+	NSAttributedString *string=[[[NSAttributedString alloc] initWithString:self attributes:attributes] autorelease];
+
+	[string drawWithRect:rect options:options context:context];
+}
+
+- (void)drawWithRect:(NSRect)rect options:(NSStringDrawingOptions)options attributes:(NSDictionary *)attributes {
+	NSAttributedString *string=[[[NSAttributedString alloc] initWithString:self attributes:attributes] autorelease];
+
+	[string drawWithRect:rect options:options];
 }
 
 @end
@@ -47,8 +106,35 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    return [[NSStringDrawer sharedStringDrawer] sizeOfAttributedString:self inSize:NSZeroSize];
 }
 
+/* With NSStringDrawingUsesLineFragmentOrigin, laid out in rect from its
+   first line; without it, on one line, rect's origin being the start of
+   the baseline. */
 -(void)drawWithRect:(NSRect)rect options:(NSStringDrawingOptions)options {
-   NSUnimplementedMethod();
+   if(options&NSStringDrawingUsesLineFragmentOrigin){
+    [self drawInRect:rect];
+    return;
+   }
+
+   NSFont *font=([self length]>0)?[self attribute:NSFontAttributeName atIndex:0 effectiveRange:NULL]:nil;
+   BOOL    flipped=[[NSGraphicsContext currentContext] isFlipped];
+
+   if(font==nil)
+    font=[NSFont systemFontOfSize:12];
+   [self drawAtPoint:NSMakePoint(rect.origin.x,flipped?rect.origin.y-[font ascender]:rect.origin.y+[font descender])];
+}
+
+-(NSRect)boundingRectWithSize:(NSSize)size options:(NSStringDrawingOptions)options context:(NSStringDrawingContext *)context {
+   NSRect result=[self boundingRectWithSize:size options:options];
+
+   [context _setTotalBounds:result];
+   return result;
+}
+
+-(void)drawWithRect:(NSRect)rect options:(NSStringDrawingOptions)options context:(NSStringDrawingContext *)context {
+   NSRect bounds=[self boundingRectWithSize:rect.size options:options];
+
+   [self drawWithRect:rect options:options];
+   [context _setTotalBounds:NSOffsetRect(bounds,rect.origin.x,rect.origin.y)];
 }
 
 @end

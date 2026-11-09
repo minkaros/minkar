@@ -14,6 +14,8 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <Onyx2D/O2MutablePath.h>
 #import <Onyx2D/O2Font.h>
 #import <Onyx2D/O2ClipState.h>
+#import <Onyx2D/O2ClipPhase.h>
+#import <Onyx2D/O2Path.h>
 #import <Foundation/NSArray.h>
 #import <Onyx2D/O2Exceptions.h>
 #import <Onyx2D/O2Surface.h>
@@ -112,9 +114,42 @@ O2AffineTransform O2GStateUserSpaceTransform(O2GState *self) {
    return self->_userSpaceTransform;
 }
 
+/* The clip's bounds in user space: its paths' bounding boxes (kept in
+   device space) intersected and mapped back. No
+   path: as good as unclipped (a very large rectangle). */
 -(O2Rect)clipBoundingBox {
-   O2UnimplementedMethod();
-   return O2RectZero;
+   const O2Float big=1.0e7;
+   O2Rect  box=O2RectMake(-big,-big,2*big,2*big);
+   BOOL    clipped=NO;
+
+   for(O2ClipPhase *phase in [_clipState clipPhases]){
+    O2ClipPhaseType type=O2ClipPhasePhaseType(phase);
+
+    if(type==O2ClipPhaseNonZeroPath || type==O2ClipPhaseEOPath){
+     box=O2RectIntersection(box,O2PathGetBoundingBox(O2ClipPhaseObject(phase)));
+     clipped=YES;
+    }
+   }
+   if(!clipped)
+    return box;
+
+   O2AffineTransform toUser=O2AffineTransformInvert(_deviceSpaceTransform);
+   O2Point corners[4]={
+    O2PointApplyAffineTransform(O2PointMake(O2RectGetMinX(box),O2RectGetMinY(box)),toUser),
+    O2PointApplyAffineTransform(O2PointMake(O2RectGetMaxX(box),O2RectGetMinY(box)),toUser),
+    O2PointApplyAffineTransform(O2PointMake(O2RectGetMinX(box),O2RectGetMaxY(box)),toUser),
+    O2PointApplyAffineTransform(O2PointMake(O2RectGetMaxX(box),O2RectGetMaxY(box)),toUser),
+   };
+   O2Float minx=corners[0].x,maxx=minx,miny=corners[0].y,maxy=miny;
+   int i;
+
+   for(i=1;i<4;i++){
+    minx=MIN(minx,corners[i].x);
+    maxx=MAX(maxx,corners[i].x);
+    miny=MIN(miny,corners[i].y);
+    maxy=MAX(maxy,corners[i].y);
+   }
+   return O2RectMake(minx,miny,maxx-minx,maxy-miny);
 }
 
 -(O2InterpolationQuality)interpolationQuality {

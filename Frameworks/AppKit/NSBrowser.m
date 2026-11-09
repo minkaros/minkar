@@ -5,6 +5,7 @@ Permission is hereby granted, free of charge, to any person obtaining a copy of 
 The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
 
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE. */
+#import <objc/runtime.h>
 #import <AppKit/NSBrowser.h>
 #import <AppKit/NSBrowserCell.h>
 #import <AppKit/NSScrollView.h>
@@ -57,6 +58,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
     _cellPrototype=nil;
 
     _numberOfVisibleColumns=[keyed decodeIntForKey:@"NSNumberOfVisibleColumns"];
+    _maxVisibleColumns=_numberOfVisibleColumns;   /* a nib's count stays */
     _selectedColumn=-1;
 
     _allowsMultipleSelection=(flags&0x80000000)?YES:NO;
@@ -96,15 +98,21 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    _cellClass=[[self class] cellClass];
    _cellPrototype=nil;
 
-   _numberOfVisibleColumns=1;
+   /* As the reference platform makes one in code: no titles, separated
+      columns, as many of about 120 points as fit (until
+      -setMaxVisibleColumns: says how many). */
+   _maxVisibleColumns=0;
+   _numberOfVisibleColumns=MAX(1,(NSInteger)floor(NSWidth(frame)/120));
    _allowsMultipleSelection=NO;
    _allowsEmptySelection=NO;
    _allowsBranchSelection=NO;
-   _separatesColumns=NO;
-   _isTitled=YES;
+   _separatesColumns=YES;
+   _isTitled=NO;
    _hasHorizontalScroller=NO;
 
    _takesTitleFromPreviousColumn=YES;
+   /* The columns' scroll views, as initWithCoder: makes them. */
+   [self tile];
 
    return self;
 }
@@ -155,7 +163,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 }
 
 -(NSInteger)maxVisibleColumns {
-   return _maxVisibleColumns;
+   return _maxVisibleColumns?_maxVisibleColumns:_numberOfVisibleColumns;
 }
 
 -(BOOL)hasHorizontalScroller {
@@ -271,11 +279,11 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    return [[self matrixInColumn:column] selectedRow];
 }
 
--(float)seperatorWidth {
+-(CGFloat)seperatorWidth {
    return 2;
 }
 
--(float)titleHeight {
+-(CGFloat)titleHeight {
    return 20;
 }
 
@@ -285,7 +293,8 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
    column-=[self firstVisibleColumn];
 
-   result.size.width=([self bounds].size.width-(_numberOfVisibleColumns-1)* columnGap)/_numberOfVisibleColumns;
+   /* Whole points: a column at a fractional x drew its matrix wrongly. */
+   result.size.width=floor(([self bounds].size.width-(_numberOfVisibleColumns-1)* columnGap)/_numberOfVisibleColumns);
    result.size.height=[self titleHeight];
    result.origin.x=column*(result.size.width+ columnGap);
    result.origin.y=[self bounds].size.height-result.size.height;
@@ -791,6 +800,9 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 -(void)tile {
    NSInteger i;
 
+   if(_maxVisibleColumns==0)
+    _numberOfVisibleColumns=MAX(1,(NSInteger)floor(NSWidth([self bounds])/120));
+
    for(i=0;i<_numberOfVisibleColumns;i++){
     NSInteger     column=_firstVisibleColumn+i;
     NSRect  frame=[self frameOfColumn:column];
@@ -903,6 +915,25 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
         [self selectRow:0 inColumn:_selectedColumn + 1];    // nb this changes _selectedColumn
         [self doClick:[self matrixInColumn:_selectedColumn]];
     }
+}
+
+
+static char defaultColumnWidthKey;
+-(CGFloat)defaultColumnWidth {
+   id value=objc_getAssociatedObject(self,&defaultColumnWidthKey);
+   return (value!=nil)?[value doubleValue]:-1;
+}
+-(void)setDefaultColumnWidth:(CGFloat)value {
+   objc_setAssociatedObject(self,&defaultColumnWidthKey,[NSNumber numberWithDouble:value],OBJC_ASSOCIATION_RETAIN);
+}
+
+static char columnsAutosaveNameKey;
+-(NSString *)columnsAutosaveName {
+   id value=objc_getAssociatedObject(self,&columnsAutosaveNameKey);
+   return (value!=nil)?value:nil;
+}
+-(void)setColumnsAutosaveName:(NSString *)value {
+   objc_setAssociatedObject(self,&columnsAutosaveNameKey,value,OBJC_ASSOCIATION_RETAIN);
 }
 
 @end

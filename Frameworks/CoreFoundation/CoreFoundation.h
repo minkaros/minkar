@@ -80,6 +80,7 @@
 #include <CoreFoundation/CFPropertyList.h>
 #include <CoreFoundation/CFSet.h>
 #include <CoreFoundation/CFString.h>
+#include <CoreFoundation/CFAttributedString.h>
 #include <CoreFoundation/CFStringEncodingExt.h>
 #include <CoreFoundation/CFTimeZone.h>
 #include <CoreFoundation/CFTree.h>
@@ -88,7 +89,7 @@
 #include <CoreFoundation/CFUUID.h>
 #include <CoreFoundation/CFUtilities.h>
 
-#if (TARGET_OS_MAC && !(TARGET_OS_EMBEDDED || TARGET_OS_IPHONE)) || (TARGET_OS_EMBEDDED || TARGET_OS_IPHONE) || TARGET_OS_WIN32
+#if (TARGET_OS_MAC && !(TARGET_OS_EMBEDDED || TARGET_OS_IPHONE)) || (TARGET_OS_EMBEDDED || TARGET_OS_IPHONE)
 #include <CoreFoundation/CFBundle.h>
 #include <CoreFoundation/CFMachPort.h>
 #include <CoreFoundation/CFMessagePort.h>

@@ -30,6 +30,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
     NSKeyedUnarchiver *keyed=(NSKeyedUnarchiver *)coder;
     
     _identifier=[[keyed decodeObjectForKey:@"NSIdentifier"] retain];
+    _hidden=[keyed decodeBoolForKey:@"NSHidden"];
     _headerCell=[[keyed decodeObjectForKey:@"NSHeaderCell"] retain];
     _dataCell=[[keyed decodeObjectForKey:@"NSDataCell"] retain];
     _width=[keyed decodeFloatForKey:@"NSWidth"];
@@ -51,7 +52,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    _identifier=[identifier retain];
    _width=100.0;
    _minWidth=10.0;
-   _maxWidth=FLT_MAX; // Doc.s say MAXFLOAT, mingw doesnt have MAXFLOAT yet
+   _maxWidth=FLT_MAX; // Doc.s say MAXFLOAT
 
         _headerCell = [[NSTableHeaderCell alloc] initTextCell:@""];
         _dataCell = [[NSTextFieldCell alloc] initTextCell:@""];
@@ -94,15 +95,15 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    return _headerToolTip;
 }
 
--(float)width {
+-(CGFloat)width {
     return _width;
 }
 
--(float)minWidth {
+-(CGFloat)minWidth {
     return _minWidth;
 }
 
--(float)maxWidth {
+-(CGFloat)maxWidth {
     return _maxWidth;
 }
 
@@ -146,7 +147,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    _headerToolTip=value;
 }
 
--(void)setWidth:(float)width {
+-(void)setWidth:(CGFloat)width {
     if (width > _maxWidth)
         width = _maxWidth;
     else if (width < _minWidth)
@@ -155,11 +156,11 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
     _width = width;
 }
 
--(void)setMinWidth:(float)width {
+-(void)setMinWidth:(CGFloat)width {
     _minWidth = width;
 }
 
--(void)setMaxWidth:(float)width {
+-(void)setMaxWidth:(CGFloat)width {
     _maxWidth = width;
 }
 
@@ -176,7 +177,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    _resizingMask=value;
 }
 
--(NSCell *)dataCellForRow:(int)row {
+-(NSCell *)dataCellForRow:(NSInteger)row {
     return [self dataCell];
 }
 
@@ -186,7 +187,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 }
 
--(void)prepareCell:(id)cell inRow:(int)row
+-(void)prepareCell:(id)cell inRow:(NSInteger)row
 {
 	id binders=[self _allUsedBinders];
 	int count=[binders count];
@@ -267,6 +268,26 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 }
 - (void)_setHeaderTitle:(NSString*)title {
     return [_headerCell setTitle:title];
+}
+
+-(BOOL)isHidden {
+   return _hidden;
+}
+
+-(void)setHidden:(BOOL)flag {
+   if(_hidden==flag)
+    return;
+   _hidden=flag;
+   [_tableView tile];
+}
+
+-(NSString *)title {
+   return [_headerCell stringValue];
+}
+
+-(void)setTitle:(NSString *)title {
+   [_headerCell setStringValue:(title!=nil)?title:@""];
+   [[_tableView headerView] setNeedsDisplay:YES];
 }
 
 @end

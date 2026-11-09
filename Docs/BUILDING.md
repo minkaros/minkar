@@ -11,17 +11,33 @@ Building LLVM the first time takes a __long__ time.
 
 ## Host requirements
 
-Tested on Ubuntu 22.04 (x86-64) with 10 CPUs and 16 GB of RAM; the CI uses
-GitHub's Ubuntu 22.04 runners. Package names are Debian/Ubuntu ones;
+The reference host is Ubuntu 24.04.5 LTS (x86-64; kernel 6.8, clang 18,
+GCC 13, glibc 2.39, QEMU 8.2, Python 3.12) with 24 CPUs and 32 GB of RAM;
+the CI uses GitHub's `ubuntu-24.04` runners. (Until 7 Nov 2026 it was
+Ubuntu 22.04.) Package names are Debian/Ubuntu ones;
 `tools/ci/host-setup.sh packages image` installs all of them.
 
-* Toolchain build: `clang lld cmake ninja-build python3 git curl`,
-  `libxml2-dev libpng-dev uuid-dev libssl-dev zlib1g-dev libbsd-dev`,
-  `libacl1-dev` (xar), `libc++-dev libc++abi-dev` (plktool),
-  `llvm-14-dev libedit-dev libffi-dev libdispatch-dev libblocksruntime-dev
-  libkqueue-dev libpthread-workqueue-dev` (the CTF tools link the host's
-  LLVM 14 and libdispatch), and `libicu-dev autoconf automake libtool
-  pkg-config` for Open CF-lite.
+The host compiler builds only the toolchain (LLVM, cctools, Swift and the
+build tools); Minkar itself is built by the toolchain's own clang, so the
+host's compiler version does not change the system that comes out.
+
+Requirements: a case-sensitive file system (see below), at least 16 GB of
+RAM for `-j10` (LLVM's links are the peak), about 20 GB of free disk, and
+an x86-64 CPU with AVX if the boot test runs under KVM.
+
+* Toolchain build: `clang lld cmake ninja-build python3 python3-venv git
+  curl`, `libxml2-dev libpng-dev uuid-dev libssl-dev zlib1g-dev
+  libbsd-dev`, `libacl1-dev` (xar), `libc++-dev libc++abi-dev` (plktool),
+  `libedit-dev libffi-dev`, `libblocksruntime-dev` (ld64's `Block.h`),
+  and `libicu-dev libkqueue-dev autoconf automake libtool pkg-config` for
+  Open CF-lite (its run loop includes `sys/event.h`, which libkqueue
+  gives). (The CTF tools no longer link the host's LLVM or libdispatch:
+  they build with the toolchain's LLVM sources and a small dispatch shim.)
+* libdispatch (swift-corelibs-libdispatch, tag `swift-6.0-RELEASE`,
+  Apache-2.0) in `/usr/local`: Open CF-lite's headers include
+  `<dispatch/dispatch.h>`, and Ubuntu 24.04 has no `libdispatch-dev`.
+  `tools/ci/host-setup.sh packages` builds it before Open CF-lite (cmake
+  and ninja); like Open CF-lite it is a build tool only.
 * Open CF-lite 635.21.8 (gerickson/opencflite, APSL) in `/usr/local`:
   plktool and xcbuild link a host CoreFoundation. It is a build tool only
   and nothing of it goes into Minkar. `tools/ci/host-setup.sh packages`
@@ -32,7 +48,10 @@ GitHub's Ubuntu 22.04 runners. Package names are Debian/Ubuntu ones;
   bison), and `ruby` (2.5 or later: JavaScriptCore's build generates code
   with it)
 * Bootable image and boot test: `nasm gdisk dosfstools hfsprogs`,
-  `qemu-system-x86 ovmf` (the boot test runs QEMU without KVM, under TCG),
+  `qemu-system-x86 ovmf` (the boot test runs QEMU under TCG unless
+  `BOOTTEST_ACCEL=kvm`; its VM is an Ivy Bridge, `-cpu IvyBridge`, since
+  Minkar needs AVX, and QEMU emulates AVX under TCG from 7.2 on, so
+  Ubuntu 24.04's 8.2 is enough),
   `openssh-client openssl` for gate M2, and the kernel's `hfsplus` module
   (in `linux-modules-extra-*` on cloud kernels).
 
@@ -69,8 +88,9 @@ Outputs, under `../build`:
 
 ## Expected times
 
-Measured on 2026-10-25 on the reference host: Ubuntu 22.04, 10 CPUs
-(Xeon E5-2690 v2), 16 GB of RAM, `-j10`, clean build tree.
+History: measured on 2026-10-25 on the reference host of the time,
+Ubuntu 22.04, 10 CPUs (Xeon E5-2690 v2), 16 GB of RAM, `-j10`, clean
+build tree. The Ubuntu 24.04.5 host has not been timed yet.
 
 | Stage | Wall time |
 | --- | --- |
@@ -244,8 +264,29 @@ RELEASE kernel tries. Build the image with `INIT=` to boot the sysroot's own
   `/etc/hosts` (`127.0.1.1 <hostname>`).
 * The kernel panics right after the loader when QEMU is run by hand\
   The loader needs `-device virtio-rng-pci` (EFI_RNG_PROTOCOL), and
-  under TCG use `-cpu Westmere`, not `max`. `Image/boottest.py` shows a
+  use `-cpu IvyBridge` (AVX), not `max` or `host`. `Image/boottest.py` shows a
   working command line.
+* `'stdarg.h'`-related errors in ld64 (`va_start` undeclared), or
+  `Block.h` not found in ld64's `Snapshot.cpp`\
+  An older tree on glibc 2.39 (Ubuntu 24.04), which no longer includes
+  `stdarg.h` from other headers, or `libblocksruntime-dev` is missing.
+  Update the tree and run `tools/ci/host-setup.sh packages`.
+* `dispatch/dispatch.h` or `sys/event.h` not found while building Open
+  CF-lite\
+  libdispatch is not in `/usr/local` or `libkqueue-dev` is missing:
+  `tools/ci/host-setup.sh libdispatch`, then `packages`.
+* `-Wint-conversion` or `-Wincompatible-pointer-types` errors in the CTF
+  tools\
+  clang 15 and later turn these into errors; the tree builds them with
+  `-Wno-error=...`. An older tree needs updating.
+* `'CoreFoundation/CFBase.h' file not found` in libdispatch, or
+  `'Foundation/Foundation.h' file not found` in the Swift runtime, during
+  `Kernel`\
+  A build from scratch in an older tree: `Kernel` builds `Libraries`
+  before the `Frameworks` stage installs CoreFoundation and Foundation.
+  The tree now copies CoreFoundation's headers into the SDK first, and
+  builds the Swift runtime in `Frameworks`, after Foundation. Update the
+  tree.
 * Logs are hard to search\
   They carry ANSI colors: `sed 's/\x1b\[[0-9;]*m//g' file.log`.
   `tools/ci/build-stages.sh` keeps one log per stage and prints the first
@@ -279,7 +320,7 @@ to `main` and by hand (Actions > build and boottest > Run workflow, on
 any branch): the repository is private on a free account, whose Actions
 minutes runs of over an hour use up, so `devel`'s batches are verified
 locally. Changes go to `devel` first. On a
-GitHub-hosted Ubuntu 22.04 runner it:
+GitHub-hosted Ubuntu 24.04 runner it:
 
 1. builds the toolchain (`Developer`), or takes it from the cache;
 2. builds the rest of the system with `tools/ci/build-stages.sh`, and

@@ -246,11 +246,11 @@ static NSMutableArray *_registeredClasses=nil;
    return _size;
 }
 
--(int)pixelsWide {
+-(NSInteger)pixelsWide {
    return _pixelsWide;
 }
 
--(int)pixelsHigh {
+-(NSInteger)pixelsHigh {
    return _pixelsHigh;
 }
 
@@ -274,11 +274,11 @@ static NSMutableArray *_registeredClasses=nil;
    _size=value;
 }
 
--(void)setPixelsWide:(int)value {
+-(void)setPixelsWide:(NSInteger)value {
    _pixelsWide=value;
 }
 
--(void)setPixelsHigh:(int)value {
+-(void)setPixelsHigh:(NSInteger)value {
    _pixelsHigh=value;
 }
 
@@ -296,7 +296,7 @@ static NSMutableArray *_registeredClasses=nil;
    _colorSpaceName=value;
 }
 
--(void)setBitsPerSample:(int)value {
+-(void)setBitsPerSample:(NSInteger)value {
    _bitsPerSample=value;
 }
 

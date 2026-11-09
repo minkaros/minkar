@@ -44,12 +44,12 @@
 
 
 
-#if (TARGET_OS_MAC && !(TARGET_OS_EMBEDDED || TARGET_OS_IPHONE || TARGET_OS_LINUX)) || (TARGET_OS_EMBEDDED || TARGET_OS_IPHONE)
+#if (TARGET_OS_MAC && !(TARGET_OS_EMBEDDED || TARGET_OS_IPHONE)) || (TARGET_OS_EMBEDDED || TARGET_OS_IPHONE)
 #include <CoreFoundation/CFMachPort.h>
 #include <CoreFoundation/CFMessagePort.h>
 #endif
 
-#if (TARGET_OS_MAC && !(TARGET_OS_EMBEDDED || TARGET_OS_IPHONE)) || (TARGET_OS_EMBEDDED || TARGET_OS_IPHONE) || TARGET_OS_WIN32
+#if (TARGET_OS_MAC && !(TARGET_OS_EMBEDDED || TARGET_OS_IPHONE)) || (TARGET_OS_EMBEDDED || TARGET_OS_IPHONE)
 #include <CoreFoundation/CFRunLoop.h>
 #include <CoreFoundation/CFSocket.h>
 #include <CoreFoundation/CFBundlePriv.h>
@@ -66,11 +66,11 @@ CF_EXPORT const char **_CFGetProcessPath(void);
 CF_EXPORT const char **_CFGetProgname(void);
 
 
-#if (TARGET_OS_MAC && !(TARGET_OS_EMBEDDED || TARGET_OS_IPHONE || TARGET_OS_LINUX))
+#if (TARGET_OS_MAC && !(TARGET_OS_EMBEDDED || TARGET_OS_IPHONE))
 CF_EXPORT void _CFRunLoopSetCurrent(CFRunLoopRef rl);
 #endif
 
-#if (TARGET_OS_MAC && !(TARGET_OS_EMBEDDED || TARGET_OS_IPHONE || TARGET_OS_LINUX)) || (TARGET_OS_EMBEDDED || TARGET_OS_IPHONE)
+#if (TARGET_OS_MAC && !(TARGET_OS_EMBEDDED || TARGET_OS_IPHONE)) || (TARGET_OS_EMBEDDED || TARGET_OS_IPHONE)
 CF_EXPORT CFRunLoopRef CFRunLoopGetMain(void);
 CF_EXPORT SInt32 CFRunLoopRunSpecific(CFRunLoopRef rl, CFStringRef modeName, CFTimeInterval seconds, Boolean returnAfterSourceHandled);
 
@@ -87,10 +87,6 @@ CF_EXPORT CFURLRef _CFURLCreateFromPropertyListRepresentation(CFAllocatorRef all
 CF_EXPORT void CFPreferencesFlushCaches(void);
 
 
-
-#if TARGET_OS_WIN32
-CF_EXPORT Boolean _CFURLGetWideFileSystemRepresentation(CFURLRef url, Boolean resolveAgainstBase, wchar_t *buffer, CFIndex bufferLength);
-#endif
 
 #if !__LP64__
 #if (TARGET_OS_MAC && !(TARGET_OS_EMBEDDED || TARGET_OS_IPHONE)) || (TARGET_OS_EMBEDDED || TARGET_OS_IPHONE)
@@ -525,10 +521,6 @@ CF_INLINE bool CFCharacterSetInlineBufferIsLongCharacterMember(const CFCharacter
 #endif /* CF_INLINE */
 
 
-#if TARGET_OS_WIN32
-CF_EXPORT CFMutableStringRef _CFCreateApplicationRepositoryPath(CFAllocatorRef alloc, int nFolder);
-#endif
-
 CF_EXPORT CFTypeRef _CFTryRetain(CFTypeRef cf);
 CF_EXPORT Boolean _CFIsDeallocating(CFTypeRef cf);
 
@@ -546,19 +538,7 @@ CF_EXPORT Boolean _CFIsDeallocating(CFTypeRef cf);
 CF_EXPORT
 Boolean CFLocaleGetLanguageRegionEncodingForLocaleIdentifier(CFStringRef localeIdentifier, LangCode *langCode, RegionCode *regCode, ScriptCode *scriptCode, CFStringEncoding *stringEncoding);
 
-#if TARGET_OS_WIN32
-CF_EXPORT CFMutableStringRef _CFCreateApplicationRepositoryPath(CFAllocatorRef alloc, int nFolder);
-#endif
-
-#if TARGET_OS_WIN32
-#include <CoreFoundation/CFMessagePort.h>
-
-#define CF_MESSAGE_PORT_CLONE_MESSAGE_ID -1209
-CF_EXPORT CFMessagePortRef	CFMessagePortCreateUber(CFAllocatorRef allocator, CFStringRef name, CFMessagePortCallBack callout, CFMessagePortContext *context, Boolean *shouldFreeInfo, Boolean isRemote);
-CF_EXPORT void CFMessagePortSetCloneCallout(CFMessagePortRef ms, CFMessagePortCallBack cloneCallout);
-#endif
-
-#if (TARGET_OS_MAC && !(TARGET_OS_EMBEDDED || TARGET_OS_IPHONE || TARGET_OS_LINUX)) || (TARGET_OS_EMBEDDED || TARGET_OS_IPHONE)
+#if (TARGET_OS_MAC && !(TARGET_OS_EMBEDDED || TARGET_OS_IPHONE)) || (TARGET_OS_EMBEDDED || TARGET_OS_IPHONE)
 #include <CoreFoundation/CFMessagePort.h>
 
 CF_EXPORT CFMessagePortRef CFMessagePortCreatePerProcessLocal(CFAllocatorRef allocator, CFStringRef name, CFMessagePortCallBack callout, CFMessagePortContext *context, Boolean *shouldFreeInfo);
@@ -571,7 +551,7 @@ CF_EXPORT CFMessagePortRef _CFMessagePortCreateLocalEx(CFAllocatorRef allocator,
 
 #endif
 
-#if TARGET_OS_MAC || TARGET_OS_EMBEDDED || TARGET_OS_IPHONE || TARGET_OS_LINUX
+#if TARGET_OS_MAC || TARGET_OS_EMBEDDED || TARGET_OS_IPHONE
 #include <pthread.h>
 #else
 // Avoid including the pthread header
@@ -593,11 +573,7 @@ CF_INLINE struct timespec _CFFileTimeSpecFromAbsoluteTime(CFAbsoluteTime at) {
        frac += 1.0;
        sec -= 1.0;
    }
-#if TARGET_OS_WIN32
-   ts.tv_sec = (long)(sec + kCFAbsoluteTimeIntervalSince1970);
-#else
    ts.tv_sec = (time_t)(sec + kCFAbsoluteTimeIntervalSince1970);
-#endif
    ts.tv_nsec = (long)(1000000000UL * frac + 0.5);
    return ts;
 }
@@ -608,7 +584,7 @@ CF_EXPORT bool _CFPropertyListCreateSingleValue(CFAllocatorRef allocator, CFData
 // Returns a subset of the property list, only including the keyPaths in the CFSet. If the top level object is not a dictionary, you will get back an empty dictionary as the result.
 CF_EXPORT bool _CFPropertyListCreateFiltered(CFAllocatorRef allocator, CFDataRef data, CFOptionFlags option, CFSetRef keyPaths, CFPropertyListRef *value, CFErrorRef *error) CF_AVAILABLE(10_8, 6_0);
 
-#if (TARGET_OS_MAC && !(TARGET_OS_EMBEDDED || TARGET_OS_IPHONE)) || (TARGET_OS_EMBEDDED || TARGET_OS_IPHONE) || TARGET_OS_WIN32
+#if (TARGET_OS_MAC && !(TARGET_OS_EMBEDDED || TARGET_OS_IPHONE)) || (TARGET_OS_EMBEDDED || TARGET_OS_IPHONE)
 
 // Returns a subset of a bundle's Info.plist. The keyPaths follow the same rules as above CFPropertyList function. This function takes platform and product keys into account.
 typedef CF_OPTIONS(CFOptionFlags, _CFBundleFilteredPlistOptions) {
@@ -617,29 +593,6 @@ typedef CF_OPTIONS(CFOptionFlags, _CFBundleFilteredPlistOptions) {
 
 CF_EXPORT CFPropertyListRef _CFBundleCreateFilteredInfoPlist(CFBundleRef bundle, CFSetRef keyPaths, _CFBundleFilteredPlistOptions options) CF_AVAILABLE(10_8, 6_0);
 CF_EXPORT CFPropertyListRef _CFBundleCreateFilteredLocalizedInfoPlist(CFBundleRef bundle, CFSetRef keyPaths, CFStringRef localizationName, _CFBundleFilteredPlistOptions options) CF_AVAILABLE(10_8, 6_0);
-#endif
-
-#if TARGET_OS_WIN32
-#include <CoreFoundation/CFNotificationCenter.h>
-
-CF_EXPORT CFStringRef _CFGetWindowsAppleAppDataDirectory(void);
-CF_EXPORT CFArrayRef _CFGetWindowsBinaryDirectories(void);
-CF_EXPORT CFStringRef _CFGetWindowsAppleSystemLibraryDirectory(void);
-
-// If your Windows application does not use a CFRunLoop on the main thread (perhaps because it is reserved for handling UI events via Windows API), then call this function to make distributed notifications arrive using a different run loop.
-CF_EXPORT void _CFNotificationCenterSetRunLoop(CFNotificationCenterRef nc, CFRunLoopRef rl);
-
-CF_EXPORT uint32_t /*DWORD*/ _CFRunLoopGetWindowsMessageQueueMask(CFRunLoopRef rl, CFStringRef modeName);
-CF_EXPORT void _CFRunLoopSetWindowsMessageQueueMask(CFRunLoopRef rl, uint32_t /*DWORD*/ mask, CFStringRef modeName);
-
-CF_EXPORT uint32_t /*DWORD*/ _CFRunLoopGetWindowsThreadID(CFRunLoopRef rl);
-
-typedef void (*CFWindowsMessageQueueHandler)(void);
-
-// Run Loop parameter must be the current thread's run loop for the next two functions; you cannot use another thread's run loop
-CF_EXPORT CFWindowsMessageQueueHandler _CFRunLoopGetWindowsMessageQueueHandler(CFRunLoopRef rl, CFStringRef modeName);
-CF_EXPORT void _CFRunLoopSetWindowsMessageQueueHandler(CFRunLoopRef rl, CFStringRef modeName, CFWindowsMessageQueueHandler func);
-
 #endif
 
 

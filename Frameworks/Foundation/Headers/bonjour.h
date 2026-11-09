@@ -1,11 +1,7 @@
 #import <Foundation/NSDictionary.h>
 #import <Foundation/NSNumber.h>
 
-#ifdef WINDOWS
-#define BONJOUR_CALL __stdcall
-#else
 #define BONJOUR_CALL
-#endif
 
 // Indirection layer which avoids hard dependancy on Bonjour LIB and SDK with good fallback behavior
 // All types and constants must match dns_sd.h

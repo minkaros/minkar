@@ -27,7 +27,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <Foundation/NSSelectSet.h>
 #include <pthread.h>
 
-#if defined(LINUX) ||  defined(__APPLE__) ||  defined(__FreeBSD__)
+#if defined(__APPLE__)
 #include <execinfo.h>
 #include <sys/resource.h>
 #endif
@@ -90,12 +90,7 @@ static NSThread* mainThread = nil;
 		[_target performSelector: _selector withObject: _argument];
 }
 
-#ifdef WINDOWS
-// Be sure the stack is aligned in case the thread wants to do exotic things like SSE2
-static  __attribute__((force_align_arg_pointer)) unsigned __stdcall nsThreadStartThread(void* t)
-#else
 static void *nsThreadStartThread(void* t)
-#endif
 {
    NSThread    *thread = t;
 	NSPlatformSetCurrentThread(thread);

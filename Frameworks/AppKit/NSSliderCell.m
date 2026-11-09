@@ -58,7 +58,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    _isContinuous=YES; // NSCell defaults to NO, NSSliderCell defaults to YES
    _type=NSLinearSlider;
    _minValue=0;
-   _maxValue=0;
+   _maxValue=1;
    _altIncrementValue=0;
    _isVertical=-1;
    _lastRect=NSZeroRect;
@@ -73,7 +73,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    _isContinuous=YES; // NSCell defaults to NO, NSSliderCell defaults to YES
    _type=NSLinearSlider;
    _minValue=0;
-   _maxValue=0;
+   _maxValue=1;
    _altIncrementValue=0;
    _isVertical=-1;
    _lastRect=NSZeroRect;
@@ -250,8 +250,10 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 -(NSRect)knobRectFlipped:(BOOL)flipped {
    double value=[self doubleValue];
-   double percent=(value-_minValue)/(_maxValue-_minValue);
+   double percent=(_maxValue>_minValue)?(value-_minValue)/(_maxValue-_minValue):0;
    NSRect sliderRect=[self _sliderRect];
+
+   percent=MAX(0,MIN(1,percent));
    NSRect knobRect;
    NSSize knobSize=[[_controlView graphicsStyle] sliderKnobSizeForControlSize:[self controlSize]];
 
@@ -269,6 +271,32 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    }
 
    return knobRect;
+}
+
+/* Without tick marks, the groove from its start to the knob is filled
+   with the accent color, as the reference platform shows it. */
+-(void)_drawFilledPartFlipped:(BOOL)flipped {
+   NSRect bar=[self _sliderRect],knob=[self knobRectFlipped:flipped],fill;
+
+   if(_numberOfTickMarks>0 || ![self isEnabled])
+    return;
+   if([self isVertical]){
+    fill=NSMakeRect(floor(NSMidX(bar)-2),0,4,0);
+    if(flipped){
+     fill.origin.y=NSMidY(knob);
+     fill.size.height=NSMaxY(bar)-NSMidY(knob);
+    }
+    else {
+     fill.origin.y=NSMinY(bar);
+     fill.size.height=NSMidY(knob)-NSMinY(bar);
+    }
+   }
+   else
+    fill=NSMakeRect(NSMinX(bar),floor(NSMidY(bar)-2),NSMidX(knob)-NSMinX(bar),4);
+   if(NSWidth(fill)<=0 || NSHeight(fill)<=0)
+    return;
+   [[NSColor controlAccentColor] setFill];
+   [[NSBezierPath bezierPathWithRoundedRect:fill xRadius:2 yRadius:2] fill];
 }
 
 -(void)drawKnob {
@@ -292,6 +320,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
     _isVertical = (frame.size.height>frame.size.width)?1:0;
 
     [self drawBarInside:[self _sliderRect] flipped:[controlView isFlipped]];
+    [self _drawFilledPartFlipped:[controlView isFlipped]];
     [self drawTickMarks];
     [self drawKnob];
 }

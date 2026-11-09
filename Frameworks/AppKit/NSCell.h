@@ -56,6 +56,12 @@ typedef enum {
     NSOnState = 1,
 } NSCellState;
 
+/* The names of API 19. */
+typedef NSInteger NSControlStateValue;
+static const NSControlStateValue NSControlStateValueMixed = -1;
+static const NSControlStateValue NSControlStateValueOff = 0;
+static const NSControlStateValue NSControlStateValueOn = 1;
+
 typedef enum {
     NSRegularControlSize,
     NSSmallControlSize,
@@ -65,6 +71,8 @@ typedef enum {
 typedef NSUInteger NSControlTint;
 
 enum {
+    NSBackgroundStyleNormal = 0,
+    NSBackgroundStyleEmphasized = 1,
     NSBackgroundStyleLight = 0,
     NSBackgroundStyleDark = 1,
     NSBackgroundStyleRaised = 2,
@@ -80,7 +88,7 @@ enum {
 };
 
 @interface NSCell : NSObject <NSCopying, NSCoding> {
-    int _state;
+    NSInteger _state;
     NSFont *_font;
     int _entryType;
     id _objectValue;
@@ -110,6 +118,10 @@ enum {
     BOOL _allowsMixedState;
     BOOL _sendsActionOnEndEditing;
     BOOL _hasValidObjectValue;
+    BOOL _usesSingleLineMode;
+    BOOL _truncatesLastVisibleLine;
+    BOOL _allowsEditingTextAttributes;
+    BOOL _importsGraphics;
 }
 
 #pragma mark -
@@ -126,12 +138,12 @@ enum {
 
 - (NSView *)controlView;
 - (NSCellType)type;
-- (int)state;
+- (NSControlStateValue)state;
 
 - target;
 - (SEL)action;
-- (int)tag;
-- (int)entryType;
+- (NSInteger)tag;
+- (NSInteger)entryType;
 - (id)formatter;
 - (NSFont *)font;
 - (NSImage *)image;
@@ -168,16 +180,16 @@ enum {
 - (void)setControlView:(NSView *)view;
 - (void)setType:(NSCellType)type;
 
-- (void)setState:(int)value;
-- (int)nextState;
+- (void)setState:(NSControlStateValue)value;
+- (NSInteger)nextState;
 - (void)setNextState;
 - (BOOL)allowsMixedState;
 - (void)setAllowsMixedState:(BOOL)allow;
 
 - (void)setTarget:target;
 - (void)setAction:(SEL)action;
-- (void)setTag:(int)tag;
-- (void)setEntryType:(int)type;
+- (void)setTag:(NSInteger)tag;
+- (void)setEntryType:(NSInteger)type;
 - (void)setFormatter:(NSFormatter *)formatter;
 - (void)setFont:(NSFont *)font;
 - (void)setImage:(NSImage *)image;
@@ -198,7 +210,7 @@ enum {
 - (void)setRefusesFirstResponder:(BOOL)flag;
 - (void)setHighlighted:(BOOL)flag;
 
-- (void)setFloatingPointFormat:(BOOL)fpp left:(unsigned)left right:(unsigned)right;
+- (void)setFloatingPointFormat:(BOOL)fpp left:(NSUInteger)left right:(NSUInteger)right;
 
 - (void)setObjectValue:(id<NSCopying>)value;
 - (void)setStringValue:(NSString *)value;
@@ -222,6 +234,11 @@ enum {
 - (NSSize)cellSize;
 - (NSSize)cellSizeForBounds:(NSRect)rect;
 
+@property BOOL usesSingleLineMode;
+@property BOOL truncatesLastVisibleLine;
+@property BOOL allowsEditingTextAttributes;
+@property BOOL importsGraphics;
+
 - (NSRect)imageRectForBounds:(NSRect)rect;
 - (NSRect)titleRectForBounds:(NSRect)rect;
 - (NSRect)drawingRectForBounds:(NSRect)rect;
@@ -239,7 +256,7 @@ enum {
 - (NSText *)setUpFieldEditorAttributes:(NSText *)editor;
 
 - (void)editWithFrame:(NSRect)frame inView:(NSView *)view editor:(NSText *)editor delegate:(id)delegate event:(NSEvent *)event;
-- (void)selectWithFrame:(NSRect)frame inView:(NSView *)view editor:(NSText *)editor delegate:(id)delegate start:(int)location length:(int)length;
+- (void)selectWithFrame:(NSRect)frame inView:(NSView *)view editor:(NSText *)editor delegate:(id)delegate start:(NSInteger)location length:(NSInteger)length;
 - (void)endEditing:(NSText *)editor;
 
 - (void)resetCursorRect:(NSRect)rect inView:(NSView *)view;

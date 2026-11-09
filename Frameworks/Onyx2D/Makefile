@@ -266,7 +266,7 @@ libtiff.a:
 fmwk-install-hook:
 .for dir in ${MINKAR_SDKROOT}/System/Library/Frameworks/ ${SYSROOT_DIR}/System/Library/Frameworks/
 	mkdir -p ${dir}
-	cp -Rf ${.OBJDIR}/${FRAMEWORK}.framework ${dir}
+	rsync -rlc ${.OBJDIR}/${FRAMEWORK}.framework ${dir}
 .endfor
 
 .include <minkar.framework.mk>

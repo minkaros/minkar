@@ -21,9 +21,9 @@ FOUNDATION_EXPORT NSErrorDomain const NSOSStatusErrorDomain;
 FOUNDATION_EXPORT NSErrorDomain const NSMachErrorDomain;
 // temporary until we can map it
 FOUNDATION_EXPORT NSErrorDomain const NSWINSOCKErrorDomain;
-FOUNDATION_EXPORT NSErrorDomain const NSWin32ErrorDomain;
 
 FOUNDATION_EXPORT NSErrorUserInfoKey const NSUnderlyingErrorKey;
+FOUNDATION_EXPORT NSErrorUserInfoKey const NSMultipleUnderlyingErrorsKey;
 FOUNDATION_EXPORT NSErrorUserInfoKey const NSLocalizedDescriptionKey;
 FOUNDATION_EXPORT NSErrorUserInfoKey const NSLocalizedFailureReasonErrorKey;
 FOUNDATION_EXPORT NSErrorUserInfoKey const NSLocalizedRecoverySuggestionErrorKey;

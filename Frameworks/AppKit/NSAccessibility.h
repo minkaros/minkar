@@ -1,5 +1,7 @@
-#import <Foundation/NSString.h>
+#import <Foundation/Foundation.h>
 #import <AppKit/AppKitExport.h>
+
+@class NSView;
 
 APPKIT_EXPORT NSString *const NSAccessibilityChildrenAttribute;
 APPKIT_EXPORT NSString *const NSAccessibilityContentsAttribute;
@@ -320,12 +322,129 @@ APPKIT_EXPORT void NSAccessibilityPostNotification(
     id element,
     NSString *notification);
 
-APPKIT_EXPORT NSString *const NSAccessibilityRoleDescription(
+APPKIT_EXPORT NSString *NSAccessibilityRoleDescription(
     NSString *role,
     NSString *subrole);
 
 APPKIT_EXPORT id NSAccessibilityUnignoredAncestor(
     id element);
+
+/* Minkar has no assistive applications yet: what is posted reaches
+   nobody, and what describes elements answers from the elements. */
+APPKIT_EXPORT NSString *const NSAccessibilityException;
+APPKIT_EXPORT NSString *const NSAccessibilityAnnouncementRequestedNotification;
+APPKIT_EXPORT NSString *const NSAccessibilityAnnouncementKey;
+APPKIT_EXPORT NSString *const NSAccessibilityPriorityKey;
+APPKIT_EXPORT NSString *const NSAccessibilityLayoutChangedNotification;
+
+typedef NS_ENUM(NSInteger, NSAccessibilityPriorityLevel) {
+    NSAccessibilityPriorityLow = 10,
+    NSAccessibilityPriorityMedium = 50,
+    NSAccessibilityPriorityHigh = 90,
+};
+
+APPKIT_EXPORT void NSAccessibilityPostNotificationWithUserInfo(id element, NSString *notification, NSDictionary *userInfo);
+APPKIT_EXPORT NSString *NSAccessibilityActionDescription(NSString *action);
+APPKIT_EXPORT NSString *NSAccessibilityRoleDescriptionForUIElement(id element);
+APPKIT_EXPORT NSRect NSAccessibilityFrameInView(NSView *parentView, NSRect frame);
+APPKIT_EXPORT NSPoint NSAccessibilityPointInView(NSView *parentView, NSPoint point);
+APPKIT_EXPORT void NSAccessibilityRaiseBadArgumentException(id element, NSString *attribute, id value);
+
+typedef NS_ENUM(NSInteger, NSAccessibilityCustomRotorSearchDirection) {
+    NSAccessibilityCustomRotorSearchDirectionPrevious,
+    NSAccessibilityCustomRotorSearchDirectionNext,
+};
+
+typedef NS_ENUM(NSInteger, NSAccessibilityCustomRotorType) {
+    NSAccessibilityCustomRotorTypeCustom = 0,
+    NSAccessibilityCustomRotorTypeAny = 1,
+    NSAccessibilityCustomRotorTypeAnnotation,
+    NSAccessibilityCustomRotorTypeBoldText,
+    NSAccessibilityCustomRotorTypeHeading,
+    NSAccessibilityCustomRotorTypeHeadingLevel1,
+    NSAccessibilityCustomRotorTypeHeadingLevel2,
+    NSAccessibilityCustomRotorTypeHeadingLevel3,
+    NSAccessibilityCustomRotorTypeHeadingLevel4,
+    NSAccessibilityCustomRotorTypeHeadingLevel5,
+    NSAccessibilityCustomRotorTypeHeadingLevel6,
+    NSAccessibilityCustomRotorTypeImage,
+    NSAccessibilityCustomRotorTypeItalicText,
+    NSAccessibilityCustomRotorTypeLandmark,
+    NSAccessibilityCustomRotorTypeLink,
+    NSAccessibilityCustomRotorTypeList,
+    NSAccessibilityCustomRotorTypeMisspelledWord,
+    NSAccessibilityCustomRotorTypeTable,
+    NSAccessibilityCustomRotorTypeTextField,
+    NSAccessibilityCustomRotorTypeUnderlinedText,
+    NSAccessibilityCustomRotorTypeVisitedLink,
+};
+
+@class NSAccessibilityCustomRotor, NSAccessibilityCustomRotorItemResult;
+
+@interface NSAccessibilityCustomRotorSearchParameters : NSObject {
+    NSAccessibilityCustomRotorItemResult *_currentItem;
+    NSAccessibilityCustomRotorSearchDirection _searchDirection;
+    NSString *_filterString;
+}
+@property (strong) NSAccessibilityCustomRotorItemResult *currentItem;
+@property NSAccessibilityCustomRotorSearchDirection searchDirection;
+@property (copy) NSString *filterString;
+@end
+
+@protocol NSAccessibilityCustomRotorItemSearchDelegate <NSObject>
+- (NSAccessibilityCustomRotorItemResult *)rotor:(NSAccessibilityCustomRotor *)rotor resultForSearchParameters:(NSAccessibilityCustomRotorSearchParameters *)searchParameters;
+@end
+
+@interface NSAccessibilityCustomRotor : NSObject {
+    NSAccessibilityCustomRotorType _type;
+    NSString *_label;
+    id _itemSearchDelegate;
+    id _itemLoadingDelegate;
+}
+- (instancetype)initWithLabel:(NSString *)label itemSearchDelegate:(id<NSAccessibilityCustomRotorItemSearchDelegate>)itemSearchDelegate;
+- (instancetype)initWithRotorType:(NSAccessibilityCustomRotorType)rotorType itemSearchDelegate:(id<NSAccessibilityCustomRotorItemSearchDelegate>)itemSearchDelegate;
+@property NSAccessibilityCustomRotorType type;
+@property (copy) NSString *label;
+@property (assign) id<NSAccessibilityCustomRotorItemSearchDelegate> itemSearchDelegate;
+@property (assign) id itemLoadingDelegate;
+@end
+
+@interface NSAccessibilityCustomRotorItemResult : NSObject {
+    id _targetElement;
+    id _itemLoadingToken;
+    NSRange _targetRange;
+    NSString *_customLabel;
+}
+- (instancetype)initWithTargetElement:(id)targetElement;
+- (instancetype)initWithItemLoadingToken:(id)itemLoadingToken customLabel:(NSString *)customLabel;
+@property (readonly, assign) id targetElement;
+@property (readonly, strong) id itemLoadingToken;
+@property NSRange targetRange;
+@property (copy) NSString *customLabel;
+@end
+
+/* The NSAccessibility protocol's common properties, kept on views,
+   cells and windows. */
+@interface NSObject (NSAccessibilityProperties)
+@property (getter=isAccessibilityElement) BOOL accessibilityElement;
+@property (copy) NSString *accessibilityLabel;
+@property (copy) NSString *accessibilityTitle;
+@property (copy) NSString *accessibilityHelp;
+@property (copy) NSString *accessibilityRole;
+@property (copy) NSString *accessibilitySubrole;
+@property (copy) NSString *accessibilityRoleDescription;
+@property (copy) NSString *accessibilityIdentifier;
+@property (strong) id accessibilityValue;
+@property (copy) NSString *accessibilityValueDescription;
+@property (assign) id accessibilityTitleUIElement;
+@property (assign) id accessibilityParent;
+@property (copy) NSArray *accessibilityChildren;
+@property (copy) NSArray *accessibilitySharedFocusElements;
+@property (copy) NSArray<NSAccessibilityCustomRotor *> *accessibilityCustomRotors;
+@property NSRect accessibilityFrame;
+@property (getter=isAccessibilityEnabled) BOOL accessibilityEnabled;
+@property (getter=isAccessibilityFocused) BOOL accessibilityFocused;
+@end
 
 @interface NSObject (NSAccessibility)
 - (NSArray *)accessibilityAttributeNames;

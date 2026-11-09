@@ -36,6 +36,11 @@
 #import <AppKit/NSMenu.h>
 #import <AppKit/NSMenuItem.h>
 #import <AppKit/NSScreen.h>
+
+/* NSApplication.m: the main menu's first item made the app menu. */
+@interface NSApplication (NSApplicationMenu)
+-(void)_ensureApplicationMenu;
+@end
 #import <AppKit/NSWindow.h>
 #import <AppKit/NSAlert.h>
 #import <AppKit/NSEvent.h>
@@ -282,6 +287,7 @@ static NSRect barFrame(NSScreen *screen) {
         observing = YES;
     }
 
+    [NSApp _ensureApplicationMenu];
     if(menuBars == nil)
         menuBars = [NSMutableArray new];
     /* One per screen, made once. */
@@ -336,6 +342,7 @@ static NSRect barFrame(NSScreen *screen) {
 + (void)_mainMenuChanged {
     if(!shown || updating)
         return;
+    [NSApp _ensureApplicationMenu];
     updating = YES;
     for(NSMenuBarWindow *bar in menuBars)
         [bar _setMainMenu:[NSApp mainMenu]];

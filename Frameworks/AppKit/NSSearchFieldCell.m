@@ -14,12 +14,13 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <AppKit/NSControl.h>
 #import <AppKit/NSTextField.h>
 #import <AppKit/NSRaise.h>
+#import <Foundation/NSBundle.h>
 
 @implementation NSSearchFieldCell
 
 -initWithCoder:(NSCoder *)coder {
    [super initWithCoder:coder];
-   _searchButtonCell=[[NSButtonCell alloc] initImageCell:[NSImage imageNamed:@"NSSearchGlass"]];
+   _searchButtonCell=[[NSButtonCell alloc] initImageCell:[NSImage imageNamed:@"NSSearchGlassTemplate"]];
    [_searchButtonCell setImageScaling:NSImageScaleProportionallyUpOrDown];
    _cancelButtonCell=[[NSButtonCell alloc] initImageCell:[NSImage imageNamed:@"NSStopProgressFreestandingTemplate"]];
    [_cancelButtonCell setImageScaling:NSImageScaleProportionallyUpOrDown];
@@ -28,7 +29,12 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 -initTextCell:(NSString *)string {
    [super initTextCell:string];
-   _searchButtonCell=[[NSButtonCell alloc] initImageCell:[NSImage imageNamed:@"NSSearchGlass"]];
+   /* A rounded, editable field with "Search" in it while empty. */
+   [self setBezeled:YES];
+   [self setBezelStyle:NSTextFieldRoundedBezel];
+   [self setEditable:YES];
+   [self setPlaceholderString:NSLocalizedStringFromTableInBundle(@"Search", nil, [NSBundle bundleForClass:[NSSearchFieldCell class]], @"Placeholder of an empty search field")];
+   _searchButtonCell=[[NSButtonCell alloc] initImageCell:[NSImage imageNamed:@"NSSearchGlassTemplate"]];
    [_searchButtonCell setImageScaling:NSImageScaleProportionallyUpOrDown];
    _cancelButtonCell=[[NSButtonCell alloc] initImageCell:[NSImage imageNamed:@"NSStopProgressFreestandingTemplate"]];
    [_cancelButtonCell setImageScaling:NSImageScaleProportionallyUpOrDown];
@@ -49,7 +55,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    return _autosaveName;
 }
 
--(int)maximumRecents {
+-(NSInteger)maximumRecents {
    return _maximumRecents;
 }
 
@@ -85,7 +91,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    _autosaveName=name;
 }
 
--(void)setMaximumRecents:(int)value {
+-(void)setMaximumRecents:(NSInteger)value {
    _maximumRecents=value;
 }
 

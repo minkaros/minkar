@@ -211,7 +211,7 @@ ACPIPlatformExpert::parseAPIC(void * table, IOService * nub)
      * Minkar: count the processors before the first one is published.
      * Each ACPICPU starts as soon as its nub is registered, and the first
      * takes ncpus as the number to wait for: counted as the nubs were made,
-     * the Mac Pro 6,1 (24 threads) started 2 and the kernel panicked
+     * PC 2 (a Xeon E5-2697 v2, 24 threads) started 2 and the kernel panicked
      * ("Should have 12 Cores, but only found 2").
      */
     uint32_t total = 0, created = 0;

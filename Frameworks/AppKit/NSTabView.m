@@ -16,6 +16,13 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <AppKit/NSPopUpButton.h>    // for indexOfSelectedItem definition
 #import <Foundation/NSKeyedArchiver.h>
 #import <AppKit/NSGraphicsStyle.h>
+#import <AppKit/NSBezierPath.h>
+#import <AppKit/NSStringDrawing.h>
+#import <AppKit/NSGraphicsContext.h>
+
+@interface NSTabViewItem (NSTabViewLabel)
+-(NSDictionary *)labelAttributes;
+@end
 #import <AppKit/NSRaise.h>
 
 @interface NSTabViewItem(NSTabViewItem_private)
@@ -24,6 +31,12 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 @end
 
 @implementation NSTabView
+
+/* The formal protocol exists at run time. */
++(void)initialize {
+   if(self==[NSTabView class])
+    (void)@protocol(NSTabViewDelegate);
+}
 
 -initWithCoder:(NSCoder *)coder {
    [super initWithCoder:coder];
@@ -38,7 +51,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
     _drawsBackground=[keyed decodeBoolForKey:@"NSDrawsBackground"];
     _controlSize=(flags&0x18000000)>>27;
     if (_font==nil)
-     _font=[[NSFont boldSystemFontOfSize:13-_controlSize*2] retain];
+     _font=[[NSFont systemFontOfSize:13-_controlSize*2] retain];
     _type=(flags&0x7);
 
    switch (_type) {
@@ -90,8 +103,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    [super initWithFrame:frame];
    _items=[NSMutableArray new];
    _selectedItem=nil;
-// should probably be boldUserFont
-   _font=[[NSFont boldSystemFontOfSize:0] retain];
+   _font=[[NSFont systemFontOfSize:0] retain];
    _type=NSTopTabsBezelBorder;
    _allowsTruncatedLabels=NO;
    return self;
@@ -142,6 +154,13 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
     switch (_type) {
         case NSTopTabsBezelBorder:
+            /* The pane's top runs through the middle of the tab strip; it
+               stands 7 points in from the sides and bottom. */
+            result=NSInsetRect(result,7,0);
+            result.origin.y+=7;
+            result.size.height-=7+floor([self _stripHeight]/2)+1;
+            break;
+
         case NSLeftTabsBezelBorder:
         case NSBottomTabsBezelBorder:
         case NSRightTabsBezelBorder:
@@ -163,6 +182,11 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
     switch (_type) {
         case NSTopTabsBezelBorder:
+            /* As the reference platform's: 10 points in from the sides and
+               bottom, 36 below the top (a 760x564 tab view gives 740x518). */
+            result=[self bounds];
+            return NSMakeRect(NSMinX(result)+10,NSMinY(result)+10,NSWidth(result)-20,NSHeight(result)-46);
+
         case NSLeftTabsBezelBorder:
         case NSBottomTabsBezelBorder:
         case NSRightTabsBezelBorder:
@@ -219,7 +243,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
     [self setNeedsDisplay:YES];
 }
 
--(int)numberOfTabViewItems {
+-(NSInteger)numberOfTabViewItems {
     return [_items count];
 }
 
@@ -227,11 +251,70 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
     return _items;
 }
 
--(NSTabViewItem *)tabViewItemAtIndex:(int)index {
+-(NSTabViewItem *)tabViewItemAtIndex:(NSInteger)index {
     return [_items objectAtIndex:index];
 }
 
--(NSRect)rectForItemLabelAtIndex:(unsigned)index {
+/* A segment's shape in a rounded strip: its outer corners rounded at the
+   strip's ends, square inside (no clip to a curved path needed). */
+static NSBezierPath *_NSSegmentPath(NSRect r,CGFloat radius,BOOL left,BOOL right){
+   NSBezierPath *path=[NSBezierPath bezierPath];
+   CGFloat       rl=left?radius:0,rr=right?radius:0;
+
+   [path moveToPoint:NSMakePoint(NSMinX(r)+rl,NSMinY(r))];
+   [path lineToPoint:NSMakePoint(NSMaxX(r)-rr,NSMinY(r))];
+   if(rr>0)
+    [path appendBezierPathWithArcFromPoint:NSMakePoint(NSMaxX(r),NSMinY(r)) toPoint:NSMakePoint(NSMaxX(r),NSMinY(r)+rr) radius:rr];
+   [path lineToPoint:NSMakePoint(NSMaxX(r),NSMaxY(r)-rr)];
+   if(rr>0)
+    [path appendBezierPathWithArcFromPoint:NSMakePoint(NSMaxX(r),NSMaxY(r)) toPoint:NSMakePoint(NSMaxX(r)-rr,NSMaxY(r)) radius:rr];
+   [path lineToPoint:NSMakePoint(NSMinX(r)+rl,NSMaxY(r))];
+   if(rl>0)
+    [path appendBezierPathWithArcFromPoint:NSMakePoint(NSMinX(r),NSMaxY(r)) toPoint:NSMakePoint(NSMinX(r),NSMaxY(r)-rl) radius:rl];
+   [path lineToPoint:NSMakePoint(NSMinX(r),NSMinY(r)+rl)];
+   if(rl>0)
+    [path appendBezierPathWithArcFromPoint:NSMakePoint(NSMinX(r),NSMinY(r)) toPoint:NSMakePoint(NSMinX(r)+rl,NSMinY(r)) radius:rl];
+   [path closePath];
+   return path;
+}
+
+/* Top tabs are one strip of joined segments, centered on the pane's top
+   edge: each segment its label and 10 points each side. */
+#define TAB_PADDING 10.0
+
+-(CGFloat)_stripHeight {
+   return 22-_controlSize*2;
+}
+
+-(CGFloat)_segmentWidthAtIndex:(NSUInteger)index {
+   NSTabViewItem *item=[_items objectAtIndex:index];
+
+   return ceil([[item label] sizeWithAttributes:[item labelAttributes]].width)+2*TAB_PADDING;
+}
+
+-(NSRect)_segmentRectAtIndex:(NSUInteger)index {
+   unsigned i,count=[_items count];
+   CGFloat  total=0,x;
+
+   for(i=0;i<count;i++)
+    total+=[self _segmentWidthAtIndex:i];
+   x=MAX(0,floor((NSWidth([self bounds])-total)/2));
+   for(i=0;i<index;i++)
+    x+=[self _segmentWidthAtIndex:i];
+   return NSMakeRect(x,NSHeight([self bounds])-[self _stripHeight]-1,[self _segmentWidthAtIndex:index],[self _stripHeight]);
+}
+
+-(NSRect)rectForItemLabelAtIndex:(NSUInteger)index {
+   if(_type==NSTopTabsBezelBorder){
+    NSRect        segment=[self _segmentRectAtIndex:index];
+    NSTabViewItem *item=[_items objectAtIndex:index];
+    NSSize        size=[[item label] sizeWithAttributes:[item labelAttributes]];
+
+    /* -drawLabel:inRect: moves the label 2 points right. */
+    return NSMakeRect(floor(NSMidX(segment)-size.width/2)-2,floor(NSMidY(segment)-size.height/2),
+       ceil(size.width)+4,ceil(size.height));
+   }
+
    int            i,count=[_items count];
     NSPoint        base=NSMakePoint(0,[self bounds].size.height-22);
    NSSize         size;
@@ -254,7 +337,8 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
    for(i=0;i<count;i++){
     NSTabViewItem *item=[_items objectAtIndex:i];
-    NSRect         rect=[self rectForItemLabelAtIndex:i];
+    /* The whole tab as drawn, not only its label's text. */
+    NSRect         rect=[self rectForItemBorderAtIndex:i];
 
     if(NSMouseInRect(point,rect,[self isFlipped]))
      return item;
@@ -263,11 +347,11 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    return nil;
 }
 
--(int)indexOfTabViewItem:(NSTabViewItem *)item {
+-(NSInteger)indexOfTabViewItem:(NSTabViewItem *)item {
     return [_items indexOfObject:item];
 }
 
--(int)indexOfTabViewItemWithIdentifier:identifier {
+-(NSInteger)indexOfTabViewItemWithIdentifier:identifier {
     int i, count=[_items count];
 
     for (i = 0; i < count; ++i)
@@ -290,9 +374,10 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 }
 
 -(void)removeTabViewItem:(NSTabViewItem *)item {
-    int selectedIndex = [self indexOfTabViewItem:_selectedItem];
+    /* NSInteger: NSNotFound does not fit an int (removing the last item). */
+    NSInteger selectedIndex = [self indexOfTabViewItem:_selectedItem];
     if (item == _selectedItem) {
-        int newIndex = selectedIndex - 1;
+        NSInteger newIndex = selectedIndex - 1;
 
         if (newIndex < 0) {
             newIndex = selectedIndex + 1;
@@ -318,7 +403,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
     [self setNeedsDisplay:YES];
 }
 
--(void)insertTabViewItem:(NSTabViewItem *)item atIndex:(int)index {
+-(void)insertTabViewItem:(NSTabViewItem *)item atIndex:(NSInteger)index {
     [_items insertObject:item atIndex:index];
     if (_selectedItem==nil)
         [self selectTabViewItem:item];
@@ -388,7 +473,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
     }
 }
 
--(void)selectTabViewItemAtIndex:(int)index {
+-(void)selectTabViewItemAtIndex:(NSInteger)index {
     [self selectTabViewItem:[_items objectAtIndex:index]];
 }
 
@@ -411,7 +496,10 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
         [self selectTabViewItemAtIndex:[[sender cells] indexOfObject:[sender selectedCell]]];
 }
 
--(NSRect)rectForItemBorderAtIndex:(unsigned)index {
+-(NSRect)rectForItemBorderAtIndex:(NSUInteger)index {
+   if(_type==NSTopTabsBezelBorder)
+    return [self _segmentRectAtIndex:index];
+
    NSRect result=[self rectForItemLabelAtIndex:index];
 
    result=NSInsetRect(result,-4,0);
@@ -421,11 +509,48 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    return result;
 }
 
+/* The strip: white segments in one rounded outline, thin separators,
+   the selected one in the accent color with a white label. */
+-(void)_drawTabStripInRect:(NSRect)rect {
+   unsigned i,count=[_items count];
+   NSInteger selected=[_items indexOfObjectIdenticalTo:_selectedItem];
+
+   if(count==0)
+    return;
+   NSRect strip=NSUnionRect([self _segmentRectAtIndex:0],[self _segmentRectAtIndex:count-1]);
+   if(!NSIntersectsRect(NSInsetRect(strip,-1,-1),rect))
+    return;
+   NSBezierPath *shape=[NSBezierPath bezierPathWithRoundedRect:NSInsetRect(strip,0.5,0.5) xRadius:5 yRadius:5];
+
+   [[NSColor colorWithCalibratedWhite:1 alpha:1] setFill];
+   [shape fill];
+   if(selected!=NSNotFound){
+    [[NSColor controlAccentColor] setFill];
+    [_NSSegmentPath(NSInsetRect([self _segmentRectAtIndex:selected],0,0.5),4.5,selected==0,(unsigned)selected==count-1) fill];
+   }
+   [[NSColor colorWithCalibratedWhite:0.82 alpha:1] setFill];
+   for(i=1;i<count;i++){
+    if((NSInteger)i==selected || (NSInteger)i-1==selected)
+     continue;
+    NSRect segment=[self _segmentRectAtIndex:i];
+    NSRectFill(NSMakeRect(NSMinX(segment),NSMinY(segment)+4,1,NSHeight(segment)-8));
+   }
+   [[NSColor colorWithCalibratedWhite:0.72 alpha:1] setStroke];
+   [shape setLineWidth:1];
+   [shape stroke];
+   for(i=0;i<count;i++)
+    [[_items objectAtIndex:i] drawLabel:_allowsTruncatedLabels inRect:[self rectForItemLabelAtIndex:i]];
+}
+
 -(void)drawRect:(NSRect)rect {
     NSGraphicsStyle *style=[self graphicsStyle];
 
     switch (_type) {
         case NSTopTabsBezelBorder:
+            [style drawTabPaneInRect:[self rectForBorder]];
+            [self _drawTabStripInRect:rect];
+            break;
+
         case NSLeftTabsBezelBorder:
         case NSBottomTabsBezelBorder:
         case NSRightTabsBezelBorder: {
@@ -434,8 +559,8 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
             for(i=0;i<count;i++){
                 NSTabViewItem *item=[_items objectAtIndex:i];
 
-                // defer selected item for overlap
-                if (item != _selectedItem) {
+                // defer selected item for overlap; a tab outside the rect to draw is skipped
+                if (item != _selectedItem && NSIntersectsRect([self rectForItemBorderAtIndex:i],rect)) {
                     [style drawTabInRect:[self rectForItemBorderAtIndex:i] clipRect:rect color:[item color] selected:NO];
                     [item drawLabel:_allowsTruncatedLabels inRect:[self rectForItemLabelAtIndex:i]];
                 }
@@ -443,11 +568,13 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
             [style drawTabPaneInRect:[self rectForBorder]];
 
-            if((i=[_items indexOfObjectIdenticalTo:_selectedItem])!=NSNotFound) {
+            if((i=[_items indexOfObjectIdenticalTo:_selectedItem])!=NSNotFound &&
+               NSIntersectsRect([self rectForItemBorderAtIndex:i],rect)) {
                // now do selected item
                i = [_items indexOfObject:_selectedItem];
+               /* The item's view is drawn with the tab view as its subview; marking
+                  it dirty here redrew the whole tab after each small change in it. */
                [style drawTabInRect:[self rectForItemBorderAtIndex:i] clipRect:rect color:[_selectedItem color] selected:YES];
-               [[_selectedItem view] setNeedsDisplay:YES];
 
                NSRect labelRect=[self rectForItemLabelAtIndex:i];
                labelRect.origin.y+=2;
@@ -510,10 +637,10 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 @implementation NSTabView (Bindings)
 
--(int)_selectedIndex {
+-(NSInteger)_selectedIndex {
     return [self indexOfTabViewItem:_selectedItem];
 }
--(void)_setSelectedIndex:(int)selectedIndex {
+-(void)_setSelectedIndex:(NSInteger)selectedIndex {
     [self selectTabViewItemAtIndex:selectedIndex];
 }
 

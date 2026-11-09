@@ -16,11 +16,11 @@ enum {
     unsigned _options;
 }
 
-- initWithMarkerFormat:(NSString *)format options:(unsigned)options;
+- initWithMarkerFormat:(NSString *)format options:(NSUInteger)options;
 
 - (NSString *)markerFormat;
-- (unsigned)listOptions;
+- (NSUInteger)listOptions;
 
-- (NSString *)markerForItemNumber:(int)index;
+- (NSString *)markerForItemNumber:(NSInteger)index;
 
 @end

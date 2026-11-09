@@ -22,16 +22,21 @@ enum {
     NSCell *_headerCell;
     NSCell *_dataCell;
     NSString *_headerToolTip;
-    float _width;
-    float _minWidth;
-    float _maxWidth;
+    CGFloat _width;
+    CGFloat _minWidth;
+    CGFloat _maxWidth;
     BOOL _isResizable;
     BOOL _isEditable;
     NSUInteger _resizingMask;
     NSSortDescriptor *_sortDescriptorPrototype;
+    BOOL _hidden;
 }
 
 - initWithIdentifier:identifier;
+
+@property (getter=isHidden) BOOL hidden;
+/* The header cell's string. */
+@property (copy) NSString *title;
 
 - identifier;
 - (NSTableView *)tableView;
@@ -39,9 +44,9 @@ enum {
 - (id)dataCell;
 - (NSString *)headerToolTip;
 
-- (float)width;
-- (float)minWidth;
-- (float)maxWidth;
+- (CGFloat)width;
+- (CGFloat)minWidth;
+- (CGFloat)maxWidth;
 - (BOOL)isResizable;
 - (BOOL)isEditable;
 - (NSUInteger)resizingMask;
@@ -52,20 +57,20 @@ enum {
 - (void)setDataCell:(NSCell *)cell;
 - (void)setHeaderToolTip:(NSString *)value;
 
-- (void)setWidth:(float)width;
-- (void)setMinWidth:(float)width;
-- (void)setMaxWidth:(float)width;
+- (void)setWidth:(CGFloat)width;
+- (void)setMinWidth:(CGFloat)width;
+- (void)setMaxWidth:(CGFloat)width;
 - (void)setResizable:(BOOL)flag;
 - (void)setEditable:(BOOL)flag;
 - (void)setResizingMask:(NSUInteger)value;
 
-- (NSCell *)dataCellForRow:(int)row;
+- (NSCell *)dataCellForRow:(NSInteger)row;
 
 - (NSSortDescriptor *)sortDescriptorPrototype;
 - (void)setSortDescriptorPrototype:(NSSortDescriptor *)value;
 
 // internal
-- (void)prepareCell:(id)cell inRow:(int)row;
+- (void)prepareCell:(id)cell inRow:(NSInteger)row;
 - (void)_boundValuesChanged;
 - (void)_sort;
 

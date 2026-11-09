@@ -51,11 +51,11 @@ NSString * const NSTextStorageDidProcessEditingNotification=@"NSTextStorageDidPr
    return _layoutManagers;
 }
 
--(int)changeInLength {
+-(NSInteger)changeInLength {
    return _changeInLength;
 }
 
--(unsigned)editedMask {
+-(NSTextStorageEditActions)editedMask {
    return _editedMask;
 }
 
@@ -130,7 +130,7 @@ NSString * const NSTextStorageDidProcessEditingNotification=@"NSTextStorageDidPr
    }
 }
 
--(void)edited:(unsigned)editedMask range:(NSRange)range changeInLength:(int)delta {
+-(void)edited:(NSTextStorageEditActions)editedMask range:(NSRange)range changeInLength:(NSInteger)delta {
 
    if(_beginEditing==0){
     _editedMask=editedMask;

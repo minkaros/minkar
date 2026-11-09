@@ -1114,6 +1114,16 @@ BOOL VGPathAddLineTo(VGPath *self,O2Point p0, O2Point p1, BOOL subpathHasGeometr
  Given a quadratic BŽzier curve with control points (x0, y0), (x1, y1), and (x2, y2), an identical cubic BŽzier curve may be formed using the control points (x0, y0), (x0 + 2*x1, y0 + 2*y1)/3, (x2 + 2*x1, y2 + 2*y1)/3, (x2, y2)
   */
   
+/* How many lines a curve becomes: from its control polygon's length, so a
+   button's small corner is not cut into 256 lines (each one more stroke
+   and fill edge). A quarter circle of radius r gets about sqrt(17r) lines,
+   under 0.02 pixel off the curve; between 4 and 256. */
+static int curveSegments(O2Float length){
+	int n=(int)ceilf(sqrtf(10.0f*length));
+
+	return n<4?4:(n>256?256:n);
+}
+
 BOOL VGPathAddQuadTo(VGPath *self,O2Point p0, O2Point p1, O2Point p2, BOOL subpathHasGeometry){
 	if(Vector2IsEqual(p0,p1) && Vector2IsEqual(p0,p2))
 	{
@@ -1135,7 +1145,7 @@ BOOL VGPathAddQuadTo(VGPath *self,O2Point p0, O2Point p1, O2Point p2, BOOL subpa
 	if(!subpathHasGeometry)
 		startFlags |= START_SUBPATH;
 
-	const int segments = 256;
+	const int segments = curveSegments(Vector2Length(Vector2Subtract(p1,p0))+Vector2Length(Vector2Subtract(p2,p1)));
 	O2Point pp = p0;
 	O2Point tp = incomingTangent;
 	unsigned int prevFlags = startFlags;
@@ -1239,7 +1249,8 @@ BOOL VGPathAddCubicTo(VGPath *self,O2Point p0, O2Point p1, O2Point p2, O2Point p
     bezier(self,p0.x,p0.y,p1.x,p1.y,p2.x,p2.y,p3.x,p3.y,&prevFlags,&pp,&tp);
 	VGPathAddEdge(self,pp, p3, tp, outgoingTangent, prevFlags, END_SEGMENT);
 #else
-	const int segments = 256;
+	const int segments = curveSegments(Vector2Length(Vector2Subtract(p1,p0))+Vector2Length(Vector2Subtract(p2,p1))+
+		Vector2Length(Vector2Subtract(p3,p2)));
 	O2Point pp = p0;
 	O2Point tp = incomingTangent;
 	unsigned int prevFlags = startFlags;

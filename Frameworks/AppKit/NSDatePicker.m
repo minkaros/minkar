@@ -12,6 +12,12 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 @implementation NSDatePicker
 
+/* Its own cell when made in code (a nib names it): not its superclass's. */
++(Class)cellClass {
+   return [NSDatePickerCell class];
+}
+
+
 -(BOOL)acceptsFirstResponder {
    return YES;
 }

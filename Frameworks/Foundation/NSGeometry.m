@@ -18,7 +18,36 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <Foundation/NSObjCRuntime.h>
 #import <Foundation/NSRaise.h>
 
-#define _NSFLOAT_SCAN "%g"
+#include <xlocale.h>
+
+/* The numbers in a string, in order, up to count of them: what is not a
+   number is skipped, so "{1, 2}", "{1 2}" and "1,2" read alike, as the
+   reference platform reads them. Always with a "." decimal point. */
+static int scanNumbers(NSString *string,double *numbers,int count) {
+   static locale_t c;
+   const char *p=[string UTF8String];
+   int found=0;
+
+   if(c==NULL)
+    c=newlocale(LC_NUMERIC_MASK,"C",NULL);
+   while(p!=NULL && *p!='\0' && found<count){
+    char *end;
+    double value;
+
+    if(!(*p=='-' || *p=='+' || *p=='.' || (*p>='0' && *p<='9'))){
+     p++;
+     continue;
+    }
+    value=strtod_l(p,&end,c);
+    if(end==p){
+     p++;
+     continue;
+    }
+    numbers[found++]=value;
+    p=end;
+   }
+   return found;
+}
 
 const NSPoint NSZeroPoint={0,0};
 
@@ -27,23 +56,16 @@ BOOL NSEqualPoints(NSPoint point0,NSPoint point1) {
 }
 
 NSString *NSStringFromPoint(NSPoint point) {
-    struct lconv *lconv = localeconv();
-    return [NSString stringWithFormat:@"{%g%s %g}", point.x, lconv->thousands_sep, point.y];
+    return [NSString stringWithFormat:@"{%g, %g}", point.x, point.y];
 }
 
 
 NSPoint NSPointFromString(NSString *string)
 {
-    NSPoint result = NSZeroPoint;
-    
-    if (string != nil) {
-        struct lconv *lconv = localeconv();
-        NSString *fmt = [NSString stringWithFormat:@"{%s%s %s}",
-            _NSFLOAT_SCAN, lconv->thousands_sep, _NSFLOAT_SCAN];
-        sscanf([string UTF8String], [fmt UTF8String], &result.x, &result.y);
-        [fmt release];
-    }
-    return result;
+    double n[2]={0,0};
+
+    scanNumbers(string,n,2);
+    return NSMakePoint(n[0],n[1]);
 }
 
 
@@ -55,23 +77,16 @@ BOOL NSEqualSizes(NSSize size0,NSSize size1) {
 }
 
 NSString *NSStringFromSize(NSSize size) {
-    struct lconv *lconv = localeconv();
-    return [NSString stringWithFormat:@"{%g%s %g}", size.width, lconv->thousands_sep, size.height];
+    return [NSString stringWithFormat:@"{%g, %g}", size.width, size.height];
 }
 
 
 NSSize NSSizeFromString(NSString *string)
 {
-    NSSize result = NSZeroSize;
-    
-    if (string != nil) {
-        struct lconv *lconv = localeconv();
-        NSString *fmt = [NSString stringWithFormat:@"{%s%s %s}",
-            _NSFLOAT_SCAN, lconv->thousands_sep, _NSFLOAT_SCAN];
-        sscanf([string UTF8String], [fmt UTF8String], &result.width, &result.height);
-        [fmt release];
-    }
-    return result;
+    double n[2]={0,0};
+
+    scanNumbers(string,n,2);
+    return NSMakeSize(n[0],n[1]);
 }
 
 
@@ -205,24 +220,16 @@ BOOL NSIntersectsRect(NSRect rect0,NSRect rect1) {
 
 
 NSString *NSStringFromRect(NSRect rect) {
-    struct lconv *lconv = localeconv();
-    return [NSString stringWithFormat:@"{{%g%s %g}%s {%g%s %g}}", rect.origin.x, lconv->thousands_sep, rect.origin.y, lconv->thousands_sep, rect.size.width, lconv->thousands_sep, rect.size.height];
+    return [NSString stringWithFormat:@"{{%g, %g}, {%g, %g}}", rect.origin.x, rect.origin.y, rect.size.width, rect.size.height];
 }
 
 
 NSRect NSRectFromString(NSString *string)
 {
-    NSRect result = NSZeroRect;
-    
-    if (string != nil) {
-        struct lconv *lconv = localeconv();
-        NSString *fmt = [NSString stringWithFormat:@"{{%s%s %s}%s {%s%s %s}}",
-            _NSFLOAT_SCAN, lconv->thousands_sep, _NSFLOAT_SCAN, lconv->thousands_sep,
-            _NSFLOAT_SCAN, lconv->thousands_sep, _NSFLOAT_SCAN];
-        sscanf([string UTF8String], [fmt UTF8String], &result.origin.x, &result.origin.y, &result.size.width, &result.size.height);
-        [fmt release];
-    }
-    return result;
+    double n[4]={0,0,0,0};
+
+    scanNumbers(string,n,4);
+    return NSMakeRect(n[0],n[1],n[2],n[3]);
 }
 
 

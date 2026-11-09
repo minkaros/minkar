@@ -7,6 +7,7 @@ The above copyright notice and this permission notice shall be included in all c
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE. */
 
 #import <AppKit/NSTextFieldCell.h>
+#import <AppKit/NSBezierPath.h>
 #import <AppKit/NSApplication.h>
 #import <AppKit/NSAttributedString.h>
 #import <AppKit/NSStringDrawing.h>
@@ -237,12 +238,29 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
     return size;
 }
 
+/* A wrapping cell breaks its text at the width given, and is as tall as
+   that makes it. */
+-(NSSize)cellSizeForBounds:(NSRect)rect {
+   NSSize single=[self cellSize];
+
+   if(![self wraps] || [self usesSingleLineMode] || rect.size.width>=single.width)
+    return NSMakeSize(MIN(rect.size.width,single.width),MIN(rect.size.height,single.height));
+
+   NSSize padding=NSMakeSize(single.width-[[self attributedStringValue] size].width,
+                             single.height-[[self attributedStringValue] size].height);
+   NSRect text=[[self attributedStringValue] boundingRectWithSize:NSMakeSize(MAX(rect.size.width-padding.width,1),CGFLOAT_MAX)
+      options:NSStringDrawingUsesLineFragmentOrigin];
+
+   return NSMakeSize(MIN(rect.size.width,ceil(NSWidth(text))+padding.width),
+                     MIN(rect.size.height,ceil(NSHeight(text))+padding.height));
+}
+
 -(void)editWithFrame:(NSRect)frame inView:(NSView *)view editor:(NSText *)editor delegate:(id)delegate event:(NSEvent *)event {
    frame=[self titleRectForBounds:frame];
    [super editWithFrame:frame inView:view editor:editor delegate:delegate event:event];
 }
 
--(void)selectWithFrame:(NSRect)frame inView:(NSView *)view editor:(NSText *)editor delegate:(id)delegate start:(int)location length:(int)length {
+-(void)selectWithFrame:(NSRect)frame inView:(NSView *)view editor:(NSText *)editor delegate:(id)delegate start:(NSInteger)location length:(NSInteger)length {
    frame=[self titleRectForBounds:frame];
    [super selectWithFrame:frame inView:view editor:editor delegate:delegate start:location length:length];
 }
@@ -288,21 +306,15 @@ static void drawRoundedBezel(CGContextRef context,CGRect frame){
     backRect=NSInsetRect(backRect,-1,-1);
       break;
 
-     case NSTextFieldRoundedBezel:;
-      CGContextRef context=[[NSGraphicsContext currentContext] graphicsPort];
-      NSRect roundedFrame=frame;
+     /* A white rounded field with a thin border (search fields). */
+     case NSTextFieldRoundedBezel:{
+      NSBezierPath *path=[NSBezierPath bezierPathWithRoundedRect:NSInsetRect(frame,0.5,0.5) xRadius:5 yRadius:5];
 
-      roundedFrame.size.height--;
-      [[NSColor darkGrayColor] setFill];
-      drawRoundedBezel(context,roundedFrame);
-
-      roundedFrame.origin.y+=1;
-      [[NSColor lightGrayColor] setFill];
-      drawRoundedBezel(context,roundedFrame);
-
-      roundedFrame=NSInsetRect(roundedFrame,1,1);
-      [[NSColor whiteColor] setFill];
-      drawRoundedBezel(context,roundedFrame);
+      [([self isEnabled]?[NSColor textBackgroundColor]:[NSColor colorWithCalibratedWhite:0.97 alpha:1]) setFill];
+      [path fill];
+      [[NSColor colorWithCalibratedWhite:0.74 alpha:1] setStroke];
+      [path stroke];
+     }
       break;
    }
 

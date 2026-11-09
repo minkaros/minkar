@@ -39,50 +39,68 @@ typedef enum {
     NSFontAntialiasedIntegerAdvancementsRenderingMode,
 } NSFontRenderingMode;
 
+/* A weight from -1 (lightest) to 1 (heaviest), 0 regular. */
+typedef CGFloat NSFontWeight;
+APPKIT_EXPORT const NSFontWeight NSFontWeightUltraLight;
+APPKIT_EXPORT const NSFontWeight NSFontWeightThin;
+APPKIT_EXPORT const NSFontWeight NSFontWeightLight;
+APPKIT_EXPORT const NSFontWeight NSFontWeightRegular;
+APPKIT_EXPORT const NSFontWeight NSFontWeightMedium;
+APPKIT_EXPORT const NSFontWeight NSFontWeightSemibold;
+APPKIT_EXPORT const NSFontWeight NSFontWeightBold;
+APPKIT_EXPORT const NSFontWeight NSFontWeightHeavy;
+APPKIT_EXPORT const NSFontWeight NSFontWeightBlack;
+
 @interface NSFont : NSObject <NSCopying> {
     NSString *_name;
-    float _pointSize;
-    float _matrix[6];
+    CGFloat _pointSize;
+    CGFloat _matrix[6];
     NSStringEncoding _encoding;
 
     CGFontRef _cgFont;
     CTFontRef _ctFont;
 }
 
-+ (float)systemFontSize;
-+ (float)smallSystemFontSize;
-+ (float)labelFontSize;
-+ (float)systemFontSizeForControlSize:(NSControlSize)size;
++ (CGFloat)systemFontSize;
++ (CGFloat)smallSystemFontSize;
++ (CGFloat)labelFontSize;
++ (CGFloat)systemFontSizeForControlSize:(NSControlSize)size;
 
-+ (NSFont *)boldSystemFontOfSize:(float)size;
-+ (NSFont *)controlContentFontOfSize:(float)size;
++ (NSFont *)boldSystemFontOfSize:(CGFloat)size;
++ (NSFont *)controlContentFontOfSize:(CGFloat)size;
 
-+ (NSFont *)labelFontOfSize:(float)size;
-+ (NSFont *)menuFontOfSize:(float)size;
-+ (NSFont *)menuBarFontOfSize:(float)size;
++ (NSFont *)labelFontOfSize:(CGFloat)size;
++ (NSFont *)menuFontOfSize:(CGFloat)size;
++ (NSFont *)menuBarFontOfSize:(CGFloat)size;
 
-+ (NSFont *)messageFontOfSize:(float)size;
-+ (NSFont *)paletteFontOfSize:(float)size;
-+ (NSFont *)systemFontOfSize:(float)size;
-+ (NSFont *)titleBarFontOfSize:(float)size;
-+ (NSFont *)toolTipsFontOfSize:(float)size;
-+ (NSFont *)userFontOfSize:(float)size;
-+ (NSFont *)userFixedPitchFontOfSize:(float)size;
++ (NSFont *)messageFontOfSize:(CGFloat)size;
++ (NSFont *)paletteFontOfSize:(CGFloat)size;
++ (NSFont *)systemFontOfSize:(CGFloat)size;
+/* The system font's face nearest the weight. Digits of the
+   monospaced-digit font have one width; the monospaced font is the
+   system's fixed-pitch one. */
++ (NSFont *)systemFontOfSize:(CGFloat)fontSize weight:(NSFontWeight)weight;
++ (NSFont *)monospacedDigitSystemFontOfSize:(CGFloat)fontSize weight:(NSFontWeight)weight;
++ (NSFont *)monospacedSystemFontOfSize:(CGFloat)fontSize weight:(NSFontWeight)weight;
++ (NSFont *)titleBarFontOfSize:(CGFloat)size;
++ (NSFont *)toolTipsFontOfSize:(CGFloat)size;
++ (NSFont *)userFontOfSize:(CGFloat)size;
++ (NSFont *)userFixedPitchFontOfSize:(CGFloat)size;
 
 + (void)setUserFont:(NSFont *)value;
 + (void)setUserFixedPitchFont:(NSFont *)value;
 
-+ (NSFont *)fontWithName:(NSString *)name size:(float)size;
-+ (NSFont *)fontWithName:(NSString *)name matrix:(const float *)matrix;
-+ (NSFont *)fontWithDescriptor:(NSFontDescriptor *)descriptor size:(float)size;
-+ (NSFont *)fontWithDescriptor:(NSFontDescriptor *)descriptor size:(float)size textTransform:(NSAffineTransform *)transform;
++ (NSFont *)fontWithName:(NSString *)name size:(CGFloat)size;
++ (NSFont *)fontWithName:(NSString *)name matrix:(const CGFloat *)matrix;
++ (NSFont *)fontWithDescriptor:(NSFontDescriptor *)descriptor size:(CGFloat)size;
++ (NSFont *)fontWithDescriptor:(NSFontDescriptor *)descriptor size:(CGFloat)size textTransform:(NSAffineTransform *)transform;
 
 + (NSArray *)preferredFontNames;
 + (void)setPreferredFontNames:(NSArray *)fontNames;
 
-- (float)pointSize;
+- (CGFloat)pointSize;
 - (NSString *)fontName;
-- (const float *)matrix;
+- (const CGFloat *)matrix;
 - (NSAffineTransform *)textTransform;
 - (NSFontRenderingMode)renderingMode;
 - (NSCharacterSet *)coveredCharacterSet;
@@ -99,35 +117,35 @@ typedef enum {
 - (NSRect)boundingRectForGlyph:(NSGlyph)glyph;
 
 - (NSMultibyteGlyphPacking)glyphPacking;
-- (unsigned)numberOfGlyphs;
+- (NSUInteger)numberOfGlyphs;
 - (NSGlyph)glyphWithName:(NSString *)name;
 - (BOOL)glyphIsEncoded:(NSGlyph)glyph;
 - (NSSize)advancementForGlyph:(NSGlyph)glyph;
 
 - (NSSize)maximumAdvancement;
-- (float)underlinePosition;
-- (float)underlineThickness;
+- (CGFloat)underlinePosition;
+- (CGFloat)underlineThickness;
 - (CGFloat)ascender;
 - (CGFloat)descender;
 - (CGFloat)leading;
 - (CGFloat)defaultLineHeightForFont;
 - (BOOL)isFixedPitch;
-- (float)italicAngle;
-- (float)xHeight;
-- (float)capHeight;
+- (CGFloat)italicAngle;
+- (CGFloat)xHeight;
+- (CGFloat)capHeight;
 
 - (void)setInContext:(NSGraphicsContext *)context;
 - (void)set;
 
 - (NSPoint)positionOfGlyph:(NSGlyph)current precededByGlyph:(NSGlyph)previous isNominal:(BOOL *)isNominalp;
 
-- (void)getAdvancements:(NSSize *)advancements forGlyphs:(const NSGlyph *)glyphs count:(unsigned)count;
-- (void)getAdvancements:(NSSize *)advancements forPackedGlyphs:(const void *)packed length:(unsigned)length;
-- (void)getBoundingRects:(NSRect *)rects forGlyphs:(const NSGlyph *)glyphs count:(unsigned)count;
+- (void)getAdvancements:(NSSize *)advancements forGlyphs:(const NSGlyph *)glyphs count:(NSUInteger)count;
+- (void)getAdvancements:(NSSize *)advancements forPackedGlyphs:(const void *)packed length:(NSUInteger)length;
+- (void)getBoundingRects:(NSRect *)rects forGlyphs:(const NSGlyph *)glyphs count:(NSUInteger)count;
 
 // private
 
-- (unsigned)getGlyphs:(NSGlyph *)glyphs forCharacters:(unichar *)characters length:(unsigned)length;
+- (NSUInteger)getGlyphs:(NSGlyph *)glyphs forCharacters:(unichar *)characters length:(NSUInteger)length;
 
 @end
 

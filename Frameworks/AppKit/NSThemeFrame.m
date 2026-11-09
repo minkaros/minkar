@@ -28,6 +28,7 @@
 #import <AppKit/NSColor.h>
 #import <AppKit/NSImage.h>
 #import <AppKit/NSToolbarView.h>
+#import <AppKit/NSTitlebarAccessoryViewController.h>
 #import <AppKit/NSAttributedString.h>
 #import <Onyx2D/O2Context.h>
 
@@ -38,11 +39,13 @@ extern void CGNativeBorderFrameWidthsForStyle(unsigned styleMask, CGFloat *top,
  * the window's buttons and its title, drawn over the content; it takes
  * only the buttons' clicks. It covers the frame view, in its coordinates. */
 // all measurements in pixels
-const float NSWindowTitleHeight = 32;
+/* The reference platform's measures: a 22-point title bar, no side or
+   bottom border (the window's shadow outlines it). */
+const float NSWindowTitleHeight = 22;
 const float NSWindowEdgePad = 2;
 const float NSWindowCornerRadius = 8;
-const float NSWindowControlDiameter = 14;
-const float NSWindowControlSpacing = 10;
+const float NSWindowControlDiameter = 12;
+const float NSWindowControlSpacing = 8;
 
 @interface NSTitlebarOverlayView : NSView
 @end
@@ -81,6 +84,11 @@ const float NSWindowControlSpacing = 10;
     for(int corner = 0; corner < 4; corner++) {
         BOOL right = (corner & 1) != 0, top = (corner & 2) != 0;
         CGFloat edgeX = right ? NSMaxX(b) : NSMinX(b), edgeY = top ? NSMaxY(b) : NSMinY(b);
+        /* Only the corners the rect being drawn reaches. */
+        NSRect cornerBox = NSMakeRect(right ? edgeX - r - NSWindowEdgePad : edgeX,
+            top ? edgeY - r - NSWindowEdgePad : edgeY, r + NSWindowEdgePad, r + NSWindowEdgePad);
+        if(!NSIntersectsRect(cornerBox, rect))
+            continue;
         CGFloat cx = right ? edgeX - r : edgeX + r, cy = top ? edgeY - r : edgeY + r;
         /* The arc from the corner's vertical edge to its horizontal one. */
         CGFloat from = right ? 0 : 3.14159, to = top ? 1.5708 : 4.71239;
@@ -104,7 +112,8 @@ const float NSWindowControlSpacing = 10;
         O2ContextAddArc(context, cx, cy, r - NSWindowEdgePad / 2, from, to, clockwise);
         O2ContextStrokePath(context);
     }
-    if([[self window] styleMask] & NSWindowStyleMaskFullSizeContentView)
+    if(([[self window] styleMask] & NSWindowStyleMaskFullSizeContentView) &&
+       NSIntersectsRect(rect, NSMakeRect(0, NSMaxY(b) - NSWindowTitleHeight, NSWidth(b), NSWindowTitleHeight)))
         [frame _drawTitlebarControls];
 }
 
@@ -128,7 +137,7 @@ static void drawControl(O2Context *context, NSRect rect, int kind, BOOL enabled,
         O2ContextSetGrayFillColor(context, hover ? 0.62 : 0.72, 1);
     O2ContextFillEllipseInRect(context, rect);
     if(enabled) {
-        CGFloat inset = 4, midX = NSMidX(rect), midY = NSMidY(rect);
+        CGFloat inset = 3.5, midX = NSMidX(rect), midY = NSMidY(rect);
         CGFloat lo = NSMinX(rect) + inset, hi = NSMaxX(rect) - inset;
         CGFloat bottom = NSMinY(rect) + inset, top = NSMaxY(rect) - inset;
         O2Point lines[4];
@@ -170,7 +179,8 @@ static void drawControl(O2Context *context, NSRect rect, int kind, BOOL enabled,
 }
 
 /* Which control is under point: 1 close, 2 zoom, 3 minimize, 0 none. */
--(int)_controlAtPoint:(NSPoint)point {
+-(NSInteger)_controlAtPoint:(NSPoint)point {
+    if([[self window] _hidesWindowControls]) return 0;
     if(NSPointInRect(point, _closeButtonRect)) return 1;
     if(NSPointInRect(point, _zoomButtonRect)) return 2;
     if(NSPointInRect(point, _miniButtonRect)) return 3;
@@ -195,6 +205,16 @@ static void drawControl(O2Context *context, NSRect rect, int kind, BOOL enabled,
 }
 
 -(void)drawRect:(NSRect)rect {
+    /* A sheet: its background and a thin border, no title bar (it hangs
+       under its window's). */
+    if([[self window] isSheet]) {
+        [[[self window] backgroundColor] setFill];
+        NSRectFill(rect);
+        [[NSColor colorWithCalibratedWhite:0.70 alpha:1] set];
+        NSFrameRect([self bounds]);
+        return;
+    }
+
     NSRect bounds = [NSWindow contentRectForFrameRect:[self bounds]
         styleMask:[[self window] styleMask]];
     float cheatSheet = 0;
@@ -244,6 +264,21 @@ static void drawControl(O2Context *context, NSRect rect, int kind, BOOL enabled,
 
     // let's round these corners
     float radius = NSWindowCornerRadius;
+    NSRect titlebar = NSMakeRect(0, NSMaxY([self bounds]) - NSWindowTitleHeight, NSWidth([self bounds]), NSWindowTitleHeight);
+
+    /* A rect inside the frame, away from its corners, is filled plainly and
+       has no title bar to draw: a small redraw in the content need not fill
+       the whole rounded frame and draw the title again. */
+    if(NSContainsRect(NSInsetRect([self bounds], 0, radius), rect) ||
+       NSContainsRect(NSInsetRect([self bounds], radius, 0), rect)) {
+        O2ContextFillRect(_context, rect);
+        if(!NSIntersectsRect(rect, titlebar))
+            return;
+        if(!([window styleMask] & NSWindowStyleMaskFullSizeContentView))
+            [self _drawTitlebarControls];
+        return;
+    }
+
     O2ContextBeginPath(_context);
     O2ContextMoveToPoint(_context, _frame.origin.x+radius, NSMaxY(_frame));
     O2ContextAddArc(_context, _frame.origin.x + _frame.size.width - radius,
@@ -266,7 +301,7 @@ static void drawControl(O2Context *context, NSRect rect, int kind, BOOL enabled,
     O2ContextFillPath(_context);
 
     // the window's buttons and title, unless drawn above the content
-    if(!([window styleMask] & NSWindowStyleMaskFullSizeContentView))
+    if(!([window styleMask] & NSWindowStyleMaskFullSizeContentView) && NSIntersectsRect(rect, titlebar))
         [self _drawTitlebarControls];
 }
 
@@ -279,24 +314,26 @@ static void drawControl(O2Context *context, NSRect rect, int kind, BOOL enabled,
     [self _layoutControls];
     NSUInteger mask = [window styleMask];
     BOOL over = NSPointInRect(pointer, controls);
+    if(![window _hidesWindowControls]) {
     drawControl(_context, _closeButtonRect, kControlClose, (mask & NSClosableWindowMask) != 0,
         over && NSPointInRect(pointer, _closeButtonRect));
     drawControl(_context, _zoomButtonRect, kControlZoom, (mask & NSResizableWindowMask) != 0,
         over && NSPointInRect(pointer, _zoomButtonRect));
     drawControl(_context, _miniButtonRect, kControlMini, (mask & NSMiniaturizableWindowMask) != 0,
         over && NSPointInRect(pointer, _miniButtonRect));
+    }
 
     NSString *t = [window title];
     if(t && [window titleVisibility] == NSWindowTitleVisible) {
         NSDictionary *attrs = @{
-            NSFontAttributeName : [NSFont titleBarFontOfSize:15.0],
-            NSForegroundColorAttributeName : [NSColor blackColor]
+            NSFontAttributeName : [NSFont systemFontOfSize:13.0],
+            NSForegroundColorAttributeName : [NSColor colorWithCalibratedWhite:0.25 alpha:1]
         };
         NSAttributedString *title = [[[NSAttributedString alloc] initWithString:t attributes:attrs] autorelease];
         NSSize size = [title size];
         NSRect titleRect = NSMakeRect(
             _frame.size.width / 2 - size.width / 2,
-            _frame.size.height - NSWindowTitleHeight / 3 - size.height / 2,
+            floor(_frame.size.height - NSWindowTitleHeight / 2 - size.height / 2),
             size.width, size.height);
         [title drawInRect:titleRect];
     }
@@ -339,13 +376,19 @@ static void drawControl(O2Context *context, NSRect rect, int kind, BOOL enabled,
    NSView *contentView=nil;
 
 // tile the subviews, when/if we add titlebars and such do it here
+   NSArray *accessories=[[self window] respondsToSelector:@selector(titlebarAccessoryViewControllers)]?
+      [[self window] titlebarAccessoryViewControllers]:nil;
+   NSMutableArray *accessoryViews=[NSMutableArray array];
+
+   for(NSTitlebarAccessoryViewController *accessory in accessories)
+    [accessoryViews addObject:[accessory view]];
    [self _updateTitlebarOverlay];
    for(NSView *view in _subviews){
-    if(view == _titlebarOverlay)
+    if(view == _titlebarOverlay || [accessoryViews indexOfObjectIdenticalTo:view]!=NSNotFound)
      continue;
     if([view isKindOfClass:[NSToolbarView class]])
      toolbarView=(NSToolbarView *)view;
-    else
+    else if(contentView==nil || view==[[self window] contentView])
      contentView=view;
    }
 
@@ -359,6 +402,40 @@ static void drawControl(O2Context *context, NSRect rect, int kind, BOOL enabled,
    [toolbarView layoutViews];
 
    contentFrame.size.height-=toolbarFrame.size.height;
+
+   /* Title bar accessories: bottom ones in a band under the toolbar (the
+      content below them), left and right ones in the title bar. */
+   CGFloat top=NSMaxY(contentFrame),titleTop=NSMaxY([self bounds]),left=NSMinX([self bounds])+8;
+   CGFloat right=NSMaxX([self bounds])-80;
+
+   for(NSTitlebarAccessoryViewController *accessory in accessories){
+    NSView *view=[accessory view];
+    NSRect  frame=[view frame];
+
+    if([accessory isHidden]){
+     [view setHidden:YES];
+     continue;
+    }
+    [view setHidden:NO];
+    switch([accessory layoutAttribute]){
+     case NSLayoutAttributeLeft:
+     case NSLayoutAttributeLeading:
+      frame=NSMakeRect(left,titleTop-NSWindowTitleHeight,NSWidth(frame),NSWindowTitleHeight);
+      left+=NSWidth(frame);
+      break;
+     case NSLayoutAttributeRight:
+     case NSLayoutAttributeTrailing:
+      right-=NSWidth(frame);
+      frame=NSMakeRect(right,titleTop-NSWindowTitleHeight,NSWidth(frame),NSWindowTitleHeight);
+      break;
+     default:
+      frame=NSMakeRect(contentFrame.origin.x,top-NSHeight(frame),contentFrame.size.width,NSHeight(frame));
+      top-=NSHeight(frame);
+      contentFrame.size.height-=NSHeight(frame);
+      break;
+    }
+    [view setFrame:frame];
+   }
    [contentView setFrame:contentFrame];
 }
 
@@ -393,7 +470,7 @@ static void drawControl(O2Context *context, NSRect rect, int kind, BOOL enabled,
     NSUInteger mask = [[self window] styleMask];
 
     [self _layoutControls];
-    if(NSPointInRect(pos, controls)) {
+    if(NSPointInRect(pos, controls) && ![[self window] _hidesWindowControls]) {
         if(NSPointInRect(pos, _closeButtonRect) && (mask & NSClosableWindowMask))
             [[self window] performClose:self];
         else if(NSPointInRect(pos, _miniButtonRect) && (mask & NSMiniaturizableWindowMask))

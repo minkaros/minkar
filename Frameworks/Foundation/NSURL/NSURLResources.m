@@ -933,6 +933,30 @@ static NSDictionary *readBookmark(NSData *data) {
 
 @implementation NSFileManager (NSURLResources)
 
+-(NSArray *)mountedVolumeURLsIncludingResourceValuesForKeys:(NSArray *)propertyKeys options:(NSVolumeEnumerationOptions)options {
+    int count = getfsstat(NULL, 0, MNT_NOWAIT);
+    NSMutableArray *result = [NSMutableArray array];
+
+    if (count <= 0)
+        return result;
+    struct statfs *fs = malloc(sizeof(struct statfs) * (size_t)count);
+    count = getfsstat(fs, (int)(sizeof(struct statfs) * (size_t)count), MNT_NOWAIT);
+    for (int i = 0; i < count; i++) {
+        NSString *type = [NSString stringWithUTF8String:fs[i].f_fstypename];
+        BOOL hidden = (fs[i].f_flags & MNT_DONTBROWSE) != 0 ||
+            [type isEqualToString:@"devfs"] || [type isEqualToString:@"fdesc"] || [type isEqualToString:@"autofs"];
+
+        if (hidden && (options & NSVolumeEnumerationSkipHiddenVolumes))
+            continue;
+        NSURL *url = [NSURL fileURLWithPath:[NSString stringWithUTF8String:fs[i].f_mntonname] isDirectory:YES];
+        if ([propertyKeys count] > 0)
+            [url resourceValuesForKeys:propertyKeys error:NULL];
+        [result addObject:url];
+    }
+    free(fs);
+    return result;
+}
+
 - (NSArray *)URLsForDirectory:(NSSearchPathDirectory)directory inDomains:(NSSearchPathDomainMask)domainMask {
     NSMutableArray *urls = [NSMutableArray array];
     for (NSString *path in NSSearchPathForDirectoriesInDomains(directory, domainMask, YES))

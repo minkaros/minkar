@@ -9,7 +9,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <Foundation/Foundation.h>
 #import <AppKit/NSUserInterfaceValidation.h>
 
-@class NSWindow, NSWindowController, NSSavePanel, NSMenuItem, NSFileWrapper, NSPrintOperation, NSPrintInfo, NSPageLayout, NSView;
+@class NSTimer, NSWindow, NSWindowController, NSSavePanel, NSMenuItem, NSFileWrapper, NSPrintOperation, NSPrintInfo, NSPageLayout, NSView;
 
 typedef enum {
     NSChangeDone,
@@ -17,13 +17,18 @@ typedef enum {
     NSChangeCleared,
     NSChangeReadOtherContents,
     NSChangeAutosaved,
+    NSChangeRedone = 5,
+    NSChangeDiscardable = 256,
 } NSDocumentChangeType;
 
 typedef enum {
     NSSaveOperation,
     NSSaveAsOperation,
     NSSaveToOperation,
-    NSAutosaveOperation,
+    NSAutosaveElsewhereOperation = 3,
+    NSAutosaveInPlaceOperation = 4,
+    NSAutosaveAsOperation = 5,
+    NSAutosaveOperation = NSAutosaveElsewhereOperation,
 } NSSaveOperationType;
 
 @interface NSDocument : NSObject {
@@ -39,6 +44,10 @@ typedef enum {
     NSUndoManager *_undoManager;
     BOOL _hasUndoManager;
     NSMutableArray *_activeEditors; // registered via NSEditorRegistration
+    BOOL _hasUnautosavedChanges;
+    NSTimer *_autosaveTimer;
+    NSDate *_lastVersionDate;
+    NSString *_openedVersionIdentifier;
 }
 
 + (NSArray *)readableTypes;
@@ -118,6 +127,15 @@ typedef enum {
 - (void)runModalSavePanelForSaveOperation:(NSSaveOperationType)operation delegate:delegate didSaveSelector:(SEL)selector contextInfo:(void *)info;
 - (void)saveDocumentWithDelegate:delegate didSaveSelector:(SEL)selector contextInfo:(void *)info;
 - (BOOL)saveToURL:(NSURL *)url ofType:(NSString *)type forSaveOperation:(NSSaveOperationType)operation error:(NSError **)error;
+
+/* Autosaving and versions. */
++ (BOOL)autosavesInPlace;
++ (BOOL)preservesVersions;
++ (BOOL)autosavesDrafts;
+- (void)scheduleAutosaving;
+- (void)autosaveWithImplicitCancellability:(BOOL)autosavingIsImplicitlyCancellable
+    completionHandler:(void (^)(NSError *errorOrNil))completionHandler;
+- (void)browseDocumentVersions:(id)sender;
 - (void)saveToURL:(NSURL *)url ofType:(NSString *)type forSaveOperation:(NSSaveOperationType)operation delegate:delegate didSaveSelector:(SEL)selector contextInfo:(void *)info;
 
 - (BOOL)preparePageLayout:(NSPageLayout *)pageLayout;
@@ -161,8 +179,8 @@ typedef enum {
 - (BOOL)readFromURL:(NSURL *)url ofType:(NSString *)type;
 - (BOOL)revertToSavedFromFile:(NSString *)path ofType:(NSString *)type;
 - (BOOL)revertToSavedFromURL:(NSURL *)url ofType:(NSString *)type;
-- (int)runModalSavePanel:(NSSavePanel *)savePanel withAccessoryView:(NSView *)accessoryView;
-- (int)runModalPageLayoutWithPrintInfo:(NSPrintInfo *)printInfo;
+- (NSInteger)runModalSavePanel:(NSSavePanel *)savePanel withAccessoryView:(NSView *)accessoryView;
+- (NSInteger)runModalPageLayoutWithPrintInfo:(NSPrintInfo *)printInfo;
 - (void)setFileName:(NSString *)path;
 - (void)saveToFile:(NSString *)path saveOperation:(NSSaveOperationType)operation delegate:delegate didSaveSelector:(SEL)selector contextInfo:(void *)info;
 - (BOOL)shouldCloseWindowController:(NSWindowController *)controller;

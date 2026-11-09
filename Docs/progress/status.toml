@@ -32,10 +32,10 @@
 # commit that closes a milestone updates this file and runs
 # "bmake progress" (Docs/CONTRIBUTING.md).
 
-updated = "2026-11-05"
-commit  = "22a0e67f0d"
+updated = "2026-11-09"
+commit  = "c0691e1aed"
 
-deps = [["ws", 555, "dock"], ["fw", 490, "argos"]]
+deps = [["ws", 555, "dock"], ["fw", 490, "files"], ["fw", 590, "webkit"]]
 
 [[gate]]
 id = "M0"
@@ -80,7 +80,7 @@ title = "M5 Atlas desktop"
 label = "M5"
 state = "todo"
 x = 760
-rows = ["mb", "dock", "argos", "atlas"]
+rows = ["mb", "dock", "files", "atlas"]
 
 [[gate]]
 id = "M6"
@@ -88,7 +88,7 @@ title = "M6 Minkar 19.6.0"
 label = "M6 · 19.6.0"
 state = "todo"
 x = 970
-rows = ["mb", "dock", "argos", "apps"]
+rows = ["mb", "dock", "files", "apps", "webkit"]
 
 [[gate]]
 id = "R21"
@@ -123,11 +123,13 @@ color = "brown"
 doc = "ROADMAP.md#phase-3--base-frameworks-and-swift"
 doc_es = "ROADMAP.es.md#fase-3--frameworks-base-y-swift"
 # CLI tools: gate M3's seven open source tools (Tests/M3), all pass (5 Nov).
-# Cocoa coverage: the block after M3 (AppKit, CF, Security from the inventory).
+# Cocoa coverage: the block after M3, met on 9 Nov: imported symbols 99.9 %,
+# selectors 97.6 % (only SMAppService, API 22, is missing). Security: Minkar's
+# own subset (decided 9 Nov), the APSL sources to replace it.
 stations = [
   ["XPC", 250, "done"], ["libSystem", 300, "partial"], ["Foundation", 350, "partial"],
-  ["CF-Lite", 400, "partial"], ["Security", 445, "todo"], ["LaunchServices", 490, "done"],
-  ["Swift 6", 540, "partial"], ["CLI tools", 590, "done"], ["Cocoa coverage", 620, "current"],
+  ["CF-Lite", 400, "partial"], ["Security", 445, "partial"], ["LaunchServices", 490, "done"],
+  ["Swift 6", 540, "partial"], ["CLI tools", 590, "done"], ["Cocoa coverage", 620, "done"],
 ]
 
 [[line]]
@@ -165,7 +167,7 @@ stations = [
 ]
 
 [[line]]
-id = "argos"
+id = "files"
 name = "Files"
 color = "teal"
 doc = "Atlas.md#4-dock-and-files"
@@ -191,8 +193,24 @@ doc = "Atlas.md#5-applications"
 doc_es = "Atlas.es.md#5-aplicaciones"
 # Atlas's essential apps (A0 to A10, chapter 5) and DMG installs (Phase 6).
 stations = [
-  ["A0 base", 805, "todo"], ["A1 Terminal", 860, "todo"], ["A2 Text Editor", 915, "partial"],
-  ["A3–A10 · DMG", 970, "todo"],
+  ["A0 base", 805, "done"], ["A1 Terminal", 860, "done"], ["A2 Text Editor", 915, "partial"],
+  ["A3–A10 · DMG", 970, "partial"],
+]
+
+[[line]]
+id = "webkit"
+name = "WebKit"
+color = "blue"
+doc = "ROADMAP.md#phase-3--base-frameworks-and-swift"
+doc_es = "ROADMAP.es.md#fase-3--frameworks-base-y-swift"
+# Part of Minkar 19.6.0 (W0 to W5). W0: its libraries in, 21 of 23 pass
+# their own tests on PC 2 (FreeType and WOFF2 have none that run offline).
+# W1: JavaScriptCore with its JIT, gate w1-check (es6 605 of 605).
+# W3, W4: the API classes are in (9 Nov), pages shown as text until the
+# engine is WPE WebKit.
+stations = [
+  ["W0 deps", 650, "partial"], ["W1 JSC", 710, "current"], ["W2 WebCore", 770, "todo"],
+  ["W3 WKWebView", 830, "partial"], ["W4 WebView", 890, "partial"], ["W5 apps", 970, "todo"],
 ]
 
 [[line]]
@@ -201,11 +219,11 @@ name = "GPU track"
 color = "red"
 doc = "ROADMAP.md#graphics-stack-components-and-sequence"
 doc_es = "ROADMAP.es.md#pila-gráfica-componentes-y-secuencia"
-# On the Mac Pro 6,1: G1 done (2026-11-02); G2's gate met, the GPU's clocks
+# On PC 2: G1 done (2026-11-02); G2's gate met, the GPU's clocks
 # (deferred) and DisplayPort link training (no display to test it) left;
 # G3 done (2026-11-03): RADV on Minkar, a triangle in a window, the
 # conformance subset with no failure. G4 under way (2026-11-03): the Vulkan
-# backend composes on the Mac Pro (G4.2), IOSurfaces in VRAM without
+# backend composes on PC 2 (G4.2), IOSurfaces in VRAM without
 # copies (G4.3), page flips at the vertical blank (G4.4), CAMetalLayer's
 # drawables in VRAM, paced by the display (G4.5); G4 done with G4.6's
 # measurements (Docs/Measurements.md). Next: the GPU's clocks, then G5.
@@ -223,16 +241,16 @@ stations = [["x86-64 apps", 1082, "todo"], ["arm64", 1150, "todo"]]
 # The work board. "line" picks a card's colour; "here" marks a station of
 # the metro map as where work is.
 [board]
-here = "Cocoa coverage"
+here = "W1 JSC"
 
 [[board.now]]
-title = "Cocoa coverage: Auto Layout first"
-note = "NSLayoutConstraint, anchors, guides, visual format (kiwi), NSStackView; then tables"
-line = "fw"
+title = "WebKit: WPE as the engine"
+note = "the API classes are in, pages as text; JavaScriptCore, then WebCore under them"
+line = "webkit"
 
 [[board.now]]
 title = "GPU: clocks, then G5"
-note = "G4 measured on the Mac Pro; its clocks, then the 3D path, for 21.0's performance gate"
+note = "G4 measured on PC 2; its clocks, then the 3D path, for 21.0's performance gate"
 line = "gpu"
 
 [[board.next]]
@@ -246,14 +264,14 @@ note = "Menu Extras as bundles, Dock dragging, file operations, the full login"
 line = "mb"
 
 [[board.next]]
-title = "A0 app base, A1 Terminal"
-note = "About, Preferences and Help for every app; a VT100/xterm terminal in Agave"
-line = "apps"
+title = "GPU: PC 1's RX 6600 (R1)"
+note = "Navi 23's display at its native mode, as G1 did for the FirePro"
+line = "gpu"
 
 [[board.later]]
 group = "Minkar 19.6.0"
-items = [["Apps A2–A10: editor, monitor, logs, viewers, disks…", "apps"],
-  ["MB2–MB3, D3, K3: the desktop for daily use", "mb"], ["Security: certificates, keychain", "fw"],
+items = [["Apps A2, A5–A10: editor, screenshot, viewers, disks…", "apps"],
+  ["MB2–MB3, D3, K3: the desktop for daily use", "mb"], ["Security: the APSL sources replace the subset", "fw"],
   ["DMG installs", "apps"]]
 
 [[board.later]]
@@ -265,31 +283,31 @@ group = "After 19.6.0"
 items = [["x86-64 binaries, arm64", "compat"]]
 
 [[board.done]]
-title = "M3 met: seven tools pass"
-note = "tag and SwiftFormat too; NSMetadataQuery; the kernel at -O2 · 5 nov"
+title = "Cocoa coverage met"
+note = "imported symbols 99.9 %, selectors 97.6 %; nine frameworks at 100 % · 9 nov"
 line = "fw"
 
 [[board.done]]
-title = "M3: mogenerator, the first Objective-C tool"
-note = "CoreData's models in code and archives, predicates, KVC set proxies · 5 nov"
+title = "Security, WebKit's API, eight frameworks"
+note = "Security's subset, WKWebView and WebView (text pages), UTType, AE, Quick Look · 9 nov"
 line = "fw"
 
 [[board.done]]
-title = "M3: 4 of 7 tools pass their tests"
-note = "swift-argument-parser, Rainbow, Files, Yams, xcbeautify; XCTest on Minkar · 5 nov"
-line = "fw"
+title = "A1: Terminal"
+note = "libvterm in Agave, tabs, scrollback, colors; Preferences with Light and Dark schemes · 8 nov"
+line = "apps"
 
 [[board.done]]
-title = "Atlas plan; generic app names"
-note = "menus, Dock, Files and the apps A0–A10 in one plan; Files and Text Editor · 5 nov"
-line = "atlas"
+title = "A4: Logs"
+note = "os_log's messages live, filtered by level, process and subsystem; crash reports and log files · 8 nov"
+line = "apps"
 
 [[board.done]]
-title = "Files K1: columns, opening, open -R"
-note = "LaunchServices opens documents; Text Editor, the text editor; the save panel · 4 nov"
-line = "argos"
+title = "A3: System Monitor"
+note = "processes, CPU, memory, disk, network; quit and force quit; text drawing 5× faster · 8 nov"
+line = "apps"
 
 [[board.done]]
-title = "System Preferences: five panes"
-note = "Displays, Dock, Date & Time, Keyboard, Network; English and Spanish · 4 nov"
-line = "atlas"
+title = "A0: the app base"
+note = "Atlas's About, help books, documents with versions, the app template · 8 nov"
+line = "apps"

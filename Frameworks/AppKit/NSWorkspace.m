@@ -6,6 +6,7 @@ Permission is hereby granted, free of charge, to any person obtaining a copy of 
 The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
 
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE. */
+#import <CoreServices/CoreServices.h>
 #import <AppKit/NSWorkspace.h>
 #import <AppKit/NSRaise.h>
 #import <AppKit/NSRunningApplication.h>
@@ -18,7 +19,9 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #include <spawn.h>
 #include <crt_externs.h>
 #include <dispatch/dispatch.h>
+#include <unistd.h>
 #include <LaunchServices/LaunchServices.h>
+#include <DiskArbitration/DiskArbitration.h>
 
 NSString * const NSWorkspaceWillPowerOffNotification=@"NSWorkspaceWillPowerOffNotification";
 NSString * const NSWorkspaceDidLaunchApplicationNotification=@"NSWorkspaceDidLaunchApplicationNotification";
@@ -35,6 +38,99 @@ NSString * const NSWorkspaceDesktopImageScalingKey=@"NSWorkspaceDesktopImageScal
 NSString * const NSWorkspaceDesktopImageAllowClippingKey=@"NSWorkspaceDesktopImageAllowClippingKey";
 NSString * const NSWorkspaceDesktopImageFillColorKey=@"NSWorkspaceDesktopImageFillColorKey";
 
+
+NSString * const NSWorkspaceWillUnmountNotification=@"NSWorkspaceWillUnmountNotification";
+NSString * const NSWorkspaceDidMountNotification=@"NSWorkspaceDidMountNotification";
+NSString * const NSWorkspaceDidUnmountNotification=@"NSWorkspaceDidUnmountNotification";
+NSString * const NSWorkspaceDidRenameVolumeNotification=@"NSWorkspaceDidRenameVolumeNotification";
+NSString * const NSWorkspaceVolumeLocalizedNameKey=@"NSWorkspaceVolumeLocalizedNameKey";
+NSString * const NSWorkspaceVolumeURLKey=@"NSWorkspaceVolumeURLKey";
+NSString * const NSWorkspaceVolumeOldLocalizedNameKey=@"NSWorkspaceVolumeOldLocalizedNameKey";
+NSString * const NSWorkspaceVolumeOldURLKey=@"NSWorkspaceVolumeOldURLKey";
+NSString * const NSWorkspaceDidWakeNotification=@"NSWorkspaceDidWakeNotification";
+NSString * const NSWorkspaceWillSleepNotification=@"NSWorkspaceWillSleepNotification";
+NSString * const NSWorkspaceScreensDidSleepNotification=@"NSWorkspaceScreensDidSleepNotification";
+NSString * const NSWorkspaceScreensDidWakeNotification=@"NSWorkspaceScreensDidWakeNotification";
+NSString * const NSWorkspaceSessionDidBecomeActiveNotification=@"NSWorkspaceSessionDidBecomeActiveNotification";
+NSString * const NSWorkspaceSessionDidResignActiveNotification=@"NSWorkspaceSessionDidResignActiveNotification";
+NSString * const NSWorkspaceDidChangeFileLabelsNotification=@"NSWorkspaceDidChangeFileLabelsNotification";
+NSString * const NSWorkspaceActiveSpaceDidChangeNotification=@"NSWorkspaceActiveSpaceDidChangeNotification";
+NSString * const NSWorkspaceDidPerformFileOperationNotification=@"NSWorkspaceDidPerformFileOperationNotification";
+
+NSWorkspaceLaunchConfigurationKey const NSWorkspaceLaunchConfigurationAppleEvent=@"NSWorkspaceLaunchConfigurationAppleEvent";
+NSWorkspaceLaunchConfigurationKey const NSWorkspaceLaunchConfigurationArguments=@"NSWorkspaceLaunchConfigurationArguments";
+NSWorkspaceLaunchConfigurationKey const NSWorkspaceLaunchConfigurationEnvironment=@"NSWorkspaceLaunchConfigurationEnvironment";
+NSWorkspaceLaunchConfigurationKey const NSWorkspaceLaunchConfigurationArchitecture=@"NSWorkspaceLaunchConfigurationArchitecture";
+
+@implementation NSWorkspaceOpenConfiguration
+
++(instancetype)configuration {
+   return [[[self alloc] init] autorelease];
+}
+
+-init {
+   _promptsUserIfNeeded=YES;
+   _addsToRecentItems=YES;
+   _activates=YES;
+   _allowsRunningApplicationSubstitution=YES;
+   return self;
+}
+
+-(void)dealloc {
+   [_arguments release];
+   [_environment release];
+   [_appleEvent release];
+   [super dealloc];
+}
+
+-copyWithZone:(NSZone *)zone {
+   NSWorkspaceOpenConfiguration *copy=[[[self class] allocWithZone:zone] init];
+
+   copy->_promptsUserIfNeeded=_promptsUserIfNeeded;
+   copy->_addsToRecentItems=_addsToRecentItems;
+   copy->_activates=_activates;
+   copy->_hides=_hides;
+   copy->_hidesOthers=_hidesOthers;
+   copy->_forPrinting=_forPrinting;
+   copy->_createsNewApplicationInstance=_createsNewApplicationInstance;
+   copy->_allowsRunningApplicationSubstitution=_allowsRunningApplicationSubstitution;
+   copy->_requiresUniversalLinks=_requiresUniversalLinks;
+   copy->_arguments=[_arguments copy];
+   copy->_environment=[_environment copy];
+   copy->_appleEvent=[_appleEvent retain];
+   copy->_architecture=_architecture;
+   return copy;
+}
+
+-(BOOL)promptsUserIfNeeded { return _promptsUserIfNeeded; }
+-(void)setPromptsUserIfNeeded:(BOOL)flag { _promptsUserIfNeeded=flag; }
+-(BOOL)addsToRecentItems { return _addsToRecentItems; }
+-(void)setAddsToRecentItems:(BOOL)flag { _addsToRecentItems=flag; }
+-(BOOL)activates { return _activates; }
+-(void)setActivates:(BOOL)flag { _activates=flag; }
+-(BOOL)hides { return _hides; }
+-(void)setHides:(BOOL)flag { _hides=flag; }
+-(BOOL)hidesOthers { return _hidesOthers; }
+-(void)setHidesOthers:(BOOL)flag { _hidesOthers=flag; }
+-(BOOL)isForPrinting { return _forPrinting; }
+-(void)setForPrinting:(BOOL)flag { _forPrinting=flag; }
+-(BOOL)createsNewApplicationInstance { return _createsNewApplicationInstance; }
+-(void)setCreatesNewApplicationInstance:(BOOL)flag { _createsNewApplicationInstance=flag; }
+-(BOOL)allowsRunningApplicationSubstitution { return _allowsRunningApplicationSubstitution; }
+-(void)setAllowsRunningApplicationSubstitution:(BOOL)flag { _allowsRunningApplicationSubstitution=flag; }
+-(BOOL)requiresUniversalLinks { return _requiresUniversalLinks; }
+-(void)setRequiresUniversalLinks:(BOOL)flag { _requiresUniversalLinks=flag; }
+-(NSArray *)arguments { return _arguments; }
+-(void)setArguments:(NSArray *)arguments { arguments=[arguments copy]; [_arguments release]; _arguments=arguments; }
+-(NSDictionary *)environment { return _environment; }
+-(void)setEnvironment:(NSDictionary *)environment { environment=[environment copy]; [_environment release]; _environment=environment; }
+-(id)appleEvent { return _appleEvent; }
+-(void)setAppleEvent:(id)event { event=[event retain]; [_appleEvent release]; _appleEvent=event; }
+-(int)architecture { return _architecture; }
+-(void)setArchitecture:(int)value { _architecture=value; }
+
+@end
+
 @implementation NSWorkspace
 
 /* One per process: its notification center gets the session's notices
@@ -49,19 +145,108 @@ NSString * const NSWorkspaceDesktopImageFillColorKey=@"NSWorkspaceDesktopImageFi
    return shared;
 }
 
+/* Volumes mounted, unmounted or renamed, from DiskArbitration on the
+   main run loop, as notifications of the workspace's center. */
+static void volumePosted(NSString *name,NSDictionary *info){
+   [[[NSWorkspace sharedWorkspace] notificationCenter] postNotificationName:name object:[NSWorkspace sharedWorkspace] userInfo:info];
+}
+
+static NSDictionary *volumeInfo(NSURL *url,NSString *name){
+   NSMutableDictionary *info=[NSMutableDictionary dictionary];
+
+   if(url!=nil){
+    [info setObject:url forKey:NSWorkspaceVolumeURLKey];
+    [info setObject:[url path] forKey:@"NSDevicePath"];
+   }
+   if(name!=nil)
+    [info setObject:name forKey:NSWorkspaceVolumeLocalizedNameKey];
+   return info;
+}
+
+static NSMutableDictionary *volumesByDisk(void){
+   static NSMutableDictionary *volumes;
+
+   if(volumes==nil)
+    volumes=[[NSMutableDictionary alloc] init];
+   return volumes;
+}
+
+static void diskChanged(DADiskRef disk,CFArrayRef keys,void *context){
+   NSDictionary *description=[(NSDictionary *)DADiskCopyDescription(disk) autorelease];
+   NSString     *bsd=[NSString stringWithUTF8String:DADiskGetBSDName(disk)?:""];
+   NSURL        *url=[description objectForKey:(NSString *)kDADiskDescriptionVolumePathKey];
+   NSString     *name=[description objectForKey:(NSString *)kDADiskDescriptionVolumeNameKey];
+   NSDictionary *old=[volumesByDisk() objectForKey:bsd];
+
+   if(url!=nil && old==nil){
+    [volumesByDisk() setObject:volumeInfo(url,name) forKey:bsd];
+    volumePosted(NSWorkspaceDidMountNotification,volumeInfo(url,name));
+   }
+   else if(url==nil && old!=nil){
+    [volumesByDisk() removeObjectForKey:bsd];
+    volumePosted(NSWorkspaceDidUnmountNotification,old);
+   }
+   else if(url!=nil && old!=nil && (![url isEqual:[old objectForKey:NSWorkspaceVolumeURLKey]] || (name!=nil && ![name isEqual:[old objectForKey:NSWorkspaceVolumeLocalizedNameKey]]))){
+    NSMutableDictionary *info=[[volumeInfo(url,name) mutableCopy] autorelease];
+
+    [info setObject:[old objectForKey:NSWorkspaceVolumeURLKey] forKey:NSWorkspaceVolumeOldURLKey];
+    if([old objectForKey:NSWorkspaceVolumeLocalizedNameKey]!=nil)
+     [info setObject:[old objectForKey:NSWorkspaceVolumeLocalizedNameKey] forKey:NSWorkspaceVolumeOldLocalizedNameKey];
+    [volumesByDisk() setObject:volumeInfo(url,name) forKey:bsd];
+    volumePosted(NSWorkspaceDidRenameVolumeNotification,info);
+   }
+}
+
+static void diskAppeared(DADiskRef disk,void *context){
+   NSDictionary *description=[(NSDictionary *)DADiskCopyDescription(disk) autorelease];
+   NSURL        *url=[description objectForKey:(NSString *)kDADiskDescriptionVolumePathKey];
+
+   /* Volumes there when the process starts are known, not announced. */
+   if(url!=nil)
+    [volumesByDisk() setObject:volumeInfo(url,[description objectForKey:(NSString *)kDADiskDescriptionVolumeNameKey])
+       forKey:[NSString stringWithUTF8String:DADiskGetBSDName(disk)?:""]];
+}
+
+static void diskDisappeared(DADiskRef disk,void *context){
+   NSString     *bsd=[NSString stringWithUTF8String:DADiskGetBSDName(disk)?:""];
+   NSDictionary *old=[[[volumesByDisk() objectForKey:bsd] retain] autorelease];
+
+   if(old!=nil){
+    [volumesByDisk() removeObjectForKey:bsd];
+    volumePosted(NSWorkspaceDidUnmountNotification,old);
+   }
+}
+
 -init {
    _notificationCenter=[[NSNotificationCenter alloc] init];
    return self;
 }
 
+/* DiskArbitration is asked about volumes once something asks for the
+   center (that is, may observe it). */
+-(void)_watchVolumes {
+   static dispatch_once_t once;
+
+   dispatch_once(&once,^{
+      dispatch_async(dispatch_get_main_queue(),^{
+         DASessionRef session=DASessionCreate(kCFAllocatorDefault);
+
+         if(session==NULL)
+          return;
+         DARegisterDiskAppearedCallback(session,NULL,diskAppeared,NULL);
+         DARegisterDiskDisappearedCallback(session,NULL,diskDisappeared,NULL);
+         DARegisterDiskDescriptionChangedCallback(session,NULL,kDADiskDescriptionWatchVolumePath,diskChanged,NULL);
+         DARegisterDiskDescriptionChangedCallback(session,NULL,kDADiskDescriptionWatchVolumeName,diskChanged,NULL);
+         DASessionScheduleWithRunLoop(session,CFRunLoopGetMain(),kCFRunLoopCommonModes);
+      });
+   });
+}
+
 -(NSNotificationCenter *)notificationCenter {
+   [self _watchVolumes];
    return _notificationCenter;
 }
 
-/* Starts an application bundle's executable. SHORTCUT(LS-open): until
- * LaunchServices' open code is built (Phase 3, item 4), only application
- * bundles open, by running their executable; documents and other URLs
- * do not. An app that is already running is activated instead. */
 /* An application's icon: CFBundleIconFile in its Resources, tried as
  * named and with the image types NSImage reads. Others get the generic
  * application icon (applications) or nil. */
@@ -87,12 +272,33 @@ static NSImage *bundleIcon(NSString *path) {
    return nil;
 }
 
+/* An icon of the system's set (/System/Library/Icons). */
+static NSImage *systemIcon(NSString *relative) {
+   NSString *path=[@"/System/Library/Icons" stringByAppendingPathComponent:relative];
+
+   return [[[NSImage alloc] initWithContentsOfFile:path] autorelease];
+}
+
+/* An app's own icon; the startup disk's for "/"; a folder's; a file's
+   for its type (never nil, as on the reference platform). */
 -(NSImage *)iconForFile:(NSString *)path {
+   BOOL isDirectory=NO;
+
    if([[path pathExtension] isEqualToString:@"app"]) {
       NSImage *icon=bundleIcon(path);
       return icon!=nil ? icon : [NSImage imageNamed:@"NSApplicationIcon"];
    }
-   return nil;
+   if([[path stringByStandardizingPath] isEqualToString:@"/"]) {
+      NSImage *icon=systemIcon(@"devices/drive-harddisk.png");
+      if(icon!=nil)
+         return icon;
+   }
+   if([[NSFileManager defaultManager] fileExistsAtPath:path isDirectory:&isDirectory] && isDirectory) {
+      NSImage *icon=[NSImage imageNamed:@"NSFolder"];
+      if(icon!=nil)
+         return icon;
+   }
+   return [self iconForFileType:[path pathExtension]];
 }
 
 -(NSImage *)iconForFiles:(NSArray *)array {
@@ -100,34 +306,74 @@ static NSImage *bundleIcon(NSString *path) {
    return 0;
 }
 
+/* A file type's icon by its extension (a few kinds; the generic document
+   for the rest). It used to raise. */
 -(NSImage *)iconForFileType:(NSString *)type {
-   NSInvalidAbstractInvocation();
-   return 0;
+   static NSDictionary *kinds;
+   NSString *extension=[[type pathExtension] length] ? [type pathExtension] : type;
+   NSString *name;
+   NSImage  *icon;
+
+   if(kinds==nil)
+      kinds=[[NSDictionary alloc] initWithObjectsAndKeys:
+         @"text-plain",@"txt", @"text-x-csrc",@"c", @"text-x-csrc",@"m", @"text-x-chdr",@"h",
+         @"text-x-script",@"sh", @"text-x-script",@"command", @"text-html",@"html", @"text-html",@"htm",
+         @"application-xml",@"xml", @"application-xml",@"plist", @"application-zip",@"zip",
+         @"application-x-archive",@"tar", @"application-x-archive",@"gz", @"application-x-archive",@"xz",
+         @"application-x-cd-image",@"iso", @"application-x-cd-image",@"dmg",
+         @"image-x-generic",@"png", @"image-x-generic",@"jpg", @"image-x-generic",@"jpeg", @"image-x-generic",@"gif",
+         @"image-x-generic",@"tiff", @"image-x-generic",@"webp", @"audio-x-generic",@"mp3", @"audio-x-generic",@"wav",
+         @"audio-x-generic",@"aiff", @"video-x-generic",@"mp4", @"video-x-generic",@"mov",
+         @"font-x-generic",@"ttf", @"font-x-generic",@"otf", @"x-office-document",@"rtf", @"x-office-document",@"pdf",
+         @"package-x-generic",@"pkg", nil];
+   name=[kinds objectForKey:[extension lowercaseString]];
+   if([extension length]==0)
+      name=@"text-x-generic";
+   icon=systemIcon([NSString stringWithFormat:@"mimetypes/%@.png",name!=nil?name:@"text-x-generic"]);
+   return icon!=nil ? icon : [NSImage imageNamed:@"NSApplicationIcon"];
 }
 
 -(NSString *)localizedDescriptionForType:(NSString *)type {
-   NSInvalidAbstractInvocation();
-   return 0;
+   return [(NSString *)UTTypeCopyDescription((CFStringRef)type) autorelease];
 }
 
 -(BOOL)filenameExtension:(NSString *)extension isValidForType:(NSString *)type {
-   NSInvalidAbstractInvocation();
-   return 0;
+   NSArray *extensions=[(NSArray *)UTTypeCopyAllTagsWithClass((CFStringRef)type,kUTTagClassFilenameExtension) autorelease];
+
+   for(NSString *candidate in extensions)
+    if([candidate caseInsensitiveCompare:extension]==NSOrderedSame)
+     return YES;
+   return NO;
 }
 
 -(NSString *)preferredFilenameExtensionForType:(NSString *)type {
-   NSInvalidAbstractInvocation();
-   return 0;
+   return [(NSString *)UTTypeCopyPreferredTagWithClass((CFStringRef)type,kUTTagClassFilenameExtension) autorelease];
 }
 
 -(BOOL)type:(NSString *)type conformsToType:(NSString *)conformsToType {
-   NSInvalidAbstractInvocation();
-   return 0;
+   return type!=nil && conformsToType!=nil && UTTypeConformsTo((CFStringRef)type,(CFStringRef)conformsToType);
 }
 
+/* The file's type: a folder, an application or a package by what it is,
+   others by their extension. */
 -(NSString *)typeOfFile:(NSString *)path error:(NSError **)error {
-   NSInvalidAbstractInvocation();
-   return 0;
+   BOOL isDirectory=NO;
+
+   if(![[NSFileManager defaultManager] fileExistsAtPath:path isDirectory:&isDirectory]){
+    if(error!=NULL)
+     *error=[NSError errorWithDomain:NSCocoaErrorDomain code:NSFileReadNoSuchFileError
+                            userInfo:[NSDictionary dictionaryWithObject:path forKey:NSFilePathErrorKey]];
+    return nil;
+   }
+   NSString *extension=[path pathExtension];
+
+   if(isDirectory && [extension length]==0)
+    return @"public.folder";
+   if(isDirectory && [extension caseInsensitiveCompare:@"app"]==NSOrderedSame)
+    return @"com.apple.application-bundle";
+   NSString *type=[(NSString *)UTTypeCreatePreferredIdentifierForTag(kUTTagClassFilenameExtension,(CFStringRef)extension,
+      isDirectory?CFSTR("public.directory"):CFSTR("public.data")) autorelease];
+   return (type!=nil)?type:(isDirectory?@"public.directory":@"public.data");
 }
 
 -(BOOL)openFile:(NSString *)path {
@@ -257,7 +503,7 @@ static CFArrayRef copyCFURLs(NSArray *urls) {
    NSInvalidAbstractInvocation();
 }
 
--(BOOL)performFileOperation:(NSString *)operation source:(NSString *)source destination:(NSString *)destination files:(NSArray *)files tag:(int *)tag {
+-(BOOL)performFileOperation:(NSString *)operation source:(NSString *)source destination:(NSString *)destination files:(NSArray *)files tag:(NSInteger *)tag {
    NSInvalidAbstractInvocation();
    return 0;
 }
@@ -480,6 +726,132 @@ static NSDictionary *applicationDictionary(NSRunningApplication *app) {
    return [self launchApplication:application];
 }
 
+/* The application at url once it runs: a launch may take a moment to
+   register it. */
+static NSRunningApplication *runningApplicationAtURL(NSURL *url,BOOL wait){
+   NSString *identifier=[[NSBundle bundleWithURL:url] bundleIdentifier];
+   int       tries=wait?40:1;
+
+   while(tries-->0){
+    for(NSRunningApplication *app in [[NSWorkspace sharedWorkspace] runningApplications])
+     if((identifier!=nil && [[app bundleIdentifier] isEqualToString:identifier]) ||
+        [[[app bundleURL] URLByStandardizingPath] isEqual:[url URLByStandardizingPath]])
+      return app;
+    if(tries>0)
+     usleep(50000);
+   }
+   return nil;
+}
+
+-(NSRunningApplication *)openURLs:(NSArray *)urls withApplicationAtURL:(NSURL *)applicationURL options:(NSWorkspaceLaunchOptions)options configuration:(NSDictionary *)configuration error:(NSError **)error {
+   LSLaunchFlags flags=kLSLaunchDefaults;
+   CFArrayRef    items=([urls count]>0)?copyCFURLs(urls):NULL;
+   CFURLRef      appURL=(applicationURL!=nil)?copyCFURL(applicationURL):NULL;
+   NSArray      *arguments=[configuration objectForKey:NSWorkspaceLaunchConfigurationArguments];
+   OSStatus      status;
+
+   if(options&NSWorkspaceLaunchAndHide) flags|=kLSLaunchAndHide;
+   if(options&NSWorkspaceLaunchAndHideOthers) flags|=kLSLaunchAndHideOthers;
+   if(options&NSWorkspaceLaunchNewInstance) flags|=kLSLaunchNewInstance;
+   if(options&NSWorkspaceLaunchWithoutActivation) flags|=kLSLaunchDontSwitch;
+   if(options&NSWorkspaceLaunchWithoutAddingToRecents) flags|=kLSLaunchDontAddToRecents;
+   if(options&NSWorkspaceLaunchAndPrint) flags|=kLSLaunchAndPrint;
+   if(options&NSWorkspaceLaunchAsync) flags|=kLSLaunchAsync;
+
+   LSLaunchURLSpec spec={ appURL, items, NULL, flags, NULL };
+
+   status=LSOpenFromURLSpecWithArguments(&spec,(CFArrayRef)arguments,NULL);
+   if(items!=NULL)
+    CFRelease(items);
+   if(appURL!=NULL)
+    CFRelease(appURL);
+   if(status!=noErr){
+    if(error!=NULL)
+     *error=[NSError errorWithDomain:NSOSStatusErrorDomain code:status userInfo:[NSDictionary dictionaryWithObject:
+        (applicationURL!=nil)?(id)applicationURL:(id)[urls firstObject] forKey:NSURLErrorKey]];
+    return nil;
+   }
+   if(applicationURL==nil && [urls count]>0)
+    applicationURL=[self URLForApplicationToOpenURL:[urls objectAtIndex:0]];
+   return (applicationURL!=nil)?runningApplicationAtURL(applicationURL,YES):nil;
+}
+
+-(NSRunningApplication *)launchApplicationAtURL:(NSURL *)url options:(NSWorkspaceLaunchOptions)options configuration:(NSDictionary *)configuration error:(NSError **)error {
+   return [self openURLs:[NSArray array] withApplicationAtURL:url options:options configuration:configuration error:error];
+}
+
+-(NSRunningApplication *)openURL:(NSURL *)url options:(NSWorkspaceLaunchOptions)options configuration:(NSDictionary *)configuration error:(NSError **)error {
+   if([url isFileURL] && [[[url path] pathExtension] isEqualToString:@"app"])
+    return [self launchApplicationAtURL:url options:options configuration:configuration error:error];
+   return [self openURLs:[NSArray arrayWithObject:url] withApplicationAtURL:[self URLForApplicationToOpenURL:url] options:options configuration:configuration error:error];
+}
+
+-(BOOL)launchAppWithBundleIdentifier:(NSString *)bundleIdentifier options:(NSWorkspaceLaunchOptions)options additionalEventParamDescriptor:(id)descriptor launchIdentifier:(NSNumber **)identifier {
+   NSURL *url=[self URLForApplicationWithBundleIdentifier:bundleIdentifier];
+   NSRunningApplication *app=(url!=nil)?[self launchApplicationAtURL:url options:options configuration:[NSDictionary dictionary] error:NULL]:nil;
+
+   if(identifier!=NULL)
+    *identifier=(app!=nil)?[NSNumber numberWithInt:[app processIdentifier]]:nil;
+   return app!=nil;
+}
+
+static NSWorkspaceLaunchOptions launchOptionsOfConfiguration(NSWorkspaceOpenConfiguration *configuration){
+   NSWorkspaceLaunchOptions options=NSWorkspaceLaunchAsync;
+
+   if(![configuration activates]) options|=NSWorkspaceLaunchWithoutActivation;
+   if([configuration hides]) options|=NSWorkspaceLaunchAndHide;
+   if([configuration hidesOthers]) options|=NSWorkspaceLaunchAndHideOthers;
+   if([configuration createsNewApplicationInstance]) options|=NSWorkspaceLaunchNewInstance;
+   if(![configuration addsToRecentItems]) options|=NSWorkspaceLaunchWithoutAddingToRecents;
+   if([configuration isForPrinting]) options|=NSWorkspaceLaunchAndPrint;
+   return options;
+}
+
+static NSDictionary *launchConfigurationOfConfiguration(NSWorkspaceOpenConfiguration *configuration){
+   NSMutableDictionary *result=[NSMutableDictionary dictionary];
+
+   if([configuration arguments]!=nil)
+    [result setObject:[configuration arguments] forKey:NSWorkspaceLaunchConfigurationArguments];
+   if([configuration environment]!=nil)
+    [result setObject:[configuration environment] forKey:NSWorkspaceLaunchConfigurationEnvironment];
+   return result;
+}
+
+-(void)openURLs:(NSArray *)urls withApplicationAtURL:(NSURL *)applicationURL configuration:(NSWorkspaceOpenConfiguration *)configuration completionHandler:(void (^)(NSRunningApplication *app, NSError *error))completionHandler {
+   NSWorkspaceOpenConfiguration *copy=[[(configuration!=nil)?configuration:[NSWorkspaceOpenConfiguration configuration] copy] autorelease];
+   void (^handler)(NSRunningApplication *,NSError *)=[[completionHandler copy] autorelease];
+
+   [urls retain];
+   [applicationURL retain];
+   [copy retain];
+   [handler retain];
+   dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT,0),^{
+      NSAutoreleasePool    *pool=[NSAutoreleasePool new];
+      NSError              *error=nil;
+      NSRunningApplication *app=[self openURLs:urls withApplicationAtURL:applicationURL options:launchOptionsOfConfiguration(copy)
+         configuration:launchConfigurationOfConfiguration(copy) error:&error];
+
+      if(handler!=NULL)
+       handler(app,error);
+      [urls release];
+      [applicationURL release];
+      [copy release];
+      [handler release];
+      [pool release];
+   });
+}
+
+-(void)openApplicationAtURL:(NSURL *)applicationURL configuration:(NSWorkspaceOpenConfiguration *)configuration completionHandler:(void (^)(NSRunningApplication *app, NSError *error))completionHandler {
+   [self openURLs:[NSArray array] withApplicationAtURL:applicationURL configuration:configuration completionHandler:completionHandler];
+}
+
+-(void)openURL:(NSURL *)url configuration:(NSWorkspaceOpenConfiguration *)configuration completionHandler:(void (^)(NSRunningApplication *app, NSError *error))completionHandler {
+   if([url isFileURL] && [[[url path] pathExtension] isEqualToString:@"app"])
+    [self openApplicationAtURL:url configuration:configuration completionHandler:completionHandler];
+   else
+    [self openURLs:[NSArray arrayWithObject:url] withApplicationAtURL:[self URLForApplicationToOpenURL:url] configuration:configuration completionHandler:completionHandler];
+}
+
 -(void)findApplications {
    NSInvalidAbstractInvocation();
 }
@@ -494,9 +866,15 @@ static NSDictionary *applicationDictionary(NSRunningApplication *app) {
    NSInvalidAbstractInvocation();
 }
 
--(int)extendPowerOffBy:(int)milliseconds {
+-(NSInteger)extendPowerOffBy:(NSInteger)milliseconds {
    NSInvalidAbstractInvocation();
    return 0;
+}
+
+
+/* Custom icons for files are not kept yet. */
+-(BOOL)setIcon:(NSImage *)image forFile:(NSString *)fullPath options:(NSWorkspaceIconCreationOptions)options {
+   return NO;
 }
 
 @end

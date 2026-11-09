@@ -20,7 +20,7 @@ unsigned long NSBidiHelperParagraph(int *baselevel, unichar *text, uint8_t *leve
 // levels : the bidi levels for the line
 // mirror : 1 to process the text about char mirroring (ie: a "(" in a right-to-left run switches to ")")
 // length : length of the text
-void NSBidiHelperProcessLine(int baselevel, uint32_t *glyphs, unichar *text, uint8_t *levels, int mirror, unsigned long length);
+void NSBidiHelperProcessLine(int baselevel, NSUInteger *glyphs, unichar *text, uint8_t *levels, int mirror, unsigned long length);
 
 // Return YES if the BIDI tables are available
 BOOL NSBidiHelperBidiInfoAvailable();

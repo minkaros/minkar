@@ -42,7 +42,6 @@ CFData read/write routines
 #include <CoreFoundation/CFNumber.h>
 #include <string.h>
 #include <ctype.h>
-#if DEPLOYMENT_TARGET_MACOSX || DEPLOYMENT_TARGET_EMBEDDED || DEPLOYMENT_TARGET_EMBEDDED_MINI || DEPLOYMENT_TARGET_LINUX
 #include <stdlib.h>
 #include <unistd.h>
 #include <dirent.h>
@@ -50,28 +49,13 @@ CFData read/write routines
 #include <sys/types.h>
 #include <pwd.h>
 #include <fcntl.h>
-#elif DEPLOYMENT_TARGET_WINDOWS
-#include <io.h>
-#include <sys/stat.h>
-#include <sys/types.h>
-#include <fcntl.h>
-#include <ctype.h>
-#else
-#error Unknown or unspecified DEPLOYMENT_TARGET
-#endif
-#if DEPLOYMENT_TARGET_MACOSX || DEPLOYMENT_TARGET_EMBEDDED || DEPLOYMENT_TARGET_EMBEDDED_MINI
 #include <dlfcn.h>
-#endif
-
-#if DEPLOYMENT_TARGET_MACOSX || DEPLOYMENT_TARGET_EMBEDDED
 
 
 DEFINE_WEAK_CFNETWORK_FUNC_FAIL(Boolean, _CFURLCreateDataAndPropertiesFromResource, (CFAllocatorRef A, CFURLRef B, CFDataRef *C, CFDictionaryRef *D, CFArrayRef E, SInt32 *F), (A, B, C, D, E, F), { if(C) *C=NULL; if (D) *D=NULL; if(F) *F=kCFURLImproperArgumentsError; }, false)
 DEFINE_WEAK_CFNETWORK_FUNC_FAIL(Boolean, _CFURLWriteDataAndPropertiesToResource, (CFURLRef A, CFDataRef B, CFDictionaryRef C, SInt32 *D), (A, B, C, D), if (D) *D = kCFURLImproperArgumentsError, false)
 
 DEFINE_WEAK_CFNETWORK_FUNC_FAIL(Boolean, _CFURLDestroyResource, (CFURLRef A, SInt32 *B), (A, B), if(B) *B = kCFURLImproperArgumentsError, false)
-
-#endif
 
 #if INCLUDE_OBJC
 #include <Foundation/NSTimer.h>
@@ -255,13 +239,7 @@ static Boolean _CFFileURLWritePropertiesToResource(CFURLRef url, CFDictionaryRef
                 CFNumberRef modeNum = (CFNumberRef)value;
                 CFNumberGetValue(modeNum, kCFNumberSInt32Type, &mode);
             } else {
-#if DEPLOYMENT_TARGET_MACOSX || DEPLOYMENT_TARGET_EMBEDDED || DEPLOYMENT_TARGET_EMBEDDED_MINI || DEPLOYMENT_TARGET_LINUX
 #define MODE_TYPE mode_t
-#elif DEPLOYMENT_TARGET_WINDOWS
-#define MODE_TYPE uint16_t
-#else
-#error Unknown or unspecified DEPLOYMENT_TARGET
-#endif
                 const MODE_TYPE *modePtr = (const MODE_TYPE *)CFDataGetBytePtr((CFDataRef)value);
                 mode = *modePtr;
             }
@@ -734,14 +712,7 @@ Boolean CFURLCreateDataAndPropertiesFromResource(CFAllocatorRef alloc, CFURLRef 
         } else if (CFStringCompare(scheme, CFSTR("data"), kCFCompareCaseInsensitive) == kCFCompareEqualTo) {
 	    result = _CFDataURLCreateDataAndPropertiesFromResource(alloc, url, fetchedData, desiredProperties, fetchedProperties, errorCode);
 	} else {
-#if DEPLOYMENT_TARGET_MACOSX || DEPLOYMENT_TARGET_EMBEDDED
             result = __CFNetwork__CFURLCreateDataAndPropertiesFromResource(alloc, url, fetchedData, fetchedProperties, desiredProperties, errorCode);
-#else
-            if (fetchedData) *fetchedData = NULL;
-            if (fetchedProperties) *fetchedProperties = NULL;
-            if (errorCode) *errorCode = kCFURLUnknownSchemeError;
-            result = false;
-#endif
         }
         CFRelease(scheme);
         return result;
@@ -801,16 +772,11 @@ Boolean CFURLWriteDataAndPropertiesToResource(CFURLRef url, CFDataRef data, CFDi
         return success;
     } else {
         CFRelease(scheme);
-#if DEPLOYMENT_TARGET_MACOSX || DEPLOYMENT_TARGET_EMBEDDED
         Boolean result = __CFNetwork__CFURLWriteDataAndPropertiesToResource(url, data, propertyDict, errorCode);
 	if (!result) {
 	    if (errorCode) *errorCode = kCFURLUnknownSchemeError;
 	}
 	return result;
-#else
-        if (errorCode) *errorCode = kCFURLUnknownSchemeError;
-        return false;
-#endif
     }
 }
 
@@ -847,16 +813,11 @@ Boolean CFURLDestroyResource(CFURLRef url, SInt32 *errorCode) {
         }
     } else {
         CFRelease(scheme);
-#if DEPLOYMENT_TARGET_MACOSX || DEPLOYMENT_TARGET_EMBEDDED
         Boolean result = __CFNetwork__CFURLDestroyResource(url, errorCode);
 	if (!result) {
 	    if (errorCode) *errorCode = kCFURLUnknownSchemeError;
 	}
 	return result;
-#else
-        if (errorCode) *errorCode = kCFURLUnknownSchemeError;
-        return false;
-#endif
     }
 }
 #pragma GCC diagnostic pop

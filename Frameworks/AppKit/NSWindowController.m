@@ -104,10 +104,13 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
     [center addObserver:self selector:@selector(_windowWillClose:) name:NSWindowWillCloseNotification object:_window];
 }
 
+/* The controller keeps its window when it closes, so -showWindow: shows it
+   again. A document's controller lets it go first (closing the document
+   closes its controllers, and so this window again), then goes with it. */
 -(void)_windowWillClose:(NSNotification *)note {
-	[self setWindow:nil];
-
 	if (_document){
+   [self setWindow:nil];
+
    [[self retain] autorelease];
 
    if([self shouldCloseDocument] || [[_document windowControllers] count]==1)
@@ -154,8 +157,11 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    [[self window] makeKeyAndOrderFront:sender];
 }
 
+/* The window's title follows the document's name from the start. */
 -(void)setDocument:(NSDocument *)document {
    _document=document;
+   if(_window!=nil)
+    [self synchronizeWindowTitleWithDocumentName];
 }
 
 -(id)document {
@@ -191,6 +197,10 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
     return _nibPath;
    else {
     NSString *name=[self windowNibName];
+
+    /* A controller made with its window has no nib to load. */
+    if([name length]==0)
+     return nil;
     NSBundle *bundle=[NSBundle bundleForClass:[_owner class]];
     NSString *path=[bundle pathForResource:name ofType:@"nib"];
 
@@ -229,12 +239,9 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    }
 }
 
+/* The document's name, as the reference platform titles its windows. */
 -(NSString *)windowTitleForDocumentDisplayName:(NSString *)displayName {
-  NSString *appName = [[[NSBundle mainBundle] infoDictionary] objectForKey:@"CFBundleName"]; 
-  if (appName)
-    return [NSString stringWithFormat:@"%@ - %@", displayName, appName];
-  else
-    return displayName;
+   return displayName;
 }
 
 @end

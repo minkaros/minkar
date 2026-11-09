@@ -243,14 +243,7 @@ void NSFrameRect(NSRect rect) {
 
 void NSDottedFrameRect(NSRect rect) {
    [[NSColor blackColor] setFill];
-/* Win32 has poor dashed line support...
-
-    DrawFocusRect produces dark spots for the gaps sometimes 
-    If we use a brush, it becomes black&white, not black&transparent
-    The PS_DOT pen is not a single pixel dot.
-
-    Fortunately this is not used heavily...
- */
+/* Single-pixel dots, drawn as one-pixel rectangles. */
    if(rect.size.width<=0 || rect.size.height<=0)
     return;
    {

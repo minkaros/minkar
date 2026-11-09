@@ -14,6 +14,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 @interface NSDraggingManager : NSObject
 
 + (NSDraggingManager *)draggingManager;
++ (NSDraggingManager *)_sharedManager;
 
 - (void)registerWindow:(NSWindow *)window dragTypes:(NSArray *)types;
 - (void)unregisterWindow:(NSWindow *)window;

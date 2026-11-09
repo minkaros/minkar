@@ -338,6 +338,9 @@ GATES['M4'] = GATES['M2'] + [
 GATE_FAIL = {
     'M2-login': ['Login incorrect'],
     'M2': ['Login incorrect'],
+    # Tests/M3/runner/run-m3.sh ends with "m3: N suites failed" instead of
+    # "m3: every suite passed": fail then, not at the timeout.
+    'M3': ['Login incorrect', 'suites failed'],
     'M4': ['Login incorrect', 'boottest-draw: the screen differs'],
 }
 # How long the shell gets to print its prompt before input is sent.
@@ -363,15 +366,35 @@ def accel(args):
 
 
 # One VM under KVM gets most of the host, so a gate takes as little time
-# as it can: 8 processors and 12 GiB (the development host has 12 and 30
-# GiB). Under TCG (CI) more processors only slow the emulation down: 2 and
-# 4 GiB. --smp, --memory, $BOOTTEST_SMP and $BOOTTEST_MEMORY override.
+# as it can: its processors up to 16, and its memory but 6 GiB up to 24
+# GiB (at least 8 and 12 GiB as before, on a smaller host). Under TCG (CI)
+# more processors only slow the emulation down: 2 and 4 GiB. --smp,
+# --memory, $BOOTTEST_SMP and $BOOTTEST_MEMORY override.
+def host_memory_mib():
+    try:
+        with open('/proc/meminfo') as f:
+            for line in f:
+                if line.startswith('MemTotal:'):
+                    return int(line.split()[1]) // 1024
+    except OSError:
+        pass
+    return 0
+
+
 def vm_smp(args):
-    return str(args.smp or ('8' if accel(args) == 'kvm' else '2'))
+    if args.smp:
+        return str(args.smp)
+    if accel(args) != 'kvm':
+        return '2'
+    return str(min(16, max(8, os.cpu_count() or 8)))
 
 
 def vm_memory(args):
-    return args.memory or (12288 if accel(args) == 'kvm' else 4096)
+    if args.memory:
+        return args.memory
+    if accel(args) != 'kvm':
+        return 4096
+    return min(24576, max(12288, host_memory_mib() - 6144))
 
 
 def qemu_command(args, vars_copy):
@@ -792,9 +815,9 @@ def main(argv=None):
                    help='no virtio-rng: firmware without EFI_RNG_PROTOCOL')
     # A count, or a QEMU topology (e.g. 24,sockets=1,cores=12,threads=2).
     p.add_argument('--smp', default=os.environ.get('BOOTTEST_SMP'),
-                   help='processors (default: $BOOTTEST_SMP, or 8 under KVM, 2 under TCG)')
+                   help='processors (default: $BOOTTEST_SMP, or the host\'s up to 16 under KVM, 2 under TCG)')
     p.add_argument('--memory', type=int, default=int(os.environ.get('BOOTTEST_MEMORY', 0)),
-                   help='MiB (default: $BOOTTEST_MEMORY, or 12288 under KVM, 4096 under TCG)')
+                   help='MiB (default: $BOOTTEST_MEMORY, or the host\'s but 6 GiB up to 24 GiB under KVM, 4096 under TCG)')
     p.add_argument('--ssh-key', default=os.environ.get('BOOTTEST_SSH_KEY'),
                    help='private key ssh steps log in with (default: $BOOTTEST_SSH_KEY)')
     p.add_argument('--vga', choices=['std', 'virtio'],

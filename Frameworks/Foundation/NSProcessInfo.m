@@ -7,6 +7,8 @@ The above copyright notice and this permission notice shall be included in all c
 
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE. */
 #import <Foundation/NSProcessInfo.h>
+#include <pwd.h>
+#include <unistd.h>
 #import <Foundation/NSArray.h>
 #import <Foundation/NSDictionary.h>
 #import <Foundation/NSPathUtilities.h>
@@ -14,9 +16,6 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <Foundation/NSRaise.h>
 #import <Foundation/NSThread-Private.h>
 #import <Foundation/NSPlatform.h>
-#ifdef __WINDOWS__
-#import <Foundation/NSPlatform_win32.h>
-#endif
 #import <objc/runtime.h>
 #import <Foundation/NSString.h>
 #import <sys/sysctl.h>
@@ -28,6 +27,9 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import "NSCFString.h"
 #import "NSDarwinString.h"
 #import "NSString_cString.h"
+
+NSString *const NSProcessInfoThermalStateDidChangeNotification=@"NSProcessInfoThermalStateDidChangeNotification";
+NSString *const NSProcessInfoPowerStateDidChangeNotification=@"NSProcessInfoPowerStateDidChangeNotification";
 
 @implementation NSProcessInfo
 
@@ -142,71 +144,12 @@ static void read_system_version(void) {
 }
 
 -(NSString *)operatingSystemVersionString {
-#ifdef __WINDOWS__
-	OSVERSIONINFOEX osVersion;
-	int systemVersion;
-	NSString* versionString;
-	NSString* servicePack;
-
-	osVersion.dwOSVersionInfoSize=sizeof(osVersion);
-	GetVersionEx((OSVERSIONINFO *)&osVersion);
-
-	// Switches aren't float-friendly, so let's get our major/minor version in
-	// some kind of combination that'll be easier for it to handle.  dwMajorVersion
-	// can live in the 10s digit, with dwMinorVersion living in the 1s digit.
-	// We'll also want to negate in the case we're not an NT_WORKSTATION productType - 
-	// this only matters for Vista and up
-	systemVersion =  osVersion.dwMajorVersion * 10 + osVersion.dwMinorVersion;
-	if(systemVersion >= 60 && osVersion.wProductType != VER_NT_WORKSTATION) {
-		systemVersion = -systemVersion;
-	}
-	
-	if (osVersion.szCSDVersion != '\0') {
-		servicePack = [NSString stringWithCString:osVersion.szCSDVersion];
-	} else {
-		servicePack = @"";
-	}
-		
-	switch (systemVersion) {
-		case 62:
-			return [NSString stringWithFormat: @"Windows 8 %@", servicePack];
-			break;
-		case -62:
-			return [NSString stringWithFormat: @"Windows Server 2012 %@", servicePack];
-			break;
-		case 61:
-			return [NSString stringWithFormat: @"Windows 7 %@", servicePack];
-			break;
-		case -61:
-			return [NSString stringWithFormat: @"Windows Server 2008 R2 %@", servicePack];
-			break;
-		case 60:
-			return [NSString stringWithFormat: @"Windows Vista %@", servicePack];
-			break;
-		case -60:
-			return [NSString stringWithFormat: @"Windows Server 2003 R2 %@", servicePack];
-			break;
-		case 52:
-			return [NSString stringWithFormat: @"Windows XP Professional x64 Edition %@", servicePack];
-			break;
-		case 51:
-			return [NSString stringWithFormat: @"Windows XP %@", servicePack];
-			break;
-		case 50:
-			return [NSString stringWithFormat: @"Windows 2000 %@", servicePack];
-			break;
-		default:
-			return [NSString stringWithFormat: @"%d.%d %d %d", osVersion.dwMajorVersion, osVersion.dwMinorVersion, osVersion.wServicePackMajor, osVersion.wServicePackMinor ];
-			break;
-	}
-#else
    NSOperatingSystemVersion v=[self operatingSystemVersion];
 
    /* As the reference system writes it: "Version 10.15 (Build 19G2021)". */
    if(v.patchVersion!=0)
     return [NSString stringWithFormat:@"Version %ld.%ld.%ld (Build %@)",(long)v.majorVersion,(long)v.minorVersion,(long)v.patchVersion,system_build?system_build:@""];
    return [NSString stringWithFormat:@"Version %ld.%ld (Build %@)",(long)v.majorVersion,(long)v.minorVersion,system_build?system_build:@""];
-#endif
 }
 
 -(NSString *)hostName {
@@ -265,6 +208,99 @@ static void read_system_version(void) {
 -(NSString *)globallyUniqueString {
    return NSStringWithFormat(@"%@_%d_%d_%d_%d",[self hostName],
      [self processIdentifier],0,0,[self incrementCounter]);
+}
+
+-(NSString *)userName {
+   struct passwd *pw=getpwuid(getuid());
+
+   return (pw!=NULL)?[NSString stringWithUTF8String:pw->pw_name]:@"";
+}
+
+/* The account's full name (its GECOS field up to the first comma). */
+-(NSString *)fullUserName {
+   struct passwd *pw=getpwuid(getuid());
+   NSString      *gecos;
+
+   if(pw==NULL)
+    return @"";
+   gecos=[NSString stringWithUTF8String:(pw->pw_gecos!=NULL)?pw->pw_gecos:""];
+   gecos=[[gecos componentsSeparatedByString:@","] objectAtIndex:0];
+   return ([gecos length]>0)?gecos:[NSString stringWithUTF8String:pw->pw_name];
+}
+
+static NSInteger suddenTerminationDisabled,automaticTerminationDisabled;
+static BOOL      automaticTerminationSupport;
+
+-(id<NSObject>)beginActivityWithOptions:(NSActivityOptions)options reason:(NSString *)reason {
+   NSDictionary *activity=[NSDictionary dictionaryWithObjectsAndKeys:[NSNumber numberWithUnsignedLongLong:options],@"options",
+      (reason!=nil)?reason:@"",@"reason",nil];
+
+   @synchronized([NSProcessInfo class]){
+    if(options&NSActivitySuddenTerminationDisabled)
+     suddenTerminationDisabled++;
+    if(options&NSActivityAutomaticTerminationDisabled)
+     automaticTerminationDisabled++;
+   }
+   return activity;
+}
+
+-(void)endActivity:(id<NSObject>)activity {
+   NSActivityOptions options=[[(NSDictionary *)activity objectForKey:@"options"] unsignedLongLongValue];
+
+   @synchronized([NSProcessInfo class]){
+    if((options&NSActivitySuddenTerminationDisabled) && suddenTerminationDisabled>0)
+     suddenTerminationDisabled--;
+    if((options&NSActivityAutomaticTerminationDisabled) && automaticTerminationDisabled>0)
+     automaticTerminationDisabled--;
+   }
+}
+
+-(void)performActivityWithOptions:(NSActivityOptions)options reason:(NSString *)reason usingBlock:(void (^)(void))block {
+   id activity=[self beginActivityWithOptions:options reason:reason];
+
+   block();
+   [self endActivity:activity];
+}
+
+-(void)disableSuddenTermination {
+   @synchronized([NSProcessInfo class]){ suddenTerminationDisabled++; }
+}
+
+-(void)enableSuddenTermination {
+   @synchronized([NSProcessInfo class]){ if(suddenTerminationDisabled>0) suddenTerminationDisabled--; }
+}
+
+-(void)disableAutomaticTermination:(NSString *)reason {
+   @synchronized([NSProcessInfo class]){ automaticTerminationDisabled++; }
+}
+
+-(void)enableAutomaticTermination:(NSString *)reason {
+   @synchronized([NSProcessInfo class]){ if(automaticTerminationDisabled>0) automaticTerminationDisabled--; }
+}
+
+-(BOOL)automaticTerminationSupportEnabled {
+   return automaticTerminationSupport;
+}
+
+-(void)setAutomaticTerminationSupportEnabled:(BOOL)flag {
+   automaticTerminationSupport=flag;
+}
+
+/* Minkar does not watch the processor's temperature or a battery yet. */
+-(NSProcessInfoThermalState)thermalState {
+   return NSProcessInfoThermalStateNominal;
+}
+
+-(BOOL)isLowPowerModeEnabled {
+   return NO;
+}
+
+-(BOOL)isMacCatalystApp {
+   return NO;
+}
+
+-(BOOL)isiOSAppOnMac {
+   return NO;
 }
 
 @end

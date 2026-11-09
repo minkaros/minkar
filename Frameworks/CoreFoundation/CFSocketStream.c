@@ -60,10 +60,6 @@ CONST_STRING_DECL(kCFStreamSocketSecurityLevelNegotiatedSSL, "kCFStreamSocketSec
 #endif
 
 
-#if DEPLOYMENT_TARGET_WINDOWS
-typedef void (*CF_SOCKET_STREAM_PAIR)(CFAllocatorRef, CFStringRef, UInt32, CFSocketNativeHandle, const CFSocketSignature*, CFReadStreamRef*, CFWriteStreamRef*);
-#endif
-
 // These are duplicated in CFNetwork, who actually externs them in its headers
 CONST_STRING_DECL(kCFStreamPropertySocketSSLContext, "kCFStreamPropertySocketSSLContext")
 CONST_STRING_DECL(_kCFStreamPropertySocketSecurityAuthenticatesServerCertificate, "_kCFStreamPropertySocketSecurityAuthenticatesServerCertificate");
@@ -103,18 +99,12 @@ enum {
 static struct {
     CFLock_t lock;
     UInt32	flags;
-#if DEPLOYMENT_TARGET_WINDOWS
-    HMODULE	image;
-#endif
     void (*_CFSocketStreamCreatePair)(CFAllocatorRef, CFStringRef, UInt32, CFSocketNativeHandle, const CFSocketSignature*, CFReadStreamRef*, CFWriteStreamRef*);
     CFErrorRef (*_CFErrorCreateWithStreamError)(CFAllocatorRef, CFStreamError*);
     CFStreamError (*_CFStreamErrorFromCFError)(CFErrorRef);
 } CFNetworkSupport = {
     CFLockInit,
     0x0,
-#if DEPLOYMENT_TARGET_WINDOWS
-    NULL,
-#endif
     NULL,
     NULL,
     NULL
@@ -124,8 +114,6 @@ static struct {
 
 #if DEPLOYMENT_TARGET_MACOSX || DEPLOYMENT_TARGET_EMBEDDED
 #define CFNETWORK_LOAD_SYM(sym)   __CFLookupCFNetworkFunction(#sym)
-#elif DEPLOYMENT_TARGET_WINDOWS
-#define CFNETWORK_LOAD_SYM(sym)   (void *)GetProcAddress(CFNetworkSupport.image, #sym)
 #endif
 
 static void initializeCFNetworkSupport(void) {
@@ -135,36 +123,6 @@ static void initializeCFNetworkSupport(void) {
     CFNetworkSupport._CFSocketStreamCreatePair = CFNETWORK_LOAD_SYM(_CFSocketStreamCreatePair);
     CFNetworkSupport._CFErrorCreateWithStreamError = CFNETWORK_LOAD_SYM(_CFErrorCreateWithStreamError);
     CFNetworkSupport._CFStreamErrorFromCFError = CFNETWORK_LOAD_SYM(_CFStreamErrorFromCFError);
-#elif DEPLOYMENT_TARGET_WINDOWS
-    if (!CFNetworkSupport.image) {
-#if _DEBUG
-        CFNetworkSupport.image = GetModuleHandleW(L"CFNetwork_debug.dll");
-#else
-        CFNetworkSupport.image = GetModuleHandleW(L"CFNetwork.dll");
-#endif
-    }
-
-    if (!CFNetworkSupport.image) {
-        // not loaded yet, try to load from the filesystem
-        char path[MAX_PATH+1];
-        if (!CFNetworkSupport.image) {
-            strlcpy(path, (const char *)_CFDLLPath(), sizeof(path));
-#if _DEBUG
-            strlcat(path, "\\CFNetwork_debug.dll", sizeof(path));
-#else
-            strlcat(path, "\\CFNetwork.dll", sizeof(path));
-#endif
-            CFNetworkSupport.image = LoadLibraryA(path);
-        }
-    }
-            
-    if (!CFNetworkSupport.image) {
-        CFLog(__kCFLogAssertion, CFSTR("CoreFoundation: failed to dynamically load CFNetwork"));
-    } else  {
-        CFNetworkSupport._CFSocketStreamCreatePair = (CF_SOCKET_STREAM_PAIR)CFNETWORK_LOAD_SYM(_CFSocketStreamCreatePair);
-        CFNetworkSupport._CFErrorCreateWithStreamError = (CFErrorRef(*)(CFAllocatorRef, CFStreamError *))CFNETWORK_LOAD_SYM(_CFErrorCreateWithStreamError);
-        CFNetworkSupport._CFStreamErrorFromCFError = (CFStreamError(*)(CFErrorRef))CFNETWORK_LOAD_SYM(_CFStreamErrorFromCFError);
-    }
 #endif
 
     if (!CFNetworkSupport._CFSocketStreamCreatePair) CFLog(__kCFLogAssertion, CFSTR("CoreFoundation: failed to dynamically link symbol _CFSocketStreamCreatePair"));

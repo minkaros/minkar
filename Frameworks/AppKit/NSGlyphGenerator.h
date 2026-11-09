@@ -12,12 +12,12 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 @class NSAttributedString;
 
 @protocol NSGlyphStorage
-- (unsigned)layoutOptions;
+- (NSUInteger)layoutOptions;
 - (NSAttributedString *)attributedString;
 
-- (void)insertGlyphs:(const NSGlyph *)glyphs length:(unsigned)length forStartingGlyphAtIndex:(unsigned)glyphIndex characterIndex:(unsigned int)characterIndex;
+- (void)insertGlyphs:(const NSGlyph *)glyphs length:(NSUInteger)length forStartingGlyphAtIndex:(NSUInteger)glyphIndex characterIndex:(NSUInteger)characterIndex;
 
-- (void)setIntAttribute:(int)intAttribute value:(int)value forGlyphAtIndex:(unsigned)glyphIndex;
+- (void)setIntAttribute:(NSInteger)intAttribute value:(NSInteger)value forGlyphAtIndex:(NSUInteger)glyphIndex;
 @end
 
 @interface NSGlyphGenerator : NSObject {
@@ -25,6 +25,6 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 + sharedGlyphGenerator;
 
-- (void)generateGlyphsForGlyphStorage:(id<NSGlyphStorage>)glyphStorage desiredNumberOfCharacters:(unsigned)numberOfCharacters glyphIndex:(unsigned *)glyphIndex characterIndex:(unsigned *)characterIndex;
+- (void)generateGlyphsForGlyphStorage:(id<NSGlyphStorage>)glyphStorage desiredNumberOfCharacters:(NSUInteger)numberOfCharacters glyphIndex:(NSUInteger *)glyphIndex characterIndex:(NSUInteger *)characterIndex;
 
 @end

@@ -23,16 +23,27 @@
  */
 
 #import <AppKit/NSResponder.h>
+#import <AppKit/NSAppearance.h>
 #import <AppKit/AppKitExport.h>
 #import <AppKit/NSGraphics.h>
 
 @class NSWindow, NSImage, NSMenu, NSPasteboard, NSDisplay, NSDockTile, DKConnection, DKMenu;
 
 APPKIT_EXPORT NSString *const NSModalPanelRunLoopMode;
+
+/* The About window's options (-orderFrontStandardAboutPanelWithOptions:). */
+typedef NSString *NSAboutPanelOptionKey;
+APPKIT_EXPORT NSAboutPanelOptionKey const NSAboutPanelOptionCredits;
+APPKIT_EXPORT NSAboutPanelOptionKey const NSAboutPanelOptionApplicationName;
+APPKIT_EXPORT NSAboutPanelOptionKey const NSAboutPanelOptionApplicationIcon;
+APPKIT_EXPORT NSAboutPanelOptionKey const NSAboutPanelOptionVersion;
+APPKIT_EXPORT NSAboutPanelOptionKey const NSAboutPanelOptionApplicationVersion;
 APPKIT_EXPORT NSString *const NSEventTrackingRunLoopMode;
 
 APPKIT_EXPORT NSString *const NSApplicationWillFinishLaunchingNotification;
 APPKIT_EXPORT NSString *const NSApplicationDidFinishLaunchingNotification;
+APPKIT_EXPORT NSString *const NSApplicationLaunchUserNotificationKey;
+APPKIT_EXPORT NSString *const NSApplicationLaunchIsDefaultLaunchKey;
 
 APPKIT_EXPORT NSString *const NSApplicationWillBecomeActiveNotification;
 APPKIT_EXPORT NSString *const NSApplicationDidBecomeActiveNotification;
@@ -54,6 +65,12 @@ APPKIT_EXPORT NSString *const NSApplicationDidChangeScreenParametersNotification
 APPKIT_EXPORT id NSApp;
 
 typedef id NSModalSession;
+
+/* What a modal session or a sheet ended with. */
+typedef NSInteger NSModalResponse;
+static const NSModalResponse NSModalResponseStop = -1000;
+static const NSModalResponse NSModalResponseAbort = -1001;
+static const NSModalResponse NSModalResponseContinue = -1002;
 
 enum {
     NSRunStoppedResponse = -1000,
@@ -91,7 +108,7 @@ typedef enum {
     NSPrintingFailure,
 } NSApplicationPrintReply;
 
-@interface NSApplication : NSResponder {
+@interface NSApplication : NSResponder <NSAppearanceCustomization> {
     NSString *bundleID;
     NSDisplay *_display;
     id _delegate;
@@ -170,9 +187,9 @@ typedef enum {
 
 - (void)sendEvent:(NSEvent *)event;
 
-- (NSEvent *)nextEventMatchingMask:(unsigned int)mask untilDate:(NSDate *)untilDate inMode:(NSString *)mode dequeue:(BOOL)dequeue;
+- (NSEvent *)nextEventMatchingMask:(NSEventMask)mask untilDate:(NSDate *)untilDate inMode:(NSString *)mode dequeue:(BOOL)dequeue;
 - (NSEvent *)currentEvent;
-- (void)discardEventsMatchingMask:(unsigned)mask beforeEvent:(NSEvent *)event;
+- (void)discardEventsMatchingMask:(NSEventMask)mask beforeEvent:(NSEvent *)event;
 - (void)postEvent:(NSEvent *)event atStart:(BOOL)atStart;
 
 - targetForAction:(SEL)action;
@@ -188,22 +205,22 @@ typedef enum {
 
 - (NSWindow *)modalWindow;
 - (NSModalSession)beginModalSessionForWindow:(NSWindow *)window;
-- (int)runModalSession:(NSModalSession)session;
+- (NSInteger)runModalSession:(NSModalSession)session;
 - (void)endModalSession:(NSModalSession)session;
-- (void)stopModalWithCode:(int)code;
+- (void)stopModalWithCode:(NSInteger)code;
 
-- (int)runModalForWindow:(NSWindow *)window;
+- (NSInteger)runModalForWindow:(NSWindow *)window;
 - (void)stopModal;
 - (void)abortModal;
 
 - (void)beginSheet:(NSWindow *)sheet modalForWindow:(NSWindow *)window modalDelegate:modalDelegate didEndSelector:(SEL)didEndSelector contextInfo:(void *)contextInfo;
-- (void)endSheet:(NSWindow *)sheet returnCode:(int)returnCode;
+- (void)endSheet:(NSWindow *)sheet returnCode:(NSInteger)returnCode;
 - (void)endSheet:(NSWindow *)sheet;
 
 - (void)reportException:(NSException *)exception;
 
-- (int)requestUserAttention:(NSRequestUserAttentionType)attentionType;
-- (void)cancelUserAttentionRequest:(int)requestNumber;
+- (NSInteger)requestUserAttention:(NSRequestUserAttentionType)attentionType;
+- (void)cancelUserAttentionRequest:(NSInteger)requestNumber;
 
 - (void)runPageLayout:sender;
 - (void)orderFrontColorPanel:sender;
@@ -246,6 +263,10 @@ typedef enum {
 - (void)_windowWillBecomeDeactive:(NSWindow *)window;
 - (void)_windowDidBecomeDeactive:(NSWindow *)window;
 
+
+
+@property (readonly, getter=isFullKeyboardAccessEnabled) BOOL fullKeyboardAccessEnabled;
+@property (getter=isAutomaticCustomizeTouchBarMenuItemEnabled) BOOL automaticCustomizeTouchBarMenuItemEnabled;
 
 @end
 

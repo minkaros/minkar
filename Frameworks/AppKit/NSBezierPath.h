@@ -92,13 +92,13 @@ typedef enum {
 - (NSLineCapStyle)lineCapStyle;
 - (NSLineJoinStyle)lineJoinStyle;
 
-- (void)getLineDash:(CGFloat *)dashes count:(int *)count phase:(CGFloat *)phase;
+- (void)getLineDash:(CGFloat *)dashes count:(NSInteger *)count phase:(CGFloat *)phase;
 
 - (BOOL)cachesBezierPath;
 
-- (int)elementCount;
-- (NSBezierPathElement)elementAtIndex:(int)index;
-- (NSBezierPathElement)elementAtIndex:(int)index associatedPoints:(NSPoint *)points;
+- (NSInteger)elementCount;
+- (NSBezierPathElement)elementAtIndex:(NSInteger)index;
+- (NSBezierPathElement)elementAtIndex:(NSInteger)index associatedPoints:(NSPoint *)points;
 
 - (void)setLineWidth:(CGFloat)width;
 - (void)setMiterLimit:(CGFloat)limit;
@@ -106,7 +106,7 @@ typedef enum {
 - (void)setWindingRule:(NSWindingRule)rule;
 - (void)setLineCapStyle:(NSLineCapStyle)style;
 - (void)setLineJoinStyle:(NSLineJoinStyle)style;
-- (void)setLineDash:(const CGFloat *)dashes count:(int)count phase:(CGFloat)phase;
+- (void)setLineDash:(const CGFloat *)dashes count:(NSInteger)count phase:(CGFloat)phase;
 - (void)setCachesBezierPath:(BOOL)flag;
 
 - (BOOL)isEmpty;
@@ -123,7 +123,7 @@ typedef enum {
 - (void)relativeLineToPoint:(NSPoint)point;
 - (void)relativeCurveToPoint:(NSPoint)point controlPoint1:(NSPoint)cp1 controlPoint2:(NSPoint)cp2;
 
-- (void)appendBezierPathWithPoints:(NSPoint *)points count:(unsigned)count;
+- (void)appendBezierPathWithPoints:(NSPoint *)points count:(NSUInteger)count;
 - (void)appendBezierPathWithRect:(NSRect)rect;
 - (void)appendBezierPathWithOvalInRect:(NSRect)rect;
 - (void)appendBezierPathWithArcFromPoint:(NSPoint)point toPoint:(NSPoint)toPoint radius:(CGFloat)radius;
@@ -131,13 +131,13 @@ typedef enum {
 - (void)appendBezierPathWithArcWithCenter:(NSPoint)center radius:(CGFloat)radius startAngle:(CGFloat)startAngle endAngle:(CGFloat)endAngle;
 - (void)appendBezierPathWithArcWithCenter:(NSPoint)center radius:(CGFloat)radius startAngle:(CGFloat)startAngle endAngle:(CGFloat)endAngle clockwise:(BOOL)clockwise;
 - (void)appendBezierPathWithGlyph:(NSGlyph)glyph inFont:(NSFont *)font;
-- (void)appendBezierPathWithGlyphs:(NSGlyph *)glyphs count:(unsigned)count inFont:(NSFont *)font;
+- (void)appendBezierPathWithGlyphs:(NSGlyph *)glyphs count:(NSUInteger)count inFont:(NSFont *)font;
 - (void)appendBezierPathWithPackedGlyphs:(const char *)packed;
 - (void)appendBezierPath:(NSBezierPath *)other;
 
 - (void)transformUsingAffineTransform:(NSAffineTransform *)matrix;
 - (void)removeAllPoints;
-- (void)setAssociatedPoints:(NSPoint *)points atIndex:(int)index;
+- (void)setAssociatedPoints:(NSPoint *)points atIndex:(NSInteger)index;
 
 - (NSBezierPath *)bezierPathByFlatteningPath;
 - (NSBezierPath *)bezierPathByReversingPath;

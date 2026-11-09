@@ -11,9 +11,9 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 @class NSLayoutManager, NSFont;
 
-enum {
-    NSTextStorageEditedCharacters = 0x01,
-    NSTextStorageEditedAttributes = 0x02,
+typedef NS_OPTIONS(NSUInteger, NSTextStorageEditActions) {
+    NSTextStorageEditedAttributes = 0x01,
+    NSTextStorageEditedCharacters = 0x02,
 };
 
 APPKIT_EXPORT NSString *const NSTextStorageWillProcessEditingNotification;
@@ -31,8 +31,8 @@ APPKIT_EXPORT NSString *const NSTextStorageDidProcessEditingNotification;
 - delegate;
 - (NSArray *)layoutManagers;
 
-- (int)changeInLength;
-- (unsigned)editedMask;
+- (NSInteger)changeInLength;
+- (NSTextStorageEditActions)editedMask;
 - (NSRange)editedRange;
 
 - (void)setDelegate:delegate;
@@ -41,7 +41,7 @@ APPKIT_EXPORT NSString *const NSTextStorageDidProcessEditingNotification;
 
 - (void)processEditing;
 
-- (void)edited:(unsigned)editedMask range:(NSRange)range changeInLength:(int)delta;
+- (void)edited:(NSTextStorageEditActions)editedMask range:(NSRange)range changeInLength:(NSInteger)delta;
 
 - (void)setFont:(NSFont *)font;
 

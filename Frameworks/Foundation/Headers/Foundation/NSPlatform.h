@@ -81,8 +81,4 @@ FOUNDATION_EXPORT void *NSPlatformContentsOfFile(NSString *path, NSUInteger *len
 
 NSThread *NSPlatformCurrentThread();
 void NSPlatformSetCurrentThread(NSThread *thread);
-#ifdef WINDOWS
-NSUInteger NSPlatformDetachThread(unsigned (*__stdcall func)(void *arg), void *arg, NSError **errorp);
-#else
 NSUInteger NSPlatformDetachThread(void *(*func)(void *arg), void *arg, NSError **errorp);
-#endif

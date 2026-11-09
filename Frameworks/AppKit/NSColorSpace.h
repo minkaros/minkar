@@ -8,15 +8,56 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 #import <Foundation/NSObject.h>
 #import <ApplicationServices/ApplicationServices.h>
+#import <AppKit/AppKitExport.h>
 
-@interface NSColorSpace : NSObject {
+@class NSArray, NSData, NSString;
+
+typedef NS_ENUM(NSInteger, NSColorSpaceModel) {
+    NSColorSpaceModelUnknown = -1,
+    NSColorSpaceModelGray = 0,
+    NSColorSpaceModelRGB = 1,
+    NSColorSpaceModelCMYK = 2,
+    NSColorSpaceModelLAB = 3,
+    NSColorSpaceModelDeviceN = 4,
+    NSColorSpaceModelIndexed = 5,
+    NSColorSpaceModelPatterned = 6,
+};
+
+/* A color space. Minkar has no color management yet: each space draws as
+   the device space of its model, and keeps its name. */
+@interface NSColorSpace : NSObject <NSSecureCoding> {
     CGColorSpaceRef _cgColorSpace;
+    NSString *_localizedName;
 }
 
++ (NSColorSpace *)sRGBColorSpace;
++ (NSColorSpace *)extendedSRGBColorSpace;
++ (NSColorSpace *)displayP3ColorSpace;
++ (NSColorSpace *)adobeRGB1998ColorSpace;
++ (NSColorSpace *)genericRGBColorSpace;
 + (NSColorSpace *)deviceRGBColorSpace;
++ (NSColorSpace *)genericGrayColorSpace;
++ (NSColorSpace *)genericGamma22GrayColorSpace;
++ (NSColorSpace *)extendedGenericGamma22GrayColorSpace;
++ (NSColorSpace *)deviceGrayColorSpace;
++ (NSColorSpace *)genericCMYKColorSpace;
++ (NSColorSpace *)deviceCMYKColorSpace;
 
-- initWithCGColorSpace:(CGColorSpaceRef)cgColorSpace;
++ (NSArray<NSColorSpace *> *)availableColorSpacesWithModel:(NSColorSpaceModel)model;
 
-- (CGColorSpaceRef)CGColorSpace;
+- (instancetype)initWithCGColorSpace:(CGColorSpaceRef)cgColorSpace;
+- (instancetype)initWithICCProfileData:(NSData *)iccData;
 
+@property (readonly) CGColorSpaceRef CGColorSpace;
+@property (readonly) NSColorSpaceModel colorSpaceModel;
+@property (readonly) NSInteger numberOfColorComponents;
+@property (readonly, copy) NSString *localizedName;
+@property (readonly, strong) NSData *ICCProfileData;
+
+@end
+
+/* The color space name of the older API (NSCalibratedRGBColorSpace...)
+   that colors in this space report. */
+@interface NSColorSpace (Minkar)
+- (NSString *)_colorSpaceName;
 @end

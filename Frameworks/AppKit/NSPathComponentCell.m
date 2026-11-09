@@ -2,6 +2,8 @@
 #import "AppKit/NSRaise.h"
 #import <AppKit/NSStringDrawing.h>
 #import <AppKit/NSImage.h>
+#import <AppKit/NSColor.h>
+#import <AppKit/NSFont.h>
 #import <AppKit/NSAttributedString.h>
 
 @implementation NSPathComponentCell
@@ -23,7 +25,10 @@
 -(NSDictionary *) textAttributes {
    NSFont *font = [self font];
 
-   return [NSDictionary dictionaryWithObjectsAndKeys: font, NSFontAttributeName, nil];
+   if(font==nil)
+    font=[NSFont systemFontOfSize:[NSFont smallSystemFontSize]];
+   return [NSDictionary dictionaryWithObjectsAndKeys: font, NSFontAttributeName,
+      [self isEnabled]?[NSColor controlTextColor]:[NSColor disabledControlTextColor], NSForegroundColorAttributeName, nil];
 }
 
 -(void)drawWithFrame:(NSRect)frame inView:(NSView *)view {
@@ -42,7 +47,9 @@
 		frame.size.width -= iconRect.size.width + 2;
 		frame.origin.x += iconRect.size.width + 2;
 		
-		[icon drawInRect: iconRect fromRect: NSZeroRect operation: NSCompositeSourceOver fraction: 1.0];
+		/* Upright in a flipped control too. */
+		[icon drawInRect: iconRect fromRect: NSZeroRect operation: NSCompositeSourceOver fraction: 1.0
+		    respectFlipped: YES hints: nil];
 	}
 	
 	[title drawAtPoint: frame.origin withAttributes: [self textAttributes]];

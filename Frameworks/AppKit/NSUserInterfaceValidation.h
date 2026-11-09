@@ -1,6 +1,6 @@
 #import <Foundation/NSObject.h>
 
 @protocol NSValidatedUserInterfaceItem
-- (int)tag;
+- (NSInteger)tag;
 - (SEL)action;
 @end

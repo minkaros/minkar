@@ -22,7 +22,10 @@ K0–K4), cuyos hitos conservan sus nombres, y añade las aplicaciones
   con una excepción para los iconos (decidida el 2026-11-05): los temas de
   iconos Faience y Faenza de Matthieu James (GPL-3), como ficheros de datos
   aparte con su licencia, autores y fuentes SVG en `SystemLibrary/Icons`
-  (instalados en `/System/Library/Icons`), y sin iconos de marcas. Las
+  (instalados en `/System/Library/Icons`), y sin iconos de marcas.
+  Conservan su licencia GPL-3; ningún código se enlaza con ellos y el resto
+  de la regla sigue igual (aceptado por el mantenedor: no existe un juego
+  de iconos del mismo alcance con licencia BSD o MIT). Las
   carpetas son azules por defecto (Faience-Azur), con arena y naranja como
   alternativas. Los iconos de las apps son PNG de 512×512 en el bundle
   (AppKit aún no lee `.icns`). La barra de menús es oscura (gris carbón,
@@ -36,8 +39,8 @@ K0–K4), cuyos hitos conservan sus nombres, y añade las aplicaciones
   plataforma de referencia que no sea una palabra común. El bundle se
   nombra sin espacios (`TextEditor.app`), su identificador es
   `org.minkar.<Nombre>`, y el nombre en español llega con la traducción de
-  la app (Archivos, Editor de texto). Files y Text Editor se llamaban Argos
-  y Alcor hasta entonces.
+  la app (Archivos, Editor de texto). Files y Text Editor se llamaban antes
+  Argos y Alcor.
 - **Sobre los comandos.** Donde Minkar tiene el comando (`top`, `log`,
   `screencapture`, `diskutil`, `hdiutil`, `system_profiler`, `tar`), la
   app es su interfaz y comparte su código o su salida, de modo que ambos se
@@ -55,7 +58,7 @@ K0–K4), cuyos hitos conservan sus nombres, y añade las aplicaciones
 | Menús | 3 | MB0–MB4 | MB0 | MB1 (parcial), MB2 |
 | Dock | 4 | D0–D4 | D0, D1 | D2 |
 | Files | 4 | K0–K4 | K1 (K0 parcial) | K0, K2 |
-| Aplicaciones | 5 | A0–A10 | — (Text Editor empezado) | A0, A1 |
+| Aplicaciones | 5 | A0–A10 | A0, A1, A3, A4 (A2 empezado) | A2, A5 |
 
 Las demás piezas de la sesión (LoginWindow, Preferencias del Sistema, el
 lenguaje visual) son puntos de la Fase 5 en [ROADMAP.es.md](ROADMAP.es.md).
@@ -87,8 +90,9 @@ desarrollo si la sección 3.10 lo registra con el hito que lo elimina.
 ### 3.2 Por qué: hallazgos en el código actual
 
 1. **Hoy no hay barra de menús.** SystemUIServer, que la dibuja, no se
-   compila (`CoreServices/Makefile`: «FIXME: Dock, Filer, DMIHelper,
-   SystemUIServer and loginwindow ... are not built yet»).
+   compila (`CoreServices/Makefile` tenía un FIXME: el Dock, el antiguo
+   explorador de archivos (antes Filer), DMIHelper, SystemUIServer y
+   loginwindow aún no se compilaban).
 2. **Menús dibujados en otro proceso.** `-[NSApplication
    sendMenusToWindowServer]` copia todo el menú principal, le quita targets y
    delegados (`_menuEnumerateAndChange:`), lo archiva con `NSKeyedArchiver` y
@@ -397,7 +401,8 @@ cabeceras ni binarios del fabricante (sala limpia).
 
 ### 4.1 Decisión
 
-- **Files se escribe nuevo.** No se conserva nada de Filer.
+- **Files se escribe nuevo.** No se conserva nada del antiguo explorador
+  de archivos (antes Filer).
 - **El Dock recibe un núcleo nuevo** y se portan tres partes del actual: las
   claves de preferencias y el formato de los datos de tiles, la ventana del
   fondo de escritorio, y el cálculo de disposición de los tiles como
@@ -410,9 +415,9 @@ desarrollo si la sección 4.10 lo registra con el hito que lo elimina.
 
 ### 4.2 Por qué: hallazgos en el código actual
 
-#### Filer (`CoreServices/Filer/FilerMain.m`, 94 líneas)
+#### El antiguo explorador de archivos (antes Filer; 94 líneas)
 
-Una ventana titulada «Filer - /Applications» sin ninguna vista. Los archivos
+Una ventana titulada con su nombre y «/Applications», sin ninguna vista. Los archivos
 que se sueltan sobre ella se copian a la carpeta, borrando antes lo que había
 sin preguntar; solo sabe abrir bundles `.app` (`LSOpenCFURLRef`). No hay
 navegación, vista de iconos, lista o columnas, papelera ni «Abrir con». No hay
@@ -625,8 +630,8 @@ evidencia.
   vistas de AppKit (Files dibuja las suyas).
 - [x] **K1 — Navegación.** Ventanas con barra lateral, vistas de iconos, lista y
   columnas, navegación, abrir archivos y apps, Obtener información básico.
-  Filer pasa a ser Files: bundle ID, `LSRevealInFiler` como alias obsoleto del
-  nombre nuevo durante una versión, `open -R`, los tiles predeterminados del
+  Files ocupa el lugar del antiguo explorador de archivos (antes Filer):
+  bundle ID, `open -R`, los tiles predeterminados del
   Dock. Es la parte «Files navega» del gate M5. *Hecho (4 nov 2026):*
   `896749b380`, `c9f602b43c`, `45c2c1ad9e`, `788fe67376`, `906f12eae4`;
   pruebas locales `argos` (16) y `launchservices` (24).
@@ -730,31 +735,51 @@ SwiftUI, fuera de la API 19–21).
 
 ### 5.3 Hitos
 
-- [ ] **A0 — Base común de las apps.** Ventana Acerca de (la de Atlas, con
+- [x] **A0 — Base común de las apps.** Ventana Acerca de (la de Atlas, con
   icono, versión y copyright), menús estándar de Preferencias y Ayuda, los
   dos idiomas, `NSDocument` con autoguardado y versiones en el sistema de
   archivos, la plantilla de la que parten A1–A10. Pruebas: la ventana
   Acerca de de cada app, un menú traducido, un documento guardado y
-  reabierto.
-- [ ] **A1 — Terminal.** Secuencias VT100 y xterm (colores, movimiento del
+  reabierto. Hecho el 8 nov 2026: la ventana Acerca de (5a721456ef),
+  AppKit en español (17dde9f0bb), NSFileVersion y el autoguardado con
+  versiones (efa83788d8, aa4492475f), la plantilla
+  `Developer/Templates/AtlasApp` (fbef0a5927) con su libro de ayuda y
+  NSHelpManager (08a89e5a13, 63132864be); prueba `image/atlas-app` (26
+  comprobaciones en inglés y español), lote del 8 nov (2181 pasan, M2 y M3).
+- [x] **A1 — Terminal.** Secuencias VT100 y xterm (colores, movimiento del
   cursor, pantalla alternativa), UTF-8, cambio de tamaño (`SIGWINCH`),
   historial, selección, copiar y pegar, Agave y su tamaño, varias ventanas
   y pestañas, `open -a Terminal`. Pruebas: las pantallas básicas de
   `vttest`, una sesión de `vim` dirigida por QMP, comparaciones con
-  `screendump`.
+  `screendump`. Hecho el 8 nov 2026: `CoreServices/Terminal` sobre
+  libvterm 0.3.3 (MIT) (d7b7c4f405, pestañas 14ee742f06), con
+  Preferencias (956eccef79) y los arreglos de AppKit y Foundation que
+  necesitaron (e9ef2c7dd3, d505c4adbe, d425816593); prueba
+  `image/terminal` (28 comprobaciones: colores, UTF-8, movimiento del
+  cursor, pantalla alternativa, historial, teclado, `SIGWINCH`, las
+  preferencias en inglés y español), lote del 8 nov (1805 pasan, M2 y
+  M3). `vi`, `top` y las pestañas se comprobaron en pantalla por QMP;
+  `vttest` y las comparaciones con `screendump` aún no están automatizadas.
 - [ ] **A2 — Text Editor para uso diario.** Empezado el 4 nov 2026 (texto plano,
   abrir y guardar, `open -t`). Falta: RTF, buscar y reemplazar,
   codificaciones y finales de línea, impresión, la regla. Pruebas: un
   fichero de ida y vuelta en cada codificación, buscar y reemplazar, un
   documento RTF reabierto.
-- [ ] **A3 — Monitor del sistema.** Lista de procesos con orden y búsqueda,
+- [x] **A3 — Monitor del sistema.** Lista de procesos con orden y búsqueda,
   pestañas de CPU, memoria, disco y red con gráficas, información de
   proceso, salir y forzar salida. Pruebas: un proceso de prueba aparece
-  con su PID y se termina desde la app.
-- [ ] **A4 — Logs (Registros).** `log show` y `log stream` en una ventana, filtros
+  con su PID y se termina desde la app. Hecho el 8 nov 2026:
+  `CoreServices/SystemMonitor` (5a1c89ed68), con el dibujo de texto más
+  rápido (5d32298820) y las columnas de tabla completas (ecb4b53a0e);
+  prueba `image/system-monitor` (12 comprobaciones). La energía (5.2)
+  espera a que el driver de energía dé el uso de cada proceso.
+- [x] **A4 — Logs (Registros).** `log show` y `log stream` en una ventana, filtros
   por proceso, subsistema y nivel, informes de cuelgues de `/Library/Logs`.
   Pruebas: un mensaje `os_log` de un programa de prueba aparece con su
-  subsistema.
+  subsistema. Hecho el 8 nov 2026: `CoreServices/Logs` (033761cf48), sobre
+  `log --style ndjson` (2ffffb9625); prueba `image/logs` (8 comprobaciones),
+  lote del 8 nov (729 pasan, M2). Los informes de cuelgues se muestran
+  donde van, pero aún nada los escribe: falta un generador de informes.
 - [ ] **A5 — Captura.** Pantalla completa, ventana y selección,
   Comando-Mayúsculas-3 y Comando-Mayúsculas-4 por la tabla de atajos
   simbólicos, ficheros en el escritorio con la fecha como nombre, el

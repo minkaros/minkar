@@ -31,11 +31,13 @@
 #include <sys/mman.h>
 
 #import <CoreGraphics/CGDirectDisplay.h>
+#import <objc/runtime.h>
 #import <CoreGraphics/CGWindow.h>
 #import <QuartzCore/CAMetalLayerPrivate.h>
 #import <Onyx2D/O2Surface.h>
 #import <Onyx2D/O2GraphicsState.h>
 #import <AppKit/NSWindow.h>
+#import <AppKit/NSViewController.h>
 #import <AppKit/NSLayoutConstraint.h>
 #import <AppKit/NSWindow-Private.h>
 #import <AppKit/NSThemeFrame.h>
@@ -68,6 +70,7 @@
 #import "O2Context_builtin_FT.h"
 
 NSString * const NSWindowDidBecomeKeyNotification=@"NSWindowDidBecomeKeyNotification";
+NSString * const NSWindowDidExposeNotification=@"NSWindowDidExposeNotification";
 NSString * const NSWindowDidResignKeyNotification=@"NSWindowDidResignKeyNotification";
 NSString * const NSWindowDidBecomeMainNotification=@"NSWindowDidBecomeMainNotification";
 NSString * const NSWindowDidResignMainNotification=@"NSWindowDidResignMainNotification";
@@ -220,28 +223,95 @@ static SLSRect slsFrame(NSRect frame) {
         frame.size.width, frame.size.height };
 }
 
+/* Runs the sheet's completion block and lets the sheet go. */
+static char windowAppearanceKey;
+
+@interface NSSheetCompletion : NSObject {
+@public
+   void (^_handler)(NSModalResponse);
+}
+@end
+
+@implementation NSSheetCompletion
+-(void)sheetDidEnd:(NSWindow *)sheet returnCode:(NSInteger)returnCode contextInfo:(void *)contextInfo {
+   if(_handler!=NULL)
+    _handler(returnCode);
+   [_handler release];
+   _handler=NULL;
+   [self release];
+}
+@end
+
 @implementation NSWindow
+
+static char hidesWindowControlsKey;
+
+-(void)_setHidesWindowControls:(BOOL)hides {
+   objc_setAssociatedObject(self,&hidesWindowControlsKey,hides?(id)kCFBooleanTrue:nil,OBJC_ASSOCIATION_RETAIN);
+   [[self _backgroundView] setNeedsDisplay:YES];
+}
+
+-(BOOL)_hidesWindowControls {
+   return objc_getAssociatedObject(self,&hidesWindowControlsKey)!=nil;
+}
 
 +(NSWindowDepth)defaultDepthLimit {
    return 0;
 }
 
-+(NSRect)frameRectForContentRect:(NSRect)contentRect styleMask:(unsigned)styleMask {
++(NSRect)frameRectForContentRect:(NSRect)contentRect styleMask:(NSWindowStyleMask)styleMask {
    return CGOutsetRectForNativeWindowBorder(contentRect,styleMask);
 }
 
-+(NSRect)contentRectForFrameRect:(NSRect)frameRect styleMask:(unsigned)styleMask {
++(NSRect)contentRectForFrameRect:(NSRect)frameRect styleMask:(NSWindowStyleMask)styleMask {
    return CGInsetRectForNativeWindowBorder(frameRect,styleMask);
 }
 
-+(float)minFrameWidthWithTitle:(NSString *)title styleMask:(unsigned)styleMask {
++(CGFloat)minFrameWidthWithTitle:(NSString *)title styleMask:(NSWindowStyleMask)styleMask {
    NSUnimplementedMethod();
    return 0;
 }
 
+/* The frontmost window on screen under the point (screen coordinates,
+   from the bottom left), below window when it is not 0; 0 for none. */
 +(NSInteger)windowNumberAtPoint:(NSPoint)point belowWindowWithWindowNumber:(NSInteger)window {
-   NSUnimplementedMethod();
-   return 0;
+   CFArrayRef info=CGWindowListCopyWindowInfo(kCGWindowListOptionOnScreenOnly,kCGNullWindowID);
+   CGFloat    height=CGDisplayBounds(CGMainDisplayID()).size.height;
+   CGPoint    top=CGPointMake(point.x,height-point.y);
+   BOOL       below=(window==0);
+   NSInteger  result=0;
+   CFIndex    i,count;
+
+   if(info==NULL)
+    return 0;
+   count=CFArrayGetCount(info);
+   for(i=0;i<count && result==0;i++){
+    CFDictionaryRef entry=CFArrayGetValueAtIndex(info,i);
+    CFNumberRef     number=CFDictionaryGetValue(entry,kCGWindowNumber);
+    CFDictionaryRef boundsDict=CFDictionaryGetValue(entry,kCGWindowBounds);
+    int32_t         windowNumber=0;
+    CGRect          bounds;
+
+    if(number==NULL || boundsDict==NULL || !CGRectMakeWithDictionaryRepresentation(boundsDict,&bounds))
+     continue;
+    CFNumberGetValue(number,kCFNumberSInt32Type,&windowNumber);
+    if(!below){
+     below=(_NSWindowNumberForServerWindow(windowNumber)==window);
+     continue;
+    }
+    if(CGRectContainsPoint(bounds,top))
+     result=_NSWindowNumberForServerWindow(windowNumber);
+   }
+   CFRelease(info);
+   return result;
+}
+
+/* The window server numbers windows its own way: this application's
+   windows have their AppKit numbers, others keep the server's. */
+NSInteger _NSWindowNumberForServerWindow(int32_t serverNumber) {
+   NSWindow *window=_NSWindowForSLSWindow((SLSWindowID)serverNumber);
+
+   return (window!=nil)?[window windowNumber]:serverNumber;
 }
 
 NSArray *_NSWindowNumbersFromWindowInfo(CFArrayRef info,BOOL allApps) {
@@ -260,7 +330,7 @@ NSArray *_NSWindowNumbersFromWindowInfo(CFArrayRef info,BOOL allApps) {
     CFNumberGetValue(owner,kCFNumberSInt32Type,&ownerPID);
     CFNumberGetValue(number,kCFNumberSInt32Type,&windowNumber);
     if(allApps || ownerPID==pid)
-     [result addObject:[NSNumber numberWithInt:windowNumber]];
+     [result addObject:[NSNumber numberWithInteger:_NSWindowNumberForServerWindow(windowNumber)]];
    }
    return result;
 }
@@ -282,7 +352,7 @@ NSArray *_NSWindowNumbersFromWindowInfo(CFArrayRef info,BOOL allApps) {
    NSUnimplementedMethod();
 }
 
-+(NSButton *)standardWindowButton:(NSWindowButton)button forStyleMask:(unsigned)styleMask {
++(NSButton *)standardWindowButton:(NSWindowButton)button forStyleMask:(NSWindowStyleMask)styleMask {
    NSUnimplementedMethod();
    return nil;
 }
@@ -296,7 +366,7 @@ NSArray *_NSWindowNumbersFromWindowInfo(CFArrayRef info,BOOL allApps) {
 }
 
 // This is Apple private API
-+(Class)frameViewClassForStyleMask:(unsigned int)styleMask {
++(Class)frameViewClassForStyleMask:(NSUInteger)styleMask {
    return [NSThemeFrame class];
 }
 
@@ -309,7 +379,7 @@ NSArray *_NSWindowNumbersFromWindowInfo(CFArrayRef info,BOOL allApps) {
    return self;
 }
 
--initWithContentRect:(NSRect)contentRect styleMask:(unsigned int)styleMask backing:(unsigned)backing defer:(BOOL)defer screen:(NSScreen *)screen {
+-initWithContentRect:(NSRect)contentRect styleMask:(NSWindowStyleMask)styleMask backing:(NSBackingStoreType)backing defer:(BOOL)defer screen:(NSScreen *)screen {
     NSRect backgroundFrame;
     NSRect contentViewFrame;
 
@@ -419,7 +489,7 @@ NSArray *_NSWindowNumbersFromWindowInfo(CFArrayRef info,BOOL allApps) {
 }
 
 // FIX, relocate contentRect
--initWithContentRect:(NSRect)contentRect styleMask:(unsigned)styleMask backing:(unsigned)backing defer:(BOOL)defer {
+-initWithContentRect:(NSRect)contentRect styleMask:(NSWindowStyleMask)styleMask backing:(NSBackingStoreType)backing defer:(BOOL)defer {
    return [self initWithContentRect:contentRect styleMask:styleMask backing:backing defer:defer screen:nil];
 }
 
@@ -430,6 +500,7 @@ NSArray *_NSWindowNumbersFromWindowInfo(CFArrayRef info,BOOL allApps) {
 
 -(void)dealloc {
     [[NSNotificationCenter defaultCenter] removeObserver:self];
+    [_contentViewController release];
     if(_context)
         [_context release];
     if(buffer && bufsize) {
@@ -483,7 +554,7 @@ NSArray *_NSWindowNumbersFromWindowInfo(CFArrayRef info,BOOL allApps) {
         O2Surface *surface = [[O2Surface alloc] initWithBytes:buffer
                 width:pixelsWide height:pixelsHigh
                 bitsPerComponent:8 bytesPerRow:4*pixelsWide colorSpace:colorSpace
-                bitmapInfo:kO2BitmapByteOrderDefault|kCGImageAlphaPremultipliedFirst];
+                bitmapInfo:kO2BitmapByteOrder32Little|kCGImageAlphaPremultipliedFirst];
         _context = [[O2Context_builtin_FT alloc] initWithSurface:surface flipped:NO];
 
         /* The current context is left alone: it may be another window's,
@@ -590,7 +661,7 @@ NSArray *_NSWindowNumbersFromWindowInfo(CFArrayRef info,BOOL allApps) {
    return _frame;
 }
 
--(unsigned)styleMask {
+-(NSWindowStyleMask)styleMask {
    return _styleMask;
 }
 
@@ -660,10 +731,6 @@ NSArray *_NSWindowNumbersFromWindowInfo(CFArrayRef info,BOOL allApps) {
 -(BOOL)worksWhenModal {
     // We do work when we're running a modal session
     return (_sheetContext && [_sheetContext modalSession] != nil);
-}
-
--(BOOL)isSheet {
-  return (_styleMask&NSDocModalWindowMask)?YES:NO;
 }
 
 -(BOOL)acceptsMouseMovedEvents {
@@ -1244,6 +1311,25 @@ NSArray *_NSWindowNumbersFromWindowInfo(CFArrayRef info,BOOL allApps) {
    SLSSetWindowAlpha(slsWindowFor(_number), value);
 }
 
+/* A toolbar set on a window takes its room from the content view, the
+   window keeping its frame, as on the reference platform (an app that
+   lays out its content for the window's size before adding the toolbar
+   sees it so there). */
+-(void)_toolbarSetFromOldHeight:(CGFloat)oldHeight {
+   NSView *toolbarView=[_toolbar _view];
+   NSRect  content=[[self contentView] frame];
+   CGFloat newHeight,delta;
+
+   [_toolbar layoutFrameSizeWithWidth:NSWidth([[self _backgroundView] bounds])];
+   newHeight=(_toolbar==nil)?0:[_toolbar visibleHeight];
+   delta=newHeight-oldHeight;
+   content.size.height=MAX(0,content.size.height-delta);
+   [[self contentView] setFrame:content];
+   if(toolbarView!=nil)
+    [toolbarView setFrameOrigin:NSMakePoint([self _backgroundView].bounds.origin.x,NSMaxY(content))];
+   [[self _backgroundView] setNeedsDisplay:YES];
+}
+
 -(void)_toolbarSizeDidChangeFromOldHeight:(CGFloat)oldHeight {
    CGFloat    newHeight,contentHeightDelta;
    NSView    *toolbarView=[_toolbar _view];
@@ -1290,7 +1376,7 @@ NSArray *_NSWindowNumbersFromWindowInfo(CFArrayRef info,BOOL allApps) {
      [[self _backgroundView] addSubview:[_toolbar _view]];
      [[self _backgroundView] setNeedsDisplay:YES];
     }
-    [self _toolbarSizeDidChangeFromOldHeight:oldHeight];
+    [self _toolbarSetFromOldHeight:oldHeight];
    }
 }
 
@@ -1487,12 +1573,12 @@ NSArray *_NSWindowNumbersFromWindowInfo(CFArrayRef info,BOOL allApps) {
    return NSStringFromRect([self frame]);
 }
 
--(int)resizeFlags {
+-(NSInteger)resizeFlags {
    NSUnimplementedMethod();
    return 0;
 }
 
--(float)userSpaceScaleFactor {
+-(CGFloat)userSpaceScaleFactor {
    return 1.0;
 }
 
@@ -1524,11 +1610,11 @@ NSArray *_NSWindowNumbersFromWindowInfo(CFArrayRef info,BOOL allApps) {
     return _drawers;
 }
 
--(int)windowNumber {
+-(NSInteger)windowNumber {
     return _number;
 }
 
--(int)gState {
+-(NSInteger)gState {
    NSUnimplementedMethod();
    return 0;
 }
@@ -2256,7 +2342,7 @@ NSArray *_NSWindowNumbersFromWindowInfo(CFArrayRef info,BOOL allApps) {
    [self setFrame:frame display:YES];
 }
 
--(void)orderWindow:(NSWindowOrderingMode)place relativeTo:(int)relativeTo {
+-(void)orderWindow:(NSWindowOrderingMode)place relativeTo:(NSInteger)relativeTo {
 // The move notifications are sent under unknown conditions around orderFront: in the Apple AppKit, we do them all the time here until it's figured out. I suspect it is a side effect of off-screen windows being at off-screen coordinates (as opposed to just being hidden)
 
    [self postNotificationName:NSWindowWillMoveNotification];
@@ -2325,7 +2411,7 @@ NSArray *_NSWindowNumbersFromWindowInfo(CFArrayRef info,BOOL allApps) {
     return [NSApp currentEvent];
 }
 
--(NSEvent *)nextEventMatchingMask:(unsigned int)mask {
+-(NSEvent *)nextEventMatchingMask:(NSEventMask)mask {
    return [self nextEventMatchingMask:mask untilDate:[NSDate distantFuture]
       inMode:NSEventTrackingRunLoopMode dequeue:YES];
 }
@@ -2333,7 +2419,7 @@ NSArray *_NSWindowNumbersFromWindowInfo(CFArrayRef info,BOOL allApps) {
 -(void) captureEvents {
 }
 
--(NSEvent *)nextEventMatchingMask:(unsigned int)mask untilDate:(NSDate *)untilDate inMode:(NSString *)mode dequeue:(BOOL)dequeue {
+-(NSEvent *)nextEventMatchingMask:(NSEventMask)mask untilDate:(NSDate *)untilDate inMode:(NSString *)mode dequeue:(BOOL)dequeue {
    NSEvent *event;
 
 // this should get migrated down into event queue
@@ -2348,7 +2434,7 @@ NSArray *_NSWindowNumbersFromWindowInfo(CFArrayRef info,BOOL allApps) {
    return event;
 }
 
--(void)discardEventsMatchingMask:(unsigned)mask beforeEvent:(NSEvent *)event {
+-(void)discardEventsMatchingMask:(NSEventMask)mask beforeEvent:(NSEvent *)event {
    NSUnimplementedMethod();
 }
 
@@ -2887,7 +2973,7 @@ static NSMutableSet *hiddenByHide;
 }
 
 -(BOOL)prepareForDragOperation:(id <NSDraggingInfo>)sender {
-   return NO;
+   return YES;
 }
 
 -(BOOL)performDragOperation:(id <NSDraggingInfo>)sender {
@@ -2911,17 +2997,9 @@ static NSMutableSet *hiddenByHide;
    NSRect    content=[self contentRectForFrameRect:frame];
    NSPoint   origin;
 
+   /* The content rect is already below the toolbar. */
    origin.y=NSMaxY(content)-sheetFrame.size.height;
    origin.x=frame.origin.x+floor((frame.size.width-sheetFrame.size.width)/2);
-
-
-   if ([self toolbar] != nil) {
-       origin.y -= [[[self toolbar] _view] frame].size.height;
-
-       // Depending on the final border types used on the toolbar and the sheets, the sheet placement
-       // sometimes looks better with a little "adjustment"....
-       origin.y++;
-   }
 
    [sheet setFrameOrigin:origin];
 }
@@ -3533,6 +3611,162 @@ static void slsCollectExcluded(NSView *view, NSSize size, SLSIntRect *rects, uin
     return YES;
 }
 
+
+#pragma mark View controllers and sheets
+
++(instancetype)windowWithContentViewController:(NSViewController *)contentViewController {
+   NSView   *view=[contentViewController view];
+   NSSize    size=[contentViewController preferredContentSize];
+   NSWindow *window;
+
+   if(size.width<=0 || size.height<=0)
+    size=[view frame].size;
+   window=[[[self alloc] initWithContentRect:NSMakeRect(0,0,size.width,size.height)
+      styleMask:NSWindowStyleMaskTitled|NSWindowStyleMaskClosable|NSWindowStyleMaskMiniaturizable|NSWindowStyleMaskResizable
+      backing:NSBackingStoreBuffered defer:NO] autorelease];
+   [window setContentViewController:contentViewController];
+   if([contentViewController title]!=nil)
+    [window setTitle:[contentViewController title]];
+   [window setReleasedWhenClosed:NO];
+   return window;
+}
+
+-(NSAppearance *)appearance {
+   return objc_getAssociatedObject(self,&windowAppearanceKey);
+}
+
+-(void)setAppearance:(NSAppearance *)appearance {
+   objc_setAssociatedObject(self,&windowAppearanceKey,appearance,OBJC_ASSOCIATION_RETAIN);
+   [[self contentView] setNeedsDisplay:YES];
+}
+
+-(NSAppearance *)effectiveAppearance {
+   NSAppearance *appearance=[self appearance];
+
+   return (appearance!=nil)?appearance:[NSApp effectiveAppearance];
+}
+
+-(NSViewController *)contentViewController {
+   return _contentViewController;
+}
+
+/* The controller's view becomes the content view; the window keeps its
+   frame unless it has no content yet. */
+-(void)setContentViewController:(NSViewController *)controller {
+   if(controller==_contentViewController)
+    return;
+   [controller retain];
+   [_contentViewController release];
+   _contentViewController=controller;
+   if(controller!=nil){
+    NSView *view=[controller view];
+    NSRect  content=[self contentRectForFrameRect:[self frame]];
+
+    [self setContentView:view];
+    if(NSIsEmptyRect(content))
+     [self setContentSize:[view frame].size];
+    [view setAutoresizingMask:NSViewWidthSizable|NSViewHeightSizable];
+   }
+}
+
+
+-(void)beginSheet:(NSWindow *)sheetWindow completionHandler:(void (^)(NSModalResponse returnCode))handler {
+   NSSheetCompletion *completion=[[NSSheetCompletion alloc] init];
+
+   completion->_handler=[handler copy];
+   sheetWindow->_sheetParent=self;
+   [NSApp beginSheet:sheetWindow modalForWindow:self modalDelegate:completion didEndSelector:@selector(sheetDidEnd:returnCode:contextInfo:) contextInfo:NULL];
+}
+
+-(void)beginCriticalSheet:(NSWindow *)sheetWindow completionHandler:(void (^)(NSModalResponse returnCode))handler {
+   [self beginSheet:sheetWindow completionHandler:handler];
+}
+
+-(void)endSheet:(NSWindow *)sheetWindow {
+   [self endSheet:sheetWindow returnCode:NSModalResponseStop];
+}
+
+-(void)endSheet:(NSWindow *)sheetWindow returnCode:(NSModalResponse)returnCode {
+   [NSApp endSheet:sheetWindow returnCode:returnCode];
+}
+
+-(NSArray *)sheets {
+   NSWindow *sheet=[self attachedSheet];
+
+   return (sheet!=nil)?[NSArray arrayWithObject:sheet]:[NSArray array];
+}
+
+-(NSWindow *)sheetParent {
+   return _sheetParent;
+}
+
+-(void)_setSheetParent:(NSWindow *)window {
+   _sheetParent=window;
+}
+
+-(BOOL)isSheet {
+   return _sheetParent!=nil || ([self styleMask]&NSWindowStyleMaskDocModalWindow)!=0;
+}
+
+
+-(NSRect)convertRectToScreen:(NSRect)rect {
+   NSRect frame=[self frame];
+   return NSOffsetRect(rect,frame.origin.x,frame.origin.y);
+}
+
+-(NSRect)convertRectFromScreen:(NSRect)rect {
+   NSRect frame=[self frame];
+   return NSOffsetRect(rect,-frame.origin.x,-frame.origin.y);
+}
+
+-(NSPoint)convertPointToScreen:(NSPoint)point {
+   return [self convertBaseToScreen:point];
+}
+
+-(NSPoint)convertPointFromScreen:(NSPoint)point {
+   return [self convertScreenToBase:point];
+}
+
+static char fullScreenFrameKey;
+
+/* Full screen: the window takes its screen's visible frame, and gets its
+   frame back when toggled again (there are no full screen spaces). */
+-(void)toggleFullScreen:(id)sender {
+   NSValue *saved=objc_getAssociatedObject(self,&fullScreenFrameKey);
+
+   if(saved!=nil){
+    objc_setAssociatedObject(self,&fullScreenFrameKey,nil,OBJC_ASSOCIATION_RETAIN);
+    [self setFrame:[saved rectValue] display:YES];
+   }
+   else {
+    objc_setAssociatedObject(self,&fullScreenFrameKey,[NSValue valueWithRect:[self frame]],OBJC_ASSOCIATION_RETAIN);
+    [self setFrame:[[self screen] ?: [NSScreen mainScreen] visibleFrame] display:YES];
+   }
+}
+
+static BOOL sAllowsAutomaticWindowTabbing=YES;
+
++(BOOL)allowsAutomaticWindowTabbing {
+   return sAllowsAutomaticWindowTabbing;
+}
+
++(void)setAllowsAutomaticWindowTabbing:(BOOL)value {
+   sAllowsAutomaticWindowTabbing=value;
+}
+
+static char animationBehaviorKey;
+-(NSWindowAnimationBehavior)animationBehavior {
+   id value=objc_getAssociatedObject(self,&animationBehaviorKey);
+   return (value!=nil)?(NSWindowAnimationBehavior)[value integerValue]:0;
+}
+-(void)setAnimationBehavior:(NSWindowAnimationBehavior)value {
+   objc_setAssociatedObject(self,&animationBehaviorKey,[NSNumber numberWithInteger:(NSInteger)value],OBJC_ASSOCIATION_RETAIN);
+}
+
+/* There is no state restoration yet: nothing to save. */
+-(void)invalidateRestorableState {
+}
+
 @end
 
 void CGNativeBorderFrameWidthsForStyle(unsigned styleMask,CGFloat *top,CGFloat *left,
@@ -3569,6 +3803,14 @@ CGRect CGOutsetRectForNativeWindowBorder(CGRect frame,unsigned styleMask) {
 void CGNativeBorderFrameWidthsForStyle(unsigned styleMask,CGFloat *top,CGFloat *left,
                                        CGFloat *bottom,CGFloat *right)
 {
+    /* A sheet hangs under its window's title bar: no title bar of its own. */
+    if(styleMask & NSDocModalWindowMask) {
+        *top=0;
+        *left=1;
+        *bottom=1;
+        *right=1;
+        return;
+    }
     switch(styleMask & 0x0FFF) {
         case NSBorderlessWindowMask:
             *top=0;
@@ -3578,9 +3820,10 @@ void CGNativeBorderFrameWidthsForStyle(unsigned styleMask,CGFloat *top,CGFloat *
             break;
         // FIXME: tool window style?
         default:
-            *top=32;
-            *left=2;
-            *bottom=3;
-            *right=2;
+            /* As the reference platform: the title bar, no other border. */
+            *top=22;
+            *left=0;
+            *bottom=0;
+            *right=0;
     }
 }

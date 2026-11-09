@@ -11,7 +11,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 @implementation NSGlyphInfo
 
--initWithCharacterIdentifier:(unsigned int)identifier collection:(NSCharacterCollection)collection glyphName:(NSString *)glyphName {
+-initWithCharacterIdentifier:(NSUInteger)identifier collection:(NSCharacterCollection)collection glyphName:(NSString *)glyphName {
    _identifier=identifier;
    _collection=collection;
    _glyphName=[glyphName copy];
@@ -23,7 +23,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    [super dealloc];
 }
 
-+(NSGlyphInfo *)glyphInfoWithCharacterIdentifier:(unsigned int)identifier collection:(NSCharacterCollection)collection baseString:(NSString *)baseString {
++(NSGlyphInfo *)glyphInfoWithCharacterIdentifier:(NSUInteger)identifier collection:(NSCharacterCollection)collection baseString:(NSString *)baseString {
    NSUnimplementedMethod();
    return nil;
 }
@@ -38,7 +38,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    return nil;
 }
 
--(unsigned int)characterIdentifier {
+-(NSUInteger)characterIdentifier {
    return _identifier;
 }
 

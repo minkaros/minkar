@@ -16,6 +16,7 @@ typedef struct O2PDFDocument *CGPDFDocumentRef;
 /* CF's naming rules for what the functions return (Create, Copy). */
 CF_IMPLICIT_BRIDGING_ENABLED
 
+COREGRAPHICS_EXPORT CFTypeID CGPDFDocumentGetTypeID(void);
 COREGRAPHICS_EXPORT CGPDFDocumentRef CGPDFDocumentRetain(CGPDFDocumentRef self);
 COREGRAPHICS_EXPORT void CGPDFDocumentRelease(CGPDFDocumentRef self);
 

@@ -1,0 +1,4 @@
+framework module AE {
+    umbrella header "AE.h"
+    export *
+}

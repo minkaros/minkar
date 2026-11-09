@@ -16,6 +16,8 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <Foundation/NSKeyedArchiver.h>
 #import <AppKit/NSTextFieldCell.h>
 #import <AppKit/NSRaise.h>
+#import <AppKit/NSGraphicsStyle.h>
+#import <AppKit/NSView.h>
 
 @implementation NSFormCell
 
@@ -46,9 +48,20 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
     return copy;
 }
 
+/* NSMatrix makes its cells with -init. */
+-init {
+   return [self initTextCell:@""];
+}
+
+/* Made in code: an editable, bezeled field whose title, right-aligned,
+   is drawn at its left. */
 -initTextCell:(NSString *)value {
    [super initTextCell:value];
-   NSUnimplementedMethod();
+   _titleCell=[[NSCell alloc] initTextCell:@""];
+   [_titleCell setAlignment:NSRightTextAlignment];
+   _titleWidth=0;
+   [self setEditable:YES];
+   [self setBezeled:YES];
    return self;
 }
 
@@ -68,11 +81,11 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    return NO;
 }
 
--(float)titleWidth {
+-(CGFloat)titleWidth {
    return _titleWidth;
 }
 
--(float)titleWidth:(NSSize)size {
+-(CGFloat)titleWidth:(NSSize)size {
 // FIX,wrong
    return _titleWidth;
 }
@@ -111,7 +124,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    return nil;
 }
 
--(void)setTitleWidth:(float)value {
+-(void)setTitleWidth:(CGFloat)value {
    _titleWidth=value;
 }
 
@@ -196,8 +209,11 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    valueRect.origin.x+=(_titleWidth+1);
    valueRect.size.width-=(_titleWidth+1);
 
+   /* The field: white, with a text field's border. */
    if([self isBezeled]){
-    NSDrawWhiteBezel(valueRect,valueRect);
+    [[NSColor textBackgroundColor] setFill];
+    NSRectFill(valueRect);
+    [[control graphicsStyle] drawTextFieldBorderInRect:valueRect bezeledNotLine:YES];
    }
 
    valueRect=[self titleRectForBounds:frame];

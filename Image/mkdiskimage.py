@@ -385,7 +385,7 @@ def main(argv=None):
                    help='PermitRootLogin yes in sshd_config (development images)')
     p.add_argument('--launchd-debug', action='store_true',
                    help='make launchd log at debug level to the console')
-    p.add_argument('--boot-args', default='-v debug=0x14e serial=3 keepsyms=1',
+    p.add_argument('--boot-args', default='-v debug=0x14e serial=3 keepsyms=1 msgbuf=1048576',
                    help='kernel command line')
     p.add_argument('--loader-pause', type=int, default=0, metavar='SECONDS',
                    help='keep the loader output on screen before the kernel '

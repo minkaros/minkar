@@ -1,0 +1,57 @@
+/* SPDX-License-Identifier: BSD-2-Clause
+   Copyright (c) 2026 The Minkar contributors
+   Logs's texts in Spanish. The keys are the English texts. */
+
+/* Menus */
+"About %@" = "Acerca de %@";
+"Services" = "Servicios";
+"Hide %@" = "Ocultar %@";
+"Hide Others" = "Ocultar otros";
+"Show All" = "Mostrar todo";
+"Quit %@" = "Salir de %@";
+"File" = "Archivo";
+"Show in Files" = "Mostrar en Archivos";
+"Close" = "Cerrar";
+"Edit" = "Edición";
+"Copy" = "Copiar";
+"Select All" = "Seleccionar todo";
+"Clear" = "Borrar";
+"View" = "Visualización";
+"Window" = "Ventana";
+"Minimize" = "Minimizar";
+"Zoom" = "Zoom";
+"Help" = "Ayuda";
+"%@ Help" = "Ayuda de %@";
+"Logs" = "Registros";
+
+/* The sources */
+"Messages" = "Mensajes";
+"Crash Reports" = "Informes de cuelgues";
+"Log Files" = "Archivos de registro";
+"My Logs" = "Mis registros";
+
+/* The messages */
+"Pause" = "Pausa";
+"Resume" = "Reanudar";
+"Default" = "Predeterminado";
+"Info" = "Información";
+"Debug" = "Depuración";
+"Errors and Faults" = "Errores y fallos";
+"Process" = "Proceso";
+"Subsystem" = "Subsistema";
+"Search Messages" = "Buscar en los mensajes";
+"Time" = "Hora";
+"Type" = "Tipo";
+"PID" = "PID";
+"Category" = "Categoría";
+"Message" = "Mensaje";
+"%lu of %lu messages%@" = "%lu de %lu mensajes%@";
+" — paused" = " — en pausa";
+
+/* The files */
+"Name" = "Nombre";
+"Date Modified" = "Fecha de modificación";
+"Size" = "Tamaño";
+"Folder" = "Carpeta";
+"There are no files here." = "No hay archivos aquí.";
+"This file could not be read." = "No se ha podido leer este archivo.";

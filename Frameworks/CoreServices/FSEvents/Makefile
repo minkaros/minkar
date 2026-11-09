@@ -33,8 +33,7 @@ PARENT = /System/Library/Frameworks/CoreServices.framework
 fmwk-install-hook:
 .for dir in ${MINKAR_SDKROOT} ${SYSROOT_DIR}
 	mkdir -p ${dir}${FMWK_INSTALL_DIR}
-	rm -rf ${dir}${FMWK_INSTALL_DIR}/${FRAMEWORK}.framework
-	cp -Rf ${.OBJDIR}/${FRAMEWORK}.framework ${dir}${FMWK_INSTALL_DIR}
+	rsync -rlc --delete ${.OBJDIR}/${FRAMEWORK}.framework ${dir}${FMWK_INSTALL_DIR}
 	ln -sfn Versions/Current/Frameworks ${dir}${PARENT}/Frameworks
 .endfor
 

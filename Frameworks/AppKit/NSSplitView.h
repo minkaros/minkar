@@ -11,17 +11,34 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 APPKIT_EXPORT NSString *const NSSplitViewDidResizeSubviewsNotification;
 APPKIT_EXPORT NSString *const NSSplitViewWillResizeSubviewsNotification;
 
-typedef enum {
+typedef NS_ENUM(NSInteger, NSSplitViewDividerStyle) {
     NSSplitViewDividerStyleThick = 1,
-    NSSplitViewDividerStyleThin,
-    NSSplitViewDividerStylePaneSplitter,
-} NSSplitViewDividerStyle;
+    NSSplitViewDividerStyleThin = 2,
+    NSSplitViewDividerStylePaneSplitter = 3,
+};
 
 @interface NSSplitView : NSView {
     id _delegate;
     BOOL _isVertical;
     NSSplitViewDividerStyle _dividerStyle;
+    BOOL _arrangesAllSubviews;
+    NSMutableArray *_arrangedSubviews;
+    NSMutableArray *_holdingPriorities;
+    NSString *_autosaveName;
 }
+
+/* With arrangesAllSubviews (the default) every subview is a pane;
+   otherwise only the arranged ones are. */
+@property BOOL arrangesAllSubviews;
+@property (readonly, copy) NSArray<NSView *> *arrangedSubviews;
+- (void)addArrangedSubview:(NSView *)view;
+- (void)insertArrangedSubview:(NSView *)view atIndex:(NSInteger)index;
+- (void)removeArrangedSubview:(NSView *)view;
+/* A pane with a lower holding priority takes the size the split view
+   gains or loses first. */
+- (float)holdingPriorityForSubviewAtIndex:(NSInteger)subviewIndex;
+- (void)setHoldingPriority:(float)priority forSubviewAtIndex:(NSInteger)subviewIndex;
+@property (copy) NSString *autosaveName;
 
 - (id)delegate;
 - (BOOL)isVertical;
@@ -31,7 +48,7 @@ typedef enum {
 
 - (void)adjustSubviews;
 
-- (float)dividerThickness;
+- (CGFloat)dividerThickness;
 - (void)drawDividerInRect:(NSRect)rect;
 
 - (BOOL)isSubviewCollapsed:(NSView *)subview;
@@ -40,30 +57,45 @@ typedef enum {
 - (NSSplitViewDividerStyle)dividerStyle;
 
 /* Get the minimum or maximum possible position of a divider */
-- (float)minPossiblePositionOfDividerAtIndex:(int)index;
-- (float)maxPossiblePositionOfDividerAtIndex:(int)index;
+- (CGFloat)minPossiblePositionOfDividerAtIndex:(NSInteger)index;
+- (CGFloat)maxPossiblePositionOfDividerAtIndex:(NSInteger)index;
 
 /** Set the position of a divider */
-- (void)setPosition:(float)position ofDividerAtIndex:(int)index;
+- (void)setPosition:(CGFloat)position ofDividerAtIndex:(NSInteger)index;
 
+@end
+
+/* The formal delegate protocol of API 19 (all optional). */
+@protocol NSSplitViewDelegate <NSObject>
+@optional
+- (BOOL)splitView:(NSSplitView *)splitView canCollapseSubview:(NSView *)subview;
+- (BOOL)splitView:(NSSplitView *)splitView shouldCollapseSubview:(NSView *)subview forDoubleClickOnDividerAtIndex:(NSInteger)dividerIndex;
+- (CGFloat)splitView:(NSSplitView *)splitView constrainMinCoordinate:(CGFloat)proposedMinimumPosition ofSubviewAt:(NSInteger)dividerIndex;
+- (CGFloat)splitView:(NSSplitView *)splitView constrainMaxCoordinate:(CGFloat)proposedMaximumPosition ofSubviewAt:(NSInteger)dividerIndex;
+- (CGFloat)splitView:(NSSplitView *)splitView constrainSplitPosition:(CGFloat)proposedPosition ofSubviewAt:(NSInteger)dividerIndex;
+- (void)splitView:(NSSplitView *)splitView resizeSubviewsWithOldSize:(NSSize)oldSize;
+- (BOOL)splitView:(NSSplitView *)splitView shouldAdjustSizeOfSubview:(NSView *)view;
+- (BOOL)splitView:(NSSplitView *)splitView shouldHideDividerAtIndex:(NSInteger)dividerIndex;
+- (void)splitViewWillResizeSubviews:(NSNotification *)notification;
+- (void)splitViewDidResizeSubviews:(NSNotification *)notification;
 @end
 
 // nb. it looks like the API for this is changed in MacOS X, replacing splitView:constrainMix:max:ofSubviewAt
 // with two individual methods for each.
 @interface NSObject (NSSplitView_delegate)
 - (BOOL)splitView:(NSSplitView *)splitView canCollapseSubview:(NSView *)subview;
-- (BOOL)splitView:(NSSplitView *)splitView shouldCollapseSubview:(NSView *)subview forDoubleClickOnDividerAtIndex:(int)index;
-- (CGFloat)splitView:(NSSplitView *)splitView constrainMinCoordinate:(CGFloat)proposedMinimumPosition ofSubviewAt:(int)index;
-- (CGFloat)splitView:(NSSplitView *)splitView constrainMaxCoordinate:(CGFloat)proposedMaximumPosition ofSubviewAt:(int)index;
+- (BOOL)splitView:(NSSplitView *)splitView shouldCollapseSubview:(NSView *)subview forDoubleClickOnDividerAtIndex:(NSInteger)index;
+- (CGFloat)splitView:(NSSplitView *)splitView constrainMinCoordinate:(CGFloat)proposedMinimumPosition ofSubviewAt:(NSInteger)index;
+- (CGFloat)splitView:(NSSplitView *)splitView constrainMaxCoordinate:(CGFloat)proposedMaximumPosition ofSubviewAt:(NSInteger)index;
 
-- (void)splitView:(NSSplitView *)splitView constrainMinCoordinate:(float *)min maxCoordinate:(float *)max ofSubviewAt:(int)index;
-- (float)splitView:(NSSplitView *)splitView constrainSplitPosition:(float)pos ofSubviewAt:(int)index;
+- (void)splitView:(NSSplitView *)splitView constrainMinCoordinate:(CGFloat *)min maxCoordinate:(CGFloat *)max ofSubviewAt:(NSInteger)index;
+- (CGFloat)splitView:(NSSplitView *)splitView constrainSplitPosition:(CGFloat)pos ofSubviewAt:(NSInteger)index;
 - (void)splitView:(NSSplitView *)splitView resizeSubviewsWithOldSize:(NSSize)size;
 
 - (BOOL)splitView:(NSSplitView *)splitView shouldAdjustSizeOfSubview:(NSView *)view;
-- (BOOL)splitView:(NSSplitView *)splitView shouldHideDividerAtIndex:(int)index;
+- (BOOL)splitView:(NSSplitView *)splitView shouldHideDividerAtIndex:(NSInteger)index;
 
-- (NSRect)splitView:(NSSplitView *)splitView effectiveRect:(NSRect)proposedEffectiveRect forDrawnRect:(NSRect)drawnRect ofDividerAtIndex:(int)index;
+- (NSRect)splitView:(NSSplitView *)splitView effectiveRect:(NSRect)proposedEffectiveRect forDrawnRect:(NSRect)drawnRect ofDividerAtIndex:(NSInteger)index;
 - (NSRect)splitView:(NSSplitView *)splitView additionalEffectiveRectOfDividerAtIndex:(NSInteger)index;
 
 - (void)splitViewDidResizeSubviews:(NSNotification *)note;

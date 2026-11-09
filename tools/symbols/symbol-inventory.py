@@ -319,6 +319,16 @@ def write_tsv(path, header, rows):
             f.write('\t'.join(str(x) for x in r) + '\n')
 
 
+COREFOUNDATION = '/System/Library/Frameworks/CoreFoundation.framework/Versions/A/CoreFoundation'
+FOUNDATION = '/System/Library/Frameworks/Foundation.framework/Versions/C/Foundation'
+APPKIT = '/System/Library/Frameworks/AppKit.framework/Versions/C/AppKit'
+# Where dyld looks for what is not in the library a binary names: Minkar
+# keeps CoreFoundation's bridged classes and constants in Foundation, and
+# Foundation's NSLayoutConstraint and _NSDictionaryOfVariableBindings in
+# AppKit (ImageLoaderMachO::findMovedFromCoreFoundation).
+MOVED = {COREFOUNDATION: FOUNDATION, FOUNDATION: APPKIT}
+
+
 def report(sysroot, libs, exported, imports, minos, out, top):
     # library -> symbol -> set of apps
     used = collections.defaultdict(lambda: collections.defaultdict(set))
@@ -334,6 +344,8 @@ def report(sysroot, libs, exported, imports, minos, out, top):
         syms = used[lib]
         minkar_lib, renamed = match(lib)
         have = exported.get(minkar_lib) if minkar_lib else None
+        if have is not None and minkar_lib in MOVED:
+            have = set(have) | set(exported.get(MOVED[minkar_lib], ()))
         present = [s for s in syms if have is not None and s in have]
         missing = sorted((s for s in syms if have is None or s not in have),
                          key=lambda s: (-len(syms[s]), s))

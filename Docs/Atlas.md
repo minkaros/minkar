@@ -21,7 +21,10 @@ rules as [WindowServer-Rewrite.md](WindowServer-Rewrite.md).
   with one exception for icons (decided 2026-11-05): the icon themes
   Faience and Faenza by Matthieu James (GPL-3), kept as separate data files
   with their license, authors and SVG sources in `SystemLibrary/Icons`
-  (installed in `/System/Library/Icons`), and without brand icons. Folders
+  (installed in `/System/Library/Icons`), and without brand icons. They
+  keep their GPL-3 license; no code links with them, and the rest of the
+  rule stands (accepted by the maintainer: no icon set of the same scope
+  exists under BSD or MIT). Folders
   are blue by default (Faience-Azur), with sand and orange as
   alternatives. App icons are 512×512 PNG in the bundle (AppKit reads no
   `.icns` yet). The menu bar is dark (charcoal, light text). The interface
@@ -34,7 +37,7 @@ rules as [WindowServer-Rewrite.md](WindowServer-Rewrite.md).
   named without spaces (`TextEditor.app`), its identifier is
   `org.minkar.<Name>`, and the Spanish name comes with the app's
   translation (Archivos, Editor de texto). Files and Text Editor were
-  Argos and Alcor until then.
+  formerly named Argos and Alcor.
 - **On the command-line tools.** Where Minkar has the command
   (`top`, `log`, `screencapture`, `diskutil`, `hdiutil`,
   `system_profiler`, `tar`), the app is its interface and shares its code
@@ -52,7 +55,7 @@ rules as [WindowServer-Rewrite.md](WindowServer-Rewrite.md).
 | Menus | 3 | MB0–MB4 | MB0 | MB1 (partial), MB2 |
 | Dock | 4 | D0–D4 | D0, D1 | D2 |
 | Files | 4 | K0–K4 | K1 (K0 partial) | K0, K2 |
-| Applications | 5 | A0–A10 | — (Text Editor started) | A0, A1 |
+| Applications | 5 | A0–A10 | A0, A1, A3, A4 (A2 started) | A2, A5 |
 
 The session's other parts (LoginWindow, System Preferences, the visual
 language) are items of Phase 5 in [ROADMAP.md](ROADMAP.md).
@@ -83,8 +86,9 @@ menus follow it. A shortcut is allowed during development only when section
 ### 3.2 Why: findings in the current code
 
 1. **There is no menu bar today.** SystemUIServer, which draws it, is not
-   built (`CoreServices/Makefile`: "FIXME: Dock, Filer, DMIHelper,
-   SystemUIServer and loginwindow ... are not built yet").
+   built (`CoreServices/Makefile` had a FIXME: the Dock, the old file
+   browser (formerly Filer), DMIHelper, SystemUIServer and loginwindow were
+   not built yet).
 2. **Menus drawn in another process.** `-[NSApplication
    sendMenusToWindowServer]` copies the whole main menu, strips targets and
    delegates (`_menuEnumerateAndChange:`), archives it with
@@ -375,7 +379,8 @@ binaries (clean room).
 
 ### 4.1 Decision
 
-- **Files is written new.** Nothing of Filer is kept.
+- **Files is written new.** Nothing of the old file browser (formerly
+  Filer) is kept.
 - **The Dock gets a new core**, and three parts of the current one are
   ported: the preference keys and tile data format, the desktop picture
   window, and the tile layout arithmetic as a reference.
@@ -387,9 +392,9 @@ section 4.10 lists it with the milestone that removes it.
 
 ### 4.2 Why: findings in the current code
 
-#### Filer (`CoreServices/Filer/FilerMain.m`, 94 lines)
+#### The old file browser (formerly Filer; 94 lines)
 
-A window titled "Filer - /Applications" with no view in it. Files dropped on
+A window titled with its name and "/Applications", with no view in it. Files dropped on
 it are copied into the folder, deleting what was there first without asking;
 it can only open `.app` bundles (`LSOpenCFURLRef`). There is no browsing,
 icon, list or column view, Trash or "Open With". Nothing to keep.
@@ -590,9 +595,9 @@ exists, gate M4) still green, and the roadmap updated with the evidence.
   (`0331f57894`, test `launchservices`); the AppKit views are not checked
   yet (Files draws its own).
 - [x] **K1 — Browsing.** Windows with sidebar, icon, list and column views,
-  navigation, opening files and apps, basic Get Info. Filer becomes Files:
-  bundle ID, `LSRevealInFiler` kept as a deprecated alias of the new name for
-  one release, `open -R`, the Dock's default tiles. This is the "Files
+  navigation, opening files and apps, basic Get Info. Files takes the old
+  file browser's place (formerly Filer):
+  bundle ID, `open -R`, the Dock's default tiles. This is the "Files
   browses" part of gate M5. *Done (4 Nov 2026):* `896749b380`,
   `c9f602b43c`, `45c2c1ad9e`, `788fe67376`, `906f12eae4`; local tests
   `argos` (16) and `launchservices` (24).
@@ -692,27 +697,47 @@ SwiftUI, outside API 19–21).
 
 ### 5.3 Milestones
 
-- [ ] **A0 — App foundations.** About window (Atlas's, with icon, version
+- [x] **A0 — App foundations.** About window (Atlas's, with icon, version
   and copyright), standard Preferences and Help menus, both languages,
   `NSDocument` with autosave and versions on the file system, the app
   template that A1–A10 start from. Tests: each app's About window, a
-  localized menu, a document saved and reopened.
-- [ ] **A1 — Terminal.** VT100 and xterm sequences (colors, cursor
+  localized menu, a document saved and reopened. Done 8 Nov 2026: the
+  About window (5a721456ef), AppKit in Spanish (17dde9f0bb), NSFileVersion
+  and autosave with versions (efa83788d8, aa4492475f), the template
+  `Developer/Templates/AtlasApp` (fbef0a5927) with its help book and
+  NSHelpManager (08a89e5a13, 63132864be); test `image/atlas-app` (26
+  checks in English and Spanish), batch of 8 Nov (2181 passed, M2 and M3).
+- [x] **A1 — Terminal.** VT100 and xterm sequences (colors, cursor
   movement, alternate screen), UTF-8, resizing (`SIGWINCH`), scrollback,
   selection, copy and paste, Agave and its size, several windows and tabs,
   `open -a Terminal`. Tests: `vttest`'s basic screens, a `vim` session
-  driven through QMP, `screendump` comparisons.
+  driven through QMP, `screendump` comparisons. Done 8 Nov 2026:
+  `CoreServices/Terminal` on libvterm 0.3.3 (MIT) (d7b7c4f405, tabs
+  14ee742f06), with Preferences (956eccef79) and the AppKit and Foundation
+  fixes they needed (e9ef2c7dd3, d505c4adbe, d425816593); test
+  `image/terminal` (28 checks: colors, UTF-8, cursor movement, the
+  alternate screen, scrollback, the keyboard, `SIGWINCH`, the preferences
+  in English and Spanish), batch of 8 Nov (1805 passed, M2 and M3).
+  `vi`, `top` and the tabs were checked on screen through QMP; `vttest`
+  and `screendump` comparisons are not automated yet.
 - [ ] **A2 — Text Editor for daily use.** Started 4 Nov 2026 (plain text, open
   and save, `open -t`). Missing: RTF, find and replace, encodings and line
   endings, printing, the ruler. Tests: a file round trip in each encoding,
   find and replace, an RTF document reopened.
-- [ ] **A3 — System Monitor.** Process list with sorting and search, CPU,
+- [x] **A3 — System Monitor.** Process list with sorting and search, CPU,
   memory, disk and network tabs with graphs, process info, quit and force
   quit. Tests: a test process appears with its PID and is ended from the
-  app.
-- [ ] **A4 — Logs.** `log show` and `log stream` in a window, filters by
+  app. Done 8 Nov 2026: `CoreServices/SystemMonitor` (5a1c89ed68), with
+  faster text drawing (5d32298820) and full table columns (ecb4b53a0e);
+  test `image/system-monitor` (12 checks). Energy (5.2) waits for the
+  power driver to report each process's use.
+- [x] **A4 — Logs.** `log show` and `log stream` in a window, filters by
   process, subsystem and level, crash reports from `/Library/Logs`. Tests:
-  an `os_log` message from a test program appears with its subsystem.
+  an `os_log` message from a test program appears with its subsystem. Done
+  8 Nov 2026: `CoreServices/Logs` (033761cf48), on `log --style ndjson`
+  (2ffffb9625); test `image/logs` (8 checks), batch of 8 Nov (729 passed,
+  M2). Crash reports are shown where they go, but nothing writes them yet:
+  a crash reporter is still to come.
 - [ ] **A5 — Screenshot.** Whole screen, window and selection,
   Command-Shift-3 and Command-Shift-4 through the symbolic hotkey table,
   files on the desktop named by date, the pasteboard. Tests: the shortcut

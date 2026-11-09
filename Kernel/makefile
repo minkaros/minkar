@@ -73,7 +73,24 @@ installhdrs: .PHONY
 libfirehose_kernel: .PHONY
 	${MAKE} -C ${ROOT_SOURCE_DIR}/Libraries/libfirehose_kernel all
 
-compiler_rt: .PHONY
+# CoreFoundation's headers into the SDK before Libraries: libdispatch's
+# Objective-C parts include Foundation's headers (from the source tree),
+# which include <CoreFoundation/...>, and in a build from scratch the
+# Frameworks stage that installs CoreFoundation comes later.
+SDK_CF = ${MINKAR_SDKROOT}/System/Library/Frameworks/CoreFoundation.framework
+cf_headers: .PHONY
+	${MAKE} -C ${ROOT_SOURCE_DIR}/Frameworks/CoreFoundation _copy_headers _copy_private_headers
+	mkdir -p ${SDK_CF}
+	cp -Rf "$$(${MAKE} -C ${ROOT_SOURCE_DIR}/Frameworks/CoreFoundation -V .OBJDIR)/CoreFoundation.framework/Versions" \
+	    ${SDK_CF}/
+	# The bundle's links, which CoreFoundation's own rule makes only with
+	# the bundle itself.
+	v=$$(${MAKE} -C ${ROOT_SOURCE_DIR}/Frameworks/CoreFoundation -V FMWK_VERSION); \
+	cd ${SDK_CF} && ln -sfn $$v Versions/Current && \
+	ln -sfn Versions/Current/Headers Headers && \
+	ln -sfn Versions/Current/PrivateHeaders PrivateHeaders
+
+compiler_rt: .PHONY cf_headers
 	${MAKE} -C ${ROOT_SOURCE_DIR}/Libraries all
 
 # In this order, also with -j: Libraries needs the kernel headers, and

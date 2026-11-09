@@ -8,6 +8,7 @@
  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE. */
 #import "O2Font_FT.h"
 #import <Onyx2D/O2Font_freetype.h>
+#include FT_TRUETYPE_TABLES_H
 
 O2FontRef O2FontCreateWithFontName_platform(NSString *name) {
     return [[O2Font_FT alloc] initWithFontName:name];
@@ -152,10 +153,32 @@ static NSString *filenameForPostScriptName(NSString *name) {
 
 -(void)dealloc {
    FT_Done_Face(_face);
+   [super dealloc];
 }
 
 -(FT_Face)face {
    return _face;
+}
+
+-(void)setPixelSize:(CGFloat)size {
+   if(size!=_pixelSize){
+    FT_Set_Char_Size(_face,0,(FT_F26Dot6)(size*64),72,72);
+    _pixelSize=size;
+   }
+}
+
+/* An sfnt table's bytes ('post', 'OS/2', ...); nil when the font has none. */
+-(NSData *)copyTableForTag:(uint32_t)tag {
+   FT_ULong length=0;
+
+   if(_face==NULL || FT_Load_Sfnt_Table(_face,tag,0,NULL,&length)!=0 || length==0)
+    return nil;
+   NSMutableData *data=[[NSMutableData alloc] initWithLength:length];
+   if(FT_Load_Sfnt_Table(_face,tag,0,[data mutableBytes],&length)!=0){
+    [data release];
+    return nil;
+   }
+   return data;
 }
 
 -(O2Glyph)glyphWithGlyphName:(NSString *)name {
@@ -166,7 +189,7 @@ static NSString *filenameForPostScriptName(NSString *name) {
 -(void)fetchAdvances {
    O2Glyph glyph;
 
-   FT_Set_Char_Size(_face,0,_unitsPerEm*64,72,72);
+   [self setPixelSize:_unitsPerEm];
 
    _advances=NSZoneMalloc(NULL,sizeof(int)*_numberOfGlyphs);
 

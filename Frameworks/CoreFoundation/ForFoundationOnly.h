@@ -52,9 +52,7 @@
 
 CF_EXTERN_C_BEGIN
 
-#if DEPLOYMENT_TARGET_LINUX
-#include <malloc.h>
-#elif DEPLOYMENT_TARGET_MACOSX || DEPLOYMENT_TARGET_EMBEDDED || DEPLOYMENT_TARGET_EMBEDDED_MINI
+#if   DEPLOYMENT_TARGET_MACOSX || DEPLOYMENT_TARGET_EMBEDDED || DEPLOYMENT_TARGET_EMBEDDED_MINI
 #include <malloc/malloc.h>
 #endif
 
@@ -62,7 +60,7 @@ CF_EXTERN_C_END
 
 // ---- CFBundle material ----------------------------------------
 
-#if DEPLOYMENT_TARGET_MACOSX || DEPLOYMENT_TARGET_EMBEDDED || DEPLOYMENT_TARGET_EMBEDDED_MINI || DEPLOYMENT_TARGET_WINDOWS
+#if DEPLOYMENT_TARGET_MACOSX || DEPLOYMENT_TARGET_EMBEDDED || DEPLOYMENT_TARGET_EMBEDDED_MINI
 #include <CoreFoundation/CFBundlePriv.h>
 
 CF_EXTERN_C_BEGIN
@@ -447,22 +445,6 @@ CF_EXPORT void *_CFGetTSD(uint32_t slot);
 // Set some thread specific data in a pre-assigned slot. Don't pick a random value. Make sure you're using a slot that is unique. Pass in a destructor to free this data, or NULL if none is needed. Unlike pthread TSD, the destructor is per-thread.
 CF_EXPORT void *_CFSetTSD(uint32_t slot, void *newVal, void (*destructor)(void *));
 
-#if DEPLOYMENT_TARGET_WINDOWS
-// ---- Windows-specific material ---------------------------------------
-
-// These are replacements for POSIX calls on Windows, ensuring that the UTF8 parameters are converted to UTF16 before being passed to Windows
-CF_EXPORT int _NS_stat(const char *name, struct _stat *st);
-CF_EXPORT int _NS_mkdir(const char *name);
-CF_EXPORT int _NS_rmdir(const char *name);
-CF_EXPORT int _NS_chmod(const char *name, int mode);
-CF_EXPORT int _NS_unlink(const char *name);
-CF_EXPORT char *_NS_getcwd(char *dstbuf, size_t size);     // Warning: this doesn't support dstbuf as null even though 'getcwd' does
-CF_EXPORT char *_NS_getenv(const char *name);
-CF_EXPORT int _NS_rename(const char *oldName, const char *newName);
-CF_EXPORT int _NS_open(const char *name, int oflag, int pmode);
-CF_EXPORT int _NS_mkstemp(char *name, int bufSize);
-#endif
-
 // ---- Miscellaneous material ----------------------------------------
 
 #include <CoreFoundation/CFBag.h>
@@ -530,7 +512,7 @@ CF_EXPORT void *__CFURLReservedPtr(CFURLRef  url);
 CF_EXPORT void __CFURLSetReservedPtr(CFURLRef  url, void *ptr);
 CF_EXPORT CFStringEncoding _CFURLGetEncoding(CFURLRef url);
 
-#if DEPLOYMENT_TARGET_MACOSX || DEPLOYMENT_TARGET_EMBEDDED || DEPLOYMENT_TARGET_EMBEDDED_MINI || DEPLOYMENT_TARGET_WINDOWS
+#if DEPLOYMENT_TARGET_MACOSX || DEPLOYMENT_TARGET_EMBEDDED || DEPLOYMENT_TARGET_EMBEDDED_MINI
 CF_EXPORT Boolean _CFRunLoopFinished(CFRunLoopRef rl, CFStringRef mode);
 #endif
 
@@ -569,14 +551,6 @@ CF_EXPORT CFRange _CFDataFindBytes(CFDataRef data, CFDataRef dataToFind, CFRange
     #include <mach/mach_time.h>
     #define __CFReadTSR() mach_absolute_time()
     #endif
-#elif DEPLOYMENT_TARGET_WINDOWS
-#if 0
-CF_INLINE UInt64 __CFReadTSR(void) {
-    LARGE_INTEGER freq;
-    QueryPerformanceCounter(&freq);
-    return freq.QuadPart;
-}
-#endif
 #endif
 
 

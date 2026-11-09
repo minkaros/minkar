@@ -25,5 +25,7 @@ APPKIT_EXPORT NSString *const NSNibTopLevelObjects;
 
 - (BOOL)instantiateNibWithExternalNameTable:(NSDictionary *)nameTable;
 - (BOOL)instantiateNibWithOwner:owner topLevelObjects:(NSArray **)objects;
+/* The objects are autoreleased (the older method retains them). */
+- (BOOL)instantiateWithOwner:(id)owner topLevelObjects:(NSArray **)topLevelObjects;
 
 @end

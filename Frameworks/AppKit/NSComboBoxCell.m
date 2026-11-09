@@ -19,6 +19,22 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    NSUnimplementedMethod();
 }
 
+/* Made in code: an editable, bezeled field with an empty list (there
+   was no such initializer: the list stayed nil and items added were lost). */
+-initTextCell:(NSString *)string {
+   [super initTextCell:string];
+   _objectValues=[[NSMutableArray alloc] init];
+   _numberOfVisibleItems=5;
+   _hasVerticalScroller=YES;
+   _isButtonBordered=YES;
+   _buttonEnabled=NO;
+   _buttonPressed=NO;
+   [self setEditable:YES];
+   [self setBezeled:YES];
+   [self setDrawsBackground:YES];
+   return self;
+}
+
 -initWithCoder:(NSCoder *)coder {
    [super initWithCoder:coder];
 
@@ -42,8 +58,8 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    return self;
 }
 
+/* The data source is not retained (it is weak, as on the reference). */
 -(void)dealloc {
-   [_dataSource release];
    [_objectValues release];
    [super dealloc];
 }
@@ -51,7 +67,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 -copyWithZone:(NSZone *)zone {
     NSComboBoxCell *copy = [super copyWithZone:zone];
 
-    copy->_objectValues=[_objectValues copy];
+    copy->_objectValues=[_objectValues mutableCopy];
 
     return copy;
 }
@@ -68,7 +84,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    return _isButtonBordered;
 }
 
--(float)itemHeight {
+-(CGFloat)itemHeight {
    return _itemHeight;
 }
 
@@ -84,7 +100,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    return _completes;
 }
 
--(int)numberOfVisibleItems {
+-(NSInteger)numberOfVisibleItems {
    return _numberOfVisibleItems;
 }
 
@@ -100,7 +116,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    _isButtonBordered=value;
 }
 
--(void)setItemHeight:(float)value {
+-(void)setItemHeight:(CGFloat)value {
    _itemHeight=value;
 }
 
@@ -116,11 +132,11 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    _completes=flag;
 }
 
--(void)setNumberOfVisibleItems:(int)value {
+-(void)setNumberOfVisibleItems:(NSInteger)value {
    _numberOfVisibleItems=value;
 }
 
--(int)numberOfItems {
+-(NSInteger)numberOfItems {
    return [_objectValues count];
 }
 
@@ -128,11 +144,11 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    return _objectValues;
 }
 
--itemObjectValueAtIndex:(int)index {
+-itemObjectValueAtIndex:(NSInteger)index {
    return [_objectValues objectAtIndex:index];
 }
 
--(int)indexOfItemWithObjectValue:(id)object {
+-(NSInteger)indexOfItemWithObjectValue:(id)object {
    return [_objectValues indexOfObjectIdenticalTo:object];
 }
 
@@ -151,7 +167,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    _buttonEnabled=([_objectValues count]>0)?YES:NO;
 }
 
--(void)removeItemAtIndex:(int)index {
+-(void)removeItemAtIndex:(NSInteger)index {
    [_objectValues removeObjectAtIndex:index];
    _buttonEnabled=([_objectValues count]>0)?YES:NO;
 }
@@ -161,12 +177,12 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    _buttonEnabled=([_objectValues count]>0)?YES:NO;
 }
 
--(void)insertItemWithObjectValue:(id)object atIndex:(int)index {
+-(void)insertItemWithObjectValue:(id)object atIndex:(NSInteger)index {
    [_objectValues insertObject:object atIndex:index];
    _buttonEnabled=([_objectValues count]>0)?YES:NO;
 }
 
--(int)indexOfSelectedItem {
+-(NSInteger)indexOfSelectedItem {
    int index = [_objectValues indexOfObject:[self objectValue]];
    return (index != NSNotFound)?index:-1;
 }
@@ -181,7 +197,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    }
 }
 
--(void)selectItemAtIndex:(int)index {
+-(void)selectItemAtIndex:(NSInteger)index {
     if (index < 0 || index >= [_objectValues count])
         return;
 
@@ -198,15 +214,15 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
       NSLog(@"*** -[%@ %s] should not be called when usesDataSource is set to YES",[self class], sel_getName(_cmd));
 }
 
--(void)deselectItemAtIndex:(int)index {
+-(void)deselectItemAtIndex:(NSInteger)index {
    NSUnimplementedMethod();
 }
 
--(void)scrollItemAtIndexToTop:(int)index {
+-(void)scrollItemAtIndexToTop:(NSInteger)index {
    NSUnimplementedMethod();
 }
 
--(void)scrollItemAtIndexToVisible:(int)index {
+-(void)scrollItemAtIndexToVisible:(NSInteger)index {
    NSUnimplementedMethod();
 }
 

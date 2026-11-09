@@ -16,3 +16,69 @@
 "Replace" = "Reemplazar";
 "“%@” already exists. Do you want to replace it?" = "“%@” ya existe. ¿Quieres reemplazarlo?";
 "Replacing it will overwrite its current contents." = "Si lo reemplazas, se sobrescribirá su contenido actual.";
+
+/* The About window */
+"Version %@" = "Versión %@";
+"Version %@ (%@)" = "Versión %@ (%@)";
+
+/* The app menu AppKit makes, and the Help menu */
+"Quit %@" = "Salir de %@";
+"Help" = "Ayuda";
+"Help isn't available for %@." = "La ayuda no está disponible para %@.";
+
+/* Alerts, documents, text and the toolbar */
+"OK" = "Aceptar";
+"Yes" = "Sí";
+"No" = "No";
+"Alert" = "Alerta";
+"Do not show this message again" = "No volver a mostrar este mensaje";
+"Don't Save" = "No guardar";
+"Revert" = "Revertir";
+"Untitled" = "Sin título";
+"Save changes to %@?" = "¿Guardar los cambios en %@?";
+"%@ has been edited. Are you sure you want to undo changes?" = "%@ se ha modificado. ¿Seguro que quieres deshacer los cambios?";
+"Another user or process has changed this document's file on disk.\n\nIf you save now, those changes will be lost. Save anyway?" = "Otro usuario o proceso ha cambiado el archivo de este documento en el disco.\n\nSi guardas ahora, esos cambios se perderán. ¿Guardar de todos modos?";
+"Can't open file '%@'. Error = %@" = "No se puede abrir el archivo “%1$@”. Error = %2$@";
+"Cut" = "Cortar";
+"Copy" = "Copiar";
+"Paste" = "Pegar";
+"Select All" = "Seleccionar todo";
+"Bold" = "Negrita";
+"Unbold" = "Sin negrita";
+"Italic" = "Cursiva";
+"Unitalic" = "Sin cursiva";
+"Show Ruler" = "Mostrar regla";
+"Hide Ruler" = "Ocultar regla";
+"Spelling" = "Ortografía";
+"No Guesses Found" = "No hay sugerencias";
+"< No Suggestions >" = "< Sin sugerencias >";
+"Invalid number" = "Número no válido";
+"Colors" = "Colores";
+"Fonts" = "Tipografías";
+"Show Colors" = "Mostrar colores";
+"Show Fonts" = "Mostrar tipografías";
+"Show the Colors panel." = "Muestra el panel de colores.";
+"Show the Fonts panel." = "Muestra el panel de tipografías.";
+"Print" = "Imprimir";
+"Print Document" = "Imprimir documento";
+"Print this document." = "Imprime este documento.";
+"Customize" = "Personalizar";
+"Customize this toolbar." = "Personaliza esta barra de herramientas.";
+"Space" = "Espacio";
+"Flexible Space" = "Espacio flexible";
+"Separator" = "Separador";
+"Overflow" = "Más";
+
+/* A document's versions */
+"Versions of %@" = "Versiones de %@";
+"Choose a version to restore:" = "Elige la versión que quieres restaurar:";
+"There are no earlier versions of this document." = "No hay versiones anteriores de este documento.";
+"Saved" = "Guardada";
+"%@ (last opened)" = "%@ (última apertura)";
+"Restore" = "Restaurar";
+"Done" = "Listo";
+"%@ Help" = "Ayuda de %@";
+"Search Results" = "Resultados de la búsqueda";
+"Search Results for “%@”" = "Resultados de la búsqueda de “%@”";
+"No pages contain “%@”." = "Ninguna página contiene “%@”.";
+"Search" = "Buscar";

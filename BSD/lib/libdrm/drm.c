@@ -334,6 +334,32 @@ drmGetPrimaryDeviceNameFromFd(int fd)
 	return nodeName(fd);	/* the render node is the only one */
 }
 
+char *
+drmGetDeviceNameFromFd2(int fd)
+{
+	return nodeName(fd);
+}
+
+/* PRIME (buffers shared as dma-buf descriptors): Minkar shares buffers
+ * between processes through IOSurface, not descriptors. */
+int
+drmPrimeHandleToFD(int fd, uint32_t handle, uint32_t flags, int *prime_fd)
+{
+	(void)fd; (void)handle; (void)flags;
+	if (prime_fd != NULL)
+		*prime_fd = -1;
+	return -ENOSYS;
+}
+
+int
+drmPrimeFDToHandle(int fd, int prime_fd, uint32_t *handle)
+{
+	(void)fd; (void)prime_fd;
+	if (handle != NULL)
+		*handle = 0;
+	return -ENOSYS;
+}
+
 /* ---- The driver ---- */
 
 /* The kernel driver as amdgpu's: Mesa reads its version for what it

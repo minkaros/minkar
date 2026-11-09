@@ -179,7 +179,13 @@ NSString * const NSNibTopLevelObjects=@"NSNibTopLevelObjects";
     NIBDEBUG(@"instantiateNibWithOwner: %@ topLevelObjects: ", owner);
 
     NSMutableArray   *topLevelObjects = (objects != NULL ? [[NSMutableArray alloc] init] : nil);
-   NSDictionary     *nameTable=[NSDictionary dictionaryWithObjectsAndKeys:owner, NSNibOwner, topLevelObjects, NSNibTopLevelObjects, nil];
+   NSMutableDictionary *nameTable=[NSMutableDictionary dictionary];
+
+   /* A nil owner must not end the table before the top-level objects. */
+   if(owner!=nil)
+    [nameTable setObject:owner forKey:NSNibOwner];
+   if(topLevelObjects!=nil)
+    [nameTable setObject:topLevelObjects forKey:NSNibTopLevelObjects];
    BOOL             result = [self instantiateNibWithExternalNameTable:nameTable];
    
    if(objects != NULL){
@@ -188,6 +194,21 @@ NSString * const NSNibTopLevelObjects=@"NSNibTopLevelObjects";
        [topLevelObjects release];
    }
    
+   return result;
+}
+
+/* As the older method, but the caller does not own the top-level
+   objects: they are released at the end of the autorelease pool, and
+   kept by whoever needs them (the array given back holds them). */
+-(BOOL)instantiateWithOwner:(id)owner topLevelObjects:(NSArray **)topLevelObjects {
+   NSArray *objects=nil;
+   BOOL     result=[self instantiateNibWithOwner:owner topLevelObjects:&objects];
+
+   if(result)
+    for(id object in objects)
+     [object autorelease];
+   if(topLevelObjects!=NULL)
+    *topLevelObjects=result?objects:nil;
    return result;
 }
 

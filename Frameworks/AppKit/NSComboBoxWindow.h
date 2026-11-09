@@ -19,8 +19,8 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 - (void)setObjectArray:(NSArray *)objects;
 - (void)setFont:(NSFont *)font;
-- (void)setSelectedIndex:(int)index;
+- (void)setSelectedIndex:(NSInteger)index;
 
-- (int)runTrackingWithEvent:(NSEvent *)event;
+- (NSInteger)runTrackingWithEvent:(NSEvent *)event;
 
 @end

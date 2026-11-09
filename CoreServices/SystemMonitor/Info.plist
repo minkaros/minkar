@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CFBundleDevelopmentRegion</key>
+	<string>en</string>
+	<key>CFBundleLocalizations</key>
+	<array>
+		<string>en</string>
+		<string>es</string>
+	</array>
+	<key>CFBundleExecutable</key>
+	<string>SystemMonitor</string>
+	<key>CFBundleIconFile</key>
+	<string>SystemMonitor</string>
+	<key>CFBundleIdentifier</key>
+	<string>org.minkar.SystemMonitor</string>
+	<key>CFBundleName</key>
+	<string>System Monitor</string>
+	<key>CFBundleDisplayName</key>
+	<string>System Monitor</string>
+	<key>CFBundlePackageType</key>
+	<string>APPL</string>
+	<key>CFBundleShortVersionString</key>
+	<string>1.0</string>
+	<key>CFBundleVersion</key>
+	<string>1</string>
+	<key>LSMinimumSystemVersion</key>
+	<string>10.15</string>
+	<key>LSApplicationCategoryType</key>
+	<string>public.app-category.utilities</string>
+	<key>NSHumanReadableCopyright</key>
+	<string>Copyright © 2026 The Minkar contributors</string>
+	<key>NSPrincipalClass</key>
+	<string>NSApplication</string>
+	<key>CFBundleHelpBookFolder</key>
+	<string>SystemMonitorHelp.help</string>
+	<key>CFBundleHelpBookName</key>
+	<string>org.minkar.SystemMonitor.help</string>
+</dict>
+</plist>

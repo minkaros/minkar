@@ -29,7 +29,7 @@ hardware de su fabricante y se guardan fuera). Inglés:
 
 ## G4.6 — el servidor de ventanas sobre Vulkan (3 nov 2026)
 
-Mac Pro 6,1, FirePro D500 (Tahiti), una pantalla a 3440x1440 y 60 Hz (la
+PC 2, AMD FirePro D500 (Tahiti, PCI 1002:679e; la que lleva la pantalla), una pantalla a 3440x1440 y 60 Hz (la
 escena del ratón a 1152x864, 75 Hz), ratón y teclado a través de un KVM a
 unos 690 eventos del puntero por segundo. **La GPU funciona con los relojes
 que deja el firmware** (memoria a 150 MHz, motor a 450 MHz, de 1.270 y 725

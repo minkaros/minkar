@@ -6,7 +6,15 @@ The above copyright notice and this permission notice shall be included in all c
 
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE. */
 
+#import <objc/runtime.h>
 #import <AppKit/NSFontManager.h>
+#include <stdlib.h>
+#import <AppKit/NSFontPanel.h>
+
+@interface NSFontPanel (NSFontManagerMadeInCode)
+-(instancetype)_initSharedPanel;
+-(NSDictionary *)_convertAttributes:(NSDictionary *)attributes;
+@end
 #import <AppKit/NSFontPanel.h>
 #import <AppKit/NSFont.h>
 #import <AppKit/NSFontFamily.h>
@@ -73,7 +81,7 @@ static Class _fontPanelFactory;
    return nil;
 }
 
--(BOOL)addCollection:(NSString *)name options:(int)options {
+-(BOOL)addCollection:(NSString *)name options:(NSInteger)options {
    NSUnimplementedMethod();
    return 0;
 }
@@ -178,22 +186,25 @@ static Class _fontPanelFactory;
 	return (traits & fontTraits) == traits;
 }
 
--(NSFont *)fontWithFamily:(NSString *)familyName traits:(NSFontTraitMask)traits weight:(int)weight size:(float)size {
-	// Note : weight is ignored 
-	
+-(NSFont *)fontWithFamily:(NSString *)familyName traits:(NSFontTraitMask)traits weight:(NSInteger)weight size:(CGFloat)size {
+	/* Of the typefaces with the italic and bold traits asked for, the one
+	   nearest weight (a hint; 9 when bold is asked for). */
 	NSFontFamily *family=[NSFontFamily fontFamilyWithName:familyName];
 	NSArray      *typefaces=[family typefaces];
-	int           i,count=[typefaces count];
-	NSString     *fontName=nil; 
-	
-	for(i=0;i<count;i++){
-		NSFontTypeface *typeface=[typefaces objectAtIndex:i];
+	NSString     *fontName=nil;
+	int           target=(traits&NSBoldFontMask)?9:weight,bestDistance=0;
+
+	for(NSFontTypeface *typeface in typefaces){
 		NSFontTraitMask checkTraits=[typeface traits];
-		
+
 		if(((traits&NSItalicFontMask)==(checkTraits&NSItalicFontMask)) &&
 		   ((traits&NSBoldFontMask)==(checkTraits&NSBoldFontMask))) {
-			fontName = [typeface name];
-			break;
+			int distance=abs([typeface weight]-target);
+
+			if(fontName==nil || distance<bestDistance){
+				fontName=[typeface name];
+				bestDistance=distance;
+			}
 		}
 	}
 	
@@ -215,8 +226,10 @@ static Class _fontPanelFactory;
 	return font;
 }
 
--(int)weightOfFont:(NSFont *)font {
-	return 5; // default to the normal weight
+-(NSInteger)weightOfFont:(NSFont *)font {
+   NSFontTypeface *typeface=[NSFontFamily fontTypefaceWithName:[font fontName]];
+
+   return (typeface!=nil)?[typeface weight]:5;
 }
 
 -(NSFontTraitMask)traitsOfFont:(NSFont *)font {
@@ -239,9 +252,9 @@ static Class _fontPanelFactory;
 }
 
 -(NSFontPanel *)fontPanel:(BOOL)create {
-   if(_panel==nil && create){
-    [NSBundle loadNibNamed:@"NSFontPanel" owner:self];
-   }
+   /* Made in code, as the reference lays it out (it was a nib). */
+   if(_panel==nil && create)
+    _panel=[[NSFontPanel alloc] _initSharedPanel];
 
 	if(![_panel setFrameUsingName:@"NSFontPanel"]) {
 		[_panel center];
@@ -374,7 +387,7 @@ static Class _fontPanelFactory;
 }
 
 
--(NSFont *)convertFont:(NSFont *)font toSize:(float)size {
+-(NSFont *)convertFont:(NSFont *)font toSize:(CGFloat)size {
    if(size==[font pointSize])
     return font;
 
@@ -486,13 +499,36 @@ static Class _fontPanelFactory;
         return nil;
     }
 
-	NSLog(@"convertWeight: %d ofFont: %@ ignored", heavierNotLighter, font);
-	return font;
+   /* The family's next typeface heavier or lighter, keeping italic. */
+   NSFontFamily   *family=[NSFontFamily fontFamilyWithTypefaceName:[font fontName]];
+   NSFontTypeface *current=[family typefaceWithName:[font fontName]];
+   NSFontTypeface *best=nil;
+
+   if(current==nil)
+    return font;
+   for(NSFontTypeface *typeface in [family typefaces]){
+    int weight=[typeface _weightRank];
+
+    if(([typeface traits]&NSItalicFontMask)!=([current traits]&NSItalicFontMask))
+     continue;
+    if(heavierNotLighter?(weight<=[current _weightRank] || (best!=nil && weight>=[best _weightRank]))
+                        :(weight>=[current _weightRank] || (best!=nil && weight<=[best _weightRank])))
+     continue;
+    best=typeface;
+   }
+   return (best!=nil)?[NSFont fontWithName:[best name] size:[font pointSize]]:font;
 }
 
+/* The font panel's effect being sent (an underline, a color...) applied
+   to a text's attributes; unchanged when none is being sent. */
 -(NSDictionary *)convertAttributes:(NSDictionary *)attributes {
-   NSUnimplementedMethod();
-   return nil;
+   if(_panel!=nil && [_panel respondsToSelector:@selector(_convertAttributes:)])
+    return [_panel _convertAttributes:attributes];
+   return attributes;
+}
+
+-(void)_fontPanelChangedAttributes:(NSFontPanel *)panel {
+   [NSApp sendAction:@selector(changeAttributes:) to:nil from:self];
 }
 
 -(void)addFontTrait:sender {
@@ -549,6 +585,32 @@ static Class _fontPanelFactory;
 		valid = [self _canConvertFont: [self selectedFont] toHaveTrait: tag];
 	}
 	return valid;
+}
+
+
+static char fontMenuKey;
+-(NSMenu *)_fontMenu {
+   id value=objc_getAssociatedObject(self,&fontMenuKey);
+   return (value!=nil)?value:nil;
+}
+-(void)setFontMenu:(NSMenu *)value {
+   objc_setAssociatedObject(self,&fontMenuKey,value,OBJC_ASSOCIATION_RETAIN);
+}
+
+/* The font menu, made when asked for one that does not exist yet. */
+-(NSMenu *)fontMenu:(BOOL)create {
+   NSMenu *menu=[self _fontMenu];
+
+   if(menu==nil && create){
+    menu=[[[NSMenu alloc] initWithTitle:@"Font"] autorelease];
+    [menu addItemWithTitle:@"Show Fonts" action:@selector(orderFrontFontPanel:) keyEquivalent:@"t"];
+    [menu addItemWithTitle:@"Bold" action:@selector(addFontTrait:) keyEquivalent:@"b"];
+    [menu addItemWithTitle:@"Italic" action:@selector(addFontTrait:) keyEquivalent:@"i"];
+    [[menu itemAtIndex:1] setTag:NSBoldFontMask];
+    [[menu itemAtIndex:2] setTag:NSItalicFontMask];
+    [self setFontMenu:menu];
+   }
+   return menu;
 }
 
 @end

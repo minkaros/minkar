@@ -170,6 +170,7 @@ NSString * const NSToolbarChangeAppearanceNotification = @"__NSToolbarChangeAppe
 }
 
 -(NSArray *)items {
+   [self loadDefaultItemsIfNeeded];
    return _items;
 } 
 
@@ -307,7 +308,7 @@ static BOOL isStandardItemIdentifier(NSString *identifier){
    [self _removeItemAtIndex:index];
 }
 
--(void)insertItemWithItemIdentifier:(NSString *)identifier atIndex:(int)index {
+-(void)insertItemWithItemIdentifier:(NSString *)identifier atIndex:(NSInteger)index {
    NSToolbarItem *item=[self _itemForItemIdentifier:identifier willBeInsertedIntoToolbar:YES];
     
    [self _insertItem:item atIndex:index];
@@ -316,7 +317,7 @@ static BOOL isStandardItemIdentifier(NSString *identifier){
     [self saveConfiguration];
 }
 
--(void)removeItemAtIndex:(int)index {
+-(void)removeItemAtIndex:(NSInteger)index {
    [self _removeItemAtIndex:index];
 
    if([self autosavesConfiguration])
@@ -496,7 +497,7 @@ static BOOL isStandardItemIdentifier(NSString *identifier){
    return _palette != nil;
 }
  
--(void)sheetDidEnd:(NSWindow *)sheet returnCode:(int)returnCode contextInfo:(void *)contextInfo {
+-(void)sheetDidEnd:(NSWindow *)sheet returnCode:(NSInteger)returnCode contextInfo:(void *)contextInfo {
     [_palette orderOut:nil];
     [_palette release];
     _palette = nil;

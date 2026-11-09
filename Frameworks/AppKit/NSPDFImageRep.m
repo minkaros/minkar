@@ -72,15 +72,15 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    return _pdf;
 }
 
--(int)pageCount {
+-(NSInteger)pageCount {
    return CGPDFDocumentGetNumberOfPages(_document);
 }
 
--(int)currentPage {
+-(NSInteger)currentPage {
    return _currentPage;
 }
 
--(void)setCurrentPage:(int)page {
+-(void)setCurrentPage:(NSInteger)page {
    _currentPage=page;
 }
 

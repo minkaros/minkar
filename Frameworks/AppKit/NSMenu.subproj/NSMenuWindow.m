@@ -55,7 +55,7 @@ static void menuWillOpen(NSMenu *menu) {
 }
 
 #if 0
--initWithMenu:(NSMenu *)menu overflowAtIndex:(unsigned)overflowIndex {
+-initWithMenu:(NSMenu *)menu overflowAtIndex:(NSUInteger)overflowIndex {
     NSOverflowMenuView *view=[[NSOverflowMenuView alloc] initWithMenu:menu overflowAtIndex:overflowIndex];
     NSRect contentRect=[view frame];
 

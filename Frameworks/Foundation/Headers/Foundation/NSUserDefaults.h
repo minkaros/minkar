@@ -8,7 +8,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 #import <Foundation/NSObject.h>
 
-@class NSArray<ObjectType>, NSData, NSMutableDictionary<KeyType, ObjectType>, NSDictionary<KeyType, ObjectType>, NSMutableArray<ObjectType>;
+@class NSArray<ObjectType>, NSData, NSURL, NSString, NSMutableDictionary<KeyType, ObjectType>, NSDictionary<KeyType, ObjectType>, NSMutableArray<ObjectType>;
 
 FOUNDATION_EXPORT NSString *const NSGlobalDomain;
 FOUNDATION_EXPORT NSString *const NSArgumentDomain;
@@ -31,10 +31,15 @@ FOUNDATION_EXPORT NSString *const NSUserDefaultsDidChangeNotification;
     NSMutableDictionary *_domains;
     NSArray *_searchList;
     NSDictionary *_dictionaryRep;
+    NSString *_persistentName;
 }
 
 - (nonnull instancetype)init;
 - (instancetype)initWithUser:(NSString *)user;
+/* The defaults of a suite (an app group's, or another app's domain):
+   read and written there, with the global and registration domains;
+   nil gives the standard search list. */
+- (nullable instancetype)initWithSuiteName:(nullable NSString *)suitename;
 
 + (NSUserDefaults *)standardUserDefaults;
 + (void)resetStandardUserDefaults;
@@ -82,6 +87,10 @@ FOUNDATION_EXPORT NSString *const NSUserDefaultsDidChangeNotification;
 - (void)setInteger:(NSInteger)value forKey:(NSString *)key;
 - (void)setFloat:(float)value forKey:(NSString *)key;
 - (void)setDouble:(double)value forKey:(NSString *)key;
+/* A file URL is kept as its path (with ~ for the home folder), others
+   archived. */
+- (nullable NSURL *)URLForKey:(NSString *)defaultName;
+- (void)setURL:(nullable NSURL *)url forKey:(NSString *)defaultName;
 
 - (void)removeObjectForKey:(NSString *)key;
 

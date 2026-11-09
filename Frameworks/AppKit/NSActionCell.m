@@ -43,7 +43,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    return _action;
 }
 
--(int)tag {
+-(NSInteger)tag {
    return _tag;
 }
 
@@ -60,7 +60,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    _action=action;
 }
 
--(void)setTag:(int)tag {
+-(void)setTag:(NSInteger)tag {
    _tag=tag;
 }
 

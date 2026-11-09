@@ -48,5 +48,6 @@ enum {
 
 - (CGPathRef)createPathForGlyph:(CGGlyph)glyph transform:(CGAffineTransform *)xform;
 - (CGFloat)defaultLineHeightForFont; 
+- (CGFontRef)_cgFont;
 
 @end

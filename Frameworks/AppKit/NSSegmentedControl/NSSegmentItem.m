@@ -43,7 +43,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    [super dealloc];
 }
 
--(int)tag {
+-(NSInteger)tag {
    return _tag;
 }
 
@@ -79,7 +79,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    return _width;
 }
 
--(void)setTag:(int)tag {
+-(void)setTag:(NSInteger)tag {
    _tag=tag;
 }
 

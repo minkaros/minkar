@@ -63,6 +63,11 @@ CFURLRef _Nullable LSCopyDefaultApplicationURLForContentType(CFStringRef inConte
  * applications that open it, and the preferred one. */
 CFArrayRef _Nullable LSCopyAllHandlersForURLScheme(CFStringRef inURLScheme) CF_RETURNS_RETAINED;
 CFStringRef _Nullable LSCopyDefaultHandlerForURLScheme(CFStringRef inURLScheme) CF_RETURNS_RETAINED;
+/* The user's default application for a URL scheme or a content type (by
+   bundle identifier), kept in the user's preferences. */
+OSStatus LSSetDefaultHandlerForURLScheme(CFStringRef inURLScheme, CFStringRef inHandlerBundleID);
+OSStatus LSSetDefaultRoleHandlerForContentType(CFStringRef inContentType, LSRolesMask inRole,
+    CFStringRef inHandlerBundleID);
 
 CF_EXTERN_C_END
 CF_ASSUME_NONNULL_END

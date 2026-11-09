@@ -11,6 +11,10 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 @interface NSSlider : NSControl
 
+/* A horizontal slider from 0 to 1, or between the values given. */
++ (instancetype)sliderWithTarget:(id)target action:(SEL)action;
++ (instancetype)sliderWithValue:(double)value minValue:(double)minValue maxValue:(double)maxValue target:(id)target action:(SEL)action;
+
 - (double)minValue;
 - (double)maxValue;
 - (double)altIncrementValue;

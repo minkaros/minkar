@@ -10,7 +10,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 @implementation NSTextList
 
--initWithMarkerFormat:(NSString *)format options:(unsigned)options {
+-initWithMarkerFormat:(NSString *)format options:(NSUInteger)options {
    _markerFormat=[format copy];
    _options=options;
    return self;
@@ -25,11 +25,11 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    return _markerFormat;
 }
 
--(unsigned)listOptions {
+-(NSUInteger)listOptions {
    return _options;
 }
 
--(NSString *)markerForItemNumber:(int)index {
+-(NSString *)markerForItemNumber:(NSInteger)index {
    NSUnimplementedMethod();
    return nil;
 }

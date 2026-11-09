@@ -42,11 +42,7 @@ CF_EXTERN_C_BEGIN
 #define __kCFLogBundle       3
 #define __kCFLogPlugIn       3
 
-#if DEPLOYMENT_TARGET_WINDOWS
-#define PLATFORM_PATH_STYLE kCFURLWindowsPathStyle
-#else
 #define PLATFORM_PATH_STYLE kCFURLPOSIXPathStyle
-#endif
 
 #define CFBundleExecutableNotFoundError             4
 #define CFBundleExecutableNotLoadableError          3584
@@ -130,10 +126,6 @@ struct __CFBundle {
     CFLock_t _queryLock;
     CFMutableDictionaryRef _queryTable;
     CFStringRef _bundleBasePath;
-    
-#if defined(BINARY_SUPPORT_DLL)
-    HMODULE _hModule;
-#endif /* BINARY_SUPPORT_DLL */
     
 };
 
@@ -230,12 +222,6 @@ extern void _CFBundleDlfcnUnload(CFBundleRef bundle);
 extern void *_CFBundleDlfcnGetSymbolByName(CFBundleRef bundle, CFStringRef symbolName);
 #endif /* BINARY_SUPPORT_DLFCN */
 
-#if defined(BINARY_SUPPORT_DLL)
-extern Boolean _CFBundleDLLLoad(CFBundleRef bundle, CFErrorRef *error);
-extern void _CFBundleDLLUnload(CFBundleRef bundle);
-extern void *_CFBundleDLLGetSymbolByName(CFBundleRef bundle, CFStringRef symbolName);
-#endif /* BINARY_SUPPORT_DLL */
-
 
 /* Private PlugIn-related CFBundle API */
 
@@ -260,13 +246,8 @@ extern void _CFPlugInRemoveFactory(CFPlugInRef plugIn, _CFPFactoryRef factory);
 #define _CFBundleExecutablesDirectoryName CFSTR("Executables")
 #define _CFBundleNonLocalizedResourcesDirectoryName CFSTR("Non-localized Resources")
 
-#if DEPLOYMENT_TARGET_WINDOWS
-#define _CFBundleSupportFilesDirectoryName1WithResources CFSTR("Support Files\\Resources")
-#define _CFBundleSupportFilesDirectoryName2WithResources CFSTR("Contents\\Resources")
-#else
 #define _CFBundleSupportFilesDirectoryName1WithResources CFSTR("Support Files/Resources")
 #define _CFBundleSupportFilesDirectoryName2WithResources CFSTR("Contents/Resources")
-#endif
 
 #define _CFBundleSupportFilesURLFromBase1 CFSTR("Support%20Files/")
 #define _CFBundleSupportFilesURLFromBase2 CFSTR("Contents/")
@@ -348,11 +329,6 @@ extern void _CFPlugInRemoveFactory(CFPlugInRef plugIn, _CFPFactoryRef factory);
 #define _CFBundleiPhoneOSPlatformName CFSTR("iphoneos")
 #define _CFBundleMacOS8PlatformName CFSTR("macosclassic")
 #define _CFBundleAlternateMacOS8PlatformName CFSTR("macos8")
-#define _CFBundleWindowsPlatformName CFSTR("windows")
-#define _CFBundleHPUXPlatformName CFSTR("hpux")
-#define _CFBundleSolarisPlatformName CFSTR("solaris")
-#define _CFBundleLinuxPlatformName CFSTR("linux")
-#define _CFBundleFreeBSDPlatformName CFSTR("freebsd")
 
 #define _CFBundleDefaultStringTableName CFSTR("Localizable")
 #define _CFBundleStringTableType CFSTR("strings")
@@ -363,10 +339,8 @@ extern void _CFPlugInRemoveFactory(CFPlugInRef plugIn, _CFPFactoryRef factory);
 
 #define _CFBundleLocalizedResourceForkFileName CFSTR("Localized")
 
-#define _CFBundleWindowsResourceDirectoryExtension CFSTR("resources")
 
 #define _CFBundleMacOSXInfoPlistPlatformName_OLD CFSTR("macos")
-#define _CFBundleWindowsInfoPlistPlatformName_OLD CFSTR("win32")
 
 CF_EXTERN_C_END
 

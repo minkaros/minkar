@@ -17,6 +17,7 @@ typedef struct O2DataProvider *CGDataProviderRef;
 
 typedef void (*CGDataProviderReleaseDataCallback)(void * _Nullable info, const void *data, size_t size);
 
+COREGRAPHICS_EXPORT CFTypeID CGDataProviderGetTypeID(void);
 COREGRAPHICS_EXPORT CGDataProviderRef _Nullable CGDataProviderRetain(CGDataProviderRef _Nullable provider);
 COREGRAPHICS_EXPORT void CGDataProviderRelease(CGDataProviderRef _Nullable provider);
 

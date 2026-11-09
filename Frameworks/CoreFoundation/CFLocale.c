@@ -37,7 +37,6 @@
 #include <CoreFoundation/CFNumber.h>
 #include "CFInternal.h"
 #include "CFLocaleInternal.h"
-#if DEPLOYMENT_TARGET_MACOSX || DEPLOYMENT_TARGET_EMBEDDED || DEPLOYMENT_TARGET_WINDOWS || DEPLOYMENT_TARGET_LINUX
 #include <unicode/uloc.h>           // ICU locales
 #include <unicode/ulocdata.h>       // ICU locale data
 #include <unicode/ucal.h>
@@ -46,23 +45,10 @@
 #include <unicode/putil.h>          // ICU low-level utilities
 #include <unicode/umsg.h>           // ICU message formatting
 #include <unicode/ucol.h>
-#endif
 #include <CoreFoundation/CFNumberFormatter.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
-
-#if DEPLOYMENT_TARGET_EMBEDDED_MINI
-// Some compatability definitions
-#define ULOC_FULLNAME_CAPACITY 157
-#define ULOC_KEYWORD_AND_VALUES_CAPACITY 100
-
-//typedef long UErrorCode;
-//#define U_BUFFER_OVERFLOW_ERROR 15
-//#define U_ZERO_ERROR 0
-//
-//typedef uint16_t UChar;
-#endif
 
 
 CONST_STRING_DECL(kCFLocaleCurrentLocaleDidChangeNotification, "kCFLocaleCurrentLocaleDidChangeNotification")
@@ -291,13 +277,7 @@ extern CFDictionaryRef __CFXPreferencesCopyCurrentApplicationState(void);
 static CFLocaleRef __CFLocaleCurrent = NULL;
 
 
-#if DEPLOYMENT_TARGET_MACOSX
 #define FALLBACK_LOCALE_NAME CFSTR("")
-#elif DEPLOYMENT_TARGET_EMBEDDED || DEPLOYMENT_TARGET_EMBEDDED_MINI
-#define FALLBACK_LOCALE_NAME CFSTR("en_US")
-#elif DEPLOYMENT_TARGET_WINDOWS || DEPLOYMENT_TARGET_LINUX
-#define FALLBACK_LOCALE_NAME CFSTR("en_US")
-#endif
 
 static CFLocaleRef _CFLocaleCopyCurrentGuts(CFStringRef name, Boolean useCache, CFDictionaryRef overridePrefs) {
     
@@ -307,7 +287,7 @@ static CFLocaleRef _CFLocaleCopyCurrentGuts(CFStringRef name, Boolean useCache, 
     // things which call this function thousands or millions of times in
     // a short period.
     if (!name) {
-#if 0 // DEPLOYMENT_TARGET_MACOSX || DEPLOYMENT_TARGET_EMBEDDED || DEPLOYMENT_TARGET_WINDOWS || DEPLOYMENT_TARGET_LINUX
+#if 0 // DEPLOYMENT_TARGET_MACOSX || DEPLOYMENT_TARGET_EMBEDDED
         name = (CFStringRef)CFPreferencesCopyAppValue(CFSTR("AppleLocale"), kCFPreferencesCurrentApplication);
 #endif
     } else {
@@ -454,7 +434,6 @@ CFStringRef CFLocaleGetIdentifier(CFLocaleRef locale) {
 }
 
 CFTypeRef CFLocaleGetValue(CFLocaleRef locale, CFStringRef key) {
-#if DEPLOYMENT_TARGET_MACOSX
     if (!_CFExecutableLinkedOnOrAfter(CFSystemVersionSnowLeopard)) {
 	// Hack for Opera, which is using the hard-coded string value below instead of
         // the perfectly good public kCFLocaleCountryCode constant, for whatever reason.
@@ -462,7 +441,6 @@ CFTypeRef CFLocaleGetValue(CFLocaleRef locale, CFStringRef key) {
 	    key = kCFLocaleCountryCodeKey;
 	}
     }
-#endif
     CF_OBJC_FUNCDISPATCHV(CFLocaleGetTypeID(), CFTypeRef, (NSLocale *)locale, objectForKey:(id)key);
     CFIndex idx, slot = -1;
     for (idx = 0; idx < __kCFLocaleKeyTableCount; idx++) {
@@ -542,9 +520,7 @@ CFStringRef CFLocaleCopyDisplayNameForPropertyValue(CFLocaleRef displayLocale, C
 	    langPref = (CFArrayRef)CFDictionaryGetValue(displayLocale->_prefs, CFSTR("AppleLanguages"));
 	    if (langPref) CFRetain(langPref);
 	} else {
-#if DEPLOYMENT_TARGET_MACOSX || DEPLOYMENT_TARGET_EMBEDDED || DEPLOYMENT_TARGET_WINDOWS || DEPLOYMENT_TARGET_LINUX
 	    langPref = (CFArrayRef)CFPreferencesCopyAppValue(CFSTR("AppleLanguages"), kCFPreferencesCurrentApplication);
-#endif
 	}
         if (langPref != NULL) {
             CFIndex count = CFArrayGetCount(langPref);
@@ -567,7 +543,6 @@ CFStringRef CFLocaleCopyDisplayNameForPropertyValue(CFLocaleRef displayLocale, C
 }
 
 CFArrayRef CFLocaleCopyAvailableLocaleIdentifiers(void) {
-#if DEPLOYMENT_TARGET_MACOSX || DEPLOYMENT_TARGET_EMBEDDED || DEPLOYMENT_TARGET_WINDOWS || DEPLOYMENT_TARGET_LINUX
     int32_t locale, localeCount = uloc_countAvailable();
     CFMutableSetRef working = CFSetCreateMutable(kCFAllocatorSystemDefault, 0, &kCFTypeSetCallBacks);
     for (locale = 0; locale < localeCount; ++locale) {
@@ -583,12 +558,8 @@ CFArrayRef CFLocaleCopyAvailableLocaleIdentifiers(void) {
     CFArrayRef result = CFArrayCreate(kCFAllocatorSystemDefault, buffer, cnt, &kCFTypeArrayCallBacks);
     CFRelease(working);
     return result;
-#else
-    return CFArrayCreate(kCFAllocatorSystemDefault, NULL, 0, &kCFTypeArrayCallBacks);
-#endif
 }
 
-#if DEPLOYMENT_TARGET_MACOSX || DEPLOYMENT_TARGET_EMBEDDED || DEPLOYMENT_TARGET_WINDOWS || DEPLOYMENT_TARGET_LINUX
 static CFArrayRef __CFLocaleCopyCStringsAsArray(const char* const* p) {
     CFMutableArrayRef working = CFArrayCreateMutable(kCFAllocatorSystemDefault, 0, &kCFTypeArrayCallBacks);
     for (; *p; ++p) {
@@ -625,52 +596,34 @@ static CFArrayRef __CFLocaleCopyUEnumerationAsArray(UEnumeration *enumer, UError
     }
     return result;
 }
-#endif
 
 CFArrayRef CFLocaleCopyISOLanguageCodes(void) {
-#if DEPLOYMENT_TARGET_MACOSX || DEPLOYMENT_TARGET_EMBEDDED || DEPLOYMENT_TARGET_WINDOWS || DEPLOYMENT_TARGET_LINUX
     const char* const* p = uloc_getISOLanguages();
     return __CFLocaleCopyCStringsAsArray(p);
-#else
-    return CFArrayCreate(kCFAllocatorSystemDefault, NULL, 0, &kCFTypeArrayCallBacks);
-#endif
 }
 
 CFArrayRef CFLocaleCopyISOCountryCodes(void) {
-#if DEPLOYMENT_TARGET_MACOSX || DEPLOYMENT_TARGET_EMBEDDED || DEPLOYMENT_TARGET_WINDOWS || DEPLOYMENT_TARGET_LINUX
     const char* const* p = uloc_getISOCountries();
     return __CFLocaleCopyCStringsAsArray(p);
-#else
-    return CFArrayCreate(kCFAllocatorSystemDefault, NULL, 0, &kCFTypeArrayCallBacks);
-#endif
 }
 
 CFArrayRef CFLocaleCopyISOCurrencyCodes(void) {
-#if DEPLOYMENT_TARGET_MACOSX || DEPLOYMENT_TARGET_EMBEDDED || DEPLOYMENT_TARGET_WINDOWS || DEPLOYMENT_TARGET_LINUX
     UErrorCode icuStatus = U_ZERO_ERROR;
     UEnumeration *enumer = ucurr_openISOCurrencies(UCURR_ALL, &icuStatus);
     CFArrayRef result = __CFLocaleCopyUEnumerationAsArray(enumer, &icuStatus);
     uenum_close(enumer);
-#else
-    CFArrayRef result = CFArrayCreate(kCFAllocatorSystemDefault, NULL, 0, &kCFTypeArrayCallBacks);
-#endif
     return result;
 }
 
 CFArrayRef CFLocaleCopyCommonISOCurrencyCodes(void) {
-#if DEPLOYMENT_TARGET_MACOSX || DEPLOYMENT_TARGET_EMBEDDED || DEPLOYMENT_TARGET_WINDOWS || DEPLOYMENT_TARGET_LINUX
     UErrorCode icuStatus = U_ZERO_ERROR;
     UEnumeration *enumer = ucurr_openISOCurrencies(UCURR_COMMON|UCURR_NON_DEPRECATED, &icuStatus);
     CFArrayRef result = __CFLocaleCopyUEnumerationAsArray(enumer, &icuStatus);
     uenum_close(enumer);
-#else
-    CFArrayRef result = CFArrayCreate(kCFAllocatorSystemDefault, NULL, 0, &kCFTypeArrayCallBacks);
-#endif
     return result;
 }
 
 CFStringRef CFLocaleCreateLocaleIdentifierFromWindowsLocaleCode(CFAllocatorRef allocator, uint32_t lcid) {
-#if DEPLOYMENT_TARGET_MACOSX || DEPLOYMENT_TARGET_EMBEDDED || DEPLOYMENT_TARGET_WINDOWS || DEPLOYMENT_TARGET_LINUX
     char buffer[kMaxICUNameSize];
     UErrorCode status = U_ZERO_ERROR;
     int32_t ret = uloc_getLocaleForLCID(lcid, buffer, kMaxICUNameSize, &status);
@@ -679,25 +632,17 @@ CFStringRef CFLocaleCreateLocaleIdentifierFromWindowsLocaleCode(CFAllocatorRef a
     CFStringRef ident = CFLocaleCreateCanonicalLocaleIdentifierFromString(kCFAllocatorSystemDefault, str);
     CFRelease(str);
     return ident;
-#else
-    return CFSTR("");
-#endif
 }
 
 uint32_t CFLocaleGetWindowsLocaleCodeFromLocaleIdentifier(CFStringRef localeIdentifier) {
-#if DEPLOYMENT_TARGET_MACOSX || DEPLOYMENT_TARGET_EMBEDDED || DEPLOYMENT_TARGET_WINDOWS || DEPLOYMENT_TARGET_LINUX
     CFStringRef ident = CFLocaleCreateCanonicalLocaleIdentifierFromString(kCFAllocatorSystemDefault, localeIdentifier);
     char localeID[ULOC_FULLNAME_CAPACITY+ULOC_KEYWORD_AND_VALUES_CAPACITY];
     Boolean b = ident ? CFStringGetCString(ident, localeID, sizeof(localeID)/sizeof(char), kCFStringEncodingASCII) : false;
     if (ident) CFRelease(ident);
     return b ? uloc_getLCID(localeID) : 0;
-#else
-    return 0;
-#endif
 }
 
 CFLocaleLanguageDirection CFLocaleGetLanguageCharacterDirection(CFStringRef isoLangCode) {
-#if DEPLOYMENT_TARGET_MACOSX || DEPLOYMENT_TARGET_EMBEDDED || DEPLOYMENT_TARGET_WINDOWS || DEPLOYMENT_TARGET_LINUX
     char localeID[ULOC_FULLNAME_CAPACITY+ULOC_KEYWORD_AND_VALUES_CAPACITY];
     Boolean b = isoLangCode ? CFStringGetCString(isoLangCode, localeID, sizeof(localeID)/sizeof(char), kCFStringEncodingASCII) : false;
     CFLocaleLanguageDirection dir;
@@ -711,13 +656,9 @@ CFLocaleLanguageDirection CFLocaleGetLanguageCharacterDirection(CFStringRef isoL
     default: dir = kCFLocaleLanguageDirectionUnknown; break;
     }
     return dir;
-#else
-    return kCFLocaleLanguageDirectionLeftToRight;
-#endif
 }
 
 CFLocaleLanguageDirection CFLocaleGetLanguageLineDirection(CFStringRef isoLangCode) {
-#if DEPLOYMENT_TARGET_MACOSX || DEPLOYMENT_TARGET_EMBEDDED || DEPLOYMENT_TARGET_WINDOWS || DEPLOYMENT_TARGET_LINUX
     char localeID[ULOC_FULLNAME_CAPACITY+ULOC_KEYWORD_AND_VALUES_CAPACITY];
     Boolean b = isoLangCode ? CFStringGetCString(isoLangCode, localeID, sizeof(localeID)/sizeof(char), kCFStringEncodingASCII) : false;
     CFLocaleLanguageDirection dir;
@@ -731,14 +672,10 @@ CFLocaleLanguageDirection CFLocaleGetLanguageLineDirection(CFStringRef isoLangCo
     default: dir = kCFLocaleLanguageDirectionUnknown; break;
     }
     return dir;
-#else
-    return kCFLocaleLanguageDirectionLeftToRight;
-#endif
 }
 
 CFArrayRef CFLocaleCopyPreferredLanguages(void) {
     CFMutableArrayRef newArray = CFArrayCreateMutable(kCFAllocatorSystemDefault, 0, &kCFTypeArrayCallBacks);
-#if DEPLOYMENT_TARGET_MACOSX || DEPLOYMENT_TARGET_EMBEDDED || DEPLOYMENT_TARGET_WINDOWS
     CFArrayRef languagesArray = (CFArrayRef)CFPreferencesCopyAppValue(CFSTR("AppleLanguages"), kCFPreferencesCurrentApplication);
     if (languagesArray && (CFArrayGetTypeID() == CFGetTypeID(languagesArray))) {
 	for (CFIndex idx = 0, cnt = CFArrayGetCount(languagesArray); idx < cnt; idx++) {
@@ -751,7 +688,6 @@ CFArrayRef CFLocaleCopyPreferredLanguages(void) {
 	}
     }
     if (languagesArray)	CFRelease(languagesArray);
-#endif
     return newArray;
 }
 
@@ -787,7 +723,6 @@ static bool __CFLocaleCopyCodes(CFLocaleRef locale, bool user, CFTypeRef *cf, CF
     return false;
 }
 
-#if DEPLOYMENT_TARGET_MACOSX || DEPLOYMENT_TARGET_EMBEDDED || DEPLOYMENT_TARGET_WINDOWS || DEPLOYMENT_TARGET_LINUX
 CFCharacterSetRef _CFCreateCharacterSetFromUSet(USet *set) {
     UErrorCode icuErr = U_ZERO_ERROR;
     CFMutableCharacterSetRef working = CFCharacterSetCreateMutable(NULL);
@@ -840,10 +775,8 @@ CFCharacterSetRef _CFCreateCharacterSetFromUSet(USet *set) {
     CFRelease(working);
     return result;
 }
-#endif
 
 static bool __CFLocaleCopyExemplarCharSet(CFLocaleRef locale, bool user, CFTypeRef *cf, CFStringRef context) {
-#if DEPLOYMENT_TARGET_MACOSX || DEPLOYMENT_TARGET_EMBEDDED || DEPLOYMENT_TARGET_WINDOWS || DEPLOYMENT_TARGET_LINUX
     char localeID[ULOC_FULLNAME_CAPACITY+ULOC_KEYWORD_AND_VALUES_CAPACITY];
     if (CFStringGetCString(locale->_identifier, localeID, sizeof(localeID)/sizeof(char), kCFStringEncodingASCII)) {
         UErrorCode icuStatus = U_ZERO_ERROR;
@@ -858,13 +791,11 @@ static bool __CFLocaleCopyExemplarCharSet(CFLocaleRef locale, bool user, CFTypeR
         uset_close(set);
         return (*cf != NULL);
     }
-#endif
     return false;
 }
 
 static bool __CFLocaleCopyICUKeyword(CFLocaleRef locale, bool user, CFTypeRef *cf, CFStringRef context, const char *keyword)
 {
-#if DEPLOYMENT_TARGET_MACOSX || DEPLOYMENT_TARGET_EMBEDDED || DEPLOYMENT_TARGET_WINDOWS || DEPLOYMENT_TARGET_LINUX
     char localeID[ULOC_FULLNAME_CAPACITY+ULOC_KEYWORD_AND_VALUES_CAPACITY];
     if (CFStringGetCString(locale->_identifier, localeID, sizeof(localeID)/sizeof(char), kCFStringEncodingASCII))
     {
@@ -876,13 +807,11 @@ static bool __CFLocaleCopyICUKeyword(CFLocaleRef locale, bool user, CFTypeRef *c
             return true;
         }
     }
-#endif
     *cf = NULL;
     return false;
 }
 
 static bool __CFLocaleCopyICUCalendarID(CFLocaleRef locale, bool user, CFTypeRef *cf, CFStringRef context, const char *keyword) {
-#if DEPLOYMENT_TARGET_MACOSX || DEPLOYMENT_TARGET_EMBEDDED || DEPLOYMENT_TARGET_WINDOWS || DEPLOYMENT_TARGET_LINUX
     char localeID[ULOC_FULLNAME_CAPACITY+ULOC_KEYWORD_AND_VALUES_CAPACITY];
     if (CFStringGetCString(locale->_identifier, localeID, sizeof(localeID)/sizeof(char), kCFStringEncodingASCII)) {
         UErrorCode icuStatus = U_ZERO_ERROR;
@@ -896,7 +825,6 @@ static bool __CFLocaleCopyICUCalendarID(CFLocaleRef locale, bool user, CFTypeRef
         }
 	uenum_close(en);
     }
-#endif
     *cf = NULL;
     return false;
 }
@@ -967,7 +895,6 @@ static bool __CFLocaleCopyCalendarID(CFLocaleRef locale, bool user, CFTypeRef *c
 }
 
 static bool __CFLocaleCopyCalendar(CFLocaleRef locale, bool user, CFTypeRef *cf, CFStringRef context) {
-#if DEPLOYMENT_TARGET_MACOSX || DEPLOYMENT_TARGET_EMBEDDED || DEPLOYMENT_TARGET_WINDOWS || DEPLOYMENT_TARGET_LINUX
     if (__CFLocaleCopyCalendarID(locale, user, cf, context)) {
 	CFCalendarRef calendar = CFCalendarCreateWithIdentifier(kCFAllocatorSystemDefault, (CFStringRef)*cf);
 	CFCalendarSetLocale(calendar, locale);
@@ -996,12 +923,10 @@ static bool __CFLocaleCopyCalendar(CFLocaleRef locale, bool user, CFTypeRef *cf,
 	*cf = calendar;
 	return true;
     }
-#endif
     return false;
 }
 
 static bool __CFLocaleCopyDelimiter(CFLocaleRef locale, bool user, CFTypeRef *cf, CFStringRef context) {
-#if DEPLOYMENT_TARGET_MACOSX || DEPLOYMENT_TARGET_EMBEDDED || DEPLOYMENT_TARGET_WINDOWS || DEPLOYMENT_TARGET_LINUX
     ULocaleDataDelimiterType type = (ULocaleDataDelimiterType)0;
     if (context == kCFLocaleQuotationBeginDelimiterKey) {
 	type = ULOCDATA_QUOTATION_START;
@@ -1031,14 +956,6 @@ static bool __CFLocaleCopyDelimiter(CFLocaleRef locale, bool user, CFTypeRef *cf
 
     *cf = CFStringCreateWithCharacters(kCFAllocatorSystemDefault, (UniChar *)buffer, len);
     return (*cf != NULL);
-#else
-    if (context == kCFLocaleQuotationBeginDelimiterKey || context == kCFLocaleQuotationEndDelimiterKey || context == kCFLocaleAlternateQuotationBeginDelimiterKey || context == kCFLocaleAlternateQuotationEndDelimiterKey) {
-	*cf = CFRetain(CFSTR("\""));
-        return true;
-    } else {
-        return false;
-    }
-#endif
 }
 
 static bool __CFLocaleCopyCollationID(CFLocaleRef locale, bool user, CFTypeRef *cf, CFStringRef context) {
@@ -1073,10 +990,8 @@ static bool __CFLocaleCopyCollatorID(CFLocaleRef locale, bool user, CFTypeRef *c
 }
 
 static bool __CFLocaleCopyUsesMetric(CFLocaleRef locale, bool user, CFTypeRef *cf, CFStringRef context) {
-#if DEPLOYMENT_TARGET_MACOSX || DEPLOYMENT_TARGET_EMBEDDED || DEPLOYMENT_TARGET_WINDOWS || DEPLOYMENT_TARGET_LINUX
     bool us = false;    // Default is Metric
     bool done = false;
-#if DEPLOYMENT_TARGET_MACOSX || DEPLOYMENT_TARGET_EMBEDDED
     if (user) {
 	CFTypeRef pref = CFDictionaryGetValue(locale->_prefs, CFSTR("AppleMetricUnits"));
 	if (pref) {
@@ -1090,7 +1005,6 @@ static bool __CFLocaleCopyUsesMetric(CFLocaleRef locale, bool user, CFTypeRef *c
 	    }
 	}
     }
-#endif
     if (!done) {
         char localeID[ULOC_FULLNAME_CAPACITY+ULOC_KEYWORD_AND_VALUES_CAPACITY];
         if (CFStringGetCString(locale->_identifier, localeID, sizeof(localeID)/sizeof(char), kCFStringEncodingASCII)) {
@@ -1107,10 +1021,6 @@ static bool __CFLocaleCopyUsesMetric(CFLocaleRef locale, bool user, CFTypeRef *c
         us = false;
     *cf = us ? CFRetain(kCFBooleanFalse) : CFRetain(kCFBooleanTrue);
     return true;
-#else
-    *cf = CFRetain(kCFBooleanFalse);
-    return true;
-#endif
 }
 
 static bool __CFLocaleCopyMeasurementSystem(CFLocaleRef locale, bool user, CFTypeRef *cf, CFStringRef context) {
@@ -1125,11 +1035,9 @@ static bool __CFLocaleCopyMeasurementSystem(CFLocaleRef locale, bool user, CFTyp
 
 static bool __CFLocaleCopyNumberFormat(CFLocaleRef locale, bool user, CFTypeRef *cf, CFStringRef context) {
     CFStringRef str = NULL;
-#if DEPLOYMENT_TARGET_MACOSX || DEPLOYMENT_TARGET_EMBEDDED || DEPLOYMENT_TARGET_WINDOWS || DEPLOYMENT_TARGET_LINUX
     CFNumberFormatterRef nf = CFNumberFormatterCreate(kCFAllocatorSystemDefault, locale, kCFNumberFormatterDecimalStyle);
     str = nf ? (CFStringRef)CFNumberFormatterCopyProperty(nf, context) : NULL;
     if (nf) CFRelease(nf);
-#endif
     if (str) {
 	*cf = str;
 	return true;
@@ -1141,11 +1049,9 @@ static bool __CFLocaleCopyNumberFormat(CFLocaleRef locale, bool user, CFTypeRef 
 // so we have to have another routine here which creates a Currency number formatter.
 static bool __CFLocaleCopyNumberFormat2(CFLocaleRef locale, bool user, CFTypeRef *cf, CFStringRef context) {
     CFStringRef str = NULL;
-#if DEPLOYMENT_TARGET_MACOSX || DEPLOYMENT_TARGET_EMBEDDED || DEPLOYMENT_TARGET_WINDOWS || DEPLOYMENT_TARGET_LINUX
     CFNumberFormatterRef nf = CFNumberFormatterCreate(kCFAllocatorSystemDefault, locale, kCFNumberFormatterCurrencyStyle);
     str = nf ? (CFStringRef)CFNumberFormatterCopyProperty(nf, context) : NULL;
     if (nf) CFRelease(nf);
-#endif
     if (str) {
 	*cf = str;
 	return true;
@@ -1153,7 +1059,6 @@ static bool __CFLocaleCopyNumberFormat2(CFLocaleRef locale, bool user, CFTypeRef
     return false;
 }
 
-#if DEPLOYMENT_TARGET_MACOSX || DEPLOYMENT_TARGET_EMBEDDED || DEPLOYMENT_TARGET_WINDOWS || DEPLOYMENT_TARGET_LINUX
 typedef int32_t (*__CFICUFunction)(const char *, const char *, UChar *, int32_t, UErrorCode *);
 
 static bool __CFLocaleICUName(const char *locale, const char *valLocale, CFStringRef *out, __CFICUFunction icu) {
@@ -1222,10 +1127,8 @@ static bool __CFLocaleICUCurrencyName(const char *locale, const char *value, UCu
     *out = CFStringCreateWithCharacters(kCFAllocatorSystemDefault, (UniChar *)name, size);
     return (*out != NULL);
 }
-#endif
 
 static bool __CFLocaleFullName(const char *locale, const char *value, CFStringRef *out) {
-#if DEPLOYMENT_TARGET_MACOSX || DEPLOYMENT_TARGET_EMBEDDED || DEPLOYMENT_TARGET_WINDOWS || DEPLOYMENT_TARGET_LINUX
     UErrorCode icuStatus = U_ZERO_ERROR;
     int32_t size;
     UChar name[kMaxICUNameSize];
@@ -1251,23 +1154,13 @@ static bool __CFLocaleFullName(const char *locale, const char *value, CFStringRe
     // This locale is OK, so use the result.
     *out = CFStringCreateWithCharacters(kCFAllocatorSystemDefault, (UniChar *)name, size);
     return (*out != NULL);
-#else
-    *out = CFRetain(CFSTR("(none)"));
-    return true;
-#endif
 }
 
 static bool __CFLocaleLanguageName(const char *locale, const char *value, CFStringRef *out) {
-#if DEPLOYMENT_TARGET_MACOSX || DEPLOYMENT_TARGET_EMBEDDED || DEPLOYMENT_TARGET_WINDOWS || DEPLOYMENT_TARGET_LINUX
     return __CFLocaleICUName(locale, value, out, uloc_getDisplayLanguage);
-#else
-    *out = CFRetain(CFSTR("(none)"));
-    return true;
-#endif
 }
 
 static bool __CFLocaleCountryName(const char *locale, const char *value, CFStringRef *out) {
-#if DEPLOYMENT_TARGET_MACOSX || DEPLOYMENT_TARGET_EMBEDDED || DEPLOYMENT_TARGET_WINDOWS || DEPLOYMENT_TARGET_LINUX
     // Need to make a fake locale ID
     char lid[ULOC_FULLNAME_CAPACITY];
     if (strlen(value) < sizeof(lid) - 3) {
@@ -1276,14 +1169,9 @@ static bool __CFLocaleCountryName(const char *locale, const char *value, CFStrin
         return __CFLocaleICUName(locale, lid, out, uloc_getDisplayCountry);
     }
     return false;
-#else
-    *out = CFRetain(CFSTR("(none)"));
-    return true;
-#endif
 }
 
 static bool __CFLocaleScriptName(const char *locale, const char *value, CFStringRef *out) {
-#if DEPLOYMENT_TARGET_MACOSX || DEPLOYMENT_TARGET_EMBEDDED || DEPLOYMENT_TARGET_WINDOWS || DEPLOYMENT_TARGET_LINUX
     // Need to make a fake locale ID
     char lid[ULOC_FULLNAME_CAPACITY];
     if (strlen(value) == 4) {
@@ -1293,14 +1181,9 @@ static bool __CFLocaleScriptName(const char *locale, const char *value, CFString
         return __CFLocaleICUName(locale, lid, out, uloc_getDisplayScript);
     }
     return false;
-#else
-    *out = CFRetain(CFSTR("(none)"));
-    return true;
-#endif
 }
 
 static bool __CFLocaleVariantName(const char *locale, const char *value, CFStringRef *out) {
-#if DEPLOYMENT_TARGET_MACOSX || DEPLOYMENT_TARGET_EMBEDDED || DEPLOYMENT_TARGET_WINDOWS || DEPLOYMENT_TARGET_LINUX
     // Need to make a fake locale ID
     char lid[ULOC_FULLNAME_CAPACITY+ULOC_KEYWORD_AND_VALUES_CAPACITY];
     if (strlen(value) < sizeof(lid) - 6) {
@@ -1309,46 +1192,22 @@ static bool __CFLocaleVariantName(const char *locale, const char *value, CFStrin
         return __CFLocaleICUName(locale, lid, out, uloc_getDisplayVariant);
     }
     return false;
-#else
-    *out = CFRetain(CFSTR("(none)"));
-    return true;
-#endif
 }
 
 static bool __CFLocaleCalendarName(const char *locale, const char *value, CFStringRef *out) {
-#if DEPLOYMENT_TARGET_MACOSX || DEPLOYMENT_TARGET_EMBEDDED || DEPLOYMENT_TARGET_WINDOWS || DEPLOYMENT_TARGET_LINUX
     return __CFLocaleICUKeywordValueName(locale, value, kCalendarKeyword, out);
-#else
-    *out = CFRetain(CFSTR("(none)"));
-    return true;
-#endif
 }
 
 static bool __CFLocaleCollationName(const char *locale, const char *value, CFStringRef *out) {
-#if DEPLOYMENT_TARGET_MACOSX || DEPLOYMENT_TARGET_EMBEDDED || DEPLOYMENT_TARGET_WINDOWS || DEPLOYMENT_TARGET_LINUX
     return __CFLocaleICUKeywordValueName(locale, value, kCollationKeyword, out);
-#else
-    *out = CFRetain(CFSTR("(none)"));
-    return true;
-#endif
 }
 
 static bool __CFLocaleCurrencyShortName(const char *locale, const char *value, CFStringRef *out) {
-#if DEPLOYMENT_TARGET_MACOSX || DEPLOYMENT_TARGET_EMBEDDED || DEPLOYMENT_TARGET_WINDOWS || DEPLOYMENT_TARGET_LINUX
     return __CFLocaleICUCurrencyName(locale, value, UCURR_SYMBOL_NAME, out);
-#else
-    *out = CFRetain(CFSTR("(none)"));
-    return true;
-#endif
 }
 
 static bool __CFLocaleCurrencyFullName(const char *locale, const char *value, CFStringRef *out) {
-#if DEPLOYMENT_TARGET_MACOSX || DEPLOYMENT_TARGET_EMBEDDED || DEPLOYMENT_TARGET_WINDOWS || DEPLOYMENT_TARGET_LINUX
     return __CFLocaleICUCurrencyName(locale, value, UCURR_LONG_NAME, out);
-#else
-    *out = CFRetain(CFSTR("(none)"));
-    return true;
-#endif
 }
 
 static bool __CFLocaleNoName(const char *locale, const char *value, CFStringRef *out) {

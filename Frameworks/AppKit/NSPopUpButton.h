@@ -62,4 +62,6 @@ APPKIT_EXPORT NSString *const NSPopUpButtonWillPopUpNotification;
 
 - (void)synchronizeTitleAndSelectedItem;
 
+@property BOOL usesItemFromMenu;
+
 @end

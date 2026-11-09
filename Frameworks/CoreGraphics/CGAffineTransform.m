@@ -103,3 +103,26 @@ CGSize CGSizeApplyAffineTransform(CGSize size,CGAffineTransform xform){
 bool CGAffineTransformEqualToTransform(CGAffineTransform t1, CGAffineTransform t2) {
     return t1.a == t2.a && t1.b == t2.b && t1.c == t2.c && t1.d == t2.d && t1.tx == t2.tx && t1.ty == t2.ty;
 }
+
+CGRect CGRectApplyAffineTransform(CGRect rect,CGAffineTransform xform){
+    CGPoint corners[4];
+    CGFloat minX,minY,maxX,maxY;
+    int     i;
+
+    if(CGRectIsNull(rect))
+        return rect;
+    rect=CGRectStandardize(rect);
+    corners[0]=CGPointApplyAffineTransform(CGPointMake(CGRectGetMinX(rect),CGRectGetMinY(rect)),xform);
+    corners[1]=CGPointApplyAffineTransform(CGPointMake(CGRectGetMaxX(rect),CGRectGetMinY(rect)),xform);
+    corners[2]=CGPointApplyAffineTransform(CGPointMake(CGRectGetMinX(rect),CGRectGetMaxY(rect)),xform);
+    corners[3]=CGPointApplyAffineTransform(CGPointMake(CGRectGetMaxX(rect),CGRectGetMaxY(rect)),xform);
+    minX=maxX=corners[0].x;
+    minY=maxY=corners[0].y;
+    for(i=1;i<4;i++){
+        if(corners[i].x<minX) minX=corners[i].x;
+        if(corners[i].x>maxX) maxX=corners[i].x;
+        if(corners[i].y<minY) minY=corners[i].y;
+        if(corners[i].y>maxY) maxY=corners[i].y;
+    }
+    return CGRectMake(minX,minY,maxX-minX,maxY-minY);
+}

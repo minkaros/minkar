@@ -73,7 +73,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    _alternateImage=value;
 }
 
--(void)setState:(int)value {
+-(void)setState:(NSControlStateValue)value {
    _state=value;
    _isHighlighted=(_state==NSOnState)?YES:NO;
 }
@@ -105,8 +105,15 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    return NO;
 }
 
+/* A focused column's selection is the strong list blue, any other grey. */
+static BOOL emphasized(NSView *view){
+   NSWindow *window=[view window];
+
+   return [window isKeyWindow] && [window firstResponder]==view;
+}
+
 -(NSColor *)highlightColorWithFrame:(NSRect)frame inView:(NSView *)view {
-   return [NSColor selectedControlColor];
+   return emphasized(view)?[NSColor alternateSelectedControlColor]:[NSColor unemphasizedSelectedContentBackgroundColor];
 }
 
 
@@ -136,11 +143,11 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    titleRect.size.width-=(branchImageSize.width+2);
 
    if([self isHighlighted] || [self state]){
-    /* check for length to avoid exception */
-    if([title length]>0 && [title attribute:NSForegroundColorAttributeName atIndex:0 effectiveRange:NULL]==nil){
+    if([title length]>0){
      NSMutableAttributedString *change=[[title mutableCopy] autorelease];
 
-     [change addAttribute:NSForegroundColorAttributeName value:[NSColor selectedControlTextColor] range:NSMakeRange(0,[title length])];
+     [change addAttribute:NSForegroundColorAttributeName value:emphasized(control)?[NSColor alternateSelectedControlTextColor]:
+        [NSColor controlTextColor] range:NSMakeRange(0,[title length])];
      title=change;
     }
     NSColor *color=[self highlightColorWithFrame:frame inView:control];

@@ -7,4 +7,11 @@ amdgpu/tahiti_pfp.bin aabdb871219fe135cb125c4e38adababdd27a02519324f5534abc00f46
 amdgpu/tahiti_me.bin 87617358bb876187786c422c3456fef1d072e6532382ecace0847259045131cb
 amdgpu/tahiti_ce.bin 04027c3a7c875aaf581ca438ae5ff93ec90002e0e057dc107e7b47048331ee3c
 amdgpu/tahiti_rlc.bin 46da3468097bb48a24ba47d0cc883695752d8e4f1d333c8a8bdb6e339894bac3
+# Pitcairn (FirePro D300), another chip: MinkarAMDGPU takes the files of
+# the chip's family (pitcairn_*.bin). At this tag its PFP, ME and CE are
+# the same bytes as Tahiti's; its RLC is its own. Not tested on hardware.
+amdgpu/pitcairn_pfp.bin aabdb871219fe135cb125c4e38adababdd27a02519324f5534abc00f46b24b5b
+amdgpu/pitcairn_me.bin 87617358bb876187786c422c3456fef1d072e6532382ecace0847259045131cb
+amdgpu/pitcairn_ce.bin 04027c3a7c875aaf581ca438ae5ff93ec90002e0e057dc107e7b47048331ee3c
+amdgpu/pitcairn_rlc.bin 929f722b65558862b24569f1397ba1f9db2ef301b66440533ebed0a2195ee92c
 LICENSES/LICENSE.amdgpu 572872598565dc3513470de971a32bf9db301f47afeef3636345eadae33b2eee

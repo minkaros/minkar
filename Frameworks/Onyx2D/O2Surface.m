@@ -335,8 +335,50 @@ static void O2SurfaceWrite_argb32f_to_argb8u_to_ANY(O2Surface *self,int x,int y,
    self->_writeargb8u(self,x,y,span8888,length);
 }
 
+/* Opaque formats: the color, and the unused byte set. */
+static void O2SurfaceWrite_argb8u_to_RGBX8888(O2Surface *self,int x,int y,O2argb8u *span,int length){
+   uint8_t *scanline=self->_pixelBytes+y*self->_bytesPerRow+x*4;
+   for(int i=0;i<length;i++,span++){
+    *scanline++=span->r; *scanline++=span->g; *scanline++=span->b; *scanline++=255;
+   }
+}
+
+static void O2SurfaceWrite_argb8u_to_XBGR8888(O2Surface *self,int x,int y,O2argb8u *span,int length){
+   uint8_t *scanline=self->_pixelBytes+y*self->_bytesPerRow+x*4;
+   for(int i=0;i<length;i++,span++){
+    *scanline++=255; *scanline++=span->b; *scanline++=span->g; *scanline++=span->r;
+   }
+}
+
+static void O2SurfaceWrite_argb8u_to_BGRX8888(O2Surface *self,int x,int y,O2argb8u *span,int length){
+   uint8_t *scanline=self->_pixelBytes+y*self->_bytesPerRow+x*4;
+   for(int i=0;i<length;i++,span++){
+    *scanline++=span->b; *scanline++=span->g; *scanline++=span->r; *scanline++=255;
+   }
+}
+
+static void O2SurfaceWrite_argb8u_to_XRGB8888(O2Surface *self,int x,int y,O2argb8u *span,int length){
+   uint8_t *scanline=self->_pixelBytes+y*self->_bytesPerRow+x*4;
+   for(int i=0;i<length;i++,span++){
+    *scanline++=255; *scanline++=span->r; *scanline++=span->g; *scanline++=span->b;
+   }
+}
+
+/* A, R, G, B in memory. */
+static void O2SurfaceWrite_argb8u_to_ARGB8888(O2Surface *self,int x,int y,O2argb8u *span,int length){
+   uint8_t *scanline=self->_pixelBytes+y*self->_bytesPerRow+x*4;
+   for(int i=0;i<length;i++,span++){
+    *scanline++=span->a; *scanline++=span->r; *scanline++=span->g; *scanline++=span->b;
+   }
+}
+
 static BOOL initFunctionsForParameters(O2Surface *self,size_t bitsPerComponent,size_t bitsPerPixel,O2ColorSpaceRef colorSpace,O2BitmapInfo bitmapInfo){
    self->_writeargb32f=O2SurfaceWrite_argb32f_to_argb8u_to_ANY;// default
+
+   /* The default byte order is big-endian (the components' order in
+      memory), as the images read it. */
+   if((bitmapInfo&kO2BitmapByteOrderMask)==kO2BitmapByteOrderDefault)
+    bitmapInfo|=kO2BitmapByteOrder32Big;
    
    switch(bitsPerComponent){
    
@@ -346,7 +388,6 @@ static BOOL initFunctionsForParameters(O2Surface *self,size_t bitsPerComponent,s
        break;
       case 128:
        switch(bitmapInfo&kO2BitmapByteOrderMask){
-        case kO2BitmapByteOrderDefault:
         case kO2BitmapByteOrder16Little:
         case kO2BitmapByteOrder32Little:
          self->_writeargb32f=O2SurfaceWrite_argb32f_to_argb32fLittle;
@@ -384,7 +425,6 @@ static BOOL initFunctionsForParameters(O2Surface *self,size_t bitsPerComponent,s
          case kO2ImageAlphaLast:
          case kO2ImageAlphaPremultipliedLast:
           switch(bitmapInfo&kO2BitmapByteOrderMask){
-           case kO2BitmapByteOrderDefault:
            case kO2BitmapByteOrder16Little:
            case kO2BitmapByteOrder32Little:
             self->_writeargb32f=O2SurfaceWrite_argb32f_to_ABGR8888;
@@ -400,29 +440,52 @@ static BOOL initFunctionsForParameters(O2Surface *self,size_t bitsPerComponent,s
 
           break;
           
+         case kO2ImageAlphaFirst:
          case kO2ImageAlphaPremultipliedFirst:
           switch(bitmapInfo&kO2BitmapByteOrderMask){
-           case kO2BitmapByteOrderDefault:
            case kO2BitmapByteOrder16Little:
            case kO2BitmapByteOrder32Little:
             self->_writeargb8u=O2SurfaceWrite_argb8u_to_BGRA8888;
             return YES;
+
+           case kO2BitmapByteOrder16Big:
+           case kO2BitmapByteOrder32Big:
+            self->_writeargb8u=O2SurfaceWrite_argb8u_to_ARGB8888;
+            return YES;
           }
-          break;
-                    
-         case kO2ImageAlphaFirst:
           break;
           
          case kO2ImageAlphaNoneSkipLast:
+          switch(bitmapInfo&kO2BitmapByteOrderMask){
+           case kO2BitmapByteOrder16Little:
+           case kO2BitmapByteOrder32Little:
+            self->_writeargb8u=O2SurfaceWrite_argb8u_to_XBGR8888;
+            return YES;
+
+           case kO2BitmapByteOrder16Big:
+           case kO2BitmapByteOrder32Big:
+            self->_writeargb8u=O2SurfaceWrite_argb8u_to_RGBX8888;
+            return YES;
+          }
           break;
           
          case kO2ImageAlphaNoneSkipFirst:
+          switch(bitmapInfo&kO2BitmapByteOrderMask){
+           case kO2BitmapByteOrder16Little:
+           case kO2BitmapByteOrder32Little:
+            self->_writeargb8u=O2SurfaceWrite_argb8u_to_BGRX8888;
+            return YES;
+
+           case kO2BitmapByteOrder16Big:
+           case kO2BitmapByteOrder32Big:
+            self->_writeargb8u=O2SurfaceWrite_argb8u_to_XRGB8888;
+            return YES;
+          }
           break;
         }
        }
        else if([colorSpace type]==kO2ColorSpaceModelCMYK){
         switch(bitmapInfo&kO2BitmapByteOrderMask){
-         case kO2BitmapByteOrderDefault:
          case kO2BitmapByteOrder16Little:
          case kO2BitmapByteOrder32Little:
           break;
@@ -445,7 +508,6 @@ static BOOL initFunctionsForParameters(O2Surface *self,size_t bitsPerComponent,s
        break;
       case 16:
        switch(bitmapInfo&kO2BitmapByteOrderMask){
-        case kO2BitmapByteOrderDefault:
         case kO2BitmapByteOrder16Little:
         case kO2BitmapByteOrder32Little:
          self->_writeargb32f=O2SurfaceWrite_argb32f_to_BARG4444;

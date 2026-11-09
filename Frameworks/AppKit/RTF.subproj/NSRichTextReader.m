@@ -207,17 +207,17 @@ static NSInteger codePageFromCharset(NSInteger charset)
     [_states removeLastObject];
 }
 
--(int)currentDestination
+-(NSInteger)currentDestination
 {
     return [[[self currentState] objectForKey:kStateDestinationKey] intValue];
 }
 
--(void)setCurrentDestination:(int)destination
+-(void)setCurrentDestination:(NSInteger)destination
 {
     [[self currentState] setObject:[NSNumber numberWithInt:destination] forKey:kStateDestinationKey];
 }
 
--(int)currentUnicodeCharacterBytesCount
+-(NSInteger)currentUnicodeCharacterBytesCount
 {
     // Default value is 1
     int bytesCount = 1;
@@ -228,7 +228,7 @@ static NSInteger codePageFromCharset(NSInteger charset)
     return bytesCount;
 }
 
--(void)setCurrentUnicodeCharacterBytesCount:(int)count
+-(void)setCurrentUnicodeCharacterBytesCount:(NSInteger)count
 {
     [[self currentState] setObject:[NSNumber numberWithInt:count] forKey:kStateCharacterBytesCountKey];
 }
@@ -307,7 +307,7 @@ static inline void flushPreviousString(NSRichTextReader *self) {
     _currentFontInfo=[[NSMutableDictionary alloc] init];
 }
 
-- (NSColor *)colorAtIndex:(int)index
+- (NSColor *)colorAtIndex:(NSInteger)index
 {
     id key=[NSNumber numberWithUnsignedInteger:index];
     
@@ -319,7 +319,7 @@ static inline void flushPreviousString(NSRichTextReader *self) {
     return c;
 }
 
--(void)processControlWithArgValue:(int)argument {
+-(void)processControlWithArgValue:(NSInteger)argument {
     NSRange save=_range;
     flushPreviousString(self);
     _range=_letterRange;

@@ -21,7 +21,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    return shared;
 }
 
--(void)generateGlyphsForGlyphStorage:(id <NSGlyphStorage>)glyphStorage desiredNumberOfCharacters:(unsigned int)numberOfCharacters glyphIndex:(unsigned *)glyphIndexp characterIndex:(unsigned *)characterIndexp {
+-(void)generateGlyphsForGlyphStorage:(id <NSGlyphStorage>)glyphStorage desiredNumberOfCharacters:(NSUInteger)numberOfCharacters glyphIndex:(NSUInteger *)glyphIndexp characterIndex:(NSUInteger *)characterIndexp {
    NSAttributedString *text=[glyphStorage attributedString];
    NSString           *string=[text string];
    unsigned            length=[string length];

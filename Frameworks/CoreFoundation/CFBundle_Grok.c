@@ -51,21 +51,7 @@
 #include <sys/stat.h>
 #include <ctype.h>
 
-#if DEPLOYMENT_TARGET_WINDOWS
-#define statinfo _stat
-#define stat(x,y) _NS_stat(x,y)
-#define open _NS_open
-#define MAP_FAILED 0
-
-// Windows isspace implementation limits the input chars to < 256 in the ASCII range.  It will
-// assert in debug builds.  This is annoying.  We merrily grok chars > 256.
-static inline BOOL isspace(char c) {
-    return (c == ' ' || c == '\t' || c == '\n' || c == '\r'|| c == '\v' || c == '\f');
-}
-
-#else
 #define statinfo stat
-#endif
 
 #define UNKNOWN_FILETYPE 0x0
 #define PEF_FILETYPE 0x1000
@@ -964,7 +950,6 @@ CF_PRIVATE CFArrayRef _CFBundleCopyArchitecturesForExecutable(CFURLRef url) {
     return result;
 }
 
-#if DEPLOYMENT_TARGET_MACOSX || DEPLOYMENT_TARGET_EMBEDDED
 static Boolean _CFBundleGetObjCImageInfoForExecutable(CFURLRef url, uint32_t *objcVersion, uint32_t *objcFlags) {
     Boolean retval = false;
     (void)_CFBundleGrokFileType(url, NULL, NULL, NULL, NULL, NULL, &retval, objcVersion, objcFlags);
@@ -983,7 +968,6 @@ CF_PRIVATE Boolean _CFBundleGetObjCImageInfo(CFBundleRef bundle, uint32_t *objcV
     if (objcFlags) *objcFlags = localFlags;
     return retval;
 }
-#endif
 
 #if defined(BINARY_SUPPORT_DYLD)
 

@@ -21,6 +21,11 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <AppKit/NSGraphicsStyle.h>
 #import <AppKit/NSRaise.h>
 
+@interface NSBox (NSBoxLayout)
+-(NSRect)_grooveRect;
+-(void)_tileContentView;
+@end
+
 
 @implementation NSBox
 
@@ -83,10 +88,14 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
   [super initWithFrame: frame];
 
-   _isTransparent = YES;
-   _titleCell = [[NSTextFieldCell alloc] initTextCell:@""];
-   _borderType = NSLineBorder;
-   _titlePosition = NSAboveTop;
+   /* As one made in Interface Builder: a primary box titled "Title" in
+      the small system font, its content inside the border. */
+   _isTransparent = NO;
+   _titleCell = [[NSTextFieldCell alloc] initTextCell:@"Title"];
+   [_titleCell setFont:[NSFont systemFontOfSize:[NSFont smallSystemFontSize]]];
+   _borderType = NSBezelBorder;
+   _titlePosition = NSAtTop;
+   _contentViewMargins = NSMakeSize(5,5);
    _customData = [[NSMutableDictionary alloc] init];
 
   contentview = [[NSView alloc] initWithFrame:NSMakeRect(0,0,NSWidth(frame),NSHeight(frame))];
@@ -94,6 +103,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
   [self addSubview: contentview];
   [contentview release];
   [self setAutoresizesSubviews:YES];
+  [self _tileContentView];
   return self;
 }
 
@@ -147,6 +157,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 -(void)setTitle:(NSString *)title {
    [_titleCell setStringValue:title];
+   [self _tileContentView];
    [self setNeedsDisplay:YES];
 }
 
@@ -157,18 +168,20 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 -(void)setContentView:(NSView *)view {
    if(![[self subviews] containsObject:view]){
     [[self subviews] makeObjectsPerformSelector:@selector(removeFromSuperview)];
-    // FIX, adjust size
     [self addSubview:view];
+    [self _tileContentView];
    }
 }
 
 -(void)setContentViewMargins:(NSSize)value {
    _contentViewMargins=value;
+   [self _tileContentView];
    [self setNeedsDisplay:YES];
 }
 
 -(void)setTitlePosition:(NSTitlePosition)value {
    _titlePosition=value;
+   [self _tileContentView];
    [self setNeedsDisplay:YES];
 }
 
@@ -210,7 +223,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    NSRect bounds=[self bounds];
    NSRect result=NSZeroRect;
 
-   result.origin.x=10+TEXTGAP;
+   result.origin.x=TEXTGAP+2;
    result.size.height=ceil(size.height);
 
     //result.size.width=ceil(size.width); // // NSTextField cell must be bugged we get too low values for the width here
@@ -267,50 +280,49 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    NSUnimplementedMethod();
 }
 
--(void)drawRect:(NSRect)rect {
-   NSRect              grooveRect=_bounds;
-   NSRect              titleRect=[self titleRect];
-   BOOL                drawTitle=YES;
-
-   if([self isTransparent])
-    return;
+/* The border's rectangle: the bounds less the title's room. A title at
+   the top is drawn above the border, as Atlas draws group boxes. */
+-(NSRect)_grooveRect {
+   NSRect grooveRect=_bounds;
+   NSRect titleRect=[self titleRect];
 
    switch(_titlePosition){
 
     case NSNoTitle:
-     drawTitle=NO;
-     break;
-
-    case NSAboveTop:
-     grooveRect.size.height-=titleRect.size.height+TEXTGAP;
-     break;
-
-    case NSAtTop:
-     grooveRect.size.height-=floor(titleRect.size.height/2);
-     break;
-
     case NSBelowTop:
-     break;
-
     case NSAboveBottom:
      break;
 
-    case NSAtBottom:
-     grooveRect.origin.y+=floor(titleRect.size.height/2);
-     grooveRect.size.height-=floor(titleRect.size.height/2);
+    case NSAboveTop:
+    case NSAtTop:
+     grooveRect.size.height-=titleRect.size.height+TEXTGAP;
      break;
 
+    case NSAtBottom:
     case NSBelowBottom:
      grooveRect.origin.y+=titleRect.size.height+TEXTGAP;
      grooveRect.size.height-=titleRect.size.height+TEXTGAP;
      break;
    }
+   return grooveRect;
+}
 
-        if (_boxType != NSBoxSeparator) {
-                // Separator are transparent except for drawing a line
-                [[NSColor controlColor] setFill];
-                NSRectFill(grooveRect);
-        }
+/* The content view, inside the border by the margins. */
+-(void)_tileContentView {
+   NSView *content=[self contentView];
+   NSRect  frame=NSInsetRect([self _grooveRect],_contentViewMargins.width,_contentViewMargins.height);
+
+   if(content!=nil && NSWidth(frame)>0 && NSHeight(frame)>0)
+    [content setFrame:frame];
+}
+
+-(void)drawRect:(NSRect)rect {
+   NSRect              grooveRect=[self _grooveRect];
+   NSRect              titleRect=[self titleRect];
+   BOOL                drawTitle=(_titlePosition!=NSNoTitle);
+
+   if([self isTransparent])
+    return;
 
         if (_boxType == NSBoxCustom){
 

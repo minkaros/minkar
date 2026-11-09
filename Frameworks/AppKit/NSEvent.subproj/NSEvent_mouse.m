@@ -10,7 +10,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 @implementation NSEvent_mouse
 
--initWithType:(NSEventType)type location:(NSPoint)location modifierFlags:(unsigned)modifierFlags window:(NSWindow *)window clickCount:(int)clickCount deltaX:(float)deltaX deltaY:(float)deltaY {
+-initWithType:(NSEventType)type location:(NSPoint)location modifierFlags:(NSEventModifierFlags)modifierFlags window:(NSWindow *)window clickCount:(NSInteger)clickCount deltaX:(CGFloat)deltaX deltaY:(CGFloat)deltaY {
         [super initWithType:type location:location modifierFlags:modifierFlags window:window];
 
         _clickCount = clickCount;
@@ -20,11 +20,11 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
         return self;
 }
 
-- (int)clickCount {
+-(NSInteger)clickCount {
         return _clickCount;
 }
 
--initWithType:(NSEventType)type location:(NSPoint)location modifierFlags:(unsigned)modifierFlags window:(NSWindow *)window deltaY:(float)deltaY {
+-initWithType:(NSEventType)type location:(NSPoint)location modifierFlags:(NSEventModifierFlags)modifierFlags window:(NSWindow *)window deltaY:(CGFloat)deltaY {
         [super initWithType:type location:location modifierFlags:modifierFlags window:window];
 
         _deltaY = deltaY;
@@ -35,37 +35,78 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 /* These take a window number: the base initializer wants a window, and
  * sending the number -windowNumber crashed (Minkar: cursor rects, through
  * NSWindow's tracking areas). */
--initWithType:(NSEventType)type location:(NSPoint)location modifierFlags:(NSUInteger)modifierFlags timestamp:(NSTimeInterval)timestamp windowNumber:(NSInteger)windowNumber context:(NSGraphicsContext*)context eventNumber:(NSInteger)eventNumber trackingNumber:(NSInteger)tracking userData:(void *)userData {
+-initWithType:(NSEventType)type location:(NSPoint)location modifierFlags:(NSEventModifierFlags)modifierFlags timestamp:(NSTimeInterval)timestamp windowNumber:(NSInteger)windowNumber context:(NSGraphicsContext*)context eventNumber:(NSInteger)eventNumber trackingNumber:(NSInteger)tracking userData:(void *)userData {
    self=[super initWithType:type location:location modifierFlags:modifierFlags window:nil];
    if(self!=nil){
     _windowNumber=windowNumber;
     _timestamp=timestamp;
     _trackingNumber=tracking;
     _userData=userData;
+    _eventNumber=eventNumber;
    }
    return self;
 }
 
--initWithType:(NSEventType)type location:(NSPoint)location modifierFlags:(NSUInteger)modifierFlags timestamp:(NSTimeInterval)timestamp windowNumber:(NSInteger)windowNumber context:(NSGraphicsContext*)context eventNumber:(NSInteger)eventNumber clickCount:(NSInteger)clickCount pressure:(float)pressure {
+-initWithType:(NSEventType)type location:(NSPoint)location modifierFlags:(NSEventModifierFlags)modifierFlags timestamp:(NSTimeInterval)timestamp windowNumber:(NSInteger)windowNumber context:(NSGraphicsContext*)context eventNumber:(NSInteger)eventNumber clickCount:(NSInteger)clickCount pressure:(float)pressure {
    self=[super initWithType:type location:location modifierFlags:modifierFlags window:nil];
    if(self!=nil){
     _windowNumber=windowNumber;
     _timestamp=timestamp;
     _clickCount=clickCount;
+    _pressure=pressure;
+    _eventNumber=eventNumber;
    }
    return self;
 }
 
-- (float)deltaX {
+-(CGFloat)deltaX {
         return _deltaX;
 }
 
-- (float)deltaY {
+-(CGFloat)deltaY {
         return _deltaY;
 }
 
--(float)deltaZ {
+-(CGFloat)deltaZ {
         return 0.0;
+}
+
+-(NSInteger)buttonNumber {
+   switch(_type){
+    case NSEventTypeRightMouseDown: case NSEventTypeRightMouseUp: case NSEventTypeRightMouseDragged:
+     return 1;
+    case NSEventTypeOtherMouseDown: case NSEventTypeOtherMouseUp: case NSEventTypeOtherMouseDragged:
+     return 2;
+    default:
+     return 0;
+   }
+}
+
+-(NSInteger)eventNumber {
+   return (_eventNumber!=0)?_eventNumber:_serial;
+}
+
+/* A button held is 1 unless the event says otherwise. */
+-(float)pressure {
+   if(_pressure!=0)
+    return _pressure;
+   switch(_type){
+    case NSEventTypeLeftMouseDown: case NSEventTypeLeftMouseDragged:
+    case NSEventTypeRightMouseDown: case NSEventTypeRightMouseDragged:
+    case NSEventTypeOtherMouseDown: case NSEventTypeOtherMouseDragged:
+     return 1.0;
+    default:
+     return 0;
+   }
+}
+
+/* A wheel scrolls in lines. */
+-(CGFloat)scrollingDeltaX {
+   return _deltaX;
+}
+
+-(CGFloat)scrollingDeltaY {
+   return _deltaY;
 }
 
 // Apple's documentation is a bit confusing here. NSEvent exposes no API to pass a

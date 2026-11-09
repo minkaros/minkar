@@ -48,7 +48,7 @@ enum {
    _font=[font retain];
 }
 
--(void)setSelectedIndex:(int)index {
+-(void)setSelectedIndex:(NSInteger)index {
    _selectedIndex = index;
 }
 
@@ -74,7 +74,7 @@ enum {
    return result;
 }
 
--(unsigned)itemIndexForPoint:(NSPoint)point {
+-(NSUInteger)itemIndexForPoint:(NSPoint)point {
    unsigned result;
 
    result=floor(point.y/_cellSize.height);
@@ -85,7 +85,7 @@ enum {
    return result;
 }
 
--(NSRect)rectForItemAtIndex:(unsigned)index {
+-(NSRect)rectForItemAtIndex:(NSUInteger)index {
    NSRect result=NSMakeRect(0,0,_cellSize.width,_cellSize.height);
 
    result.origin.y+=index*_cellSize.height;
@@ -93,7 +93,7 @@ enum {
    return result;
 }
 
--(void)drawItemAtIndex:(unsigned)index {
+-(void)drawItemAtIndex:(NSUInteger)index {
    id            item=[_objects objectAtIndex:index];
    NSDictionary *attributes;
 
@@ -140,7 +140,7 @@ enum {
 }
 
 #if 0
--(int)runTrackingWithEvent:(NSEvent *)event {
+-(NSInteger)runTrackingWithEvent:(NSEvent *)event {
    enum {
     STATE_FIRSTMOUSEDOWN,
     STATE_MOUSEDOWN,
@@ -205,7 +205,7 @@ enum {
 #endif
 
 // DWY: trying to do keyboard navigation with as little impact on the rest of the code as possible...
--(int)runTrackingWithEvent:(NSEvent *)event {
+-(NSInteger)runTrackingWithEvent:(NSEvent *)event {
    enum {
     STATE_FIRSTMOUSEDOWN,
     STATE_MOUSEDOWN,

@@ -19,6 +19,7 @@ APPKIT_EXPORT NSString *const NSBackgroundColorAttributeName;
 APPKIT_EXPORT NSString *const NSUnderlineStyleAttributeName;
 APPKIT_EXPORT NSString *const NSUnderlineColorAttributeName;
 APPKIT_EXPORT NSString *const NSAttachmentAttributeName;
+APPKIT_EXPORT NSString *const NSGlyphInfoAttributeName;
 APPKIT_EXPORT NSString *const NSKernAttributeName;
 APPKIT_EXPORT NSString *const NSLigatureAttributeName;
 APPKIT_EXPORT NSString *const NSStrikethroughStyleAttributeName;
@@ -34,6 +35,10 @@ APPKIT_EXPORT NSString *const NSExpansionAttributeName;
 APPKIT_EXPORT NSString *const NSCursorAttributeName;
 APPKIT_EXPORT NSString *const NSToolTipAttributeName;
 APPKIT_EXPORT NSString *const NSBackgroundColorDocumentAttribute;
+APPKIT_EXPORT NSString *const NSTitleDocumentAttribute;
+APPKIT_EXPORT NSString *const NSDocumentTypeDocumentAttribute;
+APPKIT_EXPORT NSString *const NSHTMLTextDocumentType;
+APPKIT_EXPORT NSString *const NSBaseURLDocumentOption;
 
 APPKIT_EXPORT NSString *const NSSpellingStateAttributeName;
 
@@ -96,18 +101,18 @@ enum {
 #pragma mark -
 #pragma mark Calculating Linguistic Units
 
-- (NSRange)doubleClickAtIndex:(unsigned)index;
-- (unsigned)lineBreakBeforeIndex:(unsigned)index withinRange:(NSRange)range;
-- (unsigned)lineBreakByHyphenatingBeforeIndex:(unsigned)index withinRange:(NSRange)range;
-- (unsigned)nextWordFromIndex:(unsigned)index forward:(BOOL)forward;
+- (NSRange)doubleClickAtIndex:(NSUInteger)index;
+- (NSUInteger)lineBreakBeforeIndex:(NSUInteger)index withinRange:(NSRange)range;
+- (NSUInteger)lineBreakByHyphenatingBeforeIndex:(NSUInteger)index withinRange:(NSRange)range;
+- (NSUInteger)nextWordFromIndex:(NSUInteger)index forward:(BOOL)forward;
 
 #pragma mark -
 #pragma mark Calculating Ranges
 
-- (int)itemNumberInTextList:(NSTextList *)list atIndex:(unsigned)index;
-- (NSRange)rangeOfTextBlock:(NSTextBlock *)block atIndex:(unsigned)index;
-- (NSRange)rangeOfTextList:(NSTextList *)list atIndex:(unsigned)index;
-- (NSRange)rangeOfTextTable:(NSTextTable *)table atIndex:(unsigned)index;
+- (NSInteger)itemNumberInTextList:(NSTextList *)list atIndex:(NSUInteger)index;
+- (NSRange)rangeOfTextBlock:(NSTextBlock *)block atIndex:(NSUInteger)index;
+- (NSRange)rangeOfTextList:(NSTextList *)list atIndex:(NSUInteger)index;
+- (NSRange)rangeOfTextTable:(NSTextTable *)table atIndex:(NSUInteger)index;
 
 #pragma mark -
 #pragma mark Generating Data

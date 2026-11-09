@@ -36,7 +36,7 @@ static NSToolbarCustomizationPalette *_nextPanel;
    return result;
 }
 
--initWithContentRect:(NSRect)contentRect styleMask:(unsigned)styleMask backing:(unsigned)backing defer:(BOOL)defer {
+-initWithContentRect:(NSRect)contentRect styleMask:(NSWindowStyleMask)styleMask backing:(NSBackingStoreType)backing defer:(BOOL)defer {
    return [super initWithContentRect:contentRect styleMask:NSDocModalWindowMask backing:backing defer:defer];
 }
 

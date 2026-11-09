@@ -50,7 +50,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 // unless the keybinding dictionary becomes *huge*, I can't see this being too much of a performance hit,
 // especially since this is only done once.
 // ...of course you could feed this implementation stuff like "controlQQQQ", but why would you do that?
-+ (unsigned)modifierMaskWithKeyComponents:(NSArray *)components {
++ (NSUInteger)modifierMaskWithKeyComponents:(NSArray *)components {
     int i, count = [components count];
     unsigned mask = 0;
 
@@ -139,7 +139,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
     return _nextKeyBindingManager;
 }
 
-- (NSKeyboardBinding *)keyBindingWithString:(NSString *)string modifierFlags:(unsigned)flags {
+- (NSKeyboardBinding *)keyBindingWithString:(NSString *)string modifierFlags:(NSEventModifierFlags)flags {
     int i, count = [_keyBindings count];
 
     flags&=~ NSNumericPadKeyMask;

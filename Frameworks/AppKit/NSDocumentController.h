@@ -64,12 +64,12 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 - (BOOL)presentError:(NSError *)error;
 - (void)presentError:(NSError *)error modalForWindow:(NSWindow *)window delegate:delegate didPresentSelector:(SEL)selector contextInfo:(void *)info;
 
-- (int)runModalOpenPanel:(NSOpenPanel *)openPanel forTypes:(NSArray *)extensions;
+- (NSInteger)runModalOpenPanel:(NSOpenPanel *)openPanel forTypes:(NSArray *)extensions;
 - (NSArray *)fileNamesFromRunningOpenPanel;
 - (NSArray *)URLsFromRunningOpenPanel;
 
 - (NSArray *)recentDocumentURLs;
-- (unsigned)maximumRecentDocumentCount;
+- (NSUInteger)maximumRecentDocumentCount;
 - (void)noteNewRecentDocumentURL:(NSURL *)url;
 - (void)noteNewRecentDocument:(NSDocument *)document;
 - (void)clearRecentDocuments:sender;

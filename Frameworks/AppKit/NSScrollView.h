@@ -7,8 +7,15 @@ The above copyright notice and this permission notice shall be included in all c
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE. */
 
 #import <AppKit/NSView.h>
+#import <AppKit/NSScroller.h>
 
 @class NSClipView, NSScroller, NSColor, NSRulerView;
+
+typedef NS_ENUM(NSInteger, NSScrollElasticity) {
+    NSScrollElasticityAutomatic = 0,
+    NSScrollElasticityNone = 1,
+    NSScrollElasticityAllowed = 2
+};
 
 @interface NSScrollView : NSView {
     NSClipView *_clipView;
@@ -19,10 +26,10 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
     NSRulerView *_horizontalRuler;
     NSRulerView *_verticalRuler;
     NSColor *_backgroundColor;
-    float _verticalLineScroll;
-    float _verticalPageScroll;
-    float _horizontalLineScroll;
-    float _horizontalPageScroll;
+    CGFloat _verticalLineScroll;
+    CGFloat _verticalPageScroll;
+    CGFloat _horizontalLineScroll;
+    CGFloat _horizontalPageScroll;
     int _borderType;
     BOOL _drawsBackground;
     BOOL _hasVerticalScroller;
@@ -61,12 +68,12 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 - (BOOL)hasVerticalRuler;
 - (BOOL)hasHorizontalRuler;
 - (BOOL)rulersVisible;
-- (float)verticalLineScroll;
-- (float)horizontalLineScroll;
-- (float)verticalPageScroll;
-- (float)horizontalPageScroll;
-- (float)lineScroll;
-- (float)pageScroll;
+- (CGFloat)verticalLineScroll;
+- (CGFloat)horizontalLineScroll;
+- (CGFloat)verticalPageScroll;
+- (CGFloat)horizontalPageScroll;
+- (CGFloat)lineScroll;
+- (CGFloat)pageScroll;
 - (BOOL)scrollsDynamically;
 - (BOOL)autohidesScrollers;
 
@@ -84,17 +91,25 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 - (void)setHasVerticalRuler:(BOOL)flag;
 - (void)setHasHorizontalRuler:(BOOL)flag;
 - (void)setRulersVisible:(BOOL)flag;
-- (void)setVerticalLineScroll:(float)value;
-- (void)setHorizontalLineScroll:(float)value;
-- (void)setVerticalPageScroll:(float)value;
-- (void)setHorizontalPageScroll:(float)value;
-- (void)setLineScroll:(float)value;
-- (void)setPageScroll:(float)value;
+- (void)setVerticalLineScroll:(CGFloat)value;
+- (void)setHorizontalLineScroll:(CGFloat)value;
+- (void)setVerticalPageScroll:(CGFloat)value;
+- (void)setHorizontalPageScroll:(CGFloat)value;
+- (void)setLineScroll:(CGFloat)value;
+- (void)setPageScroll:(CGFloat)value;
 - (void)setScrollsDynamically:(BOOL)flag;
 - (void)setDocumentCursor:(NSCursor *)cursor;
 - (void)setAutohidesScrollers:(BOOL)value;
 
 - (void)tile;
 - (void)reflectScrolledClipView:(NSClipView *)clipView;
+
+
+@property NSEdgeInsets contentInsets;
+@property NSEdgeInsets scrollerInsets;
+@property BOOL automaticallyAdjustsContentInsets;
+@property NSScrollerKnobStyle scrollerKnobStyle;
+@property NSScrollElasticity verticalScrollElasticity;
+@property NSScrollElasticity horizontalScrollElasticity;
 
 @end

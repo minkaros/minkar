@@ -6,7 +6,11 @@ The above copyright notice and this permission notice shall be included in all c
 
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE. */
 
+#include <pwd.h>
 #import <Foundation/NSPathUtilities.h>
+#import <Foundation/NSHFSFileTypes.h>
+#import <Foundation/NSValue.h>
+#import <Foundation/NSDictionary.h>
 #import <Foundation/NSFileManager.h>
 #import <Foundation/NSArray.h>
 #import <Foundation/NSSet.h>
@@ -40,6 +44,41 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #define SLASH '/'
 
 @implementation NSString(NSStringPathUtilities)
+
+/* The files in the path's folder whose names begin with its last part
+   (and, with filterTypes, have one of those extensions): outputName gets
+   their longest common beginning, outputArray them sorted. */
+-(NSUInteger)completePathIntoString:(NSString **)outputName caseSensitive:(BOOL)flag matchesIntoArray:(NSArray **)outputArray filterTypes:(NSArray *)filterTypes {
+    NSString *expanded = [self stringByExpandingTildeInPath];
+    BOOL endsInSlash = [expanded hasSuffix:@"/"];
+    NSString *directory = endsInSlash ? expanded : [expanded stringByDeletingLastPathComponent];
+    NSString *prefix = endsInSlash ? @"" : [expanded lastPathComponent];
+    NSMutableArray *matches = [NSMutableArray array];
+    NSStringCompareOptions options = flag ? 0 : NSCaseInsensitiveSearch;
+
+    if ([directory length] == 0)
+        directory = @".";
+    for (NSString *name in [[NSFileManager defaultManager] contentsOfDirectoryAtPath:directory error:NULL]) {
+        if ([prefix length] > 0 && ([name length] < [prefix length] ||
+            [name compare:prefix options:options range:NSMakeRange(0, [prefix length])] != NSOrderedSame))
+            continue;
+        if ([filterTypes count] > 0 && ![filterTypes containsObject:[name pathExtension]])
+            continue;
+        [matches addObject:endsInSlash ? [expanded stringByAppendingString:name] :
+            [[self stringByDeletingLastPathComponent] stringByAppendingPathComponent:name]];
+    }
+    [matches sortUsingSelector:flag ? @selector(compare:) : @selector(caseInsensitiveCompare:)];
+    if (outputArray != NULL)
+        *outputArray = matches;
+    if (outputName != NULL) {
+        NSString *common = [matches firstObject];
+
+        for (NSString *match in matches)
+            common = [common commonPrefixWithString:match options:options];
+        *outputName = ([matches count] > 0) ? common : nil;
+    }
+    return [matches count];
+}
 
 // Minkar: as the API has them, "/" is a component: the first of an
 // absolute path, the last of a path ending with a slash. Both lost it, so
@@ -239,8 +278,8 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    if(i==1)
     homedir=NSHomeDirectory();
    else{
-    //NSString *user=[NSString stringWithCharacters:buffer+1 length:i-1];
-    homedir=nil; //NSHomeDirectoryForUser(user);
+    NSString *user=[NSString stringWithCharacters:buffer+1 length:i-1];
+    homedir=NSHomeDirectoryForUser(user);
    }
 
    if(homedir==nil)
@@ -444,6 +483,53 @@ NSArray *NSSearchPathForDirectoriesInDomains(NSSearchPathDirectory directory,NSS
 
 NSString *NSHomeDirectory(void) {
    return [[NSPlatform currentPlatform] homeDirectory];
+}
+
+/* The user's home from the user database; nil for no such user. */
+NSString *NSHomeDirectoryForUser(NSString *userName) {
+   struct passwd  entry,*found=NULL;
+   char           buffer[4096];
+   const char    *name=[userName UTF8String];
+
+   if(userName==nil || [userName length]==0)
+    return NSHomeDirectory();
+   if(name==NULL || getpwnam_r(name,&entry,buffer,sizeof(buffer),&found)!=0 || found==NULL || found->pw_dir==NULL)
+    return nil;
+   return [[NSFileManager defaultManager] stringWithFileSystemRepresentation:found->pw_dir length:strlen(found->pw_dir)];
+}
+
+/* HFS type codes as strings: the four characters in single quotes. */
+NSString *NSFileTypeForHFSTypeCode(OSType hfsFileTypeCode) {
+   unichar characters[6];
+
+   characters[0]='\'';
+   for(int i=0;i<4;i++)
+    characters[1+i]=(unsigned char)(hfsFileTypeCode>>(24-8*i));
+   characters[5]='\'';
+   return [NSString stringWithCharacters:characters length:6];
+}
+
+OSType NSHFSTypeCodeFromFileType(NSString *fileTypeString) {
+   OSType code=0;
+
+   if([fileTypeString length]!=6 || [fileTypeString characterAtIndex:0]!='\'' || [fileTypeString characterAtIndex:5]!='\'')
+    return 0;
+   for(int i=1;i<=4;i++){
+    unichar c=[fileTypeString characterAtIndex:i];
+    if(c>0xFF)
+     return 0;
+    code=(code<<8)|c;
+   }
+   return code;
+}
+
+/* The file's HFS type: the type in its Finder information. */
+NSString *NSHFSTypeOfFile(NSString *fullFilePath) {
+   NSDictionary *attributes=[[NSFileManager defaultManager] attributesOfItemAtPath:fullFilePath error:NULL];
+
+   if(attributes==nil)
+    return nil;
+   return NSFileTypeForHFSTypeCode([[attributes objectForKey:NSFileHFSTypeCode] unsignedIntValue]);
 }
 
 NSString *NSTemporaryDirectory(void) {

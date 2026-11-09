@@ -111,6 +111,7 @@
 #import <Foundation/NSException.h>
 #import <Foundation/NSFileHandle.h>
 #import <Foundation/NSFileManager.h>
+#import <Foundation/NSFileVersion.h>
 #import <Foundation/NSFormatter.h>
 #import <Foundation/NSGeometry.h>
 #import <Foundation/NSHashTable.h>
@@ -156,6 +157,11 @@
 #import <Foundation/NSOperation.h>
 #import <Foundation/NSOperationQueue.h>
 #import <Foundation/NSPathUtilities.h>
+#import <Foundation/NSHFSFileTypes.h>
+#import <Foundation/NSAppleEventDescriptor.h>
+#import <Foundation/NSAppleEventManager.h>
+#import <Foundation/NSAppleScript.h>
+#import <Foundation/NSScriptCommand.h>
 #import <Foundation/NSPipe.h>
 #import <Foundation/NSPort.h>
 #import <Foundation/NSPortCoder.h>
@@ -164,6 +170,7 @@
 #import <Foundation/NSCompoundPredicate.h>
 #import <Foundation/NSExpression.h>
 #import <Foundation/NSProcessInfo.h>
+#import <Foundation/NSBackgroundActivityScheduler.h>
 #import <Foundation/NSProxy.h>
 #import <Foundation/NSRange.h>
 #import <Foundation/NSRunLoop.h>

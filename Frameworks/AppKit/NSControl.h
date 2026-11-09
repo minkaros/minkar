@@ -20,6 +20,7 @@ APPKIT_EXPORT NSString *const NSControlTextDidEndEditingNotification;
 @interface NSControl : NSView {
     id _cell;
     NSText *_currentEditor;
+    BOOL _allowsExpansionToolTips;
 }
 
 + (Class)cellClass;
@@ -29,7 +30,7 @@ APPKIT_EXPORT NSString *const NSControlTextDidEndEditingNotification;
 
 - target;
 - (SEL)action;
-- (int)tag;
+- (NSInteger)tag;
 - (NSFont *)font;
 - (NSImage *)image;
 - (NSTextAlignment)alignment;
@@ -52,16 +53,16 @@ APPKIT_EXPORT NSString *const NSControlTextDidEndEditingNotification;
 - (NSInteger)integerValue;
 
 - selectedCell;
-- (int)selectedTag;
+- (NSInteger)selectedTag;
 
 - (void)setCell:(NSCell *)cell;
 - (void)setTarget:target;
 - (void)setAction:(SEL)action;
-- (void)setTag:(int)tag;
+- (void)setTag:(NSInteger)tag;
 - (void)setFont:(NSFont *)font;
 - (void)setImage:(NSImage *)image;
 - (void)setAlignment:(NSTextAlignment)alignment;
-- (void)setFloatingPointFormat:(BOOL)fpp left:(unsigned)left right:(unsigned)right;
+- (void)setFloatingPointFormat:(BOOL)fpp left:(NSUInteger)left right:(NSUInteger)right;
 - (void)setEnabled:(BOOL)flag;
 - (void)setEditable:(BOOL)flag;
 - (void)setSelectable:(BOOL)flag;
@@ -104,6 +105,14 @@ APPKIT_EXPORT NSString *const NSControlTextDidEndEditingNotification;
 
 - (void)calcSize;
 - (void)sizeToFit;
+/* The size the control's cell needs within size. */
+- (NSSize)sizeThatFits:(NSSize)size;
+
+@property NSLineBreakMode lineBreakMode;
+@property BOOL usesSingleLineMode;
+@property NSControlSize controlSize;
+@property (getter=isHighlighted) BOOL highlighted;
+@property BOOL allowsExpansionToolTips;
 - (void)setNeedsDisplay;
 
 @end

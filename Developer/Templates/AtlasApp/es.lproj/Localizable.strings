@@ -1,0 +1,49 @@
+/* SPDX-License-Identifier: BSD-2-Clause
+   Copyright (c) 2026 The Minkar contributors
+   Sample's texts in Spanish. The keys are the English texts. */
+
+/* The app menu */
+"About %@" = "Acerca de %@";
+"Preferences…" = "Preferencias…";
+"Services" = "Servicios";
+"Hide %@" = "Ocultar %@";
+"Hide Others" = "Ocultar otros";
+"Show All" = "Mostrar todo";
+"Quit %@" = "Salir de %@";
+
+/* File */
+"File" = "Archivo";
+"New" = "Nuevo";
+"Open…" = "Abrir…";
+"Open Recent" = "Abrir recientes";
+"Clear Menu" = "Borrar menú";
+"Close" = "Cerrar";
+"Save…" = "Guardar…";
+"Save As…" = "Guardar como…";
+"Revert To" = "Volver a";
+"Last Opened" = "Última apertura";
+"Browse All Versions…" = "Explorar todas las versiones…";
+
+/* Edit */
+"Edit" = "Edición";
+"Undo" = "Deshacer";
+"Redo" = "Rehacer";
+"Cut" = "Cortar";
+"Copy" = "Copiar";
+"Paste" = "Pegar";
+"Select All" = "Seleccionar todo";
+
+/* Window */
+"Window" = "Ventana";
+"Minimize" = "Minimizar";
+"Zoom" = "Zoom";
+"Bring All to Front" = "Traer todo al frente";
+
+/* Help */
+"Help" = "Ayuda";
+"%@ Help" = "Ayuda de %@";
+
+/* Preferences */
+"Preferences" = "Preferencias";
+"Show the welcome window at startup" = "Mostrar la ventana de bienvenida al abrir";
+"Opens a window with tips each time the app starts." = "Abre una ventana con consejos cada vez que se abre la app.";

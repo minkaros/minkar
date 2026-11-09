@@ -41,6 +41,8 @@ COREGRAPHICS_EXPORT CGAffineTransform CGAffineTransformTranslate(CGAffineTransfo
 
 COREGRAPHICS_EXPORT CGPoint CGPointApplyAffineTransform(CGPoint point, CGAffineTransform xform);
 COREGRAPHICS_EXPORT CGSize CGSizeApplyAffineTransform(CGSize size, CGAffineTransform xform);
+/* The smallest rectangle holding the transformed rectangle's corners. */
+COREGRAPHICS_EXPORT CGRect CGRectApplyAffineTransform(CGRect rect, CGAffineTransform xform);
 
 
 CF_IMPLICIT_BRIDGING_DISABLED

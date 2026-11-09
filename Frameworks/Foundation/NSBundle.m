@@ -40,196 +40,11 @@ OBJC_EXPORT BOOL NSUnloadModule(NSModuleHandle handle);
 OBJC_EXPORT const char *NSLastModuleError(void);
 OBJC_EXPORT void *NSSymbolInModule(NSModuleHandle handle, const char *symbol);
 
-#ifdef WIN32
-#include <windows.h>
-#else
 #include <dlfcn.h>
 #include <sys/param.h>
 #include <string.h>
 #include <stdlib.h>
 #include <unistd.h>
-#endif
-
-#if defined(LINUX) || defined(__FreeBSD__)
-#include <sys/stat.h>
-
-static inline unsigned int processMaps(char *maps, const char **soNames)
-{
-    unsigned int count = 0;
-    char *cur = maps;
-    char *eod = maps + strlen(maps);
-    char *lastName = NULL;
-    size_t lastNameLength = 0;
-    do {
-        char *eol = strchr(cur, '\n');
-        if (!eol) {
-            eol = eod;
-        }
-        *eol = 0;
-#if defined(LINUX)
-        char *name = strrchr(cur, ' ');
-#else
-	char *sp1 = strrchr(cur, ' ');
-	*sp1 = 0;
-	char *sp2 = strrchr(cur, ' ');
-	*sp2 = 0;
-	char *name = strrchr(cur, ' ');
-#endif
-        if (name) {
-            name++;
-        } else {
-            name = cur;
-        }
-#if defined(LINUX)
-        int nameLength = eol - name;
-        if (name && nameLength > 2 && (strcmp(eol - 3, ".so") == 0 || strstr(name, ".so.")) &&
-#else
-        int nameLength = sp2 - name;
-        if (name && nameLength > 2 && (strcmp(sp2 - 3, ".so") == 0 || strstr(name, ".so.")) &&
-#endif
-                (lastName == NULL || lastNameLength != nameLength ||
-                 strncmp(lastName, name, lastNameLength) != 0)) {
-            lastName = name;
-            lastNameLength = nameLength;
-            if (soNames) {
-                soNames[count] = name;
-            }
-            count++;
-        }
-        if (!soNames) {
-            *eol = '\n';
-#if defined(__FreeBSD__)
-	    *sp1 = *sp2 = ' ';
-#endif
-        }
-        cur = eol + 1;
-    } while (cur < eod);
-    return count;
-}
-
-
-static const char **objc_copyImageNames(unsigned int *count)
-{
-    *count = 0;
-#if defined(LINUX)
-    FILE *f = fopen("/proc/self/maps", "r");
-#else
-    FILE *f = fopen("/proc/curproc/map", "r");
-#endif
-    if (f) {
-#define SLICE_LENGTH 0xFFFE
-        long length = 0;
-        long pos = 0;
-        long lastSlice = 0;
-        char *maps = NULL;
-
-        do {
-            pos = length;
-            length += SLICE_LENGTH;
-            maps = realloc(maps, length + 1);
-        } while ((lastSlice = fread(maps + pos, 1, SLICE_LENGTH, f)) == SLICE_LENGTH);
-        maps[pos + lastSlice] = 0;
-        fclose(f);
-
-        *count = processMaps(maps, NULL);
-        if (*count > 0) {
-            int namesSize = (*count + 1) * sizeof(char*);
-            void *mem = calloc(1, namesSize + length + 1);
-            const char **names = mem;
-            char *newMaps = mem + namesSize;
-            memcpy(newMaps, maps, length + 1);
-            if (names != NULL) {
-                processMaps(newMaps, names);
-                return names;
-            } else {
-                *count = 0;
-            }
-        }
-        free(maps);
-    }
-    return NULL;
-}
-
-#endif //LINUX || __FreeBSD__
-
-#ifdef WIN32
-static char *lastErrorString(DWORD error) {
-    LPVOID lpMsgBuf;
-
-    FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER |
-                  FORMAT_MESSAGE_FROM_SYSTEM |
-                  FORMAT_MESSAGE_IGNORE_INSERTS,
-                  NULL,
-                  error,
-                  MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),	// Default language
-                  (LPTSTR) &lpMsgBuf,
-                  0,
-                  NULL);
-
-    return lpMsgBuf;
-}
-
-void OBJCRaiseWin32Failure(const char *name,const char *format,...) {
-   DWORD   lastError=GetLastError();
-   va_list arguments;
-
-   va_start(arguments,format);
-
-   fprintf(stderr,"ObjC:Win32:%ld,%s:",lastError,name);
-   vfprintf(stderr,format,arguments);
-   fprintf(stderr,"...\n");
-   fflush(stderr);
-
-   fprintf(stderr,"ObjC:Win32: ... %s\n",lastErrorString(lastError));
-   fflush(stderr);
-   va_end(arguments);
-}
-
-// only frameworks need to call this from DllMain, NSLoadModule will do it for loaded object files (i.e. bundles)
-int OBJCRegisterDLL(HINSTANCE handle){
-   int        i,bufferCapacity=32767;
-   uint16_t   buffer[bufferCapacity+1];
-   DWORD      bufferSize=GetModuleFileNameW(handle,buffer,bufferCapacity);
-
-   if(bufferSize==0){
-    OBJCRaiseWin32Failure("OBJCModuleFailed","OBJCInitializeModule, GetModuleFileName failed");
-    return 1;
-   }
-
-   for(i=0;i<bufferSize;i++)
-    if(buffer[i]=='\\')
-     buffer[i]='/';
-
-   int        size=WideCharToMultiByte(CP_UTF8,0,buffer,bufferSize,NULL,0,NULL,NULL);
-   char       path[size+1];
-
-   size=WideCharToMultiByte(CP_UTF8,0,buffer,bufferSize,path,size,NULL,NULL);
-   path[size]='\0';
-
-    OBJCLinkQueuedModulesToObjectFileWithPath(path);
-
-   return 1;
-}
-
-NSModuleHandle NSLoadModule(const char *path, NSError **error) {
-   NSModuleHandle handle;
-
-   OBJCResetModuleQueue();
-
-   handle=LoadLibrary(path);
-
-    if(handle!=NULL) {
-        OBJCRegisterDLL(handle);
-    }
-    else {
-        if (error != NULL) {
-            *error = [NSError errorWithDomain:NSWin32ErrorDomain code:GetLastError() userInfo:nil];
-        }
-    }
-
-   return handle;
-}
-#else
 
 NSModuleHandle NSLoadModule(const char *path, NSError **error) {
    NSModuleHandle handle;
@@ -265,33 +80,20 @@ NSModuleHandle NSLoadModule(const char *path, NSError **error) {
 
     return handle;
 }
-#endif
 
 BOOL NSUnloadModule(NSModuleHandle handle) {
-#ifdef WIN32
-   return NO;
-#else
    if (dlclose(handle))
        return NO;
 
    return YES;
-#endif
 }
 
 const char *NSLastModuleError(void) {
-#ifdef WIN32
-   return NULL;
-#else
    return dlerror();
-#endif
 }
 
 void *NSSymbolInModule(NSModuleHandle handle, const char *symbol) {
-#ifdef WIN32
-   return NULL;
-#else
    return dlsym(handle, symbol);
-#endif
 }
 
 NSString * const NSBundleDidLoadNotification=@"NSBundleDidLoadNotification";
@@ -534,10 +336,7 @@ static NSMapTable *pathToObject=NULL;
     _isLoaded = NO;
 
     NSMapInsert(pathToObject, path, self);
-#ifndef WIN32
-// Need to verify this on Win32
     [_allBundles addObject:self];
-#endif
     return self;
 }
 
@@ -664,14 +463,42 @@ static NSString *baseLanguage(NSString *name) {
    return _infoDictionary;
 }
 
+/* Info.plist with the values its InfoPlist.strings has for the preferred
+   localization (the app's name, its copyright) in place of its own. */
 -(NSDictionary *)localizedInfoDictionary {
-// FIXME: implement, dont uncomment NSUnimplementedMethod.
-  // NSUnimplementedMethod();
-   return [self infoDictionary];
+   static NSString *const cacheKey=@" NSLocalizedInfoDictionary";
+   static NSString *const missing=@" NSMissingLocalization";
+   NSDictionary        *cached;
+   NSMutableDictionary *result;
+   NSDictionary        *info=[self infoDictionary];
+
+   @synchronized(self){
+    cached=[[[_localizedTables objectForKey:cacheKey] retain] autorelease];
+   }
+   if(cached!=nil)
+    return cached;
+
+   result=[NSMutableDictionary dictionaryWithDictionary:(info!=nil)?info:[NSDictionary dictionary]];
+   for(NSString *key in info){
+    NSString *localized=[self localizedStringForKey:key value:missing table:@"InfoPlist"];
+
+    if(localized!=nil && localized!=missing && ![localized isEqualToString:missing])
+     [result setObject:localized forKey:key];
+   }
+   @synchronized(self){
+    if(_localizedTables==nil)
+     _localizedTables=[[NSMutableDictionary alloc] init];
+    [_localizedTables setObject:result forKey:cacheKey];
+   }
+   return result;
 }
 
+/* The localized value when the bundle has one (InfoPlist.strings), as
+   the reference platform gives it. */
 -objectForInfoDictionaryKey:(NSString *)key {
-   return [[self infoDictionary] objectForKey:key];
+   id value=[[self localizedInfoDictionary] objectForKey:key];
+
+   return (value!=nil)?value:[[self infoDictionary] objectForKey:key];
 }
 
 -(NSString *)bundleIdentifier {
@@ -988,6 +815,13 @@ static NSString *baseLanguage(NSString *name) {
    if((path=[self pathForResourceFile:file inDirectory:directory])!=nil)
     return path;
 #endif
+
+   /* No name: the first resource of the type, as the reference does. */
+   if([name length]==0){
+    if([type length]==0)
+     return nil;
+    return [[self pathsForResourcesOfType:type inDirectory:directory] firstObject];
+   }
 
    if(type && [type length]!=0)
     file=[name stringByAppendingPathExtension:type];

@@ -10,6 +10,7 @@ SRCS= \
 	CABase.m \
 	CABasicAnimation.m \
 	CALayer.m \
+	CAShapeLayer.m \
 	CALayerContext.m \
 	CAMetalLayer.m \
 	CAMediaTimingFunction.m \
@@ -38,6 +39,7 @@ HEADERS= \
 	CABase.h \
 	CABasicAnimation.h \
 	CALayer.h \
+	CAShapeLayer.h \
 	CALayerContext.h \
 	CAMetalLayer.h \
 	CAMetalLayerPrivate.h \
@@ -77,7 +79,7 @@ LDFLAGS = -framework IOSurface \
 fmwk-install-hook:
 .for dir in ${MINKAR_SDKROOT}/System/Library/Frameworks/ ${SYSROOT_DIR}/System/Library/Frameworks/
 	mkdir -p ${dir}
-	cp -Rf ${.OBJDIR}/${FRAMEWORK}.framework ${dir}
+	rsync -rlc ${.OBJDIR}/${FRAMEWORK}.framework ${dir}
 .endfor
 
 .include <minkar.framework.mk>

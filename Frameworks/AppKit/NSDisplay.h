@@ -48,7 +48,7 @@ SOFTWARE. */
 - (void)_addSystemColor:(NSColor *)result forName:(NSString *)colorName;
 
 - (NSTimeInterval)textCaretBlinkInterval;
-- (float)doubleClickInterval;
+- (CGFloat)doubleClickInterval;
 
 - (void)hideCursor;
 - (void)unhideCursor;
@@ -56,30 +56,30 @@ SOFTWARE. */
 - (id)cursorWithName:(NSString *)name;
 - (void)setCursor:(id)cursor;
 
-- (NSEvent *)nextEventMatchingMask:(unsigned)mask untilDate:(NSDate *)untilDate inMode:(NSString *)mode dequeue:(BOOL)dequeue;
+- (NSEvent *)nextEventMatchingMask:(NSEventMask)mask untilDate:(NSDate *)untilDate inMode:(NSString *)mode dequeue:(BOOL)dequeue;
 
-- (void)discardEventsMatchingMask:(unsigned)mask beforeEvent:(NSEvent *)event;
+- (void)discardEventsMatchingMask:(NSEventMask)mask beforeEvent:(NSEvent *)event;
 
 - (void)postEvent:(NSEvent *)event atStart:(BOOL)atStart;
 
 - (BOOL)containsAndRemovePeriodicEvents;
 
-- (unsigned)modifierForDefault:(NSString *)key:(unsigned)standard;
+- (NSEventModifierFlags)modifierForDefault:(NSString *)key:(NSUInteger)standard;
 
 - (void)beep;
 
 - (NSSet *)allFontFamilyNames;
 - (NSArray *)fontTypefacesForFamilyName:(NSString *)name;
 
-- (float)scrollerWidth;
+- (CGFloat)scrollerWidth;
 
-- (int)runModalPageLayoutWithPrintInfo:(NSPrintInfo *)printInfo;
-- (int)runModalPrintPanelWithPrintInfoDictionary:(NSMutableDictionary *)attributes;
+- (NSInteger)runModalPageLayoutWithPrintInfo:(NSPrintInfo *)printInfo;
+- (NSInteger)runModalPrintPanelWithPrintInfoDictionary:(NSMutableDictionary *)attributes;
 
 - (CGContextRef)graphicsPortForPrintOperationWithView:(NSView *)view printInfo:(NSPrintInfo *)printInfo pageRange:(NSRange)pageRange;
 
-- (int)savePanel:(NSSavePanel *)savePanel runModalForDirectory:(NSString *)directory file:(NSString *)file;
-- (int)openPanel:(NSOpenPanel *)openPanel runModalForDirectory:(NSString *)directory file:(NSString *)file types:(NSArray *)types;
+- (NSInteger)savePanel:(NSSavePanel *)savePanel runModalForDirectory:(NSString *)directory file:(NSString *)file;
+- (NSInteger)openPanel:(NSOpenPanel *)openPanel runModalForDirectory:(NSString *)directory file:(NSString *)file types:(NSArray *)types;
 
 - (NSPoint)mouseLocation;
 - (NSUInteger)currentModifierFlags;

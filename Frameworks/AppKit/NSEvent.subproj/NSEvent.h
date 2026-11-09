@@ -9,74 +9,198 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 #import <Foundation/Foundation.h>
 #import <AppKit/AppKitExport.h>
+#import <CoreGraphics/CGEvent.h>
 
 @class NSWindow, NSGraphicsContext, NSTrackingArea;
 
-typedef enum {
-    NSLeftMouseDown = 1,
-    NSLeftMouseUp = 2,
-    NSRightMouseDown = 3,
-    NSRightMouseUp = 4,
-    NSMouseMoved = 5,
-    NSLeftMouseDragged = 6,
-    NSRightMouseDragged = 7,
-    NSMouseEntered = 8,
-    NSMouseExited = 9,
-    NSKeyDown = 10,
-    NSKeyUp = 11,
-    NSFlagsChanged = 12,
-    NSPeriodic = 13,
-    NSCursorUpdate = 14,
-    NSPlatformSpecific = 15,
-    NSPlatformSpecificDisplayEvent = 16,
-    NSAppKitSystem = 17,
-    NSScrollWheel = 18,
-    NSApplicationDefined = 19,
-    NSAppKitDefined = 20,
-    /* The API's values; the ones above still differ from it (to fix with
-       binary compatibility, API 19). */
-    NSOtherMouseDown = 25,
-    NSOtherMouseUp = 26,
-    NSOtherMouseDragged = 27
-} NSEventType;
+/* The event types, numbered as the API has them. */
+typedef NS_ENUM(NSUInteger, NSEventType) {
+    NSEventTypeLeftMouseDown = 1,
+    NSEventTypeLeftMouseUp = 2,
+    NSEventTypeRightMouseDown = 3,
+    NSEventTypeRightMouseUp = 4,
+    NSEventTypeMouseMoved = 5,
+    NSEventTypeLeftMouseDragged = 6,
+    NSEventTypeRightMouseDragged = 7,
+    NSEventTypeMouseEntered = 8,
+    NSEventTypeMouseExited = 9,
+    NSEventTypeKeyDown = 10,
+    NSEventTypeKeyUp = 11,
+    NSEventTypeFlagsChanged = 12,
+    NSEventTypeAppKitDefined = 13,
+    NSEventTypeSystemDefined = 14,
+    NSEventTypeApplicationDefined = 15,
+    NSEventTypePeriodic = 16,
+    NSEventTypeCursorUpdate = 17,
+    NSEventTypeRotate = 18,
+    NSEventTypeBeginGesture = 19,
+    NSEventTypeEndGesture = 20,
+    NSEventTypeScrollWheel = 22,
+    NSEventTypeTabletPoint = 23,
+    NSEventTypeTabletProximity = 24,
+    NSEventTypeOtherMouseDown = 25,
+    NSEventTypeOtherMouseUp = 26,
+    NSEventTypeOtherMouseDragged = 27,
+    NSEventTypeGesture = 29,
+    NSEventTypeMagnify = 30,
+    NSEventTypeSwipe = 31,
+    NSEventTypeSmartMagnify = 32,
+    NSEventTypeQuickLook = 33,
+    NSEventTypePressure = 34,
+    NSEventTypeDirectTouch = 37,
+    NSEventTypeChangeMode = 38,
 
-enum {
-    NSLeftMouseDownMask = 1 << NSLeftMouseDown,
-    NSLeftMouseUpMask = 1 << NSLeftMouseUp,
-    NSRightMouseDownMask = 1 << NSRightMouseDown,
-    NSRightMouseUpMask = 1 << NSRightMouseUp,
-    NSMouseMovedMask = 1 << NSMouseMoved,
-    NSLeftMouseDraggedMask = 1 << NSLeftMouseDragged,
-    NSRightMouseDraggedMask = 1 << NSRightMouseDragged,
-    NSMouseEnteredMask = 1 << NSMouseEntered,
-    NSMouseExitedMask = 1 << NSMouseExited,
-    NSKeyDownMask = 1 << NSKeyDown,
-    NSKeyUpMask = 1 << NSKeyUp,
-    NSFlagsChangedMask = 1 << NSFlagsChanged,
-    NSPeriodicMask = 1 << NSPeriodic,
-    NSCursorUpdateMask = 1 << NSCursorUpdate,
-    NSScrollWheelMask = 1 << NSScrollWheel,
-    NSApplicationDefinedMask = 1 << NSApplicationDefined,
-    NSAppKitDefinedMask = 1 << NSAppKitDefined,
-    NSOtherMouseDownMask = 1 << NSOtherMouseDown,
-    NSOtherMouseUpMask = 1 << NSOtherMouseUp,
-    NSOtherMouseDraggedMask = 1 << NSOtherMouseDragged,
-    NSAnyEventMask = 0xffffffff,
+    NSLeftMouseDown = NSEventTypeLeftMouseDown,
+    NSLeftMouseUp = NSEventTypeLeftMouseUp,
+    NSRightMouseDown = NSEventTypeRightMouseDown,
+    NSRightMouseUp = NSEventTypeRightMouseUp,
+    NSMouseMoved = NSEventTypeMouseMoved,
+    NSLeftMouseDragged = NSEventTypeLeftMouseDragged,
+    NSRightMouseDragged = NSEventTypeRightMouseDragged,
+    NSMouseEntered = NSEventTypeMouseEntered,
+    NSMouseExited = NSEventTypeMouseExited,
+    NSKeyDown = NSEventTypeKeyDown,
+    NSKeyUp = NSEventTypeKeyUp,
+    NSFlagsChanged = NSEventTypeFlagsChanged,
+    NSAppKitDefined = NSEventTypeAppKitDefined,
+    NSSystemDefined = NSEventTypeSystemDefined,
+    NSApplicationDefined = NSEventTypeApplicationDefined,
+    NSPeriodic = NSEventTypePeriodic,
+    NSCursorUpdate = NSEventTypeCursorUpdate,
+    NSScrollWheel = NSEventTypeScrollWheel,
+    NSTabletPoint = NSEventTypeTabletPoint,
+    NSTabletProximity = NSEventTypeTabletProximity,
+    NSOtherMouseDown = NSEventTypeOtherMouseDown,
+    NSOtherMouseUp = NSEventTypeOtherMouseUp,
+    NSOtherMouseDragged = NSEventTypeOtherMouseDragged,
 
-    NSPlatformSpecificDisplayMask = 1 << NSPlatformSpecificDisplayEvent,
+    /* AppKit's own, never seen by apps: a platform event, a display
+       event, and the wakeup that ends a wait for events. */
+    NSPlatformSpecific = 40,
+    NSPlatformSpecificDisplayEvent = 41,
+    NSAppKitSystem = 42,
 };
 
-enum {
-    NSAlphaShiftKeyMask = 1 << 16,
-    NSShiftKeyMask = 1 << 17,
-    NSControlKeyMask = 1 << 18,
-    NSAlternateKeyMask = 1 << 19,
-    NSCommandKeyMask = 1 << 20,
-    NSNumericPadKeyMask = 1 << 21,
-    NSHelpKeyMask = 1 << 22,
-    NSFunctionKeyMask = 1 << 23,
-    NSDeviceIndependentModifierFlagsMask = 0xffff0000UL
+typedef NS_OPTIONS(unsigned long long, NSEventMask) {
+    NSEventMaskLeftMouseDown = 1ULL << NSEventTypeLeftMouseDown,
+    NSEventMaskLeftMouseUp = 1ULL << NSEventTypeLeftMouseUp,
+    NSEventMaskRightMouseDown = 1ULL << NSEventTypeRightMouseDown,
+    NSEventMaskRightMouseUp = 1ULL << NSEventTypeRightMouseUp,
+    NSEventMaskMouseMoved = 1ULL << NSEventTypeMouseMoved,
+    NSEventMaskLeftMouseDragged = 1ULL << NSEventTypeLeftMouseDragged,
+    NSEventMaskRightMouseDragged = 1ULL << NSEventTypeRightMouseDragged,
+    NSEventMaskMouseEntered = 1ULL << NSEventTypeMouseEntered,
+    NSEventMaskMouseExited = 1ULL << NSEventTypeMouseExited,
+    NSEventMaskKeyDown = 1ULL << NSEventTypeKeyDown,
+    NSEventMaskKeyUp = 1ULL << NSEventTypeKeyUp,
+    NSEventMaskFlagsChanged = 1ULL << NSEventTypeFlagsChanged,
+    NSEventMaskAppKitDefined = 1ULL << NSEventTypeAppKitDefined,
+    NSEventMaskSystemDefined = 1ULL << NSEventTypeSystemDefined,
+    NSEventMaskApplicationDefined = 1ULL << NSEventTypeApplicationDefined,
+    NSEventMaskPeriodic = 1ULL << NSEventTypePeriodic,
+    NSEventMaskCursorUpdate = 1ULL << NSEventTypeCursorUpdate,
+    NSEventMaskScrollWheel = 1ULL << NSEventTypeScrollWheel,
+    NSEventMaskTabletPoint = 1ULL << NSEventTypeTabletPoint,
+    NSEventMaskTabletProximity = 1ULL << NSEventTypeTabletProximity,
+    NSEventMaskOtherMouseDown = 1ULL << NSEventTypeOtherMouseDown,
+    NSEventMaskOtherMouseUp = 1ULL << NSEventTypeOtherMouseUp,
+    NSEventMaskOtherMouseDragged = 1ULL << NSEventTypeOtherMouseDragged,
+    NSEventMaskGesture = 1ULL << NSEventTypeGesture,
+    NSEventMaskMagnify = 1ULL << NSEventTypeMagnify,
+    NSEventMaskSwipe = 1ULL << NSEventTypeSwipe,
+    NSEventMaskRotate = 1ULL << NSEventTypeRotate,
+    NSEventMaskBeginGesture = 1ULL << NSEventTypeBeginGesture,
+    NSEventMaskEndGesture = 1ULL << NSEventTypeEndGesture,
+    NSEventMaskSmartMagnify = 1ULL << NSEventTypeSmartMagnify,
+    NSEventMaskPressure = 1ULL << NSEventTypePressure,
+    NSEventMaskDirectTouch = 1ULL << NSEventTypeDirectTouch,
+    NSEventMaskChangeMode = 1ULL << NSEventTypeChangeMode,
+    NSEventMaskAny = NSUIntegerMax,
+
+    NSLeftMouseDownMask = NSEventMaskLeftMouseDown,
+    NSLeftMouseUpMask = NSEventMaskLeftMouseUp,
+    NSRightMouseDownMask = NSEventMaskRightMouseDown,
+    NSRightMouseUpMask = NSEventMaskRightMouseUp,
+    NSMouseMovedMask = NSEventMaskMouseMoved,
+    NSLeftMouseDraggedMask = NSEventMaskLeftMouseDragged,
+    NSRightMouseDraggedMask = NSEventMaskRightMouseDragged,
+    NSMouseEnteredMask = NSEventMaskMouseEntered,
+    NSMouseExitedMask = NSEventMaskMouseExited,
+    NSKeyDownMask = NSEventMaskKeyDown,
+    NSKeyUpMask = NSEventMaskKeyUp,
+    NSFlagsChangedMask = NSEventMaskFlagsChanged,
+    NSAppKitDefinedMask = NSEventMaskAppKitDefined,
+    NSSystemDefinedMask = NSEventMaskSystemDefined,
+    NSApplicationDefinedMask = NSEventMaskApplicationDefined,
+    NSPeriodicMask = NSEventMaskPeriodic,
+    NSCursorUpdateMask = NSEventMaskCursorUpdate,
+    NSScrollWheelMask = NSEventMaskScrollWheel,
+    NSTabletPointMask = NSEventMaskTabletPoint,
+    NSTabletProximityMask = NSEventMaskTabletProximity,
+    NSOtherMouseDownMask = NSEventMaskOtherMouseDown,
+    NSOtherMouseUpMask = NSEventMaskOtherMouseUp,
+    NSOtherMouseDraggedMask = NSEventMaskOtherMouseDragged,
+    NSAnyEventMask = NSEventMaskAny,
+
+    NSPlatformSpecificDisplayMask = 1ULL << NSPlatformSpecificDisplayEvent,
 };
+
+typedef NS_OPTIONS(NSUInteger, NSEventModifierFlags) {
+    NSEventModifierFlagCapsLock = 1 << 16,
+    NSEventModifierFlagShift = 1 << 17,
+    NSEventModifierFlagControl = 1 << 18,
+    NSEventModifierFlagOption = 1 << 19,
+    NSEventModifierFlagCommand = 1 << 20,
+    NSEventModifierFlagNumericPad = 1 << 21,
+    NSEventModifierFlagHelp = 1 << 22,
+    NSEventModifierFlagFunction = 1 << 23,
+    NSEventModifierFlagDeviceIndependentFlagsMask = 0xffff0000UL,
+
+    NSAlphaShiftKeyMask = NSEventModifierFlagCapsLock,
+    NSShiftKeyMask = NSEventModifierFlagShift,
+    NSControlKeyMask = NSEventModifierFlagControl,
+    NSAlternateKeyMask = NSEventModifierFlagOption,
+    NSCommandKeyMask = NSEventModifierFlagCommand,
+    NSNumericPadKeyMask = NSEventModifierFlagNumericPad,
+    NSHelpKeyMask = NSEventModifierFlagHelp,
+    NSFunctionKeyMask = NSEventModifierFlagFunction,
+    NSDeviceIndependentModifierFlagsMask = NSEventModifierFlagDeviceIndependentFlagsMask,
+};
+
+/* Where a gesture or a scroll is: trackpads give phases; a mouse wheel
+   none. */
+typedef NS_OPTIONS(NSUInteger, NSEventPhase) {
+    NSEventPhaseNone = 0,
+    NSEventPhaseBegan = 1 << 0,
+    NSEventPhaseStationary = 1 << 1,
+    NSEventPhaseChanged = 1 << 2,
+    NSEventPhaseEnded = 1 << 3,
+    NSEventPhaseCancelled = 1 << 4,
+    NSEventPhaseMayBegin = 1 << 5,
+};
+
+typedef NS_ENUM(NSInteger, NSEventGestureAxis) {
+    NSEventGestureAxisNone = 0,
+    NSEventGestureAxisHorizontal,
+    NSEventGestureAxisVertical,
+};
+
+typedef NS_OPTIONS(NSUInteger, NSEventSwipeTrackingOptions) {
+    NSEventSwipeTrackingLockDirection = 0x1 << 0,
+    NSEventSwipeTrackingClampGestureAmount = 0x1 << 1,
+};
+
+typedef NS_ENUM(NSUInteger, NSPointingDeviceType) {
+    NSPointingDeviceTypeUnknown = 0,
+    NSPointingDeviceTypePen = 1,
+    NSPointingDeviceTypeCursor = 2,
+    NSPointingDeviceTypeEraser = 3,
+};
+
+/* A key's character when it is a function key (arrows, F1...), as
+   specialKey gives it. */
+typedef NSUInteger NSEventSpecialKey;
+
 
 enum {
     NSUpArrowFunctionKey = 0xF700,
@@ -160,6 +284,16 @@ enum {
 
 /* Subtypes of NSAppKitDefined events (the public NSEventSubtype). */
 typedef NS_ENUM(short, NSEventSubtype) {
+    NSEventSubtypeWindowExposed = 0,
+    NSEventSubtypeApplicationActivated = 1,
+    NSEventSubtypeApplicationDeactivated = 2,
+    NSEventSubtypeWindowMoved = 4,
+    NSEventSubtypeScreenChanged = 8,
+    NSEventSubtypePowerOff = 1,
+    NSEventSubtypeMouseEvent = 0,
+    NSEventSubtypeTabletPoint = 1,
+    NSEventSubtypeTabletProximity = 2,
+    NSEventSubtypeTouch = 3,
     NSWindowExposedEventType = 0,
     NSApplicationActivatedEventType = 1,
     NSApplicationDeactivatedEventType = 2,
@@ -167,8 +301,8 @@ typedef NS_ENUM(short, NSEventSubtype) {
     NSScreenChangedEventType = 8,
 };
 
-@interface NSEvent : NSObject {
-    int _type;
+@interface NSEvent : NSObject <NSCopying> {
+    NSEventType _type;
     NSTimeInterval _timestamp;
     NSPoint _locationInWindow;
     NSUInteger _modifierFlags;
@@ -176,50 +310,89 @@ typedef NS_ENUM(short, NSEventSubtype) {
 }
 
 + (NSPoint)mouseLocation;
-+ (NSUInteger)modifierFlags;
++ (NSEventModifierFlags)modifierFlags;
+/* The mouse buttons down now: bit 0 the left one, 1 the right one, 2 and
+   up the others. */
++ (NSUInteger)pressedMouseButtons;
++ (NSTimeInterval)doubleClickInterval;
++ (NSTimeInterval)keyRepeatDelay;
++ (NSTimeInterval)keyRepeatInterval;
++ (BOOL)isMouseCoalescingEnabled;
++ (void)setMouseCoalescingEnabled:(BOOL)flag;
 
-- initWithType:(NSEventType)type location:(NSPoint)location modifierFlags:(unsigned)modifierFlags window:(NSWindow *)window;
+/* Blocks that see the application's events before they are sent: a local
+   monitor returns the event to send (another, or nil for none). Global
+   monitors see other applications' events, which Minkar does not give
+   (as the reference does for applications without that permission). */
++ (id)addLocalMonitorForEventsMatchingMask:(NSEventMask)mask handler:(NSEvent *(^)(NSEvent *event))block;
++ (id)addGlobalMonitorForEventsMatchingMask:(NSEventMask)mask handler:(void (^)(NSEvent *event))block;
++ (void)removeMonitor:(id)eventMonitor;
 
-// FIXME: get rid of
-+ (NSEvent *)mouseEventWithType:(NSEventType)type location:(NSPoint)location modifierFlags:(unsigned int)modifierFlags window:(NSWindow *)window clickCount:(int)clickCount deltaX:(float)deltaX deltaY:(float)deltaY;
++ (NSEvent *)eventWithCGEvent:(CGEventRef)cgEvent;
 
-// FIXME: get rid of
-+ (NSEvent *)mouseEventWithType:(NSEventType)type location:(NSPoint)location modifierFlags:(unsigned)modifierFlags window:(NSWindow *)window deltaY:(float)deltaY;
+- initWithType:(NSEventType)type location:(NSPoint)location modifierFlags:(NSEventModifierFlags)modifierFlags window:(NSWindow *)window;
 
-+ (NSEvent *)enterExitEventWithType:(NSEventType)type location:(NSPoint)location modifierFlags:(NSUInteger)flags timestamp:(NSTimeInterval)timestamp windowNumber:(NSInteger)windowNumber context:(NSGraphicsContext *)context eventNumber:(NSInteger)eventNumber trackingNumber:(NSInteger)tracking userData:(void *)userData;
+// AppKit's own constructors, for its events.
++ (NSEvent *)mouseEventWithType:(NSEventType)type location:(NSPoint)location modifierFlags:(NSEventModifierFlags)modifierFlags window:(NSWindow *)window clickCount:(NSInteger)clickCount deltaX:(CGFloat)deltaX deltaY:(CGFloat)deltaY;
++ (NSEvent *)mouseEventWithType:(NSEventType)type location:(NSPoint)location modifierFlags:(NSEventModifierFlags)modifierFlags window:(NSWindow *)window deltaY:(CGFloat)deltaY;
 
-+ (NSEvent *)mouseEventWithType:(NSEventType)type location:(NSPoint)location modifierFlags:(NSUInteger)flags timestamp:(NSTimeInterval)timestamp windowNumber:(NSInteger)windowNumber context:(NSGraphicsContext *)context eventNumber:(NSInteger)eventNumber clickCount:(NSInteger)clickCount pressure:(float)pressure;
++ (NSEvent *)enterExitEventWithType:(NSEventType)type location:(NSPoint)location modifierFlags:(NSEventModifierFlags)flags timestamp:(NSTimeInterval)timestamp windowNumber:(NSInteger)windowNumber context:(NSGraphicsContext *)context eventNumber:(NSInteger)eventNumber trackingNumber:(NSInteger)tracking userData:(void *)userData;
 
-+ (NSEvent *)keyEventWithType:(NSEventType)type location:(NSPoint)location modifierFlags:(unsigned int)modifierFlags timestamp:(NSTimeInterval)timestamp windowNumber:(int)windowNumber context:(NSGraphicsContext *)context characters:(NSString *)characters charactersIgnoringModifiers:(NSString *)charactersIgnoringModifiers isARepeat:(BOOL)isARepeat keyCode:(unsigned short)keyCode;
++ (NSEvent *)mouseEventWithType:(NSEventType)type location:(NSPoint)location modifierFlags:(NSEventModifierFlags)flags timestamp:(NSTimeInterval)timestamp windowNumber:(NSInteger)windowNumber context:(NSGraphicsContext *)context eventNumber:(NSInteger)eventNumber clickCount:(NSInteger)clickCount pressure:(float)pressure;
 
-+ (NSEvent *)otherEventWithType:(NSEventType)type location:(NSPoint)location modifierFlags:(NSUInteger)flags timestamp:(NSTimeInterval)timestamp windowNumber:(NSInteger)windowNum context:(NSGraphicsContext *)context subtype:(short)subtype data1:(NSInteger)data1 data2:(NSInteger)data2;
++ (NSEvent *)keyEventWithType:(NSEventType)type location:(NSPoint)location modifierFlags:(NSEventModifierFlags)modifierFlags timestamp:(NSTimeInterval)timestamp windowNumber:(NSInteger)windowNumber context:(NSGraphicsContext *)context characters:(NSString *)characters charactersIgnoringModifiers:(NSString *)charactersIgnoringModifiers isARepeat:(BOOL)isARepeat keyCode:(unsigned short)keyCode;
 
-- (NSEventType)type;
-- (NSTimeInterval)timestamp;
-- (NSPoint)locationInWindow;
-- (unsigned)modifierFlags;
-- (NSWindow *)window;
-- (NSInteger)windowNumber;
++ (NSEvent *)otherEventWithType:(NSEventType)type location:(NSPoint)location modifierFlags:(NSEventModifierFlags)flags timestamp:(NSTimeInterval)timestamp windowNumber:(NSInteger)windowNum context:(NSGraphicsContext *)context subtype:(short)subtype data1:(NSInteger)data1 data2:(NSInteger)data2;
 
-- (int)clickCount;
-- (float)deltaX;
-- (float)deltaY;
-- (float)deltaZ;
+@property (readonly) NSEventType type;
+@property (readonly) NSTimeInterval timestamp;
+@property (readonly) NSPoint locationInWindow;
+@property (readonly) NSEventModifierFlags modifierFlags;
+@property (readonly, assign) NSWindow *window;
+@property (readonly) NSInteger windowNumber;
+@property (readonly) CGEventRef CGEvent;
 
-- (NSString *)characters;
-- (NSString *)charactersIgnoringModifiers;
-- (unsigned short)keyCode;
+@property (readonly) NSInteger clickCount;
+@property (readonly) NSInteger buttonNumber;
+@property (readonly) NSInteger eventNumber;
+@property (readonly) float pressure;
+@property (readonly) CGFloat deltaX;
+@property (readonly) CGFloat deltaY;
+@property (readonly) CGFloat deltaZ;
+/* A scroll's distance: in lines for a wheel (hasPreciseScrollingDeltas
+   NO), in points for devices that have them. */
+@property (readonly) CGFloat scrollingDeltaX;
+@property (readonly) CGFloat scrollingDeltaY;
+@property (readonly) BOOL hasPreciseScrollingDeltas;
+@property (readonly) NSEventPhase phase;
+@property (readonly) NSEventPhase momentumPhase;
+@property (readonly, getter=isDirectionInvertedFromDevice) BOOL directionInvertedFromDevice;
+@property (readonly) CGFloat magnification;
+@property (readonly) float rotation;
+@property (readonly) NSInteger stage;
+@property (readonly) NSPointingDeviceType pointingDeviceType;
+
+@property (readonly, copy) NSString *characters;
+@property (readonly, copy) NSString *charactersIgnoringModifiers;
+@property (readonly, getter=isARepeat) BOOL ARepeat;
+@property (readonly) unsigned short keyCode;
+/* The function key the event is for (NSUpArrowFunctionKey...), or 0. */
+@property (readonly) NSEventSpecialKey specialKey;
 
 + (void)startPeriodicEventsAfterDelay:(NSTimeInterval)delay withPeriod:(NSTimeInterval)period;
 + (void)stopPeriodicEvents;
 
-- (short)subtype;
-- (NSInteger)data1;
-- (NSInteger)data2;
-- (NSInteger)trackingNumber;
-- (NSTrackingArea *)trackingArea;
-- (void *)userData;
+@property (readonly) NSEventSubtype subtype;
+@property (readonly) NSInteger data1;
+@property (readonly) NSInteger data2;
+@property (readonly) NSInteger trackingNumber;
+@property (readonly) NSTrackingArea *trackingArea;
+@property (readonly) void *userData;
+
+
+- (void)trackSwipeEventWithOptions:(NSEventSwipeTrackingOptions)options dampenAmountThresholdMin:(CGFloat)minDampenThreshold max:(CGFloat)maxDampenThreshold usingHandler:(void (^)(CGFloat gestureAmount, NSEventPhase phase, BOOL isComplete, BOOL *stop))trackingHandler;
++ (BOOL)isSwipeTrackingFromScrollEventsEnabled;
 
 @end
 
-APPKIT_EXPORT unsigned NSEventMaskFromType(NSEventType type);
+APPKIT_EXPORT NSEventMask NSEventMaskFromType(NSEventType type);

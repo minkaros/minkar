@@ -25,8 +25,8 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 - (NSArray *)filenames;
 - (NSArray *)URLs;
 
-- (int)runModalForDirectory:(NSString *)directory file:(NSString *)file types:(NSArray *)types;
-- (int)runModalForTypes:(NSArray *)types;
+- (NSInteger)runModalForDirectory:(NSString *)directory file:(NSString *)file types:(NSArray *)types;
+- (NSInteger)runModalForTypes:(NSArray *)types;
 
 - (BOOL)allowsMultipleSelection;
 - (BOOL)canChooseDirectories;

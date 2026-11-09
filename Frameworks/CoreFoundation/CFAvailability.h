@@ -31,7 +31,7 @@
 #include <TargetConditionals.h>
 #include <Availability.h>
 
-#if (TARGET_OS_MAC || TARGET_OS_EMBEDDED || TARGET_OS_IPHONE || TARGET_OS_WIN32)
+#if (TARGET_OS_MAC || TARGET_OS_EMBEDDED || TARGET_OS_IPHONE)
 // Even if unused, these must remain here for compatibility, because projects rely on them being included.
 #include <AvailabilityMacros.h>
 #endif

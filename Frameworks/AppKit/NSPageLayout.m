@@ -19,11 +19,11 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    return NSThreadSharedInstance(@"NSPageLayout");
 }
 
--(int)runModalWithPrintInfo:(NSPrintInfo *)printInfo {
+-(NSInteger)runModalWithPrintInfo:(NSPrintInfo *)printInfo {
    return [[NSDisplay currentDisplay] runModalPageLayoutWithPrintInfo:printInfo];
 }
 
--(int)runModal {
+-(NSInteger)runModal {
    return [self runModalWithPrintInfo:[NSPrintInfo sharedPrintInfo]];
 }
 

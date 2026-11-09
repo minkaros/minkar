@@ -9,12 +9,17 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <AppKit/NSActionCell.h>
 #import <AppKit/NSSliderCell.h>
 
-typedef enum {
-    NSRatingLevelIndicatorStyle,
-    NSDiscreteCapacityLevelIndicatorStyle,
-    NSContinuousCapacityLevelIndicatorStyle,
-    NSRelevancyLevelIndicatorStyle,
-} NSLevelIndicatorStyle;
+typedef NS_ENUM(NSUInteger, NSLevelIndicatorStyle) {
+    NSLevelIndicatorStyleRelevancy = 0,
+    NSLevelIndicatorStyleContinuousCapacity = 1,
+    NSLevelIndicatorStyleDiscreteCapacity = 2,
+    NSLevelIndicatorStyleRating = 3,
+
+    NSRelevancyLevelIndicatorStyle = NSLevelIndicatorStyleRelevancy,
+    NSContinuousCapacityLevelIndicatorStyle = NSLevelIndicatorStyleContinuousCapacity,
+    NSDiscreteCapacityLevelIndicatorStyle = NSLevelIndicatorStyleDiscreteCapacity,
+    NSRatingLevelIndicatorStyle = NSLevelIndicatorStyleRating,
+};
 
 @interface NSLevelIndicatorCell : NSActionCell {
     NSLevelIndicatorStyle _style;
@@ -25,6 +30,7 @@ typedef enum {
     int _numberOfTickMarks;
     int _numberOfMajorTickMarks;
     NSTickMarkPosition _tickMarkPosition;
+    NSRect _lastFrame;
 }
 
 - initWithLevelIndicatorStyle:(NSLevelIndicatorStyle)style;
@@ -34,8 +40,8 @@ typedef enum {
 - (double)maxValue;
 - (double)warningValue;
 - (double)criticalValue;
-- (int)numberOfTickMarks;
-- (int)numberOfMajorTickMarks;
+- (NSInteger)numberOfTickMarks;
+- (NSInteger)numberOfMajorTickMarks;
 - (NSTickMarkPosition)tickMarkPosition;
 
 - (void)setLevelIndicatorStyle:(NSLevelIndicatorStyle)style;
@@ -43,12 +49,12 @@ typedef enum {
 - (void)setMaxValue:(double)value;
 - (void)setWarningValue:(double)value;
 - (void)setCriticalValue:(double)value;
-- (void)setNumberOfTickMarks:(int)count;
-- (void)setNumberOfMajorTickMarks:(int)count;
+- (void)setNumberOfTickMarks:(NSInteger)count;
+- (void)setNumberOfMajorTickMarks:(NSInteger)count;
 - (void)setTickMarkPosition:(NSTickMarkPosition)position;
 - (void)setImage:(NSImage *)image;
 
-- (double)tickMarkValueAtIndex:(int)index;
-- (NSRect)rectOfTickMarkAtIndex:(int)index;
+- (double)tickMarkValueAtIndex:(NSInteger)index;
+- (NSRect)rectOfTickMarkAtIndex:(NSInteger)index;
 
 @end

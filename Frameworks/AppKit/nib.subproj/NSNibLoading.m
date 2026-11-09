@@ -45,6 +45,16 @@
 	return [bundle loadNibFile:name externalNameTable:nameTable withZone: NSDefaultMallocZone()];
 }
 
+/* The nib named in this bundle, its top-level objects not owned by the
+   caller. */
+-(BOOL)loadNibNamed:(NSString *)nibName owner:(id)owner topLevelObjects:(NSArray **)topLevelObjects {
+   NSNib *nib=[[[NSNib alloc] initWithNibNamed:nibName bundle:self] autorelease];
+
+   if(nib==nil)
+    return NO;
+   return [nib instantiateWithOwner:owner topLevelObjects:topLevelObjects];
+}
+
 -(BOOL)loadNibFile:(NSString *)fileName externalNameTable:(NSDictionary *)nameTable withZone:(NSZone *)zone {
 	NSAutoreleasePool *pool=[NSAutoreleasePool new];
 	

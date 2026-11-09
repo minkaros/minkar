@@ -34,24 +34,19 @@
 #include <float.h>
 
 
-#if DEPLOYMENT_TARGET_WINDOWS
-#define isnan(A) _isnan(A)
-#define isinf(A) !_finite(A)
-#define copysign(A, B) _copysign(A, B)
-#endif
-
 #define __CFAssertIsBoolean(cf) __CFGenericValidateType(cf, CFBooleanGetTypeID())
 
 struct __CFBoolean {
     CFRuntimeBase _base;
 };
 
-static struct __CFBoolean __kCFBooleanTrue = {
+/* Exported as the reference platform exports them. */
+struct __CFBoolean __kCFBooleanTrue = {
     INIT_CFRUNTIME_BASE()
 };
 const CFBooleanRef kCFBooleanTrue = &__kCFBooleanTrue;
 
-static struct __CFBoolean __kCFBooleanFalse = {
+struct __CFBoolean __kCFBooleanFalse = {
     INIT_CFRUNTIME_BASE()
 };
 const CFBooleanRef kCFBooleanFalse = &__kCFBooleanFalse;
@@ -152,17 +147,9 @@ static CFComparisonResult CFNumberCompare_old(struct __CFNumber_old * number1, s
 #define BITSFORDOUBLEPOSINF	((uint64_t)0x7ff0000000000000ULL)
 #define BITSFORDOUBLENEGINF	((uint64_t)0xfff0000000000000ULL)
 
-#if DEPLOYMENT_TARGET_MACOSX || DEPLOYMENT_TARGET_EMBEDDED || DEPLOYMENT_TARGET_EMBEDDED_MINI || DEPLOYMENT_TARGET_LINUX
 #define FLOAT_POSITIVE_2_TO_THE_64	0x1.0p+64L
 #define FLOAT_NEGATIVE_2_TO_THE_127	-0x1.0p+127L
 #define FLOAT_POSITIVE_2_TO_THE_127	0x1.0p+127L
-#elif DEPLOYMENT_TARGET_WINDOWS
-#define FLOAT_POSITIVE_2_TO_THE_64	18446744073709551616.0
-#define FLOAT_NEGATIVE_2_TO_THE_127	-170141183460469231731687303715884105728.0
-#define FLOAT_POSITIVE_2_TO_THE_127	170141183460469231731687303715884105728.0
-#else
-#error Unknown or unspecified DEPLOYMENT_TARGET
-#endif
 
 typedef struct {	// NOTE WELL: these two fields may switch position someday, do not use '= {high, low}' -style initialization
     int64_t high;

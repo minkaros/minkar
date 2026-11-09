@@ -199,8 +199,6 @@ void NSInterfaceDrawProgressIndicatorBezel(NSRect rect,NSRect clipRect) {
 
 
 void NSInterfaceDrawOutlineGrid(NSRect rect,CGContextRef context) {
-/* Win32 has poor dashed line support...
- */
    if(rect.size.width<0)
     return;
    if(rect.size.height<0)

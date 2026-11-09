@@ -15,6 +15,20 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 @implementation NSForm
 
++(Class)cellClass {
+   return [NSFormCell class];
+}
+
+/* Rows of a text field's height with some room between them. */
+-initWithFrame:(NSRect)frame {
+   [super initWithFrame:frame];
+   [self setCellClass:[NSFormCell class]];
+   [self renewRows:0 columns:1];   /* one column of entries */
+   [self setCellSize:NSMakeSize(NSWidth(frame),22)];
+   [self setIntercellSpacing:NSMakeSize(0,8)];
+   return self;
+}
+
 -(void)resizeWithOldSuperviewSize:(NSSize)oldSize {
    [super resizeWithOldSuperviewSize:oldSize];
 
@@ -44,11 +58,11 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    }
 }
 
--cellAtIndex:(int)index {
+-cellAtIndex:(NSInteger)index {
    return [[self cells] objectAtIndex:index];
 }
 
--(int)indexOfCellWithTag:(int)tag {
+-(NSInteger)indexOfCellWithTag:(NSInteger)tag {
    NSArray *cells=[self cells];
    int      i,count=[cells count];
    
@@ -59,7 +73,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    return -1;
 }
 
--(int)indexOfSelectedItem {
+-(NSInteger)indexOfSelectedItem {
    return [self selectedRow];
 }
 
@@ -84,14 +98,14 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    [self setNeedsDisplay:YES];
 }
 
--(void)setEntryWidth:(float)value {
+-(void)setEntryWidth:(CGFloat)value {
    NSSize size=[self cellSize];
    
    size.width=value;
    [self setCellSize:size];
 }
 
--(void)setInterlineSpacing:(float)value {
+-(void)setInterlineSpacing:(CGFloat)value {
    [self setIntercellSpacing:NSMakeSize(0,value)];
 }
 
@@ -158,26 +172,30 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 -(NSFormCell *)addEntry:(NSString *)title {   
    [self addRow];
    [[[self cells] lastObject] setTitle:title];
-   
+   [self calcSize];
+   [self setNeedsDisplay:YES];
+
    return [[self cells] lastObject];
 }
 
--(NSFormCell *)insertEntry:(NSString *)title atIndex:(int)index {
+-(NSFormCell *)insertEntry:(NSString *)title atIndex:(NSInteger)index {
    [self insertRow:index];
    [[self cellAtRow:index column:0] setTitle:title];
+   [self calcSize];
+   [self setNeedsDisplay:YES];
    
    return [self cellAtRow:index column:0];
 }
 
--(void)removeEntryAtIndex:(int)index {
+-(void)removeEntryAtIndex:(NSInteger)index {
    [self removeRow:index];
 }
 
--(void)selectTextAtIndex:(int)index {
+-(void)selectTextAtIndex:(NSInteger)index {
    NSUnimplementedMethod();
 }
 
--(void)drawCellAtIndex:(int)index {
+-(void)drawCellAtIndex:(NSInteger)index {
    [self drawCellAtRow:index column:0];
 }
 

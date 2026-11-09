@@ -10,6 +10,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 // Reviewed for API completeness against 10.6.
 
 #import <AppKit/NSResponder.h>
+#import <AppKit/NSAppearance.h>
 #import <AppKit/NSGraphics.h>
 #import <AppKit/NSAnimation.h>
 #import <AppKit/AppKitExport.h>
@@ -21,7 +22,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 typedef NSTrackingArea *NSTrackingRectTag;
 typedef NSTrackingArea *NSToolTipTag;
 
-enum {
+typedef NS_OPTIONS(NSUInteger, NSAutoresizingMaskOptions) {
     NSViewNotSizable = 0x00,
     NSViewMinXMargin = 0x01,
     NSViewWidthSizable = 0x02,
@@ -66,7 +67,17 @@ APPKIT_EXPORT NSString *const NSViewFrameDidChangeNotification;
 APPKIT_EXPORT NSString *const NSViewBoundsDidChangeNotification;
 APPKIT_EXPORT NSString *const NSViewFocusDidChangeNotification;
 
-@interface NSView : NSResponder <NSAnimatablePropertyContainer> {
+/* A name for a view, menu item, window... that state restoration and
+   table cell reuse find it by. */
+typedef NSString *NSUserInterfaceItemIdentifier;
+
+@protocol NSUserInterfaceItemIdentification
+@property (copy) NSUserInterfaceItemIdentifier identifier;
+@end
+
+@class NSDraggingSession;
+
+@interface NSView : NSResponder <NSAnimatablePropertyContainer, NSUserInterfaceItemIdentification, NSAppearanceCustomization> {
     NSRect _frame;
     NSRect _bounds;
     NSWindow *_window;
@@ -81,7 +92,7 @@ APPKIT_EXPORT NSString *const NSViewFocusDidChangeNotification;
     BOOL _autoresizesSubviews;
     BOOL _inLiveResize;
     unsigned _autoresizingMask;
-    int _tag;
+    NSInteger _tag;
     NSArray *_draggedTypes;
     NSMutableArray *_trackingAreas;
     BOOL _needsDisplay;
@@ -142,15 +153,15 @@ APPKIT_EXPORT NSString *const NSViewFocusDidChangeNotification;
 
 - (NSArray *)subviews;
 - (BOOL)autoresizesSubviews;
-- (unsigned)autoresizingMask;
+- (NSAutoresizingMaskOptions)autoresizingMask;
 - (NSFocusRingType)focusRingType;
 
-- (int)tag;
+- (NSInteger)tag;
 - (BOOL)isFlipped;
 - (BOOL)isOpaque;
 - (CGFloat)alphaValue;
 - (void)setAlphaValue:(CGFloat)alpha;
-- (int)gState;
+- (NSInteger)gState;
 - (NSRect)visibleRect;
 - (BOOL)wantsDefaultClipping;
 
@@ -176,7 +187,7 @@ APPKIT_EXPORT NSString *const NSViewFocusDidChangeNotification;
 - (NSMenuItem *)enclosingMenuItem;
 - (NSString *)toolTip;
 
-- viewWithTag:(int)tag;
+- viewWithTag:(NSInteger)tag;
 - (NSView *)hitTest:(NSPoint)point;
 
 - (NSPoint)convertPoint:(NSPoint)point fromView:(NSView *)viewOrNil;
@@ -216,7 +227,7 @@ APPKIT_EXPORT NSString *const NSViewFocusDidChangeNotification;
 - (void)didAddSubview:(NSView *)subview;
 - (void)willRemoveSubview:(NSView *)subview;
 - (void)setAutoresizesSubviews:(BOOL)flag;
-- (void)setAutoresizingMask:(unsigned int)mask;
+- (void)setAutoresizingMask:(NSAutoresizingMaskOptions)mask;
 - (void)setFocusRingType:(NSFocusRingType)value;
 
 - (void)setNextKeyView:(NSView *)next;
@@ -356,14 +367,14 @@ APPKIT_EXPORT NSString *const NSViewFocusDidChangeNotification;
 - (void)drawSheetBorderWithSize:(NSSize)size;
 - (void)drawPageBorderWithSize:(NSSize)size;
 
-- (float)widthAdjustLimit;
-- (float)heightAdjustLimit;
-- (void)adjustPageWidthNew:(float *)adjustedRight left:(float)left right:(float)right limit:(float)limit;
-- (void)adjustPageHeightNew:(float *)adjustedBottom top:(float)top bottom:(float)bottom limit:(float)limit;
+- (CGFloat)widthAdjustLimit;
+- (CGFloat)heightAdjustLimit;
+- (void)adjustPageWidthNew:(CGFloat *)adjustedRight left:(CGFloat)left right:(CGFloat)right limit:(CGFloat)limit;
+- (void)adjustPageHeightNew:(CGFloat *)adjustedBottom top:(CGFloat)top bottom:(CGFloat)bottom limit:(CGFloat)limit;
 
 - (BOOL)knowsPageRange:(NSRange *)range;
 - (NSPoint)locationOfPrintRect:(NSRect)rect;
-- (NSRect)rectForPage:(int)page;
+- (NSRect)rectForPage:(NSInteger)page;
 
 - (NSData *)dataWithEPSInsideRect:(NSRect)rect;
 - (NSData *)dataWithPDFInsideRect:(NSRect)rect;
@@ -372,6 +383,10 @@ APPKIT_EXPORT NSString *const NSViewFocusDidChangeNotification;
 - (void)writePDFInsideRect:(NSRect)rect toPasteboard:(NSPasteboard *)pasteboard;
 
 - (void)dragImage:(NSImage *)image at:(NSPoint)location offset:(NSSize)offset event:(NSEvent *)event pasteboard:(NSPasteboard *)pasteboard source:source slideBack:(BOOL)slideBack;
+/* Drags the items (written to the drag pasteboard), each shown at its
+   dragging frame in this view; the source gets the session's
+   callbacks. */
+- (NSDraggingSession *)beginDraggingSessionWithItems:(NSArray *)items event:(NSEvent *)event source:(id)source;
 - (BOOL)dragFile:(NSString *)path fromRect:(NSRect)rect slideBack:(BOOL)slideBack event:(NSEvent *)event;
 - (BOOL)dragPromisedFilesOfTypes:(NSArray *)types fromRect:(NSRect)rect source:(id)source slideBack:(BOOL)slideBack event:(NSEvent *)event;
 

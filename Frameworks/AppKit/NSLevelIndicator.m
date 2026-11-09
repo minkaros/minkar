@@ -11,8 +11,23 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 @implementation NSLevelIndicator
 
+/* Its own cell when made in code (a nib names it): not its superclass's. */
++(Class)cellClass {
+   return [NSLevelIndicatorCell class];
+}
+
+
 -(NSLevelIndicatorCell *)_indicatorCell {
    return [self cell];
+}
+
+-(NSLevelIndicatorStyle)levelIndicatorStyle {
+   return [[self _indicatorCell] levelIndicatorStyle];
+}
+
+-(void)setLevelIndicatorStyle:(NSLevelIndicatorStyle)style {
+   [[self _indicatorCell] setLevelIndicatorStyle:style];
+   [self setNeedsDisplay:YES];
 }
 
 -(double)minValue {
@@ -31,11 +46,11 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    return [[self _indicatorCell] criticalValue];
 }
 
--(int)numberOfTickMarks {
+-(NSInteger)numberOfTickMarks {
    return [[self _indicatorCell] numberOfTickMarks];
 }
 
--(int)numberOfMajorTickMarks {
+-(NSInteger)numberOfMajorTickMarks {
    return [[self _indicatorCell] numberOfMajorTickMarks];
 }
 
@@ -63,12 +78,12 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    [self setNeedsDisplay:YES];
 }
 
--(void)setNumberOfTickMarks:(int)count {
+-(void)setNumberOfTickMarks:(NSInteger)count {
    [[self _indicatorCell] setNumberOfTickMarks:count];
    [self setNeedsDisplay:YES];
 }
 
--(void)setNumberOfMajorTickMarks:(int)count {
+-(void)setNumberOfMajorTickMarks:(NSInteger)count {
    [[self _indicatorCell] setNumberOfMajorTickMarks:count];
    [self setNeedsDisplay:YES];
 }
@@ -78,11 +93,11 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    [self setNeedsDisplay:YES];
 }
 
--(double)tickMarkValueAtIndex:(int)index {
+-(double)tickMarkValueAtIndex:(NSInteger)index {
    return [[self _indicatorCell] tickMarkValueAtIndex:index];
 }
 
--(NSRect)rectOfTickMarkAtIndex:(int)index {
+-(NSRect)rectOfTickMarkAtIndex:(NSInteger)index {
    return [[self _indicatorCell] rectOfTickMarkAtIndex:index];
 }
 

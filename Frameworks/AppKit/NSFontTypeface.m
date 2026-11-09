@@ -50,6 +50,36 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    return _traits;
 }
 
+/* Longest words first where one holds another (ExtraBold before Bold). */
+static int weightOfTypefaceName(NSString *name,NSFontTraitMask traits){
+   static NSString *const words[]={@"ExtraBlack",@"UltraBlack",@"ExtraBold",@"UltraBold",@"SemiBold",@"DemiBold",
+      @"ExtraLight",@"UltraLight",@"Thin",@"Light",@"Book",@"Regular",@"Medium",@"Bold",@"Heavy",@"Black"};
+   static const int weights[]={14,13,10,10,8,7,3,1,2,3,4,5,6,9,11,12};
+   NSUInteger i;
+
+   for(i=0;i<sizeof(weights)/sizeof(weights[0]);i++)
+    if([name rangeOfString:words[i] options:NSCaseInsensitiveSearch].location!=NSNotFound)
+     return weights[i];
+   return (traits&NSBoldFontMask)?9:5;
+}
+
+-(NSInteger)weight {
+   return weightOfTypefaceName(_traitName?[_traitName stringByAppendingFormat:@" %@",_name]:_name,_traits);
+}
+
+-(NSInteger)_weightRank {
+   static NSString *const words[]={@"ExtraBlack",@"UltraBlack",@"ExtraBold",@"UltraBold",@"SemiBold",@"DemiBold",
+      @"ExtraLight",@"UltraLight",@"Thin",@"Light",@"Book",@"Regular",@"Medium",@"Bold",@"Heavy",@"Black"};
+   static const int ranks[]={15,14,11,11,9,8,3,1,2,4,5,6,7,10,12,13};
+   NSString  *name=_traitName?[_traitName stringByAppendingFormat:@" %@",_name]:_name;
+   NSUInteger i;
+
+   for(i=0;i<sizeof(ranks)/sizeof(ranks[0]);i++)
+    if([name rangeOfString:words[i] options:NSCaseInsensitiveSearch].location!=NSNotFound)
+     return ranks[i];
+   return (_traits&NSBoldFontMask)?10:6;
+}
+
 -(void)addMetric:(NSFontMetric *)metric {
    [_metrics addObject:metric];
 }

@@ -8,6 +8,7 @@ The above copyright notice and this permission notice shall be included in all c
 
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE. */
 
+#import <objc/runtime.h>
 #import <sys/param.h>
 #import <mach/mach.h>
 #import <servers/bootstrap.h>
@@ -30,7 +31,12 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <AppKit/NSImage.h>
 #import <AppKit/NSImageView.h>
 #import <AppKit/NSSheetContext.h>
-#import <AppKit/NSSystemInfoPanel.h>
+#import "NSAboutPanel.h"
+#import <AppKit/NSHelpManager.h>
+
+@interface NSHelpManager (NSApplicationHelp)
+-(BOOL)_showApplicationHelp;
+@end
 #import <AppKit/NSAlert.h>
 #import <AppKit/NSWorkspace.h>
 #import <AppKit/NSDockTile.h>
@@ -62,6 +68,8 @@ NSString * const NSEventTrackingRunLoopMode=@"NSEventTrackingRunLoopMode";
 
 NSString * const NSApplicationWillFinishLaunchingNotification=@"NSApplicationWillFinishLaunchingNotification";
 NSString * const NSApplicationDidFinishLaunchingNotification=@"NSApplicationDidFinishLaunchingNotification";
+NSString * const NSApplicationLaunchUserNotificationKey=@"NSApplicationLaunchUserNotificationKey";
+NSString * const NSApplicationLaunchIsDefaultLaunchKey=@"NSApplicationLaunchIsDefaultLaunchKey";
 
 NSString * const NSApplicationWillBecomeActiveNotification=@"NSApplicationWillBecomeActiveNotification";
 NSString * const NSApplicationDidBecomeActiveNotification=@"NSApplicationDidBecomeActiveNotification";
@@ -93,6 +101,25 @@ NSString * const NSApplicationDidChangeScreenParametersNotification=@"NSApplicat
 @end
 
 @implementation NSApplication
+
+static NSAppearance *applicationAppearance;
+
+-(NSAppearance *)appearance {
+   return applicationAppearance;
+}
+
+-(void)setAppearance:(NSAppearance *)appearance {
+   [self willChangeValueForKey:@"effectiveAppearance"];
+   appearance=[appearance retain];
+   [applicationAppearance release];
+   applicationAppearance=appearance;
+   [self didChangeValueForKey:@"effectiveAppearance"];
+}
+
+/* The one set, or the system's light look. */
+-(NSAppearance *)effectiveAppearance {
+   return (applicationAppearance!=nil)?applicationAppearance:[NSAppearance appearanceNamed:NSAppearanceNameAqua];
+}
 
 id NSApp=nil;
 
@@ -283,7 +310,7 @@ extern void _CGDisplayReconfigured(CGDirectDisplayID display, CGDisplayChangeSum
 }
 
 /* Each event notification is 2 chars. Don't read more! */
--(int)_drainPipe {
+-(NSInteger)_drainPipe {
     char junk[2];
     fd_set fds;
     struct timeval tv = {0};
@@ -296,7 +323,7 @@ extern void _CGDisplayReconfigured(CGDirectDisplayID display, CGDisplayChangeSum
     return 0;
 }
 
--(int)_wakeUp {
+-(NSInteger)_wakeUp {
     return(write(_machEventPipe[1], "\n", 2));
 }
 
@@ -420,7 +447,11 @@ extern void _CGDisplayReconfigured(CGDirectDisplayID display, CGDisplayChangeSum
    _keyWindow=window;
 }
 
+/* An app without an icon of its own has the generic one, as on the
+   reference platform. */
 -(NSImage *)applicationIconImage {
+   if(_applicationIconImage==nil)
+    return [NSImage imageNamed:@"NSApplicationIcon"];
    return _applicationIconImage;
 }
 
@@ -566,28 +597,69 @@ extern void _CGDisplayReconfigured(CGDirectDisplayID display, CGDisplayChangeSum
     }
 }
 
+/* The app's name as the reference platform shows it: its bundle's
+   CFBundleName (localized), else the process name. */
+static NSString *applicationMenuTitle(void) {
+   NSBundle *main = [NSBundle mainBundle];
+   NSString *appName = [main objectForInfoDictionaryKey:@"CFBundleName"];
+
+   if([appName length] == 0)
+    return [[NSProcessInfo processInfo] processName];
+   return [main localizedStringForKey:@"CFBundleName" value:appName table:@"InfoPlist"];
+}
+
+/* Marks the app menu AppKit adds to a main menu that has none. */
+static NSString * const NSAutomaticApplicationMenu = @"NSAutomaticApplicationMenu";
+
+/* The main menu's first item is the app menu, whatever its title, shown
+   as the app's name. A main menu the app sets with no items gets one with
+   Quit; when the app then adds its own items (a menu made in code, set
+   while still empty), that one goes and the app's first item takes its
+   place. The main menu AppKit makes for an app with none keeps its app
+   menu: the app's items come after it. */
+-(void)_ensureApplicationMenu {
+   static BOOL busy;
+   NSMenuItem *first;
+
+   if(busy || _mainMenu == nil)
+    return;
+   busy = YES;
+
+   first = ([_mainMenu numberOfItems] > 0) ? [_mainMenu itemAtIndex:0] : nil;
+   if(first != nil && [first representedObject] == NSAutomaticApplicationMenu && [_mainMenu numberOfItems] > 1) {
+    [_mainMenu removeItemAtIndex:0];
+    first = [_mainMenu itemAtIndex:0];
+   }
+
+   if(first != nil && [[[first submenu] _name] isEqualToString:@"NSAppleMenu"])
+    ;
+   else if([first hasSubmenu] && [[first submenu] _name] == nil) {
+    [[first submenu] setValue:@"NSAppleMenu" forKey:@"name"];
+    [first setTitle:applicationMenuTitle()];
+   }
+   else if([_mainMenu _menuWithName:@"NSAppleMenu"] == nil) {
+    NSString   *appName = applicationMenuTitle();
+    NSMenuItem *appleMenuItem = [[NSMenuItem alloc] init];
+    NSMenu     *appleMenu = [[NSMenu alloc] initApplicationMenu:appName];
+
+    [appleMenuItem setTitle:appName];
+    [appleMenuItem setSubmenu:appleMenu];
+    [appleMenuItem setRepresentedObject:NSAutomaticApplicationMenu];
+    [_mainMenu insertItem:appleMenuItem atIndex:0];
+    [appleMenu release];
+    [appleMenuItem release];
+   }
+
+   busy = NO;
+}
+
 -(void)setMainMenu:(NSMenu *)menu {
    int i,count=[_windows count];
 
    [_mainMenu autorelease];
    _mainMenu=[menu retain];
 
-   // ensure we have an "Apple" (application) menu
-   if([_mainMenu _menuWithName:@"NSAppleMenu"] == nil) {
-     /* The app's name as the reference platform shows it: its bundle's
-        CFBundleName (localized), else the process name. */
-     NSBundle *main = [NSBundle mainBundle];
-     NSString *appName = [main objectForInfoDictionaryKey:@"CFBundleName"];
-     if([appName length] == 0)
-      appName = [[NSProcessInfo processInfo] processName];
-     else
-      appName = [main localizedStringForKey:@"CFBundleName" value:appName table:@"InfoPlist"];
-     NSMenuItem *appleMenuItem = [[NSMenuItem new] retain];
-     [appleMenuItem setTitle:appName];
-     NSMenu *appleMenu = [[[NSMenu alloc] initApplicationMenu:appName] retain];
-     [appleMenuItem setSubmenu:appleMenu];
-     [_mainMenu insertItem:appleMenuItem atIndex:0];
-   }
+   [self _ensureApplicationMenu];
 
    for(i=0;i<count;i++){
     NSWindow *window=[_windows objectAtIndex:i];
@@ -821,8 +893,15 @@ static NSArray *urlsFromOpenMessage(const LSSessionOpenMessage *msg, NSUInteger 
     /* If there are no menus loaded (e.g. we have no nib), make sure we at least have
      * the application menu
      */
-    if([self mainMenu] == nil)
-        [self setMenu:[NSMenu new]];
+    if([self mainMenu] == nil) {
+        NSMenu *menu = [[NSMenu alloc] init];
+
+        [self setMenu:menu];
+        [menu release];
+        /* AppKit's own: the app adds its menus after this app menu. */
+        if([_mainMenu numberOfItems] > 0)
+            [[_mainMenu itemAtIndex:0] setRepresentedObject:nil];
+    }
 
 // Give us a first event
    [NSTimer scheduledTimerWithTimeInterval:0.1 target:nil
@@ -969,12 +1048,20 @@ static NSArray *urlsFromOpenMessage(const LSSessionOpenMessage *msg, NSUInteger 
    return NO;
 }
 
+extern void NSEventNoteMouseButtons(NSEvent *event);
+extern NSEvent *NSEventRunLocalMonitors(NSEvent *event);
+
 -(void)sendEvent:(NSEvent *)event {
+    if(event == nil)
+        return;
+    NSEventNoteMouseButtons(event);
+    /* Local monitors see what is sent, and may change or drop it. */
+    event = NSEventRunLocalMonitors(event);
     if(event == nil)
         return;
 
    if([event type]==NSKeyDown){
-    unsigned modifierFlags=[event modifierFlags];
+    NSEventModifierFlags modifierFlags=[event modifierFlags];
 
     if(modifierFlags&(NSCommandKeyMask|NSAlternateKeyMask|NSControlKeyMask))
      if([self _performKeyEquivalent:event])
@@ -998,14 +1085,13 @@ static NSArray *urlsFromOpenMessage(const LSSessionOpenMessage *msg, NSUInteger 
    [[NSApp windows] makeObjectsPerformSelector:@selector(displayIfNeeded)];
 }
 
--(NSEvent *)nextEventMatchingMask:(unsigned int)mask untilDate:(NSDate *)untilDate inMode:(NSString *)mode dequeue:(BOOL)dequeue {
+-(NSEvent *)nextEventMatchingMask:(NSEventMask)mask untilDate:(NSDate *)untilDate inMode:(NSString *)mode dequeue:(BOOL)dequeue {
    NSEvent *nextEvent=nil;
 
    do {
    NSAutoreleasePool *pool=[NSAutoreleasePool new];
 
    NS_DURING
-    //[NSClassFromString(@"Win32RunningCopyPipe") performSelector:@selector(createRunningCopyPipe)];
 
     // This should happen before _makeSureIsOnAScreen so we don't reposition done windows
     [self _checkForReleasedWindows];
@@ -1058,7 +1144,7 @@ static NSArray *urlsFromOpenMessage(const LSSessionOpenMessage *msg, NSUInteger 
    return [result autorelease];
 }
 
--(void)discardEventsMatchingMask:(unsigned)mask beforeEvent:(NSEvent *)event {
+-(void)discardEventsMatchingMask:(NSEventMask)mask beforeEvent:(NSEvent *)event {
    [_display discardEventsMatchingMask:mask beforeEvent:event];
 }
 
@@ -1379,7 +1465,7 @@ static NSArray *urlsFromOpenMessage(const LSSessionOpenMessage *msg, NSUInteger 
    return session;
 }
 
--(int)runModalSession:(NSModalSession)session {
+-(NSInteger)runModalSession:(NSModalSession)session {
     while([session stopCode]==NSRunContinuesResponse) {
         NSAutoreleasePool *pool=[NSAutoreleasePool new];
         NSEvent           *event=[self nextEventMatchingMask:NSAnyEventMask untilDate:[NSDate date] inMode:NSModalPanelRunLoopMode dequeue:YES];
@@ -1439,7 +1525,7 @@ static NSArray *urlsFromOpenMessage(const LSSessionOpenMessage *msg, NSUInteger 
     [_modalStack removeLastObject];
 }
 
--(void)stopModalWithCode:(int)code {
+-(void)stopModalWithCode:(NSInteger)code {
     // This should silently ignore any attempt to end a session when there is none.
    [[_modalStack lastObject] stopModalWithCode:code];
 }
@@ -1462,7 +1548,7 @@ static NSArray *urlsFromOpenMessage(const LSSessionOpenMessage *msg, NSUInteger 
    [values setObject:[NSNumber numberWithInteger:result] forKey:@"result"];
 }
 
--(int)runModalForWindow:(NSWindow *)window {
+-(NSInteger)runModalForWindow:(NSWindow *)window {
    NSMutableDictionary *values=[NSMutableDictionary dictionary];
 
    [values setObject:window forKey:@"NSWindow"];
@@ -1511,12 +1597,13 @@ static NSArray *urlsFromOpenMessage(const LSSessionOpenMessage *msg, NSUInteger 
         }
         [self endModalSession:session];
     } else {
+        [sheet _setSheetParent:window];
         [window _attachSheetContextOrderFrontAndAnimate:context];
     }
 }
 
 typedef void (*endfunction_t)(id, SEL, id, NSInteger, void *);
--(void)endSheet:(NSWindow *)sheet returnCode:(int)returnCode {
+-(void)endSheet:(NSWindow *)sheet returnCode:(NSInteger)returnCode {
 
     if ([[NSUserDefaults standardUserDefaults] boolForKey: @"NSRunAllSheetsAsModalPanel"]) {
         NSSheetContext* context = [sheet _sheetContext];
@@ -1542,6 +1629,7 @@ typedef void (*endfunction_t)(id, SEL, id, NSInteger, void *);
      [[context retain] autorelease];
 
      [check _detachSheetContextAnimateAndOrderOut];
+     [sheet _setSheetParent:nil];
 
      function=[[context modalDelegate] methodForSelector:[context didEndSelector]];
 
@@ -1566,14 +1654,14 @@ typedef void (*endfunction_t)(id, SEL, id, NSInteger, void *);
    [_windows makeObjectsPerformSelector:@selector(_flashWindow)];
 }
 
--(int)requestUserAttention:(NSRequestUserAttentionType)attentionType {
+-(NSInteger)requestUserAttention:(NSRequestUserAttentionType)attentionType {
    [_attentionTimer invalidate];
    _attentionTimer=[NSTimer scheduledTimerWithTimeInterval:3 target:self selector:@selector(_attentionTimer:) userInfo:nil repeats:YES];
 
    return 0;
 }
 
--(void)cancelUserAttentionRequest:(int)requestNumber {
+-(void)cancelUserAttentionRequest:(NSInteger)requestNumber {
    NSUnimplementedMethod();
 }
 
@@ -1673,7 +1761,6 @@ typedef void (*endfunction_t)(id, SEL, id, NSInteger, void *);
     {
       [[NSNotificationCenter defaultCenter] postNotificationName:NSApplicationWillTerminateNotification object:self];
 
-      //[NSClassFromString(@"Win32RunningCopyPipe") performSelector:@selector(invalidateRunningCopyPipe)];
 
       exit(0);
     }
@@ -1751,10 +1838,7 @@ typedef void (*endfunction_t)(id, SEL, id, NSInteger, void *);
 }
 
 -(void)orderFrontStandardAboutPanelWithOptions:(NSDictionary *)options {
-    NSSystemInfoPanel *standardAboutPanel = [[NSSystemInfoPanel
-standardAboutPanel] retain];
-   [standardAboutPanel showInfoPanel:self withOptions:options];
-
+   [[NSAboutPanel sharedAboutPanel] orderFrontWithOptions:options];
 }
 
 -(void)activateContextHelpMode:sender {
@@ -1765,39 +1849,17 @@ standardAboutPanel] retain];
     [[[NSSpellChecker sharedSpellChecker] spellingPanel] makeKeyAndOrderFront: self];
 }
 
+/* The app's help book from its start page (NSHelpManager.m), or an
+   alert that it has none. */
 -(void)showHelp:sender
 {
-    NSString *helpBookFolder = [[[NSBundle mainBundle] infoDictionary] objectForKey:@"CFBundleHelpBookFolder"];
-    if(helpBookFolder != nil) {
-        BOOL isDir;
-        NSString *folder = [[NSBundle mainBundle] pathForResource:helpBookFolder ofType:nil];
-        if(folder != nil && [[NSFileManager defaultManager] fileExistsAtPath:folder isDirectory:&isDir] && isDir) {
-            NSBundle* helpBundle = [NSBundle bundleWithPath: folder];
-            if (helpBundle) {
-                NSString *helpBookName = [[helpBundle infoDictionary] objectForKey:@"CFBundleHelpTOCFile"];
-                if(helpBookName != nil) {
-                    NSString* helpFilePath = [helpBundle pathForResource: helpBookName ofType: nil];
-                    if (helpFilePath) {
-                        if([[NSWorkspace sharedWorkspace] openFile:helpFilePath withApplication:@"Help Viewer"]==YES) {
-                            return;
-                        }
-                    }
-                }
-                // Perhaps there's an index.html file that'll be usable?
-                NSString* helpFilePath = [helpBundle pathForResource: @"index" ofType: @"html"];
-                if (helpFilePath) {
-                    if([[NSWorkspace sharedWorkspace] openFile:helpFilePath withApplication:@"Help Viewer"]==YES) {
-                        return;
-                    }
-                }
-            }
-        }
-    }
+    if ([[NSHelpManager sharedHelpManager] _showApplicationHelp])
+        return;
 
-   NSString *processName = [[NSProcessInfo processInfo] processName];
+   /* No help book: say so, with the name the app shows. */
    NSAlert *alert = [[NSAlert alloc] init];
-   [alert setMessageText: NSLocalizedStringFromTableInBundle(@"Help", nil, [NSBundle bundleForClass: [NSApplication class]], @"Help alert title")];
-   [alert setInformativeText:[NSString stringWithFormat: NSLocalizedStringFromTableInBundle(@"Help isn't available for %@.", nil, [NSBundle bundleForClass: [NSApplication class]], @""), processName]];
+   [alert setMessageText:[NSString stringWithFormat: NSLocalizedStringFromTableInBundle(@"Help isn't available for %@.", nil, [NSBundle bundleForClass: [NSApplication class]], @""), applicationMenuTitle()]];
+   [alert setInformativeText:@""];
    [alert runModal];
    [alert release];
 }
@@ -1867,6 +1929,21 @@ standardAboutPanel] retain];
         [self unhide:nil];
 }
 
+
+/* Full keyboard access: the AppleKeyboardUIMode default's bit 2. */
+-(BOOL)isFullKeyboardAccessEnabled {
+   return ([[NSUserDefaults standardUserDefaults] integerForKey:@"AppleKeyboardUIMode"]&2)!=0;
+}
+
+static char customizeTouchBarKey;
+-(BOOL)isAutomaticCustomizeTouchBarMenuItemEnabled {
+   id value=objc_getAssociatedObject(self,&customizeTouchBarKey);
+   return (value!=nil)?[value boolValue]:NO;
+}
+-(void)setAutomaticCustomizeTouchBarMenuItemEnabled:(BOOL)value {
+   objc_setAssociatedObject(self,&customizeTouchBarKey,[NSNumber numberWithBool:value],OBJC_ASSOCIATION_RETAIN);
+}
+
 @end
 
 
@@ -1893,7 +1970,6 @@ int NSApplicationMain(int argc, const char *argv[]) {
             [[NSUserDefaults standardUserDefaults] setObject:((argc == 1) ? [arguments lastObject] : arguments) forKey:@"NSOpen"];
     }
 
-//     [NSClassFromString(@"Win32RunningCopyPipe") performSelector:@selector(startRunningCopyPipe)];
 
     if(class==Nil)
         class=[NSApplication class];

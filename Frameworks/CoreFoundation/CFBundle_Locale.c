@@ -353,9 +353,7 @@ CF_EXPORT Boolean CFBundleGetLocalizationInfoForLocalization(CFStringRef localiz
 CFStringRef CFBundleCopyLocalizationForLocalizationInfo(SInt32 languageCode, SInt32 regionCode, SInt32 scriptCode, CFStringEncoding stringEncoding) {
     CFStringRef localizationName = NULL;
     if (!localizationName) localizationName = _CFBundleCopyLocaleAbbreviationForRegionCode(regionCode);
-#if DEPLOYMENT_TARGET_MACOSX
     if (!localizationName && 0 <= languageCode && languageCode < SHRT_MAX) localizationName = CFLocaleCreateCanonicalLocaleIdentifierFromScriptManagerCodes(kCFAllocatorSystemDefault, (LangCode)languageCode, (RegionCode)-1);
-#endif
     if (!localizationName) localizationName = _CFBundleCopyLanguageAbbreviationForLanguageCode(languageCode);
     if (!localizationName) {
         SInt32 language = -1, scriptLanguage = -1, encodingLanguage = -1;
@@ -869,9 +867,6 @@ CF_EXPORT void _CFBundleSetDefaultLocalization(CFStringRef localizationName) {
 // This is the funnel point for looking up languages for a particular bundle.
 CF_PRIVATE CFArrayRef _CFBundleCopyLanguageSearchListInBundle(CFBundleRef bundle) {
     if (!bundle->_searchLanguages) {
-#if DEPLOYMENT_TARGET_WINDOWS
-        if (_defaultLocalization) CFArrayAppendValue(langs, _defaultLocalization);
-#endif
         // includes predefined localizations
         CFArrayRef localizationsForBundle = CFBundleCopyBundleLocalizations(bundle);
         CFArrayRef userLanguages = _CFBundleCopyUserLanguages();

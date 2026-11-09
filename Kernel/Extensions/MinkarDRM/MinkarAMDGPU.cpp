@@ -112,6 +112,8 @@ MinkarAMDGPU::start(IOService *provider)
 			LOG("register window %llu KB, VRAM %u MB",
 			    (unsigned long long)fRegs.size / 1024, mb);
 		}
+		if (MinkarAMDIsNavi23(device))
+			describeDisplayDCN302();
 	} else
 		LOG("cannot map the register window");
 

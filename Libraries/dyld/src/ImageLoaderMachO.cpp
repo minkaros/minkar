@@ -1939,6 +1939,43 @@ const char* ImageLoaderMachO::libPath(unsigned int index) const
 }
 
 
+/*
+ * Minkar: binaries built for the reference platform import Foundation's
+ * classes (NSArray, NSDictionary...) and some of its constants from
+ * CoreFoundation, where that platform keeps them. Minkar keeps them in
+ * Foundation: a symbol CoreFoundation does not export is looked up there.
+ */
+/* Symbols binaries for the reference platform import from one library
+   that Minkar keeps in another: CoreFoundation's bridged classes and
+   constants are in Foundation, and Foundation's NSLayoutConstraint and
+   _NSDictionaryOfVariableBindings in AppKit. The other library is used
+   only when the process has loaded it. */
+bool ImageLoaderMachO::findMovedFromCoreFoundation(const LinkContext& context, const char* symbolName, const ImageLoader* definedInImage,
+												   const ImageLoader* requestorImage, bool runResolver, const ImageLoader** foundIn, uintptr_t* address)
+{
+	static const struct { const char* from; const char* to; } moved[] = {
+		{ "/System/Library/Frameworks/CoreFoundation.framework/Versions/A/CoreFoundation",
+		  "/System/Library/Frameworks/Foundation.framework/Versions/C/Foundation" },
+		{ "/System/Library/Frameworks/Foundation.framework/Versions/C/Foundation",
+		  "/System/Library/Frameworks/AppKit.framework/Versions/C/AppKit" },
+	};
+	const char* path = definedInImage->getInstallPath();
+
+	if ( path == NULL )
+		return false;
+	for (size_t m = 0; m < sizeof(moved) / sizeof(moved[0]); ++m) {
+		if ( strcmp(path, moved[m].from) != 0 )
+			continue;
+		for (uint32_t i = 0, count = dyld::getImageCount(); i < count; ++i) {
+			const ImageLoader* image = dyld::getIndexedImage(i);
+			const char* installPath = (image != NULL) ? image->getInstallPath() : NULL;
+			if ( (installPath != NULL) && (strcmp(installPath, moved[m].to) == 0) )
+				return image->findExportedSymbolAddress(context, symbolName, requestorImage, 0, runResolver, foundIn, address);
+		}
+	}
+	return false;
+}
+
 void __attribute__((noreturn)) ImageLoaderMachO::throwSymbolNotFound(const LinkContext& context, const char* symbol, 
 																	const char* referencedFrom, const char* fromVersMismatch,
 																	const char* expectedIn)

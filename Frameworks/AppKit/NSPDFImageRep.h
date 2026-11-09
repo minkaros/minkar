@@ -22,9 +22,9 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 - (NSData *)PDFRepresentation;
 
-- (int)pageCount;
-- (int)currentPage;
+- (NSInteger)pageCount;
+- (NSInteger)currentPage;
 
-- (void)setCurrentPage:(int)page;
+- (void)setCurrentPage:(NSInteger)page;
 
 @end

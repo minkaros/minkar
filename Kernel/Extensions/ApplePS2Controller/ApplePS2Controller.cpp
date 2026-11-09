@@ -207,7 +207,7 @@ bool ApplePS2Controller::start(IOService * provider)
  if (!super::start(provider))  return false;
 
   //
-  // Minkar: a PC without an 8042 (the Mac Pro 6,1, and machines with USB
+  // Minkar: a PC without an 8042 (PC 2, and machines with USB
   // only) decodes nothing at its ports, and reads of them give 0xFF: the
   // status claims data forever, and the drain below never ended. The
   // driver spun on one processor and never finished starting ("still

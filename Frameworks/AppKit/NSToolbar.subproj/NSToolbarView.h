@@ -14,8 +14,8 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 @interface NSToolbarView : NSView {
     NSToolbar *_toolbar;
-    float _minXMargin;
-    float _minYMargin;
+    CGFloat _minXMargin;
+    CGFloat _minYMargin;
     NSMutableArray *_visibleItems;
     BOOL _overflow;
 }

@@ -10,7 +10,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 @implementation NSTextTable
 
--(unsigned)numberOfColumns {
+-(NSUInteger)numberOfColumns {
    return _numberOfColumns;
 }
 
@@ -26,7 +26,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    return _layoutAlgorithm;
 }
 
--(void)setNumberOfColumns:(unsigned)numberOfColumns {
+-(void)setNumberOfColumns:(NSUInteger)numberOfColumns {
    _numberOfColumns=numberOfColumns;
 }
 

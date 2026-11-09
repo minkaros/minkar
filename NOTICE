@@ -7,27 +7,34 @@ See CREDITS-ravynOS.txt for the list of its contributors.
 
 Each file keeps the copyright and license notices it came with; where a
 file has its own notice, that notice applies. The license texts are in
-the files named below, next to the code they cover.
+the files named below, next to the code they cover. Components fetched at
+build time are pinned by version and SHA-256 in the MANIFEST named; their
+license texts are installed in /usr/share/licenses/<name> or next to them.
 
-This product includes third-party software:
+This product includes third-party software, listed below as: name,
+version (where the tree pins one), license, and the file with its text.
+
+=======================================================================
+1. In the system image
+=======================================================================
 
 Project code
 - ravynOS - BSD-2-Clause, Copyright 2021-2022 ravynsoft, Inc.
   (LICENSE-ravynOS); some files are under MIT, per their headers.
 
-Apple open source (Darwin) - Apple Public Source License 2.0 (APPLE_LICENSE)
+Apple open source (Darwin) - Apple Public Source License 2.0
+(APPLE_LICENSE, and the APPLE_LICENSE next to each component)
 - XNU kernel (Kernel/xnu)
 - Kernel extensions: AppleAPIC, IOATAFamily, IOGraphics, IOPCIFamily,
   IOStorageFamily, hfs, msdosfs (Kernel/Extensions)
 - IOKitUser, kext_tools (Kernel)
 - dyld, objc4, Libsystem, libsystem_c, libsystem_info, libsystem_notify,
-  libresolv, copyfile (Libraries)
-- CoreFoundation, CFNetwork, Security, OpenDirectory, DirectoryService
-  (Frameworks)
+  libresolv, copyfile, removefile (Libraries; removefile has parts
+  under an MIT-style license, Libraries/Libsystem/removefile/LICENSE)
+- CoreFoundation, CFNetwork, Security (Frameworks/Security/OSX,
+  Frameworks/Security/securityd), OpenDirectory, DirectoryService,
+  DiskArbitration (Frameworks/DiskArbitration/APPLE_LICENSE)
 - syslog, configd (BSD)
-- cctools and ld64 (Developer/Default.xctoolchain/cctools); some parts
-  of cctools (as) are under the GNU GPL (cctools/as/COPYING) and are
-  used only on the build host
 
 Apple open source - Apache License 2.0
 - libdispatch (Libraries/Libsystem/libdispatch/LICENSE)
@@ -45,11 +52,18 @@ headers
 - libmagic / file (BSD/lib/libmagic/COPYING)
 - libxo (BSD/lib/libxo/LICENSE)
 - less (BSD/usr.bin/less/LICENSE)
-- nvi (BSD/usr.bin/vi/LICENSE)
+- bc and dc, Gavin D. Howard - BSD-2-Clause (BSD/usr.bin/bc/LICENSE.md)
+- libdiff (diff), Neels Hofmeyr - ISC (BSD/usr.bin/diff/libdiff/LICENCE)
+- tnftp (ftp), The NetBSD Foundation - BSD-2-Clause
+  (BSD/usr.bin/ftp/tnftp/COPYING)
+- flex (lex) - BSD-style (BSD/usr.bin/lex/flex/COPYING)
+- tcpdump and libpcap - BSD-3-Clause
+  (BSD/usr.sbin/tcpdump/dist-libpcap/LICENSE, BSD/usr.sbin/tcpdump)
+- Heimdal 7.8.0 (Kerberos) - BSD-3-Clause
+  (BSD/usr.bin/heimdal/dist/LICENSE)
 - OpenBSM (Libraries/openbsm/LICENSE)
 - OpenPAM (Libraries/OpenPAM/openpam/LICENSE)
 - OpenSSH (Libraries/OpenSSH/openssh/LICENCE)
-- xcbuild (Developer/Default.xctoolchain/xcbuild/LICENSE)
 - bmake, the system's make (BSD/usr.bin/make/dist/LICENSE)
 
 Cocotron - MIT (Frameworks/Foundation/LICENSE.txt,
@@ -57,27 +71,61 @@ Frameworks/CoreServices/LICENSE.txt)
 - Foundation, AppKit, CoreGraphics, Onyx2D and related frameworks
 
 Other components
-- LLVM, clang, compiler-rt, libc++ - Apache-2.0 WITH LLVM-exception
-  (Developer/Default.xctoolchain/llvm/LICENSE.TXT)
+- LLVM's libc++, libc++abi, libunwind and compiler-rt - Apache-2.0 WITH
+  LLVM-exception (Developer/Default.xctoolchain/llvm/LICENSE.TXT and the
+  LICENSE.TXT of each)
+- Swift 6.0 runtime and standard library (/usr/lib/swift) - Apache-2.0
+  with the Runtime Library Exception
+  (Developer/Default.xctoolchain/swift/MANIFEST; LICENSE.txt of the
+  release)
+- Swift 5.4 overlays - Apache-2.0 with the Runtime Library Exception
+  (Libraries/swift/overlays/MANIFEST)
+- XCTest, swift-corelibs-xctest 6.0 - Apache-2.0 with the Runtime Library
+  Exception (Frameworks/XCTest/MANIFEST)
+- OpenCombine 0.14.0 - MIT (Frameworks/Combine/MANIFEST)
+- kiwi 1.4.8 (constraint solver) - BSD-3-Clause (Modified BSD)
+  (Frameworks/AppKit/MANIFEST.kiwi)
 - ICU - Unicode License v3 (Libraries/ICU/LICENSE)
 - zlib - zlib License (Libraries/zlib/LICENSE)
-- Mbed TLS - Apache-2.0 OR GPL-2.0-or-later (Libraries/mbedtls/LICENSE)
+- Mbed TLS - Apache-2.0 OR GPL-2.0-or-later, used under Apache-2.0
+  (Libraries/mbedtls/LICENSE)
+- OpenSSL 3.5.9 - Apache-2.0 (BSD/usr.bin/openssl/dist/LICENSE.txt)
 - ncurses - MIT-style (BSD/lib/ncurses/COPYING)
 - one-true-awk - Lucent License (BSD/usr.bin/awk/LICENSE)
 - curl - curl License (BSD/usr.bin/curl/COPYING)
 - sudo - ISC (BSD/usr.bin/sudo/LICENSE.md)
+- zsh 5.9 - MIT-style; some shell functions under the GPL
+  (BSD/usr.bin/zsh/LICENCE)
 - bzip2 - bzip2 License (BSD/lib/bzip2/src/LICENSE)
-- libffi - MIT (BSD/lib/libffi/LICENSE)
+- libffi 3.5.2 - MIT (BSD/lib/libffi/MANIFEST, LICENSE)
 - Arm optimized-routines pow, via musl 1.2.5 - MIT
   (Libraries/Libsystem/libsystem_m/arm/LICENSE)
 - libjpeg-turbo - IJG, BSD-3-Clause and zlib (BSD/lib/libjpeg/LICENSE.md)
 - libpng - libpng License v2 (BSD/lib/libpng/LICENSE)
 - LibTIFF - libtiff License (BSD/lib/libtiff/LICENSE.md)
+- libwebp 1.5.0 - BSD-3-Clause (BSD/lib/libwebp/MANIFEST, COPYING)
+- WOFF2 1.0.2 - MIT (BSD/lib/woff2/MANIFEST, LICENSE)
+- Brotli 1.1.0 - MIT (BSD/lib/brotli/MANIFEST, LICENSE)
 - utf8proc - MIT (BSD/lib/libutf8/LICENSE.md)
 - pixman - MIT (BSD/lib/libpixman/COPYING)
-- FreeType - FreeType License (Frameworks/Onyx2D/freetype/LICENSE.TXT)
+- FreeType 2.13.2 - FreeType License (Frameworks/Onyx2D/freetype/LICENSE.TXT)
 - fontconfig - MIT-style (Frameworks/CoreText/fontconfig/COPYING)
+- HarfBuzz 10.4.0 - MIT (BSD/lib/harfbuzz/MANIFEST, COPYING)
 - gettext-tiny - MIT (Frameworks/CoreText/gettext-tiny/LICENSE)
+- Expat 2.7.1 - MIT (BSD/lib/expat/MANIFEST, COPYING)
+- libxml2 - MIT (Frameworks/CoreText/libxml2/Copyright)
+- libxslt 1.1.43 - MIT (BSD/lib/libxslt/MANIFEST, Copyright)
+- PCRE2 10.45 - BSD-3-Clause with the PCRE2 exception
+  (BSD/lib/pcre2/MANIFEST, LICENCE.md)
+- nghttp2 1.66.0 - MIT (BSD/lib/nghttp2/MANIFEST, COPYING)
+- libpsl 0.21.5 - MIT (BSD/lib/libpsl/MANIFEST, COPYING)
+- libepoxy 1.5.10 - MIT (BSD/lib/libepoxy/MANIFEST, COPYING)
+- XZ Utils / liblzma - 0BSD; other parts under other licenses
+  (Frameworks/CoreText/xz/COPYING)
+- xkeyboard-config 2.44 - MIT-style (BSD/lib/xkeyboard-config/MANIFEST;
+  Frameworks/AppKit/xkeyboard-config/COPYING)
+- libxkbcommon 1.13.2 - MIT (BSD/lib/libxkbcommon/MANIFEST;
+  PrivateFrameworks/SkyLight/Keymap/libxkbcommon/LICENSE)
 - Citrus iconv (FreeBSD main's lib/libc/iconv, lib/libiconv_modules and
   share/i18n) - BSD-2-Clause (Libraries/libiconv)
   UTF-8-MAC's tables come from the Unicode Character Database 17.0.0 in
@@ -88,11 +136,22 @@ Other components
   setup of MinkarBGE and its register definitions - BSD-4-Clause
   (headers of Kernel/Extensions/MinkarBGE/MinkarBGE.cpp and bge/).
   This product includes software developed by Bill Paul.
-- XZ Utils / liblzma - 0BSD; other parts under other licenses
-  (Frameworks/CoreText/xz/COPYING)
-- xkeyboard-config - MIT-style (Frameworks/AppKit/xkeyboard-config/COPYING)
-- libxkbcommon - MIT
-  (PrivateFrameworks/SkyLight/Keymap/libxkbcommon/LICENSE)
+- drm-kmod drm_v6.12.110_1, AMD's amdgpu files (AtomBIOS and its
+  headers) - MIT, per file (Kernel/Extensions/MinkarDRM/dist/MANIFEST);
+  MinkarDRM's own GCN 1.0 code follows amdgpu's register sequences and
+  tables, MIT, per file (Kernel/Extensions/MinkarDRM/amdgpu)
+- AMD GPU microcode (tahiti_* and pitcairn_*.bin) from linux-firmware,
+  tag 20261019 - AMD's redistribution license, installed unchanged
+  (Kernel/Extensions/MinkarDRM/firmware/MANIFEST; LICENSE.amdgpu,
+  installed in /usr/share/firmware/amdgpu)
+- Mesa 26.2.6 (RADV, libvulkan_radeon) - MIT (BSD/lib/mesa/MANIFEST,
+  docs/license.rst)
+- libdrm 2.4.134, its headers (xf86drm.h, amdgpu.h...) under Minkar's
+  own libdrm - MIT (BSD/lib/libdrm/MANIFEST)
+- Vulkan-Loader 1.4.357 - Apache-2.0 (BSD/lib/vulkan-loader/MANIFEST,
+  LICENSE.txt)
+- Vulkan-Headers 1.4.357, in the SDK - Apache-2.0, some MIT
+  (BSD/lib/vulkan-headers/MANIFEST, LICENSE.md)
 - Mozilla CA certificate bundle - MPL-2.0 (BSD/etc/ssl/cert.pem)
 - Unicode Character Database 16.0.0 - Unicode License v3
   (BSD/share/locale/data/unicode/LICENSE), for the locales' LC_CTYPE
@@ -104,20 +163,101 @@ Other components
   CC0-1.0 (BSD/usr.bin/btop/dist/include/widechar_width.hpp)
 - lsof 4.99.7 (lsof-org; Victor A. Abell and Purdue University) - Purdue
   licence (BSD/usr.sbin/lsof/dist/COPYING); its darwin dialect
-- git 2.56.0 - GPL-2.0 (BSD/usr.bin/git/dist/COPYING; xdiff and parts of
-  compat LGPL-2.1, sha1dc MIT, reftable BSD-3: see the files)
 - mandoc 1.14 (man, mandoc, apropos, whatis, makewhatis) - ISC
   (BSD/usr.bin/mandoc/LICENSE)
 - IANA time zone database (tzdata and tzcode's zic, 2026e) - public domain
   (BSD/share/zoneinfo/tzdata/LICENSE), for /usr/share/zoneinfo
+- Inter 4.000 (the interface font) - SIL Open Font License 1.1
+  (SystemLibrary/Fonts/Inter-LICENSE.txt)
+- Agave 39 (the fixed-pitch font) - SIL Open Font License 1.1
+  (SystemLibrary/Fonts/MANIFEST.agave; its LICENSE, installed with it)
 
-Present in the source tree but not built into the system image
-- GNU bash (GNU/bin/bash) - GPL-3.0
-- dmidecode (GNU/bin/dmidecode) - GPL-2.0
-- zsh (BSD/usr.bin/zsh/LICENCE) - MIT-style; some shell functions GPL
+GPL and LGPL components in the image
+Each LGPL library is installed as a dynamic library (or, for
+JavaScriptCore, a framework), so it can be replaced; programs link it, no
+GPL or LGPL code is linked statically into Minkar's own.
+- GNU bash 5.3 - GPL-3.0-or-later (BSD/usr.bin/bash/dist/COPYING; its
+  readline: BSD/usr.bin/bash/dist/lib/readline/COPYING)
+- GNU nano 9.3 - GPL-3.0-or-later (BSD/usr.bin/nano/dist/COPYING)
+- rsync 3.5.1 - GPL-3.0-or-later, with its OpenSSL and xxhash exception
+  (BSD/usr.bin/rsync/dist/COPYING; popt: BSD/usr.bin/rsync/dist/popt/COPYING)
+- git 2.56.0 - GPL-2.0 (BSD/usr.bin/git/dist/COPYING; xdiff and parts of
+  compat LGPL-2.1, sha1dc MIT, reftable BSD-3: see the files)
+- Userspace RCU (liburcu) 0.15 - LGPL-2.1-or-later, a dynamic library
+  (BSD/lib/liburcu/dist/LICENSE.md, LICENSES/)
+- GLib 2.86.1 (GLib, GObject, GIO) - LGPL-2.1-or-later, dynamic
+  libraries (BSD/lib/glib/MANIFEST, COPYING); with proxy-libintl - LGPL-2.0
+  (BSD/lib/glib/MANIFEST.proxy-libintl), linked into libglib
+- libsoup 3.6.5 - LGPL-2.0-or-later, a dynamic library
+  (BSD/lib/libsoup/MANIFEST, COPYING)
+- glib-networking 2.90.1 - LGPL-2.1-or-later, a loadable module
+  (BSD/lib/glib-networking/MANIFEST, COPYING)
+- Libgcrypt 1.11.1 - LGPL-2.1-or-later, a dynamic library
+  (BSD/lib/libgcrypt/MANIFEST, COPYING.LIB)
+- libgpg-error 1.55 - LGPL-2.1-or-later, a dynamic library
+  (BSD/lib/libgpg-error/MANIFEST, COPYING.LIB)
+- GNU Libtasn1 4.20.0 - LGPL-2.1-or-later, a dynamic library
+  (BSD/lib/libtasn1/MANIFEST, COPYING)
+- JavaScriptCore, from WebKit at WPE WebKit 2.54.2's commit -
+  LGPL-2.1-or-later and BSD-2-Clause, per file, a framework
+  (/usr/lib/webkit/JavaScriptCore.framework) (BSD/lib/javascriptcore/MANIFEST;
+  Source/JavaScriptCore/COPYING.LIB, installed with it)
+- Faience and Faenza icon themes (Matthieu James) - GPL-3.0, Atlas's
+  icons: separate data files that keep their license; no code links with
+  them (SystemLibrary/Icons/COPYING, AUTHORS, README.md)
+
+=======================================================================
+2. Test tools (installed only in test setups, not in the system image)
+=======================================================================
+
+- Apache httpd 2.4.70, APR 1.7.6 and APR-util 1.6.6 - Apache-2.0
+  (Tests/W0/httpd/MANIFEST*), a server for libsoup's own tests (gate W0)
+- VK-GL-CTS (Vulkan conformance tests) 1.4.7.1 - Apache-2.0
+  (BSD/lib/vulkan-cts/MANIFEST), built by hand for gate G3
+- libwebp-test-data - BSD-3-Clause, as libwebp
+  (BSD/lib/libwebp/MANIFEST.libwebp-test-data), for gate W0
+- WebKit's JSTests and its test runner - BSD-2-Clause and LGPL, per file
+  (BSD/lib/javascriptcore/MANIFEST), for gate W1
+- Colorizer 0.2.1 and XMLCoder 0.17.1 - MIT
+  (Tests/M3/xcbeautify/MANIFEST.*), for gate M3
+
+=======================================================================
+3. Build host only (tools that run while building; nothing of them is
+   in the system image)
+=======================================================================
+
+- LLVM, clang, lld - Apache-2.0 WITH LLVM-exception
+  (Developer/Default.xctoolchain/llvm/LICENSE.TXT)
+- tapi - Apache-2.0 WITH LLVM-exception
+  (Developer/Default.xctoolchain/llvm/tapi/LICENSE.TXT)
+- cctools and ld64 - Apple Public Source License 2.0
+  (Developer/Default.xctoolchain/cctools); cctools' as - GPL
+  (Developer/Default.xctoolchain/cctools/as/COPYING)
+- Swift 6.0 compiler, swift-syntax and swift-experimental-string-processing
+  - Apache-2.0 with the Runtime Library Exception; swift-cmark -
+  BSD-2-Clause (Developer/Default.xctoolchain/swift/MANIFEST*)
+- Swift 6.0 for the build host (swift.org's release) - Apache-2.0 with
+  the Runtime Library Exception
+  (Developer/Default.xctoolchain/swift/MANIFEST.host-swift)
+- xcbuild (Developer/Default.xctoolchain/xcbuild/LICENSE)
+- GNU make (Developer/Default.xctoolchain/gmake) - GPL-3.0
 - GNU gperf (Frameworks/CoreText/gperf) - GPL-3.0
-- GNU make (Developer/Default.xctoolchain/gmake) - GPL-3.0, a build
-  tool run on the build host
+- glslang 14.3.0 - BSD-3-Clause and others (BSD/lib/mesa/MANIFEST.glslang)
+- Meson 1.6.1, Mako 1.3.8, MarkupSafe 3.0.2, packaging 24.2 and PyYAML
+  6.0.2 - Apache-2.0, MIT and BSD-3-Clause, in a venv of the build tree
+  (BSD/lib/mesa/requirements.txt)
+- Open CF-lite 635.21.8 - Apple Public Source License 2.0, in the build
+  host's /usr/local (tools/ci/host-setup.sh)
+- swift-corelibs-libdispatch (swift-6.0-RELEASE) - Apache-2.0, in the
+  build host's /usr/local (tools/ci/host-setup.sh)
+
+=======================================================================
+4. In the source tree, not built
+=======================================================================
+
+- GNU bash, an older copy (GNU/bin/bash) - GPL-3.0; the system's bash is
+  built from BSD/usr.bin/bash
+- dmidecode (GNU/bin/dmidecode) - GPL-2.0
 
 Trademarks
 

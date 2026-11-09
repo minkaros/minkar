@@ -19,7 +19,7 @@
     return _options;
 }
 
--(int)runModal {
+-(NSInteger)runModal {
    int result;
    
    [self updateFromPrintInfo];

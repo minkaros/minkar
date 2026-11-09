@@ -16,8 +16,12 @@ ${.OBJDIR}/Makefile: ${.CURDIR}/configure
 
 build: ${.OBJDIR}/Makefile
 	MAKEFLAGS="" ${GMAKE} ${NO_AUTOTOOLS} -C ${.OBJDIR}
-	cp -f ${.OBJDIR}/src/liblzma/.libs/liblzma.5.dylib \
-            ${.OBJDIR:H}/CoreText.framework/Resources/
+	# Into CoreText's bundle once it exists: Frameworks also builds xz
+	# before Foundation (for libcompression), and CoreText builds it again.
+	if [ -d ${.OBJDIR:H}/CoreText.framework/Resources ]; then \
+		cp -f ${.OBJDIR}/src/liblzma/.libs/liblzma.5.dylib \
+		    ${.OBJDIR:H}/CoreText.framework/Resources/; \
+	fi
 .for dir in ${SYSROOT_DIR}/usr/lib ${MINKAR_SDKROOT}/usr/lib
 	mkdir -p ${dir}
 	cp -f ${.OBJDIR}/src/liblzma/.libs/liblzma.5.dylib ${dir}/

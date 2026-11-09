@@ -49,7 +49,8 @@ DAServerServer.c DAServerServer.h: ${DA}/diskarbitrationd/DAServer.defs
 	    -header /dev/null -user /dev/null -server DAServerServer.c \
 	    -sheader DAServerServer.h ${.ALLSRC}
 
-${SRCS:N*Server.c:R:S/$/.o/}: DAServerServer.h
+# Objects plain and position independent (PIE programs build .pieo).
+${SRCS:N*Server.c:R:S/$/.o/} ${SRCS:N*Server.c:R:S/$/.pieo/}: DAServerServer.h
 
 all: to-sysroot
 

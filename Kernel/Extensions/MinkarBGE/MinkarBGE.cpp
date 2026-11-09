@@ -208,7 +208,7 @@ MinkarBGE::writePHY(uint32_t reg, uint16_t value)
 /*
  * BAR 0: the registers (64 KB, memory space, 64-bit on this family, BAR 1
  * holding the high half). When the PCI family made no IODeviceMemory for
- * it (as for these chips behind the Mac Pro 6,1's bridges), the BAR's own
+ * it (as for these chips behind PC 2's bridges), the BAR's own
  * address and size are mapped, as MinkarE1000 does.
  */
 bool

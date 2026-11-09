@@ -16,6 +16,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 #import <AppKit/NSText.h>
 #import <AppKit/NSTextInput.h>
+#import <AppKit/NSTextInputContext.h>
 #import <AppKit/NSDragging.h>
 #import <AppKit/NSParagraphStyle.h>
 #import <Foundation/NSTextCheckingResult.h>
@@ -52,7 +53,7 @@ APPKIT_EXPORT NSString *const NSOldSelectedCharacterRange;
 
 @class NSUndoTyping;
 
-@interface NSTextView : NSText <NSTextInput> {
+@interface NSTextView : NSText <NSTextInput, NSTextInputClient> {
     NSTextStorage *_textStorage;
     NSTextContainer *_textContainer;
     NSSize _textContainerInset;
@@ -99,7 +100,7 @@ APPKIT_EXPORT NSString *const NSOldSelectedCharacterRange;
     NSRange _rangeForUserCompletion; // range of original user completion text.
     NSString *_userCompletionHint; // original "hint" text which started completion
     NSArray *_userCompletions; // current list of completions. shouldn't change while modal
-    int _userCompletionSelectedItem; // index within completion array
+    NSInteger _userCompletionSelectedItem; // index within completion array
 
     NSUndoManager *_fieldEditorUndoManager;
     BOOL _processingKeyEvent;
@@ -155,8 +156,8 @@ APPKIT_EXPORT NSString *const NSOldSelectedCharacterRange;
 - (void)setSelectedRanges:(NSArray *)value;
 
 - (NSRange)rangeForUserCompletion;
-- (NSArray *)completionsForPartialWordRange:(NSRange)range indexOfSelectedItem:(int *)index;
-- (void)insertCompletion:(NSString *)string forPartialWordRange:(NSRange)range movement:(int)movement isFinal:(BOOL)isFinal;
+- (NSArray *)completionsForPartialWordRange:(NSRange)range indexOfSelectedItem:(NSInteger *)index;
+- (void)insertCompletion:(NSString *)string forPartialWordRange:(NSRange)range movement:(NSInteger)movement isFinal:(BOOL)isFinal;
 
 - (NSArray *)writablePasteboardTypes;
 - (BOOL)writeSelectionToPasteboard:(NSPasteboard *)pasteboard type:(NSString *)type;
@@ -216,10 +217,22 @@ APPKIT_EXPORT NSString *const NSOldSelectedCharacterRange;
 
 - (void)setSpellingState:(NSInteger)value range:(NSRange)characterRange;
 
+
+/* Kept: the substitutions themselves are not made yet. */
+@property (getter=isAutomaticLinkDetectionEnabled) BOOL automaticLinkDetectionEnabled;
+@property (getter=isAutomaticQuoteSubstitutionEnabled) BOOL automaticQuoteSubstitutionEnabled;
+@property (getter=isAutomaticDashSubstitutionEnabled) BOOL automaticDashSubstitutionEnabled;
+@property (getter=isAutomaticTextReplacementEnabled) BOOL automaticTextReplacementEnabled;
+@property (getter=isAutomaticDataDetectionEnabled) BOOL automaticDataDetectionEnabled;
+@property (getter=isAutomaticTextCompletionEnabled) BOOL automaticTextCompletionEnabled;
+
 @end
 
 @interface NSObject (NSTextView_undoManager)
 - (NSUndoManager *)undoManagerForTextView:(NSTextView *)textView;
+/* A click on a link: the delegate's, else NSWorkspace opens it. */
+- (void)clickedOnLink:(id)link atIndex:(NSUInteger)charIndex;
+
 @end
 
 /* The delegate, as a protocol (API 19 declares it so). */
@@ -230,12 +243,13 @@ APPKIT_EXPORT NSString *const NSOldSelectedCharacterRange;
 - (BOOL)textView:(NSTextView *)textView
     shouldChangeTextInRange:(NSRange)affectedCharRange
           replacementString:(NSString *)replacementString;
+- (BOOL)textView:(NSTextView *)textView clickedOnLink:(id)link atIndex:(NSUInteger)charIndex;
 @end
 
 @interface NSObject (NSTextView_delegate)
 
 - (BOOL)textView:(NSTextView *)textView doCommandBySelector:(SEL)selector;
-- (NSArray *)textView:(NSTextView *)textView completions:(NSArray *)words forPartialWordRange:(NSRange)range indexOfSelectedItem:(int *)index;
+- (NSArray *)textView:(NSTextView *)textView completions:(NSArray *)words forPartialWordRange:(NSRange)range indexOfSelectedItem:(NSInteger *)index;
 
 - (void)textViewDidChangeSelection:(NSNotification *)note;
 

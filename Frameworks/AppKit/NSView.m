@@ -9,6 +9,12 @@ The above copyright notice and this permission notice shall be included in all c
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE. */
 
 #import <AppKit/NSView.h>
+#import <AppKit/NSTextInputContext.h>
+#import <AppKit/NSDraggingItem.h>
+#import <AppKit/NSPasteboard.h>
+#import <AppKit/NSBitmapImageRep.h>
+#import <AppKit/NSViewController.h>
+#import <objc/runtime.h>
 #import "NSLayout/NSLayoutInternal.h"
 #import <AppKit/NSApplication.h>
 #import <AppKit/NSEvent.h>
@@ -48,7 +54,72 @@ NSString * const NSViewFocusDidChangeNotification=@"NSViewFocusDidChangeNotifica
 -(void)_trackingAreasChanged;
 @end
 
+/* The session's source gets the old source callbacks as session ones. */
+@interface NSDraggingSessionSource : NSObject {
+@public
+   id                 _source;
+   NSDraggingSession *_session;
+}
+@end
+
+@implementation NSDraggingSessionSource
+-(void)dealloc {
+   [_session release];
+   [super dealloc];
+}
+-(NSDragOperation)draggingSourceOperationMaskForLocal:(BOOL)flag {
+   if([_source respondsToSelector:@selector(draggingSession:sourceOperationMaskForDraggingContext:)])
+    return [_source draggingSession:_session sourceOperationMaskForDraggingContext:flag?NSDraggingContextWithinApplication:NSDraggingContextOutsideApplication];
+   return NSDragOperationEvery;
+}
+-(void)draggedImage:(NSImage *)image beganAt:(NSPoint)point {
+   if([_source respondsToSelector:@selector(draggingSession:willBeginAtPoint:)])
+    [_source draggingSession:_session willBeginAtPoint:point];
+}
+-(void)draggedImage:(NSImage *)image movedTo:(NSPoint)point {
+   if([_source respondsToSelector:@selector(draggingSession:movedToPoint:)])
+    [_source draggingSession:_session movedToPoint:point];
+}
+-(void)draggedImage:(NSImage *)image endedAt:(NSPoint)point operation:(NSDragOperation)operation {
+   if([_source respondsToSelector:@selector(draggingSession:endedAtPoint:operation:)])
+    [_source draggingSession:_session endedAtPoint:point operation:operation];
+}
+@end
+
 @implementation NSView
+
+static char identifierKey;
+static char appearanceKey;
+
+-(NSAppearance *)appearance {
+   return objc_getAssociatedObject(self,&appearanceKey);
+}
+
+-(void)setAppearance:(NSAppearance *)appearance {
+   objc_setAssociatedObject(self,&appearanceKey,appearance,OBJC_ASSOCIATION_RETAIN);
+   [self setNeedsDisplay:YES];
+}
+
+/* The view's, or its superview's, window's or application's. */
+-(NSAppearance *)effectiveAppearance {
+   NSAppearance *appearance=[self appearance];
+
+   if(appearance!=nil)
+    return appearance;
+   if(_superview!=nil)
+    return [_superview effectiveAppearance];
+   if(_window!=nil)
+    return [_window effectiveAppearance];
+   return [NSApp effectiveAppearance];
+}
+
+-(NSUserInterfaceItemIdentifier)identifier {
+   return objc_getAssociatedObject(self,&identifierKey);
+}
+
+-(void)setIdentifier:(NSUserInterfaceItemIdentifier)identifier {
+   objc_setAssociatedObject(self,&identifierKey,identifier,OBJC_ASSOCIATION_COPY);
+}
 
 static BOOL NSViewLayersEnabled=NO;
 
@@ -195,6 +266,12 @@ static void invalidateTransform(NSView *self){
    for(NSView *check in self->_subviews)
     invalidateTransform(check);
 
+}
+
+/* For a view whose flipping follows something else (a clip view's, its
+   document view's): its and its subviews' transforms are made again. */
+-(void)_invalidateTransforms {
+   invalidateTransform(self);
 }
 
 static CGAffineTransform concatViewTransform(CGAffineTransform result,NSView *view,NSView *superview,BOOL doFrame,BOOL flip){
@@ -447,7 +524,7 @@ static inline void buildTransformsIfNeeded(NSView *self) {
    return _autoresizesSubviews;
 }
 
--(unsigned)autoresizingMask {
+-(NSAutoresizingMaskOptions)autoresizingMask {
    return _autoresizingMask;
 }
 
@@ -455,7 +532,7 @@ static inline void buildTransformsIfNeeded(NSView *self) {
    return _focusRingType;
 }
 
--(int)tag {
+-(NSInteger)tag {
    return _tag;
 }
 
@@ -476,7 +553,7 @@ static inline void buildTransformsIfNeeded(NSView *self) {
    NSUnimplementedMethod();
 }
 
--(int)gState {
+-(NSInteger)gState {
    return 0;
 }
 
@@ -491,13 +568,51 @@ static inline void buildTransformsIfNeeded(NSView *self) {
    return NO;
 }
 
+/* A bitmap of rect's size, transparent, to cache the view's drawing in. */
 -(NSBitmapImageRep *)bitmapImageRepForCachingDisplayInRect:(NSRect)rect {
-   NSUnimplementedMethod();
-   return nil;
+   NSInteger width=MAX(1,(NSInteger)ceil(NSWidth(rect)));
+   NSInteger height=MAX(1,(NSInteger)ceil(NSHeight(rect)));
+
+   return [[[NSBitmapImageRep alloc] initWithBitmapDataPlanes:NULL pixelsWide:width pixelsHigh:height bitsPerSample:8
+      samplesPerPixel:4 hasAlpha:YES isPlanar:NO colorSpaceName:NSCalibratedRGBColorSpace bytesPerRow:0 bitsPerPixel:32] autorelease];
 }
 
+static void cacheDisplayOfView(NSView *view,NSRect windowRect,CGAffineTransform toBitmap,NSGraphicsContext *context){
+   CGContextRef port=[context graphicsPort];
+   NSRect       rect;
+
+   if([view isHidden])
+    return;
+   /* The transforms, not convertRect:, which wants a window. */
+   rect=NSIntersectionRect(CGRectApplyAffineTransform(windowRect,[view transformFromWindow]),[view bounds]);
+   if(NSIsEmptyRect(rect))
+    return;
+   CGContextSaveGState(port);
+   CGContextSetCTM(port,CGAffineTransformConcat([view transformToWindow],toBitmap));
+   CGContextClipToRect(port,rect);
+   [view drawRect:rect];
+   CGContextRestoreGState(port);
+
+   for(NSView *child in [view subviews])
+    cacheDisplayOfView(child,windowRect,toBitmap,context);
+}
+
+/* The view and its subviews drawn into the bitmap, rect filling it. */
 -(void)cacheDisplayInRect:(NSRect)rect toBitmapImageRep:(NSBitmapImageRep *)imageRep {
-   NSUnimplementedMethod();
+   NSGraphicsContext *context=[NSGraphicsContext graphicsContextWithBitmapImageRep:imageRep];
+   NSRect             windowRect=CGRectApplyAffineTransform(rect,[self transformToWindow]);
+   CGFloat            scaleX=(NSWidth(rect)>0)?[imageRep pixelsWide]/NSWidth(rect):1;
+   CGFloat            scaleY=(NSHeight(rect)>0)?[imageRep pixelsHigh]/NSHeight(rect):1;
+   CGAffineTransform  toBitmap=CGAffineTransformMakeScale(scaleX,scaleY);
+
+   if(context==nil)
+    return;
+   toBitmap=CGAffineTransformTranslate(toBitmap,-NSMinX(windowRect),-NSMinY(windowRect));
+   [NSGraphicsContext saveGraphicsState];
+   [NSGraphicsContext setCurrentContext:context];
+   cacheDisplayOfView(self,windowRect,toBitmap,context);
+   [context flushGraphics];
+   [NSGraphicsContext restoreGraphicsState];
 }
 
 -(BOOL)isHidden {
@@ -634,7 +749,7 @@ static inline void buildTransformsIfNeeded(NSView *self) {
    return toolTip;
 }
 
--viewWithTag:(int)tag {
+-viewWithTag:(NSInteger)tag {
    int i,count=[_subviews count];
 
    if(_tag==tag)
@@ -867,8 +982,18 @@ static inline void buildTransformsIfNeeded(NSView *self) {
         if (windowRecalulatesKeyViewLoop)
             [self setNextKeyView:nil];
 
+        NSViewController *controller=_NSViewControllerForView(self);
+
+        if(controller!=nil){
+            if(_window!=nil)
+                [controller viewWillDisappear];
+            if(window!=nil)
+                [controller viewWillAppear];
+        }
+
         [self viewWillMoveToWindow:window];
 
+        NSWindow *was=_window;
         _window=window;
 
         [_subviews makeObjectsPerformSelector:_cmd withObject:window];
@@ -887,6 +1012,13 @@ static inline void buildTransformsIfNeeded(NSView *self) {
         }
 
         [self viewDidMoveToWindow];
+
+        if(controller!=nil){
+            if(was!=nil)
+                [controller viewDidDisappear];
+            if(window!=nil)
+                [controller viewDidAppear];
+        }
     }
 }
 
@@ -895,7 +1027,15 @@ static inline void buildTransformsIfNeeded(NSView *self) {
 
    [_window invalidateCursorRectsForView:self]; // this also invalidates tracking areas
 
-   [self setNextResponder:superview];
+   /* A view controller comes between its view and the superview. */
+   NSViewController *controller=_NSViewControllerForView(self);
+
+   if(controller!=nil){
+    [controller setNextResponder:superview];
+    [self setNextResponder:controller];
+   }
+   else
+    [self setNextResponder:superview];
 }
 
 -(void)_insertSubview:(NSView *)view atIndex:(NSUInteger)index {
@@ -987,7 +1127,7 @@ static inline void buildTransformsIfNeeded(NSView *self) {
    _autoresizesSubviews=flag;
 }
 
--(void)setAutoresizingMask:(unsigned int)mask {
+-(void)setAutoresizingMask:(NSAutoresizingMaskOptions)mask {
    _autoresizingMask=mask;
 }
 
@@ -996,7 +1136,7 @@ static inline void buildTransformsIfNeeded(NSView *self) {
    [self setNeedsDisplay:YES];
 }
 
--(void)setTag:(int)tag {
+-(void)setTag:(NSInteger)tag {
    _tag=tag;
 }
 
@@ -1196,9 +1336,17 @@ static inline void buildTransformsIfNeeded(NSView *self) {
    [self removeTrackingArea:tag];
 }
 
+static char inputContextKey;
+
+/* A text input client's context, made on first use; nil for other views. */
 -(NSTextInputContext *)inputContext {
-   NSUnimplementedMethod();
-   return nil;
+   NSTextInputContext *context=objc_getAssociatedObject(self,&inputContextKey);
+
+   if(context==nil && [self respondsToSelector:@selector(insertText:replacementRange:)]){
+    context=[[[NSTextInputContext alloc] initWithClient:(id<NSTextInputClient>)self] autorelease];
+    objc_setAssociatedObject(self,&inputContextKey,context,OBJC_ASSOCIATION_RETAIN);
+   }
+   return context;
 }
 
 -(void)registerForDraggedTypes:(NSArray *)types {
@@ -2260,19 +2408,19 @@ static NSGraphicsContext *graphicsContextForView(NSView *view){
 }
 
 
--(float)widthAdjustLimit {
+-(CGFloat)widthAdjustLimit {
    return 0.5;
 }
 
--(float)heightAdjustLimit {
+-(CGFloat)heightAdjustLimit {
    return 0.5;
 }
 
--(void)adjustPageWidthNew:(float *)adjusted left:(float)left right:(float)right limit:(float)limit {
+-(void)adjustPageWidthNew:(CGFloat *)adjusted left:(CGFloat)left right:(CGFloat)right limit:(CGFloat)limit {
 // FIX, give subviews a chance
 }
 
--(void)adjustPageHeightNew:(float *)adjust top:(float)top bottom:(float)bottom limit:(float)limit {
+-(void)adjustPageHeightNew:(CGFloat *)adjust top:(CGFloat)top bottom:(CGFloat)bottom limit:(CGFloat)limit {
 // FIX, give subviews a chance
 }
 
@@ -2284,7 +2432,7 @@ static NSGraphicsContext *graphicsContextForView(NSView *view){
    return NSZeroPoint;
 }
 
--(NSRect)rectForPage:(int)page {
+-(NSRect)rectForPage:(NSInteger)page {
    return NSZeroRect;
 }
 
@@ -2323,6 +2471,31 @@ static NSGraphicsContext *graphicsContextForView(NSView *view){
 -(void)dragImage:(NSImage *)image at:(NSPoint)location offset:(NSSize)offset event:(NSEvent *)event pasteboard:(NSPasteboard *)pasteboard source:source slideBack:(BOOL)slideBack {
     location = [self convertPoint:location toView:nil];
    [[NSDraggingManager draggingManager] dragImage:image at:location offset:offset event:event pasteboard:pasteboard source:source slideBack:slideBack];
+}
+
+
+-(NSDraggingSession *)beginDraggingSessionWithItems:(NSArray *)items event:(NSEvent *)event source:(id)source {
+   NSPasteboard           *pasteboard=[NSPasteboard pasteboardWithName:NSPasteboardNameDrag];
+   NSDraggingSession      *session=[[[NSDraggingSession alloc] init] autorelease];
+   NSDraggingSessionSource *adapter=[[[NSDraggingSessionSource alloc] init] autorelease];
+   NSMutableArray         *writers=[NSMutableArray array];
+   NSDraggingItem         *leader=[items firstObject];
+   NSRect                  frame=(leader!=nil)?[leader draggingFrame]:NSZeroRect;
+   NSImage                *image=[leader respondsToSelector:@selector(_draggingImage)]?[leader performSelector:@selector(_draggingImage)]:nil;
+
+   [pasteboard clearContents];
+   for(NSDraggingItem *item in items)
+    if([item item]!=nil)
+     [writers addObject:[item item]];
+   [pasteboard writeObjects:writers];
+   [session _setPasteboard:pasteboard items:items];
+   adapter->_source=source;
+   adapter->_session=[session retain];
+   if(image==nil)
+    image=[[[NSImage alloc] initWithSize:NSMakeSize(MAX(NSWidth(frame),1),MAX(NSHeight(frame),1))] autorelease];
+   [self dragImage:image at:[self isFlipped]?NSMakePoint(NSMinX(frame),NSMaxY(frame)):frame.origin offset:NSZeroSize event:event
+      pasteboard:pasteboard source:adapter slideBack:YES];
+   return session;
 }
 
 -(BOOL)dragFile:(NSString *)path fromRect:(NSRect)rect slideBack:(BOOL)slideBack event:(NSEvent *)event {
@@ -2411,7 +2584,7 @@ static NSGraphicsContext *graphicsContextForView(NSView *view){
 }
 
 -(BOOL)prepareForDragOperation:(id <NSDraggingInfo>)sender {
-   return NO;
+   return YES;
 }
 
 -(BOOL)performDragOperation:(id <NSDraggingInfo>)sender {

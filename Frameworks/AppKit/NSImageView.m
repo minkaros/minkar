@@ -115,4 +115,24 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    [self setNeedsDisplay:YES];
 }
 
++(instancetype)imageViewWithImage:(NSImage *)image {
+   NSSize       size=(image!=nil)?[image size]:NSZeroSize;
+   NSImageView *result=[[[self alloc] initWithFrame:NSMakeRect(0,0,size.width,size.height)] autorelease];
+
+   [result setImageFrameStyle:NSImageFrameNone];
+   [result setImageScaling:NSImageScaleProportionallyDown];
+   [result setEditable:NO];
+   [result setImage:image];
+   return result;
+}
+
+/* An image that cannot be edited passes the click on. */
+-(void)mouseDown:(NSEvent *)event {
+   if(![self isEditable]){
+    [[self nextResponder] mouseDown:event];
+    return;
+   }
+   [super mouseDown:event];
+}
+
 @end

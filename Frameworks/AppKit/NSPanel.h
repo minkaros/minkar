@@ -7,6 +7,7 @@ The above copyright notice and this permission notice shall be included in all c
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE. */
 
 #import <AppKit/NSWindow.h>
+#import <AppKit/NSApplication.h>
 
 enum {
     NSUtilityWindowMask = 0x10,
@@ -40,6 +41,9 @@ enum {
     NSCancelButton,
     NSOKButton
 };
+
+static const NSModalResponse NSModalResponseOK = 1;
+static const NSModalResponse NSModalResponseCancel = 0;
 
 APPKIT_EXPORT int NSRunAlertPanel(NSString *title, NSString *message, NSString *defaultButton, NSString *alternateButton, NSString *otherButton, ...);
 APPKIT_EXPORT int NSRunInformationalAlertPanel(NSString *title, NSString *msgFormat, NSString *defaultButton, NSString *alternateButton, NSString *otherButton, ...);

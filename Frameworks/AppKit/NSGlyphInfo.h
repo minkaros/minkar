@@ -17,12 +17,12 @@ typedef int NSCharacterCollection;
     NSString *_glyphName;
 }
 
-+ (NSGlyphInfo *)glyphInfoWithCharacterIdentifier:(unsigned int)identifier collection:(NSCharacterCollection)collection baseString:(NSString *)baseString;
++ (NSGlyphInfo *)glyphInfoWithCharacterIdentifier:(NSUInteger)identifier collection:(NSCharacterCollection)collection baseString:(NSString *)baseString;
 
 + (NSGlyphInfo *)glyphInfoWithGlyph:(NSGlyph)glyph forFont:(NSFont *)font baseString:(NSString *)baseString;
 + (NSGlyphInfo *)glyphInfoWithGlyphName:(NSString *)glyphName forFont:(NSFont *)font baseString:(NSString *)baseString;
 
-- (unsigned int)characterIdentifier;
+- (NSUInteger)characterIdentifier;
 - (NSCharacterCollection)characterCollection;
 - (NSString *)glyphName;
 

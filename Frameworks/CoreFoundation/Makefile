@@ -4,7 +4,7 @@ FRAMEWORK = CoreFoundation
 FMWK_VERSION = A
 INFO_PLIST = Info.plist
 
-HEADERS = CFArray.h CFBag.h CFBase.h CFBinaryHeap.h CFBitVector.h CFBundle.h \
+HEADERS = CFArray.h CFAttributedString.h CFBag.h CFBase.h CFBinaryHeap.h CFBitVector.h CFBundle.h \
 	CFByteOrder.h CFCalendar.h CFCharacterSet.h CFData.h CFDate.h \
 	CFDateFormatter.h CFDictionary.h CFError.h CFLocale.h CFMessagePort.h \
 	CFMachPort.h CFNumber.h CFNumberFormatter.h CFPlugIn.h CFPlugInCOM.h \
@@ -93,6 +93,8 @@ SRCS = CFApplicationPreferences.c \
 	CFURLAccess.c \
 	CFURLEnumerator.c \
 	CFURLResources.c \
+	CFStringTransform.c \
+	CFAttributedString.c \
 	CFUUID.c \
 	CFUniChar.c \
 	CFUnicodeDecomposition.c \
@@ -162,12 +164,12 @@ ${FRAMEWORK}: ${.OBJDIR}/mach-o/arch.h
 FRAMEWORK_LIB = ${.OBJDIR}/${FRAMEWORK}.framework/Versions/${FMWK_VERSION}/${FRAMEWORK}
 ${FRAMEWORK}.framework.dSYM: ${FRAMEWORK}
 	${DSYMUTIL} ${FRAMEWORK_LIB} -o ${.TARGET}
-	cp -Rf ${.OBJDIR}/${.TARGET} ${MINKAR_SDKROOT}/System/Library/Frameworks/
+	rsync -rlc ${.OBJDIR}/${.TARGET} ${MINKAR_SDKROOT}/System/Library/Frameworks/
 
 fmwk-install-hook:
 	mkdir -p ${MINKAR_SDKROOT}/System/Library/Frameworks \
 	  ${SYSROOT_DIR}/System/Library/Frameworks
-	cp -Rf ${.OBJDIR}/${FRAMEWORK}.framework ${MINKAR_SDKROOT}/System/Library/Frameworks
-	cp -Rf ${.OBJDIR}/${FRAMEWORK}.framework ${SYSROOT_DIR}/System/Library/Frameworks
+	rsync -rlc ${.OBJDIR}/${FRAMEWORK}.framework ${MINKAR_SDKROOT}/System/Library/Frameworks
+	rsync -rlc ${.OBJDIR}/${FRAMEWORK}.framework ${SYSROOT_DIR}/System/Library/Frameworks
 
 .include <minkar.framework.mk>

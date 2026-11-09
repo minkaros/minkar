@@ -74,7 +74,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 - (NSInteger)selectedColumn;
 - (NSInteger)selectedRowInColumn:(NSInteger)column;
 
-- (float)titleHeight;
+- (CGFloat)titleHeight;
 - (NSRect)titleFrameOfColumn:(NSInteger)column;
 - (NSRect)frameOfColumn:(NSInteger)column;
 - (NSRect)frameOfInsideOfColumn:(NSInteger)column;
@@ -120,6 +120,10 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 - (void)drawTitleOfColumn:(NSInteger)column inRect:(NSRect)rect;
 
 - (void)tile;
+
+
+@property CGFloat defaultColumnWidth;
+@property (copy) NSString *columnsAutosaveName;
 
 @end
 

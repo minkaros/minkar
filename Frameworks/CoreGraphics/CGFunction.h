@@ -19,6 +19,7 @@ typedef struct {
     void (*releaseInfo)(void *);
 } CGFunctionCallbacks;
 
+COREGRAPHICS_EXPORT CFTypeID CGFunctionGetTypeID(void);
 COREGRAPHICS_EXPORT CGFunctionRef CGFunctionRetain(CGFunctionRef self);
 COREGRAPHICS_EXPORT void CGFunctionRelease(CGFunctionRef self);
 

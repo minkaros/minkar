@@ -19,7 +19,17 @@ enum {
     NSChangeBackgroundCellMask = 0x08,
 };
 
-typedef enum {
+typedef NS_ENUM(NSUInteger, NSButtonType) {
+    NSButtonTypeMomentaryLight = 0,
+    NSButtonTypePushOnPushOff = 1,
+    NSButtonTypeToggle = 2,
+    NSButtonTypeSwitch = 3,
+    NSButtonTypeRadio = 4,
+    NSButtonTypeMomentaryChange = 5,
+    NSButtonTypeOnOff = 6,
+    NSButtonTypeMomentaryPushIn = 7,
+    NSButtonTypeAccelerator = 8,
+    NSButtonTypeMultiLevelAccelerator = 9,
     NSMomentaryLightButton = 0,
     NSPushOnPushOffButton = 1,
     NSToggleButton = 2,
@@ -31,7 +41,7 @@ typedef enum {
     // deprecated values
     NSMomentaryPushButton = 0,
     NSMomentaryLight = 7
-} NSButtonType;
+};
 
 typedef enum {
     NSRoundedBezelStyle = 1,
@@ -48,6 +58,21 @@ typedef enum {
     NSRoundRectBezelStyle = 12,
     NSRecessedBezelStyle = 13,
     NSRoundedDisclosureBezelStyle = 14,
+    NSInlineBezelStyle = 15,
+    /* The names of API 19. */
+    NSBezelStyleRounded = 1,
+    NSBezelStyleRegularSquare = 2,
+    NSBezelStyleDisclosure = 5,
+    NSBezelStyleShadowlessSquare = 6,
+    NSBezelStyleCircular = 7,
+    NSBezelStyleTexturedSquare = 8,
+    NSBezelStyleHelpButton = 9,
+    NSBezelStyleSmallSquare = 10,
+    NSBezelStyleTexturedRounded = 11,
+    NSBezelStyleRoundRect = 12,
+    NSBezelStyleRecessed = 13,
+    NSBezelStyleRoundedDisclosure = 14,
+    NSBezelStyleInline = 15,
 } NSBezelStyle;
 
 typedef enum {
@@ -87,10 +112,10 @@ typedef enum {
 - (NSImage *)alternateImage;
 - (NSAttributedString *)attributedTitle;
 - (NSAttributedString *)attributedAlternateTitle;
-- (int)highlightsBy;
-- (int)showsStateBy;
+- (NSInteger)highlightsBy;
+- (NSInteger)showsStateBy;
 - (BOOL)imageDimsWhenDisabled;
-- (unsigned)keyEquivalentModifierMask;
+- (NSEventModifierFlags)keyEquivalentModifierMask;
 - (NSBezelStyle)bezelStyle;
 - (BOOL)showsBorderOnlyWhileMouseInside;
 - (NSSound *)sound;
@@ -109,10 +134,10 @@ typedef enum {
 - (void)setAlternateImage:(NSImage *)image;
 - (void)setAttributedTitle:(NSAttributedString *)title;
 - (void)setAttributedAlternateTitle:(NSAttributedString *)title;
-- (void)setHighlightsBy:(int)type;
-- (void)setShowsStateBy:(int)type;
+- (void)setHighlightsBy:(NSInteger)type;
+- (void)setShowsStateBy:(NSInteger)type;
 - (void)setImageDimsWhenDisabled:(BOOL)flag;
-- (void)setKeyEquivalentModifierMask:(unsigned)mask;
+- (void)setKeyEquivalentModifierMask:(NSEventModifierFlags)mask;
 - (void)setBezelStyle:(NSBezelStyle)bezelStyle;
 - (void)setButtonType:(NSButtonType)buttonType;
 - (void)setShowsBorderOnlyWhileMouseInside:(BOOL)show;

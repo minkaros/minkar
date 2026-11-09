@@ -29,6 +29,10 @@
 .Nm
 .Cm eraseVolume Ar format name disk
 .Nm
+.Cm enableJournal Ar disk | mountPoint
+.Nm
+.Cm resizeVolume Ar disk size | Cm limit
+.Nm
 .Cm listFilesystems
 .Sh DESCRIPTION
 .Nm
@@ -73,6 +77,19 @@ A mounted HFS Plus volume is verified as it is.
 Makes a new file system on a volume, with its
 .Nm newfs_ Ns Ar type ,
 and mounts it.
+.It Cm enableJournal
+Turns on journaling on a mounted HFS Plus volume, with
+.Nm hfs.util Fl J .
+.It Cm resizeVolume
+Grows a mounted, journaled HFS Plus volume and its GUID partition into the
+free space after it, while it is in use:
+.Ar size
+in bytes, or with B, K, M, G or T (powers of 1000), or
+.Cm limit
+for all the free space up to the next partition or the end of the disk.
+The partition table's backup is put at the end of the disk, where a disk
+image written to a bigger disk leaves it elsewhere.
+Volumes are not shrunk.
 .It Cm listFilesystems
 The formats
 .Cm eraseVolume
@@ -85,6 +102,8 @@ takes: JHFS+, HFS+, JHFSX, HFSX, FAT32, FAT16, FAT12 and MS-DOS.
 .Dl diskutil info /
 .Dl diskutil eraseVolume FAT32 USB disk2s1
 .Dl diskutil eject disk2
+.Dl diskutil enableJournal /
+.Dl diskutil resizeVolume disk0s2 limit
 .Sh SEE ALSO
 .Xr hdiutil 1 ,
 .Xr diskarbitrationd 8 ,

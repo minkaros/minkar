@@ -6,8 +6,10 @@
 
  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE. */
 
+#import <objc/runtime.h>
 #import <sys/param.h>
 #import <AppKit/NSTextView.h>
+#import <AppKit/NSWorkspace.h>
 #import <AppKit/NSTextContainer.h>
 #import <AppKit/NSTextStorage.h>
 #import <AppKit/NSLayoutManager.h>
@@ -50,7 +52,7 @@ NSString * const NSTextViewDidChangeSelectionNotification=@"NSTextViewDidChangeS
 NSString * const NSOldSelectedCharacterRange=@"NSOldSelectedCharacterRange";
 
 @interface NSLayoutManager(NSLayoutManager_visualKeyboardMovement)
-- (NSRange)_softLineRangeForCharacterAtIndex:(unsigned)location;
+- (NSRange)_softLineRangeForCharacterAtIndex:(NSUInteger)location;
 @end
 
 @interface NSTextView(NSTextView_textCompletion)
@@ -508,7 +510,7 @@ NSString * const NSOldSelectedCharacterRange=@"NSOldSelectedCharacterRange";
     return range;
 }
 
-- (NSArray *)completionsForPartialWordRange:(NSRange)range indexOfSelectedItem:(int *)index {
+- (NSArray *)completionsForPartialWordRange:(NSRange)range indexOfSelectedItem:(NSInteger *)index {
     NSArray *result;
     // replace this with a real completion list source...
     NSArray *source = [NSArray arrayWithObjects:
@@ -536,7 +538,7 @@ NSString * const NSOldSelectedCharacterRange=@"NSOldSelectedCharacterRange";
     return result;
 }
 
-- (void)insertCompletion:(NSString *)string forPartialWordRange:(NSRange)range movement:(int)movement isFinal:(BOOL)isFinal {
+- (void)insertCompletion:(NSString *)string forPartialWordRange:(NSRange)range movement:(NSInteger)movement isFinal:(BOOL)isFinal {
     [self _replaceCharactersInRange:range withString:string];
 
     // is this proper behavior? i dunno
@@ -682,7 +684,7 @@ NSString * const NSOldSelectedCharacterRange=@"NSOldSelectedCharacterRange";
         if(range.location>=[_textStorage length]) {
             result=[[self layoutManager] extraLineFragmentRect];
             if (NSIsEmptyRect(result) && [_textStorage length]) {
-                unsigned    rectCount=0;
+                NSUInteger    rectCount=0;
                 // Get the last used fragment rect
                 range = NSMakeRange([_textStorage length]-1, 1);
                 range = [[self layoutManager] glyphRangeForCharacterRange:range actualCharacterRange:NULL];
@@ -701,7 +703,7 @@ NSString * const NSOldSelectedCharacterRange=@"NSOldSelectedCharacterRange";
             }
             result.size.width=1;
         } else {
-            unsigned    rectCount=0;
+            NSUInteger    rectCount=0;
             NSRect * rectArray=[[self layoutManager] rectArrayForCharacterRange:range withinSelectedCharacterRange:range inTextContainer:[self textContainer] rectCount:&rectCount];
             result=rectArray[0];
         }
@@ -1694,7 +1696,7 @@ NSString * const NSOldSelectedCharacterRange=@"NSOldSelectedCharacterRange";
     [self scrollPoint:rect.origin];
 }
 
--(unsigned)glyphIndexForPoint:(NSPoint)point fractionOfDistanceThroughGlyph:(float *)fraction {
+-(NSUInteger)glyphIndexForPoint:(NSPoint)point fractionOfDistanceThroughGlyph:(CGFloat *)fraction {
     point.x-=_textContainerInset.width;
     point.y-=_textContainerInset.height;
 
@@ -1704,7 +1706,7 @@ NSString * const NSOldSelectedCharacterRange=@"NSOldSelectedCharacterRange";
 - (void)pageUp:sender {
     NSRect rect;
     NSRange range;
-    float fraction;
+    CGFloat fraction;
 
     [self scrollPageUp:sender];
 
@@ -1720,7 +1722,7 @@ NSString * const NSOldSelectedCharacterRange=@"NSOldSelectedCharacterRange";
     NSRect rect;
     NSRange range = [self selectedRange];
     unsigned location;
-    float fraction;
+    CGFloat fraction;
     BOOL upstream;
 
     [self scrollPageUp:sender];
@@ -1760,7 +1762,7 @@ NSString * const NSOldSelectedCharacterRange=@"NSOldSelectedCharacterRange";
     NSString *string = [_textStorage string];
     NSRect rect;
     NSRange range;
-    float fraction;
+    CGFloat fraction;
 
     [self scrollPageDown:sender];
 
@@ -1778,7 +1780,7 @@ NSString * const NSOldSelectedCharacterRange=@"NSOldSelectedCharacterRange";
     NSRect rect;
     NSRange range = [self selectedRange];
     unsigned location;
-    float fraction;
+    CGFloat fraction;
     BOOL downstream;
 
     [self scrollPageDown:sender];
@@ -2446,6 +2448,42 @@ NSString * const NSOldSelectedCharacterRange=@"NSOldSelectedCharacterRange";
     [self scrollRectToVisible:rect];
 }
 
+/* The font panel's effects (underline, strikethrough, color, shadow):
+   each attribute run of the selection, or the typing attributes, made
+   again by the sender's -convertAttributes:. */
+-(void)changeAttributes:sender {
+    NSRange range = [self rangeForUserCharacterAttributeChange];
+
+    if (![self isRichText] || range.location == NSNotFound)
+        return;
+    if (range.length == 0) {
+        [self setTypingAttributes:[sender convertAttributes:[self typingAttributes]]];
+        return;
+    }
+    if (![self shouldChangeTextInRange:range replacementString:nil])
+        return;
+    [_textStorage beginEditing];
+    NSUInteger index = range.location;
+    while (index < NSMaxRange(range)) {
+        NSRange run;
+        NSDictionary *attributes = [_textStorage attributesAtIndex:index effectiveRange:&run];
+        NSRange change = NSIntersectionRange(run, range);
+
+        [_textStorage setAttributes:[sender convertAttributes:attributes] range:change];
+        index = NSMaxRange(change);
+    }
+    [_textStorage endEditing];
+    [self didChangeText];
+}
+
+/* The font panel's document color: the text view's background. */
+-(void)changeDocumentBackgroundColor:sender {
+    if ([sender respondsToSelector:@selector(color)]) {
+        [self setBackgroundColor:[sender color]];
+        [self setDrawsBackground:YES];
+    }
+}
+
 -(void)changeFont:sender {
     if(![self isRichText]) {
         NSFont *font=[sender convertFont:[self font]];
@@ -2731,13 +2769,47 @@ NSString * const NSOldSelectedCharacterRange=@"NSOldSelectedCharacterRange";
     }
 }
 
+-(void)clickedOnLink:(id)link atIndex:(NSUInteger)charIndex {
+    id delegate=[self delegate];
+    NSURL *url=nil;
+
+    if([delegate respondsToSelector:@selector(textView:clickedOnLink:atIndex:)] &&
+       [delegate textView:self clickedOnLink:link atIndex:charIndex])
+        return;
+    if([link isKindOfClass:[NSURL class]])
+        url=link;
+    else if([link isKindOfClass:[NSString class]])
+        url=[NSURL URLWithString:link];
+    if(url!=nil)
+        [[NSWorkspace sharedWorkspace] openURL:url];
+}
+
 -(void)mouseDown:(NSEvent *)event {
     NSEvent *lastDrag=event;
     NSPoint  point=[self convertPoint:[event locationInWindow] fromView:nil];
-    float    fraction=0;
+    CGFloat    fraction=0;
     NSRange  firstRange,lastRange,selection;
     NSSelectionAffinity affinity=NSSelectionAffinityUpstream;
     NSSelectionGranularity granularity = [event clickCount]-1;
+
+    /* A link under a single click is followed, editable text or not. */
+    if([event clickCount]==1 && [_textStorage length]>0){
+        CGFloat    linkFraction=0;
+        unsigned glyph=[self glyphIndexForPoint:point fractionOfDistanceThroughGlyph:&linkFraction];
+
+        if(glyph!=NSNotFound){
+            unsigned character=[[self layoutManager] characterIndexForGlyphAtIndex:glyph];
+
+            if(character<[_textStorage length]){
+                id link=[_textStorage attribute:NSLinkAttributeName atIndex:character effectiveRange:NULL];
+
+                if(link!=nil){
+                    [self clickedOnLink:link atIndex:character];
+                    return;
+                }
+            }
+        }
+    }
 
     if(![self isSelectable])
         return;
@@ -2823,7 +2895,7 @@ NSString * const NSOldSelectedCharacterRange=@"NSOldSelectedCharacterRange";
 
 -(NSDragOperation)draggingUpdated:(id <NSDraggingInfo>)sender {
     NSPoint   point=[self convertPoint:[sender draggingLocation] fromView:nil];
-    float     fraction=0;
+    CGFloat     fraction=0;
     unsigned  location=[self glyphIndexForPoint:point fractionOfDistanceThroughGlyph:&fraction];
 
     if(location==NSNotFound)
@@ -2845,7 +2917,7 @@ NSString * const NSOldSelectedCharacterRange=@"NSOldSelectedCharacterRange";
     return NSDragOperationNone;
 }
 
--(unsigned)draggingEntered:(id <NSDraggingInfo>)sender {
+-(NSDragOperation)draggingEntered:(id <NSDraggingInfo>)sender {
     return [self draggingUpdated:sender];
 }
 
@@ -2856,7 +2928,7 @@ NSString * const NSOldSelectedCharacterRange=@"NSOldSelectedCharacterRange";
 -(BOOL)performDragOperation:(id <NSDraggingInfo>)sender {
     NSPoint   point=[self convertPoint:[sender draggingLocation] fromView:nil];
     NSString *string=[[sender draggingPasteboard] stringForType:NSStringPboardType];
-    float     fraction=0;
+    CGFloat     fraction=0;
     unsigned  location=[self glyphIndexForPoint:point fractionOfDistanceThroughGlyph:&fraction];
 
     if(location==NSNotFound)
@@ -2884,9 +2956,88 @@ NSString * const NSOldSelectedCharacterRange=@"NSOldSelectedCharacterRange";
     NSUnimplementedMethod();
 }
 
+/* The character under a point on the screen. */
 -(NSUInteger)characterIndexForPoint:(NSPoint)point {
-    NSUnimplementedMethod();
-    return 0;
+    NSPoint inWindow=[[self window] convertScreenToBase:point];
+    NSPoint inView=[self convertPoint:inWindow fromView:nil];
+    CGFloat fraction=0;
+    NSUInteger glyph=[self glyphIndexForPoint:inView fractionOfDistanceThroughGlyph:&fraction];
+
+    return [[self layoutManager] characterIndexForGlyphAtIndex:glyph];
+}
+
+/* The text input client: marked text (text being composed) is a range of
+   the text, replaced while it is composed and kept when unmarked. */
+static char markedRangeKey;
+
+-(NSRange)markedRange {
+    NSValue *value=objc_getAssociatedObject(self,&markedRangeKey);
+    return (value!=nil)?[value rangeValue]:NSMakeRange(NSNotFound,0);
+}
+
+-(void)_setMarkedRange:(NSRange)range {
+    objc_setAssociatedObject(self,&markedRangeKey,(range.location==NSNotFound)?nil:[NSValue valueWithRange:range],OBJC_ASSOCIATION_RETAIN);
+}
+
+-(BOOL)hasMarkedText {
+    return [self markedRange].location!=NSNotFound;
+}
+
+-(void)unmarkText {
+    [self _setMarkedRange:NSMakeRange(NSNotFound,0)];
+}
+
+-(NSArray *)validAttributesForMarkedText {
+    return [NSArray arrayWithObjects:NSUnderlineStyleAttributeName,NSForegroundColorAttributeName,nil];
+}
+
+-(void)setMarkedText:(id)string selectedRange:(NSRange)selectedRange replacementRange:(NSRange)replacementRange {
+    NSString *plain=[string isKindOfClass:[NSAttributedString class]]?[string string]:string;
+    NSRange   target=[self hasMarkedText]?[self markedRange]:[self selectedRange];
+
+    if(replacementRange.location!=NSNotFound)
+     target=replacementRange;
+    if(![self shouldChangeTextInRange:target replacementString:plain])
+     return;
+    [[self textStorage] replaceCharactersInRange:target withString:plain];
+    [self didChangeText];
+    if([plain length]>0)
+     [self _setMarkedRange:NSMakeRange(target.location,[plain length])];
+    else
+     [self unmarkText];
+    [self setSelectedRange:NSMakeRange(target.location+MIN(selectedRange.location,[plain length]),selectedRange.length)];
+}
+
+-(void)insertText:(id)string replacementRange:(NSRange)replacementRange {
+    if([self hasMarkedText]){
+     [self setSelectedRange:[self markedRange]];
+     [self unmarkText];
+    }
+    else if(replacementRange.location!=NSNotFound)
+     [self setSelectedRange:replacementRange];
+    [self insertText:string];
+}
+
+-(NSAttributedString *)attributedSubstringForProposedRange:(NSRange)range actualRange:(NSRangePointer)actualRange {
+    NSUInteger length=[[self textStorage] length];
+
+    if(range.location>length)
+     return nil;
+    range.length=MIN(range.length,length-range.location);
+    if(actualRange!=NULL)
+     *actualRange=range;
+    return [[self textStorage] attributedSubstringFromRange:range];
+}
+
+/* The first line's rectangle for the range, on the screen. */
+-(NSRect)firstRectForCharacterRange:(NSRange)range actualRange:(NSRangePointer)actualRange {
+    NSRect rect=[self _viewRectForCharacterRange:range];
+
+    if(actualRange!=NULL)
+     *actualRange=range;
+    rect=[self convertRect:rect toView:nil];
+    rect.origin=[[self window] convertBaseToScreen:rect.origin];
+    return rect;
 }
 
 -(void)_setFieldEditorUndoManager:(NSUndoManager *)undoManager
@@ -3057,7 +3208,7 @@ NSString * const NSOldSelectedCharacterRange=@"NSOldSelectedCharacterRange";
     NSRange glyphRange;
 
     NSPoint point=[self convertPoint:[event locationInWindow] fromView:nil];
-    float fraction;
+    CGFloat fraction;
 
     NSMenu *menu=[[[NSMenu alloc] initWithTitle:@""] autorelease];
 
@@ -3179,7 +3330,7 @@ NSString * const NSOldSelectedCharacterRange=@"NSOldSelectedCharacterRange";
     return YES;
 }
 
--(float)rulerView:(NSRulerView *)rulerView willMoveMarker:(NSRulerMarker *)marker toLocation:(float)location
+-(CGFloat)rulerView:(NSRulerView *)rulerView willMoveMarker:(NSRulerMarker *)marker toLocation:(CGFloat)location
 {
     if (location < rulerView.originOffset) {
         location = rulerView.originOffset;
@@ -3263,7 +3414,7 @@ NSString * const NSOldSelectedCharacterRange=@"NSOldSelectedCharacterRange";
     return YES;
 }
 
--(float)rulerView:(NSRulerView *)rulerView willAddMarker:(NSRulerMarker *)marker atLocation:(float)location
+-(CGFloat)rulerView:(NSRulerView *)rulerView willAddMarker:(NSRulerMarker *)marker atLocation:(CGFloat)location
 {
     if (location < rulerView.originOffset) {
         location = rulerView.originOffset;
@@ -3390,5 +3541,60 @@ NSString * const NSOldSelectedCharacterRange=@"NSOldSelectedCharacterRange";
     }
 }
 
+
+
+static char linkDetectionKey;
+-(BOOL)isAutomaticLinkDetectionEnabled {
+   id value=objc_getAssociatedObject(self,&linkDetectionKey);
+   return (value!=nil)?[value boolValue]:NO;
+}
+-(void)setAutomaticLinkDetectionEnabled:(BOOL)value {
+   objc_setAssociatedObject(self,&linkDetectionKey,[NSNumber numberWithBool:value],OBJC_ASSOCIATION_RETAIN);
+}
+
+static char quoteSubstitutionKey;
+-(BOOL)isAutomaticQuoteSubstitutionEnabled {
+   id value=objc_getAssociatedObject(self,&quoteSubstitutionKey);
+   return (value!=nil)?[value boolValue]:NO;
+}
+-(void)setAutomaticQuoteSubstitutionEnabled:(BOOL)value {
+   objc_setAssociatedObject(self,&quoteSubstitutionKey,[NSNumber numberWithBool:value],OBJC_ASSOCIATION_RETAIN);
+}
+
+static char dashSubstitutionKey;
+-(BOOL)isAutomaticDashSubstitutionEnabled {
+   id value=objc_getAssociatedObject(self,&dashSubstitutionKey);
+   return (value!=nil)?[value boolValue]:NO;
+}
+-(void)setAutomaticDashSubstitutionEnabled:(BOOL)value {
+   objc_setAssociatedObject(self,&dashSubstitutionKey,[NSNumber numberWithBool:value],OBJC_ASSOCIATION_RETAIN);
+}
+
+static char textReplacementKey;
+-(BOOL)isAutomaticTextReplacementEnabled {
+   id value=objc_getAssociatedObject(self,&textReplacementKey);
+   return (value!=nil)?[value boolValue]:NO;
+}
+-(void)setAutomaticTextReplacementEnabled:(BOOL)value {
+   objc_setAssociatedObject(self,&textReplacementKey,[NSNumber numberWithBool:value],OBJC_ASSOCIATION_RETAIN);
+}
+
+static char dataDetectionKey;
+-(BOOL)isAutomaticDataDetectionEnabled {
+   id value=objc_getAssociatedObject(self,&dataDetectionKey);
+   return (value!=nil)?[value boolValue]:NO;
+}
+-(void)setAutomaticDataDetectionEnabled:(BOOL)value {
+   objc_setAssociatedObject(self,&dataDetectionKey,[NSNumber numberWithBool:value],OBJC_ASSOCIATION_RETAIN);
+}
+
+static char textCompletionKey;
+-(BOOL)isAutomaticTextCompletionEnabled {
+   id value=objc_getAssociatedObject(self,&textCompletionKey);
+   return (value!=nil)?[value boolValue]:NO;
+}
+-(void)setAutomaticTextCompletionEnabled:(BOOL)value {
+   objc_setAssociatedObject(self,&textCompletionKey,[NSNumber numberWithBool:value],OBJC_ASSOCIATION_RETAIN);
+}
 
 @end

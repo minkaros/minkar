@@ -45,7 +45,7 @@ struct bge_status_block;
 
 /*
  * Broadcom NetXtreme 57765 family (BCM57761, 57762, 57765, 57766, 57781,
- * 57782, 57785, 57786, 57791, 57795): the Ethernet of the Mac Pro 6,1
+ * 57782, 57785, 57786, 57791, 57795): the Ethernet of PC 2 (two BCM57762)
  * and other machines, on our IONetworkingFamily. The chip setup follows
  * FreeBSD's bge(4) for this family (MinkarBGE.cpp).
  *

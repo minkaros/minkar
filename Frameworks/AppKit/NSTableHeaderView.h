@@ -17,13 +17,13 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 - (NSTableView *)tableView;
 
-- (int)resizedColumn;
-- (int)draggedColumn;
-- (float)draggedDistance;
+- (NSInteger)resizedColumn;
+- (NSInteger)draggedColumn;
+- (CGFloat)draggedDistance;
 
 - (void)setTableView:(NSTableView *)tableView;
 
-- (NSRect)headerRectOfColumn:(int)column;
-- (int)columnAtPoint:(NSPoint)point;
+- (NSRect)headerRectOfColumn:(NSInteger)column;
+- (NSInteger)columnAtPoint:(NSPoint)point;
 
 @end

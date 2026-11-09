@@ -18,40 +18,40 @@ APPKIT_EXPORT NSString *const NSComboBoxWillPopUpNotification;
 - dataSource;
 - (BOOL)usesDataSource;
 - (BOOL)isButtonBordered;
-- (float)itemHeight;
+- (CGFloat)itemHeight;
 - (BOOL)hasVerticalScroller;
 - (NSSize)intercellSpacing;
 - (BOOL)completes;
-- (int)numberOfVisibleItems;
+- (NSInteger)numberOfVisibleItems;
 
 - (void)setDataSource:value;
 - (void)setUsesDataSource:(BOOL)value;
 - (void)setButtonBordered:(BOOL)value;
-- (void)setItemHeight:(float)value;
+- (void)setItemHeight:(CGFloat)value;
 - (void)setHasVerticalScroller:(BOOL)value;
 - (void)setIntercellSpacing:(NSSize)value;
 - (void)setCompletes:(BOOL)completes;
-- (void)setNumberOfVisibleItems:(int)value;
+- (void)setNumberOfVisibleItems:(NSInteger)value;
 
-- (int)numberOfItems;
+- (NSInteger)numberOfItems;
 - (NSArray *)objectValues;
-- itemObjectValueAtIndex:(int)index;
-- (int)indexOfItemWithObjectValue:object;
+- itemObjectValueAtIndex:(NSInteger)index;
+- (NSInteger)indexOfItemWithObjectValue:object;
 - (void)addItemWithObjectValue:object;
 - (void)addItemsWithObjectValues:(NSArray *)objects;
 - (void)removeAllItems;
-- (void)removeItemAtIndex:(int)index;
+- (void)removeItemAtIndex:(NSInteger)index;
 - (void)removeItemWithObjectValue:value;
-- (void)insertItemWithObjectValue:value atIndex:(int)index;
+- (void)insertItemWithObjectValue:value atIndex:(NSInteger)index;
 
-- (int)indexOfSelectedItem;
+- (NSInteger)indexOfSelectedItem;
 - objectValueOfSelectedItem;
-- (void)selectItemAtIndex:(int)index;
+- (void)selectItemAtIndex:(NSInteger)index;
 - (void)selectItemWithObjectValue:value;
-- (void)deselectItemAtIndex:(int)index;
+- (void)deselectItemAtIndex:(NSInteger)index;
 
-- (void)scrollItemAtIndexToTop:(int)index;
-- (void)scrollItemAtIndexToVisible:(int)index;
+- (void)scrollItemAtIndexToTop:(NSInteger)index;
+- (void)scrollItemAtIndexToVisible:(NSInteger)index;
 
 - (void)noteNumberOfItemsChanged;
 - (void)reloadData;

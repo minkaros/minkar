@@ -9,6 +9,8 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <AppKit/NSTabViewItem.h>
 #import <AppKit/NSTabView.h>
 #import <AppKit/NSView.h>
+#import <AppKit/NSViewController.h>
+#import <AppKit/NSImage.h>
 #import <AppKit/NSStringDrawing.h>
 #import <AppKit/NSAttributedString.h>
 #import <AppKit/NSFont.h>
@@ -70,6 +72,9 @@ NSString *_NSTruncatedStringWithAttributesInRect(NSString *string, NSDictionary 
    [_label release];
    [_view release];
    [_color release];
+   [_viewController release];
+   [_image release];
+   [_toolTip release];
    [super dealloc];
 }
 
@@ -82,6 +87,8 @@ NSString *_NSTruncatedStringWithAttributesInRect(NSString *string, NSDictionary 
 }
 
 -view {
+   if(_view==nil && _viewController!=nil)
+    _view=[[_viewController view] retain];
    return _view;
 }
 
@@ -142,7 +149,10 @@ NSString *_NSTruncatedStringWithAttributesInRect(NSString *string, NSDictionary 
 }
 
 // This is private Apple API, BGHUDAppKit uses it, override for custom color
+/* White on the selected segment of a top tab strip. */
 -_labelColor {
+   if([_tabView tabViewType]==NSTopTabsBezelBorder && [_tabView selectedTabViewItem]==self)
+    return [NSColor whiteColor];
    return [NSColor blackColor];
 }
 
@@ -179,6 +189,50 @@ NSString *_NSTruncatedStringWithAttributesInRect(NSString *string, NSDictionary 
     size.width+=SIZE_PADDING;
 
     return size;
+}
+
++(instancetype)tabViewItemWithViewController:(NSViewController *)viewController {
+   NSTabViewItem *item=[[[self alloc] initWithIdentifier:nil] autorelease];
+
+   [item setViewController:viewController];
+   return item;
+}
+
+-(NSViewController *)viewController {
+   return _viewController;
+}
+
+/* The controller's view, loaded when the item first shows it. */
+-(void)setViewController:(NSViewController *)controller {
+   controller=[controller retain];
+   [_viewController release];
+   _viewController=controller;
+   if([_label length]==0 && [controller title]!=nil)
+    [self setLabel:[controller title]];
+   if(_identifier==nil)
+    _identifier=[[NSString stringWithFormat:@"%p",controller] retain];
+   [_view release];
+   _view=nil;
+}
+
+-(NSImage *)image {
+   return _image;
+}
+
+-(void)setImage:(NSImage *)image {
+   image=[image retain];
+   [_image release];
+   _image=image;
+}
+
+-(NSString *)toolTip {
+   return _toolTip;
+}
+
+-(void)setToolTip:(NSString *)toolTip {
+   toolTip=[toolTip copy];
+   [_toolTip release];
+   _toolTip=toolTip;
 }
 
 @end

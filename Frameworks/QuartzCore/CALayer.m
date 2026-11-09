@@ -8,6 +8,19 @@ NSString * const kCAFilterLinear=@"linear";
 NSString * const kCAFilterNearest=@"nearest";
 NSString * const kCAFilterTrilinear=@"trilinear";
 
+NSString * const kCAGravityCenter=@"center";
+NSString * const kCAGravityTop=@"top";
+NSString * const kCAGravityBottom=@"bottom";
+NSString * const kCAGravityLeft=@"left";
+NSString * const kCAGravityRight=@"right";
+NSString * const kCAGravityTopLeft=@"topLeft";
+NSString * const kCAGravityTopRight=@"topRight";
+NSString * const kCAGravityBottomLeft=@"bottomLeft";
+NSString * const kCAGravityBottomRight=@"bottomRight";
+NSString * const kCAGravityResize=@"resize";
+NSString * const kCAGravityResizeAspect=@"resizeAspect";
+NSString * const kCAGravityResizeAspectFill=@"resizeAspectFill";
+
 @implementation CALayer
 
 +layer {
@@ -93,6 +106,10 @@ NSString * const kCAFilterTrilinear=@"trilinear";
      [self addAnimation:action forKey:@"bounds"];
    }
    
+   if(_needsDisplayOnBoundsChange && !CGSizeEqualToSize(_bounds.size,value.size))
+    _needsDisplay=YES;
+   if(!CGSizeEqualToSize(_bounds.size,value.size))
+    _needsLayout=YES;
    _bounds=value;
 }
 
@@ -208,10 +225,25 @@ NSString * const kCAFilterTrilinear=@"trilinear";
    _minificationFilter=kCAFilterLinear;
    _magnificationFilter=kCAFilterLinear;
    _animations=[[NSMutableDictionary alloc] init];
+   _contentsScale=1;
+   _contentsRect=CGRectMake(0,0,1,1);
+   _contentsGravity=[kCAGravityResize copy];
+   _shadowOffset=CGSizeMake(0,-3);
+   _shadowRadius=3;
+   _doubleSided=YES;
    return self;
 }
 
 -(void)dealloc {
+   CGColorRelease(_backgroundColor);
+   CGColorRelease(_borderColor);
+   CGColorRelease(_shadowColor);
+   [_name release];
+   [_contentsGravity release];
+   [_mask release];
+   [_actions release];
+   [_style release];
+   [_contents release];
    [_sublayers release];
    [_animations release];
    [_minificationFilter release];
@@ -246,23 +278,38 @@ NSString * const kCAFilterTrilinear=@"trilinear";
    layer->_superlayer=nil;
 }
 
+/* The layer's content: the delegate's displayLayer:, else a bitmap of
+   the bounds (times contentsScale) drawn by drawInContext:. */
 -(void)display {
-   if([_delegate respondsToSelector:@selector(displayLayer:)])
+   if([_delegate respondsToSelector:@selector(displayLayer:)]){
     [_delegate displayLayer:self];
-   else {
-#if 0
+    _needsDisplay=NO;
+    return;
+   }
+   size_t width=(size_t)ceil(_bounds.size.width*_contentsScale),height=(size_t)ceil(_bounds.size.height*_contentsScale);
 
-
-#warning create bitmap context
-
-    [self drawInContext:context];
-    _contents=image;
-    [self setContents:image];
-#endif
-}
+   _needsDisplay=NO;
+   if(width==0 || height==0){
+    [self setContents:nil];
+    return;
+   }
+   CGColorSpaceRef space=CGColorSpaceCreateDeviceRGB();
+   CGContextRef    context=CGBitmapContextCreate(NULL,width,height,8,width*4,space,kCGImageAlphaPremultipliedLast);
+   CGColorSpaceRelease(space);
+   if(context==NULL)
+    return;
+   CGContextScaleCTM(context,_contentsScale,_contentsScale);
+   CGContextTranslateCTM(context,-_bounds.origin.x,-_bounds.origin.y);
+   [self drawInContext:context];
+   CGImageRef image=CGBitmapContextCreateImage(context);
+   CGContextRelease(context);
+   [self setContents:(id)image];
+   CGImageRelease(image);
 }
 
 -(void)displayIfNeeded {
+   if(_needsDisplay)
+    [self display];
 }
 
 -(void)drawInContext:(CGContextRef)context {
@@ -286,6 +333,252 @@ NSString * const kCAFilterTrilinear=@"trilinear";
 
 -(void)setNeedsDisplayInRect:(CGRect)rect {
    _needsDisplay=YES;
+}
+
+#define COLOR_PROPERTY(getter,setter,ivar) \
+   -(CGColorRef)getter { return ivar; } \
+   -(void)setter:(CGColorRef)value { value=CGColorRetain(value); CGColorRelease(ivar); ivar=value; }
+
+COLOR_PROPERTY(backgroundColor,setBackgroundColor,_backgroundColor)
+COLOR_PROPERTY(borderColor,setBorderColor,_borderColor)
+COLOR_PROPERTY(shadowColor,setShadowColor,_shadowColor)
+
+#define VALUE_PROPERTY(type,getter,setter,ivar) \
+   -(type)getter { return ivar; } \
+   -(void)setter:(type)value { ivar=value; }
+
+VALUE_PROPERTY(CGFloat,borderWidth,setBorderWidth,_borderWidth)
+VALUE_PROPERTY(CGFloat,cornerRadius,setCornerRadius,_cornerRadius)
+VALUE_PROPERTY(BOOL,masksToBounds,setMasksToBounds,_masksToBounds)
+VALUE_PROPERTY(BOOL,isHidden,setHidden,_hidden)
+VALUE_PROPERTY(BOOL,isDoubleSided,setDoubleSided,_doubleSided)
+VALUE_PROPERTY(CGFloat,zPosition,setZPosition,_zPosition)
+VALUE_PROPERTY(CGFloat,contentsScale,setContentsScale,_contentsScale)
+VALUE_PROPERTY(CGRect,contentsRect,setContentsRect,_contentsRect)
+VALUE_PROPERTY(BOOL,needsDisplayOnBoundsChange,setNeedsDisplayOnBoundsChange,_needsDisplayOnBoundsChange)
+VALUE_PROPERTY(float,shadowOpacity,setShadowOpacity,_shadowOpacity)
+VALUE_PROPERTY(CGSize,shadowOffset,setShadowOffset,_shadowOffset)
+VALUE_PROPERTY(CGFloat,shadowRadius,setShadowRadius,_shadowRadius)
+
+#define COPY_PROPERTY(type,getter,setter,ivar) \
+   -(type)getter { return ivar; } \
+   -(void)setter:(type)value { value=[value copy]; [ivar release]; ivar=value; }
+
+COPY_PROPERTY(NSString *,name,setName,_name)
+COPY_PROPERTY(NSString *,contentsGravity,setContentsGravity,_contentsGravity)
+COPY_PROPERTY(NSDictionary *,actions,setActions,_actions)
+COPY_PROPERTY(NSDictionary *,style,setStyle,_style)
+
+-(CALayer *)mask { return _mask; }
+-(void)setMask:(CALayer *)value {
+   value=[value retain];
+   [_mask release];
+   _mask=value;
+}
+
+-(void)insertSublayer:(CALayer *)layer atIndex:(unsigned)index {
+   NSMutableArray *layers=[_sublayers mutableCopy];
+
+   [layer removeFromSuperlayer];
+   [layers insertObject:layer atIndex:MIN((NSUInteger)index,[layers count])];
+   [self setSublayers:layers];
+   [layers release];
+}
+
+-(void)insertSublayer:(CALayer *)layer below:(CALayer *)sibling {
+   NSUInteger index=[_sublayers indexOfObjectIdenticalTo:sibling];
+   [self insertSublayer:layer atIndex:(index==NSNotFound)?0:(unsigned)index];
+}
+
+-(void)insertSublayer:(CALayer *)layer above:(CALayer *)sibling {
+   NSUInteger index=[_sublayers indexOfObjectIdenticalTo:sibling];
+   [self insertSublayer:layer atIndex:(index==NSNotFound)?(unsigned)[_sublayers count]:(unsigned)index+1];
+}
+
+-(void)setNeedsLayout {
+   _needsLayout=YES;
+}
+
+-(BOOL)needsLayout {
+   return _needsLayout;
+}
+
+-(void)layoutSublayers {
+   if([_delegate respondsToSelector:@selector(layoutSublayersOfLayer:)])
+    [_delegate layoutSublayersOfLayer:self];
+}
+
+-(void)layoutIfNeeded {
+   if(_needsLayout){
+    _needsLayout=NO;
+    [self layoutSublayers];
+   }
+   for(CALayer *child in _sublayers)
+    [child layoutIfNeeded];
+}
+
+/* The transform from this layer's coordinates to its superlayer's: the
+   frame's origin, and the transform about the anchor point (its affine
+   part). */
+-(CGAffineTransform)_toSuperlayer {
+   CGAffineTransform t=CGAffineTransformMakeTranslation(_position.x,_position.y);
+   CGAffineTransform own=CGAffineTransformMake(_transform.m11,_transform.m12,_transform.m21,_transform.m22,_transform.m41,_transform.m42);
+
+   t=CGAffineTransformConcat(own,t);
+   t=CGAffineTransformTranslate(t,-_bounds.size.width*_anchorPoint.x-_bounds.origin.x,-_bounds.size.height*_anchorPoint.y-_bounds.origin.y);
+   return t;
+}
+
+-(CGAffineTransform)_toRoot {
+   CGAffineTransform t=CGAffineTransformIdentity;
+   for(CALayer *layer=self;layer->_superlayer!=nil;layer=layer->_superlayer)
+    t=CGAffineTransformConcat(t,[layer _toSuperlayer]);
+   return t;
+}
+
+-(CGPoint)convertPoint:(CGPoint)point toLayer:(CALayer *)layer {
+   CGPoint root=CGPointApplyAffineTransform(point,[self _toRoot]);
+   return (layer==nil)?root:CGPointApplyAffineTransform(root,CGAffineTransformInvert([layer _toRoot]));
+}
+
+-(CGPoint)convertPoint:(CGPoint)point fromLayer:(CALayer *)layer {
+   return (layer==nil)?CGPointApplyAffineTransform(point,CGAffineTransformInvert([self _toRoot])):[layer convertPoint:point toLayer:self];
+}
+
+-(CGRect)convertRect:(CGRect)rect toLayer:(CALayer *)layer {
+   CGAffineTransform t=[self _toRoot];
+   if(layer!=nil)
+    t=CGAffineTransformConcat(t,CGAffineTransformInvert([layer _toRoot]));
+   return CGRectApplyAffineTransform(rect,t);
+}
+
+-(CGRect)convertRect:(CGRect)rect fromLayer:(CALayer *)layer {
+   if(layer==nil)
+    return CGRectApplyAffineTransform(rect,CGAffineTransformInvert([self _toRoot]));
+   return [layer convertRect:rect toLayer:self];
+}
+
+-(BOOL)containsPoint:(CGPoint)point {
+   return CGRectContainsPoint(_bounds,point);
+}
+
+/* The deepest visible layer under the point (in the superlayer's
+   coordinates), front sublayers first. */
+-(CALayer *)hitTest:(CGPoint)point {
+   if(_hidden || _opacity<=0)
+    return nil;
+   CGPoint local=CGPointApplyAffineTransform(point,CGAffineTransformInvert([self _toSuperlayer]));
+
+   if(_masksToBounds && ![self containsPoint:local])
+    return nil;
+   for(CALayer *child in [_sublayers reverseObjectEnumerator]){
+    CALayer *hit=[child hitTest:local];
+    if(hit!=nil)
+     return hit;
+   }
+   return [self containsPoint:local]?self:nil;
+}
+
+-(id)presentationLayer {
+   return self;
+}
+
+-(id)modelLayer {
+   return self;
+}
+
++(id)defaultValueForKey:(NSString *)key {
+   return nil;
+}
+
++(BOOL)needsDisplayForKey:(NSString *)key {
+   return NO;
+}
+
+static CGPathRef createRoundedPath(CGRect rect,CGFloat radius) {
+   CGMutablePathRef path=CGPathCreateMutable();
+   radius=MIN(radius,MIN(rect.size.width,rect.size.height)/2);
+   if(radius<=0)
+    CGPathAddRect(path,NULL,rect);
+   else {
+    CGFloat minX=CGRectGetMinX(rect),maxX=CGRectGetMaxX(rect),minY=CGRectGetMinY(rect),maxY=CGRectGetMaxY(rect);
+    CGPathMoveToPoint(path,NULL,minX+radius,minY);
+    CGPathAddArcToPoint(path,NULL,maxX,minY,maxX,maxY,radius);
+    CGPathAddArcToPoint(path,NULL,maxX,maxY,minX,maxY,radius);
+    CGPathAddArcToPoint(path,NULL,minX,maxY,minX,minY,radius);
+    CGPathAddArcToPoint(path,NULL,minX,minY,maxX,minY,radius);
+    CGPathCloseSubpath(path);
+   }
+   return path;
+}
+
+/* Where contents of the size go in the bounds, by contentsGravity (the
+   layer's coordinates, y up). */
+-(CGRect)_contentsFrameForSize:(CGSize)size {
+   CGRect   b=_bounds;
+   NSString *g=_contentsGravity;
+   CGFloat  scale;
+
+   if(g==nil || [g isEqualToString:kCAGravityResize] || size.width<=0 || size.height<=0)
+    return b;
+   if([g isEqualToString:kCAGravityResizeAspect] || [g isEqualToString:kCAGravityResizeAspectFill]){
+    CGFloat sx=b.size.width/size.width,sy=b.size.height/size.height;
+    scale=[g isEqualToString:kCAGravityResizeAspect]?MIN(sx,sy):MAX(sx,sy);
+    size=CGSizeMake(size.width*scale,size.height*scale);
+    return CGRectMake(CGRectGetMidX(b)-size.width/2,CGRectGetMidY(b)-size.height/2,size.width,size.height);
+   }
+   CGFloat x=CGRectGetMidX(b)-size.width/2,y=CGRectGetMidY(b)-size.height/2;
+   if([g rangeOfString:@"eft"].location!=NSNotFound) x=CGRectGetMinX(b);
+   if([g rangeOfString:@"ight"].location!=NSNotFound) x=CGRectGetMaxX(b)-size.width;
+   if([g hasPrefix:@"top"]) y=CGRectGetMaxY(b)-size.height;
+   if([g hasPrefix:@"bottom"]) y=CGRectGetMinY(b);
+   return CGRectMake(x,y,size.width,size.height);
+}
+
+-(void)renderInContext:(CGContextRef)context {
+   CGPathRef shape;
+
+   if(_hidden || context==NULL)
+    return;
+   [self layoutIfNeeded];
+   CGContextSaveGState(context);
+   CGContextSetAlpha(context,_opacity);
+   shape=createRoundedPath(_bounds,_cornerRadius);
+   if(_masksToBounds){
+    CGContextAddPath(context,shape);
+    CGContextClip(context);
+   }
+   if(_backgroundColor!=NULL){
+    CGContextSetFillColorWithColor(context,_backgroundColor);
+    CGContextAddPath(context,shape);
+    CGContextFillPath(context);
+   }
+   if(_contents!=nil && CFGetTypeID((CFTypeRef)_contents)==CGImageGetTypeID()){
+    CGImageRef image=(CGImageRef)_contents;
+    CGSize     size=CGSizeMake(CGImageGetWidth(image)/_contentsScale,CGImageGetHeight(image)/_contentsScale);
+    CGContextDrawImage(context,[self _contentsFrameForSize:size],image);
+   }
+   else
+    [self drawInContext:context];
+   NSArray *ordered=[_sublayers sortedArrayUsingComparator:^NSComparisonResult(CALayer *a,CALayer *b){
+      return (a->_zPosition<b->_zPosition)?NSOrderedAscending:(a->_zPosition>b->_zPosition)?NSOrderedDescending:NSOrderedSame;
+   }];
+   for(CALayer *child in ordered){
+    CGContextSaveGState(context);
+    CGContextConcatCTM(context,[child _toSuperlayer]);
+    [child renderInContext:context];
+    CGContextRestoreGState(context);
+   }
+   if(_borderWidth>0 && _borderColor!=NULL){
+    CGPathRef inner=createRoundedPath(CGRectInset(_bounds,_borderWidth/2,_borderWidth/2),MAX(0,_cornerRadius-_borderWidth/2));
+    CGContextSetStrokeColorWithColor(context,_borderColor);
+    CGContextSetLineWidth(context,_borderWidth);
+    CGContextAddPath(context,inner);
+    CGContextStrokePath(context);
+    CGPathRelease(inner);
+   }
+   CGPathRelease(shape);
+   CGContextRestoreGState(context);
 }
 
 -(void)addAnimation:(CAAnimation *)animation forKey:(NSString *)key {

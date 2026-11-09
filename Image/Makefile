@@ -53,7 +53,9 @@ LOADER =		${EFILOADER_SRC}/Build/EmulatorX64/DEBUG_CLANGDWARF/X64/loader.efi
 IMAGE ?=		${ROOT_BINARY_DIR}/Minkar.img
 IMAGE_SIZE_MB ?=	2048
 KERNELCACHE ?=		${ROOT_BINARY_DIR}/kernelcache
-BOOT_ARGS ?=		-v debug=0x14e serial=3 keepsyms=1
+# msgbuf: dmesg keeps the whole boot (a release kernel's 16 KB fill before
+# the login; the NVMe test reads its driver's boot lines there).
+BOOT_ARGS ?=		-v debug=0x14e serial=3 keepsyms=1 msgbuf=1048576
 # PID 1 until launchd runs (gate M1); empty to boot /sbin/launchd itself.
 INIT ?=			/sbin/minkarinit
 .if !empty(INIT)

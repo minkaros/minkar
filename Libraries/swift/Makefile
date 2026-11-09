@@ -11,7 +11,9 @@
 # compiler built there. Swift's CMake asks xcrun, defaults and xcodebuild
 # about the SDK: shims/ answers for them.
 #
-# Built after libSystem and objc4, which it links against.
+# Built after libSystem and objc4, which it links against, by the
+# Frameworks stage (Frameworks/Makefile), after Foundation: its Objective-C
+# parts include Foundation's headers.
 
 SUBDIR =
 SWIFT =		${ROOT_SOURCE_DIR}/Developer/Default.xctoolchain/swift

@@ -15,11 +15,11 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
     NSString *_valueKeyPath;
     BOOL _isObserving;
 }
-- (void)applyToCell:(id)cell inRow:(int)row;
-- (void)applyFromCell:(id)cell inRow:(int)row;
+- (void)applyToCell:(id)cell inRow:(NSInteger)row;
+- (void)applyFromCell:(id)cell inRow:(NSInteger)row;
 - (void)updateRowValues;
 - (NSArray *)rowValues;
-- (BOOL)allowsEditingForRow:(int)row;
+- (BOOL)allowsEditingForRow:(NSInteger)row;
 - (void)cacheArrayKeyPath;
 @end
 

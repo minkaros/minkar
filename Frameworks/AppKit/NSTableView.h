@@ -35,17 +35,18 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <AppKit/NSControl.h>
 #import <AppKit/NSDragging.h>
 
-@class NSTableHeaderView, NSTableColumn;
+@class NSTableHeaderView, NSTableColumn, NSTableRowView, NSNib, NSImage;
 
 APPKIT_EXPORT NSString *const NSTableViewSelectionIsChangingNotification;
 APPKIT_EXPORT NSString *const NSTableViewSelectionDidChangeNotification;
 APPKIT_EXPORT NSString *const NSTableViewColumnDidMoveNotification;
 APPKIT_EXPORT NSString *const NSTableViewColumnDidResizeNotification;
 
-enum {
-    NSTableViewGridNone,
-    NSTableViewSolidVerticalGridLineMask,
-    NSTableViewSolidHorizontalGridLineMask
+typedef NS_OPTIONS(NSUInteger, NSTableViewGridLineStyle) {
+    NSTableViewGridNone = 0,
+    NSTableViewSolidVerticalGridLineMask = 1 << 0,
+    NSTableViewSolidHorizontalGridLineMask = 1 << 1,
+    NSTableViewDashedHorizontalGridLineMask = 1 << 3,
 };
 
 enum {
@@ -55,10 +56,38 @@ enum {
 };
 typedef NSInteger NSTableViewSelectionHighlightStyle;
 
+typedef NS_ENUM(NSInteger, NSTableViewDraggingDestinationFeedbackStyle) {
+    NSTableViewDraggingDestinationFeedbackStyleNone = -1,
+    NSTableViewDraggingDestinationFeedbackStyleRegular = 0,
+    NSTableViewDraggingDestinationFeedbackStyleSourceList = 1,
+    NSTableViewDraggingDestinationFeedbackStyleGap = 2,
+};
+
+typedef NS_OPTIONS(NSUInteger, NSTableViewAnimationOptions) {
+    NSTableViewAnimationEffectNone = 0x0,
+    NSTableViewAnimationEffectFade = 0x1,
+    NSTableViewAnimationEffectGap = 0x2,
+    NSTableViewAnimationSlideUp = 0x10,
+    NSTableViewAnimationSlideDown = 0x20,
+    NSTableViewAnimationSlideLeft = 0x30,
+    NSTableViewAnimationSlideRight = 0x40,
+};
+
+APPKIT_EXPORT NSString *const NSTableViewRowViewKey;
+
 typedef enum {
     NSTableViewDropOn,
     NSTableViewDropAbove
 } NSTableViewDropOperation;
+
+typedef NS_ENUM(NSUInteger, NSTableViewColumnAutoresizingStyle) {
+    NSTableViewNoColumnAutoresizing = 0,
+    NSTableViewUniformColumnAutoresizingStyle,
+    NSTableViewSequentialColumnAutoresizingStyle,
+    NSTableViewReverseSequentialColumnAutoresizingStyle,
+    NSTableViewLastColumnOnlyAutoresizingStyle,
+    NSTableViewFirstColumnOnlyAutoresizingStyle
+};
 
 @interface NSTableView : NSControl {
     id _target;
@@ -74,7 +103,7 @@ typedef enum {
 
     NSInteger _rowHeightsCount;
     float *_rowHeights;
-    float _standardRowHeight;
+    CGFloat _standardRowHeight;
     NSColor *_backgroundColor;
     NSColor *_gridColor;
     BOOL _allowsColumnReordering;
@@ -100,6 +129,15 @@ typedef enum {
     NSArray *_sortDescriptors;
 
     int _draggingRow;
+
+    // view-based tables
+    NSMutableDictionary *_rowViews;
+    NSMutableDictionary *_reusableViews;
+    NSMutableDictionary *_registeredNibs;
+    NSInteger _updateLevel;
+    BOOL _floatsGroupRows;
+    BOOL _usesAutomaticRowHeights;
+    NSInteger _rowSizeStyle;
 }
 
 - (SEL)doubleAction;
@@ -110,7 +148,7 @@ typedef enum {
 - (NSView *)headerView;
 - (NSView *)cornerView;
 
-- (float)rowHeight;
+- (CGFloat)rowHeight;
 - (NSSize)intercellSpacing;
 - (NSColor *)backgroundColor;
 - (NSColor *)gridColor;
@@ -126,7 +164,7 @@ typedef enum {
 - (BOOL)autosaveTableColumns;
 
 - (BOOL)usesAlternatingRowBackgroundColors;
-- (unsigned int)gridStyleMask;
+- (NSTableViewGridLineStyle)gridStyleMask;
 - (NSTableViewSelectionHighlightStyle)selectionHighlightStyle;
 
 - (NSInteger)numberOfRows;
@@ -139,9 +177,9 @@ typedef enum {
 - (NSRect)rectOfColumn:(NSInteger)column;
 - (NSRange)rowsInRect:(NSRect)rect;
 - (NSRange)columnsInRect:(NSRect)rect;
-- (int)rowAtPoint:(NSPoint)point;
-- (int)columnAtPoint:(NSPoint)point;
-- (NSRect)frameOfCellAtColumn:(int)column row:(int)row;
+- (NSInteger)rowAtPoint:(NSPoint)point;
+- (NSInteger)columnAtPoint:(NSPoint)point;
+- (NSRect)frameOfCellAtColumn:(NSInteger)column row:(NSInteger)row;
 
 - (void)setDoubleAction:(SEL)action;
 
@@ -151,7 +189,7 @@ typedef enum {
 - (void)setHeaderView:(NSTableHeaderView *)headerView;
 - (void)setCornerView:(NSView *)view;
 
-- (void)setRowHeight:(float)height;
+- (void)setRowHeight:(CGFloat)height;
 - (void)setIntercellSpacing:(NSSize)size;
 - (void)setBackgroundColor:(NSColor *)color;
 - (void)setGridColor:(NSColor *)color;
@@ -167,39 +205,39 @@ typedef enum {
 - (void)setAutosaveTableColumns:(BOOL)flag;
 
 - (void)setUsesAlternatingRowBackgroundColors:(BOOL)flag;
-- (void)setGridStyleMask:(unsigned int)gridStyle;
+- (void)setGridStyleMask:(NSTableViewGridLineStyle)gridStyle;
 - (void)setSelectionHighlightStyle:(NSTableViewSelectionHighlightStyle)value;
 
 - (void)addTableColumn:(NSTableColumn *)column;
 - (void)removeTableColumn:(NSTableColumn *)column;
 - (void)moveColumn:(NSInteger)columnIndex toColumn:(NSInteger)newIndex;
 
-- (int)editedRow;
-- (int)editedColumn;
-- (void)editColumn:(int)column row:(int)row withEvent:(NSEvent *)event select:(BOOL)select;
+- (NSInteger)editedRow;
+- (NSInteger)editedColumn;
+- (void)editColumn:(NSInteger)column row:(NSInteger)row withEvent:(NSEvent *)event select:(BOOL)select;
 
-- (int)clickedRow;
-- (int)clickedColumn;
-- (int)selectedRow;
-- (int)selectedColumn;
-- (int)numberOfSelectedRows;
-- (int)numberOfSelectedColumns;
-- (BOOL)isColumnSelected:(int)row;
-- (BOOL)isRowSelected:(int)row;
+- (NSInteger)clickedRow;
+- (NSInteger)clickedColumn;
+- (NSInteger)selectedRow;
+- (NSInteger)selectedColumn;
+- (NSInteger)numberOfSelectedRows;
+- (NSInteger)numberOfSelectedColumns;
+- (BOOL)isColumnSelected:(NSInteger)row;
+- (BOOL)isRowSelected:(NSInteger)row;
 - (NSEnumerator *)selectedRowEnumerator;
 - (NSEnumerator *)selectedColumnEnumerator;
 - (NSIndexSet *)selectedColumnIndexes;
 
-- (void)selectRow:(int)row byExtendingSelection:(BOOL)extend;
-- (void)selectColumn:(int)column byExtendingSelection:(BOOL)extend;
-- (void)deselectRow:(int)row;
-- (void)deselectColumn:(int)column;
+- (void)selectRow:(NSInteger)row byExtendingSelection:(BOOL)extend;
+- (void)selectColumn:(NSInteger)column byExtendingSelection:(BOOL)extend;
+- (void)deselectRow:(NSInteger)row;
+- (void)deselectColumn:(NSInteger)column;
 
 - (void)selectAll:sender;
 - (void)deselectAll:sender;
 
-- (void)scrollRowToVisible:(int)index;
-- (void)scrollColumnToVisible:(int)index;
+- (void)scrollRowToVisible:(NSInteger)index;
+- (void)scrollColumnToVisible:(NSInteger)index;
 
 - (void)noteNumberOfRowsChanged;
 - (void)noteHeightOfRowsWithIndexesChanged:(NSIndexSet *)indexSet;
@@ -210,7 +248,7 @@ typedef enum {
 
 - (void)highlightSelectionInClipRect:(NSRect)rect;
 
-- (void)drawRow:(int)row clipRect:(NSRect)rect;
+- (void)drawRow:(NSInteger)row clipRect:(NSRect)rect;
 - (void)drawBackgroundInClipRect:(NSRect)rect;
 - (void)drawGridInClipRect:(NSRect)rect;
 - (NSCell *)preparedCellAtColumn:(NSInteger)columnNumber row:(NSInteger)row;
@@ -220,25 +258,80 @@ typedef enum {
 
 - (NSArray *)sortDescriptors;
 - (void)setSortDescriptors:(NSArray *)value;
+
+/* View-based tables: the delegate gives a view for each cell
+   (tableView:viewForTableColumn:row:), shown in a row view; views that
+   scroll out are kept by identifier for makeViewWithIdentifier:owner:. */
+- (id)makeViewWithIdentifier:(NSString *)identifier owner:(id)owner;
+- (void)registerNib:(NSNib *)nib forIdentifier:(NSString *)identifier;
+@property (readonly, copy) NSDictionary *registeredNibsByIdentifier;
+- (id)viewAtColumn:(NSInteger)column row:(NSInteger)row makeIfNecessary:(BOOL)makeIfNecessary;
+- (id)rowViewAtRow:(NSInteger)row makeIfNecessary:(BOOL)makeIfNecessary;
+- (NSInteger)rowForView:(NSView *)view;
+- (NSInteger)columnForView:(NSView *)view;
+- (void)enumerateAvailableRowViewsUsingBlock:(void (^)(NSTableRowView *rowView, NSInteger row))handler;
+@property BOOL floatsGroupRows;
+@property BOOL usesAutomaticRowHeights;
+@property NSInteger rowSizeStyle;
+@property (readonly) NSInteger effectiveRowSizeStyle;
+
+/* Changes to the rows, shown at endUpdates when inside an update. */
+- (void)beginUpdates;
+- (void)endUpdates;
+- (void)insertRowsAtIndexes:(NSIndexSet *)indexes withAnimation:(NSTableViewAnimationOptions)animationOptions;
+- (void)removeRowsAtIndexes:(NSIndexSet *)indexes withAnimation:(NSTableViewAnimationOptions)animationOptions;
+- (void)moveRowAtIndex:(NSInteger)oldIndex toIndex:(NSInteger)newIndex;
+- (void)reloadDataForRowIndexes:(NSIndexSet *)rowIndexes columnIndexes:(NSIndexSet *)columnIndexes;
+
+@property NSTableViewColumnAutoresizingStyle columnAutoresizingStyle;
+@property BOOL allowsTypeSelect;
+- (NSImage *)indicatorImageInTableColumn:(NSTableColumn *)tableColumn;
+- (void)setIndicatorImage:(NSImage *)image inTableColumn:(NSTableColumn *)tableColumn;
+
+@end
+
+/* The formal protocols of API 19 (all optional), beside the informal ones. */
+@protocol NSTableViewDataSource <NSObject>
+@optional
+- (NSInteger)numberOfRowsInTableView:(NSTableView *)tableView;
+- (id)tableView:(NSTableView *)tableView objectValueForTableColumn:(NSTableColumn *)tableColumn row:(NSInteger)row;
+- (void)tableView:(NSTableView *)tableView setObjectValue:(id)object forTableColumn:(NSTableColumn *)tableColumn row:(NSInteger)row;
+- (void)tableView:(NSTableView *)tableView sortDescriptorsDidChange:(NSArray *)oldDescriptors;
+@end
+
+@protocol NSTableViewDelegate <NSObject>
+@optional
+- (BOOL)tableView:(NSTableView *)tableView shouldSelectRow:(NSInteger)row;
+- (void)tableView:(NSTableView *)tableView willDisplayCell:(id)cell forTableColumn:(NSTableColumn *)tableColumn row:(NSInteger)row;
+- (void)tableView:(NSTableView *)tableView didClickTableColumn:(NSTableColumn *)tableColumn;
+- (void)tableView:(NSTableView *)tableView mouseDownInHeaderOfTableColumn:(NSTableColumn *)tableColumn;
+- (void)tableViewSelectionDidChange:(NSNotification *)notification;
+- (NSView *)tableView:(NSTableView *)tableView viewForTableColumn:(NSTableColumn *)tableColumn row:(NSInteger)row;
+- (NSTableRowView *)tableView:(NSTableView *)tableView rowViewForRow:(NSInteger)row;
+- (void)tableView:(NSTableView *)tableView didAddRowView:(NSTableRowView *)rowView forRow:(NSInteger)row;
+- (void)tableView:(NSTableView *)tableView didRemoveRowView:(NSTableRowView *)rowView forRow:(NSInteger)row;
+- (CGFloat)tableView:(NSTableView *)tableView heightOfRow:(NSInteger)row;
+- (BOOL)tableView:(NSTableView *)tableView isGroupRow:(NSInteger)row;
+- (BOOL)selectionShouldChangeInTableView:(NSTableView *)tableView;
 @end
 
 @interface NSObject (NSTableView_dataSource)
-- (int)numberOfRowsInTableView:(NSTableView *)tableView;
-- (id)tableView:(NSTableView *)tableView objectValueForTableColumn:(NSTableColumn *)tableColumn row:(int)row;
-- (void)tableView:(NSTableView *)tableView setObjectValue:object forTableColumn:(NSTableColumn *)tableColumn row:(int)row;
+- (NSInteger)numberOfRowsInTableView:(NSTableView *)tableView;
+- (id)tableView:(NSTableView *)tableView objectValueForTableColumn:(NSTableColumn *)tableColumn row:(NSInteger)row;
+- (void)tableView:(NSTableView *)tableView setObjectValue:object forTableColumn:(NSTableColumn *)tableColumn row:(NSInteger)row;
 - (BOOL)tableView:(NSTableView *)tableView writeRowsWithIndexes:(NSIndexSet *)indexes toPasteboard:(NSPasteboard *)pasteboard;
-- (NSDragOperation)tableView:(NSTableView *)tableView validateDrop:(id<NSDraggingInfo>)draggingInfo proposedRow:(int)proposedRow proposedDropOperation:(NSTableViewDropOperation)dropOperation;
-- (BOOL)tableView:(NSTableView *)tableView acceptDrop:(id<NSDraggingInfo>)draggingInfo row:(int)row dropOperation:(NSTableViewDropOperation)dropOperation;
+- (NSDragOperation)tableView:(NSTableView *)tableView validateDrop:(id<NSDraggingInfo>)draggingInfo proposedRow:(NSInteger)proposedRow proposedDropOperation:(NSTableViewDropOperation)dropOperation;
+- (BOOL)tableView:(NSTableView *)tableView acceptDrop:(id<NSDraggingInfo>)draggingInfo row:(NSInteger)row dropOperation:(NSTableViewDropOperation)dropOperation;
 @end
 
 @interface NSObject (NSTableView_delegate)
-- (BOOL)tableView:(NSTableView *)tableView shouldEditTableColumn:(NSTableColumn *)tableColumn row:(int)row;
+- (BOOL)tableView:(NSTableView *)tableView shouldEditTableColumn:(NSTableColumn *)tableColumn row:(NSInteger)row;
 - (BOOL)selectionShouldChangeInTableView:(NSTableView *)tableView;
-- (float)tableView:(NSTableView *)tableView heightOfRow:(int)row;
-- (BOOL)tableView:(NSTableView *)tableView shouldSelectRow:(int)row;
+- (CGFloat)tableView:(NSTableView *)tableView heightOfRow:(NSInteger)row;
+- (BOOL)tableView:(NSTableView *)tableView shouldSelectRow:(NSInteger)row;
 - (BOOL)tableView:(NSTableView *)tableView shouldSelectTableColumn:(NSTableColumn *)tableColumn;
 - (void)tableView:(NSTableView *)tableView mouseDownInHeaderOfTableColumn:(NSTableColumn *)tableColumn;
-- (void)tableView:(NSTableView *)tableView willDisplayCell:cell forTableColumn:(NSTableColumn *)tableColumn row:(int)row;
+- (void)tableView:(NSTableView *)tableView willDisplayCell:cell forTableColumn:(NSTableColumn *)tableColumn row:(NSInteger)row;
 @end
 
 @interface NSObject (NSTableView_notifications)

@@ -40,9 +40,28 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 	return _size;
 }
 
+/* The font's bounding box, in points. */
 -(CGRect)boundingRect {
-   O2InvalidAbstractInvocation();
-   return CGRectZero;
+   CGRect  box=CGFontGetFontBBox(_font);
+   CGFloat scale=(_unitsPerEm>0)?_size/_unitsPerEm:0;
+
+   return CGRectMake(box.origin.x*scale,box.origin.y*scale,box.size.width*scale,box.size.height*scale);
+}
+
+/* A signed 16-bit value of the 'post' table (font units), or the
+   fallback when the font has none. */
+static CGFloat postValue(CGFontRef font,size_t offset,CGFloat fallback){
+   CFDataRef table=CGFontCopyTableForTag(font,'post');
+   CGFloat   result=fallback;
+
+   if(table!=NULL){
+    if((size_t)CFDataGetLength(table)>=offset+2){
+     const UInt8 *bytes=CFDataGetBytePtr(table);
+     result=(int16_t)((bytes[offset]<<8)|bytes[offset+1]);
+    }
+    CFRelease(table);
+   }
+   return result;
 }
 
 -(CGFloat)ascender {
@@ -64,13 +83,18 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 }
 
 -(CGFloat)underlineThickness {
-   O2InvalidAbstractInvocation();
-   return 0;
+   CGFloat units=postValue(_font,10,_unitsPerEm/14.0);
+   return (_unitsPerEm>0)?units*_size/_unitsPerEm:1;
 }
 
+/* Below the baseline: negative. */
 -(CGFloat)underlinePosition {
-   O2InvalidAbstractInvocation();
-   return 0;
+   CGFloat units=postValue(_font,8,-_unitsPerEm/10.0);
+   return (_unitsPerEm>0)?units*_size/_unitsPerEm:-1;
+}
+
+-(CGFontRef)_cgFont {
+   return _font;
 }
 
 -(CGFloat)italicAngle {

@@ -37,9 +37,7 @@
 #include "CFInternal.h"
 #include <CoreFoundation/CFBurstTrie.h>
 #include <CoreFoundation/CFString.h>
-#if DEPLOYMENT_TARGET_MACOSX || DEPLOYMENT_TARGET_EMBEDDED || DEPLOYMENT_TARGET_WINDOWS
 #include <CoreFoundation/CFStream.h>
-#endif
 #include <CoreFoundation/CFCalendar.h>
 #include "CFLocaleInternal.h"
 #include <limits.h>
@@ -2303,13 +2301,11 @@ static CFStringEncoding encodingForXMLData(CFDataRef data, CFErrorRef *error, CF
         if (len == 5 && (*base == 'u' || *base == 'U') && (base[1] == 't' || base[1] == 'T') && (base[2] == 'f' || base[2] == 'F') && (base[3] == '-') && (base[4] == '8'))
             return kCFStringEncodingUTF8;
         encodingName = CFStringCreateWithBytes(kCFAllocatorSystemDefault, base, len, kCFStringEncodingISOLatin1, false);
-#if DEPLOYMENT_TARGET_MACOSX || DEPLOYMENT_TARGET_EMBEDDED || DEPLOYMENT_TARGET_WINDOWS || DEPLOYMENT_TARGET_LINUX
         CFStringEncoding enc = CFStringConvertIANACharSetNameToEncoding(encodingName);
         if (enc != kCFStringEncodingInvalidId) {
             CFRelease(encodingName);
             return enc;
         }
-#endif
 
         if (error) {
             *error = __CFPropertyListCreateError(kCFPropertyListReadCorruptError, CFSTR("Encountered unknown encoding (%@)"), encodingName);
@@ -2790,7 +2786,6 @@ CFDataRef CFPropertyListCreateData(CFAllocatorRef allocator, CFPropertyListRef p
     } else if (format == kCFPropertyListXMLFormat_v1_0) {
         data = _CFPropertyListCreateXMLData(allocator, propertyList, true);
     } else if (format == kCFPropertyListBinaryFormat_v1_0) {
-#if DEPLOYMENT_TARGET_MACOSX || DEPLOYMENT_TARGET_EMBEDDED || DEPLOYMENT_TARGET_WINDOWS
         // TODO: Is it more efficient to create a stream here or just use a mutable data?
         CFWriteStreamRef stream = CFWriteStreamCreateWithAllocatedBuffers(kCFAllocatorSystemDefault, allocator);
         CFWriteStreamOpen(stream);
@@ -2800,19 +2795,12 @@ CFDataRef CFPropertyListCreateData(CFAllocatorRef allocator, CFPropertyListRef p
         }
         CFWriteStreamClose(stream);
 	CFRelease(stream);
-#else
-        CFMutableDataRef dataForPlist = CFDataCreateMutable(allocator, 0);
-        __CFBinaryPlistWrite(propertyList, dataForPlist, 0, options, error);
-        return dataForPlist;
-#endif
     } else {
 	CFLog(kCFLogLevelError, CFSTR("Unknown format option"));
     }
     
     return data;
 }
-
-#if DEPLOYMENT_TARGET_MACOSX || DEPLOYMENT_TARGET_EMBEDDED || DEPLOYMENT_TARGET_WINDOWS
 
 CFIndex CFPropertyListWrite(CFPropertyListRef propertyList, CFWriteStreamRef stream, CFPropertyListFormat format, CFOptionFlags options, CFErrorRef *error) {
     initStatics();
@@ -3006,8 +2994,6 @@ CFPropertyListRef CFPropertyListCreateFromStream(CFAllocatorRef allocator, CFRea
     if (error) CFRelease(error);
     return result;
 }
-
-#endif //DEPLOYMENT_TARGET_MACOSX || DEPLOYMENT_TARGET_EMBEDDED || DEPLOYMENT_TARGET_WINDOWS
 
 #pragma mark -
 #pragma mark Property List Copies

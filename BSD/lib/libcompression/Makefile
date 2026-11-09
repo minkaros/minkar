@@ -36,6 +36,6 @@ lib${LIB}.dylib: lib${LIB}.a
 
 install-headers: .PHONY
 	mkdir -p ${MINKAR_SDKROOT}/usr/include
-	install -m 0444 ${.CURDIR}/compression.h ${MINKAR_SDKROOT}/usr/include/
+	install -C -m 0444 ${.CURDIR}/compression.h ${MINKAR_SDKROOT}/usr/include/
 
 .include <bsd.lib.mk>

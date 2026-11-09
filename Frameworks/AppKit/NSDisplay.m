@@ -20,6 +20,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE. */
 
 #import <AppKit/NSDisplay.h>
+#import <AppKit/NSDraggingManager.h>
 #import <AppKit/NSRaise.h>
 #import <AppKit/NSColorList.h>
 #import <AppKit/NSFontTypeface.h>
@@ -139,8 +140,7 @@ static NSRect screenFrame(CGDirectDisplayID display, CGFloat mainHeight, NSRect 
 }
 
 -(NSDraggingManager *)draggingManager {
-   NSUnimplementedMethod();
-   return nil;
+   return [NSDraggingManager _sharedManager];
 }
 
 -(NSColor *)colorWithName:(NSString *)colorName {
@@ -204,7 +204,7 @@ static NSRect screenFrame(CGDirectDisplayID display, CGFloat mainHeight, NSRect 
    NSUnimplementedMethod();
 }
 
--(NSEvent *)nextEventMatchingMask:(unsigned)mask untilDate:(NSDate *)untilDate inMode:(NSString *)mode dequeue:(BOOL)dequeue {
+-(NSEvent *)nextEventMatchingMask:(NSEventMask)mask untilDate:(NSDate *)untilDate inMode:(NSString *)mode dequeue:(BOOL)dequeue {
     NSEvent *result=nil;
 
     if([_eventQueue count])
@@ -248,7 +248,7 @@ static NSRect screenFrame(CGDirectDisplayID display, CGFloat mainHeight, NSRect 
     return result;
 }
 
--(void)discardEventsMatchingMask:(unsigned)mask beforeEvent:(NSEvent *)event {
+-(void)discardEventsMatchingMask:(NSEventMask)mask beforeEvent:(NSEvent *)event {
    int count=[_eventQueue count];
 
    while(--count>=0){
@@ -285,7 +285,7 @@ static NSRect screenFrame(CGDirectDisplayID display, CGFloat mainHeight, NSRect 
    return result;
 }
 
--(unsigned)modifierForDefault:(NSString *)key:(unsigned)standard {
+-(NSEventModifierFlags)modifierForDefault:(NSString *)key:(NSUInteger)standard {
    NSDictionary *modmap=[[NSUserDefaults standardUserDefaults] dictionaryForKey:@"NSModifierFlagMapping"];
    NSString     *remap=[modmap objectForKey:key];
 
@@ -384,21 +384,21 @@ static NSRect screenFrame(CGDirectDisplayID display, CGFloat mainHeight, NSRect 
    return ret;
 }
 
--(float)scrollerWidth {
+-(CGFloat)scrollerWidth {
    return 15.0;
 }
 
--(float)doubleClickInterval {
+-(CGFloat)doubleClickInterval {
    return 1.0;
 }
 
 
--(int)runModalPageLayoutWithPrintInfo:(NSPrintInfo *)printInfo {
+-(NSInteger)runModalPageLayoutWithPrintInfo:(NSPrintInfo *)printInfo {
    NSUnimplementedMethod();
 	return 0;
 }
 
--(int)runModalPrintPanelWithPrintInfoDictionary:(NSMutableDictionary *)attributes {
+-(NSInteger)runModalPrintPanelWithPrintInfoDictionary:(NSMutableDictionary *)attributes {
    NSUnimplementedMethod();
    return 0;
 }
@@ -408,12 +408,12 @@ static NSRect screenFrame(CGDirectDisplayID display, CGFloat mainHeight, NSRect 
    return nil;
 }
 
--(int)savePanel:(NSSavePanel *)savePanel runModalForDirectory:(NSString *)directory file:(NSString *)file {
+-(NSInteger)savePanel:(NSSavePanel *)savePanel runModalForDirectory:(NSString *)directory file:(NSString *)file {
    NSUnimplementedMethod();
    return 0;
 }
 
--(int)openPanel:(NSOpenPanel *)openPanel runModalForDirectory:(NSString *)directory file:(NSString *)file types:(NSArray *)types {
+-(NSInteger)openPanel:(NSOpenPanel *)openPanel runModalForDirectory:(NSString *)directory file:(NSString *)file types:(NSArray *)types {
    NSUnimplementedMethod();
    return 0;
 }

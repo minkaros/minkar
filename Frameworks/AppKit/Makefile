@@ -90,7 +90,6 @@ SRCS = \
     NSFontManager.m \
     NSFontMetric.m \
     NSFontPanel.m \
-    NSFontPanelCell.m \
     NSFontTypeface.m \
     NSForm.m \
     NSFormCell.m \
@@ -101,6 +100,7 @@ SRCS = \
     NSGraphicsContext.m \
     NSHelpManager.m \
     NSImage.m \
+    NSImageStandardImages.m \
     NSImageCell.m \
     NSImageRep.m \
     NSImageView.m \
@@ -150,6 +150,8 @@ SRCS = \
     NSLayout/NSViewLayout.m \
     NSPageLayout.m \
     NSPanel.m \
+    NSPopover.m \
+    NSSwitch.m \
     NSParagraphStyle.m \
     NSPasteboard.m \
     PasteboardUser.c \
@@ -199,7 +201,10 @@ SRCS = \
     NSStepperCell.m \
     NSStringDrawer.m \
     NSStringDrawing.m \
-    NSSystemInfoPanel/NSSystemInfoPanel.m \
+    NSAboutPanel.m \
+    NSHTMLReader.m \
+    NSHelpViewer.m \
+    NSDocumentVersionsPanel.m \
     NSTabView.m \
     NSTabViewItem.m \
     NSTableColumn.m \
@@ -207,6 +212,8 @@ SRCS = \
     NSTableHeaderCell.m \
     NSTableHeaderView.m \
     NSTableView.m \
+    NSTableCellView.m \
+    NSTableRowView.m \
     NSText.m \
     NSTextAttachment.m \
     NSTextAttachmentCell.m \
@@ -248,6 +255,16 @@ SRCS = \
     NSView.m \
     NSViewBackingLayer.m \
     NSViewController.m \
+    NSTouchBar.m \
+    NSTextInputContext.m \
+    NSTitlebarAccessoryViewController.m \
+    NSGridView.m \
+    NSDraggingItem.m \
+    NSPasteboardItem.m \
+    NSAppearance.m \
+    NSVisualEffectView.m \
+    NSSplitViewController.m \
+    NSTabViewController.m \
     NSWindow-Drag.m \
     NSWindow.m \
     RTF.subproj/NSRichTextReader.m \
@@ -367,7 +384,6 @@ HEADERS = \
     NSFontManager.h \
     NSFontMetric.h \
     NSFontPanel.h \
-    NSFontPanelCell.h \
     NSFontTypeface.h \
     NSForm.h \
     NSFormCell.h \
@@ -393,6 +409,7 @@ HEADERS = \
     NSKeyValueBinding/NSKVOBinder.h \
     NSKeyValueBinding/NSMultipleValueBinder.h \
     NSKeyValueBinding/NSObject+BindingSupport.h \
+    NSKeyValueBinding.h \
     NSKeyValueBinding/NSTextBinder.h \
     NSKeyValueBinding/NSTextFieldBinder.h \
     NSKeyboardBinding/NSKeyboardBinding.h \
@@ -425,6 +442,8 @@ HEADERS = \
     NSPathCell.h \
     NSPathComponentCell.h \
     NSPathControl.h \
+    NSPopover.h \
+    NSSwitch.h \
     NSPoofAnimation.h \
     NSPopUpButton.h \
     NSPopUpButtonCell.h \
@@ -472,7 +491,6 @@ HEADERS = \
     NSStepperCell.h \
     NSStringDrawer.h \
     NSStringDrawing.h \
-    NSSystemInfoPanel/NSSystemInfoPanel.h \
     NSTabView.h \
     NSTabViewItem.h \
     NSTableColumn.h \
@@ -480,6 +498,8 @@ HEADERS = \
     NSTableHeaderCell.h \
     NSTableHeaderView.h \
     NSTableView.h \
+    NSTableCellView.h \
+    NSTableRowView.h \
     NSText.h \
     NSTextAttachment.h \
     NSTextAttachmentCell.h \
@@ -523,6 +543,16 @@ HEADERS = \
     NSView.h \
     NSViewBackingLayer.h \
     NSViewController.h \
+    NSTouchBar.h \
+    NSTextInputContext.h \
+    NSTitlebarAccessoryViewController.h \
+    NSGridView.h \
+    NSDraggingItem.h \
+    NSPasteboardItem.h \
+    NSAppearance.h \
+    NSVisualEffectView.h \
+    NSSplitViewController.h \
+    NSTabViewController.h \
     NSWindow-Drag.h \
     NSWindow-Private.h \
     NSWindow.h \
@@ -580,7 +610,7 @@ RESOURCES_FILES = Info.plist \
 	NSButtonCell_disclosure_selected.tif \
 	NSButtonCell_disclosure_normal.tif \
 	NSButtonCell_disclosure_highlighted.tif \
-	NSSystemInfoPanel/NSApplicationIcon.tiff \
+	NSApplicationIcon.tiff \
 	NSPoof.png \
 	NSAlertPanelExclamation.tiff \
 	NSBrowserCellArrow.tiff \
@@ -613,7 +643,7 @@ LDFLAGS = -lc++ -pthread -framework Foundation -framework CoreFoundation \
     -framework CoreGraphics -framework CoreText -framework CoreData \
     -framework QuartzCore -framework OpenGL -framework Onyx2D \
 	-F${MINKAR_SDKROOT}/System/Library/PrivateFrameworks -framework SkyLight \
-	-framework CoreServices \
+	-framework CoreServices -framework DiskArbitration \
 	-lobjc -lSystem
 
 DIRS = \
@@ -623,7 +653,6 @@ DIRS = \
 	WindowServer.backend \
 	NSKeyboardBinding \
 	CoreData_ \
-	NSSystemInfoPanel \
 	NSOpenGL \
 	NSTextView.subproj \
 	NSAnimation \
@@ -680,12 +709,14 @@ clean-deps:
 
 fmwk-install-hook:
 .for lproj in en.lproj fr.lproj de.lproj
-	cp -Rf ${.CURDIR}/NSSystemInfoPanel/${lproj}/NSSystemInfoPanel.nib \
+	cp -Rf ${.CURDIR}/NSColorPicker.subproj/${lproj}/NSColorPickerWheel.nib \
+		${.CURDIR}/NSColorPicker.subproj/${lproj}/NSColorPickerSliders.nib \
+		${.CURDIR}/NSColorPicker.subproj/${lproj}/NSColorPickerColorList.nib \
 		${RESOURCES_DIR}/${lproj}/
 .endfor
 .for dir in ${MINKAR_SDKROOT}/System/Library/Frameworks/ ${SYSROOT_DIR}/System/Library/Frameworks/
 	mkdir -p ${dir}
-	cp -Rf ${.OBJDIR}/${FRAMEWORK}.framework ${dir}
+	rsync -rlc ${.OBJDIR}/${FRAMEWORK}.framework ${dir}
 .endfor
 
 .include <minkar.framework.mk>

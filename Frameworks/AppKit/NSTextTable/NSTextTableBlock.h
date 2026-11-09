@@ -18,14 +18,14 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
     int _columnSpan;
 }
 
-- initWithTable:(NSTextTable *)table startingRow:(int)startingRow rowSpan:(int)rowSpan startingColumn:(int)startingColumn columnSpan:(int)columnSpan;
+- initWithTable:(NSTextTable *)table startingRow:(NSInteger)startingRow rowSpan:(NSInteger)rowSpan startingColumn:(NSInteger)startingColumn columnSpan:(NSInteger)columnSpan;
 
 - (NSTextTable *)table;
 
-- (int)startingRow;
-- (int)rowSpan;
+- (NSInteger)startingRow;
+- (NSInteger)rowSpan;
 
-- (int)startingColumn;
-- (int)columnSpan;
+- (NSInteger)startingColumn;
+- (NSInteger)columnSpan;
 
 @end

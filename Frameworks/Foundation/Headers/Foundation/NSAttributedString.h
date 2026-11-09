@@ -10,6 +10,11 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 @class NSDictionary<KeyType, ObjectType>;
 
+typedef NS_OPTIONS(NSUInteger, NSAttributedStringEnumerationOptions) {
+    NSAttributedStringEnumerationReverse = (1UL << 1),
+    NSAttributedStringEnumerationLongestEffectiveRangeNotRequired = (1UL << 20)
+};
+
 @interface NSAttributedString : NSObject <NSCopying, NSCoding, NSMutableCopying>
 
 - (instancetype)initWithString:(NSString *)string;
@@ -29,4 +34,6 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 - (NSAttributedString *)attributedSubstringFromRange:(NSRange)range;
 
+- (void)enumerateAttributesInRange:(NSRange)enumerationRange options:(NSAttributedStringEnumerationOptions)opts usingBlock:(void (^)(NSDictionary<NSString *, id> *attrs, NSRange range, BOOL *stop))block;
+- (void)enumerateAttribute:(NSString *)attrName inRange:(NSRange)enumerationRange options:(NSAttributedStringEnumerationOptions)opts usingBlock:(void (^)(id value, NSRange range, BOOL *stop))block;
 @end

@@ -955,12 +955,10 @@ Boolean __CFSocketGetBytesAvailable(CFSocketRef s, CFIndex* ctBytesAvailable) {
 #include <sys/types.h>
 #include <math.h>
 #include <limits.h>
-#if DEPLOYMENT_TARGET_MACOSX || DEPLOYMENT_TARGET_EMBEDDED || DEPLOYMENT_TARGET_EMBEDDED_MINI
 #include <sys/sysctl.h>
 #include <sys/un.h>
 #include <libc.h>
 #include <dlfcn.h>
-#endif
 #include <CoreFoundation/CFArray.h>
 #include <CoreFoundation/CFData.h>
 #include <CoreFoundation/CFDictionary.h>
@@ -969,55 +967,18 @@ Boolean __CFSocketGetBytesAvailable(CFSocketRef s, CFIndex* ctBytesAvailable) {
 #include <CoreFoundation/CFPropertyList.h>
 #include "CFInternal.h"
 
-#if DEPLOYMENT_TARGET_WINDOWS
-
-#define EINPROGRESS WSAEINPROGRESS
-
-// redefine this to the winsock error in this file
-#undef EBADF
-#define EBADF WSAENOTSOCK
-
-#define NBBY 8
-#define NFDBITS	(sizeof(int32_t) * NBBY)
-
-typedef int32_t fd_mask;
-typedef int socklen_t;
-
-#define gettimeofday _NS_gettimeofday
-CF_PRIVATE int _NS_gettimeofday(struct timeval *tv, struct timezone *tz);
-
-// although this is only used for debug info, we define it for compatibility
-#define	timersub(tvp, uvp, vvp) \
-    do { \
-        (vvp)->tv_sec = (tvp)->tv_sec - (uvp)->tv_sec;		\
-        (vvp)->tv_usec = (tvp)->tv_usec - (uvp)->tv_usec;	\
-        if ((vvp)->tv_usec < 0) {				\
-            (vvp)->tv_sec--;				\
-            (vvp)->tv_usec += 1000000;			\
-        }							\
-    } while (0)
-
-
-#endif // DEPLOYMENT_TARGET_WINDOWS
-
 
 // On Mach we use a v0 RunLoopSource to make client callbacks.  That source is signalled by a
 // separate SocketManager thread who uses select() to watch the sockets' fds.
 
 //#define LOG_CFSOCKET
 
-#if DEPLOYMENT_TARGET_MACOSX || DEPLOYMENT_TARGET_EMBEDDED || DEPLOYMENT_TARGET_EMBEDDED_MINI
 #define INVALID_SOCKET (CFSocketNativeHandle)(-1)
 #define closesocket(a) close((a))
 #define ioctlsocket(a,b,c) ioctl((a),(b),(c))
-#endif
 
 CF_INLINE int __CFSocketLastError(void) {
-#if DEPLOYMENT_TARGET_WINDOWS
-    return WSAGetLastError();
-#else
     return thread_errno();
-#endif
 }
 
 CF_INLINE CFIndex __CFSocketFdGetSize(CFDataRef fdSet) {
@@ -1079,7 +1040,6 @@ struct __CFSocket {
         unsigned disabled:8;	// flags marking disabled callbacks
         unsigned connected:1;	// Are we connected yet?  (also true for connectionless sockets)
         unsigned writableHint:1;  // Did the polling the socket show it to be writable?
-        unsigned closeSignaled:1;  // Have we seen FD_CLOSE? (only used on Win32)
         unsigned unused:13;
     } _f;
     CFLock_t _lock;
@@ -1204,14 +1164,8 @@ CF_INLINE void __CFSocketEstablishPeerAddress(CFSocketRef s) {
 }
 
 static Boolean __CFNativeSocketIsValid(CFSocketNativeHandle sock) {
-#if DEPLOYMENT_TARGET_WINDOWS
-    SInt32 errorCode = 0;
-    int errorSize = sizeof(errorCode);
-    return !(0 != getsockopt(sock, SOL_SOCKET, SO_ERROR, (char *)&errorCode, &errorSize) && __CFSocketLastError() == WSAENOTSOCK);
-#else    
     SInt32 flags = fcntl(sock, F_GETFL, 0);
     return !(0 > flags && EBADF == __CFSocketLastError());
-#endif
 }
 
 CF_INLINE Boolean __CFSocketFdClr(CFSocketNativeHandle sock, CFMutableDataRef fdSet) {
@@ -1232,7 +1186,6 @@ CF_INLINE Boolean __CFSocketFdClr(CFSocketNativeHandle sock, CFMutableDataRef fd
 }
 
 static SInt32 __CFSocketCreateWakeupSocketPair(void) {
-#if DEPLOYMENT_TARGET_MACOSX || DEPLOYMENT_TARGET_EMBEDDED || DEPLOYMENT_TARGET_EMBEDDED_MINI
     SInt32 error;
 
     error = socketpair(PF_LOCAL, SOCK_DGRAM, 0, __CFWakeupSocketPair);
@@ -1244,29 +1197,6 @@ static SInt32 __CFSocketCreateWakeupSocketPair(void) {
         __CFWakeupSocketPair[0] = INVALID_SOCKET;
         __CFWakeupSocketPair[1] = INVALID_SOCKET;
     }
-#else
-    UInt32 i;
-    SInt32 error = 0;
-    struct sockaddr_in address[2];
-    int namelen = sizeof(struct sockaddr_in);
-    for (i = 0; i < 2; i++) {
-        __CFWakeupSocketPair[i] = socket(PF_INET, SOCK_DGRAM, 0);
-        memset(&(address[i]), 0, sizeof(struct sockaddr_in));
-        address[i].sin_family = AF_INET;
-        address[i].sin_addr.s_addr = htonl(INADDR_LOOPBACK);
-        if (0 <= error) error = bind(__CFWakeupSocketPair[i], (struct sockaddr *)&(address[i]), sizeof(struct sockaddr_in));
-        if (0 <= error) error = getsockname(__CFWakeupSocketPair[i], (struct sockaddr *)&(address[i]), &namelen);
-        if (sizeof(struct sockaddr_in) != namelen) error = -1;
-    }
-    if (0 <= error) error = connect(__CFWakeupSocketPair[0], (struct sockaddr *)&(address[1]), sizeof(struct sockaddr_in));
-    if (0 <= error) error = connect(__CFWakeupSocketPair[1], (struct sockaddr *)&(address[0]), sizeof(struct sockaddr_in));
-    if (0 > error) {
-        closesocket(__CFWakeupSocketPair[0]);
-        closesocket(__CFWakeupSocketPair[1]);
-        __CFWakeupSocketPair[0] = INVALID_SOCKET;
-        __CFWakeupSocketPair[1] = INVALID_SOCKET;
-    }
-#endif
 #if defined(LOG_CFSOCKET)
     fprintf(stdout, "wakeup socket pair is %d / %d\n", __CFWakeupSocketPair[0], __CFWakeupSocketPair[1]);
 #endif
@@ -1316,55 +1246,13 @@ CF_INLINE Boolean __CFSocketClearFDForWrite(CFSocketRef s) {
     return b;
 }
 
-#if DEPLOYMENT_TARGET_WINDOWS
-static Boolean WinSockUsed = FALSE;
-
-static void __CFSocketInitializeWinSock_Guts(void) {
-    if (!WinSockUsed) {
-        WinSockUsed = TRUE;
-        WORD versionRequested = MAKEWORD(2, 2);
-        WSADATA wsaData;
-        int errorStatus = WSAStartup(versionRequested, &wsaData);
-        if (errorStatus != 0 || LOBYTE(wsaData.wVersion) != LOBYTE(versionRequested) || HIBYTE(wsaData.wVersion) != HIBYTE(versionRequested)) {
-            WSACleanup();
-            CFLog(kCFLogLevelWarning, CFSTR("*** Could not initialize WinSock subsystem!!!"));
-        }
-    }
-}
-
-CF_EXPORT void __CFSocketInitializeWinSock(void) {
-    __CFLock(&__CFActiveSocketsLock);
-    __CFSocketInitializeWinSock_Guts();
-    __CFUnlock(&__CFActiveSocketsLock);
-}
-
-CF_PRIVATE void __CFSocketCleanup(void) {
-    if (INVALID_SOCKET != __CFWakeupSocketPair[0]) {
-        closesocket(__CFWakeupSocketPair[0]);
-        __CFWakeupSocketPair[0] = INVALID_SOCKET;
-    }
-    if (INVALID_SOCKET != __CFWakeupSocketPair[1]) {
-        closesocket(__CFWakeupSocketPair[1]);
-        __CFWakeupSocketPair[1] = INVALID_SOCKET;
-    }
-    if (WinSockUsed) {
-        // technically this is not supposed to be called here since it will be called from dllmain, but I don't know where else to put it
-        WSACleanup();
-    }
-}
-
-#endif
-
-// CFNetwork needs to call this, especially for Win32 to get WSAStartup
+// CFNetwork needs to call this.
 static void __CFSocketInitializeSockets(void) {
     __CFWriteSockets = CFArrayCreateMutable(kCFAllocatorSystemDefault, 0, NULL);
     __CFReadSockets = CFArrayCreateMutable(kCFAllocatorSystemDefault, 0, NULL);
     __CFWriteSocketsFds = CFDataCreateMutable(kCFAllocatorSystemDefault, 0);
     __CFReadSocketsFds = CFDataCreateMutable(kCFAllocatorSystemDefault, 0);
     zeroLengthData = CFDataCreateMutable(kCFAllocatorSystemDefault, 0);
-#if DEPLOYMENT_TARGET_WINDOWS
-    __CFSocketInitializeWinSock_Guts();
-#endif
     if (0 > __CFSocketCreateWakeupSocketPair()) {
         CFLog(kCFLogLevelWarning, CFSTR("*** Could not create wakeup socket pair for CFSocket!!!"));
     } else {
@@ -2144,10 +2032,6 @@ static void *__CFSocketManager(void * arg)
 		
 		__CFUnlock(&__CFActiveSocketsLock);
 
-#if DEPLOYMENT_TARGET_WINDOWS
-        // On Windows, select checks connection failed sockets via the exceptfds parameter. connection succeeded is checked via writefds. We need both.
-        exceptfds = writefds;
-#endif
         nrfds = select(maxnrfds, readfds, writefds, exceptfds, pTimeout);
 
 #if defined(LOG_CFSOCKET)
@@ -2299,13 +2183,8 @@ static CFStringRef __CFSocketCopyDescription(CFTypeRef cf) {
     result = CFStringCreateMutable(CFGetAllocator(s), 0);
     __CFSocketLock(s);
     void *addr = s->_callout;
-#if DEPLOYMENT_TARGET_MACOSX || DEPLOYMENT_TARGET_EMBEDDED || DEPLOYMENT_TARGET_EMBEDDED_MINI
     Dl_info info;
     const char *name = (dladdr(addr, &info) && info.dli_saddr == addr && info.dli_sname) ? info.dli_sname : "???";
-#else
-    // don't bother trying to figure out callout names
-    const char *name = "<unknown>";
-#endif
     CFStringAppendFormat(result, NULL, CFSTR("<CFSocket %p [%p]>{valid = %s, type = %d, socket = %d, socket set count = %ld,\n    callback types = 0x%x, callout = %s (%p), source = %p,\n    run loops = %@,\n    context = "), cf, CFGetAllocator(s), (__CFSocketIsValid(s) ? "Yes" : "No"), (int)(s->_socketType), s->_socket, (long)s->_socketSetCount, __CFSocketCallBackTypes(s), name, addr, s->_source0, s->_runLoops);
     contextInfo = s->_context.info;
     contextCopyDescription = s->_context.copyDescription;
@@ -2363,7 +2242,6 @@ CFTypeID CFSocketGetTypeID(void) {
     static dispatch_once_t initOnce;
     dispatch_once(&initOnce, ^{
 	__kCFSocketTypeID = _CFRuntimeRegisterClass(&__CFSocketClass); // initOnce covered
-#if DEPLOYMENT_TARGET_MACOSX || DEPLOYMENT_TARGET_EMBEDDED || DEPLOYMENT_TARGET_EMBEDDED_MINI
         struct rlimit lim1;
         int ret1 = getrlimit(RLIMIT_NOFILE, &lim1);
         int mib[] = {CTL_KERN, KERN_MAXFILESPERPROC};
@@ -2378,26 +2256,9 @@ CFTypeID CFSocketGetTypeID(void) {
             setrlimit(RLIMIT_NOFILE, &lim2);
             // we try, but do not go to extraordinary measures
         }
-#endif
     });
     return __kCFSocketTypeID;
 }
-
-#if DEPLOYMENT_TARGET_WINDOWS
-struct _args {
-    void *func;
-    void *arg;
-    HANDLE handle;
-};
-static unsigned __stdcall __CFWinThreadFunc(void *arg) {
-    struct _args *args = (struct _args*)arg;
-    ((void (*)(void *))args->func)(args->arg);
-    CloseHandle(args->handle);
-    CFAllocatorDeallocate(kCFAllocatorSystemDefault, arg);
-    _endthreadex(0);
-    return 0;
-}
-#endif
 
 static CFSocketRef _CFSocketCreateWithNative(CFAllocatorRef allocator, CFSocketNativeHandle sock, CFOptionFlags callBackTypes, CFSocketCallBack callout, const CFSocketContext *context, Boolean useExistingInstance) {
     CHECK_FOR_FORK();
@@ -2437,7 +2298,6 @@ static CFSocketRef _CFSocketCreateWithNative(CFAllocatorRef allocator, CFSocketN
     memory->_f.disabled = 0;
     memory->_f.connected = FALSE;
     memory->_f.writableHint = FALSE;
-    memory->_f.closeSignaled = FALSE;
     memory->_lock = CFLockInit;
     memory->_writeLock = CFLockInit;
     memory->_socket = sock;
@@ -2472,7 +2332,6 @@ static CFSocketRef _CFSocketCreateWithNative(CFAllocatorRef allocator, CFSocketN
     
     if (INVALID_SOCKET != sock) CFDictionaryAddValue(__CFAllSockets, (void *)(uintptr_t)sock, memory);
     if (NULL == __CFSocketManagerThread) {
-#if DEPLOYMENT_TARGET_MACOSX || DEPLOYMENT_TARGET_EMBEDDED || DEPLOYMENT_TARGET_EMBEDDED_MINI || DEPLOYMENT_TARGET_LINUX || DEPLOYMENT_TARGET_FREEBSD
         pthread_t tid = 0;
         pthread_attr_t attr;
         pthread_attr_init(&attr);
@@ -2483,19 +2342,6 @@ static CFSocketRef _CFSocketCreateWithNative(CFAllocatorRef allocator, CFSocketN
         pthread_attr_destroy(&attr);
 //warning CF: we dont actually know that a pthread_t is the same size as void *
         __CFSocketManagerThread = (void *)tid;
-#elif DEPLOYMENT_TARGET_WINDOWS
-        unsigned tid;
-        struct _args *args = (struct _args*)CFAllocatorAllocate(kCFAllocatorSystemDefault, sizeof(struct _args), 0);
-        if (__CFOASafe) __CFSetLastAllocationEventName(args, "CFUtilities (thread-args)");
-        HANDLE handle;
-        args->func = __CFSocketManager;
-        args->arg = 0;
-        /* The thread is created suspended, because otherwise there would be a race between the assignment below of the handle field, and it's possible use in the thread func above. */
-        args->handle = (HANDLE)_beginthreadex(NULL, 0, __CFWinThreadFunc, args, CREATE_SUSPENDED, &tid);
-        handle = args->handle;
-        ResumeThread(handle);
-        __CFSocketManagerThread = handle;
-#endif
     }
     __CFUnlock(&__CFAllSocketsLock);
     if (NULL != context) {
@@ -3132,7 +2978,6 @@ CFSocketError CFSocketSetAddress(CFSocketRef s, CFDataRef address) {
     if (!name || namelen <= 0) return kCFSocketError;
     
     CFSocketNativeHandle sock = CFSocketGetNative(s);
-#if DEPLOYMENT_TARGET_MACOSX || DEPLOYMENT_TARGET_EMBEDDED || DEPLOYMENT_TARGET_EMBEDDED_MINI
     // Verify that the namelen is correct. If not, we have to fix it up. Developers will often incorrectly use 0 or strlen(path). See 9217961 and the second half of 9098274.
     // Max size is a size byte, plus family byte, plus path of 255, plus a null byte.
     char newName[255];
@@ -3153,7 +2998,6 @@ CFSocketError CFSocketSetAddress(CFSocketRef s, CFDataRef address) {
             name = (struct sockaddr *)newName;
         }
     }
-#endif
     int result = bind(sock, name, namelen);
     if (0 == result) {
         listen(sock, 256);
@@ -3177,24 +3021,12 @@ CFSocketError CFSocketConnectToAddress(CFSocketRef s, CFDataRef address, CFTimeI
     if (!name || namelen <= 0) return kCFSocketError;
     CFSocketNativeHandle sock = CFSocketGetNative(s);
     {
-#if DEPLOYMENT_TARGET_MACOSX || DEPLOYMENT_TARGET_EMBEDDED || DEPLOYMENT_TARGET_EMBEDDED_MINI
         SInt32 flags = fcntl(sock, F_GETFL, 0);
         if (flags >= 0) wasBlocking = ((flags & O_NONBLOCK) == 0);
         if (wasBlocking && (timeout > 0.0 || timeout < 0.0)) ioctlsocket(sock, FIONBIO, (u_long *)&yes);
-#else
-        // You can set but not get this flag in WIN32, so assume it was in non-blocking mode.
-        // The downside is that when we leave this routine we'll leave it non-blocking,
-        // whether it started that way or not.
-        SInt32 flags = 0;
-        if (timeout > 0.0 || timeout < 0.0) ioctlsocket(sock, FIONBIO, (u_long *)&yes);
-        wasBlocking = false;
-#endif
         result = connect(sock, (struct sockaddr *)name, namelen);
         if (result != 0) {
             connect_err = __CFSocketLastError();
-#if DEPLOYMENT_TARGET_WINDOWS
-            if (connect_err == WSAEWOULDBLOCK) connect_err = EINPROGRESS;
-#endif
         }
 #if defined(LOG_CFSOCKET)
         fprintf(stdout, "connection attempt returns %d error %d on socket %d (flags 0x%x blocking %d)\n", (int) result, (int) connect_err, sock, (int) flags, wasBlocking);
@@ -3245,13 +3077,7 @@ CFSocketRef CFSocketCreate(CFAllocatorRef allocator, SInt32 protocolFamily, SInt
         if (0 >= protocol && SOCK_STREAM == socketType) protocol = IPPROTO_TCP;
         if (0 >= protocol && SOCK_DGRAM == socketType) protocol = IPPROTO_UDP;
     }
-#if DEPLOYMENT_TARGET_MACOSX || DEPLOYMENT_TARGET_EMBEDDED || DEPLOYMENT_TARGET_EMBEDDED_MINI
     if (PF_LOCAL == protocolFamily && 0 >= socketType) socketType = SOCK_STREAM;
-#endif
-#if DEPLOYMENT_TARGET_WINDOWS
-    // make sure we've called proper Win32 startup facilities before socket()
-    __CFSocketInitializeWinSock();
-#endif
     sock = socket(protocolFamily, socketType, protocol);
     if (INVALID_SOCKET != sock) {
         s = CFSocketCreateWithNative(allocator, sock, callBackTypes, callout, context);
@@ -3332,9 +3158,7 @@ static void __CFSocketSendNameRegistryRequest(CFSocketSignature *signature, CFDi
 static void __CFSocketValidateSignature(const CFSocketSignature *providedSignature, CFSocketSignature *signature, uint16_t defaultPortNumber) {
     struct sockaddr_in sain, *sainp;
     memset(&sain, 0, sizeof(sain));
-#if DEPLOYMENT_TARGET_MACOSX || DEPLOYMENT_TARGET_EMBEDDED || DEPLOYMENT_TARGET_EMBEDDED_MINI
     sain.sin_len = sizeof(sain);
-#endif
     sain.sin_family = AF_INET;
     sain.sin_port = htons(__CFSocketDefaultNameRegistryPortNumber);
     sain.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
@@ -3358,9 +3182,7 @@ static void __CFSocketValidateSignature(const CFSocketSignature *providedSignatu
         } else {
             sainp = (struct sockaddr_in *)CFDataGetBytePtr(providedSignature->address);
             if ((int)sizeof(struct sockaddr_in) <= CFDataGetLength(providedSignature->address) && (AF_INET == sainp->sin_family || 0 == sainp->sin_family)) {
-#if DEPLOYMENT_TARGET_MACOSX || DEPLOYMENT_TARGET_EMBEDDED || DEPLOYMENT_TARGET_EMBEDDED_MINI
                 sain.sin_len = sizeof(sain);
-#endif
                 sain.sin_family = AF_INET;
                 sain.sin_port = sainp->sin_port;
                 if (0 == sain.sin_port) sain.sin_port = htons(defaultPortNumber);

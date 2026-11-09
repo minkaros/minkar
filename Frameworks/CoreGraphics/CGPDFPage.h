@@ -21,6 +21,7 @@ typedef enum {
     kCGPDFArtBox = 4,
 } CGPDFBox;
 
+COREGRAPHICS_EXPORT CFTypeID CGPDFPageGetTypeID(void);
 COREGRAPHICS_EXPORT CGPDFPageRef CGPDFPageRetain(CGPDFPageRef self);
 COREGRAPHICS_EXPORT void CGPDFPageRelease(CGPDFPageRef self);
 COREGRAPHICS_EXPORT CGRect CGPDFPageGetBoxRect(CGPDFPageRef self, CGPDFBox box);

@@ -219,6 +219,10 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    if(setFrame){
     NSRect frame=[self frame];
 
+    /* A toolbar of icons with labels is 56 points tall, as on the
+       reference platform. */
+    if(resultHeight>40 && resultHeight<56)
+     resultHeight=56;
     [self setFrame:NSMakeRect(frame.origin.x,frame.origin.y,desiredWidth,resultHeight)];
    }
 
@@ -283,7 +287,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 // NSView dragging destination settings.
 // - as drop target: if decoded object is an item, then insert; if NSArray, then replace all
-- (unsigned)draggingEntered:(id <NSDraggingInfo>)sender {
+- (NSDragOperation)draggingEntered:(id <NSDraggingInfo>)sender {
     if ([_toolbar customizationPaletteIsRunning]) {
         id droppedObject = [NSUnarchiver unarchiveObjectWithData:[[NSPasteboard pasteboardWithName:NSDragPboard] dataForType:NSToolbarItemIdentifierPboardType]];
 
@@ -304,7 +308,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 }
 
 // It'd be nice to do the OSX-style visual toolbar item insertion stuff
-- (unsigned)draggingUpdated:(id <NSDraggingInfo>)sender {
+- (NSDragOperation)draggingUpdated:(id <NSDraggingInfo>)sender {
     return NSDragOperationCopy;
 }
 
@@ -350,7 +354,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
     return NO;
 }
 
-- (unsigned)draggingSourceOperationMaskForLocal:(BOOL)isLocal
+- (NSDragOperation)draggingSourceOperationMaskForLocal:(BOOL)isLocal
 {
     return NSDragOperationCopy;
 }

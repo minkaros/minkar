@@ -9,6 +9,8 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <AppKit/NSColor.h>
 #import <AppKit/NSColor_catalog.h>
 #import <AppKit/NSColor_CGColor.h>
+#import <AppKit/NSColorSpace.h>
+#import <AppKit/conversions.h>
 #import <AppKit/NSColorList.h>
 #import <AppKit/NSRaise.h>
 #import <AppKit/NSImage.h>
@@ -225,6 +227,110 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
     return [NSColor colorWithCatalogName:@"System" colorName:@"keyboardFocusIndicatorColor"];
 }
 
++(NSColor *)labelColor {
+    return [NSColor colorWithCatalogName:@"System" colorName:@"labelColor"];
+}
+
++(NSColor *)secondaryLabelColor {
+    return [NSColor colorWithCatalogName:@"System" colorName:@"secondaryLabelColor"];
+}
+
++(NSColor *)tertiaryLabelColor {
+    return [NSColor colorWithCatalogName:@"System" colorName:@"tertiaryLabelColor"];
+}
+
++(NSColor *)quaternaryLabelColor {
+    return [NSColor colorWithCatalogName:@"System" colorName:@"quaternaryLabelColor"];
+}
+
++(NSColor *)placeholderTextColor {
+    return [NSColor colorWithCatalogName:@"System" colorName:@"placeholderTextColor"];
+}
+
++(NSColor *)linkColor {
+    return [NSColor colorWithCatalogName:@"System" colorName:@"linkColor"];
+}
+
++(NSColor *)findHighlightColor {
+    return [NSColor colorWithCatalogName:@"System" colorName:@"findHighlightColor"];
+}
+
++(NSColor *)underPageBackgroundColor {
+    return [NSColor colorWithCatalogName:@"System" colorName:@"underPageBackgroundColor"];
+}
+
++(NSColor *)windowFrameTextColor {
+    return [NSColor colorWithCatalogName:@"System" colorName:@"windowFrameTextColor"];
+}
+
++(NSColor *)separatorColor {
+    return [NSColor colorWithCatalogName:@"System" colorName:@"separatorColor"];
+}
+
++(NSColor *)selectedContentBackgroundColor {
+    return [NSColor colorWithCatalogName:@"System" colorName:@"selectedContentBackgroundColor"];
+}
+
++(NSColor *)unemphasizedSelectedContentBackgroundColor {
+    return [NSColor colorWithCatalogName:@"System" colorName:@"unemphasizedSelectedContentBackgroundColor"];
+}
+
++(NSColor *)unemphasizedSelectedTextColor {
+    return [NSColor colorWithCatalogName:@"System" colorName:@"unemphasizedSelectedTextColor"];
+}
+
++(NSColor *)unemphasizedSelectedTextBackgroundColor {
+    return [NSColor colorWithCatalogName:@"System" colorName:@"unemphasizedSelectedTextBackgroundColor"];
+}
+
++(NSColor *)systemRedColor {
+    return [NSColor colorWithCatalogName:@"System" colorName:@"systemRedColor"];
+}
+
++(NSColor *)systemOrangeColor {
+    return [NSColor colorWithCatalogName:@"System" colorName:@"systemOrangeColor"];
+}
+
++(NSColor *)systemYellowColor {
+    return [NSColor colorWithCatalogName:@"System" colorName:@"systemYellowColor"];
+}
+
++(NSColor *)systemGreenColor {
+    return [NSColor colorWithCatalogName:@"System" colorName:@"systemGreenColor"];
+}
+
++(NSColor *)systemTealColor {
+    return [NSColor colorWithCatalogName:@"System" colorName:@"systemTealColor"];
+}
+
++(NSColor *)systemBlueColor {
+    return [NSColor colorWithCatalogName:@"System" colorName:@"systemBlueColor"];
+}
+
++(NSColor *)systemIndigoColor {
+    return [NSColor colorWithCatalogName:@"System" colorName:@"systemIndigoColor"];
+}
+
++(NSColor *)systemPurpleColor {
+    return [NSColor colorWithCatalogName:@"System" colorName:@"systemPurpleColor"];
+}
+
++(NSColor *)systemPinkColor {
+    return [NSColor colorWithCatalogName:@"System" colorName:@"systemPinkColor"];
+}
+
++(NSColor *)systemBrownColor {
+    return [NSColor colorWithCatalogName:@"System" colorName:@"systemBrownColor"];
+}
+
++(NSColor *)systemGrayColor {
+    return [NSColor colorWithCatalogName:@"System" colorName:@"systemGrayColor"];
+}
+
++(NSColor *)controlAccentColor {
+    return [NSColor colorWithCatalogName:@"System" colorName:@"controlAccentColor"];
+}
+
 +(NSColor *)highlightColor {
    return [NSColor colorWithCatalogName:@"System" colorName:@"highlightColor"];
 }
@@ -360,15 +466,17 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 }
 
 +(NSColor *)darkGrayColor {
-   return [NSColor colorWithCatalogName:@"System" colorName:@"systemDarkGrayColor"];
+   return [NSColor colorWithCalibratedWhite:1.0/3.0 alpha:1.0];
 }
 
+/* The fixed colors are constants, as Cocoa documents them; the theme
+   changes the system colors (systemGrayColor and the others), not these. */
 +(NSColor *)grayColor {
-   return [NSColor colorWithCatalogName:@"System" colorName:@"systemGrayColor"];
+   return [NSColor colorWithCalibratedWhite:0.5 alpha:1.0];
 }
 
 +(NSColor *)lightGrayColor {
-   return [NSColor colorWithCatalogName:@"System" colorName:@"systemLightGrayColor"];
+   return [NSColor colorWithCalibratedWhite:2.0/3.0 alpha:1.0];
 }
 
 +(NSColor *)blackColor {
@@ -376,15 +484,15 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 }
 
 +(NSColor *)blueColor {
-   return [NSColor colorWithCatalogName:@"System" colorName:@"systemBlueColor"];
+   return [NSColor colorWithCalibratedRed:0 green:0 blue:1 alpha:1.0];
 }
 
 +(NSColor *)brownColor {
-   return [NSColor colorWithCatalogName:@"System" colorName:@"systemBrownColor"];
+   return [NSColor colorWithCalibratedRed:0.6 green:0.4 blue:0.2 alpha:1.0];
 }
 
 +(NSColor *)cyanColor {
-   return [NSColor colorWithCatalogName:@"Basic" colorName:@"Cyan"];
+   return [NSColor colorWithCalibratedRed:0 green:1 blue:1 alpha:1.0];
 }
 
 +(NSColor *)tealColor {
@@ -396,15 +504,15 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 }
 
 +(NSColor *)greenColor {
-   return [NSColor colorWithCatalogName:@"System" colorName:@"systemGreenColor"];
+   return [NSColor colorWithCalibratedRed:0 green:1 blue:0 alpha:1.0];
 }
 
 +(NSColor *)magentaColor {
-   return [NSColor colorWithCatalogName:@"Basic" colorName:@"Magenta"];
+   return [NSColor colorWithCalibratedRed:1 green:0 blue:1 alpha:1.0];
 }
 
 +(NSColor *)orangeColor {
-   return [NSColor colorWithCatalogName:@"System" colorName:@"systemOrangeColor"];
+   return [NSColor colorWithCalibratedRed:1 green:0.5 blue:0 alpha:1.0];
 }
 
 +(NSColor *)pinkColor {
@@ -412,15 +520,15 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 }
 
 +(NSColor *)purpleColor {
-   return [NSColor colorWithCatalogName:@"System" colorName:@"systemPurpleColor"];
+   return [NSColor colorWithCalibratedRed:0.5 green:0 blue:0.5 alpha:1.0];
 }
 
 +(NSColor *)redColor {
-   return [NSColor colorWithCatalogName:@"System" colorName:@"systemRedColor"];
+   return [NSColor colorWithCalibratedRed:1 green:0 blue:0 alpha:1.0];
 }
 
 +(NSColor *)yellowColor {
-   return [NSColor colorWithCatalogName:@"System" colorName:@"systemYellowColor"];
+   return [NSColor colorWithCalibratedRed:1 green:1 blue:0 alpha:1.0];
 }
 
 +(NSColor *)whiteColor {
@@ -453,6 +561,71 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 +(NSColor *)colorWithCalibratedHue:(CGFloat)hue saturation:(CGFloat)saturation brightness:(CGFloat)brightness alpha:(CGFloat)alpha {
    return [NSColor_CGColor colorWithHue:hue saturation:saturation brightness:brightness alpha:alpha spaceName:NSCalibratedRGBColorSpace];
+}
+
++(NSColor *)colorWithColorSpace:(NSColorSpace *)space components:(const CGFloat *)components count:(NSInteger)numberOfComponents {
+   if(space==nil || components==NULL || numberOfComponents!=[space numberOfColorComponents]+1)
+    return nil;
+
+   CGColorRef cgColor=CGColorCreate([space CGColorSpace],components);
+   NSColor   *result=[NSColor_CGColor colorWithColorRef:cgColor spaceName:[space _colorSpaceName]];
+
+   CGColorRelease(cgColor);
+   return result;
+}
+
++(NSColor *)colorWithSRGBRed:(CGFloat)red green:(CGFloat)green blue:(CGFloat)blue alpha:(CGFloat)alpha {
+   CGFloat components[4]={red,green,blue,alpha};
+
+   return [self colorWithColorSpace:[NSColorSpace sRGBColorSpace] components:components count:4];
+}
+
++(NSColor *)colorWithRed:(CGFloat)red green:(CGFloat)green blue:(CGFloat)blue alpha:(CGFloat)alpha {
+   return [self colorWithSRGBRed:red green:green blue:blue alpha:alpha];
+}
+
++(NSColor *)colorWithDisplayP3Red:(CGFloat)red green:(CGFloat)green blue:(CGFloat)blue alpha:(CGFloat)alpha {
+   CGFloat components[4]={red,green,blue,alpha};
+
+   return [self colorWithColorSpace:[NSColorSpace displayP3ColorSpace] components:components count:4];
+}
+
++(NSColor *)colorWithColorSpace:(NSColorSpace *)space hue:(CGFloat)hue saturation:(CGFloat)saturation brightness:(CGFloat)brightness alpha:(CGFloat)alpha {
+   CGFloat components[4];
+
+   if([space colorSpaceModel]!=NSColorSpaceModelRGB)
+    return nil;
+   NSColorHSBToRGB(hue,saturation,brightness,&components[0],&components[1],&components[2]);
+   components[3]=alpha;
+   return [self colorWithColorSpace:space components:components count:4];
+}
+
++(NSColor *)colorWithHue:(CGFloat)hue saturation:(CGFloat)saturation brightness:(CGFloat)brightness alpha:(CGFloat)alpha {
+   return [self colorWithColorSpace:[NSColorSpace sRGBColorSpace] hue:hue saturation:saturation brightness:brightness alpha:alpha];
+}
+
++(NSColor *)colorWithGenericGamma22White:(CGFloat)white alpha:(CGFloat)alpha {
+   CGFloat components[2]={white,alpha};
+
+   return [self colorWithColorSpace:[NSColorSpace genericGamma22GrayColorSpace] components:components count:2];
+}
+
++(NSColor *)colorWithWhite:(CGFloat)white alpha:(CGFloat)alpha {
+   return [self colorWithGenericGamma22White:white alpha:alpha];
+}
+
++(NSColor *)colorWithCGColor:(CGColorRef)cgColor {
+   NSColorSpace *space;
+   NSColor      *result;
+
+   if(cgColor==NULL)
+    return nil;
+   if(CGColorGetPattern(cgColor)!=NULL)
+    return [NSColor_CGColor colorWithColorRef:cgColor spaceName:NSPatternColorSpace];
+   space=[[NSColorSpace alloc] initWithCGColorSpace:CGColorGetColorSpace(cgColor)];
+   result=[NSColor_CGColor colorWithColorRef:cgColor spaceName:[space _colorSpaceName]];
+   [space release];
+   return result;
 }
 
 +(NSColor *)colorWithCatalogName:(NSString *)catalogName colorName:(NSString *)colorName {
@@ -642,6 +815,72 @@ static void releasePatternInfo(void *info){
    return nil; 
 }
 
+-(NSColorType)type {
+   if([[self colorSpaceName] isEqualToString:NSNamedColorSpace])
+    return NSColorTypeCatalog;
+   if([[self colorSpaceName] isEqualToString:NSPatternColorSpace])
+    return NSColorTypePattern;
+   return NSColorTypeComponentBased;
+}
+
+-(NSColor *)colorUsingType:(NSColorType)type {
+   if(type==[self type])
+    return self;
+   if(type==NSColorTypeComponentBased){
+    NSColorSpace *space=[self colorSpace];
+
+    return (space!=nil)?[self colorUsingColorSpace:space]:[self colorUsingColorSpaceName:NSCalibratedRGBColorSpace];
+   }
+   return nil;
+}
+
+/* The CG color's space for component colors; subclasses that have one
+   answer it. */
+-(NSColorSpace *)colorSpace {
+   return nil;
+}
+
+-(NSColor *)colorUsingColorSpace:(NSColorSpace *)space {
+   NSColor *source;
+   CGFloat  components[5];
+
+   if(space==nil)
+    return nil;
+   if([self type]==NSColorTypeComponentBased && [[self colorSpace] isEqual:space])
+    return self;
+   switch([space colorSpaceModel]){
+    case NSColorSpaceModelRGB:
+     source=[self colorUsingColorSpaceName:NSCalibratedRGBColorSpace];
+     if(source==nil)
+      return nil;
+     [source getRed:&components[0] green:&components[1] blue:&components[2] alpha:&components[3]];
+     return [NSColor colorWithColorSpace:space components:components count:4];
+
+    case NSColorSpaceModelGray:
+     source=[self colorUsingColorSpaceName:NSCalibratedWhiteColorSpace];
+     if(source==nil)
+      return nil;
+     [source getWhite:&components[0] alpha:&components[1]];
+     return [NSColor colorWithColorSpace:space components:components count:2];
+
+    case NSColorSpaceModelCMYK:
+     source=[self colorUsingColorSpaceName:NSDeviceCMYKColorSpace];
+     if(source==nil)
+      return nil;
+     [source getCyan:&components[0] magenta:&components[1] yellow:&components[2] black:&components[3] alpha:&components[4]];
+     return [NSColor colorWithColorSpace:space components:components count:5];
+
+    default:
+     return nil;
+   }
+}
+
+-(CGColorRef)CGColor {
+   NSColor *rgb=[self colorUsingColorSpaceName:NSCalibratedRGBColorSpace];
+
+   return (rgb!=nil && rgb!=self)?[rgb CGColor]:NULL;
+}
+
 -(NSColor *)colorUsingColorSpaceName:(NSString *)colorSpace {
     return [self colorUsingColorSpaceName:colorSpace device:nil];
 }
@@ -652,6 +891,15 @@ static void releasePatternInfo(void *info){
 
    //NSLog(@"Warning, ignoring differences between color space %@ and %@", colorSpace, [self colorSpaceName]);
    return self;
+}
+
+/* The color blended toward black (shadow) or white (highlight). */
+-(NSColor *)shadowWithLevel:(CGFloat)level {
+   return [self blendedColorWithFraction:level ofColor:[NSColor blackColor]];
+}
+
+-(NSColor *)highlightWithLevel:(CGFloat)level {
+   return [self blendedColorWithFraction:level ofColor:[NSColor whiteColor]];
 }
 
 -(NSColor *)blendedColorWithFraction:(CGFloat)fraction ofColor:(NSColor *)color {

@@ -12,7 +12,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 @class NSImage, NSMenu;
 
 @interface NSSegmentItem : NSObject {
-    int _tag;
+    NSInteger _tag;
     NSImage *_image;
     BOOL _isEnabled;
     BOOL _isSelected;
@@ -23,7 +23,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
     NSImageScaling _imageScaling;
 }
 
-- (int)tag;
+- (NSInteger)tag;
 - (NSImage *)image;
 - (BOOL)isEnabled;
 - (BOOL)isSelected;
@@ -33,7 +33,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 - (CGFloat)width;
 - (NSImageScaling)imageScaling;
 
-- (void)setTag:(int)tag;
+- (void)setTag:(NSInteger)tag;
 - (void)setImage:(NSImage *)image;
 - (void)setEnabled:(BOOL)flag;
 - (void)setSelected:(BOOL)flag;

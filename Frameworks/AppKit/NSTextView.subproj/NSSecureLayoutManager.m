@@ -17,7 +17,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    _echosBullets=yorn;
 }
 
--(unsigned)getGlyphs:(NSGlyph *)glyphs range:(NSRange)glyphRange {
+-(NSUInteger)getGlyphs:(NSGlyph *)glyphs range:(NSRange)glyphRange {
    NSRange       characterRange=[self characterRangeForGlyphRange:glyphRange actualGlyphRange:NULL];
    NSDictionary *attributes=[_textStorage attributesAtIndex:characterRange.location effectiveRange:NULL];
    NSFont       *font=NSFontAttributeInDictionary(attributes);

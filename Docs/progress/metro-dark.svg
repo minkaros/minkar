@@ -1,8 +1,8 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="798" viewBox="0 0 1200 798" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif" role="img" aria-label="Minkar milestones by plan, 2026-11-05">
-<title>Minkar milestones by plan, 2026-11-05</title>
-<rect width="1200" height="798" fill="#0d1117"/>
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="862" viewBox="0 0 1200 862" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif" role="img" aria-label="Minkar milestones by plan, 2026-11-09">
+<title>Minkar milestones by plan, 2026-11-09</title>
+<rect width="1200" height="862" fill="#0d1117"/>
 <text x="20" y="30" font-size="20" font-weight="700" fill="#e6edf3" text-anchor="start">Minkar milestones by plan</text>
-<text x="20" y="54" font-size="14" font-weight="400" fill="#9198a1" text-anchor="start">2026-11-05 · devel 22a0e67f0d</text>
+<text x="20" y="54" font-size="14" font-weight="400" fill="#9198a1" text-anchor="start">2026-11-09 · devel c0691e1aed</text>
 <line x1="160" y1="95" x2="160" y2="110" stroke="#e6edf3" stroke-opacity=".35" stroke-width="1.5" stroke-dasharray="2 4"/>
 <rect x="139" y="72" width="42" height="24" rx="12" fill="#e6edf3" stroke="#e6edf3" stroke-width="1.5"/>
 <text x="160" y="89" font-size="13.5" font-weight="700" fill="#0d1117" text-anchor="middle">M0</text>
@@ -27,21 +27,22 @@
 <line x1="970" y1="95" x2="970" y2="282" stroke="#e6edf3" stroke-opacity=".35" stroke-width="1.5" stroke-dasharray="2 4"/>
 <rect x="944" y="282" width="52" height="200" rx="14" fill="#e6edf3" fill-opacity=".05" stroke="#e6edf3" stroke-opacity=".5" stroke-width="1.5" stroke-dasharray="5 4"/>
 <line x1="970" y1="482" x2="970" y2="538" stroke="#e6edf3" stroke-opacity=".35" stroke-width="1.5" stroke-dasharray="2 4"/>
-<rect x="944" y="538" width="52" height="72" rx="14" fill="#e6edf3" fill-opacity=".05" stroke="#e6edf3" stroke-opacity=".5" stroke-width="1.5" stroke-dasharray="5 4"/>
+<rect x="944" y="538" width="52" height="136" rx="14" fill="#e6edf3" fill-opacity=".05" stroke="#e6edf3" stroke-opacity=".5" stroke-width="1.5" stroke-dasharray="5 4"/>
 <rect x="919.4" y="72" width="101.2" height="24" rx="12" fill="#0d1117" stroke="#e6edf3" stroke-width="1.5"/>
 <text x="970" y="89" font-size="13.5" font-weight="700" fill="#e6edf3" text-anchor="middle">M6 · 19.6.0</text>
 <line x1="1060" y1="95" x2="1060" y2="218" stroke="#e6edf3" stroke-opacity=".35" stroke-width="1.5" stroke-dasharray="2 4"/>
 <rect x="1034" y="218" width="52" height="72" rx="14" fill="#e6edf3" fill-opacity=".05" stroke="#e6edf3" stroke-opacity=".5" stroke-width="1.5" stroke-dasharray="5 4"/>
-<line x1="1060" y1="290" x2="1060" y2="602" stroke="#e6edf3" stroke-opacity=".35" stroke-width="1.5" stroke-dasharray="2 4"/>
-<rect x="1034" y="602" width="52" height="72" rx="14" fill="#e6edf3" fill-opacity=".05" stroke="#e6edf3" stroke-opacity=".5" stroke-width="1.5" stroke-dasharray="5 4"/>
+<line x1="1060" y1="290" x2="1060" y2="666" stroke="#e6edf3" stroke-opacity=".35" stroke-width="1.5" stroke-dasharray="2 4"/>
+<rect x="1034" y="666" width="52" height="72" rx="14" fill="#e6edf3" fill-opacity=".05" stroke="#e6edf3" stroke-opacity=".5" stroke-width="1.5" stroke-dasharray="5 4"/>
 <rect x="1035.9" y="72" width="48.2" height="24" rx="12" fill="#0d1117" stroke="#e6edf3" stroke-width="1.5"/>
 <text x="1060" y="89" font-size="13.5" font-weight="700" fill="#e6edf3" text-anchor="middle">21.0</text>
-<line x1="1150" y1="95" x2="1150" y2="666" stroke="#e6edf3" stroke-opacity=".35" stroke-width="1.5" stroke-dasharray="2 4"/>
-<rect x="1124" y="666" width="52" height="72" rx="14" fill="#e6edf3" fill-opacity=".05" stroke="#e6edf3" stroke-opacity=".5" stroke-width="1.5" stroke-dasharray="5 4"/>
+<line x1="1150" y1="95" x2="1150" y2="730" stroke="#e6edf3" stroke-opacity=".35" stroke-width="1.5" stroke-dasharray="2 4"/>
+<rect x="1124" y="730" width="52" height="72" rx="14" fill="#e6edf3" fill-opacity=".05" stroke="#e6edf3" stroke-opacity=".5" stroke-width="1.5" stroke-dasharray="5 4"/>
 <rect x="1129" y="72" width="42" height="24" rx="12" fill="#0d1117" stroke="#e6edf3" stroke-width="1.5"/>
 <text x="1150" y="89" font-size="13.5" font-weight="700" fill="#e6edf3" text-anchor="middle">M7</text>
 <path d="M555 304 V378 H687" fill="none" stroke="#9198a1" stroke-width="1.5" stroke-dasharray="4 4"/>
 <path d="M490 240 V442 H687" fill="none" stroke="#9198a1" stroke-width="1.5" stroke-dasharray="4 4"/>
+<path d="M590 240 V634 H637" fill="none" stroke="#9198a1" stroke-width="1.5" stroke-dasharray="4 4"/>
 <text x="20" y="127" font-size="15" font-weight="700" fill="#9198a1" text-anchor="start">Phases 0–2</text>
 <line x1="160" y1="122" x2="310" y2="122" stroke="#9198a1" stroke-opacity=".22" stroke-width="8" stroke-linecap="round"/>
 <line x1="160" y1="122" x2="310" y2="122" stroke="#9198a1" stroke-opacity=".55" stroke-width="8" stroke-linecap="round"/>
@@ -55,7 +56,7 @@
 <text x="20" y="191" font-size="15" font-weight="700" fill="#d29922" text-anchor="start">Frameworks</text>
 <line x1="250" y1="186" x2="620" y2="186" stroke="#d29922" stroke-opacity=".22" stroke-width="8" stroke-linecap="round"/>
 <line x1="250" y1="186" x2="620" y2="186" stroke="#d29922" stroke-opacity=".55" stroke-width="8" stroke-linecap="round"/>
-<line x1="250" y1="186" x2="590" y2="186" stroke="#d29922" stroke-opacity="1" stroke-width="8" stroke-linecap="round"/>
+<line x1="250" y1="186" x2="620" y2="186" stroke="#d29922" stroke-opacity="1" stroke-width="8" stroke-linecap="round"/>
 <circle cx="250" cy="186" r="10" fill="#d29922" stroke="#0d1117" stroke-width="3"/><path d="M245.5 186 l3 3 l6 -6.5" fill="none" stroke="#0d1117" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
 <text x="250" y="215" font-size="13.5" font-weight="500" fill="#e6edf3" text-anchor="middle">XPC</text>
 <circle cx="300" cy="186" r="9" fill="#0d1117" stroke="#d29922" stroke-width="3"/><path d="M300 180 A6 6 0 0 0 300 192 Z" fill="#d29922"/>
@@ -64,17 +65,16 @@
 <text x="350" y="215" font-size="13.5" font-weight="500" fill="#e6edf3" text-anchor="middle">Foundation</text>
 <circle cx="400" cy="186" r="9" fill="#0d1117" stroke="#d29922" stroke-width="3"/><path d="M400 180 A6 6 0 0 0 400 192 Z" fill="#d29922"/>
 <text x="400" y="168" font-size="13.5" font-weight="500" fill="#e6edf3" text-anchor="middle">CF-Lite</text>
-<circle cx="445" cy="186" r="8" fill="#0d1117" stroke="#d29922" stroke-opacity=".7" stroke-width="2.5"/>
-<text x="445" y="215" font-size="13.5" font-weight="500" fill="#9198a1" text-anchor="middle">Security</text>
+<circle cx="445" cy="186" r="9" fill="#0d1117" stroke="#d29922" stroke-width="3"/><path d="M445 180 A6 6 0 0 0 445 192 Z" fill="#d29922"/>
+<text x="445" y="215" font-size="13.5" font-weight="500" fill="#e6edf3" text-anchor="middle">Security</text>
 <circle cx="490" cy="186" r="10" fill="#d29922" stroke="#0d1117" stroke-width="3"/><path d="M485.5 186 l3 3 l6 -6.5" fill="none" stroke="#0d1117" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
 <text x="490" y="168" font-size="13.5" font-weight="500" fill="#e6edf3" text-anchor="middle">LaunchServices</text>
 <circle cx="540" cy="186" r="9" fill="#0d1117" stroke="#d29922" stroke-width="3"/><path d="M540 180 A6 6 0 0 0 540 192 Z" fill="#d29922"/>
 <text x="540" y="215" font-size="13.5" font-weight="500" fill="#e6edf3" text-anchor="middle">Swift 6</text>
 <circle cx="590" cy="186" r="10" fill="#d29922" stroke="#0d1117" stroke-width="3"/><path d="M585.5 186 l3 3 l6 -6.5" fill="none" stroke="#0d1117" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
 <text x="590" y="168" font-size="13.5" font-weight="500" fill="#e6edf3" text-anchor="middle">CLI tools</text>
-<circle cx="620" cy="186" r="17" fill="#d29922" fill-opacity=".2"/><circle cx="620" cy="186" r="10" fill="#0d1117" stroke="#d29922" stroke-width="5"/>
-<text x="620" y="168" font-size="13.5" font-weight="700" fill="#e6edf3" text-anchor="middle">Cocoa coverage</text>
-<text x="620" y="232" font-size="11.5" font-weight="800" fill="#d29922" text-anchor="middle" letter-spacing=".06em">WE ARE HERE</text>
+<circle cx="620" cy="186" r="10" fill="#d29922" stroke="#0d1117" stroke-width="3"/><path d="M615.5 186 l3 3 l6 -6.5" fill="none" stroke="#0d1117" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="620" y="168" font-size="13.5" font-weight="500" fill="#e6edf3" text-anchor="middle">Cocoa coverage</text>
 <text x="20" y="255" font-size="15" font-weight="700" fill="#4493f8" text-anchor="start">WindowServer</text>
 <line x1="290" y1="250" x2="1060" y2="250" stroke="#4493f8" stroke-opacity=".22" stroke-width="8" stroke-linecap="round"/>
 <line x1="290" y1="250" x2="1060" y2="250" stroke="#4493f8" stroke-opacity=".55" stroke-width="8" stroke-linecap="round"/>
@@ -150,43 +150,60 @@
 <text x="760" y="535" font-size="13.5" font-weight="500" fill="#9198a1" text-anchor="middle">Visual design</text>
 <text x="20" y="575" font-size="15" font-weight="700" fill="#3fb950" text-anchor="start">Apps · DMG</text>
 <line x1="805" y1="570" x2="970" y2="570" stroke="#3fb950" stroke-opacity=".22" stroke-width="8" stroke-linecap="round"/>
-<line x1="805" y1="570" x2="915" y2="570" stroke="#3fb950" stroke-opacity=".55" stroke-width="8" stroke-linecap="round"/>
-<circle cx="805" cy="570" r="8" fill="#0d1117" stroke="#3fb950" stroke-opacity=".7" stroke-width="2.5"/>
-<text x="805" y="599" font-size="13.5" font-weight="500" fill="#9198a1" text-anchor="middle">A0 base</text>
-<circle cx="860" cy="570" r="8" fill="#0d1117" stroke="#3fb950" stroke-opacity=".7" stroke-width="2.5"/>
-<text x="860" y="552" font-size="13.5" font-weight="500" fill="#9198a1" text-anchor="middle">A1 Terminal</text>
+<line x1="805" y1="570" x2="970" y2="570" stroke="#3fb950" stroke-opacity=".55" stroke-width="8" stroke-linecap="round"/>
+<line x1="805" y1="570" x2="860" y2="570" stroke="#3fb950" stroke-opacity="1" stroke-width="8" stroke-linecap="round"/>
+<circle cx="805" cy="570" r="10" fill="#3fb950" stroke="#0d1117" stroke-width="3"/><path d="M800.5 570 l3 3 l6 -6.5" fill="none" stroke="#0d1117" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="805" y="599" font-size="13.5" font-weight="500" fill="#e6edf3" text-anchor="middle">A0 base</text>
+<circle cx="860" cy="570" r="10" fill="#3fb950" stroke="#0d1117" stroke-width="3"/><path d="M855.5 570 l3 3 l6 -6.5" fill="none" stroke="#0d1117" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="860" y="552" font-size="13.5" font-weight="500" fill="#e6edf3" text-anchor="middle">A1 Terminal</text>
 <circle cx="915" cy="570" r="9" fill="#0d1117" stroke="#3fb950" stroke-width="3"/><path d="M915 564 A6 6 0 0 0 915 576 Z" fill="#3fb950"/>
 <text x="915" y="599" font-size="13.5" font-weight="500" fill="#e6edf3" text-anchor="middle">A2 Text Editor</text>
-<circle cx="970" cy="570" r="8" fill="#0d1117" stroke="#3fb950" stroke-opacity=".7" stroke-width="2.5"/>
-<text x="970" y="552" font-size="13.5" font-weight="500" fill="#9198a1" text-anchor="middle">A3–A10 · DMG</text>
-<text x="20" y="639" font-size="15" font-weight="700" fill="#f85149" text-anchor="start">GPU track</text>
-<line x1="700" y1="634" x2="1060" y2="634" stroke="#f85149" stroke-opacity=".22" stroke-width="8" stroke-linecap="round"/>
-<line x1="700" y1="634" x2="1060" y2="634" stroke="#f85149" stroke-opacity=".55" stroke-width="8" stroke-linecap="round"/>
-<line x1="700" y1="634" x2="820" y2="634" stroke="#f85149" stroke-opacity="1" stroke-width="8" stroke-linecap="round"/>
-<circle cx="700" cy="634" r="10" fill="#f85149" stroke="#0d1117" stroke-width="3"/><path d="M695.5 634 l3 3 l6 -6.5" fill="none" stroke="#0d1117" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
-<text x="700" y="663" font-size="13.5" font-weight="500" fill="#e6edf3" text-anchor="middle">G1 KMS</text>
-<circle cx="760" cy="634" r="9" fill="#0d1117" stroke="#f85149" stroke-width="3"/><path d="M760 628 A6 6 0 0 0 760 640 Z" fill="#f85149"/>
-<text x="760" y="663" font-size="13.5" font-weight="500" fill="#e6edf3" text-anchor="middle">G2 rings</text>
-<circle cx="820" cy="634" r="10" fill="#f85149" stroke="#0d1117" stroke-width="3"/><path d="M815.5 634 l3 3 l6 -6.5" fill="none" stroke="#0d1117" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
-<text x="820" y="616" font-size="13.5" font-weight="500" fill="#e6edf3" text-anchor="middle">G3 Mesa</text>
-<circle cx="1060" cy="634" r="17" fill="#f85149" fill-opacity=".2"/><circle cx="1060" cy="634" r="10" fill="#0d1117" stroke="#f85149" stroke-width="5"/>
-<text x="1060" y="663" font-size="13.5" font-weight="700" fill="#e6edf3" text-anchor="middle">G4–G5</text>
-<text x="20" y="703" font-size="15" font-weight="700" fill="#8b949e" text-anchor="start">Compat · arm64</text>
-<line x1="1082" y1="698" x2="1150" y2="698" stroke="#8b949e" stroke-opacity=".22" stroke-width="8" stroke-linecap="round"/>
-<circle cx="1082" cy="698" r="8" fill="#0d1117" stroke="#8b949e" stroke-opacity=".7" stroke-width="2.5"/>
-<text x="1082" y="727" font-size="13.5" font-weight="500" fill="#9198a1" text-anchor="middle">x86-64 apps</text>
-<circle cx="1150" cy="698" r="8" fill="#0d1117" stroke="#8b949e" stroke-opacity=".7" stroke-width="2.5"/>
-<text x="1150" y="727" font-size="13.5" font-weight="500" fill="#9198a1" text-anchor="middle">arm64</text>
-<circle cx="30" cy="768" r="8" fill="#e6edf3"/>
-<text x="46" y="772.5" font-size="13" font-weight="400" fill="#9198a1" text-anchor="start">done</text>
-<circle cx="99.1" cy="768" r="7" fill="#0d1117" stroke="#e6edf3" stroke-width="4"/>
-<text x="115.1" y="772.5" font-size="13" font-weight="400" fill="#9198a1" text-anchor="start">in progress</text>
-<circle cx="219.2" cy="768" r="7" fill="#0d1117" stroke="#e6edf3" stroke-width="2.5"/><path d="M219.2 763.5 A4.5 4.5 0 0 0 219.2 772.5 Z" fill="#e6edf3"/>
-<text x="235.2" y="772.5" font-size="13" font-weight="400" fill="#9198a1" text-anchor="start">partial</text>
-<circle cx="310.2" cy="768" r="7" fill="#0d1117" stroke="#9198a1" stroke-width="2.5"/>
-<text x="326.2" y="772.5" font-size="13" font-weight="400" fill="#9198a1" text-anchor="start">to do</text>
-<rect x="380.6" y="759" width="26" height="18" rx="7" fill="none" stroke="#e6edf3" stroke-opacity=".6" stroke-dasharray="4 3"/>
-<text x="414.6" y="772.5" font-size="13" font-weight="400" fill="#9198a1" text-anchor="start">gate: the lines it needs pass through it</text>
-<path d="M719.8 768 h28" stroke="#9198a1" stroke-width="1.5" stroke-dasharray="4 4"/>
-<text x="755.8" y="772.5" font-size="13" font-weight="400" fill="#9198a1" text-anchor="start">starts after</text>
+<circle cx="970" cy="570" r="9" fill="#0d1117" stroke="#3fb950" stroke-width="3"/><path d="M970 564 A6 6 0 0 0 970 576 Z" fill="#3fb950"/>
+<text x="970" y="552" font-size="13.5" font-weight="500" fill="#e6edf3" text-anchor="middle">A3–A10 · DMG</text>
+<text x="20" y="639" font-size="15" font-weight="700" fill="#4493f8" text-anchor="start">WebKit</text>
+<line x1="650" y1="634" x2="970" y2="634" stroke="#4493f8" stroke-opacity=".22" stroke-width="8" stroke-linecap="round"/>
+<line x1="650" y1="634" x2="890" y2="634" stroke="#4493f8" stroke-opacity=".55" stroke-width="8" stroke-linecap="round"/>
+<circle cx="650" cy="634" r="9" fill="#0d1117" stroke="#4493f8" stroke-width="3"/><path d="M650 628 A6 6 0 0 0 650 640 Z" fill="#4493f8"/>
+<text x="650" y="663" font-size="13.5" font-weight="500" fill="#e6edf3" text-anchor="middle">W0 deps</text>
+<circle cx="710" cy="634" r="17" fill="#4493f8" fill-opacity=".2"/><circle cx="710" cy="634" r="10" fill="#0d1117" stroke="#4493f8" stroke-width="5"/>
+<text x="710" y="663" font-size="13.5" font-weight="700" fill="#e6edf3" text-anchor="middle">W1 JSC</text>
+<text x="710" y="680" font-size="11.5" font-weight="800" fill="#4493f8" text-anchor="middle" letter-spacing=".06em">WE ARE HERE</text>
+<circle cx="770" cy="634" r="8" fill="#0d1117" stroke="#4493f8" stroke-opacity=".7" stroke-width="2.5"/>
+<text x="770" y="616" font-size="13.5" font-weight="500" fill="#9198a1" text-anchor="middle">W2 WebCore</text>
+<circle cx="830" cy="634" r="9" fill="#0d1117" stroke="#4493f8" stroke-width="3"/><path d="M830 628 A6 6 0 0 0 830 640 Z" fill="#4493f8"/>
+<text x="830" y="663" font-size="13.5" font-weight="500" fill="#e6edf3" text-anchor="middle">W3 WKWebView</text>
+<circle cx="890" cy="634" r="9" fill="#0d1117" stroke="#4493f8" stroke-width="3"/><path d="M890 628 A6 6 0 0 0 890 640 Z" fill="#4493f8"/>
+<text x="890" y="616" font-size="13.5" font-weight="500" fill="#e6edf3" text-anchor="middle">W4 WebView</text>
+<circle cx="970" cy="634" r="8" fill="#0d1117" stroke="#4493f8" stroke-opacity=".7" stroke-width="2.5"/>
+<text x="970" y="663" font-size="13.5" font-weight="500" fill="#9198a1" text-anchor="middle">W5 apps</text>
+<text x="20" y="703" font-size="15" font-weight="700" fill="#f85149" text-anchor="start">GPU track</text>
+<line x1="700" y1="698" x2="1060" y2="698" stroke="#f85149" stroke-opacity=".22" stroke-width="8" stroke-linecap="round"/>
+<line x1="700" y1="698" x2="1060" y2="698" stroke="#f85149" stroke-opacity=".55" stroke-width="8" stroke-linecap="round"/>
+<line x1="700" y1="698" x2="820" y2="698" stroke="#f85149" stroke-opacity="1" stroke-width="8" stroke-linecap="round"/>
+<circle cx="700" cy="698" r="10" fill="#f85149" stroke="#0d1117" stroke-width="3"/><path d="M695.5 698 l3 3 l6 -6.5" fill="none" stroke="#0d1117" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="700" y="727" font-size="13.5" font-weight="500" fill="#e6edf3" text-anchor="middle">G1 KMS</text>
+<circle cx="760" cy="698" r="9" fill="#0d1117" stroke="#f85149" stroke-width="3"/><path d="M760 692 A6 6 0 0 0 760 704 Z" fill="#f85149"/>
+<text x="760" y="727" font-size="13.5" font-weight="500" fill="#e6edf3" text-anchor="middle">G2 rings</text>
+<circle cx="820" cy="698" r="10" fill="#f85149" stroke="#0d1117" stroke-width="3"/><path d="M815.5 698 l3 3 l6 -6.5" fill="none" stroke="#0d1117" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="820" y="680" font-size="13.5" font-weight="500" fill="#e6edf3" text-anchor="middle">G3 Mesa</text>
+<circle cx="1060" cy="698" r="17" fill="#f85149" fill-opacity=".2"/><circle cx="1060" cy="698" r="10" fill="#0d1117" stroke="#f85149" stroke-width="5"/>
+<text x="1060" y="727" font-size="13.5" font-weight="700" fill="#e6edf3" text-anchor="middle">G4–G5</text>
+<text x="20" y="767" font-size="15" font-weight="700" fill="#8b949e" text-anchor="start">Compat · arm64</text>
+<line x1="1082" y1="762" x2="1150" y2="762" stroke="#8b949e" stroke-opacity=".22" stroke-width="8" stroke-linecap="round"/>
+<circle cx="1082" cy="762" r="8" fill="#0d1117" stroke="#8b949e" stroke-opacity=".7" stroke-width="2.5"/>
+<text x="1082" y="791" font-size="13.5" font-weight="500" fill="#9198a1" text-anchor="middle">x86-64 apps</text>
+<circle cx="1150" cy="762" r="8" fill="#0d1117" stroke="#8b949e" stroke-opacity=".7" stroke-width="2.5"/>
+<text x="1150" y="791" font-size="13.5" font-weight="500" fill="#9198a1" text-anchor="middle">arm64</text>
+<circle cx="30" cy="832" r="8" fill="#e6edf3"/>
+<text x="46" y="836.5" font-size="13" font-weight="400" fill="#9198a1" text-anchor="start">done</text>
+<circle cx="99.1" cy="832" r="7" fill="#0d1117" stroke="#e6edf3" stroke-width="4"/>
+<text x="115.1" y="836.5" font-size="13" font-weight="400" fill="#9198a1" text-anchor="start">in progress</text>
+<circle cx="219.2" cy="832" r="7" fill="#0d1117" stroke="#e6edf3" stroke-width="2.5"/><path d="M219.2 827.5 A4.5 4.5 0 0 0 219.2 836.5 Z" fill="#e6edf3"/>
+<text x="235.2" y="836.5" font-size="13" font-weight="400" fill="#9198a1" text-anchor="start">partial</text>
+<circle cx="310.2" cy="832" r="7" fill="#0d1117" stroke="#9198a1" stroke-width="2.5"/>
+<text x="326.2" y="836.5" font-size="13" font-weight="400" fill="#9198a1" text-anchor="start">to do</text>
+<rect x="380.6" y="823" width="26" height="18" rx="7" fill="none" stroke="#e6edf3" stroke-opacity=".6" stroke-dasharray="4 3"/>
+<text x="414.6" y="836.5" font-size="13" font-weight="400" fill="#9198a1" text-anchor="start">gate: the lines it needs pass through it</text>
+<path d="M719.8 832 h28" stroke="#9198a1" stroke-width="1.5" stroke-dasharray="4 4"/>
+<text x="755.8" y="836.5" font-size="13" font-weight="400" fill="#9198a1" text-anchor="start">starts after</text>
 </svg>

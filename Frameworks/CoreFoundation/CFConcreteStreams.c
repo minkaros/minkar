@@ -36,10 +36,8 @@
 #include <string.h>
 #include <stdio.h>
 #include <sys/stat.h>
-#if DEPLOYMENT_TARGET_MACOSX || DEPLOYMENT_TARGET_EMBEDDED || DEPLOYMENT_TARGET_EMBEDDED_MINI || DEPLOYMENT_TARGET_LINUX
 #include <sys/time.h>
 #include <unistd.h>
-#endif
 
 
 #define SCHEDULE_AFTER_WRITE  (0)
@@ -67,9 +65,6 @@ typedef struct {
 
 
 CONST_STRING_DECL(kCFStreamPropertyFileCurrentOffset, "kCFStreamPropertyFileCurrentOffset");
-#if DEPLOYMENT_TARGET_EMBEDDED || DEPLOYMENT_TARGET_EMBEDDED_MINI
-CONST_STRING_DECL(_kCFStreamPropertyFileNativeHandle, "_kCFStreamPropertyFileNativeHandle");
-#endif
 
 #ifdef REAL_FILE_SCHEDULING
 extern void _CFFileDescriptorInduceFakeReadCallBack(CFFileDescriptorRef);
@@ -96,14 +91,8 @@ static void constructCFFD(_CFFileStreamContext *fileStream, Boolean forRead, str
 
 static Boolean constructFD(_CFFileStreamContext *fileStream, CFStreamError *error, Boolean forRead, struct _CFStream *stream) {
     int flags = forRead ? O_RDONLY : (O_CREAT | O_TRUNC | O_WRONLY);
-#if DEPLOYMENT_TARGET_WINDOWS
-    wchar_t path[CFMaxPathSize];
-    flags |= (_O_BINARY|_O_NOINHERIT);
-    if (_CFURLGetWideFileSystemRepresentation(fileStream->url, TRUE, path, CFMaxPathSize) == FALSE)
-#elif DEPLOYMENT_TARGET_MACOSX || DEPLOYMENT_TARGET_EMBEDDED || DEPLOYMENT_TARGET_EMBEDDED_MINI
     char path[CFMaxPathSize];
     if (CFURLGetFileSystemRepresentation(fileStream->url, TRUE, (UInt8 *)path, CFMaxPathSize) == FALSE)
-#endif
      {
         error->error = ENOENT;
         error->domain = kCFStreamErrorDomainPOSIX;
@@ -115,11 +104,7 @@ static Boolean constructFD(_CFFileStreamContext *fileStream, CFStreamError *erro
     }
     
     do {
-#if DEPLOYMENT_TARGET_MACOSX || DEPLOYMENT_TARGET_EMBEDDED || DEPLOYMENT_TARGET_EMBEDDED_MINI
         fileStream->fd = open((const char *)path, flags, 0666);
-#elif DEPLOYMENT_TARGET_WINDOWS
-	fileStream->fd = _wopen(path, flags, 0666);
-#endif
         if (fileStream->fd < 0)
             break;
         
@@ -218,7 +203,6 @@ CF_PRIVATE Boolean fdCanRead(int fd) {
     fd_set *readSetPtr;
     fd_set readSet;
     Boolean result;
-// fd_set is not a mask in Win32, so checking for an fd that's too big is not relevant
     if (fd < FD_SETSIZE) {
         FD_ZERO(&readSet);
         readSetPtr = &readSet;
@@ -435,13 +419,6 @@ static CFTypeRef fileCopyProperty(struct _CFStream *stream, CFStringRef property
         if (fileStream->offset != -1) {
             result = CFNumberCreate(CFGetAllocator((CFTypeRef)stream), kCFNumberSInt64Type, &(fileStream->offset));
         }
-#if DEPLOYMENT_TARGET_EMBEDDED || DEPLOYMENT_TARGET_EMBEDDED_MINI
-    } else if (CFEqual(propertyName, _kCFStreamPropertyFileNativeHandle)) {
-		int fd = fileStream->fd;
-		if (fd != -1) {
-			result = CFDataCreate(CFGetAllocator((CFTypeRef) stream), (const uint8_t *)&fd, sizeof(fd));
-		}
-#endif
 	}
 
     return result;

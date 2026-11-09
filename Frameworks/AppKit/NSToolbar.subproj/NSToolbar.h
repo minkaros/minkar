@@ -74,8 +74,8 @@ APPKIT_EXPORT NSString *const NSToolbarDidRemoveItemNotification;
 - (void)setAllowsUserCustomization:(BOOL)flag;
 - (void)setSelectedItemIdentifier:(NSString *)identifier;
 
-- (void)insertItemWithItemIdentifier:(NSString *)identifier atIndex:(int)index;
-- (void)removeItemAtIndex:(int)index;
+- (void)insertItemWithItemIdentifier:(NSString *)identifier atIndex:(NSInteger)index;
+- (void)removeItemAtIndex:(NSInteger)index;
 
 - (void)validateVisibleItems;
 
@@ -88,6 +88,17 @@ APPKIT_EXPORT NSString *const NSToolbarDidRemoveItemNotification;
 
 - (Class)toolbarItemClass;
 
+@end
+
+/* The formal delegate protocol of API 19. */
+@protocol NSToolbarDelegate <NSObject>
+@optional
+- (NSToolbarItem *)toolbar:(NSToolbar *)toolbar itemForItemIdentifier:(NSString *)itemIdentifier willBeInsertedIntoToolbar:(BOOL)flag;
+- (NSArray *)toolbarDefaultItemIdentifiers:(NSToolbar *)toolbar;
+- (NSArray *)toolbarAllowedItemIdentifiers:(NSToolbar *)toolbar;
+- (NSArray *)toolbarSelectableItemIdentifiers:(NSToolbar *)toolbar;
+- (void)toolbarWillAddItem:(NSNotification *)notification;
+- (void)toolbarDidRemoveItem:(NSNotification *)notification;
 @end
 
 @interface NSObject (NSToolbar_delegate)

@@ -28,7 +28,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    return [[[self alloc] initWithWindow:window] autorelease];
 }
 
--(void)stopModalWithCode:(int)code {
+-(void)stopModalWithCode:(NSInteger)code {
    _stopCode=code;
 }
 
@@ -36,7 +36,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    return _window;
 }
 
--(int)stopCode {
+-(NSInteger)stopCode {
    return _stopCode;
 }
 

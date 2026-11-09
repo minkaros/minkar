@@ -43,7 +43,7 @@ static void* NSMultipleValueBinderWholeArrayChangeContext;
     }
 }
 
--(void)applyToObject:(id)object inRow:(int)row keyPath:(id)path
+-(void)applyToObject:(id)object inRow:(NSInteger)row keyPath:(id)path
 {
    @try {
       [object setValue:[[_rowValues objectAtIndex:row] valueForKeyPath:_valueKeyPath] forKey:path];
@@ -53,37 +53,37 @@ static void* NSMultipleValueBinderWholeArrayChangeContext;
    }
 }
 
--(void)applyToObject:(id)object inRow:(int)row
+-(void)applyToObject:(id)object inRow:(NSInteger)row
 {
 	[self applyToObject:object inRow:row keyPath:[object _replacementKeyPathForBinding:_binding]];
 }
 
--(void)applyToCell:(id)cell inRow:(int)row
+-(void)applyToCell:(id)cell inRow:(NSInteger)row
 {
 	[self applyToObject:cell inRow:row keyPath:[cell _replacementKeyPathForBinding:_binding]];
 }
 
--(void)applyFromObject:(id)object inRow:(int)row keyPath:(id)keypath
+-(void)applyFromObject:(id)object inRow:(NSInteger)row keyPath:(id)keypath
 {
 	[[_rowValues objectAtIndex:row] setValue:[object valueForKeyPath:keypath]  forKeyPath:_valueKeyPath];
 }
 
--(void)applyFromObject:(id)object inRow:(int)row
+-(void)applyFromObject:(id)object inRow:(NSInteger)row
 {
 	[self applyFromObject:object inRow:row keyPath:[object _replacementKeyPathForBinding:_binding]];
 }
 
--(void)applyFromCell:(id)cell inRow:(int)row
+-(void)applyFromCell:(id)cell inRow:(NSInteger)row
 {
 	[self applyFromObject:cell inRow:row keyPath:[cell _replacementKeyPathForBinding:_binding]];
 }
 
 
--(unsigned)count {
+-(NSUInteger)count {
 	return [_rowValues count];
 }
 
--(id)objectAtIndex:(unsigned)row {
+-(id)objectAtIndex:(NSUInteger)row {
 	return [[_rowValues objectAtIndex:row] valueForKeyPath:_valueKeyPath];
 }
 
@@ -119,7 +119,7 @@ static void* NSMultipleValueBinderWholeArrayChangeContext;
 	[_arrayKeyPath retain];
 }
 
--(BOOL)allowsEditingForRow:(int)row
+-(BOOL)allowsEditingForRow:(NSInteger)row
 {
    if([[_rowValues objectAtIndex:row] classForCoder]==[NSDictionary class])
       return NO;
@@ -306,7 +306,7 @@ static void* NSTableViewContentBinderChangeContext;
 	[self stopObservingChanges];
 }
 
--(unsigned)numberOfRows {
+-(NSUInteger)numberOfRows {
 //NSLog(@"_desination=%@, keypath=%@",_destination,_keyPath);
 	return [[_destination valueForKeyPath:_keyPath] count];
 }

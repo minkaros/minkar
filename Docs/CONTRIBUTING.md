@@ -15,7 +15,7 @@ As an open-source project, we love receiving contributions from our community - 
 As of October 2025, these are the top priorities:
 * System build wrangling - bringing in third-party sources to the system tree, packaging stuff into Frameworks, etc
 * Getting Darwin code to build/boot
-* Ongoing work on the desktop shell: WindowServer, LoginWindow, SystemUIServer (implementing MenuExtras, StatusItems), Dock, Filer
+* Ongoing work on the desktop shell: WindowServer, LoginWindow, SystemUIServer (implementing MenuExtras, StatusItems), Dock, Files
 * Continue updating the Cocoa frameworks to add missing features and update existing ones
 * Replace CoreFoundation with the one from Swift 
 
@@ -43,6 +43,16 @@ Follow the code of conduct.
 New code is licensed under the BSD 2-clause license.
 
 If you have _ever_ seen the reference platform's proprietary code (not APSL-licensed or other open-source stuff) then you may *not* contribute code to Minkar. Sorry :( However, you may be able to contribute in other ways!
+
+### Language
+
+Everything committed is in English: code, comments, commit messages and
+user interface strings. The interface is translated through `*.lproj`
+bundles (English is the development language, and the base for tests and
+screenshots); a translation never replaces the English strings in the
+code. Documentation is written in English; a document may also have a
+Spanish copy next to it as `<name>.es.md`, which says that the English one
+is the reference and is updated in the same commit.
 
 ### Development shortcuts
 

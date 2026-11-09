@@ -193,11 +193,23 @@ extern void NSInvocationForward_stret(void);
    return [signature frameLength];
 }
 
+/* A message nothing implements: as Foundation does on the reference
+ * platform, NSInvalidArgumentException, which a program can catch (the
+ * runtime's own -doesNotRecognizeSelector: ends the process). */
 -(void)forwardInvocation:(NSInvocation *)invocation {
-    id target = [invocation target];
-    SEL sel = [invocation selector];
-    printf("target %p %s sel %p %s\n", target, object_getClassName(target), sel, sel_getName(sel));
-    [invocation invoke];
+    [self doesNotRecognizeSelector:[invocation selector]];
+}
+
+-(void)doesNotRecognizeSelector:(SEL)selector {
+    [NSException raise:NSInvalidArgumentException
+                format:@"-[%s %s]: unrecognized selector sent to instance %p",
+                object_getClassName(self), sel_getName(selector), self];
+}
+
++(void)doesNotRecognizeSelector:(SEL)selector {
+    [NSException raise:NSInvalidArgumentException
+                format:@"+[%s %s]: unrecognized selector sent to class %p",
+                class_getName(self), sel_getName(selector), self];
 }
 
 -(id)forwardSelector:(SEL)selector arguments:(void *)arguments {

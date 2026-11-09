@@ -22,11 +22,11 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    [super dealloc];
 }
 
--(unsigned)count {
+-(NSUInteger)count {
    return _count;
 }
 
--(NSRange)rangeAtIndex:(unsigned)index {
+-(NSRange)rangeAtIndex:(NSUInteger)index {
    NSAssert2(index<_count,@"index %d beyond count %d",index,_count);
 
    return _ranges[index];
@@ -41,7 +41,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    _ranges[_count++]=range;
 }
 
--(void)removeRangeAtIndex:(unsigned)index
+-(void)removeRangeAtIndex:(NSUInteger)index
 {
 	NSAssert2(index<_count,@"index %d beyond count %d",index,_count);
 	

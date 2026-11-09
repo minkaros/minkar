@@ -14,9 +14,56 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <AppKit/NSAttributedString.h>
 #import <AppKit/NSBezierPath.h>
 #import <AppKit/NSGraphicsStyle.h>
+#import <AppKit/NSFont.h>
+#import <Foundation/NSDateFormatter.h>
+#import <Foundation/NSCalendar.h>
 #import <Foundation/NSLocale.h>
 
 @implementation NSDatePickerCell
+
+/* A cell made in code (NSDatePicker's own, for one): today's date, shown as
+   a text field with a stepper, in the system's font and colors. */
+-initTextCell:(NSString *)string {
+   [super initTextCell:string];
+   /* The date and the time, as the reference platform's default. */
+   _elements=NSYearMonthDayDatePickerElementFlag|NSHourMinuteSecondDatePickerElementFlag;
+   _style=NSTextFieldAndStepperDatePickerStyle;
+   _calendar=[[NSCalendar currentCalendar] copy];
+   _backgroundColor=[[NSColor controlBackgroundColor] copy];
+   _textColor=[[NSColor controlTextColor] copy];
+   _drawsBackground=YES;
+   [self setObjectValue:[NSDate date]];
+   [self setBezeled:YES];
+   return self;
+}
+
+-init {
+   return [self initTextCell:@""];
+}
+
+-copyWithZone:(NSZone *)zone {
+   NSDatePickerCell *copy=[super copyWithZone:zone];
+
+   copy->_calendar=[_calendar copy];
+   copy->_locale=[_locale copy];
+   copy->_minDate=[_minDate copy];
+   copy->_maxDate=[_maxDate copy];
+   copy->_timeZone=[_timeZone copy];
+   copy->_backgroundColor=[_backgroundColor copy];
+   copy->_textColor=[_textColor copy];
+   return copy;
+}
+
+-(void)dealloc {
+   [_calendar release];
+   [_locale release];
+   [_minDate release];
+   [_maxDate release];
+   [_timeZone release];
+   [_backgroundColor release];
+   [_textColor release];
+   [super dealloc];
+}
 
 -initWithCoder:(NSCoder *)coder {
    [super initWithCoder:coder];
@@ -181,7 +228,7 @@ static NSSize maxDigitSize(NSDictionary *attributes){
 }
 
 static void drawRoundedSelection(NSRect rect){
-   [[NSColor lightGrayColor] set];
+   [[NSColor selectedTextBackgroundColor] set];
    NSBezierPath *path=[NSBezierPath bezierPathWithRoundedRect:rect xRadius:3 yRadius:3];
    [path fill];
 }
@@ -237,6 +284,33 @@ static void drawRoundedSelection(NSRect rect){
     [result addObject:[[[NSAttributedString alloc] initWithString:year attributes:attributes] autorelease]];
    }
 
+   /* The time: hours (0-23), minutes and, if asked, seconds. */
+   if((_elements&NSHourMinuteDatePickerElementFlag)==NSHourMinuteDatePickerElementFlag){
+    NSUInteger        flags=NSHourCalendarUnit|NSMinuteCalendarUnit|NSSecondCalendarUnit;
+    NSDateComponents *components=[_calendar components:flags fromDate:[self dateValue]];
+    BOOL              seconds=(_elements&NSHourMinuteSecondDatePickerElementFlag)==NSHourMinuteSecondDatePickerElementFlag;
+    struct { NSInteger value,max; NSUInteger unit; const char *format; } parts[3]={
+     { [components hour],23,NSHourCalendarUnit,"%ld" },
+     { [components minute],59,NSMinuteCalendarUnit,"%02ld" },
+     { [components second],59,NSSecondCalendarUnit,"%02ld" },
+    };
+    int i,count=seconds?3:2;
+
+    if([result count]>0)
+     [result addObject:[[[NSAttributedString alloc] initWithString:@", " attributes:separatorAttributes] autorelease]];
+    for(i=0;i<count;i++){
+     if(i>0)
+      [result addObject:[[[NSAttributedString alloc] initWithString:@":" attributes:separatorAttributes] autorelease]];
+     [attributes setObject:[NSNumber numberWithUnsignedInteger:parts[i].value] forKey:@"_value"];
+     [attributes setObject:[NSNumber numberWithUnsignedInteger:0] forKey:@"_min"];
+     [attributes setObject:[NSNumber numberWithUnsignedInteger:parts[i].max] forKey:@"_max"];
+     [attributes setObject:[NSNumber numberWithUnsignedInteger:parts[i].unit] forKey:@"_unit"];
+     [attributes setObject:[NSNumber numberWithFloat:digitWidth*2] forKey:@"_width"];
+     [result addObject:[[[NSAttributedString alloc] initWithString:[NSString stringWithFormat:[NSString stringWithUTF8String:parts[i].format],(long)parts[i].value]
+        attributes:attributes] autorelease]];
+    }
+   }
+
    return result;
 }
 
@@ -281,7 +355,8 @@ static void getRectsInFrameForAttributesStrings(NSRect *rects,NSRect frame,NSArr
    NSRect stepper=[self _stepperFrameForFrame:frame];
    NSRect bezel=frame;
 
-   bezel.size.width-=stepper.size.width;
+   if(_style!=NSTextFieldDatePickerStyle)
+    bezel.size.width-=stepper.size.width+2;
    bezel=NSInsetRect(bezel,1,3);
    return bezel;
 }
@@ -311,7 +386,9 @@ static void getRectsInFrameForAttributesStrings(NSRect *rects,NSRect frame,NSArr
 -(void)_multiplyCurrentUnitBy:(NSInteger)multiply add:(NSInteger)addValue {
    NSArray          *array=[self _attributedStrings];
    NSInteger         i,count=[array count];
-   NSDateComponents *components=[[[NSDateComponents alloc] init] autorelease];
+   /* The units not shown keep their values. */
+   NSDateComponents *components=[_calendar components:NSYearCalendarUnit|NSMonthCalendarUnit|NSDayCalendarUnit|
+      NSHourCalendarUnit|NSMinuteCalendarUnit|NSSecondCalendarUnit fromDate:[self dateValue]?:[NSDate date]];
 
    for(i=0;i<count;i++){
     NSAttributedString *string=[array objectAtIndex:i];
@@ -347,6 +424,18 @@ static void getRectsInFrameForAttributesStrings(NSRect *rects,NSRect frame,NSArr
      case NSDayCalendarUnit:
       [components setDay:value];
       break;
+
+     case NSHourCalendarUnit:
+      [components setHour:value];
+      break;
+
+     case NSMinuteCalendarUnit:
+      [components setMinute:value];
+      break;
+
+     case NSSecondCalendarUnit:
+      [components setSecond:value];
+      break;
     }
 
    }
@@ -374,13 +463,293 @@ static void getRectsInFrameForAttributesStrings(NSRect *rects,NSRect frame,NSArr
     return frame;
 }
 
+/* The calendar style: the month and year between two arrows, the days'
+   initials, and six weeks of days; the chosen day in the accent color,
+   today's number in it. Laid out from the top whatever the view's
+   flipping. */
+
+#define CALENDAR_HEADER 24
+#define CALENDAR_WEEKDAYS 18
+
+static NSRect calendarBand(NSRect frame,BOOL flipped,CGFloat top,CGFloat height){
+   NSRect result=frame;
+
+   result.size.height=height;
+   result.origin.y=flipped?NSMinY(frame)+top:NSMaxY(frame)-top-height;
+   return result;
+}
+
+static void drawCentered(NSString *string,NSRect rect,NSDictionary *attributes);
+
+/* With the time shown, a compact calendar at the left (seven 20-point
+   columns) and an analog clock beside it, as the reference platform. */
+-(BOOL)_showsClock {
+   return (_elements&NSHourMinuteDatePickerElementFlag)==NSHourMinuteDatePickerElementFlag;
+}
+
+-(NSRect)_calendarFrameForFrame:(NSRect)frame {
+   NSRect result=NSInsetRect(frame,1,1);
+
+   if([self _showsClock])
+    result.size.width=MIN(NSWidth(result),7*20+6);
+   return result;
+}
+
+-(NSRect)_clockFrameForFrame:(NSRect)frame {
+   NSRect  calendar=[self _calendarFrameForFrame:frame];
+   NSRect  rest=NSMakeRect(NSMaxX(calendar)+8,NSMinY(frame),NSMaxX(frame)-NSMaxX(calendar)-8,NSHeight(frame));
+   CGFloat side=MIN(NSWidth(rest),NSHeight(rest))-8;
+
+   if(side<40)
+    return NSZeroRect;
+   return NSMakeRect(floor(NSMidX(rest)-side/2),floor(NSMidY(rest)-side/2),side,side);
+}
+
+/* An analog clock: twelve numbers, hour and minute hands, a red second
+   hand, AM or PM. */
+-(void)_drawClockInRect:(NSRect)rect inView:(NSView *)view {
+   BOOL              flipped=[view isFlipped];
+   NSPoint           c=NSMakePoint(NSMidX(rect),NSMidY(rect));
+   CGFloat           r=NSWidth(rect)/2;
+   NSDateComponents *now=[_calendar components:NSHourCalendarUnit|NSMinuteCalendarUnit|NSSecondCalendarUnit
+      fromDate:[self dateValue]?:[NSDate date]];
+   NSFont           *font=[NSFont systemFontOfSize:MAX(9,floor(r/6))];
+   NSDictionary     *attributes=[NSDictionary dictionaryWithObjectsAndKeys:font,NSFontAttributeName,
+      [NSColor controlTextColor],NSForegroundColorAttributeName,nil];
+   NSBezierPath     *face=[NSBezierPath bezierPathWithOvalInRect:NSInsetRect(rect,1,1)];
+   CGFloat           y=flipped?-1:1;
+   int               i;
+
+   [[NSColor whiteColor] setFill];
+   [face fill];
+   [[NSColor colorWithCalibratedWhite:0.62 alpha:1] setStroke];
+   [face setLineWidth:2];
+   [face stroke];
+   for(i=1;i<=12;i++){
+    CGFloat  a=M_PI/2-i*M_PI/6;
+    NSPoint  p=NSMakePoint(c.x+cos(a)*r*0.76,c.y+y*sin(a)*r*0.76);
+    NSString *n=[NSString stringWithFormat:@"%d",i];
+
+    drawCentered(n,NSMakeRect(p.x-10,p.y-8,20,16),attributes);
+   }
+   drawCentered([now hour]<12?@"AM":@"PM",NSMakeRect(c.x-20,c.y-y*r*0.38-8,40,16),
+      [NSDictionary dictionaryWithObjectsAndKeys:[NSFont systemFontOfSize:MAX(8,floor(r/8))],NSFontAttributeName,
+       [NSColor secondaryLabelColor],NSForegroundColorAttributeName,nil]);
+
+   struct { CGFloat angle,length,width; NSColor *color; } hands[3]={
+    { M_PI/2-(([now hour]%12)+[now minute]/60.0)*M_PI/6,r*0.5,3,[NSColor blackColor] },
+    { M_PI/2-([now minute]+[now second]/60.0)*M_PI/30,r*0.72,2,[NSColor blackColor] },
+    { M_PI/2-[now second]*M_PI/30,r*0.8,1,[NSColor systemRedColor] },
+   };
+   for(i=0;i<3;i++){
+    NSBezierPath *hand=[NSBezierPath bezierPath];
+
+    [hand moveToPoint:c];
+    [hand lineToPoint:NSMakePoint(c.x+cos(hands[i].angle)*hands[i].length,c.y+y*sin(hands[i].angle)*hands[i].length)];
+    [hand setLineWidth:hands[i].width];
+    [hand setLineCapStyle:NSRoundLineCapStyle];
+    [hands[i].color setStroke];
+    [hand stroke];
+   }
+   [[NSColor systemRedColor] setFill];
+   [[NSBezierPath bezierPathWithOvalInRect:NSMakeRect(c.x-2.5,c.y-2.5,5,5)] fill];
+}
+
+-(NSRect)_calendarArrowFrame:(NSRect)frame flipped:(BOOL)flipped next:(BOOL)next {
+   NSRect header=calendarBand([self _calendarFrameForFrame:frame],flipped,0,CALENDAR_HEADER);
+
+   header.size.width=CALENDAR_HEADER;
+   if(next)
+    header.origin.x=NSMaxX([self _calendarFrameForFrame:frame])-CALENDAR_HEADER;
+   return header;
+}
+
+/* The days' grid: 7 columns, 6 rows. */
+-(NSRect)_calendarDayFrame:(NSRect)frame flipped:(BOOL)flipped row:(NSInteger)row column:(NSInteger)column {
+   NSRect  calendar=[self _calendarFrameForFrame:frame];
+   CGFloat top=CALENDAR_HEADER+CALENDAR_WEEKDAYS;
+   CGFloat width=floor(NSWidth(calendar)/7),height=floor((NSHeight(calendar)-top)/6);
+   NSRect  result=calendarBand(calendar,flipped,top+row*height,height);
+
+   result.origin.x=NSMinX(calendar)+floor((NSWidth(calendar)-width*7)/2)+column*width;
+   result.size.width=width;
+   return result;
+}
+
+/* The first of the shown month, the column it falls in, and the month's days. */
+-(NSDate *)_calendarFirstOfMonthColumn:(NSInteger *)column days:(NSInteger *)days {
+   NSDate           *date=([self dateValue]!=nil)?[self dateValue]:[NSDate date];
+   NSDateComponents *components=[_calendar components:NSYearCalendarUnit|NSMonthCalendarUnit fromDate:date];
+   NSDate           *first;
+   NSInteger         weekday;
+
+   [components setDay:1];
+   first=[_calendar dateFromComponents:components];
+   weekday=[[_calendar components:NSWeekdayCalendarUnit fromDate:first] weekday];
+   *column=(weekday-(NSInteger)[_calendar firstWeekday]+7)%7;
+   *days=[_calendar rangeOfUnit:NSDayCalendarUnit inUnit:NSMonthCalendarUnit forDate:first].length;
+   return first;
+}
+
+static void drawCentered(NSString *string,NSRect rect,NSDictionary *attributes){
+   NSSize size=[string sizeWithAttributes:attributes];
+
+   [string drawAtPoint:NSMakePoint(floor(NSMidX(rect)-size.width/2),floor(NSMidY(rect)-size.height/2)) withAttributes:attributes];
+}
+
+-(void)_drawCalendarWithFrame:(NSRect)frame inView:(NSView *)view {
+   BOOL              flipped=[view isFlipped];
+   NSRect            calendar=[self _calendarFrameForFrame:frame];
+   NSFont           *font=[self _showsClock]?[NSFont systemFontOfSize:11]:(([self font]!=nil)?[self font]:[NSFont systemFontOfSize:0]);
+   NSFont           *small=[NSFont systemFontOfSize:[NSFont smallSystemFontSize]];
+   NSColor          *text=[self isEnabled]?[self textColor]:[NSColor disabledControlTextColor];
+   NSDateFormatter  *formatter=[[[NSDateFormatter alloc] init] autorelease];
+   NSInteger         column,days,day,today=0,chosen=0;
+   NSDate           *first=[self _calendarFirstOfMonthColumn:&column days:&days];
+   NSDateComponents *month=[_calendar components:NSYearCalendarUnit|NSMonthCalendarUnit fromDate:first];
+   NSArray          *weekdays;
+   NSString         *title;
+
+   if(_locale!=nil)
+    [formatter setLocale:_locale];
+   [formatter setCalendar:_calendar];
+
+   if(_drawsBackground){
+    [[self backgroundColor] setFill];
+    [[NSBezierPath bezierPathWithRoundedRect:NSInsetRect(calendar,1,1) xRadius:4 yRadius:4] fill];
+   }
+   [[view graphicsStyle] drawTextFieldBorderInRect:calendar bezeledNotLine:YES];
+
+   /* The month and its arrows. */
+   title=[NSString stringWithFormat:@"%@ %ld",[([self _showsClock]?[formatter shortStandaloneMonthSymbols]:[formatter standaloneMonthSymbols])
+      objectAtIndex:[month month]-1],(long)[month year]];
+   drawCentered(title,calendarBand(calendar,flipped,0,CALENDAR_HEADER),
+      [NSDictionary dictionaryWithObjectsAndKeys:[NSFont boldSystemFontOfSize:[font pointSize]],NSFontAttributeName,text,NSForegroundColorAttributeName,nil]);
+   drawCentered(@"\u2039",[self _calendarArrowFrame:frame flipped:flipped next:NO],
+      [NSDictionary dictionaryWithObjectsAndKeys:font,NSFontAttributeName,text,NSForegroundColorAttributeName,nil]);
+   drawCentered(@"\u203A",[self _calendarArrowFrame:frame flipped:flipped next:YES],
+      [NSDictionary dictionaryWithObjectsAndKeys:font,NSFontAttributeName,text,NSForegroundColorAttributeName,nil]);
+
+   /* The days' initials, from the calendar's first weekday. */
+   weekdays=[formatter veryShortStandaloneWeekdaySymbols];
+   if([weekdays count]!=7)
+    weekdays=[formatter shortWeekdaySymbols];
+   if([weekdays count]==7){
+    NSDictionary *attributes=[NSDictionary dictionaryWithObjectsAndKeys:small,NSFontAttributeName,[NSColor secondaryLabelColor],NSForegroundColorAttributeName,nil];
+    NSInteger     i;
+
+    for(i=0;i<7;i++){
+     NSRect rect=[self _calendarDayFrame:frame flipped:flipped row:0 column:i];
+
+     rect=calendarBand(rect,flipped,0,NSHeight(rect));
+     rect.origin.y=calendarBand(calendar,flipped,CALENDAR_HEADER,CALENDAR_WEEKDAYS).origin.y;
+     rect.size.height=CALENDAR_WEEKDAYS;
+     drawCentered([weekdays objectAtIndex:([_calendar firstWeekday]-1+i)%7],rect,attributes);
+    }
+   }
+
+   /* Which day is chosen, and today if it is in this month. */
+   if([self dateValue]!=nil)
+    chosen=[[_calendar components:NSDayCalendarUnit fromDate:[self dateValue]] day];
+   {
+    NSDateComponents *now=[_calendar components:NSYearCalendarUnit|NSMonthCalendarUnit|NSDayCalendarUnit fromDate:[NSDate date]];
+
+    if([now year]==[month year] && [now month]==[month month])
+     today=[now day];
+   }
+
+   /* The neighbouring months' days in the first and last weeks, grey. */
+   {
+    NSDateComponents *back=[[[NSDateComponents alloc] init] autorelease];
+    NSInteger         previousDays,cell;
+    NSDictionary     *grey=[NSDictionary dictionaryWithObjectsAndKeys:font,NSFontAttributeName,
+       [NSColor tertiaryLabelColor],NSForegroundColorAttributeName,nil];
+
+    [back setMonth:-1];
+    previousDays=[_calendar rangeOfUnit:NSDayCalendarUnit inUnit:NSMonthCalendarUnit
+       forDate:[_calendar dateByAddingComponents:back toDate:first options:0]].length;
+    for(cell=0;cell<column;cell++)
+     drawCentered([NSString stringWithFormat:@"%ld",(long)(previousDays-column+cell+1)],
+        [self _calendarDayFrame:frame flipped:flipped row:0 column:cell],grey);
+    for(cell=column+days;cell<42;cell++)
+     drawCentered([NSString stringWithFormat:@"%ld",(long)(cell-column-days+1)],
+        [self _calendarDayFrame:frame flipped:flipped row:cell/7 column:cell%7],grey);
+   }
+
+   for(day=1;day<=days;day++){
+    NSInteger cell=column+day-1;
+    NSRect    rect=[self _calendarDayFrame:frame flipped:flipped row:cell/7 column:cell%7];
+    NSColor  *color=text;
+
+    if(day==chosen){
+     CGFloat side=MIN(NSWidth(rect),NSHeight(rect))-1;
+     NSRect  box=NSMakeRect(floor(NSMidX(rect)-side/2),floor(NSMidY(rect)-side/2),side,side);
+
+     [[NSColor controlAccentColor] setFill];
+     [[NSBezierPath bezierPathWithRoundedRect:box xRadius:3 yRadius:3] fill];
+     color=[NSColor alternateSelectedControlTextColor];
+    }
+    else if(day==today)
+     color=[NSColor controlAccentColor];
+    drawCentered([NSString stringWithFormat:@"%ld",(long)day],rect,
+       [NSDictionary dictionaryWithObjectsAndKeys:font,NSFontAttributeName,color,NSForegroundColorAttributeName,nil]);
+   }
+}
+
+/* A click on an arrow shows the month before or after (the day kept, or
+   the month's last); on a day, chooses it. */
+-(void)_trackCalendarAt:(NSPoint)point inView:(NSView *)view {
+   NSRect            frame=[view bounds];
+   BOOL              flipped=[view isFlipped];
+   NSDate           *date=([self dateValue]!=nil)?[self dateValue]:[NSDate date];
+   NSInteger         column,days,day;
+   NSDateComponents *components;
+
+   [self _calendarFirstOfMonthColumn:&column days:&days];
+
+   if(NSMouseInRect(point,[self _calendarArrowFrame:frame flipped:flipped next:NO],flipped) ||
+      NSMouseInRect(point,[self _calendarArrowFrame:frame flipped:flipped next:YES],flipped)){
+    NSDateComponents *step=[[[NSDateComponents alloc] init] autorelease];
+
+    [step setMonth:NSMouseInRect(point,[self _calendarArrowFrame:frame flipped:flipped next:YES],flipped)?1:-1];
+    [self setDateValue:[_calendar dateByAddingComponents:step toDate:date options:0]];
+    return;
+   }
+
+   for(day=1;day<=days;day++){
+    NSInteger cell=column+day-1;
+
+    if(NSMouseInRect(point,[self _calendarDayFrame:frame flipped:flipped row:cell/7 column:cell%7],flipped)){
+     components=[_calendar components:NSYearCalendarUnit|NSMonthCalendarUnit|NSDayCalendarUnit|NSHourCalendarUnit|NSMinuteCalendarUnit|NSSecondCalendarUnit fromDate:date];
+     [components setDay:day];
+     [self setDateValue:[_calendar dateFromComponents:components]];
+     return;
+    }
+   }
+}
+
 -(void)drawWithFrame:(NSRect)frame inView:(NSView *)view {
    NSRect stepper=[self _stepperFrameForFrame:frame];
    NSRect bezel=[self _bezelFrameForFrame:frame];
 
-   NSDrawWhiteBezel(bezel,bezel);
+   _controlView=view;
+   if(_style==NSClockAndCalendarDatePickerStyle){
+    [self _drawCalendarWithFrame:frame inView:view];
+    if([self _showsClock] && !NSIsEmptyRect([self _clockFrameForFrame:frame]))
+     [self _drawClockInRect:[self _clockFrameForFrame:frame] inView:view];
+    return;
+   }
+
+   if(_drawsBackground){
+    [[self backgroundColor] setFill];
+    NSRectFill(NSInsetRect(bezel,1,1));
+   }
+   [[_controlView graphicsStyle] drawTextFieldBorderInRect:bezel bezeledNotLine:YES];
 
    [self drawInteriorWithFrame:frame inView:view];
+
+   if(_style==NSTextFieldDatePickerStyle)
+    return;
 
    [[_controlView graphicsStyle] drawStepperButtonInRect:[self _upArrowFrameForStepperFrame:stepper] clipRect:stepper enabled:[self isEnabled] highlighted:_isUpHighlighted upNotDown:YES];
    [[_controlView graphicsStyle] drawStepperButtonInRect:[self _downArrowFrameForStepperFrame:stepper] clipRect:stepper enabled:[self isEnabled] highlighted:_isDownHighlighted upNotDown:NO];
@@ -423,6 +792,11 @@ static void getRectsInFrameForAttributesStrings(NSRect *rects,NSRect frame,NSArr
 
 -(BOOL)startTrackingAt:(NSPoint)startPoint inView:(NSView *)view {
    startPoint=[view convertPoint:startPoint fromView:nil];
+   if(_style==NSClockAndCalendarDatePickerStyle){
+    [self _trackCalendarAt:startPoint inView:view];
+    [view setNeedsDisplay:YES];
+    return YES;
+   }
    [self selectComponentUnderPoint:startPoint inView:view];
    [self incrementStepperUnderPoint:startPoint inView:view];
    return YES;
@@ -430,6 +804,8 @@ static void getRectsInFrameForAttributesStrings(NSRect *rects,NSRect frame,NSArr
 
 -(BOOL)continueTracking:(NSPoint)lastPoint at:(NSPoint)currentPoint inView:(NSView *)view {
    currentPoint=[view convertPoint:currentPoint fromView:nil];
+   if(_style==NSClockAndCalendarDatePickerStyle)
+    return YES;
    [self selectComponentUnderPoint:currentPoint inView:view];
    return YES;
 }

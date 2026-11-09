@@ -46,6 +46,10 @@ SRCS = 	NSFormatter.m \
 	NSStream/NSInputStream_data.m \
 	NSGarbageCollector.m \
 	NSScanner/NSScanner.m \
+	NSAppleEvent/NSAppleEventDescriptor.m \
+	NSAppleEvent/NSAppleEventManager.m \
+	NSAppleEvent/NSAppleScript.m \
+	NSAppleEvent/NSScriptCommand.m \
 	NSScanner/NSScanner_concrete.m \
 	NSNotificationCenter/NSNotificationCenter.m \
 	NSNotificationCenter/NSObjectToObservers.m \
@@ -81,11 +85,12 @@ SRCS = 	NSFormatter.m \
 	NSRegularExpression.m \
 	NSJSONSerialization.m \
 	NSCache.m \
-	NSEmptyCollections.m \
+	NSConstantLiterals.m \
 	NSSecureCodingSupport.m \
 	NSProgress.m \
 	NSDirectoryEnumerator.m \
 	NSProcessInfo.m \
+	NSBackgroundActivityScheduler.m \
 	NSData/NSData.m \
 	NSData/NSDataBase64.m \
 	NSData/NSData_mapped.m \
@@ -317,6 +322,7 @@ SRCS = 	NSFormatter.m \
 	NSRunLoop/NSInputSourceSet.m \
 	NSRunLoop/NSDelayedPerform.m \
 	NSFileManager.m \
+	NSFileVersion.m \
 	NSAffineTransform.m \
 	NSNotification/NSNotification_concrete.m \
 	NSNotification/NSNotification.m \
@@ -394,7 +400,7 @@ CF_CONSTANTS_KEPT_PRIVATE = _kCFNumberNaN \
 LDFLAGS = --sysroot=${MINKAR_SDKROOT} -Wl,-current_version,1677.104.0 \
 	-Wl,-compatibility_version,300.0.0 -Xlinker -reexport-lobjc \
 	-F${MINKAR_SDKROOT}/System/Library/Frameworks \
-	-Wl,-reexport_framework,CoreFoundation \
+	-Wl,-reexport_framework,CoreFoundation -framework CoreServices \
 	-lSystem -licucore -lcompression \
 	${CF_CONSTANTS_KEPT_PRIVATE:S/^/-Wl,-unexported_symbol,/}
 
@@ -453,7 +459,7 @@ SUBDIR =
 fmwk-install-hook:
 .for dir in ${MINKAR_SDKROOT}/System/Library/Frameworks/ ${SYSROOT_DIR}/System/Library/Frameworks/
 	mkdir -p ${dir}
-	cp -Rf ${.OBJDIR}/${FRAMEWORK}.framework ${dir}
+	rsync -rlc ${.OBJDIR}/${FRAMEWORK}.framework ${dir}
 .endfor
 
 .include <minkar.framework.mk>

@@ -48,20 +48,20 @@ typedef enum {
 - (void)setDrawsBackground:(BOOL)flag;
 - (void)setAllowsTruncatedLabels:(BOOL)flag;
 
-- (int)numberOfTabViewItems;
+- (NSInteger)numberOfTabViewItems;
 - (NSArray *)tabViewItems;
-- (NSTabViewItem *)tabViewItemAtIndex:(int)index;
+- (NSTabViewItem *)tabViewItemAtIndex:(NSInteger)index;
 - (NSTabViewItem *)tabViewItemAtPoint:(NSPoint)point;
-- (int)indexOfTabViewItem:(NSTabViewItem *)item;
-- (int)indexOfTabViewItemWithIdentifier:identifier;
+- (NSInteger)indexOfTabViewItem:(NSTabViewItem *)item;
+- (NSInteger)indexOfTabViewItemWithIdentifier:identifier;
 
 - (void)addTabViewItem:(NSTabViewItem *)item;
 - (void)removeTabViewItem:(NSTabViewItem *)item;
-- (void)insertTabViewItem:(NSTabViewItem *)item atIndex:(int)index;
+- (void)insertTabViewItem:(NSTabViewItem *)item atIndex:(NSInteger)index;
 
 - (NSTabViewItem *)selectedTabViewItem;
 - (void)selectTabViewItem:(NSTabViewItem *)item;
-- (void)selectTabViewItemAtIndex:(int)index;
+- (void)selectTabViewItemAtIndex:(NSInteger)index;
 - (void)selectTabViewItemWithIdentifier:identifier;
 - (void)selectFirstTabViewItem:sender;
 - (void)selectLastTabViewItem:sender;
@@ -69,6 +69,15 @@ typedef enum {
 
 - (void)_itemViewDidChange:(NSTabViewItem *)item;
 
+@end
+
+/* The formal protocol of API 19 (all optional), beside the informal one. */
+@protocol NSTabViewDelegate <NSObject>
+@optional
+- (BOOL)tabView:(NSTabView *)tabView shouldSelectTabViewItem:(NSTabViewItem *)item;
+- (void)tabView:(NSTabView *)tabView willSelectTabViewItem:(NSTabViewItem *)item;
+- (void)tabView:(NSTabView *)tabView didSelectTabViewItem:(NSTabViewItem *)item;
+- (void)tabViewDidChangeNumberOfTabViewItems:(NSTabView *)tabView;
 @end
 
 @interface NSObject (NSTabView_delegate)

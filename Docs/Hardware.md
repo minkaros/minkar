@@ -10,7 +10,7 @@ tracks the list as a whole.
 |---|---|---|
 | QEMU VM | Every change: `boottest`, the local test suite, the CI | Boots to login under TCG and KVM |
 | PC 1: Gigabyte H270N-WIFI | First physical PC | Boots to login from SATA; display, keyboard and network work |
-| PC 2: Mac Pro 6,1 | Second physical PC (gate M1); the vendor's original hardware, to measure the reference | Boots to login from NVMe; 24 threads, display, keyboard and network work |
+| PC 2: Intel Xeon E5-2697 v2 | Second physical PC (gate M1); the vendor's original hardware, to measure the reference | Boots to login from NVMe; 24 threads, display, keyboard and network work |
 | AMD PC | An AMD processor | Pending: no hardware yet (see below) |
 
 **Requirement (decided 7 Nov 2026): an x86-64 processor with AVX** (Intel from Sandy Bridge, 2011; AMD from Bulldozer and Jaguar, 2011 and 2013). Software built for the reference platform may use AVX without asking, and JavaScriptCore's JIT does, as every machine the reference system runs on has it; older processors are left to more generic operating systems. The VMs emulate an Ivy Bridge (`-cpu IvyBridge`). Under TCG, QEMU emulates AVX from 7.2 on (Ubuntu 24.04 has 8.2); with an older QEMU the VM boots, but code that uses AVX stops on an illegal instruction.
@@ -77,7 +77,7 @@ requirement above; it was `-cpu Westmere` until 7 Nov 2026; with
 | Disk | SATA through AHCI (`MinkarAHCIPort`) | Root file system, fsck |
 | Disk | NVMe (M.2), "SK 256GB" (Silicon Motion, PCI 126f:2263) | Root file system: boots from it (`MinkarNVMe`, 2026-10-29), completions by interrupt |
 | USB | xHCI (`MinkarXHCIPort`), USB 2 hub of a KVM switch | Keyboard and mouse, directly and through the switch |
-| Display | GOP framebuffer, Xiaomi 34" ultrawide | Native 3440x1440 text console |
+| Display | AMD Radeon RX 6600 (Navi 23, RDNA2, PCI 1002:73ff); GOP framebuffer, Xiaomi 34" ultrawide | Native 3440x1440 text console, through the firmware's framebuffer (no driver for the card yet; the i7-7700's HD 630 is unused) |
 | Network | Intel I219-V (PCH LAN) | ping on the LAN (`MinkarE1000`) |
 | Network | Intel I211 | DHCP and ping on the LAN (`MinkarE1000`) |
 | Wi-Fi | Intel (M.2) | No driver |
@@ -221,7 +221,7 @@ slow only while the network was misconfigured.
 elements and Braille dots, so btop shows its boxes and graphs as on a
 terminal emulator instead of `+ - | #`.
 
-## PC 2: Mac Pro 6,1
+## PC 2: Intel Xeon E5-2697 v2, AMD FirePro D500
 
 Chosen on 2026-11-01. Gate M1 passed on it that day: `minkar-hwcheck`
 ran unattended with 20 checks passing (boot from the internal NVMe, the
@@ -232,13 +232,13 @@ minutes and no error.
 
 | Part | Device | State |
 |---|---|---|
-| Board | Mac Pro 6,1, the vendor's EFI firmware | Boots the Minkar loader from the internal disk |
+| Board | The vendor's board and EFI firmware | Boots the Minkar loader from the internal disk |
 | CPU | Intel Xeon E5-2697 v2 (12 cores, 24 threads) | All 24 run (SMP) |
 | Memory | 40 GB | Full size seen, round trip checked |
 | Disk | NVMe, Samsung MZVLB256HAHQ (PCI 144d:a808) | Root file system (`MinkarNVMe`) |
 | USB | Fresco Logic FL1100 xHCI (1b73:1100) | Keyboards, directly and through a KVM switch's hub; card reader |
 | USB | Intel USB 2 EHCI (8086:1d26) | No driver |
-| Display | Two AMD FirePro (1002:679e); GOP framebuffer, Xiaomi 34" ultrawide | Native 3440x1440 text console on the card that drives it |
+| Display | Two AMD FirePro D500 (Tahiti, GCN 1.0, PCI 1002:679e); GOP framebuffer, Xiaomi 34" ultrawide | Native 3440x1440 text console on the card that drives it |
 | Network | Two Broadcom BCM57762 (14e4:1682) | DHCP, ssh (`MinkarBGE`); 100 Mb/s on a 100 Mb/s switch |
 
 Images for it are the usual test images; `minkar-hwcheck --display`
