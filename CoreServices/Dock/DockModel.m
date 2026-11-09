@@ -19,8 +19,8 @@ NSNotificationName const DockModelDidChangeNotification = @"DockModelDidChangeNo
 static NSString *const kPersistentApps = @"persistent-apps";
 
 /* Atlas's icons (SystemLibrary/Icons). */
-static NSString *const kTrashIcon = @"/System/Library/Icons/system/user-trash.png";
-static NSString *const kTrashFullIcon = @"/System/Library/Icons/system/user-trash-full.png";
+static NSString *const kTrashEmptyIconPath = @"/System/Library/Icons/system/user-trash.png";
+static NSString *const kTrashFullIconPath = @"/System/Library/Icons/system/user-trash-full.png";
 
 @interface DockTile ()
 @property (nonatomic, strong) NSImage *icon;
@@ -54,7 +54,7 @@ static NSString *const kTrashFullIcon = @"/System/Library/Icons/system/user-tras
         _kind = DockTileKindTrash;
         _URL = [DockTrashURL() copy];
         _label = [NSLocalizedString(@"Trash", nil) copy];
-        _icon = [[NSImage alloc] initWithContentsOfFile:kTrashIcon];
+        _icon = [[NSImage alloc] initWithContentsOfFile:kTrashEmptyIconPath];
         if (_icon == nil)
             _icon = [[NSWorkspace sharedWorkspace] iconForFile:[_URL path]];
     }
@@ -279,7 +279,7 @@ static CGFloat sizePreference(NSUserDefaults *defaults, NSString *key, CGFloat f
     if (full == _trashIsFull && _trashTile.icon != nil)
         return;
     _trashIsFull = full;
-    NSImage *icon = [[NSImage alloc] initWithContentsOfFile:full ? kTrashFullIcon : kTrashIcon];
+    NSImage *icon = [[NSImage alloc] initWithContentsOfFile:full ? kTrashFullIconPath : kTrashEmptyIconPath];
     if (icon != nil)
         _trashTile.icon = icon;
     [[NSNotificationCenter defaultCenter] postNotificationName:DockModelDidChangeNotification object:self];

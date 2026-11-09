@@ -23,6 +23,7 @@
 #include "LSInfo.h"
 #include "LSOpen.h"
 #include "LSSession.h"
+#include "UTType.h"
 
 extern char **environ;
 
@@ -205,6 +206,111 @@ LSCopyApplicationURLsForBundleIdentifier(CFStringRef inBundleIdentifier, CFError
 	return list;
 }
 
+/* -- The user's choices -- */
+
+/* Default handlers the user chose, by URL scheme and by content type, in
+   the user's preferences: an array of dictionaries with the scheme or
+   type and the application's bundle identifier. They come before what
+   launchservicesd finds while the application is installed. */
+#define kHandlersDomain CFSTR("org.minkar.LaunchServices")
+#define kHandlersKey CFSTR("LSHandlers")
+#define kHandlerSchemeKey CFSTR("LSHandlerURLScheme")
+#define kHandlerTypeKey CFSTR("LSHandlerContentType")
+#define kHandlerRoleAllKey CFSTR("LSHandlerRoleAll")
+
+static Boolean
+handlerMatches(CFDictionaryRef handler, CFStringRef kindKey, CFStringRef value)
+{
+	CFStringRef have = CFDictionaryGetValue(handler, kindKey);
+
+	return have != NULL && CFGetTypeID(have) == CFStringGetTypeID() &&
+	    CFStringCompare(have, value, kCFCompareCaseInsensitive) == kCFCompareEqualTo;
+}
+
+static CFStringRef
+copyUserHandler(CFStringRef kindKey, CFStringRef value)
+{
+	CFPropertyListRef handlers = CFPreferencesCopyAppValue(kHandlersKey, kHandlersDomain);
+	CFStringRef found = NULL;
+
+	if (value != NULL && handlers != NULL && CFGetTypeID(handlers) == CFArrayGetTypeID()) {
+		for (CFIndex i = 0, n = CFArrayGetCount(handlers); i < n && found == NULL; i++) {
+			CFDictionaryRef handler = CFArrayGetValueAtIndex(handlers, i);
+			CFStringRef id;
+			if (CFGetTypeID(handler) != CFDictionaryGetTypeID() || !handlerMatches(handler, kindKey, value))
+				continue;
+			id = CFDictionaryGetValue(handler, kHandlerRoleAllKey);
+			if (id != NULL && CFGetTypeID(id) == CFStringGetTypeID())
+				found = CFRetain(id);
+		}
+	}
+	if (handlers != NULL)
+		CFRelease(handlers);
+	return found;
+}
+
+static OSStatus
+setUserHandler(CFStringRef kindKey, CFStringRef value, CFStringRef bundleID)
+{
+	CFPropertyListRef old;
+	CFMutableArrayRef handlers;
+
+	if (value == NULL || bundleID == NULL)
+		return kLSDataErr;
+	old = CFPreferencesCopyAppValue(kHandlersKey, kHandlersDomain);
+	handlers = CFArrayCreateMutable(NULL, 0, &kCFTypeArrayCallBacks);
+	if (old != NULL && CFGetTypeID(old) == CFArrayGetTypeID())
+		for (CFIndex i = 0, n = CFArrayGetCount(old); i < n; i++) {
+			CFDictionaryRef handler = CFArrayGetValueAtIndex(old, i);
+			if (CFGetTypeID(handler) == CFDictionaryGetTypeID() && handlerMatches(handler, kindKey, value))
+				continue;
+			CFArrayAppendValue(handlers, handler);
+		}
+	if (old != NULL)
+		CFRelease(old);
+	const void *keys[] = { kindKey, kHandlerRoleAllKey };
+	const void *values[] = { value, bundleID };
+	CFDictionaryRef handler = CFDictionaryCreate(NULL, keys, values, 2, &kCFTypeDictionaryKeyCallBacks,
+	    &kCFTypeDictionaryValueCallBacks);
+	CFArrayAppendValue(handlers, handler);
+	CFRelease(handler);
+	CFPreferencesSetAppValue(kHandlersKey, handlers, kHandlersDomain);
+	CFRelease(handlers);
+	return CFPreferencesAppSynchronize(kHandlersDomain) ? noErr : kLSDataErr;
+}
+
+/* The path of the user's application for a scheme or type, if installed. */
+static Boolean
+userHandlerPath(CFStringRef kindKey, CFStringRef value, char path[1024])
+{
+	CFStringRef id = copyUserHandler(kindKey, value);
+	char cid[1024];
+	LSSessionPath app;
+	Boolean found = false;
+
+	if (id != NULL && CFStringGetCString(id, cid, sizeof(cid), kCFStringEncodingUTF8) &&
+	    statusFor(LSSessionCopyAppForBundleIdentifier(cid, &app)) == noErr) {
+		strlcpy(path, app.path, 1024);
+		found = true;
+	}
+	if (id != NULL)
+		CFRelease(id);
+	return found;
+}
+
+OSStatus
+LSSetDefaultHandlerForURLScheme(CFStringRef inURLScheme, CFStringRef inHandlerBundleID)
+{
+	return setUserHandler(kHandlerSchemeKey, inURLScheme, inHandlerBundleID);
+}
+
+OSStatus
+LSSetDefaultRoleHandlerForContentType(CFStringRef inContentType, LSRolesMask inRole, CFStringRef inHandlerBundleID)
+{
+	(void)inRole;
+	return setUserHandler(kHandlerTypeKey, inContentType, inHandlerBundleID);
+}
+
 /* -- By type identifier and by URL scheme -- */
 
 static Boolean
@@ -296,6 +402,9 @@ LSCopyAllRoleHandlersForContentType(CFStringRef inContentType, LSRolesMask inRol
 CFStringRef
 LSCopyDefaultRoleHandlerForContentType(CFStringRef inContentType, LSRolesMask inRole)
 {
+	char path[1024];
+	if (userHandlerPath(kHandlerTypeKey, inContentType, path))
+		return copyUserHandler(kHandlerTypeKey, inContentType);
 	CFArrayRef list = LSCopyAllRoleHandlersForContentType(inContentType, inRole);
 	CFStringRef id = list ? CFRetain(CFArrayGetValueAtIndex(list, 0)) : NULL;
 
@@ -310,6 +419,9 @@ LSCopyDefaultApplicationURLForContentType(CFStringRef inContentType, LSRolesMask
 {
 	uint32_t count;
 	OSStatus status;
+	char path[1024];
+	if (userHandlerPath(kHandlerTypeKey, inContentType, path))
+		return urlForPath(path, true);
 	LSSessionPath *apps = copyTypeHandlers(inContentType, inRoleMask, &count, &status);
 	CFURLRef app = apps ? urlForPath(apps[0].path, true) : NULL;
 
@@ -334,6 +446,9 @@ LSCopyAllHandlersForURLScheme(CFStringRef inURLScheme)
 CFStringRef
 LSCopyDefaultHandlerForURLScheme(CFStringRef inURLScheme)
 {
+	char path[1024];
+	if (userHandlerPath(kHandlerSchemeKey, inURLScheme, path))
+		return copyUserHandler(kHandlerSchemeKey, inURLScheme);
 	CFArrayRef list = LSCopyAllHandlersForURLScheme(inURLScheme);
 	CFStringRef id = list ? CFRetain(CFArrayGetValueAtIndex(list, 0)) : NULL;
 
@@ -558,7 +673,14 @@ LSOpenFromURLSpecWithArguments(const LSLaunchURLSpec *inLaunchSpec, CFArrayRef i
 			/* Not a file: the application of its scheme. */
 			CFStringRef scheme = CFURLCopyScheme(item);
 			uint32_t n;
-			LSSessionPath *apps = scheme ? copySchemeHandlers(scheme, &n, &one) : NULL;
+			char chosen[1024];
+			LSSessionPath *apps = NULL;
+			if (scheme != NULL && userHandlerPath(kHandlerSchemeKey, scheme, chosen)) {
+				apps = calloc(1, sizeof(LSSessionPath));
+				if (apps != NULL)
+					strlcpy(apps[0].path, chosen, sizeof(apps[0].path));
+			} else if (scheme != NULL)
+				apps = copySchemeHandlers(scheme, &n, &one);
 			if (scheme == NULL)
 				one = kLSDataErr;
 			if (apps != NULL) {
@@ -576,7 +698,23 @@ LSOpenFromURLSpecWithArguments(const LSLaunchURLSpec *inLaunchSpec, CFArrayRef i
 			    i == 0 ? outLaunchedURL : NULL);
 		else {
 			uint32_t n;
-			LSSessionPath *apps = copyHandlers(item, kLSRolesAll, &n, &one);
+			char chosen[1024];
+			CFStringRef extension = CFURLCopyPathExtension(item);
+			CFStringRef type = extension != NULL ? UTTypeCreatePreferredIdentifierForTag(
+			    kUTTagClassFilenameExtension, extension, NULL) : NULL;
+			LSSessionPath *apps = NULL;
+			if (type != NULL && userHandlerPath(kHandlerTypeKey, type, chosen)) {
+				apps = calloc(1, sizeof(LSSessionPath));
+				if (apps != NULL)
+					strlcpy(apps[0].path, chosen, sizeof(apps[0].path));
+				n = 1;
+				one = noErr;
+			} else
+				apps = copyHandlers(item, kLSRolesAll, &n, &one);
+			if (type != NULL)
+				CFRelease(type);
+			if (extension != NULL)
+				CFRelease(extension);
 			if (apps != NULL && n > 0) {
 				CFArrayRef one_item = CFArrayCreate(NULL, (const void **)&item, 1,
 				    &kCFTypeArrayCallBacks);

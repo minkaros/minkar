@@ -13,11 +13,14 @@ SUBDIR += DiskArbitration
 # Foundation's NSData includes <compression.h> and links it.
 SUBDIR += CoreText/xz
 SUBDIR += ../BSD/lib/libcompression
-SUBDIR += Foundation
-# LaunchServices is inside CoreServices, which re-exports it.
+# CoreServices and the frameworks inside it (LaunchServices, FSEvents,
+# AE), which it re-exports: C on CoreFoundation, before Foundation, whose
+# Apple event classes are built on AE.
+SUBDIR += CoreServices/AE
 SUBDIR += CoreServices/LaunchServices
 SUBDIR += CoreServices/FSEvents
 SUBDIR += CoreServices
+SUBDIR += Foundation
 # IOSurface (roadmap step 4): pixel buffers shared across processes.
 SUBDIR += IOSurface
 SUBDIR += Onyx2D
@@ -62,7 +65,7 @@ all: ${SUBDIR}
 
 # What each one links (or includes) is built before it: the stage runs
 # them in parallel.
-Foundation: CoreFoundation ../BSD/lib/libcompression
+Foundation: CoreFoundation ../BSD/lib/libcompression CoreServices
 ../BSD/lib/libcompression: CoreText/xz
 CoreText: CoreText/xz CoreGraphics Foundation Onyx2D
 IOSurface: CoreFoundation ../Kernel/IOKitUser
@@ -70,7 +73,8 @@ IOSurface: CoreFoundation ../Kernel/IOKitUser
 CoreServices/LaunchServices: CoreFoundation
 Onyx2D: CoreFoundation Foundation
 CoreGraphics: CoreFoundation IOSurface Onyx2D OpenGL ../PrivateFrameworks/SkyLight
-CoreServices: CoreServices/LaunchServices CoreServices/FSEvents
+CoreServices: CoreServices/LaunchServices CoreServices/FSEvents CoreServices/AE
+CoreServices/AE: CoreFoundation
 CoreServices/FSEvents: CoreFoundation
 SystemConfiguration: CoreFoundation ../Kernel/IOKitUser
 DiskArbitration: CoreFoundation ../Kernel/IOKitUser

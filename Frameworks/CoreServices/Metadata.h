@@ -21,6 +21,26 @@ CF_EXPORT const CFStringRef kMDItemContentModificationDate;
 CF_EXPORT const CFStringRef kMDItemContentType;
 CF_EXPORT const CFStringRef kMDItemContentTypeTree;
 CF_EXPORT const CFStringRef kMDItemKind;
+CF_EXPORT const CFStringRef kMDItemContentCreationDate;
+CF_EXPORT const CFStringRef kMDItemLastUsedDate;
+CF_EXPORT const CFStringRef kMDItemFSOwnerUserID;
+CF_EXPORT const CFStringRef kMDItemFSOwnerGroupID;
+CF_EXPORT const CFStringRef kMDItemFSIsExtensionHidden;
+CF_EXPORT const CFStringRef kMDItemFSInvisible;
+CF_EXPORT const CFStringRef kMDItemCFBundleIdentifier;
+CF_EXPORT const CFStringRef kMDItemVersion;
+
+/* A file's metadata, read from the file system and its type when asked
+   (there is no index: queries are not supported). */
+typedef struct __MDItem *MDItemRef;
+
+CF_EXPORT CFTypeID MDItemGetTypeID(void);
+CF_EXPORT MDItemRef MDItemCreate(CFAllocatorRef allocator, CFStringRef path);
+CF_EXPORT MDItemRef MDItemCreateWithURL(CFAllocatorRef allocator, CFURLRef url);
+CF_EXPORT CFTypeRef MDItemCopyAttribute(MDItemRef item, CFStringRef name);
+CF_EXPORT CFDictionaryRef MDItemCopyAttributes(MDItemRef item, CFArrayRef names);
+CF_EXPORT CFArrayRef MDItemCopyAttributeNames(MDItemRef item);
+CF_EXPORT CFDictionaryRef MDItemCopyAttributeList(MDItemRef item, ...);
 
 CF_EXTERN_C_END
 
