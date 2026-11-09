@@ -7,6 +7,7 @@ The above copyright notice and this permission notice shall be included in all c
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE. */
 
 #import <AppKit/NSFontManager.h>
+#include <stdlib.h>
 #import <AppKit/NSFontPanel.h>
 
 @interface NSFontPanel (NSFontManagerMadeInCode)
@@ -185,21 +186,24 @@ static Class _fontPanelFactory;
 }
 
 -(NSFont *)fontWithFamily:(NSString *)familyName traits:(NSFontTraitMask)traits weight:(int)weight size:(float)size {
-	// Note : weight is ignored 
-	
+	/* Of the typefaces with the italic and bold traits asked for, the one
+	   nearest weight (a hint; 9 when bold is asked for). */
 	NSFontFamily *family=[NSFontFamily fontFamilyWithName:familyName];
 	NSArray      *typefaces=[family typefaces];
-	int           i,count=[typefaces count];
-	NSString     *fontName=nil; 
-	
-	for(i=0;i<count;i++){
-		NSFontTypeface *typeface=[typefaces objectAtIndex:i];
+	NSString     *fontName=nil;
+	int           target=(traits&NSBoldFontMask)?9:weight,bestDistance=0;
+
+	for(NSFontTypeface *typeface in typefaces){
 		NSFontTraitMask checkTraits=[typeface traits];
-		
+
 		if(((traits&NSItalicFontMask)==(checkTraits&NSItalicFontMask)) &&
 		   ((traits&NSBoldFontMask)==(checkTraits&NSBoldFontMask))) {
-			fontName = [typeface name];
-			break;
+			int distance=abs([typeface weight]-target);
+
+			if(fontName==nil || distance<bestDistance){
+				fontName=[typeface name];
+				bestDistance=distance;
+			}
 		}
 	}
 	
@@ -222,7 +226,9 @@ static Class _fontPanelFactory;
 }
 
 -(int)weightOfFont:(NSFont *)font {
-	return 5; // default to the normal weight
+   NSFontTypeface *typeface=[NSFontFamily fontTypefaceWithName:[font fontName]];
+
+   return (typeface!=nil)?[typeface weight]:5;
 }
 
 -(NSFontTraitMask)traitsOfFont:(NSFont *)font {
@@ -492,8 +498,24 @@ static Class _fontPanelFactory;
         return nil;
     }
 
-	NSLog(@"convertWeight: %d ofFont: %@ ignored", heavierNotLighter, font);
-	return font;
+   /* The family's next typeface heavier or lighter, keeping italic. */
+   NSFontFamily   *family=[NSFontFamily fontFamilyWithTypefaceName:[font fontName]];
+   NSFontTypeface *current=[family typefaceWithName:[font fontName]];
+   NSFontTypeface *best=nil;
+
+   if(current==nil)
+    return font;
+   for(NSFontTypeface *typeface in [family typefaces]){
+    int weight=[typeface _weightRank];
+
+    if(([typeface traits]&NSItalicFontMask)!=([current traits]&NSItalicFontMask))
+     continue;
+    if(heavierNotLighter?(weight<=[current _weightRank] || (best!=nil && weight>=[best _weightRank]))
+                        :(weight>=[current _weightRank] || (best!=nil && weight<=[best _weightRank])))
+     continue;
+    best=typeface;
+   }
+   return (best!=nil)?[NSFont fontWithName:[best name] size:[font pointSize]]:font;
 }
 
 /* The font panel's effect being sent (an underline, a color...) applied

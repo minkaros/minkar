@@ -25,6 +25,12 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 - (NSString *)displayName;
 - (NSString *)traitName;
 - (NSFontTraitMask)traits;
+/* The weight on NSFontManager's scale (5 regular, 9 bold), from the
+   typeface's name. */
+- (int)weight;
+/* An order of the weights finer than NSFontManager's scale, where Light
+   and ExtraLight differ, for stepping heavier or lighter. */
+- (int)_weightRank;
 
 - (void)addMetric:(NSFontMetric *)metric;
 

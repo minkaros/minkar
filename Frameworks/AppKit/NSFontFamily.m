@@ -8,6 +8,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 // Original - Christopher Lloyd <cjwl@objc.net>
 #import <AppKit/NSFontFamily.h>
+#include <stdlib.h>
 #import <AppKit/NSFontTypeface.h>
 #import <AppKit/NSGraphicsContext.h>
 #import <AppKit/NSDisplay.h>
@@ -141,15 +142,25 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 }
 
 -(NSFontTypeface *)typefaceWithTraits:(NSFontTraitMask)traits {
-   int i,count=[_typefaces count];
+   /* Of the typefaces with these traits, the one nearest the regular
+      weight, or the bold one's when bold is asked for (Bold, not SemiBold
+      or Black). */
+   int             target=(traits&NSBoldFontMask)?9:5;
+   NSFontTypeface *best=nil;
+   int             bestDistance=0;
 
-   for(i=0;i<count;i++){
-    NSFontTypeface *typeface=[_typefaces objectAtIndex:i];
-    if([typeface traits]==traits)
-     return typeface;
+   for(NSFontTypeface *typeface in _typefaces){
+    if([typeface traits]==traits){
+     int distance=abs([typeface weight]-target);
+
+     if(best==nil || distance<bestDistance){
+      best=typeface;
+      bestDistance=distance;
+     }
+    }
    }
 
-   return nil;
+   return best;
 }
 
 -(void)addTypeface:(NSFontTypeface *)typeface {
