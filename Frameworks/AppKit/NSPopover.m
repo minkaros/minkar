@@ -17,6 +17,7 @@
 #import <AppKit/NSPanel.h>
 #import <AppKit/NSScreen.h>
 #import <AppKit/NSView.h>
+#import <AppKit/NSControl.h>
 #import <AppKit/NSViewController.h>
 #import <AppKit/NSWindow.h>
 #import <Foundation/NSDictionary.h>
@@ -228,7 +229,9 @@ NSString *const NSPopoverDidCloseNotification = @"NSPopoverDidCloseNotification"
     NSRectEdge edge = _preferredEdge;
     NSRect visible = [[[_positioningView window] screen] visibleFrame];
 
-    if([_positioningView isFlipped]) {
+    /* Controls are flipped on the reference platform, so a button's
+       NSMaxYEdge is below it there: taken so for any control here too. */
+    if([_positioningView isFlipped] || [_positioningView isKindOfClass:[NSControl class]]) {
         if(edge == NSMinYEdge)
             edge = NSMaxYEdge;
         else if(edge == NSMaxYEdge)
