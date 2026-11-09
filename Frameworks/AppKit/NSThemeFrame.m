@@ -38,11 +38,13 @@ extern void CGNativeBorderFrameWidthsForStyle(unsigned styleMask, CGFloat *top,
  * the window's buttons and its title, drawn over the content; it takes
  * only the buttons' clicks. It covers the frame view, in its coordinates. */
 // all measurements in pixels
-const float NSWindowTitleHeight = 32;
+/* The reference platform's measures: a 22-point title bar, no side or
+   bottom border (the window's shadow outlines it). */
+const float NSWindowTitleHeight = 22;
 const float NSWindowEdgePad = 2;
 const float NSWindowCornerRadius = 8;
-const float NSWindowControlDiameter = 14;
-const float NSWindowControlSpacing = 10;
+const float NSWindowControlDiameter = 12;
+const float NSWindowControlSpacing = 8;
 
 @interface NSTitlebarOverlayView : NSView
 @end
@@ -134,7 +136,7 @@ static void drawControl(O2Context *context, NSRect rect, int kind, BOOL enabled,
         O2ContextSetGrayFillColor(context, hover ? 0.62 : 0.72, 1);
     O2ContextFillEllipseInRect(context, rect);
     if(enabled) {
-        CGFloat inset = 4, midX = NSMidX(rect), midY = NSMidY(rect);
+        CGFloat inset = 3.5, midX = NSMidX(rect), midY = NSMidY(rect);
         CGFloat lo = NSMinX(rect) + inset, hi = NSMaxX(rect) - inset;
         CGFloat bottom = NSMinY(rect) + inset, top = NSMaxY(rect) - inset;
         O2Point lines[4];
@@ -323,14 +325,14 @@ static void drawControl(O2Context *context, NSRect rect, int kind, BOOL enabled,
     NSString *t = [window title];
     if(t && [window titleVisibility] == NSWindowTitleVisible) {
         NSDictionary *attrs = @{
-            NSFontAttributeName : [NSFont titleBarFontOfSize:15.0],
-            NSForegroundColorAttributeName : [NSColor blackColor]
+            NSFontAttributeName : [NSFont systemFontOfSize:13.0],
+            NSForegroundColorAttributeName : [NSColor colorWithCalibratedWhite:0.25 alpha:1]
         };
         NSAttributedString *title = [[[NSAttributedString alloc] initWithString:t attributes:attrs] autorelease];
         NSSize size = [title size];
         NSRect titleRect = NSMakeRect(
             _frame.size.width / 2 - size.width / 2,
-            _frame.size.height - NSWindowTitleHeight / 3 - size.height / 2,
+            floor(_frame.size.height - NSWindowTitleHeight / 2 - size.height / 2),
             size.width, size.height);
         [title drawInRect:titleRect];
     }
