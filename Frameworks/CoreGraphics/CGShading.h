@@ -16,6 +16,7 @@ CF_IMPLICIT_BRIDGING_ENABLED
 
 typedef struct O2Shading *CGShadingRef;
 
+COREGRAPHICS_EXPORT CFTypeID CGShadingGetTypeID(void);
 COREGRAPHICS_EXPORT CGShadingRef CGShadingRetain(CGShadingRef self);
 COREGRAPHICS_EXPORT void CGShadingRelease(CGShadingRef self);
 

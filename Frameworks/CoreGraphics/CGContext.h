@@ -82,6 +82,7 @@ typedef enum {
 
 typedef int CGTextDrawingMode;
 
+COREGRAPHICS_EXPORT CFTypeID CGContextGetTypeID(void);
 COREGRAPHICS_EXPORT CGContextRef _Nullable CGContextRetain(CGContextRef _Nullable context);
 COREGRAPHICS_EXPORT void CGContextRelease(CGContextRef _Nullable context);
 

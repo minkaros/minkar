@@ -15,6 +15,7 @@ typedef struct O2Layer *CGLayerRef;
 /* CF's naming rules for what the functions return (Create, Copy). */
 CF_IMPLICIT_BRIDGING_ENABLED
 
+COREGRAPHICS_EXPORT CFTypeID CGLayerGetTypeID(void);
 COREGRAPHICS_EXPORT CGLayerRef CGLayerRetain(CGLayerRef self);
 COREGRAPHICS_EXPORT void CGLayerRelease(CGLayerRef self);
 

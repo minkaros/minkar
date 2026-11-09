@@ -33,6 +33,7 @@ typedef CF_ENUM(int32_t, CGColorSpaceModel) {
     kCGColorSpaceModelPattern,
 };
 
+COREGRAPHICS_EXPORT CFTypeID CGColorSpaceGetTypeID(void);
 COREGRAPHICS_EXPORT CGColorSpaceRef _Nullable CGColorSpaceRetain(CGColorSpaceRef _Nullable colorSpace);
 COREGRAPHICS_EXPORT void CGColorSpaceRelease(CGColorSpaceRef _Nullable colorSpace);
 

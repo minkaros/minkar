@@ -44,6 +44,7 @@ typedef CF_ENUM(int32_t, CGLineJoin) {
 typedef struct O2MutablePath *CGPathRef;
 typedef struct O2MutablePath *CGMutablePathRef;
 
+COREGRAPHICS_EXPORT CFTypeID CGPathGetTypeID(void);
 COREGRAPHICS_EXPORT void CGPathRelease(CGPathRef _Nullable self);
 COREGRAPHICS_EXPORT CGPathRef _Nullable CGPathRetain(CGPathRef _Nullable self);
 

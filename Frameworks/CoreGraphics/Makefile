@@ -5,6 +5,7 @@ FMWK_COMPAT_VERSION = 64.0.0
 
 SRCS= \
 	CGAffineTransform.m \
+	CGTypeIDs.m \
 	CGBitmapContext.m \
 	CGColor.m \
 	CGColorSpace.m \

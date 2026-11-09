@@ -24,6 +24,7 @@ typedef struct CGDataConsumerCallbacks {
     CGDataConsumerReleaseInfoCallback releaseConsumer;
 } CGDataConsumerCallbacks;
 
+COREGRAPHICS_EXPORT CFTypeID CGDataConsumerGetTypeID(void);
 COREGRAPHICS_EXPORT CGDataConsumerRef CGDataConsumerCreateWithCFData(CFMutableDataRef data);
 COREGRAPHICS_EXPORT CGDataConsumerRef CGDataConsumerCreate(void *info, const CGDataConsumerCallbacks *callbacks);
 COREGRAPHICS_EXPORT CGDataConsumerRef CGDataConsumerCreateWithURL(CFURLRef url);

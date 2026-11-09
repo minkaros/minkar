@@ -30,6 +30,7 @@ typedef enum {
     kCGPatternTilingConstantSpacing,
 } CGPatternTiling;
 
+COREGRAPHICS_EXPORT CFTypeID CGPatternGetTypeID(void);
 COREGRAPHICS_EXPORT CGPatternRef CGPatternRetain(CGPatternRef self);
 COREGRAPHICS_EXPORT void CGPatternRelease(CGPatternRef self);
 
