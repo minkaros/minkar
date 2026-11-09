@@ -249,29 +249,34 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 }
 
 -(void)layout {
-#define BOTTOM_MARGIN 16
-#define TOP_MARGIN 16
-#define LEFT_MARGIN 16
-#define RIGHT_MARGIN 16
+/* The reference platform's measures: about 420 points wide, a 64-point
+   icon, the message in bold 13, the informative text in 11, buttons of
+   13 at least 80 wide (the third and later ones at the text's left). */
+#define BOTTOM_MARGIN 18
+#define TOP_MARGIN 18
+#define LEFT_MARGIN 24
+#define RIGHT_MARGIN 20
 
 // A NSTextField adds a small margin around the text.
 #define TEXTFIELD_MARGIN 2.
 
-#define INTERTEXT_GAP 8.
-#define BUTTON_MARGIN 8
-#define INTERBUTTON_GAP 6
+#define INTERTEXT_GAP 6.
+#define BUTTON_MARGIN 16
+#define INTERBUTTON_GAP 12
 #define OTHER_GAP 20
-#define ICON_MAIN_GAP 20
-#define MAIN_BUTTON_GAP 20
+#define ICON_MAIN_GAP 18
+#define MAIN_BUTTON_GAP 18
+#define MIN_TEXT_WIDTH 290.
+#define MIN_BUTTON_WIDTH 80.
 
    NSSize screenSize=[[NSScreen mainScreen] visibleFrame].size;
    NSSize textSize=NSZeroSize;
    NSStringDrawer *drawer=[NSStringDrawer sharedStringDrawer];
    NSImage *icon=[self icon];
    NSSize iconSize=(icon!=nil)?[icon size]:NSZeroSize;
-   NSDictionary *messageAttributes=[NSDictionary dictionaryWithObjectsAndKeys:[NSFont boldSystemFontOfSize:0],NSFontAttributeName,nil];
+   NSDictionary *messageAttributes=[NSDictionary dictionaryWithObjectsAndKeys:[NSFont boldSystemFontOfSize:13],NSFontAttributeName,nil];
    NSSize messageSize=NSZeroSize;
-   NSDictionary *informativeAttributes=[NSDictionary dictionaryWithObjectsAndKeys:[NSFont systemFontOfSize:0],NSFontAttributeName,nil];
+   NSDictionary *informativeAttributes=[NSDictionary dictionaryWithObjectsAndKeys:[NSFont systemFontOfSize:11],NSFontAttributeName,nil];
    NSSize informativeSize=NSZeroSize;
    float messageInformativeGap=0.;
    NSDictionary *suppressionAttributes=[NSDictionary dictionaryWithObjectsAndKeys:[NSFont systemFontOfSize:0],NSFontAttributeName,nil];
@@ -282,9 +287,12 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    NSSize mainSize=NSZeroSize;
    NSSize panelSize=NSZeroSize;
    int i,count=[_buttons count];
-   NSSize okCancelButtonSize=NSMakeSize(40,24);
+   NSSize okCancelButtonSize=NSMakeSize(MIN_BUTTON_WIDTH,24);
    NSSize otherButtonSize=okCancelButtonSize;
    NSSize allButtonsSize=NSZeroSize;
+
+   for(i=0;i<count;i++)
+    [[_buttons objectAtIndex:i] setFont:[NSFont systemFontOfSize:13]];
 
    // Size the buttons.
    for(i=0;i<count && i<2;i++){
@@ -323,7 +331,8 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    }
 
    // Size the main reasonable and at least wide enough to make all buttons fit.
-   mainSize.width=MAX(screenSize.width/3.,allButtonsSize.width-iconSize.width-ICON_MAIN_GAP);
+   mainSize.width=MAX(MIN_TEXT_WIDTH,allButtonsSize.width-iconSize.width-ICON_MAIN_GAP);
+   (void)screenSize;
    mainSize.width=MAX(mainSize.width,accessorySize.width);
 
    // Size the texts.
@@ -421,16 +430,22 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
   }
 
   NSPoint origin={panelSize.width-RIGHT_MARGIN,BOTTOM_MARGIN};
+  CGFloat otherX=LEFT_MARGIN+iconSize.width+ICON_MAIN_GAP;
 
   for(i=0;i<count;i++){
    NSButton *button=[_buttons objectAtIndex:i];
    NSSize    bSize=[button frame].size;
 
-   origin.x-=bSize.width;
-   [button setFrameOrigin:origin];
-   origin.x-=INTERBUTTON_GAP;
-   if(i==1)
-    origin.x-=OTHER_GAP;
+   if(i<2){
+    origin.x-=bSize.width;
+    [button setFrameOrigin:origin];
+    origin.x-=INTERBUTTON_GAP;
+   }
+   else {
+    /* The third and later buttons from the text's left edge. */
+    [button setFrameOrigin:NSMakePoint(otherX,BOTTOM_MARGIN)];
+    otherX+=bSize.width+INTERBUTTON_GAP;
+   }
    [[_window contentView] addSubview:button];
   }
 
