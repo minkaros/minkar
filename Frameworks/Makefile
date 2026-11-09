@@ -53,6 +53,10 @@ SUBDIR += AudioToolbox
 SUBDIR += OSAKit
 SUBDIR += Carbon
 SUBDIR += Quartz
+# WebKit: the web view classes (WPE WebKit is to be their engine).
+SUBDIR += WebKit
+# Uniform types as objects (API 20).
+SUBDIR += UniformTypeIdentifiers
 # The umbrella apps import and link.
 SUBDIR += Cocoa
 # System Preferences' panes.
@@ -101,6 +105,8 @@ AudioToolbox: CoreFoundation
 OSAKit: Foundation
 Carbon: CoreServices ApplicationServices
 Quartz: AppKit
+WebKit: AppKit
+UniformTypeIdentifiers: Foundation CoreServices
 ApplicationServices: CoreGraphics CoreText
 ImageIO: CoreGraphics
 Cocoa: AppKit CoreData
