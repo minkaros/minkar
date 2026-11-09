@@ -10,13 +10,13 @@ MK_WERROR = no
 FRAMEWORK = ApplicationServices
 FMWK_VERSION = A
 FMWK_COMPAT_VERSION = 1.0.0
-SRCS = ApplicationServices.c
-HEADERS = ApplicationServices.h
+SRCS = ApplicationServices.c Processes.c
+HEADERS = ApplicationServices.h Processes.h UniversalAccess.h
 SUBDIR =
 
 FMWKS = ${MINKAR_SDKROOT}/System/Library/Frameworks
 LDFLAGS += -F${FMWKS} -Wl,-reexport_framework,CoreServices -Wl,-reexport_framework,CoreGraphics \
-	-Wl,-reexport_framework,CoreText
+	-Wl,-reexport_framework,CoreText -framework CoreFoundation -lobjc
 
 fmwk-install-hook:
 	mkdir -p ${MINKAR_SDKROOT}/System/Library/Frameworks \
