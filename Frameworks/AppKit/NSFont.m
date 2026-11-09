@@ -163,16 +163,18 @@ static NSLock *_cacheLock=nil;
     [_cacheLock unlock];
 }
 
+/* The reference's sizes: 13 for the system font, 11 small, 10 for
+   labels; a size of 0 asks for the one of the font's kind. */
 +(float)systemFontSize {
-   return 12.0;
+   return 13.0;
 }
 
 +(float)smallSystemFontSize {
-   return 10.0;
+   return 11.0;
 }
 
 +(float)labelFontSize {
-   return 12.0;
+   return 10.0;
 }
 
 +(float)systemFontSizeForControlSize:(NSControlSize)size {
@@ -214,11 +216,11 @@ static NSLock *_cacheLock=nil;
 }
 
 +(NSFont *)controlContentFontOfSize:(float)size {
-    return [self _uiFontOfType:kCTFontControlContentFontType size:(size==0)?10.0:size fallbackName:@"Inter-Regular"];
+    return [self _uiFontOfType:kCTFontControlContentFontType size:(size<=0)?[self systemFontSize]:size fallbackName:@"Inter-Regular"];
 }
 
 +(NSFont *)labelFontOfSize:(float)size {
-    return [self _uiFontOfType:kCTFontLabelFontType size:(size==0)?10.0:size fallbackName:@"Inter-Regular"];
+    return [self _uiFontOfType:kCTFontLabelFontType size:(size<=0)?[self labelFontSize]:size fallbackName:@"Inter-Regular"];
 }
 
 +(NSFont *)menuFontOfSize:(float)size {
@@ -230,11 +232,11 @@ static NSLock *_cacheLock=nil;
 }
 
 +(NSFont *)messageFontOfSize:(float)size {
-    return [self _uiFontOfType:kCTFontSystemFontType size:(size==0)?10.0:size fallbackName:@"Inter-Regular"];
+    return [self _uiFontOfType:kCTFontSystemFontType size:(size<=0)?[self systemFontSize]:size fallbackName:@"Inter-Regular"];
 }
 
 +(NSFont *)paletteFontOfSize:(float)size {
-    return [self _uiFontOfType:kCTFontPaletteFontType size:(size==0)?10.0:size fallbackName:@"Inter-Regular"];
+    return [self _uiFontOfType:kCTFontPaletteFontType size:(size<=0)?[self smallSystemFontSize]:size fallbackName:@"Inter-Regular"];
 }
 
 +(NSFont *)systemFontOfSize:(float)size {
@@ -246,11 +248,11 @@ static NSLock *_cacheLock=nil;
 }
 
 +(NSFont *)toolTipsFontOfSize:(float)size {
-    return [self _uiFontOfType:kCTFontToolTipFontType size:(size==0)?9.:size fallbackName:@"Inter-Regular"];
+    return [self _uiFontOfType:kCTFontToolTipFontType size:(size<=0)?[self smallSystemFontSize]:size fallbackName:@"Inter-Regular"];
 }
 
 +(NSFont *)userFontOfSize:(float)size {
-   return [NSFont fontWithName:[O2Font postscriptNameForDisplayName:@"Inter-Regular"] size:(size==0)?10.0:size];
+   return [NSFont fontWithName:[O2Font postscriptNameForDisplayName:@"Inter-Regular"] size:(size<=0)?12.0:size];
 }
 
 /* The user's fixed-pitch font: the NSFixedPitchFont default (a

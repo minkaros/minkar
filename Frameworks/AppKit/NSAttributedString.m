@@ -350,9 +350,29 @@ NSString * const NSSpellingStateAttributeName=@"NSSpellingStateAttributeName"; /
 #pragma mark -
 #pragma mark Getting the Bounding Rectangle of Rendered Strings
 
+/* With NSStringDrawingUsesLineFragmentOrigin, the text laid out in lines
+   of size's width (0: no limit), from the first line's top left;
+   without it, on one line, from the baseline's start: below the baseline
+   is negative. */
 -(NSRect)boundingRectWithSize:(NSSize)size options:(NSStringDrawingOptions)options {
-	NSUnimplementedMethod();
-	return NSMakeRect(0,0,0,0);
+	if([self length]==0)
+		return NSZeroRect;
+	if(options&NSStringDrawingUsesLineFragmentOrigin){
+		NSSize limit=NSMakeSize((size.width>0)?size.width:NSStringDrawerLargeDimension,
+		                        (size.height>0)?size.height:NSStringDrawerLargeDimension);
+		NSSize used=[[NSStringDrawer sharedStringDrawer] sizeOfAttributedString:self inSize:limit];
+
+		return NSMakeRect(0,0,used.width,used.height);
+	}
+
+	NSSize  line=[self size];
+	NSFont *font=[self attribute:NSFontAttributeName atIndex:0 effectiveRange:NULL];
+
+	if(font==nil)
+		font=[NSFont fontWithName:@"Helvetica" size:12];
+	if(font==nil)
+		font=[NSFont systemFontOfSize:12];
+	return NSMakeRect(0,[font descender],line.width,line.height);
 }
 
 #pragma mark -

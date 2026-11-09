@@ -19,12 +19,27 @@ enum {
 
 typedef NSInteger NSStringDrawingOptions;
 
+/* What drawing or measuring with a context did: the scale it used (1:
+   none) and the bounds of what was drawn. */
+@interface NSStringDrawingContext : NSObject {
+    CGFloat _minimumScaleFactor;
+    CGFloat _actualScaleFactor;
+    NSRect _totalBounds;
+}
+@property CGFloat minimumScaleFactor;
+@property (readonly) CGFloat actualScaleFactor;
+@property (readonly) NSRect totalBounds;
+@end
+
 @interface NSString (NSStringDrawing)
 - (void)drawAtPoint:(NSPoint)point withAttributes:(NSDictionary *)attributes;
 - (void)drawInRect:(NSRect)rect withAttributes:(NSDictionary *)attributes;
 
 - (NSSize)sizeWithAttributes:(NSDictionary *)attributes;
 - (NSRect)boundingRectWithSize:(NSSize)size options:(NSStringDrawingOptions)options attributes:(NSDictionary *)attributes;
+- (void)drawWithRect:(NSRect)rect options:(NSStringDrawingOptions)options attributes:(NSDictionary *)attributes;
+- (NSRect)boundingRectWithSize:(NSSize)size options:(NSStringDrawingOptions)options attributes:(NSDictionary *)attributes context:(NSStringDrawingContext *)context;
+- (void)drawWithRect:(NSRect)rect options:(NSStringDrawingOptions)options attributes:(NSDictionary *)attributes context:(NSStringDrawingContext *)context;
 
 @end
 
@@ -32,6 +47,8 @@ typedef NSInteger NSStringDrawingOptions;
 - (void)drawAtPoint:(NSPoint)point;
 - (void)drawInRect:(NSRect)rect;
 - (void)drawWithRect:(NSRect)rect options:(NSStringDrawingOptions)options;
+- (NSRect)boundingRectWithSize:(NSSize)size options:(NSStringDrawingOptions)options context:(NSStringDrawingContext *)context;
+- (void)drawWithRect:(NSRect)rect options:(NSStringDrawingOptions)options context:(NSStringDrawingContext *)context;
 
 - (NSSize)size;
 
