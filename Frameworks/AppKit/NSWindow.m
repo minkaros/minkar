@@ -1256,6 +1256,25 @@ NSArray *_NSWindowNumbersFromWindowInfo(CFArrayRef info,BOOL allApps) {
    SLSSetWindowAlpha(slsWindowFor(_number), value);
 }
 
+/* A toolbar set on a window takes its room from the content view, the
+   window keeping its frame, as on the reference platform (an app that
+   lays out its content for the window's size before adding the toolbar
+   sees it so there). */
+-(void)_toolbarSetFromOldHeight:(CGFloat)oldHeight {
+   NSView *toolbarView=[_toolbar _view];
+   NSRect  content=[[self contentView] frame];
+   CGFloat newHeight,delta;
+
+   [_toolbar layoutFrameSizeWithWidth:NSWidth([[self _backgroundView] bounds])];
+   newHeight=(_toolbar==nil)?0:[_toolbar visibleHeight];
+   delta=newHeight-oldHeight;
+   content.size.height=MAX(0,content.size.height-delta);
+   [[self contentView] setFrame:content];
+   if(toolbarView!=nil)
+    [toolbarView setFrameOrigin:NSMakePoint([self _backgroundView].bounds.origin.x,NSMaxY(content))];
+   [[self _backgroundView] setNeedsDisplay:YES];
+}
+
 -(void)_toolbarSizeDidChangeFromOldHeight:(CGFloat)oldHeight {
    CGFloat    newHeight,contentHeightDelta;
    NSView    *toolbarView=[_toolbar _view];
@@ -1302,7 +1321,7 @@ NSArray *_NSWindowNumbersFromWindowInfo(CFArrayRef info,BOOL allApps) {
      [[self _backgroundView] addSubview:[_toolbar _view]];
      [[self _backgroundView] setNeedsDisplay:YES];
     }
-    [self _toolbarSizeDidChangeFromOldHeight:oldHeight];
+    [self _toolbarSetFromOldHeight:oldHeight];
    }
 }
 
