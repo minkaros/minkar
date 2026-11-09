@@ -90,6 +90,10 @@ SOFTWARE. */
     }
 
     result.origin = NSMakePoint(NSMaxX(previousBorderRect)+6,floor(([self bounds].size.height-titleSize.height)/2));
+    /* The app's name stands apart from the system menu's logo, as on the
+       reference platform. */
+    if([[_menu itemArray] indexOfObjectIdenticalTo:item]==1)
+        result.origin.x+=10;
     result.size = titleSize;
 
     return result;
