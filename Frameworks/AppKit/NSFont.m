@@ -9,6 +9,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 #import <sys/param.h>
 #import <AppKit/NSFont.h>
+#import <AppKit/KTFont.h>
 #include <math.h>
 #import <AppKit/NSFontDescriptor.h>
 #import <AppKit/NSFontFamily.h>
@@ -211,7 +212,7 @@ static NSLock *_cacheLock=nil;
 
         result=[NSFont fontWithName:name size:size];
 
-        [ctFont release];
+        CFRelease(ctFont);
         [name release];
     } else {
         result = [NSFont fontWithName:[O2Font postscriptNameForDisplayName:fallbackName] size:size];
@@ -415,7 +416,7 @@ static NSString *interFaceForWeight(NSFontWeight weight){
         if (_cgFont) {
                 _ctFont=CTFontCreateWithGraphicsFont(_cgFont,_pointSize,NULL,NULL);
                 [[self class] addFontToCache:self];
-        O2FontLog(@"name: %@ _cgFont: %@ _ctFont: %@", name, _cgFont, _ctFont);
+        O2FontLog(@"name: %@ _cgFont: %@ _ctFont: %@", name, _cgFont, (id)_ctFont);
         } else {
                 [self release];
                 self = nil;
@@ -428,7 +429,8 @@ static NSString *interFaceForWeight(NSFontWeight weight){
 
    [_name release];
    CGFontRelease(_cgFont);
-   [_ctFont release];
+   if(_ctFont!=NULL)
+    CFRelease(_ctFont);
    [super dealloc];
 }
 
@@ -682,6 +684,12 @@ arrayWithArray:[_name componentsSeparatedByString:blank]];
    return CTFontGetUnderlineThickness(_ctFont);
 }
 
+/* The CoreText font this font draws with: CoreText takes an NSFont where
+   it takes a CTFont (kCTFontAttributeName), as on the reference platform. */
+-(CTFontRef)_ctFont {
+   return _ctFont;
+}
+
 -(CGFloat)ascender {
    return CTFontGetAscent(_ctFont);
 }
@@ -753,7 +761,7 @@ arrayWithArray:[_name componentsSeparatedByString:blank]];
 }
 
 -(NSPoint)positionOfGlyph:(NSGlyph)current precededByGlyph:(NSGlyph)previous isNominal:(BOOL *)isNominalp {
-   return [_ctFont positionOfGlyph:current precededByGlyph:previous isNominal:isNominalp];
+   return [(KTFont *)_ctFont positionOfGlyph:current precededByGlyph:previous isNominal:isNominalp];
 }
 
 -(void)getAdvancements:(NSSize *)advancements forGlyphs:(const NSGlyph *)glyphs count:(NSUInteger)count {

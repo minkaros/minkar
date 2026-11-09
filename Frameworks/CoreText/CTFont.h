@@ -18,17 +18,10 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <CoreGraphics/CGFont.h>
 #import <CoreGraphics/CGPath.h>
 
-#ifdef __OBJC__
-@class KTFont;
-
-typedef KTFont *CTFontRef;
-#define CT_FONT_ATTRIBUTES id
-#define CT_FONT_LANGUAGE NSString *
-#else
+/* A CF type in the API; CoreText's KTFont objects behind it. */
 typedef const struct __CTFont *CTFontRef;
 #define CT_FONT_ATTRIBUTES CFTypeRef
 #define CT_FONT_LANGUAGE CFStringRef
-#endif
 
 typedef enum {
     kCTFontSystemFontType = 2,
@@ -75,3 +68,41 @@ CORETEXT_EXPORT CGFloat CTFontGetSlantAngle(CTFontRef self);
 CORETEXT_EXPORT CGFloat CTFontGetXHeight(CTFontRef self);
 CORETEXT_EXPORT CGFloat CTFontGetCapHeight(CTFontRef self);
 CORETEXT_EXPORT CGPathRef CTFontCreatePathForGlyph(CTFontRef self, CGGlyph glyph, CGAffineTransform *xform);
+
+typedef CF_OPTIONS(uint32_t, CTFontSymbolicTraits) {
+    kCTFontTraitItalic = (1 << 0),
+    kCTFontTraitBold = (1 << 1),
+    kCTFontTraitExpanded = (1 << 5),
+    kCTFontTraitCondensed = (1 << 6),
+    kCTFontTraitMonoSpace = (1 << 10),
+    kCTFontTraitVertical = (1 << 11),
+    kCTFontTraitUIOptimized = (1 << 12),
+    kCTFontTraitColorGlyphs = (1 << 13),
+    kCTFontTraitComposite = (1 << 14),
+    kCTFontTraitClassMask = (15U << 28),
+    kCTFontItalicTrait = kCTFontTraitItalic,
+    kCTFontBoldTrait = kCTFontTraitBold,
+    kCTFontExpandedTrait = kCTFontTraitExpanded,
+    kCTFontCondensedTrait = kCTFontTraitCondensed,
+    kCTFontMonoSpaceTrait = kCTFontTraitMonoSpace,
+    kCTFontVerticalTrait = kCTFontTraitVertical,
+    kCTFontUIOptimizedTrait = kCTFontTraitUIOptimized,
+    kCTFontColorGlyphsTrait = kCTFontTraitColorGlyphs,
+    kCTFontCompositeTrait = kCTFontTraitComposite,
+    kCTFontClassMaskTrait = kCTFontTraitClassMask
+};
+
+/* A font by PostScript or full name; size 0 is 12 points. */
+CORETEXT_EXPORT CTFontRef CTFontCreateWithName(CFStringRef name, CGFloat size, const CGAffineTransform *matrix);
+CORETEXT_EXPORT CTFontRef CTFontCreateCopyWithAttributes(CTFontRef font, CGFloat size, const CGAffineTransform *matrix, CT_FONT_ATTRIBUTES attributes);
+/* The same family with the traits changed (bold and italic); NULL when
+   the family has no such face. */
+CORETEXT_EXPORT CTFontRef CTFontCreateCopyWithSymbolicTraits(CTFontRef font, CGFloat size, const CGAffineTransform *matrix,
+                                                             CTFontSymbolicTraits symTraitValue, CTFontSymbolicTraits symTraitMask);
+CORETEXT_EXPORT CTFontSymbolicTraits CTFontGetSymbolicTraits(CTFontRef font);
+CORETEXT_EXPORT CFStringRef CTFontCopyPostScriptName(CTFontRef font);
+CORETEXT_EXPORT CFStringRef CTFontCopyFamilyName(CTFontRef font);
+CORETEXT_EXPORT CFStringRef CTFontCopyDisplayName(CTFontRef font);
+CORETEXT_EXPORT CGFontRef CTFontCopyGraphicsFont(CTFontRef font, CT_FONT_ATTRIBUTES *attributes);
+CORETEXT_EXPORT CGFloat CTFontGetUnitsPerEm(CTFontRef font);
+CORETEXT_EXPORT CFTypeID CTFontGetTypeID(void);
