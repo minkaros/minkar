@@ -122,7 +122,7 @@ typedef enum {
 - (NSRect)boundingRectForGlyphRange:(NSRange)glyphRange inTextContainer:(NSTextContainer *)container;
 - (NSRect *)rectArrayForGlyphRange:(NSRange)glyphRange withinSelectedGlyphRange:(NSRange)selectedGlyphRange inTextContainer:(NSTextContainer *)container rectCount:(NSUInteger *)rectCount;
 
-- (NSUInteger)characterIndexForGlyphAtIndex:(unsigned)glyphIndex;
+- (NSUInteger)characterIndexForGlyphAtIndex:(NSUInteger)glyphIndex;
 - (NSRange)characterRangeForGlyphRange:(NSRange)glyphRange actualGlyphRange:(NSRange *)actualGlyphRange;
 - (NSRect *)rectArrayForCharacterRange:(NSRange)characterRange withinSelectedCharacterRange:(NSRange)selectedCharRange inTextContainer:(NSTextContainer *)container rectCount:(NSUInteger *)rectCount;
 

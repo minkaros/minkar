@@ -101,9 +101,9 @@ enum {
 #pragma mark Calculating Linguistic Units
 
 - (NSRange)doubleClickAtIndex:(NSUInteger)index;
-- (NSUInteger)lineBreakBeforeIndex:(unsigned)index withinRange:(NSRange)range;
-- (NSUInteger)lineBreakByHyphenatingBeforeIndex:(unsigned)index withinRange:(NSRange)range;
-- (NSUInteger)nextWordFromIndex:(unsigned)index forward:(BOOL)forward;
+- (NSUInteger)lineBreakBeforeIndex:(NSUInteger)index withinRange:(NSRange)range;
+- (NSUInteger)lineBreakByHyphenatingBeforeIndex:(NSUInteger)index withinRange:(NSRange)range;
+- (NSUInteger)nextWordFromIndex:(NSUInteger)index forward:(BOOL)forward;
 
 #pragma mark -
 #pragma mark Calculating Ranges

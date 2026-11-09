@@ -154,7 +154,7 @@
    return NO;
 }
 
--(float)hyphenationFactorForGlyphAtIndex:(unsigned)glyphIndex {
+-(float)hyphenationFactorForGlyphAtIndex:(NSUInteger)glyphIndex {
    return 0.0;
 }
 
@@ -304,15 +304,15 @@
    return nil;
 }
 
--(CGFloat)lineSpacingAfterGlyphAtIndex:(unsigned)glyphIndex withProposedLineFragmentRect:(NSRect)rect {
+-(CGFloat)lineSpacingAfterGlyphAtIndex:(NSUInteger)glyphIndex withProposedLineFragmentRect:(NSRect)rect {
    return [[self _paragraphStyleAfterGlyphIndex:glyphIndex] lineSpacing];
 }
 
--(CGFloat)paragraphSpacingAfterGlyphAtIndex:(unsigned)glyphIndex withProposedLineFragmentRect:(NSRect)rect {
+-(CGFloat)paragraphSpacingAfterGlyphAtIndex:(NSUInteger)glyphIndex withProposedLineFragmentRect:(NSRect)rect {
    return [[self _paragraphStyleAfterGlyphIndex:glyphIndex] paragraphSpacing];
 }
 
--(CGFloat)paragraphSpacingBeforeGlyphAtIndex:(unsigned)glyphIndex withProposedLineFragmentRect:(NSRect)rect {
+-(CGFloat)paragraphSpacingBeforeGlyphAtIndex:(NSUInteger)glyphIndex withProposedLineFragmentRect:(NSRect)rect {
    return [[self _paragraphStyleBeforeGlyphIndex:glyphIndex] paragraphSpacingBefore];
 }
 

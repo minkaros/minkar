@@ -180,18 +180,18 @@ NSString * const NSSpellingStateAttributeName=@"NSSpellingStateAttributeName"; /
 	return result;
 }
 
--(NSUInteger)lineBreakBeforeIndex:(unsigned)index withinRange:(NSRange)range {
+-(NSUInteger)lineBreakBeforeIndex:(NSUInteger)index withinRange:(NSRange)range {
 	NSUnimplementedMethod();
 	return 0;
 }
 
--(NSUInteger)lineBreakByHyphenatingBeforeIndex:(unsigned)index withinRange:(NSRange)range {
+-(NSUInteger)lineBreakByHyphenatingBeforeIndex:(NSUInteger)index withinRange:(NSRange)range {
 	NSUnimplementedMethod();
 	return 0;
 }
 
 /* as usual, the documentation says one thing and the system behaves differently, this is the way i think it should work... (dwy 5/11/2003) */
--(NSUInteger)nextWordFromIndex:(unsigned)location forward:(BOOL)forward {
+-(NSUInteger)nextWordFromIndex:(NSUInteger)location forward:(BOOL)forward {
     NSCharacterSet *alpha = [NSCharacterSet alphanumericCharacterSet];
     NSString *string = [self string];
     int i = location, length = [self length];

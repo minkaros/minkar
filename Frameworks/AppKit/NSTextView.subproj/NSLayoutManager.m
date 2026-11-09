@@ -1293,7 +1293,7 @@ static inline void _appendRectToCache(NSLayoutManager *self,NSRect rect){
         return _rectCache;
 }
 
--(NSUInteger)characterIndexForGlyphAtIndex:(unsigned)glyphIndex {
+-(NSUInteger)characterIndexForGlyphAtIndex:(NSUInteger)glyphIndex {
 // Validate glyphs;
 
    return glyphIndex;

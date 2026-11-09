@@ -537,7 +537,7 @@ static NSDictionary *applicationDictionary(NSRunningApplication *app) {
    NSInvalidAbstractInvocation();
 }
 
--(NSInteger)extendPowerOffBy:(int)milliseconds {
+-(NSInteger)extendPowerOffBy:(NSInteger)milliseconds {
    NSInvalidAbstractInvocation();
    return 0;
 }

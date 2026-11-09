@@ -79,7 +79,7 @@ typedef enum {
 
 - (BOOL)shouldBreakLineByWordBeforeCharacterAtIndex:(NSUInteger)characterIndex;
 
-- (float)hyphenationFactorForGlyphAtIndex:(unsigned)glyphIndex;
+- (float)hyphenationFactorForGlyphAtIndex:(NSUInteger)glyphIndex;
 
 - (unichar)hyphenCharacterForGlyphAtIndex:(NSUInteger)glyphIndex;
 
@@ -117,9 +117,9 @@ typedef enum {
 
 - (void)getLineFragmentRect:(NSRect *)fragmentRect usedRect:(NSRect *)usedRect forParagraphSeparatorGlyphRange:(NSRange)glyphRange atProposedOrigin:(NSPoint)proposedOrigin;
 
-- (CGFloat)lineSpacingAfterGlyphAtIndex:(unsigned)glyphIndex withProposedLineFragmentRect:(NSRect)rect;
-- (CGFloat)paragraphSpacingAfterGlyphAtIndex:(unsigned)glyphIndex withProposedLineFragmentRect:(NSRect)rect;
-- (CGFloat)paragraphSpacingBeforeGlyphAtIndex:(unsigned)glyphIndex withProposedLineFragmentRect:(NSRect)rect;
+- (CGFloat)lineSpacingAfterGlyphAtIndex:(NSUInteger)glyphIndex withProposedLineFragmentRect:(NSRect)rect;
+- (CGFloat)paragraphSpacingAfterGlyphAtIndex:(NSUInteger)glyphIndex withProposedLineFragmentRect:(NSRect)rect;
+- (CGFloat)paragraphSpacingBeforeGlyphAtIndex:(NSUInteger)glyphIndex withProposedLineFragmentRect:(NSRect)rect;
 
 - (NSUInteger)layoutParagraphAtPoint:(NSPoint *)point;
 

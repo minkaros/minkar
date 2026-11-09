@@ -53,7 +53,7 @@ APPKIT_EXPORT NSString *const NSOutlineViewSelectionIsChangingNotification;
 
 - (BOOL)isExpandable:item;
 - (NSInteger)levelForItem:item;
-- (NSInteger)levelForRow:(int)row;
+- (NSInteger)levelForRow:(NSInteger)row;
 - (BOOL)isItemExpanded:item;
 - (CGFloat)indentationPerLevel;
 

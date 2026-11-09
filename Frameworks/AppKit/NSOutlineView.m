@@ -198,7 +198,7 @@ static inline id childOfItemAtIndex(NSOutlineView *self,id item,int index){
     return level;
 }
 
--(NSInteger)levelForRow:(int)row {
+-(NSInteger)levelForRow:(NSInteger)row {
     return [self levelForItem:[self itemAtRow:row]];
 }
 

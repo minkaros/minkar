@@ -99,7 +99,7 @@ APPKIT_EXPORT NSString *const NSWorkspaceDesktopImageFillColorKey;    /* NSColor
 - (NSDictionary *)activeApplication;
 - (void)hideOtherApplications;
 
-- (NSInteger)extendPowerOffBy:(int)milliseconds;
+- (NSInteger)extendPowerOffBy:(NSInteger)milliseconds;
 
 @end
 
