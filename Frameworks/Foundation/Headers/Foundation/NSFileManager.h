@@ -150,7 +150,15 @@ typedef NS_ENUM(NSInteger, NSURLRelationship) {
 
 @end
 
+typedef NS_OPTIONS(NSUInteger, NSVolumeEnumerationOptions) {
+    NSVolumeEnumerationSkipHiddenVolumes = 1UL << 1,
+    NSVolumeEnumerationProduceFileReferenceURLs = 1UL << 2,
+};
+
 @interface NSFileManager (NSURLResources)
+/* The mount points of the mounted file systems (without the system's
+   own, such as devfs, when hidden ones are skipped). */
+- (nullable NSArray<NSURL *> *)mountedVolumeURLsIncludingResourceValuesForKeys:(nullable NSArray<NSURLResourceKey> *)propertyKeys options:(NSVolumeEnumerationOptions)options;
 - (NSArray<NSURL *> *)URLsForDirectory:(NSSearchPathDirectory)directory inDomains:(NSSearchPathDomainMask)domainMask;
 - (nullable NSURL *)URLForDirectory:(NSSearchPathDirectory)directory inDomain:(NSSearchPathDomainMask)domain
                   appropriateForURL:(nullable NSURL *)url create:(BOOL)shouldCreate error:(NSError **)error;

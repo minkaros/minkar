@@ -41,6 +41,41 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 @implementation NSString(NSStringPathUtilities)
 
+/* The files in the path's folder whose names begin with its last part
+   (and, with filterTypes, have one of those extensions): outputName gets
+   their longest common beginning, outputArray them sorted. */
+-(NSUInteger)completePathIntoString:(NSString **)outputName caseSensitive:(BOOL)flag matchesIntoArray:(NSArray **)outputArray filterTypes:(NSArray *)filterTypes {
+    NSString *expanded = [self stringByExpandingTildeInPath];
+    BOOL endsInSlash = [expanded hasSuffix:@"/"];
+    NSString *directory = endsInSlash ? expanded : [expanded stringByDeletingLastPathComponent];
+    NSString *prefix = endsInSlash ? @"" : [expanded lastPathComponent];
+    NSMutableArray *matches = [NSMutableArray array];
+    NSStringCompareOptions options = flag ? 0 : NSCaseInsensitiveSearch;
+
+    if ([directory length] == 0)
+        directory = @".";
+    for (NSString *name in [[NSFileManager defaultManager] contentsOfDirectoryAtPath:directory error:NULL]) {
+        if ([prefix length] > 0 && ([name length] < [prefix length] ||
+            [name compare:prefix options:options range:NSMakeRange(0, [prefix length])] != NSOrderedSame))
+            continue;
+        if ([filterTypes count] > 0 && ![filterTypes containsObject:[name pathExtension]])
+            continue;
+        [matches addObject:endsInSlash ? [expanded stringByAppendingString:name] :
+            [[self stringByDeletingLastPathComponent] stringByAppendingPathComponent:name]];
+    }
+    [matches sortUsingSelector:flag ? @selector(compare:) : @selector(caseInsensitiveCompare:)];
+    if (outputArray != NULL)
+        *outputArray = matches;
+    if (outputName != NULL) {
+        NSString *common = [matches firstObject];
+
+        for (NSString *match in matches)
+            common = [common commonPrefixWithString:match options:options];
+        *outputName = ([matches count] > 0) ? common : nil;
+    }
+    return [matches count];
+}
+
 // Minkar: as the API has them, "/" is a component: the first of an
 // absolute path, the last of a path ending with a slash. Both lost it, so
 // absolute paths came back relative. The separator is "/" only.
