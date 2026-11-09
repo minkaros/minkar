@@ -691,9 +691,30 @@ static NSDictionary *outlineData(void)
 
 /* ---- the window and the report ---- */
 
+/* The window's, its content's and a tab's sizes: in the title (to compare
+ * screenshots of both systems), on the terminal and in the report. */
+- (NSString *)sizes
+{
+    NSRect frame = [_window frame], content = [[_window contentView] frame], tab = [_tabs contentRect];
+
+    return [NSString stringWithFormat:@"window %.0f×%.0f · content %.0f×%.0f · tab %.0f×%.0f",
+        NSWidth(frame), NSHeight(frame), NSWidth(content), NSHeight(content), NSWidth(tab), NSHeight(tab)];
+}
+
+- (void)showSizes:(NSNotification *)note
+{
+    [_window setTitle:[NSString stringWithFormat:@"Gallery — %@", [self sizes]]];
+    printf("Gallery: %s\n", [[self sizes] UTF8String]);
+    fflush(stdout);
+}
+
 - (void)refreshReport
 {
-    [_reportView setString:[[GalleryReport sharedReport] text]];
+    NSString *text = [[GalleryReport sharedReport] text];
+
+    if (_window != nil)
+        text = [NSString stringWithFormat:@"Sizes: %@\n\n%@", [self sizes], text];
+    [_reportView setString:text];
 }
 
 - (void)applicationDidFinishLaunching:(NSNotification *)n
@@ -752,6 +773,9 @@ static NSDictionary *outlineData(void)
         }
     }
     [self refreshReport];
+    [self showSizes:nil];
+    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(showSizes:)
+        name:NSWindowDidResizeNotification object:_window];
     if (_firstTab >= 0 && (NSUInteger)_firstTab < TAB_COUNT)
         [_tabs selectTabViewItemAtIndex:_firstTab];
     [_window makeKeyAndOrderFront:nil];
