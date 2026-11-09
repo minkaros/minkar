@@ -96,6 +96,14 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    return [[[self alloc] initWithWindow:window] autorelease];
 }
 
++(NSGraphicsContext *)graphicsContextWithCGContext:(CGContextRef)context flipped:(BOOL)flipped {
+   return [self graphicsContextWithGraphicsPort:context flipped:flipped];
+}
+
+-(CGContextRef)CGContext {
+   return [self graphicsPort];
+}
+
 +(NSGraphicsContext *)graphicsContextWithGraphicsPort:(CGContextRef)context flipped:(BOOL)flipped {
    return [[[self alloc] initWithGraphicsPort:context flipped:flipped] autorelease];
 }

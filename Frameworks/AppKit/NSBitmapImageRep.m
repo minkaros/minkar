@@ -296,23 +296,21 @@ NSString* NSImageCompressionFactor = @"NSImageCompressionFactor";
      const unsigned char *bytes=CFDataGetBytePtr(bitmapData);
      int                  i,length=_bytesPerRow*_pixelsHigh;
 
-     if(bitmapInfo==(kCGImageAlphaPremultipliedLast|kCGBitmapByteOrder32Big)){
-     for(i=0;i<length;i++)
-      _bitmapPlanes[0][i]=bytes[i];
-     }
-     else {
-      for(i=0;i<length;i+=4){
-       unsigned char b=bytes[i+0];
-       unsigned char g=bytes[i+1];
-       unsigned char r=bytes[i+2];
-       unsigned char a=bytes[i+3];
+     /* The rep keeps the image's components in their order in memory
+        (its format says where alpha is): a little-endian image's
+        pixels are reversed, others copied. */
+     CGBitmapInfo order=bitmapInfo&kCGBitmapByteOrderMask;
 
-       _bitmapPlanes[0][i+0]=r;
-       _bitmapPlanes[0][i+1]=g;
-       _bitmapPlanes[0][i+2]=b;
-       _bitmapPlanes[0][i+3]=a;
+     if(_bitsPerPixel==32 && _bitsPerSample==8 && (order==kCGBitmapByteOrder32Little || order==kCGBitmapByteOrder16Little)){
+      for(i=0;i+3<length;i+=4){
+       _bitmapPlanes[0][i+0]=bytes[i+3];
+       _bitmapPlanes[0][i+1]=bytes[i+2];
+       _bitmapPlanes[0][i+2]=bytes[i+1];
+       _bitmapPlanes[0][i+3]=bytes[i+0];
       }
      }
+     else
+      memcpy(_bitmapPlanes[0],bytes,MIN((CFIndex)length,CFDataGetLength(bitmapData)));
      CFRelease(bitmapData);
     }
    }
@@ -456,7 +454,23 @@ NSString* NSImageCompressionFactor = @"NSImageCompressionFactor";
 
 -(void)getPixel:(NSUInteger[])pixel atX:(NSInteger)x y:(NSInteger)y
 {
-   NSUnimplementedMethod();
+   NSAssert(x>=0 && x<[self pixelsWide],@"x out of bounds");
+   NSAssert(y>=0 && y<[self pixelsHigh],@"y out of bounds");
+
+   [self createBitmapIfNeeded];
+   if(_isPlanar){
+    for(NSInteger i=0;i<_samplesPerPixel;i++)
+     pixel[i]=(_bitsPerSample==8)?_bitmapPlanes[i][_bytesPerRow*y+x]:0;
+    return;
+   }
+   if(_bitsPerSample!=8){
+    NSUnimplementedMethod();
+    return;
+   }
+   unsigned char *bits=_bitmapPlanes[0]+_bytesPerRow*y+(x*_bitsPerPixel)/8;
+
+   for(NSInteger i=0;i<_samplesPerPixel;i++)
+    pixel[i]=bits[i];
 }
 
 -(void)setPixel:(NSUInteger[])pixel atX:(NSInteger)x y:(NSInteger)y
@@ -482,9 +496,41 @@ NSString* NSImageCompressionFactor = @"NSImageCompressionFactor";
     }
 }
 
+/* The pixel's color, in the rep's color space, alpha unpremultiplied. */
 -(NSColor *)colorAtX:(NSInteger)x y:(NSInteger)y {
-   NSUnimplementedMethod();
-   return nil;
+   NSUInteger pixel[8]={ 0 };
+   CGFloat    components[8];
+   NSInteger  count=MIN(_samplesPerPixel,8),i;
+   CGFloat    maxValue=(_bitmapFormat&NSFloatingPointSamplesBitmapFormat)?1:(CGFloat)((1<<_bitsPerSample)-1);
+   CGFloat    alpha=1;
+
+   if(x<0 || x>=[self pixelsWide] || y<0 || y>=[self pixelsHigh] || _bitsPerSample!=8)
+    return nil;
+   [self getPixel:pixel atX:x y:y];
+   for(i=0;i<count;i++)
+    components[i]=pixel[i]/maxValue;
+   if(_hasAlpha){
+    if(_bitmapFormat&NSAlphaFirstBitmapFormat){
+     alpha=components[0];
+     for(i=0;i<count-1;i++)
+      components[i]=components[i+1];
+    }
+    else
+     alpha=components[count-1];
+    if(!(_bitmapFormat&NSAlphaNonpremultipliedBitmapFormat) && alpha>0)
+     for(i=0;i<count-1;i++)
+      components[i]=MIN(1,components[i]/alpha);
+   }
+   NSInteger colors=_hasAlpha?count-1:count;
+
+   if(colors>=3){
+    if([_colorSpaceName isEqualToString:NSCalibratedRGBColorSpace])
+     return [NSColor colorWithCalibratedRed:components[0] green:components[1] blue:components[2] alpha:alpha];
+    return [NSColor colorWithDeviceRed:components[0] green:components[1] blue:components[2] alpha:alpha];
+   }
+   if([_colorSpaceName isEqualToString:NSCalibratedWhiteColorSpace])
+    return [NSColor colorWithCalibratedWhite:components[0] alpha:alpha];
+   return [NSColor colorWithDeviceWhite:components[0] alpha:alpha];
 }
 
 -(void)setColor:(NSColor *)color atX:(NSInteger)x y:(NSInteger)y
@@ -532,11 +578,8 @@ NSString* NSImageCompressionFactor = @"NSImageCompressionFactor";
         int maxValue=(1<<[self bitsPerSample])-1;
 
         for(i=0;i<numberOfComponents;i++){
-#ifdef __LITTLE_ENDIAN__
-            pixels[i]=MAX(0,MIN(maxValue,(int)(components[(numberOfComponents - 1) - i]*maxValue))); // clamp just in case
-#else
-            pixels[i]=MAX(0,MIN(maxValue,(int)(components[i]*maxValue))); // clamp just in case
-#endif
+            /* The samples in the rep's order (as setPixel: takes them). */
+            pixels[i]=MAX(0,MIN(maxValue,(int)(components[i]*maxValue+0.5)));
         }
    }
 

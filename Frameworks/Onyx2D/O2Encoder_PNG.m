@@ -63,11 +63,8 @@ void O2PNGEncoderWriteImage(O2PNGEncoderRef self,O2ImageRef image,CFDictionaryRe
 			color_type = PNG_COLOR_TYPE_RGB;
 			break;
 		case kO2ImageAlphaNoneSkipLast:
-			png_set_filler(png_ptr, 0, PNG_FILLER_AFTER);
-			color_type = PNG_COLOR_TYPE_RGB;
-			break;
 		case kO2ImageAlphaNoneSkipFirst:
-			png_set_filler(png_ptr, 0, PNG_FILLER_BEFORE);
+			/* The unused byte is dropped once the header says RGB. */
 			color_type = PNG_COLOR_TYPE_RGB;
 			break;
 		default:
@@ -85,6 +82,18 @@ void O2PNGEncoderWriteImage(O2PNGEncoderRef self,O2ImageRef image,CFDictionaryRe
 		return;
 	}
 	png_write_info(png_ptr, info_ptr);
+
+	/* Where the unused byte of an opaque format is in memory: after the
+	   colors for R, G, B, X and B, G, R, X, before them otherwise. */
+	{
+		O2BitmapInfo info = O2ImageGetBitmapInfo(image);
+		O2BitmapInfo alpha = info & kO2BitmapAlphaInfoMask;
+		BOOL little = (info & kO2BitmapByteOrderMask) == kO2BitmapByteOrder32Little;
+		if (alpha == kO2ImageAlphaNoneSkipLast)
+			png_set_filler(png_ptr, 0, little ? PNG_FILLER_BEFORE : PNG_FILLER_AFTER);
+		else if (alpha == kO2ImageAlphaNoneSkipFirst)
+			png_set_filler(png_ptr, 0, little ? PNG_FILLER_AFTER : PNG_FILLER_BEFORE);
+	}
 	
 	switch (O2ImageGetBitmapInfo(image) & kO2BitmapByteOrderMask) {
 		case kO2BitmapByteOrder16Little:
@@ -101,10 +110,20 @@ void O2PNGEncoderWriteImage(O2PNGEncoderRef self,O2ImageRef image,CFDictionaryRe
 			break;
 		case kO2BitmapByteOrderDefault:
 		default:
-#ifdef __LITTLE_ENDIAN__
-			png_set_bgr(png_ptr);
-#endif
+			/* The components in their order in memory. */
 			break;
+	}
+	/* Alpha before the colors in memory: A, R, G, B (big-endian, alpha
+	   first) or A, B, G, R (little-endian, alpha last). */
+	{
+		O2BitmapInfo info = O2ImageGetBitmapInfo(image);
+		O2BitmapInfo alpha = info & kO2BitmapAlphaInfoMask;
+		O2BitmapInfo order = info & kO2BitmapByteOrderMask;
+		BOOL alphaFirst = (alpha == kO2ImageAlphaPremultipliedFirst || alpha == kO2ImageAlphaFirst);
+		BOOL alphaLast = (alpha == kO2ImageAlphaPremultipliedLast || alpha == kO2ImageAlphaLast);
+		BOOL little = (order == kO2BitmapByteOrder32Little);
+		if (color_type == PNG_COLOR_TYPE_RGB_ALPHA && ((alphaFirst && !little) || (alphaLast && little)))
+			png_set_swap_alpha(png_ptr);
 	}
 	if (setjmp(png_jmpbuf(png_ptr))) {
 		NSLog(@"Error writing png image data");

@@ -207,6 +207,9 @@ O2argb8u *O2ImageRead_BGRA8888_to_argb8u(O2Image *self, int x, int y, O2argb8u *
 O2argb8u *O2ImageRead_RGB888_to_argb8u(O2Image *self, int x, int y, O2argb8u *span, int length);
 O2argb8u *O2ImageRead_BGRX8888_to_argb8u(O2Image *self, int x, int y, O2argb8u *span, int length);
 O2argb8u *O2ImageRead_XRGB8888_to_argb8u(O2Image *self, int x, int y, O2argb8u *span, int length);
+O2argb8u *O2ImageRead_ARGB8888_to_argb8u(O2Image *self, int x, int y, O2argb8u *span, int length);
+O2argb8u *O2ImageRead_RGBX8888_to_argb8u(O2Image *self, int x, int y, O2argb8u *span, int length);
+O2argb8u *O2ImageRead_XBGR8888_to_argb8u(O2Image *self, int x, int y, O2argb8u *span, int length);
 O2argb8u *O2ImageRead_G3B5X1R5G2_to_argb8u(O2Image *self, int x, int y, O2argb8u *span, int length);
 O2argb8u *O2ImageRead_RGBA4444_to_argb8u(O2Image *self, int x, int y, O2argb8u *span, int length);
 O2argb8u *O2ImageRead_BARG4444_to_argb8u(O2Image *self, int x, int y, O2argb8u *span, int length);

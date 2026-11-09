@@ -125,28 +125,31 @@ ONYX2D_STATIC BOOL initFunctionsForRGBColorSpace(O2Image *self,size_t bitsPerCom
           }
           break;
 
+         case kO2ImageAlphaFirst:
          case kO2ImageAlphaPremultipliedFirst:
           switch(bitmapInfo&kO2BitmapByteOrderMask){
            case kO2BitmapByteOrder16Little:
            case kO2BitmapByteOrder32Little:
             self->_read_argb8u=O2ImageRead_BGRA8888_to_argb8u;
             return YES;
+
+           case kO2BitmapByteOrder16Big:
+           case kO2BitmapByteOrder32Big:
+            self->_read_argb8u=O2ImageRead_ARGB8888_to_argb8u;
+            return YES;
           }
-          break;
-                    
-         case kO2ImageAlphaFirst:
           break;
           
          case kO2ImageAlphaNoneSkipLast:
           switch(bitmapInfo&kO2BitmapByteOrderMask){
            case kO2BitmapByteOrder16Little:
            case kO2BitmapByteOrder32Little:
-            self->_read_argb8u=O2ImageRead_ABGR8888_to_argb8u;
+            self->_read_argb8u=O2ImageRead_XBGR8888_to_argb8u;
             return YES;
 
            case kO2BitmapByteOrder16Big:
            case kO2BitmapByteOrder32Big:
-            self->_read_argb8u=O2ImageRead_RGBA8888_to_argb8u;
+            self->_read_argb8u=O2ImageRead_RGBX8888_to_argb8u;
             return YES;
           }
           break;
@@ -272,13 +275,11 @@ ONYX2D_STATIC BOOL initFunctionsForParameters(O2Image *self,size_t bitsPerCompon
    self->_read_a32f=O2ImageRead_ANY_to_A8_to_Af;
    self->_read_argb32f=O2ImageRead_ANY_to_argb8u_to_argb32f;
 
-	if((bitmapInfo&kO2BitmapByteOrderMask)==kO2BitmapByteOrderDefault) {
-#ifdef __LITTLE_ENDIAN__
-		bitmapInfo|=kO2BitmapByteOrder32Little;
-#else
+	/* The default byte order is the components' order in memory, as on
+	   the reference platform (kCGImageAlphaPremultipliedLast is R, G, B,
+	   A): big-endian, whatever the host. */
+	if((bitmapInfo&kO2BitmapByteOrderMask)==kO2BitmapByteOrderDefault)
 		bitmapInfo|=kO2BitmapByteOrder32Big;
-#endif
-	}
 	
    switch([colorSpace type]){
     case kO2ColorSpaceModelMonochrome:
@@ -919,6 +920,70 @@ O2argb8u *O2ImageRead_BGRX8888_to_argb8u(O2Image *self,int x,int y,O2argb8u *spa
    return NULL;
 }
 
+/* A, R, G, B in memory. */
+O2argb8u *O2ImageRead_ARGB8888_to_argb8u(O2Image *self,int x,int y,O2argb8u *span,int length) {
+   const uint8_t *scanline = scanlineAtY(self,y);
+   int i;
+   
+   if(scanline==NULL)
+    return NULL;
+
+   scanline+=x*4;
+   for(i=0;i<length;i++){
+    O2argb8u  result;
+    
+    result.a = *scanline++;
+    result.r = *scanline++;
+    result.g = *scanline++;
+    result.b = *scanline++;
+    *span++=result;
+   }
+   return NULL;
+}
+
+/* R, G, B and an unused byte: opaque. */
+O2argb8u *O2ImageRead_RGBX8888_to_argb8u(O2Image *self,int x,int y,O2argb8u *span,int length) {
+   const uint8_t *scanline = scanlineAtY(self,y);
+   int i;
+   
+   if(scanline==NULL)
+    return NULL;
+
+   scanline+=x*4;
+   for(i=0;i<length;i++){
+    O2argb8u  result;
+    
+    result.r = *scanline++;
+    result.g = *scanline++;
+    result.b = *scanline++;
+    result.a = 255; scanline++;
+    *span++=result;
+   }
+   return NULL;
+}
+
+/* An unused byte, then B, G, R: opaque. */
+O2argb8u *O2ImageRead_XBGR8888_to_argb8u(O2Image *self,int x,int y,O2argb8u *span,int length) {
+   const uint8_t *scanline = scanlineAtY(self,y);
+   int i;
+   
+   if(scanline==NULL)
+    return NULL;
+
+   scanline+=x*4;
+   for(i=0;i<length;i++){
+    O2argb8u  result;
+    
+    scanline++; result.a = 255;
+    result.b = *scanline++;
+    result.g = *scanline++;
+    result.r = *scanline++;
+    *span++=result;
+   }
+   return NULL;
+}
+
+/* An unused byte, then R, G, B: opaque. */
 O2argb8u *O2ImageRead_XRGB8888_to_argb8u(O2Image *self,int x,int y,O2argb8u *span,int length) {
    const uint8_t *scanline = scanlineAtY(self,y);
    int i;
@@ -931,7 +996,7 @@ O2argb8u *O2ImageRead_XRGB8888_to_argb8u(O2Image *self,int x,int y,O2argb8u *spa
    for(i=0;i<length;i++){
     O2argb8u  result;
     
-    result.a = *scanline++;
+    result.a = 255; scanline++;
     result.r = *scanline++;
 	result.g = *scanline++;
     result.b = *scanline++;

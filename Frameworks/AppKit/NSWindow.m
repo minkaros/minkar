@@ -554,7 +554,7 @@ NSArray *_NSWindowNumbersFromWindowInfo(CFArrayRef info,BOOL allApps) {
         O2Surface *surface = [[O2Surface alloc] initWithBytes:buffer
                 width:pixelsWide height:pixelsHigh
                 bitsPerComponent:8 bytesPerRow:4*pixelsWide colorSpace:colorSpace
-                bitmapInfo:kO2BitmapByteOrderDefault|kCGImageAlphaPremultipliedFirst];
+                bitmapInfo:kO2BitmapByteOrder32Little|kCGImageAlphaPremultipliedFirst];
         _context = [[O2Context_builtin_FT alloc] initWithSurface:surface flipped:NO];
 
         /* The current context is left alone: it may be another window's,
