@@ -15,6 +15,10 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <Foundation/NSKeyedArchiver.h>
 #import <AppKit/NSRaise.h>
 
+@interface NSView (NSViewTransforms)
+-(void)_invalidateTransforms;
+@end
+
 @implementation NSClipView
 
 -(void)encodeWithCoder:(NSCoder *)coder {
@@ -117,6 +121,11 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    _docView=view;
 
    [self addSubview:view];
+   /* A clip view is flipped as its document view is: its transforms,
+      made while it had another (or none), are not right any more. An
+      empty browser column drawn before its matrix came drew it upside
+      down at the bottom. */
+   [self _invalidateTransforms];
 
    if(_docView!=nil){
     [[NSNotificationCenter defaultCenter] addObserver:self

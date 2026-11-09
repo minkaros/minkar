@@ -197,6 +197,12 @@ static void invalidateTransform(NSView *self){
 
 }
 
+/* For a view whose flipping follows something else (a clip view's, its
+   document view's): its and its subviews' transforms are made again. */
+-(void)_invalidateTransforms {
+   invalidateTransform(self);
+}
+
 static CGAffineTransform concatViewTransform(CGAffineTransform result,NSView *view,NSView *superview,BOOL doFrame,BOOL flip){
    NSRect bounds=[view bounds];
    NSRect frame=[view frame];
