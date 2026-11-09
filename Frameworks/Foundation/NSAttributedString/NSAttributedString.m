@@ -123,19 +123,133 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    return nil;
 }
 
+/* The attributes at the location, and the longest range around it inside
+   inRange where they are the same. */
 -(NSDictionary *)attributesAtIndex:(NSUInteger)location
    longestEffectiveRange:(NSRange *)range inRange:(NSRange)inRange {
-   NSUnimplementedMethod();
-   return nil;
+   NSRange       effective;
+   NSDictionary *attributes=[self attributesAtIndex:location effectiveRange:&effective];
+
+   if(range!=NULL){
+    NSUInteger start=effective.location,end=NSMaxRange(effective);
+
+    while(start>inRange.location){
+     NSRange before;
+     if(![[self attributesAtIndex:start-1 effectiveRange:&before] isEqualToDictionary:attributes])
+      break;
+     start=before.location;
+    }
+    while(end<NSMaxRange(inRange)){
+     NSRange after;
+     if(![[self attributesAtIndex:end effectiveRange:&after] isEqualToDictionary:attributes])
+      break;
+     end=NSMaxRange(after);
+    }
+    start=MAX(start,inRange.location);
+    end=MIN(end,NSMaxRange(inRange));
+    *range=NSMakeRange(start,end-start);
+   }
+   return attributes;
 }
 
 -attribute:(NSString *)name atIndex:(NSUInteger)location effectiveRange:(NSRange *)range {
    return [[self attributesAtIndex:location effectiveRange:range] objectForKey:name];
 }
 
+/* The attribute at the location, and the longest range around it inside
+   inRange where it is the same. */
 -attribute:(NSString *)name atIndex:(NSUInteger)location longestEffectiveRange:(NSRange *)range inRange:(NSRange)inRange {
-   NSUnimplementedMethod();
-   return nil;
+   NSRange effective;
+   id      value=[self attribute:name atIndex:location effectiveRange:&effective];
+
+   if(range!=NULL){
+    NSUInteger start=effective.location,end=NSMaxRange(effective);
+
+    while(start>inRange.location){
+     NSRange before;
+     id      other=[self attribute:name atIndex:start-1 effectiveRange:&before];
+     if(!(other==value || [other isEqual:value]))
+      break;
+     start=before.location;
+    }
+    while(end<NSMaxRange(inRange)){
+     NSRange after;
+     id      other=[self attribute:name atIndex:end effectiveRange:&after];
+     if(!(other==value || [other isEqual:value]))
+      break;
+     end=NSMaxRange(after);
+    }
+    start=MAX(start,inRange.location);
+    end=MIN(end,NSMaxRange(inRange));
+    *range=NSMakeRange(start,end-start);
+   }
+   return value;
+}
+
+/* The runs of attributes in the range, front to back (or back to front),
+   each the longest unless that is not required. */
+-(void)enumerateAttributesInRange:(NSRange)enumerationRange options:(NSAttributedStringEnumerationOptions)opts
+   usingBlock:(void (^)(NSDictionary *attrs, NSRange range, BOOL *stop))block {
+   NSUInteger limit=MIN(NSMaxRange(enumerationRange),[self length]);
+   BOOL       longest=!(opts&NSAttributedStringEnumerationLongestEffectiveRangeNotRequired);
+   BOOL       stop=NO;
+
+   if(enumerationRange.location>=limit)
+    return;
+   enumerationRange=NSMakeRange(enumerationRange.location,limit-enumerationRange.location);
+   if(opts&NSAttributedStringEnumerationReverse){
+    NSUInteger end=limit;
+    while(end>enumerationRange.location && !stop){
+     NSRange       range;
+     NSDictionary *attributes=longest?[self attributesAtIndex:end-1 longestEffectiveRange:&range inRange:enumerationRange]:
+                                      [self attributesAtIndex:end-1 effectiveRange:&range];
+     range=NSIntersectionRange(range,NSMakeRange(enumerationRange.location,end-enumerationRange.location));
+     block(attributes,range,&stop);
+     end=range.location;
+    }
+    return;
+   }
+   NSUInteger location=enumerationRange.location;
+   while(location<limit && !stop){
+    NSRange       range;
+    NSDictionary *attributes=longest?[self attributesAtIndex:location longestEffectiveRange:&range inRange:enumerationRange]:
+                                     [self attributesAtIndex:location effectiveRange:&range];
+    range=NSIntersectionRange(range,NSMakeRange(location,limit-location));
+    block(attributes,range,&stop);
+    location=NSMaxRange(range);
+   }
+}
+
+-(void)enumerateAttribute:(NSString *)attrName inRange:(NSRange)enumerationRange options:(NSAttributedStringEnumerationOptions)opts
+   usingBlock:(void (^)(id value, NSRange range, BOOL *stop))block {
+   NSUInteger limit=MIN(NSMaxRange(enumerationRange),[self length]);
+   BOOL       longest=!(opts&NSAttributedStringEnumerationLongestEffectiveRangeNotRequired);
+   BOOL       stop=NO;
+
+   if(enumerationRange.location>=limit)
+    return;
+   enumerationRange=NSMakeRange(enumerationRange.location,limit-enumerationRange.location);
+   if(opts&NSAttributedStringEnumerationReverse){
+    NSUInteger end=limit;
+    while(end>enumerationRange.location && !stop){
+     NSRange range;
+     id      value=longest?[self attribute:attrName atIndex:end-1 longestEffectiveRange:&range inRange:enumerationRange]:
+                           [self attribute:attrName atIndex:end-1 effectiveRange:&range];
+     range=NSIntersectionRange(range,NSMakeRange(enumerationRange.location,end-enumerationRange.location));
+     block(value,range,&stop);
+     end=range.location;
+    }
+    return;
+   }
+   NSUInteger location=enumerationRange.location;
+   while(location<limit && !stop){
+    NSRange range;
+    id      value=longest?[self attribute:attrName atIndex:location longestEffectiveRange:&range inRange:enumerationRange]:
+                          [self attribute:attrName atIndex:location effectiveRange:&range];
+    range=NSIntersectionRange(range,NSMakeRange(location,limit-location));
+    block(value,range,&stop);
+    location=NSMaxRange(range);
+   }
 }
 
 -(NSAttributedString *)attributedSubstringFromRange:(NSRange)range {
