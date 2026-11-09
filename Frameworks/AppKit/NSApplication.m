@@ -1575,6 +1575,7 @@ extern NSEvent *NSEventRunLocalMonitors(NSEvent *event);
         }
         [self endModalSession:session];
     } else {
+        [sheet _setSheetParent:window];
         [window _attachSheetContextOrderFrontAndAnimate:context];
     }
 }
@@ -1606,6 +1607,7 @@ typedef void (*endfunction_t)(id, SEL, id, NSInteger, void *);
      [[context retain] autorelease];
 
      [check _detachSheetContextAnimateAndOrderOut];
+     [sheet _setSheetParent:nil];
 
      function=[[context modalDelegate] methodForSelector:[context didEndSelector]];
 

@@ -16,6 +16,8 @@ typedef enum {
     NSPressedTab
 } NSTabState;
 
+@class NSViewController, NSImage;
+
 @interface NSTabViewItem : NSObject {
     id _identifier;
     NSString *_label;
@@ -25,9 +27,19 @@ typedef enum {
     id _initialFirstResponder;
     NSTabState _state;
     NSRect _lastRect;
+    NSViewController *_viewController;
+    NSImage *_image;
+    NSString *_toolTip;
 }
 
+/* An item showing a controller's view, labelled with its title. */
++ (instancetype)tabViewItemWithViewController:(NSViewController *)viewController;
+
 - initWithIdentifier:identifier;
+
+@property (strong) NSViewController *viewController;
+@property (strong) NSImage *image;
+@property (copy) NSString *toolTip;
 
 - identifier;
 - (NSString *)label;

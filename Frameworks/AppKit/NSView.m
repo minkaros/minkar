@@ -9,6 +9,7 @@ The above copyright notice and this permission notice shall be included in all c
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE. */
 
 #import <AppKit/NSView.h>
+#import <AppKit/NSViewController.h>
 #import <objc/runtime.h>
 #import "NSLayout/NSLayoutInternal.h"
 #import <AppKit/NSApplication.h>
@@ -884,8 +885,18 @@ static inline void buildTransformsIfNeeded(NSView *self) {
         if (windowRecalulatesKeyViewLoop)
             [self setNextKeyView:nil];
 
+        NSViewController *controller=_NSViewControllerForView(self);
+
+        if(controller!=nil){
+            if(_window!=nil)
+                [controller viewWillDisappear];
+            if(window!=nil)
+                [controller viewWillAppear];
+        }
+
         [self viewWillMoveToWindow:window];
 
+        NSWindow *was=_window;
         _window=window;
 
         [_subviews makeObjectsPerformSelector:_cmd withObject:window];
@@ -904,6 +915,13 @@ static inline void buildTransformsIfNeeded(NSView *self) {
         }
 
         [self viewDidMoveToWindow];
+
+        if(controller!=nil){
+            if(was!=nil)
+                [controller viewDidDisappear];
+            if(window!=nil)
+                [controller viewDidAppear];
+        }
     }
 }
 
@@ -912,7 +930,15 @@ static inline void buildTransformsIfNeeded(NSView *self) {
 
    [_window invalidateCursorRectsForView:self]; // this also invalidates tracking areas
 
-   [self setNextResponder:superview];
+   /* A view controller comes between its view and the superview. */
+   NSViewController *controller=_NSViewControllerForView(self);
+
+   if(controller!=nil){
+    [controller setNextResponder:superview];
+    [self setNextResponder:controller];
+   }
+   else
+    [self setNextResponder:superview];
 }
 
 -(void)_insertSubview:(NSView *)view atIndex:(NSUInteger)index {

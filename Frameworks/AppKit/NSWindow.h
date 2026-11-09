@@ -11,12 +11,13 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 // Reviewed for API completeness against 10.6.
 
 #import <AppKit/NSResponder.h>
+#import <AppKit/NSApplication.h>
 #import <AppKit/AppKitExport.h>
 #import <AppKit/NSView.h>
 #import <AppKit/NSDisplay.h>
 #import <ApplicationServices/ApplicationServices.h>
 
-@class NSView, NSEvent, NSColor, NSColorSpace, NSCursor, NSImage, NSScreen, NSText, NSTextView, CGWindow, NSPasteboard, NSSheetContext, NSUndoManager, NSButton, NSButtonCell, NSDrawer, NSDockTile, NSToolbar, NSWindowAnimationContext, NSTrackingArea, NSThemeFrame, NSWindowController, NSMenuItem, CARenderer;
+@class NSViewController, NSView, NSEvent, NSColor, NSColorSpace, NSCursor, NSImage, NSScreen, NSText, NSTextView, CGWindow, NSPasteboard, NSSheetContext, NSUndoManager, NSButton, NSButtonCell, NSDrawer, NSDockTile, NSToolbar, NSWindowAnimationContext, NSTrackingArea, NSThemeFrame, NSWindowController, NSMenuItem, CARenderer;
 
 enum {
     NSBorderlessWindowMask = 0x00,
@@ -179,6 +180,8 @@ APPKIT_EXPORT NSString *const NSWindowDidEndLiveResizeNotification;
     NSMutableArray *_trackingAreas;
 
     NSSheetContext *_sheetContext;
+    NSViewController *_contentViewController;
+    NSWindow *_sheetParent;
 
     NSSize _resizeInfo;
 
@@ -272,6 +275,21 @@ APPKIT_EXPORT NSString *const NSWindowDidEndLiveResizeNotification;
 - (void)setAllowsConcurrentViewDrawing:(BOOL)allows;
 
 - (NSView *)contentView;
+
+/* A window showing a controller's view, titled with its title, sized to
+   its preferred content size or its view. */
++ (instancetype)windowWithContentViewController:(NSViewController *)contentViewController;
+@property (strong) NSViewController *contentViewController;
+
+/* Sheets: the handler runs with the code endSheet:returnCode: gives
+   (NSModalResponseStop for endSheet:). */
+- (void)beginSheet:(NSWindow *)sheetWindow completionHandler:(void (^)(NSModalResponse returnCode))handler;
+- (void)beginCriticalSheet:(NSWindow *)sheetWindow completionHandler:(void (^)(NSModalResponse returnCode))handler;
+- (void)endSheet:(NSWindow *)sheetWindow;
+- (void)endSheet:(NSWindow *)sheetWindow returnCode:(NSModalResponse)returnCode;
+@property (readonly, copy) NSArray<NSWindow *> *sheets;
+@property (readonly, assign) NSWindow *sheetParent;
+@property (readonly, getter=isSheet) BOOL sheet;
 - (id)delegate;
 
 - (NSString *)title;
@@ -299,7 +317,6 @@ APPKIT_EXPORT NSString *const NSWindowDidEndLiveResizeNotification;
 - (void)setPreventsApplicationTerminationWhenModal:(BOOL)prevents;
 - (BOOL)hidesOnDeactivate;
 - (BOOL)worksWhenModal;
-- (BOOL)isSheet;
 - (BOOL)acceptsMouseMovedEvents;
 - (BOOL)isExcludedFromWindowsMenu;
 - (BOOL)isAutodisplay;

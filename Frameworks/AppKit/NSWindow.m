@@ -37,6 +37,7 @@
 #import <Onyx2D/O2Surface.h>
 #import <Onyx2D/O2GraphicsState.h>
 #import <AppKit/NSWindow.h>
+#import <AppKit/NSViewController.h>
 #import <AppKit/NSLayoutConstraint.h>
 #import <AppKit/NSWindow-Private.h>
 #import <AppKit/NSThemeFrame.h>
@@ -220,6 +221,23 @@ static SLSRect slsFrame(NSRect frame) {
     return (SLSRect){ frame.origin.x, height - frame.origin.y - frame.size.height,
         frame.size.width, frame.size.height };
 }
+
+/* Runs the sheet's completion block and lets the sheet go. */
+@interface NSSheetCompletion : NSObject {
+@public
+   void (^_handler)(NSModalResponse);
+}
+@end
+
+@implementation NSSheetCompletion
+-(void)sheetDidEnd:(NSWindow *)sheet returnCode:(NSInteger)returnCode contextInfo:(void *)contextInfo {
+   if(_handler!=NULL)
+    _handler(returnCode);
+   [_handler release];
+   _handler=NULL;
+   [self release];
+}
+@end
 
 @implementation NSWindow
 
@@ -442,6 +460,7 @@ NSArray *_NSWindowNumbersFromWindowInfo(CFArrayRef info,BOOL allApps) {
 
 -(void)dealloc {
     [[NSNotificationCenter defaultCenter] removeObserver:self];
+    [_contentViewController release];
     if(_context)
         [_context release];
     if(buffer && bufsize) {
@@ -672,10 +691,6 @@ NSArray *_NSWindowNumbersFromWindowInfo(CFArrayRef info,BOOL allApps) {
 -(BOOL)worksWhenModal {
     // We do work when we're running a modal session
     return (_sheetContext && [_sheetContext modalSession] != nil);
-}
-
--(BOOL)isSheet {
-  return (_styleMask&NSDocModalWindowMask)?YES:NO;
 }
 
 -(BOOL)acceptsMouseMovedEvents {
@@ -3554,6 +3569,88 @@ static void slsCollectExcluded(NSView *view, NSSize size, SLSIntRect *rects, uin
         [slsShown removeObject:key];
     }
     return YES;
+}
+
+
+#pragma mark View controllers and sheets
+
++(instancetype)windowWithContentViewController:(NSViewController *)contentViewController {
+   NSView   *view=[contentViewController view];
+   NSSize    size=[contentViewController preferredContentSize];
+   NSWindow *window;
+
+   if(size.width<=0 || size.height<=0)
+    size=[view frame].size;
+   window=[[[self alloc] initWithContentRect:NSMakeRect(0,0,size.width,size.height)
+      styleMask:NSWindowStyleMaskTitled|NSWindowStyleMaskClosable|NSWindowStyleMaskMiniaturizable|NSWindowStyleMaskResizable
+      backing:NSBackingStoreBuffered defer:NO] autorelease];
+   [window setContentViewController:contentViewController];
+   if([contentViewController title]!=nil)
+    [window setTitle:[contentViewController title]];
+   [window setReleasedWhenClosed:NO];
+   return window;
+}
+
+-(NSViewController *)contentViewController {
+   return _contentViewController;
+}
+
+/* The controller's view becomes the content view; the window keeps its
+   frame unless it has no content yet. */
+-(void)setContentViewController:(NSViewController *)controller {
+   if(controller==_contentViewController)
+    return;
+   [controller retain];
+   [_contentViewController release];
+   _contentViewController=controller;
+   if(controller!=nil){
+    NSView *view=[controller view];
+    NSRect  content=[self contentRectForFrameRect:[self frame]];
+
+    [self setContentView:view];
+    if(NSIsEmptyRect(content))
+     [self setContentSize:[view frame].size];
+    [view setAutoresizingMask:NSViewWidthSizable|NSViewHeightSizable];
+   }
+}
+
+
+-(void)beginSheet:(NSWindow *)sheetWindow completionHandler:(void (^)(NSModalResponse returnCode))handler {
+   NSSheetCompletion *completion=[[NSSheetCompletion alloc] init];
+
+   completion->_handler=[handler copy];
+   sheetWindow->_sheetParent=self;
+   [NSApp beginSheet:sheetWindow modalForWindow:self modalDelegate:completion didEndSelector:@selector(sheetDidEnd:returnCode:contextInfo:) contextInfo:NULL];
+}
+
+-(void)beginCriticalSheet:(NSWindow *)sheetWindow completionHandler:(void (^)(NSModalResponse returnCode))handler {
+   [self beginSheet:sheetWindow completionHandler:handler];
+}
+
+-(void)endSheet:(NSWindow *)sheetWindow {
+   [self endSheet:sheetWindow returnCode:NSModalResponseStop];
+}
+
+-(void)endSheet:(NSWindow *)sheetWindow returnCode:(NSModalResponse)returnCode {
+   [NSApp endSheet:sheetWindow returnCode:returnCode];
+}
+
+-(NSArray *)sheets {
+   NSWindow *sheet=[self attachedSheet];
+
+   return (sheet!=nil)?[NSArray arrayWithObject:sheet]:[NSArray array];
+}
+
+-(NSWindow *)sheetParent {
+   return _sheetParent;
+}
+
+-(void)_setSheetParent:(NSWindow *)window {
+   _sheetParent=window;
+}
+
+-(BOOL)isSheet {
+   return _sheetParent!=nil || ([self styleMask]&NSWindowStyleMaskDocModalWindow)!=0;
 }
 
 @end

@@ -255,6 +255,8 @@ SRCS = \
     NSView.m \
     NSViewBackingLayer.m \
     NSViewController.m \
+    NSSplitViewController.m \
+    NSTabViewController.m \
     NSWindow-Drag.m \
     NSWindow.m \
     RTF.subproj/NSRichTextReader.m \
@@ -532,6 +534,8 @@ HEADERS = \
     NSView.h \
     NSViewBackingLayer.h \
     NSViewController.h \
+    NSSplitViewController.h \
+    NSTabViewController.h \
     NSWindow-Drag.h \
     NSWindow-Private.h \
     NSWindow.h \

@@ -63,6 +63,12 @@ APPKIT_EXPORT id NSApp;
 
 typedef id NSModalSession;
 
+/* What a modal session or a sheet ended with. */
+typedef NSInteger NSModalResponse;
+static const NSModalResponse NSModalResponseStop = -1000;
+static const NSModalResponse NSModalResponseAbort = -1001;
+static const NSModalResponse NSModalResponseContinue = -1002;
+
 enum {
     NSRunStoppedResponse = -1000,
     NSRunAbortedResponse = -1001,

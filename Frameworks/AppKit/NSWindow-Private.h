@@ -42,6 +42,7 @@ APPKIT_EXPORT NSArray *_NSWindowNumbersFromWindowInfo(CFArrayRef info,BOOL allAp
 - (void)_removeTrackingRect:(NSTrackingRectTag)tag;
 - (void)_removeAllToolTips;
 - (void)_attachSheetContextOrderFrontAndAnimate:(NSSheetContext *)sheetContext;
+- (void)_setSheetParent:(NSWindow *)window;
 - (void)_setSheetContext:(NSSheetContext *)sheetContext;
 - (NSSheetContext *)_sheetContext;
 - (void)_detachSheetContextAnimateAndOrderOut;

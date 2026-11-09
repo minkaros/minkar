@@ -170,6 +170,7 @@ NSString * const NSToolbarChangeAppearanceNotification = @"__NSToolbarChangeAppe
 }
 
 -(NSArray *)items {
+   [self loadDefaultItemsIfNeeded];
    return _items;
 } 
 

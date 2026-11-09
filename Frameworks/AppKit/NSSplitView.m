@@ -115,87 +115,6 @@ NSString * const NSSplitViewWillResizeSubviewsNotification = @"NSSplitViewWillRe
 	return _dividerStyle;
 }
 
-/** adjust all the non-collapsed subviews so that they are equally spaced horizontally within the splitview */
-- (void)_adjustSubviewWidths
-{
-    // Set all the subview heights to the bounds height of the split view
-    float height = NSHeight([self bounds]);
-
-    int     i,count=[_subviews count];
-
-    float totalWidthBefore=0.;
-    
-    // The available width to the subviews
-    float totalWidthAfter=[self bounds].size.width-[self dividerThickness]*(count-1);
-    
-    for(i = 0; i < count; i++) {
-        NSView *subview = [_subviews objectAtIndex: i];
-        if ([self isSubviewCollapsed: subview] == NO) {
-            totalWidthBefore += NSWidth([subview frame]);
-        }
-    }
-   
-    float delta = totalWidthAfter / totalWidthBefore;
-    
-    NSRect  frame = [self bounds];
-    for(i = 0; i < count; i++){
-        NSView *subview = [_subviews objectAtIndex: i];
-        if ([self isSubviewCollapsed: subview] == NO) {
-            frame.size.width= NSWidth([subview frame]) * delta;
-            frame.size.width=floor(frame.size.width);
-            frame.size.height = height;
-            
-            NSSize oldSize = [subview frame].size;
-            
-            [subview setFrame:frame];
-            
-            frame.origin.x+= NSWidth(frame);
-            frame.origin.x+= [self dividerThickness];
-        }
-    }
-}
-
-- (void)_adjustSubviewHeights
-{
-    // Set all the subview widths to the bounds width of the split view
-    float width = NSWidth([self bounds]);
-
-    int     i,count=[_subviews count];
-
-    // We've got to figure out how much the delta is between the old and new heights and multiply
-    // all the heights to the new delta to get them to fit (or something like that...) Apple says
-    // They resize proportionally
-    float totalHeightBefore=0.;
-    float totalHeightAfter=[self bounds].size.height-[self dividerThickness]*(count-1);
-    
-    for(i=0;i<count;i++) {
-        NSView *subview = [_subviews objectAtIndex: i];
-        if ([self isSubviewCollapsed: subview] == NO) {
-            NSRect subviewFrame = [subview frame];
-            totalHeightBefore += NSHeight(subviewFrame);
-        }
-    }
-
-    float delta = totalHeightAfter / totalHeightBefore;
-    
-
-    NSRect  frame=[self bounds];
-    for(i=0;i<count;i++){
-        NSView *subview = [_subviews objectAtIndex: i];
-        if ([self isSubviewCollapsed: subview] == NO) {
-            frame.size.height= NSHeight([subview frame]) * delta;
-            frame.size.height=floor(frame.size.height);
-            frame.size.width = width;
-            
-            NSSize oldSize = [subview frame].size;
-            
-            [subview setFrame:frame];
-            
-            frame.origin.y+= NSHeight(frame);
-            frame.origin.y+=[self dividerThickness];
-        }
-    }
-}
 
 /**
  * Apple says this method sets the frames of the split view's subviews so that they, plus the dividers,
@@ -205,19 +124,100 @@ NSString * const NSSplitViewWillResizeSubviewsNotification = @"NSSplitViewWillRe
  * subviews do change. This message should be sent to split views from which subviews have been
  * added or removed, to reestablish the consistency of subview placement.
  */
+/* The panes fill the split view between their dividers (a collapsed pane
+   keeps its divider and has no size). What the panes' lengths lack or
+   exceed goes to the ones with the lowest holding priority, or to all in
+   proportion when they hold alike. */
+-(void)_layoutArrangedSubviews {
+   NSArray   *panes=[self arrangedSubviews];
+   NSInteger  i,count=[panes count];
+   BOOL       vertical=[self isVertical];
+   NSRect     bounds=[self bounds];
+   CGFloat    length=vertical?NSWidth(bounds):NSHeight(bounds);
+   CGFloat    available=length-[self dividerThickness]*(count-1);
+   CGFloat    sizes[count],total=0,lowest=CGFLOAT_MAX,highest=-CGFLOAT_MAX;
+   NSInteger  lowestCount=0;
+   CGFloat    position;
+
+   for(i=0;i<count;i++){
+    NSView *pane=[panes objectAtIndex:i];
+    float   priority=[self holdingPriorityForSubviewAtIndex:i];
+
+    sizes[i]=[self isSubviewCollapsed:pane]?0:(vertical?NSWidth([pane frame]):NSHeight([pane frame]));
+    total+=sizes[i];
+    if(![self isSubviewCollapsed:pane]){
+     lowest=MIN(lowest,priority);
+     highest=MAX(highest,priority);
+    }
+   }
+   if(available<0)
+    available=0;
+   if(total<=0){
+    NSInteger shown=0;
+
+    for(i=0;i<count;i++)
+     if(![self isSubviewCollapsed:[panes objectAtIndex:i]])
+      shown++;
+    for(i=0;i<count;i++)
+     sizes[i]=([self isSubviewCollapsed:[panes objectAtIndex:i]] || shown==0)?0:floor(available/shown);
+   }
+   else if(lowest==highest){
+    for(i=0;i<count;i++)
+     sizes[i]=floor(sizes[i]*available/total);
+   }
+   else {
+    CGFloat delta=available-total;
+
+    for(i=0;i<count;i++)
+     if(![self isSubviewCollapsed:[panes objectAtIndex:i]] && [self holdingPriorityForSubviewAtIndex:i]==lowest)
+      lowestCount++;
+    for(i=0;i<count;i++)
+     if(![self isSubviewCollapsed:[panes objectAtIndex:i]] && [self holdingPriorityForSubviewAtIndex:i]==lowest)
+      sizes[i]=MAX(0,floor(sizes[i]+delta/lowestCount));
+   }
+
+   /* The last shown pane takes what rounding left. */
+   CGFloat used=0;
+   NSInteger last=-1;
+
+   for(i=0;i<count;i++){
+    used+=sizes[i];
+    if(![self isSubviewCollapsed:[panes objectAtIndex:i]])
+     last=i;
+   }
+   if(last>=0)
+    sizes[last]=MAX(0,sizes[last]+available-used);
+
+   position=vertical?NSMinX(bounds):NSMinY(bounds);
+   for(i=0;i<count;i++){
+    NSView *pane=[panes objectAtIndex:i];
+    NSRect  frame=bounds;
+
+    if(vertical){
+     frame.origin.x=position;
+     frame.size.width=sizes[i];
+    }
+    else {
+     frame.origin.y=position;
+     frame.size.height=sizes[i];
+    }
+    if(![self isSubviewCollapsed:pane])
+     [pane setFrame:frame];
+    position+=sizes[i]+[self dividerThickness];
+   }
+}
+
 -(void)adjustSubviews {
 
-    if ([_subviews count] < 2) {
+    if ([[self arrangedSubviews] count] < 2) {
+        if ([[self arrangedSubviews] count] == 1)
+            [[[self arrangedSubviews] objectAtIndex:0] setFrame:[self bounds]];
         return;
     }
     
    [self _postNoteWillResize];
 
-   if ([self isVertical]){
-        [self _adjustSubviewWidths];
-    }  else {
-        [self _adjustSubviewHeights];
-    }
+   [self _layoutArrangedSubviews];
     [self setNeedsDisplay: YES];
     [self _postNoteDidResize];
 }
@@ -395,13 +395,13 @@ static float constrainTo(float value,float min,float max){
    }
 }
 
-- (CGFloat)minPossiblePositionOfDividerAtIndex:(int)index
+- (CGFloat)minPossiblePositionOfDividerAtIndex:(NSInteger)index
 {
     NSUnimplementedMethod();
     return 0;
 }
 
-- (CGFloat)maxPossiblePositionOfDividerAtIndex:(int)index
+- (CGFloat)maxPossiblePositionOfDividerAtIndex:(NSInteger)index
 {
     NSUnimplementedMethod();
     return 0;
@@ -596,6 +596,79 @@ static float constrainTo(float value,float min,float max){
     }
     
     [self setNeedsDisplay:YES];
+}
+
+-(BOOL)arrangesAllSubviews {
+   return (_arrangedSubviews==nil)?YES:_arrangesAllSubviews;
+}
+
+-(void)setArrangesAllSubviews:(BOOL)flag {
+   if(_arrangedSubviews==nil)
+    _arrangedSubviews=[[NSMutableArray alloc] init];
+   _arrangesAllSubviews=flag;
+   if(flag)
+    [_arrangedSubviews setArray:[self subviews]];
+   [self adjustSubviews];
+}
+
+-(NSArray *)arrangedSubviews {
+   if([self arrangesAllSubviews])
+    return [self subviews];
+   return [[_arrangedSubviews copy] autorelease];
+}
+
+-(void)addArrangedSubview:(NSView *)view {
+   [self insertArrangedSubview:view atIndex:[[self arrangedSubviews] count]];
+}
+
+-(void)insertArrangedSubview:(NSView *)view atIndex:(NSInteger)index {
+   if([self arrangesAllSubviews]){
+    NSArray *subviews=[self subviews];
+
+    if((NSUInteger)index<[subviews count])
+     [self addSubview:view positioned:NSWindowBelow relativeTo:[subviews objectAtIndex:index]];
+    else
+     [self addSubview:view];
+   }
+   else {
+    if([view superview]!=self)
+     [self addSubview:view];
+    [_arrangedSubviews removeObjectIdenticalTo:view];
+    [_arrangedSubviews insertObject:view atIndex:MIN((NSUInteger)index,[_arrangedSubviews count])];
+   }
+   [self adjustSubviews];
+}
+
+-(void)removeArrangedSubview:(NSView *)view {
+   if([self arrangesAllSubviews])
+    [view removeFromSuperview];
+   else
+    [_arrangedSubviews removeObjectIdenticalTo:view];
+   [self adjustSubviews];
+}
+
+-(float)holdingPriorityForSubviewAtIndex:(NSInteger)subviewIndex {
+   if(subviewIndex>=0 && subviewIndex<(NSInteger)[_holdingPriorities count])
+    return [[_holdingPriorities objectAtIndex:subviewIndex] floatValue];
+   return 250;
+}
+
+-(void)setHoldingPriority:(float)priority forSubviewAtIndex:(NSInteger)subviewIndex {
+   if(_holdingPriorities==nil)
+    _holdingPriorities=[[NSMutableArray alloc] init];
+   while((NSInteger)[_holdingPriorities count]<=subviewIndex)
+    [_holdingPriorities addObject:[NSNumber numberWithFloat:250]];
+   [_holdingPriorities replaceObjectAtIndex:subviewIndex withObject:[NSNumber numberWithFloat:priority]];
+}
+
+-(NSString *)autosaveName {
+   return _autosaveName;
+}
+
+-(void)setAutosaveName:(NSString *)name {
+   name=[name copy];
+   [_autosaveName release];
+   _autosaveName=name;
 }
 
 @end
