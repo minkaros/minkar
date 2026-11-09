@@ -32,8 +32,8 @@
 # commit that closes a milestone updates this file and runs
 # "bmake progress" (Docs/CONTRIBUTING.md).
 
-updated = "2026-11-08"
-commit  = "956eccef79"
+updated = "2026-11-09"
+commit  = "c0691e1aed"
 
 deps = [["ws", 555, "dock"], ["fw", 490, "files"], ["fw", 590, "webkit"]]
 
@@ -123,11 +123,13 @@ color = "brown"
 doc = "ROADMAP.md#phase-3--base-frameworks-and-swift"
 doc_es = "ROADMAP.es.md#fase-3--frameworks-base-y-swift"
 # CLI tools: gate M3's seven open source tools (Tests/M3), all pass (5 Nov).
-# Cocoa coverage: the block after M3 (AppKit, CF, Security from the inventory).
+# Cocoa coverage: the block after M3, met on 9 Nov: imported symbols 99.9 %,
+# selectors 97.6 % (only SMAppService, API 22, is missing). Security: Minkar's
+# own subset (decided 9 Nov), the APSL sources to replace it.
 stations = [
   ["XPC", 250, "done"], ["libSystem", 300, "partial"], ["Foundation", 350, "partial"],
-  ["CF-Lite", 400, "partial"], ["Security", 445, "todo"], ["LaunchServices", 490, "done"],
-  ["Swift 6", 540, "partial"], ["CLI tools", 590, "done"], ["Cocoa coverage", 620, "current"],
+  ["CF-Lite", 400, "partial"], ["Security", 445, "partial"], ["LaunchServices", 490, "done"],
+  ["Swift 6", 540, "partial"], ["CLI tools", 590, "done"], ["Cocoa coverage", 620, "done"],
 ]
 
 [[line]]
@@ -204,9 +206,11 @@ doc_es = "ROADMAP.es.md#fase-3--frameworks-base-y-swift"
 # Part of Minkar 19.6.0 (W0 to W5). W0: its libraries in, 21 of 23 pass
 # their own tests on PC 2 (FreeType and WOFF2 have none that run offline).
 # W1: JavaScriptCore with its JIT, gate w1-check (es6 605 of 605).
+# W3, W4: the API classes are in (9 Nov), pages shown as text until the
+# engine is WPE WebKit.
 stations = [
   ["W0 deps", 650, "partial"], ["W1 JSC", 710, "current"], ["W2 WebCore", 770, "todo"],
-  ["W3 WKWebView", 830, "todo"], ["W4 WebView", 890, "todo"], ["W5 apps", 970, "todo"],
+  ["W3 WKWebView", 830, "partial"], ["W4 WebView", 890, "partial"], ["W5 apps", 970, "todo"],
 ]
 
 [[line]]
@@ -237,12 +241,12 @@ stations = [["x86-64 apps", 1082, "todo"], ["arm64", 1150, "todo"]]
 # The work board. "line" picks a card's colour; "here" marks a station of
 # the metro map as where work is.
 [board]
-here = "Cocoa coverage"
+here = "W1 JSC"
 
 [[board.now]]
-title = "Cocoa coverage: Auto Layout first"
-note = "NSLayoutConstraint, anchors, guides, visual format (kiwi), NSStackView; then tables"
-line = "fw"
+title = "WebKit: WPE as the engine"
+note = "the API classes are in, pages as text; JavaScriptCore, then WebCore under them"
+line = "webkit"
 
 [[board.now]]
 title = "GPU: clocks, then G5"
@@ -267,7 +271,7 @@ line = "gpu"
 [[board.later]]
 group = "Minkar 19.6.0"
 items = [["Apps A2, A5–A10: editor, screenshot, viewers, disks…", "apps"],
-  ["MB2–MB3, D3, K3: the desktop for daily use", "mb"], ["Security: certificates, keychain", "fw"],
+  ["MB2–MB3, D3, K3: the desktop for daily use", "mb"], ["Security: the APSL sources replace the subset", "fw"],
   ["DMG installs", "apps"]]
 
 [[board.later]]
@@ -277,6 +281,16 @@ items = [["API 20 and 21", "fw"], ["Performance ≥ the reference system", "gpu"
 [[board.later]]
 group = "After 19.6.0"
 items = [["x86-64 binaries, arm64", "compat"]]
+
+[[board.done]]
+title = "Cocoa coverage met"
+note = "imported symbols 99.9 %, selectors 97.6 %; nine frameworks at 100 % · 9 nov"
+line = "fw"
+
+[[board.done]]
+title = "Security, WebKit's API, eight frameworks"
+note = "Security's subset, WKWebView and WebView (text pages), UTType, AE, Quick Look · 9 nov"
+line = "fw"
 
 [[board.done]]
 title = "A1: Terminal"
@@ -297,13 +311,3 @@ line = "apps"
 title = "A0: the app base"
 note = "Atlas's About, help books, documents with versions, the app template · 8 nov"
 line = "apps"
-
-[[board.done]]
-title = "M3 met: seven tools pass"
-note = "tag and SwiftFormat too; NSMetadataQuery; the kernel at -O2 · 5 nov"
-line = "fw"
-
-[[board.done]]
-title = "M3: mogenerator, the first Objective-C tool"
-note = "CoreData's models in code and archives, predicates, KVC set proxies · 5 nov"
-line = "fw"

@@ -1,8 +1,8 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="862" viewBox="0 0 1200 862" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif" role="img" aria-label="Minkar milestones by plan, 2026-11-08">
-<title>Minkar milestones by plan, 2026-11-08</title>
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="862" viewBox="0 0 1200 862" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif" role="img" aria-label="Minkar milestones by plan, 2026-11-09">
+<title>Minkar milestones by plan, 2026-11-09</title>
 <rect width="1200" height="862" fill="#0d1117"/>
 <text x="20" y="30" font-size="20" font-weight="700" fill="#e6edf3" text-anchor="start">Minkar milestones by plan</text>
-<text x="20" y="54" font-size="14" font-weight="400" fill="#9198a1" text-anchor="start">2026-11-08 · devel 956eccef79</text>
+<text x="20" y="54" font-size="14" font-weight="400" fill="#9198a1" text-anchor="start">2026-11-09 · devel c0691e1aed</text>
 <line x1="160" y1="95" x2="160" y2="110" stroke="#e6edf3" stroke-opacity=".35" stroke-width="1.5" stroke-dasharray="2 4"/>
 <rect x="139" y="72" width="42" height="24" rx="12" fill="#e6edf3" stroke="#e6edf3" stroke-width="1.5"/>
 <text x="160" y="89" font-size="13.5" font-weight="700" fill="#0d1117" text-anchor="middle">M0</text>
@@ -56,7 +56,7 @@
 <text x="20" y="191" font-size="15" font-weight="700" fill="#d29922" text-anchor="start">Frameworks</text>
 <line x1="250" y1="186" x2="620" y2="186" stroke="#d29922" stroke-opacity=".22" stroke-width="8" stroke-linecap="round"/>
 <line x1="250" y1="186" x2="620" y2="186" stroke="#d29922" stroke-opacity=".55" stroke-width="8" stroke-linecap="round"/>
-<line x1="250" y1="186" x2="590" y2="186" stroke="#d29922" stroke-opacity="1" stroke-width="8" stroke-linecap="round"/>
+<line x1="250" y1="186" x2="620" y2="186" stroke="#d29922" stroke-opacity="1" stroke-width="8" stroke-linecap="round"/>
 <circle cx="250" cy="186" r="10" fill="#d29922" stroke="#0d1117" stroke-width="3"/><path d="M245.5 186 l3 3 l6 -6.5" fill="none" stroke="#0d1117" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
 <text x="250" y="215" font-size="13.5" font-weight="500" fill="#e6edf3" text-anchor="middle">XPC</text>
 <circle cx="300" cy="186" r="9" fill="#0d1117" stroke="#d29922" stroke-width="3"/><path d="M300 180 A6 6 0 0 0 300 192 Z" fill="#d29922"/>
@@ -65,17 +65,16 @@
 <text x="350" y="215" font-size="13.5" font-weight="500" fill="#e6edf3" text-anchor="middle">Foundation</text>
 <circle cx="400" cy="186" r="9" fill="#0d1117" stroke="#d29922" stroke-width="3"/><path d="M400 180 A6 6 0 0 0 400 192 Z" fill="#d29922"/>
 <text x="400" y="168" font-size="13.5" font-weight="500" fill="#e6edf3" text-anchor="middle">CF-Lite</text>
-<circle cx="445" cy="186" r="8" fill="#0d1117" stroke="#d29922" stroke-opacity=".7" stroke-width="2.5"/>
-<text x="445" y="215" font-size="13.5" font-weight="500" fill="#9198a1" text-anchor="middle">Security</text>
+<circle cx="445" cy="186" r="9" fill="#0d1117" stroke="#d29922" stroke-width="3"/><path d="M445 180 A6 6 0 0 0 445 192 Z" fill="#d29922"/>
+<text x="445" y="215" font-size="13.5" font-weight="500" fill="#e6edf3" text-anchor="middle">Security</text>
 <circle cx="490" cy="186" r="10" fill="#d29922" stroke="#0d1117" stroke-width="3"/><path d="M485.5 186 l3 3 l6 -6.5" fill="none" stroke="#0d1117" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
 <text x="490" y="168" font-size="13.5" font-weight="500" fill="#e6edf3" text-anchor="middle">LaunchServices</text>
 <circle cx="540" cy="186" r="9" fill="#0d1117" stroke="#d29922" stroke-width="3"/><path d="M540 180 A6 6 0 0 0 540 192 Z" fill="#d29922"/>
 <text x="540" y="215" font-size="13.5" font-weight="500" fill="#e6edf3" text-anchor="middle">Swift 6</text>
 <circle cx="590" cy="186" r="10" fill="#d29922" stroke="#0d1117" stroke-width="3"/><path d="M585.5 186 l3 3 l6 -6.5" fill="none" stroke="#0d1117" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
 <text x="590" y="168" font-size="13.5" font-weight="500" fill="#e6edf3" text-anchor="middle">CLI tools</text>
-<circle cx="620" cy="186" r="17" fill="#d29922" fill-opacity=".2"/><circle cx="620" cy="186" r="10" fill="#0d1117" stroke="#d29922" stroke-width="5"/>
-<text x="620" y="168" font-size="13.5" font-weight="700" fill="#e6edf3" text-anchor="middle">Cocoa coverage</text>
-<text x="620" y="232" font-size="11.5" font-weight="800" fill="#d29922" text-anchor="middle" letter-spacing=".06em">WE ARE HERE</text>
+<circle cx="620" cy="186" r="10" fill="#d29922" stroke="#0d1117" stroke-width="3"/><path d="M615.5 186 l3 3 l6 -6.5" fill="none" stroke="#0d1117" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="620" y="168" font-size="13.5" font-weight="500" fill="#e6edf3" text-anchor="middle">Cocoa coverage</text>
 <text x="20" y="255" font-size="15" font-weight="700" fill="#4493f8" text-anchor="start">WindowServer</text>
 <line x1="290" y1="250" x2="1060" y2="250" stroke="#4493f8" stroke-opacity=".22" stroke-width="8" stroke-linecap="round"/>
 <line x1="290" y1="250" x2="1060" y2="250" stroke="#4493f8" stroke-opacity=".55" stroke-width="8" stroke-linecap="round"/>
@@ -163,17 +162,18 @@
 <text x="970" y="552" font-size="13.5" font-weight="500" fill="#e6edf3" text-anchor="middle">A3–A10 · DMG</text>
 <text x="20" y="639" font-size="15" font-weight="700" fill="#4493f8" text-anchor="start">WebKit</text>
 <line x1="650" y1="634" x2="970" y2="634" stroke="#4493f8" stroke-opacity=".22" stroke-width="8" stroke-linecap="round"/>
-<line x1="650" y1="634" x2="710" y2="634" stroke="#4493f8" stroke-opacity=".55" stroke-width="8" stroke-linecap="round"/>
+<line x1="650" y1="634" x2="890" y2="634" stroke="#4493f8" stroke-opacity=".55" stroke-width="8" stroke-linecap="round"/>
 <circle cx="650" cy="634" r="9" fill="#0d1117" stroke="#4493f8" stroke-width="3"/><path d="M650 628 A6 6 0 0 0 650 640 Z" fill="#4493f8"/>
 <text x="650" y="663" font-size="13.5" font-weight="500" fill="#e6edf3" text-anchor="middle">W0 deps</text>
 <circle cx="710" cy="634" r="17" fill="#4493f8" fill-opacity=".2"/><circle cx="710" cy="634" r="10" fill="#0d1117" stroke="#4493f8" stroke-width="5"/>
 <text x="710" y="663" font-size="13.5" font-weight="700" fill="#e6edf3" text-anchor="middle">W1 JSC</text>
+<text x="710" y="680" font-size="11.5" font-weight="800" fill="#4493f8" text-anchor="middle" letter-spacing=".06em">WE ARE HERE</text>
 <circle cx="770" cy="634" r="8" fill="#0d1117" stroke="#4493f8" stroke-opacity=".7" stroke-width="2.5"/>
 <text x="770" y="616" font-size="13.5" font-weight="500" fill="#9198a1" text-anchor="middle">W2 WebCore</text>
-<circle cx="830" cy="634" r="8" fill="#0d1117" stroke="#4493f8" stroke-opacity=".7" stroke-width="2.5"/>
-<text x="830" y="663" font-size="13.5" font-weight="500" fill="#9198a1" text-anchor="middle">W3 WKWebView</text>
-<circle cx="890" cy="634" r="8" fill="#0d1117" stroke="#4493f8" stroke-opacity=".7" stroke-width="2.5"/>
-<text x="890" y="616" font-size="13.5" font-weight="500" fill="#9198a1" text-anchor="middle">W4 WebView</text>
+<circle cx="830" cy="634" r="9" fill="#0d1117" stroke="#4493f8" stroke-width="3"/><path d="M830 628 A6 6 0 0 0 830 640 Z" fill="#4493f8"/>
+<text x="830" y="663" font-size="13.5" font-weight="500" fill="#e6edf3" text-anchor="middle">W3 WKWebView</text>
+<circle cx="890" cy="634" r="9" fill="#0d1117" stroke="#4493f8" stroke-width="3"/><path d="M890 628 A6 6 0 0 0 890 640 Z" fill="#4493f8"/>
+<text x="890" y="616" font-size="13.5" font-weight="500" fill="#e6edf3" text-anchor="middle">W4 WebView</text>
 <circle cx="970" cy="634" r="8" fill="#0d1117" stroke="#4493f8" stroke-opacity=".7" stroke-width="2.5"/>
 <text x="970" y="663" font-size="13.5" font-weight="500" fill="#9198a1" text-anchor="middle">W5 apps</text>
 <text x="20" y="703" font-size="15" font-weight="700" fill="#f85149" text-anchor="start">GPU track</text>
