@@ -1094,10 +1094,19 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    return result;
 }
 
+/* A matrix of selectable cells takes the keyboard when clicked (a
+   browser's column shows its selection in the strong blue then). */
+-(BOOL)acceptsFirstResponder {
+   return [self isEnabled] && [self numberOfRows]>0 && [self numberOfColumns]>0;
+}
+
 -(void)mouseDown:(NSEvent *)event {
    NSPoint point=[self convertPoint:[event locationInWindow] fromView:nil];
    int     row,column;
    BOOL    sendAction=NO;
+
+   if([self acceptsFirstResponder] && [[self window] firstResponder]!=self)
+    [[self window] makeFirstResponder:self];
 
    if([self getRow:&row column:&column forPoint:point]){
     NSCell *cell=[self cellAtRow:row column:column];
@@ -1288,6 +1297,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 -(BOOL)becomeFirstResponder {
    [self _selectTextCell:[self keyCell]];
+   [self setNeedsDisplay:YES];   /* its selection's color follows the focus */
 
    return YES;
 }

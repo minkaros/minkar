@@ -46,6 +46,9 @@ OUT = os.path.join(HERE, 'System.clr')
 
 ACCENT = (0.13, 0.47, 0.95)
 SELECTION = (0.70, 0.84, 1.00)
+# A selected row in a focused list: a deeper blue than the accent, white
+# text on it (as the reference platform draws lists).
+LIST_SELECTION = (0.10, 0.38, 0.83)
 
 # name: grey (one number) or RGB (three), then alpha (optional).
 COLORS = [
@@ -72,8 +75,8 @@ COLORS = [
     ('controlBackgroundColor', 1.0),
     ('controlAlternatingRowColor', 0.96),
     ('alternatingContentBackgroundColor', 0.96),
-    ('selectedContentBackgroundColor', ACCENT),
-    ('unemphasizedSelectedContentBackgroundColor', 0.86),
+    ('selectedContentBackgroundColor', LIST_SELECTION),
+    ('unemphasizedSelectedContentBackgroundColor', 0.84),
     ('gridColor', 0.85),
     ('separatorColor', 0.80),
     # Controls.
@@ -82,7 +85,7 @@ COLORS = [
     ('disabledControlTextColor', 0.60),
     ('selectedControlColor', SELECTION),
     ('selectedControlTextColor', 0.0),
-    ('alternateSelectedControlColor', ACCENT),
+    ('alternateSelectedControlColor', LIST_SELECTION),
     ('alternateSelectedControlTextColor', 1.0),
     ('secondarySelectedControlColor', 0.86),
     ('controlAccentColor', ACCENT),

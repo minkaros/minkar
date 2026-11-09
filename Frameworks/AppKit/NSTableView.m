@@ -1115,9 +1115,31 @@ _dataSource);
     }
 }
 
+/* The strong list blue while the table is the key window's first
+   responder, grey otherwise (as the reference platform). */
+-(BOOL)_isEmphasized {
+    return [[self window] isKeyWindow] && [[self window] firstResponder]==self;
+}
+
+/* A table takes the keyboard (and shows its selection in the strong
+   blue) when clicked, as on the reference platform. */
+-(BOOL)acceptsFirstResponder {
+    return YES;
+}
+
+-(BOOL)becomeFirstResponder {
+    [self setNeedsDisplay:YES];
+    return [super becomeFirstResponder];
+}
+
+-(BOOL)resignFirstResponder {
+    [self setNeedsDisplay:YES];
+    return [super resignFirstResponder];
+}
+
 -(void)drawHighlightedSelectionForColumn:(int)column row:(int)row inRect:(NSRect)rect
 {
-    [[NSColor selectedControlColor] setFill];
+    [([self _isEmphasized]?[NSColor alternateSelectedControlColor]:[NSColor unemphasizedSelectedContentBackgroundColor]) setFill];
     NSRectFill(rect);
 }
 
@@ -1147,7 +1169,7 @@ _dataSource);
    if ([dataCell respondsToSelector:@selector(setTextColor:)]) {
       if ([self isRowSelected:row] || [self isColumnSelected:columnNumber]){
        [(NSTextFieldCell *)dataCell setDrawsBackground:NO]; // so the selection shows properly, dont just set the color so custom background works
-         [(NSTextFieldCell *)dataCell setTextColor:[NSColor selectedTextColor]];
+         [(NSTextFieldCell *)dataCell setTextColor:[self _isEmphasized]?[NSColor alternateSelectedControlTextColor]:[NSColor textColor]];
       }
       else
          [(NSTextFieldCell *)dataCell setTextColor:[NSColor textColor]];
@@ -1526,6 +1548,9 @@ _dataSource);
 -(void)mouseDown:(NSEvent *)event {
     NSPoint location = [self convertPoint:[event locationInWindow] fromView:nil];
     NSInteger numberOfRows=[self numberOfRows];
+
+    if([_window firstResponder]!=self)
+        [_window makeFirstResponder:self];
 
     _clickedColumn = [self columnAtPoint:location];
     _clickedRow = [self rowAtPoint:location];
