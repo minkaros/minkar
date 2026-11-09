@@ -4,7 +4,10 @@
 #
 # Mesa's Vulkan driver for AMD GPUs (RADV), on Minkar's libdrm:
 # /usr/lib/libvulkan_radeon.dylib and its ICD manifest in
-# /usr/share/vulkan/icd.d. Mesa (MIT) is fetched at MANIFEST's version and
+# /usr/share/vulkan/icd.d. And, from a second build of the same tree, EGL
+# and OpenGL ES (libEGL, libGLESv2) on the gallium drivers softpipe (in
+# software, everywhere) and zink (OpenGL on the Vulkan driver), with EGL's
+# surfaceless platform: what WebKit (W2) draws with. Mesa (MIT) is fetched at MANIFEST's version and
 # checked against its SHA-256, copied and patched here (patches/), and built
 # with Meson (minkar-cross.ini.in). The build tools come pinned too:
 # glslang (MANIFEST.glslang), built for the build host, and Meson and Mako
@@ -23,7 +26,8 @@ PATCHES =	0001-darwin-libdrm.patch \
 		0003-darwin-drm-ioctl.patch \
 		0004-darwin-bo-map.patch \
 		0005-minkar-metal-wsi.patch \
-		0006-minkar-wsi-gpu-copy.patch
+		0006-minkar-wsi-gpu-copy.patch \
+		0007-zink-darwin-without-moltenvk.patch
 
 PIP_WHEEL =	pip-25.0.1-py3-none-any.whl
 PIP_URL =	https://files.pythonhosted.org/packages/c9/bc/b7db44f5f39f9d0494071bddae6880eb645970366d0a200022a1a93d57f5/${PIP_WHEEL}
@@ -36,6 +40,10 @@ BUILD =		${.OBJDIR}/build
 CROSS =		${.OBJDIR}/minkar-cross.ini
 LDWRAP =	${.OBJDIR}/ld64-meson
 RADV =		${BUILD}/src/amd/vulkan/libvulkan_radeon.dylib
+BUILD_GL =	${.OBJDIR}/build-gl
+GALLIUM =	libgallium-26.2.6.dylib
+GL_LIBS =	src/egl/libEGL.1.dylib src/mesa/glapi/es2api/libGLESv2.2.dylib \
+		src/gallium/targets/dri/${GALLIUM}
 
 # The tools' environment: the toolchain's clang refuses more than one
 # *_DEPLOYMENT_TARGET in it, and the cross file sets the target already.
@@ -52,7 +60,15 @@ MESON_OPTIONS =	-Dbuildtype=release -Dprefix=/usr -Dplatforms=macos -Dgallium-dr
 		-Dexpat=disabled -Dzstd=disabled -Dvalgrind=disabled -Dlibunwind=disabled \
 		-Dbuild-tests=false -Dvideo-codecs= -Dvulkan-layers= -Dtools=
 
-all: install-radv
+# EGL and OpenGL ES: softpipe and zink, no LLVM (llvmpipe later).
+MESON_GL_OPTIONS = -Dbuildtype=release -Dprefix=/usr -Dplatforms= \
+		-Dgallium-drivers=softpipe,zink -Dvulkan-drivers= -Dllvm=disabled \
+		-Dglx=disabled -Degl=enabled -Dgbm=disabled -Dopengl=true \
+		-Dgles1=disabled -Dgles2=enabled -Dexpat=disabled -Dzstd=disabled \
+		-Dvalgrind=disabled -Dlibunwind=disabled -Dbuild-tests=false \
+		-Dvideo-codecs= -Dvulkan-layers= -Dtools=
+
+all: install-radv install-gl
 
 # Mesa's tree with our patches, made again when the patches change.
 ${SRC}/.minkar-patches: ${PATCHES:S,^,${.CURDIR}/patches/,} ${.CURDIR}/MANIFEST
@@ -111,8 +127,42 @@ install-radv: .PHONY build-radv
 	install -m 0444 ${BUILD}/src/amd/vulkan/radeon_icd.x86_64.json ${SYSROOT_DIR}/usr/share/vulkan/icd.d/
 	install -m 0444 ${SRC}/licenses/MIT ${SYSROOT_DIR}/usr/share/vulkan/LICENSE.mesa
 
+${BUILD_GL}/.minkar-setup: ${SRC}/.minkar-patches ${CROSS} ${VENV}/.minkar-requirements \
+    ${HOST}/bin/glslangValidator ${.CURDIR}/Makefile
+	rm -rf ${BUILD_GL}
+	${TOOLENV} meson setup ${BUILD_GL} ${SRC} \
+	    --cross-file=${CROSS} ${MESON_GL_OPTIONS} > ${.OBJDIR}/meson-setup-gl.log 2>&1 || \
+	    { tail -30 ${.OBJDIR}/meson-setup-gl.log; exit 1; }
+	touch ${.TARGET}
+
+build-gl: .PHONY ${BUILD_GL}/.minkar-setup
+	${TOOLENV} ninja -C ${BUILD_GL} ${GL_LIBS}
+
+# The libraries named for /usr/lib, in the SDK (headers and pkg-config
+# files too, for WebKit's dependencies) and the system.
+install-gl: .PHONY build-gl
+.for lib in ${GL_LIBS}
+	cp -f ${BUILD_GL}/${lib} ${.OBJDIR}/${lib:T}
+	${TC}/install_name_tool -id /usr/lib/${lib:T} ${.OBJDIR}/${lib:T}
+	${TC}/install_name_tool -change @rpath/${GALLIUM} /usr/lib/${GALLIUM} ${.OBJDIR}/${lib:T}
+.endfor
+.for dir in ${MINKAR_SDKROOT} ${SYSROOT_DIR}
+	mkdir -p ${dir}/usr/lib
+	for lib in ${GL_LIBS:T}; do install -m 0755 ${.OBJDIR}/$$lib ${dir}/usr/lib/; done
+	ln -sf libEGL.1.dylib ${dir}/usr/lib/libEGL.dylib
+	ln -sf libGLESv2.2.dylib ${dir}/usr/lib/libGLESv2.dylib
+.endfor
+	mkdir -p ${MINKAR_SDKROOT}/usr/include ${MINKAR_SDKROOT}/usr/lib/pkgconfig
+	cp -R ${SRC}/include/EGL ${SRC}/include/GLES2 ${SRC}/include/GLES3 ${SRC}/include/KHR \
+	    ${MINKAR_SDKROOT}/usr/include/
+	for pc in egl glesv2; do \
+	    sed -e 's|^prefix=.*|prefix=${MINKAR_SDKROOT}/usr|' ${BUILD_GL}/meson-private/$$pc.pc \
+	        > ${MINKAR_SDKROOT}/usr/lib/pkgconfig/$$pc.pc; \
+	done
+	install -m 0444 ${SRC}/licenses/MIT ${SYSROOT_DIR}/usr/share/vulkan/LICENSE.mesa
+
 clean: .PHONY
-	rm -rf ${SRC} ${BUILD} ${VENV} ${HOST} ${.OBJDIR}/glslang-build ${CROSS} ${LDWRAP} \
+	rm -rf ${SRC} ${BUILD} ${BUILD_GL} ${VENV} ${HOST} ${.OBJDIR}/glslang-build ${CROSS} ${LDWRAP} \
 	    ${.OBJDIR}/libvulkan_radeon.dylib ${.OBJDIR}/meson-setup.log
 
 .include <bsd.prog.mk>
