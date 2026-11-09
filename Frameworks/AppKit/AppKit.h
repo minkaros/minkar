@@ -13,6 +13,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <AppKit/NSAffineTransform.h>
 #import <AppKit/NSAlert.h>
 #import <AppKit/NSAnimation.h>
+#import <AppKit/NSAnimationContext.h>
 #import <AppKit/NSApplication.h>
 #import <AppKit/NSArrayController.h>
 #import <AppKit/NSAttributedString.h>
@@ -163,6 +164,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <AppKit/NSStackView.h>
 #import <AppKit/NSViewController.h>
 #import <AppKit/NSTouchBar.h>
+#import <AppKit/NSTextInputContext.h>
 #import <AppKit/NSTitlebarAccessoryViewController.h>
 #import <AppKit/NSGridView.h>
 #import <AppKit/NSDraggingItem.h>

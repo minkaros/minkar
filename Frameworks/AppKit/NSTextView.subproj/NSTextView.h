@@ -16,6 +16,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 #import <AppKit/NSText.h>
 #import <AppKit/NSTextInput.h>
+#import <AppKit/NSTextInputContext.h>
 #import <AppKit/NSDragging.h>
 #import <AppKit/NSParagraphStyle.h>
 #import <Foundation/NSTextCheckingResult.h>
@@ -52,7 +53,7 @@ APPKIT_EXPORT NSString *const NSOldSelectedCharacterRange;
 
 @class NSUndoTyping;
 
-@interface NSTextView : NSText <NSTextInput> {
+@interface NSTextView : NSText <NSTextInput, NSTextInputClient> {
     NSTextStorage *_textStorage;
     NSTextContainer *_textContainer;
     NSSize _textContainerInset;
@@ -215,6 +216,15 @@ APPKIT_EXPORT NSString *const NSOldSelectedCharacterRange;
 - (void)setEnabledTextCheckingTypes:(NSTextCheckingTypes)checkingTypes;
 
 - (void)setSpellingState:(NSInteger)value range:(NSRange)characterRange;
+
+
+/* Kept: the substitutions themselves are not made yet. */
+@property (getter=isAutomaticLinkDetectionEnabled) BOOL automaticLinkDetectionEnabled;
+@property (getter=isAutomaticQuoteSubstitutionEnabled) BOOL automaticQuoteSubstitutionEnabled;
+@property (getter=isAutomaticDashSubstitutionEnabled) BOOL automaticDashSubstitutionEnabled;
+@property (getter=isAutomaticTextReplacementEnabled) BOOL automaticTextReplacementEnabled;
+@property (getter=isAutomaticDataDetectionEnabled) BOOL automaticDataDetectionEnabled;
+@property (getter=isAutomaticTextCompletionEnabled) BOOL automaticTextCompletionEnabled;
 
 @end
 

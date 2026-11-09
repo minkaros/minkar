@@ -6,6 +6,7 @@
 
  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE. */
 
+#import <objc/runtime.h>
 #import <sys/param.h>
 #import <AppKit/NSTextView.h>
 #import <AppKit/NSWorkspace.h>
@@ -2955,9 +2956,88 @@ NSString * const NSOldSelectedCharacterRange=@"NSOldSelectedCharacterRange";
     NSUnimplementedMethod();
 }
 
+/* The character under a point on the screen. */
 -(NSUInteger)characterIndexForPoint:(NSPoint)point {
-    NSUnimplementedMethod();
-    return 0;
+    NSPoint inWindow=[[self window] convertScreenToBase:point];
+    NSPoint inView=[self convertPoint:inWindow fromView:nil];
+    CGFloat fraction=0;
+    NSUInteger glyph=[self glyphIndexForPoint:inView fractionOfDistanceThroughGlyph:&fraction];
+
+    return [[self layoutManager] characterIndexForGlyphAtIndex:glyph];
+}
+
+/* The text input client: marked text (text being composed) is a range of
+   the text, replaced while it is composed and kept when unmarked. */
+static char markedRangeKey;
+
+-(NSRange)markedRange {
+    NSValue *value=objc_getAssociatedObject(self,&markedRangeKey);
+    return (value!=nil)?[value rangeValue]:NSMakeRange(NSNotFound,0);
+}
+
+-(void)_setMarkedRange:(NSRange)range {
+    objc_setAssociatedObject(self,&markedRangeKey,(range.location==NSNotFound)?nil:[NSValue valueWithRange:range],OBJC_ASSOCIATION_RETAIN);
+}
+
+-(BOOL)hasMarkedText {
+    return [self markedRange].location!=NSNotFound;
+}
+
+-(void)unmarkText {
+    [self _setMarkedRange:NSMakeRange(NSNotFound,0)];
+}
+
+-(NSArray *)validAttributesForMarkedText {
+    return [NSArray arrayWithObjects:NSUnderlineStyleAttributeName,NSForegroundColorAttributeName,nil];
+}
+
+-(void)setMarkedText:(id)string selectedRange:(NSRange)selectedRange replacementRange:(NSRange)replacementRange {
+    NSString *plain=[string isKindOfClass:[NSAttributedString class]]?[string string]:string;
+    NSRange   target=[self hasMarkedText]?[self markedRange]:[self selectedRange];
+
+    if(replacementRange.location!=NSNotFound)
+     target=replacementRange;
+    if(![self shouldChangeTextInRange:target replacementString:plain])
+     return;
+    [[self textStorage] replaceCharactersInRange:target withString:plain];
+    [self didChangeText];
+    if([plain length]>0)
+     [self _setMarkedRange:NSMakeRange(target.location,[plain length])];
+    else
+     [self unmarkText];
+    [self setSelectedRange:NSMakeRange(target.location+MIN(selectedRange.location,[plain length]),selectedRange.length)];
+}
+
+-(void)insertText:(id)string replacementRange:(NSRange)replacementRange {
+    if([self hasMarkedText]){
+     [self setSelectedRange:[self markedRange]];
+     [self unmarkText];
+    }
+    else if(replacementRange.location!=NSNotFound)
+     [self setSelectedRange:replacementRange];
+    [self insertText:string];
+}
+
+-(NSAttributedString *)attributedSubstringForProposedRange:(NSRange)range actualRange:(NSRangePointer)actualRange {
+    NSUInteger length=[[self textStorage] length];
+
+    if(range.location>length)
+     return nil;
+    range.length=MIN(range.length,length-range.location);
+    if(actualRange!=NULL)
+     *actualRange=range;
+    return [[self textStorage] attributedSubstringFromRange:range];
+}
+
+/* The first line's rectangle for the range, on the screen. */
+-(NSRect)firstRectForCharacterRange:(NSRange)range actualRange:(NSRangePointer)actualRange {
+    NSRect rect=[self _viewRectForCharacterRange:range];
+
+    if(actualRange!=NULL)
+     *actualRange=range;
+    rect=[self convertRect:rect toView:nil];
+    rect.origin=[[self window] convertBaseToScreen:rect.origin];
+    return rect;
 }
 
 -(void)_setFieldEditorUndoManager:(NSUndoManager *)undoManager
@@ -3461,5 +3541,60 @@ NSString * const NSOldSelectedCharacterRange=@"NSOldSelectedCharacterRange";
     }
 }
 
+
+
+static char linkDetectionKey;
+-(BOOL)isAutomaticLinkDetectionEnabled {
+   id value=objc_getAssociatedObject(self,&linkDetectionKey);
+   return (value!=nil)?[value boolValue]:NO;
+}
+-(void)setAutomaticLinkDetectionEnabled:(BOOL)value {
+   objc_setAssociatedObject(self,&linkDetectionKey,[NSNumber numberWithBool:value],OBJC_ASSOCIATION_RETAIN);
+}
+
+static char quoteSubstitutionKey;
+-(BOOL)isAutomaticQuoteSubstitutionEnabled {
+   id value=objc_getAssociatedObject(self,&quoteSubstitutionKey);
+   return (value!=nil)?[value boolValue]:NO;
+}
+-(void)setAutomaticQuoteSubstitutionEnabled:(BOOL)value {
+   objc_setAssociatedObject(self,&quoteSubstitutionKey,[NSNumber numberWithBool:value],OBJC_ASSOCIATION_RETAIN);
+}
+
+static char dashSubstitutionKey;
+-(BOOL)isAutomaticDashSubstitutionEnabled {
+   id value=objc_getAssociatedObject(self,&dashSubstitutionKey);
+   return (value!=nil)?[value boolValue]:NO;
+}
+-(void)setAutomaticDashSubstitutionEnabled:(BOOL)value {
+   objc_setAssociatedObject(self,&dashSubstitutionKey,[NSNumber numberWithBool:value],OBJC_ASSOCIATION_RETAIN);
+}
+
+static char textReplacementKey;
+-(BOOL)isAutomaticTextReplacementEnabled {
+   id value=objc_getAssociatedObject(self,&textReplacementKey);
+   return (value!=nil)?[value boolValue]:NO;
+}
+-(void)setAutomaticTextReplacementEnabled:(BOOL)value {
+   objc_setAssociatedObject(self,&textReplacementKey,[NSNumber numberWithBool:value],OBJC_ASSOCIATION_RETAIN);
+}
+
+static char dataDetectionKey;
+-(BOOL)isAutomaticDataDetectionEnabled {
+   id value=objc_getAssociatedObject(self,&dataDetectionKey);
+   return (value!=nil)?[value boolValue]:NO;
+}
+-(void)setAutomaticDataDetectionEnabled:(BOOL)value {
+   objc_setAssociatedObject(self,&dataDetectionKey,[NSNumber numberWithBool:value],OBJC_ASSOCIATION_RETAIN);
+}
+
+static char textCompletionKey;
+-(BOOL)isAutomaticTextCompletionEnabled {
+   id value=objc_getAssociatedObject(self,&textCompletionKey);
+   return (value!=nil)?[value boolValue]:NO;
+}
+-(void)setAutomaticTextCompletionEnabled:(BOOL)value {
+   objc_setAssociatedObject(self,&textCompletionKey,[NSNumber numberWithBool:value],OBJC_ASSOCIATION_RETAIN);
+}
 
 @end

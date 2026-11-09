@@ -26,13 +26,18 @@ enum {
     NSParagraphSeparatorCharacter = 0x2029
 };
 
-typedef enum {
-    NSLeftTextAlignment,
-    NSRightTextAlignment,
-    NSCenterTextAlignment,
-    NSJustifiedTextAlignment,
-    NSNaturalTextAlignment
-} NSTextAlignment;
+typedef NS_ENUM(NSInteger, NSTextAlignment) {
+    NSTextAlignmentLeft = 0,
+    NSTextAlignmentRight = 1,
+    NSTextAlignmentCenter = 2,
+    NSTextAlignmentJustified = 3,
+    NSTextAlignmentNatural = 4,
+    NSLeftTextAlignment = NSTextAlignmentLeft,
+    NSRightTextAlignment = NSTextAlignmentRight,
+    NSCenterTextAlignment = NSTextAlignmentCenter,
+    NSJustifiedTextAlignment = NSTextAlignmentJustified,
+    NSNaturalTextAlignment = NSTextAlignmentNatural
+};
 
 enum {
     NSIllegalTextMovement = 0x00,

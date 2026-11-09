@@ -9,6 +9,7 @@ The above copyright notice and this permission notice shall be included in all c
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE. */
 
 #import <AppKit/NSView.h>
+#import <AppKit/NSTextInputContext.h>
 #import <AppKit/NSDraggingItem.h>
 #import <AppKit/NSPasteboard.h>
 #import <AppKit/NSBitmapImageRep.h>
@@ -1335,9 +1336,17 @@ static void cacheDisplayOfView(NSView *view,NSRect windowRect,CGAffineTransform 
    [self removeTrackingArea:tag];
 }
 
+static char inputContextKey;
+
+/* A text input client's context, made on first use; nil for other views. */
 -(NSTextInputContext *)inputContext {
-   NSUnimplementedMethod();
-   return nil;
+   NSTextInputContext *context=objc_getAssociatedObject(self,&inputContextKey);
+
+   if(context==nil && [self respondsToSelector:@selector(insertText:replacementRange:)]){
+    context=[[[NSTextInputContext alloc] initWithClient:(id<NSTextInputClient>)self] autorelease];
+    objc_setAssociatedObject(self,&inputContextKey,context,OBJC_ASSOCIATION_RETAIN);
+   }
+   return context;
 }
 
 -(void)registerForDraggedTypes:(NSArray *)types {
