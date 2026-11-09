@@ -39,6 +39,18 @@ typedef enum {
     NSFontAntialiasedIntegerAdvancementsRenderingMode,
 } NSFontRenderingMode;
 
+/* A weight from -1 (lightest) to 1 (heaviest), 0 regular. */
+typedef CGFloat NSFontWeight;
+APPKIT_EXPORT const NSFontWeight NSFontWeightUltraLight;
+APPKIT_EXPORT const NSFontWeight NSFontWeightThin;
+APPKIT_EXPORT const NSFontWeight NSFontWeightLight;
+APPKIT_EXPORT const NSFontWeight NSFontWeightRegular;
+APPKIT_EXPORT const NSFontWeight NSFontWeightMedium;
+APPKIT_EXPORT const NSFontWeight NSFontWeightSemibold;
+APPKIT_EXPORT const NSFontWeight NSFontWeightBold;
+APPKIT_EXPORT const NSFontWeight NSFontWeightHeavy;
+APPKIT_EXPORT const NSFontWeight NSFontWeightBlack;
+
 @interface NSFont : NSObject <NSCopying> {
     NSString *_name;
     CGFloat _pointSize;
@@ -64,6 +76,12 @@ typedef enum {
 + (NSFont *)messageFontOfSize:(CGFloat)size;
 + (NSFont *)paletteFontOfSize:(CGFloat)size;
 + (NSFont *)systemFontOfSize:(CGFloat)size;
+/* The system font's face nearest the weight. Digits of the
+   monospaced-digit font have one width; the monospaced font is the
+   system's fixed-pitch one. */
++ (NSFont *)systemFontOfSize:(CGFloat)fontSize weight:(NSFontWeight)weight;
++ (NSFont *)monospacedDigitSystemFontOfSize:(CGFloat)fontSize weight:(NSFontWeight)weight;
++ (NSFont *)monospacedSystemFontOfSize:(CGFloat)fontSize weight:(NSFontWeight)weight;
 + (NSFont *)titleBarFontOfSize:(CGFloat)size;
 + (NSFont *)toolTipsFontOfSize:(CGFloat)size;
 + (NSFont *)userFontOfSize:(CGFloat)size;

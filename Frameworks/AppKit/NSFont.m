@@ -9,6 +9,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 #import <sys/param.h>
 #import <AppKit/NSFont.h>
+#include <math.h>
 #import <AppKit/NSFontDescriptor.h>
 #import <AppKit/NSFontFamily.h>
 #import <AppKit/NSFontTypeface.h>
@@ -84,6 +85,15 @@ FOUNDATION_EXPORT char *NSUnicodeToSymbol(const unichar *characters,unsigned len
         return name;
 }
 
+@end
+
+/* A font whose digits advance by the widest digit's width. Kept apart
+   from the font cache, which holds the plain fonts. */
+@interface NSFont_monospacedDigits : NSFont {
+   CGGlyph _digits[10];
+   CGFloat _digitAdvance;
+}
++(NSFont *)fontWithFont:(NSFont *)font;
 @end
 
 @implementation NSFont
@@ -241,6 +251,57 @@ static NSLock *_cacheLock=nil;
 
 +(NSFont *)systemFontOfSize:(CGFloat)size {
    return [self messageFontOfSize:size];
+}
+
+const NSFontWeight NSFontWeightUltraLight=-0.8;
+const NSFontWeight NSFontWeightThin=-0.6;
+const NSFontWeight NSFontWeightLight=-0.4;
+const NSFontWeight NSFontWeightRegular=0;
+const NSFontWeight NSFontWeightMedium=0.23;
+const NSFontWeight NSFontWeightSemibold=0.3;
+const NSFontWeight NSFontWeightBold=0.4;
+const NSFontWeight NSFontWeightHeavy=0.56;
+const NSFontWeight NSFontWeightBlack=0.62;
+
+/* Inter's face for a weight, the nearest of the API's weights. */
+static NSString *interFaceForWeight(NSFontWeight weight){
+   static const struct { CGFloat weight; const char *face; } faces[]={
+    {-0.8,"Inter-Thin"},{-0.6,"Inter-ExtraLight"},{-0.4,"Inter-Light"},{0,"Inter-Regular"},
+    {0.23,"Inter-Medium"},{0.3,"Inter-SemiBold"},{0.4,"Inter-Bold"},{0.56,"Inter-ExtraBold"},{0.62,"Inter-Black"},
+   };
+   size_t i,best=3;
+
+   for(i=0;i<sizeof(faces)/sizeof(faces[0]);i++)
+    if(fabs(faces[i].weight-weight)<fabs(faces[best].weight-weight))
+     best=i;
+   return [NSString stringWithUTF8String:faces[best].face];
+}
+
++(NSFont *)systemFontOfSize:(CGFloat)fontSize weight:(NSFontWeight)weight {
+   NSFont *font;
+
+   if(fontSize<=0)
+    fontSize=[self systemFontSize];
+   font=[NSFont fontWithName:[O2Font postscriptNameForDisplayName:interFaceForWeight(weight)] size:fontSize];
+   return (font!=nil)?font:[self systemFontOfSize:fontSize];
+}
+
+/* The system font with its digits all as wide as the widest (Inter's
+   are proportional). */
++(NSFont *)monospacedDigitSystemFontOfSize:(CGFloat)fontSize weight:(NSFontWeight)weight {
+   NSFont *font=[self systemFontOfSize:fontSize weight:weight];
+
+   return [NSFont_monospacedDigits fontWithFont:font];
+}
+
+/* Agave has a regular and a bold face. */
++(NSFont *)monospacedSystemFontOfSize:(CGFloat)fontSize weight:(NSFontWeight)weight {
+   NSFont *font;
+
+   if(fontSize<=0)
+    fontSize=[self systemFontSize];
+   font=[NSFont fontWithName:[O2Font postscriptNameForDisplayName:(weight>=NSFontWeightSemibold)?@"Agave-Bold":@"Agave-Regular"] size:fontSize];
+   return (font!=nil)?font:[self userFixedPitchFontOfSize:fontSize];
 }
 
 +(NSFont *)titleBarFontOfSize:(CGFloat)size {
@@ -578,8 +639,7 @@ arrayWithArray:[_name componentsSeparatedByString:blank]];
 }
 
 -(NSGlyph)glyphWithName:(NSString *)name {
-   NSUnimplementedMethod();
-   return 0;
+   return (name!=nil)?CGFontGetGlyphWithGlyphName(_cgFont,(CFStringRef)name):0;
 }
 
 -(BOOL)glyphIsEncoded:(NSGlyph)glyph {
@@ -764,6 +824,106 @@ int NSConvertGlyphsToPackedGlyphs(NSGlyph *glyphs,int length,NSMultibyteGlyphPac
 + (NSNibFontNameTranslator*)nibFontTranslator
 {
         return _nibFontTranslator;
+}
+
+@end
+
+@implementation NSFont_monospacedDigits
+
++(NSFont *)fontWithFont:(NSFont *)font {
+   static NSMutableDictionary *fonts;
+   NSString               *key;
+   NSFont_monospacedDigits *result;
+
+   if(font==nil)
+    return nil;
+   key=[NSString stringWithFormat:@"%@/%g",[font fontName],(double)[font pointSize]];
+   @synchronized(self){
+    if(fonts==nil)
+     fonts=[[NSMutableDictionary alloc] init];
+    result=[fonts objectForKey:key];
+    if(result==nil){
+     result=[[[self alloc] initWithName:[font fontName] size:[font pointSize]] autorelease];
+     if(result!=nil)
+      [fonts setObject:result forKey:key];
+    }
+   }
+   return (result!=nil)?result:font;
+}
+
++(void)addFontToCache:(NSFont *)font {
+}
+
++(void)removeFontFromCache:(NSFont *)font {
+}
+
+-initWithName:(NSString *)name size:(CGFloat)size {
+   UniChar characters[10];
+   CGSize  advances[10];
+   int     i;
+
+   self=[super initWithName:name size:size];
+   if(self==nil)
+    return nil;
+   for(i=0;i<10;i++)
+    characters[i]='0'+i;
+   CTFontGetGlyphsForCharacters(_ctFont,characters,_digits,10);
+   CTFontGetAdvancesForGlyphs(_ctFont,0,_digits,advances,10);
+   for(i=0;i<10;i++)
+    _digitAdvance=MAX(_digitAdvance,advances[i].width);
+   return self;
+}
+
+-(void)_widenDigits:(CGSize *)advances glyphs:(const CGGlyph *)glyphs count:(NSUInteger)count {
+   NSUInteger i;
+   int        d;
+
+   for(i=0;i<count;i++)
+    for(d=0;d<10;d++)
+     if(glyphs[i]==_digits[d] && _digits[d]!=0){
+      advances[i].width=_digitAdvance;
+      break;
+     }
+}
+
+-(NSSize)advancementForGlyph:(NSGlyph)glyph {
+   NSSize  result=[super advancementForGlyph:glyph];
+   CGGlyph cgGlyph=glyph;
+   CGSize  advance=CGSizeMake(result.width,result.height);
+
+   [self _widenDigits:&advance glyphs:&cgGlyph count:1];
+   return NSMakeSize(advance.width,advance.height);
+}
+
+-(void)getAdvancements:(NSSize *)advancements forGlyphs:(const NSGlyph *)glyphs count:(NSUInteger)count {
+   CGGlyph    cgGlyphs[count];
+   NSUInteger i;
+
+   [super getAdvancements:advancements forGlyphs:glyphs count:count];
+   for(i=0;i<count;i++)
+    cgGlyphs[i]=glyphs[i];
+   [self _widenDigits:(CGSize *)advancements glyphs:cgGlyphs count:count];
+}
+
+/* The typesetter gets each glyph's advance here (current's, kerned with
+   previous): a digit's is the widest digit's. */
+-(NSPoint)positionOfGlyph:(NSGlyph)current precededByGlyph:(NSGlyph)previous isNominal:(BOOL *)isNominalp {
+   NSPoint result=[super positionOfGlyph:current precededByGlyph:previous isNominal:isNominalp];
+   int     d;
+
+   for(d=0;d<10;d++)
+    if(current==_digits[d] && _digits[d]!=0){
+     result.x=_digitAdvance;
+     if(isNominalp!=NULL)
+      *isNominalp=YES;
+     break;
+    }
+   return result;
+}
+
+-(void)getAdvancements:(NSSize *)advancements forPackedGlyphs:(const void *)packed length:(NSUInteger)length {
+   [super getAdvancements:advancements forPackedGlyphs:packed length:length];
+   [self _widenDigits:(CGSize *)advancements glyphs:(const CGGlyph *)packed count:length];
 }
 
 @end
