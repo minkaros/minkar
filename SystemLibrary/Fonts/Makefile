@@ -3,8 +3,9 @@
 # SHORTCUT(Phase 5): AppKit's interface font is Inter (SIL Open Font
 # License 1.1, Inter-LICENSE.txt), installed as a provisional system font
 # so AppKit can draw text (decided 2026-10-31), until Atlas has its own
-# font. Only the four faces AppKit names are installed; the other fonts
-# under TTF/ are not; taken in WS0.
+# font. All its weights (Thin to Black, each with its italic) are
+# installed, for the font panel's typefaces; the other fonts under TTF/
+# are not; taken in WS0.
 #
 # The fixed-pitch font (NSFont's userFixedPitchFont, Text Editor's plain text)
 # is Agave (OFL 1.1, chosen 2026-11-05), fetched at the version
@@ -13,8 +14,14 @@
 
 SUBDIR =
 
-FONTS =		TTF/Inter-Regular.ttf TTF/Inter-Bold.ttf TTF/Inter-Italic.ttf \
-		TTF/Inter-BoldItalic.ttf Inter-LICENSE.txt
+FONTS =		TTF/Inter-Thin.ttf TTF/Inter-ThinItalic.ttf \
+		TTF/Inter-ExtraLight.ttf TTF/Inter-ExtraLightItalic.ttf \
+		TTF/Inter-Light.ttf TTF/Inter-LightItalic.ttf TTF/Inter-Regular.ttf \
+		TTF/Inter-Italic.ttf TTF/Inter-Medium.ttf TTF/Inter-MediumItalic.ttf \
+		TTF/Inter-SemiBold.ttf TTF/Inter-SemiBoldItalic.ttf TTF/Inter-Bold.ttf \
+		TTF/Inter-BoldItalic.ttf TTF/Inter-ExtraBold.ttf \
+		TTF/Inter-ExtraBoldItalic.ttf TTF/Inter-Black.ttf \
+		TTF/Inter-BlackItalic.ttf Inter-LICENSE.txt
 DIR =		${SYSROOT_DIR}/System/Library/Fonts
 FETCH =		sh ${ROOT_SOURCE_DIR}/BSD/lib/libdrm/fetch.sh
 CACHE ?=	${ROOT_BINARY_DIR:U${.OBJDIR}}/src-cache
