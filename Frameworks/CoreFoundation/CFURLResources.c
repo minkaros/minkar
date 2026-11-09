@@ -44,6 +44,7 @@
 
 #include <sys/param.h>
 #include <sys/stat.h>
+#include <sys/mount.h>
 #include <errno.h>
 #include <stdio.h>
 #include <string.h>
@@ -74,6 +75,9 @@ KEY(kCFURLFileSizeKey,				"NSURLFileSizeKey");
 KEY(kCFURLFileAllocatedSizeKey,			"NSURLFileAllocatedSizeKey");
 KEY(kCFURLTotalFileSizeKey,			"NSURLTotalFileSizeKey");
 KEY(kCFURLTotalFileAllocatedSizeKey,		"NSURLTotalFileAllocatedSizeKey");
+KEY(kCFURLLocalizedNameKey,			"NSURLLocalizedNameKey");
+KEY(kCFURLIsAliasFileKey,			"NSURLIsAliasFileKey");
+KEY(kCFURLVolumeIsLocalKey,			"NSURLVolumeIsLocalKey");
 
 KEY(kCFURLFileResourceTypeNamedPipe,		"NSFileTypeNamedPipe");
 KEY(kCFURLFileResourceTypeCharacterSpecial,	"NSFileTypeCharacterSpecial");
@@ -143,6 +147,31 @@ copyValue(CFURLRef url, const char *path, const struct stat *st, CFStringRef key
 {
     if (CFEqual(key, kCFURLNameKey))
         return CFURLCopyLastPathComponent(url);
+    /* The name shown: without the extension of a package or application. */
+    if (CFEqual(key, kCFURLLocalizedNameKey)) {
+        CFStringRef name = CFURLCopyLastPathComponent(url);
+        CFURLRef bare;
+
+        if (name == NULL || !S_ISDIR(st->st_mode) ||
+            !(CFStringHasSuffix(name, CFSTR(".app")) || CFStringHasSuffix(name, CFSTR(".bundle"))))
+            return name;
+        CFRelease(name);
+        bare = CFURLCreateCopyDeletingPathExtension(kCFAllocatorDefault, url);
+        name = (bare != NULL) ? CFURLCopyLastPathComponent(bare) : NULL;
+        if (bare != NULL)
+            CFRelease(bare);
+        return name;
+    }
+    /* Minkar's aliases are symbolic links. */
+    if (CFEqual(key, kCFURLIsAliasFileKey))
+        return CFRetain(S_ISLNK(st->st_mode) ? kCFBooleanTrue : kCFBooleanFalse);
+    if (CFEqual(key, kCFURLVolumeIsLocalKey)) {
+        struct statfs fs;
+
+        if (statfs(path, &fs) != 0)
+            return NULL;
+        return CFRetain((fs.f_flags & MNT_LOCAL) ? kCFBooleanTrue : kCFBooleanFalse);
+    }
     if (CFEqual(key, kCFURLPathKey))
         return CFStringCreateWithFileSystemRepresentation(kCFAllocatorDefault, path);
     if (CFEqual(key, kCFURLIsRegularFileKey))
@@ -267,4 +296,100 @@ CFURLCopyResourcePropertiesForKeys(CFURLRef url, CFArrayRef keys, CFErrorRef *er
         }
     }
     return dict;
+}
+
+/*
+ * Bookmarks are NSURL's (a CF URL is an NSURL), made and resolved by
+ * Foundation; an alias file is a symbolic link.
+ */
+#include <objc/runtime.h>
+#include <objc/message.h>
+
+CFDataRef
+CFURLCreateBookmarkData(CFAllocatorRef allocator, CFURLRef url, CFURLBookmarkCreationOptions options,
+    CFArrayRef resourcePropertiesToInclude, CFURLRef relativeToURL, CFErrorRef *error)
+{
+    id data = ((id (*)(id, SEL, unsigned long, id, id, id *))objc_msgSend)((id)url,
+        sel_registerName("bookmarkDataWithOptions:includingResourceValuesForKeys:relativeToURL:error:"),
+        (unsigned long)options, (id)resourcePropertiesToInclude, (id)relativeToURL, (id *)error);
+
+    if (data != NULL)
+        CFRetain((CFTypeRef)data);
+    if (error != NULL && *error != NULL)
+        CFRetain(*error);
+    return (CFDataRef)data;
+}
+
+CFURLRef
+CFURLCreateByResolvingBookmarkData(CFAllocatorRef allocator, CFDataRef bookmark, CFURLBookmarkResolutionOptions options,
+    CFURLRef relativeToURL, CFArrayRef resourcePropertiesToInclude, Boolean *isStale, CFErrorRef *error)
+{
+    signed char stale = 0;
+    id url = ((id (*)(id, SEL, id, unsigned long, id, signed char *, id *))objc_msgSend)((id)objc_getClass("NSURL"),
+        sel_registerName("URLByResolvingBookmarkData:options:relativeToURL:bookmarkDataIsStale:error:"),
+        (id)bookmark, (unsigned long)options, (id)relativeToURL, &stale, (id *)error);
+
+    if (isStale != NULL)
+        *isStale = stale != 0;
+    if (url != NULL)
+        CFRetain((CFTypeRef)url);
+    if (error != NULL && *error != NULL)
+        CFRetain(*error);
+    return (CFURLRef)url;
+}
+
+/* The bookmark of the alias (symbolic link) at fileURL: its target's. */
+CFDataRef
+CFURLCreateBookmarkDataFromFile(CFAllocatorRef allocator, CFURLRef fileURL, CFErrorRef *errorRef)
+{
+    char path[PATH_MAX], target[PATH_MAX];
+    ssize_t length;
+    CFURLRef targetURL, base;
+    CFDataRef result;
+
+    if (errorRef != NULL)
+        *errorRef = NULL;
+    if (!copyPath(fileURL, path, sizeof(path), errorRef))
+        return NULL;
+    length = readlink(path, target, sizeof(target) - 1);
+    if (length < 0) {
+        setErrno(errorRef, errno);
+        return NULL;
+    }
+    target[length] = '\0';
+    base = CFURLCreateCopyDeletingLastPathComponent(kCFAllocatorDefault, fileURL);
+    targetURL = CFURLCreateFromFileSystemRepresentationRelativeToBase(kCFAllocatorDefault, (const UInt8 *)target,
+        length, false, base);
+    if (base != NULL)
+        CFRelease(base);
+    if (targetURL == NULL)
+        return NULL;
+    result = CFURLCreateBookmarkData(allocator, targetURL, 0, NULL, NULL, errorRef);
+    CFRelease(targetURL);
+    return result;
+}
+
+/* An alias file: a symbolic link to the bookmark's target. */
+Boolean
+CFURLWriteBookmarkDataToFile(CFDataRef bookmarkRef, CFURLRef fileURL, CFURLBookmarkFileCreationOptions options, CFErrorRef *errorRef)
+{
+    char path[PATH_MAX], target[PATH_MAX];
+    CFURLRef targetURL;
+    Boolean ok;
+
+    if (errorRef != NULL)
+        *errorRef = NULL;
+    targetURL = CFURLCreateByResolvingBookmarkData(kCFAllocatorDefault, bookmarkRef, 0, NULL, NULL, NULL, errorRef);
+    if (targetURL == NULL)
+        return false;
+    ok = copyPath(fileURL, path, sizeof(path), errorRef) && copyPath(targetURL, target, sizeof(target), errorRef);
+    CFRelease(targetURL);
+    if (!ok)
+        return false;
+    unlink(path);
+    if (symlink(target, path) != 0) {
+        setErrno(errorRef, errno);
+        return false;
+    }
+    return true;
 }
