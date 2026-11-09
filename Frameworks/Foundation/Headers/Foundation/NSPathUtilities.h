@@ -94,6 +94,7 @@ NS_ASSUME_NONNULL_BEGIN
 FOUNDATION_EXPORT NSArray<NSString *> *NSSearchPathForDirectoriesInDomains(NSSearchPathDirectory d, NSSearchPathDomainMask mask, BOOL expand);
 
 FOUNDATION_EXPORT NSString *NSHomeDirectory(void);
+FOUNDATION_EXPORT NSString *_Nullable NSHomeDirectoryForUser(NSString *_Nullable userName);
 
 FOUNDATION_EXPORT NSString *NSTemporaryDirectory(void);
 

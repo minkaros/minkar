@@ -23,6 +23,7 @@ FOUNDATION_EXPORT NSErrorDomain const NSMachErrorDomain;
 FOUNDATION_EXPORT NSErrorDomain const NSWINSOCKErrorDomain;
 
 FOUNDATION_EXPORT NSErrorUserInfoKey const NSUnderlyingErrorKey;
+FOUNDATION_EXPORT NSErrorUserInfoKey const NSMultipleUnderlyingErrorsKey;
 FOUNDATION_EXPORT NSErrorUserInfoKey const NSLocalizedDescriptionKey;
 FOUNDATION_EXPORT NSErrorUserInfoKey const NSLocalizedFailureReasonErrorKey;
 FOUNDATION_EXPORT NSErrorUserInfoKey const NSLocalizedRecoverySuggestionErrorKey;

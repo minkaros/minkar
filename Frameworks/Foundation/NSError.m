@@ -43,7 +43,7 @@ NSString * const NSDebugDescriptionErrorKey=@"NSDebugDescription";
 NSString * const NSMachErrorDomain=@"NSMachErrorDomain";
 NSString * const NSHelpAnchorErrorKey=@"NSHelpAnchor";
 NSString * const NSLocalizedFailureErrorKey=@"NSLocalizedFailure";
-static NSString * const NSMultipleUnderlyingErrorsKey=@"NSMultipleUnderlyingErrorsKey";
+NSString * const NSMultipleUnderlyingErrorsKey=@"NSMultipleUnderlyingErrorsKey";
 
 /* The blocks that give an error's values its user info lacks, by domain. */
 static NSMutableDictionary *valueProviders;

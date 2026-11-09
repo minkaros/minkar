@@ -46,6 +46,10 @@ SRCS = 	NSFormatter.m \
 	NSStream/NSInputStream_data.m \
 	NSGarbageCollector.m \
 	NSScanner/NSScanner.m \
+	NSAppleEvent/NSAppleEventDescriptor.m \
+	NSAppleEvent/NSAppleEventManager.m \
+	NSAppleEvent/NSAppleScript.m \
+	NSAppleEvent/NSScriptCommand.m \
 	NSScanner/NSScanner_concrete.m \
 	NSNotificationCenter/NSNotificationCenter.m \
 	NSNotificationCenter/NSObjectToObservers.m \
@@ -81,7 +85,7 @@ SRCS = 	NSFormatter.m \
 	NSRegularExpression.m \
 	NSJSONSerialization.m \
 	NSCache.m \
-	NSEmptyCollections.m \
+	NSConstantLiterals.m \
 	NSSecureCodingSupport.m \
 	NSProgress.m \
 	NSDirectoryEnumerator.m \
@@ -396,7 +400,7 @@ CF_CONSTANTS_KEPT_PRIVATE = _kCFNumberNaN \
 LDFLAGS = --sysroot=${MINKAR_SDKROOT} -Wl,-current_version,1677.104.0 \
 	-Wl,-compatibility_version,300.0.0 -Xlinker -reexport-lobjc \
 	-F${MINKAR_SDKROOT}/System/Library/Frameworks \
-	-Wl,-reexport_framework,CoreFoundation \
+	-Wl,-reexport_framework,CoreFoundation -framework CoreServices \
 	-lSystem -licucore -lcompression \
 	${CF_CONSTANTS_KEPT_PRIVATE:S/^/-Wl,-unexported_symbol,/}
 

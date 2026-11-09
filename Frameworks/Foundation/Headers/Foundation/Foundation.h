@@ -157,6 +157,11 @@
 #import <Foundation/NSOperation.h>
 #import <Foundation/NSOperationQueue.h>
 #import <Foundation/NSPathUtilities.h>
+#import <Foundation/NSHFSFileTypes.h>
+#import <Foundation/NSAppleEventDescriptor.h>
+#import <Foundation/NSAppleEventManager.h>
+#import <Foundation/NSAppleScript.h>
+#import <Foundation/NSScriptCommand.h>
 #import <Foundation/NSPipe.h>
 #import <Foundation/NSPort.h>
 #import <Foundation/NSPortCoder.h>
