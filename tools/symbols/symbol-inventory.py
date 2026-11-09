@@ -339,13 +339,24 @@ def report(sysroot, libs, exported, imports, minos, out, top):
     apps = sorted({r[0] for r in imports})
 
     match = Matcher(sysroot, libs)
+    provided = {}
+
+    def symbols_for(lib):
+        # What dyld finds for a library a binary names: Minkar's library
+        # and, for the libraries in MOVED, the one their symbols moved to.
+        # None when Minkar has no such library.
+        if lib not in provided:
+            minkar_lib, renamed = match(lib)
+            have = exported.get(minkar_lib) if minkar_lib else None
+            if have is not None and minkar_lib in MOVED:
+                have = set(have) | set(exported.get(MOVED[minkar_lib], ()))
+            provided[lib] = (have, minkar_lib, renamed)
+        return provided[lib]
+
     summary, missing_rows = [], []
     for lib in sorted(used, key=lambda l: (-len(used[l]), l)):
         syms = used[lib]
-        minkar_lib, renamed = match(lib)
-        have = exported.get(minkar_lib) if minkar_lib else None
-        if have is not None and minkar_lib in MOVED:
-            have = set(have) | set(exported.get(MOVED[minkar_lib], ()))
+        have, minkar_lib, renamed = symbols_for(lib)
         present = [s for s in syms if have is not None and s in have]
         missing = sorted((s for s in syms if have is None or s not in have),
                          key=lambda s: (-len(syms[s]), s))
@@ -369,8 +380,8 @@ def report(sysroot, libs, exported, imports, minos, out, top):
         uniq = {(lib, sym) for app, _, lib, sym, _ in imports if app == a}
         ok = 0
         for lib, sym in uniq:
-            m, _ = match(lib)
-            ok += bool(m and sym in exported[m])
+            have = symbols_for(lib)[0]
+            ok += bool(have is not None and sym in have)
         per_app.append({'app': a, 'minos': minos.get(a), 'imported': len(uniq),
                         'present': ok,
                         'coverage': round(100.0 * ok / len(uniq), 1) if uniq else 100.0})
