@@ -75,6 +75,8 @@ typedef NSString *NSUserInterfaceItemIdentifier;
 @property (copy) NSUserInterfaceItemIdentifier identifier;
 @end
 
+@class NSDraggingSession;
+
 @interface NSView : NSResponder <NSAnimatablePropertyContainer, NSUserInterfaceItemIdentification, NSAppearanceCustomization> {
     NSRect _frame;
     NSRect _bounds;
@@ -381,6 +383,10 @@ typedef NSString *NSUserInterfaceItemIdentifier;
 - (void)writePDFInsideRect:(NSRect)rect toPasteboard:(NSPasteboard *)pasteboard;
 
 - (void)dragImage:(NSImage *)image at:(NSPoint)location offset:(NSSize)offset event:(NSEvent *)event pasteboard:(NSPasteboard *)pasteboard source:source slideBack:(BOOL)slideBack;
+/* Drags the items (written to the drag pasteboard), each shown at its
+   dragging frame in this view; the source gets the session's
+   callbacks. */
+- (NSDraggingSession *)beginDraggingSessionWithItems:(NSArray *)items event:(NSEvent *)event source:(id)source;
 - (BOOL)dragFile:(NSString *)path fromRect:(NSRect)rect slideBack:(BOOL)slideBack event:(NSEvent *)event;
 - (BOOL)dragPromisedFilesOfTypes:(NSArray *)types fromRect:(NSRect)rect source:(id)source slideBack:(BOOL)slideBack event:(NSEvent *)event;
 

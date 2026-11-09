@@ -114,6 +114,7 @@ typedef NSUInteger NSWindowSharingType;
 typedef int NSSelectionDirection;
 
 APPKIT_EXPORT NSString *const NSWindowDidBecomeKeyNotification;
+APPKIT_EXPORT NSString *const NSWindowDidExposeNotification;
 APPKIT_EXPORT NSString *const NSWindowDidResignKeyNotification;
 APPKIT_EXPORT NSString *const NSWindowDidBecomeMainNotification;
 APPKIT_EXPORT NSString *const NSWindowDidResignMainNotification;

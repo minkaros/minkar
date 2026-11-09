@@ -20,6 +20,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE. */
 
 #import <AppKit/NSDisplay.h>
+#import <AppKit/NSDraggingManager.h>
 #import <AppKit/NSRaise.h>
 #import <AppKit/NSColorList.h>
 #import <AppKit/NSFontTypeface.h>
@@ -139,8 +140,7 @@ static NSRect screenFrame(CGDirectDisplayID display, CGFloat mainHeight, NSRect 
 }
 
 -(NSDraggingManager *)draggingManager {
-   NSUnimplementedMethod();
-   return nil;
+   return [NSDraggingManager _sharedManager];
 }
 
 -(NSColor *)colorWithName:(NSString *)colorName {

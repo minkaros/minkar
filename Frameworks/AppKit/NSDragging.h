@@ -8,7 +8,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 #import <Foundation/Foundation.h>
 
-@class NSPasteboard, NSWindow, NSImage;
+@class NSPasteboard, NSWindow, NSImage, NSView, NSURL;
 
 
 typedef NS_OPTIONS(NSUInteger, NSDragOperation) {
@@ -33,6 +33,13 @@ typedef NS_OPTIONS(NSUInteger, NSDragOperation) {
 - (void)slideDraggedImageTo:(NSPoint)point;
 - (NSInteger)draggingSequenceNumber;
 - (NSArray *)namesOfPromisedFilesDroppedAtDestination:(NSURL *)destination;
+@optional
+@property NSInteger draggingFormation;
+@property BOOL animatesToDestination;
+@property NSInteger numberOfValidItemsForDrop;
+- (void)enumerateDraggingItemsWithOptions:(NSUInteger)enumOpts forView:(NSView *)view classes:(NSArray *)classArray searchOptions:(NSDictionary *)searchOptions usingBlock:(void (^)(id draggingItem, NSInteger idx, BOOL *stop))block;
+@property (readonly) NSInteger springLoadingHighlight;
+- (void)resetSpringLoading;
 @end
 
 @interface NSObject (NSDragging_destination)

@@ -9,6 +9,8 @@ The above copyright notice and this permission notice shall be included in all c
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE. */
 
 #import <AppKit/NSView.h>
+#import <AppKit/NSDraggingItem.h>
+#import <AppKit/NSPasteboard.h>
 #import <AppKit/NSBitmapImageRep.h>
 #import <AppKit/NSViewController.h>
 #import <objc/runtime.h>
@@ -49,6 +51,38 @@ NSString * const NSViewFocusDidChangeNotification=@"NSViewFocusDidChangeNotifica
 -(CGAffineTransform)transformToWindow;
 -(CGAffineTransform)transformToLayer;
 -(void)_trackingAreasChanged;
+@end
+
+/* The session's source gets the old source callbacks as session ones. */
+@interface NSDraggingSessionSource : NSObject {
+@public
+   id                 _source;
+   NSDraggingSession *_session;
+}
+@end
+
+@implementation NSDraggingSessionSource
+-(void)dealloc {
+   [_session release];
+   [super dealloc];
+}
+-(NSDragOperation)draggingSourceOperationMaskForLocal:(BOOL)flag {
+   if([_source respondsToSelector:@selector(draggingSession:sourceOperationMaskForDraggingContext:)])
+    return [_source draggingSession:_session sourceOperationMaskForDraggingContext:flag?NSDraggingContextWithinApplication:NSDraggingContextOutsideApplication];
+   return NSDragOperationEvery;
+}
+-(void)draggedImage:(NSImage *)image beganAt:(NSPoint)point {
+   if([_source respondsToSelector:@selector(draggingSession:willBeginAtPoint:)])
+    [_source draggingSession:_session willBeginAtPoint:point];
+}
+-(void)draggedImage:(NSImage *)image movedTo:(NSPoint)point {
+   if([_source respondsToSelector:@selector(draggingSession:movedToPoint:)])
+    [_source draggingSession:_session movedToPoint:point];
+}
+-(void)draggedImage:(NSImage *)image endedAt:(NSPoint)point operation:(NSDragOperation)operation {
+   if([_source respondsToSelector:@selector(draggingSession:endedAtPoint:operation:)])
+    [_source draggingSession:_session endedAtPoint:point operation:operation];
+}
 @end
 
 @implementation NSView
@@ -2430,6 +2464,31 @@ static NSGraphicsContext *graphicsContextForView(NSView *view){
    [[NSDraggingManager draggingManager] dragImage:image at:location offset:offset event:event pasteboard:pasteboard source:source slideBack:slideBack];
 }
 
+
+-(NSDraggingSession *)beginDraggingSessionWithItems:(NSArray *)items event:(NSEvent *)event source:(id)source {
+   NSPasteboard           *pasteboard=[NSPasteboard pasteboardWithName:NSPasteboardNameDrag];
+   NSDraggingSession      *session=[[[NSDraggingSession alloc] init] autorelease];
+   NSDraggingSessionSource *adapter=[[[NSDraggingSessionSource alloc] init] autorelease];
+   NSMutableArray         *writers=[NSMutableArray array];
+   NSDraggingItem         *leader=[items firstObject];
+   NSRect                  frame=(leader!=nil)?[leader draggingFrame]:NSZeroRect;
+   NSImage                *image=[leader respondsToSelector:@selector(_draggingImage)]?[leader performSelector:@selector(_draggingImage)]:nil;
+
+   [pasteboard clearContents];
+   for(NSDraggingItem *item in items)
+    if([item item]!=nil)
+     [writers addObject:[item item]];
+   [pasteboard writeObjects:writers];
+   [session _setPasteboard:pasteboard items:items];
+   adapter->_source=source;
+   adapter->_session=[session retain];
+   if(image==nil)
+    image=[[[NSImage alloc] initWithSize:NSMakeSize(MAX(NSWidth(frame),1),MAX(NSHeight(frame),1))] autorelease];
+   [self dragImage:image at:[self isFlipped]?NSMakePoint(NSMinX(frame),NSMaxY(frame)):frame.origin offset:NSZeroSize event:event
+      pasteboard:pasteboard source:adapter slideBack:YES];
+   return session;
+}
+
 -(BOOL)dragFile:(NSString *)path fromRect:(NSRect)rect slideBack:(BOOL)slideBack event:(NSEvent *)event {
    NSUnimplementedMethod();
    return NO;
@@ -2516,7 +2575,7 @@ static NSGraphicsContext *graphicsContextForView(NSView *view){
 }
 
 -(BOOL)prepareForDragOperation:(id <NSDraggingInfo>)sender {
-   return NO;
+   return YES;
 }
 
 -(BOOL)performDragOperation:(id <NSDraggingInfo>)sender {

@@ -70,6 +70,7 @@
 #import "O2Context_builtin_FT.h"
 
 NSString * const NSWindowDidBecomeKeyNotification=@"NSWindowDidBecomeKeyNotification";
+NSString * const NSWindowDidExposeNotification=@"NSWindowDidExposeNotification";
 NSString * const NSWindowDidResignKeyNotification=@"NSWindowDidResignKeyNotification";
 NSString * const NSWindowDidBecomeMainNotification=@"NSWindowDidBecomeMainNotification";
 NSString * const NSWindowDidResignMainNotification=@"NSWindowDidResignMainNotification";
@@ -271,9 +272,46 @@ static char hidesWindowControlsKey;
    return 0;
 }
 
+/* The frontmost window on screen under the point (screen coordinates,
+   from the bottom left), below window when it is not 0; 0 for none. */
 +(NSInteger)windowNumberAtPoint:(NSPoint)point belowWindowWithWindowNumber:(NSInteger)window {
-   NSUnimplementedMethod();
-   return 0;
+   CFArrayRef info=CGWindowListCopyWindowInfo(kCGWindowListOptionOnScreenOnly,kCGNullWindowID);
+   CGFloat    height=CGDisplayBounds(CGMainDisplayID()).size.height;
+   CGPoint    top=CGPointMake(point.x,height-point.y);
+   BOOL       below=(window==0);
+   NSInteger  result=0;
+   CFIndex    i,count;
+
+   if(info==NULL)
+    return 0;
+   count=CFArrayGetCount(info);
+   for(i=0;i<count && result==0;i++){
+    CFDictionaryRef entry=CFArrayGetValueAtIndex(info,i);
+    CFNumberRef     number=CFDictionaryGetValue(entry,kCGWindowNumber);
+    CFDictionaryRef boundsDict=CFDictionaryGetValue(entry,kCGWindowBounds);
+    int32_t         windowNumber=0;
+    CGRect          bounds;
+
+    if(number==NULL || boundsDict==NULL || !CGRectMakeWithDictionaryRepresentation(boundsDict,&bounds))
+     continue;
+    CFNumberGetValue(number,kCFNumberSInt32Type,&windowNumber);
+    if(!below){
+     below=(_NSWindowNumberForServerWindow(windowNumber)==window);
+     continue;
+    }
+    if(CGRectContainsPoint(bounds,top))
+     result=_NSWindowNumberForServerWindow(windowNumber);
+   }
+   CFRelease(info);
+   return result;
+}
+
+/* The window server numbers windows its own way: this application's
+   windows have their AppKit numbers, others keep the server's. */
+NSInteger _NSWindowNumberForServerWindow(int32_t serverNumber) {
+   NSWindow *window=_NSWindowForSLSWindow((SLSWindowID)serverNumber);
+
+   return (window!=nil)?[window windowNumber]:serverNumber;
 }
 
 NSArray *_NSWindowNumbersFromWindowInfo(CFArrayRef info,BOOL allApps) {
@@ -292,7 +330,7 @@ NSArray *_NSWindowNumbersFromWindowInfo(CFArrayRef info,BOOL allApps) {
     CFNumberGetValue(owner,kCFNumberSInt32Type,&ownerPID);
     CFNumberGetValue(number,kCFNumberSInt32Type,&windowNumber);
     if(allApps || ownerPID==pid)
-     [result addObject:[NSNumber numberWithInt:windowNumber]];
+     [result addObject:[NSNumber numberWithInteger:_NSWindowNumberForServerWindow(windowNumber)]];
    }
    return result;
 }
@@ -2935,7 +2973,7 @@ static NSMutableSet *hiddenByHide;
 }
 
 -(BOOL)prepareForDragOperation:(id <NSDraggingInfo>)sender {
-   return NO;
+   return YES;
 }
 
 -(BOOL)performDragOperation:(id <NSDraggingInfo>)sender {

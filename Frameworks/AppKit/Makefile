@@ -256,6 +256,8 @@ SRCS = \
     NSViewBackingLayer.m \
     NSViewController.m \
     NSTouchBar.m \
+    NSDraggingItem.m \
+    NSPasteboardItem.m \
     NSAppearance.m \
     NSVisualEffectView.m \
     NSSplitViewController.m \
@@ -539,6 +541,8 @@ HEADERS = \
     NSViewBackingLayer.h \
     NSViewController.h \
     NSTouchBar.h \
+    NSDraggingItem.h \
+    NSPasteboardItem.h \
     NSAppearance.h \
     NSVisualEffectView.h \
     NSSplitViewController.h \
