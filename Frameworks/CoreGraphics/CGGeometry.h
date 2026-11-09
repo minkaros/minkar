@@ -65,102 +65,45 @@ static inline CGSize CGSizeMake(CGFloat x, CGFloat y) {
     return result;
 }
 
-static bool CGSizeEqualToSize(CGSize a, CGSize b) {
-    return a.width == b.width && a.height == b.height;
-}
+CF_ASSUME_NONNULL_BEGIN
+
+/* Exported functions, as the reference platform has them; a rectangle with
+ * a negative width or height is taken as its standardized form. */
+COREGRAPHICS_EXPORT bool CGPointEqualToPoint(CGPoint a, CGPoint b);
+COREGRAPHICS_EXPORT bool CGSizeEqualToSize(CGSize a, CGSize b);
+COREGRAPHICS_EXPORT CGRect CGRectStandardize(CGRect rect);
 
 CF_SWIFT_NAME(getter:CGRect.minX(self:))
-static inline CGFloat CGRectGetMinX(CGRect rect) {
-    return rect.origin.x;
-}
-
-CF_SWIFT_NAME(getter:CGRect.maxX(self:))
-static inline CGFloat CGRectGetMaxX(CGRect rect) {
-    return rect.origin.x + rect.size.width;
-}
-
+COREGRAPHICS_EXPORT CGFloat CGRectGetMinX(CGRect rect);
 CF_SWIFT_NAME(getter:CGRect.midX(self:))
-static inline CGFloat CGRectGetMidX(CGRect rect) {
-    return CGRectGetMinX(rect) + ((CGRectGetMaxX(rect) - CGRectGetMinX(rect)) / 2.f);
-}
-
+COREGRAPHICS_EXPORT CGFloat CGRectGetMidX(CGRect rect);
+CF_SWIFT_NAME(getter:CGRect.maxX(self:))
+COREGRAPHICS_EXPORT CGFloat CGRectGetMaxX(CGRect rect);
 CF_SWIFT_NAME(getter:CGRect.minY(self:))
-static inline CGFloat CGRectGetMinY(CGRect rect) {
-    return rect.origin.y;
-}
-
-CF_SWIFT_NAME(getter:CGRect.maxY(self:))
-static inline CGFloat CGRectGetMaxY(CGRect rect) {
-    return rect.origin.y + rect.size.height;
-}
-
+COREGRAPHICS_EXPORT CGFloat CGRectGetMinY(CGRect rect);
 CF_SWIFT_NAME(getter:CGRect.midY(self:))
-static inline CGFloat CGRectGetMidY(CGRect rect) {
-    return CGRectGetMinY(rect) + ((CGRectGetMaxY(rect) - CGRectGetMinY(rect)) / 2.f);
-}
-
+COREGRAPHICS_EXPORT CGFloat CGRectGetMidY(CGRect rect);
+CF_SWIFT_NAME(getter:CGRect.maxY(self:))
+COREGRAPHICS_EXPORT CGFloat CGRectGetMaxY(CGRect rect);
 CF_SWIFT_NAME(getter:CGRect.width(self:))
-static inline CGFloat CGRectGetWidth(CGRect rect) {
-    return rect.size.width;
-}
-
+COREGRAPHICS_EXPORT CGFloat CGRectGetWidth(CGRect rect);
 CF_SWIFT_NAME(getter:CGRect.height(self:))
-static inline CGFloat CGRectGetHeight(CGRect rect) {
-    return rect.size.height;
-}
+COREGRAPHICS_EXPORT CGFloat CGRectGetHeight(CGRect rect);
 
-static inline bool CGRectContainsPoint(CGRect rect, CGPoint point) {
-    return (point.x >= CGRectGetMinX(rect) && point.x <= CGRectGetMaxX(rect)) && (point.y >= CGRectGetMinY(rect) && point.y <= CGRectGetMaxY(rect));
-}
+COREGRAPHICS_EXPORT bool CGRectEqualToRect(CGRect a, CGRect b);
+COREGRAPHICS_EXPORT bool CGRectIsEmpty(CGRect rect);
+COREGRAPHICS_EXPORT bool CGRectIsNull(CGRect rect);
+COREGRAPHICS_EXPORT bool CGRectIsInfinite(CGRect rect);
+COREGRAPHICS_EXPORT CGRect CGRectInset(CGRect rect, CGFloat dx, CGFloat dy);
+COREGRAPHICS_EXPORT CGRect CGRectOffset(CGRect rect, CGFloat dx, CGFloat dy);
+COREGRAPHICS_EXPORT bool CGRectContainsPoint(CGRect rect, CGPoint point);
+COREGRAPHICS_EXPORT bool CGRectContainsRect(CGRect a, CGRect b);
+COREGRAPHICS_EXPORT bool CGRectIntersectsRect(CGRect a, CGRect b);
 
-static inline bool CGPointEqualToPoint(CGPoint a, CGPoint b) {
-    return ((a.x == b.x) && (a.y == b.y)) ? TRUE : FALSE;
-}
+/* The infinite rectangle. */
+COREGRAPHICS_EXPORT const CGRect CGRectInfinite;
 
-static inline CGRect CGRectInset(CGRect rect, CGFloat dx, CGFloat dy) {
-    rect.origin.x += dx;
-    rect.origin.y += dy;
-    rect.size.width -= dx * 2;
-    rect.size.height -= dy * 2;
-    return rect;
-}
-
-static inline CGRect CGRectOffset(CGRect rect, CGFloat dx, CGFloat dy) {
-    rect.origin.x += dx;
-    rect.origin.y += dy;
-    return rect;
-}
-
-static inline bool CGRectIsEmpty(CGRect rect) {
-    return ((rect.size.width == 0) && (rect.size.height == 0)) ? TRUE : FALSE;
-}
-
-static inline bool CGRectIntersectsRect(CGRect a, CGRect b) {
-    if(b.origin.x > a.origin.x + a.size.width)
-        return false;
-    if(b.origin.y > a.origin.y + a.size.height)
-        return false;
-    if(a.origin.x > b.origin.x + b.size.width)
-        return false;
-    if(a.origin.y > b.origin.y + b.size.height)
-        return false;
-    return true;
-}
-
-static inline bool CGRectEqualToRect(CGRect a, CGRect b) {
-    return CGPointEqualToPoint(a.origin, b.origin) && CGSizeEqualToSize(a.size, b.size);
-}
-
-static inline bool CGRectIsInfinite(CGRect rect) {
-    return (isinf(rect.origin.x) ||
-        isinf(rect.origin.y) ||
-        isinf(rect.size.width) ||
-        isinf(rect.size.height));
-}
-
-static inline bool CGRectIsNull(CGRect rect) {
-    return CGRectEqualToRect(rect, CGRectNull);
-}
+CF_ASSUME_NONNULL_END
 
 /* A vector (API 19). */
 typedef struct CGVector {
@@ -200,9 +143,4 @@ COREGRAPHICS_EXPORT bool CGRectMakeWithDictionaryRepresentation(CFDictionaryRef 
 
 CF_ASSUME_NONNULL_END
 
-static inline bool CGRectContainsRect(CGRect a, CGRect b) {
-    return (CGRectGetMinX(b) >= CGRectGetMinX(a) &&
-        CGRectGetMaxX(b) <= CGRectGetMaxX(a) &&
-        CGRectGetMinY(b) >= CGRectGetMinY(a) &&
-        CGRectGetMaxY(b) <= CGRectGetMaxY(a));
-}
+
