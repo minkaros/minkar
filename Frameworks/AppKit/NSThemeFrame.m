@@ -28,6 +28,7 @@
 #import <AppKit/NSColor.h>
 #import <AppKit/NSImage.h>
 #import <AppKit/NSToolbarView.h>
+#import <AppKit/NSTitlebarAccessoryViewController.h>
 #import <AppKit/NSAttributedString.h>
 #import <Onyx2D/O2Context.h>
 
@@ -375,13 +376,19 @@ static void drawControl(O2Context *context, NSRect rect, int kind, BOOL enabled,
    NSView *contentView=nil;
 
 // tile the subviews, when/if we add titlebars and such do it here
+   NSArray *accessories=[[self window] respondsToSelector:@selector(titlebarAccessoryViewControllers)]?
+      [[self window] titlebarAccessoryViewControllers]:nil;
+   NSMutableArray *accessoryViews=[NSMutableArray array];
+
+   for(NSTitlebarAccessoryViewController *accessory in accessories)
+    [accessoryViews addObject:[accessory view]];
    [self _updateTitlebarOverlay];
    for(NSView *view in _subviews){
-    if(view == _titlebarOverlay)
+    if(view == _titlebarOverlay || [accessoryViews indexOfObjectIdenticalTo:view]!=NSNotFound)
      continue;
     if([view isKindOfClass:[NSToolbarView class]])
      toolbarView=(NSToolbarView *)view;
-    else
+    else if(contentView==nil || view==[[self window] contentView])
      contentView=view;
    }
 
@@ -395,6 +402,40 @@ static void drawControl(O2Context *context, NSRect rect, int kind, BOOL enabled,
    [toolbarView layoutViews];
 
    contentFrame.size.height-=toolbarFrame.size.height;
+
+   /* Title bar accessories: bottom ones in a band under the toolbar (the
+      content below them), left and right ones in the title bar. */
+   CGFloat top=NSMaxY(contentFrame),titleTop=NSMaxY([self bounds]),left=NSMinX([self bounds])+8;
+   CGFloat right=NSMaxX([self bounds])-80;
+
+   for(NSTitlebarAccessoryViewController *accessory in accessories){
+    NSView *view=[accessory view];
+    NSRect  frame=[view frame];
+
+    if([accessory isHidden]){
+     [view setHidden:YES];
+     continue;
+    }
+    [view setHidden:NO];
+    switch([accessory layoutAttribute]){
+     case NSLayoutAttributeLeft:
+     case NSLayoutAttributeLeading:
+      frame=NSMakeRect(left,titleTop-NSWindowTitleHeight,NSWidth(frame),NSWindowTitleHeight);
+      left+=NSWidth(frame);
+      break;
+     case NSLayoutAttributeRight:
+     case NSLayoutAttributeTrailing:
+      right-=NSWidth(frame);
+      frame=NSMakeRect(right,titleTop-NSWindowTitleHeight,NSWidth(frame),NSWindowTitleHeight);
+      break;
+     default:
+      frame=NSMakeRect(contentFrame.origin.x,top-NSHeight(frame),contentFrame.size.width,NSHeight(frame));
+      top-=NSHeight(frame);
+      contentFrame.size.height-=NSHeight(frame);
+      break;
+    }
+    [view setFrame:frame];
+   }
    [contentView setFrame:contentFrame];
 }
 
