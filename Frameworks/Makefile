@@ -42,6 +42,14 @@ SUBDIR += CoreData
 SUBDIR += CoreVideo
 SUBDIR += QuartzCore
 SUBDIR += AppKit
+# Small frameworks binaries for the reference platform link.
+SUBDIR += UserNotifications
+SUBDIR += ServiceManagement
+SUBDIR += AddressBook
+SUBDIR += AudioToolbox
+SUBDIR += OSAKit
+SUBDIR += Carbon
+SUBDIR += Quartz
 # The umbrella apps import and link.
 SUBDIR += Cocoa
 # System Preferences' panes.
@@ -82,6 +90,13 @@ CoreData: Foundation
 QuartzCore: OpenGL IOSurface ../PrivateFrameworks/SkyLight CoreVideo CoreGraphics Onyx2D
 CoreVideo: OpenGL Foundation
 AppKit: CoreData QuartzCore ApplicationServices CoreServices
+UserNotifications: Foundation
+ServiceManagement: CoreFoundation
+AddressBook: Foundation
+AudioToolbox: CoreFoundation
+OSAKit: Foundation
+Carbon: CoreServices ApplicationServices
+Quartz: AppKit
 ApplicationServices: CoreGraphics CoreText
 ImageIO: CoreGraphics
 Cocoa: AppKit CoreData
