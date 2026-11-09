@@ -7,6 +7,8 @@ The above copyright notice and this permission notice shall be included in all c
 
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE. */
 #import <Foundation/NSProcessInfo.h>
+#include <pwd.h>
+#include <unistd.h>
 #import <Foundation/NSArray.h>
 #import <Foundation/NSDictionary.h>
 #import <Foundation/NSPathUtilities.h>
@@ -25,6 +27,9 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import "NSCFString.h"
 #import "NSDarwinString.h"
 #import "NSString_cString.h"
+
+NSString *const NSProcessInfoThermalStateDidChangeNotification=@"NSProcessInfoThermalStateDidChangeNotification";
+NSString *const NSProcessInfoPowerStateDidChangeNotification=@"NSProcessInfoPowerStateDidChangeNotification";
 
 @implementation NSProcessInfo
 
@@ -203,6 +208,99 @@ static void read_system_version(void) {
 -(NSString *)globallyUniqueString {
    return NSStringWithFormat(@"%@_%d_%d_%d_%d",[self hostName],
      [self processIdentifier],0,0,[self incrementCounter]);
+}
+
+-(NSString *)userName {
+   struct passwd *pw=getpwuid(getuid());
+
+   return (pw!=NULL)?[NSString stringWithUTF8String:pw->pw_name]:@"";
+}
+
+/* The account's full name (its GECOS field up to the first comma). */
+-(NSString *)fullUserName {
+   struct passwd *pw=getpwuid(getuid());
+   NSString      *gecos;
+
+   if(pw==NULL)
+    return @"";
+   gecos=[NSString stringWithUTF8String:(pw->pw_gecos!=NULL)?pw->pw_gecos:""];
+   gecos=[[gecos componentsSeparatedByString:@","] objectAtIndex:0];
+   return ([gecos length]>0)?gecos:[NSString stringWithUTF8String:pw->pw_name];
+}
+
+static NSInteger suddenTerminationDisabled,automaticTerminationDisabled;
+static BOOL      automaticTerminationSupport;
+
+-(id<NSObject>)beginActivityWithOptions:(NSActivityOptions)options reason:(NSString *)reason {
+   NSDictionary *activity=[NSDictionary dictionaryWithObjectsAndKeys:[NSNumber numberWithUnsignedLongLong:options],@"options",
+      (reason!=nil)?reason:@"",@"reason",nil];
+
+   @synchronized([NSProcessInfo class]){
+    if(options&NSActivitySuddenTerminationDisabled)
+     suddenTerminationDisabled++;
+    if(options&NSActivityAutomaticTerminationDisabled)
+     automaticTerminationDisabled++;
+   }
+   return activity;
+}
+
+-(void)endActivity:(id<NSObject>)activity {
+   NSActivityOptions options=[[(NSDictionary *)activity objectForKey:@"options"] unsignedLongLongValue];
+
+   @synchronized([NSProcessInfo class]){
+    if((options&NSActivitySuddenTerminationDisabled) && suddenTerminationDisabled>0)
+     suddenTerminationDisabled--;
+    if((options&NSActivityAutomaticTerminationDisabled) && automaticTerminationDisabled>0)
+     automaticTerminationDisabled--;
+   }
+}
+
+-(void)performActivityWithOptions:(NSActivityOptions)options reason:(NSString *)reason usingBlock:(void (^)(void))block {
+   id activity=[self beginActivityWithOptions:options reason:reason];
+
+   block();
+   [self endActivity:activity];
+}
+
+-(void)disableSuddenTermination {
+   @synchronized([NSProcessInfo class]){ suddenTerminationDisabled++; }
+}
+
+-(void)enableSuddenTermination {
+   @synchronized([NSProcessInfo class]){ if(suddenTerminationDisabled>0) suddenTerminationDisabled--; }
+}
+
+-(void)disableAutomaticTermination:(NSString *)reason {
+   @synchronized([NSProcessInfo class]){ automaticTerminationDisabled++; }
+}
+
+-(void)enableAutomaticTermination:(NSString *)reason {
+   @synchronized([NSProcessInfo class]){ if(automaticTerminationDisabled>0) automaticTerminationDisabled--; }
+}
+
+-(BOOL)automaticTerminationSupportEnabled {
+   return automaticTerminationSupport;
+}
+
+-(void)setAutomaticTerminationSupportEnabled:(BOOL)flag {
+   automaticTerminationSupport=flag;
+}
+
+/* Minkar does not watch the processor's temperature or a battery yet. */
+-(NSProcessInfoThermalState)thermalState {
+   return NSProcessInfoThermalStateNominal;
+}
+
+-(BOOL)isLowPowerModeEnabled {
+   return NO;
+}
+
+-(BOOL)isMacCatalystApp {
+   return NO;
+}
+
+-(BOOL)isiOSAppOnMac {
+   return NO;
 }
 
 @end

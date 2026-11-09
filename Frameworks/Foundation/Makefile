@@ -86,6 +86,7 @@ SRCS = 	NSFormatter.m \
 	NSProgress.m \
 	NSDirectoryEnumerator.m \
 	NSProcessInfo.m \
+	NSBackgroundActivityScheduler.m \
 	NSData/NSData.m \
 	NSData/NSDataBase64.m \
 	NSData/NSData_mapped.m \
