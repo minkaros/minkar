@@ -33,6 +33,7 @@ SUBDIR += CoreGraphics
 SUBDIR += CoreText
 # The umbrella of CoreGraphics and CoreText (AppKit's headers import it).
 SUBDIR += ApplicationServices
+SUBDIR += ImageIO
 SUBDIR += CoreData
 # CoreVideo (CVDisplayLink, CVTimeStamp): QuartzCore's headers import it.
 SUBDIR += CoreVideo
@@ -78,6 +79,7 @@ QuartzCore: OpenGL IOSurface ../PrivateFrameworks/SkyLight CoreVideo CoreGraphic
 CoreVideo: OpenGL Foundation
 AppKit: CoreData QuartzCore ApplicationServices CoreServices
 ApplicationServices: CoreGraphics CoreText
+ImageIO: CoreGraphics
 Cocoa: AppKit CoreData
 PreferencePanes: AppKit
 ../Libraries/swift: CoreFoundation CoreGraphics Foundation

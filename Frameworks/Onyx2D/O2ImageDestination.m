@@ -53,8 +53,8 @@ CFTypeID O2ImageDestinationGetTypeID(void) {
 }
 
 CFArrayRef O2ImageDestinationCopyTypeIdentifiers(void) {
-   O2UnimplementedFunction();
-   return NULL;
+   return (CFArrayRef)[[NSArray alloc] initWithObjects:@"public.png",@"public.jpeg",@"public.tiff",
+      @"com.compuserve.gif",@"com.microsoft.bmp",nil];
 }
 
 

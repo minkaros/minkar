@@ -27,5 +27,35 @@ COREGRAPHICS_EXPORT size_t CGImageSourceGetCount(CGImageSourceRef self);
 COREGRAPHICS_EXPORT CGImageRef CGImageSourceCreateImageAtIndex(CGImageSourceRef self, size_t index, CFDictionaryRef options);
 COREGRAPHICS_EXPORT CFDictionaryRef CGImageSourceCopyPropertiesAtIndex(CGImageSourceRef self, size_t index, CFDictionaryRef options);
 
+typedef CF_ENUM(int32_t, CGImageSourceStatus) {
+    kCGImageStatusUnexpectedEOF = -5,
+    kCGImageStatusInvalidData = -4,
+    kCGImageStatusUnknownType = -3,
+    kCGImageStatusReadingHeader = -2,
+    kCGImageStatusIncomplete = -1,
+    kCGImageStatusComplete = 0,
+};
+
+COREGRAPHICS_EXPORT const CFStringRef kCGImageSourceTypeIdentifierHint;
+COREGRAPHICS_EXPORT const CFStringRef kCGImageSourceShouldCache;
+COREGRAPHICS_EXPORT const CFStringRef kCGImageSourceShouldCacheImmediately;
+COREGRAPHICS_EXPORT const CFStringRef kCGImageSourceShouldAllowFloat;
+COREGRAPHICS_EXPORT const CFStringRef kCGImageSourceCreateThumbnailFromImageIfAbsent;
+COREGRAPHICS_EXPORT const CFStringRef kCGImageSourceCreateThumbnailFromImageAlways;
+COREGRAPHICS_EXPORT const CFStringRef kCGImageSourceThumbnailMaxPixelSize;
+COREGRAPHICS_EXPORT const CFStringRef kCGImageSourceCreateThumbnailWithTransform;
+COREGRAPHICS_EXPORT const CFStringRef kCGImageSourceSubsampleFactor;
+
+COREGRAPHICS_EXPORT CFTypeID CGImageSourceGetTypeID(void);
+/* The image types sources read (UTIs). */
+COREGRAPHICS_EXPORT CFArrayRef CGImageSourceCopyTypeIdentifiers(void);
+/* The container's properties (its file size). */
+COREGRAPHICS_EXPORT CFDictionaryRef CGImageSourceCopyProperties(CGImageSourceRef self, CFDictionaryRef options);
+/* The image at index scaled to fit kCGImageSourceThumbnailMaxPixelSize
+   (or as it is). */
+COREGRAPHICS_EXPORT CGImageRef CGImageSourceCreateThumbnailAtIndex(CGImageSourceRef self, size_t index, CFDictionaryRef options);
+COREGRAPHICS_EXPORT CGImageSourceStatus CGImageSourceGetStatus(CGImageSourceRef self);
+COREGRAPHICS_EXPORT CGImageSourceStatus CGImageSourceGetStatusAtIndex(CGImageSourceRef self, size_t index);
+
 
 CF_IMPLICIT_BRIDGING_DISABLED

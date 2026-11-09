@@ -6,9 +6,22 @@ const CFStringRef kCGImageDestinationLossyCompressionQuality=(CFStringRef)@"kCGI
 const CFStringRef kCGImageDestinationBackgroundColor=(CFStringRef)@"kCGImageDestinationBackgroundColor";
 const CFStringRef kCGImageDestinationDPI=(CFStringRef)@"kCGImageDestinationDPI";
 
+/* A CF type registered for image destinations (Objective-C objects). */
+extern CFTypeID _CFRuntimeRegisterClass(const void *runtimeClass);
+
+static const struct { CFIndex version; const char *className; void *functions[16]; } imageDestinationClass={ 0, "CGImageDestination", { NULL } };
+
 CFTypeID CGImageDestinationGetTypeID(void) {
-   return O2ImageDestinationGetTypeID();
+   static CFTypeID typeID;
+
+   if(typeID==0)
+    typeID=_CFRuntimeRegisterClass(&imageDestinationClass);
+   return typeID;
 }
+
+@implementation O2ImageDestination (CGImageDestination)
+-(CFTypeID)_cfTypeID { return CGImageDestinationGetTypeID(); }
+@end
 
 CFArrayRef CGImageDestinationCopyTypeIdentifiers(void) {
    return O2ImageDestinationCopyTypeIdentifiers();
