@@ -10,6 +10,7 @@ SRCS= \
 	CABase.m \
 	CABasicAnimation.m \
 	CALayer.m \
+	CAShapeLayer.m \
 	CALayerContext.m \
 	CAMetalLayer.m \
 	CAMediaTimingFunction.m \
@@ -38,6 +39,7 @@ HEADERS= \
 	CABase.h \
 	CABasicAnimation.h \
 	CALayer.h \
+	CAShapeLayer.h \
 	CALayerContext.h \
 	CAMetalLayer.h \
 	CAMetalLayerPrivate.h \

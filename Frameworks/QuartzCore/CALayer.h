@@ -21,6 +21,19 @@ CA_EXPORT NSString *const kCAFilterLinear;
 CA_EXPORT NSString *const kCAFilterNearest;
 CA_EXPORT NSString *const kCAFilterTrilinear;
 
+CA_EXPORT NSString *const kCAGravityCenter;
+CA_EXPORT NSString *const kCAGravityTop;
+CA_EXPORT NSString *const kCAGravityBottom;
+CA_EXPORT NSString *const kCAGravityLeft;
+CA_EXPORT NSString *const kCAGravityRight;
+CA_EXPORT NSString *const kCAGravityTopLeft;
+CA_EXPORT NSString *const kCAGravityTopRight;
+CA_EXPORT NSString *const kCAGravityBottomLeft;
+CA_EXPORT NSString *const kCAGravityBottomRight;
+CA_EXPORT NSString *const kCAGravityResize;
+CA_EXPORT NSString *const kCAGravityResizeAspect;
+CA_EXPORT NSString *const kCAGravityResizeAspectFill;
+
 @interface CALayer : NSObject {
     CALayerContext *_context;
     CALayer *_superlayer;
@@ -39,6 +52,27 @@ CA_EXPORT NSString *const kCAFilterTrilinear;
     BOOL _needsDisplay;
     NSMutableDictionary *_animations;
     NSNumber *_textureId;
+    CGColorRef _backgroundColor;
+    CGColorRef _borderColor;
+    CGColorRef _shadowColor;
+    CGFloat _borderWidth;
+    CGFloat _cornerRadius;
+    CGFloat _contentsScale;
+    CGFloat _zPosition;
+    CGFloat _shadowRadius;
+    float _shadowOpacity;
+    CGSize _shadowOffset;
+    CGRect _contentsRect;
+    BOOL _masksToBounds;
+    BOOL _hidden;
+    BOOL _needsDisplayOnBoundsChange;
+    BOOL _needsLayout;
+    BOOL _doubleSided;
+    NSString *_name;
+    NSString *_contentsGravity;
+    CALayer *_mask;
+    NSDictionary *_actions;
+    NSDictionary *_style;
 }
 
 + layer;
@@ -59,9 +93,51 @@ CA_EXPORT NSString *const kCAFilterTrilinear;
 @property(copy) NSString *minificationFilter;
 @property(copy) NSString *magnificationFilter;
 
+@property CGColorRef backgroundColor;
+@property CGColorRef borderColor;
+@property CGFloat borderWidth;
+@property CGFloat cornerRadius;
+@property BOOL masksToBounds;
+@property(getter=isHidden) BOOL hidden;
+@property(getter=isDoubleSided) BOOL doubleSided;
+@property(copy) NSString *name;
+@property CGFloat zPosition;
+@property CGFloat contentsScale;
+@property(copy) NSString *contentsGravity;
+@property CGRect contentsRect;
+@property BOOL needsDisplayOnBoundsChange;
+@property(retain) CALayer *mask;
+@property(copy) NSDictionary *actions;
+@property(copy) NSDictionary *style;
+@property CGColorRef shadowColor;
+@property float shadowOpacity;
+@property CGSize shadowOffset;
+@property CGFloat shadowRadius;
+
 - init;
 
 - (void)addSublayer:(CALayer *)layer;
+- (void)insertSublayer:(CALayer *)layer atIndex:(unsigned)index;
+- (void)insertSublayer:(CALayer *)layer below:(CALayer *)sibling;
+- (void)insertSublayer:(CALayer *)layer above:(CALayer *)sibling;
+- (void)setNeedsLayout;
+- (BOOL)needsLayout;
+- (void)layoutIfNeeded;
+- (void)layoutSublayers;
+- (CGPoint)convertPoint:(CGPoint)point fromLayer:(CALayer *)layer;
+- (CGPoint)convertPoint:(CGPoint)point toLayer:(CALayer *)layer;
+- (CGRect)convertRect:(CGRect)rect fromLayer:(CALayer *)layer;
+- (CGRect)convertRect:(CGRect)rect toLayer:(CALayer *)layer;
+- (BOOL)containsPoint:(CGPoint)point;
+- (CALayer *)hitTest:(CGPoint)point;
+/* Draws the layer and its sublayers into the context, in the layer's
+   coordinates (the presentation is the model: no animation in flight is
+   drawn). */
+- (void)renderInContext:(CGContextRef)context;
+- (id)presentationLayer;
+- (id)modelLayer;
++ (id)defaultValueForKey:(NSString *)key;
++ (BOOL)needsDisplayForKey:(NSString *)key;
 - (void)replaceSublayer:(CALayer *)layer with:(CALayer *)other;
 - (void)display;
 - (void)displayIfNeeded;
@@ -85,5 +161,6 @@ CA_EXPORT NSString *const kCAFilterTrilinear;
 
 - (void)displayLayer:(CALayer *)layer;
 - (void)drawLayer:(CALayer *)layer inContext:(CGContextRef)context;
+- (void)layoutSublayersOfLayer:(CALayer *)layer;
 
 @end
