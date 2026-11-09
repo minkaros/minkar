@@ -4,6 +4,7 @@ SUBDIR = bzip2 libsqlite3 libxar ncurses libedit libutil libxo libbsdcompat libm
 SUBDIR_DEPEND_libedit =	ncurses
 SUBDIR_DEPEND_libdrm/tests =	libdrm
 SUBDIR_DEPEND_mesa =	libdrm
+SUBDIR_DEPEND_libepoxy =	mesa
 SUBDIR_DEPEND_mesa/tests =	mesa vulkan-loader
 SUBDIR_DEPEND_libxar =	bzip2
 SUBDIR_DEPEND_libxo =	libutil
