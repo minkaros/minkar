@@ -66,7 +66,15 @@ APPKIT_EXPORT NSString *const NSViewFrameDidChangeNotification;
 APPKIT_EXPORT NSString *const NSViewBoundsDidChangeNotification;
 APPKIT_EXPORT NSString *const NSViewFocusDidChangeNotification;
 
-@interface NSView : NSResponder <NSAnimatablePropertyContainer> {
+/* A name for a view, menu item, window... that state restoration and
+   table cell reuse find it by. */
+typedef NSString *NSUserInterfaceItemIdentifier;
+
+@protocol NSUserInterfaceItemIdentification
+@property (copy) NSUserInterfaceItemIdentifier identifier;
+@end
+
+@interface NSView : NSResponder <NSAnimatablePropertyContainer, NSUserInterfaceItemIdentification> {
     NSRect _frame;
     NSRect _bounds;
     NSWindow *_window;

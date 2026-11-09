@@ -9,6 +9,7 @@ The above copyright notice and this permission notice shall be included in all c
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE. */
 
 #import <AppKit/NSView.h>
+#import <objc/runtime.h>
 #import "NSLayout/NSLayoutInternal.h"
 #import <AppKit/NSApplication.h>
 #import <AppKit/NSEvent.h>
@@ -49,6 +50,16 @@ NSString * const NSViewFocusDidChangeNotification=@"NSViewFocusDidChangeNotifica
 @end
 
 @implementation NSView
+
+static char identifierKey;
+
+-(NSUserInterfaceItemIdentifier)identifier {
+   return objc_getAssociatedObject(self,&identifierKey);
+}
+
+-(void)setIdentifier:(NSUserInterfaceItemIdentifier)identifier {
+   objc_setAssociatedObject(self,&identifierKey,identifier,OBJC_ASSOCIATION_COPY);
+}
 
 static BOOL NSViewLayersEnabled=NO;
 
