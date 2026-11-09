@@ -2447,6 +2447,42 @@ NSString * const NSOldSelectedCharacterRange=@"NSOldSelectedCharacterRange";
     [self scrollRectToVisible:rect];
 }
 
+/* The font panel's effects (underline, strikethrough, color, shadow):
+   each attribute run of the selection, or the typing attributes, made
+   again by the sender's -convertAttributes:. */
+-(void)changeAttributes:sender {
+    NSRange range = [self rangeForUserCharacterAttributeChange];
+
+    if (![self isRichText] || range.location == NSNotFound)
+        return;
+    if (range.length == 0) {
+        [self setTypingAttributes:[sender convertAttributes:[self typingAttributes]]];
+        return;
+    }
+    if (![self shouldChangeTextInRange:range replacementString:nil])
+        return;
+    [_textStorage beginEditing];
+    NSUInteger index = range.location;
+    while (index < NSMaxRange(range)) {
+        NSRange run;
+        NSDictionary *attributes = [_textStorage attributesAtIndex:index effectiveRange:&run];
+        NSRange change = NSIntersectionRange(run, range);
+
+        [_textStorage setAttributes:[sender convertAttributes:attributes] range:change];
+        index = NSMaxRange(change);
+    }
+    [_textStorage endEditing];
+    [self didChangeText];
+}
+
+/* The font panel's document color: the text view's background. */
+-(void)changeDocumentBackgroundColor:sender {
+    if ([sender respondsToSelector:@selector(color)]) {
+        [self setBackgroundColor:[sender color]];
+        [self setDrawsBackground:YES];
+    }
+}
+
 -(void)changeFont:sender {
     if(![self isRichText]) {
         NSFont *font=[sender convertFont:[self font]];

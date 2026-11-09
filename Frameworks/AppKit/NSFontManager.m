@@ -8,6 +8,12 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 #import <AppKit/NSFontManager.h>
 #import <AppKit/NSFontPanel.h>
+
+@interface NSFontPanel (NSFontManagerMadeInCode)
+-(instancetype)_initSharedPanel;
+-(NSDictionary *)_convertAttributes:(NSDictionary *)attributes;
+@end
+#import <AppKit/NSFontPanel.h>
 #import <AppKit/NSFont.h>
 #import <AppKit/NSFontFamily.h>
 #import <AppKit/NSFontTypeface.h>
@@ -239,9 +245,9 @@ static Class _fontPanelFactory;
 }
 
 -(NSFontPanel *)fontPanel:(BOOL)create {
-   if(_panel==nil && create){
-    [NSBundle loadNibNamed:@"NSFontPanel" owner:self];
-   }
+   /* Made in code, as the reference lays it out (it was a nib). */
+   if(_panel==nil && create)
+    _panel=[[NSFontPanel alloc] _initSharedPanel];
 
 	if(![_panel setFrameUsingName:@"NSFontPanel"]) {
 		[_panel center];
@@ -490,9 +496,16 @@ static Class _fontPanelFactory;
 	return font;
 }
 
+/* The font panel's effect being sent (an underline, a color...) applied
+   to a text's attributes; unchanged when none is being sent. */
 -(NSDictionary *)convertAttributes:(NSDictionary *)attributes {
-   NSUnimplementedMethod();
-   return nil;
+   if(_panel!=nil && [_panel respondsToSelector:@selector(_convertAttributes:)])
+    return [_panel _convertAttributes:attributes];
+   return attributes;
+}
+
+-(void)_fontPanelChangedAttributes:(NSFontPanel *)panel {
+   [NSApp sendAction:@selector(changeAttributes:) to:nil from:self];
 }
 
 -(void)addFontTrait:sender {

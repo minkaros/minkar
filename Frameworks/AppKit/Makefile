@@ -90,7 +90,6 @@ SRCS = \
     NSFontManager.m \
     NSFontMetric.m \
     NSFontPanel.m \
-    NSFontPanelCell.m \
     NSFontTypeface.m \
     NSForm.m \
     NSFormCell.m \
@@ -373,7 +372,6 @@ HEADERS = \
     NSFontManager.h \
     NSFontMetric.h \
     NSFontPanel.h \
-    NSFontPanelCell.h \
     NSFontTypeface.h \
     NSForm.h \
     NSFormCell.h \
