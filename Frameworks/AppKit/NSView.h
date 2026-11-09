@@ -10,6 +10,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 // Reviewed for API completeness against 10.6.
 
 #import <AppKit/NSResponder.h>
+#import <AppKit/NSAppearance.h>
 #import <AppKit/NSGraphics.h>
 #import <AppKit/NSAnimation.h>
 #import <AppKit/AppKitExport.h>
@@ -74,7 +75,7 @@ typedef NSString *NSUserInterfaceItemIdentifier;
 @property (copy) NSUserInterfaceItemIdentifier identifier;
 @end
 
-@interface NSView : NSResponder <NSAnimatablePropertyContainer, NSUserInterfaceItemIdentification> {
+@interface NSView : NSResponder <NSAnimatablePropertyContainer, NSUserInterfaceItemIdentification, NSAppearanceCustomization> {
     NSRect _frame;
     NSRect _bounds;
     NSWindow *_window;

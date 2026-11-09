@@ -223,6 +223,8 @@ static SLSRect slsFrame(NSRect frame) {
 }
 
 /* Runs the sheet's completion block and lets the sheet go. */
+static char windowAppearanceKey;
+
 @interface NSSheetCompletion : NSObject {
 @public
    void (^_handler)(NSModalResponse);
@@ -3589,6 +3591,21 @@ static void slsCollectExcluded(NSView *view, NSSize size, SLSIntRect *rects, uin
     [window setTitle:[contentViewController title]];
    [window setReleasedWhenClosed:NO];
    return window;
+}
+
+-(NSAppearance *)appearance {
+   return objc_getAssociatedObject(self,&windowAppearanceKey);
+}
+
+-(void)setAppearance:(NSAppearance *)appearance {
+   objc_setAssociatedObject(self,&windowAppearanceKey,appearance,OBJC_ASSOCIATION_RETAIN);
+   [[self contentView] setNeedsDisplay:YES];
+}
+
+-(NSAppearance *)effectiveAppearance {
+   NSAppearance *appearance=[self appearance];
+
+   return (appearance!=nil)?appearance:[NSApp effectiveAppearance];
 }
 
 -(NSViewController *)contentViewController {

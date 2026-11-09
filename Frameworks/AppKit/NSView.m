@@ -9,6 +9,7 @@ The above copyright notice and this permission notice shall be included in all c
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE. */
 
 #import <AppKit/NSView.h>
+#import <AppKit/NSBitmapImageRep.h>
 #import <AppKit/NSViewController.h>
 #import <objc/runtime.h>
 #import "NSLayout/NSLayoutInternal.h"
@@ -53,6 +54,29 @@ NSString * const NSViewFocusDidChangeNotification=@"NSViewFocusDidChangeNotifica
 @implementation NSView
 
 static char identifierKey;
+static char appearanceKey;
+
+-(NSAppearance *)appearance {
+   return objc_getAssociatedObject(self,&appearanceKey);
+}
+
+-(void)setAppearance:(NSAppearance *)appearance {
+   objc_setAssociatedObject(self,&appearanceKey,appearance,OBJC_ASSOCIATION_RETAIN);
+   [self setNeedsDisplay:YES];
+}
+
+/* The view's, or its superview's, window's or application's. */
+-(NSAppearance *)effectiveAppearance {
+   NSAppearance *appearance=[self appearance];
+
+   if(appearance!=nil)
+    return appearance;
+   if(_superview!=nil)
+    return [_superview effectiveAppearance];
+   if(_window!=nil)
+    return [_window effectiveAppearance];
+   return [NSApp effectiveAppearance];
+}
 
 -(NSUserInterfaceItemIdentifier)identifier {
    return objc_getAssociatedObject(self,&identifierKey);
@@ -509,13 +533,51 @@ static inline void buildTransformsIfNeeded(NSView *self) {
    return NO;
 }
 
+/* A bitmap of rect's size, transparent, to cache the view's drawing in. */
 -(NSBitmapImageRep *)bitmapImageRepForCachingDisplayInRect:(NSRect)rect {
-   NSUnimplementedMethod();
-   return nil;
+   NSInteger width=MAX(1,(NSInteger)ceil(NSWidth(rect)));
+   NSInteger height=MAX(1,(NSInteger)ceil(NSHeight(rect)));
+
+   return [[[NSBitmapImageRep alloc] initWithBitmapDataPlanes:NULL pixelsWide:width pixelsHigh:height bitsPerSample:8
+      samplesPerPixel:4 hasAlpha:YES isPlanar:NO colorSpaceName:NSCalibratedRGBColorSpace bytesPerRow:0 bitsPerPixel:32] autorelease];
 }
 
+static void cacheDisplayOfView(NSView *view,NSRect windowRect,CGAffineTransform toBitmap,NSGraphicsContext *context){
+   CGContextRef port=[context graphicsPort];
+   NSRect       rect;
+
+   if([view isHidden])
+    return;
+   /* The transforms, not convertRect:, which wants a window. */
+   rect=NSIntersectionRect(CGRectApplyAffineTransform(windowRect,[view transformFromWindow]),[view bounds]);
+   if(NSIsEmptyRect(rect))
+    return;
+   CGContextSaveGState(port);
+   CGContextSetCTM(port,CGAffineTransformConcat([view transformToWindow],toBitmap));
+   CGContextClipToRect(port,rect);
+   [view drawRect:rect];
+   CGContextRestoreGState(port);
+
+   for(NSView *child in [view subviews])
+    cacheDisplayOfView(child,windowRect,toBitmap,context);
+}
+
+/* The view and its subviews drawn into the bitmap, rect filling it. */
 -(void)cacheDisplayInRect:(NSRect)rect toBitmapImageRep:(NSBitmapImageRep *)imageRep {
-   NSUnimplementedMethod();
+   NSGraphicsContext *context=[NSGraphicsContext graphicsContextWithBitmapImageRep:imageRep];
+   NSRect             windowRect=CGRectApplyAffineTransform(rect,[self transformToWindow]);
+   CGFloat            scaleX=(NSWidth(rect)>0)?[imageRep pixelsWide]/NSWidth(rect):1;
+   CGFloat            scaleY=(NSHeight(rect)>0)?[imageRep pixelsHigh]/NSHeight(rect):1;
+   CGAffineTransform  toBitmap=CGAffineTransformMakeScale(scaleX,scaleY);
+
+   if(context==nil)
+    return;
+   toBitmap=CGAffineTransformTranslate(toBitmap,-NSMinX(windowRect),-NSMinY(windowRect));
+   [NSGraphicsContext saveGraphicsState];
+   [NSGraphicsContext setCurrentContext:context];
+   cacheDisplayOfView(self,windowRect,toBitmap,context);
+   [context flushGraphics];
+   [NSGraphicsContext restoreGraphicsState];
 }
 
 -(BOOL)isHidden {

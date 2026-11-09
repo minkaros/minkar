@@ -255,6 +255,8 @@ SRCS = \
     NSView.m \
     NSViewBackingLayer.m \
     NSViewController.m \
+    NSAppearance.m \
+    NSVisualEffectView.m \
     NSSplitViewController.m \
     NSTabViewController.m \
     NSWindow-Drag.m \
@@ -401,6 +403,7 @@ HEADERS = \
     NSKeyValueBinding/NSKVOBinder.h \
     NSKeyValueBinding/NSMultipleValueBinder.h \
     NSKeyValueBinding/NSObject+BindingSupport.h \
+    NSKeyValueBinding.h \
     NSKeyValueBinding/NSTextBinder.h \
     NSKeyValueBinding/NSTextFieldBinder.h \
     NSKeyboardBinding/NSKeyboardBinding.h \
@@ -534,6 +537,8 @@ HEADERS = \
     NSView.h \
     NSViewBackingLayer.h \
     NSViewController.h \
+    NSAppearance.h \
+    NSVisualEffectView.h \
     NSSplitViewController.h \
     NSTabViewController.h \
     NSWindow-Drag.h \
@@ -626,7 +631,7 @@ LDFLAGS = -lc++ -pthread -framework Foundation -framework CoreFoundation \
     -framework CoreGraphics -framework CoreText -framework CoreData \
     -framework QuartzCore -framework OpenGL -framework Onyx2D \
 	-F${MINKAR_SDKROOT}/System/Library/PrivateFrameworks -framework SkyLight \
-	-framework CoreServices \
+	-framework CoreServices -framework DiskArbitration \
 	-lobjc -lSystem
 
 DIRS = \

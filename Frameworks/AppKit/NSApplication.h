@@ -23,6 +23,7 @@
  */
 
 #import <AppKit/NSResponder.h>
+#import <AppKit/NSAppearance.h>
 #import <AppKit/AppKitExport.h>
 #import <AppKit/NSGraphics.h>
 
@@ -105,7 +106,7 @@ typedef enum {
     NSPrintingFailure,
 } NSApplicationPrintReply;
 
-@interface NSApplication : NSResponder {
+@interface NSApplication : NSResponder <NSAppearanceCustomization> {
     NSString *bundleID;
     NSDisplay *_display;
     id _delegate;

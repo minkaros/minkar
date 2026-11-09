@@ -162,6 +162,9 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <AppKit/NSView.h>
 #import <AppKit/NSStackView.h>
 #import <AppKit/NSViewController.h>
+#import <AppKit/NSAppearance.h>
+#import <AppKit/NSVisualEffectView.h>
+#import <AppKit/NSKeyValueBinding.h>
 #import <AppKit/NSSplitViewController.h>
 #import <AppKit/NSTabViewController.h>
 #import <AppKit/NSWindow.h>

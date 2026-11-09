@@ -128,7 +128,7 @@ APPKIT_EXPORT NSString *const NSWindowWillCloseNotification;
 APPKIT_EXPORT NSString *const NSWindowWillStartLiveResizeNotification;
 APPKIT_EXPORT NSString *const NSWindowDidEndLiveResizeNotification;
 
-@interface NSWindow : NSResponder {
+@interface NSWindow : NSResponder <NSAppearanceCustomization> {
     int _number;
     //CGLContextObj _cglContext;
     //CAWindowOpenGLContext *_caContext;

@@ -99,6 +99,25 @@ NSString * const NSApplicationDidChangeScreenParametersNotification=@"NSApplicat
 
 @implementation NSApplication
 
+static NSAppearance *applicationAppearance;
+
+-(NSAppearance *)appearance {
+   return applicationAppearance;
+}
+
+-(void)setAppearance:(NSAppearance *)appearance {
+   [self willChangeValueForKey:@"effectiveAppearance"];
+   appearance=[appearance retain];
+   [applicationAppearance release];
+   applicationAppearance=appearance;
+   [self didChangeValueForKey:@"effectiveAppearance"];
+}
+
+/* The one set, or the system's light look. */
+-(NSAppearance *)effectiveAppearance {
+   return (applicationAppearance!=nil)?applicationAppearance:[NSAppearance appearanceNamed:NSAppearanceNameAqua];
+}
+
 id NSApp=nil;
 
 +(NSApplication *)sharedApplication {
