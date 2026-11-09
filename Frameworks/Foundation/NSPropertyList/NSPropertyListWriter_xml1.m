@@ -24,6 +24,15 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #include <xlocale.h>
 #include <string.h>
 
+/* %g at a low precision writes 10 as "1e+01": a number from 1e-4 up to
+   1e16 is written without an exponent, as the reference platform does. */
+static int needlessExponent(const char *text, double value) {
+    double magnitude = value < 0 ? -value : value;
+
+    return strchr(text, 'e') != NULL && magnitude >= 1e-4 && magnitude < 1e16;
+}
+
+
 @implementation NSPropertyListWriter_xml1
 
 - (id)init
@@ -112,7 +121,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
         cLocale = newlocale(LC_ALL_MASK, "C", NULL);
     for (int precision = 1; precision <= 17; precision++) {
         snprintf_l(text, sizeof(text), cLocale, "%.*g", precision, d);
-        if (strtod_l(text, NULL, cLocale) == d)
+        if (strtod_l(text, NULL, cLocale) == d && !needlessExponent(text, d))
             break;
     }
     [_data appendBytes:"<real>" length:6];

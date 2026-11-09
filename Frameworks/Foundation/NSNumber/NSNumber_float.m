@@ -12,6 +12,16 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import "NSNumber_float.h"
 #import "NSNumber_double.h"
 #import <Foundation/NSStringFormatter.h>
+#include <string.h>
+
+/* %g at a low precision writes 10 as "1e+01": a number from 1e-4 up to
+   1e16 is written without an exponent, as the reference platform does. */
+static int needlessExponent(const char *text, double value) {
+    double magnitude = value < 0 ? -value : value;
+
+    return strchr(text, 'e') != NULL && magnitude >= 1e-4 && magnitude < 1e16;
+}
+
 
 @implementation NSNumber_float
 
@@ -107,7 +117,7 @@ NSNumber *NSNumber_floatNew(NSZone *zone,float value) {
     cLocale=newlocale(LC_ALL_MASK,"C",NULL);
    for(int precision=1;precision<=9;precision++){
     snprintf_l(text,sizeof(text),cLocale,"%.*g",precision,(double)_value);
-    if((float)strtof_l(text,NULL,cLocale)==_value)
+    if((float)strtof_l(text,NULL,cLocale)==_value && !needlessExponent(text,(double)_value))
      break;
    }
    if(locale==nil)

@@ -59,6 +59,15 @@
 #include <string.h>
 #include <xlocale.h>
 
+/* %g at a low precision writes 10 as "1e+01": a number from 1e-4 up to
+   1e16 is written without an exponent, as the reference platform does. */
+static int needlessExponent(const char *text, double value) {
+    double magnitude = value < 0 ? -value : value;
+
+    return strchr(text, 'e') != NULL && magnitude >= 1e-4 && magnitude < 1e16;
+}
+
+
 // Deeper nesting is refused rather than risking the stack.
 #define JSON_MAX_DEPTH 512
 
@@ -881,7 +890,7 @@ writeDouble(NSMutableData *out, double d)
 
     for (int precision = 1; precision <= 17; precision++) {
         snprintf_l(text, sizeof(text), loc, "%.*g", precision, d);
-        if (strtod_l(text, NULL, loc) == d)
+        if (strtod_l(text, NULL, loc) == d && !needlessExponent(text, d))
             break;
     }
     append(out, text);
