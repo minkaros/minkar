@@ -9,6 +9,9 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 #include <xlocale.h>
 #import <Foundation/NSUserDefaults.h>
+#import <Foundation/NSPathUtilities.h>
+#import <Foundation/NSURL.h>
+#import <Foundation/NSKeyedArchiver.h>
 #import <Foundation/NSArray.h>
 #import <Foundation/NSBundle.h>
 #import <Foundation/NSData.h>
@@ -223,9 +226,42 @@ NSString * const NSUserDefaultsDidChangeNotification=@"NSUserDefaultsDidChangeNo
    return self;
 }
 
+-(void)dealloc {
+   [_domains release];
+   [_searchList release];
+   [_dictionaryRep release];
+   [_persistentName release];
+   [super dealloc];
+}
+
+/* Only the user running the process has defaults here. */
 -initWithUser:(NSString *)user {
-   NSUnimplementedMethod();
-   return nil;
+   if(user!=nil && ![user isEqualToString:NSUserName()]){
+    [self release];
+    return nil;
+   }
+   return [self init];
+}
+
+-initWithSuiteName:(NSString *)suiteName {
+   NSString           *identifier=[[NSBundle mainBundle] bundleIdentifier];
+   NSPersistantDomain *domain;
+
+   self=[self init];
+   if(self==nil || suiteName==nil || [suiteName isEqualToString:identifier])
+    return self;
+   if([suiteName isEqualToString:NSGlobalDomain]){
+    [self release];
+    return nil;
+   }
+   domain=[[[NSPlatform currentPlatform] persistantDomainClass] persistantDomainWithName:suiteName];
+   @synchronized(self){
+    [_domains setObject:domain forKey:suiteName];
+    _persistentName=[suiteName copy];
+    [_searchList release];
+    _searchList=[[NSArray alloc] initWithObjects:NSArgumentDomain,suiteName,NSGlobalDomain,NSRegistrationDomain,@"Foundation",nil];
+   }
+   return self;
 }
 
 static NSUserDefaults* stdUserDefaults = nil;
@@ -257,12 +293,38 @@ static BOOL creatingStandardDefaults;
     return stdUserDefaults != nil || !creatingStandardDefaults;
 }
 
+/* A suite is searched after the application's own domain. */
 -(void)addSuiteNamed:(NSString *)name {
-   NSUnimplementedMethod();
+   if(name==nil || [name isEqualToString:NSGlobalDomain])
+    return;
+   @synchronized(self){
+    NSMutableArray *list=[[_searchList mutableCopy] autorelease];
+    NSUInteger      index=[list indexOfObject:NSGlobalDomain];
+
+    if([list containsObject:name])
+     return;
+    if([_domains objectForKey:name]==nil)
+     [_domains setObject:[[[NSPlatform currentPlatform] persistantDomainClass] persistantDomainWithName:name] forKey:name];
+    [list insertObject:name atIndex:(index!=NSNotFound)?index:[list count]];
+    [_searchList release];
+    _searchList=[list copy];
+    [_dictionaryRep autorelease];
+    _dictionaryRep=nil;
+   }
 }
 
 -(void)removeSuiteNamed:(NSString *)name {
-   NSUnimplementedMethod();
+   @synchronized(self){
+    NSMutableArray *list=[[_searchList mutableCopy] autorelease];
+
+    if(name==nil || [name isEqualToString:_persistentName])
+     return;
+    [list removeObject:name];
+    [_searchList release];
+    _searchList=[list copy];
+    [_dictionaryRep autorelease];
+    _dictionaryRep=nil;
+   }
 }
 
 -(NSArray *)searchList {
@@ -363,8 +425,22 @@ static BOOL creatingStandardDefaults;
    NSUnimplementedMethod();
 }
 
+/* The domain's values go, from memory and its file. */
 -(void)removePersistentDomainForName:(NSString *)name {
-   NSUnimplementedMethod();
+   id domain;
+
+   @synchronized(self){
+    domain=[_domains objectForKey:name];
+    if(domain==nil && [name isEqualToString:[[NSBundle mainBundle] bundleIdentifier]])
+     domain=[self persistantDomain];
+    for(NSString *key in [[[domain allKeys] copy] autorelease])
+     [domain removeObjectForKey:key];
+    if([domain respondsToSelector:@selector(synchronize)])
+     [domain synchronize];
+    [_dictionaryRep autorelease];
+    _dictionaryRep=nil;
+   }
+   [[NSNotificationCenter defaultCenter] postNotificationName:NSUserDefaultsDidChangeNotification object:self];
 }
 
 -(BOOL)synchronize {
@@ -382,7 +458,7 @@ static BOOL creatingStandardDefaults;
 -(NSMutableDictionary *)persistantDomain {
 	NSMutableDictionary *dict = nil;
 	@synchronized(self) {
-		dict = [_domains objectForKey:[[NSProcessInfo processInfo] processName]];
+		dict = [_domains objectForKey:(_persistentName!=nil)?_persistentName:[[NSProcessInfo processInfo] processName]];
 		[[dict retain] autorelease];
 	}
 	return dict;
@@ -456,8 +532,8 @@ static BOOL creatingStandardDefaults;
 -(NSInteger)integerForKey:(NSString *)defaultName {
    id number=[self objectForKey:defaultName];
 
-   return [number isKindOfClass:objc_lookUpClass("NSString")]?[(NSString *)number intValue]:
-     ([number isKindOfClass:objc_lookUpClass("NSNumber")]?[(NSNumber *)number intValue]:0);
+   return [number isKindOfClass:objc_lookUpClass("NSString")]?[(NSString *)number integerValue]:
+     ([number isKindOfClass:objc_lookUpClass("NSNumber")]?[(NSNumber *)number integerValue]:0);
 }
 
 
@@ -496,8 +572,34 @@ static BOOL creatingStandardDefaults;
 	}
 }
 
+/* A boolean, as the reference keeps it (strings "YES" and "NO" written
+   before still read as booleans). */
 -(void)setBool:(BOOL)value forKey:(NSString *)defaultName {
-   [self setObject:value?@"YES":@"NO" forKey:defaultName];
+   [self setObject:[NSNumber numberWithBool:value] forKey:defaultName];
+}
+
+-(NSURL *)URLForKey:(NSString *)defaultName {
+   id value=[self objectForKey:defaultName];
+
+   if([value isKindOfClass:[NSURL class]])
+    return value;
+   if([value isKindOfClass:[NSString class]])
+    return ([value length]>0)?[NSURL fileURLWithPath:[value stringByExpandingTildeInPath]]:nil;
+   if([value isKindOfClass:[NSData class]]){
+    id url=[NSKeyedUnarchiver unarchiveObjectWithData:value];
+
+    return [url isKindOfClass:[NSURL class]]?url:nil;
+   }
+   return nil;
+}
+
+-(void)setURL:(NSURL *)url forKey:(NSString *)defaultName {
+   if(url==nil)
+    [self removeObjectForKey:defaultName];
+   else if([url isFileURL])
+    [self setObject:[[url path] stringByAbbreviatingWithTildeInPath] forKey:defaultName];
+   else
+    [self setObject:[NSKeyedArchiver archivedDataWithRootObject:url] forKey:defaultName];
 }
 
 -(void)setInteger:(NSInteger)value forKey:(NSString *)defaultName {
@@ -520,14 +622,13 @@ static BOOL creatingStandardDefaults;
 	}
 }
 
+/* No value is forced: Minkar has no managed preferences. */
 -(BOOL)objectIsForcedForKey:(NSString *)key {
-   NSUnimplementedMethod();
-   return 0;
+   return NO;
 }
 
 -(BOOL)objectIsForcedForKey:(NSString *)key inDomain:(NSString *)domain {
-   NSUnimplementedMethod();
-   return 0;
+   return NO;
 }
 
 @end
