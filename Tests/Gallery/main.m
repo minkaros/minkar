@@ -712,6 +712,14 @@ static NSDictionary *outlineData(void)
         styleMask:NSTitledWindowMask | NSClosableWindowMask | NSMiniaturizableWindowMask | NSResizableWindowMask
         backing:NSBackingStoreBuffered defer:NO];
     [_window setTitle:@"Gallery"];
+    /* The toolbar first: it takes its room from the content view (as on
+     * the reference platform), so the tabs are laid out in what is left
+     * and their top controls are not hidden under it. */
+    [self run:@"NSToolbar" block:^{
+        NSToolbar *tb = [[NSToolbar alloc] initWithIdentifier:@"gallery"];
+        [tb setDelegate:self];
+        [self->_window setToolbar:tb];
+    }];
     _tabs = [[NSTabView alloc] initWithFrame:[[_window contentView] bounds]];
     [_tabs setAutoresizingMask:NSViewWidthSizable | NSViewHeightSizable];
     [[_window contentView] addSubview:_tabs];
@@ -743,11 +751,6 @@ static NSDictionary *outlineData(void)
             [v addSubview:s];
         }
     }
-    [self run:@"NSToolbar" block:^{
-        NSToolbar *tb = [[NSToolbar alloc] initWithIdentifier:@"gallery"];
-        [tb setDelegate:self];
-        [self->_window setToolbar:tb];
-    }];
     [self refreshReport];
     if (_firstTab >= 0 && (NSUInteger)_firstTab < TAB_COUNT)
         [_tabs selectTabViewItemAtIndex:_firstTab];
