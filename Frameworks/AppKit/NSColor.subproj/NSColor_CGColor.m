@@ -12,6 +12,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <ApplicationServices/ApplicationServices.h>
 
 #import <AppKit/conversions.h>
+#import <AppKit/NSColorSpace.h>
 
 @implementation NSColor_CGColor
 
@@ -88,14 +89,32 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 -(BOOL)isEqual:otherObject {
    if(self==otherObject)
     return YES;
+   if(![otherObject isKindOfClass:[NSColor_CGColor class]])
+    return NO;
 
-   if([otherObject isKindOfClass:[self class]]){
-    NSColor_CGColor *other=otherObject;
+   NSColor_CGColor *other=otherObject;
 
-    return CGColorEqualToColor(_colorRef,other->_colorRef);
-   }
+   return [_colorSpaceName isEqualToString:other->_colorSpaceName] && CGColorEqualToColor(_colorRef,other->_colorRef);
+}
 
-   return NO;
+-(NSUInteger)hash {
+   NSInteger i,count=CGColorGetNumberOfComponents(_colorRef);
+   const CGFloat *components=CGColorGetComponents(_colorRef);
+   NSUInteger result=[_colorSpaceName hash];
+
+   for(i=0;i<count;i++)
+    result=result*31+(NSUInteger)(components[i]*255.0+0.5);
+   return result;
+}
+
+-(CGColorRef)CGColor {
+   return _colorRef;
+}
+
+-(NSColorSpace *)colorSpace {
+   if(CGColorGetPattern(_colorRef)!=NULL)
+    return nil;
+   return [[[NSColorSpace alloc] initWithCGColorSpace:CGColorGetColorSpace(_colorRef)] autorelease];
 }
 
 -(NSString *)description {

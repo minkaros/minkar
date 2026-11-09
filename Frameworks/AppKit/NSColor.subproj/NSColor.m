@@ -9,6 +9,8 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <AppKit/NSColor.h>
 #import <AppKit/NSColor_catalog.h>
 #import <AppKit/NSColor_CGColor.h>
+#import <AppKit/NSColorSpace.h>
+#import <AppKit/conversions.h>
 #import <AppKit/NSColorList.h>
 #import <AppKit/NSRaise.h>
 #import <AppKit/NSImage.h>
@@ -561,6 +563,71 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    return [NSColor_CGColor colorWithHue:hue saturation:saturation brightness:brightness alpha:alpha spaceName:NSCalibratedRGBColorSpace];
 }
 
++(NSColor *)colorWithColorSpace:(NSColorSpace *)space components:(const CGFloat *)components count:(NSInteger)numberOfComponents {
+   if(space==nil || components==NULL || numberOfComponents!=[space numberOfColorComponents]+1)
+    return nil;
+
+   CGColorRef cgColor=CGColorCreate([space CGColorSpace],components);
+   NSColor   *result=[NSColor_CGColor colorWithColorRef:cgColor spaceName:[space _colorSpaceName]];
+
+   CGColorRelease(cgColor);
+   return result;
+}
+
++(NSColor *)colorWithSRGBRed:(CGFloat)red green:(CGFloat)green blue:(CGFloat)blue alpha:(CGFloat)alpha {
+   CGFloat components[4]={red,green,blue,alpha};
+
+   return [self colorWithColorSpace:[NSColorSpace sRGBColorSpace] components:components count:4];
+}
+
++(NSColor *)colorWithRed:(CGFloat)red green:(CGFloat)green blue:(CGFloat)blue alpha:(CGFloat)alpha {
+   return [self colorWithSRGBRed:red green:green blue:blue alpha:alpha];
+}
+
++(NSColor *)colorWithDisplayP3Red:(CGFloat)red green:(CGFloat)green blue:(CGFloat)blue alpha:(CGFloat)alpha {
+   CGFloat components[4]={red,green,blue,alpha};
+
+   return [self colorWithColorSpace:[NSColorSpace displayP3ColorSpace] components:components count:4];
+}
+
++(NSColor *)colorWithColorSpace:(NSColorSpace *)space hue:(CGFloat)hue saturation:(CGFloat)saturation brightness:(CGFloat)brightness alpha:(CGFloat)alpha {
+   CGFloat components[4];
+
+   if([space colorSpaceModel]!=NSColorSpaceModelRGB)
+    return nil;
+   NSColorHSBToRGB(hue,saturation,brightness,&components[0],&components[1],&components[2]);
+   components[3]=alpha;
+   return [self colorWithColorSpace:space components:components count:4];
+}
+
++(NSColor *)colorWithHue:(CGFloat)hue saturation:(CGFloat)saturation brightness:(CGFloat)brightness alpha:(CGFloat)alpha {
+   return [self colorWithColorSpace:[NSColorSpace sRGBColorSpace] hue:hue saturation:saturation brightness:brightness alpha:alpha];
+}
+
++(NSColor *)colorWithGenericGamma22White:(CGFloat)white alpha:(CGFloat)alpha {
+   CGFloat components[2]={white,alpha};
+
+   return [self colorWithColorSpace:[NSColorSpace genericGamma22GrayColorSpace] components:components count:2];
+}
+
++(NSColor *)colorWithWhite:(CGFloat)white alpha:(CGFloat)alpha {
+   return [self colorWithGenericGamma22White:white alpha:alpha];
+}
+
++(NSColor *)colorWithCGColor:(CGColorRef)cgColor {
+   NSColorSpace *space;
+   NSColor      *result;
+
+   if(cgColor==NULL)
+    return nil;
+   if(CGColorGetPattern(cgColor)!=NULL)
+    return [NSColor_CGColor colorWithColorRef:cgColor spaceName:NSPatternColorSpace];
+   space=[[NSColorSpace alloc] initWithCGColorSpace:CGColorGetColorSpace(cgColor)];
+   result=[NSColor_CGColor colorWithColorRef:cgColor spaceName:[space _colorSpaceName]];
+   [space release];
+   return result;
+}
+
 +(NSColor *)colorWithCatalogName:(NSString *)catalogName colorName:(NSString *)colorName {
     NSColorList *list = [NSColorList colorListNamed:catalogName];
     if(!list) {
@@ -746,6 +813,72 @@ static void releasePatternInfo(void *info){
    if (alpha >= 1.0)
     return self; 
    return nil; 
+}
+
+-(NSColorType)type {
+   if([[self colorSpaceName] isEqualToString:NSNamedColorSpace])
+    return NSColorTypeCatalog;
+   if([[self colorSpaceName] isEqualToString:NSPatternColorSpace])
+    return NSColorTypePattern;
+   return NSColorTypeComponentBased;
+}
+
+-(NSColor *)colorUsingType:(NSColorType)type {
+   if(type==[self type])
+    return self;
+   if(type==NSColorTypeComponentBased){
+    NSColorSpace *space=[self colorSpace];
+
+    return (space!=nil)?[self colorUsingColorSpace:space]:[self colorUsingColorSpaceName:NSCalibratedRGBColorSpace];
+   }
+   return nil;
+}
+
+/* The CG color's space for component colors; subclasses that have one
+   answer it. */
+-(NSColorSpace *)colorSpace {
+   return nil;
+}
+
+-(NSColor *)colorUsingColorSpace:(NSColorSpace *)space {
+   NSColor *source;
+   CGFloat  components[5];
+
+   if(space==nil)
+    return nil;
+   if([self type]==NSColorTypeComponentBased && [[self colorSpace] isEqual:space])
+    return self;
+   switch([space colorSpaceModel]){
+    case NSColorSpaceModelRGB:
+     source=[self colorUsingColorSpaceName:NSCalibratedRGBColorSpace];
+     if(source==nil)
+      return nil;
+     [source getRed:&components[0] green:&components[1] blue:&components[2] alpha:&components[3]];
+     return [NSColor colorWithColorSpace:space components:components count:4];
+
+    case NSColorSpaceModelGray:
+     source=[self colorUsingColorSpaceName:NSCalibratedWhiteColorSpace];
+     if(source==nil)
+      return nil;
+     [source getWhite:&components[0] alpha:&components[1]];
+     return [NSColor colorWithColorSpace:space components:components count:2];
+
+    case NSColorSpaceModelCMYK:
+     source=[self colorUsingColorSpaceName:NSDeviceCMYKColorSpace];
+     if(source==nil)
+      return nil;
+     [source getCyan:&components[0] magenta:&components[1] yellow:&components[2] black:&components[3] alpha:&components[4]];
+     return [NSColor colorWithColorSpace:space components:components count:5];
+
+    default:
+     return nil;
+   }
+}
+
+-(CGColorRef)CGColor {
+   NSColor *rgb=[self colorUsingColorSpaceName:NSCalibratedRGBColorSpace];
+
+   return (rgb!=nil && rgb!=self)?[rgb CGColor]:NULL;
 }
 
 -(NSColor *)colorUsingColorSpaceName:(NSString *)colorSpace {

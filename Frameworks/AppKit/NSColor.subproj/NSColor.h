@@ -10,8 +10,14 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <AppKit/AppKitExport.h>
 #import <ApplicationServices/ApplicationServices.h>
 
-@class NSImage;
+@class NSImage, NSColorSpace;
 @class NSPasteboard;
+
+typedef NS_ENUM(NSInteger, NSColorType) {
+    NSColorTypeComponentBased = 0,
+    NSColorTypePattern = 1,
+    NSColorTypeCatalog = 2,
+};
 
 @interface NSColor : NSObject <NSCopying, NSCoding>
 
@@ -113,6 +119,18 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 + (NSColor *)colorWithCalibratedRed:(CGFloat)red green:(CGFloat)green blue:(CGFloat)blue alpha:(CGFloat)alpha;
 + (NSColor *)colorWithCalibratedHue:(CGFloat)hue saturation:(CGFloat)saturation brightness:(CGFloat)brightness alpha:(CGFloat)alpha;
 
+/* In sRGB (RGB and HSB), generic gray with a gamma of 2.2 (white), or the
+   space given. */
++ (NSColor *)colorWithRed:(CGFloat)red green:(CGFloat)green blue:(CGFloat)blue alpha:(CGFloat)alpha;
++ (NSColor *)colorWithSRGBRed:(CGFloat)red green:(CGFloat)green blue:(CGFloat)blue alpha:(CGFloat)alpha;
++ (NSColor *)colorWithDisplayP3Red:(CGFloat)red green:(CGFloat)green blue:(CGFloat)blue alpha:(CGFloat)alpha;
++ (NSColor *)colorWithHue:(CGFloat)hue saturation:(CGFloat)saturation brightness:(CGFloat)brightness alpha:(CGFloat)alpha;
++ (NSColor *)colorWithColorSpace:(NSColorSpace *)space hue:(CGFloat)hue saturation:(CGFloat)saturation brightness:(CGFloat)brightness alpha:(CGFloat)alpha;
++ (NSColor *)colorWithWhite:(CGFloat)white alpha:(CGFloat)alpha;
++ (NSColor *)colorWithGenericGamma22White:(CGFloat)white alpha:(CGFloat)alpha;
++ (NSColor *)colorWithColorSpace:(NSColorSpace *)space components:(const CGFloat *)components count:(NSInteger)numberOfComponents;
++ (NSColor *)colorWithCGColor:(CGColorRef)cgColor;
+
 + (NSColor *)colorWithCatalogName:(NSString *)catalogName colorName:(NSString *)colorName;
 
 + (NSColor *)colorFromPasteboard:(NSPasteboard *)pasteboard;
@@ -147,6 +165,16 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 @property (readonly) CGFloat alphaComponent;
 
 - (NSColor *)colorWithAlphaComponent:(CGFloat)alpha;
+
+@property (readonly) NSColorType type;
+- (NSColor *)colorUsingType:(NSColorType)type;
+/* Nil for colors that have no components (patterns, catalog colors whose
+   color has none). */
+@property (readonly, strong) NSColorSpace *colorSpace;
+- (NSColor *)colorUsingColorSpace:(NSColorSpace *)space;
+/* Valid as long as the color, or the current autorelease pool for colors
+   that are converted to get one. */
+@property (readonly) CGColorRef CGColor;
 
 - (NSColor *)colorUsingColorSpaceName:(NSString *)colorSpace;
 - (NSColor *)colorUsingColorSpaceName:(NSString *)colorSpace device:(NSDictionary *)device;

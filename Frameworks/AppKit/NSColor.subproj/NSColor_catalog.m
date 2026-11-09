@@ -91,6 +91,14 @@ NSColor *NSColorGetCatalogColor(NSString *catalogName,NSString *colorName);
    return [_color CGColorRef];
 }
 
+-(CGColorRef)CGColor {
+   return [_color CGColor];
+}
+
+-(NSColorSpace *)colorSpace {
+   return [_color colorSpace];
+}
+
 -(void)setFill {
    if(_color==nil)
     [NSException raise:@"NSUnknownColor" format:@"Unknown color %@ in catalog %@",_colorName,_catalogName];
