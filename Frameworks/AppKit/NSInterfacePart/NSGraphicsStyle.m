@@ -580,8 +580,10 @@ void _NSGraphicsStyleRegisterButtonImages(void) {
    atlasButtonFace(rect,defaulted,NO);
 }
 
+/* Pressed, a push button turns the accent color (its title white), as on
+   the reference platform. */
 -(void)drawPushButtonPressedInRect:(NSRect)rect {
-   atlasButtonFace(rect,NO,YES);
+   atlasButtonFace(rect,YES,NO);
 }
 
 -(void)drawPushButtonHighlightedInRect:(NSRect)rect {

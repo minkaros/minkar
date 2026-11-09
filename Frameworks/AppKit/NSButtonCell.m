@@ -848,8 +848,10 @@ static void drawRoundedBezel(CGContextRef context,CGRect frame){
     BOOL defaulted=([[controlView window] defaultButtonCell]==self) || [_keyEquivalent isEqualToString:@"\r"];
 
     /* White on the accent-colored default button and on an inline pill. */
+    BOOL pressed=([self highlightsBy]&NSPushInCellMask) && [self isHighlighted];
+
     if([title length] && [self isBordered] &&
-       (([self isEnabled] && _bezelStyle==NSRoundedBezelStyle && defaulted) || _bezelStyle==NSInlineBezelStyle)){
+       (([self isEnabled] && _bezelStyle==NSRoundedBezelStyle && (defaulted || pressed)) || _bezelStyle==NSInlineBezelStyle)){
      NSMutableAttributedString *white=[[title mutableCopy] autorelease];
 
      [white addAttribute:NSForegroundColorAttributeName value:[NSColor whiteColor] range:NSMakeRange(0,[white length])];
