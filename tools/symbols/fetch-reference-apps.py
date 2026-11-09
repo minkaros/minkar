@@ -150,18 +150,29 @@ def unpack(archive, dest):
         raise ValueError('not a zip or tar archive')
 
 
-def fetch(app, dest):
+def fetch(app, dest, cache=None):
     downloads = os.path.join(dest, 'downloads')
     os.makedirs(downloads, exist_ok=True)
     archive = os.path.join(downloads, '%s-%s%s' % (
         app['name'], app['version'],
         '.zip' if app['url'].endswith('.zip') else '.tar'))
+    cached = os.path.join(cache, os.path.basename(archive)) if cache else None
     if not os.path.exists(archive) or sha256(archive) != app['sha256']:
-        download(app['url'], archive)
+        if cached and os.path.exists(cached) and sha256(cached) == app['sha256']:
+            shutil.copyfile(cached, archive)
+        else:
+            download(app['url'], archive)
     got = sha256(archive)
     if got != app['sha256']:
         os.unlink(archive)
         raise ValueError('sha256 %s, expected %s' % (got, app['sha256']))
+    if cached and not os.path.exists(cached):
+        try:
+            os.makedirs(cache, exist_ok=True)
+            shutil.copyfile(archive, cached + '.part')
+            os.replace(cached + '.part', cached)
+        except OSError:
+            pass                    # a cache that cannot be written is no cache
     target = os.path.join(dest, 'apps', app['name'])
     if os.path.isdir(target):
         shutil.rmtree(target)
@@ -174,12 +185,17 @@ def main(argv=None):
     p = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     p.add_argument('--dest', required=True, help='download and unpack here')
     p.add_argument('--manifest', default=os.path.join(HERE, 'reference-apps.tsv'))
+    p.add_argument('--cache', default=os.environ.get('MINKAR_DOWNLOAD_CACHE') or os.path.join(
+                       os.environ.get('XDG_CACHE_HOME') or os.path.expanduser('~/.cache'), 'minkar', 'downloads'),
+                   help='keep the archives here (checked by SHA-256), so a failed download does not'
+                        ' fail the report; "" for none (default: $MINKAR_DOWNLOAD_CACHE or'
+                        ' ~/.cache/minkar/downloads)')
     args = p.parse_args(argv)
 
     ok = True
     for app in read_manifest(args.manifest):
         try:
-            target = fetch(app, args.dest)
+            target = fetch(app, args.dest, args.cache or None)
             print('fetch-reference-apps: %s %s -> %s' % (app['name'], app['version'], target))
         except Exception as e:      # report every app, then fail
             ok = False
