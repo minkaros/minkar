@@ -7,6 +7,7 @@ The above copyright notice and this permission notice shall be included in all c
 
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE. */
 
+#import <objc/runtime.h>
 #import <sys/param.h>
 #import <AppKit/AppKit.h>
 #import <AppKit/NSTableCornerView.h>
@@ -2290,6 +2291,47 @@ NSString *const NSTableViewRowViewKey=@"NSTableRowViewKey";
      [self setNeedsDisplayInRect:[self rectOfRow:row]];
    }
    [self _updateRowViews];
+}
+
+
+static char autoresizingStyleKey;
+-(NSTableViewColumnAutoresizingStyle)columnAutoresizingStyle {
+   id value=objc_getAssociatedObject(self,&autoresizingStyleKey);
+   return (value!=nil)?(NSTableViewColumnAutoresizingStyle)[value integerValue]:NSTableViewUniformColumnAutoresizingStyle;
+}
+-(void)setColumnAutoresizingStyle:(NSTableViewColumnAutoresizingStyle)value {
+   objc_setAssociatedObject(self,&autoresizingStyleKey,[NSNumber numberWithInteger:(NSInteger)value],OBJC_ASSOCIATION_RETAIN);
+}
+
+static char typeSelectKey;
+-(BOOL)allowsTypeSelect {
+   id value=objc_getAssociatedObject(self,&typeSelectKey);
+   return (value!=nil)?[value boolValue]:YES;
+}
+-(void)setAllowsTypeSelect:(BOOL)value {
+   objc_setAssociatedObject(self,&typeSelectKey,[NSNumber numberWithBool:value],OBJC_ASSOCIATION_RETAIN);
+}
+
+static char indicatorImagesKey;
+
+/* The image shown in a column's header (a sort indicator). */
+-(NSImage *)indicatorImageInTableColumn:(NSTableColumn *)column {
+   NSMapTable *images=objc_getAssociatedObject(self,&indicatorImagesKey);
+   return [images objectForKey:column];
+}
+
+-(void)setIndicatorImage:(NSImage *)image inTableColumn:(NSTableColumn *)column {
+   NSMapTable *images=objc_getAssociatedObject(self,&indicatorImagesKey);
+
+   if(images==nil){
+    images=[NSMapTable mapTableWithKeyOptions:NSPointerFunctionsObjectPointerPersonality valueOptions:NSPointerFunctionsStrongMemory];
+    objc_setAssociatedObject(self,&indicatorImagesKey,images,OBJC_ASSOCIATION_RETAIN);
+   }
+   if(image==nil)
+    [images removeObjectForKey:column];
+   else
+    [images setObject:image forKey:column];
+   [[self headerView] setNeedsDisplay:YES];
 }
 
 @end

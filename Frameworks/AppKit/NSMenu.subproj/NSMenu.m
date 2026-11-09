@@ -560,4 +560,23 @@ static BOOL itemMatchesKeyEvent(NSMenuItem *item, NSString *characters, NSString
 }
 
 
+
+/* Menus track in their own loop; one is ended when the user is done. */
+-(void)cancelTracking {
+}
+
+-(void)cancelTrackingWithoutAnimation {
+}
+
+-(void)performActionForItemAtIndex:(NSInteger)index {
+   NSMenuItem *item=[self itemAtIndex:index];
+
+   if(item!=nil && [item isEnabled] && [item action]!=NULL)
+    [NSApp sendAction:[item action] to:[item target] from:item];
+}
+
+/* The action of items with a submenu: opening it is the menu's. */
+-(void)submenuAction:(id)sender {
+}
+
 @end

@@ -37,6 +37,12 @@ enum {
 };
 typedef NSUInteger NSUsableScrollerParts;
 
+typedef NS_ENUM(NSInteger, NSScrollerKnobStyle) {
+    NSScrollerKnobStyleDefault = 0,
+    NSScrollerKnobStyleDark = 1,
+    NSScrollerKnobStyleLight = 2
+};
+
 @interface NSScroller : NSControl {
     id _target;
     SEL _action;

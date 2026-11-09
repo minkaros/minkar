@@ -317,7 +317,7 @@ static const CGFloat kOpenRowHeight=20;
    }
    [self setDirectory:[folder stringByStandardizingPath]];
    for(NSString *name in [names sortedArrayUsingSelector:@selector(localizedStandardCompare:)]) {
-      if([name hasPrefix:@"."])
+      if([name hasPrefix:@"."] && ![self showsHiddenFiles])
          continue;
       NSString *path=[folder stringByAppendingPathComponent:name];
       BOOL browse=[self _isFolderToBrowse:path];

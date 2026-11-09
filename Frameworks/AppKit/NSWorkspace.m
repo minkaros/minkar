@@ -6,6 +6,7 @@ Permission is hereby granted, free of charge, to any person obtaining a copy of 
 The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
 
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE. */
+#import <CoreServices/CoreServices.h>
 #import <AppKit/NSWorkspace.h>
 #import <AppKit/NSRaise.h>
 #import <AppKit/NSRunningApplication.h>
@@ -333,28 +334,46 @@ static NSImage *systemIcon(NSString *relative) {
 }
 
 -(NSString *)localizedDescriptionForType:(NSString *)type {
-   NSInvalidAbstractInvocation();
-   return 0;
+   return [(NSString *)UTTypeCopyDescription((CFStringRef)type) autorelease];
 }
 
 -(BOOL)filenameExtension:(NSString *)extension isValidForType:(NSString *)type {
-   NSInvalidAbstractInvocation();
-   return 0;
+   NSArray *extensions=[(NSArray *)UTTypeCopyAllTagsWithClass((CFStringRef)type,kUTTagClassFilenameExtension) autorelease];
+
+   for(NSString *candidate in extensions)
+    if([candidate caseInsensitiveCompare:extension]==NSOrderedSame)
+     return YES;
+   return NO;
 }
 
 -(NSString *)preferredFilenameExtensionForType:(NSString *)type {
-   NSInvalidAbstractInvocation();
-   return 0;
+   return [(NSString *)UTTypeCopyPreferredTagWithClass((CFStringRef)type,kUTTagClassFilenameExtension) autorelease];
 }
 
 -(BOOL)type:(NSString *)type conformsToType:(NSString *)conformsToType {
-   NSInvalidAbstractInvocation();
-   return 0;
+   return type!=nil && conformsToType!=nil && UTTypeConformsTo((CFStringRef)type,(CFStringRef)conformsToType);
 }
 
+/* The file's type: a folder, an application or a package by what it is,
+   others by their extension. */
 -(NSString *)typeOfFile:(NSString *)path error:(NSError **)error {
-   NSInvalidAbstractInvocation();
-   return 0;
+   BOOL isDirectory=NO;
+
+   if(![[NSFileManager defaultManager] fileExistsAtPath:path isDirectory:&isDirectory]){
+    if(error!=NULL)
+     *error=[NSError errorWithDomain:NSCocoaErrorDomain code:NSFileReadNoSuchFileError
+                            userInfo:[NSDictionary dictionaryWithObject:path forKey:NSFilePathErrorKey]];
+    return nil;
+   }
+   NSString *extension=[path pathExtension];
+
+   if(isDirectory && [extension length]==0)
+    return @"public.folder";
+   if(isDirectory && [extension caseInsensitiveCompare:@"app"]==NSOrderedSame)
+    return @"com.apple.application-bundle";
+   NSString *type=[(NSString *)UTTypeCreatePreferredIdentifierForTag(kUTTagClassFilenameExtension,(CFStringRef)extension,
+      isDirectory?CFSTR("public.directory"):CFSTR("public.data")) autorelease];
+   return (type!=nil)?type:(isDirectory?@"public.directory":@"public.data");
 }
 
 -(BOOL)openFile:(NSString *)path {
@@ -850,6 +869,12 @@ static NSDictionary *launchConfigurationOfConfiguration(NSWorkspaceOpenConfigura
 -(NSInteger)extendPowerOffBy:(NSInteger)milliseconds {
    NSInvalidAbstractInvocation();
    return 0;
+}
+
+
+/* Custom icons for files are not kept yet. */
+-(BOOL)setIcon:(NSImage *)image forFile:(NSString *)fullPath options:(NSWorkspaceIconCreationOptions)options {
+   return NO;
 }
 
 @end

@@ -68,6 +68,11 @@ APPKIT_EXPORT NSWorkspaceLaunchConfigurationKey const NSWorkspaceLaunchConfigura
 APPKIT_EXPORT NSWorkspaceLaunchConfigurationKey const NSWorkspaceLaunchConfigurationArchitecture;
 
 /* How an application or URL is opened (API 19). */
+typedef NS_OPTIONS(NSUInteger, NSWorkspaceIconCreationOptions) {
+    NSExcludeQuickDrawElementsIconCreationOption = 1 << 1,
+    NSExclude10_4ElementsIconCreationOption = 1 << 2
+};
+
 @interface NSWorkspaceOpenConfiguration : NSObject <NSCopying> {
     BOOL _promptsUserIfNeeded;
     BOOL _addsToRecentItems;
@@ -185,6 +190,8 @@ APPKIT_EXPORT NSString *const NSWorkspaceDesktopImageFillColorKey;    /* NSColor
 - (void)hideOtherApplications;
 
 - (NSInteger)extendPowerOffBy:(NSInteger)milliseconds;
+
+- (BOOL)setIcon:(NSImage *)image forFile:(NSString *)fullPath options:(NSWorkspaceIconCreationOptions)options;
 
 @end
 

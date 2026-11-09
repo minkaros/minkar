@@ -90,4 +90,9 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 - (NSString *)_keyEquivalentDescription;
 
+
+@property (getter=isAlternate) BOOL alternate;
+@property BOOL allowsKeyEquivalentWhenHidden;
+@property (readonly, copy) NSString *userKeyEquivalent;
+
 @end

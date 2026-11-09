@@ -7,8 +7,15 @@ The above copyright notice and this permission notice shall be included in all c
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE. */
 
 #import <AppKit/NSView.h>
+#import <AppKit/NSScroller.h>
 
 @class NSClipView, NSScroller, NSColor, NSRulerView;
+
+typedef NS_ENUM(NSInteger, NSScrollElasticity) {
+    NSScrollElasticityAutomatic = 0,
+    NSScrollElasticityNone = 1,
+    NSScrollElasticityAllowed = 2
+};
 
 @interface NSScrollView : NSView {
     NSClipView *_clipView;
@@ -96,5 +103,13 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 - (void)tile;
 - (void)reflectScrolledClipView:(NSClipView *)clipView;
+
+
+@property NSEdgeInsets contentInsets;
+@property NSEdgeInsets scrollerInsets;
+@property BOOL automaticallyAdjustsContentInsets;
+@property NSScrollerKnobStyle scrollerKnobStyle;
+@property NSScrollElasticity verticalScrollElasticity;
+@property NSScrollElasticity horizontalScrollElasticity;
 
 @end

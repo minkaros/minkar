@@ -6,6 +6,10 @@ The above copyright notice and this permission notice shall be included in all c
 
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE. */
 
+#import <objc/runtime.h>
+#import <AppKit/NSWorkspace.h>
+#import <CoreServices/CoreServices.h>
+#import <ImageIO/ImageIO.h>
 #import <sys/param.h>
 #import <AppKit/NSImage.h>
 #import <AppKit/NSImageRep.h>
@@ -909,6 +913,112 @@ NSImage *_NSStandardImageNamed(NSString *name);
    return [NSString stringWithFormat:@"<%@[0x%lx] name: %@ size: { %f, %f } representations: %@>", [self class], self, _name, size.width, size.height, _representations];
 }
 
+
+/* Drawn once, now, into an image of the size. */
++(NSImage *)imageWithSize:(NSSize)size flipped:(BOOL)flipped drawingHandler:(BOOL (^)(NSRect dstRect))drawingHandler {
+   NSImage *image=[[[self alloc] initWithSize:size] autorelease];
+
+   if(drawingHandler!=nil && size.width>0 && size.height>0){
+    [image lockFocusFlipped:flipped];
+    drawingHandler(NSMakeRect(0,0,size.width,size.height));
+    [image unlockFocus];
+   }
+   return image;
+}
+
+-(void)lockFocusFlipped:(BOOL)flipped {
+   [self lockFocus];
+   if(flipped){
+    CGContextRef context=[[NSGraphicsContext currentContext] graphicsPort];
+    CGContextTranslateCTM(context,0,[self size].height);
+    CGContextScaleCTM(context,1,-1);
+   }
+}
+
+/* A bitmap's own image, or the image drawn into a bitmap of the
+   proposed size (the image's size when none is proposed). */
+-(CGImageRef)CGImageForProposedRect:(NSRect *)proposedDestRect context:(NSGraphicsContext *)referenceContext hints:(NSDictionary *)hints {
+   NSSize size=[self size];
+
+   if(proposedDestRect!=NULL && !NSIsEmptyRect(*proposedDestRect))
+    size=proposedDestRect->size;
+   else if(proposedDestRect!=NULL)
+    *proposedDestRect=NSMakeRect(0,0,size.width,size.height);
+   for(NSImageRep *rep in [self representations])
+    if([rep isKindOfClass:[NSBitmapImageRep class]] && [(NSBitmapImageRep *)rep CGImage]!=NULL &&
+       [rep pixelsWide]==(NSInteger)size.width && [rep pixelsHigh]==(NSInteger)size.height)
+     return [(NSBitmapImageRep *)rep CGImage];
+   if(size.width<1 || size.height<1)
+    return NULL;
+   size_t          w=(size_t)ceil(size.width),h=(size_t)ceil(size.height);
+   CGColorSpaceRef space=CGColorSpaceCreateDeviceRGB();
+   CGContextRef    bitmap=CGBitmapContextCreate(NULL,w,h,8,w*4,space,kCGImageAlphaPremultipliedLast);
+   CGColorSpaceRelease(space);
+   if(bitmap==NULL)
+    return NULL;
+   NSGraphicsContext *saved=[[NSGraphicsContext currentContext] retain];
+   [NSGraphicsContext setCurrentContext:[NSGraphicsContext graphicsContextWithCGContext:bitmap flipped:NO]];
+   [self drawInRect:NSMakeRect(0,0,w,h) fromRect:NSZeroRect operation:NSCompositeSourceOver fraction:1];
+   [NSGraphicsContext setCurrentContext:saved];
+   [saved release];
+   CGImageRef image=CGBitmapContextCreateImage(bitmap);
+   CGContextRelease(bitmap);
+   return (CGImageRef)[(id)image autorelease];
+}
+
+-(id)layerContentsForContentsScale:(CGFloat)layerContentsScale {
+   return (id)[self CGImageForProposedRect:NULL context:nil hints:nil];
+}
+
+-(CGFloat)recommendedLayerContentsScale:(CGFloat)preferredContentsScale {
+   return 1;
+}
+
+/* An icon reference's image: a folder, an application, or the icon of
+   its file type. */
+-initWithIconRef:(IconRef)iconRef {
+   OSType       type=_IconRefGetType(iconRef);
+   NSString    *extension=(NSString *)_IconRefGetExtension(iconRef);
+   NSWorkspace *workspace=[NSWorkspace sharedWorkspace];
+   NSImage     *icon;
+
+   if(type==kGenericFolderIcon || type==kOpenFolderIcon)
+    icon=[NSImage imageNamed:NSImageNameFolder];
+   else if(type==kGenericApplicationIcon)
+    icon=[workspace iconForFileType:@"app"];
+   else if(type==kTrashIcon || type==kFullTrashIcon)
+    icon=[NSImage imageNamed:(type==kTrashIcon)?NSImageNameTrashEmpty:NSImageNameTrashFull];
+   else if([extension length]>0)
+    icon=[workspace iconForFileType:extension];
+   else
+    icon=[workspace iconForFileType:NSFileTypeForHFSTypeCode(type)];
+   if(icon==nil){
+    [self release];
+    return nil;
+   }
+   [self release];
+   return [icon copy];
+}
+
++(NSArray *)imageTypes {
+   return [(NSArray *)CGImageSourceCopyTypeIdentifiers() autorelease];
+}
+
++(NSArray *)imageUnfilteredTypes {
+   return [self imageTypes];
+}
+
+
+static char accessibilityDescriptionKey;
+
+-(NSString *)accessibilityDescription {
+   return objc_getAssociatedObject(self,&accessibilityDescriptionKey);
+}
+
+-(void)setAccessibilityDescription:(NSString *)description {
+   objc_setAssociatedObject(self,&accessibilityDescriptionKey,description,OBJC_ASSOCIATION_COPY);
+}
+
 @end
 
 @implementation NSBundle(NSImage)
@@ -931,6 +1041,18 @@ NSImage *_NSStandardImageNamed(NSString *name);
    }
 
    return [self pathForResource:[name stringByDeletingPathExtension] ofType:[name pathExtension]];
+}
+
+
+/* The named image resource of this bundle (any image type). */
+-(NSImage *)imageForResource:(NSString *)name {
+   NSString *path=[self pathForImageResource:name];
+
+   if(path==nil)
+    return nil;
+   NSImage *image=[[[NSImage alloc] initWithContentsOfFile:path] autorelease];
+   [image setName:nil];
+   return image;
 }
 
 @end

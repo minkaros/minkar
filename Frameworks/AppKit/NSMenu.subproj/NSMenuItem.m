@@ -7,6 +7,7 @@ The above copyright notice and this permission notice shall be included in all c
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE. */
 
 // Original - Christopher Lloyd <cjwl@objc.net>
+#import <objc/runtime.h>
 #import <AppKit/NSMenuItem.h>
 #import <AppKit/NSMenu.h>
 #import <AppKit/NSImage.h>
@@ -374,6 +375,30 @@ static NSString *keyGlyph(unichar ch) {
 -(NSString *)description {
     return [NSString stringWithFormat:@"<%@[0x%x]: title: %@ action: %@ hasSubmenu: %@>",
         [self class],self,[self title],NSStringFromSelector(_action),([self hasSubmenu] ? @"YES" : @"NO")];
+}
+
+
+static char alternateKey;
+-(BOOL)isAlternate {
+   id value=objc_getAssociatedObject(self,&alternateKey);
+   return (value!=nil)?[value boolValue]:NO;
+}
+-(void)setAlternate:(BOOL)value {
+   objc_setAssociatedObject(self,&alternateKey,[NSNumber numberWithBool:value],OBJC_ASSOCIATION_RETAIN);
+}
+
+static char keyWhenHiddenKey;
+-(BOOL)allowsKeyEquivalentWhenHidden {
+   id value=objc_getAssociatedObject(self,&keyWhenHiddenKey);
+   return (value!=nil)?[value boolValue]:NO;
+}
+-(void)setAllowsKeyEquivalentWhenHidden:(BOOL)value {
+   objc_setAssociatedObject(self,&keyWhenHiddenKey,[NSNumber numberWithBool:value],OBJC_ASSOCIATION_RETAIN);
+}
+
+/* There are no user key equivalents (set in preferences) yet. */
+-(NSString *)userKeyEquivalent {
+   return @"";
 }
 
 @end

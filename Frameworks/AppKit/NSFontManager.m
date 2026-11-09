@@ -6,6 +6,7 @@ The above copyright notice and this permission notice shall be included in all c
 
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE. */
 
+#import <objc/runtime.h>
 #import <AppKit/NSFontManager.h>
 #include <stdlib.h>
 #import <AppKit/NSFontPanel.h>
@@ -584,6 +585,32 @@ static Class _fontPanelFactory;
 		valid = [self _canConvertFont: [self selectedFont] toHaveTrait: tag];
 	}
 	return valid;
+}
+
+
+static char fontMenuKey;
+-(NSMenu *)_fontMenu {
+   id value=objc_getAssociatedObject(self,&fontMenuKey);
+   return (value!=nil)?value:nil;
+}
+-(void)setFontMenu:(NSMenu *)value {
+   objc_setAssociatedObject(self,&fontMenuKey,value,OBJC_ASSOCIATION_RETAIN);
+}
+
+/* The font menu, made when asked for one that does not exist yet. */
+-(NSMenu *)fontMenu:(BOOL)create {
+   NSMenu *menu=[self _fontMenu];
+
+   if(menu==nil && create){
+    menu=[[[NSMenu alloc] initWithTitle:@"Font"] autorelease];
+    [menu addItemWithTitle:@"Show Fonts" action:@selector(orderFrontFontPanel:) keyEquivalent:@"t"];
+    [menu addItemWithTitle:@"Bold" action:@selector(addFontTrait:) keyEquivalent:@"b"];
+    [menu addItemWithTitle:@"Italic" action:@selector(addFontTrait:) keyEquivalent:@"i"];
+    [[menu itemAtIndex:1] setTag:NSBoldFontMask];
+    [[menu itemAtIndex:2] setTag:NSItalicFontMask];
+    [self setFontMenu:menu];
+   }
+   return menu;
 }
 
 @end

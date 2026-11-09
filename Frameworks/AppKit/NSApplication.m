@@ -8,6 +8,7 @@ The above copyright notice and this permission notice shall be included in all c
 
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE. */
 
+#import <objc/runtime.h>
 #import <sys/param.h>
 #import <mach/mach.h>
 #import <servers/bootstrap.h>
@@ -1926,6 +1927,21 @@ typedef void (*endfunction_t)(id, SEL, id, NSInteger, void *);
         return;
     if(_isHidden)
         [self unhide:nil];
+}
+
+
+/* Full keyboard access: the AppleKeyboardUIMode default's bit 2. */
+-(BOOL)isFullKeyboardAccessEnabled {
+   return ([[NSUserDefaults standardUserDefaults] integerForKey:@"AppleKeyboardUIMode"]&2)!=0;
+}
+
+static char customizeTouchBarKey;
+-(BOOL)isAutomaticCustomizeTouchBarMenuItemEnabled {
+   id value=objc_getAssociatedObject(self,&customizeTouchBarKey);
+   return (value!=nil)?[value boolValue]:NO;
+}
+-(void)setAutomaticCustomizeTouchBarMenuItemEnabled:(BOOL)value {
+   objc_setAssociatedObject(self,&customizeTouchBarKey,[NSNumber numberWithBool:value],OBJC_ASSOCIATION_RETAIN);
 }
 
 @end

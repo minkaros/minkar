@@ -10,7 +10,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <AppKit/NSGraphics.h>
 #import <AppKit/NSBitmapImageRep.h>
 
-@class NSImageRep;
+@class NSImageRep, NSGraphicsContext, NSPasteboard;
 
 typedef enum {
     NSImageCacheDefault,
@@ -177,7 +177,6 @@ APPKIT_EXPORT NSImageName const NSImageNameStatusNone;
 + (NSArray *)imagePasteboardTypes;
 + (NSArray *)imageUnfilteredPasteboardTypes;
 
-+ (BOOL)canInitWithPasteboard:(NSPasteboard *)pasteboard;
 
 + imageNamed:(NSString *)name;
 
@@ -256,8 +255,22 @@ APPKIT_EXPORT NSImageName const NSImageNameStatusNone;
 - (void)drawInRect:(NSRect)rect fromRect:(NSRect)source operation:(NSCompositingOperation)operation fraction:(CGFloat)fraction respectFlipped:(BOOL)respectFlipped hints:(NSDictionary *)hints;
 - (void)drawInRect:(NSRect)rect;
 
+
++ (NSImage *)imageWithSize:(NSSize)size flipped:(BOOL)drawingHandlerShouldBeCalledWithFlippedContext drawingHandler:(BOOL (^)(NSRect dstRect))drawingHandler;
+- (void)lockFocusFlipped:(BOOL)flipped;
+- (CGImageRef)CGImageForProposedRect:(NSRect *)proposedDestRect context:(NSGraphicsContext *)referenceContext hints:(NSDictionary *)hints;
+- (id)layerContentsForContentsScale:(CGFloat)layerContentsScale;
+- (CGFloat)recommendedLayerContentsScale:(CGFloat)preferredContentsScale;
+- (id)initWithIconRef:(struct OpaqueIconRef *)iconRef;
++ (NSArray *)imageTypes;
++ (NSArray *)imageUnfilteredTypes;
++ (BOOL)canInitWithPasteboard:(NSPasteboard *)pasteboard;
+@property (copy) NSString *accessibilityDescription;
+
 @end
 
 @interface NSBundle (NSImage)
 - (NSString *)pathForImageResource:(NSString *)name;
+- (NSImage *)imageForResource:(NSString *)name;
+
 @end

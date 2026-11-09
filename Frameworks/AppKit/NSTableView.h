@@ -35,7 +35,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <AppKit/NSControl.h>
 #import <AppKit/NSDragging.h>
 
-@class NSTableHeaderView, NSTableColumn, NSTableRowView, NSNib;
+@class NSTableHeaderView, NSTableColumn, NSTableRowView, NSNib, NSImage;
 
 APPKIT_EXPORT NSString *const NSTableViewSelectionIsChangingNotification;
 APPKIT_EXPORT NSString *const NSTableViewSelectionDidChangeNotification;
@@ -79,6 +79,15 @@ typedef enum {
     NSTableViewDropOn,
     NSTableViewDropAbove
 } NSTableViewDropOperation;
+
+typedef NS_ENUM(NSUInteger, NSTableViewColumnAutoresizingStyle) {
+    NSTableViewNoColumnAutoresizing = 0,
+    NSTableViewUniformColumnAutoresizingStyle,
+    NSTableViewSequentialColumnAutoresizingStyle,
+    NSTableViewReverseSequentialColumnAutoresizingStyle,
+    NSTableViewLastColumnOnlyAutoresizingStyle,
+    NSTableViewFirstColumnOnlyAutoresizingStyle
+};
 
 @interface NSTableView : NSControl {
     id _target;
@@ -273,6 +282,12 @@ typedef enum {
 - (void)removeRowsAtIndexes:(NSIndexSet *)indexes withAnimation:(NSTableViewAnimationOptions)animationOptions;
 - (void)moveRowAtIndex:(NSInteger)oldIndex toIndex:(NSInteger)newIndex;
 - (void)reloadDataForRowIndexes:(NSIndexSet *)rowIndexes columnIndexes:(NSIndexSet *)columnIndexes;
+
+@property NSTableViewColumnAutoresizingStyle columnAutoresizingStyle;
+@property BOOL allowsTypeSelect;
+- (NSImage *)indicatorImageInTableColumn:(NSTableColumn *)tableColumn;
+- (void)setIndicatorImage:(NSImage *)image inTableColumn:(NSTableColumn *)tableColumn;
+
 @end
 
 /* The formal protocols of API 19 (all optional), beside the informal ones. */

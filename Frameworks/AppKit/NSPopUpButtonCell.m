@@ -521,4 +521,13 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
     }
     [NSApp sendAction: [self action] to: [self target] from: _controlView];
 }
+
+-(BOOL)usesItemFromMenu {
+   return _usesItemFromMenu;
+}
+
+-(void)setUsesItemFromMenu:(BOOL)value {
+   _usesItemFromMenu=value;
+}
+
 @end

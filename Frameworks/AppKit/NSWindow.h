@@ -129,6 +129,14 @@ APPKIT_EXPORT NSString *const NSWindowWillCloseNotification;
 APPKIT_EXPORT NSString *const NSWindowWillStartLiveResizeNotification;
 APPKIT_EXPORT NSString *const NSWindowDidEndLiveResizeNotification;
 
+typedef NS_ENUM(NSInteger, NSWindowAnimationBehavior) {
+    NSWindowAnimationBehaviorDefault = 0,
+    NSWindowAnimationBehaviorNone = 2,
+    NSWindowAnimationBehaviorDocumentWindow,
+    NSWindowAnimationBehaviorUtilityWindow,
+    NSWindowAnimationBehaviorAlertPanel
+};
+
 @interface NSWindow : NSResponder <NSAppearanceCustomization> {
     int _number;
     //CGLContextObj _cglContext;
@@ -565,6 +573,17 @@ APPKIT_EXPORT NSString *const NSWindowDidEndLiveResizeNotification;
 
 - (void)toggleToolbarShown:sender;
 - (void)runToolbarCustomizationPalette:sender;
+
+
+- (NSRect)convertRectToScreen:(NSRect)rect;
+- (NSRect)convertRectFromScreen:(NSRect)rect;
+- (NSPoint)convertPointToScreen:(NSPoint)point;
+- (NSPoint)convertPointFromScreen:(NSPoint)point;
+- (void)toggleFullScreen:(id)sender;
++ (BOOL)allowsAutomaticWindowTabbing;
++ (void)setAllowsAutomaticWindowTabbing:(BOOL)value;
+@property NSWindowAnimationBehavior animationBehavior;
+- (void)invalidateRestorableState;
 
 @end
 

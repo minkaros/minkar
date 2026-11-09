@@ -80,6 +80,11 @@ APPKIT_EXPORT NSString *const NSOutlineViewSelectionIsChangingNotification;
 
 - (NSRect)frameOfOutlineCellAtRow:(NSInteger)row;
 
+
+- (void)insertItemsAtIndexes:(NSIndexSet *)indexes inParent:(id)parent withAnimation:(NSTableViewAnimationOptions)animationOptions;
+- (void)removeItemsAtIndexes:(NSIndexSet *)indexes inParent:(id)parent withAnimation:(NSTableViewAnimationOptions)animationOptions;
+- (void)moveItemAtIndex:(NSInteger)fromIndex inParent:(id)oldParent toIndex:(NSInteger)toIndex inParent:(id)newParent;
+
 @end
 
 @interface NSObject (NSOutlineView_dataSource)

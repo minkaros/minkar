@@ -484,6 +484,18 @@ static NSTimer *_periodicTimer=nil;
     return nil;
 }
 
+
+/* There are no swipe gestures from the input devices yet: the handler
+   hears the gesture end at once, with no amount. */
+-(void)trackSwipeEventWithOptions:(NSEventSwipeTrackingOptions)options dampenAmountThresholdMin:(CGFloat)minDampenThreshold max:(CGFloat)maxDampenThreshold
+   usingHandler:(void (^)(CGFloat gestureAmount, NSEventPhase phase, BOOL isComplete, BOOL *stop))trackingHandler {
+   BOOL stop=NO;
+
+   if(trackingHandler!=nil)
+    trackingHandler(0,NSEventPhaseEnded,YES,&stop);
+}
+
+
 @end
 
 NSEventMask NSEventMaskFromType(NSEventType type){

@@ -83,6 +83,12 @@ APPKIT_EXPORT NSString *const NSMenuDidEndTrackingNotification;
 - (void)setDelegate:(id<NSMenuDelegate>)object;
 - (id<NSMenuDelegate>)delegate;
 
+
+- (void)cancelTracking;
+- (void)cancelTrackingWithoutAnimation;
+- (void)performActionForItemAtIndex:(NSInteger)index;
+- (void)submenuAction:(id)sender;
+
 @end
 
 @interface NSObject (NSMenu_validateItem)

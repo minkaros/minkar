@@ -87,4 +87,6 @@ enum {
                  modalDelegate:(id)modalDelegate
                 didEndSelector:(SEL)didEndSelector
                    contextInfo:(void *)contextInfo;
+@property BOOL showsHiddenFiles;
+
 @end

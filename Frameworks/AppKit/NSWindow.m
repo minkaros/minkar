@@ -3708,6 +3708,65 @@ static void slsCollectExcluded(NSView *view, NSSize size, SLSIntRect *rects, uin
    return _sheetParent!=nil || ([self styleMask]&NSWindowStyleMaskDocModalWindow)!=0;
 }
 
+
+-(NSRect)convertRectToScreen:(NSRect)rect {
+   NSRect frame=[self frame];
+   return NSOffsetRect(rect,frame.origin.x,frame.origin.y);
+}
+
+-(NSRect)convertRectFromScreen:(NSRect)rect {
+   NSRect frame=[self frame];
+   return NSOffsetRect(rect,-frame.origin.x,-frame.origin.y);
+}
+
+-(NSPoint)convertPointToScreen:(NSPoint)point {
+   return [self convertBaseToScreen:point];
+}
+
+-(NSPoint)convertPointFromScreen:(NSPoint)point {
+   return [self convertScreenToBase:point];
+}
+
+static char fullScreenFrameKey;
+
+/* Full screen: the window takes its screen's visible frame, and gets its
+   frame back when toggled again (there are no full screen spaces). */
+-(void)toggleFullScreen:(id)sender {
+   NSValue *saved=objc_getAssociatedObject(self,&fullScreenFrameKey);
+
+   if(saved!=nil){
+    objc_setAssociatedObject(self,&fullScreenFrameKey,nil,OBJC_ASSOCIATION_RETAIN);
+    [self setFrame:[saved rectValue] display:YES];
+   }
+   else {
+    objc_setAssociatedObject(self,&fullScreenFrameKey,[NSValue valueWithRect:[self frame]],OBJC_ASSOCIATION_RETAIN);
+    [self setFrame:[[self screen] ?: [NSScreen mainScreen] visibleFrame] display:YES];
+   }
+}
+
+static BOOL sAllowsAutomaticWindowTabbing=YES;
+
++(BOOL)allowsAutomaticWindowTabbing {
+   return sAllowsAutomaticWindowTabbing;
+}
+
++(void)setAllowsAutomaticWindowTabbing:(BOOL)value {
+   sAllowsAutomaticWindowTabbing=value;
+}
+
+static char animationBehaviorKey;
+-(NSWindowAnimationBehavior)animationBehavior {
+   id value=objc_getAssociatedObject(self,&animationBehaviorKey);
+   return (value!=nil)?(NSWindowAnimationBehavior)[value integerValue]:0;
+}
+-(void)setAnimationBehavior:(NSWindowAnimationBehavior)value {
+   objc_setAssociatedObject(self,&animationBehaviorKey,[NSNumber numberWithInteger:(NSInteger)value],OBJC_ASSOCIATION_RETAIN);
+}
+
+/* There is no state restoration yet: nothing to save. */
+-(void)invalidateRestorableState {
+}
+
 @end
 
 void CGNativeBorderFrameWidthsForStyle(unsigned styleMask,CGFloat *top,CGFloat *left,

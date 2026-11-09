@@ -843,4 +843,27 @@ static void loadItemIntoMapTables(NSOutlineView *self,id item,unsigned *rowCount
 }
 
 
+
+/* The parent's children change: they are read again (without animation). */
+-(void)insertItemsAtIndexes:(NSIndexSet *)indexes inParent:(id)parent withAnimation:(NSTableViewAnimationOptions)animationOptions {
+   if(parent==nil)
+    [self reloadData];
+   else
+    [self reloadItem:parent reloadChildren:YES];
+}
+
+-(void)removeItemsAtIndexes:(NSIndexSet *)indexes inParent:(id)parent withAnimation:(NSTableViewAnimationOptions)animationOptions {
+   [self insertItemsAtIndexes:indexes inParent:parent withAnimation:animationOptions];
+}
+
+-(void)moveItemAtIndex:(NSInteger)fromIndex inParent:(id)oldParent toIndex:(NSInteger)toIndex inParent:(id)newParent {
+   if(oldParent==nil || newParent==nil)
+    [self reloadData];
+   else {
+    [self reloadItem:oldParent reloadChildren:YES];
+    if(newParent!=oldParent)
+     [self reloadItem:newParent reloadChildren:YES];
+   }
+}
+
 @end

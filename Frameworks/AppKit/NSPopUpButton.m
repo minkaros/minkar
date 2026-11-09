@@ -257,6 +257,15 @@ static NSString * const NSPopUpButtonBindingObservationContext=@"NSPopUpButtonBi
     [self mouseDown:nil];
 }
 
+
+-(BOOL)usesItemFromMenu {
+   return [[self cell] usesItemFromMenu];
+}
+
+-(void)setUsesItemFromMenu:(BOOL)value {
+   [[self cell] setUsesItemFromMenu:value];
+}
+
 @end
 
 

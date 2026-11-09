@@ -319,7 +319,6 @@ typedef NS_ENUM(short, NSEventSubtype) {
 + (NSTimeInterval)keyRepeatInterval;
 + (BOOL)isMouseCoalescingEnabled;
 + (void)setMouseCoalescingEnabled:(BOOL)flag;
-+ (BOOL)isSwipeTrackingFromScrollEventsEnabled;
 
 /* Blocks that see the application's events before they are sent: a local
    monitor returns the event to send (another, or nil for none). Global
@@ -389,6 +388,10 @@ typedef NS_ENUM(short, NSEventSubtype) {
 @property (readonly) NSInteger trackingNumber;
 @property (readonly) NSTrackingArea *trackingArea;
 @property (readonly) void *userData;
+
+
+- (void)trackSwipeEventWithOptions:(NSEventSwipeTrackingOptions)options dampenAmountThresholdMin:(CGFloat)minDampenThreshold max:(CGFloat)maxDampenThreshold usingHandler:(void (^)(CGFloat gestureAmount, NSEventPhase phase, BOOL isComplete, BOOL *stop))trackingHandler;
++ (BOOL)isSwipeTrackingFromScrollEventsEnabled;
 
 @end
 

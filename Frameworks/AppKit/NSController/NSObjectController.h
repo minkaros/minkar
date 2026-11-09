@@ -24,14 +24,14 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 - initWithContent:(id)content;
 
-//-(Class)objectClass;
+- (Class)objectClass;
 //-(NSString *)entityName;
 //-(NSPredicate *)fetchPredicate;
 //-(NSManagedObjectContext *)managedObjectContext;
 - (BOOL)isEditable;
 - (BOOL)automaticallyPreparesContent;
 
-//-(void)setObjectClass:(Class)class;
+- (void)setObjectClass:(Class)objectClass;
 //-(void)setEntityName:(NSString *)name;
 //-(void)setFetchPredicate:(NSPredicate *)predicate;
 //-(void)setManagedObjectContext:(NSManagedObjectContext *)context;

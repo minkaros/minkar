@@ -264,6 +264,10 @@ typedef enum {
 - (void)_windowDidBecomeDeactive:(NSWindow *)window;
 
 
+
+@property (readonly, getter=isFullKeyboardAccessEnabled) BOOL fullKeyboardAccessEnabled;
+@property (getter=isAutomaticCustomizeTouchBarMenuItemEnabled) BOOL automaticCustomizeTouchBarMenuItemEnabled;
+
 @end
 
 @interface NSObject (NSApplication_serviceRequest)

@@ -8,7 +8,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 #import <Foundation/Foundation.h>
 
-@class NSFont, NSFontDescriptor, NSFontPanel;
+@class NSFont, NSFontDescriptor, NSFontPanel, NSMenu;
 
 typedef unsigned NSFontTraitMask;
 
@@ -110,6 +110,10 @@ enum {
 
 - (void)orderFrontFontPanel:sender;
 - (void)orderFrontStylesPanel:sender;
+
+
+- (void)setFontMenu:(NSMenu *)newMenu;
+- (NSMenu *)fontMenu:(BOOL)create;
 
 @end
 

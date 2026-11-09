@@ -5,6 +5,7 @@ Permission is hereby granted, free of charge, to any person obtaining a copy of 
 The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
 
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE. */
+#import <objc/runtime.h>
 #import <AppKit/NSScrollView.h>
 #import <AppKit/NSScroller.h>
 #import <AppKit/NSClipView.h>
@@ -963,6 +964,62 @@ static Class _rulerViewClass = nil;
     [self _verticalScroll:_verticalScroller];
    if([self hasHorizontalScroller])
     [self _horizontalScroll:_horizontalScroller];
+}
+
+
+/* Kept: the clip view is not inset yet, and there is no elastic
+   scrolling. */
+static char contentInsetsKey;
+-(NSEdgeInsets)contentInsets {
+   NSValue *value=objc_getAssociatedObject(self,&contentInsetsKey);
+   NSEdgeInsets insets={0,0,0,0};
+   if(value!=nil)
+    [value getValue:&insets];
+   return insets;
+}
+-(void)setContentInsets:(NSEdgeInsets)insets {
+   objc_setAssociatedObject(self,&contentInsetsKey,[NSValue valueWithBytes:&insets objCType:@encode(NSEdgeInsets)],OBJC_ASSOCIATION_RETAIN);
+}
+-(NSEdgeInsets)scrollerInsets {
+   return NSEdgeInsetsMake(0,0,0,0);
+}
+-(void)setScrollerInsets:(NSEdgeInsets)insets {
+}
+
+static char adjustsInsetsKey;
+-(BOOL)automaticallyAdjustsContentInsets {
+   id value=objc_getAssociatedObject(self,&adjustsInsetsKey);
+   return (value!=nil)?[value boolValue]:YES;
+}
+-(void)setAutomaticallyAdjustsContentInsets:(BOOL)value {
+   objc_setAssociatedObject(self,&adjustsInsetsKey,[NSNumber numberWithBool:value],OBJC_ASSOCIATION_RETAIN);
+}
+
+static char knobStyleKey;
+-(NSScrollerKnobStyle)scrollerKnobStyle {
+   id value=objc_getAssociatedObject(self,&knobStyleKey);
+   return (value!=nil)?(NSScrollerKnobStyle)[value integerValue]:0;
+}
+-(void)setScrollerKnobStyle:(NSScrollerKnobStyle)value {
+   objc_setAssociatedObject(self,&knobStyleKey,[NSNumber numberWithInteger:(NSInteger)value],OBJC_ASSOCIATION_RETAIN);
+}
+
+static char verticalElasticityKey;
+-(NSScrollElasticity)verticalScrollElasticity {
+   id value=objc_getAssociatedObject(self,&verticalElasticityKey);
+   return (value!=nil)?(NSScrollElasticity)[value integerValue]:0;
+}
+-(void)setVerticalScrollElasticity:(NSScrollElasticity)value {
+   objc_setAssociatedObject(self,&verticalElasticityKey,[NSNumber numberWithInteger:(NSInteger)value],OBJC_ASSOCIATION_RETAIN);
+}
+
+static char horizontalElasticityKey;
+-(NSScrollElasticity)horizontalScrollElasticity {
+   id value=objc_getAssociatedObject(self,&horizontalElasticityKey);
+   return (value!=nil)?(NSScrollElasticity)[value integerValue]:0;
+}
+-(void)setHorizontalScrollElasticity:(NSScrollElasticity)value {
+   objc_setAssociatedObject(self,&horizontalElasticityKey,[NSNumber numberWithInteger:(NSInteger)value],OBJC_ASSOCIATION_RETAIN);
 }
 
 @end

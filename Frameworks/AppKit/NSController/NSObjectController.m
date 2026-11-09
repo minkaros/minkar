@@ -197,4 +197,15 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 -(void)_setContentObject:(id)val {
    [self setContent:val];
 }
+
+-(Class)objectClass {
+   return NSClassFromString(_objectClassName);
+}
+
+-(void)setObjectClass:(Class)cls {
+   NSString *name=[NSStringFromClass(cls) copy];
+   [_objectClassName release];
+   _objectClassName=name;
+}
+
 @end
