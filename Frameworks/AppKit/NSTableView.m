@@ -26,14 +26,14 @@ const float NSTableViewDefaultRowHeight=16.0f;
 @interface NSTableView(NSTableView_notifications)
 
 -(BOOL)delegateShouldSelectTableColumn:(NSTableColumn *)tableColumn ;
--(BOOL)delegateShouldSelectRow:(int)row;
--(BOOL)delegateShouldEditTableColumn:(NSTableColumn *)tableColumn row:(int)row;
+-(BOOL)delegateShouldSelectRow:(NSInteger)row;
+-(BOOL)delegateShouldEditTableColumn:(NSTableColumn *)tableColumn row:(NSInteger)row;
 -(BOOL)delegateSelectionShouldChange;
 -(void)noteSelectionIsChanging;
 -(void)noteSelectionDidChange;
--(void)noteColumnDidResizeWithOldWidth:(float)oldWidth;
+-(void)noteColumnDidResizeWithOldWidth:(CGFloat)oldWidth;
 -(BOOL)dataSourceCanSetObjectValue;
--(void)dataSourceSetObjectValue:object forTableColumn:(NSTableColumn *)tableColumn row:(int)row;
+-(void)dataSourceSetObjectValue:object forTableColumn:(NSTableColumn *)tableColumn row:(NSInteger)row;
 
 @end
 
@@ -207,7 +207,7 @@ const float NSTableViewDefaultRowHeight=16.0f;
     return [[_cornerView retain] autorelease];
 }
 
--(float)rowHeight {
+-(CGFloat)rowHeight {
     return _standardRowHeight;
 }
 
@@ -272,7 +272,7 @@ const float NSTableViewDefaultRowHeight=16.0f;
    return _alternatingRowBackground;
 }
 
--(unsigned int)gridStyleMask {
+-(NSTableViewGridLineStyle)gridStyleMask {
    return _gridStyleMask;
 }
 
@@ -443,7 +443,7 @@ static float rowHeightAtIndex(NSTableView *self,int index){
     return NSMakeRange(first, last - first + 1);
 }
 
--(int)rowAtPoint:(NSPoint)point {
+-(NSInteger)rowAtPoint:(NSPoint)point {
     NSInteger row = -1;
     NSRange range;
 
@@ -454,7 +454,7 @@ static float rowHeightAtIndex(NSTableView *self,int index){
     return row;
 }
 
--(int)columnAtPoint:(NSPoint)point {
+-(NSInteger)columnAtPoint:(NSPoint)point {
     NSInteger column = -1;
     NSRange range;
 
@@ -465,7 +465,7 @@ static float rowHeightAtIndex(NSTableView *self,int index){
     return column;
 }
 
--(NSRect)frameOfCellAtColumn:(int)column row:(int)row {
+-(NSRect)frameOfCellAtColumn:(NSInteger)column row:(NSInteger)row {
    NSRect frame;
    NSInteger i;
 
@@ -545,7 +545,7 @@ static float rowHeightAtIndex(NSTableView *self,int index){
     [[self enclosingScrollView] tile];
 }
 
--(void)setRowHeight:(float)height {
+-(void)setRowHeight:(CGFloat)height {
     NSInteger numberOfRows=[self numberOfRows];
     NSInteger i;
 
@@ -624,7 +624,7 @@ static float rowHeightAtIndex(NSTableView *self,int index){
    _alternatingRowBackground = flag;
 }
 
--(void)setGridStyleMask:(unsigned int)gridStyle {
+-(void)setGridStyleMask:(NSTableViewGridLineStyle)gridStyle {
    _gridStyleMask = gridStyle;
    [self setNeedsDisplay:YES];
 }
@@ -654,15 +654,15 @@ static float rowHeightAtIndex(NSTableView *self,int index){
     NSUnimplementedMethod();
 }
 
--(int)editedRow {
+-(NSInteger)editedRow {
     return _editedRow;
 }
 
--(int)editedColumn {
+-(NSInteger)editedColumn {
     return _editedColumn;
 }
 
--(id)dataSourceObjectValueForTableColumn:(NSTableColumn *)tableColumn row:(int)row {
+-(id)dataSourceObjectValueForTableColumn:(NSTableColumn *)tableColumn row:(NSInteger)row {
 
     if (_dataSource!=nil &&
         [_dataSource
@@ -700,7 +700,7 @@ _dataSource);
    return frame;
 }
 
--(void)editColumn:(int)column row:(int)row withEvent:(NSEvent *)event select:(BOOL)select {
+-(void)editColumn:(NSInteger)column row:(NSInteger)row withEvent:(NSEvent *)event select:(BOOL)select {
    if (_editingCell)
       [self textDidEndEditing:nil];
 
@@ -760,11 +760,11 @@ _dataSource);
       [editingCell release];
 }
 
--(int)clickedRow {
+-(NSInteger)clickedRow {
     return _clickedRow;
 }
 
--(int)clickedColumn {
+-(NSInteger)clickedColumn {
     return _clickedColumn;
 }
 
@@ -867,7 +867,7 @@ _dataSource);
     [self _setSelectedRowIndexes:newIndexes];
 }
 
--(int)selectedRow {
+-(NSInteger)selectedRow {
    NSInteger row = [_selectedRowIndexes firstIndex];
 
    if (row == NSNotFound)
@@ -876,26 +876,26 @@ _dataSource);
    return row;
 }
 
--(int)selectedColumn {
+-(NSInteger)selectedColumn {
     if([_selectedColumns count]==0)
      return -1;
 
     return [_tableColumns indexOfObject:[_selectedColumns objectAtIndex:0]];
 }
 
--(int)numberOfSelectedRows {
+-(NSInteger)numberOfSelectedRows {
     return [_selectedRowIndexes count];
 }
 
--(int)numberOfSelectedColumns {
+-(NSInteger)numberOfSelectedColumns {
     return [_selectedColumns count];
 }
 
--(BOOL)isRowSelected:(int)row {
+-(BOOL)isRowSelected:(NSInteger)row {
     return [_selectedRowIndexes containsIndex:row];
 }
 
--(BOOL)isColumnSelected:(int)col {
+-(BOOL)isColumnSelected:(NSInteger)col {
     return [_selectedColumns containsObject:[_tableColumns objectAtIndex:col]];
 }
 
@@ -929,7 +929,7 @@ _dataSource);
 }
 
 // Deprecated in Mac OS X 10.3.
--(void)selectRow:(int)row byExtendingSelection:(BOOL)extend  {
+-(void)selectRow:(NSInteger)row byExtendingSelection:(BOOL)extend  {
 
    if (extend) {
     NSUInteger startRow=[self selectedRow], endRow=row;
@@ -942,7 +942,7 @@ _dataSource);
     [self selectRowIndexes:[NSIndexSet indexSetWithIndex:row] byExtendingSelection:NO];
 }
 
--(void)selectColumn:(int)column byExtendingSelection:(BOOL)extend {
+-(void)selectColumn:(NSInteger)column byExtendingSelection:(BOOL)extend {
     NSTableColumn *tableColumn = [_tableColumns objectAtIndex:column];
 
     // selecting a column deselects all rows
@@ -961,7 +961,7 @@ _dataSource);
     [_headerView setNeedsDisplay:YES];
 }
 
--(void)deselectRow:(int)row {
+-(void)deselectRow:(NSInteger)row {
     NSIndexSet* selectedRowIndexes=[self selectedRowIndexes];
 
     if ([selectedRowIndexes containsIndex:row]) {
@@ -972,7 +972,7 @@ _dataSource);
     }
 }
 
--(void)deselectColumn:(int)column  {
+-(void)deselectColumn:(NSInteger)column  {
     if ([_selectedColumns containsObject:[_tableColumns objectAtIndex:column]]) {
         [_selectedColumns removeObject:[_tableColumns objectAtIndex:column]];
         [self setNeedsDisplayInRect:[self rectOfColumn:column]];
@@ -990,11 +990,11 @@ _dataSource);
 }
 
 
--(void)scrollRowToVisible:(int)index {
+-(void)scrollRowToVisible:(NSInteger)index {
     [self scrollRectToVisible:[self rectOfRow:index]];
 }
 
--(void)scrollColumnToVisible:(int)index {
+-(void)scrollColumnToVisible:(NSInteger)index {
     [self scrollRectToVisible:[self rectOfColumn:index]];
 }
 
@@ -1137,7 +1137,7 @@ _dataSource);
     return [super resignFirstResponder];
 }
 
--(void)drawHighlightedSelectionForColumn:(int)column row:(int)row inRect:(NSRect)rect
+-(void)drawHighlightedSelectionForColumn:(NSInteger)column row:(NSInteger)row inRect:(NSRect)rect
 {
     [([self _isEmphasized]?[NSColor alternateSelectedControlColor]:[NSColor unemphasizedSelectedContentBackgroundColor]) setFill];
     NSRectFill(rect);
@@ -1183,7 +1183,7 @@ _dataSource);
    return dataCell;
 }
 
-- (void)drawRow:(int)row clipRect:(NSRect)clipRect {
+- (void)drawRow:(NSInteger)row clipRect:(NSRect)clipRect {
     // draw only visible columns.
     NSRange visibleColumns = [self columnsInRect:clipRect];
     int drawThisColumn = visibleColumns.location;
@@ -1305,7 +1305,7 @@ _dataSource);
 }
 
 // can't use rectOfRow because empty tableviews will explode!
--(float)_displayWidthOfColumns {
+-(CGFloat)_displayWidthOfColumns {
     int i, count = [_tableColumns count];
     float result = 0;
 
@@ -1351,7 +1351,7 @@ _dataSource);
     return YES;
 }
 
--(BOOL)delegateShouldSelectRow:(int)row
+-(BOOL)delegateShouldSelectRow:(NSInteger)row
 {
     if ([_delegate respondsToSelector:@selector(tableView:shouldSelectRow:)])
         return [_delegate tableView:self shouldSelectRow:row];
@@ -1360,7 +1360,7 @@ _dataSource);
 }
 
 
--(void)dataSourceSetObjectValue:object forTableColumn:(NSTableColumn *)tableColumn row:(int)row
+-(void)dataSourceSetObjectValue:object forTableColumn:(NSTableColumn *)tableColumn row:(NSInteger)row
 {
    if([_dataSource respondsToSelector:@selector(tableView:setObjectValue:forTableColumn:row:)])
     [_dataSource tableView:self setObjectValue:object forTableColumn:tableColumn row:row];
@@ -1452,7 +1452,7 @@ _dataSource);
     }
 }
 
-- (BOOL)delegateShouldEditTableColumn:(NSTableColumn *)tableColumn row:(int)row
+- (BOOL)delegateShouldEditTableColumn:(NSTableColumn *)tableColumn row:(NSInteger)row
 {
     if ([_delegate respondsToSelector:@selector(tableView:shouldEditTableColumn:row:)])
         return [_delegate tableView:self shouldEditTableColumn:tableColumn row:row];
@@ -1532,7 +1532,7 @@ _dataSource);
                                                         object:self];
 }
 
--(void)noteColumnDidResizeWithOldWidth:(float)oldWidth
+-(void)noteColumnDidResizeWithOldWidth:(CGFloat)oldWidth
 {
     [[NSNotificationCenter defaultCenter] postNotificationName:NSTableViewColumnDidResizeNotification
             object:self
@@ -1767,12 +1767,12 @@ _dataSource);
     [self tile];
 }
 
-- (unsigned)draggingSourceOperationMaskForLocal:(BOOL)isLocal {
+- (NSDragOperation)draggingSourceOperationMaskForLocal:(BOOL)isLocal {
         return NSDragOperationCopy;
 
 }
 
-- (int)_getDraggedRow:(id <NSDraggingInfo>)info {
+- (NSInteger)_getDraggedRow:(id <NSDraggingInfo>)info {
     NSPoint dragPoint = [self convertPoint:[info draggingLocation] fromView:nil];
     NSInteger draggedRow = [self rowAtPoint:dragPoint];
     if (-1 == draggedRow) {
@@ -1783,7 +1783,7 @@ _dataSource);
     return draggedRow;
 }
 
-- (unsigned)_validateDraggedRow:(id <NSDraggingInfo>)info {
+- (NSUInteger)_validateDraggedRow:(id <NSDraggingInfo>)info {
         BOOL result;
         int proposedRow = [self _getDraggedRow:info];
 
@@ -1800,7 +1800,7 @@ _dataSource);
 
 }
 
-- (unsigned)draggingEntered:(id <NSDraggingInfo>)sender {
+- (NSDragOperation)draggingEntered:(id <NSDraggingInfo>)sender {
         int i;
         for(i = 0; i < [[self _draggedTypes] count]; i++)
         {
@@ -1811,7 +1811,7 @@ _dataSource);
 
 }
 
-- (unsigned)draggingUpdated:(id <NSDraggingInfo>)sender {
+- (NSDragOperation)draggingUpdated:(id <NSDraggingInfo>)sender {
         int i;
         for(i = 0; i < [[self _draggedTypes] count]; i++)
         {

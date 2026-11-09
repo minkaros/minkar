@@ -453,7 +453,7 @@ static inline void buildTransformsIfNeeded(NSView *self) {
    return _autoresizesSubviews;
 }
 
--(unsigned)autoresizingMask {
+-(NSAutoresizingMaskOptions)autoresizingMask {
    return _autoresizingMask;
 }
 
@@ -482,7 +482,7 @@ static inline void buildTransformsIfNeeded(NSView *self) {
    NSUnimplementedMethod();
 }
 
--(int)gState {
+-(NSInteger)gState {
    return 0;
 }
 
@@ -993,7 +993,7 @@ static inline void buildTransformsIfNeeded(NSView *self) {
    _autoresizesSubviews=flag;
 }
 
--(void)setAutoresizingMask:(unsigned int)mask {
+-(void)setAutoresizingMask:(NSAutoresizingMaskOptions)mask {
    _autoresizingMask=mask;
 }
 
@@ -2266,19 +2266,19 @@ static NSGraphicsContext *graphicsContextForView(NSView *view){
 }
 
 
--(float)widthAdjustLimit {
+-(CGFloat)widthAdjustLimit {
    return 0.5;
 }
 
--(float)heightAdjustLimit {
+-(CGFloat)heightAdjustLimit {
    return 0.5;
 }
 
--(void)adjustPageWidthNew:(float *)adjusted left:(float)left right:(float)right limit:(float)limit {
+-(void)adjustPageWidthNew:(CGFloat *)adjusted left:(CGFloat)left right:(CGFloat)right limit:(CGFloat)limit {
 // FIX, give subviews a chance
 }
 
--(void)adjustPageHeightNew:(float *)adjust top:(float)top bottom:(float)bottom limit:(float)limit {
+-(void)adjustPageHeightNew:(CGFloat *)adjust top:(CGFloat)top bottom:(CGFloat)bottom limit:(CGFloat)limit {
 // FIX, give subviews a chance
 }
 
@@ -2290,7 +2290,7 @@ static NSGraphicsContext *graphicsContextForView(NSView *view){
    return NSZeroPoint;
 }
 
--(NSRect)rectForPage:(int)page {
+-(NSRect)rectForPage:(NSInteger)page {
    return NSZeroRect;
 }
 

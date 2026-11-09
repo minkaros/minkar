@@ -19,21 +19,21 @@ typedef enum {
 
 @interface NSParagraphStyle : NSObject <NSCopying, NSMutableCopying> {
     NSWritingDirection _writingDirection;
-    float _paragraphSpacing;
-    float _paragraphSpacingBefore;
+    CGFloat _paragraphSpacing;
+    CGFloat _paragraphSpacingBefore;
     NSArray *_textBlocks;
     NSArray *_textLists;
     int _headerLevel;
-    float _firstLineHeadIndent;
-    float _headIndent;
-    float _tailIndent;
+    CGFloat _firstLineHeadIndent;
+    CGFloat _headIndent;
+    CGFloat _tailIndent;
     NSTextAlignment _alignment;
     NSLineBreakMode _lineBreakMode;
-    float _minimumLineHeight;
-    float _maximumLineHeight;
-    float _lineHeightMultiple;
-    float _lineSpacing;
-    float _defaultTabInterval;
+    CGFloat _minimumLineHeight;
+    CGFloat _maximumLineHeight;
+    CGFloat _lineHeightMultiple;
+    CGFloat _lineSpacing;
+    CGFloat _defaultTabInterval;
     NSArray *_tabStops;
     float _hyphenationFactor;
     float _tighteningFactorForTruncation;
@@ -43,27 +43,27 @@ typedef enum {
 
 - (NSWritingDirection)baseWritingDirection;
 
-- (float)paragraphSpacing;
-- (float)paragraphSpacingBefore;
+- (CGFloat)paragraphSpacing;
+- (CGFloat)paragraphSpacingBefore;
 
 - (NSArray *)textBlocks;
 - (NSArray *)textLists;
 
-- (int)headerLevel;
+- (NSInteger)headerLevel;
 
-- (float)firstLineHeadIndent;
-- (float)headIndent;
-- (float)tailIndent;
+- (CGFloat)firstLineHeadIndent;
+- (CGFloat)headIndent;
+- (CGFloat)tailIndent;
 
 - (NSTextAlignment)alignment;
 - (NSLineBreakMode)lineBreakMode;
 
-- (float)minimumLineHeight;
-- (float)maximumLineHeight;
-- (float)lineHeightMultiple;
-- (float)lineSpacing;
+- (CGFloat)minimumLineHeight;
+- (CGFloat)maximumLineHeight;
+- (CGFloat)lineHeightMultiple;
+- (CGFloat)lineSpacing;
 
-- (float)defaultTabInterval;
+- (CGFloat)defaultTabInterval;
 - (NSArray *)tabStops;
 
 - (float)hyphenationFactor;

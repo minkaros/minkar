@@ -80,7 +80,7 @@ static Class _fontPanelFactory;
    return nil;
 }
 
--(BOOL)addCollection:(NSString *)name options:(int)options {
+-(BOOL)addCollection:(NSString *)name options:(NSInteger)options {
    NSUnimplementedMethod();
    return 0;
 }
@@ -185,7 +185,7 @@ static Class _fontPanelFactory;
 	return (traits & fontTraits) == traits;
 }
 
--(NSFont *)fontWithFamily:(NSString *)familyName traits:(NSFontTraitMask)traits weight:(int)weight size:(float)size {
+-(NSFont *)fontWithFamily:(NSString *)familyName traits:(NSFontTraitMask)traits weight:(NSInteger)weight size:(CGFloat)size {
 	/* Of the typefaces with the italic and bold traits asked for, the one
 	   nearest weight (a hint; 9 when bold is asked for). */
 	NSFontFamily *family=[NSFontFamily fontFamilyWithName:familyName];
@@ -225,7 +225,7 @@ static Class _fontPanelFactory;
 	return font;
 }
 
--(int)weightOfFont:(NSFont *)font {
+-(NSInteger)weightOfFont:(NSFont *)font {
    NSFontTypeface *typeface=[NSFontFamily fontTypefaceWithName:[font fontName]];
 
    return (typeface!=nil)?[typeface weight]:5;
@@ -386,7 +386,7 @@ static Class _fontPanelFactory;
 }
 
 
--(NSFont *)convertFont:(NSFont *)font toSize:(float)size {
+-(NSFont *)convertFont:(NSFont *)font toSize:(CGFloat)size {
    if(size==[font pointSize])
     return font;
 

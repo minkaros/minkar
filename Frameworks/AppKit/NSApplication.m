@@ -288,7 +288,7 @@ extern void _CGDisplayReconfigured(CGDirectDisplayID display, CGDisplayChangeSum
 }
 
 /* Each event notification is 2 chars. Don't read more! */
--(int)_drainPipe {
+-(NSInteger)_drainPipe {
     char junk[2];
     fd_set fds;
     struct timeval tv = {0};
@@ -301,7 +301,7 @@ extern void _CGDisplayReconfigured(CGDirectDisplayID display, CGDisplayChangeSum
     return 0;
 }
 
--(int)_wakeUp {
+-(NSInteger)_wakeUp {
     return(write(_machEventPipe[1], "\n", 2));
 }
 
@@ -1443,7 +1443,7 @@ extern NSEvent *NSEventRunLocalMonitors(NSEvent *event);
    return session;
 }
 
--(int)runModalSession:(NSModalSession)session {
+-(NSInteger)runModalSession:(NSModalSession)session {
     while([session stopCode]==NSRunContinuesResponse) {
         NSAutoreleasePool *pool=[NSAutoreleasePool new];
         NSEvent           *event=[self nextEventMatchingMask:NSAnyEventMask untilDate:[NSDate date] inMode:NSModalPanelRunLoopMode dequeue:YES];
@@ -1503,7 +1503,7 @@ extern NSEvent *NSEventRunLocalMonitors(NSEvent *event);
     [_modalStack removeLastObject];
 }
 
--(void)stopModalWithCode:(int)code {
+-(void)stopModalWithCode:(NSInteger)code {
     // This should silently ignore any attempt to end a session when there is none.
    [[_modalStack lastObject] stopModalWithCode:code];
 }
@@ -1526,7 +1526,7 @@ extern NSEvent *NSEventRunLocalMonitors(NSEvent *event);
    [values setObject:[NSNumber numberWithInteger:result] forKey:@"result"];
 }
 
--(int)runModalForWindow:(NSWindow *)window {
+-(NSInteger)runModalForWindow:(NSWindow *)window {
    NSMutableDictionary *values=[NSMutableDictionary dictionary];
 
    [values setObject:window forKey:@"NSWindow"];
@@ -1580,7 +1580,7 @@ extern NSEvent *NSEventRunLocalMonitors(NSEvent *event);
 }
 
 typedef void (*endfunction_t)(id, SEL, id, NSInteger, void *);
--(void)endSheet:(NSWindow *)sheet returnCode:(int)returnCode {
+-(void)endSheet:(NSWindow *)sheet returnCode:(NSInteger)returnCode {
 
     if ([[NSUserDefaults standardUserDefaults] boolForKey: @"NSRunAllSheetsAsModalPanel"]) {
         NSSheetContext* context = [sheet _sheetContext];
@@ -1630,14 +1630,14 @@ typedef void (*endfunction_t)(id, SEL, id, NSInteger, void *);
    [_windows makeObjectsPerformSelector:@selector(_flashWindow)];
 }
 
--(int)requestUserAttention:(NSRequestUserAttentionType)attentionType {
+-(NSInteger)requestUserAttention:(NSRequestUserAttentionType)attentionType {
    [_attentionTimer invalidate];
    _attentionTimer=[NSTimer scheduledTimerWithTimeInterval:3 target:self selector:@selector(_attentionTimer:) userInfo:nil repeats:YES];
 
    return 0;
 }
 
--(void)cancelUserAttentionRequest:(int)requestNumber {
+-(void)cancelUserAttentionRequest:(NSInteger)requestNumber {
    NSUnimplementedMethod();
 }
 

@@ -300,7 +300,7 @@ static CFArrayRef copyCFURLs(NSArray *urls) {
    NSInvalidAbstractInvocation();
 }
 
--(BOOL)performFileOperation:(NSString *)operation source:(NSString *)source destination:(NSString *)destination files:(NSArray *)files tag:(int *)tag {
+-(BOOL)performFileOperation:(NSString *)operation source:(NSString *)source destination:(NSString *)destination files:(NSArray *)files tag:(NSInteger *)tag {
    NSInvalidAbstractInvocation();
    return 0;
 }
@@ -537,7 +537,7 @@ static NSDictionary *applicationDictionary(NSRunningApplication *app) {
    NSInvalidAbstractInvocation();
 }
 
--(int)extendPowerOffBy:(int)milliseconds {
+-(NSInteger)extendPowerOffBy:(int)milliseconds {
    NSInvalidAbstractInvocation();
    return 0;
 }

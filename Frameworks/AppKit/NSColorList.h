@@ -35,7 +35,7 @@ APPKIT_EXPORT NSString *const NSColorListDidChangeNotification;
 
 - (void)setColor:(NSColor *)color forKey:(NSString *)key;
 - (void)removeColorWithKey:(NSString *)key;
-- (void)insertColor:(NSColor *)color key:(NSString *)key atIndex:(unsigned)index;
+- (void)insertColor:(NSColor *)color key:(NSString *)key atIndex:(NSUInteger)index;
 
 - (BOOL)writeToFile:(NSString *)path;
 - (void)removeFile;

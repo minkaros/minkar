@@ -62,7 +62,7 @@ APPKIT_EXPORT NSString *const NSControlTextDidEndEditingNotification;
 - (void)setFont:(NSFont *)font;
 - (void)setImage:(NSImage *)image;
 - (void)setAlignment:(NSTextAlignment)alignment;
-- (void)setFloatingPointFormat:(BOOL)fpp left:(unsigned)left right:(unsigned)right;
+- (void)setFloatingPointFormat:(BOOL)fpp left:(NSUInteger)left right:(NSUInteger)right;
 - (void)setEnabled:(BOOL)flag;
 - (void)setEditable:(BOOL)flag;
 - (void)setSelectable:(BOOL)flag;

@@ -52,11 +52,11 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    _writingDirection=direction;
 }
 
--(void)setParagraphSpacing:(float)spacing {
+-(void)setParagraphSpacing:(CGFloat)spacing {
    _paragraphSpacing=spacing;
 }
 
--(void)setParagraphSpacingBefore:(float)spacing {
+-(void)setParagraphSpacingBefore:(CGFloat)spacing {
    _paragraphSpacingBefore=spacing;
 }
 
@@ -72,19 +72,19 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    _textLists=lists;
 }
 
--(void)setHeaderLevel:(int)level {
+-(void)setHeaderLevel:(NSInteger)level {
    _headerLevel=level;
 }
 
--(void)setFirstLineHeadIndent:(float)indent {
+-(void)setFirstLineHeadIndent:(CGFloat)indent {
    _firstLineHeadIndent=indent;
 }
 
--(void)setHeadIndent:(float)indent {
+-(void)setHeadIndent:(CGFloat)indent {
    _headIndent=indent;
 }
 
--(void)setTailIndent:(float)indent {
+-(void)setTailIndent:(CGFloat)indent {
    _tailIndent=indent;
 }
 
@@ -96,23 +96,23 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    _lineBreakMode=mode;
 }
 
--(void)setMinimumLineHeight:(float)height {
+-(void)setMinimumLineHeight:(CGFloat)height {
    _minimumLineHeight=height;
 }
 
--(void)setMaximumLineHeight:(float)height {
+-(void)setMaximumLineHeight:(CGFloat)height {
    _maximumLineHeight=height;
 }
 
--(void)setLineHeightMultiple:(float)multiple {
+-(void)setLineHeightMultiple:(CGFloat)multiple {
    _lineHeightMultiple=multiple;
 }
 
--(void)setLineSpacing:(float)spacing {
+-(void)setLineSpacing:(CGFloat)spacing {
    _lineSpacing=spacing;
 }
 
--(void)setDefaultTabInterval:(float)interval {
+-(void)setDefaultTabInterval:(CGFloat)interval {
    _defaultTabInterval=interval;
 }
 

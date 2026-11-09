@@ -55,7 +55,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    return _autosaveName;
 }
 
--(int)maximumRecents {
+-(NSInteger)maximumRecents {
    return _maximumRecents;
 }
 
@@ -91,7 +91,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    _autosaveName=name;
 }
 
--(void)setMaximumRecents:(int)value {
+-(void)setMaximumRecents:(NSInteger)value {
    _maximumRecents=value;
 }
 

@@ -260,7 +260,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    [super editWithFrame:frame inView:view editor:editor delegate:delegate event:event];
 }
 
--(void)selectWithFrame:(NSRect)frame inView:(NSView *)view editor:(NSText *)editor delegate:(id)delegate start:(int)location length:(int)length {
+-(void)selectWithFrame:(NSRect)frame inView:(NSView *)view editor:(NSText *)editor delegate:(id)delegate start:(NSInteger)location length:(NSInteger)length {
    frame=[self titleRectForBounds:frame];
    [super selectWithFrame:frame inView:view editor:editor delegate:delegate start:location length:length];
 }

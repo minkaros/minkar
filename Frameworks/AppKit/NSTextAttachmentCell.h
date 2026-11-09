@@ -17,18 +17,18 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 - (NSSize)cellSize;
 - (NSPoint)cellBaselineOffset;
-- (NSRect)cellFrameForTextContainer:(NSTextContainer *)textContainer proposedLineFragment:(NSRect)proposedRect glyphPosition:(NSPoint)glyphPoint characterIndex:(unsigned)characterIndex;
+- (NSRect)cellFrameForTextContainer:(NSTextContainer *)textContainer proposedLineFragment:(NSRect)proposedRect glyphPosition:(NSPoint)glyphPoint characterIndex:(NSUInteger)characterIndex;
 
 - (BOOL)wantsToTrackMouse;
-- (BOOL)wantsToTrackMouseForEvent:(NSEvent *)event inRect:(NSRect)rect ofView:(NSView *)view atCharacterIndex:(unsigned)characterIndex;
+- (BOOL)wantsToTrackMouseForEvent:(NSEvent *)event inRect:(NSRect)rect ofView:(NSView *)view atCharacterIndex:(NSUInteger)characterIndex;
 
-- (BOOL)trackMouse:(NSEvent *)event inRect:(NSRect)rect ofView:(NSView *)view atCharacterIndex:(unsigned)characterIndex untilMouseUp:(BOOL)untilMouseUp;
+- (BOOL)trackMouse:(NSEvent *)event inRect:(NSRect)rect ofView:(NSView *)view atCharacterIndex:(NSUInteger)characterIndex untilMouseUp:(BOOL)untilMouseUp;
 - (BOOL)trackMouse:(NSEvent *)event inRect:(NSRect)rect ofView:(NSView *)view untilMouseUp:(BOOL)untilMouseUp;
 
 - (void)highlight:(BOOL)highlight withFrame:(NSRect)frame inView:(NSView *)view;
 
-- (void)drawWithFrame:(NSRect)frame inView:(NSView *)view characterIndex:(unsigned)characterIndex layoutManager:(NSLayoutManager *)layoutManager;
-- (void)drawWithFrame:(NSRect)frame inView:(NSView *)view characterIndex:(unsigned)characterIndex;
+- (void)drawWithFrame:(NSRect)frame inView:(NSView *)view characterIndex:(NSUInteger)characterIndex layoutManager:(NSLayoutManager *)layoutManager;
+- (void)drawWithFrame:(NSRect)frame inView:(NSView *)view characterIndex:(NSUInteger)characterIndex;
 - (void)drawWithFrame:(NSRect)frame inView:(NSView *)view;
 
 @end

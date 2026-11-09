@@ -100,18 +100,18 @@ enum {
 #pragma mark -
 #pragma mark Calculating Linguistic Units
 
-- (NSRange)doubleClickAtIndex:(unsigned)index;
-- (unsigned)lineBreakBeforeIndex:(unsigned)index withinRange:(NSRange)range;
-- (unsigned)lineBreakByHyphenatingBeforeIndex:(unsigned)index withinRange:(NSRange)range;
-- (unsigned)nextWordFromIndex:(unsigned)index forward:(BOOL)forward;
+- (NSRange)doubleClickAtIndex:(NSUInteger)index;
+- (NSUInteger)lineBreakBeforeIndex:(unsigned)index withinRange:(NSRange)range;
+- (NSUInteger)lineBreakByHyphenatingBeforeIndex:(unsigned)index withinRange:(NSRange)range;
+- (NSUInteger)nextWordFromIndex:(unsigned)index forward:(BOOL)forward;
 
 #pragma mark -
 #pragma mark Calculating Ranges
 
-- (int)itemNumberInTextList:(NSTextList *)list atIndex:(unsigned)index;
-- (NSRange)rangeOfTextBlock:(NSTextBlock *)block atIndex:(unsigned)index;
-- (NSRange)rangeOfTextList:(NSTextList *)list atIndex:(unsigned)index;
-- (NSRange)rangeOfTextTable:(NSTextTable *)table atIndex:(unsigned)index;
+- (NSInteger)itemNumberInTextList:(NSTextList *)list atIndex:(NSUInteger)index;
+- (NSRange)rangeOfTextBlock:(NSTextBlock *)block atIndex:(NSUInteger)index;
+- (NSRange)rangeOfTextList:(NSTextList *)list atIndex:(NSUInteger)index;
+- (NSRange)rangeOfTextTable:(NSTextTable *)table atIndex:(NSUInteger)index;
 
 #pragma mark -
 #pragma mark Generating Data

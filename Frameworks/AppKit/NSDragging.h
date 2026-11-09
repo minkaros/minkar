@@ -10,9 +10,8 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 @class NSPasteboard, NSWindow, NSImage;
 
-typedef unsigned NSDragOperation;
 
-enum {
+typedef NS_OPTIONS(NSUInteger, NSDragOperation) {
     NSDragOperationNone = 0x00,
     NSDragOperationCopy = 0x01,
     NSDragOperationLink = 0x02,
@@ -20,7 +19,7 @@ enum {
     NSDragOperationPrivate = 0x08,
     NSDragOperationMove = 0x10,
     NSDragOperationDelete = 0x20,
-    NSDragOperationEvery = UINT_MAX
+    NSDragOperationEvery = NSUIntegerMax
 };
 
 @protocol NSDraggingInfo
@@ -32,7 +31,7 @@ enum {
 - (NSWindow *)draggingDestinationWindow;
 - (id)draggingSource;
 - (void)slideDraggedImageTo:(NSPoint)point;
-- (int)draggingSequenceNumber;
+- (NSInteger)draggingSequenceNumber;
 - (NSArray *)namesOfPromisedFilesDroppedAtDestination:(NSURL *)destination;
 @end
 

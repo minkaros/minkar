@@ -51,7 +51,7 @@ NSString * const NSTextViewDidChangeSelectionNotification=@"NSTextViewDidChangeS
 NSString * const NSOldSelectedCharacterRange=@"NSOldSelectedCharacterRange";
 
 @interface NSLayoutManager(NSLayoutManager_visualKeyboardMovement)
-- (NSRange)_softLineRangeForCharacterAtIndex:(unsigned)location;
+- (NSRange)_softLineRangeForCharacterAtIndex:(NSUInteger)location;
 @end
 
 @interface NSTextView(NSTextView_textCompletion)
@@ -509,7 +509,7 @@ NSString * const NSOldSelectedCharacterRange=@"NSOldSelectedCharacterRange";
     return range;
 }
 
-- (NSArray *)completionsForPartialWordRange:(NSRange)range indexOfSelectedItem:(int *)index {
+- (NSArray *)completionsForPartialWordRange:(NSRange)range indexOfSelectedItem:(NSInteger *)index {
     NSArray *result;
     // replace this with a real completion list source...
     NSArray *source = [NSArray arrayWithObjects:
@@ -537,7 +537,7 @@ NSString * const NSOldSelectedCharacterRange=@"NSOldSelectedCharacterRange";
     return result;
 }
 
-- (void)insertCompletion:(NSString *)string forPartialWordRange:(NSRange)range movement:(int)movement isFinal:(BOOL)isFinal {
+- (void)insertCompletion:(NSString *)string forPartialWordRange:(NSRange)range movement:(NSInteger)movement isFinal:(BOOL)isFinal {
     [self _replaceCharactersInRange:range withString:string];
 
     // is this proper behavior? i dunno
@@ -683,7 +683,7 @@ NSString * const NSOldSelectedCharacterRange=@"NSOldSelectedCharacterRange";
         if(range.location>=[_textStorage length]) {
             result=[[self layoutManager] extraLineFragmentRect];
             if (NSIsEmptyRect(result) && [_textStorage length]) {
-                unsigned    rectCount=0;
+                NSUInteger    rectCount=0;
                 // Get the last used fragment rect
                 range = NSMakeRange([_textStorage length]-1, 1);
                 range = [[self layoutManager] glyphRangeForCharacterRange:range actualCharacterRange:NULL];
@@ -702,7 +702,7 @@ NSString * const NSOldSelectedCharacterRange=@"NSOldSelectedCharacterRange";
             }
             result.size.width=1;
         } else {
-            unsigned    rectCount=0;
+            NSUInteger    rectCount=0;
             NSRect * rectArray=[[self layoutManager] rectArrayForCharacterRange:range withinSelectedCharacterRange:range inTextContainer:[self textContainer] rectCount:&rectCount];
             result=rectArray[0];
         }
@@ -1695,7 +1695,7 @@ NSString * const NSOldSelectedCharacterRange=@"NSOldSelectedCharacterRange";
     [self scrollPoint:rect.origin];
 }
 
--(unsigned)glyphIndexForPoint:(NSPoint)point fractionOfDistanceThroughGlyph:(float *)fraction {
+-(NSUInteger)glyphIndexForPoint:(NSPoint)point fractionOfDistanceThroughGlyph:(CGFloat *)fraction {
     point.x-=_textContainerInset.width;
     point.y-=_textContainerInset.height;
 
@@ -1705,7 +1705,7 @@ NSString * const NSOldSelectedCharacterRange=@"NSOldSelectedCharacterRange";
 - (void)pageUp:sender {
     NSRect rect;
     NSRange range;
-    float fraction;
+    CGFloat fraction;
 
     [self scrollPageUp:sender];
 
@@ -1721,7 +1721,7 @@ NSString * const NSOldSelectedCharacterRange=@"NSOldSelectedCharacterRange";
     NSRect rect;
     NSRange range = [self selectedRange];
     unsigned location;
-    float fraction;
+    CGFloat fraction;
     BOOL upstream;
 
     [self scrollPageUp:sender];
@@ -1761,7 +1761,7 @@ NSString * const NSOldSelectedCharacterRange=@"NSOldSelectedCharacterRange";
     NSString *string = [_textStorage string];
     NSRect rect;
     NSRange range;
-    float fraction;
+    CGFloat fraction;
 
     [self scrollPageDown:sender];
 
@@ -1779,7 +1779,7 @@ NSString * const NSOldSelectedCharacterRange=@"NSOldSelectedCharacterRange";
     NSRect rect;
     NSRange range = [self selectedRange];
     unsigned location;
-    float fraction;
+    CGFloat fraction;
     BOOL downstream;
 
     [self scrollPageDown:sender];
@@ -2786,14 +2786,14 @@ NSString * const NSOldSelectedCharacterRange=@"NSOldSelectedCharacterRange";
 -(void)mouseDown:(NSEvent *)event {
     NSEvent *lastDrag=event;
     NSPoint  point=[self convertPoint:[event locationInWindow] fromView:nil];
-    float    fraction=0;
+    CGFloat    fraction=0;
     NSRange  firstRange,lastRange,selection;
     NSSelectionAffinity affinity=NSSelectionAffinityUpstream;
     NSSelectionGranularity granularity = [event clickCount]-1;
 
     /* A link under a single click is followed, editable text or not. */
     if([event clickCount]==1 && [_textStorage length]>0){
-        float    linkFraction=0;
+        CGFloat    linkFraction=0;
         unsigned glyph=[self glyphIndexForPoint:point fractionOfDistanceThroughGlyph:&linkFraction];
 
         if(glyph!=NSNotFound){
@@ -2894,7 +2894,7 @@ NSString * const NSOldSelectedCharacterRange=@"NSOldSelectedCharacterRange";
 
 -(NSDragOperation)draggingUpdated:(id <NSDraggingInfo>)sender {
     NSPoint   point=[self convertPoint:[sender draggingLocation] fromView:nil];
-    float     fraction=0;
+    CGFloat     fraction=0;
     unsigned  location=[self glyphIndexForPoint:point fractionOfDistanceThroughGlyph:&fraction];
 
     if(location==NSNotFound)
@@ -2916,7 +2916,7 @@ NSString * const NSOldSelectedCharacterRange=@"NSOldSelectedCharacterRange";
     return NSDragOperationNone;
 }
 
--(unsigned)draggingEntered:(id <NSDraggingInfo>)sender {
+-(NSDragOperation)draggingEntered:(id <NSDraggingInfo>)sender {
     return [self draggingUpdated:sender];
 }
 
@@ -2927,7 +2927,7 @@ NSString * const NSOldSelectedCharacterRange=@"NSOldSelectedCharacterRange";
 -(BOOL)performDragOperation:(id <NSDraggingInfo>)sender {
     NSPoint   point=[self convertPoint:[sender draggingLocation] fromView:nil];
     NSString *string=[[sender draggingPasteboard] stringForType:NSStringPboardType];
-    float     fraction=0;
+    CGFloat     fraction=0;
     unsigned  location=[self glyphIndexForPoint:point fractionOfDistanceThroughGlyph:&fraction];
 
     if(location==NSNotFound)
@@ -3128,7 +3128,7 @@ NSString * const NSOldSelectedCharacterRange=@"NSOldSelectedCharacterRange";
     NSRange glyphRange;
 
     NSPoint point=[self convertPoint:[event locationInWindow] fromView:nil];
-    float fraction;
+    CGFloat fraction;
 
     NSMenu *menu=[[[NSMenu alloc] initWithTitle:@""] autorelease];
 
@@ -3250,7 +3250,7 @@ NSString * const NSOldSelectedCharacterRange=@"NSOldSelectedCharacterRange";
     return YES;
 }
 
--(float)rulerView:(NSRulerView *)rulerView willMoveMarker:(NSRulerMarker *)marker toLocation:(float)location
+-(CGFloat)rulerView:(NSRulerView *)rulerView willMoveMarker:(NSRulerMarker *)marker toLocation:(CGFloat)location
 {
     if (location < rulerView.originOffset) {
         location = rulerView.originOffset;
@@ -3334,7 +3334,7 @@ NSString * const NSOldSelectedCharacterRange=@"NSOldSelectedCharacterRange";
     return YES;
 }
 
--(float)rulerView:(NSRulerView *)rulerView willAddMarker:(NSRulerMarker *)marker atLocation:(float)location
+-(CGFloat)rulerView:(NSRulerView *)rulerView willAddMarker:(NSRulerMarker *)marker atLocation:(CGFloat)location
 {
     if (location < rulerView.originOffset) {
         location = rulerView.originOffset;

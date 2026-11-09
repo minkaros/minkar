@@ -74,8 +74,8 @@ APPKIT_EXPORT NSString *const NSToolbarDidRemoveItemNotification;
 - (void)setAllowsUserCustomization:(BOOL)flag;
 - (void)setSelectedItemIdentifier:(NSString *)identifier;
 
-- (void)insertItemWithItemIdentifier:(NSString *)identifier atIndex:(int)index;
-- (void)removeItemAtIndex:(int)index;
+- (void)insertItemWithItemIdentifier:(NSString *)identifier atIndex:(NSInteger)index;
+- (void)removeItemAtIndex:(NSInteger)index;
 
 - (void)validateVisibleItems;
 

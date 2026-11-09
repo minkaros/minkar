@@ -63,11 +63,11 @@ static int weightOfTypefaceName(NSString *name,NSFontTraitMask traits){
    return (traits&NSBoldFontMask)?9:5;
 }
 
--(int)weight {
+-(NSInteger)weight {
    return weightOfTypefaceName(_traitName?[_traitName stringByAppendingFormat:@" %@",_name]:_name,_traits);
 }
 
--(int)_weightRank {
+-(NSInteger)_weightRank {
    static NSString *const words[]={@"ExtraBlack",@"UltraBlack",@"ExtraBold",@"UltraBold",@"SemiBold",@"DemiBold",
       @"ExtraLight",@"UltraLight",@"Thin",@"Light",@"Book",@"Regular",@"Medium",@"Bold",@"Heavy",@"Black"};
    static const int ranks[]={15,14,11,11,9,8,3,1,2,4,5,6,7,10,12,13};

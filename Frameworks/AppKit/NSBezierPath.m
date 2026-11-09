@@ -304,7 +304,7 @@ static void CGPathConverter( void* info, const CGPathElement* element )
     return _lineJoinStyle;
 }
 
--(void)getLineDash:(CGFloat *)dashes count:(int *)count phase:(CGFloat *)phase {
+-(void)getLineDash:(CGFloat *)dashes count:(NSInteger *)count phase:(CGFloat *)phase {
    if(dashes!=NULL){
     int i;
 
@@ -321,11 +321,11 @@ static void CGPathConverter( void* info, const CGPathElement* element )
    return _cachesPath;
 }
 
--(int)elementCount {
+-(NSInteger)elementCount {
    return _numberOfElements;
 }
 
--(NSBezierPathElement)elementAtIndex:(int)index {
+-(NSBezierPathElement)elementAtIndex:(NSInteger)index {
    if(index>=_numberOfElements)
     [NSException raise:NSInvalidArgumentException format:@"index (%d) >= numberOfElements (%d)",index,_numberOfElements];
 
@@ -345,7 +345,7 @@ static int numberOfPointsForOperator(int op){
    return 0;
 }
 
--(NSBezierPathElement)elementAtIndex:(int)index associatedPoints:(NSPoint *)associated {
+-(NSBezierPathElement)elementAtIndex:(NSInteger)index associatedPoints:(NSPoint *)associated {
    int i,pi=0,pcount;
 
    if(index>=_numberOfElements)
@@ -391,7 +391,7 @@ static int numberOfPointsForOperator(int op){
    _lineJoinStyleIsDefault=NO;
 }
 
--(void)setLineDash:(const CGFloat *)dashes count:(int)count phase:(CGFloat)phase {
+-(void)setLineDash:(const CGFloat *)dashes count:(NSInteger)count phase:(CGFloat)phase {
    if(_dashes!=NULL)
     NSZoneFree(NULL,_dashes);
 
@@ -453,7 +453,7 @@ static int numberOfPointsForOperator(int op){
 }
 
 // Count the crossings on the Y axis from the point to a bezier curve
--(int)countYCrossingFromPoint:(NSPoint)point toCurveFrom:(CGPoint)fromPoint to:(CGPoint)toPoint tan1:(CGPoint)tan1 tan2:(CGPoint)tan2
+-(NSInteger)countYCrossingFromPoint:(NSPoint)point toCurveFrom:(CGPoint)fromPoint to:(CGPoint)toPoint tan1:(CGPoint)tan1 tan2:(CGPoint)tan2
 {
         int count = 0;
 
@@ -651,7 +651,7 @@ static inline void expandPointCapacity(NSBezierPath *self,unsigned delta){
    [self curveToPoint:point controlPoint1:cp1 controlPoint2:cp2];
 }
 
--(void)appendBezierPathWithPoints:(NSPoint *)points count:(unsigned)count {
+-(void)appendBezierPathWithPoints:(NSPoint *)points count:(NSUInteger)count {
         if(count==0)
                 return;
 
@@ -826,7 +826,7 @@ static inline CGFloat degreesToRadians(CGFloat degrees){
         CGFontRelease(cgFont);
 }
 
--(void)appendBezierPathWithGlyphs:(NSGlyph *)glyphs count:(unsigned)count inFont:(NSFont *)font {
+-(void)appendBezierPathWithGlyphs:(NSGlyph *)glyphs count:(NSUInteger)count inFont:(NSFont *)font {
         int i;
    for (i = 0; i < count; ++i) {
                 [self appendBezierPathWithGlyph:glyphs[i] inFont:font];
@@ -882,7 +882,7 @@ static inline CGFloat degreesToRadians(CGFloat degrees){
    _numberOfPoints=0;
 }
 
--(void)setAssociatedPoints:(NSPoint *)points atIndex:(int)index {
+-(void)setAssociatedPoints:(NSPoint *)points atIndex:(NSInteger)index {
    int i,pi=0,pcount;
 
    if(index>=_numberOfElements)

@@ -223,7 +223,7 @@ static NSMutableDictionary *cellClassDictionary = nil;
    [self setNeedsDisplay:YES];
 }
 
--(void)setFloatingPointFormat:(BOOL)fpp left:(unsigned)left right:(unsigned)right {
+-(void)setFloatingPointFormat:(BOOL)fpp left:(NSUInteger)left right:(NSUInteger)right {
    [_cell setFloatingPointFormat:fpp left:left right:right];
 }
 

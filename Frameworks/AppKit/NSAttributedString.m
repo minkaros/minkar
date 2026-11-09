@@ -146,7 +146,7 @@ NSString * const NSSpellingStateAttributeName=@"NSSpellingStateAttributeName"; /
 #pragma mark -
 #pragma mark Calculating Linguistic Units
 
--(NSRange)doubleClickAtIndex:(unsigned)location {
+-(NSRange)doubleClickAtIndex:(NSUInteger)location {
 	NSRange   result=NSMakeRange(location,0);
 	NSString *string=[self string];
 	unsigned  length=[string length];
@@ -180,18 +180,18 @@ NSString * const NSSpellingStateAttributeName=@"NSSpellingStateAttributeName"; /
 	return result;
 }
 
--(unsigned)lineBreakBeforeIndex:(unsigned)index withinRange:(NSRange)range {
+-(NSUInteger)lineBreakBeforeIndex:(unsigned)index withinRange:(NSRange)range {
 	NSUnimplementedMethod();
 	return 0;
 }
 
--(unsigned)lineBreakByHyphenatingBeforeIndex:(unsigned)index withinRange:(NSRange)range {
+-(NSUInteger)lineBreakByHyphenatingBeforeIndex:(unsigned)index withinRange:(NSRange)range {
 	NSUnimplementedMethod();
 	return 0;
 }
 
 /* as usual, the documentation says one thing and the system behaves differently, this is the way i think it should work... (dwy 5/11/2003) */
--(unsigned)nextWordFromIndex:(unsigned)location forward:(BOOL)forward {
+-(NSUInteger)nextWordFromIndex:(unsigned)location forward:(BOOL)forward {
     NSCharacterSet *alpha = [NSCharacterSet alphanumericCharacterSet];
     NSString *string = [self string];
     int i = location, length = [self length];
@@ -267,22 +267,22 @@ NSString * const NSSpellingStateAttributeName=@"NSSpellingStateAttributeName"; /
 #pragma mark -
 #pragma mark Calculating Ranges
 
--(int)itemNumberInTextList:(NSTextList *)list atIndex:(unsigned)index {
+-(NSInteger)itemNumberInTextList:(NSTextList *)list atIndex:(NSUInteger)index {
    NSUnimplementedMethod();
    return 0;
 }
 
--(NSRange)rangeOfTextBlock:(NSTextBlock *)block atIndex:(unsigned)index {
+-(NSRange)rangeOfTextBlock:(NSTextBlock *)block atIndex:(NSUInteger)index {
    NSUnimplementedMethod();
    return NSMakeRange(0,0);
 }
 
--(NSRange)rangeOfTextList:(NSTextList *)list atIndex:(unsigned)index {
+-(NSRange)rangeOfTextList:(NSTextList *)list atIndex:(NSUInteger)index {
    NSUnimplementedMethod();
    return NSMakeRange(0,0);
 }
 
--(NSRange)rangeOfTextTable:(NSTextTable *)table atIndex:(unsigned)index {
+-(NSRange)rangeOfTextTable:(NSTextTable *)table atIndex:(NSUInteger)index {
    NSUnimplementedMethod();
    return NSMakeRange(0,0);
 }

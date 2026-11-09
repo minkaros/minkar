@@ -8,6 +8,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 #import <Foundation/Foundation.h>
 #import <AppKit/NSFont.h>
+#import <AppKit/NSTextStorage.h>
 
 @class NSTextStorage, NSGlyphGenerator, NSTypesetter, NSTextContainer, NSTextView, NSRulerView;
 @class NSWindow, NSColor, NSCell;
@@ -66,27 +67,27 @@ typedef enum {
 - (void)setUsesScreenFonts:(BOOL)yorn;
 
 - (void)addTextContainer:(NSTextContainer *)container;
-- (void)removeTextContainerAtIndex:(unsigned)index;
-- (void)insertTextContainer:(NSTextContainer *)container atIndex:(unsigned)index;
+- (void)removeTextContainerAtIndex:(NSUInteger)index;
+- (void)insertTextContainer:(NSTextContainer *)container atIndex:(NSUInteger)index;
 
-- (void)insertGlyph:(NSGlyph)glyph atGlyphIndex:(unsigned)glyphIndex characterIndex:(unsigned)characterIndex;
-- (void)replaceGlyphAtIndex:(unsigned)glyphIndex withGlyph:(NSGlyph)glyph;
+- (void)insertGlyph:(NSGlyph)glyph atGlyphIndex:(NSUInteger)glyphIndex characterIndex:(NSUInteger)characterIndex;
+- (void)replaceGlyphAtIndex:(NSUInteger)glyphIndex withGlyph:(NSGlyph)glyph;
 - (void)deleteGlyphsInRange:(NSRange)glyphRange;
-- (void)setCharacterIndex:(unsigned)characterIndex forGlyphAtIndex:(unsigned)glyphIndex;
-- (void)setNotShownAttribute:(BOOL)notShown forGlyphAtIndex:(unsigned)glyphIndex;
+- (void)setCharacterIndex:(NSUInteger)characterIndex forGlyphAtIndex:(NSUInteger)glyphIndex;
+- (void)setNotShownAttribute:(BOOL)notShown forGlyphAtIndex:(NSUInteger)glyphIndex;
 - (void)setAttachmentSize:(NSSize)size forGlyphRange:(NSRange)glyphRange;
-- (void)setDrawsOutsideLineFragment:(BOOL)drawsOutside forGlyphAtIndex:(unsigned)glyphIndex;
+- (void)setDrawsOutsideLineFragment:(BOOL)drawsOutside forGlyphAtIndex:(NSUInteger)glyphIndex;
 
-- (unsigned)numberOfGlyphs;
-- (unsigned)getGlyphs:(NSGlyph *)glyphs range:(NSRange)glyphRange;
+- (NSUInteger)numberOfGlyphs;
+- (NSUInteger)getGlyphs:(NSGlyph *)glyphs range:(NSRange)glyphRange;
 
-- (unsigned)getGlyphsInRange:(NSRange)range glyphs:(NSGlyph *)glyphs characterIndexes:(unsigned *)charIndexes glyphInscriptions:(NSGlyphInscription *)inscriptions elasticBits:(BOOL *)elasticBits;
-- (unsigned)getGlyphsInRange:(NSRange)range glyphs:(NSGlyph *)glyphs characterIndexes:(unsigned *)charIndexes glyphInscriptions:(NSGlyphInscription *)inscriptions elasticBits:(BOOL *)elasticBits bidiLevels:(unsigned char *)bidiLevels;
+- (NSUInteger)getGlyphsInRange:(NSRange)range glyphs:(NSGlyph *)glyphs characterIndexes:(NSUInteger *)charIndexes glyphInscriptions:(NSGlyphInscription *)inscriptions elasticBits:(BOOL *)elasticBits;
+- (NSUInteger)getGlyphsInRange:(NSRange)range glyphs:(NSGlyph *)glyphs characterIndexes:(NSUInteger *)charIndexes glyphInscriptions:(NSGlyphInscription *)inscriptions elasticBits:(BOOL *)elasticBits bidiLevels:(unsigned char *)bidiLevels;
 
-- (NSTextContainer *)textContainerForGlyphAtIndex:(unsigned)glyphIndex effectiveRange:(NSRangePointer)effectiveGlyphRange;
-- (NSRect)lineFragmentRectForGlyphAtIndex:(unsigned)glyphIndex effectiveRange:(NSRangePointer)effectiveGlyphRange;
-- (NSPoint)locationForGlyphAtIndex:(unsigned)glyphIndex;
-- (NSRect)lineFragmentUsedRectForGlyphAtIndex:(unsigned)glyphIndex effectiveRange:(NSRangePointer)effectiveGlyphRange;
+- (NSTextContainer *)textContainerForGlyphAtIndex:(NSUInteger)glyphIndex effectiveRange:(NSRangePointer)effectiveGlyphRange;
+- (NSRect)lineFragmentRectForGlyphAtIndex:(NSUInteger)glyphIndex effectiveRange:(NSRangePointer)effectiveGlyphRange;
+- (NSPoint)locationForGlyphAtIndex:(NSUInteger)glyphIndex;
+- (NSRect)lineFragmentUsedRectForGlyphAtIndex:(NSUInteger)glyphIndex effectiveRange:(NSRangePointer)effectiveGlyphRange;
 - (NSRect)usedRectForTextContainer:(NSTextContainer *)container;
 - (NSRect)extraLineFragmentRect;
 - (NSRect)extraLineFragmentUsedRect;
@@ -98,38 +99,38 @@ typedef enum {
 
 - (void)setExtraLineFragmentRect:(NSRect)fragmentRect usedRect:(NSRect)usedRect textContainer:(NSTextContainer *)container;
 
-- (void)invalidateGlyphsForCharacterRange:(NSRange)charRange changeInLength:(int)delta actualCharacterRange:(NSRangePointer)actualCharRange;
+- (void)invalidateGlyphsForCharacterRange:(NSRange)charRange changeInLength:(NSInteger)delta actualCharacterRange:(NSRangePointer)actualCharRange;
 - (void)invalidateLayoutForCharacterRange:(NSRange)charRange isSoft:(BOOL)isSoft actualCharacterRange:(NSRangePointer)actualCharRange;
 - (void)invalidateDisplayForGlyphRange:(NSRange)glyphRange;
 - (void)invalidateDisplayForCharacterRange:(NSRange)charRange;
 
-- (void)textStorage:(NSTextStorage *)storage edited:(unsigned)editedMask range:(NSRange)range changeInLength:(int)changeInLength invalidatedRange:(NSRange)invalidateRange;
+- (void)textStorage:(NSTextStorage *)storage edited:(NSTextStorageEditActions)editedMask range:(NSRange)range changeInLength:(NSInteger)changeInLength invalidatedRange:(NSRange)invalidateRange;
 
 - (void)textContainerChangedGeometry:(NSTextContainer *)container;
 - (void)ensureLayoutForTextContainer:(NSTextContainer *)container;
 
-- (unsigned)glyphIndexForPoint:(NSPoint)point inTextContainer:(NSTextContainer *)container fractionOfDistanceThroughGlyph:(float *)fraction;
-- (unsigned)glyphIndexForPoint:(NSPoint)point inTextContainer:(NSTextContainer *)container;
-- (float)fractionOfDistanceThroughGlyphForPoint:(NSPoint)point inTextContainer:(NSTextContainer *)container;
+- (NSUInteger)glyphIndexForPoint:(NSPoint)point inTextContainer:(NSTextContainer *)container fractionOfDistanceThroughGlyph:(CGFloat *)fraction;
+- (NSUInteger)glyphIndexForPoint:(NSPoint)point inTextContainer:(NSTextContainer *)container;
+- (CGFloat)fractionOfDistanceThroughGlyphForPoint:(NSPoint)point inTextContainer:(NSTextContainer *)container;
 
 - (NSRange)glyphRangeForTextContainer:(NSTextContainer *)container;
 - (NSRange)glyphRangeForCharacterRange:(NSRange)charRange actualCharacterRange:(NSRangePointer)actualCharRange;
 - (NSRange)glyphRangeForBoundingRect:(NSRect)bounds inTextContainer:(NSTextContainer *)container;
 - (NSRange)glyphRangeForBoundingRectWithoutAdditionalLayout:(NSRect)bounds inTextContainer:(NSTextContainer *)container;
-- (NSRange)rangeOfNominallySpacedGlyphsContainingIndex:(unsigned)glyphIndex;
+- (NSRange)rangeOfNominallySpacedGlyphsContainingIndex:(NSUInteger)glyphIndex;
 
 - (NSRect)boundingRectForGlyphRange:(NSRange)glyphRange inTextContainer:(NSTextContainer *)container;
-- (NSRect *)rectArrayForGlyphRange:(NSRange)glyphRange withinSelectedGlyphRange:(NSRange)selectedGlyphRange inTextContainer:(NSTextContainer *)container rectCount:(unsigned *)rectCount;
+- (NSRect *)rectArrayForGlyphRange:(NSRange)glyphRange withinSelectedGlyphRange:(NSRange)selectedGlyphRange inTextContainer:(NSTextContainer *)container rectCount:(NSUInteger *)rectCount;
 
-- (unsigned)characterIndexForGlyphAtIndex:(unsigned)glyphIndex;
+- (NSUInteger)characterIndexForGlyphAtIndex:(unsigned)glyphIndex;
 - (NSRange)characterRangeForGlyphRange:(NSRange)glyphRange actualGlyphRange:(NSRange *)actualGlyphRange;
-- (NSRect *)rectArrayForCharacterRange:(NSRange)characterRange withinSelectedCharacterRange:(NSRange)selectedCharRange inTextContainer:(NSTextContainer *)container rectCount:(unsigned *)rectCount;
+- (NSRect *)rectArrayForCharacterRange:(NSRange)characterRange withinSelectedCharacterRange:(NSRange)selectedCharRange inTextContainer:(NSTextContainer *)container rectCount:(NSUInteger *)rectCount;
 
-- (unsigned)firstUnlaidGlyphIndex;
-- (unsigned)firstUnlaidCharacterIndex;
-- (void)getFirstUnlaidCharacterIndex:(unsigned *)charIndex glyphIndex:(unsigned *)glyphIndex;
+- (NSUInteger)firstUnlaidGlyphIndex;
+- (NSUInteger)firstUnlaidCharacterIndex;
+- (void)getFirstUnlaidCharacterIndex:(NSUInteger *)charIndex glyphIndex:(NSUInteger *)glyphIndex;
 
-- (void)showPackedGlyphs:(char *)glyphs length:(unsigned)length glyphRange:(NSRange)glyphRange atPoint:(NSPoint)point font:(NSFont *)font color:(NSColor *)color printingAdjustment:(NSSize)printingAdjustment;
+- (void)showPackedGlyphs:(char *)glyphs length:(NSUInteger)length glyphRange:(NSRange)glyphRange atPoint:(NSPoint)point font:(NSFont *)font color:(NSColor *)color printingAdjustment:(NSSize)printingAdjustment;
 
 - (void)drawBackgroundForGlyphRange:(NSRange)glyphRange atPoint:(NSPoint)origin;
 - (void)drawGlyphsForGlyphRange:(NSRange)glyphRange atPoint:(NSPoint)origin;
@@ -140,7 +141,7 @@ typedef enum {
 - (void)drawStrikethroughForGlyphRange:(NSRange)glyphRange strikethroughType:(NSInteger)strikethroughVal baselineOffset:(CGFloat)baselineOffset lineFragmentRect:(NSRect)lineRect lineFragmentGlyphRange:(NSRange)lineGlyphRange containerOrigin:(NSPoint)containerOrigin;
 - (void)strikethroughGlyphRange:(NSRange)glyphRange strikethroughType:(NSInteger)strikethroughVal lineFragmentRect:(NSRect)lineRect lineFragmentGlyphRange:(NSRange)lineGlyphRange containerOrigin:(NSPoint)containerOrigin;
 
-- (float)defaultLineHeightForFont:(NSFont *)font;
+- (CGFloat)defaultLineHeightForFont:(NSFont *)font;
 
 - (NSDictionary *)temporaryAttributesAtCharacterIndex:(NSUInteger)charIndex effectiveRange:(NSRangePointer)effectiveCharRange;
 - (void)setTemporaryAttributes:(NSDictionary *)attrs forCharacterRange:(NSRange)charRange;

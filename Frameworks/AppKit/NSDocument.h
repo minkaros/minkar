@@ -179,8 +179,8 @@ typedef enum {
 - (BOOL)readFromURL:(NSURL *)url ofType:(NSString *)type;
 - (BOOL)revertToSavedFromFile:(NSString *)path ofType:(NSString *)type;
 - (BOOL)revertToSavedFromURL:(NSURL *)url ofType:(NSString *)type;
-- (int)runModalSavePanel:(NSSavePanel *)savePanel withAccessoryView:(NSView *)accessoryView;
-- (int)runModalPageLayoutWithPrintInfo:(NSPrintInfo *)printInfo;
+- (NSInteger)runModalSavePanel:(NSSavePanel *)savePanel withAccessoryView:(NSView *)accessoryView;
+- (NSInteger)runModalPageLayoutWithPrintInfo:(NSPrintInfo *)printInfo;
 - (void)setFileName:(NSString *)path;
 - (void)saveToFile:(NSString *)path saveOperation:(NSSaveOperationType)operation delegate:delegate didSaveSelector:(SEL)selector contextInfo:(void *)info;
 - (BOOL)shouldCloseWindowController:(NSWindowController *)controller;

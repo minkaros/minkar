@@ -39,7 +39,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
     NSMutableArray *_recent;
     NSDictionary *_pendingAttributes; /* key -> value, NSNull to remove */
     BOOL _enabled;
-    float _pointSize;
+    CGFloat _pointSize;
 }
 
 + (BOOL)sharedFontPanelExists;

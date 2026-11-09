@@ -94,15 +94,15 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    return _headerToolTip;
 }
 
--(float)width {
+-(CGFloat)width {
     return _width;
 }
 
--(float)minWidth {
+-(CGFloat)minWidth {
     return _minWidth;
 }
 
--(float)maxWidth {
+-(CGFloat)maxWidth {
     return _maxWidth;
 }
 
@@ -146,7 +146,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    _headerToolTip=value;
 }
 
--(void)setWidth:(float)width {
+-(void)setWidth:(CGFloat)width {
     if (width > _maxWidth)
         width = _maxWidth;
     else if (width < _minWidth)
@@ -155,11 +155,11 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
     _width = width;
 }
 
--(void)setMinWidth:(float)width {
+-(void)setMinWidth:(CGFloat)width {
     _minWidth = width;
 }
 
--(void)setMaxWidth:(float)width {
+-(void)setMaxWidth:(CGFloat)width {
     _maxWidth = width;
 }
 
@@ -176,7 +176,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    _resizingMask=value;
 }
 
--(NSCell *)dataCellForRow:(int)row {
+-(NSCell *)dataCellForRow:(NSInteger)row {
     return [self dataCell];
 }
 
@@ -186,7 +186,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 }
 
--(void)prepareCell:(id)cell inRow:(int)row
+-(void)prepareCell:(id)cell inRow:(NSInteger)row
 {
 	id binders=[self _allUsedBinders];
 	int count=[binders count];

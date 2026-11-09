@@ -19,19 +19,19 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 - (double)maxValue;
 - (double)warningValue;
 - (double)criticalValue;
-- (int)numberOfTickMarks;
-- (int)numberOfMajorTickMarks;
+- (NSInteger)numberOfTickMarks;
+- (NSInteger)numberOfMajorTickMarks;
 - (NSTickMarkPosition)tickMarkPosition;
 
 - (void)setMinValue:(double)value;
 - (void)setMaxValue:(double)value;
 - (void)setWarningValue:(double)value;
 - (void)setCriticalValue:(double)value;
-- (void)setNumberOfTickMarks:(int)count;
-- (void)setNumberOfMajorTickMarks:(int)count;
+- (void)setNumberOfTickMarks:(NSInteger)count;
+- (void)setNumberOfMajorTickMarks:(NSInteger)count;
 - (void)setTickMarkPosition:(NSTickMarkPosition)position;
 
-- (double)tickMarkValueAtIndex:(int)index;
-- (NSRect)rectOfTickMarkAtIndex:(int)index;
+- (double)tickMarkValueAtIndex:(NSInteger)index;
+- (NSRect)rectOfTickMarkAtIndex:(NSInteger)index;
 
 @end

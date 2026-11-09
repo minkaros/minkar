@@ -52,11 +52,11 @@ typedef NS_ENUM(NSInteger, NSWindowTitleVisibility) {
     NSWindowTitleHidden = 1,
 };
 
-typedef enum {
+typedef NS_ENUM(NSUInteger, NSBackingStoreType) {
     NSBackingStoreRetained = 0,
     NSBackingStoreNonretained = 1,
     NSBackingStoreBuffered = 2,
-} NSBackingStoreType;
+};
 
 typedef enum {
     NSWindowCloseButton,
@@ -251,18 +251,18 @@ APPKIT_EXPORT NSString *const NSWindowDidEndLiveResizeNotification;
 
 + (NSWindowDepth)defaultDepthLimit;
 
-+ (NSRect)frameRectForContentRect:(NSRect)contentRect styleMask:(unsigned)styleMask;
-+ (NSRect)contentRectForFrameRect:(NSRect)frameRect styleMask:(unsigned)styleMask;
-+ (float)minFrameWidthWithTitle:(NSString *)title styleMask:(unsigned)styleMask;
++ (NSRect)frameRectForContentRect:(NSRect)contentRect styleMask:(NSWindowStyleMask)styleMask;
++ (NSRect)contentRectForFrameRect:(NSRect)frameRect styleMask:(NSWindowStyleMask)styleMask;
++ (CGFloat)minFrameWidthWithTitle:(NSString *)title styleMask:(NSWindowStyleMask)styleMask;
 + (NSInteger)windowNumberAtPoint:(NSPoint)point belowWindowWithWindowNumber:(NSInteger)window;
 + (NSArray *)windowNumbersWithOptions:(NSWindowNumberListOptions)options;
 + (void)removeFrameUsingName:(NSString *)name;
 
-+ (NSButton *)standardWindowButton:(NSWindowButton)button forStyleMask:(unsigned)styleMask;
++ (NSButton *)standardWindowButton:(NSWindowButton)button forStyleMask:(NSWindowStyleMask)styleMask;
 + (void)menuChanged:(NSMenu *)menu;
 
-- initWithContentRect:(NSRect)contentRect styleMask:(unsigned)styleMask backing:(unsigned)backing defer:(BOOL)defer;
-- initWithContentRect:(NSRect)contentRect styleMask:(unsigned)styleMask backing:(unsigned)backing defer:(BOOL)defer screen:(NSScreen *)screen;
+- initWithContentRect:(NSRect)contentRect styleMask:(NSWindowStyleMask)styleMask backing:(NSBackingStoreType)backing defer:(BOOL)defer;
+- initWithContentRect:(NSRect)contentRect styleMask:(NSWindowStyleMask)styleMask backing:(NSBackingStoreType)backing defer:(BOOL)defer screen:(NSScreen *)screen;
 - (NSWindow *)initWithWindowRef:(void *)carbonRef;
 
 - (NSGraphicsContext *)graphicsContext;
@@ -280,7 +280,7 @@ APPKIT_EXPORT NSString *const NSWindowDidEndLiveResizeNotification;
 
 - (NSInteger)level;
 - (NSRect)frame;
-- (unsigned)styleMask;
+- (NSWindowStyleMask)styleMask;
 - (NSBackingStoreType)backingType;
 - (NSWindowBackingLocation)preferredBackingLocation;
 - (void)setPreferredBackingLocation:(NSWindowBackingLocation)location;
@@ -403,8 +403,8 @@ APPKIT_EXPORT NSString *const NSWindowDidEndLiveResizeNotification;
 - (void)setFrameFromString:(NSString *)value;
 - (NSString *)stringWithSavedFrame;
 
-- (int)resizeFlags;
-- (float)userSpaceScaleFactor;
+- (NSInteger)resizeFlags;
+- (CGFloat)userSpaceScaleFactor;
 - (NSResponder *)firstResponder;
 
 - (NSButton *)standardWindowButton:(NSWindowButton)value;
@@ -414,8 +414,8 @@ APPKIT_EXPORT NSString *const NSWindowDidEndLiveResizeNotification;
 - (id)windowController;
 - (NSArray *)drawers;
 
-- (int)windowNumber;
-- (int)gState;
+- (NSInteger)windowNumber;
+- (NSInteger)gState;
 - (NSScreen *)screen;
 - (NSScreen *)deepestScreen;
 - (NSColorSpace *)colorSpace;
@@ -501,7 +501,7 @@ APPKIT_EXPORT NSString *const NSWindowDidEndLiveResizeNotification;
 - (void)close;
 - (void)center;
 - (void)performWindowDragWithEvent:(NSEvent *)event;
-- (void)orderWindow:(NSWindowOrderingMode)place relativeTo:(int)relativeTo;
+- (void)orderWindow:(NSWindowOrderingMode)place relativeTo:(NSInteger)relativeTo;
 - (void)orderFrontRegardless;
 
 - (NSPoint)mouseLocationOutsideOfEventStream;

@@ -60,7 +60,7 @@ APPKIT_EXPORT NSString *const NSWorkspaceDesktopImageFillColorKey;    /* NSColor
 - (NSURL *)URLForApplicationToOpenURL:(NSURL *)url;
 - (NSURL *)URLForApplicationWithBundleIdentifier:(NSString *)bundleIdentifier;
 - (void)slideImage:(NSImage *)image from:(NSPoint)from to:(NSPoint)to;
-- (BOOL)performFileOperation:(NSString *)operation source:(NSString *)source destination:(NSString *)destination files:(NSArray *)files tag:(int *)tag;
+- (BOOL)performFileOperation:(NSString *)operation source:(NSString *)source destination:(NSString *)destination files:(NSArray *)files tag:(NSInteger *)tag;
 
 - (BOOL)getFileSystemInfoForPath:(NSString *)path isRemovable:(BOOL *)isRemovable isWritable:(BOOL *)isWritable isUnmountable:(BOOL *)isUnmountable description:(NSString **)description type:(NSString **)type;
 
@@ -99,7 +99,7 @@ APPKIT_EXPORT NSString *const NSWorkspaceDesktopImageFillColorKey;    /* NSColor
 - (NSDictionary *)activeApplication;
 - (void)hideOtherApplications;
 
-- (int)extendPowerOffBy:(int)milliseconds;
+- (NSInteger)extendPowerOffBy:(int)milliseconds;
 
 @end
 

@@ -178,7 +178,7 @@ static void drawControl(O2Context *context, NSRect rect, int kind, BOOL enabled,
 }
 
 /* Which control is under point: 1 close, 2 zoom, 3 minimize, 0 none. */
--(int)_controlAtPoint:(NSPoint)point {
+-(NSInteger)_controlAtPoint:(NSPoint)point {
     if([[self window] _hidesWindowControls]) return 0;
     if(NSPointInRect(point, _closeButtonRect)) return 1;
     if(NSPointInRect(point, _zoomButtonRect)) return 2;

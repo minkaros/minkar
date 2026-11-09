@@ -14,16 +14,16 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 @interface NSShadow : NSObject <NSCoding, NSCopying> {
     NSSize _offset;
     NSColor *_color;
-    float _blurRadius;
+    CGFloat _blurRadius;
 }
 
 - (NSSize)shadowOffset;
 - (NSColor *)shadowColor;
-- (float)shadowBlurRadius;
+- (CGFloat)shadowBlurRadius;
 
 - (void)setShadowOffset:(NSSize)offset;
 - (void)setShadowColor:(NSColor *)color;
-- (void)setShadowBlurRadius:(float)radius;
+- (void)setShadowBlurRadius:(CGFloat)radius;
 
 - (void)set;
 

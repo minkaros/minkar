@@ -86,7 +86,7 @@ static NSString *panelText(NSString *english) {
    return ret;
 }
 
--(int)runModalForDirectory:(NSString *)directory file:(NSString *)file {
+-(NSInteger)runModalForDirectory:(NSString *)directory file:(NSString *)file {
    if([directory length])
       [self setDirectory:directory];
    if(file!=nil)
@@ -94,7 +94,7 @@ static NSString *panelText(NSString *english) {
    return [self _runSavePanel];
 }
 
--(int)runModal {
+-(NSInteger)runModal {
    return [self _runSavePanel];
 }
 
@@ -228,7 +228,7 @@ static NSString *panelText(NSString *english) {
    [super setTitle:title];
 }
 
--(int)_runSavePanel {
+-(NSInteger)_runSavePanel {
    [self _buildSavePanel];
    [self makeKeyAndOrderFront:nil];
    [self makeFirstResponder:_nameField];
@@ -421,7 +421,7 @@ static NSString *panelText(NSString *english) {
 	[inv performSelectorInBackground:@selector(invoke) withObject:nil];
 }
 
-- (void)_selector_savePanelDidEnd:(NSSavePanel *)sheet returnCode:(int)returnCode  contextInfo:(void  *)contextInfo;
+- (void)_selector_savePanelDidEnd:(NSSavePanel *)sheet returnCode:(NSInteger)returnCode  contextInfo:(void  *)contextInfo;
 {
 	
 }

@@ -30,7 +30,7 @@ enum {
 
 - (NSArray *)recentSearches;
 - (NSString *)recentsAutosaveName;
-- (int)maximumRecents;
+- (NSInteger)maximumRecents;
 - (BOOL)sendsWholeSearchString;
 - (BOOL)sendsSearchStringImmediately;
 - (NSButtonCell *)searchButtonCell;
@@ -39,7 +39,7 @@ enum {
 
 - (void)setRecentSearches:(NSArray *)searches;
 - (void)setRecentsAutosaveName:(NSString *)name;
-- (void)setMaximumRecents:(int)value;
+- (void)setMaximumRecents:(NSInteger)value;
 - (void)setSendsWholeSearchString:(BOOL)flag;
 - (void)setSendsSearchStringImmediately:(BOOL)flag;
 - (void)setSearchButtonCell:(NSButtonCell *)cell;

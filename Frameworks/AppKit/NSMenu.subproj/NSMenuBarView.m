@@ -33,7 +33,7 @@ SOFTWARE. */
     return [NSFont menuFontOfSize:15.0];
 }
 
-+(float)menuHeight {
++(CGFloat)menuHeight {
     NSDictionary *attributes=[NSDictionary dictionaryWithObjectsAndKeys:
         [self menuFont], NSFontAttributeName, nil];
     float result=[@"Menu" sizeWithAttributes:attributes].height;
@@ -237,7 +237,7 @@ SOFTWARE. */
 	}
 }
 
--(unsigned)overflowIndex {
+-(NSUInteger)overflowIndex {
    NSRect        bounds=[self bounds];
    NSArray      *items=[self itemArray];
    unsigned      i,count=[items count];
@@ -257,7 +257,7 @@ SOFTWARE. */
    return NSNotFound;
 }
 
--(unsigned)itemIndexAtPoint:(NSPoint)point {
+-(NSUInteger)itemIndexAtPoint:(NSPoint)point {
    NSInteger    result=NSNotFound;
    NSRect        bounds=[self bounds];
    NSArray      *items=[self itemArray];

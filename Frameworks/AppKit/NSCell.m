@@ -246,7 +246,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    return -1;
 }
 
--(int)entryType {
+-(NSInteger)entryType {
    return _entryType;
 }
 
@@ -491,7 +491,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
       _state = (abs(value) > 0) ? 1 : 0;
 }
 
--(int)nextState {
+-(NSInteger)nextState {
    if (_allowsMixedState) {
       int value = [self state];
       return value - ((value == -1) ? -2 : 1);
@@ -528,7 +528,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
                format:@"-[%@ %s] Unimplemented",[self class],sel_getName(_cmd)];
 }
 
--(void)setEntryType:(int)type {
+-(void)setEntryType:(NSInteger)type {
    _entryType=type;
    [self setType:NSTextCellType];
 }
@@ -627,7 +627,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 // the problem with this method is that the dox specify that if autorange is YES, then the field
 // becomes one big floating-point entry, but NSNumberFormatter doesn't work that way. - dwy
--(void)setFloatingPointFormat:(BOOL)fpp left:(unsigned)left right:(unsigned)right {
+-(void)setFloatingPointFormat:(BOOL)fpp left:(NSUInteger)left right:(NSUInteger)right {
     NSMutableString *format = [NSMutableString string];
 
     [self setFormatter:[[[NSNumberFormatter alloc] init] autorelease]];
@@ -931,7 +931,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
     [editor mouseDown:event];
 }
 
--(void)selectWithFrame:(NSRect)frame inView:(NSView *)view editor:(NSText *)editor delegate:(id)delegate start:(int)location length:(int)length {
+-(void)selectWithFrame:(NSRect)frame inView:(NSView *)view editor:(NSText *)editor delegate:(id)delegate start:(NSInteger)location length:(NSInteger)length {
    if(![self isEditable] && ![self isSelectable])
     return;
 

@@ -194,7 +194,7 @@ extern CGFloat _NSMenuBarHeightForDisplay(CGDirectDisplayID display);
    return _title;
 }
 
--(int)numberOfItems {
+-(NSInteger)numberOfItems {
    return [_itemArray count];
 }
 
@@ -214,7 +214,7 @@ extern CGFloat _NSMenuBarHeightForDisplay(CGDirectDisplayID display);
    return _autoenablesItems;
 }
 
--(NSMenuItem *)itemAtIndex:(int)index {
+-(NSMenuItem *)itemAtIndex:(NSInteger)index {
    return [_itemArray objectAtIndex:index];
 }
 
@@ -244,7 +244,7 @@ extern CGFloat _NSMenuBarHeightForDisplay(CGDirectDisplayID display);
    return nil;
 }
 
--(int)indexOfItem:(NSMenuItem *)item {
+-(NSInteger)indexOfItem:(NSMenuItem *)item {
     return [_itemArray indexOfObjectIdenticalTo:item];
 }
 
@@ -258,7 +258,7 @@ extern CGFloat _NSMenuBarHeightForDisplay(CGDirectDisplayID display);
     return -1;
 }
 
--(int)indexOfItemWithTitle:(NSString *)title {
+-(NSInteger)indexOfItemWithTitle:(NSString *)title {
     int i,count=[_itemArray count];
 
     for (i=0;i<count;i++)
@@ -268,7 +268,7 @@ extern CGFloat _NSMenuBarHeightForDisplay(CGDirectDisplayID display);
     return -1;
 }
 
--(int)indexOfItemWithRepresentedObject:object {
+-(NSInteger)indexOfItemWithRepresentedObject:object {
    int i,count=[_itemArray count];
    
    for(i=0;i<count;i++)
@@ -279,7 +279,7 @@ extern CGFloat _NSMenuBarHeightForDisplay(CGDirectDisplayID display);
 }
 
 // needed this for NSApplication windowsMenu stuff, so i did 'em all..
--(int)indexOfItemWithTarget:(id)target andAction:(SEL)action {
+-(NSInteger)indexOfItemWithTarget:(id)target andAction:(SEL)action {
     int i,count=[_itemArray count];
 
     for (i=0; i<count; ++i) {
@@ -296,7 +296,7 @@ extern CGFloat _NSMenuBarHeightForDisplay(CGDirectDisplayID display);
     return -1;
 }
 
--(int)indexOfItemWithSubmenu:(NSMenu *)submenu {
+-(NSInteger)indexOfItemWithSubmenu:(NSMenu *)submenu {
     int i, count=[_itemArray count];
 
     for (i = 0; i < count; ++i) 
@@ -351,17 +351,17 @@ extern CGFloat _NSMenuBarHeightForDisplay(CGDirectDisplayID display);
    [item release];
 }
 
--(void)removeItemAtIndex:(int)index {
+-(void)removeItemAtIndex:(NSInteger)index {
    [self removeItem:[_itemArray objectAtIndex:index]];
 }
 
--(void)insertItem:(NSMenuItem *)item atIndex:(int)index {
+-(void)insertItem:(NSMenuItem *)item atIndex:(NSInteger)index {
    [item performSelector:@selector(_setMenu:) withObject:self];
    [_itemArray insertObject:item atIndex:index];
    postItemNotification(self,NSMenuDidAddItemNotification,index);
 }
 
--(NSMenuItem *)insertItemWithTitle:(NSString *)title action:(SEL)action keyEquivalent:(NSString *)keyEquivalent atIndex:(int)index {
+-(NSMenuItem *)insertItemWithTitle:(NSString *)title action:(SEL)action keyEquivalent:(NSString *)keyEquivalent atIndex:(NSInteger)index {
    NSMenuItem *item=[[[NSMenuItem alloc] initWithTitle:title action:action keyEquivalent:keyEquivalent] autorelease];
 
    [self insertItem:item atIndex:index];

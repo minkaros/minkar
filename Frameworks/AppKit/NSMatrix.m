@@ -94,7 +94,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    return self;
 }
 
--initWithFrame:(NSRect)frame mode:(int)mode prototype:(NSCell *)prototype numberOfRows:(int)rows numberOfColumns:(int)columns {
+-initWithFrame:(NSRect)frame mode:(NSInteger)mode prototype:(NSCell *)prototype numberOfRows:(NSInteger)rows numberOfColumns:(NSInteger)columns {
    int i;
 
    [self initWithFrame:frame];
@@ -109,7 +109,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    return self;
 }
 
--initWithFrame:(NSRect)frame mode:(int)mode cellClass:(Class)cls numberOfRows:(int)rows numberOfColumns:(int)columns {
+-initWithFrame:(NSRect)frame mode:(NSInteger)mode cellClass:(Class)cls numberOfRows:(NSInteger)rows numberOfColumns:(NSInteger)columns {
    int i;
 
    [self initWithFrame:frame];
@@ -187,7 +187,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 -(void)resetCursorRects {
    NSRect visibleRect=[self visibleRect];
-   int    row,col;
+   NSInteger    row,col;
 
    for(row=0;row<_numberOfRows;row++)
     for(col=0;col<_numberOfColumns;col++){
@@ -251,7 +251,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    return nil;
 }
 
--cellAtRow:(int)row column:(int)column {
+-cellAtRow:(NSInteger)row column:(NSInteger)column {
    unsigned index=row*_numberOfColumns+column;
 
    if(index>=[_cells count])
@@ -267,7 +267,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    return [_cells objectAtIndex:index];
 }
 
--(NSRect)cellFrameAtRow:(int)row column:(int)column {
+-(NSRect)cellFrameAtRow:(NSInteger)row column:(NSInteger)column {
    NSRect result;
 
    result.origin.x=column*_cellSize.width+column*_intercellSpacing.width;
@@ -277,7 +277,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    return result;
 }
 
--(BOOL)getRow:(int *)row column:(int *)column ofCell:(NSCell *)cell {
+-(BOOL)getRow:(NSInteger *)row column:(NSInteger *)column ofCell:(NSCell *)cell {
    int index=[_cells indexOfObjectIdenticalTo:cell];
 
    if(index!=NSNotFound){
@@ -289,7 +289,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    return NO;
 }
 
--(BOOL)getRow:(int *)row column:(int *)column forPoint:(NSPoint)point {
+-(BOOL)getRow:(NSInteger *)row column:(NSInteger *)column forPoint:(NSPoint)point {
    NSRect cellFrame;
 
    *row=point.y/(_cellSize.height+_intercellSpacing.height);
@@ -300,15 +300,15 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    return NSMouseInRect(point,cellFrame,[self isFlipped]);
 }
 
--(int)numberOfRows {
+-(NSInteger)numberOfRows {
    return _numberOfRows;
 }
 
--(int)numberOfColumns {
+-(NSInteger)numberOfColumns {
    return _numberOfColumns;
 }
 
--(void)getNumberOfRows:(int *)rows columns:(int *)columns {
+-(void)getNumberOfRows:(NSInteger *)rows columns:(NSInteger *)columns {
    *rows=_numberOfRows;
    *columns=_numberOfColumns;
 }
@@ -369,14 +369,14 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    return _isAutoscroll;
 }
 
--(int)selectedRow {
+-(NSInteger)selectedRow {
    if(_selectedIndex<0 || _numberOfRows==0 || _numberOfColumns==0)
     return -1;
 
    return _selectedIndex/_numberOfColumns;
 }
 
--(int)selectedColumn {
+-(NSInteger)selectedColumn {
    if(_selectedIndex<0 || _numberOfRows==0 || _numberOfColumns==0)
     return -1;
 
@@ -467,7 +467,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
     [[_cells objectAtIndex:i] setState:NSOffState];
 }
 
--(void)renewRows:(int)rows columns:(int)columns {
+-(void)renewRows:(NSInteger)rows columns:(NSInteger)columns {
    while(_numberOfRows<rows)
     [self addRow];
    while(_numberOfRows>rows)
@@ -480,7 +480,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    [self _deselectAllCells];
 }
 
--(NSCell *)makeCellAtRow:(int)row column:(int)column {
+-(NSCell *)makeCellAtRow:(NSInteger)row column:(NSInteger)column {
    NSCell *result=[[_prototype copy] autorelease];
 
    if(result==nil)
@@ -489,7 +489,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    return result;
 }
 
--(void)putCell:(NSCell *)cell atRow:(int)row column:(int)column {
+-(void)putCell:(NSCell *)cell atRow:(NSInteger)row column:(NSInteger)column {
    unsigned index=row*_numberOfColumns+column;
 
    [_cells replaceObjectAtIndex:index withObject:cell];
@@ -505,7 +505,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    _numberOfRows++;
 }
 
--(void)insertRow:(int)row {
+-(void)insertRow:(NSInteger)row {
    int i;
 
    for(i=0;i<_numberOfColumns;i++){
@@ -515,7 +515,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    _numberOfRows++;
 }
 
--(void)insertRow:(int)row withCells:(NSArray *)cells {
+-(void)insertRow:(NSInteger)row withCells:(NSArray *)cells {
    int i;
 
    for(i=0;i<_numberOfColumns;i++)
@@ -524,7 +524,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    _numberOfRows++;
 }
 
--(void)removeRow:(int)row {
+-(void)removeRow:(NSInteger)row {
    int i;
 
    for(i=0;i<_numberOfColumns;i++){
@@ -545,7 +545,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    _numberOfColumns++;
 }
 
--(void)removeColumn:(int)col {
+-(void)removeColumn:(NSInteger)col {
    int i;
 
    for(i=_numberOfRows;i>=1;i--)
@@ -611,7 +611,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    _isAutoscroll=flag;
 }
 
--(void)selectCellAtRow:(int)row column:(int)column {
+-(void)selectCellAtRow:(NSInteger)row column:(NSInteger)column {
    NSCell *cell;
 
    if(row<0 || row>=_numberOfRows)
@@ -673,7 +673,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
         [self _selectCell:[_cells objectAtIndex:i] deselectOthers:NO];
 }
 
--(void)setSelectionFrom:(int)from to:(int)to anchor:(int)anchor highlight:(BOOL)highlight {
+-(void)setSelectionFrom:(NSInteger)from to:(NSInteger)to anchor:(NSInteger)anchor highlight:(BOOL)highlight {
     if (anchor != -1) { // no anchor, i.e., no selected cell
         if (anchor < from)
             from = anchor;
@@ -693,7 +693,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 }
 
 -(void)_deselectAllCellsInLockFocus {
-   int row,column;
+   NSInteger row,column;
 
    for(row=0;row<_numberOfRows;row++)
     for(column=0;column<_numberOfColumns;column++){
@@ -721,7 +721,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 }
 
 -(void)deselectSelectedCell {
-   int row,column;
+   NSInteger row,column;
 
    if ([self mode] == NSRadioModeMatrix && [self allowsEmptySelection] == NO)
        return;
@@ -741,7 +741,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    [self sizeToFit];
 }
 
--(void)setState:(NSControlStateValue)state atRow:(int)row column:(int)column {
+-(void)setState:(NSControlStateValue)state atRow:(NSInteger)row column:(NSInteger)column {
    NSCell *cell=[self cellAtRow:row column:column];
 
    if(cell!=nil){
@@ -752,7 +752,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    }
 }
 
--(void)highlightCell:(BOOL)highlight atRow:(int)row column:(int)column {
+-(void)highlightCell:(BOOL)highlight atRow:(NSInteger)row column:(NSInteger)column {
    NSCell *cell=[self cellAtRow:row column:column];
 
    if(cell!=nil){
@@ -765,13 +765,13 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    }
 }
 
--(void)drawCellAtRow:(int)row column:(int)column {
+-(void)drawCellAtRow:(NSInteger)row column:(NSInteger)column {
    NSCell *cell=[self cellAtRow:row column:column];
 
    [self drawCell:cell];
 }
 
--(void)scrollCellToVisibleAtRow:(int)row column:(int)column {
+-(void)scrollCellToVisibleAtRow:(NSInteger)row column:(NSInteger)column {
    NSRect frame=[self cellFrameAtRow:row column:column];
    [self scrollRectToVisible:frame];
 }
@@ -825,7 +825,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 }
 
 -(void)updateCell:(NSCell *)cell {
-   int row,column;
+   NSInteger row,column;
 
    if([self getRow:&row column:&column ofCell:cell]){
     NSRect frame=[self cellFrameAtRow:row column:column];
@@ -835,7 +835,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 }
 
 -(void)updateCellInside:(NSCell *)cell {
-   int row,column;
+   NSInteger row,column;
 
    if([self getRow:&row column:&column ofCell:cell]){
     NSRect frame=[self cellFrameAtRow:row column:column];
@@ -848,7 +848,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 
 -(void)drawCell:(NSCell *)cell {
-   int row,column;
+   NSInteger row,column;
 
    if([self getRow:&row column:&column ofCell:cell]){
     NSRect frame=[self cellFrameAtRow:row column:column];
@@ -863,7 +863,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 
 -(void)drawRect:(NSRect)rect {
-   int row,col;
+   NSInteger row,col;
 
    if([self drawsBackground]){
     [[self backgroundColor] setFill];
@@ -882,7 +882,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
     }
 }
 
--(void)_fieldEditCell:(NSCell *)cell row:(int)row column:(int)column {
+-(void)_fieldEditCell:(NSCell *)cell row:(NSInteger)row column:(NSInteger)column {
    [self selectCell:cell];
 
    NSText* editor =[[self window] fieldEditor:YES forObject:self];
@@ -890,7 +890,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 }
 
 -(void)_selectTextCell:(NSCell *)cell {
-   int    row,column;
+   NSInteger    row,column;
    NSRect cellFrame;
 
    if(![cell isEditable])
@@ -903,14 +903,14 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    [cell selectWithFrame:cellFrame inView:self editor:_currentEditor delegate:self start:0 length:[[cell stringValue] length]];
 }
 
--(void)_editTextCell:(NSCell *)cell row:(int)row column:(int)column event:(NSEvent *)event {
+-(void)_editTextCell:(NSCell *)cell row:(NSInteger)row column:(NSInteger)column event:(NSEvent *)event {
    NSRect cellFrame=[self cellFrameAtRow:row column:column];
 
    [self _fieldEditCell:cell row:row column:column];
    [cell editWithFrame:cellFrame inView:self editor:_currentEditor delegate:self event:event];
 }
 
--(NSCell *)_enabledCellAtPoint:(NSPoint)point row:(int *)row column:(int *)column {
+-(NSCell *)_enabledCellAtPoint:(NSPoint)point row:(NSInteger *)row column:(NSInteger *)column {
    if([self getRow:row column:column forPoint:point]){
     NSCell *cell=[self cellAtRow:*row column:*column];
 
@@ -927,7 +927,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
    do {
     NSPoint point=[self convertPoint:[lastMouse locationInWindow] fromView:nil];
-    int     row,column;
+    NSInteger     row,column;
     NSCell *cell;
 
     [[self superview] autoscroll:lastMouse];
@@ -960,7 +960,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    NSEvent *lastMouse=event;
    do {
     NSPoint point=[self convertPoint:[lastMouse locationInWindow] fromView:nil];
-    int     row,column;
+    NSInteger     row,column;
     NSCell *cell;
 
     [[self superview] autoscroll:lastMouse];
@@ -1017,7 +1017,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
    do {
     NSPoint point=[self convertPoint:[lastMouse locationInWindow] fromView:nil];
-    int     row,column,minSelRow,maxSelRow,minSelColumn,maxSelColumn,r,c;
+    NSInteger     row,column,minSelRow,maxSelRow,minSelColumn,maxSelColumn,r,c;
 
     [[self superview] autoscroll:lastMouse];
 
@@ -1076,7 +1076,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 -(BOOL)_mouseDownTrack:(NSEvent *)event {
    BOOL    result=NO;
    NSPoint point=[self convertPoint:[event locationInWindow] fromView:nil];
-   int     row,column;
+   NSInteger     row,column;
    NSCell *cell;
 
    [self lockFocus];
@@ -1102,7 +1102,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 -(void)mouseDown:(NSEvent *)event {
    NSPoint point=[self convertPoint:[event locationInWindow] fromView:nil];
-   int     row,column;
+   NSInteger     row,column;
    BOOL    sendAction=NO;
 
    if([self acceptsFirstResponder] && [[self window] firstResponder]!=self)
@@ -1197,7 +1197,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 // otherwise, movement = keyboard focus
 -(void)moveUp:sender {
     NSCell *nextCell = nil;
-    int row = -1, column = -1;
+    NSInteger row = -1, column = -1;
 
     if ([self mode] == NSRadioModeMatrix) {
         row = [self selectedRow];
@@ -1222,7 +1222,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 -(void)moveDown:sender {
     NSCell *nextCell = nil;
-    int row = -1, column = -1;
+    NSInteger row = -1, column = -1;
 
     if ([self mode] == NSRadioModeMatrix) {
         row = [self selectedRow];
@@ -1247,7 +1247,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 -(void)moveLeft:sender {
     NSCell *nextCell = nil;
-    int row = -1, column = -1;
+    NSInteger row = -1, column = -1;
 
     if ([self mode] == NSRadioModeMatrix) {
         row = [self selectedRow];
@@ -1272,7 +1272,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 -(void)moveRight:sender {
     NSCell *nextCell = nil;
-    int row = -1, column = -1;
+    NSInteger row = -1, column = -1;
 
     if ([self mode] == NSRadioModeMatrix) {
         row = [self selectedRow];
@@ -1335,12 +1335,12 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 @implementation NSMatrix (Bindings)
 
-- (int)_selectedIndex
+- (NSInteger)_selectedIndex
 {
     return _selectedIndex;
 }
 
-- (void)_setSelectedIndex:(int)index
+- (void)_setSelectedIndex:(NSInteger)index
 {
     if (_selectedIndex != index) {
         if (index < [_cells count]) {
@@ -1350,7 +1350,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
     }
 }
 
-- (int) _selectedTag {
+- (NSInteger) _selectedTag {
     return [[self selectedCell] tag];
 }
 - (void) _setSelectedTag:(NSInteger)selectedTag {

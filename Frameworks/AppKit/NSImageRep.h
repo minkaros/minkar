@@ -46,20 +46,20 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 + imageRepWithPasteboard:(NSPasteboard *)pasteboard;
 
 - (NSSize)size;
-- (int)pixelsWide;
-- (int)pixelsHigh;
+- (NSInteger)pixelsWide;
+- (NSInteger)pixelsHigh;
 - (BOOL)isOpaque;
 - (BOOL)hasAlpha;
 - (NSString *)colorSpaceName;
 - (NSInteger)bitsPerSample;
 
 - (void)setSize:(NSSize)value;
-- (void)setPixelsWide:(int)value;
-- (void)setPixelsHigh:(int)value;
+- (void)setPixelsWide:(NSInteger)value;
+- (void)setPixelsHigh:(NSInteger)value;
 - (void)setOpaque:(BOOL)value;
 - (void)setAlpha:(BOOL)value;
 - (void)setColorSpaceName:(NSString *)value;
-- (void)setBitsPerSample:(int)value;
+- (void)setBitsPerSample:(NSInteger)value;
 
 - (BOOL)draw;
 - (BOOL)drawAtPoint:(NSPoint)point;

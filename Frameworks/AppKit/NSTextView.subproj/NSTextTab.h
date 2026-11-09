@@ -21,12 +21,12 @@ APPKIT_EXPORT NSString *NSTabColumnTerminatorsAttributeName;
 
 @interface NSTextTab : NSObject <NSCoding, NSCopying> {
     NSTextTabType _type;
-    float _location;
+    CGFloat _location;
 }
 
 - (id)initWithTextAlignment:(NSTextAlignment)alignment location:(CGFloat)location options:(NSDictionary *)options;
 
-- initWithType:(NSTextTabType)type location:(float)location;
+- initWithType:(NSTextTabType)type location:(CGFloat)location;
 
 - (NSTextAlignment)alignment;
 
@@ -34,6 +34,6 @@ APPKIT_EXPORT NSString *NSTabColumnTerminatorsAttributeName;
 
 - (NSTextTabType)tabStopType;
 
-- (float)location;
+- (CGFloat)location;
 
 @end

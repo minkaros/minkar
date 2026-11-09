@@ -131,7 +131,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    return _mnemonic;
 }
 
--(unsigned)mnemonicLocation {
+-(NSUInteger)mnemonicLocation {
    return _mnemonicLocation;
 }
 
@@ -160,7 +160,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    return _keyEquivalent;
 }
 
--(unsigned)keyEquivalentModifierMask {
+-(NSEventModifierFlags)keyEquivalentModifierMask {
    return _keyEquivalentModifierMask;
 }
 
@@ -224,7 +224,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    _mnemonic=mnemonic;
 }
 
--(void)setMnemonicLocation:(unsigned)location {
+-(void)setMnemonicLocation:(NSUInteger)location {
    _mnemonicLocation=location;
 }
 
@@ -257,7 +257,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    [_menu itemChanged:self];
 }
 
--(void)setKeyEquivalentModifierMask:(unsigned)mask {
+-(void)setKeyEquivalentModifierMask:(NSEventModifierFlags)mask {
    _keyEquivalentModifierMask=mask;
    [_menu itemChanged:self];
 }

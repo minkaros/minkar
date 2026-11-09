@@ -238,15 +238,15 @@ static char hidesWindowControlsKey;
    return 0;
 }
 
-+(NSRect)frameRectForContentRect:(NSRect)contentRect styleMask:(unsigned)styleMask {
++(NSRect)frameRectForContentRect:(NSRect)contentRect styleMask:(NSWindowStyleMask)styleMask {
    return CGOutsetRectForNativeWindowBorder(contentRect,styleMask);
 }
 
-+(NSRect)contentRectForFrameRect:(NSRect)frameRect styleMask:(unsigned)styleMask {
++(NSRect)contentRectForFrameRect:(NSRect)frameRect styleMask:(NSWindowStyleMask)styleMask {
    return CGInsetRectForNativeWindowBorder(frameRect,styleMask);
 }
 
-+(float)minFrameWidthWithTitle:(NSString *)title styleMask:(unsigned)styleMask {
++(CGFloat)minFrameWidthWithTitle:(NSString *)title styleMask:(NSWindowStyleMask)styleMask {
    NSUnimplementedMethod();
    return 0;
 }
@@ -294,7 +294,7 @@ NSArray *_NSWindowNumbersFromWindowInfo(CFArrayRef info,BOOL allApps) {
    NSUnimplementedMethod();
 }
 
-+(NSButton *)standardWindowButton:(NSWindowButton)button forStyleMask:(unsigned)styleMask {
++(NSButton *)standardWindowButton:(NSWindowButton)button forStyleMask:(NSWindowStyleMask)styleMask {
    NSUnimplementedMethod();
    return nil;
 }
@@ -308,7 +308,7 @@ NSArray *_NSWindowNumbersFromWindowInfo(CFArrayRef info,BOOL allApps) {
 }
 
 // This is Apple private API
-+(Class)frameViewClassForStyleMask:(unsigned int)styleMask {
++(Class)frameViewClassForStyleMask:(NSUInteger)styleMask {
    return [NSThemeFrame class];
 }
 
@@ -321,7 +321,7 @@ NSArray *_NSWindowNumbersFromWindowInfo(CFArrayRef info,BOOL allApps) {
    return self;
 }
 
--initWithContentRect:(NSRect)contentRect styleMask:(unsigned int)styleMask backing:(unsigned)backing defer:(BOOL)defer screen:(NSScreen *)screen {
+-initWithContentRect:(NSRect)contentRect styleMask:(NSWindowStyleMask)styleMask backing:(NSBackingStoreType)backing defer:(BOOL)defer screen:(NSScreen *)screen {
     NSRect backgroundFrame;
     NSRect contentViewFrame;
 
@@ -431,7 +431,7 @@ NSArray *_NSWindowNumbersFromWindowInfo(CFArrayRef info,BOOL allApps) {
 }
 
 // FIX, relocate contentRect
--initWithContentRect:(NSRect)contentRect styleMask:(unsigned)styleMask backing:(unsigned)backing defer:(BOOL)defer {
+-initWithContentRect:(NSRect)contentRect styleMask:(NSWindowStyleMask)styleMask backing:(NSBackingStoreType)backing defer:(BOOL)defer {
    return [self initWithContentRect:contentRect styleMask:styleMask backing:backing defer:defer screen:nil];
 }
 
@@ -602,7 +602,7 @@ NSArray *_NSWindowNumbersFromWindowInfo(CFArrayRef info,BOOL allApps) {
    return _frame;
 }
 
--(unsigned)styleMask {
+-(NSWindowStyleMask)styleMask {
    return _styleMask;
 }
 
@@ -1518,12 +1518,12 @@ NSArray *_NSWindowNumbersFromWindowInfo(CFArrayRef info,BOOL allApps) {
    return NSStringFromRect([self frame]);
 }
 
--(int)resizeFlags {
+-(NSInteger)resizeFlags {
    NSUnimplementedMethod();
    return 0;
 }
 
--(float)userSpaceScaleFactor {
+-(CGFloat)userSpaceScaleFactor {
    return 1.0;
 }
 
@@ -1555,11 +1555,11 @@ NSArray *_NSWindowNumbersFromWindowInfo(CFArrayRef info,BOOL allApps) {
     return _drawers;
 }
 
--(int)windowNumber {
+-(NSInteger)windowNumber {
     return _number;
 }
 
--(int)gState {
+-(NSInteger)gState {
    NSUnimplementedMethod();
    return 0;
 }
@@ -2287,7 +2287,7 @@ NSArray *_NSWindowNumbersFromWindowInfo(CFArrayRef info,BOOL allApps) {
    [self setFrame:frame display:YES];
 }
 
--(void)orderWindow:(NSWindowOrderingMode)place relativeTo:(int)relativeTo {
+-(void)orderWindow:(NSWindowOrderingMode)place relativeTo:(NSInteger)relativeTo {
 // The move notifications are sent under unknown conditions around orderFront: in the Apple AppKit, we do them all the time here until it's figured out. I suspect it is a side effect of off-screen windows being at off-screen coordinates (as opposed to just being hidden)
 
    [self postNotificationName:NSWindowWillMoveNotification];

@@ -10,7 +10,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 @implementation NSTextTableBlock
 
--initWithTable:(NSTextTable *)table startingRow:(int)startingRow rowSpan:(int)rowSpan startingColumn:(int)startingColumn columnSpan:(int)columnSpan {
+-initWithTable:(NSTextTable *)table startingRow:(NSInteger)startingRow rowSpan:(NSInteger)rowSpan startingColumn:(NSInteger)startingColumn columnSpan:(NSInteger)columnSpan {
    _table=table;
    _startingRow=startingRow;
    _rowSpan=rowSpan;
@@ -23,19 +23,19 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    return _table;
 }
 
--(int)startingRow {
+-(NSInteger)startingRow {
    return _startingRow;
 }
 
--(int)rowSpan {
+-(NSInteger)rowSpan {
    return _rowSpan;
 }
 
--(int)startingColumn {
+-(NSInteger)startingColumn {
    return _startingColumn;
 }
 
--(int)columnSpan {
+-(NSInteger)columnSpan {
    return _columnSpan;
 }
 

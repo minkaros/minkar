@@ -118,7 +118,7 @@ enum {
     return _visibleArray;
 }
 
--(float)heightOfMenuItem:(NSMenuItem *)item {
+-(CGFloat)heightOfMenuItem:(NSMenuItem *)item {
     NSSize titleSize = [self contentSizeForItem:item];
     return titleSize.height;
 }
@@ -337,7 +337,7 @@ enum {
 }
 
 
--(unsigned)itemIndexAtPoint:(NSPoint)point {
+-(NSUInteger)itemIndexAtPoint:(NSPoint)point {
     NSInteger result = NSNotFound;
     NSRect bounds = [self bounds];
     NSArray *items = [[self menu] itemArray];

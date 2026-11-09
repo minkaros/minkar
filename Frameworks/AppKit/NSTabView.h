@@ -48,20 +48,20 @@ typedef enum {
 - (void)setDrawsBackground:(BOOL)flag;
 - (void)setAllowsTruncatedLabels:(BOOL)flag;
 
-- (int)numberOfTabViewItems;
+- (NSInteger)numberOfTabViewItems;
 - (NSArray *)tabViewItems;
-- (NSTabViewItem *)tabViewItemAtIndex:(int)index;
+- (NSTabViewItem *)tabViewItemAtIndex:(NSInteger)index;
 - (NSTabViewItem *)tabViewItemAtPoint:(NSPoint)point;
-- (int)indexOfTabViewItem:(NSTabViewItem *)item;
-- (int)indexOfTabViewItemWithIdentifier:identifier;
+- (NSInteger)indexOfTabViewItem:(NSTabViewItem *)item;
+- (NSInteger)indexOfTabViewItemWithIdentifier:identifier;
 
 - (void)addTabViewItem:(NSTabViewItem *)item;
 - (void)removeTabViewItem:(NSTabViewItem *)item;
-- (void)insertTabViewItem:(NSTabViewItem *)item atIndex:(int)index;
+- (void)insertTabViewItem:(NSTabViewItem *)item atIndex:(NSInteger)index;
 
 - (NSTabViewItem *)selectedTabViewItem;
 - (void)selectTabViewItem:(NSTabViewItem *)item;
-- (void)selectTabViewItemAtIndex:(int)index;
+- (void)selectTabViewItemAtIndex:(NSInteger)index;
 - (void)selectTabViewItemWithIdentifier:identifier;
 - (void)selectFirstTabViewItem:sender;
 - (void)selectLastTabViewItem:sender;

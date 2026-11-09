@@ -27,7 +27,7 @@ typedef NSInteger NSPrintPanelOptions;
 - (void)setOptions:(NSPrintPanelOptions)options;
 - (NSPrintPanelOptions)options;
 
-- (int)runModal;
+- (NSInteger)runModal;
 
 - (void)updateFromPrintInfo;
 - (void)finalWritePrintInfo;

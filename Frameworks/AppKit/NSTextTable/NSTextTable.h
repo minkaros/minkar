@@ -20,12 +20,12 @@ typedef enum {
     NSTextTableLayoutAlgorithm _layoutAlgorithm;
 }
 
-- (unsigned)numberOfColumns;
+- (NSUInteger)numberOfColumns;
 - (BOOL)collapsesBorders;
 - (BOOL)hidesEmptyCells;
 - (NSTextTableLayoutAlgorithm)layoutAlgorithm;
 
-- (void)setNumberOfColumns:(unsigned)numberOfColumns;
+- (void)setNumberOfColumns:(NSUInteger)numberOfColumns;
 - (void)setCollapsesBorders:(BOOL)yorn;
 - (void)setHidesEmptyCells:(BOOL)yorn;
 - (void)setLayoutAlgorithm:(NSTextTableLayoutAlgorithm)algorithm;

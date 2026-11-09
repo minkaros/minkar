@@ -36,12 +36,12 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
     NSRange _attributesRange;
     NSRange _attributesGlyphRange;
     NSFont *_font;
-    float _fontAscender;
-    float _fontDefaultLineHeight;
+    CGFloat _fontAscender;
+    CGFloat _fontDefaultLineHeight;
     NSPoint (*_positionOfGlyph)(NSFont *, SEL, NSGlyph, NSGlyph, BOOL *);
     NSTextAlignment _alignment;
     NSLineBreakMode _lineBreakMode;
-    float _whitespaceAdvancement;
+    CGFloat _whitespaceAdvancement;
 
     NSRange _lineRange;
     NSRangeArray *_glyphRangesInLine;
@@ -49,10 +49,10 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
     NSRect _scanRect;
     NSRect _wordWrapScanRect;
     NSRect _fullLineRect;
-    float _maxAscender;
+    CGFloat _maxAscender;
 
     NSRange _wordWrapRange;
-    float _wordWrapWidth;
+    CGFloat _wordWrapWidth;
     NSGlyph _wordWrapPreviousGlyph;
 }
 

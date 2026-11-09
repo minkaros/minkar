@@ -50,7 +50,7 @@
 -(NSSize)sizeForMenuItems:(NSArray *)items;
 -(void)positionBranchForSelectedItem:(NSWindow *)branch screen:(NSScreen *)screen;
 -(NSMenuView *)viewAtSelectedIndexPositionOnScreen:(NSScreen *)screen;
--(unsigned)itemIndexAtPoint:(NSPoint)point;
+-(NSUInteger)itemIndexAtPoint:(NSPoint)point;
 -(NSUInteger)selectedItemIndex;
 -(void)setSelectedItemIndex:(NSUInteger)itemIndex;
 -(void)mouseDown:(NSEvent *)event;

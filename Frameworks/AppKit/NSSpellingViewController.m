@@ -53,7 +53,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
     return [[self currentGuesses] objectAtIndex:row];
 }
 
--(BOOL)tableView:(NSTableView *)tableView shouldSelectRow:(int)row
+-(BOOL)tableView:(NSTableView *)tableView shouldSelectRow:(NSInteger)row
 {
 	NSString* selectedGuess = [[self currentGuesses] objectAtIndex: row];
 	[_currentWord setStringValue: selectedGuess];

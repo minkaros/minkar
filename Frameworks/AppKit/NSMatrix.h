@@ -45,8 +45,8 @@ typedef enum {
     BOOL _refusesFirstResponder;
 }
 
-- initWithFrame:(NSRect)frame mode:(int)mode prototype:(NSCell *)prototype numberOfRows:(int)rows numberOfColumns:(int)columns;
-- initWithFrame:(NSRect)frame mode:(int)mode cellClass:(Class)cls numberOfRows:(int)rows numberOfColumns:(int)columns;
+- initWithFrame:(NSRect)frame mode:(NSInteger)mode prototype:(NSCell *)prototype numberOfRows:(NSInteger)rows numberOfColumns:(NSInteger)columns;
+- initWithFrame:(NSRect)frame mode:(NSInteger)mode cellClass:(Class)cls numberOfRows:(NSInteger)rows numberOfColumns:(NSInteger)columns;
 
 - delegate;
 - (SEL)doubleAction;
@@ -56,14 +56,14 @@ typedef enum {
 
 - (NSArray *)cells;
 - cellWithTag:(NSInteger)tag;
-- cellAtRow:(int)row column:(int)column;
-- (NSRect)cellFrameAtRow:(int)row column:(int)column;
-- (BOOL)getRow:(int *)row column:(int *)column ofCell:(NSCell *)cell;
-- (BOOL)getRow:(int *)row column:(int *)column forPoint:(NSPoint)point;
+- cellAtRow:(NSInteger)row column:(NSInteger)column;
+- (NSRect)cellFrameAtRow:(NSInteger)row column:(NSInteger)column;
+- (BOOL)getRow:(NSInteger *)row column:(NSInteger *)column ofCell:(NSCell *)cell;
+- (BOOL)getRow:(NSInteger *)row column:(NSInteger *)column forPoint:(NSPoint)point;
 
-- (int)numberOfRows;
-- (int)numberOfColumns;
-- (void)getNumberOfRows:(int *)rows columns:(int *)columns;
+- (NSInteger)numberOfRows;
+- (NSInteger)numberOfColumns;
+- (void)getNumberOfRows:(NSInteger *)rows columns:(NSInteger *)columns;
 
 - (NSString *)toolTipForCell:(NSCell *)cell;
 
@@ -85,8 +85,8 @@ typedef enum {
 
 - (BOOL)isAutoscroll;
 
-- (int)selectedRow;
-- (int)selectedColumn;
+- (NSInteger)selectedRow;
+- (NSInteger)selectedColumn;
 - (NSArray *)selectedCells;
 
 - (void)setDelegate:delegate;
@@ -94,17 +94,17 @@ typedef enum {
 - (void)setCellClass:(Class)aClass;
 - (void)setPrototype:(NSCell *)cell;
 
-- (void)renewRows:(int)rows columns:(int)columns;
-- (NSCell *)makeCellAtRow:(int)row column:(int)col;
-- (void)putCell:(NSCell *)cell atRow:(int)row column:(int)column;
+- (void)renewRows:(NSInteger)rows columns:(NSInteger)columns;
+- (NSCell *)makeCellAtRow:(NSInteger)row column:(NSInteger)col;
+- (void)putCell:(NSCell *)cell atRow:(NSInteger)row column:(NSInteger)column;
 
 - (void)addRow;
-- (void)insertRow:(int)row;
-- (void)removeRow:(int)row;
-- (void)insertRow:(int)row withCells:(NSArray *)cells;
+- (void)insertRow:(NSInteger)row;
+- (void)removeRow:(NSInteger)row;
+- (void)insertRow:(NSInteger)row withCells:(NSArray *)cells;
 
 - (void)addColumn;
-- (void)removeColumn:(int)col;
+- (void)removeColumn:(NSInteger)col;
 
 - (void)setToolTip:(NSString *)tip forCell:(NSCell *)cell;
 
@@ -125,22 +125,22 @@ typedef enum {
 
 - (void)setAutoscroll:(BOOL)flag;
 
-- (void)selectCellAtRow:(int)row column:(int)column;
+- (void)selectCellAtRow:(NSInteger)row column:(NSInteger)column;
 - (void)selectCell:(NSCell *)cell;
 - (BOOL)selectCellWithTag:(NSInteger)tag;
 - (void)selectAll:sender;
-- (void)setSelectionFrom:(int)from to:(int)to anchor:(int)anchor highlight:(BOOL)highlight;
+- (void)setSelectionFrom:(NSInteger)from to:(NSInteger)to anchor:(NSInteger)anchor highlight:(BOOL)highlight;
 - (void)deselectAllCells;
 - (void)deselectSelectedCell;
 
 - (void)sizeToCells;
 
-- (void)setState:(NSControlStateValue)state atRow:(int)row column:(int)column;
-- (void)highlightCell:(BOOL)highlight atRow:(int)row column:(int)column;
+- (void)setState:(NSControlStateValue)state atRow:(NSInteger)row column:(NSInteger)column;
+- (void)highlightCell:(BOOL)highlight atRow:(NSInteger)row column:(NSInteger)column;
 
-- (void)drawCellAtRow:(int)row column:(int)column;
+- (void)drawCellAtRow:(NSInteger)row column:(NSInteger)column;
 
-- (void)scrollCellToVisibleAtRow:(int)row column:(int)column;
+- (void)scrollCellToVisibleAtRow:(NSInteger)row column:(NSInteger)column;
 
 - (BOOL)sendAction;
 

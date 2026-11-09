@@ -48,11 +48,11 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    [_view setFont:font];
 }
 
--(void)setSelectedIndex:(int)index {
+-(void)setSelectedIndex:(NSInteger)index {
    [_view setSelectedIndex:index];
 }
 
--(int)runTrackingWithEvent:(NSEvent *)event {
+-(NSInteger)runTrackingWithEvent:(NSEvent *)event {
    NSSize  size=[_view sizeForContents];
    NSSize  scrollViewSize=[NSScrollView frameSizeForContentSize:size hasHorizontalScroller:[_scrollView hasHorizontalScroller] hasVerticalScroller:[_scrollView hasVerticalScroller] borderType:NSLineBorder];
    NSRect  frame;

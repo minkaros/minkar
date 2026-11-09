@@ -29,8 +29,8 @@ APPKIT_EXPORT NSString *const NSDrawerDidCloseNotification;
     NSDrawerState _state;
     NSRectEdge _edge;
     NSRectEdge _preferredEdge;
-    float _leadingOffset;
-    float _trailingOffset;
+    CGFloat _leadingOffset;
+    CGFloat _trailingOffset;
     NSDrawerWindow *_drawerWindow;
     NSWindow *_parentWindow;
     NSWindow *_nextParentWindow;
@@ -40,7 +40,7 @@ APPKIT_EXPORT NSString *const NSDrawerDidCloseNotification;
 }
 
 // Geometry methods. Not in Apple's AppKit.
-+ (NSRect)drawerFrameWithContentSize:(NSSize)contentSize parentWindow:(NSWindow *)parentWindow leadingOffset:(float)leadingOffset trailingOffset:(float)trailingOffset edge:(NSRectEdge)edge state:(NSDrawerState)state;
++ (NSRect)drawerFrameWithContentSize:(NSSize)contentSize parentWindow:(NSWindow *)parentWindow leadingOffset:(CGFloat)leadingOffset trailingOffset:(CGFloat)trailingOffset edge:(NSRectEdge)edge state:(NSDrawerState)state;
 
 + (NSRectEdge)visibleEdgeWithPreferredEdge:(NSRectEdge)preferredEdge parentWindow:(NSWindow *)parentWindow drawerWindow:(NSWindow *)drawerWindow;
 
@@ -54,10 +54,10 @@ APPKIT_EXPORT NSString *const NSDrawerDidCloseNotification;
 - (NSSize)contentSize;
 - (NSSize)minContentSize;
 - (NSSize)maxContentSize;
-- (float)leadingOffset;
-- (float)trailingOffset;
+- (CGFloat)leadingOffset;
+- (CGFloat)trailingOffset;
 - (NSRectEdge)preferredEdge;
-- (int)state;
+- (NSInteger)state;
 - (NSRectEdge)edge;
 
 - (void)setDelegate:delegate;
@@ -67,8 +67,8 @@ APPKIT_EXPORT NSString *const NSDrawerDidCloseNotification;
 - (void)setMinContentSize:(NSSize)size;
 - (void)setMaxContentSize:(NSSize)size;
 - (void)setPreferredEdge:(NSRectEdge)edge;
-- (void)setLeadingOffset:(float)offset;
-- (void)setTrailingOffset:(float)offset;
+- (void)setLeadingOffset:(CGFloat)offset;
+- (void)setTrailingOffset:(CGFloat)offset;
 
 - (void)open;
 - (void)openOnEdge:(NSRectEdge)edge;

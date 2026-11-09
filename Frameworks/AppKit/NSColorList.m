@@ -106,7 +106,7 @@ static NSMutableDictionary *_namedColorLists = nil;
 
 -(NSArray *)allKeys { return _keys; }
 
--(NSColor *)colorWithKey:(NSString *)soughtKey indexPtr:(unsigned *)index
+-(NSColor *)colorWithKey:(NSString *)soughtKey indexPtr:(NSUInteger *)index
 {
     for(int x=0; x<[_keys count] && x<[_colors count]; ++x) {
         (*index) = x;
@@ -121,13 +121,13 @@ static NSMutableDictionary *_namedColorLists = nil;
 
 -(NSColor *)colorWithKey:(NSString *)soughtKey
 {
-    unsigned index;	// unused
+    NSUInteger index;	// unused
     return [self colorWithKey:soughtKey indexPtr:&index];
 }
 
 -(void)setColor:(NSColor *)color forKey:(NSString *)key
 {
-    unsigned index;
+    NSUInteger index;
 
     // if we already have a color with this key, replace it...
     if ([self colorWithKey:key indexPtr:&index])
@@ -142,7 +142,7 @@ static NSMutableDictionary *_namedColorLists = nil;
 
 -(void)removeColorWithKey:(NSString *)key
 {
-    unsigned index;
+    NSUInteger index;
 
     if ([self colorWithKey:key indexPtr:&index]) {
         [_colors removeObjectAtIndex:index];
@@ -152,7 +152,7 @@ static NSMutableDictionary *_namedColorLists = nil;
     }
 }
 
--(void)insertColor:(NSColor *)color key:(NSString *)key atIndex:(unsigned)index
+-(void)insertColor:(NSColor *)color key:(NSString *)key atIndex:(NSUInteger)index
 {
     [_colors insertObject:color atIndex:index];
     [_keys insertObject:key atIndex:index];

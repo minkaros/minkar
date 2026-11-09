@@ -196,22 +196,22 @@ typedef enum {
 
 - (NSWindow *)modalWindow;
 - (NSModalSession)beginModalSessionForWindow:(NSWindow *)window;
-- (int)runModalSession:(NSModalSession)session;
+- (NSInteger)runModalSession:(NSModalSession)session;
 - (void)endModalSession:(NSModalSession)session;
-- (void)stopModalWithCode:(int)code;
+- (void)stopModalWithCode:(NSInteger)code;
 
-- (int)runModalForWindow:(NSWindow *)window;
+- (NSInteger)runModalForWindow:(NSWindow *)window;
 - (void)stopModal;
 - (void)abortModal;
 
 - (void)beginSheet:(NSWindow *)sheet modalForWindow:(NSWindow *)window modalDelegate:modalDelegate didEndSelector:(SEL)didEndSelector contextInfo:(void *)contextInfo;
-- (void)endSheet:(NSWindow *)sheet returnCode:(int)returnCode;
+- (void)endSheet:(NSWindow *)sheet returnCode:(NSInteger)returnCode;
 - (void)endSheet:(NSWindow *)sheet;
 
 - (void)reportException:(NSException *)exception;
 
-- (int)requestUserAttention:(NSRequestUserAttentionType)attentionType;
-- (void)cancelUserAttentionRequest:(int)requestNumber;
+- (NSInteger)requestUserAttention:(NSRequestUserAttentionType)attentionType;
+- (void)cancelUserAttentionRequest:(NSInteger)requestNumber;
 
 - (void)runPageLayout:sender;
 - (void)orderFrontColorPanel:sender;

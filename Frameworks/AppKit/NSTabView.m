@@ -243,7 +243,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
     [self setNeedsDisplay:YES];
 }
 
--(int)numberOfTabViewItems {
+-(NSInteger)numberOfTabViewItems {
     return [_items count];
 }
 
@@ -251,7 +251,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
     return _items;
 }
 
--(NSTabViewItem *)tabViewItemAtIndex:(int)index {
+-(NSTabViewItem *)tabViewItemAtIndex:(NSInteger)index {
     return [_items objectAtIndex:index];
 }
 
@@ -286,13 +286,13 @@ static NSBezierPath *_NSSegmentPath(NSRect r,CGFloat radius,BOOL left,BOOL right
    return 22-_controlSize*2;
 }
 
--(CGFloat)_segmentWidthAtIndex:(unsigned)index {
+-(CGFloat)_segmentWidthAtIndex:(NSUInteger)index {
    NSTabViewItem *item=[_items objectAtIndex:index];
 
    return ceil([[item label] sizeWithAttributes:[item labelAttributes]].width)+2*TAB_PADDING;
 }
 
--(NSRect)_segmentRectAtIndex:(unsigned)index {
+-(NSRect)_segmentRectAtIndex:(NSUInteger)index {
    unsigned i,count=[_items count];
    CGFloat  total=0,x;
 
@@ -304,7 +304,7 @@ static NSBezierPath *_NSSegmentPath(NSRect r,CGFloat radius,BOOL left,BOOL right
    return NSMakeRect(x,NSHeight([self bounds])-[self _stripHeight]-1,[self _segmentWidthAtIndex:index],[self _stripHeight]);
 }
 
--(NSRect)rectForItemLabelAtIndex:(unsigned)index {
+-(NSRect)rectForItemLabelAtIndex:(NSUInteger)index {
    if(_type==NSTopTabsBezelBorder){
     NSRect        segment=[self _segmentRectAtIndex:index];
     NSTabViewItem *item=[_items objectAtIndex:index];
@@ -347,11 +347,11 @@ static NSBezierPath *_NSSegmentPath(NSRect r,CGFloat radius,BOOL left,BOOL right
    return nil;
 }
 
--(int)indexOfTabViewItem:(NSTabViewItem *)item {
+-(NSInteger)indexOfTabViewItem:(NSTabViewItem *)item {
     return [_items indexOfObject:item];
 }
 
--(int)indexOfTabViewItemWithIdentifier:identifier {
+-(NSInteger)indexOfTabViewItemWithIdentifier:identifier {
     int i, count=[_items count];
 
     for (i = 0; i < count; ++i)
@@ -403,7 +403,7 @@ static NSBezierPath *_NSSegmentPath(NSRect r,CGFloat radius,BOOL left,BOOL right
     [self setNeedsDisplay:YES];
 }
 
--(void)insertTabViewItem:(NSTabViewItem *)item atIndex:(int)index {
+-(void)insertTabViewItem:(NSTabViewItem *)item atIndex:(NSInteger)index {
     [_items insertObject:item atIndex:index];
     if (_selectedItem==nil)
         [self selectTabViewItem:item];
@@ -473,7 +473,7 @@ static NSBezierPath *_NSSegmentPath(NSRect r,CGFloat radius,BOOL left,BOOL right
     }
 }
 
--(void)selectTabViewItemAtIndex:(int)index {
+-(void)selectTabViewItemAtIndex:(NSInteger)index {
     [self selectTabViewItem:[_items objectAtIndex:index]];
 }
 
@@ -496,7 +496,7 @@ static NSBezierPath *_NSSegmentPath(NSRect r,CGFloat radius,BOOL left,BOOL right
         [self selectTabViewItemAtIndex:[[sender cells] indexOfObject:[sender selectedCell]]];
 }
 
--(NSRect)rectForItemBorderAtIndex:(unsigned)index {
+-(NSRect)rectForItemBorderAtIndex:(NSUInteger)index {
    if(_type==NSTopTabsBezelBorder)
     return [self _segmentRectAtIndex:index];
 
@@ -637,10 +637,10 @@ static NSBezierPath *_NSSegmentPath(NSRect r,CGFloat radius,BOOL left,BOOL right
 
 @implementation NSTabView (Bindings)
 
--(int)_selectedIndex {
+-(NSInteger)_selectedIndex {
     return [self indexOfTabViewItem:_selectedItem];
 }
--(void)_setSelectedIndex:(int)selectedIndex {
+-(void)_setSelectedIndex:(NSInteger)selectedIndex {
     [self selectTabViewItemAtIndex:selectedIndex];
 }
 

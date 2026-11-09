@@ -222,7 +222,7 @@ NSString * const NSSplitViewWillResizeSubviewsNotification = @"NSSplitViewWillRe
     [self _postNoteDidResize];
 }
 
--(float)dividerThickness {
+-(CGFloat)dividerThickness {
 	if (_dividerStyle == NSSplitViewDividerStyleThick) {
 		return 10;
 	} else {
@@ -286,7 +286,7 @@ NSString * const NSSplitViewWillResizeSubviewsNotification = @"NSSplitViewWillRe
    }
 }
 
--(NSRect)dividerRectAtIndex:(unsigned)index {
+-(NSRect)dividerRectAtIndex:(NSUInteger)index {
    NSRect rect=[[_subviews objectAtIndex:index] frame];
 
    if([self isVertical]){
@@ -310,7 +310,7 @@ NSString * const NSSplitViewWillResizeSubviewsNotification = @"NSSplitViewWillRe
    }
 }
 
--(unsigned)dividerIndexAtPoint:(NSPoint)point {
+-(NSUInteger)dividerIndexAtPoint:(NSPoint)point {
    int i,count=[[self subviews] count];
 
    for(i=0;i<count-1;i++){
@@ -395,13 +395,13 @@ static float constrainTo(float value,float min,float max){
    }
 }
 
-- (float)minPossiblePositionOfDividerAtIndex:(int)index
+- (CGFloat)minPossiblePositionOfDividerAtIndex:(int)index
 {
     NSUnimplementedMethod();
     return 0;
 }
 
-- (float)maxPossiblePositionOfDividerAtIndex:(int)index
+- (CGFloat)maxPossiblePositionOfDividerAtIndex:(int)index
 {
     NSUnimplementedMethod();
     return 0;
@@ -410,7 +410,7 @@ static float constrainTo(float value,float min,float max){
 /** adjusts the subviews on either side of the divider while
  * honoring the constraints imposed by the delegate (if any)
  */
-- (void)setPosition:(float)position ofDividerAtIndex:(int)index
+- (void)setPosition:(CGFloat)position ofDividerAtIndex:(NSInteger)index
 {
     NSAssert(index >= 0 && index < [[self subviews] count] - 1, @"divider index out of range");
     
@@ -420,8 +420,8 @@ static float constrainTo(float value,float min,float max){
     BOOL subview0Expanded = [self isSubviewCollapsed: subview0] == NO;
     BOOL subview1Expanded = [self isSubviewCollapsed: subview1] == NO;
     
-    float    minPosition = 0;
-    float    maxPosition = 0;
+    CGFloat  minPosition = 0;
+    CGFloat  maxPosition = 0;
     
     NSRect frame0 = NSZeroRect;
     NSRect frame1 = NSZeroRect;

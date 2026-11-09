@@ -43,8 +43,8 @@ enum {
 - (NSURL *)URL;
 - (NSString *)filename;
 
-- (int)runModalForDirectory:(NSString *)directory file:(NSString *)file;
-- (int)runModal;
+- (NSInteger)runModalForDirectory:(NSString *)directory file:(NSString *)file;
+- (NSInteger)runModal;
 
 - (NSString *)directory;
 - (BOOL)treatsFilePackagesAsDirectories;

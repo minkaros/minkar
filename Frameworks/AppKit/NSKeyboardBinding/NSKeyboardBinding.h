@@ -7,6 +7,7 @@ The above copyright notice and this permission notice shall be included in all c
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE. */
 
 #import <Foundation/NSObject.h>
+#import <AppKit/NSEvent.h>
 
 @class NSArray, NSString;
 
@@ -16,12 +17,12 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
     NSArray *_selectorNames;
 }
 
-+ (NSKeyboardBinding *)keyBindingWithString:(NSString *)string modifierMask:(int)mask selectorNames:(NSArray *)selNames;
++ (NSKeyboardBinding *)keyBindingWithString:(NSString *)string modifierMask:(NSInteger)mask selectorNames:(NSArray *)selNames;
 
-- (id)initWithString:(NSString *)string modifierMask:(unsigned)mask selectorNames:(NSArray *)selNames;
+- (id)initWithString:(NSString *)string modifierMask:(NSEventModifierFlags)mask selectorNames:(NSArray *)selNames;
 
 - (NSString *)string;
-- (unsigned)modifierMask;
+- (NSEventModifierFlags)modifierMask;
 
 - (NSArray *)selectorNames;
 

@@ -39,7 +39,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
     return [[[NSWindowAnimationContext alloc] initWithWindow:window targetRect:targetRect stepRect:stepRect stepCount:stepCount stepInterval:(resizeTime / FRAMES_PER_STEP) display:display] autorelease];
 }
 
-- (id)initWithWindow:(id)window targetRect:(NSRect)targetRect stepRect:(NSRect)stepRect stepCount:(int)stepCount stepInterval:(NSTimeInterval)stepInterval display:(BOOL)display
+- (id)initWithWindow:(id)window targetRect:(NSRect)targetRect stepRect:(NSRect)stepRect stepCount:(NSInteger)stepCount stepInterval:(NSTimeInterval)stepInterval display:(BOOL)display
 {
     _window = [window retain];
     _targetRect = targetRect;
@@ -73,7 +73,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
     return _stepRect;
 }
 
-- (int)stepCount
+- (NSInteger)stepCount
 {
     return _stepCount;
 }

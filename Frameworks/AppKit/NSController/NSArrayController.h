@@ -61,7 +61,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #pragma mark Managing Selections
 
 - (NSUInteger)selectionIndex;
-- (BOOL)setSelectionIndex:(unsigned)index;
+- (BOOL)setSelectionIndex:(NSUInteger)index;
 - (void)setSelectsInsertedObjects:(BOOL)flag;
 - (BOOL)selectsInsertedObjects;
 - (BOOL)setSelectionIndexes:(NSIndexSet *)indices;
@@ -89,9 +89,9 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 - (void)add:(id)sender;
 - (void)addObject:(id)object;
 - (void)addObjects:(NSArray *)objects;
-- (void)insertObject:(id)object atArrangedObjectIndex:(unsigned)index;
+- (void)insertObject:(id)object atArrangedObjectIndex:(NSUInteger)index;
 - (void)insertObjects:(NSArray *)objects atArrangedObjectIndexes:(NSIndexSet *)indices;
-- (void)removeObjectAtArrangedObjectIndex:(unsigned)index;
+- (void)removeObjectAtArrangedObjectIndex:(NSUInteger)index;
 - (void)removeObjectsAtArrangedObjectIndexes:(NSIndexSet *)indices;
 - (void)remove:(id)sender;
 - (void)removeObject:(id)object;

@@ -19,7 +19,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <AppKit/NSRaise.h>
 
 @interface NSTableView(NSTableView_private)
--(void)noteColumnDidResizeWithOldWidth:(float)oldWidth;
+-(void)noteColumnDidResizeWithOldWidth:(CGFloat)oldWidth;
 @end
 
 @implementation NSTableHeaderView
@@ -38,16 +38,16 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
     return _tableView;
 }
 
--(int)resizedColumn {
+-(NSInteger)resizedColumn {
     return _resizedColumn;
 }
 
--(int)draggedColumn {
+-(NSInteger)draggedColumn {
     NSUnimplementedMethod();
     return -1;
 }
 
--(float)draggedDistance {
+-(CGFloat)draggedDistance {
     NSUnimplementedMethod();
     return -1;
 }
@@ -56,7 +56,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
     _tableView = tableView;
 }
 
--(NSRect)headerRectOfColumn:(int)column {
+-(NSRect)headerRectOfColumn:(NSInteger)column {
     NSArray *tableColumns = [_tableView tableColumns];
     NSRect headerRect = _bounds;
     NSSize spacing = [_tableView intercellSpacing];
@@ -74,7 +74,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
     return headerRect;
 }
 
--(int)columnAtPoint:(NSPoint)point {
+-(NSInteger)columnAtPoint:(NSPoint)point {
     int i, count = [[_tableView tableColumns] count];
 
     for (i = 0; i < count; ++i) {
@@ -107,7 +107,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
     }
 }
 
--(NSRect)_resizeRectBeforeColumn:(int)column {
+-(NSRect)_resizeRectBeforeColumn:(NSInteger)column {
     NSRect rect=[self headerRectOfColumn:column];
 
     rect.origin.x -= 2;

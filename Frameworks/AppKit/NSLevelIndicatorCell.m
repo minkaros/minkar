@@ -97,11 +97,11 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    return _criticalValue;
 }
 
--(int)numberOfTickMarks {
+-(NSInteger)numberOfTickMarks {
    return _numberOfTickMarks;
 }
 
--(int)numberOfMajorTickMarks {
+-(NSInteger)numberOfMajorTickMarks {
    return _numberOfMajorTickMarks;
 }
 
@@ -129,11 +129,11 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    _criticalValue=value;
 }
 
--(void)setNumberOfTickMarks:(int)count {
+-(void)setNumberOfTickMarks:(NSInteger)count {
    _numberOfTickMarks=MAX(0,count);
 }
 
--(void)setNumberOfMajorTickMarks:(int)count {
+-(void)setNumberOfMajorTickMarks:(NSInteger)count {
    _numberOfMajorTickMarks=MAX(0,count);
 }
 
@@ -144,7 +144,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 -(void)setImage:(NSImage *)image {
 }
 
--(double)tickMarkValueAtIndex:(int)index {
+-(double)tickMarkValueAtIndex:(NSInteger)index {
    if(_numberOfTickMarks<=1)
     return _minValue;
    return _minValue+(_maxValue-_minValue)*index/(_numberOfTickMarks-1);
@@ -162,7 +162,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    return frame;
 }
 
--(NSRect)rectOfTickMarkAtIndex:(int)index {
+-(NSRect)rectOfTickMarkAtIndex:(NSInteger)index {
    NSRect  frame=_lastFrame;
    BOOL    flipped=[[self controlView] isFlipped];
    NSRect  level=[self _levelRectForFrame:frame flipped:flipped];

@@ -46,7 +46,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 - (BOOL)showsProgressPanel;
 - (void)setShowsProgressPanel:(BOOL)flag;
 
-- (int)currentPage;
+- (NSInteger)currentPage;
 
 - (NSGraphicsContext *)createContext;
 - (void)destroyContext;

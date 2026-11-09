@@ -141,7 +141,7 @@ enum {
 - target;
 - (SEL)action;
 - (NSInteger)tag;
-- (int)entryType;
+- (NSInteger)entryType;
 - (id)formatter;
 - (NSFont *)font;
 - (NSImage *)image;
@@ -179,7 +179,7 @@ enum {
 - (void)setType:(NSCellType)type;
 
 - (void)setState:(NSControlStateValue)value;
-- (int)nextState;
+- (NSInteger)nextState;
 - (void)setNextState;
 - (BOOL)allowsMixedState;
 - (void)setAllowsMixedState:(BOOL)allow;
@@ -187,7 +187,7 @@ enum {
 - (void)setTarget:target;
 - (void)setAction:(SEL)action;
 - (void)setTag:(NSInteger)tag;
-- (void)setEntryType:(int)type;
+- (void)setEntryType:(NSInteger)type;
 - (void)setFormatter:(NSFormatter *)formatter;
 - (void)setFont:(NSFont *)font;
 - (void)setImage:(NSImage *)image;
@@ -208,7 +208,7 @@ enum {
 - (void)setRefusesFirstResponder:(BOOL)flag;
 - (void)setHighlighted:(BOOL)flag;
 
-- (void)setFloatingPointFormat:(BOOL)fpp left:(unsigned)left right:(unsigned)right;
+- (void)setFloatingPointFormat:(BOOL)fpp left:(NSUInteger)left right:(NSUInteger)right;
 
 - (void)setObjectValue:(id<NSCopying>)value;
 - (void)setStringValue:(NSString *)value;
@@ -254,7 +254,7 @@ enum {
 - (NSText *)setUpFieldEditorAttributes:(NSText *)editor;
 
 - (void)editWithFrame:(NSRect)frame inView:(NSView *)view editor:(NSText *)editor delegate:(id)delegate event:(NSEvent *)event;
-- (void)selectWithFrame:(NSRect)frame inView:(NSView *)view editor:(NSText *)editor delegate:(id)delegate start:(int)location length:(int)length;
+- (void)selectWithFrame:(NSRect)frame inView:(NSView *)view editor:(NSText *)editor delegate:(id)delegate start:(NSInteger)location length:(NSInteger)length;
 - (void)endEditing:(NSText *)editor;
 
 - (void)resetCursorRect:(NSRect)rect inView:(NSView *)view;

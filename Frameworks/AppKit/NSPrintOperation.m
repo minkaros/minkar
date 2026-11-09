@@ -31,7 +31,7 @@ static NSPrintOperation *_currentOperation=nil;
    return _currentOperation;
 }
 
--initWithView:(NSView *)view printInfo:(NSPrintInfo *)printInfo insideRect:(NSRect)rect toData:(NSMutableData *)data type:(int)type {
+-initWithView:(NSView *)view printInfo:(NSPrintInfo *)printInfo insideRect:(NSRect)rect toData:(NSMutableData *)data type:(NSInteger)type {
    _view=[view retain];
    _printInfo=[printInfo copy];
    if(type==NSPrintOperationPDFInRect || type==NSPrintOperationEPSInRect || type==NSPrintOperationFile)
@@ -118,7 +118,7 @@ static NSPrintOperation *_currentOperation=nil;
    _showsPrintPanel=flag;
 }
 
--(int)currentPage {
+-(NSInteger)currentPage {
    return _currentPage;
 }
 
@@ -142,9 +142,9 @@ static NSPrintOperation *_currentOperation=nil;
     float heightAdjustLimit=[_view heightAdjustLimit];
     float widthAdjustLimit=[_view widthAdjustLimit];
     float left=NSMinX(bounds);
-    float right=left+imageableRect.size.width;
+    CGFloat right=left+imageableRect.size.width;
     float rightLimit=left+imageableRect.size.width*widthAdjustLimit;
-    float bottom=isFlipped?top+imageableRect.size.height:top-imageableRect.size.height;
+    CGFloat bottom=isFlipped?top+imageableRect.size.height:top-imageableRect.size.height;
     float bottomLimit=isFlipped?top+imageableRect.size.height*heightAdjustLimit:top-imageableRect.size.height*heightAdjustLimit;
     
     if(orientation==NSLandscapeOrientation){

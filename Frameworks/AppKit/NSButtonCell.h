@@ -112,10 +112,10 @@ typedef enum {
 - (NSImage *)alternateImage;
 - (NSAttributedString *)attributedTitle;
 - (NSAttributedString *)attributedAlternateTitle;
-- (int)highlightsBy;
-- (int)showsStateBy;
+- (NSInteger)highlightsBy;
+- (NSInteger)showsStateBy;
 - (BOOL)imageDimsWhenDisabled;
-- (unsigned)keyEquivalentModifierMask;
+- (NSEventModifierFlags)keyEquivalentModifierMask;
 - (NSBezelStyle)bezelStyle;
 - (BOOL)showsBorderOnlyWhileMouseInside;
 - (NSSound *)sound;
@@ -134,10 +134,10 @@ typedef enum {
 - (void)setAlternateImage:(NSImage *)image;
 - (void)setAttributedTitle:(NSAttributedString *)title;
 - (void)setAttributedAlternateTitle:(NSAttributedString *)title;
-- (void)setHighlightsBy:(int)type;
-- (void)setShowsStateBy:(int)type;
+- (void)setHighlightsBy:(NSInteger)type;
+- (void)setShowsStateBy:(NSInteger)type;
 - (void)setImageDimsWhenDisabled:(BOOL)flag;
-- (void)setKeyEquivalentModifierMask:(unsigned)mask;
+- (void)setKeyEquivalentModifierMask:(NSEventModifierFlags)mask;
 - (void)setBezelStyle:(NSBezelStyle)bezelStyle;
 - (void)setButtonType:(NSButtonType)buttonType;
 - (void)setShowsBorderOnlyWhileMouseInside:(BOOL)show;

@@ -54,7 +54,7 @@ NSString* NSImageCompressionFactor = @"NSImageCompressionFactor";
    return nil;
 }
 
-+(void)getTIFFCompressionTypes:(const NSTIFFCompression **)types count:(int *)count {
++(void)getTIFFCompressionTypes:(const NSTIFFCompression **)types count:(NSInteger *)count {
    NSUnimplementedMethod();
 }
 
@@ -67,7 +67,7 @@ NSString* NSImageCompressionFactor = @"NSImageCompressionFactor";
    return [self TIFFRepresentationOfImageRepsInArray:array usingCompression:NSTIFFCompressionNone factor:0.0];
 }
 
-+(NSData *)TIFFRepresentationOfImageRepsInArray:(NSArray *)array usingCompression:(NSTIFFCompression)compression factor:(float)factor {
++(NSData *)TIFFRepresentationOfImageRepsInArray:(NSArray *)array usingCompression:(NSTIFFCompression)compression factor:(CGFloat)factor {
    NSMutableData        *result=[NSMutableData data];
    CGImageDestinationRef dest=CGImageDestinationCreateWithData((CFMutableDataRef)result,(CFStringRef)@"public.tiff",[array count],NULL);
 
@@ -152,7 +152,7 @@ NSString* NSImageCompressionFactor = @"NSImageCompressionFactor";
    return [[[self alloc] initWithData:data] autorelease];
 }
 
--initWithBitmapDataPlanes:(unsigned char **)planes pixelsWide:(int)width pixelsHigh:(int)height bitsPerSample:(int)bitsPerSample samplesPerPixel:(int)samplesPerPixel hasAlpha:(BOOL)hasAlpha isPlanar:(BOOL)isPlanar colorSpaceName:(NSString *)colorSpaceName bitmapFormat:(NSBitmapFormat)bitmapFormat bytesPerRow:(int)bytesPerRow bitsPerPixel:(int)bitsPerPixel {
+-initWithBitmapDataPlanes:(unsigned char **)planes pixelsWide:(NSInteger)width pixelsHigh:(NSInteger)height bitsPerSample:(NSInteger)bitsPerSample samplesPerPixel:(NSInteger)samplesPerPixel hasAlpha:(BOOL)hasAlpha isPlanar:(BOOL)isPlanar colorSpaceName:(NSString *)colorSpaceName bitmapFormat:(NSBitmapFormat)bitmapFormat bytesPerRow:(NSInteger)bytesPerRow bitsPerPixel:(NSInteger)bitsPerPixel {
    int i,numberOfPlanes=isPlanar?samplesPerPixel:1;
 
    _size=NSMakeSize(width,height);
@@ -201,7 +201,7 @@ NSString* NSImageCompressionFactor = @"NSImageCompressionFactor";
    return self;
 }
 
--initWithBitmapDataPlanes:(unsigned char **)planes pixelsWide:(int)width pixelsHigh:(int)height bitsPerSample:(int)bitsPerSample samplesPerPixel:(int)samplesPerPixel hasAlpha:(BOOL)hasAlpha isPlanar:(BOOL)isPlanar colorSpaceName:(NSString *)colorSpaceName bytesPerRow:(int)bytesPerRow bitsPerPixel:(int)bitsPerPixel {
+-initWithBitmapDataPlanes:(unsigned char **)planes pixelsWide:(NSInteger)width pixelsHigh:(NSInteger)height bitsPerSample:(NSInteger)bitsPerSample samplesPerPixel:(NSInteger)samplesPerPixel hasAlpha:(BOOL)hasAlpha isPlanar:(BOOL)isPlanar colorSpaceName:(NSString *)colorSpaceName bytesPerRow:(NSInteger)bytesPerRow bitsPerPixel:(NSInteger)bitsPerPixel {
    return [self initWithBitmapDataPlanes:planes pixelsWide:width pixelsHigh:height bitsPerSample:bitsPerSample samplesPerPixel:samplesPerPixel hasAlpha:hasAlpha isPlanar:isPlanar colorSpaceName:colorSpaceName bitmapFormat:0 bytesPerRow:bytesPerRow bitsPerPixel:bitsPerPixel];
 }
 
@@ -402,21 +402,21 @@ NSString* NSImageCompressionFactor = @"NSImageCompressionFactor";
 }
 
 
--(int)incrementalLoadFromData:(NSData *)data complete:(BOOL)complete {
+-(NSInteger)incrementalLoadFromData:(NSData *)data complete:(BOOL)complete {
    NSUnimplementedMethod();
    return 0;
 }
 
 
--(int)bitsPerPixel {
+-(NSInteger)bitsPerPixel {
    return _bitsPerPixel;
 }
 
--(int)samplesPerPixel {
+-(NSInteger)samplesPerPixel {
    return _samplesPerPixel;
 }
 
--(int)bytesPerRow {
+-(NSInteger)bytesPerRow {
    return _bytesPerRow;
 }
 
@@ -424,11 +424,11 @@ NSString* NSImageCompressionFactor = @"NSImageCompressionFactor";
    return _isPlanar;
 }
 
--(int)numberOfPlanes {
+-(NSInteger)numberOfPlanes {
    return _isPlanar?_samplesPerPixel:1;
 }
 
--(int)bytesPerPlane {
+-(NSInteger)bytesPerPlane {
    return _bytesPerPlane;
 }
 
@@ -494,7 +494,7 @@ NSString* NSImageCompressionFactor = @"NSImageCompressionFactor";
 
    NSInteger i,numberOfComponents=[color numberOfComponents];
    CGFloat   components[numberOfComponents];
-   unsigned  pixels[numberOfComponents];
+   NSUInteger pixels[numberOfComponents];
 
     // Extract the RGBA components
    [color getComponents:components];
@@ -551,15 +551,15 @@ NSString* NSImageCompressionFactor = @"NSImageCompressionFactor";
    [_properties setObject:value forKey:property];
 }
 
--(void)colorizeByMappingGray:(float)gray toColor:(NSColor *)color blackMapping:(NSColor *)blackMapping whiteMapping:(NSColor *)whiteMapping {
+-(void)colorizeByMappingGray:(CGFloat)gray toColor:(NSColor *)color blackMapping:(NSColor *)blackMapping whiteMapping:(NSColor *)whiteMapping {
    NSUnimplementedMethod();
 }
 
--(void)getCompression:(NSTIFFCompression *)compression factor:(float *)factor {
+-(void)getCompression:(NSTIFFCompression *)compression factor:(CGFloat *)factor {
    NSUnimplementedMethod();
 }
 
--(void)setCompression:(NSTIFFCompression)compression factor:(float)factor {
+-(void)setCompression:(NSTIFFCompression)compression factor:(CGFloat)factor {
    NSUnimplementedMethod();
 }
 
@@ -634,7 +634,7 @@ NSString* NSImageCompressionFactor = @"NSImageCompressionFactor";
    return [self TIFFRepresentationUsingCompression:NSTIFFCompressionNone factor:0.0];
 }
 
--(NSData *)TIFFRepresentationUsingCompression:(NSTIFFCompression)compression factor:(float)factor {
+-(NSData *)TIFFRepresentationUsingCompression:(NSTIFFCompression)compression factor:(CGFloat)factor {
    return [[self class] TIFFRepresentationOfImageRepsInArray:[NSArray arrayWithObject:self]
                                             usingCompression:compression
                                                       factor:factor];

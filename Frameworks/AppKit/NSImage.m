@@ -629,7 +629,7 @@ NSImage *_NSStandardImageNamed(NSString *name);
    return [self TIFFRepresentationUsingCompression:NSTIFFCompressionNone factor:0.0];
 }
 
--(NSData *)TIFFRepresentationUsingCompression:(NSTIFFCompression)compression factor:(float)factor {
+-(NSData *)TIFFRepresentationUsingCompression:(NSTIFFCompression)compression factor:(CGFloat)factor {
    NSMutableArray *bitmaps=[NSMutableArray array];
 
         for(NSImageRep *check in _representations){
@@ -751,7 +751,7 @@ NSImage *_NSStandardImageNamed(NSString *name);
    [self compositeToPoint:point fromRect:rect operation:operation fraction:1.0];
 }
 
--(void)compositeToPoint:(NSPoint)point fromRect:(NSRect)source operation:(NSCompositingOperation)operation fraction:(float)fraction {
+-(void)compositeToPoint:(NSPoint)point fromRect:(NSRect)source operation:(NSCompositingOperation)operation fraction:(CGFloat)fraction {
    /* Compositing is a blitting operation. We simulate it using the draw operation.
 
       Compositing does not honor all aspects of the CTM, e.g. it will keep an image upright regardless of the orientation of CTM.
@@ -778,19 +778,19 @@ NSImage *_NSStandardImageNamed(NSString *name);
    [self compositeToPoint:point operation:operation fraction:1.0];
 }
 
--(void)compositeToPoint:(NSPoint)point operation:(NSCompositingOperation)operation fraction:(float)fraction {
+-(void)compositeToPoint:(NSPoint)point operation:(NSCompositingOperation)operation fraction:(CGFloat)fraction {
    [self compositeToPoint:point fromRect:NSZeroRect operation:operation fraction:1.0];
 }
 
--(void)dissolveToPoint:(NSPoint)point fraction:(float)fraction {
+-(void)dissolveToPoint:(NSPoint)point fraction:(CGFloat)fraction {
    NSUnimplementedMethod();
 }
 
--(void)dissolveToPoint:(NSPoint)point fromRect:(NSRect)rect fraction:(float)fraction {
+-(void)dissolveToPoint:(NSPoint)point fromRect:(NSRect)rect fraction:(CGFloat)fraction {
    NSUnimplementedMethod();
 }
 
--(void)drawAtPoint:(NSPoint)point fromRect:(NSRect)source operation:(NSCompositingOperation)operation fraction:(float)fraction {
+-(void)drawAtPoint:(NSPoint)point fromRect:(NSRect)source operation:(NSCompositingOperation)operation fraction:(CGFloat)fraction {
    NSSize size=[self size];
 
    [self drawInRect:NSMakeRect(point.x,point.y,size.width,size.height) fromRect:source operation:operation fraction:fraction];
@@ -817,7 +817,7 @@ NSImage *_NSStandardImageNamed(NSString *name);
    [self drawInRect:rect fromRect:NSZeroRect operation:NSCompositeSourceOver fraction:1 respectFlipped:YES hints:nil];
 }
 
--(void)drawInRect:(NSRect)rect fromRect:(NSRect)source operation:(NSCompositingOperation)operation fraction:(float)fraction {
+-(void)drawInRect:(NSRect)rect fromRect:(NSRect)source operation:(NSCompositingOperation)operation fraction:(CGFloat)fraction {
 
         // Keep a lid on any intermediate allocations while producing caches
         NSAutoreleasePool *pool=[NSAutoreleasePool new];

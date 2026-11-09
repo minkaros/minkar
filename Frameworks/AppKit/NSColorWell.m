@@ -325,15 +325,15 @@ NSString *_NSColorWellDidBecomeExclusiveNotification=@"_NSColorWellDidBecomeExcl
         [NSColorPanel dragColor:_color withEvent:event fromView:self];
 }
 
--(unsigned)draggingSourceOperationMaskForLocal:(BOOL)isLocal {
+-(NSDragOperation)draggingSourceOperationMaskForLocal:(BOOL)isLocal {
    return NSDragOperationCopy;
 }
 
--(unsigned)draggingEntered:(id <NSDraggingInfo>)sender {
+-(NSDragOperation)draggingEntered:(id <NSDraggingInfo>)sender {
    return NSDragOperationCopy;
 }
 
--(unsigned)draggingUpdated:(id <NSDraggingInfo>)sender {
+-(NSDragOperation)draggingUpdated:(id <NSDraggingInfo>)sender {
    return NSDragOperationCopy;
 }
 

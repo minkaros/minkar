@@ -295,11 +295,11 @@ static const float kImageMargin = 2.;
    return [[[NSAttributedString alloc] initWithString:[self alternateTitle] attributes:attributes] autorelease];
 }
 
--(int)highlightsBy {
+-(NSInteger)highlightsBy {
    return _highlightsBy;
 }
 
--(int)showsStateBy {
+-(NSInteger)showsStateBy {
    return _showsStateBy;
 }
 
@@ -307,7 +307,7 @@ static const float kImageMargin = 2.;
    return _imageDimsWhenDisabled;
 }
 
--(unsigned)keyEquivalentModifierMask {
+-(NSEventModifierFlags)keyEquivalentModifierMask {
    return _keyEquivalentModifierMask;
 }
 
@@ -406,11 +406,11 @@ static const float kImageMargin = 2.;
    NSUnimplementedMethod();
 }
 
--(void)setHighlightsBy:(int)type {
+-(void)setHighlightsBy:(NSInteger)type {
    _highlightsBy=type;
 }
 
--(void)setShowsStateBy:(int)type {
+-(void)setShowsStateBy:(NSInteger)type {
    _showsStateBy=type;
 }
 
@@ -418,7 +418,7 @@ static const float kImageMargin = 2.;
    _imageDimsWhenDisabled=flag;
 }
 
--(void)setKeyEquivalentModifierMask:(unsigned)mask {
+-(void)setKeyEquivalentModifierMask:(NSEventModifierFlags)mask {
    _keyEquivalentModifierMask=mask;
 }
 

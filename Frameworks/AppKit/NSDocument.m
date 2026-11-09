@@ -1269,12 +1269,12 @@ forSaveOperation:(NSSaveOperationType)operation
    return NO;
 }
 
--(int)runModalSavePanel:(NSSavePanel *)savePanel withAccessoryView:(NSView *)accessoryView {
+-(NSInteger)runModalSavePanel:(NSSavePanel *)savePanel withAccessoryView:(NSView *)accessoryView {
    NSUnimplementedMethod();
    return 0;
 }
 
--(int)runModalPageLayoutWithPrintInfo:(NSPrintInfo *)printInfo {
+-(NSInteger)runModalPageLayoutWithPrintInfo:(NSPrintInfo *)printInfo {
    return [[NSPageLayout pageLayout] runModalWithPrintInfo:printInfo];
 }
 
@@ -1346,7 +1346,7 @@ forSaveOperation:(NSSaveOperationType)operation
    return YES;
 }
 
--(void)_setUntitledNumber:(int)number {
+-(void)_setUntitledNumber:(NSInteger)number {
    _untitledNumber=number;
 }
 
@@ -1408,7 +1408,7 @@ forSaveOperation:(NSSaveOperationType)operation
 }
 
 -(void)didEndShouldCloseSheet:(NSWindow *)sheet
-        returnCode:(int)returnCode
+        returnCode:(NSInteger)returnCode
         contextInfo:(void *)contextInfo {
    NSWindow *window=(NSWindow *)contextInfo;
 

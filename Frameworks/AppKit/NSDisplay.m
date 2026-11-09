@@ -285,7 +285,7 @@ static NSRect screenFrame(CGDirectDisplayID display, CGFloat mainHeight, NSRect 
    return result;
 }
 
--(unsigned)modifierForDefault:(NSString *)key:(unsigned)standard {
+-(NSEventModifierFlags)modifierForDefault:(NSString *)key:(NSUInteger)standard {
    NSDictionary *modmap=[[NSUserDefaults standardUserDefaults] dictionaryForKey:@"NSModifierFlagMapping"];
    NSString     *remap=[modmap objectForKey:key];
 
@@ -384,21 +384,21 @@ static NSRect screenFrame(CGDirectDisplayID display, CGFloat mainHeight, NSRect 
    return ret;
 }
 
--(float)scrollerWidth {
+-(CGFloat)scrollerWidth {
    return 15.0;
 }
 
--(float)doubleClickInterval {
+-(CGFloat)doubleClickInterval {
    return 1.0;
 }
 
 
--(int)runModalPageLayoutWithPrintInfo:(NSPrintInfo *)printInfo {
+-(NSInteger)runModalPageLayoutWithPrintInfo:(NSPrintInfo *)printInfo {
    NSUnimplementedMethod();
 	return 0;
 }
 
--(int)runModalPrintPanelWithPrintInfoDictionary:(NSMutableDictionary *)attributes {
+-(NSInteger)runModalPrintPanelWithPrintInfoDictionary:(NSMutableDictionary *)attributes {
    NSUnimplementedMethod();
    return 0;
 }
@@ -408,12 +408,12 @@ static NSRect screenFrame(CGDirectDisplayID display, CGFloat mainHeight, NSRect 
    return nil;
 }
 
--(int)savePanel:(NSSavePanel *)savePanel runModalForDirectory:(NSString *)directory file:(NSString *)file {
+-(NSInteger)savePanel:(NSSavePanel *)savePanel runModalForDirectory:(NSString *)directory file:(NSString *)file {
    NSUnimplementedMethod();
    return 0;
 }
 
--(int)openPanel:(NSOpenPanel *)openPanel runModalForDirectory:(NSString *)directory file:(NSString *)file types:(NSArray *)types {
+-(NSInteger)openPanel:(NSOpenPanel *)openPanel runModalForDirectory:(NSString *)directory file:(NSString *)file types:(NSArray *)types {
    NSUnimplementedMethod();
    return 0;
 }

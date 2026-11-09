@@ -36,26 +36,26 @@ APPKIT_EXPORT NSString *const NSOutlineViewSelectionIsChangingNotification;
     NSButtonCell *_markerCell;
     NSSize _markerSize;
     id _clickedItem;
-    float _widestColumnWidth;
+    CGFloat _widestColumnWidth;
 
-    float _indentationPerLevel;
+    CGFloat _indentationPerLevel;
     BOOL _indentationMarkerFollowsCell;
     BOOL _autoresizesOutlineColumn;
     BOOL _autosaveExpandedItems;
-    float _editingCellPadding;
+    CGFloat _editingCellPadding;
 }
 
 - (NSTableColumn *)outlineTableColumn;
 
-- itemAtRow:(int)row;
-- (int)rowForItem:item;
+- itemAtRow:(NSInteger)row;
+- (NSInteger)rowForItem:item;
 - parentForItem:item;
 
 - (BOOL)isExpandable:item;
-- (int)levelForItem:item;
-- (int)levelForRow:(int)row;
+- (NSInteger)levelForItem:item;
+- (NSInteger)levelForRow:(int)row;
 - (BOOL)isItemExpanded:item;
-- (float)indentationPerLevel;
+- (CGFloat)indentationPerLevel;
 
 - (BOOL)autoresizesOutlineColumn;
 - (BOOL)indentationMarkerFollowsCell;
@@ -63,7 +63,7 @@ APPKIT_EXPORT NSString *const NSOutlineViewSelectionIsChangingNotification;
 
 - (void)setOutlineTableColumn:(NSTableColumn *)tableColumn;
 
-- (void)setIndentationPerLevel:(float)value;
+- (void)setIndentationPerLevel:(CGFloat)value;
 - (void)setAutoresizesOutlineColumn:(BOOL)flag;
 - (void)setIndentationMarkerFollowsCell:(BOOL)flag;
 - (void)setAutosaveExpandedItems:(BOOL)flag;
@@ -75,7 +75,7 @@ APPKIT_EXPORT NSString *const NSOutlineViewSelectionIsChangingNotification;
 - (void)reloadItem:item reloadChildren:(BOOL)reloadChildren;
 - (void)reloadItem:item;
 
-- (void)setDropItem:item dropChildIndex:(int)index;
+- (void)setDropItem:item dropChildIndex:(NSInteger)index;
 - (BOOL)shouldCollapseAutoExpandedItemsForDeposited:(BOOL)collapse;
 
 - (NSRect)frameOfOutlineCellAtRow:(NSInteger)row;
@@ -83,9 +83,9 @@ APPKIT_EXPORT NSString *const NSOutlineViewSelectionIsChangingNotification;
 @end
 
 @interface NSObject (NSOutlineView_dataSource)
-- (int)outlineView:(NSOutlineView *)outlineView numberOfChildrenOfItem:item;
+- (NSInteger)outlineView:(NSOutlineView *)outlineView numberOfChildrenOfItem:item;
 - (BOOL)outlineView:(NSOutlineView *)outlineView isItemExpandable:item;
-- outlineView:(NSOutlineView *)outlineView child:(int)index ofItem:item;
+- outlineView:(NSOutlineView *)outlineView child:(NSInteger)index ofItem:item;
 - outlineView:(NSOutlineView *)outlineView objectValueForTableColumn:(NSTableColumn *)tableColumn byItem:item;
 - (void)outlineView:(NSOutlineView *)outlineView setObjectValue:object forTableColumn:(NSTableColumn *)tableColumn byItem:item;
 @end
@@ -113,5 +113,5 @@ APPKIT_EXPORT NSString *const NSOutlineViewSelectionIsChangingNotification;
 @end
 
 @interface NSObject (NSOutlineView_cellSizing)
-- (float)outlineView:(NSOutlineView *)outlineView widthOfCell:cell forTableColumn:(NSTableColumn *)tableColumn byItem:item;
+- (CGFloat)outlineView:(NSOutlineView *)outlineView widthOfCell:cell forTableColumn:(NSTableColumn *)tableColumn byItem:item;
 @end

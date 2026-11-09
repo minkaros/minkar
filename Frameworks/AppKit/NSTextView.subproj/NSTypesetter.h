@@ -21,7 +21,7 @@ typedef enum {
 @interface NSTypesetter : NSObject <NSGlyphStorage> {
     NSTypesetterBehavior _behavior;
     float _hyphenationFactor;
-    float _lineFragmentPadding;
+    CGFloat _lineFragmentPadding;
     BOOL _usesFontLeading;
     BOOL _bidiProcessingEnabled;
 
@@ -36,7 +36,7 @@ typedef enum {
 
 + (NSTypesetterBehavior)defaultTypesetterBehavior;
 
-+ (NSSize)printingAdjustmentInLayoutManager:(NSLayoutManager *)layoutManager forNominallySpacedGlyphRange:(NSRange)glyphRange packedGlyphs:(const unsigned char *)packedGlyphs count:(unsigned)count;
++ (NSSize)printingAdjustmentInLayoutManager:(NSLayoutManager *)layoutManager forNominallySpacedGlyphRange:(NSRange)glyphRange packedGlyphs:(const unsigned char *)packedGlyphs count:(NSUInteger)count;
 
 + sharedSystemTypesetterForBehavior:(NSTypesetterBehavior)behavior;
 
@@ -44,13 +44,13 @@ typedef enum {
 
 - (NSTypesetterBehavior)typesetterBehavior;
 - (float)hyphenationFactor;
-- (float)lineFragmentPadding;
+- (CGFloat)lineFragmentPadding;
 - (BOOL)usesFontLeading;
 - (BOOL)bidiProcessingEnabled;
 
 - (void)setTypesetterBehavior:(NSTypesetterBehavior)behavior;
 - (void)setHyphenationFactor:(float)factor;
-- (void)setLineFragmentPadding:(float)padding;
+- (void)setLineFragmentPadding:(CGFloat)padding;
 - (void)setUsesFontLeading:(BOOL)flag;
 - (void)setBidiProcessingEnabled:(BOOL)flag;
 
@@ -58,11 +58,11 @@ typedef enum {
 
 - (NSRange)characterRangeForGlyphRange:(NSRange)glyphRange actualGlyphRange:(NSRange *)actualGlyphRange;
 - (NSRange)glyphRangeForCharacterRange:(NSRange)characterRange actualCharacterRange:(NSRange *)actualCharacterRange;
-- (unsigned)getGlyphsInRange:(NSRange)glyphRange glyphs:(NSGlyph *)glyphs characterIndexes:(unsigned *)characterIndexes glyphInscriptions:(NSGlyphInscription *)glyphInscriptions elasticBits:(BOOL *)elasticBits bidiLevels:(unsigned char *)bidiLevels;
-- (void)getLineFragmentRect:(NSRect *)fragmentRect usedRect:(NSRect *)usedRect remainingRect:(NSRect *)remainingRect forStartingGlyphAtIndex:(unsigned)startingGlyphIndex proposedRect:(NSRect)proposedRect lineSpacing:(float)lineSpacing paragraphSpacingBefore:(float)paragraphSpacingBefore paragraphSpacingAfter:(float)paragraphSpacingAfter;
-- (void)setLineFragmentRect:(NSRect)fragmentRect forGlyphRange:(NSRange)glyphRange usedRect:(NSRect)usedRect baselineOffset:(float)baselineOffset;
+- (NSUInteger)getGlyphsInRange:(NSRange)glyphRange glyphs:(NSGlyph *)glyphs characterIndexes:(NSUInteger *)characterIndexes glyphInscriptions:(NSGlyphInscription *)glyphInscriptions elasticBits:(BOOL *)elasticBits bidiLevels:(unsigned char *)bidiLevels;
+- (void)getLineFragmentRect:(NSRect *)fragmentRect usedRect:(NSRect *)usedRect remainingRect:(NSRect *)remainingRect forStartingGlyphAtIndex:(NSUInteger)startingGlyphIndex proposedRect:(NSRect)proposedRect lineSpacing:(CGFloat)lineSpacing paragraphSpacingBefore:(CGFloat)paragraphSpacingBefore paragraphSpacingAfter:(CGFloat)paragraphSpacingAfter;
+- (void)setLineFragmentRect:(NSRect)fragmentRect forGlyphRange:(NSRange)glyphRange usedRect:(NSRect)usedRect baselineOffset:(CGFloat)baselineOffset;
 - (void)substituteGlyphsInRange:(NSRange)glyphRange withGlyphs:(NSGlyph *)glyphs;
-- (void)insertGlyph:(NSGlyph)glyph atGlyphIndex:(unsigned)glyphIndex characterIndex:(unsigned)characterIndex;
+- (void)insertGlyph:(NSGlyph)glyph atGlyphIndex:(NSUInteger)glyphIndex characterIndex:(NSUInteger)characterIndex;
 
 - (void)deleteGlyphsInRange:(NSRange)glyphRange;
 - (void)setNotShownAttribute:(BOOL)flag forGlyphRange:(NSRange)range;
@@ -74,16 +74,16 @@ typedef enum {
 
 // layout
 
-- (void)willSetLineFragmentRect:(NSRect *)fragmentRect forGlyphRange:(NSRange)glyphRange usedRect:(NSRect *)usedRect baselineOffset:(float *)baselineOffset;
-- (BOOL)shouldBreakLineByHyphenatingBeforeCharacterAtIndex:(unsigned)characterIndex;
+- (void)willSetLineFragmentRect:(NSRect *)fragmentRect forGlyphRange:(NSRange)glyphRange usedRect:(NSRect *)usedRect baselineOffset:(CGFloat *)baselineOffset;
+- (BOOL)shouldBreakLineByHyphenatingBeforeCharacterAtIndex:(NSUInteger)characterIndex;
 
-- (BOOL)shouldBreakLineByWordBeforeCharacterAtIndex:(unsigned)characterIndex;
+- (BOOL)shouldBreakLineByWordBeforeCharacterAtIndex:(NSUInteger)characterIndex;
 
 - (float)hyphenationFactorForGlyphAtIndex:(unsigned)glyphIndex;
 
-- (unichar)hyphenCharacterForGlyphAtIndex:(unsigned)glyphIndex;
+- (unichar)hyphenCharacterForGlyphAtIndex:(NSUInteger)glyphIndex;
 
-- (NSRect)boundingBoxForControlGlyphAtIndex:(unsigned)glyphIndex forTextContainer:(NSTextContainer *)textContainer proposedLineFragment:(NSRect)proposedRect glyphPosition:(NSPoint)glyphPosition characterIndex:(unsigned)characterIndex;
+- (NSRect)boundingBoxForControlGlyphAtIndex:(NSUInteger)glyphIndex forTextContainer:(NSTextContainer *)textContainer proposedLineFragment:(NSRect)proposedRect glyphPosition:(NSPoint)glyphPosition characterIndex:(NSUInteger)characterIndex;
 //--
 
 - (NSAttributedString *)attributedString;
@@ -99,30 +99,30 @@ typedef enum {
 - (NSRange)paragraphGlyphRange;
 - (NSRange)paragraphSeparatorCharacterRange;
 - (NSRange)paragraphSeparatorGlyphRange;
-- (NSTypesetterControlCharacterAction)actionForControlCharacterAtIndex:(unsigned)characterIndex;
+- (NSTypesetterControlCharacterAction)actionForControlCharacterAtIndex:(NSUInteger)characterIndex;
 - (NSFont *)substituteFontForFont:(NSFont *)font;
 
 - (void)setAttributedString:(NSAttributedString *)text;
 - (void)setHardInvalidation:(BOOL)invalidate forGlyphRange:(NSRange)glyphRange;
 - (void)setParagraphGlyphRange:(NSRange)glyphRange separatorGlyphRange:(NSRange)separatorGlyphRange;
 
-- (void)beginLineWithGlyphAtIndex:(unsigned)glyphIndex;
+- (void)beginLineWithGlyphAtIndex:(NSUInteger)glyphIndex;
 - (void)endLineWithGlyphRange:(NSRange)glyphRange;
 
 - (void)beginParagraph;
 - (void)endParagraph;
 
-- (float)baselineOffsetInLayoutManager:(NSLayoutManager *)layoutManager glyphIndex:(unsigned)glyphIndex;
-- (NSTextTab *)textTabForGlyphLocation:(float)location writingDirection:(NSWritingDirection)direction maxLocation:(float)maxLocation;
+- (CGFloat)baselineOffsetInLayoutManager:(NSLayoutManager *)layoutManager glyphIndex:(NSUInteger)glyphIndex;
+- (NSTextTab *)textTabForGlyphLocation:(CGFloat)location writingDirection:(NSWritingDirection)direction maxLocation:(CGFloat)maxLocation;
 
 - (void)getLineFragmentRect:(NSRect *)fragmentRect usedRect:(NSRect *)usedRect forParagraphSeparatorGlyphRange:(NSRange)glyphRange atProposedOrigin:(NSPoint)proposedOrigin;
 
-- (float)lineSpacingAfterGlyphAtIndex:(unsigned)glyphIndex withProposedLineFragmentRect:(NSRect)rect;
-- (float)paragraphSpacingAfterGlyphAtIndex:(unsigned)glyphIndex withProposedLineFragmentRect:(NSRect)rect;
-- (float)paragraphSpacingBeforeGlyphAtIndex:(unsigned)glyphIndex withProposedLineFragmentRect:(NSRect)rect;
+- (CGFloat)lineSpacingAfterGlyphAtIndex:(unsigned)glyphIndex withProposedLineFragmentRect:(NSRect)rect;
+- (CGFloat)paragraphSpacingAfterGlyphAtIndex:(unsigned)glyphIndex withProposedLineFragmentRect:(NSRect)rect;
+- (CGFloat)paragraphSpacingBeforeGlyphAtIndex:(unsigned)glyphIndex withProposedLineFragmentRect:(NSRect)rect;
 
-- (unsigned)layoutParagraphAtPoint:(NSPoint *)point;
+- (NSUInteger)layoutParagraphAtPoint:(NSPoint *)point;
 
-- (void)layoutGlyphsInLayoutManager:(NSLayoutManager *)layoutManager startingAtGlyphIndex:(unsigned)startGlyphIndex maxNumberOfLineFragments:(unsigned)maxFragments nextGlyphIndex:(unsigned *)nextGlyph;
+- (void)layoutGlyphsInLayoutManager:(NSLayoutManager *)layoutManager startingAtGlyphIndex:(NSUInteger)startGlyphIndex maxNumberOfLineFragments:(NSUInteger)maxFragments nextGlyphIndex:(NSUInteger *)nextGlyph;
 
 @end

@@ -63,7 +63,7 @@ enum {
 - (NSFontAction)currentFontAction;
 
 - (NSArray *)collectionNames;
-- (BOOL)addCollection:(NSString *)name options:(int)options;
+- (BOOL)addCollection:(NSString *)name options:(NSInteger)options;
 - (void)addFontDescriptors:(NSArray *)descriptors toCollection:(NSString *)name;
 - (BOOL)removeCollection:(NSString *)name;
 
@@ -76,8 +76,8 @@ enum {
 - (NSArray *)availableFontNamesWithTraits:(NSFontTraitMask)traits;
 
 - (BOOL)fontNamed:(NSString *)name hasTraits:(NSFontTraitMask)traits;
-- (NSFont *)fontWithFamily:(NSString *)family traits:(NSFontTraitMask)traits weight:(int)weight size:(float)size;
-- (int)weightOfFont:(NSFont *)font;
+- (NSFont *)fontWithFamily:(NSString *)family traits:(NSFontTraitMask)traits weight:(NSInteger)weight size:(CGFloat)size;
+- (NSInteger)weightOfFont:(NSFont *)font;
 - (NSFontTraitMask)traitsOfFont:(NSFont *)font;
 
 - (NSString *)localizedNameForFamily:(NSString *)family face:(NSString *)face;
@@ -93,7 +93,7 @@ enum {
 - (void)setSelectedFont:(NSFont *)font isMultiple:(BOOL)isMultiple;
 
 - (NSFont *)convertFont:(NSFont *)font;
-- (NSFont *)convertFont:(NSFont *)font toSize:(float)size;
+- (NSFont *)convertFont:(NSFont *)font toSize:(CGFloat)size;
 - (NSFont *)convertFont:(NSFont *)font toHaveTrait:(NSFontTraitMask)trait;
 - (NSFont *)convertFont:(NSFont *)font toNotHaveTrait:(NSFontTraitMask)trait;
 
