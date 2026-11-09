@@ -80,6 +80,7 @@
 #include <CoreFoundation/CFPropertyList.h>
 #include <CoreFoundation/CFSet.h>
 #include <CoreFoundation/CFString.h>
+#include <CoreFoundation/CFAttributedString.h>
 #include <CoreFoundation/CFStringEncodingExt.h>
 #include <CoreFoundation/CFTimeZone.h>
 #include <CoreFoundation/CFTree.h>
