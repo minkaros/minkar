@@ -195,3 +195,15 @@ static inline CGSize NSSizeToCGSize(NSSize size) {
 static inline CGPoint NSPointToCGPoint(NSPoint point) {
     return point;
 }
+
+static inline NSRect NSRectFromCGRect(CGRect rect) {
+    return rect;
+}
+
+static inline NSSize NSSizeFromCGSize(CGSize size) {
+    return size;
+}
+
+static inline NSPoint NSPointFromCGPoint(CGPoint point) {
+    return point;
+}
