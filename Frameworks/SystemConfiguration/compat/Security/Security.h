@@ -28,9 +28,10 @@
 
 /*
  * The Security.framework types SystemConfiguration and configd name.
- * Minkar has no Security.framework yet: SystemConfiguration reaches its
- * functions through dlopen (dy_framework.c), which fails cleanly, so only
- * the types and the few prototypes they use are declared here.
+ * SystemConfiguration reaches Security.framework's functions through dlopen
+ * (dy_framework.c), which answers cleanly for those Minkar's Security
+ * subset does not have, so only the types and the few prototypes they use
+ * are declared here.
  */
 
 #ifndef _MINKAR_COMPAT_SECURITY_H
