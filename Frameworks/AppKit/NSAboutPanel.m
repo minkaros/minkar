@@ -33,9 +33,11 @@ NSAboutPanelOptionKey const NSAboutPanelOptionApplicationIcon=@"ApplicationIcon"
 NSAboutPanelOptionKey const NSAboutPanelOptionVersion=@"Version";
 NSAboutPanelOptionKey const NSAboutPanelOptionApplicationVersion=@"ApplicationVersion";
 
-#define WIDTH 300
-#define ICON 96
-#define MARGIN 20
+/* The reference platform's measures: 285 points wide, a 64-point icon,
+   the name in bold 13. */
+#define WIDTH 285
+#define ICON 64
+#define MARGIN 16
 #define CREDITS_HEIGHT 120
 
 static NSString *localized(NSString *string) {
@@ -145,7 +147,7 @@ static NSTextField *label(NSString *string,NSFont *font,NSColor *color) {
     credits=bundleCredits();
 
    /* The rows, top to bottom. */
-   [rows addObject:label(name,[NSFont boldSystemFontOfSize:15],[NSColor labelColor])];
+   [rows addObject:label(name,[NSFont boldSystemFontOfSize:13],[NSColor labelColor])];
    [rows addObject:label([NSAboutPanel versionStringWithApplicationVersion:applicationVersion version:version],
       [NSFont systemFontOfSize:11],[NSColor secondaryLabelColor])];
    if([credits length]>0){
@@ -163,7 +165,7 @@ static NSTextField *label(NSString *string,NSFont *font,NSColor *color) {
    if([copyright length]>0)
     [rows addObject:label(copyright,[NSFont systemFontOfSize:10],[NSColor secondaryLabelColor])];
 
-   height=MARGIN+ICON+12;
+   height=MARGIN+ICON+8;
    for(NSView *row in rows)
     height+=NSHeight([row frame])+6;
    height+=MARGIN-6;
@@ -182,7 +184,7 @@ static NSTextField *label(NSString *string,NSFont *font,NSColor *color) {
    [iconView setImageScaling:NSImageScaleProportionallyUpOrDown];
    [iconView setImage:icon];
    [content addSubview:iconView];
-   y-=12;
+   y-=8;
 
    for(NSView *row in rows){
     NSRect frame=[row frame];
