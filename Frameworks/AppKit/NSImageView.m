@@ -126,4 +126,13 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    return result;
 }
 
+/* An image that cannot be edited passes the click on. */
+-(void)mouseDown:(NSEvent *)event {
+   if(![self isEditable]){
+    [[self nextResponder] mouseDown:event];
+    return;
+   }
+   [super mouseDown:event];
+}
+
 @end

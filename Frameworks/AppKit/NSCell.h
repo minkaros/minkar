@@ -71,6 +71,8 @@ typedef enum {
 typedef NSUInteger NSControlTint;
 
 enum {
+    NSBackgroundStyleNormal = 0,
+    NSBackgroundStyleEmphasized = 1,
     NSBackgroundStyleLight = 0,
     NSBackgroundStyleDark = 1,
     NSBackgroundStyleRaised = 2,

@@ -255,6 +255,11 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 -(void)mouseDown:(NSEvent *)event {
    NSTextFieldCell *cell=[self selectedCell];
 
+   /* A label passes the click on (a table selects the row under it). */
+   if(![self isEditable] && ![self isSelectable]){
+    [[self nextResponder] mouseDown:event];
+    return;
+   }
    if(![cell isEnabled])
     return;
 

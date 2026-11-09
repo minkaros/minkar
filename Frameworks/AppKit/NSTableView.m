@@ -176,6 +176,9 @@ const float NSTableViewDefaultRowHeight=16.0f;
    [_selectedRowIndexes release];
    [_selectedColumns release];
    [_sortDescriptors release];
+   [_rowViews release];
+   [_reusableViews release];
+   [_registeredNibs release];
    [super dealloc];
 }
 
@@ -803,6 +806,7 @@ _dataSource);
     [_headerView setNeedsDisplay:YES];
    }
 
+    [self _updateRowViewSelection];
     [self noteSelectionDidChange];
 }
 
@@ -1074,7 +1078,9 @@ _dataSource);
 }
 
 -(void)reloadData {
+    [self _removeAllRowViews];
     [self noteNumberOfRowsChanged];
+    [self _updateRowViews];
     [self setNeedsDisplay:YES];
     [_headerView setNeedsDisplay:YES];
 }
@@ -1128,13 +1134,19 @@ _dataSource);
 }
 
 -(BOOL)becomeFirstResponder {
+    BOOL result=[super becomeFirstResponder];
+
     [self setNeedsDisplay:YES];
-    return [super becomeFirstResponder];
+    [self _updateRowViewSelection];
+    return result;
 }
 
 -(BOOL)resignFirstResponder {
+    BOOL result=[super resignFirstResponder];
+
     [self setNeedsDisplay:YES];
-    return [super resignFirstResponder];
+    [self _updateRowViewSelection];
+    return result;
 }
 
 -(void)drawHighlightedSelectionForColumn:(NSInteger)column row:(NSInteger)row inRect:(NSRect)rect
@@ -1145,6 +1157,10 @@ _dataSource);
 
 -(void)highlightSelectionInClipRect:(NSRect)rect {
     NSInteger row, column;
+
+    /* A view-based table's row views draw their selection. */
+    if([self _isViewBased])
+        return;
     NSInteger numberOfRows=[self numberOfRows];
 
     for (column = 0; column < [_tableColumns count]; ++column)
@@ -1184,6 +1200,8 @@ _dataSource);
 }
 
 - (void)drawRow:(NSInteger)row clipRect:(NSRect)clipRect {
+   if([self _isViewBased])
+    return;
     // draw only visible columns.
     NSRange visibleColumns = [self columnsInRect:clipRect];
     int drawThisColumn = visibleColumns.location;
@@ -1887,6 +1905,391 @@ _dataSource);
 
 -(void)moveDownAndModifySelection:sender {
    [self _moveUp:NO extend:YES];
+}
+
+
+#pragma mark View-based tables
+
+NSString *const NSTableViewRowViewKey=@"NSTableRowViewKey";
+
+-(BOOL)_isViewBased {
+   return [_delegate respondsToSelector:@selector(tableView:viewForTableColumn:row:)];
+}
+
+/* A cell view for a column's identifier from the reusable ones, or a nib
+   registered for it, or nil. */
+-(id)makeViewWithIdentifier:(NSString *)identifier owner:(id)owner {
+   NSMutableArray *pool;
+   NSNib          *nib;
+   NSArray        *objects=nil;
+
+   if(identifier==nil)
+    return nil;
+   pool=[_reusableViews objectForKey:identifier];
+   if([pool count]>0){
+    NSView *view=[[[pool lastObject] retain] autorelease];
+
+    [pool removeLastObject];
+    if([view respondsToSelector:@selector(prepareForReuse)])
+     [(id)view prepareForReuse];
+    return view;
+   }
+   nib=[_registeredNibs objectForKey:identifier];
+   if(nib!=nil && [nib instantiateWithOwner:owner topLevelObjects:&objects]){
+    for(id object in objects)
+     if([object isKindOfClass:[NSView class]]){
+      if([object identifier]==nil)
+       [object setIdentifier:identifier];
+      return object;
+     }
+   }
+   return nil;
+}
+
+-(void)registerNib:(NSNib *)nib forIdentifier:(NSString *)identifier {
+   if(identifier==nil)
+    return;
+   if(_registeredNibs==nil)
+    _registeredNibs=[[NSMutableDictionary alloc] init];
+   if(nib==nil)
+    [_registeredNibs removeObjectForKey:identifier];
+   else
+    [_registeredNibs setObject:nib forKey:identifier];
+}
+
+-(NSDictionary *)registeredNibsByIdentifier {
+   return [[_registeredNibs copy] autorelease];
+}
+
+/* A cell view that scrolls out waits for makeViewWithIdentifier:. */
+-(void)_recycleView:(NSView *)view {
+   NSString       *identifier=[view identifier];
+   NSMutableArray *pool;
+
+   [view removeFromSuperview];
+   if(identifier==nil)
+    return;
+   if(_reusableViews==nil)
+    _reusableViews=[[NSMutableDictionary alloc] init];
+   pool=[_reusableViews objectForKey:identifier];
+   if(pool==nil){
+    pool=[NSMutableArray array];
+    [_reusableViews setObject:pool forKey:identifier];
+   }
+   [pool addObject:view];
+}
+
+-(void)_removeRowViewForRow:(NSInteger)row {
+   NSNumber       *key=[NSNumber numberWithInteger:row];
+   NSTableRowView *rowView=[[[_rowViews objectForKey:key] retain] autorelease];
+
+   if(rowView==nil)
+    return;
+   [_rowViews removeObjectForKey:key];
+   for(NSView *view in [[[rowView subviews] copy] autorelease])
+    [self _recycleView:view];
+   [rowView removeFromSuperview];
+   if([_delegate respondsToSelector:@selector(tableView:didRemoveRowView:forRow:)])
+    [_delegate tableView:self didRemoveRowView:rowView forRow:row];
+}
+
+-(void)_removeAllRowViews {
+   for(NSNumber *key in [[_rowViews allKeys] sortedArrayUsingSelector:@selector(compare:)])
+    [self _removeRowViewForRow:[key integerValue]];
+}
+
+-(NSRect)_frameOfCellViewAtColumn:(NSInteger)column row:(NSInteger)row {
+   NSRect rowRect=[self rectOfRow:row];
+   NSRect cell=[self frameOfCellAtColumn:column row:row];
+
+   return NSMakeRect(NSMinX(cell)-NSMinX(rowRect),0,NSWidth(cell),NSHeight(rowRect));
+}
+
+-(NSTableRowView *)_makeRowViewForRow:(NSInteger)row {
+   NSTableRowView *rowView=nil;
+   NSInteger       column,count=[_tableColumns count];
+   BOOL            group=[_delegate respondsToSelector:@selector(tableView:isGroupRow:)] && [_delegate tableView:self isGroupRow:row];
+
+   if([_delegate respondsToSelector:@selector(tableView:rowViewForRow:)])
+    rowView=[_delegate tableView:self rowViewForRow:row];
+   if(rowView==nil)
+    rowView=[[[NSTableRowView alloc] initWithFrame:NSZeroRect] autorelease];
+   [rowView setFrame:[self rectOfRow:row]];
+   [rowView setSelectionHighlightStyle:_selectionHighlightStyle];
+   [rowView setGroupRowStyle:group];
+
+   for(column=0;column<count;column++){
+    NSTableColumn *tableColumn=[_tableColumns objectAtIndex:column];
+    NSView        *view;
+
+    if([tableColumn isHidden])
+     continue;
+    view=[_delegate tableView:self viewForTableColumn:(group?nil:tableColumn) row:row];
+    if(view==nil)
+     continue;
+    if([view respondsToSelector:@selector(setObjectValue:)] && [_dataSource respondsToSelector:@selector(tableView:objectValueForTableColumn:row:)])
+     [(id)view setObjectValue:[_dataSource tableView:self objectValueForTableColumn:tableColumn row:row]];
+    [view setFrame:group?[rowView bounds]:[self _frameOfCellViewAtColumn:column row:row]];
+    [view setAutoresizingMask:NSViewHeightSizable|(group?NSViewWidthSizable:0)];
+    [rowView addSubview:view];
+    if(group)
+     break;
+   }
+   return rowView;
+}
+
+/* The row views of the rows in the visible part of the table, made,
+   placed and selected; the others removed. */
+-(void)_updateRowViews {
+   NSRange         rows;
+   NSInteger       row,numberOfRows;
+   NSRect          visible;
+
+   if(![self _isViewBased] || _updateLevel>0)
+    return;
+   if(_rowViews==nil)
+    _rowViews=[[NSMutableDictionary alloc] init];
+   numberOfRows=[self numberOfRows];
+   visible=[self visibleRect];
+   if(NSIsEmptyRect(visible))
+    visible=[self bounds];
+   rows=(numberOfRows>0)?[self rowsInRect:visible]:NSMakeRange(0,0);
+   if(NSMaxRange(rows)>(NSUInteger)numberOfRows)
+    rows.length=numberOfRows-rows.location;
+
+   for(NSNumber *key in [_rowViews allKeys]){
+    row=[key integerValue];
+    if(!NSLocationInRange(row,rows))
+     [self _removeRowViewForRow:row];
+   }
+   for(row=rows.location;row<(NSInteger)NSMaxRange(rows);row++){
+    NSNumber       *key=[NSNumber numberWithInteger:row];
+    NSTableRowView *rowView=[_rowViews objectForKey:key];
+
+    if(rowView==nil){
+     rowView=[self _makeRowViewForRow:row];
+     [_rowViews setObject:rowView forKey:key];
+     [self addSubview:rowView];
+     if([_delegate respondsToSelector:@selector(tableView:didAddRowView:forRow:)])
+      [_delegate tableView:self didAddRowView:rowView forRow:row];
+    }
+    else {
+     NSInteger column,count=[_tableColumns count],index=0;
+
+     [rowView setFrame:[self rectOfRow:row]];
+     if(![rowView isGroupRowStyle])
+      for(column=0;column<count;column++){
+       if([[_tableColumns objectAtIndex:column] isHidden])
+        continue;
+       if(index<(NSInteger)[[rowView subviews] count])
+        [[[rowView subviews] objectAtIndex:index] setFrame:[self _frameOfCellViewAtColumn:column row:row]];
+       index++;
+      }
+    }
+   }
+   [self _updateRowViewSelection];
+}
+
+-(void)_updateRowViewSelection {
+   BOOL emphasized=[self _isEmphasized];
+
+   for(NSNumber *key in _rowViews){
+    NSInteger       row=[key integerValue];
+    NSTableRowView *rowView=[_rowViews objectForKey:key];
+
+    [rowView setEmphasized:emphasized];
+    [rowView setSelected:[_selectedRowIndexes containsIndex:row]];
+    [rowView setPreviousRowSelected:row>0 && [_selectedRowIndexes containsIndex:row-1]];
+    [rowView setNextRowSelected:[_selectedRowIndexes containsIndex:row+1]];
+   }
+}
+
+-(void)viewWillDraw {
+   [self _updateRowViews];
+   [super viewWillDraw];
+}
+
+-(void)resizeSubviewsWithOldSize:(NSSize)oldSize {
+   [super resizeSubviewsWithOldSize:oldSize];
+   [self _updateRowViews];
+}
+
+-(id)viewAtColumn:(NSInteger)column row:(NSInteger)row makeIfNecessary:(BOOL)makeIfNecessary {
+   NSTableRowView *rowView=[self rowViewAtRow:row makeIfNecessary:makeIfNecessary];
+   NSInteger       index=0,i;
+
+   if(rowView==nil || column<0 || column>=(NSInteger)[_tableColumns count])
+    return nil;
+   if([rowView isGroupRowStyle])
+    return [rowView viewAtColumn:0];
+   for(i=0;i<column;i++)
+    if(![[_tableColumns objectAtIndex:i] isHidden])
+     index++;
+   return [rowView viewAtColumn:index];
+}
+
+/* A row out of the visible part is made but not shown when asked to. */
+-(id)rowViewAtRow:(NSInteger)row makeIfNecessary:(BOOL)makeIfNecessary {
+   NSTableRowView *rowView;
+
+   if(row<0 || row>=[self numberOfRows] || ![self _isViewBased])
+    return nil;
+   rowView=[_rowViews objectForKey:[NSNumber numberWithInteger:row]];
+   if(rowView==nil && makeIfNecessary){
+    rowView=[self _makeRowViewForRow:row];
+    if(_rowViews==nil)
+     _rowViews=[[NSMutableDictionary alloc] init];
+    [_rowViews setObject:rowView forKey:[NSNumber numberWithInteger:row]];
+    [self addSubview:rowView];
+    [rowView setSelected:[_selectedRowIndexes containsIndex:row]];
+    [rowView setEmphasized:[self _isEmphasized]];
+    if([_delegate respondsToSelector:@selector(tableView:didAddRowView:forRow:)])
+     [_delegate tableView:self didAddRowView:rowView forRow:row];
+   }
+   return rowView;
+}
+
+-(NSInteger)rowForView:(NSView *)view {
+   for(;view!=nil && view!=self;view=[view superview])
+    if([view superview]==self)
+     for(NSNumber *key in _rowViews)
+      if([_rowViews objectForKey:key]==view)
+       return [key integerValue];
+   return -1;
+}
+
+-(NSInteger)columnForView:(NSView *)view {
+   NSInteger column,count=[_tableColumns count],index=0,wanted;
+
+   for(;view!=nil && [view superview]!=nil && [[view superview] superview]!=self;view=[view superview])
+    ;
+   if(view==nil || ![[view superview] isKindOfClass:[NSTableRowView class]])
+    return -1;
+   wanted=[[[view superview] subviews] indexOfObjectIdenticalTo:view];
+   for(column=0;column<count;column++){
+    if([[_tableColumns objectAtIndex:column] isHidden])
+     continue;
+    if(index==wanted)
+     return column;
+    index++;
+   }
+   return -1;
+}
+
+-(void)enumerateAvailableRowViewsUsingBlock:(void (^)(NSTableRowView *rowView, NSInteger row))handler {
+   for(NSNumber *key in [[_rowViews allKeys] sortedArrayUsingSelector:@selector(compare:)])
+    handler([_rowViews objectForKey:key],[key integerValue]);
+}
+
+-(BOOL)floatsGroupRows { return _floatsGroupRows; }
+-(void)setFloatsGroupRows:(BOOL)flag { _floatsGroupRows=flag; }
+-(BOOL)usesAutomaticRowHeights { return _usesAutomaticRowHeights; }
+-(void)setUsesAutomaticRowHeights:(BOOL)flag { _usesAutomaticRowHeights=flag; }
+-(NSInteger)rowSizeStyle { return _rowSizeStyle; }
+-(void)setRowSizeStyle:(NSInteger)style { _rowSizeStyle=style; }
+
+-(NSInteger)effectiveRowSizeStyle {
+   return (_rowSizeStyle==-1)?2:_rowSizeStyle;
+}
+
+-(void)beginUpdates {
+   _updateLevel++;
+}
+
+-(void)endUpdates {
+   if(_updateLevel>0 && --_updateLevel==0){
+    [self noteNumberOfRowsChanged];
+    [self _updateRowViews];
+    [self setNeedsDisplay:YES];
+   }
+}
+
+/* Rows after the change move: their row views are made again for their
+   new rows. */
+-(void)_rowsChangedFrom:(NSInteger)first {
+   for(NSNumber *key in [_rowViews allKeys])
+    if([key integerValue]>=first)
+     [self _removeRowViewForRow:[key integerValue]];
+}
+
+-(void)insertRowsAtIndexes:(NSIndexSet *)indexes withAnimation:(NSTableViewAnimationOptions)animationOptions {
+   NSMutableIndexSet *selection=[NSMutableIndexSet indexSet];
+   NSUInteger         index;
+
+   if([indexes count]==0)
+    return;
+   for(index=[_selectedRowIndexes firstIndex];index!=NSNotFound;index=[_selectedRowIndexes indexGreaterThanIndex:index]){
+    NSUInteger moved=index;
+    NSUInteger inserted;
+
+    for(inserted=[indexes firstIndex];inserted!=NSNotFound && inserted<=moved;inserted=[indexes indexGreaterThanIndex:inserted])
+     moved++;
+    [selection addIndex:moved];
+   }
+   [_selectedRowIndexes release];
+   _selectedRowIndexes=[selection copy];
+   [self _rowsChangedFrom:[indexes firstIndex]];
+   if(_updateLevel==0){
+    [self noteNumberOfRowsChanged];
+    [self _updateRowViews];
+    [self setNeedsDisplay:YES];
+   }
+}
+
+-(void)removeRowsAtIndexes:(NSIndexSet *)indexes withAnimation:(NSTableViewAnimationOptions)animationOptions {
+   NSMutableIndexSet *selection=[NSMutableIndexSet indexSet];
+   NSUInteger         index;
+   BOOL               changed=NO;
+
+   if([indexes count]==0)
+    return;
+   for(index=[_selectedRowIndexes firstIndex];index!=NSNotFound;index=[_selectedRowIndexes indexGreaterThanIndex:index]){
+    if([indexes containsIndex:index]){
+     changed=YES;
+     continue;
+    }
+    [selection addIndex:index-[indexes countOfIndexesInRange:NSMakeRange(0,index)]];
+   }
+   [_selectedRowIndexes release];
+   _selectedRowIndexes=[selection copy];
+   [self _rowsChangedFrom:[indexes firstIndex]];
+   if(_updateLevel==0){
+    [self noteNumberOfRowsChanged];
+    [self _updateRowViews];
+    [self setNeedsDisplay:YES];
+   }
+   if(changed)
+    [self noteSelectionDidChange];
+}
+
+-(void)moveRowAtIndex:(NSInteger)oldIndex toIndex:(NSInteger)newIndex {
+   BOOL wasSelected=[_selectedRowIndexes containsIndex:oldIndex];
+
+   if(oldIndex==newIndex)
+    return;
+   [self removeRowsAtIndexes:[NSIndexSet indexSetWithIndex:oldIndex] withAnimation:NSTableViewAnimationEffectNone];
+   [self insertRowsAtIndexes:[NSIndexSet indexSetWithIndex:newIndex] withAnimation:NSTableViewAnimationEffectNone];
+   if(wasSelected){
+    NSMutableIndexSet *selection=[[_selectedRowIndexes mutableCopy] autorelease];
+
+    [selection addIndex:newIndex];
+    [_selectedRowIndexes release];
+    _selectedRowIndexes=[selection copy];
+    [self _updateRowViewSelection];
+   }
+}
+
+/* The rows' views made again (view-based) or redrawn (cell-based). */
+-(void)reloadDataForRowIndexes:(NSIndexSet *)rowIndexes columnIndexes:(NSIndexSet *)columnIndexes {
+   NSUInteger row;
+
+   for(row=[rowIndexes firstIndex];row!=NSNotFound;row=[rowIndexes indexGreaterThanIndex:row]){
+    if([self _isViewBased])
+     [self _removeRowViewForRow:row];
+    else if((NSInteger)row<[self numberOfRows])
+     [self setNeedsDisplayInRect:[self rectOfRow:row]];
+   }
+   [self _updateRowViews];
 }
 
 @end

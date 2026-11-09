@@ -212,6 +212,8 @@ SRCS = \
     NSTableHeaderCell.m \
     NSTableHeaderView.m \
     NSTableView.m \
+    NSTableCellView.m \
+    NSTableRowView.m \
     NSText.m \
     NSTextAttachment.m \
     NSTextAttachmentCell.m \
@@ -485,6 +487,8 @@ HEADERS = \
     NSTableHeaderCell.h \
     NSTableHeaderView.h \
     NSTableView.h \
+    NSTableCellView.h \
+    NSTableRowView.h \
     NSText.h \
     NSTextAttachment.h \
     NSTextAttachmentCell.h \

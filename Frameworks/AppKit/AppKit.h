@@ -134,6 +134,8 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <AppKit/NSTableHeaderCell.h>
 #import <AppKit/NSTableHeaderView.h>
 #import <AppKit/NSTableView.h>
+#import <AppKit/NSTableCellView.h>
+#import <AppKit/NSTableRowView.h>
 #import <AppKit/NSTabView.h>
 #import <AppKit/NSTabViewItem.h>
 #import <AppKit/NSText.h>

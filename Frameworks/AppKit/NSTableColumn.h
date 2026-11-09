@@ -29,9 +29,14 @@ enum {
     BOOL _isEditable;
     NSUInteger _resizingMask;
     NSSortDescriptor *_sortDescriptorPrototype;
+    BOOL _hidden;
 }
 
 - initWithIdentifier:identifier;
+
+@property (getter=isHidden) BOOL hidden;
+/* The header cell's string. */
+@property (copy) NSString *title;
 
 - identifier;
 - (NSTableView *)tableView;

@@ -35,7 +35,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <AppKit/NSControl.h>
 #import <AppKit/NSDragging.h>
 
-@class NSTableHeaderView, NSTableColumn;
+@class NSTableHeaderView, NSTableColumn, NSTableRowView, NSNib;
 
 APPKIT_EXPORT NSString *const NSTableViewSelectionIsChangingNotification;
 APPKIT_EXPORT NSString *const NSTableViewSelectionDidChangeNotification;
@@ -55,6 +55,25 @@ enum {
     NSTableViewSelectionHighlightStyleSourceList = 1,
 };
 typedef NSInteger NSTableViewSelectionHighlightStyle;
+
+typedef NS_ENUM(NSInteger, NSTableViewDraggingDestinationFeedbackStyle) {
+    NSTableViewDraggingDestinationFeedbackStyleNone = -1,
+    NSTableViewDraggingDestinationFeedbackStyleRegular = 0,
+    NSTableViewDraggingDestinationFeedbackStyleSourceList = 1,
+    NSTableViewDraggingDestinationFeedbackStyleGap = 2,
+};
+
+typedef NS_OPTIONS(NSUInteger, NSTableViewAnimationOptions) {
+    NSTableViewAnimationEffectNone = 0x0,
+    NSTableViewAnimationEffectFade = 0x1,
+    NSTableViewAnimationEffectGap = 0x2,
+    NSTableViewAnimationSlideUp = 0x10,
+    NSTableViewAnimationSlideDown = 0x20,
+    NSTableViewAnimationSlideLeft = 0x30,
+    NSTableViewAnimationSlideRight = 0x40,
+};
+
+APPKIT_EXPORT NSString *const NSTableViewRowViewKey;
 
 typedef enum {
     NSTableViewDropOn,
@@ -101,6 +120,15 @@ typedef enum {
     NSArray *_sortDescriptors;
 
     int _draggingRow;
+
+    // view-based tables
+    NSMutableDictionary *_rowViews;
+    NSMutableDictionary *_reusableViews;
+    NSMutableDictionary *_registeredNibs;
+    NSInteger _updateLevel;
+    BOOL _floatsGroupRows;
+    BOOL _usesAutomaticRowHeights;
+    NSInteger _rowSizeStyle;
 }
 
 - (SEL)doubleAction;
@@ -221,6 +249,30 @@ typedef enum {
 
 - (NSArray *)sortDescriptors;
 - (void)setSortDescriptors:(NSArray *)value;
+
+/* View-based tables: the delegate gives a view for each cell
+   (tableView:viewForTableColumn:row:), shown in a row view; views that
+   scroll out are kept by identifier for makeViewWithIdentifier:owner:. */
+- (id)makeViewWithIdentifier:(NSString *)identifier owner:(id)owner;
+- (void)registerNib:(NSNib *)nib forIdentifier:(NSString *)identifier;
+@property (readonly, copy) NSDictionary *registeredNibsByIdentifier;
+- (id)viewAtColumn:(NSInteger)column row:(NSInteger)row makeIfNecessary:(BOOL)makeIfNecessary;
+- (id)rowViewAtRow:(NSInteger)row makeIfNecessary:(BOOL)makeIfNecessary;
+- (NSInteger)rowForView:(NSView *)view;
+- (NSInteger)columnForView:(NSView *)view;
+- (void)enumerateAvailableRowViewsUsingBlock:(void (^)(NSTableRowView *rowView, NSInteger row))handler;
+@property BOOL floatsGroupRows;
+@property BOOL usesAutomaticRowHeights;
+@property NSInteger rowSizeStyle;
+@property (readonly) NSInteger effectiveRowSizeStyle;
+
+/* Changes to the rows, shown at endUpdates when inside an update. */
+- (void)beginUpdates;
+- (void)endUpdates;
+- (void)insertRowsAtIndexes:(NSIndexSet *)indexes withAnimation:(NSTableViewAnimationOptions)animationOptions;
+- (void)removeRowsAtIndexes:(NSIndexSet *)indexes withAnimation:(NSTableViewAnimationOptions)animationOptions;
+- (void)moveRowAtIndex:(NSInteger)oldIndex toIndex:(NSInteger)newIndex;
+- (void)reloadDataForRowIndexes:(NSIndexSet *)rowIndexes columnIndexes:(NSIndexSet *)columnIndexes;
 @end
 
 /* The formal protocols of API 19 (all optional), beside the informal ones. */
@@ -239,6 +291,13 @@ typedef enum {
 - (void)tableView:(NSTableView *)tableView didClickTableColumn:(NSTableColumn *)tableColumn;
 - (void)tableView:(NSTableView *)tableView mouseDownInHeaderOfTableColumn:(NSTableColumn *)tableColumn;
 - (void)tableViewSelectionDidChange:(NSNotification *)notification;
+- (NSView *)tableView:(NSTableView *)tableView viewForTableColumn:(NSTableColumn *)tableColumn row:(NSInteger)row;
+- (NSTableRowView *)tableView:(NSTableView *)tableView rowViewForRow:(NSInteger)row;
+- (void)tableView:(NSTableView *)tableView didAddRowView:(NSTableRowView *)rowView forRow:(NSInteger)row;
+- (void)tableView:(NSTableView *)tableView didRemoveRowView:(NSTableRowView *)rowView forRow:(NSInteger)row;
+- (CGFloat)tableView:(NSTableView *)tableView heightOfRow:(NSInteger)row;
+- (BOOL)tableView:(NSTableView *)tableView isGroupRow:(NSInteger)row;
+- (BOOL)selectionShouldChangeInTableView:(NSTableView *)tableView;
 @end
 
 @interface NSObject (NSTableView_dataSource)

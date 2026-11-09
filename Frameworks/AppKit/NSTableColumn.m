@@ -30,6 +30,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
     NSKeyedUnarchiver *keyed=(NSKeyedUnarchiver *)coder;
     
     _identifier=[[keyed decodeObjectForKey:@"NSIdentifier"] retain];
+    _hidden=[keyed decodeBoolForKey:@"NSHidden"];
     _headerCell=[[keyed decodeObjectForKey:@"NSHeaderCell"] retain];
     _dataCell=[[keyed decodeObjectForKey:@"NSDataCell"] retain];
     _width=[keyed decodeFloatForKey:@"NSWidth"];
@@ -267,6 +268,26 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 }
 - (void)_setHeaderTitle:(NSString*)title {
     return [_headerCell setTitle:title];
+}
+
+-(BOOL)isHidden {
+   return _hidden;
+}
+
+-(void)setHidden:(BOOL)flag {
+   if(_hidden==flag)
+    return;
+   _hidden=flag;
+   [_tableView tile];
+}
+
+-(NSString *)title {
+   return [_headerCell stringValue];
+}
+
+-(void)setTitle:(NSString *)title {
+   [_headerCell setStringValue:(title!=nil)?title:@""];
+   [[_tableView headerView] setNeedsDisplay:YES];
 }
 
 @end
