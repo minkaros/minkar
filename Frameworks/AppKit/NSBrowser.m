@@ -292,7 +292,8 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
    column-=[self firstVisibleColumn];
 
-   result.size.width=([self bounds].size.width-(_numberOfVisibleColumns-1)* columnGap)/_numberOfVisibleColumns;
+   /* Whole points: a column at a fractional x drew its matrix wrongly. */
+   result.size.width=floor(([self bounds].size.width-(_numberOfVisibleColumns-1)* columnGap)/_numberOfVisibleColumns);
    result.size.height=[self titleHeight];
    result.origin.x=column*(result.size.width+ columnGap);
    result.origin.y=[self bounds].size.height-result.size.height;
