@@ -20,6 +20,9 @@ APPKIT_EXPORT NSString *const NSFontTraitsAttribute;
 APPKIT_EXPORT NSString *const NSFontFaceAttribute;
 APPKIT_EXPORT NSString *const NSFontFixedAdvanceAttribute;
 APPKIT_EXPORT NSString *const NSFontVisibleNameAttribute;
+APPKIT_EXPORT NSString *const NSFontFeatureSettingsAttribute;
+APPKIT_EXPORT NSString *const NSFontFeatureTypeIdentifierKey;
+APPKIT_EXPORT NSString *const NSFontFeatureSelectorIdentifierKey;
 
 typedef unsigned NSFontSymbolicTraits;
 

@@ -24,6 +24,7 @@ NSString * const NSBackgroundColorAttributeName=@"NSBackgroundColorAttributeName
 NSString * const NSUnderlineStyleAttributeName=@"NSUnderlineStyleAttributeName";
 NSString * const NSUnderlineColorAttributeName=@"NSUnderlineColorAttributeName";
 NSString * const NSAttachmentAttributeName=@"NSAttachmentAttributeName";
+NSString * const NSGlyphInfoAttributeName=@"NSGlyphInfo";
 NSString * const NSKernAttributeName=@"NSKernAttributeName";
 NSString * const NSLigatureAttributeName=@"NSLigatureAttributeName";
 NSString * const NSStrikethroughStyleAttributeName=@"NSStrikethroughStyleAttributeName";

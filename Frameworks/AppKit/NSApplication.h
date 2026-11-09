@@ -42,6 +42,8 @@ APPKIT_EXPORT NSString *const NSEventTrackingRunLoopMode;
 
 APPKIT_EXPORT NSString *const NSApplicationWillFinishLaunchingNotification;
 APPKIT_EXPORT NSString *const NSApplicationDidFinishLaunchingNotification;
+APPKIT_EXPORT NSString *const NSApplicationLaunchUserNotificationKey;
+APPKIT_EXPORT NSString *const NSApplicationLaunchIsDefaultLaunchKey;
 
 APPKIT_EXPORT NSString *const NSApplicationWillBecomeActiveNotification;
 APPKIT_EXPORT NSString *const NSApplicationDidBecomeActiveNotification;

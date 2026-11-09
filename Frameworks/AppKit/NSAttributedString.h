@@ -19,6 +19,7 @@ APPKIT_EXPORT NSString *const NSBackgroundColorAttributeName;
 APPKIT_EXPORT NSString *const NSUnderlineStyleAttributeName;
 APPKIT_EXPORT NSString *const NSUnderlineColorAttributeName;
 APPKIT_EXPORT NSString *const NSAttachmentAttributeName;
+APPKIT_EXPORT NSString *const NSGlyphInfoAttributeName;
 APPKIT_EXPORT NSString *const NSKernAttributeName;
 APPKIT_EXPORT NSString *const NSLigatureAttributeName;
 APPKIT_EXPORT NSString *const NSStrikethroughStyleAttributeName;

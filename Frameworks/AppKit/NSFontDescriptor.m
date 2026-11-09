@@ -23,6 +23,9 @@ NSString * const NSFontVisibleNameAttribute=@"NSFontVisibleNameAttribute";
 
 NSString * const NSFontSymbolicTrait = @"NSFontSymbolicTrait";
 NSString * const NSFontWeightTrait = @"NSFontWeightTrait";
+NSString * const NSFontFeatureSettingsAttribute = @"NSCTFontFeatureSettingsAttribute";
+NSString * const NSFontFeatureTypeIdentifierKey = @"CTFeatureTypeIdentifier";
+NSString * const NSFontFeatureSelectorIdentifierKey = @"CTFeatureSelectorIdentifier";
 NSString * const NSFontWidthTrait = @"NSFontWidthTrait";
 NSString * const NSFontSlantTrait = @"NSFontSlantTrait";
 

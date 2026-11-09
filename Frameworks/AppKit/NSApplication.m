@@ -67,6 +67,8 @@ NSString * const NSEventTrackingRunLoopMode=@"NSEventTrackingRunLoopMode";
 
 NSString * const NSApplicationWillFinishLaunchingNotification=@"NSApplicationWillFinishLaunchingNotification";
 NSString * const NSApplicationDidFinishLaunchingNotification=@"NSApplicationDidFinishLaunchingNotification";
+NSString * const NSApplicationLaunchUserNotificationKey=@"NSApplicationLaunchUserNotificationKey";
+NSString * const NSApplicationLaunchIsDefaultLaunchKey=@"NSApplicationLaunchIsDefaultLaunchKey";
 
 NSString * const NSApplicationWillBecomeActiveNotification=@"NSApplicationWillBecomeActiveNotification";
 NSString * const NSApplicationDidBecomeActiveNotification=@"NSApplicationDidBecomeActiveNotification";
