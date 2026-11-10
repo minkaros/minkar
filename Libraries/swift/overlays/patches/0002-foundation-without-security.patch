@@ -1,7 +1,18 @@
-# Foundation without Security, which Minkar does not have yet: URLError's
-# peer trust comes back when it is built.
+# URLError's peer trust only where there is Security (Minkar's subset since
+# 9 Nov 2026), which the overlay then imports itself: Minkar's Foundation
+# headers do not bring it in.
 --- a/stdlib/public/Darwin/Foundation/NSError.swift
 +++ b/stdlib/public/Darwin/Foundation/NSError.swift
+@@ -13,6 +13,9 @@
+ @_exported import Foundation // Clang module
+ import CoreFoundation
+ import Darwin
++#if canImport(Security)
++import Security
++#endif
+ @_implementationOnly import _SwiftFoundationOverlayShims
+ 
+ //===----------------------------------------------------------------------===//
 @@ -2012,6 +2012,7 @@
      return _nsUserInfo[NSURLErrorFailingURLStringErrorKey as NSString] as? String
    }

@@ -1,0 +1,30 @@
+Minkar: dispatch_async_swift_job weakly imported. libdispatch has it
+from API 21 on; on API 19 the runtime uses dispatch_async_f.
+
+diff -ruN a/stdlib/public/Concurrency/DispatchGlobalExecutor.cpp b/stdlib/public/Concurrency/DispatchGlobalExecutor.cpp
+--- a/stdlib/public/Concurrency/DispatchGlobalExecutor.cpp	2026-11-09 21:10:57.678190699 -0500
++++ b/stdlib/public/Concurrency/DispatchGlobalExecutor.cpp	2026-11-09 21:10:57.706189317 -0500
+@@ -49,8 +49,11 @@
+ #else
+ /// Apple's libdispatch always exports this, but the public SDK doesn't declare
+ /// it.
+-extern "C" void dispatch_async_swift_job(dispatch_queue_t queue, void *obj,
+-                                        dispatch_qos_class_t qos);
++/// Minkar: weak, as libdispatch has it only from API 21 (macOS 12) on; API 19
++/// uses dispatch_async_f, as the check below does.
++extern "C" __attribute__((weak_import))
++void dispatch_async_swift_job(dispatch_queue_t queue, void *obj,
++                              dispatch_qos_class_t qos);
+ #endif
+ #endif
+ 
+@@ -79,7 +82,8 @@
+ #if defined(__APPLE__)
+   // dispatch_async_swift_job is SPI available in macOS 12 and iOS 15, so older
+   // deployment targets need the dispatch_async_f fallback below.
+-  if (__builtin_available(macOS 12.0, iOS 15.0, tvOS 15.0, watchOS 8.0, *)) {
++  if (__builtin_available(macOS 12.0, iOS 15.0, tvOS 15.0, watchOS 8.0, *) &&
++      dispatch_async_swift_job != nullptr) {
+     dispatch_async_swift_job(queue, job, qos);
+     return;
+   }

@@ -2,12 +2,12 @@
 # Copyright (c) 2026 The Minkar contributors
 # Part of Minkar.
 #
-# The Swift 6.0 compiler (Phase 3), for the build host: swift-frontend and
+# The Swift 6.4.2 compiler (Phase 3), for the build host: swift-frontend and
 # its swiftc and swift links, in the toolchain. Swift (MANIFEST) and
 # swift-cmark (MANIFEST.cmark) are fetched at their pinned versions,
 # checked against their SHA-256 and patched here (patches/); they are
 # built against the toolchain's LLVM and clang (../llvm, built for the
-# host in ../llvm_host), the same swift-6.0-RELEASE.
+# host in ../llvm_host), the same swift-6.4.2-RELEASE.
 #
 # With swift-syntax (MANIFEST.swift-syntax: macros, #isolation among them)
 # and the regex parser of swift-experimental-string-processing
@@ -26,7 +26,9 @@ CACHE ?=	${ROOT_BINARY_DIR:U${.OBJDIR}}/src-cache
 LLVM_SRC =	${.CURDIR}/../llvm
 LLVM_HOST =	${.OBJDIR}/../llvm_host
 
-PATCHES =	0001-no-astgen-without-swift-syntax.patch
+# Our patches to Swift (in Developer/Default.xctoolchain/swift/patches); none
+# since 6.4.2.
+PATCHES =
 
 SRC =		${.OBJDIR}/swift-src
 CMARK =		${.OBJDIR}/cmark-build
@@ -39,7 +41,7 @@ HOSTFLAGS =	-D_GLIBCXX_USE_CXX11_ABI=0
 all: install-swift
 
 # Swift's tree with our patches, made again when the patches change.
-${SRC}/.minkar-patches: ${PATCHES:S,^,${.CURDIR}/patches/,} ${.CURDIR}/MANIFEST
+${SRC}/.minkar-patches: ${PATCHES:@p@${.CURDIR}/patches/${p}@} ${.CURDIR}/MANIFEST
 	pristine=$$(${FETCH} ${.CURDIR}/MANIFEST ${CACHE}) && \
 	rm -rf ${SRC} ${SRC}.part && cp -a $$pristine ${SRC}.part && \
 	for p in ${PATCHES}; do \
@@ -97,7 +99,7 @@ build-swift: .PHONY ${BUILD}/.minkar-setup
 STAMP =		${TOOLCHAIN}/usr/share/swift/.minkar-built
 SUM_CMD =	cat ${.CURDIR}/MANIFEST ${.CURDIR}/MANIFEST.cmark ${.CURDIR}/MANIFEST.host-swift \
 		    ${.CURDIR}/MANIFEST.swift-syntax ${.CURDIR}/MANIFEST.string-processing ${.CURDIR}/Makefile \
-		    ${PATCHES:S,^,${.CURDIR}/patches/,} | cksum
+		    ${PATCHES:@p@${.CURDIR}/patches/${p}@} | cksum
 
 install-swift: .PHONY
 	@if [ -x ${TOOLCHAIN}/usr/bin/swift-frontend ] && [ -f ${STAMP} ] && \
@@ -114,8 +116,15 @@ install-swift-now: .PHONY build-swift
 	ln -sf swift-frontend ${TOOLCHAIN}/usr/bin/swift
 	# What the compiler loads: swift-syntax's libraries, and the Linux Swift
 	# runtime they and the compiler's Swift parts were built against.
-	mkdir -p ${TOOLCHAIN}/usr/lib/swift/host ${TOOLCHAIN}/usr/lib/swift/linux
+	mkdir -p ${TOOLCHAIN}/usr/lib/swift/host/compiler ${TOOLCHAIN}/usr/lib/swift/linux
 	cp -f ${BUILD}/lib/swift/host/*.so ${TOOLCHAIN}/usr/lib/swift/host/
+	# Since 6.4 the compiler's own swift-syntax libraries are in host/compiler
+	# (its RUNPATH).
+	cp -f ${BUILD}/lib/swift/host/compiler/*.so ${TOOLCHAIN}/usr/lib/swift/host/compiler/
+	# The macro plugins (SwiftMacros: the standard library's @DebugDescription,
+	# ObservationMacros).
+	mkdir -p ${TOOLCHAIN}/usr/lib/swift/host/plugins
+	cp -f ${BUILD}/lib/swift/host/plugins/*.so ${TOOLCHAIN}/usr/lib/swift/host/plugins/
 	hostswift=$$(${FETCH} ${.CURDIR}/MANIFEST.host-swift ${CACHE}) && \
 	cp -f $$hostswift/usr/lib/swift/linux/*.so ${TOOLCHAIN}/usr/lib/swift/linux/
 	install -m 0444 ${SRC}/LICENSE.txt ${TOOLCHAIN}/usr/share/swift/LICENSE.txt

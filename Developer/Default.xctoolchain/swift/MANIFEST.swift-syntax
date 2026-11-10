@@ -1,6 +1,6 @@
 # swift-syntax (Apache-2.0 with the Runtime Library Exception), the Swift
 # parser the compiler uses for macros; the same release tag.
-url https://github.com/swiftlang/swift-syntax/archive/refs/tags/swift-6.0-RELEASE.tar.gz
-file swift-syntax-6.0-RELEASE.tar.gz
-sha256 95955bb5efac43c4dce5b9d6a70b0928e77c6e41583589bb347c8953e778e77b
-version 6.0
+url https://github.com/swiftlang/swift-syntax/archive/refs/tags/swift-6.4.2-RELEASE.tar.gz
+file swift-syntax-6.4.2-RELEASE.tar.gz
+sha256 490f1f3da78a4d98a786c2edfef764aa5011db08c0ff737e78f0ec7186c038a6
+version 6.4.2

@@ -60,7 +60,7 @@ ${SRC}/.minkar-patches: ${.CURDIR}/MANIFEST ${.CURDIR}/Makefile \
 # headers).
 ${.OBJDIR}/XCTest.o: ${SRC}/.minkar-patches ${MINKAR_SDKROOT}/usr/lib/swift/libswiftFoundation.dylib
 	rm -rf ${MODULE} && mkdir -p ${MODULE}
-	${TOOLENV} ${TC}/swiftc -frontend -c -O -parse-as-library -enable-library-evolution \
+	${TOOLENV} ${TC}/swiftc -frontend -c -O -parse-as-library -enable-library-evolution -language-mode 5 \
 	    -module-name XCTest -target ${TRIPLE} \
 	    -sdk ${MINKAR_SDKROOT} -runtime-compatibility-version none \
 	    -D USE_FOUNDATION_FRAMEWORK -alias-module-names-in-module-interface \

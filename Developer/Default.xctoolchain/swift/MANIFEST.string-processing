@@ -2,7 +2,7 @@
 # Library Exception): its regex parser is the compiler's
 # _CompilerRegexParser, which ASTGen (macros, regex literals) needs with
 # swift-syntax; the same release tag.
-url https://github.com/swiftlang/swift-experimental-string-processing/archive/refs/tags/swift-6.0-RELEASE.tar.gz
-file swift-experimental-string-processing-6.0-RELEASE.tar.gz
-sha256 052d028661ef7f74351c9fe48b325f784007d3c28014cd889486ca3346f166e3
-version 6.0
+url https://github.com/swiftlang/swift-experimental-string-processing/archive/refs/tags/swift-6.4.2-RELEASE.tar.gz
+file swift-experimental-string-processing-6.4.2-RELEASE.tar.gz
+sha256 8452bfdeac7f1afb9fe91faeba34f09ad46eb8e3085d345d3839f9ad4b69032b
+version 6.4.2

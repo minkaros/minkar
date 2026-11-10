@@ -2,7 +2,7 @@
 # Copyright (c) 2026 The Minkar contributors
 # Part of Minkar.
 #
-# Swift 6.0's runtime and standard library for Minkar (Phase 3):
+# Swift 6.4.2's runtime and standard library for Minkar (Phase 3):
 # /usr/lib/swift/libswiftCore.dylib, and the Swift module the compiler
 # imports (in the toolchain's lib/swift). The same Swift tree as the
 # compiler (Developer/Default.xctoolchain/swift: MANIFEST, patches/),
@@ -21,9 +21,14 @@ FETCH =		sh ${ROOT_SOURCE_DIR}/BSD/lib/libdrm/fetch.sh
 CACHE ?=	${ROOT_BINARY_DIR:U${.OBJDIR}}/src-cache
 TC =		${TOOLCHAIN}/usr/bin
 LLVM_SRC =	${ROOT_SOURCE_DIR}/Developer/Default.xctoolchain/llvm
-LLVM_HOST =	${ROOT_BINARY_DIR}/work/minkar/Developer/Default.xctoolchain/llvm_host
+# The toolchain's objdir: the build directory, then the source path.
+LLVM_HOST =	${ROOT_BINARY_DIR}${ROOT_SOURCE_DIR}/Developer/Default.xctoolchain/llvm_host
 
-PATCHES =	0001-no-astgen-without-swift-syntax.patch
+# Our patches to Swift (in Developer/Default.xctoolchain/swift/patches): the
+# Darwin overlay, which Swift 6.4 no longer builds for Apple platforms, and
+# libdispatch's Swift job SPI weakly imported (API 21 has it, API 19 not).
+PATCHES =	0001-darwin-overlay-for-minkar.patch \
+		0002-dispatch-async-swift-job-weak.patch
 
 SRC =		${.OBJDIR}/swift-src
 BUILD =		${.OBJDIR}/build
@@ -37,7 +42,7 @@ TOOLENV =	env -u MACOSX_DEPLOYMENT_TARGET PATH=${SHIMS}:$${PATH}
 
 all: install-swift-runtime
 
-${SRC}/.minkar-patches: ${PATCHES:S,^,${SWIFT}/patches/,} ${SWIFT}/MANIFEST
+${SRC}/.minkar-patches: ${PATCHES:@p@${SWIFT}/patches/${p}@} ${SWIFT}/MANIFEST
 	pristine=$$(${FETCH} ${SWIFT}/MANIFEST ${CACHE}) && \
 	rm -rf ${SRC} ${SRC}.part && cp -a $$pristine ${SRC}.part && \
 	for p in ${PATCHES}; do \
@@ -64,11 +69,12 @@ ${BUILD}/.minkar-setup: ${SRC}/.minkar-patches ${CROSS} ${.CURDIR}/Makefile
 	rm -rf ${BUILD}
 	${TOOLENV} cmake -G Ninja -S ${SRC} -B ${BUILD} \
 	    -DCMAKE_TOOLCHAIN_FILE=${CROSS} -DCMAKE_BUILD_TYPE=Release \
-	    -DCMAKE_SHARED_LINKER_FLAGS="-Wl,-U,_objc_setHook_lazyClassNamer" \
+	    -DCMAKE_SHARED_LINKER_FLAGS="-Wl,-U,_objc_setHook_lazyClassNamer -Wl,-U,_dispatch_async_swift_job" \
 	    -DLLVM_DIR=${LLVM_HOST}/lib/cmake/llvm -DClang_DIR=${LLVM_HOST}/lib/cmake/clang \
 	    -DSWIFT_PATH_TO_LLVM_SOURCE=${LLVM_SRC}/llvm \
 	    -DSWIFT_PATH_TO_CLANG_SOURCE=${LLVM_SRC}/clang \
 	    -DSWIFT_INCLUDE_TOOLS=OFF -DSWIFT_BUILD_STDLIB=ON -DSWIFT_BUILD_SDK_OVERLAY=ON \
+	    -DSWIFT_BUILD_DYNAMIC_SDK_OVERLAY=ON \
 	    -DSWIFT_BUILD_DYNAMIC_STDLIB=ON -DSWIFT_BUILD_STATIC_STDLIB=OFF \
 	    -DSWIFT_INCLUDE_TESTS=OFF -DSWIFT_INCLUDE_DOCS=OFF -DSWIFT_BUILD_REMOTE_MIRROR=OFF \
 	    -DSWIFT_BUILD_SOURCEKIT=OFF \
@@ -78,7 +84,8 @@ ${BUILD}/.minkar-setup: ${SRC}/.minkar-patches ${CROSS} ${.CURDIR}/Makefile
 	    -DSWIFT_DARWIN_DEPLOYMENT_VERSION_OSX=10.15 \
 	    -DSWIFT_NATIVE_SWIFT_TOOLS_PATH=${TC} -DSWIFT_NATIVE_CLANG_TOOLS_PATH=${TC} \
 	    -DSWIFT_NATIVE_LLVM_TOOLS_PATH=${TC} \
-	    -DBOOTSTRAPPING_MODE=OFF -DSWIFT_BUILD_SWIFT_SYNTAX=OFF \
+	    -DBOOTSTRAPPING_MODE=CROSSCOMPILE -DSWIFT_BUILD_RUNTIME_WITH_HOST_COMPILER=ON \
+	    -DSWIFT_BUILD_SWIFT_SYNTAX=OFF \
 	    -DSWIFT_ENABLE_EXPERIMENTAL_CONCURRENCY=ON -DSWIFT_ENABLE_DISPATCH=ON \
 	    -DSWIFT_CONCURRENCY_GLOBAL_EXECUTOR=dispatch \
 	    -DSWIFT_ENABLE_EXPERIMENTAL_DISTRIBUTED=OFF \

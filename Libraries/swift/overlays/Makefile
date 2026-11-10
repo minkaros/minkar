@@ -143,7 +143,7 @@ ${OUT}/NSValue.swift: ${SRC}/.minkar-patches
 ${OUT}/${o}.o: ${SHIMS}/module.modulemap ${SOURCES_${o}:S,^,${DARWIN}/${o}/,} ${GENERATED_${o}} ${.CURDIR}/Makefile \
 	    ${MINKAR_${o}:S,^,${.CURDIR}/${o}/,}
 	mkdir -p ${OUT}/${o}.swiftmodule
-	${TOOLENV} ${TC}/swiftc -frontend -c -O -parse-as-library -enable-library-evolution \
+	${TOOLENV} ${TC}/swiftc -frontend -c -O -parse-as-library -enable-library-evolution -language-mode 5 \
 	    -module-name ${o} -module-link-name swift${o} -target ${TRIPLE} \
 	    -sdk ${MINKAR_SDKROOT} -runtime-compatibility-version none \
 	    -I ${SHIMS} -I ${OUT} -module-cache-path ${.OBJDIR}/module-cache ${FLAGS_${o}} \

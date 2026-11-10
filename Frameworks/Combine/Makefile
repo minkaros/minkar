@@ -60,7 +60,7 @@ ${HELPERS}/module.modulemap: ${SRC}/.minkar-patches
 
 ${.OBJDIR}/Combine.o: ${HELPERS}/module.modulemap
 	rm -rf ${MODULE} && mkdir -p ${MODULE}
-	${TOOLENV} ${TC}/swiftc -frontend -c -O -parse-as-library -enable-library-evolution \
+	${TOOLENV} ${TC}/swiftc -frontend -c -O -parse-as-library -enable-library-evolution -language-mode 5 \
 	    -module-name Combine -target ${TRIPLE} \
 	    -sdk ${MINKAR_SDKROOT} -runtime-compatibility-version none \
 	    -I ${HELPERS} -module-cache-path ${.OBJDIR}/module-cache \
