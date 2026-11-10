@@ -13,7 +13,7 @@ Tag: 609
 - cctools/ld64 (SPDX:APSL-2.0)
 
 Imported from GitHub: https://github.com/swiftlang/llvm-project.git
-Tag: swift-6.0-RELEASE
+Tag: swift-6.4.2-RELEASE (until 2026-11-10: swift-6.0-RELEASE)
 - llvm-project (SPDX:Apache-2.0 WITH LLVM-Exception)
 
 Imported from GitHub: https://github.com/apple-oss-distributions/tapi
