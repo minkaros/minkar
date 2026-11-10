@@ -1,0 +1,115 @@
+CMake: the WPE port on Darwin, built as plain libraries
+
+On a Darwin host WebKit's CMake files take the Cocoa port's road: framework
+bundles, WebKitLegacy re-exported by WebKit, linker options for the Cocoa
+WebCore, and a precompiled header shared between targets. The WPE port
+builds dynamic libraries and its own processes instead, so those blocks
+are left to the other Darwin ports. OptionsWPE.cmake takes ICU's
+unversioned names (libicucore), the default heap (WPE's classes are not
+made for type-isolated heaps) and the build directory's frameworks; bmalloc
+gets its Darwin sources (ProcessCheck.mm and what it links).
+
+--- a/Source/cmake/WebKitFS.cmake	2026-11-10 11:13:40.554963528 -0500
++++ b/Source/cmake/WebKitFS.cmake	2026-11-10 11:13:41.156976137 -0500
+@@ -84,7 +84,7 @@
+ # On Apple platforms, some targets build as framework bundles. Point their
+ # HEADERS variables to the inside of the framework bundle.
+ set(USE_FRAMEWORK_BUNDLES OFF)
+-if (APPLE)
++if (APPLE AND NOT PORT STREQUAL "WPE")
+     set(USE_FRAMEWORK_BUNDLES ON)
+     if (PORT STREQUAL Mac)
+         set(_version "Versions/A/")
+--- a/Source/cmake/WebKitMacros.cmake	2026-11-10 11:13:40.600964493 -0500
++++ b/Source/cmake/WebKitMacros.cmake	2026-11-10 11:13:41.159976200 -0500
+@@ -165,7 +165,7 @@
+ # ELF clang when an executable reuses a library PCH (-fPIE vs -fPIC). Fall back
+ # to a per-target prefix header on those ports.
+ function(WEBKIT_REUSE_PREFIX_HEADER _target _from _header)
+-    if (COMPILER_IS_CLANG AND APPLE)
++    if (COMPILER_IS_CLANG AND APPLE AND NOT PORT STREQUAL "WPE")
+         target_precompile_headers(${_target} REUSE_FROM ${_from})
+     else ()
+         WEBKIT_ADD_PREFIX_HEADER(${_target} ${_header} PREFIX_NO_CODEGEN ${ARGN})
+@@ -173,7 +173,7 @@
+ endfunction()
+ 
+ function(_WEBKIT_ADD_PCH_OBJECT _target)
+-    if (NOT (COMPILER_IS_CLANG AND APPLE))
++    if (NOT (COMPILER_IS_CLANG AND APPLE) OR PORT STREQUAL "WPE")
+         return()
+     endif ()
+     cmake_parse_arguments(PARSE_ARGV 1 _PO "PREFIX_NO_CODEGEN" "" "PREFIX_LANGUAGES")
+@@ -675,7 +675,7 @@
+         add_custom_command(TARGET ${_target} POST_BUILD COMMAND ${${_target}_POST_BUILD_COMMAND} VERBATIM)
+     endif ()
+ 
+-    if (APPLE AND NOT PORT STREQUAL "GTK" AND ${${_target}_LIBRARY_TYPE} MATCHES SHARED)
++    if (APPLE AND NOT PORT STREQUAL "GTK" AND NOT PORT STREQUAL "WPE" AND ${${_target}_LIBRARY_TYPE} MATCHES SHARED)
+         set_target_properties(${_target} PROPERTIES FRAMEWORK TRUE)
+         target_compile_options(${_target} BEFORE PUBLIC -F${CMAKE_BINARY_DIR})
+         install(TARGETS ${_target} FRAMEWORK DESTINATION ${LIB_INSTALL_DIR})
+--- a/Source/cmake/OptionsWPE.cmake	2026-11-10 11:13:40.536963150 -0500
++++ b/Source/cmake/OptionsWPE.cmake	2026-11-10 11:13:41.153976074 -0500
+@@ -12,6 +12,17 @@
+ find_package(GLib 2.70.0 REQUIRED COMPONENTS GioUnix Thread Module)
+ find_package(HarfBuzz 2.7.4 REQUIRED COMPONENTS ICU)
+ find_package(ICU 70.1 REQUIRED COMPONENTS data i18n uc)
++if (APPLE)
++    # Darwin's libicucore exports ICU's functions without the version suffix.
++    add_definitions(-DU_DISABLE_RENAMING=1)
++    # WPE is not built with type-isolated heaps (TZone) on any other
++    # system, and its own classes lack what they need; bmalloc's default.
++    add_definitions(-DUSE_TZONE_MALLOC=0 -DBUSE_TZONE=0)
++    # The frameworks this build makes are found in the build directory.
++    foreach (_lang C CXX OBJC OBJCXX)
++        string(APPEND CMAKE_${_lang}_FLAGS " -F${CMAKE_BINARY_DIR}")
++    endforeach ()
++endif ()
+ find_package(JPEG REQUIRED)
+ find_package(Epoxy 1.5.4 REQUIRED)
+ find_package(LibGcrypt 1.7.0 REQUIRED)
+--- a/Source/WebCore/CMakeLists.txt	2026-11-10 11:13:40.104954090 -0500
++++ b/Source/WebCore/CMakeLists.txt	2026-11-10 11:13:41.037973654 -0500
+@@ -3280,7 +3280,7 @@
+ # Force CXX linker -- swiftc mishandles -I include paths during linking.
+ set_target_properties(WebCore PROPERTIES LINKER_LANGUAGE CXX)
+ 
+-if (APPLE)
++if (APPLE AND NOT PORT STREQUAL "WPE")
+     # Use target_link_options with LINKER: so CMake translates these for
+     # whichever linker driver is used (clang or swiftc).
+     target_link_options(WebCore PRIVATE
+--- a/Source/WebKit/CMakeLists.txt	2026-11-10 11:13:40.207956250 -0500
++++ b/Source/WebKit/CMakeLists.txt	2026-11-10 11:13:41.063974197 -0500
+@@ -774,7 +774,7 @@
+     WebCore
+     bmalloc
+ )
+-if (APPLE)
++if (APPLE AND NOT PORT STREQUAL "WPE")
+     list(APPEND WebKit_FRAMEWORKS WebKitLegacy)
+ endif ()
+ if (USE_APPLE_INTERNAL_SDK)
+@@ -1506,7 +1506,7 @@
+     endif ()
+ endif ()
+ 
+-if (APPLE)
++if (APPLE AND NOT PORT STREQUAL "WPE")
+     WEBKIT_ADD_TARGET_CXX_FLAGS(WebKit -fobjc-weak)
+     set_property(TARGET WebKit
+         PROPERTY LINK_LIBRARY_OVERRIDE_WebKitLegacy REEXPORT_FRAMEWORK)
+--- a/Source/bmalloc/PlatformWPE.cmake	1969-12-31 19:00:00.000000000 -0500
++++ b/Source/bmalloc/PlatformWPE.cmake	2026-11-10 11:13:41.166976346 -0500
+@@ -0,0 +1,10 @@
++if (APPLE)
++    list(APPEND bmalloc_SOURCES
++        bmalloc/ProcessCheck.mm
++    )
++
++    list(APPEND bmalloc_LIBRARIES
++        "-framework Foundation"
++        objc
++    )
++endif ()

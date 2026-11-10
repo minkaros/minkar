@@ -1,0 +1,50 @@
+WebKit: GLib's content types taken as MIME types
+
+GLib's content type is a MIME type on Linux, but a type identifier
+(public.html) where the system names types so, as on Darwin. WebKit used it
+as a MIME type for local files and resources, so a page loaded from a file
+(with no shared MIME database to name its type by extension) was not one
+WebKit could show, and was not loaded. g_content_type_get_mime_type gives
+the MIME type on every system.
+
+--- a/Source/WebKit/NetworkProcess/soup/NetworkDataTaskSoup.cpp	2026-11-10 12:30:09.255044744 -0500
++++ b/Source/WebKit/NetworkProcess/soup/NetworkDataTaskSoup.cpp	2026-11-10 12:30:09.268043918 -0500
+@@ -1458,7 +1458,11 @@
+         m_response.setMimeType("text/html"_s);
+         m_response.setExpectedContentLength(-1);
+     } else {
+-        auto contentType = String::fromLatin1(g_file_info_get_content_type(info));
++        // GLib's content type is a MIME type on Linux, a type identifier
++        // (public.html) where the system names types so: its MIME type.
++        const char* fileContentType = g_file_info_get_content_type(info);
++        GUniquePtr<char> fileMIMEType(fileContentType ? g_content_type_get_mime_type(fileContentType) : nullptr);
++        auto contentType = String::fromLatin1(fileMIMEType ? fileMIMEType.get() : fileContentType);
+         auto mimeTypeFromExtension = MIMETypeRegistry::mimeTypeForPath(m_response.url().path());
+         auto mimeTypeFromContent = extractMIMETypeFromMediaType(contentType);
+         // If an application calls g_app_info_get_default_for_type($ext) then Glib will return "application/x-extension-$ext" in mimeTypeFromExtension which WebKit doesn't know how to handle.
+--- a/Source/WebCore/loader/soup/ResourceLoaderSoup.cpp	2026-11-10 12:30:09.277043346 -0500
++++ b/Source/WebCore/loader/soup/ResourceLoaderSoup.cpp	2026-11-10 12:30:09.288042647 -0500
+@@ -98,7 +98,9 @@
+         auto contentTypeString = contentTypeLookUpForKnownResource(fileName.get());
+         if (!contentTypeString) {
+             GUniquePtr<char> contentType(g_content_type_guess(fileName.get(), data, dataSize, nullptr));
+-            contentTypeString = String::fromLatin1(contentType.get());
++            // A MIME type, where GLib's content types are type identifiers.
++            GUniquePtr<char> mimeType(contentType ? g_content_type_get_mime_type(contentType.get()) : nullptr);
++            contentTypeString = String::fromLatin1(mimeType ? mimeType.get() : contentType.get());
+         }
+         ResourceResponse response { WTF::move(url), extractMIMETypeFromMediaType(*contentTypeString), static_cast<long long>(dataSize), extractCharsetFromMediaType(*contentTypeString).toString() };
+         response.setHTTPStatusCode(200);
+--- a/Source/WebKit/UIProcess/Inspector/glib/RemoteInspectorHTTPServer.cpp	2026-11-10 12:30:09.296042139 -0500
++++ b/Source/WebKit/UIProcess/Inspector/glib/RemoteInspectorHTTPServer.cpp	2026-11-10 12:30:09.306041503 -0500
+@@ -103,7 +103,9 @@
+         const auto* data = static_cast<const guchar*>(g_bytes_get_data(bytes.get(), &dataSize));
+         GUniquePtr<char> fileName(g_path_get_basename(resourcePath.get()));
+         GUniquePtr<char> contentType(g_content_type_guess(fileName.get(), data, dataSize, nullptr));
+-        soup_message_headers_append(responseHeaders, "Content-Type", contentType.get());
++        // A MIME type, where GLib's content types are type identifiers.
++        GUniquePtr<char> mimeType(contentType ? g_content_type_get_mime_type(contentType.get()) : nullptr);
++        soup_message_headers_append(responseHeaders, "Content-Type", mimeType ? mimeType.get() : contentType.get());
+         soup_message_body_append(responseBody, SOUP_MEMORY_COPY, data, dataSize);
+         return SOUP_STATUS_OK;
+     }

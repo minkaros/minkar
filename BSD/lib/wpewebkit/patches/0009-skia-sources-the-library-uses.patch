@@ -1,0 +1,24 @@
+Skia: two sources the library uses
+
+SkPathDump.cpp and SkStrikeRef.cpp define functions other files of the
+library call. An ELF shared library links with them undefined; ld64
+refuses undefined symbols.
+
+--- a/Source/ThirdParty/skia/CMakeLists.txt	2026-11-10 11:13:40.004951992 -0500
++++ b/Source/ThirdParty/skia/CMakeLists.txt	2026-11-10 11:13:41.011973112 -0500
+@@ -175,6 +175,7 @@
+     src/core/SkPaint.cpp
+     src/core/SkPaintPriv.cpp
+     src/core/SkPath.cpp
++    src/core/SkPathDump.cpp
+     src/core/SkPathBuilder.cpp
+     src/core/SkPathData.cpp
+     src/core/SkPathEffect.cpp
+@@ -237,6 +238,7 @@
+     src/core/SkSpriteBlitter_ARGB32.cpp
+     src/core/SkStream.cpp
+     src/core/SkStrike.cpp
++    src/core/SkStrikeRef.cpp
+     src/core/SkStrikeCache.cpp
+     src/core/SkStrikeSpec.cpp
+     src/core/SkString.cpp

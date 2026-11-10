@@ -1,0 +1,49 @@
+WebCore: Web Crypto keys on libgcrypt for WPE on Darwin
+
+The keys use CommonCrypto on every Darwin port but GTK. WPE uses libgcrypt
+there as well, as on its other systems.
+
+--- a/Source/WebCore/crypto/CryptoKey.cpp	2026-11-10 11:13:40.121954446 -0500
++++ b/Source/WebCore/crypto/CryptoKey.cpp	2026-11-10 11:13:41.041973737 -0500
+@@ -76,7 +76,7 @@
+     return WebCoreOpaqueRoot { key };
+ }
+ 
+-#if !OS(DARWIN) || PLATFORM(GTK)
++#if !OS(DARWIN) || PLATFORM(GTK) || PLATFORM(WPE)
+ Vector<uint8_t> CryptoKey::randomData(size_t size)
+ {
+     Vector<uint8_t> result(size);
+--- a/Source/WebCore/crypto/keys/CryptoKeyEC.cpp	2026-11-10 11:13:40.134954719 -0500
++++ b/Source/WebCore/crypto/keys/CryptoKeyEC.cpp	2026-11-10 11:13:41.048973884 -0500
+@@ -31,7 +31,7 @@
+ #include "JsonWebKey.h"
+ #include <wtf/text/Base64.h>
+ 
+-#if OS(DARWIN) && !PLATFORM(GTK)
++#if OS(DARWIN) && !PLATFORM(GTK) && !PLATFORM(WPE)
+ #include <pal/crypto/CryptoTypes.h>
+ #include <pal/crypto/PlatformECKey.h>
+ #endif
+--- a/Source/WebCore/crypto/keys/CryptoKeyEC.h	2026-11-10 11:13:40.154955139 -0500
++++ b/Source/WebCore/crypto/keys/CryptoKeyEC.h	2026-11-10 11:13:41.054974009 -0500
+@@ -29,7 +29,7 @@
+ #include <WebCore/CryptoKeyPair.h>
+ 
+ #include <wtf/Platform.h>
+-#if OS(DARWIN) && !PLATFORM(GTK)
++#if OS(DARWIN) && !PLATFORM(GTK) && !PLATFORM(WPE)
+ #include <WebCore/CommonCryptoUtilities.h>
+ 
+ #include <pal/crypto/CryptoTypes.h>
+--- a/Source/WebCore/crypto/keys/CryptoKeyRSA.h	2026-11-10 11:13:40.171955495 -0500
++++ b/Source/WebCore/crypto/keys/CryptoKeyRSA.h	2026-11-10 11:13:41.057974071 -0500
+@@ -28,7 +28,7 @@
+ #include "CryptoKey.h"
+ #include <wtf/Function.h>
+ 
+-#if OS(DARWIN) && !PLATFORM(GTK)
++#if OS(DARWIN) && !PLATFORM(GTK) && !PLATFORM(WPE)
+ #include "CommonCryptoUtilities.h"
+ 
+ typedef CCRSACryptorRef PlatformRSAKey;

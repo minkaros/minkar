@@ -1,0 +1,34 @@
+# WPE WebKit 2.54.2 (LGPL-2.1-or-later and BSD-2-Clause): WebCore, WebKit's
+# processes and the WPE platform, from WebKit's repository at the commit
+# that release was made from (its tag wpewebkit-2.54.2), the same commit
+# JavaScriptCore (../javascriptcore) is built from. The release's tarball
+# leaves out the Darwin sources WTF and bmalloc build with here. Only these
+# parts of the tree are fetched; git checks every object against the commit.
+git https://github.com/WebKit/WebKit.git
+commit 32717fabcb9dcad9aa00a54ef1f23e41ee64e849
+name wpewebkit
+path CMakeLists.txt
+path Source/CMakeLists.txt
+path Source/PlatformWPE.cmake
+path Source/cmake
+path Source/WTF
+path Source/bmalloc
+path Source/JavaScriptCore
+path Source/WebCore
+path Source/WebKit
+path Source/WebInspectorUI
+path Source/WebDriver
+path Source/ThirdParty/skia
+path Source/ThirdParty/xdgmime
+path Source/ThirdParty/unifdef
+path Source/ThirdParty/libsysprof-capture
+path Source/ThirdParty/gtest
+path Source/ThirdParty/pdfjs
+path Tools/CMakeLists.txt
+path Tools/PlatformWPE.cmake
+path Tools/Scripts
+path Tools/glib
+path Tools/wpe
+path Tools/MiniBrowser
+path Tools/ImageDiff
+version 2.54.2

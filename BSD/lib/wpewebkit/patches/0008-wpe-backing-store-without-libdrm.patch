@@ -1,0 +1,18 @@
+WPE: the accelerated backing store without libdrm
+
+The backing store names DRM_FORMAT_XRGB8888 for shared memory buffers too.
+Without libdrm it is defined here (the format's fourcc, 'XR24'); no
+DMA-BUF buffers come then.
+
+--- a/Source/WebKit/UIProcess/wpe/AcceleratedBackingStore.cpp	2026-11-10 11:13:40.434961011 -0500
++++ b/Source/WebKit/UIProcess/wpe/AcceleratedBackingStore.cpp	2026-11-10 11:13:41.125975490 -0500
+@@ -41,6 +41,9 @@
+ #include <drm/drm_fourcc.h>
+ #elif USE(LIBDRM)
+ #include <drm_fourcc.h>
++#else
++// Without libdrm (the format's fourcc, 'XR24'); no DMA-BUF buffers come then.
++#define DRM_FORMAT_XRGB8888 0x34325258
+ #endif
+ 
+ WTF_IGNORE_WARNINGS_IN_THIRD_PARTY_CODE_BEGIN

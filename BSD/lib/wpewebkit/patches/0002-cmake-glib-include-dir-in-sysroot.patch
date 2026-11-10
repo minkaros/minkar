@@ -1,0 +1,22 @@
+CMake: FindGLib takes pkg-config's include directory only where it exists
+
+pkg-config's includedir variable is not prefixed with the sysroot when
+cross-compiling, so it names a directory of the build host. The include
+directories pkg-config gives with -I are prefixed, and are enough.
+
+--- a/Source/cmake/FindGLib.cmake	2026-11-10 11:13:40.501962416 -0500
++++ b/Source/cmake/FindGLib.cmake	2026-11-10 11:13:41.143975866 -0500
+@@ -195,7 +195,12 @@
+     list(TRANSFORM dependencies PREPEND GLib::)
+     add_library(GLib::${name} UNKNOWN IMPORTED GLOBAL)
+     set_target_properties(GLib::${name} PROPERTIES IMPORTED_LOCATION "${GLib_${name}_LIBRARY}")
+-    target_include_directories(GLib::${name} INTERFACE ${PC_GLib_${name}_INCLUDEDIR})
++    # pkg-config's includedir variable is not prefixed with the sysroot
++    # when cross-compiling; INCLUDE_DIRS is, so the variable is used only
++    # when the path exists.
++    if (PC_GLib_${name}_INCLUDEDIR AND EXISTS "${PC_GLib_${name}_INCLUDEDIR}")
++        target_include_directories(GLib::${name} INTERFACE ${PC_GLib_${name}_INCLUDEDIR})
++    endif ()
+     target_include_directories(GLib::${name} INTERFACE ${PC_GLib_${name}_INCLUDE_DIRS})
+     target_compile_options(GLib::${name} INTERFACE ${PC_GLib_${name}_CFLAGS})
+     target_compile_options(GLib::${name} INTERFACE ${PC_GLib_${name}_CFLAGS_OTHER})

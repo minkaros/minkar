@@ -1,0 +1,253 @@
+WebKit: the GLib IPC connection on stream sockets on Darwin
+
+WPE's processes talk over a Unix socket pair of type SOCK_SEQPACKET, which
+Darwin's Unix sockets do not have (socketpair fails, and the UI process
+stops at its first connection). Its datagram sockets keep message
+boundaries, but report a full buffer as ENOBUFS while poll() calls them
+writable, and give no peer credentials. A stream socket has flow control,
+end of file and credentials: there each message goes as a frame, its size
+and the number of file descriptors sent with it (on its first byte)
+before it. The receiver keeps what came of the next frame and the file
+descriptors in order; the rest of a frame the socket took only part of is
+sent before any other message.
+
+--- a/Source/WebKit/Platform/IPC/Connection.h	2026-11-10 11:13:41.087974697 -0500
++++ b/Source/WebKit/Platform/IPC/Connection.h	2026-11-10 12:30:09.207047794 -0500
+@@ -780,6 +780,16 @@
+     GSocketMonitor m_writeSocketMonitor;
+     Vector<UnixFileDescriptor> m_fileDescriptors;
+     bool m_hasPendingOutputMessage { false };
++#if OS(DARWIN)
++    // Darwin's Unix sockets have no SOCK_SEQPACKET: messages are framed on a
++    // stream socket (ConnectionGLib.cpp).
++    bool readStreamFrames();
++    void sendPendingOutputBytes();
++
++    Vector<uint8_t> m_streamInput;
++    Vector<UnixFileDescriptor> m_streamFileDescriptors;
++    Vector<uint8_t> m_pendingOutputBytes;
++#endif
+ #if OS(ANDROID)
+     bool sendOutgoingHardwareBuffers();
+     bool receiveIncomingHardwareBuffers();
+--- a/Source/WebKit/Platform/IPC/glib/ConnectionGLib.cpp	2026-11-10 12:30:09.219047032 -0500
++++ b/Source/WebKit/Platform/IPC/glib/ConnectionGLib.cpp	2026-11-10 12:30:09.228046460 -0500
+@@ -49,6 +49,19 @@
+ namespace IPC {
+ 
+ static constexpr size_t s_messageMaxSize = 4096;
++
++#if OS(DARWIN)
++// Darwin's Unix sockets have no SOCK_SEQPACKET, and its datagram sockets
++// report a full buffer as ENOBUFS while poll() calls them writable. The
++// connection is a stream socket instead: each message goes as a frame, its
++// size and the number of file descriptors sent with it (on its first byte)
++// before it.
++struct StreamFrameHeader {
++    uint32_t size;
++    uint32_t fileDescriptorCount;
++};
++static constexpr size_t s_streamReadSize = 16384;
++#endif
+ static constexpr size_t s_attachmentMaxAmount = 254;
+ 
+ class AttachmentInfo {
+@@ -297,6 +310,9 @@
+     }
+ #endif
+ 
++#if OS(DARWIN)
++    readStreamFrames();
++#else
+     while (true) {
+         m_readBuffer.grow(m_readBuffer.capacity());
+         m_fileDescriptors.shrink(0);
+@@ -341,8 +357,102 @@
+         else
+             connectionDidClose();
+     }
++#endif
++}
++
++#if OS(DARWIN)
++// Reads what the socket has, and handles each whole frame in it. Returns
++// false once the connection has closed.
++bool Connection::readStreamFrames()
++{
++    while (true) {
++        Vector<uint8_t> chunk(s_streamReadSize);
++        GUniqueOutPtr<GError> error;
++        auto bytesRead = readBytesFromSocket(m_socket.get(), chunk, m_streamFileDescriptors, m_cancellable.get(), &error.outPtr());
++        if (bytesRead < 0) {
++            if (g_error_matches(error.get(), G_IO_ERROR, G_IO_ERROR_WOULD_BLOCK))
++                return true;
++            if (m_isConnected && !g_error_matches(error.get(), G_IO_ERROR, G_IO_ERROR_CONNECTION_CLOSED) && !g_error_matches(error.get(), G_IO_ERROR, G_IO_ERROR_CANCELLED))
++                RELEASE_LOG_ERROR(IPC, "Error receiving IPC message on socket %d in process %d: %s", g_socket_get_fd(m_socket.get()), getpid(), error ? error->message : "control data truncated");
++            connectionDidClose();
++            return false;
++        }
++        if (!bytesRead) {
++            connectionDidClose();
++            return false;
++        }
++        m_streamInput.append(chunk.span().first(bytesRead));
++
++        while (m_streamInput.size() >= sizeof(StreamFrameHeader)) {
++            StreamFrameHeader header;
++            memcpy(&header, m_streamInput.span().data(), sizeof(header));
++            if (header.size > s_messageMaxSize || header.fileDescriptorCount > s_attachmentMaxAmount) {
++                RELEASE_LOG_FAULT(IPC, "readStreamFrames: bad frame (size %u, file descriptors %u)", header.size, header.fileDescriptorCount);
++                connectionDidClose();
++                return false;
++            }
++            if (m_streamInput.size() < sizeof(header) + header.size)
++                break;
++            // A frame's file descriptors come with its first byte, so they are here.
++            if (m_streamFileDescriptors.size() < header.fileDescriptorCount) {
++                RELEASE_LOG_FAULT(IPC, "readStreamFrames: a frame's file descriptors are missing");
++                connectionDidClose();
++                return false;
++            }
++            m_readBuffer.clear();
++            m_readBuffer.append(m_streamInput.span().subspan(sizeof(header), header.size));
++            m_streamInput.removeAt(0, sizeof(header) + header.size);
++            m_fileDescriptors.clear();
++            for (uint32_t i = 0; i < header.fileDescriptorCount; ++i)
++                m_fileDescriptors.append(WTF::move(m_streamFileDescriptors[i]));
++            m_streamFileDescriptors.removeAt(0, header.fileDescriptorCount);
++
++            auto decoder = createMessageDecoder();
++            if (!decoder) {
++                connectionDidClose();
++                return false;
++            }
++            processIncomingMessage(makeUniqueRefFromNonNullUniquePtr(WTF::move(decoder)));
++            if (!m_isConnected)
++                return false;
++        }
++    }
+ }
+ 
++// The rest of a frame the socket took only part of, when it can take more;
++// the messages after it then.
++void Connection::sendPendingOutputBytes()
++{
++    m_writeSocketMonitor.start(m_socket.get(), G_IO_OUT, m_connectionQueue->runLoop(), m_cancellable.get(), [this, protectedThis = protect(*this)] (GIOCondition) -> gboolean {
++        // The monitor is not stopped from its own callback (that destroys it).
++        m_connectionQueue->dispatch([this, protectedThis = protect(*this)] {
++            m_writeSocketMonitor.stop();
++            if (!m_isConnected)
++                return;
++            while (!m_pendingOutputBytes.isEmpty()) {
++                GUniqueOutPtr<GError> error;
++                auto bytesWritten = g_socket_send(m_socket.get(), reinterpret_cast<const gchar*>(m_pendingOutputBytes.span().data()), m_pendingOutputBytes.size(), m_cancellable.get(), &error.outPtr());
++                if (bytesWritten > 0) {
++                    m_pendingOutputBytes.removeAt(0, bytesWritten);
++                    continue;
++                }
++                if (bytesWritten < 0 && g_error_matches(error.get(), G_IO_ERROR, G_IO_ERROR_WOULD_BLOCK)) {
++                    sendPendingOutputBytes();
++                    return;
++                }
++                if (bytesWritten < 0 && !g_error_matches(error.get(), G_IO_ERROR, G_IO_ERROR_CONNECTION_CLOSED) && !g_error_matches(error.get(), G_IO_ERROR, G_IO_ERROR_CANCELLED))
++                    RELEASE_LOG_ERROR(IPC, "Error sending IPC message on socket %d in process %d: %s", g_socket_get_fd(m_socket.get()), getpid(), error->message);
++                connectionDidClose();
++                return;
++            }
++            m_hasPendingOutputMessage = false;
++            sendOutgoingMessages();
++        });
++        return G_SOURCE_REMOVE;
++    });
++}
++#endif
++
+ bool Connection::platformPrepareForOpen()
+ {
+     return true;
+@@ -418,6 +528,9 @@
+ 
+     outputVector[outputVectorLength++] = { reinterpret_cast<void*>(&messageInfo), sizeof(messageInfo) };
+     GRefPtr<GSocketControlMessage> controlMessage;
++#if OS(DARWIN)
++    uint32_t fileDescriptorCount = 0;
++#endif
+     Vector<AttachmentInfo> attachmentInfo;
+     if (!attachments.isEmpty()) {
+         attachmentInfo.resize(attachments.size());
+@@ -454,6 +567,9 @@
+             // Use g_unix_fd_message_new_with_fd_list() to create the message without duplicating the file descriptors.
+             GRefPtr<GUnixFDList> fdList = adoptGRef(g_unix_fd_list_new_from_array(fds.span().data(), fds.size()));
+             controlMessage = adoptGRef(g_unix_fd_message_new_with_fd_list(fdList.get()));
++#if OS(DARWIN)
++            fileDescriptorCount = fds.size();
++#endif
+         }
+ 
+         outputVector[outputVectorLength++] = { attachmentInfo.mutableSpan().data(), sizeof(AttachmentInfo) * attachments.size() };
+@@ -462,6 +578,20 @@
+     if (!messageInfo.isBodyOutOfLine() && outputMessage.bodySize())
+         outputVector[outputVectorLength++] = { reinterpret_cast<void*>(outputMessage.body().data()), outputMessage.bodySize() };
+ 
++#if OS(DARWIN)
++    size_t payloadSize = 0;
++    for (int i = 0; i < outputVectorLength; ++i)
++        payloadSize += outputVector[i].size;
++    StreamFrameHeader header { static_cast<uint32_t>(payloadSize), fileDescriptorCount };
++    Vector<uint8_t> frame;
++    frame.reserveInitialCapacity(sizeof(header) + payloadSize);
++    frame.append(std::span { reinterpret_cast<const uint8_t*>(&header), sizeof(header) });
++    for (int i = 0; i < outputVectorLength; ++i)
++        frame.append(std::span { static_cast<const uint8_t*>(outputVector[i].buffer), outputVector[i].size });
++    outputVector[0] = { frame.span().data(), frame.size() };
++    outputVectorLength = 1;
++#endif
++
+     auto* controlMessagePtr = controlMessage.get();
+     GUniqueOutPtr<GError> error;
+     auto bytesWritten = g_socket_send_message(m_socket.get(), nullptr, outputVector, outputVectorLength,
+@@ -470,6 +600,17 @@
+         // File descriptors are owned by UnixMessage, so steal them from the control message to avoid a double close.
+         g_free(g_unix_fd_message_steal_fds(G_UNIX_FD_MESSAGE(controlMessage.get()), nullptr));
+     }
++#if OS(DARWIN)
++    if (bytesWritten > 0 && static_cast<size_t>(bytesWritten) < frame.size()) {
++        // The frame's start went, with its file descriptors: the rest follows
++        // before any other message.
++        m_pendingOutputBytes.clear();
++        m_pendingOutputBytes.append(frame.span().subspan(bytesWritten));
++        m_hasPendingOutputMessage = true;
++        sendPendingOutputBytes();
++        return false;
++    }
++#endif
+     if (bytesWritten >= 0) {
+ #if OS(ANDROID)
+         RELEASE_ASSERT(m_outgoingHardwareBuffers.isEmpty());
+@@ -513,7 +654,11 @@
+ 
+ std::optional<Connection::ConnectionIdentifierPair> Connection::createConnectionIdentifierPair()
+ {
++#if OS(DARWIN)
++    SocketPair socketPair = createPlatformConnection(SOCK_STREAM);
++#else
+     SocketPair socketPair = createPlatformConnection(SOCK_SEQPACKET);
++#endif
+     return { { Identifier { WTF::move(socketPair.server) }, ConnectionHandle { WTF::move(socketPair.client) } } };
+ }
+ 
+--- a/Source/WebKit/UIProcess/Launcher/glib/ProcessLauncherGLib.cpp	2026-11-10 12:30:09.237045888 -0500
++++ b/Source/WebKit/UIProcess/Launcher/glib/ProcessLauncherGLib.cpp	2026-11-10 12:30:09.246045316 -0500
+@@ -109,7 +109,12 @@
+ 
+     GUniquePtr<gchar> processIdentifier(g_strdup_printf("%" PRIu64, m_launchOptions.processIdentifier.toUInt64()));
+ 
++#if OS(DARWIN)
++    // A stream socket, framed by IPC::Connection (Darwin has no SOCK_SEQPACKET).
++    IPC::SocketPair webkitSocketPair = IPC::createPlatformConnection(SOCK_STREAM, connectionOptions());
++#else
+     IPC::SocketPair webkitSocketPair = IPC::createPlatformConnection(SOCK_SEQPACKET, connectionOptions());
++#endif
+     GUniquePtr<gchar> webkitSocket(g_strdup_printf("%d", webkitSocketPair.client.value()));
+ 
+ #if OS(ANDROID)
