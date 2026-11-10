@@ -8,6 +8,7 @@
 // GLib's main context runs on the main run loop (WebGLibRunLoop.m).
 
 #import <WebKit/WKWebView.h>
+#import "WKWebViewInternal.h"
 #import <objc/message.h>
 
 #include <wpe/webkit.h>
@@ -152,9 +153,6 @@ SECURE
 @implementation WKScriptMessage
 @end
 
-@interface WKWebView ()
-- (WebKitWebView *)_webKitView;
-@end
 
 /* The scripts and handlers of every web view using it: a WebKit user
    content manager, made with the controller. */
@@ -299,13 +297,14 @@ SECURE
 }
 @end
 
-@interface WKWebViewConfiguration ()
-/* The web view whose page opens the one made with this configuration. */
-@property (weak) WKWebView *_relatedWebView;
-@end
-
-@implementation WKWebViewConfiguration
+/* _relatedWebView (WKWebViewInternal.h): the web view whose page opens
+   the one made with this configuration. */
+@implementation WKWebViewConfiguration {
+    __weak WKWebView *_related;
+}
 SECURE
+- (WKWebView *)_relatedWebView { return _related; }
+- (void)set_relatedWebView:(WKWebView *)webView { _related = webView; }
 - (instancetype)init {
     if ((self = [super init])) {
         _processPool = [WKProcessPool new];
@@ -599,6 +598,19 @@ static void webProcessTerminated(WebKitWebView *webView, WebKitWebProcessTermina
 }
 
 - (WebKitWebView *)_webKitView { return _webView; }
+
+/* Without a background, what is behind the view shows where the page
+   draws none. */
+- (void)_setDrawsBackground:(BOOL)draws {
+    WebKitColor color = { 1, 1, 1, draws ? 1 : 0 };
+    webkit_web_view_set_background_color(_webView, &color);
+}
+
+- (BOOL)_drawsBackground {
+    WebKitColor color;
+    webkit_web_view_get_background_color(_webView, &color);
+    return color.alpha > 0;
+}
 - (BOOL)isFlipped { return YES; }
 - (BOOL)isOpaque { return NO; }
 
@@ -1097,9 +1109,7 @@ static void evaluated(GObject *object, GAsyncResult *result, gpointer data)
         text = [result isKindOfClass:[NSString class]] ? result : @"";
         done = YES;
     }];
-    NSDate *limit = [NSDate dateWithTimeIntervalSinceNow:10];
-    while (!done && limit.timeIntervalSinceNow > 0)
-        [[NSRunLoop currentRunLoop] runMode:NSDefaultRunLoopMode beforeDate:[NSDate dateWithTimeIntervalSinceNow:0.05]];
+    _WebGLibRunLoopWait(^{ return done; }, 10);
     return text ?: @"";
 }
 

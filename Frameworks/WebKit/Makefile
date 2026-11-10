@@ -5,14 +5,13 @@
 # WebKit.framework: the API's web view classes. WKWebView runs on WPE
 # WebKit (BSD/lib/wpewebkit, private in /usr/lib/webkit) through Minkar's
 # WPE platform, so this framework is built after BSD, in a stage of its
-# own (the top Makefile). The older WebView still shows a page as its text
-# through AppKit's HTML reader until W4.
+# own (the top Makefile). The older WebView shows a WKWebView of its own.
 
 MK_WERROR = no
 FRAMEWORK = WebKit
 FMWK_VERSION = A
 FMWK_COMPAT_VERSION = 1.0.0
-SRCS = WebPage.m WKWebView.m WebView.m WebGLibRunLoop.m WebWPEPlatform.m WebWPEEvents.m
+SRCS = WKWebView.m WebView.m WebGLibRunLoop.m WebWPEPlatform.m WebWPEEvents.m
 HEADERS = WebKit.h WKWebView.h WebView.h
 SUBDIR =
 

@@ -2,8 +2,11 @@
 // Copyright (c) 2026 The Minkar contributors
 // Part of Minkar.
 //
-// The older web view API, on the same pages as WKWebView (see its header:
-// text only until WPE WebKit; no JavaScript).
+// The older web view API, on the same engine as WKWebView (WPE WebKit): a
+// WebView shows a WKWebView of its own and turns the older delegates'
+// calls into its. Its synchronous calls (stringByEvaluatingJavaScript...,
+// WebScriptObject, searchFor:) wait for WebKit's processes. One frame (the
+// main one) is modeled; there is no DOM API.
 
 #import <AppKit/AppKit.h>
 
@@ -16,6 +19,22 @@ FOUNDATION_EXPORT NSString *const WebViewProgressEstimateChangedNotification;
 FOUNDATION_EXPORT NSString *const WebViewProgressFinishedNotification;
 FOUNDATION_EXPORT NSString *const WebPreferencesChangedNotification;
 
+typedef NS_ENUM(NSInteger, WebNavigationType) {
+    WebNavigationTypeLinkClicked,
+    WebNavigationTypeFormSubmitted,
+    WebNavigationTypeBackForward,
+    WebNavigationTypeReload,
+    WebNavigationTypeFormResubmitted,
+    WebNavigationTypeOther
+};
+
+/* The keys of a policy decision's action information. */
+FOUNDATION_EXPORT NSString *const WebActionNavigationTypeKey;
+FOUNDATION_EXPORT NSString *const WebActionElementKey;
+FOUNDATION_EXPORT NSString *const WebActionButtonKey;
+FOUNDATION_EXPORT NSString *const WebActionModifierFlagsKey;
+FOUNDATION_EXPORT NSString *const WebActionOriginalURLKey;
+
 typedef NS_ENUM(NSUInteger, WebCacheModel) {
     WebCacheModelDocumentViewer = 0,
     WebCacheModelDocumentBrowser = 1,
@@ -26,7 +45,10 @@ typedef NS_ENUM(NSUInteger, WebCacheModel) {
 + (WebUndefined *)undefined;
 @end
 
-/* There are no scripts: methods and evaluations give nil. */
+/* A JavaScript object of the page. Values cross as NSString, NSNumber,
+   NSNull, WebUndefined and WebScriptObject (other objects); arrays and
+   dictionaries given to scripts cross as JavaScript arrays and objects.
+   An exception gives nil. */
 @interface WebScriptObject : NSObject
 - (nullable id)callWebScriptMethod:(NSString *)name withArguments:(nullable NSArray *)arguments;
 - (nullable id)evaluateWebScript:(NSString *)script;
@@ -98,15 +120,53 @@ typedef NS_ENUM(NSUInteger, WebCacheModel) {
 @property BOOL allowsScrolling;
 @end
 
+@protocol WebPolicyDecisionListener <NSObject>
+- (void)use;
+- (void)download;
+- (void)ignore;
+@end
+
+@class WebView;
+
+@protocol WebFrameLoadDelegate <NSObject>
+@optional
+- (void)webView:(WebView *)sender didStartProvisionalLoadForFrame:(WebFrame *)frame;
+- (void)webView:(WebView *)sender didCommitLoadForFrame:(WebFrame *)frame;
+- (void)webView:(WebView *)sender didReceiveTitle:(NSString *)title forFrame:(WebFrame *)frame;
+- (void)webView:(WebView *)sender didFinishLoadForFrame:(WebFrame *)frame;
+- (void)webView:(WebView *)sender didFailProvisionalLoadWithError:(NSError *)error forFrame:(WebFrame *)frame;
+- (void)webView:(WebView *)sender didFailLoadWithError:(NSError *)error forFrame:(WebFrame *)frame;
+- (void)webView:(WebView *)sender didClearWindowObject:(WebScriptObject *)windowObject forFrame:(WebFrame *)frame;
+@end
+
+@protocol WebPolicyDelegate <NSObject>
+@optional
+- (void)webView:(WebView *)webView decidePolicyForNavigationAction:(NSDictionary *)actionInformation
+        request:(NSURLRequest *)request frame:(WebFrame *)frame decisionListener:(id<WebPolicyDecisionListener>)listener;
+- (void)webView:(WebView *)webView decidePolicyForNewWindowAction:(NSDictionary *)actionInformation
+        request:(NSURLRequest *)request newFrameName:(NSString *)frameName decisionListener:(id<WebPolicyDecisionListener>)listener;
+@end
+
+@protocol WebUIDelegate <NSObject>
+@optional
+- (nullable WebView *)webView:(WebView *)sender createWebViewWithRequest:(nullable NSURLRequest *)request;
+- (void)webViewShow:(WebView *)sender;
+- (void)webViewClose:(WebView *)sender;
+- (void)webView:(WebView *)sender runJavaScriptAlertPanelWithMessage:(NSString *)message initiatedByFrame:(WebFrame *)frame;
+- (BOOL)webView:(WebView *)sender runJavaScriptConfirmPanelWithMessage:(NSString *)message initiatedByFrame:(WebFrame *)frame;
+- (nullable NSString *)webView:(WebView *)sender runJavaScriptTextInputPanelWithPrompt:(NSString *)prompt
+                   defaultText:(nullable NSString *)defaultText initiatedByFrame:(WebFrame *)frame;
+@end
+
 @interface WebView : NSView
 + (BOOL)canShowMIMEType:(NSString *)MIMEType;
 + (void)registerURLSchemeAsLocal:(nullable NSString *)scheme;
 - (instancetype)initWithFrame:(NSRect)frame frameName:(nullable NSString *)frameName groupName:(nullable NSString *)groupName;
 @property (readonly, strong) WebFrame *mainFrame;
 @property (nullable, readonly, strong) WebFrame *selectedFrame;
-@property (nullable, weak) id frameLoadDelegate;
-@property (nullable, weak) id policyDelegate;
-@property (nullable, weak) id UIDelegate;
+@property (nullable, weak) id<WebFrameLoadDelegate> frameLoadDelegate;
+@property (nullable, weak) id<WebPolicyDelegate> policyDelegate;
+@property (nullable, weak) id<WebUIDelegate> UIDelegate;
 @property (nullable, weak) id resourceLoadDelegate;
 @property (nullable, weak) id downloadDelegate;
 @property (nullable, weak) id editingDelegate;

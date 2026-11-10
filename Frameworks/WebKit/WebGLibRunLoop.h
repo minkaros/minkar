@@ -11,3 +11,9 @@
 /* Called on the main thread before the first web view: GLib's default
    context is then the main run loop's. Calling it again does nothing. */
 void _WebGLibRunLoopStart(void);
+
+/* Until done says so or timeout seconds pass (NO then), on the main
+   thread, for the API's synchronous calls: inside one of GLib's callbacks
+   (a delegate called from WebKit), GLib's sources are run nested; outside
+   them, the run loop runs in its default mode. */
+BOOL _WebGLibRunLoopWait(BOOL (^done)(void), NSTimeInterval timeout);

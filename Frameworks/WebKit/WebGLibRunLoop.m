@@ -18,8 +18,9 @@
 // step). CFRunLoop gets a source and an observer, for
 // programs that run it.
 //
-// GLib is not run while one of its callbacks is running (a modal loop
-// started from one does not dispatch GLib's sources).
+// GLib is not run by the run loop while one of its callbacks is running (a
+// modal loop started from one does not dispatch GLib's sources); the API's
+// synchronous calls made from one run it nested (_WebGLibRunLoopWait).
 
 #import "WebGLibRunLoop.h"
 #import <Foundation/NSSelectInputSource.h>
@@ -239,4 +240,34 @@ void _WebGLibRunLoopStart(void)
         /* The first iteration now: the run loop may not sleep soon. */
         startIteration();
     });
+}
+
+static gboolean stopWaiting(gpointer data)
+{
+    (void)data;
+    return G_SOURCE_REMOVE;
+}
+
+BOOL _WebGLibRunLoopWait(BOOL (^done)(void), NSTimeInterval timeout)
+{
+    _WebGLibRunLoopStart();
+    NSDate *limit = [NSDate dateWithTimeIntervalSinceNow:timeout];
+    while (!done()) {
+        if (limit.timeIntervalSinceNow <= 0)
+            return NO;
+        if (dispatching) {
+            /* Nested in GLib's dispatch: one of its iterations, woken at
+               least every 50 ms to look at done again. */
+            GSource *tick = g_timeout_source_new(50);
+            g_source_set_callback(tick, stopWaiting, NULL, NULL);
+            g_source_attach(tick, context);
+            g_main_context_iteration(context, TRUE);
+            g_source_destroy(tick);
+            g_source_unref(tick);
+        } else {
+            [[NSRunLoop currentRunLoop] runMode:NSDefaultRunLoopMode
+                                     beforeDate:[NSDate dateWithTimeIntervalSinceNow:0.05]];
+        }
+    }
+    return YES;
 }

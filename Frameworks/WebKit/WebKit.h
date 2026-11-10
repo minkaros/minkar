@@ -2,8 +2,8 @@
 // Copyright (c) 2026 The Minkar contributors
 // Part of Minkar.
 //
-// WebKit.framework: the API's web view classes. The engine is to be WPE
-// WebKit (Docs/ROADMAP.md); until then pages are shown as text.
+// WebKit.framework: the API's web view classes (WKWebView and the older
+// WebView), on WPE WebKit.
 
 #import <WebKit/WKWebView.h>
 #import <WebKit/WebView.h>
