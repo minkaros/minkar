@@ -23,6 +23,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 - (SEL)selector;
 - (id)target;
 - (id)argument;
+- (NSArray *)modes;
 - (NSUInteger)order;
 
 - (BOOL)fireInMode:(NSString *)mode;

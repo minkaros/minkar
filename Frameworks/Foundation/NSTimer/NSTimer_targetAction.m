@@ -52,6 +52,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 -(void)invalidate {
    _isValid=NO;
+   [self _unschedule];
    [_userInfo release];
    _userInfo=nil;
 	[_target release];

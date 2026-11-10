@@ -28,7 +28,6 @@ SRCS = 	NSFormatter.m \
 	NSTimeZone/NSTimeZoneTransition.m \
 	NSTimeZone/NSTimeZoneType.m \
 	NSStream/NSOutputStream_socket.m \
-	NSStream/NSSelectInputSourceSet.m \
 	NSStream/NSFileHandle_stream.m \
 	NSStream/NSFileHandle.m \
 	NSStream/NSSocket.m \
@@ -318,9 +317,7 @@ SRCS = 	NSFormatter.m \
 	NSBundle.m \
 	NSRunLoop/NSRunLoop.m \
 	NSRunLoop/NSInputSource.m \
-	NSRunLoop/NSRunLoopState.m \
 	NSRunLoop/NSOrderedPerform.m \
-	NSRunLoop/NSInputSourceSet.m \
 	NSRunLoop/NSDelayedPerform.m \
 	NSFileManager.m \
 	NSFileVersion.m \
@@ -347,10 +344,8 @@ SRCS = 	NSFormatter.m \
 	NSMeasurementFormatter.m \
 	platform_darwin/DarwinMemoryFunctions.m \
 	platform_darwin/NSPlatform_darwin.m \
-	platform_darwin/NSDispatchMainQueueSource.m \
 	platform_darwin/NSString_defaultEncoding_darwin.m \
 	platform_darwin/libmain.m \
-	platform_posix/NSCancelInputSource_posix.m \
 	platform_posix/NSCondition_posix.m \
 	platform_posix/NSConditionLock_posix.m \
 	platform_posix/NSConstantString.m \
@@ -363,7 +358,6 @@ SRCS = 	NSFormatter.m \
 	platform_posix/NSPipe_posix.m \
 	platform_posix/NSPlatform_posix.m \
 	platform_posix/NSRecursiveLock_posix.m \
-	platform_posix/NSRunLoopState_posix.m \
 	platform_posix/NSSelectSet_bsd.m \
 	platform_posix/NSSocket_bsd.m \
 	platform_posix/NSSocketPort_posix.m \

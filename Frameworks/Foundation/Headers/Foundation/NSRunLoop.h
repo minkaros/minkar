@@ -19,13 +19,15 @@ typedef NSString *NSRunLoopMode NS_TYPED_EXTENSIBLE_ENUM NS_SWIFT_NAME(RunLoop.M
 FOUNDATION_EXPORT NSRunLoopMode const NSDefaultRunLoopMode NS_SWIFT_NAME(default);
 FOUNDATION_EXPORT NSRunLoopMode const NSRunLoopCommonModes NS_SWIFT_NAME(common);
 
+/* Minkar: on CFRunLoop (NSRunLoop.m). */
 @interface NSRunLoop : NSObject {
-    NSMapTable *_modes;
-    NSMutableArray *_commonModes;
-    NSString *_currentMode;
-    NSMutableArray *_continue;
-    NSMutableArray *_orderedPerforms;
     void *_cfRunLoop;
+    NSMutableArray *_orderedPerforms;
+    NSMutableArray *_timers;
+    NSMapTable *_descriptors;
+    id _servedModes;
+    CFRunLoopSourceRef _performSource;
+    CFRunLoopObserverRef _observer;
 }
 
 @property (class, readonly, strong) NSRunLoop *currentRunLoop;

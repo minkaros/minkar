@@ -57,6 +57,7 @@
 
 -(void)invalidate {
    _isValid = NO;
+   [self _unschedule];
    [_block release];
    _block = nil;
 }

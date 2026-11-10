@@ -7,8 +7,58 @@ The above copyright notice and this permission notice shall be included in all c
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE. */
 #import <Foundation/NSTimer_concrete.h>
 #import <Foundation/NSString.h>
+#import <Foundation/NSAutoreleasePool.h>
+#import <Foundation/NSDate.h>
 
 @implementation NSTimer_concrete
+
+/* Minkar: a timer in a run loop is a CFRunLoopTimer, which holds it until
+   it is invalidated. It fires at the timer's fire date, and is then set to
+   the next one (or goes, if the timer is no longer valid). */
+static const void *retainTimer(const void *info) {
+   return [(id)info retain];
+}
+
+static void releaseTimer(const void *info) {
+   [(id)info release];
+}
+
+static void timerFired(CFRunLoopTimerRef cfTimer,void *info) {
+   NSTimer_concrete  *timer=[(NSTimer_concrete *)info retain];
+   NSAutoreleasePool *pool=[NSAutoreleasePool new];
+
+   if([timer isValid])
+    [timer fire];
+   if([timer isValid])
+    CFRunLoopTimerSetNextFireDate(cfTimer,[[timer fireDate] timeIntervalSinceReferenceDate]);
+   else
+    [timer _unschedule];
+   [pool release];
+   [timer release];
+}
+
+-(void)_scheduleInRunLoop:(CFRunLoopRef)runLoop mode:(NSString *)mode {
+   if(!_isValid)
+    return;
+   if(_cfTimer==NULL){
+    CFRunLoopTimerContext context={0,self,retainTimer,releaseTimer,NULL};
+
+    // A long interval: CF's timer repeats (a one-shot one invalidates
+    // itself), and is set to each fire date the timer has.
+    _cfTimer=CFRunLoopTimerCreate(NULL,[_fireDate timeIntervalSinceReferenceDate],1.0e9,0,0,timerFired,&context);
+   }
+   CFRunLoopAddTimer(runLoop,_cfTimer,(CFStringRef)mode);
+}
+
+-(void)_unschedule {
+   CFRunLoopTimerRef cfTimer=_cfTimer;
+
+   if(cfTimer==NULL)
+    return;
+   _cfTimer=NULL;
+   CFRunLoopTimerInvalidate(cfTimer);
+   CFRelease(cfTimer);
+}
 
 -initWithFireDate:(NSDate *)date interval:(NSTimeInterval)interval repeats:(BOOL)repeats {
    _timeInterval=interval;
@@ -71,6 +121,8 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    date=[date copy];
    [_fireDate release];
    _fireDate=date;
+   if(_cfTimer!=NULL)
+    CFRunLoopTimerSetNextFireDate(_cfTimer,[_fireDate timeIntervalSinceReferenceDate]);
 }
 
 -(BOOL)isValid {

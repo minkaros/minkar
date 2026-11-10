@@ -9,7 +9,6 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #if defined(__APPLE__)
 #import <objc/runtime.h>
 #import <Foundation/Foundation.h>
-#import <Foundation/NSSelectInputSourceSet.h>
 #include <stdlib.h>
 #include <string.h>
 #import <Foundation/NSPlatform_posix.h>

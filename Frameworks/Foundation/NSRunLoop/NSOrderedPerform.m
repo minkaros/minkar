@@ -43,6 +43,10 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    return _argument;
 }
 
+-(NSArray *)modes {
+   return _modes;
+}
+
 -(NSUInteger)order {
    return _order;
 }
