@@ -17,18 +17,18 @@
 extern "C" {
 #endif
 
-typedef struct __SecKeychain *SecKeychainRef;
-typedef struct __SecKeychainItem *SecKeychainItemRef;
-typedef struct __SecKeychainSearch *SecKeychainSearchRef;
-typedef struct __SecCertificate *SecCertificateRef;
-typedef struct __SecKey *SecKeyRef;
-typedef struct __SecIdentity *SecIdentityRef;
-typedef struct __SecAccess *SecAccessRef;
-typedef struct __SecPolicy *SecPolicyRef;
-typedef struct __SecTrust *SecTrustRef;
-typedef struct __SecCode *SecCodeRef;
-typedef struct __SecCode *SecStaticCodeRef;
-typedef struct __SecRequirement *SecRequirementRef;
+typedef struct CF_BRIDGED_TYPE(id) __SecKeychain *SecKeychainRef;
+typedef struct CF_BRIDGED_TYPE(id) __SecKeychainItem *SecKeychainItemRef;
+typedef struct CF_BRIDGED_TYPE(id) __SecKeychainSearch *SecKeychainSearchRef;
+typedef struct CF_BRIDGED_TYPE(id) __SecCertificate *SecCertificateRef;
+typedef struct CF_BRIDGED_TYPE(id) __SecKey *SecKeyRef;
+typedef struct CF_BRIDGED_TYPE(id) __SecIdentity *SecIdentityRef;
+typedef struct CF_BRIDGED_TYPE(id) __SecAccess *SecAccessRef;
+typedef struct CF_BRIDGED_TYPE(id) __SecPolicy *SecPolicyRef;
+typedef struct CF_BRIDGED_TYPE(id) __SecTrust *SecTrustRef;
+typedef struct CF_BRIDGED_TYPE(id) __SecCode *SecCodeRef;
+typedef struct CF_BRIDGED_TYPE(id) __SecCode *SecStaticCodeRef;
+typedef struct CF_BRIDGED_TYPE(id) __SecRequirement *SecRequirementRef;
 
 typedef OSType SecKeychainAttrType;
 typedef FourCharCode SecItemClass;
