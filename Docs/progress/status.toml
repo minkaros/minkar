@@ -33,7 +33,7 @@
 # "bmake progress" (Docs/CONTRIBUTING.md).
 
 updated = "2026-11-10"
-commit  = "86ed0b5d33"
+commit  = "ac148eb478"
 
 deps = [["ws", 555, "dock"], ["fw", 490, "files"], ["fw", 590, "webkit"]]
 
@@ -210,10 +210,12 @@ doc_es = "ROADMAP.es.md#fase-3--frameworks-base-y-swift"
 # (10 Nov: a page drawn in the VM, 0 pixels off its reference).
 # W3: WKWebView on WPE WebKit (10 Nov), drawing, JavaScript, input and
 # the UI delegate (webkit-wpe 9/0). W4: the older WebView on the same
-# engine (webkit-legacy 7/0).
+# engine (webkit-legacy 7/0). W5: what the reference apps' code uses
+# (Sparkle's release notes, TextMate's HTML output) reproduced and
+# passing (webkit-reference-apps 5/0); the apps themselves still to run.
 stations = [
   ["W0 deps", 650, "partial"], ["W1 JSC", 710, "current"], ["W2 WebCore", 770, "done"],
-  ["W3 WKWebView", 830, "done"], ["W4 WebView", 890, "done"], ["W5 apps", 970, "todo"],
+  ["W3 WKWebView", 830, "done"], ["W4 WebView", 890, "done"], ["W5 apps", 970, "partial"],
 ]
 
 [[line]]
@@ -286,6 +288,11 @@ group = "After 19.6.0"
 items = [["x86-64 binaries, arm64", "compat"]]
 
 [[board.done]]
+title = "NSRunLoop on CFRunLoop; W5 under way"
+note = "CF sources and observers run under AppKit; Sparkle's and TextMate's web views reproduced · 10 nov"
+line = "webkit"
+
+[[board.done]]
 title = "W4: the older WebView on WPE"
 note = "frame load, policy and UI delegates, WebScriptObject, synchronous scripts from delegates · 10 nov"
 line = "webkit"
@@ -308,10 +315,5 @@ line = "base"
 [[board.done]]
 title = "Cocoa coverage met"
 note = "imported symbols 99.9 %, selectors 97.6 %; nine frameworks at 100 % · 9 nov"
-line = "fw"
-
-[[board.done]]
-title = "Security, WebKit's API, eight frameworks"
-note = "Security's subset, WKWebView and WebView (text pages), UTType, AE, Quick Look · 9 nov"
 line = "fw"
 

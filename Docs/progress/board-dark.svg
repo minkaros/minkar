@@ -2,47 +2,47 @@
 <title>Minkar work board, 2026-11-10</title>
 <rect width="1120" height="984" fill="#0d1117"/>
 <text x="16" y="30" font-size="20" font-weight="700" fill="#e6edf3" text-anchor="start">Minkar work board</text>
-<text x="16" y="52" font-size="13" font-weight="400" fill="#9198a1" text-anchor="start">2026-11-10 · devel 86ed0b5d33</text>
+<text x="16" y="52" font-size="13" font-weight="400" fill="#9198a1" text-anchor="start">2026-11-10 · devel ac148eb478</text>
 <rect x="16" y="70" width="261.5" height="906" rx="10" fill="#151b23"/>
 <text x="30" y="96" font-size="13" font-weight="700" fill="#9198a1" text-anchor="start" letter-spacing=".08em">DONE · LATEST</text>
 <rect x="26" y="114" width="241.5" height="146" rx="8" fill="#0d1117" stroke="#3d444d" stroke-width="1"/><rect x="26" y="114" width="5" height="146" rx="2" fill="#4493f8"/>
-<text x="42" y="138" font-size="15" font-weight="650" fill="#e6edf3" text-anchor="start">W4: the older WebView on</text>
-<text x="42" y="159" font-size="15" font-weight="650" fill="#e6edf3" text-anchor="start">WPE</text>
-<text x="42" y="180" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">frame load, policy and UI</text>
-<text x="42" y="199" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">delegates, WebScriptObject,</text>
-<text x="42" y="218" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">synchronous scripts from</text>
-<text x="42" y="237" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">delegates · 10 nov</text>
+<text x="42" y="138" font-size="15" font-weight="650" fill="#e6edf3" text-anchor="start">NSRunLoop on CFRunLoop;</text>
+<text x="42" y="159" font-size="15" font-weight="650" fill="#e6edf3" text-anchor="start">W5 under way</text>
+<text x="42" y="180" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">CF sources and observers run</text>
+<text x="42" y="199" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">under AppKit; Sparkle&#x27;s and</text>
+<text x="42" y="218" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">TextMate&#x27;s web views</text>
+<text x="42" y="237" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">reproduced · 10 nov</text>
 <rect x="26" y="270" width="241.5" height="146" rx="8" fill="#0d1117" stroke="#3d444d" stroke-width="1"/><rect x="26" y="270" width="5" height="146" rx="2" fill="#4493f8"/>
-<text x="42" y="294" font-size="15" font-weight="650" fill="#e6edf3" text-anchor="start">W3: WKWebView on WPE</text>
-<text x="42" y="315" font-size="15" font-weight="650" fill="#e6edf3" text-anchor="start">WebKit</text>
-<text x="42" y="336" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">pages drawn in AppKit views,</text>
-<text x="42" y="355" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">JavaScript, mouse, keys, copy</text>
-<text x="42" y="374" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">and paste, the UI delegate ·</text>
-<text x="42" y="393" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">10 nov</text>
-<rect x="26" y="426" width="241.5" height="125" rx="8" fill="#0d1117" stroke="#3d444d" stroke-width="1"/><rect x="26" y="426" width="5" height="125" rx="2" fill="#4493f8"/>
-<text x="42" y="450" font-size="15" font-weight="650" fill="#e6edf3" text-anchor="start">W2: WebKit draws a page</text>
-<text x="42" y="471" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">WPE WebKit on Minkar, IPC</text>
-<text x="42" y="490" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">over framed stream sockets; 0</text>
-<text x="42" y="509" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">pixels off the reference · 10</text>
-<text x="42" y="528" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">nov</text>
-<rect x="26" y="561" width="241.5" height="125" rx="8" fill="#0d1117" stroke="#3d444d" stroke-width="1"/><rect x="26" y="561" width="5" height="125" rx="2" fill="#9198a1"/>
-<text x="42" y="585" font-size="15" font-weight="650" fill="#e6edf3" text-anchor="start">Toolchain on LLVM 21</text>
-<text x="42" y="606" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">swift-6.4.2-RELEASE: clang</text>
-<text x="42" y="625" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">21, Swift 6.4 runtime; full</text>
-<text x="42" y="644" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">suite and M2, M3 pass · 10</text>
-<text x="42" y="663" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">nov</text>
-<rect x="26" y="696" width="241.5" height="106" rx="8" fill="#0d1117" stroke="#3d444d" stroke-width="1"/><rect x="26" y="696" width="5" height="106" rx="2" fill="#d29922"/>
-<text x="42" y="720" font-size="15" font-weight="650" fill="#e6edf3" text-anchor="start">Cocoa coverage met</text>
-<text x="42" y="741" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">imported symbols 99.9 %,</text>
-<text x="42" y="760" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">selectors 97.6 %; nine</text>
-<text x="42" y="779" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">frameworks at 100 % · 9 nov</text>
-<rect x="26" y="812" width="241.5" height="146" rx="8" fill="#0d1117" stroke="#3d444d" stroke-width="1"/><rect x="26" y="812" width="5" height="146" rx="2" fill="#d29922"/>
-<text x="42" y="836" font-size="15" font-weight="650" fill="#e6edf3" text-anchor="start">Security, WebKit&#x27;s API,</text>
-<text x="42" y="857" font-size="15" font-weight="650" fill="#e6edf3" text-anchor="start">eight frameworks</text>
-<text x="42" y="878" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">Security&#x27;s subset, WKWebView</text>
-<text x="42" y="897" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">and WebView (text pages),</text>
-<text x="42" y="916" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">UTType, AE, Quick Look · 9</text>
-<text x="42" y="935" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">nov</text>
+<text x="42" y="294" font-size="15" font-weight="650" fill="#e6edf3" text-anchor="start">W4: the older WebView on</text>
+<text x="42" y="315" font-size="15" font-weight="650" fill="#e6edf3" text-anchor="start">WPE</text>
+<text x="42" y="336" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">frame load, policy and UI</text>
+<text x="42" y="355" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">delegates, WebScriptObject,</text>
+<text x="42" y="374" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">synchronous scripts from</text>
+<text x="42" y="393" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">delegates · 10 nov</text>
+<rect x="26" y="426" width="241.5" height="146" rx="8" fill="#0d1117" stroke="#3d444d" stroke-width="1"/><rect x="26" y="426" width="5" height="146" rx="2" fill="#4493f8"/>
+<text x="42" y="450" font-size="15" font-weight="650" fill="#e6edf3" text-anchor="start">W3: WKWebView on WPE</text>
+<text x="42" y="471" font-size="15" font-weight="650" fill="#e6edf3" text-anchor="start">WebKit</text>
+<text x="42" y="492" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">pages drawn in AppKit views,</text>
+<text x="42" y="511" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">JavaScript, mouse, keys, copy</text>
+<text x="42" y="530" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">and paste, the UI delegate ·</text>
+<text x="42" y="549" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">10 nov</text>
+<rect x="26" y="582" width="241.5" height="125" rx="8" fill="#0d1117" stroke="#3d444d" stroke-width="1"/><rect x="26" y="582" width="5" height="125" rx="2" fill="#4493f8"/>
+<text x="42" y="606" font-size="15" font-weight="650" fill="#e6edf3" text-anchor="start">W2: WebKit draws a page</text>
+<text x="42" y="627" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">WPE WebKit on Minkar, IPC</text>
+<text x="42" y="646" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">over framed stream sockets; 0</text>
+<text x="42" y="665" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">pixels off the reference · 10</text>
+<text x="42" y="684" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">nov</text>
+<rect x="26" y="717" width="241.5" height="125" rx="8" fill="#0d1117" stroke="#3d444d" stroke-width="1"/><rect x="26" y="717" width="5" height="125" rx="2" fill="#9198a1"/>
+<text x="42" y="741" font-size="15" font-weight="650" fill="#e6edf3" text-anchor="start">Toolchain on LLVM 21</text>
+<text x="42" y="762" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">swift-6.4.2-RELEASE: clang</text>
+<text x="42" y="781" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">21, Swift 6.4 runtime; full</text>
+<text x="42" y="800" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">suite and M2, M3 pass · 10</text>
+<text x="42" y="819" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">nov</text>
+<rect x="26" y="852" width="241.5" height="106" rx="8" fill="#0d1117" stroke="#3d444d" stroke-width="1"/><rect x="26" y="852" width="5" height="106" rx="2" fill="#d29922"/>
+<text x="42" y="876" font-size="15" font-weight="650" fill="#e6edf3" text-anchor="start">Cocoa coverage met</text>
+<text x="42" y="897" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">imported symbols 99.9 %,</text>
+<text x="42" y="916" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">selectors 97.6 %; nine</text>
+<text x="42" y="935" font-size="13.5" font-weight="400" fill="#9198a1" text-anchor="start">frameworks at 100 % · 9 nov</text>
 <rect x="291.5" y="70" width="261.5" height="906" rx="10" fill="#151b23"/>
 <text x="305.5" y="96" font-size="13" font-weight="700" fill="#9198a1" text-anchor="start" letter-spacing=".08em">NOW</text>
 <rect x="301.5" y="114" width="241.5" height="106" rx="8" fill="#0d1117" stroke="#4493f8" stroke-width="2"/><rect x="301.5" y="114" width="5" height="106" rx="2" fill="#4493f8"/>
