@@ -33,7 +33,7 @@
 # "bmake progress" (Docs/CONTRIBUTING.md).
 
 updated = "2026-11-10"
-commit  = "e5e516dade"
+commit  = "86ed0b5d33"
 
 deps = [["ws", 555, "dock"], ["fw", 490, "files"], ["fw", 590, "webkit"]]
 
@@ -209,11 +209,11 @@ doc_es = "ROADMAP.es.md#fase-3--frameworks-base-y-swift"
 # W2: WebCore and the processes on WPE (clang 21), gate w2-check passed
 # (10 Nov: a page drawn in the VM, 0 pixels off its reference).
 # W3: WKWebView on WPE WebKit (10 Nov), drawing, JavaScript, input and
-# the UI delegate (webkit-wpe 9/0). W4: the older WebView still shows
-# pages as text.
+# the UI delegate (webkit-wpe 9/0). W4: the older WebView on the same
+# engine (webkit-legacy 7/0).
 stations = [
   ["W0 deps", 650, "partial"], ["W1 JSC", 710, "current"], ["W2 WebCore", 770, "done"],
-  ["W3 WKWebView", 830, "done"], ["W4 WebView", 890, "partial"], ["W5 apps", 970, "todo"],
+  ["W3 WKWebView", 830, "done"], ["W4 WebView", 890, "done"], ["W5 apps", 970, "todo"],
 ]
 
 [[line]]
@@ -244,11 +244,11 @@ stations = [["x86-64 apps", 1082, "todo"], ["arm64", 1150, "todo"]]
 # The work board. "line" picks a card's colour; "here" marks a station of
 # the metro map as where work is.
 [board]
-here = "W4 WebView"
+here = "W5 apps"
 
 [[board.now]]
 title = "WebKit: WPE as the engine"
-note = "WKWebView on WPE (W3); the older WebView next (W4), then the reference apps (W5)"
+note = "WKWebView and WebView on WPE (W3, W4); the reference apps' web views next (W5)"
 line = "webkit"
 
 [[board.now]]
@@ -286,6 +286,11 @@ group = "After 19.6.0"
 items = [["x86-64 binaries, arm64", "compat"]]
 
 [[board.done]]
+title = "W4: the older WebView on WPE"
+note = "frame load, policy and UI delegates, WebScriptObject, synchronous scripts from delegates · 10 nov"
+line = "webkit"
+
+[[board.done]]
 title = "W3: WKWebView on WPE WebKit"
 note = "pages drawn in AppKit views, JavaScript, mouse, keys, copy and paste, the UI delegate · 10 nov"
 line = "webkit"
@@ -309,9 +314,4 @@ line = "fw"
 title = "Security, WebKit's API, eight frameworks"
 note = "Security's subset, WKWebView and WebView (text pages), UTType, AE, Quick Look · 9 nov"
 line = "fw"
-
-[[board.done]]
-title = "A1: Terminal"
-note = "libvterm in Agave, tabs, scrollback, colors; Preferences with Light and Dark schemes · 8 nov"
-line = "apps"
 
