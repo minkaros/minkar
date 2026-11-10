@@ -616,27 +616,27 @@ NSString* NSImageCompressionFactor = @"NSImageCompressionFactor";
 
    switch(type){
 
-    case NSTIFFFileType:
+    case NSBitmapImageFileTypeTIFF:
      uti=(CFStringRef)@"public.tiff";
      break;
 
-    case NSBMPFileType:
+    case NSBitmapImageFileTypeBMP:
      uti=(CFStringRef)@"com.microsoft.bmp";
      break;
 
-    case NSGIFFileType:
+    case NSBitmapImageFileTypeGIF:
      uti=(CFStringRef)@"com.compuserve.gif";
      break;
 
-    case NSJPEGFileType:
+    case NSBitmapImageFileTypeJPEG:
      uti=(CFStringRef)@"public.jpeg";
      break;
 
-    case NSPNGFileType:
+    case NSBitmapImageFileTypePNG:
      uti=(CFStringRef)@"public.png";
      break;
 
-    case NSJPEG2000FileType:
+    case NSBitmapImageFileTypeJPEG2000:
      uti=(CFStringRef)@"public.jpeg-2000";
      break;
 

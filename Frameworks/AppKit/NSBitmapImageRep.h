@@ -10,14 +10,22 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <AppKit/NSGraphics.h>
 #import <ApplicationServices/ApplicationServices.h>
 
-typedef enum {
-    NSTIFFFileType,
-    NSBMPFileType,
-    NSGIFFileType,
-    NSJPEGFileType,
-    NSPNGFileType,
-    NSJPEG2000FileType,
-} NSBitmapImageFileType;
+typedef NS_ENUM(NSUInteger, NSBitmapImageFileType) {
+    NSBitmapImageFileTypeTIFF,
+    NSBitmapImageFileTypeBMP,
+    NSBitmapImageFileTypeGIF,
+    NSBitmapImageFileTypeJPEG,
+    NSBitmapImageFileTypePNG,
+    NSBitmapImageFileTypeJPEG2000
+};
+
+/* The older names (before API 10.12's). */
+static const NSBitmapImageFileType NSTIFFFileType = NSBitmapImageFileTypeTIFF;
+static const NSBitmapImageFileType NSBMPFileType = NSBitmapImageFileTypeBMP;
+static const NSBitmapImageFileType NSGIFFileType = NSBitmapImageFileTypeGIF;
+static const NSBitmapImageFileType NSJPEGFileType = NSBitmapImageFileTypeJPEG;
+static const NSBitmapImageFileType NSPNGFileType = NSBitmapImageFileTypePNG;
+static const NSBitmapImageFileType NSJPEG2000FileType = NSBitmapImageFileTypeJPEG2000;
 
 typedef enum {
     NSTIFFCompressionNone = 1,
