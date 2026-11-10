@@ -160,7 +160,13 @@ all: install-extlib
 
 # The tree with our patches, made again when they or the manifest change,
 # or the recipe (where EXTLIB_PATCHES is: a patch taken off the list
-# changes no file the tree depends on otherwise).
+# changes no file the tree depends on otherwise). An autotools tree's
+# generated files are made newer than their sources, in their order
+# (aclocal.m4, then what is made from it, a second later: the same instant
+# is not enough, as find touches them in its own order). A tree copied from the
+# repository has its files' dates in checkout order, and make would run
+# configure again, without the environment it was first given (libtool then
+# takes the build host's GNU ld).
 .if defined(EXTLIB_SOURCE)
 _EXTLIB_ORIGIN =	${.CURDIR}/Makefile
 _EXTLIB_PRISTINE =	echo ${EXTLIB_SOURCE}
@@ -180,6 +186,12 @@ ${SRC}/.minkar-patches: ${EXTLIB_PATCHES:@p@${EXTLIB_DIR}/patches/${p}@} ${_EXTL
 	for p in ${EXTLIB_PATCHES}; do \
 		patch -s -p1 -d ${SRC}.part < ${EXTLIB_DIR}/patches/$$p || exit 1; \
 	done && \
+	if [ "${EXTLIB_SYSTEM}" = autotools ]; then \
+		t=$$(date +%s) && \
+		find ${SRC}.part -name aclocal.m4 -exec touch -d @$$t {} + && \
+		find ${SRC}.part \( -name configure -o -name config.h.in -o \
+		    -name Makefile.in \) -exec touch -d @$$((t + 1)) {} +; \
+	fi && \
 	mv ${SRC}.part ${SRC}
 	cat ${.ALLSRC} | cksum > ${.TARGET}
 
