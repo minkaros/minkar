@@ -48,8 +48,13 @@ extern const union __nan_un {
 #ifdef __MATH_BUILTIN_CONSTANTS
 #define	HUGE_VALF	__builtin_huge_valf()
 #define	HUGE_VALL	__builtin_huge_vall()
+/* clang's float.h may define them already (C23). */
+#ifndef INFINITY
 #define	INFINITY	__builtin_inff()
+#endif
+#ifndef NAN
 #define	NAN		__builtin_nanf("")
+#endif
 #else
 #define	HUGE_VALF	(float)HUGE_VAL
 #define	HUGE_VALL	(long double)HUGE_VAL

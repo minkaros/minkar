@@ -1,16 +1,19 @@
-A system without Security.framework (Minkar, until it has one): the
-trust store is OpenSSL's own (/etc/ssl), as on other Unix systems.
+Security.framework optional: without it (or, as with Minkar's subset,
+without SEC_OS_OSX and the trust settings) the trust store is OpenSSL's own
+(/etc/ssl), as on other Unix systems. The define goes with the dependency:
+add_project_arguments cannot follow the targets declared before it.
 
 --- a/tls/meson.build	2026-11-06 03:32:49.202150623 -0500
 +++ b/tls/meson.build	2026-11-06 03:32:49.234147762 -0500
-@@ -6,7 +6,10 @@
+@@ -6,7 +6,11 @@
  
  if backends.contains('openssl')
    if ['darwin', 'ios'].contains(host_system)
 -    security_dep = dependency('appleframeworks', modules : ['Security'])
 +    security_dep = dependency('appleframeworks', modules : ['Security'], required : false)
 +    if security_dep.found()
-+      add_project_arguments('-DHAVE_SECURITY_FRAMEWORK', language : 'c')
++      security_dep = declare_dependency(dependencies : security_dep,
++                                        compile_args : '-DHAVE_SECURITY_FRAMEWORK')
 +    endif
    elif ['windows'].contains(host_system)
      crypt32_dep = cc.find_library('crypt32')

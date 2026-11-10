@@ -54,8 +54,13 @@ typedef double		double_t;
 #define	HUGE_VAL	__builtin_huge_val()
 #define	HUGE_VALF	__builtin_huge_valf()
 #define	HUGE_VALL	__builtin_huge_vall()
+/* clang's float.h may define them already (C23). */
+#ifndef INFINITY
 #define	INFINITY	__builtin_inff()
+#endif
+#ifndef NAN
 #define	NAN		__builtin_nanf("")
+#endif
 
 /* fpclassify() results, with macOS's values. */
 #define	FP_NAN		1

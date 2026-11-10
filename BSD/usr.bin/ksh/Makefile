@@ -70,7 +70,7 @@ ${.OBJDIR}/ksh: ${.CURDIR}/Makefile
 
 record: .PHONY
 	rm -f ${.CURDIR}/iffe-results ${.OBJDIR}/ksh
-	${MAKE} -f ${.CURDIR}/Makefile KX_RECORD=1 ${.OBJDIR}/ksh
+	${MAKE} -C ${.CURDIR} -f ${.CURDIR}/Makefile KX_RECORD=1 ${.OBJDIR}/ksh
 
 ${.OBJDIR}/.installed: ${.OBJDIR}/ksh
 	mkdir -p ${SYSROOT_DIR}/bin ${SYSROOT_DIR}/usr/share/man/man1

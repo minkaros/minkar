@@ -36,7 +36,8 @@ H_DARWIN =	ac_cv_func_snprintf_working=yes ac_cv_func_vsnprintf_working=yes \
 		krb_cv_c_bigendian=no ac_cv_func_getpwnam_r_posix=yes \
 		ac_cv_func_getcwd_broken=no \
 		ac_cv_header_CommonCrypto_CommonDigest_h=no \
-		ac_cv_header_CommonCrypto_CommonCryptor_h=no
+		ac_cv_header_CommonCrypto_CommonCryptor_h=no \
+		rk_cv_framework_security=no
 GM =		env -u CFLAGS -u LDFLAGS -u CXXFLAGS -u MACOSX_DEPLOYMENT_TARGET \
 		MAKEFLAGS="" ${TOOLS}/gmake
 
