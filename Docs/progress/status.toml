@@ -32,8 +32,8 @@
 # commit that closes a milestone updates this file and runs
 # "bmake progress" (Docs/CONTRIBUTING.md).
 
-updated = "2026-11-09"
-commit  = "c0691e1aed"
+updated = "2026-11-10"
+commit  = "31b0c7800c"
 
 deps = [["ws", 555, "dock"], ["fw", 490, "files"], ["fw", 590, "webkit"]]
 
@@ -206,10 +206,12 @@ doc_es = "ROADMAP.es.md#fase-3--frameworks-base-y-swift"
 # Part of Minkar 19.6.0 (W0 to W5). W0: its libraries in, 21 of 23 pass
 # their own tests on PC 2 (FreeType and WOFF2 have none that run offline).
 # W1: JavaScriptCore with its JIT, gate w1-check (es6 605 of 605).
+# W2: WebCore and the processes on WPE (clang 21), gate w2-check passed
+# (10 Nov: a page drawn in the VM, 0 pixels off its reference).
 # W3, W4: the API classes are in (9 Nov), pages shown as text until the
 # engine is WPE WebKit.
 stations = [
-  ["W0 deps", 650, "partial"], ["W1 JSC", 710, "current"], ["W2 WebCore", 770, "todo"],
+  ["W0 deps", 650, "partial"], ["W1 JSC", 710, "current"], ["W2 WebCore", 770, "done"],
   ["W3 WKWebView", 830, "partial"], ["W4 WebView", 890, "partial"], ["W5 apps", 970, "todo"],
 ]
 
@@ -241,11 +243,11 @@ stations = [["x86-64 apps", 1082, "todo"], ["arm64", 1150, "todo"]]
 # The work board. "line" picks a card's colour; "here" marks a station of
 # the metro map as where work is.
 [board]
-here = "W1 JSC"
+here = "W3 WKWebView"
 
 [[board.now]]
 title = "WebKit: WPE as the engine"
-note = "the API classes are in, pages as text; JavaScriptCore, then WebCore under them"
+note = "WebCore draws pages (W2); WKWebView and WebView on WPE next (W3, W4)"
 line = "webkit"
 
 [[board.now]]
@@ -283,6 +285,16 @@ group = "After 19.6.0"
 items = [["x86-64 binaries, arm64", "compat"]]
 
 [[board.done]]
+title = "W2: WebKit draws a page"
+note = "WPE WebKit on Minkar, IPC over framed stream sockets; 0 pixels off the reference · 10 nov"
+line = "webkit"
+
+[[board.done]]
+title = "Toolchain on LLVM 21"
+note = "swift-6.4.2-RELEASE: clang 21, Swift 6.4 runtime; full suite and M2, M3 pass · 10 nov"
+line = "base"
+
+[[board.done]]
 title = "Cocoa coverage met"
 note = "imported symbols 99.9 %, selectors 97.6 %; nine frameworks at 100 % · 9 nov"
 line = "fw"
@@ -302,12 +314,3 @@ title = "A4: Logs"
 note = "os_log's messages live, filtered by level, process and subsystem; crash reports and log files · 8 nov"
 line = "apps"
 
-[[board.done]]
-title = "A3: System Monitor"
-note = "processes, CPU, memory, disk, network; quit and force quit; text drawing 5× faster · 8 nov"
-line = "apps"
-
-[[board.done]]
-title = "A0: the app base"
-note = "Atlas's About, help books, documents with versions, the app template · 8 nov"
-line = "apps"
